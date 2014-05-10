@@ -17,12 +17,12 @@ module.exports = function(grunt) {
     }
   });
 
-  var vIndex = __dirname.indexOf('/v/');
+  var vIndex = __dirname.indexOf('/go/');
   assert.notEqual(vIndex, -1, 'Failed to find Veyron root dir');
 
   grunt.constants = {
     LOG_DIR: path.resolve('log'),
-    VEYRON_BIN_DIR: __dirname.substr(0, vIndex) + '/v/bin',
+    VEYRON_BIN_DIR: __dirname.substr(0, vIndex) + '/go/bin',
     VEYRON_IDENTITY_PORT: 3000,
     VEYRON_PROXY_PORT: 3001,
     VEYRON_WSPR_PORT: 3002

@@ -88,7 +88,7 @@ module.exports = function(grunt) {
       // todos_appd via env vars or flags.
       grunt.file.write('todos_appd/js/env.js', code);
 
-      console.log('Now run this: ./v/bin/todos_appd');
+      console.log('Now run this: ./go/bin/todos_appd');
     });
 
     // Note, we do not call done() here, because we want to block until the user

@@ -31,7 +31,7 @@ var (
 
 var rootDir = path.Join(
 	"/usr/local/google/home/sadovsky",
-	"veyron/v0/v/src/veyron/examples/todos/todos_appd")
+	"veyron/v0/go/src/veyron/examples/todos/todos_appd")
 
 func init() {
 	username := "unknown"

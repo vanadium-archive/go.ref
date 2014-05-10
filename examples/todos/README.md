@@ -9,5 +9,5 @@ make lint
 
 vgo install {veyron,veyron2}/...
 npm install
-gofmt -w v/src/veyron/examples/todos
+gofmt -w go/src/veyron/examples/todos
 grunt start
