@@ -31,7 +31,7 @@ module.exports = function(grunt) {
     // Define constants.
     var c = grunt.constants;
     var VEYRON_IDENTITY_BIN = c.VEYRON_BIN_DIR + '/identityd';
-    var VEYRON_PROXY_BIN = c.VEYRON_BIN_DIR + '/proxy';
+    var VEYRON_PROXY_BIN = c.VEYRON_BIN_DIR + '/proxyd';
     var VEYRON_WSPR_BIN = c.VEYRON_BIN_DIR + '/wsprd';
     var STORE_BIN = c.VEYRON_BIN_DIR + '/todos_stored';
     var VEYRON_PROXY_ADDR = '127.0.0.1:' + c.VEYRON_PROXY_PORT;
