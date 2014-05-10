@@ -1,0 +1,12 @@
+# Create an object DAG locally with branches and resolved conflicts.
+# The format is: <cmd>|<objid>|<version>|<parent1>|<parent2>|<logrec>
+
+addl|12345|0|||logrec-00
+addl|12345|1|0||logrec-01
+addl|12345|2|1||logrec-02
+addl|12345|3|1||logrec-03
+addl|12345|4|2|3|logrec-04
+addl|12345|5|4||logrec-05
+addl|12345|6|1||logrec-06
+addl|12345|7|5|6|logrec-07
+addl|12345|8|7||logrec-08

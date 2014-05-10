@@ -1,0 +1,37 @@
+<html>
+<head>
+<title>{{.Name}}</title>
+<link rel="stylesheet" href="/css/movie.css">
+</head>
+<body>
+<p><a href="/movies">Movies</a> <a href="/people">People</a></p>
+{{$value := .}}
+
+<!-- Movie listing -->
+{{with $value.Glob "movies/*"}}
+<div class="moviesbox">
+<h2>Movies<h2>
+<table class="moviestable">
+{{range .}}
+<tr>
+<td class="movieentry"><a href="{{.}}">{{$value.Base .}}</a>
+</tr>
+{{end}}
+</table>
+</div>
+{{end}}
+
+<!-- People listing -->
+{{with $value.Glob "people/*"}}
+<h2>People</h2>
+{{range .}}
+<div class="peoplebox">
+<p><a href="{{.}}">{{$value.Base .}}</a></p>
+</div>
+{{end}}
+{{end}}
+
+<!-- Debugging -->
+<span class="debug">{{.Name}} <a href="?raw">Raw</a></span>
+</body>
+</html>

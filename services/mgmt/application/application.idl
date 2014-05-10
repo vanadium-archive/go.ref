@@ -1,0 +1,25 @@
+// Package application contains implementation of the interface for
+// serving application metadata.
+package application
+
+import "veyron2/security"
+import public "veyron2/services/mgmt/application"
+
+// Repository describes an application repository internally. Besides
+// the public Repository interface, it allows to manage the actual
+// application metadata.
+type Repository interface {
+  public.Repository
+  // Put adds the given tuple of application version (specified
+  // through the veyron name suffix) and application envelope to all
+  // of the given application profiles.
+  Put(Profiles []string, Envelope public.Envelope) error {security.WriteLabel}
+  // Remove removes the application envelope for the given profile
+  // name and application version (specified through the veyron name
+  // suffix). If no version is specified as part of the suffix, the
+  // method removes all versions for the given profile.
+  //
+  // TODO(jsimsa): Add support for using "*" to specify all profiles
+  // when Matt implements Globing (or Ken implements querying).
+  Remove(Profile string) error {security.WriteLabel}
+}

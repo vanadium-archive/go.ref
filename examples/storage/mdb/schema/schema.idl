@@ -1,0 +1,52 @@
+package schema
+
+import (
+	"veyron2/storage"
+)
+
+// Dir is used to represent directories.
+type Dir struct{
+	// TODO(jyh): The IDL does not recognize empty structs.  Fix it and remove this
+	// useless field.
+	X byte
+}
+
+// Movie represents a movie.
+type Movie struct {
+	Image       string // URL
+	Title       string
+	Summary     string
+	Language    string
+	// TODO(jyh): Replace these times with IDL types when they are implemented.
+	ReleaseDate int64  // ns since the Unix epoch.
+	Runtime     int64  // ns
+	Genre       string
+	Director    storage.ID
+	// Subdirectories:
+	//
+	// Cast/ contains values of type Part.
+	// Reviews/ contains values of type Review.
+}
+
+// Part represents the role of an actor.
+type Part struct {
+	Actor     storage.ID // Person
+	Character string
+}
+
+// Review is a movie review.
+type Review struct {
+	Rating byte // 1-10.
+	Text   string
+}
+
+// Person represents a person, in any role, including producers, director,
+// actor, etc.
+type Person struct {
+	Image     string // URL
+	Name      string
+	BirthDate int64 // ns since the Unix epoch.
+	// Subdirectories:
+	//
+	// Roles/ contains values of type Role.
+}

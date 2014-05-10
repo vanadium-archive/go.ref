@@ -1,0 +1,23 @@
+package schema
+
+// Dir represents a directory.
+type Dir struct{
+	// TODO(jyh): The IDL does not recognize empty structs. Fix it and remove this
+	// useless field.
+	X byte
+}
+
+// List is a list of items.
+type List struct {
+	Name  string
+	// Subdirectories:
+	//
+	// Items/ contains values of type Item.
+}
+
+// Item is a single task to be done.
+type Item struct {
+	Text string
+	Done bool
+	Tags []string
+}

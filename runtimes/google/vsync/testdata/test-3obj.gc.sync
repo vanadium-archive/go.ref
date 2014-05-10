@@ -1,0 +1,44 @@
+# The format is: <cmd>|<objid>|<version>|<parent1>|<parent2>|<logrec>
+# Local node is A. Remote nodes are B and C.
+addl|123|1|||A:1:0
+
+addr|456|1|||B:1:0
+
+addr|456|2|1||B:2:0
+addr|123|2|1||B:2:1
+
+addl|456|3|2||A:2:0
+addl|123|4|2||A:2:1
+
+addr|789|1|||C:1:0
+
+addr|789|2|1||C:2:0
+
+addr|123|3|1||C:3:0
+addr|789|3|2||C:3:1
+
+addr|123|5|3|2|C:4:0
+
+addl|123|6|4|5|A:3:0
+addl|456|4|3||A:3:1
+addl|789|4|3||A:3:2
+
+addr|456|5|2||B:3:0
+
+addl|456|7|4|5|A:4:0
+
+addr|456|6|2||C:5:0
+addr|123|7|5||C:5:1
+addr|123|8|7||C:5:2
+addr|789|5|3||C:5:3
+
+addl|123|9|6|8|A:5:0
+addl|456|8|6|7|A:5:1
+addl|789|6|4|5|A:5:2
+
+addl|123|10|9||A:6:0
+
+# Devtable state
+setdev|A|A:6,B:3,C:5
+setdev|B|A:4,B:3,C:4
+setdev|C|A:4,B:3,C:4

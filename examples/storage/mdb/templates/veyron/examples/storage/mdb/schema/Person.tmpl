@@ -1,0 +1,29 @@
+<html>
+<head>
+<title>{{.Value.Name}}</title>
+<link rel="stylesheet" href="/css/movie.css">
+</head>
+<body>
+<p><a href="/movies">Movies</a> <a href="/people">People</a></p>
+{{$value := .}}
+<p>
+<table>
+<tr>
+<td valign="top">
+<img src="{{.Value.Image}}" align="bottom">
+<td valign="top">
+<div>
+<span class="title">{{.Value.Name}}</span>
+</div>
+</tr>
+</table>
+
+<p>
+{{$date := $value.Date .Value.BirthDate}}
+Born: <span class="date">{{$date.Month}} {{$date.Day}}, {{$date.Year}}</span>
+</p>
+
+<!-- Debugging -->
+<span class="debug">{{.Name}} <a href="?raw">Raw</a></span>
+</body>
+</html>

@@ -1,0 +1,35 @@
+package test_base
+
+type Struct struct {
+  X,Y int32
+}
+
+type TypeTester interface {
+  // Methods to test support for generic types.
+  Bool(I1 bool) (O1 bool, E error)
+  Float32(I1 float32) (O1 float32, E error)
+  Float64(I1 float64) (O1 float64, E error)
+  Int32(I1 int32) (O1 int32, E error)
+  Int64(I1 int64) (O1 int64, E error)
+  String(I1 string) (O1 string, E error)
+  Byte(I1 byte) (O1 byte, E error)
+  UInt32(I1 uint32) (O1 uint32, E error)
+  UInt64(I1 uint64) (O1 uint64, E error)
+
+  // Methods to test support for composite types.
+  InputArray(I1 [2]byte) (E error)
+  InputMap(I1 map[byte]byte) (E error)
+  InputSlice(I1 []byte) (E error)
+  InputStruct(I1 Struct) (E error)
+  OutputArray() (O1 [2]byte, E error)
+  OutputMap() (O1 map[byte]byte, E error)
+  OutputSlice() (O1 []byte, E error)
+  OutputStruct() (O1 Struct, E error)
+
+  // Methods to test support for different number of arguments.
+  NoArguments() error
+  MultipleArguments(I1, I2 int32) (O1, O2 int32, E error)
+
+  // Methods to test support for streaming.
+  StreamingOutput(NumStreamItems int32, StreamItem bool) stream<_, bool> error
+}

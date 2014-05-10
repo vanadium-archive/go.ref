@@ -1,0 +1,92 @@
+package mounttable
+
+import (
+	"sync"
+	"time"
+
+	"veyron2"
+	"veyron2/naming"
+	"veyron2/verror"
+)
+
+// TODO(caprita): This library should be moved out of the runtime
+// implementation.
+
+// namespace is an implementation of naming.MountTable.
+type namespace struct {
+	sync.RWMutex
+	rt veyron2.Runtime
+
+	// the default root servers for resolutions in this namespace.
+	roots []string
+}
+
+func rooted(names []string) bool {
+	for _, n := range names {
+		if a, _ := naming.SplitAddressName(n); len(a) == 0 {
+			return false
+		}
+	}
+	return true
+}
+
+func badRoots(roots []string) verror.E {
+	return verror.BadArgf("At least one root is not a rooted name: %q", roots)
+}
+
+// Create a new namespace.
+func New(rt veyron2.Runtime, roots ...string) (*namespace, error) {
+	if !rooted(roots) {
+		return nil, badRoots(roots)
+	}
+	// A namespace with no roots can still be used for lookups of rooted names.
+	return &namespace{rt: rt, roots: roots}, nil
+}
+
+// TODO(cnicolaou,caprita): make this a public interface.
+// SetLocalRoots points the local roots at a set of mount table servers.
+func (ns *namespace) SetLocalRoots(roots ...string) error {
+	if !rooted(roots) {
+		return badRoots(roots)
+	}
+	ns.Lock()
+	defer ns.Unlock()
+	ns.roots = roots
+	return nil
+}
+
+// rootName 'roots' a name: if name is not a rooted name, it prepends the root
+// mounttable's OA.
+func (ns *namespace) rootName(name string) []string {
+	if address, _ := naming.SplitAddressName(name); len(address) == 0 {
+		var ret []string
+		ns.RLock()
+		defer ns.RUnlock()
+		for _, r := range ns.roots {
+			ret = append(ret, naming.Join(r, name))
+		}
+		return ret
+	}
+	return []string{name}
+}
+
+// notAnMT returns true if the error indicates this isn't a mounttable server.
+func notAnMT(err error) bool {
+	switch verror.ErrorID(err) {
+	case verror.BadArg:
+		// This should cover "ipc: wrong number of in-args".
+		return true
+	case verror.NotFound:
+		// This should cover "ipc: unknown method", "ipc: dispatcher not
+		// found", and "ipc: SoloDispatcher lookup on non-empty suffix".
+		return true
+	case verror.BadProtocol:
+		// This covers "ipc: response decoding failed: EOF".
+		return true
+	}
+	return false
+}
+
+// all operations against the mount table service use this fixed timeout for the
+// time being.
+const callTimeout = veyron2.CallTimeout(10 * time.Second)

@@ -1,0 +1,63 @@
+<html>
+<head>
+<title>{{.Value.Title}}</title>
+<link rel="stylesheet" href="/css/movie.css">
+</head>
+<body>
+<p><a href="/movies">Movies</a> <a href="/people">People</a></p>
+{{$value := .}}
+{{$releaseDate := $value.Date .Value.ReleaseDate}}
+<p>
+<table>
+<tr>
+<td valign="top">
+<img src="{{.Value.Image}}" align="bottom">
+<td valign="top">
+<div>
+<span class="title">{{.Value.Title}}</span>
+<span class="date">({{$releaseDate.Year}})</span>
+<span class="genre">{{.Value.Genre}}</span>
+<p>
+{{$directorName := $value.Join $value.Name "Director"}}
+{{$director := $value.Get $directorName}}
+Director: <a href="{{$directorName}}">{{$director.Name}}</a>
+</div>
+</tr>
+</table>
+
+<!-- Table to display the cast -->
+{{with $value.Glob "Cast/*"}}
+<div class="castbox">
+<h2>Cast<h2>
+<table class="cast">
+{{range .}}
+<tr>
+{{$name := .}}
+{{$part := $value.Get $name}}
+{{$path := $value.Join $name "Actor"}}
+{{$actor := $value.Get $path}}
+<td class="castactor"><a href="{{$path}}">{{$actor.Name}}</a>
+<td class="castchar">{{$part.Character}}
+</tr>
+{{end}}
+</table>
+</div>
+{{end}}
+
+<!-- Reviews -->
+{{with $value.Glob "Reviews/*"}}
+<h2>Reviews</h2>
+{{range .}}
+{{$review := $value.Get .}}
+<div class="reviewbox">
+<span class="rating">Rating: {{$review.Rating}}/10</span>
+<p>
+<span class="reviewtext">{{$review.Text}}</span>
+</div>
+{{end}}
+{{end}}
+
+<!-- Debugging -->
+<span class="debug">{{.Name}} <a href="?raw">Raw</a></span>
+</body>
+</html>

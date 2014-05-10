@@ -1,0 +1,26 @@
+// Boxes is an android app that uses veyron to share views
+// between peer devices.
+package boxes
+
+// BoxSignalling allows peers to rendezvous with each other
+type BoxSignalling interface {
+  // Add endpoint information to the signalling server.
+ Add(Endpoint string) (Err error)
+ // Get endpoint information about a peer.
+ Get() (Endpoint string, Err error)
+}
+
+// Box describes the name and co-ordinates of a given box that
+// is displayed in the View of a peer device.
+type Box struct {
+ // BoxId is a unique name for a box
+ BoxId string
+ // Points are the co-ordinates of a given box
+ Points [4]float32
+}
+
+// DrawInterface enables adding a box on another peer
+type DrawInterface interface {
+  // Send/Receive a stream of boxes with another peer
+  Draw() stream<Box, Box> (Err error)
+}
