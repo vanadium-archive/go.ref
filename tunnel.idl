@@ -1,0 +1,40 @@
+package tunnel
+
+import "veyron2/security"
+
+// Tunnel creates a network tunnel from the client to the server.
+
+type Tunnel interface {
+  // The Forward method is used for network forwarding. All the data sent over
+  // the byte stream is forwarded to the requested network address and all the
+  // data received from that network connection is sent back in the reply
+  // stream.
+  Forward(network, address string) stream<[]byte, []byte> error {security.AdminLabel}
+
+  // The Shell method is used to either run shell commands remotely, or to open
+  // an interactive shell. The data received over the byte stream is sent to the
+  // shell's stdin, and the data received from the shell's stdout and stderr is
+  // sent back in the reply stream. It returns the exit status of the shell
+  // command.
+  Shell(command string, shellOpts ShellOpts) stream<ClientShellPacket, ServerShellPacket> (int32, error) {security.AdminLabel}
+}
+
+type ShellOpts struct {
+	UsePty       bool      // Whether to open a pseudo-terminal
+	Environment  []string  // Environment variables to pass to the remote shell.
+	Rows, Cols   uint32    // Window size.
+}
+
+type ClientShellPacket struct {
+        // Bytes going to the shell's stdin.
+        Stdin       []byte
+        // A dynamic update of the window size. The default value of 0 means no-change.
+        Rows, Cols  uint32
+}
+
+type ServerShellPacket struct {
+        // Bytes coming from the shell's stdout.
+        Stdout      []byte
+        // Bytes coming from the shell's stderr.
+        Stderr      []byte
+}
