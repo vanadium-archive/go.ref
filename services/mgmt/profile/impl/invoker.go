@@ -8,7 +8,7 @@ import (
 
 	"veyron2/ipc"
 	"veyron2/storage"
-	"veyron2/storage/vstore"
+	"veyron2/storage/vstore/primitives"
 	"veyron2/vlog"
 )
 
@@ -54,7 +54,7 @@ func makeParentNodes(store storage.Store, transaction storage.Transaction, path 
 
 func (i *invoker) Put(context ipc.Context, profile profile.Specification) error {
 	vlog.VI(0).Infof("%v.Put(%v)", i.suffix, profile)
-	transaction := vstore.NewTransaction()
+	transaction := primitives.NewTransaction()
 	path := path.Join("/profiles", i.suffix)
 	if err := makeParentNodes(i.store, transaction, path); err != nil {
 		return err
@@ -71,7 +71,7 @@ func (i *invoker) Put(context ipc.Context, profile profile.Specification) error 
 
 func (i *invoker) Remove(context ipc.Context) error {
 	vlog.VI(0).Infof("%v.Remove(%v)", i.suffix)
-	transaction := vstore.NewTransaction()
+	transaction := primitives.NewTransaction()
 	path := path.Join("/profiles", i.suffix)
 	object := i.store.Bind(path)
 	found, err := object.Exists(transaction)

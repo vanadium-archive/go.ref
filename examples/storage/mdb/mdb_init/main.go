@@ -27,6 +27,7 @@ import (
 	"veyron2/security"
 	"veyron2/storage"
 	"veyron2/storage/vstore"
+	"veyron2/storage/vstore/primitives"
 	"veyron2/vlog"
 )
 
@@ -185,7 +186,7 @@ func (st *state) makeParentDirs(path string) {
 
 // newTransaction starts a new transaction.
 func (st *state) newTransaction() {
-	st.transaction = vstore.NewTransaction()
+	st.transaction = primitives.NewTransaction()
 }
 
 // commit commits the current transaction.
