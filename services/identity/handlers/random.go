@@ -14,7 +14,19 @@ import (
 type Random struct{ Runtime veyron2.Runtime }
 
 func (h Random) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	id, err := h.Runtime.NewIdentity(fmt.Sprintf("random:%d", rand.Intn(1000)))
+	name := fmt.Sprintf("random:%d", rand.Intn(1000))
+	id, err := h.Runtime.NewIdentity(name)
+	if err != nil {
+		util.HTTPServerError(w, err)
+		return
+	}
+	// Bless this with the identity of the runtime, valid forever (approximately 290 years)
+	blessing, err := h.Runtime.Identity().Bless(id.PublicID(), name, 0x7fffffffffffffff, nil)
+	if err != nil {
+		util.HTTPServerError(w, err)
+		return
+	}
+	id, err = id.Derive(blessing)
 	if err != nil {
 		util.HTTPServerError(w, err)
 		return
