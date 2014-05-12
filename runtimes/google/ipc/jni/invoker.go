@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"reflect"
 	"runtime"
-	"unsafe"
 
 	"veyron2/ipc"
 	"veyron2/security"
