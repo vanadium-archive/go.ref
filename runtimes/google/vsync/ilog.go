@@ -39,7 +39,6 @@ package vsync
 import (
 	"errors"
 	"fmt"
-	"io"
 	"strconv"
 	"strings"
 
@@ -318,6 +317,22 @@ func (l *iLog) createLocalLogRec(obj storage.ID, vers storage.Version, par []sto
 	return rec, nil
 }
 
+// createRemoteGeneration adds a new remote generation.
+func (l *iLog) createRemoteGeneration(dev DeviceID, gnum GenID, gen *genMetadata) error {
+	if l.db == nil {
+		return errInvalidLog
+	}
+
+	if gen.Count != uint64(gen.MaxLSN+1) {
+		return errors.New("mismatch in count and lsn")
+	}
+
+	gen.Pos = l.head.Curorder
+	l.head.Curorder++
+
+	return l.putGenMetadata(dev, gnum, gen)
+}
+
 // createLocalGeneration creates a new local generation.
 // createLocalGeneration is currently called when there is an incoming GetDeltas request.
 func (l *iLog) createLocalGeneration() (GenID, error) {
@@ -381,184 +396,6 @@ func (l *iLog) processWatchRecord(objID storage.ID, vers storage.Version, par []
 	}
 
 	return nil
-}
-
-// handleConflict handles new versions for the object (obj) when there are conflicts.
-// TODO(hpucha): This is work in progress. Needs to be hooked up to store.
-func (l *iLog) handleConflict(obj storage.ID, newHead, oldHead, ancestor storage.Version) error {
-	// There is a conflict, call the resolver.
-
-	// TODO(hpucha): need log records to get versions.
-	// TODO(hpucha): Hack, resolve some how.
-	resolvHead := storage.Version(42)
-	resolvVal := &LogValue{}
-
-	// Insert the resolved object in the store.
-
-	// Put is successful, create a log record.
-	parents := []storage.Version{newHead, oldHead}
-	rec, err := l.createLocalLogRec(obj, resolvHead, parents, resolvVal)
-	if err != nil {
-		return err
-	}
-
-	logKey, err := l.putLogRec(rec)
-	if err != nil {
-		return err
-	}
-
-	// Put is successful, add a new DAG node.
-	if err = l.s.dag.addNode(obj, resolvHead, false, parents, logKey); err != nil {
-		return err
-	}
-
-	// Put is successful, move the head.
-	if err = l.s.dag.moveHead(obj, resolvHead); err != nil {
-		return err
-	}
-
-	// Store put failed. come back to this object later.
-
-	return nil
-}
-
-// handleNoConflict handles new versions for object (obj) when there are no conflicts.
-// TODO(hpucha): This is work in progress. Needs to be hooked up to store.
-func (l *iLog) handleNoConflict(obj storage.ID, newHead storage.Version) error {
-	// No conflict.
-
-	// Put newhead into store.
-
-	// Put is successful, move the head.
-	if err := l.s.dag.moveHead(obj, newHead); err != nil {
-		return err
-	}
-
-	// Put failed. come back to this object later.
-
-	return nil
-}
-
-// processLogStream replays an entire log stream spanning multiple
-// generations across devices received from a single GetDeltas
-// call. It performs conflict resolution at the end of the replay.
-// This avoids resolving conflicts that have been already resolved by
-// other devices.
-//
-// TODO(hpucha): Finish for when store put fails. This function is a
-// place holder for now. Will need to be revisited once all components
-// are in place (conflict resolution, store put transaction, retrying
-// transactions).
-func (l *iLog) processLogStream(stream SyncGetDeltasStream) (GenVector, error) {
-	if l.db == nil {
-		return GenVector{}, errInvalidLog
-	}
-	// Map to track dirty objects.
-	dirtyObj := make(map[storage.ID]bool)
-
-	// Remove any pending state in dag.
-	l.s.dag.clearGraft()
-
-	// Map to track new generations received in the RPC reply.
-	// TODO(hpucha): If needed, this can be optimized under the
-	// assumption that an entire generation is received
-	// sequentially. We can then parse a generation at a time.
-	newGens := make(map[string]*genMetadata)
-
-	for {
-		rec, err := stream.Recv()
-		if err == io.EOF {
-			break
-		}
-		if err != nil {
-			return GenVector{}, err
-		}
-
-		l.s.lock.Lock()
-		logKey, err := l.putLogRec(&rec)
-		if err != nil {
-			l.s.lock.Unlock()
-			return GenVector{}, err
-		}
-		// Replay log record by inserting a remote node in DAG.
-		if err = l.s.dag.addNode(rec.ObjID, rec.CurVers, true, rec.Parents, logKey); err != nil {
-			l.s.lock.Unlock()
-			return GenVector{}, err
-		}
-		l.s.lock.Unlock()
-
-		// Mark object dirty.
-		dirtyObj[rec.ObjID] = true
-
-		// Create the generation metadata.
-		genKey := generationKey(rec.DevID, rec.GNum)
-		if gen, ok := newGens[genKey]; !ok {
-			newGens[genKey] = &genMetadata{
-				Pos:    l.head.Curorder,
-				Count:  1,
-				MaxLSN: rec.LSN,
-			}
-			l.head.Curorder++
-		} else {
-			gen.Count++
-			if rec.LSN > gen.MaxLSN {
-				gen.MaxLSN = rec.LSN
-			}
-		}
-	}
-
-	l.s.lock.Lock()
-	defer l.s.lock.Unlock()
-
-	// Track the minimum generation for every device in this stream.
-	minGens := GenVector{}
-	// Insert the generation metadata.
-	for key, gen := range newGens {
-		if gen.Count != uint64(gen.MaxLSN+1) {
-			return GenVector{}, errors.New("mismatch in count and lsn")
-		}
-		dev, gnum, err := splitGenerationKey(key)
-		if err != nil {
-			return GenVector{}, err
-		}
-		if err := l.putGenMetadata(dev, gnum, gen); err != nil {
-			return GenVector{}, err
-		}
-
-		// Compute minimum generation for a device.
-		g, ok := minGens[dev]
-		if !ok || g > gnum {
-			minGens[dev] = gnum
-		}
-	}
-
-	// Process all dirty objects. For each dirty object, we first
-	// check if the object has any conflicts.  If there is a
-	// conflict, we resolve the conflict, add the new version to
-	// store and move the head ptr of the object in the dag to
-	// this new version. If there is no conflict, we update the
-	// store and move the head ptr of the object in the dag to the
-	// latest version. Puts to store can fail, in which case we
-	// need to recheck if the object has any conflicts and repeat
-	// the above steps, until put to store succeeds.
-	for obj := range dirtyObj {
-		// Check if object has conflicts.
-		isConflict, newHead, oldHead, ancestor, errConflict := l.s.dag.hasConflict(obj)
-		if errConflict != nil {
-			return GenVector{}, errConflict
-		}
-
-		if isConflict {
-			l.handleConflict(obj, newHead, oldHead, ancestor)
-		} else {
-			l.handleNoConflict(obj, newHead)
-		}
-	}
-
-	// Remove any pending state in dag.
-	l.s.dag.clearGraft()
-
-	return minGens, nil
 }
 
 // dumpILog dumps the ILog data structure.

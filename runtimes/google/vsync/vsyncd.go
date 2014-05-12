@@ -8,24 +8,15 @@ package vsync
 // log records in response to a GetDeltas request, it replays those
 // log records to get in sync with the sender.
 import (
-	"strings"
 	"sync"
-	"time"
 
 	"veyron/services/store/estore"
 
 	"veyron2/ipc"
-	"veyron2/naming"
 	"veyron2/storage"
 	"veyron2/storage/vstore"
 	"veyron2/vlog"
 	"veyron2/vom"
-)
-
-const (
-	// peerSyncInterval is the duration between two consecutive sync events.
-	// In every sync event, syncd contacts all of its peers to obtain any pending updates.
-	peerSyncInterval = 10 * time.Second
 )
 
 // syncd contains the metadata for the sync daemon.
@@ -38,17 +29,9 @@ type syncd struct {
 	// Local device id.
 	id DeviceID
 
-	// State to contact peers periodically and get deltas.
-	// TODO(hpucha): This is an initial version with command line arguments and basic synchronization.
-	// Next steps are to enhance this to handle concurrent requests, tie this up into mount table,
-	// hook it up to logging etc.
-	neighbors   []string
-	neighborIDs []string
-
 	// RWlock to concurrently access log and device table data structures.
-	// TODO(hpucha): implement synchronization among threads.
 	lock sync.RWMutex
-
+	// State to coordinate shutting down all spawned goroutines.
 	pending sync.WaitGroup
 	closed  chan struct{}
 
@@ -57,8 +40,9 @@ type syncd struct {
 	vstore         storage.Store
 
 	// Handlers for goroutine procedures.
-	hdlGC      *syncGC
-	hdlWatcher *syncWatcher
+	hdlGC        *syncGC
+	hdlWatcher   *syncWatcher
+	hdlInitiator *syncInitiator
 }
 
 // NewSyncd creates a new syncd instance.
@@ -95,9 +79,10 @@ func NewSyncd(peerEndpoints, peerDeviceIDs, devid, storePath, vstoreEndpoint str
 	return newSyncdCore(peerEndpoints, peerDeviceIDs, devid, storePath, vstoreEndpoint, st)
 }
 
-// newSyncdCore is the internal function that creates the Syncd structure and initilizes
-// its thread (goroutines).  It takes a Veyron Store parameter to separate the core of
-// Syncd setup from the external dependency on Veyron Store.
+// newSyncdCore is the internal function that creates the Syncd
+// structure and initilizes its thread (goroutines).  It takes a
+// Veyron Store parameter to separate the core of Syncd setup from the
+// external dependency on Veyron Store.
 func newSyncdCore(peerEndpoints, peerDeviceIDs, devid, storePath, vstoreEndpoint string, store storage.Store) *syncd {
 	s := &syncd{}
 
@@ -123,29 +108,21 @@ func newSyncdCore(peerEndpoints, peerDeviceIDs, devid, storePath, vstoreEndpoint
 	// Veyron Store.
 	s.vstoreEndpoint = vstoreEndpoint
 	s.vstore = store
+	vlog.VI(1).Infof("newSyncd: Local Veyron store: %s\n", s.vstoreEndpoint)
 
 	// Register these Watch data types with VOM.
 	// TODO(tilaks): why aren't they auto-retrieved from the IDL?
 	vom.Register(&estore.Mutation{})
 	vom.Register(&storage.DEntry{})
 
-	// Bootstrap my peer list.
-	s.neighbors = strings.Split(peerEndpoints, ",")
-	s.neighborIDs = strings.Split(peerDeviceIDs, ",")
-	if len(s.neighbors) != len(s.neighborIDs) {
-		vlog.Fatalf("newSyncd: Mismatch between number of endpoints and IDs")
-	}
-	vlog.VI(1).Infof("newSyncd: My device ID: %s\n", s.id)
-	vlog.VI(1).Infof("newSyncd: Peer endpoints: %v\n", s.neighbors)
-	vlog.VI(1).Infof("newSyncd: Peer IDs: %v\n", s.neighborIDs)
-	vlog.VI(1).Infof("newSyncd: Local Veyron store: %s\n", s.vstoreEndpoint)
-
 	// Channel to propagate close event to all threads.
 	s.closed = make(chan struct{})
 
 	s.pending.Add(3)
+
 	// Get deltas every peerSyncInterval.
-	go s.contactPeers()
+	s.hdlInitiator = newInitiator(s, peerEndpoints, peerDeviceIDs)
+	go s.hdlInitiator.contactPeers()
 
 	// Garbage collect every garbageCollectInterval.
 	s.hdlGC = newGC(s)
@@ -156,27 +133,6 @@ func newSyncdCore(peerEndpoints, peerDeviceIDs, devid, storePath, vstoreEndpoint
 	go s.hdlWatcher.watchStore()
 
 	return s
-}
-
-// contactPeers wakes up every peerSyncInterval to contact peers and get deltas from them.
-func (s *syncd) contactPeers() {
-	ticker := time.NewTicker(peerSyncInterval)
-	for {
-		select {
-		case <-s.closed:
-			ticker.Stop()
-			s.pending.Done()
-			return
-		case <-ticker.C:
-		}
-
-		for i, ep := range s.neighbors {
-			if ep == "" {
-				continue
-			}
-			s.GetDeltasFromPeer(ep, s.neighborIDs[i])
-		}
-	}
 }
 
 // Close cleans up syncd state.
@@ -195,67 +151,6 @@ func (s *syncd) isSyncClosing() bool {
 	default:
 		return false
 	}
-}
-
-// GetDeltasFromPeer contacts the specified endpoint to obtain deltas wrt its current generation vector.
-func (s *syncd) GetDeltasFromPeer(ep, dID string) {
-	vlog.VI(1).Infof("GetDeltasFromPeer:: From server %s with DeviceID %s at %v", ep, dID, time.Now().UTC())
-
-	// Construct a new stub that binds to peer endpoint.
-	c, err := BindSync(naming.JoinAddressName(ep, "sync"))
-	if err != nil {
-		vlog.Fatalf("GetDeltasFromPeer:: error binding to server: err %v", err)
-	}
-
-	// Send the local generation vector.
-	s.lock.RLock()
-	local, err := s.devtab.getDevInfo(s.id)
-	if err != nil {
-		s.lock.RUnlock()
-		vlog.Fatalf("GetDeltasFromPeer:: error obtaining local gen vector: err %v", err)
-	}
-	s.lock.RUnlock()
-
-	vlog.VI(1).Infof("GetDeltasFromPeer:: Sending local information: %v %v", local, local.Vector)
-
-	// Issue a GetDeltas() rpc.
-	stream, err := c.GetDeltas(local.Vector, s.id)
-	if err != nil {
-		vlog.Fatalf("GetDeltasFromPeer:: error getting deltas: err %v", err)
-	}
-
-	minGens, err := s.log.processLogStream(stream)
-	if err != nil {
-		vlog.Fatalf("GetDeltasFromPeer:: error processing logs: err %v", err)
-	}
-
-	remotevec, err := stream.Finish()
-	if err != nil {
-		vlog.Fatalf("GetDeltasFromPeer:: finish failed with err %v", err)
-	}
-
-	s.lock.Lock()
-	defer s.lock.Unlock()
-	// Update the local gen vector and put it in kvdb.
-	if err = s.devtab.updateLocalGenVector(local.Vector, remotevec); err != nil {
-		vlog.Fatalf("GetDeltasFromPeer:: UpdateLocalGenVector failed with err %v", err)
-	}
-
-	if err = s.devtab.putDevInfo(s.id, local); err != nil {
-		vlog.Fatalf("GetDeltasFromPeer:: PutDevInfo failed with err %v", err)
-	}
-
-	if err := s.devtab.updateReclaimVec(minGens); err != nil {
-		vlog.Fatalf("updateReclaimVec:: updateReclaimVec failed with err %v", err)
-	}
-
-	// Cache the remote generation vector for space reclamation.
-	if err = s.devtab.putGenVec(DeviceID(dID), remotevec); err != nil {
-		vlog.Fatalf("GetDeltasFromPeer:: PutGenVec failed with err %v", err)
-	}
-
-	vlog.VI(1).Infof("GetDeltasFromPeer:: Local %v vector %v", local, local.Vector)
-	vlog.VI(1).Infof("GetDeltasFromPeer:: Remote vector %v", remotevec)
 }
 
 // GetDeltas responds to the incoming request from a client by sending missing generations to the client.
