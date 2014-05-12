@@ -30,8 +30,7 @@ type mountTable struct {
 	root *node
 }
 
-// mountContext represents a client bind.  The name is the name that
-// was bound to.
+// mountContext represents a client bind.  The name is the name that was bound to.
 type mountContext struct {
 	name         string
 	elems        []string // parsed elements of name
