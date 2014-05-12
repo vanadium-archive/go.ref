@@ -7,6 +7,7 @@ import (
 	"log"
 	"reflect"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -14,7 +15,6 @@ import (
 	imanager "veyron/runtimes/google/ipc/stream/manager"
 	"veyron/runtimes/google/ipc/stream/vc"
 	"veyron/runtimes/google/ipc/version"
-	inaming "veyron/runtimes/google/naming"
 	isecurity "veyron/runtimes/google/security"
 	icaveat "veyron/runtimes/google/security/caveat"
 
@@ -114,6 +114,81 @@ func (t testServerDisp) Lookup(suffix string) (ipc.Invoker, security.Authorizer,
 	return ipc.ReflectInvoker(t.server), testServerAuthorizer{}, nil
 }
 
+// mountTable is a simple partial implementation of naming.MountTable.  In
+// particular, it ignores TTLs and not allow fully overlapping mount names.
+type mountTable struct {
+	sync.Mutex
+	mounts map[string][]string
+}
+
+func newMountTable() naming.MountTable {
+	return &mountTable{mounts: make(map[string][]string)}
+}
+
+func (mt *mountTable) Mount(name, server string, _ time.Duration) error {
+	mt.Lock()
+	defer mt.Unlock()
+	for n, _ := range mt.mounts {
+		if n != name && (strings.HasPrefix(name, n) || strings.HasPrefix(n, name)) {
+			return fmt.Errorf("simple mount table does not allow names that are a prefix of each other")
+		}
+	}
+	mt.mounts[name] = append(mt.mounts[name], server)
+	return nil
+}
+
+func (mt *mountTable) Unmount(name, server string) error {
+	var servers []string
+	mt.Lock()
+	defer mt.Unlock()
+	for _, s := range mt.mounts[name] {
+		// When server is "", we remove all servers under name.
+		if len(server) > 0 && s != server {
+			servers = append(servers, s)
+		}
+	}
+	if len(servers) > 0 {
+		mt.mounts[name] = servers
+	} else {
+		delete(mt.mounts, name)
+	}
+	return nil
+}
+
+func (mt *mountTable) Resolve(name string) ([]string, error) {
+	if address, _ := naming.SplitAddressName(name); len(address) > 0 {
+		return []string{name}, nil
+	}
+	mt.Lock()
+	defer mt.Unlock()
+	for prefix, servers := range mt.mounts {
+		if strings.HasPrefix(name, prefix) {
+			suffix := strings.TrimLeft(strings.TrimPrefix(name, prefix), "/")
+			var ret []string
+			for _, s := range servers {
+				ret = append(ret, naming.Join(s, suffix))
+			}
+			return ret, nil
+		}
+	}
+	return nil, verror.NotFoundf("Resolve name %q not found in %v", name, mt.mounts)
+}
+
+func (mt *mountTable) ResolveToMountTable(name string) ([]string, error) {
+	panic("ResolveToMountTable not implemented")
+	return nil, nil
+}
+
+func (mt *mountTable) Unresolve(name string) ([]string, error) {
+	panic("Unresolve not implemented")
+	return nil, nil
+}
+
+func (mt *mountTable) Glob(pattern string) (chan naming.MountEntry, error) {
+	panic("Glob not implemented")
+	return nil, nil
+}
+
 func startServer(t *testing.T, serverID security.PrivateID, sm stream.Manager, mt naming.MountTable, ts interface{}) ipc.Server {
 	vlog.VI(1).Info("InternalNewServer")
 	server, err := InternalNewServer(sm, mt, veyron2.LocalID(serverID))
@@ -169,15 +244,28 @@ func stopServer(t *testing.T, server ipc.Server, mt naming.MountTable) {
 	vlog.VI(1).Info("server.Stop DONE")
 }
 
-func createClientAndServer(t *testing.T, clientID, serverID security.PrivateID, ts interface{}) (ipc.Client, ipc.Server, naming.MountTable, stream.Manager) {
-	streamMgr := imanager.InternalNew(naming.FixedRoutingID(0x555555555))
-	mountTable := inaming.InternalNewMountTable()
-	server := startServer(t, serverID, streamMgr, mountTable, ts)
-	client, err := InternalNewClient(streamMgr, mountTable, veyron2.LocalID(clientID))
+type bundle struct {
+	client ipc.Client
+	server ipc.Server
+	mt     naming.MountTable
+	sm     stream.Manager
+}
+
+func (b bundle) cleanup(t *testing.T) {
+	stopServer(t, b.server, b.mt)
+	b.client.Close()
+}
+
+func createBundle(t *testing.T, clientID, serverID security.PrivateID, ts interface{}) (b bundle) {
+	b.sm = imanager.InternalNew(naming.FixedRoutingID(0x555555555))
+	b.mt = newMountTable()
+	b.server = startServer(t, serverID, b.sm, b.mt, ts)
+	var err error
+	b.client, err = InternalNewClient(b.sm, b.mt, veyron2.LocalID(clientID))
 	if err != nil {
 		t.Fatalf("InternalNewClient failed: %v", err)
 	}
-	return client, server, mountTable, streamMgr
+	return
 }
 
 func derive(blessor security.PrivateID, name string, caveats []security.ServiceCaveat) security.PrivateID {
@@ -242,7 +330,7 @@ func TestStartCall(t *testing.T) {
 	}
 	// Servers and clients will be created per-test, use the same stream manager and mounttable.
 	mgr := imanager.InternalNew(naming.FixedRoutingID(0x1111111))
-	mt := inaming.InternalNewMountTable()
+	mt := newMountTable()
 	for _, test := range tests {
 		name := fmt.Sprintf("(clientID:%q serverID:%q)", test.clientID, test.serverID)
 		server := startServer(t, test.serverID, mgr, mt, &testServer{})
@@ -288,12 +376,11 @@ func TestRPC(t *testing.T) {
 	name := func(t testcase) string {
 		return fmt.Sprintf("%s.%s(%v)", t.name, t.method, t.args)
 	}
-	client, server, mt, _ := createClientAndServer(t, clientID, serverID, &testServer{})
-	defer stopServer(t, server, mt)
-	defer client.Close()
+	b := createBundle(t, clientID, serverID, &testServer{})
+	defer b.cleanup(t)
 	for _, test := range tests {
 		vlog.VI(1).Infof("%s client.StartCall", name(test))
-		call, err := client.StartCall(test.name, test.method, test.args)
+		call, err := b.client.StartCall(test.name, test.method, test.args)
 		if err != test.startErr {
 			t.Errorf(`%s client.StartCall got error "%v", want "%v"`, name(test), err, test.startErr)
 			continue
@@ -396,11 +483,10 @@ func TestRPCAuthorization(t *testing.T) {
 		return fmt.Sprintf("%q RPCing %s.%s(%v)", t.clientID.PublicID(), t.name, t.method, t.args)
 	}
 
-	dummyClient, server, mt, sm := createClientAndServer(t, nil, serverID, &testServer{})
-	defer stopServer(t, server, mt)
-	defer dummyClient.Close()
+	b := createBundle(t, nil, serverID, &testServer{})
+	defer b.cleanup(t)
 	for _, test := range tests {
-		client, err := InternalNewClient(sm, mt, veyron2.LocalID(test.clientID))
+		client, err := InternalNewClient(b.sm, b.mt, veyron2.LocalID(test.clientID))
 		if err != nil {
 			t.Fatalf("InternalNewClient failed: %v", err)
 		}
@@ -470,11 +556,10 @@ func waitForCancel(t *testing.T, ts *cancelTestServer, call ipc.ClientCall) {
 // TestCancel tests cancellation while the server is reading from a stream.
 func TestCancel(t *testing.T) {
 	ts := newCancelTestServer()
-	client, server, mt, _ := createClientAndServer(t, clientID, serverID, ts)
-	defer stopServer(t, server, mt)
-	defer client.Close()
+	b := createBundle(t, clientID, serverID, ts)
+	defer b.cleanup(t)
 
-	call, err := client.StartCall("mountpoint/server/suffix", "CancelStreamReader", []interface{}{})
+	call, err := b.client.StartCall("mountpoint/server/suffix", "CancelStreamReader", []interface{}{})
 	if err != nil {
 		t.Fatalf("Start call failed: %v", err)
 	}
@@ -491,11 +576,10 @@ func TestCancel(t *testing.T) {
 // the server is not reading that the cancel message gets through.
 func TestCancelWithFullBuffers(t *testing.T) {
 	ts := newCancelTestServer()
-	client, server, mt, _ := createClientAndServer(t, clientID, serverID, ts)
-	defer stopServer(t, server, mt)
-	defer client.Close()
+	b := createBundle(t, clientID, serverID, ts)
+	defer b.cleanup(t)
 
-	call, err := client.StartCall("mountpoint/server/suffix", "CancelStreamIgnorer", []interface{}{})
+	call, err := b.client.StartCall("mountpoint/server/suffix", "CancelStreamIgnorer", []interface{}{})
 	if err != nil {
 		t.Fatalf("Start call failed: %v", err)
 	}
@@ -528,11 +612,10 @@ func (s *streamRecvInGoroutineServer) RecvInGoroutine(call ipc.ServerCall) error
 
 func TestStreamReadTerminatedByServer(t *testing.T) {
 	s := &streamRecvInGoroutineServer{c: make(chan error, 1)}
-	client, server, mt, _ := createClientAndServer(t, clientID, serverID, s)
-	defer stopServer(t, server, mt)
-	defer client.Close()
+	b := createBundle(t, clientID, serverID, s)
+	defer b.cleanup(t)
 
-	call, err := client.StartCall("mountpoint/server/suffix", "RecvInGoroutine", []interface{}{})
+	call, err := b.client.StartCall("mountpoint/server/suffix", "RecvInGoroutine", []interface{}{})
 	if err != nil {
 		t.Fatalf("StartCall failed: %v", err)
 	}
@@ -561,28 +644,26 @@ func TestStreamReadTerminatedByServer(t *testing.T) {
 
 // TestConnectWithIncompatibleServers tests that clients ignore incompatible endpoints.
 func TestConnectWithIncompatibleServers(t *testing.T) {
-	client, server, mt, _ := createClientAndServer(t, clientID, serverID, &testServer{})
-
-	defer stopServer(t, server, mt)
-	defer client.Close()
+	b := createBundle(t, clientID, serverID, &testServer{})
+	defer b.cleanup(t)
 
 	// Publish some incompatible endpoints.
-	publisher := InternalNewPublisher(mt, publishPeriod)
+	publisher := InternalNewPublisher(b.mt, publishPeriod)
 	defer publisher.WaitForStop()
 	defer publisher.Stop()
 	publisher.AddName("incompatible")
 	publisher.AddServer("/@2@tcp@localhost:10000@@1000000@2000000@@")
 	publisher.AddServer("/@2@tcp@localhost:10001@@2000000@3000000@@")
 
-	_, err := client.StartCall("incompatible/server/suffix", "Echo", []interface{}{"foo"})
+	_, err := b.client.StartCall("incompatible/server/suffix", "Echo", []interface{}{"foo"})
 	if !strings.Contains(err.Error(), version.NoCompatibleVersionErr.Error()) {
 		t.Errorf("Expected error %v, found: %v", version.NoCompatibleVersionErr, err)
 	}
 
 	// Now add a server with a compatible endpoint and try again.
-	server.Publish("incompatible")
+	b.server.Publish("incompatible")
 
-	call, err := client.StartCall("incompatible/server/suffix", "Echo", []interface{}{"foo"})
+	call, err := b.client.StartCall("incompatible/server/suffix", "Echo", []interface{}{"foo"})
 	expected := `method:"Echo",suffix:"suffix",arg:"foo"`
 	var result string
 	err = call.Finish(&result)
