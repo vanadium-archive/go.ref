@@ -11,6 +11,7 @@ import (
 	"veyron/runtimes/google/ipc/stream/manager"
 	"veyron/runtimes/google/ipc/stream/proxy"
 
+	"veyron2"
 	"veyron2/ipc/stream"
 	"veyron2/naming"
 	"veyron2/security"
@@ -108,7 +109,7 @@ func TestDuplicateRoutingID(t *testing.T) {
 	}
 }
 
-func TestIdentity(t *testing.T) {
+func TestProxyIdentity(t *testing.T) {
 	proxy, err := proxy.New(naming.FixedRoutingID(0xbbbbbbbbbbbbbbbb), security.FakePrivateID("proxy"), "tcp4", "127.0.0.1:0")
 	if err != nil {
 		t.Fatal(err)
@@ -129,6 +130,43 @@ func TestIdentity(t *testing.T) {
 	}
 	if got, want := fmt.Sprintf("%v", flow.RemoteID()), "fake/proxy"; got != want {
 		t.Errorf("Proxy has identity %q want %q", flow.RemoteID(), want)
+	}
+}
+
+func TestServerIdentity(t *testing.T) {
+	proxy, err := proxy.New(naming.FixedRoutingID(0xbbbbbbbbbbbbbbbb), nil, "tcp4", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	server := manager.InternalNew(naming.FixedRoutingID(0x5555555555555555))
+	defer server.Shutdown()
+	serverID := security.FakePrivateID("server")
+	ln, ep, err := server.Listen(proxy.Endpoint().Network(), proxy.Endpoint().String(), veyron2.LocalID(serverID))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ln.Close()
+	go func() {
+		for {
+			if _, err := ln.Accept(); err != nil {
+				return
+			}
+		}
+	}()
+
+	client := manager.InternalNew(naming.FixedRoutingID(0xcccccccccccccccc))
+	defer client.Shutdown()
+	vc, err := client.Dial(ep)
+	if err != nil {
+		t.Fatal(err)
+	}
+	flow, err := vc.Connect()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got, want := fmt.Sprintf("%v", flow.RemoteID()), "fake/server"; got != want {
+		t.Errorf("Got %q want %q", got, want)
 	}
 }
 

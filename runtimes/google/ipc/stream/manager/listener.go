@@ -142,6 +142,7 @@ func newProxyListener(m *manager, ep naming.Endpoint, opts []stream.ListenerOpt)
 		manager:   m,
 		reconnect: make(chan bool),
 		stopped:   make(chan struct{}),
+		opts:      opts,
 	}
 	vf, err := ln.connect()
 	if err != nil {
