@@ -41,8 +41,10 @@ func main() {
 	// Setup handlers
 	http.HandleFunc("/", handleMain)
 	http.Handle("/pubkey/", handlers.Object{r.Identity().PublicID().PublicKey()}) // public key of this identity server
-	http.Handle("/random/", handlers.Random{r})                                   // mint identities with a random name
-	http.HandleFunc("/bless/", handlers.Bless)                                    // use a provided PrivateID to bless a provided PublicID
+	if enableRandomHandler() {
+		http.Handle("/random/", handlers.Random{r}) // mint identities with a random name
+	}
+	http.HandleFunc("/bless/", handlers.Bless) // use a provided PrivateID to bless a provided PublicID
 	// Google OAuth
 	if enableGoogleOAuth() {
 		f, err := os.Open(*googleConfig)
@@ -68,8 +70,9 @@ func main() {
 	startHTTPServer(*port)
 }
 
-func enableTLS() bool         { return len(*tlsconfig) > 0 }
-func enableGoogleOAuth() bool { return len(*googleConfig) > 0 }
+func enableTLS() bool           { return len(*tlsconfig) > 0 }
+func enableGoogleOAuth() bool   { return len(*googleConfig) > 0 }
+func enableRandomHandler() bool { return !enableGoogleOAuth() }
 
 func startHTTPServer(port int) {
 	addr := fmt.Sprintf(":%d", port)
@@ -136,8 +139,10 @@ This HTTP server mints veyron identities. The public key of the identity of this
 	if enableGoogleOAuth() {
 		w.Write([]byte(`<a class="btn btn-lg btn-primary" href="/google/auth">Google</a> `))
 	}
-	w.Write([]byte(`<a class="btn btn-lg btn-primary" href="/random/">Random</a>
-<a class="btn btn-lg btn-primary" href="/bless/">Bless As</a>
+	if enableRandomHandler() {
+		w.Write([]byte(`<a class="btn btn-lg btn-primary" href="/random/">Random</a> `))
+	}
+	w.Write([]byte(`<a class="btn btn-lg btn-primary" href="/bless/">Bless As</a>
 </div>
 </body>
 </html>`))
