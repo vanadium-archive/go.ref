@@ -33,7 +33,6 @@ func threadClosure(t *testing.T, n, max int) func() {
 			concurrency.Start(child)
 		}
 		m.Lock()
-		t.Logf("Critical section thread #%d.", n)
 		m.Unlock()
 	}
 }

@@ -117,7 +117,6 @@ func TestEval(t *testing.T) {
 		{"teams | ?!(true || false)", []string{}},
 	}
 	for _, test := range tests {
-		fmt.Println("Testing", test.query)
 		it := Eval(st.Snapshot(), rootPublicID, query.Query{test.query})
 		names := map[string]bool{}
 		for it.Next() {
@@ -178,7 +177,6 @@ func TestSelection(t *testing.T) {
 		},
 	}
 	for _, test := range tests {
-		fmt.Println("Testing", test.query)
 		it := Eval(st.Snapshot(), rootPublicID, query.Query{test.query})
 		i := 0
 		for it.Next() {
@@ -193,7 +191,7 @@ func TestSelection(t *testing.T) {
 			continue
 		}
 		if i != len(test.expectedResults) {
-			t.Errorf("query: %s, Got %d results, expected %d", i, len(test.expectedResults))
+			t.Errorf("query: %s, Got %d results, expected %d", test.query, i, len(test.expectedResults))
 			continue
 		}
 		// Ensure that all the goroutines are cleaned up.
@@ -220,7 +218,6 @@ func TestError(t *testing.T) {
 		// TODO(kash): Selection with conflicting names.
 	}
 	for _, test := range tests {
-		fmt.Println("Testing", test.query)
 		it := Eval(st.Snapshot(), rootPublicID, query.Query{test.query})
 		for it.Next() {
 		}
@@ -305,7 +302,6 @@ func TestEvalAbort(t *testing.T) {
 	for _, test := range tests {
 		// Test calling Abort immediately vs waiting until the channels are full.
 		for i := 0; i < 2; i++ {
-			fmt.Println("Testing", test.query)
 			it := Eval(sn, rootPublicID, query.Query{test.query})
 			if i == 0 {
 				// Give the evaluators time to fill up the channels.  Ensure that they
@@ -316,7 +312,7 @@ func TestEvalAbort(t *testing.T) {
 			}
 			it.Abort()
 			if it.Err() != nil {
-				t.Errorf("Got non-nil error: %v", it.Err())
+				t.Errorf("query:%q Got non-nil error: %v", test.query, it.Err())
 			}
 			it.(*evalIterator).wait()
 		}

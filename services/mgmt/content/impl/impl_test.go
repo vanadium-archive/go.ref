@@ -72,7 +72,6 @@ func testInterface(t *testing.T, runtime veyron2.Runtime, depth int) {
 	if err != nil {
 		t.Fatalf("TempDir() failed: %v", err)
 	}
-	t.Logf("Content manager mounted at %v", root)
 
 	// Setup and start the content manager server.
 	server, err := runtime.NewServer()
@@ -93,7 +92,6 @@ func testInterface(t *testing.T, runtime veyron2.Runtime, depth int) {
 	if err := server.Publish(name); err != nil {
 		t.Fatalf("Publish(%v) failed: %v", name, err)
 	}
-	t.Logf("Content manager published at %v/%v", endpoint, name)
 
 	// Create client stubs for talking to the server.
 	stub, err := content.BindContent("/" + endpoint.String())
