@@ -19,7 +19,8 @@ import (
 )
 
 var (
-	info testInfo
+	info        testInfo
+	recvBlocked chan struct{}
 )
 
 // testInfo controls the flow through the fake store and fake reply stream used
@@ -31,7 +32,6 @@ type testInfo struct {
 	failRecvCount  int
 	eofRecv        bool
 	blockRecv      bool
-	isRecvBlocked  bool
 	watchResmark   []byte
 }
 
@@ -100,7 +100,7 @@ func (s *fakeStream) Recv() (watch.ChangeBatch, error) {
 
 	// If "blockRecv" is set, simulate blocking the call until the stream is canceled.
 	if info.blockRecv {
-		info.isRecvBlocked = true
+		close(recvBlocked)
 		<-s.canceled
 		return empty, io.EOF
 	}
@@ -252,6 +252,7 @@ func getChangeBatch() watch.ChangeBatch {
 // It also initializes (resets) the test control metadata.
 func initTestDir(t *testing.T) string {
 	info = testInfo{}
+	recvBlocked = make(chan struct{})
 	watchRetryDelay = 10 * time.Millisecond
 	streamRetryDelay = 5 * time.Millisecond
 
@@ -333,10 +334,10 @@ func TestWatcherChanges(t *testing.T) {
 
 	s := fakeSyncd(t, dir, true)
 
-	for !info.isRecvBlocked {
-		time.Sleep(10 * watchRetryDelay)
-	}
+	// Wait for the watcher to block on the Recv(), i.e. it finished processing the updates.
+	<-recvBlocked
 
+	// Verify the state of the Sync DAG and Device Table before terminating it.
 	oidRoot := storage.ID{0x4c, 0x6d, 0xb5, 0x1a, 0xa7, 0x40, 0xd8, 0xc6, 0x2b, 0x90, 0xdf, 0x87, 0x45, 0x3, 0xe2, 0x85}
 	oidA := storage.ID{0x8, 0x2b, 0xc4, 0x2e, 0x15, 0xaf, 0x4f, 0xcf, 0x61, 0x1d, 0x7f, 0x19, 0xa8, 0xd7, 0x83, 0x1f}
 	oidB := storage.ID{0x6e, 0x4a, 0x32, 0x7c, 0x29, 0x7d, 0x76, 0xfb, 0x51, 0x42, 0xb1, 0xb1, 0xd9, 0x5b, 0x2d, 0x7}
