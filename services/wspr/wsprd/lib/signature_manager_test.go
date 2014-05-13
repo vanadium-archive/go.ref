@@ -131,7 +131,7 @@ func TestThatTTLExpires(t *testing.T) {
 	sm.signature(name, client)
 
 	// make last accessed go over the ttl
-	sm.cache[name].lastAccessed = sm.cache[name].lastAccessed.Add(-ttl)
+	sm.cache[name].lastAccessed = sm.cache[name].lastAccessed.Add(-2 * ttl)
 
 	// make a second call
 	sm.signature(name, client)
