@@ -44,11 +44,11 @@ daemons:
 	export MOUNTTABLE_ROOT=/localhost:$(VEYRON_MOUNTTABLE_PORT)/mt ; \
 	$(VEYRON_PROXY) -address=$(VEYRON_PROXY_ADDR) & \
 	$(VEYRON_WSPR) --v=3 -logtostderr=true -vproxy=$(VEYRON_PROXY_ADDR) --port $(VEYRON_WSPR_PORT) & \
-	$(VEYRON_STORE) --port=$(VEYRON_STORE_PORT) --name=global/$(USER)/store &
+	$(VEYRON_STORE) --address=:$(VEYRON_STORE_PORT) --name=global/$(USER)/store &
 
 killdaemons:
-	kill `lsof -t -i:$(VEYRON_MOUNTTABLE_PORT)`
-	kill `lsof -t -i:$(VEYRON_IDENTITY_PORT)`
-	kill `lsof -t -i:$(VEYRON_WSPR_PORT)`
-	kill `lsof -t -i:$(VEYRON_PROXY_PORT)`
+	kill `lsof -t -i:$(VEYRON_MOUNTTABLE_PORT)`; \
+	kill `lsof -t -i:$(VEYRON_IDENTITY_PORT)`; \
+	kill `lsof -t -i:$(VEYRON_WSPR_PORT)`; \
+	kill `lsof -t -i:$(VEYRON_PROXY_PORT)`; \
 	kill `lsof -t -i:$(VEYRON_STORE_PORT)`
