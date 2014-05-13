@@ -22,6 +22,7 @@ var (
 	tlsconfig     = flag.String("tlsconfig", "", "Comma-separated list of TLS certificate and private key files. If empty, will not use HTTPS.")
 	minExpiryDays = flag.Int("min_expiry_days", 365, "Minimum expiry time (in days) of identities issued by this server")
 	googleConfig  = flag.String("google_config", "", "Path to the JSON-encoded file containing the ClientID for web applications registered with the Google Developer Console. (Use the 'Download JSON' link on the Google APIs console).")
+	googleDomain  = flag.String("google_domain", "", "An optional domain name. When set, only email addresses from this domain are allowed to authenticate via Google OAuth")
 
 	generate = flag.String("generate", "", "If non-empty, instead of running an HTTP server, a new identity will be created with the provided name and saved to --identity (if specified) and dumped to STDOUT in base64-encoded-vom")
 	identity = flag.String("identity", "", "Path to the file where the VOM-encoded security.PrivateID created with --generate will be written.")
@@ -58,13 +59,14 @@ func main() {
 		f.Close()
 		n := "/google/"
 		http.Handle(n, googleoauth.NewHandler(googleoauth.HandlerArgs{
-			UseTLS:        enableTLS(),
-			Addr:          fmt.Sprintf("%s:%d", *host, *port),
-			Prefix:        n,
-			ClientID:      clientid,
-			ClientSecret:  secret,
-			MinExpiryDays: *minExpiryDays,
-			Runtime:       r,
+			UseTLS:              enableTLS(),
+			Addr:                fmt.Sprintf("%s:%d", *host, *port),
+			Prefix:              n,
+			ClientID:            clientid,
+			ClientSecret:        secret,
+			MinExpiryDays:       *minExpiryDays,
+			Runtime:             r,
+			RestrictEmailDomain: *googleDomain,
 		}))
 	}
 	startHTTPServer(*port)
