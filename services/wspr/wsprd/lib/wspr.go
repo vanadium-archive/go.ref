@@ -489,6 +489,7 @@ func (wsp *websocketPipe) cleanup() {
 }
 
 func (wsp *websocketPipe) setup() {
+	wsp.ctx.logger.Info("identity is", wsp.ctx.rt.Identity())
 	wsp.signatureManager = newSignatureManager()
 	wsp.outstandingServerRequests = make(map[int64]chan serverRPCReply)
 	wsp.outstandingStreams = make(map[int64]sender)
@@ -737,7 +738,7 @@ func (wsp *websocketPipe) handlePublishRequest(data string, w *websocketWriter) 
 			return
 		}
 
-		dispatcher := newDispatcher(invoker, nil) //TODO(aghassemi) Authorizer
+		dispatcher := newDispatcher(invoker, nil)
 		if err := wsp.veyronServer.Register(serviceName, dispatcher); err != nil {
 			w.sendError(verror.Internalf("error registering service: %s: %v", serviceName, err))
 			return
@@ -753,19 +754,20 @@ func (wsp *websocketPipe) handlePublishRequest(data string, w *websocketWriter) 
 			return
 		}
 	}
+
+	if err := wsp.veyronServer.Publish(publishRequest.Name); err != nil {
+		w.sendError(verror.Internalf("error publishing service: %v", err))
+		return
+	}
 	// Send the endpoint back
 	endpointData := response{Type: responseFinal, Message: wsp.endpoint.String()}
 	if err := vom.ObjToJSON(w, vom.ValueOf(endpointData)); err != nil {
 		w.sendError(verror.Internalf("error marshalling results: %v", err))
 		return
 	}
+
 	if err := w.FinishMessage(); err != nil {
 		w.logger.VI(2).Info("WSPR: error finishing message: ", err)
-		return
-	}
-
-	if err := wsp.veyronServer.Publish(publishRequest.Name); err != nil {
-		w.sendError(verror.Internalf("error publishing service: %v", err))
 		return
 	}
 }
@@ -932,6 +934,7 @@ func (wsp *websocketPipe) handleSignatureRequest(data string, w *websocketWriter
 	}
 
 	wsp.ctx.logger.VI(2).Infof("requesting Signature for %q", request.Name)
+	wsp.ctx.logger.VI(2).Info("private id is", request.PrivateId)
 	jsSig, err := wsp.getSignature(request.Name, request.PrivateId)
 	if err != nil {
 		w.sendError(err)
