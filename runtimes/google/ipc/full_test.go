@@ -664,12 +664,14 @@ func TestConnectWithIncompatibleServers(t *testing.T) {
 	b.server.Publish("incompatible")
 
 	call, err := b.client.StartCall("incompatible/server/suffix", "Echo", []interface{}{"foo"})
-	expected := `method:"Echo",suffix:"suffix",arg:"foo"`
-	var result string
-	err = call.Finish(&result)
 	if err != nil {
+		t.Fatal(err)
+	}
+	var result string
+	if err = call.Finish(&result); err != nil {
 		t.Errorf("Unexpected error finishing call %v", err)
 	}
+	expected := `method:"Echo",suffix:"suffix",arg:"foo"`
 	if result != expected {
 		t.Errorf("Wrong result returned.  Got %s, wanted %s", result, expected)
 	}
