@@ -117,28 +117,6 @@ func doUnmount(t *testing.T, name, service string) {
 	}
 }
 
-func doLink(t *testing.T, from, to string, shouldSucceed bool) {
-	mtpt, err := mounttable.BindMountTable(from, quuxClient())
-	if err != nil {
-		boom(t, "Failed to BindMountTable: %s", err)
-	}
-	if err := mtpt.Link(to); err != nil {
-		if shouldSucceed {
-			boom(t, "Failed to Link %s to %s: %s", from, to, err)
-		}
-	}
-}
-
-func doUnlink(t *testing.T, name string) {
-	mtpt, err := mounttable.BindMountTable(name, quuxClient())
-	if err != nil {
-		boom(t, "Failed to BindMountTable: %s", err)
-	}
-	if err := mtpt.Unlink(); err != nil {
-		boom(t, "Failed to Unlink %s: %s", name, err)
-	}
-}
-
 func create(t *testing.T, name, contents string) {
 	objectPtr, err := BindCollection(name, quuxClient())
 	if err != nil {
@@ -231,23 +209,6 @@ func TestMountTable(t *testing.T) {
 	doMount(t, naming.JoinAddressName(estr, "//mounttable/a/b"), naming.JoinAddressName(estr, "collection"), true)
 	doUnmount(t, naming.JoinAddressName(estr, "//mounttable/a/b"), naming.JoinAddressName(estr, "collection"))
 	checkContents(t, naming.JoinAddressName(estr, "mounttable/a/b/falls"), "falls mainly on the plain", false)
-
-	// Test link.
-	doLink(t, naming.JoinAddressName(estr, "//mounttable/a/b"), "stuff", true)
-	checkContents(t, naming.JoinAddressName(estr, "mounttable/stuff/falls"), "falls mainly on the plain", true)
-	checkContents(t, naming.JoinAddressName(estr, "mounttable/a/b/falls"), "falls mainly on the plain", true)
-
-	// Test Unlink.
-	doUnlink(t, naming.JoinAddressName(estr, "//mounttable/a/b"))
-	checkContents(t, naming.JoinAddressName(estr, "mounttable/a/b/falls"), "falls mainly on the plain", false)
-
-	// A link onto a mount should fail.
-	doMount(t, naming.JoinAddressName(estr, "//mounttable/a/b"), naming.JoinAddressName(estr, "collection"), true)
-	doLink(t, naming.JoinAddressName(estr, "//mounttable/a/b"), "stuff", false)
-	doUnmount(t, naming.JoinAddressName(estr, "//mounttable/a/b"), "")
-
-	// A link loop should fail.
-	doLink(t, naming.JoinAddressName(estr, "//mounttable/a/b"), "a", false)
 
 	// Try timing out a mount.
 	ft := NewFakeTimeClock()
@@ -344,16 +305,15 @@ func TestExpiry(t *testing.T) {
 	doMount(t, naming.JoinAddressName(estr, "//mounttable/a1/b2"), naming.JoinAddressName(estr, "collection"), true)
 	doMount(t, naming.JoinAddressName(estr, "//mounttable/a2/b1"), naming.JoinAddressName(estr, "collection"), true)
 	doMount(t, naming.JoinAddressName(estr, "//mounttable/a2/b2/c"), naming.JoinAddressName(estr, "collection"), true)
-	doLink(t, naming.JoinAddressName(estr, "//mounttable/a3/b1"), "a2/b2", true)
 
-	checkMatch(t, []string{"a1/b1", "a2/b1", "a3/b1", "a3/b1/c"}, doGlob(t, naming.JoinAddressName(estr, "//mounttable"), "*/b1/..."))
+	checkMatch(t, []string{"a1/b1", "a2/b1"}, doGlob(t, naming.JoinAddressName(estr, "//mounttable"), "*/b1/..."))
 	ft.advance(time.Duration(ttlSecs/2) * time.Second)
-	checkMatch(t, []string{"a1/b1", "a2/b1", "a3/b1", "a3/b1/c"}, doGlob(t, naming.JoinAddressName(estr, "//mounttable"), "*/b1/..."))
+	checkMatch(t, []string{"a1/b1", "a2/b1"}, doGlob(t, naming.JoinAddressName(estr, "//mounttable"), "*/b1/..."))
 	checkMatch(t, []string{"c"}, doGlob(t, naming.JoinAddressName(estr, "//mounttable/a2/b2"), "*"))
 	// Refresh only a1/b1.  All the other mounts will expire upon the next
 	// ft advance.
 	doMount(t, naming.JoinAddressName(estr, "//mounttable/a1/b1"), naming.JoinAddressName(estr, "collection"), true)
 	ft.advance(time.Duration(ttlSecs/2+4) * time.Second)
-	checkMatch(t, []string{"a1", "a3"}, doGlob(t, naming.JoinAddressName(estr, "//mounttable"), "*"))
-	checkMatch(t, []string{"a1/b1", "a3/b1"}, doGlob(t, naming.JoinAddressName(estr, "//mounttable"), "*/b1/..."))
+	checkMatch(t, []string{"a1"}, doGlob(t, naming.JoinAddressName(estr, "//mounttable"), "*"))
+	checkMatch(t, []string{"a1/b1"}, doGlob(t, naming.JoinAddressName(estr, "//mounttable"), "*/b1/..."))
 }
