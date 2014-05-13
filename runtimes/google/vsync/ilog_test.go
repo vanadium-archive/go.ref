@@ -123,6 +123,11 @@ func TestInvalidLog(t *testing.T) {
 		t.Errorf("DelGenMetadata did not fail on a closed log: %v", err)
 	}
 
+	err = log.createRemoteGeneration(devid, gnum, &genMetadata{})
+	if err == nil || err != errInvalidLog {
+		t.Errorf("CreateRemoteGeneration did not fail on a closed log: %v", err)
+	}
+
 	_, err = log.createLocalGeneration()
 	if err == nil || err != errInvalidLog {
 		t.Errorf("CreateLocalGeneration did not fail on a closed log: %v", err)
@@ -131,11 +136,6 @@ func TestInvalidLog(t *testing.T) {
 	err = log.processWatchRecord(storage.NewID(), 2, []storage.Version{0, 1}, &LogValue{})
 	if err == nil || err != errInvalidLog {
 		t.Errorf("ProcessWatchRecord did not fail on a closed log: %v", err)
-	}
-
-	_, err = log.processLogStream(&dummyStream{})
-	if err == nil || err != errInvalidLog {
-		t.Errorf("ProcessLogStream did not fail on a closed log: %v", err)
 	}
 }
 
@@ -614,8 +614,10 @@ func (l *iLog) fillFakeLogRecords() {
 	}
 }
 
-// TestCreateLocalGeneration tests that local log records and local generations are created uniquely.
-func TestCreateLocalGeneration(t *testing.T) {
+// TestCreateGeneration tests that local log records and local
+// generations are created uniquely and remote generations are
+// correctly inserted in log order.
+func TestCreateGeneration(t *testing.T) {
 	logfile := getFileName()
 	defer os.Remove(logfile)
 
@@ -707,6 +709,19 @@ func TestCreateLocalGeneration(t *testing.T) {
 		t.Errorf("Could not create local generation gen %d with error %v", g, err)
 	}
 
+	// Create a remote generation.
+	expGen := &genMetadata{Count: 1, MaxLSN: 50}
+	if err = log.createRemoteGeneration("VeyronPhone", 1, expGen); err == nil {
+		t.Errorf("Remote generation create should have failed", g, err)
+	}
+	expGen.MaxLSN = 0
+	if err = log.createRemoteGeneration("VeyronPhone", 1, expGen); err != nil {
+		t.Errorf("createRemoteGeneration failed with err %v", err)
+	}
+	if expGen.Pos != 2 {
+		t.Errorf("createRemoteGeneration created incorrect log order %d", expGen.Pos)
+	}
+
 	if err = log.close(); err != nil {
 		t.Errorf("Cannot close log file %s, err %v", logfile, err)
 	}
@@ -739,7 +754,18 @@ func TestCreateLocalGeneration(t *testing.T) {
 				log.s.id, g, logfile, curVal, expVal)
 		}
 	}
-	if log.head.Curgen != 3 || log.head.Curlsn != 0 || log.head.Curorder != 2 {
+
+	// Check remote generation metadata.
+	curVal, err = log.getGenMetadata("VeyronPhone", 1)
+	if err != nil || curVal == nil {
+		t.Fatalf("GetGenMetadata() can not find object in log file %s, err %v",
+			logfile, err)
+	}
+	if !reflect.DeepEqual(expGen, curVal) {
+		t.Errorf("Data mismatch for object in log file %s: %v instead of %v",
+			logfile, curVal, expGen)
+	}
+	if log.head.Curgen != 3 || log.head.Curlsn != 0 || log.head.Curorder != 3 {
 		t.Errorf("Data mismatch in log header %v", log.head)
 	}
 	if err = log.close(); err != nil {
@@ -794,430 +820,6 @@ func TestProcessWatchRecord(t *testing.T) {
 
 	// Verify DAG state.
 	if head, err := log.s.dag.getHead(objid); err != nil || head != 2 {
-		t.Errorf("Invalid object %d head in DAG %s, err %v", objid, head, err)
-	}
-
-	s.dag.flush()
-	s.dag.close()
-	if err = log.close(); err != nil {
-		t.Errorf("Cannot close log file %s, err %v", logfile, err)
-	}
-}
-
-// TestProcessLogStreamRemoteOnly tests that a remote log stream can be correctly applied.
-// Commands are in file testdata/remote-init-00.log.sync.
-func TestProcessLogStreamRemoteOnly(t *testing.T) {
-	logfile := getFileName()
-	defer os.Remove(logfile)
-
-	dagfile := getFileName()
-	defer os.Remove(dagfile)
-
-	var err error
-	s := &syncd{id: "VeyronTab"}
-	if s.dag, err = openDAG(dagfile); err != nil {
-		t.Fatalf("Cannot open new dag file %s, err %v", logfile, err)
-	}
-	log, err := openILog(logfile, s)
-	if err != nil {
-		t.Fatalf("Cannot open new log file %s, err %v", logfile, err)
-	}
-
-	var minGens GenVector
-	if minGens, err = logReplayCommands(log, "remote-init-00.log.sync"); err != nil {
-		t.Error(err)
-	}
-
-	// Check minGens.
-	expVec := GenVector{"VeyronPhone": 1}
-	if !reflect.DeepEqual(expVec, minGens) {
-		t.Errorf("Data mismatch for minGens: %v instead of %v",
-			minGens, expVec)
-	}
-
-	// Check generation metadata.
-	curVal, err := log.getGenMetadata("VeyronPhone", 1)
-	if err != nil || curVal == nil {
-		t.Fatalf("GetGenMetadata() can not find object in log file %s, err %v",
-			logfile, err)
-	}
-	expVal := &genMetadata{Pos: 0, Count: 3, MaxLSN: 2}
-	if !reflect.DeepEqual(expVal, curVal) {
-		t.Errorf("Data mismatch for generation metadata: %v instead of %v",
-			curVal, expVal)
-	}
-
-	if log.head.Curgen != 1 || log.head.Curlsn != 0 || log.head.Curorder != 1 {
-		t.Errorf("Data mismatch in log header %v", log.head)
-	}
-
-	objid, err := strToObjID("12345")
-	if err != nil {
-		t.Errorf("Could not create objid %v", err)
-	}
-
-	// Check all log records.
-	for i := LSN(0); i < 3; i++ {
-		curRec, err := log.getLogRec("VeyronPhone", GenID(1), i)
-		if err != nil || curRec == nil {
-			t.Fatalf("GetLogRec() can not find object %d in log file %s, err %v",
-				i, logfile, err)
-		}
-
-		if curRec.ObjID != objid {
-			t.Errorf("Data mismatch in log record %v", curRec)
-		}
-	}
-
-	// Verify DAG state.
-	if head, err := log.s.dag.getHead(objid); err != nil || head != 2 {
-		t.Errorf("Invalid object %d head in DAG %s, err %v", objid, head, err)
-	}
-
-	s.dag.flush()
-	s.dag.close()
-	if err = log.close(); err != nil {
-		t.Errorf("Cannot close log file %s, err %v", logfile, err)
-	}
-}
-
-// TestProcessLogStreamGCedRemote tests that a remote log stream can
-// be correctly applied when its generations don't start at 1 and have
-// been GC'ed already.
-// Commands are in file testdata/remote-init-01.log.sync.
-func TestProcessLogStreamGCedRemote(t *testing.T) {
-	logfile := getFileName()
-	defer os.Remove(logfile)
-
-	dagfile := getFileName()
-	defer os.Remove(dagfile)
-
-	var err error
-	s := &syncd{id: "VeyronTab"}
-	if s.dag, err = openDAG(dagfile); err != nil {
-		t.Fatalf("Cannot open new dag file %s, err %v", logfile, err)
-	}
-	log, err := openILog(logfile, s)
-	if err != nil {
-		t.Fatalf("Cannot open new log file %s, err %v", logfile, err)
-	}
-
-	var minGens GenVector
-	if minGens, err = logReplayCommands(log, "remote-init-01.log.sync"); err != nil {
-		t.Error(err)
-	}
-
-	// Check minGens.
-	expVec := GenVector{"VeyronPhone": 5}
-	if !reflect.DeepEqual(expVec, minGens) {
-		t.Errorf("Data mismatch for minGens: %v instead of %v",
-			minGens, expVec)
-	}
-
-	// Check generation metadata.
-	curVal, err := log.getGenMetadata("VeyronPhone", 5)
-	if err != nil || curVal == nil {
-		t.Fatalf("GetGenMetadata() can not find object in log file %s, err %v",
-			logfile, err)
-	}
-	expVal := &genMetadata{Pos: 0, Count: 3, MaxLSN: 2}
-	if !reflect.DeepEqual(expVal, curVal) {
-		t.Errorf("Data mismatch for generation metadata: %v instead of %v",
-			curVal, expVal)
-	}
-
-	if log.head.Curgen != 1 || log.head.Curlsn != 0 || log.head.Curorder != 1 {
-		t.Errorf("Data mismatch in log header %v", log.head)
-	}
-
-	objid, err := strToObjID("12345")
-	if err != nil {
-		t.Errorf("Could not create objid %v", err)
-	}
-
-	// Check all log records.
-	for i := LSN(0); i < 3; i++ {
-		curRec, err := log.getLogRec("VeyronPhone", GenID(5), i)
-		if err != nil || curRec == nil {
-			t.Fatalf("GetLogRec() can not find object %d in log file %s, err %v",
-				i, logfile, err)
-		}
-
-		if curRec.ObjID != objid {
-			t.Errorf("Data mismatch in log record %v", curRec)
-		}
-	}
-
-	// Verify DAG state.
-	if head, err := log.s.dag.getHead(objid); err != nil || head != 2 {
-		t.Errorf("Invalid object %d head in DAG %s, err %v", objid, head, err)
-	}
-
-	s.dag.flush()
-	s.dag.close()
-	if err = log.close(); err != nil {
-		t.Errorf("Cannot close log file %s, err %v", logfile, err)
-	}
-}
-
-// TestProcessLogStreamNoConflict tests that a local and a remote log stream can be correctly applied
-// (when there are no conflicts).
-// Commands are in file testdata/<local-init-00.sync,remote-noconf-00.log.sync>.
-func TestProcessLogStreamNoConflict(t *testing.T) {
-	logfile := getFileName()
-	defer os.Remove(logfile)
-
-	dagfile := getFileName()
-	defer os.Remove(dagfile)
-
-	var err error
-	s := &syncd{id: "VeyronTab"}
-	if s.dag, err = openDAG(dagfile); err != nil {
-		t.Fatalf("Cannot open new dag file %s, err %v", logfile, err)
-	}
-	log, err := openILog(logfile, s)
-	if err != nil {
-		t.Fatalf("Cannot open new log file %s, err %v", logfile, err)
-	}
-
-	if _, err = logReplayCommands(log, "local-init-00.sync"); err != nil {
-		t.Error(err)
-	}
-
-	var minGens GenVector
-	if minGens, err = logReplayCommands(log, "remote-noconf-00.log.sync"); err != nil {
-		t.Error(err)
-	}
-
-	// Check minGens.
-	expVec := GenVector{"VeyronPhone": 1}
-	if !reflect.DeepEqual(expVec, minGens) {
-		t.Errorf("Data mismatch for minGens: %v instead of %v",
-			minGens, expVec)
-	}
-
-	// Check generation metadata.
-	curVal, err := log.getGenMetadata("VeyronPhone", 1)
-	if err != nil || curVal == nil {
-		t.Fatalf("GetGenMetadata() can not find object in log file for VeyronPhone %s, err %v",
-			logfile, err)
-	}
-	expVal := &genMetadata{Pos: 0, Count: 3, MaxLSN: 2}
-	if !reflect.DeepEqual(expVal, curVal) {
-		t.Errorf("Data mismatch for generation metadata: %v instead of %v",
-			curVal, expVal)
-	}
-
-	if log.head.Curgen != 1 || log.head.Curlsn != 3 || log.head.Curorder != 1 {
-		t.Errorf("Data mismatch in log header %v", log.head)
-	}
-
-	objid, err := strToObjID("12345")
-	if err != nil {
-		t.Errorf("Could not create objid %v", err)
-	}
-
-	// Check all log records.
-	for _, devid := range []DeviceID{"VeyronPhone", "VeyronTab"} {
-		for i := LSN(0); i < 3; i++ {
-			curRec, err := log.getLogRec(devid, GenID(1), i)
-			if err != nil || curRec == nil {
-				t.Fatalf("GetLogRec() can not find object %s:%d in log file %s, err %v",
-					devid, i, logfile, err)
-			}
-
-			if curRec.ObjID != objid {
-				t.Errorf("Data mismatch in log record %v", curRec)
-			}
-		}
-	}
-	// Verify DAG state.
-	if head, err := log.s.dag.getHead(objid); err != nil || head != 5 {
-		t.Errorf("Invalid object %d head in DAG %s, err %v", objid, head, err)
-	}
-
-	s.dag.flush()
-	s.dag.close()
-	if err = log.close(); err != nil {
-		t.Errorf("Cannot close log file %s, err %v", logfile, err)
-	}
-}
-
-// TestProcessLogStreamConflict tests that a local and a remote log stream can be correctly applied
-// (when there are conflicts).
-// Commands are in file testdata/<local-init-00.sync,remote-conf-00.log.sync>.
-func TestProcessLogStreamConflict(t *testing.T) {
-	logfile := getFileName()
-	defer os.Remove(logfile)
-
-	dagfile := getFileName()
-	defer os.Remove(dagfile)
-
-	var err error
-	s := &syncd{id: "VeyronTab"}
-	if s.dag, err = openDAG(dagfile); err != nil {
-		t.Fatalf("Cannot open new dag file %s, err %v", logfile, err)
-	}
-	log, err := openILog(logfile, s)
-	if err != nil {
-		t.Fatalf("Cannot open new log file %s, err %v", logfile, err)
-	}
-
-	if _, err = logReplayCommands(log, "local-init-00.sync"); err != nil {
-		t.Error(err)
-	}
-
-	var minGens GenVector
-	if minGens, err = logReplayCommands(log, "remote-conf-00.log.sync"); err != nil {
-		t.Error(err)
-	}
-
-	// Check minGens.
-	expVec := GenVector{"VeyronPhone": 1}
-	if !reflect.DeepEqual(expVec, minGens) {
-		t.Errorf("Data mismatch for minGens: %v instead of %v",
-			minGens, expVec)
-	}
-
-	// Check generation metadata.
-	curVal, err := log.getGenMetadata("VeyronPhone", 1)
-	if err != nil || curVal == nil {
-		t.Fatalf("GetGenMetadata() can not find object in log file for VeyronPhone %s, err %v",
-			logfile, err)
-	}
-	expVal := &genMetadata{Pos: 0, Count: 3, MaxLSN: 2}
-	if !reflect.DeepEqual(expVal, curVal) {
-		t.Errorf("Data mismatch for generation metadata: %v instead of %v",
-			curVal, expVal)
-	}
-
-	// Curlsn == 4 for the log record that resolves conflict.
-	if log.head.Curgen != 1 || log.head.Curlsn != 4 || log.head.Curorder != 1 {
-		t.Errorf("Data mismatch in log header %v", log.head)
-	}
-
-	objid, err := strToObjID("12345")
-	if err != nil {
-		t.Errorf("Could not create objid %v", err)
-	}
-
-	lcount := []LSN{3, 4}
-	// Check all log records.
-	for index, devid := range []DeviceID{"VeyronPhone", "VeyronTab"} {
-		for i := LSN(0); i < lcount[index]; i++ {
-			curRec, err := log.getLogRec(devid, GenID(1), i)
-			if err != nil || curRec == nil {
-				t.Fatalf("GetLogRec() can not find object %s:%d in log file %s, err %v",
-					devid, i, logfile, err)
-			}
-
-			if curRec.ObjID != objid {
-				t.Errorf("Data mismatch in log record %v", curRec)
-			}
-		}
-	}
-
-	// Verify DAG state.
-	if head, err := log.s.dag.getHead(objid); err != nil || head != 42 {
-		t.Errorf("Invalid object %d head in DAG %s, err %v", objid, head, err)
-	}
-
-	s.dag.flush()
-	s.dag.close()
-	if err = log.close(); err != nil {
-		t.Errorf("Cannot close log file %s, err %v", logfile, err)
-	}
-}
-
-// TestProcessMultipleLogStream tests that a local and 2 remote log streams can be correctly applied
-// (when there are conflicts).
-// Commands are in file testdata/<local-init-00.sync,remote-conf-01.log.sync>.
-func TestProcessMultipleLogStream(t *testing.T) {
-	logfile := getFileName()
-	defer os.Remove(logfile)
-
-	dagfile := getFileName()
-	defer os.Remove(dagfile)
-
-	var err error
-	s := &syncd{id: "VeyronTab"}
-	if s.dag, err = openDAG(dagfile); err != nil {
-		t.Fatalf("Cannot open new dag file %s, err %v", logfile, err)
-	}
-	log, err := openILog(logfile, s)
-	if err != nil {
-		t.Fatalf("Cannot open new log file %s, err %v", logfile, err)
-	}
-
-	if _, err = logReplayCommands(log, "local-init-00.sync"); err != nil {
-		t.Error(err)
-	}
-
-	var minGens GenVector
-	if minGens, err = logReplayCommands(log, "remote-conf-01.log.sync"); err != nil {
-		t.Error(err)
-	}
-
-	// Check minGens.
-	expVec := GenVector{"VeyronPhone": 1, "VeyronLaptop": 1}
-	if !reflect.DeepEqual(expVec, minGens) {
-		t.Errorf("Data mismatch for minGens: %v instead of %v",
-			minGens, expVec)
-	}
-
-	// Check generation metadata.
-	curVal, err := log.getGenMetadata("VeyronLaptop", 1)
-	if err != nil || curVal == nil {
-		t.Fatalf("GetGenMetadata() can not find object in log file for VeyronPhone %s, err %v",
-			logfile, err)
-	}
-	expVal := &genMetadata{Pos: 0, Count: 1, MaxLSN: 0}
-	if !reflect.DeepEqual(expVal, curVal) {
-		t.Errorf("Data mismatch for generation metadata: %v instead of %v",
-			curVal, expVal)
-	}
-
-	curVal, err = log.getGenMetadata("VeyronPhone", 1)
-	if err != nil || curVal == nil {
-		t.Fatalf("GetGenMetadata() can not find object in log file for VeyronPhone %s, err %v",
-			logfile, err)
-	}
-	expVal.Pos = 1
-	expVal.Count = 2
-	expVal.MaxLSN = 1
-	if !reflect.DeepEqual(expVal, curVal) {
-		t.Errorf("Data mismatch for generation metadata: %v instead of %v",
-			curVal, expVal)
-	}
-
-	// Curlsn == 4 for the log record that resolves conflict.
-	if log.head.Curgen != 1 || log.head.Curlsn != 4 || log.head.Curorder != 2 {
-		t.Errorf("Data mismatch in log header %v", log.head)
-	}
-
-	objid, err := strToObjID("12345")
-	if err != nil {
-		t.Errorf("Could not create objid %v", err)
-	}
-
-	// Check all log records.
-	lcount := []LSN{2, 4, 1}
-	for index, devid := range []DeviceID{"VeyronPhone", "VeyronTab", "VeyronLaptop"} {
-		for i := LSN(0); i < lcount[index]; i++ {
-			curRec, err := log.getLogRec(devid, GenID(1), i)
-			if err != nil || curRec == nil {
-				t.Fatalf("GetLogRec() can not find object %s:%d in log file %s, err %v",
-					devid, i, logfile, err)
-			}
-
-			if curRec.ObjID != objid {
-				t.Errorf("Data mismatch in log record %v", curRec)
-			}
-		}
-	}
-
-	// Verify DAG state.
-	if head, err := log.s.dag.getHead(objid); err != nil || head != 42 {
 		t.Errorf("Invalid object %d head in DAG %s, err %v", objid, head, err)
 	}
 

@@ -7,6 +7,8 @@ import (
 	"io"
 	"os"
 	"time"
+
+	"veyron/services/store/estore"
 )
 
 // getFileName generates a filename for a temporary (per unit test) kvdb file.
@@ -83,6 +85,9 @@ func logReplayCommands(log *iLog, syncfile string) (GenVector, error) {
 			}
 
 		case addRemote:
+			// TODO(hpucha): This code is no longer
+			// used. Will be deleted when
+			// processWatchRecord is moved to watcher.go
 			if !remote {
 				stream = newStream()
 			}
@@ -104,14 +109,40 @@ func logReplayCommands(log *iLog, syncfile string) (GenVector, error) {
 		}
 	}
 
-	if remote {
-		minGens, err = log.processLogStream(stream)
-		if err != nil {
-			return nil, fmt.Errorf("cannot replay network log records err %v", err)
+	return minGens, nil
+}
+
+// createReplayStream creates a dummy stream of log records parsed from the input file.
+func createReplayStream(syncfile string) (*dummyStream, error) {
+	cmds, err := parseSyncCommands(syncfile)
+	if err != nil {
+		return nil, err
+	}
+
+	stream := newStream()
+	for _, cmd := range cmds {
+		switch cmd.cmd {
+		case addRemote:
+			id, gnum, lsn, err := splitLogRecKey(cmd.logrec)
+			if err != nil {
+				return nil, err
+			}
+			rec := LogRec{
+				DevID:   id,
+				GNum:    gnum,
+				LSN:     lsn,
+				ObjID:   cmd.objID,
+				CurVers: cmd.version,
+				Parents: cmd.parents,
+				Value: LogValue{
+					Mutation: estore.Mutation{Version: cmd.version},
+				},
+			}
+			stream.add(rec)
 		}
 	}
 
-	return minGens, nil
+	return stream, nil
 }
 
 // populates the log and dag state as part of state initialization.

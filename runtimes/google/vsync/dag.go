@@ -310,11 +310,14 @@ func (d *dag) moveHead(oid storage.ID, head storage.Version) error {
 // hasConflict determines if there is a conflict for this object between its
 // new and old head nodes.
 // - Yes: return (true, newHead, oldHead, ancestor)
-// - No:  return (false, newHead, oldHead, 0)
+// - No:  return (false, newHead, oldHead, NoVersion)
 // A conflict exists if the current (old) head node is not one of the graft
 // point of the graph fragment just added.  It means the newly added object
 // versions are not derived in part from this device's current knowledge.
 func (d *dag) hasConflict(oid storage.ID) (isConflict bool, newHead, oldHead, ancestor storage.Version, err error) {
+	oldHead = storage.NoVersion
+	newHead = storage.NoVersion
+	ancestor = storage.NoVersion
 	if d.store == nil {
 		err = errors.New("invalid DAG")
 		return
@@ -517,6 +520,9 @@ func (d *dag) getHead(oid storage.ID) (storage.Version, error) {
 	var version storage.Version
 	key := objHeadKey(oid)
 	err := d.heads.get(key, &version)
+	if err != nil {
+		version = storage.NoVersion
+	}
 	return version, err
 }
 

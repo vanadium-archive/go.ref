@@ -268,7 +268,7 @@ func initTestDir(t *testing.T) string {
 func fakeSyncd(t *testing.T, storeDir string, withStore bool) *syncd {
 	var s *syncd
 	if withStore {
-		s = newSyncdCore("", "", "fake-dev", storeDir, "fake-store-endpoint", &fakeVStore{})
+		s = newSyncdCore("", "", "fake-dev", storeDir, "", &fakeVStore{})
 	} else {
 		s = newSyncdCore("", "", "fake-dev", storeDir, "", nil)
 	}
