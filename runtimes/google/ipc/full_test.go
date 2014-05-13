@@ -269,7 +269,7 @@ func createBundle(t *testing.T, clientID, serverID security.PrivateID, ts interf
 }
 
 func derive(blessor security.PrivateID, name string, caveats []security.ServiceCaveat) security.PrivateID {
-	id, err := isecurity.NewChainPrivateID("irrelevant")
+	id, err := isecurity.NewPrivateID("irrelevant")
 	if err != nil {
 		panic(err)
 	}
@@ -678,11 +678,11 @@ func TestConnectWithIncompatibleServers(t *testing.T) {
 
 func init() {
 	var err error
-	if clientID, err = isecurity.NewChainPrivateID("client"); err != nil {
-		log.Fatalf("failed isecurity.NewChainPrivateID: %s", err)
+	if clientID, err = isecurity.NewPrivateID("client"); err != nil {
+		log.Fatalf("failed isecurity.NewPrivateID: %s", err)
 	}
-	if serverID, err = isecurity.NewChainPrivateID("server"); err != nil {
-		log.Fatalf("failed isecurity.NewChainPrivateID: %s", err)
+	if serverID, err = isecurity.NewPrivateID("server"); err != nil {
+		log.Fatalf("failed isecurity.NewPrivateID: %s", err)
 	}
 	isecurity.TrustIdentityProviders(clientID)
 	isecurity.TrustIdentityProviders(serverID)

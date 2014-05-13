@@ -69,7 +69,7 @@ func SaveIdentityToFile(id security.PrivateID) string {
 // under the provided name. This function is meant to be used for testing purposes only,
 // it panics if there is an error.
 func NewBlessedIdentity(blesser security.PrivateID, name string) security.PrivateID {
-	id, err := isecurity.NewChainPrivateID("test")
+	id, err := isecurity.NewPrivateID("test")
 	if err != nil {
 		panic(err)
 	}

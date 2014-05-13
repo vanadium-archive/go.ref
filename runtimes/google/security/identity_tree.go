@@ -238,10 +238,10 @@ func (id *treePrivateID) MintDischarge(cav security.ThirdPartyCaveat, duration t
 	return nil, fmt.Errorf("discharge cannot be constructed for ThirdPartyCaveat of type %T from PrivateID of type %T", cav, id)
 }
 
-// NewTreePrivateID returns a new PrivateID containing a freshly generated private
+// newTreePrivateID returns a new PrivateID containing a freshly generated private
 // key, and a single self-signed blessing for the provided name and the public key
 // corresponding to the generated private key.
-func NewTreePrivateID(name string) (security.PrivateID, error) {
+func newTreePrivateID(name string) (security.PrivateID, error) {
 	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	if err != nil {
 		return nil, err

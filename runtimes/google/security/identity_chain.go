@@ -202,10 +202,10 @@ func (id *chainPrivateID) MintDischarge(cav security.ThirdPartyCaveat, duration 
 	return nil, fmt.Errorf("discharge cannot be constructed for ThirdPartyCaveat of type %T from PrivateID of type %T", cav, id)
 }
 
-// NewChainPrivateID returns a new PrivateID containing a freshly generated
+// newChainPrivateID returns a new PrivateID containing a freshly generated
 // private key, and a single self-signed certificate specifying the provided
 // name and the public key corresponding to the generated private key.
-func NewChainPrivateID(name string) (security.PrivateID, error) {
+func newChainPrivateID(name string) (security.PrivateID, error) {
 	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	if err != nil {
 		return nil, err

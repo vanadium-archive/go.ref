@@ -72,8 +72,8 @@ func benchmarkDecode(b *testing.B, idBytes []byte) {
 
 func BenchmarkNewChain(b *testing.B) {
 	for i := 0; i < b.N; i++ {
-		if _, err := NewChainPrivateID("X"); err != nil {
-			b.Fatalf("Failed NewChainPrivateID #%d: %v", i, err)
+		if _, err := newChainPrivateID("X"); err != nil {
+			b.Fatalf("Failed newChainPrivateID #%d: %v", i, err)
 		}
 
 	}
@@ -123,8 +123,8 @@ func TestChainWireSize(t *testing.T) {
 
 func BenchmarkNewTree(b *testing.B) {
 	for i := 0; i < b.N; i++ {
-		if _, err := NewTreePrivateID("X"); err != nil {
-			b.Fatalf("NewTreePrivateID #%d: %v", i, err)
+		if _, err := newTreePrivateID("X"); err != nil {
+			b.Fatalf("newTreePrivateID #%d: %v", i, err)
 		}
 
 	}

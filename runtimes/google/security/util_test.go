@@ -52,7 +52,7 @@ func roundTrip(id security.PublicID) (security.PublicID, error) {
 }
 
 func newChain(name string) security.PrivateID {
-	id, err := NewChainPrivateID(name)
+	id, err := newChainPrivateID(name)
 	if err != nil {
 		panic(err)
 	}
@@ -60,7 +60,7 @@ func newChain(name string) security.PrivateID {
 }
 
 func newTree(name string) security.PrivateID {
-	id, err := NewTreePrivateID(name)
+	id, err := newTreePrivateID(name)
 	if err != nil {
 		panic(err)
 	}
