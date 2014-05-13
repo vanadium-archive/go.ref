@@ -76,6 +76,8 @@ func (i *jniInvoker) Prepare(method string, numArgs int) (argptrs []interface{},
 	// Java objects (see Invoke comments below).  This approach is blocked on
 	// pending VOM encoder/decoder changes as well as Java (de)serializer.
 	argptrs, err = i.argGetter.GetInArgPtrs(method, numArgs)
+	// TODO(spetrovic): ask the Java object to give us the label.
+	label = security.AdminLabel
 	return
 }
 
