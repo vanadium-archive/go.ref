@@ -11,7 +11,6 @@ import (
 	"veyron/examples/tunnel"
 	"veyron/examples/tunnel/tunneld/impl"
 	"veyron/lib/signals"
-	isecurity "veyron/runtimes/google/security"
 	"veyron2/ipc"
 	"veyron2/rt"
 	"veyron2/security"
@@ -48,7 +47,7 @@ func authorizer() security.Authorizer {
 	for _, p := range principals {
 		ACL[security.PrincipalPattern(p)] = security.LabelSet(security.AdminLabel)
 	}
-	return isecurity.NewACLAuthorizer(ACL)
+	return security.NewACLAuthorizer(ACL)
 }
 
 func main() {

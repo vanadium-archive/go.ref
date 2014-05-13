@@ -7,10 +7,10 @@ import (
 
 	"veyron/lib/signals"
 
-	"veyron/runtimes/google/security"
 	"veyron/services/mgmt/content/impl"
 
 	"veyron2/rt"
+	"veyron2/security"
 	"veyron2/vlog"
 )
 

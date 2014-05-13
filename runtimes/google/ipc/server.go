@@ -9,6 +9,7 @@ import (
 
 	inaming "veyron/runtimes/google/naming"
 	isecurity "veyron/runtimes/google/security"
+	"veyron/runtimes/google/security/wire"
 
 	"veyron2/ipc"
 	"veyron2/ipc/stream"
@@ -267,6 +268,19 @@ func result2vom(res interface{}) vom.Value {
 	return v
 }
 
+func defaultACL(id security.PublicID) security.ACL {
+	if id == nil {
+		return nil
+	}
+	acl := make(security.ACL)
+	for _, n := range id.Names() {
+		if !strings.HasPrefix(n, wire.UntrustedIDProviderPrefix) {
+			acl[security.PrincipalPattern(n+wire.ChainSeparator+security.AllPrincipals)] = security.AllLabels
+		}
+	}
+	return acl
+}
+
 func (fs *flowServer) serve() error {
 	defer fs.flow.Close()
 	results, err := fs.processRequest()
@@ -399,10 +413,9 @@ func (fs *flowServer) authorize(auth security.Authorizer) error {
 	}
 	// Since the provided authorizer is nil we create a default IDAuthorizer
 	// for the local identity of the flow. This authorizer only authorizes
-	// remote identities whose name matches a trusted name of either the local
-	// identity (i.e., server's identity) or an identity blessed by the local
-	// identity. (See isecurity.NewIDAuthorizer)
-	return isecurity.NewIDAuthorizer(fs.flow.LocalID()).Authorize(fs)
+	// remote identities that have either been blessed by the local identity
+	// or have blessed the local identity. (See security.NewACLAuthorizer)
+	return security.NewACLAuthorizer(defaultACL(fs.flow.LocalID())).Authorize(fs)
 }
 
 // setDeadline sets a deadline on the flow. The flow will be cancelled if it

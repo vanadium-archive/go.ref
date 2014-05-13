@@ -4,10 +4,10 @@ import (
 	"flag"
 
 	"veyron/lib/signals"
-	"veyron/runtimes/google/security"
 
 	"veyron/services/mgmt/application/impl"
 	"veyron2/rt"
+	"veyron2/security"
 	"veyron2/vlog"
 )
 

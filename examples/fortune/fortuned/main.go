@@ -14,8 +14,6 @@ import (
 	"veyron2/security"
 
 	"veyron/examples/fortune"
-
-	isecurity "veyron/runtimes/google/security"
 )
 
 var acl = flag.String("acl", "", "acl is an optional JSON-encoded security.ACL. The ACL is used to construct an authorizer for the fortune server. The behavior of the authorizer can be changed at runtime by simply changing the ACL stored in the file. If the flag is absent then a nil authorizer is constructed which results in default authorization for the server. Default authorization (provided by the Veyron framework) only permits clients that have either blessed the server or have been blessed by the server.")
@@ -62,7 +60,7 @@ func main() {
 	// no ACL is provided then a nil Authorizer is used.
 	var authorizer security.Authorizer
 	if len(*acl) != 0 {
-		authorizer = isecurity.NewFileACLAuthorizer(*acl)
+		authorizer = security.NewFileACLAuthorizer(*acl)
 	}
 
 	// Create the fortune server stub.

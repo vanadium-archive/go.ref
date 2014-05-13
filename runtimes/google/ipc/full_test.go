@@ -109,7 +109,7 @@ func (t testServerDisp) Lookup(suffix string) (ipc.Invoker, security.Authorizer,
 			"server/*": security.LabelSet(security.AdminLabel),
 			"client":   security.LabelSet(security.AdminLabel),
 		}
-		return ipc.ReflectInvoker(t.server), isecurity.NewACLAuthorizer(acl), nil
+		return ipc.ReflectInvoker(t.server), security.NewACLAuthorizer(acl), nil
 	}
 	return ipc.ReflectInvoker(t.server), testServerAuthorizer{}, nil
 }
@@ -429,7 +429,6 @@ func TestRPCAuthorization(t *testing.T) {
 
 	const (
 		expiredIDErr = "forbids credential from being used at this time"
-		nilAuthErr   = "no matching principal pattern found"
 		aclAuthErr   = "no matching ACL entry found"
 	)
 	invalidMethodErr := func(method string) string {
@@ -453,8 +452,8 @@ func TestRPCAuthorization(t *testing.T) {
 		{blessedByServerOnlyEcho, "mountpoint/server/suffix", "Closure", nil, nil, invalidMethodErr("Closure")},
 		// Only clients with a trusted name that matches either the server's identity or an identity blessed
 		// by the server are authorized by the (default) nilAuth authorizer.
-		{clientID, "mountpoint/server/nilAuth", "Echo", v{"foo"}, v{""}, nilAuthErr},
-		{blessedByClient, "mountpoint/server/nilAuth", "Echo", v{"foo"}, v{""}, nilAuthErr},
+		{clientID, "mountpoint/server/nilAuth", "Echo", v{"foo"}, v{""}, aclAuthErr},
+		{blessedByClient, "mountpoint/server/nilAuth", "Echo", v{"foo"}, v{""}, aclAuthErr},
 		{serverID, "mountpoint/server/nilAuth", "Echo", v{"foo"}, v{`method:"Echo",suffix:"nilAuth",arg:"foo"`}, ""},
 		{serverID, "mountpoint/server/nilAuth", "Closure", nil, nil, ""},
 		{blessedByServerOnlyEcho, "mountpoint/server/nilAuth", "Echo", v{"foo"}, v{`method:"Echo",suffix:"nilAuth",arg:"foo"`}, ""},
