@@ -25,6 +25,7 @@ import (
 var (
 	mountName string
 	dbName    = flag.String("db", "/var/tmp/veyron_store.db", "Metadata database")
+	address   = flag.String("address", ":0", "Address to listen on.")
 )
 
 func init() {
@@ -69,7 +70,7 @@ func main() {
 	}
 
 	// Create an endpoint and start listening.
-	ep, err := s.Listen("tcp", ":0")
+	ep, err := s.Listen("tcp", *address)
 	if err != nil {
 		log.Fatal("s.Listen() failed: ", err)
 	}
