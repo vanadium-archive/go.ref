@@ -17,9 +17,9 @@
   }
   </style>
 </head>
-<body>
+<body onload="init()">
   <div>
-    Enter mounttable: <input id="mt" type="text"></input><input type="submit" value="connect" onclick="init()"></input>
+    Enter mounttable: <input id="mt" type="text" value="/localhost:5167//mt"></input><input type="submit" value="connect" onclick="init()"></input>
   </div>
   <div>
     Enter query: <input id="query" type="text" onkeyup="handleChange()" value="*"></input>
