@@ -19,18 +19,12 @@ import (
 
 	"veyron/services/store/server"
 
-	"veyron2"
 	"veyron2/rt"
-	"veyron2/security"
 )
 
 var (
 	mountName string
 	dbName    = flag.String("db", "/var/tmp/veyron_store.db", "Metadata database")
-
-	// TODO(jyh): Figure out how to get a real public ID.
-	rootPublicID    security.PublicID = security.FakePublicID("root")
-	serverPrivateID                   = security.FakePrivateID("store")
 )
 
 func init() {
@@ -52,13 +46,13 @@ func main() {
 	r := rt.Init()
 
 	// Create a new server instance.
-	s, err := r.NewServer(veyron2.LocalID(serverPrivateID))
+	s, err := r.NewServer()
 	if err != nil {
 		log.Fatal("r.NewServer() failed: ", err)
 	}
 
 	// Create a new StoreService.
-	storeService, err := server.New(server.ServerConfig{Admin: rootPublicID, DBName: *dbName})
+	storeService, err := server.New(server.ServerConfig{Admin: r.Identity().PublicID(), DBName: *dbName})
 	if err != nil {
 		log.Fatal("server.New() failed: ", err)
 	}
