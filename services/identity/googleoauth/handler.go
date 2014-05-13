@@ -15,6 +15,7 @@ import (
 	"fmt"
 	"net/http"
 	"path"
+	"strings"
 	"time"
 
 	"code.google.com/p/goauth2/oauth"
@@ -41,6 +42,9 @@ type HandlerArgs struct {
 	// Runtime from which the identity of the server itself will be extracted,
 	// and new identities will be created for blessing.
 	Runtime veyron2.Runtime
+	// When set, restricts the allowed email addresses to this domain, e.g.
+	// google.com.
+	RestrictEmailDomain string
 }
 
 func (a *HandlerArgs) redirectURL() string {
@@ -64,7 +68,7 @@ func NewHandler(args HandlerArgs) http.Handler {
 		TokenURL:     "https://accounts.google.com/o/oauth2/token",
 	}
 	verifyURL := "https://www.googleapis.com/oauth2/v1/tokeninfo?id_token="
-	return &handler{config, args.Addr, args.MinExpiryDays, util.NewCSRFCop(), args.Runtime, verifyURL}
+	return &handler{config, args.Addr, args.MinExpiryDays, util.NewCSRFCop(), args.Runtime, verifyURL, args.RestrictEmailDomain}
 }
 
 type handler struct {
@@ -74,6 +78,7 @@ type handler struct {
 	csrfCop       *util.CSRFCop
 	rt            veyron2.Runtime
 	verifyURL     string
+	domain        string
 }
 
 func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -146,6 +151,10 @@ func (h *handler) callback(w http.ResponseWriter, r *http.Request) {
 	minted, err := h.rt.NewIdentity("unblessed")
 	if err != nil {
 		util.HTTPServerError(w, fmt.Errorf("Failed to mint new identity: %v", err))
+		return
+	}
+	if len(h.domain) > 0 && !strings.HasSuffix(gtoken.Email, "@"+h.domain) {
+		util.HTTPServerError(w, fmt.Errorf("Email domain in %s is not allowed", gtoken.Email))
 		return
 	}
 	blessing, err := h.rt.Identity().Bless(minted.PublicID(), gtoken.Email, 24*time.Hour*time.Duration(h.minExpiryDays), nil)
