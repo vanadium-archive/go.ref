@@ -62,7 +62,6 @@ func (ns *namespace) globAtServer(server *naming.MountEntry, pattern *glob.Glob,
 				// and add it to the list.
 				l.PushBack(&naming.MountEntry{
 					Name:    e.Name,
-					Link:    e.Link,
 					Servers: convertServers(e.Servers),
 				})
 			}

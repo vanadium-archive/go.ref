@@ -16,8 +16,6 @@ type mountedServer struct {
 type mountEntry struct {
 	// Name is the mounted name.
 	Name string
-	// Link (if present) specifies the link name (Servers is nil).
-	Link string
 	// Servers (if present) specifies the mounted names (Link is empty).
 	Servers []mountedServer
 }

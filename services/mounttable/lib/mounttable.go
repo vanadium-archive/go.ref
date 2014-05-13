@@ -19,8 +19,6 @@ import (
 )
 
 var (
-	errLinkOnMount = verror.Make(verror.Exists, "Linking or unlinking at a mount point")
-	errMountOnLink = verror.Make(verror.Exists, "Mounting or unounting at a link")
 	errNamingLoop  = verror.Make(verror.BadArg, "Loop in namespace")
 )
 
@@ -46,16 +44,10 @@ type mount struct {
 	servers *serverList
 }
 
-// link represents a symboic link to a new rooted path
-type link struct {
-	elems []string
-}
-
 // node is a single point in the tree representing the mount table.
 type node struct {
 	parent   *node
 	mount    *mount
-	link     *link
 	children map[string]*node
 }
 
@@ -93,14 +85,6 @@ func (mt *mountTable) findNode(elems []string, create bool) *node {
 		if cur.mount != nil {
 			return nil
 		}
-		// first try the space warp
-		if cur.link != nil {
-			cur = mt.findNode(cur.link.elems, create)
-			if cur == nil {
-				return nil
-			}
-			continue
-		}
 		// then walk the children
 		c, ok := cur.children[e]
 		if ok {
@@ -130,11 +114,8 @@ func (m *mount) isActive() bool {
 }
 
 // walk returns the first mount point node on the elems path and the suffix of elems below that mount point.
-// If no mount point is found, it returns nil,nil.  Walk follows links.
+// If no mount point is found, it returns nil,nil.
 func (mt *mountTable) walk(n *node, elems []string) (*node, []string) {
-	if n.link != nil {
-		return mt.walk(mt.root, append(n.link.elems, elems...))
-	}
 	if n.mount.isActive() {
 		return n, elems
 	} else if n.mount != nil {
@@ -201,9 +182,6 @@ func (ms *mountContext) Mount(context ipc.Context, server string, ttlsecs uint32
 	if n == nil {
 		return naming.ErrNoSuchName
 	}
-	if n.link != nil {
-		return errMountOnLink
-	}
 	if n.mount == nil {
 		n.mount = &mount{
 			servers: NewServerList(),
@@ -214,29 +192,9 @@ func (ms *mountContext) Mount(context ipc.Context, server string, ttlsecs uint32
 	return nil
 }
 
-// isDescendant returns true if n is a descendant of nn.  Symlinks are traversed in the
-// check.
-func (mt *mountTable) isDescendant(n, nn *node) bool {
-	if nn == nil {
-		return false
-	}
-	if n == nn {
-		return true
-	}
-	if nn.link != nil {
-		return mt.isDescendant(n, mt.findNode(nn.link.elems, false))
-	}
-	for _, nn := range nn.children {
-		if mt.isDescendant(n, nn) {
-			return true
-		}
-	}
-	return false
-}
-
-// A useful node has children, a link, or an active mount.
+// A useful node has children or an active mount.
 func (n *node) isUseful() bool {
-	return len(n.children) > 0 || n.link != nil || n.mount.isActive()
+	return len(n.children) > 0  || n.mount.isActive()
 }
 
 // removeUseless removes a node and all of its ascendants that are not useful.
@@ -268,35 +226,6 @@ func (n *node) removeUselessSubtree() bool {
 	return n.isUseful()
 }
 
-// Link creates a link from the name in the receiver to linkName.
-func (ms *mountContext) Link(context ipc.Context, linkName string) error {
-	mt := ms.mt
-
-	// The link receiver must not exist
-	mt.Lock()
-	defer mt.Unlock()
-	n := mt.findNode(ms.cleanedElems, true)
-	if n == nil {
-		return naming.ErrNoSuchName
-	}
-	defer n.removeUseless()
-	if len(n.children) > 0 || n.link != nil || n.mount != nil {
-		return naming.ErrNameExists
-	}
-	n.link = &link{
-		elems: strings.Split(linkName, "/"),
-	}
-
-	// See if the result is a loop, if so, unmount and return an error.
-	nn := mt.findNode(n.link.elems, false)
-	if mt.isDescendant(n, nn) {
-		n.link = nil
-		return errNamingLoop
-	}
-
-	return nil
-}
-
 // Unmount removes servers from the name in the receiver. If server is specified, only that
 // server is removed.
 func (ms *mountContext) Unmount(context ipc.Context, server string) error {
@@ -308,9 +237,6 @@ func (ms *mountContext) Unmount(context ipc.Context, server string) error {
 		return nil
 	}
 	defer n.removeUseless()
-	if n.link != nil {
-		return errMountOnLink
-	}
 	if server == "" {
 		n.mount = nil
 		return nil
@@ -318,23 +244,6 @@ func (ms *mountContext) Unmount(context ipc.Context, server string) error {
 	if n.mount != nil && n.mount.servers.remove(server) == 0 {
 		n.mount = nil
 	}
-	return nil
-}
-
-// Unlink removes links from the name in the receiver.
-func (ms *mountContext) Unlink(context ipc.Context) error {
-	mt := ms.mt
-	mt.Lock()
-	defer mt.Unlock()
-	n := mt.findNode(ms.cleanedElems, false)
-	if n == nil {
-		return nil
-	}
-	defer n.removeUseless()
-	if n.link == nil {
-		return errMountOnLink
-	}
-	n.link = nil
 	return nil
 }
 
@@ -347,20 +256,6 @@ type globEntry struct {
 func (mt *mountTable) globStep(n *node, name string, pattern *glob.Glob, reply mounttable.GlobableServiceGlobStream) {
 	vlog.VI(2).Infof("globStep(%s, %s)", name, pattern)
 
-	// Follow links.  Reply with them if we already have a full glob match.
-	sentLink := false
-	for n.link != nil {
-		if pattern.Len() == 0 {
-			sentLink = true
-			reply.Send(mounttable.MountEntry{Name: name, Link: path.Join(n.link.elems...)})
-		}
-		n = mt.findNode(n.link.elems, false)
-		if n == nil {
-			// Ignore broken links.
-			return
-		}
-	}
-
 	// If this is a mount point, we're done.
 	if m := n.mount; m != nil {
 		// Garbage-collect if expired.
@@ -372,7 +267,7 @@ func (mt *mountTable) globStep(n *node, name string, pattern *glob.Glob, reply m
 		return
 	}
 
-	if pattern.Len() == 0 && !sentLink {
+	if pattern.Len() == 0 {
 		// Garbage-collect if no useful descendants.
 		if !n.removeUselessSubtree() {
 			n.removeUseless()

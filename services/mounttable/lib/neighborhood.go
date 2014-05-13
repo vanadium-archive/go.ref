@@ -197,16 +197,6 @@ func (*neighborhoodService) Unmount(_ ipc.Context, _ string) error {
 	return errors.New("this server does not implement Unmount")
 }
 
-// Link not implemented.
-func (*neighborhoodService) Link(_ ipc.Context, _ string) error {
-	return errors.New("this server does not implement Link")
-}
-
-// Unlink not implemented.
-func (*neighborhoodService) Unlink(_ ipc.Context) error {
-	return errors.New("this server does not implement Unlink")
-}
-
 // Glob implements Glob
 func (ns *neighborhoodService) Glob(_ ipc.Context, pattern string, reply mounttable.GlobableServiceGlobStream) error {
 	g, err := glob.Parse(pattern)
