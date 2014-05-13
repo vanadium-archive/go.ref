@@ -14,8 +14,8 @@ import (
 )
 
 var (
-	address    = flag.String("address", "", "the address/endpoint of the fortune server")
-	newFortune = flag.String("new_fortune", "", "an optional, new fortune to add to the server's set")
+	address       = flag.String("address", "", "the address/endpoint of the fortune server")
+	newFortune    = flag.String("new_fortune", "", "an optional, new fortune to add to the server's set")
 	serverPattern = flag.String("server_pattern", "*", "server_pattern is an optional pattern for the expected identity of the server. It is provided as an option to all RPCs made by the client. The server's identity must match this pattern otherwise the client would abort the call (see veyron2/security.PublicID.Match). For e.g., the pattern \"veyron/fooService\" only matches servers that either have the identity \"veyron/fooService\" or the identity \"veyron\". On the other hand the pattern \"veyron/*\" matches all servers whose identities have the root name \"veyron\". If the flag is absent then the default pattern \"*\" matches all identities.")
 )
 
