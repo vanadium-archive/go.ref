@@ -25,7 +25,7 @@ func newCustomFSTimedWatch(filename string, sleep time.Duration) func(chan<- err
 				return
 			default:
 			}
-			if sendEvent(events, nil, stop) {
+			if !sendEvent(events, nil, stop) {
 				return
 			}
 			time.Sleep(sleep)

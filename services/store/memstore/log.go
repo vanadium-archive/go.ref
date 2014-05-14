@@ -16,6 +16,7 @@ import (
 	"io"
 	"os"
 	"path"
+	"sync"
 	"time"
 
 	"veyron/runtimes/google/lib/follow"
@@ -44,6 +45,8 @@ type wlog struct {
 
 // RLog is the type of log readers.
 type RLog struct {
+	mu     sync.Mutex
+	closed bool // GUARDED_BY(mu)
 	reader io.ReadCloser
 	dec    *vom.Decoder
 }
@@ -100,20 +103,20 @@ func (l *wlog) appendTransaction(m *state.Mutations) error {
 }
 
 // OpenLog opens a log for reading. dbName is the path of the database directory.
-// If f is true, reads block until records can be read. Otherwise, reads return
-// EOF when no record can be read.
-func OpenLog(dbName string, f bool) (*RLog, error) {
+// If followLog is true, reads block until records can be read. Otherwise,
+// reads return EOF when no record can be read.
+func OpenLog(dbName string, followLog bool) (*RLog, error) {
 	// Open the log file at the default path in the database directory.
 	filePath := path.Join(dbName, logfileName)
-	file, err := os.Open(filePath)
+	var reader io.ReadCloser
+	var err error
+	if followLog {
+		reader, err = follow.NewReader(filePath)
+	} else {
+		reader, err = os.Open(filePath)
+	}
 	if err != nil {
 		return nil, err
-	}
-	var reader io.ReadCloser = file
-	if f {
-		if reader, err = follow.NewReader(file); err != nil {
-			return nil, err
-		}
 	}
 	return &RLog{
 		reader: reader,
@@ -122,18 +125,28 @@ func OpenLog(dbName string, f bool) (*RLog, error) {
 }
 
 // Close closes the log. If Close is called concurrently with ReadState or
-// ReadTransaction, ongoing reads will terminate.
+// ReadTransaction, ongoing reads will terminate. Close is idempotent.
 func (l *RLog) Close() {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	if l.closed {
+		return
+	}
+	l.closed = true
 	l.reader.Close()
-	l.reader = nil
-	l.dec = nil
+}
+
+func (l *RLog) isClosed() bool {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	return l.closed
 }
 
 // ReadState reads the initial state state. ReadState returns an error if the
 // log is closed before or during the read. ReadState should not be invoked
 // concurrently with other reads.
 func (l *RLog) ReadState(adminID security.PublicID) (*Store, error) {
-	if l.reader == nil {
+	if l.isClosed() {
 		return nil, errLogIsClosed
 	}
 
@@ -155,6 +168,10 @@ func (l *RLog) ReadState(adminID security.PublicID) (*Store, error) {
 // returns an error if the log is closed before or during the read.
 // ReadTransaction should not be invoked concurrently with other reads.
 func (l *RLog) ReadTransaction() (*state.Mutations, error) {
+	if l.isClosed() {
+		return nil, errLogIsClosed
+	}
+
 	var ms state.Mutations
 	if err := l.dec.Decode(&ms); err != nil {
 		return nil, err
@@ -173,13 +190,13 @@ func backupLog(dbName string) error {
 }
 
 // openDB opens the log file if it exists. dbName is the path of the database
-// directory. If f is true, reads block until records can be read. Otherwise,
-// reads return EOF when no record can be read.
-func openDB(dbName string, f bool) (*RLog, error) {
+// directory. If followLog is true, reads block until records can be read.
+// Otherwise, reads return EOF when no record can be read.
+func openDB(dbName string, followLog bool) (*RLog, error) {
 	if dbName == "" {
 		return nil, nil
 	}
-	rlog, err := OpenLog(dbName, f)
+	rlog, err := OpenLog(dbName, followLog)
 	if err != nil && os.IsNotExist(err) {
 		// It is not an error for the log not to exist.
 		err = nil

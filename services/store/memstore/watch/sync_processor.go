@@ -89,18 +89,12 @@ func (p *syncProcessor) processState(st *state.State) ([]watch.Change, error) {
 			Dir:          flattenDir(refs.FlattenDir(cell.Dir)),
 		}
 		change := watch.Change{
-			Name:      uidName(id),
-			State:     watch.Exists,
-			Value:     value,
-			Continued: true,
+			Name:  uidName(id),
+			State: watch.Exists,
+			Value: value,
 		}
 		// TODO(tilaks): don't clone change
 		changes = append(changes, change)
-	}
-
-	// Last change marks the end of the processed atomic group.
-	if len(changes) > 0 {
-		changes[len(changes)-1].Continued = false
 	}
 	return changes, nil
 }
@@ -131,10 +125,9 @@ func (p *syncProcessor) processTransaction(mus *state.Mutations) ([]watch.Change
 			}
 			// TODO(tilaks): don't clone value.
 			change := watch.Change{
-				Name:      uidName(p.rootID),
-				State:     watch.DoesNotExist,
-				Value:     value,
-				Continued: true,
+				Name:  uidName(p.rootID),
+				State: watch.DoesNotExist,
+				Value: value,
 			}
 			changes = append(changes, change)
 
@@ -164,10 +157,9 @@ func (p *syncProcessor) processTransaction(mus *state.Mutations) ([]watch.Change
 		}
 		// TODO(tilaks): don't clone value.
 		change := watch.Change{
-			Name:      uidName(id),
-			State:     watch.Exists,
-			Value:     value,
-			Continued: true,
+			Name:  uidName(id),
+			State: watch.Exists,
+			Value: value,
 		}
 		// TODO(tilaks): don't clone change.
 		changes = append(changes, change)
@@ -188,18 +180,12 @@ func (p *syncProcessor) processTransaction(mus *state.Mutations) ([]watch.Change
 		}
 		// TODO(tilaks): don't clone value.
 		change := watch.Change{
-			Name:      uidName(id),
-			State:     watch.DoesNotExist,
-			Value:     value,
-			Continued: true,
+			Name:  uidName(id),
+			State: watch.DoesNotExist,
+			Value: value,
 		}
 		// TODO(tilaks): don't clone change.
 		changes = append(changes, change)
-	}
-
-	// Last change marks the end of the processed atomic group.
-	if len(changes) > 0 {
-		changes[len(changes)-1].Continued = false
 	}
 	return changes, nil
 }

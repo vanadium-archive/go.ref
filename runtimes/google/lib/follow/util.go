@@ -52,14 +52,3 @@ func minDuration(d1, d2 time.Duration) time.Duration {
 	}
 	return d1
 }
-
-// sendEvent sends the err on the events channel, but can be preempted by
-// a stop request. sendEvent returns true iff a stop was requested.
-func sendEvent(events chan<- error, err error, stop <-chan bool) bool {
-	select {
-	case events <- err:
-		return false
-	case <-stop:
-		return true
-	}
-}

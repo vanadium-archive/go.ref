@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"veyron/services/store/memstore"
+	watchtesting "veyron/services/store/memstore/watch/testing"
 	"veyron2/services/watch"
 	"veyron2/storage"
 )
@@ -29,18 +30,18 @@ func TestWatch(t *testing.T) {
 
 	// Start a watch request.
 	req := watch.Request{}
-	wr := doWatch(w, rootCtx, req)
+	ws := watchtesting.Watch(rootPublicID, w.Watch, req)
 
 	// Check that watch detects the changes in the first transaction.
-	changes := make([]watch.Change, 0, 0)
-	change, ok := <-wr.changes
-	if !ok {
-		t.Error("Expected a change.")
+	cb, err := ws.Recv()
+	if err != nil {
+		t.Error("Recv() failed: %v", err)
 	}
+	changes := cb.Changes
+	change := changes[0]
 	if change.Continued {
 		t.Error("Expected change to be the last in this transaction")
 	}
-	changes = append(changes, change)
 	expectExists(t, changes, id1, storage.NoVersion, post1, true, "val1", empty)
 
 	// Put /a
@@ -54,30 +55,21 @@ func TestWatch(t *testing.T) {
 
 	// Check that watch detects the changes in the second transaction.
 
-	changes = make([]watch.Change, 0, 0)
-	change, ok = <-wr.changes
-	if !ok {
-		t.Error("Expected a change.")
+	cb, err = ws.Recv()
+	if err != nil {
+		t.Error("Recv() failed: %v", err)
 	}
+	changes = cb.Changes
+	change = changes[0]
 	if !change.Continued {
 		t.Error("Expected change to continue the transaction")
 	}
-	changes = append(changes, change)
-	change, ok = <-wr.changes
-	if !ok {
-		t.Error("Expected a change.")
-	}
+	change = changes[1]
 	if change.Continued {
 		t.Error("Expected change to be the last in this transaction")
 	}
-	changes = append(changes, change)
 	expectExists(t, changes, id1, pre1, post1, true, "val1", dir("a", id2))
 	expectExists(t, changes, id2, storage.NoVersion, post2, false, "val2", empty)
-
-	// Check that no errors were encountered.
-	if err := wr.err; err != nil {
-		t.Errorf("Unexpected error: %s", err)
-	}
 }
 
 func TestWatchCancellation(t *testing.T) {
@@ -87,13 +79,11 @@ func TestWatchCancellation(t *testing.T) {
 
 	// Create a new watcher.
 	w, cleanup := createWatcher(t, dbName)
-	var once sync.Once
-	defer once.Do(cleanup)
+	defer cleanup()
 
 	// Start a watch request.
 	req := watch.Request{}
-	ctx := newCancellableContext()
-	wr := doWatch(w, ctx, req)
+	ws := watchtesting.Watch(rootPublicID, w.Watch, req)
 
 	// Commit a transaction.
 	tr := memstore.NewTransaction()
@@ -101,12 +91,12 @@ func TestWatchCancellation(t *testing.T) {
 	commit(t, tr)
 
 	// Check that watch processed the first transaction.
-	if _, ok := <-wr.changes; !ok {
+	if _, err := ws.Recv(); err != nil {
 		t.Error("Expected a change.")
 	}
 
 	// Cancel the watch request.
-	ctx.Cancel()
+	ws.Cancel()
 	// Give watch some time to process the cancellation.
 	time.Sleep(time.Second)
 
@@ -116,15 +106,13 @@ func TestWatchCancellation(t *testing.T) {
 	commit(t, tr)
 
 	// Check that watch did not processed the second transaction.
-	if _, ok := <-wr.changes; ok {
-		t.Error("Did not expect a change.")
+	if _, err := ws.Recv(); err != watchtesting.ErrStreamClosed {
+		t.Errorf("Unexpected error: %v", err)
 	}
 
-	// Close the watcher, check that io.EOF was returned.
-	once.Do(cleanup)
-	<-wr.changes
-	if err := wr.err; err != io.EOF {
-		t.Errorf("Unexpected error: %s", err)
+	// Check that io.EOF was returned.
+	if err := ws.Finish(); err != io.EOF {
+		t.Errorf("Unexpected error: %v", err)
 	}
 }
 
@@ -140,7 +128,7 @@ func TestWatchClosed(t *testing.T) {
 
 	// Start a watch request.
 	req := watch.Request{}
-	wr := doWatch(w, rootCtx, req)
+	ws := watchtesting.Watch(rootPublicID, w.Watch, req)
 
 	// Commit a transaction.
 	tr := memstore.NewTransaction()
@@ -148,14 +136,13 @@ func TestWatchClosed(t *testing.T) {
 	commit(t, tr)
 
 	// Check that watch processed the first transaction.
-	if _, ok := <-wr.changes; !ok {
+	if _, err := ws.Recv(); err != nil {
 		t.Error("Expected a change.")
 	}
 
 	// Close the watcher, check that io.EOF was returned.
 	once.Do(cleanup)
-	<-wr.changes
-	if err := wr.err; err != io.EOF {
+	if err := ws.Finish(); err != io.EOF {
 		t.Errorf("Unexpected error: %v", err)
 	}
 }
@@ -196,44 +183,41 @@ func TestStateResumeMarker(t *testing.T) {
 
 	// Start a watch request.
 	req := watch.Request{}
-	wr := doWatch(w, rootCtx, req)
+	ws := watchtesting.Watch(rootPublicID, w.Watch, req)
 
 	// Retrieve the resume marker for the initial state.
-	change, ok := <-wr.changes
-	if !ok {
-		t.Error("Expected a change.")
+	cb, err := ws.Recv()
+	if err != nil {
+		t.Error("Recv() failed: %v", err)
 	}
+	changes := cb.Changes
+	change := changes[0]
 	resumeMarker1 := change.ResumeMarker
+
+	// Cancel the watch request.
+	ws.Cancel()
+	ws.Finish()
 
 	// Start a watch request after the initial state.
 	req = watch.Request{ResumeMarker: resumeMarker1}
-	wr = doWatch(w, rootCtx, req)
+	ws = watchtesting.Watch(rootPublicID, w.Watch, req)
 
 	// Check that watch detects the changes the transaction.
-	changes := make([]watch.Change, 0, 0)
-	change, ok = <-wr.changes
-	if !ok {
-		t.Error("Expected a change.")
+	cb, err = ws.Recv()
+	if err != nil {
+		t.Error("Recv() failed: %v", err)
 	}
+	changes = cb.Changes
+	change = changes[0]
 	if !change.Continued {
 		t.Error("Expected change to continue the transaction")
 	}
-	changes = append(changes, change)
-	change, ok = <-wr.changes
-	if !ok {
-		t.Error("Expected a change.")
-	}
+	change = changes[1]
 	if change.Continued {
 		t.Error("Expected change to be the last in this transaction")
 	}
-	changes = append(changes, change)
 	expectExists(t, changes, id1, pre1, post1, true, "val1", dir("a", id2))
 	expectExists(t, changes, id2, storage.NoVersion, post2, false, "val2", empty)
-
-	// Check that no errors were encountered.
-	if err := wr.err; err != nil {
-		t.Errorf("Unexpected error: %s", err)
-	}
 }
 
 func TestTransactionResumeMarker(t *testing.T) {
@@ -263,44 +247,41 @@ func TestTransactionResumeMarker(t *testing.T) {
 
 	// Start a watch request.
 	req := watch.Request{}
-	wr := doWatch(w, rootCtx, req)
+	ws := watchtesting.Watch(rootPublicID, w.Watch, req)
 
 	// Retrieve the resume marker for the first transaction.
-	change, ok := <-wr.changes
-	if !ok {
-		t.Error("Expected a change.")
+	cb, err := ws.Recv()
+	if err != nil {
+		t.Error("Recv() failed: %v", err)
 	}
+	changes := cb.Changes
+	change := changes[0]
 	resumeMarker1 := change.ResumeMarker
+
+	// Cancel the watch request.
+	ws.Cancel()
+	ws.Finish()
 
 	// Start a watch request after the first transaction.
 	req = watch.Request{ResumeMarker: resumeMarker1}
-	wr = doWatch(w, rootCtx, req)
+	ws = watchtesting.Watch(rootPublicID, w.Watch, req)
 
 	// Check that watch detects the changes in the second transaction.
-	changes := make([]watch.Change, 0, 0)
-	change, ok = <-wr.changes
-	if !ok {
-		t.Error("Expected a change.")
+	cb, err = ws.Recv()
+	if err != nil {
+		t.Error("Recv() failed: %v", err)
 	}
+	changes = cb.Changes
+	change = changes[0]
 	if !change.Continued {
 		t.Error("Expected change to continue the transaction")
 	}
-	changes = append(changes, change)
-	change, ok = <-wr.changes
-	if !ok {
-		t.Error("Expected a change.")
-	}
+	change = changes[1]
 	if change.Continued {
 		t.Error("Expected change to be the last in this transaction")
 	}
-	changes = append(changes, change)
 	expectExists(t, changes, id1, pre1, post1, true, "val1", dir("a", id2))
 	expectExists(t, changes, id2, storage.NoVersion, post2, false, "val2", empty)
-
-	// Check that no errors were encountered.
-	if err := wr.err; err != nil {
-		t.Errorf("Unexpected error: %s", err)
-	}
 }
 
 func TestNowResumeMarker(t *testing.T) {
@@ -321,13 +302,18 @@ func TestNowResumeMarker(t *testing.T) {
 
 	// Start a watch request with the "now" resume marker.
 	req := watch.Request{ResumeMarker: nowResumeMarker}
-	wr := doWatch(w, rootCtx, req)
+	ws := watchtesting.Watch(rootPublicID, w.Watch, req)
+
+	// Give watch some time to pick "now".
+	time.Sleep(time.Second)
 
 	// Check that watch announces that the initial state was skipped.
-	change, ok := <-wr.changes
-	if !ok {
-		t.Error("Expected a change.")
+	cb, err := ws.Recv()
+	if err != nil {
+		t.Error("Recv() failed: %v", err)
 	}
+	changes := cb.Changes
+	change := changes[0]
 	expectInitialStateSkipped(t, change)
 
 	// Put /a
@@ -340,31 +326,21 @@ func TestNowResumeMarker(t *testing.T) {
 	post2 := st.Snapshot().Find(id2).Version
 
 	// Check that watch detects the changes in the second transaction.
-	changes := make([]watch.Change, 0, 0)
-	change, ok = <-wr.changes
-	if !ok {
-		t.Error("Expected a change.")
+	cb, err = ws.Recv()
+	if err != nil {
+		t.Error("Recv() failed: %v", err)
 	}
+	changes = cb.Changes
+	change = changes[0]
 	if !change.Continued {
 		t.Error("Expected change to continue the transaction")
 	}
-	changes = append(changes, change)
-	change, ok = <-wr.changes
-	if !ok {
-		t.Error("Expected a change.")
-	}
+	change = changes[1]
 	if change.Continued {
 		t.Error("Expected change to be the last in this transaction")
 	}
-	changes = append(changes, change)
 	expectExists(t, changes, id1, pre1, post1, true, "val1", dir("a", id2))
 	expectExists(t, changes, id2, storage.NoVersion, post2, false, "val2", empty)
-
-	// Check that no errors were encountered.
-	if err := wr.err; err != nil {
-		t.Errorf("Unexpected error: %s", err)
-	}
-
 }
 
 func TestUnknownResumeMarkers(t *testing.T) {
@@ -379,11 +355,10 @@ func TestUnknownResumeMarkers(t *testing.T) {
 	// Start a watch request with a resume marker that is too long.
 	resumeMarker := make([]byte, 9)
 	req := watch.Request{ResumeMarker: resumeMarker}
-	wr := doWatch(w, rootCtx, req)
+	ws := watchtesting.Watch(rootPublicID, w.Watch, req)
 
 	// The resume marker should be too long.
-	<-wr.changes
-	if err := wr.err; err != ErrUnknownResumeMarker {
+	if err := ws.Finish(); err != ErrUnknownResumeMarker {
 		t.Errorf("Unexpected error: %v", err)
 	}
 }

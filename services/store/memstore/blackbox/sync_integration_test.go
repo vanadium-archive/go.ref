@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"veyron/services/store/memstore"
+	watchtesting "veyron/services/store/memstore/watch/testing"
 
 	"veyron2/services/watch"
 )
@@ -43,7 +44,7 @@ func TestSyncState(t *testing.T) {
 	w, cleanup := OpenWatch(t, dbName)
 	defer cleanup()
 	// Create a sync request
-	stream := Watch(t, w, rootCtx, watch.Request{})
+	stream := watchtesting.Watch(rootPublicID, w.Watch, watch.Request{})
 
 	cb, err := stream.Recv()
 	if err != nil {
@@ -69,7 +70,7 @@ func TestSyncTransaction(t *testing.T) {
 	w, cleanup := OpenWatch(t, dbName)
 	defer cleanup()
 	// Create a sync request
-	stream := Watch(t, w, rootCtx, watch.Request{})
+	stream := watchtesting.Watch(rootPublicID, w.Watch, watch.Request{})
 
 	// First transaction, put /, /a, /a/b
 	tr := memstore.NewTransaction()

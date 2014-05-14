@@ -121,14 +121,6 @@ func testModification(file *os.File, watcher *fsWatcher, timeout time.Duration) 
 	return nil
 }
 
-// unsafeClose closes a reader in a thread-safe manner. Specifically, it
-// avoids calling (*File).Close, which may modify the file.
-func (r *fsReader) unsafeClose() error {
-	closeFileErr := unsafeClose(r.file)
-	closeWatcherErr := r.watcher.Close()
-	return composeErrors(closeFileErr, closeWatcherErr)
-}
-
 // testClose tests the implementation of fsReader.Read(). Specifically,
 // tests that Read() blocks if the requested bytes are not available for
 // reading in the underlying file.
@@ -152,7 +144,7 @@ func testReadPartial(testFileName string, watcher *fsWatcher, timeout time.Durat
 	if err != nil {
 		return errors.New(fmt.Sprintf("newCustomReader() failed: %v", err))
 	}
-	defer reader.(*fsReader).unsafeClose()
+	defer reader.Close()
 
 	// Write a part of the string.
 	if err := writeString(testfileW, s0); err != nil {
@@ -200,7 +192,7 @@ func testReadFull(testFileName string, watcher *fsWatcher, timeout time.Duration
 	if err != nil {
 		return errors.New(fmt.Sprintf("newCustomReader() failed: %v", err))
 	}
-	defer reader.(*fsReader).unsafeClose()
+	defer reader.Close()
 
 	// Write part one of the string.
 	if err := writeString(testfileW, s1); err != nil {
@@ -252,8 +244,8 @@ func testClose(testFileName string, watcher *fsWatcher, timeout time.Duration) e
 	}
 
 	// Close the reader again.
-	if err := reader.Close(); err != errClosed {
-		return errors.New("expected duplicate Close() to failed")
+	if err := reader.Close(); err != nil {
+		return errors.New(fmt.Sprintf("Duplicate Close() failed: %v", err))
 	}
 
 	// Write the string.
