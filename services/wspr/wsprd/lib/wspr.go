@@ -26,6 +26,7 @@ import (
 	"log"
 	"net/http"
 	_ "net/http/pprof"
+	"os"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -48,6 +49,10 @@ const (
 	pingInterval = 50 * time.Second              // how often the server pings the client.
 	pongTimeout  = pingInterval + 10*time.Second // maximum wait for pong.
 )
+
+type wsprConfig struct {
+	MounttableRoot []string
+}
 
 type WSPR struct {
 	tlsCert       *tls.Certificate
@@ -505,11 +510,35 @@ func (wsp *websocketPipe) start(w http.ResponseWriter, req *http.Request) {
 		wsp.ctx.logger.VI(0).Infof("websocket upgrade failed: %s", err)
 		return
 	}
+
 	wsp.setup()
 	wsp.ws = ws
 	wsp.ws.SetPongHandler(wsp.pongHandler)
+	wsp.sendInitialMessage()
 	go wsp.readLoop()
 	go wsp.pingLoop()
+}
+
+// Upon first connect, we send a message with the wsprConfig.
+func (wsp *websocketPipe) sendInitialMessage() {
+	mounttableRoots := strings.Split(os.Getenv("MOUNTTABLE_ROOT"), ",")
+	if len(mounttableRoots) == 1 && mounttableRoots[0] == "" {
+		mounttableRoots = []string{}
+	}
+	msg := wsprConfig{
+		MounttableRoot: mounttableRoots,
+	}
+
+	wc, err := wsp.ws.NextWriter(websocket.TextMessage)
+	if err != nil {
+		wsp.ctx.logger.VI(0).Infof("failed to create websocket writer: %s", err)
+		return
+	}
+	if err := vom.ObjToJSON(wc, vom.ValueOf(msg)); err != nil {
+		wsp.ctx.logger.VI(0).Infof("failed to convert wspr config to json: %s", err)
+		return
+	}
+	wc.Close()
 }
 
 func (wsp *websocketPipe) pingLoop() {
