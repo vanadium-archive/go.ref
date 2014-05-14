@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 
+	"veyron2/naming"
 	"veyron2/rt"
 	"veyron2/vlog"
 
@@ -17,6 +18,7 @@ import (
 var (
 	mountName = flag.String("name", "", "Name to mount this mountable as.  Empty means don't mount.")
 	address   = flag.String("address", ":0", "Address to listen on.  Default is to use a randomly assigned port")
+	prefix    = flag.String("prefix", "mt", "The prefix to register the server at.")
 )
 
 const usage = `%s is a simple mount table daemon.
@@ -48,8 +50,7 @@ func main() {
 		return
 	}
 	defer server.Stop()
-	mtPrefix := "mt"
-	if err := server.Register(mtPrefix, mounttable.NewMountTable()); err != nil {
+	if err := server.Register(*prefix, mounttable.NewMountTable()); err != nil {
 		vlog.Errorf("server.Register failed to register mount table: %v", err)
 		return
 	}
@@ -58,15 +59,19 @@ func main() {
 		vlog.Errorf("server.Listen failed: %v", err)
 		return
 	}
+
 	if name := *mountName; len(name) > 0 {
 		if err := server.Publish(name); err != nil {
 			vlog.Errorf("Publish(%v) failed: %v", name, err)
 			return
 		}
-		vlog.Infof("Mount table service at: %v/%v (/%v/%v)", name, mtPrefix, endpoint, mtPrefix)
+		vlog.Infof("Mount table service at: %s (%s)",
+			naming.JoinAddressName(name, *prefix),
+			naming.JoinAddressName(endpoint.String(), *prefix))
 
 	} else {
-		vlog.Infof("Mount table at: /%v/%v", endpoint, mtPrefix)
+		vlog.Infof("Mount table at: %s",
+			naming.JoinAddressName(endpoint.String(), *prefix))
 	}
 
 	// Wait until signal is received.
