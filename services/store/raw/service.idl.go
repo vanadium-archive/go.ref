@@ -2,14 +2,13 @@
 // Source: service.idl
 
 /*
-Package estore defines an extended interface for the Veyron store.
-
-The extended interface supports synchronizing with remote stores by transporting Mutations.
+Package raw defines a raw interface for the Veyron store.
+The raw interface supports synchronizing with remote stores by transporting Mutations.
 */
-package estore
+package raw
 
 import (
-	"veyron2/services/store"
+	"veyron2/services/watch"
 
 	"veyron2/storage"
 
@@ -46,18 +45,26 @@ type Mutation struct {
 	Dir []storage.DEntry
 }
 
-// Store defines an extended interface for the Veyron store. Mutations can be
-// received via the Watcher interface, and committed via PutMutations().
+const (
+	// The raw Store has Veyron name "<mount>/.store.raw", where <mount> is the
+	// Veyron name of the mount point.
+	RawStoreSuffix = ".store.raw"
+)
+
+// Store defines a raw interface for the Veyron store. Mutations can be received
+// via the Watcher interface, and committed via PutMutation.
 // Store is the interface the client binds and uses.
 // Store_InternalNoTagGetter is the interface without the TagGetter
 // and UnresolveStep methods (both framework-added, rathern than user-defined),
 // to enable embedding without method collisions.  Not to be used directly by
 // clients.
 type Store_InternalNoTagGetter interface {
-	store.Store_InternalNoTagGetter
+	watch.Watcher_InternalNoTagGetter
 
-	// PutMutations puts external mutations in the store, within a transaction.
-	PutMutations(Mutations []Mutation, opts ..._gen_ipc.ClientCallOpt) (err error)
+	// PutMutations atomically commits a stream of Mutations when the stream is
+	// closed. Mutations are not committed if the request is cancelled before
+	// the stream has been closed.
+	PutMutations(opts ..._gen_ipc.ClientCallOpt) (reply StorePutMutationsStream, err error)
 }
 type Store interface {
 	_gen_idl.TagGetter
@@ -69,10 +76,77 @@ type Store interface {
 
 // StoreService is the interface the server implements.
 type StoreService interface {
-	store.StoreService
+	watch.WatcherService
 
-	// PutMutations puts external mutations in the store, within a transaction.
-	PutMutations(context _gen_ipc.Context, Mutations []Mutation) (err error)
+	// PutMutations atomically commits a stream of Mutations when the stream is
+	// closed. Mutations are not committed if the request is cancelled before
+	// the stream has been closed.
+	PutMutations(context _gen_ipc.Context, stream StoreServicePutMutationsStream) (err error)
+}
+
+// StorePutMutationsStream is the interface for streaming responses of the method
+// PutMutations in the service interface Store.
+type StorePutMutationsStream interface {
+
+	// Send places the item onto the output stream, blocking if there is no buffer
+	// space available.
+	Send(item Mutation) error
+
+	// CloseSend indicates to the server that no more items will be sent; server
+	// Recv calls will receive io.EOF after all sent items.  Subsequent calls to
+	// Send on the client will fail.  This is an optional call - it's used by
+	// streaming clients that need the server to receive the io.EOF terminator.
+	CloseSend() error
+
+	// Finish closes the stream and returns the positional return values for
+	// call.
+	Finish() (err error)
+
+	// Cancel cancels the RPC, notifying the server to stop processing.
+	Cancel()
+}
+
+// Implementation of the StorePutMutationsStream interface that is not exported.
+type implStorePutMutationsStream struct {
+	clientCall _gen_ipc.ClientCall
+}
+
+func (c *implStorePutMutationsStream) Send(item Mutation) error {
+	return c.clientCall.Send(item)
+}
+
+func (c *implStorePutMutationsStream) CloseSend() error {
+	return c.clientCall.CloseSend()
+}
+
+func (c *implStorePutMutationsStream) Finish() (err error) {
+	if ierr := c.clientCall.Finish(&err); ierr != nil {
+		err = ierr
+	}
+	return
+}
+
+func (c *implStorePutMutationsStream) Cancel() {
+	c.clientCall.Cancel()
+}
+
+// StoreServicePutMutationsStream is the interface for streaming responses of the method
+// PutMutations in the service interface Store.
+type StoreServicePutMutationsStream interface {
+
+	// Recv fills itemptr with the next item in the input stream, blocking until
+	// an item is available.  Returns io.EOF to indicate graceful end of input.
+	Recv() (item Mutation, err error)
+}
+
+// Implementation of the StoreServicePutMutationsStream interface that is not exported.
+type implStoreServicePutMutationsStream struct {
+	serverCall _gen_ipc.ServerCall
+}
+
+func (s *implStoreServicePutMutationsStream) Recv() (item Mutation, err error) {
+	err = s.serverCall.Recv(&item)
+	return
 }
 
 // BindStore returns the client stub implementing the Store
@@ -98,7 +172,7 @@ func BindStore(name string, opts ..._gen_ipc.BindOpt) (Store, error) {
 		return nil, _gen_idl.ErrTooManyOptionsToBind
 	}
 	stub := &clientStubStore{client: client, name: name}
-	stub.Store_InternalNoTagGetter, _ = store.BindStore(name, client)
+	stub.Watcher_InternalNoTagGetter, _ = watch.BindWatcher(name, client)
 
 	return stub, nil
 }
@@ -109,14 +183,14 @@ func BindStore(name string, opts ..._gen_ipc.BindOpt) (Store, error) {
 // interface, and returns a new server stub.
 func NewServerStore(server StoreService) interface{} {
 	return &ServerStubStore{
-		ServerStubStore: *store.NewServerStore(server).(*store.ServerStubStore),
-		service:         server,
+		ServerStubWatcher: *watch.NewServerWatcher(server).(*watch.ServerStubWatcher),
+		service:           server,
 	}
 }
 
 // clientStubStore implements Store.
 type clientStubStore struct {
-	store.Store_InternalNoTagGetter
+	watch.Watcher_InternalNoTagGetter
 
 	client _gen_ipc.Client
 	name   string
@@ -126,14 +200,12 @@ func (c *clientStubStore) GetMethodTags(method string) []interface{} {
 	return GetStoreMethodTags(method)
 }
 
-func (__gen_c *clientStubStore) PutMutations(Mutations []Mutation, opts ..._gen_ipc.ClientCallOpt) (err error) {
+func (__gen_c *clientStubStore) PutMutations(opts ..._gen_ipc.ClientCallOpt) (reply StorePutMutationsStream, err error) {
 	var call _gen_ipc.ClientCall
-	if call, err = __gen_c.client.StartCall(__gen_c.name, "PutMutations", []interface{}{Mutations}, opts...); err != nil {
+	if call, err = __gen_c.client.StartCall(__gen_c.name, "PutMutations", nil, opts...); err != nil {
 		return
 	}
-	if ierr := call.Finish(&err); ierr != nil {
-		err = ierr
-	}
+	reply = &implStorePutMutationsStream{clientCall: call}
 	return
 }
 
@@ -152,7 +224,7 @@ func (c *clientStubStore) UnresolveStep(opts ..._gen_ipc.ClientCallOpt) (reply [
 // StoreService and provides an object that satisfies
 // the requirements of veyron2/ipc.ReflectInvoker.
 type ServerStubStore struct {
-	store.ServerStubStore
+	watch.ServerStubWatcher
 
 	service StoreService
 }
@@ -164,42 +236,41 @@ func (s *ServerStubStore) GetMethodTags(method string) []interface{} {
 func (s *ServerStubStore) Signature(call _gen_ipc.ServerCall) (_gen_ipc.ServiceSignature, error) {
 	result := _gen_ipc.ServiceSignature{Methods: make(map[string]_gen_ipc.MethodSignature)}
 	result.Methods["PutMutations"] = _gen_ipc.MethodSignature{
-		InArgs: []_gen_ipc.MethodArgument{
-			{Name: "Mutations", Type: 76},
-		},
+		InArgs: []_gen_ipc.MethodArgument{},
 		OutArgs: []_gen_ipc.MethodArgument{
-			{Name: "Err", Type: 77},
+			{Name: "", Type: 65},
 		},
+		InStream: 76,
 	}
 
 	result.TypeDefs = []_gen_idl.AnyData{
-		_gen_wiretype.NamedPrimitiveType{Type: 0x32, Name: "byte", Tags: []string(nil)}, _gen_wiretype.ArrayType{Elem: 0x41, Len: 0x10, Name: "storage.ID", Tags: []string(nil)}, _gen_wiretype.NamedPrimitiveType{Type: 0x35, Name: "storage.Version", Tags: []string(nil)}, _gen_wiretype.NamedPrimitiveType{Type: 0x1, Name: "anydata", Tags: []string(nil)}, _gen_wiretype.NamedPrimitiveType{Type: 0x32, Name: "TagOp", Tags: []string(nil)}, _gen_wiretype.ArrayType{Elem: 0x41, Len: 0x10, Name: "ID", Tags: []string(nil)}, _gen_wiretype.StructType{
+		_gen_wiretype.NamedPrimitiveType{Type: 0x1, Name: "error", Tags: []string(nil)}, _gen_wiretype.NamedPrimitiveType{Type: 0x32, Name: "byte", Tags: []string(nil)}, _gen_wiretype.ArrayType{Elem: 0x42, Len: 0x10, Name: "storage.ID", Tags: []string(nil)}, _gen_wiretype.NamedPrimitiveType{Type: 0x35, Name: "storage.Version", Tags: []string(nil)}, _gen_wiretype.NamedPrimitiveType{Type: 0x1, Name: "anydata", Tags: []string(nil)}, _gen_wiretype.NamedPrimitiveType{Type: 0x32, Name: "TagOp", Tags: []string(nil)}, _gen_wiretype.ArrayType{Elem: 0x42, Len: 0x10, Name: "ID", Tags: []string(nil)}, _gen_wiretype.StructType{
 			[]_gen_wiretype.FieldType{
-				_gen_wiretype.FieldType{Type: 0x45, Name: "Op"},
-				_gen_wiretype.FieldType{Type: 0x46, Name: "ACL"},
+				_gen_wiretype.FieldType{Type: 0x46, Name: "Op"},
+				_gen_wiretype.FieldType{Type: 0x47, Name: "ACL"},
 			},
 			"Tag", []string(nil)},
-		_gen_wiretype.SliceType{Elem: 0x47, Name: "storage.TagList", Tags: []string(nil)}, _gen_wiretype.StructType{
+		_gen_wiretype.SliceType{Elem: 0x48, Name: "storage.TagList", Tags: []string(nil)}, _gen_wiretype.StructType{
 			[]_gen_wiretype.FieldType{
 				_gen_wiretype.FieldType{Type: 0x3, Name: "Name"},
-				_gen_wiretype.FieldType{Type: 0x46, Name: "ID"},
+				_gen_wiretype.FieldType{Type: 0x47, Name: "ID"},
 			},
 			"storage.DEntry", []string(nil)},
-		_gen_wiretype.SliceType{Elem: 0x49, Name: "", Tags: []string(nil)}, _gen_wiretype.StructType{
+		_gen_wiretype.SliceType{Elem: 0x4a, Name: "", Tags: []string(nil)}, _gen_wiretype.StructType{
 			[]_gen_wiretype.FieldType{
-				_gen_wiretype.FieldType{Type: 0x42, Name: "ID"},
-				_gen_wiretype.FieldType{Type: 0x43, Name: "PriorVersion"},
-				_gen_wiretype.FieldType{Type: 0x43, Name: "Version"},
+				_gen_wiretype.FieldType{Type: 0x43, Name: "ID"},
+				_gen_wiretype.FieldType{Type: 0x44, Name: "PriorVersion"},
+				_gen_wiretype.FieldType{Type: 0x44, Name: "Version"},
 				_gen_wiretype.FieldType{Type: 0x2, Name: "IsRoot"},
-				_gen_wiretype.FieldType{Type: 0x44, Name: "Value"},
-				_gen_wiretype.FieldType{Type: 0x48, Name: "Tags"},
-				_gen_wiretype.FieldType{Type: 0x4a, Name: "Dir"},
+				_gen_wiretype.FieldType{Type: 0x45, Name: "Value"},
+				_gen_wiretype.FieldType{Type: 0x49, Name: "Tags"},
+				_gen_wiretype.FieldType{Type: 0x4b, Name: "Dir"},
 			},
 			"Mutation", []string(nil)},
-		_gen_wiretype.SliceType{Elem: 0x4b, Name: "", Tags: []string(nil)}, _gen_wiretype.NamedPrimitiveType{Type: 0x1, Name: "error", Tags: []string(nil)}}
+	}
 	var ss _gen_ipc.ServiceSignature
 	var firstAdded int
-	ss, _ = s.ServerStubStore.Signature(call)
+	ss, _ = s.ServerStubWatcher.Signature(call)
 	firstAdded = len(result.TypeDefs)
 	for k, v := range ss.Methods {
 		for i, _ := range v.InArgs {
@@ -273,13 +344,14 @@ func (s *ServerStubStore) UnresolveStep(call _gen_ipc.ServerCall) (reply []strin
 	return
 }
 
-func (__gen_s *ServerStubStore) PutMutations(call _gen_ipc.ServerCall, Mutations []Mutation) (err error) {
-	err = __gen_s.service.PutMutations(call, Mutations)
+func (__gen_s *ServerStubStore) PutMutations(call _gen_ipc.ServerCall) (err error) {
+	stream := &implStoreServicePutMutationsStream{serverCall: call}
+	err = __gen_s.service.PutMutations(call, stream)
 	return
 }
 
 func GetStoreMethodTags(method string) []interface{} {
-	if resp := store.GetStoreMethodTags(method); resp != nil {
+	if resp := watch.GetWatcherMethodTags(method); resp != nil {
 		return resp
 	}
 	switch method {

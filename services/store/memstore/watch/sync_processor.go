@@ -4,9 +4,9 @@ import (
 	"errors"
 	"fmt"
 
-	"veyron/services/store/estore"
 	"veyron/services/store/memstore/refs"
 	"veyron/services/store/memstore/state"
+	"veyron/services/store/raw"
 
 	"veyron2/security"
 	"veyron2/services/watch"
@@ -79,7 +79,7 @@ func (p *syncProcessor) processState(st *state.State) ([]watch.Change, error) {
 		if isRoot {
 			p.rootVersion = cell.Version
 		}
-		value := &estore.Mutation{
+		value := &raw.Mutation{
 			ID:           id,
 			PriorVersion: storage.NoVersion,
 			Version:      cell.Version,
@@ -123,7 +123,7 @@ func (p *syncProcessor) processTransaction(mus *state.Mutations) ([]watch.Change
 			p.rootID = mus.RootID
 		} else {
 			// The root was deleted, prepare a deletion change.
-			value := &estore.Mutation{
+			value := &raw.Mutation{
 				ID:           p.rootID,
 				PriorVersion: p.rootVersion,
 				Version:      storage.NoVersion,
@@ -153,7 +153,7 @@ func (p *syncProcessor) processTransaction(mus *state.Mutations) ([]watch.Change
 		if isRoot {
 			p.rootVersion = mu.Postcondition
 		}
-		value := &estore.Mutation{
+		value := &raw.Mutation{
 			ID:           id,
 			PriorVersion: mus.Preconditions[id],
 			Version:      mu.Postcondition,
@@ -180,7 +180,7 @@ func (p *syncProcessor) processTransaction(mus *state.Mutations) ([]watch.Change
 			delete(p.preparedDeletions, id)
 			continue
 		}
-		value := &estore.Mutation{
+		value := &raw.Mutation{
 			ID:           id,
 			PriorVersion: precondition,
 			Version:      storage.NoVersion,

@@ -10,7 +10,7 @@ package vsync
 import (
 	"sync"
 
-	"veyron/services/store/estore"
+	"veyron/services/store/raw"
 
 	"veyron2/ipc"
 	"veyron2/storage"
@@ -112,7 +112,7 @@ func newSyncdCore(peerEndpoints, peerDeviceIDs, devid, storePath, vstoreEndpoint
 
 	// Register these Watch data types with VOM.
 	// TODO(tilaks): why aren't they auto-retrieved from the IDL?
-	vom.Register(&estore.Mutation{})
+	vom.Register(&raw.Mutation{})
 	vom.Register(&storage.DEntry{})
 
 	// Channel to propagate close event to all threads.

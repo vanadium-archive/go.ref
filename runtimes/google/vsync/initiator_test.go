@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"veyron/services/store/estore"
+	"veyron/services/store/raw"
 
 	"veyron2/storage"
 )
@@ -36,7 +36,7 @@ func TestGetLogRec(t *testing.T) {
 		LSN:     100,
 		ObjID:   objID,
 		CurVers: 20,
-		Value:   LogValue{Mutation: estore.Mutation{Version: 20}},
+		Value:   LogValue{Mutation: raw.Mutation{Version: 20}},
 	}
 	if _, err := s.hdlInitiator.getLogRec(objID, expRec.CurVers); err == nil {
 		t.Errorf("GetLogRec didn't fail")
@@ -91,7 +91,7 @@ func TestResolveConflictByVersion(t *testing.T) {
 			LSN:     LSN(100 + v),
 			ObjID:   objID,
 			CurVers: v,
-			Value:   LogValue{Mutation: estore.Mutation{Version: v, PriorVersion: 500 + v}},
+			Value:   LogValue{Mutation: raw.Mutation{Version: v, PriorVersion: 500 + v}},
 		}
 		logKey, err := s.log.putLogRec(expRec)
 		if err != nil {

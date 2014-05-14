@@ -1,7 +1,7 @@
 package service
 
 import (
-	"veyron/services/store/estore"
+	"veyron/services/store/raw"
 
 	"veyron2/ipc"
 	"veyron2/query"
@@ -42,10 +42,17 @@ type Object interface {
 	Glob(clientID security.PublicID, t storage.Transaction, pattern string) (GlobStream, error)
 }
 
-// Store is the client interface to the storage system.
+// Store is the server-side interface to the storage system. It is expected to
+// sit directly behind the rpc handlers defined by
+// veyron2/services/store/service.idl.
 type Store interface {
 	// Bind returns the Object associated with a path.
 	Bind(path string) Object
+
+	// PutMutations atomically commits a stream of Mutations when the stream is
+	// closed. Mutations are not committed if the request is cancelled before
+	// the stream has been closed.
+	PutMutations(ctx ipc.Context, stream raw.StoreServicePutMutationsStream) error
 
 	// Glob returns a set of names that match the glob pattern.
 	Glob(clientID security.PublicID, t storage.Transaction, pattern string) (GlobStream, error)
@@ -53,9 +60,6 @@ type Store interface {
 	// Search returns an Iterator to a sequence of elements that satisfy the
 	// query.
 	Search(t storage.Transaction, q query.Query) storage.Iterator
-
-	// PutMutations puts external mutations in the store, within a transaction.
-	PutMutations(mu []estore.Mutation) error
 
 	// SetConflictResolver specifies a function to perform conflict resolution.
 	// The <ty> represents the IDL name for the type.

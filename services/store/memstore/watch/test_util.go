@@ -7,8 +7,8 @@ import (
 	"testing"
 	"time"
 
-	"veyron/services/store/estore"
 	"veyron/services/store/memstore"
+	"veyron/services/store/raw"
 	"veyron/services/store/service"
 
 	"veyron2/ipc"
@@ -252,7 +252,7 @@ func expectExists(t *testing.T, changes []watch.Change, id storage.ID, pre, post
 	if change.State != watch.Exists {
 		t.Fatalf("Expected id to exist: %v", id)
 	}
-	cv := change.Value.(*estore.Mutation)
+	cv := change.Value.(*raw.Mutation)
 	if cv.PriorVersion != pre {
 		t.Fatalf("Expected PriorVersion to be %v, but was: %v", pre, cv.PriorVersion)
 	}
@@ -273,7 +273,7 @@ func expectDoesNotExist(t *testing.T, changes []watch.Change, id storage.ID, pre
 	if change.State != watch.DoesNotExist {
 		t.Fatalf("Expected id to not exist: %v", id)
 	}
-	cv := change.Value.(*estore.Mutation)
+	cv := change.Value.(*raw.Mutation)
 	if cv.PriorVersion != pre {
 		t.Fatalf("Expected PriorVersion to be %v, but was: %v", pre, cv.PriorVersion)
 	}
@@ -293,7 +293,7 @@ func expectDoesNotExist(t *testing.T, changes []watch.Change, id storage.ID, pre
 
 func findChange(t *testing.T, changes []watch.Change, id storage.ID) watch.Change {
 	for _, change := range changes {
-		cv, ok := change.Value.(*estore.Mutation)
+		cv, ok := change.Value.(*raw.Mutation)
 		if !ok {
 			t.Fatal("Expected a Mutation")
 		}

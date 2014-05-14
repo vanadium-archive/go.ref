@@ -8,7 +8,7 @@ import (
 	"os"
 	"time"
 
-	"veyron/services/store/estore"
+	"veyron/services/store/raw"
 )
 
 // getFileName generates a filename for a temporary (per unit test) kvdb file.
@@ -135,7 +135,7 @@ func createReplayStream(syncfile string) (*dummyStream, error) {
 				CurVers: cmd.version,
 				Parents: cmd.parents,
 				Value: LogValue{
-					Mutation: estore.Mutation{Version: cmd.version},
+					Mutation: raw.Mutation{Version: cmd.version},
 				},
 			}
 			stream.add(rec)

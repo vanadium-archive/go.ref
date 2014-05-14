@@ -11,7 +11,7 @@ import (
 	"testing"
 	"time"
 
-	"veyron/services/store/estore"
+	"veyron/services/store/raw"
 
 	"veyron2/query"
 	"veyron2/services/watch"
@@ -146,7 +146,7 @@ func getChangeBatch() watch.ChangeBatch {
 		watch.Change{
 			Name:  "/uid/4c6db51aa740d8c62b90df874503e285",
 			State: 0,
-			Value: &estore.Mutation{
+			Value: &raw.Mutation{
 				ID: storage.ID{0x4c, 0x6d, 0xb5, 0x1a, 0xa7, 0x40, 0xd8, 0xc6,
 					0x2b, 0x90, 0xdf, 0x87, 0x45, 0x3, 0xe2, 0x85},
 				PriorVersion: 0x0,
@@ -167,7 +167,7 @@ func getChangeBatch() watch.ChangeBatch {
 		watch.Change{
 			Name:  "/uid/082bc42e15af4fcf611d7f19a8d7831f",
 			State: 0,
-			Value: &estore.Mutation{
+			Value: &raw.Mutation{
 				ID: storage.ID{0x8, 0x2b, 0xc4, 0x2e, 0x15, 0xaf, 0x4f, 0xcf,
 					0x61, 0x1d, 0x7f, 0x19, 0xa8, 0xd7, 0x83, 0x1f},
 				PriorVersion: 0x0,
@@ -188,7 +188,7 @@ func getChangeBatch() watch.ChangeBatch {
 		watch.Change{
 			Name:  "/uid/6e4a327c297d76fb5142b1b1d95b2d07",
 			State: 0,
-			Value: &estore.Mutation{
+			Value: &raw.Mutation{
 				ID: storage.ID{0x6e, 0x4a, 0x32, 0x7c, 0x29, 0x7d, 0x76, 0xfb,
 					0x51, 0x42, 0xb1, 0xb1, 0xd9, 0x5b, 0x2d, 0x7},
 				PriorVersion: 0x0,
@@ -205,7 +205,7 @@ func getChangeBatch() watch.ChangeBatch {
 		watch.Change{
 			Name:  "/uid/082bc42e15af4fcf611d7f19a8d7831f",
 			State: 0,
-			Value: &estore.Mutation{
+			Value: &raw.Mutation{
 				ID: storage.ID{0x8, 0x2b, 0xc4, 0x2e, 0x15, 0xaf, 0x4f, 0xcf,
 					0x61, 0x1d, 0x7f, 0x19, 0xa8, 0xd7, 0x83, 0x1f},
 				PriorVersion: 0x57e9d1860d1d68d8,
@@ -231,7 +231,7 @@ func getChangeBatch() watch.ChangeBatch {
 		watch.Change{
 			Name:  "/uid/70ff65ec0f825f44b69f895eea759d71",
 			State: 0,
-			Value: &estore.Mutation{
+			Value: &raw.Mutation{
 				ID: storage.ID{0x70, 0xff, 0x65, 0xec, 0xf, 0x82, 0x5f, 0x44,
 					0xb6, 0x9f, 0x89, 0x5e, 0xea, 0x75, 0x9d, 0x71},
 				PriorVersion: 0x0,

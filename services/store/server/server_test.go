@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"veyron/services/store/estore"
+	"veyron/services/store/raw"
 
 	"veyron2/ipc"
 	"veyron2/security"
@@ -143,7 +143,7 @@ func expectExists(t *testing.T, changes []watch.Change, id storage.ID, value str
 	if change.State != watch.Exists {
 		t.Fatalf("Expected id to exist: %v", id)
 	}
-	cv := change.Value.(*estore.Mutation)
+	cv := change.Value.(*raw.Mutation)
 	if cv.Value != value {
 		t.Fatalf("Expected Value to be: %v, but was: %v", value, cv.Value)
 	}
@@ -151,7 +151,7 @@ func expectExists(t *testing.T, changes []watch.Change, id storage.ID, value str
 
 func findChange(t *testing.T, changes []watch.Change, id storage.ID) watch.Change {
 	for _, change := range changes {
-		cv, ok := change.Value.(*estore.Mutation)
+		cv, ok := change.Value.(*raw.Mutation)
 		if !ok {
 			t.Fatal("Expected a Mutation")
 		}

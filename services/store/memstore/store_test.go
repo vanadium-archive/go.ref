@@ -5,8 +5,8 @@ import (
 	"os"
 	"testing"
 
-	"veyron/services/store/estore"
 	"veyron/services/store/memstore/state"
+	"veyron/services/store/raw"
 
 	"veyron2/storage"
 )
@@ -133,7 +133,7 @@ func TestPutMutations(t *testing.T) {
 	// Create the state.
 	st, err := New(rootPublicID, dbName)
 	if err != nil {
-		t.Fatalf("newState() failed: %v", err)
+		t.Fatalf("New() failed: %v", err)
 	}
 
 	// Add /, /a, /a/b
@@ -142,8 +142,8 @@ func TestPutMutations(t *testing.T) {
 	post1, post2, post3 := storage.NewVersion(), storage.NewVersion(), storage.NewVersion()
 	v1, v2, v3 := "v1", "v2", "v3"
 
-	mu := []estore.Mutation{
-		estore.Mutation{
+	putMutationsBatch(t, st, []raw.Mutation{
+		raw.Mutation{
 			ID:           id1,
 			PriorVersion: pre1,
 			Version:      post1,
@@ -151,7 +151,7 @@ func TestPutMutations(t *testing.T) {
 			Value:        v1,
 			Dir:          dir("a", id2),
 		},
-		estore.Mutation{
+		raw.Mutation{
 			ID:           id2,
 			PriorVersion: pre2,
 			Version:      post2,
@@ -159,7 +159,7 @@ func TestPutMutations(t *testing.T) {
 			Value:        v2,
 			Dir:          dir("b", id3),
 		},
-		estore.Mutation{
+		raw.Mutation{
 			ID:           id3,
 			PriorVersion: pre3,
 			Version:      post3,
@@ -167,8 +167,7 @@ func TestPutMutations(t *testing.T) {
 			Value:        v3,
 			Dir:          empty,
 		},
-	}
-	st.PutMutations(mu)
+	})
 
 	expectValue(t, st, nil, "/", v1)
 	expectValue(t, st, nil, "/a", v2)
@@ -178,17 +177,14 @@ func TestPutMutations(t *testing.T) {
 	pre1, pre2, pre3 = post1, post2, post3
 	post2 = storage.NewVersion()
 
-	mu = []estore.Mutation{
-		estore.Mutation{
-			ID:           id2,
-			PriorVersion: pre2,
-			Version:      post2,
-			IsRoot:       false,
-			Value:        v2,
-			Dir:          empty,
-		},
-	}
-	st.PutMutations(mu)
+	putMutationsBatch(t, st, []raw.Mutation{raw.Mutation{
+		ID:           id2,
+		PriorVersion: pre2,
+		Version:      post2,
+		IsRoot:       false,
+		Value:        v2,
+		Dir:          empty,
+	}})
 
 	expectValue(t, st, nil, "/", v1)
 	expectValue(t, st, nil, "/a", v2)
@@ -197,15 +193,12 @@ func TestPutMutations(t *testing.T) {
 	// Garbage-collect /a/b
 	post3 = storage.NoVersion
 
-	mu = []estore.Mutation{
-		estore.Mutation{
-			ID:           id3,
-			PriorVersion: pre3,
-			Version:      post3,
-			IsRoot:       false,
-		},
-	}
-	st.PutMutations(mu)
+	putMutationsBatch(t, st, []raw.Mutation{raw.Mutation{
+		ID:           id3,
+		PriorVersion: pre3,
+		Version:      post3,
+		IsRoot:       false,
+	}})
 
 	expectValue(t, st, nil, "/", v1)
 	expectValue(t, st, nil, "/a", v2)
@@ -215,15 +208,12 @@ func TestPutMutations(t *testing.T) {
 	pre1, pre2, pre3 = post1, post2, post3
 	post1 = storage.NoVersion
 
-	mu = []estore.Mutation{
-		estore.Mutation{
-			ID:           id1,
-			PriorVersion: pre1,
-			Version:      post1,
-			IsRoot:       true,
-		},
-	}
-	st.PutMutations(mu)
+	putMutationsBatch(t, st, []raw.Mutation{raw.Mutation{
+		ID:           id1,
+		PriorVersion: pre1,
+		Version:      post1,
+		IsRoot:       true,
+	}})
 
 	expectNotExists(t, st, nil, "/")
 	expectNotExists(t, st, nil, "/a")
@@ -232,15 +222,12 @@ func TestPutMutations(t *testing.T) {
 	// Garbage-collect /a
 	post2 = storage.NoVersion
 
-	mu = []estore.Mutation{
-		estore.Mutation{
-			ID:           id2,
-			PriorVersion: pre2,
-			Version:      post2,
-			IsRoot:       false,
-		},
-	}
-	st.PutMutations(mu)
+	putMutationsBatch(t, st, []raw.Mutation{raw.Mutation{
+		ID:           id2,
+		PriorVersion: pre2,
+		Version:      post2,
+		IsRoot:       false,
+	}})
 
 	expectNotExists(t, st, nil, "/")
 	expectNotExists(t, st, nil, "/a")
@@ -257,7 +244,7 @@ func TestPutConflictingMutations(t *testing.T) {
 	// Create the state.
 	st, err := New(rootPublicID, dbName)
 	if err != nil {
-		t.Fatalf("newState() failed: %v", err)
+		t.Fatalf("New() failed: %v", err)
 	}
 
 	// Add /, /a
@@ -266,8 +253,8 @@ func TestPutConflictingMutations(t *testing.T) {
 	post1, post2 := storage.NewVersion(), storage.NewVersion()
 	v1, v2 := "v1", "v2"
 
-	mu := []estore.Mutation{
-		estore.Mutation{
+	putMutationsBatch(t, st, []raw.Mutation{
+		raw.Mutation{
 			ID:           id1,
 			PriorVersion: pre1,
 			Version:      post1,
@@ -275,7 +262,7 @@ func TestPutConflictingMutations(t *testing.T) {
 			Value:        v1,
 			Dir:          dir("a", id2),
 		},
-		estore.Mutation{
+		raw.Mutation{
 			ID:           id2,
 			PriorVersion: pre2,
 			Version:      post2,
@@ -283,8 +270,7 @@ func TestPutConflictingMutations(t *testing.T) {
 			Value:        v2,
 			Dir:          empty,
 		},
-	}
-	st.PutMutations(mu)
+	})
 
 	expectValue(t, st, nil, "/", v1)
 	expectValue(t, st, nil, "/a", v2)
@@ -294,18 +280,85 @@ func TestPutConflictingMutations(t *testing.T) {
 	post2 = storage.NewVersion()
 	v2 = "v4"
 
-	mu = []estore.Mutation{estore.Mutation{
+	s := putMutations(st)
+	s.Send(raw.Mutation{
 		ID:           id2,
 		PriorVersion: pre2,
 		Version:      post2,
 		IsRoot:       true,
 		Value:        v2,
 		Dir:          empty,
-	}}
-	if err := st.PutMutations(mu); err != state.ErrPreconditionFailed {
-		t.Fatal("Expected precondition to fail")
+	})
+	if err := s.Finish(); err != state.ErrPreconditionFailed {
+		t.Fatalf("Expected precondition to fail")
 	}
 
+}
+
+func TestPutDuplicateMutations(t *testing.T) {
+	dbName, err := ioutil.TempDir(os.TempDir(), "vstore")
+	if err != nil {
+		t.Fatalf("ioutil.TempDir() failed: %v", err)
+	}
+	defer os.RemoveAll(dbName)
+
+	// Create the state.
+	st, err := New(rootPublicID, dbName)
+	if err != nil {
+		t.Fatalf("New() failed: %v", err)
+	}
+
+	id := storage.NewID()
+	s := putMutations(st)
+	s.Send(raw.Mutation{
+		ID:           id,
+		PriorVersion: storage.NoVersion,
+		Version:      storage.NewVersion(),
+		IsRoot:       true,
+		Value:        "v1",
+		Dir:          empty,
+	})
+	s.Send(raw.Mutation{
+		ID:           id,
+		PriorVersion: storage.NoVersion,
+		Version:      storage.NewVersion(),
+		IsRoot:       true,
+		Value:        "v2",
+		Dir:          empty,
+	})
+	if err := s.Finish(); err != state.ErrDuplicatePutMutation {
+		t.Fatalf("Expected precondition to fail")
+	}
+}
+
+func TestCancelPutMutation(t *testing.T) {
+	dbName, err := ioutil.TempDir(os.TempDir(), "vstore")
+	if err != nil {
+		t.Fatalf("ioutil.TempDir() failed: %v", err)
+	}
+	defer os.RemoveAll(dbName)
+
+	// Create the state.
+	st, err := New(rootPublicID, dbName)
+	if err != nil {
+		t.Fatalf("New() failed: %v", err)
+	}
+
+	s := putMutations(st)
+	s.Send(raw.Mutation{
+		ID:           storage.NewID(),
+		PriorVersion: storage.NoVersion,
+		Version:      storage.NewVersion(),
+		IsRoot:       true,
+		Value:        "v1",
+		Dir:          empty,
+	})
+	s.Cancel()
+	if err := s.Finish(); err != ErrRequestCancelled {
+		t.Fatalf("Expected request to be cancelled")
+	}
+
+	expectNotExists(t, st, nil, "/")
 }
 
 var (

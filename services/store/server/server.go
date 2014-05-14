@@ -6,9 +6,9 @@ import (
 	"sync"
 	"time"
 
-	"veyron/services/store/estore"
 	"veyron/services/store/memstore"
 	memwatch "veyron/services/store/memstore/watch"
+	"veyron/services/store/raw"
 	"veyron/services/store/service"
 
 	"veyron2/idl"
@@ -203,9 +203,11 @@ func (s *Server) Watch(ctx ipc.Context, req watch.Request, stream watch.WatcherS
 	return s.watcher.Watch(ctx, req, stream)
 }
 
-// PutMutations puts external mutations in the store, within a transaction.
-func (s *Server) PutMutations(ctx ipc.Context, mu []estore.Mutation) error {
-	return s.store.PutMutations(mu)
+// PutMutations atomically commits a stream of Mutations when the stream is
+// closed. Mutations are not committed if the request is cancelled before the
+// stream has been closed.
+func (s *Server) PutMutations(ctx ipc.Context, stream raw.StoreServicePutMutationsStream) error {
+	return s.store.PutMutations(ctx, stream)
 }
 
 // ReadConflicts returns the stream of conflicts to store values.  A
@@ -214,14 +216,20 @@ func (s *Server) ReadConflicts(_ ipc.Context, stream store.StoreServiceReadConfl
 	panic("not implemented")
 }
 
-// Store and object dispatchers.
-// Typically, the store dispatcher handles paths with ".store" prefix, and the
+// Store, raw store and object dispatchers.
+// Typically, the store dispatcher handles paths with ".store" prefix, the
+// raw store dispatcher handles paths with ".store.raw" prefix, and the
 // object dispatcher handles paths with "" prefix.
 // TODO(sadovsky): Revisit this scheme. Seems simpler to have one dispatcher?
 
-// NewStoreDispatcher returns an storeDispatcher.
+// NewStoreDispatcher returns a store dispatcher.
 func NewStoreDispatcher(s *Server, auth security.Authorizer) ipc.Dispatcher {
-	return ipc.SoloDispatcher(estore.NewServerStore(s), auth)
+	return ipc.SoloDispatcher(store.NewServerStore(s), auth)
+}
+
+// NewRawStoreDispatcher returns a raw store dispatcher.
+func NewRawStoreDispatcher(s *Server, auth security.Authorizer) ipc.Dispatcher {
+	return ipc.SoloDispatcher(raw.NewServerStore(s), auth)
 }
 
 type objectDispatcher struct {
@@ -229,7 +237,7 @@ type objectDispatcher struct {
 	auth security.Authorizer
 }
 
-// NewObjectDispatcher returns an objectDispatcher.
+// NewObjectDispatcher returns an object dispatcher.
 func NewObjectDispatcher(s *Server, auth security.Authorizer) ipc.Dispatcher {
 	return &objectDispatcher{s: s, auth: auth}
 }
