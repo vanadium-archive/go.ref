@@ -14,6 +14,7 @@ import (
 	"veyron/runtimes/google/ipc/version"
 	inaming "veyron/runtimes/google/naming"
 
+	"veyron2"
 	"veyron2/ipc/stream"
 	"veyron2/naming"
 	"veyron2/verror"
@@ -108,6 +109,14 @@ func (m *manager) Dial(remote naming.Endpoint, opts ...stream.VCOpt) (stream.VC,
 }
 
 func (m *manager) Listen(protocol, address string, opts ...stream.ListenerOpt) (stream.Listener, naming.Endpoint, error) {
+	var rewriteEP string
+	for i, o := range opts {
+		if rewriteOpt, ok := o.(veyron2.EndpointRewriteOpt); ok {
+			// Last one 'wins'.
+			rewriteEP = string(rewriteOpt)
+			opts = append(opts[:i], opts[i+1:]...)
+		}
+	}
 	m.muListeners.Lock()
 	if m.shutdown {
 		m.muListeners.Unlock()
@@ -138,7 +147,15 @@ func (m *manager) Listen(protocol, address string, opts ...stream.ListenerOpt) (
 	m.listeners[ln] = true
 	m.muListeners.Unlock()
 
-	ep := version.Endpoint(netln.Addr().Network(), netln.Addr().String(), m.rid)
+	network, address := netln.Addr().Network(), netln.Addr().String()
+	if network == "tcp" && len(rewriteEP) > 0 {
+		if _, port, err := net.SplitHostPort(address); err != nil {
+			return nil, nil, fmt.Errorf("%q not a valid address: %v", address, err)
+		} else {
+			address = net.JoinHostPort(rewriteEP, port)
+		}
+	}
+	ep := version.Endpoint(network, address, m.rid)
 	return ln, ep, nil
 }
 

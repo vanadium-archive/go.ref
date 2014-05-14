@@ -11,6 +11,7 @@ import (
 	isecurity "veyron/runtimes/google/security"
 	"veyron/runtimes/google/security/wire"
 
+	"veyron2"
 	"veyron2/ipc"
 	"veyron2/ipc/stream"
 	"veyron2/naming"
@@ -40,6 +41,7 @@ type server struct {
 	active       sync.WaitGroup       // active goroutines we've spawned.
 	stopped      bool                 // whether the server has been stopped.
 	mt           naming.MountTable
+	publishOpt   veyron2.ServerPublishOpt // which endpoints to publish
 }
 
 func InternalNewServer(streamMgr stream.Manager, mt naming.MountTable, opts ...ipc.ServerOpt) (ipc.Server, error) {
@@ -49,10 +51,13 @@ func InternalNewServer(streamMgr stream.Manager, mt naming.MountTable, opts ...i
 		publisher: InternalNewPublisher(mt, publishPeriod),
 		mt:        mt,
 	}
-	// Collect all ServerOpts that are also ListenerOpts.
 	for _, opt := range opts {
-		if lopt, ok := opt.(stream.ListenerOpt); ok {
-			s.listenerOpts = append(s.listenerOpts, lopt)
+		switch opt := opt.(type) {
+		case stream.ListenerOpt:
+			// Collect all ServerOpts that are also ListenerOpts.
+			s.listenerOpts = append(s.listenerOpts, opt)
+		case veyron2.ServerPublishOpt:
+			s.publishOpt = opt
 		}
 	}
 	return s, nil
@@ -147,8 +152,14 @@ func (s *server) Listen(protocol, address string) (naming.Endpoint, error) {
 			}(flow)
 		}
 	}(ln, ep)
+	var publishEP string
+	if s.publishOpt == veyron2.PublishAll || len(s.listeners) == 1 {
+		publishEP = naming.JoinAddressName(ep.String(), "")
+	}
 	s.Unlock()
-	s.publisher.AddServer("/" + ep.String())
+	if len(publishEP) > 0 {
+		s.publisher.AddServer(publishEP)
+	}
 	return ep, nil
 }
 

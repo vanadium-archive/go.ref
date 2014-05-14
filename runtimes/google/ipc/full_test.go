@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"net"
 	"reflect"
 	"strings"
 	"sync"
@@ -15,6 +16,7 @@ import (
 	imanager "veyron/runtimes/google/ipc/stream/manager"
 	"veyron/runtimes/google/ipc/stream/vc"
 	"veyron/runtimes/google/ipc/version"
+	inaming "veyron/runtimes/google/naming"
 	isecurity "veyron/runtimes/google/security"
 	icaveat "veyron/runtimes/google/security/caveat"
 
@@ -337,6 +339,7 @@ func TestStartCall(t *testing.T) {
 		client, err := InternalNewClient(mgr, mt, veyron2.LocalID(test.clientID))
 		if err != nil {
 			t.Errorf("%s: Client creation failed: %v", name, err)
+			stopServer(t, server, mt)
 			continue
 		}
 		if _, err := client.StartCall("mountpoint/server/suffix", "irrelevant", nil, veyron2.RemoteID(test.pattern)); !matchesErrorPattern(err, test.err) {
@@ -673,6 +676,70 @@ func TestConnectWithIncompatibleServers(t *testing.T) {
 	expected := `method:"Echo",suffix:"suffix",arg:"foo"`
 	if result != expected {
 		t.Errorf("Wrong result returned.  Got %s, wanted %s", result, expected)
+	}
+}
+
+// TestPublishOptions verifies that the options that are relevant to how
+// a server publishes its endpoints have the right effect.
+func TestPublishOptions(t *testing.T) {
+	sm := imanager.InternalNew(naming.FixedRoutingID(0x555555555))
+	mt := newMountTable()
+	cases := []struct {
+		opts   []ipc.ServerOpt
+		expect []string
+	}{
+		{[]ipc.ServerOpt{}, []string{"127.0.0.1", "127.0.0.1"}},
+		{[]ipc.ServerOpt{veyron2.PublishAll}, []string{"127.0.0.1", "127.0.0.1"}},
+		{[]ipc.ServerOpt{veyron2.PublishFirst}, []string{"127.0.0.1"}},
+		{[]ipc.ServerOpt{veyron2.EndpointRewriteOpt("example.com")}, []string{"example.com", "example.com"}},
+		{[]ipc.ServerOpt{veyron2.PublishFirst, veyron2.EndpointRewriteOpt("example.com")}, []string{"example.com"}},
+	}
+	for i, c := range cases {
+		server, err := InternalNewServer(sm, mt, append([]ipc.ServerOpt{veyron2.LocalID(serverID)}, c.opts...)...)
+		if err != nil {
+			t.Errorf("InternalNewServer failed: %v", err)
+			continue
+		}
+		if _, err := server.Listen("tcp", "localhost:0"); err != nil {
+			t.Errorf("server.Listen failed: %v", err)
+			server.Stop()
+			continue
+		}
+		if _, err := server.Listen("tcp", "localhost:0"); err != nil {
+			t.Errorf("server.Listen failed: %v", err)
+			server.Stop()
+			continue
+		}
+		if err := server.Publish("mountpoint"); err != nil {
+			t.Errorf("server.Publish failed: %v", err)
+			server.Stop()
+			continue
+		}
+		servers, err := mt.Resolve("mountpoint")
+		if err != nil {
+			t.Errorf("mountpoint not found in mounttable")
+			server.Stop()
+			continue
+		}
+		var got []string
+		for _, s := range servers {
+			address, _ := naming.SplitAddressName(s)
+			ep, err := inaming.NewEndpoint(address)
+			if err != nil {
+				t.Errorf("case #%d: server with invalid endpoint %q: %v", i, address, err)
+				continue
+			}
+			host, _, err := net.SplitHostPort(ep.Addr().String())
+			if err != nil {
+				t.Errorf("case #%d: server endpoint with invalid address %q: %v", i, ep.Addr(), err)
+				continue
+			}
+			got = append(got, host)
+		}
+		if want := c.expect; !reflect.DeepEqual(want, got) {
+			t.Errorf("case #%d: expected mounted servers with addresses %q, got %q instead", i, want, got)
+		}
+		server.Stop()
 	}
 }
 
