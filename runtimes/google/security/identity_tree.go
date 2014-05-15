@@ -13,9 +13,10 @@ import (
 	"strings"
 	"time"
 
-	"veyron/runtimes/google/security/caveat"
+	icaveat "veyron/runtimes/google/security/caveat"
 	"veyron/runtimes/google/security/keys"
 	"veyron/runtimes/google/security/wire"
+	"veyron/security/caveat"
 	"veyron2/security"
 	"veyron2/vom"
 )
@@ -232,8 +233,8 @@ func (id *treePrivateID) Derive(pub security.PublicID) (security.PrivateID, erro
 
 func (id *treePrivateID) MintDischarge(cav security.ThirdPartyCaveat, duration time.Duration, dischargeCaveats []security.ServiceCaveat) (security.ThirdPartyDischarge, error) {
 	switch c := cav.(type) {
-	case *caveat.PublicKeyCaveat:
-		return caveat.NewPublicKeyDischarge(c, id.privateKey, duration, dischargeCaveats)
+	case *icaveat.PublicKeyCaveat:
+		return icaveat.NewPublicKeyDischarge(c, id.privateKey, duration, dischargeCaveats)
 	}
 	return nil, fmt.Errorf("discharge cannot be constructed for ThirdPartyCaveat of type %T from PrivateID of type %T", cav, id)
 }

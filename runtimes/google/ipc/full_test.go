@@ -19,7 +19,7 @@ import (
 	"veyron/runtimes/google/ipc/version"
 	inaming "veyron/runtimes/google/naming"
 	isecurity "veyron/runtimes/google/security"
-	icaveat "veyron/runtimes/google/security/caveat"
+	"veyron/security/caveat"
 
 	"veyron2"
 	"veyron2/ipc"
@@ -298,11 +298,11 @@ func TestStartCall(t *testing.T) {
 	authorizeErr := "has one or more invalid caveats"
 	nameErr := "does not have a name matching the provided pattern"
 
-	cavOnlyV1 := security.UniversalCaveat(&icaveat.PeerIdentity{Peers: []security.PrincipalPattern{"client/v1"}})
+	cavOnlyV1 := security.UniversalCaveat(caveat.PeerIdentity{"client/v1"})
 	now := time.Now()
 	cavExpired := security.ServiceCaveat{
 		Service: security.AllPrincipals,
-		Caveat:  &icaveat.Expiry{IssueTime: now, ExpiryTime: now},
+		Caveat:  &caveat.Expiry{IssueTime: now, ExpiryTime: now},
 	}
 
 	clientV1ID := derive(clientID, "v1")
@@ -419,12 +419,12 @@ func TestRPC(t *testing.T) {
 func TestRPCAuthorization(t *testing.T) {
 	cavOnlyEcho := security.ServiceCaveat{
 		Service: security.AllPrincipals,
-		Caveat:  &icaveat.MethodRestriction{[]string{"Echo"}},
+		Caveat:  caveat.MethodRestriction{"Echo"},
 	}
 	now := time.Now()
 	cavExpired := security.ServiceCaveat{
 		Service: security.AllPrincipals,
-		Caveat:  &icaveat.Expiry{IssueTime: now, ExpiryTime: now},
+		Caveat:  &caveat.Expiry{IssueTime: now, ExpiryTime: now},
 	}
 
 	blessedByServerOnlyEcho := derive(serverID, "onlyEcho", cavOnlyEcho)
@@ -436,7 +436,7 @@ func TestRPCAuthorization(t *testing.T) {
 		aclAuthErr   = "no matching ACL entry found"
 	)
 	invalidMethodErr := func(method string) string {
-		return fmt.Sprintf("caveat.MethodRestriction{Methods:[Echo]} forbids invocation of method %s", method)
+		return fmt.Sprintf(`caveat.MethodRestriction{"Echo"} forbids invocation of method %s`, method)
 	}
 
 	type v []interface{}

@@ -19,7 +19,7 @@ import (
 )
 
 var (
-	errNamingLoop  = verror.Make(verror.BadArg, "Loop in namespace")
+	errNamingLoop = verror.Make(verror.BadArg, "Loop in namespace")
 )
 
 // mountTable represents a namespace.  One exists per server instance.
@@ -200,7 +200,7 @@ func (ms *mountContext) Mount(context ipc.Context, server string, ttlsecs uint32
 
 // A useful node has children or an active mount.
 func (n *node) isUseful() bool {
-	return len(n.children) > 0  || n.mount.isActive()
+	return len(n.children) > 0 || n.mount.isActive()
 }
 
 // removeUseless removes a node and all of its ascendants that are not useful.

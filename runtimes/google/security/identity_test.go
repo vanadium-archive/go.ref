@@ -327,7 +327,7 @@ func TestAuthorizeWithCaveats(t *testing.T) {
 			tests: []rpc{
 				{server: bob, method: "Hello", authName: "veyron/alice"},
 				{server: bob, authName: "veyron/alice"},
-				{server: googleTree.PublicID(), method: "Hello", authErr: "caveat.MethodRestriction{Methods:[Play]} forbids invocation of method Hello"},
+				{server: googleTree.PublicID(), method: "Hello", authErr: `caveat.MethodRestriction{"Play"} forbids invocation of method Hello`},
 				{server: googleTree.PublicID(), method: "Play", authName: "veyron/alice"},
 				{server: googleTree.PublicID(), authName: "veyron/alice"},
 			},
@@ -335,7 +335,7 @@ func TestAuthorizeWithCaveats(t *testing.T) {
 		{
 			client: bless(cAlice, veyronChain, "alice", cavOnlyGoogle),
 			tests: []rpc{
-				{server: bob, method: "Hello", authErr: "caveat.PeerIdentity{Peers:[google]} forbids RPCing with peer untrusted/bob"},
+				{server: bob, method: "Hello", authErr: `caveat.PeerIdentity{"google"} forbids RPCing with peer untrusted/bob`},
 				{server: googleTree.PublicID(), method: "Hello", authName: "veyron/alice"},
 				{server: googleTree.PublicID(), method: "Play", authName: "veyron/alice"},
 			},
@@ -343,15 +343,15 @@ func TestAuthorizeWithCaveats(t *testing.T) {
 		{
 			client: bless(cAlice, veyronChain, "alice", append(cavOnlyGoogle, cavOnlyPlayAtGoogle...)),
 			tests: []rpc{
-				{server: bob, method: "Hello", authErr: "caveat.PeerIdentity{Peers:[google]} forbids RPCing with peer untrusted/bob"},
-				{server: googleTree.PublicID(), method: "Hello", authErr: "caveat.MethodRestriction{Methods:[Play]} forbids invocation of method Hello"},
+				{server: bob, method: "Hello", authErr: `caveat.PeerIdentity{"google"} forbids RPCing with peer untrusted/bob`},
+				{server: googleTree.PublicID(), method: "Hello", authErr: `caveat.MethodRestriction{"Play"} forbids invocation of method Hello`},
 				{server: googleTree.PublicID(), method: "Play", authName: "veyron/alice"},
 			},
 		},
 		{
 			client: bless(cAlice, veyronChain, "alice", cavOnlyPublicProfile),
 			tests: []rpc{
-				{server: cVeyronAliceTV, method: "PrivateProfile", authErr: "caveat.MethodRestriction{Methods:[PublicProfile]} forbids invocation of method PrivateProfile"},
+				{server: cVeyronAliceTV, method: "PrivateProfile", authErr: `caveat.MethodRestriction{"PublicProfile"} forbids invocation of method PrivateProfile`},
 				{server: cVeyronAliceTV, method: "PublicProfile", authName: "veyron/alice"},
 			},
 		},

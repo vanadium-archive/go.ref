@@ -8,8 +8,8 @@ import (
 	"testing"
 	"time"
 
-	"veyron/runtimes/google/security/caveat"
 	"veyron/runtimes/google/security/keys"
+	"veyron/security/caveat"
 
 	"veyron2/security"
 	"veyron2/vom"
@@ -104,14 +104,12 @@ func verifyAuthorizedID(origID, authID security.PublicID, authName string) error
 
 func methodRestrictionCaveat(service security.PrincipalPattern, methods []string) []security.ServiceCaveat {
 	return []security.ServiceCaveat{
-		{Service: service, Caveat: &caveat.MethodRestriction{Methods: methods}},
+		{Service: service, Caveat: caveat.MethodRestriction(methods)},
 	}
 }
 
 func peerIdentityCaveat(p security.PrincipalPattern) []security.ServiceCaveat {
-	return []security.ServiceCaveat{
-		security.UniversalCaveat(&caveat.PeerIdentity{Peers: []security.PrincipalPattern{p}}),
-	}
+	return []security.ServiceCaveat{security.UniversalCaveat(caveat.PeerIdentity{p})}
 }
 
 func init() {

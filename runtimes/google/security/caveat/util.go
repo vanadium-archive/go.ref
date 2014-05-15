@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"veyron/runtimes/google/security/wire"
+	"veyron/security/caveat"
 
 	"veyron2/security"
 )
@@ -47,7 +48,7 @@ func NewPublicKeyDischarge(cav *PublicKeyCaveat, dischargingKey *ecdsa.PrivateKe
 	}
 
 	now := time.Now()
-	expiryCaveat := &Expiry{IssueTime: now, ExpiryTime: now.Add(duration)}
+	expiryCaveat := &caveat.Expiry{IssueTime: now, ExpiryTime: now.Add(duration)}
 	caveats = append(caveats, security.UniversalCaveat(expiryCaveat))
 
 	encodedCaveats, err := wire.EncodeCaveats(caveats)
