@@ -149,6 +149,8 @@ func (w *syncWatcher) processChanges(changes watch.ChangeBatch) error {
 	// within the batch and apply the transaction changes in a bundle.
 	// TODO(rdaoud): handle object deletion (State == DoesNotExist)
 
+	vlog.VI(1).Infof("processChanges:: ready to process changes")
+
 	var lastResmark []byte
 	for i := range changes.Changes {
 		ch := &changes.Changes[i]
@@ -163,6 +165,7 @@ func (w *syncWatcher) processChanges(changes watch.ChangeBatch) error {
 			parents = []storage.Version{mu.PriorVersion}
 		}
 
+		vlog.VI(2).Infof("processChanges:: processing record %v", val)
 		if err := w.syncd.log.processWatchRecord(mu.ID, mu.Version, parents, val); err != nil {
 			return fmt.Errorf("cannot process mutation: %#v: %s", ch, err)
 		}

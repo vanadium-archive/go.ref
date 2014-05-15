@@ -107,9 +107,9 @@ func newInitiator(syncd *syncd, peerEndpoints, peerDeviceIDs string) *syncInitia
 		}
 	}
 
-	vlog.VI(1).Infof("newInitiator: My device ID: %s\n", i.syncd.id)
-	vlog.VI(1).Infof("newInitiator: Peer endpoints: %v\n", i.neighbors)
-	vlog.VI(1).Infof("newInitiator: Peer IDs: %v\n", i.neighborIDs)
+	vlog.VI(1).Infof("newInitiator: My device ID: %s", i.syncd.id)
+	vlog.VI(1).Infof("newInitiator: Peer endpoints: %v", i.neighbors)
+	vlog.VI(1).Infof("newInitiator: Peer IDs: %v", i.neighborIDs)
 
 	return i
 }
@@ -156,7 +156,8 @@ func (i *syncInitiator) getDeltasFromPeer(dID, ep string) {
 	// Construct a new stub that binds to peer endpoint.
 	c, err := BindSync(naming.JoinAddressName(ep, "sync"))
 	if err != nil {
-		vlog.Fatalf("GetDeltasFromPeer:: error binding to server: err %v", err)
+		vlog.Errorf("GetDeltasFromPeer:: error binding to server: err %v", err)
+		return
 	}
 
 	// Get the local generation vector.
@@ -169,7 +170,8 @@ func (i *syncInitiator) getDeltasFromPeer(dID, ep string) {
 	// Issue a GetDeltas() rpc.
 	stream, err := c.GetDeltas(local, i.syncd.id)
 	if err != nil {
-		vlog.Fatalf("GetDeltasFromPeer:: error getting deltas: err %v", err)
+		vlog.Errorf("GetDeltasFromPeer:: error getting deltas: err %v", err)
+		return
 	}
 
 	minGens, err := i.processLogStream(stream)
@@ -502,8 +504,10 @@ func (i *syncInitiator) updateStoreAndSync(m []estore.Mutation) error {
 	// will also hold the lock across PutMutations rpc to prevent
 	// a race with watcher. The next iteration will clean up this
 	// coordination.
-	if err := i.estore.PutMutations(m); err != nil {
-		return err
+	if i.estore != nil {
+		if err := i.estore.PutMutations(m); err != nil {
+			return err
+		}
 	}
 
 	if err := i.updateLogAndDag(); err != nil {
