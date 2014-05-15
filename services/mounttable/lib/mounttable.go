@@ -51,6 +51,12 @@ type node struct {
 	children map[string]*node
 }
 
+// dummyAuth allows all RPCs.
+type dummyAuth struct { }
+func (dummyAuth) Authorize(security.Context) error {
+	return nil
+}
+
 // NewMountTable creates a new server that uses the default authorization policy.
 func NewMountTable() *mountTable {
 	return &mountTable{
@@ -71,7 +77,7 @@ func (mt *mountTable) Lookup(name string) (ipc.Invoker, security.Authorizer, err
 		ms.elems = strings.Split(name, "/")
 		ms.cleanedElems = strings.Split(strings.TrimLeft(path.Clean(name), "/"), "/")
 	}
-	return ipc.ReflectInvoker(mounttable.NewServerMountTable(ms)), nil, nil
+	return ipc.ReflectInvoker(mounttable.NewServerMountTable(ms)), new(dummyAuth), nil
 }
 
 // findNode returns the node for the name path represented by elems.  If none exists and create is false, return nil.
