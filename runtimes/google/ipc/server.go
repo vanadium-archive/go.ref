@@ -146,6 +146,10 @@ func (s *server) Listen(protocol, address string) (naming.Endpoint, error) {
 			s.active.Add(1)
 			go func(flow stream.Flow) {
 				if err := newFlowServer(flow, s).serve(); err != nil {
+					// TODO(caprita): Logging errors here is
+					// too spammy. For example, "not
+					// authorized" errors shouldn't be
+					// logged as server errors.
 					vlog.Errorf("Flow serve on (%v, %v) failed: %v", protocol, address, err)
 				}
 				s.active.Done()

@@ -67,20 +67,28 @@ func InternalNewClient(streamMgr stream.Manager, mt naming.MountTable, opts ...i
 	return c, nil
 }
 
-func (c *client) getVCInfo(ep naming.Endpoint) (*vcInfo, error) {
+func (c *client) createFlow(ep naming.Endpoint) (stream.Flow, error) {
 	c.vcMapMu.Lock()
 	defer c.vcMapMu.Unlock()
 	if vcinfo := c.vcMap[ep.String()]; vcinfo != nil {
-		return vcinfo, nil
+		if flow, err := vcinfo.vc.Connect(); err == nil {
+			return flow, nil
+		}
+		// If the vc fails to establish a new flow, we assume it's
+		// broken, remove it from the map, and proceed to establishing
+		// a new vc.
+		// TODO(caprita): Should we distinguish errors due to vc being
+		// closed from other errors?  If not, should we call vc.Close()
+		// before removing the vc from the map?
+		delete(c.vcMap, ep.String())
 	}
 	vc, err := c.streamMgr.Dial(ep, c.vcOpts...)
 	if err != nil {
 		return nil, err
 	}
 	// TODO(toddw): Add connections for the type and cancel flows.
-	vcinfo := &vcInfo{vc: vc, remoteEP: ep}
-	c.vcMap[ep.String()] = vcinfo
-	return vcinfo, nil
+	c.vcMap[ep.String()] = &vcInfo{vc: vc, remoteEP: ep}
+	return vc.Connect()
 }
 
 // connectFlow parses an endpoint and a suffix out of the server and establishes
@@ -99,11 +107,7 @@ func (c *client) connectFlow(server string) (stream.Flow, string, error) {
 	if err = version.CheckCompatibility(ep); err != nil {
 		return nil, "", err
 	}
-	vcinfo, err := c.getVCInfo(ep)
-	if err != nil {
-		return nil, "", err
-	}
-	flow, err := vcinfo.vc.Connect()
+	flow, err := c.createFlow(ep)
 	if err != nil {
 		return nil, "", err
 	}

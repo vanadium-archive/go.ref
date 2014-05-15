@@ -4,15 +4,16 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log"
 	"net"
+	"os"
 	"reflect"
 	"strings"
 	"sync"
 	"testing"
 	"time"
 
-	_ "veyron/lib/testutil"
+	"veyron/lib/testutil"
+	"veyron/lib/testutil/blackbox"
 	imanager "veyron/runtimes/google/ipc/stream/manager"
 	"veyron/runtimes/google/ipc/stream/vc"
 	"veyron/runtimes/google/ipc/version"
@@ -270,7 +271,7 @@ func createBundle(t *testing.T, clientID, serverID security.PrivateID, ts interf
 	return
 }
 
-func derive(blessor security.PrivateID, name string, caveats []security.ServiceCaveat) security.PrivateID {
+func derive(blessor security.PrivateID, name string, caveats ...security.ServiceCaveat) security.PrivateID {
 	id, err := isecurity.NewPrivateID("irrelevant")
 	if err != nil {
 		panic(err)
@@ -304,10 +305,10 @@ func TestStartCall(t *testing.T) {
 		Caveat:  &icaveat.Expiry{IssueTime: now, ExpiryTime: now},
 	}
 
-	clientV1ID := derive(clientID, "v1", nil)
-	clientV2ID := derive(clientID, "v2", nil)
-	serverV1ID := derive(serverID, "v1", []security.ServiceCaveat{cavOnlyV1})
-	serverExpiredID := derive(serverID, "expired", []security.ServiceCaveat{cavExpired})
+	clientV1ID := derive(clientID, "v1")
+	clientV2ID := derive(clientID, "v2")
+	serverV1ID := derive(serverID, "v1", cavOnlyV1)
+	serverExpiredID := derive(serverID, "expired", cavExpired)
 
 	tests := []struct {
 		clientID, serverID security.PrivateID
@@ -426,9 +427,9 @@ func TestRPCAuthorization(t *testing.T) {
 		Caveat:  &icaveat.Expiry{IssueTime: now, ExpiryTime: now},
 	}
 
-	blessedByServerOnlyEcho := derive(serverID, "onlyEcho", []security.ServiceCaveat{cavOnlyEcho})
-	blessedByServerExpired := derive(serverID, "expired", []security.ServiceCaveat{cavExpired})
-	blessedByClient := derive(clientID, "blessed", nil)
+	blessedByServerOnlyEcho := derive(serverID, "onlyEcho", cavOnlyEcho)
+	blessedByServerExpired := derive(serverID, "expired", cavExpired)
+	blessedByClient := derive(clientID, "blessed")
 
 	const (
 		expiredIDErr = "forbids credential from being used at this time"
@@ -743,14 +744,107 @@ func TestPublishOptions(t *testing.T) {
 	}
 }
 
+// TestReconnect verifies that the client transparently re-establishes the
+// connection to the server if the server dies and comes back (on the same
+// endpoint).
+func TestReconnect(t *testing.T) {
+	b := createBundle(t, clientID, nil, nil) // We only need the client from the bundle.
+	defer b.cleanup(t)
+	idFile := testutil.SaveIdentityToFile(derive(clientID, "server"))
+	server := blackbox.HelperCommand(t, "runServer", "127.0.0.1:0", idFile)
+	server.Cmd.Start()
+	addr, err := server.ReadLineFromChild()
+	if err != nil {
+		t.Fatalf("Failed to read server address from process: %v", err)
+	}
+	ep, err := inaming.NewEndpoint(addr)
+	if err != nil {
+		t.Fatalf("inaming.NewEndpoint(%q): %v", addr, err)
+	}
+	serverName := naming.JoinAddressName(ep.String(), "server/suffix")
+	makeCall := func() (string, error) {
+		call, err := b.client.StartCall(serverName, "Echo", []interface{}{"bratman"})
+		if err != nil {
+			return "", err
+		}
+		var result string
+		if err = call.Finish(&result); err != nil {
+			return "", err
+		}
+		return result, nil
+	}
+	expected := `method:"Echo",suffix:"suffix",arg:"bratman"`
+	if result, err := makeCall(); err != nil || result != expected {
+		t.Errorf("Got (%q, %v) want (%q, nil)", result, err, expected)
+	}
+	// Kill the server, verify client can't talk to it anymore.
+	server.Cleanup()
+	if _, err := makeCall(); err == nil {
+		t.Fatal("Expected call to fail since server is dead")
+	}
+	// Resurrect the server with the same address, verify client
+	// re-establishes the connection.
+	server = blackbox.HelperCommand(t, "runServer", addr, idFile)
+	defer server.Cleanup()
+	server.Cmd.Start()
+	if addr2, err := server.ReadLineFromChild(); addr2 != addr || err != nil {
+		t.Fatalf("Got (%q, %v) want (%q, nil)", addr2, err, addr)
+	}
+	if result, err := makeCall(); err != nil || result != expected {
+		t.Errorf("Got (%q, %v) want (%q, nil)", result, err, expected)
+	}
+}
+
+func loadIdentityFromFile(file string) security.PrivateID {
+	f, err := os.Open(file)
+	if err != nil {
+		vlog.Fatalf("failed to open %v: %v", file, err)
+	}
+	id, err := security.LoadIdentity(f)
+	f.Close()
+	if err != nil {
+		vlog.Fatalf("Failed to load identity from %v: %v", file, err)
+	}
+	return id
+}
+
+func runServer(argv []string) {
+	mgr := imanager.InternalNew(naming.FixedRoutingID(0x1111111))
+	mt := newMountTable()
+	id := loadIdentityFromFile(argv[1])
+	isecurity.TrustIdentityProviders(id)
+	server, err := InternalNewServer(mgr, mt, veyron2.LocalID(id))
+	if err != nil {
+		vlog.Fatalf("InternalNewServer failed: %v", err)
+	}
+	disp := testServerDisp{new(testServer)}
+	if err := server.Register("server", disp); err != nil {
+		vlog.Fatalf("server.Register failed: %v", err)
+	}
+	ep, err := server.Listen("tcp", argv[0])
+	if err != nil {
+		vlog.Fatalf("server.Listen failed: %v", err)
+	}
+	fmt.Println(ep.Addr())
+	// Live forever (parent process should explicitly kill us).
+	<-make(chan struct{})
+}
+
+// Required by blackbox framework.
+func TestHelperProcess(t *testing.T) {
+	blackbox.HelperProcess(t)
+}
+
 func init() {
 	var err error
 	if clientID, err = isecurity.NewPrivateID("client"); err != nil {
-		log.Fatalf("failed isecurity.NewPrivateID: %s", err)
+		vlog.Fatalf("failed isecurity.NewPrivateID: %s", err)
 	}
 	if serverID, err = isecurity.NewPrivateID("server"); err != nil {
-		log.Fatalf("failed isecurity.NewPrivateID: %s", err)
+		vlog.Fatalf("failed isecurity.NewPrivateID: %s", err)
 	}
 	isecurity.TrustIdentityProviders(clientID)
 	isecurity.TrustIdentityProviders(serverID)
+
+	blackbox.CommandTable["runServer"] = runServer
 }
