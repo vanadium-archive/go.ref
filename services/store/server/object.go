@@ -7,6 +7,7 @@ import (
 
 	"veyron2/idl"
 	"veyron2/ipc"
+	"veyron2/query"
 	"veyron2/services/mounttable"
 	"veyron2/services/store"
 	"veyron2/storage"
@@ -155,6 +156,11 @@ func (o *object) Stat(ctx ipc.Context, tid store.TransactionID) (store.Stat, err
 		return nullStat, err
 	}
 	return makeServiceStat(stat), nil
+}
+
+// Query returns a sequence of objects that match the given query.
+func (o *object) Query(_ ipc.Context, tid store.TransactionID, q query.Query, stream store.ObjectServiceQueryStream) error {
+	panic("not implemented")
 }
 
 type globStreamAdapter struct {

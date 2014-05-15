@@ -13,7 +13,6 @@ import (
 
 	"veyron2/idl"
 	"veyron2/ipc"
-	"veyron2/query"
 	"veyron2/security"
 	"veyron2/services/store"
 	"veyron2/services/watch"
@@ -199,30 +198,6 @@ func (s *Server) Abort(_ ipc.Context, id store.TransactionID) error {
 	return nil
 }
 
-// Glob returns a glob expansion.
-func (s *Server) Glob(ctx ipc.Context, id store.TransactionID, pattern string, stream store.StoreServiceGlobStream) error {
-	s.mutex.Lock()
-	defer s.mutex.Unlock()
-
-	t, ok := s.findTransactionLocked(id)
-	if !ok {
-		return errTransactionDoesNotExist
-	}
-	it, err := s.store.Glob(ctx.RemoteID(), t, pattern)
-	if err != nil {
-		return err
-	}
-	for ; it.IsValid(); it.Next() {
-		if ctx.IsClosed() {
-			break
-		}
-		if err := stream.Send(it.Name()); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
 // Watch returns a stream of changes.
 func (s *Server) Watch(ctx ipc.Context, req watch.Request, stream watch.WatcherServiceWatchStream) error {
 	return s.watcher.Watch(ctx, req, stream)
@@ -231,11 +206,6 @@ func (s *Server) Watch(ctx ipc.Context, req watch.Request, stream watch.WatcherS
 // PutMutations puts external mutations in the store, within a transaction.
 func (s *Server) PutMutations(ctx ipc.Context, mu []estore.Mutation) error {
 	return s.store.PutMutations(mu)
-}
-
-// query.
-func (s *Server) Search(_ ipc.Context, tid store.TransactionID, q query.Query, stream store.StoreServiceSearchStream) error {
-	panic("not implemented")
 }
 
 // ReadConflicts returns the stream of conflicts to store values.  A
