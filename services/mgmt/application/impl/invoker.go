@@ -8,7 +8,7 @@ import (
 	"veyron2/ipc"
 	"veyron2/services/mgmt/application"
 	"veyron2/storage"
-	"veyron2/storage/vstore"
+	"veyron2/storage/vstore/primitives"
 	"veyron2/vlog"
 )
 
@@ -100,7 +100,7 @@ func (i *invoker) Put(context ipc.Context, profiles []string, envelope applicati
 	if version == "" {
 		return errInvalidSuffix
 	}
-	transaction := vstore.NewTransaction()
+	transaction := primitives.NewTransaction()
 	var entry storage.Stat
 	for _, profile := range profiles {
 		path := path.Join("/applications", name, profile, version)
@@ -130,7 +130,7 @@ func (i *invoker) Remove(context ipc.Context, profile string) error {
 	if err != nil {
 		return err
 	}
-	transaction := vstore.NewTransaction()
+	transaction := primitives.NewTransaction()
 	path := path.Join("/applications", name, profile)
 	if version != "" {
 		path += "/" + version
