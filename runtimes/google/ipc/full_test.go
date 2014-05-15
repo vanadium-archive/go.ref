@@ -691,7 +691,7 @@ func TestPublishOptions(t *testing.T) {
 		{[]ipc.ServerOpt{}, []string{"127.0.0.1", "127.0.0.1"}},
 		{[]ipc.ServerOpt{veyron2.PublishAll}, []string{"127.0.0.1", "127.0.0.1"}},
 		{[]ipc.ServerOpt{veyron2.PublishFirst}, []string{"127.0.0.1"}},
-		{[]ipc.ServerOpt{veyron2.EndpointRewriteOpt("example.com")}, []string{"example.com", "example.com"}},
+		{[]ipc.ServerOpt{veyron2.EndpointRewriteOpt("example1.com"), veyron2.EndpointRewriteOpt("example2.com")}, []string{"example2.com", "example2.com"}},
 		{[]ipc.ServerOpt{veyron2.PublishFirst, veyron2.EndpointRewriteOpt("example.com")}, []string{"example.com"}},
 	}
 	for i, c := range cases {

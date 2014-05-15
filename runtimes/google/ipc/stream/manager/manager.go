@@ -110,11 +110,12 @@ func (m *manager) Dial(remote naming.Endpoint, opts ...stream.VCOpt) (stream.VC,
 
 func (m *manager) Listen(protocol, address string, opts ...stream.ListenerOpt) (stream.Listener, naming.Endpoint, error) {
 	var rewriteEP string
-	for i, o := range opts {
-		if rewriteOpt, ok := o.(veyron2.EndpointRewriteOpt); ok {
+	for i := 0; i < len(opts); i++ {
+		if rewriteOpt, ok := opts[i].(veyron2.EndpointRewriteOpt); ok {
 			// Last one 'wins'.
 			rewriteEP = string(rewriteOpt)
 			opts = append(opts[:i], opts[i+1:]...)
+			i--
 		}
 	}
 	m.muListeners.Lock()
