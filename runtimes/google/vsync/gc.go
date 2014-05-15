@@ -91,7 +91,7 @@ import (
 var (
 	// garbage collection (space reclamation) is invoked every
 	// garbageCollectInterval.
-	garbageCollectInterval = 5 * time.Second
+	garbageCollectInterval = 3600 * time.Second
 
 	// strictCheck when enabled performs strict checking of every
 	// log record being deleted to confirm that it should be in
@@ -246,7 +246,7 @@ func (g *syncGC) onlineConsistencyCheck() error {
 		return nil
 	}
 
-	vlog.VI(1).Infof("onlineConsistencyCheck:: reclaimSnap is %v", g.reclaimSnap)
+	vlog.VI(2).Infof("onlineConsistencyCheck:: reclaimSnap is %v", g.reclaimSnap)
 	genCount := 0
 	for dev, gen := range g.reclaimSnap {
 		if gen == 0 {
@@ -278,7 +278,7 @@ func (g *syncGC) onlineConsistencyCheck() error {
 // garbageCollectGeneration garbage collects any existing log records
 // for a particular generation.
 func (g *syncGC) garbageCollectGeneration(devid DeviceID, gnum GenID) error {
-	vlog.VI(1).Infof("garbageCollectGeneration:: processing generation %s:%d", devid, gnum)
+	vlog.VI(2).Infof("garbageCollectGeneration:: processing generation %s:%d", devid, gnum)
 	// Bootstrap generation for a device. Nothing to GC.
 	if gnum == 0 {
 		return nil
@@ -319,7 +319,7 @@ func (g *syncGC) garbageCollectGeneration(devid DeviceID, gnum GenID) error {
 			}
 			gcState.pos = gen.Pos
 			gcState.version = rec.CurVers
-			vlog.VI(1).Infof("Replacing for obj %v pos %d version %d",
+			vlog.VI(2).Infof("Replacing for obj %v pos %d version %d",
 				rec.ObjID, gcState.pos, gcState.version)
 		}
 
@@ -359,7 +359,8 @@ func (g *syncGC) reclaimSpace() error {
 		return err
 	}
 
-	vlog.VI(1).Infof("reclaimSpace:: reclaimVectors: new %v old %v", newReclaimVec, g.syncd.devtab.head.ReclaimVec)
+	vlog.VI(1).Infof("reclaimSpace:: reclaimVectors: new %v old %v",
+		newReclaimVec, g.syncd.devtab.head.ReclaimVec)
 	// Clean up generations from reclaimVec+1 to newReclaimVec.
 	for dev, high := range newReclaimVec {
 		low := g.syncd.devtab.getOldestGen(dev)
@@ -422,12 +423,12 @@ func (g *syncGC) dagPruneCallBack(logKey string) error {
 	if err != nil {
 		return err
 	}
-	vlog.VI(1).Infof("dagPruneCallBack:: called for key %s (%s %d %d)", logKey, dev, gnum, lsn)
+	vlog.VI(2).Infof("dagPruneCallBack:: called for key %s (%s %d %d)", logKey, dev, gnum, lsn)
 
 	// Check if the log record being deleted is correct as per GC state.
 	oldestGen := g.syncd.devtab.getOldestGen(dev)
 	if gnum > oldestGen {
-		vlog.VI(1).Infof("gnum is %d oldest is %d", gnum, oldestGen)
+		vlog.VI(2).Infof("gnum is %d oldest is %d", gnum, oldestGen)
 		return errors.New("deleting incorrect log record")
 	}
 

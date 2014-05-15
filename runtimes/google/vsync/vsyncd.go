@@ -108,7 +108,7 @@ func newSyncdCore(peerEndpoints, peerDeviceIDs, devid, storePath, vstoreEndpoint
 	// Veyron Store.
 	s.vstoreEndpoint = vstoreEndpoint
 	s.vstore = store
-	vlog.VI(1).Infof("newSyncd: Local Veyron store: %s\n", s.vstoreEndpoint)
+	vlog.VI(1).Infof("newSyncd: Local Veyron store: %s", s.vstoreEndpoint)
 
 	// Register these Watch data types with VOM.
 	// TODO(tilaks): why aren't they auto-retrieved from the IDL?
@@ -179,7 +179,7 @@ func (s *syncd) GetDeltas(_ ipc.Context, In GenVector, ClientID DeviceID, Stream
 	}
 
 	// TODO(hpucha): Hack, fills fake log and dag state for testing.
-	s.log.fillFakeWatchRecords()
+	//s.log.fillFakeWatchRecords()
 
 	// Create a new local generation if there are any local updates.
 	gen, err := s.log.createLocalGeneration()
