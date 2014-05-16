@@ -6,11 +6,11 @@ import (
 	"os"
 
 	"veyron/lib/signals"
+	vflag "veyron/security/flag"
 
 	"veyron/services/mgmt/content/impl"
 
 	"veyron2/rt"
-	"veyron2/security"
 	"veyron2/vlog"
 )
 
@@ -20,8 +20,7 @@ const (
 )
 
 func main() {
-	var aclFile, address, protocol, name, root string
-	flag.StringVar(&aclFile, "acl_file", "", "file that contains the JSON-encoded security.ACL")
+	var address, protocol, name, root string
 	flag.StringVar(&address, "address", "localhost:0", "network address to listen on")
 	flag.StringVar(&name, "name", "", "name to mount the content manager as")
 	flag.StringVar(&protocol, "protocol", "tcp", "network type to listen on")
@@ -50,7 +49,8 @@ func main() {
 		return
 	}
 	defer server.Stop()
-	dispatcher := impl.NewDispatcher(root, defaultDepth, security.NewFileACLAuthorizer(aclFile))
+
+	dispatcher := impl.NewDispatcher(root, defaultDepth, vflag.NewAuthorizerOrDie())
 	suffix := ""
 	if err := server.Register(suffix, dispatcher); err != nil {
 		vlog.Errorf("Register(%v, %v) failed: %v", suffix, dispatcher, err)

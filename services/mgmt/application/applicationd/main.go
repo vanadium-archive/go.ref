@@ -4,16 +4,15 @@ import (
 	"flag"
 
 	"veyron/lib/signals"
+	vflag "veyron/security/flag"
 
 	"veyron/services/mgmt/application/impl"
 	"veyron2/rt"
-	"veyron2/security"
 	"veyron2/vlog"
 )
 
 func main() {
-	var aclFile, address, protocol, name, storeName string
-	flag.StringVar(&aclFile, "acl_file", "", "file that contains the JSON-encoded security.ACL")
+	var address, protocol, name, storeName string
 	flag.StringVar(&address, "address", "localhost:0", "network address to listen on")
 	flag.StringVar(&name, "name", "", "name to mount the application manager as")
 	flag.StringVar(&protocol, "protocol", "tcp", "network type to listen on")
@@ -29,7 +28,8 @@ func main() {
 		vlog.Fatalf("NewServer() failed: %v", err)
 	}
 	defer server.Stop()
-	dispatcher, err := impl.NewDispatcher(storeName, security.NewFileACLAuthorizer(aclFile))
+
+	dispatcher, err := impl.NewDispatcher(storeName, vflag.NewAuthorizerOrDie())
 	if err != nil {
 		vlog.Fatalf("NewDispatcher() failed: %v", err)
 	}

@@ -8,7 +8,6 @@ import (
 
 	"veyron2/ipc"
 
-	gsecurity "veyron/runtimes/google/security"
 	"veyron2/security"
 )
 
@@ -74,5 +73,5 @@ func (d *jniDispatcher) Lookup(suffix string) (ipc.Invoker, security.Authorizer,
 	}
 	// TODO(spetrovic): create JNI version of authorizer that invokes Java's
 	// authorizer methods.
-	return i, gsecurity.NewACLAuthorizer(security.ACL{security.AllPrincipals: security.LabelSet(security.AdminLabel)}), nil
+	return i, security.NewACLAuthorizer(security.ACL{security.AllPrincipals: security.LabelSet(security.AdminLabel)}), nil
 }

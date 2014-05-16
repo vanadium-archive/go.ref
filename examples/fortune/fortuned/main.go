@@ -3,20 +3,17 @@
 package main
 
 import (
-	"flag"
 	"fmt"
 	"log"
 	"math/rand"
 
+	"veyron/examples/fortune"
 	"veyron/lib/signals"
+	vflag "veyron/security/flag"
+
 	"veyron2/ipc"
 	"veyron2/rt"
-	"veyron2/security"
-
-	"veyron/examples/fortune"
 )
-
-var acl = flag.String("acl", "", "acl is an optional JSON-encoded security.ACL. The ACL is used to construct an authorizer for the fortune server. The behavior of the authorizer can be changed at runtime by simply changing the ACL stored in the file. If the flag is absent then a nil authorizer is constructed which results in default authorization for the server. Default authorization (provided by the Veyron framework) only permits clients that have either blessed the server or have been blessed by the server.")
 
 type fortuned struct {
 	// The set of all fortunes.
@@ -56,18 +53,11 @@ func main() {
 		log.Fatal("failure creating server: ", err)
 	}
 
-	// Construct an Authorizer for the server based on the provided ACL. If
-	// no ACL is provided then a nil Authorizer is used.
-	var authorizer security.Authorizer
-	if len(*acl) != 0 {
-		authorizer = security.NewFileACLAuthorizer(*acl)
-	}
-
 	// Create the fortune server stub.
 	serverFortune := fortune.NewServerFortune(newFortuned())
 
 	// Register the "fortune" prefix with a fortune dispatcher.
-	if err := s.Register("fortune", ipc.SoloDispatcher(serverFortune, authorizer)); err != nil {
+	if err := s.Register("fortune", ipc.SoloDispatcher(serverFortune, vflag.NewAuthorizerOrDie())); err != nil {
 		log.Fatal("error registering service: ", err)
 	}
 

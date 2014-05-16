@@ -55,6 +55,34 @@ func TestSaveIdentityToFile(t *testing.T) {
 	}
 }
 
+func TestSaveACLToFile(t *testing.T) {
+	r, err := rt.New()
+	if err != nil {
+		t.Fatalf("rt.New failed: %v", err)
+	}
+	defer r.Shutdown()
+	acl := security.ACL{
+		"veyron/alice": security.LabelSet(security.ReadLabel | security.WriteLabel),
+		"veyron/bob":   security.LabelSet(security.ReadLabel),
+	}
+
+	filePath := testutil.SaveACLToFile(acl)
+	defer os.Remove(filePath)
+
+	f, err := os.Open(filePath)
+	if err != nil {
+		t.Fatalf("os.Open(%v) failed: %v", filePath, err)
+	}
+	defer f.Close()
+	loadedACL, err := security.LoadACL(f)
+	if err != nil {
+		t.Fatalf("LoadACL failed: %v", err)
+	}
+	if !reflect.DeepEqual(loadedACL, acl) {
+		t.Fatalf("Got ACL %v, but want %v", loadedACL, acl)
+	}
+}
+
 func TestNewBlessedIdentity(t *testing.T) {
 	r, err := rt.New()
 	if err != nil {
