@@ -1,30 +1,26 @@
-package mgmt
+package rt_test
 
 import (
 	"fmt"
 	"os"
 	"testing"
 
-	"veyron2/mgmt"
+	"veyron2"
 
 	_ "veyron/lib/testutil"
 	"veyron/lib/testutil/blackbox"
+	"veyron/runtimes/google/rt"
 )
-
-// TestHelperProcess is boilerplate for the blackbox setup.
-func TestHelperProcess(t *testing.T) {
-	blackbox.HelperProcess(t)
-}
 
 // TestBasic verifies that the basic plumbing works: LocalStop calls result in
 // stop messages being sent on the channel passed to WaitForStop.
 func TestBasic(t *testing.T) {
-	m := New()
+	m, _ := rt.New()
 	ch := make(chan string, 1)
 	m.WaitForStop(ch)
 	for i := 0; i < 10; i++ {
 		m.Stop()
-		if want, got := mgmt.LocalStop, <-ch; want != got {
+		if want, got := veyron2.LocalStop, <-ch; want != got {
 			t.Errorf("WaitForStop want %q got %q", want, got)
 		}
 		select {
@@ -38,17 +34,17 @@ func TestBasic(t *testing.T) {
 // TestMultipleWaiters verifies that the plumbing works with more than one
 // registered wait channel.
 func TestMultipleWaiters(t *testing.T) {
-	m := New()
+	m, _ := rt.New()
 	ch1 := make(chan string, 1)
 	m.WaitForStop(ch1)
 	ch2 := make(chan string, 1)
 	m.WaitForStop(ch2)
 	for i := 0; i < 10; i++ {
 		m.Stop()
-		if want, got := mgmt.LocalStop, <-ch1; want != got {
+		if want, got := veyron2.LocalStop, <-ch1; want != got {
 			t.Errorf("WaitForStop want %q got %q", want, got)
 		}
-		if want, got := mgmt.LocalStop, <-ch2; want != got {
+		if want, got := veyron2.LocalStop, <-ch2; want != got {
 			t.Errorf("WaitForStop want %q got %q", want, got)
 		}
 	}
@@ -58,13 +54,13 @@ func TestMultipleWaiters(t *testing.T) {
 // channel is not being drained: once the channel's buffer fills up, future
 // Stops become no-ops.
 func TestMultipleStops(t *testing.T) {
-	m := New()
+	m, _ := rt.New()
 	ch := make(chan string, 1)
 	m.WaitForStop(ch)
 	for i := 0; i < 10; i++ {
 		m.Stop()
 	}
-	if want, got := mgmt.LocalStop, <-ch; want != got {
+	if want, got := veyron2.LocalStop, <-ch; want != got {
 		t.Errorf("WaitForStop want %q got %q", want, got)
 	}
 	select {
@@ -79,7 +75,7 @@ func init() {
 }
 
 func noWaiters([]string) {
-	m := New()
+	m, _ := rt.New()
 	fmt.Println("ready")
 	blackbox.WaitForEOFOnStdin()
 	m.Stop()
@@ -94,7 +90,7 @@ func TestNoWaiters(t *testing.T) {
 	c.Cmd.Start()
 	c.Expect("ready")
 	c.CloseStdin()
-	c.ExpectEOFAndWaitForExitCode(fmt.Errorf("exit status %d", mgmt.UnhandledStopExitCode))
+	c.ExpectEOFAndWaitForExitCode(fmt.Errorf("exit status %d", veyron2.UnhandledStopExitCode))
 }
 
 func init() {
@@ -102,7 +98,7 @@ func init() {
 }
 
 func forceStop([]string) {
-	m := New()
+	m, _ := rt.New()
 	fmt.Println("ready")
 	blackbox.WaitForEOFOnStdin()
 	m.WaitForStop(make(chan string, 1))
@@ -118,5 +114,5 @@ func TestForceStop(t *testing.T) {
 	c.Cmd.Start()
 	c.Expect("ready")
 	c.CloseStdin()
-	c.ExpectEOFAndWaitForExitCode(fmt.Errorf("exit status %d", mgmt.ForceStopExitCode))
+	c.ExpectEOFAndWaitForExitCode(fmt.Errorf("exit status %d", veyron2.ForceStopExitCode))
 }

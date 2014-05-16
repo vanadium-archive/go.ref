@@ -9,7 +9,8 @@ import (
 	"veyron/lib/signals"
 	_ "veyron/lib/testutil"
 	"veyron/lib/testutil/blackbox"
-	"veyron2/mgmt"
+
+	"veyron2"
 )
 
 // TestHelperProcess is boilerplate for the blackbox setup.
@@ -51,7 +52,7 @@ func TestSimpleServerLocalStop(t *testing.T) {
 	c.Cmd.Start()
 	c.Expect("Ready")
 	c.WriteLine("stop")
-	c.Expect(fmt.Sprintf("Received signal %s", mgmt.LocalStop))
+	c.Expect(fmt.Sprintf("Received signal %s", veyron2.LocalStop))
 	c.Expect("Interruptible cleanup")
 	c.Expect("Deferred cleanup")
 	c.WriteLine("close")
@@ -82,7 +83,7 @@ func TestSimpleServerLocalForceStop(t *testing.T) {
 	c.Expect("Ready")
 	c.WriteLine("forcestop")
 	c.Expect("straight exit")
-	c.ExpectEOFAndWaitForExitCode(fmt.Errorf("exit status %d", mgmt.ForceStopExitCode))
+	c.ExpectEOFAndWaitForExitCode(fmt.Errorf("exit status %d", veyron2.ForceStopExitCode))
 }
 
 // TestSimpleServerKill demonstrates that a SIGKILL still forces the server
@@ -140,7 +141,7 @@ func TestComplexServerLocalStop(t *testing.T) {
 	c.Cmd.Start()
 	c.Expect("Ready")
 	c.WriteLine("stop")
-	c.Expect(fmt.Sprintf("Stop %s", mgmt.LocalStop))
+	c.Expect(fmt.Sprintf("Stop %s", veyron2.LocalStop))
 	c.ExpectSet([]string{
 		"Sequential blocking cleanup",
 		"Sequential interruptible cleanup",
@@ -185,7 +186,7 @@ func TestComplexServerLocalForceStop(t *testing.T) {
 	c.Expect("Ready")
 	c.WriteLine("forcestop")
 	c.Expect("straight exit")
-	c.ExpectEOFAndWaitForExitCode(fmt.Errorf("exit status %d", mgmt.ForceStopExitCode))
+	c.ExpectEOFAndWaitForExitCode(fmt.Errorf("exit status %d", veyron2.ForceStopExitCode))
 }
 
 // TestComplexServerKill demonstrates that a SIGKILL still forces the server to
