@@ -6,7 +6,7 @@ import (
 	"syscall"
 	"testing"
 
-	"veyron2/mgmt"
+	"veyron2"
 	"veyron2/rt"
 
 	_ "veyron/lib/testutil"
@@ -106,7 +106,7 @@ func TestCleanShutdownStop(t *testing.T) {
 	c.Cmd.Start()
 	c.Expect("ready")
 	c.WriteLine("stop")
-	c.Expect(fmt.Sprintf("received signal %s", mgmt.LocalStop))
+	c.Expect(fmt.Sprintf("received signal %s", veyron2.LocalStop))
 	c.WriteLine("close")
 	c.ExpectEOFAndWait()
 }
@@ -119,7 +119,7 @@ func TestStopNoHandler(t *testing.T) {
 	c.Cmd.Start()
 	c.Expect("ready")
 	c.WriteLine("stop")
-	c.ExpectEOFAndWaitForExitCode(fmt.Errorf("exit status %d", mgmt.UnhandledStopExitCode))
+	c.ExpectEOFAndWaitForExitCode(fmt.Errorf("exit status %d", veyron2.UnhandledStopExitCode))
 }
 
 // TestDoubleSignal verifies that sending a succession of two signals to a child
@@ -162,7 +162,7 @@ func TestDoubleStop(t *testing.T) {
 	c.Cmd.Start()
 	c.Expect("ready")
 	c.WriteLine("stop")
-	c.Expect(fmt.Sprintf("received signal %s", mgmt.LocalStop))
+	c.Expect(fmt.Sprintf("received signal %s", veyron2.LocalStop))
 	c.WriteLine("stop")
 	c.ExpectEOFAndWaitForExitCode(fmt.Errorf("exit status %d", DoubleStopExitCode))
 }

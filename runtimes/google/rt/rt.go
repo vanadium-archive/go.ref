@@ -9,7 +9,6 @@ import (
 	"veyron2"
 	"veyron2/ipc"
 	"veyron2/ipc/stream"
-	"veyron2/mgmt"
 	"veyron2/naming"
 	"veyron2/product"
 	"veyron2/vlog"
@@ -17,10 +16,7 @@ import (
 	imounttable "veyron/runtimes/google/naming/mounttable"
 )
 
-type mgmtRT mgmt.Runtime
-
 type vrt struct {
-	mgmtRT
 	product product.T
 	sm      stream.Manager
 	mt      naming.MountTable
@@ -28,6 +24,7 @@ type vrt struct {
 	signals chan os.Signal
 	id      veyron2.LocalIDOpt
 	client  ipc.Client
+	mgmt    *mgmtImpl
 }
 
 var (
@@ -38,7 +35,7 @@ var (
 
 // Implements veyron2/rt.New
 func New(opts ...veyron2.ROpt) (veyron2.Runtime, error) {
-	r := &vrt{}
+	r := &vrt{mgmt: new(mgmtImpl)}
 	return r, r.init(opts...)
 }
 
@@ -118,8 +115,6 @@ func (rt *vrt) init(opts ...veyron2.ROpt) error {
 	if rt.client, err = rt.NewClient(rt.id); err != nil {
 		return err
 	}
-
-	rt.initMgmt()
 
 	if len(debug) > 0 {
 		rt.startHTTPDebugServer(debug, rt.sm)
