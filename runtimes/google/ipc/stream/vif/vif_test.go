@@ -429,10 +429,7 @@ func NewVersionedClientServer(clientVersions, serverVersions *iversion.Range) (c
 		panic(err)
 	}
 	serverID := veyron2.LocalID(security.FakePrivateID("server"))
-	if server, err = vif.InternalNewAcceptedVIF(c2, naming.FixedRoutingID(0x5), serverVersions); err != nil {
-		panic(err)
-	}
-	if err := server.StartAccepting(serverID); err != nil {
+	if server, err = vif.InternalNewAcceptedVIF(c2, naming.FixedRoutingID(0x5), serverVersions, serverID); err != nil {
 		panic(err)
 	}
 	return

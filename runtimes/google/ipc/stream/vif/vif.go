@@ -94,21 +94,24 @@ const (
 // placed inside veyron/runtimes/google. Code outside the
 // veyron2/runtimes/google/* packages should never call this method.
 func InternalNewDialedVIF(conn net.Conn, rid naming.RoutingID, versions *version.Range) (*VIF, error) {
-	return internalNew(conn, rid, id.VC(vc.NumReservedVCs), versions)
+	return internalNew(conn, rid, id.VC(vc.NumReservedVCs), versions, nil, nil)
 }
 
 // InternalNewAcceptedVIF creates a new virtual interface over the provided
 // network connection, under the assumption that the conn object was created
-// using and Accept call on a net.Listener object.
+// using an Accept call on a net.Listener object.
+//
+// The returned VIF is also setup for accepting new VCs and Flows with the provided
+// ListenerOpts.
 //
 // As the name suggests, this method is intended for use only within packages
 // placed inside veyron/runtimes/google. Code outside the
 // veyron/runtimes/google/* packages should never call this method.
-func InternalNewAcceptedVIF(conn net.Conn, rid naming.RoutingID, versions *version.Range) (*VIF, error) {
-	return internalNew(conn, rid, id.VC(vc.NumReservedVCs)+1, versions)
+func InternalNewAcceptedVIF(conn net.Conn, rid naming.RoutingID, versions *version.Range, lopts ...stream.ListenerOpt) (*VIF, error) {
+	return internalNew(conn, rid, id.VC(vc.NumReservedVCs)+1, versions, upcqueue.New(), lopts)
 }
 
-func internalNew(conn net.Conn, rid naming.RoutingID, initialVCI id.VC, versions *version.Range) (*VIF, error) {
+func internalNew(conn net.Conn, rid naming.RoutingID, initialVCI id.VC, versions *version.Range, acceptor *upcqueue.T, listenerOpts []stream.ListenerOpt) (*VIF, error) {
 	// Some cloud providers (like Google Compute Engine) seem to blackhole
 	// inactive TCP connections, set a TCP keep alive to prevent that.
 	// See: https://developers.google.com/compute/docs/troubleshooting#communicatewithinternet
@@ -158,6 +161,8 @@ func internalNew(conn net.Conn, rid naming.RoutingID, initialVCI id.VC, versions
 		pending:      newWaitGroup(),
 		pool:         iobuf.NewPool(0),
 		vcMap:        newVCMap(),
+		acceptor:     acceptor,
+		listenerOpts: listenerOpts,
 		localEP:      ep,
 		nextVCI:      initialVCI,
 		outgoing:     outgoing,
@@ -226,9 +231,6 @@ func (vif *VIF) Close() {
 
 // StartAccepting begins accepting Flows (and VCs) initiated by the remote end
 // of a VIF. opts is used to setup the listener on newly established VCs.
-//
-// If StartAccepting is not called on a VIF, then requests to establish new VCs
-// or Flows on the VIF (initiated by the remote end) will be rejected.
 func (vif *VIF) StartAccepting(opts ...stream.ListenerOpt) error {
 	vif.muListen.Lock()
 	defer vif.muListen.Unlock()

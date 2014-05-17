@@ -70,13 +70,12 @@ func (ln *netListener) netAcceptLoop(listenerOpts []stream.ListenerOpt) {
 			return
 		}
 		vlog.VI(1).Infof("New net.Conn accepted from %s (local address: %s)", conn.RemoteAddr(), conn.LocalAddr())
-		vf, err := vif.InternalNewAcceptedVIF(conn, ln.manager.rid, nil)
+		vf, err := vif.InternalNewAcceptedVIF(conn, ln.manager.rid, nil, listenerOpts...)
 		if err != nil {
 			vlog.Infof("Shutting down conn from %s (local address: %s) as a VIF could not be created: %v", conn.RemoteAddr(), conn.LocalAddr(), err)
 			conn.Close()
 			continue
 		}
-		vf.StartAccepting(listenerOpts...)
 		ln.vifs.Insert(vf)
 		ln.manager.vifs.Insert(vf)
 		ln.vifLoops.Add(1)
