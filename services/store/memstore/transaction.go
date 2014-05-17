@@ -100,7 +100,7 @@ func (t *Transaction) Commit() error {
 // in an orphaned object.
 // For now, the heuristic is simple - if the transaction succeeded, run GC().
 func (st *Store) maybeGC(err error) {
-	if err != nil {
+	if err == nil {
 		st.GC()
 	}
 }
