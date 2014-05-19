@@ -113,6 +113,14 @@ func testResolve(t *testing.T, mt naming.MountTable, name, want string) {
 	}
 }
 
+func newMountTable(t *testing.T) ipc.Dispatcher {
+	mt, err := service.NewMountTable("")
+	if err != nil {
+		boom(t, "NewMountTable returned error: %v", err)
+	}
+	return mt
+}
+
 func runServer(t *testing.T) (ipc.Server, naming.Endpoint) {
 	// We are also running a server on this runtime using stubs so we must
 	// use rt.Init(). If the server were in a separate address as per usual,
@@ -125,23 +133,23 @@ func runServer(t *testing.T) (ipc.Server, naming.Endpoint) {
 	}
 
 	// Add some mount table servers.
-	if err := server.Register(mt1Prefix, service.NewMountTable()); err != nil {
+	if err := server.Register(mt1Prefix, newMountTable(t)); err != nil {
 		boom(t, "Failed to register mount table: %s", err)
 	}
 
-	if err := server.Register(mt2Prefix, service.NewMountTable()); err != nil {
+	if err := server.Register(mt2Prefix, newMountTable(t)); err != nil {
 		boom(t, "Failed to register mount table: %s", err)
 	}
 
-	if err := server.Register(mt3Prefix, service.NewMountTable()); err != nil {
+	if err := server.Register(mt3Prefix, newMountTable(t)); err != nil {
 		boom(t, "Failed to register mount table: %s", err)
 	}
 
-	if err := server.Register(mt4Prefix, service.NewMountTable()); err != nil {
+	if err := server.Register(mt4Prefix, newMountTable(t)); err != nil {
 		boom(t, "Failed to register mount table: %s", err)
 	}
 
-	if err := server.Register(mt5Prefix, service.NewMountTable()); err != nil {
+	if err := server.Register(mt5Prefix, newMountTable(t)); err != nil {
 		boom(t, "Failed to register mount table: %s", err)
 	}
 

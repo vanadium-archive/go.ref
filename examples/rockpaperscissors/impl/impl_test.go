@@ -20,7 +20,8 @@ func startMountTable(t *testing.T, runtime veyron2.Runtime) (string, func()) {
 	if err != nil {
 		t.Fatalf("NewServer() failed: %v", err)
 	}
-	suffix, dispatcher := "mt", mtlib.NewMountTable()
+	dispatcher, err := mtlib.NewMountTable("")
+	suffix := "mt"
 	if err := server.Register(suffix, dispatcher); err != nil {
 		t.Fatalf("Register(%v, %v) failed: %v", suffix, dispatcher, err)
 	}

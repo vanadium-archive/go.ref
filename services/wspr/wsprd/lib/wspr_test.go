@@ -125,7 +125,11 @@ func startProxy() (*proxy.Proxy, error) {
 
 func startMountTableServer() (ipc.Server, naming.Endpoint, error) {
 	return startServer(func(server ipc.Server) error {
-		return server.Register("mt", mounttable.NewMountTable())
+		mt, err := mounttable.NewMountTable("")
+		if err != nil {
+			return err
+		}
+		return server.Register("mt", mt)
 	})
 }
 

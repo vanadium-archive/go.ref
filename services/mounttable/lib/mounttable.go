@@ -2,7 +2,6 @@ package mounttable
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"os"
 	"path"
@@ -168,7 +167,7 @@ func (mt *mountTable) authorizeStep(name string, c security.Context) error {
 		return nil
 	}
 	mt.Lock()
-	acl := (*mt.acls)[name]
+	acl := mt.acls[name]
 	mt.Unlock()
 	vlog.VI(2).Infof("authorizeStep(%s) %s %s %s", name, c.RemoteID(), c.Label(), acl)
 	if acl != nil {
@@ -190,12 +189,12 @@ func slashSlashJoin(elems []string) string {
 // Authorize verifies that the client has access to the requested node.
 // Checks the acls on all nodes in the path starting at the root.
 func (ms *mountContext) Authorize(context security.Context) error {
-	key := "/"
-	if err := ms.mt.authorizeStep(key, context); err != nil {
+	if err := ms.mt.authorizeStep("/", context); err != nil {
 		return err
 	}
+	key := ""
 	for _, step := range(ms.cleanedElems) {
-		key := naming.Join(key, step)
+		key := key + "/" + step
 		if err := ms.mt.authorizeStep(key, context); err != nil {
 			return err
 		}
@@ -320,9 +319,9 @@ func (mt *mountTable) globStep(n *node, name string, pattern *glob.Glob, context
 	vlog.VI(2).Infof("globStep(%s, %s)", name, pattern)
 
 	if mt.acls != nil {
-		acl_name := naming.Join("/", context.Suffix(), name)
+		acl_name := "/" + strings.TrimLeft(naming.Join(context.Suffix(), name), "/")
 		// Skip this node if the user isn't authorized.
-		if acl := (*mt.acls)[acl_name]; acl != nil {
+		if acl := mt.acls[acl_name]; acl != nil {
 			if err := acl.Authorize(context); err != nil {
 				return
 			}
