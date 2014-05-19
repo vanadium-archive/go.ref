@@ -1,0 +1,5 @@
+{
+"/": {"fake/root": "RW", "*": "R"},
+"/stuff": {"fake/root": "RW", "fake/bob": "R"},
+"/a": {"fake/root": "RW", "fake/alice": "R"}
+}

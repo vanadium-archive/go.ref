@@ -1,7 +1,10 @@
 package mounttable
 
 import (
+	"encoding/json"
+	"errors"
 	"fmt"
+	"os"
 	"path"
 	"strings"
 	"sync"
@@ -26,6 +29,7 @@ var (
 type mountTable struct {
 	sync.RWMutex
 	root *node
+	acls map[string]security.Authorizer
 }
 
 // mountContext represents a client bind.  The name is the name that was bound to.
@@ -51,18 +55,39 @@ type node struct {
 	children map[string]*node
 }
 
-// dummyAuth allows all RPCs.
-type dummyAuth struct{}
-
-func (dummyAuth) Authorize(security.Context) error {
-	return nil
-}
-
 // NewMountTable creates a new server that uses the default authorization policy.
-func NewMountTable() *mountTable {
+func NewMountTable(aclfile string) (*mountTable, error) {
+	acls, err := parseACLs(aclfile)
+	if err != nil {
+		return nil, err
+	}
 	return &mountTable{
 		root: new(node),
+		acls: acls,
+	}, nil
+}
+
+func parseACLs(path string) (map[string]security.Authorizer, error) {
+	if path == "" {
+		return nil, nil
 	}
+	var acls map[string]security.ACL
+	f, err := os.Open(path)
+	if err != nil {
+		return nil, err
+	}
+	defer f.Close()
+	if err = json.NewDecoder(f).Decode(&acls); err != nil {
+		return nil, err
+	}
+	result := make(map[string]security.Authorizer)
+	for name, acl := range(acls) {
+		result[name] = security.NewACLAuthorizer(acl)
+	}
+	if result["/"] == nil {
+		return nil, fmt.Errorf("No acl for / in %s", path)
+	}
+	return result, nil
 }
 
 // LookupServer implements ipc.Dispatcher.Lookup.
@@ -78,7 +103,7 @@ func (mt *mountTable) Lookup(name string) (ipc.Invoker, security.Authorizer, err
 		ms.elems = strings.Split(name, "/")
 		ms.cleanedElems = strings.Split(strings.TrimLeft(path.Clean(name), "/"), "/")
 	}
-	return ipc.ReflectInvoker(mounttable.NewServerMountTable(ms)), new(dummyAuth), nil
+	return ipc.ReflectInvoker(mounttable.NewServerMountTable(ms)), ms, nil
 }
 
 // findNode returns the node for the name path represented by elems.  If none exists and create is false, return nil.
@@ -138,6 +163,20 @@ func (mt *mountTable) walk(n *node, elems []string) (*node, []string) {
 	return nil, nil
 }
 
+func (mt *mountTable) authorizeStep(name string, c security.Context) error {
+	if mt.acls == nil {
+		return nil
+	}
+	mt.Lock()
+	acl := (*mt.acls)[name]
+	mt.Unlock()
+	vlog.VI(2).Infof("authorizeStep(%s) %s %s %s", name, c.RemoteID(), c.Label(), acl)
+	if acl != nil {
+		return acl.Authorize(c)
+	}
+	return nil
+}
+
 func slashSlashJoin(elems []string) string {
 	if len(elems) == 2 && len(elems[0]) == 0 && len(elems[1]) == 0 {
 		return "//"
@@ -146,6 +185,22 @@ func slashSlashJoin(elems []string) string {
 		return "/" + strings.Join(elems, "/")
 	}
 	return strings.Join(elems, "/")
+}
+
+// Authorize verifies that the client has access to the requested node.
+// Checks the acls on all nodes in the path starting at the root.
+func (ms *mountContext) Authorize(context security.Context) error {
+	key := "/"
+	if err := ms.mt.authorizeStep(key, context); err != nil {
+		return err
+	}
+	for _, step := range(ms.cleanedElems) {
+		key := naming.Join(key, step)
+		if err := ms.mt.authorizeStep(key, context); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // ResolveStep returns the next server in a resolution, the name remaining below that server,
@@ -261,8 +316,18 @@ type globEntry struct {
 	name string
 }
 
-func (mt *mountTable) globStep(n *node, name string, pattern *glob.Glob, reply mounttable.GlobableServiceGlobStream) {
+func (mt *mountTable) globStep(n *node, name string, pattern *glob.Glob, context ipc.Context, reply mounttable.GlobableServiceGlobStream) {
 	vlog.VI(2).Infof("globStep(%s, %s)", name, pattern)
+
+	if mt.acls != nil {
+		acl_name := naming.Join("/", context.Suffix(), name)
+		// Skip this node if the user isn't authorized.
+		if acl := (*mt.acls)[acl_name]; acl != nil {
+			if err := acl.Authorize(context); err != nil {
+				return
+			}
+		}
+	}
 
 	// If this is a mount point, we're done.
 	if m := n.mount; m != nil {
@@ -291,7 +356,7 @@ func (mt *mountTable) globStep(n *node, name string, pattern *glob.Glob, reply m
 	// Recurse through the children.
 	for k, c := range n.children {
 		if ok, suffix := pattern.MatchInitialSegment(k); ok {
-			mt.globStep(c, path.Join(name, k), suffix, reply)
+			mt.globStep(c, path.Join(name, k), suffix, context, reply)
 		}
 	}
 }
@@ -321,6 +386,6 @@ func (ms *mountContext) Glob(context ipc.Context, pattern string, reply mounttab
 		return nil
 	}
 
-	mt.globStep(n, "", g, reply)
+	mt.globStep(n, "", g, context, reply)
 	return nil
 }

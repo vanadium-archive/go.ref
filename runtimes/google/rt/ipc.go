@@ -27,7 +27,7 @@ func (rt *vrt) NewClient(opts ...ipc.ClientOpt) (ipc.Client, error) {
 		}
 	}
 	if id.PrivateID != nil {
-		otherOpts = append(otherOpts, rt.id)
+		otherOpts = append(otherOpts, id)
 	}
 	return iipc.InternalNewClient(sm, mt, otherOpts...)
 }
