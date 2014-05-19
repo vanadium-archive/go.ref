@@ -54,8 +54,8 @@ func startServer() (string, func()) {
 	}
 
 	// Register the services.
-	storeDisp := server.NewStoreDispatcher(storeService)
-	objectDisp := server.NewObjectDispatcher(storeService)
+	storeDisp := server.NewStoreDispatcher(storeService, nil)
+	objectDisp := server.NewObjectDispatcher(storeService, nil)
 	if err := s.Register(".store", storeDisp); err != nil {
 		log.Fatal("s.Register(storeDisp) failed: ", err)
 	}

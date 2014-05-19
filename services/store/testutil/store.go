@@ -14,7 +14,7 @@ import (
 	"veyron2/security"
 )
 
-// NewStire creates a new testing instance of the store server and returns
+// NewStore creates a new testing instance of the store server and returns
 // a veyron name that identifies the instance and a closure that can
 // be used to terminate the instance and clean up.
 func NewStore(t *testing.T, server ipc.Server, id security.PublicID) (string, func()) {
@@ -41,8 +41,8 @@ func NewStore(t *testing.T, server ipc.Server, id security.PublicID) (string, fu
 	t.Logf("Storage server at %v", name)
 
 	// Register the services.
-	storeDispatcher := store.NewStoreDispatcher(storeService)
-	objectDispatcher := store.NewObjectDispatcher(storeService)
+	storeDispatcher := store.NewStoreDispatcher(storeService, nil)
+	objectDispatcher := store.NewObjectDispatcher(storeService, nil)
 	if err := server.Register(name+"/.store", storeDispatcher); err != nil {
 		t.Fatalf("Register(%v) failed: %v", storeDispatcher, err)
 	}

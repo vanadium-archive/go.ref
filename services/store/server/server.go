@@ -215,40 +215,29 @@ func (s *Server) ReadConflicts(_ ipc.Context, stream store.StoreServiceReadConfl
 }
 
 // Store and object dispatchers.
-// Typically, storeDispatcher handles paths with ".store" prefix, and
-// objectDispatcher handles paths with "" prefix.
+// Typically, the store dispatcher handles paths with ".store" prefix, and the
+// object dispatcher handles paths with "" prefix.
 // TODO(sadovsky): Revisit this scheme. Seems simpler to have one dispatcher?
 
-type storeDispatcher struct {
-	serverStore interface{}
-}
-
 // NewStoreDispatcher returns an storeDispatcher.
-func NewStoreDispatcher(s *Server) ipc.Dispatcher {
-	return &storeDispatcher{serverStore: estore.NewServerStore(s)}
-}
-
-func (d *storeDispatcher) Lookup(string) (ipc.Invoker, security.Authorizer, error) {
-	// TODO(sadovsky): We probably shouldn't construct a new reflect invoker on
-	// each request, but it's not clear whether reflect invoker is thread-safe.
-	// At any rate, reflect invoker maintains a global cache of methods by type,
-	// so it's cheap to reconstruct.
-	return ipc.ReflectInvoker(d.serverStore), nil, nil
+func NewStoreDispatcher(s *Server, auth security.Authorizer) ipc.Dispatcher {
+	return ipc.SoloDispatcher(estore.NewServerStore(s), auth)
 }
 
 type objectDispatcher struct {
-	s *Server
+	s    *Server
+	auth security.Authorizer
 }
 
 // NewObjectDispatcher returns an objectDispatcher.
-func NewObjectDispatcher(s *Server) ipc.Dispatcher {
-	return &objectDispatcher{s: s}
+func NewObjectDispatcher(s *Server, auth security.Authorizer) ipc.Dispatcher {
+	return &objectDispatcher{s: s, auth: auth}
 }
 
 func (d *objectDispatcher) Lookup(suffix string) (ipc.Invoker, security.Authorizer, error) {
 	o := d.s.lookupObject(suffix)
 	serverObject := store.NewServerObject(o)
-	return ipc.ReflectInvoker(serverObject), nil, nil
+	return ipc.ReflectInvoker(serverObject), d.auth, nil
 }
 
 func (s *Server) lookupObject(name string) *object {

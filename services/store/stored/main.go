@@ -17,6 +17,7 @@ import (
 	"os"
 	"os/user"
 
+	vflag "veyron/security/flag"
 	"veyron/services/store/server"
 
 	"veyron2/rt"
@@ -59,9 +60,12 @@ func main() {
 	}
 	defer storeService.Close()
 
+	// Create the authorizer.
+	auth := vflag.NewAuthorizerOrDie()
+
 	// Register the services.
-	storeDisp := server.NewStoreDispatcher(storeService)
-	objectDisp := server.NewObjectDispatcher(storeService)
+	storeDisp := server.NewStoreDispatcher(storeService, auth)
+	objectDisp := server.NewObjectDispatcher(storeService, auth)
 	if err := s.Register(".store", storeDisp); err != nil {
 		log.Fatal("s.Register(storeDisp) failed: ", err)
 	}
