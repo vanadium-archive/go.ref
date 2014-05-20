@@ -45,6 +45,8 @@ type LogRec struct {
 type LogValue struct {
   // Mutation is the store mutation representing the change in the object.
   Mutation raw.Mutation
+  // SyncTime is the timestamp of the mutation when it arrives at the Sync server.
+  SyncTime int64
   // Delete indicates whether the mutation resulted in the object being
   // deleted from the store.
   Delete   bool

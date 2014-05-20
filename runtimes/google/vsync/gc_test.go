@@ -16,7 +16,7 @@ func TestGCOnlineConsistencyCheck(t *testing.T) {
 	if err != nil {
 		t.Errorf("Could not create tempdir %v", err)
 	}
-	s := NewSyncd("", "", "A", dir, "")
+	s := NewSyncd("", "", "A", dir, "", 0)
 
 	defer s.Close()
 	defer os.RemoveAll(dir)
@@ -146,7 +146,7 @@ func setupGarbageCollectGeneration(t *testing.T) {
 	if err != nil {
 		t.Errorf("Could not create tempdir %v", err)
 	}
-	s := NewSyncd("", "", "A", dir, "")
+	s := NewSyncd("", "", "A", dir, "", 0)
 
 	defer s.Close()
 	defer os.RemoveAll(dir)
@@ -241,7 +241,7 @@ func setupGCReclaimSpace1Obj(t *testing.T) {
 	if err != nil {
 		t.Errorf("Could not create tempdir %v", err)
 	}
-	s := NewSyncd("", "", "A", dir, "")
+	s := NewSyncd("", "", "A", dir, "", 0)
 
 	defer s.Close()
 	defer os.RemoveAll(dir)
@@ -315,7 +315,7 @@ func setupGCReclaimSpace3Objs(t *testing.T) {
 	if err != nil {
 		t.Errorf("Could not create tempdir %v", err)
 	}
-	s := NewSyncd("", "", "A", dir, "")
+	s := NewSyncd("", "", "A", dir, "", 0)
 
 	defer s.Close()
 	defer os.RemoveAll(dir)
@@ -437,7 +437,7 @@ func setupGCDAGPruneCallBack(t *testing.T) {
 	if err != nil {
 		t.Errorf("Could not create tempdir %v", err)
 	}
-	s := NewSyncd("", "", "A", dir, "")
+	s := NewSyncd("", "", "A", dir, "", 0)
 
 	defer s.Close()
 	defer os.RemoveAll(dir)
@@ -486,7 +486,7 @@ func setupGCDAGPruneCallBackStrict(t *testing.T) {
 	if err != nil {
 		t.Errorf("Could not create tempdir %v", err)
 	}
-	s := NewSyncd("", "", "A", dir, "")
+	s := NewSyncd("", "", "A", dir, "", 0)
 
 	defer s.Close()
 	defer os.RemoveAll(dir)
@@ -541,7 +541,7 @@ func setupGCDAGPruneCBPartGen(t *testing.T) {
 	if err != nil {
 		t.Errorf("Could not create tempdir %v", err)
 	}
-	s := NewSyncd("", "", "A", dir, "")
+	s := NewSyncd("", "", "A", dir, "", 0)
 
 	defer s.Close()
 	defer os.RemoveAll(dir)
@@ -636,7 +636,7 @@ func setupGCPruneObject(t *testing.T) {
 	if err != nil {
 		t.Errorf("Could not create tempdir %v", err)
 	}
-	s := NewSyncd("", "", "A", dir, "")
+	s := NewSyncd("", "", "A", dir, "", 0)
 
 	defer s.Close()
 	defer os.RemoveAll(dir)
@@ -712,7 +712,7 @@ func setupGCPruneObjectBatching(t *testing.T) {
 	if err != nil {
 		t.Errorf("Could not create tempdir %v", err)
 	}
-	s := NewSyncd("", "", "A", dir, "")
+	s := NewSyncd("", "", "A", dir, "", 0)
 
 	defer s.Close()
 	defer os.RemoveAll(dir)
@@ -755,7 +755,7 @@ func TestGCPruneObjCheckError(t *testing.T) {
 	if err != nil {
 		t.Errorf("Could not create tempdir %v", err)
 	}
-	s := NewSyncd("", "", "A", dir, "")
+	s := NewSyncd("", "", "A", dir, "", 0)
 
 	defer s.Close()
 	defer os.RemoveAll(dir)
@@ -789,7 +789,7 @@ func setupGCPrune3Objects(t *testing.T) {
 	if err != nil {
 		t.Errorf("Could not create tempdir %v", err)
 	}
-	s := NewSyncd("", "", "A", dir, "")
+	s := NewSyncd("", "", "A", dir, "", 0)
 
 	defer s.Close()
 	defer os.RemoveAll(dir)
@@ -871,7 +871,7 @@ func setupGCReclaimAndOnlineCk(t *testing.T) {
 	if err != nil {
 		t.Errorf("Could not create tempdir %v", err)
 	}
-	s := NewSyncd("", "", "A", dir, "")
+	s := NewSyncd("", "", "A", dir, "", 0)
 
 	defer s.Close()
 	defer os.RemoveAll(dir)
@@ -961,7 +961,7 @@ func setupGCReclaimAndOnlineCkIncr(t *testing.T) {
 	if err != nil {
 		t.Errorf("Could not create tempdir %v", err)
 	}
-	s := NewSyncd("", "", "A", dir, "")
+	s := NewSyncd("", "", "A", dir, "", 0)
 
 	defer s.Close()
 	defer os.RemoveAll(dir)
@@ -1021,7 +1021,7 @@ func setupGCOnlineCkAndPrune(t *testing.T) {
 	if err != nil {
 		t.Errorf("Could not create tempdir %v", err)
 	}
-	s := NewSyncd("", "", "A", dir, "")
+	s := NewSyncd("", "", "A", dir, "", 0)
 
 	defer s.Close()
 	defer os.RemoveAll(dir)

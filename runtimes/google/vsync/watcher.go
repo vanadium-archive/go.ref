@@ -130,7 +130,10 @@ func (w *syncWatcher) processWatchStream(stream watch.WatcherWatchStream) {
 			return
 		}
 
-		if err = w.processChanges(changes); err != nil {
+		// Timestamp of these changes arriving at the Sync server.
+		syncTime := time.Now().UnixNano()
+
+		if err = w.processChanges(changes, syncTime); err != nil {
 			// TODO(rdaoud): don't crash, instead add retry policies to attempt some degree of
 			// self-healing from a data corruption where feasible, otherwise quarantine this device
 			// from the cluster and stop Syncd to avoid propagating data corruptions.
@@ -141,7 +144,7 @@ func (w *syncWatcher) processWatchStream(stream watch.WatcherWatchStream) {
 
 // processChanges applies the batch of changes (object mutations) received from the Watch API.
 // The function grabs the write-lock to access the Log and DAG DBs.
-func (w *syncWatcher) processChanges(changes watch.ChangeBatch) error {
+func (w *syncWatcher) processChanges(changes watch.ChangeBatch, syncTime int64) error {
 	w.syncd.lock.Lock()
 	defer w.syncd.lock.Unlock()
 
@@ -159,7 +162,7 @@ func (w *syncWatcher) processChanges(changes watch.ChangeBatch) error {
 			return fmt.Errorf("invalid change value, not a mutation: %#v", ch)
 		}
 
-		val := &LogValue{Mutation: *mu, Delete: ch.State == watch.DoesNotExist, Continue: ch.Continued}
+		val := &LogValue{Mutation: *mu, SyncTime: syncTime, Delete: ch.State == watch.DoesNotExist, Continue: ch.Continued}
 		var parents []storage.Version
 		if mu.PriorVersion != storage.NoVersion {
 			parents = []storage.Version{mu.PriorVersion}

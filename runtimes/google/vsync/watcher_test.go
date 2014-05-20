@@ -269,9 +269,9 @@ func initTestDir(t *testing.T) string {
 func fakeSyncd(t *testing.T, storeDir string, withStore bool) *syncd {
 	var s *syncd
 	if withStore {
-		s = newSyncdCore("", "", "fake-dev", storeDir, "", &fakeVStore{})
+		s = newSyncdCore("", "", "fake-dev", storeDir, "", &fakeVStore{}, 0)
 	} else {
-		s = newSyncdCore("", "", "fake-dev", storeDir, "", nil)
+		s = newSyncdCore("", "", "fake-dev", storeDir, "", nil, 0)
 	}
 	if s == nil {
 		t.Fatal("cannot create a Sync server")

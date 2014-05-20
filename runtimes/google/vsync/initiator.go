@@ -30,30 +30,26 @@ const (
 
 // Policies for conflict resolution.
 const (
-	// Resolves conflicts by picking the mutation with the maximum version.
-	useVersion = iota
+	// Resolves conflicts by picking the mutation with the most recent timestamp.
+	useTime = iota
 
 	// TODO(hpucha): implement other policies.
 	// Resolves conflicts by using the app conflict resolver callbacks via store.
 	useCallback
-
-	// Resolves conflicts by comparing timestamps on logrecords.
-	useTime
 )
 
 var (
 	// peerSyncInterval is the duration between two consecutive
 	// sync events.  In every sync event, the initiator contacts
 	// one of its peers to obtain any pending updates.
-	peerSyncInterval = 10 * time.Second
+	peerSyncInterval = 100 * time.Millisecond
 
 	// peerSelectionPolicy is the policy used to select a peer when
 	// the initiator gets a chance to sync.
 	peerSelectionPolicy = selectRandom
 
-	// conflictResolutionPolicy is the policy used to resolve
-	// conflicts.
-	conflictResolutionPolicy = useVersion
+	// conflictResolutionPolicy is the policy used to resolve conflicts.
+	conflictResolutionPolicy = useTime
 
 	errNoUsefulPeer = errors.New("no useful peer to contact")
 )
@@ -83,7 +79,7 @@ type objConflictState struct {
 }
 
 // newInitiator creates a new initiator instance attached to the given syncd instance.
-func newInitiator(syncd *syncd, peerEndpoints, peerDeviceIDs string) *syncInitiator {
+func newInitiator(syncd *syncd, peerEndpoints, peerDeviceIDs string, syncTick time.Duration) *syncInitiator {
 	i := &syncInitiator{syncd: syncd,
 		updObjects: make(map[storage.ID]*objConflictState),
 	}
@@ -107,9 +103,15 @@ func newInitiator(syncd *syncd, peerEndpoints, peerDeviceIDs string) *syncInitia
 		}
 	}
 
+	// Override the default peerSyncInterval value if syncTick is specified.
+	if syncTick > 0 {
+		peerSyncInterval = syncTick
+	}
+
 	vlog.VI(1).Infof("newInitiator: My device ID: %s", i.syncd.id)
 	vlog.VI(1).Infof("newInitiator: Peer endpoints: %v", i.neighbors)
 	vlog.VI(1).Infof("newInitiator: Peer IDs: %v", i.neighborIDs)
+	vlog.VI(1).Infof("newInitiator: Sync interval: %v", peerSyncInterval)
 
 	return i
 }
@@ -422,8 +424,8 @@ func (i *syncInitiator) getLogRec(obj storage.ID, vers storage.Version) (*LogRec
 // resolveConflicts resolves conflicts for updated objects.
 func (i *syncInitiator) resolveConflicts() ([]raw.Mutation, error) {
 	switch conflictResolutionPolicy {
-	case useVersion:
-		if err := i.resolveConflictsByVersion(); err != nil {
+	case useTime:
+		if err := i.resolveConflictsByTime(); err != nil {
 			return nil, err
 		}
 	default:
@@ -439,13 +441,15 @@ func (i *syncInitiator) resolveConflicts() ([]raw.Mutation, error) {
 	return m, nil
 }
 
-// resolveConflictsByVersion resolves conflicts using version numbers
-// of the conflicting mutations. Picks a mutation with the larger
-// version number.
+// resolveConflictsByTime resolves conflicts using the timestamps
+// of the conflicting mutations.  It picks a mutation with the larger
+// timestamp, i.e. the most recent update.  If the timestamps are equal,
+// it uses the mutation version numbers as a tie-breaker, picking the
+// mutation with the larger version.
 //
 // TODO(hpucha): Based on a few more policies, reconsider nesting
 // order of the conflict resolution loop and switch-on-policy.
-func (i *syncInitiator) resolveConflictsByVersion() error {
+func (i *syncInitiator) resolveConflictsByTime() error {
 	for obj, st := range i.updObjects {
 		if !st.isConflict {
 			continue
@@ -460,12 +464,20 @@ func (i *syncInitiator) resolveConflictsByVersion() error {
 		if err != nil {
 			return err
 		}
-		var m raw.Mutation
-		if lrecs[0].Value.Mutation.Version > lrecs[1].Value.Mutation.Version {
-			m = lrecs[0].Value.Mutation
-		} else {
-			m = lrecs[1].Value.Mutation
+
+		res := 0
+		switch {
+		case lrecs[0].Value.SyncTime > lrecs[1].Value.SyncTime:
+			res = 0
+		case lrecs[0].Value.SyncTime < lrecs[1].Value.SyncTime:
+			res = 1
+		case lrecs[0].Value.Mutation.Version > lrecs[1].Value.Mutation.Version:
+			res = 0
+		case lrecs[0].Value.Mutation.Version < lrecs[1].Value.Mutation.Version:
+			res = 1
 		}
+
+		m := lrecs[res].Value.Mutation
 		m.Version = storage.NewVersion()
 
 		// TODO(hpucha): handle continue and delete flags.

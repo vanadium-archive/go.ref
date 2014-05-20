@@ -20,6 +20,7 @@ func main() {
 	vstoreEndpoint := flag.String("vstore", "", "endpoint of the local Veyron store")
 	// TODO(rthellend): Remove the address flag when the config manager is working.
 	address := flag.String("address", ":0", "address to listen on")
+	syncTick := flag.Duration("synctick", 0, "clock tick duration for sync with a peer (e.g. 10s)")
 
 	flag.Parse()
 	if *devid == "" {
@@ -37,7 +38,7 @@ func main() {
 	}
 
 	// Register the "sync" prefix with the sync dispatcher.
-	syncd := vsync.NewSyncd(*peerEndpoints, *peerDeviceIDs, *devid, *storePath, *vstoreEndpoint)
+	syncd := vsync.NewSyncd(*peerEndpoints, *peerDeviceIDs, *devid, *storePath, *vstoreEndpoint, *syncTick)
 	serverSync := vsync.NewServerSync(syncd)
 	if err := s.Register("sync", ipc.SoloDispatcher(serverSync, nil)); err != nil {
 		vlog.Fatalf("syncd:: error registering service: err %v", err)

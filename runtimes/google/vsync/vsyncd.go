@@ -9,6 +9,7 @@ package vsync
 // log records to get in sync with the sender.
 import (
 	"sync"
+	"time"
 
 	"veyron/services/store/raw"
 
@@ -63,7 +64,7 @@ type syncd struct {
 // sync.RWMutex. The spec says that the writers cannot be starved by
 // the readers but it does not guarantee FIFO. We may have to revisit
 // this in the future.
-func NewSyncd(peerEndpoints, peerDeviceIDs, devid, storePath, vstoreEndpoint string) *syncd {
+func NewSyncd(peerEndpoints, peerDeviceIDs, devid, storePath, vstoreEndpoint string, syncTick time.Duration) *syncd {
 	// Connect to the local Veyron store.
 	// At present this is optional to allow testing (from the command-line) w/o Veyron store running.
 	// TODO: connecting to Veyron store should be mandatory.
@@ -76,14 +77,15 @@ func NewSyncd(peerEndpoints, peerDeviceIDs, devid, storePath, vstoreEndpoint str
 		st = vs
 	}
 
-	return newSyncdCore(peerEndpoints, peerDeviceIDs, devid, storePath, vstoreEndpoint, st)
+	return newSyncdCore(peerEndpoints, peerDeviceIDs, devid, storePath, vstoreEndpoint, st, syncTick)
 }
 
 // newSyncdCore is the internal function that creates the Syncd
 // structure and initilizes its thread (goroutines).  It takes a
 // Veyron Store parameter to separate the core of Syncd setup from the
 // external dependency on Veyron Store.
-func newSyncdCore(peerEndpoints, peerDeviceIDs, devid, storePath, vstoreEndpoint string, store storage.Store) *syncd {
+func newSyncdCore(peerEndpoints, peerDeviceIDs, devid, storePath, vstoreEndpoint string,
+	store storage.Store, syncTick time.Duration) *syncd {
 	s := &syncd{}
 
 	// Bootstrap my own DeviceID.
@@ -121,7 +123,7 @@ func newSyncdCore(peerEndpoints, peerDeviceIDs, devid, storePath, vstoreEndpoint
 	s.pending.Add(3)
 
 	// Get deltas every peerSyncInterval.
-	s.hdlInitiator = newInitiator(s, peerEndpoints, peerDeviceIDs)
+	s.hdlInitiator = newInitiator(s, peerEndpoints, peerDeviceIDs, syncTick)
 	go s.hdlInitiator.contactPeers()
 
 	// Garbage collect every garbageCollectInterval.

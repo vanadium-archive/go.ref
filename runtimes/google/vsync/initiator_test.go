@@ -21,7 +21,7 @@ func TestGetLogRec(t *testing.T) {
 	// Set a large value to prevent the threads from firing.
 	peerSyncInterval = 1 * time.Hour
 	garbageCollectInterval = 1 * time.Hour
-	s := NewSyncd("", "", "VeyronTab", dir, "")
+	s := NewSyncd("", "", "VeyronTab", dir, "", 0)
 
 	s.lock.Lock()
 	defer s.lock.Unlock()
@@ -61,8 +61,8 @@ func TestGetLogRec(t *testing.T) {
 	}
 }
 
-// TestResolveConflictByVersion tests the version based conflict resolution policy.
-func TestResolveConflictByVersion(t *testing.T) {
+// TestResolveConflictByTime tests the timestamp-based conflict resolution policy.
+func TestResolveConflictByTime(t *testing.T) {
 	dir, err := createTempDir()
 	if err != nil {
 		t.Errorf("Could not create tempdir %v", err)
@@ -71,7 +71,7 @@ func TestResolveConflictByVersion(t *testing.T) {
 	// Test is not thread safe.
 	peerSyncInterval = 1 * time.Hour
 	garbageCollectInterval = 1 * time.Hour
-	s := NewSyncd("", "", "VeyronTab", dir, "")
+	s := NewSyncd("", "", "VeyronTab", dir, "", 0)
 
 	defer s.Close()
 	defer os.RemoveAll(dir)
@@ -91,7 +91,7 @@ func TestResolveConflictByVersion(t *testing.T) {
 			LSN:     LSN(100 + v),
 			ObjID:   objID,
 			CurVers: v,
-			Value:   LogValue{Mutation: raw.Mutation{Version: v, PriorVersion: 500 + v}},
+			Value:   LogValue{Mutation: raw.Mutation{Version: v, PriorVersion: 500 + v}, SyncTime: int64(v)},
 		}
 		logKey, err := s.log.putLogRec(expRec)
 		if err != nil {
@@ -102,8 +102,8 @@ func TestResolveConflictByVersion(t *testing.T) {
 		}
 	}
 
-	if err := s.hdlInitiator.resolveConflictsByVersion(); err != nil {
-		t.Errorf("ResolveConflictsByVersion failed with err %v", err)
+	if err := s.hdlInitiator.resolveConflictsByTime(); err != nil {
+		t.Errorf("ResolveConflictsByTime failed with err %v", err)
 	}
 	if s.hdlInitiator.updObjects[objID].resolvVal.Mutation.PriorVersion != 540 {
 		t.Errorf("Data mismatch for resolution %v", s.hdlInitiator.updObjects[objID].resolvVal)
@@ -121,7 +121,7 @@ func TestLogStreamRemoteOnly(t *testing.T) {
 	// Test is not thread safe.
 	peerSyncInterval = 1 * time.Hour
 	garbageCollectInterval = 1 * time.Hour
-	s := NewSyncd("", "", "VeyronTab", dir, "")
+	s := NewSyncd("", "", "VeyronTab", dir, "", 0)
 
 	defer s.Close()
 	defer os.RemoveAll(dir)
@@ -211,7 +211,7 @@ func TestLogStreamGCedRemote(t *testing.T) {
 	// Test is not thread safe.
 	peerSyncInterval = 1 * time.Hour
 	garbageCollectInterval = 1 * time.Hour
-	s := NewSyncd("", "", "VeyronTab", dir, "")
+	s := NewSyncd("", "", "VeyronTab", dir, "", 0)
 
 	defer s.Close()
 	defer os.RemoveAll(dir)
@@ -302,7 +302,7 @@ func TestLogStreamNoConflict(t *testing.T) {
 	// Test is not thread safe.
 	peerSyncInterval = 1 * time.Hour
 	garbageCollectInterval = 1 * time.Hour
-	s := NewSyncd("", "", "VeyronTab", dir, "")
+	s := NewSyncd("", "", "VeyronTab", dir, "", 0)
 
 	defer s.Close()
 	defer os.RemoveAll(dir)
@@ -400,8 +400,8 @@ func TestLogStreamConflict(t *testing.T) {
 	// Test is not thread safe.
 	peerSyncInterval = 1 * time.Hour
 	garbageCollectInterval = 1 * time.Hour
-	conflictResolutionPolicy = useVersion
-	s := NewSyncd("", "", "VeyronTab", dir, "")
+	conflictResolutionPolicy = useTime
+	s := NewSyncd("", "", "VeyronTab", dir, "", 0)
 
 	defer s.Close()
 	defer os.RemoveAll(dir)
@@ -502,8 +502,8 @@ func TestMultipleLogStream(t *testing.T) {
 	// Test is not thread safe.
 	peerSyncInterval = 1 * time.Hour
 	garbageCollectInterval = 1 * time.Hour
-	conflictResolutionPolicy = useVersion
-	s := NewSyncd("", "", "VeyronTab", dir, "")
+	conflictResolutionPolicy = useTime
+	s := NewSyncd("", "", "VeyronTab", dir, "", 0)
 
 	defer s.Close()
 	defer os.RemoveAll(dir)
