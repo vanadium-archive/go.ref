@@ -6,6 +6,8 @@
 package profile
 
 import (
+	"veyron2/security"
+
 	"veyron2/services/mgmt/profile"
 
 	// The non-user imports are prefixed with "_gen_" to prevent collisions.
@@ -355,11 +357,11 @@ func GetProfileMethodTags(method string) []interface{} {
 	}
 	switch method {
 	case "Specification":
-		return []interface{}{}
+		return []interface{}{security.Label(1)}
 	case "Put":
-		return []interface{}{}
+		return []interface{}{security.Label(2)}
 	case "Remove":
-		return []interface{}{}
+		return []interface{}{security.Label(2)}
 	default:
 		return nil
 	}

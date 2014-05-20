@@ -2,7 +2,10 @@
 // types used by the implementation of Veyron profiles.
 package profile
 
-import public "veyron2/services/mgmt/profile"
+import (
+  "veyron2/security"
+  public "veyron2/services/mgmt/profile"
+)
 
 // Format includes a type (e.g. ELF) and each instance of the format
 // has some specific attributes. The key attributes are the target
@@ -45,11 +48,11 @@ type Profile interface {
   public.Profile
   // Specification returns the profile specification for the profile
   // identified through the veyron name suffix.
-  Specification() (Specification, error)
+  Specification() (Specification, error) {security.ReadLabel}
   // Put sets the profile specification for the profile identified
   // through the veyron name suffix.
-  Put(Specification Specification) error
+  Put(Specification Specification) error {security.WriteLabel}
   // Remove removes the profile specification for the profile
   // identified through the veyron name suffix.
-  Remove() error
+  Remove() error {security.WriteLabel}
 }

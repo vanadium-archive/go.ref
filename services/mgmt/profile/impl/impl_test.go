@@ -36,7 +36,7 @@ func TestInterface(t *testing.T) {
 	mountPoint, cleanup := istore.NewStore(t, server, runtime.Identity().PublicID())
 	defer cleanup()
 
-	dispatcher, err := NewDispatcher(mountPoint)
+	dispatcher, err := NewDispatcher(mountPoint, nil)
 	if err != nil {
 		t.Fatalf("NewDispatcher() failed: %v", err)
 	}

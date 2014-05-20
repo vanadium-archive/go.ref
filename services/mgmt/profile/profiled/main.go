@@ -4,6 +4,7 @@ import (
 	"flag"
 
 	"veyron/lib/signals"
+	vflag "veyron/security/flag"
 	"veyron/services/mgmt/profile/impl"
 
 	"veyron2/rt"
@@ -24,7 +25,7 @@ func main() {
 		vlog.Fatalf("NewServer() failed: %v", err)
 	}
 	defer server.Stop()
-	dispatcher, err := impl.NewDispatcher(storeName)
+	dispatcher, err := impl.NewDispatcher(storeName, vflag.NewAuthorizerOrDie())
 	if err != nil {
 		vlog.Fatalf("NewDispatcher() failed: %v", err)
 	}
