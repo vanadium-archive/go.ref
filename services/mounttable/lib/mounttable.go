@@ -52,7 +52,8 @@ type node struct {
 }
 
 // dummyAuth allows all RPCs.
-type dummyAuth struct { }
+type dummyAuth struct{}
+
 func (dummyAuth) Authorize(security.Context) error {
 	return nil
 }
@@ -66,7 +67,7 @@ func NewMountTable() *mountTable {
 
 // LookupServer implements ipc.Dispatcher.Lookup.
 func (mt *mountTable) Lookup(name string) (ipc.Invoker, security.Authorizer, error) {
-	vlog.VI(2).Infof("*********************Lookup %s\n", name)
+	vlog.VI(2).Infof("*********************Lookup %s", name)
 	mt.RLock()
 	defer mt.RUnlock()
 	ms := &mountContext{
@@ -174,6 +175,7 @@ func (ms *mountContext) Mount(context ipc.Context, server string, ttlsecs uint32
 	if ttlsecs == 0 {
 		ttlsecs = 10 * 365 * 24 * 60 * 60 // a really long time
 	}
+	vlog.VI(2).Infof("*********************Mount %q -> %s", ms.name, server)
 
 	// Make sure the server name is reasonable.
 	epString, _ := naming.SplitAddressName(server)

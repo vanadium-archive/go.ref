@@ -59,6 +59,17 @@ import (
 // mounts itself as "g" under mounttable B, and defines its own UnresolveStep.
 // [ This demonstrates defining UnresolveStep for a service that is not
 // IDL-based. ]
+//
+// The MountTables used here are configured to use an internal prefix (mt)
+// for dispatching RPCs. This means that the client code has to manipulate
+// the names to ensure that resolution is terminated in the appropriate
+// places in the name since the MountTable expects to be invoked as
+// /<address>/mt.METHODS rather than just /<address>.METHODS.
+// In addition, since this test invokes methods directly on the MountTable
+// it needs to use a terminal name to force resolution to stop at the MountTable
+// itself, rather than using the MountTable to resolve the name. In practice,
+// this means that names of the form /<endpoint>//mt/... must be used to
+// invoke methods on the MountTable served on <endpoint>/mt.
 
 func TestHelperProcess(t *testing.T) {
 	blackbox.HelperProcess(t)
@@ -95,10 +106,15 @@ func TestUnresolve(t *testing.T) {
 	if len(aOA) == 0 {
 		t.Fatalf("aOA is empty")
 	}
+	// A's object addess, aOA, is /<address>/mt
 	vlog.Infof("aOA=%v", aOA)
+
 	idA := rt.R().Identity()
 	vlog.Infof("idA=%v", idA)
+
 	// Create mounttable B.
+	// Mounttable B uses A as a root, that is, Publish calls made for
+	// services running in B will appear in A, as mt/<suffix used in publish>
 	b := blackbox.HelperCommand(t, "childMT", "b")
 	defer shutdown(b)
 
@@ -107,8 +123,20 @@ func TestUnresolve(t *testing.T) {
 	b.Cmd.Env = append(b.Cmd.Env, fmt.Sprintf("VEYRON_IDENTITY=%v", idFile), fmt.Sprintf("MOUNTTABLE_ROOT=%v", aOA))
 	b.Cmd.Start()
 	b.Expect("ready")
-	bOA := naming.Join(resolveStep(t, naming.MakeFixed(naming.Join(aOA, "b"))), "mt")
+
+	// We want to obtain the name for the MountTable mounted in A as mt/b,
+	// in particular, we want the OA of B's Mounttable service.
+	// We do so by asking Mounttable A to resolve //mt/b using its
+	// ResolveStep method. The name (//mt/b) has to be terminal since we are
+	// invoking a methond on the MountTable rather asking the MountTable to
+	// resolve the name!
+	aAddr, _ := naming.SplitAddressName(aOA)
+	aName := naming.JoinAddressName(aAddr, "//mt/b")
+	bName := resolveStep(t, aName)
+
+	bOA := naming.Join(bName, "mt")
 	vlog.Infof("bOA=%v", bOA)
+	bAddr, _ := naming.SplitAddressName(bOA)
 
 	// Create server C.
 	c := blackbox.HelperCommand(t, "childFortune", "c")
@@ -118,7 +146,7 @@ func TestUnresolve(t *testing.T) {
 	c.Cmd.Env = append(c.Cmd.Env, fmt.Sprintf("VEYRON_IDENTITY=%v", idFile), fmt.Sprintf("MOUNTTABLE_ROOT=%v", bOA))
 	c.Cmd.Start()
 	c.Expect("ready")
-	cEP := resolveStep(t, naming.MakeFixed(naming.Join(bOA, "c")))
+	cEP := resolveStep(t, naming.JoinAddressName(bAddr, "//mt/c"))
 	vlog.Infof("cEP=%v", cEP)
 
 	// Create server D.
@@ -129,7 +157,7 @@ func TestUnresolve(t *testing.T) {
 	d.Cmd.Env = append(d.Cmd.Env, fmt.Sprintf("VEYRON_IDENTITY=%v", idFile), fmt.Sprintf("MOUNTTABLE_ROOT=%v", bOA))
 	d.Cmd.Start()
 	d.Expect("ready")
-	dEP := resolveStep(t, naming.MakeFixed(naming.Join(bOA, "d")))
+	dEP := resolveStep(t, naming.JoinAddressName(bAddr, "//mt/d"))
 	vlog.Infof("dEP=%v", dEP)
 
 	// Create server E.
@@ -140,7 +168,7 @@ func TestUnresolve(t *testing.T) {
 	e.Cmd.Env = append(e.Cmd.Env, fmt.Sprintf("VEYRON_IDENTITY=%v", idFile), fmt.Sprintf("MOUNTTABLE_ROOT=%v", bOA))
 	e.Cmd.Start()
 	e.Expect("ready")
-	eEP := resolveStep(t, naming.MakeFixed(naming.Join(bOA, "e1")))
+	eEP := resolveStep(t, naming.JoinAddressName(bAddr, "//mt/e1"))
 	vlog.Infof("eEP=%v", eEP)
 
 	// Create server F.
@@ -151,7 +179,7 @@ func TestUnresolve(t *testing.T) {
 	f.Cmd.Env = append(f.Cmd.Env, fmt.Sprintf("VEYRON_IDENTITY=%v", idFile), fmt.Sprintf("MOUNTTABLE_ROOT=%v", naming.Join(aOA, "b/mt")))
 	f.Cmd.Start()
 	f.Expect("ready")
-	fEP := resolveStep(t, naming.MakeFixed(naming.Join(bOA, "f")))
+	fEP := resolveStep(t, naming.JoinAddressName(bAddr, "//mt/f"))
 	vlog.Infof("fEP=%v", fEP)
 
 	// Create server G.
@@ -162,7 +190,7 @@ func TestUnresolve(t *testing.T) {
 	g.Cmd.Env = append(g.Cmd.Env, fmt.Sprintf("VEYRON_IDENTITY=%v", idFile), fmt.Sprintf("MOUNTTABLE_ROOT=%v", bOA))
 	g.Cmd.Start()
 	g.Expect("ready")
-	gEP := resolveStep(t, naming.MakeFixed(naming.Join(bOA, "g")))
+	gEP := resolveStep(t, naming.JoinAddressName(bAddr, "//mt/g"))
 	vlog.Infof("gEP=%v", gEP)
 
 	// Check that things resolve correctly.
@@ -171,13 +199,15 @@ func TestUnresolve(t *testing.T) {
 	idFile = testutil.SaveIdentityToFile(testutil.NewBlessedIdentity(idA, "test"))
 	defer os.Remove(idFile)
 	os.Setenv("VEYRON_IDENTITY", idFile)
+
 	r, _ := rt.New(veyron2.MountTableRoots([]string{aOA}))
+
 	resolveCases := []struct {
 		name, resolved string
 	}{
 		{"b/mt/c", cEP},
 		{"b/mt/d", dEP},
-		{"b/mt/I/want/to/know", naming.JoinAddressNameFixed(dEP, "tell/me")},
+		{"b/mt/I/want/to/know", naming.MakeTerminal(naming.Join(dEP, "tell/me"))},
 		{"b/mt/e1", eEP},
 		{"b/mt/e2", eEP},
 		{"b/mt/f", fEP},
@@ -231,10 +261,11 @@ func TestUnresolve(t *testing.T) {
 		}
 
 		// Go up the tree, unresolve another step.
-		if want, got := c.unresStep2, unresolveStep(t, createMTClient(naming.MakeFixed(c.unresStep1))); want != got {
+		if want, got := c.unresStep2, unresolveStep(t, createMTClient(naming.MakeTerminal(c.unresStep1))); want != got {
 			t.Errorf("mt.UnresolveStep expected %q, got %q instead", want, got)
 		}
 	}
+
 	// We handle (E) separately since its UnresolveStep returns two names
 	// instead of one.
 
@@ -256,20 +287,19 @@ func TestUnresolve(t *testing.T) {
 	}
 
 	// Try unresolve step on a random name in B.
-	if want, got := naming.Join(aOA, "b/mt/some/random/name"),
-		unresolveStep(t, createMTClient(naming.MakeFixed(naming.Join(bOA, "some/random/name")))); want != got {
+	if want, got := naming.JoinAddressName(aAddr, "mt/b/mt/some/random/name"),
+		unresolveStep(t, createMTClient(naming.JoinAddressName(bAddr, "//mt/some/random/name"))); want != got {
 		t.Errorf("b.UnresolveStep expected %q, got %q instead", want, got)
 	}
 
 	// Try unresolve step on a random name in A.
-	if unres, err := createMTClient(naming.MakeFixed(naming.Join(aOA, "another/random/name"))).UnresolveStep(); err != nil {
+	if unres, err := createMTClient(naming.JoinAddressName(aAddr, "//mt/another/random/name")).UnresolveStep(); err != nil {
 		t.Errorf("UnresolveStep failed with %v", err)
 	} else if len(unres) > 0 {
 		t.Errorf("b.UnresolveStep expected no results, got %q instead", unres)
 	}
 
 	// Verify that full unresolve works.
-
 	unresolveCases := []struct {
 		name, want string
 	}{
