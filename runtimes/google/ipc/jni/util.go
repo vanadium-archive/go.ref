@@ -5,6 +5,7 @@ package main
 import (
 	"errors"
 	"fmt"
+	"reflect"
 	"sync"
 	"unicode"
 	"unicode/utf8"
@@ -171,4 +172,14 @@ func jFindClassOrDie(env *C.JNIEnv, name string) C.jclass {
 		panic(fmt.Sprintf("couldn't find class %s: %v", name, err))
 	}
 	return C.jclass(C.NewGlobalRef(env, C.jobject(class)))
+}
+
+// derefOrDie dereferences the provided (pointer) value, or panic-s if the value
+// isn't of pointer type.
+func derefOrDie(i interface{}) interface{} {
+	v := reflect.ValueOf(i)
+	if v.Kind() != reflect.Ptr {
+		panic(fmt.Sprintf("want reflect.Ptr value for %v, have %v", i, v.Kind()))
+	}
+	return v.Elem().Interface()
 }

@@ -5,7 +5,6 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"reflect"
 	"time"
 
 	"veyron2"
@@ -45,21 +44,25 @@ func (c *client) StartCall(env *C.JNIEnv, name, method string, jArgs C.jobjectAr
 	if getter == nil {
 		return nil, fmt.Errorf("couldn't find IDL interface corresponding to path %q", goString(env, jPath))
 	}
-	args, err := getter.GetInArgs(method, len(argStrs))
-	if len(args) != len(argStrs) {
-		return nil, fmt.Errorf("invalid number of arguments for method %s, want %d, have %d", method, len(argStrs), len(args))
+	argptrs, err := getter.GetInArgPtrs(method, len(argStrs))
+	if len(argptrs) != len(argStrs) {
+		return nil, fmt.Errorf("invalid number of arguments for method %s, want %d, have %d", method, len(argStrs), len(argptrs))
 	}
-	// JSON decode into argument instances.
+	// JSON decode.
+	args := make([]interface{}, len(argptrs))
 	for i, argStr := range argStrs {
-		if err := json.Unmarshal([]byte(argStr), &args[i]); err != nil {
+		if err := json.Unmarshal([]byte(argStr), argptrs[i]); err != nil {
 			return nil, err
 		}
+		// Remove the pointer from the argument.  Simply *argptr[i] doesn't work
+		// as argptr[i] is of type interface{}.
+		args[i] = derefOrDie(argptrs[i])
 	}
+	// Process options.
 	options := []ipc.ClientCallOpt{}
 	if int(jTimeout) >= 0 {
 		options = append(options, veyron2.CallTimeout(time.Duration(int(jTimeout))*time.Millisecond))
 	}
-
 	// Invoke StartCall
 	call, err := c.client.StartCall(name, method, args, options...)
 	if err != nil {
@@ -100,7 +103,7 @@ func (c *clientCall) Finish(env *C.JNIEnv) (C.jobjectArray, error) {
 	for i, resultptr := range c.resultptrs {
 		// Remove the pointer from the result.  Simply *resultptr doesn't work
 		// as resultptr is of type interface{}.
-		result := reflect.ValueOf(resultptr).Elem().Interface()
+		result := derefOrDie(resultptr)
 		var err error
 		jsonResults[i], err = json.Marshal(result)
 		if err != nil {
