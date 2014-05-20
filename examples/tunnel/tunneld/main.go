@@ -6,14 +6,13 @@ import (
 	"fmt"
 	"net"
 	"os"
-	"strings"
 
 	"veyron/examples/tunnel"
 	"veyron/examples/tunnel/tunneld/impl"
 	"veyron/lib/signals"
+	sflag "veyron/security/flag"
 	"veyron2/ipc"
 	"veyron2/rt"
-	"veyron2/security"
 	"veyron2/vlog"
 )
 
@@ -21,8 +20,6 @@ var (
 	// TODO(rthellend): Remove the address and protocol flags when the config manager is working.
 	protocol = flag.String("protocol", "tcp", "network to listen on. For example, set to 'veyron' and set --address to the endpoint/name of a proxy to have this tunnel service proxied.")
 	address  = flag.String("address", ":0", "address to listen on")
-
-	users = flag.String("users", "", "A comma-separated list of principal patterns allowed to use this service.")
 )
 
 // firstHardwareAddrInUse returns the hwaddr of the first network interface
@@ -42,15 +39,6 @@ func firstHardwareAddrInUse() (string, error) {
 	return "", errors.New("No usable network interfaces")
 }
 
-func authorizer() security.Authorizer {
-	ACL := make(security.ACL)
-	principals := strings.Split(*users, ",")
-	for _, p := range principals {
-		ACL[security.PrincipalPattern(p)] = security.LabelSet(security.AdminLabel)
-	}
-	return security.NewACLAuthorizer(ACL)
-}
-
 func main() {
 	r := rt.Init()
 	defer r.Shutdown()
@@ -60,7 +48,7 @@ func main() {
 	}
 	defer server.Stop()
 
-	if err := server.Register("", ipc.SoloDispatcher(tunnel.NewServerTunnel(&impl.T{}), authorizer())); err != nil {
+	if err := server.Register("", ipc.SoloDispatcher(tunnel.NewServerTunnel(&impl.T{}), sflag.NewAuthorizerOrDie())); err != nil {
 		vlog.Fatalf("Register failed: %v", err)
 	}
 	ep, err := server.Listen(*protocol, *address)

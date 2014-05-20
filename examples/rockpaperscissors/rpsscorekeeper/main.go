@@ -7,14 +7,13 @@ import (
 	"flag"
 	"fmt"
 	"os"
-	"strings"
 
 	rps "veyron/examples/rockpaperscissors"
 	"veyron/examples/rockpaperscissors/common"
+	sflag "veyron/security/flag"
 
 	"veyron2/ipc"
 	"veyron2/rt"
-	"veyron2/security"
 	"veyron2/vlog"
 )
 
@@ -22,8 +21,6 @@ var (
 	// TODO(rthellend): Remove the address and protocol flags when the config manager is working.
 	protocol = flag.String("protocol", "tcp", "network to listen on. For example, set to 'veyron' and set --address to the endpoint/name of a proxy to have this service proxied.")
 	address  = flag.String("address", ":0", "address to listen on")
-
-	users = flag.String("users", "", "A comma-separated list of principal patterns allowed to use this service.")
 )
 
 type impl struct {
@@ -34,15 +31,6 @@ func (i *impl) Record(ctx ipc.Context, score rps.ScoreCard) error {
 	vlog.VI(1).Infof("Record (%+v) from %s", score, ctx.RemoteID())
 	i.ch <- score
 	return nil
-}
-
-func authorizer() security.Authorizer {
-	ACL := make(security.ACL)
-	principals := strings.Split(*users, ",")
-	for _, p := range principals {
-		ACL[security.PrincipalPattern(p)] = security.LabelSet(security.AdminLabel)
-	}
-	return security.NewACLAuthorizer(ACL)
 }
 
 func main() {
@@ -57,7 +45,7 @@ func main() {
 	ch := make(chan rps.ScoreCard)
 	rpsService := &impl{ch}
 
-	if err := server.Register("", ipc.SoloDispatcher(rps.NewServerScoreKeeper(rpsService), authorizer())); err != nil {
+	if err := server.Register("", ipc.SoloDispatcher(rps.NewServerScoreKeeper(rpsService), sflag.NewAuthorizerOrDie())); err != nil {
 		vlog.Fatalf("Register failed: %v", err)
 	}
 	ep, err := server.Listen(*protocol, *address)
