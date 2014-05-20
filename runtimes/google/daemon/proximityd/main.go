@@ -13,6 +13,7 @@ import (
 
 	"veyron/runtimes/google/lib/bluetooth"
 	"veyron/runtimes/google/lib/proximity"
+	"veyron/runtimes/google/security"
 	"veyron2/ipc"
 	"veyron2/rt"
 	prox "veyron2/services/proximity"
@@ -22,7 +23,8 @@ import (
 var (
 	protocol = flag.String("protocol", "tcp", "network to listen on. For example, set to 'veyron' and set --address to the endpoint/name of a proxy to have this service proxied.")
 	address  = flag.String("address", ":0", "address to listen on")
-	name     = flag.String("name", "", "Name to mount the proximity service as")
+	name     = flag.String("name", "", "name to mount the proximity service as")
+	aclFile  = flag.String("acl_file", "", "file that contains the JSON-encoded security.ACL")
 )
 
 func main() {
@@ -59,7 +61,7 @@ func main() {
 	defer p.Stop()
 
 	// Register the service with the server.
-	if err := s.Register("", ipc.SoloDispatcher(prox.NewServerProximity(p), nil)); err != nil {
+	if err := s.Register("", ipc.SoloDispatcher(prox.NewServerProximity(p), security.NewFileACLAuthorizer(*aclFile))); err != nil {
 		vlog.Fatal("error registering service:", err)
 	}
 
