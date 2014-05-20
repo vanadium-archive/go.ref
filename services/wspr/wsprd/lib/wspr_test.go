@@ -3,7 +3,6 @@ package lib
 import (
 	"bytes"
 	"encoding/json"
-	"log"
 	"reflect"
 	"testing"
 	"veyron2"
@@ -14,6 +13,9 @@ import (
 	"veyron2/verror"
 	"veyron2/vlog"
 	"veyron2/wiretype"
+
+	"veyron/runtimes/google/ipc/stream/proxy"
+	mounttable "veyron/services/mounttable/lib"
 )
 
 var r veyron2.Runtime
@@ -84,7 +86,10 @@ func (s simpleAdder) Signature(call ipc.ServerCall) (ipc.ServiceSignature, error
 	return result, nil
 }
 
-func startServer() (ipc.Server, naming.Endpoint, error) {
+// A function that will register an handlers on the given server
+type registerFunc func(ipc.Server) error
+
+func startServer(registerer registerFunc) (ipc.Server, naming.Endpoint, error) {
 	// Create a new server instance.
 	s, err := r.NewServer()
 	if err != nil {
@@ -92,7 +97,7 @@ func startServer() (ipc.Server, naming.Endpoint, error) {
 	}
 
 	// Register the "fortune" prefix with the fortune dispatcher.
-	if err := s.Register("cache", ipc.SoloDispatcher(simpleAdder{}, nil)); err != nil {
+	if err := registerer(s); err != nil {
 		return nil, nil, err
 	}
 
@@ -103,52 +108,88 @@ func startServer() (ipc.Server, naming.Endpoint, error) {
 	return s, endpoint, nil
 }
 
-type testWriter struct {
-	t              *testing.T
-	expectedStream []response
-	buf            bytes.Buffer
-	expectedError  error
-	logger         vlog.Logger
+func startAdderServer() (ipc.Server, naming.Endpoint, error) {
+	return startServer(func(server ipc.Server) error {
+		return server.Register("cache", ipc.SoloDispatcher(simpleAdder{}, nil))
+	})
 }
 
-func (t *testWriter) Write(p []byte) (int, error) {
-	return t.buf.Write(p)
-
-}
-
-func (t *testWriter) getLogger() vlog.Logger {
-	return t.logger
-}
-
-func (t *testWriter) sendError(err error) {
-	if !reflect.DeepEqual(err, t.expectedError) {
-		t.t.Errorf("unexpected error, got: %v, expected: %v", err, t.expectedError)
+func startProxy() (*proxy.Proxy, error) {
+	rid, err := naming.NewRoutingID()
+	if err != nil {
+		return nil, err
 	}
+
+	return proxy.New(rid, nil, "tcp", "127.0.0.1:0")
 }
 
-func (t *testWriter) FinishMessage() error {
-	var r response
-	p := t.buf.Bytes()
-	t.buf.Reset()
-	log.Println("Finishing", string(p))
-	if err := json.Unmarshal(p, &r); err != nil {
+func startMountTableServer() (ipc.Server, naming.Endpoint, error) {
+	return startServer(func(server ipc.Server) error {
+		return server.Register("mt", mounttable.NewMountTable())
+	})
+}
+
+type testWriter struct {
+	stream []response
+	buf    bytes.Buffer
+	err    error
+	logger vlog.Logger
+}
+
+func (w *testWriter) Write(p []byte) (int, error) {
+	return w.buf.Write(p)
+
+}
+
+func (w *testWriter) getLogger() vlog.Logger {
+	return w.logger
+}
+
+func (w *testWriter) sendError(err error) {
+	w.err = err
+}
+
+func (w *testWriter) FinishMessage() error {
+	var resp response
+	p := w.buf.Bytes()
+	w.buf.Reset()
+	if err := json.Unmarshal(p, &resp); err != nil {
 		return err
 	}
-
-	if len(t.expectedStream) == 0 {
-		t.t.Errorf("Unexpected message %v", r)
-		return nil
-	}
-	expectedValue := t.expectedStream[0]
-	t.expectedStream = t.expectedStream[1:]
-	if !reflect.DeepEqual(r, expectedValue) {
-		t.t.Errorf("unknown stream message Got: %v, expected: %v", r, expectedValue)
-	}
+	w.stream = append(w.stream, resp)
 	return nil
 }
 
+func checkResponses(w *testWriter, expectedStream []response, err error, t *testing.T) {
+	if !reflect.DeepEqual(expectedStream, w.stream) {
+		t.Errorf("streams don't match: expected %v, got %v", expectedStream, w.stream)
+	}
+
+	if !reflect.DeepEqual(err, w.err) {
+		t.Errorf("unexpected error, got: %v, expected: %v", err, w.err)
+	}
+}
+
+var adderServiceSignature JSONServiceSignature = JSONServiceSignature{
+	"add": JSONMethodSignature{
+		InArgs:      []string{"A", "B"},
+		NumOutArgs:  2,
+		IsStreaming: false,
+	},
+	"divide": JSONMethodSignature{
+		InArgs:      []string{"A", "B"},
+		NumOutArgs:  2,
+		IsStreaming: false,
+	},
+	"streamingAdd": JSONMethodSignature{
+		InArgs:      []string{},
+		NumOutArgs:  2,
+		IsStreaming: true,
+	},
+}
+
 func TestGetGoServerSignature(t *testing.T) {
-	s, endpoint, err := startServer()
+	s, endpoint, err := startAdderServer()
 	if err != nil {
 		t.Errorf("unable to start server: %v", err)
 		t.Fail()
@@ -163,22 +204,13 @@ func TestGetGoServerSignature(t *testing.T) {
 	if err != nil {
 		t.Errorf("Failed to get signature: %v", err)
 	}
-	if len(jsSig) != 3 {
-		t.Errorf("Wrong number of methods, got: %d, expected: 3", len(jsSig))
-	}
 
-	add := jsSig["add"]
-	if len(add.InArgs) != 2 {
-		t.Errorf("Wrong number of arguments for put, got: %d, expected: 2", len(add.InArgs))
-	}
-
-	divide := jsSig["divide"]
-	if len(divide.InArgs) != 2 {
-		t.Errorf("Wrong number of arguments for put, got: %d, expected: 2", len(divide.InArgs))
+	if !reflect.DeepEqual(jsSig, adderServiceSignature) {
+		t.Errorf("Unexpected signature, got :%v, expected: %v", jsSig, adderServiceSignature)
 	}
 }
 
-type testCase struct {
+type goServerTestCase struct {
 	method          string
 	inArgs          []interface{}
 	numOutArgs      int32
@@ -187,23 +219,21 @@ type testCase struct {
 	expectedError   error
 }
 
-func runTestCase(t *testing.T, test testCase) {
-	s, endpoint, err := startServer()
+func runGoServerTestCase(t *testing.T, test goServerTestCase) {
+	s, endpoint, err := startAdderServer()
 	if err != nil {
 		t.Errorf("unable to start server: %v", err)
 		t.Fail()
 		return
 	}
 	defer s.Stop()
+
 	wspr := NewWSPR(0, "mockVeyronProxyEP")
 	wspr.setup()
 	wsp := websocketPipe{ctx: wspr}
 	wsp.setup()
 	writer := testWriter{
-		t:              t,
-		expectedStream: test.expectedStream,
-		expectedError:  test.expectedError,
-		logger:         wspr.logger,
+		logger: wspr.logger,
 	}
 
 	var signal chan ipc.Stream
@@ -226,10 +256,11 @@ func runTestCase(t *testing.T, test testCase) {
 		IsStreaming: signal != nil,
 	}
 	wsp.sendVeyronRequest(0, &request, &writer, signal)
+	checkResponses(&writer, test.expectedStream, test.expectedError, t)
 }
 
 func TestCallingGoServer(t *testing.T) {
-	runTestCase(t, testCase{
+	runGoServerTestCase(t, goServerTestCase{
 		method:     "Add",
 		inArgs:     []interface{}{2, 3},
 		numOutArgs: 2,
@@ -243,7 +274,7 @@ func TestCallingGoServer(t *testing.T) {
 }
 
 func TestCallingGoServerWithError(t *testing.T) {
-	runTestCase(t, testCase{
+	runGoServerTestCase(t, goServerTestCase{
 		method:        "Divide",
 		inArgs:        []interface{}{1, 0},
 		numOutArgs:    2,
@@ -252,7 +283,7 @@ func TestCallingGoServerWithError(t *testing.T) {
 }
 
 func TestCallingGoWithStreaming(t *testing.T) {
-	runTestCase(t, testCase{
+	runGoServerTestCase(t, goServerTestCase{
 		method:          "StreamingAdd",
 		inArgs:          []interface{}{},
 		streamingInputs: []string{"1", "2", "3", "4"},
@@ -284,6 +315,62 @@ func TestCallingGoWithStreaming(t *testing.T) {
 			},
 		},
 	})
+}
+
+func TestJavascriptPublish(t *testing.T) {
+	mounttableServer, endpoint, err := startMountTableServer()
+
+	if err != nil {
+		t.Errorf("unable to start mounttable: %v", err)
+		return
+	}
+
+	defer mounttableServer.Stop()
+
+	proxyServer, err := startProxy()
+
+	if err != nil {
+		t.Errorf("unable to start proxy: %v", err)
+		return
+	}
+
+	defer proxyServer.Shutdown()
+
+	proxyEndpoint := proxyServer.Endpoint().String()
+
+	wspr := NewWSPR(0, "/"+proxyEndpoint, veyron2.MountTableRoots{"/" + endpoint.String() + "/mt"})
+	wspr.setup()
+	wsp := websocketPipe{ctx: wspr}
+	wsp.setup()
+	defer wsp.cleanup()
+	writer := testWriter{
+		logger: wspr.logger,
+	}
+	wsp.publish(publishRequest{
+		Name: "adder",
+		Services: map[string]JSONServiceSignature{
+			"adder": adderServiceSignature,
+		},
+	}, &writer)
+
+	if len(writer.stream) != 1 {
+		t.Errorf("expected only on response, got %d", len(writer.stream))
+	}
+
+	resp := writer.stream[0]
+
+	if resp.Type != responseFinal {
+		t.Errorf("unknown stream message Got: %v, expected: publish response", resp)
+		return
+	}
+
+	if msg, ok := resp.Message.(string); ok {
+		if _, err := r.NewEndpoint(msg); err == nil {
+			return
+		}
+
+	}
+	t.Errorf("invalid endpdoint returned from publish: %v", resp.Message)
 }
 
 // TODO(bjornick): Make sure that send on stream is nonblocking

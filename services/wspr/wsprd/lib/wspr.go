@@ -468,7 +468,7 @@ type websocketPipe struct {
 // cleans up any outstanding rpcs.
 func (wsp *websocketPipe) cleanup() {
 	wsp.Lock()
-	defer wsp.Lock()
+	defer wsp.Unlock()
 	for _, stream := range wsp.outstandingStreams {
 		if call, ok := stream.(ipc.ClientCall); ok {
 			call.Cancel()
@@ -488,9 +488,10 @@ func (wsp *websocketPipe) cleanup() {
 	}
 
 	if wsp.veyronServer != nil {
-		wsp.ctx.logger.VI(0).Infof("Stopped server")
+		wsp.ctx.logger.VI(0).Infof("Stopping server")
 		wsp.veyronServer.Stop()
 	}
+	wsp.ctx.logger.VI(0).Infof("Stopped server")
 }
 
 func (wsp *websocketPipe) setup() {
@@ -709,9 +710,7 @@ func (wsp *websocketPipe) readLoop() {
 	wsp.cleanup()
 }
 
-// handlePublishRequest takes a request to publish a server, creates
-// a server, registers the provided services and sends the endpoint back.
-func (wsp *websocketPipe) handlePublishRequest(data string, w *websocketWriter) {
+func (wsp *websocketPipe) publish(publishRequest publishRequest, w clientWriter) {
 	// Create a server for the websocket pipe, if it does not exist already
 	wsp.Lock()
 	shouldListen := false
@@ -734,14 +733,6 @@ func (wsp *websocketPipe) handlePublishRequest(data string, w *websocketWriter) 
 		shouldListen = true
 	}
 	wsp.Unlock()
-
-	// Decode the publish request which includes IDL, registered services and name
-	var publishRequest publishRequest
-	decoder := json.NewDecoder(bytes.NewBufferString(data))
-	if err := decoder.Decode(&publishRequest); err != nil {
-		w.sendError(verror.Internalf("can't unmarshal JSONMessage: %v", err))
-		return
-	}
 
 	wsp.ctx.logger.VI(2).Infof("publishing under name: %q", publishRequest.Name)
 
@@ -796,9 +787,22 @@ func (wsp *websocketPipe) handlePublishRequest(data string, w *websocketWriter) 
 	}
 
 	if err := w.FinishMessage(); err != nil {
-		w.logger.VI(2).Info("WSPR: error finishing message: ", err)
+		w.getLogger().VI(2).Info("WSPR: error finishing message: ", err)
 		return
 	}
+}
+
+// handlePublishRequest takes a request to publish a server, creates
+// a server, registers the provided services and sends the endpoint back.
+func (wsp *websocketPipe) handlePublishRequest(data string, w *websocketWriter) {
+	// Decode the publish request which includes IDL, registered services and name
+	var publishRequest publishRequest
+	decoder := json.NewDecoder(bytes.NewBufferString(data))
+	if err := decoder.Decode(&publishRequest); err != nil {
+		w.sendError(verror.Internalf("can't unmarshal JSONMessage: %v", err))
+		return
+	}
+	wsp.publish(publishRequest, w)
 }
 
 // remoteInvokeFunc is a type of function that can invoke a remote method and
@@ -1010,11 +1014,12 @@ func (ctx WSPR) Shutdown() {
 }
 
 // Creates a new WebSocket Proxy object.
-func NewWSPR(port int, veyronProxyEP string) *WSPR {
+func NewWSPR(port int, veyronProxyEP string, opts ...veyron2.ROpt) *WSPR {
 	if veyronProxyEP == "" {
 		log.Fatalf("a veyron proxy must be set")
 	}
-	newrt, err := rt.New()
+
+	newrt, err := rt.New(opts...)
 	if err != nil {
 		log.Fatalf("rt.New failed: %s", err)
 	}
