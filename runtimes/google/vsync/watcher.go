@@ -9,7 +9,7 @@ import (
 	"fmt"
 	"time"
 
-	"veyron/services/store/estore"
+	"veyron/services/store/raw"
 
 	"veyron2/query"
 	"veyron2/services/watch"
@@ -154,7 +154,7 @@ func (w *syncWatcher) processChanges(changes watch.ChangeBatch) error {
 	var lastResmark []byte
 	for i := range changes.Changes {
 		ch := &changes.Changes[i]
-		mu, ok := ch.Value.(*estore.Mutation)
+		mu, ok := ch.Value.(*raw.Mutation)
 		if !ok {
 			return fmt.Errorf("invalid change value, not a mutation: %#v", ch)
 		}

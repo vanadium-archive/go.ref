@@ -1,13 +1,18 @@
 /*
-Package estore defines an extended interface for the Veyron store.
-
-The extended interface supports synchronizing with remote stores by transporting Mutations.
+Package raw defines a raw interface for the Veyron store.
+The raw interface supports synchronizing with remote stores by transporting Mutations.
 */
-package estore
+package raw
 
 import (
   "veyron2/storage"
-  "veyron2/services/store"
+  "veyron2/services/watch"
+)
+
+const (
+  // The raw Store has Veyron name "<mount>/.store.raw", where <mount> is the
+  // Veyron name of the mount point.
+  RawStoreSuffix = ".store.raw"
 )
 
 // Mutation represents an update to an entry in the store, and contains enough
@@ -40,11 +45,13 @@ type Mutation struct {
   Dir []storage.DEntry
 }
 
-// Store defines an extended interface for the Veyron store. Mutations can be
-// received via the Watcher interface, and committed via PutMutations().
+// Store defines a raw interface for the Veyron store. Mutations can be received
+// via the Watcher interface, and committed via PutMutation.
 type Store interface {
-  store.Store
+  watch.Watcher
 
-  // PutMutations puts external mutations in the store, within a transaction.
-  PutMutations(Mutations []Mutation) (Err error)
+  // PutMutations atomically commits a stream of Mutations when the stream is
+  // closed. Mutations are not committed if the request is cancelled before
+  // the stream has been closed.
+  PutMutations() stream<Mutation, _> error
 }

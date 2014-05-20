@@ -30,6 +30,7 @@ import (
 
 	"veyron2/rt"
 	"veyron2/security"
+	"veyron2/services/store"
 )
 
 var (
@@ -77,7 +78,7 @@ func main() {
 	// Register the services.
 	storeDisp := server.NewStoreDispatcher(storeService, auth)
 	objectDisp := server.NewObjectDispatcher(storeService, auth)
-	if err := s.Register(".store", storeDisp); err != nil {
+	if err := s.Register(store.StoreSuffix, storeDisp); err != nil {
 		log.Fatal("s.Register(storeDisp) failed: ", err)
 	}
 	if err := s.Register("", objectDisp); err != nil {

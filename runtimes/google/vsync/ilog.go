@@ -42,7 +42,7 @@ import (
 	"strconv"
 	"strings"
 
-	"veyron/services/store/estore"
+	"veyron/services/store/raw"
 
 	"veyron2/storage"
 )
@@ -419,7 +419,7 @@ func (l *iLog) dumpILog() {
 }
 
 // fillFakeWatchRecords fills fake log and dag state (testing only).
-// TODO(hpucha): remove and clean up estore import.
+// TODO(hpucha): remove and clean up raw import.
 func (l *iLog) fillFakeWatchRecords() {
 	const num = 10
 	var parvers []storage.Version
@@ -427,7 +427,7 @@ func (l *iLog) fillFakeWatchRecords() {
 	for i := int(0); i < num; i++ {
 		// Create a local log record.
 		curvers := storage.Version(i)
-		if err := l.processWatchRecord(id, curvers, parvers, &LogValue{Mutation: estore.Mutation{Version: curvers}}); err != nil {
+		if err := l.processWatchRecord(id, curvers, parvers, &LogValue{Mutation: raw.Mutation{Version: curvers}}); err != nil {
 			return
 		}
 		parvers = []storage.Version{curvers}

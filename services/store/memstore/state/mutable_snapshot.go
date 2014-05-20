@@ -4,10 +4,10 @@ import (
 	"errors"
 	"fmt"
 
-	"veyron/services/store/estore"
 	"veyron/services/store/memstore/acl"
 	"veyron/services/store/memstore/field"
 	"veyron/services/store/memstore/refs"
+	"veyron/services/store/raw"
 
 	"veyron/runtimes/google/lib/functional"
 	"veyron2/security"
@@ -104,15 +104,16 @@ type Mutation struct {
 
 var (
 	// TODO(tilaks): don't expose errors, use verror instead.
-	ErrBadPath            = errors.New("malformed path")
-	ErrTypeMismatch       = errors.New("type mismatch")
-	ErrNotFound           = errors.New("not found")
-	ErrBadRef             = errors.New("value has dangling references")
-	ErrCantUnlinkByID     = errors.New("can't unlink entries by ID")
-	ErrPreconditionFailed = errors.New("precondition failed")
-	ErrIDsDoNotMatch      = errors.New("IDs do not match")
-	ErrPermissionDenied   = errors.New("permission denied") // TODO(tilaks): can permission denied leak store structure?
-	ErrNotTagList         = errors.New("not a TagList")
+	ErrBadPath              = errors.New("malformed path")
+	ErrTypeMismatch         = errors.New("type mismatch")
+	ErrNotFound             = errors.New("not found")
+	ErrBadRef               = errors.New("value has dangling references")
+	ErrCantUnlinkByID       = errors.New("can't unlink entries by ID")
+	ErrPreconditionFailed   = errors.New("precondition failed")
+	ErrIDsDoNotMatch        = errors.New("IDs do not match")
+	ErrPermissionDenied     = errors.New("permission denied") // TODO(tilaks): can permission denied leak store structure?
+	ErrNotTagList           = errors.New("not a TagList")
+	ErrDuplicatePutMutation = errors.New("duplicate calls to PutMutation for the same ID")
 
 	nullID storage.ID
 )
@@ -587,34 +588,37 @@ func (sn *MutableSnapshot) Remove(pid security.PublicID, path storage.PathName) 
 	return err
 }
 
-// PutMutations puts some externally constructed mutations. Does not update
-// cells or refs, so regular Puts, Gets and Removes may be inconsistent.
-func (sn *MutableSnapshot) PutMutations(extmu []estore.Mutation) {
-	mu := sn.mutations
-	for _, extm := range extmu {
-		id := extm.ID
-		// If the object has no version, it was deleted.
-		if extm.Version == storage.NoVersion {
-			mu.Deletions[id] = extm.PriorVersion
-			if extm.IsRoot {
-				mu.SetRootID = true
-				mu.RootID = nullID
-			}
-			continue
-		}
-		if extm.IsRoot {
-			mu.SetRootID = true
-			mu.RootID = id
-		}
-		mu.Preconditions[id] = extm.PriorVersion
-		m := &Mutation{
-			Postcondition: extm.Version,
-			Value:         extm.Value,
-			Dir:           unflattenDir(extm.Dir),
-		}
-		m.UpdateRefs()
-		mu.Delta[id] = m
+// PutMutation puts an externally constructed mutation. Does not update cells
+// or refs, so regular Puts, Gets and Removes may be inconsistent.
+func (sn *MutableSnapshot) PutMutation(extmu raw.Mutation) error {
+	mus := sn.mutations
+	id := extmu.ID
+	// Check that a mutation has not already been put for this id.
+	if _, ok := mus.Delta[id]; ok {
+		return ErrDuplicatePutMutation
 	}
+	// If the object has no version, it was deleted.
+	if extmu.Version == storage.NoVersion {
+		mus.Deletions[id] = extmu.PriorVersion
+		if extmu.IsRoot {
+			mus.SetRootID = true
+			mus.RootID = nullID
+		}
+		return nil
+	}
+	if extmu.IsRoot {
+		mus.SetRootID = true
+		mus.RootID = id
+	}
+	mus.Preconditions[id] = extmu.PriorVersion
+	mu := &Mutation{
+		Postcondition: extmu.Version,
+		Value:         extmu.Value,
+		Dir:           unflattenDir(extmu.Dir),
+	}
+	mu.UpdateRefs()
+	mus.Delta[id] = mu
+	return nil
 }
 
 // TODO(tilaks): revisit when vsync.Mutation.Dir is of type []*storage.DEntry

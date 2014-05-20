@@ -4,7 +4,7 @@
 package vsync
 
 import (
-	"veyron/services/store/estore"
+	"veyron/services/store/raw"
 
 	"veyron2/storage"
 
@@ -32,7 +32,7 @@ type GenVector map[DeviceID]GenID
 // LogValue represents an object mutation within a transaction.
 type LogValue struct {
 	// Mutation is the store mutation representing the change in the object.
-	Mutation estore.Mutation
+	Mutation raw.Mutation
 	// Delete indicates whether the mutation resulted in the object being
 	// deleted from the store.
 	Delete bool
@@ -266,7 +266,7 @@ func (s *ServerStubSync) Signature(call _gen_ipc.ServerCall) (_gen_ipc.ServiceSi
 				_gen_wiretype.FieldType{Type: 0x4e, Name: "Tags"},
 				_gen_wiretype.FieldType{Type: 0x50, Name: "Dir"},
 			},
-			"estore.Mutation", []string(nil)},
+			"raw.Mutation", []string(nil)},
 		_gen_wiretype.StructType{
 			[]_gen_wiretype.FieldType{
 				_gen_wiretype.FieldType{Type: 0x51, Name: "Mutation"},

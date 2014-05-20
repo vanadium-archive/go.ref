@@ -1,13 +1,17 @@
 package memstore
 
 import (
+	"errors"
+	"io"
+
 	"veyron/runtimes/google/lib/sync"
 
-	"veyron/services/store/estore"
 	iquery "veyron/services/store/memstore/query"
 	"veyron/services/store/memstore/state"
+	"veyron/services/store/raw"
 	"veyron/services/store/service"
 
+	"veyron2/ipc"
 	"veyron2/query"
 	"veyron2/security"
 	"veyron2/storage"
@@ -27,6 +31,10 @@ type Store struct {
 
 // Store implements the service.Store interface.
 var _ service.Store = (*Store)(nil)
+
+var (
+	ErrRequestCancelled = errors.New("request cancelled")
+)
 
 // New creates a new store.  admin is the public ID of the administrator, dbName
 // is the path of the database directory, to which logs are written.
@@ -141,6 +149,32 @@ func (st *Store) ApplyMutations(mu *state.Mutations) error {
 	return nil
 }
 
+// PutMutations atomically commits a stream of Mutations when the stream is
+// closed. Mutations are not committed if the request is cancelled before the
+// stream has been closed.
+func (st *Store) PutMutations(ctx ipc.Context, stream raw.StoreServicePutMutationsStream) error {
+	tr := st.newNilTransaction()
+	for {
+		mu, err := stream.Recv()
+		if err == io.EOF {
+			if ctx.IsClosed() {
+				tr.Abort()
+				return ErrRequestCancelled
+			}
+			break
+		}
+		if err != nil {
+			tr.Abort()
+			return err
+		}
+		if err := tr.snapshot.PutMutation(mu); err != nil {
+			tr.Abort()
+			return err
+		}
+	}
+	return tr.Commit()
+}
+
 // Glob returns an iterator that emits all values that match the given pattern.
 func (st *Store) Glob(clientID security.PublicID, tr storage.Transaction, pattern string) (service.GlobStream, error) {
 	sn, err := st.GetTransactionSnapshot(tr)
@@ -158,12 +192,4 @@ func (st *Store) Search(t storage.Transaction, q query.Query) storage.Iterator {
 // The <ty> represents the IDL name for the type.
 func (st *Store) SetConflictResolver(ty string, r storage.ConflictResolver) {
 	panic("not implemented")
-}
-
-// PutMutations puts external mutations in the store, within a transaction.
-// TODO(tilaks): verify PutMutations requests.
-func (st *Store) PutMutations(mu []estore.Mutation) error {
-	tr := st.newNilTransaction()
-	tr.snapshot.PutMutations(mu)
-	return tr.Commit()
 }

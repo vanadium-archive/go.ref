@@ -7,11 +7,12 @@ import (
 	"os"
 	"testing"
 
-	store "veyron/services/store/server"
+	istore "veyron/services/store/server"
 
 	"veyron2/ipc"
 	"veyron2/naming"
 	"veyron2/security"
+	"veyron2/services/store"
 )
 
 // NewStore creates a new testing instance of the store server and returns
@@ -26,8 +27,8 @@ func NewStore(t *testing.T, server ipc.Server, id security.PublicID) (string, fu
 	}
 
 	// Create a new StoreService.
-	config := store.ServerConfig{Admin: id, DBName: dbName}
-	storeService, err := store.New(config)
+	config := istore.ServerConfig{Admin: id, DBName: dbName}
+	storeService, err := istore.New(config)
 	if err != nil {
 		t.Fatalf("New(%v) failed: %v", config, err)
 	}
@@ -41,9 +42,9 @@ func NewStore(t *testing.T, server ipc.Server, id security.PublicID) (string, fu
 	t.Logf("Storage server at %v", name)
 
 	// Register the services.
-	storeDispatcher := store.NewStoreDispatcher(storeService, nil)
-	objectDispatcher := store.NewObjectDispatcher(storeService, nil)
-	if err := server.Register(name+"/.store", storeDispatcher); err != nil {
+	storeDispatcher := istore.NewStoreDispatcher(storeService, nil)
+	objectDispatcher := istore.NewObjectDispatcher(storeService, nil)
+	if err := server.Register(naming.JoinAddressName(name, store.StoreSuffix), storeDispatcher); err != nil {
 		t.Fatalf("Register(%v) failed: %v", storeDispatcher, err)
 	}
 	if err := server.Register(name, objectDispatcher); err != nil {

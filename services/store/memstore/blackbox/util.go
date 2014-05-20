@@ -10,9 +10,9 @@ import (
 	"testing"
 	"time"
 
-	"veyron/services/store/estore"
 	"veyron/services/store/memstore"
 	memwatch "veyron/services/store/memstore/watch"
+	"veyron/services/store/raw"
 	"veyron/services/store/service"
 
 	"veyron2/ipc"
@@ -24,6 +24,7 @@ import (
 var (
 	rootPublicID security.PublicID = security.FakePublicID("root")
 	rootCtx      ipc.Context       = rootContext{}
+	nullMutation                   = raw.Mutation{}
 )
 
 type rootContext struct{}
@@ -226,10 +227,39 @@ func Watch(t *testing.T, w service.Watcher, ctx ipc.Context, req watch.Request) 
 	return &testWatcherWatchStream{c, done}
 }
 
-func Mutations(changes []watch.Change) []estore.Mutation {
-	mutations := make([]estore.Mutation, len(changes))
+// putMutationsStream implements raw.StoreServicePutMutationsStream.
+type putMutationsStream struct {
+	mus   []raw.Mutation
+	index int
+}
+
+func newPutMutationsStream(mus []raw.Mutation) raw.StoreServicePutMutationsStream {
+	return &putMutationsStream{
+		mus: mus,
+	}
+}
+
+func (s *putMutationsStream) Recv() (raw.Mutation, error) {
+	if s.index < len(s.mus) {
+		index := s.index
+		s.index++
+		return s.mus[index], nil
+	}
+	return nullMutation, io.EOF
+}
+
+func PutMutations(t *testing.T, st *memstore.Store, mus []raw.Mutation) {
+	stream := newPutMutationsStream(mus)
+	if err := st.PutMutations(rootCtx, stream); err != nil {
+		_, file, line, _ := runtime.Caller(1)
+		t.Errorf("%s(%d): can't put mutations %s: %s", file, line, mus, err)
+	}
+}
+
+func Mutations(changes []watch.Change) []raw.Mutation {
+	mutations := make([]raw.Mutation, len(changes))
 	for i, change := range changes {
-		mutations[i] = *(change.Value.(*estore.Mutation))
+		mutations[i] = *(change.Value.(*raw.Mutation))
 	}
 	return mutations
 }

@@ -7,8 +7,9 @@
 //     - <name> is the Veyron mount point name, default /global/vstore/<hostname>/<username>.
 //     - <dbName> is the filename in which to store the data.
 //
-// The Store service has Veyron name, <name>/.store.  Individual values with
-// path <path> have name <name>/<path>.
+// The store service has Veyron name, <name>/.store.
+// The raw store service has Veyron name, <name>/.store.raw.
+// Individual values with path <path> have name <name>/<path>.
 package main
 
 import (
@@ -18,9 +19,11 @@ import (
 	"os/user"
 
 	vflag "veyron/security/flag"
+	"veyron/services/store/raw"
 	"veyron/services/store/server"
 
 	"veyron2/rt"
+	"veyron2/services/store"
 )
 
 var (
@@ -66,9 +69,13 @@ func main() {
 
 	// Register the services.
 	storeDisp := server.NewStoreDispatcher(storeService, auth)
+	rawStoreDisp := server.NewRawStoreDispatcher(storeService, auth)
 	objectDisp := server.NewObjectDispatcher(storeService, auth)
-	if err := s.Register(".store", storeDisp); err != nil {
+	if err := s.Register(store.StoreSuffix, storeDisp); err != nil {
 		log.Fatal("s.Register(storeDisp) failed: ", err)
+	}
+	if err := s.Register(raw.RawStoreSuffix, rawStoreDisp); err != nil {
+		log.Fatal("s.Register(rawStoreDisp) failed: ", err)
 	}
 	if err := s.Register("", objectDisp); err != nil {
 		log.Fatal("s.Register(objectDisp) failed: ", err)

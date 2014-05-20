@@ -50,7 +50,7 @@ func TestSyncState(t *testing.T) {
 		t.Fatalf("Recv() failed: %v", err)
 	}
 	// Update target
-	target.PutMutations(Mutations(cb.Changes))
+	PutMutations(t, target, Mutations(cb.Changes))
 	GC(t, target)
 
 	// Expect that the target contains id1 and id2
@@ -83,7 +83,7 @@ func TestSyncTransaction(t *testing.T) {
 		t.Fatalf("Recv() failed: %v", err)
 	}
 	// Update target
-	target.PutMutations(Mutations(cb.Changes))
+	PutMutations(t, target, Mutations(cb.Changes))
 	GC(t, target)
 
 	// Expect that the target contains id1, id2, id3
@@ -101,7 +101,7 @@ func TestSyncTransaction(t *testing.T) {
 		t.Fatalf("Recv() failed: %v", err)
 	}
 	// Update target
-	target.PutMutations(Mutations(cb.Changes))
+	PutMutations(t, target, Mutations(cb.Changes))
 	GC(t, target)
 
 	// Expect that the target contains id1, id2, but not id3
