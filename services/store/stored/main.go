@@ -26,6 +26,7 @@ import (
 var (
 	mountName string
 	dbName    = flag.String("db", "/var/tmp/veyron_store.db", "Metadata database")
+	// TODO(rthellend): Remove the address flag when the config manager is working.
 	address   = flag.String("address", ":0", "Address to listen on.")
 )
 

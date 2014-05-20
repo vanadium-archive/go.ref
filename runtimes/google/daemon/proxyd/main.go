@@ -17,6 +17,7 @@ import (
 
 func main() {
 	var (
+		// TODO(rthellend): Remove the address and protocol flags when the config manager is working.
 		address  = flag.String("address", ":0", "Network address the proxy listens on")
 		protocol = flag.String("protocol", "tcp", "Network type the proxy listens on")
 		httpAddr = flag.String("http", ":14142", "Network address on which the HTTP debug server runs")

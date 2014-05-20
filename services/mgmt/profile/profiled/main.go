@@ -13,6 +13,7 @@ import (
 
 func main() {
 	var address, name, protocol, storeName string
+	// TODO(rthellend): Remove the address and protocol flags when the config manager is working.
 	flag.StringVar(&address, "address", "localhost:0", "network address to listen on")
 	flag.StringVar(&name, "name", "", "name to mount the profile manager as")
 	flag.StringVar(&protocol, "protocol", "tcp", "network type to listen on")
