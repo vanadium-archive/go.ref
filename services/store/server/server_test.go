@@ -149,6 +149,13 @@ func expectExists(t *testing.T, changes []watch.Change, id storage.ID, value str
 	}
 }
 
+func expectDoesNotExist(t *testing.T, changes []watch.Change, id storage.ID) {
+	change := findChange(t, changes, id)
+	if change.State != watch.DoesNotExist {
+		t.Fatalf("Expected id to not exist: %v", id)
+	}
+}
+
 func findChange(t *testing.T, changes []watch.Change, id storage.ID) watch.Change {
 	for _, change := range changes {
 		cv, ok := change.Value.(*raw.Mutation)
@@ -344,7 +351,7 @@ func TestWatch(t *testing.T) {
 	value1 := "v1"
 	var id1 storage.ID
 
-	// Before the watch request has been made, commit a transaction.
+	// Before the watch request has been made, commit a transaction that puts /.
 	{
 		tr := newTransaction()
 		if err := s.CreateTransaction(nil, tr, nil); err != nil {
@@ -381,7 +388,7 @@ func TestWatch(t *testing.T) {
 	value2 := "v2"
 	var id2 storage.ID
 
-	// Commit a second transaction.
+	// Commit a second transaction that puts /a.
 	{
 		tr := newTransaction()
 		if err := s.CreateTransaction(nil, tr, nil); err != nil {
@@ -424,5 +431,134 @@ func TestWatch(t *testing.T) {
 	// Check that no errors were encountered.
 	if err := wr.err; err != nil {
 		t.Errorf("Unexpected error: %s", err)
+	}
+}
+
+func TestGarbageCollectionOnCommit(t *testing.T) {
+	s, c := newServer()
+	defer c()
+
+	path1 := "/"
+	value1 := "v1"
+	var id1 storage.ID
+
+	// Before the watch request has been made, commit a transaction that puts /.
+	{
+		tr := newTransaction()
+		if err := s.CreateTransaction(nil, tr, nil); err != nil {
+			t.Errorf("Unexpected error: %s", err)
+		}
+		o := s.lookupObject(path1)
+		st, err := o.Put(rootCtx, tr, value1)
+		if err != nil {
+			t.Errorf("Unexpected error: %s", err)
+		}
+		id1 = st.ID
+		if err := s.Commit(nil, tr); err != nil {
+			t.Errorf("Unexpected error: %s", err)
+		}
+	}
+
+	// Start a watch request.
+	req := watch.Request{}
+	wr := doWatch(s, rootCtx, req)
+
+	// Check that watch detects the changes in the first transaction.
+	{
+		change, ok := <-wr.changes
+		if !ok {
+			t.Error("Expected a change.")
+		}
+		if change.Continued {
+			t.Error("Expected change to be the last in this transaction")
+		}
+		expectExists(t, []watch.Change{change}, id1, value1)
+	}
+
+	path2 := "/a"
+	value2 := "v2"
+	var id2 storage.ID
+
+	// Commit a second transaction that puts /a.
+	{
+		tr := newTransaction()
+		if err := s.CreateTransaction(nil, tr, nil); err != nil {
+			t.Errorf("Unexpected error: %s", err)
+		}
+		o := s.lookupObject(path2)
+		st, err := o.Put(rootCtx, tr, value2)
+		if err != nil {
+			t.Errorf("Unexpected error: %s", err)
+		}
+		id2 = st.ID
+		if err := s.Commit(nil, tr); err != nil {
+			t.Errorf("Unexpected error: %s", err)
+		}
+	}
+
+	// Check that watch detects the changes in the second transaction.
+	{
+		changes := make([]watch.Change, 0, 0)
+		change, ok := <-wr.changes
+		if !ok {
+			t.Error("Expected a change.")
+		}
+		if !change.Continued {
+			t.Error("Expected change to continue the transaction")
+		}
+		changes = append(changes, change)
+		change, ok = <-wr.changes
+		if !ok {
+			t.Error("Expected a change.")
+		}
+		if change.Continued {
+			t.Error("Expected change to be the last in this transaction")
+		}
+		changes = append(changes, change)
+		expectExists(t, changes, id1, value1)
+		expectExists(t, changes, id2, value2)
+	}
+
+	// Commit a third transaction that removes /a.
+	{
+		tr := newTransaction()
+		if err := s.CreateTransaction(nil, tr, nil); err != nil {
+			t.Errorf("Unexpected error: %s", err)
+		}
+		o := s.lookupObject("/a")
+		if err := o.Remove(rootCtx, tr); err != nil {
+			t.Errorf("Unexpected error: %s", err)
+		}
+		if err := s.Commit(nil, tr); err != nil {
+			t.Errorf("Unexpected error: %s", err)
+		}
+	}
+
+	// Check that watch detects the changes in the third transaction.
+	{
+		changes := make([]watch.Change, 0, 0)
+		change, ok := <-wr.changes
+		if !ok {
+			t.Error("Expected a change.")
+		}
+		if change.Continued {
+			t.Error("Expected change to be the last in this transaction")
+		}
+		changes = append(changes, change)
+		expectExists(t, changes, id1, value1)
+	}
+
+	// Check that watch detects the garbage collection of /a.
+	{
+		changes := make([]watch.Change, 0, 0)
+		change, ok := <-wr.changes
+		if !ok {
+			t.Error("Expected a change.")
+		}
+		if change.Continued {
+			t.Error("Expected change to be the last in this transaction")
+		}
+		changes = append(changes, change)
+		expectDoesNotExist(t, changes, id2)
 	}
 }
