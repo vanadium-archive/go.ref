@@ -12,7 +12,10 @@ import (
 )
 
 func main() {
-	var storeName string
+	var address, name, protocol, storeName string
+	flag.StringVar(&address, "address", "localhost:0", "network address to listen on")
+	flag.StringVar(&name, "name", "", "name to mount the profile manager as")
+	flag.StringVar(&protocol, "protocol", "tcp", "network type to listen on")
 	flag.StringVar(&storeName, "store", "", "veyron name of the profile manager store")
 	flag.Parse()
 	if storeName == "" {
@@ -33,12 +36,10 @@ func main() {
 	if err := server.Register(suffix, dispatcher); err != nil {
 		vlog.Fatalf("Register(%v, %v) failed: %v", suffix, dispatcher, err)
 	}
-	protocol, hostname := "tcp", "localhost:0"
-	endpoint, err := server.Listen(protocol, hostname)
+	endpoint, err := server.Listen(protocol, address)
 	if err != nil {
-		vlog.Fatalf("Listen(%v, %v) failed: %v", protocol, hostname, err)
+		vlog.Fatalf("Listen(%v, %v) failed: %v", protocol, address, err)
 	}
-	name := ""
 	if err := server.Publish(name); err != nil {
 		vlog.Fatalf("Publish(%v) failed: %v", name, err)
 	}
