@@ -5,7 +5,6 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"reflect"
 	"runtime"
 
 	"veyron2/ipc"
@@ -118,7 +117,7 @@ func (*jniInvoker) encodeArgs(env *C.JNIEnv, argptrs []interface{}) (C.jobjectAr
 	for i, argptr := range argptrs {
 		// Remove the pointer from the argument.  Simply *argptr doesn't work
 		// as argptr is of type interface{}.
-		arg := reflect.ValueOf(argptr).Elem().Interface()
+		arg := derefOrDie(argptr)
 		var err error
 		jsonArgs[i], err = json.Marshal(arg)
 		if err != nil {
@@ -144,25 +143,33 @@ func (i *jniInvoker) decodeResults(env *C.JNIEnv, method string, numArgs int, jR
 	errorMsg := jStringField(env, jReply, "errorMsg")
 
 	// Get Go result instances.
-	ret, err := i.argGetter.GetOutArgs(method, numArgs)
+	argptrs, err := i.argGetter.GetOutArgPtrs(method, numArgs)
 	if err != nil {
 		return nil, fmt.Errorf("couldn't get arguments for method %q with %d input args: %v", method, numArgs, err)
 	}
 	// Check for app error.
 	if hasAppErr {
-		// Last return argument must be an app error so append it here.
-		return append(ret, verror.Make(verror.ID(errorID), errorMsg)), nil
+		return resultsWithError(argptrs, verror.Make(verror.ID(errorID), errorMsg)), nil
 	}
 	// JSON-decode.
-	if len(results) != len(ret) {
-		return nil, fmt.Errorf("mismatch in number of output arguments, have: %d want: %d", len(results), len(ret))
+	if len(results) != len(argptrs) {
+		return nil, fmt.Errorf("mismatch in number of output arguments, have: %d want: %d", len(results), len(argptrs))
 	}
 	for i, result := range results {
-		if err := json.Unmarshal([]byte(result), &ret[i]); err != nil {
+		if err := json.Unmarshal([]byte(result), argptrs[i]); err != nil {
 			return nil, err
 		}
 	}
-	// Last return argument must be an app error, so append it (i.e., nil).
-	var appErr error
-	return append(ret, appErr), nil
+	return resultsWithError(argptrs, nil), nil
+}
+
+// resultsWithError dereferences the provided result pointers and appends the
+// given error to the returned array.
+func resultsWithError(resultptrs []interface{}, err error) []interface{} {
+	ret := make([]interface{}, len(resultptrs) + 1)
+	for i, resultptr := range resultptrs {
+		ret[i] = derefOrDie(resultptr)
+	}
+	ret[len(resultptrs)] = err
+	return ret
 }

@@ -7,7 +7,6 @@ import (
 	"runtime"
 
 	"veyron2/ipc"
-
 	"veyron2/security"
 )
 
