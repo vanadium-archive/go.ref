@@ -9,9 +9,6 @@ import (
 	"veyron2/verror"
 )
 
-// TODO(caprita): This library should be moved out of the runtime
-// implementation.
-
 // namespace is an implementation of naming.MountTable.
 type namespace struct {
 	sync.RWMutex

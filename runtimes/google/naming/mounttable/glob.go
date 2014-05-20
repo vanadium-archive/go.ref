@@ -117,6 +117,15 @@ func convertServers(servers []mountedServer) []naming.MountedServer {
 	return reply
 }
 
+// depth returns the directory depth of a given name.
+func depth(name string) int {
+	name = strings.Trim(name, "/")
+	if name == "" {
+		return 0
+	}
+	return strings.Count(name, "/") - strings.Count(name, "//") + 1
+}
+
 func (ns *namespace) globLoop(servers []string, prefix string, pattern *glob.Glob, reply chan naming.MountEntry) {
 	defer close(reply)
 
@@ -129,7 +138,7 @@ func (ns *namespace) globLoop(servers []string, prefix string, pattern *glob.Glo
 		e := le.Value.(*naming.MountEntry)
 
 		// Get the pattern elements below the current path.
-		suffix := pattern.Split(naming.Depth(e.Name))
+		suffix := pattern.Split(depth(e.Name))
 
 		// Perform a glob at the server.
 		foundRoot, err := ns.globAtServer(e, suffix, l)

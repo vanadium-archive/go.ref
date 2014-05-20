@@ -22,7 +22,10 @@ func resolveAgainstMountTable(client ipc.Client, names []string) ([]string, erro
 	// Try each server till one answers.
 	finalErr := errors.New("no servers to resolve query")
 	for _, name := range names {
-		name = naming.MakeFixed(name)
+		// We want to resolve the name against the MountTable specified in its
+		// address, without recursing through ourselves. To this we force
+		// the entire name component to be terminal.
+		name = naming.MakeTerminal(name)
 		call, err := client.StartCall(name, "ResolveStep", nil, callTimeout)
 		if err != nil {
 			finalErr = err
@@ -52,18 +55,18 @@ func resolveAgainstMountTable(client ipc.Client, names []string) ([]string, erro
 	return nil, finalErr
 }
 
-func fixed(names []string) bool {
+func terminal(names []string) bool {
 	for _, name := range names {
-		if !naming.Fixed(name) {
+		if !naming.Terminal(name) {
 			return false
 		}
 	}
 	return true
 }
 
-func makeFixed(names []string) (ret []string) {
+func makeTerminal(names []string) (ret []string) {
 	for _, name := range names {
-		ret = append(ret, naming.MakeFixed(name))
+		ret = append(ret, naming.MakeTerminal(name))
 	}
 	return
 }
@@ -78,7 +81,7 @@ func (ns *namespace) Resolve(name string) ([]string, error) {
 	// Iterate walking through mount table servers.
 	for remaining := maxDepth; remaining > 0; remaining-- {
 		vlog.VI(2).Infof("Resolve loop %s", names)
-		if fixed(names) {
+		if terminal(names) {
 			return names, nil
 		}
 		var err error
@@ -95,7 +98,7 @@ func (ns *namespace) Resolve(name string) ([]string, error) {
 			// Any other failure (server not found, no ResolveStep
 			// method, etc.) are a sign that iterative resolution can
 			// stop.
-			return makeFixed(curr), nil
+			return makeTerminal(curr), nil
 		}
 	}
 	return nil, naming.ErrResolutionDepthExceeded
@@ -103,8 +106,8 @@ func (ns *namespace) Resolve(name string) ([]string, error) {
 
 // ResolveToMountTable implements veyron2/naming.MountTable.
 func (ns *namespace) ResolveToMountTable(name string) ([]string, error) {
-	vlog.VI(2).Infof("ResolveToMountTable %s", name)
 	names := ns.rootName(name)
+	vlog.VI(2).Infof("ResolveToMountTable %s -> rootNames %s", name, names)
 	if len(names) == 0 {
 		return nil, naming.ErrNoMountTable
 	}
@@ -115,23 +118,25 @@ func (ns *namespace) ResolveToMountTable(name string) ([]string, error) {
 		curr := names
 		if names, err = resolveAgainstMountTable(ns.rt.Client(), names); err != nil {
 			if verror.Equal(naming.ErrNoSuchNameRoot, err) {
-				return makeFixed(last), nil
+				return makeTerminal(last), nil
 			}
 			if verror.Equal(naming.ErrNoSuchName, err) {
-				return makeFixed(curr), nil
+				return makeTerminal(curr), nil
 			}
-			// Lots of reasons why another can happen.  We are trying to single out "this isn't
-			// a mount table".  TODO(p); make this less of a hack, make a specific verror code
-			// that means "we are up but don't implement what you are asking for".
+			// Lots of reasons why another error can happen.  We are trying
+			// to single out "this isn't a mount table".
+			// TODO(p); make this less of a hack, make a specific verror code
+			// that means "we are up but don't implement what you are
+			// asking for".
 			if notAnMT(err) {
-				return makeFixed(last), nil
+				return makeTerminal(last), nil
 			}
 			// TODO(caprita): If the server is unreachable for
 			// example, we may still want to return its parent
 			// mounttable rather than an error.
 			return nil, err
 		}
-		if fixed(curr) {
+		if terminal(curr) {
 			return curr, nil
 		}
 		last = curr
@@ -151,7 +156,7 @@ func finishUnresolve(call ipc.ClientCall) ([]string, error) {
 func unresolveAgainstServer(client ipc.Client, names []string) ([]string, error) {
 	finalErr := errors.New("no servers to unresolve")
 	for _, name := range names {
-		name = naming.MakeFixed(name)
+		name = naming.MakeTerminal(name)
 		call, err := client.StartCall(name, "UnresolveStep", nil, callTimeout)
 		if err != nil {
 			finalErr = err

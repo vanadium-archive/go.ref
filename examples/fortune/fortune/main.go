@@ -29,7 +29,7 @@ func main() {
 
 	// Construct a new stub that binds to serverEndpoint without
 	// using the name service
-	s, err := fortune.BindFortune(naming.JoinAddressNameFixed(*address, "fortune"))
+	s, err := fortune.BindFortune(naming.JoinAddressName(*address, "//fortune"))
 	if err != nil {
 		log.Fatal("error binding to server: ", err)
 	}

@@ -90,7 +90,7 @@ func TestMountTableClient(t *testing.T) {
 	cmd.Init(nil, &stdout, &stderr)
 
 	// Test the 'glob' command.
-	if err := cmd.Execute([]string{"glob", naming.JoinAddressNameFixed(endpoint.String(), ""), "*"}); err != nil {
+	if err := cmd.Execute([]string{"glob", naming.JoinAddressName(endpoint.String(), ""), "*"}); err != nil {
 		t.Fatalf("%v", err)
 	}
 	if expected, got := "name1 server1 (TTL 2m3s)\nname2 server2 (TTL 7m36s) server3 (TTL 13m9s)", strings.TrimSpace(stdout.String()); got != expected {
@@ -99,7 +99,7 @@ func TestMountTableClient(t *testing.T) {
 	stdout.Reset()
 
 	// Test the 'mount' command.
-	if err := cmd.Execute([]string{"mount", naming.JoinAddressNameFixed(endpoint.String(), ""), "server", "123s"}); err != nil {
+	if err := cmd.Execute([]string{"mount", naming.JoinAddressName(endpoint.String(), ""), "server", "123s"}); err != nil {
 		t.Fatalf("%v", err)
 	}
 	if expected, got := "Name mounted successfully.", strings.TrimSpace(stdout.String()); got != expected {
@@ -108,7 +108,7 @@ func TestMountTableClient(t *testing.T) {
 	stdout.Reset()
 
 	// Test the 'unmount' command.
-	if err := cmd.Execute([]string{"unmount", naming.JoinAddressNameFixed(endpoint.String(), ""), "server"}); err != nil {
+	if err := cmd.Execute([]string{"unmount", naming.JoinAddressName(endpoint.String(), ""), "server"}); err != nil {
 		t.Fatalf("%v", err)
 	}
 	if expected, got := "Name unmounted successfully.", strings.TrimSpace(stdout.String()); got != expected {
@@ -117,7 +117,7 @@ func TestMountTableClient(t *testing.T) {
 	stdout.Reset()
 
 	// Test the 'resolvestep' command.
-	if err := cmd.Execute([]string{"resolvestep", naming.JoinAddressNameFixed(endpoint.String(), "name")}); err != nil {
+	if err := cmd.Execute([]string{"resolvestep", naming.JoinAddressName(endpoint.String(), "//name")}); err != nil {
 		t.Fatalf("%v", err)
 	}
 	if expected, got := `Servers: [{server1 123}] Suffix: "name"`, strings.TrimSpace(stdout.String()); got != expected {

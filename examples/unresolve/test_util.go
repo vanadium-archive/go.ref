@@ -111,7 +111,8 @@ func (*fortuneCustomUnresolve) UnresolveStep(context ipc.Context) ([]string, err
 	}
 	var reply []string
 	for _, s := range servers {
-		reply = append(reply, naming.Join(naming.MakeNotFixed(s), "the/future"))
+		r := naming.MakeResolvable(s)
+		reply = append(reply, naming.Join(r, "the/future"))
 	}
 	return reply, nil
 }
@@ -150,7 +151,8 @@ func (*fortuneNoIDL) UnresolveStep(ipc.ServerCall) ([]string, error) {
 	}
 	var reply []string
 	for _, s := range servers {
-		reply = append(reply, naming.Join(naming.MakeNotFixed(s), "fortune"))
+		r := naming.MakeResolvable(s)
+		reply = append(reply, naming.Join(r, "fortune"))
 	}
 	return reply, nil
 }

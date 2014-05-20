@@ -99,7 +99,7 @@ func TestContentClient(t *testing.T) {
 	cmd.Init(nil, &stdout, &stderr)
 
 	// Test the 'delete' command.
-	if err := cmd.Execute([]string{"delete", naming.JoinAddressNameFixed(endpoint.String(), "exists")}); err != nil {
+	if err := cmd.Execute([]string{"delete", naming.JoinAddressName(endpoint.String(), "//exists")}); err != nil {
 		t.Fatalf("%v", err)
 	}
 	if expected, got := "Content deleted successfully", strings.TrimSpace(stdout.String()); got != expected {
@@ -115,7 +115,7 @@ func TestContentClient(t *testing.T) {
 	defer os.Remove(dir)
 	file := path.Join(dir, "testfile")
 	defer os.Remove(file)
-	if err := cmd.Execute([]string{"download", naming.JoinAddressNameFixed(endpoint.String(), "exists"), file}); err != nil {
+	if err := cmd.Execute([]string{"download", naming.JoinAddressName(endpoint.String(), "//exists"), file}); err != nil {
 		t.Fatalf("%v", err)
 	}
 	if expected, got := "Content downloaded to file "+file, strings.TrimSpace(stdout.String()); got != expected {

@@ -271,7 +271,7 @@ func (ps *pubState) published() []string {
 			continue
 		}
 		for _, s := range mtServers {
-			ret = append(ret, naming.MakeNotFixed(s))
+			ret = append(ret, naming.MakeResolvable(s))
 		}
 	}
 	return ret
