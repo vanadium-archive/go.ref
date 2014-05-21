@@ -197,15 +197,15 @@ func (r mutexLockRequest) process(e *execution) {
 }
 
 func (r mutexLockRequest) readSet() resourceSet {
-	m := newResourceSet()
-	m[r.mutex] = struct{}{}
-	return m
+	set := newResourceSet()
+	set[r.mutex] = struct{}{}
+	return set
 }
 
 func (r mutexLockRequest) writeSet() resourceSet {
-	m := newResourceSet()
-	m[r.mutex] = struct{}{}
-	return m
+	set := newResourceSet()
+	set[r.mutex] = struct{}{}
+	return set
 }
 
 // mutexUnlockRequest is to be called to schedule a mutex unlock. This
@@ -221,7 +221,7 @@ func (r mutexUnlockRequest) enabled(ctx *context) bool {
 	if !ok {
 		panic("Mutex does not exist.")
 	}
-	return !m.free()
+	return m.locked()
 }
 
 func (r mutexUnlockRequest) execute(ready chan struct{}, e *execution) {
@@ -252,13 +252,139 @@ func (r mutexUnlockRequest) process(e *execution) {
 }
 
 func (r mutexUnlockRequest) readSet() resourceSet {
-	m := newResourceSet()
-	m[r.mutex] = struct{}{}
-	return m
+	set := newResourceSet()
+	set[r.mutex] = struct{}{}
+	return set
 }
 
 func (r mutexUnlockRequest) writeSet() resourceSet {
-	m := newResourceSet()
-	m[r.mutex] = struct{}{}
-	return m
+	set := newResourceSet()
+	set[r.mutex] = struct{}{}
+	return set
+}
+
+// rwMutexLockRequest is to be called to schedule a read-write mutex
+// lock. This request implements the RWMutexLock() function provided
+// by this package.
+type rwMutexLockRequest struct {
+	defaultRequest
+	read bool
+	rwMutex *sync.RWMutex
+}
+
+func (r rwMutexLockRequest) enabled(ctx *context) bool {
+	rw, ok := ctx.rwMutexes[r.rwMutex]
+	if r.read {
+		return !ok || rw.free() || rw.shared()
+	} else {
+		return !ok || rw.free()
+	}
+}
+
+func (r rwMutexLockRequest) execute(ready chan struct{}, e *execution) {
+	<-ready
+	thread := e.findThread(e.activeTID)
+	rw, ok := e.ctx.rwMutexes[r.rwMutex]
+	if !ok {
+		rw = newFakeRWMutex(thread.clock)
+		e.ctx.rwMutexes[r.rwMutex] = rw
+	}
+	thread.clock.merge(rw.clock)
+	rw.clock.merge(thread.clock)
+	rw.lock(r.read)
+	close(r.done)
+	close(e.done)
+}
+
+func (r rwMutexLockRequest) kind() transitionKind {
+	if r.read {
+		return tRWMutexRLock
+	} else {
+		return tRWMutexLock
+	}
+}
+
+func (r rwMutexLockRequest) process(e *execution) {
+	thread := e.findThread(e.activeTID)
+	thread.clock[e.activeTID]++
+	ready := make(chan struct{})
+	thread.ready = ready
+	thread.request = r
+	go r.execute(ready, e)
+}
+
+func (r rwMutexLockRequest) readSet() resourceSet {
+	set := newResourceSet()
+	set[r.rwMutex] = struct{}{}
+	return set
+}
+
+func (r rwMutexLockRequest) writeSet() resourceSet {
+	set := newResourceSet()
+	set[r.rwMutex] = struct{}{}
+	return set
+}
+
+// rwMutexUnlockRequest is to be called to schedule a read-write mutex
+// unlock. This request implements the RWMutexUnlock() function
+// provided by this package.
+type rwMutexUnlockRequest struct {
+	defaultRequest
+	read bool
+	rwMutex *sync.RWMutex
+}
+
+func (r rwMutexUnlockRequest) enabled(ctx *context) bool {
+	rw, ok := ctx.rwMutexes[r.rwMutex]
+	if !ok {
+		panic("Read-write mutex does not exist.")
+	}
+	if r.read {
+		return rw.shared()
+	} else {
+		return rw.exclusive()
+	}
+}
+
+func (r rwMutexUnlockRequest) execute(ready chan struct{}, e *execution) {
+	<-ready
+	rw, ok := e.ctx.rwMutexes[r.rwMutex]
+	if !ok {
+		panic("Read-write mutex not found.")
+	}
+	thread := e.findThread(e.activeTID)
+	thread.clock.merge(rw.clock)
+	rw.clock.merge(thread.clock)
+	rw.unlock(r.read)
+	close(r.done)
+	close(e.done)
+}
+
+func (r rwMutexUnlockRequest) kind() transitionKind {
+	if r.read {
+		return tRWMutexRUnlock
+	} else {
+		return tRWMutexUnlock
+	}
+}
+
+func (r rwMutexUnlockRequest) process(e *execution) {
+	thread := e.findThread(e.activeTID)
+	thread.clock[e.activeTID]++
+	ready := make(chan struct{})
+	thread.ready = ready
+	thread.request = r
+	go r.execute(ready, e)
+}
+
+func (r rwMutexUnlockRequest) readSet() resourceSet {
+	set := newResourceSet()
+	set[r.rwMutex] = struct{}{}
+	return set
+}
+
+func (r rwMutexUnlockRequest) writeSet() resourceSet {
+	set := newResourceSet()
+	set[r.rwMutex] = struct{}{}
+	return set
 }

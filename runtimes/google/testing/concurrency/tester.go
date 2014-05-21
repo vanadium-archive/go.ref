@@ -106,6 +106,58 @@ func (t *Tester) MutexUnlock(m *sync.Mutex) {
 	}
 }
 
+// RWMutexLock implements the logic related to modeling and scheduling
+// an execution of "rw.Lock()".
+func (t *Tester) RWMutexLock(rw *sync.RWMutex) {
+	if t.enabled {
+		done := make(chan struct{})
+		request := rwMutexLockRequest{defaultRequest{done: done}, false, rw}
+		t.execution.requests <- request
+		<-done
+	} else {
+		rw.Lock()
+	}
+}
+
+// RWMutexRLock implements the logic related to modeling and
+// scheduling an execution of "rw.RLock()".
+func (t *Tester) RWMutexRLock(rw *sync.RWMutex) {
+	if t.enabled {
+		done := make(chan struct{})
+		request := rwMutexLockRequest{defaultRequest{done: done}, true, rw}
+		t.execution.requests <- request
+		<-done
+	} else {
+		rw.RLock()
+	}
+}
+
+// RWMutexRUnlock implements the logic related to modeling and
+// scheduling an execution of "rw.RUnlock()".
+func (t *Tester) RWMutexRUnlock(rw *sync.RWMutex) {
+	if t.enabled {
+		done := make(chan struct{})
+		request := rwMutexUnlockRequest{defaultRequest{done: done}, true, rw}
+		t.execution.requests <- request
+		<-done
+	} else {
+		rw.RUnlock()
+	}
+}
+
+// RWMutexUnlock implements the logic related to modeling and
+// scheduling an execution of "rw.Unlock()".
+func (t *Tester) RWMutexUnlock(rw *sync.RWMutex) {
+	if t.enabled {
+		done := make(chan struct{})
+		request := rwMutexUnlockRequest{defaultRequest{done: done}, false, rw}
+		t.execution.requests <- request
+		<-done
+	} else {
+		rw.Unlock()
+	}
+}
+
 // Start implements the logic related to modeling and scheduling an
 // execution of "go fn()".
 func Start(fn func()) {

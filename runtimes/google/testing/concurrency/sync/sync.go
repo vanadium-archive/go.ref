@@ -28,3 +28,59 @@ func (m *Mutex) Unlock() {
 		m.m.Unlock()
 	}
 }
+
+// RWMutex is a wrapper around the Go implementation of RWMutex.
+type RWMutex struct {
+	m sync.RWMutex
+}
+
+// RWMUTEX INTERFACE IMPLEMENTATION
+
+func (m *RWMutex) Lock() {
+	if t := concurrency.T(); t != nil {
+		t.RWMutexLock(&m.m)
+	} else {
+		m.m.Lock()
+	}
+}
+
+func (m *RWMutex) RLock() {
+	if t := concurrency.T(); t != nil {
+		t.RWMutexRLock(&m.m)
+	} else {
+		m.m.RLock()
+	}
+}
+
+func (m *RWMutex) RLocker() sync.Locker {
+	if t := concurrency.T(); t != nil {
+		return (*rlocker)(m)
+	} else {
+		return m.m.RLocker()
+	}
+}
+
+func (m *RWMutex) RUnlock() {
+	if t := concurrency.T(); t != nil {
+		t.RWMutexRUnlock(&m.m)
+	} else {
+		m.m.RUnlock()
+	}
+}
+func (m *RWMutex) Unlock() {
+	if t := concurrency.T(); t != nil {
+		t.RWMutexUnlock(&m.m)
+	} else {
+		m.m.Unlock()
+	}
+}
+
+type rlocker RWMutex
+
+func (r *rlocker) Lock() {
+	(*RWMutex)(r).RLock()
+}
+
+func (r *rlocker) Unlock() {
+	(*RWMutex)(r).RUnlock()
+}
