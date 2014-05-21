@@ -352,6 +352,16 @@ func TestStartCall(t *testing.T) {
 }
 
 func TestRPC(t *testing.T) {
+	testRPC(t, true)
+}
+
+// TestCloseSendOnFinish tests that Finish informs the server that no more
+// inputs will be sent by the client if CloseSend has not already done so.
+func TestRPCCloseSendOnFinish(t *testing.T) {
+	testRPC(t, false)
+}
+
+func testRPC(t *testing.T, shouldCloseSend bool) {
 	type v []interface{}
 	type testcase struct {
 		name       string
@@ -402,9 +412,11 @@ func TestRPC(t *testing.T) {
 				t.Errorf("%s call.Recv got value %v, want %v", name(test), u, sarg)
 			}
 		}
-		vlog.VI(1).Infof("%s call.CloseSend", name(test))
-		if err := call.CloseSend(); err != nil {
-			t.Errorf(`%s call.CloseSend got unexpected error "%v"`, name(test), err)
+		if shouldCloseSend {
+			vlog.VI(1).Infof("%s call.CloseSend", name(test))
+			if err := call.CloseSend(); err != nil {
+				t.Errorf(`%s call.CloseSend got unexpected error "%v"`, name(test), err)
+			}
 		}
 		vlog.VI(1).Infof("%s client.Finish", name(test))
 		results := makeResultPtrs(test.results)
