@@ -132,7 +132,27 @@ func (i *syncInitiator) contactPeers() {
 		if err != nil {
 			continue
 		}
-		i.getDeltasFromPeer(id, ep)
+
+		// Freeze the most recent batch of local changes
+		// before fetching remote changes from a peer.
+		//
+		// We only allow an initiator to create new local
+		// generations (not responders/watcher) in order to
+		// maintain a static baseline for the duration of a
+		// sync. This addresses the following race condition:
+		// If we allow responders to create new local
+		// generations while the initiator is in progress,
+		// they may beat the initiator and send these new
+		// generations to remote devices.  These remote
+		// devices in turn can send these generations back to
+		// the initiator in progress which was started with
+		// older generation information.
+		local, err := i.updateLocalGeneration()
+		if err != nil {
+			vlog.Fatalf("contactPeers:: error updating local generation: err %v", err)
+		}
+
+		i.getDeltasFromPeer(id, ep, local)
 	}
 }
 
@@ -151,8 +171,32 @@ func (i *syncInitiator) pickPeer() (string, string, error) {
 	}
 }
 
+// updateLocalGeneration creates a new local generation if needed and
+// returns the newest local generation vector.
+func (i *syncInitiator) updateLocalGeneration() (GenVector, error) {
+	// TODO(hpucha): Eliminate reaching into syncd's lock.
+	i.syncd.lock.Lock()
+	defer i.syncd.lock.Unlock()
+
+	// Create a new local generation if there are any local updates.
+	gen, err := i.syncd.log.createLocalGeneration()
+	if err == errNoUpdates {
+		vlog.VI(1).Infof("createLocalGeneration:: No new updates. Local at %d", gen)
+		return i.syncd.devtab.getGenVec(i.syncd.id)
+	}
+	if err != nil {
+		return GenVector{}, err
+	}
+
+	// Update local generation vector in devTable.
+	if err = i.syncd.devtab.updateGeneration(i.syncd.id, i.syncd.id, gen); err != nil {
+		return GenVector{}, err
+	}
+	return i.syncd.devtab.getGenVec(i.syncd.id)
+}
+
 // getDeltasFromPeer contacts the specified endpoint to obtain deltas wrt its current generation vector.
-func (i *syncInitiator) getDeltasFromPeer(dID, ep string) {
+func (i *syncInitiator) getDeltasFromPeer(dID, ep string, local GenVector) {
 	vlog.VI(1).Infof("GetDeltasFromPeer:: From server %s with DeviceID %s at %v", ep, dID, time.Now().UTC())
 
 	// Construct a new stub that binds to peer endpoint.
@@ -162,11 +206,6 @@ func (i *syncInitiator) getDeltasFromPeer(dID, ep string) {
 		return
 	}
 
-	// Get the local generation vector.
-	local, err := i.getLocalGenVec()
-	if err != nil {
-		vlog.Fatalf("GetDeltasFromPeer:: error obtaining local gen vector: err %v", err)
-	}
 	vlog.VI(1).Infof("GetDeltasFromPeer:: Sending local information: %v", local)
 
 	// Issue a GetDeltas() rpc.
@@ -186,51 +225,12 @@ func (i *syncInitiator) getDeltasFromPeer(dID, ep string) {
 		vlog.Fatalf("GetDeltasFromPeer:: finish failed with err %v", err)
 	}
 
-	if err := i.processUpdatedObjects(); err != nil {
+	if err := i.processUpdatedObjects(local, minGens, remote, DeviceID(dID)); err != nil {
 		vlog.Fatalf("GetDeltasFromPeer:: error processing objects: err %v", err)
-	}
-
-	if err := i.updateGenVecs(local, minGens, remote, DeviceID(dID)); err != nil {
-		vlog.Fatalf("GetDeltasFromPeer:: updateGenVecs failed with err %v", err)
 	}
 
 	vlog.VI(1).Infof("GetDeltasFromPeer:: Local vector %v", local)
 	vlog.VI(1).Infof("GetDeltasFromPeer:: Remote vector %v", remote)
-}
-
-// getLocalGenVec retrieves the local generation vector from the devTable.
-func (i *syncInitiator) getLocalGenVec() (GenVector, error) {
-	// TODO(hpucha): Eliminate reaching into syncd's lock.
-	i.syncd.lock.RLock()
-	defer i.syncd.lock.RUnlock()
-
-	return i.syncd.devtab.getGenVec(i.syncd.id)
-}
-
-// updateGenVecs updates local, reclaim and remote vectors at the end of an initiator cycle.
-func (i *syncInitiator) updateGenVecs(local, minGens, remote GenVector, dID DeviceID) error {
-	// TODO(hpucha): Eliminate reaching into syncd's lock.
-	i.syncd.lock.Lock()
-	defer i.syncd.lock.Unlock()
-
-	// Update the local gen vector and put it in kvdb.
-	if err := i.syncd.devtab.updateLocalGenVector(local, remote); err != nil {
-		return err
-	}
-
-	if err := i.syncd.devtab.putGenVec(i.syncd.id, local); err != nil {
-		return err
-	}
-
-	if err := i.syncd.devtab.updateReclaimVec(minGens); err != nil {
-		return err
-	}
-
-	// Cache the remote generation vector for space reclamation.
-	if err := i.syncd.devtab.putGenVec(dID, remote); err != nil {
-		return err
-	}
-	return nil
 }
 
 // processLogStream replays an entire log stream spanning multiple
@@ -344,7 +344,7 @@ func (i *syncInitiator) createGenMetadataBatch(newGens map[string]*genMetadata, 
 // this case, we wait to get the latest versions of objects from the
 // store, and recheck if the object has any conflicts and repeat the
 // above steps, until put to store succeeds.
-func (i *syncInitiator) processUpdatedObjects() error {
+func (i *syncInitiator) processUpdatedObjects(local, minGens, remote GenVector, dID DeviceID) error {
 	for {
 		if err := i.detectConflicts(); err != nil {
 			return err
@@ -355,7 +355,7 @@ func (i *syncInitiator) processUpdatedObjects() error {
 			return err
 		}
 
-		err = i.updateStoreAndSync(m)
+		err = i.updateStoreAndSync(m, local, minGens, remote, dID)
 		if err == nil {
 			break
 		}
@@ -506,34 +506,45 @@ func (i *syncInitiator) getLogRecsBatch(obj storage.ID, versions []storage.Versi
 
 // updateStoreAndSync updates the store, and if that is successful,
 // updates log and dag data structures.
-func (i *syncInitiator) updateStoreAndSync(m []raw.Mutation) error {
+func (i *syncInitiator) updateStoreAndSync(m []raw.Mutation, local, minGens, remote GenVector, dID DeviceID) error {
 	// TODO(hpucha): Eliminate reaching into syncd's lock.
 	i.syncd.lock.Lock()
 	defer i.syncd.lock.Unlock()
 
-	// TODO(hpucha): PutMutations api is going to change from an
-	// array of mutations to one mutation at a time. For now, we
-	// will also hold the lock across PutMutations rpc to prevent
-	// a race with watcher. The next iteration will clean up this
-	// coordination.
-	if i.store != nil {
+	// TODO(hpucha): We will hold the lock across PutMutations rpc
+	// to prevent a race with watcher. The next iteration will
+	// clean up this coordination.
+	if i.store != nil && len(m) > 0 {
 		stream, err := i.store.PutMutations()
 		if err != nil {
+			vlog.Errorf("updateStoreAndSync:: putmutations err %v", err)
 			return err
 		}
 		for i := range m {
 			if err := stream.Send(m[i]); err != nil {
+				vlog.Errorf("updateStoreAndSync:: send err %v", err)
 				return err
 			}
 		}
+		if err := stream.CloseSend(); err != nil {
+			vlog.Errorf("updateStoreAndSync:: closesend err %v", err)
+			return err
+		}
 		if err := stream.Finish(); err != nil {
+			vlog.Errorf("updateStoreAndSync:: finish err %v", err)
 			return err
 		}
 	}
 
+	vlog.VI(2).Infof("updateStoreAndSync:: putmutations succeeded")
 	if err := i.updateLogAndDag(); err != nil {
 		return err
 	}
+
+	if err := i.updateGenVecs(local, minGens, remote, DeviceID(dID)); err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -564,6 +575,30 @@ func (i *syncInitiator) updateLogAndDag() error {
 		if err := i.syncd.dag.moveHead(obj, st.resolvVal.Mutation.Version); err != nil {
 			return err
 		}
+	}
+	return nil
+}
+
+// updateGenVecs updates local, reclaim and remote vectors at the end of an initiator cycle.
+func (i *syncInitiator) updateGenVecs(local, minGens, remote GenVector, dID DeviceID) error {
+	// Update the local gen vector and put it in kvdb only if we have new updates.
+	if len(i.updObjects) > 0 {
+		if err := i.syncd.devtab.updateLocalGenVector(local, remote); err != nil {
+			return err
+		}
+
+		if err := i.syncd.devtab.putGenVec(i.syncd.id, local); err != nil {
+			return err
+		}
+
+		if err := i.syncd.devtab.updateReclaimVec(minGens); err != nil {
+			return err
+		}
+	}
+
+	// Cache the remote generation vector for space reclamation.
+	if err := i.syncd.devtab.putGenVec(dID, remote); err != nil {
+		return err
 	}
 	return nil
 }

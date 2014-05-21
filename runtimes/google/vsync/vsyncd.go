@@ -159,7 +159,46 @@ func (s *syncd) isSyncClosing() bool {
 func (s *syncd) GetDeltas(_ ipc.Context, In GenVector, ClientID DeviceID, Stream SyncServiceGetDeltasStream) (GenVector, error) {
 	vlog.VI(1).Infof("GetDeltas:: Received vector %v from client %s", In, ClientID)
 
+	if err := s.updateDeviceInfo(ClientID, In); err != nil {
+		vlog.Fatalf("GetDeltas:: updateDeviceInfo failed with err %v", err)
+	}
+
+	// TODO(hpucha): Hack, fills fake log and dag state for testing.
+	//s.log.fillFakeWatchRecords()
+	out, gens, gensInfo, err := s.prepareGensToReply(In)
+	if err != nil {
+		vlog.Fatalf("GetDeltas:: prepareGensToReply failed with err %v", err)
+	}
+
+	for pos, v := range gens {
+		gen := gensInfo[pos]
+		var count uint64
+		for i := LSN(0); i <= gen.MaxLSN; i++ {
+			count++
+			rec, err := s.getLogRec(v.devID, v.genID, i)
+			if err != nil {
+				vlog.Fatalf("GetDeltas:: Couldn't get log record %s %d %d, err %v",
+					v.devID, v.genID, i, err)
+			}
+			vlog.VI(1).Infof("Sending log record %v", rec)
+			if err := Stream.Send(*rec); err != nil {
+				vlog.Errorf("GetDeltas:: Couldn't send stream err: %v", err)
+				return GenVector{}, err
+			}
+		}
+		if count != gen.Count {
+			vlog.Fatalf("GetDeltas:: GenMetadata has incorrect log records for generation %s %d %v",
+				v.devID, v.genID, gen)
+		}
+	}
+	return out, nil
+}
+
+// updateDeviceInfo updates the remote device's information based on
+// the incoming GetDeltas request.
+func (s *syncd) updateDeviceInfo(ClientID DeviceID, In GenVector) error {
 	s.lock.Lock()
+	defer s.lock.Unlock()
 
 	// Note that the incoming client generation vector cannot be
 	// used for garbage collection. We can only garbage collect
@@ -175,76 +214,47 @@ func (s *syncd) GetDeltas(_ ipc.Context, In GenVector, ClientID DeviceID, Stream
 	// peer to contact.
 	if !s.devtab.hasDevInfo(ClientID) {
 		if err := s.devtab.addDevice(ClientID); err != nil {
-			s.lock.Unlock()
-			vlog.Fatalf("GetDeltas:: addDevice failed with err %v", err)
+			return err
 		}
 	}
+	return nil
+}
 
-	// TODO(hpucha): Hack, fills fake log and dag state for testing.
-	//s.log.fillFakeWatchRecords()
-
-	// Create a new local generation if there are any local updates.
-	gen, err := s.log.createLocalGeneration()
-	if err == nil {
-		// Update local generation vector in devTable.
-		if err = s.devtab.updateGeneration(s.id, s.id, gen); err != nil {
-			s.lock.Unlock()
-			vlog.Fatalf("GetDeltas:: UpdateGeneration failed with err %v", err)
-		}
-	} else if err == errNoUpdates {
-		vlog.VI(1).Infof("GetDeltas:: No new updates. Local at %d", gen)
-	} else {
-		s.lock.Unlock()
-		vlog.Fatalf("GetDeltas:: CreateLocalGeneration failed with err %v", err)
-	}
+// prepareGensToReply processes the incoming generation vector and
+// returns the metadata of all the missing generations between the
+// incoming and the local generation vector.
+func (s *syncd) prepareGensToReply(In GenVector) (GenVector, []*genOrder, []*genMetadata, error) {
+	s.lock.RLock()
+	defer s.lock.RUnlock()
 
 	// Get local generation vector.
 	out, err := s.devtab.getGenVec(s.id)
 	if err != nil {
-		s.lock.Unlock()
-		vlog.Fatalf("GetDeltas:: GetGenVec failed with err %v", err)
+		return GenVector{}, nil, nil, err
 	}
-	s.lock.Unlock()
-
-	s.lock.RLock()
-	defer s.lock.RUnlock()
 
 	// Diff the two generation vectors.
 	gens, err := s.devtab.diffGenVectors(out, In)
 	if err != nil {
-		vlog.Fatalf("GetDeltas:: Diffing gen vectors failed: err %v", err)
+		return GenVector{}, nil, nil, err
 	}
 
-	for _, v := range gens {
-		// Sending one generation at a time.
+	// Get the metadata for all the generations in the reply.
+	gensInfo := make([]*genMetadata, len(gens))
+	for pos, v := range gens {
 		gen, err := s.log.getGenMetadata(v.devID, v.genID)
 		if err != nil || gen.Count <= 0 {
-			vlog.Fatalf("GetDeltas:: getGenMetadata failed for generation %s %d %v, err %v",
-				v.devID, v.genID, gen, err)
+			return GenVector{}, nil, nil, err
 		}
-
-		var count uint64
-		for i := LSN(0); i <= gen.MaxLSN; i++ {
-			count++
-			rec, err := s.log.getLogRec(v.devID, v.genID, i)
-			if err != nil {
-				vlog.Fatalf("GetDeltas:: Couldn't get log record %s %d %d, err %v",
-					v.devID, v.genID, i, err)
-			}
-			vlog.VI(1).Infof("Sending log record %v", rec)
-			s.lock.RUnlock()
-			if err := Stream.Send(*rec); err != nil {
-				vlog.Errorf("GetDeltas:: Couldn't send stream err: %v", err)
-				s.lock.RLock()
-				return GenVector{}, err
-			}
-			s.lock.RLock()
-		}
-		if count != gen.Count {
-			vlog.Fatalf("GetDeltas:: GenMetadata has incorrect log records for generation %s %d %v",
-				v.devID, v.genID, gen)
-		}
+		gensInfo[pos] = gen
 	}
 
-	return out, nil
+	return out, gens, gensInfo, nil
+}
+
+// getLogRec gets the log record for a given generation and lsn.
+func (s *syncd) getLogRec(dev DeviceID, gen GenID, lsn LSN) (*LogRec, error) {
+	s.lock.RLock()
+	defer s.lock.RUnlock()
+	return s.log.getLogRec(dev, gen, lsn)
 }
