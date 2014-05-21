@@ -31,7 +31,11 @@ func newCollectionServer() *collectionDispatcher {
 // Lookup implements ipc.Dispatcher.Lookup.
 func (d *collectionDispatcher) Lookup(name string) (ipc.Invoker, security.Authorizer, error) {
 	rpcc := &rpcContext{name: name, collectionServer: d.collectionServer}
-	return ipc.ReflectInvoker(rpcc), nil, nil
+	return ipc.ReflectInvoker(rpcc), d, nil
+}
+
+func (collectionDispatcher) Authorize(security.Context) error {
+	return nil
 }
 
 // Export implements CollectionService.Export.

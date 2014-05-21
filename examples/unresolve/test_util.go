@@ -57,7 +57,11 @@ func serverMain(serviceCreator func(ipc.Server) string, args []string) {
 }
 
 func createMT(server ipc.Server) string {
-	return createServer(server, "mt", mounttable.NewMountTable())
+	mt, err := mounttable.NewMountTable("")
+	if err != nil {
+		panic(fmt.Sprintf("NewMountTable failed with %v", err))
+	}
+	return createServer(server, "mt", mt)
 }
 
 func childMT(args []string) {

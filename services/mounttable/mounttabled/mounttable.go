@@ -20,6 +20,7 @@ var (
 	// TODO(rthellend): Remove the address flag when the config manager is working.
 	address   = flag.String("address", ":0", "Address to listen on.  Default is to use a randomly assigned port")
 	prefix    = flag.String("prefix", "mt", "The prefix to register the server at.")
+	aclFile = flag.String("acls", "", "ACL file. Default is to allow all access.")
 )
 
 const usage = `%s is a simple mount table daemon.
@@ -51,7 +52,12 @@ func main() {
 		return
 	}
 	defer server.Stop()
-	if err := server.Register(*prefix, mounttable.NewMountTable()); err != nil {
+	mt, err := mounttable.NewMountTable(*aclFile)
+	if err != nil {
+		vlog.Errorf("r.NewMountTable failed: %v", err)
+		return
+	}
+	if err := server.Register(*prefix, mt); err != nil {
 		vlog.Errorf("server.Register failed to register mount table: %v", err)
 		return
 	}
