@@ -10,6 +10,10 @@ const (
 	tGoExit
 	tMutexLock
 	tMutexUnlock
+	tRWMutexLock
+	tRWMutexRLock
+	tRWMutexRUnlock
+	tRWMutexUnlock
 )
 
 // transition records information about the abstract program
