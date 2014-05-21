@@ -322,6 +322,8 @@ func TestNamespace(t *testing.T) {
 		{"*/...", []string{"mt2", "mt3", "mt2/mt4", "mt3/mt4", "mt2/mt4/mt5", "mt3/mt4/mt5", "joke1", "joke2", "mt3/joke3"}},
 		{"*/m?4/*5", []string{"mt2/mt4/mt5", "mt3/mt4/mt5"}},
 		{"*2*/*/*5", []string{"mt2/mt4/mt5"}},
+		{"mt2/*/*5", []string{"mt2/mt4/mt5"}},
+		{"mt2/mt4/*5", []string{"mt2/mt4/mt5"}},
 	}
 	for _, test := range globTests {
 		out := doGlob(t, mt, test.pattern)

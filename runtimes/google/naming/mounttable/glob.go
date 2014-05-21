@@ -147,7 +147,7 @@ func (ns *namespace) globLoop(servers []string, prefix string, pattern *glob.Glo
 		// 1. There was a real error, we return whatever name gave us the error.
 		if err != nil && !notAnMT(err) {
 			x := *e
-			x.Name = prefix + x.Name
+			x.Name = naming.Join(prefix, x.Name)
 			x.Error = err
 			reply <- x
 		}
@@ -156,7 +156,7 @@ func (ns *namespace) globLoop(servers []string, prefix string, pattern *glob.Glo
 		//    with "".  That is, we want to prefer foo/ over foo.
 		if suffix.Len() == 0 && !foundRoot {
 			x := *e
-			x.Name = prefix + x.Name
+			x.Name = naming.Join(prefix, x.Name)
 			reply <- x
 		}
 	}
