@@ -329,7 +329,7 @@ func fetchEnvelope(origin string) (*application.Envelope, error) {
 	}
 	// TODO(jsimsa): Include logic that computes the set of supported
 	// profiles.
-	profiles := []string{}
+	profiles := []string{"test"}
 	envelope, err := stub.Match(profiles)
 	if err != nil {
 		vlog.Errorf("Match(%v) failed: %v", profiles, err)
