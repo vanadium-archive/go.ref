@@ -7,8 +7,6 @@ import (
 )
 
 func main() {
-	r := rt.Init()
-	defer r.Shutdown()
-
+	defer rt.Init().Shutdown()
 	impl.Root().Main()
 }

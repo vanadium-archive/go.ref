@@ -7,8 +7,21 @@ import (
 
 	"veyron/lib/cmdline"
 
+	"veyron2/rt"
 	"veyron2/services/mounttable"
 )
+
+func bindMT(name string) (mounttable.MountTable, error) {
+	mts, err := rt.R().MountTable().ResolveToMountTable(name)
+	if err != nil {
+		return nil, err
+	}
+	if len(mts) == 0 {
+		return nil, fmt.Errorf("Failed to find any mount tables at %q", name)
+	}
+	fmt.Println(mts)
+	return mounttable.BindMountTable(mts[0])
+}
 
 var cmdGlob = &cmdline.Command{
 	Run:      runGlob,
@@ -27,7 +40,7 @@ func runGlob(cmd *cmdline.Command, args []string) error {
 	if expected, got := 2, len(args); expected != got {
 		return cmd.Errorf("glob: incorrect number of arguments, expected %d, got %d", expected, got)
 	}
-	c, err := mounttable.BindMountTable(args[0])
+	c, err := bindMT(args[0])
 	if err != nil {
 		return fmt.Errorf("bind error: %v", err)
 	}
@@ -74,7 +87,7 @@ func runMount(cmd *cmdline.Command, args []string) error {
 	if expected, got := 3, len(args); expected != got {
 		return cmd.Errorf("mount: incorrect number of arguments, expected %d, got %d", expected, got)
 	}
-	c, err := mounttable.BindMountTable(args[0])
+	c, err := bindMT(args[0])
 	if err != nil {
 		return fmt.Errorf("bind error: %v", err)
 	}
@@ -107,7 +120,7 @@ func runUnmount(cmd *cmdline.Command, args []string) error {
 	if expected, got := 2, len(args); expected != got {
 		return cmd.Errorf("unmount: incorrect number of arguments, expected %d, got %d", expected, got)
 	}
-	c, err := mounttable.BindMountTable(args[0])
+	c, err := bindMT(args[0])
 	if err != nil {
 		return fmt.Errorf("bind error: %v", err)
 	}
@@ -135,7 +148,7 @@ func runResolveStep(cmd *cmdline.Command, args []string) error {
 	if expected, got := 1, len(args); expected != got {
 		return cmd.Errorf("mount: incorrect number of arguments, expected %d, got %d", expected, got)
 	}
-	c, err := mounttable.BindMountTable(args[0])
+	c, err := bindMT(args[0])
 	if err != nil {
 		return fmt.Errorf("bind error: %v", err)
 	}
