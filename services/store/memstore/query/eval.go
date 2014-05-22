@@ -80,9 +80,13 @@ type evalIterator struct {
 
 // Next implements the Iterator method.
 func (it *evalIterator) Next() bool {
+	it.mu.Lock()
 	if it.err != nil {
+		it.mu.Unlock()
 		return false
 	}
+	it.mu.Unlock()
+
 	select {
 	case result, ok := <-it.results:
 		if !ok {
