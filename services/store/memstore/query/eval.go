@@ -6,6 +6,8 @@ import (
 	"path"
 	"reflect"
 	"runtime"
+	"sort"
+	"strings"
 	"sync"
 
 	"veyron/services/store/memstore/state"
@@ -448,6 +450,7 @@ func convertSelection(p *parse.PipelineSelection) evaluator {
 		pos:          p.Pos,
 	}
 	for i, a := range p.SubPipelines {
+		// TODO(kash): Protect against aliases that have slashes in them?
 		e.subpipelines[i] = alias{convertPipeline(a.Pipeline), a.Alias, a.Hidden}
 	}
 	return e
@@ -811,12 +814,31 @@ type exprName struct {
 
 // value implements the expr method.
 func (e *exprName) value(c *context, result *store.QueryResult) interface{} {
-	// TODO(kash): The name might be in result.Fields.  Check there first.
+	if result.Fields != nil {
+		// TODO(kash): Handle multipart names.  This currently only works if
+		// e.name has no slashes.
+		val, ok := result.Fields[e.name]
+		if !ok {
+			sendError(c.errc, fmt.Errorf("name '%s' was not selected from '%s', found: [%s]",
+				e.name, result.Name, mapKeys(result.Fields)))
+			return nil
+		}
+		return val
+	}
 	fullpath := path.Join(result.Name, e.name)
 	entry, err := c.sn.Get(c.clientID, storage.ParsePath(fullpath))
 	if err != nil {
-		c.errc <- fmt.Errorf("could not look up name '%s' relative to '%s': %v", e.name, result.Name, err)
+		sendError(c.errc, fmt.Errorf("could not look up name '%s' relative to '%s': %v", e.name, result.Name, err))
 		return nil
 	}
 	return entry.Value
+}
+
+func mapKeys(m map[string]idl.AnyData) string {
+	s := make([]string, 0, len(m))
+	for key, _ := range m {
+		s = append(s, key)
+	}
+	sort.Strings(s)
+	return strings.Join(s, ", ")
 }
