@@ -289,6 +289,11 @@ func (fc *flowClient) Recv(itemptr interface{}) error {
 }
 
 func (fc *flowClient) CloseSend() error {
+	return fc.closeSend()
+}
+
+// closeSend ensures CloseSend always returns verror.E.
+func (fc *flowClient) closeSend() verror.E {
 	if fc.sendClosed {
 		return errFlowClosed
 	}
@@ -305,6 +310,14 @@ func (fc *flowClient) Finish(resultptrs ...interface{}) error {
 
 // finish ensures Finish always returns verror.E.
 func (fc *flowClient) finish(resultptrs ...interface{}) verror.E {
+	// Inform the server that no more items will be sent, unless
+	// a) CloseSend has already done so.
+	// b) The flow was previously closed (e.g. due to an encoding error).
+	if !fc.sendClosed && !fc.flow.IsClosed() {
+		if err := fc.closeSend(); err != nil {
+			return err
+		}
+	}
 	// Decode the response header, if it hasn't already been decoded by Recv.
 	if fc.response.Error == nil && !fc.response.EndStreamResults {
 		if err := fc.dec.Decode(&fc.response); err != nil {
