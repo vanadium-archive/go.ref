@@ -18,6 +18,8 @@ import (
 	"veyron2/storage/vstore"
 	"veyron2/vlog"
 	"veyron2/vom"
+
+	_ "veyron/services/store/typeregistryhack"
 )
 
 // syncd contains the metadata for the sync daemon.
