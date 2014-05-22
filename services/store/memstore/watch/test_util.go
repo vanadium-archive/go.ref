@@ -2,6 +2,7 @@ package watch
 
 import (
 	"io/ioutil"
+	"net"
 	"os"
 	"runtime"
 	"testing"
@@ -55,6 +56,14 @@ func (*rootContext) LocalID() security.PublicID {
 
 func (*rootContext) RemoteID() security.PublicID {
 	return rootPublicID
+}
+
+func (*rootContext) LocalAddr() net.Addr {
+	return nil
+}
+
+func (*rootContext) RemoteAddr() net.Addr {
+	return nil
 }
 
 func (*rootContext) Deadline() (t time.Time) {
