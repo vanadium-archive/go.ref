@@ -65,6 +65,19 @@ func (p *Path) String() string {
 	return s
 }
 
+// Suffix prints the name corresponding to the last n elements
+// of the path.
+func (p *Path) Suffix(n int) string {
+	if p == nil || n == 0 {
+		return ""
+	}
+	s := p.hd
+	for i, p := 1, p.tl; i < n && p != nil; i, p = i+1, p.tl {
+		s = p.hd + "/" + s
+	}
+	return s
+}
+
 // Append adds a new string component to the end of a path.
 func (p *Path) Append(name string) *Path {
 	pathTable.Lock()
@@ -123,6 +136,12 @@ func NewFullPathFromName(path storage.PathName) *FullPath {
 // String returns a printable representation of a path.
 func (fp *FullPath) String() string {
 	return (*Path)(fp).String()
+}
+
+// Suffix prints the name corresponding to the last n elements
+// of the full path.
+func (fp *FullPath) Suffix(n int) string {
+	return (*Path)(fp).Suffix(n)
 }
 
 // Append adds a new string component to the end of a path.

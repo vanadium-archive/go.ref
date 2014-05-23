@@ -159,8 +159,22 @@ func (o *object) Stat(ctx ipc.Context, tid store.TransactionID) (store.Stat, err
 }
 
 // Query returns a sequence of objects that match the given query.
-func (o *object) Query(_ ipc.Context, tid store.TransactionID, q query.Query, stream store.ObjectServiceQueryStream) error {
-	panic("not implemented")
+func (o *object) Query(ctx ipc.Context, tid store.TransactionID, q query.Query, stream store.ObjectServiceQueryStream) error {
+	t, ok := o.server.findTransaction(tid)
+	if !ok {
+		return errTransactionDoesNotExist
+	}
+	it, err := o.obj.Query(ctx.RemoteID(), t, q)
+	if err != nil {
+		return err
+	}
+	for it.Next() {
+		if err := stream.Send(*it.Get()); err != nil {
+			it.Abort()
+			return err
+		}
+	}
+	return it.Err()
 }
 
 type globStreamAdapter struct {

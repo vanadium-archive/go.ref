@@ -4,6 +4,7 @@ import (
 	iquery "veyron/services/store/memstore/query"
 	"veyron/services/store/service"
 
+	"veyron2/query"
 	"veyron2/security"
 	"veyron2/storage"
 )
@@ -83,25 +84,33 @@ func (o *object) Remove(pid security.PublicID, trans storage.Transaction) error 
 	return nil
 }
 
+// SetAttr changes the attributes of the entry, such as permissions and
+// replication groups.  Attributes are associated with the value, not the
+// path.
 func (o *object) SetAttr(pid security.PublicID, tr storage.Transaction, attrs ...storage.Attr) error {
 	panic("not implemented")
 }
 
+// Stat returns entry info.
 func (o *object) Stat(pid security.PublicID, tr storage.Transaction) (*storage.Stat, error) {
 	panic("not implemented")
 }
 
-func (o *object) Glob(pid security.PublicID, trans storage.Transaction, pattern string) (service.GlobStream, error) {
-	tr, commit, err := o.store.getTransaction(trans)
+// Query returns entries matching the given query.
+func (o *object) Query(pid security.PublicID, trans storage.Transaction, q query.Query) (service.QueryStream, error) {
+	tr, _, err := o.store.getTransaction(trans)
 	if err != nil {
 		return nil, err
 	}
-	stream, err := iquery.Glob(tr.snapshot.GetSnapshot(), pid, o.path, pattern)
+	stream := iquery.Eval(tr.snapshot.GetSnapshot(), pid, o.path, q)
+	return stream, nil
+}
+
+// Glob returns the sequence of names that match the given pattern.
+func (o *object) Glob(pid security.PublicID, trans storage.Transaction, pattern string) (service.GlobStream, error) {
+	tr, _, err := o.store.getTransaction(trans)
 	if err != nil {
-		return stream, err
+		return nil, err
 	}
-	if commit {
-		err = tr.Commit()
-	}
-	return stream, err
+	return iquery.Glob(tr.snapshot.GetSnapshot(), pid, o.path, pattern)
 }

@@ -43,6 +43,9 @@ type iterator struct {
 	// Stack of IDs to visit next.  Some of these may already have been visited.
 	next []next
 
+	// Depth of starting path.
+	initialDepth int
+
 	// Current value.
 	entry *storage.Entry
 	path  *refs.FullPath
@@ -97,10 +100,11 @@ func (sn *snapshot) NewIterator(pid security.PublicID, path storage.PathName, fi
 	}
 
 	it := &iterator{
-		snapshot: sn,
-		visited:  make(map[storage.ID]struct{}),
-		path:     refs.NewFullPathFromName(path),
-		filter:   filter,
+		snapshot:     sn,
+		visited:      make(map[storage.ID]struct{}),
+		initialDepth: len(path),
+		path:         refs.NewFullPathFromName(path),
+		filter:       filter,
 	}
 
 	ret, expand := it.filter(it.path, nil)
@@ -144,9 +148,9 @@ func (it *iterator) IsValid() bool {
 	return it.entry != nil
 }
 
-// Name returns a name for the curent value.
+// Name returns a name for the curent value relative to the initial name.
 func (it *iterator) Name() string {
-	return it.path.String()
+	return it.path.Suffix(it.path.Len() - it.initialDepth)
 }
 
 // Get returns the current value.

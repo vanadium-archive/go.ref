@@ -6,6 +6,7 @@ import (
 	"veyron2/ipc"
 	"veyron2/query"
 	"veyron2/security"
+	"veyron2/services/store"
 	"veyron2/services/watch"
 	"veyron2/storage"
 )
@@ -38,6 +39,9 @@ type Object interface {
 	// Stat returns entry info.
 	Stat(clientID security.PublicID, t storage.Transaction) (*storage.Stat, error)
 
+	// Query returns entries matching the given query.
+	Query(clientID security.PublicID, t storage.Transaction, q query.Query) (QueryStream, error)
+
 	// Glob returns the sequence of names that match the given pattern.
 	Glob(clientID security.PublicID, t storage.Transaction, pattern string) (GlobStream, error)
 }
@@ -53,13 +57,6 @@ type Store interface {
 	// closed. Mutations are not committed if the request is cancelled before
 	// the stream has been closed.
 	PutMutations(ctx ipc.Context, stream raw.StoreServicePutMutationsStream) error
-
-	// Glob returns a set of names that match the glob pattern.
-	Glob(clientID security.PublicID, t storage.Transaction, pattern string) (GlobStream, error)
-
-	// Search returns an Iterator to a sequence of elements that satisfy the
-	// query.
-	Search(t storage.Transaction, q query.Query) storage.Iterator
 
 	// SetConflictResolver specifies a function to perform conflict resolution.
 	// The <ty> represents the IDL name for the type.
@@ -79,6 +76,38 @@ type GlobStream interface {
 
 	// Next advances to the next element.
 	Next()
+}
+
+// QueryStream yields the results of a query. Usage:
+//   qs, _ := obj.Query
+//   for qs.Next() {
+//     result := qs.Get()
+//     ...
+//     if enough_results {
+//       qs.Abort()
+//     }
+//   }
+//   if err := qs.Err(); err != nil {
+//     ...
+//   }
+// Iterator is thread-safe.
+type QueryStream interface {
+	// Next advances the iterator.  It must be called before calling Get.
+	// Returns true if there is a value to be retrieved with Get.  Returns
+	// false when iteration is finished.
+	Next() bool
+
+	// Get retrieves a query result.  It is idempotent.
+	Get() *store.QueryResult
+
+	// Err returns the first error encountered during query evaluation.  It is
+	// idempotent.
+	Err() error
+
+	// Abort stops query evaluation early.  The client must call Abort unless
+	// iteration goes to completion (i.e. Next returns false).  It is
+	// idempotent and can be called from any thread.
+	Abort()
 }
 
 // Watcher is the interface for watching store updates that match a query.

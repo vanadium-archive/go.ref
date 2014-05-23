@@ -39,23 +39,3 @@ func (g *globIterator) filter(parent *refs.FullPath, path *refs.Path) (bool, boo
 	matched, suffix := g.glob.PartialMatch(prefixLen, []string(path.Name()))
 	return matched && suffix.Len() == 0, matched
 }
-
-// Name returns names relative to the object that began the glob.
-func (g *globIterator) Name() string {
-	name := g.Iterator.Name()
-	skip := g.pathLen
-	if skip == 0 {
-		return name
-	}
-
-	for i, r := range name {
-		if r == '/' {
-			if skip--; skip == 0 {
-				return name[i+1:]
-			}
-		}
-	}
-	// If we didn't find all the slashes already that means that we should skip even
-	// the last path segment.
-	return ""
-}
