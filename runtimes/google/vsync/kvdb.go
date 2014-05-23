@@ -148,7 +148,7 @@ func (db *kvdb) compact(filename string, tables []string) (*kvdb, []*kvtable, er
 		return nil, nil, fmt.Errorf("invalid DB filename %s", filename)
 	}
 
-	fdesc, err := ioutil.TempFile("/tmp", prefix)
+	fdesc, err := ioutil.TempFile("", prefix)
 	if err != nil {
 		return nil, nil, err
 	}

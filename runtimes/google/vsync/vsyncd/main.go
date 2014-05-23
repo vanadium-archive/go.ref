@@ -3,6 +3,7 @@ package main
 
 import (
 	"flag"
+	"os"
 
 	"veyron/runtimes/google/vsync"
 	"veyron2/ipc"
@@ -16,7 +17,7 @@ func main() {
 	peerDeviceIDs := flag.String("peerids", "",
 		"comma separated list of deviceids of the vsync peer")
 	devid := flag.String("devid", "", "Device ID")
-	storePath := flag.String("store", "/tmp/", "path to store files")
+	storePath := flag.String("store", os.TempDir(), "path to store files")
 	vstoreEndpoint := flag.String("vstore", "", "endpoint of the local Veyron store")
 	// TODO(rthellend): Remove the address flag when the config manager is working.
 	address := flag.String("address", ":0", "address to listen on")
