@@ -175,6 +175,19 @@ func TestSelection(t *testing.T) {
 					nil},
 			},
 		},
+		{
+			"'teams/cardinals' | {Name as myname, Location as myloc} | ? myname == 'cardinals'",
+			[]*store.QueryResult{
+				&store.QueryResult{
+					0,
+					"teams/cardinals",
+					map[string]idl.AnyData{
+						"myname": "cardinals",
+						"myloc":  "CA",
+					},
+					nil},
+			},
+		},
 	}
 	for _, test := range tests {
 		it := Eval(st.Snapshot(), rootPublicID, query.Query{test.query})
@@ -215,6 +228,8 @@ func TestError(t *testing.T) {
 		// TODO(kash): We probably want an error message that says that you must
 		// use a type filter.
 		{"teams/* | ?Name > 'foo'", "could not look up name 'Name' relative to 'teams': not found"},
+		{"'teams/cardinals' | {Name as myname, Location as myloc} | ? Name == 'foo'", "name 'Name' was not selected from 'teams/cardinals', found: [myloc, myname]"},
+
 		// TODO(kash): Selection with conflicting names.
 	}
 	for _, test := range tests {
