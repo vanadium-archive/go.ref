@@ -11,6 +11,7 @@ import (
 	"veyron/lib/signals"
 	"veyron/lib/testutil"
 	"veyron/lib/testutil/blackbox"
+	"veyron/runtimes/google/lib/exec"
 	"veyron/services/mgmt/node/impl"
 	mtlib "veyron/services/mounttable/lib"
 
@@ -218,6 +219,14 @@ func startNodeManager(runtime veyron2.Runtime, origin string) (string, func()) {
 	if err := server.Publish(name); err != nil {
 		vlog.Fatalf("Publish(%v) failed: %v", name, err)
 	}
+	handle, err := exec.NewChildHandle()
+	switch err {
+	case nil:
+		handle.SetReady()
+	case exec.ErrNoVersion:
+	default:
+		vlog.Fatalf("NewChildHandle() failed: %v", err)
+	}
 	fmt.Printf("%d\n", os.Getpid())
 	return address, func() {
 		if err := server.Stop(); err != nil {
@@ -281,7 +290,10 @@ func TestUpdate(t *testing.T) {
 		}
 	}
 
-	// Terminate the node manager binaries.
+	// Terminate the node manager binary.
+	//
+	// TODO(jsimsa): When support for remote Stop() is implemented, use
+	// it here instead.
 	process, err := os.FindProcess(pid)
 	if err != nil {
 		t.Fatalf("FindProcess(%v) failed: %v", pid, err)
