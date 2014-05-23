@@ -14,8 +14,10 @@ import (
 	"syscall"
 	"time"
 
+	"veyron/lib/testutil/blackbox"
 	vexec "veyron/runtimes/google/lib/exec"
 	ibuild "veyron/services/mgmt/build"
+
 	"veyron/services/mgmt/profile"
 	"veyron2/ipc"
 	"veyron2/rt"
@@ -358,6 +360,18 @@ func spawnNodeManager(envelope *application.Envelope) error {
 	cmd.Env = envelope.Env
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
+
+	// TODO(cnicolaou): figure out how to refactor the blackbox
+	// and exec packages so that this code can move into one or
+	// other of them without introducing a circular dependency.
+	if blackbox.BlackboxTest(cmd.Env) {
+		err := blackbox.InitBlackboxParent(cmd)
+		if err != nil {
+			vlog.Errorf("InitBlackboxParent() failed: %v", err)
+			return errOperationFailed
+		}
+	}
+
 	handle := vexec.NewParentHandle(cmd, "")
 	if err := handle.Start(); err != nil {
 		vlog.Errorf("Start() failed: %v", err)

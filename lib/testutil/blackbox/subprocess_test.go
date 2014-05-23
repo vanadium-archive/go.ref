@@ -4,7 +4,12 @@ package blackbox_test
 // called. We need to mock testing.T in order to be able to catch these.
 
 import (
+	"fmt"
 	"io"
+	"os"
+	"strconv"
+	"strings"
+	"syscall"
 	"testing"
 	"time"
 
@@ -18,7 +23,10 @@ func isFatalf(t *testing.T, err error, format string, args ...interface{}) {
 	}
 }
 
+var globalT *testing.T
+
 func TestHelperProcess(t *testing.T) {
+	globalT = t
 	blackbox.HelperProcess(t)
 }
 
@@ -125,4 +133,121 @@ func TestWait(t *testing.T) {
 	}
 	c.CloseStdin()
 	c.WaitForEOF(time.Second)
+}
+
+func init() {
+	blackbox.CommandTable["sleepChild"] = sleepChild
+	blackbox.CommandTable["sleepParent"] = sleepParent
+}
+
+// SleepChild spleeps essentially forever, this process should only
+// die when its parent dies and it will exit via the
+// blackbox framework and not here.
+func sleepChild(args []string) {
+	fmt.Printf("%d\n", os.Getpid())
+	time.Sleep(100 * time.Hour)
+	panic("this test should never be allowed to run this long!")
+}
+
+// Spawn the sleepChild process above.
+func spawnSleeper() *blackbox.Child {
+	c := blackbox.HelperCommand(globalT, "sleepChild")
+	c.Cmd.Start()
+	fmt.Println("ready")
+	line, err := c.ReadLineFromChild()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "unexpected error: %v", err)
+		os.Exit(1)
+	}
+	// Print out the pid of the sleepChild first and ourselves second
+	fmt.Println(line)
+	fmt.Printf("%d\n", os.Getpid())
+	return c
+}
+
+// Spawn a sleeper and wait for our parent to tell us when to exit
+func sleepParent(args []string) {
+	c := spawnSleeper()
+	defer c.Cleanup()
+	blackbox.WaitForEOFOnStdin()
+}
+
+// Read the pids from the child processes and make sure they exist
+func readAndTestPids(t *testing.T, c *blackbox.Child) (child, parent int) {
+	// Read the pids of the sleeper and the process waiting on it
+	line, err := c.ReadLineFromChild()
+	isFatalf(t, err, "unexpected error: %v", err)
+	child, err = strconv.Atoi(strings.TrimRight(line, "\n"))
+	isFatalf(t, err, "unexpected error: %v", err)
+	line, err = c.ReadLineFromChild()
+	isFatalf(t, err, "unexpected error: %v", err)
+	parent, err = strconv.Atoi(strings.TrimRight(line, "\n"))
+	isFatalf(t, err, "unexpected error: %v", err)
+
+	// Make sure both subprocs exist
+	err = syscall.Kill(child, 0)
+	isFatalf(t, err, "unexpected error: %v", err)
+	err = syscall.Kill(parent, 0)
+	isFatalf(t, err, "unexpected error: %v", err)
+
+	return child, parent
+}
+
+// Wait for the specified pids to no longer exist
+func waitForNonExistence(t *testing.T, pids []int) {
+	w := make(chan struct{})
+	go func() {
+		for {
+			done := 0
+			for _, pid := range pids {
+				err := syscall.Kill(pid, 0)
+				if err == nil {
+					continue
+				}
+				done++
+			}
+			if done == len(pids) {
+				w <- struct{}{}
+				return
+			}
+			time.Sleep(250 * time.Millisecond)
+		}
+	}()
+
+	select {
+	case <-w:
+	case <-time.After(10 * time.Second):
+		t.Errorf("timed out on children")
+	}
+}
+
+func TestCloser(t *testing.T) {
+	c := blackbox.HelperCommand(t, "sleepParent")
+	defer c.Cleanup()
+	c.Cmd.Start()
+	c.Expect("ready")
+
+	sleeper, parent := readAndTestPids(t, c)
+
+	// Ask the sleep waiter to terminate and wait for it to do so.
+	c.CloseStdin()
+	c.ExpectEOFAndWait()
+
+	waitForNonExistence(t, []int{sleeper, parent})
+}
+
+func TestSubtimeout(t *testing.T) {
+	c := blackbox.HelperCommand(t, "sleepChild", "--test.timeout=2s")
+	defer c.Cleanup()
+	c.Cmd.Start()
+
+	line, err := c.ReadLineFromChild()
+	isFatalf(t, err, "unexpected error: %v", err)
+	child, err := strconv.Atoi(strings.TrimRight(line, "\n"))
+	err = syscall.Kill(child, 0)
+	isFatalf(t, err, "unexpected error: %v", err)
+
+	c.ExpectEOFAndWaitForExitCode(fmt.Errorf("exit status 2"))
+
+	waitForNonExistence(t, []int{child})
 }
