@@ -103,9 +103,6 @@ const (
 
 	// A request to get signature of a remote server
 	websocketSignatureRequest = 5
-
-	// Passing IDL from JS client to wspr
-	websocketIDLMessage = 6
 )
 
 type websocketMessage struct {
@@ -158,11 +155,6 @@ type serverRPCRequestContext struct {
 type serverRPCReply struct {
 	Results []interface{}
 	Err     *verror.Standard
-}
-
-// A message that passes IDL files from the JS client to the wspr
-type idlMessage struct {
-	Packages []idlBuildPackageRequest
 }
 
 // This is basically an io.Writer interface, that allows passing error message
@@ -451,9 +443,6 @@ type websocketPipe struct {
 	// server request.
 	outstandingServerRequests map[int64]chan serverRPCReply
 
-	// A manager that handles parsing and storing IDL info sent down the websocket.
-	idlManager idlManager
-
 	// A manager that handles fetching and caching signature of remote services
 	signatureManager *signatureManager
 
@@ -672,21 +661,6 @@ func (wsp *websocketPipe) readLoop() {
 		switch msg.Type {
 		case websocketVeyronRequest:
 			wsp.handleVeyronRequest(msg.Id, msg.Data, ww)
-		case websocketIDLMessage:
-			var innerMsg idlMessage
-			if err := json.Unmarshal([]byte(msg.Data), &innerMsg); err != nil {
-				ww.sendError(verror.Internalf("unable to parse idl message: %v", err))
-				continue
-			}
-			// Run this asynchronously so we don't block the read loop.
-			go func() {
-				err := wsp.idlManager.loadPackages(innerMsg.Packages)
-				if err != nil {
-					ww.sendError(verror.Internalf("failed to load idl: %v", err))
-				} else {
-					ww.Write([]byte("loaded packages"))
-				}
-			}()
 		case websocketStreamingValue:
 			// This will asynchronous for a client rpc, but synchronous for a
 			// server rpc.  This could be potentially bad if the server is sending
