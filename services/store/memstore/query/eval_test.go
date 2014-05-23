@@ -55,69 +55,75 @@ func TestEval(t *testing.T) {
 	st := populate(t)
 
 	type testCase struct {
+		suffix        string
 		query         string
 		expectedNames []string
 	}
 
 	tests := []testCase{
 		// nameEvaluator:
-		{"teams", []string{"teams"}},
-		{"teams/.", []string{"teams"}},
-		{"teams/*", []string{"teams", "teams/cardinals", "teams/sharks", "teams/bears"}},
+		{"", "teams", []string{"teams"}},
+		{"", "teams/.", []string{"teams"}},
+		{"", "teams/*", []string{"teams", "teams/cardinals", "teams/sharks", "teams/bears"}},
+
+		// With a non empty prefix:
+		{"teams", ".", []string{""}},
+		{"teams", "*", []string{"", "cardinals", "sharks", "bears"}},
 
 		// typeEvaluator:
-		{"teams | type team", []string{}},
-		{"teams/. | type team", []string{}},
-		{"teams/* | type team", []string{"teams/cardinals", "teams/sharks", "teams/bears"}},
+		{"", "teams | type team", []string{}},
+		{"", "teams/. | type team", []string{}},
+		{"", "teams/* | type team", []string{"teams/cardinals", "teams/sharks", "teams/bears"}},
 
 		// filterEvaluator/predicateBool:
-		{"teams | ?true", []string{"teams"}},
-		{"teams | ?false", []string{}},
+		{"", "teams | ?true", []string{"teams"}},
+		{"", "teams | ?false", []string{}},
 
 		// predicateCompare:
 		// String constants:
-		{"teams | ?'foo' > 'bar'", []string{"teams"}},
-		{"teams | ?'foo' < 'bar'", []string{}},
-		{"teams | ?'foo' == 'bar'", []string{}},
-		{"teams | ?'foo' != 'bar'", []string{"teams"}},
-		{"teams | ?'foo' <= 'bar'", []string{}},
-		{"teams | ?'foo' >= 'bar'", []string{"teams"}},
+		{"", "teams | ?'foo' > 'bar'", []string{"teams"}},
+		{"", "teams | ?'foo' < 'bar'", []string{}},
+		{"", "teams | ?'foo' == 'bar'", []string{}},
+		{"", "teams | ?'foo' != 'bar'", []string{"teams"}},
+		{"", "teams | ?'foo' <= 'bar'", []string{}},
+		{"", "teams | ?'foo' >= 'bar'", []string{"teams"}},
 		// Rational number constants:
-		{"teams | ?2.3 > 1.0", []string{"teams"}},
-		{"teams | ?2.3 < 1.0", []string{}},
-		{"teams | ?2.3 == 1.0", []string{}},
-		{"teams | ?2.3 != 1.0", []string{"teams"}},
-		{"teams | ?2.3 <= 1.0", []string{}},
-		{"teams | ?2.3 >= 1.0", []string{"teams"}},
+		{"", "teams | ?2.3 > 1.0", []string{"teams"}},
+		{"", "teams | ?2.3 < 1.0", []string{}},
+		{"", "teams | ?2.3 == 1.0", []string{}},
+		{"", "teams | ?2.3 != 1.0", []string{"teams"}},
+		{"", "teams | ?2.3 <= 1.0", []string{}},
+		{"", "teams | ?2.3 >= 1.0", []string{"teams"}},
 		// Integer constants:
-		{"teams | ?2 > 1", []string{"teams"}},
-		{"teams | ?2 < 1", []string{}},
-		{"teams | ?2 == 1", []string{}},
-		{"teams | ?2 != 1", []string{"teams"}},
-		{"teams | ?2 <= 1", []string{}},
-		{"teams | ?2 >= 1", []string{"teams"}},
+		{"", "teams | ?2 > 1", []string{"teams"}},
+		{"", "teams | ?2 < 1", []string{}},
+		{"", "teams | ?2 == 1", []string{}},
+		{"", "teams | ?2 != 1", []string{"teams"}},
+		{"", "teams | ?2 <= 1", []string{}},
+		{"", "teams | ?2 >= 1", []string{"teams"}},
 		// Veyron names:
-		{"teams/* | type team | ?Name > 'bar'", []string{"teams/cardinals", "teams/sharks", "teams/bears"}},
-		{"teams/* | type team | ?Name > 'foo'", []string{"teams/sharks"}},
-		{"teams/* | type team | ?Name != 'bears'", []string{"teams/cardinals", "teams/sharks"}},
+		{"", "teams/* | type team | ?Name > 'bar'", []string{"teams/cardinals", "teams/sharks", "teams/bears"}},
+		{"", "teams/* | type team | ?Name > 'foo'", []string{"teams/sharks"}},
+		{"", "teams/* | type team | ?Name != 'bears'", []string{"teams/cardinals", "teams/sharks"}},
 
 		// predicateAnd:
-		{"teams | ?true && true", []string{"teams"}},
-		{"teams | ?true && false", []string{}},
+		{"", "teams | ?true && true", []string{"teams"}},
+		{"", "teams | ?true && false", []string{}},
 
 		// predicateOr:
-		{"teams | ?true || true", []string{"teams"}},
-		{"teams | ?true || false", []string{"teams"}},
-		{"teams | ?false || false", []string{}},
+		{"", "teams | ?true || true", []string{"teams"}},
+		{"", "teams | ?true || false", []string{"teams"}},
+		{"", "teams | ?false || false", []string{}},
 
 		// predicateNot:
-		{"teams | ?!true", []string{}},
-		{"teams | ?!false", []string{"teams"}},
-		{"teams | ?!(false && false)", []string{"teams"}},
-		{"teams | ?!(true || false)", []string{}},
+		{"", "teams | ?!true", []string{}},
+		{"", "teams | ?!false", []string{"teams"}},
+		{"", "teams | ?!(false && false)", []string{"teams"}},
+		{"", "teams | ?!(true || false)", []string{}},
 	}
 	for _, test := range tests {
-		it := Eval(st.Snapshot(), rootPublicID, query.Query{test.query})
+
+		it := Eval(st.Snapshot(), rootPublicID, storage.ParsePath(test.suffix), query.Query{test.query})
 		names := map[string]bool{}
 		for it.Next() {
 			result := it.Get()
@@ -145,25 +151,38 @@ func TestSelection(t *testing.T) {
 	st := populate(t)
 
 	type testCase struct {
+		suffix          string
 		query           string
 		expectedResults []*store.QueryResult
 	}
 
 	tests := []testCase{
 		{
-			"'teams/cardinals' | {Name}",
+			"", "'teams/cardinals' | {Name}",
 			[]*store.QueryResult{
 				&store.QueryResult{0, "teams/cardinals", map[string]idl.AnyData{"Name": "cardinals"}, nil},
 			},
 		},
 		{
-			"'teams/cardinals' | {Name as Name}",
+			"teams", "'cardinals' | {Name}",
+			[]*store.QueryResult{
+				&store.QueryResult{0, "cardinals", map[string]idl.AnyData{"Name": "cardinals"}, nil},
+			},
+		},
+		{
+			"teams/cardinals", ". | {Name}",
+			[]*store.QueryResult{
+				&store.QueryResult{0, "", map[string]idl.AnyData{"Name": "cardinals"}, nil},
+			},
+		},
+		{
+			"", "'teams/cardinals' | {Name as Name}",
 			[]*store.QueryResult{
 				&store.QueryResult{0, "teams/cardinals", map[string]idl.AnyData{"Name": "cardinals"}, nil},
 			},
 		},
 		{
-			"'teams/cardinals' | {Name as myname, Location as myloc}",
+			"", "'teams/cardinals' | {Name as myname, Location as myloc}",
 			[]*store.QueryResult{
 				&store.QueryResult{
 					0,
@@ -176,7 +195,7 @@ func TestSelection(t *testing.T) {
 			},
 		},
 		{
-			"'teams/cardinals' | {Name as myname, Location as myloc} | ? myname == 'cardinals'",
+			"", "'teams/cardinals' | {Name as myname, Location as myloc} | ? myname == 'cardinals'",
 			[]*store.QueryResult{
 				&store.QueryResult{
 					0,
@@ -190,7 +209,7 @@ func TestSelection(t *testing.T) {
 		},
 	}
 	for _, test := range tests {
-		it := Eval(st.Snapshot(), rootPublicID, query.Query{test.query})
+		it := Eval(st.Snapshot(), rootPublicID, storage.ParsePath(test.suffix), query.Query{test.query})
 		i := 0
 		for it.Next() {
 			result := it.Get()
@@ -233,7 +252,7 @@ func TestError(t *testing.T) {
 		// TODO(kash): Selection with conflicting names.
 	}
 	for _, test := range tests {
-		it := Eval(st.Snapshot(), rootPublicID, query.Query{test.query})
+		it := Eval(st.Snapshot(), rootPublicID, storage.PathName{}, query.Query{test.query})
 		for it.Next() {
 		}
 		if it.Err() == nil {
@@ -317,7 +336,7 @@ func TestEvalAbort(t *testing.T) {
 	for _, test := range tests {
 		// Test calling Abort immediately vs waiting until the channels are full.
 		for i := 0; i < 2; i++ {
-			it := Eval(sn, rootPublicID, query.Query{test.query})
+			it := Eval(sn, rootPublicID, storage.PathName{}, query.Query{test.query})
 			if i == 0 {
 				// Give the evaluators time to fill up the channels.  Ensure that they
 				// don't block forever on a full channel.

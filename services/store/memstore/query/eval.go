@@ -3,7 +3,6 @@ package query
 import (
 	"fmt"
 	"math/big"
-	"path"
 	"reflect"
 	"runtime"
 	"sort"
@@ -11,8 +10,10 @@ import (
 	"sync"
 
 	"veyron/services/store/memstore/state"
+	"veyron/services/store/service"
 
 	"veyron2/idl"
+	"veyron2/naming"
 	"veyron2/query"
 	"veyron2/query/parse"
 	"veyron2/security"
@@ -24,39 +25,7 @@ import (
 // query evaluation.
 const maxChannelSize = 100
 
-// Iterator yields the results of the query.  Usage:
-//   it := query.Eval
-//   for it.Next() {
-//     result := it.Get()
-//     ...
-//     if enough_results {
-//       it.Abort()
-//     }
-//   }
-//   if err := it.Err(); err != nil {
-//     ...
-//   }
-// Iterator is thread-safe.
-type Iterator interface {
-	// Next advances the iterator.  It must be called before calling Get.
-	// Returns true if there is a value to be retrieved with Get.  Returns
-	// false when iteration is finished.
-	Next() bool
-
-	// Get retrieves a query result.  It is idempotent.
-	Get() *store.QueryResult
-
-	// Err returns the first error encountered during query evaluation.  It is
-	// idempotent.
-	Err() error
-
-	// Abort stops query evaluation early.  MThe client must call Abort unless
-	// iteration goes to completion (i.e. Next returns false).  It is
-	// idempotent and can be called from any thread.
-	Abort()
-}
-
-// evalIterator implements Iterator.
+// evalIterator implements service.QueryStream.
 type evalIterator struct {
 	// mu guards 'result', 'err', and the closing of 'abort'.
 	mu sync.Mutex
@@ -80,7 +49,7 @@ type evalIterator struct {
 	cleanup sync.WaitGroup
 }
 
-// Next implements the Iterator method.
+// Next implements the QueryStream method.
 func (it *evalIterator) Next() bool {
 	it.mu.Lock()
 	if it.err != nil {
@@ -105,14 +74,14 @@ func (it *evalIterator) Next() bool {
 	}
 }
 
-// Get implements the Iterator method.
+// Get implements the QueryStream method.
 func (it *evalIterator) Get() *store.QueryResult {
 	it.mu.Lock()
 	defer it.mu.Unlock()
 	return it.result
 }
 
-// Abort implements the Iterator method.
+// Abort implements the QueryStream method.
 func (it *evalIterator) Abort() {
 	it.mu.Lock()
 	defer it.mu.Unlock()
@@ -125,7 +94,7 @@ func (it *evalIterator) Abort() {
 	it.result = nil
 }
 
-// Err implements the Iterator method.
+// Err implements the QueryStream method.
 func (it *evalIterator) Err() error {
 	it.mu.Lock()
 	defer it.mu.Unlock()
@@ -163,11 +132,11 @@ func sendError(errc chan<- error, err error) {
 	}
 }
 
-// Eval evaluates a query and returns an Iterator for the results. If there is
-// an error parsing the query, it will show up as an error in the iterator.
-// Query evaluation is concurrent, so it is important to call Iterator.Abort
+// Eval evaluates a query and returns a QueryStream for the results. If there is
+// an error parsing the query, it will show up as an error in the QueryStream.
+// Query evaluation is concurrent, so it is important to call QueryStream.Abort
 // if the client does not consume all of the results.
-func Eval(sn state.Snapshot, clientID security.PublicID, q query.Query) Iterator {
+func Eval(sn state.Snapshot, clientID security.PublicID, name storage.PathName, q query.Query) service.QueryStream {
 	ast, err := parse.Parse(q)
 	if err != nil {
 		return &evalIterator{err: err}
@@ -192,6 +161,7 @@ func Eval(sn state.Snapshot, clientID security.PublicID, q query.Query) Iterator
 	it.cleanup.Add(1)
 	go evaluator.eval(&context{
 		sn:           sn,
+		suffix:       name.String(),
 		clientID:     clientID,
 		nestedResult: &monotonicInt{},
 		in:           in,
@@ -208,6 +178,8 @@ func Eval(sn state.Snapshot, clientID security.PublicID, q query.Query) Iterator
 type context struct {
 	// sn is the snapshot of the store's state to use to find query results.
 	sn state.Snapshot
+	// suffix is the suffix we're evaluating relative to.
+	suffix string
 	// clientID is the identity of the client that issued the query.
 	clientID security.PublicID
 	// nestedResult produces a unique nesting identifier to be used as
@@ -328,12 +300,13 @@ func (e *nameEvaluator) eval(c *context) {
 
 	for result := range c.in {
 		nestedResult := c.nestedResult.Next()
-		path := storage.ParsePath(path.Join(result.Name, e.wildcardName.VName))
+		basePath := naming.Join(c.suffix, result.Name)
+		path := storage.ParsePath(naming.Join(basePath, e.wildcardName.VName))
 		for it := c.sn.NewIterator(c.clientID, path, state.ImmediateFilter); it.IsValid(); it.Next() {
 			entry := it.Get()
 			result := &store.QueryResult{
 				NestedResult: store.NestedResult(nestedResult),
-				Name:         it.Name(),
+				Name:         naming.Join(e.wildcardName.VName, it.Name()),
 				Value:        entry.Value,
 			}
 			if !c.emit(result) {
@@ -362,6 +335,7 @@ func startSource(c *context, src evaluator) chan *store.QueryResult {
 	srcOut := make(chan *store.QueryResult, maxChannelSize)
 	srcContext := context{
 		sn:           c.sn,
+		suffix:       c.suffix,
 		clientID:     c.clientID,
 		nestedResult: c.nestedResult,
 		in:           c.in,
@@ -510,6 +484,7 @@ func (e *selectionEvaluator) processSubpipelines(c *context, result *store.Query
 		out := make(chan *store.QueryResult, maxChannelSize)
 		ctxt := &context{
 			sn:           c.sn,
+			suffix:       c.suffix,
 			clientID:     c.clientID,
 			nestedResult: c.nestedResult,
 			in:           in,
@@ -829,7 +804,7 @@ func (e *exprName) value(c *context, result *store.QueryResult) interface{} {
 		}
 		return val
 	}
-	fullpath := path.Join(result.Name, e.name)
+	fullpath := naming.Join(result.Name, e.name)
 	entry, err := c.sn.Get(c.clientID, storage.ParsePath(fullpath))
 	if err != nil {
 		sendError(c.errc, fmt.Errorf("could not look up name '%s' relative to '%s': %v", e.name, result.Name, err))

@@ -6,13 +6,11 @@ import (
 
 	"veyron/runtimes/google/lib/sync"
 
-	iquery "veyron/services/store/memstore/query"
 	"veyron/services/store/memstore/state"
 	"veyron/services/store/raw"
 	"veyron/services/store/service"
 
 	"veyron2/ipc"
-	"veyron2/query"
 	"veyron2/security"
 	"veyron2/storage"
 )
@@ -173,19 +171,6 @@ func (st *Store) PutMutations(ctx ipc.Context, stream raw.StoreServicePutMutatio
 		}
 	}
 	return tr.Commit()
-}
-
-// Glob returns an iterator that emits all values that match the given pattern.
-func (st *Store) Glob(clientID security.PublicID, tr storage.Transaction, pattern string) (service.GlobStream, error) {
-	sn, err := st.GetTransactionSnapshot(tr)
-	if err != nil {
-		return nil, err
-	}
-	return iquery.Glob(sn, clientID, storage.PathName{}, pattern)
-}
-
-func (st *Store) Search(t storage.Transaction, q query.Query) storage.Iterator {
-	panic("not implemented")
 }
 
 // SetConflictResolver specifies a function to perform conflict resolution.

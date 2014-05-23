@@ -5,6 +5,8 @@ import (
 	"testing"
 
 	"veyron/services/store/service"
+
+	"veyron2/query"
 )
 
 func newValue() interface{} {
@@ -198,6 +200,39 @@ func TestConcurrentOK(t *testing.T) {
 	}
 	if x, err := o2.Get(rootPublicID, tr3); err != nil || x.Stat.ID != s2.ID {
 		t.Errorf("Value should exist: %v, %s", x, err)
+	}
+}
+
+func TestQuery(t *testing.T) {
+	st, err := New(rootPublicID, "")
+	if err != nil {
+		t.Fatalf("New() failed: %v", err)
+	}
+	{
+		tr := NewTransaction()
+		mkdir(t, st, tr, "/")
+		mkdir(t, st, tr, "/Entries/a")
+		mkdir(t, st, tr, "/Entries/b")
+		commit(t, tr)
+	}
+
+	o1 := st.Bind("/Entries")
+	tr1 := &Transaction{}
+
+	stream, err := o1.Query(rootPublicID, tr1, query.Query{"*"})
+	results := map[string]bool{}
+	expected := []string{"", "a", "b"}
+	for stream.Next() {
+		results[stream.Get().Name] = true
+	}
+	if nresults, nexpected := len(results), len(expected); nresults != nexpected {
+		t.Errorf("Unexpected number of query results. Want %d, got %d. %v",
+			nexpected, nresults, results)
+	}
+	for _, expect := range expected {
+		if !results[expect] {
+			t.Errorf("Missing query result %s in %v.", expect, results)
+		}
 	}
 }
 
