@@ -4,6 +4,7 @@ import (
 	"flag"
 
 	"veyron/lib/signals"
+	"veyron/runtimes/google/lib/exec"
 	"veyron/services/mgmt/node/impl"
 	"veyron2/rt"
 	"veyron2/services/mgmt/application"
@@ -29,21 +30,30 @@ func main() {
 	dispatcher := impl.NewDispatcher(envelope, origin)
 	suffix := ""
 	if err := server.Register(suffix, dispatcher); err != nil {
-		vlog.Errorf("Register(%v, %v) failed: %v", suffix, dispatcher, err)
-		return
+		vlog.Fatalf("Register(%v, %v) failed: %v", suffix, dispatcher, err)
 	}
 	protocol, hostname := "tcp", "localhost:0"
 	endpoint, err := server.Listen(protocol, hostname)
 	if err != nil {
-		vlog.Errorf("Listen(%v, %v) failed: %v", protocol, hostname, err)
-		return
+		vlog.Fatalf("Listen(%v, %v) failed: %v", protocol, hostname, err)
 	}
 	vlog.VI(0).Infof("Listening on %v", endpoint)
 	if len(name) > 0 {
 		if err := server.Publish(name); err != nil {
-			vlog.Errorf("Publish(%v) failed: %v", name, err)
-			return
+			vlog.Fatalf("Publish(%v) failed: %v", name, err)
 		}
+	}
+	handle, err := exec.NewChildHandle()
+	switch err {
+	case nil:
+		// Node manager was started by self-update, notify the parent
+		// process that you are ready.
+		handle.SetReady()
+	case exec.ErrNoVersion:
+		// Node manager was not started by self-update, no action is
+		// needed.
+	default:
+		vlog.Fatalf("NewChildHandle() failed: %v", err)
 	}
 	// Wait until shutdown.
 	<-signals.ShutdownOnSignals()

@@ -12,11 +12,13 @@ import (
 	"runtime"
 	"strings"
 	"syscall"
+	"time"
 
 	vexec "veyron/runtimes/google/lib/exec"
 	ibuild "veyron/services/mgmt/build"
 	"veyron/services/mgmt/profile"
 	"veyron2/ipc"
+	"veyron2/rt"
 	"veyron2/services/mgmt/application"
 	"veyron2/services/mgmt/build"
 	"veyron2/services/mgmt/content"
@@ -361,6 +363,12 @@ func spawnNodeManager(envelope *application.Envelope) error {
 		vlog.Errorf("Start() failed: %v", err)
 		return errOperationFailed
 	}
+	if err := handle.WaitForReady(10 * time.Second); err != nil {
+		vlog.Errorf("WaitForReady() failed: %v", err)
+		cmd.Process.Kill()
+		return errOperationFailed
+	}
+	rt.R().Stop()
 	return nil
 }
 
