@@ -160,7 +160,7 @@ func TestApplicationClient(t *testing.T) {
 	stdout.Reset()
 
 	// Test the 'edit' command.
-	os.Setenv("EDITOR", "sed -i 's/arg1/arg111/'")
+	os.Setenv("EDITOR", "perl -pi -e 's/arg1/arg111/'")
 	if err := cmd.Execute([]string{"edit", appName, profile}); err != nil {
 		t.Fatalf("%v", err)
 	}
