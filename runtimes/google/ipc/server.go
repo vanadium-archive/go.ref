@@ -3,6 +3,7 @@ package ipc
 import (
 	"fmt"
 	"io"
+	"net"
 	"strings"
 	"sync"
 	"time"
@@ -477,6 +478,8 @@ func (fs *flowServer) CaveatDischarges() security.CaveatDischargeMap { return fs
 func (fs *flowServer) LocalID() security.PublicID                    { return fs.flow.LocalID() }
 func (fs *flowServer) RemoteID() security.PublicID                   { return fs.authorizedRemoteID }
 func (fs *flowServer) Deadline() time.Time                           { return fs.deadline }
+func (fs *flowServer) LocalAddr() net.Addr                           { return fs.flow.LocalAddr() }
+func (fs *flowServer) RemoteAddr() net.Addr                          { return fs.flow.RemoteAddr() }
 
 func (fs *flowServer) IsClosed() bool {
 	return fs.flow.IsClosed()

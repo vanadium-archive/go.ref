@@ -2,6 +2,7 @@ package memstore
 
 import (
 	"io"
+	"net"
 	"runtime"
 	"testing"
 	"time"
@@ -52,6 +53,14 @@ func (*cancellableContext) LocalID() security.PublicID {
 
 func (*cancellableContext) RemoteID() security.PublicID {
 	return rootPublicID
+}
+
+func (*cancellableContext) LocalAddr() net.Addr {
+	return nil
+}
+
+func (*cancellableContext) RemoteAddr() net.Addr {
+	return nil
 }
 
 func (*cancellableContext) Deadline() (t time.Time) {
