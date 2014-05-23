@@ -14,8 +14,8 @@ import (
 	"syscall"
 	"time"
 
+	vexec "veyron/lib/exec"
 	"veyron/lib/testutil/blackbox"
-	vexec "veyron/runtimes/google/lib/exec"
 	ibuild "veyron/services/mgmt/build"
 
 	"veyron/services/mgmt/profile"

@@ -3,8 +3,8 @@ package main
 import (
 	"flag"
 
+	"veyron/lib/exec"
 	"veyron/lib/signals"
-	"veyron/runtimes/google/lib/exec"
 	"veyron/services/mgmt/node/impl"
 	"veyron2/rt"
 	"veyron2/services/mgmt/application"
@@ -43,6 +43,9 @@ func main() {
 			vlog.Fatalf("Publish(%v) failed: %v", name, err)
 		}
 	}
+	// This should really move into the runtime so that every process
+	// benefits from it, in particular we should use it to securely
+	// pick security credentials from the parent.
 	handle, err := exec.NewChildHandle()
 	switch err {
 	case nil:

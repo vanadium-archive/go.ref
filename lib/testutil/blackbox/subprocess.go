@@ -15,7 +15,7 @@ import (
 	"testing"
 	"time"
 
-	vexec "veyron/runtimes/google/lib/exec"
+	vexec "veyron/lib/exec"
 	"veyron2/vlog"
 )
 

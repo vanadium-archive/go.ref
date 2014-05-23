@@ -8,10 +8,10 @@ import (
 	"strconv"
 	"testing"
 
+	"veyron/lib/exec"
 	"veyron/lib/signals"
 	"veyron/lib/testutil"
 	"veyron/lib/testutil/blackbox"
-	"veyron/runtimes/google/lib/exec"
 	"veyron/services/mgmt/node/impl"
 	mtlib "veyron/services/mounttable/lib"
 
