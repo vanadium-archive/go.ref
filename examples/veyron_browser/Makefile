@@ -11,6 +11,7 @@ VEYRON_IDENT= ../../../../bin/identity
 VEYRON_IDENTITYD= ../../../../bin/identityd
 VEYRON_STORE= ../../../../bin/stored
 VEYRON_MOUNTTABLE_PORT= 5167
+VEYRON_MOUNTTABLE_PORT2= 5168
 VEYRON_PROXY_PORT= 5164
 VEYRON_PROXY_ADDR= 127.0.0.1:$(VEYRON_PROXY_PORT)
 VEYRON_WSPR_PORT= 5165
@@ -40,14 +41,17 @@ daemons:
 
 	export VEYRON_IDENTITY=$(VEYRON_IDENTITY_PATH) ; \
 	$(VEYRON_IDENTITYD) --port=$(VEYRON_IDENTITY_PORT) & \
-	$(VEYRON_MOUNTTABLE) --address=:$(VEYRON_MOUNTTABLE_PORT) & \
-	export MOUNTTABLE_ROOT=/localhost:$(VEYRON_MOUNTTABLE_PORT)/mt ; \
+	$(VEYRON_MOUNTTABLE) --address=:$(VEYRON_MOUNTTABLE_PORT) --prefix= & \
+	export MOUNTTABLE_ROOT=/localhost:$(VEYRON_MOUNTTABLE_PORT) ; \
 	$(VEYRON_PROXY) -address=$(VEYRON_PROXY_ADDR) & \
 	$(VEYRON_WSPR) --v=3 -logtostderr=true -vproxy=$(VEYRON_PROXY_ADDR) --port $(VEYRON_WSPR_PORT) & \
+	$(VEYRON_MOUNTTABLE) --address=:$(VEYRON_MOUNTTABLE_PORT2) --name=global --prefix= & \
+	sleep 1 ; \
 	$(VEYRON_STORE) --address=:$(VEYRON_STORE_PORT) --name=global/$(USER)/store &
 
 killdaemons:
 	kill `lsof -t -i:$(VEYRON_MOUNTTABLE_PORT)`; \
+	kill `lsof -t -i:$(VEYRON_MOUNTTABLE_PORT2)`; \
 	kill `lsof -t -i:$(VEYRON_IDENTITY_PORT)`; \
 	kill `lsof -t -i:$(VEYRON_WSPR_PORT)`; \
 	kill `lsof -t -i:$(VEYRON_PROXY_PORT)`; \
