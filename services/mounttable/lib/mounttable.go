@@ -80,7 +80,7 @@ func parseACLs(path string) (map[string]security.Authorizer, error) {
 		return nil, err
 	}
 	result := make(map[string]security.Authorizer)
-	for name, acl := range(acls) {
+	for name, acl := range acls {
 		result[name] = security.NewACLAuthorizer(acl)
 	}
 	if result["/"] == nil {
@@ -193,7 +193,7 @@ func (ms *mountContext) Authorize(context security.Context) error {
 		return err
 	}
 	key := ""
-	for _, step := range(ms.cleanedElems) {
+	for _, step := range ms.cleanedElems {
 		key := key + "/" + step
 		if err := ms.mt.authorizeStep(key, context); err != nil {
 			return err

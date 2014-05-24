@@ -28,8 +28,8 @@ type stupidMT struct {
 }
 
 var (
-	rootID = veyron2.LocalID(security.FakePrivateID("root"))
-	bobID = veyron2.LocalID(security.FakePrivateID("bob"))
+	rootID  = veyron2.LocalID(security.FakePrivateID("root"))
+	bobID   = veyron2.LocalID(security.FakePrivateID("bob"))
 	aliceID = veyron2.LocalID(security.FakePrivateID("alice"))
 )
 
@@ -121,10 +121,10 @@ func doUnmount(t *testing.T, name, service string, shouldSucceed bool, id ipc.Cl
 		boom(t, "Failed to BindMountTable: %s", err)
 	}
 	if err := mtpt.Unmount(service); err != nil {
-		if (shouldSucceed) {
+		if shouldSucceed {
 			boom(t, "Failed to Unmount %s onto %s: %s", service, name, err)
 		}
-	} else if (!shouldSucceed) {
+	} else if !shouldSucceed {
 		boom(t, "doUnmount %s onto %s, expected failure but succeeded", service, name)
 	}
 }

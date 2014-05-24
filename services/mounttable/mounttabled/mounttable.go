@@ -18,8 +18,8 @@ import (
 var (
 	mountName = flag.String("name", "", "Name to mount this mountable as.  Empty means don't mount.")
 	// TODO(rthellend): Remove the address flag when the config manager is working.
-	address   = flag.String("address", ":0", "Address to listen on.  Default is to use a randomly assigned port")
-	prefix    = flag.String("prefix", "mt", "The prefix to register the server at.")
+	address = flag.String("address", ":0", "Address to listen on.  Default is to use a randomly assigned port")
+	prefix  = flag.String("prefix", "mt", "The prefix to register the server at.")
 	aclFile = flag.String("acls", "", "ACL file. Default is to allow all access.")
 )
 

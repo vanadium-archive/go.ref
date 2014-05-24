@@ -268,7 +268,7 @@ func (r mutexUnlockRequest) writeSet() resourceSet {
 // by this package.
 type rwMutexLockRequest struct {
 	defaultRequest
-	read bool
+	read    bool
 	rwMutex *sync.RWMutex
 }
 
@@ -330,7 +330,7 @@ func (r rwMutexLockRequest) writeSet() resourceSet {
 // provided by this package.
 type rwMutexUnlockRequest struct {
 	defaultRequest
-	read bool
+	read    bool
 	rwMutex *sync.RWMutex
 }
 

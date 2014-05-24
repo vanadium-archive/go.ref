@@ -166,7 +166,7 @@ func (i *jniInvoker) decodeResults(env *C.JNIEnv, method string, numArgs int, jR
 // resultsWithError dereferences the provided result pointers and appends the
 // given error to the returned array.
 func resultsWithError(resultptrs []interface{}, err error) []interface{} {
-	ret := make([]interface{}, len(resultptrs) + 1)
+	ret := make([]interface{}, len(resultptrs)+1)
 	for i, resultptr := range resultptrs {
 		ret[i] = derefOrDie(resultptr)
 	}
