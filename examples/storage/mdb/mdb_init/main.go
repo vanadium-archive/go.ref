@@ -22,9 +22,7 @@ import (
 	"time"
 
 	"veyron/examples/storage/mdb/schema"
-	"veyron2"
 	"veyron2/rt"
-	"veyron2/security"
 	"veyron2/storage"
 	"veyron2/storage/vstore"
 	"veyron2/storage/vstore/primitives"
@@ -170,13 +168,15 @@ func (st *state) putNamed(name, path string, v interface{}) {
 }
 
 // makeParentDirs creates the directories in a path if they do not already
-// exiast.
+// exist.
 func (st *state) makeParentDirs(path string) {
 	l := strings.Split(path, "/")
 	for i, _ := range l {
 		prefix := filepath.Join(l[:i]...)
 		o := st.store.Bind(prefix)
-		if _, err := o.Get(st.transaction); err != nil {
+		if exist, err := o.Exists(st.transaction); err != nil {
+			vlog.Infof("Error checking existence at %q: %s", prefix, err)
+		} else if !exist {
 			if _, err := o.Put(st.transaction, &schema.Dir{}); err != nil {
 				vlog.Infof("Error creating parent %q: %s", prefix, err)
 			}
@@ -371,7 +371,7 @@ func main() {
 	// matches with that used for server.ServerConfig.Admin in
 	// mdb_stored/main.go.  An alternative would be to relax the ACLs on
 	// the store.
-	rt.Init(veyron2.LocalID(security.FakePrivateID("anonymous")))
+	rt.Init()
 
 	vlog.Infof("Binding to store on %s", storeName)
 	st, err := vstore.New(storeName)
