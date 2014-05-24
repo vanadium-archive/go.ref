@@ -3,6 +3,7 @@ package server
 
 import (
 	"errors"
+	"reflect"
 	"sync"
 	"time"
 
@@ -34,6 +35,8 @@ var (
 
 	errTransactionAlreadyExists = errors.New("transaction already exists")
 	errTransactionDoesNotExist  = errors.New("transaction does not exist")
+	// Transaction exists, but may not be used by the caller.
+	errPermissionDenied = errors.New("permission denied")
 )
 
 // Server stores the dictionary of all media items.  It has a scanner.Scanner
@@ -57,9 +60,23 @@ type Server struct {
 	watcher service.Watcher
 }
 
+// transactionContext defines the context in which a transaction is used. A
+// transaction may be used only in the context that created it.
+// transactionContext weakly identifies a session by the local and remote
+// principals involved in the RPC.
+// TODO(tilaks): Use the local and remote addresses to identify the session.
+// Does a session with a mobile device break if the remote address changes?
+type transactionContext interface {
+	// LocalID returns the PublicID of the principal at the local end of the request.
+	LocalID() security.PublicID
+	// RemoteID returns the PublicID of the principal at the remote end of the request.
+	RemoteID() security.PublicID
+}
+
 type transaction struct {
-	trans   service.Transaction
-	expires time.Time
+	trans      service.Transaction
+	expires    time.Time
+	creatorCtx transactionContext
 }
 
 // ServerConfig provides the parameters needed to construct a Server.
@@ -111,21 +128,47 @@ func (s *Server) Attributes(arg string) map[string]string {
 }
 
 // findTransaction returns the transaction for the TransactionID.
-func (s *Server) findTransaction(id store.TransactionID) (service.Transaction, bool) {
+func (s *Server) findTransaction(ctx transactionContext, id store.TransactionID) (service.Transaction, error) {
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()
-	return s.findTransactionLocked(id)
+	return s.findTransactionLocked(ctx, id)
 }
 
-func (s *Server) findTransactionLocked(id store.TransactionID) (service.Transaction, bool) {
+func (s *Server) findTransactionLocked(ctx transactionContext, id store.TransactionID) (service.Transaction, error) {
 	if id == nullTransactionID {
-		return nil, true
+		return nil, nil
 	}
 	info, ok := s.transactions[id]
 	if !ok {
-		return nil, false
+		return nil, errTransactionDoesNotExist
 	}
-	return info.trans, true
+	// A transaction may be used only by the session (and therefore client)
+	// that created it.
+	if !info.matchesContext(ctx) {
+		return nil, errPermissionDenied
+	}
+	return info.trans, nil
+}
+
+func (t *transaction) matchesContext(ctx transactionContext) bool {
+	creatorCtx := t.creatorCtx
+	return membersEqual(creatorCtx.LocalID().Names(), ctx.LocalID().Names()) &&
+		membersEqual(creatorCtx.RemoteID().Names(), ctx.RemoteID().Names())
+}
+
+// membersEquals checks whether two slices of strings have the same set of
+// members, regardless of order.
+func membersEqual(slice1, slice2 []string) bool {
+	set1 := make(map[string]bool, len(slice1))
+	for _, s := range slice1 {
+		set1[s] = true
+	}
+	set2 := make(map[string]bool, len(slice2))
+	for _, s := range slice2 {
+		set2[s] = true
+	}
+	// DeepEqual tests keys for == equality, which is sufficient for strings.
+	return reflect.DeepEqual(set1, set2)
 }
 
 // gcLoop drops transactions that have expired.
@@ -151,7 +194,7 @@ func (s *Server) gcLoop() {
 }
 
 // CreateTransaction creates a transaction.
-func (s *Server) CreateTransaction(_ ipc.ServerContext, id store.TransactionID, opts []vdl.Any) error {
+func (s *Server) CreateTransaction(ctx ipc.ServerContext, id store.TransactionID, opts []vdl.Any) error {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 
@@ -160,8 +203,9 @@ func (s *Server) CreateTransaction(_ ipc.ServerContext, id store.TransactionID, 
 		return errTransactionAlreadyExists
 	}
 	info = &transaction{
-		trans:   memstore.NewTransaction(),
-		expires: time.Now().Add(transactionMaxLifetime),
+		trans:      memstore.NewTransaction(),
+		expires:    time.Now().Add(transactionMaxLifetime),
+		creatorCtx: ctx,
 	}
 	s.transactions[id] = info
 	return nil
@@ -170,31 +214,37 @@ func (s *Server) CreateTransaction(_ ipc.ServerContext, id store.TransactionID, 
 // Commit commits the changes in the transaction to the store.  The
 // operation is atomic, so all mutations are performed, or none.  Returns an
 // error if the transaction aborted.
-func (s *Server) Commit(_ ipc.ServerContext, id store.TransactionID) error {
+func (s *Server) Commit(ctx ipc.ServerContext, id store.TransactionID) error {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 
-	t, ok := s.findTransactionLocked(id)
-	if !ok {
+	t, err := s.findTransactionLocked(ctx, id)
+	if err != nil {
+		return err
+	}
+	if t == nil {
 		return errTransactionDoesNotExist
 	}
-	err := t.Commit()
+	err = t.Commit()
 	delete(s.transactions, id)
 	return err
 }
 
 // Abort discards a transaction.
-func (s *Server) Abort(_ ipc.ServerContext, id store.TransactionID) error {
+func (s *Server) Abort(ctx ipc.ServerContext, id store.TransactionID) error {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 
-	t, ok := s.transactions[id]
-	if !ok {
+	t, err := s.findTransactionLocked(ctx, id)
+	if err != nil {
+		return err
+	}
+	if t == nil {
 		return errTransactionDoesNotExist
 	}
-	t.trans.Abort()
+	err = t.Abort()
 	delete(s.transactions, id)
-	return nil
+	return err
 }
 
 // Watch returns a stream of changes.
