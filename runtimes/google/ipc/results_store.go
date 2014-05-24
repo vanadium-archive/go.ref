@@ -51,6 +51,9 @@ type resultsStore struct {
 	store map[uint64]results
 	chans map[uint64]chan struct{}
 	keys  intHeap
+	// TODO(cnicolaou): Should addEntry/waitForEntry return an error when
+	// the calls do not match the frontier?
+	frontier uint64 // results with index less than this have been removed.
 }
 
 func newStore() *resultsStore {
@@ -64,7 +67,7 @@ func newStore() *resultsStore {
 
 func (rs *resultsStore) addEntry(key uint64, data results) {
 	rs.Lock()
-	if _, present := rs.store[key]; !present {
+	if _, present := rs.store[key]; !present && rs.frontier <= key {
 		rs.store[key] = data
 		heap.Push(&rs.keys, key)
 	}
@@ -77,6 +80,11 @@ func (rs *resultsStore) addEntry(key uint64, data results) {
 
 func (rs *resultsStore) removeEntriesTo(to uint64) {
 	rs.Lock()
+	if rs.frontier > to {
+		rs.Unlock()
+		return
+	}
+	rs.frontier = to + 1
 	for rs.keys.Len() > 0 && to >= rs.keys[0] {
 		k := heap.Pop(&rs.keys).(uint64)
 		delete(rs.store, k)
@@ -94,6 +102,10 @@ func (rs *resultsStore) waitForEntry(key uint64) results {
 		rs.Unlock()
 		return r
 	}
+	if key < rs.frontier {
+		rs.Unlock()
+		return nil
+	}
 	// entry is not present, need to wait for it.
 	ch, present := rs.chans[key]
 	if !present {
@@ -104,7 +116,7 @@ func (rs *resultsStore) waitForEntry(key uint64) results {
 	rs.Unlock()
 	<-ch
 	rs.Lock()
-	delete(rs.chans, key) // Allow the channel to be GC'ed.
 	defer rs.Unlock()
-	return rs.store[key] // This may be nil if the entry has been removed
+	delete(rs.chans, key) // Allow the channel to be GC'ed.
+	return rs.store[key]  // This may be nil if the entry has been removed
 }

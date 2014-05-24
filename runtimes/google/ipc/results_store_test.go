@@ -109,7 +109,6 @@ func TestStoreWaitForEntryRandom(t *testing.T) {
 	wg.Wait()
 }
 
-// Test removing an entry that's being waited for.
 func TestStoreWaitForRemovedEntry(t *testing.T) {
 	store := newStore()
 	keys := randomKeys()
@@ -117,9 +116,8 @@ func TestStoreWaitForRemovedEntry(t *testing.T) {
 	for _, k := range keys {
 		wg.Add(1)
 		go func(t *testing.T, id uint64) {
-			r := store.waitForEntry(id)
-			if r != nil {
-				t.Errorf("Got: %d, Want: nil", r[0].(uint64))
+			if r := store.waitForEntry(id); r != nil {
+				t.Errorf("Got %v, want nil", r)
 			}
 			wg.Done()
 		}(t, k)
@@ -129,4 +127,13 @@ func TestStoreWaitForRemovedEntry(t *testing.T) {
 		store.removeEntriesTo(k)
 	}
 	wg.Wait()
+}
+
+func TestStoreWaitForOldEntry(t *testing.T) {
+	store := newStore()
+	store.addEntry(1, []interface{}{"result"})
+	store.removeEntriesTo(1)
+	if got := store.waitForEntry(1); got != nil {
+		t.Errorf("Got %T=%v, want nil", got, got)
+	}
 }
