@@ -310,14 +310,22 @@ func (fc *flowClient) Finish(resultptrs ...interface{}) error {
 
 // finish ensures Finish always returns verror.E.
 func (fc *flowClient) finish(resultptrs ...interface{}) verror.E {
-	// Inform the server that no more items will be sent, unless
-	// a) CloseSend has already done so.
-	// b) The flow was previously closed (e.g. due to an encoding error).
-	if !fc.sendClosed && !fc.flow.IsClosed() {
-		if err := fc.closeSend(); err != nil {
-			return err
-		}
-	}
+	// Call closeSend implicitly, if the user hasn't already called it.  There are
+	// three cases:
+	// 1) Server is blocked on Recv waiting for the final request message.
+	// 2) Server has already finished processing, the final response message and
+	//    out args are queued up on the client, and the flow is closed.
+	// 3) Between 1 and 2: the server isn't blocked on Recv, but the final
+	//    response and args aren't queued up yet, and the flow isn't closed.
+	//
+	// We must call closeSend to handle case (1) and unblock the server; otherwise
+	// we'll deadlock with both client and server waiting for each other.  We must
+	// ignore the error (if any) to handle case (2).  In that case the flow is
+	// closed, meaning writes will fail and reads will succeed, and closeSend will
+	// always return an error.  But this isn't a "real" error; the client should
+	// read the rest of the results and succeed.
+	_ = fc.closeSend()
+
 	// Decode the response header, if it hasn't already been decoded by Recv.
 	if fc.response.Error == nil && !fc.response.EndStreamResults {
 		if err := fc.dec.Decode(&fc.response); err != nil {
