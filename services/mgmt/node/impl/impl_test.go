@@ -8,7 +8,6 @@ import (
 	"strconv"
 	"testing"
 
-	"veyron/lib/exec"
 	"veyron/lib/signals"
 	"veyron/lib/testutil"
 	"veyron/lib/testutil/blackbox"
@@ -218,14 +217,6 @@ func startNodeManager(runtime veyron2.Runtime, origin string) (string, func()) {
 	name := "nm"
 	if err := server.Publish(name); err != nil {
 		vlog.Fatalf("Publish(%v) failed: %v", name, err)
-	}
-	handle, err := exec.NewChildHandle()
-	switch err {
-	case nil:
-		handle.SetReady()
-	case exec.ErrNoVersion:
-	default:
-		vlog.Fatalf("NewChildHandle() failed: %v", err)
 	}
 	fmt.Printf("%d\n", os.Getpid())
 	return address, func() {
