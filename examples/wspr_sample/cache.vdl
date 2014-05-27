@@ -3,11 +3,11 @@ package sample
 // A Cache service mimics the memcache interface.
 type Cache interface {
     // Set sets a value for a key.
-    Set(key string, value anydata) error
+    Set(key string, value any) error
 
     // Get returns the value for a key.  If the value is not found, returns
     // a not found error.
-    Get(key string) (anydata, error)
+    Get(key string) (any, error)
 
     // Same as Get, but casts the return argument to an byte.
     GetAsByte(key string) (byte, error)
@@ -31,7 +31,7 @@ type Cache interface {
     GetAsError(key string) (error, error)
 
     // AsMap returns the full contents of the cache as a map.
-    AsMap() (map[string]anydata, error)
+    AsMap() (map[string]any, error)
 
     // KeyValuePairs returns the full contents of the cache as a slice of pairs.
     KeyValuePairs() ([]KeyValuePair, error)
@@ -49,11 +49,11 @@ type Cache interface {
     Size() (int64, error)
 
     // MultiGet sets up a stream that allows fetching multiple keys.
-    MultiGet() stream<string, anydata> error
+    MultiGet() stream<string, any> error
 }
 
 // KeyValuePair is a representation of a cached key and value pair.
 type KeyValuePair struct {
     Key string
-    Value anydata
+    Value any
 }

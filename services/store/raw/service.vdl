@@ -35,7 +35,7 @@ type Mutation struct {
   IsRoot bool
 
   // Value is value stored at this entry.
-  Value anydata
+  Value any
 
   // Tags specify permissions on this entry.
   Tags storage.TagList

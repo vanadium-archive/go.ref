@@ -11,12 +11,12 @@ import (
 	"veyron/services/store/raw"
 	"veyron/services/store/service"
 
-	"veyron2/idl"
 	"veyron2/ipc"
 	"veyron2/security"
 	"veyron2/services/store"
 	"veyron2/services/watch"
 	"veyron2/storage"
+	"veyron2/vdl"
 )
 
 const (
@@ -152,7 +152,7 @@ func (s *Server) gcLoop() {
 }
 
 // CreateTransaction creates a transaction.
-func (s *Server) CreateTransaction(_ ipc.Context, id store.TransactionID, opts []idl.AnyData) error {
+func (s *Server) CreateTransaction(_ ipc.Context, id store.TransactionID, opts []vdl.Any) error {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 

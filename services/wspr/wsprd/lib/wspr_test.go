@@ -6,10 +6,10 @@ import (
 	"reflect"
 	"testing"
 	"veyron2"
-	"veyron2/idl"
 	"veyron2/ipc"
 	"veyron2/naming"
 	"veyron2/rt"
+	"veyron2/vdl"
 	"veyron2/verror"
 	"veyron2/vlog"
 	"veyron2/wiretype"
@@ -80,7 +80,7 @@ func (s simpleAdder) Signature(call ipc.ServerCall) (ipc.ServiceSignature, error
 		InStream:  36,
 		OutStream: 36,
 	}
-	result.TypeDefs = []idl.AnyData{
+	result.TypeDefs = []vdl.Any{
 		wiretype.NamedPrimitiveType{Type: 0x1, Name: "error", Tags: []string(nil)}}
 
 	return result, nil

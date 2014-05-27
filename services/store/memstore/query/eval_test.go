@@ -5,8 +5,8 @@ import (
 	"reflect"
 	"testing"
 	"time"
-	"veyron2/idl"
 	"veyron2/services/store"
+	"veyron2/vdl"
 
 	"veyron/services/store/memstore/state"
 
@@ -160,25 +160,25 @@ func TestSelection(t *testing.T) {
 		{
 			"", "'teams/cardinals' | {Name}",
 			[]*store.QueryResult{
-				&store.QueryResult{0, "teams/cardinals", map[string]idl.AnyData{"Name": "cardinals"}, nil},
+				&store.QueryResult{0, "teams/cardinals", map[string]vdl.Any{"Name": "cardinals"}, nil},
 			},
 		},
 		{
 			"teams", "'cardinals' | {Name}",
 			[]*store.QueryResult{
-				&store.QueryResult{0, "cardinals", map[string]idl.AnyData{"Name": "cardinals"}, nil},
+				&store.QueryResult{0, "cardinals", map[string]vdl.Any{"Name": "cardinals"}, nil},
 			},
 		},
 		{
 			"teams/cardinals", ". | {Name}",
 			[]*store.QueryResult{
-				&store.QueryResult{0, "", map[string]idl.AnyData{"Name": "cardinals"}, nil},
+				&store.QueryResult{0, "", map[string]vdl.Any{"Name": "cardinals"}, nil},
 			},
 		},
 		{
 			"", "'teams/cardinals' | {Name as Name}",
 			[]*store.QueryResult{
-				&store.QueryResult{0, "teams/cardinals", map[string]idl.AnyData{"Name": "cardinals"}, nil},
+				&store.QueryResult{0, "teams/cardinals", map[string]vdl.Any{"Name": "cardinals"}, nil},
 			},
 		},
 		{
@@ -187,7 +187,7 @@ func TestSelection(t *testing.T) {
 				&store.QueryResult{
 					0,
 					"teams/cardinals",
-					map[string]idl.AnyData{
+					map[string]vdl.Any{
 						"myname": "cardinals",
 						"myloc":  "CA",
 					},
@@ -200,7 +200,7 @@ func TestSelection(t *testing.T) {
 				&store.QueryResult{
 					0,
 					"teams/cardinals",
-					map[string]idl.AnyData{
+					map[string]vdl.Any{
 						"myname": "cardinals",
 						"myloc":  "CA",
 					},

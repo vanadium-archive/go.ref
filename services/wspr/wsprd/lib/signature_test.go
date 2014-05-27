@@ -4,8 +4,8 @@ import (
 	"reflect"
 	"testing"
 
-	"veyron2/idl"
 	"veyron2/ipc"
+	"veyron2/vdl"
 	"veyron2/wiretype"
 )
 
@@ -44,7 +44,7 @@ func TestNewJSONServiceSignature(t *testing.T) {
 				OutStream: wiretype.TypeIDString,
 			},
 		},
-		TypeDefs: []idl.AnyData{
+		TypeDefs: []vdl.Any{
 			anydataType,
 			errType,
 		},
@@ -105,7 +105,7 @@ func TestServiceSignature(t *testing.T) {
 				OutStream: anydataTypeID,
 			},
 		},
-		TypeDefs: []idl.AnyData{
+		TypeDefs: []vdl.Any{
 			anydataType,
 			errType,
 		},

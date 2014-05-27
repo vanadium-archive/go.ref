@@ -5,12 +5,12 @@ import (
 
 	"veyron/services/store/service"
 
-	"veyron2/idl"
 	"veyron2/ipc"
 	"veyron2/query"
 	"veyron2/services/mounttable"
 	"veyron2/services/store"
 	"veyron2/storage"
+	"veyron2/vdl"
 )
 
 type object struct {
@@ -64,7 +64,7 @@ func (o *object) Attributes(arg string) map[string]string {
 	}
 }
 
-func attrsFromAnyData(attrs []idl.AnyData) ([]storage.Attr, error) {
+func attrsFromAnyData(attrs []vdl.Any) ([]storage.Attr, error) {
 	typedAttrs := make([]storage.Attr, len(attrs))
 	for i, x := range attrs {
 		a, ok := x.(storage.Attr)
@@ -76,8 +76,8 @@ func attrsFromAnyData(attrs []idl.AnyData) ([]storage.Attr, error) {
 	return typedAttrs, nil
 }
 
-func attrsToAnyData(attrs []storage.Attr) []idl.AnyData {
-	uattrs := make([]idl.AnyData, len(attrs))
+func attrsToAnyData(attrs []storage.Attr) []vdl.Any {
+	uattrs := make([]vdl.Any, len(attrs))
 	for i, x := range attrs {
 		uattrs[i] = x
 	}
@@ -109,7 +109,7 @@ func (o *object) Get(ctx ipc.Context, tid store.TransactionID) (store.Entry, err
 }
 
 // Put modifies the value of the Object.
-func (o *object) Put(ctx ipc.Context, tid store.TransactionID, val idl.AnyData) (store.Stat, error) {
+func (o *object) Put(ctx ipc.Context, tid store.TransactionID, val vdl.Any) (store.Stat, error) {
 	t, ok := o.server.findTransaction(tid)
 	if !ok {
 		return nullStat, errTransactionDoesNotExist
@@ -133,7 +133,7 @@ func (o *object) Remove(ctx ipc.Context, tid store.TransactionID) error {
 // SetAttr changes the attributes of the entry, such as permissions and
 // replication groups.  Attributes are associated with the value, not the
 // path.
-func (o *object) SetAttr(ctx ipc.Context, tid store.TransactionID, attrs []idl.AnyData) error {
+func (o *object) SetAttr(ctx ipc.Context, tid store.TransactionID, attrs []vdl.Any) error {
 	t, ok := o.server.findTransaction(tid)
 	if !ok {
 		return errTransactionDoesNotExist

@@ -34,7 +34,7 @@ type Specification struct {
   // Format is the file format of the application binary.
   Format Format
   // Libraries is a set of libraries the application binary depends on.
-  Libraries map[Library]struct{}
+  Libraries set[Library]
   // A human-friendly concise label for the profile, e.g. "linux-media"
   Label string
   // A human-friendly description of the profile.

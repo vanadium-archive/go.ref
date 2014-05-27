@@ -12,13 +12,13 @@ import (
 	"veyron/services/store/memstore/state"
 	"veyron/services/store/service"
 
-	"veyron2/idl"
 	"veyron2/naming"
 	"veyron2/query"
 	"veyron2/query/parse"
 	"veyron2/security"
 	"veyron2/services/store"
 	"veyron2/storage"
+	"veyron2/vdl"
 )
 
 // maxChannelSize is the maximum size of the channels used for concurrent
@@ -473,7 +473,7 @@ func (e *selectionEvaluator) eval(c *context) {
 func (e *selectionEvaluator) processSubpipelines(c *context, result *store.QueryResult) bool {
 	sel := &store.QueryResult{
 		Name:   result.Name,
-		Fields: make(map[string]idl.AnyData),
+		Fields: make(map[string]vdl.Any),
 	}
 	for _, a := range e.subpipelines {
 		// We create a new channel for each intermediate result, so there's no need to
@@ -813,7 +813,7 @@ func (e *exprName) value(c *context, result *store.QueryResult) interface{} {
 	return entry.Value
 }
 
-func mapKeys(m map[string]idl.AnyData) string {
+func mapKeys(m map[string]vdl.Any) string {
 	s := make([]string, 0, len(m))
 	for key, _ := range m {
 		s = append(s, key)

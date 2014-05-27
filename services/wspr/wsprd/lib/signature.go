@@ -3,8 +3,8 @@ package lib
 import (
 	"fmt"
 
-	"veyron2/idl"
 	"veyron2/ipc"
+	"veyron2/vdl"
 	"veyron2/wiretype"
 )
 
@@ -15,7 +15,7 @@ const (
 
 var (
 	anydataType = wiretype.NamedPrimitiveType{
-		Name: "veyron2/idl.AnyData",
+		Name: "veyron2/vdl.AnyData",
 		Type: wiretype.TypeIDInterface,
 	}
 	errType = wiretype.NamedPrimitiveType{
@@ -93,7 +93,7 @@ func (jss JSONServiceSignature) ServiceSignature() (ipc.ServiceSignature, error)
 		ss.Methods[uppercaseFirstCharacter(name)] = ms
 	}
 
-	ss.TypeDefs = []idl.AnyData{anydataType, errType}
+	ss.TypeDefs = []vdl.Any{anydataType, errType}
 
 	return ss, nil
 }

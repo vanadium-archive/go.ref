@@ -9,9 +9,9 @@ import (
 	idl_test_base "veyron/tools/vrpc/test_base"
 
 	"veyron2"
-	"veyron2/idl"
 	"veyron2/ipc"
 	"veyron2/rt"
+	"veyron2/vdl"
 	"veyron2/vom"
 	"veyron2/wiretype"
 
@@ -221,8 +221,8 @@ func getSignature(cmd *cmdline.Command, server string, client ipc.Client) (ipc.S
 }
 
 // formatWiretype generates a string representation of the specified type.
-func formatWiretype(td []idl.AnyData, tid wiretype.TypeID) string {
-	var wt idl.AnyData
+func formatWiretype(td []vdl.Any, tid wiretype.TypeID) string {
+	var wt vdl.Any
 	if tid >= wiretype.TypeIDFirst {
 		wt = td[tid-wiretype.TypeIDFirst]
 	} else {
@@ -266,7 +266,7 @@ func formatWiretype(td []idl.AnyData, tid wiretype.TypeID) string {
 	}
 }
 
-func formatSignature(name string, ms ipc.MethodSignature, defs []idl.AnyData) string {
+func formatSignature(name string, ms ipc.MethodSignature, defs []vdl.Any) string {
 	var buf bytes.Buffer
 	fmt.Fprintf(&buf, "func %s(", name)
 	for index, arg := range ms.InArgs {
