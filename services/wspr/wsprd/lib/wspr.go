@@ -452,6 +452,10 @@ type websocketPipe struct {
 
 	// Endpoint for the server.
 	endpoint naming.Endpoint
+
+	// Creates a client writer for a given flow.  This is a member so that tests can override
+	// the default implementation.
+	writerCreator func(id int64) clientWriter
 }
 
 // cleans up any outstanding rpcs.
@@ -488,6 +492,12 @@ func (wsp *websocketPipe) setup() {
 	wsp.signatureManager = newSignatureManager()
 	wsp.outstandingServerRequests = make(map[int64]chan serverRPCReply)
 	wsp.outstandingStreams = make(map[int64]sender)
+
+	if wsp.writerCreator == nil {
+		wsp.writerCreator = func(id int64) clientWriter {
+			return &websocketWriter{ws: wsp.ws, id: id, logger: wsp.ctx.logger}
+		}
+	}
 }
 
 func (wsp *websocketPipe) start(w http.ResponseWriter, req *http.Request) {
@@ -548,21 +558,27 @@ func (wsp *websocketPipe) pongHandler(msg string) error {
 	return nil
 }
 
-// sendOnStream writes data on id's stream.  Returns an error if the send failed.
-func (wsp *websocketPipe) sendOnStream(id int64, data string, w clientWriter) {
+func (wsp *websocketPipe) sendParsedMessageOnStream(id int64, msg interface{}, w clientWriter) {
 	wsp.Lock()
 	defer wsp.Unlock()
 	stream := wsp.outstandingStreams[id]
 	if stream == nil {
 		w.sendError(fmt.Errorf("unknown stream"))
 	}
+
+	stream.Send(msg, w)
+
+}
+
+// sendOnStream writes data on id's stream.  Returns an error if the send failed.
+func (wsp *websocketPipe) sendOnStream(id int64, data string, w clientWriter) {
 	decoder := json.NewDecoder(bytes.NewBufferString(data))
 	var payload interface{}
 	if err := decoder.Decode(&payload); err != nil {
 		w.sendError(fmt.Errorf("can't unmarshal JSONMessage: %v", err))
 		return
 	}
-	stream.Send(payload, w)
+	wsp.sendParsedMessageOnStream(id, payload, w)
 }
 
 func (wsp *websocketPipe) sendVeyronRequest(id int64, veyronMsg *veyronRPC, w clientWriter, signal chan ipc.Stream) {
@@ -788,7 +804,7 @@ func (wsp *websocketPipe) handlePublishRequest(data string, w *websocketWriter) 
 // communicate the result back via a channel to the caller
 type remoteInvokeFunc func(methodName string, args []interface{}, call ipc.ServerCall) <-chan serverRPCReply
 
-func (wsp *websocketPipe) proxyStream(stream ipc.Stream, w *websocketWriter) {
+func (wsp *websocketPipe) proxyStream(stream ipc.Stream, w clientWriter, id int64) {
 	var item interface{}
 	for err := stream.Recv(&item); err == nil; err = stream.Recv(&item) {
 		data := response{Type: responseStream, Message: item}
@@ -797,14 +813,14 @@ func (wsp *websocketPipe) proxyStream(stream ipc.Stream, w *websocketWriter) {
 			return
 		}
 		if err := w.FinishMessage(); err != nil {
-			w.logger.VI(2).Info("WSPR: error finishing message", err)
+			w.getLogger().VI(2).Info("WSPR: error finishing message", err)
 			return
 		}
 	}
 	wsp.Lock()
 	defer wsp.Unlock()
-	if _, ok := wsp.outstandingStreams[w.id]; !ok {
-		wsp.ctx.logger.VI(2).Infof("Dropping close for flow: %d", w.id)
+	if _, ok := wsp.outstandingStreams[id]; !ok {
+		wsp.ctx.logger.VI(2).Infof("Dropping close for flow: %d", id)
 		return
 	}
 
@@ -813,7 +829,7 @@ func (wsp *websocketPipe) proxyStream(stream ipc.Stream, w *websocketWriter) {
 		return
 	}
 	if err := w.FinishMessage(); err != nil {
-		w.logger.VI(2).Info("WSPR: error finishing message", err)
+		w.getLogger().VI(2).Info("WSPR: error finishing message", err)
 		return
 	}
 }
@@ -834,7 +850,7 @@ func (wsp *websocketPipe) createRemoteInvokerFunc(serverId uint64, serviceName s
 		wsp.lastGeneratedId += 2 // Sever generated IDs are even numbers
 		wsp.Unlock()
 
-		ww := &websocketWriter{ws: wsp.ws, id: messageId, logger: wsp.ctx.logger}
+		ww := wsp.writerCreator(messageId)
 
 		//TODO(aghassemi) Add security related stuff (Caveats, Label, LocalID, RemoteID) to context as part of security work
 		//TODO(aghassemi) Deadline and Canceled, we need to find a way to do that for JS since
@@ -874,7 +890,7 @@ func (wsp *websocketPipe) createRemoteInvokerFunc(serverId uint64, serviceName s
 			"JavaScript server %q with args %v, MessageId %d was assigned.",
 			methodName, serviceName, args, messageId)
 
-		go wsp.proxyStream(call, ww)
+		go wsp.proxyStream(call, ww, messageId)
 		return replyChan
 	}
 }
@@ -885,7 +901,7 @@ func (wsp *websocketPipe) handleServerResponse(id int64, data string) {
 	// Find the corresponding Go channel waiting on the result
 	serverResponseChan := wsp.outstandingServerRequests[int64(id)]
 	if serverResponseChan == nil {
-		wsp.ctx.logger.VI(1).Infof("unexpected result from JavaScript. No channel "+
+		wsp.ctx.logger.VI(0).Infof("unexpected result from JavaScript. No channel "+
 			"for MessageId: %d exists. Ignoring the results.", id)
 		//Ignore unknown responses that don't belong to any channel
 		return
