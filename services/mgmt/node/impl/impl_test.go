@@ -6,6 +6,7 @@ import (
 	"io"
 	"os"
 	"strconv"
+	"strings"
 	"testing"
 
 	"veyron/lib/signals"
@@ -116,9 +117,21 @@ func nodeManager(argv []string) {
 	blackbox.WaitForEOFOnStdin()
 }
 
+func setEnv(env []string, name, value string) []string {
+	newValue := name + "=" + value
+	for i, v := range env {
+		if strings.HasPrefix(v, name+"=") {
+			env[i] = newValue
+			return env
+		}
+	}
+	return append(env, newValue)
+}
+
 func spawnNodeManager(t *testing.T, arAddress, mtAddress string, idFile string) *blackbox.Child {
 	child := blackbox.HelperCommand(t, "nodeManager", arAddress)
-	child.Cmd.Env = append(child.Cmd.Env, fmt.Sprintf("MOUNTTABLE_ROOT=%v", mtAddress), fmt.Sprintf("VEYRON_IDENTITY=%v", idFile))
+	child.Cmd.Env = setEnv(child.Cmd.Env, "MOUNTTABLE_ROOT", mtAddress)
+	child.Cmd.Env = setEnv(child.Cmd.Env, "VEYRON_IDENTITY", idFile)
 	if err := child.Cmd.Start(); err != nil {
 		t.Fatalf("Start() failed: %v", err)
 	}
@@ -208,7 +221,7 @@ func startNodeManager(runtime veyron2.Runtime, origin string) (string, func()) {
 	if err != nil {
 		vlog.Fatalf("Listen(%v, %v) failed: %v", protocol, hostname, err)
 	}
-	suffix, dispatcher := "", impl.NewDispatcher(&application.Envelope{}, origin)
+	suffix, dispatcher := "", impl.NewDispatcher(&application.Envelope{}, origin, nil)
 	if err := server.Register(suffix, dispatcher); err != nil {
 		vlog.Fatalf("Register(%v, %v) failed: %v", suffix, dispatcher, err)
 	}

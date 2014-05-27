@@ -11,13 +11,15 @@ import (
 type dispatcher struct {
 	envelope *application.Envelope
 	origin   string
+	auth     security.Authorizer
 }
 
 // NewDispatcher is the dispatcher factory.
-func NewDispatcher(envelope *application.Envelope, origin string) *dispatcher {
+func NewDispatcher(envelope *application.Envelope, origin string, auth security.Authorizer) *dispatcher {
 	return &dispatcher{
 		envelope: envelope,
 		origin:   origin,
+		auth:     auth,
 	}
 }
 
@@ -25,5 +27,5 @@ func NewDispatcher(envelope *application.Envelope, origin string) *dispatcher {
 
 func (d *dispatcher) Lookup(suffix string) (ipc.Invoker, security.Authorizer, error) {
 	invoker := ipc.ReflectInvoker(node.NewServerNode(NewInvoker(d.envelope, d.origin, suffix)))
-	return invoker, nil, nil
+	return invoker, d.auth, nil
 }
