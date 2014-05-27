@@ -79,12 +79,9 @@ const (
 )
 
 // Judge is the interface the client binds and uses.
-// Judge_InternalNoTagGetter is the interface without the TagGetter
-// and UnresolveStep methods (both framework-added, rathern than user-defined),
-// to enable embedding without method collisions.  Not to be used directly by
-// clients.
-type Judge_InternalNoTagGetter interface {
-
+// Judge_ExcludingUniversal is the interface without internal framework-added methods
+// to enable embedding without method collisions.  Not to be used directly by clients.
+type Judge_ExcludingUniversal interface {
 	// CreateGame creates a new game with the given game options and returns a game
 	// identifier that can be used by the players to join the game.
 	CreateGame(Opts GameOptions, opts ..._gen_ipc.ClientCallOpt) (reply GameID, err error)
@@ -92,11 +89,8 @@ type Judge_InternalNoTagGetter interface {
 	Play(ID GameID, opts ..._gen_ipc.ClientCallOpt) (reply JudgePlayStream, err error)
 }
 type Judge interface {
-	_gen_vdl.TagGetter
-	// UnresolveStep returns the names for the remote service, rooted at the
-	// service's immediate namespace ancestor.
-	UnresolveStep(opts ..._gen_ipc.ClientCallOpt) ([]string, error)
-	Judge_InternalNoTagGetter
+	_gen_ipc.UniversalServiceMethods
+	Judge_ExcludingUniversal
 }
 
 // JudgeService is the interface the server implements.
@@ -233,10 +227,6 @@ type clientStubJudge struct {
 	name   string
 }
 
-func (c *clientStubJudge) GetMethodTags(method string) []interface{} {
-	return GetJudgeMethodTags(method)
-}
-
 func (__gen_c *clientStubJudge) CreateGame(Opts GameOptions, opts ..._gen_ipc.ClientCallOpt) (reply GameID, err error) {
 	var call _gen_ipc.ClientCall
 	if call, err = __gen_c.client.StartCall(__gen_c.name, "CreateGame", []interface{}{Opts}, opts...); err != nil {
@@ -257,9 +247,31 @@ func (__gen_c *clientStubJudge) Play(ID GameID, opts ..._gen_ipc.ClientCallOpt) 
 	return
 }
 
-func (c *clientStubJudge) UnresolveStep(opts ..._gen_ipc.ClientCallOpt) (reply []string, err error) {
+func (__gen_c *clientStubJudge) UnresolveStep(opts ..._gen_ipc.ClientCallOpt) (reply []string, err error) {
 	var call _gen_ipc.ClientCall
-	if call, err = c.client.StartCall(c.name, "UnresolveStep", nil, opts...); err != nil {
+	if call, err = __gen_c.client.StartCall(__gen_c.name, "UnresolveStep", nil, opts...); err != nil {
+		return
+	}
+	if ierr := call.Finish(&reply, &err); ierr != nil {
+		err = ierr
+	}
+	return
+}
+
+func (__gen_c *clientStubJudge) Signature(opts ..._gen_ipc.ClientCallOpt) (reply _gen_ipc.ServiceSignature, err error) {
+	var call _gen_ipc.ClientCall
+	if call, err = __gen_c.client.StartCall(__gen_c.name, "Signature", nil, opts...); err != nil {
+		return
+	}
+	if ierr := call.Finish(&reply, &err); ierr != nil {
+		err = ierr
+	}
+	return
+}
+
+func (__gen_c *clientStubJudge) GetMethodTags(method string, opts ..._gen_ipc.ClientCallOpt) (reply []interface{}, err error) {
+	var call _gen_ipc.ClientCall
+	if call, err = __gen_c.client.StartCall(__gen_c.name, "GetMethodTags", []interface{}{method}, opts...); err != nil {
 		return
 	}
 	if ierr := call.Finish(&reply, &err); ierr != nil {
@@ -275,11 +287,21 @@ type ServerStubJudge struct {
 	service JudgeService
 }
 
-func (s *ServerStubJudge) GetMethodTags(method string) []interface{} {
-	return GetJudgeMethodTags(method)
+func (__gen_s *ServerStubJudge) GetMethodTags(call _gen_ipc.ServerCall, method string) ([]interface{}, error) {
+	// TODO(bprosnitz) GetMethodTags() will be replaces with Signature().
+	// Note: This exhibits some weird behavior like returning a nil error if the method isn't found.
+	// This will change when it is replaced with Signature().
+	switch method {
+	case "CreateGame":
+		return []interface{}{}, nil
+	case "Play":
+		return []interface{}{}, nil
+	default:
+		return nil, nil
+	}
 }
 
-func (s *ServerStubJudge) Signature(call _gen_ipc.ServerCall) (_gen_ipc.ServiceSignature, error) {
+func (__gen_s *ServerStubJudge) Signature(call _gen_ipc.ServerCall) (_gen_ipc.ServiceSignature, error) {
 	result := _gen_ipc.ServiceSignature{Methods: make(map[string]_gen_ipc.MethodSignature)}
 	result.Methods["CreateGame"] = _gen_ipc.MethodSignature{
 		InArgs: []_gen_ipc.MethodArgument{
@@ -358,8 +380,8 @@ func (s *ServerStubJudge) Signature(call _gen_ipc.ServerCall) (_gen_ipc.ServiceS
 	return result, nil
 }
 
-func (s *ServerStubJudge) UnresolveStep(call _gen_ipc.ServerCall) (reply []string, err error) {
-	if unresolver, ok := s.service.(_gen_ipc.Unresolver); ok {
+func (__gen_s *ServerStubJudge) UnresolveStep(call _gen_ipc.ServerCall) (reply []string, err error) {
+	if unresolver, ok := __gen_s.service.(_gen_ipc.Unresolver); ok {
 		return unresolver.UnresolveStep(call)
 	}
 	if call.Server() == nil {
@@ -387,35 +409,18 @@ func (__gen_s *ServerStubJudge) Play(call _gen_ipc.ServerCall, ID GameID) (reply
 	return
 }
 
-func GetJudgeMethodTags(method string) []interface{} {
-	switch method {
-	case "CreateGame":
-		return []interface{}{}
-	case "Play":
-		return []interface{}{}
-	default:
-		return nil
-	}
-}
-
 // Player can receive challenges from other players.
 // Player is the interface the client binds and uses.
-// Player_InternalNoTagGetter is the interface without the TagGetter
-// and UnresolveStep methods (both framework-added, rathern than user-defined),
-// to enable embedding without method collisions.  Not to be used directly by
-// clients.
-type Player_InternalNoTagGetter interface {
-
+// Player_ExcludingUniversal is the interface without internal framework-added methods
+// to enable embedding without method collisions.  Not to be used directly by clients.
+type Player_ExcludingUniversal interface {
 	// Challenge is used by other players to challenge this player to a game. If
 	// the challenge is accepted, the method returns true.
 	Challenge(Address string, ID GameID, opts ..._gen_ipc.ClientCallOpt) (reply bool, err error)
 }
 type Player interface {
-	_gen_vdl.TagGetter
-	// UnresolveStep returns the names for the remote service, rooted at the
-	// service's immediate namespace ancestor.
-	UnresolveStep(opts ..._gen_ipc.ClientCallOpt) ([]string, error)
-	Player_InternalNoTagGetter
+	_gen_ipc.UniversalServiceMethods
+	Player_ExcludingUniversal
 }
 
 // PlayerService is the interface the server implements.
@@ -469,10 +474,6 @@ type clientStubPlayer struct {
 	name   string
 }
 
-func (c *clientStubPlayer) GetMethodTags(method string) []interface{} {
-	return GetPlayerMethodTags(method)
-}
-
 func (__gen_c *clientStubPlayer) Challenge(Address string, ID GameID, opts ..._gen_ipc.ClientCallOpt) (reply bool, err error) {
 	var call _gen_ipc.ClientCall
 	if call, err = __gen_c.client.StartCall(__gen_c.name, "Challenge", []interface{}{Address, ID}, opts...); err != nil {
@@ -484,9 +485,31 @@ func (__gen_c *clientStubPlayer) Challenge(Address string, ID GameID, opts ..._g
 	return
 }
 
-func (c *clientStubPlayer) UnresolveStep(opts ..._gen_ipc.ClientCallOpt) (reply []string, err error) {
+func (__gen_c *clientStubPlayer) UnresolveStep(opts ..._gen_ipc.ClientCallOpt) (reply []string, err error) {
 	var call _gen_ipc.ClientCall
-	if call, err = c.client.StartCall(c.name, "UnresolveStep", nil, opts...); err != nil {
+	if call, err = __gen_c.client.StartCall(__gen_c.name, "UnresolveStep", nil, opts...); err != nil {
+		return
+	}
+	if ierr := call.Finish(&reply, &err); ierr != nil {
+		err = ierr
+	}
+	return
+}
+
+func (__gen_c *clientStubPlayer) Signature(opts ..._gen_ipc.ClientCallOpt) (reply _gen_ipc.ServiceSignature, err error) {
+	var call _gen_ipc.ClientCall
+	if call, err = __gen_c.client.StartCall(__gen_c.name, "Signature", nil, opts...); err != nil {
+		return
+	}
+	if ierr := call.Finish(&reply, &err); ierr != nil {
+		err = ierr
+	}
+	return
+}
+
+func (__gen_c *clientStubPlayer) GetMethodTags(method string, opts ..._gen_ipc.ClientCallOpt) (reply []interface{}, err error) {
+	var call _gen_ipc.ClientCall
+	if call, err = __gen_c.client.StartCall(__gen_c.name, "GetMethodTags", []interface{}{method}, opts...); err != nil {
 		return
 	}
 	if ierr := call.Finish(&reply, &err); ierr != nil {
@@ -502,11 +525,19 @@ type ServerStubPlayer struct {
 	service PlayerService
 }
 
-func (s *ServerStubPlayer) GetMethodTags(method string) []interface{} {
-	return GetPlayerMethodTags(method)
+func (__gen_s *ServerStubPlayer) GetMethodTags(call _gen_ipc.ServerCall, method string) ([]interface{}, error) {
+	// TODO(bprosnitz) GetMethodTags() will be replaces with Signature().
+	// Note: This exhibits some weird behavior like returning a nil error if the method isn't found.
+	// This will change when it is replaced with Signature().
+	switch method {
+	case "Challenge":
+		return []interface{}{}, nil
+	default:
+		return nil, nil
+	}
 }
 
-func (s *ServerStubPlayer) Signature(call _gen_ipc.ServerCall) (_gen_ipc.ServiceSignature, error) {
+func (__gen_s *ServerStubPlayer) Signature(call _gen_ipc.ServerCall) (_gen_ipc.ServiceSignature, error) {
 	result := _gen_ipc.ServiceSignature{Methods: make(map[string]_gen_ipc.MethodSignature)}
 	result.Methods["Challenge"] = _gen_ipc.MethodSignature{
 		InArgs: []_gen_ipc.MethodArgument{
@@ -530,8 +561,8 @@ func (s *ServerStubPlayer) Signature(call _gen_ipc.ServerCall) (_gen_ipc.Service
 	return result, nil
 }
 
-func (s *ServerStubPlayer) UnresolveStep(call _gen_ipc.ServerCall) (reply []string, err error) {
-	if unresolver, ok := s.service.(_gen_ipc.Unresolver); ok {
+func (__gen_s *ServerStubPlayer) UnresolveStep(call _gen_ipc.ServerCall) (reply []string, err error) {
+	if unresolver, ok := __gen_s.service.(_gen_ipc.Unresolver); ok {
 		return unresolver.UnresolveStep(call)
 	}
 	if call.Server() == nil {
@@ -553,30 +584,16 @@ func (__gen_s *ServerStubPlayer) Challenge(call _gen_ipc.ServerCall, Address str
 	return
 }
 
-func GetPlayerMethodTags(method string) []interface{} {
-	switch method {
-	case "Challenge":
-		return []interface{}{}
-	default:
-		return nil
-	}
-}
-
 // ScoreKeeper receives the outcome of games from Judges.
 // ScoreKeeper is the interface the client binds and uses.
-// ScoreKeeper_InternalNoTagGetter is the interface without the TagGetter
-// and UnresolveStep methods (both framework-added, rathern than user-defined),
-// to enable embedding without method collisions.  Not to be used directly by
-// clients.
-type ScoreKeeper_InternalNoTagGetter interface {
+// ScoreKeeper_ExcludingUniversal is the interface without internal framework-added methods
+// to enable embedding without method collisions.  Not to be used directly by clients.
+type ScoreKeeper_ExcludingUniversal interface {
 	Record(Score ScoreCard, opts ..._gen_ipc.ClientCallOpt) (err error)
 }
 type ScoreKeeper interface {
-	_gen_vdl.TagGetter
-	// UnresolveStep returns the names for the remote service, rooted at the
-	// service's immediate namespace ancestor.
-	UnresolveStep(opts ..._gen_ipc.ClientCallOpt) ([]string, error)
-	ScoreKeeper_InternalNoTagGetter
+	_gen_ipc.UniversalServiceMethods
+	ScoreKeeper_ExcludingUniversal
 }
 
 // ScoreKeeperService is the interface the server implements.
@@ -627,10 +644,6 @@ type clientStubScoreKeeper struct {
 	name   string
 }
 
-func (c *clientStubScoreKeeper) GetMethodTags(method string) []interface{} {
-	return GetScoreKeeperMethodTags(method)
-}
-
 func (__gen_c *clientStubScoreKeeper) Record(Score ScoreCard, opts ..._gen_ipc.ClientCallOpt) (err error) {
 	var call _gen_ipc.ClientCall
 	if call, err = __gen_c.client.StartCall(__gen_c.name, "Record", []interface{}{Score}, opts...); err != nil {
@@ -642,9 +655,31 @@ func (__gen_c *clientStubScoreKeeper) Record(Score ScoreCard, opts ..._gen_ipc.C
 	return
 }
 
-func (c *clientStubScoreKeeper) UnresolveStep(opts ..._gen_ipc.ClientCallOpt) (reply []string, err error) {
+func (__gen_c *clientStubScoreKeeper) UnresolveStep(opts ..._gen_ipc.ClientCallOpt) (reply []string, err error) {
 	var call _gen_ipc.ClientCall
-	if call, err = c.client.StartCall(c.name, "UnresolveStep", nil, opts...); err != nil {
+	if call, err = __gen_c.client.StartCall(__gen_c.name, "UnresolveStep", nil, opts...); err != nil {
+		return
+	}
+	if ierr := call.Finish(&reply, &err); ierr != nil {
+		err = ierr
+	}
+	return
+}
+
+func (__gen_c *clientStubScoreKeeper) Signature(opts ..._gen_ipc.ClientCallOpt) (reply _gen_ipc.ServiceSignature, err error) {
+	var call _gen_ipc.ClientCall
+	if call, err = __gen_c.client.StartCall(__gen_c.name, "Signature", nil, opts...); err != nil {
+		return
+	}
+	if ierr := call.Finish(&reply, &err); ierr != nil {
+		err = ierr
+	}
+	return
+}
+
+func (__gen_c *clientStubScoreKeeper) GetMethodTags(method string, opts ..._gen_ipc.ClientCallOpt) (reply []interface{}, err error) {
+	var call _gen_ipc.ClientCall
+	if call, err = __gen_c.client.StartCall(__gen_c.name, "GetMethodTags", []interface{}{method}, opts...); err != nil {
 		return
 	}
 	if ierr := call.Finish(&reply, &err); ierr != nil {
@@ -660,11 +695,19 @@ type ServerStubScoreKeeper struct {
 	service ScoreKeeperService
 }
 
-func (s *ServerStubScoreKeeper) GetMethodTags(method string) []interface{} {
-	return GetScoreKeeperMethodTags(method)
+func (__gen_s *ServerStubScoreKeeper) GetMethodTags(call _gen_ipc.ServerCall, method string) ([]interface{}, error) {
+	// TODO(bprosnitz) GetMethodTags() will be replaces with Signature().
+	// Note: This exhibits some weird behavior like returning a nil error if the method isn't found.
+	// This will change when it is replaced with Signature().
+	switch method {
+	case "Record":
+		return []interface{}{}, nil
+	default:
+		return nil, nil
+	}
 }
 
-func (s *ServerStubScoreKeeper) Signature(call _gen_ipc.ServerCall) (_gen_ipc.ServiceSignature, error) {
+func (__gen_s *ServerStubScoreKeeper) Signature(call _gen_ipc.ServerCall) (_gen_ipc.ServiceSignature, error) {
 	result := _gen_ipc.ServiceSignature{Methods: make(map[string]_gen_ipc.MethodSignature)}
 	result.Methods["Record"] = _gen_ipc.MethodSignature{
 		InArgs: []_gen_ipc.MethodArgument{
@@ -706,8 +749,8 @@ func (s *ServerStubScoreKeeper) Signature(call _gen_ipc.ServerCall) (_gen_ipc.Se
 	return result, nil
 }
 
-func (s *ServerStubScoreKeeper) UnresolveStep(call _gen_ipc.ServerCall) (reply []string, err error) {
-	if unresolver, ok := s.service.(_gen_ipc.Unresolver); ok {
+func (__gen_s *ServerStubScoreKeeper) UnresolveStep(call _gen_ipc.ServerCall) (reply []string, err error) {
+	if unresolver, ok := __gen_s.service.(_gen_ipc.Unresolver); ok {
 		return unresolver.UnresolveStep(call)
 	}
 	if call.Server() == nil {
@@ -729,33 +772,19 @@ func (__gen_s *ServerStubScoreKeeper) Record(call _gen_ipc.ServerCall, Score Sco
 	return
 }
 
-func GetScoreKeeperMethodTags(method string) []interface{} {
-	switch method {
-	case "Record":
-		return []interface{}{}
-	default:
-		return nil
-	}
-}
-
 // RockPaperScissors is the interface the client binds and uses.
-// RockPaperScissors_InternalNoTagGetter is the interface without the TagGetter
-// and UnresolveStep methods (both framework-added, rathern than user-defined),
-// to enable embedding without method collisions.  Not to be used directly by
-// clients.
-type RockPaperScissors_InternalNoTagGetter interface {
-	Judge_InternalNoTagGetter
+// RockPaperScissors_ExcludingUniversal is the interface without internal framework-added methods
+// to enable embedding without method collisions.  Not to be used directly by clients.
+type RockPaperScissors_ExcludingUniversal interface {
+	Judge_ExcludingUniversal
 	// Player can receive challenges from other players.
-	Player_InternalNoTagGetter
+	Player_ExcludingUniversal
 	// ScoreKeeper receives the outcome of games from Judges.
-	ScoreKeeper_InternalNoTagGetter
+	ScoreKeeper_ExcludingUniversal
 }
 type RockPaperScissors interface {
-	_gen_vdl.TagGetter
-	// UnresolveStep returns the names for the remote service, rooted at the
-	// service's immediate namespace ancestor.
-	UnresolveStep(opts ..._gen_ipc.ClientCallOpt) ([]string, error)
-	RockPaperScissors_InternalNoTagGetter
+	_gen_ipc.UniversalServiceMethods
+	RockPaperScissors_ExcludingUniversal
 }
 
 // RockPaperScissorsService is the interface the server implements.
@@ -790,9 +819,9 @@ func BindRockPaperScissors(name string, opts ..._gen_ipc.BindOpt) (RockPaperScis
 		return nil, _gen_vdl.ErrTooManyOptionsToBind
 	}
 	stub := &clientStubRockPaperScissors{client: client, name: name}
-	stub.Judge_InternalNoTagGetter, _ = BindJudge(name, client)
-	stub.Player_InternalNoTagGetter, _ = BindPlayer(name, client)
-	stub.ScoreKeeper_InternalNoTagGetter, _ = BindScoreKeeper(name, client)
+	stub.Judge_ExcludingUniversal, _ = BindJudge(name, client)
+	stub.Player_ExcludingUniversal, _ = BindPlayer(name, client)
+	stub.ScoreKeeper_ExcludingUniversal, _ = BindScoreKeeper(name, client)
 
 	return stub, nil
 }
@@ -812,21 +841,39 @@ func NewServerRockPaperScissors(server RockPaperScissorsService) interface{} {
 
 // clientStubRockPaperScissors implements RockPaperScissors.
 type clientStubRockPaperScissors struct {
-	Judge_InternalNoTagGetter
-	Player_InternalNoTagGetter
-	ScoreKeeper_InternalNoTagGetter
+	Judge_ExcludingUniversal
+	Player_ExcludingUniversal
+	ScoreKeeper_ExcludingUniversal
 
 	client _gen_ipc.Client
 	name   string
 }
 
-func (c *clientStubRockPaperScissors) GetMethodTags(method string) []interface{} {
-	return GetRockPaperScissorsMethodTags(method)
+func (__gen_c *clientStubRockPaperScissors) UnresolveStep(opts ..._gen_ipc.ClientCallOpt) (reply []string, err error) {
+	var call _gen_ipc.ClientCall
+	if call, err = __gen_c.client.StartCall(__gen_c.name, "UnresolveStep", nil, opts...); err != nil {
+		return
+	}
+	if ierr := call.Finish(&reply, &err); ierr != nil {
+		err = ierr
+	}
+	return
 }
 
-func (c *clientStubRockPaperScissors) UnresolveStep(opts ..._gen_ipc.ClientCallOpt) (reply []string, err error) {
+func (__gen_c *clientStubRockPaperScissors) Signature(opts ..._gen_ipc.ClientCallOpt) (reply _gen_ipc.ServiceSignature, err error) {
 	var call _gen_ipc.ClientCall
-	if call, err = c.client.StartCall(c.name, "UnresolveStep", nil, opts...); err != nil {
+	if call, err = __gen_c.client.StartCall(__gen_c.name, "Signature", nil, opts...); err != nil {
+		return
+	}
+	if ierr := call.Finish(&reply, &err); ierr != nil {
+		err = ierr
+	}
+	return
+}
+
+func (__gen_c *clientStubRockPaperScissors) GetMethodTags(method string, opts ..._gen_ipc.ClientCallOpt) (reply []interface{}, err error) {
+	var call _gen_ipc.ClientCall
+	if call, err = __gen_c.client.StartCall(__gen_c.name, "GetMethodTags", []interface{}{method}, opts...); err != nil {
 		return
 	}
 	if ierr := call.Finish(&reply, &err); ierr != nil {
@@ -846,17 +893,29 @@ type ServerStubRockPaperScissors struct {
 	service RockPaperScissorsService
 }
 
-func (s *ServerStubRockPaperScissors) GetMethodTags(method string) []interface{} {
-	return GetRockPaperScissorsMethodTags(method)
+func (__gen_s *ServerStubRockPaperScissors) GetMethodTags(call _gen_ipc.ServerCall, method string) ([]interface{}, error) {
+	// TODO(bprosnitz) GetMethodTags() will be replaces with Signature().
+	// Note: This exhibits some weird behavior like returning a nil error if the method isn't found.
+	// This will change when it is replaced with Signature().
+	if resp, err := __gen_s.ServerStubJudge.GetMethodTags(call, method); resp != nil || err != nil {
+		return resp, err
+	}
+	if resp, err := __gen_s.ServerStubPlayer.GetMethodTags(call, method); resp != nil || err != nil {
+		return resp, err
+	}
+	if resp, err := __gen_s.ServerStubScoreKeeper.GetMethodTags(call, method); resp != nil || err != nil {
+		return resp, err
+	}
+	return nil, nil
 }
 
-func (s *ServerStubRockPaperScissors) Signature(call _gen_ipc.ServerCall) (_gen_ipc.ServiceSignature, error) {
+func (__gen_s *ServerStubRockPaperScissors) Signature(call _gen_ipc.ServerCall) (_gen_ipc.ServiceSignature, error) {
 	result := _gen_ipc.ServiceSignature{Methods: make(map[string]_gen_ipc.MethodSignature)}
 
 	result.TypeDefs = []_gen_vdl.Any{}
 	var ss _gen_ipc.ServiceSignature
 	var firstAdded int
-	ss, _ = s.ServerStubJudge.Signature(call)
+	ss, _ = __gen_s.ServerStubJudge.Signature(call)
 	firstAdded = len(result.TypeDefs)
 	for k, v := range ss.Methods {
 		for i, _ := range v.InArgs {
@@ -908,7 +967,7 @@ func (s *ServerStubRockPaperScissors) Signature(call _gen_ipc.ServerCall) (_gen_
 		}
 		result.TypeDefs = append(result.TypeDefs, d)
 	}
-	ss, _ = s.ServerStubPlayer.Signature(call)
+	ss, _ = __gen_s.ServerStubPlayer.Signature(call)
 	firstAdded = len(result.TypeDefs)
 	for k, v := range ss.Methods {
 		for i, _ := range v.InArgs {
@@ -960,7 +1019,7 @@ func (s *ServerStubRockPaperScissors) Signature(call _gen_ipc.ServerCall) (_gen_
 		}
 		result.TypeDefs = append(result.TypeDefs, d)
 	}
-	ss, _ = s.ServerStubScoreKeeper.Signature(call)
+	ss, _ = __gen_s.ServerStubScoreKeeper.Signature(call)
 	firstAdded = len(result.TypeDefs)
 	for k, v := range ss.Methods {
 		for i, _ := range v.InArgs {
@@ -1016,8 +1075,8 @@ func (s *ServerStubRockPaperScissors) Signature(call _gen_ipc.ServerCall) (_gen_
 	return result, nil
 }
 
-func (s *ServerStubRockPaperScissors) UnresolveStep(call _gen_ipc.ServerCall) (reply []string, err error) {
-	if unresolver, ok := s.service.(_gen_ipc.Unresolver); ok {
+func (__gen_s *ServerStubRockPaperScissors) UnresolveStep(call _gen_ipc.ServerCall) (reply []string, err error) {
+	if unresolver, ok := __gen_s.service.(_gen_ipc.Unresolver); ok {
 		return unresolver.UnresolveStep(call)
 	}
 	if call.Server() == nil {
@@ -1032,17 +1091,4 @@ func (s *ServerStubRockPaperScissors) UnresolveStep(call _gen_ipc.ServerCall) (r
 		reply[i] = _gen_naming.Join(p, call.Name())
 	}
 	return
-}
-
-func GetRockPaperScissorsMethodTags(method string) []interface{} {
-	if resp := GetJudgeMethodTags(method); resp != nil {
-		return resp
-	}
-	if resp := GetPlayerMethodTags(method); resp != nil {
-		return resp
-	}
-	if resp := GetScoreKeeperMethodTags(method); resp != nil {
-		return resp
-	}
-	return nil
 }

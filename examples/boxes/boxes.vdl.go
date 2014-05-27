@@ -26,23 +26,17 @@ type Box struct {
 
 // BoxSignalling allows peers to rendezvous with each other
 // BoxSignalling is the interface the client binds and uses.
-// BoxSignalling_InternalNoTagGetter is the interface without the TagGetter
-// and UnresolveStep methods (both framework-added, rathern than user-defined),
-// to enable embedding without method collisions.  Not to be used directly by
-// clients.
-type BoxSignalling_InternalNoTagGetter interface {
-
+// BoxSignalling_ExcludingUniversal is the interface without internal framework-added methods
+// to enable embedding without method collisions.  Not to be used directly by clients.
+type BoxSignalling_ExcludingUniversal interface {
 	// Add endpoint information to the signalling server.
 	Add(Endpoint string, opts ..._gen_ipc.ClientCallOpt) (err error)
 	// Get endpoint information about a peer.
 	Get(opts ..._gen_ipc.ClientCallOpt) (reply string, err error)
 }
 type BoxSignalling interface {
-	_gen_vdl.TagGetter
-	// UnresolveStep returns the names for the remote service, rooted at the
-	// service's immediate namespace ancestor.
-	UnresolveStep(opts ..._gen_ipc.ClientCallOpt) ([]string, error)
-	BoxSignalling_InternalNoTagGetter
+	_gen_ipc.UniversalServiceMethods
+	BoxSignalling_ExcludingUniversal
 }
 
 // BoxSignallingService is the interface the server implements.
@@ -97,10 +91,6 @@ type clientStubBoxSignalling struct {
 	name   string
 }
 
-func (c *clientStubBoxSignalling) GetMethodTags(method string) []interface{} {
-	return GetBoxSignallingMethodTags(method)
-}
-
 func (__gen_c *clientStubBoxSignalling) Add(Endpoint string, opts ..._gen_ipc.ClientCallOpt) (err error) {
 	var call _gen_ipc.ClientCall
 	if call, err = __gen_c.client.StartCall(__gen_c.name, "Add", []interface{}{Endpoint}, opts...); err != nil {
@@ -123,9 +113,31 @@ func (__gen_c *clientStubBoxSignalling) Get(opts ..._gen_ipc.ClientCallOpt) (rep
 	return
 }
 
-func (c *clientStubBoxSignalling) UnresolveStep(opts ..._gen_ipc.ClientCallOpt) (reply []string, err error) {
+func (__gen_c *clientStubBoxSignalling) UnresolveStep(opts ..._gen_ipc.ClientCallOpt) (reply []string, err error) {
 	var call _gen_ipc.ClientCall
-	if call, err = c.client.StartCall(c.name, "UnresolveStep", nil, opts...); err != nil {
+	if call, err = __gen_c.client.StartCall(__gen_c.name, "UnresolveStep", nil, opts...); err != nil {
+		return
+	}
+	if ierr := call.Finish(&reply, &err); ierr != nil {
+		err = ierr
+	}
+	return
+}
+
+func (__gen_c *clientStubBoxSignalling) Signature(opts ..._gen_ipc.ClientCallOpt) (reply _gen_ipc.ServiceSignature, err error) {
+	var call _gen_ipc.ClientCall
+	if call, err = __gen_c.client.StartCall(__gen_c.name, "Signature", nil, opts...); err != nil {
+		return
+	}
+	if ierr := call.Finish(&reply, &err); ierr != nil {
+		err = ierr
+	}
+	return
+}
+
+func (__gen_c *clientStubBoxSignalling) GetMethodTags(method string, opts ..._gen_ipc.ClientCallOpt) (reply []interface{}, err error) {
+	var call _gen_ipc.ClientCall
+	if call, err = __gen_c.client.StartCall(__gen_c.name, "GetMethodTags", []interface{}{method}, opts...); err != nil {
 		return
 	}
 	if ierr := call.Finish(&reply, &err); ierr != nil {
@@ -141,11 +153,21 @@ type ServerStubBoxSignalling struct {
 	service BoxSignallingService
 }
 
-func (s *ServerStubBoxSignalling) GetMethodTags(method string) []interface{} {
-	return GetBoxSignallingMethodTags(method)
+func (__gen_s *ServerStubBoxSignalling) GetMethodTags(call _gen_ipc.ServerCall, method string) ([]interface{}, error) {
+	// TODO(bprosnitz) GetMethodTags() will be replaces with Signature().
+	// Note: This exhibits some weird behavior like returning a nil error if the method isn't found.
+	// This will change when it is replaced with Signature().
+	switch method {
+	case "Add":
+		return []interface{}{}, nil
+	case "Get":
+		return []interface{}{}, nil
+	default:
+		return nil, nil
+	}
 }
 
-func (s *ServerStubBoxSignalling) Signature(call _gen_ipc.ServerCall) (_gen_ipc.ServiceSignature, error) {
+func (__gen_s *ServerStubBoxSignalling) Signature(call _gen_ipc.ServerCall) (_gen_ipc.ServiceSignature, error) {
 	result := _gen_ipc.ServiceSignature{Methods: make(map[string]_gen_ipc.MethodSignature)}
 	result.Methods["Add"] = _gen_ipc.MethodSignature{
 		InArgs: []_gen_ipc.MethodArgument{
@@ -169,8 +191,8 @@ func (s *ServerStubBoxSignalling) Signature(call _gen_ipc.ServerCall) (_gen_ipc.
 	return result, nil
 }
 
-func (s *ServerStubBoxSignalling) UnresolveStep(call _gen_ipc.ServerCall) (reply []string, err error) {
-	if unresolver, ok := s.service.(_gen_ipc.Unresolver); ok {
+func (__gen_s *ServerStubBoxSignalling) UnresolveStep(call _gen_ipc.ServerCall) (reply []string, err error) {
+	if unresolver, ok := __gen_s.service.(_gen_ipc.Unresolver); ok {
 		return unresolver.UnresolveStep(call)
 	}
 	if call.Server() == nil {
@@ -197,34 +219,17 @@ func (__gen_s *ServerStubBoxSignalling) Get(call _gen_ipc.ServerCall) (reply str
 	return
 }
 
-func GetBoxSignallingMethodTags(method string) []interface{} {
-	switch method {
-	case "Add":
-		return []interface{}{}
-	case "Get":
-		return []interface{}{}
-	default:
-		return nil
-	}
-}
-
 // DrawInterface enables adding a box on another peer
 // DrawInterface is the interface the client binds and uses.
-// DrawInterface_InternalNoTagGetter is the interface without the TagGetter
-// and UnresolveStep methods (both framework-added, rathern than user-defined),
-// to enable embedding without method collisions.  Not to be used directly by
-// clients.
-type DrawInterface_InternalNoTagGetter interface {
-
+// DrawInterface_ExcludingUniversal is the interface without internal framework-added methods
+// to enable embedding without method collisions.  Not to be used directly by clients.
+type DrawInterface_ExcludingUniversal interface {
 	// Send/Receive a stream of boxes with another peer
 	Draw(opts ..._gen_ipc.ClientCallOpt) (reply DrawInterfaceDrawStream, err error)
 }
 type DrawInterface interface {
-	_gen_vdl.TagGetter
-	// UnresolveStep returns the names for the remote service, rooted at the
-	// service's immediate namespace ancestor.
-	UnresolveStep(opts ..._gen_ipc.ClientCallOpt) ([]string, error)
-	DrawInterface_InternalNoTagGetter
+	_gen_ipc.UniversalServiceMethods
+	DrawInterface_ExcludingUniversal
 }
 
 // DrawInterfaceService is the interface the server implements.
@@ -358,10 +363,6 @@ type clientStubDrawInterface struct {
 	name   string
 }
 
-func (c *clientStubDrawInterface) GetMethodTags(method string) []interface{} {
-	return GetDrawInterfaceMethodTags(method)
-}
-
 func (__gen_c *clientStubDrawInterface) Draw(opts ..._gen_ipc.ClientCallOpt) (reply DrawInterfaceDrawStream, err error) {
 	var call _gen_ipc.ClientCall
 	if call, err = __gen_c.client.StartCall(__gen_c.name, "Draw", nil, opts...); err != nil {
@@ -371,9 +372,31 @@ func (__gen_c *clientStubDrawInterface) Draw(opts ..._gen_ipc.ClientCallOpt) (re
 	return
 }
 
-func (c *clientStubDrawInterface) UnresolveStep(opts ..._gen_ipc.ClientCallOpt) (reply []string, err error) {
+func (__gen_c *clientStubDrawInterface) UnresolveStep(opts ..._gen_ipc.ClientCallOpt) (reply []string, err error) {
 	var call _gen_ipc.ClientCall
-	if call, err = c.client.StartCall(c.name, "UnresolveStep", nil, opts...); err != nil {
+	if call, err = __gen_c.client.StartCall(__gen_c.name, "UnresolveStep", nil, opts...); err != nil {
+		return
+	}
+	if ierr := call.Finish(&reply, &err); ierr != nil {
+		err = ierr
+	}
+	return
+}
+
+func (__gen_c *clientStubDrawInterface) Signature(opts ..._gen_ipc.ClientCallOpt) (reply _gen_ipc.ServiceSignature, err error) {
+	var call _gen_ipc.ClientCall
+	if call, err = __gen_c.client.StartCall(__gen_c.name, "Signature", nil, opts...); err != nil {
+		return
+	}
+	if ierr := call.Finish(&reply, &err); ierr != nil {
+		err = ierr
+	}
+	return
+}
+
+func (__gen_c *clientStubDrawInterface) GetMethodTags(method string, opts ..._gen_ipc.ClientCallOpt) (reply []interface{}, err error) {
+	var call _gen_ipc.ClientCall
+	if call, err = __gen_c.client.StartCall(__gen_c.name, "GetMethodTags", []interface{}{method}, opts...); err != nil {
 		return
 	}
 	if ierr := call.Finish(&reply, &err); ierr != nil {
@@ -389,11 +412,19 @@ type ServerStubDrawInterface struct {
 	service DrawInterfaceService
 }
 
-func (s *ServerStubDrawInterface) GetMethodTags(method string) []interface{} {
-	return GetDrawInterfaceMethodTags(method)
+func (__gen_s *ServerStubDrawInterface) GetMethodTags(call _gen_ipc.ServerCall, method string) ([]interface{}, error) {
+	// TODO(bprosnitz) GetMethodTags() will be replaces with Signature().
+	// Note: This exhibits some weird behavior like returning a nil error if the method isn't found.
+	// This will change when it is replaced with Signature().
+	switch method {
+	case "Draw":
+		return []interface{}{}, nil
+	default:
+		return nil, nil
+	}
 }
 
-func (s *ServerStubDrawInterface) Signature(call _gen_ipc.ServerCall) (_gen_ipc.ServiceSignature, error) {
+func (__gen_s *ServerStubDrawInterface) Signature(call _gen_ipc.ServerCall) (_gen_ipc.ServiceSignature, error) {
 	result := _gen_ipc.ServiceSignature{Methods: make(map[string]_gen_ipc.MethodSignature)}
 	result.Methods["Draw"] = _gen_ipc.MethodSignature{
 		InArgs: []_gen_ipc.MethodArgument{},
@@ -416,8 +447,8 @@ func (s *ServerStubDrawInterface) Signature(call _gen_ipc.ServerCall) (_gen_ipc.
 	return result, nil
 }
 
-func (s *ServerStubDrawInterface) UnresolveStep(call _gen_ipc.ServerCall) (reply []string, err error) {
-	if unresolver, ok := s.service.(_gen_ipc.Unresolver); ok {
+func (__gen_s *ServerStubDrawInterface) UnresolveStep(call _gen_ipc.ServerCall) (reply []string, err error) {
+	if unresolver, ok := __gen_s.service.(_gen_ipc.Unresolver); ok {
 		return unresolver.UnresolveStep(call)
 	}
 	if call.Server() == nil {
@@ -438,13 +469,4 @@ func (__gen_s *ServerStubDrawInterface) Draw(call _gen_ipc.ServerCall) (err erro
 	stream := &implDrawInterfaceServiceDrawStream{serverCall: call}
 	err = __gen_s.service.Draw(call, stream)
 	return
-}
-
-func GetDrawInterfaceMethodTags(method string) []interface{} {
-	switch method {
-	case "Draw":
-		return []interface{}{}
-	default:
-		return nil
-	}
 }

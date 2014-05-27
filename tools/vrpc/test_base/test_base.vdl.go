@@ -19,12 +19,9 @@ type Struct struct {
 }
 
 // TypeTester is the interface the client binds and uses.
-// TypeTester_InternalNoTagGetter is the interface without the TagGetter
-// and UnresolveStep methods (both framework-added, rathern than user-defined),
-// to enable embedding without method collisions.  Not to be used directly by
-// clients.
-type TypeTester_InternalNoTagGetter interface {
-
+// TypeTester_ExcludingUniversal is the interface without internal framework-added methods
+// to enable embedding without method collisions.  Not to be used directly by clients.
+type TypeTester_ExcludingUniversal interface {
 	// Methods to test support for generic types.
 	Bool(I1 bool, opts ..._gen_ipc.ClientCallOpt) (reply bool, err error)
 	Float32(I1 float32, opts ..._gen_ipc.ClientCallOpt) (reply float32, err error)
@@ -51,11 +48,8 @@ type TypeTester_InternalNoTagGetter interface {
 	StreamingOutput(NumStreamItems int32, StreamItem bool, opts ..._gen_ipc.ClientCallOpt) (reply TypeTesterStreamingOutputStream, err error)
 }
 type TypeTester interface {
-	_gen_vdl.TagGetter
-	// UnresolveStep returns the names for the remote service, rooted at the
-	// service's immediate namespace ancestor.
-	UnresolveStep(opts ..._gen_ipc.ClientCallOpt) ([]string, error)
-	TypeTester_InternalNoTagGetter
+	_gen_ipc.UniversalServiceMethods
+	TypeTester_ExcludingUniversal
 }
 
 // TypeTesterService is the interface the server implements.
@@ -182,10 +176,6 @@ func NewServerTypeTester(server TypeTesterService) interface{} {
 type clientStubTypeTester struct {
 	client _gen_ipc.Client
 	name   string
-}
-
-func (c *clientStubTypeTester) GetMethodTags(method string) []interface{} {
-	return GetTypeTesterMethodTags(method)
 }
 
 func (__gen_c *clientStubTypeTester) Bool(I1 bool, opts ..._gen_ipc.ClientCallOpt) (reply bool, err error) {
@@ -406,9 +396,31 @@ func (__gen_c *clientStubTypeTester) StreamingOutput(NumStreamItems int32, Strea
 	return
 }
 
-func (c *clientStubTypeTester) UnresolveStep(opts ..._gen_ipc.ClientCallOpt) (reply []string, err error) {
+func (__gen_c *clientStubTypeTester) UnresolveStep(opts ..._gen_ipc.ClientCallOpt) (reply []string, err error) {
 	var call _gen_ipc.ClientCall
-	if call, err = c.client.StartCall(c.name, "UnresolveStep", nil, opts...); err != nil {
+	if call, err = __gen_c.client.StartCall(__gen_c.name, "UnresolveStep", nil, opts...); err != nil {
+		return
+	}
+	if ierr := call.Finish(&reply, &err); ierr != nil {
+		err = ierr
+	}
+	return
+}
+
+func (__gen_c *clientStubTypeTester) Signature(opts ..._gen_ipc.ClientCallOpt) (reply _gen_ipc.ServiceSignature, err error) {
+	var call _gen_ipc.ClientCall
+	if call, err = __gen_c.client.StartCall(__gen_c.name, "Signature", nil, opts...); err != nil {
+		return
+	}
+	if ierr := call.Finish(&reply, &err); ierr != nil {
+		err = ierr
+	}
+	return
+}
+
+func (__gen_c *clientStubTypeTester) GetMethodTags(method string, opts ..._gen_ipc.ClientCallOpt) (reply []interface{}, err error) {
+	var call _gen_ipc.ClientCall
+	if call, err = __gen_c.client.StartCall(__gen_c.name, "GetMethodTags", []interface{}{method}, opts...); err != nil {
 		return
 	}
 	if ierr := call.Finish(&reply, &err); ierr != nil {
@@ -424,11 +436,57 @@ type ServerStubTypeTester struct {
 	service TypeTesterService
 }
 
-func (s *ServerStubTypeTester) GetMethodTags(method string) []interface{} {
-	return GetTypeTesterMethodTags(method)
+func (__gen_s *ServerStubTypeTester) GetMethodTags(call _gen_ipc.ServerCall, method string) ([]interface{}, error) {
+	// TODO(bprosnitz) GetMethodTags() will be replaces with Signature().
+	// Note: This exhibits some weird behavior like returning a nil error if the method isn't found.
+	// This will change when it is replaced with Signature().
+	switch method {
+	case "Bool":
+		return []interface{}{}, nil
+	case "Float32":
+		return []interface{}{}, nil
+	case "Float64":
+		return []interface{}{}, nil
+	case "Int32":
+		return []interface{}{}, nil
+	case "Int64":
+		return []interface{}{}, nil
+	case "String":
+		return []interface{}{}, nil
+	case "Byte":
+		return []interface{}{}, nil
+	case "UInt32":
+		return []interface{}{}, nil
+	case "UInt64":
+		return []interface{}{}, nil
+	case "InputArray":
+		return []interface{}{}, nil
+	case "InputMap":
+		return []interface{}{}, nil
+	case "InputSlice":
+		return []interface{}{}, nil
+	case "InputStruct":
+		return []interface{}{}, nil
+	case "OutputArray":
+		return []interface{}{}, nil
+	case "OutputMap":
+		return []interface{}{}, nil
+	case "OutputSlice":
+		return []interface{}{}, nil
+	case "OutputStruct":
+		return []interface{}{}, nil
+	case "NoArguments":
+		return []interface{}{}, nil
+	case "MultipleArguments":
+		return []interface{}{}, nil
+	case "StreamingOutput":
+		return []interface{}{}, nil
+	default:
+		return nil, nil
+	}
 }
 
-func (s *ServerStubTypeTester) Signature(call _gen_ipc.ServerCall) (_gen_ipc.ServiceSignature, error) {
+func (__gen_s *ServerStubTypeTester) Signature(call _gen_ipc.ServerCall) (_gen_ipc.ServiceSignature, error) {
 	result := _gen_ipc.ServiceSignature{Methods: make(map[string]_gen_ipc.MethodSignature)}
 	result.Methods["Bool"] = _gen_ipc.MethodSignature{
 		InArgs: []_gen_ipc.MethodArgument{
@@ -612,8 +670,8 @@ func (s *ServerStubTypeTester) Signature(call _gen_ipc.ServerCall) (_gen_ipc.Ser
 	return result, nil
 }
 
-func (s *ServerStubTypeTester) UnresolveStep(call _gen_ipc.ServerCall) (reply []string, err error) {
-	if unresolver, ok := s.service.(_gen_ipc.Unresolver); ok {
+func (__gen_s *ServerStubTypeTester) UnresolveStep(call _gen_ipc.ServerCall) (reply []string, err error) {
+	if unresolver, ok := __gen_s.service.(_gen_ipc.Unresolver); ok {
 		return unresolver.UnresolveStep(call)
 	}
 	if call.Server() == nil {
@@ -729,51 +787,4 @@ func (__gen_s *ServerStubTypeTester) StreamingOutput(call _gen_ipc.ServerCall, N
 	stream := &implTypeTesterServiceStreamingOutputStream{serverCall: call}
 	err = __gen_s.service.StreamingOutput(call, NumStreamItems, StreamItem, stream)
 	return
-}
-
-func GetTypeTesterMethodTags(method string) []interface{} {
-	switch method {
-	case "Bool":
-		return []interface{}{}
-	case "Float32":
-		return []interface{}{}
-	case "Float64":
-		return []interface{}{}
-	case "Int32":
-		return []interface{}{}
-	case "Int64":
-		return []interface{}{}
-	case "String":
-		return []interface{}{}
-	case "Byte":
-		return []interface{}{}
-	case "UInt32":
-		return []interface{}{}
-	case "UInt64":
-		return []interface{}{}
-	case "InputArray":
-		return []interface{}{}
-	case "InputMap":
-		return []interface{}{}
-	case "InputSlice":
-		return []interface{}{}
-	case "InputStruct":
-		return []interface{}{}
-	case "OutputArray":
-		return []interface{}{}
-	case "OutputMap":
-		return []interface{}{}
-	case "OutputSlice":
-		return []interface{}{}
-	case "OutputStruct":
-		return []interface{}{}
-	case "NoArguments":
-		return []interface{}{}
-	case "MultipleArguments":
-		return []interface{}{}
-	case "StreamingOutput":
-		return []interface{}{}
-	default:
-		return nil
-	}
 }

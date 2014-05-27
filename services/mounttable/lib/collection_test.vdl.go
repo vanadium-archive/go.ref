@@ -14,12 +14,9 @@ import (
 )
 
 // Collection is the interface the client binds and uses.
-// Collection_InternalNoTagGetter is the interface without the TagGetter
-// and UnresolveStep methods (both framework-added, rathern than user-defined),
-// to enable embedding without method collisions.  Not to be used directly by
-// clients.
-type Collection_InternalNoTagGetter interface {
-
+// Collection_ExcludingUniversal is the interface without internal framework-added methods
+// to enable embedding without method collisions.  Not to be used directly by clients.
+type Collection_ExcludingUniversal interface {
 	// Export sets the value for a name.  Overwrite controls the behavior when
 	// an entry exists, if Overwrite is true, then the binding is replaced,
 	// otherwise the call fails with an error.  The Val must be no larger than
@@ -30,11 +27,8 @@ type Collection_InternalNoTagGetter interface {
 	Lookup(opts ..._gen_ipc.ClientCallOpt) (reply []byte, err error)
 }
 type Collection interface {
-	_gen_vdl.TagGetter
-	// UnresolveStep returns the names for the remote service, rooted at the
-	// service's immediate namespace ancestor.
-	UnresolveStep(opts ..._gen_ipc.ClientCallOpt) ([]string, error)
-	Collection_InternalNoTagGetter
+	_gen_ipc.UniversalServiceMethods
+	Collection_ExcludingUniversal
 }
 
 // CollectionService is the interface the server implements.
@@ -93,10 +87,6 @@ type clientStubCollection struct {
 	name   string
 }
 
-func (c *clientStubCollection) GetMethodTags(method string) []interface{} {
-	return GetCollectionMethodTags(method)
-}
-
 func (__gen_c *clientStubCollection) Export(Val string, Overwrite bool, opts ..._gen_ipc.ClientCallOpt) (err error) {
 	var call _gen_ipc.ClientCall
 	if call, err = __gen_c.client.StartCall(__gen_c.name, "Export", []interface{}{Val, Overwrite}, opts...); err != nil {
@@ -119,9 +109,31 @@ func (__gen_c *clientStubCollection) Lookup(opts ..._gen_ipc.ClientCallOpt) (rep
 	return
 }
 
-func (c *clientStubCollection) UnresolveStep(opts ..._gen_ipc.ClientCallOpt) (reply []string, err error) {
+func (__gen_c *clientStubCollection) UnresolveStep(opts ..._gen_ipc.ClientCallOpt) (reply []string, err error) {
 	var call _gen_ipc.ClientCall
-	if call, err = c.client.StartCall(c.name, "UnresolveStep", nil, opts...); err != nil {
+	if call, err = __gen_c.client.StartCall(__gen_c.name, "UnresolveStep", nil, opts...); err != nil {
+		return
+	}
+	if ierr := call.Finish(&reply, &err); ierr != nil {
+		err = ierr
+	}
+	return
+}
+
+func (__gen_c *clientStubCollection) Signature(opts ..._gen_ipc.ClientCallOpt) (reply _gen_ipc.ServiceSignature, err error) {
+	var call _gen_ipc.ClientCall
+	if call, err = __gen_c.client.StartCall(__gen_c.name, "Signature", nil, opts...); err != nil {
+		return
+	}
+	if ierr := call.Finish(&reply, &err); ierr != nil {
+		err = ierr
+	}
+	return
+}
+
+func (__gen_c *clientStubCollection) GetMethodTags(method string, opts ..._gen_ipc.ClientCallOpt) (reply []interface{}, err error) {
+	var call _gen_ipc.ClientCall
+	if call, err = __gen_c.client.StartCall(__gen_c.name, "GetMethodTags", []interface{}{method}, opts...); err != nil {
 		return
 	}
 	if ierr := call.Finish(&reply, &err); ierr != nil {
@@ -137,11 +149,21 @@ type ServerStubCollection struct {
 	service CollectionService
 }
 
-func (s *ServerStubCollection) GetMethodTags(method string) []interface{} {
-	return GetCollectionMethodTags(method)
+func (__gen_s *ServerStubCollection) GetMethodTags(call _gen_ipc.ServerCall, method string) ([]interface{}, error) {
+	// TODO(bprosnitz) GetMethodTags() will be replaces with Signature().
+	// Note: This exhibits some weird behavior like returning a nil error if the method isn't found.
+	// This will change when it is replaced with Signature().
+	switch method {
+	case "Export":
+		return []interface{}{}, nil
+	case "Lookup":
+		return []interface{}{}, nil
+	default:
+		return nil, nil
+	}
 }
 
-func (s *ServerStubCollection) Signature(call _gen_ipc.ServerCall) (_gen_ipc.ServiceSignature, error) {
+func (__gen_s *ServerStubCollection) Signature(call _gen_ipc.ServerCall) (_gen_ipc.ServiceSignature, error) {
 	result := _gen_ipc.ServiceSignature{Methods: make(map[string]_gen_ipc.MethodSignature)}
 	result.Methods["Export"] = _gen_ipc.MethodSignature{
 		InArgs: []_gen_ipc.MethodArgument{
@@ -166,8 +188,8 @@ func (s *ServerStubCollection) Signature(call _gen_ipc.ServerCall) (_gen_ipc.Ser
 	return result, nil
 }
 
-func (s *ServerStubCollection) UnresolveStep(call _gen_ipc.ServerCall) (reply []string, err error) {
-	if unresolver, ok := s.service.(_gen_ipc.Unresolver); ok {
+func (__gen_s *ServerStubCollection) UnresolveStep(call _gen_ipc.ServerCall) (reply []string, err error) {
+	if unresolver, ok := __gen_s.service.(_gen_ipc.Unresolver); ok {
 		return unresolver.UnresolveStep(call)
 	}
 	if call.Server() == nil {
@@ -192,15 +214,4 @@ func (__gen_s *ServerStubCollection) Export(call _gen_ipc.ServerCall, Val string
 func (__gen_s *ServerStubCollection) Lookup(call _gen_ipc.ServerCall) (reply []byte, err error) {
 	reply, err = __gen_s.service.Lookup(call)
 	return
-}
-
-func GetCollectionMethodTags(method string) []interface{} {
-	switch method {
-	case "Export":
-		return []interface{}{}
-	case "Lookup":
-		return []interface{}{}
-	default:
-		return nil
-	}
 }

@@ -21,12 +21,9 @@ type KeyValuePair struct {
 
 // A Cache service mimics the memcache interface.
 // Cache is the interface the client binds and uses.
-// Cache_InternalNoTagGetter is the interface without the TagGetter
-// and UnresolveStep methods (both framework-added, rathern than user-defined),
-// to enable embedding without method collisions.  Not to be used directly by
-// clients.
-type Cache_InternalNoTagGetter interface {
-
+// Cache_ExcludingUniversal is the interface without internal framework-added methods
+// to enable embedding without method collisions.  Not to be used directly by clients.
+type Cache_ExcludingUniversal interface {
 	// Set sets a value for a key.
 	Set(key string, value _gen_vdl.Any, opts ..._gen_ipc.ClientCallOpt) (err error)
 	// Get returns the value for a key.  If the value is not found, returns
@@ -69,11 +66,8 @@ type Cache_InternalNoTagGetter interface {
 	MultiGet(opts ..._gen_ipc.ClientCallOpt) (reply CacheMultiGetStream, err error)
 }
 type Cache interface {
-	_gen_vdl.TagGetter
-	// UnresolveStep returns the names for the remote service, rooted at the
-	// service's immediate namespace ancestor.
-	UnresolveStep(opts ..._gen_ipc.ClientCallOpt) ([]string, error)
-	Cache_InternalNoTagGetter
+	_gen_ipc.UniversalServiceMethods
+	Cache_ExcludingUniversal
 }
 
 // CacheService is the interface the server implements.
@@ -243,10 +237,6 @@ func NewServerCache(server CacheService) interface{} {
 type clientStubCache struct {
 	client _gen_ipc.Client
 	name   string
-}
-
-func (c *clientStubCache) GetMethodTags(method string) []interface{} {
-	return GetCacheMethodTags(method)
 }
 
 func (__gen_c *clientStubCache) Set(key string, value _gen_vdl.Any, opts ..._gen_ipc.ClientCallOpt) (err error) {
@@ -445,9 +435,31 @@ func (__gen_c *clientStubCache) MultiGet(opts ..._gen_ipc.ClientCallOpt) (reply 
 	return
 }
 
-func (c *clientStubCache) UnresolveStep(opts ..._gen_ipc.ClientCallOpt) (reply []string, err error) {
+func (__gen_c *clientStubCache) UnresolveStep(opts ..._gen_ipc.ClientCallOpt) (reply []string, err error) {
 	var call _gen_ipc.ClientCall
-	if call, err = c.client.StartCall(c.name, "UnresolveStep", nil, opts...); err != nil {
+	if call, err = __gen_c.client.StartCall(__gen_c.name, "UnresolveStep", nil, opts...); err != nil {
+		return
+	}
+	if ierr := call.Finish(&reply, &err); ierr != nil {
+		err = ierr
+	}
+	return
+}
+
+func (__gen_c *clientStubCache) Signature(opts ..._gen_ipc.ClientCallOpt) (reply _gen_ipc.ServiceSignature, err error) {
+	var call _gen_ipc.ClientCall
+	if call, err = __gen_c.client.StartCall(__gen_c.name, "Signature", nil, opts...); err != nil {
+		return
+	}
+	if ierr := call.Finish(&reply, &err); ierr != nil {
+		err = ierr
+	}
+	return
+}
+
+func (__gen_c *clientStubCache) GetMethodTags(method string, opts ..._gen_ipc.ClientCallOpt) (reply []interface{}, err error) {
+	var call _gen_ipc.ClientCall
+	if call, err = __gen_c.client.StartCall(__gen_c.name, "GetMethodTags", []interface{}{method}, opts...); err != nil {
 		return
 	}
 	if ierr := call.Finish(&reply, &err); ierr != nil {
@@ -463,11 +475,53 @@ type ServerStubCache struct {
 	service CacheService
 }
 
-func (s *ServerStubCache) GetMethodTags(method string) []interface{} {
-	return GetCacheMethodTags(method)
+func (__gen_s *ServerStubCache) GetMethodTags(call _gen_ipc.ServerCall, method string) ([]interface{}, error) {
+	// TODO(bprosnitz) GetMethodTags() will be replaces with Signature().
+	// Note: This exhibits some weird behavior like returning a nil error if the method isn't found.
+	// This will change when it is replaced with Signature().
+	switch method {
+	case "Set":
+		return []interface{}{}, nil
+	case "Get":
+		return []interface{}{}, nil
+	case "GetAsByte":
+		return []interface{}{}, nil
+	case "GetAsInt32":
+		return []interface{}{}, nil
+	case "GetAsInt64":
+		return []interface{}{}, nil
+	case "GetAsUint32":
+		return []interface{}{}, nil
+	case "GetAsUint64":
+		return []interface{}{}, nil
+	case "GetAsFloat32":
+		return []interface{}{}, nil
+	case "GetAsFloat64":
+		return []interface{}{}, nil
+	case "GetAsString":
+		return []interface{}{}, nil
+	case "GetAsBool":
+		return []interface{}{}, nil
+	case "GetAsError":
+		return []interface{}{}, nil
+	case "AsMap":
+		return []interface{}{}, nil
+	case "KeyValuePairs":
+		return []interface{}{}, nil
+	case "MostRecentSet":
+		return []interface{}{}, nil
+	case "KeyPage":
+		return []interface{}{}, nil
+	case "Size":
+		return []interface{}{}, nil
+	case "MultiGet":
+		return []interface{}{}, nil
+	default:
+		return nil, nil
+	}
 }
 
-func (s *ServerStubCache) Signature(call _gen_ipc.ServerCall) (_gen_ipc.ServiceSignature, error) {
+func (__gen_s *ServerStubCache) Signature(call _gen_ipc.ServerCall) (_gen_ipc.ServiceSignature, error) {
 	result := _gen_ipc.ServiceSignature{Methods: make(map[string]_gen_ipc.MethodSignature)}
 	result.Methods["AsMap"] = _gen_ipc.MethodSignature{
 		InArgs: []_gen_ipc.MethodArgument{},
@@ -636,8 +690,8 @@ func (s *ServerStubCache) Signature(call _gen_ipc.ServerCall) (_gen_ipc.ServiceS
 	return result, nil
 }
 
-func (s *ServerStubCache) UnresolveStep(call _gen_ipc.ServerCall) (reply []string, err error) {
-	if unresolver, ok := s.service.(_gen_ipc.Unresolver); ok {
+func (__gen_s *ServerStubCache) UnresolveStep(call _gen_ipc.ServerCall) (reply []string, err error) {
+	if unresolver, ok := __gen_s.service.(_gen_ipc.Unresolver); ok {
 		return unresolver.UnresolveStep(call)
 	}
 	if call.Server() == nil {
@@ -743,47 +797,4 @@ func (__gen_s *ServerStubCache) MultiGet(call _gen_ipc.ServerCall) (err error) {
 	stream := &implCacheServiceMultiGetStream{serverCall: call}
 	err = __gen_s.service.MultiGet(call, stream)
 	return
-}
-
-func GetCacheMethodTags(method string) []interface{} {
-	switch method {
-	case "Set":
-		return []interface{}{}
-	case "Get":
-		return []interface{}{}
-	case "GetAsByte":
-		return []interface{}{}
-	case "GetAsInt32":
-		return []interface{}{}
-	case "GetAsInt64":
-		return []interface{}{}
-	case "GetAsUint32":
-		return []interface{}{}
-	case "GetAsUint64":
-		return []interface{}{}
-	case "GetAsFloat32":
-		return []interface{}{}
-	case "GetAsFloat64":
-		return []interface{}{}
-	case "GetAsString":
-		return []interface{}{}
-	case "GetAsBool":
-		return []interface{}{}
-	case "GetAsError":
-		return []interface{}{}
-	case "AsMap":
-		return []interface{}{}
-	case "KeyValuePairs":
-		return []interface{}{}
-	case "MostRecentSet":
-		return []interface{}{}
-	case "KeyPage":
-		return []interface{}{}
-	case "Size":
-		return []interface{}{}
-	case "MultiGet":
-		return []interface{}{}
-	default:
-		return nil
-	}
 }

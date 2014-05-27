@@ -38,12 +38,9 @@ type ServerShellPacket struct {
 }
 
 // Tunnel is the interface the client binds and uses.
-// Tunnel_InternalNoTagGetter is the interface without the TagGetter
-// and UnresolveStep methods (both framework-added, rathern than user-defined),
-// to enable embedding without method collisions.  Not to be used directly by
-// clients.
-type Tunnel_InternalNoTagGetter interface {
-
+// Tunnel_ExcludingUniversal is the interface without internal framework-added methods
+// to enable embedding without method collisions.  Not to be used directly by clients.
+type Tunnel_ExcludingUniversal interface {
 	// The Forward method is used for network forwarding. All the data sent over
 	// the byte stream is forwarded to the requested network address and all the
 	// data received from that network connection is sent back in the reply
@@ -57,11 +54,8 @@ type Tunnel_InternalNoTagGetter interface {
 	Shell(command string, shellOpts ShellOpts, opts ..._gen_ipc.ClientCallOpt) (reply TunnelShellStream, err error)
 }
 type Tunnel interface {
-	_gen_vdl.TagGetter
-	// UnresolveStep returns the names for the remote service, rooted at the
-	// service's immediate namespace ancestor.
-	UnresolveStep(opts ..._gen_ipc.ClientCallOpt) ([]string, error)
-	Tunnel_InternalNoTagGetter
+	_gen_ipc.UniversalServiceMethods
+	Tunnel_ExcludingUniversal
 }
 
 // TunnelService is the interface the server implements.
@@ -285,10 +279,6 @@ type clientStubTunnel struct {
 	name   string
 }
 
-func (c *clientStubTunnel) GetMethodTags(method string) []interface{} {
-	return GetTunnelMethodTags(method)
-}
-
 func (__gen_c *clientStubTunnel) Forward(network string, address string, opts ..._gen_ipc.ClientCallOpt) (reply TunnelForwardStream, err error) {
 	var call _gen_ipc.ClientCall
 	if call, err = __gen_c.client.StartCall(__gen_c.name, "Forward", []interface{}{network, address}, opts...); err != nil {
@@ -307,9 +297,31 @@ func (__gen_c *clientStubTunnel) Shell(command string, shellOpts ShellOpts, opts
 	return
 }
 
-func (c *clientStubTunnel) UnresolveStep(opts ..._gen_ipc.ClientCallOpt) (reply []string, err error) {
+func (__gen_c *clientStubTunnel) UnresolveStep(opts ..._gen_ipc.ClientCallOpt) (reply []string, err error) {
 	var call _gen_ipc.ClientCall
-	if call, err = c.client.StartCall(c.name, "UnresolveStep", nil, opts...); err != nil {
+	if call, err = __gen_c.client.StartCall(__gen_c.name, "UnresolveStep", nil, opts...); err != nil {
+		return
+	}
+	if ierr := call.Finish(&reply, &err); ierr != nil {
+		err = ierr
+	}
+	return
+}
+
+func (__gen_c *clientStubTunnel) Signature(opts ..._gen_ipc.ClientCallOpt) (reply _gen_ipc.ServiceSignature, err error) {
+	var call _gen_ipc.ClientCall
+	if call, err = __gen_c.client.StartCall(__gen_c.name, "Signature", nil, opts...); err != nil {
+		return
+	}
+	if ierr := call.Finish(&reply, &err); ierr != nil {
+		err = ierr
+	}
+	return
+}
+
+func (__gen_c *clientStubTunnel) GetMethodTags(method string, opts ..._gen_ipc.ClientCallOpt) (reply []interface{}, err error) {
+	var call _gen_ipc.ClientCall
+	if call, err = __gen_c.client.StartCall(__gen_c.name, "GetMethodTags", []interface{}{method}, opts...); err != nil {
 		return
 	}
 	if ierr := call.Finish(&reply, &err); ierr != nil {
@@ -325,11 +337,21 @@ type ServerStubTunnel struct {
 	service TunnelService
 }
 
-func (s *ServerStubTunnel) GetMethodTags(method string) []interface{} {
-	return GetTunnelMethodTags(method)
+func (__gen_s *ServerStubTunnel) GetMethodTags(call _gen_ipc.ServerCall, method string) ([]interface{}, error) {
+	// TODO(bprosnitz) GetMethodTags() will be replaces with Signature().
+	// Note: This exhibits some weird behavior like returning a nil error if the method isn't found.
+	// This will change when it is replaced with Signature().
+	switch method {
+	case "Forward":
+		return []interface{}{security.Label(4)}, nil
+	case "Shell":
+		return []interface{}{security.Label(4)}, nil
+	default:
+		return nil, nil
+	}
 }
 
-func (s *ServerStubTunnel) Signature(call _gen_ipc.ServerCall) (_gen_ipc.ServiceSignature, error) {
+func (__gen_s *ServerStubTunnel) Signature(call _gen_ipc.ServerCall) (_gen_ipc.ServiceSignature, error) {
 	result := _gen_ipc.ServiceSignature{Methods: make(map[string]_gen_ipc.MethodSignature)}
 	result.Methods["Forward"] = _gen_ipc.MethodSignature{
 		InArgs: []_gen_ipc.MethodArgument{
@@ -382,8 +404,8 @@ func (s *ServerStubTunnel) Signature(call _gen_ipc.ServerCall) (_gen_ipc.Service
 	return result, nil
 }
 
-func (s *ServerStubTunnel) UnresolveStep(call _gen_ipc.ServerCall) (reply []string, err error) {
-	if unresolver, ok := s.service.(_gen_ipc.Unresolver); ok {
+func (__gen_s *ServerStubTunnel) UnresolveStep(call _gen_ipc.ServerCall) (reply []string, err error) {
+	if unresolver, ok := __gen_s.service.(_gen_ipc.Unresolver); ok {
 		return unresolver.UnresolveStep(call)
 	}
 	if call.Server() == nil {
@@ -410,15 +432,4 @@ func (__gen_s *ServerStubTunnel) Shell(call _gen_ipc.ServerCall, command string,
 	stream := &implTunnelServiceShellStream{serverCall: call}
 	reply, err = __gen_s.service.Shell(call, command, shellOpts, stream)
 	return
-}
-
-func GetTunnelMethodTags(method string) []interface{} {
-	switch method {
-	case "Forward":
-		return []interface{}{security.Label(4)}
-	case "Shell":
-		return []interface{}{security.Label(4)}
-	default:
-		return nil
-	}
 }

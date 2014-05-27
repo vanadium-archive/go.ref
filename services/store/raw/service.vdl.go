@@ -54,26 +54,20 @@ const (
 // Store defines a raw interface for the Veyron store. Mutations can be received
 // via the Watcher interface, and committed via PutMutation.
 // Store is the interface the client binds and uses.
-// Store_InternalNoTagGetter is the interface without the TagGetter
-// and UnresolveStep methods (both framework-added, rathern than user-defined),
-// to enable embedding without method collisions.  Not to be used directly by
-// clients.
-type Store_InternalNoTagGetter interface {
-
+// Store_ExcludingUniversal is the interface without internal framework-added methods
+// to enable embedding without method collisions.  Not to be used directly by clients.
+type Store_ExcludingUniversal interface {
 	// Watcher allows a client to receive updates for changes to objects
 	// that match a query.  See the package comments for details.
-	watch.Watcher_InternalNoTagGetter
+	watch.Watcher_ExcludingUniversal
 	// PutMutations atomically commits a stream of Mutations when the stream is
 	// closed. Mutations are not committed if the request is cancelled before
 	// the stream has been closed.
 	PutMutations(opts ..._gen_ipc.ClientCallOpt) (reply StorePutMutationsStream, err error)
 }
 type Store interface {
-	_gen_vdl.TagGetter
-	// UnresolveStep returns the names for the remote service, rooted at the
-	// service's immediate namespace ancestor.
-	UnresolveStep(opts ..._gen_ipc.ClientCallOpt) ([]string, error)
-	Store_InternalNoTagGetter
+	_gen_ipc.UniversalServiceMethods
+	Store_ExcludingUniversal
 }
 
 // StoreService is the interface the server implements.
@@ -176,7 +170,7 @@ func BindStore(name string, opts ..._gen_ipc.BindOpt) (Store, error) {
 		return nil, _gen_vdl.ErrTooManyOptionsToBind
 	}
 	stub := &clientStubStore{client: client, name: name}
-	stub.Watcher_InternalNoTagGetter, _ = watch.BindWatcher(name, client)
+	stub.Watcher_ExcludingUniversal, _ = watch.BindWatcher(name, client)
 
 	return stub, nil
 }
@@ -194,14 +188,10 @@ func NewServerStore(server StoreService) interface{} {
 
 // clientStubStore implements Store.
 type clientStubStore struct {
-	watch.Watcher_InternalNoTagGetter
+	watch.Watcher_ExcludingUniversal
 
 	client _gen_ipc.Client
 	name   string
-}
-
-func (c *clientStubStore) GetMethodTags(method string) []interface{} {
-	return GetStoreMethodTags(method)
 }
 
 func (__gen_c *clientStubStore) PutMutations(opts ..._gen_ipc.ClientCallOpt) (reply StorePutMutationsStream, err error) {
@@ -213,9 +203,31 @@ func (__gen_c *clientStubStore) PutMutations(opts ..._gen_ipc.ClientCallOpt) (re
 	return
 }
 
-func (c *clientStubStore) UnresolveStep(opts ..._gen_ipc.ClientCallOpt) (reply []string, err error) {
+func (__gen_c *clientStubStore) UnresolveStep(opts ..._gen_ipc.ClientCallOpt) (reply []string, err error) {
 	var call _gen_ipc.ClientCall
-	if call, err = c.client.StartCall(c.name, "UnresolveStep", nil, opts...); err != nil {
+	if call, err = __gen_c.client.StartCall(__gen_c.name, "UnresolveStep", nil, opts...); err != nil {
+		return
+	}
+	if ierr := call.Finish(&reply, &err); ierr != nil {
+		err = ierr
+	}
+	return
+}
+
+func (__gen_c *clientStubStore) Signature(opts ..._gen_ipc.ClientCallOpt) (reply _gen_ipc.ServiceSignature, err error) {
+	var call _gen_ipc.ClientCall
+	if call, err = __gen_c.client.StartCall(__gen_c.name, "Signature", nil, opts...); err != nil {
+		return
+	}
+	if ierr := call.Finish(&reply, &err); ierr != nil {
+		err = ierr
+	}
+	return
+}
+
+func (__gen_c *clientStubStore) GetMethodTags(method string, opts ..._gen_ipc.ClientCallOpt) (reply []interface{}, err error) {
+	var call _gen_ipc.ClientCall
+	if call, err = __gen_c.client.StartCall(__gen_c.name, "GetMethodTags", []interface{}{method}, opts...); err != nil {
 		return
 	}
 	if ierr := call.Finish(&reply, &err); ierr != nil {
@@ -233,11 +245,22 @@ type ServerStubStore struct {
 	service StoreService
 }
 
-func (s *ServerStubStore) GetMethodTags(method string) []interface{} {
-	return GetStoreMethodTags(method)
+func (__gen_s *ServerStubStore) GetMethodTags(call _gen_ipc.ServerCall, method string) ([]interface{}, error) {
+	// TODO(bprosnitz) GetMethodTags() will be replaces with Signature().
+	// Note: This exhibits some weird behavior like returning a nil error if the method isn't found.
+	// This will change when it is replaced with Signature().
+	if resp, err := __gen_s.ServerStubWatcher.GetMethodTags(call, method); resp != nil || err != nil {
+		return resp, err
+	}
+	switch method {
+	case "PutMutations":
+		return []interface{}{}, nil
+	default:
+		return nil, nil
+	}
 }
 
-func (s *ServerStubStore) Signature(call _gen_ipc.ServerCall) (_gen_ipc.ServiceSignature, error) {
+func (__gen_s *ServerStubStore) Signature(call _gen_ipc.ServerCall) (_gen_ipc.ServiceSignature, error) {
 	result := _gen_ipc.ServiceSignature{Methods: make(map[string]_gen_ipc.MethodSignature)}
 	result.Methods["PutMutations"] = _gen_ipc.MethodSignature{
 		InArgs: []_gen_ipc.MethodArgument{},
@@ -274,7 +297,7 @@ func (s *ServerStubStore) Signature(call _gen_ipc.ServerCall) (_gen_ipc.ServiceS
 	}
 	var ss _gen_ipc.ServiceSignature
 	var firstAdded int
-	ss, _ = s.ServerStubWatcher.Signature(call)
+	ss, _ = __gen_s.ServerStubWatcher.Signature(call)
 	firstAdded = len(result.TypeDefs)
 	for k, v := range ss.Methods {
 		for i, _ := range v.InArgs {
@@ -330,8 +353,8 @@ func (s *ServerStubStore) Signature(call _gen_ipc.ServerCall) (_gen_ipc.ServiceS
 	return result, nil
 }
 
-func (s *ServerStubStore) UnresolveStep(call _gen_ipc.ServerCall) (reply []string, err error) {
-	if unresolver, ok := s.service.(_gen_ipc.Unresolver); ok {
+func (__gen_s *ServerStubStore) UnresolveStep(call _gen_ipc.ServerCall) (reply []string, err error) {
+	if unresolver, ok := __gen_s.service.(_gen_ipc.Unresolver); ok {
 		return unresolver.UnresolveStep(call)
 	}
 	if call.Server() == nil {
@@ -352,16 +375,4 @@ func (__gen_s *ServerStubStore) PutMutations(call _gen_ipc.ServerCall) (err erro
 	stream := &implStoreServicePutMutationsStream{serverCall: call}
 	err = __gen_s.service.PutMutations(call, stream)
 	return
-}
-
-func GetStoreMethodTags(method string) []interface{} {
-	if resp := watch.GetWatcherMethodTags(method); resp != nil {
-		return resp
-	}
-	switch method {
-	case "PutMutations":
-		return []interface{}{}
-	default:
-		return nil
-	}
 }

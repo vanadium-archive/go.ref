@@ -23,12 +23,9 @@ import (
 // the public Repository interface, it allows to manage the actual
 // application metadata.
 // Repository is the interface the client binds and uses.
-// Repository_InternalNoTagGetter is the interface without the TagGetter
-// and UnresolveStep methods (both framework-added, rathern than user-defined),
-// to enable embedding without method collisions.  Not to be used directly by
-// clients.
-type Repository_InternalNoTagGetter interface {
-
+// Repository_ExcludingUniversal is the interface without internal framework-added methods
+// to enable embedding without method collisions.  Not to be used directly by clients.
+type Repository_ExcludingUniversal interface {
 	// Repository provides access to application envelopes. An
 	// application envelope is identified by an application name and an
 	// application version, which are specified through the veyron name,
@@ -43,7 +40,7 @@ type Repository_InternalNoTagGetter interface {
 	// Further, we envision that there will be special "latest" and
 	// "release" versions that will be symbolic links whose mapping is
 	// maintained by a mount table.
-	application.Repository_InternalNoTagGetter
+	application.Repository_ExcludingUniversal
 	// Put adds the given tuple of application version (specified
 	// through the veyron name suffix) and application envelope to all
 	// of the given application profiles.
@@ -58,11 +55,8 @@ type Repository_InternalNoTagGetter interface {
 	Remove(Profile string, opts ..._gen_ipc.ClientCallOpt) (err error)
 }
 type Repository interface {
-	_gen_vdl.TagGetter
-	// UnresolveStep returns the names for the remote service, rooted at the
-	// service's immediate namespace ancestor.
-	UnresolveStep(opts ..._gen_ipc.ClientCallOpt) ([]string, error)
-	Repository_InternalNoTagGetter
+	_gen_ipc.UniversalServiceMethods
+	Repository_ExcludingUniversal
 }
 
 // RepositoryService is the interface the server implements.
@@ -120,7 +114,7 @@ func BindRepository(name string, opts ..._gen_ipc.BindOpt) (Repository, error) {
 		return nil, _gen_vdl.ErrTooManyOptionsToBind
 	}
 	stub := &clientStubRepository{client: client, name: name}
-	stub.Repository_InternalNoTagGetter, _ = application.BindRepository(name, client)
+	stub.Repository_ExcludingUniversal, _ = application.BindRepository(name, client)
 
 	return stub, nil
 }
@@ -138,14 +132,10 @@ func NewServerRepository(server RepositoryService) interface{} {
 
 // clientStubRepository implements Repository.
 type clientStubRepository struct {
-	application.Repository_InternalNoTagGetter
+	application.Repository_ExcludingUniversal
 
 	client _gen_ipc.Client
 	name   string
-}
-
-func (c *clientStubRepository) GetMethodTags(method string) []interface{} {
-	return GetRepositoryMethodTags(method)
 }
 
 func (__gen_c *clientStubRepository) Put(Profiles []string, Envelope application.Envelope, opts ..._gen_ipc.ClientCallOpt) (err error) {
@@ -170,9 +160,31 @@ func (__gen_c *clientStubRepository) Remove(Profile string, opts ..._gen_ipc.Cli
 	return
 }
 
-func (c *clientStubRepository) UnresolveStep(opts ..._gen_ipc.ClientCallOpt) (reply []string, err error) {
+func (__gen_c *clientStubRepository) UnresolveStep(opts ..._gen_ipc.ClientCallOpt) (reply []string, err error) {
 	var call _gen_ipc.ClientCall
-	if call, err = c.client.StartCall(c.name, "UnresolveStep", nil, opts...); err != nil {
+	if call, err = __gen_c.client.StartCall(__gen_c.name, "UnresolveStep", nil, opts...); err != nil {
+		return
+	}
+	if ierr := call.Finish(&reply, &err); ierr != nil {
+		err = ierr
+	}
+	return
+}
+
+func (__gen_c *clientStubRepository) Signature(opts ..._gen_ipc.ClientCallOpt) (reply _gen_ipc.ServiceSignature, err error) {
+	var call _gen_ipc.ClientCall
+	if call, err = __gen_c.client.StartCall(__gen_c.name, "Signature", nil, opts...); err != nil {
+		return
+	}
+	if ierr := call.Finish(&reply, &err); ierr != nil {
+		err = ierr
+	}
+	return
+}
+
+func (__gen_c *clientStubRepository) GetMethodTags(method string, opts ..._gen_ipc.ClientCallOpt) (reply []interface{}, err error) {
+	var call _gen_ipc.ClientCall
+	if call, err = __gen_c.client.StartCall(__gen_c.name, "GetMethodTags", []interface{}{method}, opts...); err != nil {
 		return
 	}
 	if ierr := call.Finish(&reply, &err); ierr != nil {
@@ -190,11 +202,24 @@ type ServerStubRepository struct {
 	service RepositoryService
 }
 
-func (s *ServerStubRepository) GetMethodTags(method string) []interface{} {
-	return GetRepositoryMethodTags(method)
+func (__gen_s *ServerStubRepository) GetMethodTags(call _gen_ipc.ServerCall, method string) ([]interface{}, error) {
+	// TODO(bprosnitz) GetMethodTags() will be replaces with Signature().
+	// Note: This exhibits some weird behavior like returning a nil error if the method isn't found.
+	// This will change when it is replaced with Signature().
+	if resp, err := __gen_s.ServerStubRepository.GetMethodTags(call, method); resp != nil || err != nil {
+		return resp, err
+	}
+	switch method {
+	case "Put":
+		return []interface{}{security.Label(2)}, nil
+	case "Remove":
+		return []interface{}{security.Label(2)}, nil
+	default:
+		return nil, nil
+	}
 }
 
-func (s *ServerStubRepository) Signature(call _gen_ipc.ServerCall) (_gen_ipc.ServiceSignature, error) {
+func (__gen_s *ServerStubRepository) Signature(call _gen_ipc.ServerCall) (_gen_ipc.ServiceSignature, error) {
 	result := _gen_ipc.ServiceSignature{Methods: make(map[string]_gen_ipc.MethodSignature)}
 	result.Methods["Put"] = _gen_ipc.MethodSignature{
 		InArgs: []_gen_ipc.MethodArgument{
@@ -225,7 +250,7 @@ func (s *ServerStubRepository) Signature(call _gen_ipc.ServerCall) (_gen_ipc.Ser
 		_gen_wiretype.NamedPrimitiveType{Type: 0x1, Name: "error", Tags: []string(nil)}}
 	var ss _gen_ipc.ServiceSignature
 	var firstAdded int
-	ss, _ = s.ServerStubRepository.Signature(call)
+	ss, _ = __gen_s.ServerStubRepository.Signature(call)
 	firstAdded = len(result.TypeDefs)
 	for k, v := range ss.Methods {
 		for i, _ := range v.InArgs {
@@ -281,8 +306,8 @@ func (s *ServerStubRepository) Signature(call _gen_ipc.ServerCall) (_gen_ipc.Ser
 	return result, nil
 }
 
-func (s *ServerStubRepository) UnresolveStep(call _gen_ipc.ServerCall) (reply []string, err error) {
-	if unresolver, ok := s.service.(_gen_ipc.Unresolver); ok {
+func (__gen_s *ServerStubRepository) UnresolveStep(call _gen_ipc.ServerCall) (reply []string, err error) {
+	if unresolver, ok := __gen_s.service.(_gen_ipc.Unresolver); ok {
 		return unresolver.UnresolveStep(call)
 	}
 	if call.Server() == nil {
@@ -307,18 +332,4 @@ func (__gen_s *ServerStubRepository) Put(call _gen_ipc.ServerCall, Profiles []st
 func (__gen_s *ServerStubRepository) Remove(call _gen_ipc.ServerCall, Profile string) (err error) {
 	err = __gen_s.service.Remove(call, Profile)
 	return
-}
-
-func GetRepositoryMethodTags(method string) []interface{} {
-	if resp := application.GetRepositoryMethodTags(method); resp != nil {
-		return resp
-	}
-	switch method {
-	case "Put":
-		return []interface{}{security.Label(2)}
-	case "Remove":
-		return []interface{}{security.Label(2)}
-	default:
-		return nil
-	}
 }

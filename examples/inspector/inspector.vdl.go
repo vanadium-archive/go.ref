@@ -26,20 +26,15 @@ type Details struct {
 }
 
 // Inspector is the interface the client binds and uses.
-// Inspector_InternalNoTagGetter is the interface without the TagGetter
-// and UnresolveStep methods (both framework-added, rathern than user-defined),
-// to enable embedding without method collisions.  Not to be used directly by
-// clients.
-type Inspector_InternalNoTagGetter interface {
+// Inspector_ExcludingUniversal is the interface without internal framework-added methods
+// to enable embedding without method collisions.  Not to be used directly by clients.
+type Inspector_ExcludingUniversal interface {
 	Ls(Glob string, opts ..._gen_ipc.ClientCallOpt) (reply InspectorLsStream, err error)
 	LsDetails(Glob string, opts ..._gen_ipc.ClientCallOpt) (reply InspectorLsDetailsStream, err error)
 }
 type Inspector interface {
-	_gen_vdl.TagGetter
-	// UnresolveStep returns the names for the remote service, rooted at the
-	// service's immediate namespace ancestor.
-	UnresolveStep(opts ..._gen_ipc.ClientCallOpt) ([]string, error)
-	Inspector_InternalNoTagGetter
+	_gen_ipc.UniversalServiceMethods
+	Inspector_ExcludingUniversal
 }
 
 // InspectorService is the interface the server implements.
@@ -199,10 +194,6 @@ type clientStubInspector struct {
 	name   string
 }
 
-func (c *clientStubInspector) GetMethodTags(method string) []interface{} {
-	return GetInspectorMethodTags(method)
-}
-
 func (__gen_c *clientStubInspector) Ls(Glob string, opts ..._gen_ipc.ClientCallOpt) (reply InspectorLsStream, err error) {
 	var call _gen_ipc.ClientCall
 	if call, err = __gen_c.client.StartCall(__gen_c.name, "Ls", []interface{}{Glob}, opts...); err != nil {
@@ -221,9 +212,31 @@ func (__gen_c *clientStubInspector) LsDetails(Glob string, opts ..._gen_ipc.Clie
 	return
 }
 
-func (c *clientStubInspector) UnresolveStep(opts ..._gen_ipc.ClientCallOpt) (reply []string, err error) {
+func (__gen_c *clientStubInspector) UnresolveStep(opts ..._gen_ipc.ClientCallOpt) (reply []string, err error) {
 	var call _gen_ipc.ClientCall
-	if call, err = c.client.StartCall(c.name, "UnresolveStep", nil, opts...); err != nil {
+	if call, err = __gen_c.client.StartCall(__gen_c.name, "UnresolveStep", nil, opts...); err != nil {
+		return
+	}
+	if ierr := call.Finish(&reply, &err); ierr != nil {
+		err = ierr
+	}
+	return
+}
+
+func (__gen_c *clientStubInspector) Signature(opts ..._gen_ipc.ClientCallOpt) (reply _gen_ipc.ServiceSignature, err error) {
+	var call _gen_ipc.ClientCall
+	if call, err = __gen_c.client.StartCall(__gen_c.name, "Signature", nil, opts...); err != nil {
+		return
+	}
+	if ierr := call.Finish(&reply, &err); ierr != nil {
+		err = ierr
+	}
+	return
+}
+
+func (__gen_c *clientStubInspector) GetMethodTags(method string, opts ..._gen_ipc.ClientCallOpt) (reply []interface{}, err error) {
+	var call _gen_ipc.ClientCall
+	if call, err = __gen_c.client.StartCall(__gen_c.name, "GetMethodTags", []interface{}{method}, opts...); err != nil {
 		return
 	}
 	if ierr := call.Finish(&reply, &err); ierr != nil {
@@ -239,11 +252,21 @@ type ServerStubInspector struct {
 	service InspectorService
 }
 
-func (s *ServerStubInspector) GetMethodTags(method string) []interface{} {
-	return GetInspectorMethodTags(method)
+func (__gen_s *ServerStubInspector) GetMethodTags(call _gen_ipc.ServerCall, method string) ([]interface{}, error) {
+	// TODO(bprosnitz) GetMethodTags() will be replaces with Signature().
+	// Note: This exhibits some weird behavior like returning a nil error if the method isn't found.
+	// This will change when it is replaced with Signature().
+	switch method {
+	case "Ls":
+		return []interface{}{}, nil
+	case "LsDetails":
+		return []interface{}{}, nil
+	default:
+		return nil, nil
+	}
 }
 
-func (s *ServerStubInspector) Signature(call _gen_ipc.ServerCall) (_gen_ipc.ServiceSignature, error) {
+func (__gen_s *ServerStubInspector) Signature(call _gen_ipc.ServerCall) (_gen_ipc.ServiceSignature, error) {
 	result := _gen_ipc.ServiceSignature{Methods: make(map[string]_gen_ipc.MethodSignature)}
 	result.Methods["Ls"] = _gen_ipc.MethodSignature{
 		InArgs: []_gen_ipc.MethodArgument{
@@ -282,8 +305,8 @@ func (s *ServerStubInspector) Signature(call _gen_ipc.ServerCall) (_gen_ipc.Serv
 	return result, nil
 }
 
-func (s *ServerStubInspector) UnresolveStep(call _gen_ipc.ServerCall) (reply []string, err error) {
-	if unresolver, ok := s.service.(_gen_ipc.Unresolver); ok {
+func (__gen_s *ServerStubInspector) UnresolveStep(call _gen_ipc.ServerCall) (reply []string, err error) {
+	if unresolver, ok := __gen_s.service.(_gen_ipc.Unresolver); ok {
 		return unresolver.UnresolveStep(call)
 	}
 	if call.Server() == nil {
@@ -310,15 +333,4 @@ func (__gen_s *ServerStubInspector) LsDetails(call _gen_ipc.ServerCall, Glob str
 	stream := &implInspectorServiceLsDetailsStream{serverCall: call}
 	err = __gen_s.service.LsDetails(call, Glob, stream)
 	return
-}
-
-func GetInspectorMethodTags(method string) []interface{} {
-	switch method {
-	case "Ls":
-		return []interface{}{}
-	case "LsDetails":
-		return []interface{}{}
-	default:
-		return nil
-	}
 }

@@ -15,12 +15,9 @@ import (
 
 // A testing interface with methods that throw various types of errors
 // ErrorThrower is the interface the client binds and uses.
-// ErrorThrower_InternalNoTagGetter is the interface without the TagGetter
-// and UnresolveStep methods (both framework-added, rathern than user-defined),
-// to enable embedding without method collisions.  Not to be used directly by
-// clients.
-type ErrorThrower_InternalNoTagGetter interface {
-
+// ErrorThrower_ExcludingUniversal is the interface without internal framework-added methods
+// to enable embedding without method collisions.  Not to be used directly by clients.
+type ErrorThrower_ExcludingUniversal interface {
 	// Throws veyron2/vError.Aborted error
 	ThrowAborted(opts ..._gen_ipc.ClientCallOpt) (err error)
 	// Throws veyron2/vError.BadArg error
@@ -43,11 +40,8 @@ type ErrorThrower_InternalNoTagGetter interface {
 	ListAllBuiltInErrorIDs(opts ..._gen_ipc.ClientCallOpt) (reply []string, err error)
 }
 type ErrorThrower interface {
-	_gen_vdl.TagGetter
-	// UnresolveStep returns the names for the remote service, rooted at the
-	// service's immediate namespace ancestor.
-	UnresolveStep(opts ..._gen_ipc.ClientCallOpt) ([]string, error)
-	ErrorThrower_InternalNoTagGetter
+	_gen_ipc.UniversalServiceMethods
+	ErrorThrower_ExcludingUniversal
 }
 
 // ErrorThrowerService is the interface the server implements.
@@ -116,10 +110,6 @@ func NewServerErrorThrower(server ErrorThrowerService) interface{} {
 type clientStubErrorThrower struct {
 	client _gen_ipc.Client
 	name   string
-}
-
-func (c *clientStubErrorThrower) GetMethodTags(method string) []interface{} {
-	return GetErrorThrowerMethodTags(method)
 }
 
 func (__gen_c *clientStubErrorThrower) ThrowAborted(opts ..._gen_ipc.ClientCallOpt) (err error) {
@@ -232,9 +222,31 @@ func (__gen_c *clientStubErrorThrower) ListAllBuiltInErrorIDs(opts ..._gen_ipc.C
 	return
 }
 
-func (c *clientStubErrorThrower) UnresolveStep(opts ..._gen_ipc.ClientCallOpt) (reply []string, err error) {
+func (__gen_c *clientStubErrorThrower) UnresolveStep(opts ..._gen_ipc.ClientCallOpt) (reply []string, err error) {
 	var call _gen_ipc.ClientCall
-	if call, err = c.client.StartCall(c.name, "UnresolveStep", nil, opts...); err != nil {
+	if call, err = __gen_c.client.StartCall(__gen_c.name, "UnresolveStep", nil, opts...); err != nil {
+		return
+	}
+	if ierr := call.Finish(&reply, &err); ierr != nil {
+		err = ierr
+	}
+	return
+}
+
+func (__gen_c *clientStubErrorThrower) Signature(opts ..._gen_ipc.ClientCallOpt) (reply _gen_ipc.ServiceSignature, err error) {
+	var call _gen_ipc.ClientCall
+	if call, err = __gen_c.client.StartCall(__gen_c.name, "Signature", nil, opts...); err != nil {
+		return
+	}
+	if ierr := call.Finish(&reply, &err); ierr != nil {
+		err = ierr
+	}
+	return
+}
+
+func (__gen_c *clientStubErrorThrower) GetMethodTags(method string, opts ..._gen_ipc.ClientCallOpt) (reply []interface{}, err error) {
+	var call _gen_ipc.ClientCall
+	if call, err = __gen_c.client.StartCall(__gen_c.name, "GetMethodTags", []interface{}{method}, opts...); err != nil {
 		return
 	}
 	if ierr := call.Finish(&reply, &err); ierr != nil {
@@ -250,11 +262,37 @@ type ServerStubErrorThrower struct {
 	service ErrorThrowerService
 }
 
-func (s *ServerStubErrorThrower) GetMethodTags(method string) []interface{} {
-	return GetErrorThrowerMethodTags(method)
+func (__gen_s *ServerStubErrorThrower) GetMethodTags(call _gen_ipc.ServerCall, method string) ([]interface{}, error) {
+	// TODO(bprosnitz) GetMethodTags() will be replaces with Signature().
+	// Note: This exhibits some weird behavior like returning a nil error if the method isn't found.
+	// This will change when it is replaced with Signature().
+	switch method {
+	case "ThrowAborted":
+		return []interface{}{}, nil
+	case "ThrowBadArg":
+		return []interface{}{}, nil
+	case "ThrowBadProtocol":
+		return []interface{}{}, nil
+	case "ThrowInternal":
+		return []interface{}{}, nil
+	case "ThrowNotAuthorized":
+		return []interface{}{}, nil
+	case "ThrowNotFound":
+		return []interface{}{}, nil
+	case "ThrowUnknown":
+		return []interface{}{}, nil
+	case "ThrowGoError":
+		return []interface{}{}, nil
+	case "ThrowCustomStandardError":
+		return []interface{}{}, nil
+	case "ListAllBuiltInErrorIDs":
+		return []interface{}{}, nil
+	default:
+		return nil, nil
+	}
 }
 
-func (s *ServerStubErrorThrower) Signature(call _gen_ipc.ServerCall) (_gen_ipc.ServiceSignature, error) {
+func (__gen_s *ServerStubErrorThrower) Signature(call _gen_ipc.ServerCall) (_gen_ipc.ServiceSignature, error) {
 	result := _gen_ipc.ServiceSignature{Methods: make(map[string]_gen_ipc.MethodSignature)}
 	result.Methods["ListAllBuiltInErrorIDs"] = _gen_ipc.MethodSignature{
 		InArgs: []_gen_ipc.MethodArgument{},
@@ -324,8 +362,8 @@ func (s *ServerStubErrorThrower) Signature(call _gen_ipc.ServerCall) (_gen_ipc.S
 	return result, nil
 }
 
-func (s *ServerStubErrorThrower) UnresolveStep(call _gen_ipc.ServerCall) (reply []string, err error) {
-	if unresolver, ok := s.service.(_gen_ipc.Unresolver); ok {
+func (__gen_s *ServerStubErrorThrower) UnresolveStep(call _gen_ipc.ServerCall) (reply []string, err error) {
+	if unresolver, ok := __gen_s.service.(_gen_ipc.Unresolver); ok {
 		return unresolver.UnresolveStep(call)
 	}
 	if call.Server() == nil {
@@ -390,31 +428,4 @@ func (__gen_s *ServerStubErrorThrower) ThrowCustomStandardError(call _gen_ipc.Se
 func (__gen_s *ServerStubErrorThrower) ListAllBuiltInErrorIDs(call _gen_ipc.ServerCall) (reply []string, err error) {
 	reply, err = __gen_s.service.ListAllBuiltInErrorIDs(call)
 	return
-}
-
-func GetErrorThrowerMethodTags(method string) []interface{} {
-	switch method {
-	case "ThrowAborted":
-		return []interface{}{}
-	case "ThrowBadArg":
-		return []interface{}{}
-	case "ThrowBadProtocol":
-		return []interface{}{}
-	case "ThrowInternal":
-		return []interface{}{}
-	case "ThrowNotAuthorized":
-		return []interface{}{}
-	case "ThrowNotFound":
-		return []interface{}{}
-	case "ThrowUnknown":
-		return []interface{}{}
-	case "ThrowGoError":
-		return []interface{}{}
-	case "ThrowCustomStandardError":
-		return []interface{}{}
-	case "ListAllBuiltInErrorIDs":
-		return []interface{}{}
-	default:
-		return nil
-	}
 }

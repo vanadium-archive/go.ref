@@ -72,22 +72,16 @@ type LogValue struct {
 
 // Sync allows a device to GetDeltas from another device.
 // Sync is the interface the client binds and uses.
-// Sync_InternalNoTagGetter is the interface without the TagGetter
-// and UnresolveStep methods (both framework-added, rathern than user-defined),
-// to enable embedding without method collisions.  Not to be used directly by
-// clients.
-type Sync_InternalNoTagGetter interface {
-
+// Sync_ExcludingUniversal is the interface without internal framework-added methods
+// to enable embedding without method collisions.  Not to be used directly by clients.
+type Sync_ExcludingUniversal interface {
 	// GetDeltas returns a device's current generation vector and all the missing log records
 	// when compared to the incoming generation vector.
 	GetDeltas(In GenVector, ClientID DeviceID, opts ..._gen_ipc.ClientCallOpt) (reply SyncGetDeltasStream, err error)
 }
 type Sync interface {
-	_gen_vdl.TagGetter
-	// UnresolveStep returns the names for the remote service, rooted at the
-	// service's immediate namespace ancestor.
-	UnresolveStep(opts ..._gen_ipc.ClientCallOpt) ([]string, error)
-	Sync_InternalNoTagGetter
+	_gen_ipc.UniversalServiceMethods
+	Sync_ExcludingUniversal
 }
 
 // SyncService is the interface the server implements.
@@ -195,10 +189,6 @@ type clientStubSync struct {
 	name   string
 }
 
-func (c *clientStubSync) GetMethodTags(method string) []interface{} {
-	return GetSyncMethodTags(method)
-}
-
 func (__gen_c *clientStubSync) GetDeltas(In GenVector, ClientID DeviceID, opts ..._gen_ipc.ClientCallOpt) (reply SyncGetDeltasStream, err error) {
 	var call _gen_ipc.ClientCall
 	if call, err = __gen_c.client.StartCall(__gen_c.name, "GetDeltas", []interface{}{In, ClientID}, opts...); err != nil {
@@ -208,9 +198,31 @@ func (__gen_c *clientStubSync) GetDeltas(In GenVector, ClientID DeviceID, opts .
 	return
 }
 
-func (c *clientStubSync) UnresolveStep(opts ..._gen_ipc.ClientCallOpt) (reply []string, err error) {
+func (__gen_c *clientStubSync) UnresolveStep(opts ..._gen_ipc.ClientCallOpt) (reply []string, err error) {
 	var call _gen_ipc.ClientCall
-	if call, err = c.client.StartCall(c.name, "UnresolveStep", nil, opts...); err != nil {
+	if call, err = __gen_c.client.StartCall(__gen_c.name, "UnresolveStep", nil, opts...); err != nil {
+		return
+	}
+	if ierr := call.Finish(&reply, &err); ierr != nil {
+		err = ierr
+	}
+	return
+}
+
+func (__gen_c *clientStubSync) Signature(opts ..._gen_ipc.ClientCallOpt) (reply _gen_ipc.ServiceSignature, err error) {
+	var call _gen_ipc.ClientCall
+	if call, err = __gen_c.client.StartCall(__gen_c.name, "Signature", nil, opts...); err != nil {
+		return
+	}
+	if ierr := call.Finish(&reply, &err); ierr != nil {
+		err = ierr
+	}
+	return
+}
+
+func (__gen_c *clientStubSync) GetMethodTags(method string, opts ..._gen_ipc.ClientCallOpt) (reply []interface{}, err error) {
+	var call _gen_ipc.ClientCall
+	if call, err = __gen_c.client.StartCall(__gen_c.name, "GetMethodTags", []interface{}{method}, opts...); err != nil {
 		return
 	}
 	if ierr := call.Finish(&reply, &err); ierr != nil {
@@ -226,11 +238,19 @@ type ServerStubSync struct {
 	service SyncService
 }
 
-func (s *ServerStubSync) GetMethodTags(method string) []interface{} {
-	return GetSyncMethodTags(method)
+func (__gen_s *ServerStubSync) GetMethodTags(call _gen_ipc.ServerCall, method string) ([]interface{}, error) {
+	// TODO(bprosnitz) GetMethodTags() will be replaces with Signature().
+	// Note: This exhibits some weird behavior like returning a nil error if the method isn't found.
+	// This will change when it is replaced with Signature().
+	switch method {
+	case "GetDeltas":
+		return []interface{}{}, nil
+	default:
+		return nil, nil
+	}
 }
 
-func (s *ServerStubSync) Signature(call _gen_ipc.ServerCall) (_gen_ipc.ServiceSignature, error) {
+func (__gen_s *ServerStubSync) Signature(call _gen_ipc.ServerCall) (_gen_ipc.ServiceSignature, error) {
 	result := _gen_ipc.ServiceSignature{Methods: make(map[string]_gen_ipc.MethodSignature)}
 	result.Methods["GetDeltas"] = _gen_ipc.MethodSignature{
 		InArgs: []_gen_ipc.MethodArgument{
@@ -293,8 +313,8 @@ func (s *ServerStubSync) Signature(call _gen_ipc.ServerCall) (_gen_ipc.ServiceSi
 	return result, nil
 }
 
-func (s *ServerStubSync) UnresolveStep(call _gen_ipc.ServerCall) (reply []string, err error) {
-	if unresolver, ok := s.service.(_gen_ipc.Unresolver); ok {
+func (__gen_s *ServerStubSync) UnresolveStep(call _gen_ipc.ServerCall) (reply []string, err error) {
+	if unresolver, ok := __gen_s.service.(_gen_ipc.Unresolver); ok {
 		return unresolver.UnresolveStep(call)
 	}
 	if call.Server() == nil {
@@ -315,13 +335,4 @@ func (__gen_s *ServerStubSync) GetDeltas(call _gen_ipc.ServerCall, In GenVector,
 	stream := &implSyncServiceGetDeltasStream{serverCall: call}
 	reply, err = __gen_s.service.GetDeltas(call, In, ClientID, stream)
 	return
-}
-
-func GetSyncMethodTags(method string) []interface{} {
-	switch method {
-	case "GetDeltas":
-		return []interface{}{}
-	default:
-		return nil
-	}
 }

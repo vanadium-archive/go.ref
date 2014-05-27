@@ -17,23 +17,17 @@ import (
 
 // Fortune allows clients to Get and Add fortune strings.
 // Fortune is the interface the client binds and uses.
-// Fortune_InternalNoTagGetter is the interface without the TagGetter
-// and UnresolveStep methods (both framework-added, rathern than user-defined),
-// to enable embedding without method collisions.  Not to be used directly by
-// clients.
-type Fortune_InternalNoTagGetter interface {
-
+// Fortune_ExcludingUniversal is the interface without internal framework-added methods
+// to enable embedding without method collisions.  Not to be used directly by clients.
+type Fortune_ExcludingUniversal interface {
 	// Get returns a random fortune.
 	Get(opts ..._gen_ipc.ClientCallOpt) (reply string, err error)
 	// Add stores a fortune in the set used by Get.
 	Add(Fortune string, opts ..._gen_ipc.ClientCallOpt) (err error)
 }
 type Fortune interface {
-	_gen_vdl.TagGetter
-	// UnresolveStep returns the names for the remote service, rooted at the
-	// service's immediate namespace ancestor.
-	UnresolveStep(opts ..._gen_ipc.ClientCallOpt) ([]string, error)
-	Fortune_InternalNoTagGetter
+	_gen_ipc.UniversalServiceMethods
+	Fortune_ExcludingUniversal
 }
 
 // FortuneService is the interface the server implements.
@@ -88,10 +82,6 @@ type clientStubFortune struct {
 	name   string
 }
 
-func (c *clientStubFortune) GetMethodTags(method string) []interface{} {
-	return GetFortuneMethodTags(method)
-}
-
 func (__gen_c *clientStubFortune) Get(opts ..._gen_ipc.ClientCallOpt) (reply string, err error) {
 	var call _gen_ipc.ClientCall
 	if call, err = __gen_c.client.StartCall(__gen_c.name, "Get", nil, opts...); err != nil {
@@ -114,9 +104,31 @@ func (__gen_c *clientStubFortune) Add(Fortune string, opts ..._gen_ipc.ClientCal
 	return
 }
 
-func (c *clientStubFortune) UnresolveStep(opts ..._gen_ipc.ClientCallOpt) (reply []string, err error) {
+func (__gen_c *clientStubFortune) UnresolveStep(opts ..._gen_ipc.ClientCallOpt) (reply []string, err error) {
 	var call _gen_ipc.ClientCall
-	if call, err = c.client.StartCall(c.name, "UnresolveStep", nil, opts...); err != nil {
+	if call, err = __gen_c.client.StartCall(__gen_c.name, "UnresolveStep", nil, opts...); err != nil {
+		return
+	}
+	if ierr := call.Finish(&reply, &err); ierr != nil {
+		err = ierr
+	}
+	return
+}
+
+func (__gen_c *clientStubFortune) Signature(opts ..._gen_ipc.ClientCallOpt) (reply _gen_ipc.ServiceSignature, err error) {
+	var call _gen_ipc.ClientCall
+	if call, err = __gen_c.client.StartCall(__gen_c.name, "Signature", nil, opts...); err != nil {
+		return
+	}
+	if ierr := call.Finish(&reply, &err); ierr != nil {
+		err = ierr
+	}
+	return
+}
+
+func (__gen_c *clientStubFortune) GetMethodTags(method string, opts ..._gen_ipc.ClientCallOpt) (reply []interface{}, err error) {
+	var call _gen_ipc.ClientCall
+	if call, err = __gen_c.client.StartCall(__gen_c.name, "GetMethodTags", []interface{}{method}, opts...); err != nil {
 		return
 	}
 	if ierr := call.Finish(&reply, &err); ierr != nil {
@@ -132,11 +144,21 @@ type ServerStubFortune struct {
 	service FortuneService
 }
 
-func (s *ServerStubFortune) GetMethodTags(method string) []interface{} {
-	return GetFortuneMethodTags(method)
+func (__gen_s *ServerStubFortune) GetMethodTags(call _gen_ipc.ServerCall, method string) ([]interface{}, error) {
+	// TODO(bprosnitz) GetMethodTags() will be replaces with Signature().
+	// Note: This exhibits some weird behavior like returning a nil error if the method isn't found.
+	// This will change when it is replaced with Signature().
+	switch method {
+	case "Get":
+		return []interface{}{security.Label(1)}, nil
+	case "Add":
+		return []interface{}{security.Label(2)}, nil
+	default:
+		return nil, nil
+	}
 }
 
-func (s *ServerStubFortune) Signature(call _gen_ipc.ServerCall) (_gen_ipc.ServiceSignature, error) {
+func (__gen_s *ServerStubFortune) Signature(call _gen_ipc.ServerCall) (_gen_ipc.ServiceSignature, error) {
 	result := _gen_ipc.ServiceSignature{Methods: make(map[string]_gen_ipc.MethodSignature)}
 	result.Methods["Add"] = _gen_ipc.MethodSignature{
 		InArgs: []_gen_ipc.MethodArgument{
@@ -160,8 +182,8 @@ func (s *ServerStubFortune) Signature(call _gen_ipc.ServerCall) (_gen_ipc.Servic
 	return result, nil
 }
 
-func (s *ServerStubFortune) UnresolveStep(call _gen_ipc.ServerCall) (reply []string, err error) {
-	if unresolver, ok := s.service.(_gen_ipc.Unresolver); ok {
+func (__gen_s *ServerStubFortune) UnresolveStep(call _gen_ipc.ServerCall) (reply []string, err error) {
+	if unresolver, ok := __gen_s.service.(_gen_ipc.Unresolver); ok {
 		return unresolver.UnresolveStep(call)
 	}
 	if call.Server() == nil {
@@ -186,15 +208,4 @@ func (__gen_s *ServerStubFortune) Get(call _gen_ipc.ServerCall) (reply string, e
 func (__gen_s *ServerStubFortune) Add(call _gen_ipc.ServerCall, Fortune string) (err error) {
 	err = __gen_s.service.Add(call, Fortune)
 	return
-}
-
-func GetFortuneMethodTags(method string) []interface{} {
-	switch method {
-	case "Get":
-		return []interface{}{security.Label(1)}
-	case "Add":
-		return []interface{}{security.Label(2)}
-	default:
-		return nil
-	}
 }
