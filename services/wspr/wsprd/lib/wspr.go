@@ -732,7 +732,12 @@ func (wsp *websocketPipe) publish(publishRequest publishRequest, w clientWriter)
 			return
 		}
 
-		dispatcher := newDispatcher(invoker, nil)
+		//TODO(aghassemi) Security labels need to come from JS service, for now we allow AllLabels
+		authorizer := security.NewACLAuthorizer(
+			security.ACL{security.AllPrincipals: security.AllLabels},
+		)
+
+		dispatcher := newDispatcher(invoker, authorizer)
 		if err := wsp.veyronServer.Register(serviceName, dispatcher); err != nil {
 			w.sendError(verror.Internalf("error registering service: %s: %v", serviceName, err))
 			return
