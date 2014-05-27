@@ -114,6 +114,9 @@ func TestThatLastAccessedGetUpdated(t *testing.T) {
 	client := client()
 	sm := newSignatureManager()
 	sm.signature(name, client)
+	// make last accessed be in the past to account for the fact that
+	// two consecutive calls to time.Now() can return identical values.
+	sm.cache[name].lastAccessed = sm.cache[name].lastAccessed.Add(-ttl / 2)
 	prevAccess := sm.cache[name].lastAccessed
 
 	// access again
