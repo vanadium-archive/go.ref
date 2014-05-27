@@ -54,44 +54,6 @@ func testTimeout() string {
 	return "--test.timeout=1m"
 }
 
-// BlackboxTest returns true if the environment variables passed to
-// it contain the variable (GO_WANT_HELPERP_PROCESS=1) indicating that
-// a blackbox test is configured.
-func BlackboxTest(env []string) bool {
-	for _, v := range env {
-		if v == "GO_WANT_HELPER_PROCESS=1" {
-			return true
-		}
-	}
-	return false
-}
-
-type pipeList struct {
-	sync.Mutex
-	writers []*os.File
-}
-
-var pipes pipeList
-
-// InitBlacboxParent initializes the exec.Command instance passed in for
-// use with a process that is is be run as blackbox test. This is needed
-// for processes, such as the node manager, which want to run subprocesses
-// from within blackbox tests but are not themselves test code.
-// It must be called before any modifications are made to ExtraFiles
-// and before the subprocess is started.
-func InitBlackboxParent(cmd *exec.Cmd) error {
-	writer, err := initBlackboxParent(cmd)
-	if err != nil {
-		return err
-	}
-	// Keep a reference to the writers to prevent GC from closing them
-	// and thus causing the child to terminate.
-	pipes.Lock()
-	pipes.writers = append(pipes.writers, writer)
-	pipes.Unlock()
-	return nil
-}
-
 func initBlackboxParent(cmd *exec.Cmd) (*os.File, error) {
 	// We create a pipe that the child will read from, so that when the
 	// parent dies, it will receive an EOF and then immediately exit.
@@ -100,9 +62,8 @@ func initBlackboxParent(cmd *exec.Cmd) (*os.File, error) {
 	reader, writer, err := os.Pipe()
 	if err != nil {
 		return nil, err
-
 	}
-	cmd.Env = append([]string{"GO_WANT_HELPER_PROCESS=1"}, os.Environ()...)
+	cmd.Env = append([]string{"GO_WANT_HELPER_PROCESS_BLACKBOX=1"}, os.Environ()...)
 	cmd.ExtraFiles = []*os.File{reader}
 	return writer, nil
 }
@@ -156,7 +117,7 @@ func HelperCommand(t *testing.T, command string, args ...string) *Child {
 func HelperProcess(*testing.T) {
 	// Return immediately if this is not run as the child helper
 	// for the other tests.
-	if os.Getenv("GO_WANT_HELPER_PROCESS") != "1" {
+	if os.Getenv("GO_WANT_HELPER_PROCESS_BLACKBOX") != "1" {
 		return
 	}
 	if len(subcommand) == 0 {
@@ -178,6 +139,7 @@ func HelperProcess(*testing.T) {
 		if err != nil {
 			vlog.Fatalf("Failed to init child handle: %v", err)
 		}
+		ch.SetReady()
 		closer = ch.NewExtraFile(0, "closer")
 	} else {
 		closer = os.NewFile(3, "closer")

@@ -1,4 +1,4 @@
-package exec
+package exec_test
 
 import (
 	"fmt"
@@ -7,10 +7,10 @@ import (
 	"os"
 	"os/exec"
 	"sync"
-	"syscall"
 	"testing"
 	"time"
 
+	vexec "veyron/lib/exec"
 	// Use mock timekeeper to avoid actually sleeping during the test.
 	"veyron/runtimes/google/testing/timekeeper"
 )
@@ -21,7 +21,7 @@ import (
 const baselineOpenFiles = 3
 
 func init() {
-	if os.Getenv("GO_WANT_HELPER_PROCESS") == "1" {
+	if os.Getenv("GO_WANT_HELPER_PROCESS_EXEC") == "1" {
 		return
 	}
 	if want, got := baselineOpenFiles, openFiles(); want != got {
@@ -37,19 +37,8 @@ func helperCommand(s ...string) *exec.Cmd {
 	cs := []string{"-test.run=TestHelperProcess", "--"}
 	cs = append(cs, s...)
 	cmd := exec.Command(os.Args[0], cs...)
-	cmd.Env = append([]string{"GO_WANT_HELPER_PROCESS=1"}, os.Environ()...)
+	cmd.Env = append([]string{"GO_WANT_HELPER_PROCESS_EXEC=1"}, os.Environ()...)
 	return cmd
-}
-
-// noChild returns true if the child process doesn't exist
-func noChild(p *ParentHandle) bool {
-	err := syscall.Kill(p.c.Process.Pid, 0)
-	return err != nil
-}
-
-func goroutinesDone(t *testing.T, p *ParentHandle) {
-	p.doneStatus.Wait()
-	p.doneWait.Wait()
 }
 
 func openFiles() int {
@@ -62,14 +51,13 @@ func openFiles() int {
 	return int(n)
 }
 
-func clean(t *testing.T, ph ...*ParentHandle) {
+func clean(t *testing.T, ph ...*vexec.ParentHandle) {
 	for _, p := range ph {
-		alreadyClean := noChild(p)
+		alreadyClean := !p.Exists()
 		p.Clean()
-		if !alreadyClean && !noChild(p) {
+		if !alreadyClean && p.Exists() {
 			t.Errorf("child process left behind even after calling Clean")
 		}
-		goroutinesDone(t, p)
 	}
 	if want, got := baselineOpenFiles, openFiles(); want != got {
 		t.Errorf("Leaking file descriptors: expect %d, got %d", want, got)
@@ -109,7 +97,7 @@ func expectMessage(r io.Reader, m string) bool {
 func TestAuthExchange(t *testing.T) {
 	cmd := helperCommand("testAuth")
 	stderr, _ := cmd.StderrPipe()
-	ph := NewParentHandle(cmd, "dummy_secret")
+	ph := vexec.NewParentHandle(cmd, "dummy_secret")
 	err := ph.Start()
 	if err != nil {
 		t.Fatalf("testAuthTest: start: %v", err)
@@ -126,13 +114,13 @@ func TestAuthExchange(t *testing.T) {
 
 func TestNoVersion(t *testing.T) {
 	// Make sure that Init correctly tests for the presence of VEXEC_VERSION
-	_, err := NewChildHandle()
-	if err != ErrNoVersion {
+	_, err := vexec.NewChildHandle()
+	if err != vexec.ErrNoVersion {
 		t.Errorf("Should be missing Version")
 	}
 }
 
-func waitForReady(t *testing.T, cmd *exec.Cmd, name string, delay int, ph *ParentHandle) error {
+func waitForReady(t *testing.T, cmd *exec.Cmd, name string, delay int, ph *vexec.ParentHandle) error {
 	err := ph.Start()
 	if err != nil {
 		t.Fatalf("%s: start: %v", name, err)
@@ -141,12 +129,12 @@ func waitForReady(t *testing.T, cmd *exec.Cmd, name string, delay int, ph *Paren
 	return ph.WaitForReady(time.Duration(delay) * time.Second)
 }
 
-func readyHelperCmd(t *testing.T, cmd *exec.Cmd, name, result string) *ParentHandle {
+func readyHelperCmd(t *testing.T, cmd *exec.Cmd, name, result string) *vexec.ParentHandle {
 	stderr, err := cmd.StderrPipe()
 	if err != nil {
 		t.Fatalf("%s: failed to get stderr pipe\n", name)
 	}
-	ph := NewParentHandle(cmd, "")
+	ph := vexec.NewParentHandle(cmd, "")
 	if err := waitForReady(t, cmd, name, 4, ph); err != nil {
 		t.Errorf("%s: WaitForReady: %v (%v)", name, err, ph)
 		return nil
@@ -157,14 +145,14 @@ func readyHelperCmd(t *testing.T, cmd *exec.Cmd, name, result string) *ParentHan
 	return ph
 }
 
-func readyHelper(t *testing.T, name, test, result string) *ParentHandle {
+func readyHelper(t *testing.T, name, test, result string) *vexec.ParentHandle {
 	cmd := helperCommand(test)
 	return readyHelperCmd(t, cmd, name, result)
 }
 
-func testMany(t *testing.T, name, test, result string) []*ParentHandle {
+func testMany(t *testing.T, name, test, result string) []*vexec.ParentHandle {
 	nprocs := 10
-	ph := make([]*ParentHandle, nprocs)
+	ph := make([]*vexec.ParentHandle, nprocs)
 	cmd := make([]*exec.Cmd, nprocs)
 	stderr := make([]io.ReadCloser, nprocs)
 	controlReaders := make([]io.ReadCloser, nprocs)
@@ -181,7 +169,7 @@ func testMany(t *testing.T, name, test, result string) []*ParentHandle {
 		cmd[i].ExtraFiles = append(cmd[i].ExtraFiles, controlRead)
 		stderr[i], _ = cmd[i].StderrPipe()
 		tk := timekeeper.NewManualTime()
-		ph[i] = NewParentHandle(cmd[i], "", TimeKeeperOpt{tk: tk})
+		ph[i] = vexec.NewParentHandle(cmd[i], "", vexec.TimeKeeperOpt{tk})
 		done.Add(1)
 		go func() {
 			// For simulated slow children, wait until the parent
@@ -233,9 +221,9 @@ func TestNeverReady(t *testing.T) {
 	result := "never ready"
 	cmd := helperCommand(name)
 	stderr, _ := cmd.StderrPipe()
-	ph := NewParentHandle(cmd, "")
+	ph := vexec.NewParentHandle(cmd, "")
 	err := waitForReady(t, cmd, name, 1, ph)
-	if err != ErrTimeout {
+	if err != vexec.ErrTimeout {
 		t.Errorf("Failed to get timeout: got %v\n", err)
 	} else {
 		// block waiting for error from child
@@ -259,7 +247,7 @@ func TestTooSlowToReady(t *testing.T) {
 	cmd.ExtraFiles = append(cmd.ExtraFiles, controlRead)
 	stderr, _ := cmd.StderrPipe()
 	tk := timekeeper.NewManualTime()
-	ph := NewParentHandle(cmd, "", TimeKeeperOpt{tk: tk})
+	ph := vexec.NewParentHandle(cmd, "", vexec.TimeKeeperOpt{tk})
 	defer clean(t, ph)
 	defer controlWrite.Close()
 	defer controlRead.Close()
@@ -269,7 +257,7 @@ func TestTooSlowToReady(t *testing.T) {
 		tk.AdvanceTime(toWait)
 	}()
 	err = waitForReady(t, cmd, name, 1, ph)
-	if err != ErrTimeout {
+	if err != vexec.ErrTimeout {
 		t.Errorf("Failed to get timeout: got %v\n", err)
 	} else {
 		// After the parent timed out, wake up the child and let it
@@ -300,7 +288,7 @@ func TestToReadySlow(t *testing.T) {
 		t.Fatalf("%s: failed to get stderr pipe", name)
 	}
 	tk := timekeeper.NewManualTime()
-	ph := NewParentHandle(cmd, "", TimeKeeperOpt{tk: tk})
+	ph := vexec.NewParentHandle(cmd, "", vexec.TimeKeeperOpt{tk})
 	defer clean(t, ph)
 	defer controlWrite.Close()
 	defer controlRead.Close()
@@ -355,7 +343,7 @@ func TestExtraFiles(t *testing.T) {
 	fmt.Fprintf(wr, msg)
 	ph := readyHelperCmd(t, cmd, "TestExtraFiles", "child: "+msg)
 	if ph == nil {
-		t.Fatalf("Failed to get ParentHandle\n")
+		t.Fatalf("Failed to get vexec.ParentHandle\n")
 	}
 	e := ph.Wait(1 * time.Second)
 	if e != nil {
@@ -371,7 +359,7 @@ func TestExtraFiles(t *testing.T) {
 func TestHelperProcess(*testing.T) {
 	// Return immediately if this is not run as the child helper
 	// for the other tests.
-	if os.Getenv("GO_WANT_HELPER_PROCESS") != "1" {
+	if os.Getenv("GO_WANT_HELPER_PROCESS_EXEC") != "1" {
 		return
 	}
 	defer os.Exit(0)
@@ -395,13 +383,13 @@ func TestHelperProcess(*testing.T) {
 
 	switch cmd {
 	case "testNeverReady":
-		_, err := NewChildHandle()
+		_, err := vexec.NewChildHandle()
 		if err != nil {
 			log.Fatal(os.Stderr, "%s\n", err)
 		}
 		fmt.Fprintf(os.Stderr, "never ready")
 	case "testTooSlowToReady":
-		ch, err := NewChildHandle()
+		ch, err := vexec.NewChildHandle()
 		if err != nil {
 			log.Fatal(os.Stderr, "%s\n", err)
 		}
@@ -426,14 +414,14 @@ func TestHelperProcess(*testing.T) {
 		}
 		os.Exit(0)
 	case "testReady":
-		ch, err := NewChildHandle()
+		ch, err := vexec.NewChildHandle()
 		if err != nil {
 			log.Fatal(os.Stderr, "%s", err)
 		}
 		ch.SetReady()
 		fmt.Fprintf(os.Stderr, ".")
 	case "testReadySlow":
-		ch, err := NewChildHandle()
+		ch, err := vexec.NewChildHandle()
 		if err != nil {
 			log.Fatal(os.Stderr, "%s", err)
 		}
@@ -452,7 +440,7 @@ func TestHelperProcess(*testing.T) {
 		ch.SetReady()
 		fmt.Fprintf(os.Stderr, "..")
 	case "testSuccess", "testError":
-		ch, err := NewChildHandle()
+		ch, err := vexec.NewChildHandle()
 		if err != nil {
 			log.Fatal(os.Stderr, "%s\n", err)
 		}
@@ -470,14 +458,14 @@ func TestHelperProcess(*testing.T) {
 		r := <-rc
 		os.Exit(r)
 	case "testAuth":
-		ch, err := NewChildHandle()
+		ch, err := vexec.NewChildHandle()
 		if err != nil {
 			log.Fatalf("%s", err)
 		} else {
 			fmt.Fprintf(os.Stderr, "%s", ch.Secret)
 		}
 	case "testExtraFiles":
-		ch, err := NewChildHandle()
+		ch, err := vexec.NewChildHandle()
 		if err != nil {
 			log.Fatal("error.... %s\n", err)
 		}

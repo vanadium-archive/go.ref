@@ -4,10 +4,11 @@ import (
 	"errors"
 	"os"
 	"os/exec"
-	"sync"
 	"syscall"
 	"time"
 
+	"veyron/lib/testutil/blackbox/parent"
+	// TODO(cnicolaou): move timekeeper out of runtimes
 	"veyron/runtimes/google/lib/timekeeper"
 
 	"veyron2/vlog"
@@ -21,12 +22,11 @@ var (
 
 // A ParentHandle is the Parent process' means of managing a single child.
 type ParentHandle struct {
-	c                    *exec.Cmd
-	secret               string
-	statusRead           *os.File
-	statusWrite          *os.File
-	tk                   timekeeper.TimeKeeper
-	doneStatus, doneWait sync.WaitGroup
+	c           *exec.Cmd
+	secret      string
+	statusRead  *os.File
+	statusWrite *os.File
+	tk          timekeeper.TimeKeeper
 }
 
 // ParentHandleOpt is an option for NewParentHandle.
@@ -37,7 +37,7 @@ type ParentHandleOpt interface {
 
 // TimeKeeperOpt can be used to seed the parent handle with a custom timekeeper.
 type TimeKeeperOpt struct {
-	tk timekeeper.TimeKeeper
+	timekeeper.TimeKeeper
 }
 
 // ExecParentHandleOpt makes TimeKeeperOpt an instance of ParentHandleOpt.
@@ -54,7 +54,7 @@ func NewParentHandle(c *exec.Cmd, secret string, opts ...ParentHandleOpt) *Paren
 	for _, opt := range opts {
 		switch v := opt.(type) {
 		case TimeKeeperOpt:
-			tk = v.tk
+			tk = v
 		default:
 			vlog.Errorf("Unrecognized parent option: %v", v)
 		}
@@ -74,6 +74,11 @@ func NewParentHandle(c *exec.Cmd, secret string, opts ...ParentHandleOpt) *Paren
 func (p *ParentHandle) Start() error {
 	if len(p.secret) > MaxSecretSize {
 		return ErrSecretTooLarge
+	}
+	if parent.BlackboxTest(p.c.Env) {
+		if err := parent.InitBlackboxParent(p.c); err != nil {
+			return err
+		}
 	}
 	tokenRead, tokenWrite, err := os.Pipe()
 	if err != nil {
@@ -110,7 +115,7 @@ func (p *ParentHandle) Start() error {
 	return nil
 }
 
-func waitForStatus(c chan string, e chan error, r *os.File, done *sync.WaitGroup) {
+func waitForStatus(c chan string, e chan error, r *os.File) {
 	buf := make([]byte, 100)
 	n, err := r.Read(buf)
 	if err != nil {
@@ -121,7 +126,6 @@ func waitForStatus(c chan string, e chan error, r *os.File, done *sync.WaitGroup
 	r.Close()
 	close(c)
 	close(e)
-	done.Done()
 }
 
 // WaitForReady will wait for the child process to become ready.
@@ -129,8 +133,7 @@ func (p *ParentHandle) WaitForReady(timeout time.Duration) error {
 	defer p.statusWrite.Close()
 	c := make(chan string, 1)
 	e := make(chan error, 1)
-	p.doneStatus.Add(1)
-	go waitForStatus(c, e, p.statusRead, &p.doneStatus)
+	go waitForStatus(c, e, p.statusRead)
 	for {
 		select {
 		case err := <-e:
@@ -154,11 +157,9 @@ func (p *ParentHandle) WaitForReady(timeout time.Duration) error {
 // any other exit code or error will result in an appropriate error return
 func (p *ParentHandle) Wait(timeout time.Duration) error {
 	c := make(chan error, 1)
-	p.doneWait.Add(1)
 	go func() {
 		c <- p.c.Wait()
 		close(c)
-		p.doneWait.Done()
 	}()
 	// If timeout is zero time.After will panic; we handle zero specially
 	// to mean infinite timeout.
@@ -173,6 +174,22 @@ func (p *ParentHandle) Wait(timeout time.Duration) error {
 		return <-c
 	}
 	panic("unreachable")
+}
+
+// Pid returns the pid of the child, 0 if the child process doesn't exist
+func (p *ParentHandle) Pid() int {
+	if p.c.Process != nil {
+		return p.c.Process.Pid
+	}
+	return 0
+}
+
+// Exists returns true if the child process exists and can be signal'ed
+func (p *ParentHandle) Exists() bool {
+	if p.c.Process != nil {
+		return syscall.Kill(p.c.Process.Pid, 0) == nil
+	}
+	return false
 }
 
 // Kill kills the child process.
