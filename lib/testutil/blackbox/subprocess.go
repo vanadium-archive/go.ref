@@ -34,14 +34,15 @@ func init() {
 
 // Child represents a child process.
 type Child struct {
-	Name   string
-	Cmd    *exec.Cmd
-	ioLock sync.Mutex
-	Stdout *bufio.Reader // GUARDED_BY(ioLock)
-	Stdin  io.WriteCloser
-	stderr *os.File
-	closer *os.File
-	t      *testing.T
+	Name      string
+	Cmd       *exec.Cmd
+	ioLock    sync.Mutex
+	Stdout    *bufio.Reader // GUARDED_BY(ioLock)
+	Stdin     io.WriteCloser
+	stderr    *os.File
+	closer    *os.File
+	t         *testing.T
+	hasFailed bool
 }
 
 func testTimeout() string {
@@ -69,8 +70,12 @@ func initBlackboxParent(cmd *exec.Cmd) (*os.File, error) {
 }
 
 // HelperCommand() takes an argument list and starts a helper subprocess.
+// t maybe nil to allow use from outside of tests.
 func HelperCommand(t *testing.T, command string, args ...string) *Child {
-	cs := []string{"-test.run=TestHelperProcess", "--subcommand=" + command}
+	cs := []string{"--subcommand=" + command}
+	if t != nil {
+		cs = append(cs, "-test.run=TestHelperProcess")
+	}
 	// If timeout is not specified on the command line set a
 	// default value.
 	cs = append(cs, testTimeout())
@@ -89,11 +94,14 @@ func HelperCommand(t *testing.T, command string, args ...string) *Child {
 		cmd.Stderr = stderr
 	}
 
+	failed := false
 	writer, err := initBlackboxParent(cmd)
 	if err != nil {
-		t.Logf("Failed to create pipe: %v", err)
-		t.FailNow()
-		return nil
+		if t != nil {
+			t.Logf("Failed to create pipe: %v", err)
+			t.FailNow()
+		}
+		failed = true
 	}
 
 	stdout, _ := cmd.StdoutPipe()
@@ -105,8 +113,9 @@ func HelperCommand(t *testing.T, command string, args ...string) *Child {
 		Stdin:  stdin,
 		stderr: stderr,
 		// Keep the writer around to prevent GC from closing it!
-		closer: writer,
-		t:      t,
+		closer:    writer,
+		t:         t,
+		hasFailed: failed,
 	}
 }
 
@@ -114,7 +123,8 @@ func HelperCommand(t *testing.T, command string, args ...string) *Child {
 // Children should Write errors to stderr and test output to stdout since
 // the parent process will read from stdout a line at a time to monitor
 // the progress of the child.
-func HelperProcess(*testing.T) {
+// t maybe nil to allow use from outside of tests.
+func HelperProcess(t *testing.T) {
 	// Return immediately if this is not run as the child helper
 	// for the other tests.
 	if os.Getenv("GO_WANT_HELPER_PROCESS_BLACKBOX") != "1" {
@@ -174,6 +184,21 @@ func ReadLine(r *bufio.Reader) (string, error) {
 	return r.ReadString('\n')
 }
 
+func (c *Child) failed() bool {
+	if c.t != nil {
+		return c.t.Failed()
+	}
+	return c.hasFailed
+}
+func (c *Child) error(m string) {
+	c.hasFailed = true
+	if c.t != nil {
+		c.t.Error(m)
+	} else {
+		fmt.Fprintln(os.Stderr, m)
+	}
+}
+
 // ReadWithTimeout reads data from bufio.Reader instance using a function
 // of type Reader such as ReadAll or ReadLine. It will return true if it
 // times out, false otherwise. It will terminate the Child if it encounters
@@ -212,9 +237,9 @@ func (c *Child) readRemaining(stream string, r *bufio.Reader) {
 	text, timedout, err := c.ReadWithTimeout(ReadAll, r, waitSeconds)
 	switch {
 	case timedout:
-		c.t.Error(formatLogLine("%s: timedout reading %s: err '%v'", c.Name, stream, err))
+		c.error(formatLogLine("%s: timedout reading %s: err '%v'", c.Name, stream, err))
 	case err != nil:
-		c.t.Error(formatLogLine("%s: err reading %s", c.Name, stream))
+		c.error(formatLogLine("%s: err reading %s", c.Name, stream))
 	default:
 		vlog.Info(formatLogLine("%s: %s: '%s'", c.Name, stream, text))
 	}
@@ -224,16 +249,16 @@ func (c *Child) expectLine(expected string) bool {
 	actual, timedout, err := c.ReadWithTimeout(ReadLine, c.Stdout, waitSeconds)
 	switch {
 	case timedout:
-		c.t.Error(formatLogLine("%s: timedout reading from stdout, expecting '%s'", c.Name, expected))
+		c.error(formatLogLine("%s: timedout reading from stdout, expecting '%s'", c.Name, expected))
 		return false
 	case err != nil && err != io.EOF:
-		c.t.Error(formatLogLine("%s: unexpected error: %s, expecting '%s'", c.Name, err, expected))
+		c.error(formatLogLine("%s: unexpected error: %s, expecting '%s'", c.Name, err, expected))
 		return false
 	case actual == expected:
 		vlog.VI(2).Info(formatLogLine("%s: got: '%s'", c.Name, strings.TrimRight(actual, "")))
 		return err == io.EOF
 	default:
-		c.t.Error(formatLogLine("%s: expected '%s': got '%s'", c.Name, expected, actual))
+		c.error(formatLogLine("%s: expected '%s': got '%s'", c.Name, expected, actual))
 		return err == io.EOF
 	}
 }
@@ -258,12 +283,12 @@ func (c *Child) expectSetEventually(expected []string, timeout time.Duration) bo
 		case timedout:
 			m := formatLogLine("%s: timedout reading from stdout", c.Name)
 			vlog.VI(2).Info(m)
-			c.t.Error(m)
+			c.error(m)
 			return false
 		case err != nil && err != io.EOF:
 			m := formatLogLine("%s: unexpected error: %s", c.Name, err)
 			vlog.VI(2).Info(m)
-			c.t.Error(m)
+			c.error(m)
 			return false
 		case removeIfFound(actual, &expected):
 			if len(expected) == 0 {
@@ -272,7 +297,7 @@ func (c *Child) expectSetEventually(expected []string, timeout time.Duration) bo
 		case err == io.EOF:
 			m := formatLogLine("%s: eof", c.Name)
 			vlog.VI(2).Info(m)
-			c.t.Error(m)
+			c.error(m)
 			return true
 		default:
 			vlog.VI(2).Info(formatLogLine("%s: got: '%s'", c.Name, strings.TrimRight(actual, "\n")))
@@ -284,13 +309,13 @@ func (c *Child) expectSetEventually(expected []string, timeout time.Duration) bo
 // Trailing \n's are stripped from the Child's output and hence should not
 // be included in the "expected" parameter.
 func (c *Child) Expect(expected string) {
-	if c.t.Failed() {
+	if c.failed() {
 		vlog.VI(2).Info(formatLogLine("Already failed"))
 		return
 	}
 	eof := c.expectLine(expected)
 	if eof {
-		c.t.Error(formatLogLine("%s: unexpected EOF when expecting '%s'", c.Name, strings.TrimRight(expected, "\n")))
+		c.error(formatLogLine("%s: unexpected EOF when expecting '%s'", c.Name, strings.TrimRight(expected, "\n")))
 	}
 }
 
@@ -299,14 +324,14 @@ func (c *Child) Expect(expected string) {
 // The set is allowed to contain repetitions if the same line is expected
 // multiple times.
 func (c *Child) ExpectSet(expected []string) {
-	if c.t.Failed() {
+	if c.failed() {
 		return
 	}
 	actual := make([]string, 0, len(expected))
 	for i := 0; i < len(expected); i++ {
 		str, err := c.ReadLineFromChild()
 		if err != nil {
-			c.t.Errorf("ReadLineFromChild: failed %v", err)
+			c.error(formatLogLine("ReadLineFromChild: failed %v", err))
 			return
 		}
 		actual = append(actual, str)
@@ -315,7 +340,7 @@ func (c *Child) ExpectSet(expected []string) {
 	sort.Strings(actual)
 	for i, exp := range expected {
 		if exp != actual[i] {
-			c.t.Errorf(formatLogLine("expected %v, actual %v", expected, actual))
+			c.error(formatLogLine("expected %v, actual %v", expected, actual))
 			return
 		}
 	}
@@ -324,14 +349,14 @@ func (c *Child) ExpectSet(expected []string) {
 // Expect the specified string to be read from the Child's stdout pipe
 // eventually.  There may be additional output beforehand.
 func (c *Child) ExpectEventually(expected string, timeout time.Duration) {
-	if c.t.Failed() {
+	if c.failed() {
 		vlog.VI(2).Info(formatLogLine("Already failed"))
 		return
 	}
 	vlog.VI(2).Info(formatLogLine("Waiting for client, timeout %s", timeout))
 	eof := c.expectSetEventually([]string{expected}, timeout)
 	if eof {
-		c.t.Error(formatLogLine("%s: unexpected EOF when expecting %q", c.Name, strings.TrimRight(expected, "\n")))
+		c.error(formatLogLine("%s: unexpected EOF when expecting %q", c.Name, strings.TrimRight(expected, "\n")))
 	}
 }
 
@@ -340,14 +365,14 @@ func (c *Child) ExpectEventually(expected string, timeout time.Duration) {
 // eventually.  The set is allowed to contain repetitions if the same line is
 // expected multiple times.
 func (c *Child) ExpectSetEventually(expected []string, timeout time.Duration) {
-	if c.t.Failed() {
+	if c.failed() {
 		vlog.VI(2).Info(formatLogLine("Already failed"))
 		return
 	}
 	vlog.VI(2).Info(formatLogLine("Waiting for client, timeout %s", timeout))
 	eof := c.expectSetEventually(expected, timeout)
 	if eof {
-		c.t.Error(formatLogLine("%s: unexpected EOF when expecting %q", c.Name, expected))
+		c.error(formatLogLine("%s: unexpected EOF when expecting %q", c.Name, expected))
 	}
 }
 
@@ -360,8 +385,8 @@ func (c *Child) ExpectEOFAndWait() {
 // ExpectEOFAndWaitForExitCode is the same as ExpectEOFAndWait except that it
 // allows for a non-nil error to be returned by the child.
 func (c *Child) ExpectEOFAndWaitForExitCode(exit error) {
-	if c.t.Failed() {
-		c.t.Error(formatLogLine("%s: cleanup", c.Name))
+	if c.failed() {
+		c.error(formatLogLine("%s: cleanup", c.Name))
 		c.readRemaining("stdout", c.Stdout)
 		if c.Cmd.Process != nil {
 			c.Cmd.Process.Kill()
@@ -369,7 +394,7 @@ func (c *Child) ExpectEOFAndWaitForExitCode(exit error) {
 	} else {
 		eof := c.expectLine("")
 		if !eof {
-			c.t.Error(formatLogLine("%s: failed to exit (failed to read EOF)", c.Name))
+			c.error(formatLogLine("%s: failed to exit (failed to read EOF)", c.Name))
 			c.readRemaining("stdout", c.Stdout)
 			if c.Cmd.Process != nil {
 				c.Cmd.Process.Kill()
@@ -381,16 +406,16 @@ func (c *Child) ExpectEOFAndWaitForExitCode(exit error) {
 	err := c.Cmd.Wait()
 	if exit == nil {
 		if err != nil {
-			c.t.Error(formatLogLine("Client exited with error: %s", err))
+			c.error(formatLogLine("Client exited with error: %s", err))
 		}
 		return
 	}
 	if err == nil {
-		c.t.Error(formatLogLine("Client exited without error: expecting %s", exit))
+		c.error(formatLogLine("Client exited without error: expecting %s", exit))
 		return
 	}
 	if err.Error() != exit.Error() {
-		c.t.Error(formatLogLine("Client exited with unexpected error: %q and not %q", err, exit))
+		c.error(formatLogLine("Client exited with unexpected error: %q and not %q", err, exit))
 	}
 }
 
@@ -400,7 +425,7 @@ func (c *Child) ExpectEOFAndWaitForExitCode(exit error) {
 // WaitForLine reads the input until the expected line is read,
 // returning an error if EOF is reached or there is a timeout.
 func (c *Child) WaitForLine(expected string, timeout time.Duration) error {
-	if c.t.Failed() {
+	if c.failed() {
 		vlog.VI(2).Info(formatLogLine("Already failed"))
 		return fmt.Errorf("Already failed")
 	}
@@ -455,7 +480,7 @@ func (c *Child) WaitForPortFromChild() (string, error) {
 // ReadPortFromChild reads a port number written to the child's stdout,
 // returning an error if it fails to do so and not calling t.Error internal.
 func (c *Child) ReadPortFromChild() (string, error) {
-	if c.t.Failed() {
+	if c.failed() {
 		return "", fmt.Errorf("%s", "Already failed")
 	}
 	actual, timedout, err := c.ReadWithTimeout(ReadLine, c.Stdout, waitSeconds)
@@ -481,7 +506,7 @@ func (c *Child) ReadPortFromChild() (string, error) {
 // ReadLineFromChild reads a single line from the child's stdout,
 // returning an error if it fails to do so and not calling t.Error internal.
 func (c *Child) ReadLineFromChild() (string, error) {
-	if c.t.Failed() {
+	if c.failed() {
 		return "", fmt.Errorf("Already failed")
 	}
 	actual, timedout, err := c.ReadWithTimeout(ReadLine, c.Stdout, waitSeconds)
@@ -496,7 +521,7 @@ func (c *Child) ReadLineFromChild() (string, error) {
 
 // WriteLine writes the given line to the child's stdin, and appends a \n.
 func (c *Child) WriteLine(line string) {
-	if c.t.Failed() {
+	if c.failed() {
 		vlog.VI(2).Info(formatLogLine("Already failed"))
 		return
 	}
