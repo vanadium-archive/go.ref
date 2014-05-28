@@ -1,6 +1,7 @@
 package server
 
 import (
+	"fmt"
 	"io/ioutil"
 	"log"
 	"net"
@@ -20,7 +21,7 @@ import (
 
 var (
 	rootPublicID security.PublicID = security.FakePublicID("root")
-	rootName                       = rootPublicID.Names()[0]
+	rootName                       = fmt.Sprintf("%s", rootPublicID)
 
 	nextTransactionID store.TransactionID = 1
 

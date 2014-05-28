@@ -1,7 +1,6 @@
 package security
 
 import (
-	"fmt"
 	"reflect"
 	"testing"
 	"time"
@@ -10,6 +9,8 @@ import (
 	"veyron/runtimes/google/security/wire"
 	"veyron2/security"
 )
+
+type S []string
 
 func TestNameAndAuth(t *testing.T) {
 	var (
@@ -22,26 +23,34 @@ func TestNameAndAuth(t *testing.T) {
 		tMistrustedAlice = bless(tUntrustedAlice, newTree("veyron"), "alice", nil)
 	)
 	testdata := []struct {
-		id             security.PublicID
-		name, authName string
+		id        security.PublicID
+		names     []string
+		authErr   string
+		authNames []string
 	}{
-		{id: cUnknownAlice, name: "untrusted/alice", authName: "untrusted/alice"},
-		{id: cTrustedAlice, name: "veyron/alice", authName: "veyron/alice"},
-		{id: cMistrustedAlice, name: "untrusted/veyron/alice", authName: ""},
-		{id: tUntrustedAlice, name: "untrusted/alice", authName: "untrusted/alice"},
-		{id: tTrustedAlice, name: "untrusted/alice#veyron/alice", authName: "untrusted/alice#veyron/alice"},
-		{id: tMistrustedAlice, name: "untrusted/alice#untrusted/veyron/alice", authName: "untrusted/alice"},
+		{id: cUnknownAlice},
+		{id: cTrustedAlice, names: S{"veyron/alice"}, authNames: S{"veyron/alice"}},
+		{id: cMistrustedAlice, authErr: "Mistrusted"},
+		{id: tUntrustedAlice},
+		{id: tTrustedAlice, names: S{"veyron/alice"}, authNames: S{"veyron/alice"}},
+		{id: tMistrustedAlice},
 	}
 	for _, d := range testdata {
-		if got, want := fmt.Sprintf("%s", d.id), d.name; got != want {
-			t.Errorf("Got %q(%T) want %q", d.id, d.id, d.name)
+		if len(d.authNames) != 0 && len(d.authErr) != 0 {
+			t.Fatalf("Bad testdata. At most one of authNames and authErr must be non-empty: %q", d)
+		}
+		if got, want := d.id.Names(), d.names; !reflect.DeepEqual(got, want) {
+			t.Errorf("%q(%T).Names(): got: %q, want: %q", d.id, d.id, got, want)
 		}
 		authID, err := d.id.Authorize(NewContext(ContextArgs{}))
 		if (authID != nil) == (err != nil) {
-			t.Errorf("%q.Authorize returned (%v, %v), exactly one return value must be nil", d.id, authID, err)
+			t.Errorf("%q.Authorize returned: (%v, %v), exactly one return value must be nil", d.id, authID, err)
 			continue
 		}
-		if err := verifyAuthorizedID(d.id, authID, d.authName); err != nil {
+		if !matchesErrorPattern(err, d.authErr) {
+			t.Errorf("%q.Authorize returned error: %v, want to match: %q", d.id, err, d.authErr)
+		}
+		if err := verifyAuthorizedID(d.id, authID, d.authNames); err != nil {
 			t.Error(err)
 		}
 	}
@@ -63,6 +72,7 @@ func TestMatch(t *testing.T) {
 				{pattern: "*", want: true},
 				{pattern: "alice", want: false},
 				{pattern: "alice/*", want: false},
+				{pattern: "untrusted/alice/*", want: false},
 			},
 		},
 		{
@@ -127,12 +137,11 @@ func TestMatch(t *testing.T) {
 
 func TestExpiredIdentity(t *testing.T) {
 	testdata := []struct {
-		blessor    security.PrivateID
-		blessee    security.PublicID
-		authorized string
+		blessor security.PrivateID
+		blessee security.PublicID
 	}{
-		{veyronChain, newChain("alice").PublicID(), ""},
-		{veyronTree, newTree("alice").PublicID(), "untrusted/alice"},
+		{veyronChain, newChain("alice").PublicID()},
+		{veyronTree, newTree("alice").PublicID()},
 	}
 	for _, d := range testdata {
 		id, err := d.blessor.Bless(d.blessee, "alice", time.Millisecond, nil)
@@ -141,9 +150,10 @@ func TestExpiredIdentity(t *testing.T) {
 			continue
 		}
 		time.Sleep(time.Millisecond)
-		authorizedID, _ := id.Authorize(NewContext(ContextArgs{}))
-		if err := verifyAuthorizedID(id, authorizedID, d.authorized); err != nil {
-			t.Error(err)
+		if authID, _ := id.Authorize(NewContext(ContextArgs{})); authID != nil {
+			if got := authID.Names(); got != nil {
+				t.Errorf("%q.Names(): got: %q, want: nil", got)
+			}
 		}
 	}
 }
@@ -183,11 +193,11 @@ func TestBless(t *testing.T) {
 		tVeyronAlice = derive(bless(tAlice.PublicID(), veyronTree, "alice", nil), tAlice)
 	)
 	testdata := []struct {
-		blessor  security.PrivateID
-		blessee  security.PublicID
-		blessing string // name provided to security.PublicID.Bless
-		blessed  string // name of the blessed identity. Empty if the Bless operation should have failed
-		err      string
+		blessor      security.PrivateID
+		blessee      security.PublicID
+		blessing     string   // name provided to security.PublicID.Bless
+		blessedNames []string // names of the blessed identity. Empty if the Bless operation should have failed
+		err          string
 	}{
 		{
 			blessor: veyronChain,
@@ -201,22 +211,21 @@ func TestBless(t *testing.T) {
 			err:      `invalid blessing name:"alice/bob"`,
 		},
 		{
-			blessor:  veyronChain,
-			blessee:  cAlice.PublicID(),
-			blessing: "alice",
-			blessed:  "veyron/alice",
+			blessor:      veyronChain,
+			blessee:      cAlice.PublicID(),
+			blessing:     "alice",
+			blessedNames: S{"veyron/alice"},
 		},
 		{
-			blessor:  cVeyronAlice,
-			blessee:  cBob.PublicID(),
-			blessing: "friend_bob",
-			blessed:  "veyron/alice/friend_bob",
+			blessor:      cVeyronAlice,
+			blessee:      cBob.PublicID(),
+			blessing:     "friend_bob",
+			blessedNames: S{"veyron/alice/friend_bob"},
 		},
 		{
 			blessor:  cAlice,
 			blessee:  cBob.PublicID(),
 			blessing: "friend_bob",
-			blessed:  "untrusted/alice/friend_bob",
 		},
 		{
 			blessor: veyronTree,
@@ -230,47 +239,45 @@ func TestBless(t *testing.T) {
 			err:      `invalid blessing name:"alice/bob"`,
 		},
 		{
-			blessor:  veyronTree,
-			blessee:  tAlice.PublicID(),
-			blessing: "alice",
-			blessed:  "untrusted/alice#veyron/alice",
+			blessor:      veyronTree,
+			blessee:      tAlice.PublicID(),
+			blessing:     "alice",
+			blessedNames: S{"veyron/alice"},
 		},
 		{
-			blessor:  tVeyronAlice,
-			blessee:  tBob.PublicID(),
-			blessing: "friend_bob",
-			blessed:  "untrusted/bob#untrusted/alice/friend_bob#veyron/alice/friend_bob",
+			blessor:      tVeyronAlice,
+			blessee:      tBob.PublicID(),
+			blessing:     "friend_bob",
+			blessedNames: S{"veyron/alice/friend_bob"},
 		},
 		{
-			blessor:  googleTree,
-			blessee:  tVeyronAlice.PublicID(),
-			blessing: "googler",
-			blessed:  "untrusted/alice#veyron/alice#google/googler",
+			blessor:      googleTree,
+			blessee:      tVeyronAlice.PublicID(),
+			blessing:     "googler",
+			blessedNames: S{"veyron/alice", "google/googler"},
 		},
 	}
 
 	for _, d := range testdata {
+		if len(d.blessedNames) != 0 && len(d.err) != 0 {
+			t.Fatalf("Bad testdata. At most one of blessedNames and err must be non-empty: %q", d)
+		}
 		blessed, err := d.blessor.Bless(d.blessee, d.blessing, 1*time.Minute, nil)
-		// Exaclty one of (blessed, err) should be nil
+		// Exactly one of (blessed, err) should be nil
 		if (blessed != nil) == (err != nil) {
-			t.Errorf("%q.Bless(%q, %q, ...) returned (%v, %v): exactly one return value should be nil", d.blessor, d.blessee, d.blessing, blessed, err)
+			t.Errorf("%q.Bless(%q, %q, ...) returned: (%v, %v): exactly one return value should be nil", d.blessor, d.blessee, d.blessing, blessed, err)
 			continue
 		}
-		// If err != nil, should match d.err
+		// err should match d.err
+		if !matchesErrorPattern(err, d.err) {
+			t.Errorf("%q.Bless(%q, %q, ...) returned error: %v, want to match: %q", d.blessor, d.blessee, d.blessing, err, d.err)
+		}
 		if err != nil {
-			if err.Error() != d.err {
-				t.Errorf("Got error [%s], want [%s] from %q.Bless(%q, %q, ...)", err, d.err, d.blessor, d.blessee, d.blessing)
-			}
-			continue
-		}
-		// If d.err is specified, then err should not have been nil
-		if len(d.err) != 0 {
-			t.Errorf("Got %q want error=%v from %q.Bless(%q, %q, ...)", blessed, d.err, d.blessor, d.blessee, d.blessing)
 			continue
 		}
 		// Compare names
-		if got, want := fmt.Sprintf("%s", blessed), d.blessed; got != want {
-			t.Errorf("Got %q want %q from %q.Bless(%q, %q, ...)", got, want, d.blessor, d.blessee, d.blessing)
+		if got, want := blessed.Names(), d.blessedNames; !reflect.DeepEqual(got, want) {
+			t.Errorf("%q.Names(): got: %q, want: %q", blessed, got, want)
 		}
 		// Public keys should match for blessed and blessee
 		if !reflect.DeepEqual(blessed.PublicKey(), d.blessee.PublicKey()) {
@@ -304,18 +311,19 @@ func TestAuthorizeWithCaveats(t *testing.T) {
 
 		// Caveats
 		// Can only call "Play" at the Google service
-		cavOnlyPlayAtGoogle = methodRestrictionCaveat("google", []string{"Play"})
+		cavOnlyPlayAtGoogle = methodRestrictionCaveat("google", S{"Play"})
 		// Can only talk to the "Google" service
 		cavOnlyGoogle = peerIdentityCaveat("google")
 		// Can only call the PublicProfile method on veyron/alice/*
-		cavOnlyPublicProfile = methodRestrictionCaveat("veyron/alice/*", []string{"PublicProfile"})
+		cavOnlyPublicProfile = methodRestrictionCaveat("veyron/alice/*", S{"PublicProfile"})
 	)
 
 	type rpc struct {
 		server security.PublicID
 		method string
 		// Expected output: exactly one should be non-empty
-		authName, authErr string
+		authErr   string
+		authNames []string
 	}
 	testdata := []struct {
 		client security.PublicID
@@ -325,68 +333,68 @@ func TestAuthorizeWithCaveats(t *testing.T) {
 		{
 			client: bless(cAlice, veyronChain, "alice", cavOnlyPlayAtGoogle),
 			tests: []rpc{
-				{server: bob, method: "Hello", authName: "veyron/alice"},
-				{server: bob, authName: "veyron/alice"},
-				{server: googleTree.PublicID(), method: "Hello", authErr: `caveat.MethodRestriction{"Play"} forbids invocation of method Hello`},
-				{server: googleTree.PublicID(), method: "Play", authName: "veyron/alice"},
-				{server: googleTree.PublicID(), authName: "veyron/alice"},
+				{server: bob, method: "Hello", authNames: S{"veyron/alice"}},
+				{server: bob, authNames: S{"veyron/alice"}},
+				{server: googleTree.PublicID(), method: "Hello", authErr: "caveat.MethodRestriction{\"Play\"} forbids invocation of method Hello"},
+				{server: googleTree.PublicID(), method: "Play", authNames: S{"veyron/alice"}},
+				{server: googleTree.PublicID(), authNames: S{"veyron/alice"}},
 			},
 		},
 		{
 			client: bless(cAlice, veyronChain, "alice", cavOnlyGoogle),
 			tests: []rpc{
-				{server: bob, method: "Hello", authErr: `caveat.PeerIdentity{"google"} forbids RPCing with peer untrusted/bob`},
-				{server: googleTree.PublicID(), method: "Hello", authName: "veyron/alice"},
-				{server: googleTree.PublicID(), method: "Play", authName: "veyron/alice"},
+				{server: bob, method: "Hello", authErr: "caveat.PeerIdentity{\"google\"} forbids RPCing with peer"},
+				{server: googleTree.PublicID(), method: "Hello", authNames: S{"veyron/alice"}},
+				{server: googleTree.PublicID(), method: "Play", authNames: S{"veyron/alice"}},
 			},
 		},
 		{
 			client: bless(cAlice, veyronChain, "alice", append(cavOnlyGoogle, cavOnlyPlayAtGoogle...)),
 			tests: []rpc{
-				{server: bob, method: "Hello", authErr: `caveat.PeerIdentity{"google"} forbids RPCing with peer untrusted/bob`},
-				{server: googleTree.PublicID(), method: "Hello", authErr: `caveat.MethodRestriction{"Play"} forbids invocation of method Hello`},
-				{server: googleTree.PublicID(), method: "Play", authName: "veyron/alice"},
+				{server: bob, method: "Hello", authErr: "caveat.PeerIdentity{\"google\"} forbids RPCing with peer"},
+				{server: googleTree.PublicID(), method: "Hello", authErr: "caveat.MethodRestriction{\"Play\"} forbids invocation of method Hello"},
+				{server: googleTree.PublicID(), method: "Play", authNames: S{"veyron/alice"}},
 			},
 		},
 		{
 			client: bless(cAlice, veyronChain, "alice", cavOnlyPublicProfile),
 			tests: []rpc{
-				{server: cVeyronAliceTV, method: "PrivateProfile", authErr: `caveat.MethodRestriction{"PublicProfile"} forbids invocation of method PrivateProfile`},
-				{server: cVeyronAliceTV, method: "PublicProfile", authName: "veyron/alice"},
+				{server: cVeyronAliceTV, method: "PrivateProfile", authErr: "caveat.MethodRestriction{\"PublicProfile\"} forbids invocation of method PrivateProfile"},
+				{server: cVeyronAliceTV, method: "PublicProfile", authNames: S{"veyron/alice"}},
 			},
 		},
 		// client has a tree identity
 		{
 			client: bless(tAlice, veyronTree, "alice", cavOnlyPlayAtGoogle),
 			tests: []rpc{
-				{server: bob, method: "Hello", authName: "untrusted/alice#veyron/alice"},
-				{server: bob, authName: "untrusted/alice#veyron/alice"},
-				{server: googleTree.PublicID(), method: "Hello", authName: "untrusted/alice"},
-				{server: googleTree.PublicID(), method: "Play", authName: "untrusted/alice#veyron/alice"},
-				{server: googleTree.PublicID(), authName: "untrusted/alice#veyron/alice"},
+				{server: bob, method: "Hello", authNames: S{"veyron/alice"}},
+				{server: bob, authNames: S{"veyron/alice"}},
+				{server: googleTree.PublicID(), method: "Hello"},
+				{server: googleTree.PublicID(), method: "Play", authNames: S{"veyron/alice"}},
+				{server: googleTree.PublicID(), authNames: S{"veyron/alice"}},
 			},
 		},
 		{
 			client: bless(tAlice, veyronTree, "alice", cavOnlyGoogle),
 			tests: []rpc{
-				{server: bob, method: "Hello", authName: "untrusted/alice"},
-				{server: googleTree.PublicID(), method: "Hello", authName: "untrusted/alice#veyron/alice"},
-				{server: googleTree.PublicID(), method: "Play", authName: "untrusted/alice#veyron/alice"},
+				{server: bob, method: "Hello"},
+				{server: googleTree.PublicID(), method: "Hello", authNames: S{"veyron/alice"}},
+				{server: googleTree.PublicID(), method: "Play", authNames: S{"veyron/alice"}},
 			},
 		},
 		{
 			client: bless(tAlice, veyronTree, "alice", append(cavOnlyGoogle, cavOnlyPlayAtGoogle...)),
 			tests: []rpc{
-				{server: bob, method: "Hello", authName: "untrusted/alice"},
-				{server: googleTree.PublicID(), method: "Hello", authName: "untrusted/alice"},
-				{server: googleTree.PublicID(), method: "Play", authName: "untrusted/alice#veyron/alice"},
+				{server: bob, method: "Hello"},
+				{server: googleTree.PublicID(), method: "Hello"},
+				{server: googleTree.PublicID(), method: "Play", authNames: S{"veyron/alice"}},
 			},
 		},
 		{
 			client: bless(tAlice, veyronTree, "alice", cavOnlyPublicProfile),
 			tests: []rpc{
-				{server: tVeyronAliceTV, method: "PrivateProfile", authName: "untrusted/alice"},
-				{server: tVeyronAliceTV, method: "PublicProfile", authName: "untrusted/alice#veyron/alice"},
+				{server: tVeyronAliceTV, method: "PrivateProfile"},
+				{server: tVeyronAliceTV, method: "PublicProfile", authNames: S{"veyron/alice"}},
 			},
 		},
 	}
@@ -397,16 +405,16 @@ func TestAuthorizeWithCaveats(t *testing.T) {
 			continue
 		}
 		for _, test := range d.tests {
-			if (len(test.authName) == 0) == (len(test.authErr) == 0) {
-				t.Fatalf("Bad testdata. One of authName and authErr must be non-empty: %q, %+v", d.client, test)
+			if len(test.authNames) != 0 && len(test.authErr) != 0 {
+				t.Fatalf("Bad testdata. At most one of authNames and authErr must be non-empty: %q, %+v", d.client, test)
 			}
 			ctx := NewContext(ContextArgs{LocalID: test.server, RemoteID: d.client, Method: test.method})
 			authID, err := d.client.Authorize(ctx)
 			if !matchesErrorPattern(err, test.authErr) {
-				t.Errorf("%q.Authorize(%v) returned error %v, want to match %q", d.client, ctx, err, test.authErr)
+				t.Errorf("%q.Authorize(%v) returned error: %v, want to match: %q", d.client, ctx, err, test.authErr)
 			}
-			if err := verifyAuthorizedID(d.client, authID, test.authName); err != nil {
-				t.Errorf("%q.Authorize(%v) returned identity %v want %q", d.client, ctx, authID, test.authName)
+			if err := verifyAuthorizedID(d.client, authID, test.authNames); err != nil {
+				t.Errorf("%q.Authorize(%v) returned identity: %v want identity with names: %q", d.client, ctx, authID, test.authNames)
 			}
 		}
 	}
@@ -480,24 +488,25 @@ func TestAuthorizeWithThirdPartyCaveats(t *testing.T) {
 
 	type want struct {
 		// Exactly one of these should be non-empty
-		name, err string
+		authNames []string
+		err       string
 	}
 
 	chaintests := map[security.Context]want{
 		ctxEmpty:          want{err: "missing discharge"},
-		ctxAlice:          want{name: "veyron/bob/friend"},
+		ctxAlice:          want{authNames: S{"veyron/bob/friend"}},
 		ctxGoogleAtOther:  want{err: "forbids RPCing with peer"},
-		ctxGoogleAtGoogle: want{name: "veyron/bob/friend"},
+		ctxGoogleAtGoogle: want{authNames: S{"veyron/bob/friend"}},
 		ctxExpired:        want{err: "at this time"},
 		ctxInvalid:        want{err: "invalid signature"},
 	}
 	treetests := map[security.Context]want{
-		ctxEmpty:          want{name: "untrusted/carol#veyron/carol"},
-		ctxAlice:          want{name: "untrusted/carol#veyron/carol#untrusted/bob/friend#veyron/bob/friend"},
-		ctxGoogleAtOther:  want{name: "untrusted/carol#veyron/carol"},
-		ctxGoogleAtGoogle: want{name: "untrusted/carol#veyron/carol#untrusted/bob/friend#veyron/bob/friend"},
-		ctxExpired:        want{name: "untrusted/carol#veyron/carol"},
-		ctxInvalid:        want{name: "untrusted/carol#veyron/carol"},
+		ctxEmpty:          want{authNames: S{"veyron/carol"}},
+		ctxAlice:          want{authNames: S{"veyron/carol, veyron/bob/friend"}},
+		ctxGoogleAtOther:  want{authNames: S{"veyron/carol"}},
+		ctxGoogleAtGoogle: want{authNames: S{"veyron/carol, veyron/bob/friend"}},
+		ctxExpired:        want{authNames: S{"veyron/carol"}},
+		ctxInvalid:        want{authNames: S{"veyron/carol"}},
 	}
 	caveats := []security.ServiceCaveat{security.UniversalCaveat(aliceProximityCaveat)}
 	testdata := []struct {
@@ -512,15 +521,15 @@ func TestAuthorizeWithThirdPartyCaveats(t *testing.T) {
 			t.Errorf("%q is not round-trippable: %v", d.id, d.id, err)
 		}
 		for ctx, want := range d.tests {
-			if (len(want.name) == 0) == (len(want.err) == 0) {
-				t.Fatalf("Bad testdata. One of (name, err) must be non-empty: %q, %v", d.id, ctx)
+			if (len(want.authNames) != 0) && (len(want.err) != 0) {
+				t.Fatalf("Bad testdata. Atmost one of (authNames, err) must be non-empty: %q, %v", d.id, ctx)
 			}
 			authID, err := d.id.Authorize(ctx)
 			if !matchesErrorPattern(err, want.err) {
-				t.Errorf("%q.Authorize(%v) returned error %v, want to match %q", d.id, ctx, err, want.err)
+				t.Errorf("%q.Authorize(%v) returned error: %v, want to match: %q", d.id, ctx, err, want.err)
 			}
-			if err := verifyAuthorizedID(d.id, authID, want.name); err != nil {
-				t.Errorf("%q.Authorize(%v) returned identity %v want %q", d.id, ctx, authID, want.name)
+			if err := verifyAuthorizedID(d.id, authID, want.authNames); err != nil {
+				t.Errorf("%q.Authorize(%v) returned identity: %v want identity with names: %q", d.id, ctx, authID, want.authNames)
 			}
 		}
 	}
@@ -604,7 +613,7 @@ func TestBlessingChainAmplification(t *testing.T) {
 		t.Fatal(err)
 	}
 	authID, _ := veyronAliceBob.Authorize(NewContext(ContextArgs{}))
-	if err := verifyAuthorizedID(veyronAliceBob, authID, "veyron/alice/bob@veyron@alice"); err != nil {
+	if err := verifyAuthorizedID(veyronAliceBob, authID, S{"veyron/alice/bob@veyron@alice"}); err != nil {
 		t.Fatal(err)
 	}
 
@@ -616,8 +625,8 @@ func TestBlessingChainAmplification(t *testing.T) {
 	// Wait for 1ms so that the blessing expires
 	time.Sleep(time.Millisecond)
 	authID, _ = googleAliceBob.Authorize(NewContext(ContextArgs{}))
-	if err := verifyAuthorizedID(googleAliceBob, authID, ""); err != nil {
-		t.Fatal(err)
+	if authID != nil {
+		t.Fatal("%q.Authorized returned: %q, want nil", authID)
 	}
 
 	// At this point, Bob has a valid blessing from veyron/alice and an
@@ -635,7 +644,7 @@ func TestBlessingChainAmplification(t *testing.T) {
 	googleBob.certificates[2] = veyronBob.certificates[2]
 	// This hacked up identity should fail integrity tests
 	if _, err := roundTrip(googleBob); err != wire.ErrNoIntegrity {
-		t.Fatalf("roundTrip(%q) returned %v want %v", googleBob, err, wire.ErrNoIntegrity)
+		t.Fatalf("roundTrip(%q) returned: %v want %v", googleBob, err, wire.ErrNoIntegrity)
 	}
 
 	// Restoring the certificate should restore validity.
@@ -648,7 +657,7 @@ func TestBlessingChainAmplification(t *testing.T) {
 	// certificate should also cause the identity to be invalid.
 	googleBob.certificates[1] = veyronBob.certificates[1]
 	if _, err := roundTrip(googleBob); err != wire.ErrNoIntegrity {
-		t.Fatalf("roundTrip(%q) returned %v want %v", googleBob, err, wire.ErrNoIntegrity)
+		t.Fatalf("roundTrip(%q) returned: %v want %v", googleBob, err, wire.ErrNoIntegrity)
 	}
 }
 
@@ -674,7 +683,7 @@ func TestDerive(t *testing.T) {
 	for _, d := range testdata {
 		derivedID, err := d.priv.Derive(d.pub)
 		if (err != nil) != d.err {
-			t.Errorf("%q.Derive(%q) returned error %v, wanted: %t", d.priv, d.pub, err, d.err)
+			t.Errorf("%q.Derive(%q) returned error: %v, wanted: %t", d.priv, d.pub, err, d.err)
 			continue
 		}
 		if err != nil {
@@ -683,10 +692,10 @@ func TestDerive(t *testing.T) {
 			continue
 		}
 		if !reflect.DeepEqual(derivedID.PublicID(), d.pub) {
-			t.Errorf("%q.Derive(%q) returned %q. PublicID mismatch", d.priv, d.pub, derivedID)
+			t.Errorf("%q.Derive(%q) returned: %q. PublicID mismatch", d.priv, d.pub, derivedID)
 		}
 		if !reflect.DeepEqual(derivedID.PrivateKey(), d.priv.PrivateKey()) {
-			t.Errorf("%q.Derive(%q) returned %q. PrivateKey mismatch", d.priv, d.pub, derivedID)
+			t.Errorf("%q.Derive(%q) returned: %q. PrivateKey mismatch", d.priv, d.pub, derivedID)
 		}
 		if _, err := roundTrip(derivedID.PublicID()); err != nil {
 			t.Errorf("roundTrip(%q=%q.Derive(%q)) failed: %v", derivedID, d.priv, d.pub, err)

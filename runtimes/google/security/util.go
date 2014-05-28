@@ -29,7 +29,7 @@ func TrustIdentityProviders(id security.PrivateID) {
 }
 
 // matchesPattern checks if the provided name conforms to the provided pattern.
-// This function assumes pattern to be of the one of the following forms:
+// This function assumes pattern to be one of the following forms:
 // - Pattern is a chained name of the form p_0/.../p_k; in this case the check
 //   succeeds iff the provided name is of the form n_0/.../n_m such that m <= k
 //   and for all i from 0 to m, p_i = n_i.
@@ -59,8 +59,16 @@ func matchesPattern(name, pattern string) bool {
 	return true
 }
 
-func matchPrincipalPattern(name string, pattern security.PrincipalPattern) bool {
-	return pattern == security.AllPrincipals || matchesPattern(name, string(pattern))
+func matchPrincipalPattern(names []string, pattern security.PrincipalPattern) bool {
+	if pattern == security.AllPrincipals {
+		return true
+	}
+	for _, n := range names {
+		if matchesPattern(n, string(pattern)) {
+			return true
+		}
+	}
+	return false
 }
 
 // ContextArgs holds the arguments for creating a new security.Context for an IPC.

@@ -3,6 +3,7 @@ package security
 // This file describes a blessing tree based implementation of security.PublicID.
 
 import (
+	"bytes"
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/rand"
@@ -34,7 +35,9 @@ type treePublicID struct {
 func (id *treePublicID) Names() []string {
 	var names []string
 	for _, p := range id.paths {
-		names = append(names, p.String())
+		if keys.LevelOfTrust(p.providerKey, p.providerName) == keys.Trusted {
+			names = append(names, p.name)
+		}
 	}
 	return names
 }
@@ -45,17 +48,21 @@ func (id *treePublicID) Names() []string {
 // of the name "foo/bar" are the names "foo/bar", "foo/bar/baz", "foo/bar/baz/car", and
 // so on.
 func (id *treePublicID) Match(pattern security.PrincipalPattern) bool {
-	for _, p := range id.paths {
-		if matchPrincipalPattern(p.String(), pattern) {
-			return true
-		}
-	}
-	return false
+	return matchPrincipalPattern(id.Names(), pattern)
 }
 
 func (id *treePublicID) PublicKey() *ecdsa.PublicKey { return id.publicKey }
 
-func (id *treePublicID) String() string { return strings.Join(id.Names(), nameSeparator) }
+func (id *treePublicID) String() string {
+	var buf bytes.Buffer
+	for i, p := range id.paths {
+		if i > 0 {
+			buf.WriteString(nameSeparator)
+		}
+		buf.WriteString(p.String())
+	}
+	return buf.String()
+}
 
 func (id *treePublicID) VomEncode() (*wire.TreePublicID, error) {
 	var pKey wire.PublicKey

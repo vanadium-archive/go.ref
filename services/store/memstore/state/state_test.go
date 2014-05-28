@@ -20,10 +20,10 @@ var (
 	janePublicID security.PublicID = security.FakePublicID("jane")
 	joanPublicID security.PublicID = security.FakePublicID("joan")
 
-	rootUser = security.PrincipalPattern(rootPublicID.Names()[0])
-	johnUser = security.PrincipalPattern(johnPublicID.Names()[0])
-	janeUser = security.PrincipalPattern(janePublicID.Names()[0])
-	joanUser = security.PrincipalPattern(joanPublicID.Names()[0])
+	rootUser = security.PrincipalPattern("fake/root")
+	johnUser = security.PrincipalPattern("fake/john")
+	janeUser = security.PrincipalPattern("fake/jane")
+	joanUser = security.PrincipalPattern("fake/joan")
 )
 
 // makeParentNodes creates the parent nodes if they do not already exist.
