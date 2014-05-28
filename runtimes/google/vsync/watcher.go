@@ -11,6 +11,8 @@ import (
 
 	"veyron/services/store/raw"
 
+	"veyron2"
+	"veyron2/ipc"
 	"veyron2/query"
 	"veyron2/services/watch"
 	"veyron2/storage"
@@ -57,7 +59,7 @@ func (w *syncWatcher) watchStore() {
 	defer w.syncd.pending.Done()
 
 	// If no Veyron store is configured, there is nothing to watch.
-	if w.syncd.vstore == nil {
+	if w.syncd.store == nil {
 		vlog.VI(1).Info("watchStore: Veyron store not configured; skipping the watcher")
 		return
 	}
@@ -99,7 +101,7 @@ func (w *syncWatcher) getWatchStream() watch.WatcherWatchStream {
 			req.ResumeMarker = resmark
 		}
 
-		stream, err := w.syncd.vstore.Watch(req)
+		stream, err := w.syncd.store.Watch(req, veyron2.CallTimeout(ipc.NoTimeout))
 		if err == nil {
 			return stream
 		}

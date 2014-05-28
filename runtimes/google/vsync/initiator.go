@@ -63,7 +63,6 @@ type syncInitiator struct {
 	// Next steps are to tie this up into mount table and auto-discover neighbors.
 	neighbors   []string
 	neighborIDs []string
-	store       raw.Store
 
 	updObjects map[storage.ID]*objConflictState
 }
@@ -91,16 +90,6 @@ func newInitiator(syncd *syncd, peerEndpoints, peerDeviceIDs string, syncTick ti
 	}
 	if len(i.neighbors) != len(i.neighborIDs) {
 		vlog.Fatalf("newInitiator: Mismatch between number of endpoints and IDs")
-	}
-
-	// TODO(hpucha): Merge this with vstore handler in syncd.
-	if syncd.vstoreEndpoint != "" {
-		var err error
-		i.store, err = raw.BindStore(naming.JoinAddressName(syncd.vstoreEndpoint, raw.RawStoreSuffix))
-		if err != nil {
-			vlog.Fatalf("newInitiator: cannot connect to Veyron store endpoint (%s): %s",
-				syncd.vstoreEndpoint, err)
-		}
 	}
 
 	// Override the default peerSyncInterval value if syncTick is specified.
@@ -514,8 +503,8 @@ func (i *syncInitiator) updateStoreAndSync(m []raw.Mutation, local, minGens, rem
 	// TODO(hpucha): We will hold the lock across PutMutations rpc
 	// to prevent a race with watcher. The next iteration will
 	// clean up this coordination.
-	if i.store != nil && len(m) > 0 {
-		stream, err := i.store.PutMutations()
+	if store := i.syncd.store; store != nil && len(m) > 0 {
+		stream, err := store.PutMutations()
 		if err != nil {
 			vlog.Errorf("updateStoreAndSync:: putmutations err %v", err)
 			return err

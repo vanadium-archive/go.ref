@@ -9,6 +9,7 @@ import (
 	"veyron2/query"
 	"veyron2/services/mounttable"
 	"veyron2/services/store"
+	"veyron2/services/watch"
 	"veyron2/storage"
 	"veyron2/vdl"
 )
@@ -211,4 +212,9 @@ func (o *object) GlobT(ctx ipc.Context, tid store.TransactionID, pattern string,
 		}
 	}
 	return nil
+}
+
+// Watch returns a stream of changes.
+func (o *object) Watch(ctx ipc.Context, req watch.Request, stream watch.WatcherServiceWatchStream) error {
+	panic("not implemented")
 }

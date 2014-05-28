@@ -4,7 +4,6 @@ package vsync
 
 import (
 	"bytes"
-	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -13,7 +12,7 @@ import (
 
 	"veyron/services/store/raw"
 
-	"veyron2/query"
+	"veyron2/ipc"
 	"veyron2/services/watch"
 	"veyron2/storage"
 )
@@ -39,7 +38,19 @@ type testInfo struct {
 type fakeVStore struct {
 }
 
-func (v *fakeVStore) Watch(req watch.Request) (watch.WatcherWatchStream, error) {
+func (*fakeVStore) GetMethodTags(_ string, _ ...ipc.ClientCallOpt) ([]interface{}, error) {
+	panic("not implemented")
+}
+
+func (*fakeVStore) UnresolveStep(_ ...ipc.ClientCallOpt) ([]string, error) {
+	panic("not implemented")
+}
+
+func (*fakeVStore) Signature(_ ...ipc.ClientCallOpt) (ipc.ServiceSignature, error) {
+	panic("not implemented")
+}
+
+func (v *fakeVStore) Watch(req watch.Request, _ ...ipc.ClientCallOpt) (watch.WatcherWatchStream, error) {
 	// If "failWatch" is set, simulate a failed RPC call.
 	if info.failWatch {
 		info.failWatchCount++
@@ -53,24 +64,8 @@ func (v *fakeVStore) Watch(req watch.Request) (watch.WatcherWatchStream, error) 
 	return newFakeStream(), nil
 }
 
-func (v *fakeVStore) Bind(path string) storage.Object {
-	return nil
-}
-
-func (v *fakeVStore) Glob(t storage.Transaction, pattern string) (storage.GlobStream, error) {
-	return nil, errors.New("not implemented")
-}
-
-func (v *fakeVStore) Search(t storage.Transaction, q query.Query) storage.Iterator {
-	return nil
-}
-
-func (v *fakeVStore) SetConflictResolver(ty string, r storage.ConflictResolver) {
-	return
-}
-
-func (v *fakeVStore) Close() error {
-	return nil
+func (*fakeVStore) PutMutations(_ ...ipc.ClientCallOpt) (raw.StorePutMutationsStream, error) {
+	panic("not implemented")
 }
 
 // fakeStream is used to simulate the reply stream of the Watch() API.

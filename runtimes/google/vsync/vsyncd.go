@@ -14,8 +14,8 @@ import (
 	"veyron/services/store/raw"
 
 	"veyron2/ipc"
+	"veyron2/naming"
 	"veyron2/storage"
-	"veyron2/storage/vstore"
 	"veyron2/vlog"
 	"veyron2/vom"
 
@@ -39,8 +39,8 @@ type syncd struct {
 	closed  chan struct{}
 
 	// Local Veyron store.
-	vstoreEndpoint string
-	vstore         storage.Store
+	storeEndpoint string
+	store         raw.Store
 
 	// Handlers for goroutine procedures.
 	hdlGC        *syncGC
@@ -66,28 +66,28 @@ type syncd struct {
 // sync.RWMutex. The spec says that the writers cannot be starved by
 // the readers but it does not guarantee FIFO. We may have to revisit
 // this in the future.
-func NewSyncd(peerEndpoints, peerDeviceIDs, devid, storePath, vstoreEndpoint string, syncTick time.Duration) *syncd {
+func NewSyncd(peerEndpoints, peerDeviceIDs, devid, storePath, storeEndpoint string, syncTick time.Duration) *syncd {
 	// Connect to the local Veyron store.
 	// At present this is optional to allow testing (from the command-line) w/o Veyron store running.
 	// TODO: connecting to Veyron store should be mandatory.
-	var st storage.Store
-	if vstoreEndpoint != "" {
-		vs, err := vstore.New(vstoreEndpoint)
+	var store raw.Store
+	if storeEndpoint != "" {
+		var err error
+		store, err = raw.BindStore(naming.JoinAddressName(storeEndpoint, raw.RawStoreSuffix))
 		if err != nil {
-			vlog.Fatalf("newSyncd: cannot connect to Veyron store endpoint (%s): %s", vstoreEndpoint, err)
+			vlog.Fatalf("NewSyncd: cannot connect to Veyron store endpoint (%s): %s", storeEndpoint, err)
 		}
-		st = vs
 	}
 
-	return newSyncdCore(peerEndpoints, peerDeviceIDs, devid, storePath, vstoreEndpoint, st, syncTick)
+	return newSyncdCore(peerEndpoints, peerDeviceIDs, devid, storePath, storeEndpoint, store, syncTick)
 }
 
 // newSyncdCore is the internal function that creates the Syncd
 // structure and initilizes its thread (goroutines).  It takes a
 // Veyron Store parameter to separate the core of Syncd setup from the
 // external dependency on Veyron Store.
-func newSyncdCore(peerEndpoints, peerDeviceIDs, devid, storePath, vstoreEndpoint string,
-	store storage.Store, syncTick time.Duration) *syncd {
+func newSyncdCore(peerEndpoints, peerDeviceIDs, devid, storePath, storeEndpoint string,
+	store raw.Store, syncTick time.Duration) *syncd {
 	s := &syncd{}
 
 	// Bootstrap my own DeviceID.
@@ -110,9 +110,9 @@ func newSyncdCore(peerEndpoints, peerDeviceIDs, devid, storePath, vstoreEndpoint
 	}
 
 	// Veyron Store.
-	s.vstoreEndpoint = vstoreEndpoint
-	s.vstore = store
-	vlog.VI(1).Infof("newSyncd: Local Veyron store: %s", s.vstoreEndpoint)
+	s.storeEndpoint = storeEndpoint
+	s.store = store
+	vlog.VI(1).Infof("newSyncd: Local Veyron store: %s", s.storeEndpoint)
 
 	// Register these Watch data types with VOM.
 	// TODO(tilaks): why aren't they auto-retrieved from the IDL?

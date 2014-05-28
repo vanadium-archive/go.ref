@@ -48,6 +48,7 @@ type Mutation struct {
 // Store defines a raw interface for the Veyron store. Mutations can be received
 // via the Watcher interface, and committed via PutMutation.
 type Store interface {
+  // Watcher is an API for watching updates that satisfy a query.
   watch.Watcher
 
   // PutMutations atomically commits a stream of Mutations when the stream is
