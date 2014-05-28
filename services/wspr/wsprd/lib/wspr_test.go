@@ -507,7 +507,7 @@ func runJsServerTestCase(t *testing.T, test jsServerTestCase) {
 
 	expectedWebsocketMessage := []response{
 		response{
-			Type: serverRequest,
+			Type: responseServerRequest,
 			Message: map[string]interface{}{
 				"serverId":    0.0,
 				"serviceName": "adder",
@@ -532,15 +532,12 @@ func runJsServerTestCase(t *testing.T, test jsServerTestCase) {
 		}
 	}
 
-	if len(test.clientStream) > 0 {
-		call.CloseSend()
-		expectedWebsocketMessage = append(expectedWebsocketMessage, response{Type: responseStreamClose})
-	}
-
 	// Wait until all the streaming messages have been acknowledged.
 	if err := writer.waitForMessage(len(expectedWebsocketMessage)); err != nil {
 		t.Errorf("didn't recieve expected message: %v", err)
 	}
+
+	expectedWebsocketMessage = append(expectedWebsocketMessage, response{Type: responseStreamClose})
 
 	expectedStream := test.serverStream
 	go sendServerStream(t, &wsp, &test, &writer)
