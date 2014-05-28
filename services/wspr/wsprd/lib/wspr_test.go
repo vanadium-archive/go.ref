@@ -3,8 +3,10 @@ package lib
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"reflect"
 	"testing"
+	"time"
 	"veyron2"
 	"veyron2/ipc"
 	"veyron2/naming"
@@ -138,6 +140,9 @@ type testWriter struct {
 	buf    bytes.Buffer
 	err    error
 	logger vlog.Logger
+	// If this channel is set then a message will be sent
+	// to this channel after recieving a call to FinishMessage()
+	notifier chan bool
 }
 
 func (w *testWriter) Write(p []byte) (int, error) {
@@ -161,6 +166,28 @@ func (w *testWriter) FinishMessage() error {
 		return err
 	}
 	w.stream = append(w.stream, resp)
+	if w.notifier != nil {
+		w.notifier <- true
+	}
+	return nil
+}
+
+// Waits until there is at least n messages in w.stream. Returns an error if we timeout
+// waiting for the given number of messages.
+func (w *testWriter) waitForMessage(n int) error {
+	if len(w.stream) >= n {
+		return nil
+	}
+	w.notifier = make(chan bool, 1)
+	for len(w.stream) < n {
+		select {
+		case <-w.notifier:
+			continue
+		case <-time.After(time.Second):
+			return fmt.Errorf("timed out")
+		}
+	}
+	w.notifier = nil
 	return nil
 }
 
@@ -375,6 +402,228 @@ func TestJavascriptPublish(t *testing.T) {
 
 	}
 	t.Errorf("invalid endpdoint returned from publish: %v", resp.Message)
+}
+
+type jsServerTestCase struct {
+	method string
+	inArgs []interface{}
+	// The set of streaming inputs from the client to the server.
+	clientStream []interface{}
+	// The set of streaming outputs from the server to the client.
+	serverStream  []interface{}
+	finalResponse interface{}
+	err           *verror.Standard
+}
+
+func sendServerStream(t *testing.T, wsp *websocketPipe, test *jsServerTestCase, w clientWriter) {
+	for _, msg := range test.serverStream {
+		wsp.sendParsedMessageOnStream(0, msg, w)
+	}
+
+	serverReply := serverRPCReply{
+		Results: []interface{}{test.finalResponse},
+		Err:     test.err,
+	}
+
+	bytes, err := json.Marshal(serverReply)
+	if err != nil {
+		t.Fatalf("Failed to serialize the reply: %v", err)
+	}
+	wsp.handleServerResponse(0, string(bytes))
+}
+
+func runJsServerTestCase(t *testing.T, test jsServerTestCase) {
+	mounttableServer, endpoint, err := startMountTableServer()
+
+	if err != nil {
+		t.Errorf("unable to start mounttable: %v", err)
+		return
+	}
+
+	defer mounttableServer.Stop()
+
+	proxyServer, err := startProxy()
+
+	if err != nil {
+		t.Errorf("unable to start proxy: %v", err)
+		return
+	}
+
+	defer proxyServer.Shutdown()
+
+	proxyEndpoint := proxyServer.Endpoint().String()
+
+	wspr := NewWSPR(0, "/"+proxyEndpoint, veyron2.MountTableRoots{"/" + endpoint.String() + "/mt"})
+	wspr.setup()
+	wsp := websocketPipe{ctx: wspr}
+	writer := testWriter{
+		logger: wspr.logger,
+	}
+	wsp.writerCreator = func(int64) clientWriter {
+		return &writer
+	}
+	wsp.setup()
+	defer wsp.cleanup()
+	wsp.publish(publishRequest{
+		Name: "adder",
+		Services: map[string]JSONServiceSignature{
+			"adder": adderServiceSignature,
+		},
+	}, &writer)
+
+	if len(writer.stream) != 1 {
+		t.Errorf("expected only on response, got %d", len(writer.stream))
+	}
+
+	resp := writer.stream[0]
+
+	if resp.Type != responseFinal {
+		t.Errorf("unknown stream message Got: %v, expected: publish response", resp)
+		return
+	}
+
+	msg, ok := resp.Message.(string)
+	if !ok {
+		t.Errorf("invalid endpdoint returned from publish: %v", resp.Message)
+	}
+
+	if _, err := r.NewEndpoint(msg); err != nil {
+		t.Errorf("invalid endpdoint returned from publish: %v", resp.Message)
+	}
+
+	writer.stream = nil
+
+	// Create a client using wspr's runtime so it points to the right mounttable.
+	client, err := wspr.rt.NewClient()
+
+	if err != nil {
+		t.Errorf("unable to create client: %v", err)
+	}
+
+	call, err := client.StartCall("/"+msg+"/adder", test.method, test.inArgs)
+	if err != nil {
+		t.Errorf("failed to start call: %v", err)
+	}
+
+	expectedWebsocketMessage := []response{
+		response{
+			Type: serverRequest,
+			Message: map[string]interface{}{
+				"serverId":    0.0,
+				"serviceName": "adder",
+				"method":      lowercaseFirstCharacter(test.method),
+				"args":        test.inArgs,
+				"context": map[string]interface{}{
+					"name":   "adder",
+					"suffix": "",
+				},
+			},
+		},
+	}
+
+	// Wait until the rpc has started.
+	if err := writer.waitForMessage(len(expectedWebsocketMessage)); err != nil {
+		t.Errorf("didn't recieve expected message: %v", err)
+	}
+	for _, msg := range test.clientStream {
+		expectedWebsocketMessage = append(expectedWebsocketMessage, response{Type: responseStream, Message: msg})
+		if err := call.Send(msg); err != nil {
+			t.Errorf("unexpected error while sending %v: %v", msg, err)
+		}
+	}
+
+	if len(test.clientStream) > 0 {
+		call.CloseSend()
+		expectedWebsocketMessage = append(expectedWebsocketMessage, response{Type: responseStreamClose})
+	}
+
+	// Wait until all the streaming messages have been acknowledged.
+	if err := writer.waitForMessage(len(expectedWebsocketMessage)); err != nil {
+		t.Errorf("didn't recieve expected message: %v", err)
+	}
+
+	expectedStream := test.serverStream
+	go sendServerStream(t, &wsp, &test, &writer)
+	for {
+		var data interface{}
+		if err := call.Recv(&data); err != nil {
+			break
+		}
+		if len(expectedStream) == 0 {
+			t.Errorf("unexpected stream value: %v", data)
+			continue
+		}
+		if !reflect.DeepEqual(data, expectedStream[0]) {
+			t.Errorf("unexpected stream value: got %v, expected %v", data, expectedStream[0])
+		}
+		expectedStream = expectedStream[1:]
+	}
+	var result interface{}
+	var err2 error
+
+	if err := call.Finish(&result, &err2); err != nil {
+		t.Errorf("unexpected err :%v", err)
+	}
+
+	if !reflect.DeepEqual(result, test.finalResponse) {
+		t.Errorf("unexected final response: got %v, expected %v", result, test.finalResponse)
+	}
+
+	// If err2 is nil and test.err is nil reflect.DeepEqual will return false because the
+	// types are different.  Because of this, we only use reflect.DeepEqual if one of
+	// the values is non-nil.  If both values are nil, then we consider them equal.
+	if (err2 != nil || test.err != nil) && !reflect.DeepEqual(err2, test.err) {
+		t.Errorf("unexected error: got %v, expected %v", err2, test.err)
+	}
+	checkResponses(&writer, expectedWebsocketMessage, nil, t)
+}
+
+func TestSimpleJSServer(t *testing.T) {
+	runJsServerTestCase(t, jsServerTestCase{
+		method:        "Add",
+		inArgs:        []interface{}{1.0, 2.0},
+		finalResponse: 3.0,
+	})
+}
+
+func TestJSServerWithError(t *testing.T) {
+	runJsServerTestCase(t, jsServerTestCase{
+		method:        "Add",
+		inArgs:        []interface{}{1.0, 2.0},
+		finalResponse: 3.0,
+		err: &verror.Standard{
+			ID:  verror.Internal,
+			Msg: "JS Server failed",
+		},
+	})
+}
+
+func TestJSServerWihStreamingInputs(t *testing.T) {
+	runJsServerTestCase(t, jsServerTestCase{
+		method:        "StreamingAdd",
+		inArgs:        []interface{}{},
+		clientStream:  []interface{}{3.0, 4.0},
+		finalResponse: 10.0,
+	})
+}
+
+func TestJSServerWihStreamingOutputs(t *testing.T) {
+	runJsServerTestCase(t, jsServerTestCase{
+		method:        "StreamingAdd",
+		inArgs:        []interface{}{},
+		serverStream:  []interface{}{3.0, 4.0},
+		finalResponse: 10.0,
+	})
+}
+
+func TestJSServerWihStreamingInputsAndOutputs(t *testing.T) {
+	runJsServerTestCase(t, jsServerTestCase{
+		method:        "StreamingAdd",
+		inArgs:        []interface{}{},
+		clientStream:  []interface{}{1.0, 2.0},
+		serverStream:  []interface{}{3.0, 4.0},
+		finalResponse: 10.0,
+	})
 }
 
 // TODO(bjornick): Make sure that send on stream is nonblocking
