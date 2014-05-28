@@ -8,6 +8,7 @@ import (
 	"net/url"
 	"reflect"
 	"testing"
+	"time"
 
 	"veyron/services/identity/util"
 
@@ -73,9 +74,18 @@ func TestBless(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	bless := func(blesser security.PrivateID, blessee security.PublicID, name string) security.PublicID {
+		blessedID, err := blesser.Bless(blessee, name, 24*time.Hour, nil)
+		if err != nil {
+			t.Fatalf("%q.Bless(%q, %q, ...) failed: %v", blesser, blessee, name, err)
+		}
+		return blessedID
+	}
+
 	tests := []struct {
-		Blessor, Blessee           interface{}
-		BlessingName, ExpectedName string
+		Blessor, Blessee  interface{}
+		BlessingName      string
+		ExpectedBlessedID security.PublicID
 	}{
 		{ // No field specified, bad request
 			Blessor: nil,
@@ -99,16 +109,16 @@ func TestBless(t *testing.T) {
 			BlessingName: "batman",
 		},
 		{ // Everything specified, blessee is a security.PrivateID. Should succeed
-			Blessor:      blessor,
-			Blessee:      blessee,
-			BlessingName: "batman",
-			ExpectedName: "untrusted/god/batman",
+			Blessor:           blessor,
+			Blessee:           blessee,
+			BlessingName:      "batman",
+			ExpectedBlessedID: bless(blessor, blessee.PublicID(), "batman"),
 		},
 		{ // Everything specified, blessee is a security.PublicID. Should succeed
-			Blessor:      blessor,
-			Blessee:      blessee.PublicID(),
-			BlessingName: "batman",
-			ExpectedName: "untrusted/god/batman",
+			Blessor:           blessor,
+			Blessee:           blessee.PublicID(),
+			BlessingName:      "batman",
+			ExpectedBlessedID: bless(blessor, blessee.PublicID(), "batman"),
 		},
 	}
 	for _, test := range tests {
@@ -126,7 +136,7 @@ func TestBless(t *testing.T) {
 		}
 		v.Set("name", test.BlessingName)
 		res, err := http.PostForm(ts.URL, v)
-		if len(test.ExpectedName) == 0 {
+		if test.ExpectedBlessedID == nil {
 			if res.StatusCode != http.StatusBadRequest {
 				t.Errorf("%v: Got (%v=%v) want 400", debug, res.StatusCode, res.Status)
 			}
@@ -142,8 +152,8 @@ func TestBless(t *testing.T) {
 			t.Errorf("%v returned %T, want security.PublicID", debug, id)
 			continue
 		}
-		if pub.Names()[0] != test.ExpectedName {
-			t.Errorf("%v returned an identity with name %q want %q", debug, pub.Names()[0], test.ExpectedName)
+		if got, want := fmt.Sprintf("%s", pub), fmt.Sprintf("%s", test.ExpectedBlessedID); got != want {
+			t.Errorf("%v returned an identity %q want %q", debug, got, want)
 			continue
 		}
 	}

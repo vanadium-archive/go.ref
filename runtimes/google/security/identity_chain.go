@@ -30,7 +30,13 @@ type chainPublicID struct {
 	name      string
 }
 
-func (id *chainPublicID) Names() []string { return []string{id.String()} }
+func (id *chainPublicID) Names() []string {
+	// Return a name only if the identity provider is trusted.
+	if keys.LevelOfTrust(id.rootKey, id.certificates[0].Name) == keys.Trusted {
+		return []string{id.name}
+	}
+	return nil
+}
 
 // Match determines if the PublicID's chained name can be extended to match the
 // provided PrincipalPattern. An extension of a chained name is any name obtained
@@ -38,7 +44,7 @@ func (id *chainPublicID) Names() []string { return []string{id.String()} }
 // of the name "foo/bar" are the names "foo/bar", "foo/bar/baz", "foo/bar/baz/car", and
 // so on.
 func (id *chainPublicID) Match(pattern security.PrincipalPattern) bool {
-	return matchPrincipalPattern(id.String(), pattern)
+	return matchPrincipalPattern(id.Names(), pattern)
 }
 
 func (id *chainPublicID) PublicKey() *ecdsa.PublicKey { return id.publicKey }

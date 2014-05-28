@@ -83,16 +83,17 @@ func derive(pub security.PublicID, priv security.PrivateID) security.PrivateID {
 	return d
 }
 
-func verifyAuthorizedID(origID, authID security.PublicID, authName string) error {
+func verifyAuthorizedID(origID, authID security.PublicID, authNames []string) error {
 	if authID == nil {
-		if len(authName) != 0 {
-			return fmt.Errorf("%q.Authorize returned nil, want %q", origID, authName)
+		if authNames != nil {
+			return fmt.Errorf("%q.Authorize is nil, want identity with names: $q", origID, authNames)
 		}
 		return nil
 	}
-	if got := fmt.Sprintf("%s", authID); got != authName {
-		return fmt.Errorf("%q.Authorize returned %q want %q", origID, authID, authName)
+	if got, want := authID.Names(), authNames; !reflect.DeepEqual(got, want) {
+		fmt.Errorf("%q(%T).Names(): got: %q, want: %q", authID, authID, got, want)
 	}
+
 	if !reflect.DeepEqual(origID.PublicKey(), authID.PublicKey()) {
 		return fmt.Errorf("%q.Authorize returned %q with public key %v, should have had %v", origID, authID, authID.PublicKey(), origID.PublicKey())
 	}
@@ -139,13 +140,21 @@ func TestTrustIdentityProviders(t *testing.T) {
 		cProvider: false,
 		tSelf:     false,
 		tProvider: false,
-		fake:      false,
 	}
 	test := func() {
 		for priv, want := range m {
 			id := priv.PublicID()
 			key := id.PublicKey()
-			tl := keys.LevelOfTrust(key, id.Names()[0])
+			var tl keys.TrustLevel
+			switch impl := id.(type) {
+			case *chainPublicID:
+				tl = keys.LevelOfTrust(key, impl.certificates[0].Name)
+			case *treePublicID:
+				tl = keys.LevelOfTrust(impl.paths[0].providerKey, impl.paths[0].providerName)
+			default:
+				t.Fatal("Unexpected security.PublicID implementation, identity provider TrustLevel checks only apply to the chain and tree implementations of security.PublicID")
+			}
+
 			switch tl {
 			case keys.Trusted:
 				if !want {
