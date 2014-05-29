@@ -112,14 +112,23 @@ func (j *Judge) play(name string, id rps.GameID, stream rps.JudgeServicePlayStre
 	vlog.VI(1).Infof("This is player %d", playerNum)
 
 	// Send all user input to the player channel.
+	done := make(chan struct{}, 1)
+	defer func() { done <- struct{}{} }()
 	go func() {
 		for {
 			action, err := stream.Recv()
 			if err != nil {
-				c <- playerInput{player: playerNum, action: rps.PlayerAction{Quit: true}}
-				break
+				select {
+				case c <- playerInput{player: playerNum, action: rps.PlayerAction{Quit: true}}:
+				case <-done:
+				}
+				return
 			}
-			c <- playerInput{player: playerNum, action: action}
+			select {
+			case c <- playerInput{player: playerNum, action: action}:
+			case <-done:
+				return
+			}
 		}
 	}()
 
