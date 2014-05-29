@@ -6,9 +6,9 @@ import (
 	"io"
 	"os"
 	"strconv"
-	"strings"
 	"testing"
 
+	"veyron/lib/exec"
 	"veyron/lib/signals"
 	"veyron/lib/testutil"
 	"veyron/lib/testutil/blackbox"
@@ -117,21 +117,10 @@ func nodeManager(argv []string) {
 	blackbox.WaitForEOFOnStdin()
 }
 
-func setEnv(env []string, name, value string) []string {
-	newValue := name + "=" + value
-	for i, v := range env {
-		if strings.HasPrefix(v, name+"=") {
-			env[i] = newValue
-			return env
-		}
-	}
-	return append(env, newValue)
-}
-
 func spawnNodeManager(t *testing.T, arAddress, mtAddress string, idFile string) *blackbox.Child {
 	child := blackbox.HelperCommand(t, "nodeManager", arAddress)
-	child.Cmd.Env = setEnv(child.Cmd.Env, "MOUNTTABLE_ROOT", mtAddress)
-	child.Cmd.Env = setEnv(child.Cmd.Env, "VEYRON_IDENTITY", idFile)
+	child.Cmd.Env = exec.SetEnv(child.Cmd.Env, "MOUNTTABLE_ROOT", mtAddress)
+	child.Cmd.Env = exec.SetEnv(child.Cmd.Env, "VEYRON_IDENTITY", idFile)
 	if err := child.Cmd.Start(); err != nil {
 		t.Fatalf("Start() failed: %v", err)
 	}
