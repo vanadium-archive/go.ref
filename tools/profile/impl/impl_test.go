@@ -7,7 +7,7 @@ import (
 	"testing"
 
 	"veyron/services/mgmt/profile"
-	"veyron/services/mgmt/profile/profile/impl"
+	"veyron/tools/profile/impl"
 
 	"veyron2"
 	"veyron2/ipc"

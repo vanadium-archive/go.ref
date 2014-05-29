@@ -1,7 +1,7 @@
 package main
 
 import (
-	"veyron/services/mgmt/content/content/impl"
+	"veyron/tools/profile/impl"
 
 	"veyron2/rt"
 )

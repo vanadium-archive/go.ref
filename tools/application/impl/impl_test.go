@@ -8,7 +8,7 @@ import (
 	"testing"
 
 	iapp "veyron/services/mgmt/application"
-	"veyron/services/mgmt/application/application/impl"
+	"veyron/tools/application/impl"
 
 	"veyron2"
 	"veyron2/ipc"

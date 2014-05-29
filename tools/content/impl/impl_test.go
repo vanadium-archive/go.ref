@@ -9,7 +9,7 @@ import (
 	"strings"
 	"testing"
 
-	"veyron/services/mgmt/content/content/impl"
+	"veyron/tools/content/impl"
 
 	"veyron2"
 	"veyron2/ipc"
