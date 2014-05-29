@@ -24,15 +24,13 @@ func (rt *vrt) initIdentity() error {
 		var err error
 		if file := os.Getenv("VEYRON_IDENTITY"); len(file) > 0 {
 			if rt.id.PrivateID, err = loadIdentityFromFile(file); err != nil {
-				vlog.Errorf("Could not load identity from %q", file)
-				return err
+				return fmt.Errorf("Could not load identity from %q: %v", file, err)
 			}
 		} else {
 			name := defaultIdentityName()
 			vlog.VI(2).Infof("No identity provided to the runtime, minting one for %q", name)
 			if rt.id.PrivateID, err = rt.NewIdentity(name); err != nil {
-				vlog.Errorf("Could not create new identity: %v", err)
-				return err
+				return fmt.Errorf("Could not create new identity: %v", err)
 			}
 		}
 	}

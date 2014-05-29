@@ -55,6 +55,13 @@ Full flags:
 }
 
 func main() {
+	// It is currently not possible to regenerate the currently used identity
+	// if it becomes corrupt because this tool needs VEYRON_IDENTITY to be "",
+	// or point to a valid identity for runtime initialization. Temporarily
+	// set the VEYRON_IDENTITY to "" as a workaround.
+	// TODO(bprosnitz) Fix this.
+	os.Setenv("VEYRON_IDENTITY", "")
+
 	rt.Init()
 
 	if len(*name) == 0 && len(*interpret) == 0 {
