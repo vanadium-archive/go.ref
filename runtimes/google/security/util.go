@@ -110,22 +110,22 @@ func (c *context) String() string {
 	var buf bytes.Buffer
 	buf.WriteString("{")
 	if c.ContextArgs.LocalID != nil {
-		buf.WriteString(fmt.Sprintf(" LocalID:%q", c.LocalID))
+		buf.WriteString(fmt.Sprintf(" LocalID:%q", c.LocalID()))
 	}
 	if c.ContextArgs.RemoteID != nil {
-		buf.WriteString(fmt.Sprintf(" RemoteID:%q", c.RemoteID))
+		buf.WriteString(fmt.Sprintf(" RemoteID:%q", c.RemoteID()))
 	}
 	if len(c.ContextArgs.Method) > 0 {
-		buf.WriteString(fmt.Sprintf(" Method:%q", c.Method))
+		buf.WriteString(fmt.Sprintf(" Method:%q", c.Method()))
 	}
 	if len(c.ContextArgs.Name) > 0 {
-		buf.WriteString(fmt.Sprintf(" Name:%q", c.Name))
+		buf.WriteString(fmt.Sprintf(" Name:%q", c.Name()))
 	}
 	if len(c.ContextArgs.Suffix) > 0 {
-		buf.WriteString(fmt.Sprintf(" Suffix:%q", c.Suffix))
+		buf.WriteString(fmt.Sprintf(" Suffix:%q", c.Suffix()))
 	}
 	if c.ContextArgs.Label != 0 {
-		buf.WriteString(fmt.Sprintf(" Label:%v", c.Label))
+		buf.WriteString(fmt.Sprintf(" Label:%v", c.Label()))
 	}
 	if len(c.ContextArgs.Discharges) > 0 {
 		buf.WriteString(fmt.Sprintf(" #Discharges:%d", len(c.Discharges)))

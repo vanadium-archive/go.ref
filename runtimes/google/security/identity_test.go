@@ -502,9 +502,9 @@ func TestAuthorizeWithThirdPartyCaveats(t *testing.T) {
 	}
 	treetests := map[security.Context]want{
 		ctxEmpty:          want{authNames: S{"veyron/carol"}},
-		ctxAlice:          want{authNames: S{"veyron/carol, veyron/bob/friend"}},
+		ctxAlice:          want{authNames: S{"veyron/carol", "veyron/bob/friend"}},
 		ctxGoogleAtOther:  want{authNames: S{"veyron/carol"}},
-		ctxGoogleAtGoogle: want{authNames: S{"veyron/carol, veyron/bob/friend"}},
+		ctxGoogleAtGoogle: want{authNames: S{"veyron/carol", "veyron/bob/friend"}},
 		ctxExpired:        want{authNames: S{"veyron/carol"}},
 		ctxInvalid:        want{authNames: S{"veyron/carol"}},
 	}
@@ -529,7 +529,7 @@ func TestAuthorizeWithThirdPartyCaveats(t *testing.T) {
 				t.Errorf("%q.Authorize(%v) returned error: %v, want to match: %q", d.id, ctx, err, want.err)
 			}
 			if err := verifyAuthorizedID(d.id, authID, want.authNames); err != nil {
-				t.Errorf("%q.Authorize(%v) returned identity: %v want identity with names: %q", d.id, ctx, authID, want.authNames)
+				t.Errorf("%q.Authorize(%v): %v", d.id, ctx, err)
 			}
 		}
 	}
