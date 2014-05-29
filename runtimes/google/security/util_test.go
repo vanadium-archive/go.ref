@@ -85,13 +85,13 @@ func derive(pub security.PublicID, priv security.PrivateID) security.PrivateID {
 
 func verifyAuthorizedID(origID, authID security.PublicID, authNames []string) error {
 	if authID == nil {
-		if authNames != nil {
-			return fmt.Errorf("%q.Authorize is nil, want identity with names: $q", origID, authNames)
+		if len(authNames) != 0 {
+			return fmt.Errorf("%q.Authorize is nil, want identity with names: %v", origID, authNames)
 		}
 		return nil
 	}
 	if got, want := authID.Names(), authNames; !reflect.DeepEqual(got, want) {
-		fmt.Errorf("%q(%T).Names(): got: %q, want: %q", authID, authID, got, want)
+		return fmt.Errorf("%q(%T).Names(): got: %v, want: %v", authID, authID, got, want)
 	}
 
 	if !reflect.DeepEqual(origID.PublicKey(), authID.PublicKey()) {
