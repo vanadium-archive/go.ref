@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"veyron/services/mounttable/mounttable/impl"
+	"veyron/tools/mounttable/impl"
 
 	"veyron2"
 	"veyron2/ipc"

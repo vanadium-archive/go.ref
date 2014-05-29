@@ -1,7 +1,7 @@
 package main
 
 import (
-	"veyron/services/mounttable/mounttable/impl"
+	"veyron/tools/mounttable/impl"
 
 	"veyron2/rt"
 )
