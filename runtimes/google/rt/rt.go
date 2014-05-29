@@ -17,14 +17,15 @@ import (
 )
 
 type vrt struct {
-	product product.T
-	sm      stream.Manager
-	mt      naming.MountTable
-	rid     naming.RoutingID
-	signals chan os.Signal
-	id      veyron2.LocalIDOpt
-	client  ipc.Client
-	mgmt    *mgmtImpl
+	product    product.T
+	httpServer string
+	sm         stream.Manager
+	mt         naming.MountTable
+	rid        naming.RoutingID
+	signals    chan os.Signal
+	id         veyron2.LocalIDOpt
+	client     ipc.Client
+	mgmt       *mgmtImpl
 }
 
 var (
@@ -61,7 +62,7 @@ func (rt *vrt) init(opts ...veyron2.ROpt) error {
 	// HTTP server always runs, which was useful during initial veyron
 	// development. We restrict it to localhost to avoid annoying firewall
 	// warnings and to provide a modicum of security.
-	debug := "127.0.0.1:0"
+	rt.httpServer = "127.0.0.1:0"
 	mtRoots := []string{}
 
 	for _, o := range opts {
@@ -73,7 +74,7 @@ func (rt *vrt) init(opts ...veyron2.ROpt) error {
 		case veyron2.MountTableRoots:
 			mtRoots = v
 		case veyron2.HTTPDebugOpt:
-			debug = string(v)
+			rt.httpServer = string(v)
 		default:
 			return fmt.Errorf("option has wrong type %T", o)
 		}
@@ -116,9 +117,6 @@ func (rt *vrt) init(opts ...veyron2.ROpt) error {
 		return err
 	}
 
-	if len(debug) > 0 {
-		rt.startHTTPDebugServer(debug, rt.sm)
-	}
 	vlog.VI(2).Infof("rt.Init done")
 	return nil
 }

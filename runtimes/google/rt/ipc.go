@@ -3,6 +3,7 @@ package rt
 import (
 	iipc "veyron/runtimes/google/ipc"
 	imanager "veyron/runtimes/google/ipc/stream/manager"
+
 	"veyron2"
 	"veyron2/ipc"
 	"veyron2/ipc/stream"
@@ -37,6 +38,9 @@ func (rt *vrt) Client() ipc.Client {
 }
 
 func (rt *vrt) NewServer(opts ...ipc.ServerOpt) (ipc.Server, error) {
+	// Start the http debug server exactly once for this process
+	rt.startHTTPDebugServerOnce()
+
 	sm := rt.sm
 	mt := rt.mt
 	idSpecified := false
