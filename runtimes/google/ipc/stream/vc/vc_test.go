@@ -139,22 +139,20 @@ func testConcurrentFlows(t *testing.T, security veyron2.VCSecurityLevel, flows, 
 	h, vc := New(security)
 	defer h.Close()
 
-	done := make(chan bool)
+	var wg sync.WaitGroup
+	wg.Add(flows)
 	for i := 0; i < flows; i++ {
 		go func(n int) {
+			defer wg.Done()
 			flow, err := vc.Connect()
 			if err != nil {
 				t.Error(err)
 			} else {
 				testFlowEcho(t, flow, (n+1)*DefaultBytesBufferedPerFlow)
 			}
-			done <- true
 		}(i)
 	}
-
-	for i := 0; i < flows; i++ {
-		<-done
-	}
+	wg.Wait()
 }
 
 func TestConcurrentFlows_1(t *testing.T)    { testConcurrentFlows(t, SecurityNone, 10, 1) }
