@@ -204,11 +204,13 @@ var _ ipc.BindOpt = (*client)(nil)
 // flowClient implements the RPC client-side protocol for a single RPC, over a
 // flow that's already connected to the server.
 type flowClient struct {
-	dec        *vom.Decoder // to decode responses and results from the server
-	enc        *vom.Encoder // to encode requests and args to the server
-	flow       stream.Flow  // the underlying flow
-	response   ipc.Response // each decoded response message is kept here
-	sendClosed bool         // is the send side already closed?
+	dec      *vom.Decoder // to decode responses and results from the server
+	enc      *vom.Encoder // to encode requests and args to the server
+	flow     stream.Flow  // the underlying flow
+	response ipc.Response // each decoded response message is kept here
+
+	sendClosedMu sync.Mutex
+	sendClosed   bool // is the send side already closed? GUARDED_BY(sendClosedMu)
 }
 
 func newFlowClient(flow stream.Flow) *flowClient {
@@ -294,8 +296,10 @@ func (fc *flowClient) CloseSend() error {
 
 // closeSend ensures CloseSend always returns verror.E.
 func (fc *flowClient) closeSend() verror.E {
+	fc.sendClosedMu.Lock()
+	defer fc.sendClosedMu.Unlock()
 	if fc.sendClosed {
-		return errFlowClosed
+		return nil
 	}
 	if err := fc.enc.Encode(ipc.Request{EndStreamArgs: true}); err != nil {
 		return fc.close(verror.BadProtocolf("ipc: end stream args encoding failed: %v", err))
