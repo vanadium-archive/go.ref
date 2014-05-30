@@ -3,6 +3,7 @@ package rt
 import (
 	"net"
 	"net/http"
+	"sync"
 	// TODO(ashankar,cnicolaou): Remove net/http/pprof before "release"
 	// since it installs default HTTP handlers.
 	"net/http/pprof"
@@ -13,7 +14,17 @@ import (
 	"veyron2/vlog"
 )
 
-func (rt *vrt) startHTTPDebugServer(addr string, sm stream.Manager) {
+var httpOnce sync.Once
+
+func (rt *vrt) startHTTPDebugServerOnce() {
+	httpOnce.Do(func() {
+		if len(rt.httpServer) > 0 {
+			rt.startHTTPDebugServer(rt.httpServer, rt.sm)
+		}
+	})
+}
+
+func (_ *vrt) startHTTPDebugServer(addr string, sm stream.Manager) {
 	ln, err := net.Listen("tcp", addr)
 	if err != nil {
 		vlog.Errorf("Failed to setup debugging HTTP server. net.Listen(%q, %q): %v", "tcp", addr, err)
