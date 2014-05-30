@@ -1,7 +1,9 @@
 package exec
 
 import (
+	"encoding/binary"
 	"errors"
+	"io"
 	"os"
 	"os/exec"
 	"syscall"
@@ -23,6 +25,8 @@ var (
 // A ParentHandle is the Parent process' means of managing a single child.
 type ParentHandle struct {
 	c           *exec.Cmd
+	endpoint    string
+	id          string
 	secret      string
 	statusRead  *os.File
 	statusWrite *os.File
@@ -31,9 +35,32 @@ type ParentHandle struct {
 
 // ParentHandleOpt is an option for NewParentHandle.
 type ParentHandleOpt interface {
-	// ExecParentHandleOpt is a signature 'dummy' method for the interface.
+	// ExecParentHandleOpt is a signature 'dummy' method for the
+	// interface.
 	ExecParentHandleOpt()
 }
+
+// CallbackEndpointOpt can be used to seed the parent handle with a
+// custom callback endpoint.
+type CallbackEndpointOpt string
+
+// ExecParentHandleOpt makes CallbackEndpointOpt an instance of
+// ParentHandleOpt.
+func (cno CallbackEndpointOpt) ExecParentHandleOpt() {}
+
+// CallbackIDOpt can be used to seed the parent handle with a
+// custom callback ID.
+type CallbackIDOpt string
+
+// ExecParentHandleOpt makes CallbackIDOpt an instance of
+// ParentHandleOpt.
+func (cno CallbackIDOpt) ExecParentHandleOpt() {}
+
+// SecretOpt can be used to seed the parent handle with a custom secret.
+type SecretOpt string
+
+// ExecParentHandleOpt makes SecretOpt an instance of ParentHandleOpt.
+func (so SecretOpt) ExecParentHandleOpt() {}
 
 // TimeKeeperOpt can be used to seed the parent handle with a custom timekeeper.
 type TimeKeeperOpt struct {
@@ -45,69 +72,82 @@ func (tko TimeKeeperOpt) ExecParentHandleOpt() {}
 
 // NewParentHandle creates a ParentHandle for the child process represented by
 // an instance of exec.Cmd.
-func NewParentHandle(c *exec.Cmd, secret string, opts ...ParentHandleOpt) *ParentHandle {
+func NewParentHandle(c *exec.Cmd, opts ...ParentHandleOpt) *ParentHandle {
 	c.Env = append(c.Env, versionVariable+"="+version1)
-	if len(secret) == 0 {
-		secret = emptySecret
-	}
-	var tk timekeeper.TimeKeeper
+	endpoint, id, secret := emptyEndpoint, emptyID, emptySecret
+	tk := timekeeper.RealTime()
 	for _, opt := range opts {
 		switch v := opt.(type) {
+		case CallbackEndpointOpt:
+			endpoint = string(v)
+		case CallbackIDOpt:
+			id = string(v)
+		case SecretOpt:
+			secret = string(v)
 		case TimeKeeperOpt:
 			tk = v
 		default:
 			vlog.Errorf("Unrecognized parent option: %v", v)
 		}
 	}
-	if tk == nil {
-		tk = timekeeper.RealTime()
-	}
 	return &ParentHandle{
-		c:      c,
-		secret: secret,
-		tk:     tk,
+		c:        c,
+		endpoint: endpoint,
+		id:       id,
+		secret:   secret,
+		tk:       tk,
 	}
 }
 
 // Start starts the child process, sharing a secret with it and
 // setting up a communication channel over which to read its status.
 func (p *ParentHandle) Start() error {
-	if len(p.secret) > MaxSecretSize {
-		return ErrSecretTooLarge
-	}
 	if parent.BlackboxTest(p.c.Env) {
 		if err := parent.InitBlackboxParent(p.c); err != nil {
 			return err
 		}
 	}
-	tokenRead, tokenWrite, err := os.Pipe()
+	// Create anonymous pipe for communicating data between the child
+	// and the parent.
+	dataRead, dataWrite, err := os.Pipe()
 	if err != nil {
 		return err
 	}
-	defer tokenWrite.Close()
-	defer tokenRead.Close()
-
+	defer dataRead.Close()
+	defer dataWrite.Close()
 	statusRead, statusWrite, err := os.Pipe()
 	if err != nil {
 		return err
 	}
 	p.statusRead = statusRead
 	p.statusWrite = statusWrite
-
+	// Add the parent-child pipes to cmd.ExtraFiles, offsetting all
+	// existing file descriptors accordingly.
 	extraFiles := make([]*os.File, len(p.c.ExtraFiles)+2)
-	extraFiles[0] = tokenRead
+	extraFiles[0] = dataRead
 	extraFiles[1] = statusWrite
 	for i, _ := range p.c.ExtraFiles {
 		extraFiles[i+2] = p.c.ExtraFiles[i]
 	}
 	p.c.ExtraFiles = extraFiles
+	// Start the child process.
 	if err := p.c.Start(); err != nil {
 		p.statusWrite.Close()
 		p.statusRead.Close()
 		return err
 	}
-
-	if _, err = tokenWrite.Write([]byte(p.secret)); err != nil {
+	// Pass data to the child using a pipe.
+	if err := writeData(dataWrite, p.endpoint); err != nil {
+		p.statusWrite.Close()
+		p.statusRead.Close()
+		return err
+	}
+	if err := writeData(dataWrite, p.id); err != nil {
+		p.statusWrite.Close()
+		p.statusRead.Close()
+		return err
+	}
+	if err := writeData(dataWrite, p.secret); err != nil {
 		p.statusWrite.Close()
 		p.statusRead.Close()
 		return err
@@ -208,4 +248,19 @@ func (p *ParentHandle) Clean() error {
 		return err
 	}
 	return p.c.Wait()
+}
+
+func writeData(w io.Writer, data string) error {
+	l := len(data)
+	if err := binary.Write(w, binary.BigEndian, int64(l)); err != nil {
+		return err
+	}
+	if n, err := w.Write([]byte(data)); err != nil || n != l {
+		if err != nil {
+			return err
+		} else {
+			return errors.New("partial write")
+		}
+	}
+	return nil
 }

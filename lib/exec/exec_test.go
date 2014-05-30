@@ -15,9 +15,10 @@ import (
 	"veyron/runtimes/google/testing/timekeeper"
 )
 
-// We always expect there to be exactly three open file descriptors when the
-// test starts out: STDIN, STDOUT, and STDERR.  This assumption is tested
-// in init below, and in the rare cases where it's wrong, we bail out.
+// We always expect there to be exactly three open file descriptors
+// when the test starts out: STDIN, STDOUT, and STDERR. This
+// assumption is tested in init below, and in the rare cases where it
+// is wrong, we bail out.
 const baselineOpenFiles = 3
 
 func init() {
@@ -25,14 +26,18 @@ func init() {
 		return
 	}
 	if want, got := baselineOpenFiles, openFiles(); want != got {
-		panic(fmt.Errorf("Test expected to start with %d open files, found %d instead.\nThis can happen if parent process has any open file descriptors, e.g. pipes, that are being inherited.", want, got))
+		message := `Test expected to start with %d open files, found %d instead.
+This can happen if parent process has any open file descriptors,
+e.g. pipes, that are being inherited.`
+		panic(fmt.Errorf(message, want, got))
 	}
 }
 
-// These tests need to run a subprocess and we reuse this same test binary
-// to do so. A fake test 'TestHelperProcess' contains the code we need to
-// run in the child and we simply run this same binary with a test.run= arg
-// that runs just that test. This idea was taken from the tests for os/exec.
+// These tests need to run a subprocess and we reuse this same test
+// binary to do so. A fake test 'TestHelperProcess' contains the code
+// we need to run in the child and we simply run this same binary with
+// a test.run= arg that runs just that test. This idea was taken from
+// the tests for os/exec.
 func helperCommand(s ...string) *exec.Cmd {
 	cs := []string{"-test.run=TestHelperProcess", "--"}
 	cs = append(cs, s...)
@@ -94,19 +99,55 @@ func expectMessage(r io.Reader, m string) bool {
 	panic("unreachable")
 }
 
-func TestAuthExchange(t *testing.T) {
-	cmd := helperCommand("testAuth")
+func TestEndpointExchange(t *testing.T) {
+	cmd := helperCommand("testEndpoint")
 	stderr, _ := cmd.StderrPipe()
-	ph := vexec.NewParentHandle(cmd, "dummy_secret")
+	ph := vexec.NewParentHandle(cmd, vexec.CallbackEndpointOpt("dummy_endpoint"))
 	err := ph.Start()
 	if err != nil {
-		t.Fatalf("testAuthTest: start: %v", err)
+		t.Fatalf("testEndpointTest: start: %v", err)
+	}
+	if !expectMessage(stderr, "dummy_endpoint") {
+		t.Errorf("unexpected output from child")
+	} else {
+		if err = cmd.Wait(); err != nil {
+			t.Errorf("testEndpointTest: wait: %v", err)
+		}
+	}
+	clean(t, ph)
+}
+
+func TestIDExchange(t *testing.T) {
+	cmd := helperCommand("testID")
+	stderr, _ := cmd.StderrPipe()
+	ph := vexec.NewParentHandle(cmd, vexec.CallbackIDOpt("dummy_id"))
+	err := ph.Start()
+	if err != nil {
+		t.Fatalf("testIDTest: start: %v", err)
+	}
+	if !expectMessage(stderr, "dummy_id") {
+		t.Errorf("unexpected output from child")
+	} else {
+		if err = cmd.Wait(); err != nil {
+			t.Errorf("testIDTest: wait: %v", err)
+		}
+	}
+	clean(t, ph)
+}
+
+func TestSecretExchange(t *testing.T) {
+	cmd := helperCommand("testSecret")
+	stderr, _ := cmd.StderrPipe()
+	ph := vexec.NewParentHandle(cmd, vexec.SecretOpt("dummy_secret"))
+	err := ph.Start()
+	if err != nil {
+		t.Fatalf("testSecretTest: start: %v", err)
 	}
 	if !expectMessage(stderr, "dummy_secret") {
 		t.Errorf("unexpected output from child")
 	} else {
 		if err = cmd.Wait(); err != nil {
-			t.Errorf("testAuthTest: wait: %v", err)
+			t.Errorf("testSecretTest: wait: %v", err)
 		}
 	}
 	clean(t, ph)
@@ -134,7 +175,7 @@ func readyHelperCmd(t *testing.T, cmd *exec.Cmd, name, result string) *vexec.Par
 	if err != nil {
 		t.Fatalf("%s: failed to get stderr pipe\n", name)
 	}
-	ph := vexec.NewParentHandle(cmd, "")
+	ph := vexec.NewParentHandle(cmd)
 	if err := waitForReady(t, cmd, name, 4, ph); err != nil {
 		t.Errorf("%s: WaitForReady: %v (%v)", name, err, ph)
 		return nil
@@ -169,7 +210,7 @@ func testMany(t *testing.T, name, test, result string) []*vexec.ParentHandle {
 		cmd[i].ExtraFiles = append(cmd[i].ExtraFiles, controlRead)
 		stderr[i], _ = cmd[i].StderrPipe()
 		tk := timekeeper.NewManualTime()
-		ph[i] = vexec.NewParentHandle(cmd[i], "", vexec.TimeKeeperOpt{tk})
+		ph[i] = vexec.NewParentHandle(cmd[i], vexec.TimeKeeperOpt{tk})
 		done.Add(1)
 		go func() {
 			// For simulated slow children, wait until the parent
@@ -221,7 +262,7 @@ func TestNeverReady(t *testing.T) {
 	result := "never ready"
 	cmd := helperCommand(name)
 	stderr, _ := cmd.StderrPipe()
-	ph := vexec.NewParentHandle(cmd, "")
+	ph := vexec.NewParentHandle(cmd)
 	err := waitForReady(t, cmd, name, 1, ph)
 	if err != vexec.ErrTimeout {
 		t.Errorf("Failed to get timeout: got %v\n", err)
@@ -247,7 +288,7 @@ func TestTooSlowToReady(t *testing.T) {
 	cmd.ExtraFiles = append(cmd.ExtraFiles, controlRead)
 	stderr, _ := cmd.StderrPipe()
 	tk := timekeeper.NewManualTime()
-	ph := vexec.NewParentHandle(cmd, "", vexec.TimeKeeperOpt{tk})
+	ph := vexec.NewParentHandle(cmd, vexec.TimeKeeperOpt{tk})
 	defer clean(t, ph)
 	defer controlWrite.Close()
 	defer controlRead.Close()
@@ -288,7 +329,7 @@ func TestToReadySlow(t *testing.T) {
 		t.Fatalf("%s: failed to get stderr pipe", name)
 	}
 	tk := timekeeper.NewManualTime()
-	ph := vexec.NewParentHandle(cmd, "", vexec.TimeKeeperOpt{tk})
+	ph := vexec.NewParentHandle(cmd, vexec.TimeKeeperOpt{tk})
 	defer clean(t, ph)
 	defer controlWrite.Close()
 	defer controlRead.Close()
@@ -457,7 +498,21 @@ func TestHelperProcess(*testing.T) {
 		}()
 		r := <-rc
 		os.Exit(r)
-	case "testAuth":
+	case "testEndpoint":
+		ch, err := vexec.NewChildHandle()
+		if err != nil {
+			log.Fatalf("%v", err)
+		} else {
+			fmt.Fprintf(os.Stderr, "%s", ch.Endpoint)
+		}
+	case "testID":
+		ch, err := vexec.NewChildHandle()
+		if err != nil {
+			log.Fatalf("%s", err)
+		} else {
+			fmt.Fprintf(os.Stderr, "%s", ch.ID)
+		}
+	case "testSecret":
 		ch, err := vexec.NewChildHandle()
 		if err != nil {
 			log.Fatalf("%s", err)

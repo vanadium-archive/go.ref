@@ -17,7 +17,7 @@ func ExampleChildHandle() {
 
 func ExampleParentHandle() {
 	cmd := exec.Command("/bin/hostname")
-	ph := NewParentHandle(cmd, "secret")
+	ph := NewParentHandle(cmd, SecretOpt("secret"))
 
 	// Start the child process.
 	if err := ph.Start(); err != nil {

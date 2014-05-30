@@ -360,7 +360,7 @@ func spawnNodeManager(envelope *application.Envelope) error {
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 
-	handle := vexec.NewParentHandle(cmd, "")
+	handle := vexec.NewParentHandle(cmd)
 	if err := handle.Start(); err != nil {
 		vlog.Errorf("Start() failed: %v", err)
 		return errOperationFailed
