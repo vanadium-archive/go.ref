@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"os/user"
 	"path"
 	"time"
 
@@ -17,9 +18,9 @@ import (
 )
 
 var (
-	name      = flag.String("name", "", "Name for the generated identity")
+	name      = flag.String("name", "", "Name for the generated identity. By default a name derived from the username of the currently logged-in user and hostname is used")
 	blesser   = flag.String("blesser", "", "Path to a file containing the blessor (or - for STDIN)")
-	duration  = flag.Duration("duration", 24*time.Hour, "Duration for which a bleessing will be valid. Ignored if --blesser is empty")
+	duration  = flag.Duration("duration", 24*time.Hour, "Duration for which a blessing will be valid. Ignored if --blesser is empty")
 	interpret = flag.String("interpret", "", "Path to a file containing an identity to interpret (or - for STDIN)")
 )
 
@@ -32,8 +33,13 @@ This tool generates veyron private identities (security.PrivateID) and dumps
 the generated identity to STDOUT in base64-VOM-encoded format.
 
 Typical usage:
+* no flags
+  A self-signed identity with a default name of <user>@<hostname> is generated,
+  where <user> is the username of the currently logged-in user and <hostname> is
+  the host name as reported by the kernel.
+
 * --name NAME
-  A self-signed identity will be generated and dumped to STDOUT
+  A self-signed identity for NAME will be generated and dumped to STDOUT
 
 * --name NAME --blesser BLESSER
   BLESSER must be the path to a readable file (or - for STDIN) containing a
@@ -65,11 +71,13 @@ func main() {
 	rt.Init()
 
 	if len(*name) == 0 && len(*interpret) == 0 {
-		vlog.Fatalf("Atleast one of --name or --interpret must be set")
+		generate(defaultIdentityName())
 	}
+
 	if len(*name) > 0 {
-		generate()
+		generate(*name)
 	}
+
 	if len(*interpret) > 0 {
 		id := load(*interpret)
 		fmt.Println("Name   : ", id.PublicID())
@@ -105,15 +113,15 @@ func load(fname string) security.PrivateID {
 	return ret
 }
 
-func generate() {
+func generate(name string) {
 	r := rt.R()
-	output, err := r.NewIdentity(*name)
+	output, err := r.NewIdentity(name)
 	if err != nil {
-		vlog.Fatalf("Runtime.NewIdentity(%q): %v", *name, err)
+		vlog.Fatalf("Runtime.NewIdentity(%q): %v", name, err)
 	}
 	if len(*blesser) > 0 {
 		blesser := load(*blesser)
-		blessed, err := blesser.Bless(output.PublicID(), *name, *duration, nil)
+		blessed, err := blesser.Bless(output.PublicID(), name, *duration, nil)
 		if err != nil {
 			vlog.Fatalf("%q.Bless failed: %v", blesser, err)
 		}
@@ -128,4 +136,17 @@ func generate() {
 		vlog.Fatalf("Base64VomEncode(%q) failed: %v", output, err)
 	}
 	fmt.Println(str)
+}
+
+func defaultIdentityName() string {
+	var name string
+	if user, _ := user.Current(); user != nil && len(user.Username) > 0 {
+		name = user.Username
+	} else {
+		name = "anonymous"
+	}
+	if host, _ := os.Hostname(); len(host) > 0 {
+		name = name + "@" + host
+	}
+	return name
 }
