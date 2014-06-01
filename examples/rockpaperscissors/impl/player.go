@@ -1,7 +1,6 @@
 package impl
 
 import (
-	"errors"
 	"io"
 	"math/rand"
 	"sync"
@@ -51,13 +50,9 @@ func (p *Player) InitiateGame() error {
 		return err
 	}
 	vlog.Infof("chosen opponent is %q", opponent)
-	accepted, err := p.sendChallenge(opponent, judge, gameID)
-	if err != nil {
+	if err = p.sendChallenge(opponent, judge, gameID); err != nil {
 		vlog.Infof("sendChallenge: %v", err)
 		return err
-	}
-	if !accepted {
-		return errors.New("challenge declined")
 	}
 	result, err := p.playGame(judge, gameID)
 	if err != nil {
@@ -85,19 +80,19 @@ func (p *Player) createGame(server string) (rps.GameID, error) {
 	return j.CreateGame(rps.GameOptions{NumRounds: int32(numRounds), GameType: gameType})
 }
 
-func (p *Player) sendChallenge(opponent, judge string, gameID rps.GameID) (bool, error) {
+func (p *Player) sendChallenge(opponent, judge string, gameID rps.GameID) error {
 	o, err := rps.BindRockPaperScissors(opponent)
 	if err != nil {
-		return false, err
+		return err
 	}
 	return o.Challenge(judge, gameID)
 }
 
 // challenge receives an incoming challenge.
-func (p *Player) challenge(judge string, gameID rps.GameID) (bool, error) {
+func (p *Player) challenge(judge string, gameID rps.GameID) error {
 	vlog.Infof("challenge received: %s %v", judge, gameID)
 	go p.playGame(judge, gameID)
-	return true, nil
+	return nil
 }
 
 // playGame plays an entire game, which really only consists of reading

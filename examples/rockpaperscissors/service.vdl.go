@@ -415,8 +415,8 @@ func (__gen_s *ServerStubJudge) Play(call _gen_ipc.ServerCall, ID GameID) (reply
 // to enable embedding without method collisions.  Not to be used directly by clients.
 type Player_ExcludingUniversal interface {
 	// Challenge is used by other players to challenge this player to a game. If
-	// the challenge is accepted, the method returns true.
-	Challenge(Address string, ID GameID, opts ..._gen_ipc.ClientCallOpt) (reply bool, err error)
+	// the challenge is accepted, the method returns nil.
+	Challenge(Address string, ID GameID, opts ..._gen_ipc.ClientCallOpt) (err error)
 }
 type Player interface {
 	_gen_ipc.UniversalServiceMethods
@@ -427,8 +427,8 @@ type Player interface {
 type PlayerService interface {
 
 	// Challenge is used by other players to challenge this player to a game. If
-	// the challenge is accepted, the method returns true.
-	Challenge(context _gen_ipc.Context, Address string, ID GameID) (reply bool, err error)
+	// the challenge is accepted, the method returns nil.
+	Challenge(context _gen_ipc.Context, Address string, ID GameID) (err error)
 }
 
 // BindPlayer returns the client stub implementing the Player
@@ -474,12 +474,12 @@ type clientStubPlayer struct {
 	name   string
 }
 
-func (__gen_c *clientStubPlayer) Challenge(Address string, ID GameID, opts ..._gen_ipc.ClientCallOpt) (reply bool, err error) {
+func (__gen_c *clientStubPlayer) Challenge(Address string, ID GameID, opts ..._gen_ipc.ClientCallOpt) (err error) {
 	var call _gen_ipc.ClientCall
 	if call, err = __gen_c.client.StartCall(__gen_c.name, "Challenge", []interface{}{Address, ID}, opts...); err != nil {
 		return
 	}
-	if ierr := call.Finish(&reply, &err); ierr != nil {
+	if ierr := call.Finish(&err); ierr != nil {
 		err = ierr
 	}
 	return
@@ -545,7 +545,6 @@ func (__gen_s *ServerStubPlayer) Signature(call _gen_ipc.ServerCall) (_gen_ipc.S
 			{Name: "ID", Type: 65},
 		},
 		OutArgs: []_gen_ipc.MethodArgument{
-			{Name: "", Type: 2},
 			{Name: "", Type: 66},
 		},
 	}
@@ -579,8 +578,8 @@ func (__gen_s *ServerStubPlayer) UnresolveStep(call _gen_ipc.ServerCall) (reply 
 	return
 }
 
-func (__gen_s *ServerStubPlayer) Challenge(call _gen_ipc.ServerCall, Address string, ID GameID) (reply bool, err error) {
-	reply, err = __gen_s.service.Challenge(call, Address, ID)
+func (__gen_s *ServerStubPlayer) Challenge(call _gen_ipc.ServerCall, Address string, ID GameID) (err error) {
+	err = __gen_s.service.Challenge(call, Address, ID)
 	return
 }
 

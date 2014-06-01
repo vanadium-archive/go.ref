@@ -81,8 +81,8 @@ type PlayResult struct {
 // Player can receive challenges from other players.
 type Player interface {
   // Challenge is used by other players to challenge this player to a game. If
-  // the challenge is accepted, the method returns true.
-  Challenge(Address string, ID GameID) (bool, error)
+  // the challenge is accepted, the method returns nil.
+  Challenge(Address string, ID GameID) error
 }
 
 // ScoreKeeper receives the outcome of games from Judges.

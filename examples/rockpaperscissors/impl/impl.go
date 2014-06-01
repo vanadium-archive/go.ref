@@ -51,7 +51,7 @@ func (r *RPS) Play(ctx ipc.Context, id rps.GameID, stream rps.JudgeServicePlaySt
 	return r.judge.play(names[0], id, stream)
 }
 
-func (r *RPS) Challenge(ctx ipc.Context, address string, id rps.GameID) (bool, error) {
+func (r *RPS) Challenge(ctx ipc.Context, address string, id rps.GameID) error {
 	vlog.VI(1).Infof("Challenge (%q, %+v) from %s", address, id, ctx.RemoteID())
 	return r.player.challenge(address, id)
 }
