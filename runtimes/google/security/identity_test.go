@@ -1,13 +1,17 @@
 package security
 
 import (
+	"bytes"
+	"fmt"
 	"reflect"
+	"sort"
 	"testing"
 	"time"
 
 	"veyron/runtimes/google/security/caveat"
 	"veyron/runtimes/google/security/wire"
 	"veyron2/security"
+	"veyron2/vom"
 )
 
 type S []string
@@ -17,28 +21,25 @@ func TestNameAndAuth(t *testing.T) {
 		cUnknownAlice    = newChain("alice").PublicID()
 		cTrustedAlice    = bless(cUnknownAlice, veyronChain, "alice", nil)
 		cMistrustedAlice = bless(cUnknownAlice, newChain("veyron"), "alice", nil)
+		cGoogleAlice     = bless(cUnknownAlice, googleChain, "alice", nil)
 
-		tUntrustedAlice  = newTree("alice").PublicID()
-		tTrustedAlice    = bless(tUntrustedAlice, veyronTree, "alice", nil)
-		tMistrustedAlice = bless(tUntrustedAlice, newTree("veyron"), "alice", nil)
+		sAlice       = newSetPublicID(cTrustedAlice, cGoogleAlice)
+		sBadAlice    = newSetPublicID(cUnknownAlice, cMistrustedAlice)
+		sGoogleAlice = newSetPublicID(cMistrustedAlice, cGoogleAlice)
 	)
 	testdata := []struct {
-		id        security.PublicID
-		names     []string
-		authErr   string
-		authNames []string
+		id    security.PublicID
+		names []string
+		err   string
 	}{
 		{id: cUnknownAlice},
-		{id: cTrustedAlice, names: S{"veyron/alice"}, authNames: S{"veyron/alice"}},
-		{id: cMistrustedAlice, authErr: "Mistrusted"},
-		{id: tUntrustedAlice},
-		{id: tTrustedAlice, names: S{"veyron/alice"}, authNames: S{"veyron/alice"}},
-		{id: tMistrustedAlice},
+		{id: cTrustedAlice, names: S{"veyron/alice"}},
+		{id: cMistrustedAlice, err: "Mistrusted"},
+		{id: sAlice, names: S{"veyron/alice", "google/alice"}},
+		{id: sBadAlice},
+		{id: sGoogleAlice, names: S{"google/alice"}},
 	}
 	for _, d := range testdata {
-		if len(d.authNames) != 0 && len(d.authErr) != 0 {
-			t.Fatalf("Bad testdata. At most one of authNames and authErr must be non-empty: %q", d)
-		}
 		if got, want := d.id.Names(), d.names; !reflect.DeepEqual(got, want) {
 			t.Errorf("%q(%T).Names(): got: %q, want: %q", d.id, d.id, got, want)
 		}
@@ -47,16 +48,17 @@ func TestNameAndAuth(t *testing.T) {
 			t.Errorf("%q.Authorize returned: (%v, %v), exactly one return value must be nil", d.id, authID, err)
 			continue
 		}
-		if !matchesErrorPattern(err, d.authErr) {
-			t.Errorf("%q.Authorize returned error: %v, want to match: %q", d.id, err, d.authErr)
+		if !matchesErrorPattern(err, d.err) {
+			t.Errorf("%q.Authorize returned error: %v, want to match: %q", d.id, err, d.err)
 		}
-		if err := verifyAuthorizedID(d.id, authID, d.authNames); err != nil {
+		if err := verifyAuthorizedID(d.id, authID, d.names); err != nil {
 			t.Error(err)
 		}
 	}
 }
 
 func TestMatch(t *testing.T) {
+	alice := newChain("alice")
 	type matchInstance struct {
 		pattern security.PrincipalPattern
 		want    bool
@@ -67,17 +69,7 @@ func TestMatch(t *testing.T) {
 	}{
 		{
 			// self-signed alice chain, not a trusted identity provider so should only match "*"
-			id: newChain("alice").PublicID(),
-			matchData: []matchInstance{
-				{pattern: "*", want: true},
-				{pattern: "alice", want: false},
-				{pattern: "alice/*", want: false},
-				{pattern: "untrusted/alice/*", want: false},
-			},
-		},
-		{
-			// self-blessed alice tree, not a trusted identity provider so should only match "*"
-			id: newTree("alice").PublicID(),
+			id: alice.PublicID(),
 			matchData: []matchInstance{
 				{pattern: "*", want: true},
 				{pattern: "alice", want: false},
@@ -102,11 +94,10 @@ func TestMatch(t *testing.T) {
 		},
 		{
 			// alice#veyron/alice#google/alice: two trusted identity providers
-			id: bless(bless(newTree("alice").PublicID(), veyronTree, "alice", nil), googleTree, "alice", nil),
+			id: newSetPublicID(alice.PublicID(), bless(alice.PublicID(), veyronChain, "alice", nil), bless(alice.PublicID(), googleChain, "alice", nil)),
 			matchData: []matchInstance{
 				{pattern: "*", want: true},
-				// Since alice is not a trusted identity
-				// provider, the tree's self-blessed identity
+				// Since alice is not a trusted identity provider, the self-blessed identity
 				// should not match "alice/*"
 				{pattern: "alice", want: false},
 				{pattern: "alice/*", want: false},
@@ -135,26 +126,34 @@ func TestMatch(t *testing.T) {
 	}
 }
 
-func TestExpiredIdentity(t *testing.T) {
-	testdata := []struct {
-		blessor security.PrivateID
-		blessee security.PublicID
-	}{
-		{veyronChain, newChain("alice").PublicID()},
-		{veyronTree, newTree("alice").PublicID()},
+func TestExpiredIdentityChain(t *testing.T) {
+	id, err := veyronChain.Bless(newChain("immaterial").PublicID(), "alice", time.Millisecond, nil)
+	if err != nil {
+		t.Fatal(err)
 	}
-	for _, d := range testdata {
-		id, err := d.blessor.Bless(d.blessee, "alice", time.Millisecond, nil)
-		if err != nil {
-			t.Errorf("%q.Bless(%q, ...) failed: %v", d.blessor, d.blessee, err)
-			continue
-		}
-		time.Sleep(time.Millisecond)
-		if authID, _ := id.Authorize(NewContext(ContextArgs{})); authID != nil {
-			if got := authID.Names(); got != nil {
-				t.Errorf("%q.Names(): got: %q, want: nil", got)
-			}
-		}
+	time.Sleep(time.Millisecond)
+	if authid, _ := id.Authorize(NewContext(ContextArgs{})); authid != nil && len(authid.Names()) != 0 {
+		t.Errorf("%q.Authorize returned %v, wanted empty slice", id, authid)
+	}
+}
+
+func TestExpiredIdentityInSet(t *testing.T) {
+	var (
+		alice       = newChain("alice").PublicID()
+		googleAlice = bless(alice, googleChain, "googler", nil)
+	)
+	veyronAlice, err := veyronChain.Bless(alice, "veyroner", time.Millisecond, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	time.Sleep(time.Millisecond)
+	setid := newSetPublicID(alice, googleAlice, veyronAlice)
+	authid, _ := setid.Authorize(NewContext(ContextArgs{}))
+	if authid == nil {
+		t.Fatalf("%q.Authorize returned nil, expected google/alice", setid)
+	}
+	if got, want := authid.Names(), "google/googler"; len(got) != 1 || got[0] != want {
+		t.Errorf("Got %v want [%v]", got, want)
 	}
 }
 
@@ -172,95 +171,77 @@ func TestTamperedIdentityChain(t *testing.T) {
 	}
 }
 
-func TestTamperedIdentityTree(t *testing.T) {
-	alice := newTree("alice").PublicID().(*treePublicID)
-	// Tamper with the alice's public key
-	alice.publicKey.Y.SetInt64(1)
-	// Check that integrity verification fails
-	if _, err := roundTrip(alice); err != wire.ErrNoIntegrity {
-		t.Errorf("Got %v want %v from roundTrip(%v)", err, wire.ErrNoIntegrity, alice)
-	}
-}
-
 func TestBless(t *testing.T) {
 	var (
 		cAlice       = newChain("alice")
-		cBob         = newChain("bob")
+		cBob         = newChain("bob").PublicID()
 		cVeyronAlice = derive(bless(cAlice.PublicID(), veyronChain, "alice", nil), cAlice)
+		cGoogleAlice = derive(bless(cAlice.PublicID(), googleChain, "alice", nil), cAlice)
+		cVeyronBob   = bless(cBob, veyronChain, "bob", nil)
 
-		tAlice       = newTree("alice")
-		tBob         = newTree("bob")
-		tVeyronAlice = derive(bless(tAlice.PublicID(), veyronTree, "alice", nil), tAlice)
+		sVeyronAlice = newSetPrivateID(cAlice, cVeyronAlice, cGoogleAlice)
+		sVeyronBob   = newSetPublicID(cBob, cVeyronBob)
 	)
 	testdata := []struct {
-		blessor      security.PrivateID
-		blessee      security.PublicID
-		blessing     string   // name provided to security.PublicID.Bless
-		blessedNames []string // names of the blessed identity. Empty if the Bless operation should have failed
-		err          string
+		blessor  security.PrivateID
+		blessee  security.PublicID
+		blessing string   // name provided to security.PublicID.Bless
+		blessed  []string // names of the blessed identity. Empty if the Bless operation should have failed
+		err      string
 	}{
+		// Blessings from veyron/alice (chain implementation)
 		{
-			blessor: veyronChain,
-			blessee: cAlice.PublicID(),
+			blessor: cVeyronAlice,
+			blessee: cBob,
 			err:     `invalid blessing name:""`,
 		},
 		{
-			blessor:  veyronChain,
-			blessee:  cAlice.PublicID(),
+			blessor:  cVeyronAlice,
+			blessee:  cBob,
 			blessing: "alice/bob",
 			err:      `invalid blessing name:"alice/bob"`,
 		},
 		{
-			blessor:      veyronChain,
-			blessee:      cAlice.PublicID(),
-			blessing:     "alice",
-			blessedNames: S{"veyron/alice"},
-		},
-		{
-			blessor:      cVeyronAlice,
-			blessee:      cBob.PublicID(),
-			blessing:     "friend_bob",
-			blessedNames: S{"veyron/alice/friend_bob"},
-		},
-		{
-			blessor:  cAlice,
-			blessee:  cBob.PublicID(),
+			blessor:  cVeyronAlice,
+			blessee:  cBob,
 			blessing: "friend_bob",
+			blessed:  S{"veyron/alice/friend_bob"},
 		},
 		{
-			blessor: veyronTree,
-			blessee: tAlice.PublicID(),
+			blessor:  cVeyronAlice,
+			blessee:  sVeyronBob,
+			blessing: "friend_bob",
+			blessed:  S{"veyron/alice/friend_bob"},
+		},
+		// Blessings from alice#google/alice#veyron/alice
+		{
+			blessor: sVeyronAlice,
+			blessee: cBob,
 			err:     `invalid blessing name:""`,
 		},
 		{
-			blessor:  veyronTree,
-			blessee:  tAlice.PublicID(),
+			blessor:  sVeyronAlice,
+			blessee:  cBob,
 			blessing: "alice/bob",
 			err:      `invalid blessing name:"alice/bob"`,
 		},
 		{
-			blessor:      veyronTree,
-			blessee:      tAlice.PublicID(),
-			blessing:     "alice",
-			blessedNames: S{"veyron/alice"},
+			blessor:  sVeyronAlice,
+			blessee:  cBob,
+			blessing: "friend_bob",
+			blessed:  S{"veyron/alice/friend_bob", "google/alice/friend_bob"},
 		},
 		{
-			blessor:      tVeyronAlice,
-			blessee:      tBob.PublicID(),
-			blessing:     "friend_bob",
-			blessedNames: S{"veyron/alice/friend_bob"},
-		},
-		{
-			blessor:      googleTree,
-			blessee:      tVeyronAlice.PublicID(),
-			blessing:     "googler",
-			blessedNames: S{"veyron/alice", "google/googler"},
+			blessor:  sVeyronAlice,
+			blessee:  sVeyronBob,
+			blessing: "friend_bob",
+			blessed:  S{"veyron/alice/friend_bob", "google/alice/friend_bob"},
 		},
 	}
 
 	for _, d := range testdata {
-		if len(d.blessedNames) != 0 && len(d.err) != 0 {
-			t.Fatalf("Bad testdata. At most one of blessedNames and err must be non-empty: %q", d)
+		if (len(d.blessed) == 0) == (len(d.err) == 0) {
+			t.Fatalf("Bad testdata. Exactly one of blessed and err must be non-empty: %+v", d)
 		}
 		blessed, err := d.blessor.Bless(d.blessee, d.blessing, 1*time.Minute, nil)
 		// Exactly one of (blessed, err) should be nil
@@ -276,7 +257,7 @@ func TestBless(t *testing.T) {
 			continue
 		}
 		// Compare names
-		if got, want := blessed.Names(), d.blessedNames; !reflect.DeepEqual(got, want) {
+		if got, want := blessed.Names(), d.blessed; !reflect.DeepEqual(got, want) {
 			t.Errorf("%q.Names(): got: %q, want: %q", blessed, got, want)
 		}
 		// Public keys should match for blessed and blessee
@@ -292,19 +273,14 @@ func TestBless(t *testing.T) {
 
 func TestAuthorizeWithCaveats(t *testing.T) {
 	var (
-		// Alice's chain and tree identities
+		// alice
 		pcAlice = newChain("alice")
 		cAlice  = pcAlice.PublicID().(*chainPublicID)
-		ptAlice = newTree("alice")
-		tAlice  = ptAlice.PublicID().(*treePublicID)
 
 		// veyron/alice/tv
 		cVeyronAliceTV = bless(newChain("tv").PublicID(),
 			derive(bless(cAlice, veyronChain, "alice", nil), pcAlice),
 			"tv", nil).(*chainPublicID)
-		tVeyronAliceTV = bless(newTree("tv").PublicID(),
-			derive(bless(tAlice, veyronTree, "alice", nil), ptAlice),
-			"tv", nil).(*treePublicID)
 
 		// Some random server called bob
 		bob = newChain("bob").PublicID()
@@ -335,66 +311,43 @@ func TestAuthorizeWithCaveats(t *testing.T) {
 			tests: []rpc{
 				{server: bob, method: "Hello", authNames: S{"veyron/alice"}},
 				{server: bob, authNames: S{"veyron/alice"}},
-				{server: googleTree.PublicID(), method: "Hello", authErr: "caveat.MethodRestriction{\"Play\"} forbids invocation of method Hello"},
-				{server: googleTree.PublicID(), method: "Play", authNames: S{"veyron/alice"}},
-				{server: googleTree.PublicID(), authNames: S{"veyron/alice"}},
+				{server: googleChain.PublicID(), method: "Hello", authErr: `caveat.MethodRestriction{"Play"} forbids invocation of method Hello`},
+				{server: googleChain.PublicID(), method: "Play", authNames: S{"veyron/alice"}},
+				{server: googleChain.PublicID(), authNames: S{"veyron/alice"}},
 			},
 		},
 		{
 			client: bless(cAlice, veyronChain, "alice", cavOnlyGoogle),
 			tests: []rpc{
-				{server: bob, method: "Hello", authErr: "caveat.PeerIdentity{\"google\"} forbids RPCing with peer"},
-				{server: googleTree.PublicID(), method: "Hello", authNames: S{"veyron/alice"}},
-				{server: googleTree.PublicID(), method: "Play", authNames: S{"veyron/alice"}},
+				{server: bob, method: "Hello", authErr: `caveat.PeerIdentity{"google"} forbids RPCing with peer`},
+				{server: googleChain.PublicID(), method: "Hello", authNames: S{"veyron/alice"}},
+				{server: googleChain.PublicID(), method: "Play", authNames: S{"veyron/alice"}},
 			},
 		},
 		{
 			client: bless(cAlice, veyronChain, "alice", append(cavOnlyGoogle, cavOnlyPlayAtGoogle...)),
 			tests: []rpc{
-				{server: bob, method: "Hello", authErr: "caveat.PeerIdentity{\"google\"} forbids RPCing with peer"},
-				{server: googleTree.PublicID(), method: "Hello", authErr: "caveat.MethodRestriction{\"Play\"} forbids invocation of method Hello"},
-				{server: googleTree.PublicID(), method: "Play", authNames: S{"veyron/alice"}},
+				{server: bob, method: "Hello", authErr: `caveat.PeerIdentity{"google"} forbids RPCing with peer`},
+				{server: googleChain.PublicID(), method: "Hello", authErr: `caveat.MethodRestriction{"Play"} forbids invocation of method Hello`},
+				{server: googleChain.PublicID(), method: "Play", authNames: S{"veyron/alice"}},
 			},
 		},
 		{
 			client: bless(cAlice, veyronChain, "alice", cavOnlyPublicProfile),
 			tests: []rpc{
-				{server: cVeyronAliceTV, method: "PrivateProfile", authErr: "caveat.MethodRestriction{\"PublicProfile\"} forbids invocation of method PrivateProfile"},
+				{server: cVeyronAliceTV, method: "PrivateProfile", authErr: `caveat.MethodRestriction{"PublicProfile"} forbids invocation of method PrivateProfile`},
 				{server: cVeyronAliceTV, method: "PublicProfile", authNames: S{"veyron/alice"}},
 			},
 		},
-		// client has a tree identity
+		// client has multiple blessings
 		{
-			client: bless(tAlice, veyronTree, "alice", cavOnlyPlayAtGoogle),
+			client: newSetPublicID(bless(cAlice, veyronChain, "valice", append(cavOnlyPlayAtGoogle, cavOnlyPublicProfile...)), bless(cAlice, googleChain, "galice", cavOnlyGoogle)),
 			tests: []rpc{
-				{server: bob, method: "Hello", authNames: S{"veyron/alice"}},
-				{server: bob, authNames: S{"veyron/alice"}},
-				{server: googleTree.PublicID(), method: "Hello"},
-				{server: googleTree.PublicID(), method: "Play", authNames: S{"veyron/alice"}},
-				{server: googleTree.PublicID(), authNames: S{"veyron/alice"}},
-			},
-		},
-		{
-			client: bless(tAlice, veyronTree, "alice", cavOnlyGoogle),
-			tests: []rpc{
-				{server: bob, method: "Hello"},
-				{server: googleTree.PublicID(), method: "Hello", authNames: S{"veyron/alice"}},
-				{server: googleTree.PublicID(), method: "Play", authNames: S{"veyron/alice"}},
-			},
-		},
-		{
-			client: bless(tAlice, veyronTree, "alice", append(cavOnlyGoogle, cavOnlyPlayAtGoogle...)),
-			tests: []rpc{
-				{server: bob, method: "Hello"},
-				{server: googleTree.PublicID(), method: "Hello"},
-				{server: googleTree.PublicID(), method: "Play", authNames: S{"veyron/alice"}},
-			},
-		},
-		{
-			client: bless(tAlice, veyronTree, "alice", cavOnlyPublicProfile),
-			tests: []rpc{
-				{server: tVeyronAliceTV, method: "PrivateProfile"},
-				{server: tVeyronAliceTV, method: "PublicProfile", authNames: S{"veyron/alice"}},
+				{server: bob, method: "Hello", authNames: S{"veyron/valice"}},
+				{server: googleChain.PublicID(), method: "Play", authNames: S{"veyron/valice", "google/galice"}},
+				{server: googleChain.PublicID(), method: "Buy", authNames: S{"google/galice"}},
+				{server: cVeyronAliceTV, method: "PublicProfile", authNames: S{"veyron/valice"}},
+				{server: cVeyronAliceTV, method: "PrivateProfile", authErr: "none of the blessings in the set are authorized"},
 			},
 		},
 	}
@@ -405,8 +358,8 @@ func TestAuthorizeWithCaveats(t *testing.T) {
 			continue
 		}
 		for _, test := range d.tests {
-			if len(test.authNames) != 0 && len(test.authErr) != 0 {
-				t.Fatalf("Bad testdata. At most one of authNames and authErr must be non-empty: %q, %+v", d.client, test)
+			if (len(test.authNames) == 0) == (len(test.authErr) == 0) {
+				t.Fatalf("Bad testdata. Exactly one of authNames and authErr must be non-empty: %+q/%+v", d.client, test)
 			}
 			ctx := NewContext(ContextArgs{LocalID: test.server, RemoteID: d.client, Method: test.method})
 			authID, err := d.client.Authorize(ctx)
@@ -414,51 +367,51 @@ func TestAuthorizeWithCaveats(t *testing.T) {
 				t.Errorf("%q.Authorize(%v) returned error: %v, want to match: %q", d.client, ctx, err, test.authErr)
 			}
 			if err := verifyAuthorizedID(d.client, authID, test.authNames); err != nil {
-				t.Errorf("%q.Authorize(%v) returned identity: %v want identity with names: %q", d.client, ctx, authID, test.authNames)
+				t.Errorf("%q.Authorize(%v) returned identity: %v want identity with names: %q [%v]", d.client, ctx, authID, test.authNames, err)
 			}
 		}
 	}
 }
 
 func TestAuthorizeWithThirdPartyCaveats(t *testing.T) {
-	mkveyronchain := func(name string) security.PrivateID {
-		base := newChain(name)
-		return derive(bless(base.PublicID(), veyronChain, name, nil), base)
+	mkveyron := func(id security.PrivateID, name string) security.PrivateID {
+		return derive(bless(id.PublicID(), veyronChain, name, nil), id)
 	}
-	mkveyrontree := func(name string) security.PrivateID {
-		base := newTree(name)
-		return derive(bless(base.PublicID(), veyronTree, name, nil), base)
+	mkgoogle := func(id security.PrivateID, name string) security.PrivateID {
+		return derive(bless(id.PublicID(), googleChain, name, nil), id)
 	}
-	// Principals (type conversions just to protect against accidentally
-	// calling the wrong factory function)
+	mkcaveat := func(id security.PrivateID) []security.ServiceCaveat {
+		c, err := caveat.NewPublicKeyCaveat("proximity", id.PublicID(), fmt.Sprintf("%v location", id.PublicID()))
+		if err != nil {
+			t.Fatal(err)
+		}
+		return []security.ServiceCaveat{security.UniversalCaveat(c)}
+	}
 	var (
-		alice  = mkveyronchain("alice")
-		cBob   = mkveyronchain("bob").(*chainPrivateID)
-		tBob   = mkveyrontree("bob").(*treePrivateID)
-		cCarol = mkveyronchain("carol").(*chainPrivateID).PublicID()
-		tCarol = mkveyrontree("carol").(*treePrivateID).PublicID()
+		alice = newChain("alice")
+		bob   = newChain("bob")
+		carol = newChain("carol").PublicID()
+
+		// aliceProximityCaveat is a caveat whose discharge can only be minted by alice.
+		aliceProximityCaveat = mkcaveat(alice)
+		bobProximityCaveat   = mkcaveat(bob)
 	)
-	// aliceProximityCaveat is a caveat that can only be minted by alice
-	aliceProximityCaveat, err := caveat.NewPublicKeyCaveat("proximity", alice.PublicID(), "alice location")
-	if err != nil {
-		t.Fatal(err)
-	}
+
 	mintDischarge := func(id security.PrivateID, duration time.Duration, caveats []security.ServiceCaveat) security.ThirdPartyDischarge {
-		d, err := id.MintDischarge(aliceProximityCaveat, duration, caveats)
+		d, err := id.MintDischarge(aliceProximityCaveat[0].Caveat.(security.ThirdPartyCaveat), duration, caveats)
 		if err != nil {
 			t.Fatalf("%q.MintDischarge failed: %v", id, err)
 		}
 		return d
 	}
-	// Discharges
 	var (
+		// Discharges
 		dAlice   = mintDischarge(alice, time.Minute, nil)
 		dGoogle  = mintDischarge(alice, time.Minute, peerIdentityCaveat("google"))
 		dExpired = mintDischarge(alice, 0, nil)
-		dInvalid = mintDischarge(cBob, time.Minute, nil) // Invalid because carol cannot mint valid discharges for aliceProximityCaveat
-	)
-	// Contexts
-	var (
+		dInvalid = mintDischarge(bob, time.Minute, nil) // Invalid because bob cannot mint valid discharges for aliceProximityCaveat
+
+		// Contexts
 		ctxEmpty = NewContext(ContextArgs{Debug: "ctxEmpty"})
 		ctxAlice = NewContext(ContextArgs{
 			Discharges: security.CaveatDischargeMap{dAlice.CaveatID(): dAlice},
@@ -484,56 +437,68 @@ func TestAuthorizeWithThirdPartyCaveats(t *testing.T) {
 			Discharges: security.CaveatDischargeMap{dInvalid.CaveatID(): dInvalid},
 			Debug:      "ctxInvalid",
 		})
+
+		// Contexts that should always end in authorization errors
+		errtests = map[security.Context]string{
+			ctxEmpty:         "missing discharge",
+			ctxGoogleAtOther: "forbids RPCing with peer",
+			ctxExpired:       "at this time",
+			ctxInvalid:       "invalid signature",
+		}
 	)
 
-	type want struct {
-		// Exactly one of these should be non-empty
-		authNames []string
-		err       string
-	}
-
-	chaintests := map[security.Context]want{
-		ctxEmpty:          want{err: "missing discharge"},
-		ctxAlice:          want{authNames: S{"veyron/bob/friend"}},
-		ctxGoogleAtOther:  want{err: "forbids RPCing with peer"},
-		ctxGoogleAtGoogle: want{authNames: S{"veyron/bob/friend"}},
-		ctxExpired:        want{err: "at this time"},
-		ctxInvalid:        want{err: "invalid signature"},
-	}
-	treetests := map[security.Context]want{
-		ctxEmpty:          want{authNames: S{"veyron/carol"}},
-		ctxAlice:          want{authNames: S{"veyron/carol", "veyron/bob/friend"}},
-		ctxGoogleAtOther:  want{authNames: S{"veyron/carol"}},
-		ctxGoogleAtGoogle: want{authNames: S{"veyron/carol", "veyron/bob/friend"}},
-		ctxExpired:        want{authNames: S{"veyron/carol"}},
-		ctxInvalid:        want{authNames: S{"veyron/carol"}},
-	}
-	caveats := []security.ServiceCaveat{security.UniversalCaveat(aliceProximityCaveat)}
 	testdata := []struct {
-		id    security.PublicID
-		tests map[security.Context]want
+		id        security.PublicID
+		authNames S // For ctxAlice and ctxGoogleAtGoogle
 	}{
-		{bless(cCarol, cBob, "friend", caveats), chaintests},
-		{bless(tCarol, tBob, "friend", caveats), treetests},
+		// carol blessed by bob with the third-party caveat should be authorized when the context contains a valid discharge
+		{
+			id:        bless(carol, mkveyron(bob, "bob"), "friend", aliceProximityCaveat),
+			authNames: S{"veyron/bob/friend"},
+		},
+		// veyron/vbob/vfriend with bobProximityCaveat and google/gbob/gfriend with aliceProximityCaveat
+		// Only google/gbob/gfriend should be authorized since the discharge for the former is missing
+		{
+			id: newSetPublicID(
+				bless(carol, mkveyron(bob, "vbob"), "vfriend", bobProximityCaveat),
+				bless(carol, mkgoogle(bob, "gbob"), "gfriend", aliceProximityCaveat)),
+			authNames: S{"google/gbob/gfriend"},
+		},
+		// veyron/vbob/friend#google/gbob/friend both have the same caveat and both are satisfied
+		{
+			id:        bless(carol, newSetPrivateID(mkveyron(bob, "vbob"), mkgoogle(bob, "gbob")), "friend", aliceProximityCaveat),
+			authNames: S{"veyron/vbob/friend", "google/gbob/friend"},
+		},
 	}
-	for _, d := range testdata {
-		if _, err := roundTrip(d.id); err != nil {
-			t.Errorf("%q is not round-trippable: %v", d.id, d.id, err)
+	for _, test := range testdata {
+		if _, err := roundTrip(test.id); err != nil {
+			t.Errorf("%q is not round-trippable: %v", test.id, test.id, err)
 		}
-		for ctx, want := range d.tests {
-			if (len(want.authNames) != 0) && (len(want.err) != 0) {
-				t.Fatalf("Bad testdata. Atmost one of (authNames, err) must be non-empty: %q, %v", d.id, ctx)
+		for _, ctx := range []security.Context{ctxAlice, ctxGoogleAtGoogle} {
+			authID, _ := test.id.Authorize(ctx)
+			if err := verifyAuthorizedID(test.id, authID, test.authNames); err != nil {
+				t.Errorf("%q.Authorize(%v): %v", test.id, ctx, err)
 			}
-			authID, err := d.id.Authorize(ctx)
-			if !matchesErrorPattern(err, want.err) {
-				t.Errorf("%q.Authorize(%v) returned error: %v, want to match: %q", d.id, ctx, err, want.err)
+		}
+		for ctx, want := range errtests {
+			authID, err := test.id.Authorize(ctx)
+			if authID != nil {
+				t.Errorf("%q.Authorize(%v) returned %v, should have returned nil", test.id, ctx, authID)
 			}
-			if err := verifyAuthorizedID(d.id, authID, want.authNames); err != nil {
-				t.Errorf("%q.Authorize(%v): %v", d.id, ctx, err)
+			if !matchesErrorPattern(err, want) {
+				t.Errorf("%q.Authorize(%v) returned error: %v, want to match: %q", test.id, ctx, err, want)
 			}
 		}
 	}
 }
+
+type SortedThirdPartyCaveats []security.ServiceCaveat
+
+func (s SortedThirdPartyCaveats) Len() int { return len(s) }
+func (s SortedThirdPartyCaveats) Less(i, j int) bool {
+	return s[i].Caveat.(security.ThirdPartyCaveat).ID() < s[j].Caveat.(security.ThirdPartyCaveat).ID()
+}
+func (s SortedThirdPartyCaveats) Swap(i, j int) { s[i], s[j] = s[j], s[i] }
 
 func TestThirdPartyCaveatAccessors(t *testing.T) {
 	mkTPCaveat := func(restriction string, id security.PublicID) security.ThirdPartyCaveat {
@@ -551,48 +516,57 @@ func TestThirdPartyCaveatAccessors(t *testing.T) {
 		return d
 	}
 
-	// Principals (type conversions just to protect against accidentally
-	// calling the wrong factory function)
+	sortTPCaveats := func(c []security.ServiceCaveat) []security.ServiceCaveat {
+		sort.Stable(SortedThirdPartyCaveats(c))
+		return c
+	}
+
 	var (
-		alice = newChain("alice").(*chainPrivateID)
-		cBob  = newChain("bob").(*chainPrivateID)
-		tBob  = newTree("bob").(*treePrivateID)
-	)
-	// Caveats
-	var (
+		// Principals (type conversions just to protect against accidentally
+		// calling the wrong factory function)
+		alice       = newChain("alice").(*chainPrivateID)
+		cBob        = newChain("bob").(*chainPrivateID)
+		cBobBuilder = derive(bless(cBob.PublicID(), cBob, "builder", nil), cBob) // Bob also calls himself bob/builder
+		sBob        = newSetPrivateID(cBob, cBobBuilder).(setPrivateID)
+
+		// Caveats
 		tpCavService   = security.ServiceCaveat{Service: "someService", Caveat: mkTPCaveat("foo", alice.PublicID())}
 		tpCavUniversal = security.UniversalCaveat(mkTPCaveat("bar", alice.PublicID()))
 		cav            = methodRestrictionCaveat("someService", nil)[0]
 	)
 
-	caveatsData := []struct {
-		caveats           []security.ServiceCaveat
-		thirdPartyCaveats []security.ServiceCaveat
+	caveats := []struct {
+		firstparty []security.ServiceCaveat
+		thirdparty []security.ServiceCaveat
 	}{
-		{caveats: nil, thirdPartyCaveats: nil},
-		{caveats: []security.ServiceCaveat{cav}, thirdPartyCaveats: nil},
-		{caveats: []security.ServiceCaveat{tpCavService}, thirdPartyCaveats: []security.ServiceCaveat{tpCavService}},
-		{caveats: []security.ServiceCaveat{tpCavService, tpCavUniversal}, thirdPartyCaveats: []security.ServiceCaveat{tpCavService, tpCavUniversal}},
-		{caveats: []security.ServiceCaveat{tpCavService, cav, tpCavUniversal}, thirdPartyCaveats: []security.ServiceCaveat{tpCavService, tpCavUniversal}},
+		{firstparty: nil, thirdparty: nil},
+		{firstparty: []security.ServiceCaveat{cav}},
+		{thirdparty: []security.ServiceCaveat{tpCavService}},
+		{thirdparty: []security.ServiceCaveat{tpCavService, tpCavUniversal}},
+		{firstparty: []security.ServiceCaveat{cav}, thirdparty: []security.ServiceCaveat{tpCavService, tpCavUniversal}},
 	}
 	testdata := []struct {
 		privID security.PrivateID
 		pubID  security.PublicID
 	}{
-		{privID: veyronChain, pubID: cBob.PublicID()},
-		{privID: veyronTree, pubID: tBob.PublicID()},
+		{privID: veyronChain, pubID: cBob.PublicID()}, // Chain blessing a chain
+		{privID: veyronChain, pubID: sBob.PublicID()}, // Chain blessing a set
+		{privID: sBob, pubID: cBob.PublicID()},        // Set blessing a chain
+		//{privID: veyronTree, pubID: tBob.PublicID()},
 	}
 	for _, d := range testdata {
-		for _, c := range caveatsData {
+		for _, c := range caveats {
+			all := append(c.firstparty, c.thirdparty...)
 			// Test ThirdPartyCaveat accessors on security.PublicIDs.
-			id := bless(d.pubID, d.privID, "irrelevant", c.caveats)
-			if got, want := id.ThirdPartyCaveats(), c.thirdPartyCaveats; !reflect.DeepEqual(got, want) {
-				t.Errorf("Test credential %q with caveats %+v: got ThirdPartyCaveats() = %+v, want %+v", id, c.caveats, got, want)
+			id := bless(d.pubID, d.privID, "irrelevant", all)
+			want := sortTPCaveats(c.thirdparty)
+			if got := sortTPCaveats(id.ThirdPartyCaveats()); !reflect.DeepEqual(got, want) {
+				t.Errorf("%q(%T) got ThirdPartyCaveats() = %+v, want %+v", id, id, got, want)
 			}
 			// Test ThirdPartyCaveat accessors on security.ThirdPartyCaveatDischarges.
-			dis := mintDischarge(mkTPCaveat("baz", alice.PublicID()), d.privID, c.caveats)
-			if got, want := dis.ThirdPartyCaveats(), c.thirdPartyCaveats; !reflect.DeepEqual(got, want) {
-				t.Errorf("Test credential %q with caveats %+v: got ThirdPartyCaveats() = %+v, want %+v", dis, c.caveats, got, want)
+			dis := mintDischarge(mkTPCaveat("baz", alice.PublicID()), d.privID, all)
+			if got := sortTPCaveats(dis.ThirdPartyCaveats()); !reflect.DeepEqual(got, want) {
+				t.Errorf("%q got ThirdPartyCaveats() = %+v, want %+v", dis, got, want)
 			}
 		}
 	}
@@ -666,24 +640,28 @@ func TestDerive(t *testing.T) {
 		cAlice       = newChain("alice")
 		cVeyronAlice = bless(cAlice.PublicID(), veyronChain, "alice", nil)
 		cBob         = newChain("bob").PublicID()
-		tAlice       = newTree("alice")
-		tVeyronAlice = bless(tAlice.PublicID(), veyronTree, "alice", nil)
-		tBob         = newTree("bob").PublicID()
+		sVeyronAlice = newSetPrivateID(cAlice, derive(cVeyronAlice, cAlice))
+
+		tChain = reflect.TypeOf(cAlice)
+		tSet   = reflect.TypeOf(sVeyronAlice)
+		tErr   = reflect.TypeOf(nil)
 	)
 	testdata := []struct {
 		priv security.PrivateID
 		pub  security.PublicID
-		err  bool
+		typ  reflect.Type
 	}{
-		{priv: cAlice, pub: cVeyronAlice},
-		{priv: cAlice, pub: cBob, err: true},
-		{priv: tAlice, pub: tVeyronAlice},
-		{priv: tAlice, pub: tBob, err: true},
+		{priv: cAlice, pub: cVeyronAlice, typ: tChain},          // chain.Derive(chain) = chain
+		{priv: cAlice, pub: sVeyronAlice.PublicID(), typ: tSet}, // chain.Derive(set) = set
+		{priv: cAlice, pub: cBob, typ: tErr},
+		{priv: sVeyronAlice, pub: cAlice.PublicID(), typ: tChain},     // set.Derive(chain) = chain
+		{priv: sVeyronAlice, pub: sVeyronAlice.PublicID(), typ: tSet}, // set.Derive(set) = set
+		{priv: sVeyronAlice, pub: cBob, typ: tErr},
 	}
 	for _, d := range testdata {
 		derivedID, err := d.priv.Derive(d.pub)
-		if (err != nil) != d.err {
-			t.Errorf("%q.Derive(%q) returned error: %v, wanted: %t", d.priv, d.pub, err, d.err)
+		if reflect.TypeOf(derivedID) != d.typ {
+			t.Errorf("%T=%q.Derive(%T=%q) yielded %T, want %v", d.priv, d.priv, d.pub, d.pub, derivedID, d.typ)
 			continue
 		}
 		if err != nil {
@@ -700,5 +678,39 @@ func TestDerive(t *testing.T) {
 		if _, err := roundTrip(derivedID.PublicID()); err != nil {
 			t.Errorf("roundTrip(%q=%q.Derive(%q)) failed: %v", derivedID, d.priv, d.pub, err)
 		}
+	}
+}
+
+func TestNewSetFailures(t *testing.T) {
+	var (
+		alice = newChain("alice")
+		bob   = newChain("bob")
+	)
+	if s, err := NewSetPrivateID(alice, bob); err == nil {
+		t.Errorf("Got %v, want error since PrivateKeys do not match", s)
+	}
+	if s, err := NewSetPublicID(alice.PublicID(), bob.PublicID()); err == nil {
+		t.Errorf("Got %v, want error since PublicKeys do not match", s)
+	}
+}
+
+func TestSetIdentityAmplification(t *testing.T) {
+	var (
+		alice = newChain("alice").PublicID()
+		bob   = newChain("bob").PublicID()
+
+		sAlice = newSetPublicID(bless(alice, veyronChain, "valice", nil), bless(alice, googleChain, "galice", nil))
+	)
+
+	// Manipulate sAlice before writing it out to the wire so that it has Bob's authorizations.
+	reflect.ValueOf(sAlice).Elem().Index(1).Set(reflect.ValueOf(bob))
+	// Encode/decode the identity.
+	var buf bytes.Buffer
+	if err := vom.NewEncoder(&buf).Encode(sAlice); err != nil {
+		t.Fatal(err)
+	}
+	var decoded security.PublicID
+	if err := vom.NewDecoder(&buf).Decode(&decoded); err == nil || decoded != nil {
+		t.Fatalf("Got (%v, %v), want wire decode of manipulated identity to fail", decoded, err)
 	}
 }
