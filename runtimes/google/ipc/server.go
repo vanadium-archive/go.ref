@@ -23,8 +23,6 @@ import (
 )
 
 var (
-	errNoDispatcher  = verror.NotFoundf("ipc: dispatcher not found")
-	errWrongNumArgs  = verror.BadProtocolf("ipc: wrong number of input arguments")
 	errServerStopped = verror.Abortedf("ipc: server is stopped")
 )
 
@@ -370,10 +368,10 @@ func (fs *flowServer) processRequest() ([]interface{}, verror.E) {
 	fs.label = label
 	// TODO(ataly, ashankar): Populate the "discharges" field from the request object req.
 	if err != nil {
-		return nil, verror.Convert(err)
+		return nil, verror.Makef(verror.ErrorID(err), "%s: name: %q", err, req.Suffix)
 	}
 	if len(argptrs) != numArgs {
-		return nil, errWrongNumArgs
+		return nil, verror.BadProtocolf(fmt.Sprintf("ipc: wrong number of input arguments for method %q, name %q (called with %d args, expected %d)", req.Method, req.Suffix, numArgs, len(argptrs)))
 	}
 	for ix, argptr := range argptrs {
 		if err := fs.dec.Decode(argptr); err != nil {
@@ -420,7 +418,7 @@ func (fs *flowServer) lookup(name string) (ipc.Invoker, security.Authorizer, str
 		}
 		// The dispatcher doesn't handle this suffix, try the next one.
 	}
-	return nil, nil, "", "", errNoDispatcher
+	return nil, nil, "", "", verror.NotFoundf(fmt.Sprintf("ipc: dispatcher not found for %q", name))
 }
 
 func (fs *flowServer) authorize(auth security.Authorizer) error {
