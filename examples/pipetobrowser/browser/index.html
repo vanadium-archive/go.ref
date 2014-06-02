@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, user-scalable=no, initial-scale=1, maximum-scale=1">
+  <meta name="description" content="Pipe To Browser (p2b) is a utility built with veyron technology that allows piping of stdout and std from console into local or remote browser windows. Different plugins exist to format the incoming data and display them in an appropriate and interactive format.">
+  <title>Pipe To Browser - because life is too short to stare at unformatted stdout text, and is hard enough already not to have a spell-checker for stdin</title>
+
+  <script src="libs/vendor/polymer/platform/platform.js"></script>
+
+  <!-- TODO(aghassemi) For Production - Use Volcanize to combine all components into a single import at build time -->
+  <link rel="import" href="views/page/component.html">
+  <link rel="import" href="views/publish/component.html">
+  <link rel="import" href="views/error/component.html">
+  <link rel="import" href="views/pipe-viewer-placeholder/component.html">
+</head>
+
+<body>
+
+  <p2b-page></p2b-page>
+
+  <!-- TODO(aghassemi) For Production - Use traceur at built time for ES6 instead -->
+  <script src="libs/vendor/traceur/traceur.js"></script>
+  <script>traceur.options.experimental = true;</script>
+  <script src="libs/vendor/es6-module-loader/es6-module-loader.js"></script>
+
+  <script src="libs/vendor/veyron/veyron.js"></script><!-- TODO(aghassemi) ES6 shim for Veyron -->
+
+  <script src="init.js"></script>
+</body>
+</html>

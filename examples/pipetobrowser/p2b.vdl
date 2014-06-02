@@ -1,0 +1,7 @@
+package pipetobrowser
+
+// Viewer allows clients to stream data to it and to request a particular viewer to format and display the data.
+type Viewer interface {
+  // Pipe creates a bidirectional pipe between client and viewer service, returns a success message provided by the client
+  Pipe() stream<[]byte, _> (string, error)
+}
