@@ -1,0 +1,20 @@
+<link rel="import" href="../../libs/vendor/polymer/polymer/polymer.html">
+
+<polymer-element name="p2b-page">
+  <template>
+    <header role="banner">
+      <h1>Pipe To Browser</h1>
+    </header>
+    <section role="main" id="mainContainer"></section>
+  </template>
+  <script>
+    Polymer('p2b-page', {
+      ready: function() {
+      },
+      setMain: function(el) {
+        this.$.mainContainer.innerHTML = '';
+        this.$.mainContainer.appendChild(el);
+      }
+    });
+  </script>
+</polymer-element>

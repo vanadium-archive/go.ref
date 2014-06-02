@@ -1,0 +1,5 @@
+"libs" includes app-independent modules, whether third-party or internal.
+
+Third-party modules should be inside "vendor"
+
+Modules in "libs" must not depend on anything outside of "libs"

@@ -1,0 +1,14 @@
+<link rel="import" href="../../libs/vendor/polymer/polymer/polymer.html">
+
+<polymer-element name="p2b-error">
+  <template>
+    <h1>error: {{errorMessage}}</h1>
+  </template>
+  <script>
+    Polymer('p2b-error', {
+      ready: function() {
+      },
+      errorMessage: null
+    });
+    </script>
+</polymer-element>

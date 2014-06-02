@@ -1,0 +1,6 @@
+Actions are cohesive pieces of functionality that can be triggered from any other action in a decoupled way by just using the action name.
+
+Please see documentation in libs/mvc/actions.js for more details about the action concept.
+
+This folder contains modules that define functions to register and trigger application-specific actions.
+These modules glue views and application services and state.

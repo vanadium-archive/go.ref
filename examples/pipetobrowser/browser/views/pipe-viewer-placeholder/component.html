@@ -1,0 +1,22 @@
+<link rel="import" href="../../libs/vendor/polymer/polymer/polymer.html">
+
+<polymer-element name="p2b-pipe-viewer-placeholder">
+  <template>
+    <div>Viewer</div>
+    <div role="main" id="mainContainer"></div>
+  </template>
+  <script>
+    Polymer('p2b-pipe-viewer-placeholder', {
+      ready: function() {
+        this.showLoadingWidget();
+      },
+      showViewer: function(el) {
+        this.$.mainContainer.innerHTML = '';
+        this.$.mainContainer.appendChild(el);
+      },
+      showLoadingWidget: function() {
+        this.$.mainContainer.innerHTML = 'Loading...';
+      }
+    });
+  </script>
+</polymer-element>
