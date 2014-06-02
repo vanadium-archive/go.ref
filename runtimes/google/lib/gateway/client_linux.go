@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"veyron/runtimes/google/lib/unit"
+	"veyron2/rt"
 	"veyron2/services/proximity"
 	"veyron2/vlog"
 
@@ -87,7 +88,7 @@ func (c *client) updateLoop() {
 		case <-t:
 		}
 
-		nearby, err := c.proximity.NearbyDevices()
+		nearby, err := c.proximity.NearbyDevices(rt.R().TODOContext())
 		if err != nil {
 			vlog.Errorf("error getting nearby devices list: %v", err)
 			continue
