@@ -11,6 +11,7 @@ import (
 	"veyron/examples/rockpaperscissors/common"
 
 	"veyron2/naming"
+	"veyron2/rt"
 	"veyron2/vlog"
 )
 
@@ -292,7 +293,7 @@ func (j *Judge) sendScore(address string, score rps.ScoreCard, done chan bool) e
 		vlog.Infof("BindRockPaperScissors: %v", err)
 		return err
 	}
-	err = k.Record(score)
+	err = k.Record(rt.R().TODOContext(), score)
 	if err != nil {
 		vlog.Infof("Record: %v", err)
 		return err

@@ -57,6 +57,7 @@ func TestValueSetGet(t *testing.T) {
 		testCase{"err_string", "GetAsString", true, true},
 	}
 	r := rt.Init()
+	ctx := r.NewContext()
 
 	s, endpoint, err := StartServer(r)
 	if err != nil {
@@ -69,13 +70,13 @@ func TestValueSetGet(t *testing.T) {
 	}
 	for _, test := range tests {
 		// Call Set().
-		if err := c.Set(test.mapFieldName, test.v); err != nil {
+		if err := c.Set(ctx, test.mapFieldName, test.v); err != nil {
 			t.Errorf("error setting: %v (test case: %v)", err, test)
 			continue
 		}
 
 		meth := reflect.ValueOf(c).MethodByName(test.nameOfGetMethod)
-		out := meth.Call([]reflect.Value{reflect.ValueOf(test.mapFieldName)})
+		out := meth.Call([]reflect.Value{reflect.ValueOf(ctx), reflect.ValueOf(test.mapFieldName)})
 		if !test.shouldGetError {
 			if out[1].Interface() != nil {
 				t.Errorf("error getting: %v (test case: %v)", err, test)
@@ -93,52 +94,52 @@ func TestValueSetGet(t *testing.T) {
 
 // settable mirrors the cache's Set method to provide a consistent way to populate test cases.
 type settable interface {
-	Set(key string, val vdl.Any, opts ...ipc.ClientCallOpt) error
+	Set(ctx ipc.Context, key string, val vdl.Any, opts ...ipc.CallOpt) error
 }
 
 // populateObject populates a settable with 12 values.
-func populateObject(s settable) error {
-	if err := s.Set("A", int8(3)); err != nil {
+func populateObject(ctx ipc.Context, s settable) error {
+	if err := s.Set(ctx, "A", int8(3)); err != nil {
 		return err
 	}
 	// Set "A" again to ensure it takes the second value.
-	if err := s.Set("A", "A"); err != nil {
+	if err := s.Set(ctx, "A", "A"); err != nil {
 		return err
 	}
-	if err := s.Set("B", uint16(5)); err != nil {
+	if err := s.Set(ctx, "B", uint16(5)); err != nil {
 		return err
 	}
-	if err := s.Set("C", uint32(7)); err != nil {
+	if err := s.Set(ctx, "C", uint32(7)); err != nil {
 		return err
 	}
-	if err := s.Set("D", verror.ToStandard(errors.New("Err"))); err != nil {
+	if err := s.Set(ctx, "D", verror.ToStandard(errors.New("Err"))); err != nil {
 		return err
 	}
-	if err := s.Set("E", true); err != nil {
+	if err := s.Set(ctx, "E", true); err != nil {
 		return err
 	}
-	if err := s.Set("F", float32(5.4)); err != nil {
+	if err := s.Set(ctx, "F", float32(5.4)); err != nil {
 		return err
 	}
-	if err := s.Set("G", struct {
+	if err := s.Set(ctx, "G", struct {
 		X int
 		Y string
 	}{4, "G"}); err != nil {
 		return err
 	}
-	if err := s.Set("H", uint64(8)); err != nil {
+	if err := s.Set(ctx, "H", uint64(8)); err != nil {
 		return err
 	}
-	if err := s.Set("I", "I"); err != nil {
+	if err := s.Set(ctx, "I", "I"); err != nil {
 		return err
 	}
-	if err := s.Set("J", float64(8.3)); err != nil {
+	if err := s.Set(ctx, "J", float64(8.3)); err != nil {
 		return err
 	}
-	if err := s.Set("K", int64(2)); err != nil {
+	if err := s.Set(ctx, "K", int64(2)); err != nil {
 		return err
 	}
-	if err := s.Set("L", int8(9)); err != nil {
+	if err := s.Set(ctx, "L", int8(9)); err != nil {
 		return err
 	}
 	return nil
@@ -156,7 +157,7 @@ func setupManyResults(t *testing.T) (hps.Cache, ipc.Server) {
 		t.Fatal("failed to connect client: ", err)
 	}
 
-	if err := populateObject(c.(settable)); err != nil {
+	if err := populateObject(r.NewContext(), c.(settable)); err != nil {
 		t.Fatal("error populating cache: ", err)
 	}
 
@@ -166,7 +167,7 @@ func setupManyResults(t *testing.T) (hps.Cache, ipc.Server) {
 // settableMap is a map that implements the settable interface.
 type settableMap map[string]vdl.Any
 
-func (sm settableMap) Set(key string, val vdl.Any, opts ...ipc.ClientCallOpt) error {
+func (sm settableMap) Set(ctx ipc.Context, key string, val vdl.Any, opts ...ipc.CallOpt) error {
 	sm[key] = val
 	return nil
 }
@@ -176,13 +177,15 @@ func TestAsMap(t *testing.T) {
 	c, s := setupManyResults(t)
 	defer s.Stop()
 
-	res, err := c.AsMap()
+	ctx := rt.R().NewContext()
+
+	res, err := c.AsMap(ctx)
 	if err != nil {
 		t.Fatal("error calling AsMap: ", err)
 	}
 
 	m := settableMap(make(map[string]vdl.Any))
-	if err := populateObject(m); err != nil {
+	if err := populateObject(ctx, m); err != nil {
 		t.Fatal("error populating map: ", err)
 	}
 
@@ -199,13 +202,14 @@ func TestKeyValuePairs(t *testing.T) {
 	c, s := setupManyResults(t)
 	defer s.Stop()
 
-	res, err := c.KeyValuePairs()
+	ctx := rt.R().NewContext()
+	res, err := c.KeyValuePairs(ctx)
 	if err != nil {
 		t.Fatal("error calling KeyValuePairs: ", err)
 	}
 
 	m := settableMap(make(map[string]vdl.Any))
-	if err := populateObject(m); err != nil {
+	if err := populateObject(ctx, m); err != nil {
 		t.Fatal("error populating map: ", err)
 	}
 
@@ -222,7 +226,8 @@ func TestKeyPageAndSize(t *testing.T) {
 	c, s := setupManyResults(t)
 	defer s.Stop()
 
-	sz, err := c.Size()
+	ctx := rt.R().NewContext()
+	sz, err := c.Size(ctx)
 	if err != nil {
 		t.Fatal("error calling Size: ", err)
 	}
@@ -230,7 +235,7 @@ func TestKeyPageAndSize(t *testing.T) {
 		t.Fatal("wrong number of results: ", sz)
 	}
 
-	res, err := c.KeyPage(1)
+	res, err := c.KeyPage(ctx, 1)
 	if err != nil {
 		t.Fatal("error calling AsMap: ", err)
 	}
@@ -245,13 +250,15 @@ func TestMostRecentSet(t *testing.T) {
 	c, s := setupManyResults(t)
 	defer s.Stop()
 
+	ctx := rt.R().NewContext()
+
 	timeBefore := time.Now().Unix()
-	if err := c.Set("B", int32(8)); err != nil {
+	if err := c.Set(ctx, "B", int32(8)); err != nil {
 		t.Fatal("error calling Set: ", err)
 	}
 	timeAfter := time.Now().Unix()
 
-	kvp, setTime, err := c.MostRecentSet()
+	kvp, setTime, err := c.MostRecentSet(ctx)
 	if err != nil {
 		t.Fatal("error calling MostRecentSet: ", err)
 	}
@@ -270,7 +277,7 @@ func TestMultiGet(t *testing.T) {
 	c, s := setupManyResults(t)
 	defer s.Stop()
 
-	stream, err := c.MultiGet()
+	stream, err := c.MultiGet(rt.R().NewContext())
 	if err != nil {
 		t.Fatal("error calling MultiGet: ", err)
 	}

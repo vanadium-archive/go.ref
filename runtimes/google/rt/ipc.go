@@ -37,6 +37,14 @@ func (rt *vrt) Client() ipc.Client {
 	return rt.client
 }
 
+func (rt *vrt) NewContext() ipc.Context {
+	return iipc.InternalNewContext()
+}
+
+func (rt *vrt) TODOContext() ipc.Context {
+	return iipc.InternalNewContext()
+}
+
 func (rt *vrt) NewServer(opts ...ipc.ServerOpt) (ipc.Server, error) {
 	// Start the http debug server exactly once for this process
 	rt.startHTTPDebugServerOnce()

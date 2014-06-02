@@ -14,6 +14,7 @@ import (
 	"veyron2"
 	"veyron2/ipc"
 	"veyron2/query"
+	"veyron2/rt"
 	"veyron2/services/watch"
 	"veyron2/storage"
 	"veyron2/vlog"
@@ -101,7 +102,7 @@ func (w *syncWatcher) getWatchStream() watch.WatcherWatchStream {
 			req.ResumeMarker = resmark
 		}
 
-		stream, err := w.syncd.store.Watch(req, veyron2.CallTimeout(ipc.NoTimeout))
+		stream, err := w.syncd.store.Watch(rt.R().TODOContext(), req, veyron2.CallTimeout(ipc.NoTimeout))
 		if err == nil {
 			return stream
 		}

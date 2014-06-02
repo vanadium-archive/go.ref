@@ -63,7 +63,7 @@ func main() {
 }
 
 // ls and lsdashl are idiomatic for use without stubs
-func ls(call ipc.ClientCall) {
+func ls(call ipc.Call) {
 	for {
 		var n string
 		if err := call.Recv(&n); err != nil {
@@ -77,7 +77,7 @@ func ls(call ipc.ClientCall) {
 	}
 }
 
-func lsdashl(call ipc.ClientCall) {
+func lsdashl(call ipc.Call) {
 	type details struct {
 		Name    string
 		Size    int64
@@ -104,7 +104,7 @@ func stubless() {
 		vlog.Fatalf("failed to create new client: %q", err)
 	}
 	defer client.Close()
-	call, err := client.StartCall(service, "List", []interface{}{glob, details})
+	call, err := client.StartCall(rt.R().NewContext(), service, "List", []interface{}{glob, details})
 	if err != nil {
 		vlog.Fatalf("failed to start call: %q", err)
 	}
@@ -166,14 +166,15 @@ func stubbed() {
 	bail := func(err error) {
 		vlog.Fatalf("failed to start call: %q", err)
 	}
+	ctx := rt.R().NewContext()
 	if details {
-		if stream, err := inspector.LsDetails(glob); err != nil {
+		if stream, err := inspector.LsDetails(ctx, glob); err != nil {
 			bail(err)
 		} else {
 			streamDetails(stream)
 		}
 	} else {
-		if stream, err := inspector.Ls(glob); err != nil {
+		if stream, err := inspector.Ls(ctx, glob); err != nil {
 			bail(err)
 		} else {
 			streamNames(stream)

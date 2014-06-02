@@ -254,7 +254,7 @@ func (w *websocketWriter) FinishMessage() error {
 }
 
 // finishCall waits for the call to finish and write out the response to w.
-func finishCall(w clientWriter, clientCall ipc.ClientCall, msg *veyronRPC) {
+func finishCall(w clientWriter, clientCall ipc.Call, msg *veyronRPC) {
 	if msg.IsStreaming {
 		for {
 			var item interface{}
@@ -345,13 +345,13 @@ func (ctx WSPR) newClient(privateId string) (ipc.Client, error) {
 	return client, nil
 }
 
-func (ctx WSPR) startVeyronRequest(w clientWriter, msg *veyronRPC) (ipc.ClientCall, error) {
+func (ctx WSPR) startVeyronRequest(w clientWriter, msg *veyronRPC) (ipc.Call, error) {
 	// Issue request to the endpoint.
 	client, err := ctx.newClient(msg.PrivateId)
 	if err != nil {
 		return nil, err
 	}
-	clientCall, err := client.StartCall(msg.Name, uppercaseFirstCharacter(msg.Method), msg.InArgs)
+	clientCall, err := client.StartCall(ctx.rt.TODOContext(), msg.Name, uppercaseFirstCharacter(msg.Method), msg.InArgs)
 
 	if err != nil {
 		return nil, fmt.Errorf("error starting call: %v", err)
@@ -463,7 +463,7 @@ func (wsp *websocketPipe) cleanup() {
 	wsp.Lock()
 	defer wsp.Unlock()
 	for _, stream := range wsp.outstandingStreams {
-		if call, ok := stream.(ipc.ClientCall); ok {
+		if call, ok := stream.(ipc.Call); ok {
 			call.Cancel()
 		}
 	}
@@ -942,7 +942,8 @@ func (wsp *websocketPipe) getSignature(name string, privateId string) (JSONServi
 	}
 
 	// Fetch and adapt signature from the SignatureManager
-	sig, err := wsp.signatureManager.signature(name, client)
+	ctx := wsp.ctx.rt.TODOContext()
+	sig, err := wsp.signatureManager.signature(ctx, name, client)
 	if err != nil {
 		return nil, verror.Internalf("error getting service signature for %s: %v", name, err)
 	}

@@ -34,11 +34,11 @@ func newFortuned() *fortuned {
 	}
 }
 
-func (f *fortuned) Get(_ ipc.Context) (Fortune string, err error) {
+func (f *fortuned) Get(_ ipc.ServerContext) (Fortune string, err error) {
 	return f.fortunes[f.random.Intn(len(f.fortunes))], nil
 }
 
-func (f *fortuned) Add(_ ipc.Context, Fortune string) error {
+func (f *fortuned) Add(_ ipc.ServerContext, Fortune string) error {
 	f.fortunes = append(f.fortunes, Fortune)
 	return nil
 }

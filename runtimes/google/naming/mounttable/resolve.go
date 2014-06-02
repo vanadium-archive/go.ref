@@ -3,6 +3,7 @@ package mounttable
 import (
 	"errors"
 
+	"veyron2"
 	"veyron2/ipc"
 	"veyron2/naming"
 	"veyron2/verror"
@@ -18,7 +19,8 @@ func convertServersToStrings(servers []mountedServer, suffix string) (ret []stri
 	return
 }
 
-func resolveAgainstMountTable(client ipc.Client, names []string) ([]string, error) {
+func resolveAgainstMountTable(runtime veyron2.Runtime, names []string) ([]string, error) {
+	client := runtime.Client()
 	// Try each server till one answers.
 	finalErr := errors.New("no servers to resolve query")
 	for _, name := range names {
@@ -26,7 +28,7 @@ func resolveAgainstMountTable(client ipc.Client, names []string) ([]string, erro
 		// address, without recursing through ourselves. To this we force
 		// the entire name component to be terminal.
 		name = naming.MakeTerminal(name)
-		call, err := client.StartCall(name, "ResolveStep", nil, callTimeout)
+		call, err := client.StartCall(runtime.TODOContext(), name, "ResolveStep", nil, callTimeout)
 		if err != nil {
 			finalErr = err
 			vlog.VI(2).Infof("ResolveStep.StartCall %s failed: %s", name, err)
@@ -86,7 +88,7 @@ func (ns *namespace) Resolve(name string) ([]string, error) {
 		}
 		var err error
 		curr := names
-		if names, err = resolveAgainstMountTable(ns.rt.Client(), names); err != nil {
+		if names, err = resolveAgainstMountTable(ns.rt, names); err != nil {
 
 			// If the name could not be found in the mount table, return an error.
 			if verror.Equal(naming.ErrNoSuchNameRoot, err) {
@@ -116,7 +118,7 @@ func (ns *namespace) ResolveToMountTable(name string) ([]string, error) {
 		vlog.VI(2).Infof("ResolveToMountTable loop %s", names)
 		var err error
 		curr := names
-		if names, err = resolveAgainstMountTable(ns.rt.Client(), names); err != nil {
+		if names, err = resolveAgainstMountTable(ns.rt, names); err != nil {
 			if verror.Equal(naming.ErrNoSuchNameRoot, err) {
 				return makeTerminal(last), nil
 			}
@@ -144,7 +146,7 @@ func (ns *namespace) ResolveToMountTable(name string) ([]string, error) {
 	return nil, naming.ErrResolutionDepthExceeded
 }
 
-func finishUnresolve(call ipc.ClientCall) ([]string, error) {
+func finishUnresolve(call ipc.Call) ([]string, error) {
 	var newNames []string
 	var unresolveErr error
 	if err := call.Finish(&newNames, &unresolveErr); err != nil {
@@ -153,11 +155,12 @@ func finishUnresolve(call ipc.ClientCall) ([]string, error) {
 	return newNames, unresolveErr
 }
 
-func unresolveAgainstServer(client ipc.Client, names []string) ([]string, error) {
+func unresolveAgainstServer(runtime veyron2.Runtime, names []string) ([]string, error) {
+	client := runtime.Client()
 	finalErr := errors.New("no servers to unresolve")
 	for _, name := range names {
 		name = naming.MakeTerminal(name)
-		call, err := client.StartCall(name, "UnresolveStep", nil, callTimeout)
+		call, err := client.StartCall(runtime.TODOContext(), name, "UnresolveStep", nil, callTimeout)
 		if err != nil {
 			finalErr = err
 			vlog.VI(2).Infof("StartCall %q.UnresolveStep() failed: %s", name, err)
@@ -192,7 +195,7 @@ func (ns *namespace) Unresolve(name string) ([]string, error) {
 	for remaining := maxDepth; remaining > 0; remaining-- {
 		vlog.VI(2).Infof("Unresolve loop %s", names)
 		curr := names
-		if names, err = unresolveAgainstServer(ns.rt.Client(), names); err != nil {
+		if names, err = unresolveAgainstServer(ns.rt, names); err != nil {
 			return nil, err
 		}
 		if len(names) == 0 {

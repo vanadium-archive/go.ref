@@ -45,13 +45,13 @@ type Tunnel_ExcludingUniversal interface {
 	// the byte stream is forwarded to the requested network address and all the
 	// data received from that network connection is sent back in the reply
 	// stream.
-	Forward(network string, address string, opts ..._gen_ipc.ClientCallOpt) (reply TunnelForwardStream, err error)
+	Forward(ctx _gen_ipc.Context, network string, address string, opts ..._gen_ipc.CallOpt) (reply TunnelForwardStream, err error)
 	// The Shell method is used to either run shell commands remotely, or to open
 	// an interactive shell. The data received over the byte stream is sent to the
 	// shell's stdin, and the data received from the shell's stdout and stderr is
 	// sent back in the reply stream. It returns the exit status of the shell
 	// command.
-	Shell(command string, shellOpts ShellOpts, opts ..._gen_ipc.ClientCallOpt) (reply TunnelShellStream, err error)
+	Shell(ctx _gen_ipc.Context, command string, shellOpts ShellOpts, opts ..._gen_ipc.CallOpt) (reply TunnelShellStream, err error)
 }
 type Tunnel interface {
 	_gen_ipc.UniversalServiceMethods
@@ -65,13 +65,13 @@ type TunnelService interface {
 	// the byte stream is forwarded to the requested network address and all the
 	// data received from that network connection is sent back in the reply
 	// stream.
-	Forward(context _gen_ipc.Context, network string, address string, stream TunnelServiceForwardStream) (err error)
+	Forward(context _gen_ipc.ServerContext, network string, address string, stream TunnelServiceForwardStream) (err error)
 	// The Shell method is used to either run shell commands remotely, or to open
 	// an interactive shell. The data received over the byte stream is sent to the
 	// shell's stdin, and the data received from the shell's stdout and stderr is
 	// sent back in the reply stream. It returns the exit status of the shell
 	// command.
-	Shell(context _gen_ipc.Context, command string, shellOpts ShellOpts, stream TunnelServiceShellStream) (reply int32, err error)
+	Shell(context _gen_ipc.ServerContext, command string, shellOpts ShellOpts, stream TunnelServiceShellStream) (reply int32, err error)
 }
 
 // TunnelForwardStream is the interface for streaming responses of the method
@@ -102,7 +102,7 @@ type TunnelForwardStream interface {
 
 // Implementation of the TunnelForwardStream interface that is not exported.
 type implTunnelForwardStream struct {
-	clientCall _gen_ipc.ClientCall
+	clientCall _gen_ipc.Call
 }
 
 func (c *implTunnelForwardStream) Send(item []byte) error {
@@ -183,7 +183,7 @@ type TunnelShellStream interface {
 
 // Implementation of the TunnelShellStream interface that is not exported.
 type implTunnelShellStream struct {
-	clientCall _gen_ipc.ClientCall
+	clientCall _gen_ipc.Call
 }
 
 func (c *implTunnelShellStream) Send(item ClientShellPacket) error {
@@ -279,27 +279,27 @@ type clientStubTunnel struct {
 	name   string
 }
 
-func (__gen_c *clientStubTunnel) Forward(network string, address string, opts ..._gen_ipc.ClientCallOpt) (reply TunnelForwardStream, err error) {
-	var call _gen_ipc.ClientCall
-	if call, err = __gen_c.client.StartCall(__gen_c.name, "Forward", []interface{}{network, address}, opts...); err != nil {
+func (__gen_c *clientStubTunnel) Forward(ctx _gen_ipc.Context, network string, address string, opts ..._gen_ipc.CallOpt) (reply TunnelForwardStream, err error) {
+	var call _gen_ipc.Call
+	if call, err = __gen_c.client.StartCall(ctx, __gen_c.name, "Forward", []interface{}{network, address}, opts...); err != nil {
 		return
 	}
 	reply = &implTunnelForwardStream{clientCall: call}
 	return
 }
 
-func (__gen_c *clientStubTunnel) Shell(command string, shellOpts ShellOpts, opts ..._gen_ipc.ClientCallOpt) (reply TunnelShellStream, err error) {
-	var call _gen_ipc.ClientCall
-	if call, err = __gen_c.client.StartCall(__gen_c.name, "Shell", []interface{}{command, shellOpts}, opts...); err != nil {
+func (__gen_c *clientStubTunnel) Shell(ctx _gen_ipc.Context, command string, shellOpts ShellOpts, opts ..._gen_ipc.CallOpt) (reply TunnelShellStream, err error) {
+	var call _gen_ipc.Call
+	if call, err = __gen_c.client.StartCall(ctx, __gen_c.name, "Shell", []interface{}{command, shellOpts}, opts...); err != nil {
 		return
 	}
 	reply = &implTunnelShellStream{clientCall: call}
 	return
 }
 
-func (__gen_c *clientStubTunnel) UnresolveStep(opts ..._gen_ipc.ClientCallOpt) (reply []string, err error) {
-	var call _gen_ipc.ClientCall
-	if call, err = __gen_c.client.StartCall(__gen_c.name, "UnresolveStep", nil, opts...); err != nil {
+func (__gen_c *clientStubTunnel) UnresolveStep(ctx _gen_ipc.Context, opts ..._gen_ipc.CallOpt) (reply []string, err error) {
+	var call _gen_ipc.Call
+	if call, err = __gen_c.client.StartCall(ctx, __gen_c.name, "UnresolveStep", nil, opts...); err != nil {
 		return
 	}
 	if ierr := call.Finish(&reply, &err); ierr != nil {
@@ -308,9 +308,9 @@ func (__gen_c *clientStubTunnel) UnresolveStep(opts ..._gen_ipc.ClientCallOpt) (
 	return
 }
 
-func (__gen_c *clientStubTunnel) Signature(opts ..._gen_ipc.ClientCallOpt) (reply _gen_ipc.ServiceSignature, err error) {
-	var call _gen_ipc.ClientCall
-	if call, err = __gen_c.client.StartCall(__gen_c.name, "Signature", nil, opts...); err != nil {
+func (__gen_c *clientStubTunnel) Signature(ctx _gen_ipc.Context, opts ..._gen_ipc.CallOpt) (reply _gen_ipc.ServiceSignature, err error) {
+	var call _gen_ipc.Call
+	if call, err = __gen_c.client.StartCall(ctx, __gen_c.name, "Signature", nil, opts...); err != nil {
 		return
 	}
 	if ierr := call.Finish(&reply, &err); ierr != nil {
@@ -319,9 +319,9 @@ func (__gen_c *clientStubTunnel) Signature(opts ..._gen_ipc.ClientCallOpt) (repl
 	return
 }
 
-func (__gen_c *clientStubTunnel) GetMethodTags(method string, opts ..._gen_ipc.ClientCallOpt) (reply []interface{}, err error) {
-	var call _gen_ipc.ClientCall
-	if call, err = __gen_c.client.StartCall(__gen_c.name, "GetMethodTags", []interface{}{method}, opts...); err != nil {
+func (__gen_c *clientStubTunnel) GetMethodTags(ctx _gen_ipc.Context, method string, opts ..._gen_ipc.CallOpt) (reply []interface{}, err error) {
+	var call _gen_ipc.Call
+	if call, err = __gen_c.client.StartCall(ctx, __gen_c.name, "GetMethodTags", []interface{}{method}, opts...); err != nil {
 		return
 	}
 	if ierr := call.Finish(&reply, &err); ierr != nil {

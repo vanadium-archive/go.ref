@@ -38,6 +38,8 @@ var (
 
 var errAuthorizer = errors.New("ipc: application Authorizer denied access")
 
+type fakeContext struct{}
+
 type userType string
 
 type testServer struct{}
@@ -343,7 +345,7 @@ func TestStartCall(t *testing.T) {
 			stopServer(t, server, mt)
 			continue
 		}
-		if _, err := client.StartCall("mountpoint/server/suffix", "irrelevant", nil, veyron2.RemoteID(test.pattern)); !matchesErrorPattern(err, test.err) {
+		if _, err := client.StartCall(&fakeContext{}, "mountpoint/server/suffix", "irrelevant", nil, veyron2.RemoteID(test.pattern)); !matchesErrorPattern(err, test.err) {
 			t.Errorf(`%s: client.StartCall: got error "%v", want to match "%v"`, name, err, test.err)
 		}
 		client.Close()
@@ -394,7 +396,7 @@ func testRPC(t *testing.T, shouldCloseSend bool) {
 	defer b.cleanup(t)
 	for _, test := range tests {
 		vlog.VI(1).Infof("%s client.StartCall", name(test))
-		call, err := b.client.StartCall(test.name, test.method, test.args)
+		call, err := b.client.StartCall(&fakeContext{}, test.name, test.method, test.args)
 		if err != test.startErr {
 			t.Errorf(`%s client.StartCall got error "%v", want "%v"`, name(test), err, test.startErr)
 			continue
@@ -506,7 +508,7 @@ func TestRPCAuthorization(t *testing.T) {
 			t.Fatalf("InternalNewClient failed: %v", err)
 		}
 		defer client.Close()
-		call, err := client.StartCall(test.name, test.method, test.args)
+		call, err := client.StartCall(&fakeContext{}, test.name, test.method, test.args)
 		if err != nil {
 			t.Errorf(`%s client.StartCall got unexpected error: "%v"`, name(test), err)
 			continue
@@ -562,7 +564,7 @@ func (s *cancelTestServer) CancelStreamIgnorer(call ipc.ServerCall) error {
 	}
 }
 
-func waitForCancel(t *testing.T, ts *cancelTestServer, call ipc.ClientCall) {
+func waitForCancel(t *testing.T, ts *cancelTestServer, call ipc.Call) {
 	<-ts.started
 	call.Cancel()
 	<-ts.cancelled
@@ -574,7 +576,7 @@ func TestCancel(t *testing.T) {
 	b := createBundle(t, clientID, serverID, ts)
 	defer b.cleanup(t)
 
-	call, err := b.client.StartCall("mountpoint/server/suffix", "CancelStreamReader", []interface{}{})
+	call, err := b.client.StartCall(&fakeContext{}, "mountpoint/server/suffix", "CancelStreamReader", []interface{}{})
 	if err != nil {
 		t.Fatalf("Start call failed: %v", err)
 	}
@@ -594,7 +596,7 @@ func TestCancelWithFullBuffers(t *testing.T) {
 	b := createBundle(t, clientID, serverID, ts)
 	defer b.cleanup(t)
 
-	call, err := b.client.StartCall("mountpoint/server/suffix", "CancelStreamIgnorer", []interface{}{})
+	call, err := b.client.StartCall(&fakeContext{}, "mountpoint/server/suffix", "CancelStreamIgnorer", []interface{}{})
 	if err != nil {
 		t.Fatalf("Start call failed: %v", err)
 	}
@@ -630,7 +632,7 @@ func TestStreamReadTerminatedByServer(t *testing.T) {
 	b := createBundle(t, clientID, serverID, s)
 	defer b.cleanup(t)
 
-	call, err := b.client.StartCall("mountpoint/server/suffix", "RecvInGoroutine", []interface{}{})
+	call, err := b.client.StartCall(&fakeContext{}, "mountpoint/server/suffix", "RecvInGoroutine", []interface{}{})
 	if err != nil {
 		t.Fatalf("StartCall failed: %v", err)
 	}
@@ -670,7 +672,7 @@ func TestConnectWithIncompatibleServers(t *testing.T) {
 	publisher.AddServer("/@2@tcp@localhost:10000@@1000000@2000000@@")
 	publisher.AddServer("/@2@tcp@localhost:10001@@2000000@3000000@@")
 
-	_, err := b.client.StartCall("incompatible/server/suffix", "Echo", []interface{}{"foo"})
+	_, err := b.client.StartCall(&fakeContext{}, "incompatible/server/suffix", "Echo", []interface{}{"foo"})
 	if !strings.Contains(err.Error(), version.NoCompatibleVersionErr.Error()) {
 		t.Errorf("Expected error %v, found: %v", version.NoCompatibleVersionErr, err)
 	}
@@ -678,7 +680,7 @@ func TestConnectWithIncompatibleServers(t *testing.T) {
 	// Now add a server with a compatible endpoint and try again.
 	b.server.Publish("incompatible")
 
-	call, err := b.client.StartCall("incompatible/server/suffix", "Echo", []interface{}{"foo"})
+	call, err := b.client.StartCall(&fakeContext{}, "incompatible/server/suffix", "Echo", []interface{}{"foo"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -775,7 +777,7 @@ func TestReconnect(t *testing.T) {
 	}
 	serverName := naming.JoinAddressName(ep.String(), "server/suffix")
 	makeCall := func() (string, error) {
-		call, err := b.client.StartCall(serverName, "Echo", []interface{}{"bratman"})
+		call, err := b.client.StartCall(&fakeContext{}, serverName, "Echo", []interface{}{"bratman"})
 		if err != nil {
 			return "", err
 		}

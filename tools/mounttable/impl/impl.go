@@ -44,7 +44,7 @@ func runGlob(cmd *cmdline.Command, args []string) error {
 	if err != nil {
 		return fmt.Errorf("bind error: %v", err)
 	}
-	stream, err := c.Glob(args[1])
+	stream, err := c.Glob(rt.R().NewContext(), args[1])
 	if err != nil {
 		return err
 	}
@@ -95,7 +95,7 @@ func runMount(cmd *cmdline.Command, args []string) error {
 	if err != nil {
 		return fmt.Errorf("TTL parse error: %v", err)
 	}
-	err = c.Mount(args[1], uint32(ttl.Seconds()))
+	err = c.Mount(rt.R().NewContext(), args[1], uint32(ttl.Seconds()))
 	if err != nil {
 		return err
 	}
@@ -124,7 +124,7 @@ func runUnmount(cmd *cmdline.Command, args []string) error {
 	if err != nil {
 		return fmt.Errorf("bind error: %v", err)
 	}
-	err = c.Unmount(args[1])
+	err = c.Unmount(rt.R().NewContext(), args[1])
 	if err != nil {
 		return err
 	}
@@ -152,7 +152,7 @@ func runResolveStep(cmd *cmdline.Command, args []string) error {
 	if err != nil {
 		return fmt.Errorf("bind error: %v", err)
 	}
-	servers, suffix, err := c.ResolveStep()
+	servers, suffix, err := c.ResolveStep(rt.R().NewContext())
 	if err != nil {
 		return err
 	}

@@ -4,6 +4,8 @@ import (
 	"testing"
 )
 
+type fakeContext struct{}
+
 func TestSuccessfulCalls(t *testing.T) {
 
 	method1ExpectedResult := []interface{}{"one", 2}
@@ -16,8 +18,10 @@ func TestSuccessfulCalls(t *testing.T) {
 		"method3": method3ExpectedResult,
 	})
 
+	ctx := &fakeContext{}
+
 	// method1
-	method1Call, err := client.StartCall("name/obj", "method1", []interface{}{})
+	method1Call, err := client.StartCall(ctx, "name/obj", "method1", []interface{}{})
 	if err != nil {
 		t.Errorf("StartCall: did not expect an error return")
 		return
@@ -35,7 +39,7 @@ func TestSuccessfulCalls(t *testing.T) {
 	}
 
 	// method2
-	method2Call, err := client.StartCall("name/obj", "method2", []interface{}{})
+	method2Call, err := client.StartCall(ctx, "name/obj", "method2", []interface{}{})
 	if err != nil {
 		t.Errorf(`StartCall: did not expect an error return`)
 		return
@@ -48,7 +52,7 @@ func TestSuccessfulCalls(t *testing.T) {
 
 	// method3
 	var result interface{}
-	method3Call, err := client.StartCall("name/obj", "method3", []interface{}{})
+	method3Call, err := client.StartCall(ctx, "name/obj", "method3", []interface{}{})
 	if err != nil {
 		t.Errorf(`StartCall: did not expect an error return`)
 		return
@@ -70,7 +74,7 @@ func TestStructResult(t *testing.T) {
 			sampleStruct{name: "bar"},
 		},
 	})
-	call, _ := client.StartCall("name/obj", "foo", []interface{}{})
+	call, _ := client.StartCall(&fakeContext{}, "name/obj", "foo", []interface{}{})
 	var result sampleStruct
 	call.Finish(&result)
 	if result.name != "bar" {
@@ -83,7 +87,7 @@ func TestErrorCall(t *testing.T) {
 	client := NewSimpleClient(map[string][]interface{}{
 		"bar": []interface{}{},
 	})
-	_, err := client.StartCall("name/obj", "wrongMethodName", []interface{}{})
+	_, err := client.StartCall(&fakeContext{}, "name/obj", "wrongMethodName", []interface{}{})
 	if err == nil {
 		t.Errorf(`StartCall: should have returned an error on invalid method name`)
 		return
@@ -97,18 +101,19 @@ func TestNumberOfCalls(t *testing.T) {
 	})
 
 	errMsg := "Expected method to be called %d times but it was called %d"
+	ctx := &fakeContext{}
 
 	// method 1
 	if n := client.TimesCalled("method1"); n != 0 {
 		t.Errorf(errMsg, 0, n)
 		return
 	}
-	client.StartCall("name/of/object", "method1", []interface{}{})
+	client.StartCall(ctx, "name/of/object", "method1", []interface{}{})
 	if n := client.TimesCalled("method1"); n != 1 {
 		t.Errorf(errMsg, 1, n)
 		return
 	}
-	client.StartCall("name/of/object", "method1", []interface{}{})
+	client.StartCall(ctx, "name/of/object", "method1", []interface{}{})
 	if n := client.TimesCalled("method1"); n != 2 {
 		t.Errorf(errMsg, 2, n)
 		return
@@ -119,7 +124,7 @@ func TestNumberOfCalls(t *testing.T) {
 		t.Errorf(errMsg, 0, n)
 		return
 	}
-	client.StartCall("name/of/object", "method2", []interface{}{})
+	client.StartCall(ctx, "name/of/object", "method2", []interface{}{})
 	if n := client.TimesCalled("method2"); n != 1 {
 		t.Errorf(errMsg, 1, n)
 		return

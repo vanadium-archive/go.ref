@@ -37,7 +37,7 @@ func main() {
 	// Issue a Get() rpc specifying the provided pattern for the server's identity as
 	// an option. If no pattern is provided then the default pattern "*" matches all
 	// identities.
-	fortune, err := s.Get(veyron2.RemoteID(*serverPattern))
+	fortune, err := s.Get(runtime.NewContext(), veyron2.RemoteID(*serverPattern))
 	if err != nil {
 		log.Fatal("error getting fortune: ", err)
 	}
@@ -46,7 +46,7 @@ func main() {
 	// If the user specified --new_fortune, Add() it to the server’s set of fortunes.
 	// Again, the provided pattern on the server's identity is passed as an option.
 	if *newFortune != "" {
-		if err := s.Add(*newFortune, veyron2.RemoteID(*serverPattern)); err != nil {
+		if err := s.Add(runtime.NewContext(), *newFortune, veyron2.RemoteID(*serverPattern)); err != nil {
 			log.Fatal("error adding fortune: ", err)
 		}
 	}

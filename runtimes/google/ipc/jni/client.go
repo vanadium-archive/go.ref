@@ -59,7 +59,7 @@ func (c *client) StartCall(env *C.JNIEnv, name, method string, jArgs C.jobjectAr
 		args[i] = derefOrDie(argptrs[i])
 	}
 	// Process options.
-	options := []ipc.ClientCallOpt{}
+	options := []ipc.CallOpt{}
 	if int(jTimeout) >= 0 {
 		options = append(options, veyron2.CallTimeout(time.Duration(int(jTimeout))*time.Millisecond))
 	}
@@ -83,7 +83,7 @@ func (c *client) Close() {
 }
 
 type clientCall struct {
-	call       ipc.ClientCall
+	call       ipc.Call
 	resultptrs []interface{}
 }
 

@@ -201,6 +201,7 @@ func TestUnresolve(t *testing.T) {
 	os.Setenv("VEYRON_IDENTITY", idFile)
 
 	r, _ := rt.New(veyron2.MountTableRoots([]string{aOA}))
+	ctx := r.NewContext()
 
 	resolveCases := []struct {
 		name, resolved string
@@ -249,19 +250,19 @@ func TestUnresolve(t *testing.T) {
 	for _, c := range unresolveStepCases {
 		// Verify that we can talk to the server.
 		client := createFortuneClient(r, c.name)
-		if fortuneMessage, err := client.Get(); err != nil {
+		if fortuneMessage, err := client.Get(r.NewContext()); err != nil {
 			t.Errorf("fortune.Get failed with %v", err)
 		} else if fortuneMessage != fixedFortuneMessage {
 			t.Errorf("fortune expected %q, got %q instead", fixedFortuneMessage, fortuneMessage)
 		}
 
 		// Unresolve, one step.
-		if want, got := c.unresStep1, unresolveStep(t, client); want != got {
+		if want, got := c.unresStep1, unresolveStep(t, ctx, client); want != got {
 			t.Errorf("fortune.UnresolveStep expected %q, got %q instead", want, got)
 		}
 
 		// Go up the tree, unresolve another step.
-		if want, got := c.unresStep2, unresolveStep(t, createMTClient(naming.MakeTerminal(c.unresStep1))); want != got {
+		if want, got := c.unresStep2, unresolveStep(t, ctx, createMTClient(naming.MakeTerminal(c.unresStep1))); want != got {
 			t.Errorf("mt.UnresolveStep expected %q, got %q instead", want, got)
 		}
 	}
@@ -271,14 +272,14 @@ func TestUnresolve(t *testing.T) {
 
 	// Verify that we can talk to server E.
 	eClient := createFortuneClient(r, "b/mt/e1/fortune")
-	if fortuneMessage, err := eClient.Get(); err != nil {
+	if fortuneMessage, err := eClient.Get(ctx); err != nil {
 		t.Errorf("fortune.Get failed with %v", err)
 	} else if fortuneMessage != fixedFortuneMessage {
 		t.Errorf("fortune expected %q, got %q instead", fixedFortuneMessage, fortuneMessage)
 	}
 
 	// Unresolve E, one step.
-	eUnres, err := eClient.UnresolveStep()
+	eUnres, err := eClient.UnresolveStep(ctx)
 	if err != nil {
 		t.Errorf("UnresolveStep failed with %v", err)
 	}
@@ -288,12 +289,12 @@ func TestUnresolve(t *testing.T) {
 
 	// Try unresolve step on a random name in B.
 	if want, got := naming.JoinAddressName(aAddr, "mt/b/mt/some/random/name"),
-		unresolveStep(t, createMTClient(naming.JoinAddressName(bAddr, "//mt/some/random/name"))); want != got {
+		unresolveStep(t, ctx, createMTClient(naming.JoinAddressName(bAddr, "//mt/some/random/name"))); want != got {
 		t.Errorf("b.UnresolveStep expected %q, got %q instead", want, got)
 	}
 
 	// Try unresolve step on a random name in A.
-	if unres, err := createMTClient(naming.JoinAddressName(aAddr, "//mt/another/random/name")).UnresolveStep(); err != nil {
+	if unres, err := createMTClient(naming.JoinAddressName(aAddr, "//mt/another/random/name")).UnresolveStep(ctx); err != nil {
 		t.Errorf("UnresolveStep failed with %v", err)
 	} else if len(unres) > 0 {
 		t.Errorf("b.UnresolveStep expected no results, got %q instead", unres)

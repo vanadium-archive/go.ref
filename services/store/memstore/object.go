@@ -34,7 +34,7 @@ func (st *Store) Bind(path string) service.Object {
 }
 
 // Exists returns true iff the object has a value in the current transaction.
-func (o *object) Exists(pid security.PublicID, trans storage.Transaction) (bool, error) {
+func (o *object) Exists(pid security.PublicID, trans service.Transaction) (bool, error) {
 	tr, _, err := o.store.getTransaction(trans)
 	if err != nil {
 		return false, err
@@ -45,7 +45,7 @@ func (o *object) Exists(pid security.PublicID, trans storage.Transaction) (bool,
 }
 
 // Get returns the value for an object.
-func (o *object) Get(pid security.PublicID, trans storage.Transaction) (*storage.Entry, error) {
+func (o *object) Get(pid security.PublicID, trans service.Transaction) (*storage.Entry, error) {
 	tr, _, err := o.store.getTransaction(trans)
 	if err != nil {
 		return nil, err
@@ -54,7 +54,7 @@ func (o *object) Get(pid security.PublicID, trans storage.Transaction) (*storage
 }
 
 // Put updates the value for an object.
-func (o *object) Put(pid security.PublicID, trans storage.Transaction, v interface{}) (*storage.Stat, error) {
+func (o *object) Put(pid security.PublicID, trans service.Transaction, v interface{}) (*storage.Stat, error) {
 	tr, commit, err := o.store.getTransaction(trans)
 	if err != nil {
 		return nil, err
@@ -70,7 +70,7 @@ func (o *object) Put(pid security.PublicID, trans storage.Transaction, v interfa
 }
 
 // Remove removes the value for an object.
-func (o *object) Remove(pid security.PublicID, trans storage.Transaction) error {
+func (o *object) Remove(pid security.PublicID, trans service.Transaction) error {
 	tr, commit, err := o.store.getTransaction(trans)
 	if err != nil {
 		return err
@@ -87,17 +87,17 @@ func (o *object) Remove(pid security.PublicID, trans storage.Transaction) error 
 // SetAttr changes the attributes of the entry, such as permissions and
 // replication groups.  Attributes are associated with the value, not the
 // path.
-func (o *object) SetAttr(pid security.PublicID, tr storage.Transaction, attrs ...storage.Attr) error {
+func (o *object) SetAttr(pid security.PublicID, tr service.Transaction, attrs ...storage.Attr) error {
 	panic("not implemented")
 }
 
 // Stat returns entry info.
-func (o *object) Stat(pid security.PublicID, tr storage.Transaction) (*storage.Stat, error) {
+func (o *object) Stat(pid security.PublicID, tr service.Transaction) (*storage.Stat, error) {
 	panic("not implemented")
 }
 
 // Query returns entries matching the given query.
-func (o *object) Query(pid security.PublicID, trans storage.Transaction, q query.Query) (service.QueryStream, error) {
+func (o *object) Query(pid security.PublicID, trans service.Transaction, q query.Query) (service.QueryStream, error) {
 	tr, _, err := o.store.getTransaction(trans)
 	if err != nil {
 		return nil, err
@@ -107,7 +107,7 @@ func (o *object) Query(pid security.PublicID, trans storage.Transaction, q query
 }
 
 // Glob returns the sequence of names that match the given pattern.
-func (o *object) Glob(pid security.PublicID, trans storage.Transaction, pattern string) (service.GlobStream, error) {
+func (o *object) Glob(pid security.PublicID, trans service.Transaction, pattern string) (service.GlobStream, error) {
 	tr, _, err := o.store.getTransaction(trans)
 	if err != nil {
 		return nil, err

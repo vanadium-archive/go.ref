@@ -19,13 +19,13 @@ const (
 
 type boxAppEndpoint string
 
-func (b *boxAppEndpoint) Add(_ ipc.Context, Endpoint string) (err error) {
+func (b *boxAppEndpoint) Add(_ ipc.ServerContext, Endpoint string) (err error) {
 	*b = boxAppEndpoint(Endpoint)
 	log.Printf("Added endpoint %v to signalling service", *b)
 	return nil
 }
 
-func (b *boxAppEndpoint) Get(_ ipc.Context) (Endpoint string, err error) {
+func (b *boxAppEndpoint) Get(_ ipc.ServerContext) (Endpoint string, err error) {
 	log.Printf("Returning endpoints:%v from signalling service", *b)
 	return string(*b), nil
 }

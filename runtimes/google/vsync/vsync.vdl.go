@@ -77,7 +77,7 @@ type LogValue struct {
 type Sync_ExcludingUniversal interface {
 	// GetDeltas returns a device's current generation vector and all the missing log records
 	// when compared to the incoming generation vector.
-	GetDeltas(In GenVector, ClientID DeviceID, opts ..._gen_ipc.ClientCallOpt) (reply SyncGetDeltasStream, err error)
+	GetDeltas(ctx _gen_ipc.Context, In GenVector, ClientID DeviceID, opts ..._gen_ipc.CallOpt) (reply SyncGetDeltasStream, err error)
 }
 type Sync interface {
 	_gen_ipc.UniversalServiceMethods
@@ -89,7 +89,7 @@ type SyncService interface {
 
 	// GetDeltas returns a device's current generation vector and all the missing log records
 	// when compared to the incoming generation vector.
-	GetDeltas(context _gen_ipc.Context, In GenVector, ClientID DeviceID, stream SyncServiceGetDeltasStream) (reply GenVector, err error)
+	GetDeltas(context _gen_ipc.ServerContext, In GenVector, ClientID DeviceID, stream SyncServiceGetDeltasStream) (reply GenVector, err error)
 }
 
 // SyncGetDeltasStream is the interface for streaming responses of the method
@@ -110,7 +110,7 @@ type SyncGetDeltasStream interface {
 
 // Implementation of the SyncGetDeltasStream interface that is not exported.
 type implSyncGetDeltasStream struct {
-	clientCall _gen_ipc.ClientCall
+	clientCall _gen_ipc.Call
 }
 
 func (c *implSyncGetDeltasStream) Recv() (item LogRec, err error) {
@@ -189,18 +189,18 @@ type clientStubSync struct {
 	name   string
 }
 
-func (__gen_c *clientStubSync) GetDeltas(In GenVector, ClientID DeviceID, opts ..._gen_ipc.ClientCallOpt) (reply SyncGetDeltasStream, err error) {
-	var call _gen_ipc.ClientCall
-	if call, err = __gen_c.client.StartCall(__gen_c.name, "GetDeltas", []interface{}{In, ClientID}, opts...); err != nil {
+func (__gen_c *clientStubSync) GetDeltas(ctx _gen_ipc.Context, In GenVector, ClientID DeviceID, opts ..._gen_ipc.CallOpt) (reply SyncGetDeltasStream, err error) {
+	var call _gen_ipc.Call
+	if call, err = __gen_c.client.StartCall(ctx, __gen_c.name, "GetDeltas", []interface{}{In, ClientID}, opts...); err != nil {
 		return
 	}
 	reply = &implSyncGetDeltasStream{clientCall: call}
 	return
 }
 
-func (__gen_c *clientStubSync) UnresolveStep(opts ..._gen_ipc.ClientCallOpt) (reply []string, err error) {
-	var call _gen_ipc.ClientCall
-	if call, err = __gen_c.client.StartCall(__gen_c.name, "UnresolveStep", nil, opts...); err != nil {
+func (__gen_c *clientStubSync) UnresolveStep(ctx _gen_ipc.Context, opts ..._gen_ipc.CallOpt) (reply []string, err error) {
+	var call _gen_ipc.Call
+	if call, err = __gen_c.client.StartCall(ctx, __gen_c.name, "UnresolveStep", nil, opts...); err != nil {
 		return
 	}
 	if ierr := call.Finish(&reply, &err); ierr != nil {
@@ -209,9 +209,9 @@ func (__gen_c *clientStubSync) UnresolveStep(opts ..._gen_ipc.ClientCallOpt) (re
 	return
 }
 
-func (__gen_c *clientStubSync) Signature(opts ..._gen_ipc.ClientCallOpt) (reply _gen_ipc.ServiceSignature, err error) {
-	var call _gen_ipc.ClientCall
-	if call, err = __gen_c.client.StartCall(__gen_c.name, "Signature", nil, opts...); err != nil {
+func (__gen_c *clientStubSync) Signature(ctx _gen_ipc.Context, opts ..._gen_ipc.CallOpt) (reply _gen_ipc.ServiceSignature, err error) {
+	var call _gen_ipc.Call
+	if call, err = __gen_c.client.StartCall(ctx, __gen_c.name, "Signature", nil, opts...); err != nil {
 		return
 	}
 	if ierr := call.Finish(&reply, &err); ierr != nil {
@@ -220,9 +220,9 @@ func (__gen_c *clientStubSync) Signature(opts ..._gen_ipc.ClientCallOpt) (reply 
 	return
 }
 
-func (__gen_c *clientStubSync) GetMethodTags(method string, opts ..._gen_ipc.ClientCallOpt) (reply []interface{}, err error) {
-	var call _gen_ipc.ClientCall
-	if call, err = __gen_c.client.StartCall(__gen_c.name, "GetMethodTags", []interface{}{method}, opts...); err != nil {
+func (__gen_c *clientStubSync) GetMethodTags(ctx _gen_ipc.Context, method string, opts ..._gen_ipc.CallOpt) (reply []interface{}, err error) {
+	var call _gen_ipc.Call
+	if call, err = __gen_c.client.StartCall(ctx, __gen_c.name, "GetMethodTags", []interface{}{method}, opts...); err != nil {
 		return
 	}
 	if ierr := call.Finish(&reply, &err); ierr != nil {

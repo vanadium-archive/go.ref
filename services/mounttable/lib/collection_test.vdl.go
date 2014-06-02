@@ -21,10 +21,10 @@ type Collection_ExcludingUniversal interface {
 	// an entry exists, if Overwrite is true, then the binding is replaced,
 	// otherwise the call fails with an error.  The Val must be no larger than
 	// MaxSize bytes.
-	Export(Val string, Overwrite bool, opts ..._gen_ipc.ClientCallOpt) (err error)
+	Export(ctx _gen_ipc.Context, Val string, Overwrite bool, opts ..._gen_ipc.CallOpt) (err error)
 	// Lookup retrieves the value associated with a name.  Returns an error if
 	// there is no such binding.
-	Lookup(opts ..._gen_ipc.ClientCallOpt) (reply []byte, err error)
+	Lookup(ctx _gen_ipc.Context, opts ..._gen_ipc.CallOpt) (reply []byte, err error)
 }
 type Collection interface {
 	_gen_ipc.UniversalServiceMethods
@@ -38,10 +38,10 @@ type CollectionService interface {
 	// an entry exists, if Overwrite is true, then the binding is replaced,
 	// otherwise the call fails with an error.  The Val must be no larger than
 	// MaxSize bytes.
-	Export(context _gen_ipc.Context, Val string, Overwrite bool) (err error)
+	Export(context _gen_ipc.ServerContext, Val string, Overwrite bool) (err error)
 	// Lookup retrieves the value associated with a name.  Returns an error if
 	// there is no such binding.
-	Lookup(context _gen_ipc.Context) (reply []byte, err error)
+	Lookup(context _gen_ipc.ServerContext) (reply []byte, err error)
 }
 
 // BindCollection returns the client stub implementing the Collection
@@ -87,9 +87,9 @@ type clientStubCollection struct {
 	name   string
 }
 
-func (__gen_c *clientStubCollection) Export(Val string, Overwrite bool, opts ..._gen_ipc.ClientCallOpt) (err error) {
-	var call _gen_ipc.ClientCall
-	if call, err = __gen_c.client.StartCall(__gen_c.name, "Export", []interface{}{Val, Overwrite}, opts...); err != nil {
+func (__gen_c *clientStubCollection) Export(ctx _gen_ipc.Context, Val string, Overwrite bool, opts ..._gen_ipc.CallOpt) (err error) {
+	var call _gen_ipc.Call
+	if call, err = __gen_c.client.StartCall(ctx, __gen_c.name, "Export", []interface{}{Val, Overwrite}, opts...); err != nil {
 		return
 	}
 	if ierr := call.Finish(&err); ierr != nil {
@@ -98,9 +98,9 @@ func (__gen_c *clientStubCollection) Export(Val string, Overwrite bool, opts ...
 	return
 }
 
-func (__gen_c *clientStubCollection) Lookup(opts ..._gen_ipc.ClientCallOpt) (reply []byte, err error) {
-	var call _gen_ipc.ClientCall
-	if call, err = __gen_c.client.StartCall(__gen_c.name, "Lookup", nil, opts...); err != nil {
+func (__gen_c *clientStubCollection) Lookup(ctx _gen_ipc.Context, opts ..._gen_ipc.CallOpt) (reply []byte, err error) {
+	var call _gen_ipc.Call
+	if call, err = __gen_c.client.StartCall(ctx, __gen_c.name, "Lookup", nil, opts...); err != nil {
 		return
 	}
 	if ierr := call.Finish(&reply, &err); ierr != nil {
@@ -109,9 +109,9 @@ func (__gen_c *clientStubCollection) Lookup(opts ..._gen_ipc.ClientCallOpt) (rep
 	return
 }
 
-func (__gen_c *clientStubCollection) UnresolveStep(opts ..._gen_ipc.ClientCallOpt) (reply []string, err error) {
-	var call _gen_ipc.ClientCall
-	if call, err = __gen_c.client.StartCall(__gen_c.name, "UnresolveStep", nil, opts...); err != nil {
+func (__gen_c *clientStubCollection) UnresolveStep(ctx _gen_ipc.Context, opts ..._gen_ipc.CallOpt) (reply []string, err error) {
+	var call _gen_ipc.Call
+	if call, err = __gen_c.client.StartCall(ctx, __gen_c.name, "UnresolveStep", nil, opts...); err != nil {
 		return
 	}
 	if ierr := call.Finish(&reply, &err); ierr != nil {
@@ -120,9 +120,9 @@ func (__gen_c *clientStubCollection) UnresolveStep(opts ..._gen_ipc.ClientCallOp
 	return
 }
 
-func (__gen_c *clientStubCollection) Signature(opts ..._gen_ipc.ClientCallOpt) (reply _gen_ipc.ServiceSignature, err error) {
-	var call _gen_ipc.ClientCall
-	if call, err = __gen_c.client.StartCall(__gen_c.name, "Signature", nil, opts...); err != nil {
+func (__gen_c *clientStubCollection) Signature(ctx _gen_ipc.Context, opts ..._gen_ipc.CallOpt) (reply _gen_ipc.ServiceSignature, err error) {
+	var call _gen_ipc.Call
+	if call, err = __gen_c.client.StartCall(ctx, __gen_c.name, "Signature", nil, opts...); err != nil {
 		return
 	}
 	if ierr := call.Finish(&reply, &err); ierr != nil {
@@ -131,9 +131,9 @@ func (__gen_c *clientStubCollection) Signature(opts ..._gen_ipc.ClientCallOpt) (
 	return
 }
 
-func (__gen_c *clientStubCollection) GetMethodTags(method string, opts ..._gen_ipc.ClientCallOpt) (reply []interface{}, err error) {
-	var call _gen_ipc.ClientCall
-	if call, err = __gen_c.client.StartCall(__gen_c.name, "GetMethodTags", []interface{}{method}, opts...); err != nil {
+func (__gen_c *clientStubCollection) GetMethodTags(ctx _gen_ipc.Context, method string, opts ..._gen_ipc.CallOpt) (reply []interface{}, err error) {
+	var call _gen_ipc.Call
+	if call, err = __gen_c.client.StartCall(ctx, __gen_c.name, "GetMethodTags", []interface{}{method}, opts...); err != nil {
 		return
 	}
 	if ierr := call.Finish(&reply, &err); ierr != nil {

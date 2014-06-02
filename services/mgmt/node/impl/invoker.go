@@ -235,7 +235,7 @@ loop:
 	return result
 }
 
-func (i *invoker) Describe(call ipc.Context) (node.Description, error) {
+func (i *invoker) Describe(call ipc.ServerContext) (node.Description, error) {
 	vlog.VI(0).Infof("%v.Describe()", i.suffix)
 	empty := node.Description{}
 	nodeProfile, err := i.computeNodeProfile()
@@ -250,7 +250,7 @@ func (i *invoker) Describe(call ipc.Context) (node.Description, error) {
 	return result, nil
 }
 
-func (i *invoker) IsRunnable(call ipc.Context, binary build.BinaryDescription) (bool, error) {
+func (i *invoker) IsRunnable(call ipc.ServerContext, binary build.BinaryDescription) (bool, error) {
 	vlog.VI(0).Infof("%v.IsRunnable(%v)", i.suffix, binary)
 	nodeProfile, err := i.computeNodeProfile()
 	if err != nil {
@@ -268,7 +268,7 @@ func (i *invoker) IsRunnable(call ipc.Context, binary build.BinaryDescription) (
 	return len(result.Profiles) > 0, nil
 }
 
-func (i *invoker) Reset(call ipc.Context, deadline uint64) error {
+func (i *invoker) Reset(call ipc.ServerContext, deadline uint64) error {
 	vlog.VI(0).Infof("%v.Reset(%v)", i.suffix, deadline)
 	// TODO(jsimsa): Implement.
 	return nil
@@ -282,7 +282,7 @@ func downloadBinary(binary string) (string, error) {
 		vlog.Errorf("BindContent(%q) failed: %v", binary, err)
 		return "", errOperationFailed
 	}
-	stream, err := stub.Download()
+	stream, err := stub.Download(rt.R().NewContext())
 	if err != nil {
 		vlog.Errorf("Download() failed: %v", err)
 		return "", errOperationFailed
@@ -333,7 +333,7 @@ func fetchEnvelope(origin string) (*application.Envelope, error) {
 	// TODO(jsimsa): Include logic that computes the set of supported
 	// profiles.
 	profiles := []string{"test"}
-	envelope, err := stub.Match(profiles)
+	envelope, err := stub.Match(rt.R().NewContext(), profiles)
 	if err != nil {
 		vlog.Errorf("Match(%v) failed: %v", profiles, err)
 		return nil, errOperationFailed
@@ -374,25 +374,25 @@ func spawnNodeManager(envelope *application.Envelope) error {
 	return nil
 }
 
-func (i *invoker) Install(call ipc.Context) (string, error) {
+func (i *invoker) Install(call ipc.ServerContext) (string, error) {
 	vlog.VI(0).Infof("%v.Install()", i.suffix)
 	// TODO(jsimsa): Implement.
 	return "", nil
 }
 
-func (i *invoker) Start(call ipc.Context) ([]string, error) {
+func (i *invoker) Start(call ipc.ServerContext) ([]string, error) {
 	vlog.VI(0).Infof("%v.Start()", i.suffix)
 	// TODO(jsimsa): Implement.
 	return make([]string, 0), nil
 }
 
-func (i *invoker) Uninstall(call ipc.Context) error {
+func (i *invoker) Uninstall(call ipc.ServerContext) error {
 	vlog.VI(0).Infof("%v.Uninstall()", i.suffix)
 	// TODO(jsimsa): Implement.
 	return nil
 }
 
-func (i *invoker) Update(call ipc.Context) error {
+func (i *invoker) Update(call ipc.ServerContext) error {
 	vlog.VI(0).Infof("%v.Update()", i.suffix)
 	switch {
 	case i.suffix == "nm":
@@ -428,31 +428,31 @@ func (i *invoker) Update(call ipc.Context) error {
 	}
 }
 
-func (i *invoker) Refresh(call ipc.Context) error {
+func (i *invoker) Refresh(call ipc.ServerContext) error {
 	vlog.VI(0).Infof("%v.Refresh()", i.suffix)
 	// TODO(jsimsa): Implement.
 	return nil
 }
 
-func (i *invoker) Restart(call ipc.Context) error {
+func (i *invoker) Restart(call ipc.ServerContext) error {
 	vlog.VI(0).Infof("%v.Restart()", i.suffix)
 	// TODO(jsimsa): Implement.
 	return nil
 }
 
-func (i *invoker) Resume(call ipc.Context) error {
+func (i *invoker) Resume(call ipc.ServerContext) error {
 	vlog.VI(0).Infof("%v.Resume()", i.suffix)
 	// TODO(jsimsa): Implement.
 	return nil
 }
 
-func (i *invoker) Shutdown(call ipc.Context, deadline uint64) error {
+func (i *invoker) Shutdown(call ipc.ServerContext, deadline uint64) error {
 	vlog.VI(0).Infof("%v.Shutdown(%v)", i.suffix, deadline)
 	// TODO(jsimsa): Implement.
 	return nil
 }
 
-func (i *invoker) Suspend(call ipc.Context) error {
+func (i *invoker) Suspend(call ipc.ServerContext) error {
 	vlog.VI(0).Infof("%v.Suspend()", i.suffix)
 	// TODO(jsimsa): Implement.
 	return nil

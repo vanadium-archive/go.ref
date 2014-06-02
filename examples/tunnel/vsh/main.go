@@ -96,7 +96,7 @@ func realMain() int {
 
 	opts := shellOptions(cmd)
 
-	stream, err := t.Shell(cmd, opts, veyron2.CallTimeout(24*time.Hour))
+	stream, err := t.Shell(rt.R().TODOContext(), cmd, opts, veyron2.CallTimeout(24*time.Hour))
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 		return 1
@@ -196,7 +196,7 @@ func runPortForwarding(t tunnel.Tunnel, host string) {
 			vlog.Infof("Accept failed: %v", err)
 			continue
 		}
-		stream, err := t.Forward(*rprotocol, raddr, veyron2.CallTimeout(24*time.Hour))
+		stream, err := t.Forward(rt.R().TODOContext(), *rprotocol, raddr, veyron2.CallTimeout(24*time.Hour))
 		if err != nil {
 			vlog.Infof("Tunnel(%q, %q) failed: %v", *rprotocol, raddr, err)
 			conn.Close()

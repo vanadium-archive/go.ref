@@ -6,6 +6,7 @@ import (
 
 	"veyron/services/store/memstore"
 	"veyron/services/store/memstore/state"
+	"veyron/services/store/service"
 
 	"veyron2/storage"
 	"veyron2/vom"
@@ -40,7 +41,7 @@ func newTeam(name string) *Team {
 	return &Team{FullName: name}
 }
 
-func getPlayer(t *testing.T, st *memstore.Store, tr storage.Transaction, path string) (storage.ID, *Player) {
+func getPlayer(t *testing.T, st *memstore.Store, tr service.Transaction, path string) (storage.ID, *Player) {
 	_, file, line, _ := runtime.Caller(1)
 	e := Get(t, st, tr, path)
 	p, ok := e.Value.(*Player)
@@ -50,7 +51,7 @@ func getPlayer(t *testing.T, st *memstore.Store, tr storage.Transaction, path st
 	return e.Stat.ID, p
 }
 
-func getTeam(t *testing.T, st *memstore.Store, tr storage.Transaction, path string) (storage.ID, *Team) {
+func getTeam(t *testing.T, st *memstore.Store, tr service.Transaction, path string) (storage.ID, *Team) {
 	_, file, line, _ := runtime.Caller(1)
 	e := Get(t, st, tr, path)
 	p, ok := e.Value.(*Team)

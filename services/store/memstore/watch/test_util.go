@@ -21,7 +21,7 @@ import (
 var (
 	rootPublicID security.PublicID = security.FakePublicID("root")
 
-	rootCtx ipc.Context = &rootContext{}
+	rootCtx ipc.ServerContext = &rootContext{}
 )
 
 type rootContext struct{}
@@ -105,7 +105,7 @@ func (ctx *cancellableContext) Closed() <-chan struct{} {
 	return ctx.cancelled
 }
 
-func get(t *testing.T, st *memstore.Store, tr storage.Transaction, path string) interface{} {
+func get(t *testing.T, st *memstore.Store, tr service.Transaction, path string) interface{} {
 	_, file, line, _ := runtime.Caller(1)
 	e, err := st.Bind(path).Get(rootPublicID, tr)
 	if err != nil {
@@ -114,7 +114,7 @@ func get(t *testing.T, st *memstore.Store, tr storage.Transaction, path string) 
 	return e.Value
 }
 
-func put(t *testing.T, st *memstore.Store, tr storage.Transaction, path string, v interface{}) storage.ID {
+func put(t *testing.T, st *memstore.Store, tr service.Transaction, path string, v interface{}) storage.ID {
 	_, file, line, _ := runtime.Caller(1)
 	stat, err := st.Bind(path).Put(rootPublicID, tr, v)
 	if err != nil {
@@ -129,14 +129,14 @@ func put(t *testing.T, st *memstore.Store, tr storage.Transaction, path string, 
 	return storage.ID{}
 }
 
-func remove(t *testing.T, st *memstore.Store, tr storage.Transaction, path string) {
+func remove(t *testing.T, st *memstore.Store, tr service.Transaction, path string) {
 	if err := st.Bind(path).Remove(rootPublicID, tr); err != nil {
 		_, file, line, _ := runtime.Caller(1)
 		t.Fatalf("%s(%d): can't remove %s: %s", file, line, path, err)
 	}
 }
 
-func commit(t *testing.T, tr storage.Transaction) {
+func commit(t *testing.T, tr service.Transaction) {
 	if err := tr.Commit(); err != nil {
 		_, file, line, _ := runtime.Caller(1)
 		t.Fatalf("%s(%d): Transaction aborted: %s", file, line, err)
@@ -222,7 +222,7 @@ func (wr *watchResult) Send(cb watch.ChangeBatch) error {
 // doWatch executes a watch request and returns a new watchResult.
 // Change events may be received on the channel "changes".
 // Once "changes" is closed, any error that occurred is stored to "err".
-func doWatch(w service.Watcher, ctx ipc.Context, req watch.Request) *watchResult {
+func doWatch(w service.Watcher, ctx ipc.ServerContext, req watch.Request) *watchResult {
 	wr := &watchResult{changes: make(chan watch.Change)}
 	go func() {
 		defer close(wr.changes)

@@ -204,7 +204,7 @@ func (ms *mountContext) Authorize(context security.Context) error {
 
 // ResolveStep returns the next server in a resolution, the name remaining below that server,
 // and whether or not that server is another mount table.
-func (ms *mountContext) ResolveStep(context ipc.Context) (servers []mounttable.MountedServer, suffix string, err error) {
+func (ms *mountContext) ResolveStep(context ipc.ServerContext) (servers []mounttable.MountedServer, suffix string, err error) {
 	vlog.VI(2).Infof("ResolveStep %q", ms.name)
 	mt := ms.mt
 	// TODO(caprita): we need to grab a write lock because walk may
@@ -224,7 +224,7 @@ func (ms *mountContext) ResolveStep(context ipc.Context) (servers []mounttable.M
 }
 
 // Mount a server onto the name in the receiver.
-func (ms *mountContext) Mount(context ipc.Context, server string, ttlsecs uint32) error {
+func (ms *mountContext) Mount(context ipc.ServerContext, server string, ttlsecs uint32) error {
 	mt := ms.mt
 	if ttlsecs == 0 {
 		ttlsecs = 10 * 365 * 24 * 60 * 60 // a really long time
@@ -290,7 +290,7 @@ func (n *node) removeUselessSubtree() bool {
 
 // Unmount removes servers from the name in the receiver. If server is specified, only that
 // server is removed.
-func (ms *mountContext) Unmount(context ipc.Context, server string) error {
+func (ms *mountContext) Unmount(context ipc.ServerContext, server string) error {
 	mt := ms.mt
 	mt.Lock()
 	defer mt.Unlock()
@@ -315,7 +315,7 @@ type globEntry struct {
 	name string
 }
 
-func (mt *mountTable) globStep(n *node, name string, pattern *glob.Glob, context ipc.Context, reply mounttable.GlobableServiceGlobStream) {
+func (mt *mountTable) globStep(n *node, name string, pattern *glob.Glob, context ipc.ServerContext, reply mounttable.GlobableServiceGlobStream) {
 	vlog.VI(2).Infof("globStep(%s, %s)", name, pattern)
 
 	if mt.acls != nil {
@@ -363,7 +363,7 @@ func (mt *mountTable) globStep(n *node, name string, pattern *glob.Glob, context
 // Glob finds matches in the namespace.  If we reach a mount point before matching the
 // whole pattern, return that mount point.
 // pattern is a glob pattern as defined by the veyron/lib/glob package.
-func (ms *mountContext) Glob(context ipc.Context, pattern string, reply mounttable.GlobableServiceGlobStream) error {
+func (ms *mountContext) Glob(context ipc.ServerContext, pattern string, reply mounttable.GlobableServiceGlobStream) error {
 	vlog.VI(2).Infof("mt.Glob %v", ms.elems)
 
 	g, err := glob.Parse(pattern)

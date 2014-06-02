@@ -24,7 +24,7 @@ import (
 
 var (
 	rootPublicID security.PublicID = security.FakePublicID("root")
-	rootCtx      ipc.Context       = rootContext{}
+	rootCtx      ipc.ServerContext = rootContext{}
 	nullMutation                   = raw.Mutation{}
 )
 
@@ -82,7 +82,7 @@ func (rootContext) Closed() <-chan struct{} {
 	return nil
 }
 
-func Get(t *testing.T, st *memstore.Store, tr storage.Transaction, path string) *storage.Entry {
+func Get(t *testing.T, st *memstore.Store, tr service.Transaction, path string) *storage.Entry {
 	_, file, line, _ := runtime.Caller(1)
 	e, err := st.Bind(path).Get(rootPublicID, tr)
 	if err != nil {
@@ -91,7 +91,7 @@ func Get(t *testing.T, st *memstore.Store, tr storage.Transaction, path string) 
 	return e
 }
 
-func Put(t *testing.T, st *memstore.Store, tr storage.Transaction, path string, v interface{}) storage.ID {
+func Put(t *testing.T, st *memstore.Store, tr service.Transaction, path string, v interface{}) storage.ID {
 	_, file, line, _ := runtime.Caller(1)
 	stat, err := st.Bind(path).Put(rootPublicID, tr, v)
 	if err != nil {
@@ -107,14 +107,14 @@ func Put(t *testing.T, st *memstore.Store, tr storage.Transaction, path string, 
 	return storage.ID{}
 }
 
-func Remove(t *testing.T, st *memstore.Store, tr storage.Transaction, path string) {
+func Remove(t *testing.T, st *memstore.Store, tr service.Transaction, path string) {
 	_, file, line, _ := runtime.Caller(1)
 	if err := st.Bind(path).Remove(rootPublicID, tr); err != nil {
 		t.Fatalf("%s(%d): can't remove %s: %s", file, line, path, err)
 	}
 }
 
-func Commit(t *testing.T, tr storage.Transaction) {
+func Commit(t *testing.T, tr service.Transaction) {
 	if err := tr.Commit(); err != nil {
 		t.Fatalf("Transaction aborted: %s", err)
 	}
@@ -223,7 +223,7 @@ func (s *testWatcherWatchStream) Cancel() {
 	close(s.done)
 }
 
-func Watch(t *testing.T, w service.Watcher, ctx ipc.Context, req watch.Request) watch.WatcherWatchStream {
+func Watch(t *testing.T, w service.Watcher, ctx ipc.ServerContext, req watch.Request) watch.WatcherWatchStream {
 	c := make(chan watch.ChangeBatch)
 	done := make(chan bool)
 	go func() {

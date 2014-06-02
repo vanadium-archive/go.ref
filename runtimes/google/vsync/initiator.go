@@ -11,6 +11,7 @@ import (
 	"veyron/services/store/raw"
 
 	"veyron2/naming"
+	"veyron2/rt"
 	"veyron2/storage"
 	"veyron2/vlog"
 )
@@ -198,7 +199,7 @@ func (i *syncInitiator) getDeltasFromPeer(dID, ep string, local GenVector) {
 	vlog.VI(1).Infof("GetDeltasFromPeer:: Sending local information: %v", local)
 
 	// Issue a GetDeltas() rpc.
-	stream, err := c.GetDeltas(local, i.syncd.id)
+	stream, err := c.GetDeltas(rt.R().TODOContext(), local, i.syncd.id)
 	if err != nil {
 		vlog.Errorf("GetDeltasFromPeer:: error getting deltas: err %v", err)
 		return
@@ -504,7 +505,7 @@ func (i *syncInitiator) updateStoreAndSync(m []raw.Mutation, local, minGens, rem
 	// to prevent a race with watcher. The next iteration will
 	// clean up this coordination.
 	if store := i.syncd.store; store != nil && len(m) > 0 {
-		stream, err := store.PutMutations()
+		stream, err := store.PutMutations(rt.R().TODOContext())
 		if err != nil {
 			vlog.Errorf("updateStoreAndSync:: putmutations err %v", err)
 			return err

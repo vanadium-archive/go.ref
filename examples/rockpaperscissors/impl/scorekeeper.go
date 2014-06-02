@@ -20,7 +20,7 @@ func (k *ScoreKeeper) Stats() int64 {
 	return k.numRecords.Value()
 }
 
-func (k *ScoreKeeper) Record(ctx ipc.Context, score rps.ScoreCard) error {
+func (k *ScoreKeeper) Record(ctx ipc.ServerContext, score rps.ScoreCard) error {
 	vlog.Infof("Received ScoreCard from %s:", ctx.RemoteID())
 	vlog.Info(common.FormatScoreCard(score))
 	k.numRecords.Add(1)

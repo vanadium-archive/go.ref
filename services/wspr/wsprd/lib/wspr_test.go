@@ -500,7 +500,7 @@ func runJsServerTestCase(t *testing.T, test jsServerTestCase) {
 		t.Errorf("unable to create client: %v", err)
 	}
 
-	call, err := client.StartCall("/"+msg+"/adder", test.method, test.inArgs)
+	call, err := client.StartCall(wspr.rt.NewContext(), "/"+msg+"/adder", test.method, test.inArgs)
 	if err != nil {
 		t.Errorf("failed to start call: %v", err)
 	}

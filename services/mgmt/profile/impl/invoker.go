@@ -38,13 +38,13 @@ func NewInvoker(store storage.Store, suffix string) *invoker {
 type dir struct{}
 
 // makeParentNodes creates the parent nodes if they do not already exist.
-func makeParentNodes(store storage.Store, transaction storage.Transaction, path string) error {
+func makeParentNodes(context ipc.ServerContext, store storage.Store, transaction storage.Transaction, path string) error {
 	pathComponents := storage.ParsePath(path)
 	for i := 0; i < len(pathComponents); i++ {
 		name := pathComponents[:i].String()
 		object := store.Bind(name)
-		if _, err := object.Get(transaction); err != nil {
-			if _, err := object.Put(transaction, &dir{}); err != nil {
+		if _, err := object.Get(context, transaction); err != nil {
+			if _, err := object.Put(context, transaction, &dir{}); err != nil {
 				return errOperationFailed
 			}
 		}
@@ -52,39 +52,39 @@ func makeParentNodes(store storage.Store, transaction storage.Transaction, path 
 	return nil
 }
 
-func (i *invoker) Put(context ipc.Context, profile profile.Specification) error {
+func (i *invoker) Put(context ipc.ServerContext, profile profile.Specification) error {
 	vlog.VI(0).Infof("%v.Put(%v)", i.suffix, profile)
-	transaction := primitives.NewTransaction()
+	transaction := primitives.NewTransaction(context)
 	path := path.Join("/profiles", i.suffix)
-	if err := makeParentNodes(i.store, transaction, path); err != nil {
+	if err := makeParentNodes(context, i.store, transaction, path); err != nil {
 		return err
 	}
 	object := i.store.Bind(path)
-	if _, err := object.Put(transaction, profile); err != nil {
+	if _, err := object.Put(context, transaction, profile); err != nil {
 		return errOperationFailed
 	}
-	if err := transaction.Commit(); err != nil {
+	if err := transaction.Commit(context); err != nil {
 		return errOperationFailed
 	}
 	return nil
 }
 
-func (i *invoker) Remove(context ipc.Context) error {
+func (i *invoker) Remove(context ipc.ServerContext) error {
 	vlog.VI(0).Infof("%v.Remove(%v)", i.suffix)
-	transaction := primitives.NewTransaction()
+	transaction := primitives.NewTransaction(context)
 	path := path.Join("/profiles", i.suffix)
 	object := i.store.Bind(path)
-	found, err := object.Exists(transaction)
+	found, err := object.Exists(context, transaction)
 	if err != nil {
 		return errOperationFailed
 	}
 	if !found {
 		return errNotFound
 	}
-	if err := object.Remove(transaction); err != nil {
+	if err := object.Remove(context, transaction); err != nil {
 		return errOperationFailed
 	}
-	if err := transaction.Commit(); err != nil {
+	if err := transaction.Commit(context); err != nil {
 		return errOperationFailed
 	}
 	return nil
@@ -92,11 +92,11 @@ func (i *invoker) Remove(context ipc.Context) error {
 
 // PROFILE INTERACE IMPLEMENTATION
 
-func (i *invoker) lookup() (profile.Specification, error) {
+func (i *invoker) lookup(context ipc.ServerContext) (profile.Specification, error) {
 	empty := profile.Specification{}
 	path := path.Join("/profiles", i.suffix)
 	object := i.store.Bind(path)
-	entry, err := object.Get(nil)
+	entry, err := object.Get(context, nil)
 	if err != nil {
 		return empty, errNotFound
 	}
@@ -107,25 +107,25 @@ func (i *invoker) lookup() (profile.Specification, error) {
 	return s, nil
 }
 
-func (i *invoker) Label(context ipc.Context) (string, error) {
+func (i *invoker) Label(context ipc.ServerContext) (string, error) {
 	vlog.VI(0).Infof("%v.Label()", i.suffix)
-	s, err := i.lookup()
+	s, err := i.lookup(context)
 	if err != nil {
 		return "", err
 	}
 	return s.Label, nil
 }
 
-func (i *invoker) Description(context ipc.Context) (string, error) {
+func (i *invoker) Description(context ipc.ServerContext) (string, error) {
 	vlog.VI(0).Infof("%v.Description()", i.suffix)
-	s, err := i.lookup()
+	s, err := i.lookup(context)
 	if err != nil {
 		return "", err
 	}
 	return s.Description, nil
 }
 
-func (i *invoker) Specification(context ipc.Context) (profile.Specification, error) {
+func (i *invoker) Specification(context ipc.ServerContext) (profile.Specification, error) {
 	vlog.VI(0).Infof("%v.Specification()", i.suffix)
-	return i.lookup()
+	return i.lookup(context)
 }

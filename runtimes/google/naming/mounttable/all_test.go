@@ -61,8 +61,10 @@ func (*testServer) KnockKnock(call ipc.ServerCall) string {
 	return "Who's there?"
 }
 
-func knockKnock(t *testing.T, client ipc.Client, name string) {
-	call, err := client.StartCall(name, "KnockKnock", nil)
+func knockKnock(t *testing.T, runtime veyron2.Runtime, name string) {
+	client := runtime.Client()
+	ctx := runtime.NewContext()
+	call, err := client.StartCall(ctx, name, "KnockKnock", nil)
 	if err != nil {
 		boom(t, "StartCall failed: %s", err)
 	}
@@ -317,9 +319,9 @@ func TestNamespace(t *testing.T) {
 		}
 	}
 
-	knockKnock(t, r.Client(), "joke1")
-	knockKnock(t, r.Client(), "joke2/joke2")
-	knockKnock(t, r.Client(), "mt3/joke3/joke3")
+	knockKnock(t, r, "joke1")
+	knockKnock(t, r, "joke2/joke2")
+	knockKnock(t, r, "mt3/joke3/joke3")
 
 	// Try various globs.
 	globTests := []struct {

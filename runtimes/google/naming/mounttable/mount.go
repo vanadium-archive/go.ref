@@ -3,12 +3,13 @@ package mounttable
 import (
 	"time"
 
-	"veyron2/ipc"
+	"veyron2"
 )
 
 // mountIntoMountTable mounts a single server into a single mount table.
-func mountIntoMountTable(client ipc.Client, name, server string, ttl time.Duration) error {
-	call, err := client.StartCall(name, "Mount", []interface{}{server, uint32(ttl.Seconds())}, callTimeout)
+func mountIntoMountTable(runtime veyron2.Runtime, name, server string, ttl time.Duration) error {
+	client := runtime.Client()
+	call, err := client.StartCall(runtime.TODOContext(), name, "Mount", []interface{}{server, uint32(ttl.Seconds())}, callTimeout)
 	if err != nil {
 		return err
 	}
@@ -19,8 +20,9 @@ func mountIntoMountTable(client ipc.Client, name, server string, ttl time.Durati
 }
 
 // unmountFromMountTable removes a single mounted server from a single mount table.
-func unmountFromMountTable(client ipc.Client, name, server string) error {
-	call, err := client.StartCall(name, "Unmount", []interface{}{server}, callTimeout)
+func unmountFromMountTable(runtime veyron2.Runtime, name, server string) error {
+	client := runtime.Client()
+	call, err := client.StartCall(runtime.TODOContext(), name, "Unmount", []interface{}{server}, callTimeout)
 	if err != nil {
 		return err
 	}
@@ -40,7 +42,7 @@ func (ns *namespace) Mount(name, server string, ttl time.Duration) error {
 	c := make(chan error, len(mtServers))
 	for _, mt := range mtServers {
 		go func() {
-			c <- mountIntoMountTable(ns.rt.Client(), mt, server, ttl)
+			c <- mountIntoMountTable(ns.rt, mt, server, ttl)
 		}()
 	}
 	// Return error if any mounts failed, since otherwise we'll get
@@ -64,7 +66,7 @@ func (ns *namespace) Unmount(name, server string) error {
 	c := make(chan error, len(mts))
 	for _, mt := range mts {
 		go func() {
-			c <- unmountFromMountTable(ns.rt.Client(), mt, server)
+			c <- unmountFromMountTable(ns.rt, mt, server)
 		}()
 	}
 	// Return error if any mounts failed, since otherwise we'll get

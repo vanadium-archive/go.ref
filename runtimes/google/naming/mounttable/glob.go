@@ -36,7 +36,8 @@ func (ns *namespace) globAtServer(server *naming.MountEntry, pattern *glob.Glob,
 		}
 
 		for _, s := range mtServers {
-			call, err := ns.rt.Client().StartCall(s, "Glob", []interface{}{pstr}, callTimeout)
+			client := ns.rt.Client()
+			call, err := client.StartCall(ns.rt.TODOContext(), s, "Glob", []interface{}{pstr}, callTimeout)
 			if err != nil {
 				lastErr = err
 				continue // try another instance

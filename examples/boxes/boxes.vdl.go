@@ -30,9 +30,9 @@ type Box struct {
 // to enable embedding without method collisions.  Not to be used directly by clients.
 type BoxSignalling_ExcludingUniversal interface {
 	// Add endpoint information to the signalling server.
-	Add(Endpoint string, opts ..._gen_ipc.ClientCallOpt) (err error)
+	Add(ctx _gen_ipc.Context, Endpoint string, opts ..._gen_ipc.CallOpt) (err error)
 	// Get endpoint information about a peer.
-	Get(opts ..._gen_ipc.ClientCallOpt) (reply string, err error)
+	Get(ctx _gen_ipc.Context, opts ..._gen_ipc.CallOpt) (reply string, err error)
 }
 type BoxSignalling interface {
 	_gen_ipc.UniversalServiceMethods
@@ -43,9 +43,9 @@ type BoxSignalling interface {
 type BoxSignallingService interface {
 
 	// Add endpoint information to the signalling server.
-	Add(context _gen_ipc.Context, Endpoint string) (err error)
+	Add(context _gen_ipc.ServerContext, Endpoint string) (err error)
 	// Get endpoint information about a peer.
-	Get(context _gen_ipc.Context) (reply string, err error)
+	Get(context _gen_ipc.ServerContext) (reply string, err error)
 }
 
 // BindBoxSignalling returns the client stub implementing the BoxSignalling
@@ -91,9 +91,9 @@ type clientStubBoxSignalling struct {
 	name   string
 }
 
-func (__gen_c *clientStubBoxSignalling) Add(Endpoint string, opts ..._gen_ipc.ClientCallOpt) (err error) {
-	var call _gen_ipc.ClientCall
-	if call, err = __gen_c.client.StartCall(__gen_c.name, "Add", []interface{}{Endpoint}, opts...); err != nil {
+func (__gen_c *clientStubBoxSignalling) Add(ctx _gen_ipc.Context, Endpoint string, opts ..._gen_ipc.CallOpt) (err error) {
+	var call _gen_ipc.Call
+	if call, err = __gen_c.client.StartCall(ctx, __gen_c.name, "Add", []interface{}{Endpoint}, opts...); err != nil {
 		return
 	}
 	if ierr := call.Finish(&err); ierr != nil {
@@ -102,9 +102,9 @@ func (__gen_c *clientStubBoxSignalling) Add(Endpoint string, opts ..._gen_ipc.Cl
 	return
 }
 
-func (__gen_c *clientStubBoxSignalling) Get(opts ..._gen_ipc.ClientCallOpt) (reply string, err error) {
-	var call _gen_ipc.ClientCall
-	if call, err = __gen_c.client.StartCall(__gen_c.name, "Get", nil, opts...); err != nil {
+func (__gen_c *clientStubBoxSignalling) Get(ctx _gen_ipc.Context, opts ..._gen_ipc.CallOpt) (reply string, err error) {
+	var call _gen_ipc.Call
+	if call, err = __gen_c.client.StartCall(ctx, __gen_c.name, "Get", nil, opts...); err != nil {
 		return
 	}
 	if ierr := call.Finish(&reply, &err); ierr != nil {
@@ -113,9 +113,9 @@ func (__gen_c *clientStubBoxSignalling) Get(opts ..._gen_ipc.ClientCallOpt) (rep
 	return
 }
 
-func (__gen_c *clientStubBoxSignalling) UnresolveStep(opts ..._gen_ipc.ClientCallOpt) (reply []string, err error) {
-	var call _gen_ipc.ClientCall
-	if call, err = __gen_c.client.StartCall(__gen_c.name, "UnresolveStep", nil, opts...); err != nil {
+func (__gen_c *clientStubBoxSignalling) UnresolveStep(ctx _gen_ipc.Context, opts ..._gen_ipc.CallOpt) (reply []string, err error) {
+	var call _gen_ipc.Call
+	if call, err = __gen_c.client.StartCall(ctx, __gen_c.name, "UnresolveStep", nil, opts...); err != nil {
 		return
 	}
 	if ierr := call.Finish(&reply, &err); ierr != nil {
@@ -124,9 +124,9 @@ func (__gen_c *clientStubBoxSignalling) UnresolveStep(opts ..._gen_ipc.ClientCal
 	return
 }
 
-func (__gen_c *clientStubBoxSignalling) Signature(opts ..._gen_ipc.ClientCallOpt) (reply _gen_ipc.ServiceSignature, err error) {
-	var call _gen_ipc.ClientCall
-	if call, err = __gen_c.client.StartCall(__gen_c.name, "Signature", nil, opts...); err != nil {
+func (__gen_c *clientStubBoxSignalling) Signature(ctx _gen_ipc.Context, opts ..._gen_ipc.CallOpt) (reply _gen_ipc.ServiceSignature, err error) {
+	var call _gen_ipc.Call
+	if call, err = __gen_c.client.StartCall(ctx, __gen_c.name, "Signature", nil, opts...); err != nil {
 		return
 	}
 	if ierr := call.Finish(&reply, &err); ierr != nil {
@@ -135,9 +135,9 @@ func (__gen_c *clientStubBoxSignalling) Signature(opts ..._gen_ipc.ClientCallOpt
 	return
 }
 
-func (__gen_c *clientStubBoxSignalling) GetMethodTags(method string, opts ..._gen_ipc.ClientCallOpt) (reply []interface{}, err error) {
-	var call _gen_ipc.ClientCall
-	if call, err = __gen_c.client.StartCall(__gen_c.name, "GetMethodTags", []interface{}{method}, opts...); err != nil {
+func (__gen_c *clientStubBoxSignalling) GetMethodTags(ctx _gen_ipc.Context, method string, opts ..._gen_ipc.CallOpt) (reply []interface{}, err error) {
+	var call _gen_ipc.Call
+	if call, err = __gen_c.client.StartCall(ctx, __gen_c.name, "GetMethodTags", []interface{}{method}, opts...); err != nil {
 		return
 	}
 	if ierr := call.Finish(&reply, &err); ierr != nil {
@@ -225,7 +225,7 @@ func (__gen_s *ServerStubBoxSignalling) Get(call _gen_ipc.ServerCall) (reply str
 // to enable embedding without method collisions.  Not to be used directly by clients.
 type DrawInterface_ExcludingUniversal interface {
 	// Send/Receive a stream of boxes with another peer
-	Draw(opts ..._gen_ipc.ClientCallOpt) (reply DrawInterfaceDrawStream, err error)
+	Draw(ctx _gen_ipc.Context, opts ..._gen_ipc.CallOpt) (reply DrawInterfaceDrawStream, err error)
 }
 type DrawInterface interface {
 	_gen_ipc.UniversalServiceMethods
@@ -236,7 +236,7 @@ type DrawInterface interface {
 type DrawInterfaceService interface {
 
 	// Send/Receive a stream of boxes with another peer
-	Draw(context _gen_ipc.Context, stream DrawInterfaceServiceDrawStream) (err error)
+	Draw(context _gen_ipc.ServerContext, stream DrawInterfaceServiceDrawStream) (err error)
 }
 
 // DrawInterfaceDrawStream is the interface for streaming responses of the method
@@ -267,7 +267,7 @@ type DrawInterfaceDrawStream interface {
 
 // Implementation of the DrawInterfaceDrawStream interface that is not exported.
 type implDrawInterfaceDrawStream struct {
-	clientCall _gen_ipc.ClientCall
+	clientCall _gen_ipc.Call
 }
 
 func (c *implDrawInterfaceDrawStream) Send(item Box) error {
@@ -363,18 +363,18 @@ type clientStubDrawInterface struct {
 	name   string
 }
 
-func (__gen_c *clientStubDrawInterface) Draw(opts ..._gen_ipc.ClientCallOpt) (reply DrawInterfaceDrawStream, err error) {
-	var call _gen_ipc.ClientCall
-	if call, err = __gen_c.client.StartCall(__gen_c.name, "Draw", nil, opts...); err != nil {
+func (__gen_c *clientStubDrawInterface) Draw(ctx _gen_ipc.Context, opts ..._gen_ipc.CallOpt) (reply DrawInterfaceDrawStream, err error) {
+	var call _gen_ipc.Call
+	if call, err = __gen_c.client.StartCall(ctx, __gen_c.name, "Draw", nil, opts...); err != nil {
 		return
 	}
 	reply = &implDrawInterfaceDrawStream{clientCall: call}
 	return
 }
 
-func (__gen_c *clientStubDrawInterface) UnresolveStep(opts ..._gen_ipc.ClientCallOpt) (reply []string, err error) {
-	var call _gen_ipc.ClientCall
-	if call, err = __gen_c.client.StartCall(__gen_c.name, "UnresolveStep", nil, opts...); err != nil {
+func (__gen_c *clientStubDrawInterface) UnresolveStep(ctx _gen_ipc.Context, opts ..._gen_ipc.CallOpt) (reply []string, err error) {
+	var call _gen_ipc.Call
+	if call, err = __gen_c.client.StartCall(ctx, __gen_c.name, "UnresolveStep", nil, opts...); err != nil {
 		return
 	}
 	if ierr := call.Finish(&reply, &err); ierr != nil {
@@ -383,9 +383,9 @@ func (__gen_c *clientStubDrawInterface) UnresolveStep(opts ..._gen_ipc.ClientCal
 	return
 }
 
-func (__gen_c *clientStubDrawInterface) Signature(opts ..._gen_ipc.ClientCallOpt) (reply _gen_ipc.ServiceSignature, err error) {
-	var call _gen_ipc.ClientCall
-	if call, err = __gen_c.client.StartCall(__gen_c.name, "Signature", nil, opts...); err != nil {
+func (__gen_c *clientStubDrawInterface) Signature(ctx _gen_ipc.Context, opts ..._gen_ipc.CallOpt) (reply _gen_ipc.ServiceSignature, err error) {
+	var call _gen_ipc.Call
+	if call, err = __gen_c.client.StartCall(ctx, __gen_c.name, "Signature", nil, opts...); err != nil {
 		return
 	}
 	if ierr := call.Finish(&reply, &err); ierr != nil {
@@ -394,9 +394,9 @@ func (__gen_c *clientStubDrawInterface) Signature(opts ..._gen_ipc.ClientCallOpt
 	return
 }
 
-func (__gen_c *clientStubDrawInterface) GetMethodTags(method string, opts ..._gen_ipc.ClientCallOpt) (reply []interface{}, err error) {
-	var call _gen_ipc.ClientCall
-	if call, err = __gen_c.client.StartCall(__gen_c.name, "GetMethodTags", []interface{}{method}, opts...); err != nil {
+func (__gen_c *clientStubDrawInterface) GetMethodTags(ctx _gen_ipc.Context, method string, opts ..._gen_ipc.CallOpt) (reply []interface{}, err error) {
+	var call _gen_ipc.Call
+	if call, err = __gen_c.client.StartCall(ctx, __gen_c.name, "GetMethodTags", []interface{}{method}, opts...); err != nil {
 		return
 	}
 	if ierr := call.Finish(&reply, &err); ierr != nil {

@@ -59,7 +59,8 @@ func runDescribe(cmd *cmdline.Command, args []string) error {
 	}
 	defer client.Close()
 
-	signature, err := getSignature(cmd, args[0], client)
+	ctx := runtime.NewContext()
+	signature, err := getSignature(ctx, cmd, args[0], client)
 	if err != nil {
 		return err
 	}
@@ -97,7 +98,8 @@ func runInvoke(cmd *cmdline.Command, args []string) error {
 	}
 	defer client.Close()
 
-	signature, err := getSignature(cmd, server, client)
+	ctx := runtime.NewContext()
+	signature, err := getSignature(ctx, cmd, server, client)
 	if err != nil {
 		return fmt.Errorf("invoke: failed to get signature for %v: %v", server, err)
 	}
@@ -143,7 +145,7 @@ func runInvoke(cmd *cmdline.Command, args []string) error {
 	}
 
 	// Initiate the method invocation.
-	call, err := client.StartCall(server, method, inputs)
+	call, err := client.StartCall(ctx, server, method, inputs)
 	if err != nil {
 		return fmt.Errorf("client.StartCall(%s, %q, %v) failed with %v", server, method, inputs, err)
 	}
@@ -207,8 +209,8 @@ func setupClient(cmd *cmdline.Command, r veyron2.Runtime) (ipc.Client, error) {
 	return client, nil
 }
 
-func getSignature(cmd *cmdline.Command, server string, client ipc.Client) (ipc.ServiceSignature, error) {
-	call, err := client.StartCall(server, "Signature", nil)
+func getSignature(ctx ipc.Context, cmd *cmdline.Command, server string, client ipc.Client) (ipc.ServiceSignature, error) {
+	call, err := client.StartCall(ctx, server, "Signature", nil)
 	if err != nil {
 		return ipc.ServiceSignature{}, fmt.Errorf("client.StartCall(%s, Signature, nil) failed with %v", server, err)
 	}

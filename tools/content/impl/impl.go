@@ -7,6 +7,7 @@ import (
 
 	"veyron/lib/cmdline"
 
+	"veyron2/rt"
 	"veyron2/services/mgmt/content"
 )
 
@@ -27,7 +28,7 @@ func runDelete(cmd *cmdline.Command, args []string) error {
 	if err != nil {
 		return fmt.Errorf("bind error: %v", err)
 	}
-	if err = c.Delete(); err != nil {
+	if err = c.Delete(rt.R().NewContext()); err != nil {
 		return err
 	}
 	fmt.Fprintf(cmd.Stdout(), "Content deleted successfully\n")
@@ -65,7 +66,7 @@ func runDownload(cmd *cmdline.Command, args []string) error {
 		return fmt.Errorf("bind error: %v", err)
 	}
 
-	stream, err := c.Download()
+	stream, err := c.Download(rt.R().NewContext())
 	if err != nil {
 		return err
 	}
@@ -123,7 +124,7 @@ func runUpload(cmd *cmdline.Command, args []string) error {
 		return fmt.Errorf("bind error: %v", err)
 	}
 
-	stream, err := c.Upload()
+	stream, err := c.Upload(rt.R().NewContext())
 	if err != nil {
 		return err
 	}

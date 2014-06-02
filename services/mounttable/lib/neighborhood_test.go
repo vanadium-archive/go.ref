@@ -78,7 +78,7 @@ L:
 	if err != nil {
 		boom(t, "BindMountTable: %s", err)
 	}
-	servers, suffix, err := objectPtr.ResolveStep()
+	servers, suffix, err := objectPtr.ResolveStep(r.NewContext())
 	if err != nil {
 		boom(t, "resolveStep: %s", err)
 	}

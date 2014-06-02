@@ -5,8 +5,7 @@ import (
 	"sync"
 
 	"veyron/services/store/memstore/state"
-
-	"veyron2/storage"
+	"veyron/services/store/service"
 )
 
 // Transaction is the type of transactions.  Each transaction has a snapshot of
@@ -35,12 +34,12 @@ func (st *Store) newNilTransaction() *Transaction {
 	return &Transaction{store: st, snapshot: st.State.MutableSnapshot()}
 }
 
-// getTransaction returns the *Transaction value for the storage.Transaction.
+// getTransaction returns the *Transaction value for the service.Transaction.
 // Returns bool commit==true iff the transaction argument is nil, which means
 // that the transaction lifetime is the duration of the operation (so the
 // transaction should be committed immediately after the operation that uses it
 // is performed).
-func (st *Store) getTransaction(tr storage.Transaction) (*Transaction, bool, error) {
+func (st *Store) getTransaction(tr service.Transaction) (*Transaction, bool, error) {
 	if tr == nil {
 		return st.newNilTransaction(), true, nil
 	}
@@ -53,7 +52,7 @@ func (st *Store) getTransaction(tr storage.Transaction) (*Transaction, bool, err
 }
 
 // GetTransactionSnapshot returns a read-only snapshot from the transaction.
-func (st *Store) GetTransactionSnapshot(tr storage.Transaction) (state.Snapshot, error) {
+func (st *Store) GetTransactionSnapshot(tr service.Transaction) (state.Snapshot, error) {
 	t, _, err := st.getTransaction(tr)
 	if err != nil {
 		return nil, err

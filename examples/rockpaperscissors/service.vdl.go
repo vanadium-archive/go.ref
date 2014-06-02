@@ -84,9 +84,9 @@ const (
 type Judge_ExcludingUniversal interface {
 	// CreateGame creates a new game with the given game options and returns a game
 	// identifier that can be used by the players to join the game.
-	CreateGame(Opts GameOptions, opts ..._gen_ipc.ClientCallOpt) (reply GameID, err error)
+	CreateGame(ctx _gen_ipc.Context, Opts GameOptions, opts ..._gen_ipc.CallOpt) (reply GameID, err error)
 	// Play lets a player join an existing game and play.
-	Play(ID GameID, opts ..._gen_ipc.ClientCallOpt) (reply JudgePlayStream, err error)
+	Play(ctx _gen_ipc.Context, ID GameID, opts ..._gen_ipc.CallOpt) (reply JudgePlayStream, err error)
 }
 type Judge interface {
 	_gen_ipc.UniversalServiceMethods
@@ -98,9 +98,9 @@ type JudgeService interface {
 
 	// CreateGame creates a new game with the given game options and returns a game
 	// identifier that can be used by the players to join the game.
-	CreateGame(context _gen_ipc.Context, Opts GameOptions) (reply GameID, err error)
+	CreateGame(context _gen_ipc.ServerContext, Opts GameOptions) (reply GameID, err error)
 	// Play lets a player join an existing game and play.
-	Play(context _gen_ipc.Context, ID GameID, stream JudgeServicePlayStream) (reply PlayResult, err error)
+	Play(context _gen_ipc.ServerContext, ID GameID, stream JudgeServicePlayStream) (reply PlayResult, err error)
 }
 
 // JudgePlayStream is the interface for streaming responses of the method
@@ -131,7 +131,7 @@ type JudgePlayStream interface {
 
 // Implementation of the JudgePlayStream interface that is not exported.
 type implJudgePlayStream struct {
-	clientCall _gen_ipc.ClientCall
+	clientCall _gen_ipc.Call
 }
 
 func (c *implJudgePlayStream) Send(item PlayerAction) error {
@@ -227,9 +227,9 @@ type clientStubJudge struct {
 	name   string
 }
 
-func (__gen_c *clientStubJudge) CreateGame(Opts GameOptions, opts ..._gen_ipc.ClientCallOpt) (reply GameID, err error) {
-	var call _gen_ipc.ClientCall
-	if call, err = __gen_c.client.StartCall(__gen_c.name, "CreateGame", []interface{}{Opts}, opts...); err != nil {
+func (__gen_c *clientStubJudge) CreateGame(ctx _gen_ipc.Context, Opts GameOptions, opts ..._gen_ipc.CallOpt) (reply GameID, err error) {
+	var call _gen_ipc.Call
+	if call, err = __gen_c.client.StartCall(ctx, __gen_c.name, "CreateGame", []interface{}{Opts}, opts...); err != nil {
 		return
 	}
 	if ierr := call.Finish(&reply, &err); ierr != nil {
@@ -238,18 +238,18 @@ func (__gen_c *clientStubJudge) CreateGame(Opts GameOptions, opts ..._gen_ipc.Cl
 	return
 }
 
-func (__gen_c *clientStubJudge) Play(ID GameID, opts ..._gen_ipc.ClientCallOpt) (reply JudgePlayStream, err error) {
-	var call _gen_ipc.ClientCall
-	if call, err = __gen_c.client.StartCall(__gen_c.name, "Play", []interface{}{ID}, opts...); err != nil {
+func (__gen_c *clientStubJudge) Play(ctx _gen_ipc.Context, ID GameID, opts ..._gen_ipc.CallOpt) (reply JudgePlayStream, err error) {
+	var call _gen_ipc.Call
+	if call, err = __gen_c.client.StartCall(ctx, __gen_c.name, "Play", []interface{}{ID}, opts...); err != nil {
 		return
 	}
 	reply = &implJudgePlayStream{clientCall: call}
 	return
 }
 
-func (__gen_c *clientStubJudge) UnresolveStep(opts ..._gen_ipc.ClientCallOpt) (reply []string, err error) {
-	var call _gen_ipc.ClientCall
-	if call, err = __gen_c.client.StartCall(__gen_c.name, "UnresolveStep", nil, opts...); err != nil {
+func (__gen_c *clientStubJudge) UnresolveStep(ctx _gen_ipc.Context, opts ..._gen_ipc.CallOpt) (reply []string, err error) {
+	var call _gen_ipc.Call
+	if call, err = __gen_c.client.StartCall(ctx, __gen_c.name, "UnresolveStep", nil, opts...); err != nil {
 		return
 	}
 	if ierr := call.Finish(&reply, &err); ierr != nil {
@@ -258,9 +258,9 @@ func (__gen_c *clientStubJudge) UnresolveStep(opts ..._gen_ipc.ClientCallOpt) (r
 	return
 }
 
-func (__gen_c *clientStubJudge) Signature(opts ..._gen_ipc.ClientCallOpt) (reply _gen_ipc.ServiceSignature, err error) {
-	var call _gen_ipc.ClientCall
-	if call, err = __gen_c.client.StartCall(__gen_c.name, "Signature", nil, opts...); err != nil {
+func (__gen_c *clientStubJudge) Signature(ctx _gen_ipc.Context, opts ..._gen_ipc.CallOpt) (reply _gen_ipc.ServiceSignature, err error) {
+	var call _gen_ipc.Call
+	if call, err = __gen_c.client.StartCall(ctx, __gen_c.name, "Signature", nil, opts...); err != nil {
 		return
 	}
 	if ierr := call.Finish(&reply, &err); ierr != nil {
@@ -269,9 +269,9 @@ func (__gen_c *clientStubJudge) Signature(opts ..._gen_ipc.ClientCallOpt) (reply
 	return
 }
 
-func (__gen_c *clientStubJudge) GetMethodTags(method string, opts ..._gen_ipc.ClientCallOpt) (reply []interface{}, err error) {
-	var call _gen_ipc.ClientCall
-	if call, err = __gen_c.client.StartCall(__gen_c.name, "GetMethodTags", []interface{}{method}, opts...); err != nil {
+func (__gen_c *clientStubJudge) GetMethodTags(ctx _gen_ipc.Context, method string, opts ..._gen_ipc.CallOpt) (reply []interface{}, err error) {
+	var call _gen_ipc.Call
+	if call, err = __gen_c.client.StartCall(ctx, __gen_c.name, "GetMethodTags", []interface{}{method}, opts...); err != nil {
 		return
 	}
 	if ierr := call.Finish(&reply, &err); ierr != nil {
@@ -416,7 +416,7 @@ func (__gen_s *ServerStubJudge) Play(call _gen_ipc.ServerCall, ID GameID) (reply
 type Player_ExcludingUniversal interface {
 	// Challenge is used by other players to challenge this player to a game. If
 	// the challenge is accepted, the method returns nil.
-	Challenge(Address string, ID GameID, opts ..._gen_ipc.ClientCallOpt) (err error)
+	Challenge(ctx _gen_ipc.Context, Address string, ID GameID, opts ..._gen_ipc.CallOpt) (err error)
 }
 type Player interface {
 	_gen_ipc.UniversalServiceMethods
@@ -428,7 +428,7 @@ type PlayerService interface {
 
 	// Challenge is used by other players to challenge this player to a game. If
 	// the challenge is accepted, the method returns nil.
-	Challenge(context _gen_ipc.Context, Address string, ID GameID) (err error)
+	Challenge(context _gen_ipc.ServerContext, Address string, ID GameID) (err error)
 }
 
 // BindPlayer returns the client stub implementing the Player
@@ -474,9 +474,9 @@ type clientStubPlayer struct {
 	name   string
 }
 
-func (__gen_c *clientStubPlayer) Challenge(Address string, ID GameID, opts ..._gen_ipc.ClientCallOpt) (err error) {
-	var call _gen_ipc.ClientCall
-	if call, err = __gen_c.client.StartCall(__gen_c.name, "Challenge", []interface{}{Address, ID}, opts...); err != nil {
+func (__gen_c *clientStubPlayer) Challenge(ctx _gen_ipc.Context, Address string, ID GameID, opts ..._gen_ipc.CallOpt) (err error) {
+	var call _gen_ipc.Call
+	if call, err = __gen_c.client.StartCall(ctx, __gen_c.name, "Challenge", []interface{}{Address, ID}, opts...); err != nil {
 		return
 	}
 	if ierr := call.Finish(&err); ierr != nil {
@@ -485,9 +485,9 @@ func (__gen_c *clientStubPlayer) Challenge(Address string, ID GameID, opts ..._g
 	return
 }
 
-func (__gen_c *clientStubPlayer) UnresolveStep(opts ..._gen_ipc.ClientCallOpt) (reply []string, err error) {
-	var call _gen_ipc.ClientCall
-	if call, err = __gen_c.client.StartCall(__gen_c.name, "UnresolveStep", nil, opts...); err != nil {
+func (__gen_c *clientStubPlayer) UnresolveStep(ctx _gen_ipc.Context, opts ..._gen_ipc.CallOpt) (reply []string, err error) {
+	var call _gen_ipc.Call
+	if call, err = __gen_c.client.StartCall(ctx, __gen_c.name, "UnresolveStep", nil, opts...); err != nil {
 		return
 	}
 	if ierr := call.Finish(&reply, &err); ierr != nil {
@@ -496,9 +496,9 @@ func (__gen_c *clientStubPlayer) UnresolveStep(opts ..._gen_ipc.ClientCallOpt) (
 	return
 }
 
-func (__gen_c *clientStubPlayer) Signature(opts ..._gen_ipc.ClientCallOpt) (reply _gen_ipc.ServiceSignature, err error) {
-	var call _gen_ipc.ClientCall
-	if call, err = __gen_c.client.StartCall(__gen_c.name, "Signature", nil, opts...); err != nil {
+func (__gen_c *clientStubPlayer) Signature(ctx _gen_ipc.Context, opts ..._gen_ipc.CallOpt) (reply _gen_ipc.ServiceSignature, err error) {
+	var call _gen_ipc.Call
+	if call, err = __gen_c.client.StartCall(ctx, __gen_c.name, "Signature", nil, opts...); err != nil {
 		return
 	}
 	if ierr := call.Finish(&reply, &err); ierr != nil {
@@ -507,9 +507,9 @@ func (__gen_c *clientStubPlayer) Signature(opts ..._gen_ipc.ClientCallOpt) (repl
 	return
 }
 
-func (__gen_c *clientStubPlayer) GetMethodTags(method string, opts ..._gen_ipc.ClientCallOpt) (reply []interface{}, err error) {
-	var call _gen_ipc.ClientCall
-	if call, err = __gen_c.client.StartCall(__gen_c.name, "GetMethodTags", []interface{}{method}, opts...); err != nil {
+func (__gen_c *clientStubPlayer) GetMethodTags(ctx _gen_ipc.Context, method string, opts ..._gen_ipc.CallOpt) (reply []interface{}, err error) {
+	var call _gen_ipc.Call
+	if call, err = __gen_c.client.StartCall(ctx, __gen_c.name, "GetMethodTags", []interface{}{method}, opts...); err != nil {
 		return
 	}
 	if ierr := call.Finish(&reply, &err); ierr != nil {
@@ -588,7 +588,7 @@ func (__gen_s *ServerStubPlayer) Challenge(call _gen_ipc.ServerCall, Address str
 // ScoreKeeper_ExcludingUniversal is the interface without internal framework-added methods
 // to enable embedding without method collisions.  Not to be used directly by clients.
 type ScoreKeeper_ExcludingUniversal interface {
-	Record(Score ScoreCard, opts ..._gen_ipc.ClientCallOpt) (err error)
+	Record(ctx _gen_ipc.Context, Score ScoreCard, opts ..._gen_ipc.CallOpt) (err error)
 }
 type ScoreKeeper interface {
 	_gen_ipc.UniversalServiceMethods
@@ -597,7 +597,7 @@ type ScoreKeeper interface {
 
 // ScoreKeeperService is the interface the server implements.
 type ScoreKeeperService interface {
-	Record(context _gen_ipc.Context, Score ScoreCard) (err error)
+	Record(context _gen_ipc.ServerContext, Score ScoreCard) (err error)
 }
 
 // BindScoreKeeper returns the client stub implementing the ScoreKeeper
@@ -643,9 +643,9 @@ type clientStubScoreKeeper struct {
 	name   string
 }
 
-func (__gen_c *clientStubScoreKeeper) Record(Score ScoreCard, opts ..._gen_ipc.ClientCallOpt) (err error) {
-	var call _gen_ipc.ClientCall
-	if call, err = __gen_c.client.StartCall(__gen_c.name, "Record", []interface{}{Score}, opts...); err != nil {
+func (__gen_c *clientStubScoreKeeper) Record(ctx _gen_ipc.Context, Score ScoreCard, opts ..._gen_ipc.CallOpt) (err error) {
+	var call _gen_ipc.Call
+	if call, err = __gen_c.client.StartCall(ctx, __gen_c.name, "Record", []interface{}{Score}, opts...); err != nil {
 		return
 	}
 	if ierr := call.Finish(&err); ierr != nil {
@@ -654,9 +654,9 @@ func (__gen_c *clientStubScoreKeeper) Record(Score ScoreCard, opts ..._gen_ipc.C
 	return
 }
 
-func (__gen_c *clientStubScoreKeeper) UnresolveStep(opts ..._gen_ipc.ClientCallOpt) (reply []string, err error) {
-	var call _gen_ipc.ClientCall
-	if call, err = __gen_c.client.StartCall(__gen_c.name, "UnresolveStep", nil, opts...); err != nil {
+func (__gen_c *clientStubScoreKeeper) UnresolveStep(ctx _gen_ipc.Context, opts ..._gen_ipc.CallOpt) (reply []string, err error) {
+	var call _gen_ipc.Call
+	if call, err = __gen_c.client.StartCall(ctx, __gen_c.name, "UnresolveStep", nil, opts...); err != nil {
 		return
 	}
 	if ierr := call.Finish(&reply, &err); ierr != nil {
@@ -665,9 +665,9 @@ func (__gen_c *clientStubScoreKeeper) UnresolveStep(opts ..._gen_ipc.ClientCallO
 	return
 }
 
-func (__gen_c *clientStubScoreKeeper) Signature(opts ..._gen_ipc.ClientCallOpt) (reply _gen_ipc.ServiceSignature, err error) {
-	var call _gen_ipc.ClientCall
-	if call, err = __gen_c.client.StartCall(__gen_c.name, "Signature", nil, opts...); err != nil {
+func (__gen_c *clientStubScoreKeeper) Signature(ctx _gen_ipc.Context, opts ..._gen_ipc.CallOpt) (reply _gen_ipc.ServiceSignature, err error) {
+	var call _gen_ipc.Call
+	if call, err = __gen_c.client.StartCall(ctx, __gen_c.name, "Signature", nil, opts...); err != nil {
 		return
 	}
 	if ierr := call.Finish(&reply, &err); ierr != nil {
@@ -676,9 +676,9 @@ func (__gen_c *clientStubScoreKeeper) Signature(opts ..._gen_ipc.ClientCallOpt) 
 	return
 }
 
-func (__gen_c *clientStubScoreKeeper) GetMethodTags(method string, opts ..._gen_ipc.ClientCallOpt) (reply []interface{}, err error) {
-	var call _gen_ipc.ClientCall
-	if call, err = __gen_c.client.StartCall(__gen_c.name, "GetMethodTags", []interface{}{method}, opts...); err != nil {
+func (__gen_c *clientStubScoreKeeper) GetMethodTags(ctx _gen_ipc.Context, method string, opts ..._gen_ipc.CallOpt) (reply []interface{}, err error) {
+	var call _gen_ipc.Call
+	if call, err = __gen_c.client.StartCall(ctx, __gen_c.name, "GetMethodTags", []interface{}{method}, opts...); err != nil {
 		return
 	}
 	if ierr := call.Finish(&reply, &err); ierr != nil {
@@ -848,9 +848,9 @@ type clientStubRockPaperScissors struct {
 	name   string
 }
 
-func (__gen_c *clientStubRockPaperScissors) UnresolveStep(opts ..._gen_ipc.ClientCallOpt) (reply []string, err error) {
-	var call _gen_ipc.ClientCall
-	if call, err = __gen_c.client.StartCall(__gen_c.name, "UnresolveStep", nil, opts...); err != nil {
+func (__gen_c *clientStubRockPaperScissors) UnresolveStep(ctx _gen_ipc.Context, opts ..._gen_ipc.CallOpt) (reply []string, err error) {
+	var call _gen_ipc.Call
+	if call, err = __gen_c.client.StartCall(ctx, __gen_c.name, "UnresolveStep", nil, opts...); err != nil {
 		return
 	}
 	if ierr := call.Finish(&reply, &err); ierr != nil {
@@ -859,9 +859,9 @@ func (__gen_c *clientStubRockPaperScissors) UnresolveStep(opts ..._gen_ipc.Clien
 	return
 }
 
-func (__gen_c *clientStubRockPaperScissors) Signature(opts ..._gen_ipc.ClientCallOpt) (reply _gen_ipc.ServiceSignature, err error) {
-	var call _gen_ipc.ClientCall
-	if call, err = __gen_c.client.StartCall(__gen_c.name, "Signature", nil, opts...); err != nil {
+func (__gen_c *clientStubRockPaperScissors) Signature(ctx _gen_ipc.Context, opts ..._gen_ipc.CallOpt) (reply _gen_ipc.ServiceSignature, err error) {
+	var call _gen_ipc.Call
+	if call, err = __gen_c.client.StartCall(ctx, __gen_c.name, "Signature", nil, opts...); err != nil {
 		return
 	}
 	if ierr := call.Finish(&reply, &err); ierr != nil {
@@ -870,9 +870,9 @@ func (__gen_c *clientStubRockPaperScissors) Signature(opts ..._gen_ipc.ClientCal
 	return
 }
 
-func (__gen_c *clientStubRockPaperScissors) GetMethodTags(method string, opts ..._gen_ipc.ClientCallOpt) (reply []interface{}, err error) {
-	var call _gen_ipc.ClientCall
-	if call, err = __gen_c.client.StartCall(__gen_c.name, "GetMethodTags", []interface{}{method}, opts...); err != nil {
+func (__gen_c *clientStubRockPaperScissors) GetMethodTags(ctx _gen_ipc.Context, method string, opts ..._gen_ipc.CallOpt) (reply []interface{}, err error) {
+	var call _gen_ipc.Call
+	if call, err = __gen_c.client.StartCall(ctx, __gen_c.name, "GetMethodTags", []interface{}{method}, opts...); err != nil {
 		return
 	}
 	if ierr := call.Finish(&reply, &err); ierr != nil {

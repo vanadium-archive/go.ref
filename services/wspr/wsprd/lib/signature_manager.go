@@ -40,7 +40,7 @@ func (c cacheEntry) expired() bool {
 
 // signature uses the given client to fetch the signature for the given service name.
 // It locks until it fetches the service signature from the remote server, if not a cache hit.
-func (sm *signatureManager) signature(name string, client ipc.Client) (*ipc.ServiceSignature, error) {
+func (sm *signatureManager) signature(ctx ipc.Context, name string, client ipc.Client) (*ipc.ServiceSignature, error) {
 	sm.Lock()
 	defer sm.Unlock()
 
@@ -50,7 +50,7 @@ func (sm *signatureManager) signature(name string, client ipc.Client) (*ipc.Serv
 	}
 
 	// cache expired or not found, fetch it from the remote server
-	signatureCall, err := client.StartCall(name, signatureMethodName, []interface{}{})
+	signatureCall, err := client.StartCall(ctx, name, signatureMethodName, []interface{}{})
 	if err != nil {
 		return nil, err
 	}

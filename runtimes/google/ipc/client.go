@@ -114,12 +114,12 @@ func (c *client) connectFlow(server string) (stream.Flow, string, error) {
 	return flow, suffix, nil
 }
 
-func (c *client) StartCall(name, method string, args []interface{}, opts ...ipc.ClientCallOpt) (ipc.ClientCall, error) {
+func (c *client) StartCall(ctx ipc.Context, name, method string, args []interface{}, opts ...ipc.CallOpt) (ipc.Call, error) {
 	return c.startCall(name, method, args, opts...)
 }
 
 // startCall ensures StartCall always returns verror.E.
-func (c *client) startCall(name, method string, args []interface{}, opts ...ipc.ClientCallOpt) (ipc.ClientCall, verror.E) {
+func (c *client) startCall(name, method string, args []interface{}, opts ...ipc.CallOpt) (ipc.Call, verror.E) {
 	servers, err := c.mt.Resolve(name)
 	if err != nil {
 		return nil, verror.NotFoundf("ipc: Resolve(%q) failed: %v", name, err)
@@ -177,7 +177,7 @@ func (c *client) startCall(name, method string, args []interface{}, opts ...ipc.
 	return nil, errNoServers
 }
 
-func (c *client) getCallTimeout(opts []ipc.ClientCallOpt) time.Duration {
+func (c *client) getCallTimeout(opts []ipc.CallOpt) time.Duration {
 	timeout := c.callTimeout
 	for _, opt := range opts {
 		if ct, ok := opt.(veyron2.CallTimeout); ok {
@@ -358,7 +358,7 @@ func (fc *flowClient) Cancel() {
 	fc.flow.Cancel()
 }
 
-func matchServerID(id security.PublicID, opts []ipc.ClientCallOpt) verror.E {
+func matchServerID(id security.PublicID, opts []ipc.CallOpt) verror.E {
 	for _, opt := range opts {
 		if pattern, ok := opt.(veyron2.RemoteID); ok && !id.Match(security.PrincipalPattern(pattern)) {
 			return verror.NotAuthorizedf("ipc: server identity %q does not have a name matching the provided pattern %q", id, pattern)

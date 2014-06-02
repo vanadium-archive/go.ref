@@ -63,7 +63,7 @@ type Store_ExcludingUniversal interface {
 	// PutMutations atomically commits a stream of Mutations when the stream is
 	// closed. Mutations are not committed if the request is cancelled before
 	// the stream has been closed.
-	PutMutations(opts ..._gen_ipc.ClientCallOpt) (reply StorePutMutationsStream, err error)
+	PutMutations(ctx _gen_ipc.Context, opts ..._gen_ipc.CallOpt) (reply StorePutMutationsStream, err error)
 }
 type Store interface {
 	_gen_ipc.UniversalServiceMethods
@@ -79,7 +79,7 @@ type StoreService interface {
 	// PutMutations atomically commits a stream of Mutations when the stream is
 	// closed. Mutations are not committed if the request is cancelled before
 	// the stream has been closed.
-	PutMutations(context _gen_ipc.Context, stream StoreServicePutMutationsStream) (err error)
+	PutMutations(context _gen_ipc.ServerContext, stream StoreServicePutMutationsStream) (err error)
 }
 
 // StorePutMutationsStream is the interface for streaming responses of the method
@@ -106,7 +106,7 @@ type StorePutMutationsStream interface {
 
 // Implementation of the StorePutMutationsStream interface that is not exported.
 type implStorePutMutationsStream struct {
-	clientCall _gen_ipc.ClientCall
+	clientCall _gen_ipc.Call
 }
 
 func (c *implStorePutMutationsStream) Send(item Mutation) error {
@@ -194,18 +194,18 @@ type clientStubStore struct {
 	name   string
 }
 
-func (__gen_c *clientStubStore) PutMutations(opts ..._gen_ipc.ClientCallOpt) (reply StorePutMutationsStream, err error) {
-	var call _gen_ipc.ClientCall
-	if call, err = __gen_c.client.StartCall(__gen_c.name, "PutMutations", nil, opts...); err != nil {
+func (__gen_c *clientStubStore) PutMutations(ctx _gen_ipc.Context, opts ..._gen_ipc.CallOpt) (reply StorePutMutationsStream, err error) {
+	var call _gen_ipc.Call
+	if call, err = __gen_c.client.StartCall(ctx, __gen_c.name, "PutMutations", nil, opts...); err != nil {
 		return
 	}
 	reply = &implStorePutMutationsStream{clientCall: call}
 	return
 }
 
-func (__gen_c *clientStubStore) UnresolveStep(opts ..._gen_ipc.ClientCallOpt) (reply []string, err error) {
-	var call _gen_ipc.ClientCall
-	if call, err = __gen_c.client.StartCall(__gen_c.name, "UnresolveStep", nil, opts...); err != nil {
+func (__gen_c *clientStubStore) UnresolveStep(ctx _gen_ipc.Context, opts ..._gen_ipc.CallOpt) (reply []string, err error) {
+	var call _gen_ipc.Call
+	if call, err = __gen_c.client.StartCall(ctx, __gen_c.name, "UnresolveStep", nil, opts...); err != nil {
 		return
 	}
 	if ierr := call.Finish(&reply, &err); ierr != nil {
@@ -214,9 +214,9 @@ func (__gen_c *clientStubStore) UnresolveStep(opts ..._gen_ipc.ClientCallOpt) (r
 	return
 }
 
-func (__gen_c *clientStubStore) Signature(opts ..._gen_ipc.ClientCallOpt) (reply _gen_ipc.ServiceSignature, err error) {
-	var call _gen_ipc.ClientCall
-	if call, err = __gen_c.client.StartCall(__gen_c.name, "Signature", nil, opts...); err != nil {
+func (__gen_c *clientStubStore) Signature(ctx _gen_ipc.Context, opts ..._gen_ipc.CallOpt) (reply _gen_ipc.ServiceSignature, err error) {
+	var call _gen_ipc.Call
+	if call, err = __gen_c.client.StartCall(ctx, __gen_c.name, "Signature", nil, opts...); err != nil {
 		return
 	}
 	if ierr := call.Finish(&reply, &err); ierr != nil {
@@ -225,9 +225,9 @@ func (__gen_c *clientStubStore) Signature(opts ..._gen_ipc.ClientCallOpt) (reply
 	return
 }
 
-func (__gen_c *clientStubStore) GetMethodTags(method string, opts ..._gen_ipc.ClientCallOpt) (reply []interface{}, err error) {
-	var call _gen_ipc.ClientCall
-	if call, err = __gen_c.client.StartCall(__gen_c.name, "GetMethodTags", []interface{}{method}, opts...); err != nil {
+func (__gen_c *clientStubStore) GetMethodTags(ctx _gen_ipc.Context, method string, opts ..._gen_ipc.CallOpt) (reply []interface{}, err error) {
+	var call _gen_ipc.Call
+	if call, err = __gen_c.client.StartCall(ctx, __gen_c.name, "GetMethodTags", []interface{}{method}, opts...); err != nil {
 		return
 	}
 	if ierr := call.Finish(&reply, &err); ierr != nil {

@@ -26,6 +26,8 @@ func TestInterface(t *testing.T) {
 	runtime := rt.Init()
 	defer runtime.Shutdown()
 
+	ctx := runtime.NewContext()
+
 	// Setup and start the profile manager server.
 	server, err := runtime.NewServer()
 	if err != nil {
@@ -62,12 +64,12 @@ func TestInterface(t *testing.T) {
 	}
 
 	// Put
-	if err := stub.Put(spec); err != nil {
+	if err := stub.Put(ctx, spec); err != nil {
 		t.Fatalf("Put() failed: %v", err)
 	}
 
 	// Label
-	label, err := stub.Label()
+	label, err := stub.Label(ctx)
 	if err != nil {
 		t.Fatalf("Label() failed: %v", err)
 	}
@@ -76,7 +78,7 @@ func TestInterface(t *testing.T) {
 	}
 
 	// Description
-	description, err := stub.Description()
+	description, err := stub.Description(ctx)
 	if err != nil {
 		t.Fatalf("Description() failed: %v", err)
 	}
@@ -85,7 +87,7 @@ func TestInterface(t *testing.T) {
 	}
 
 	// Specification
-	specification, err := stub.Specification()
+	specification, err := stub.Specification(ctx)
 	if err != nil {
 		t.Fatalf("Specification() failed: %v", err)
 	}
@@ -94,7 +96,7 @@ func TestInterface(t *testing.T) {
 	}
 
 	// Remove
-	if err := stub.Remove(); err != nil {
+	if err := stub.Remove(ctx); err != nil {
 		t.Fatalf("Remove() failed: %v", err)
 	}
 

@@ -76,7 +76,7 @@ func (mt stupidMT) Resolve(name string) ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
-	ss, suffix, err := objectPtr.ResolveStep()
+	ss, suffix, err := objectPtr.ResolveStep(rt.R().NewContext())
 	if err != nil {
 		return nil, err
 	}
@@ -106,7 +106,7 @@ func doMount(t *testing.T, name, service string, shouldSucceed bool, id ipc.Clie
 	if err != nil {
 		boom(t, "Failed to BindMountTable: %s", err)
 	}
-	if err := mtpt.Mount(service, uint32(ttlSecs)); err != nil {
+	if err := mtpt.Mount(rt.R().NewContext(), service, uint32(ttlSecs)); err != nil {
 		if shouldSucceed {
 			boom(t, "Failed to Mount %s onto %s: %s", service, name, err)
 		}
@@ -120,7 +120,7 @@ func doUnmount(t *testing.T, name, service string, shouldSucceed bool, id ipc.Cl
 	if err != nil {
 		boom(t, "Failed to BindMountTable: %s", err)
 	}
-	if err := mtpt.Unmount(service); err != nil {
+	if err := mtpt.Unmount(rt.R().NewContext(), service); err != nil {
 		if shouldSucceed {
 			boom(t, "Failed to Unmount %s onto %s: %s", service, name, err)
 		}
@@ -134,7 +134,7 @@ func create(t *testing.T, name, contents string) {
 	if err != nil {
 		boom(t, "Failed to BindCollection: %s", err)
 	}
-	if err := objectPtr.Export(contents, true); err != nil {
+	if err := objectPtr.Export(rt.R().NewContext(), contents, true); err != nil {
 		boom(t, "Failed to Export %s to %s: %s", name, contents, err)
 	}
 }
@@ -144,7 +144,7 @@ func checkContents(t *testing.T, name, expected string, shouldSucceed bool, id i
 	if err != nil {
 		boom(t, "Failed to BindCollection: %s", err)
 	}
-	contents, err := objectPtr.Lookup()
+	contents, err := objectPtr.Lookup(rt.R().NewContext())
 	if err != nil {
 		if shouldSucceed {
 			boom(t, "Failed to Lookup %s: %s", name, err)
@@ -250,7 +250,7 @@ func doGlob(t *testing.T, name, pattern string, id ipc.ClientOpt) []string {
 	if err != nil {
 		boom(t, "Failed to BindMountTable: %s", err)
 	}
-	stream, err := mtpt.Glob(pattern)
+	stream, err := mtpt.Glob(rt.R().NewContext(), pattern)
 	if err != nil {
 		boom(t, "Failed call to %s.Glob(%s): %s", name, pattern, err)
 	}

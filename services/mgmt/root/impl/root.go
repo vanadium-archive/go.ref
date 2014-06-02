@@ -28,7 +28,7 @@ func (i *invoker) resetLinux(deadline uint64) {
 	cmd.Run()
 }
 
-func (i *invoker) Reset(call ipc.Context, deadline uint64) error {
+func (i *invoker) Reset(call ipc.ServerContext, deadline uint64) error {
 	vlog.VI(0).Infof("Reset(%v).", deadline)
 	switch runtime.GOOS {
 	case "linux":

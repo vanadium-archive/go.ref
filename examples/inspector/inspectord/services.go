@@ -71,7 +71,7 @@ func (s *stublessServer) cancelled() bool {
 }
 
 type stubbedServer struct {
-	context ipc.Context
+	context ipc.ServerContext
 	names   inspector.InspectorServiceLsStream
 	details inspector.InspectorServiceLsDetailsStream
 }
@@ -145,13 +145,13 @@ func (s *server) List(call ipc.ServerCall, glob string, details bool) error {
 }
 
 // Ls is a stubbed server method
-func (s *server) Ls(context ipc.Context, Glob string, Stream inspector.InspectorServiceLsStream) error {
+func (s *server) Ls(context ipc.ServerContext, Glob string, Stream inspector.InspectorServiceLsStream) error {
 	log.Infof("Ls %q", Glob)
 	return s.ls(Glob, false, &stubbedServer{context: context, names: Stream})
 }
 
 // LsDetails is a stubbed server method
-func (s *server) LsDetails(context ipc.Context, Glob string, Stream inspector.InspectorServiceLsDetailsStream) error {
+func (s *server) LsDetails(context ipc.ServerContext, Glob string, Stream inspector.InspectorServiceLsDetailsStream) error {
 	log.Infof("LsDetails %q", Glob)
 	return s.ls(Glob, true, &stubbedServer{context: context, details: Stream})
 }

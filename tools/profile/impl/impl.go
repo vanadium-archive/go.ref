@@ -5,6 +5,8 @@ import (
 
 	"veyron/lib/cmdline"
 	"veyron/services/mgmt/profile"
+
+	"veyron2/rt"
 )
 
 var cmdLabel = &cmdline.Command{
@@ -24,7 +26,7 @@ func runLabel(cmd *cmdline.Command, args []string) error {
 	if err != nil {
 		return fmt.Errorf("bind error: %v", err)
 	}
-	label, err := p.Label()
+	label, err := p.Label(rt.R().NewContext())
 	if err != nil {
 		return err
 	}
@@ -49,7 +51,7 @@ func runDescription(cmd *cmdline.Command, args []string) error {
 	if err != nil {
 		return fmt.Errorf("bind error: %v", err)
 	}
-	desc, err := p.Description()
+	desc, err := p.Description(rt.R().NewContext())
 	if err != nil {
 		return err
 	}
@@ -74,7 +76,7 @@ func runSpec(cmd *cmdline.Command, args []string) error {
 	if err != nil {
 		return fmt.Errorf("bind error: %v", err)
 	}
-	spec, err := p.Specification()
+	spec, err := p.Specification(rt.R().NewContext())
 	if err != nil {
 		return err
 	}
@@ -107,7 +109,7 @@ func runPut(cmd *cmdline.Command, args []string) error {
 		Label:       "example",
 		Description: "Example profile to test the profile manager implementation.",
 	}
-	if err := p.Put(spec); err != nil {
+	if err := p.Put(rt.R().NewContext(), spec); err != nil {
 		return err
 	}
 	fmt.Fprintln(cmd.Stdout(), "Specification updated successfully.")
@@ -131,7 +133,7 @@ func runRemove(cmd *cmdline.Command, args []string) error {
 	if err != nil {
 		return fmt.Errorf("bind error: %v", err)
 	}
-	if err = p.Remove(); err != nil {
+	if err = p.Remove(rt.R().NewContext()); err != nil {
 		return err
 	}
 	fmt.Fprintln(cmd.Stdout(), "Profile removed successfully.")

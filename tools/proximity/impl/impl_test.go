@@ -19,17 +19,17 @@ import (
 type server struct {
 }
 
-func (s *server) RegisterName(_ ipc.Context, name string) error {
+func (s *server) RegisterName(_ ipc.ServerContext, name string) error {
 	vlog.VI(2).Infof("RegisterName(%q) was called", name)
 	return nil
 }
 
-func (s *server) UnregisterName(_ ipc.Context, name string) error {
+func (s *server) UnregisterName(_ ipc.ServerContext, name string) error {
 	vlog.VI(2).Infof("UnregisterName(%q) was called", name)
 	return nil
 }
 
-func (s *server) NearbyDevices(_ ipc.Context) ([]proximity.Device, error) {
+func (s *server) NearbyDevices(_ ipc.ServerContext) ([]proximity.Device, error) {
 	vlog.VI(2).Info("NearbyDevices() was called")
 	devices := []proximity.Device{
 		{MAC: "xx:xx:xx:xx:xx:xx", Names: []string{"name1", "name2"}, Distance: "1m"},

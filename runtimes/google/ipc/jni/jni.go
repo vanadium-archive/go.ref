@@ -70,9 +70,9 @@ func clientCallPtr(c *clientCall) C.jlong {
 	return C.jlong(uintptr(unsafe.Pointer(c)))
 }
 
-// getClientCall returns the clientCall referenced by the provided pointer,
+// getCall returns the clientCall referenced by the provided pointer,
 // or nil if the pointer is 0.
-func getClientCall(env *C.JNIEnv, ptr C.jlong) *clientCall {
+func getCall(env *C.JNIEnv, ptr C.jlong) *clientCall {
 	if ptr == C.jlong(0) {
 		jThrow(env, "Go client call pointer is nil")
 		return nil
@@ -219,11 +219,11 @@ func Java_com_veyron_runtimes_google_ipc_Runtime_00024Client_nativeFinalize(env 
 	}
 }
 
-//export Java_com_veyron_runtimes_google_ipc_Runtime_00024ClientCall_nativeFinish
-func Java_com_veyron_runtimes_google_ipc_Runtime_00024ClientCall_nativeFinish(env *C.JNIEnv, jClient C.jobject, goClientCallPtr C.jlong) C.jobjectArray {
-	c := getClientCall(env, goClientCallPtr)
+//export Java_com_veyron_runtimes_google_ipc_Runtime_00024Call_nativeFinish
+func Java_com_veyron_runtimes_google_ipc_Runtime_00024Call_nativeFinish(env *C.JNIEnv, jClient C.jobject, goCallPtr C.jlong) C.jobjectArray {
+	c := getCall(env, goCallPtr)
 	if c == nil {
-		jThrow(env, fmt.Sprintf("Couldn't find Go client with pointer: %d", int(goClientCallPtr)))
+		jThrow(env, fmt.Sprintf("Couldn't find Go client with pointer: %d", int(goCallPtr)))
 		return nil
 	}
 	ret, err := c.Finish(env)
@@ -237,17 +237,17 @@ func Java_com_veyron_runtimes_google_ipc_Runtime_00024ClientCall_nativeFinish(en
 	return ret
 }
 
-//export Java_com_veyron_runtimes_google_ipc_Runtime_00024ClientCall_nativeCancel
-func Java_com_veyron_runtimes_google_ipc_Runtime_00024ClientCall_nativeCancel(env *C.JNIEnv, jClient C.jobject, goClientCallPtr C.jlong) {
-	c := getClientCall(env, goClientCallPtr)
+//export Java_com_veyron_runtimes_google_ipc_Runtime_00024Call_nativeCancel
+func Java_com_veyron_runtimes_google_ipc_Runtime_00024Call_nativeCancel(env *C.JNIEnv, jClient C.jobject, goCallPtr C.jlong) {
+	c := getCall(env, goCallPtr)
 	if c != nil {
 		c.Cancel()
 	}
 }
 
-//export Java_com_veyron_runtimes_google_ipc_Runtime_00024ClientCall_nativeFinalize
-func Java_com_veyron_runtimes_google_ipc_Runtime_00024ClientCall_nativeFinalize(env *C.JNIEnv, jClient C.jobject, goClientCallPtr C.jlong) {
-	c := getClientCall(env, goClientCallPtr)
+//export Java_com_veyron_runtimes_google_ipc_Runtime_00024Call_nativeFinalize
+func Java_com_veyron_runtimes_google_ipc_Runtime_00024Call_nativeFinalize(env *C.JNIEnv, jClient C.jobject, goCallPtr C.jlong) {
+	c := getCall(env, goCallPtr)
 	if c != nil {
 		refs.delete(c)
 	}

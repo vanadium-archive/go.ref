@@ -6,6 +6,7 @@ import (
 
 	mocks_ipc "veyron/runtimes/google/testing/mocks/ipc"
 	"veyron2/ipc"
+	"veyron2/rt"
 	"veyron2/vdl"
 	"veyron2/wiretype"
 )
@@ -75,7 +76,7 @@ func assertSignatureAsExpected(t *testing.T, got, expected *ipc.ServiceSignature
 
 func TestFetching(t *testing.T) {
 	sm := newSignatureManager()
-	got, err := sm.signature(name, client())
+	got, err := sm.signature(rt.R().NewContext(), name, client())
 	if err != nil {
 		t.Errorf(`Did not expect an error but got %v`, err)
 		return
@@ -86,7 +87,7 @@ func TestFetching(t *testing.T) {
 
 func TestThatCachedAfterFetching(t *testing.T) {
 	sm := newSignatureManager()
-	sig, _ := sm.signature(name, client())
+	sig, _ := sm.signature(rt.R().NewContext(), name, client())
 	cache, ok := sm.cache[name]
 	if !ok {
 		t.Errorf(`Signature manager did not cache the results`)
@@ -100,8 +101,8 @@ func TestThatCacheIsUsed(t *testing.T) {
 	sm := newSignatureManager()
 
 	// call twice
-	sm.signature(name, client)
-	sm.signature(name, client)
+	sm.signature(rt.R().NewContext(), name, client)
+	sm.signature(rt.R().NewContext(), name, client)
 
 	// expect number of calls to Signature method of client to still be 1 since cache
 	// should have been used despite the second call
@@ -113,14 +114,14 @@ func TestThatCacheIsUsed(t *testing.T) {
 func TestThatLastAccessedGetUpdated(t *testing.T) {
 	client := client()
 	sm := newSignatureManager()
-	sm.signature(name, client)
+	sm.signature(rt.R().NewContext(), name, client)
 	// make last accessed be in the past to account for the fact that
 	// two consecutive calls to time.Now() can return identical values.
 	sm.cache[name].lastAccessed = sm.cache[name].lastAccessed.Add(-ttl / 2)
 	prevAccess := sm.cache[name].lastAccessed
 
 	// access again
-	sm.signature(name, client)
+	sm.signature(rt.R().NewContext(), name, client)
 	newAccess := sm.cache[name].lastAccessed
 
 	if !newAccess.After(prevAccess) {
@@ -131,13 +132,13 @@ func TestThatLastAccessedGetUpdated(t *testing.T) {
 func TestThatTTLExpires(t *testing.T) {
 	client := client()
 	sm := newSignatureManager()
-	sm.signature(name, client)
+	sm.signature(rt.R().NewContext(), name, client)
 
 	// make last accessed go over the ttl
 	sm.cache[name].lastAccessed = sm.cache[name].lastAccessed.Add(-2 * ttl)
 
 	// make a second call
-	sm.signature(name, client)
+	sm.signature(rt.R().NewContext(), name, client)
 
 	// expect number of calls to Signature method of client to be 2 since cache should have expired
 	if client.TimesCalled(signatureMethodName) != 2 {

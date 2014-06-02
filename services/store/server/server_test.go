@@ -25,7 +25,7 @@ var (
 
 	nextTransactionID store.TransactionID = 1
 
-	rootCtx ipc.Context = &rootContext{}
+	rootCtx ipc.ServerContext = &rootContext{}
 )
 
 type rootContext struct{}
@@ -137,7 +137,7 @@ func (wr *watchResult) Send(cb watch.ChangeBatch) error {
 // doWatch executes a watch request and returns a new watchResult.
 // Change events may be received on the channel "changes".
 // Once "changes" is closed, any error that occurred is stored to "err".
-func doWatch(s *Server, ctx ipc.Context, req watch.Request) *watchResult {
+func doWatch(s *Server, ctx ipc.ServerContext, req watch.Request) *watchResult {
 	wr := &watchResult{changes: make(chan watch.Change)}
 	go func() {
 		defer close(wr.changes)

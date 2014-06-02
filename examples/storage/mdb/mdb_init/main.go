@@ -148,7 +148,7 @@ func (st *state) find(name string) *value {
 func (st *state) put(path string, v interface{}) {
 	vlog.Infof("Storing %q = %+v", path, v)
 	st.makeParentDirs(path)
-	if _, err := st.store.Bind(path).Put(st.transaction, v); err != nil {
+	if _, err := st.store.Bind(path).Put(rt.R().TODOContext(), st.transaction, v); err != nil {
 		vlog.Infof("put failed: %s: %s", path, err)
 		return
 	}
@@ -159,7 +159,7 @@ func (st *state) put(path string, v interface{}) {
 func (st *state) putNamed(name, path string, v interface{}) {
 	vlog.Infof("Storing %s: %q = %+v", name, path, v)
 	st.makeParentDirs(path)
-	s, err := st.store.Bind(path).Put(st.transaction, v)
+	s, err := st.store.Bind(path).Put(rt.R().TODOContext(), st.transaction, v)
 	if err != nil {
 		vlog.Infof("Put failed: %s: %s", path, err)
 		return
@@ -174,10 +174,10 @@ func (st *state) makeParentDirs(path string) {
 	for i, _ := range l {
 		prefix := filepath.Join(l[:i]...)
 		o := st.store.Bind(prefix)
-		if exist, err := o.Exists(st.transaction); err != nil {
+		if exist, err := o.Exists(rt.R().TODOContext(), st.transaction); err != nil {
 			vlog.Infof("Error checking existence at %q: %s", prefix, err)
 		} else if !exist {
-			if _, err := o.Put(st.transaction, &schema.Dir{}); err != nil {
+			if _, err := o.Put(rt.R().TODOContext(), st.transaction, &schema.Dir{}); err != nil {
 				vlog.Infof("Error creating parent %q: %s", prefix, err)
 			}
 		}
@@ -186,12 +186,12 @@ func (st *state) makeParentDirs(path string) {
 
 // newTransaction starts a new transaction.
 func (st *state) newTransaction() {
-	st.transaction = primitives.NewTransaction()
+	st.transaction = primitives.NewTransaction(rt.R().TODOContext())
 }
 
 // commit commits the current transaction.
 func (st *state) commit() {
-	if err := st.transaction.Commit(); err != nil {
+	if err := st.transaction.Commit(rt.R().TODOContext()); err != nil {
 		vlog.Infof("Failed to commit transaction: %s", err)
 	}
 	st.transaction = nil

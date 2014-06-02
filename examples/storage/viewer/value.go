@@ -5,6 +5,7 @@ import (
 	"sort"
 	"time"
 
+	"veyron2/rt"
 	"veyron2/storage"
 )
 
@@ -20,7 +21,7 @@ type Value struct {
 
 // glob performs a glob expansion of the pattern.  The results are sorted.
 func glob(st storage.Store, path, pattern string) ([]string, error) {
-	results, err := st.Bind(path).GlobT(nil, pattern)
+	results, err := st.Bind(path).GlobT(rt.R().TODOContext(), nil, pattern)
 	if err != nil {
 		return nil, err
 	}
@@ -70,7 +71,7 @@ func (v *Value) Glob(pattern string) ([]string, error) {
 // exist.
 func (v *Value) Get(path string) interface{} {
 	path = v.fullpath(path)
-	e, err := v.store.Bind(path).Get(nil)
+	e, err := v.store.Bind(path).Get(rt.R().TODOContext(), nil)
 	if err != nil {
 		return nil
 	}

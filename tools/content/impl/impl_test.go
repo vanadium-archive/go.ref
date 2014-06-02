@@ -24,7 +24,7 @@ type server struct {
 	suffix string
 }
 
-func (s *server) Delete(ipc.Context) error {
+func (s *server) Delete(ipc.ServerContext) error {
 	vlog.VI(2).Infof("Delete() was called. suffix=%v", s.suffix)
 	if s.suffix != "exists" {
 		return fmt.Errorf("content doesn't exist: %v", s.suffix)
@@ -32,14 +32,14 @@ func (s *server) Delete(ipc.Context) error {
 	return nil
 }
 
-func (s *server) Download(_ ipc.Context, stream content.ContentServiceDownloadStream) error {
+func (s *server) Download(_ ipc.ServerContext, stream content.ContentServiceDownloadStream) error {
 	vlog.VI(2).Infof("Download() was called. suffix=%v", s.suffix)
 	stream.Send([]byte("Hello"))
 	stream.Send([]byte("World"))
 	return nil
 }
 
-func (s *server) Upload(_ ipc.Context, stream content.ContentServiceUploadStream) (string, error) {
+func (s *server) Upload(_ ipc.ServerContext, stream content.ContentServiceUploadStream) (string, error) {
 	vlog.VI(2).Infof("Upload() was called. suffix=%v", s.suffix)
 	for {
 		if _, err := stream.Recv(); err != nil {

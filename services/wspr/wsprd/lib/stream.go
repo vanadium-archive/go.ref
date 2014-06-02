@@ -62,7 +62,7 @@ func (q queueingStream) writeLoop(ready chan ipc.Stream) {
 	}
 
 	// If the stream is on the client side, then also close the stream.
-	if call, ok := stream.(ipc.ClientCall); ok {
+	if call, ok := stream.(ipc.Call); ok {
 		call.CloseSend()
 	}
 }

@@ -8,13 +8,14 @@ import (
 	"time"
 
 	"veyron/services/store/raw"
+	"veyron/services/store/service"
 
 	"veyron2/ipc"
 	"veyron2/security"
 	"veyron2/storage"
 )
 
-// cancellableContext implements ipc.Context.
+// cancellableContext implements ipc.ServerContext.
 type cancellableContext struct {
 	cancelled chan struct{}
 }
@@ -101,7 +102,7 @@ func (s *serverStream) Recv() (raw.Mutation, error) {
 
 // clientStream implements raw.StorePutMutationsStream
 type clientStream struct {
-	ctx    ipc.Context
+	ctx    ipc.ServerContext
 	closed bool
 	mus    chan<- raw.Mutation
 	err    <-chan error
@@ -156,7 +157,7 @@ func putMutationsBatch(t *testing.T, st *Store, mus []raw.Mutation) {
 	}
 }
 
-func mkdir(t *testing.T, st *Store, tr storage.Transaction, path string) (storage.ID, interface{}) {
+func mkdir(t *testing.T, st *Store, tr service.Transaction, path string) (storage.ID, interface{}) {
 	_, file, line, _ := runtime.Caller(1)
 	dir := &Dir{}
 	stat, err := st.Bind(path).Put(rootPublicID, tr, dir)
@@ -166,7 +167,7 @@ func mkdir(t *testing.T, st *Store, tr storage.Transaction, path string) (storag
 	return stat.ID, dir
 }
 
-func get(t *testing.T, st *Store, tr storage.Transaction, path string) interface{} {
+func get(t *testing.T, st *Store, tr service.Transaction, path string) interface{} {
 	_, file, line, _ := runtime.Caller(1)
 	e, err := st.Bind(path).Get(rootPublicID, tr)
 	if err != nil {
@@ -175,7 +176,7 @@ func get(t *testing.T, st *Store, tr storage.Transaction, path string) interface
 	return e.Value
 }
 
-func put(t *testing.T, st *Store, tr storage.Transaction, path string, v interface{}) storage.ID {
+func put(t *testing.T, st *Store, tr service.Transaction, path string, v interface{}) storage.ID {
 	_, file, line, _ := runtime.Caller(1)
 	stat, err := st.Bind(path).Put(rootPublicID, tr, v)
 	if err != nil {
@@ -190,35 +191,35 @@ func put(t *testing.T, st *Store, tr storage.Transaction, path string, v interfa
 	return storage.ID{}
 }
 
-func remove(t *testing.T, st *Store, tr storage.Transaction, path string) {
+func remove(t *testing.T, st *Store, tr service.Transaction, path string) {
 	if err := st.Bind(path).Remove(rootPublicID, tr); err != nil {
 		_, file, line, _ := runtime.Caller(1)
 		t.Errorf("%s(%d): can't remove %s: %s", file, line, path, err)
 	}
 }
 
-func commit(t *testing.T, tr storage.Transaction) {
+func commit(t *testing.T, tr service.Transaction) {
 	if err := tr.Commit(); err != nil {
 		_, file, line, _ := runtime.Caller(1)
 		t.Fatalf("%s(%d): Transaction aborted: %s", file, line, err)
 	}
 }
 
-func expectExists(t *testing.T, st *Store, tr storage.Transaction, path string) {
+func expectExists(t *testing.T, st *Store, tr service.Transaction, path string) {
 	_, file, line, _ := runtime.Caller(1)
 	if ok, _ := st.Bind(path).Exists(rootPublicID, tr); !ok {
 		t.Errorf("%s(%d): does not exist: %s", file, line, path)
 	}
 }
 
-func expectNotExists(t *testing.T, st *Store, tr storage.Transaction, path string) {
+func expectNotExists(t *testing.T, st *Store, tr service.Transaction, path string) {
 	if e, err := st.Bind(path).Get(rootPublicID, tr); err == nil {
 		_, file, line, _ := runtime.Caller(1)
 		t.Errorf("%s(%d): should not exist: %s: got %+v", file, line, path, e.Value)
 	}
 }
 
-func expectValue(t *testing.T, st *Store, tr storage.Transaction, path string, v interface{}) {
+func expectValue(t *testing.T, st *Store, tr service.Transaction, path string, v interface{}) {
 	_, file, line, _ := runtime.Caller(1)
 	e, err := st.Bind(path).Get(rootPublicID, tr)
 	if err != nil {

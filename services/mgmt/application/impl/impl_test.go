@@ -16,6 +16,7 @@ import (
 // the Application interface.
 func TestInterface(t *testing.T) {
 	runtime := rt.Init()
+	ctx := runtime.NewContext()
 	defer runtime.Shutdown()
 
 	// Setup and start the application manager server.
@@ -69,71 +70,71 @@ func TestInterface(t *testing.T) {
 	}
 
 	// Test Put(), adding a number of application envelopes.
-	if err := stubV1.Put([]string{"base", "media"}, envelopeV1); err != nil {
+	if err := stubV1.Put(ctx, []string{"base", "media"}, envelopeV1); err != nil {
 		t.Fatalf("Put() failed: %v", err)
 	}
-	if err := stubV2.Put([]string{"base"}, envelopeV2); err != nil {
+	if err := stubV2.Put(ctx, []string{"base"}, envelopeV2); err != nil {
 		t.Fatalf("Put() failed: %v", err)
 	}
-	if err := stub.Put([]string{"base", "media"}, envelopeV1); err == nil || err.Error() != errInvalidSuffix.Error() {
+	if err := stub.Put(ctx, []string{"base", "media"}, envelopeV1); err == nil || err.Error() != errInvalidSuffix.Error() {
 		t.Fatalf("Unexpected error: expected %v, got %v", errInvalidSuffix, err)
 	}
 
 	// Test Match(), trying to retrieve both existing and non-existing
 	// application envelopes.
 	var output application.Envelope
-	if output, err = stubV2.Match([]string{"base", "media"}); err != nil {
+	if output, err = stubV2.Match(ctx, []string{"base", "media"}); err != nil {
 		t.Fatalf("Match() failed: %v", err)
 	}
 	if !reflect.DeepEqual(envelopeV2, output) {
 		t.Fatalf("Incorrect output: expected %v, got %v", envelopeV2, output)
 	}
-	if output, err = stubV1.Match([]string{"media"}); err != nil {
+	if output, err = stubV1.Match(ctx, []string{"media"}); err != nil {
 		t.Fatalf("Match() failed: %v", err)
 	}
 	if !reflect.DeepEqual(envelopeV1, output) {
 		t.Fatalf("Unexpected output: expected %v, got %v", envelopeV1, output)
 	}
-	if _, err := stubV2.Match([]string{"media"}); err == nil || err.Error() != errNotFound.Error() {
+	if _, err := stubV2.Match(ctx, []string{"media"}); err == nil || err.Error() != errNotFound.Error() {
 		t.Fatalf("Unexpected error: expected %v, got %v", errNotFound, err)
 	}
-	if _, err := stubV2.Match([]string{}); err == nil || err.Error() != errNotFound.Error() {
+	if _, err := stubV2.Match(ctx, []string{}); err == nil || err.Error() != errNotFound.Error() {
 		t.Fatalf("Unexpected error: expected %v, got %v", errNotFound, err)
 	}
-	if _, err := stub.Match([]string{"media"}); err == nil || err.Error() != errInvalidSuffix.Error() {
+	if _, err := stub.Match(ctx, []string{"media"}); err == nil || err.Error() != errInvalidSuffix.Error() {
 		t.Fatalf("Unexpected error: expected %v, got %v", errInvalidSuffix, err)
 	}
 
 	// Test Remove(), trying to remove both existing and non-existing
 	// application envelopes.
-	if err := stubV1.Remove("base"); err != nil {
+	if err := stubV1.Remove(ctx, "base"); err != nil {
 		t.Fatalf("Remove() failed: %v", err)
 	}
-	if output, err = stubV1.Match([]string{"media"}); err != nil {
+	if output, err = stubV1.Match(ctx, []string{"media"}); err != nil {
 		t.Fatalf("Match() failed: %v", err)
 	}
-	if err := stubV1.Remove("base"); err == nil || err.Error() != errNotFound.Error() {
+	if err := stubV1.Remove(ctx, "base"); err == nil || err.Error() != errNotFound.Error() {
 		t.Fatalf("Unexpected error: expected %v, got %v", errNotFound, err)
 	}
-	if err := stub.Remove("base"); err != nil {
+	if err := stub.Remove(ctx, "base"); err != nil {
 		t.Fatalf("Remove() failed: %v", err)
 	}
-	if err := stubV2.Remove("media"); err == nil || err.Error() != errNotFound.Error() {
+	if err := stubV2.Remove(ctx, "media"); err == nil || err.Error() != errNotFound.Error() {
 		t.Fatalf("Unexpected error: expected %v, got %v", errNotFound, err)
 	}
-	if err := stubV1.Remove("media"); err != nil {
+	if err := stubV1.Remove(ctx, "media"); err != nil {
 		t.Fatalf("Remove() failed: %v", err)
 	}
 
 	// Finally, use Match() to test that Remove really removed the
 	// application envelopes.
-	if _, err := stubV1.Match([]string{"base"}); err == nil || err.Error() != errNotFound.Error() {
+	if _, err := stubV1.Match(ctx, []string{"base"}); err == nil || err.Error() != errNotFound.Error() {
 		t.Fatalf("Unexpected error: expected %v, got %v", errNotFound, err)
 	}
-	if _, err := stubV1.Match([]string{"media"}); err == nil || err.Error() != errNotFound.Error() {
+	if _, err := stubV1.Match(ctx, []string{"media"}); err == nil || err.Error() != errNotFound.Error() {
 		t.Fatalf("Unexpected error: expected %v, got %v", errNotFound, err)
 	}
-	if _, err := stubV2.Match([]string{"base"}); err == nil || err.Error() != errNotFound.Error() {
+	if _, err := stubV2.Match(ctx, []string{"base"}); err == nil || err.Error() != errNotFound.Error() {
 		t.Fatalf("Unexpected error: expected %v, got %v", errNotFound, err)
 	}
 

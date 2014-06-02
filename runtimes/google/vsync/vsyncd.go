@@ -158,7 +158,7 @@ func (s *syncd) isSyncClosing() bool {
 }
 
 // GetDeltas responds to the incoming request from a client by sending missing generations to the client.
-func (s *syncd) GetDeltas(_ ipc.Context, In GenVector, ClientID DeviceID, Stream SyncServiceGetDeltasStream) (GenVector, error) {
+func (s *syncd) GetDeltas(_ ipc.ServerContext, In GenVector, ClientID DeviceID, Stream SyncServiceGetDeltasStream) (GenVector, error) {
 	vlog.VI(1).Infof("GetDeltas:: Received vector %v from client %s", In, ClientID)
 
 	if err := s.updateDeviceInfo(ClientID, In); err != nil {

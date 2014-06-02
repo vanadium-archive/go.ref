@@ -11,6 +11,7 @@ import (
 
 	"veyron2"
 	"veyron2/naming"
+	"veyron2/rt"
 	"veyron2/vlog"
 )
 
@@ -77,7 +78,7 @@ func (p *Player) createGame(server string) (rps.GameID, error) {
 	if rand.Intn(2) == 1 {
 		gameType = rps.LizardSpock
 	}
-	return j.CreateGame(rps.GameOptions{NumRounds: int32(numRounds), GameType: gameType})
+	return j.CreateGame(rt.R().TODOContext(), rps.GameOptions{NumRounds: int32(numRounds), GameType: gameType})
 }
 
 func (p *Player) sendChallenge(opponent, judge string, gameID rps.GameID) error {
@@ -85,7 +86,7 @@ func (p *Player) sendChallenge(opponent, judge string, gameID rps.GameID) error 
 	if err != nil {
 		return err
 	}
-	return o.Challenge(judge, gameID)
+	return o.Challenge(rt.R().TODOContext(), judge, gameID)
 }
 
 // challenge receives an incoming challenge.
@@ -102,7 +103,7 @@ func (p *Player) playGame(judge string, gameID rps.GameID) (rps.PlayResult, erro
 	if err != nil {
 		return rps.PlayResult{}, err
 	}
-	game, err := j.Play(gameID, veyron2.CallTimeout(10*time.Minute))
+	game, err := j.Play(rt.R().TODOContext(), gameID, veyron2.CallTimeout(10*time.Minute))
 	if err != nil {
 		return rps.PlayResult{}, err
 	}

@@ -40,8 +40,8 @@ func registerInterface(ifacePtr interface{}) {
 		m := t.Method(i)
 		in := make([]reflect.Type, m.Type.NumIn()-1)
 		idx := 0
-		contextType := reflect.TypeOf((*ipc.Context)(nil)).Elem()
-		optType := reflect.TypeOf((*ipc.ClientCallOpt)(nil)).Elem()
+		contextType := reflect.TypeOf((*ipc.ServerContext)(nil)).Elem()
+		optType := reflect.TypeOf((*ipc.CallOpt)(nil)).Elem()
 		for j := 0; j < m.Type.NumIn(); j++ {
 			argType := m.Type.In(j)
 			if j == 0 && argType == contextType { // skip the Context argument.

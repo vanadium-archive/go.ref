@@ -39,7 +39,7 @@ func (c *SimpleMockClient) TimesCalled(method string) int {
 func (c *SimpleMockClient) IPCBindOpt() {}
 
 // StartCall Implements ipc.Client
-func (c *SimpleMockClient) StartCall(name, method string, args []interface{}, opts ...ipc.ClientCallOpt) (ipc.ClientCall, error) {
+func (c *SimpleMockClient) StartCall(ctx ipc.Context, name, method string, args []interface{}, opts ...ipc.CallOpt) (ipc.Call, error) {
 	results, ok := c.results[method]
 	if !ok {
 		return nil, errors.New(fmt.Sprintf("method %s not found", method))
@@ -60,22 +60,22 @@ func (c *SimpleMockClient) StartCall(name, method string, args []interface{}, op
 func (*SimpleMockClient) Close() {
 }
 
-// mockCall implements ipc.ClientCall
+// mockCall implements ipc.Call
 type mockCall struct {
 	mockStream
 	results []interface{}
 }
 
-// Cancel implements ipc.ClientCall
+// Cancel implements ipc.Call
 func (*mockCall) Cancel() {
 }
 
-// CloseSend implements ipc.ClientCall
+// CloseSend implements ipc.Call
 func (*mockCall) CloseSend() error {
 	return nil
 }
 
-// Finish implements ipc.ClientCall
+// Finish implements ipc.Call
 func (mc *mockCall) Finish(resultptrs ...interface{}) error {
 	if got, want := len(resultptrs), len(mc.results); got != want {
 		return errors.New(fmt.Sprintf("wrong number of output results; expected resultptrs of size %d but got %d", want, got))

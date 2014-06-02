@@ -43,7 +43,7 @@ func New(admin security.PublicID, dbName string) (service.Watcher, error) {
 // sending changes to the specified watch stream. If the call is cancelled or
 // otherwise closed early, Watch will terminate and return an error.
 // Watch implements the service.Watcher interface.
-func (w *watcher) Watch(ctx ipc.Context, req watch.Request, stream watch.WatcherServiceWatchStream) error {
+func (w *watcher) Watch(ctx ipc.ServerContext, req watch.Request, stream watch.WatcherServiceWatchStream) error {
 	processor, err := w.findProcessor(ctx.RemoteID(), req)
 	if err != nil {
 		return err

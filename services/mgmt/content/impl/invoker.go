@@ -88,7 +88,7 @@ func (i *invoker) generateDir(checksum string) string {
 	return dir
 }
 
-func (i *invoker) Delete(context ipc.Context) error {
+func (i *invoker) Delete(context ipc.ServerContext) error {
 	vlog.VI(0).Infof("%v.Delete()", i.suffix)
 	if !isValid(i.suffix) {
 		return errInvalidSuffix
@@ -116,7 +116,7 @@ func (i *invoker) Delete(context ipc.Context) error {
 	return nil
 }
 
-func (i *invoker) Download(context ipc.Context, stream content.ContentServiceDownloadStream) error {
+func (i *invoker) Download(context ipc.ServerContext, stream content.ContentServiceDownloadStream) error {
 	vlog.VI(0).Infof("%v.Download()", i.suffix)
 	if !isValid(i.suffix) {
 		return errInvalidSuffix
@@ -147,7 +147,7 @@ func (i *invoker) Download(context ipc.Context, stream content.ContentServiceDow
 	return nil
 }
 
-func (i *invoker) Upload(context ipc.Context, stream content.ContentServiceUploadStream) (string, error) {
+func (i *invoker) Upload(context ipc.ServerContext, stream content.ContentServiceUploadStream) (string, error) {
 	vlog.VI(0).Infof("%v.Upload()", i.suffix)
 	if i.suffix != "" {
 		return "", errInvalidSuffix

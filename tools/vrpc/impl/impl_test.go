@@ -21,102 +21,102 @@ type server struct{}
 
 // TypeTester interface implementation
 
-func (*server) Bool(call ipc.Context, i1 bool) (bool, error) {
+func (*server) Bool(call ipc.ServerContext, i1 bool) (bool, error) {
 	vlog.VI(2).Info("Bool(%v) was called.", i1)
 	return i1, nil
 }
 
-func (*server) Float32(call ipc.Context, i1 float32) (float32, error) {
+func (*server) Float32(call ipc.ServerContext, i1 float32) (float32, error) {
 	vlog.VI(2).Info("Float32(%u) was called.", i1)
 	return i1, nil
 }
 
-func (*server) Float64(call ipc.Context, i1 float64) (float64, error) {
+func (*server) Float64(call ipc.ServerContext, i1 float64) (float64, error) {
 	vlog.VI(2).Info("Float64(%u) was called.", i1)
 	return i1, nil
 }
 
-func (*server) Int32(call ipc.Context, i1 int32) (int32, error) {
+func (*server) Int32(call ipc.ServerContext, i1 int32) (int32, error) {
 	vlog.VI(2).Info("Int32(%v) was called.", i1)
 	return i1, nil
 }
 
-func (*server) Int64(call ipc.Context, i1 int64) (int64, error) {
+func (*server) Int64(call ipc.ServerContext, i1 int64) (int64, error) {
 	vlog.VI(2).Info("Int64(%v) was called.", i1)
 	return i1, nil
 }
 
-func (*server) String(call ipc.Context, i1 string) (string, error) {
+func (*server) String(call ipc.ServerContext, i1 string) (string, error) {
 	vlog.VI(2).Info("String(%v) was called.", i1)
 	return i1, nil
 }
 
-func (*server) Byte(call ipc.Context, i1 byte) (byte, error) {
+func (*server) Byte(call ipc.ServerContext, i1 byte) (byte, error) {
 	vlog.VI(2).Info("Byte(%v) was called.", i1)
 	return i1, nil
 }
 
-func (*server) UInt32(call ipc.Context, i1 uint32) (uint32, error) {
+func (*server) UInt32(call ipc.ServerContext, i1 uint32) (uint32, error) {
 	vlog.VI(2).Info("UInt32(%u) was called.", i1)
 	return i1, nil
 }
 
-func (*server) UInt64(call ipc.Context, i1 uint64) (uint64, error) {
+func (*server) UInt64(call ipc.ServerContext, i1 uint64) (uint64, error) {
 	vlog.VI(2).Info("UInt64(%u) was called.", i1)
 	return i1, nil
 }
 
-func (*server) InputArray(call ipc.Context, i1 [2]uint8) error {
+func (*server) InputArray(call ipc.ServerContext, i1 [2]uint8) error {
 	vlog.VI(2).Info("CInputArray(%v) was called.", i1)
 	return nil
 }
 
-func (*server) OutputArray(call ipc.Context) ([2]uint8, error) {
+func (*server) OutputArray(call ipc.ServerContext) ([2]uint8, error) {
 	vlog.VI(2).Info("COutputArray() was called.")
 	return [2]uint8{1, 2}, nil
 }
 
-func (*server) InputMap(call ipc.Context, i1 map[uint8]uint8) error {
+func (*server) InputMap(call ipc.ServerContext, i1 map[uint8]uint8) error {
 	vlog.VI(2).Info("CInputMap(%v) was called.", i1)
 	return nil
 }
 
-func (*server) OutputMap(call ipc.Context) (map[uint8]uint8, error) {
+func (*server) OutputMap(call ipc.ServerContext) (map[uint8]uint8, error) {
 	vlog.VI(2).Info("COutputMap() was called.")
 	return map[uint8]uint8{1: 2}, nil
 }
 
-func (*server) InputSlice(call ipc.Context, i1 []uint8) error {
+func (*server) InputSlice(call ipc.ServerContext, i1 []uint8) error {
 	vlog.VI(2).Info("CInputSlice(%v) was called.", i1)
 	return nil
 }
 
-func (*server) OutputSlice(call ipc.Context) ([]uint8, error) {
+func (*server) OutputSlice(call ipc.ServerContext) ([]uint8, error) {
 	vlog.VI(2).Info("COutputSlice() was called.")
 	return []uint8{1, 2}, nil
 }
 
-func (*server) InputStruct(call ipc.Context, i1 test_base.Struct) error {
+func (*server) InputStruct(call ipc.ServerContext, i1 test_base.Struct) error {
 	vlog.VI(2).Info("CInputStruct(%v) was called.", i1)
 	return nil
 }
 
-func (*server) OutputStruct(call ipc.Context) (test_base.Struct, error) {
+func (*server) OutputStruct(call ipc.ServerContext) (test_base.Struct, error) {
 	vlog.VI(2).Info("COutputStruct() was called.")
 	return test_base.Struct{X: 1, Y: 2}, nil
 }
 
-func (*server) NoArguments(call ipc.Context) error {
+func (*server) NoArguments(call ipc.ServerContext) error {
 	vlog.VI(2).Info("NoArguments() was called.")
 	return nil
 }
 
-func (*server) MultipleArguments(call ipc.Context, i1, i2 int32) (int32, int32, error) {
+func (*server) MultipleArguments(call ipc.ServerContext, i1, i2 int32) (int32, int32, error) {
 	vlog.VI(2).Info("MultipleArguments(%v,%v) was called.", i1, i2)
 	return i1, i2, nil
 }
 
-func (*server) StreamingOutput(call ipc.Context, nStream int32, item bool, reply test_base.TypeTesterServiceStreamingOutputStream) error {
+func (*server) StreamingOutput(call ipc.ServerContext, nStream int32, item bool, reply test_base.TypeTesterServiceStreamingOutputStream) error {
 	vlog.VI(2).Info("StreamingOutput(%v,%v) was called.", nStream, item)
 	for i := int32(0); i < nStream; i++ {
 		reply.Send(item)

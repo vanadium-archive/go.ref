@@ -171,7 +171,7 @@ func (nh *neighborhood) neighbors() map[string][]mounttable.MountedServer {
 }
 
 // ResolveStep implements ResolveStep
-func (ns *neighborhoodService) ResolveStep(_ ipc.Context) (servers []mounttable.MountedServer, suffix string, err error) {
+func (ns *neighborhoodService) ResolveStep(_ ipc.ServerContext) (servers []mounttable.MountedServer, suffix string, err error) {
 	nh := ns.nh
 	vlog.VI(2).Infof("ResolveStep %v\n", ns.elems)
 	if len(ns.elems) == 0 {
@@ -188,17 +188,17 @@ func (ns *neighborhoodService) ResolveStep(_ ipc.Context) (servers []mounttable.
 }
 
 // Mount not implemented.
-func (*neighborhoodService) Mount(_ ipc.Context, server string, ttlsecs uint32) error {
+func (*neighborhoodService) Mount(_ ipc.ServerContext, server string, ttlsecs uint32) error {
 	return errors.New("this server does not implement Mount")
 }
 
 // Unmount not implemented.
-func (*neighborhoodService) Unmount(_ ipc.Context, _ string) error {
+func (*neighborhoodService) Unmount(_ ipc.ServerContext, _ string) error {
 	return errors.New("this server does not implement Unmount")
 }
 
 // Glob implements Glob
-func (ns *neighborhoodService) Glob(_ ipc.Context, pattern string, reply mounttable.GlobableServiceGlobStream) error {
+func (ns *neighborhoodService) Glob(_ ipc.ServerContext, pattern string, reply mounttable.GlobableServiceGlobStream) error {
 	g, err := glob.Parse(pattern)
 	if err != nil {
 		return err

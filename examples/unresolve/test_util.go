@@ -80,11 +80,11 @@ const fixedFortuneMessage = "Sooner than you think, you will be deeply dissatisf
 
 type fortune struct{}
 
-func (*fortune) Get(ipc.Context) (string, error) {
+func (*fortune) Get(ipc.ServerContext) (string, error) {
 	return fixedFortuneMessage, nil
 }
 
-func (*fortune) Add(ipc.Context, string) error {
+func (*fortune) Add(ipc.ServerContext, string) error {
 	return nil
 }
 
@@ -100,15 +100,15 @@ type fortuneCustomUnresolve struct {
 	custom string
 }
 
-func (*fortuneCustomUnresolve) Get(ipc.Context) (string, error) {
+func (*fortuneCustomUnresolve) Get(ipc.ServerContext) (string, error) {
 	return fixedFortuneMessage, nil
 }
 
-func (*fortuneCustomUnresolve) Add(ipc.Context, string) error {
+func (*fortuneCustomUnresolve) Add(ipc.ServerContext, string) error {
 	return nil
 }
 
-func (*fortuneCustomUnresolve) UnresolveStep(context ipc.Context) ([]string, error) {
+func (*fortuneCustomUnresolve) UnresolveStep(context ipc.ServerContext) ([]string, error) {
 	servers, err := rt.R().MountTable().ResolveToMountTable("I/want/to/know")
 	if err != nil {
 		return nil, err
@@ -171,7 +171,7 @@ func childFortuneNoIDL(args []string) {
 
 func resolveStep(t *testing.T, name string) string {
 	client := createMTClient(name)
-	results, suffix, err := client.ResolveStep()
+	results, suffix, err := client.ResolveStep(rt.R().NewContext())
 	if err != nil {
 		t.Errorf("ResolveStep on %q failed with %v", name, err)
 		return ""
@@ -197,11 +197,11 @@ func resolve(t *testing.T, mt naming.MountTable, name string) string {
 }
 
 type unresolver interface {
-	UnresolveStep(...ipc.ClientCallOpt) ([]string, error)
+	UnresolveStep(ipc.Context, ...ipc.CallOpt) ([]string, error)
 }
 
-func unresolveStep(t *testing.T, c unresolver) string {
-	unres, err := c.UnresolveStep()
+func unresolveStep(t *testing.T, ctx ipc.Context, c unresolver) string {
+	unres, err := c.UnresolveStep(ctx)
 	if err != nil {
 		t.Errorf("UnresolveStep failed with %v", err)
 		return ""

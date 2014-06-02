@@ -27,7 +27,7 @@ type impl struct {
 	ch chan rps.ScoreCard
 }
 
-func (i *impl) Record(ctx ipc.Context, score rps.ScoreCard) error {
+func (i *impl) Record(ctx ipc.ServerContext, score rps.ScoreCard) error {
 	vlog.VI(1).Infof("Record (%+v) from %s", score, ctx.RemoteID())
 	i.ch <- score
 	return nil

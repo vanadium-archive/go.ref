@@ -13,11 +13,12 @@ import (
 	"veyron/lib/cmdline"
 	iapp "veyron/services/mgmt/application"
 
+	"veyron2/rt"
 	"veyron2/services/mgmt/application"
 )
 
 func getEnvelopeJSON(app iapp.Repository, profiles string) ([]byte, error) {
-	env, err := app.Match(strings.Split(profiles, ","))
+	env, err := app.Match(rt.R().NewContext(), strings.Split(profiles, ","))
 	if err != nil {
 		env = application.Envelope{}
 	}
@@ -33,7 +34,7 @@ func putEnvelopeJSON(app iapp.Repository, profiles string, j []byte) error {
 	if err := json.Unmarshal(j, &env); err != nil {
 		return fmt.Errorf("json: %v", err)
 	}
-	if err := app.Put(strings.Split(profiles, ","), env); err != nil {
+	if err := app.Put(rt.R().NewContext(), strings.Split(profiles, ","), env); err != nil {
 		return err
 	}
 	return nil
@@ -125,7 +126,7 @@ func runRemove(cmd *cmdline.Command, args []string) error {
 	if err != nil {
 		return fmt.Errorf("bind error: %v", err)
 	}
-	if err = app.Remove(args[1]); err != nil {
+	if err = app.Remove(rt.R().NewContext(), args[1]); err != nil {
 		return err
 	}
 	fmt.Fprintln(cmd.Stdout(), "Application envelope removed successfully.")

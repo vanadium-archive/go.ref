@@ -20,24 +20,24 @@ type server struct {
 	suffix string
 }
 
-func (s *server) Glob(_ ipc.Context, pattern string, stream mounttable.GlobableServiceGlobStream) error {
+func (s *server) Glob(_ ipc.ServerContext, pattern string, stream mounttable.GlobableServiceGlobStream) error {
 	vlog.VI(2).Infof("Glob() was called. suffix=%v pattern=%q", s.suffix, pattern)
 	stream.Send(mounttable.MountEntry{"name1", []mounttable.MountedServer{{"server1", 123}}})
 	stream.Send(mounttable.MountEntry{"name2", []mounttable.MountedServer{{"server2", 456}, {"server3", 789}}})
 	return nil
 }
 
-func (s *server) Mount(_ ipc.Context, server string, ttl uint32) error {
+func (s *server) Mount(_ ipc.ServerContext, server string, ttl uint32) error {
 	vlog.VI(2).Infof("Mount() was called. suffix=%v server=%q ttl=%d", s.suffix, server, ttl)
 	return nil
 }
 
-func (s *server) Unmount(_ ipc.Context, server string) error {
+func (s *server) Unmount(_ ipc.ServerContext, server string) error {
 	vlog.VI(2).Infof("Unmount() was called. suffix=%v server=%q", s.suffix, server)
 	return nil
 }
 
-func (s *server) ResolveStep(ipc.Context) (servers []mounttable.MountedServer, suffix string, err error) {
+func (s *server) ResolveStep(ipc.ServerContext) (servers []mounttable.MountedServer, suffix string, err error) {
 	vlog.VI(2).Infof("ResolveStep() was called. suffix=%v", s.suffix)
 	servers = []mounttable.MountedServer{{"server1", 123}}
 	suffix = s.suffix

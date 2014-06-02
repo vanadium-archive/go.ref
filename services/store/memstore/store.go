@@ -150,7 +150,7 @@ func (st *Store) ApplyMutations(mu *state.Mutations) error {
 // PutMutations atomically commits a stream of Mutations when the stream is
 // closed. Mutations are not committed if the request is cancelled before the
 // stream has been closed.
-func (st *Store) PutMutations(ctx ipc.Context, stream raw.StoreServicePutMutationsStream) error {
+func (st *Store) PutMutations(ctx ipc.ServerContext, stream raw.StoreServicePutMutationsStream) error {
 	tr := st.newNilTransaction()
 	for {
 		mu, err := stream.Recv()

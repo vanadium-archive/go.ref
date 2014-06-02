@@ -67,13 +67,13 @@ type Profile_ExcludingUniversal interface {
 	profile.Profile_ExcludingUniversal
 	// Specification returns the profile specification for the profile
 	// identified through the veyron name suffix.
-	Specification(opts ..._gen_ipc.ClientCallOpt) (reply Specification, err error)
+	Specification(ctx _gen_ipc.Context, opts ..._gen_ipc.CallOpt) (reply Specification, err error)
 	// Put sets the profile specification for the profile identified
 	// through the veyron name suffix.
-	Put(Specification Specification, opts ..._gen_ipc.ClientCallOpt) (err error)
+	Put(ctx _gen_ipc.Context, Specification Specification, opts ..._gen_ipc.CallOpt) (err error)
 	// Remove removes the profile specification for the profile
 	// identified through the veyron name suffix.
-	Remove(opts ..._gen_ipc.ClientCallOpt) (err error)
+	Remove(ctx _gen_ipc.Context, opts ..._gen_ipc.CallOpt) (err error)
 }
 type Profile interface {
 	_gen_ipc.UniversalServiceMethods
@@ -90,13 +90,13 @@ type ProfileService interface {
 	profile.ProfileService
 	// Specification returns the profile specification for the profile
 	// identified through the veyron name suffix.
-	Specification(context _gen_ipc.Context) (reply Specification, err error)
+	Specification(context _gen_ipc.ServerContext) (reply Specification, err error)
 	// Put sets the profile specification for the profile identified
 	// through the veyron name suffix.
-	Put(context _gen_ipc.Context, Specification Specification) (err error)
+	Put(context _gen_ipc.ServerContext, Specification Specification) (err error)
 	// Remove removes the profile specification for the profile
 	// identified through the veyron name suffix.
-	Remove(context _gen_ipc.Context) (err error)
+	Remove(context _gen_ipc.ServerContext) (err error)
 }
 
 // BindProfile returns the client stub implementing the Profile
@@ -146,9 +146,9 @@ type clientStubProfile struct {
 	name   string
 }
 
-func (__gen_c *clientStubProfile) Specification(opts ..._gen_ipc.ClientCallOpt) (reply Specification, err error) {
-	var call _gen_ipc.ClientCall
-	if call, err = __gen_c.client.StartCall(__gen_c.name, "Specification", nil, opts...); err != nil {
+func (__gen_c *clientStubProfile) Specification(ctx _gen_ipc.Context, opts ..._gen_ipc.CallOpt) (reply Specification, err error) {
+	var call _gen_ipc.Call
+	if call, err = __gen_c.client.StartCall(ctx, __gen_c.name, "Specification", nil, opts...); err != nil {
 		return
 	}
 	if ierr := call.Finish(&reply, &err); ierr != nil {
@@ -157,9 +157,9 @@ func (__gen_c *clientStubProfile) Specification(opts ..._gen_ipc.ClientCallOpt) 
 	return
 }
 
-func (__gen_c *clientStubProfile) Put(Specification Specification, opts ..._gen_ipc.ClientCallOpt) (err error) {
-	var call _gen_ipc.ClientCall
-	if call, err = __gen_c.client.StartCall(__gen_c.name, "Put", []interface{}{Specification}, opts...); err != nil {
+func (__gen_c *clientStubProfile) Put(ctx _gen_ipc.Context, Specification Specification, opts ..._gen_ipc.CallOpt) (err error) {
+	var call _gen_ipc.Call
+	if call, err = __gen_c.client.StartCall(ctx, __gen_c.name, "Put", []interface{}{Specification}, opts...); err != nil {
 		return
 	}
 	if ierr := call.Finish(&err); ierr != nil {
@@ -168,9 +168,9 @@ func (__gen_c *clientStubProfile) Put(Specification Specification, opts ..._gen_
 	return
 }
 
-func (__gen_c *clientStubProfile) Remove(opts ..._gen_ipc.ClientCallOpt) (err error) {
-	var call _gen_ipc.ClientCall
-	if call, err = __gen_c.client.StartCall(__gen_c.name, "Remove", nil, opts...); err != nil {
+func (__gen_c *clientStubProfile) Remove(ctx _gen_ipc.Context, opts ..._gen_ipc.CallOpt) (err error) {
+	var call _gen_ipc.Call
+	if call, err = __gen_c.client.StartCall(ctx, __gen_c.name, "Remove", nil, opts...); err != nil {
 		return
 	}
 	if ierr := call.Finish(&err); ierr != nil {
@@ -179,9 +179,9 @@ func (__gen_c *clientStubProfile) Remove(opts ..._gen_ipc.ClientCallOpt) (err er
 	return
 }
 
-func (__gen_c *clientStubProfile) UnresolveStep(opts ..._gen_ipc.ClientCallOpt) (reply []string, err error) {
-	var call _gen_ipc.ClientCall
-	if call, err = __gen_c.client.StartCall(__gen_c.name, "UnresolveStep", nil, opts...); err != nil {
+func (__gen_c *clientStubProfile) UnresolveStep(ctx _gen_ipc.Context, opts ..._gen_ipc.CallOpt) (reply []string, err error) {
+	var call _gen_ipc.Call
+	if call, err = __gen_c.client.StartCall(ctx, __gen_c.name, "UnresolveStep", nil, opts...); err != nil {
 		return
 	}
 	if ierr := call.Finish(&reply, &err); ierr != nil {
@@ -190,9 +190,9 @@ func (__gen_c *clientStubProfile) UnresolveStep(opts ..._gen_ipc.ClientCallOpt) 
 	return
 }
 
-func (__gen_c *clientStubProfile) Signature(opts ..._gen_ipc.ClientCallOpt) (reply _gen_ipc.ServiceSignature, err error) {
-	var call _gen_ipc.ClientCall
-	if call, err = __gen_c.client.StartCall(__gen_c.name, "Signature", nil, opts...); err != nil {
+func (__gen_c *clientStubProfile) Signature(ctx _gen_ipc.Context, opts ..._gen_ipc.CallOpt) (reply _gen_ipc.ServiceSignature, err error) {
+	var call _gen_ipc.Call
+	if call, err = __gen_c.client.StartCall(ctx, __gen_c.name, "Signature", nil, opts...); err != nil {
 		return
 	}
 	if ierr := call.Finish(&reply, &err); ierr != nil {
@@ -201,9 +201,9 @@ func (__gen_c *clientStubProfile) Signature(opts ..._gen_ipc.ClientCallOpt) (rep
 	return
 }
 
-func (__gen_c *clientStubProfile) GetMethodTags(method string, opts ..._gen_ipc.ClientCallOpt) (reply []interface{}, err error) {
-	var call _gen_ipc.ClientCall
-	if call, err = __gen_c.client.StartCall(__gen_c.name, "GetMethodTags", []interface{}{method}, opts...); err != nil {
+func (__gen_c *clientStubProfile) GetMethodTags(ctx _gen_ipc.Context, method string, opts ..._gen_ipc.CallOpt) (reply []interface{}, err error) {
+	var call _gen_ipc.Call
+	if call, err = __gen_c.client.StartCall(ctx, __gen_c.name, "GetMethodTags", []interface{}{method}, opts...); err != nil {
 		return
 	}
 	if ierr := call.Finish(&reply, &err); ierr != nil {

@@ -5,6 +5,7 @@ import (
 
 	"veyron/lib/cmdline"
 
+	"veyron2/rt"
 	"veyron2/services/proximity"
 )
 
@@ -28,7 +29,7 @@ func runRegister(cmd *cmdline.Command, args []string) error {
 	if err != nil {
 		return fmt.Errorf("bind error: %v", err)
 	}
-	if err = p.RegisterName(args[1]); err != nil {
+	if err = p.RegisterName(rt.R().TODOContext(), args[1]); err != nil {
 		return err
 	}
 	fmt.Fprintf(cmd.Stdout(), "Name registered successfully\n")
@@ -55,7 +56,7 @@ func runUnregister(cmd *cmdline.Command, args []string) error {
 	if err != nil {
 		return fmt.Errorf("bind error: %v", err)
 	}
-	if err = p.UnregisterName(args[1]); err != nil {
+	if err = p.UnregisterName(rt.R().TODOContext(), args[1]); err != nil {
 		return err
 	}
 	fmt.Fprintf(cmd.Stdout(), "Name unregistered successfully\n")
@@ -81,7 +82,7 @@ func runNearbyDevices(cmd *cmdline.Command, args []string) error {
 		return fmt.Errorf("bind error: %v", err)
 	}
 
-	devices, err := p.NearbyDevices()
+	devices, err := p.NearbyDevices(rt.R().TODOContext())
 	if err != nil {
 		return err
 	}

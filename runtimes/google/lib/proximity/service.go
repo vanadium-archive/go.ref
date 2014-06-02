@@ -110,7 +110,7 @@ type service struct {
 	advDoneChan      chan bool
 }
 
-func (s *service) RegisterName(_ ipc.Context, name string) error {
+func (s *service) RegisterName(_ ipc.ServerContext, name string) error {
 	s.nameLock.Lock()
 	defer s.nameLock.Unlock()
 	if v, ok := s.names[name]; ok {
@@ -124,7 +124,7 @@ func (s *service) RegisterName(_ ipc.Context, name string) error {
 	return nil
 }
 
-func (s *service) UnregisterName(_ ipc.Context, name string) error {
+func (s *service) UnregisterName(_ ipc.ServerContext, name string) error {
 	s.nameLock.Lock()
 	defer s.nameLock.Unlock()
 	v, ok := s.names[name]
@@ -141,7 +141,7 @@ func (s *service) UnregisterName(_ ipc.Context, name string) error {
 
 // NearbyDevices returns the list of nearby devices, sorted in increasing
 // distance order.
-func (s *service) NearbyDevices(_ ipc.Context) ([]prox.Device, error) {
+func (s *service) NearbyDevices(_ ipc.ServerContext) ([]prox.Device, error) {
 	s.deviceLock.RLock()
 	defer s.deviceLock.RUnlock()
 	return s.nearby, nil

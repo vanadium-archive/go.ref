@@ -86,7 +86,7 @@ func attrsToAnyData(attrs []storage.Attr) []vdl.Any {
 }
 
 // Exists returns true iff the Entry has a value.
-func (o *object) Exists(ctx ipc.Context, tid store.TransactionID) (bool, error) {
+func (o *object) Exists(ctx ipc.ServerContext, tid store.TransactionID) (bool, error) {
 	t, ok := o.server.findTransaction(tid)
 	if !ok {
 		return false, errTransactionDoesNotExist
@@ -97,7 +97,7 @@ func (o *object) Exists(ctx ipc.Context, tid store.TransactionID) (bool, error) 
 // Get returns the value for the Object.  The value returned is from the
 // most recent mutation of the entry in the Transaction, or from the
 // Transaction's snapshot if there is no mutation.
-func (o *object) Get(ctx ipc.Context, tid store.TransactionID) (store.Entry, error) {
+func (o *object) Get(ctx ipc.ServerContext, tid store.TransactionID) (store.Entry, error) {
 	t, ok := o.server.findTransaction(tid)
 	if !ok {
 		return nullEntry, errTransactionDoesNotExist
@@ -110,7 +110,7 @@ func (o *object) Get(ctx ipc.Context, tid store.TransactionID) (store.Entry, err
 }
 
 // Put modifies the value of the Object.
-func (o *object) Put(ctx ipc.Context, tid store.TransactionID, val vdl.Any) (store.Stat, error) {
+func (o *object) Put(ctx ipc.ServerContext, tid store.TransactionID, val vdl.Any) (store.Stat, error) {
 	t, ok := o.server.findTransaction(tid)
 	if !ok {
 		return nullStat, errTransactionDoesNotExist
@@ -123,7 +123,7 @@ func (o *object) Put(ctx ipc.Context, tid store.TransactionID, val vdl.Any) (sto
 }
 
 // Remove removes the Object.
-func (o *object) Remove(ctx ipc.Context, tid store.TransactionID) error {
+func (o *object) Remove(ctx ipc.ServerContext, tid store.TransactionID) error {
 	t, ok := o.server.findTransaction(tid)
 	if !ok {
 		return errTransactionDoesNotExist
@@ -134,7 +134,7 @@ func (o *object) Remove(ctx ipc.Context, tid store.TransactionID) error {
 // SetAttr changes the attributes of the entry, such as permissions and
 // replication groups.  Attributes are associated with the value, not the
 // path.
-func (o *object) SetAttr(ctx ipc.Context, tid store.TransactionID, attrs []vdl.Any) error {
+func (o *object) SetAttr(ctx ipc.ServerContext, tid store.TransactionID, attrs []vdl.Any) error {
 	t, ok := o.server.findTransaction(tid)
 	if !ok {
 		return errTransactionDoesNotExist
@@ -147,7 +147,7 @@ func (o *object) SetAttr(ctx ipc.Context, tid store.TransactionID, attrs []vdl.A
 }
 
 // Stat returns entry info.
-func (o *object) Stat(ctx ipc.Context, tid store.TransactionID) (store.Stat, error) {
+func (o *object) Stat(ctx ipc.ServerContext, tid store.TransactionID) (store.Stat, error) {
 	t, ok := o.server.findTransaction(tid)
 	if !ok {
 		return nullStat, errTransactionDoesNotExist
@@ -160,7 +160,7 @@ func (o *object) Stat(ctx ipc.Context, tid store.TransactionID) (store.Stat, err
 }
 
 // Query returns a sequence of objects that match the given query.
-func (o *object) Query(ctx ipc.Context, tid store.TransactionID, q query.Query, stream store.ObjectServiceQueryStream) error {
+func (o *object) Query(ctx ipc.ServerContext, tid store.TransactionID, q query.Query, stream store.ObjectServiceQueryStream) error {
 	t, ok := o.server.findTransaction(tid)
 	if !ok {
 		return errTransactionDoesNotExist
@@ -189,12 +189,12 @@ func (a *globStreamAdapter) Send(item string) error {
 }
 
 // Glob streams a series of names that match the given pattern.
-func (o *object) Glob(ctx ipc.Context, pattern string, stream mounttable.GlobableServiceGlobStream) error {
+func (o *object) Glob(ctx ipc.ServerContext, pattern string, stream mounttable.GlobableServiceGlobStream) error {
 	return o.GlobT(ctx, nullTransactionID, pattern, &globStreamAdapter{stream})
 }
 
 // Glob streams a series of names that match the given pattern.
-func (o *object) GlobT(ctx ipc.Context, tid store.TransactionID, pattern string, stream store.ObjectServiceGlobTStream) error {
+func (o *object) GlobT(ctx ipc.ServerContext, tid store.TransactionID, pattern string, stream store.ObjectServiceGlobTStream) error {
 	t, ok := o.server.findTransaction(tid)
 	if !ok {
 		return errTransactionDoesNotExist
@@ -215,6 +215,6 @@ func (o *object) GlobT(ctx ipc.Context, tid store.TransactionID, pattern string,
 }
 
 // Watch returns a stream of changes.
-func (o *object) Watch(ctx ipc.Context, req watch.Request, stream watch.WatcherServiceWatchStream) error {
+func (o *object) Watch(ctx ipc.ServerContext, req watch.Request, stream watch.WatcherServiceWatchStream) error {
 	panic("not implemented")
 }

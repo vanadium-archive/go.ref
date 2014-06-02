@@ -33,7 +33,7 @@ type arInvoker struct {
 	envelope *application.Envelope
 }
 
-func (i *arInvoker) Match(_ ipc.Context, _ []string) (application.Envelope, error) {
+func (i *arInvoker) Match(_ ipc.ServerContext, _ []string) (application.Envelope, error) {
 	vlog.VI(1).Infof("Match()")
 	return *i.envelope, nil
 }
@@ -42,11 +42,11 @@ const bufferLength = 1024
 
 type cmInvoker struct{}
 
-func (i *cmInvoker) Delete(_ ipc.Context) error {
+func (i *cmInvoker) Delete(_ ipc.ServerContext) error {
 	return nil
 }
 
-func (i *cmInvoker) Download(_ ipc.Context, stream content.ContentServiceDownloadStream) error {
+func (i *cmInvoker) Download(_ ipc.ServerContext, stream content.ContentServiceDownloadStream) error {
 	vlog.VI(1).Infof("Download()")
 	file, err := os.Open(os.Args[0])
 	if err != nil {
@@ -72,7 +72,7 @@ func (i *cmInvoker) Download(_ ipc.Context, stream content.ContentServiceDownloa
 	return nil
 }
 
-func (i *cmInvoker) Upload(_ ipc.Context, _ content.ContentServiceUploadStream) (string, error) {
+func (i *cmInvoker) Upload(_ ipc.ServerContext, _ content.ContentServiceUploadStream) (string, error) {
 	return "", nil
 }
 
@@ -99,7 +99,7 @@ func invokeUpdate(t *testing.T, nmAddress string) {
 	if err != nil {
 		t.Fatalf("BindNode(%v) failed: %v", address, err)
 	}
-	if err := nmClient.Update(); err != nil {
+	if err := nmClient.Update(rt.R().NewContext()); err != nil {
 		t.Fatalf("%v.Update() failed: %v", address, err)
 	}
 }

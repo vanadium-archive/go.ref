@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"veyron/services/store/memstore"
+	"veyron/services/store/service"
 
 	"veyron2/storage"
 	"veyron2/vom"
@@ -64,7 +65,7 @@ func newPhoto(content, comment string, edits ...Edit) *Photo {
 	return &Photo{Content: content, Comment: comment}
 }
 
-func getPhoto(t *testing.T, st *memstore.Store, tr storage.Transaction, path string) *Photo {
+func getPhoto(t *testing.T, st *memstore.Store, tr service.Transaction, path string) *Photo {
 	_, file, line, _ := runtime.Caller(1)
 	v := Get(t, st, tr, path).Value
 	p, ok := v.(*Photo)

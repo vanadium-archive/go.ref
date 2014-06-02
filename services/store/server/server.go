@@ -15,7 +15,6 @@ import (
 	"veyron2/security"
 	"veyron2/services/store"
 	"veyron2/services/watch"
-	"veyron2/storage"
 	"veyron2/vdl"
 )
 
@@ -59,7 +58,7 @@ type Server struct {
 }
 
 type transaction struct {
-	trans   storage.Transaction
+	trans   service.Transaction
 	expires time.Time
 }
 
@@ -112,13 +111,13 @@ func (s *Server) Attributes(arg string) map[string]string {
 }
 
 // findTransaction returns the transaction for the TransactionID.
-func (s *Server) findTransaction(id store.TransactionID) (storage.Transaction, bool) {
+func (s *Server) findTransaction(id store.TransactionID) (service.Transaction, bool) {
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()
 	return s.findTransactionLocked(id)
 }
 
-func (s *Server) findTransactionLocked(id store.TransactionID) (storage.Transaction, bool) {
+func (s *Server) findTransactionLocked(id store.TransactionID) (service.Transaction, bool) {
 	if id == nullTransactionID {
 		return nil, true
 	}
@@ -152,7 +151,7 @@ func (s *Server) gcLoop() {
 }
 
 // CreateTransaction creates a transaction.
-func (s *Server) CreateTransaction(_ ipc.Context, id store.TransactionID, opts []vdl.Any) error {
+func (s *Server) CreateTransaction(_ ipc.ServerContext, id store.TransactionID, opts []vdl.Any) error {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 
@@ -171,7 +170,7 @@ func (s *Server) CreateTransaction(_ ipc.Context, id store.TransactionID, opts [
 // Commit commits the changes in the transaction to the store.  The
 // operation is atomic, so all mutations are performed, or none.  Returns an
 // error if the transaction aborted.
-func (s *Server) Commit(_ ipc.Context, id store.TransactionID) error {
+func (s *Server) Commit(_ ipc.ServerContext, id store.TransactionID) error {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 
@@ -185,7 +184,7 @@ func (s *Server) Commit(_ ipc.Context, id store.TransactionID) error {
 }
 
 // Abort discards a transaction.
-func (s *Server) Abort(_ ipc.Context, id store.TransactionID) error {
+func (s *Server) Abort(_ ipc.ServerContext, id store.TransactionID) error {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 
@@ -199,20 +198,20 @@ func (s *Server) Abort(_ ipc.Context, id store.TransactionID) error {
 }
 
 // Watch returns a stream of changes.
-func (s *Server) Watch(ctx ipc.Context, req watch.Request, stream watch.WatcherServiceWatchStream) error {
+func (s *Server) Watch(ctx ipc.ServerContext, req watch.Request, stream watch.WatcherServiceWatchStream) error {
 	return s.watcher.Watch(ctx, req, stream)
 }
 
 // PutMutations atomically commits a stream of Mutations when the stream is
 // closed. Mutations are not committed if the request is cancelled before the
 // stream has been closed.
-func (s *Server) PutMutations(ctx ipc.Context, stream raw.StoreServicePutMutationsStream) error {
+func (s *Server) PutMutations(ctx ipc.ServerContext, stream raw.StoreServicePutMutationsStream) error {
 	return s.store.PutMutations(ctx, stream)
 }
 
 // ReadConflicts returns the stream of conflicts to store values.  A
 // conflict occurs when there is a concurrent modification to a value.
-func (s *Server) ReadConflicts(_ ipc.Context, stream store.StoreServiceReadConflictsStream) error {
+func (s *Server) ReadConflicts(_ ipc.ServerContext, stream store.StoreServiceReadConflictsStream) error {
 	panic("not implemented")
 }
 

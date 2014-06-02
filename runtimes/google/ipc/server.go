@@ -467,7 +467,7 @@ func (fs *flowServer) Recv(itemptr interface{}) error {
 	return fs.dec.Decode(itemptr)
 }
 
-// Implementations of ipc.Context methods.
+// Implementations of ipc.ServerContext methods.
 
 func (fs *flowServer) Server() ipc.Server                            { return fs.server }
 func (fs *flowServer) Method() string                                { return fs.method }

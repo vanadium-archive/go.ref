@@ -11,39 +11,57 @@ import (
 	"veyron2/storage"
 )
 
+// Transaction is like storage.Transaction, but doesn't include extra client-side
+// parameters.
+type Transaction interface {
+	// Commit commits the changes (the Set and Delete operations) in the
+	// transaction to the store.  The operation is atomic, so all Set/Delete
+	// operations are performed, or none.  Returns an error if the transaction
+	// aborted.
+	//
+	// The Transaction should be discarded once Commit is called.  It can no
+	// longer be used.
+	Commit() error
+
+	// Abort discards a transaction.  This is an optimization; transactions
+	// eventually time out and get discarded.  However, live transactions
+	// consume resources, so it is good practice to clean up.
+	Abort() error
+}
+
 // Object is like storage.Object, but it include extra server-side parameters.
 // In perticular, each method takes the identity of the client.
 type Object interface {
 	// Exists returns true iff the Entry has a value.
-	Exists(clientID security.PublicID, t storage.Transaction) (bool, error)
+	Exists(clientID security.PublicID, t Transaction) (bool, error)
 
 	// Get returns the value for the Object.  The value returned is from the
-	// most recent mutation of the entry in the storage.Transaction, or from the
-	// storage.Transaction's snapshot if there is no mutation.
-	Get(clientID security.PublicID, t storage.Transaction) (*storage.Entry, error)
+	// most recent mutation of the entry in the Transaction, or from the
+	// Transaction's snapshot if there is no mutation.
+	Get(clientID security.PublicID, t Transaction) (*storage.Entry, error)
 
 	// Put adds or modifies the Object.  If there is no current value, the
 	// object is created with default attributes.  It is legal to update a
 	// subfield of a value.  Returns the updated *Stat of the store value.  If
 	// putting a subfield, the *Stat is for the enclosing store value.
-	Put(clientID security.PublicID, t storage.Transaction, v interface{}) (*storage.Stat, error)
+	Put(clientID security.PublicID, t Transaction, v interface{}) (*storage.Stat, error)
 
 	// Remove removes the Object.
-	Remove(clientID security.PublicID, t storage.Transaction) error
+	Remove(clientID security.PublicID, t Transaction) error
 
 	// SetAttr changes the attributes of the entry, such as permissions and
 	// replication groups.  Attributes are associated with the value, not the
 	// path.
-	SetAttr(clientID security.PublicID, t storage.Transaction, attrs ...storage.Attr) error
+	SetAttr(clientID security.PublicID, t Transaction, attrs ...storage.Attr) error
 
 	// Stat returns entry info.
-	Stat(clientID security.PublicID, t storage.Transaction) (*storage.Stat, error)
+	Stat(clientID security.PublicID, t Transaction) (*storage.Stat, error)
 
 	// Query returns entries matching the given query.
-	Query(clientID security.PublicID, t storage.Transaction, q query.Query) (QueryStream, error)
+	Query(clientID security.PublicID, t Transaction, q query.Query) (QueryStream, error)
 
 	// Glob returns the sequence of names that match the given pattern.
-	Glob(clientID security.PublicID, t storage.Transaction, pattern string) (GlobStream, error)
+	Glob(clientID security.PublicID, t Transaction, pattern string) (GlobStream, error)
 }
 
 // Store is the server-side interface to the storage system. It is expected to
@@ -56,7 +74,7 @@ type Store interface {
 	// PutMutations atomically commits a stream of Mutations when the stream is
 	// closed. Mutations are not committed if the request is cancelled before
 	// the stream has been closed.
-	PutMutations(ctx ipc.Context, stream raw.StoreServicePutMutationsStream) error
+	PutMutations(ctx ipc.ServerContext, stream raw.StoreServicePutMutationsStream) error
 
 	// SetConflictResolver specifies a function to perform conflict resolution.
 	// The <ty> represents the IDL name for the type.
@@ -113,7 +131,7 @@ type QueryStream interface {
 // Watcher is the interface for watching store updates that match a query.
 type Watcher interface {
 	// Watch returns a stream of changes that match a query.
-	Watch(ctx ipc.Context, req watch.Request, stream watch.WatcherServiceWatchStream) error
+	Watch(ctx ipc.ServerContext, req watch.Request, stream watch.WatcherServiceWatchStream) error
 
 	// Close closes the Watcher, blocking until all Watch invocations complete.
 	Close() error

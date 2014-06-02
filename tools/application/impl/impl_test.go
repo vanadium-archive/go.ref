@@ -44,17 +44,17 @@ type server struct {
 	suffix string
 }
 
-func (s *server) Match(_ ipc.Context, profiles []string) (application.Envelope, error) {
+func (s *server) Match(_ ipc.ServerContext, profiles []string) (application.Envelope, error) {
 	vlog.VI(2).Infof("%v.Match(%v) was called", s.suffix, profiles)
 	return envelope, nil
 }
 
-func (s *server) Put(_ ipc.Context, profiles []string, env application.Envelope) error {
+func (s *server) Put(_ ipc.ServerContext, profiles []string, env application.Envelope) error {
 	vlog.VI(2).Infof("%v.Put(%v, %v) was called", s.suffix, profiles, env)
 	return nil
 }
 
-func (s *server) Remove(_ ipc.Context, profile string) error {
+func (s *server) Remove(_ ipc.ServerContext, profile string) error {
 	vlog.VI(2).Infof("%v.Remove(%v) was called", s.suffix, profile)
 	return nil
 }
