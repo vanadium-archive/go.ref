@@ -22,7 +22,7 @@ import (
 type T struct {
 }
 
-func (t *T) Forward(ctx ipc.Context, network, address string, stream tunnel.TunnelServiceForwardStream) error {
+func (t *T) Forward(ctx ipc.ServerContext, network, address string, stream tunnel.TunnelServiceForwardStream) error {
 	conn, err := net.Dial(network, address)
 	if err != nil {
 		return err
@@ -34,7 +34,7 @@ func (t *T) Forward(ctx ipc.Context, network, address string, stream tunnel.Tunn
 	return err
 }
 
-func (t *T) Shell(ctx ipc.Context, command string, shellOpts tunnel.ShellOpts, stream tunnel.TunnelServiceShellStream) (int32, error) {
+func (t *T) Shell(ctx ipc.ServerContext, command string, shellOpts tunnel.ShellOpts, stream tunnel.TunnelServiceShellStream) (int32, error) {
 	vlog.Infof("SHELL START for %v: %q", ctx.RemoteID(), command)
 
 	const nonShellErrorCode = 255
