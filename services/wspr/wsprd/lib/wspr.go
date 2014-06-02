@@ -27,15 +27,12 @@ import (
 	"net/http"
 	_ "net/http/pprof"
 	"os"
-	"path/filepath"
-	"runtime"
 	"strings"
 	"sync"
 	"time"
 
 	"veyron2"
 	"veyron2/ipc"
-	"veyron2/naming"
 	"veyron2/rt"
 	"veyron2/security"
 	"veyron2/verror"
@@ -66,11 +63,11 @@ type WSPR struct {
 type responseType int
 
 const (
-	responseFinal       responseType = 0
-	responseStream                   = 1
-	responseError                    = 2
-	serverRequest                    = 3
-	responseStreamClose              = 4
+	responseFinal         responseType = 0
+	responseStream                     = 1
+	responseError                      = 2
+	responseServerRequest              = 3
+	responseStreamClose                = 4
 )
 
 // Wraps a response to the proxy client and adds a message type.
@@ -155,102 +152,6 @@ type serverRPCRequestContext struct {
 type serverRPCReply struct {
 	Results []interface{}
 	Err     *verror.Standard
-}
-
-// This is basically an io.Writer interface, that allows passing error message
-// strings.  This is how the proxy will talk to the javascript/java clients.
-type clientWriter interface {
-	Write(p []byte) (int, error)
-
-	getLogger() vlog.Logger
-
-	sendError(err error)
-
-	FinishMessage() error
-}
-
-type vomMessage struct {
-	Format string // 'binary' or 'json'
-	Data   string // base64 encoded bytes if binary, or the VOM JSON string
-}
-
-type vomToJSONRequest struct {
-	Message vomMessage
-}
-
-type vomToJSONResponse struct {
-	Message string
-}
-
-type jsonToVOMRequest struct {
-	RequestedFormat string // 'binary' or 'json'
-	Message         string
-}
-
-type jsonToVOMResponse struct {
-	Message vomMessage
-}
-
-// Implements clientWriter interface for sending messages over websockets.
-type websocketWriter struct {
-	ws     *websocket.Conn
-	buf    bytes.Buffer
-	logger vlog.Logger // TODO(bprosnitz) Remove this -- it has nothing to do with websockets!
-	id     int64
-}
-
-func (w *websocketWriter) getLogger() vlog.Logger {
-	return w.logger
-}
-
-func (w *websocketWriter) Write(p []byte) (int, error) {
-	w.buf.Write(p)
-	return len(p), nil
-}
-
-func (w *websocketWriter) sendError(err error) {
-	verr := verror.ToStandard(err)
-
-	// Also log the error but write internal errors at a more severe log level
-	var logLevel vlog.Level = 2
-	logErr := fmt.Sprintf("%v", verr)
-	// We want to look at the stack three frames up to find where the error actually
-	// occurred.  (caller -> websocketErrorResponse/sendError -> generateErrorMessage).
-	if _, file, line, ok := runtime.Caller(3); ok {
-		logErr = fmt.Sprintf("%s:%d: %s", filepath.Base(file), line, logErr)
-	}
-	if verror.Is(verr, verror.Internal) {
-		logLevel = 2
-	}
-	w.logger.VI(logLevel).Info(logErr)
-
-	var errMsg = verror.Standard{
-		ID:  verr.ErrorID(),
-		Msg: verr.Error(),
-	}
-
-	w.buf.Reset()
-	if err := vom.ObjToJSON(&w.buf, vom.ValueOf(response{Type: responseError, Message: errMsg})); err != nil {
-		w.logger.VI(2).Info("Failed to marshal with", err)
-		return
-	}
-	if err := w.FinishMessage(); err != nil {
-		w.logger.VI(2).Info("WSPR: error finishing message: ", err)
-		return
-	}
-}
-
-func (w *websocketWriter) FinishMessage() error {
-	wc, err := w.ws.NextWriter(websocket.TextMessage)
-	if err != nil {
-		return err
-	}
-	if err := vom.ObjToJSON(wc, vom.ValueOf(websocketMessage{Id: w.id, Data: w.buf.String()})); err != nil {
-		return err
-	}
-	wc.Close()
-	w.buf.Reset()
-	return nil
 }
 
 // finishCall waits for the call to finish and write out the response to w.
@@ -439,23 +340,45 @@ type websocketPipe struct {
 	// Streams for the outstanding requests.
 	outstandingStreams map[int64]sender
 
-	// Channels that are used to communicate the final response of a
-	// server request.
-	outstandingServerRequests map[int64]chan serverRPCReply
+	// Maps flowids to the server that owns them.
+	flowMap map[int64]*server
 
 	// A manager that handles fetching and caching signature of remote services
 	signatureManager *signatureManager
 
-	// We maintain one Veyron server per websocket pipe for publishing JavaScript
+	// We maintain multiple Veyron server per websocket pipe for publishing JavaScript
 	// services.
-	veyronServer ipc.Server
-
-	// Endpoint for the server.
-	endpoint naming.Endpoint
+	servers map[uint64]*server
 
 	// Creates a client writer for a given flow.  This is a member so that tests can override
 	// the default implementation.
 	writerCreator func(id int64) clientWriter
+}
+
+// Implements the serverHelper interface
+func (wsp *websocketPipe) createNewFlow(server *server, stream sender) *flow {
+	wsp.Lock()
+	defer wsp.Unlock()
+	id := wsp.lastGeneratedId
+	wsp.lastGeneratedId++
+	wsp.flowMap[id] = server
+	wsp.outstandingStreams[id] = stream
+	return &flow{id: id, writer: wsp.writerCreator(id)}
+}
+
+func (wsp *websocketPipe) cleanupFlow(id int64) {
+	wsp.Lock()
+	defer wsp.Unlock()
+	delete(wsp.outstandingStreams, id)
+	delete(wsp.flowMap, id)
+}
+
+func (wsp *websocketPipe) getLogger() vlog.Logger {
+	return wsp.ctx.logger
+}
+
+func (wsp *websocketPipe) rt() veyron2.Runtime {
+	return wsp.ctx.rt
 }
 
 // cleans up any outstanding rpcs.
@@ -468,30 +391,17 @@ func (wsp *websocketPipe) cleanup() {
 		}
 	}
 
-	result := serverRPCReply{
-		Results: []interface{}{nil},
-		Err: &verror.Standard{
-			ID:  verror.Aborted,
-			Msg: "timeout",
-		},
+	for _, server := range wsp.servers {
+		server.Stop()
 	}
-
-	for _, reply := range wsp.outstandingServerRequests {
-		reply <- result
-	}
-
-	if wsp.veyronServer != nil {
-		wsp.ctx.logger.VI(0).Infof("Stopping server")
-		wsp.veyronServer.Stop()
-	}
-	wsp.ctx.logger.VI(0).Infof("Stopped server")
 }
 
 func (wsp *websocketPipe) setup() {
 	wsp.ctx.logger.Info("identity is", wsp.ctx.rt.Identity())
 	wsp.signatureManager = newSignatureManager()
-	wsp.outstandingServerRequests = make(map[int64]chan serverRPCReply)
 	wsp.outstandingStreams = make(map[int64]sender)
+	wsp.flowMap = make(map[int64]*server)
+	wsp.servers = make(map[uint64]*server)
 
 	if wsp.writerCreator == nil {
 		wsp.writerCreator = func(id int64) clientWriter {
@@ -700,82 +610,43 @@ func (wsp *websocketPipe) readLoop() {
 	wsp.cleanup()
 }
 
+func (wsp *websocketPipe) maybeCreateServer(serverId uint64) (*server, error) {
+	wsp.Lock()
+	defer wsp.Unlock()
+	if server, ok := wsp.servers[serverId]; ok {
+		return server, nil
+	}
+	server, err := newServer(serverId, wsp.ctx.veyronProxyEP, wsp)
+	if err != nil {
+		return nil, err
+	}
+	wsp.servers[serverId] = server
+	return server, nil
+}
+
 func (wsp *websocketPipe) publish(publishRequest publishRequest, w clientWriter) {
 	// Create a server for the websocket pipe, if it does not exist already
-	wsp.Lock()
-	shouldListen := false
-	if wsp.veyronServer == nil {
-		// We have to create a StreamManger per veyronServer so that they
-		// have different routing ids if we are listening on the veyron proxy.
-		manager, err := wsp.ctx.rt.NewStreamManager()
-		if err != nil {
-			w.sendError(verror.Internalf("failed creating server: %v", err))
-			wsp.Unlock()
-			return
-		}
-		veyronServer, err := wsp.ctx.rt.NewServer(veyron2.StreamManager(manager))
-		if err != nil {
-			w.sendError(verror.Internalf("failed creating server: %v", err))
-			wsp.Unlock()
-			return
-		}
-		wsp.veyronServer = veyronServer
-		shouldListen = true
+	server, err := wsp.maybeCreateServer(publishRequest.ServerId)
+	if err != nil {
+		w.sendError(verror.Internalf("error creating server: %v", err))
 	}
-	wsp.Unlock()
 
 	wsp.ctx.logger.VI(2).Infof("publishing under name: %q", publishRequest.Name)
 
 	// Register each service under the server
 	for serviceName, jsonIDLSig := range publishRequest.Services {
-		// Create a function that is called from the framework by the invoker, which
-		// itself is called by the IPC framework.
-		// This function returns a channel that will be filled with the result of
-		// the call when results come back from JavaScript.
-		remoteInvokerFunc := wsp.createRemoteInvokerFunc(publishRequest.ServerId, serviceName)
-
-		sig, err := jsonIDLSig.ServiceSignature()
-		if err != nil {
-			w.sendError(verror.Internalf("error creating service signature: %v", err))
-			return
-		}
-
-		// Create an invoker based on the available methods in the IDL and give it
-		// the removeInvokerFunction to call
-		invoker, err := newInvoker(sig, remoteInvokerFunc)
-		if err != nil {
-			w.sendError(verror.Internalf("error registering service: %s: %v", serviceName, err))
-			return
-		}
-
-		//TODO(aghassemi) Security labels need to come from JS service, for now we allow AllLabels
-		authorizer := security.NewACLAuthorizer(
-			security.ACL{security.AllPrincipals: security.AllLabels},
-		)
-
-		dispatcher := newDispatcher(invoker, authorizer)
-		if err := wsp.veyronServer.Register(serviceName, dispatcher); err != nil {
-			w.sendError(verror.Internalf("error registering service: %s: %v", serviceName, err))
-			return
+		if err := server.register(serviceName, jsonIDLSig); err != nil {
+			w.sendError(verror.Internalf("error registering service: %v", err))
 		}
 	}
 
-	if shouldListen {
-		var err error
-		// Create an endpoint and begin listening.
-		wsp.endpoint, err = wsp.veyronServer.Listen("veyron", wsp.ctx.veyronProxyEP)
-		if err != nil {
-			w.sendError(verror.Internalf("error listening to service: %v", err))
-			return
-		}
-	}
-
-	if err := wsp.veyronServer.Publish(publishRequest.Name); err != nil {
+	endpoint, err := server.publish(publishRequest.Name)
+	if err != nil {
 		w.sendError(verror.Internalf("error publishing service: %v", err))
 		return
 	}
 	// Send the endpoint back
-	endpointData := response{Type: responseFinal, Message: wsp.endpoint.String()}
+	endpointData := response{Type: responseFinal, Message: endpoint}
 	if err := vom.ObjToJSON(w, vom.ValueOf(endpointData)); err != nil {
 		w.sendError(verror.Internalf("error marshalling results: %v", err))
 		return
@@ -800,134 +671,19 @@ func (wsp *websocketPipe) handlePublishRequest(data string, w *websocketWriter) 
 	wsp.publish(publishRequest, w)
 }
 
-// remoteInvokeFunc is a type of function that can invoke a remote method and
-// communicate the result back via a channel to the caller
-type remoteInvokeFunc func(methodName string, args []interface{}, call ipc.ServerCall) <-chan serverRPCReply
-
-func (wsp *websocketPipe) proxyStream(stream ipc.Stream, w clientWriter, id int64) {
-	var item interface{}
-	for err := stream.Recv(&item); err == nil; err = stream.Recv(&item) {
-		data := response{Type: responseStream, Message: item}
-		if err := vom.ObjToJSON(w, vom.ValueOf(data)); err != nil {
-			w.sendError(verror.Internalf("error marshalling stream: %v:", err))
-			return
-		}
-		if err := w.FinishMessage(); err != nil {
-			w.getLogger().VI(2).Info("WSPR: error finishing message", err)
-			return
-		}
-	}
-	wsp.Lock()
-	defer wsp.Unlock()
-	if _, ok := wsp.outstandingStreams[id]; !ok {
-		wsp.ctx.logger.VI(2).Infof("Dropping close for flow: %d", id)
-		return
-	}
-
-	if err := vom.ObjToJSON(w, vom.ValueOf(response{Type: responseStreamClose})); err != nil {
-		w.sendError(verror.Internalf("error closing stream: %v:", err))
-		return
-	}
-	if err := w.FinishMessage(); err != nil {
-		w.getLogger().VI(2).Info("WSPR: error finishing message", err)
-		return
-	}
-}
-
-// createRemoteInvokerFunc creates and returns a delegate of type remoteInvokeFunc.
-// This delegate function is called by http proxy invoker which itself is called
-// by the ipc framework on RPC calls. This function is delegated with the task
-// of making a call to JavaScript through websockets and to return a channel that will
-// be filled later by handleServerResponse when results come back from JavaScript.
-func (wsp *websocketPipe) createRemoteInvokerFunc(serverId uint64, serviceName string) remoteInvokeFunc {
-	return func(methodName string, args []interface{}, call ipc.ServerCall) <-chan serverRPCReply {
-		wsp.Lock()
-		// Register a new channel
-		messageId := wsp.lastGeneratedId
-		replyChan := make(chan serverRPCReply, 1)
-		wsp.outstandingServerRequests[messageId] = replyChan
-		wsp.outstandingStreams[messageId] = senderWrapper{stream: call}
-		wsp.lastGeneratedId += 2 // Sever generated IDs are even numbers
-		wsp.Unlock()
-
-		ww := wsp.writerCreator(messageId)
-
-		//TODO(aghassemi) Add security related stuff (Caveats, Label, LocalID, RemoteID) to context as part of security work
-		//TODO(aghassemi) Deadline and Canceled, we need to find a way to do that for JS since
-		//canceled being a async WS message would yield wrong results.
-		context := serverRPCRequestContext{
-			Suffix: call.Suffix(),
-			Name:   call.Name(),
-		}
-		// Send a invocation request to JavaScript
-		message := serverRPCRequest{
-			ServerId:    serverId,
-			ServiceName: serviceName,
-			Method:      lowercaseFirstCharacter(methodName),
-			Args:        args,
-			Context:     context,
-		}
-		data := response{Type: serverRequest, Message: message}
-		if err := vom.ObjToJSON(ww, vom.ValueOf(data)); err != nil {
-			// Error in marshaling, pass the error through the channel immediately
-			replyChan <- serverRPCReply{nil,
-				&verror.Standard{
-					ID:  verror.Internal,
-					Msg: fmt.Sprintf("could not marshal the method call data: %v", err)},
-			}
-			return replyChan
-		}
-		if err := ww.FinishMessage(); err != nil {
-			replyChan <- serverRPCReply{nil,
-				&verror.Standard{
-					ID:  verror.Internal,
-					Msg: fmt.Sprintf("WSPR: error finishing message: %v", err)},
-			}
-			return replyChan
-		}
-
-		wsp.ctx.logger.VI(3).Infof("request received to call method %q on "+
-			"JavaScript server %q with args %v, MessageId %d was assigned.",
-			methodName, serviceName, args, messageId)
-
-		go wsp.proxyStream(call, ww, messageId)
-		return replyChan
-	}
-}
-
 // handleServerResponse handles the completion of outstanding calls to JavaScript services
 // by filling the corresponding channel with the result from JavaScript.
 func (wsp *websocketPipe) handleServerResponse(id int64, data string) {
-	// Find the corresponding Go channel waiting on the result
-	serverResponseChan := wsp.outstandingServerRequests[int64(id)]
-	if serverResponseChan == nil {
+	wsp.Lock()
+	server := wsp.flowMap[id]
+	wsp.Unlock()
+	if server == nil {
 		wsp.ctx.logger.VI(0).Infof("unexpected result from JavaScript. No channel "+
 			"for MessageId: %d exists. Ignoring the results.", id)
 		//Ignore unknown responses that don't belong to any channel
 		return
 	}
-
-	// Decode the result and send it through the channel
-	var serverReply serverRPCReply
-	decoder := json.NewDecoder(bytes.NewBufferString(data))
-	if decoderErr := decoder.Decode(&serverReply); decoderErr != nil {
-		err := verror.Standard{
-			ID:  verror.Internal,
-			Msg: fmt.Sprintf("could not unmarshal the result from the server: %v", decoderErr),
-		}
-		serverReply = serverRPCReply{nil, &err}
-	}
-
-	wsp.ctx.logger.VI(3).Infof("response received from JavaScript server for "+
-		"MessageId %d with result %v", id, serverReply)
-
-	wsp.Lock()
-	defer wsp.Unlock()
-	wsp.ctx.logger.VI(2).Infof("Deleting stream for %v", id)
-	delete(wsp.outstandingStreams, id)
-	delete(wsp.outstandingServerRequests, id)
-	wsp.ctx.logger.VI(2).Infof("Sending back %v", serverReply)
-	serverResponseChan <- serverReply
+	server.handleServerResponse(id, data)
 }
 
 type signatureRequest struct {
