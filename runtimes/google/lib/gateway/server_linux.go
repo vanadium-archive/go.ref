@@ -10,6 +10,7 @@ import (
 	"text/template"
 	"time"
 
+	"veyron2/rt"
 	"veyron2/services/proximity"
 	"veyron2/vlog"
 
@@ -269,13 +270,13 @@ func (s *server) rttLoop() {
 
 func (s *server) advertiseName(name string) {
 	if s.advertisedName != "" {
-		if err := s.proximity.UnregisterName(s.advertisedName); err != nil {
+		if err := s.proximity.UnregisterName(rt.R().TODOContext(), s.advertisedName); err != nil {
 			vlog.Errorf("error unregistering name %q with proximity service: %v", s.advertisedName, err)
 		}
 	}
 	s.advertisedName = ""
 	if name != "" {
-		if err := s.proximity.RegisterName(name); err == nil {
+		if err := s.proximity.RegisterName(rt.R().TODOContext(), name); err == nil {
 			s.advertisedName = name
 		} else {
 			vlog.Errorf("error registering name %q with proximity service: %v", name, err)

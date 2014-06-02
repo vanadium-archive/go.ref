@@ -177,13 +177,13 @@ func (gs *goState) registerAsPeer() {
 	if err != nil {
 		panic(fmt.Errorf("Failed to Listen:%v", err))
 	}
-	if err := gs.signalling.Add(endPt.String()); err != nil {
+	if err := gs.signalling.Add(gs.runtime.TODOContext(), endPt.String()); err != nil {
 		panic(fmt.Errorf("Failed to Add endpoint to signalling server:%v", err))
 	}
 }
 
 func (gs *goState) connectPeer() {
-	endpointStr, err := gs.signalling.Get()
+	endpointStr, err := gs.signalling.Get(gs.runtime.TODOContext())
 	if err != nil {
 		panic(fmt.Errorf("failed to Get peer endpoint from signalling server:%v\n", err))
 	}
@@ -191,7 +191,7 @@ func (gs *goState) connectPeer() {
 	if err != nil {
 		panic(fmt.Errorf("failed BindDrawInterface:%v\n", err))
 	}
-	if gs.drawStream, err = drawInterface.Draw(); err != nil {
+	if gs.drawStream, err = drawInterface.Draw(gs.runtime.TODOContext()); err != nil {
 		panic(fmt.Errorf("failed to get handle to Draw stream:%v\n", err))
 	}
 
