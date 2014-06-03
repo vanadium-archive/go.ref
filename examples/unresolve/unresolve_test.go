@@ -98,11 +98,11 @@ func TestUnresolve(t *testing.T) {
 	// TODO(ataly): Eventually we want to use the same identities the servers
 	// would have if they were running in production.
 	defer initRT()()
-	server := newServer()
-	defer server.Stop()
+	mtServer := newServer(veyron2.ServesMountTableOpt(true))
+	defer mtServer.Stop()
 
 	// Create mounttable A.
-	aOA := createMT(server)
+	aOA := createMT(mtServer)
 	if len(aOA) == 0 {
 		t.Fatalf("aOA is empty")
 	}

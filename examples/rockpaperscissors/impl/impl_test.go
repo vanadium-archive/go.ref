@@ -16,7 +16,7 @@ import (
 )
 
 func startMountTable(t *testing.T, runtime veyron2.Runtime) (string, func()) {
-	server, err := runtime.NewServer()
+	server, err := runtime.NewServer(veyron2.ServesMountTableOpt(true))
 	if err != nil {
 		t.Fatalf("NewServer() failed: %v", err)
 	}

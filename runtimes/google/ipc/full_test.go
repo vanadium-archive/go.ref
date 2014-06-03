@@ -194,6 +194,11 @@ func (mt *mountTable) Glob(pattern string) (chan naming.MountEntry, error) {
 	return nil, nil
 }
 
+func (mt *mountTable) SetRoots([]string) error {
+	panic("SetRoots not implemented")
+	return nil
+}
+
 func startServer(t *testing.T, serverID security.PrivateID, sm stream.Manager, mt naming.MountTable, ts interface{}) ipc.Server {
 	vlog.VI(1).Info("InternalNewServer")
 	server, err := InternalNewServer(sm, mt, veyron2.LocalID(serverID))

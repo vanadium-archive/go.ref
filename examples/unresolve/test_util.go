@@ -22,8 +22,8 @@ func initRT(opts ...veyron2.ROpt) func() {
 	return rt.Init(opts...).Shutdown
 }
 
-func newServer() ipc.Server {
-	server, err := rt.R().NewServer()
+func newServer(opts ...ipc.ServerOpt) ipc.Server {
+	server, err := rt.R().NewServer(opts...)
 	if err != nil {
 		panic(fmt.Sprintf("r.NewServer failed with %v", err))
 	}
@@ -41,9 +41,9 @@ func createServer(server ipc.Server, prefix string, dispatcher ipc.Dispatcher) s
 	return naming.JoinAddressName(ep.String(), prefix)
 }
 
-func serverMain(serviceCreator func(ipc.Server) string, args []string) {
+func serverMain(servesMT bool, serviceCreator func(ipc.Server) string, args []string) {
 	defer initRT()()
-	server := newServer()
+	server := newServer(veyron2.ServesMountTableOpt(servesMT))
 	defer server.Stop()
 	service := serviceCreator(server)
 	vlog.Infof("created %v", service)
@@ -65,7 +65,7 @@ func createMT(server ipc.Server) string {
 }
 
 func childMT(args []string) {
-	serverMain(createMT, args)
+	serverMain(true, createMT, args)
 }
 
 func createMTClient(name string) mtidl.MountTable {
@@ -93,7 +93,7 @@ func createFortune(server ipc.Server) string {
 }
 
 func childFortune(args []string) {
-	serverMain(createFortune, args)
+	serverMain(false, createFortune, args)
 }
 
 type fortuneCustomUnresolve struct {
@@ -124,14 +124,15 @@ func (*fortuneCustomUnresolve) UnresolveStep(context ipc.ServerContext) ([]strin
 func createFortuneCustomUnresolve(server ipc.Server) string {
 	oa := createServer(server, "tell/me/the/future", ipc.SoloDispatcher(fortuneidl.NewServerFortune(new(fortuneCustomUnresolve)), nil))
 	ep, _ := naming.SplitAddressName(oa)
-	oa = naming.JoinAddressName(ep, "tell/me")
+	oa = naming.MakeTerminal(naming.JoinAddressName(ep, "tell/me"))
 	// Doesn't get unmounted.  Fine for a test.
+	oa = naming.MakeTerminal(oa)
 	rt.R().MountTable().Mount("I/want/to/know", oa, 0)
 	return oa
 }
 
 func childFortuneCustomUnresolve(args []string) {
-	serverMain(createFortuneCustomUnresolve, args)
+	serverMain(false, createFortuneCustomUnresolve, args)
 }
 
 func createFortuneClient(rt veyron2.Runtime, name string) fortuneidl.Fortune {
@@ -166,7 +167,7 @@ func createFortuneNoIDL(server ipc.Server) string {
 }
 
 func childFortuneNoIDL(args []string) {
-	serverMain(createFortuneNoIDL, args)
+	serverMain(false, createFortuneNoIDL, args)
 }
 
 func resolveStep(t *testing.T, name string) string {

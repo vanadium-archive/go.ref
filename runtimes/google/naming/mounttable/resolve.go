@@ -118,6 +118,9 @@ func (ns *namespace) ResolveToMountTable(name string) ([]string, error) {
 		vlog.VI(2).Infof("ResolveToMountTable loop %s", names)
 		var err error
 		curr := names
+		if terminal(curr) {
+			return makeTerminal(last), nil
+		}
 		if names, err = resolveAgainstMountTable(ns.rt, names); err != nil {
 			if verror.Equal(naming.ErrNoSuchNameRoot, err) {
 				return makeTerminal(last), nil
@@ -138,9 +141,7 @@ func (ns *namespace) ResolveToMountTable(name string) ([]string, error) {
 			// mounttable rather than an error.
 			return nil, err
 		}
-		if terminal(curr) {
-			return curr, nil
-		}
+
 		last = curr
 	}
 	return nil, naming.ErrResolutionDepthExceeded
