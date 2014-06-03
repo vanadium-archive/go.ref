@@ -360,7 +360,7 @@ func (wsp *websocketPipe) createNewFlow(server *server, stream sender) *flow {
 	wsp.Lock()
 	defer wsp.Unlock()
 	id := wsp.lastGeneratedId
-	wsp.lastGeneratedId++
+	wsp.lastGeneratedId += 2
 	wsp.flowMap[id] = server
 	wsp.outstandingStreams[id] = stream
 	return &flow{id: id, writer: wsp.writerCreator(id)}
