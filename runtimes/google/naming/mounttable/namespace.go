@@ -40,9 +40,8 @@ func New(rt veyron2.Runtime, roots ...string) (*namespace, error) {
 	return &namespace{rt: rt, roots: roots}, nil
 }
 
-// TODO(cnicolaou,caprita): make this a public interface.
-// SetLocalRoots points the local roots at a set of mount table servers.
-func (ns *namespace) SetLocalRoots(roots ...string) error {
+// SetRoots implements naming.MountTable.SetRoots
+func (ns *namespace) SetRoots(roots []string) error {
 	if !rooted(roots) {
 		return badRoots(roots)
 	}

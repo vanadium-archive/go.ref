@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 
+	"veyron2"
 	"veyron2/naming"
 	"veyron2/rt"
 	"veyron2/vlog"
@@ -46,7 +47,7 @@ func main() {
 	r := rt.Init()
 	defer r.Shutdown()
 
-	server, err := r.NewServer()
+	server, err := r.NewServer(veyron2.ServesMountTableOpt(true))
 	if err != nil {
 		vlog.Errorf("r.NewServer failed: %v", err)
 		return

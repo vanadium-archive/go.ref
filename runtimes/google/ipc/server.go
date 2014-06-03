@@ -32,15 +32,16 @@ func errNotAuthorized(err error) verror.E {
 
 type server struct {
 	sync.Mutex
-	streamMgr    stream.Manager       // stream manager to listen for new flows.
-	disptrie     *disptrie            // dispatch trie for method dispatching.
-	publisher    Publisher            // publisher to publish mounttable mounts.
-	listenerOpts []stream.ListenerOpt // listener opts passed to Listen.
-	listeners    []stream.Listener    // listeners created by Listen.
-	active       sync.WaitGroup       // active goroutines we've spawned.
-	stopped      bool                 // whether the server has been stopped.
-	mt           naming.MountTable
-	publishOpt   veyron2.ServerPublishOpt // which endpoints to publish
+	streamMgr        stream.Manager       // stream manager to listen for new flows.
+	disptrie         *disptrie            // dispatch trie for method dispatching.
+	publisher        Publisher            // publisher to publish mounttable mounts.
+	listenerOpts     []stream.ListenerOpt // listener opts passed to Listen.
+	listeners        []stream.Listener    // listeners created by Listen.
+	active           sync.WaitGroup       // active goroutines we've spawned.
+	stopped          bool                 // whether the server has been stopped.
+	mt               naming.MountTable
+	publishOpt       veyron2.ServerPublishOpt // which endpoints to publish
+	servesMountTable bool
 }
 
 func InternalNewServer(streamMgr stream.Manager, mt naming.MountTable, opts ...ipc.ServerOpt) (ipc.Server, error) {
@@ -57,6 +58,8 @@ func InternalNewServer(streamMgr stream.Manager, mt naming.MountTable, opts ...i
 			s.listenerOpts = append(s.listenerOpts, opt)
 		case veyron2.ServerPublishOpt:
 			s.publishOpt = opt
+		case veyron2.ServesMountTableOpt:
+			s.servesMountTable = bool(opt)
 		}
 	}
 	return s, nil
@@ -161,6 +164,11 @@ func (s *server) Listen(protocol, address string) (naming.Endpoint, error) {
 	}
 	s.Unlock()
 	if len(publishEP) > 0 {
+		if !s.servesMountTable {
+			// Make sure that client MountTable code doesn't try and
+			// ResolveStep past this final address.
+			publishEP += "//"
+		}
 		s.publisher.AddServer(publishEP)
 	}
 	return ep, nil

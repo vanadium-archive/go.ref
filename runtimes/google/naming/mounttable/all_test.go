@@ -256,15 +256,15 @@ func TestNamespace(t *testing.T) {
 	}
 
 	// This mounts the service OA (ep/joke1) as joke1.
-	if err := mt.Mount("joke1", naming.JoinAddressName(estr, "joke1"), ttl); err != nil {
+	if err := mt.Mount("joke1", naming.JoinAddressName(estr, "//joke1"), ttl); err != nil {
 		boom(t, "Failed to Mount joke1: %s", err)
 	}
 	// This mounts the raw server endpoint as joke2 -- like Publish would.
-	if err := mt.Mount("joke2", naming.JoinAddressName(estr, ""), ttl); err != nil {
+	if err := mt.Mount("joke2", naming.JoinAddressName(estr, "")+"//", ttl); err != nil {
 		boom(t, "Failed to Mount joke2: %s", err)
 	}
 	// This mounts the raw server endpoint as joke3 in mt3 -- like Publish would.
-	if err := mt.Mount("mt3/joke3", naming.JoinAddressName(estr, ""), ttl); err != nil {
+	if err := mt.Mount("mt3/joke3", naming.JoinAddressName(estr, "")+"//", ttl); err != nil {
 		boom(t, "Failed to Mount joke3: %s", err)
 	}
 
@@ -295,14 +295,16 @@ func TestNamespace(t *testing.T) {
 	// And the MountTable that serves //mt4/mt5 is /<epstr>//mt1/mt4/mt5
 	testResolveToMountTable(t, mt, "//mt4/mt5", naming.JoinAddressName(estr, "//mt1//mt4/mt5"))
 
+	vlog.Infof("\n-------------------------------------------------")
 	jokeTests := []struct {
 		name, resolved, resolvedToMT string
 	}{
 		{"joke1", naming.JoinAddressName(estr, "//joke1"), naming.JoinAddressName(estr, "//mt1/joke1")},
-		{"joke2", naming.JoinAddressName(estr, ""), naming.JoinAddressName(estr, "//mt1/joke2")},
-		{"mt3/joke3", naming.JoinAddressName(estr, ""), naming.JoinAddressName(estr, "//mt3/joke3")},
+		{"joke2", naming.JoinAddressName(estr, "") + "//", naming.JoinAddressName(estr, "//mt1/joke2")},
+		{"mt3/joke3", naming.JoinAddressName(estr, "") + "//", naming.JoinAddressName(estr, "//mt3/joke3")},
 	}
 	for _, test := range jokeTests {
+
 		servers, err := mt.Resolve(test.name)
 		if err != nil {
 			boom(t, "Failed to Resolve %s: %s", test.name, err)
@@ -310,6 +312,7 @@ func TestNamespace(t *testing.T) {
 		if len(servers) != 1 || servers[0] != test.resolved {
 			boom(t, "Resolve %s returned wrong servers: %v, expected: %s", test.name, servers, test.resolved)
 		}
+
 		servers, err = mt.ResolveToMountTable(test.name)
 		if err != nil {
 			boom(t, "Failed to ResolveToMountTable %s: %s", test.name, err)
@@ -329,6 +332,7 @@ func TestNamespace(t *testing.T) {
 		expected []string
 	}{
 		{"*", []string{"mt2", "mt3", "joke1", "joke2"}},
+
 		{"*/...", []string{"mt2", "mt3", "mt2/mt4", "mt3/mt4", "mt2/mt4/mt5", "mt3/mt4/mt5", "joke1", "joke2", "mt3/joke3"}},
 		{"*/m?4/*5", []string{"mt2/mt4/mt5", "mt3/mt4/mt5"}},
 		{"*2*/*/*5", []string{"mt2/mt4/mt5"}},
@@ -339,4 +343,5 @@ func TestNamespace(t *testing.T) {
 		out := doGlob(t, mt, test.pattern)
 		checkMatch(t, test.pattern, test.expected, out)
 	}
+
 }

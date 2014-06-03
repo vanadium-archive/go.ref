@@ -92,8 +92,16 @@ func (s simpleAdder) Signature(call ipc.ServerCall) (ipc.ServiceSignature, error
 type registerFunc func(ipc.Server) error
 
 func startServer(registerer registerFunc) (ipc.Server, naming.Endpoint, error) {
+	return startAnyServer(false, registerer)
+}
+
+func startMTServer(registerer registerFunc) (ipc.Server, naming.Endpoint, error) {
+	return startAnyServer(true, registerer)
+}
+
+func startAnyServer(servesMT bool, registerer registerFunc) (ipc.Server, naming.Endpoint, error) {
 	// Create a new server instance.
-	s, err := r.NewServer()
+	s, err := r.NewServer(veyron2.ServesMountTableOpt(servesMT))
 	if err != nil {
 		return nil, nil, err
 	}
@@ -126,7 +134,7 @@ func startProxy() (*proxy.Proxy, error) {
 }
 
 func startMountTableServer() (ipc.Server, naming.Endpoint, error) {
-	return startServer(func(server ipc.Server) error {
+	return startMTServer(func(server ipc.Server) error {
 		mt, err := mounttable.NewMountTable("")
 		if err != nil {
 			return err
@@ -231,7 +239,7 @@ func TestGetGoServerSignature(t *testing.T) {
 	wspr.setup()
 	wsp := websocketPipe{ctx: wspr}
 	wsp.setup()
-	jsSig, err := wsp.getSignature("/"+endpoint.String()+"/cache", "")
+	jsSig, err := wsp.getSignature("/"+endpoint.String()+"//cache", "")
 	if err != nil {
 		t.Errorf("Failed to get signature: %v", err)
 	}
@@ -280,7 +288,7 @@ func runGoServerTestCase(t *testing.T, test goServerTestCase) {
 	}
 
 	request := veyronRPC{
-		Name:        "/" + endpoint.String() + "/cache",
+		Name:        "/" + endpoint.String() + "//cache",
 		Method:      test.method,
 		InArgs:      test.inArgs,
 		NumOutArgs:  test.numOutArgs,
@@ -453,7 +461,7 @@ func runJsServerTestCase(t *testing.T, test jsServerTestCase) {
 
 	proxyEndpoint := proxyServer.Endpoint().String()
 
-	wspr := NewWSPR(0, "/"+proxyEndpoint, veyron2.MountTableRoots{"/" + endpoint.String() + "/mt"})
+	wspr := NewWSPR(0, "/"+proxyEndpoint, veyron2.MountTableRoots{"/" + endpoint.String() + "/mt//"})
 	wspr.setup()
 	wsp := websocketPipe{ctx: wspr}
 	writer := testWriter{
@@ -500,7 +508,7 @@ func runJsServerTestCase(t *testing.T, test jsServerTestCase) {
 		t.Errorf("unable to create client: %v", err)
 	}
 
-	call, err := client.StartCall(wspr.rt.NewContext(), "/"+msg+"/adder", test.method, test.inArgs)
+	call, err := client.StartCall(wspr.rt.NewContext(), "/"+msg+"//adder", test.method, test.inArgs)
 	if err != nil {
 		t.Errorf("failed to start call: %v", err)
 	}

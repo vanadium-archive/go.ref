@@ -127,7 +127,7 @@ func spawnNodeManager(t *testing.T, arAddress, mtAddress string, idFile string) 
 	return child
 }
 
-func startApplicationRepository(t *testing.T, runtime veyron2.Runtime, cmAddress string, envelope *application.Envelope) (string, func()) {
+func startApplicationRepository(t *testing.T, runtime veyron2.Runtime, cmAddress string, envelope *application.Envelope) (string, naming.Endpoint, func()) {
 	server, err := runtime.NewServer()
 	if err != nil {
 		t.Fatalf("NewServer() failed: %v", err)
@@ -141,16 +141,17 @@ func startApplicationRepository(t *testing.T, runtime veyron2.Runtime, cmAddress
 	if err != nil {
 		t.Fatalf("Listen(%v, %v) failed: %v", protocol, hostname, err)
 	}
-	address := naming.JoinAddressName(endpoint.String(), suffix)
-	vlog.VI(1).Infof("Application repository running at endpoint: %s", address)
-	return address, func() {
+	// Method calls must be directed to suffix+"/"+suffix
+	server.Publish(suffix)
+	vlog.VI(1).Infof("Application repository running at endpoint: %s", endpoint)
+	return suffix + "/" + suffix, endpoint, func() {
 		if err := server.Stop(); err != nil {
 			t.Fatalf("Stop() failed: %v", err)
 		}
 	}
 }
 
-func startContentManager(t *testing.T, runtime veyron2.Runtime) (string, func()) {
+func startContentManager(t *testing.T, runtime veyron2.Runtime) (string, naming.Endpoint, func()) {
 	server, err := runtime.NewServer()
 	if err != nil {
 		t.Fatalf("NewServer() failed: %v", err)
@@ -164,9 +165,10 @@ func startContentManager(t *testing.T, runtime veyron2.Runtime) (string, func())
 	if err != nil {
 		t.Fatalf("Listen(%v, %v) failed: %v", protocol, hostname, err)
 	}
-	address := naming.JoinAddressName(endpoint.String(), suffix)
-	vlog.VI(1).Infof("Content manager running at endpoint: %s", address)
-	return address, func() {
+	// Method calls must be directed to suffix+"/"+suffix
+	server.Publish(suffix)
+	vlog.VI(1).Infof("Content manager running at endpoint: %s", endpoint)
+	return suffix + "/" + suffix, endpoint, func() {
 		if err := server.Stop(); err != nil {
 			t.Fatalf("Stop() failed: %v", err)
 		}
@@ -174,7 +176,7 @@ func startContentManager(t *testing.T, runtime veyron2.Runtime) (string, func())
 }
 
 func startMountTable(t *testing.T, runtime veyron2.Runtime) (string, func()) {
-	server, err := runtime.NewServer()
+	server, err := runtime.NewServer(veyron2.ServesMountTableOpt(true))
 	if err != nil {
 		t.Fatalf("NewServer() failed: %v", err)
 	}
@@ -191,9 +193,9 @@ func startMountTable(t *testing.T, runtime veyron2.Runtime) (string, func()) {
 	if err != nil {
 		t.Fatalf("Listen(%v, %v) failed: %v", protocol, hostname, err)
 	}
-	address := naming.JoinAddressName(endpoint.String(), suffix)
-	vlog.VI(1).Infof("Mount table running at endpoint: %s", address)
-	return address, func() {
+	name := naming.JoinAddressName(endpoint.String(), suffix)
+	vlog.VI(1).Infof("Mount table running at endpoint: %s, name %q", endpoint, name)
+	return name, func() {
 		if err := server.Stop(); err != nil {
 			t.Fatalf("Stop() failed: %v", err)
 		}
@@ -236,14 +238,29 @@ func TestUpdate(t *testing.T) {
 	// Set up a mount table, a content manager, and an application repository.
 	runtime := rt.Init()
 	defer runtime.Shutdown()
-	mtAddress, mtCleanup := startMountTable(t, runtime)
+	mtName, mtCleanup := startMountTable(t, runtime)
 	defer mtCleanup()
 	mt := runtime.MountTable()
-	cmAddress, cmCleanup := startContentManager(t, runtime)
+	// The local, client side MountTable is now relative the MountTable server
+	// started above.
+	mt.SetRoots([]string{mtName})
+
+	cmSuffix, cmEndpoint, cmCleanup := startContentManager(t, runtime)
+	cmName := naming.Join(mtName, cmSuffix)
 	defer cmCleanup()
 	envelope := application.Envelope{}
-	arAddress, arCleanup := startApplicationRepository(t, runtime, cmAddress, &envelope)
+	arSuffix, arEndpoint, arCleanup := startApplicationRepository(t, runtime, cmSuffix, &envelope)
+	//arName := naming.Join(mtName, arSuffix)
 	defer arCleanup()
+
+	if s, err := mt.Resolve(arSuffix); err != nil || s[0] != "/"+arEndpoint.String()+"//ar" {
+		t.Errorf("failed to resolve %q", arSuffix)
+		t.Errorf("err: %v, got %v, want /%v//ar", err, s[0], arEndpoint)
+	}
+	if s, err := mt.Resolve(cmSuffix); err != nil || s[0] != "/"+cmEndpoint.String()+"//cm" {
+		t.Errorf("failed to resolve %q", cmSuffix)
+		t.Errorf("err: %v, got %v, want /%v//cm", err, s[0], cmEndpoint)
+	}
 
 	// Spawn a node manager with an identity blessed by the mounttable's identity.
 	// under the name "test", and obtain its endpoint.
@@ -252,14 +269,14 @@ func TestUpdate(t *testing.T) {
 
 	idFile := testutil.SaveIdentityToFile(testutil.NewBlessedIdentity(runtime.Identity(), "test"))
 	defer os.Remove(idFile)
-	child := spawnNodeManager(t, arAddress, mtAddress, idFile)
+	child := spawnNodeManager(t, arSuffix, mtName, idFile)
 	defer child.Cleanup()
 	_ = getProcessID(t, child) // sync with the child
 	envelope.Args = child.Cmd.Args[1:]
 	envelope.Env = child.Cmd.Env
-	envelope.Binary = cmAddress
+	envelope.Binary = cmName
 
-	name := naming.Join(mtAddress, "nm")
+	name := naming.Join(mtName, "nm")
 	results, err := mt.Resolve(name)
 	if err != nil {
 		t.Fatalf("Resolve(%v) failed: %v", name, err)

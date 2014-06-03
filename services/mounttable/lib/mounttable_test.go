@@ -101,6 +101,10 @@ func (stupidMT) Glob(pattern string) (chan naming.MountEntry, error) {
 	return nil, errors.New("Glob is not implemented in this MountTable")
 }
 
+func (s stupidMT) SetRoots([]string) error {
+	return nil
+}
+
 func doMount(t *testing.T, name, service string, shouldSucceed bool, id ipc.ClientOpt) {
 	mtpt, err := mounttable.BindMountTable(name, quuxClient(id))
 	if err != nil {
