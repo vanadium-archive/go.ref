@@ -129,15 +129,16 @@ func (id *chainPrivateID) PrivateKey() *ecdsa.PrivateKey { return id.privateKey 
 func (id *chainPrivateID) String() string { return fmt.Sprintf("PrivateID:%v", id.publicID) }
 
 func (id *chainPrivateID) VomEncode() (*wire.ChainPrivateID, error) {
-	var err error
-	w := &wire.ChainPrivateID{Secret: id.privateKey.D.Bytes()}
-	w.PublicID, err = id.publicID.VomEncode()
-	return w, err
+	pub, err := id.publicID.VomEncode()
+	if err != nil {
+		return nil, err
+	}
+	return &wire.ChainPrivateID{Secret: id.privateKey.D.Bytes(), PublicID: *pub}, nil
 }
 
 func (id *chainPrivateID) VomDecode(w *wire.ChainPrivateID) error {
 	id.publicID = new(chainPublicID)
-	if err := id.publicID.VomDecode(w.PublicID); err != nil {
+	if err := id.publicID.VomDecode(&w.PublicID); err != nil {
 		return err
 	}
 	id.privateKey = &ecdsa.PrivateKey{
@@ -184,21 +185,28 @@ func (id *chainPrivateID) Bless(blessee security.PublicID, blessingName string, 
 	}, nil
 }
 
-// Derive returns a new PrivateID that contains the PrivateID's private key and the
-// provided PublicID. The provided PublicID must have the same public key as the public
-// key of the PrivateID's PublicID.
 func (id *chainPrivateID) Derive(pub security.PublicID) (security.PrivateID, error) {
 	if !reflect.DeepEqual(pub.PublicKey(), id.publicID.publicKey) {
 		return nil, errDeriveMismatch
 	}
-	chainPub, ok := pub.(*chainPublicID)
-	if !ok {
-		return nil, fmt.Errorf("PrivateID of type %T cannot be obtained from PublicID of type %T", id, pub)
+	switch p := pub.(type) {
+	case *chainPublicID:
+		return &chainPrivateID{
+			publicID:   p,
+			privateKey: id.privateKey,
+		}, nil
+	case *setPublicID:
+		privs := make([]security.PrivateID, len(*p))
+		var err error
+		for ix, ip := range *p {
+			if privs[ix], err = id.Derive(ip); err != nil {
+				return nil, fmt.Errorf("Derive failed for public id %d of %d in set: %v", ix, len(*p), err)
+			}
+		}
+		return setPrivateID(privs), nil
+	default:
+		return nil, fmt.Errorf("PrivateID of type %T cannot be used to Derive from PublicID of type %T", id, pub)
 	}
-	return &chainPrivateID{
-		publicID:   chainPub,
-		privateKey: id.privateKey,
-	}, nil
 }
 
 func (id *chainPrivateID) MintDischarge(cav security.ThirdPartyCaveat, duration time.Duration, dischargeCaveats []security.ServiceCaveat) (security.ThirdPartyDischarge, error) {

@@ -19,9 +19,7 @@ var (
 	// Trusted identity providers
 	// (type assertion just to ensure test sanity)
 	veyronChain = newChain("veyron").(*chainPrivateID)
-	veyronTree  = newTree("veyron").(*treePrivateID)
 	googleChain = newChain("google").(*chainPrivateID)
-	googleTree  = newTree("google").(*treePrivateID)
 )
 
 func matchesErrorPattern(err error, pattern string) bool {
@@ -59,8 +57,16 @@ func newChain(name string) security.PrivateID {
 	return id
 }
 
-func newTree(name string) security.PrivateID {
-	id, err := newTreePrivateID(name)
+func newSetPublicID(ids ...security.PublicID) security.PublicID {
+	id, err := NewSetPublicID(ids...)
+	if err != nil {
+		panic(err)
+	}
+	return id
+}
+
+func newSetPrivateID(ids ...security.PrivateID) security.PrivateID {
+	id, err := NewSetPrivateID(ids...)
 	if err != nil {
 		panic(err)
 	}
@@ -116,55 +122,44 @@ func peerIdentityCaveat(p security.PrincipalPattern) []security.ServiceCaveat {
 func init() {
 	// Mark "veyron" and "google" as trusted identity providers.
 	keys.Trust(veyronChain.PublicID().PublicKey(), "veyron")
-	keys.Trust(veyronTree.PublicID().PublicKey(), "veyron")
 	keys.Trust(googleChain.PublicID().PublicKey(), "google")
-	keys.Trust(googleTree.PublicID().PublicKey(), "google")
 }
 
 func TestTrustIdentityProviders(t *testing.T) {
 	var (
-		cSelf = newChain("chainself")
-		// cBlessed = "chainprovider/somebody"
-		cProvider = newChain("chainprovider")
+		cSelf     = newChain("chainself")
+		cProvider = newChain("provider")
 		cBlessed  = derive(bless(cSelf.PublicID(), cProvider, "somebody", nil), cSelf)
 
-		tSelf     = newTree("treeself")
-		tProvider = newTree("treeprovider")
-		tBlessed  = derive(bless(tSelf.PublicID(), tProvider, "somebody", nil), tSelf)
+		cProvider1 = newChain("provider")
+		cProvider2 = newChain("provider")
+		cSomebody1 = derive(bless(cSelf.PublicID(), cProvider1, "somebody1", nil), cSelf)
+		cSomebody2 = derive(bless(cSelf.PublicID(), cProvider2, "somebody2", nil), cSelf)
+		setID      = newSetPrivateID(cSomebody1, cSomebody2)
 
 		fake = security.FakePrivateID("fake")
 	)
 	// Initially nobody is trusted
 	m := map[security.PrivateID]bool{
-		cSelf:     false,
-		cProvider: false,
-		tSelf:     false,
-		tProvider: false,
+		cSelf:      false,
+		cProvider:  false,
+		cBlessed:   false,
+		cProvider1: false,
+		cProvider2: false,
+		cSomebody1: false,
+		cSomebody2: false,
 	}
 	test := func() {
 		for priv, want := range m {
 			id := priv.PublicID()
-			key := id.PublicKey()
-			var tl keys.TrustLevel
-			switch impl := id.(type) {
-			case *chainPublicID:
-				tl = keys.LevelOfTrust(key, impl.certificates[0].Name)
-			case *treePublicID:
-				tl = keys.LevelOfTrust(impl.paths[0].providerKey, impl.paths[0].providerName)
-			default:
-				t.Fatal("Unexpected security.PublicID implementation, identity provider TrustLevel checks only apply to the chain and tree implementations of security.PublicID")
-			}
-
-			switch tl {
+			switch tl := keys.LevelOfTrust(id.PublicKey(), "provider"); tl {
 			case keys.Trusted:
 				if !want {
 					t.Errorf("%q is trusted, should not be", id)
 				}
-			case keys.Mistrusted:
-				t.Errorf("%q is mistrusted. This test should not allow anyone to be mistrusted", id)
-			case keys.Unknown:
+			case keys.Unknown, keys.Mistrusted:
 				if want {
-					t.Errorf("%q is not trusted, it should be", id)
+					t.Errorf("%q is %v, it should be trusted", id, tl)
 				}
 			default:
 				t.Errorf("%q has an invalid trust level: %v", tl)
@@ -172,19 +167,15 @@ func TestTrustIdentityProviders(t *testing.T) {
 		}
 	}
 	test()
-	// Trusting cSelf
-	TrustIdentityProviders(cSelf)
-	m[cSelf] = true
-	test()
 	// Trusting cBlessed should cause cProvider to be trusted
 	TrustIdentityProviders(cBlessed)
 	m[cProvider] = true
 	test()
-	// Trusting tBlessed should cause both tSelf and tProvider to be
-	// trusted (since tBlessed has both as identity providers)
-	TrustIdentityProviders(tBlessed)
-	m[tSelf] = true
-	m[tProvider] = true
+	// Trusting setID should cause both cProvider1 and cProvider2
+	// to be trusted.
+	TrustIdentityProviders(setID)
+	m[cProvider1] = true
+	m[cProvider2] = true
 	// Trusting a fake identity should be a no-op
 	TrustIdentityProviders(fake)
 	test()

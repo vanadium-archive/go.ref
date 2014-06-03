@@ -19,9 +19,9 @@ func TrustIdentityProviders(id security.PrivateID) {
 	switch t := id.(type) {
 	case *chainPrivateID:
 		keys.Trust(t.publicID.rootKey, t.publicID.certificates[0].Name)
-	case *treePrivateID:
-		for _, p := range t.publicID.paths {
-			keys.Trust(p.providerKey, p.providerName)
+	case setPrivateID:
+		for _, priv := range t {
+			TrustIdentityProviders(priv)
 		}
 	default:
 		// Silently ignore

@@ -10,9 +10,7 @@
 // that make up the public key.
 package wire
 
-import (
-	"veyron2/security"
-)
+import "veyron2/security"
 
 const (
 	keyCurveP256 keyCurve = 0
@@ -81,49 +79,7 @@ type ChainPublicID struct {
 // ChainPrivateID represents the chain implementation of PrivateIDs from veyron/runtimes/google/security.
 type ChainPrivateID struct {
 	// PublicID associated with the PrivateID.
-	PublicID *ChainPublicID
-	// Secret represents the secret integer that together with an ECDSA public key makes up the
-	// corresponding private key.
-	Secret []byte
-}
-
-// Blessing is a signed assertion binding a name to a public key under a certain set
-// of caveats. The aforesaid public key is also called the "public key being blessed".
-// The issuer of a blessing is the principal that possesses the private key
-// under which the Blessing was signed. The PublicID of the issuer is also linked to
-// from the blessing.
-type Blessing struct {
-	// Blessor is the PublicID of the issuer of the blessing. It is nil if the blessing
-	// is self-signed, i.e, the public key being blessed and the private key signing
-	// the blessing correspond.
-	Blessor *TreePublicID
-	// Name specified in the blessing, e.g., Alice, Bob. Name must not have the
-	// characters "/" or "#".
-	Name string
-	// Caveats under which the blessing is valid.
-	Caveats []Caveat
-	// Signature of the contents of the blessing along with the public key being
-	// blessed.
-	Signature Signature
-}
-
-// TreePublicID represents the tree implementation of PublicIDs from veyron/runtimes/google/security.
-// It consists of a public key and a list of blessings binding different names to the public key.
-// For each blessing, the blesser's PublicID (which is linked to from the blessing) may in turn
-// have blessings of its own thus resulting in a tree of blessings. The blessings at the leaves
-// of the tree are "self signed". This blessing tree effectively binds a tree of names to the
-// PublicID depending on which blessings are valid.
-type TreePublicID struct {
-	// PublicKey is the ECDSA public key associated with the PublicID.
-	PublicKey PublicKey
-	// Blessings is the list of blessings for the aforesaid public key.
-	Blessings []Blessing
-}
-
-// TreePrivateID represents the tree implementation of PrivateIDs from veyron/runtimes/google/security.
-type TreePrivateID struct {
-	// PublicID associated with the PrivateID.
-	PublicID *TreePublicID
+	PublicID ChainPublicID
 	// Secret represents the secret integer that together with an ECDSA public key makes up the
 	// corresponding private key.
 	Secret []byte

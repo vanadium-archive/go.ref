@@ -19,21 +19,7 @@ package security
 // Wire size with 0 blessings: 676 bytes ("untrusted/X")
 // Wire size with 1 blessings: 976 bytes ("untrusted/X/X")
 // Wire size with 2 blessings: 1275 bytes ("untrusted/X/X/X")
-//
-// -- tree implementation --
-//
-// BenchmarkNewTree                     1338252 ns/op
-// BenchmarkBlessTree                    774195 ns/op
-// BenchmarkEncode0BlessingTree           51532 ns/op
-// BenchmarkEncode1BlessingTree           63069 ns/op
-// BenchmarkDecode0BlessingTree         2591321 ns/op
-// BenchmarkDecode1BlessingTree         7575987 ns/op
-//
-// Wire size with 0 blessings: 687 bytes ("untrusted/X")
-// Wire size with 1 blessings: 1066 bytes ("untrusted/X#untrusted/1/X")
-// Wire size with 2 blessings: 1444 bytes ("untrusted/X#untrusted/1/X#untrusted/2/X")
 import (
-	"fmt"
 	"testing"
 	"time"
 
@@ -116,57 +102,5 @@ func TestChainWireSize(t *testing.T) {
 		}
 		t.Logf("Wire size of %T with %d blessings: %d bytes (%q)", pub, i, len(buf), pub)
 		priv = derive(bless(pub, priv, "X", nil), priv)
-	}
-}
-
-// -- tree implementation benchmarks --
-
-func BenchmarkNewTree(b *testing.B) {
-	for i := 0; i < b.N; i++ {
-		if _, err := newTreePrivateID("X"); err != nil {
-			b.Fatalf("newTreePrivateID #%d: %v", i, err)
-		}
-
-	}
-}
-
-func BenchmarkBlessTree(b *testing.B) {
-	benchmarkBless(b, newTree("alice"), newTree("bob").PublicID())
-}
-
-func BenchmarkEncode0BlessingTree(b *testing.B) {
-	benchmarkEncode(b, newTree("alice").PublicID())
-}
-
-func BenchmarkEncode1BlessingTree(b *testing.B) {
-	benchmarkEncode(b, bless(newTree("alice").PublicID(), veyronTree, "alice", nil))
-}
-
-func BenchmarkDecode0BlessingTree(b *testing.B) {
-	idBytes, err := encode(newTree("alice").PublicID())
-	if err != nil {
-		b.Fatal(err)
-	}
-	benchmarkDecode(b, idBytes)
-}
-
-func BenchmarkDecode1BlessingTree(b *testing.B) {
-	idBytes, err := encode(bless(newTree("alice").PublicID(), veyronTree, "alice", nil))
-	if err != nil {
-		b.Fatal(err)
-	}
-	benchmarkDecode(b, idBytes)
-}
-
-func TestTreeWireSize(t *testing.T) {
-	const N = 3
-	id := newTree("X").PublicID()
-	for i := 0; i < N; i++ {
-		buf, err := encode(id)
-		if err != nil {
-			t.Fatalf("Failed to encode %q: %v", id, err)
-		}
-		t.Logf("Wire size of %T with %d blessings: %d bytes (%q)", id, i, len(buf), id)
-		id = bless(id, newTree(fmt.Sprintf("%d", i+1)), "X", nil)
 	}
 }
