@@ -8,7 +8,7 @@
 // Package contents and dependencies are as follows:
 //
 //      * manager provides a factory for veyron2/ipc/stream.Manager objects.
-//        It depends on the vif package.
+//        It depends on the vif and proxy packages.
 //      * vif implements a VIF type that wraps over a net.Conn
 //        and enables the creation of veyron2/ipc/stream.VC objects
 //        over the underlying network connection.

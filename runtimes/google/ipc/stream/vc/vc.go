@@ -291,7 +291,7 @@ func (vc *VC) ReleaseCounters(fid id.Flow, bytes uint32) {
 // Close closes the VC and all flows on it, allowing any pending writes in the
 // flow to drain.
 func (vc *VC) Close(reason string) error {
-	vlog.VI(1).Infof("Closing VCI %d. Reason:%q", vc.vci, reason)
+	vlog.VI(1).Infof("Closing VC %v. Reason:%q", vc, reason)
 	vc.mu.Lock()
 	flows := vc.flowMap
 	vc.flowMap = nil
@@ -304,7 +304,7 @@ func (vc *VC) Close(reason string) error {
 
 	vc.sharedCounters.Close()
 	for fid, flow := range flows {
-		vlog.VI(2).Infof("Closing flow %d on VC %d as VC is being closed(%q)", fid, vc.vci, reason)
+		vlog.VI(2).Infof("Closing flow %d on VC %v as VC is being closed(%q)", fid, vc, reason)
 		flow.Close()
 	}
 	return nil

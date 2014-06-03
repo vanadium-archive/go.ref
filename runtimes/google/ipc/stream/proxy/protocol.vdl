@@ -1,0 +1,26 @@
+package proxy
+
+// The proxy protocol is:
+// (1) Server establishes a VC to the proxy to register its routing id and authenticate.
+// (2) The server opens a flow and sends a "Request" message and waits for a "Response"
+//     message.
+// (3) This flow is then kept alive with no more data read/written.
+//     Closure of this flow indicates that proxying has (or should be) stopped.
+// (4) The proxy immediately closes any other flows on the VC.
+
+// Request is the message sent by a server to request that the proxy route
+// traffic intended for the server's RoutingID to the network connection
+// between the server and the proxy.
+type Request struct {
+  // TODO(ashankar): Things that will go in here include the mounttable and the name
+  // the server wants the proxy to use when mounting the server on the mounttable,
+  // possibly a blessing to give the proxy the credentials required to act as the
+  // server as far as the mounttable is concerned.
+}
+
+// Response is sent by the proxy to the server after processing Request.
+type Response struct {
+  // Error is a description of why the proxy refused to proxy the server.
+  // A nil error indicates that the proxy will route traffic to the server.
+  Error error
+}

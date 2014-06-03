@@ -8,6 +8,7 @@ import (
 	"sync"
 	"time"
 
+	"veyron/runtimes/google/ipc/stream/proxy"
 	"veyron/runtimes/google/ipc/stream/vif"
 	"veyron/runtimes/google/lib/upcqueue"
 
@@ -15,6 +16,7 @@ import (
 	"veyron2/naming"
 	"veyron2/verror"
 	"veyron2/vlog"
+	"veyron2/vom"
 )
 
 var errListenerIsClosed = errors.New("Listener has been Closed")
@@ -160,10 +162,9 @@ func (ln *proxyListener) connect() (*vif.VIF, error) {
 	if err := vf.StartAccepting(ln.opts...); err != nil {
 		return nil, fmt.Errorf("already connected to proxy and accepting connections? VIF: %v, StartAccepting error: %v", vf, err)
 	}
-	// Proxy protocol:
-	// (1) Dial a VC to it (to include this processes' routing id in the proxy's routing table)
-	// (2) Open a Flow and wait for it to die (which should happen only when the proxy is down)
-	// For (1), need stream.VCOpt (identity etc.)
+	// Proxy protocol: See veyron/runtimes/google/ipc/stream/proxy/protocol.vdl
+	// Requires dialing a VC to the proxy, need to extract options (like the identity)
+	// from ln.opts to do so.
 	var dialOpts []stream.VCOpt
 	for _, opt := range ln.opts {
 		if dopt, ok := opt.(stream.VCOpt); ok {
@@ -183,6 +184,24 @@ func (ln *proxyListener) connect() (*vif.VIF, error) {
 		vf.StopAccepting()
 		return nil, fmt.Errorf("unable to create liveness check flow to proxy: %v", err)
 	}
+	var request proxy.Request
+	var response proxy.Response
+	if err := vom.NewEncoder(flow).Encode(request); err != nil {
+		flow.Close()
+		vf.StopAccepting()
+		return nil, fmt.Errorf("failed to encode request to proxy: %v", err)
+	}
+	if err := vom.NewDecoder(flow).Decode(&response); err != nil {
+		flow.Close()
+		vf.StopAccepting()
+		return nil, fmt.Errorf("failed to decode response from proxy: %v", err)
+	}
+	if response.Error != nil {
+		flow.Close()
+		vf.StopAccepting()
+		return nil, fmt.Errorf("proxy error: %v", response.Error)
+	}
+
 	go func(vf *vif.VIF, flow stream.Flow) {
 		<-flow.Closed()
 		vf.StopAccepting()

@@ -40,7 +40,7 @@ func TestProxy(t *testing.T) {
 	}
 	defer ln1.Close()
 
-	// Create the stream.Manager for a second server1.
+	// Create the stream.Manager for a second server.
 	server2 := manager.InternalNew(naming.FixedRoutingID(0x2222222222222222))
 	defer server2.Shutdown()
 	// Setup a stream.Listener that will accept VCs and Flows routed
@@ -104,7 +104,7 @@ func TestDuplicateRoutingID(t *testing.T) {
 	defer ln1.Close()
 
 	ln2, ep2, err := server2.Listen(proxy.Endpoint().Network(), proxy.Endpoint().String())
-	if pattern := "routing id 00000000000000005555555555555555 is registered by another process at the proxy"; err == nil || !strings.Contains(err.Error(), pattern) {
+	if pattern := "routing id 00000000000000005555555555555555 is already being proxied"; err == nil || !strings.Contains(err.Error(), pattern) {
 		t.Errorf("Got (%v, %v, %v) want error \"...%v\" (ep1:%v)", ln2, ep2, err, pattern, ep1)
 	}
 }
