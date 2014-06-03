@@ -137,17 +137,17 @@ func (p *ParentHandle) Start() error {
 		return err
 	}
 	// Pass data to the child using a pipe.
-	if err := writeData(dataWrite, p.endpoint); err != nil {
+	if err := encodeString(dataWrite, p.endpoint); err != nil {
 		p.statusWrite.Close()
 		p.statusRead.Close()
 		return err
 	}
-	if err := writeData(dataWrite, p.id); err != nil {
+	if err := encodeString(dataWrite, p.id); err != nil {
 		p.statusWrite.Close()
 		p.statusRead.Close()
 		return err
 	}
-	if err := writeData(dataWrite, p.secret); err != nil {
+	if err := encodeString(dataWrite, p.secret); err != nil {
 		p.statusWrite.Close()
 		p.statusRead.Close()
 		return err
@@ -250,7 +250,7 @@ func (p *ParentHandle) Clean() error {
 	return p.c.Wait()
 }
 
-func writeData(w io.Writer, data string) error {
+func encodeString(w io.Writer, data string) error {
 	l := len(data)
 	if err := binary.Write(w, binary.BigEndian, int64(l)); err != nil {
 		return err

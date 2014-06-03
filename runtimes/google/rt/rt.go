@@ -6,14 +6,15 @@ import (
 	"os"
 	"sync"
 
+	"veyron/lib/exec"
+	imounttable "veyron/runtimes/google/naming/mounttable"
+
 	"veyron2"
 	"veyron2/ipc"
 	"veyron2/ipc/stream"
 	"veyron2/naming"
 	"veyron2/product"
 	"veyron2/vlog"
-
-	imounttable "veyron/runtimes/google/naming/mounttable"
 )
 
 type vrt struct {
@@ -114,6 +115,19 @@ func (rt *vrt) init(opts ...veyron2.ROpt) error {
 	}
 
 	if rt.client, err = rt.NewClient(rt.id); err != nil {
+		return err
+	}
+
+	handle, err := exec.GetChildHandle()
+	switch err {
+	case exec.ErrNoVersion:
+		// The process has not been started through the veyron exec
+		// library. No further action is needed.
+	case nil:
+		// The process has been started through the veyron exec
+		// library. Signal the parent the the child is ready.
+		handle.SetReady()
+	default:
 		return err
 	}
 

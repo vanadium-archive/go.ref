@@ -7,7 +7,7 @@ import (
 )
 
 func ExampleChildHandle() {
-	ch, _ := NewChildHandle()
+	ch, _ := GetChildHandle()
 	// Initalize the app/service, access the secret shared with the
 	// child by its parent
 	_ = ch.Secret

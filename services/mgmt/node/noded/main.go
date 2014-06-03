@@ -3,7 +3,6 @@ package main
 import (
 	"flag"
 
-	"veyron/lib/exec"
 	"veyron/lib/signals"
 	vflag "veyron/security/flag"
 	"veyron/services/mgmt/node/impl"
@@ -46,21 +45,6 @@ func main() {
 		if err := server.Publish(name); err != nil {
 			vlog.Fatalf("Publish(%v) failed: %v", name, err)
 		}
-	}
-	// This should really move into the runtime so that every process
-	// benefits from it, in particular we should use it to securely
-	// pick security credentials from the parent.
-	handle, err := exec.NewChildHandle()
-	switch err {
-	case nil:
-		// Node manager was started by self-update, notify the parent
-		// process that you are ready.
-		handle.SetReady()
-	case exec.ErrNoVersion:
-		// Node manager was not started by self-update, no action is
-		// needed.
-	default:
-		vlog.Fatalf("NewChildHandle() failed: %v", err)
 	}
 	// Wait until shutdown.
 	<-signals.ShutdownOnSignals()

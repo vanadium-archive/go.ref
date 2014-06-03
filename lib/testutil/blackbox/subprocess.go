@@ -145,7 +145,7 @@ func HelperProcess(t *testing.T) {
 		// If this process was started using the veyron exec library
 		// we have to use NewExtraFile below to get at the correct
 		// offset for the fd.
-		ch, err := vexec.NewChildHandle()
+		ch, err := vexec.GetChildHandle()
 		if err != nil {
 			vlog.Fatalf("Failed to init child handle: %v", err)
 		}

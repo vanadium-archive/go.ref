@@ -155,7 +155,7 @@ func TestSecretExchange(t *testing.T) {
 
 func TestNoVersion(t *testing.T) {
 	// Make sure that Init correctly tests for the presence of VEXEC_VERSION
-	_, err := vexec.NewChildHandle()
+	_, err := vexec.GetChildHandle()
 	if err != vexec.ErrNoVersion {
 		t.Errorf("Should be missing Version")
 	}
@@ -424,13 +424,13 @@ func TestHelperProcess(*testing.T) {
 
 	switch cmd {
 	case "testNeverReady":
-		_, err := vexec.NewChildHandle()
+		_, err := vexec.GetChildHandle()
 		if err != nil {
 			log.Fatal(os.Stderr, "%s\n", err)
 		}
 		fmt.Fprintf(os.Stderr, "never ready")
 	case "testTooSlowToReady":
-		ch, err := vexec.NewChildHandle()
+		ch, err := vexec.GetChildHandle()
 		if err != nil {
 			log.Fatal(os.Stderr, "%s\n", err)
 		}
@@ -455,14 +455,14 @@ func TestHelperProcess(*testing.T) {
 		}
 		os.Exit(0)
 	case "testReady":
-		ch, err := vexec.NewChildHandle()
+		ch, err := vexec.GetChildHandle()
 		if err != nil {
 			log.Fatal(os.Stderr, "%s", err)
 		}
 		ch.SetReady()
 		fmt.Fprintf(os.Stderr, ".")
 	case "testReadySlow":
-		ch, err := vexec.NewChildHandle()
+		ch, err := vexec.GetChildHandle()
 		if err != nil {
 			log.Fatal(os.Stderr, "%s", err)
 		}
@@ -481,7 +481,7 @@ func TestHelperProcess(*testing.T) {
 		ch.SetReady()
 		fmt.Fprintf(os.Stderr, "..")
 	case "testSuccess", "testError":
-		ch, err := vexec.NewChildHandle()
+		ch, err := vexec.GetChildHandle()
 		if err != nil {
 			log.Fatal(os.Stderr, "%s\n", err)
 		}
@@ -499,28 +499,28 @@ func TestHelperProcess(*testing.T) {
 		r := <-rc
 		os.Exit(r)
 	case "testEndpoint":
-		ch, err := vexec.NewChildHandle()
+		ch, err := vexec.GetChildHandle()
 		if err != nil {
 			log.Fatalf("%v", err)
 		} else {
 			fmt.Fprintf(os.Stderr, "%s", ch.Endpoint)
 		}
 	case "testID":
-		ch, err := vexec.NewChildHandle()
+		ch, err := vexec.GetChildHandle()
 		if err != nil {
 			log.Fatalf("%s", err)
 		} else {
 			fmt.Fprintf(os.Stderr, "%s", ch.ID)
 		}
 	case "testSecret":
-		ch, err := vexec.NewChildHandle()
+		ch, err := vexec.GetChildHandle()
 		if err != nil {
 			log.Fatalf("%s", err)
 		} else {
 			fmt.Fprintf(os.Stderr, "%s", ch.Secret)
 		}
 	case "testExtraFiles":
-		ch, err := vexec.NewChildHandle()
+		ch, err := vexec.GetChildHandle()
 		if err != nil {
 			log.Fatal("error.... %s\n", err)
 		}

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"io"
 	"os"
+	"sync"
 )
 
 var (
@@ -33,52 +34,33 @@ type ChildHandle struct {
 	statusPipe *os.File
 }
 
+var (
+	childHandle    *ChildHandle
+	childHandleErr error
+	once           sync.Once
+)
+
 // fileOffset accounts for the file descriptors that are always passed
 // to the child by the parent: stderr, stdin, stdout, data read, and
 // status write. Any extra files added by the client will follow
 // fileOffset.
 const fileOffset = 5
 
-// NewChildHandle creates a new ChildHandle that can be used to signal
-// that the child is 'ready' (by calling SetReady) to its parent. The
-// value of the ChildHandle's Secret securely passed to it by the
-// parent; this is intended for subsequent use to create a secure
-// communication channels and or authentication.
+// GetChildHandle returns a ChildHandle that can be used to signal
+// that the child is 'ready' (by calling SetReady) to its parent or to
+// retrieve data securely passed to this process by its parent. For
+// instance, a secret intended to create a secure communication
+// channels and or authentication.
 //
 // If the child is relying on exec.Cmd.ExtraFiles then its first file
 // descriptor will not be 3, but will be offset by extra files added
 // by the framework. The developer should use the NewExtraFile method
 // to robustly get their extra files with the correct offset applied.
-func NewChildHandle() (*ChildHandle, error) {
-	switch os.Getenv(versionVariable) {
-	case "":
-		return nil, ErrNoVersion
-	case version1:
-		// TODO(cnicolaou): need to use major.minor.build format for
-		// version #s.
-	default:
-		return nil, ErrUnsupportedVersion
-	}
-	dataPipe := os.NewFile(3, "data_rd")
-	endpoint, err := readData(dataPipe)
-	if err != nil {
-		return nil, err
-	}
-	id, err := readData(dataPipe)
-	if err != nil {
-		return nil, err
-	}
-	secret, err := readData(dataPipe)
-	if err != nil {
-		return nil, err
-	}
-	c := &ChildHandle{
-		Endpoint:   endpoint,
-		ID:         id,
-		Secret:     secret,
-		statusPipe: os.NewFile(4, "status_wr"),
-	}
-	return c, nil
+func GetChildHandle() (*ChildHandle, error) {
+	once.Do(func() {
+		childHandle, childHandleErr = createChildHandle()
+	})
+	return childHandle, childHandleErr
 }
 
 // SetReady writes a 'ready' status to its parent.
@@ -95,7 +77,39 @@ func (c *ChildHandle) NewExtraFile(i uintptr, name string) *os.File {
 	return os.NewFile(i+fileOffset, name)
 }
 
-func readData(r io.Reader) (string, error) {
+func createChildHandle() (*ChildHandle, error) {
+	switch os.Getenv(versionVariable) {
+	case "":
+		return nil, ErrNoVersion
+	case version1:
+		// TODO(cnicolaou): need to use major.minor.build format for
+		// version #s.
+	default:
+		return nil, ErrUnsupportedVersion
+	}
+	dataPipe := os.NewFile(3, "data_rd")
+	endpoint, err := decodeString(dataPipe)
+	if err != nil {
+		return nil, err
+	}
+	id, err := decodeString(dataPipe)
+	if err != nil {
+		return nil, err
+	}
+	secret, err := decodeString(dataPipe)
+	if err != nil {
+		return nil, err
+	}
+	childHandle = &ChildHandle{
+		Endpoint:   endpoint,
+		ID:         id,
+		Secret:     secret,
+		statusPipe: os.NewFile(4, "status_wr"),
+	}
+	return childHandle, nil
+}
+
+func decodeString(r io.Reader) (string, error) {
 	var l int64 = 0
 	if err := binary.Read(r, binary.BigEndian, &l); err != nil {
 		return "", err
