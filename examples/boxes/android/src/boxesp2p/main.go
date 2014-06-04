@@ -78,6 +78,10 @@ import (
 	"veyron2/rt"
 	"veyron2/security"
 	"veyron2/services/store"
+	"veyron2/services/watch"
+	"veyron2/storage/vstore"
+	"veyron2/storage/vstore/primitives"
+	"veyron2/query"
 	"veyron2/vom"
 )
 
@@ -88,27 +92,28 @@ type jniState struct {
 }
 
 type goState struct {
-	runtime veyron2.Runtime
-	store   *storage.Server
-	ipc     ipc.Server
-
-	drawStream boxes.DrawInterfaceDrawStream
-	signalling boxes.BoxSignalling
-	boxList    chan boxes.Box
+	runtime       veyron2.Runtime
+	store         *storage.Server
+	ipc           ipc.Server
+	drawStream    boxes.DrawInterfaceDrawStream
+	signalling    boxes.BoxSignalling
+	boxList       chan boxes.Box
+	myIPAddr      string
+	storeEndpoint string
 }
 
 var (
-	gs         goState
-	nativeJava jniState
-	myIPAddr   string
+	gs            goState
+	nativeJava    jniState
 )
 
 const (
-	drawServicePort  = ":8509"
-	storeServicePort = ":8000"
-	syncServicePort  = ":8001"
-	storePath        = "/data/data/com.boxes.android.draganddraw/files/vsync"
-	storeDatabase    = "veyron_store.db"
+	drawServicePort   = ":8509"
+	storeServicePort  = ":8000"
+	syncServicePort   = ":8001"
+	storePath         = "/data/data/com.boxes.android.draganddraw/files/vsync"
+	storeDatabase     = "veyron_store.db"
+	useStoreService   = true
 )
 
 func (jni *jniState) registerAddBox(env *C.JNIEnv, obj C.jobject) {
@@ -129,14 +134,46 @@ func (jni *jniState) addBox(box *boxes.Box) {
 	C.callMethod(env, jni.jObj, jni.jMID, jBoxId, &jPoints[0])
 }
 
-func (gs *goState) Draw(context ipc.ServerContext, stream boxes.DrawInterfaceServiceDrawStream) error {
+func (gs *goState) SyncBoxes(context ipc.ServerContext) error {
 	// Get the endpoint of the remote process
 	endPt, err := inaming.NewEndpoint(context.RemoteAddr().String())
 	if err != nil {
-		panic(fmt.Errorf("failed to parse endpoint:%v\n", err))
+		return err
 	}
 	// Launch the sync service
 	initSyncService(endPt.Addr().String())
+	// Watch the store for any box updates
+	go gs.watchStore()
+	return nil
+}
+
+func (gs *goState) watchStore() {
+	rst, err := raw.BindStore(naming.JoinAddressName(gs.storeEndpoint, raw.RawStoreSuffix))
+	if err != nil {
+		panic(fmt.Errorf("Failed to Bind Store:%v", err))
+	}
+	var ctx ipc.Context
+	req := watch.Request{Query: query.Query{}}
+	stream, err := rst.Watch(ctx, req, veyron2.CallTimeout(ipc.NoTimeout))
+	if err != nil {
+		panic(fmt.Errorf("Can't watch store: %s: %s", gs.storeEndpoint, err))
+	}
+	for {
+		cb, err := stream.Recv()
+		if err != nil {
+			panic(fmt.Errorf("Can't receive watch event: %s: %s", gs.storeEndpoint, err))
+		}
+		for _, change := range cb.Changes {
+			if mu, ok := change.Value.(*raw.Mutation); ok && len(mu.Dir) == 0 {
+				if box, ok := mu.Value.(boxes.Box); ok {
+					nativeJava.addBox(&box)
+				}
+			}
+		}
+	}
+}
+
+func (gs *goState) Draw(context ipc.ServerContext, stream boxes.DrawInterfaceServiceDrawStream) error {
 	for {
 		box, err := stream.Recv()
 		if err == io.EOF {
@@ -162,6 +199,34 @@ func (gs *goState) sendDrawLoop() {
 	}
 }
 
+func (gs *goState) updateStore(endpoint string) {
+	initSyncService(endpoint)
+	var ctx ipc.Context
+	vst, err := vstore.New(gs.storeEndpoint)
+	if err != nil {
+		panic(fmt.Errorf("Failed to init veyron store:%v", err))
+	}
+	root := vst.Bind("/")
+	tr := primitives.NewTransaction(ctx)
+	if _, err := root.Put(ctx, tr, ""); err != nil {
+		panic(fmt.Errorf("Put for %s failed:%v", root, err))
+	}
+	if err := tr.Commit(ctx); err != nil {
+		panic(fmt.Errorf("Commit transaction failed:%v", err))
+	}
+	for {
+		box := <-gs.boxList
+  		boxes := vst.Bind("/" + box.BoxId)
+		tr = primitives.NewTransaction(ctx)
+		if _, err := boxes.Put(ctx, tr, box); err != nil {
+			panic(fmt.Errorf("Put for %s failed:%v", boxes, err))
+		}
+		if err := tr.Commit(ctx); err != nil {
+			panic(fmt.Errorf("Commit transaction failed:%v", err))
+		}
+	}
+}
+
 func (gs *goState) registerAsPeer() {
 	auth := security.NewACLAuthorizer(security.ACL{security.AllPrincipals: security.LabelSet(security.AdminLabel)})
 	srv, err := gs.runtime.NewServer()
@@ -173,7 +238,7 @@ func (gs *goState) registerAsPeer() {
 	if err := srv.Register("draw", ipc.SoloDispatcher(drawServer, auth)); err != nil {
 		panic(fmt.Errorf("Failed Register:%v", err))
 	}
-	endPt, err := srv.Listen("tcp", myIPAddr+drawServicePort)
+	endPt, err := srv.Listen("tcp", gs.myIPAddr+drawServicePort)
 	if err != nil {
 		panic(fmt.Errorf("Failed to Listen:%v", err))
 	}
@@ -185,25 +250,29 @@ func (gs *goState) registerAsPeer() {
 func (gs *goState) connectPeer() {
 	endpointStr, err := gs.signalling.Get(gs.runtime.TODOContext())
 	if err != nil {
-		panic(fmt.Errorf("failed to Get peer endpoint from signalling server:%v\n", err))
+		panic(fmt.Errorf("failed to Get peer endpoint from signalling server:%v", err))
 	}
 	drawInterface, err := boxes.BindDrawInterface(naming.JoinAddressName(endpointStr, "draw"))
 	if err != nil {
-		panic(fmt.Errorf("failed BindDrawInterface:%v\n", err))
+		panic(fmt.Errorf("failed BindDrawInterface:%v", err))
 	}
 	if gs.drawStream, err = drawInterface.Draw(gs.runtime.TODOContext()); err != nil {
 		panic(fmt.Errorf("failed to get handle to Draw stream:%v\n", err))
 	}
-
-	// Initialize the store sync service that listens for updates from a peer
-	endpoint, err := inaming.NewEndpoint(endpointStr)
-	if err != nil {
-		panic(fmt.Errorf("failed to parse endpoint:%v\n", err))
-	}
-	initSyncService(endpoint.Addr().String())
-
 	gs.boxList = make(chan boxes.Box, 256)
-	go gs.sendDrawLoop()
+	if !useStoreService {
+		go gs.sendDrawLoop()
+	} else {
+		// Initialize the store sync service that listens for updates from a peer
+		endpoint, err := inaming.NewEndpoint(endpointStr)
+		if err != nil {
+			panic(fmt.Errorf("failed to parse endpoint:%v", err))
+		}
+		if err = drawInterface.SyncBoxes(gs.runtime.TODOContext()); err != nil {
+			panic(fmt.Errorf("failed to setup remote sync service:%v", err))
+		}
+		go gs.updateStore(endpoint.Addr().String())
+	}
 }
 
 //export JNI_OnLoad
@@ -265,19 +334,19 @@ func initStoreService() {
 	}
 
 	// Create an endpoint and start listening
-	if _, err = gs.ipc.Listen("tcp", myIPAddr+storeServicePort); err != nil {
+	if _, err = gs.ipc.Listen("tcp", gs.myIPAddr+storeServicePort); err != nil {
 		panic(fmt.Errorf("s.Listen() failed:%v", err))
 	}
+	gs.storeEndpoint = "/" + gs.myIPAddr + storeServicePort
 }
 
 func initSyncService(peerEndpoint string) {
 	peerSyncAddr := strings.Split(peerEndpoint, ":")[0]
-	storeName := "/" + myIPAddr + storeServicePort
-	srv := vsync.NewServerSync(vsync.NewSyncd(peerSyncAddr+syncServicePort, peerSyncAddr /* peer deviceID */, myIPAddr /* my deviceID */, storePath, storeName, 1))
+	srv := vsync.NewServerSync(vsync.NewSyncd(peerSyncAddr+syncServicePort, peerSyncAddr /* peer deviceID */, gs.myIPAddr /* my deviceID */, storePath, gs.storeEndpoint, 0))
 	if err := gs.ipc.Register("sync", ipc.SoloDispatcher(srv, nil)); err != nil {
 		panic(fmt.Errorf("syncd:: error registering service: err %v", err))
 	}
-	if _, err := gs.ipc.Listen("tcp", myIPAddr+syncServicePort); err != nil {
+	if _, err := gs.ipc.Listen("tcp", gs.myIPAddr+syncServicePort); err != nil {
 		panic(fmt.Errorf("syncd:: error listening to service: err %v", err))
 	}
 }
@@ -293,12 +362,12 @@ func main() {
 	for _, addr := range ifaces {
 		if ipa, ok := addr.(*net.IPNet); ok {
 			if ip4 := ipa.IP.To4(); ip4 != nil && ip4.String() != "127.0.0.1" {
-				myIPAddr = ip4.String()
+				gs.myIPAddr = ip4.String()
 				break
 			}
 		}
 	}
-	if len(myIPAddr) <= 0 {
+	if len(gs.myIPAddr) <= 0 {
 		panic(fmt.Errorf("Failed to get value IPAddr:%v", ifaces))
 	}
 

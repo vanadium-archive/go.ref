@@ -21,6 +21,9 @@ type Box struct {
 
 // DrawInterface enables adding a box on another peer
 type DrawInterface interface {
-  // Send/Receive a stream of boxes with another peer
+  // Draw is used to send/receive a stream of boxes to another peer
   Draw() stream<Box, Box> (Err error)
+  // SyncBoxes is used to setup a sync service over store to send/receive
+  // boxes to another peer
+  SyncBoxes() (Err error)
 }

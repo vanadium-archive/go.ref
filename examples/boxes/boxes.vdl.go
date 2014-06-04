@@ -224,8 +224,11 @@ func (__gen_s *ServerStubBoxSignalling) Get(call _gen_ipc.ServerCall) (reply str
 // DrawInterface_ExcludingUniversal is the interface without internal framework-added methods
 // to enable embedding without method collisions.  Not to be used directly by clients.
 type DrawInterface_ExcludingUniversal interface {
-	// Send/Receive a stream of boxes with another peer
+	// Draw is used to send/receive a stream of boxes to another peer
 	Draw(ctx _gen_ipc.Context, opts ..._gen_ipc.CallOpt) (reply DrawInterfaceDrawStream, err error)
+	// SyncBoxes is used to setup a sync service over store to send/receive
+	// boxes to another peer
+	SyncBoxes(ctx _gen_ipc.Context, opts ..._gen_ipc.CallOpt) (err error)
 }
 type DrawInterface interface {
 	_gen_ipc.UniversalServiceMethods
@@ -235,8 +238,11 @@ type DrawInterface interface {
 // DrawInterfaceService is the interface the server implements.
 type DrawInterfaceService interface {
 
-	// Send/Receive a stream of boxes with another peer
+	// Draw is used to send/receive a stream of boxes to another peer
 	Draw(context _gen_ipc.ServerContext, stream DrawInterfaceServiceDrawStream) (err error)
+	// SyncBoxes is used to setup a sync service over store to send/receive
+	// boxes to another peer
+	SyncBoxes(context _gen_ipc.ServerContext) (err error)
 }
 
 // DrawInterfaceDrawStream is the interface for streaming responses of the method
@@ -372,6 +378,17 @@ func (__gen_c *clientStubDrawInterface) Draw(ctx _gen_ipc.Context, opts ..._gen_
 	return
 }
 
+func (__gen_c *clientStubDrawInterface) SyncBoxes(ctx _gen_ipc.Context, opts ..._gen_ipc.CallOpt) (err error) {
+	var call _gen_ipc.Call
+	if call, err = __gen_c.client.StartCall(ctx, __gen_c.name, "SyncBoxes", nil, opts...); err != nil {
+		return
+	}
+	if ierr := call.Finish(&err); ierr != nil {
+		err = ierr
+	}
+	return
+}
+
 func (__gen_c *clientStubDrawInterface) UnresolveStep(ctx _gen_ipc.Context, opts ..._gen_ipc.CallOpt) (reply []string, err error) {
 	var call _gen_ipc.Call
 	if call, err = __gen_c.client.StartCall(ctx, __gen_c.name, "UnresolveStep", nil, opts...); err != nil {
@@ -419,6 +436,8 @@ func (__gen_s *ServerStubDrawInterface) GetMethodTags(call _gen_ipc.ServerCall, 
 	switch method {
 	case "Draw":
 		return []interface{}{}, nil
+	case "SyncBoxes":
+		return []interface{}{}, nil
 	default:
 		return nil, nil
 	}
@@ -433,6 +452,12 @@ func (__gen_s *ServerStubDrawInterface) Signature(call _gen_ipc.ServerCall) (_ge
 		},
 		InStream:  67,
 		OutStream: 67,
+	}
+	result.Methods["SyncBoxes"] = _gen_ipc.MethodSignature{
+		InArgs: []_gen_ipc.MethodArgument{},
+		OutArgs: []_gen_ipc.MethodArgument{
+			{Name: "Err", Type: 65},
+		},
 	}
 
 	result.TypeDefs = []_gen_vdl.Any{
@@ -468,5 +493,10 @@ func (__gen_s *ServerStubDrawInterface) UnresolveStep(call _gen_ipc.ServerCall) 
 func (__gen_s *ServerStubDrawInterface) Draw(call _gen_ipc.ServerCall) (err error) {
 	stream := &implDrawInterfaceServiceDrawStream{serverCall: call}
 	err = __gen_s.service.Draw(call, stream)
+	return
+}
+
+func (__gen_s *ServerStubDrawInterface) SyncBoxes(call _gen_ipc.ServerCall) (err error) {
+	err = __gen_s.service.SyncBoxes(call)
 	return
 }

@@ -8,6 +8,8 @@ import (
 	"veyron/services/mgmt/profile"
 	"veyron2/services/mgmt/application"
 
+	// Register boxes types
+	"veyron/examples/boxes"
 	// Register mdb types.
 	_ "veyron/examples/storage/mdb/schema"
 	// Register todos types.
@@ -21,4 +23,5 @@ func init() {
 	vom.Register(&struct{}{}) // directories have type struct{}.
 	vom.Register(&profile.Specification{})
 	vom.Register(&application.Envelope{})
+	vom.Register(&boxes.Box{})
 }
