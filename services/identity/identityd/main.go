@@ -4,6 +4,7 @@ package main
 import (
 	"flag"
 	"fmt"
+	"net"
 	"net/http"
 	"os"
 	"strings"
@@ -17,7 +18,7 @@ import (
 )
 
 var (
-	port          = flag.Int("port", 8125, "Port number on which the HTTP server listens on.")
+	address       = flag.String("address", "localhost:8125", "Address on which the HTTP server listens on.")
 	host          = flag.String("host", defaultHost(), "Hostname the HTTP server listens on. This can be the name of the host running the webserver, but if running behind a NAT or load balancer, this should be the host name that clients will connect to. For example, if set to 'x.com', Veyron identities will have the IssuerName set to 'x.com' and clients can expect to find the public key of the signer at 'x.com/pubkey/'.")
 	tlsconfig     = flag.String("tlsconfig", "", "Comma-separated list of TLS certificate and private key files. If empty, will not use HTTPS.")
 	minExpiryDays = flag.Int("min_expiry_days", 365, "Minimum expiry time (in days) of identities issued by this server")
@@ -48,6 +49,10 @@ func main() {
 	http.HandleFunc("/bless/", handlers.Bless) // use a provided PrivateID to bless a provided PublicID
 	// Google OAuth
 	if enableGoogleOAuth() {
+		_, port, err := net.SplitHostPort(*address)
+		if err != nil {
+			vlog.Fatalf("Failed to parse %q: %v", *address, err)
+		}
 		f, err := os.Open(*googleConfig)
 		if err != nil {
 			vlog.Fatalf("Failed to open %q: %v", *googleConfig, err)
@@ -60,7 +65,7 @@ func main() {
 		n := "/google/"
 		http.Handle(n, googleoauth.NewHandler(googleoauth.HandlerArgs{
 			UseTLS:              enableTLS(),
-			Addr:                fmt.Sprintf("%s:%d", *host, *port),
+			Addr:                fmt.Sprintf("%s:%s", *host, port),
 			Prefix:              n,
 			ClientID:            clientid,
 			ClientSecret:        secret,
@@ -69,15 +74,14 @@ func main() {
 			RestrictEmailDomain: *googleDomain,
 		}))
 	}
-	startHTTPServer(*port)
+	startHTTPServer(*address)
 }
 
 func enableTLS() bool           { return len(*tlsconfig) > 0 }
 func enableGoogleOAuth() bool   { return len(*googleConfig) > 0 }
 func enableRandomHandler() bool { return !enableGoogleOAuth() }
 
-func startHTTPServer(port int) {
-	addr := fmt.Sprintf(":%d", port)
+func startHTTPServer(addr string) {
 	if !enableTLS() {
 		vlog.Infof("Starting HTTP server (without TLS) at http://%v", addr)
 		if err := http.ListenAndServe(addr, nil); err != nil {
