@@ -87,9 +87,9 @@ func attrsToAnyData(attrs []storage.Attr) []vdl.Any {
 
 // Exists returns true iff the Entry has a value.
 func (o *object) Exists(ctx ipc.ServerContext, tid store.TransactionID) (bool, error) {
-	t, ok := o.server.findTransaction(tid)
-	if !ok {
-		return false, errTransactionDoesNotExist
+	t, err := o.server.findTransaction(ctx, tid)
+	if err != nil {
+		return false, err
 	}
 	return o.obj.Exists(ctx.RemoteID(), t)
 }
@@ -98,9 +98,9 @@ func (o *object) Exists(ctx ipc.ServerContext, tid store.TransactionID) (bool, e
 // most recent mutation of the entry in the Transaction, or from the
 // Transaction's snapshot if there is no mutation.
 func (o *object) Get(ctx ipc.ServerContext, tid store.TransactionID) (store.Entry, error) {
-	t, ok := o.server.findTransaction(tid)
-	if !ok {
-		return nullEntry, errTransactionDoesNotExist
+	t, err := o.server.findTransaction(ctx, tid)
+	if err != nil {
+		return nullEntry, err
 	}
 	entry, err := o.obj.Get(ctx.RemoteID(), t)
 	if err != nil {
@@ -111,9 +111,9 @@ func (o *object) Get(ctx ipc.ServerContext, tid store.TransactionID) (store.Entr
 
 // Put modifies the value of the Object.
 func (o *object) Put(ctx ipc.ServerContext, tid store.TransactionID, val vdl.Any) (store.Stat, error) {
-	t, ok := o.server.findTransaction(tid)
-	if !ok {
-		return nullStat, errTransactionDoesNotExist
+	t, err := o.server.findTransaction(ctx, tid)
+	if err != nil {
+		return nullStat, err
 	}
 	stat, err := o.obj.Put(ctx.RemoteID(), t, interface{}(val))
 	if err != nil {
@@ -124,9 +124,9 @@ func (o *object) Put(ctx ipc.ServerContext, tid store.TransactionID, val vdl.Any
 
 // Remove removes the Object.
 func (o *object) Remove(ctx ipc.ServerContext, tid store.TransactionID) error {
-	t, ok := o.server.findTransaction(tid)
-	if !ok {
-		return errTransactionDoesNotExist
+	t, err := o.server.findTransaction(ctx, tid)
+	if err != nil {
+		return err
 	}
 	return o.obj.Remove(ctx.RemoteID(), t)
 }
@@ -135,9 +135,9 @@ func (o *object) Remove(ctx ipc.ServerContext, tid store.TransactionID) error {
 // replication groups.  Attributes are associated with the value, not the
 // path.
 func (o *object) SetAttr(ctx ipc.ServerContext, tid store.TransactionID, attrs []vdl.Any) error {
-	t, ok := o.server.findTransaction(tid)
-	if !ok {
-		return errTransactionDoesNotExist
+	t, err := o.server.findTransaction(ctx, tid)
+	if err != nil {
+		return err
 	}
 	typedAttrs, err := attrsFromAnyData(attrs)
 	if err != nil {
@@ -148,9 +148,9 @@ func (o *object) SetAttr(ctx ipc.ServerContext, tid store.TransactionID, attrs [
 
 // Stat returns entry info.
 func (o *object) Stat(ctx ipc.ServerContext, tid store.TransactionID) (store.Stat, error) {
-	t, ok := o.server.findTransaction(tid)
-	if !ok {
-		return nullStat, errTransactionDoesNotExist
+	t, err := o.server.findTransaction(ctx, tid)
+	if err != nil {
+		return nullStat, err
 	}
 	stat, err := o.obj.Stat(ctx.RemoteID(), t)
 	if err != nil {
@@ -161,9 +161,9 @@ func (o *object) Stat(ctx ipc.ServerContext, tid store.TransactionID) (store.Sta
 
 // Query returns a sequence of objects that match the given query.
 func (o *object) Query(ctx ipc.ServerContext, tid store.TransactionID, q query.Query, stream store.ObjectServiceQueryStream) error {
-	t, ok := o.server.findTransaction(tid)
-	if !ok {
-		return errTransactionDoesNotExist
+	t, err := o.server.findTransaction(ctx, tid)
+	if err != nil {
+		return err
 	}
 	it, err := o.obj.Query(ctx.RemoteID(), t, q)
 	if err != nil {
@@ -195,9 +195,9 @@ func (o *object) Glob(ctx ipc.ServerContext, pattern string, stream mounttable.G
 
 // Glob streams a series of names that match the given pattern.
 func (o *object) GlobT(ctx ipc.ServerContext, tid store.TransactionID, pattern string, stream store.ObjectServiceGlobTStream) error {
-	t, ok := o.server.findTransaction(tid)
-	if !ok {
-		return errTransactionDoesNotExist
+	t, err := o.server.findTransaction(ctx, tid)
+	if err != nil {
+		return err
 	}
 	it, err := o.obj.Glob(ctx.RemoteID(), t, pattern)
 	if err != nil {

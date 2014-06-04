@@ -20,65 +20,69 @@ import (
 )
 
 var (
-	rootPublicID security.PublicID = security.FakePublicID("root")
-	rootName                       = fmt.Sprintf("%s", rootPublicID)
+	rootPublicID    security.PublicID = security.FakePublicID("root")
+	rootName                          = fmt.Sprintf("%s", rootPublicID)
+	blessedPublicId security.PublicID = security.FakePublicID("root/blessed")
 
 	nextTransactionID store.TransactionID = 1
 
-	rootCtx ipc.ServerContext = &rootContext{}
+	rootCtx    ipc.ServerContext = &testContext{rootPublicID}
+	blessedCtx ipc.ServerContext = &testContext{blessedPublicId}
 )
 
-type rootContext struct{}
+type testContext struct {
+	id security.PublicID
+}
 
-func (*rootContext) Server() ipc.Server {
+func (*testContext) Server() ipc.Server {
 	return nil
 }
 
-func (*rootContext) Method() string {
+func (*testContext) Method() string {
 	return ""
 }
 
-func (*rootContext) Name() string {
+func (*testContext) Name() string {
 	return ""
 }
 
-func (*rootContext) Suffix() string {
+func (*testContext) Suffix() string {
 	return ""
 }
 
-func (*rootContext) Label() (l security.Label) {
+func (*testContext) Label() (l security.Label) {
 	return
 }
 
-func (*rootContext) CaveatDischarges() security.CaveatDischargeMap {
+func (*testContext) CaveatDischarges() security.CaveatDischargeMap {
 	return nil
 }
 
-func (*rootContext) LocalID() security.PublicID {
-	return rootPublicID
+func (ctx *testContext) LocalID() security.PublicID {
+	return ctx.id
 }
 
-func (*rootContext) RemoteID() security.PublicID {
-	return rootPublicID
+func (ctx *testContext) RemoteID() security.PublicID {
+	return ctx.id
 }
 
-func (*rootContext) LocalAddr() net.Addr {
+func (*testContext) LocalAddr() net.Addr {
 	return nil
 }
 
-func (*rootContext) RemoteAddr() net.Addr {
+func (*testContext) RemoteAddr() net.Addr {
 	return nil
 }
 
-func (*rootContext) Deadline() (t time.Time) {
+func (*testContext) Deadline() (t time.Time) {
 	return
 }
 
-func (rootContext) IsClosed() bool {
+func (testContext) IsClosed() bool {
 	return false
 }
 
-func (rootContext) Closed() <-chan struct{} {
+func (testContext) Closed() <-chan struct{} {
 	return nil
 }
 
@@ -197,18 +201,18 @@ func TestPutGetRemoveChild(t *testing.T) {
 		o := s.lookupObject("/")
 		value := newValue()
 		tr1 := newTransaction()
-		if err := s.CreateTransaction(nil, tr1, nil); err != nil {
+		if err := s.CreateTransaction(rootCtx, tr1, nil); err != nil {
 			t.Errorf("Unexpected error: %s", err)
 		}
 		if _, err := o.Put(rootCtx, tr1, value); err != nil {
 			t.Errorf("Unexpected error: %s", err)
 		}
-		if err := s.Commit(nil, tr1); err != nil {
+		if err := s.Commit(rootCtx, tr1); err != nil {
 			t.Errorf("Unexpected error: %s", err)
 		}
 
 		tr2 := newTransaction()
-		if err := s.CreateTransaction(nil, tr2, nil); err != nil {
+		if err := s.CreateTransaction(rootCtx, tr2, nil); err != nil {
 			t.Errorf("Unexpected error: %s", err)
 		}
 		if ok, err := o.Exists(rootCtx, tr2); !ok || err != nil {
@@ -217,7 +221,7 @@ func TestPutGetRemoveChild(t *testing.T) {
 		if _, err := o.Get(rootCtx, tr2); err != nil {
 			t.Errorf("Object should exist: %s", err)
 		}
-		if err := s.Abort(nil, tr2); err != nil {
+		if err := s.Abort(rootCtx, tr2); err != nil {
 			t.Errorf("Unexpected error: %s", err)
 		}
 	}
@@ -231,7 +235,7 @@ func testPutGetRemove(t *testing.T, s *Server, o *object) {
 	{
 		// Check that the object does not exist.
 		tr := newTransaction()
-		if err := s.CreateTransaction(nil, tr, nil); err != nil {
+		if err := s.CreateTransaction(rootCtx, tr, nil); err != nil {
 			t.Errorf("Unexpected error: %s", err)
 		}
 		if ok, err := o.Exists(rootCtx, tr); ok || err != nil {
@@ -245,7 +249,7 @@ func testPutGetRemove(t *testing.T, s *Server, o *object) {
 	{
 		// Add the object.
 		tr1 := newTransaction()
-		if err := s.CreateTransaction(nil, tr1, nil); err != nil {
+		if err := s.CreateTransaction(rootCtx, tr1, nil); err != nil {
 			t.Errorf("Unexpected error: %s", err)
 		}
 		if _, err := o.Put(rootCtx, tr1, value); err != nil {
@@ -260,7 +264,7 @@ func testPutGetRemove(t *testing.T, s *Server, o *object) {
 
 		// Transactions are isolated.
 		tr2 := newTransaction()
-		if err := s.CreateTransaction(nil, tr2, nil); err != nil {
+		if err := s.CreateTransaction(rootCtx, tr2, nil); err != nil {
 			t.Errorf("Unexpected error: %s", err)
 		}
 		if ok, err := o.Exists(rootCtx, tr2); ok || err != nil {
@@ -271,7 +275,7 @@ func testPutGetRemove(t *testing.T, s *Server, o *object) {
 		}
 
 		// Apply tr1.
-		if err := s.Commit(nil, tr1); err != nil {
+		if err := s.Commit(rootCtx, tr1); err != nil {
 			t.Errorf("Unexpected error: %s", err)
 		}
 
@@ -285,7 +289,7 @@ func testPutGetRemove(t *testing.T, s *Server, o *object) {
 
 		// tr3 observes the commit.
 		tr3 := newTransaction()
-		if err := s.CreateTransaction(nil, tr3, nil); err != nil {
+		if err := s.CreateTransaction(rootCtx, tr3, nil); err != nil {
 			t.Errorf("Unexpected error: %s", err)
 		}
 		if ok, err := o.Exists(rootCtx, tr3); !ok || err != nil {
@@ -299,7 +303,7 @@ func testPutGetRemove(t *testing.T, s *Server, o *object) {
 	{
 		// Remove the object.
 		tr1 := newTransaction()
-		if err := s.CreateTransaction(nil, tr1, nil); err != nil {
+		if err := s.CreateTransaction(rootCtx, tr1, nil); err != nil {
 			t.Errorf("Unexpected error: %s", err)
 		}
 		if err := o.Remove(rootCtx, tr1); err != nil {
@@ -314,7 +318,7 @@ func testPutGetRemove(t *testing.T, s *Server, o *object) {
 
 		// The removal is isolated.
 		tr2 := newTransaction()
-		if err := s.CreateTransaction(nil, tr2, nil); err != nil {
+		if err := s.CreateTransaction(rootCtx, tr2, nil); err != nil {
 			t.Errorf("Unexpected error: %s", err)
 		}
 		if ok, err := o.Exists(rootCtx, tr2); !ok || err != nil {
@@ -325,7 +329,7 @@ func testPutGetRemove(t *testing.T, s *Server, o *object) {
 		}
 
 		// Apply tr1.
-		if err := s.Commit(nil, tr1); err != nil {
+		if err := s.Commit(rootCtx, tr1); err != nil {
 			t.Errorf("Unexpected error: %s", err)
 		}
 
@@ -341,7 +345,7 @@ func testPutGetRemove(t *testing.T, s *Server, o *object) {
 	{
 		// Check that the object does not exist.
 		tr1 := newTransaction()
-		if err := s.CreateTransaction(nil, tr1, nil); err != nil {
+		if err := s.CreateTransaction(rootCtx, tr1, nil); err != nil {
 			t.Errorf("Unexpected error: %s", err)
 		}
 		if ok, err := o.Exists(rootCtx, tr1); ok || err != nil {
@@ -350,6 +354,19 @@ func testPutGetRemove(t *testing.T, s *Server, o *object) {
 		if v, err := o.Get(rootCtx, tr1); v.Stat.ID.IsValid() && err == nil {
 			t.Errorf("Should not exist: %v, %s", v, err)
 		}
+	}
+}
+
+func TestNilTransaction(t *testing.T) {
+	s, c := newServer()
+	defer c()
+
+	if err := s.Commit(rootCtx, nullTransactionID); err != errTransactionDoesNotExist {
+		t.Errorf("Unexpected error: %v", err)
+	}
+
+	if err := s.Abort(rootCtx, nullTransactionID); err != errTransactionDoesNotExist {
+		t.Errorf("Unexpected error: %v", err)
 	}
 }
 
@@ -364,7 +381,7 @@ func TestWatch(t *testing.T) {
 	// Before the watch request has been made, commit a transaction that puts /.
 	{
 		tr := newTransaction()
-		if err := s.CreateTransaction(nil, tr, nil); err != nil {
+		if err := s.CreateTransaction(rootCtx, tr, nil); err != nil {
 			t.Errorf("Unexpected error: %s", err)
 		}
 		o := s.lookupObject(path1)
@@ -373,7 +390,7 @@ func TestWatch(t *testing.T) {
 			t.Errorf("Unexpected error: %s", err)
 		}
 		id1 = st.ID
-		if err := s.Commit(nil, tr); err != nil {
+		if err := s.Commit(rootCtx, tr); err != nil {
 			t.Errorf("Unexpected error: %s", err)
 		}
 	}
@@ -401,7 +418,7 @@ func TestWatch(t *testing.T) {
 	// Commit a second transaction that puts /a.
 	{
 		tr := newTransaction()
-		if err := s.CreateTransaction(nil, tr, nil); err != nil {
+		if err := s.CreateTransaction(rootCtx, tr, nil); err != nil {
 			t.Errorf("Unexpected error: %s", err)
 		}
 		o := s.lookupObject(path2)
@@ -410,7 +427,7 @@ func TestWatch(t *testing.T) {
 			t.Errorf("Unexpected error: %s", err)
 		}
 		id2 = st.ID
-		if err := s.Commit(nil, tr); err != nil {
+		if err := s.Commit(rootCtx, tr); err != nil {
 			t.Errorf("Unexpected error: %s", err)
 		}
 	}
@@ -455,7 +472,7 @@ func TestGarbageCollectionOnCommit(t *testing.T) {
 	// Before the watch request has been made, commit a transaction that puts /.
 	{
 		tr := newTransaction()
-		if err := s.CreateTransaction(nil, tr, nil); err != nil {
+		if err := s.CreateTransaction(rootCtx, tr, nil); err != nil {
 			t.Errorf("Unexpected error: %s", err)
 		}
 		o := s.lookupObject(path1)
@@ -464,7 +481,7 @@ func TestGarbageCollectionOnCommit(t *testing.T) {
 			t.Errorf("Unexpected error: %s", err)
 		}
 		id1 = st.ID
-		if err := s.Commit(nil, tr); err != nil {
+		if err := s.Commit(rootCtx, tr); err != nil {
 			t.Errorf("Unexpected error: %s", err)
 		}
 	}
@@ -492,7 +509,7 @@ func TestGarbageCollectionOnCommit(t *testing.T) {
 	// Commit a second transaction that puts /a.
 	{
 		tr := newTransaction()
-		if err := s.CreateTransaction(nil, tr, nil); err != nil {
+		if err := s.CreateTransaction(rootCtx, tr, nil); err != nil {
 			t.Errorf("Unexpected error: %s", err)
 		}
 		o := s.lookupObject(path2)
@@ -501,7 +518,7 @@ func TestGarbageCollectionOnCommit(t *testing.T) {
 			t.Errorf("Unexpected error: %s", err)
 		}
 		id2 = st.ID
-		if err := s.Commit(nil, tr); err != nil {
+		if err := s.Commit(rootCtx, tr); err != nil {
 			t.Errorf("Unexpected error: %s", err)
 		}
 	}
@@ -532,14 +549,14 @@ func TestGarbageCollectionOnCommit(t *testing.T) {
 	// Commit a third transaction that removes /a.
 	{
 		tr := newTransaction()
-		if err := s.CreateTransaction(nil, tr, nil); err != nil {
+		if err := s.CreateTransaction(rootCtx, tr, nil); err != nil {
 			t.Errorf("Unexpected error: %s", err)
 		}
 		o := s.lookupObject("/a")
 		if err := o.Remove(rootCtx, tr); err != nil {
 			t.Errorf("Unexpected error: %s", err)
 		}
-		if err := s.Commit(nil, tr); err != nil {
+		if err := s.Commit(rootCtx, tr); err != nil {
 			t.Errorf("Unexpected error: %s", err)
 		}
 	}
@@ -570,5 +587,70 @@ func TestGarbageCollectionOnCommit(t *testing.T) {
 		}
 		changes = append(changes, change)
 		expectDoesNotExist(t, changes, id2)
+	}
+}
+
+func TestTransactionSecurity(t *testing.T) {
+	s, c := newServer()
+	defer c()
+
+	// Create a root.
+	o := s.lookupObject("/")
+	value := newValue()
+
+	// Create a transaction in the root's session.
+	tr := newTransaction()
+	if err := s.CreateTransaction(rootCtx, tr, nil); err != nil {
+		t.Errorf("Unexpected error: %s", err)
+	}
+	// Check that the transaction cannot be created or accessed by the blessee.
+	if err := s.CreateTransaction(blessedCtx, tr, nil); err != errTransactionAlreadyExists {
+		t.Errorf("Unexpected error: %v", err)
+	}
+	if _, err := o.Exists(blessedCtx, tr); err != errPermissionDenied {
+		t.Errorf("Unexpected error: %v", err)
+	}
+	if _, err := o.Get(blessedCtx, tr); err != errPermissionDenied {
+		t.Errorf("Unexpected error: %v", err)
+	}
+	if _, err := o.Put(blessedCtx, tr, value); err != errPermissionDenied {
+		t.Errorf("Unexpected error: %v", err)
+	}
+	if err := o.Remove(blessedCtx, tr); err != errPermissionDenied {
+		t.Errorf("Unexpected error: %v", err)
+	}
+	if err := s.Abort(blessedCtx, tr); err != errPermissionDenied {
+		t.Errorf("Unexpected error: %v", err)
+	}
+	if err := s.Commit(blessedCtx, tr); err != errPermissionDenied {
+		t.Errorf("Unexpected error: %v", err)
+	}
+
+	// Create a transaction in the blessee's session.
+	tr = newTransaction()
+	if err := s.CreateTransaction(blessedCtx, tr, nil); err != nil {
+		t.Errorf("Unexpected error: %s", err)
+	}
+	// Check that the transaction cannot be created or accessed by the root.
+	if err := s.CreateTransaction(rootCtx, tr, nil); err != errTransactionAlreadyExists {
+		t.Errorf("Unexpected error: %v", err)
+	}
+	if _, err := o.Exists(rootCtx, tr); err != errPermissionDenied {
+		t.Errorf("Unexpected error: %v", err)
+	}
+	if _, err := o.Get(rootCtx, tr); err != errPermissionDenied {
+		t.Errorf("Unexpected error: %v", err)
+	}
+	if _, err := o.Put(rootCtx, tr, value); err != errPermissionDenied {
+		t.Errorf("Unexpected error: %v", err)
+	}
+	if err := o.Remove(rootCtx, tr); err != errPermissionDenied {
+		t.Errorf("Unexpected error: %v", err)
+	}
+	if err := s.Abort(rootCtx, tr); err != errPermissionDenied {
+		t.Errorf("Unexpected error: %v", err)
+	}
+	if err := s.Commit(rootCtx, tr); err != errPermissionDenied {
+		t.Errorf("Unexpected error: %v", err)
 	}
 }
