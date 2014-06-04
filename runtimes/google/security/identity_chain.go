@@ -210,11 +210,7 @@ func (id *chainPrivateID) Derive(pub security.PublicID) (security.PrivateID, err
 }
 
 func (id *chainPrivateID) MintDischarge(cav security.ThirdPartyCaveat, duration time.Duration, dischargeCaveats []security.ServiceCaveat) (security.ThirdPartyDischarge, error) {
-	switch c := cav.(type) {
-	case *icaveat.PublicKeyCaveat:
-		return icaveat.NewPublicKeyDischarge(c, id.privateKey, duration, dischargeCaveats)
-	}
-	return nil, fmt.Errorf("discharge cannot be constructed for ThirdPartyCaveat of type %T from PrivateID of type %T", cav, id)
+	return icaveat.NewPublicKeyDischarge(cav, id.privateKey, duration, dischargeCaveats)
 }
 
 // newChainPrivateID returns a new PrivateID containing a freshly generated
