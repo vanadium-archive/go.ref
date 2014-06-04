@@ -6,6 +6,7 @@ import (
 	"log"
 	"net"
 	"os"
+	"reflect"
 	"testing"
 	"time"
 
@@ -652,5 +653,38 @@ func TestTransactionSecurity(t *testing.T) {
 	}
 	if err := s.Commit(rootCtx, tr); err != errPermissionDenied {
 		t.Errorf("Unexpected error: %v", err)
+	}
+}
+
+func TestStoreDispatcher(t *testing.T) {
+	storeType := reflect.PtrTo(reflect.TypeOf(store.ServerStubStore{}))
+	rawType := reflect.PtrTo(reflect.TypeOf(raw.ServerStubStore{}))
+	objectType := reflect.PtrTo(reflect.TypeOf(store.ServerStubObject{}))
+
+	tests := []struct {
+		name string
+		t    reflect.Type
+	}{
+		{store.StoreSuffix, storeType},
+		{"a/b/" + store.StoreSuffix, storeType},
+		{"a/b/c" + store.StoreSuffix, storeType},
+		{raw.RawStoreSuffix, rawType},
+		{"a/b/" + raw.RawStoreSuffix, rawType},
+		{"a/b/c" + raw.RawStoreSuffix, rawType},
+		{"", objectType},
+		{"a/b/", objectType},
+		{"a/b/c", objectType},
+	}
+
+	s, c := newServer()
+	defer c()
+
+	// TODO(bprosnitz) Switch this to use just exported methods (using signature) once signature stabilizes.
+	d := NewStoreDispatcher(s, nil).(*storeDispatcher)
+	for _, test := range tests {
+		srvr := d.lookupServer(test.name)
+		if reflect.TypeOf(srvr) != test.t {
+			t.Errorf("error looking up %s. got %T, expected %v", test.name, srvr, test.t)
+		}
 	}
 }

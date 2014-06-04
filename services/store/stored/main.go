@@ -19,11 +19,9 @@ import (
 	"os/user"
 
 	vflag "veyron/security/flag"
-	"veyron/services/store/raw"
 	"veyron/services/store/server"
 
 	"veyron2/rt"
-	"veyron2/services/store"
 
 	_ "veyron/services/store/typeregistryhack"
 )
@@ -71,16 +69,8 @@ func main() {
 
 	// Register the services.
 	storeDisp := server.NewStoreDispatcher(storeService, auth)
-	rawStoreDisp := server.NewRawStoreDispatcher(storeService, auth)
-	objectDisp := server.NewObjectDispatcher(storeService, auth)
-	if err := s.Register(store.StoreSuffix, storeDisp); err != nil {
+	if err := s.Register("", storeDisp); err != nil {
 		log.Fatal("s.Register(storeDisp) failed: ", err)
-	}
-	if err := s.Register(raw.RawStoreSuffix, rawStoreDisp); err != nil {
-		log.Fatal("s.Register(rawStoreDisp) failed: ", err)
-	}
-	if err := s.Register("", objectDisp); err != nil {
-		log.Fatal("s.Register(objectDisp) failed: ", err)
 	}
 
 	// Create an endpoint and start listening.

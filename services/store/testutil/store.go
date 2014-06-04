@@ -12,7 +12,6 @@ import (
 	"veyron2/ipc"
 	"veyron2/naming"
 	"veyron2/security"
-	"veyron2/services/store"
 )
 
 // NewStore creates a new testing instance of the store server and returns
@@ -43,12 +42,8 @@ func NewStore(t *testing.T, server ipc.Server, id security.PublicID) (string, fu
 
 	// Register the services.
 	storeDispatcher := istore.NewStoreDispatcher(storeService, nil)
-	objectDispatcher := istore.NewObjectDispatcher(storeService, nil)
-	if err := server.Register(naming.JoinAddressName(name, store.StoreSuffix), storeDispatcher); err != nil {
+	if err := server.Register(name, storeDispatcher); err != nil {
 		t.Fatalf("Register(%v) failed: %v", storeDispatcher, err)
-	}
-	if err := server.Register(name, objectDispatcher); err != nil {
-		t.Fatalf("Register(%v) failed: %v", objectDispatcher, err)
 	}
 
 	// Create an endpoint and start listening.

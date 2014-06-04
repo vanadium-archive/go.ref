@@ -4,6 +4,7 @@ package server
 import (
 	"errors"
 	"reflect"
+	"strings"
 	"sync"
 	"time"
 
@@ -265,36 +266,29 @@ func (s *Server) ReadConflicts(_ ipc.ServerContext, stream store.StoreServiceRea
 	panic("not implemented")
 }
 
-// Store, raw store and object dispatchers.
-// Typically, the store dispatcher handles paths with ".store" prefix, the
-// raw store dispatcher handles paths with ".store.raw" prefix, and the
-// object dispatcher handles paths with "" prefix.
-// TODO(sadovsky): Revisit this scheme. Seems simpler to have one dispatcher?
-
-// NewStoreDispatcher returns a store dispatcher.
-func NewStoreDispatcher(s *Server, auth security.Authorizer) ipc.Dispatcher {
-	return ipc.SoloDispatcher(store.NewServerStore(s), auth)
-}
-
-// NewRawStoreDispatcher returns a raw store dispatcher.
-func NewRawStoreDispatcher(s *Server, auth security.Authorizer) ipc.Dispatcher {
-	return ipc.SoloDispatcher(raw.NewServerStore(s), auth)
-}
-
-type objectDispatcher struct {
+type storeDispatcher struct {
 	s    *Server
 	auth security.Authorizer
 }
 
-// NewObjectDispatcher returns an object dispatcher.
-func NewObjectDispatcher(s *Server, auth security.Authorizer) ipc.Dispatcher {
-	return &objectDispatcher{s: s, auth: auth}
+// NewStoreDispatcher returns an object dispatcher.
+func NewStoreDispatcher(s *Server, auth security.Authorizer) ipc.Dispatcher {
+	return &storeDispatcher{s: s, auth: auth}
 }
 
-func (d *objectDispatcher) Lookup(suffix string) (ipc.Invoker, security.Authorizer, error) {
-	o := d.s.lookupObject(suffix)
-	serverObject := store.NewServerObject(o)
-	return ipc.ReflectInvoker(serverObject), d.auth, nil
+func (d *storeDispatcher) Lookup(suffix string) (ipc.Invoker, security.Authorizer, error) {
+	return ipc.ReflectInvoker(d.lookupServer(suffix)), d.auth, nil
+}
+
+func (d *storeDispatcher) lookupServer(suffix string) interface{} {
+	if strings.HasSuffix(suffix, store.StoreSuffix) {
+		return store.NewServerStore(d.s)
+	} else if strings.HasSuffix(suffix, raw.RawStoreSuffix) {
+		return raw.NewServerStore(d.s)
+	} else {
+		o := d.s.lookupObject(suffix)
+		return store.NewServerObject(o)
+	}
 }
 
 func (s *Server) lookupObject(name string) *object {

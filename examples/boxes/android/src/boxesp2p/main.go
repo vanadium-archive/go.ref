@@ -75,13 +75,12 @@ import (
 	"veyron2"
 	"veyron2/ipc"
 	"veyron2/naming"
+	"veyron2/query"
 	"veyron2/rt"
 	"veyron2/security"
-	"veyron2/services/store"
 	"veyron2/services/watch"
 	"veyron2/storage/vstore"
 	"veyron2/storage/vstore/primitives"
-	"veyron2/query"
 	"veyron2/vom"
 )
 
@@ -103,17 +102,17 @@ type goState struct {
 }
 
 var (
-	gs            goState
-	nativeJava    jniState
+	gs         goState
+	nativeJava jniState
 )
 
 const (
-	drawServicePort   = ":8509"
-	storeServicePort  = ":8000"
-	syncServicePort   = ":8001"
-	storePath         = "/data/data/com.boxes.android.draganddraw/files/vsync"
-	storeDatabase     = "veyron_store.db"
-	useStoreService   = true
+	drawServicePort  = ":8509"
+	storeServicePort = ":8000"
+	syncServicePort  = ":8001"
+	storePath        = "/data/data/com.boxes.android.draganddraw/files/vsync"
+	storeDatabase    = "veyron_store.db"
+	useStoreService  = true
 )
 
 func (jni *jniState) registerAddBox(env *C.JNIEnv, obj C.jobject) {
@@ -216,7 +215,7 @@ func (gs *goState) updateStore(endpoint string) {
 	}
 	for {
 		box := <-gs.boxList
-  		boxes := vst.Bind("/" + box.BoxId)
+		boxes := vst.Bind("/" + box.BoxId)
 		tr = primitives.NewTransaction(ctx)
 		if _, err := boxes.Put(ctx, tr, box); err != nil {
 			panic(fmt.Errorf("Put for %s failed:%v", boxes, err))
@@ -323,14 +322,8 @@ func initStoreService() {
 	auth := security.NewACLAuthorizer(acl)
 
 	// Register the services
-	if err = gs.ipc.Register(store.StoreSuffix, storage.NewStoreDispatcher(gs.store, auth)); err != nil {
+	if err = gs.ipc.Register("", storage.NewStoreDispatcher(gs.store, auth)); err != nil {
 		panic(fmt.Errorf("s.Register(store) failed:%v", err))
-	}
-	if err := gs.ipc.Register(raw.RawStoreSuffix, storage.NewRawStoreDispatcher(gs.store, auth)); err != nil {
-		panic(fmt.Errorf("s.Register(rawstore) failed:%v", err))
-	}
-	if err := gs.ipc.Register("", storage.NewObjectDispatcher(gs.store, auth)); err != nil {
-		panic(fmt.Errorf("s.Register(object) failed:%v", err))
 	}
 
 	// Create an endpoint and start listening
