@@ -29,32 +29,54 @@ import "C"
 const (
 	voidSign   = "V"
 	boolSign   = "Z"
+	longSign   = "J"
 	stringSign = "Ljava/lang/String;"
 	objectSign = "Ljava/lang/Object;"
 )
 
-// safeSet is a thread-safe set.
-type safeSet struct {
-	lock  sync.Mutex
-	items map[interface{}]bool
-}
+// refs stores references to instances of various Go types, namely instances
+// that are referenced only by the Java code.  The only purpose of this store
+// is to prevent Go runtime from garbage collecting those instances.
+var refs = newSafeSet()
 
-func newSafeSet() *safeSet {
-	return &safeSet{
-		items: make(map[interface{}]bool),
+// goRef creates a new reference to the value addressed by the provided pointer.
+// The value will remain referenced until it is explicitly unreferenced using
+// goUnref().
+func goRef(valptr interface{}) {
+	if !isPointer(valptr) {
+		panic("must pass pointer value to goRef")
 	}
+	refs.insert(valptr)
 }
 
-func (s *safeSet) insert(item interface{}) {
-	s.lock.Lock()
-	defer s.lock.Unlock()
-	s.items[item] = true
+// goUnref removes a previously added reference to the value addressed by the
+// provided pointer.  If the value hasn't been ref-ed (a bug?), this unref will
+// be a no-op.
+func goUnref(valptr interface{}) {
+	if !isPointer(valptr) {
+		panic("must pass pointer value to goUnref")
+	}
+	refs.delete(valptr)
 }
 
-func (s *safeSet) delete(item interface{}) {
-	s.lock.Lock()
-	defer s.lock.Unlock()
-	delete(s.items, item)
+// ptrValue returns the value of the pointer as a Java C.jlong type.
+func ptrValue(ptr interface{}) C.jlong {
+	v := reflect.ValueOf(ptr)
+	if v.Kind() != reflect.Ptr {
+		panic("must pass pointer value to ptrValue")
+	}
+	return C.jlong(v.Pointer())
+}
+
+// ptr returns the pointer represented by the provided (Java C.jlong) value.
+func ptr(ptrValue C.jlong) (ptr interface{}) {
+	ptr = unsafe.Pointer(uintptr(ptrValue))
+	return
+}
+
+// isPointer returns true iff the provided value is a pointer.
+func isPointer(val interface{}) bool {
+	return reflect.ValueOf(ptr).Kind() == reflect.Ptr
 }
 
 // goString returns a Go string given the Java string.
@@ -74,17 +96,18 @@ func jString(env *C.JNIEnv, str string) C.jstring {
 	return C.NewStringUTF(env, cString)
 }
 
-// jThrow throws a new Java VeyronException with the given message.
-func jThrow(env *C.JNIEnv, msg string) {
+// jThrow throws a new Java exception of the provided type with the given message.
+func jThrow(env *C.JNIEnv, class C.jclass, msg string) {
 	s := C.CString(msg)
 	defer C.free(unsafe.Pointer(s))
-	C.ThrowNew(env, jVeyronExceptionClass, s)
+	C.ThrowNew(env, class, s)
 }
 
-// jThrowV throws a new Java VeyronException corresponding to the given verror.
-func jThrowV(env *C.JNIEnv, err verror.E) {
+// jThrowV throws a new Java VeyronException corresponding to the given error.
+func jThrowV(env *C.JNIEnv, err error) {
+	verr := verror.Convert(err)
 	id := jMethodID(env, jVeyronExceptionClass, "<init>", fmt.Sprintf("(%s%s)%s", stringSign, stringSign, voidSign))
-	obj := C.jthrowable(C.CallNewVeyronExceptionObject(env, jVeyronExceptionClass, id, jString(env, err.Error()), jString(env, string(err.ErrorID()))))
+	obj := C.jthrowable(C.CallNewVeyronExceptionObject(env, jVeyronExceptionClass, id, jString(env, verr.Error()), jString(env, string(verr.ErrorID()))))
 	C.Throw(env, obj)
 }
 
@@ -182,4 +205,28 @@ func derefOrDie(i interface{}) interface{} {
 		panic(fmt.Sprintf("want reflect.Ptr value for %v, have %v", i, v.Kind()))
 	}
 	return v.Elem().Interface()
+}
+
+func newSafeSet() *safeSet {
+	return &safeSet{
+		items: make(map[interface{}]bool),
+	}
+}
+
+// safeSet is a thread-safe set.
+type safeSet struct {
+	lock  sync.Mutex
+	items map[interface{}]bool
+}
+
+func (s *safeSet) insert(item interface{}) {
+	s.lock.Lock()
+	defer s.lock.Unlock()
+	s.items[item] = true
+}
+
+func (s *safeSet) delete(item interface{}) {
+	s.lock.Lock()
+	defer s.lock.Unlock()
+	delete(s.items, item)
 }

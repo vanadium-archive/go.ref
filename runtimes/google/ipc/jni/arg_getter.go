@@ -1,14 +1,11 @@
-// +build android
-
 package main
 
 import (
 	"fmt"
 	"path"
 	"reflect"
-	"strings"
 
-	// Imported IDLs.  Please add a link to all IDLs you care about here,
+	// Imported VDLs.  Please add a link to all VDLs you care about here,
 	// and add all interfaces you care about to the init() function below.
 	"veyron/examples/fortune"
 	"veyron2/ipc"
@@ -22,7 +19,7 @@ func init() {
 // A list of all registered argGetter-s.
 var register map[string]*argGetter = make(map[string]*argGetter)
 
-// registerInterface registers the provided IDL client or server interface
+// registerInterface registers the provided VDL client or server interface
 // so that its methods' arguments can be created on-the-fly.
 func registerInterface(ifacePtr interface{}) {
 	t := reflect.TypeOf(ifacePtr)
@@ -34,137 +31,207 @@ func registerInterface(ifacePtr interface{}) {
 		panic(fmt.Sprintf("expected interface type for %q, got: %v", ifacePtr, t.Kind()))
 	}
 
+	contextType := reflect.TypeOf((*ipc.Context)(nil)).Elem()
+	optType := reflect.TypeOf(([]ipc.ClientOpt)(nil))
 	// Create a new arg getter.
-	methods := make(map[string][]methodInfo)
+	methods := make(map[string][]*methodArgs)
 	for i := 0; i < t.NumMethod(); i++ {
 		m := t.Method(i)
-		in := make([]reflect.Type, m.Type.NumIn()-1)
-		idx := 0
-		contextType := reflect.TypeOf((*ipc.ServerContext)(nil)).Elem()
-		optType := reflect.TypeOf((*ipc.CallOpt)(nil)).Elem()
+		var mArgs methodArgs
 		for j := 0; j < m.Type.NumIn(); j++ {
 			argType := m.Type.In(j)
-			if j == 0 && argType == contextType { // skip the Context argument.
+			if j == 0 && argType == contextType { // (service) Context argument - ignore it.
 				continue
 			}
-			if j == m.Type.NumIn()-1 && argType == optType { // skip the CallOption argument.
-				continue
+			if j == m.Type.NumIn()-1 {
+				if argType.Kind() == reflect.Interface { // (service) stream argument.
+					if err := fillStreamArgs(argType, &mArgs); err != nil {
+						panic(err.Error())
+					}
+					continue
+				}
+				if argType == optType { // (client) CallOption argument - ignore it.
+					continue
+				}
 			}
-			in[idx] = argType
-			idx++
+			mArgs.inTypes = append(mArgs.inTypes, argType)
 		}
-		out := make([]reflect.Type, m.Type.NumOut()-1) // skip error argument
 		for j := 0; j < m.Type.NumOut()-1; j++ {
-			out[j] = m.Type.Out(j)
+			argType := m.Type.Out(j)
+			if j == 0 && argType.Kind() == reflect.Interface { // (client) stream argument
+				if err := fillStreamArgs(argType, &mArgs); err != nil {
+					panic(err.Error())
+				}
+				continue
+			}
+			mArgs.outTypes = append(mArgs.outTypes, argType)
 		}
-		mis := methods[m.Name]
-		mis = append(mis, methodInfo{
-			inTypes:  in,
-			outTypes: out,
-		})
-		methods[m.Name] = mis
+		methods[m.Name] = append(methods[m.Name], &mArgs)
 	}
 	path := path.Join(t.PkgPath(), t.Name())
 	register[path] = &argGetter{
 		methods: methods,
-		idlPath: path,
+		vdlPath: path,
 	}
 }
 
-// newPtrInstance returns the pointer to the new instance of the provided type.
-func newPtrInstance(t reflect.Type) interface{} {
-	return reflect.New(t).Interface()
+// fillStreamArgs fills in stream argument types for the provided stream.
+func fillStreamArgs(stream reflect.Type, mArgs *methodArgs) error {
+	// Get the stream send type.
+	if mSend, ok := stream.MethodByName("Send"); ok {
+		if mSend.Type.NumIn() != 1 {
+			return fmt.Errorf("Illegal number of arguments for Send method in stream %v", stream)
+		}
+		mArgs.streamSendType = mSend.Type.In(0)
+	}
+	// Get the stream recv type.
+	if mRecv, ok := stream.MethodByName("Recv"); ok {
+		if mRecv.Type.NumOut() != 2 {
+			return fmt.Errorf("Illegal number of arguments for Recv method in stream %v", stream)
+		}
+		mArgs.streamRecvType = mRecv.Type.Out(0)
+	}
+	if mArgs.streamSendType == nil && mArgs.streamRecvType == nil {
+		return fmt.Errorf("Both stream in and out arguments cannot be nil in stream %v", stream)
+	}
+	// Get the stream finish types.
+	if mFinish, ok := stream.MethodByName("Finish"); ok && mFinish.Type.NumOut() > 1 {
+		for i := 0; i < mFinish.Type.NumOut()-1; i++ {
+			mArgs.streamFinishTypes = append(mArgs.streamFinishTypes, mFinish.Type.Out(i))
+		}
+	}
+	return nil
 }
 
-// newArgGetter returns the argument getter for the provided IDL interface.
-func newArgGetter(javaIdlIfacePath string) *argGetter {
-	return register[strings.Join(strings.Split(javaIdlIfacePath, ".")[1:], "/")]
+// newArgGetter returns the argument getter for the provided VDL interface.
+func newArgGetter(vdlIfacePath string) *argGetter {
+	return register[vdlIfacePath]
 }
 
 // argGetter serves method arguments for a specific interface.
 type argGetter struct {
-	methods map[string][]methodInfo
-	idlPath string
+	methods map[string][]*methodArgs
+	vdlPath string
 }
 
-// methodInfo contains argument type information for a method belonging to an interface.
-type methodInfo struct {
-	inTypes  []reflect.Type
-	outTypes []reflect.Type
-}
-
-func (m methodInfo) String() string {
-	in := fmt.Sprintf("[%d]", len(m.inTypes))
-	out := fmt.Sprintf("[%d]", len(m.outTypes))
-	for _, t := range m.inTypes {
-		in = in + ", " + t.Name()
+func (ag *argGetter) String() (ret string) {
+	ret = "VDLPath: " + ag.vdlPath
+	for k, v := range ag.methods {
+		for _, m := range v {
+			ret += "; "
+			ret += fmt.Sprintf("Method: %s, Args: %v", k, m)
+		}
 	}
-	for _, t := range m.outTypes {
-		out = out + ", " + t.Name()
-	}
-	return fmt.Sprintf("(%s; %s)", in, out)
+	return
 }
 
-// findMethod returns the method type information for the given method, or nil if
+// FindMethod returns the method type information for the given method, or nil if
 // the method doesn't exist.
-func (ag *argGetter) findMethod(method string, numInArgs int) *methodInfo {
+func (ag *argGetter) FindMethod(method string, numInArgs int) *methodArgs {
 	ms, ok := ag.methods[method]
 	if !ok {
 		return nil
 	}
-	var m *methodInfo
+	var m *methodArgs
 	for _, mi := range ms {
 		if len(mi.inTypes) == numInArgs {
-			m = &mi
+			m = mi
 			break
 		}
 	}
 	return m
 }
 
-// GetInArgTypes returns types of all input arguments for the given method.
-func (ag *argGetter) GetInArgTypes(method string, numInArgs int) ([]reflect.Type, error) {
-	m := ag.findMethod(method, numInArgs)
-	if m == nil {
-		return nil, fmt.Errorf("couldn't find method %q with %d args in path %s", method, numInArgs, ag.idlPath)
-	}
-	return m.inTypes, nil
+// argGetters is a cache of created argument getters, keyed by VDL interface path.
+var argGetters map[string]*argGetter = make(map[string]*argGetter)
+
+// method contains argument type information for a method belonging to an interface.
+type methodArgs struct {
+	inTypes           []reflect.Type
+	outTypes          []reflect.Type
+	streamSendType    reflect.Type
+	streamRecvType    reflect.Type
+	streamFinishTypes []reflect.Type
 }
 
-// GenInArgPtrs returns pointers to instances of all input arguments for the given method.
-func (ag *argGetter) GetInArgPtrs(method string, numInArgs int) (argptrs []interface{}, err error) {
-	m := ag.findMethod(method, numInArgs)
-	if m == nil {
-		return nil, fmt.Errorf("couldn't find method %q with %d args in path %s", method, numInArgs, ag.idlPath)
+func (m *methodArgs) String() string {
+	in := fmt.Sprintf("[%d]", len(m.inTypes))
+	out := fmt.Sprintf("[%d]", len(m.outTypes))
+	streamFinish := fmt.Sprintf("[%d]", len(m.streamFinishTypes))
+	streamSend := "<nil>"
+	streamRecv := "<nil>"
+	for idx, t := range m.inTypes {
+		if idx > 0 {
+			in += ", "
+		}
+		in += t.Name()
 	}
-	argptrs = make([]interface{}, len(m.inTypes))
+	for idx, t := range m.outTypes {
+		if idx > 0 {
+			out += ", "
+		}
+		out += t.Name()
+	}
+	if m.streamSendType != nil {
+		streamSend = m.streamSendType.Name()
+	}
+	if m.streamRecvType != nil {
+		streamRecv = m.streamRecvType.Name()
+	}
+	for idx, t := range m.streamFinishTypes {
+		if idx > 0 {
+			streamFinish += ", "
+		}
+		streamFinish += t.Name()
+	}
+	return fmt.Sprintf("(In: %s; Out: %s; streamSend: %s; StreamRecv: %s; StreamFinish: %s)", in, out, streamSend, streamRecv, streamFinish)
+}
+
+func (m *methodArgs) IsStreaming() bool {
+	return m.streamSendType != nil || m.streamRecvType != nil
+}
+
+// GenInPtrs returns pointers to instances of all input arguments.
+func (m *methodArgs) InPtrs() []interface{} {
+	argptrs := make([]interface{}, len(m.inTypes))
 	for i, arg := range m.inTypes {
 		argptrs[i] = newPtrInstance(arg)
 	}
-	return
+	return argptrs
 }
 
-// GetOurArgTypes returns types of all output arguments for the given method.
-func (ag *argGetter) GetOutArgTypes(method string, numInArgs int) ([]reflect.Type, error) {
-	m := ag.findMethod(method, numInArgs)
-	if m == nil {
-		return nil, fmt.Errorf("couldn't find method %q with %d args in path %s", method, numInArgs, ag.idlPath)
-	}
-	return m.outTypes, nil
-}
-
-// GetOutArgPtrs returns pointers to instances of all output arguments for the given method.
-func (ag *argGetter) GetOutArgPtrs(method string, numInArgs int) (argptrs []interface{}, err error) {
-	m := ag.findMethod(method, numInArgs)
-	if m == nil {
-		return nil, fmt.Errorf("couldn't find method %q with %d args in path %s", method, numInArgs, ag.idlPath)
-	}
-	argptrs = make([]interface{}, len(m.outTypes))
+// OutPtrs returns pointers to instances of all output arguments.
+func (m *methodArgs) OutPtrs() []interface{} {
+	argptrs := make([]interface{}, len(m.outTypes))
 	for i, arg := range m.outTypes {
 		argptrs[i] = newPtrInstance(arg)
 	}
-	return
+	return argptrs
 }
 
-// argGetters is a cache of created argument getters, keyed by IDL interface path.
-var argGetters map[string]*argGetter = make(map[string]*argGetter)
+// StreamSendPtr returns a pointer to an instance of a stream send type.
+func (m *methodArgs) StreamSendPtr() interface{} {
+	return newPtrInstance(m.streamSendType)
+}
+
+// StreamRecvPtr returns a pointer to an instance of a stream recv type.
+func (m *methodArgs) StreamRecvPtr() interface{} {
+	return newPtrInstance(m.streamRecvType)
+}
+
+// StreamFinishPtrs returns pointers to instances of stream finish types.
+func (m *methodArgs) StreamFinishPtrs() []interface{} {
+	argptrs := make([]interface{}, len(m.streamFinishTypes))
+	for i, arg := range m.streamFinishTypes {
+		argptrs[i] = newPtrInstance(arg)
+	}
+	return argptrs
+}
+
+// newPtrInstance returns the pointer to the new instance of the provided type.
+func newPtrInstance(t reflect.Type) interface{} {
+	if t == nil {
+		return nil
+	}
+	return reflect.New(t).Interface()
+}

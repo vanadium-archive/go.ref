@@ -5,11 +5,13 @@ package main
 import (
 	"flag"
 	"fmt"
+	"io"
+	"time"
 	"unsafe"
 
+	"veyron2"
 	"veyron2/ipc"
 	"veyron2/rt"
-	"veyron2/verror"
 )
 
 // #include <stdlib.h>
@@ -19,122 +21,142 @@ import "C"
 var (
 	// Global reference for com.veyron2.ipc.VeyronException class.
 	jVeyronExceptionClass C.jclass
+	// Global reference for com.veyron.runtimes.google.ipc.Runtime$ServerCall class.
+	jServerCallClass C.jclass
 	// Global reference for com.veyron.runtimes.google.ipc.IDLInvoker class.
 	jIDLInvokerClass C.jclass
 	// Global reference for java.lang.Throwable class.
 	jThrowableClass C.jclass
 	// Global reference for java.lang.String class.
 	jStringClass C.jclass
+	// Global reference for java.io.EOFException class.
+	jEOFExceptionClass C.jclass
 )
-
-// refs stores references to instances of various Go types, namely instances
-// that are referenced only by the Java code.  The only purpose of this store
-// is to prevent Go runtime from garbage collecting those instances.
-var refs = newSafeSet()
-
-// serverPtr returns the pointer to the provided server instance, as a Java's
-// C.jlong type.
-func serverPtr(s ipc.Server) C.jlong {
-	return C.jlong(uintptr(unsafe.Pointer(&s)))
-}
-
-// getServer returns the server referenced by the provided pointer, or nil if
-// the pointer is 0.
-func getServer(env *C.JNIEnv, ptr C.jlong) ipc.Server {
-	if ptr == C.jlong(0) {
-		jThrow(env, "Go server pointer is nil")
-		return nil
-	}
-	return *(*ipc.Server)(unsafe.Pointer(uintptr(ptr)))
-}
-
-// serverPtr returns the pointer to the provided client instance, as a Java's
-// C.jlong type.
-func clientPtr(c *client) C.jlong {
-	return C.jlong(uintptr(unsafe.Pointer(c)))
-}
-
-// getClient returns the client referenced by the provided pointer, or nil if
-// the pointer is 0.
-func getClient(env *C.JNIEnv, ptr C.jlong) *client {
-	if ptr == C.jlong(0) {
-		jThrow(env, "Go client pointer is nil")
-		return nil
-	}
-	return (*client)(unsafe.Pointer(uintptr(ptr)))
-}
-
-// serverPtr returns the pointer to the provided clientCall instance, as a
-// Java's C.jlong type.
-func clientCallPtr(c *clientCall) C.jlong {
-	return C.jlong(uintptr(unsafe.Pointer(c)))
-}
-
-// getCall returns the clientCall referenced by the provided pointer,
-// or nil if the pointer is 0.
-func getCall(env *C.JNIEnv, ptr C.jlong) *clientCall {
-	if ptr == C.jlong(0) {
-		jThrow(env, "Go client call pointer is nil")
-		return nil
-	}
-	return (*clientCall)(unsafe.Pointer(uintptr(ptr)))
-}
 
 //export JNI_OnLoad
 func JNI_OnLoad(jVM *C.JavaVM, reserved unsafe.Pointer) C.jint {
 	return C.JNI_VERSION_1_6
 }
 
-//export Java_com_veyron_runtimes_google_ipc_Runtime_nativeInit
-func Java_com_veyron_runtimes_google_ipc_Runtime_nativeInit(env *C.JNIEnv, jRuntime C.jclass) {
+//export Java_com_veyron_runtimes_google_ipc_Runtime_nativeGlobalInit
+func Java_com_veyron_runtimes_google_ipc_Runtime_nativeGlobalInit(env *C.JNIEnv, jRuntime C.jclass) {
 	// Cache global references to all Java classes used by the package.  This is
 	// necessary because JNI gets access to the class loader only in the system
 	// thread, so we aren't able to invoke FindClass in other threads.
 	jVeyronExceptionClass = jFindClassOrDie(env, "com/veyron2/ipc/VeyronException")
+	jServerCallClass = jFindClassOrDie(env, "com/veyron/runtimes/google/ipc/Runtime$ServerCall")
 	jIDLInvokerClass = jFindClassOrDie(env, "com/veyron/runtimes/google/ipc/IDLInvoker")
 	jThrowableClass = jFindClassOrDie(env, "java/lang/Throwable")
 	jStringClass = jFindClassOrDie(env, "java/lang/String")
+	jEOFExceptionClass = jFindClassOrDie(env, "java/io/EOFException")
 }
 
-//export Java_com_veyron_runtimes_google_ipc_Runtime_00024Server_nativeInit
-func Java_com_veyron_runtimes_google_ipc_Runtime_00024Server_nativeInit(env *C.JNIEnv, jServer C.jobject) C.jlong {
-	s, err := rt.R().NewServer()
-	if err != nil {
-		jThrow(env, fmt.Sprintf("Couldn't get new server from go runtime: %v", err))
+//export Java_com_veyron_runtimes_google_ipc_Runtime_00024Runtime_nativeInit
+func Java_com_veyron_runtimes_google_ipc_Runtime_00024Runtime_nativeInit(env *C.JNIEnv, jRuntime C.jobject, create C.jboolean) C.jlong {
+	r := rt.Init()
+	if create == C.JNI_TRUE {
+		var err error
+		r, err = rt.New()
+		if err != nil {
+			jThrowV(env, err)
+		}
+	}
+	goRef(&r)
+	return ptrValue(&r)
+}
+
+//export Java_com_veyron_runtimes_google_ipc_Runtime_00024Runtime_nativeNewClient
+func Java_com_veyron_runtimes_google_ipc_Runtime_00024Runtime_nativeNewClient(env *C.JNIEnv, jRuntime C.jobject, goRuntimePtr C.jlong) C.jlong {
+	r, ok := ptr(goRuntimePtr).(*veyron2.Runtime)
+	if !ok || r == nil {
+		jThrowV(env, fmt.Errorf("Couldn't find Go runtime with pointer: %d", int(goRuntimePtr)))
 		return C.jlong(0)
 	}
+	rc, err := (*r).NewClient()
+	if err != nil {
+		jThrowV(env, err)
+		return C.jlong(0)
+	}
+	c := newClient(rc)
+	goRef(c)
+	return ptrValue(c)
+}
 
-	// Ref.
-	refs.insert(s)
-	return serverPtr(s)
+//export Java_com_veyron_runtimes_google_ipc_Runtime_00024Runtime_nativeNewServer
+func Java_com_veyron_runtimes_google_ipc_Runtime_00024Runtime_nativeNewServer(env *C.JNIEnv, jRuntime C.jobject, goRuntimePtr C.jlong) C.jlong {
+	r, ok := ptr(goRuntimePtr).(*veyron2.Runtime)
+	if !ok || r == nil {
+		jThrowV(env, fmt.Errorf("Couldn't find Go runtime with pointer: %d", int(goRuntimePtr)))
+		return C.jlong(0)
+	}
+	s, err := (*r).NewServer()
+	if err != nil {
+		jThrowV(env, err)
+		return C.jlong(0)
+	}
+	goRef(&s)
+	return ptrValue(&s)
+}
+
+//export Java_com_veyron_runtimes_google_ipc_Runtime_00024Runtime_nativeGetClient
+func Java_com_veyron_runtimes_google_ipc_Runtime_00024Runtime_nativeGetClient(env *C.JNIEnv, jRuntime C.jobject, goRuntimePtr C.jlong) C.jlong {
+	r, ok := ptr(goRuntimePtr).(*veyron2.Runtime)
+	if !ok || r == nil {
+		jThrowV(env, fmt.Errorf("Couldn't find Go runtime with pointer: %d", int(goRuntimePtr)))
+		return C.jlong(0)
+	}
+	rc := (*r).Client()
+	c := newClient(rc)
+	goRef(c)
+	return ptrValue(c)
+}
+
+//export Java_com_veyron_runtimes_google_ipc_Runtime_00024Runtime_nativeNewContext
+func Java_com_veyron_runtimes_google_ipc_Runtime_00024Runtime_nativeNewContext(env *C.JNIEnv, jRuntime C.jobject, goRuntimePtr C.jlong) C.jlong {
+	r, ok := ptr(goRuntimePtr).(*veyron2.Runtime)
+	if !ok || r == nil {
+		jThrowV(env, fmt.Errorf("Couldn't find Go runtime with pointer: %d", int(goRuntimePtr)))
+		return C.jlong(0)
+	}
+	c := (*r).NewContext()
+	goRef(&c)
+	return ptrValue(&c)
+}
+
+//export Java_com_veyron_runtimes_google_ipc_Runtime_00024Runtime_nativeFinalize
+func Java_com_veyron_runtimes_google_ipc_Runtime_00024Runtime_nativeFinalize(env *C.JNIEnv, jRuntime C.jobject, goRuntimePtr C.jlong) {
+	r, ok := ptr(goRuntimePtr).(*veyron2.Runtime)
+	if ok && r != nil {
+		goUnref(r)
+	}
 }
 
 //export Java_com_veyron_runtimes_google_ipc_Runtime_00024Server_nativeRegister
 func Java_com_veyron_runtimes_google_ipc_Runtime_00024Server_nativeRegister(env *C.JNIEnv, jServer C.jobject, goServerPtr C.jlong, prefix C.jstring, dispatcher C.jobject) {
-	s := getServer(env, goServerPtr)
-	if s == nil {
-		jThrow(env, fmt.Sprintf("Couldn't find Go server with pointer: %d", int(goServerPtr)))
+	s, ok := ptr(goServerPtr).(*ipc.Server)
+	if !ok || s == nil {
+		jThrowV(env, fmt.Errorf("Couldn't find Go server with pointer: %d", int(goServerPtr)))
 		return
 	}
 	// Create a new Dispatcher
 	d, err := newJNIDispatcher(env, dispatcher)
 	if err != nil {
-		jThrow(env, err.Error())
+		jThrowV(env, err)
 		return
 	}
-	s.Register(goString(env, prefix), d)
+	(*s).Register(goString(env, prefix), d)
 }
 
 //export Java_com_veyron_runtimes_google_ipc_Runtime_00024Server_nativeListen
 func Java_com_veyron_runtimes_google_ipc_Runtime_00024Server_nativeListen(env *C.JNIEnv, server C.jobject, goServerPtr C.jlong, protocol C.jstring, address C.jstring) C.jstring {
-	s := getServer(env, goServerPtr)
-	if s == nil {
-		jThrow(env, fmt.Sprintf("Couldn't find Go server with pointer: %d", int(goServerPtr)))
+	s, ok := ptr(goServerPtr).(*ipc.Server)
+	if !ok || s == nil {
+		jThrowV(env, fmt.Errorf("Couldn't find Go server with pointer: %d", int(goServerPtr)))
 		return nil
 	}
-	ep, err := s.Listen(goString(env, protocol), goString(env, address))
+	ep, err := (*s).Listen(goString(env, protocol), goString(env, address))
 	if err != nil {
-		jThrow(env, err.Error())
+		jThrowV(env, err)
 		return nil
 	}
 	return jString(env, ep.String())
@@ -142,114 +164,177 @@ func Java_com_veyron_runtimes_google_ipc_Runtime_00024Server_nativeListen(env *C
 
 //export Java_com_veyron_runtimes_google_ipc_Runtime_00024Server_nativePublish
 func Java_com_veyron_runtimes_google_ipc_Runtime_00024Server_nativePublish(env *C.JNIEnv, server C.jobject, goServerPtr C.jlong, name C.jstring) {
-	s := getServer(env, goServerPtr)
-	if s == nil {
-		jThrow(env, fmt.Sprintf("Couldn't find Go server with pointer: %d", int(goServerPtr)))
+	s, ok := ptr(goServerPtr).(*ipc.Server)
+	if !ok || s == nil {
+		jThrowV(env, fmt.Errorf("Couldn't find Go server with pointer: %d", int(goServerPtr)))
 		return
 	}
-	if err := s.Publish(goString(env, name)); err != nil {
-		jThrow(env, err.Error())
+	if err := (*s).Publish(goString(env, name)); err != nil {
+		jThrowV(env, err)
 		return
 	}
 }
 
 //export Java_com_veyron_runtimes_google_ipc_jni_Runtime_00024Server_nativeStop
 func Java_com_veyron_runtimes_google_ipc_jni_Runtime_00024Server_nativeStop(env *C.JNIEnv, server C.jobject, goServerPtr C.jlong) {
-	s := getServer(env, goServerPtr)
-	if s == nil {
-		jThrow(env, fmt.Sprintf("Couldn't find Go server with pointer: %d", int(goServerPtr)))
+	s, ok := ptr(goServerPtr).(*ipc.Server)
+	if !ok || s == nil {
+		jThrowV(env, fmt.Errorf("Couldn't find Go server with pointer: %d", int(goServerPtr)))
 		return
 	}
-	if err := s.Stop(); err != nil {
-		jThrow(env, err.Error())
+	if err := (*s).Stop(); err != nil {
+		jThrowV(env, err)
 		return
 	}
 }
 
 //export Java_com_veyron_runtimes_google_ipc_jni_Runtime_00024Server_nativeFinalize
 func Java_com_veyron_runtimes_google_ipc_jni_Runtime_00024Server_nativeFinalize(env *C.JNIEnv, server C.jobject, goServerPtr C.jlong) {
-	s := getServer(env, goServerPtr)
-	if s != nil {
-		// Unref.
-		refs.delete(s)
+	s, ok := ptr(goServerPtr).(*ipc.Server)
+	if ok && s != nil {
+		goUnref(s)
 	}
-}
-
-//export Java_com_veyron_runtimes_google_ipc_Runtime_00024Client_nativeInit
-func Java_com_veyron_runtimes_google_ipc_Runtime_00024Client_nativeInit(env *C.JNIEnv, jClient C.jobject) C.jlong {
-	c, err := newClient()
-	if err != nil {
-		jThrow(env, fmt.Sprintf("Couldn't get new client from go runtime: %v", err))
-		return C.jlong(0)
-	}
-	// Ref.
-	refs.insert(c)
-	return clientPtr(c)
 }
 
 //export Java_com_veyron_runtimes_google_ipc_Runtime_00024Client_nativeStartCall
-func Java_com_veyron_runtimes_google_ipc_Runtime_00024Client_nativeStartCall(env *C.JNIEnv, jClient C.jobject, goClientPtr C.jlong, name C.jstring, method C.jstring, jsonArgs C.jobjectArray, jPath C.jstring, timeoutMillis C.jlong) C.jlong {
-	c := getClient(env, goClientPtr)
-	if c == nil {
-		jThrow(env, fmt.Sprintf("Couldn't find Go client with pointer: %d", int(goClientPtr)))
+func Java_com_veyron_runtimes_google_ipc_Runtime_00024Client_nativeStartCall(env *C.JNIEnv, jClient C.jobject, goClientPtr C.jlong, jContext C.jobject, name C.jstring, method C.jstring, jsonArgs C.jobjectArray, jPath C.jstring, timeoutMillis C.jlong) C.jlong {
+	c, ok := ptr(goClientPtr).(*client)
+	if !ok || c == nil {
+		jThrowV(env, fmt.Errorf("Couldn't find Go client with pointer: %d", int(goClientPtr)))
 		return C.jlong(0)
 	}
-	call, err := c.StartCall(env, goString(env, name), goString(env, method), jsonArgs, jPath, timeoutMillis)
+	call, err := c.StartCall(env, jContext, goString(env, name), goString(env, method), jsonArgs, jPath, timeoutMillis)
 	if err != nil {
-		jThrow(env, fmt.Sprintf("Couldn't start Go call: %v", err))
+		jThrowV(env, err)
 		return C.jlong(0)
 	}
-	return clientCallPtr(call)
+	goRef(call)
+	return ptrValue(call)
 }
 
 //export Java_com_veyron_runtimes_google_ipc_Runtime_00024Client_nativeClose
 func Java_com_veyron_runtimes_google_ipc_Runtime_00024Client_nativeClose(env *C.JNIEnv, jClient C.jobject, goClientPtr C.jlong) {
-	c := getClient(env, goClientPtr)
-	if c != nil {
-		c.Close()
+	c, ok := ptr(goClientPtr).(*client)
+	if !ok || c == nil {
+		jThrowV(env, fmt.Errorf("Couldn't find Go client with pointer: %d", int(goClientPtr)))
+		return
 	}
+	c.Close()
 }
 
 //export Java_com_veyron_runtimes_google_ipc_Runtime_00024Client_nativeFinalize
 func Java_com_veyron_runtimes_google_ipc_Runtime_00024Client_nativeFinalize(env *C.JNIEnv, jClient C.jobject, goClientPtr C.jlong) {
-	c := getClient(env, goClientPtr)
-	if c != nil {
-		// Unref.
-		refs.delete(c)
+	c, ok := ptr(goClientPtr).(*client)
+	if ok && c != nil {
+		goUnref(c)
 	}
 }
 
-//export Java_com_veyron_runtimes_google_ipc_Runtime_00024Call_nativeFinish
-func Java_com_veyron_runtimes_google_ipc_Runtime_00024Call_nativeFinish(env *C.JNIEnv, jClient C.jobject, goCallPtr C.jlong) C.jobjectArray {
-	c := getCall(env, goCallPtr)
-	if c == nil {
-		jThrow(env, fmt.Sprintf("Couldn't find Go client with pointer: %d", int(goCallPtr)))
+//export Java_com_veyron_runtimes_google_ipc_Runtime_00024Context_nativeFinalize
+func Java_com_veyron_runtimes_google_ipc_Runtime_00024Context_nativeFinalize(env *C.JNIEnv, jClient C.jobject, goContextPtr C.jlong) {
+	c, ok := ptr(goContextPtr).(*ipc.Context)
+	if ok && c != nil {
+		goUnref(c)
+	}
+}
+
+//export Java_com_veyron_runtimes_google_ipc_Runtime_00024Stream_nativeSend
+func Java_com_veyron_runtimes_google_ipc_Runtime_00024Stream_nativeSend(env *C.JNIEnv, jStream C.jobject, goStreamPtr C.jlong, jItem C.jstring) {
+	s, ok := ptr(goStreamPtr).(*stream)
+	if !ok || s == nil {
+		jThrowV(env, fmt.Errorf("Couldn't find Go stream with pointer: %d", int(goStreamPtr)))
+		return
+	}
+	s.Send(env, jItem)
+}
+
+//export Java_com_veyron_runtimes_google_ipc_Runtime_00024Stream_nativeRecv
+func Java_com_veyron_runtimes_google_ipc_Runtime_00024Stream_nativeRecv(env *C.JNIEnv, jStream C.jobject, goStreamPtr C.jlong) C.jstring {
+	s, ok := ptr(goStreamPtr).(*stream)
+	if !ok || s == nil {
+		jThrowV(env, fmt.Errorf("Couldn't find Go stream with pointer: %d", int(goStreamPtr)))
+		return nil
+	}
+	ret, err := s.Recv(env)
+	if err != nil {
+		if err == io.EOF {
+			jThrow(env, jEOFExceptionClass, err.Error())
+			return nil
+		}
+		jThrowV(env, err)
+		return nil
+	}
+	return ret
+}
+
+//export Java_com_veyron_runtimes_google_ipc_Runtime_00024ClientCall_nativeFinish
+func Java_com_veyron_runtimes_google_ipc_Runtime_00024ClientCall_nativeFinish(env *C.JNIEnv, jClientCall C.jobject, goClientCallPtr C.jlong) C.jobjectArray {
+	c, ok := ptr(goClientCallPtr).(*clientCall)
+	if !ok || c == nil {
+		jThrowV(env, fmt.Errorf("Couldn't find Go client call with pointer: %d", int(goClientCallPtr)))
 		return nil
 	}
 	ret, err := c.Finish(env)
 	if err != nil {
-		// Could be an application error, so we throw it with jThrowV.
-		jThrowV(env, verror.Convert(err))
+		jThrowV(env, err)
 		return nil
 	}
-	// Unref.
-	refs.delete(c)
 	return ret
 }
 
-//export Java_com_veyron_runtimes_google_ipc_Runtime_00024Call_nativeCancel
-func Java_com_veyron_runtimes_google_ipc_Runtime_00024Call_nativeCancel(env *C.JNIEnv, jClient C.jobject, goCallPtr C.jlong) {
-	c := getCall(env, goCallPtr)
-	if c != nil {
-		c.Cancel()
+//export Java_com_veyron_runtimes_google_ipc_Runtime_00024ClientCall_nativeCancel
+func Java_com_veyron_runtimes_google_ipc_Runtime_00024ClientCall_nativeCancel(env *C.JNIEnv, jClientCall C.jobject, goClientCallPtr C.jlong) {
+	c, ok := ptr(goClientCallPtr).(*clientCall)
+	if !ok || c == nil {
+		jThrowV(env, fmt.Errorf("Couldn't find Go client call with pointer: %d", int(goClientCallPtr)))
+		return
+	}
+	c.Cancel()
+}
+
+//export Java_com_veyron_runtimes_google_ipc_Runtime_00024ClientCall_nativeFinalize
+func Java_com_veyron_runtimes_google_ipc_Runtime_00024ClientCall_nativeFinalize(env *C.JNIEnv, jClientCall C.jobject, goClientCallPtr C.jlong) {
+	c, ok := ptr(goClientCallPtr).(*clientCall)
+	if ok && c != nil {
+		goUnref(c)
 	}
 }
 
-//export Java_com_veyron_runtimes_google_ipc_Runtime_00024Call_nativeFinalize
-func Java_com_veyron_runtimes_google_ipc_Runtime_00024Call_nativeFinalize(env *C.JNIEnv, jClient C.jobject, goCallPtr C.jlong) {
-	c := getCall(env, goCallPtr)
-	if c != nil {
-		refs.delete(c)
+//export Java_com_veyron_runtimes_google_ipc_Runtime_00024ServerCall_nativeDeadline
+func Java_com_veyron_runtimes_google_ipc_Runtime_00024ServerCall_nativeDeadline(env *C.JNIEnv, jServerCall C.jobject, goServerCallPtr C.jlong) C.jlong {
+	s, ok := ptr(goServerCallPtr).(*serverCall)
+	if !ok || s == nil {
+		jThrowV(env, fmt.Errorf("Couldn't find Go server call with pointer: %d", int(goServerCallPtr)))
+		return C.jlong(0)
+	}
+	var d time.Time
+	if s == nil {
+		// Error, return current time as deadline.
+		d = time.Now()
+	} else {
+		d = s.Deadline()
+	}
+	return C.jlong(d.UnixNano() / 1000)
+}
+
+//export Java_com_veyron_runtimes_google_ipc_Runtime_00024ServerCall_nativeClosed
+func Java_com_veyron_runtimes_google_ipc_Runtime_00024ServerCall_nativeClosed(env *C.JNIEnv, jServerCall C.jobject, goServerCallPtr C.jlong) C.jboolean {
+	s, ok := ptr(goServerCallPtr).(*serverCall)
+	if !ok || s == nil {
+		jThrowV(env, fmt.Errorf("Couldn't find Go server call with pointer: %d", int(goServerCallPtr)))
+		return C.JNI_FALSE
+	}
+	if s.IsClosed() {
+		return C.JNI_TRUE
+	}
+	return C.JNI_FALSE
+}
+
+//export Java_com_veyron_runtimes_google_ipc_Runtime_00024ServerCall_nativeFinalize
+func Java_com_veyron_runtimes_google_ipc_Runtime_00024ServerCall_nativeFinalize(env *C.JNIEnv, jServerCall C.jobject, goServerCallPtr C.jlong) {
+	s, ok := ptr(goServerCallPtr).(*serverCall)
+	if ok && s != nil {
+		goUnref(s)
 	}
 }
 
@@ -258,5 +343,4 @@ func main() {
 	// flag is removed, the process will likely crash as android requires that all logs are written
 	// into a specific directory.
 	flag.Set("logtostderr", "true")
-	rt.Init()
 }
