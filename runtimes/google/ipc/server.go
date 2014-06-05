@@ -10,13 +10,13 @@ import (
 
 	inaming "veyron/runtimes/google/naming"
 	isecurity "veyron/runtimes/google/security"
-	"veyron/runtimes/google/security/wire"
 
 	"veyron2"
 	"veyron2/ipc"
 	"veyron2/ipc/stream"
 	"veyron2/naming"
 	"veyron2/security"
+	"veyron2/security/wire"
 	"veyron2/verror"
 	"veyron2/vlog"
 	"veyron2/vom"

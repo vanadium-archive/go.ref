@@ -7,8 +7,8 @@ import (
 	"strings"
 
 	"veyron/runtimes/google/security/keys"
-	"veyron/runtimes/google/security/wire"
 	"veyron2/security"
+	"veyron2/security/wire"
 )
 
 var errDeriveMismatch = errors.New("public key does not match that of deriving identity")

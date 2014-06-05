@@ -11,9 +11,9 @@ import (
 	"math/big"
 	"time"
 
-	"veyron/runtimes/google/security/wire"
 	vcaveat "veyron/security/caveat"
 	"veyron2/security"
+	"veyron2/security/wire"
 )
 
 // nonceLength specifies the length in bytes of the random nonce used
