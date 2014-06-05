@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math/rand"
 	"net/http"
+	"time"
 
 	"veyron/services/identity/util"
 	"veyron2"
@@ -20,8 +21,8 @@ func (h Random) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		util.HTTPServerError(w, err)
 		return
 	}
-	// Bless this with the identity of the runtime, valid forever (approximately 290 years)
-	blessing, err := h.Runtime.Identity().Bless(id.PublicID(), name, 0x7fffffffffffffff, nil)
+	// Bless this with the identity of the runtime, valid for 1 hour.
+	blessing, err := h.Runtime.Identity().Bless(id.PublicID(), name, 1*time.Hour, nil)
 	if err != nil {
 		util.HTTPServerError(w, err)
 		return
