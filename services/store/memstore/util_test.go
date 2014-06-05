@@ -56,6 +56,10 @@ func (*cancellableContext) RemoteID() security.PublicID {
 	return rootPublicID
 }
 
+func (*cancellableContext) Blessing() security.PublicID {
+	return nil
+}
+
 func (*cancellableContext) LocalAddr() net.Addr {
 	return nil
 }

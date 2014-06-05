@@ -67,6 +67,10 @@ func (ctx *testContext) RemoteID() security.PublicID {
 	return ctx.id
 }
 
+func (*testContext) Blessing() security.PublicID {
+	return nil
+}
+
 func (*testContext) LocalAddr() net.Addr {
 	return nil
 }

@@ -1,6 +1,7 @@
 package ipc
 
 import (
+	"fmt"
 	"io"
 	"sync"
 	"time"
@@ -141,32 +142,15 @@ func (c *client) startCall(name, method string, args []interface{}, opts ...ipc.
 		}
 
 		// Validate caveats on the server's identity for the context associated with this call.
-		remoteID := flow.RemoteID()
-		if remoteID == nil {
-			lastErr = verror.NotAuthorizedf("ipc: server identity cannot be nil")
-			continue
-		}
-		// TODO(ataly): Fetch third-party discharges from the server.
-		// TODO(ataly): What should the label be for the context? Typically the label is the security.Label
-		// of the method but we don't have that information here at the client.
-		authorizedRemoteID, err := remoteID.Authorize(isecurity.NewContext(
-			isecurity.ContextArgs{
-				LocalID:  flow.LocalID(),
-				RemoteID: remoteID,
-			}))
+		blessing, err := authorizeServer(flow.LocalID(), flow.RemoteID(), opts)
 		if err != nil {
-			lastErr = verror.NotAuthorizedf("ipc: server identity %q has one or more invalid caveats: %v", remoteID, err)
+			lastErr = verror.NotAuthorizedf("ipc: client unwilling to talk to server %q: %v", flow.RemoteID(), err)
+			flow.Close()
 			continue
 		}
-
-		if lastErr = matchServerID(authorizedRemoteID, opts); lastErr != nil {
-			continue
-		}
-
-		// remoteID is authorized for the context associated with this call.
 		lastErr = nil
 		fc := newFlowClient(flow)
-		if verr := fc.start(suffix, method, args, timeout); verr != nil {
+		if verr := fc.start(suffix, method, args, timeout, blessing); verr != nil {
 			return nil, verr
 		}
 		return fc, nil
@@ -175,6 +159,45 @@ func (c *client) startCall(name, method string, args []interface{}, opts ...ipc.
 		return nil, lastErr
 	}
 	return nil, errNoServers
+}
+
+// authorizeServer validates that server has an identity that the client is willing to converse
+// with, and if so returns a blessing to be provided to the server. This blessing can be nil,
+// which indicates that the client does wish to talk to the server but not provide any blessings.
+func authorizeServer(client, server security.PublicID, opts []ipc.CallOpt) (security.PublicID, error) {
+	if server == nil {
+		return nil, fmt.Errorf("server identity cannot be nil")
+	}
+	// TODO(ataly): Fetch third-party discharges from the server.
+	// TODO(ataly): What should the label be for the context? Typically the label is the security.Label
+	// of the method but we don't have that information here at the client.
+	authID, err := server.Authorize(isecurity.NewContext(isecurity.ContextArgs{
+		LocalID:  client,
+		RemoteID: server,
+	}))
+	if err != nil {
+		return nil, err
+	}
+	var granter ipc.Granter
+	for _, o := range opts {
+		switch v := o.(type) {
+		case veyron2.RemoteID:
+			if !authID.Match(security.PrincipalPattern(v)) {
+				return nil, fmt.Errorf("server %q does not match the provided pattern %q", authID, v)
+			}
+		case ipc.Granter:
+			// Later Granters take precedence over earlier ones.
+			// Or should fail if there are multiple provided?
+			granter = v
+		}
+	}
+	var blessing security.PublicID
+	if granter != nil {
+		if blessing, err = granter.Grant(authID); err != nil {
+			return nil, fmt.Errorf("failed to grant credentials to server %q: %v", authID, err)
+		}
+	}
+	return blessing, nil
 }
 
 func (c *client) getCallTimeout(opts []ipc.CallOpt) time.Duration {
@@ -229,15 +252,21 @@ func (fc *flowClient) close(verr verror.E) verror.E {
 	return verr
 }
 
-func (fc *flowClient) start(suffix, method string, args []interface{}, timeout time.Duration) verror.E {
+func (fc *flowClient) start(suffix, method string, args []interface{}, timeout time.Duration, blessing security.PublicID) verror.E {
 	req := ipc.Request{
-		Suffix:     suffix,
-		Method:     method,
-		NumPosArgs: uint64(len(args)),
-		Timeout:    int64(timeout),
+		Suffix:      suffix,
+		Method:      method,
+		NumPosArgs:  uint64(len(args)),
+		Timeout:     int64(timeout),
+		HasBlessing: blessing != nil,
 	}
 	if err := fc.enc.Encode(req); err != nil {
 		return fc.close(verror.BadProtocolf("ipc: request encoding failed: %v", err))
+	}
+	if blessing != nil {
+		if err := fc.enc.Encode(blessing); err != nil {
+			return fc.close(verror.BadProtocolf("ipc: blessing encoding failed: %v", err))
+		}
 	}
 	for ix, arg := range args {
 		if err := fc.enc.Encode(arg); err != nil {
@@ -356,13 +385,4 @@ func (fc *flowClient) finish(resultptrs ...interface{}) verror.E {
 
 func (fc *flowClient) Cancel() {
 	fc.flow.Cancel()
-}
-
-func matchServerID(id security.PublicID, opts []ipc.CallOpt) verror.E {
-	for _, opt := range opts {
-		if pattern, ok := opt.(veyron2.RemoteID); ok && !id.Match(security.PrincipalPattern(pattern)) {
-			return verror.NotAuthorizedf("ipc: server identity %q does not have a name matching the provided pattern %q", id, pattern)
-		}
-	}
-	return nil
 }

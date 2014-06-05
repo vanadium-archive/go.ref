@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"reflect"
 	"strings"
 	"sync"
 	"time"
@@ -245,6 +246,7 @@ type flowServer struct {
 	// authorizedRemoteID is the PublicID obtained after authorizing the remoteID
 	// of the underlying flow for the current request context.
 	authorizedRemoteID   security.PublicID
+	blessing             security.PublicID
 	method, name, suffix string
 	label                security.Label
 	discharges           security.CaveatDischargeMap
@@ -362,6 +364,20 @@ func (fs *flowServer) processRequest() ([]interface{}, verror.E) {
 		if verr := fs.setDeadline(start.Add(time.Duration(req.Timeout))); verr != nil {
 			return nil, verr
 		}
+	}
+	// If additional credentials are provided, make them available in the context
+	if req.HasBlessing {
+		if err := fs.dec.Decode(&fs.blessing); err != nil {
+			return nil, verror.BadProtocolf("ipc: blessing decoding failed: %v", err)
+		}
+		// Detect unusable blessings now, rather then discovering they are unusable on first use.
+		if !reflect.DeepEqual(fs.blessing.PublicKey(), fs.flow.LocalID().PublicKey()) {
+			return nil, verror.BadProtocolf("ipc: blessing provided not bound to this server")
+		}
+		// TODO(ashankar,ataly): Potential confused deputy attack: The client provides the
+		// server's identity as the blessing. Figure out what we want to do about this -
+		// should servers be able to assume that a blessing is something that does not
+		// have the authorizations that the server's own identity has?
 	}
 	// Lookup the invoker.
 	invoker, auth, name, suffix, verr := fs.lookup(req.Suffix)
@@ -484,6 +500,7 @@ func (fs *flowServer) CaveatDischarges() security.CaveatDischargeMap { return fs
 func (fs *flowServer) LocalID() security.PublicID                    { return fs.flow.LocalID() }
 func (fs *flowServer) RemoteID() security.PublicID                   { return fs.authorizedRemoteID }
 func (fs *flowServer) Deadline() time.Time                           { return fs.deadline }
+func (fs *flowServer) Blessing() security.PublicID                   { return fs.blessing }
 func (fs *flowServer) LocalAddr() net.Addr                           { return fs.flow.LocalAddr() }
 func (fs *flowServer) RemoteAddr() net.Addr                          { return fs.flow.RemoteAddr() }
 
