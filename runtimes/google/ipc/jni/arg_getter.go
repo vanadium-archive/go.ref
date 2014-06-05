@@ -32,7 +32,8 @@ func registerInterface(ifacePtr interface{}) {
 	}
 
 	contextType := reflect.TypeOf((*ipc.Context)(nil)).Elem()
-	optType := reflect.TypeOf(([]ipc.ClientOpt)(nil))
+	serverContextType := reflect.TypeOf((*ipc.ServerContext)(nil)).Elem()
+	optType := reflect.TypeOf(([]ipc.CallOpt)(nil))
 	// Create a new arg getter.
 	methods := make(map[string][]*methodArgs)
 	for i := 0; i < t.NumMethod(); i++ {
@@ -40,8 +41,11 @@ func registerInterface(ifacePtr interface{}) {
 		var mArgs methodArgs
 		for j := 0; j < m.Type.NumIn(); j++ {
 			argType := m.Type.In(j)
-			if j == 0 && argType == contextType { // (service) Context argument - ignore it.
-				continue
+			if j == 0 {
+				if argType == contextType || argType == serverContextType {
+					// context arguments - ignore them.
+					continue
+				}
 			}
 			if j == m.Type.NumIn()-1 {
 				if argType.Kind() == reflect.Interface { // (service) stream argument.
