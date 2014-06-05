@@ -378,11 +378,37 @@ func (h *helper) Close() {
 	}
 }
 
+var (
+	randomMu sync.Mutex
+	random   []byte // GUARDED_BY(randomMu). Source of entropy for tests.
+)
+
+// randomString returns a byte slice with random content of size bytes.
+// For sizes used in this test, crand.Read is typically faster than looping through rand.Int().
+// However, it is still "slow" (for example, TestConcurrentFlows_10 requires a total of ~50MB of
+// random data and crand.Read takes about 4 seconds to generate that).
+// Re-use previously generated random data to speed up the test (for example, TestConcurrentFlows_10
+// requires at most a 10MB slice).
 func randomString(size int) ([]byte, error) {
 	b := make([]byte, size)
-	if _, err := crand.Read(b); err != nil {
-		return nil, err
+	randomMu.Lock()
+	defer randomMu.Unlock()
+	// Seed with 10MB since that is a common maximum used in this test
+	if len(random) == 0 {
+		random = make([]byte, 10<<20)
+		if _, err := crand.Read(random); err != nil {
+			return nil, err
+		}
 	}
+	if size >= len(random) {
+		extra := make([]byte, size-len(random)+1)
+		if _, err := crand.Read(extra); err != nil {
+			return nil, err
+		}
+		random = append(random, extra...)
+	}
+	start := rand.Intn(len(random) - size)
+	copy(b, random[start:start+size])
 	return b, nil
 }
 
