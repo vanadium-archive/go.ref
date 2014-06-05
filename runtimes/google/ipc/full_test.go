@@ -17,6 +17,7 @@ import (
 	imanager "veyron/runtimes/google/ipc/stream/manager"
 	"veyron/runtimes/google/ipc/stream/vc"
 	"veyron/runtimes/google/ipc/version"
+	"veyron/runtimes/google/lib/publisher"
 	inaming "veyron/runtimes/google/naming"
 	isecurity "veyron/runtimes/google/security"
 	"veyron/security/caveat"
@@ -670,7 +671,7 @@ func TestConnectWithIncompatibleServers(t *testing.T) {
 	defer b.cleanup(t)
 
 	// Publish some incompatible endpoints.
-	publisher := InternalNewPublisher(b.mt, publishPeriod)
+	publisher := publisher.New(b.mt, publishPeriod)
 	defer publisher.WaitForStop()
 	defer publisher.Stop()
 	publisher.AddName("incompatible")

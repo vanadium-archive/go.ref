@@ -8,6 +8,7 @@ import (
 	"sync"
 	"time"
 
+	"veyron/runtimes/google/lib/publisher"
 	inaming "veyron/runtimes/google/naming"
 	isecurity "veyron/runtimes/google/security"
 
@@ -34,7 +35,7 @@ type server struct {
 	sync.Mutex
 	streamMgr        stream.Manager       // stream manager to listen for new flows.
 	disptrie         *disptrie            // dispatch trie for method dispatching.
-	publisher        Publisher            // publisher to publish mounttable mounts.
+	publisher        publisher.Publisher  // publisher to publish mounttable mounts.
 	listenerOpts     []stream.ListenerOpt // listener opts passed to Listen.
 	listeners        []stream.Listener    // listeners created by Listen.
 	active           sync.WaitGroup       // active goroutines we've spawned.
@@ -48,7 +49,7 @@ func InternalNewServer(streamMgr stream.Manager, mt naming.MountTable, opts ...i
 	s := &server{
 		streamMgr: streamMgr,
 		disptrie:  newDisptrie(),
-		publisher: InternalNewPublisher(mt, publishPeriod),
+		publisher: publisher.New(mt, publishPeriod),
 		mt:        mt,
 	}
 	for _, opt := range opts {
