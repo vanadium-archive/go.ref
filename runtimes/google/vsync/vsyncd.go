@@ -8,6 +8,7 @@ package vsync
 // log records in response to a GetDeltas request, it replays those
 // log records to get in sync with the sender.
 import (
+	"fmt"
 	"sync"
 	"time"
 
@@ -160,6 +161,12 @@ func (s *syncd) isSyncClosing() bool {
 // GetDeltas responds to the incoming request from a client by sending missing generations to the client.
 func (s *syncd) GetDeltas(_ ipc.ServerContext, In GenVector, ClientID DeviceID, Stream SyncServiceGetDeltasStream) (GenVector, error) {
 	vlog.VI(1).Infof("GetDeltas:: Received vector %v from client %s", In, ClientID)
+
+	// Handle misconfiguration: the client cannot have the same ID as me.
+	if ClientID == s.id {
+		vlog.VI(1).Infof("GetDeltas:: impostor alert: client ID %s is the same as mine %s", ClientID, s.id)
+		return GenVector{}, fmt.Errorf("impostor: you cannot be %s, for I am %s", ClientID, s.id)
+	}
 
 	if err := s.updateDeviceInfo(ClientID, In); err != nil {
 		vlog.Fatalf("GetDeltas:: updateDeviceInfo failed with err %v", err)

@@ -85,12 +85,24 @@ func newInitiator(syncd *syncd, peerEndpoints, peerDeviceIDs string, syncTick ti
 	}
 
 	// Bootstrap my peer list.
-	if peerEndpoints != "" {
+	if peerEndpoints != "" || peerDeviceIDs != "" {
 		i.neighbors = strings.Split(peerEndpoints, ",")
 		i.neighborIDs = strings.Split(peerDeviceIDs, ",")
-	}
-	if len(i.neighbors) != len(i.neighborIDs) {
-		vlog.Fatalf("newInitiator: Mismatch between number of endpoints and IDs")
+		if len(i.neighbors) != len(i.neighborIDs) {
+			vlog.Fatalf("newInitiator: Mismatch between number of endpoints and IDs")
+		}
+
+		// Neighbor IDs must be distinct and different from my ID.
+		neighborIDs := make(map[string]struct{})
+		for _, nID := range i.neighborIDs {
+			if DeviceID(nID) == i.syncd.id {
+				vlog.Fatalf("newInitiator: neighboor ID %v cannot be the same as my ID %v", nID, i.syncd.id)
+			}
+			if _, ok := neighborIDs[nID]; ok {
+				vlog.Fatalf("newInitiator: neighboor ID %v is duplicated", nID)
+			}
+			neighborIDs[nID] = struct{}{}
+		}
 	}
 
 	// Override the default peerSyncInterval value if syncTick is specified.
