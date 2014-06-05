@@ -162,6 +162,8 @@ func (s *server) register(name string, sig JSONServiceSignature) error {
 }
 
 func (s *server) publish(name string) (string, error) {
+	s.Lock()
+	defer s.Unlock()
 	if s.endpoint == "" {
 		endpoint, err := s.server.Listen("veyron", s.veyronProxy)
 
