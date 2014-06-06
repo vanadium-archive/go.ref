@@ -1,4 +1,5 @@
-package ipc
+// Package publisher provides a type to publish names to a mounttable.
+package publisher
 
 // TODO(toddw): Add unittests.
 
@@ -30,6 +31,9 @@ type Publisher interface {
 	WaitForStop()
 }
 
+// The publisher adds this much slack to each TTL.
+const mountTTLSlack = 20 * time.Second
+
 // publisher maintains the name->server associations in the mounttable.  It
 // spawns its own goroutine that does the actual work; the publisher itself
 // simply coordinates concurrent access by sending and receiving on the
@@ -53,11 +57,8 @@ type debugCmd chan string // debug string is sent when the cmd is done
 
 type publishedCmd chan []string // published names are sent when cmd is done
 
-// InternalNewPublisher returns a new publisher that updates mounts on mt every
-// period.
-// As the name suggests, this method is not meant to be used outside the
-// google runtime implementation.
-func InternalNewPublisher(mt naming.MountTable, period time.Duration) Publisher {
+// New returns a new publisher that updates mounts on mt every period.
+func New(mt naming.MountTable, period time.Duration) Publisher {
 	p := &publisher{
 		cmdchan:  make(chan interface{}, 10),
 		donechan: make(chan struct{}),
