@@ -19,7 +19,7 @@ func compareType(t *testing.T, method string, got, want interface{}, argKind str
 
 func compareTypes(t *testing.T, method string, got, want []interface{}, argKind string) {
 	if len(got) != len(want) {
-		 t.Errorf("mismatch in input arguments: got %v , want %v ", got, want)
+		t.Errorf("mismatch in input arguments: got %v , want %v ", got, want)
 	}
 	for i, _ := range got {
 		compareType(t, method, got[i], want[i], argKind)
@@ -35,12 +35,12 @@ func TestGetter(t *testing.T) {
 	if got, want := getter.vdlPath, iface; got != want {
 		t.Errorf("invalid pathname: got %v , want %v ", got, want)
 	}
-	data := []struct{
-		Method string
-		NumInArgs int
-		in, out []interface{}
+	data := []struct {
+		Method       string
+		NumInArgs    int
+		in, out      []interface{}
 		sSend, sRecv interface{}
-		sFinish []interface{}
+		sFinish      []interface{}
 	}{
 		{"MethodA1", 0, nil, nil, nil, nil, nil},
 		{"MethodA2", 2, []interface{}{(*int32)(nil), (*string)(nil)}, []interface{}{(*string)(nil)}, nil, nil, nil},
