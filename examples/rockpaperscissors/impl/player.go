@@ -16,10 +16,11 @@ import (
 )
 
 type Player struct {
-	mt          naming.MountTable
-	lock        sync.Mutex
-	gamesPlayed common.Counter
-	gamesWon    common.Counter
+	mt              naming.MountTable
+	lock            sync.Mutex
+	gamesPlayed     common.Counter
+	gamesWon        common.Counter
+	gamesInProgress common.Counter
 }
 
 func NewPlayer(mt naming.MountTable) *Player {
@@ -30,6 +31,13 @@ func (p *Player) Stats() (played, won int64) {
 	played = p.gamesPlayed.Value()
 	won = p.gamesWon.Value()
 	return
+}
+
+// only used by tests.
+func (p *Player) WaitUntilIdle() {
+	for p.gamesInProgress.Value() != 0 {
+		time.Sleep(10 * time.Millisecond)
+	}
 }
 
 func (p *Player) InitiateGame() error {
@@ -99,6 +107,8 @@ func (p *Player) challenge(judge string, gameID rps.GameID) error {
 // playGame plays an entire game, which really only consists of reading
 // commands from the server, and picking a random "move" when asked to.
 func (p *Player) playGame(judge string, gameID rps.GameID) (rps.PlayResult, error) {
+	p.gamesInProgress.Add(1)
+	defer p.gamesInProgress.Add(-1)
 	j, err := rps.BindRockPaperScissors(judge)
 	if err != nil {
 		return rps.PlayResult{}, err

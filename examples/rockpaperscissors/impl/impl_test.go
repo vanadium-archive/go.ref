@@ -78,27 +78,31 @@ func TestRockPaperScissorsImpl(t *testing.T) {
 	rpsService, rpsStop := startRockPaperScissors(t, runtime, mtAddress)
 	defer rpsStop()
 
-	if err := rpsService.Player().InitiateGame(); err != nil {
-		t.Errorf("Failed to initiate game: %v", err)
+	const numGames = 10
+	for x := 0; x < numGames; x++ {
+		if err := rpsService.Player().InitiateGame(); err != nil {
+			t.Errorf("Failed to initiate game: %v", err)
+		}
 	}
+	rpsService.Player().WaitUntilIdle()
 
-	// There was only one game, but the player played twice. So, we
-	// expected the player to show that it played 2 games, and won 1.
+	// For each game, the player plays twice. So, we expect the player to
+	// show that it played 2×numGames, and won numGames.
 	played, won := rpsService.Player().Stats()
-	if want, got := int64(2), played; want != got {
+	if want, got := int64(2*numGames), played; want != got {
 		t.Errorf("Unexpected number of played games. Got %d, want %d", got, want)
 	}
-	if want, got := int64(1), won; want != got {
+	if want, got := int64(numGames), won; want != got {
 		t.Errorf("Unexpected number of won games. Got %d, want %d", got, want)
 	}
 
-	// The Judge ran exactly one game.
-	if want, got := int64(1), rpsService.Judge().Stats(); want != got {
+	// The Judge ran every game.
+	if want, got := int64(numGames), rpsService.Judge().Stats(); want != got {
 		t.Errorf("Unexpected number of games run. Got %d, want %d", got, want)
 	}
 
-	// The Score Keeper received one score card.
-	if want, got := int64(1), rpsService.ScoreKeeper().Stats(); want != got {
+	// The Score Keeper received one score card per game.
+	if want, got := int64(numGames), rpsService.ScoreKeeper().Stats(); want != got {
 		t.Errorf("Unexpected number of score cards. Got %d, want %d", got, want)
 	}
 }
