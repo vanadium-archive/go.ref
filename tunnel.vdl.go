@@ -8,6 +8,7 @@ import (
 
 	// The non-user imports are prefixed with "_gen_" to prevent collisions.
 	_gen_veyron2 "veyron2"
+	_gen_context "veyron2/context"
 	_gen_ipc "veyron2/ipc"
 	_gen_naming "veyron2/naming"
 	_gen_rt "veyron2/rt"
@@ -45,13 +46,13 @@ type Tunnel_ExcludingUniversal interface {
 	// the byte stream is forwarded to the requested network address and all the
 	// data received from that network connection is sent back in the reply
 	// stream.
-	Forward(ctx _gen_ipc.Context, network string, address string, opts ..._gen_ipc.CallOpt) (reply TunnelForwardStream, err error)
+	Forward(ctx _gen_context.T, network string, address string, opts ..._gen_ipc.CallOpt) (reply TunnelForwardStream, err error)
 	// The Shell method is used to either run shell commands remotely, or to open
 	// an interactive shell. The data received over the byte stream is sent to the
 	// shell's stdin, and the data received from the shell's stdout and stderr is
 	// sent back in the reply stream. It returns the exit status of the shell
 	// command.
-	Shell(ctx _gen_ipc.Context, command string, shellOpts ShellOpts, opts ..._gen_ipc.CallOpt) (reply TunnelShellStream, err error)
+	Shell(ctx _gen_context.T, command string, shellOpts ShellOpts, opts ..._gen_ipc.CallOpt) (reply TunnelShellStream, err error)
 }
 type Tunnel interface {
 	_gen_ipc.UniversalServiceMethods
@@ -279,7 +280,7 @@ type clientStubTunnel struct {
 	name   string
 }
 
-func (__gen_c *clientStubTunnel) Forward(ctx _gen_ipc.Context, network string, address string, opts ..._gen_ipc.CallOpt) (reply TunnelForwardStream, err error) {
+func (__gen_c *clientStubTunnel) Forward(ctx _gen_context.T, network string, address string, opts ..._gen_ipc.CallOpt) (reply TunnelForwardStream, err error) {
 	var call _gen_ipc.Call
 	if call, err = __gen_c.client.StartCall(ctx, __gen_c.name, "Forward", []interface{}{network, address}, opts...); err != nil {
 		return
@@ -288,7 +289,7 @@ func (__gen_c *clientStubTunnel) Forward(ctx _gen_ipc.Context, network string, a
 	return
 }
 
-func (__gen_c *clientStubTunnel) Shell(ctx _gen_ipc.Context, command string, shellOpts ShellOpts, opts ..._gen_ipc.CallOpt) (reply TunnelShellStream, err error) {
+func (__gen_c *clientStubTunnel) Shell(ctx _gen_context.T, command string, shellOpts ShellOpts, opts ..._gen_ipc.CallOpt) (reply TunnelShellStream, err error) {
 	var call _gen_ipc.Call
 	if call, err = __gen_c.client.StartCall(ctx, __gen_c.name, "Shell", []interface{}{command, shellOpts}, opts...); err != nil {
 		return
@@ -297,7 +298,7 @@ func (__gen_c *clientStubTunnel) Shell(ctx _gen_ipc.Context, command string, she
 	return
 }
 
-func (__gen_c *clientStubTunnel) UnresolveStep(ctx _gen_ipc.Context, opts ..._gen_ipc.CallOpt) (reply []string, err error) {
+func (__gen_c *clientStubTunnel) UnresolveStep(ctx _gen_context.T, opts ..._gen_ipc.CallOpt) (reply []string, err error) {
 	var call _gen_ipc.Call
 	if call, err = __gen_c.client.StartCall(ctx, __gen_c.name, "UnresolveStep", nil, opts...); err != nil {
 		return
@@ -308,7 +309,7 @@ func (__gen_c *clientStubTunnel) UnresolveStep(ctx _gen_ipc.Context, opts ..._ge
 	return
 }
 
-func (__gen_c *clientStubTunnel) Signature(ctx _gen_ipc.Context, opts ..._gen_ipc.CallOpt) (reply _gen_ipc.ServiceSignature, err error) {
+func (__gen_c *clientStubTunnel) Signature(ctx _gen_context.T, opts ..._gen_ipc.CallOpt) (reply _gen_ipc.ServiceSignature, err error) {
 	var call _gen_ipc.Call
 	if call, err = __gen_c.client.StartCall(ctx, __gen_c.name, "Signature", nil, opts...); err != nil {
 		return
@@ -319,7 +320,7 @@ func (__gen_c *clientStubTunnel) Signature(ctx _gen_ipc.Context, opts ..._gen_ip
 	return
 }
 
-func (__gen_c *clientStubTunnel) GetMethodTags(ctx _gen_ipc.Context, method string, opts ..._gen_ipc.CallOpt) (reply []interface{}, err error) {
+func (__gen_c *clientStubTunnel) GetMethodTags(ctx _gen_context.T, method string, opts ..._gen_ipc.CallOpt) (reply []interface{}, err error) {
 	var call _gen_ipc.Call
 	if call, err = __gen_c.client.StartCall(ctx, __gen_c.name, "GetMethodTags", []interface{}{method}, opts...); err != nil {
 		return
