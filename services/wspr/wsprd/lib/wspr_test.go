@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"reflect"
+	"sync"
 	"testing"
 	"time"
 	"veyron2"
@@ -144,6 +145,7 @@ func startMountTableServer() (ipc.Server, naming.Endpoint, error) {
 }
 
 type testWriter struct {
+	sync.Mutex
 	stream []response
 	buf    bytes.Buffer
 	err    error
@@ -173,21 +175,29 @@ func (w *testWriter) FinishMessage() error {
 	if err := json.Unmarshal(p, &resp); err != nil {
 		return err
 	}
+	w.Lock()
 	w.stream = append(w.stream, resp)
+	w.Unlock()
 	if w.notifier != nil {
 		w.notifier <- true
 	}
 	return nil
 }
 
+func (w *testWriter) streamLength() int {
+	w.Lock()
+	defer w.Unlock()
+	return len(w.stream)
+}
+
 // Waits until there is at least n messages in w.stream. Returns an error if we timeout
 // waiting for the given number of messages.
 func (w *testWriter) waitForMessage(n int) error {
-	if len(w.stream) >= n {
+	if w.streamLength() >= n {
 		return nil
 	}
 	w.notifier = make(chan bool, 1)
-	for len(w.stream) < n {
+	for w.streamLength() < n {
 		select {
 		case <-w.notifier:
 			continue
