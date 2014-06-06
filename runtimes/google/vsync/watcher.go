@@ -12,6 +12,7 @@ import (
 	"veyron/services/store/raw"
 
 	"veyron2"
+	"veyron2/context"
 	"veyron2/ipc"
 	"veyron2/query"
 	"veyron2/rt"
@@ -66,8 +67,9 @@ func (w *syncWatcher) watchStore() {
 	}
 
 	// Get a Watch stream, process it, repeat till end-of-life.
+	ctx := rt.R().NewContext()
 	for {
-		stream := w.getWatchStream()
+		stream := w.getWatchStream(ctx)
 		if stream == nil {
 			return // Syncd is exiting.
 		}
@@ -95,14 +97,14 @@ func (w *syncWatcher) watchStore() {
 
 // getWatchStream() returns a Watch API stream and handles retries if the Watch() call fails.
 // If the stream is nil, it means Syncd is exiting cleanly and the caller should terminate.
-func (w *syncWatcher) getWatchStream() watch.WatcherWatchStream {
+func (w *syncWatcher) getWatchStream(ctx context.T) watch.WatcherWatchStream {
 	for {
 		req := watch.Request{Query: query.Query{}}
 		if resmark := w.syncd.devtab.head.Resmark; resmark != nil {
 			req.ResumeMarker = resmark
 		}
 
-		stream, err := w.syncd.store.Watch(rt.R().TODOContext(), req, veyron2.CallTimeout(ipc.NoTimeout))
+		stream, err := w.syncd.store.Watch(ctx, req, veyron2.CallTimeout(ipc.NoTimeout))
 		if err == nil {
 			return stream
 		}
