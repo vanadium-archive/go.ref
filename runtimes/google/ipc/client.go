@@ -11,6 +11,7 @@ import (
 	isecurity "veyron/runtimes/google/security"
 
 	"veyron2"
+	"veyron2/context"
 	"veyron2/ipc"
 	"veyron2/ipc/stream"
 	"veyron2/naming"
@@ -115,13 +116,13 @@ func (c *client) connectFlow(server string) (stream.Flow, string, error) {
 	return flow, suffix, nil
 }
 
-func (c *client) StartCall(ctx ipc.Context, name, method string, args []interface{}, opts ...ipc.CallOpt) (ipc.Call, error) {
-	return c.startCall(name, method, args, opts...)
+func (c *client) StartCall(ctx context.T, name, method string, args []interface{}, opts ...ipc.CallOpt) (ipc.Call, error) {
+	return c.startCall(ctx, name, method, args, opts...)
 }
 
 // startCall ensures StartCall always returns verror.E.
-func (c *client) startCall(name, method string, args []interface{}, opts ...ipc.CallOpt) (ipc.Call, verror.E) {
-	servers, err := c.mt.Resolve(name)
+func (c *client) startCall(ctx context.T, name, method string, args []interface{}, opts ...ipc.CallOpt) (ipc.Call, verror.E) {
+	servers, err := c.mt.Resolve(ctx, name)
 	if err != nil {
 		return nil, verror.NotFoundf("ipc: Resolve(%q) failed: %v", name, err)
 	}

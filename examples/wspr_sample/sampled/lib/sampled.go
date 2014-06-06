@@ -20,7 +20,6 @@ func (cd *cacheDispatcher) Lookup(string) (ipc.Invoker, security.Authorizer, err
 }
 
 func StartServer(r veyron2.Runtime) (ipc.Server, naming.Endpoint, error) {
-
 	// Create a new server instance.
 	s, err := r.NewServer()
 	if err != nil {

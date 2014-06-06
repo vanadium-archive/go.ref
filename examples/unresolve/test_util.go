@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"veyron2"
+	"veyron2/context"
 	"veyron2/ipc"
 	"veyron2/naming"
 	"veyron2/rt"
@@ -109,7 +110,7 @@ func (*fortuneCustomUnresolve) Add(ipc.ServerContext, string) error {
 }
 
 func (*fortuneCustomUnresolve) UnresolveStep(context ipc.ServerContext) ([]string, error) {
-	servers, err := rt.R().MountTable().ResolveToMountTable("I/want/to/know")
+	servers, err := rt.R().MountTable().ResolveToMountTable(rt.R().NewContext(), "I/want/to/know")
 	if err != nil {
 		return nil, err
 	}
@@ -127,7 +128,7 @@ func createFortuneCustomUnresolve(server ipc.Server) string {
 	oa = naming.MakeTerminal(naming.JoinAddressName(ep, "tell/me"))
 	// Doesn't get unmounted.  Fine for a test.
 	oa = naming.MakeTerminal(oa)
-	rt.R().MountTable().Mount("I/want/to/know", oa, 0)
+	rt.R().MountTable().Mount(rt.R().NewContext(), "I/want/to/know", oa, 0)
 	return oa
 }
 
@@ -150,7 +151,7 @@ func (*fortuneNoIDL) Get(ipc.ServerCall) (string, error) {
 }
 
 func (*fortuneNoIDL) UnresolveStep(ipc.ServerCall) ([]string, error) {
-	servers, err := rt.R().MountTable().ResolveToMountTable("g")
+	servers, err := rt.R().MountTable().ResolveToMountTable(rt.R().NewContext(), "g")
 	if err != nil {
 		return nil, err
 	}
@@ -185,7 +186,7 @@ func resolveStep(t *testing.T, name string) string {
 }
 
 func resolve(t *testing.T, mt naming.MountTable, name string) string {
-	results, err := mt.Resolve(name)
+	results, err := mt.Resolve(rt.R().NewContext(), name)
 	if err != nil {
 		t.Errorf("Resolve failed with %v", err)
 		return ""
@@ -198,10 +199,10 @@ func resolve(t *testing.T, mt naming.MountTable, name string) string {
 }
 
 type unresolver interface {
-	UnresolveStep(ipc.Context, ...ipc.CallOpt) ([]string, error)
+	UnresolveStep(context.T, ...ipc.CallOpt) ([]string, error)
 }
 
-func unresolveStep(t *testing.T, ctx ipc.Context, c unresolver) string {
+func unresolveStep(t *testing.T, ctx context.T, c unresolver) string {
 	unres, err := c.UnresolveStep(ctx)
 	if err != nil {
 		t.Errorf("UnresolveStep failed with %v", err)
@@ -215,7 +216,7 @@ func unresolveStep(t *testing.T, ctx ipc.Context, c unresolver) string {
 }
 
 func unresolve(t *testing.T, mt naming.MountTable, name string) string {
-	results, err := mt.Unresolve(name)
+	results, err := mt.Unresolve(rt.R().NewContext(), name)
 	if err != nil {
 		t.Errorf("Unresolve failed with %v", err)
 		return ""

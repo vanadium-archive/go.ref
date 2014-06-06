@@ -6,6 +6,7 @@ package test_base
 import (
 	// The non-user imports are prefixed with "_gen_" to prevent collisions.
 	_gen_veyron2 "veyron2"
+	_gen_context "veyron2/context"
 	_gen_ipc "veyron2/ipc"
 	_gen_naming "veyron2/naming"
 	_gen_rt "veyron2/rt"
@@ -23,29 +24,29 @@ type Struct struct {
 // to enable embedding without method collisions.  Not to be used directly by clients.
 type TypeTester_ExcludingUniversal interface {
 	// Methods to test support for generic types.
-	Bool(ctx _gen_ipc.Context, I1 bool, opts ..._gen_ipc.CallOpt) (reply bool, err error)
-	Float32(ctx _gen_ipc.Context, I1 float32, opts ..._gen_ipc.CallOpt) (reply float32, err error)
-	Float64(ctx _gen_ipc.Context, I1 float64, opts ..._gen_ipc.CallOpt) (reply float64, err error)
-	Int32(ctx _gen_ipc.Context, I1 int32, opts ..._gen_ipc.CallOpt) (reply int32, err error)
-	Int64(ctx _gen_ipc.Context, I1 int64, opts ..._gen_ipc.CallOpt) (reply int64, err error)
-	String(ctx _gen_ipc.Context, I1 string, opts ..._gen_ipc.CallOpt) (reply string, err error)
-	Byte(ctx _gen_ipc.Context, I1 byte, opts ..._gen_ipc.CallOpt) (reply byte, err error)
-	UInt32(ctx _gen_ipc.Context, I1 uint32, opts ..._gen_ipc.CallOpt) (reply uint32, err error)
-	UInt64(ctx _gen_ipc.Context, I1 uint64, opts ..._gen_ipc.CallOpt) (reply uint64, err error)
+	Bool(ctx _gen_context.T, I1 bool, opts ..._gen_ipc.CallOpt) (reply bool, err error)
+	Float32(ctx _gen_context.T, I1 float32, opts ..._gen_ipc.CallOpt) (reply float32, err error)
+	Float64(ctx _gen_context.T, I1 float64, opts ..._gen_ipc.CallOpt) (reply float64, err error)
+	Int32(ctx _gen_context.T, I1 int32, opts ..._gen_ipc.CallOpt) (reply int32, err error)
+	Int64(ctx _gen_context.T, I1 int64, opts ..._gen_ipc.CallOpt) (reply int64, err error)
+	String(ctx _gen_context.T, I1 string, opts ..._gen_ipc.CallOpt) (reply string, err error)
+	Byte(ctx _gen_context.T, I1 byte, opts ..._gen_ipc.CallOpt) (reply byte, err error)
+	UInt32(ctx _gen_context.T, I1 uint32, opts ..._gen_ipc.CallOpt) (reply uint32, err error)
+	UInt64(ctx _gen_context.T, I1 uint64, opts ..._gen_ipc.CallOpt) (reply uint64, err error)
 	// Methods to test support for composite types.
-	InputArray(ctx _gen_ipc.Context, I1 [2]byte, opts ..._gen_ipc.CallOpt) (err error)
-	InputMap(ctx _gen_ipc.Context, I1 map[byte]byte, opts ..._gen_ipc.CallOpt) (err error)
-	InputSlice(ctx _gen_ipc.Context, I1 []byte, opts ..._gen_ipc.CallOpt) (err error)
-	InputStruct(ctx _gen_ipc.Context, I1 Struct, opts ..._gen_ipc.CallOpt) (err error)
-	OutputArray(ctx _gen_ipc.Context, opts ..._gen_ipc.CallOpt) (reply [2]byte, err error)
-	OutputMap(ctx _gen_ipc.Context, opts ..._gen_ipc.CallOpt) (reply map[byte]byte, err error)
-	OutputSlice(ctx _gen_ipc.Context, opts ..._gen_ipc.CallOpt) (reply []byte, err error)
-	OutputStruct(ctx _gen_ipc.Context, opts ..._gen_ipc.CallOpt) (reply Struct, err error)
+	InputArray(ctx _gen_context.T, I1 [2]byte, opts ..._gen_ipc.CallOpt) (err error)
+	InputMap(ctx _gen_context.T, I1 map[byte]byte, opts ..._gen_ipc.CallOpt) (err error)
+	InputSlice(ctx _gen_context.T, I1 []byte, opts ..._gen_ipc.CallOpt) (err error)
+	InputStruct(ctx _gen_context.T, I1 Struct, opts ..._gen_ipc.CallOpt) (err error)
+	OutputArray(ctx _gen_context.T, opts ..._gen_ipc.CallOpt) (reply [2]byte, err error)
+	OutputMap(ctx _gen_context.T, opts ..._gen_ipc.CallOpt) (reply map[byte]byte, err error)
+	OutputSlice(ctx _gen_context.T, opts ..._gen_ipc.CallOpt) (reply []byte, err error)
+	OutputStruct(ctx _gen_context.T, opts ..._gen_ipc.CallOpt) (reply Struct, err error)
 	// Methods to test support for different number of arguments.
-	NoArguments(ctx _gen_ipc.Context, opts ..._gen_ipc.CallOpt) (err error)
-	MultipleArguments(ctx _gen_ipc.Context, I1 int32, I2 int32, opts ..._gen_ipc.CallOpt) (O1 int32, O2 int32, err error)
+	NoArguments(ctx _gen_context.T, opts ..._gen_ipc.CallOpt) (err error)
+	MultipleArguments(ctx _gen_context.T, I1 int32, I2 int32, opts ..._gen_ipc.CallOpt) (O1 int32, O2 int32, err error)
 	// Methods to test support for streaming.
-	StreamingOutput(ctx _gen_ipc.Context, NumStreamItems int32, StreamItem bool, opts ..._gen_ipc.CallOpt) (reply TypeTesterStreamingOutputStream, err error)
+	StreamingOutput(ctx _gen_context.T, NumStreamItems int32, StreamItem bool, opts ..._gen_ipc.CallOpt) (reply TypeTesterStreamingOutputStream, err error)
 }
 type TypeTester interface {
 	_gen_ipc.UniversalServiceMethods
@@ -178,7 +179,7 @@ type clientStubTypeTester struct {
 	name   string
 }
 
-func (__gen_c *clientStubTypeTester) Bool(ctx _gen_ipc.Context, I1 bool, opts ..._gen_ipc.CallOpt) (reply bool, err error) {
+func (__gen_c *clientStubTypeTester) Bool(ctx _gen_context.T, I1 bool, opts ..._gen_ipc.CallOpt) (reply bool, err error) {
 	var call _gen_ipc.Call
 	if call, err = __gen_c.client.StartCall(ctx, __gen_c.name, "Bool", []interface{}{I1}, opts...); err != nil {
 		return
@@ -189,7 +190,7 @@ func (__gen_c *clientStubTypeTester) Bool(ctx _gen_ipc.Context, I1 bool, opts ..
 	return
 }
 
-func (__gen_c *clientStubTypeTester) Float32(ctx _gen_ipc.Context, I1 float32, opts ..._gen_ipc.CallOpt) (reply float32, err error) {
+func (__gen_c *clientStubTypeTester) Float32(ctx _gen_context.T, I1 float32, opts ..._gen_ipc.CallOpt) (reply float32, err error) {
 	var call _gen_ipc.Call
 	if call, err = __gen_c.client.StartCall(ctx, __gen_c.name, "Float32", []interface{}{I1}, opts...); err != nil {
 		return
@@ -200,7 +201,7 @@ func (__gen_c *clientStubTypeTester) Float32(ctx _gen_ipc.Context, I1 float32, o
 	return
 }
 
-func (__gen_c *clientStubTypeTester) Float64(ctx _gen_ipc.Context, I1 float64, opts ..._gen_ipc.CallOpt) (reply float64, err error) {
+func (__gen_c *clientStubTypeTester) Float64(ctx _gen_context.T, I1 float64, opts ..._gen_ipc.CallOpt) (reply float64, err error) {
 	var call _gen_ipc.Call
 	if call, err = __gen_c.client.StartCall(ctx, __gen_c.name, "Float64", []interface{}{I1}, opts...); err != nil {
 		return
@@ -211,7 +212,7 @@ func (__gen_c *clientStubTypeTester) Float64(ctx _gen_ipc.Context, I1 float64, o
 	return
 }
 
-func (__gen_c *clientStubTypeTester) Int32(ctx _gen_ipc.Context, I1 int32, opts ..._gen_ipc.CallOpt) (reply int32, err error) {
+func (__gen_c *clientStubTypeTester) Int32(ctx _gen_context.T, I1 int32, opts ..._gen_ipc.CallOpt) (reply int32, err error) {
 	var call _gen_ipc.Call
 	if call, err = __gen_c.client.StartCall(ctx, __gen_c.name, "Int32", []interface{}{I1}, opts...); err != nil {
 		return
@@ -222,7 +223,7 @@ func (__gen_c *clientStubTypeTester) Int32(ctx _gen_ipc.Context, I1 int32, opts 
 	return
 }
 
-func (__gen_c *clientStubTypeTester) Int64(ctx _gen_ipc.Context, I1 int64, opts ..._gen_ipc.CallOpt) (reply int64, err error) {
+func (__gen_c *clientStubTypeTester) Int64(ctx _gen_context.T, I1 int64, opts ..._gen_ipc.CallOpt) (reply int64, err error) {
 	var call _gen_ipc.Call
 	if call, err = __gen_c.client.StartCall(ctx, __gen_c.name, "Int64", []interface{}{I1}, opts...); err != nil {
 		return
@@ -233,7 +234,7 @@ func (__gen_c *clientStubTypeTester) Int64(ctx _gen_ipc.Context, I1 int64, opts 
 	return
 }
 
-func (__gen_c *clientStubTypeTester) String(ctx _gen_ipc.Context, I1 string, opts ..._gen_ipc.CallOpt) (reply string, err error) {
+func (__gen_c *clientStubTypeTester) String(ctx _gen_context.T, I1 string, opts ..._gen_ipc.CallOpt) (reply string, err error) {
 	var call _gen_ipc.Call
 	if call, err = __gen_c.client.StartCall(ctx, __gen_c.name, "String", []interface{}{I1}, opts...); err != nil {
 		return
@@ -244,7 +245,7 @@ func (__gen_c *clientStubTypeTester) String(ctx _gen_ipc.Context, I1 string, opt
 	return
 }
 
-func (__gen_c *clientStubTypeTester) Byte(ctx _gen_ipc.Context, I1 byte, opts ..._gen_ipc.CallOpt) (reply byte, err error) {
+func (__gen_c *clientStubTypeTester) Byte(ctx _gen_context.T, I1 byte, opts ..._gen_ipc.CallOpt) (reply byte, err error) {
 	var call _gen_ipc.Call
 	if call, err = __gen_c.client.StartCall(ctx, __gen_c.name, "Byte", []interface{}{I1}, opts...); err != nil {
 		return
@@ -255,7 +256,7 @@ func (__gen_c *clientStubTypeTester) Byte(ctx _gen_ipc.Context, I1 byte, opts ..
 	return
 }
 
-func (__gen_c *clientStubTypeTester) UInt32(ctx _gen_ipc.Context, I1 uint32, opts ..._gen_ipc.CallOpt) (reply uint32, err error) {
+func (__gen_c *clientStubTypeTester) UInt32(ctx _gen_context.T, I1 uint32, opts ..._gen_ipc.CallOpt) (reply uint32, err error) {
 	var call _gen_ipc.Call
 	if call, err = __gen_c.client.StartCall(ctx, __gen_c.name, "UInt32", []interface{}{I1}, opts...); err != nil {
 		return
@@ -266,7 +267,7 @@ func (__gen_c *clientStubTypeTester) UInt32(ctx _gen_ipc.Context, I1 uint32, opt
 	return
 }
 
-func (__gen_c *clientStubTypeTester) UInt64(ctx _gen_ipc.Context, I1 uint64, opts ..._gen_ipc.CallOpt) (reply uint64, err error) {
+func (__gen_c *clientStubTypeTester) UInt64(ctx _gen_context.T, I1 uint64, opts ..._gen_ipc.CallOpt) (reply uint64, err error) {
 	var call _gen_ipc.Call
 	if call, err = __gen_c.client.StartCall(ctx, __gen_c.name, "UInt64", []interface{}{I1}, opts...); err != nil {
 		return
@@ -277,7 +278,7 @@ func (__gen_c *clientStubTypeTester) UInt64(ctx _gen_ipc.Context, I1 uint64, opt
 	return
 }
 
-func (__gen_c *clientStubTypeTester) InputArray(ctx _gen_ipc.Context, I1 [2]byte, opts ..._gen_ipc.CallOpt) (err error) {
+func (__gen_c *clientStubTypeTester) InputArray(ctx _gen_context.T, I1 [2]byte, opts ..._gen_ipc.CallOpt) (err error) {
 	var call _gen_ipc.Call
 	if call, err = __gen_c.client.StartCall(ctx, __gen_c.name, "InputArray", []interface{}{I1}, opts...); err != nil {
 		return
@@ -288,7 +289,7 @@ func (__gen_c *clientStubTypeTester) InputArray(ctx _gen_ipc.Context, I1 [2]byte
 	return
 }
 
-func (__gen_c *clientStubTypeTester) InputMap(ctx _gen_ipc.Context, I1 map[byte]byte, opts ..._gen_ipc.CallOpt) (err error) {
+func (__gen_c *clientStubTypeTester) InputMap(ctx _gen_context.T, I1 map[byte]byte, opts ..._gen_ipc.CallOpt) (err error) {
 	var call _gen_ipc.Call
 	if call, err = __gen_c.client.StartCall(ctx, __gen_c.name, "InputMap", []interface{}{I1}, opts...); err != nil {
 		return
@@ -299,7 +300,7 @@ func (__gen_c *clientStubTypeTester) InputMap(ctx _gen_ipc.Context, I1 map[byte]
 	return
 }
 
-func (__gen_c *clientStubTypeTester) InputSlice(ctx _gen_ipc.Context, I1 []byte, opts ..._gen_ipc.CallOpt) (err error) {
+func (__gen_c *clientStubTypeTester) InputSlice(ctx _gen_context.T, I1 []byte, opts ..._gen_ipc.CallOpt) (err error) {
 	var call _gen_ipc.Call
 	if call, err = __gen_c.client.StartCall(ctx, __gen_c.name, "InputSlice", []interface{}{I1}, opts...); err != nil {
 		return
@@ -310,7 +311,7 @@ func (__gen_c *clientStubTypeTester) InputSlice(ctx _gen_ipc.Context, I1 []byte,
 	return
 }
 
-func (__gen_c *clientStubTypeTester) InputStruct(ctx _gen_ipc.Context, I1 Struct, opts ..._gen_ipc.CallOpt) (err error) {
+func (__gen_c *clientStubTypeTester) InputStruct(ctx _gen_context.T, I1 Struct, opts ..._gen_ipc.CallOpt) (err error) {
 	var call _gen_ipc.Call
 	if call, err = __gen_c.client.StartCall(ctx, __gen_c.name, "InputStruct", []interface{}{I1}, opts...); err != nil {
 		return
@@ -321,7 +322,7 @@ func (__gen_c *clientStubTypeTester) InputStruct(ctx _gen_ipc.Context, I1 Struct
 	return
 }
 
-func (__gen_c *clientStubTypeTester) OutputArray(ctx _gen_ipc.Context, opts ..._gen_ipc.CallOpt) (reply [2]byte, err error) {
+func (__gen_c *clientStubTypeTester) OutputArray(ctx _gen_context.T, opts ..._gen_ipc.CallOpt) (reply [2]byte, err error) {
 	var call _gen_ipc.Call
 	if call, err = __gen_c.client.StartCall(ctx, __gen_c.name, "OutputArray", nil, opts...); err != nil {
 		return
@@ -332,7 +333,7 @@ func (__gen_c *clientStubTypeTester) OutputArray(ctx _gen_ipc.Context, opts ..._
 	return
 }
 
-func (__gen_c *clientStubTypeTester) OutputMap(ctx _gen_ipc.Context, opts ..._gen_ipc.CallOpt) (reply map[byte]byte, err error) {
+func (__gen_c *clientStubTypeTester) OutputMap(ctx _gen_context.T, opts ..._gen_ipc.CallOpt) (reply map[byte]byte, err error) {
 	var call _gen_ipc.Call
 	if call, err = __gen_c.client.StartCall(ctx, __gen_c.name, "OutputMap", nil, opts...); err != nil {
 		return
@@ -343,7 +344,7 @@ func (__gen_c *clientStubTypeTester) OutputMap(ctx _gen_ipc.Context, opts ..._ge
 	return
 }
 
-func (__gen_c *clientStubTypeTester) OutputSlice(ctx _gen_ipc.Context, opts ..._gen_ipc.CallOpt) (reply []byte, err error) {
+func (__gen_c *clientStubTypeTester) OutputSlice(ctx _gen_context.T, opts ..._gen_ipc.CallOpt) (reply []byte, err error) {
 	var call _gen_ipc.Call
 	if call, err = __gen_c.client.StartCall(ctx, __gen_c.name, "OutputSlice", nil, opts...); err != nil {
 		return
@@ -354,7 +355,7 @@ func (__gen_c *clientStubTypeTester) OutputSlice(ctx _gen_ipc.Context, opts ..._
 	return
 }
 
-func (__gen_c *clientStubTypeTester) OutputStruct(ctx _gen_ipc.Context, opts ..._gen_ipc.CallOpt) (reply Struct, err error) {
+func (__gen_c *clientStubTypeTester) OutputStruct(ctx _gen_context.T, opts ..._gen_ipc.CallOpt) (reply Struct, err error) {
 	var call _gen_ipc.Call
 	if call, err = __gen_c.client.StartCall(ctx, __gen_c.name, "OutputStruct", nil, opts...); err != nil {
 		return
@@ -365,7 +366,7 @@ func (__gen_c *clientStubTypeTester) OutputStruct(ctx _gen_ipc.Context, opts ...
 	return
 }
 
-func (__gen_c *clientStubTypeTester) NoArguments(ctx _gen_ipc.Context, opts ..._gen_ipc.CallOpt) (err error) {
+func (__gen_c *clientStubTypeTester) NoArguments(ctx _gen_context.T, opts ..._gen_ipc.CallOpt) (err error) {
 	var call _gen_ipc.Call
 	if call, err = __gen_c.client.StartCall(ctx, __gen_c.name, "NoArguments", nil, opts...); err != nil {
 		return
@@ -376,7 +377,7 @@ func (__gen_c *clientStubTypeTester) NoArguments(ctx _gen_ipc.Context, opts ..._
 	return
 }
 
-func (__gen_c *clientStubTypeTester) MultipleArguments(ctx _gen_ipc.Context, I1 int32, I2 int32, opts ..._gen_ipc.CallOpt) (O1 int32, O2 int32, err error) {
+func (__gen_c *clientStubTypeTester) MultipleArguments(ctx _gen_context.T, I1 int32, I2 int32, opts ..._gen_ipc.CallOpt) (O1 int32, O2 int32, err error) {
 	var call _gen_ipc.Call
 	if call, err = __gen_c.client.StartCall(ctx, __gen_c.name, "MultipleArguments", []interface{}{I1, I2}, opts...); err != nil {
 		return
@@ -387,7 +388,7 @@ func (__gen_c *clientStubTypeTester) MultipleArguments(ctx _gen_ipc.Context, I1 
 	return
 }
 
-func (__gen_c *clientStubTypeTester) StreamingOutput(ctx _gen_ipc.Context, NumStreamItems int32, StreamItem bool, opts ..._gen_ipc.CallOpt) (reply TypeTesterStreamingOutputStream, err error) {
+func (__gen_c *clientStubTypeTester) StreamingOutput(ctx _gen_context.T, NumStreamItems int32, StreamItem bool, opts ..._gen_ipc.CallOpt) (reply TypeTesterStreamingOutputStream, err error) {
 	var call _gen_ipc.Call
 	if call, err = __gen_c.client.StartCall(ctx, __gen_c.name, "StreamingOutput", []interface{}{NumStreamItems, StreamItem}, opts...); err != nil {
 		return
@@ -396,7 +397,7 @@ func (__gen_c *clientStubTypeTester) StreamingOutput(ctx _gen_ipc.Context, NumSt
 	return
 }
 
-func (__gen_c *clientStubTypeTester) UnresolveStep(ctx _gen_ipc.Context, opts ..._gen_ipc.CallOpt) (reply []string, err error) {
+func (__gen_c *clientStubTypeTester) UnresolveStep(ctx _gen_context.T, opts ..._gen_ipc.CallOpt) (reply []string, err error) {
 	var call _gen_ipc.Call
 	if call, err = __gen_c.client.StartCall(ctx, __gen_c.name, "UnresolveStep", nil, opts...); err != nil {
 		return
@@ -407,7 +408,7 @@ func (__gen_c *clientStubTypeTester) UnresolveStep(ctx _gen_ipc.Context, opts ..
 	return
 }
 
-func (__gen_c *clientStubTypeTester) Signature(ctx _gen_ipc.Context, opts ..._gen_ipc.CallOpt) (reply _gen_ipc.ServiceSignature, err error) {
+func (__gen_c *clientStubTypeTester) Signature(ctx _gen_context.T, opts ..._gen_ipc.CallOpt) (reply _gen_ipc.ServiceSignature, err error) {
 	var call _gen_ipc.Call
 	if call, err = __gen_c.client.StartCall(ctx, __gen_c.name, "Signature", nil, opts...); err != nil {
 		return
@@ -418,7 +419,7 @@ func (__gen_c *clientStubTypeTester) Signature(ctx _gen_ipc.Context, opts ..._ge
 	return
 }
 
-func (__gen_c *clientStubTypeTester) GetMethodTags(ctx _gen_ipc.Context, method string, opts ..._gen_ipc.CallOpt) (reply []interface{}, err error) {
+func (__gen_c *clientStubTypeTester) GetMethodTags(ctx _gen_context.T, method string, opts ..._gen_ipc.CallOpt) (reply []interface{}, err error) {
 	var call _gen_ipc.Call
 	if call, err = __gen_c.client.StartCall(ctx, __gen_c.name, "GetMethodTags", []interface{}{method}, opts...); err != nil {
 		return

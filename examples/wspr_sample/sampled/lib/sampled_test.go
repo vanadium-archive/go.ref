@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"veyron2/context"
 	"veyron2/ipc"
 	"veyron2/naming"
 	"veyron2/rt"
@@ -94,11 +95,11 @@ func TestValueSetGet(t *testing.T) {
 
 // settable mirrors the cache's Set method to provide a consistent way to populate test cases.
 type settable interface {
-	Set(ctx ipc.Context, key string, val vdl.Any, opts ...ipc.CallOpt) error
+	Set(ctx context.T, key string, val vdl.Any, opts ...ipc.CallOpt) error
 }
 
 // populateObject populates a settable with 12 values.
-func populateObject(ctx ipc.Context, s settable) error {
+func populateObject(ctx context.T, s settable) error {
 	if err := s.Set(ctx, "A", int8(3)); err != nil {
 		return err
 	}
@@ -167,7 +168,7 @@ func setupManyResults(t *testing.T) (hps.Cache, ipc.Server) {
 // settableMap is a map that implements the settable interface.
 type settableMap map[string]vdl.Any
 
-func (sm settableMap) Set(ctx ipc.Context, key string, val vdl.Any, opts ...ipc.CallOpt) error {
+func (sm settableMap) Set(ctx context.T, key string, val vdl.Any, opts ...ipc.CallOpt) error {
 	sm[key] = val
 	return nil
 }

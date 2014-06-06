@@ -13,6 +13,7 @@ import (
 	_ "veyron/lib/testutil"
 
 	"veyron2"
+	"veyron2/context"
 	"veyron2/ipc"
 	"veyron2/naming"
 	"veyron2/rt"
@@ -51,16 +52,16 @@ func quuxClient(id ipc.ClientOpt) ipc.Client {
 	return c
 }
 
-func (stupidMT) Mount(string, string, time.Duration) error {
+func (stupidMT) Mount(context.T, string, string, time.Duration) error {
 	return errors.New("unimplemented")
 }
 
-func (stupidMT) Unmount(string, string) error {
+func (stupidMT) Unmount(context.T, string, string) error {
 	return errors.New("unimplemented")
 }
 
 // Resolve will only go one level deep, i.e., it doesn't walk past the first mount point.
-func (mt stupidMT) Resolve(name string) ([]string, error) {
+func (mt stupidMT) Resolve(ctx context.T, name string) ([]string, error) {
 	vlog.VI(1).Infof("MyResolve %q", name)
 	address, suffix := naming.SplitAddressName(name)
 	if len(address) == 0 {
@@ -88,16 +89,16 @@ func (mt stupidMT) Resolve(name string) ([]string, error) {
 	return servers, nil
 }
 
-func (s stupidMT) Unresolve(name string) ([]string, error) {
-	return s.Resolve(name)
+func (s stupidMT) Unresolve(ctx context.T, name string) ([]string, error) {
+	return s.Resolve(ctx, name)
 }
 
-func (stupidMT) ResolveToMountTable(name string) ([]string, error) {
+func (stupidMT) ResolveToMountTable(ctx context.T, name string) ([]string, error) {
 	return nil, errors.New("ResolveToMountTable is not implemented in this MountTable")
 }
 
 // Glob implements naming.MountTable.Glob.
-func (stupidMT) Glob(pattern string) (chan naming.MountEntry, error) {
+func (stupidMT) Glob(ctx context.T, pattern string) (chan naming.MountEntry, error) {
 	return nil, errors.New("Glob is not implemented in this MountTable")
 }
 

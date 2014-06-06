@@ -253,11 +253,12 @@ func TestUpdate(t *testing.T) {
 	//arName := naming.Join(mtName, arSuffix)
 	defer arCleanup()
 
-	if s, err := mt.Resolve(arSuffix); err != nil || s[0] != "/"+arEndpoint.String()+"//ar" {
+	ctx := runtime.NewContext()
+	if s, err := mt.Resolve(ctx, arSuffix); err != nil || s[0] != "/"+arEndpoint.String()+"//ar" {
 		t.Errorf("failed to resolve %q", arSuffix)
 		t.Errorf("err: %v, got %v, want /%v//ar", err, s[0], arEndpoint)
 	}
-	if s, err := mt.Resolve(cmSuffix); err != nil || s[0] != "/"+cmEndpoint.String()+"//cm" {
+	if s, err := mt.Resolve(ctx, cmSuffix); err != nil || s[0] != "/"+cmEndpoint.String()+"//cm" {
 		t.Errorf("failed to resolve %q", cmSuffix)
 		t.Errorf("err: %v, got %v, want /%v//cm", err, s[0], cmEndpoint)
 	}
@@ -277,7 +278,7 @@ func TestUpdate(t *testing.T) {
 	envelope.Binary = cmName
 
 	name := naming.Join(mtName, "nm")
-	results, err := mt.Resolve(name)
+	results, err := mt.Resolve(ctx, name)
 	if err != nil {
 		t.Fatalf("Resolve(%v) failed: %v", name, err)
 	}
@@ -292,7 +293,7 @@ func TestUpdate(t *testing.T) {
 	invokeUpdate(t, nmAddress)
 	pid := getProcessID(t, child)
 
-	if results, err := mt.Resolve(name); err != nil {
+	if results, err := mt.Resolve(ctx, name); err != nil {
 		t.Fatalf("Resolve(%v) failed: %v", name, err)
 	} else {
 		if expected, got := 2, len(results); expected != got {

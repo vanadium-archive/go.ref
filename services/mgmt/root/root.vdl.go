@@ -8,6 +8,7 @@ package root
 import (
 	// The non-user imports are prefixed with "_gen_" to prevent collisions.
 	_gen_veyron2 "veyron2"
+	_gen_context "veyron2/context"
 	_gen_ipc "veyron2/ipc"
 	_gen_naming "veyron2/naming"
 	_gen_rt "veyron2/rt"
@@ -23,7 +24,7 @@ import (
 type Root_ExcludingUniversal interface {
 	// Reset waits for the given deadline (in milliseconds) and then
 	// restars the host node machine.
-	Reset(ctx _gen_ipc.Context, Deadline uint64, opts ..._gen_ipc.CallOpt) (err error)
+	Reset(ctx _gen_context.T, Deadline uint64, opts ..._gen_ipc.CallOpt) (err error)
 }
 type Root interface {
 	_gen_ipc.UniversalServiceMethods
@@ -81,7 +82,7 @@ type clientStubRoot struct {
 	name   string
 }
 
-func (__gen_c *clientStubRoot) Reset(ctx _gen_ipc.Context, Deadline uint64, opts ..._gen_ipc.CallOpt) (err error) {
+func (__gen_c *clientStubRoot) Reset(ctx _gen_context.T, Deadline uint64, opts ..._gen_ipc.CallOpt) (err error) {
 	var call _gen_ipc.Call
 	if call, err = __gen_c.client.StartCall(ctx, __gen_c.name, "Reset", []interface{}{Deadline}, opts...); err != nil {
 		return
@@ -92,7 +93,7 @@ func (__gen_c *clientStubRoot) Reset(ctx _gen_ipc.Context, Deadline uint64, opts
 	return
 }
 
-func (__gen_c *clientStubRoot) UnresolveStep(ctx _gen_ipc.Context, opts ..._gen_ipc.CallOpt) (reply []string, err error) {
+func (__gen_c *clientStubRoot) UnresolveStep(ctx _gen_context.T, opts ..._gen_ipc.CallOpt) (reply []string, err error) {
 	var call _gen_ipc.Call
 	if call, err = __gen_c.client.StartCall(ctx, __gen_c.name, "UnresolveStep", nil, opts...); err != nil {
 		return
@@ -103,7 +104,7 @@ func (__gen_c *clientStubRoot) UnresolveStep(ctx _gen_ipc.Context, opts ..._gen_
 	return
 }
 
-func (__gen_c *clientStubRoot) Signature(ctx _gen_ipc.Context, opts ..._gen_ipc.CallOpt) (reply _gen_ipc.ServiceSignature, err error) {
+func (__gen_c *clientStubRoot) Signature(ctx _gen_context.T, opts ..._gen_ipc.CallOpt) (reply _gen_ipc.ServiceSignature, err error) {
 	var call _gen_ipc.Call
 	if call, err = __gen_c.client.StartCall(ctx, __gen_c.name, "Signature", nil, opts...); err != nil {
 		return
@@ -114,7 +115,7 @@ func (__gen_c *clientStubRoot) Signature(ctx _gen_ipc.Context, opts ..._gen_ipc.
 	return
 }
 
-func (__gen_c *clientStubRoot) GetMethodTags(ctx _gen_ipc.Context, method string, opts ..._gen_ipc.CallOpt) (reply []interface{}, err error) {
+func (__gen_c *clientStubRoot) GetMethodTags(ctx _gen_context.T, method string, opts ..._gen_ipc.CallOpt) (reply []interface{}, err error) {
 	var call _gen_ipc.Call
 	if call, err = __gen_c.client.StartCall(ctx, __gen_c.name, "GetMethodTags", []interface{}{method}, opts...); err != nil {
 		return

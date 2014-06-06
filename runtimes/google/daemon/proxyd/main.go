@@ -39,7 +39,7 @@ func main() {
 	defer proxy.Shutdown()
 
 	if len(*name) > 0 {
-		publisher := publisher.New(r.MountTable(), time.Minute)
+		publisher := publisher.New(r.NewContext(), r.MountTable(), time.Minute)
 		defer publisher.WaitForStop()
 		defer publisher.Stop()
 		publisher.AddServer(naming.JoinAddressName(proxy.Endpoint().String(), ""))

@@ -8,6 +8,7 @@ import (
 
 	"veyron/lib/glob"
 
+	"veyron2/context"
 	"veyron2/naming"
 	"veyron2/vlog"
 )
@@ -21,7 +22,7 @@ const mountTableGlobReplyStreamLength = 100
 //   l         the list to add results to.
 //   recursive true to continue below the matched pattern
 // We return a bool foundRoot which indicates whether the empty name "" was found on a target server.
-func (ns *namespace) globAtServer(server *naming.MountEntry, pattern *glob.Glob, l *list.List) (bool, error) {
+func (ns *namespace) globAtServer(ctx context.T, server *naming.MountEntry, pattern *glob.Glob, l *list.List) (bool, error) {
 	pstr := pattern.String()
 	foundRoot := false
 	vlog.VI(2).Infof("globAtServer(%v, %v)", *server, pstr)
@@ -29,7 +30,7 @@ func (ns *namespace) globAtServer(server *naming.MountEntry, pattern *glob.Glob,
 	var lastErr error
 	// Trying each instance till we get one that works.
 	for _, s := range server.Servers {
-		mtServers, err := ns.ResolveToMountTable(s.Server)
+		mtServers, err := ns.ResolveToMountTable(ctx, s.Server)
 		if err != nil {
 			lastErr = err
 			continue
@@ -37,7 +38,7 @@ func (ns *namespace) globAtServer(server *naming.MountEntry, pattern *glob.Glob,
 
 		for _, s := range mtServers {
 			client := ns.rt.Client()
-			call, err := client.StartCall(ns.rt.TODOContext(), s, "Glob", []interface{}{pstr}, callTimeout)
+			call, err := client.StartCall(ctx, s, "Glob", []interface{}{pstr}, callTimeout)
 			if err != nil {
 				lastErr = err
 				continue // try another instance
@@ -78,7 +79,7 @@ func (ns *namespace) globAtServer(server *naming.MountEntry, pattern *glob.Glob,
 }
 
 // Glob implements naming.MountTable.Glob.
-func (ns *namespace) Glob(pattern string) (chan naming.MountEntry, error) {
+func (ns *namespace) Glob(ctx context.T, pattern string) (chan naming.MountEntry, error) {
 	g, err := glob.Parse(pattern)
 	if err != nil {
 		return nil, err
@@ -96,7 +97,7 @@ func (ns *namespace) Glob(pattern string) (chan naming.MountEntry, error) {
 		return nil, naming.ErrNoMountTable
 	}
 	reply := make(chan naming.MountEntry, 100)
-	go ns.globLoop(servers, prefix, g, reply)
+	go ns.globLoop(ctx, servers, prefix, g, reply)
 	return reply, nil
 }
 
@@ -127,7 +128,7 @@ func depth(name string) int {
 	return strings.Count(name, "/") - strings.Count(name, "//") + 1
 }
 
-func (ns *namespace) globLoop(servers []string, prefix string, pattern *glob.Glob, reply chan naming.MountEntry) {
+func (ns *namespace) globLoop(ctx context.T, servers []string, prefix string, pattern *glob.Glob, reply chan naming.MountEntry) {
 	defer close(reply)
 
 	l := list.New()
@@ -142,7 +143,7 @@ func (ns *namespace) globLoop(servers []string, prefix string, pattern *glob.Glo
 		suffix := pattern.Split(depth(e.Name))
 
 		// Perform a glob at the server.
-		foundRoot, err := ns.globAtServer(e, suffix, l)
+		foundRoot, err := ns.globAtServer(ctx, e, suffix, l)
 
 		// We want to output this entry if:
 		// 1. There was a real error, we return whatever name gave us the error.

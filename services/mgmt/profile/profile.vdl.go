@@ -12,6 +12,7 @@ import (
 
 	// The non-user imports are prefixed with "_gen_" to prevent collisions.
 	_gen_veyron2 "veyron2"
+	_gen_context "veyron2/context"
 	_gen_ipc "veyron2/ipc"
 	_gen_naming "veyron2/naming"
 	_gen_rt "veyron2/rt"
@@ -67,13 +68,13 @@ type Profile_ExcludingUniversal interface {
 	profile.Profile_ExcludingUniversal
 	// Specification returns the profile specification for the profile
 	// identified through the veyron name suffix.
-	Specification(ctx _gen_ipc.Context, opts ..._gen_ipc.CallOpt) (reply Specification, err error)
+	Specification(ctx _gen_context.T, opts ..._gen_ipc.CallOpt) (reply Specification, err error)
 	// Put sets the profile specification for the profile identified
 	// through the veyron name suffix.
-	Put(ctx _gen_ipc.Context, Specification Specification, opts ..._gen_ipc.CallOpt) (err error)
+	Put(ctx _gen_context.T, Specification Specification, opts ..._gen_ipc.CallOpt) (err error)
 	// Remove removes the profile specification for the profile
 	// identified through the veyron name suffix.
-	Remove(ctx _gen_ipc.Context, opts ..._gen_ipc.CallOpt) (err error)
+	Remove(ctx _gen_context.T, opts ..._gen_ipc.CallOpt) (err error)
 }
 type Profile interface {
 	_gen_ipc.UniversalServiceMethods
@@ -146,7 +147,7 @@ type clientStubProfile struct {
 	name   string
 }
 
-func (__gen_c *clientStubProfile) Specification(ctx _gen_ipc.Context, opts ..._gen_ipc.CallOpt) (reply Specification, err error) {
+func (__gen_c *clientStubProfile) Specification(ctx _gen_context.T, opts ..._gen_ipc.CallOpt) (reply Specification, err error) {
 	var call _gen_ipc.Call
 	if call, err = __gen_c.client.StartCall(ctx, __gen_c.name, "Specification", nil, opts...); err != nil {
 		return
@@ -157,7 +158,7 @@ func (__gen_c *clientStubProfile) Specification(ctx _gen_ipc.Context, opts ..._g
 	return
 }
 
-func (__gen_c *clientStubProfile) Put(ctx _gen_ipc.Context, Specification Specification, opts ..._gen_ipc.CallOpt) (err error) {
+func (__gen_c *clientStubProfile) Put(ctx _gen_context.T, Specification Specification, opts ..._gen_ipc.CallOpt) (err error) {
 	var call _gen_ipc.Call
 	if call, err = __gen_c.client.StartCall(ctx, __gen_c.name, "Put", []interface{}{Specification}, opts...); err != nil {
 		return
@@ -168,7 +169,7 @@ func (__gen_c *clientStubProfile) Put(ctx _gen_ipc.Context, Specification Specif
 	return
 }
 
-func (__gen_c *clientStubProfile) Remove(ctx _gen_ipc.Context, opts ..._gen_ipc.CallOpt) (err error) {
+func (__gen_c *clientStubProfile) Remove(ctx _gen_context.T, opts ..._gen_ipc.CallOpt) (err error) {
 	var call _gen_ipc.Call
 	if call, err = __gen_c.client.StartCall(ctx, __gen_c.name, "Remove", nil, opts...); err != nil {
 		return
@@ -179,7 +180,7 @@ func (__gen_c *clientStubProfile) Remove(ctx _gen_ipc.Context, opts ..._gen_ipc.
 	return
 }
 
-func (__gen_c *clientStubProfile) UnresolveStep(ctx _gen_ipc.Context, opts ..._gen_ipc.CallOpt) (reply []string, err error) {
+func (__gen_c *clientStubProfile) UnresolveStep(ctx _gen_context.T, opts ..._gen_ipc.CallOpt) (reply []string, err error) {
 	var call _gen_ipc.Call
 	if call, err = __gen_c.client.StartCall(ctx, __gen_c.name, "UnresolveStep", nil, opts...); err != nil {
 		return
@@ -190,7 +191,7 @@ func (__gen_c *clientStubProfile) UnresolveStep(ctx _gen_ipc.Context, opts ..._g
 	return
 }
 
-func (__gen_c *clientStubProfile) Signature(ctx _gen_ipc.Context, opts ..._gen_ipc.CallOpt) (reply _gen_ipc.ServiceSignature, err error) {
+func (__gen_c *clientStubProfile) Signature(ctx _gen_context.T, opts ..._gen_ipc.CallOpt) (reply _gen_ipc.ServiceSignature, err error) {
 	var call _gen_ipc.Call
 	if call, err = __gen_c.client.StartCall(ctx, __gen_c.name, "Signature", nil, opts...); err != nil {
 		return
@@ -201,7 +202,7 @@ func (__gen_c *clientStubProfile) Signature(ctx _gen_ipc.Context, opts ..._gen_i
 	return
 }
 
-func (__gen_c *clientStubProfile) GetMethodTags(ctx _gen_ipc.Context, method string, opts ..._gen_ipc.CallOpt) (reply []interface{}, err error) {
+func (__gen_c *clientStubProfile) GetMethodTags(ctx _gen_context.T, method string, opts ..._gen_ipc.CallOpt) (reply []interface{}, err error) {
 	var call _gen_ipc.Call
 	if call, err = __gen_c.client.StartCall(ctx, __gen_c.name, "GetMethodTags", []interface{}{method}, opts...); err != nil {
 		return

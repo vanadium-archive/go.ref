@@ -11,6 +11,7 @@ import (
 	rps "veyron/examples/rockpaperscissors"
 
 	"veyron2/naming"
+	"veyron2/rt"
 	"veyron2/vlog"
 )
 
@@ -69,7 +70,7 @@ func FindScoreKeepers(mt naming.MountTable) ([]string, error) {
 
 func findAll(mt naming.MountTable, t string) ([]string, error) {
 	start := time.Now()
-	c, err := mt.Glob("rps/" + t + "/*")
+	c, err := mt.Glob(rt.R().TODOContext(), "rps/"+t+"/*")
 	if err != nil {
 		vlog.Infof("mt.Glob failed: %v", err)
 		return nil, err

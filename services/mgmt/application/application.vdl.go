@@ -12,6 +12,7 @@ import (
 
 	// The non-user imports are prefixed with "_gen_" to prevent collisions.
 	_gen_veyron2 "veyron2"
+	_gen_context "veyron2/context"
 	_gen_ipc "veyron2/ipc"
 	_gen_naming "veyron2/naming"
 	_gen_rt "veyron2/rt"
@@ -44,7 +45,7 @@ type Repository_ExcludingUniversal interface {
 	// Put adds the given tuple of application version (specified
 	// through the veyron name suffix) and application envelope to all
 	// of the given application profiles.
-	Put(ctx _gen_ipc.Context, Profiles []string, Envelope application.Envelope, opts ..._gen_ipc.CallOpt) (err error)
+	Put(ctx _gen_context.T, Profiles []string, Envelope application.Envelope, opts ..._gen_ipc.CallOpt) (err error)
 	// Remove removes the application envelope for the given profile
 	// name and application version (specified through the veyron name
 	// suffix). If no version is specified as part of the suffix, the
@@ -52,7 +53,7 @@ type Repository_ExcludingUniversal interface {
 	//
 	// TODO(jsimsa): Add support for using "*" to specify all profiles
 	// when Matt implements Globing (or Ken implements querying).
-	Remove(ctx _gen_ipc.Context, Profile string, opts ..._gen_ipc.CallOpt) (err error)
+	Remove(ctx _gen_context.T, Profile string, opts ..._gen_ipc.CallOpt) (err error)
 }
 type Repository interface {
 	_gen_ipc.UniversalServiceMethods
@@ -138,7 +139,7 @@ type clientStubRepository struct {
 	name   string
 }
 
-func (__gen_c *clientStubRepository) Put(ctx _gen_ipc.Context, Profiles []string, Envelope application.Envelope, opts ..._gen_ipc.CallOpt) (err error) {
+func (__gen_c *clientStubRepository) Put(ctx _gen_context.T, Profiles []string, Envelope application.Envelope, opts ..._gen_ipc.CallOpt) (err error) {
 	var call _gen_ipc.Call
 	if call, err = __gen_c.client.StartCall(ctx, __gen_c.name, "Put", []interface{}{Profiles, Envelope}, opts...); err != nil {
 		return
@@ -149,7 +150,7 @@ func (__gen_c *clientStubRepository) Put(ctx _gen_ipc.Context, Profiles []string
 	return
 }
 
-func (__gen_c *clientStubRepository) Remove(ctx _gen_ipc.Context, Profile string, opts ..._gen_ipc.CallOpt) (err error) {
+func (__gen_c *clientStubRepository) Remove(ctx _gen_context.T, Profile string, opts ..._gen_ipc.CallOpt) (err error) {
 	var call _gen_ipc.Call
 	if call, err = __gen_c.client.StartCall(ctx, __gen_c.name, "Remove", []interface{}{Profile}, opts...); err != nil {
 		return
@@ -160,7 +161,7 @@ func (__gen_c *clientStubRepository) Remove(ctx _gen_ipc.Context, Profile string
 	return
 }
 
-func (__gen_c *clientStubRepository) UnresolveStep(ctx _gen_ipc.Context, opts ..._gen_ipc.CallOpt) (reply []string, err error) {
+func (__gen_c *clientStubRepository) UnresolveStep(ctx _gen_context.T, opts ..._gen_ipc.CallOpt) (reply []string, err error) {
 	var call _gen_ipc.Call
 	if call, err = __gen_c.client.StartCall(ctx, __gen_c.name, "UnresolveStep", nil, opts...); err != nil {
 		return
@@ -171,7 +172,7 @@ func (__gen_c *clientStubRepository) UnresolveStep(ctx _gen_ipc.Context, opts ..
 	return
 }
 
-func (__gen_c *clientStubRepository) Signature(ctx _gen_ipc.Context, opts ..._gen_ipc.CallOpt) (reply _gen_ipc.ServiceSignature, err error) {
+func (__gen_c *clientStubRepository) Signature(ctx _gen_context.T, opts ..._gen_ipc.CallOpt) (reply _gen_ipc.ServiceSignature, err error) {
 	var call _gen_ipc.Call
 	if call, err = __gen_c.client.StartCall(ctx, __gen_c.name, "Signature", nil, opts...); err != nil {
 		return
@@ -182,7 +183,7 @@ func (__gen_c *clientStubRepository) Signature(ctx _gen_ipc.Context, opts ..._ge
 	return
 }
 
-func (__gen_c *clientStubRepository) GetMethodTags(ctx _gen_ipc.Context, method string, opts ..._gen_ipc.CallOpt) (reply []interface{}, err error) {
+func (__gen_c *clientStubRepository) GetMethodTags(ctx _gen_context.T, method string, opts ..._gen_ipc.CallOpt) (reply []interface{}, err error) {
 	var call _gen_ipc.Call
 	if call, err = __gen_c.client.StartCall(ctx, __gen_c.name, "GetMethodTags", []interface{}{method}, opts...); err != nil {
 		return

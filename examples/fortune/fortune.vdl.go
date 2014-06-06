@@ -8,6 +8,7 @@ import (
 
 	// The non-user imports are prefixed with "_gen_" to prevent collisions.
 	_gen_veyron2 "veyron2"
+	_gen_context "veyron2/context"
 	_gen_ipc "veyron2/ipc"
 	_gen_naming "veyron2/naming"
 	_gen_rt "veyron2/rt"
@@ -21,9 +22,9 @@ import (
 // to enable embedding without method collisions.  Not to be used directly by clients.
 type Fortune_ExcludingUniversal interface {
 	// Get returns a random fortune.
-	Get(ctx _gen_ipc.Context, opts ..._gen_ipc.CallOpt) (reply string, err error)
+	Get(ctx _gen_context.T, opts ..._gen_ipc.CallOpt) (reply string, err error)
 	// Add stores a fortune in the set used by Get.
-	Add(ctx _gen_ipc.Context, Fortune string, opts ..._gen_ipc.CallOpt) (err error)
+	Add(ctx _gen_context.T, Fortune string, opts ..._gen_ipc.CallOpt) (err error)
 }
 type Fortune interface {
 	_gen_ipc.UniversalServiceMethods
@@ -82,7 +83,7 @@ type clientStubFortune struct {
 	name   string
 }
 
-func (__gen_c *clientStubFortune) Get(ctx _gen_ipc.Context, opts ..._gen_ipc.CallOpt) (reply string, err error) {
+func (__gen_c *clientStubFortune) Get(ctx _gen_context.T, opts ..._gen_ipc.CallOpt) (reply string, err error) {
 	var call _gen_ipc.Call
 	if call, err = __gen_c.client.StartCall(ctx, __gen_c.name, "Get", nil, opts...); err != nil {
 		return
@@ -93,7 +94,7 @@ func (__gen_c *clientStubFortune) Get(ctx _gen_ipc.Context, opts ..._gen_ipc.Cal
 	return
 }
 
-func (__gen_c *clientStubFortune) Add(ctx _gen_ipc.Context, Fortune string, opts ..._gen_ipc.CallOpt) (err error) {
+func (__gen_c *clientStubFortune) Add(ctx _gen_context.T, Fortune string, opts ..._gen_ipc.CallOpt) (err error) {
 	var call _gen_ipc.Call
 	if call, err = __gen_c.client.StartCall(ctx, __gen_c.name, "Add", []interface{}{Fortune}, opts...); err != nil {
 		return
@@ -104,7 +105,7 @@ func (__gen_c *clientStubFortune) Add(ctx _gen_ipc.Context, Fortune string, opts
 	return
 }
 
-func (__gen_c *clientStubFortune) UnresolveStep(ctx _gen_ipc.Context, opts ..._gen_ipc.CallOpt) (reply []string, err error) {
+func (__gen_c *clientStubFortune) UnresolveStep(ctx _gen_context.T, opts ..._gen_ipc.CallOpt) (reply []string, err error) {
 	var call _gen_ipc.Call
 	if call, err = __gen_c.client.StartCall(ctx, __gen_c.name, "UnresolveStep", nil, opts...); err != nil {
 		return
@@ -115,7 +116,7 @@ func (__gen_c *clientStubFortune) UnresolveStep(ctx _gen_ipc.Context, opts ..._g
 	return
 }
 
-func (__gen_c *clientStubFortune) Signature(ctx _gen_ipc.Context, opts ..._gen_ipc.CallOpt) (reply _gen_ipc.ServiceSignature, err error) {
+func (__gen_c *clientStubFortune) Signature(ctx _gen_context.T, opts ..._gen_ipc.CallOpt) (reply _gen_ipc.ServiceSignature, err error) {
 	var call _gen_ipc.Call
 	if call, err = __gen_c.client.StartCall(ctx, __gen_c.name, "Signature", nil, opts...); err != nil {
 		return
@@ -126,7 +127,7 @@ func (__gen_c *clientStubFortune) Signature(ctx _gen_ipc.Context, opts ..._gen_i
 	return
 }
 
-func (__gen_c *clientStubFortune) GetMethodTags(ctx _gen_ipc.Context, method string, opts ..._gen_ipc.CallOpt) (reply []interface{}, err error) {
+func (__gen_c *clientStubFortune) GetMethodTags(ctx _gen_context.T, method string, opts ..._gen_ipc.CallOpt) (reply []interface{}, err error) {
 	var call _gen_ipc.Call
 	if call, err = __gen_c.client.StartCall(ctx, __gen_c.name, "GetMethodTags", []interface{}{method}, opts...); err != nil {
 		return

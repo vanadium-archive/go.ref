@@ -4,6 +4,7 @@ import (
 	"sync"
 	"time"
 
+	"veyron2/context"
 	"veyron2/ipc"
 )
 
@@ -40,7 +41,7 @@ func (c cacheEntry) expired() bool {
 
 // signature uses the given client to fetch the signature for the given service name.
 // It locks until it fetches the service signature from the remote server, if not a cache hit.
-func (sm *signatureManager) signature(ctx ipc.Context, name string, client ipc.Client) (*ipc.ServiceSignature, error) {
+func (sm *signatureManager) signature(ctx context.T, name string, client ipc.Client) (*ipc.ServiceSignature, error) {
 	sm.Lock()
 	defer sm.Unlock()
 

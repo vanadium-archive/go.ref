@@ -10,6 +10,7 @@ import (
 	service "veyron/services/mounttable/lib"
 
 	"veyron2"
+	"veyron2/context"
 	"veyron2/ipc"
 	"veyron2/naming"
 	"veyron2/rt"
@@ -21,10 +22,10 @@ func boom(t *testing.T, f string, v ...interface{}) {
 	t.Fatal(string(debug.Stack()))
 }
 
-func doGlob(t *testing.T, mt naming.MountTable, pattern string) []string {
+func doGlob(t *testing.T, ctx context.T, mt naming.MountTable, pattern string) []string {
 	var replies []string
 
-	rc, err := mt.Glob(pattern)
+	rc, err := mt.Glob(ctx, pattern)
 	if err != nil {
 		boom(t, "Glob(%s): %s", pattern, err)
 	}
@@ -95,8 +96,8 @@ const (
 	mt5Prefix = "mt5"
 )
 
-func testResolveToMountTable(t *testing.T, mt naming.MountTable, name, want string) {
-	servers, err := mt.ResolveToMountTable(name)
+func testResolveToMountTable(t *testing.T, ctx context.T, mt naming.MountTable, name, want string) {
+	servers, err := mt.ResolveToMountTable(ctx, name)
 	if err != nil {
 		boom(t, "Failed to ResolveToMountTable %q: %s", name, err)
 	}
@@ -105,8 +106,8 @@ func testResolveToMountTable(t *testing.T, mt naming.MountTable, name, want stri
 	}
 }
 
-func testResolve(t *testing.T, mt naming.MountTable, name, want string) {
-	servers, err := mt.Resolve(name)
+func testResolve(t *testing.T, ctx context.T, mt naming.MountTable, name, want string) {
+	servers, err := mt.Resolve(ctx, name)
 	if err != nil {
 		boom(t, "Failed to Resolve %q: %s", name, err)
 	}
@@ -193,12 +194,14 @@ func TestNamespace(t *testing.T) {
 	}
 	mt := r.MountTable()
 
+	ctx := r.NewContext()
+
 	// Create a DAG of mount table servers using relative addresses.
 	ttl := time.Duration(100) * time.Second
 	// Mount using a relative name starting with //.  This means don't walk out of the
 	// namespace's root mount table even if there is already something mounted at mt2.
 	mt2Name := naming.JoinAddressName(estr, mt2Prefix)
-	if err := mt.Mount("//mt2", mt2Name, ttl); err != nil {
+	if err := mt.Mount(ctx, "//mt2", mt2Name, ttl); err != nil {
 		boom(t, "Failed to Mount //mt2: %s", err)
 	}
 	// Mount using the relative name not starting with //.  This means walk through mt3
@@ -209,7 +212,7 @@ func TestNamespace(t *testing.T) {
 	// we MUST use the // form or it will try to mount the second inside the first rather
 	// than at the same place as the first.
 	mt3Name := naming.JoinAddressName(estr, mt3Prefix)
-	if err := mt.Mount("mt3", mt3Name, ttl); err != nil {
+	if err := mt.Mount(ctx, "mt3", mt3Name, ttl); err != nil {
 		boom(t, "Failed to Mount mt3: %s", err)
 	}
 
@@ -219,52 +222,52 @@ func TestNamespace(t *testing.T) {
 
 	// After the mounts above we have MountTables at /<estr>/mt1{//mt2,//mt3},
 	// with server addresses as per below.
-	testResolveToMountTable(t, mt, "", mt1MT)
-	testResolveToMountTable(t, mt, "mt2", mt2MT)
-	testResolveToMountTable(t, mt, "mt3", mt3MT)
-	testResolveToMountTable(t, mt, "//mt3", naming.JoinAddressName(estr, "//mt1//mt3"))
+	testResolveToMountTable(t, ctx, mt, "", mt1MT)
+	testResolveToMountTable(t, ctx, mt, "mt2", mt2MT)
+	testResolveToMountTable(t, ctx, mt, "mt3", mt3MT)
+	testResolveToMountTable(t, ctx, mt, "//mt3", naming.JoinAddressName(estr, "//mt1//mt3"))
 
 	// We can resolve to the MountTables using rooted, terminal names
 	// as follows, both mt1 and mt1/{mt2,mt3} are served by the
 	// top-level MountTable
-	testResolve(t, mt, naming.JoinAddressName(estr, "//mt1"), mt1MT)
-	testResolve(t, mt, naming.JoinAddressName(estr, "//mt1/mt2"), mt2MT)
-	testResolve(t, mt, naming.JoinAddressName(estr, "//mt1/mt3"), mt3MT)
+	testResolve(t, ctx, mt, naming.JoinAddressName(estr, "//mt1"), mt1MT)
+	testResolve(t, ctx, mt, naming.JoinAddressName(estr, "//mt1/mt2"), mt2MT)
+	testResolve(t, ctx, mt, naming.JoinAddressName(estr, "//mt1/mt3"), mt3MT)
 
 	// returns [mt2, mt3]
-	vlog.Infof("GLOB: %s", doGlob(t, mt, "*"))
+	vlog.Infof("GLOB: %s", doGlob(t, ctx, mt, "*"))
 
 	// Perform two mounts that have to actually walk through other mount tables.
-	if err := mt.Mount("mt2/mt4", naming.JoinAddressName(estr, mt4Prefix), ttl); err != nil {
+	if err := mt.Mount(ctx, "mt2/mt4", naming.JoinAddressName(estr, mt4Prefix), ttl); err != nil {
 		boom(t, "Failed to Mount mt2/mt4: %s", err)
 	}
-	if err := mt.Mount("mt3/mt4", naming.JoinAddressName(estr, mt4Prefix), ttl); err != nil {
+	if err := mt.Mount(ctx, "mt3/mt4", naming.JoinAddressName(estr, mt4Prefix), ttl); err != nil {
 		boom(t, "Failed to Mount mt3/mt4: %s", err)
 	}
 
 	// After the mounts above we now have /<estr>{/mt1/mt2/mt4,/mt1/mt3/mt4}.
-	testResolveToMountTable(t, mt, "mt2/mt4", naming.JoinAddressName(estr, "//mt2/mt4"))
-	testResolveToMountTable(t, mt, "mt3/mt4", naming.JoinAddressName(estr, "//mt3/mt4"))
+	testResolveToMountTable(t, ctx, mt, "mt2/mt4", naming.JoinAddressName(estr, "//mt2/mt4"))
+	testResolveToMountTable(t, ctx, mt, "mt3/mt4", naming.JoinAddressName(estr, "//mt3/mt4"))
 
-	testResolve(t, mt, naming.JoinAddressName(estr, "//mt1/mt2/mt4"), naming.JoinAddressName(estr, "//mt1/mt2/mt4"))
+	testResolve(t, ctx, mt, naming.JoinAddressName(estr, "//mt1/mt2/mt4"), naming.JoinAddressName(estr, "//mt1/mt2/mt4"))
 
 	// Perform a mount that uses a global name as the mount point rather than
 	// one relative to our namespace's root.
 	global := naming.JoinAddressName(estr, "mt3/mt4/mt5")
-	if err := mt.Mount(global, naming.JoinAddressName(estr, mt5Prefix), ttl); err != nil {
+	if err := mt.Mount(ctx, global, naming.JoinAddressName(estr, mt5Prefix), ttl); err != nil {
 		boom(t, "Failed to Mount %s: %s", global, err)
 	}
 
 	// This mounts the service OA (ep/joke1) as joke1.
-	if err := mt.Mount("joke1", naming.JoinAddressName(estr, "//joke1"), ttl); err != nil {
+	if err := mt.Mount(ctx, "joke1", naming.JoinAddressName(estr, "//joke1"), ttl); err != nil {
 		boom(t, "Failed to Mount joke1: %s", err)
 	}
 	// This mounts the raw server endpoint as joke2 -- like Publish would.
-	if err := mt.Mount("joke2", naming.JoinAddressName(estr, "")+"//", ttl); err != nil {
+	if err := mt.Mount(ctx, "joke2", naming.JoinAddressName(estr, "")+"//", ttl); err != nil {
 		boom(t, "Failed to Mount joke2: %s", err)
 	}
 	// This mounts the raw server endpoint as joke3 in mt3 -- like Publish would.
-	if err := mt.Mount("mt3/joke3", naming.JoinAddressName(estr, "")+"//", ttl); err != nil {
+	if err := mt.Mount(ctx, "mt3/joke3", naming.JoinAddressName(estr, "")+"//", ttl); err != nil {
 		boom(t, "Failed to Mount joke3: %s", err)
 	}
 
@@ -276,24 +279,24 @@ func TestNamespace(t *testing.T) {
 	// what we expected AND that we can actually resolve the results.
 
 	// Get back an error since this will walk through mt5 to its root.
-	_, err = mt.Resolve("mt3/mt4/mt5")
+	_, err = mt.Resolve(ctx, "mt3/mt4/mt5")
 	if err == nil {
 		boom(t, "Should have failed to mt3/mt4/mt5")
 	}
 
 	// Resolving m3/mt4/mt5 to a MountTable using the local MountTable gives
 	// us /<estr>//mt4/mt5.
-	testResolveToMountTable(t, mt, "mt3/mt4/mt5", naming.JoinAddressName(estr, "//mt4/mt5"))
-	testResolveToMountTable(t, mt, "mt3/mt4//mt5", naming.JoinAddressName(estr, "//mt4//mt5"))
+	testResolveToMountTable(t, ctx, mt, "mt3/mt4/mt5", naming.JoinAddressName(estr, "//mt4/mt5"))
+	testResolveToMountTable(t, ctx, mt, "mt3/mt4//mt5", naming.JoinAddressName(estr, "//mt4//mt5"))
 
 	// But looking up mt4/mt5 in the local MountTable will give us
 	// /<estr>//mt1/mt4/mt5 since the localMountTable has mt1 as its root!
-	testResolveToMountTable(t, mt, "mt4/mt5", naming.JoinAddressName(estr, "//mt1/mt4/mt5"))
+	testResolveToMountTable(t, ctx, mt, "mt4/mt5", naming.JoinAddressName(estr, "//mt1/mt4/mt5"))
 
 	// Looking mt3//mt4/mt5 will return the MountTable that serves //mt4/mt5.
-	testResolveToMountTable(t, mt, "mt3//mt4/mt5", naming.JoinAddressName(estr, "//mt3//mt4/mt5"))
+	testResolveToMountTable(t, ctx, mt, "mt3//mt4/mt5", naming.JoinAddressName(estr, "//mt3//mt4/mt5"))
 	// And the MountTable that serves //mt4/mt5 is /<epstr>//mt1/mt4/mt5
-	testResolveToMountTable(t, mt, "//mt4/mt5", naming.JoinAddressName(estr, "//mt1//mt4/mt5"))
+	testResolveToMountTable(t, ctx, mt, "//mt4/mt5", naming.JoinAddressName(estr, "//mt1//mt4/mt5"))
 
 	vlog.Infof("\n-------------------------------------------------")
 	jokeTests := []struct {
@@ -305,7 +308,7 @@ func TestNamespace(t *testing.T) {
 	}
 	for _, test := range jokeTests {
 
-		servers, err := mt.Resolve(test.name)
+		servers, err := mt.Resolve(ctx, test.name)
 		if err != nil {
 			boom(t, "Failed to Resolve %s: %s", test.name, err)
 		}
@@ -313,7 +316,7 @@ func TestNamespace(t *testing.T) {
 			boom(t, "Resolve %s returned wrong servers: %v, expected: %s", test.name, servers, test.resolved)
 		}
 
-		servers, err = mt.ResolveToMountTable(test.name)
+		servers, err = mt.ResolveToMountTable(ctx, test.name)
 		if err != nil {
 			boom(t, "Failed to ResolveToMountTable %s: %s", test.name, err)
 		}
@@ -340,7 +343,7 @@ func TestNamespace(t *testing.T) {
 		{"mt2/mt4/*5", []string{"mt2/mt4/mt5"}},
 	}
 	for _, test := range globTests {
-		out := doGlob(t, mt, test.pattern)
+		out := doGlob(t, ctx, mt, test.pattern)
 		checkMatch(t, test.pattern, test.expected, out)
 	}
 

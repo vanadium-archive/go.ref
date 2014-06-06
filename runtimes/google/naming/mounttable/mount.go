@@ -3,13 +3,13 @@ package mounttable
 import (
 	"time"
 
-	"veyron2"
+	"veyron2/context"
+	"veyron2/ipc"
 )
 
 // mountIntoMountTable mounts a single server into a single mount table.
-func mountIntoMountTable(runtime veyron2.Runtime, name, server string, ttl time.Duration) error {
-	client := runtime.Client()
-	call, err := client.StartCall(runtime.TODOContext(), name, "Mount", []interface{}{server, uint32(ttl.Seconds())}, callTimeout)
+func mountIntoMountTable(ctx context.T, client ipc.Client, name, server string, ttl time.Duration) error {
+	call, err := client.StartCall(ctx, name, "Mount", []interface{}{server, uint32(ttl.Seconds())}, callTimeout)
 	if err != nil {
 		return err
 	}
@@ -20,9 +20,8 @@ func mountIntoMountTable(runtime veyron2.Runtime, name, server string, ttl time.
 }
 
 // unmountFromMountTable removes a single mounted server from a single mount table.
-func unmountFromMountTable(runtime veyron2.Runtime, name, server string) error {
-	client := runtime.Client()
-	call, err := client.StartCall(runtime.TODOContext(), name, "Unmount", []interface{}{server}, callTimeout)
+func unmountFromMountTable(ctx context.T, client ipc.Client, name, server string) error {
+	call, err := client.StartCall(ctx, name, "Unmount", []interface{}{server}, callTimeout)
 	if err != nil {
 		return err
 	}
@@ -32,9 +31,9 @@ func unmountFromMountTable(runtime veyron2.Runtime, name, server string) error {
 	return err
 }
 
-func (ns *namespace) Mount(name, server string, ttl time.Duration) error {
+func (ns *namespace) Mount(ctx context.T, name, server string, ttl time.Duration) error {
 	// Resolve to all the mount tables implementing name.
-	mtServers, err := ns.ResolveToMountTable(name)
+	mtServers, err := ns.ResolveToMountTable(ctx, name)
 	if err != nil {
 		return err
 	}
@@ -42,7 +41,7 @@ func (ns *namespace) Mount(name, server string, ttl time.Duration) error {
 	c := make(chan error, len(mtServers))
 	for _, mt := range mtServers {
 		go func() {
-			c <- mountIntoMountTable(ns.rt, mt, server, ttl)
+			c <- mountIntoMountTable(ctx, ns.rt.Client(), mt, server, ttl)
 		}()
 	}
 	// Return error if any mounts failed, since otherwise we'll get
@@ -56,8 +55,8 @@ func (ns *namespace) Mount(name, server string, ttl time.Duration) error {
 	return finalerr
 }
 
-func (ns *namespace) Unmount(name, server string) error {
-	mts, err := ns.ResolveToMountTable(name)
+func (ns *namespace) Unmount(ctx context.T, name, server string) error {
+	mts, err := ns.ResolveToMountTable(ctx, name)
 	if err != nil {
 		return err
 	}
@@ -66,7 +65,7 @@ func (ns *namespace) Unmount(name, server string) error {
 	c := make(chan error, len(mts))
 	for _, mt := range mts {
 		go func() {
-			c <- unmountFromMountTable(ns.rt, mt, server)
+			c <- unmountFromMountTable(ctx, ns.rt.Client(), mt, server)
 		}()
 	}
 	// Return error if any mounts failed, since otherwise we'll get

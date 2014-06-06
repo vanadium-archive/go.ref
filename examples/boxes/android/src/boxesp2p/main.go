@@ -151,7 +151,7 @@ func (gs *goState) watchStore() {
 	if err != nil {
 		panic(fmt.Errorf("Failed to Bind Store:%v", err))
 	}
-	var ctx ipc.Context
+	ctx := gs.runtime.NewContext()
 	req := watch.Request{Query: query.Query{}}
 	stream, err := rst.Watch(ctx, req, veyron2.CallTimeout(ipc.NoTimeout))
 	if err != nil {
@@ -200,7 +200,7 @@ func (gs *goState) sendDrawLoop() {
 
 func (gs *goState) updateStore(endpoint string) {
 	initSyncService(endpoint)
-	var ctx ipc.Context
+	ctx := gs.runtime.NewContext()
 	vst, err := vstore.New(gs.storeEndpoint)
 	if err != nil {
 		panic(fmt.Errorf("Failed to init veyron store:%v", err))

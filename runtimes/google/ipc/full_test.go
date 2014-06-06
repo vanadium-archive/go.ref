@@ -23,6 +23,7 @@ import (
 	"veyron/security/caveat"
 
 	"veyron2"
+	"veyron2/context"
 	"veyron2/ipc"
 	"veyron2/ipc/stream"
 	"veyron2/naming"
@@ -135,7 +136,7 @@ func newMountTable() naming.MountTable {
 	return &mountTable{mounts: make(map[string][]string)}
 }
 
-func (mt *mountTable) Mount(name, server string, _ time.Duration) error {
+func (mt *mountTable) Mount(ctx context.T, name, server string, _ time.Duration) error {
 	mt.Lock()
 	defer mt.Unlock()
 	for n, _ := range mt.mounts {
@@ -147,7 +148,7 @@ func (mt *mountTable) Mount(name, server string, _ time.Duration) error {
 	return nil
 }
 
-func (mt *mountTable) Unmount(name, server string) error {
+func (mt *mountTable) Unmount(ctx context.T, name, server string) error {
 	var servers []string
 	mt.Lock()
 	defer mt.Unlock()
@@ -165,7 +166,7 @@ func (mt *mountTable) Unmount(name, server string) error {
 	return nil
 }
 
-func (mt *mountTable) Resolve(name string) ([]string, error) {
+func (mt *mountTable) Resolve(ctx context.T, name string) ([]string, error) {
 	if address, _ := naming.SplitAddressName(name); len(address) > 0 {
 		return []string{name}, nil
 	}
@@ -184,17 +185,17 @@ func (mt *mountTable) Resolve(name string) ([]string, error) {
 	return nil, verror.NotFoundf("Resolve name %q not found in %v", name, mt.mounts)
 }
 
-func (mt *mountTable) ResolveToMountTable(name string) ([]string, error) {
+func (mt *mountTable) ResolveToMountTable(ctx context.T, name string) ([]string, error) {
 	panic("ResolveToMountTable not implemented")
 	return nil, nil
 }
 
-func (mt *mountTable) Unresolve(name string) ([]string, error) {
+func (mt *mountTable) Unresolve(ctx context.T, name string) ([]string, error) {
 	panic("Unresolve not implemented")
 	return nil, nil
 }
 
-func (mt *mountTable) Glob(pattern string) (chan naming.MountEntry, error) {
+func (mt *mountTable) Glob(ctx context.T, pattern string) (chan naming.MountEntry, error) {
 	panic("Glob not implemented")
 	return nil, nil
 }
@@ -206,7 +207,7 @@ func (mt *mountTable) SetRoots([]string) error {
 
 func startServer(t *testing.T, serverID security.PrivateID, sm stream.Manager, mt naming.MountTable, ts interface{}) ipc.Server {
 	vlog.VI(1).Info("InternalNewServer")
-	server, err := InternalNewServer(sm, mt, veyron2.LocalID(serverID))
+	server, err := InternalNewServer(InternalNewContext(), sm, mt, veyron2.LocalID(serverID))
 	if err != nil {
 		t.Errorf("InternalNewServer failed: %v", err)
 	}
@@ -227,13 +228,13 @@ func startServer(t *testing.T, serverID security.PrivateID, sm stream.Manager, m
 }
 
 func verifyMount(t *testing.T, mt naming.MountTable, name string) {
-	if _, err := mt.Resolve(name); err != nil {
+	if _, err := mt.Resolve(InternalNewContext(), name); err != nil {
 		t.Errorf("%s not found in mounttable", name)
 	}
 }
 
 func verifyMountMissing(t *testing.T, mt naming.MountTable, name string) {
-	if servers, err := mt.Resolve(name); err == nil {
+	if servers, err := mt.Resolve(InternalNewContext(), name); err == nil {
 		t.Errorf("%s not supposed to be found in mounttable; got %d servers instead", name, len(servers))
 	}
 }
@@ -722,7 +723,7 @@ func TestConnectWithIncompatibleServers(t *testing.T) {
 	defer b.cleanup(t)
 
 	// Publish some incompatible endpoints.
-	publisher := publisher.New(b.mt, publishPeriod)
+	publisher := publisher.New(InternalNewContext(), b.mt, publishPeriod)
 	defer publisher.WaitForStop()
 	defer publisher.Stop()
 	publisher.AddName("incompatible")
@@ -767,7 +768,7 @@ func TestPublishOptions(t *testing.T) {
 		{[]ipc.ServerOpt{veyron2.PublishFirst, veyron2.EndpointRewriteOpt("example.com")}, []string{"example.com"}},
 	}
 	for i, c := range cases {
-		server, err := InternalNewServer(sm, mt, append([]ipc.ServerOpt{veyron2.LocalID(serverID)}, c.opts...)...)
+		server, err := InternalNewServer(InternalNewContext(), sm, mt, append([]ipc.ServerOpt{veyron2.LocalID(serverID)}, c.opts...)...)
 		if err != nil {
 			t.Errorf("InternalNewServer failed: %v", err)
 			continue
@@ -787,7 +788,7 @@ func TestPublishOptions(t *testing.T) {
 			server.Stop()
 			continue
 		}
-		servers, err := mt.Resolve("mountpoint")
+		servers, err := mt.Resolve(InternalNewContext(), "mountpoint")
 		if err != nil {
 			t.Errorf("mountpoint not found in mounttable")
 			server.Stop()
@@ -884,7 +885,7 @@ func runServer(argv []string) {
 	mt := newMountTable()
 	id := loadIdentityFromFile(argv[1])
 	isecurity.TrustIdentityProviders(id)
-	server, err := InternalNewServer(mgr, mt, veyron2.LocalID(id))
+	server, err := InternalNewServer(InternalNewContext(), mgr, mt, veyron2.LocalID(id))
 	if err != nil {
 		vlog.Fatalf("InternalNewServer failed: %v", err)
 	}

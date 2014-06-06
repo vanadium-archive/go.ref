@@ -12,7 +12,8 @@ import (
 )
 
 func bindMT(name string) (mounttable.MountTable, error) {
-	mts, err := rt.R().MountTable().ResolveToMountTable(name)
+	ctx := rt.R().NewContext()
+	mts, err := rt.R().MountTable().ResolveToMountTable(ctx, name)
 	if err != nil {
 		return nil, err
 	}

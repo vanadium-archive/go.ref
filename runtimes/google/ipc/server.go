@@ -14,6 +14,7 @@ import (
 	isecurity "veyron/runtimes/google/security"
 
 	"veyron2"
+	"veyron2/context"
 	"veyron2/ipc"
 	"veyron2/ipc/stream"
 	"veyron2/naming"
@@ -34,6 +35,7 @@ func errNotAuthorized(err error) verror.E {
 
 type server struct {
 	sync.Mutex
+	ctx              context.T            // context used by the server to make internal RPCs.
 	streamMgr        stream.Manager       // stream manager to listen for new flows.
 	disptrie         *disptrie            // dispatch trie for method dispatching.
 	publisher        publisher.Publisher  // publisher to publish mounttable mounts.
@@ -46,11 +48,12 @@ type server struct {
 	servesMountTable bool
 }
 
-func InternalNewServer(streamMgr stream.Manager, mt naming.MountTable, opts ...ipc.ServerOpt) (ipc.Server, error) {
+func InternalNewServer(ctx context.T, streamMgr stream.Manager, mt naming.MountTable, opts ...ipc.ServerOpt) (ipc.Server, error) {
 	s := &server{
+		ctx:       ctx,
 		streamMgr: streamMgr,
 		disptrie:  newDisptrie(),
-		publisher: publisher.New(mt, publishPeriod),
+		publisher: publisher.New(ctx, mt, publishPeriod),
 		mt:        mt,
 	}
 	for _, opt := range opts {
@@ -94,7 +97,7 @@ func (s *server) resolveToAddress(address string) string {
 	if s.mt == nil {
 		return address
 	}
-	names, err := s.mt.Resolve(address)
+	names, err := s.mt.Resolve(s.ctx, address)
 	if err != nil {
 		return address
 	}

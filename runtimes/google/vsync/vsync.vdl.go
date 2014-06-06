@@ -10,6 +10,7 @@ import (
 
 	// The non-user imports are prefixed with "_gen_" to prevent collisions.
 	_gen_veyron2 "veyron2"
+	_gen_context "veyron2/context"
 	_gen_ipc "veyron2/ipc"
 	_gen_naming "veyron2/naming"
 	_gen_rt "veyron2/rt"
@@ -77,7 +78,7 @@ type LogValue struct {
 type Sync_ExcludingUniversal interface {
 	// GetDeltas returns a device's current generation vector and all the missing log records
 	// when compared to the incoming generation vector.
-	GetDeltas(ctx _gen_ipc.Context, In GenVector, ClientID DeviceID, opts ..._gen_ipc.CallOpt) (reply SyncGetDeltasStream, err error)
+	GetDeltas(ctx _gen_context.T, In GenVector, ClientID DeviceID, opts ..._gen_ipc.CallOpt) (reply SyncGetDeltasStream, err error)
 }
 type Sync interface {
 	_gen_ipc.UniversalServiceMethods
@@ -189,7 +190,7 @@ type clientStubSync struct {
 	name   string
 }
 
-func (__gen_c *clientStubSync) GetDeltas(ctx _gen_ipc.Context, In GenVector, ClientID DeviceID, opts ..._gen_ipc.CallOpt) (reply SyncGetDeltasStream, err error) {
+func (__gen_c *clientStubSync) GetDeltas(ctx _gen_context.T, In GenVector, ClientID DeviceID, opts ..._gen_ipc.CallOpt) (reply SyncGetDeltasStream, err error) {
 	var call _gen_ipc.Call
 	if call, err = __gen_c.client.StartCall(ctx, __gen_c.name, "GetDeltas", []interface{}{In, ClientID}, opts...); err != nil {
 		return
@@ -198,7 +199,7 @@ func (__gen_c *clientStubSync) GetDeltas(ctx _gen_ipc.Context, In GenVector, Cli
 	return
 }
 
-func (__gen_c *clientStubSync) UnresolveStep(ctx _gen_ipc.Context, opts ..._gen_ipc.CallOpt) (reply []string, err error) {
+func (__gen_c *clientStubSync) UnresolveStep(ctx _gen_context.T, opts ..._gen_ipc.CallOpt) (reply []string, err error) {
 	var call _gen_ipc.Call
 	if call, err = __gen_c.client.StartCall(ctx, __gen_c.name, "UnresolveStep", nil, opts...); err != nil {
 		return
@@ -209,7 +210,7 @@ func (__gen_c *clientStubSync) UnresolveStep(ctx _gen_ipc.Context, opts ..._gen_
 	return
 }
 
-func (__gen_c *clientStubSync) Signature(ctx _gen_ipc.Context, opts ..._gen_ipc.CallOpt) (reply _gen_ipc.ServiceSignature, err error) {
+func (__gen_c *clientStubSync) Signature(ctx _gen_context.T, opts ..._gen_ipc.CallOpt) (reply _gen_ipc.ServiceSignature, err error) {
 	var call _gen_ipc.Call
 	if call, err = __gen_c.client.StartCall(ctx, __gen_c.name, "Signature", nil, opts...); err != nil {
 		return
@@ -220,7 +221,7 @@ func (__gen_c *clientStubSync) Signature(ctx _gen_ipc.Context, opts ..._gen_ipc.
 	return
 }
 
-func (__gen_c *clientStubSync) GetMethodTags(ctx _gen_ipc.Context, method string, opts ..._gen_ipc.CallOpt) (reply []interface{}, err error) {
+func (__gen_c *clientStubSync) GetMethodTags(ctx _gen_context.T, method string, opts ..._gen_ipc.CallOpt) (reply []interface{}, err error) {
 	var call _gen_ipc.Call
 	if call, err = __gen_c.client.StartCall(ctx, __gen_c.name, "GetMethodTags", []interface{}{method}, opts...); err != nil {
 		return

@@ -12,6 +12,7 @@ import (
 
 	"veyron/services/store/raw"
 
+	"veyron2/context"
 	"veyron2/ipc"
 	"veyron2/rt"
 	"veyron2/services/watch"
@@ -39,19 +40,19 @@ type testInfo struct {
 type fakeVStore struct {
 }
 
-func (*fakeVStore) GetMethodTags(_ ipc.Context, _ string, _ ...ipc.CallOpt) ([]interface{}, error) {
+func (*fakeVStore) GetMethodTags(_ context.T, _ string, _ ...ipc.CallOpt) ([]interface{}, error) {
 	panic("not implemented")
 }
 
-func (*fakeVStore) UnresolveStep(_ ipc.Context, _ ...ipc.CallOpt) ([]string, error) {
+func (*fakeVStore) UnresolveStep(_ context.T, _ ...ipc.CallOpt) ([]string, error) {
 	panic("not implemented")
 }
 
-func (*fakeVStore) Signature(_ ipc.Context, _ ...ipc.CallOpt) (ipc.ServiceSignature, error) {
+func (*fakeVStore) Signature(_ context.T, _ ...ipc.CallOpt) (ipc.ServiceSignature, error) {
 	panic("not implemented")
 }
 
-func (v *fakeVStore) Watch(_ ipc.Context, req watch.Request, _ ...ipc.CallOpt) (watch.WatcherWatchStream, error) {
+func (v *fakeVStore) Watch(_ context.T, req watch.Request, _ ...ipc.CallOpt) (watch.WatcherWatchStream, error) {
 	// If "failWatch" is set, simulate a failed RPC call.
 	if info.failWatch {
 		info.failWatchCount++
@@ -65,7 +66,7 @@ func (v *fakeVStore) Watch(_ ipc.Context, req watch.Request, _ ...ipc.CallOpt) (
 	return newFakeStream(), nil
 }
 
-func (*fakeVStore) PutMutations(_ ipc.Context, _ ...ipc.CallOpt) (raw.StorePutMutationsStream, error) {
+func (*fakeVStore) PutMutations(_ context.T, _ ...ipc.CallOpt) (raw.StorePutMutationsStream, error) {
 	panic("not implemented")
 }
 

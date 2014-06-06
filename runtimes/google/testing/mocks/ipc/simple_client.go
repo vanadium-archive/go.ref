@@ -6,6 +6,7 @@ import (
 	"reflect"
 	"sync"
 
+	"veyron2/context"
 	"veyron2/ipc"
 )
 
@@ -39,7 +40,7 @@ func (c *SimpleMockClient) TimesCalled(method string) int {
 func (c *SimpleMockClient) IPCBindOpt() {}
 
 // StartCall Implements ipc.Client
-func (c *SimpleMockClient) StartCall(ctx ipc.Context, name, method string, args []interface{}, opts ...ipc.CallOpt) (ipc.Call, error) {
+func (c *SimpleMockClient) StartCall(ctx context.T, name, method string, args []interface{}, opts ...ipc.CallOpt) (ipc.Call, error) {
 	results, ok := c.results[method]
 	if !ok {
 		return nil, errors.New(fmt.Sprintf("method %s not found", method))

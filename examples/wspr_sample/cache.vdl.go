@@ -6,6 +6,7 @@ package sample
 import (
 	// The non-user imports are prefixed with "_gen_" to prevent collisions.
 	_gen_veyron2 "veyron2"
+	_gen_context "veyron2/context"
 	_gen_ipc "veyron2/ipc"
 	_gen_naming "veyron2/naming"
 	_gen_rt "veyron2/rt"
@@ -25,45 +26,45 @@ type KeyValuePair struct {
 // to enable embedding without method collisions.  Not to be used directly by clients.
 type Cache_ExcludingUniversal interface {
 	// Set sets a value for a key.
-	Set(ctx _gen_ipc.Context, key string, value _gen_vdl.Any, opts ..._gen_ipc.CallOpt) (err error)
+	Set(ctx _gen_context.T, key string, value _gen_vdl.Any, opts ..._gen_ipc.CallOpt) (err error)
 	// Get returns the value for a key.  If the value is not found, returns
 	// a not found error.
-	Get(ctx _gen_ipc.Context, key string, opts ..._gen_ipc.CallOpt) (reply _gen_vdl.Any, err error)
+	Get(ctx _gen_context.T, key string, opts ..._gen_ipc.CallOpt) (reply _gen_vdl.Any, err error)
 	// Same as Get, but casts the return argument to an byte.
-	GetAsByte(ctx _gen_ipc.Context, key string, opts ..._gen_ipc.CallOpt) (reply byte, err error)
+	GetAsByte(ctx _gen_context.T, key string, opts ..._gen_ipc.CallOpt) (reply byte, err error)
 	// Same as Get, but casts the return argument to an int32.
-	GetAsInt32(ctx _gen_ipc.Context, key string, opts ..._gen_ipc.CallOpt) (reply int32, err error)
+	GetAsInt32(ctx _gen_context.T, key string, opts ..._gen_ipc.CallOpt) (reply int32, err error)
 	// Same as Get, but casts the return argument to an int64.
-	GetAsInt64(ctx _gen_ipc.Context, key string, opts ..._gen_ipc.CallOpt) (reply int64, err error)
+	GetAsInt64(ctx _gen_context.T, key string, opts ..._gen_ipc.CallOpt) (reply int64, err error)
 	// Same as Get, but casts the return argument to an uint32.
-	GetAsUint32(ctx _gen_ipc.Context, key string, opts ..._gen_ipc.CallOpt) (reply uint32, err error)
+	GetAsUint32(ctx _gen_context.T, key string, opts ..._gen_ipc.CallOpt) (reply uint32, err error)
 	// Same as Get, but casts the return argument to an uint64.
-	GetAsUint64(ctx _gen_ipc.Context, key string, opts ..._gen_ipc.CallOpt) (reply uint64, err error)
+	GetAsUint64(ctx _gen_context.T, key string, opts ..._gen_ipc.CallOpt) (reply uint64, err error)
 	// Same as Get, but casts the return argument to an float32.
-	GetAsFloat32(ctx _gen_ipc.Context, key string, opts ..._gen_ipc.CallOpt) (reply float32, err error)
+	GetAsFloat32(ctx _gen_context.T, key string, opts ..._gen_ipc.CallOpt) (reply float32, err error)
 	// Same as Get, but casts the return argument to an float64.
-	GetAsFloat64(ctx _gen_ipc.Context, key string, opts ..._gen_ipc.CallOpt) (reply float64, err error)
+	GetAsFloat64(ctx _gen_context.T, key string, opts ..._gen_ipc.CallOpt) (reply float64, err error)
 	// Same as Get, but casts the return argument to a string.
-	GetAsString(ctx _gen_ipc.Context, key string, opts ..._gen_ipc.CallOpt) (reply string, err error)
+	GetAsString(ctx _gen_context.T, key string, opts ..._gen_ipc.CallOpt) (reply string, err error)
 	// Same as Get, but casts the return argument to a bool.
-	GetAsBool(ctx _gen_ipc.Context, key string, opts ..._gen_ipc.CallOpt) (reply bool, err error)
+	GetAsBool(ctx _gen_context.T, key string, opts ..._gen_ipc.CallOpt) (reply bool, err error)
 	// Same as Get, but casts the return argument to an error.
-	GetAsError(ctx _gen_ipc.Context, key string, opts ..._gen_ipc.CallOpt) (reply error, err error)
+	GetAsError(ctx _gen_context.T, key string, opts ..._gen_ipc.CallOpt) (reply error, err error)
 	// AsMap returns the full contents of the cache as a map.
-	AsMap(ctx _gen_ipc.Context, opts ..._gen_ipc.CallOpt) (reply map[string]_gen_vdl.Any, err error)
+	AsMap(ctx _gen_context.T, opts ..._gen_ipc.CallOpt) (reply map[string]_gen_vdl.Any, err error)
 	// KeyValuePairs returns the full contents of the cache as a slice of pairs.
-	KeyValuePairs(ctx _gen_ipc.Context, opts ..._gen_ipc.CallOpt) (reply []KeyValuePair, err error)
+	KeyValuePairs(ctx _gen_context.T, opts ..._gen_ipc.CallOpt) (reply []KeyValuePair, err error)
 	// MostRecentSet returns the key and value and the timestamp for the most
 	// recent set operation
 	// TODO(bprosnitz) support type types and change time to native time type
-	MostRecentSet(ctx _gen_ipc.Context, opts ..._gen_ipc.CallOpt) (value KeyValuePair, time int64, err error)
+	MostRecentSet(ctx _gen_context.T, opts ..._gen_ipc.CallOpt) (value KeyValuePair, time int64, err error)
 	// KeyPage indexes into the keys (in alphanumerically sorted order) and
 	// returns the indexth page of 10 keys.
-	KeyPage(ctx _gen_ipc.Context, index int64, opts ..._gen_ipc.CallOpt) (reply [10]string, err error)
+	KeyPage(ctx _gen_context.T, index int64, opts ..._gen_ipc.CallOpt) (reply [10]string, err error)
 	// Size returns the total number of entries in the cache.
-	Size(ctx _gen_ipc.Context, opts ..._gen_ipc.CallOpt) (reply int64, err error)
+	Size(ctx _gen_context.T, opts ..._gen_ipc.CallOpt) (reply int64, err error)
 	// MultiGet sets up a stream that allows fetching multiple keys.
-	MultiGet(ctx _gen_ipc.Context, opts ..._gen_ipc.CallOpt) (reply CacheMultiGetStream, err error)
+	MultiGet(ctx _gen_context.T, opts ..._gen_ipc.CallOpt) (reply CacheMultiGetStream, err error)
 }
 type Cache interface {
 	_gen_ipc.UniversalServiceMethods
@@ -239,7 +240,7 @@ type clientStubCache struct {
 	name   string
 }
 
-func (__gen_c *clientStubCache) Set(ctx _gen_ipc.Context, key string, value _gen_vdl.Any, opts ..._gen_ipc.CallOpt) (err error) {
+func (__gen_c *clientStubCache) Set(ctx _gen_context.T, key string, value _gen_vdl.Any, opts ..._gen_ipc.CallOpt) (err error) {
 	var call _gen_ipc.Call
 	if call, err = __gen_c.client.StartCall(ctx, __gen_c.name, "Set", []interface{}{key, value}, opts...); err != nil {
 		return
@@ -250,7 +251,7 @@ func (__gen_c *clientStubCache) Set(ctx _gen_ipc.Context, key string, value _gen
 	return
 }
 
-func (__gen_c *clientStubCache) Get(ctx _gen_ipc.Context, key string, opts ..._gen_ipc.CallOpt) (reply _gen_vdl.Any, err error) {
+func (__gen_c *clientStubCache) Get(ctx _gen_context.T, key string, opts ..._gen_ipc.CallOpt) (reply _gen_vdl.Any, err error) {
 	var call _gen_ipc.Call
 	if call, err = __gen_c.client.StartCall(ctx, __gen_c.name, "Get", []interface{}{key}, opts...); err != nil {
 		return
@@ -261,7 +262,7 @@ func (__gen_c *clientStubCache) Get(ctx _gen_ipc.Context, key string, opts ..._g
 	return
 }
 
-func (__gen_c *clientStubCache) GetAsByte(ctx _gen_ipc.Context, key string, opts ..._gen_ipc.CallOpt) (reply byte, err error) {
+func (__gen_c *clientStubCache) GetAsByte(ctx _gen_context.T, key string, opts ..._gen_ipc.CallOpt) (reply byte, err error) {
 	var call _gen_ipc.Call
 	if call, err = __gen_c.client.StartCall(ctx, __gen_c.name, "GetAsByte", []interface{}{key}, opts...); err != nil {
 		return
@@ -272,7 +273,7 @@ func (__gen_c *clientStubCache) GetAsByte(ctx _gen_ipc.Context, key string, opts
 	return
 }
 
-func (__gen_c *clientStubCache) GetAsInt32(ctx _gen_ipc.Context, key string, opts ..._gen_ipc.CallOpt) (reply int32, err error) {
+func (__gen_c *clientStubCache) GetAsInt32(ctx _gen_context.T, key string, opts ..._gen_ipc.CallOpt) (reply int32, err error) {
 	var call _gen_ipc.Call
 	if call, err = __gen_c.client.StartCall(ctx, __gen_c.name, "GetAsInt32", []interface{}{key}, opts...); err != nil {
 		return
@@ -283,7 +284,7 @@ func (__gen_c *clientStubCache) GetAsInt32(ctx _gen_ipc.Context, key string, opt
 	return
 }
 
-func (__gen_c *clientStubCache) GetAsInt64(ctx _gen_ipc.Context, key string, opts ..._gen_ipc.CallOpt) (reply int64, err error) {
+func (__gen_c *clientStubCache) GetAsInt64(ctx _gen_context.T, key string, opts ..._gen_ipc.CallOpt) (reply int64, err error) {
 	var call _gen_ipc.Call
 	if call, err = __gen_c.client.StartCall(ctx, __gen_c.name, "GetAsInt64", []interface{}{key}, opts...); err != nil {
 		return
@@ -294,7 +295,7 @@ func (__gen_c *clientStubCache) GetAsInt64(ctx _gen_ipc.Context, key string, opt
 	return
 }
 
-func (__gen_c *clientStubCache) GetAsUint32(ctx _gen_ipc.Context, key string, opts ..._gen_ipc.CallOpt) (reply uint32, err error) {
+func (__gen_c *clientStubCache) GetAsUint32(ctx _gen_context.T, key string, opts ..._gen_ipc.CallOpt) (reply uint32, err error) {
 	var call _gen_ipc.Call
 	if call, err = __gen_c.client.StartCall(ctx, __gen_c.name, "GetAsUint32", []interface{}{key}, opts...); err != nil {
 		return
@@ -305,7 +306,7 @@ func (__gen_c *clientStubCache) GetAsUint32(ctx _gen_ipc.Context, key string, op
 	return
 }
 
-func (__gen_c *clientStubCache) GetAsUint64(ctx _gen_ipc.Context, key string, opts ..._gen_ipc.CallOpt) (reply uint64, err error) {
+func (__gen_c *clientStubCache) GetAsUint64(ctx _gen_context.T, key string, opts ..._gen_ipc.CallOpt) (reply uint64, err error) {
 	var call _gen_ipc.Call
 	if call, err = __gen_c.client.StartCall(ctx, __gen_c.name, "GetAsUint64", []interface{}{key}, opts...); err != nil {
 		return
@@ -316,7 +317,7 @@ func (__gen_c *clientStubCache) GetAsUint64(ctx _gen_ipc.Context, key string, op
 	return
 }
 
-func (__gen_c *clientStubCache) GetAsFloat32(ctx _gen_ipc.Context, key string, opts ..._gen_ipc.CallOpt) (reply float32, err error) {
+func (__gen_c *clientStubCache) GetAsFloat32(ctx _gen_context.T, key string, opts ..._gen_ipc.CallOpt) (reply float32, err error) {
 	var call _gen_ipc.Call
 	if call, err = __gen_c.client.StartCall(ctx, __gen_c.name, "GetAsFloat32", []interface{}{key}, opts...); err != nil {
 		return
@@ -327,7 +328,7 @@ func (__gen_c *clientStubCache) GetAsFloat32(ctx _gen_ipc.Context, key string, o
 	return
 }
 
-func (__gen_c *clientStubCache) GetAsFloat64(ctx _gen_ipc.Context, key string, opts ..._gen_ipc.CallOpt) (reply float64, err error) {
+func (__gen_c *clientStubCache) GetAsFloat64(ctx _gen_context.T, key string, opts ..._gen_ipc.CallOpt) (reply float64, err error) {
 	var call _gen_ipc.Call
 	if call, err = __gen_c.client.StartCall(ctx, __gen_c.name, "GetAsFloat64", []interface{}{key}, opts...); err != nil {
 		return
@@ -338,7 +339,7 @@ func (__gen_c *clientStubCache) GetAsFloat64(ctx _gen_ipc.Context, key string, o
 	return
 }
 
-func (__gen_c *clientStubCache) GetAsString(ctx _gen_ipc.Context, key string, opts ..._gen_ipc.CallOpt) (reply string, err error) {
+func (__gen_c *clientStubCache) GetAsString(ctx _gen_context.T, key string, opts ..._gen_ipc.CallOpt) (reply string, err error) {
 	var call _gen_ipc.Call
 	if call, err = __gen_c.client.StartCall(ctx, __gen_c.name, "GetAsString", []interface{}{key}, opts...); err != nil {
 		return
@@ -349,7 +350,7 @@ func (__gen_c *clientStubCache) GetAsString(ctx _gen_ipc.Context, key string, op
 	return
 }
 
-func (__gen_c *clientStubCache) GetAsBool(ctx _gen_ipc.Context, key string, opts ..._gen_ipc.CallOpt) (reply bool, err error) {
+func (__gen_c *clientStubCache) GetAsBool(ctx _gen_context.T, key string, opts ..._gen_ipc.CallOpt) (reply bool, err error) {
 	var call _gen_ipc.Call
 	if call, err = __gen_c.client.StartCall(ctx, __gen_c.name, "GetAsBool", []interface{}{key}, opts...); err != nil {
 		return
@@ -360,7 +361,7 @@ func (__gen_c *clientStubCache) GetAsBool(ctx _gen_ipc.Context, key string, opts
 	return
 }
 
-func (__gen_c *clientStubCache) GetAsError(ctx _gen_ipc.Context, key string, opts ..._gen_ipc.CallOpt) (reply error, err error) {
+func (__gen_c *clientStubCache) GetAsError(ctx _gen_context.T, key string, opts ..._gen_ipc.CallOpt) (reply error, err error) {
 	var call _gen_ipc.Call
 	if call, err = __gen_c.client.StartCall(ctx, __gen_c.name, "GetAsError", []interface{}{key}, opts...); err != nil {
 		return
@@ -371,7 +372,7 @@ func (__gen_c *clientStubCache) GetAsError(ctx _gen_ipc.Context, key string, opt
 	return
 }
 
-func (__gen_c *clientStubCache) AsMap(ctx _gen_ipc.Context, opts ..._gen_ipc.CallOpt) (reply map[string]_gen_vdl.Any, err error) {
+func (__gen_c *clientStubCache) AsMap(ctx _gen_context.T, opts ..._gen_ipc.CallOpt) (reply map[string]_gen_vdl.Any, err error) {
 	var call _gen_ipc.Call
 	if call, err = __gen_c.client.StartCall(ctx, __gen_c.name, "AsMap", nil, opts...); err != nil {
 		return
@@ -382,7 +383,7 @@ func (__gen_c *clientStubCache) AsMap(ctx _gen_ipc.Context, opts ..._gen_ipc.Cal
 	return
 }
 
-func (__gen_c *clientStubCache) KeyValuePairs(ctx _gen_ipc.Context, opts ..._gen_ipc.CallOpt) (reply []KeyValuePair, err error) {
+func (__gen_c *clientStubCache) KeyValuePairs(ctx _gen_context.T, opts ..._gen_ipc.CallOpt) (reply []KeyValuePair, err error) {
 	var call _gen_ipc.Call
 	if call, err = __gen_c.client.StartCall(ctx, __gen_c.name, "KeyValuePairs", nil, opts...); err != nil {
 		return
@@ -393,7 +394,7 @@ func (__gen_c *clientStubCache) KeyValuePairs(ctx _gen_ipc.Context, opts ..._gen
 	return
 }
 
-func (__gen_c *clientStubCache) MostRecentSet(ctx _gen_ipc.Context, opts ..._gen_ipc.CallOpt) (value KeyValuePair, time int64, err error) {
+func (__gen_c *clientStubCache) MostRecentSet(ctx _gen_context.T, opts ..._gen_ipc.CallOpt) (value KeyValuePair, time int64, err error) {
 	var call _gen_ipc.Call
 	if call, err = __gen_c.client.StartCall(ctx, __gen_c.name, "MostRecentSet", nil, opts...); err != nil {
 		return
@@ -404,7 +405,7 @@ func (__gen_c *clientStubCache) MostRecentSet(ctx _gen_ipc.Context, opts ..._gen
 	return
 }
 
-func (__gen_c *clientStubCache) KeyPage(ctx _gen_ipc.Context, index int64, opts ..._gen_ipc.CallOpt) (reply [10]string, err error) {
+func (__gen_c *clientStubCache) KeyPage(ctx _gen_context.T, index int64, opts ..._gen_ipc.CallOpt) (reply [10]string, err error) {
 	var call _gen_ipc.Call
 	if call, err = __gen_c.client.StartCall(ctx, __gen_c.name, "KeyPage", []interface{}{index}, opts...); err != nil {
 		return
@@ -415,7 +416,7 @@ func (__gen_c *clientStubCache) KeyPage(ctx _gen_ipc.Context, index int64, opts 
 	return
 }
 
-func (__gen_c *clientStubCache) Size(ctx _gen_ipc.Context, opts ..._gen_ipc.CallOpt) (reply int64, err error) {
+func (__gen_c *clientStubCache) Size(ctx _gen_context.T, opts ..._gen_ipc.CallOpt) (reply int64, err error) {
 	var call _gen_ipc.Call
 	if call, err = __gen_c.client.StartCall(ctx, __gen_c.name, "Size", nil, opts...); err != nil {
 		return
@@ -426,7 +427,7 @@ func (__gen_c *clientStubCache) Size(ctx _gen_ipc.Context, opts ..._gen_ipc.Call
 	return
 }
 
-func (__gen_c *clientStubCache) MultiGet(ctx _gen_ipc.Context, opts ..._gen_ipc.CallOpt) (reply CacheMultiGetStream, err error) {
+func (__gen_c *clientStubCache) MultiGet(ctx _gen_context.T, opts ..._gen_ipc.CallOpt) (reply CacheMultiGetStream, err error) {
 	var call _gen_ipc.Call
 	if call, err = __gen_c.client.StartCall(ctx, __gen_c.name, "MultiGet", nil, opts...); err != nil {
 		return
@@ -435,7 +436,7 @@ func (__gen_c *clientStubCache) MultiGet(ctx _gen_ipc.Context, opts ..._gen_ipc.
 	return
 }
 
-func (__gen_c *clientStubCache) UnresolveStep(ctx _gen_ipc.Context, opts ..._gen_ipc.CallOpt) (reply []string, err error) {
+func (__gen_c *clientStubCache) UnresolveStep(ctx _gen_context.T, opts ..._gen_ipc.CallOpt) (reply []string, err error) {
 	var call _gen_ipc.Call
 	if call, err = __gen_c.client.StartCall(ctx, __gen_c.name, "UnresolveStep", nil, opts...); err != nil {
 		return
@@ -446,7 +447,7 @@ func (__gen_c *clientStubCache) UnresolveStep(ctx _gen_ipc.Context, opts ..._gen
 	return
 }
 
-func (__gen_c *clientStubCache) Signature(ctx _gen_ipc.Context, opts ..._gen_ipc.CallOpt) (reply _gen_ipc.ServiceSignature, err error) {
+func (__gen_c *clientStubCache) Signature(ctx _gen_context.T, opts ..._gen_ipc.CallOpt) (reply _gen_ipc.ServiceSignature, err error) {
 	var call _gen_ipc.Call
 	if call, err = __gen_c.client.StartCall(ctx, __gen_c.name, "Signature", nil, opts...); err != nil {
 		return
@@ -457,7 +458,7 @@ func (__gen_c *clientStubCache) Signature(ctx _gen_ipc.Context, opts ..._gen_ipc
 	return
 }
 
-func (__gen_c *clientStubCache) GetMethodTags(ctx _gen_ipc.Context, method string, opts ..._gen_ipc.CallOpt) (reply []interface{}, err error) {
+func (__gen_c *clientStubCache) GetMethodTags(ctx _gen_context.T, method string, opts ..._gen_ipc.CallOpt) (reply []interface{}, err error) {
 	var call _gen_ipc.Call
 	if call, err = __gen_c.client.StartCall(ctx, __gen_c.name, "GetMethodTags", []interface{}{method}, opts...); err != nil {
 		return

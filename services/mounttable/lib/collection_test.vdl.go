@@ -6,6 +6,7 @@ package mounttable
 import (
 	// The non-user imports are prefixed with "_gen_" to prevent collisions.
 	_gen_veyron2 "veyron2"
+	_gen_context "veyron2/context"
 	_gen_ipc "veyron2/ipc"
 	_gen_naming "veyron2/naming"
 	_gen_rt "veyron2/rt"
@@ -21,10 +22,10 @@ type Collection_ExcludingUniversal interface {
 	// an entry exists, if Overwrite is true, then the binding is replaced,
 	// otherwise the call fails with an error.  The Val must be no larger than
 	// MaxSize bytes.
-	Export(ctx _gen_ipc.Context, Val string, Overwrite bool, opts ..._gen_ipc.CallOpt) (err error)
+	Export(ctx _gen_context.T, Val string, Overwrite bool, opts ..._gen_ipc.CallOpt) (err error)
 	// Lookup retrieves the value associated with a name.  Returns an error if
 	// there is no such binding.
-	Lookup(ctx _gen_ipc.Context, opts ..._gen_ipc.CallOpt) (reply []byte, err error)
+	Lookup(ctx _gen_context.T, opts ..._gen_ipc.CallOpt) (reply []byte, err error)
 }
 type Collection interface {
 	_gen_ipc.UniversalServiceMethods
@@ -87,7 +88,7 @@ type clientStubCollection struct {
 	name   string
 }
 
-func (__gen_c *clientStubCollection) Export(ctx _gen_ipc.Context, Val string, Overwrite bool, opts ..._gen_ipc.CallOpt) (err error) {
+func (__gen_c *clientStubCollection) Export(ctx _gen_context.T, Val string, Overwrite bool, opts ..._gen_ipc.CallOpt) (err error) {
 	var call _gen_ipc.Call
 	if call, err = __gen_c.client.StartCall(ctx, __gen_c.name, "Export", []interface{}{Val, Overwrite}, opts...); err != nil {
 		return
@@ -98,7 +99,7 @@ func (__gen_c *clientStubCollection) Export(ctx _gen_ipc.Context, Val string, Ov
 	return
 }
 
-func (__gen_c *clientStubCollection) Lookup(ctx _gen_ipc.Context, opts ..._gen_ipc.CallOpt) (reply []byte, err error) {
+func (__gen_c *clientStubCollection) Lookup(ctx _gen_context.T, opts ..._gen_ipc.CallOpt) (reply []byte, err error) {
 	var call _gen_ipc.Call
 	if call, err = __gen_c.client.StartCall(ctx, __gen_c.name, "Lookup", nil, opts...); err != nil {
 		return
@@ -109,7 +110,7 @@ func (__gen_c *clientStubCollection) Lookup(ctx _gen_ipc.Context, opts ..._gen_i
 	return
 }
 
-func (__gen_c *clientStubCollection) UnresolveStep(ctx _gen_ipc.Context, opts ..._gen_ipc.CallOpt) (reply []string, err error) {
+func (__gen_c *clientStubCollection) UnresolveStep(ctx _gen_context.T, opts ..._gen_ipc.CallOpt) (reply []string, err error) {
 	var call _gen_ipc.Call
 	if call, err = __gen_c.client.StartCall(ctx, __gen_c.name, "UnresolveStep", nil, opts...); err != nil {
 		return
@@ -120,7 +121,7 @@ func (__gen_c *clientStubCollection) UnresolveStep(ctx _gen_ipc.Context, opts ..
 	return
 }
 
-func (__gen_c *clientStubCollection) Signature(ctx _gen_ipc.Context, opts ..._gen_ipc.CallOpt) (reply _gen_ipc.ServiceSignature, err error) {
+func (__gen_c *clientStubCollection) Signature(ctx _gen_context.T, opts ..._gen_ipc.CallOpt) (reply _gen_ipc.ServiceSignature, err error) {
 	var call _gen_ipc.Call
 	if call, err = __gen_c.client.StartCall(ctx, __gen_c.name, "Signature", nil, opts...); err != nil {
 		return
@@ -131,7 +132,7 @@ func (__gen_c *clientStubCollection) Signature(ctx _gen_ipc.Context, opts ..._ge
 	return
 }
 
-func (__gen_c *clientStubCollection) GetMethodTags(ctx _gen_ipc.Context, method string, opts ..._gen_ipc.CallOpt) (reply []interface{}, err error) {
+func (__gen_c *clientStubCollection) GetMethodTags(ctx _gen_context.T, method string, opts ..._gen_ipc.CallOpt) (reply []interface{}, err error) {
 	var call _gen_ipc.Call
 	if call, err = __gen_c.client.StartCall(ctx, __gen_c.name, "GetMethodTags", []interface{}{method}, opts...); err != nil {
 		return

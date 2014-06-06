@@ -1,14 +1,16 @@
 package ipc
 
 import (
-	"veyron2/ipc"
+	"veyron2/context"
 )
 
-// context implements the ipc.ServerContext interface.
-type context struct{}
+// contextImpl implements the context.T interface.
+// TODO(mattr): Consider moving this to a separate package to mirror the layout of the
+// interfaces in veyron2.
+type contextImpl struct{}
 
-// InternalNewContext creates a new ipc.Context.  This function should only
+// InternalNewContext creates a new context.T.  This function should only
 // be called from within the runtime implementation.
-func InternalNewContext() ipc.Context {
-	return &context{}
+func InternalNewContext() context.T {
+	return &contextImpl{}
 }

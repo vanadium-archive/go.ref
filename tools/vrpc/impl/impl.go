@@ -9,6 +9,7 @@ import (
 	idl_test_base "veyron/tools/vrpc/test_base"
 
 	"veyron2"
+	"veyron2/context"
 	"veyron2/ipc"
 	"veyron2/rt"
 	"veyron2/vdl"
@@ -209,7 +210,7 @@ func setupClient(cmd *cmdline.Command, r veyron2.Runtime) (ipc.Client, error) {
 	return client, nil
 }
 
-func getSignature(ctx ipc.Context, cmd *cmdline.Command, server string, client ipc.Client) (ipc.ServiceSignature, error) {
+func getSignature(ctx context.T, cmd *cmdline.Command, server string, client ipc.Client) (ipc.ServiceSignature, error) {
 	call, err := client.StartCall(ctx, server, "Signature", nil)
 	if err != nil {
 		return ipc.ServiceSignature{}, fmt.Errorf("client.StartCall(%s, Signature, nil) failed with %v", server, err)

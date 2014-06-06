@@ -5,6 +5,7 @@ import (
 	imanager "veyron/runtimes/google/ipc/stream/manager"
 
 	"veyron2"
+	"veyron2/context"
 	"veyron2/ipc"
 	"veyron2/ipc/stream"
 	"veyron2/naming"
@@ -37,11 +38,11 @@ func (rt *vrt) Client() ipc.Client {
 	return rt.client
 }
 
-func (rt *vrt) NewContext() ipc.Context {
+func (rt *vrt) NewContext() context.T {
 	return iipc.InternalNewContext()
 }
 
-func (rt *vrt) TODOContext() ipc.Context {
+func (rt *vrt) TODOContext() context.T {
 	return iipc.InternalNewContext()
 }
 
@@ -69,7 +70,9 @@ func (rt *vrt) NewServer(opts ...ipc.ServerOpt) (ipc.Server, error) {
 	if !idSpecified && rt.id.PrivateID != nil {
 		otherOpts = append(otherOpts, rt.id)
 	}
-	return iipc.InternalNewServer(sm, mt, otherOpts...)
+
+	ctx := rt.NewContext()
+	return iipc.InternalNewServer(ctx, sm, mt, otherOpts...)
 }
 
 func (rt *vrt) NewStreamManager(opts ...stream.ManagerOpt) (stream.Manager, error) {

@@ -6,6 +6,7 @@ package inspector
 import (
 	// The non-user imports are prefixed with "_gen_" to prevent collisions.
 	_gen_veyron2 "veyron2"
+	_gen_context "veyron2/context"
 	_gen_ipc "veyron2/ipc"
 	_gen_naming "veyron2/naming"
 	_gen_rt "veyron2/rt"
@@ -29,8 +30,8 @@ type Details struct {
 // Inspector_ExcludingUniversal is the interface without internal framework-added methods
 // to enable embedding without method collisions.  Not to be used directly by clients.
 type Inspector_ExcludingUniversal interface {
-	Ls(ctx _gen_ipc.Context, Glob string, opts ..._gen_ipc.CallOpt) (reply InspectorLsStream, err error)
-	LsDetails(ctx _gen_ipc.Context, Glob string, opts ..._gen_ipc.CallOpt) (reply InspectorLsDetailsStream, err error)
+	Ls(ctx _gen_context.T, Glob string, opts ..._gen_ipc.CallOpt) (reply InspectorLsStream, err error)
+	LsDetails(ctx _gen_context.T, Glob string, opts ..._gen_ipc.CallOpt) (reply InspectorLsDetailsStream, err error)
 }
 type Inspector interface {
 	_gen_ipc.UniversalServiceMethods
@@ -194,7 +195,7 @@ type clientStubInspector struct {
 	name   string
 }
 
-func (__gen_c *clientStubInspector) Ls(ctx _gen_ipc.Context, Glob string, opts ..._gen_ipc.CallOpt) (reply InspectorLsStream, err error) {
+func (__gen_c *clientStubInspector) Ls(ctx _gen_context.T, Glob string, opts ..._gen_ipc.CallOpt) (reply InspectorLsStream, err error) {
 	var call _gen_ipc.Call
 	if call, err = __gen_c.client.StartCall(ctx, __gen_c.name, "Ls", []interface{}{Glob}, opts...); err != nil {
 		return
@@ -203,7 +204,7 @@ func (__gen_c *clientStubInspector) Ls(ctx _gen_ipc.Context, Glob string, opts .
 	return
 }
 
-func (__gen_c *clientStubInspector) LsDetails(ctx _gen_ipc.Context, Glob string, opts ..._gen_ipc.CallOpt) (reply InspectorLsDetailsStream, err error) {
+func (__gen_c *clientStubInspector) LsDetails(ctx _gen_context.T, Glob string, opts ..._gen_ipc.CallOpt) (reply InspectorLsDetailsStream, err error) {
 	var call _gen_ipc.Call
 	if call, err = __gen_c.client.StartCall(ctx, __gen_c.name, "LsDetails", []interface{}{Glob}, opts...); err != nil {
 		return
@@ -212,7 +213,7 @@ func (__gen_c *clientStubInspector) LsDetails(ctx _gen_ipc.Context, Glob string,
 	return
 }
 
-func (__gen_c *clientStubInspector) UnresolveStep(ctx _gen_ipc.Context, opts ..._gen_ipc.CallOpt) (reply []string, err error) {
+func (__gen_c *clientStubInspector) UnresolveStep(ctx _gen_context.T, opts ..._gen_ipc.CallOpt) (reply []string, err error) {
 	var call _gen_ipc.Call
 	if call, err = __gen_c.client.StartCall(ctx, __gen_c.name, "UnresolveStep", nil, opts...); err != nil {
 		return
@@ -223,7 +224,7 @@ func (__gen_c *clientStubInspector) UnresolveStep(ctx _gen_ipc.Context, opts ...
 	return
 }
 
-func (__gen_c *clientStubInspector) Signature(ctx _gen_ipc.Context, opts ..._gen_ipc.CallOpt) (reply _gen_ipc.ServiceSignature, err error) {
+func (__gen_c *clientStubInspector) Signature(ctx _gen_context.T, opts ..._gen_ipc.CallOpt) (reply _gen_ipc.ServiceSignature, err error) {
 	var call _gen_ipc.Call
 	if call, err = __gen_c.client.StartCall(ctx, __gen_c.name, "Signature", nil, opts...); err != nil {
 		return
@@ -234,7 +235,7 @@ func (__gen_c *clientStubInspector) Signature(ctx _gen_ipc.Context, opts ..._gen
 	return
 }
 
-func (__gen_c *clientStubInspector) GetMethodTags(ctx _gen_ipc.Context, method string, opts ..._gen_ipc.CallOpt) (reply []interface{}, err error) {
+func (__gen_c *clientStubInspector) GetMethodTags(ctx _gen_context.T, method string, opts ..._gen_ipc.CallOpt) (reply []interface{}, err error) {
 	var call _gen_ipc.Call
 	if call, err = __gen_c.client.StartCall(ctx, __gen_c.name, "GetMethodTags", []interface{}{method}, opts...); err != nil {
 		return
