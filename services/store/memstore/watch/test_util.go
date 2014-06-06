@@ -78,6 +78,10 @@ func (rootContext) Closed() <-chan struct{} {
 	return nil
 }
 
+func (rootContext) Blessing() security.PublicID {
+	return nil
+}
+
 type cancellableContext struct {
 	rootContext
 

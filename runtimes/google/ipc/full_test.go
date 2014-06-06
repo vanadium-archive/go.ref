@@ -63,6 +63,10 @@ func (*testServer) EchoIDs(call ipc.ServerCall) (server, client string) {
 	return fmt.Sprintf("%v", call.LocalID()), fmt.Sprintf("%v", call.RemoteID())
 }
 
+func (*testServer) EchoBlessing(call ipc.ServerCall, arg string) (result, blessing string) {
+	return arg, fmt.Sprintf("%v", call.Blessing())
+}
+
 func (*testServer) EchoAndError(call ipc.ServerCall, arg string) (string, error) {
 	result := fmt.Sprintf("method:%q,suffix:%q,arg:%q", call.Method(), call.Suffix(), arg)
 	if arg == "error" {
@@ -278,16 +282,20 @@ func createBundle(t *testing.T, clientID, serverID security.PrivateID, ts interf
 	return
 }
 
+func bless(blessor security.PrivateID, blessee security.PublicID, name string, caveats ...security.ServiceCaveat) security.PublicID {
+	blessed, err := blessor.Bless(blessee, name, 24*time.Hour, caveats)
+	if err != nil {
+		panic(err)
+	}
+	return blessed
+}
+
 func derive(blessor security.PrivateID, name string, caveats ...security.ServiceCaveat) security.PrivateID {
 	id, err := isecurity.NewPrivateID("irrelevant")
 	if err != nil {
 		panic(err)
 	}
-	blessedID, err := blessor.Bless(id.PublicID(), name, 5*time.Minute, caveats)
-	if err != nil {
-		panic(err)
-	}
-	derivedID, err := id.Derive(blessedID)
+	derivedID, err := id.Derive(bless(blessor, id.PublicID(), name, caveats...))
 	if err != nil {
 		panic(err)
 	}
@@ -302,8 +310,8 @@ func matchesErrorPattern(err error, pattern string) bool {
 }
 
 func TestStartCall(t *testing.T) {
-	authorizeErr := "has one or more invalid caveats"
-	nameErr := "does not have a name matching the provided pattern"
+	authorizeErr := "not authorized because"
+	nameErr := "does not match the provided pattern"
 
 	cavOnlyV1 := security.UniversalCaveat(caveat.PeerIdentity{"client/v1"})
 	now := time.Now()
@@ -432,6 +440,49 @@ func testRPC(t *testing.T, shouldCloseSend bool) {
 			t.Errorf(`%s call.Finish got error "%v", want "%v"`, name(test), err, test.finishErr)
 		}
 		checkResultPtrs(t, name(test), results, test.results)
+	}
+}
+
+// granter implements ipc.Granter, returning a fixed (security.PublicID, error) pair.
+type granter struct {
+	ipc.CallOpt
+	id  security.PublicID
+	err error
+}
+
+func (g granter) Grant(id security.PublicID) (security.PublicID, error) { return g.id, g.err }
+
+func TestBlessing(t *testing.T) {
+	b := createBundle(t, clientID, serverID, &testServer{})
+	defer b.cleanup(t)
+
+	tests := []struct {
+		granter                       ipc.CallOpt
+		blessing, starterr, finisherr string
+	}{
+		{blessing: "<nil>"},
+		{granter: granter{id: bless(clientID, serverID.PublicID(), "blessed")}, blessing: "client/blessed"},
+		{granter: granter{err: errors.New("hell no")}, starterr: "hell no"},
+		{granter: granter{id: clientID.PublicID()}, finisherr: "blessing provided not bound to this server"},
+	}
+	for _, test := range tests {
+		call, err := b.client.StartCall(&fakeContext{}, "mountpoint/server/suffix", "EchoBlessing", []interface{}{"argument"}, test.granter)
+		if !matchesErrorPattern(err, test.starterr) {
+			t.Errorf("%+v: StartCall returned error %v", test, err)
+		}
+		if err != nil {
+			continue
+		}
+		var result, blessing string
+		if err = call.Finish(&result, &blessing); !matchesErrorPattern(err, test.finisherr) {
+			t.Errorf("%+v: Finish returned error %v", test, err)
+		}
+		if err != nil {
+			continue
+		}
+		if result != "argument" || blessing != test.blessing {
+			t.Errorf("%+v: Got (%q, %q)", test, result, blessing)
+		}
 	}
 }
 

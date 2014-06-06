@@ -62,6 +62,10 @@ func (rootContext) RemoteID() security.PublicID {
 	return rootPublicID
 }
 
+func (rootContext) Blessing() security.PublicID {
+	return nil
+}
+
 func (rootContext) LocalAddr() net.Addr {
 	return nil
 }
