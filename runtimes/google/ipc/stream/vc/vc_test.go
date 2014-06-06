@@ -4,15 +4,17 @@ package vc_test
 
 import (
 	"bytes"
-	crand "crypto/rand"
 	"io"
 	"math/rand"
 	"net"
+	"os"
 	"reflect"
 	"runtime"
+	"strconv"
 	"strings"
 	"sync"
 	"testing"
+	"time"
 
 	"veyron/runtimes/google/ipc/stream/id"
 	"veyron/runtimes/google/ipc/stream/vc"
@@ -24,6 +26,7 @@ import (
 	"veyron2/ipc/stream"
 	"veyron2/naming"
 	"veyron2/security"
+	"veyron2/vlog"
 )
 
 // Convenience alias to avoid conflicts between the package name "vc" and variables called "vc".
@@ -44,10 +47,7 @@ var (
 // ensures that the same string is read back.
 func testFlowEcho(t *testing.T, flow stream.Flow, size int) {
 	defer flow.Close()
-	wrote, err := randomString(size)
-	if err != nil {
-		t.Errorf("Couldn't generate random string: %v", err)
-	}
+	wrote := randomString(size)
 	go func() {
 		buf := wrote
 		for len(buf) > 0 {
@@ -378,38 +378,61 @@ func (h *helper) Close() {
 	}
 }
 
+func init() {
+	// Initialize pseudo-random number generator.
+	var seed int64
+	seedString := os.Getenv("VEYRON_RNG_SEED")
+	if seedString == "" {
+		seed = time.Since(time.Unix(0, 0)).Nanoseconds()
+	} else {
+		var err error
+		base, bits := 10, 64
+		if seed, err = strconv.ParseInt(seedString, base, bits); err != nil {
+			vlog.Fatalf("ParseInt(%v, %v, %v) failed: %v", seedString, base, bits, err)
+		}
+	}
+	rand.Seed(seed)
+	vlog.VI(0).Infof("Using pseudo-random number generator seed = %v", seed)
+}
+
 var (
-	randomMu sync.Mutex
-	random   []byte // GUARDED_BY(randomMu). Source of entropy for tests.
+	randomMutex sync.Mutex
+	random      []byte
 )
 
-// randomString returns a byte slice with random content of size bytes.
-// For sizes used in this test, crand.Read is typically faster than looping through rand.Int().
-// However, it is still "slow" (for example, TestConcurrentFlows_10 requires a total of ~50MB of
-// random data and crand.Read takes about 4 seconds to generate that).
-// Re-use previously generated random data to speed up the test (for example, TestConcurrentFlows_10
-// requires at most a 10MB slice).
-func randomString(size int) ([]byte, error) {
-	b := make([]byte, size)
-	randomMu.Lock()
-	defer randomMu.Unlock()
-	// Seed with 10MB since that is a common maximum used in this test
-	if len(random) == 0 {
-		random = make([]byte, 10<<20)
-		if _, err := crand.Read(random); err != nil {
-			return nil, err
+func generateBits(size int) []byte {
+	buffer := make([]byte, size)
+	offset := 0
+	for {
+		bits := int64(rand.Int63())
+		for i := 0; i < 8; i++ {
+			buffer[offset] = byte(bits & 0xff)
+			size--
+			if size == 0 {
+				return buffer
+			}
+			offset++
+			bits >>= 8
 		}
 	}
-	if size >= len(random) {
-		extra := make([]byte, size-len(random)+1)
-		if _, err := crand.Read(extra); err != nil {
-			return nil, err
-		}
+}
+
+func randomString(size int) []byte {
+	buffer := make([]byte, size)
+	randomMutex.Lock()
+	defer randomMutex.Unlock()
+	// Generate a 10MB of random bytes since that is a value commonly
+	// used in this test.
+	if len(random) == 0 {
+		random = generateBits(10 << 20)
+	}
+	if size > len(random) {
+		extra := generateBits(size - len(random))
 		random = append(random, extra...)
 	}
-	start := rand.Intn(len(random) - size)
-	copy(b, random[start:start+size])
-	return b, nil
+	start := rand.Intn(len(random) - size + 1)
+	copy(buffer, random[start:start+size])
+	return buffer
 }
 
 type endpoint naming.RoutingID
