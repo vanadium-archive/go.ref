@@ -8,8 +8,8 @@ import (
 	_ "net/http/pprof"
 	"time"
 
-	"veyron/runtimes/google/ipc"
 	"veyron/runtimes/google/ipc/stream/proxy"
+	"veyron/runtimes/google/lib/publisher"
 	"veyron2/naming"
 	"veyron2/rt"
 	"veyron2/vlog"
@@ -39,7 +39,7 @@ func main() {
 	defer proxy.Shutdown()
 
 	if len(*name) > 0 {
-		publisher := ipc.InternalNewPublisher(r.MountTable(), time.Minute)
+		publisher := publisher.New(r.MountTable(), time.Minute)
 		defer publisher.WaitForStop()
 		defer publisher.Stop()
 		publisher.AddServer(naming.JoinAddressName(proxy.Endpoint().String(), ""))
