@@ -39,28 +39,28 @@ func ShutdownOnSignals(signals ...os.Signal) <-chan os.Signal {
 	// signals we get on account of the channel being full.
 	ch := make(chan os.Signal, 2)
 	sawStop := false
-	for i := 0; i < len(signals); {
-		if s := signals[i]; s == STOP {
-			signals = append(signals[:i], signals[i+1:]...)
-			if sawStop {
-				continue
+	var signalsNoStop []os.Signal
+	for _, s := range signals {
+		switch s {
+		case STOP:
+			if !sawStop {
+				sawStop = true
+				if r := rt.R(); r != nil {
+					stopWaiter := make(chan string, 1)
+					r.WaitForStop(stopWaiter)
+					go func() {
+						for {
+							ch <- stopSignal(<-stopWaiter)
+						}
+					}()
+				}
 			}
-			sawStop = true
-			if r := rt.R(); r != nil {
-				stopWaiter := make(chan string, 1)
-				r.WaitForStop(stopWaiter)
-				go func() {
-					for {
-						ch <- stopSignal(<-stopWaiter)
-					}
-				}()
-			}
-		} else {
-			i++
+		default:
+			signalsNoStop = append(signalsNoStop, s)
 		}
 	}
-	if len(signals) > 0 {
-		signal.Notify(ch, signals...)
+	if len(signalsNoStop) > 0 {
+		signal.Notify(ch, signalsNoStop...)
 	}
 	// At least a buffer of length one so that we don't block on ret <- sig.
 	ret := make(chan os.Signal, 1)

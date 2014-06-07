@@ -82,7 +82,7 @@ func noWaiters([]string) {
 	os.Exit(42) // This should not be reached.
 }
 
-// TestNoWaiters verifies that the child process exits in the absense of any
+// TestNoWaiters verifies that the child process exits in the absence of any
 // wait channel being registered with its runtime.
 func TestNoWaiters(t *testing.T) {
 	c := blackbox.HelperCommand(t, "noWaiters")

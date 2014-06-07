@@ -21,6 +21,7 @@ func TestHelperProcess(t *testing.T) {
 func init() {
 	blackbox.CommandTable["handleDefaults"] = handleDefaults
 	blackbox.CommandTable["handleCustom"] = handleCustom
+	blackbox.CommandTable["handleCustomWithStop"] = handleCustomWithStop
 	blackbox.CommandTable["handleDefaultsIgnoreChan"] = handleDefaultsIgnoreChan
 }
 
@@ -52,6 +53,10 @@ func handleDefaults([]string) {
 
 func handleCustom([]string) {
 	program(syscall.SIGABRT)
+}
+
+func handleCustomWithStop([]string) {
+	program(STOP, syscall.SIGABRT, syscall.SIGHUP)
 }
 
 func handleDefaultsIgnoreChan([]string) {
@@ -102,6 +107,20 @@ func TestCleanShutdownSignal(t *testing.T) {
 // handles stop commands by default causes the child to shut down cleanly.
 func TestCleanShutdownStop(t *testing.T) {
 	c := blackbox.HelperCommand(t, "handleDefaults")
+	defer c.Cleanup()
+	c.Cmd.Start()
+	c.Expect("ready")
+	c.WriteLine("stop")
+	c.Expect(fmt.Sprintf("received signal %s", veyron2.LocalStop))
+	c.WriteLine("close")
+	c.ExpectEOFAndWait()
+}
+
+// TestCleanShutdownStopCustom verifies that sending a stop comamnd to a child
+// that handles stop command as part of a custom set of signals handled, causes
+// the child to shut down cleanly.
+func TestCleanShutdownStopCustom(t *testing.T) {
+	c := blackbox.HelperCommand(t, "handleCustomWithStop")
 	defer c.Cleanup()
 	c.Cmd.Start()
 	c.Expect("ready")
@@ -209,4 +228,34 @@ func TestHandlerCustomSignal(t *testing.T) {
 	c.Expect(fmt.Sprintf("received signal %s", syscall.SIGABRT))
 	c.WriteLine("close")
 	c.ExpectEOFAndWait()
+}
+
+// TestHandlerCustomSignalWithStop verifies that sending a custom stop signal
+// to a server that listens for that signal causes the server to shut down
+// cleanly, even when a STOP signal is also among the handled signals.
+func TestHandlerCustomSignalWithStop(t *testing.T) {
+	for _, signal := range([]syscall.Signal{syscall.SIGABRT, syscall.SIGHUP}) {
+		c := blackbox.HelperCommand(t, "handleCustomWithStop")
+		c.Cmd.Start()
+		c.Expect("ready")
+		checkSignalIsNotDefault(t, signal)
+		syscall.Kill(c.Cmd.Process.Pid, signal)
+		c.Expect(fmt.Sprintf("received signal %s", signal))
+		c.WriteLine("close")
+		c.ExpectEOFAndWait()
+		c.Cleanup()
+	}
+}
+
+// TestParseSignalsList verifies that ShutdownOnSignals correctly interprets
+// the input list of signals.
+func TestParseSignalsList(t *testing.T) {
+	list := []os.Signal{STOP, syscall.SIGTERM}
+	ShutdownOnSignals(list...)
+	if !isSignalInSet(syscall.SIGTERM, list) {
+		t.Errorf("signal %s not in signal set, as expected: %v", syscall.SIGTERM, list)
+	}
+	if !isSignalInSet(STOP, list) {
+		t.Errorf("signal %s not in signal set, as expected: %v", STOP, list)
+	}
 }
