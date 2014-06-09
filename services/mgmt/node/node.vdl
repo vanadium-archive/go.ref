@@ -1,0 +1,23 @@
+// Package node contains implementation of managing a node and
+// applications running on the node.
+package node
+
+import (
+	public "veyron2/services/mgmt/node"
+)
+
+// CallbackReceiver can receive callbacks from previously spawned
+// processes.
+type CallbackReceiver interface {
+	// Callback receives a callback from a process that the callee
+	// previously spawned, providing the callee with a name that can be
+	// used to communicate with the caller.
+	Callback(name string) error
+}
+
+// Node describes a node manager internally. In addition to the public
+// Node interface, it implements the callback functionality.
+type Node interface {
+	public.Node
+	CallbackReceiver
+}

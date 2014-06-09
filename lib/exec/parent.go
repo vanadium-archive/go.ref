@@ -25,8 +25,7 @@ var (
 // A ParentHandle is the Parent process' means of managing a single child.
 type ParentHandle struct {
 	c           *exec.Cmd
-	endpoint    string
-	id          string
+	name        string
 	secret      string
 	statusRead  *os.File
 	statusWrite *os.File
@@ -40,21 +39,13 @@ type ParentHandleOpt interface {
 	ExecParentHandleOpt()
 }
 
-// CallbackEndpointOpt can be used to seed the parent handle with a
-// custom callback endpoint.
-type CallbackEndpointOpt string
+// CallbackNameOpt can be used to seed the parent handle with a
+// custom callback name.
+type CallbackNameOpt string
 
-// ExecParentHandleOpt makes CallbackEndpointOpt an instance of
+// ExecParentHandleOpt makes CallbackNameOpt an instance of
 // ParentHandleOpt.
-func (cno CallbackEndpointOpt) ExecParentHandleOpt() {}
-
-// CallbackIDOpt can be used to seed the parent handle with a
-// custom callback ID.
-type CallbackIDOpt string
-
-// ExecParentHandleOpt makes CallbackIDOpt an instance of
-// ParentHandleOpt.
-func (cno CallbackIDOpt) ExecParentHandleOpt() {}
+func (cno CallbackNameOpt) ExecParentHandleOpt() {}
 
 // SecretOpt can be used to seed the parent handle with a custom secret.
 type SecretOpt string
@@ -74,14 +65,12 @@ func (tko TimeKeeperOpt) ExecParentHandleOpt() {}
 // an instance of exec.Cmd.
 func NewParentHandle(c *exec.Cmd, opts ...ParentHandleOpt) *ParentHandle {
 	c.Env = append(c.Env, versionVariable+"="+version1)
-	endpoint, id, secret := emptyEndpoint, emptyID, emptySecret
+	name, secret := "", ""
 	tk := timekeeper.RealTime()
 	for _, opt := range opts {
 		switch v := opt.(type) {
-		case CallbackEndpointOpt:
-			endpoint = string(v)
-		case CallbackIDOpt:
-			id = string(v)
+		case CallbackNameOpt:
+			name = string(v)
 		case SecretOpt:
 			secret = string(v)
 		case TimeKeeperOpt:
@@ -91,11 +80,10 @@ func NewParentHandle(c *exec.Cmd, opts ...ParentHandleOpt) *ParentHandle {
 		}
 	}
 	return &ParentHandle{
-		c:        c,
-		endpoint: endpoint,
-		id:       id,
-		secret:   secret,
-		tk:       tk,
+		c:      c,
+		name:   name,
+		secret: secret,
+		tk:     tk,
 	}
 }
 
@@ -137,12 +125,7 @@ func (p *ParentHandle) Start() error {
 		return err
 	}
 	// Pass data to the child using a pipe.
-	if err := encodeString(dataWrite, p.endpoint); err != nil {
-		p.statusWrite.Close()
-		p.statusRead.Close()
-		return err
-	}
-	if err := encodeString(dataWrite, p.id); err != nil {
+	if err := encodeString(dataWrite, p.name); err != nil {
 		p.statusWrite.Close()
 		p.statusRead.Close()
 		return err

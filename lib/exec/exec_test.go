@@ -99,37 +99,19 @@ func expectMessage(r io.Reader, m string) bool {
 	panic("unreachable")
 }
 
-func TestEndpointExchange(t *testing.T) {
-	cmd := helperCommand("testEndpoint")
+func TestCallbackNameExchange(t *testing.T) {
+	cmd := helperCommand("testCallbackName")
 	stderr, _ := cmd.StderrPipe()
-	ph := vexec.NewParentHandle(cmd, vexec.CallbackEndpointOpt("dummy_endpoint"))
+	ph := vexec.NewParentHandle(cmd, vexec.CallbackNameOpt("dummy_name"))
 	err := ph.Start()
 	if err != nil {
-		t.Fatalf("testEndpointTest: start: %v", err)
+		t.Fatalf("testCallbackNameTest: start: %v", err)
 	}
-	if !expectMessage(stderr, "dummy_endpoint") {
+	if !expectMessage(stderr, "dummy_name") {
 		t.Errorf("unexpected output from child")
 	} else {
 		if err = cmd.Wait(); err != nil {
-			t.Errorf("testEndpointTest: wait: %v", err)
-		}
-	}
-	clean(t, ph)
-}
-
-func TestIDExchange(t *testing.T) {
-	cmd := helperCommand("testID")
-	stderr, _ := cmd.StderrPipe()
-	ph := vexec.NewParentHandle(cmd, vexec.CallbackIDOpt("dummy_id"))
-	err := ph.Start()
-	if err != nil {
-		t.Fatalf("testIDTest: start: %v", err)
-	}
-	if !expectMessage(stderr, "dummy_id") {
-		t.Errorf("unexpected output from child")
-	} else {
-		if err = cmd.Wait(); err != nil {
-			t.Errorf("testIDTest: wait: %v", err)
+			t.Errorf("testCallbackNameTest: wait: %v", err)
 		}
 	}
 	clean(t, ph)
@@ -498,19 +480,12 @@ func TestHelperProcess(*testing.T) {
 		}()
 		r := <-rc
 		os.Exit(r)
-	case "testEndpoint":
+	case "testCallbackName":
 		ch, err := vexec.GetChildHandle()
 		if err != nil {
 			log.Fatalf("%v", err)
 		} else {
-			fmt.Fprintf(os.Stderr, "%s", ch.Endpoint)
-		}
-	case "testID":
-		ch, err := vexec.GetChildHandle()
-		if err != nil {
-			log.Fatalf("%s", err)
-		} else {
-			fmt.Fprintf(os.Stderr, "%s", ch.ID)
+			fmt.Fprintf(os.Stderr, "%s", ch.CallbackName)
 		}
 	case "testSecret":
 		ch, err := vexec.GetChildHandle()
