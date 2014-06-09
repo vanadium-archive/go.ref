@@ -237,59 +237,6 @@ func TestClientBecomesServer(t *testing.T) {
 	}
 }
 
-func TestRestart(t *testing.T) {
-	prxy, err := proxy.New(naming.FixedRoutingID(0xbbbbbbbb), nil, "tcp4", "127.0.0.1:0")
-	if err != nil {
-		t.Fatal(err)
-	}
-	server := manager.InternalNew(naming.FixedRoutingID(0x5555555555555555))
-	defer server.Shutdown()
-	ln, ep, err := server.Listen(prxy.Endpoint().Network(), prxy.Endpoint().String())
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer ln.Close()
-
-	client := manager.InternalNew(naming.FixedRoutingID(0xcccccccccccccccc))
-	defer client.Shutdown()
-
-	data1, data2 := "i am alive", "i was reborn"
-
-	// Write data1 to server via the proxy
-	rchan := make(chan string)
-	go readFlow(t, ln, rchan)
-	if err := writeFlow(client, ep, data1); err != nil {
-		t.Fatal(err)
-	}
-	if read := <-rchan; read != data1 {
-		t.Fatal("Got %q want %q", read, data1)
-	}
-
-	// Restart the proxy
-	prxy.Shutdown()
-	rchan = make(chan string)
-	go readFlow(t, ln, rchan)
-	if err := writeFlow(client, ep, data1); err == nil {
-		t.Fatalf("writeFlow should fail once the proxy is dead")
-	}
-	if prxy, err = proxy.New(naming.FixedRoutingID(0xbbbbbbbb), nil, prxy.Endpoint().Addr().Network(), prxy.Endpoint().Addr().String()); err != nil {
-		t.Fatal(err)
-	}
-	defer prxy.Shutdown()
-
-	// Eventually the server will reconnect to the proxy and the
-	// client should be able to write again.
-	for i := 0; true; i++ {
-		if err := writeFlow(client, ep, data2); err != nil {
-			continue
-		}
-		if read := <-rchan; read != data2 {
-			t.Fatal("Got %q want %q", read, data2)
-		}
-		return
-	}
-}
-
 func writeFlow(mgr stream.Manager, ep naming.Endpoint, data string) error {
 	vc, err := mgr.Dial(ep)
 	if err != nil {

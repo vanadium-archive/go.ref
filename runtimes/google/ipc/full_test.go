@@ -15,6 +15,7 @@ import (
 	"veyron/lib/testutil"
 	"veyron/lib/testutil/blackbox"
 	imanager "veyron/runtimes/google/ipc/stream/manager"
+	"veyron/runtimes/google/ipc/stream/proxy"
 	"veyron/runtimes/google/ipc/stream/vc"
 	"veyron/runtimes/google/ipc/version"
 	"veyron/runtimes/google/lib/publisher"
@@ -867,6 +868,112 @@ func TestReconnect(t *testing.T) {
 	}
 }
 
+type proxyHandle struct {
+	MT      naming.MountTable
+	process *blackbox.Child
+	mount   string
+}
+
+func (h *proxyHandle) Start(t *testing.T) error {
+	h.process = blackbox.HelperCommand(t, "runProxy")
+	h.process.Cmd.Start()
+	var err error
+	if h.mount, err = h.process.ReadLineFromChild(); err != nil {
+		return err
+	}
+	if err := h.MT.Mount(&fakeContext{}, "proxy", h.mount, time.Hour); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (h *proxyHandle) Stop() error {
+	if h.process == nil {
+		return nil
+	}
+	h.process.Cleanup()
+	h.process = nil
+	if len(h.mount) == 0 {
+		return nil
+	}
+	return h.MT.Unmount(&fakeContext{}, "proxy", h.mount)
+}
+
+func TestProxy(t *testing.T) {
+	sm := imanager.InternalNew(naming.FixedRoutingID(0x555555555))
+	mt := newMountTable()
+	client, err := InternalNewClient(sm, mt, veyron2.LocalID(clientID))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer client.Close()
+	server, err := InternalNewServer(InternalNewContext(), sm, mt, veyron2.LocalID(serverID))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer server.Stop()
+	if err := server.Register("server", testServerDisp{&testServer{}}); err != nil {
+		t.Fatal(err)
+	}
+
+	name := "mountpoint/server/suffix"
+	makeCall := func() (string, error) {
+		call, err := client.StartCall(&fakeContext{}, name, "Echo", []interface{}{"batman"})
+		if err != nil {
+			return "", err
+		}
+		var result string
+		if err = call.Finish(&result); err != nil {
+			return "", err
+		}
+		return result, nil
+	}
+	proxy := &proxyHandle{MT: mt}
+	if err := proxy.Start(t); err != nil {
+		t.Fatal(err)
+	}
+	defer proxy.Stop()
+	if _, err := server.Listen(inaming.Network, "proxy"); err != nil {
+		t.Fatal(err)
+	}
+	if err := server.Publish("mountpoint"); err != nil {
+		t.Fatal(err)
+	}
+	verifyMount(t, mt, name)
+	// Proxied endpoint should be published and RPC should succeed (through proxy)
+	const expected = `method:"Echo",suffix:"suffix",arg:"batman"`
+	if result, err := makeCall(); result != expected || err != nil {
+		t.Fatalf("Got (%v, %v) want (%v, nil)", result, err, expected)
+	}
+
+	// Proxy dies, calls should fail and the name should be unmounted.
+	if err := proxy.Stop(); err != nil {
+		t.Fatal(err)
+	}
+	if result, err := makeCall(); err == nil {
+		t.Fatalf(`Got (%v, %v) want ("", <non-nil>) as proxy is down`, result, err)
+	}
+	for {
+		if _, err := mt.Resolve(InternalNewContext(), name); err != nil {
+			break
+		}
+	}
+	verifyMountMissing(t, mt, name)
+
+	// Proxy restarts, calls should eventually start succeeding.
+	if err := proxy.Start(t); err != nil {
+		t.Fatal(err)
+	}
+	for {
+		if result, err := makeCall(); err == nil {
+			if result != expected {
+				t.Errorf("Got (%v, %v) want (%v, nil)", result, err, expected)
+			}
+			break
+		}
+	}
+}
+
 func loadIdentityFromFile(file string) security.PrivateID {
 	f, err := os.Open(file)
 	if err != nil {
@@ -902,6 +1009,19 @@ func runServer(argv []string) {
 	<-make(chan struct{})
 }
 
+func runProxy([]string) {
+	rid, err := naming.NewRoutingID()
+	if err != nil {
+		vlog.Fatal(err)
+	}
+	proxy, err := proxy.New(rid, nil, "tcp4", "127.0.0.1:0")
+	if err != nil {
+		vlog.Fatal(err)
+	}
+	fmt.Println("/" + proxy.Endpoint().String())
+	<-make(chan struct{})
+}
+
 // Required by blackbox framework.
 func TestHelperProcess(t *testing.T) {
 	blackbox.HelperProcess(t)
@@ -919,4 +1039,5 @@ func init() {
 	isecurity.TrustIdentityProviders(serverID)
 
 	blackbox.CommandTable["runServer"] = runServer
+	blackbox.CommandTable["runProxy"] = runProxy
 }

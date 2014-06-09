@@ -35,26 +35,30 @@ func errNotAuthorized(err error) verror.E {
 
 type server struct {
 	sync.Mutex
-	ctx              context.T            // context used by the server to make internal RPCs.
-	streamMgr        stream.Manager       // stream manager to listen for new flows.
-	disptrie         *disptrie            // dispatch trie for method dispatching.
-	publisher        publisher.Publisher  // publisher to publish mounttable mounts.
-	listenerOpts     []stream.ListenerOpt // listener opts passed to Listen.
-	listeners        []stream.Listener    // listeners created by Listen.
-	active           sync.WaitGroup       // active goroutines we've spawned.
-	stopped          bool                 // whether the server has been stopped.
+	ctx              context.T                // context used by the server to make internal RPCs.
+	streamMgr        stream.Manager           // stream manager to listen for new flows.
+	disptrie         *disptrie                // dispatch trie for method dispatching.
+	publisher        publisher.Publisher      // publisher to publish mounttable mounts.
+	listenerOpts     []stream.ListenerOpt     // listener opts passed to Listen.
+	listeners        map[stream.Listener]bool // listeners created by Listen.
+	active           sync.WaitGroup           // active goroutines we've spawned.
+	stopped          bool                     // whether the server has been stopped.
+	stoppedChan      chan struct{}            // closed when the server has been stopped.
 	mt               naming.MountTable
 	publishOpt       veyron2.ServerPublishOpt // which endpoints to publish
+	publishing       bool                     // is some name being published?
 	servesMountTable bool
 }
 
 func InternalNewServer(ctx context.T, streamMgr stream.Manager, mt naming.MountTable, opts ...ipc.ServerOpt) (ipc.Server, error) {
 	s := &server{
-		ctx:       ctx,
-		streamMgr: streamMgr,
-		disptrie:  newDisptrie(),
-		publisher: publisher.New(ctx, mt, publishPeriod),
-		mt:        mt,
+		ctx:         ctx,
+		streamMgr:   streamMgr,
+		disptrie:    newDisptrie(),
+		publisher:   publisher.New(ctx, mt, publishPeriod),
+		listeners:   make(map[stream.Listener]bool),
+		stoppedChan: make(chan struct{}),
+		mt:          mt,
 	}
 	for _, opt := range opts {
 		switch opt := opt.(type) {
@@ -122,7 +126,9 @@ func (s *server) Listen(protocol, address string) (naming.Endpoint, error) {
 		return nil, errServerStopped
 	}
 	s.Unlock()
+	var proxyName string
 	if protocol == inaming.Network {
+		proxyName = address
 		address = s.resolveToAddress(address)
 	}
 	ln, ep, err := s.streamMgr.Listen(protocol, address, s.listenerOpts...)
@@ -137,46 +143,108 @@ func (s *server) Listen(protocol, address string) (naming.Endpoint, error) {
 		ln.Close()
 		return nil, errServerStopped
 	}
-	s.listeners = append(s.listeners, ln)
+	publish := s.publishOpt == veyron2.PublishAll || !s.publishing
+	s.publishing = true
+	s.listeners[ln] = true
 	// We have a single goroutine per listener to accept new flows.  Each flow is
 	// served from its own goroutine.
 	s.active.Add(1)
-	go func(ln stream.Listener, ep naming.Endpoint) {
-		defer vlog.VI(1).Infof("ipc: Stopped listening on %v", ep)
-		for {
-			flow, err := ln.Accept()
-			if err != nil {
-				vlog.VI(10).Infof("ipc: Accept on %v %v failed: %v", protocol, address, err)
-				s.active.Done()
-				return
-			}
-			s.active.Add(1)
-			go func(flow stream.Flow) {
-				if err := newFlowServer(flow, s).serve(); err != nil {
-					// TODO(caprita): Logging errors here is
-					// too spammy. For example, "not
-					// authorized" errors shouldn't be
-					// logged as server errors.
-					vlog.Errorf("Flow serve on (%v, %v) failed: %v", protocol, address, err)
-				}
-				s.active.Done()
-			}(flow)
-		}
-	}(ln, ep)
-	var publishEP string
-	if s.publishOpt == veyron2.PublishAll || len(s.listeners) == 1 {
-		publishEP = naming.JoinAddressName(ep.String(), "")
+	if protocol == inaming.Network {
+		go func(ln stream.Listener, ep naming.Endpoint, proxy string, publish bool) {
+			s.proxyListenLoop(ln, ep, proxy, publish)
+			s.active.Done()
+		}(ln, ep, proxyName, publish)
+	} else {
+		go func(ln stream.Listener, ep naming.Endpoint) {
+			s.listenLoop(ln, ep)
+			s.active.Done()
+		}(ln, ep)
 	}
 	s.Unlock()
-	if len(publishEP) > 0 {
-		if !s.servesMountTable {
-			// Make sure that client MountTable code doesn't try and
-			// ResolveStep past this final address.
-			publishEP += "//"
-		}
-		s.publisher.AddServer(publishEP)
+	if publish {
+		s.publisher.AddServer(s.publishEP(ep))
 	}
 	return ep, nil
+}
+
+func (s *server) publishEP(ep naming.Endpoint) string {
+	var name string
+	if !s.servesMountTable {
+		// Make sure that client MountTable code doesn't try and
+		// ResolveStep past this final address.
+		name = "//"
+	}
+	return naming.JoinAddressName(ep.String(), name)
+}
+
+func (s *server) proxyListenLoop(ln stream.Listener, ep naming.Endpoint, proxy string, publish bool) {
+	const (
+		min = 5 * time.Millisecond
+		max = 5 * time.Minute
+	)
+	for {
+		s.listenLoop(ln, ep)
+		// The listener is done, so:
+		// (1) Unpublish its name
+		if publish {
+			s.publisher.RemoveServer(s.publishEP(ep))
+		}
+		// (2) Reconnect to the proxy unless the server has been stopped
+		backoff := min
+		ln = nil
+		for ln == nil {
+			select {
+			case <-time.After(backoff):
+				proxy = s.resolveToAddress(proxy)
+				var err error
+				ln, ep, err = s.streamMgr.Listen(inaming.Network, proxy, s.listenerOpts...)
+				if err == nil {
+					vlog.VI(1).Infof("Reconnected to proxy at %v listener: (%v, %v)", proxy, ln, ep)
+					break
+				}
+				if backoff = backoff * 2; backoff > max {
+					backoff = max
+				}
+				vlog.VI(1).Infof("Proxy reconnection failed, will retry in %v", backoff)
+			case <-s.stoppedChan:
+				return
+			}
+		}
+		// (3) reconnected, publish new address
+		if publish {
+			s.publisher.AddServer(s.publishEP(ep))
+		}
+		s.Lock()
+		s.listeners[ln] = true
+		s.Unlock()
+	}
+}
+
+func (s *server) listenLoop(ln stream.Listener, ep naming.Endpoint) {
+	defer vlog.VI(1).Infof("ipc: Stopped listening on %v", ep)
+	defer func() {
+		s.Lock()
+		delete(s.listeners, ln)
+		s.Unlock()
+	}()
+	for {
+		flow, err := ln.Accept()
+		if err != nil {
+			vlog.VI(10).Infof("ipc: Accept on %v failed: %v", ln, err)
+			return
+		}
+		s.active.Add(1)
+		go func(flow stream.Flow) {
+			if err := newFlowServer(flow, s).serve(); err != nil {
+				// TODO(caprita): Logging errors here is
+				// too spammy. For example, "not
+				// authorized" errors shouldn't be
+				// logged as server errors.
+				vlog.Errorf("Flow serve on %v failed: %v", ln, err)
+			}
+			s.active.Done()
+		}(flow)
+	}
 }
 
 func (s *server) Publish(name string) error {
@@ -191,6 +259,7 @@ func (s *server) Stop() error {
 		return nil
 	}
 	s.stopped = true
+	close(s.stoppedChan)
 	s.Unlock()
 
 	// Note, It's safe to Stop/WaitForStop on the publisher outside of the
@@ -212,7 +281,7 @@ func (s *server) Stop() error {
 	// flows will continue until they terminate naturally.
 	nListeners := len(s.listeners)
 	errCh := make(chan error, nListeners)
-	for _, ln := range s.listeners {
+	for ln, _ := range s.listeners {
 		go func(ln stream.Listener) {
 			errCh <- ln.Close()
 		}(ln)

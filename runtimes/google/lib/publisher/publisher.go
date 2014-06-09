@@ -17,6 +17,8 @@ import (
 type Publisher interface {
 	// AddServer adds a new server to be mounted.
 	AddServer(server string)
+	// RemoveServer removes a server from the list of mounts.
+	RemoveServer(server string)
 	// AddName adds a new name for all servers to be mounted as.
 	AddName(name string)
 	// Published returns the published names rooted at the mounttable.
@@ -44,8 +46,13 @@ type publisher struct {
 	donechan chan struct{}    // closed when the publisher is done
 }
 
-type serverCmd struct {
+type addServerCmd struct {
 	server string        // server to add
+	done   chan struct{} // closed when the cmd is done
+}
+
+type removeServerCmd struct {
+	server string        // server to remove
 	done   chan struct{} // closed when the cmd is done
 }
 
@@ -71,7 +78,14 @@ func New(ctx context.T, mt naming.MountTable, period time.Duration) Publisher {
 func (p *publisher) AddServer(server string) {
 	done := make(chan struct{})
 	defer func() { recover() }()
-	p.cmdchan <- serverCmd{server, done}
+	p.cmdchan <- addServerCmd{server, done}
+	<-done
+}
+
+func (p *publisher) RemoveServer(server string) {
+	done := make(chan struct{})
+	defer func() { recover() }()
+	p.cmdchan <- removeServerCmd{server, done}
 	<-done
 }
 
@@ -137,8 +151,11 @@ func (p *publisher) runLoop(ctx context.T, mt naming.MountTable, period time.Dur
 				return
 			}
 			switch tcmd := cmd.(type) {
-			case serverCmd:
+			case addServerCmd:
 				state.addServer(tcmd.server)
+				close(tcmd.done)
+			case removeServerCmd:
+				state.removeServer(tcmd.server)
 				close(tcmd.done)
 			case nameCmd:
 				state.addName(tcmd.name)
@@ -151,8 +168,8 @@ func (p *publisher) runLoop(ctx context.T, mt naming.MountTable, period time.Dur
 				close(tcmd)
 			}
 		case <-state.timeout():
-			// Remount everything once every period, to refresh the ttls.
-			state.mountAll()
+			// Sync everything once every period, to refresh the ttls.
+			state.sync()
 		}
 	}
 }
@@ -163,7 +180,7 @@ type pubState struct {
 	ctx      context.T
 	mt       naming.MountTable
 	period   time.Duration
-	deadline time.Time                 // deadline for the next mountAll call
+	deadline time.Time                 // deadline for the next sync call
 	names    []string                  // names that have been added
 	servers  map[string]bool           // servers that have been added
 	mounts   map[mountKey]*mountStatus // map each (name,server) to its status
@@ -224,10 +241,22 @@ func (ps *pubState) addServer(server string) {
 	}
 }
 
+func (ps *pubState) removeServer(server string) {
+	if _, exists := ps.servers[server]; !exists {
+		return
+	}
+	delete(ps.servers, server)
+	for _, name := range ps.names {
+		if status, exists := ps.mounts[mountKey{name, server}]; exists {
+			ps.unmount(name, server, status)
+		}
+	}
+}
+
 func (ps *pubState) mount(name, server string, status *mountStatus) {
 	// Always mount with ttl = period + slack, regardless of whether this is
-	// triggered by a newly added server or name, or by mountAll.  The next call
-	// to mountAll will occur within the next period, and refresh all mounts.
+	// triggered by a newly added server or name, or by sync.  The next call
+	// to sync will occur within the next period, and refresh all mounts.
 	ttl := ps.period + mountTTLSlack
 	status.lastMount = time.Now()
 	status.lastMountErr = ps.mt.Mount(ps.ctx, name, server, ttl)
@@ -238,10 +267,15 @@ func (ps *pubState) mount(name, server string, status *mountStatus) {
 	}
 }
 
-func (ps *pubState) mountAll() {
-	ps.deadline = time.Now().Add(ps.period) // set deadline for the next mountAll
+func (ps *pubState) sync() {
+	ps.deadline = time.Now().Add(ps.period) // set deadline for the next sync
 	for key, status := range ps.mounts {
-		ps.mount(key.name, key.server, status)
+		if status.lastUnmountErr != nil {
+			// Desired state is "unmounted", failed at previous attempt. Retry.
+			ps.unmount(key.name, key.server, status)
+		} else {
+			ps.mount(key.name, key.server, status)
+		}
 	}
 }
 
@@ -252,6 +286,7 @@ func (ps *pubState) unmount(name, server string, status *mountStatus) {
 		vlog.Errorf("ipc pub: couldn't unmount(%v, %v): %v", name, server, status.lastUnmountErr)
 	} else {
 		vlog.VI(2).Infof("ipc pub: unmount(%v, %v)", name, server)
+		delete(ps.mounts, mountKey{name, server})
 	}
 }
 

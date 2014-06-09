@@ -163,11 +163,7 @@ func (m *manager) Listen(protocol, address string, opts ...stream.ListenerOpt) (
 }
 
 func (m *manager) remoteListen(proxy naming.Endpoint, listenerOpts []stream.ListenerOpt) (stream.Listener, naming.Endpoint, error) {
-	ep, err := version.ProxiedEndpoint(m.rid, proxy)
-	if err != nil {
-		return nil, nil, err
-	}
-	ln, err := newProxyListener(m, proxy, listenerOpts)
+	ln, ep, err := newProxyListener(m, proxy, listenerOpts)
 	if err != nil {
 		return nil, nil, err
 	}

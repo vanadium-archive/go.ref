@@ -14,4 +14,7 @@ type Response struct {
 	// Error is a description of why the proxy refused to proxy the server.
 	// A nil error indicates that the proxy will route traffic to the server.
 	Error error
+	// Endpoint is the string representation of an endpoint that can be
+	// used to communicate with the server through the proxy.
+	Endpoint string
 }

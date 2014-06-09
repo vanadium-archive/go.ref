@@ -12,10 +12,6 @@ package proxy
 // traffic intended for the server's RoutingID to the network connection
 // between the server and the proxy.
 type Request struct {
-  // TODO(ashankar): Things that will go in here include the mounttable and the name
-  // the server wants the proxy to use when mounting the server on the mounttable,
-  // possibly a blessing to give the proxy the credentials required to act as the
-  // server as far as the mounttable is concerned.
 }
 
 // Response is sent by the proxy to the server after processing Request.
@@ -23,4 +19,7 @@ type Response struct {
   // Error is a description of why the proxy refused to proxy the server.
   // A nil error indicates that the proxy will route traffic to the server.
   Error error
+  // Endpoint is the string representation of an endpoint that can be
+  // used to communicate with the server through the proxy.
+  Endpoint string
 }

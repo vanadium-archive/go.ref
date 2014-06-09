@@ -6,11 +6,11 @@ import (
 	"net"
 	"strings"
 	"sync"
-	"time"
 
 	"veyron/runtimes/google/ipc/stream/proxy"
 	"veyron/runtimes/google/ipc/stream/vif"
 	"veyron/runtimes/google/lib/upcqueue"
+	inaming "veyron/runtimes/google/naming"
 
 	"veyron2/ipc/stream"
 	"veyron2/naming"
@@ -45,10 +45,7 @@ type proxyListener struct {
 	q       *upcqueue.T
 	proxyEP naming.Endpoint
 	manager *manager
-
-	reconnect chan bool     // true when the proxy connection dies, false when the listener is being closed.
-	stopped   chan struct{} // closed when reconnectLoop exits
-	opts      []stream.ListenerOpt
+	opts    []stream.ListenerOpt
 }
 
 func newNetListener(m *manager, netLn net.Listener, opts []stream.ListenerOpt) listener {
@@ -120,7 +117,7 @@ func (ln *netListener) Close() error {
 }
 
 func (ln *netListener) String() string {
-	return fmt.Sprintf("%T: %v", ln, ln.netLn.Addr())
+	return fmt.Sprintf("%T: (%v, %v)", ln, ln.netLn.Addr().Network(), ln.netLn.Addr())
 }
 
 func (ln *netListener) DebugString() string {
@@ -136,31 +133,29 @@ func (ln *netListener) DebugString() string {
 	return strings.Join(ret, "\n")
 }
 
-func newProxyListener(m *manager, ep naming.Endpoint, opts []stream.ListenerOpt) (listener, error) {
+func newProxyListener(m *manager, ep naming.Endpoint, opts []stream.ListenerOpt) (listener, naming.Endpoint, error) {
 	ln := &proxyListener{
-		q:         upcqueue.New(),
-		proxyEP:   ep,
-		manager:   m,
-		reconnect: make(chan bool),
-		stopped:   make(chan struct{}),
-		opts:      opts,
+		q:       upcqueue.New(),
+		proxyEP: ep,
+		manager: m,
+		opts:    opts,
 	}
-	vf, err := ln.connect()
+	vf, ep, err := ln.connect()
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
-	go ln.reconnectLoop(vf)
-	return ln, nil
+	go vifLoop(vf, ln.q)
+	return ln, ep, nil
 }
 
-func (ln *proxyListener) connect() (*vif.VIF, error) {
+func (ln *proxyListener) connect() (*vif.VIF, naming.Endpoint, error) {
 	vlog.VI(1).Infof("Connecting to proxy at %v", ln.proxyEP)
 	vf, err := ln.manager.FindOrDialVIF(ln.proxyEP.Addr())
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	if err := vf.StartAccepting(ln.opts...); err != nil {
-		return nil, fmt.Errorf("already connected to proxy and accepting connections? VIF: %v, StartAccepting error: %v", vf, err)
+		return nil, nil, fmt.Errorf("already connected to proxy and accepting connections? VIF: %v, StartAccepting error: %v", vf, err)
 	}
 	// Proxy protocol: See veyron/runtimes/google/ipc/stream/proxy/protocol.vdl
 	// Requires dialing a VC to the proxy, need to extract options (like the identity)
@@ -177,96 +172,42 @@ func (ln *proxyListener) connect() (*vif.VIF, error) {
 		if verror.ErrorID(err) == verror.Aborted {
 			ln.manager.vifs.Delete(vf)
 		}
-		return nil, fmt.Errorf("VC establishment with proxy failed: %v", err)
+		return nil, nil, fmt.Errorf("VC establishment with proxy failed: %v", err)
 	}
 	flow, err := vc.Connect()
 	if err != nil {
 		vf.StopAccepting()
-		return nil, fmt.Errorf("unable to create liveness check flow to proxy: %v", err)
+		return nil, nil, fmt.Errorf("unable to create liveness check flow to proxy: %v", err)
 	}
 	var request proxy.Request
 	var response proxy.Response
 	if err := vom.NewEncoder(flow).Encode(request); err != nil {
 		flow.Close()
 		vf.StopAccepting()
-		return nil, fmt.Errorf("failed to encode request to proxy: %v", err)
+		return nil, nil, fmt.Errorf("failed to encode request to proxy: %v", err)
 	}
 	if err := vom.NewDecoder(flow).Decode(&response); err != nil {
 		flow.Close()
 		vf.StopAccepting()
-		return nil, fmt.Errorf("failed to decode response from proxy: %v", err)
+		return nil, nil, fmt.Errorf("failed to decode response from proxy: %v", err)
 	}
 	if response.Error != nil {
 		flow.Close()
 		vf.StopAccepting()
-		return nil, fmt.Errorf("proxy error: %v", response.Error)
+		return nil, nil, fmt.Errorf("proxy error: %v", response.Error)
 	}
-
-	go func(vf *vif.VIF, flow stream.Flow) {
+	ep, err := inaming.NewEndpoint(response.Endpoint)
+	if err != nil {
+		flow.Close()
+		vf.StopAccepting()
+		return nil, nil, fmt.Errorf("proxy returned invalid endpoint(%v): %v", response.Endpoint, err)
+	}
+	go func(vf *vif.VIF, flow stream.Flow, q *upcqueue.T) {
 		<-flow.Closed()
 		vf.StopAccepting()
-	}(vf, flow)
-	return vf, nil
-}
-
-func (ln *proxyListener) reconnectLoop(vf *vif.VIF) {
-	const (
-		min = 5 * time.Millisecond
-		max = 5 * time.Minute
-	)
-	defer close(ln.stopped)
-	go ln.vifLoop(vf)
-	for {
-		if retry := <-ln.reconnect; !retry {
-			ln.waitForVIFLoop(vf)
-			return
-		}
-		vlog.VI(3).Infof("Connection to proxy at %v broke. Re-establishing", ln.proxyEP)
-		backoff := min
-		for {
-			var err error
-			if vf, err = ln.connect(); err == nil {
-				go ln.vifLoop(vf)
-				vlog.VI(3).Infof("Proxy reconnect (%v) succeeded", ln.proxyEP)
-				break
-			}
-			vlog.VI(3).Infof("Proxy reconnect (%v) FAILED (%v). Retrying in %v", ln.proxyEP, err, backoff)
-			select {
-			case retry := <-ln.reconnect:
-				// Invariant: ln.vifLoop is not running. Thus,
-				// the only writer to ln.reconnect is ln.Close,
-				// which always writes false.
-				if retry {
-					vlog.Errorf("retry=true in %v: rogue vifLoop running?", ln)
-				}
-				ln.waitForVIFLoop(vf)
-				return
-			case <-time.After(backoff):
-				if backoff = backoff * 2; backoff > max {
-					backoff = max
-				}
-			}
-		}
-	}
-}
-
-func (ln *proxyListener) vifLoop(vf *vif.VIF) {
-	vifLoop(vf, ln.q)
-	ln.reconnect <- true
-}
-
-func (ln *proxyListener) waitForVIFLoop(vf *vif.VIF) {
-	if vf == nil {
-		return
-	}
-	// ln.vifLoop is running, wait for it to exit.  (when it exits, it will
-	// send "true" on the reconnect channel)
-	vf.StopAccepting()
-	for retry := range ln.reconnect {
-		if retry {
-			return
-		}
-	}
+		q.Close()
+	}(vf, flow, ln.q)
+	return vf, ep, nil
 }
 
 func (ln *proxyListener) Accept() (stream.Flow, error) {
@@ -282,11 +223,13 @@ func (ln *proxyListener) Accept() (stream.Flow, error) {
 }
 
 func (ln *proxyListener) Close() error {
-	ln.reconnect <- false // tell reconnectLoop to stop
-	<-ln.stopped          // wait for reconnectLoop to exit
 	ln.q.Shutdown()
 	ln.manager.removeListener(ln)
 	return nil
+}
+
+func (ln *proxyListener) String() string {
+	return ln.DebugString()
 }
 
 func (ln *proxyListener) DebugString() string {

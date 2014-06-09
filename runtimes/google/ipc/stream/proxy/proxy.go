@@ -74,8 +74,8 @@ func (s *server) Close(err error) {
 		} else {
 			vc.Close("server closed by proxy")
 		}
+		s.Process.SendCloseVC(s.VC.VCI(), err)
 	}
-	s.Process.SendCloseVC(s.VC.VCI(), err)
 }
 func (s *server) String() string {
 	return fmt.Sprintf("RoutingID %v on process %v (VCI:%v ID:%v)", s.RoutingID(), s.Process, s.VC.VCI(), s.VC.RemoteID())
@@ -372,8 +372,7 @@ func (p *Proxy) runServer(server *server, c <-chan vc.HandshakeResult) {
 		server.Close(errors.New("failed to accept health check flow"))
 		return
 	}
-	defer server.Process.RemoveServerVC(server.VC.VCI())
-	defer server.VC.Close("stopped proxying server")
+	defer server.Close(nil)
 	server.Process.InitVCI(server.VC.VCI())
 
 	var request Request
@@ -384,6 +383,13 @@ func (p *Proxy) runServer(server *server, c <-chan vc.HandshakeResult) {
 		response.Error = verror.Convert(err)
 	} else {
 		defer p.servers.Remove(server)
+		ep, err := version.ProxiedEndpoint(server.VC.RemoteAddr().RoutingID(), p.Endpoint())
+		if err != nil {
+			response.Error = verror.ConvertWithDefault(verror.Internal, err)
+		}
+		if ep != nil {
+			response.Endpoint = ep.String()
+		}
 	}
 	if err := vom.NewEncoder(conn).Encode(response); err != nil {
 		proxyLog().Infof("Failed to encode response %#v for server %v", response, server)
