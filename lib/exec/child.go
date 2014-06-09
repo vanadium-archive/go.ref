@@ -14,14 +14,10 @@ var (
 )
 
 type ChildHandle struct {
-	// Endpoint is a callback endpoint that can be use to notify the
+	// CallbackName is a callback name that can be use to notify the
 	// parent that the child has started up successfully via the
 	// Callback() RPC.
-	Endpoint string
-	// ID is a callback ID that can be used by a parent to identify this
-	// child when the child invokes the Callback() RPC using the
-	// callback endpoint.
-	ID string
+	CallbackName string
 	// Secret is a secret passed to the child by its parent via a
 	// trusted channel.
 	Secret string
@@ -88,11 +84,7 @@ func createChildHandle() (*ChildHandle, error) {
 		return nil, ErrUnsupportedVersion
 	}
 	dataPipe := os.NewFile(3, "data_rd")
-	endpoint, err := decodeString(dataPipe)
-	if err != nil {
-		return nil, err
-	}
-	id, err := decodeString(dataPipe)
+	name, err := decodeString(dataPipe)
 	if err != nil {
 		return nil, err
 	}
@@ -101,10 +93,9 @@ func createChildHandle() (*ChildHandle, error) {
 		return nil, err
 	}
 	childHandle = &ChildHandle{
-		Endpoint:   endpoint,
-		ID:         id,
-		Secret:     secret,
-		statusPipe: os.NewFile(4, "status_wr"),
+		CallbackName: name,
+		Secret:       secret,
+		statusPipe:   os.NewFile(4, "status_wr"),
 	}
 	return childHandle, nil
 }
