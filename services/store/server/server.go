@@ -18,6 +18,7 @@ import (
 	"veyron2/services/store"
 	"veyron2/services/watch"
 	"veyron2/vdl"
+	"veyron2/verror"
 )
 
 const (
@@ -263,7 +264,7 @@ func (s *Server) PutMutations(ctx ipc.ServerContext, stream raw.StoreServicePutM
 // ReadConflicts returns the stream of conflicts to store values.  A
 // conflict occurs when there is a concurrent modification to a value.
 func (s *Server) ReadConflicts(_ ipc.ServerContext, stream store.StoreServiceReadConflictsStream) error {
-	panic("not implemented")
+	return verror.Internalf("ReadConflicts not yet implemented")
 }
 
 type storeDispatcher struct {

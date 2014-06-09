@@ -12,6 +12,7 @@ import (
 	"veyron2/services/watch"
 	"veyron2/storage"
 	"veyron2/vdl"
+	"veyron2/verror"
 )
 
 type object struct {
@@ -216,5 +217,5 @@ func (o *object) GlobT(ctx ipc.ServerContext, tid store.TransactionID, pattern s
 
 // Watch returns a stream of changes.
 func (o *object) Watch(ctx ipc.ServerContext, req watch.Request, stream watch.WatcherServiceWatchStream) error {
-	panic("not implemented")
+	return verror.Internalf("Watch not yet implemented")
 }

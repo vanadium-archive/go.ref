@@ -7,6 +7,7 @@ import (
 	"veyron2/query"
 	"veyron2/security"
 	"veyron2/storage"
+	"veyron2/verror"
 )
 
 // object is a binding to a store value.  This is currently represented as a
@@ -88,12 +89,12 @@ func (o *object) Remove(pid security.PublicID, trans service.Transaction) error 
 // replication groups.  Attributes are associated with the value, not the
 // path.
 func (o *object) SetAttr(pid security.PublicID, tr service.Transaction, attrs ...storage.Attr) error {
-	panic("not implemented")
+	return verror.Internalf("SetAttr not yet implemented")
 }
 
 // Stat returns entry info.
 func (o *object) Stat(pid security.PublicID, tr service.Transaction) (*storage.Stat, error) {
-	panic("not implemented")
+	return nil, verror.Internalf("Stat not yet implemented")
 }
 
 // Query returns entries matching the given query.
