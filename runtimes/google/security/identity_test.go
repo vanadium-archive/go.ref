@@ -373,6 +373,50 @@ func TestAuthorizeWithCaveats(t *testing.T) {
 	}
 }
 
+type alwaysValidCaveat struct{}
+
+func (alwaysValidCaveat) Validate(security.Context) error {
+	return nil
+}
+
+// proximityCaveat abuses the Method field to store proximity info
+// TODO(andreser): create a context that can hold proximity data by design
+type proximityCaveat struct{}
+
+func (proximityCaveat) Validate(ctx security.Context) error {
+	if ctx != nil && ctx.Method() == "proximity: close enough" {
+		return nil
+	} else {
+		return fmt.Errorf("proximityCaveat: not close enough")
+	}
+}
+
+func TestThirdPartyCaveatMinting(t *testing.T) {
+	minter := newChain("minter")
+	cav, err := caveat.NewPublicKeyCaveat(proximityCaveat{}, minter.PublicID(), "location")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	discharge, err := minter.MintDischarge(cav, NewContext(ContextArgs{}), time.Hour, nil)
+	if discharge != nil || !matchesErrorPattern(err, "not close enough") {
+		t.Errorf("Discharge was minted while minting caveats were not met")
+	}
+
+	discharge, err = minter.MintDischarge(cav, NewContext(ContextArgs{Method: "proximity: close enough"}), time.Hour, nil)
+	if err != nil {
+		t.Errorf("Discharge was NOT minted even though minting caveats were met")
+	}
+
+	ctxValidateMinting := NewContext(ContextArgs{
+		Discharges: security.CaveatDischargeMap{discharge.CaveatID(): discharge},
+		Debug:      "ctxValidateMinting",
+	})
+	if err = cav.Validate(ctxValidateMinting); err != nil {
+		t.Errorf("Failed %q.Validate(%q): %s", cav, ctxValidateMinting, err)
+	}
+}
+
 func TestAuthorizeWithThirdPartyCaveats(t *testing.T) {
 	mkveyron := func(id security.PrivateID, name string) security.PrivateID {
 		return derive(bless(id.PublicID(), veyronChain, name, nil), id)
@@ -381,7 +425,7 @@ func TestAuthorizeWithThirdPartyCaveats(t *testing.T) {
 		return derive(bless(id.PublicID(), googleChain, name, nil), id)
 	}
 	mkcaveat := func(id security.PrivateID) []security.ServiceCaveat {
-		c, err := caveat.NewPublicKeyCaveat("proximity", id.PublicID(), fmt.Sprintf("%v location", id.PublicID()))
+		c, err := caveat.NewPublicKeyCaveat(alwaysValidCaveat{}, id.PublicID(), fmt.Sprintf("%v location", id.PublicID()))
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -398,7 +442,7 @@ func TestAuthorizeWithThirdPartyCaveats(t *testing.T) {
 	)
 
 	mintDischarge := func(id security.PrivateID, duration time.Duration, caveats []security.ServiceCaveat) security.ThirdPartyDischarge {
-		d, err := id.MintDischarge(aliceProximityCaveat[0].Caveat.(security.ThirdPartyCaveat), duration, caveats)
+		d, err := id.MintDischarge(aliceProximityCaveat[0].Caveat.(security.ThirdPartyCaveat), nil, duration, caveats)
 		if err != nil {
 			t.Fatalf("%q.MintDischarge failed: %v", id, err)
 		}
@@ -501,15 +545,15 @@ func (s SortedThirdPartyCaveats) Less(i, j int) bool {
 func (s SortedThirdPartyCaveats) Swap(i, j int) { s[i], s[j] = s[j], s[i] }
 
 func TestThirdPartyCaveatAccessors(t *testing.T) {
-	mkTPCaveat := func(restriction string, id security.PublicID) security.ThirdPartyCaveat {
-		tpCav, err := caveat.NewPublicKeyCaveat(restriction, id, "someLocation")
+	mkTPCaveat := func(id security.PublicID) security.ThirdPartyCaveat {
+		tpCav, err := caveat.NewPublicKeyCaveat(alwaysValidCaveat{}, id, "someLocation")
 		if err != nil {
-			t.Fatalf("NewPublicKeyCaveat(%q, %q, ...) failed: %v", restriction, id, err)
+			t.Fatalf("NewPublicKeyCaveat(%q, ...) failed: %v", id, err)
 		}
 		return tpCav
 	}
 	mintDischarge := func(caveat security.ThirdPartyCaveat, id security.PrivateID, caveats []security.ServiceCaveat) security.ThirdPartyDischarge {
-		d, err := id.MintDischarge(caveat, time.Minute, caveats)
+		d, err := id.MintDischarge(caveat, nil, time.Minute, caveats)
 		if err != nil {
 			t.Fatalf("%q.MintDischarge failed: %v", id, err)
 		}
@@ -530,8 +574,8 @@ func TestThirdPartyCaveatAccessors(t *testing.T) {
 		sBob        = newSetPrivateID(cBob, cBobBuilder).(setPrivateID)
 
 		// Caveats
-		tpCavService   = security.ServiceCaveat{Service: "someService", Caveat: mkTPCaveat("foo", alice.PublicID())}
-		tpCavUniversal = security.UniversalCaveat(mkTPCaveat("bar", alice.PublicID()))
+		tpCavService   = security.ServiceCaveat{Service: "someService", Caveat: mkTPCaveat(alice.PublicID())}
+		tpCavUniversal = security.UniversalCaveat(mkTPCaveat(alice.PublicID()))
 		cav            = methodRestrictionCaveat("someService", nil)[0]
 	)
 
@@ -564,7 +608,7 @@ func TestThirdPartyCaveatAccessors(t *testing.T) {
 				t.Errorf("%q(%T) got ThirdPartyCaveats() = %+v, want %+v", id, id, got, want)
 			}
 			// Test ThirdPartyCaveat accessors on security.ThirdPartyCaveatDischarges.
-			dis := mintDischarge(mkTPCaveat("baz", alice.PublicID()), d.privID, all)
+			dis := mintDischarge(mkTPCaveat(alice.PublicID()), d.privID, all)
 			if got := sortTPCaveats(dis.ThirdPartyCaveats()); !reflect.DeepEqual(got, want) {
 				t.Errorf("%q got ThirdPartyCaveats() = %+v, want %+v", dis, got, want)
 			}
@@ -713,4 +757,9 @@ func TestSetIdentityAmplification(t *testing.T) {
 	if err := vom.NewDecoder(&buf).Decode(&decoded); err == nil || decoded != nil {
 		t.Fatalf("Got (%v, %v), want wire decode of manipulated identity to fail", decoded, err)
 	}
+}
+
+func init() {
+	vom.Register(alwaysValidCaveat{})
+	vom.Register(proximityCaveat{})
 }
