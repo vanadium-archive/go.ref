@@ -234,7 +234,7 @@ func TestHandlerCustomSignal(t *testing.T) {
 // to a server that listens for that signal causes the server to shut down
 // cleanly, even when a STOP signal is also among the handled signals.
 func TestHandlerCustomSignalWithStop(t *testing.T) {
-	for _, signal := range([]syscall.Signal{syscall.SIGABRT, syscall.SIGHUP}) {
+	for _, signal := range []syscall.Signal{syscall.SIGABRT, syscall.SIGHUP} {
 		c := blackbox.HelperCommand(t, "handleCustomWithStop")
 		c.Cmd.Start()
 		c.Expect("ready")
