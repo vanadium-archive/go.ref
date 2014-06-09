@@ -38,6 +38,8 @@ import (
 	"veyron2/verror"
 	"veyron2/vlog"
 	"veyron2/vom"
+	vom_wiretype "veyron2/vom/wiretype"
+	wiretype_build "veyron2/wiretype/build"
 
 	"github.com/gorilla/websocket"
 )
@@ -109,6 +111,16 @@ type websocketMessage struct {
 
 	// Whether it is an rpc request or a publish request.
 	Type websocketMessageType
+}
+
+// Temporary holder of RPC so that we can store the unprocessed args.
+type veyronTempRPC struct {
+	Name        string
+	Method      string
+	PrivateId   string // base64(vom(security.PrivateID))
+	InArgs      []json.RawMessage
+	NumOutArgs  int32
+	IsStreaming bool
 }
 
 type veyronRPC struct {
@@ -219,17 +231,6 @@ func finishCall(w clientWriter, clientCall ipc.Call, msg *veyronRPC) {
 	}
 }
 
-func (ctx WSPR) parseVeyronRequest(r io.Reader) (*veyronRPC, error) {
-	var msg veyronRPC
-	decoder := json.NewDecoder(r)
-	if err := decoder.Decode(&msg); err != nil {
-		return nil, fmt.Errorf("can't unmarshall JSONMessage: %v", err)
-	}
-
-	ctx.logger.VI(2).Infof("VeyronRPC: %s.%s(id=%v, ..., streaming=%v)", msg.Name, msg.Method, len(msg.PrivateId) > 0, msg.IsStreaming)
-	return &msg, nil
-}
-
 func (ctx WSPR) newClient(privateId string) (ipc.Client, error) {
 	id := decodeIdentity(ctx.logger, privateId)
 	client := ctx.clientCache.Get(id)
@@ -255,7 +256,7 @@ func (ctx WSPR) startVeyronRequest(w clientWriter, msg *veyronRPC) (ipc.Call, er
 	clientCall, err := client.StartCall(ctx.rt.TODOContext(), msg.Name, uppercaseFirstCharacter(msg.Method), msg.InArgs)
 
 	if err != nil {
-		return nil, fmt.Errorf("error starting call: %v", err)
+		return nil, fmt.Errorf("error starting call (name: %v, method: %v, args: %v): %v", msg.Name, uppercaseFirstCharacter(msg.Method), msg.InArgs, err)
 	}
 
 	return clientCall, nil
@@ -397,7 +398,7 @@ func (wsp *websocketPipe) cleanup() {
 }
 
 func (wsp *websocketPipe) setup() {
-	wsp.ctx.logger.Info("identity is", wsp.ctx.rt.Identity())
+	wsp.ctx.logger.Info("identity is ", wsp.ctx.rt.Identity())
 	wsp.signatureManager = newSignatureManager()
 	wsp.outstandingStreams = make(map[int64]sender)
 	wsp.flowMap = make(map[int64]*server)
@@ -514,8 +515,7 @@ func (wsp *websocketPipe) sendVeyronRequest(id int64, veyronMsg *veyronRPC, w cl
 
 // handleVeyronRequest starts a veyron rpc and returns before the rpc has been completed.
 func (wsp *websocketPipe) handleVeyronRequest(id int64, data string, w *websocketWriter) {
-	veyronMsg, err := wsp.ctx.parseVeyronRequest(bytes.NewBufferString(data))
-
+	veyronMsg, err := wsp.parseVeyronRequest(bytes.NewBufferString(data))
 	if err != nil {
 		w.sendError(verror.Internalf("can't parse Veyron Request: %v", err))
 		return
@@ -684,6 +684,63 @@ func (wsp *websocketPipe) handleServerResponse(id int64, data string) {
 		return
 	}
 	server.handleServerResponse(id, data)
+}
+
+// parseVeyronRequest parses a json rpc request into a veyronRPC object.
+func (wsp *websocketPipe) parseVeyronRequest(r io.Reader) (*veyronRPC, error) {
+	var tempMsg veyronTempRPC
+	decoder := json.NewDecoder(r)
+	if err := decoder.Decode(&tempMsg); err != nil {
+		return nil, fmt.Errorf("can't unmarshall JSONMessage: %v", err)
+	}
+
+	client, err := wsp.ctx.newClient(tempMsg.PrivateId)
+	if err != nil {
+		return nil, verror.Internalf("error creating client: %v", err)
+	}
+
+	// Fetch and adapt signature from the SignatureManager
+	ctx := wsp.ctx.rt.TODOContext()
+	sig, err := wsp.signatureManager.signature(ctx, tempMsg.Name, client)
+	if err != nil {
+		return nil, verror.Internalf("error getting service signature for %s: %v", tempMsg.Name, err)
+	}
+
+	methName := uppercaseFirstCharacter(tempMsg.Method)
+	methSig, ok := sig.Methods[methName]
+	if !ok {
+		return nil, fmt.Errorf("Method not found in signature: %v (full sig: %v)", methName, sig)
+	}
+
+	var msg veyronRPC
+	if len(methSig.InArgs) != len(tempMsg.InArgs) {
+		return nil, fmt.Errorf("invalid number of arguments: %v vs. %v", methSig, tempMsg)
+	}
+	msg.InArgs = make([]interface{}, len(tempMsg.InArgs))
+	td := wiretype_build.TypeDefs(sig.TypeDefs)
+
+	for i := 0; i < len(tempMsg.InArgs); i++ {
+		argTypeId := methSig.InArgs[i].Type
+		argType := vom_wiretype.Type{
+			ID:   argTypeId,
+			Defs: &td,
+		}
+
+		val, err := vom.JSONToObject(string(tempMsg.InArgs[i]), argType)
+		if err != nil {
+			return nil, fmt.Errorf("error while converting json to object for arg %d (%s): %v", i, methSig.InArgs[i].Name, err)
+		}
+		msg.InArgs[i] = val
+	}
+
+	msg.Name = tempMsg.Name
+	msg.Method = tempMsg.Method
+	msg.PrivateId = tempMsg.PrivateId
+	msg.NumOutArgs = tempMsg.NumOutArgs
+	msg.IsStreaming = tempMsg.IsStreaming
+
+	wsp.ctx.logger.VI(2).Infof("VeyronRPC: %s.%s(id=%v, ..., streaming=%v)", msg.Name, msg.Method, len(msg.PrivateId) > 0, msg.IsStreaming)
+	return &msg, nil
 }
 
 type signatureRequest struct {

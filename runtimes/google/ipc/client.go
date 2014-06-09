@@ -284,7 +284,7 @@ func (fc *flowClient) Send(item interface{}) error {
 
 	// The empty request header indicates what follows is a streaming arg.
 	if err := fc.enc.Encode(ipc.Request{}); err != nil {
-		return fc.close(verror.BadProtocolf("ipc: streaming request encoding failed: %v", err))
+		return fc.close(verror.BadProtocolf("ipc: streaming request header encoding failed: %v", err))
 	}
 	if err := fc.enc.Encode(item); err != nil {
 		return fc.close(verror.BadProtocolf("ipc: streaming arg encoding failed: %v", err))
@@ -302,7 +302,7 @@ func (fc *flowClient) Recv(itemptr interface{}) error {
 
 	// Decode the response header and handle errors and EOF.
 	if err := fc.dec.Decode(&fc.response); err != nil {
-		return fc.close(verror.BadProtocolf("ipc: response decoding failed: %v", err))
+		return fc.close(verror.BadProtocolf("ipc: response header decoding failed: %v", err))
 	}
 	if fc.response.Error != nil {
 		return fc.response.Error
@@ -363,7 +363,7 @@ func (fc *flowClient) finish(resultptrs ...interface{}) verror.E {
 	// Decode the response header, if it hasn't already been decoded by Recv.
 	if fc.response.Error == nil && !fc.response.EndStreamResults {
 		if err := fc.dec.Decode(&fc.response); err != nil {
-			return fc.close(verror.BadProtocolf("ipc: response decoding failed: %v", err))
+			return fc.close(verror.BadProtocolf("ipc: response header decoding failed: %v", err))
 		}
 		// The response header must indicate the streaming results have ended.
 		if fc.response.Error == nil && !fc.response.EndStreamResults {
