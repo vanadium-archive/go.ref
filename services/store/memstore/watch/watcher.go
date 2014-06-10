@@ -106,13 +106,12 @@ func (w *watcher) processRequest(cancel <-chan struct{}, ctx ipc.ServerContext, 
 		return err
 	}
 
-	// Retrieve the initial timestamp. Changes that occured at or before the
-	// initial timestamp will not be sent.
 	resumeMarker := req.ResumeMarker
-	initialTimestamp, err := resumeMarkerToTimestamp(resumeMarker)
+	filter, err := newChangeFilter(resumeMarker)
 	if err != nil {
 		return err
 	}
+
 	if isNowResumeMarker(resumeMarker) {
 		sendChanges(stream, []watch.Change{initialStateSkippedChange})
 	}
@@ -127,9 +126,13 @@ func (w *watcher) processRequest(cancel <-chan struct{}, ctx ipc.ServerContext, 
 	if err != nil {
 		return err
 	}
-	err = processChanges(stream, changes, initialTimestamp, st.Timestamp())
-	if err != nil {
+	timestamp := st.Timestamp()
+	if send, err := filter.shouldProcessChanges(timestamp); err != nil {
 		return err
+	} else if send {
+		if err := processChanges(stream, changes, timestamp); err != nil {
+			return err
+		}
 	}
 
 	for {
@@ -142,9 +145,13 @@ func (w *watcher) processRequest(cancel <-chan struct{}, ctx ipc.ServerContext, 
 		if err != nil {
 			return err
 		}
-		err = processChanges(stream, changes, initialTimestamp, mu.Timestamp)
-		if err != nil {
+		timestamp := mu.Timestamp
+		if send, err := filter.shouldProcessChanges(timestamp); err != nil {
 			return err
+		} else if send {
+			if err := processChanges(stream, changes, timestamp); err != nil {
+				return err
+			}
 		}
 	}
 }
@@ -172,10 +179,78 @@ func (w *watcher) findProcessor(client security.PublicID, req watch.Request) (re
 	return newSyncProcessor(client)
 }
 
-func processChanges(stream watch.WatcherServiceWatchStream, changes []watch.Change, initialTimestamp, timestamp uint64) error {
-	if timestamp <= initialTimestamp {
-		return nil
+type changeFilter interface {
+	// shouldProcessChanges determines whether to process changes with the given
+	// timestamp. Changes should appear in the sequence of the store log, and
+	// timestamps should be monotonically increasing.
+	shouldProcessChanges(timestamp uint64) (bool, error)
+}
+
+type baseFilter struct {
+	// initialTimestamp is the minimum timestamp of the first change sent.
+	initialTimestamp uint64
+	// crossedInitialTimestamp is true if a change with timestamp >=
+	// initialTimestamp has already been sent.
+	crossedInitialTimestamp bool
+}
+
+// onOrAfterFilter accepts any change with timestamp >= initialTimestamp.
+type onOrAfterFilter struct {
+	baseFilter
+}
+
+// onAndAfterFilter accepts any change with timestamp >= initialTimestamp, but
+// requires the first change to have timestamp = initialTimestamp.
+type onAndAfterFilter struct {
+	baseFilter
+}
+
+// newChangeFilter creates a changeFilter that processes changes only
+// at or after the requested resumeMarker.
+func newChangeFilter(resumeMarker []byte) (changeFilter, error) {
+	if len(resumeMarker) == 0 {
+		return &onOrAfterFilter{baseFilter{0, false}}, nil
 	}
+	if isNowResumeMarker(resumeMarker) {
+		// TODO(tilaks): Get the current resume marker from the log.g
+		return &onOrAfterFilter{baseFilter{uint64(time.Now().UnixNano()), false}}, nil
+	}
+	if len(resumeMarker) != 8 {
+		return nil, ErrUnknownResumeMarker
+	}
+	return &onAndAfterFilter{baseFilter{binary.BigEndian.Uint64(resumeMarker), false}}, nil
+}
+
+func (f *onOrAfterFilter) shouldProcessChanges(timestamp uint64) (bool, error) {
+	// Bypass checks if a change with timestamp >= initialTimestamp has already
+	// been sent.
+	if !f.crossedInitialTimestamp {
+		if timestamp < f.initialTimestamp {
+			return false, nil
+		}
+	}
+	f.crossedInitialTimestamp = true
+	return true, nil
+}
+
+func (f *onAndAfterFilter) shouldProcessChanges(timestamp uint64) (bool, error) {
+	// Bypass checks if a change with timestamp >= initialTimestamp has already
+	// been sent.
+	if !f.crossedInitialTimestamp {
+		if timestamp < f.initialTimestamp {
+			return false, nil
+		}
+		if timestamp > f.initialTimestamp {
+			return false, ErrUnknownResumeMarker
+		}
+		// TODO(tilaks): if the most recent timestamp in the log is less than
+		// initialTimestamp, return ErrUnknownResumeMarker.
+	}
+	f.crossedInitialTimestamp = true
+	return true, nil
+}
+
+func processChanges(stream watch.WatcherServiceWatchStream, changes []watch.Change, timestamp uint64) error {
 	addContinued(changes)
 	addResumeMarkers(changes, timestampToResumeMarker(timestamp))
 	return sendChanges(stream, changes)
@@ -207,20 +282,6 @@ func addResumeMarkers(changes []watch.Change, resumeMarker []byte) {
 
 func isNowResumeMarker(resumeMarker []byte) bool {
 	return bytes.Equal(resumeMarker, nowResumeMarker)
-}
-
-func resumeMarkerToTimestamp(resumeMarker []byte) (uint64, error) {
-	if len(resumeMarker) == 0 {
-		return 0, nil
-	}
-	if isNowResumeMarker(resumeMarker) {
-		// TODO(tilaks): Get the current resume marker from the log.
-		return uint64(time.Now().UnixNano()), nil
-	}
-	if len(resumeMarker) != 8 {
-		return 0, ErrUnknownResumeMarker
-	}
-	return binary.BigEndian.Uint64(resumeMarker), nil
 }
 
 func timestampToResumeMarker(timestamp uint64) []byte {
