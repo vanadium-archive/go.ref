@@ -126,7 +126,7 @@ func TestAuthenticatedByDefault(t *testing.T) {
 
 	// VCSecurityLevel is intentionally not provided to Listen - to test
 	// default behavior.
-	ln, ep, err := server.Listen("tcp", "localhost:0", veyron2.LocalID(serverID))
+	ln, ep, err := server.Listen("tcp", "localhost:0", vc.ListenerID(serverID))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -287,7 +287,7 @@ func TestShutdownEndpoint(t *testing.T) {
 }
 
 func TestSessionTicketCache(t *testing.T) {
-	serverID := veyron2.LocalID(security.FakePrivateID("TestSessionTicketCacheServer"))
+	serverID := vc.ListenerID(security.FakePrivateID("TestSessionTicketCacheServer"))
 	server := InternalNew(naming.FixedRoutingID(0x55555555))
 	_, ep, err := server.Listen("tcp", "localhost:0", serverID)
 	if err != nil {
@@ -314,7 +314,7 @@ func TestMultipleVCs(t *testing.T) {
 
 	// Have the server read from each flow and write to rchan.
 	rchan := make(chan string)
-	ln, ep, err := server.Listen("tcp", "localhost:0", veyron2.LocalID(security.FakePrivateID("server")))
+	ln, ep, err := server.Listen("tcp", "localhost:0", vc.ListenerID(security.FakePrivateID("server")))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -465,7 +465,7 @@ func TestHelperProcess(t *testing.T) {
 
 func runServer(argv []string) {
 	server := InternalNew(naming.FixedRoutingID(0x55555555))
-	_, ep, err := server.Listen("tcp", argv[0], veyron2.LocalID(security.FakePrivateID("server")))
+	_, ep, err := server.Listen("tcp", argv[0], vc.ListenerID(security.FakePrivateID("server")))
 	if err != nil {
 		fmt.Println(err)
 		return

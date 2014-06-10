@@ -18,6 +18,7 @@ import (
 	"testing"
 
 	_ "veyron/lib/testutil"
+	"veyron/runtimes/google/ipc/stream/vc"
 	"veyron/runtimes/google/ipc/stream/vif"
 	iversion "veyron/runtimes/google/ipc/version"
 	"veyron2"
@@ -428,7 +429,7 @@ func NewVersionedClientServer(clientVersions, serverVersions *iversion.Range) (c
 	if client, err = vif.InternalNewDialedVIF(c1, naming.FixedRoutingID(0xc), clientVersions); err != nil {
 		panic(err)
 	}
-	serverID := veyron2.LocalID(security.FakePrivateID("server"))
+	serverID := vc.ListenerID(security.FakePrivateID("server"))
 	if server, err = vif.InternalNewAcceptedVIF(c2, naming.FixedRoutingID(0x5), serverVersions, serverID); err != nil {
 		panic(err)
 	}

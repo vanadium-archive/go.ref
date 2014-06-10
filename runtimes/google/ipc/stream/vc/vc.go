@@ -90,6 +90,29 @@ type Params struct {
 	Helper       Helper
 }
 
+// ListenerIDOpt is the interface for providing an identity to an ipc.StreamListener.
+type ListenerIDOpt interface {
+	stream.ListenerOpt
+	// Identity returns the identity to be used by the ipc.StreamListener.
+	Identity() security.PrivateID
+}
+
+// listenerIDOpt implements ListenerIDOpt.
+type listenerIDOpt struct {
+	id security.PrivateID
+}
+
+func (opt *listenerIDOpt) Identity() security.PrivateID {
+	return opt.id
+}
+
+func (*listenerIDOpt) IPCStreamListenerOpt() {}
+
+// ListenerID provides an implementation of ListenerIDOpt with a fixed identity.
+func ListenerID(id security.PrivateID) ListenerIDOpt {
+	return &listenerIDOpt{id}
+}
+
 // InternalNew creates a new VC, which implements the stream.VC interface.
 //
 // As the name suggests, this method is intended for use only within packages
@@ -411,8 +434,8 @@ func (vc *VC) HandshakeAcceptedVC(opts ...stream.ListenerOpt) <-chan HandshakeRe
 	var securityLevel veyron2.VCSecurityLevel
 	for _, o := range opts {
 		switch v := o.(type) {
-		case veyron2.LocalIDOpt:
-			localID = v.PrivateID
+		case ListenerIDOpt:
+			localID = v.Identity()
 		case veyron2.VCSecurityLevel:
 			securityLevel = v
 		}

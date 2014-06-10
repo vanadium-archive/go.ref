@@ -14,7 +14,7 @@ import (
 func (rt *vrt) NewClient(opts ...ipc.ClientOpt) (ipc.Client, error) {
 	sm := rt.sm
 	mt := rt.mt
-	id := rt.id
+	cIDOpt := veyron2.LocalID(rt.id.Identity())
 	var otherOpts []ipc.ClientOpt
 	for _, opt := range opts {
 		switch topt := opt.(type) {
@@ -23,13 +23,13 @@ func (rt *vrt) NewClient(opts ...ipc.ClientOpt) (ipc.Client, error) {
 		case veyron2.MountTableOpt:
 			mt = topt.MountTable
 		case veyron2.LocalIDOpt:
-			id = topt
+			cIDOpt = topt
 		default:
 			otherOpts = append(otherOpts, opt)
 		}
 	}
-	if id.PrivateID != nil {
-		otherOpts = append(otherOpts, id)
+	if cIDOpt.PrivateID != nil {
+		otherOpts = append(otherOpts, cIDOpt)
 	}
 	return iipc.InternalNewClient(sm, mt, otherOpts...)
 }
@@ -52,7 +52,6 @@ func (rt *vrt) NewServer(opts ...ipc.ServerOpt) (ipc.Server, error) {
 
 	sm := rt.sm
 	mt := rt.mt
-	idSpecified := false
 	var otherOpts []ipc.ServerOpt
 	for _, opt := range opts {
 		switch topt := opt.(type) {
@@ -60,16 +59,12 @@ func (rt *vrt) NewServer(opts ...ipc.ServerOpt) (ipc.Server, error) {
 			sm = topt
 		case veyron2.MountTableOpt:
 			mt = topt
-		case veyron2.LocalIDOpt:
-			idSpecified = true
-			otherOpts = append(otherOpts, opt)
 		default:
 			otherOpts = append(otherOpts, opt)
 		}
 	}
-	if !idSpecified && rt.id.PrivateID != nil {
-		otherOpts = append(otherOpts, rt.id)
-	}
+	// Add the option that provides the identity currently used by the runtime.
+	otherOpts = append(otherOpts, rt.id)
 
 	ctx := rt.NewContext()
 	return iipc.InternalNewServer(ctx, sm, mt, otherOpts...)

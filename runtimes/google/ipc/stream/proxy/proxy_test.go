@@ -10,8 +10,8 @@ import (
 	_ "veyron/lib/testutil"
 	"veyron/runtimes/google/ipc/stream/manager"
 	"veyron/runtimes/google/ipc/stream/proxy"
+	"veyron/runtimes/google/ipc/stream/vc"
 
-	"veyron2"
 	"veyron2/ipc/stream"
 	"veyron2/naming"
 	"veyron2/security"
@@ -142,7 +142,7 @@ func TestServerIdentity(t *testing.T) {
 	server := manager.InternalNew(naming.FixedRoutingID(0x5555555555555555))
 	defer server.Shutdown()
 	serverID := security.FakePrivateID("server")
-	ln, ep, err := server.Listen(proxy.Endpoint().Network(), proxy.Endpoint().String(), veyron2.LocalID(serverID))
+	ln, ep, err := server.Listen(proxy.Endpoint().Network(), proxy.Endpoint().String(), vc.ListenerID(serverID))
 	if err != nil {
 		t.Fatal(err)
 	}

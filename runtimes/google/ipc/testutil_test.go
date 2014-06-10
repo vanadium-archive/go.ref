@@ -5,6 +5,8 @@ import (
 	"testing"
 
 	_ "veyron/lib/testutil"
+
+	"veyron2/security"
 	"veyron2/verror"
 )
 
@@ -34,4 +36,21 @@ func checkResultPtrs(t *testing.T, name string, gotptrs, want []interface{}) {
 			t.Errorf("%s result %d got %v, want %v", name, ix, got, want)
 		}
 	}
+}
+
+// listenerIDOpt implements vc.ListenerIDOpt and veyron2/ipc.ServerOpt.
+type listenerIDOpt struct {
+	id security.PrivateID
+}
+
+func (opt *listenerIDOpt) Identity() security.PrivateID {
+	return opt.id
+}
+
+func (*listenerIDOpt) IPCStreamListenerOpt() {}
+
+func (*listenerIDOpt) IPCServerOpt() {}
+
+func listenerID(id security.PrivateID) *listenerIDOpt {
+	return &listenerIDOpt{id}
 }

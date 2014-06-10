@@ -24,7 +24,7 @@ type vrt struct {
 	mt         naming.MountTable
 	rid        naming.RoutingID
 	signals    chan os.Signal
-	id         veyron2.LocalIDOpt
+	id         *currentIDOpt
 	client     ipc.Client
 	mgmt       *mgmtImpl
 }
@@ -64,12 +64,13 @@ func (rt *vrt) init(opts ...veyron2.ROpt) error {
 	// development. We restrict it to localhost to avoid annoying firewall
 	// warnings and to provide a modicum of security.
 	rt.httpServer = "127.0.0.1:0"
+	rt.id = &currentIDOpt{}
 	mtRoots := []string{}
 
 	for _, o := range opts {
 		switch v := o.(type) {
 		case veyron2.LocalIDOpt:
-			rt.id = v
+			rt.id.setIdentity(v.PrivateID)
 		case veyron2.ProductOpt:
 			rt.product = v.T
 		case veyron2.MountTableRoots:
@@ -114,7 +115,7 @@ func (rt *vrt) init(opts ...veyron2.ROpt) error {
 		return err
 	}
 
-	if rt.client, err = rt.NewClient(rt.id); err != nil {
+	if rt.client, err = rt.NewClient(veyron2.LocalID(rt.id.Identity())); err != nil {
 		return err
 	}
 

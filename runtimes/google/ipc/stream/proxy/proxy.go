@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"net"
 	"sync"
-
 	"veyron/runtimes/google/ipc/stream/id"
 	"veyron/runtimes/google/ipc/stream/message"
 	"veyron/runtimes/google/ipc/stream/vc"
@@ -14,8 +13,6 @@ import (
 	"veyron/runtimes/google/lib/bqueue/drrqueue"
 	"veyron/runtimes/google/lib/iobuf"
 	"veyron/runtimes/google/lib/upcqueue"
-
-	"veyron2"
 	"veyron2/naming"
 	"veyron2/security"
 	"veyron2/verror"
@@ -44,15 +41,13 @@ type Proxy struct {
 // process encapsulates the physical network connection and the routing table
 // associated with the process at the other end of the network connection.
 type process struct {
-	Conn  net.Conn
-	Queue *upcqueue.T
-
+	Conn         net.Conn
+	Queue        *upcqueue.T
 	mu           sync.RWMutex
 	routingTable map[id.VC]*destination
 	nextVCI      id.VC
 	servers      map[id.VC]*vc.VC // servers wishing to be proxied create a VC that terminates at the proxy
-
-	BQ bqueue.T // Flow control for messages sent on behalf of servers.
+	BQ           bqueue.T         // Flow control for messages sent on behalf of servers.
 }
 
 // destination is an entry in the routingtable of a process.
@@ -100,7 +95,6 @@ func (m *servermap) Add(server *server) error {
 	proxyLog().Infof("Started proxying server: %v", server)
 	return nil
 }
-
 func (m *servermap) Remove(server *server) {
 	key := server.RoutingID()
 	m.mu.Lock()
@@ -110,7 +104,6 @@ func (m *servermap) Remove(server *server) {
 	}
 	m.mu.Unlock()
 }
-
 func (m *servermap) Process(rid naming.RoutingID) *process {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -119,7 +112,6 @@ func (m *servermap) Process(rid naming.RoutingID) *process {
 	}
 	return nil
 }
-
 func (m *servermap) List() []string {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -151,7 +143,6 @@ func New(rid naming.RoutingID, identity security.PrivateID, network, address, pu
 	go proxy.listenLoop()
 	return proxy, nil
 }
-
 func (p *Proxy) listenLoop() {
 	proxyLog().Infof("Proxy listening on (%q, %q): %v", p.ln.Addr().Network(), p.ln.Addr(), p.Endpoint())
 	for {
@@ -172,7 +163,6 @@ func (p *Proxy) listenLoop() {
 		go p.readLoop(process)
 	}
 }
-
 func writeLoop(process *process) {
 	defer processLog().Infof("Exited writeLoop for %v", process)
 	defer process.Close()
@@ -190,7 +180,6 @@ func writeLoop(process *process) {
 		}
 	}
 }
-
 func serverVCsLoop(process *process) {
 	for {
 		w, bufs, err := process.BQ.Get(nil)
@@ -211,13 +200,11 @@ func serverVCsLoop(process *process) {
 		releaseBufs(0, bufs)
 	}
 }
-
 func releaseBufs(start int, bufs []*iobuf.Slice) {
 	for i := start; i < len(bufs); i++ {
 		bufs[i].Release()
 	}
 }
-
 func queueDataMessages(bufs []*iobuf.Slice, vc *vc.VC, fid id.Flow, q *upcqueue.T) {
 	for ix, b := range bufs {
 		m := &message.Data{VCI: vc.VCI(), Flow: fid}
@@ -235,14 +222,12 @@ func queueDataMessages(bufs []*iobuf.Slice, vc *vc.VC, fid id.Flow, q *upcqueue.
 		}
 	}
 }
-
 func (p *Proxy) startProcess(process *process) {
 	p.mu.Lock()
 	p.processes[process] = struct{}{}
 	p.mu.Unlock()
 	processLog().Infof("Started process %v", process)
 }
-
 func (p *Proxy) stopProcess(process *process) {
 	process.Close()
 	p.mu.Lock()
@@ -250,14 +235,11 @@ func (p *Proxy) stopProcess(process *process) {
 	p.mu.Unlock()
 	processLog().Infof("Stopped process %v", process)
 }
-
 func (p *Proxy) readLoop(process *process) {
 	p.startProcess(process)
 	defer p.stopProcess(process)
-
 	reader := iobuf.NewReader(iobuf.NewPool(0), process.Conn)
 	defer reader.Close()
-
 	for {
 		msg, err := message.ReadFrom(reader)
 		if err != nil {
@@ -326,12 +308,12 @@ func (p *Proxy) readLoop(process *process) {
 			if naming.Compare(dstrid, p.rid) || naming.Compare(dstrid, naming.NullRoutingID) {
 				// VC that terminates at the proxy.
 				// See protocol.vdl for details on the protocol between the server and the proxy.
-				vc := process.NewServerVC(m)
+				vcObj := process.NewServerVC(m)
 				// route counters after creating the VC so counters to vc are not lost.
 				p.routeCounters(process, m.Counters)
-				if vc != nil {
-					server := &server{Process: process, VC: vc}
-					go p.runServer(server, vc.HandshakeAcceptedVC(veyron2.LocalID(p.id)))
+				if vcObj != nil {
+					server := &server{Process: process, VC: vcObj}
+					go p.runServer(server, vcObj.HandshakeAcceptedVC(vc.ListenerID(p.id)))
 				}
 				break
 			}
@@ -364,7 +346,6 @@ func (p *Proxy) readLoop(process *process) {
 		}
 	}
 }
-
 func (p *Proxy) runServer(server *server, c <-chan vc.HandshakeResult) {
 	hr := <-c
 	if hr.Error != nil {
@@ -379,7 +360,6 @@ func (p *Proxy) runServer(server *server, c <-chan vc.HandshakeResult) {
 	}
 	defer server.Close(nil)
 	server.Process.InitVCI(server.VC.VCI())
-
 	var request Request
 	var response Response
 	if err := vom.NewDecoder(conn).Decode(&request); err != nil {
@@ -414,7 +394,6 @@ func (p *Proxy) runServer(server *server, c <-chan vc.HandshakeResult) {
 	// Wait for this flow to be closed.
 	<-conn.Closed()
 }
-
 func (p *Proxy) routeCounters(process *process, counters message.Counters) {
 	// Since each VC can be routed to a different process, split up the
 	// Counters into one message per VC.
@@ -436,7 +415,6 @@ func (p *Proxy) routeCounters(process *process, counters message.Counters) {
 		}
 	}
 }
-
 func startRoutingVC(srcVCI, dstVCI id.VC, srcProcess, dstProcess *process) {
 	dstProcess.AddRoute(dstVCI, &destination{VCI: srcVCI, Process: srcProcess})
 	srcProcess.AddRoute(srcVCI, &destination{VCI: dstVCI, Process: dstProcess})
@@ -458,24 +436,20 @@ func (p *Proxy) Shutdown() {
 		process.Close()
 	}
 }
-
 func (p *process) String() string {
 	r := p.Conn.RemoteAddr()
 	return fmt.Sprintf("(%s, %s)", r.Network(), r)
 }
-
 func (p *process) Route(vci id.VC) *destination {
 	p.mu.RLock()
 	defer p.mu.RUnlock()
 	return p.routingTable[vci]
 }
-
 func (p *process) AddRoute(vci id.VC, d *destination) {
 	p.mu.Lock()
 	p.routingTable[vci] = d
 	p.mu.Unlock()
 }
-
 func (p *process) InitVCI(vci id.VC) {
 	p.mu.Lock()
 	if p.nextVCI <= vci {
@@ -483,7 +457,6 @@ func (p *process) InitVCI(vci id.VC) {
 	}
 	p.mu.Unlock()
 }
-
 func (p *process) AllocVCI() id.VC {
 	p.mu.Lock()
 	ret := p.nextVCI
@@ -491,13 +464,11 @@ func (p *process) AllocVCI() id.VC {
 	p.mu.Unlock()
 	return ret
 }
-
 func (p *process) RemoveRoute(vci id.VC) {
 	p.mu.Lock()
 	delete(p.routingTable, vci)
 	p.mu.Unlock()
 }
-
 func (p *process) SendCloseVC(vci id.VC, err error) {
 	var estr string
 	if err != nil {
@@ -505,7 +476,6 @@ func (p *process) SendCloseVC(vci id.VC, err error) {
 	}
 	p.Queue.Put(&message.CloseVC{VCI: vci, Error: estr})
 }
-
 func (p *process) Close() {
 	p.mu.Lock()
 	rt := p.routingTable
@@ -514,7 +484,6 @@ func (p *process) Close() {
 		vc.Close("net.Conn is closing")
 	}
 	p.mu.Unlock()
-
 	for _, d := range rt {
 		d.Process.SendCloseVC(d.VCI, errProcessVanished)
 	}
@@ -522,13 +491,11 @@ func (p *process) Close() {
 	p.Queue.Close()
 	p.Conn.Close()
 }
-
 func (p *process) ServerVC(vci id.VC) *vc.VC {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	return p.servers[vci]
 }
-
 func (p *process) NewServerVC(m *message.OpenVC) *vc.VC {
 	p.mu.Lock()
 	defer p.mu.Unlock()
@@ -548,7 +515,6 @@ func (p *process) NewServerVC(m *message.OpenVC) *vc.VC {
 	proxyLog().Infof("Registered VC %v from server on process %v", vc, p)
 	return vc
 }
-
 func (p *process) RemoveServerVC(vci id.VC) *vc.VC {
 	p.mu.Lock()
 	defer p.mu.Unlock()
@@ -567,7 +533,6 @@ func (p *process) NotifyOfNewFlow(vci id.VC, fid id.Flow, bytes uint) {
 		processLog().Infof("Failed to send OpenFlow(%+v) on process %v: %v", msg, p, err)
 	}
 }
-
 func (p *process) AddReceiveBuffers(vci id.VC, fid id.Flow, bytes uint) {
 	if bytes == 0 {
 		return
@@ -578,7 +543,6 @@ func (p *process) AddReceiveBuffers(vci id.VC, fid id.Flow, bytes uint) {
 		processLog().Infof("Failed to send AddReceiveBuffers(%+v) on process %v: %v", msg, p, err)
 	}
 }
-
 func (p *process) NewWriter(vci id.VC, fid id.Flow) (bqueue.Writer, error) {
 	return p.BQ.NewWriter(packIDs(vci, fid), 0, vc.DefaultBytesBufferedPerFlow)
 }
@@ -588,11 +552,9 @@ func proxyLog() vlog.InfoLog   { return vlog.VI(1) }
 func processLog() vlog.InfoLog { return vlog.VI(2) }
 func vcLog() vlog.InfoLog      { return vlog.VI(3) }
 func msgLog() vlog.InfoLog     { return vlog.VI(4) }
-
 func packIDs(vci id.VC, fid id.Flow) bqueue.ID {
 	return bqueue.ID(message.MakeCounterID(vci, fid))
 }
-
 func unpackIDs(b bqueue.ID) (id.VC, id.Flow) {
 	cid := message.CounterID(b)
 	return cid.VCI(), cid.Flow()

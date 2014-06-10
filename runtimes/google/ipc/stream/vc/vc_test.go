@@ -277,7 +277,7 @@ func New(security veyron2.VCSecurityLevel) (*helper, stream.VC) {
 	go clientH.pipeLoop(serverH.VC)
 	go serverH.pipeLoop(clientH.VC)
 
-	c := serverH.VC.HandshakeAcceptedVC(security, veyron2.LocalID(serverID))
+	c := serverH.VC.HandshakeAcceptedVC(security, vc.ListenerID(serverID))
 	if err := clientH.VC.HandshakeDialedVC(security, veyron2.LocalID(clientID)); err != nil {
 		panic(err)
 	}

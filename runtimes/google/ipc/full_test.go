@@ -208,7 +208,7 @@ func (mt *mountTable) SetRoots([]string) error {
 
 func startServer(t *testing.T, serverID security.PrivateID, sm stream.Manager, mt naming.MountTable, ts interface{}) ipc.Server {
 	vlog.VI(1).Info("InternalNewServer")
-	server, err := InternalNewServer(InternalNewContext(), sm, mt, veyron2.LocalID(serverID))
+	server, err := InternalNewServer(InternalNewContext(), sm, mt, listenerID(serverID))
 	if err != nil {
 		t.Errorf("InternalNewServer failed: %v", err)
 	}
@@ -769,7 +769,7 @@ func TestPublishOptions(t *testing.T) {
 		{[]ipc.ServerOpt{veyron2.PublishFirst, veyron2.EndpointRewriteOpt("example.com")}, []string{"example.com"}},
 	}
 	for i, c := range cases {
-		server, err := InternalNewServer(InternalNewContext(), sm, mt, append([]ipc.ServerOpt{veyron2.LocalID(serverID)}, c.opts...)...)
+		server, err := InternalNewServer(InternalNewContext(), sm, mt, append([]ipc.ServerOpt{listenerID(serverID)}, c.opts...)...)
 		if err != nil {
 			t.Errorf("InternalNewServer failed: %v", err)
 			continue
@@ -907,7 +907,7 @@ func TestProxy(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer client.Close()
-	server, err := InternalNewServer(InternalNewContext(), sm, mt, veyron2.LocalID(serverID))
+	server, err := InternalNewServer(InternalNewContext(), sm, mt, listenerID(serverID))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -992,7 +992,7 @@ func runServer(argv []string) {
 	mt := newMountTable()
 	id := loadIdentityFromFile(argv[1])
 	isecurity.TrustIdentityProviders(id)
-	server, err := InternalNewServer(InternalNewContext(), mgr, mt, veyron2.LocalID(id))
+	server, err := InternalNewServer(InternalNewContext(), mgr, mt, listenerID(id))
 	if err != nil {
 		vlog.Fatalf("InternalNewServer failed: %v", err)
 	}
