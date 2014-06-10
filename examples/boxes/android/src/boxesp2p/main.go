@@ -59,7 +59,6 @@ import "C"
 import (
 	"bytes"
 	"fmt"
-	"io"
 	"net"
 	"os"
 	"runtime"
@@ -94,7 +93,7 @@ type goState struct {
 	runtime       veyron2.Runtime
 	store         *storage.Server
 	ipc           ipc.Server
-	drawStream    boxes.DrawInterfaceDrawStream
+	drawStream    boxes.DrawInterfaceServiceDrawStream
 	signalling    boxes.BoxSignalling
 	boxList       chan boxes.Box
 	myIPAddr      string
@@ -141,48 +140,14 @@ func (gs *goState) SyncBoxes(context ipc.ServerContext) error {
 	}
 	// Launch the sync service
 	initSyncService(endPt.Addr().String())
-	// Watch the store for any box updates
-	go gs.watchStore()
+	// Watch/Update the store for any box changes
+	go gs.monitorStore()
 	return nil
 }
 
-func (gs *goState) watchStore() {
-	rst, err := raw.BindStore(naming.JoinAddressName(gs.storeEndpoint, raw.RawStoreSuffix))
-	if err != nil {
-		panic(fmt.Errorf("Failed to Bind Store:%v", err))
-	}
-	ctx := gs.runtime.NewContext()
-	req := watch.Request{Query: query.Query{}}
-	stream, err := rst.Watch(ctx, req, veyron2.CallTimeout(ipc.NoTimeout))
-	if err != nil {
-		panic(fmt.Errorf("Can't watch store: %s: %s", gs.storeEndpoint, err))
-	}
-	for {
-		cb, err := stream.Recv()
-		if err != nil {
-			panic(fmt.Errorf("Can't receive watch event: %s: %s", gs.storeEndpoint, err))
-		}
-		for _, change := range cb.Changes {
-			if mu, ok := change.Value.(*raw.Mutation); ok && len(mu.Dir) == 0 {
-				if box, ok := mu.Value.(boxes.Box); ok {
-					nativeJava.addBox(&box)
-				}
-			}
-		}
-	}
-}
-
 func (gs *goState) Draw(context ipc.ServerContext, stream boxes.DrawInterfaceServiceDrawStream) error {
-	for {
-		box, err := stream.Recv()
-		if err == io.EOF {
-			break
-		}
-		if err != nil {
-			return err
-		}
-		nativeJava.addBox(&box)
-	}
+	gs.drawStream = stream
+	gs.streamBoxesLoop()
 	return nil
 }
 
@@ -190,7 +155,18 @@ func (gs *goState) sendBox(box boxes.Box) {
 	gs.boxList <- box
 }
 
-func (gs *goState) sendDrawLoop() {
+func (gs *goState) streamBoxesLoop() {
+	// Loop to receive boxes from remote peer
+	go func() {
+		for {
+			box, err := gs.drawStream.Recv()
+			if err != nil {
+				return
+			}
+			nativeJava.addBox(&box)
+		}
+	}()
+	// Loop to send boxes to remote peer
 	for {
 		if err := gs.drawStream.Send(<-gs.boxList); err != nil {
 			break
@@ -198,9 +174,35 @@ func (gs *goState) sendDrawLoop() {
 	}
 }
 
-func (gs *goState) updateStore(endpoint string) {
-	initSyncService(endpoint)
+func (gs *goState) monitorStore() {
 	ctx := gs.runtime.NewContext()
+
+	// Watch for any box updates from the store
+	go func() {
+		rst, err := raw.BindStore(naming.JoinAddressName(gs.storeEndpoint, raw.RawStoreSuffix))
+		if err != nil {
+			panic(fmt.Errorf("Failed to raw.Bind Store:%v", err))
+		}
+		req := watch.Request{Query: query.Query{}}
+		stream, err := rst.Watch(ctx, req, veyron2.CallTimeout(ipc.NoTimeout))
+		if err != nil {
+			panic(fmt.Errorf("Can't watch store: %s: %s", gs.storeEndpoint, err))
+		}
+		for {
+			cb, err := stream.Recv()
+			if err != nil {
+				panic(fmt.Errorf("Can't receive watch event: %s: %s", gs.storeEndpoint, err))
+			}
+			for _, change := range cb.Changes {
+				if mu, ok := change.Value.(*raw.Mutation); ok && len(mu.Dir) == 0 {
+					if box, ok := mu.Value.(boxes.Box); ok && box.DeviceId != gs.myIPAddr {
+						nativeJava.addBox(&box)
+					}
+				}
+			}
+		}
+	}()
+	// Send any box updates to the store
 	vst, err := vstore.New(gs.storeEndpoint)
 	if err != nil {
 		panic(fmt.Errorf("Failed to init veyron store:%v", err))
@@ -232,7 +234,6 @@ func (gs *goState) registerAsPeer() {
 	if err != nil {
 		panic(fmt.Errorf("Failed runtime.NewServer:%v", err))
 	}
-
 	drawServer := boxes.NewServerDrawInterface(gs)
 	if err := srv.Register("draw", ipc.SoloDispatcher(drawServer, auth)); err != nil {
 		panic(fmt.Errorf("Failed Register:%v", err))
@@ -255,12 +256,11 @@ func (gs *goState) connectPeer() {
 	if err != nil {
 		panic(fmt.Errorf("failed BindDrawInterface:%v", err))
 	}
-	if gs.drawStream, err = drawInterface.Draw(gs.runtime.TODOContext()); err != nil {
-		panic(fmt.Errorf("failed to get handle to Draw stream:%v\n", err))
-	}
-	gs.boxList = make(chan boxes.Box, 256)
 	if !useStoreService {
-		go gs.sendDrawLoop()
+		if gs.drawStream, err = drawInterface.Draw(gs.runtime.TODOContext()); err != nil {
+			panic(fmt.Errorf("failed to get handle to Draw stream:%v\n", err))
+		}
+		go gs.streamBoxesLoop()
 	} else {
 		// Initialize the store sync service that listens for updates from a peer
 		endpoint, err := inaming.NewEndpoint(endpointStr)
@@ -270,7 +270,8 @@ func (gs *goState) connectPeer() {
 		if err = drawInterface.SyncBoxes(gs.runtime.TODOContext()); err != nil {
 			panic(fmt.Errorf("failed to setup remote sync service:%v", err))
 		}
-		go gs.updateStore(endpoint.Addr().String())
+		initSyncService(endpoint.Addr().String())
+		go gs.monitorStore()
 	}
 }
 
@@ -293,7 +294,7 @@ func Java_com_boxes_GoNative_connectPeer(env *C.JNIEnv) {
 //export Java_com_boxes_GoNative_sendDrawBox
 func Java_com_boxes_GoNative_sendDrawBox(env *C.JNIEnv, class C.jclass,
 	boxId C.jstring, ox C.jfloat, oy C.jfloat, cx C.jfloat, cy C.jfloat) {
-	gs.sendBox(boxes.Box{BoxId: C.GoString(C.JToCString(env, boxId)), Points: [4]float32{float32(ox), float32(oy), float32(cx), float32(cy)}})
+	gs.sendBox(boxes.Box{DeviceId: gs.myIPAddr, BoxId: C.GoString(C.JToCString(env, boxId)), Points: [4]float32{float32(ox), float32(oy), float32(cx), float32(cy)}})
 }
 
 //export Java_com_boxes_GoNative_registerAddBox
@@ -376,6 +377,8 @@ func main() {
 	if err = os.RemoveAll(storePath); err != nil {
 		panic(fmt.Errorf("Failed to remove remnant store files:%v\n", err))
 	}
+
+	gs.boxList = make(chan boxes.Box, 256)
 
 	// Initialize veyron runtime and bind to the signalling server used to rendezvous with
 	// another peer device. TODO(gauthamt): Switch to using the nameserver for signalling.
