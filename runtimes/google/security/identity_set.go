@@ -198,9 +198,9 @@ func (s setPrivateID) Derive(pub security.PublicID) (security.PrivateID, error) 
 	}
 }
 
-func (s setPrivateID) MintDischarge(cav security.ThirdPartyCaveat, duration time.Duration, dischargeCaveats []security.ServiceCaveat) (security.ThirdPartyDischarge, error) {
+func (s setPrivateID) MintDischarge(cav security.ThirdPartyCaveat, ctx security.Context, duration time.Duration, dischargeCaveats []security.ServiceCaveat) (security.ThirdPartyDischarge, error) {
 	for _, id := range s {
-		if d, err := id.MintDischarge(cav, duration, dischargeCaveats); err == nil {
+		if d, err := id.MintDischarge(cav, ctx, duration, dischargeCaveats); err == nil {
 			return d, nil
 		}
 	}

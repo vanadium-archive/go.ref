@@ -209,8 +209,8 @@ func (id *chainPrivateID) Derive(pub security.PublicID) (security.PrivateID, err
 	}
 }
 
-func (id *chainPrivateID) MintDischarge(cav security.ThirdPartyCaveat, duration time.Duration, dischargeCaveats []security.ServiceCaveat) (security.ThirdPartyDischarge, error) {
-	return icaveat.NewPublicKeyDischarge(cav, id.privateKey, duration, dischargeCaveats)
+func (id *chainPrivateID) MintDischarge(cav security.ThirdPartyCaveat, ctx security.Context, duration time.Duration, dischargeCaveats []security.ServiceCaveat) (security.ThirdPartyDischarge, error) {
+	return icaveat.NewPublicKeyDischarge(cav, ctx, id.privateKey, duration, dischargeCaveats)
 }
 
 // newChainPrivateID returns a new PrivateID containing a freshly generated

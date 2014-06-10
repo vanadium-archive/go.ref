@@ -14,10 +14,11 @@ import (
 	vcaveat "veyron/security/caveat"
 	"veyron2/security"
 	"veyron2/security/wire"
+	"veyron2/vom"
 )
 
 // nonceLength specifies the length in bytes of the random nonce used
-// in PublicKeyCaveat and PublicKeyDischarge.
+// in publicKeyCaveat and publicKeyDischarge.
 //
 // TODO(ataly, ashankar): Nonce length of 16 bytes was chosen very conservatively.
 // The purpose of the random nonce is essentially to separate caveats that have
@@ -28,7 +29,7 @@ const nonceLength = 16
 // errPublicKeyCaveat returns an error indicating that the provided caveat has
 // an invalid or missing discharge.
 func errPublicKeyCaveat(c *publicKeyCaveat, err error) error {
-	return fmt.Errorf("%v for PublicKeyCaveat{nonce:%v restriction:%q location:%q}", err, c.RandNonce, c.Restriction, c.Location())
+	return fmt.Errorf("%v for publicKeyCaveat{nonce:%v location:%q}", err, c.RandNonce, c.Location())
 }
 
 // publicKeyCaveat implements security.ThirdPartyCaveat. It specifies a restriction,
@@ -40,8 +41,11 @@ type publicKeyCaveat struct {
 	// uniquely identifies the caveat.
 	RandNonce []uint8
 
-	// Restriction specifies the predicate to be checked by the dicharging-party.
-	Restriction string
+	// DischargeMintingCaveat specifies the caveat that has to be validated
+	// before minting a discharge for a publicKeyCaveat. A byte slice containing
+	// VOM-encoded security.Caveat is used to enable a publicKeyCaveat to be
+	// validated by devices that cannot decode the discharge minting caveats.
+	DischargeMintingCaveat []byte
 
 	// ValidationKey specifies the public key of the discharging-party.
 	ValidationKey wire.PublicKey
@@ -56,7 +60,7 @@ type publicKeyCaveat struct {
 // TODO(ataly, ashankar): A 256bit hash is probably much stronger that what we need
 // here. Can we truncate the hash to 96bits?
 func (c *publicKeyCaveat) ID() security.ThirdPartyCaveatID {
-	return security.ThirdPartyCaveatID(id(c.RandNonce, c.Restriction))
+	return security.ThirdPartyCaveatID(id(c.RandNonce, c.DischargeMintingCaveat))
 }
 
 // Location returns the third-party location embedded in the caveat.
@@ -65,7 +69,7 @@ func (c *publicKeyCaveat) Location() string {
 }
 
 func (c *publicKeyCaveat) String() string {
-	return fmt.Sprintf("PublicKeyCaveat{Restriction: %q, ThirdPartyLocation: %q}", c.Restriction, c.ThirdPartyLocation)
+	return fmt.Sprintf("publicKeyCaveat{DischargeMintingCaveat: (%v bytes), ThirdPartyLocation: %q}", len(c.DischargeMintingCaveat), c.ThirdPartyLocation)
 }
 
 // Validate verifies whether the caveat validates for the provided context.
@@ -106,14 +110,8 @@ func (c *publicKeyCaveat) Validate(ctx security.Context) error {
 // service caveats which must all be valid in order for the discharge to be
 // considered valid.
 type publicKeyDischarge struct {
-	// RandNonce specifies a cryptographically random nonce that uniquely
-	// identifies the discharge. It should be the same as the random nonce
-	// of the corresponding caveat.
-	RandNonce []uint8
-
-	// Restriction specifies the predicate that was checked before providing
-	// this discharge.
-	Restriction string
+	// ThirdPartyCaveatID is used to match a Discharge with the Caveat it is for.
+	ThirdPartyCaveatID security.ThirdPartyCaveatID
 
 	// Caveats under which this Discharge is valid.
 	Caveats []wire.Caveat
@@ -126,7 +124,7 @@ type publicKeyDischarge struct {
 // CaveatID returns a unique identity for the discharge based on the random nonce and
 // restriction embedded in the discharge.
 func (d *publicKeyDischarge) CaveatID() security.ThirdPartyCaveatID {
-	return security.ThirdPartyCaveatID(id(d.RandNonce, d.Restriction))
+	return d.ThirdPartyCaveatID
 }
 
 func (d *publicKeyDischarge) ThirdPartyCaveats() []security.ServiceCaveat {
@@ -149,9 +147,7 @@ func (d *publicKeyDischarge) contentHash() []byte {
 	h := sha256.New()
 	tmp := make([]byte, binary.MaxVarintLen64)
 
-	wire.WriteBytes(h, tmp, d.RandNonce)
-	wire.WriteString(h, tmp, d.Restriction)
-
+	wire.WriteBytes(h, tmp, []byte(d.ThirdPartyCaveatID))
 	for _, cav := range d.Caveats {
 		wire.WriteString(h, tmp, string(cav.Service))
 		wire.WriteBytes(h, tmp, cav.Bytes)
@@ -161,7 +157,7 @@ func (d *publicKeyDischarge) contentHash() []byte {
 
 // NewPublicKeyCaveat returns a new third-party caveat from the provided restriction,
 // third-party identity, and third-party location.
-func NewPublicKeyCaveat(restriction string, thirdParty security.PublicID, location string) (security.ThirdPartyCaveat, error) {
+func NewPublicKeyCaveat(dischargeMintingCaveat security.Caveat, thirdParty security.PublicID, location string) (security.ThirdPartyCaveat, error) {
 	nonce := make([]uint8, nonceLength)
 	if _, err := rand.Read(nonce); err != nil {
 		return nil, err
@@ -172,30 +168,38 @@ func NewPublicKeyCaveat(restriction string, thirdParty security.PublicID, locati
 		return nil, err
 	}
 
+	var mintingCaveatEncoded bytes.Buffer
+	vom.NewEncoder(&mintingCaveatEncoded).Encode(dischargeMintingCaveat)
 	return &publicKeyCaveat{
-		RandNonce:          nonce,
-		Restriction:        restriction,
-		ValidationKey:      validationKey,
-		ThirdPartyLocation: location,
+		RandNonce:              nonce,
+		DischargeMintingCaveat: mintingCaveatEncoded.Bytes(),
+		ValidationKey:          validationKey,
+		ThirdPartyLocation:     location,
 	}, nil
 }
 
 // NewPublicKeyDischarge returns a new discharge for the provided caveat
-// (which should have been created by NewPublicKeyCaveat).
+// after verifying that the caveats for minting a discharge are met.
 //
 // The CaveatID of the discharge is the same as the ID of the caveat, and
 // the discharge includes the provided service caveats along with a universal
 // expiry caveat for the provided duration. The discharge also includes a
 // signature over its contents obtained from the provided private key.
-func NewPublicKeyDischarge(caveat security.ThirdPartyCaveat, dischargingKey *ecdsa.PrivateKey, duration time.Duration, caveats []security.ServiceCaveat) (security.ThirdPartyDischarge, error) {
+func NewPublicKeyDischarge(caveat security.ThirdPartyCaveat, ctx security.Context, dischargingKey *ecdsa.PrivateKey, duration time.Duration, caveats []security.ServiceCaveat) (security.ThirdPartyDischarge, error) {
 	cav, ok := caveat.(*publicKeyCaveat)
 	if !ok {
 		return nil, fmt.Errorf("cannot mint discharges for %T", caveat)
 	}
-	discharge := &publicKeyDischarge{
-		RandNonce:   cav.RandNonce,
-		Restriction: cav.Restriction,
+	var mintingCaveat security.Caveat
+	mcBuf := bytes.NewReader(cav.DischargeMintingCaveat)
+	if err := vom.NewDecoder(mcBuf).Decode(&mintingCaveat); err != nil {
+		return nil, fmt.Errorf("failed to decode DischargeMintingCaveat: %s", err)
 	}
+	if err := mintingCaveat.Validate(ctx); err != nil {
+		return nil, fmt.Errorf("failed to validate DischargeMintingCaveat: %s", err)
+	}
+
+	discharge := &publicKeyDischarge{ThirdPartyCaveatID: caveat.ID()}
 
 	now := time.Now()
 	expiryCaveat := &vcaveat.Expiry{IssueTime: now, ExpiryTime: now.Add(duration)}
@@ -214,15 +218,18 @@ func NewPublicKeyDischarge(caveat security.ThirdPartyCaveat, dischargingKey *ecd
 	return discharge, nil
 }
 
-// id serializes the provided byte slice and SHA-256 hash of the provided string.
-func id(b []uint8, str string) string {
-	var buf bytes.Buffer
-	buf.Write(b)
-
+// id calculates the sha256 hash of length-delimited byte slices
+func id(slices ...[]byte) string {
 	h := sha256.New()
 	tmp := make([]byte, binary.MaxVarintLen64)
-	wire.WriteString(h, tmp, str)
 
-	buf.Write(h.Sum(nil))
-	return buf.String()
+	for _, slice := range slices {
+		wire.WriteBytes(h, tmp, slice)
+	}
+	return string(h.Sum(nil))
+}
+
+func init() {
+	vom.Register(publicKeyCaveat{})
+	vom.Register(publicKeyDischarge{})
 }
