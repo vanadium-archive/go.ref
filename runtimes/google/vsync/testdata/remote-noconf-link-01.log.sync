@@ -1,0 +1,5 @@
+# Update an object remotely, detect conflict, and bless the local version.
+# The format is: <cmd>|<objid>|<version>|<parent1>|<parent2>|<logrec>
+
+addr|12345|3|0||VeyronPhone:1:0
+linkr|12345|3|2||VeyronPhone:1:1
