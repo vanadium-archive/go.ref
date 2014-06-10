@@ -3,6 +3,7 @@ package modules
 import (
 	"fmt"
 	"os"
+	"strings"
 	"time"
 
 	"veyron/lib/testutil/blackbox"
@@ -122,7 +123,7 @@ func (c *clock) Run(args []string) (Variables, []string, Handle, error) {
 		return nil, nil, nil, err
 	}
 	v := make(Variables)
-	v.Update("TIME", r)
+	v.Update("TIME", strings.TrimRight(r, "\n"))
 	return v, []string{r}, nil, nil
 
 }
@@ -169,7 +170,7 @@ func (e *echo) Run(args []string) (Variables, []string, Handle, error) {
 		return nil, nil, nil, err
 	}
 	v := make(Variables)
-	v.Update("ECHO", r)
+	v.Update("ECHO", strings.TrimRight(r, "\n"))
 	return v, []string{r}, nil, nil
 }
 
