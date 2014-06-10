@@ -18,10 +18,11 @@ import (
 func main() {
 	var (
 		// TODO(rthellend): Remove the address and protocol flags when the config manager is working.
-		address  = flag.String("address", ":0", "Network address the proxy listens on")
-		protocol = flag.String("protocol", "tcp", "Network type the proxy listens on")
-		httpAddr = flag.String("http", ":14142", "Network address on which the HTTP debug server runs")
-		name     = flag.String("name", "", "Name to mount the proxy as")
+		address    = flag.String("address", ":0", "Network address the proxy listens on")
+		pubAddress = flag.String("published_address", "", "Network address the proxy publishes. If empty, the value of --address will be used")
+		protocol   = flag.String("protocol", "tcp", "Network type the proxy listens on")
+		httpAddr   = flag.String("http", ":14142", "Network address on which the HTTP debug server runs")
+		name       = flag.String("name", "", "Name to mount the proxy as")
 	)
 
 	r := rt.Init()
@@ -32,7 +33,7 @@ func main() {
 		vlog.Fatal(err)
 	}
 
-	proxy, err := proxy.New(rid, nil, *protocol, *address)
+	proxy, err := proxy.New(rid, nil, *protocol, *address, *pubAddress)
 	if err != nil {
 		vlog.Fatal(err)
 	}

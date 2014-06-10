@@ -32,12 +32,13 @@ var (
 // Proxy routes virtual circuit (VC) traffic between multiple underlying
 // network connections.
 type Proxy struct {
-	ln        net.Listener
-	rid       naming.RoutingID
-	id        security.PrivateID
-	mu        sync.RWMutex
-	servers   *servermap
-	processes map[*process]struct{}
+	ln         net.Listener
+	rid        naming.RoutingID
+	id         security.PrivateID
+	mu         sync.RWMutex
+	servers    *servermap
+	processes  map[*process]struct{}
+	pubAddress string
 }
 
 // process encapsulates the physical network connection and the routing table
@@ -131,17 +132,21 @@ func (m *servermap) List() []string {
 
 // New creates a new Proxy that listens for network connections on the provided
 // (network, address) pair and routes VC traffic between accepted connections.
-func New(rid naming.RoutingID, identity security.PrivateID, network, address string) (*Proxy, error) {
+func New(rid naming.RoutingID, identity security.PrivateID, network, address, pubAddress string) (*Proxy, error) {
 	ln, err := net.Listen(network, address)
 	if err != nil {
 		return nil, fmt.Errorf("net.Listen(%q, %q) failed: %v", network, address, err)
 	}
+	if len(pubAddress) == 0 {
+		pubAddress = ln.Addr().String()
+	}
 	proxy := &Proxy{
-		ln:        ln,
-		rid:       rid,
-		id:        identity,
-		servers:   &servermap{m: make(map[naming.RoutingID]*server)},
-		processes: make(map[*process]struct{}),
+		ln:         ln,
+		rid:        rid,
+		id:         identity,
+		servers:    &servermap{m: make(map[naming.RoutingID]*server)},
+		processes:  make(map[*process]struct{}),
+		pubAddress: pubAddress,
 	}
 	go proxy.listenLoop()
 	return proxy, nil
@@ -441,7 +446,7 @@ func startRoutingVC(srcVCI, dstVCI id.VC, srcProcess, dstProcess *process) {
 // Endpoint returns the endpoint of the proxy service.  By Dialing a VC to this
 // endpoint, processes can have their services exported through the proxy.
 func (p *Proxy) Endpoint() naming.Endpoint {
-	return version.Endpoint(p.ln.Addr().Network(), p.ln.Addr().String(), p.rid)
+	return version.Endpoint(p.ln.Addr().Network(), p.pubAddress, p.rid)
 }
 
 // Shutdown stops the proxy service, closing all network connections.

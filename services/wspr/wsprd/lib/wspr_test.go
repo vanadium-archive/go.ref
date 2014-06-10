@@ -131,7 +131,7 @@ func startProxy() (*proxy.Proxy, error) {
 		return nil, err
 	}
 
-	return proxy.New(rid, nil, "tcp", "127.0.0.1:0")
+	return proxy.New(rid, nil, "tcp", "127.0.0.1:0", "")
 }
 
 func startMountTableServer() (ipc.Server, naming.Endpoint, error) {

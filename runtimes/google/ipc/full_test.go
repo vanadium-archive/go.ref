@@ -1014,7 +1014,7 @@ func runProxy([]string) {
 	if err != nil {
 		vlog.Fatal(err)
 	}
-	proxy, err := proxy.New(rid, nil, "tcp4", "127.0.0.1:0")
+	proxy, err := proxy.New(rid, nil, "tcp4", "127.0.0.1:0", "")
 	if err != nil {
 		vlog.Fatal(err)
 	}
