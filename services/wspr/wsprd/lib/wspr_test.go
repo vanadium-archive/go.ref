@@ -177,10 +177,10 @@ func (w *testWriter) FinishMessage() error {
 	}
 	w.Lock()
 	w.stream = append(w.stream, resp)
-	w.Unlock()
 	if w.notifier != nil {
 		w.notifier <- true
 	}
+	w.Unlock()
 	return nil
 }
 
@@ -196,7 +196,9 @@ func (w *testWriter) waitForMessage(n int) error {
 	if w.streamLength() >= n {
 		return nil
 	}
+	w.Lock()
 	w.notifier = make(chan bool, 1)
+	w.Unlock()
 	for w.streamLength() < n {
 		select {
 		case <-w.notifier:
@@ -205,7 +207,9 @@ func (w *testWriter) waitForMessage(n int) error {
 			return fmt.Errorf("timed out")
 		}
 	}
+	w.Lock()
 	w.notifier = nil
+	w.Unlock()
 	return nil
 }
 
@@ -590,6 +594,12 @@ func runJsServerTestCase(t *testing.T, test jsServerTestCase) {
 	if (err2 != nil || test.err != nil) && !reflect.DeepEqual(err2, test.err) {
 		t.Errorf("unexected error: got %v, expected %v", err2, test.err)
 	}
+
+	// Wait until the close streaming messages have been acknowledged.
+	if err := writer.waitForMessage(len(expectedWebsocketMessage)); err != nil {
+		t.Errorf("didn't recieve expected message: %v", err)
+	}
+
 	checkResponses(&writer, expectedWebsocketMessage, nil, t)
 }
 
