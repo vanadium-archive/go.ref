@@ -76,15 +76,10 @@ func (cs *configService) Stop() {
 	cs.rwlock.Lock()
 	mdns := cs.mdns
 	cs.mdns = nil
-	c := cs.done
-	cs.done = nil
 	cs.rwlock.Unlock()
-
-	if c != nil {
-		close(c)
-	}
 	if mdns != nil {
 		mdns.Stop()
+		close(cs.done)
 	}
 }
 
@@ -264,9 +259,14 @@ func (cs *configService) watchAll(c chan Pair) {
 // TODO(p): Should we also watch the file for changes?
 func (cs *configService) watcher() {
 	cs.rwlock.RLock()
+	if cs.mdns == nil {
+		cs.rwlock.RUnlock()
+		return
+	}
 	c := cs.mdns.ServiceMemberWatch(cs.service)
 	cs.mdns.SubscribeToService(cs.service)
 	cs.rwlock.RUnlock()
+	defer close(c)
 	for {
 		select {
 		case si := <-c:
@@ -299,11 +299,9 @@ func (cs *configService) watcher() {
 			cs.atomic.Unlock()
 			cs.Offer()
 		case <-cs.done:
-			break
+			return
 		}
 	}
-	close(c)
-	return
 }
 
 // Get returns the value associated with key.
