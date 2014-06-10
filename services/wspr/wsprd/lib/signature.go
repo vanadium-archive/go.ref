@@ -1,8 +1,6 @@
 package lib
 
 import (
-	"fmt"
-
 	"veyron2/ipc"
 	"veyron2/vdl"
 	"veyron2/wiretype"
@@ -73,14 +71,14 @@ func (jss JSONServiceSignature) ServiceSignature() (ipc.ServiceSignature, error)
 				Type: anydataTypeID,
 			}
 		}
-		if sig.NumOutArgs != 2 {
-			return ipc.ServiceSignature{}, fmt.Errorf("cannot create service signature for service without exactly one return value and one error")
+
+		ms.OutArgs = make([]ipc.MethodArgument, sig.NumOutArgs)
+		for i := 0; i < sig.NumOutArgs-1; i++ {
+			ms.OutArgs[i] = ipc.MethodArgument{
+				Type: anydataTypeID,
+			}
 		}
-		ms.OutArgs = make([]ipc.MethodArgument, 2)
-		ms.OutArgs[0] = ipc.MethodArgument{
-			Type: anydataTypeID,
-		}
-		ms.OutArgs[1] = ipc.MethodArgument{
+		ms.OutArgs[sig.NumOutArgs-1] = ipc.MethodArgument{
 			Name: "err",
 			Type: errTypeID,
 		}
