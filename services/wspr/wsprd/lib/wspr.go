@@ -167,7 +167,7 @@ type serverRPCReply struct {
 }
 
 // finishCall waits for the call to finish and write out the response to w.
-func finishCall(w clientWriter, clientCall ipc.Call, msg *veyronRPC) {
+func (wsp *websocketPipe) finishCall(w clientWriter, clientCall ipc.Call, msg *veyronRPC) {
 	if msg.IsStreaming {
 		for {
 			var item interface{}
@@ -184,7 +184,7 @@ func finishCall(w clientWriter, clientCall ipc.Call, msg *veyronRPC) {
 				continue
 			}
 			if err := w.FinishMessage(); err != nil {
-				w.getLogger().VI(2).Info("WSPR: error finishing message: ", err)
+				wsp.ctx.logger.Error("WSPR: error finishing message: ", err)
 			}
 		}
 
@@ -192,7 +192,7 @@ func finishCall(w clientWriter, clientCall ipc.Call, msg *veyronRPC) {
 			w.sendError(verror.Internalf("unable to marshal close stream message"))
 		}
 		if err := w.FinishMessage(); err != nil {
-			w.getLogger().VI(2).Info("WSPR: error finishing message: ", err)
+			wsp.ctx.logger.Error("WSPR: error finishing message: ", err)
 		}
 	}
 
@@ -226,7 +226,7 @@ func finishCall(w clientWriter, clientCall ipc.Call, msg *veyronRPC) {
 	}
 
 	if err := w.FinishMessage(); err != nil {
-		w.getLogger().VI(2).Info("WSPR: error finishing message: ", err)
+		wsp.ctx.logger.Error("WSPR: error finishing message: ", err)
 		return
 	}
 }
@@ -278,7 +278,7 @@ func decodeIdentity(logger vlog.Logger, msg string) security.PrivateID {
 	// be used instead.
 	var id security.PrivateID
 	if err := vom.NewDecoder(base64.NewDecoder(base64.URLEncoding, strings.NewReader(msg))).Decode(&id); err != nil {
-		logger.VI(0).Info("Could not decode identity:", err)
+		logger.Error("Could not decode identity:", err)
 		return nil
 	}
 	return id
@@ -398,7 +398,6 @@ func (wsp *websocketPipe) cleanup() {
 }
 
 func (wsp *websocketPipe) setup() {
-	wsp.ctx.logger.Info("identity is ", wsp.ctx.rt.Identity())
 	wsp.signatureManager = newSignatureManager()
 	wsp.outstandingStreams = make(map[int64]sender)
 	wsp.flowMap = make(map[int64]*server)
@@ -418,7 +417,7 @@ func (wsp *websocketPipe) start(w http.ResponseWriter, req *http.Request) {
 		return
 	} else if err != nil {
 		http.Error(w, "Internal Error", 500)
-		wsp.ctx.logger.VI(0).Infof("websocket upgrade failed: %s", err)
+		wsp.ctx.logger.Errorf("websocket upgrade failed: %s", err)
 		return
 	}
 
@@ -442,11 +441,11 @@ func (wsp *websocketPipe) sendInitialMessage() {
 
 	wc, err := wsp.ws.NextWriter(websocket.TextMessage)
 	if err != nil {
-		wsp.ctx.logger.VI(0).Infof("failed to create websocket writer: %s", err)
+		wsp.ctx.logger.Errorf("failed to create websocket writer: %s", err)
 		return
 	}
 	if err := vom.ObjToJSON(wc, vom.ValueOf(msg)); err != nil {
-		wsp.ctx.logger.VI(0).Infof("failed to convert wspr config to json: %s", err)
+		wsp.ctx.logger.Errorf("failed to convert wspr config to json: %s", err)
 		return
 	}
 	wc.Close()
@@ -455,9 +454,9 @@ func (wsp *websocketPipe) sendInitialMessage() {
 func (wsp *websocketPipe) pingLoop() {
 	for {
 		time.Sleep(pingInterval)
-		wsp.ctx.logger.VI(2).Infof("ws: ping")
+		wsp.ctx.logger.VI(2).Info("ws: ping")
 		if err := wsp.ws.WriteMessage(websocket.PingMessage, []byte{}); err != nil {
-			wsp.ctx.logger.VI(2).Infof("ws: ping failed")
+			wsp.ctx.logger.Error("ws: ping failed")
 			return
 		}
 	}
@@ -505,7 +504,7 @@ func (wsp *websocketPipe) sendVeyronRequest(id int64, veyronMsg *veyronRPC, w cl
 		signal <- call
 	}
 
-	finishCall(w, call, veyronMsg)
+	wsp.finishCall(w, call, veyronMsg)
 	if signal != nil {
 		wsp.Lock()
 		delete(wsp.outstandingStreams, id)
@@ -541,19 +540,19 @@ func (wsp *websocketPipe) closeStream(id int64) {
 	defer wsp.Unlock()
 	stream := wsp.outstandingStreams[id]
 	if stream == nil {
-		wsp.ctx.logger.VI(0).Infof("close called on non-existent call: %v", id)
+		wsp.ctx.logger.Errorf("close called on non-existent call: %v", id)
 		return
 	}
 
 	var call queueingStream
 	var ok bool
 	if call, ok = stream.(queueingStream); !ok {
-		wsp.ctx.logger.VI(0).Infof("can't close server stream: %v", id)
+		wsp.ctx.logger.Errorf("can't close server stream: %v", id)
 		return
 	}
 
 	if err := call.Close(); err != nil {
-		wsp.ctx.logger.VI(0).Infof("client call close failed with: %v", err)
+		wsp.ctx.logger.Errorf("client call close failed with: %v", err)
 	}
 }
 
@@ -565,19 +564,19 @@ func (wsp *websocketPipe) readLoop() {
 			break
 		}
 		if err != nil {
-			wsp.ctx.logger.VI(0).Infof("websocket receive: %s", err)
+			wsp.ctx.logger.VI(1).Infof("websocket receive: %s", err)
 			break
 		}
 
 		if op != websocket.TextMessage {
-			wsp.ctx.logger.VI(0).Infof("unexpected websocket op: %v", op)
+			wsp.ctx.logger.Errorf("unexpected websocket op: %v", op)
 		}
 
 		var msg websocketMessage
 		decoder := json.NewDecoder(r)
 		if err := decoder.Decode(&msg); err != nil {
 			errMsg := fmt.Sprintf("can't unmarshall JSONMessage: %v", err)
-			wsp.ctx.logger.VI(2).Info(errMsg)
+			wsp.ctx.logger.Error(errMsg)
 			wsp.ws.WriteMessage(websocket.TextMessage, []byte(errMsg))
 			continue
 		}
@@ -653,7 +652,7 @@ func (wsp *websocketPipe) publish(publishRequest publishRequest, w clientWriter)
 	}
 
 	if err := w.FinishMessage(); err != nil {
-		w.getLogger().VI(2).Info("WSPR: error finishing message: ", err)
+		wsp.ctx.logger.Error("WSPR: error finishing message: ", err)
 		return
 	}
 }
@@ -678,7 +677,7 @@ func (wsp *websocketPipe) handleServerResponse(id int64, data string) {
 	server := wsp.flowMap[id]
 	wsp.Unlock()
 	if server == nil {
-		wsp.ctx.logger.VI(0).Infof("unexpected result from JavaScript. No channel "+
+		wsp.ctx.logger.Errorf("unexpected result from JavaScript. No channel "+
 			"for MessageId: %d exists. Ignoring the results.", id)
 		//Ignore unknown responses that don't belong to any channel
 		return
@@ -766,7 +765,6 @@ func (wsp *websocketPipe) getSignature(name string, privateId string) (JSONServi
 
 // handleSignatureRequest uses signature manager to get and cache signature of a remote server
 func (wsp *websocketPipe) handleSignatureRequest(data string, w *websocketWriter) {
-
 	// Decode the request
 	var request signatureRequest
 	decoder := json.NewDecoder(bytes.NewBufferString(data))
@@ -790,16 +788,14 @@ func (wsp *websocketPipe) handleSignatureRequest(data string, w *websocketWriter
 		return
 	}
 	if err := w.FinishMessage(); err != nil {
-		w.logger.VI(2).Info("WSPR: error finishing message: ", err)
+		w.logger.Error("WSPR: error finishing message: ", err)
 		return
 	}
 }
 
 func (ctx *WSPR) setup() {
-
 	// Cache up to 20 identity.PrivateID->ipc.Client mappings
 	ctx.clientCache = NewClientCache(20)
-
 }
 
 // Starts the proxy and listens for requests. This method is blocking.
@@ -811,7 +807,7 @@ func (ctx WSPR) Run() {
 		pipe := &websocketPipe{ctx: &ctx}
 		pipe.start(w, r)
 	})
-	ctx.logger.VI(0).Infof("Listening on port %d.", ctx.port)
+	ctx.logger.VI(1).Infof("Listening on port %d.", ctx.port)
 	httpErr := http.ListenAndServe(fmt.Sprintf(":%d", ctx.port), nil)
 	if httpErr != nil {
 		log.Fatalf("Failed to HTTP serve: %s", httpErr)
