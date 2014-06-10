@@ -91,7 +91,6 @@ func lsUsingLocalMountTable(pattern string) ([]string, error) {
 	for e := range ch {
 		reply = append(reply, fmt.Sprintf("%q", e.Name))
 	}
-	reply = append(reply, fmt.Sprintf("%d: items", len(reply)))
 	return reply, nil
 }
 
