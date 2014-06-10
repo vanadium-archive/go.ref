@@ -147,6 +147,82 @@ func TestEval(t *testing.T) {
 	}
 }
 
+func TestSorting(t *testing.T) {
+	st := populate(t)
+	sn := st.MutableSnapshot()
+	put(t, sn, "/teams/beavers", team{"beavers", "CO"})
+	commit(t, st, sn)
+
+	type testCase struct {
+		query           string
+		expectedResults []*store.QueryResult
+	}
+
+	tests := []testCase{
+		{
+			"'teams/*' | type team | sort()",
+			[]*store.QueryResult{
+				&store.QueryResult{0, "teams/bears", nil, team{"bears", "CO"}},
+				&store.QueryResult{0, "teams/beavers", nil, team{"beavers", "CO"}},
+				&store.QueryResult{0, "teams/cardinals", nil, team{"cardinals", "CA"}},
+				&store.QueryResult{0, "teams/sharks", nil, team{"sharks", "NY"}},
+			},
+		},
+		{
+			"'teams/*' | type team | sort(Name)",
+			[]*store.QueryResult{
+				&store.QueryResult{0, "teams/bears", nil, team{"bears", "CO"}},
+				&store.QueryResult{0, "teams/beavers", nil, team{"beavers", "CO"}},
+				&store.QueryResult{0, "teams/cardinals", nil, team{"cardinals", "CA"}},
+				&store.QueryResult{0, "teams/sharks", nil, team{"sharks", "NY"}},
+			},
+		},
+		{
+			"'teams/*' | type team | sort(Location, Name)",
+			[]*store.QueryResult{
+				&store.QueryResult{0, "teams/cardinals", nil, team{"cardinals", "CA"}},
+				&store.QueryResult{0, "teams/bears", nil, team{"bears", "CO"}},
+				&store.QueryResult{0, "teams/beavers", nil, team{"beavers", "CO"}},
+				&store.QueryResult{0, "teams/sharks", nil, team{"sharks", "NY"}},
+			},
+		},
+		{
+			"'teams/*' | type team | sort(Location)",
+			[]*store.QueryResult{
+				&store.QueryResult{0, "teams/cardinals", nil, team{"cardinals", "CA"}},
+				&store.QueryResult{0, "teams/bears", nil, team{"bears", "CO"}},
+				&store.QueryResult{0, "teams/beavers", nil, team{"beavers", "CO"}},
+				&store.QueryResult{0, "teams/sharks", nil, team{"sharks", "NY"}},
+			},
+		},
+	}
+	for _, test := range tests {
+		it := Eval(st.Snapshot(), rootPublicID, storage.ParsePath(""), query.Query{test.query})
+		i := 0
+		for it.Next() {
+			result := it.Get()
+			if i >= len(test.expectedResults) {
+				t.Errorf("query: %s; not enough expected results (%d); found %v", test.query, len(test.expectedResults), result)
+				break
+			}
+			if got, want := result, test.expectedResults[i]; !reflect.DeepEqual(got, want) {
+				t.Errorf("query: %s;\nGOT  %s\nWANT %s", test.query, got, want)
+			}
+			i++
+		}
+		if it.Err() != nil {
+			t.Errorf("query: %s, Error during eval: %v", test.query, it.Err())
+			continue
+		}
+		if i != len(test.expectedResults) {
+			t.Errorf("query: %s, Got %d results, expected %d", test.query, i, len(test.expectedResults))
+			continue
+		}
+		// Ensure that all the goroutines are cleaned up.
+		it.(*evalIterator).wait()
+	}
+}
+
 func TestSelection(t *testing.T) {
 	st := populate(t)
 
@@ -250,6 +326,7 @@ func TestError(t *testing.T) {
 		{"'teams/cardinals' | {Name as myname, Location as myloc} | ? Name == 'foo'", "name 'Name' was not selected from 'teams/cardinals', found: [myloc, myname]"},
 
 		// TODO(kash): Selection with conflicting names.
+		// TODO(kash): Trying to sort an aggregate.  "... | avg | sort()"
 	}
 	for _, test := range tests {
 		it := Eval(st.Snapshot(), rootPublicID, storage.PathName{}, query.Query{test.query})

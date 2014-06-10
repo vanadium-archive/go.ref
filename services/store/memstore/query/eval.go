@@ -280,6 +280,8 @@ func convertPipeline(q parse.Pipeline) evaluator {
 		return &filterEvaluator{convertPipeline(q.Src), convertPredicate(q.Pred), q.Pos}
 	case *parse.PipelineSelection:
 		return convertSelection(q)
+	case *parse.PipelineFunc:
+		return convertPipelineFunc(q)
 	default:
 		panic(fmt.Errorf("unexpected type %T", q))
 	}
@@ -533,6 +535,96 @@ func (e *selectionEvaluator) name() string {
 	return e.src.name()
 }
 
+// convertPipelineFunc transforms a parse.PipelineFunc into a funcEvaluator.
+func convertPipelineFunc(p *parse.PipelineFunc) evaluator {
+	args := make([]expr, len(p.Args), len(p.Args))
+	for i, a := range p.Args {
+		args[i] = convertExpr(a)
+	}
+	src := convertPipeline(p.Src)
+	switch p.FuncName {
+	case "sort":
+		if src.singleResult() {
+			panic(fmt.Errorf("found aggregate function at %v, sort expects multiple results"))
+		}
+		return &funcSortEvaluator{
+			src:  convertPipeline(p.Src),
+			args: args,
+			pos:  p.Pos,
+		}
+	default:
+		panic(fmt.Errorf("unknown function %s at Pos %v", p.FuncName, p.Pos))
+	}
+}
+
+type funcSortEvaluator struct {
+	// src produces intermediate results that will be transformed by func.
+	src evaluator
+	// args is the list of arguments passed to the function.
+	args []expr
+	// pos specifies where in the query string this component started.
+	pos parse.Pos
+}
+
+func (e *funcSortEvaluator) eval(c *context) {
+	defer c.cleanup.Done()
+	defer close(c.out)
+	srcOut := startSource(c, e.src)
+
+	sorter := argsSorter{e, c, nil}
+	for result := range srcOut {
+		sorter.results = append(sorter.results, result)
+	}
+	sort.Sort(sorter)
+	for _, result := range sorter.results {
+		if !c.emit(result) {
+			return
+		}
+	}
+}
+
+// singleResult implements the evaluator method.
+func (e *funcSortEvaluator) singleResult() bool {
+	// During construction, we tested that e.src is not singleResult.
+	return false
+}
+
+// name implements the evaluator method.
+func (e *funcSortEvaluator) name() string {
+	// A sorted resultset is still the same as the original resultset, so it
+	// should have the same name.
+	return e.src.name()
+}
+
+// argsSorter implements sort.Interface to sort results by e.args.
+type argsSorter struct {
+	e       *funcSortEvaluator
+	c       *context
+	results []*store.QueryResult
+}
+
+func (a argsSorter) Len() int      { return len(a.results) }
+func (a argsSorter) Swap(i, j int) { a.results[i], a.results[j] = a.results[j], a.results[i] }
+func (a argsSorter) Less(i, j int) bool {
+	for n, arg := range a.e.args {
+		// TODO(kash): Look for "+" or "-" for sort ordering.
+		ival := arg.value(a.c, a.results[i])
+		jval := arg.value(a.c, a.results[j])
+		res, err := compare(a.c, ival, jval)
+		if err != nil {
+			sendError(a.c.errc, fmt.Errorf("error while sorting (Pos %v Arg: %d) left: %s, right: %s; %v",
+				a.e.pos, n, a.results[i].Name, a.results[j].Name, err))
+			return false
+		}
+		if res == 0 {
+			continue
+		}
+		return res < 0
+	}
+	// Break ties based on name to get a deterministic order.
+	return a.results[i].Name < a.results[j].Name
+}
+
 // predicate determines whether an intermediate query result should be
 // filtered out.
 type predicate interface {
@@ -545,6 +637,11 @@ func convertPredicate(p parse.Predicate) predicate {
 	case *parse.PredicateBool:
 		return &predicateBool{p.Bool, p.Pos}
 	case *parse.PredicateCompare:
+		switch p.Comp {
+		case parse.CompEQ, parse.CompNE, parse.CompLT, parse.CompGT, parse.CompLE, parse.CompGE:
+		default:
+			panic(fmt.Errorf("unknown comparator %d at %v", p.Comp, p.Pos))
+		}
 		return &predicateCompare{convertExpr(p.LHS), convertExpr(p.RHS), p.Comp, p.Pos}
 	case *parse.PredicateAnd:
 		return &predicateAnd{convertPredicate(p.LHS), convertPredicate(p.RHS), p.Pos}
@@ -584,88 +681,58 @@ type predicateCompare struct {
 // match implements the predicate method.
 func (p *predicateCompare) match(c *context, result *store.QueryResult) bool {
 	lval := p.lhs.value(c, result)
-	ltype := reflect.TypeOf(lval)
 	rval := p.rhs.value(c, result)
+
+	res, err := compare(c, lval, rval)
+	if err != nil {
+		sendError(c.errc, fmt.Errorf("error while evaluating predicate (Pos %v) for name '%s': %v",
+			p.pos, result.Name, err))
+		return false
+	}
+	switch p.comp {
+	case parse.CompEQ:
+		return res == 0
+	case parse.CompNE:
+		return res != 0
+	case parse.CompLT:
+		return res < 0
+	case parse.CompGT:
+		return res > 0
+	case parse.CompLE:
+		return res <= 0
+	case parse.CompGE:
+		return res >= 0
+	default:
+		sendError(c.errc, fmt.Errorf("unknown comparator %d at Pos %v", p.comp, p.pos))
+		return false
+	}
+}
+
+// compare returns a negative number if lval is less than rval, 0 if they are
+// equal, and a positive number if  lval is greater than rval.
+func compare(c *context, lval, rval interface{}) (int, error) {
+	ltype := reflect.TypeOf(lval)
 	rtype := reflect.TypeOf(rval)
 
 	if ltype != rtype {
-		sendError(c.errc,
-			fmt.Errorf("type mismatch while evaluating predicate at %v; name: %s, left: %v, right: %v",
-				p.pos, result.Name, ltype, rtype))
+		return 0, fmt.Errorf("type mismatch; left: %v, right: %v", ltype, rtype)
 	}
 	switch lval := lval.(type) {
 	case string:
 		rval := rval.(string)
-		return p.compareStrings(c, lval, rval)
+		if lval < rval {
+			return -1, nil
+		} else if lval > rval {
+			return 1, nil
+		} else {
+			return 0, nil
+		}
 	case *big.Rat:
-		rval := rval.(*big.Rat)
-		return p.compareRats(c, lval, rval)
+		return lval.Cmp(rval.(*big.Rat)), nil
 	case *big.Int:
-		rval := rval.(*big.Int)
-		return p.compareInts(c, lval, rval)
+		return lval.Cmp(rval.(*big.Int)), nil
 	default:
-		sendError(c.errc, fmt.Errorf("unexpected type %T from predicate %v for %s", lval, p.pos, result.Name))
-		return false
-	}
-}
-
-func (p *predicateCompare) compareStrings(c *context, lval, rval string) bool {
-	switch p.comp {
-	case parse.CompEQ:
-		return lval == rval
-	case parse.CompNE:
-		return lval != rval
-	case parse.CompLT:
-		return lval < rval
-	case parse.CompGT:
-		return lval > rval
-	case parse.CompLE:
-		return lval <= rval
-	case parse.CompGE:
-		return lval >= rval
-	default:
-		sendError(c.errc, fmt.Errorf("unknown comparator %d at %v", p.comp, p.pos))
-		return false
-	}
-}
-
-func (p *predicateCompare) compareRats(c *context, lval, rval *big.Rat) bool {
-	switch p.comp {
-	case parse.CompEQ:
-		return lval.Cmp(rval) == 0
-	case parse.CompNE:
-		return lval.Cmp(rval) != 0
-	case parse.CompLT:
-		return lval.Cmp(rval) < 0
-	case parse.CompGT:
-		return lval.Cmp(rval) > 0
-	case parse.CompLE:
-		return lval.Cmp(rval) <= 0
-	case parse.CompGE:
-		return lval.Cmp(rval) >= 0
-	default:
-		sendError(c.errc, fmt.Errorf("unknown comparator %d at %v", p.comp, p.pos))
-		return false
-	}
-}
-
-func (p *predicateCompare) compareInts(c *context, lval, rval *big.Int) bool {
-	switch p.comp {
-	case parse.CompEQ:
-		return lval.Cmp(rval) == 0
-	case parse.CompNE:
-		return lval.Cmp(rval) != 0
-	case parse.CompLT:
-		return lval.Cmp(rval) < 0
-	case parse.CompGT:
-		return lval.Cmp(rval) > 0
-	case parse.CompLE:
-		return lval.Cmp(rval) <= 0
-	case parse.CompGE:
-		return lval.Cmp(rval) >= 0
-	default:
-		sendError(c.errc, fmt.Errorf("unknown comparator %d at %v", p.comp, p.pos))
-		return false
+		return 0, fmt.Errorf("unexpected type %T", lval)
 	}
 }
 
