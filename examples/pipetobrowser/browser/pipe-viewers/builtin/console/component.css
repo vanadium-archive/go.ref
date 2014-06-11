@@ -1,0 +1,17 @@
+:host {
+  background-color: #000000;
+  height: 100%;
+  display: block;
+  overflow: auto;
+}
+
+pre {
+  margin: 0;
+  padding: 0.5em;
+
+  font-family: Fixed, monospace;
+  line-height: 1.2em;
+  word-break: break-word;
+
+  color: #ffffff;
+}

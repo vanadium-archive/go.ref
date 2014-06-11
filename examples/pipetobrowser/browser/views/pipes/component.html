@@ -1,0 +1,146 @@
+<link rel="import" href="/libs/vendor/polymer/polymer/polymer.html">
+<link rel="import" href="/libs/vendor/polymer/core-pages/core-pages.html">
+<link rel="import" href="/libs/vendor/polymer/core-icons/core-icons.html">
+<link rel="import" href="/libs/vendor/polymer/core-icon-button/core-icon-button.html">
+<link rel="import" href="/libs/vendor/polymer/core-toolbar/core-toolbar.html">
+<link rel="import" href="/libs/vendor/polymer/core-selector/core-selector.html">
+<link rel="import" href="/libs/vendor/polymer/paper-tabs/paper-tabs.html">
+<link rel="import" href="tab-content/component.html">
+<link rel="import" href="tab-toolbar/component.html">
+
+<polymer-element name="p2b-pipes">
+  <template>
+    <link rel="stylesheet" href="../common/common.css">
+    <link rel="stylesheet" href="component.css">
+    <div class="container" flex>
+      <template if="{{ numTabs == 0 }}">
+        <p class="empty-message">No pipes to show...</p>
+        <div class="no-pipes-bg"></div>
+      </template>
+
+      <div id="tabsContainer" class="{{ {hidden : numTabs == 0} | tokenList}}" flex>
+        <paper-tabs id="tabs" class="{{ {hidden : numTabs <= 1} | tokenList}}" on-core-select="{{ handleTabSelectionChange }}" valueattr="key" selected="{{ selectedTabKey }}" noink></paper-tabs>
+        <core-selector id="tabPages" valueattr="key" selected="{{ selectedTabKey }}" flex></core-selector>
+      </div>
+    </div>
+  </template>
+  <script>
+    Polymer('p2b-pipes', {
+
+      /*
+       * Map of existing pipe tabs. Key is the tab key.
+       * @type {set}
+       * @private
+       */
+      pipeTabs: {},
+
+      /*
+       * Key of currently selected tab
+       * @type {string}
+       */
+      selectedTabKey : '',
+
+      /*
+       * Stack of previously selected tabs.
+       * @type {Array<string>}
+       * @private
+       */
+      selectionHistoryStack: [],
+
+      /*
+       * Number of open tabs
+       * @type {integer}
+       * @private
+       */
+      get numTabs() {
+        return Object.keys(this.pipeTabs).length;
+      },
+
+      /*
+       * Adds a new tab
+       * @param {string} key Key of the tab to add
+       * @param {string} name Name of the tab to add
+       * @param {DOMElement} el Content of the tab
+       */
+      addTab: function(key, name, el) {
+        var self = this;
+
+        // Create a tab thumb
+        var tab = document.createElement('paper-tab');
+        tab.key = key;
+        tab.textContent = name;
+
+        // Create a tab toolbar and assign the close handler
+        var tabToolbar = document.createElement('p2b-pipes-tab-toolbar');
+        tabToolbar.title = name;
+        tabToolbar.addEventListener('close-action', function() {
+          self.removeTab(key);
+        });
+
+        // Create the content of the tab
+        var tabContent = document.createElement('p2b-pipes-tab-content');
+        tabContent.setAttribute('key', key);
+        tabContent.appendChild(tabToolbar);
+        tabContent.appendChild(el);
+
+        this.$.tabPages.appendChild(tabContent);
+        this.$.tabs.appendChild(tab);
+
+        // Add the tab to our list.
+        this.pipeTabs[key] = {
+          name: name,
+          tab: tab,
+          tabContent: tabContent
+        };
+
+        this.selectedTabKey = key;
+      },
+
+      /*
+       * Removes a tab
+       * @param {string} key Key of the tab to remove
+       */
+      removeTab: function(key) {
+        // Remove tab thumb and content
+        var tab = this.pipeTabs[key].tab;
+        tab.remove();
+        var tabContent = this.pipeTabs[key].tabContent;
+        tabContent.remove();
+
+        // Delete tab from the map
+        delete this.pipeTabs[key];
+
+        // Select an existing tab from previous selection history
+        var toSelect = this.selectionHistoryStack.pop();
+        while ( toSelect && !this.pipeTabs[toSelect] ) {
+          // pop until we find one that still exists
+          toSelect = this.selectionHistoryStack.pop();
+        }
+        if (toSelect) {
+          this.selectedTabKey = toSelect;
+        }
+      },
+
+      /*
+       * Replaces content of a tab
+       * @param {string} key Key of the tab to replace content for
+       * @param {DOMElement} el New content of the tab
+       */
+      replaceTabContent: function(key, newEl) {
+        var tabContent = this.pipeTabs[key].tabContent;
+        tabContent.replaceTabContent(newEl);
+      },
+
+      /*
+       * Adds the tab selection to history when selection changes
+       * @private
+       */
+      handleTabSelectionChange: function(e) {
+        if (!e.detail.isSelected){
+          return;
+        }
+        this.selectionHistoryStack.push(this.selectedTabKey);
+      }
+    });
+  </script>
+</polymer-element>

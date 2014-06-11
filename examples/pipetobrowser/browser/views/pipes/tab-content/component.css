@@ -1,0 +1,25 @@
+/* become offset parent for content container */
+.tab-main {
+  position: relative;
+}
+
+/* content fills remaining space */
+.tab-main-content {
+  overflow: auto;
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+}
+
+/* hidden, unless selected */
+:host(.core-selected)  {
+  display: flex !important;
+}
+
+:host {
+  display: none !important;
+}
+
+

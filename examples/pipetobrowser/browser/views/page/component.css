@@ -1,0 +1,50 @@
+:host {
+  font-family: 'Roboto', sans-serif;
+  color: #252525;
+}
+
+[drawer] {
+  background-color: #FAFAFA;
+  box-shadow: 2px 2px 4px rgba(0, 0, 0, 0.15);
+}
+
+[drawer] core-toolbar {
+  background-color: rgb(66, 133, 244);
+  color: #FAFAFA;
+}
+
+[sidebar] {
+  padding: 0.5em;
+}
+
+[sidebar] .core-selected {
+  color: #00bcd4;
+}
+
+[main] {
+  height: 100%;
+}
+
+[main] core-toolbar {
+  background-color: rgb(51, 103, 214);
+  color: #FAFAFA;
+}
+
+core-drawer-panel:not([narrow]) paper-icon-button[icon=menu] {
+  display: none;
+}
+
+.sub-page {
+  padding: 1.5em;
+  display: none;
+}
+
+.sub-page.core-selected {
+  display: block;
+}
+
+h1, h2 {
+  font-size: 1em;
+  margin: 0;
+  font-weight: normal;
+}

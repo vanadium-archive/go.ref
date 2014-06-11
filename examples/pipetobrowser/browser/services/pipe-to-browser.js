@@ -17,7 +17,10 @@ export var state = {
   init() {
     this.published = false;
     this.publishing = false;
-    this.serviceEndpoint = null;
+    this.fullServiceName = null;
+    this.date = null;
+    this.numPipes = 0;
+    this.numBytes = 0;
   },
   reset() {
     state.init();
@@ -60,7 +63,10 @@ export function publish(name, pipeRequestHandler) {
           reject(e);
         });
 
-        pipeRequestHandler($suffix, $stream);
+        state.numPipes++;
+        //TODO(aghassemi) pipe to a byte-size-sniffer to update state.numBytes
+
+        pipeRequestHandler.call(pipeRequestHandler, $suffix, $stream);
       });
     }
   };
@@ -73,9 +79,18 @@ export function publish(name, pipeRequestHandler) {
 
       state.published = true;
       state.publishing = false;
-      state.serviceEndpoint = endpoint;
+      state.fullServiceName = config.publishNamePrefix + '/' + name;
+      state.date = new Date();
 
       return endpoint;
     });
-  }).catch((err) => { state.reset(); return Promise.reject(err); });
+  }).catch((err) => { state.reset(); throw err; });
+}
+
+/*
+ * Stops the service and unpublishes it, effectively destroying the service.
+ */
+export function stopPublishing() {
+  //TODO(aghassemi) Implement in Veyron API and then here.
+  log.debug('Not Implemented');
 }

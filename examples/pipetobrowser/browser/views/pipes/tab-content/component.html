@@ -1,0 +1,28 @@
+<link rel="import" href="/libs/vendor/polymer/polymer/polymer.html">
+<link rel="import" href="/libs/vendor/polymer/core-toolbar/core-toolbar.html">
+
+<polymer-element name="p2b-pipes-tab-content" flex>
+  <template>
+    <link rel="stylesheet" href="component.css">
+    <content select="p2b-pipes-tab-toolbar"></content>
+    <div class="tab-main" flex>
+      <div id="main" class="tab-main-content" flex>
+        <content></content>
+      </div>
+    </div>
+  </template>
+  <script>
+    Polymer('p2b-pipes-tab-content', {
+
+      /*
+       * Replaces existing content of the tab with the new element
+       * @param {DOMElement} new element to replace existing content
+       */
+      replaceTabContent: function(newEl) {
+        //TODO(aghassemi) There must be a better way for these .innerHTML='', figure it out.
+        this.$.main.innerHTML = '';
+        this.$.main.appendChild(newEl);
+      }
+    });
+  </script>
+</polymer-element>

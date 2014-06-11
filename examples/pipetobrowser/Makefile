@@ -19,14 +19,19 @@ VEYRON_JS_API=$(VEYRON_ROOT)/veyron/javascript/api
 VEYRON_IDENTITY_PATH=/tmp/p2b_identity
 
 # Builds everything
-default: build
-build: buildbrowser
+all: browser/libs/vendor/polymer browser/libs/vendor/veyron
 
-# Builds browser version of FortuneJS
-buildbrowser:
+browser/libs/vendor/polymer:
+	cp -rf $(VEYRON_ROOT)/third_party/javascript/polymer ./browser/libs/vendor/polymer
+
+browser/libs/vendor/veyron:
 	(cd $(VEYRON_JS_API) && ./vgrunt build) && \
 	mkdir -p ./browser/libs/vendor/veyron && \
 	cp -rf $(VEYRON_JS_API)/dist/*.* ./browser/libs/vendor/veyron
+
+clean:
+	rm -rf ./browser/libs/vendor/polymer
+	rm -rf browser/libs/vendor/veyron
 
 # Deploys Veyron daemons
 daemons:
@@ -51,3 +56,5 @@ killdaemons:
 	kill `lsof -t -i:$(VEYRON_WSPR_PORT)`; \
 	kill `lsof -t -i:$(VEYRON_PROXY_PORT)`; \
 	kill `lsof -t -i:$(VEYRON_STORE_PORT)`
+
+.PHONY: all clean daemons killdaemons browser/libs/vendor/polymer browser/libs/vendor/veyron

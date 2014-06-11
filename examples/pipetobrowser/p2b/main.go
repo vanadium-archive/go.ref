@@ -14,9 +14,8 @@ import (
 )
 
 const usage = `
-%s is a Pipe To Browser client. It allows allows
-one to pipe anything from console to the browser Data being piped to
-the browser then is displayed in a graphical and formatted way by a "viewer".
+%s is a Pipe To Browser client. It allows one to pipe any stdout stream from console to the browser.
+Data being piped to the browser then is displayed in a graphical and formatted way by a "viewer".
 
 Usage:
 
@@ -33,7 +32,7 @@ Usage:
 `
 
 func Usage() {
-	fmt.Fprintf(os.Stderr, usage, os.Args[0], os.Args[0])
+	fmt.Fprintf(os.Stdout, usage, os.Args[0], os.Args[0])
 }
 
 func main() {

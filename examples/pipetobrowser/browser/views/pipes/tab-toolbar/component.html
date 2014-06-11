@@ -1,0 +1,30 @@
+<link rel="import" href="/libs/vendor/polymer/polymer/polymer.html">
+
+<polymer-element name="p2b-pipes-tab-toolbar">
+  <template>
+    <link rel="stylesheet" href="component.css">
+    <core-toolbar>
+      <span flex>
+        {{ title }}
+      </span>
+      <paper-icon-button icon="close" on-tap="{{ onClose }}"/>
+    </core-toolbar>
+  </template>
+  <script>
+    Polymer('p2b-pipes-tab-toolbar', {
+      /*
+       * Title of the toolbar
+       * @type {string}
+       */
+      title: '',
+
+      /*
+       * Event that's fired when close action of the toolbar is triggered
+       * @event
+       */
+      onClose: function() {
+        this.fire('close-action');
+      }
+    });
+  </script>
+</polymer-element>

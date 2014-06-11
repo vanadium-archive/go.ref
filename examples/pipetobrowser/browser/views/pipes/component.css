@@ -1,0 +1,42 @@
+#tabs {
+  background-color: #00bcd4;
+  color: #fafafa;
+  box-shadow: 2px 2px 4px rgba(0, 0, 0, 0.15);
+  width: 100%;
+  z-index: 1;
+}
+
+#tabs > paper-tab:not(:last-child) {
+  border-right: solid 1px rgba(0, 0, 0, 0.1);
+}
+
+#tabPages {
+  position: relative;
+  overflow: hidden;
+}
+
+.no-pipes-bg {
+  background-image: url('factory.png');
+  background-size: cover;
+  background-repeat: no-repeat;
+  background-position: 70% 50%;
+  height: 100%;
+  width: 100%;
+  opacity: 0.15;
+}
+
+.empty-message {
+  font-size: 1.5em;
+  padding: 1.5em;
+  position: absolute;
+  margin: 0px;
+  color: #4285f4;
+}
+
+.container {
+  position: absolute;
+  bottom: 0;
+  top: 0;
+  right: 0;
+  left: 0;
+}

@@ -8,15 +8,64 @@ import { View } from 'libs/mvc/view'
  */
 export class PageView extends View {
 	constructor() {
-		var el = document.querySelector('p2b-page');
+		var el = document.createElement('p2b-page');
+    el.subPages = [];
 		super(el);
 	}
 
  /*
-  * Displays the given view inside the main area of the page
+  * Displays the given view inside the sub page area identified by the key.
+  * @param {String} subPageKey Key for the sub page to display.
   * @param {View} view View to display.
   */
-	setMainView(view) {
-		this.element.setMain(view.element);
+	setSubPageView(subPageKey, view) {
+		this.element.setSubPage(subPageKey, view.element);
 	}
+
+ /*
+  * Collection of sub pages
+  * @type {SubPageItem}
+  */
+  get subPages() {
+    return this.element.subPages;
+  }
+
+ /*
+  * Title of the page
+  * @type {string}
+  */
+  set title(title) {
+    this.element.title = title;
+  }
+
+}
+
+/*
+ * SubPageItem represents top level sub pages that have a sidebar navigation link
+ * and a content area which gets displayed when corresponding sidebar item
+ * is activated by the end user.
+ * @param {String} key Unique identified for this sub page
+ * @class
+ */
+export class SubPageItem {
+  constructor(key) {
+    /*
+     * Name of the page. Normally displayed as the sidebar navigation item text
+     * @type {String}
+     */
+    this.name = name;
+
+    /*
+     * Unique identified for this sub page
+     * @type {String}
+     */
+    this.key = key;
+
+    /*
+     * Function that's called when user activates the sub page, normally by clicking
+     * the sidebar navigation items for the sub page
+     * @type {Function}
+     */
+    this.onActivate = null;
+  }
 }
