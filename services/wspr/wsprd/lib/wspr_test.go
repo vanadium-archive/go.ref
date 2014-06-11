@@ -15,6 +15,8 @@ import (
 	"veyron2/vdl"
 	"veyron2/verror"
 	"veyron2/vlog"
+	"veyron2/vom"
+	vom_wiretype "veyron2/vom/wiretype"
 	"veyron2/wiretype"
 
 	"veyron/runtimes/google/ipc/stream/proxy"
@@ -264,12 +266,13 @@ func TestGetGoServerSignature(t *testing.T) {
 }
 
 type goServerTestCase struct {
-	method          string
-	inArgs          []interface{}
-	numOutArgs      int32
-	streamingInputs []string
-	expectedStream  []response
-	expectedError   error
+	method             string
+	inArgs             []interface{}
+	numOutArgs         int32
+	streamingInputs    []string
+	streamingInputType vom.Type
+	expectedStream     []response
+	expectedError      error
 }
 
 func runGoServerTestCase(t *testing.T, test goServerTestCase) {
@@ -292,7 +295,10 @@ func runGoServerTestCase(t *testing.T, test goServerTestCase) {
 	var signal chan ipc.Stream
 	if len(test.streamingInputs) > 0 {
 		signal = make(chan ipc.Stream, 1)
-		wsp.outstandingStreams[0] = startQueueingStream(signal)
+		wsp.outstandingStreams[0] = outstandingStream{
+			stream: startQueueingStream(signal),
+			inType: test.streamingInputType,
+		}
 		go func() {
 			for _, value := range test.streamingInputs {
 				wsp.sendOnStream(0, value, &writer)
@@ -337,10 +343,11 @@ func TestCallingGoServerWithError(t *testing.T) {
 
 func TestCallingGoWithStreaming(t *testing.T) {
 	runGoServerTestCase(t, goServerTestCase{
-		method:          "StreamingAdd",
-		inArgs:          []interface{}{},
-		streamingInputs: []string{"1", "2", "3", "4"},
-		numOutArgs:      2,
+		method:             "StreamingAdd",
+		inArgs:             []interface{}{},
+		streamingInputs:    []string{"1", "2", "3", "4"},
+		streamingInputType: vom_wiretype.Type{ID: 36},
+		numOutArgs:         2,
 		expectedStream: []response{
 			response{
 				Message: 1.0,
