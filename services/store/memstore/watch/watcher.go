@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"errors"
+	"io"
 	"sync"
 	"time"
 
@@ -16,6 +17,7 @@ import (
 )
 
 var (
+	ErrWatchClosed            = io.EOF
 	ErrUnknownResumeMarker    = errors.New("Unknown ResumeMarker")
 	nowResumeMarker           = []byte("now") // UTF-8 conversion.
 	initialStateSkippedChange = watch.Change{
@@ -25,12 +27,22 @@ var (
 )
 
 type watcher struct {
-	admin   security.PublicID
-	dbName  string
-	closed  chan struct{}
+	// admin is the public id of the store administrator.
+	admin security.PublicID
+	// dbName is the name of the store's database directory.
+	dbName string
+	// closed is a channel that is closed when the watcher is closed.
+	// Watch invocations finish as soon as possible once the channel is closed.
+	closed chan struct{}
+	// pending records the number of Watch invocations on this watcher that
+	// have not yet finished.
 	pending sync.WaitGroup
 }
 
+// New returns a new watcher. The returned watcher supports repeated and
+// concurrent invocations of Watch until it is closed.
+// admin is the public id of the store administrator. dbName is the name of the
+// of the store's database directory.
 func New(admin security.PublicID, dbName string) (service.Watcher, error) {
 	return &watcher{
 		admin:  admin,
@@ -44,41 +56,65 @@ func New(admin security.PublicID, dbName string) (service.Watcher, error) {
 // otherwise closed early, Watch will terminate and return an error.
 // Watch implements the service.Watcher interface.
 func (w *watcher) Watch(ctx ipc.ServerContext, req watch.Request, stream watch.WatcherServiceWatchStream) error {
-	processor, err := w.findProcessor(ctx.RemoteID(), req)
-	if err != nil {
+	// Closing cancel terminates processRequest.
+	cancel := make(chan struct{})
+	defer close(cancel)
+
+	done := make(chan error, 1)
+
+	w.pending.Add(1)
+	// This goroutine does not leak because processRequest is always terminated.
+	go func() {
+		defer w.pending.Done()
+		done <- w.processRequest(cancel, ctx, req, stream)
+		close(done)
+	}()
+
+	select {
+	case err := <-done:
 		return err
+	// Close cancel and terminate processRequest if:
+	// 1) The watcher has been closed.
+	// 2) The call closes. This is signalled on the context's closed channel.
+	case <-w.closed:
+	case <-ctx.Closed():
 	}
+	return ErrWatchClosed
+}
+
+func (w *watcher) processRequest(cancel <-chan struct{}, ctx ipc.ServerContext, req watch.Request, stream watch.WatcherServiceWatchStream) error {
 	log, err := memstore.OpenLog(w.dbName, true)
 	if err != nil {
 		return err
 	}
-	// Close the log when:
-	// 1) Watch returns early (with an error). This is signalled on the done channel.
-	// 2) The call closes early. This is signalled on the context's closed channel.
-	// Closing the log terminates any ongoing read, and Watch returns an error.
-	// TODO(tilaks): cancellable processState(), processTransaction().
-	done := make(chan struct{})
-	defer close(done)
-	w.pending.Add(1)
+	// This goroutine does not leak because cancel is always closed.
 	go func() {
-		select {
-		case <-done:
-		case <-ctx.Closed():
-		case <-w.closed:
-		}
+		<-cancel
+
+		// Closing the log terminates any ongoing read, and processRequest
+		// returns an error.
 		log.Close()
-		w.pending.Done()
+
+		// stream.Send() is automatically cancelled when the call completes,
+		// so we don't explicitly cancel sendChanges.
+
+		// TODO(tilaks): cancel processState(), processTransaction().
 	}()
 
-	resumeMarker := req.ResumeMarker
-	if isNowResumeMarker(resumeMarker) {
-		sendChanges(stream, []watch.Change{initialStateSkippedChange})
+	processor, err := w.findProcessor(ctx.RemoteID(), req)
+	if err != nil {
+		return err
 	}
+
 	// Retrieve the initial timestamp. Changes that occured at or before the
 	// initial timestamp will not be sent.
+	resumeMarker := req.ResumeMarker
 	initialTimestamp, err := resumeMarkerToTimestamp(resumeMarker)
 	if err != nil {
 		return err
+	}
+	if isNowResumeMarker(resumeMarker) {
+		sendChanges(stream, []watch.Change{initialStateSkippedChange})
 	}
 
 	// Process initial state.
@@ -120,6 +156,16 @@ func (w *watcher) Close() error {
 	return nil
 }
 
+// IsClosed returns true iff the watcher has been closed.
+func (w *watcher) isClosed() bool {
+	select {
+	case <-w.closed:
+		return true
+	default:
+		return false
+	}
+}
+
 func (w *watcher) findProcessor(client security.PublicID, req watch.Request) (reqProcessor, error) {
 	// TODO(tilaks): verify Sync requests.
 	// TODO(tilaks): handle application requests.
@@ -130,6 +176,7 @@ func processChanges(stream watch.WatcherServiceWatchStream, changes []watch.Chan
 	if timestamp <= initialTimestamp {
 		return nil
 	}
+	addContinued(changes)
 	addResumeMarkers(changes, timestampToResumeMarker(timestamp))
 	return sendChanges(stream, changes)
 }
@@ -140,6 +187,16 @@ func sendChanges(stream watch.WatcherServiceWatchStream, changes []watch.Change)
 	}
 	// TODO(tilaks): batch more aggressively.
 	return stream.Send(watch.ChangeBatch{Changes: changes})
+}
+
+func addContinued(changes []watch.Change) {
+	// Last change marks the end of the processed atomic group.
+	for i, _ := range changes {
+		changes[i].Continued = true
+	}
+	if len(changes) > 0 {
+		changes[len(changes)-1].Continued = false
+	}
 }
 
 func addResumeMarkers(changes []watch.Change, resumeMarker []byte) {

@@ -1,7 +1,6 @@
 package blackbox
 
 import (
-	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -28,6 +27,7 @@ var (
 	nullMutation                   = raw.Mutation{}
 )
 
+// rootContext implements ipc.Context.
 type rootContext struct{}
 
 func (rootContext) Server() ipc.Server {
@@ -185,59 +185,6 @@ func OpenWatch(t *testing.T, dbName string) (service.Watcher, func()) {
 	return w, func() {
 		w.Close()
 	}
-}
-
-type testWatcherServiceWatchStream struct {
-	c    chan<- watch.ChangeBatch
-	done <-chan bool
-}
-
-func (s *testWatcherServiceWatchStream) Send(item watch.ChangeBatch) error {
-	select {
-	case s.c <- item:
-		return nil
-	case <-s.done:
-		return errors.New("Send() failed")
-	}
-}
-
-type testWatcherWatchStream struct {
-	c    <-chan watch.ChangeBatch
-	done chan bool
-}
-
-func (s *testWatcherWatchStream) Recv() (watch.ChangeBatch, error) {
-	select {
-	case cb, ok := <-s.c:
-		if !ok {
-			return cb, errors.New("Recv() failed")
-		}
-		return cb, nil
-	case <-s.done:
-		return watch.ChangeBatch{}, errors.New("Recv() failed: closed")
-	}
-}
-
-func (s *testWatcherWatchStream) Finish() error {
-	close(s.done)
-	return nil
-}
-
-func (s *testWatcherWatchStream) Cancel() {
-	close(s.done)
-}
-
-func Watch(t *testing.T, w service.Watcher, ctx ipc.ServerContext, req watch.Request) watch.WatcherWatchStream {
-	c := make(chan watch.ChangeBatch)
-	done := make(chan bool)
-	go func() {
-		serviceStream := &testWatcherServiceWatchStream{c, done}
-		// Check that io.EOF was returned on watch cancellation.
-		if err := w.Watch(ctx, req, serviceStream); err != io.EOF {
-			t.Fatalf("Watch() failed : %v", err)
-		}
-	}()
-	return &testWatcherWatchStream{c, done}
 }
 
 // putMutationsStream implements raw.StoreServicePutMutationsStream.

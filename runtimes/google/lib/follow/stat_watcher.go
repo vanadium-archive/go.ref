@@ -51,12 +51,12 @@ func newCustomFSStatWatch(filename string, minSleep, maxSleep time.Duration) fun
 			}
 			fileInfo, err := file.Stat()
 			if err != nil {
-				if sendEvent(events, err, stop) {
+				if !sendEvent(events, err, stop) {
 					return
 				}
 			} else if fileSize := fileInfo.Size(); lastFileSize < fileSize {
 				lastFileSize = fileSize
-				if sendEvent(events, nil, stop) {
+				if !sendEvent(events, nil, stop) {
 					return
 				}
 				sleep = minSleep

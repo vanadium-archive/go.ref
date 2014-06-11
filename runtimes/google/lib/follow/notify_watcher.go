@@ -34,23 +34,16 @@ func newFSNotifyWatch(filename string) func(chan<- error, <-chan bool, chan<- bo
 			select {
 			case event := <-source.Event:
 				if event.IsModify() {
-					if sendEvent(events, nil, stop) {
+					if !sendEvent(events, nil, stop) {
 						return
 					}
 				}
 			case err := <-source.Error:
-				if sendEvent(events, err, stop) {
+				if !sendEvent(events, err, stop) {
 					return
 				}
 			case <-stop:
 				return
-			}
-			// As select does not prioritize cases, it could starve
-			// the stop case. Look for a stop command again.
-			select {
-			case <-stop:
-				return
-			default:
 			}
 		}
 	}

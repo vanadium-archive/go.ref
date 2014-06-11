@@ -10,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	watchtesting "veyron/services/store/memstore/watch/testing"
 	"veyron/services/store/raw"
 
 	"veyron2/ipc"
@@ -129,32 +130,6 @@ func newServer() (*Server, func()) {
 	}
 	closer := func() { closeTest(config, s) }
 	return s, closer
-}
-
-type watchResult struct {
-	changes chan watch.Change
-	err     error
-}
-
-func (wr *watchResult) Send(cb watch.ChangeBatch) error {
-	for _, change := range cb.Changes {
-		wr.changes <- change
-	}
-	return nil
-}
-
-// doWatch executes a watch request and returns a new watchResult.
-// Change events may be received on the channel "changes".
-// Once "changes" is closed, any error that occurred is stored to "err".
-func doWatch(s *Server, ctx ipc.ServerContext, req watch.Request) *watchResult {
-	wr := &watchResult{changes: make(chan watch.Change)}
-	go func() {
-		defer close(wr.changes)
-		if err := s.Watch(ctx, req, wr); err != nil {
-			wr.err = err
-		}
-	}()
-	return wr
 }
 
 func expectExists(t *testing.T, changes []watch.Change, id storage.ID, value string) {
@@ -402,14 +377,16 @@ func TestWatch(t *testing.T) {
 
 	// Start a watch request.
 	req := watch.Request{}
-	wr := doWatch(s, rootCtx, req)
+	ws := watchtesting.Watch(rootPublicID, s.Watch, req)
 
 	// Check that watch detects the changes in the first transaction.
 	{
-		change, ok := <-wr.changes
-		if !ok {
-			t.Error("Expected a change.")
+		cb, err := ws.Recv()
+		if err != nil {
+			t.Error("Recv() failed: %v", err)
 		}
+		changes := cb.Changes
+		change := changes[0]
 		if change.Continued {
 			t.Error("Expected change to be the last in this transaction")
 		}
@@ -439,30 +416,21 @@ func TestWatch(t *testing.T) {
 
 	// Check that watch detects the changes in the second transaction.
 	{
-		changes := make([]watch.Change, 0, 0)
-		change, ok := <-wr.changes
-		if !ok {
-			t.Error("Expected a change.")
+		cb, err := ws.Recv()
+		if err != nil {
+			t.Error("Recv() failed: %v", err)
 		}
+		changes := cb.Changes
+		change := changes[0]
 		if !change.Continued {
 			t.Error("Expected change to continue the transaction")
 		}
-		changes = append(changes, change)
-		change, ok = <-wr.changes
-		if !ok {
-			t.Error("Expected a change.")
-		}
+		change = changes[1]
 		if change.Continued {
 			t.Error("Expected change to be the last in this transaction")
 		}
-		changes = append(changes, change)
 		expectExists(t, changes, id1, value1)
 		expectExists(t, changes, id2, value2)
-	}
-
-	// Check that no errors were encountered.
-	if err := wr.err; err != nil {
-		t.Errorf("Unexpected error: %s", err)
 	}
 }
 
@@ -493,14 +461,16 @@ func TestGarbageCollectionOnCommit(t *testing.T) {
 
 	// Start a watch request.
 	req := watch.Request{}
-	wr := doWatch(s, rootCtx, req)
+	ws := watchtesting.Watch(rootPublicID, s.Watch, req)
 
 	// Check that watch detects the changes in the first transaction.
 	{
-		change, ok := <-wr.changes
-		if !ok {
-			t.Error("Expected a change.")
+		cb, err := ws.Recv()
+		if err != nil {
+			t.Error("Recv() failed: %v", err)
 		}
+		changes := cb.Changes
+		change := changes[0]
 		if change.Continued {
 			t.Error("Expected change to be the last in this transaction")
 		}
@@ -530,23 +500,19 @@ func TestGarbageCollectionOnCommit(t *testing.T) {
 
 	// Check that watch detects the changes in the second transaction.
 	{
-		changes := make([]watch.Change, 0, 0)
-		change, ok := <-wr.changes
-		if !ok {
-			t.Error("Expected a change.")
+		cb, err := ws.Recv()
+		if err != nil {
+			t.Error("Recv() failed: %v", err)
 		}
+		changes := cb.Changes
+		change := changes[0]
 		if !change.Continued {
 			t.Error("Expected change to continue the transaction")
 		}
-		changes = append(changes, change)
-		change, ok = <-wr.changes
-		if !ok {
-			t.Error("Expected a change.")
-		}
+		change = changes[1]
 		if change.Continued {
 			t.Error("Expected change to be the last in this transaction")
 		}
-		changes = append(changes, change)
 		expectExists(t, changes, id1, value1)
 		expectExists(t, changes, id2, value2)
 	}
@@ -568,29 +534,29 @@ func TestGarbageCollectionOnCommit(t *testing.T) {
 
 	// Check that watch detects the changes in the third transaction.
 	{
-		changes := make([]watch.Change, 0, 0)
-		change, ok := <-wr.changes
-		if !ok {
-			t.Error("Expected a change.")
+		cb, err := ws.Recv()
+		if err != nil {
+			t.Error("Recv() failed: %v", err)
 		}
+		changes := cb.Changes
+		change := changes[0]
 		if change.Continued {
 			t.Error("Expected change to be the last in this transaction")
 		}
-		changes = append(changes, change)
 		expectExists(t, changes, id1, value1)
 	}
 
 	// Check that watch detects the garbage collection of /a.
 	{
-		changes := make([]watch.Change, 0, 0)
-		change, ok := <-wr.changes
-		if !ok {
-			t.Error("Expected a change.")
+		cb, err := ws.Recv()
+		if err != nil {
+			t.Error("Recv() failed: %v", err)
 		}
+		changes := cb.Changes
+		change := changes[0]
 		if change.Continued {
 			t.Error("Expected change to be the last in this transaction")
 		}
-		changes = append(changes, change)
 		expectDoesNotExist(t, changes, id2)
 	}
 }

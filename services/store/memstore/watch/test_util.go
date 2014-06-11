@@ -2,17 +2,14 @@ package watch
 
 import (
 	"io/ioutil"
-	"net"
 	"os"
 	"runtime"
 	"testing"
-	"time"
 
 	"veyron/services/store/memstore"
 	"veyron/services/store/raw"
 	"veyron/services/store/service"
 
-	"veyron2/ipc"
 	"veyron2/security"
 	"veyron2/services/watch"
 	"veyron2/storage"
@@ -20,94 +17,7 @@ import (
 
 var (
 	rootPublicID security.PublicID = security.FakePublicID("root")
-
-	rootCtx ipc.ServerContext = &rootContext{}
 )
-
-type rootContext struct{}
-
-func (*rootContext) Server() ipc.Server {
-	return nil
-}
-
-func (*rootContext) Method() string {
-	return ""
-}
-
-func (*rootContext) Name() string {
-	return ""
-}
-
-func (*rootContext) Suffix() string {
-	return ""
-}
-
-func (*rootContext) Label() (l security.Label) {
-	return
-}
-
-func (*rootContext) CaveatDischarges() security.CaveatDischargeMap {
-	return nil
-}
-
-func (*rootContext) LocalID() security.PublicID {
-	return rootPublicID
-}
-
-func (*rootContext) RemoteID() security.PublicID {
-	return rootPublicID
-}
-
-func (*rootContext) LocalAddr() net.Addr {
-	return nil
-}
-
-func (*rootContext) RemoteAddr() net.Addr {
-	return nil
-}
-
-func (*rootContext) Deadline() (t time.Time) {
-	return
-}
-
-func (rootContext) IsClosed() bool {
-	return false
-}
-
-func (rootContext) Closed() <-chan struct{} {
-	return nil
-}
-
-func (rootContext) Blessing() security.PublicID {
-	return nil
-}
-
-type cancellableContext struct {
-	rootContext
-
-	cancelled chan struct{}
-}
-
-func newCancellableContext() *cancellableContext {
-	return &cancellableContext{cancelled: make(chan struct{})}
-}
-
-func (ctx *cancellableContext) IsClosed() bool {
-	select {
-	case <-ctx.cancelled:
-		return true
-	default:
-		return false
-	}
-}
-
-func (ctx *cancellableContext) Cancel() {
-	close(ctx.cancelled)
-}
-
-func (ctx *cancellableContext) Closed() <-chan struct{} {
-	return ctx.cancelled
-}
 
 func get(t *testing.T, st *memstore.Store, tr service.Transaction, path string) interface{} {
 	_, file, line, _ := runtime.Caller(1)
@@ -209,32 +119,6 @@ func createWatcher(t *testing.T, dbName string) (service.Watcher, func()) {
 	return w, func() {
 		w.Close()
 	}
-}
-
-type watchResult struct {
-	changes chan watch.Change
-	err     error
-}
-
-func (wr *watchResult) Send(cb watch.ChangeBatch) error {
-	for _, change := range cb.Changes {
-		wr.changes <- change
-	}
-	return nil
-}
-
-// doWatch executes a watch request and returns a new watchResult.
-// Change events may be received on the channel "changes".
-// Once "changes" is closed, any error that occurred is stored to "err".
-func doWatch(w service.Watcher, ctx ipc.ServerContext, req watch.Request) *watchResult {
-	wr := &watchResult{changes: make(chan watch.Change)}
-	go func() {
-		defer close(wr.changes)
-		if err := w.Watch(ctx, req, wr); err != nil {
-			wr.err = err
-		}
-	}()
-	return wr
 }
 
 var (
