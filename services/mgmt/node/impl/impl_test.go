@@ -5,7 +5,6 @@ import (
 	"os"
 	"syscall"
 	"testing"
-	"time"
 
 	"veyron/lib/exec"
 	"veyron/lib/signals"
@@ -196,9 +195,7 @@ func TestUpdate(t *testing.T) {
 	defer os.Remove(idFile)
 	child := spawnNodeManager(t, mtName, idFile)
 	defer child.Cleanup()
-	if err := child.WaitForLine("ready", time.Second); err != nil {
-		t.Fatal("WaitForLine() failed: %v", err)
-	}
+	child.Expect("ready")
 	name := naming.Join(mtName, "nm")
 	results, err := mt.Resolve(ctx, name)
 	if err != nil {
@@ -213,7 +210,5 @@ func TestUpdate(t *testing.T) {
 	// Invoke the Update method and check that another instance of the
 	// node manager binary has been started.
 	invokeUpdate(t, nmAddress)
-	if err := child.WaitForLine("ready", time.Second); err != nil {
-		t.Fatal("WaitForLine() failed: %v", err)
-	}
+	child.Expect("ready")
 }
