@@ -32,11 +32,22 @@ type serverHelper interface {
 
 type server struct {
 	sync.Mutex
-	server                    ipc.Server
-	endpoint                  string
-	id                        uint64
-	helper                    serverHelper
-	veyronProxy               string
+
+	// The server that handles the ipc layer.  Listen on this server is
+	// lazily started.
+	server ipc.Server
+	// The endpoint of the server.  This is empty until the server has been
+	// started and listen has been called on it.
+	endpoint string
+
+	// The server id.
+	id     uint64
+	helper serverHelper
+
+	// The proxy to listen through.
+	veyronProxy string
+
+	// The set of outstanding server requests.
 	outstandingServerRequests map[int64]chan *serverRPCReply
 }
 
@@ -65,30 +76,6 @@ func newServer(id uint64, veyronProxy string, helper serverHelper) (*server, err
 // remoteInvokeFunc is a type of function that can invoke a remote method and
 // communicate the result back via a channel to the caller
 type remoteInvokeFunc func(methodName string, args []interface{}, call ipc.ServerCall) <-chan *serverRPCReply
-
-func proxyStream(stream ipc.Stream, w clientWriter) {
-	var item interface{}
-	for err := stream.Recv(&item); err == nil; err = stream.Recv(&item) {
-		data := response{Type: responseStream, Message: item}
-		if err := vom.ObjToJSON(w, vom.ValueOf(data)); err != nil {
-			w.sendError(verror.Internalf("error marshalling stream: %v:", err))
-			return
-		}
-		if err := w.FinishMessage(); err != nil {
-			w.getLogger().VI(2).Info("WSPR: error finishing message", err)
-			return
-		}
-	}
-
-	if err := vom.ObjToJSON(w, vom.ValueOf(response{Type: responseStreamClose})); err != nil {
-		w.sendError(verror.Internalf("error closing stream: %v:", err))
-		return
-	}
-	if err := w.FinishMessage(); err != nil {
-		w.getLogger().VI(2).Info("WSPR: error finishing message", err)
-		return
-	}
-}
 
 func (s *server) createRemoteInvokerFunc(serviceName string) remoteInvokeFunc {
 	return func(methodName string, args []interface{}, call ipc.ServerCall) <-chan *serverRPCReply {
@@ -133,8 +120,32 @@ func (s *server) createRemoteInvokerFunc(serviceName string) remoteInvokeFunc {
 			"JavaScript server %q with args %v, MessageId %d was assigned.",
 			methodName, serviceName, args, flow.id)
 
-		go proxyStream(call, flow.writer)
+		go proxyStream(call, flow.writer, s.helper.getLogger())
 		return replyChan
+	}
+}
+
+func proxyStream(stream ipc.Stream, w clientWriter, logger vlog.Logger) {
+	var item interface{}
+	for err := stream.Recv(&item); err == nil; err = stream.Recv(&item) {
+		data := response{Type: responseStream, Message: item}
+		if err := vom.ObjToJSON(w, vom.ValueOf(data)); err != nil {
+			w.sendError(verror.Internalf("error marshalling stream: %v:", err))
+			return
+		}
+		if err := w.FinishMessage(); err != nil {
+			logger.Error("WSPR: error finishing message", err)
+			return
+		}
+	}
+
+	if err := vom.ObjToJSON(w, vom.ValueOf(response{Type: responseStreamClose})); err != nil {
+		w.sendError(verror.Internalf("error closing stream: %v:", err))
+		return
+	}
+	if err := w.FinishMessage(); err != nil {
+		logger.Error("WSPR: error finishing message", err)
+		return
 	}
 }
 
@@ -175,7 +186,7 @@ func (s *server) publish(name string) (string, error) {
 	if err := s.server.Publish(name); err != nil {
 		return "", err
 	}
-	s.helper.getLogger().VI(0).Infof("endpoint is %s", s.endpoint)
+	s.helper.getLogger().VI(1).Infof("endpoint is %s", s.endpoint)
 	return s.endpoint, nil
 }
 
@@ -185,7 +196,7 @@ func (s *server) handleServerResponse(id int64, data string) {
 	delete(s.outstandingServerRequests, id)
 	s.Unlock()
 	if ch == nil {
-		s.helper.getLogger().VI(0).Infof("unexpected result from JavaScript. No channel "+
+		s.helper.getLogger().Errorf("unexpected result from JavaScript. No channel "+
 			"for MessageId: %d exists. Ignoring the results.", id)
 		//Ignore unknown responses that don't belong to any channel
 		return

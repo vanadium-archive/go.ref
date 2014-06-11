@@ -160,10 +160,6 @@ func (w *testWriter) Write(p []byte) (int, error) {
 
 }
 
-func (w *testWriter) getLogger() vlog.Logger {
-	return w.logger
-}
-
 func (w *testWriter) sendError(err error) {
 	w.err = err
 }

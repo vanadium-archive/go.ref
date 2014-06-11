@@ -17,8 +17,6 @@ import (
 type clientWriter interface {
 	Write(p []byte) (int, error)
 
-	getLogger() vlog.Logger
-
 	sendError(err error)
 
 	FinishMessage() error
@@ -28,12 +26,8 @@ type clientWriter interface {
 type websocketWriter struct {
 	ws     *websocket.Conn
 	buf    bytes.Buffer
-	logger vlog.Logger // TODO(bprosnitz) Remove this -- it has nothing to do with websockets!
+	logger vlog.Logger
 	id     int64
-}
-
-func (w *websocketWriter) getLogger() vlog.Logger {
-	return w.logger
 }
 
 func (w *websocketWriter) Write(p []byte) (int, error) {
@@ -64,11 +58,11 @@ func (w *websocketWriter) sendError(err error) {
 
 	w.buf.Reset()
 	if err := vom.ObjToJSON(&w.buf, vom.ValueOf(response{Type: responseError, Message: errMsg})); err != nil {
-		w.logger.VI(2).Info("Failed to marshal with", err)
+		w.logger.Error("Failed to marshal with", err)
 		return
 	}
 	if err := w.FinishMessage(); err != nil {
-		w.logger.VI(2).Info("WSPR: error finishing message: ", err)
+		w.logger.Error("WSPR: error finishing message: ", err)
 		return
 	}
 }
