@@ -368,7 +368,7 @@ func (wsp *websocketPipe) createNewFlow(server *server, stream sender) *flow {
 	id := wsp.lastGeneratedId
 	wsp.lastGeneratedId += 2
 	wsp.flowMap[id] = server
-	wsp.outstandingStreams[id] = outstandingStream{stream: stream}
+	wsp.outstandingStreams[id] = outstandingStream{stream, vom_wiretype.Type{ID: 1}}
 	return &flow{id: id, writer: wsp.writerCreator(id)}
 }
 
