@@ -705,7 +705,7 @@ func TestDerive(t *testing.T) {
 	for _, d := range testdata {
 		derivedID, err := d.priv.Derive(d.pub)
 		if reflect.TypeOf(derivedID) != d.typ {
-			t.Errorf("%T=%q.Derive(%T=%q) yielded %T, want %v", d.priv, d.priv, d.pub, d.pub, derivedID, d.typ)
+			t.Errorf("%T=%q.Derive(%T=%q) yielded (%T, %v), want %v", d.priv, d.priv, d.pub, d.pub, derivedID, err, d.typ)
 			continue
 		}
 		if err != nil {
@@ -715,9 +715,6 @@ func TestDerive(t *testing.T) {
 		}
 		if !reflect.DeepEqual(derivedID.PublicID(), d.pub) {
 			t.Errorf("%q.Derive(%q) returned: %q. PublicID mismatch", d.priv, d.pub, derivedID)
-		}
-		if !reflect.DeepEqual(derivedID.PrivateKey(), d.priv.PrivateKey()) {
-			t.Errorf("%q.Derive(%q) returned: %q. PrivateKey mismatch", d.priv, d.pub, derivedID)
 		}
 		if _, err := roundTrip(derivedID.PublicID()); err != nil {
 			t.Errorf("roundTrip(%q=%q.Derive(%q)) failed: %v", derivedID, d.priv, d.pub, err)

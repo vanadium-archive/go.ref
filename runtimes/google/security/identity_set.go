@@ -146,8 +146,9 @@ func NewSetPrivateID(ids ...security.PrivateID) (security.PrivateID, error) {
 	case 1:
 		return ids[0], nil
 	default:
+		pub := ids[0].PublicID().PublicKey()
 		for i := 1; i < len(ids); i++ {
-			if !reflect.DeepEqual(ids[0].PrivateKey(), ids[i].PrivateKey()) {
+			if !reflect.DeepEqual(pub, ids[i].PublicID().PublicKey()) {
 				return nil, errMismatchedKeys
 			}
 		}
@@ -164,7 +165,7 @@ func (s setPrivateID) PublicID() security.PublicID {
 	return &set
 }
 
-func (s setPrivateID) PrivateKey() *ecdsa.PrivateKey { return s[0].PrivateKey() }
+func (s setPrivateID) Sign(message []byte) (security.Signature, error) { return s[0].Sign(message) }
 
 func (s setPrivateID) Bless(blessee security.PublicID, blessingName string, duration time.Duration, caveats []security.ServiceCaveat) (security.PublicID, error) {
 	pubs := make([]security.PublicID, len(s))
@@ -178,15 +179,12 @@ func (s setPrivateID) Bless(blessee security.PublicID, blessingName string, dura
 }
 
 func (s setPrivateID) Derive(pub security.PublicID) (security.PrivateID, error) {
-	if !reflect.DeepEqual(pub.PublicKey(), &s.PrivateKey().PublicKey) {
-		return nil, errDeriveMismatch
-	}
-	var err error
 	switch p := pub.(type) {
 	case *chainPublicID:
 		return s[0].Derive(p)
 	case *setPublicID:
 		privs := make([]security.PrivateID, len(*p))
+		var err error
 		for ix, ip := range *p {
 			if privs[ix], err = s.Derive(ip); err != nil {
 				return nil, fmt.Errorf("Derive failed for %d of %d id in set", ix, len(*p))

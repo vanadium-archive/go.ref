@@ -120,11 +120,12 @@ type chainPrivateID struct {
 	privateKey *ecdsa.PrivateKey
 }
 
-// PublicID returns the PublicID associated with the PrivateID.
 func (id *chainPrivateID) PublicID() security.PublicID { return id.publicID }
 
-// PrivateKey returns the private key associated with the PrivateID.
-func (id *chainPrivateID) PrivateKey() *ecdsa.PrivateKey { return id.privateKey }
+func (id *chainPrivateID) Sign(message []byte) (signature security.Signature, err error) {
+	signature.R, signature.S, err = ecdsa.Sign(rand.Reader, id.privateKey, message)
+	return
+}
 
 func (id *chainPrivateID) String() string { return fmt.Sprintf("PrivateID:%v", id.publicID) }
 
@@ -210,7 +211,7 @@ func (id *chainPrivateID) Derive(pub security.PublicID) (security.PrivateID, err
 }
 
 func (id *chainPrivateID) MintDischarge(cav security.ThirdPartyCaveat, ctx security.Context, duration time.Duration, dischargeCaveats []security.ServiceCaveat) (security.ThirdPartyDischarge, error) {
-	return icaveat.NewPublicKeyDischarge(cav, ctx, id.privateKey, duration, dischargeCaveats)
+	return icaveat.NewPublicKeyDischarge(id, cav, ctx, duration, dischargeCaveats)
 }
 
 // newChainPrivateID returns a new PrivateID containing a freshly generated

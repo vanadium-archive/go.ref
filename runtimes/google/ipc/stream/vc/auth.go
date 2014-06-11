@@ -3,7 +3,6 @@ package vc
 import (
 	"bytes"
 	"crypto/ecdsa"
-	"crypto/rand"
 	"errors"
 	"fmt"
 	"io"
@@ -85,17 +84,16 @@ func writeIdentity(w io.Writer, chEnd string, enc crypto.Encrypter, id security.
 	defer eid.Release()
 
 	// Sign the channel ID
-	r, s, err := ecdsa.Sign(rand.Reader, id.PrivateKey(), chid.Contents)
+	signature, err := id.Sign(chid.Contents)
 	if err != nil {
 		return err
 	}
-	// Encrypt the signature
-	er, err := enc.Encrypt(iobuf.NewSlice(r.Bytes()))
+	er, err := enc.Encrypt(iobuf.NewSlice(signature.R.Bytes()))
 	if err != nil {
 		return err
 	}
 	defer er.Release()
-	es, err := enc.Encrypt(iobuf.NewSlice(s.Bytes()))
+	es, err := enc.Encrypt(iobuf.NewSlice(signature.S.Bytes()))
 	if err != nil {
 		return err
 	}

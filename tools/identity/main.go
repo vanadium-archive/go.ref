@@ -80,12 +80,11 @@ func main() {
 
 	if len(*interpret) > 0 {
 		id := load(*interpret)
-		fmt.Println("Name   : ", id.PublicID())
-		fmt.Printf("Go Type: %T\n", id)
-		fmt.Println("Key    : <Cannot print the elliptic curve>")
-		fmt.Println("      X: ", id.PrivateKey().X)
-		fmt.Println("      Y: ", id.PrivateKey().Y)
-		fmt.Println("      D: ", id.PrivateKey().D)
+		fmt.Println("Name     : ", id.PublicID())
+		fmt.Printf("Go Type  : %T\n", id)
+		fmt.Println("PublicKey: <Cannot print the elliptic curve>")
+		fmt.Println("        X: ", id.PublicID().PublicKey().X)
+		fmt.Println("        Y: ", id.PublicID().PublicKey().Y)
 		fmt.Println("Any caveats in the identity are not printed")
 	}
 }

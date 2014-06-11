@@ -131,15 +131,13 @@ func (d *publicKeyDischarge) ThirdPartyCaveats() []security.ServiceCaveat {
 	return wire.DecodeThirdPartyCaveats(d.Caveats)
 }
 
-// sign uses the provided private key to sign the contents of the discharge. The private
-// key typically belongs to the principal that minted the discharge.
-func (d *publicKeyDischarge) sign(key *ecdsa.PrivateKey) error {
-	r, s, err := ecdsa.Sign(rand.Reader, key, d.contentHash())
+// sign uses the provided identity to sign the contents of the discharge.
+func (d *publicKeyDischarge) sign(discharger security.PrivateID) error {
+	signature, err := discharger.Sign(d.contentHash())
 	if err != nil {
 		return err
 	}
-	d.Signature.R = r.Bytes()
-	d.Signature.S = s.Bytes()
+	d.Signature.Set(signature)
 	return nil
 }
 
@@ -185,7 +183,7 @@ func NewPublicKeyCaveat(dischargeMintingCaveat security.Caveat, thirdParty secur
 // the discharge includes the provided service caveats along with a universal
 // expiry caveat for the provided duration. The discharge also includes a
 // signature over its contents obtained from the provided private key.
-func NewPublicKeyDischarge(caveat security.ThirdPartyCaveat, ctx security.Context, dischargingKey *ecdsa.PrivateKey, duration time.Duration, caveats []security.ServiceCaveat) (security.ThirdPartyDischarge, error) {
+func NewPublicKeyDischarge(discharger security.PrivateID, caveat security.ThirdPartyCaveat, ctx security.Context, duration time.Duration, caveats []security.ServiceCaveat) (security.ThirdPartyDischarge, error) {
 	cav, ok := caveat.(*publicKeyCaveat)
 	if !ok {
 		return nil, fmt.Errorf("cannot mint discharges for %T", caveat)
@@ -198,23 +196,22 @@ func NewPublicKeyDischarge(caveat security.ThirdPartyCaveat, ctx security.Contex
 	if err := mintingCaveat.Validate(ctx); err != nil {
 		return nil, fmt.Errorf("failed to validate DischargeMintingCaveat: %s", err)
 	}
-
-	discharge := &publicKeyDischarge{ThirdPartyCaveatID: caveat.ID()}
-
 	now := time.Now()
 	expiryCaveat := &vcaveat.Expiry{IssueTime: now, ExpiryTime: now.Add(duration)}
 	caveats = append(caveats, security.UniversalCaveat(expiryCaveat))
-
 	encodedCaveats, err := wire.EncodeCaveats(caveats)
 	if err != nil {
+		return nil, fmt.Errorf("failed to encode caveats in discharge: %v", err)
+	}
+	discharge := &publicKeyDischarge{
+		ThirdPartyCaveatID: caveat.ID(),
+		Caveats:            encodedCaveats,
+	}
+	// TODO(ashankar,ataly): Should discharger necessarily be the same as ctx.LocalID()?
+	// If so, need the PrivateID object corresponding to ctx.LocalID.
+	if err := discharge.sign(discharger); err != nil {
 		return nil, err
 	}
-	discharge.Caveats = encodedCaveats
-
-	if err := discharge.sign(dischargingKey); err != nil {
-		return nil, err
-	}
-
 	return discharge, nil
 }
 
