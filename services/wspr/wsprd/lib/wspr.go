@@ -328,6 +328,11 @@ func setAccessControl(w http.ResponseWriter) {
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 }
 
+type outstandingStream struct {
+	stream sender
+	inType vom.Type
+}
+
 type websocketPipe struct {
 	// Protects outstandingStreams and outstandingServerRequests.
 	sync.Mutex
@@ -339,7 +344,7 @@ type websocketPipe struct {
 	lastGeneratedId int64
 
 	// Streams for the outstanding requests.
-	outstandingStreams map[int64]sender
+	outstandingStreams map[int64]outstandingStream
 
 	// Maps flowids to the server that owns them.
 	flowMap map[int64]*server
@@ -363,7 +368,7 @@ func (wsp *websocketPipe) createNewFlow(server *server, stream sender) *flow {
 	id := wsp.lastGeneratedId
 	wsp.lastGeneratedId += 2
 	wsp.flowMap[id] = server
-	wsp.outstandingStreams[id] = stream
+	wsp.outstandingStreams[id] = outstandingStream{stream: stream}
 	return &flow{id: id, writer: wsp.writerCreator(id)}
 }
 
@@ -387,7 +392,7 @@ func (wsp *websocketPipe) cleanup() {
 	wsp.Lock()
 	defer wsp.Unlock()
 	for _, stream := range wsp.outstandingStreams {
-		if call, ok := stream.(ipc.Call); ok {
+		if call, ok := stream.stream.(ipc.Call); ok {
 			call.Cancel()
 		}
 	}
@@ -399,7 +404,7 @@ func (wsp *websocketPipe) cleanup() {
 
 func (wsp *websocketPipe) setup() {
 	wsp.signatureManager = newSignatureManager()
-	wsp.outstandingStreams = make(map[int64]sender)
+	wsp.outstandingStreams = make(map[int64]outstandingStream)
 	wsp.flowMap = make(map[int64]*server)
 	wsp.servers = make(map[uint64]*server)
 
@@ -471,7 +476,7 @@ func (wsp *websocketPipe) pongHandler(msg string) error {
 func (wsp *websocketPipe) sendParsedMessageOnStream(id int64, msg interface{}, w clientWriter) {
 	wsp.Lock()
 	defer wsp.Unlock()
-	stream := wsp.outstandingStreams[id]
+	stream := wsp.outstandingStreams[id].stream
 	if stream == nil {
 		w.sendError(fmt.Errorf("unknown stream"))
 	}
@@ -482,10 +487,16 @@ func (wsp *websocketPipe) sendParsedMessageOnStream(id int64, msg interface{}, w
 
 // sendOnStream writes data on id's stream.  Returns an error if the send failed.
 func (wsp *websocketPipe) sendOnStream(id int64, data string, w clientWriter) {
-	decoder := json.NewDecoder(bytes.NewBufferString(data))
-	var payload interface{}
-	if err := decoder.Decode(&payload); err != nil {
-		w.sendError(fmt.Errorf("can't unmarshal JSONMessage: %v", err))
+	wsp.Lock()
+	typ := wsp.outstandingStreams[id].inType
+	wsp.Unlock()
+	if typ == nil {
+		vlog.Errorf("no inType for stream %d (%q)", id, data)
+		return
+	}
+	payload, err := vom.JSONToObject(data, typ)
+	if err != nil {
+		vlog.Errorf("error while converting json to InStreamType (%s): %v", data, err)
 		return
 	}
 	wsp.sendParsedMessageOnStream(id, payload, w)
@@ -514,7 +525,7 @@ func (wsp *websocketPipe) sendVeyronRequest(id int64, veyronMsg *veyronRPC, w cl
 
 // handleVeyronRequest starts a veyron rpc and returns before the rpc has been completed.
 func (wsp *websocketPipe) handleVeyronRequest(id int64, data string, w *websocketWriter) {
-	veyronMsg, err := wsp.parseVeyronRequest(bytes.NewBufferString(data))
+	veyronMsg, inStreamType, err := wsp.parseVeyronRequest(bytes.NewBufferString(data))
 	if err != nil {
 		w.sendError(verror.Internalf("can't parse Veyron Request: %v", err))
 		return
@@ -530,7 +541,10 @@ func (wsp *websocketPipe) handleVeyronRequest(id int64, data string, w *websocke
 	var signal chan ipc.Stream
 	if veyronMsg.IsStreaming {
 		signal = make(chan ipc.Stream)
-		wsp.outstandingStreams[id] = startQueueingStream(signal)
+		wsp.outstandingStreams[id] = outstandingStream{
+			stream: startQueueingStream(signal),
+			inType: inStreamType,
+		}
 	}
 	go wsp.sendVeyronRequest(id, veyronMsg, w, signal)
 }
@@ -538,7 +552,7 @@ func (wsp *websocketPipe) handleVeyronRequest(id int64, data string, w *websocke
 func (wsp *websocketPipe) closeStream(id int64) {
 	wsp.Lock()
 	defer wsp.Unlock()
-	stream := wsp.outstandingStreams[id]
+	stream := wsp.outstandingStreams[id].stream
 	if stream == nil {
 		wsp.ctx.logger.Errorf("close called on non-existent call: %v", id)
 		return
@@ -686,34 +700,34 @@ func (wsp *websocketPipe) handleServerResponse(id int64, data string) {
 }
 
 // parseVeyronRequest parses a json rpc request into a veyronRPC object.
-func (wsp *websocketPipe) parseVeyronRequest(r io.Reader) (*veyronRPC, error) {
+func (wsp *websocketPipe) parseVeyronRequest(r io.Reader) (*veyronRPC, vom.Type, error) {
 	var tempMsg veyronTempRPC
 	decoder := json.NewDecoder(r)
 	if err := decoder.Decode(&tempMsg); err != nil {
-		return nil, fmt.Errorf("can't unmarshall JSONMessage: %v", err)
+		return nil, nil, fmt.Errorf("can't unmarshall JSONMessage: %v", err)
 	}
 
 	client, err := wsp.ctx.newClient(tempMsg.PrivateId)
 	if err != nil {
-		return nil, verror.Internalf("error creating client: %v", err)
+		return nil, nil, verror.Internalf("error creating client: %v", err)
 	}
 
 	// Fetch and adapt signature from the SignatureManager
 	ctx := wsp.ctx.rt.TODOContext()
 	sig, err := wsp.signatureManager.signature(ctx, tempMsg.Name, client)
 	if err != nil {
-		return nil, verror.Internalf("error getting service signature for %s: %v", tempMsg.Name, err)
+		return nil, nil, verror.Internalf("error getting service signature for %s: %v", tempMsg.Name, err)
 	}
 
 	methName := uppercaseFirstCharacter(tempMsg.Method)
 	methSig, ok := sig.Methods[methName]
 	if !ok {
-		return nil, fmt.Errorf("Method not found in signature: %v (full sig: %v)", methName, sig)
+		return nil, nil, fmt.Errorf("Method not found in signature: %v (full sig: %v)", methName, sig)
 	}
 
 	var msg veyronRPC
 	if len(methSig.InArgs) != len(tempMsg.InArgs) {
-		return nil, fmt.Errorf("invalid number of arguments: %v vs. %v", methSig, tempMsg)
+		return nil, nil, fmt.Errorf("invalid number of arguments: %v vs. %v", methSig, tempMsg)
 	}
 	msg.InArgs = make([]interface{}, len(tempMsg.InArgs))
 	td := wiretype_build.TypeDefs(sig.TypeDefs)
@@ -727,7 +741,7 @@ func (wsp *websocketPipe) parseVeyronRequest(r io.Reader) (*veyronRPC, error) {
 
 		val, err := vom.JSONToObject(string(tempMsg.InArgs[i]), argType)
 		if err != nil {
-			return nil, fmt.Errorf("error while converting json to object for arg %d (%s): %v", i, methSig.InArgs[i].Name, err)
+			return nil, nil, fmt.Errorf("error while converting json to object for arg %d (%s): %v", i, methSig.InArgs[i].Name, err)
 		}
 		msg.InArgs[i] = val
 	}
@@ -738,8 +752,13 @@ func (wsp *websocketPipe) parseVeyronRequest(r io.Reader) (*veyronRPC, error) {
 	msg.NumOutArgs = tempMsg.NumOutArgs
 	msg.IsStreaming = tempMsg.IsStreaming
 
+	inStreamType := vom_wiretype.Type{
+		ID:   methSig.InStream,
+		Defs: &td,
+	}
+
 	wsp.ctx.logger.VI(2).Infof("VeyronRPC: %s.%s(id=%v, ..., streaming=%v)", msg.Name, msg.Method, len(msg.PrivateId) > 0, msg.IsStreaming)
-	return &msg, nil
+	return &msg, inStreamType, nil
 }
 
 type signatureRequest struct {
