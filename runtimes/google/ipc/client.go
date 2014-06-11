@@ -122,6 +122,10 @@ func (c *client) StartCall(ctx context.T, name, method string, args []interface{
 
 // startCall ensures StartCall always returns verror.E.
 func (c *client) startCall(ctx context.T, name, method string, args []interface{}, opts ...ipc.CallOpt) (ipc.Call, verror.E) {
+	if ctx == nil {
+		return nil, verror.BadArgf("ipc: %s.%s called with nil context", name, method)
+	}
+
 	servers, err := c.mt.Resolve(ctx, name)
 	if err != nil {
 		return nil, verror.NotFoundf("ipc: Resolve(%q) failed: %v", name, err)
