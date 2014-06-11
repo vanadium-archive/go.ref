@@ -45,11 +45,18 @@ type Mutation struct {
   Dir []storage.DEntry
 }
 
+// Request specifies how to resume from a previous Watch call.
+type Request struct {
+  // ResumeMarker specifies how to resume from a previous Watch call.
+  // See the ResumeMarker type for detailed comments.
+  ResumeMarker watch.ResumeMarker
+}
+
 // Store defines a raw interface for the Veyron store. Mutations can be received
 // via the Watcher interface, and committed via PutMutation.
 type Store interface {
-  // Watcher is an API for watching updates that satisfy a query.
-  watch.Watcher
+  // Watch returns a stream of all changes.
+  Watch(Req Request) stream<_, watch.ChangeBatch> error
 
   // PutMutations atomically commits a stream of Mutations when the stream is
   // closed. Mutations are not committed if the request is cancelled before

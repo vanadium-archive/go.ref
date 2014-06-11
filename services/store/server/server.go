@@ -16,7 +16,6 @@ import (
 	"veyron2/ipc"
 	"veyron2/security"
 	"veyron2/services/store"
-	"veyron2/services/watch"
 	"veyron2/vdl"
 	"veyron2/verror"
 )
@@ -249,9 +248,9 @@ func (s *Server) Abort(ctx ipc.ServerContext, id store.TransactionID) error {
 	return err
 }
 
-// Watch returns a stream of changes.
-func (s *Server) Watch(ctx ipc.ServerContext, req watch.Request, stream watch.WatcherServiceWatchStream) error {
-	return s.watcher.Watch(ctx, req, stream)
+// Watch returns a stream of all changes.
+func (s *Server) Watch(ctx ipc.ServerContext, req raw.Request, stream raw.StoreServiceWatchStream) error {
+	return s.watcher.WatchRaw(ctx, req, stream)
 }
 
 // PutMutations atomically commits a stream of Mutations when the stream is

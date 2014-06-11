@@ -7,7 +7,7 @@ import (
 	"veyron2/storage"
 )
 
-func TestSyncProcessState(t *testing.T) {
+func TestRawProcessState(t *testing.T) {
 	// Create a new store.
 	dbName, st, cleanup := createStore(t)
 	defer cleanup()
@@ -56,7 +56,7 @@ func TestSyncProcessState(t *testing.T) {
 	expectExists(t, changes, id2, storage.NoVersion, post2, false, "val2", empty)
 }
 
-func TestSyncProcessTransactionAddRemove(t *testing.T) {
+func TestRawProcessTransactionAddRemove(t *testing.T) {
 	dbName, st, cleanup := createStore(t)
 	defer cleanup()
 
@@ -147,16 +147,16 @@ func TestSyncProcessTransactionAddRemove(t *testing.T) {
 	expectDoesNotExist(t, changes, id3, pre3, false)
 }
 
-func TestSyncProcessTransactionRemoveRecursive(t *testing.T) {
+func TestRawProcessTransactionRemoveRecursive(t *testing.T) {
 	dbName, st, cleanup := createStore(t)
 	defer cleanup()
 
 	log, cleanup, processor := openLog(t, dbName)
 	defer cleanup()
 
-	processor, err := newSyncProcessor(rootPublicID)
+	processor, err := newRawProcessor(rootPublicID)
 	if err != nil {
-		t.Fatalf("newSyncProcessor() failed: %v", err)
+		t.Fatalf("newRawProcessor() failed: %v", err)
 	}
 
 	logstore, err := log.ReadState(rootPublicID)
@@ -238,16 +238,16 @@ func TestSyncProcessTransactionRemoveRecursive(t *testing.T) {
 	expectDoesNotExist(t, changes, id3, pre3, false)
 }
 
-func TestSyncProcessTransactionUpdateRemoveRoot(t *testing.T) {
+func TestRawProcessTransactionUpdateRemoveRoot(t *testing.T) {
 	dbName, st, cleanup := createStore(t)
 	defer cleanup()
 
 	log, cleanup, processor := openLog(t, dbName)
 	defer cleanup()
 
-	processor, err := newSyncProcessor(rootPublicID)
+	processor, err := newRawProcessor(rootPublicID)
 	if err != nil {
-		t.Fatalf("newSyncProcessor() failed: %v", err)
+		t.Fatalf("newRawProcessor() failed: %v", err)
 	}
 
 	logstore, err := log.ReadState(rootPublicID)

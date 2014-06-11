@@ -14,7 +14,6 @@ import (
 	"veyron2"
 	"veyron2/context"
 	"veyron2/ipc"
-	"veyron2/query"
 	"veyron2/rt"
 	"veyron2/services/watch"
 	"veyron2/storage"
@@ -45,7 +44,7 @@ func newWatcher(syncd *syncd) *syncWatcher {
 // its goroutines to exit by closing its internal channel.  This in turn unblocks the watcher
 // enabling it to exit.  If the RPC fails, the watcher notifies the canceler to exit by
 // closing a private "done" channel between them.
-func (w *syncWatcher) watchStreamCanceler(stream watch.WatcherWatchStream, done chan struct{}) {
+func (w *syncWatcher) watchStreamCanceler(stream watch.GlobWatcherWatchGlobStream, done chan struct{}) {
 	select {
 	case <-w.syncd.closed:
 		vlog.VI(1).Info("watchStreamCanceler: Syncd channel closed, cancel stream and exit")
@@ -97,9 +96,9 @@ func (w *syncWatcher) watchStore() {
 
 // getWatchStream() returns a Watch API stream and handles retries if the Watch() call fails.
 // If the stream is nil, it means Syncd is exiting cleanly and the caller should terminate.
-func (w *syncWatcher) getWatchStream(ctx context.T) watch.WatcherWatchStream {
+func (w *syncWatcher) getWatchStream(ctx context.T) watch.GlobWatcherWatchGlobStream {
 	for {
-		req := watch.Request{Query: query.Query{}}
+		req := raw.Request{}
 		if resmark := w.syncd.devtab.head.Resmark; resmark != nil {
 			req.ResumeMarker = resmark
 		}
@@ -123,7 +122,7 @@ func (w *syncWatcher) getWatchStream(ctx context.T) watch.WatcherWatchStream {
 // Ideally this call does not return as the stream should be un-ending (like "tail -f").
 // If the stream is closed, distinguish between the cases of end-of-stream vs Syncd canceling
 // the stream to trigger a clean exit.
-func (w *syncWatcher) processWatchStream(stream watch.WatcherWatchStream) {
+func (w *syncWatcher) processWatchStream(stream watch.GlobWatcherWatchGlobStream) {
 	for {
 		changes, err := stream.Recv()
 		if err != nil {
