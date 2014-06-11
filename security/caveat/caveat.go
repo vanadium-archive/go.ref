@@ -59,8 +59,20 @@ func (c PeerIdentity) Validate(ctx security.Context) error {
 	return fmt.Errorf("%#v forbids RPCing with peer %s", c, ctx.LocalID())
 }
 
+// NetworkType is a security.Caveat that restricts communication with the
+// remote process to a particular network ("tcp", "udp", "bluetooth" etc.)
+type NetworkType string
+
+func (cav NetworkType) Validate(ctx security.Context) error {
+	if ctx.RemoteEndpoint().Addr().Network() == string(cav) {
+		return nil
+	}
+	return fmt.Errorf("required network type %q, got %q", cav, ctx.RemoteEndpoint().Addr().Network())
+}
+
 func init() {
 	vom.Register(Expiry{})
 	vom.Register(MethodRestriction(nil))
 	vom.Register(PeerIdentity(nil))
+	vom.Register(NetworkType(""))
 }

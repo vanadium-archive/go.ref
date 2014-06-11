@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
-	"net"
 	"os"
 	"reflect"
 	"testing"
@@ -14,6 +13,7 @@ import (
 	"veyron/services/store/raw"
 
 	"veyron2/ipc"
+	"veyron2/naming"
 	"veyron2/security"
 	"veyron2/services/store"
 	"veyron2/services/watch"
@@ -72,11 +72,11 @@ func (*testContext) Blessing() security.PublicID {
 	return nil
 }
 
-func (*testContext) LocalAddr() net.Addr {
+func (*testContext) LocalEndpoint() naming.Endpoint {
 	return nil
 }
 
-func (*testContext) RemoteAddr() net.Addr {
+func (*testContext) RemoteEndpoint() naming.Endpoint {
 	return nil
 }
 

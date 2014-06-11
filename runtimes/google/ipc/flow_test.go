@@ -10,6 +10,7 @@ import (
 
 	_ "veyron/lib/testutil"
 	"veyron2/ipc"
+	"veyron2/naming"
 	"veyron2/security"
 	"veyron2/verror"
 )
@@ -31,6 +32,8 @@ func (f *testFlow) Read(b []byte) (int, error)         { return f.r.Read(b) }
 func (f *testFlow) Write(b []byte) (int, error)        { return f.w.Write(b) }
 func (f *testFlow) LocalAddr() net.Addr                { return nil }
 func (f *testFlow) RemoteAddr() net.Addr               { return nil }
+func (f *testFlow) LocalEndpoint() naming.Endpoint     { return nil }
+func (f *testFlow) RemoteEndpoint() naming.Endpoint    { return nil }
 func (f *testFlow) LocalID() security.PublicID         { return security.FakePublicID("test") }
 func (f *testFlow) RemoteID() security.PublicID        { return security.FakePublicID("test") }
 func (f *testFlow) SetReadDeadline(t time.Time) error  { return nil }

@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	"veyron2/naming"
 	"veyron2/security"
 )
 
@@ -17,6 +18,8 @@ func (*noopFlow) Close() error                       { return nil }
 func (*noopFlow) IsClosed() bool                     { return false }
 func (*noopFlow) Closed() <-chan struct{}            { return nil }
 func (*noopFlow) Cancel()                            {}
+func (*noopFlow) LocalEndpoint() naming.Endpoint     { return nil }
+func (*noopFlow) RemoteEndpoint() naming.Endpoint    { return nil }
 func (*noopFlow) LocalAddr() net.Addr                { return nil }
 func (*noopFlow) RemoteAddr() net.Addr               { return nil }
 func (*noopFlow) SetDeadline(t time.Time) error      { return nil }

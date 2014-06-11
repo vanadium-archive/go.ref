@@ -2,7 +2,6 @@ package memstore
 
 import (
 	"io"
-	"net"
 	"runtime"
 	"testing"
 	"time"
@@ -11,6 +10,7 @@ import (
 	"veyron/services/store/service"
 
 	"veyron2/ipc"
+	"veyron2/naming"
 	"veyron2/security"
 	"veyron2/storage"
 )
@@ -60,11 +60,11 @@ func (*cancellableContext) Blessing() security.PublicID {
 	return nil
 }
 
-func (*cancellableContext) LocalAddr() net.Addr {
+func (*cancellableContext) LocalEndpoint() naming.Endpoint {
 	return nil
 }
 
-func (*cancellableContext) RemoteAddr() net.Addr {
+func (*cancellableContext) RemoteEndpoint() naming.Endpoint {
 	return nil
 }
 

@@ -2,11 +2,11 @@ package blackbox
 
 import (
 	"errors"
-	"net"
 	"sync"
 	"time"
 
 	"veyron2/ipc"
+	"veyron2/naming"
 	"veyron2/security"
 	"veyron2/services/watch"
 )
@@ -65,11 +65,11 @@ func (*CancellableContext) Blessing() security.PublicID {
 	return nil
 }
 
-func (*CancellableContext) LocalAddr() net.Addr {
+func (*CancellableContext) LocalEndpoint() naming.Endpoint {
 	return nil
 }
 
-func (*CancellableContext) RemoteAddr() net.Addr {
+func (*CancellableContext) RemoteEndpoint() naming.Endpoint {
 	return nil
 }
 

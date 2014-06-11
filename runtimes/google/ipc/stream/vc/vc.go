@@ -154,11 +154,11 @@ func (vc *VC) connectFID(fid id.Flow, opts ...stream.FlowOpt) (stream.Flow, erro
 		return nil, fmt.Errorf("failed to create writer for Flow: %v", err)
 	}
 	f := &flow{
-		idHolder: vc,
-		reader:   newReader(readHandlerImpl{vc, fid}),
-		writer:   writer,
-		laddr:    vc.localEP,
-		raddr:    vc.remoteEP,
+		idHolder:       vc,
+		reader:         newReader(readHandlerImpl{vc, fid}),
+		writer:         writer,
+		localEndpoint:  vc.localEP,
+		remoteEndpoint: vc.remoteEP,
 	}
 	vc.mu.Lock()
 	if vc.flowMap != nil {
@@ -257,11 +257,11 @@ func (vc *VC) AcceptFlow(fid id.Flow) error {
 		return fmt.Errorf("failed to create writer for new flow(%d): %v", fid, err)
 	}
 	f := &flow{
-		idHolder: vc,
-		reader:   newReader(readHandlerImpl{vc, fid}),
-		writer:   writer,
-		laddr:    vc.localEP,
-		raddr:    vc.remoteEP,
+		idHolder:       vc,
+		reader:         newReader(readHandlerImpl{vc, fid}),
+		writer:         writer,
+		localEndpoint:  vc.localEP,
+		remoteEndpoint: vc.remoteEP,
 	}
 	if err = vc.listener.Enqueue(f); err != nil {
 		f.Shutdown()

@@ -4,6 +4,7 @@ import (
 	"net"
 	"time"
 
+	"veyron2/naming"
 	"veyron2/security"
 )
 
@@ -11,7 +12,7 @@ type flow struct {
 	idHolder
 	*reader
 	*writer
-	laddr, raddr net.Addr
+	localEndpoint, remoteEndpoint naming.Endpoint
 }
 
 type idHolder interface {
@@ -19,8 +20,12 @@ type idHolder interface {
 	RemoteID() security.PublicID
 }
 
-func (f *flow) LocalAddr() net.Addr  { return f.laddr }
-func (f *flow) RemoteAddr() net.Addr { return f.raddr }
+func (f *flow) LocalEndpoint() naming.Endpoint  { return f.localEndpoint }
+func (f *flow) RemoteEndpoint() naming.Endpoint { return f.remoteEndpoint }
+
+// implement net.Conn
+func (f *flow) LocalAddr() net.Addr  { return f.localEndpoint }
+func (f *flow) RemoteAddr() net.Addr { return f.remoteEndpoint }
 func (f *flow) Close() error {
 	f.reader.Close()
 	f.writer.Close()

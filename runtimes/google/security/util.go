@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"veyron/runtimes/google/security/keys"
+	"veyron2/naming"
 	"veyron2/security"
 	"veyron2/security/wire"
 )
@@ -91,6 +92,8 @@ type ContextArgs struct {
 	Suffix string
 	// Label is the security label of the method being invoked.
 	Label security.Label
+	// LocalEndpoint, RemoteEndpoint are the veyron endpoints of the local and remote ends of a request
+	LocalEndpoint, RemoteEndpoint naming.Endpoint
 }
 
 // context implements security.Context. This implementation simply stores the
@@ -141,6 +144,8 @@ func (c *context) Label() security.Label                         { return c.Cont
 func (c *context) CaveatDischarges() security.CaveatDischargeMap { return c.ContextArgs.Discharges }
 func (c *context) LocalID() security.PublicID                    { return c.ContextArgs.LocalID }
 func (c *context) RemoteID() security.PublicID                   { return c.ContextArgs.RemoteID }
+func (c *context) LocalEndpoint() naming.Endpoint                { return c.ContextArgs.LocalEndpoint }
+func (c *context) RemoteEndpoint() naming.Endpoint               { return c.ContextArgs.RemoteEndpoint }
 
 // NewContext returns a new security.Context for the provided method, name,
 // suffix, discharges, label and identities of the local and remote principals

@@ -135,7 +135,7 @@ func (jni *jniState) addBox(box *boxes.Box) {
 
 func (gs *goState) SyncBoxes(context ipc.ServerContext) error {
 	// Get the endpoint of the remote process
-	endPt, err := inaming.NewEndpoint(context.RemoteAddr().String())
+	endPt, err := inaming.NewEndpoint(context.RemoteEndpoint().String())
 	if err != nil {
 		return err
 	}
