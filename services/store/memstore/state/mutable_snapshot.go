@@ -400,7 +400,7 @@ func (sn *MutableSnapshot) putValue(checker *acl.Checker, path storage.PathName,
 		return sn.putTagsValue(checker, path, suffix[1:], c, v)
 	}
 	value := deepcopy(c.Value)
-	p, s := field.Get(value, suffix)
+	p, s := field.Get(makeInnerReference(value), suffix)
 	if len(s) != 0 {
 		return nil, ErrNotFound
 	}

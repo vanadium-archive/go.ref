@@ -129,7 +129,132 @@ func TestGetField(t *testing.T) {
 	}
 }
 
-func TestSetField(t *testing.T) {
+func TestSetSliceField(t *testing.T) {
+	v := &[]string{"a", "b", "c"}
+	rv := reflect.ValueOf(v)
+
+	// Test simple get and set.
+	b, _ := field.Get(v, storage.PathName{"1"})
+	if "b" != b.Interface() {
+		t.Errorf(`Expected "b", got %v`, b.Interface())
+	}
+	if ok, _ := field.Set(rv, "1", "other"); ok != field.SetAsValue {
+		t.Errorf("field.Set failed on slice: %v", ok)
+	}
+	b, _ = field.Get(v, storage.PathName{"1"})
+	if "other" != b.Interface() {
+		t.Errorf(`Expected "a", got %v`, b.Interface())
+	}
+
+	// Test get on a non-existant field.
+	ne, _ := field.Get(v, storage.PathName{"4"})
+	if ne.Kind() != reflect.Slice {
+		t.Errorf("Expected to get a top level slice, got: %v", ne.Interface())
+	}
+	ne, _ = field.Get(v, storage.PathName{"-1"})
+	if ne.Kind() != reflect.Slice {
+		t.Errorf("Expected to get a top level slice, got: %v", ne.Interface())
+	}
+	nepath := storage.PathName{"X"}
+	ne, s := field.Get(v, nepath)
+	if ne.Kind() != reflect.Slice {
+		t.Errorf("Expected to get a top level slice, got: %v", ne.Interface())
+	}
+	if !reflect.DeepEqual(s, nepath) {
+		t.Errorf("Expected path %v, got %v.", nepath, s)
+	}
+
+	// Test adding a value.
+	if ok, _ := field.Set(rv, "@", "AppendedVal"); ok != field.SetAsValue {
+		t.Errorf("Expected to succeed in appending value: %v", ok)
+	}
+	appended, _ := field.Get(v, storage.PathName{"3"})
+	if "AppendedVal" != appended.Interface() {
+		t.Errorf(`Expected "AppendedVal", got %v`, appended.Interface())
+	}
+
+	// Test set of an incompatible value fails.
+	if ok, _ := field.Set(rv, "1", true); ok == field.SetAsValue {
+		t.Errorf("Expected field.Set to fail when an incompatible value is being set.")
+	}
+}
+
+func TestSetEmptySliceField(t *testing.T) {
+	v := &[]string{}
+	rv := reflect.ValueOf(v)
+
+	ne, _ := field.Get(v, storage.PathName{"0"})
+	if ne.Kind() != reflect.Slice {
+		t.Errorf("Expected to get a top level slice, got: %v", ne.Interface())
+	}
+	if ok, _ := field.Set(rv, "0", "a"); ok == field.SetAsValue {
+		t.Errorf("Expected field.Set to fail")
+	}
+}
+
+func TestSetMapField(t *testing.T) {
+	v := &map[string]string{
+		"A": "a",
+		"B": "b",
+	}
+	rv := reflect.ValueOf(v)
+
+	// Test simple get and set.
+	a, _ := field.Get(v, storage.PathName{"A"})
+	if "a" != a.Interface() {
+		t.Errorf(`Expected "a", got %v`, a.Interface())
+	}
+	if ok, _ := field.Set(rv, "A", "other"); ok != field.SetAsValue {
+		t.Errorf("field.Set failed on map: %v", ok)
+	}
+	a, _ = field.Get(v, storage.PathName{"A"})
+	if "other" != a.Interface() {
+		t.Errorf(`Expected "a", got %v`, a.Interface())
+	}
+
+	// Test get on a non-existant field.
+	nepath := storage.PathName{"NonExistant"}
+	ne, s := field.Get(v, nepath)
+	if !reflect.DeepEqual(s, nepath) {
+		t.Errorf("Expected path %v, got %v.", nepath, s)
+	}
+	if ne.Kind() != reflect.Map {
+		t.Errorf("Expected to get a top level map, got: %v", ne.Interface())
+	}
+
+	// Test that set on a non-existant field adds the field.
+	if ok, _ := field.Set(rv, "C", "c"); ok != field.SetAsValue {
+		t.Errorf("Expected field.Set to succeed: %v", ok)
+	}
+	c, _ := field.Get(v, storage.PathName{"C"})
+	if "c" != c.Interface() {
+		t.Errorf(`Expected "c", got %v`, c.Interface())
+	}
+
+	// Test set of an incompatible value fails.
+	if ok, _ := field.Set(rv, "A", true); ok == field.SetAsValue {
+		t.Errorf("Expected field.Set to fail when an incompatible value is being set.")
+	}
+}
+
+func TestSetEmptyMapField(t *testing.T) {
+	v := &map[string]interface{}{}
+	rv := reflect.ValueOf(v)
+
+	ne, _ := field.Get(v, storage.PathName{"A"})
+	if ne.Kind() != reflect.Map {
+		t.Errorf("Expected to get a top level map, got: %v", ne.Interface())
+	}
+	if ok, _ := field.Set(rv, "A", "a"); ok != field.SetAsValue {
+		t.Errorf("Expected field.Set to succeed: %v", ok)
+	}
+	a, _ := field.Get(v, storage.PathName{"A"})
+	if "a" != a.Interface() {
+		t.Errorf(`Expected "a", got %v`, a.Interface())
+	}
+}
+
+func TestSetStructField(t *testing.T) {
 	a := &A{
 		B: 5,
 		C: []int{6, 7},

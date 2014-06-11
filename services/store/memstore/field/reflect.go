@@ -48,6 +48,10 @@ const (
 	SetAsID
 )
 
+const (
+	SliceAppendSuffix = "@"
+)
+
 var (
 	nullID    storage.ID
 	nullValue reflect.Value
@@ -131,13 +135,13 @@ func findMapField(v reflect.Value, field string) reflect.Value {
 //
 // Here are the possible cases:
 //
-// 1. setFieldFailed if the operation failed because the value has the wrong type
+// 1. SetFailed if the operation failed because the value has the wrong type
 //    or the path doesn't exist.
 //
-// 2. setFieldAsValue if the operation was successful, and the value xval was
+// 2. SetAsValue if the operation was successful, and the value xval was
 //    stored.  The returned storage.ID is null.
 //
-// 3. setFieldAsId if the operation was successful, but the type of the field is
+// 3. SetAsId if the operation was successful, but the type of the field is
 //    storage.ID and xval does not have type storage.ID.  In this case, the value
 //    xval is not stored; the storage.ID is returned instead.  If the field does
 //    not already exist, a new storage.ID is created (and returned).
@@ -157,8 +161,10 @@ func Set(v reflect.Value, name string, xval interface{}) (SetResult, storage.ID)
 		return setMapField(v, name, xval)
 	case reflect.Array, reflect.Slice:
 		return setSliceField(v, name, xval)
+	case reflect.Struct:
+		return setStructField(v, name, xval)
 	default:
-		return setRegularField(v, name, xval)
+		return SetFailed, nullID
 	}
 }
 
@@ -167,9 +173,6 @@ func setMapField(v reflect.Value, name string, xval interface{}) (SetResult, sto
 	tyKey := tyV.Key()
 	if tyKey.Kind() != reflect.String {
 		return SetFailed, nullID
-	}
-	if v.IsNil() {
-		v.Set(reflect.MakeMap(tyV))
 	}
 	key := reflect.ValueOf(name).Convert(tyKey)
 	r, x, id := coerceValue(tyV.Elem(), v.MapIndex(key), xval)
@@ -181,11 +184,13 @@ func setMapField(v reflect.Value, name string, xval interface{}) (SetResult, sto
 }
 
 func setSliceField(v reflect.Value, field string, xval interface{}) (SetResult, storage.ID) {
-	if field == "@" {
+	if field == SliceAppendSuffix {
 		r, x, id := coerceValue(v.Type().Elem(), nullValue, xval)
 		if r == SetFailed {
 			return SetFailed, nullID
 		}
+		// This can panic if v is not settable. It is a requirement that users of this method
+		// ensure that it is settable.
 		v.Set(reflect.Append(v, x))
 		return r, id
 	}
@@ -202,16 +207,17 @@ func setSliceField(v reflect.Value, field string, xval interface{}) (SetResult, 
 	return r, id
 }
 
-func setRegularField(v reflect.Value, name string, xval interface{}) (SetResult, storage.ID) {
-	v = findNextField(v, name)
-	if !v.CanSet() {
+func setStructField(v reflect.Value, name string, xval interface{}) (SetResult, storage.ID) {
+	field, found := v.Type().FieldByName(name)
+	if !found {
 		return SetFailed, nullID
 	}
-	r, x, id := coerceValue(v.Type(), v, xval)
+	fieldVal := v.FieldByName(name)
+	r, x, id := coerceValue(field.Type, fieldVal, xval)
 	if r == SetFailed {
 		return SetFailed, nullID
 	}
-	v.Set(x)
+	fieldVal.Set(x)
 	return r, id
 }
 

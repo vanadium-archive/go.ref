@@ -31,6 +31,7 @@ func mkdir(t *testing.T, sn *MutableSnapshot, path string) (storage.ID, interfac
 	stat, err := sn.Put(rootPublicID, storage.ParsePath(path), dir)
 	if err != nil || stat == nil {
 		t.Errorf("%s(%d): mkdir %s: %s", file, line, path, err)
+		return storage.ID{}, dir
 	}
 	m, ok := sn.mutations.Delta[stat.ID]
 	if !ok {
@@ -263,4 +264,28 @@ func TestImplicitDirTree(t *testing.T) {
 	expectNotExists(t, sn, id4)
 	expectNotExists(t, sn, id5)
 	checkInRefs(t, sn)
+}
+
+// Tests that nil maps are converted to empty maps.
+func TestPutToNilMap(t *testing.T) {
+	sn := newMutableSnapshot(rootPublicID)
+
+	var m map[string]interface{}
+	if _, err := sn.Put(rootPublicID, storage.PathName{}, m); err != nil {
+		t.Error("failure during nil map put: ", err)
+	}
+	if _, err := sn.Put(rootPublicID, storage.PathName{"z"}, "z"); err != nil {
+		t.Error("failure during put of child of nil map: ", err)
+	}
+}
+
+// Tests that slices are settable so that we can append.
+func TestAppendToSlice(t *testing.T) {
+	sn := newMutableSnapshot(rootPublicID)
+	if _, err := sn.Put(rootPublicID, storage.ParsePath("/"), []int{}); err != nil {
+		t.Error("failure during put of empty slice: ", err)
+	}
+	if _, err := sn.Put(rootPublicID, storage.ParsePath("/@"), 1); err != nil {
+		t.Error("failure during append to slice: ", err)
+	}
 }
