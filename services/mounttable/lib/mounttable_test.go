@@ -302,7 +302,9 @@ func TestGlob(t *testing.T) {
 		expected []string
 	}{
 		{"*", []string{"one", "in", "of"}},
+		{"...", []string{"", "one", "in", "of", "one/bright", "in/the", "of/the", "one/bright/day", "in/the/middle", "of/the/night"}},
 		{"*/...", []string{"one", "in", "of", "one/bright", "in/the", "of/the", "one/bright/day", "in/the/middle", "of/the/night"}},
+		{"one/...", []string{"one", "one/bright", "one/bright/day"}},
 		{"*/the", []string{"in/the", "of/the"}},
 		{"*/the/...", []string{"in/the", "of/the", "in/the/middle", "of/the/night"}},
 		{"o*", []string{"one", "of"}},
