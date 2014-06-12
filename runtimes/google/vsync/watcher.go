@@ -183,18 +183,9 @@ func (w *syncWatcher) processChanges(changes watch.ChangeBatch, syncTime int64) 
 		}
 	}
 
-	// Flush the DAG and Log DBs.  If the resume marker changed, update the device table and flush it.
-	// TODO(rdaoud): this should be conditional, e.g. don't flush if Initiator is in-progress.
-	// TODO(rdaoud): flushes can also be batched across multiple change-batches.
-	w.syncd.dag.flush()
-	if err := w.syncd.log.flush(); err != nil {
-		return fmt.Errorf("cannot flush log DB: %s", err)
-	}
+	// If the resume marker changed, update the device table.
 	if lastResmark != nil {
 		w.syncd.devtab.head.Resmark = lastResmark
-		if err := w.syncd.devtab.flush(); err != nil {
-			return fmt.Errorf("cannot flush device table DB: %s", err)
-		}
 	}
 
 	return nil
