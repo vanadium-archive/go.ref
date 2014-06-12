@@ -430,7 +430,7 @@ func (i *invoker) testNodeManager(workspace string, envelope *application.Envelo
 		return errOperationFailed
 	}
 	// Wait for the child process to start.
-	testTimeout := 2 * time.Second
+	testTimeout := 10 * time.Second
 	if err := handle.WaitForReady(testTimeout); err != nil {
 		vlog.Errorf("WaitForReady(%v) failed: %v", testTimeout, err)
 		if err := cmd.Process.Kill(); err != nil {
