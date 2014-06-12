@@ -78,7 +78,7 @@ func logReplayCommands(log *iLog, syncfile string) (GenVector, error) {
 	for _, cmd := range cmds {
 		switch cmd.cmd {
 		case addLocal:
-			err = log.processWatchRecord(cmd.objID, cmd.version, cmd.parents, &LogValue{})
+			err = log.processWatchRecord(cmd.objID, cmd.version, cmd.parents, &LogValue{Mutation: raw.Mutation{Version: cmd.version}})
 			if err != nil {
 				return nil, fmt.Errorf("cannot replay local log records %d:%s err %v",
 					cmd.objID, cmd.version, err)
@@ -121,25 +121,31 @@ func createReplayStream(syncfile string) (*dummyStream, error) {
 
 	stream := newStream()
 	for _, cmd := range cmds {
+		id, gnum, lsn, err := splitLogRecKey(cmd.logrec)
+		if err != nil {
+			return nil, err
+		}
+		rec := LogRec{
+			DevID:   id,
+			GNum:    gnum,
+			LSN:     lsn,
+			ObjID:   cmd.objID,
+			CurVers: cmd.version,
+			Parents: cmd.parents,
+			Value: LogValue{
+				Mutation: raw.Mutation{Version: cmd.version},
+			},
+		}
+
 		switch cmd.cmd {
 		case addRemote:
-			id, gnum, lsn, err := splitLogRecKey(cmd.logrec)
-			if err != nil {
-				return nil, err
-			}
-			rec := LogRec{
-				DevID:   id,
-				GNum:    gnum,
-				LSN:     lsn,
-				ObjID:   cmd.objID,
-				CurVers: cmd.version,
-				Parents: cmd.parents,
-				Value: LogValue{
-					Mutation: raw.Mutation{Version: cmd.version},
-				},
-			}
-			stream.add(rec)
+			rec.RecType = NodeRec
+		case linkRemote:
+			rec.RecType = LinkRec
+		default:
+			return nil, err
 		}
+		stream.add(rec)
 	}
 
 	return stream, nil

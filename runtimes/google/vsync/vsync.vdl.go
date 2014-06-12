@@ -35,8 +35,9 @@ type GenVector map[DeviceID]GenID
 //
 // It contains log related metadata: DevID is the id of the
 // device that created the log record, GNum is the ID of the
-// generation that the log record is part of, and LSN is the log
-// sequence number of the log record in the generation GNum.
+// generation that the log record is part of, LSN is the log
+// sequence number of the log record in the generation GNum,
+// and RecType is the type of log record.
 //
 // It also contains information relevant to the updates to an object
 // in the store: ObjID is the id of the object that was
@@ -46,9 +47,10 @@ type GenVector map[DeviceID]GenID
 // the object mutation.
 type LogRec struct {
 	// Log related information.
-	DevID DeviceID
-	GNum  GenID
-	LSN   LSN
+	DevID   DeviceID
+	GNum    GenID
+	LSN     LSN
+	RecType byte
 	// Object related information.
 	ObjID   storage.ID
 	CurVers storage.Version
@@ -70,6 +72,14 @@ type LogValue struct {
 	// in which it is set to false to mark the end of the transaction.
 	Continue bool
 }
+
+const (
+	// NodeRec type log record adds a new node in the dag.
+	NodeRec = byte(0)
+
+	// LinkRec type log record adds a new link in the dag.
+	LinkRec = byte(1)
+)
 
 // Sync allows a device to GetDeltas from another device.
 // Sync is the interface the client binds and uses.
@@ -303,6 +313,7 @@ func (__gen_s *ServerStubSync) Signature(call _gen_ipc.ServerCall) (_gen_ipc.Ser
 				_gen_wiretype.FieldType{Type: 0x41, Name: "DevID"},
 				_gen_wiretype.FieldType{Type: 0x42, Name: "GNum"},
 				_gen_wiretype.FieldType{Type: 0x45, Name: "LSN"},
+				_gen_wiretype.FieldType{Type: 0x46, Name: "RecType"},
 				_gen_wiretype.FieldType{Type: 0x47, Name: "ObjID"},
 				_gen_wiretype.FieldType{Type: 0x48, Name: "CurVers"},
 				_gen_wiretype.FieldType{Type: 0x49, Name: "Parents"},

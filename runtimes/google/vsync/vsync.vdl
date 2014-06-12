@@ -15,13 +15,21 @@ type LSN uint64
 // GenVector is the generation vector.
 type GenVector map[DeviceID]GenID
 
+const (
+      // NodeRec type log record adds a new node in the dag.
+      NodeRec = byte(0)
+      // LinkRec type log record adds a new link in the dag.
+      LinkRec = byte(1)
+)
+
 // LogRec represents a single log record that is exchanged between two
 // peers.
 //
 // It contains log related metadata: DevID is the id of the
 // device that created the log record, GNum is the ID of the
-// generation that the log record is part of, and LSN is the log
-// sequence number of the log record in the generation GNum.
+// generation that the log record is part of, LSN is the log
+// sequence number of the log record in the generation GNum, 
+// and RecType is the type of log record.
 //
 // It also contains information relevant to the updates to an object
 // in the store: ObjID is the id of the object that was
@@ -34,6 +42,7 @@ type LogRec struct {
   DevID    DeviceID
   GNum     GenID
   LSN      LSN
+  RecType  byte
   // Object related information.
   ObjID    storage.ID
   CurVers  storage.Version

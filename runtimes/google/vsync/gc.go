@@ -96,7 +96,9 @@ var (
 	// strictCheck when enabled performs strict checking of every
 	// log record being deleted to confirm that it should be in
 	// fact deleted.
-	strictCheck = true
+	// TODO(hpucha): Support strictCheck in the presence
+	// of Link log records.
+	strictCheck = false
 
 	// Every compactCount iterations of garbage collection, kvdb
 	// is compacted.  This value has performance implications as
@@ -304,6 +306,12 @@ func (g *syncGC) garbageCollectGeneration(devid DeviceID, gnum GenID) error {
 			return err
 		}
 
+		if rec.RecType == LinkRec {
+			// For a link log record, gc it right away.
+			g.dagPruneCallBack(logRecKey(devid, gnum, l))
+			continue
+		}
+
 		// Insert the object in this log record to the prune
 		// map if needed.
 		// If this object does not exist, create it.
@@ -441,19 +449,21 @@ func (g *syncGC) dagPruneCallBack(logKey string) error {
 		if err != nil {
 			return err
 		}
-		objHist, ok := g.verifyPruneMap[rec.ObjID]
-		if !ok {
-			return errors.New("obj not found in verifyMap")
-		}
-		_, found := objHist.versions[rec.CurVers]
-		// If online consistency check is in progress, we
-		// cannot strictly verify all the versions to be
-		// deleted, and we ignore the failure to find a
-		// version.
-		if found {
-			delete(objHist.versions, rec.CurVers)
-		} else if !g.checkConsistency {
-			return errors.New("verification failed")
+		if rec.RecType == NodeRec {
+			objHist, ok := g.verifyPruneMap[rec.ObjID]
+			if !ok {
+				return errors.New("obj not found in verifyMap")
+			}
+			_, found := objHist.versions[rec.CurVers]
+			// If online consistency check is in progress, we
+			// cannot strictly verify all the versions to be
+			// deleted, and we ignore the failure to find a
+			// version.
+			if found {
+				delete(objHist.versions, rec.CurVers)
+			} else if !g.checkConsistency {
+				return errors.New("verification failed")
+			}
 		}
 	}
 
