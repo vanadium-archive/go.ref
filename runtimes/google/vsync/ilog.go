@@ -45,6 +45,7 @@ import (
 	"veyron/services/store/raw"
 
 	"veyron2/storage"
+	"veyron2/vlog"
 )
 
 var (
@@ -300,17 +301,37 @@ func (l *iLog) delGenMetadata(devid DeviceID, gnum GenID) error {
 	return l.gens.del(key)
 }
 
-// createLocalLogRec creates a new local log record.
+// createLocalLogRec creates a new local log record of type NodeRec.
 func (l *iLog) createLocalLogRec(obj storage.ID, vers storage.Version, par []storage.Version, val *LogValue) (*LogRec, error) {
 	rec := &LogRec{
-		DevID: l.s.id,
-		GNum:  l.head.Curgen,
-		LSN:   l.head.Curlsn,
+		DevID:   l.s.id,
+		GNum:    l.head.Curgen,
+		LSN:     l.head.Curlsn,
+		RecType: NodeRec,
 
 		ObjID:   obj,
 		CurVers: vers,
 		Parents: par,
 		Value:   *val,
+	}
+
+	// Increment the LSN for the local log.
+	l.head.Curlsn++
+
+	return rec, nil
+}
+
+// createLocalLinkLogRec creates a new local log record of type LinkRec.
+func (l *iLog) createLocalLinkLogRec(obj storage.ID, vers, par storage.Version) (*LogRec, error) {
+	rec := &LogRec{
+		DevID:   l.s.id,
+		GNum:    l.head.Curgen,
+		LSN:     l.head.Curlsn,
+		RecType: LinkRec,
+
+		ObjID:   obj,
+		CurVers: vers,
+		Parents: []storage.Version{par},
 	}
 
 	// Increment the LSN for the local log.
@@ -357,6 +378,7 @@ func (l *iLog) createLocalGeneration() (GenID, error) {
 	}
 	err := l.putGenMetadata(l.s.id, g, val)
 
+	vlog.VI(2).Infof("createLocalGeneration:: created gen %d %v", g, val)
 	// Move to the next generation irrespective of err.
 	l.head.Curorder++
 	l.head.Curgen++
@@ -370,6 +392,8 @@ func (l *iLog) processWatchRecord(objID storage.ID, vers storage.Version, par []
 	if l.db == nil {
 		return errInvalidLog
 	}
+
+	vlog.VI(2).Infof("processWatchRecord:: adding object %v %v", objID, vers)
 	// Check if the object version already exists in the DAG. if so return.
 	if l.s.dag.hasNode(objID, vers) {
 		return nil

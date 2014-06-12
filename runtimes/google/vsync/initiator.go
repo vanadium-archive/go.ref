@@ -191,6 +191,7 @@ func (i *syncInitiator) updateLocalGeneration() (GenVector, error) {
 		return GenVector{}, err
 	}
 
+	vlog.VI(2).Infof("updateLocalGeneration:: created gen %d", gen)
 	// Update local generation vector in devTable.
 	if err = i.syncd.devtab.updateGeneration(i.syncd.id, i.syncd.id, gen); err != nil {
 		return GenVector{}, err
@@ -308,10 +309,16 @@ func (i *syncInitiator) insertRecInLogAndDag(rec *LogRec) error {
 	if err != nil {
 		return err
 	}
-	if err = i.syncd.dag.addNode(rec.ObjID, rec.CurVers, true, rec.Parents, logKey); err != nil {
-		return err
+
+	vlog.VI(2).Infof("insertRecInLogAndDag:: Adding log record %v", rec)
+	switch rec.RecType {
+	case NodeRec:
+		return i.syncd.dag.addNode(rec.ObjID, rec.CurVers, true, rec.Parents, logKey)
+	case LinkRec:
+		return i.syncd.dag.addParent(rec.ObjID, rec.CurVers, rec.Parents[0], true)
+	default:
+		return fmt.Errorf("unknown log record type")
 	}
-	return nil
 }
 
 // createGenMetadataBatch inserts a batch of generations into the log.
@@ -337,12 +344,31 @@ func (i *syncInitiator) createGenMetadataBatch(newGens map[string]*genMetadata, 
 
 // processUpdatedObjects processes all the updates received by the
 // initiator, one object at a time. For each updated object, we first
-// check if the object has any conflicts.  If there is a conflict, we
-// resolve the conflict and generate a new store mutation reflecting
-// the conflict resolution. If there is no conflict, we generate a
-// store mutation to simply update the store to the latest value. We
-// then put all these mutations in the store. If the put succeeds, we
-// update the log and dag state suitably (move the head ptr of the
+// check if the object has any conflicts, resulting in three
+// possibilities:
+//
+// * There is no conflict, and no updates are needed to the store
+// (isConflict=false, newHead == oldHead). All changes received convey
+// information that still keeps the local head as the most recent
+// version. This occurs when conflicts are resolved by blessings.
+//
+// * There is no conflict, but a remote version is discovered that
+// builds on the local head (isConflict=false, newHead != oldHead). In
+// this case, we generate a store mutation to simply update the store
+// to the latest value.
+//
+// * There is a conflict and we call into the app or the system to
+// resolve the conflict, resulting in three possibilties: (a) conflict
+// was resolved by blessing the local version. In this case, store
+// need not be updated, but a link is added to record the
+// blessing. (b) conflict was resolved by blessing the remote
+// version. In this case, store is updated with the remote version and
+// a link is added as well. (c) conflict was resolved by generating a
+// new store mutation. In this case, store is updated with the new
+// version.
+//
+// We then put all these mutations in the store. If the put succeeds,
+// we update the log and dag state suitably (move the head ptr of the
 // object in the dag to the latest version, and create a new log
 // record reflecting conflict resolution if any). Puts to store can
 // fail since preconditions on the objects may have been violated. In
@@ -355,12 +381,11 @@ func (i *syncInitiator) processUpdatedObjects(ctx context.T, local, minGens, rem
 			return err
 		}
 
-		m, err := i.resolveConflicts()
-		if err != nil {
+		if err := i.resolveConflicts(); err != nil {
 			return err
 		}
 
-		err = i.updateStoreAndSync(ctx, m, local, minGens, remote, dID)
+		err := i.updateStoreAndSync(ctx, local, minGens, remote, dID)
 		if err == nil {
 			break
 		}
@@ -390,60 +415,28 @@ func (i *syncInitiator) detectConflicts() error {
 		// Check if object has a conflict.
 		var err error
 		st.isConflict, st.newHead, st.oldHead, st.ancestor, err = i.syncd.dag.hasConflict(obj)
+		vlog.VI(2).Infof("detectConflicts:: object %v state %v err %v",
+			obj, st, err)
 		if err != nil {
 			return err
-		}
-		if !st.isConflict {
-			rec, err := i.getLogRec(obj, st.newHead)
-			if err != nil {
-				return err
-			}
-			st.resolvVal = &rec.Value
-			// Sanity check.
-			if st.resolvVal.Mutation.Version != st.newHead {
-				return fmt.Errorf("bad mutation %d %d",
-					st.resolvVal.Mutation.Version, st.newHead)
-			}
 		}
 	}
 	return nil
 }
 
-// getLogRec returns the log record corresponding to a given object and its version.
-func (i *syncInitiator) getLogRec(obj storage.ID, vers storage.Version) (*LogRec, error) {
-	logKey, err := i.syncd.dag.getLogrec(obj, vers)
-	if err != nil {
-		return nil, err
-	}
-	dev, gen, lsn, err := splitLogRecKey(logKey)
-	if err != nil {
-		return nil, err
-	}
-	rec, err := i.syncd.log.getLogRec(dev, gen, lsn)
-	if err != nil {
-		return nil, err
-	}
-	return rec, nil
-}
-
-// resolveConflicts resolves conflicts for updated objects.
-func (i *syncInitiator) resolveConflicts() ([]raw.Mutation, error) {
+// resolveConflicts resolves conflicts for updated objects. Conflicts
+// may be resolved by adding new versions or blessing either the local
+// or the remote version.
+func (i *syncInitiator) resolveConflicts() error {
 	switch conflictResolutionPolicy {
 	case useTime:
 		if err := i.resolveConflictsByTime(); err != nil {
-			return nil, err
+			return err
 		}
 	default:
-		return nil, fmt.Errorf("unknown conflict resolution policy")
+		return fmt.Errorf("unknown conflict resolution policy")
 	}
-
-	var m []raw.Mutation
-	for _, st := range i.updObjects {
-		// Append to mutations.
-		st.resolvVal.Mutation.PriorVersion = st.oldHead
-		m = append(m, st.resolvVal.Mutation)
-	}
-	return m, nil
+	return nil
 }
 
 // resolveConflictsByTime resolves conflicts using the timestamps
@@ -482,11 +475,10 @@ func (i *syncInitiator) resolveConflictsByTime() error {
 			res = 1
 		}
 
-		m := lrecs[res].Value.Mutation
-		m.Version = storage.NewVersion()
-
-		// TODO(hpucha): handle continue and delete flags.
-		st.resolvVal = &LogValue{Mutation: m}
+		// Instead of creating a new version that resolves the
+		// conflict, we are blessing an existing version as
+		// the conflict resolution.
+		st.resolvVal = &lrecs[res].Value
 	}
 
 	return nil
@@ -511,10 +503,37 @@ func (i *syncInitiator) getLogRecsBatch(obj storage.ID, versions []storage.Versi
 
 // updateStoreAndSync updates the store, and if that is successful,
 // updates log and dag data structures.
-func (i *syncInitiator) updateStoreAndSync(ctx context.T, m []raw.Mutation, local, minGens, remote GenVector, dID DeviceID) error {
+func (i *syncInitiator) updateStoreAndSync(ctx context.T, local, minGens, remote GenVector, dID DeviceID) error {
 	// TODO(hpucha): Eliminate reaching into syncd's lock.
 	i.syncd.lock.Lock()
 	defer i.syncd.lock.Unlock()
+
+	var m []raw.Mutation
+	for obj, st := range i.updObjects {
+		if !st.isConflict {
+			rec, err := i.getLogRec(obj, st.newHead)
+			if err != nil {
+				return err
+			}
+			st.resolvVal = &rec.Value
+			// Sanity check.
+			if st.resolvVal.Mutation.Version != st.newHead {
+				return fmt.Errorf("bad mutation %d %d",
+					st.resolvVal.Mutation.Version, st.newHead)
+			}
+		}
+
+		// If the local version is picked, no further updates
+		// to the store are needed. If the remote version is
+		// picked, we put it in the store.
+		if st.resolvVal.Mutation.Version != st.oldHead {
+			// Append to mutations.
+			st.resolvVal.Mutation.PriorVersion = st.oldHead
+			vlog.VI(2).Infof("updateStoreAndSync:: appending mutation %v for obj %v",
+				st.resolvVal.Mutation, obj)
+			m = append(m, st.resolvVal.Mutation)
+		}
+	}
 
 	// TODO(hpucha): We will hold the lock across PutMutations rpc
 	// to prevent a race with watcher. The next iteration will
@@ -553,30 +572,68 @@ func (i *syncInitiator) updateStoreAndSync(ctx context.T, m []raw.Mutation, loca
 	return nil
 }
 
+// getLogRec returns the log record corresponding to a given object and its version.
+func (i *syncInitiator) getLogRec(obj storage.ID, vers storage.Version) (*LogRec, error) {
+	logKey, err := i.syncd.dag.getLogrec(obj, vers)
+	if err != nil {
+		return nil, err
+	}
+	dev, gen, lsn, err := splitLogRecKey(logKey)
+	if err != nil {
+		return nil, err
+	}
+	rec, err := i.syncd.log.getLogRec(dev, gen, lsn)
+	if err != nil {
+		return nil, err
+	}
+	return rec, nil
+}
+
 // updateLogAndDag updates the log and dag data structures on a successful store put.
 func (i *syncInitiator) updateLogAndDag() error {
 	for obj, st := range i.updObjects {
 		if st.isConflict {
 			// Object had a conflict, which was resolved successfully.
 			// Put is successful, create a log record.
-			parents := []storage.Version{st.newHead, st.oldHead}
-			rec, err := i.syncd.log.createLocalLogRec(obj, st.resolvVal.Mutation.Version, parents, st.resolvVal)
+			var err error
+			var rec *LogRec
+
+			switch {
+			case st.resolvVal.Mutation.Version == st.oldHead:
+				// Local version was blessed as the conflict resolution.
+				rec, err = i.syncd.log.createLocalLinkLogRec(obj, st.oldHead, st.newHead)
+			case st.resolvVal.Mutation.Version == st.newHead:
+				// Remote version was blessed as the conflict resolution.
+				rec, err = i.syncd.log.createLocalLinkLogRec(obj, st.newHead, st.oldHead)
+			default:
+				// New version was created to resolve the conflict.
+				parents := []storage.Version{st.newHead, st.oldHead}
+				rec, err = i.syncd.log.createLocalLogRec(obj, st.resolvVal.Mutation.Version, parents, st.resolvVal)
+
+			}
 			if err != nil {
 				return err
 			}
-
 			logKey, err := i.syncd.log.putLogRec(rec)
 			if err != nil {
 				return err
 			}
-
-			// Put is successful, add a new DAG node.
-			if err = i.syncd.dag.addNode(obj, st.resolvVal.Mutation.Version, false, parents, logKey); err != nil {
+			// Add a new DAG node.
+			switch rec.RecType {
+			case NodeRec:
+				err = i.syncd.dag.addNode(obj, rec.CurVers, false, rec.Parents, logKey)
+			case LinkRec:
+				err = i.syncd.dag.addParent(obj, rec.CurVers, rec.Parents[0], false)
+			default:
+				return fmt.Errorf("unknown log record type")
+			}
+			if err != nil {
 				return err
 			}
 		}
 
-		// Move the head.
+		// Move the head. This should be idempotent. We may
+		// move head to the local head in some cases.
 		if err := i.syncd.dag.moveHead(obj, st.resolvVal.Mutation.Version); err != nil {
 			return err
 		}

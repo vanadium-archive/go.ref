@@ -172,22 +172,27 @@ func TestLogStreamRemoteOnly(t *testing.T) {
 			t.Errorf("GetNode() can not find object %d %d in DAG, err %v", objid, i, err)
 		}
 	}
-
 	if err := s.hdlInitiator.detectConflicts(); err != nil {
 		t.Fatalf("detectConflicts failed with err %v", err)
 	}
 	if len(s.hdlInitiator.updObjects) != 1 {
 		t.Errorf("Unexpected number of updated objects %d", len(s.hdlInitiator.updObjects))
 	}
-	m, err := s.hdlInitiator.resolveConflicts()
-	if err != nil {
+	st := s.hdlInitiator.updObjects[objid]
+	if st.isConflict {
+		t.Errorf("Detected a conflict %v", st)
+	}
+	if st.newHead != 2 || st.oldHead != storage.NoVersion {
+		t.Errorf("Conflict detection didn't succeed %v", st)
+	}
+	if err := s.hdlInitiator.resolveConflicts(); err != nil {
 		t.Fatalf("resolveConflicts failed with err %v", err)
 	}
-	if len(m) != 1 || m[0].PriorVersion != storage.NoVersion || m[0].Version != 2 {
-		t.Errorf("Unexpected mutations %v", m)
+	if err := s.hdlInitiator.updateStoreAndSync(nil, GenVector{}, minGens, GenVector{}, "VeyronPhone"); err != nil {
+		t.Fatalf("updateStoreAndSync failed with err %v", err)
 	}
-	if err = s.hdlInitiator.updateLogAndDag(); err != nil {
-		t.Fatalf("updateLogAndDag failed with err %v", err)
+	if st.resolvVal.Mutation.PriorVersion != storage.NoVersion || st.resolvVal.Mutation.Version != 2 {
+		t.Errorf("Mutation generation is not accurate %v", st)
 	}
 	if s.log.head.Curgen != 1 || s.log.head.Curlsn != 0 || s.log.head.Curorder != 1 {
 		t.Errorf("Data mismatch in log header %v", s.log.head)
@@ -270,15 +275,21 @@ func TestLogStreamGCedRemote(t *testing.T) {
 	if len(s.hdlInitiator.updObjects) != 1 {
 		t.Errorf("Unexpected number of updated objects %d", len(s.hdlInitiator.updObjects))
 	}
-	m, err := s.hdlInitiator.resolveConflicts()
-	if err != nil {
+	st := s.hdlInitiator.updObjects[objid]
+	if st.isConflict {
+		t.Errorf("Detected a conflict %v", st)
+	}
+	if st.newHead != 2 || st.oldHead != storage.NoVersion {
+		t.Errorf("Conflict detection didn't succeed %v", st)
+	}
+	if err := s.hdlInitiator.resolveConflicts(); err != nil {
 		t.Fatalf("resolveConflicts failed with err %v", err)
 	}
-	if len(m) != 1 || m[0].PriorVersion != storage.NoVersion || m[0].Version != 2 {
-		t.Errorf("Unexpected mutations %v", m)
+	if err := s.hdlInitiator.updateStoreAndSync(nil, GenVector{}, minGens, GenVector{}, "VeyronPhone"); err != nil {
+		t.Fatalf("updateStoreAndSync failed with err %v", err)
 	}
-	if err = s.hdlInitiator.updateLogAndDag(); err != nil {
-		t.Fatalf("updateLogAndDag failed with err %v", err)
+	if st.resolvVal.Mutation.PriorVersion != storage.NoVersion || st.resolvVal.Mutation.Version != 2 {
+		t.Errorf("Mutation generation is not accurate %v", st)
 	}
 	if s.log.head.Curgen != 1 || s.log.head.Curlsn != 0 || s.log.head.Curorder != 1 {
 		t.Errorf("Data mismatch in log header %v", s.log.head)
@@ -362,22 +373,27 @@ func TestLogStreamNoConflict(t *testing.T) {
 			v = v + 1
 		}
 	}
-
 	if err := s.hdlInitiator.detectConflicts(); err != nil {
 		t.Fatalf("detectConflicts failed with err %v", err)
 	}
 	if len(s.hdlInitiator.updObjects) != 1 {
 		t.Errorf("Unexpected number of updated objects %d", len(s.hdlInitiator.updObjects))
 	}
-	m, err := s.hdlInitiator.resolveConflicts()
-	if err != nil {
+	st := s.hdlInitiator.updObjects[objid]
+	if st.isConflict {
+		t.Errorf("Detected a conflict %v", st)
+	}
+	if st.newHead != 5 || st.oldHead != 2 {
+		t.Errorf("Conflict detection didn't succeed %v", st)
+	}
+	if err := s.hdlInitiator.resolveConflicts(); err != nil {
 		t.Fatalf("resolveConflicts failed with err %v", err)
 	}
-	if len(m) != 1 || m[0].PriorVersion != 2 || m[0].Version != 5 {
-		t.Errorf("Unexpected versions %v", m[0])
+	if err := s.hdlInitiator.updateStoreAndSync(nil, GenVector{}, minGens, GenVector{}, "VeyronPhone"); err != nil {
+		t.Fatalf("updateStoreAndSync failed with err %v", err)
 	}
-	if err = s.hdlInitiator.updateLogAndDag(); err != nil {
-		t.Fatalf("updateLogAndDag failed with err %v", err)
+	if st.resolvVal.Mutation.PriorVersion != 2 || st.resolvVal.Mutation.Version != 5 {
+		t.Errorf("Mutation generation is not accurate %v", st)
 	}
 	if s.log.head.Curgen != 1 || s.log.head.Curlsn != 3 || s.log.head.Curorder != 1 {
 		t.Errorf("Data mismatch in log header %v", s.log.head)
@@ -437,16 +453,14 @@ func TestLogStreamConflict(t *testing.T) {
 		t.Errorf("Data mismatch for generation metadata: %v instead of %v",
 			curVal, expVal)
 	}
-
 	if err := s.hdlInitiator.detectConflicts(); err != nil {
 		t.Fatalf("detectConflicts failed with err %v", err)
 	}
-	m, err := s.hdlInitiator.resolveConflicts()
-	if err != nil {
+	if err := s.hdlInitiator.resolveConflicts(); err != nil {
 		t.Fatalf("resolveConflicts failed with err %v", err)
 	}
-	if err = s.hdlInitiator.updateLogAndDag(); err != nil {
-		t.Fatalf("updateLogAndDag failed with err %v", err)
+	if err := s.hdlInitiator.updateStoreAndSync(nil, GenVector{}, minGens, GenVector{}, "VeyronPhone"); err != nil {
+		t.Fatalf("updateStoreAndSync failed with err %v", err)
 	}
 
 	objid, err := strToObjID("12345")
@@ -466,6 +480,9 @@ func TestLogStreamConflict(t *testing.T) {
 			if curRec.ObjID != objid {
 				t.Errorf("Data mismatch in log record %v", curRec)
 			}
+			if devid == "VeyronTab" && index == 3 && curRec.RecType != LinkRec {
+				t.Errorf("Data mismatch in log record %v", curRec)
+			}
 			// Verify DAG state.
 			if _, err := s.dag.getNode(objid, v); err != nil {
 				t.Errorf("GetNode() can not find object %d %d in DAG, err %v", objid, i, err)
@@ -473,19 +490,25 @@ func TestLogStreamConflict(t *testing.T) {
 			v = v + 1
 		}
 	}
-
-	if len(m) != 1 || len(s.hdlInitiator.updObjects) != 1 {
-		t.Errorf("Unexpected number of updated objects %d %d", len(m), len(s.hdlInitiator.updObjects))
+	if len(s.hdlInitiator.updObjects) != 1 {
+		t.Errorf("Unexpected number of updated objects %d", len(s.hdlInitiator.updObjects))
 	}
-	if m[0].PriorVersion != 2 {
-		t.Errorf("Unexpected version %v", m[0])
+	st := s.hdlInitiator.updObjects[objid]
+	if !st.isConflict {
+		t.Errorf("Didn't detect a conflict %v", st)
+	}
+	if st.newHead != 5 || st.oldHead != 2 {
+		t.Errorf("Conflict detection didn't succeed %v", st)
+	}
+	if st.resolvVal.Mutation.PriorVersion != 2 || st.resolvVal.Mutation.Version != 5 {
+		t.Errorf("Mutation generation is not accurate %v", st)
 	}
 	// Curlsn == 4 for the log record that resolves conflict.
 	if s.log.head.Curgen != 1 || s.log.head.Curlsn != 4 || s.log.head.Curorder != 1 {
 		t.Errorf("Data mismatch in log header %v", s.log.head)
 	}
 	// Verify DAG state.
-	if head, err := s.dag.getHead(objid); err != nil || head <= 5 {
+	if head, err := s.dag.getHead(objid); err != nil || head != 5 {
 		t.Errorf("Invalid object %d head in DAG %s, err %v", objid, head, err)
 	}
 }
@@ -555,12 +578,11 @@ func TestMultipleLogStream(t *testing.T) {
 	if err := s.hdlInitiator.detectConflicts(); err != nil {
 		t.Fatalf("detectConflicts failed with err %v", err)
 	}
-	m, err := s.hdlInitiator.resolveConflicts()
-	if err != nil {
+	if err := s.hdlInitiator.resolveConflicts(); err != nil {
 		t.Fatalf("resolveConflicts failed with err %v", err)
 	}
-	if err = s.hdlInitiator.updateLogAndDag(); err != nil {
-		t.Fatalf("updateLogAndDag failed with err %v", err)
+	if err := s.hdlInitiator.updateStoreAndSync(nil, GenVector{}, minGens, GenVector{}, "VeyronPhone"); err != nil {
+		t.Fatalf("updateStoreAndSync failed with err %v", err)
 	}
 
 	objid, err := strToObjID("12345")
@@ -580,6 +602,9 @@ func TestMultipleLogStream(t *testing.T) {
 			if curRec.ObjID != objid {
 				t.Errorf("Data mismatch in log record %v", curRec)
 			}
+			if devid == "VeyronTab" && index == 3 && curRec.RecType != LinkRec {
+				t.Errorf("Data mismatch in log record %v", curRec)
+			}
 			// Verify DAG state.
 			if _, err := s.dag.getNode(objid, v); err != nil {
 				t.Errorf("GetNode() can not find object %d %d in DAG, err %v", objid, i, err)
@@ -587,18 +612,357 @@ func TestMultipleLogStream(t *testing.T) {
 			v = v + 1
 		}
 	}
-	if len(m) != 1 || len(s.hdlInitiator.updObjects) != 1 {
-		t.Errorf("Unexpected number of updated objects %d %d", len(m), len(s.hdlInitiator.updObjects))
+	if len(s.hdlInitiator.updObjects) != 1 {
+		t.Errorf("Unexpected number of updated objects %d", len(s.hdlInitiator.updObjects))
 	}
-	if m[0].PriorVersion != 2 {
-		t.Errorf("Unexpected version %v", m[0])
+	st := s.hdlInitiator.updObjects[objid]
+	if !st.isConflict {
+		t.Errorf("Didn't detect a conflict %v", st)
+	}
+	if st.newHead != 5 || st.oldHead != 2 {
+		t.Errorf("Conflict detection didn't succeed %v", st)
+	}
+	if st.resolvVal.Mutation.PriorVersion != 2 || st.resolvVal.Mutation.Version != 5 {
+		t.Errorf("Mutation generation is not accurate %v", st)
 	}
 	// Curlsn == 4 for the log record that resolves conflict.
 	if s.log.head.Curgen != 1 || s.log.head.Curlsn != 4 || s.log.head.Curorder != 2 {
 		t.Errorf("Data mismatch in log header %v", s.log.head)
 	}
 	// Verify DAG state.
-	if head, err := s.dag.getHead(objid); err != nil || head <= 5 {
+	if head, err := s.dag.getHead(objid); err != nil || head != 5 {
+		t.Errorf("Invalid object %d head in DAG %s, err %v", objid, head, err)
+	}
+}
+
+// TestInitiatorBlessNoConf0 tests that a local and a remote log
+// record stream can be correctly applied, when the conflict is
+// resolved by a blessing. In this test, local head of the object is
+// unchanged at the end of replay. Commands are in files
+// testdata/<local-init-00.sync,remote-noconf-link-00.log.sync>.
+func TestInitiatorBlessNoConf0(t *testing.T) {
+	dir, err := createTempDir()
+	if err != nil {
+		t.Errorf("Could not create tempdir %v", err)
+	}
+	// Set a large value to prevent the threads from firing.
+	// Test is not thread safe.
+	peerSyncInterval = 1 * time.Hour
+	garbageCollectInterval = 1 * time.Hour
+	s := NewSyncd("", "", "VeyronTab", dir, "", 0)
+
+	defer s.Close()
+	defer os.RemoveAll(dir)
+
+	if _, err = logReplayCommands(s.log, "local-init-00.sync"); err != nil {
+		t.Error(err)
+	}
+	stream, err := createReplayStream("remote-noconf-link-00.log.sync")
+	if err != nil {
+		t.Fatalf("createReplayStream failed with err %v", err)
+	}
+
+	var minGens GenVector
+	if minGens, err = s.hdlInitiator.processLogStream(stream); err != nil {
+		t.Fatalf("processLogStream failed with err %v", err)
+	}
+	if err := s.hdlInitiator.detectConflicts(); err != nil {
+		t.Fatalf("detectConflicts failed with err %v", err)
+	}
+	// Check that there are no conflicts.
+	if len(s.hdlInitiator.updObjects) != 1 {
+		t.Errorf("Too many objects %v", len(s.hdlInitiator.updObjects))
+	}
+	objid, err := strToObjID("12345")
+	if err != nil {
+		t.Errorf("Could not create objid %v", err)
+	}
+	st := s.hdlInitiator.updObjects[objid]
+	if st.isConflict {
+		t.Errorf("Detected a conflict %v", st)
+	}
+	if st.newHead != 2 || st.oldHead != 2 {
+		t.Errorf("Conflict detection didn't succeed %v", st)
+	}
+
+	if err := s.hdlInitiator.resolveConflicts(); err != nil {
+		t.Fatalf("resolveConflicts failed with err %v", err)
+	}
+	if err := s.hdlInitiator.updateStoreAndSync(nil, GenVector{}, minGens, GenVector{}, "VeyronPhone"); err != nil {
+		t.Fatalf("updateStoreAndSync failed with err %v", err)
+	}
+	if st.resolvVal.Mutation.Version != 2 {
+		t.Errorf("Mutation generation is not accurate %v", st)
+	}
+	// No new log records should be added.
+	if s.log.head.Curgen != 1 || s.log.head.Curlsn != 3 || s.log.head.Curorder != 1 {
+		t.Errorf("Data mismatch in log header %v", s.log.head)
+	}
+	// Verify DAG state.
+	if head, err := s.dag.getHead(objid); err != nil || head != 2 {
+		t.Errorf("Invalid object %d head in DAG %s, err %v", objid, head, err)
+	}
+}
+
+// TestInitiatorBlessNoConf1 tests that a local and a remote log
+// record stream can be correctly applied, when the conflict is
+// resolved by a blessing. In this test, local head of the object is
+// updated at the end of the replay. Commands are in files
+// testdata/<local-init-00.sync,remote-noconf-link-01.log.sync>.
+func TestInitiatorBlessNoConf1(t *testing.T) {
+	dir, err := createTempDir()
+	if err != nil {
+		t.Errorf("Could not create tempdir %v", err)
+	}
+	// Set a large value to prevent the threads from firing.
+	// Test is not thread safe.
+	peerSyncInterval = 1 * time.Hour
+	garbageCollectInterval = 1 * time.Hour
+	s := NewSyncd("", "", "VeyronTab", dir, "", 0)
+
+	defer s.Close()
+	defer os.RemoveAll(dir)
+
+	if _, err = logReplayCommands(s.log, "local-init-00.sync"); err != nil {
+		t.Error(err)
+	}
+	stream, err := createReplayStream("remote-noconf-link-01.log.sync")
+	if err != nil {
+		t.Fatalf("createReplayStream failed with err %v", err)
+	}
+
+	var minGens GenVector
+	if minGens, err = s.hdlInitiator.processLogStream(stream); err != nil {
+		t.Fatalf("processLogStream failed with err %v", err)
+	}
+	if err := s.hdlInitiator.detectConflicts(); err != nil {
+		t.Fatalf("detectConflicts failed with err %v", err)
+	}
+	// Check that there are no conflicts.
+	if len(s.hdlInitiator.updObjects) != 1 {
+		t.Errorf("Too many objects %v", len(s.hdlInitiator.updObjects))
+	}
+	objid, err := strToObjID("12345")
+	if err != nil {
+		t.Errorf("Could not create objid %v", err)
+	}
+	st := s.hdlInitiator.updObjects[objid]
+	if st.isConflict {
+		t.Errorf("Detected a conflict %v", st)
+	}
+	if st.newHead != 3 || st.oldHead != 2 {
+		t.Errorf("Conflict detection didn't succeed %v", st)
+	}
+
+	if err := s.hdlInitiator.resolveConflicts(); err != nil {
+		t.Fatalf("resolveConflicts failed with err %v", err)
+	}
+	if err := s.hdlInitiator.updateStoreAndSync(nil, GenVector{}, minGens, GenVector{}, "VeyronPhone"); err != nil {
+		t.Fatalf("updateStoreAndSync failed with err %v", err)
+	}
+	if st.resolvVal.Mutation.Version != 3 || st.resolvVal.Mutation.PriorVersion != 2 {
+		t.Errorf("Mutation generation is not accurate %v", st)
+	}
+	// No new log records should be added.
+	if s.log.head.Curgen != 1 || s.log.head.Curlsn != 3 || s.log.head.Curorder != 1 {
+		t.Errorf("Data mismatch in log header %v", s.log.head)
+	}
+	// Verify DAG state.
+	if head, err := s.dag.getHead(objid); err != nil || head != 3 {
+		t.Errorf("Invalid object %d head in DAG %s, err %v", objid, head, err)
+	}
+}
+
+// TestInitiatorBlessNoConf2 tests that a local and a remote log
+// record stream can be correctly applied, when the conflict is
+// resolved by a blessing. In this test, local head of the object is
+// updated at the end of the first replay. In the second replay, a
+// conflict resolved locally is rediscovered since it was also
+// resolved remotely. Commands are in files
+// testdata/<local-init-00.sync,remote-noconf-link-02.log.sync,
+// remote-noconf-link-repeat.log.sync>.
+func TestInitiatorBlessNoConf2(t *testing.T) {
+	dir, err := createTempDir()
+	if err != nil {
+		t.Errorf("Could not create tempdir %v", err)
+	}
+	// Set a large value to prevent the threads from firing.
+	// Test is not thread safe.
+	peerSyncInterval = 1 * time.Hour
+	garbageCollectInterval = 1 * time.Hour
+	s := NewSyncd("", "", "VeyronTab", dir, "", 0)
+
+	defer s.Close()
+	defer os.RemoveAll(dir)
+
+	if _, err = logReplayCommands(s.log, "local-init-00.sync"); err != nil {
+		t.Error(err)
+	}
+	stream, err := createReplayStream("remote-noconf-link-02.log.sync")
+	if err != nil {
+		t.Fatalf("createReplayStream failed with err %v", err)
+	}
+
+	var minGens GenVector
+	if minGens, err = s.hdlInitiator.processLogStream(stream); err != nil {
+		t.Fatalf("processLogStream failed with err %v", err)
+	}
+	if err := s.hdlInitiator.detectConflicts(); err != nil {
+		t.Fatalf("detectConflicts failed with err %v", err)
+	}
+	// Check that there are no conflicts.
+	if len(s.hdlInitiator.updObjects) != 1 {
+		t.Errorf("Too many objects %v", len(s.hdlInitiator.updObjects))
+	}
+	objid, err := strToObjID("12345")
+	if err != nil {
+		t.Errorf("Could not create objid %v", err)
+	}
+	st := s.hdlInitiator.updObjects[objid]
+	if st.isConflict {
+		t.Errorf("Detected a conflict %v", st)
+	}
+	if st.newHead != 4 || st.oldHead != 2 {
+		t.Errorf("Conflict detection didn't succeed %v", st)
+	}
+
+	if err := s.hdlInitiator.resolveConflicts(); err != nil {
+		t.Fatalf("resolveConflicts failed with err %v", err)
+	}
+	if err := s.hdlInitiator.updateStoreAndSync(nil, GenVector{"VeyronTab": 0}, minGens, GenVector{}, "VeyronPhone"); err != nil {
+		t.Fatalf("updateStoreAndSync failed with err %v", err)
+	}
+	if st.resolvVal.Mutation.Version != 4 || st.resolvVal.Mutation.PriorVersion != 2 {
+		t.Errorf("Mutation generation is not accurate %v", st)
+	}
+	// No new log records should be added.
+	if s.log.head.Curgen != 1 || s.log.head.Curlsn != 3 || s.log.head.Curorder != 2 {
+		t.Errorf("Data mismatch in log header %v", s.log.head)
+	}
+	// Verify DAG state.
+	if head, err := s.dag.getHead(objid); err != nil || head != 4 {
+		t.Errorf("Invalid object %d head in DAG %s, err %v", objid, head, err)
+	}
+
+	// Test simultaneous conflict resolution.
+	stream, err = createReplayStream("remote-noconf-link-repeat.log.sync")
+	if err != nil {
+		t.Fatalf("createReplayStream failed with err %v", err)
+	}
+
+	if minGens, err = s.hdlInitiator.processLogStream(stream); err != nil {
+		t.Fatalf("processLogStream failed with err %v", err)
+	}
+	if err := s.hdlInitiator.detectConflicts(); err != nil {
+		t.Fatalf("detectConflicts failed with err %v", err)
+	}
+	// Check that there are no conflicts.
+	if len(s.hdlInitiator.updObjects) != 1 {
+		t.Errorf("Too many objects %v", len(s.hdlInitiator.updObjects))
+	}
+	st = s.hdlInitiator.updObjects[objid]
+	if st.isConflict {
+		t.Errorf("Detected a conflict %v", st)
+	}
+	if st.newHead != 4 || st.oldHead != 4 {
+		t.Errorf("Conflict detection didn't succeed %v", st)
+	}
+
+	if err := s.hdlInitiator.resolveConflicts(); err != nil {
+		t.Fatalf("resolveConflicts failed with err %v", err)
+	}
+	if err := s.hdlInitiator.updateStoreAndSync(nil, GenVector{}, minGens, GenVector{}, "VeyronLaptop"); err != nil {
+		t.Fatalf("updateStoreAndSync failed with err %v", err)
+	}
+	if st.resolvVal.Mutation.Version != 4 {
+		t.Errorf("Mutation generation is not accurate %v", st)
+	}
+	// No new log records should be added.
+	if s.log.head.Curgen != 1 || s.log.head.Curlsn != 3 || s.log.head.Curorder != 3 {
+		t.Errorf("Data mismatch in log header %v", s.log.head)
+	}
+	// Verify DAG state.
+	if head, err := s.dag.getHead(objid); err != nil || head != 4 {
+		t.Errorf("Invalid object %d head in DAG %s, err %v", objid, head, err)
+	}
+}
+
+// TestInitiatorBlessConf tests that a local and a remote log record
+// stream can be correctly applied, when the conflict is resolved by a
+// blessing. Commands are in files
+// testdata/<local-init-00.sync,remote-conf-link.log.sync>.
+func TestInitiatorBlessConf(t *testing.T) {
+	dir, err := createTempDir()
+	if err != nil {
+		t.Errorf("Could not create tempdir %v", err)
+	}
+	// Set a large value to prevent the threads from firing.
+	// Test is not thread safe.
+	peerSyncInterval = 1 * time.Hour
+	garbageCollectInterval = 1 * time.Hour
+	s := NewSyncd("", "", "VeyronTab", dir, "", 0)
+
+	defer s.Close()
+	defer os.RemoveAll(dir)
+
+	if _, err = logReplayCommands(s.log, "local-init-00.sync"); err != nil {
+		t.Error(err)
+	}
+	stream, err := createReplayStream("remote-conf-link.log.sync")
+	if err != nil {
+		t.Fatalf("createReplayStream failed with err %v", err)
+	}
+
+	var minGens GenVector
+	if minGens, err = s.hdlInitiator.processLogStream(stream); err != nil {
+		t.Fatalf("processLogStream failed with err %v", err)
+	}
+	if err := s.hdlInitiator.detectConflicts(); err != nil {
+		t.Fatalf("detectConflicts failed with err %v", err)
+	}
+	// Check that there are no conflicts.
+	if len(s.hdlInitiator.updObjects) != 1 {
+		t.Errorf("Too many objects %v", len(s.hdlInitiator.updObjects))
+	}
+	objid, err := strToObjID("12345")
+	if err != nil {
+		t.Errorf("Could not create objid %v", err)
+	}
+	st := s.hdlInitiator.updObjects[objid]
+	if !st.isConflict {
+		t.Errorf("Didn't detect a conflict %v", st)
+	}
+	if st.newHead != 3 || st.oldHead != 2 || st.ancestor != 1 {
+		t.Errorf("Conflict detection didn't succeed %v", st)
+	}
+
+	if err := s.hdlInitiator.resolveConflicts(); err != nil {
+		t.Fatalf("resolveConflicts failed with err %v", err)
+	}
+	if st.resolvVal.Mutation.Version != 3 {
+		t.Errorf("Mutation generation is not accurate %v", st)
+	}
+
+	if err := s.hdlInitiator.updateStoreAndSync(nil, GenVector{}, minGens, GenVector{}, "VeyronPhone"); err != nil {
+		t.Fatalf("updateStoreAndSync failed with err %v", err)
+	}
+	if st.resolvVal.Mutation.Version != 3 || st.resolvVal.Mutation.PriorVersion != 2 {
+		t.Errorf("Mutation generation is not accurate %v", st)
+	}
+	// New log records should be added.
+	if s.log.head.Curgen != 1 || s.log.head.Curlsn != 4 || s.log.head.Curorder != 1 {
+		t.Errorf("Data mismatch in log header %v", s.log.head)
+	}
+	curRec, err := s.log.getLogRec(s.id, GenID(1), LSN(3))
+	if err != nil || curRec == nil {
+		t.Fatalf("GetLogRec() can not find object %s:1:3 in log file err %v",
+			s.id, err)
+	}
+	if curRec.ObjID != objid || curRec.RecType != LinkRec {
+		t.Errorf("Data mismatch in log record %v", curRec)
+	}
+	// Verify DAG state.
+	if head, err := s.dag.getHead(objid); err != nil || head != 3 {
 		t.Errorf("Invalid object %d head in DAG %s, err %v", objid, head, err)
 	}
 }
