@@ -44,7 +44,7 @@ var (
 	// peerSyncInterval is the duration between two consecutive
 	// sync events.  In every sync event, the initiator contacts
 	// one of its peers to obtain any pending updates.
-	peerSyncInterval = 100 * time.Millisecond
+	peerSyncInterval = 50 * time.Millisecond
 
 	// peerSelectionPolicy is the policy used to select a peer when
 	// the initiator gets a chance to sync.
@@ -395,7 +395,7 @@ func (i *syncInitiator) processUpdatedObjects(ctx context.T, local, minGens, rem
 		// solution. Next iteration will have coordination
 		// with watch thread to intelligently retry. Hence
 		// this value is not a config param.
-		time.Sleep(10 * time.Second)
+		time.Sleep(1 * time.Second)
 	}
 
 	// Remove any pending state.
