@@ -97,6 +97,7 @@ import (
 	"fmt"
 
 	"veyron2/storage"
+	"veyron2/vlog"
 )
 
 type dag struct {
@@ -114,9 +115,9 @@ type dagNode struct {
 }
 
 type graftInfo struct {
-	newNodes   map[storage.Version]bool   // set of newly added nodes during a sync
-	graftNodes map[storage.Version]uint64 // set of graft nodes and their level
-	newHead    storage.Version            // new (pending) head node
+	newNodes   map[storage.Version]struct{} // set of newly added nodes during a sync
+	graftNodes map[storage.Version]uint64   // set of graft nodes and their level
+	newHeads   map[storage.Version]struct{} // set of candidate new head nodes
 }
 
 // openDAG opens or creates a DAG for the given filename.
@@ -175,6 +176,46 @@ func (d *dag) clearGraft() {
 	if d.store != nil {
 		d.graft = make(map[storage.ID]*graftInfo)
 	}
+}
+
+// getObjectGraft returns the graft structure for an object ID.
+// The graftInfo struct for an object is ephemeral (in-memory) and it
+// tracks the following information:
+// - newNodes:   the set of newly added nodes used to detect the type of
+//               edges between nodes (new-node to old-node or vice versa).
+// - newHeads:   the set of new candidate head nodes used to detect conflicts.
+// - graftNodes: the set of nodes used to find common ancestors between
+//               conflicting nodes.
+//
+// After the received Sync logs are applied, if there are two new heads in
+// the newHeads set, there is a conflict to be resolved for this object.
+// Otherwise if there is only one head, no conflict was triggered and the
+// new head becomes the current version for the object.
+//
+// In case of conflict, the graftNodes set is used to select the common
+// ancestor to pass to the conflict resolver.
+//
+// Note: if an object's graft structure does not exist only create it
+// if the "create" parameter is set to true.
+func (d *dag) getObjectGraft(oid storage.ID, create bool) *graftInfo {
+	graft := d.graft[oid]
+	if graft == nil && create {
+		graft = &graftInfo{
+			newNodes:   make(map[storage.Version]struct{}),
+			graftNodes: make(map[storage.Version]uint64),
+			newHeads:   make(map[storage.Version]struct{}),
+		}
+
+		// If a current head node exists for this object, initialize
+		// the set of candidate new heads to include it.
+		head, err := d.getHead(oid)
+		if err == nil {
+			graft.newHeads[head] = struct{}{}
+		}
+
+		d.graft[oid] = graft
+	}
+	return graft
 }
 
 // addNode adds a new node for an object in the DAG, linking it to its parent nodes.
@@ -237,21 +278,10 @@ func (d *dag) addNode(oid storage.ID, version storage.Version, remote bool, pare
 	//    the origin root node), representing the most up-to-date common
 	//    knowledge between this device and the divergent changes.
 	//
-	// The graftInfo struct for an object is ephemeral (in-memory) and it
-	// tracks the set of newly added nodes, which in turn is used to
-	// detect an old-to-new edge which identifies the old node as a graft
-	// node.  The graft nodes and their DAG levels are tracked in a map
-	// which is used to (1) detect conflicts and (2) select the common
-	// ancestor to pass to the conflict resolver.
-	//
 	// Note: at the end of a sync operation between 2 devices, the whole
 	// graft info is cleared (Syncd calls clearGraft()) to prepare it for
 	// the new pairwise sync operation.
-	graft := d.graft[oid]
-	if graft == nil && remote {
-		graft = &graftInfo{newNodes: make(map[storage.Version]bool), graftNodes: make(map[storage.Version]uint64)}
-		d.graft[oid] = graft
-	}
+	graft := d.getObjectGraft(oid, remote)
 
 	// Verify the parents and determine the node level.
 	// Update the graft info in the DAG for this object.
@@ -267,16 +297,21 @@ func (d *dag) addNode(oid storage.ID, version storage.Version, remote bool, pare
 		if remote {
 			// If this parent is an old node, it's a graft point in the DAG
 			// and may be a common ancestor used during conflict resolution.
-			if !graft.newNodes[parent] {
+			if _, ok := graft.newNodes[parent]; !ok {
 				graft.graftNodes[parent] = node.Level
+			}
+
+			// The parent nodes can no longer be candidates for new head versions.
+			if _, ok := graft.newHeads[parent]; ok {
+				delete(graft.newHeads, parent)
 			}
 		}
 	}
 
 	if remote {
-		// This new node is so far the candidate for new head version.
-		graft.newNodes[version] = true
-		graft.newHead = version
+		// This new node is a candidate for new head version.
+		graft.newNodes[version] = struct{}{}
+		graft.newHeads[version] = struct{}{}
 	}
 
 	// Insert the new node in the kvdb.
@@ -291,6 +326,73 @@ func (d *dag) hasNode(oid storage.ID, version storage.Version) bool {
 	}
 	key := objNodeKey(oid, version)
 	return d.nodes.hasKey(key)
+}
+
+// addParent adds to the DAG node (oid, version) linkage to this parent node.
+// If the parent linkage is due to a local change (from conflict resolution
+// by blessing an existing version), no need to update the grafting structure.
+// Otherwise a remote change (from the Sync protocol) updates the graft.
+//
+// TODO(rdaoud): add a check to avoid the creation of cycles in the DAG.
+// TODO(rdaoud): recompute the levels of reachable child-nodes if the new
+// parent's level is greater or equal to the node's current level.
+func (d *dag) addParent(oid storage.ID, version, parent storage.Version, remote bool) error {
+	node, err := d.getNode(oid, version)
+	if err != nil {
+		return err
+	}
+
+	pnode, err := d.getNode(oid, parent)
+	if err != nil {
+		vlog.VI(1).Infof("addParent: object %v, node %d, parent %d: parent node not found", oid, version, parent)
+		return err
+	}
+
+	// Check if the parent is already linked to this node.
+	found := false
+	for i := range node.Parents {
+		if node.Parents[i] == parent {
+			found = true
+			break
+		}
+	}
+
+	// If the parent is not yet linked (local or remote) add it.
+	if !found {
+		node.Parents = append(node.Parents, parent)
+		err = d.setNode(oid, version, node)
+		if err != nil {
+			return err
+		}
+	}
+
+	// For local changes we are done, the grafting structure is not updated.
+	if !remote {
+		return nil
+	}
+
+	// If the node and its parent are new/old or old/new then add
+	// the parent as a graft point (a potential common ancestor).
+	graft := d.getObjectGraft(oid, true)
+
+	_, nodeNew := graft.newNodes[version]
+	_, parentNew := graft.newNodes[parent]
+	if (nodeNew && !parentNew) || (!nodeNew && parentNew) {
+		graft.graftNodes[parent] = pnode.Level
+	}
+
+	// The parent node can no longer be a candidate for a new head version.
+	// The addParent() function only removes candidates from newHeads that
+	// have become parents.  It does not add the child nodes to newHeads
+	// because they are not necessarily new-head candidates.  If they are
+	// new nodes, the addNode() function handles adding them to newHeads.
+	// For old nodes, only the current head could be a candidate and it is
+	// added to newHeads when the graft struct is initialized.
+	if _, ok := graft.newHeads[parent]; ok {
+		delete(graft.newHeads, parent)
+	}
+
+	return nil
 }
 
 // moveHead moves the object head node in the DAG.
@@ -311,9 +413,10 @@ func (d *dag) moveHead(oid storage.ID, head storage.Version) error {
 // new and old head nodes.
 // - Yes: return (true, newHead, oldHead, ancestor)
 // - No:  return (false, newHead, oldHead, NoVersion)
-// A conflict exists if the current (old) head node is not one of the graft
-// point of the graph fragment just added.  It means the newly added object
-// versions are not derived in part from this device's current knowledge.
+// A conflict exists when there are two new-head nodes.  It means the newly
+// added object versions are not derived in part from this device's current
+// knowledge.  If there is a single new-head, the object changes were applied
+// without triggering a conflict.
 func (d *dag) hasConflict(oid storage.ID) (isConflict bool, newHead, oldHead, ancestor storage.Version, err error) {
 	oldHead = storage.NoVersion
 	newHead = storage.NoVersion
@@ -329,19 +432,33 @@ func (d *dag) hasConflict(oid storage.ID) (isConflict bool, newHead, oldHead, an
 		return
 	}
 
-	newHead = graft.newHead
-	oldHead, err2 := d.getHead(oid)
-	if err2 != nil {
-		// This is a new object not previously known on this device, so
-		// it does not yet have a "head node" here.  This means all the
-		// DAG updates for it are new and to taken as-is (no conflict).
-		// That's why we ignore the error which is only indicating the
-		// lack of a prior head node.
+	numHeads := len(graft.newHeads)
+	if numHeads < 1 || numHeads > 2 {
+		err = fmt.Errorf("node %d has invalid number of new head candidates %d: %v", oid, numHeads, graft.newHeads)
 		return
 	}
 
-	if _, ok := graft.graftNodes[oldHead]; ok {
-		return // no conflict, current head is a graft point
+	// Fetch the current head for this object if it exists.  The error from getHead()
+	// is ignored because a newly received object is not yet known on this device and
+	// will not trigger a conflict.
+	oldHead, _ = d.getHead(oid)
+
+	// If there is only one new head node there is no conflict.
+	// The new head is that single one, even if it might also be the same old node.
+	if numHeads == 1 {
+		for k := range graft.newHeads {
+			newHead = k
+		}
+		return
+	}
+
+	// With two candidate head nodes, the new one is the node that is
+	// not the current (old) head node.
+	for k := range graft.newHeads {
+		if k != oldHead {
+			newHead = k
+			break
+		}
 	}
 
 	// There is a conflict: the best choice ancestor is the graft point
@@ -514,10 +631,10 @@ func (d *dag) setHead(oid storage.ID, version storage.Version) error {
 
 // getHead retrieves the object head from the DAG.
 func (d *dag) getHead(oid storage.ID) (storage.Version, error) {
-	if d.store == nil {
-		return 0, errors.New("invalid DAG")
-	}
 	var version storage.Version
+	if d.store == nil {
+		return version, errors.New("invalid DAG")
+	}
 	key := objHeadKey(oid)
 	err := d.heads.get(key, &version)
 	if err != nil {
@@ -537,7 +654,9 @@ func (d *dag) getParentMap(oid storage.ID) map[storage.Version][]storage.Version
 		iterVersions = append(iterVersions, head)
 	}
 	if graft := d.graft[oid]; graft != nil {
-		iterVersions = append(iterVersions, graft.newHead)
+		for k := range graft.newHeads {
+			iterVersions = append(iterVersions, k)
+		}
 	}
 
 	// Breadth-first traversal starting from the object head.
@@ -551,15 +670,15 @@ func (d *dag) getParentMap(oid storage.ID) map[storage.Version][]storage.Version
 
 // getGraftNodes is a testing and debug helper function that returns for
 // an object the graft information built and used during a sync operation.
-// The newHead version identifies the head node reported by the other device
-// during a sync operation.  The graftNodes map identifies the set of old
-// nodes where the new DAG fragments were attached and their depth level
-// in the DAG.
-func (d *dag) getGraftNodes(oid storage.ID) (storage.Version, map[storage.Version]uint64) {
+// The newHeads map identifies the candidate head nodes based on the data
+// reported by the other device during a sync operation.  The graftNodes map
+// identifies the set of old nodes where the new DAG fragments were attached
+// and their depth level in the DAG.
+func (d *dag) getGraftNodes(oid storage.ID) (map[storage.Version]struct{}, map[storage.Version]uint64) {
 	if d.store != nil {
 		if ginfo := d.graft[oid]; ginfo != nil {
-			return ginfo.newHead, ginfo.graftNodes
+			return ginfo.newHeads, ginfo.graftNodes
 		}
 	}
-	return 0, nil
+	return nil, nil
 }

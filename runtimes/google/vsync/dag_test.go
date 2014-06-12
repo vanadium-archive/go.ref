@@ -141,6 +141,11 @@ func TestInvalidDAG(t *testing.T) {
 		t.Errorf("delNode() did not fail on a closed DAG: %v", err)
 	}
 
+	err = dag.addParent(oid, 4, 2, true)
+	if err == nil || err.Error() != "invalid DAG" {
+		t.Errorf("addParent() did not fail on a closed DAG: %v", err)
+	}
+
 	err = dag.setHead(oid, 4)
 	if err == nil || err.Error() != "invalid DAG" {
 		t.Errorf("setHead() did not fail on a closed DAG: %v", err)
@@ -166,8 +171,8 @@ func TestInvalidDAG(t *testing.T) {
 	if pmap := dag.getParentMap(oid); len(pmap) != 0 {
 		t.Errorf("getParentMap() found data on a closed DAG: %v", pmap)
 	}
-	if head, gmap := dag.getGraftNodes(oid); head != 0 || len(gmap) != 0 {
-		t.Errorf("getGraftNodes() found data on a closed DAG: head: %d, map: %v", head, gmap)
+	if hmap, gmap := dag.getGraftNodes(oid); hmap != nil || gmap != nil {
+		t.Errorf("getGraftNodes() found data on a closed DAG: head map: %v, graft map: %v", hmap, gmap)
 	}
 }
 
@@ -294,6 +299,65 @@ func TestDelNode(t *testing.T) {
 	dag.close()
 }
 
+// TestAddParent tests adding parents to a DAG node.
+func TestAddParent(t *testing.T) {
+	dagfile := dagFilename()
+	defer os.Remove(dagfile)
+
+	dag, err := openDAG(dagfile)
+	if err != nil {
+		t.Fatalf("Cannot open new DAG file %s", dagfile)
+	}
+
+	version := storage.Version(7)
+	oid, err := strToObjID("789")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if err = dag.addParent(oid, version, 1, true); err == nil {
+		t.Errorf("addParent() did not fail for an unknown object %d:%d in DAG file %s", oid, version, dagfile)
+	}
+
+	node := &dagNode{Level: 15, Logrec: "logrec-22"}
+	if err = dag.setNode(oid, version, node); err != nil {
+		t.Fatalf("Cannot set object %d:%d (%v) in DAG file %s", oid, version, node, dagfile)
+	}
+
+	for _, parent := range []storage.Version{1, 2, 3} {
+		if err = dag.addParent(oid, version, parent, true); err == nil {
+			t.Errorf("addParent() did not reject invalid parent %d for object %d:%d in DAG file %s",
+				parent, oid, version, dagfile)
+		}
+
+		pnode := &dagNode{Level: 11, Logrec: fmt.Sprint("logrec-%d", parent)}
+		if err = dag.setNode(oid, parent, pnode); err != nil {
+			t.Fatalf("Cannot set parent object %d:%d (%v) in DAG file %s", oid, parent, pnode, dagfile)
+		}
+
+		remote := parent%2 == 0
+		for i := 0; i < 2; i++ {
+			if err = dag.addParent(oid, version, parent, remote); err != nil {
+				t.Errorf("addParent() failed on parent %d, remote %d (i=%d) for object %d:%d in DAG file %s: %v",
+					parent, remote, i, oid, version, dagfile, err)
+			}
+		}
+	}
+
+	node2, err := dag.getNode(oid, version)
+	if err != nil || node2 == nil {
+		t.Errorf("Cannot find stored object %d:%d in DAG file %s", oid, version, dagfile)
+	}
+
+	expParents := []storage.Version{1, 2, 3}
+	if !reflect.DeepEqual(node2.Parents, expParents) {
+		t.Errorf("invalid parents for object %d:%d in DAG file %s: %v instead of %v",
+			oid, version, dagfile, node2.Parents, expParents)
+	}
+
+	dag.close()
+}
+
 // TestSetHead tests setting and getting a DAG head node across DAG open/close/reopen.
 func TestSetHead(t *testing.T) {
 	dagfile := dagFilename()
@@ -357,9 +421,9 @@ func checkEndOfSync(d *dag, oid storage.ID) error {
 	d.clearGraft()
 
 	// There should be no grafting info, and hasConflict() should fail.
-	newHead, grafts := d.getGraftNodes(oid)
-	if newHead != 0 || grafts != nil {
-		return fmt.Errorf("Object %d: graft info not cleared: newhead (%d), grafts (%v)", oid, newHead, grafts)
+	newHeads, grafts := d.getGraftNodes(oid)
+	if newHeads != nil || grafts != nil {
+		return fmt.Errorf("Object %d: graft info not cleared: newHeads (%v), grafts (%v)", oid, newHeads, grafts)
 	}
 
 	isConflict, newHead, oldHead, ancestor, errConflict := d.hasConflict(oid)
@@ -472,9 +536,11 @@ func TestRemoteUpdates(t *testing.T) {
 	}
 
 	// Verify the grafting of remote nodes.
-	newHead, grafts := dag.getGraftNodes(oid)
-	if newHead != 2 {
-		t.Errorf("Object %d has invalid newhead %d in graft info in DAG file %s", oid, newHead, dagfile)
+	newHeads, grafts := dag.getGraftNodes(oid)
+
+	expNewHeads := map[storage.Version]struct{}{2: struct{}{}}
+	if !reflect.DeepEqual(newHeads, expNewHeads) {
+		t.Errorf("Object %d has invalid newHeads in DAG file %s: (%v) instead of (%v)", oid, dagfile, newHeads, expNewHeads)
 	}
 
 	expgrafts := map[storage.Version]uint64{}
@@ -551,9 +617,11 @@ func TestRemoteNoConflict(t *testing.T) {
 	}
 
 	// Verify the grafting of remote nodes.
-	newHead, grafts := dag.getGraftNodes(oid)
-	if newHead != 5 {
-		t.Errorf("Object %d has invalid newhead %d in graft info in DAG file %s", oid, newHead, dagfile)
+	newHeads, grafts := dag.getGraftNodes(oid)
+
+	expNewHeads := map[storage.Version]struct{}{5: struct{}{}}
+	if !reflect.DeepEqual(newHeads, expNewHeads) {
+		t.Errorf("Object %d has invalid newHeads in DAG file %s: (%v) instead of (%v)", oid, dagfile, newHeads, expNewHeads)
 	}
 
 	expgrafts := map[storage.Version]uint64{2: 2}
@@ -640,9 +708,11 @@ func TestRemoteConflict(t *testing.T) {
 	}
 
 	// Verify the grafting of remote nodes.
-	newHead, grafts := dag.getGraftNodes(oid)
-	if newHead != 5 {
-		t.Errorf("Object %d has invalid newhead %d in graft info in DAG file %s", oid, newHead, dagfile)
+	newHeads, grafts := dag.getGraftNodes(oid)
+
+	expNewHeads := map[storage.Version]struct{}{2: struct{}{}, 5: struct{}{}}
+	if !reflect.DeepEqual(newHeads, expNewHeads) {
+		t.Errorf("Object %d has invalid newHeads in DAG file %s: (%v) instead of (%v)", oid, dagfile, newHeads, expNewHeads)
 	}
 
 	expgrafts := map[storage.Version]uint64{1: 1}
@@ -740,9 +810,11 @@ func TestRemoteConflictTwoGrafts(t *testing.T) {
 	}
 
 	// Verify the grafting of remote nodes.
-	newHead, grafts := dag.getGraftNodes(oid)
-	if newHead != 5 {
-		t.Errorf("Object %d has invalid newhead %d in graft info in DAG file %s", oid, newHead, dagfile)
+	newHeads, grafts := dag.getGraftNodes(oid)
+
+	expNewHeads := map[storage.Version]struct{}{2: struct{}{}, 5: struct{}{}}
+	if !reflect.DeepEqual(newHeads, expNewHeads) {
+		t.Errorf("Object %d has invalid newHeads in DAG file %s: (%v) instead of (%v)", oid, dagfile, newHeads, expNewHeads)
 	}
 
 	expgrafts := map[storage.Version]uint64{0: 0, 1: 1}
@@ -1089,4 +1161,340 @@ func TestDAGCompact(t *testing.T) {
 		}
 	}
 	dag.close()
+}
+
+// TestRemoteLinkedNoConflictSameHead tests sync of remote updates that contain
+// linked nodes (conflict resolution by selecting an existing version) on top of
+// a local initial state without conflict.  An object is created locally and
+// updated twice (v0 -> v1 -> v2).  Another device has learned about v0, created
+// (v0 -> v3), then learned about (v0 -> v1) and resolved that conflict by selecting
+// v1 over v3.  Now it sends that new info (v3 and the v1/v3 link) back to the
+// original (local) device.  Instead of a v2/v3 conflict, the device sees that
+// v1 was chosen over v3 and resolves it as a no-conflict case.
+func TestRemoteLinkedNoConflictSameHead(t *testing.T) {
+	dagfile := dagFilename()
+	defer os.Remove(dagfile)
+
+	dag, err := openDAG(dagfile)
+	if err != nil {
+		t.Fatalf("Cannot open new DAG file %s", dagfile)
+	}
+
+	if err = dagReplayCommands(dag, "local-init-00.sync"); err != nil {
+		t.Fatal(err)
+	}
+	if err = dagReplayCommands(dag, "remote-noconf-link-00.log.sync"); err != nil {
+		t.Fatal(err)
+	}
+
+	// The head must not have moved (i.e. still at v2) and the parent map
+	// shows the newly grafted DAG fragment on top of the prior DAG.
+	oid, err := strToObjID("12345")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if head, e := dag.getHead(oid); e != nil || head != 2 {
+		t.Errorf("Object %d has wrong head in DAG file %s: %d", oid, dagfile, head)
+	}
+
+	pmap := dag.getParentMap(oid)
+
+	exp := map[storage.Version][]storage.Version{0: nil, 1: {0, 3}, 2: {1}, 3: {0}}
+
+	if !reflect.DeepEqual(pmap, exp) {
+		t.Errorf("Invalid object %d parent map in DAG file %s: (%v) instead of (%v)", oid, dagfile, pmap, exp)
+	}
+
+	// Verify the grafting of remote nodes.
+	newHeads, grafts := dag.getGraftNodes(oid)
+
+	expNewHeads := map[storage.Version]struct{}{2: struct{}{}}
+	if !reflect.DeepEqual(newHeads, expNewHeads) {
+		t.Errorf("Object %d has invalid newHeads in DAG file %s: (%v) instead of (%v)", oid, dagfile, newHeads, expNewHeads)
+	}
+
+	expgrafts := map[storage.Version]uint64{0: 0, 3: 1}
+	if !reflect.DeepEqual(grafts, expgrafts) {
+		t.Errorf("Invalid object %d graft in DAG file %s: (%v) instead of (%v)", oid, dagfile, grafts, expgrafts)
+	}
+
+	// There should be no conflict.
+	isConflict, newHead, oldHead, ancestor, errConflict := dag.hasConflict(oid)
+	if !(!isConflict && newHead == 2 && oldHead == 2 && ancestor == 0 && errConflict == nil) {
+		t.Errorf("Object %d wrong conflict info: flag %t, newHead %d, oldHead %d, ancestor %d, err %v",
+			oid, isConflict, newHead, oldHead, ancestor, errConflict)
+	}
+
+	// Clear the grafting data and verify that hasConflict() fails without it.
+	dag.clearGraft()
+	isConflict, newHead, oldHead, ancestor, errConflict = dag.hasConflict(oid)
+	if errConflict == nil {
+		t.Errorf("hasConflict() did not fail w/o graft info: flag %t, newHead %d, oldHead %d, ancestor %d, err %v",
+			oid, isConflict, newHead, oldHead, ancestor, errConflict)
+	}
+
+	if err := checkEndOfSync(dag, oid); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// TestRemoteLinkedConflict tests sync of remote updates that contain linked
+// nodes (conflict resolution by selecting an existing version) on top of a local
+// initial state triggering a local conflict.  An object is created locally and
+// updated twice (v0 -> v1 -> v2).  Another device has along the way learned about v0,
+// created (v0 -> v3), then learned about (v0 -> v1) and resolved that conflict by
+// selecting v3 over v1.  Now it sends that new info (v3 and the v3/v1 link) back
+// to the original (local) device.  The device sees a v2/v3 conflict.
+func TestRemoteLinkedConflict(t *testing.T) {
+	dagfile := dagFilename()
+	defer os.Remove(dagfile)
+
+	dag, err := openDAG(dagfile)
+	if err != nil {
+		t.Fatalf("Cannot open new DAG file %s", dagfile)
+	}
+
+	if err = dagReplayCommands(dag, "local-init-00.sync"); err != nil {
+		t.Fatal(err)
+	}
+	if err = dagReplayCommands(dag, "remote-conf-link.log.sync"); err != nil {
+		t.Fatal(err)
+	}
+
+	// The head must not have moved (i.e. still at v2) and the parent map
+	// shows the newly grafted DAG fragment on top of the prior DAG.
+	oid, err := strToObjID("12345")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if head, e := dag.getHead(oid); e != nil || head != 2 {
+		t.Errorf("Object %d has wrong head in DAG file %s: %d", oid, dagfile, head)
+	}
+
+	pmap := dag.getParentMap(oid)
+
+	exp := map[storage.Version][]storage.Version{0: nil, 1: {0}, 2: {1}, 3: {0, 1}}
+
+	if !reflect.DeepEqual(pmap, exp) {
+		t.Errorf("Invalid object %d parent map in DAG file %s: (%v) instead of (%v)", oid, dagfile, pmap, exp)
+	}
+
+	// Verify the grafting of remote nodes.
+	newHeads, grafts := dag.getGraftNodes(oid)
+
+	expNewHeads := map[storage.Version]struct{}{2: struct{}{}, 3: struct{}{}}
+	if !reflect.DeepEqual(newHeads, expNewHeads) {
+		t.Errorf("Object %d has invalid newHeads in DAG file %s: (%v) instead of (%v)", oid, dagfile, newHeads, expNewHeads)
+	}
+
+	expgrafts := map[storage.Version]uint64{0: 0, 1: 1}
+	if !reflect.DeepEqual(grafts, expgrafts) {
+		t.Errorf("Invalid object %d graft in DAG file %s: (%v) instead of (%v)", oid, dagfile, grafts, expgrafts)
+	}
+
+	// There should be no conflict.
+	isConflict, newHead, oldHead, ancestor, errConflict := dag.hasConflict(oid)
+	if !(isConflict && newHead == 3 && oldHead == 2 && ancestor == 1 && errConflict == nil) {
+		t.Errorf("Object %d wrong conflict info: flag %t, newHead %d, oldHead %d, ancestor %d, err %v",
+			oid, isConflict, newHead, oldHead, ancestor, errConflict)
+	}
+
+	// Clear the grafting data and verify that hasConflict() fails without it.
+	dag.clearGraft()
+	isConflict, newHead, oldHead, ancestor, errConflict = dag.hasConflict(oid)
+	if errConflict == nil {
+		t.Errorf("hasConflict() did not fail w/o graft info: flag %t, newHead %d, oldHead %d, ancestor %d, err %v",
+			oid, isConflict, newHead, oldHead, ancestor, errConflict)
+	}
+
+	if err := checkEndOfSync(dag, oid); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// TestRemoteLinkedNoConflictNewHead tests sync of remote updates that contain
+// linked nodes (conflict resolution by selecting an existing version) on top of
+// a local initial state without conflict, but moves the head node to a new one.
+// An object is created locally and updated twice (v0 -> v1 -> v2).  Another device
+// has along the way learned about v0, created (v0 -> v3), then learned about
+// (v0 -> v1 -> v2) and resolved that conflict by selecting v3 over v2.  Now it
+// sends that new info (v3 and the v3/v2 link) back to the original (local) device.
+// The device sees that the new head v3 is "derived" from v2 thus no conflict.
+func TestRemoteLinkedConflictNewHead(t *testing.T) {
+	dagfile := dagFilename()
+	defer os.Remove(dagfile)
+
+	dag, err := openDAG(dagfile)
+	if err != nil {
+		t.Fatalf("Cannot open new DAG file %s", dagfile)
+	}
+
+	if err = dagReplayCommands(dag, "local-init-00.sync"); err != nil {
+		t.Fatal(err)
+	}
+	if err = dagReplayCommands(dag, "remote-noconf-link-01.log.sync"); err != nil {
+		t.Fatal(err)
+	}
+
+	// The head must not have moved (i.e. still at v2) and the parent map
+	// shows the newly grafted DAG fragment on top of the prior DAG.
+	oid, err := strToObjID("12345")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if head, e := dag.getHead(oid); e != nil || head != 2 {
+		t.Errorf("Object %d has wrong head in DAG file %s: %d", oid, dagfile, head)
+	}
+
+	pmap := dag.getParentMap(oid)
+
+	exp := map[storage.Version][]storage.Version{0: nil, 1: {0}, 2: {1}, 3: {0, 2}}
+
+	if !reflect.DeepEqual(pmap, exp) {
+		t.Errorf("Invalid object %d parent map in DAG file %s: (%v) instead of (%v)", oid, dagfile, pmap, exp)
+	}
+
+	// Verify the grafting of remote nodes.
+	newHeads, grafts := dag.getGraftNodes(oid)
+
+	expNewHeads := map[storage.Version]struct{}{3: struct{}{}}
+	if !reflect.DeepEqual(newHeads, expNewHeads) {
+		t.Errorf("Object %d has invalid newHeads in DAG file %s: (%v) instead of (%v)", oid, dagfile, newHeads, expNewHeads)
+	}
+
+	expgrafts := map[storage.Version]uint64{0: 0, 2: 2}
+	if !reflect.DeepEqual(grafts, expgrafts) {
+		t.Errorf("Invalid object %d graft in DAG file %s: (%v) instead of (%v)", oid, dagfile, grafts, expgrafts)
+	}
+
+	// There should be no conflict.
+	isConflict, newHead, oldHead, ancestor, errConflict := dag.hasConflict(oid)
+	if !(!isConflict && newHead == 3 && oldHead == 2 && ancestor == 0 && errConflict == nil) {
+		t.Errorf("Object %d wrong conflict info: flag %t, newHead %d, oldHead %d, ancestor %d, err %v",
+			oid, isConflict, newHead, oldHead, ancestor, errConflict)
+	}
+
+	// Clear the grafting data and verify that hasConflict() fails without it.
+	dag.clearGraft()
+	isConflict, newHead, oldHead, ancestor, errConflict = dag.hasConflict(oid)
+	if errConflict == nil {
+		t.Errorf("hasConflict() did not fail w/o graft info: flag %t, newHead %d, oldHead %d, ancestor %d, err %v",
+			oid, isConflict, newHead, oldHead, ancestor, errConflict)
+	}
+
+	if err := checkEndOfSync(dag, oid); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// TestRemoteLinkedNoConflictNewHeadOvertake tests sync of remote updates that
+// contain linked nodes (conflict resolution by selecting an existing version)
+// on top of a local initial state without conflict, but moves the head node
+// to a new one that overtook the linked node.
+// An object is created locally and updated twice (v0 -> v1 -> v2).  Another
+// device has along the way learned about v0, created (v0 -> v3), then learned
+// about (v0 -> v1 -> v2) and resolved that conflict by selecting v2 over v3.
+// Then it creates a new update v4 from v2 (v2 -> v4).  Now it sends that new
+// info (v3, the v2/v3 link, and v4) back to the original (local) device.
+// The device sees that the new head v4 is "derived" from v2 thus no conflict.
+func TestRemoteLinkedConflictNewHeadOvertake(t *testing.T) {
+	dagfile := dagFilename()
+	defer os.Remove(dagfile)
+
+	dag, err := openDAG(dagfile)
+	if err != nil {
+		t.Fatalf("Cannot open new DAG file %s", dagfile)
+	}
+
+	if err = dagReplayCommands(dag, "local-init-00.sync"); err != nil {
+		t.Fatal(err)
+	}
+	if err = dagReplayCommands(dag, "remote-noconf-link-02.log.sync"); err != nil {
+		t.Fatal(err)
+	}
+
+	// The head must not have moved (i.e. still at v2) and the parent map
+	// shows the newly grafted DAG fragment on top of the prior DAG.
+	oid, err := strToObjID("12345")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if head, e := dag.getHead(oid); e != nil || head != 2 {
+		t.Errorf("Object %d has wrong head in DAG file %s: %d", oid, dagfile, head)
+	}
+
+	pmap := dag.getParentMap(oid)
+
+	exp := map[storage.Version][]storage.Version{0: nil, 1: {0}, 2: {1, 3}, 3: {0}, 4: {2}}
+
+	if !reflect.DeepEqual(pmap, exp) {
+		t.Errorf("Invalid object %d parent map in DAG file %s: (%v) instead of (%v)", oid, dagfile, pmap, exp)
+	}
+
+	// Verify the grafting of remote nodes.
+	newHeads, grafts := dag.getGraftNodes(oid)
+
+	expNewHeads := map[storage.Version]struct{}{4: struct{}{}}
+	if !reflect.DeepEqual(newHeads, expNewHeads) {
+		t.Errorf("Object %d has invalid newHeads in DAG file %s: (%v) instead of (%v)", oid, dagfile, newHeads, expNewHeads)
+	}
+
+	expgrafts := map[storage.Version]uint64{0: 0, 2: 2, 3: 1}
+	if !reflect.DeepEqual(grafts, expgrafts) {
+		t.Errorf("Invalid object %d graft in DAG file %s: (%v) instead of (%v)", oid, dagfile, grafts, expgrafts)
+	}
+
+	// There should be no conflict.
+	isConflict, newHead, oldHead, ancestor, errConflict := dag.hasConflict(oid)
+	if !(!isConflict && newHead == 4 && oldHead == 2 && ancestor == 0 && errConflict == nil) {
+		t.Errorf("Object %d wrong conflict info: flag %t, newHead %d, oldHead %d, ancestor %d, err %v",
+			oid, isConflict, newHead, oldHead, ancestor, errConflict)
+	}
+
+	// Then we can move the head and clear the grafting data.
+	if err = dag.moveHead(oid, newHead); err != nil {
+		t.Errorf("Object %d cannot move head to %d in DAG file %s: %v", oid, newHead, dagfile, err)
+	}
+
+	// Clear the grafting data and verify that hasConflict() fails without it.
+	dag.clearGraft()
+	isConflict, newHead, oldHead, ancestor, errConflict = dag.hasConflict(oid)
+	if errConflict == nil {
+		t.Errorf("hasConflict() did not fail w/o graft info: flag %t, newHead %d, oldHead %d, ancestor %d, err %v",
+			oid, isConflict, newHead, oldHead, ancestor, errConflict)
+	}
+
+	// Now new info comes from another device repeating the v2/v3 link.
+	// Verify that it is a NOP (no changes).
+	if err = dagReplayCommands(dag, "remote-noconf-link-repeat.log.sync"); err != nil {
+		t.Fatal(err)
+	}
+
+	if head, e := dag.getHead(oid); e != nil || head != 4 {
+		t.Errorf("Object %d has wrong head in DAG file %s: %d", oid, dagfile, head)
+	}
+
+	newHeads, grafts = dag.getGraftNodes(oid)
+	if !reflect.DeepEqual(newHeads, expNewHeads) {
+		t.Errorf("Object %d has invalid newHeads in DAG file %s: (%v) instead of (%v)", oid, dagfile, newHeads, expNewHeads)
+	}
+
+	expgrafts = map[storage.Version]uint64{}
+	if !reflect.DeepEqual(grafts, expgrafts) {
+		t.Errorf("Invalid object %d graft in DAG file %s: (%v) instead of (%v)", oid, dagfile, grafts, expgrafts)
+	}
+
+	isConflict, newHead, oldHead, ancestor, errConflict = dag.hasConflict(oid)
+	if !(!isConflict && newHead == 4 && oldHead == 4 && ancestor == 0 && errConflict == nil) {
+		t.Errorf("Object %d wrong conflict info: flag %t, newHead %d, oldHead %d, ancestor %d, err %v",
+			oid, isConflict, newHead, oldHead, ancestor, errConflict)
+	}
+
+	if err := checkEndOfSync(dag, oid); err != nil {
+		t.Fatal(err)
+	}
 }

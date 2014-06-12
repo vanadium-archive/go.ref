@@ -22,6 +22,8 @@ const (
 	addLocal = iota
 	addRemote
 	setDevTable
+	linkLocal
+	linkRemote
 )
 
 type syncCommand struct {
@@ -140,6 +142,38 @@ func parseSyncCommands(file string) ([]syncCommand, error) {
 			cmd := syncCommand{cmd: setDevTable, devID: DeviceID(args[1]), genVec: genVec}
 			cmds = append(cmds, cmd)
 
+		case "linkl", "linkr":
+			expNargs := 6
+			if nargs != expNargs {
+				return nil, fmt.Errorf("%s:%d: need %d args instead of %d", file, lineno, expNargs, nargs)
+			}
+
+			version, err := strToVersion(args[2])
+			if err != nil {
+				return nil, fmt.Errorf("%s:%d: invalid version: %s", file, lineno, args[2])
+			}
+			if args[3] == "" {
+				return nil, fmt.Errorf("%s:%d: parent (to-node) version not specified", file, lineno)
+			}
+			if args[4] != "" {
+				return nil, fmt.Errorf("%s:%d: cannot specify a 2nd parent (to-node): %s", file, lineno, args[4])
+			}
+			parent, err := strToVersion(args[3])
+			if err != nil {
+				return nil, fmt.Errorf("%s:%d: invalid parent (to-node) version: %s", file, lineno, args[3])
+			}
+
+			cmd := syncCommand{version: version, parents: []storage.Version{parent}, logrec: args[5]}
+			if args[0] == "linkl" {
+				cmd.cmd = linkLocal
+			} else {
+				cmd.cmd = linkRemote
+			}
+			if cmd.objID, err = strToObjID(args[1]); err != nil {
+				return nil, fmt.Errorf("%s:%d: invalid object ID: %s", file, lineno, args[1])
+			}
+			cmds = append(cmds, cmd)
+
 		default:
 			return nil, fmt.Errorf("%s:%d: invalid operation: %s", file, lineno, args[0])
 		}
@@ -169,6 +203,20 @@ func dagReplayCommands(dag *dag, syncfile string) error {
 		case addRemote:
 			if err = dag.addNode(cmd.objID, cmd.version, true, cmd.parents, cmd.logrec); err != nil {
 				return fmt.Errorf("cannot add remote node %d:%d to DAG: %v", cmd.objID, cmd.version, err)
+			}
+			dag.flush()
+
+		case linkLocal:
+			if err = dag.addParent(cmd.objID, cmd.version, cmd.parents[0], false); err != nil {
+				return fmt.Errorf("cannot add local parent %d to DAG node %d:%d: %v",
+					cmd.parents[0], cmd.objID, cmd.version, err)
+			}
+			dag.flush()
+
+		case linkRemote:
+			if err = dag.addParent(cmd.objID, cmd.version, cmd.parents[0], true); err != nil {
+				return fmt.Errorf("cannot add remote parent %d to DAG node %d:%d: %v",
+					cmd.parents[0], cmd.objID, cmd.version, err)
 			}
 			dag.flush()
 		}
