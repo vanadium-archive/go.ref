@@ -78,6 +78,9 @@ func main() {
 	for scanner.Scan() {
 		line := scanner.Text()
 		if !strings.HasPrefix(line, "#") && len(line) > 0 {
+			if line == "eof" {
+				break
+			}
 			if err := process(line, lineno); err != nil {
 				if debug {
 					fmt.Printf("%d> %s: %v\n", lineno, line, err)
@@ -122,17 +125,17 @@ func process(line string, lineno int) error {
 	if factory == nil {
 		return fmt.Errorf("unrecognised command %q", name)
 	}
-
 	if vars, output, _, err := factory().Run(sub); err != nil {
 		return err
 	} else {
 		if debug || interactive {
+			fmt.Printf("%d> %s\n", lineno, line)
+		}
+		if len(output) > 0 {
 			if !interactive {
-				fmt.Printf("%d> %s\n", lineno, line)
+				fmt.Printf("%d> ", lineno)
 			}
-			if len(output) > 0 {
-				fmt.Printf("%s\n", strings.Join(output, " "))
-			}
+			fmt.Printf("%s\n", strings.Join(output, " "))
 		}
 		if debug && len(vars) > 0 {
 			for k, v := range vars {
