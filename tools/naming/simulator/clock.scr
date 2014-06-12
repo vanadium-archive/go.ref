@@ -1,0 +1,66 @@
+#
+# Simple example to show how names work and are used both without
+# and with a mount table.
+#
+
+# A 'stand-alone' server, with an internal namespace of 'mt/...'
+clockServer "" mt clock
+set STAND_ALONE_CLOCK_NAME=$NAME
+
+set N=$STAND_ALONE_CLOCK_NAME
+print "Stand alone clock server at" $N
+time $N "Using $N"
+set N=/$ADDR//mt
+time $N "Using $N"
+
+# Run a root MountTable.
+rootMT mt
+set ROOT_ADDR=$MT_ADDR ROOT_NAME=$MT_NAME
+print ""
+print "Root MountTable at $ROOT_NAME"
+
+clockServer $MT_NAME clocks home_clock
+set CLOCK_NAME=/$ADDR//clocks
+print "Running Clock Server at $CLOCK_NAME"
+
+# Still bypassing the MountTable
+time $CLOCK_NAME bar
+
+# Now, let's use the MountTable
+setLocalRoots $ROOT_NAME
+
+set N=home_clock
+resolve $N
+print $N -> $R0
+
+set N=home_clock/clocks
+resolve $N
+print $N -> $R0
+
+set N=/$ROOT_ADDR/home_clock/clocks
+resolve $N
+print $N -> $R0
+
+set N=home_clock/clocks
+time $N "Using $N"
+set N=$ROOT_NAME/home_clock/clocks
+time $N "Using $N"
+
+# ls * returns home_clock
+ls *
+# ls ... returns "" and home_clock - i.e two items. Is this a bug?
+ls ...
+
+# These all behave as above
+lsmt $ROOT_NAME *
+lsmt $ROOT_NAME ...
+
+# Conclusion: some of this behaviour seems a little awkward. In particular:
+#
+# The client neeeds to use a different form of the name depending on whether
+# a MountTable is used or not. If a MountTable is not used, then the internal
+# 'suffix' (/mt) in the examples above must be used. If a MountTable is used
+# then the internal suffix must not be included in the name.
+#
+# ls ... seems to always return an extra, zero length, string as entry
+#

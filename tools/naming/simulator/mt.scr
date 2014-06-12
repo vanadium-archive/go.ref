@@ -1,0 +1,90 @@
+#
+# Example showing multiple mount tables, servers and globing
+#
+
+rootMT ""
+set ROOT_MT_NAME=$MT_NAME ROOT_MT_ADDR=$MT_ADDR
+set ROOT=$ROOT_MT_NAME
+
+nodeMT $ROOT "mt" "usa"
+set USA_MT=$MT_NAME
+
+nodeMT $USA_MT_NAME "mt" "palo alto"
+set PA_MT=$MT_NAME
+
+
+print "--------- Resolve ROOT, ROOT/usa, ROOT/usa/mt/palo alto"
+print "--------- Each should return a different address"
+resolve $ROOT
+resolve $ROOT/usa
+resolve "$ROOT/usa/mt/palo alto"
+
+print "--------- ResolveMT ROOT, ROOT/usa, ROOT/usa/mt - should return the ROOT MT"
+resolveMT $ROOT
+resolveMT $ROOT/usa
+resolveMT $ROOT/usa/mt
+
+print "--------- ResolveMT ROOT/usa/mt/palo alto, palo alto/mt should return the USA MT"
+resolveMT "$ROOT/usa/mt/palo alto"
+resolveMT "$ROOT/usa/mt/palo alto/mt"
+
+print "--------- ResolveMT ROOT/usa/mt/palo alto/mt/bar should return the palo alto MT"
+resolveMT "$ROOT/usa/mt/palo alto/mt/bar"
+
+# should return a complete hiearchy....
+setLocalRoots $ROOT
+print "--------- setLocalRoots to global root"
+print "--------- ls ..."
+ls ...
+print "--------- ls *"
+ls *
+
+print "--------- setLocalRoots to usa"
+setLocalRoots $USA_MT
+ls ...
+
+print "--------- setLocalRoots to palo alto"
+setLocalRoots $PA_MT
+ls ...
+
+nodeMT $ROOT "mt" "uk"
+set UK_MT=$MT_NAME
+
+nodeMT $UK_MT "mt" "cambridge"
+set CAM_MT=$MT_NAME
+
+setLocalRoots $ROOT
+ls ...
+setLocalRoots $UK_MT
+ls ...
+setLocalRoots $CAM_MT
+ls ...
+
+# Create a MountTable tree without using the internal 'mt' suffix as in the
+# examples above.
+nodeMT $ROOT "" "france"
+set FRANCE_MT=$MT_NAME
+nodeMT $FRANCE_MT "" "paris"
+setLocalRoots $ROOT
+ls ...
+
+# Conclusion: some of this behaviour seems a little awkward. In particular:
+#
+# ls (i.e. glob) ... on the root doesn't seem to iterate down the name
+# space hierarchy, I was under the impression that the local MountTable
+# client would do so? Well, it turns out that this only works if the
+# internal suffix (mt in the USA/UK trees, empty in the France tree) is
+# empty!!
+#
+# ls using the local MountTable on a rooted name doesn't seem to work either,
+# thus making it impossible to see the whole name space without setting the
+# local MountTable's root which will clearly cause problems for concurrent
+# clients.
+#
+# I find the distinction between the "local MountTable client" and
+# "remote MountTable or local MountTable server" awkward. Maybe we should
+# call the "local MountTable client" the "Resolver?".
+#
+
+
+

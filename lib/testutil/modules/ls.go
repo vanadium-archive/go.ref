@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"strconv"
+	"strings"
 
 	"veyron2/rt"
 	"veyron2/services/mounttable"
@@ -71,12 +72,11 @@ func (g *glob) Run(args []string) (Variables, []string, Handle, error) {
 		return nil, nil, nil, err
 	} else {
 		vars := make(Variables)
-		if len(r) > 1 {
-			for i, v := range r[:len(r)-1] {
-				k := "R" + strconv.Itoa(i)
-				vars.Update(k, v)
-			}
+		for i, v := range r {
+			k := "R" + strconv.Itoa(i)
+			vars.Update(k, v)
 		}
+		vars.Update("ALL", strings.Join(r, ","))
 		return vars, r, nil, nil
 	}
 }
