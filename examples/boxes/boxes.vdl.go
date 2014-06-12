@@ -19,6 +19,8 @@ import (
 // Box describes the name and co-ordinates of a given box that
 // is displayed in the View of a peer device.
 type Box struct {
+	// DeviceID that generated the box
+	DeviceId string
 	// BoxId is a unique name for a box
 	BoxId string
 	// Points are the co-ordinates of a given box
@@ -464,6 +466,7 @@ func (__gen_s *ServerStubDrawInterface) Signature(call _gen_ipc.ServerCall) (_ge
 	result.TypeDefs = []_gen_vdl.Any{
 		_gen_wiretype.NamedPrimitiveType{Type: 0x1, Name: "error", Tags: []string(nil)}, _gen_wiretype.ArrayType{Elem: 0x19, Len: 0x4, Name: "", Tags: []string(nil)}, _gen_wiretype.StructType{
 			[]_gen_wiretype.FieldType{
+				_gen_wiretype.FieldType{Type: 0x3, Name: "DeviceId"},
 				_gen_wiretype.FieldType{Type: 0x3, Name: "BoxId"},
 				_gen_wiretype.FieldType{Type: 0x42, Name: "Points"},
 			},
