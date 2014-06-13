@@ -65,7 +65,7 @@ func startServer() (string, func()) {
 		log.Fatal("s.Listen() failed: ", err)
 	}
 
-	return naming.JoinAddressName(ep.String(), ""), func() {
+	return naming.JoinAddressName(ep.String(), "//"), func() {
 		s.Stop()
 		os.Remove(dbDir)
 	}

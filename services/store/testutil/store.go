@@ -54,6 +54,7 @@ func NewStore(t *testing.T, server ipc.Server, id security.PublicID) (string, fu
 	}
 
 	name = naming.JoinAddressName(ep.String(), name)
+	name = naming.MakeTerminal(name)
 
 	// Create a closure that cleans things up.
 	cleanup := func() {

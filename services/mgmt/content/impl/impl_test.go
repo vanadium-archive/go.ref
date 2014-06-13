@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"veyron2"
+	"veyron2/naming"
 	"veyron2/rt"
 	"veyron2/services/mgmt/content"
 )
@@ -88,13 +89,10 @@ func testInterface(t *testing.T, runtime veyron2.Runtime, depth int) {
 	if err != nil {
 		t.Fatalf("Listen(%v, %v) failed: %v", protocol, hostname, err)
 	}
-	name := ""
-	if err := server.Publish(name); err != nil {
-		t.Fatalf("Publish(%v) failed: %v", name, err)
-	}
 
 	// Create client stubs for talking to the server.
-	stub, err := content.BindContent("/" + endpoint.String())
+	name := naming.JoinAddressName(endpoint.String(), "//")
+	stub, err := content.BindContent(name)
 	if err != nil {
 		t.Fatalf("BindContent() failed: %v", err)
 	}
@@ -112,7 +110,7 @@ func testInterface(t *testing.T, runtime veyron2.Runtime, depth int) {
 	}
 
 	// Download
-	stub, err = content.BindContent("/" + endpoint.String() + "/" + checksum)
+	stub, err = content.BindContent(naming.Join(name, checksum))
 	if err != nil {
 		t.Fatalf("BindContent() failed: %v", err)
 	}

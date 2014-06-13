@@ -7,6 +7,7 @@ import (
 	"veyron/services/mgmt/profile"
 	istore "veyron/services/store/testutil"
 
+	"veyron2/naming"
 	"veyron2/rt"
 )
 
@@ -58,7 +59,7 @@ func TestInterface(t *testing.T) {
 	t.Logf("Profile manager published at %v/%v", endpoint, name)
 
 	// Create client stubs for talking to the server.
-	stub, err := profile.BindProfile("/" + endpoint.String() + "/linux/base")
+	stub, err := profile.BindProfile(naming.JoinAddressName(endpoint.String(), "//linux/base"))
 	if err != nil {
 		t.Fatalf("BindApplication() failed: %v", err)
 	}

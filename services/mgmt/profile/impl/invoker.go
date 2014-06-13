@@ -70,7 +70,7 @@ func (i *invoker) Put(context ipc.ServerContext, profile profile.Specification) 
 }
 
 func (i *invoker) Remove(context ipc.ServerContext) error {
-	vlog.VI(0).Infof("%v.Remove(%v)", i.suffix)
+	vlog.VI(0).Infof("%v.Remove()", i.suffix)
 	transaction := primitives.NewTransaction(context)
 	path := path.Join("/profiles", i.suffix)
 	object := i.store.Bind(path)
