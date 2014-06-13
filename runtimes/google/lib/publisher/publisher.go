@@ -200,6 +200,7 @@ type mountStatus struct {
 
 func newPubState(ctx context.T, mt naming.MountTable, period time.Duration) *pubState {
 	return &pubState{
+		ctx:      ctx,
 		mt:       mt,
 		period:   period,
 		deadline: time.Now().Add(period),
