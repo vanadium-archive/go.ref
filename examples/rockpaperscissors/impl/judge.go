@@ -248,7 +248,7 @@ func (j *Judge) playOneRound(info *gameInfo) (rps.Round, error) {
 		round.Moves[in.player-1] = in.action.Move
 	}
 	round.Winner = j.compareMoves(round.Moves[0], round.Moves[1])
-	vlog.Infof("Player 1 played %q. Player 2 played %q. Winner: %d", round.Moves[0], round.Moves[1], round.Winner)
+	vlog.VI(1).Infof("Player 1 played %q. Player 2 played %q. Winner: %d", round.Moves[0], round.Moves[1], round.Winner)
 
 	action = rps.JudgeAction{RoundResult: round}
 	for _, s := range info.streams {

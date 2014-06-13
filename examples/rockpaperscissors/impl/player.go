@@ -51,14 +51,14 @@ func (p *Player) InitiateGame() error {
 		vlog.Infof("createGame: %v", err)
 		return err
 	}
-	vlog.Infof("Created gameID %q on %q", gameID, judge)
+	vlog.VI(1).Infof("Created gameID %q on %q", gameID, judge)
 
 	opponent, err := common.FindPlayer(p.mt)
 	if err != nil {
 		vlog.Infof("FindPlayer: %v", err)
 		return err
 	}
-	vlog.Infof("chosen opponent is %q", opponent)
+	vlog.VI(1).Infof("chosen opponent is %q", opponent)
 	if err = p.sendChallenge(opponent, judge, gameID); err != nil {
 		vlog.Infof("sendChallenge: %v", err)
 		return err
@@ -69,9 +69,9 @@ func (p *Player) InitiateGame() error {
 		return err
 	}
 	if result.YouWon {
-		vlog.Info("Game result: I won! :)")
+		vlog.VI(1).Info("Game result: I won! :)")
 	} else {
-		vlog.Info("Game result: I lost :(")
+		vlog.VI(1).Info("Game result: I lost :(")
 	}
 	return nil
 }
@@ -99,7 +99,7 @@ func (p *Player) sendChallenge(opponent, judge string, gameID rps.GameID) error 
 
 // challenge receives an incoming challenge.
 func (p *Player) challenge(judge string, gameID rps.GameID) error {
-	vlog.Infof("challenge received: %s %v", judge, gameID)
+	vlog.VI(1).Infof("challenge received: %s %v", judge, gameID)
 	go p.playGame(judge, gameID)
 	return nil
 }
@@ -120,7 +120,7 @@ func (p *Player) playGame(judge string, gameID rps.GameID) (rps.PlayResult, erro
 	for {
 		in, err := game.Recv()
 		if err == io.EOF {
-			vlog.Infof("Game Ended")
+			vlog.VI(1).Infof("Game Ended")
 			break
 		}
 		if err != nil {
@@ -128,24 +128,24 @@ func (p *Player) playGame(judge string, gameID rps.GameID) (rps.PlayResult, erro
 			break
 		}
 		if in.PlayerNum > 0 {
-			vlog.Infof("I'm player %d", in.PlayerNum)
+			vlog.VI(1).Infof("I'm player %d", in.PlayerNum)
 		}
 		if len(in.OpponentName) > 0 {
-			vlog.Infof("My opponent is %q", in.OpponentName)
+			vlog.VI(1).Infof("My opponent is %q", in.OpponentName)
 		}
 		if len(in.MoveOptions) > 0 {
 			n := rand.Intn(len(in.MoveOptions))
-			vlog.Infof("My turn to play. Picked %q from %v", in.MoveOptions[n], in.MoveOptions)
+			vlog.VI(1).Infof("My turn to play. Picked %q from %v", in.MoveOptions[n], in.MoveOptions)
 			if err := game.Send(rps.PlayerAction{Move: in.MoveOptions[n]}); err != nil {
 				return rps.PlayResult{}, err
 			}
 		}
 		if len(in.RoundResult.Moves[0]) > 0 {
-			vlog.Infof("Player 1 played %q. Player 2 played %q. Winner: %v",
+			vlog.VI(1).Infof("Player 1 played %q. Player 2 played %q. Winner: %v",
 				in.RoundResult.Moves[0], in.RoundResult.Moves[1], in.RoundResult.Winner)
 		}
 		if len(in.Score.Players) > 0 {
-			vlog.Infof("Score card: %s", common.FormatScoreCard(in.Score))
+			vlog.VI(1).Infof("Score card: %s", common.FormatScoreCard(in.Score))
 		}
 	}
 	result, err := game.Finish()

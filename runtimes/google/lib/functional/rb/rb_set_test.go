@@ -158,8 +158,9 @@ func TestAddRemove(t *testing.T) {
 
 // Randomized add and remove.
 func TestRandom(t *testing.T) {
-	seed := rand.NewSource(time.Now().UnixNano())
-	log.Printf("Random seed: %d", seed)
+	now := time.Now().UnixNano()
+	log.Printf("value used to seed rand: %v", now)
+	seed := rand.NewSource(now)
 	rnd := rand.New(seed)
 	s := NewSet(intCompare)
 	elements := make(map[int]struct{})
@@ -274,8 +275,9 @@ func TestSequentialMap(t *testing.T) {
 }
 
 func TestRandomMap(t *testing.T) {
-	seed := rand.NewSource(time.Now().UnixNano())
-	log.Printf("Random seed: %d", seed)
+	now := time.Now().UnixNano()
+	log.Printf("value used to seed rand: %v", now)
+	seed := rand.NewSource(now)
 	rnd := rand.New(seed)
 	s := NewSet(entryLessThan)
 	elements := make(map[int]interface{})
