@@ -1,7 +1,0 @@
-A pipe viewer plugin is a piece of code that can format/play/display an stream of bytes.
-
-Each pipe viewer plugin must do a default export of a class that extends the PipeViewer interface.
-
-"builtin" folder contains pipe viewers that come built-in with PipeToBrowser application.
-
-Plugin loader expects the folder and file name to match the viewer's name.

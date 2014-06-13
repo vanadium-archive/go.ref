@@ -1,3 +1,25 @@
 .hidden {
-  display: none;
+  display: none !important;
+}
+
+paper-button {
+  margin: 1em;
+  width: 10em;
+  display: block;
+  cursor: default;
+}
+
+paper-button.colored {
+  background: #4285f4;
+  color:#FFFFFF;
+}
+
+paper-button.colored.red {
+  background: #d34336;
+}
+
+[flex] {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 0px;
 }

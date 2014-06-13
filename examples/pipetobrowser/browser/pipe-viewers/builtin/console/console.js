@@ -6,7 +6,7 @@
 import { View } from 'view';
 import { PipeViewer } from 'pipe-viewer';
 
-import { arrayBufferToString } from 'libs/utils/array-buffer'
+import { UTF8BytesToString } from 'libs/utils/encoding'
 
 class ConsolePipeViewer extends PipeViewer {
   get name() {
@@ -14,19 +14,13 @@ class ConsolePipeViewer extends PipeViewer {
   }
 
   play(stream) {
-    var textarea = document.createElement('textarea');
-    textarea.readonly = true;
-    textarea.cols = 100;
-    textarea.rows = 15;
-    var chunk;
-    stream.on('readable', () => {
-      while(null !== (chunk = stream.read())) {
-        var buf = arrayBufferToString(chunk);
-        textarea.value += buf;
-      }
+    var console = document.createElement('p2b-plugin-console');
+    stream.on('data', (chunk) => {
+      var buf = UTF8BytesToString(new Uint8Array(chunk));
+      console.addText(buf);
     });
 
-    return new View(textarea);
+    return new View(console);
   }
 }
 

@@ -1,20 +1,120 @@
-<link rel="import" href="../../libs/vendor/polymer/polymer/polymer.html">
+<link rel="import" href="/libs/vendor/polymer/polymer/polymer.html">
+<link rel="import" href="/libs/vendor/polymer/core-drawer-panel/core-drawer-panel.html">
+<link rel="import" href="/libs/vendor/polymer/core-header-panel/core-header-panel.html">
+<link rel="import" href="/libs/vendor/polymer/core-toolbar/core-toolbar.html">
+<link rel="import" href="/libs/vendor/polymer/core-menu/core-menu.html">
+<link rel="import" href="/libs/vendor/polymer/core-item/core-item.html">
+<link rel="import" href="/libs/vendor/polymer/core-selector/core-selector.html">
+<link rel="import" href="/libs/vendor/polymer/paper-appbar/paper-appbar.html">
+<link rel="import" href="/libs/vendor/polymer/paper-icon-button/paper-icon-button.html">
+<link href='http://fonts.googleapis.com/css?family=Roboto' rel='stylesheet' type='text/css'>
 
 <polymer-element name="p2b-page">
   <template>
-    <header role="banner">
-      <h1>Pipe To Browser</h1>
-    </header>
-    <section role="main" id="mainContainer"></section>
+    <link rel="stylesheet" href="../common/common.css">
+    <link rel="stylesheet" href="component.css">
+    <core-drawer-panel id="drawerPanel">
+      <core-header-panel drawer>
+        <core-toolbar>
+          <h1>Pipe To Browser</h1>
+        </core-toolbar>
+
+        <core-menu sidebar valueattr="key" selected="{{ selectedSubPageKey }}">
+          <template repeat="{{ subPage in subPages }}">
+            <core-item key="{{ subPage.key }}" icon="{{ subPage.icon }}" label="{{ subPage.name }}" on-click="{{ activateSubPage }}"></core-item>
+          </template>
+        </core-menu>
+
+      </core-header-panel>
+      <core-header-panel main>
+        <core-toolbar >
+          <paper-icon-button icon="menu" on-click="{{ toggleDrawer }}"></paper-icon-button>
+          <h2>{{ title }}</h2>
+        </core-toolbar>
+
+        <core-selector id="subPagesSelector" valueattr="key" selected="{{ selectedSubPageKey }}">
+         <template repeat="{{ subPage in subPages }}">
+            <div class="sub-page" key="{{ subPage.key }}"></div>
+         </template>
+        </core-selector>
+      </core-header-panel>
+    </core-drawer-panel>
   </template>
   <script>
     Polymer('p2b-page', {
-      ready: function() {
+
+      /*
+       * Title of the page
+       * @type {string}
+       */
+      title: '',
+
+      /*
+       * SubPageItem represents top level sub pages that have a sidebar navigation link
+       * and a content area which gets displayed when corresponding sidebar item
+       * is activated by the end user.
+       * @type {object}
+       */
+      subPages: [],
+
+      /*
+       * Currently selected sub page's key
+       * @type {string}
+       */
+      selectedSubPageKey: '',
+
+      /*
+       * Sets the content of the sub page identified by its key and also selects the corresponding sidebar item for it
+       * @param {string} key Key of the sub page
+       * @param {DOMElement} el Element to become the content of the sub page
+       */
+      setSubPage: function(key, el) {
+        // TODO(aghassemi)
+        // This setTimeout is a work-around because template may not have been activated when this is called.
+        // Issue brought up with Polymer team.
+        var self = this;
+        setTimeout(function() {
+          var subPage = self.$.subPagesSelector.querySelector('div[key="' + key + '"]');
+          if(!subPage) {
+            return;
+          }
+          if(el.parentNode !== subPage) {
+            subPage.innerHTML = '';
+            subPage.appendChild(el);
+          }
+          self.selectedSubPageKey = key;
+        });
       },
-      setMain: function(el) {
-        this.$.mainContainer.innerHTML = '';
-        this.$.mainContainer.appendChild(el);
+
+      /*
+       * handler for when a sidebar item is clicked
+       * @param {string} key Key of the page
+       * @private
+       */
+      activateSubPage: function(e) {
+        // find the targeted subPage item
+        var key = e.toElement.getAttribute('key');
+        var subPage = this.subPages.filter(function(s) {
+          return s.key === key;
+        })[0];
+
+        // call the sub page's delegate
+        if(subPage.onActivate) {
+          subPage.onActivate.call(subPage.onActivate);
+        }
+
+        // toggle the drawer
+        this.toggleDrawer();
+      },
+
+      /*
+       * toggles the drawer
+       * @private
+       */
+      toggleDrawer: function() {
+        this.$.drawerPanel.togglePanel();
       }
+
     });
   </script>
 </polymer-element>

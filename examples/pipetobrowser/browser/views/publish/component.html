@@ -1,42 +1,31 @@
-<link rel="import" href="../../libs/vendor/polymer/polymer/polymer.html">
+<link rel="import" href="/libs/vendor/polymer/polymer/polymer.html">
+<link rel="import" href="/libs/vendor/polymer/paper-input/paper-input.html">
+<link rel="import" href="/libs/vendor/polymer/paper-button/paper-button.html">
 
 <polymer-element name="p2b-publish" attributes="publishState">
 
-  <template>
+  <template id="template">
     <link rel="stylesheet" href="../common/common.css">
-
-    <div>Status:</div>
-    <div>Published? {{ publishState.published }}</div>
-    <div>Publishing? {{ publishState.publishing }}</div>
-    <div>ServiceEndpoint? {{ publishState.serviceEndpoint }}</div>
-
-    <div class="{{ {hidden: publishState.published || publishState.publishing} | tokenList }}">
-      <input id="publishNameInput" value="p2bService">
-      <button on-click="{{ publishAction }}">Publish</button>
-    </div>
-
-    <div class="{{ {hidden : !publishState.published} | tokenList}}">
-      <h2>Waiting for incoming pipe request!</h2>
-    </div>
-
+    <link rel="stylesheet" href="component.css">
+    <paper-input id="publishNameInput" label="Name to publish under (e.g. JohnTablet)" error="You must pick a name!" floatinglabel/></paper-input>
+    <paper-button class="paper colored" inkColor="#3367d6" on-click="{{ publishAction }}">Publish</paper-button>
   </template>
   <script>
     Polymer('p2b-publish', {
-      ready: function() {
-
-      },
-      /*
-       * Dynamic binding for the state of publishing p2b service.
-       * Any changes to this object will be reflected in the UI automatically
-       */
-      publishState: null,
 
       /*
        * Publish actions. Fires when user decided to publish the p2b service.
        * user-entered name of the service will be provided as value of the event
+       * @event
        */
       publishAction: function() {
-        this.fire('publish', { publishName: this.$.publishNameInput.value });
+        var name = this.$.publishNameInput.value;
+        if(name === "") {
+          this.$.publishNameInput.invalid = true;
+          this.$.publishNameInput.classList.toggle('invalid', true);
+          return;
+        }
+        this.fire('publish', { publishName: name  });
       }
     });
   </script>

@@ -1,0 +1,20 @@
+<link rel="import" href="/libs/vendor/polymer/polymer/polymer.html">
+
+<polymer-element name="p2b-plugin-console">
+  <template>
+    <link rel="stylesheet" href="component.css">
+    <pre id="console"></pre>
+  </template>
+  <script>
+    Polymer('p2b-plugin-console', {
+      /*
+       * Appends text to the console
+       * @param {string} text Text to add
+       */
+      addText: function(text) {
+        var textNode = document.createTextNode(text);
+        this.$.console.appendChild(textNode);
+      }
+    });
+    </script>
+</polymer-element>
