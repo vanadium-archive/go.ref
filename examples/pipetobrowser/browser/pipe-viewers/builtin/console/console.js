@@ -6,21 +6,22 @@
 import { View } from 'view';
 import { PipeViewer } from 'pipe-viewer';
 
-import { UTF8BytesToString } from 'libs/utils/encoding'
-
 class ConsolePipeViewer extends PipeViewer {
   get name() {
     return 'console';
   }
 
   play(stream) {
-    var console = document.createElement('p2b-plugin-console');
-    stream.on('data', (chunk) => {
-      var buf = UTF8BytesToString(new Uint8Array(chunk));
-      console.addText(buf);
+    var consoleView = document.createElement('p2b-plugin-console');
+
+    // read data as UTF8
+    stream.setEncoding('utf8');
+    stream.on('data', (buf) => {
+      var textVal = buf.toString();
+      consoleView.addText(textVal);
     });
 
-    return new View(console);
+    return new View(consoleView);
   }
 }
 

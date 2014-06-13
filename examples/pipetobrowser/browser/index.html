@@ -22,15 +22,17 @@
   <link rel="import" href="pipe-viewers/builtin/console/component.html">
 
 </head>
-
 <body>
 
-  <!-- TODO(aghassemi) For Production - Use traceur at built time for ES6 instead -->
+  <!-- These are Browserified NodeJS modules. Bundle at build time into a single file and move to package.json-->
+  <script src="libs/vendor/veyron/veyron.js"></script>
+  <script src="libs/vendor/nodejs/buffer.js"></script>
+  <script src="libs/vendor/nodejs/stream.js"></script>
+
+  <!-- TODO(aghassemi) For Production - Use traceur at build time for ES6 instead -->
   <script src="libs/vendor/traceur/traceur.js"></script>
   <script>traceur.options.experimental = true;</script>
   <script src="libs/vendor/es6-module-loader/es6-module-loader.js"></script>
-
-  <script src="libs/vendor/veyron/veyron.js"></script><!-- TODO(aghassemi) ES6 shim for Veyron -->
 
   <script src="runtime/init.js"></script>
 </body>

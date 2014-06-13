@@ -5,8 +5,9 @@
  * @fileoverview
  */
 
-import { Logger } from "libs/logs/logger"
+import { Logger } from 'libs/logs/logger'
 import { config } from 'config'
+import { ByteObjectStreamAdapter } from 'libs/utils/byte-object-stream-adapter'
 
 var log = new Logger('services/p2b');
 var v = new Veyron(config.veyron);
@@ -53,12 +54,15 @@ export function publish(name, pipeRequestHandler) {
       return new Promise(function(resolve, reject) {
         log.debug('received pipe request for:', $suffix);
 
-        $stream.on('end', () => {
+        var bufferStream = new ByteObjectStreamAdapter();
+        $stream.pipe(bufferStream);
+
+        bufferStream.on('end', () => {
           log.debug('end of stream');
           resolve('done');
         });
 
-        $stream.on('error', (e) => {
+        bufferStream.on('error', (e) => {
           log.debug('stream error', e);
           reject(e);
         });
@@ -66,7 +70,7 @@ export function publish(name, pipeRequestHandler) {
         state.numPipes++;
         //TODO(aghassemi) pipe to a byte-size-sniffer to update state.numBytes
 
-        pipeRequestHandler.call(pipeRequestHandler, $suffix, $stream);
+        pipeRequestHandler($suffix, bufferStream);
       });
     }
   };

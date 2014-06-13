@@ -3,9 +3,9 @@
 package main
 
 import (
-	"bufio"
 	"flag"
 	"fmt"
+	"io"
 	"os"
 
 	"veyron2/rt"
@@ -35,6 +35,16 @@ func Usage() {
 	fmt.Fprintf(os.Stdout, usage, os.Args[0], os.Args[0])
 }
 
+// viewerPipeStreamWriter adapts ViewerPipeStream to io.Writer
+type viewerPipeStreamWriter struct {
+	pipetobrowser.ViewerPipeStream
+}
+
+func (w viewerPipeStreamWriter) Write(p []byte) (n int, err error) {
+	w.Send(p)
+	return len(p), nil
+}
+
 func main() {
 	flag.Usage = Usage
 	runtime := rt.Init()
@@ -60,17 +70,16 @@ func main() {
 		return
 	}
 
-	scanner := bufio.NewScanner(os.Stdin)
-	scanner.Split(bufio.ScanRunes)
-	log.Info("Waiting for input")
-	for scanner.Scan() {
-		bytes := scanner.Bytes()
-
-		if err := stream.Send(bytes); err != nil {
-			log.Errorf("error while sending: %v", err)
-			return
-		}
+	w := viewerPipeStreamWriter{
+		stream,
 	}
+
+	numBytes, err := io.Copy(w, os.Stdin)
+	if err != nil {
+		log.Errorf("failed to copy the stdin pipe to the outgoing stream\nERR:%v", err)
+		return
+	}
+
 	stream.CloseSend()
 	result, err := stream.Finish()
 	if err != nil {
@@ -79,6 +88,7 @@ func main() {
 	}
 
 	log.Infof("Stream finished with status: %v", result)
+	log.Infof("Total of %d bytes were piped to browser", numBytes)
 
 	fmt.Println("Finished piping to browser! Thanks for using p2b.")
 }
