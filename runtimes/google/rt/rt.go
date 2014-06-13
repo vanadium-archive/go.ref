@@ -7,7 +7,7 @@ import (
 	"sync"
 
 	"veyron/lib/exec"
-	imounttable "veyron/runtimes/google/naming/mounttable"
+	"veyron/runtimes/google/naming/namespace"
 
 	"veyron2"
 	"veyron2/ipc"
@@ -21,7 +21,7 @@ type vrt struct {
 	product    product.T
 	httpServer string
 	sm         stream.Manager
-	mt         naming.MountTable
+	ns         naming.Namespace
 	rid        naming.RoutingID
 	signals    chan os.Signal
 	id         *currentIDOpt
@@ -65,7 +65,7 @@ func (rt *vrt) init(opts ...veyron2.ROpt) error {
 	// warnings and to provide a modicum of security.
 	rt.httpServer = "127.0.0.1:0"
 	rt.id = &currentIDOpt{}
-	mtRoots := []string{}
+	nsRoots := []string{}
 
 	for _, o := range opts {
 		switch v := o.(type) {
@@ -73,8 +73,8 @@ func (rt *vrt) init(opts ...veyron2.ROpt) error {
 			rt.id.setIdentity(v.PrivateID)
 		case veyron2.ProductOpt:
 			rt.product = v.T
-		case veyron2.MountTableRoots:
-			mtRoots = v
+		case veyron2.NamespaceRoots:
+			nsRoots = v
 		case veyron2.HTTPDebugOpt:
 			rt.httpServer = string(v)
 		default:
@@ -93,18 +93,25 @@ func (rt *vrt) init(opts ...veyron2.ROpt) error {
 		rt.product = product
 	}
 
-	if len(mtRoots) == 0 {
-		if mtRoot := os.Getenv("MOUNTTABLE_ROOT"); mtRoot != "" {
-			mtRoots = append(mtRoots, mtRoot)
+	if len(nsRoots) == 0 {
+		// TODO(cnicolaou,caprita): remove this when NAMESPACE_ROOT is in use.
+		if nsRoot := os.Getenv("MOUNTTABLE_ROOT"); nsRoot != "" {
+			nsRoots = append(nsRoots, nsRoot)
 		}
+		// TODO(cnicolaou,caprita): rename this to NAMESPACE_ROOT.
+		if nsRoot := os.Getenv("NAMESPACE_ROOT"); nsRoot != "" {
+			nsRoots = append(nsRoots, nsRoot)
+		}
+		// TODO(cnicolaou,caprita): decide if want to allow NAMESPACE_ROOTS
+		// e.g. comma separated list of roots.
 	}
 
-	if mt, err := imounttable.New(rt, mtRoots...); err != nil {
+	if ns, err := namespace.New(rt, nsRoots...); err != nil {
 		return fmt.Errorf("Couldn't create mount table: %v", err)
 	} else {
-		rt.mt = mt
+		rt.ns = ns
 	}
-	vlog.VI(2).Infof("MountTable Roots: %s", mtRoots)
+	vlog.VI(2).Infof("Namespace Roots: %s", nsRoots)
 
 	var err error
 	if rt.sm, err = rt.NewStreamManager(); err != nil {

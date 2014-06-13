@@ -10,7 +10,6 @@ import (
 	rps "veyron/examples/rockpaperscissors"
 	"veyron/examples/rockpaperscissors/common"
 
-	"veyron2/naming"
 	"veyron2/rt"
 	"veyron2/vlog"
 )
@@ -21,7 +20,6 @@ var (
 )
 
 type Judge struct {
-	mt       naming.MountTable
 	lock     sync.Mutex
 	games    map[rps.GameID]*gameInfo
 	gamesRun common.Counter
@@ -64,8 +62,8 @@ type scoreData struct {
 	score rps.ScoreCard
 }
 
-func NewJudge(mt naming.MountTable) *Judge {
-	return &Judge{mt: mt, games: make(map[rps.GameID]*gameInfo)}
+func NewJudge() *Judge {
+	return &Judge{games: make(map[rps.GameID]*gameInfo)}
 }
 
 func (j *Judge) Stats() int64 {
@@ -209,7 +207,7 @@ func (j *Judge) manageGame(id rps.GameID) {
 	}
 
 	// Send the score card to the score keepers.
-	keepers, err := common.FindScoreKeepers(j.mt)
+	keepers, err := common.FindScoreKeepers()
 	if err != nil || len(keepers) == 0 {
 		vlog.Infof("No score keepers: %v", err)
 		return

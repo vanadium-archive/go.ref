@@ -13,15 +13,15 @@ import (
 
 func (rt *vrt) NewClient(opts ...ipc.ClientOpt) (ipc.Client, error) {
 	sm := rt.sm
-	mt := rt.mt
+	ns := rt.ns
 	cIDOpt := veyron2.LocalID(rt.id.Identity())
 	var otherOpts []ipc.ClientOpt
 	for _, opt := range opts {
 		switch topt := opt.(type) {
 		case veyron2.StreamManagerOpt:
 			sm = topt.Manager
-		case veyron2.MountTableOpt:
-			mt = topt.MountTable
+		case veyron2.NamespaceOpt:
+			ns = topt.Namespace
 		case veyron2.LocalIDOpt:
 			cIDOpt = topt
 		default:
@@ -31,7 +31,7 @@ func (rt *vrt) NewClient(opts ...ipc.ClientOpt) (ipc.Client, error) {
 	if cIDOpt.PrivateID != nil {
 		otherOpts = append(otherOpts, cIDOpt)
 	}
-	return iipc.InternalNewClient(sm, mt, otherOpts...)
+	return iipc.InternalNewClient(sm, ns, otherOpts...)
 }
 
 func (rt *vrt) Client() ipc.Client {
@@ -51,14 +51,14 @@ func (rt *vrt) NewServer(opts ...ipc.ServerOpt) (ipc.Server, error) {
 	rt.startHTTPDebugServerOnce()
 
 	sm := rt.sm
-	mt := rt.mt
+	ns := rt.ns
 	var otherOpts []ipc.ServerOpt
 	for _, opt := range opts {
 		switch topt := opt.(type) {
 		case veyron2.StreamManagerOpt:
 			sm = topt
-		case veyron2.MountTableOpt:
-			mt = topt
+		case veyron2.NamespaceOpt:
+			ns = topt
 		default:
 			otherOpts = append(otherOpts, opt)
 		}
@@ -67,7 +67,7 @@ func (rt *vrt) NewServer(opts ...ipc.ServerOpt) (ipc.Server, error) {
 	otherOpts = append(otherOpts, rt.id)
 
 	ctx := rt.NewContext()
-	return iipc.InternalNewServer(ctx, sm, mt, otherOpts...)
+	return iipc.InternalNewServer(ctx, sm, ns, otherOpts...)
 }
 
 func (rt *vrt) NewStreamManager(opts ...stream.ManagerOpt) (stream.Manager, error) {

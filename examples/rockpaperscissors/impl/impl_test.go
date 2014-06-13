@@ -5,7 +5,6 @@ import (
 
 	rps "veyron/examples/rockpaperscissors"
 	"veyron/examples/rockpaperscissors/impl"
-	"veyron/runtimes/google/naming/mounttable"
 	mtlib "veyron/services/mounttable/lib"
 
 	"veyron2"
@@ -40,15 +39,13 @@ func startMountTable(t *testing.T, runtime veyron2.Runtime) (string, func()) {
 }
 
 func startRockPaperScissors(t *testing.T, rt veyron2.Runtime, mtAddress string) (*impl.RPS, func()) {
-	mt, err := mounttable.New(rt, mtAddress)
-	if err != nil {
-		t.Fatalf("mounttable.New failed: %v", err)
-	}
-	server, err := rt.NewServer(veyron2.MountTable(mt))
+	ns := rt.Namespace()
+	ns.SetRoots([]string{mtAddress})
+	server, err := rt.NewServer()
 	if err != nil {
 		t.Fatalf("NewServer failed: %v", err)
 	}
-	rpsService := impl.NewRPS(mt)
+	rpsService := impl.NewRPS()
 	if err := server.Register("", ipc.SoloDispatcher(rps.NewServerRockPaperScissors(rpsService), nil)); err != nil {
 		t.Fatalf("Register failed: %v", err)
 	}

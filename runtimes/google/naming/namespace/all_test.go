@@ -1,4 +1,4 @@
-package mounttable_test
+package namespace_test
 
 import (
 	"runtime/debug"
@@ -6,7 +6,7 @@ import (
 	"time"
 
 	_ "veyron/lib/testutil"
-	"veyron/runtimes/google/naming/mounttable"
+	"veyron/runtimes/google/naming/namespace"
 	service "veyron/services/mounttable/lib"
 
 	"veyron2"
@@ -22,10 +22,10 @@ func boom(t *testing.T, f string, v ...interface{}) {
 	t.Fatal(string(debug.Stack()))
 }
 
-func doGlob(t *testing.T, ctx context.T, mt naming.MountTable, pattern string) []string {
+func doGlob(t *testing.T, ctx context.T, ns naming.Namespace, pattern string) []string {
 	var replies []string
 
-	rc, err := mt.Glob(ctx, pattern)
+	rc, err := ns.Glob(ctx, pattern)
 	if err != nil {
 		boom(t, "Glob(%s): %s", pattern, err)
 	}
@@ -80,11 +80,11 @@ func knockKnock(t *testing.T, runtime veyron2.Runtime, name string) {
 
 func TestBadRoots(t *testing.T) {
 	r, _ := rt.New()
-	if _, err := mounttable.New(r); err != nil {
-		t.Errorf("mounttable.New should not have failed with no roots")
+	if _, err := namespace.New(r); err != nil {
+		t.Errorf("namespace.New should not have failed with no roots")
 	}
-	if _, err := mounttable.New(r, "not a rooted name"); err == nil {
-		t.Errorf("mounttable.New should have failed with an unrooted name")
+	if _, err := namespace.New(r, "not a rooted name"); err == nil {
+		t.Errorf("namespace.New should have failed with an unrooted name")
 	}
 }
 
@@ -96,7 +96,7 @@ const (
 	mt5Prefix = "mt5"
 )
 
-func testResolveToMountTable(t *testing.T, ctx context.T, mt naming.MountTable, name, want string) {
+func testResolveToMountTable(t *testing.T, ctx context.T, mt naming.Namespace, name, want string) {
 	servers, err := mt.ResolveToMountTable(ctx, name)
 	if err != nil {
 		boom(t, "Failed to ResolveToMountTable %q: %s", name, err)
@@ -106,7 +106,7 @@ func testResolveToMountTable(t *testing.T, ctx context.T, mt naming.MountTable, 
 	}
 }
 
-func testResolve(t *testing.T, ctx context.T, mt naming.MountTable, name, want string) {
+func testResolve(t *testing.T, ctx context.T, mt naming.Namespace, name, want string) {
 	servers, err := mt.Resolve(ctx, name)
 	if err != nil {
 		boom(t, "Failed to Resolve %q: %s", name, err)
@@ -185,14 +185,14 @@ func TestNamespace(t *testing.T) {
 	estr := ep.String()
 
 	// Run a client, creating a new runtime for it and intializing its
-	// MountTable root to point to the server created above on /<ep>/mt1.
-	// This means that any relative names mounted using this local MountTable
+	// namespace root to point to the server created above on /<ep>/mt1.
+	// This means that any relative names mounted using this local namespace
 	// will appear below mt1.
-	r, err := rt.New(veyron2.MountTableRoots([]string{naming.JoinAddressName(estr, mt1Prefix)}))
+	r, err := rt.New(veyron2.NamespaceRoots([]string{naming.JoinAddressName(estr, mt1Prefix)}))
 	if err != nil {
 		boom(t, "Failed to create client runtime: %s", err)
 	}
-	mt := r.MountTable()
+	mt := r.Namespace()
 
 	ctx := r.NewContext()
 
@@ -284,13 +284,13 @@ func TestNamespace(t *testing.T) {
 		boom(t, "Should have failed to mt3/mt4/mt5")
 	}
 
-	// Resolving m3/mt4/mt5 to a MountTable using the local MountTable gives
+	// Resolving m3/mt4/mt5 to a MountTable using the local namepsace gives
 	// us /<estr>//mt4/mt5.
 	testResolveToMountTable(t, ctx, mt, "mt3/mt4/mt5", naming.JoinAddressName(estr, "//mt4/mt5"))
 	testResolveToMountTable(t, ctx, mt, "mt3/mt4//mt5", naming.JoinAddressName(estr, "//mt4//mt5"))
 
-	// But looking up mt4/mt5 in the local MountTable will give us
-	// /<estr>//mt1/mt4/mt5 since the localMountTable has mt1 as its root!
+	// But looking up mt4/mt5 in the local namespace will give us
+	// /<estr>//mt1/mt4/mt5 since the local namespace has mt1 as its root!
 	testResolveToMountTable(t, ctx, mt, "mt4/mt5", naming.JoinAddressName(estr, "//mt1/mt4/mt5"))
 
 	// Looking mt3//mt4/mt5 will return the MountTable that serves //mt4/mt5.

@@ -30,7 +30,7 @@ var (
 
 type client struct {
 	streamMgr   stream.Manager
-	mt          naming.MountTable
+	ns          naming.Namespace
 	vcOpts      []stream.VCOpt // vc opts passed to dial
 	callTimeout time.Duration  // call timeout
 
@@ -48,10 +48,10 @@ type vcInfo struct {
 	// TODO(toddw): Add type and cancel flows.
 }
 
-func InternalNewClient(streamMgr stream.Manager, mt naming.MountTable, opts ...ipc.ClientOpt) (ipc.Client, error) {
+func InternalNewClient(streamMgr stream.Manager, ns naming.Namespace, opts ...ipc.ClientOpt) (ipc.Client, error) {
 	c := &client{
 		streamMgr:   streamMgr,
-		mt:          mt,
+		ns:          ns,
 		vcMap:       make(map[string]*vcInfo),
 		callTimeout: defaultCallTimeout,
 	}
@@ -125,8 +125,7 @@ func (c *client) startCall(ctx context.T, name, method string, args []interface{
 	if ctx == nil {
 		return nil, verror.BadArgf("ipc: %s.%s called with nil context", name, method)
 	}
-
-	servers, err := c.mt.Resolve(ctx, name)
+	servers, err := c.ns.Resolve(ctx, name)
 	if err != nil {
 		return nil, verror.NotFoundf("ipc: Resolve(%q) failed: %v", name, err)
 	}

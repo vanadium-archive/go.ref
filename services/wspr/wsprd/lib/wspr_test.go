@@ -394,7 +394,7 @@ func TestJavascriptPublish(t *testing.T) {
 
 	proxyEndpoint := proxyServer.Endpoint().String()
 
-	wspr := NewWSPR(0, "/"+proxyEndpoint, veyron2.MountTableRoots{"/" + endpoint.String() + "/mt"})
+	wspr := NewWSPR(0, "/"+proxyEndpoint, veyron2.NamespaceRoots{"/" + endpoint.String() + "/mt"})
 	wspr.setup()
 	wsp := websocketPipe{ctx: wspr}
 	wsp.setup()
@@ -478,7 +478,7 @@ func runJsServerTestCase(t *testing.T, test jsServerTestCase) {
 
 	proxyEndpoint := proxyServer.Endpoint().String()
 
-	wspr := NewWSPR(0, "/"+proxyEndpoint, veyron2.MountTableRoots{"/" + endpoint.String() + "/mt//"})
+	wspr := NewWSPR(0, "/"+proxyEndpoint, veyron2.NamespaceRoots{"/" + endpoint.String() + "/mt//"})
 	wspr.setup()
 	wsp := websocketPipe{ctx: wspr}
 	writer := testWriter{
