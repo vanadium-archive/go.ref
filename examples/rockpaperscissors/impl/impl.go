@@ -49,9 +49,9 @@ func (r *RPS) Play(ctx ipc.ServerContext, id rps.GameID, stream rps.JudgeService
 	return r.judge.play(names[0], id, stream)
 }
 
-func (r *RPS) Challenge(ctx ipc.ServerContext, address string, id rps.GameID) error {
-	vlog.VI(1).Infof("Challenge (%q, %+v) from %s", address, id, ctx.RemoteID())
-	return r.player.challenge(address, id)
+func (r *RPS) Challenge(ctx ipc.ServerContext, address string, id rps.GameID, opts rps.GameOptions) error {
+	vlog.VI(1).Infof("Challenge (%q, %+v, %+v) from %s", address, id, opts, ctx.RemoteID())
+	return r.player.challenge(address, id, opts)
 }
 
 func (r *RPS) Record(ctx ipc.ServerContext, score rps.ScoreCard) error {

@@ -43,6 +43,7 @@ type JudgeAction struct {
 // Round represents the state of a round.
 type Round struct {
 	Moves       [2]string // Each player's move.
+	Comment     string    // A text comment from judge about the round.
 	Winner      WinnerTag // Who won the round.
 	StartTimeNS int64     // The time at which the round started.
 	EndTimeNS   int64     // The time at which the round ended.
@@ -351,6 +352,7 @@ func (__gen_s *ServerStubJudge) Signature(call _gen_ipc.ServerCall) (_gen_ipc.Se
 		_gen_wiretype.ArrayType{Elem: 0x3, Len: 0x2, Name: "", Tags: []string(nil)}, _gen_wiretype.NamedPrimitiveType{Type: 0x32, Name: "veyron/examples/rockpaperscissors.WinnerTag", Tags: []string(nil)}, _gen_wiretype.StructType{
 			[]_gen_wiretype.FieldType{
 				_gen_wiretype.FieldType{Type: 0x47, Name: "Moves"},
+				_gen_wiretype.FieldType{Type: 0x3, Name: "Comment"},
 				_gen_wiretype.FieldType{Type: 0x48, Name: "Winner"},
 				_gen_wiretype.FieldType{Type: 0x25, Name: "StartTimeNS"},
 				_gen_wiretype.FieldType{Type: 0x25, Name: "EndTimeNS"},
@@ -417,7 +419,7 @@ func (__gen_s *ServerStubJudge) Play(call _gen_ipc.ServerCall, ID GameID) (reply
 type Player_ExcludingUniversal interface {
 	// Challenge is used by other players to challenge this player to a game. If
 	// the challenge is accepted, the method returns nil.
-	Challenge(ctx _gen_context.T, Address string, ID GameID, opts ..._gen_ipc.CallOpt) (err error)
+	Challenge(ctx _gen_context.T, Address string, ID GameID, Opts GameOptions, opts ..._gen_ipc.CallOpt) (err error)
 }
 type Player interface {
 	_gen_ipc.UniversalServiceMethods
@@ -429,7 +431,7 @@ type PlayerService interface {
 
 	// Challenge is used by other players to challenge this player to a game. If
 	// the challenge is accepted, the method returns nil.
-	Challenge(context _gen_ipc.ServerContext, Address string, ID GameID) (err error)
+	Challenge(context _gen_ipc.ServerContext, Address string, ID GameID, Opts GameOptions) (err error)
 }
 
 // BindPlayer returns the client stub implementing the Player
@@ -475,9 +477,9 @@ type clientStubPlayer struct {
 	name   string
 }
 
-func (__gen_c *clientStubPlayer) Challenge(ctx _gen_context.T, Address string, ID GameID, opts ..._gen_ipc.CallOpt) (err error) {
+func (__gen_c *clientStubPlayer) Challenge(ctx _gen_context.T, Address string, ID GameID, Opts GameOptions, opts ..._gen_ipc.CallOpt) (err error) {
 	var call _gen_ipc.Call
-	if call, err = __gen_c.client.StartCall(ctx, __gen_c.name, "Challenge", []interface{}{Address, ID}, opts...); err != nil {
+	if call, err = __gen_c.client.StartCall(ctx, __gen_c.name, "Challenge", []interface{}{Address, ID, Opts}, opts...); err != nil {
 		return
 	}
 	if ierr := call.Finish(&err); ierr != nil {
@@ -544,9 +546,10 @@ func (__gen_s *ServerStubPlayer) Signature(call _gen_ipc.ServerCall) (_gen_ipc.S
 		InArgs: []_gen_ipc.MethodArgument{
 			{Name: "Address", Type: 3},
 			{Name: "ID", Type: 65},
+			{Name: "Opts", Type: 67},
 		},
 		OutArgs: []_gen_ipc.MethodArgument{
-			{Name: "", Type: 66},
+			{Name: "", Type: 68},
 		},
 	}
 
@@ -556,6 +559,12 @@ func (__gen_s *ServerStubPlayer) Signature(call _gen_ipc.ServerCall) (_gen_ipc.S
 				_gen_wiretype.FieldType{Type: 0x3, Name: "ID"},
 			},
 			"veyron/examples/rockpaperscissors.GameID", []string(nil)},
+		_gen_wiretype.NamedPrimitiveType{Type: 0x32, Name: "veyron/examples/rockpaperscissors.GameTypeTag", Tags: []string(nil)}, _gen_wiretype.StructType{
+			[]_gen_wiretype.FieldType{
+				_gen_wiretype.FieldType{Type: 0x24, Name: "NumRounds"},
+				_gen_wiretype.FieldType{Type: 0x42, Name: "GameType"},
+			},
+			"veyron/examples/rockpaperscissors.GameOptions", []string(nil)},
 		_gen_wiretype.NamedPrimitiveType{Type: 0x1, Name: "error", Tags: []string(nil)}}
 
 	return result, nil
@@ -579,8 +588,8 @@ func (__gen_s *ServerStubPlayer) UnresolveStep(call _gen_ipc.ServerCall) (reply 
 	return
 }
 
-func (__gen_s *ServerStubPlayer) Challenge(call _gen_ipc.ServerCall, Address string, ID GameID) (err error) {
-	err = __gen_s.service.Challenge(call, Address, ID)
+func (__gen_s *ServerStubPlayer) Challenge(call _gen_ipc.ServerCall, Address string, ID GameID, Opts GameOptions) (err error) {
+	err = __gen_s.service.Challenge(call, Address, ID, Opts)
 	return
 }
 
@@ -728,6 +737,7 @@ func (__gen_s *ServerStubScoreKeeper) Signature(call _gen_ipc.ServerCall) (_gen_
 		_gen_wiretype.ArrayType{Elem: 0x3, Len: 0x2, Name: "", Tags: []string(nil)}, _gen_wiretype.NamedPrimitiveType{Type: 0x32, Name: "veyron/examples/rockpaperscissors.WinnerTag", Tags: []string(nil)}, _gen_wiretype.StructType{
 			[]_gen_wiretype.FieldType{
 				_gen_wiretype.FieldType{Type: 0x43, Name: "Moves"},
+				_gen_wiretype.FieldType{Type: 0x3, Name: "Comment"},
 				_gen_wiretype.FieldType{Type: 0x44, Name: "Winner"},
 				_gen_wiretype.FieldType{Type: 0x25, Name: "StartTimeNS"},
 				_gen_wiretype.FieldType{Type: 0x25, Name: "EndTimeNS"},

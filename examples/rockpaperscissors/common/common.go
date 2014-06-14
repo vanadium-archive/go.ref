@@ -82,7 +82,7 @@ func findAll(t string) ([]string, error) {
 			servers = append(servers, pickBestServer(e.Servers))
 		}
 	}
-	vlog.Infof("findAll(%q) elapsed: %s", t, time.Now().Sub(start))
+	vlog.VI(1).Infof("findAll(%q) elapsed: %s", t, time.Now().Sub(start))
 	return servers, nil
 }
 
@@ -118,8 +118,8 @@ func FormatScoreCard(score rps.ScoreCard) string {
 	for i, r := range score.Rounds {
 		roundOffset := time.Duration(r.StartTimeNS - score.StartTimeNS)
 		roundTime := time.Duration(r.EndTimeNS - r.StartTimeNS)
-		fmt.Fprintf(buf, "Round %2d: Player 1 played %-10q. Player 2 played %-10q. Winner: %d [%-10s/%-10s]\n",
-			i+1, r.Moves[0], r.Moves[1], r.Winner, roundOffset, roundTime)
+		fmt.Fprintf(buf, "Round %2d: Player 1 played %-10q. Player 2 played %-10q. Winner: %d %-28s [%-10s/%-10s]\n",
+			i+1, r.Moves[0], r.Moves[1], r.Winner, r.Comment, roundOffset, roundTime)
 	}
 	fmt.Fprintf(buf, "Winner: %d\n", score.Winner)
 	fmt.Fprintf(buf, "Time: %s\n", time.Duration(score.EndTimeNS-score.StartTimeNS))

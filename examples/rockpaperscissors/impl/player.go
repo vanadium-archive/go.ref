@@ -3,7 +3,6 @@ package impl
 import (
 	"io"
 	"math/rand"
-	"sync"
 	"time"
 
 	rps "veyron/examples/rockpaperscissors"
@@ -15,7 +14,6 @@ import (
 )
 
 type Player struct {
-	lock            sync.Mutex
 	gamesPlayed     common.Counter
 	gamesWon        common.Counter
 	gamesInProgress common.Counter
@@ -44,22 +42,24 @@ func (p *Player) InitiateGame() error {
 		vlog.Infof("FindJudge: %v", err)
 		return err
 	}
-	gameID, err := p.createGame(judge)
+	gameID, gameOpts, err := p.createGame(judge)
 	if err != nil {
 		vlog.Infof("createGame: %v", err)
 		return err
 	}
 	vlog.VI(1).Infof("Created gameID %q on %q", gameID, judge)
 
-	opponent, err := common.FindPlayer()
-	if err != nil {
-		vlog.Infof("FindPlayer: %v", err)
-		return err
-	}
-	vlog.VI(1).Infof("chosen opponent is %q", opponent)
-	if err = p.sendChallenge(opponent, judge, gameID); err != nil {
+	for {
+		opponent, err := common.FindPlayer()
+		if err != nil {
+			vlog.Infof("FindPlayer: %v", err)
+			return err
+		}
+		vlog.VI(1).Infof("chosen opponent is %q", opponent)
+		if err = p.sendChallenge(opponent, judge, gameID, gameOpts); err == nil {
+			break
+		}
 		vlog.Infof("sendChallenge: %v", err)
-		return err
 	}
 	result, err := p.playGame(judge, gameID)
 	if err != nil {
@@ -74,29 +74,31 @@ func (p *Player) InitiateGame() error {
 	return nil
 }
 
-func (p *Player) createGame(server string) (rps.GameID, error) {
+func (p *Player) createGame(server string) (rps.GameID, rps.GameOptions, error) {
 	j, err := rps.BindRockPaperScissors(server)
 	if err != nil {
-		return rps.GameID{}, err
+		return rps.GameID{}, rps.GameOptions{}, err
 	}
 	numRounds := 3 + rand.Intn(3)
 	gameType := rps.Classic
 	if rand.Intn(2) == 1 {
 		gameType = rps.LizardSpock
 	}
-	return j.CreateGame(rt.R().TODOContext(), rps.GameOptions{NumRounds: int32(numRounds), GameType: gameType})
+	gameOpts := rps.GameOptions{NumRounds: int32(numRounds), GameType: gameType}
+	gameId, err := j.CreateGame(rt.R().TODOContext(), gameOpts)
+	return gameId, gameOpts, err
 }
 
-func (p *Player) sendChallenge(opponent, judge string, gameID rps.GameID) error {
+func (p *Player) sendChallenge(opponent, judge string, gameID rps.GameID, gameOpts rps.GameOptions) error {
 	o, err := rps.BindRockPaperScissors(opponent)
 	if err != nil {
 		return err
 	}
-	return o.Challenge(rt.R().TODOContext(), judge, gameID)
+	return o.Challenge(rt.R().TODOContext(), judge, gameID, gameOpts)
 }
 
 // challenge receives an incoming challenge.
-func (p *Player) challenge(judge string, gameID rps.GameID) error {
+func (p *Player) challenge(judge string, gameID rps.GameID, _ rps.GameOptions) error {
 	vlog.VI(1).Infof("challenge received: %s %v", judge, gameID)
 	go p.playGame(judge, gameID)
 	return nil
@@ -139,8 +141,8 @@ func (p *Player) playGame(judge string, gameID rps.GameID) (rps.PlayResult, erro
 			}
 		}
 		if len(in.RoundResult.Moves[0]) > 0 {
-			vlog.VI(1).Infof("Player 1 played %q. Player 2 played %q. Winner: %v",
-				in.RoundResult.Moves[0], in.RoundResult.Moves[1], in.RoundResult.Winner)
+			vlog.VI(1).Infof("Player 1 played %q. Player 2 played %q. Winner: %v %s",
+				in.RoundResult.Moves[0], in.RoundResult.Moves[1], in.RoundResult.Winner, in.RoundResult.Comment)
 		}
 		if len(in.Score.Players) > 0 {
 			vlog.VI(1).Infof("Score card: %s", common.FormatScoreCard(in.Score))

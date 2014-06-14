@@ -245,8 +245,8 @@ func (j *Judge) playOneRound(info *gameInfo) (rps.Round, error) {
 		}
 		round.Moves[in.player-1] = in.action.Move
 	}
-	round.Winner = j.compareMoves(round.Moves[0], round.Moves[1])
-	vlog.VI(1).Infof("Player 1 played %q. Player 2 played %q. Winner: %d", round.Moves[0], round.Moves[1], round.Winner)
+	round.Winner, round.Comment = j.compareMoves(round.Moves[0], round.Moves[1])
+	vlog.VI(1).Infof("Player 1 played %q. Player 2 played %q. Winner: %d %s", round.Moves[0], round.Moves[1], round.Winner, round.Comment)
 
 	action = rps.JudgeAction{RoundResult: round}
 	for _, s := range info.streams {
@@ -299,24 +299,49 @@ func (j *Judge) sendScore(address string, score rps.ScoreCard, done chan bool) e
 	return nil
 }
 
-func (j *Judge) compareMoves(m1, m2 string) rps.WinnerTag {
+var moveComments = map[string]string{
+	"lizard-paper":    "lizard eats paper",
+	"lizard-rock":     "rock crushes lizard",
+	"lizard-scissors": "scissors decapitates lizard",
+	"lizard-spock":    "lizard poisons spock",
+	"paper-rock":      "paper covers rock",
+	"paper-scissors":  "scissors cuts paper",
+	"paper-spock":     "paper disproves spock",
+	"rock-scissors":   "rock crushes scissors",
+	"rock-spock":      "spock vaporizes rock",
+	"scissors-spock":  "spock smashes scissors",
+}
+
+func (j *Judge) compareMoves(m1, m2 string) (winner rps.WinnerTag, comment string) {
+	if m1 < m2 {
+		comment = moveComments[m1+"-"+m2]
+	} else {
+		comment = moveComments[m2+"-"+m1]
+	}
 	if m1 == m2 {
-		return rps.Draw
+		winner = rps.Draw
+		return
 	}
 	if m1 == "rock" && (m2 == "scissors" || m2 == "lizard") {
-		return rps.Player1
+		winner = rps.Player1
+		return
 	}
 	if m1 == "paper" && (m2 == "rock" || m2 == "spock") {
-		return rps.Player1
+		winner = rps.Player1
+		return
 	}
 	if m1 == "scissors" && (m2 == "paper" || m2 == "lizard") {
-		return rps.Player1
+		winner = rps.Player1
+		return
 	}
 	if m1 == "lizard" && (m2 == "paper" || m2 == "spock") {
-		return rps.Player1
+		winner = rps.Player1
+		return
 	}
 	if m1 == "spock" && (m2 == "scissors" || m2 == "rock") {
-		return rps.Player1
+		winner = rps.Player1
+		return
 	}
-	return rps.Player2
+	winner = rps.Player2
+	return
 }

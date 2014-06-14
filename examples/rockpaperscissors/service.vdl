@@ -59,6 +59,7 @@ type JudgeAction struct {
 // Round represents the state of a round.
 type Round struct {
   Moves       [2]string  // Each player's move.
+  Comment     string     // A text comment from judge about the round.
   Winner      WinnerTag  // Who won the round.
   StartTimeNS int64      // The time at which the round started.
   EndTimeNS   int64      // The time at which the round ended.
@@ -82,7 +83,7 @@ type PlayResult struct {
 type Player interface {
   // Challenge is used by other players to challenge this player to a game. If
   // the challenge is accepted, the method returns nil.
-  Challenge(Address string, ID GameID) error
+  Challenge(Address string, ID GameID, Opts GameOptions) error
 }
 
 // ScoreKeeper receives the outcome of games from Judges.
