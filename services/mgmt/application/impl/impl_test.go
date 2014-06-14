@@ -44,15 +44,15 @@ func TestInterface(t *testing.T) {
 	}
 
 	// Create client stubs for talking to the server.
-	stub, err := iapplication.BindRepository(naming.JoinAddressName(endpoint.String(), "search"))
+	stub, err := iapplication.BindRepository(naming.JoinAddressName(endpoint.String(), "//search"))
 	if err != nil {
 		t.Fatalf("BindRepository() failed: %v", err)
 	}
-	stubV1, err := iapplication.BindRepository(naming.JoinAddressName(endpoint.String(), "search/v1"))
+	stubV1, err := iapplication.BindRepository(naming.JoinAddressName(endpoint.String(), "//search/v1"))
 	if err != nil {
 		t.Fatalf("BindRepository() failed: %v", err)
 	}
-	stubV2, err := iapplication.BindRepository(naming.JoinAddressName(endpoint.String(), "search/v2"))
+	stubV2, err := iapplication.BindRepository(naming.JoinAddressName(endpoint.String(), "//search/v2"))
 	if err != nil {
 		t.Fatalf("BindRepository() failed: %v", err)
 	}

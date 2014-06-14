@@ -107,7 +107,7 @@ func TestApplicationClient(t *testing.T) {
 	cmd := impl.Root()
 	var stdout, stderr bytes.Buffer
 	cmd.Init(nil, &stdout, &stderr)
-	appName := naming.JoinAddressName(endpoint.String(), "myapp/1")
+	appName := naming.JoinAddressName(endpoint.String(), "//myapp/1")
 	profile := "myprofile"
 
 	// Test the 'Match' command.

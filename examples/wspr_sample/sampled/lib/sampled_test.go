@@ -20,7 +20,9 @@ import (
 func getCacheClient(address string) (hps.Cache, error) {
 	rt.Init()
 
-	s, err := hps.BindCache(naming.JoinAddressName(address, "cache"))
+	// Bind to a rooted, terminal name to bypass the MountTable which isn't
+	// actually used, nor needed, in these tests.
+	s, err := hps.BindCache(naming.JoinAddressName(address, "//cache"))
 	if err != nil {
 		return nil, err
 	}

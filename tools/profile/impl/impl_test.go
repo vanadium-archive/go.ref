@@ -116,7 +116,7 @@ func TestProfileClient(t *testing.T) {
 	cmd := impl.Root()
 	var stdout, stderr bytes.Buffer
 	cmd.Init(nil, &stdout, &stderr)
-	exists := naming.JoinAddressName(endpoint.String(), "exists")
+	exists := naming.JoinAddressName(endpoint.String(), "//exists")
 
 	// Test the 'label' command.
 	if err := cmd.Execute([]string{"label", exists}); err != nil {
