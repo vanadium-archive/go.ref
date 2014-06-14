@@ -10,21 +10,19 @@ import (
 	"veyron/examples/rockpaperscissors/common"
 
 	"veyron2"
-	"veyron2/naming"
 	"veyron2/rt"
 	"veyron2/vlog"
 )
 
 type Player struct {
-	mt              naming.MountTable
 	lock            sync.Mutex
 	gamesPlayed     common.Counter
 	gamesWon        common.Counter
 	gamesInProgress common.Counter
 }
 
-func NewPlayer(mt naming.MountTable) *Player {
-	return &Player{mt: mt}
+func NewPlayer() *Player {
+	return &Player{}
 }
 
 func (p *Player) Stats() (played, won int64) {
@@ -41,7 +39,7 @@ func (p *Player) WaitUntilIdle() {
 }
 
 func (p *Player) InitiateGame() error {
-	judge, err := common.FindJudge(p.mt)
+	judge, err := common.FindJudge()
 	if err != nil {
 		vlog.Infof("FindJudge: %v", err)
 		return err
@@ -53,7 +51,7 @@ func (p *Player) InitiateGame() error {
 	}
 	vlog.VI(1).Infof("Created gameID %q on %q", gameID, judge)
 
-	opponent, err := common.FindPlayer(p.mt)
+	opponent, err := common.FindPlayer()
 	if err != nil {
 		vlog.Infof("FindPlayer: %v", err)
 		return err

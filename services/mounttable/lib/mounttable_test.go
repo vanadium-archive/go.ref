@@ -22,9 +22,9 @@ import (
 	"veyron2/vlog"
 )
 
-// stupidMT is a version of naming.MountTable that we can control.  This exists so that we have some
+// stupidNS is a version of naming.Namespace that we can control.  This exists so that we have some
 // firm ground to stand on vis a vis the stub interface.
-type stupidMT struct {
+type stupidNS struct {
 	id ipc.ClientOpt
 }
 
@@ -41,27 +41,27 @@ func boom(t *testing.T, f string, v ...interface{}) {
 	t.Fatal(string(debug.Stack()))
 }
 
-// quuxClient returns an ipc.Client that uses the quux mounttable for name
+// quuxClient returns an ipc.Client that uses the simple namespace for name
 // resolution.
 func quuxClient(id ipc.ClientOpt) ipc.Client {
-	mt := stupidMT{id}
-	c, err := rt.R().NewClient(id, veyron2.MountTable(mt))
+	ns := stupidNS{id}
+	c, err := rt.R().NewClient(id, veyron2.Namespace(ns))
 	if err != nil {
 		panic(err)
 	}
 	return c
 }
 
-func (stupidMT) Mount(context.T, string, string, time.Duration) error {
+func (stupidNS) Mount(context.T, string, string, time.Duration) error {
 	return errors.New("unimplemented")
 }
 
-func (stupidMT) Unmount(context.T, string, string) error {
+func (stupidNS) Unmount(context.T, string, string) error {
 	return errors.New("unimplemented")
 }
 
 // Resolve will only go one level deep, i.e., it doesn't walk past the first mount point.
-func (mt stupidMT) Resolve(ctx context.T, name string) ([]string, error) {
+func (ns stupidNS) Resolve(ctx context.T, name string) ([]string, error) {
 	vlog.VI(1).Infof("MyResolve %q", name)
 	address, suffix := naming.SplitAddressName(name)
 	if len(address) == 0 {
@@ -73,7 +73,7 @@ func (mt stupidMT) Resolve(ctx context.T, name string) ([]string, error) {
 	}
 
 	// Resolve via another
-	objectPtr, err := mounttable.BindMountTable("/"+address+"//"+suffix, quuxClient(mt.id))
+	objectPtr, err := mounttable.BindMountTable("/"+address+"//"+suffix, quuxClient(ns.id))
 	if err != nil {
 		return nil, err
 	}
@@ -89,20 +89,20 @@ func (mt stupidMT) Resolve(ctx context.T, name string) ([]string, error) {
 	return servers, nil
 }
 
-func (s stupidMT) Unresolve(ctx context.T, name string) ([]string, error) {
+func (s stupidNS) Unresolve(ctx context.T, name string) ([]string, error) {
 	return s.Resolve(ctx, name)
 }
 
-func (stupidMT) ResolveToMountTable(ctx context.T, name string) ([]string, error) {
+func (stupidNS) ResolveToMountTable(ctx context.T, name string) ([]string, error) {
 	return nil, errors.New("ResolveToMountTable is not implemented in this MountTable")
 }
 
 // Glob implements naming.MountTable.Glob.
-func (stupidMT) Glob(ctx context.T, pattern string) (chan naming.MountEntry, error) {
+func (stupidNS) Glob(ctx context.T, pattern string) (chan naming.MountEntry, error) {
 	return nil, errors.New("Glob is not implemented in this MountTable")
 }
 
-func (s stupidMT) SetRoots([]string) error {
+func (s stupidNS) SetRoots([]string) error {
 	return nil
 }
 

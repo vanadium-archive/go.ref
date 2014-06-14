@@ -37,7 +37,7 @@ func main() {
 	defer server.Stop()
 
 	rand.Seed(time.Now().UTC().UnixNano())
-	rpsService := impl.NewRPS(r.MountTable())
+	rpsService := impl.NewRPS()
 
 	if err := server.Register("", ipc.SoloDispatcher(rps.NewServerRockPaperScissors(rpsService), sflag.NewAuthorizerOrDie())); err != nil {
 		vlog.Fatalf("Register failed: %v", err)

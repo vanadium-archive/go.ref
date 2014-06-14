@@ -35,8 +35,8 @@ func (c *Counter) Value() int64 {
 }
 
 // FindJudge returns a random rock-paper-scissors judge from the mount table.
-func FindJudge(mt naming.MountTable) (string, error) {
-	judges, err := findAll(mt, "judge")
+func FindJudge() (string, error) {
+	judges, err := findAll("judge")
 	if err != nil {
 		return "", err
 	}
@@ -47,8 +47,8 @@ func FindJudge(mt naming.MountTable) (string, error) {
 }
 
 // FindPlayer returns a random rock-paper-scissors player from the mount table.
-func FindPlayer(mt naming.MountTable) (string, error) {
-	players, err := findAll(mt, "player")
+func FindPlayer() (string, error) {
+	players, err := findAll("player")
 	if err != nil {
 		return "", err
 	}
@@ -60,17 +60,18 @@ func FindPlayer(mt naming.MountTable) (string, error) {
 
 // FindScoreKeepers returns all the rock-paper-scissors score keepers from the
 // mount table.
-func FindScoreKeepers(mt naming.MountTable) ([]string, error) {
-	sKeepers, err := findAll(mt, "scorekeeper")
+func FindScoreKeepers() ([]string, error) {
+	sKeepers, err := findAll("scorekeeper")
 	if err != nil {
 		return nil, err
 	}
 	return sKeepers, nil
 }
 
-func findAll(mt naming.MountTable, t string) ([]string, error) {
+func findAll(t string) ([]string, error) {
 	start := time.Now()
-	c, err := mt.Glob(rt.R().TODOContext(), "rps/"+t+"/*")
+	ns := rt.R().Namespace()
+	c, err := ns.Glob(rt.R().TODOContext(), "rps/"+t+"/*")
 	if err != nil {
 		vlog.Infof("mt.Glob failed: %v", err)
 		return nil, err

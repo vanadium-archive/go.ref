@@ -65,13 +65,13 @@ type debugCmd chan string // debug string is sent when the cmd is done
 
 type publishedCmd chan []string // published names are sent when cmd is done
 
-// New returns a new publisher that updates mounts on mt every period.
-func New(ctx context.T, mt naming.MountTable, period time.Duration) Publisher {
+// New returns a new publisher that updates mounts on ns every period.
+func New(ctx context.T, ns naming.Namespace, period time.Duration) Publisher {
 	p := &publisher{
 		cmdchan:  make(chan interface{}, 10),
 		donechan: make(chan struct{}),
 	}
-	go p.runLoop(ctx, mt, period)
+	go p.runLoop(ctx, ns, period)
 	return p
 }
 
@@ -136,9 +136,9 @@ func (p *publisher) WaitForStop() {
 	<-p.donechan
 }
 
-func (p *publisher) runLoop(ctx context.T, mt naming.MountTable, period time.Duration) {
+func (p *publisher) runLoop(ctx context.T, ns naming.Namespace, period time.Duration) {
 	vlog.VI(1).Info("ipc pub: start runLoop")
-	state := newPubState(ctx, mt, period)
+	state := newPubState(ctx, ns, period)
 	for {
 		select {
 		case cmd, ok := <-p.cmdchan:
@@ -178,7 +178,7 @@ func (p *publisher) runLoop(ctx context.T, mt naming.MountTable, period time.Dur
 // it's only used in the sequential publisher runLoop.
 type pubState struct {
 	ctx      context.T
-	mt       naming.MountTable
+	ns       naming.Namespace
 	period   time.Duration
 	deadline time.Time                 // deadline for the next sync call
 	names    []string                  // names that have been added
@@ -198,10 +198,10 @@ type mountStatus struct {
 	lastUnmountErr error
 }
 
-func newPubState(ctx context.T, mt naming.MountTable, period time.Duration) *pubState {
+func newPubState(ctx context.T, ns naming.Namespace, period time.Duration) *pubState {
 	return &pubState{
 		ctx:      ctx,
-		mt:       mt,
+		ns:       ns,
 		period:   period,
 		deadline: time.Now().Add(period),
 		servers:  make(map[string]bool),
@@ -260,7 +260,7 @@ func (ps *pubState) mount(name, server string, status *mountStatus) {
 	// to sync will occur within the next period, and refresh all mounts.
 	ttl := ps.period + mountTTLSlack
 	status.lastMount = time.Now()
-	status.lastMountErr = ps.mt.Mount(ps.ctx, name, server, ttl)
+	status.lastMountErr = ps.ns.Mount(ps.ctx, name, server, ttl)
 	if status.lastMountErr != nil {
 		vlog.Errorf("ipc pub: couldn't mount(%v, %v, %v): %v", name, server, ttl, status.lastMountErr)
 	} else {
@@ -282,7 +282,7 @@ func (ps *pubState) sync() {
 
 func (ps *pubState) unmount(name, server string, status *mountStatus) {
 	status.lastUnmount = time.Now()
-	status.lastUnmountErr = ps.mt.Unmount(ps.ctx, name, server)
+	status.lastUnmountErr = ps.ns.Unmount(ps.ctx, name, server)
 	if status.lastUnmountErr != nil {
 		vlog.Errorf("ipc pub: couldn't unmount(%v, %v): %v", name, server, status.lastUnmountErr)
 	} else {
@@ -300,7 +300,7 @@ func (ps *pubState) unmountAll() {
 func (ps *pubState) published() []string {
 	var ret []string
 	for _, name := range ps.names {
-		mtServers, err := ps.mt.ResolveToMountTable(ps.ctx, name)
+		mtServers, err := ps.ns.ResolveToMountTable(ps.ctx, name)
 		if err != nil {
 			vlog.Errorf("ipc pub: couldn't resolve %v to mount table: %v", name, err)
 			continue

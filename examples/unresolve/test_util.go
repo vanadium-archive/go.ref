@@ -110,7 +110,7 @@ func (*fortuneCustomUnresolve) Add(ipc.ServerContext, string) error {
 }
 
 func (*fortuneCustomUnresolve) UnresolveStep(context ipc.ServerContext) ([]string, error) {
-	servers, err := rt.R().MountTable().ResolveToMountTable(rt.R().NewContext(), "I/want/to/know")
+	servers, err := rt.R().Namespace().ResolveToMountTable(rt.R().NewContext(), "I/want/to/know")
 	if err != nil {
 		return nil, err
 	}
@@ -128,7 +128,7 @@ func createFortuneCustomUnresolve(server ipc.Server) string {
 	oa = naming.MakeTerminal(naming.JoinAddressName(ep, "tell/me"))
 	// Doesn't get unmounted.  Fine for a test.
 	oa = naming.MakeTerminal(oa)
-	rt.R().MountTable().Mount(rt.R().NewContext(), "I/want/to/know", oa, 0)
+	rt.R().Namespace().Mount(rt.R().NewContext(), "I/want/to/know", oa, 0)
 	return oa
 }
 
@@ -151,7 +151,7 @@ func (*fortuneNoIDL) Get(ipc.ServerCall) (string, error) {
 }
 
 func (*fortuneNoIDL) UnresolveStep(ipc.ServerCall) ([]string, error) {
-	servers, err := rt.R().MountTable().ResolveToMountTable(rt.R().NewContext(), "g")
+	servers, err := rt.R().Namespace().ResolveToMountTable(rt.R().NewContext(), "g")
 	if err != nil {
 		return nil, err
 	}
@@ -185,8 +185,8 @@ func resolveStep(t *testing.T, name string) string {
 	return naming.Join(results[0].Server, suffix)
 }
 
-func resolve(t *testing.T, mt naming.MountTable, name string) string {
-	results, err := mt.Resolve(rt.R().NewContext(), name)
+func resolve(t *testing.T, ns naming.Namespace, name string) string {
+	results, err := ns.Resolve(rt.R().NewContext(), name)
 	if err != nil {
 		t.Errorf("Resolve failed with %v", err)
 		return ""
@@ -215,8 +215,8 @@ func unresolveStep(t *testing.T, ctx context.T, c unresolver) string {
 	return unres[0]
 }
 
-func unresolve(t *testing.T, mt naming.MountTable, name string) string {
-	results, err := mt.Unresolve(rt.R().NewContext(), name)
+func unresolve(t *testing.T, ns naming.Namespace, name string) string {
+	results, err := ns.Unresolve(rt.R().NewContext(), name)
 	if err != nil {
 		t.Errorf("Unresolve failed with %v", err)
 		return ""

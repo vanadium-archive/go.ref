@@ -1,4 +1,4 @@
-package mounttable
+package namespace
 
 import (
 	"time"

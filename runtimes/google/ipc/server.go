@@ -43,21 +43,21 @@ type server struct {
 	active           sync.WaitGroup           // active goroutines we've spawned.
 	stopped          bool                     // whether the server has been stopped.
 	stoppedChan      chan struct{}            // closed when the server has been stopped.
-	mt               naming.MountTable
+	ns               naming.Namespace
 	publishOpt       veyron2.ServerPublishOpt // which endpoints to publish
 	publishing       bool                     // is some name being published?
 	servesMountTable bool
 }
 
-func InternalNewServer(ctx context.T, streamMgr stream.Manager, mt naming.MountTable, opts ...ipc.ServerOpt) (ipc.Server, error) {
+func InternalNewServer(ctx context.T, streamMgr stream.Manager, ns naming.Namespace, opts ...ipc.ServerOpt) (ipc.Server, error) {
 	s := &server{
 		ctx:         ctx,
 		streamMgr:   streamMgr,
 		disptrie:    newDisptrie(),
-		publisher:   publisher.New(ctx, mt, publishPeriod),
+		publisher:   publisher.New(ctx, ns, publishPeriod),
 		listeners:   make(map[stream.Listener]bool),
 		stoppedChan: make(chan struct{}),
-		mt:          mt,
+		ns:          ns,
 	}
 	for _, opt := range opts {
 		switch opt := opt.(type) {
@@ -97,10 +97,10 @@ func (s *server) resolveToAddress(address string) string {
 	if _, err := inaming.NewEndpoint(address); err == nil {
 		return address
 	}
-	if s.mt == nil {
+	if s.ns == nil {
 		return address
 	}
-	names, err := s.mt.Resolve(s.ctx, address)
+	names, err := s.ns.Resolve(s.ctx, address)
 	if err != nil {
 		return address
 	}

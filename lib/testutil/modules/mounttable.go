@@ -137,7 +137,7 @@ func NewSetRoot() T {
 
 func (*setroot) Help() string {
 	return `[<mountTable name>]+
-set the local mountTable client's roots to supplied mountTable names`
+set the local namespace's roots to supplied mountTable names`
 }
 
 func (*setroot) Daemon() bool { return false }
@@ -151,7 +151,7 @@ func (s *setroot) Run(args []string) (Variables, []string, Handle, error) {
 			return nil, nil, nil, fmt.Errorf("name %q must be rooted", r)
 		}
 	}
-	rt.R().MountTable().SetRoots(args)
+	rt.R().Namespace().SetRoots(args)
 	return nil, nil, nil, nil
 }
 
@@ -179,15 +179,15 @@ func (rs *resolve) Run(args []string) (Variables, []string, Handle, error) {
 		return nil, nil, nil, fmt.Errorf("wrong #args: %s", rs.Help())
 	}
 	name := args[0]
-	lmt := rt.R().MountTable()
+	lns := rt.R().Namespace()
 	var r []string
 	v := make(Variables)
 	var servers []string
 	var err error
 	if rs.mt {
-		servers, err = lmt.ResolveToMountTable(rt.R().NewContext(), name)
+		servers, err = lns.ResolveToMountTable(rt.R().NewContext(), name)
 	} else {
-		servers, err = lmt.Resolve(rt.R().NewContext(), name)
+		servers, err = lns.Resolve(rt.R().NewContext(), name)
 	}
 	if err != nil {
 		return nil, nil, nil, fmt.Errorf("failed resolving %q", name)

@@ -1,4 +1,4 @@
-package mounttable
+package namespace
 
 // This file defines data types that are also defined in the idl for the
 // mounttable. We live with the duplication here to avoid having to depend

@@ -200,7 +200,7 @@ func TestUnresolve(t *testing.T) {
 	defer os.Remove(idFile)
 	os.Setenv("VEYRON_IDENTITY", idFile)
 
-	r, _ := rt.New(veyron2.MountTableRoots([]string{aOA}))
+	r, _ := rt.New(veyron2.NamespaceRoots([]string{aOA}))
 	ctx := r.NewContext()
 
 	resolveCases := []struct {
@@ -215,7 +215,7 @@ func TestUnresolve(t *testing.T) {
 		{"b/mt/g", gEP},
 	}
 	for _, c := range resolveCases {
-		if want, got := c.resolved, resolve(t, r.MountTable(), c.name); want != got {
+		if want, got := c.resolved, resolve(t, r.Namespace(), c.name); want != got {
 			t.Errorf("resolve %q expected %q, got %q instead", c.name, want, got)
 		}
 	}
@@ -324,7 +324,7 @@ func TestUnresolve(t *testing.T) {
 		{naming.Join(gEP, "fortune"), naming.Join(aOA, "b/mt/g/fortune")},
 	}
 	for _, c := range unresolveCases {
-		if want, got := c.want, unresolve(t, r.MountTable(), c.name); want != got {
+		if want, got := c.want, unresolve(t, r.Namespace(), c.name); want != got {
 			t.Errorf("unresolve %q expected %q, got %q instead", c.name, want, got)
 		}
 	}

@@ -5,20 +5,18 @@ import (
 
 	rps "veyron/examples/rockpaperscissors"
 	"veyron2/ipc"
-	"veyron2/naming"
 	"veyron2/vlog"
 )
 
 // RPS implements rockpaperscissors.RockPaperScissorsService
 type RPS struct {
-	mt          naming.MountTable
 	player      *Player
 	judge       *Judge
 	scoreKeeper *ScoreKeeper
 }
 
-func NewRPS(mt naming.MountTable) *RPS {
-	return &RPS{mt: mt, player: NewPlayer(mt), judge: NewJudge(mt), scoreKeeper: NewScoreKeeper()}
+func NewRPS() *RPS {
+	return &RPS{player: NewPlayer(), judge: NewJudge(), scoreKeeper: NewScoreKeeper()}
 }
 
 func (r *RPS) Judge() *Judge {

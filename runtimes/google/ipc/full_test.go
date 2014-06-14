@@ -126,54 +126,54 @@ func (t testServerDisp) Lookup(suffix string) (ipc.Invoker, security.Authorizer,
 	return ipc.ReflectInvoker(t.server), testServerAuthorizer{}, nil
 }
 
-// mountTable is a simple partial implementation of naming.MountTable.  In
+// namespace is a simple partial implementation of naming.Namespace.  In
 // particular, it ignores TTLs and not allow fully overlapping mount names.
-type mountTable struct {
+type namespace struct {
 	sync.Mutex
 	mounts map[string][]string
 }
 
-func newMountTable() naming.MountTable {
-	return &mountTable{mounts: make(map[string][]string)}
+func newNamespace() naming.Namespace {
+	return &namespace{mounts: make(map[string][]string)}
 }
 
-func (mt *mountTable) Mount(ctx context.T, name, server string, _ time.Duration) error {
-	mt.Lock()
-	defer mt.Unlock()
-	for n, _ := range mt.mounts {
+func (ns *namespace) Mount(ctx context.T, name, server string, _ time.Duration) error {
+	ns.Lock()
+	defer ns.Unlock()
+	for n, _ := range ns.mounts {
 		if n != name && (strings.HasPrefix(name, n) || strings.HasPrefix(n, name)) {
 			return fmt.Errorf("simple mount table does not allow names that are a prefix of each other")
 		}
 	}
-	mt.mounts[name] = append(mt.mounts[name], server)
+	ns.mounts[name] = append(ns.mounts[name], server)
 	return nil
 }
 
-func (mt *mountTable) Unmount(ctx context.T, name, server string) error {
+func (ns *namespace) Unmount(ctx context.T, name, server string) error {
 	var servers []string
-	mt.Lock()
-	defer mt.Unlock()
-	for _, s := range mt.mounts[name] {
+	ns.Lock()
+	defer ns.Unlock()
+	for _, s := range ns.mounts[name] {
 		// When server is "", we remove all servers under name.
 		if len(server) > 0 && s != server {
 			servers = append(servers, s)
 		}
 	}
 	if len(servers) > 0 {
-		mt.mounts[name] = servers
+		ns.mounts[name] = servers
 	} else {
-		delete(mt.mounts, name)
+		delete(ns.mounts, name)
 	}
 	return nil
 }
 
-func (mt *mountTable) Resolve(ctx context.T, name string) ([]string, error) {
+func (ns *namespace) Resolve(ctx context.T, name string) ([]string, error) {
 	if address, _ := naming.SplitAddressName(name); len(address) > 0 {
 		return []string{name}, nil
 	}
-	mt.Lock()
-	defer mt.Unlock()
-	for prefix, servers := range mt.mounts {
+	ns.Lock()
+	defer ns.Unlock()
+	for prefix, servers := range ns.mounts {
 		if strings.HasPrefix(name, prefix) {
 			suffix := strings.TrimLeft(strings.TrimPrefix(name, prefix), "/")
 			var ret []string
@@ -183,32 +183,32 @@ func (mt *mountTable) Resolve(ctx context.T, name string) ([]string, error) {
 			return ret, nil
 		}
 	}
-	return nil, verror.NotFoundf("Resolve name %q not found in %v", name, mt.mounts)
+	return nil, verror.NotFoundf("Resolve name %q not found in %v", name, ns.mounts)
 }
 
-func (mt *mountTable) ResolveToMountTable(ctx context.T, name string) ([]string, error) {
+func (ns *namespace) ResolveToMountTable(ctx context.T, name string) ([]string, error) {
 	panic("ResolveToMountTable not implemented")
 	return nil, nil
 }
 
-func (mt *mountTable) Unresolve(ctx context.T, name string) ([]string, error) {
+func (ns *namespace) Unresolve(ctx context.T, name string) ([]string, error) {
 	panic("Unresolve not implemented")
 	return nil, nil
 }
 
-func (mt *mountTable) Glob(ctx context.T, pattern string) (chan naming.MountEntry, error) {
+func (ns *namespace) Glob(ctx context.T, pattern string) (chan naming.MountEntry, error) {
 	panic("Glob not implemented")
 	return nil, nil
 }
 
-func (mt *mountTable) SetRoots([]string) error {
+func (ns *namespace) SetRoots([]string) error {
 	panic("SetRoots not implemented")
 	return nil
 }
 
-func startServer(t *testing.T, serverID security.PrivateID, sm stream.Manager, mt naming.MountTable, ts interface{}) ipc.Server {
+func startServer(t *testing.T, serverID security.PrivateID, sm stream.Manager, ns naming.Namespace, ts interface{}) ipc.Server {
 	vlog.VI(1).Info("InternalNewServer")
-	server, err := InternalNewServer(InternalNewContext(), sm, mt, listenerID(serverID))
+	server, err := InternalNewServer(InternalNewContext(), sm, ns, listenerID(serverID))
 	if err != nil {
 		t.Errorf("InternalNewServer failed: %v", err)
 	}
@@ -228,57 +228,57 @@ func startServer(t *testing.T, serverID security.PrivateID, sm stream.Manager, m
 	return server
 }
 
-func verifyMount(t *testing.T, mt naming.MountTable, name string) {
-	if _, err := mt.Resolve(InternalNewContext(), name); err != nil {
+func verifyMount(t *testing.T, ns naming.Namespace, name string) {
+	if _, err := ns.Resolve(InternalNewContext(), name); err != nil {
 		t.Errorf("%s not found in mounttable", name)
 	}
 }
 
-func verifyMountMissing(t *testing.T, mt naming.MountTable, name string) {
-	if servers, err := mt.Resolve(InternalNewContext(), name); err == nil {
+func verifyMountMissing(t *testing.T, ns naming.Namespace, name string) {
+	if servers, err := ns.Resolve(InternalNewContext(), name); err == nil {
 		t.Errorf("%s not supposed to be found in mounttable; got %d servers instead", name, len(servers))
 	}
 }
 
-func stopServer(t *testing.T, server ipc.Server, mt naming.MountTable) {
+func stopServer(t *testing.T, server ipc.Server, ns naming.Namespace) {
 	vlog.VI(1).Info("server.Stop")
-	verifyMount(t, mt, "mountpoint/server")
+	verifyMount(t, ns, "mountpoint/server")
 
 	// Check that we can still publish.
 	server.Publish("should_appear_in_mt")
-	verifyMount(t, mt, "should_appear_in_mt/server")
+	verifyMount(t, ns, "should_appear_in_mt/server")
 
 	if err := server.Stop(); err != nil {
 		t.Errorf("server.Stop failed: %v", err)
 	}
 	// Check that we can no longer publish after Stop.
 	server.Publish("should_not_appear_in_mt")
-	verifyMountMissing(t, mt, "should_not_appear_in_mt/server")
+	verifyMountMissing(t, ns, "should_not_appear_in_mt/server")
 
-	verifyMountMissing(t, mt, "mountpoint/server")
-	verifyMountMissing(t, mt, "should_appear_in_mt/server")
-	verifyMountMissing(t, mt, "should_not_appear_in_mt/server")
+	verifyMountMissing(t, ns, "mountpoint/server")
+	verifyMountMissing(t, ns, "should_appear_in_mt/server")
+	verifyMountMissing(t, ns, "should_not_appear_in_mt/server")
 	vlog.VI(1).Info("server.Stop DONE")
 }
 
 type bundle struct {
 	client ipc.Client
 	server ipc.Server
-	mt     naming.MountTable
+	ns     naming.Namespace
 	sm     stream.Manager
 }
 
 func (b bundle) cleanup(t *testing.T) {
-	stopServer(t, b.server, b.mt)
+	stopServer(t, b.server, b.ns)
 	b.client.Close()
 }
 
 func createBundle(t *testing.T, clientID, serverID security.PrivateID, ts interface{}) (b bundle) {
 	b.sm = imanager.InternalNew(naming.FixedRoutingID(0x555555555))
-	b.mt = newMountTable()
-	b.server = startServer(t, serverID, b.sm, b.mt, ts)
+	b.ns = newNamespace()
+	b.server = startServer(t, serverID, b.sm, b.ns, ts)
 	var err error
-	b.client, err = InternalNewClient(b.sm, b.mt, veyron2.LocalID(clientID))
+	b.client, err = InternalNewClient(b.sm, b.ns, veyron2.LocalID(clientID))
 	if err != nil {
 		t.Fatalf("InternalNewClient failed: %v", err)
 	}
@@ -351,21 +351,21 @@ func TestStartCall(t *testing.T) {
 	}
 	// Servers and clients will be created per-test, use the same stream manager and mounttable.
 	mgr := imanager.InternalNew(naming.FixedRoutingID(0x1111111))
-	mt := newMountTable()
+	ns := newNamespace()
 	for _, test := range tests {
 		name := fmt.Sprintf("(clientID:%q serverID:%q)", test.clientID, test.serverID)
-		server := startServer(t, test.serverID, mgr, mt, &testServer{})
-		client, err := InternalNewClient(mgr, mt, veyron2.LocalID(test.clientID))
+		server := startServer(t, test.serverID, mgr, ns, &testServer{})
+		client, err := InternalNewClient(mgr, ns, veyron2.LocalID(test.clientID))
 		if err != nil {
 			t.Errorf("%s: Client creation failed: %v", name, err)
-			stopServer(t, server, mt)
+			stopServer(t, server, ns)
 			continue
 		}
 		if _, err := client.StartCall(&fakeContext{}, "mountpoint/server/suffix", "irrelevant", nil, veyron2.RemoteID(test.pattern)); !matchesErrorPattern(err, test.err) {
 			t.Errorf(`%s: client.StartCall: got error "%v", want to match "%v"`, name, err, test.err)
 		}
 		client.Close()
-		stopServer(t, server, mt)
+		stopServer(t, server, ns)
 	}
 }
 
@@ -562,7 +562,7 @@ func TestRPCAuthorization(t *testing.T) {
 	b := createBundle(t, nil, serverID, &testServer{})
 	defer b.cleanup(t)
 	for _, test := range tests {
-		client, err := InternalNewClient(b.sm, b.mt, veyron2.LocalID(test.clientID))
+		client, err := InternalNewClient(b.sm, b.ns, veyron2.LocalID(test.clientID))
 		if err != nil {
 			t.Fatalf("InternalNewClient failed: %v", err)
 		}
@@ -724,7 +724,7 @@ func TestConnectWithIncompatibleServers(t *testing.T) {
 	defer b.cleanup(t)
 
 	// Publish some incompatible endpoints.
-	publisher := publisher.New(InternalNewContext(), b.mt, publishPeriod)
+	publisher := publisher.New(InternalNewContext(), b.ns, publishPeriod)
 	defer publisher.WaitForStop()
 	defer publisher.Stop()
 	publisher.AddName("incompatible")
@@ -757,7 +757,7 @@ func TestConnectWithIncompatibleServers(t *testing.T) {
 // a server publishes its endpoints have the right effect.
 func TestPublishOptions(t *testing.T) {
 	sm := imanager.InternalNew(naming.FixedRoutingID(0x555555555))
-	mt := newMountTable()
+	ns := newNamespace()
 	cases := []struct {
 		opts   []ipc.ServerOpt
 		expect []string
@@ -769,7 +769,7 @@ func TestPublishOptions(t *testing.T) {
 		{[]ipc.ServerOpt{veyron2.PublishFirst, veyron2.EndpointRewriteOpt("example.com")}, []string{"example.com"}},
 	}
 	for i, c := range cases {
-		server, err := InternalNewServer(InternalNewContext(), sm, mt, append([]ipc.ServerOpt{listenerID(serverID)}, c.opts...)...)
+		server, err := InternalNewServer(InternalNewContext(), sm, ns, append([]ipc.ServerOpt{listenerID(serverID)}, c.opts...)...)
 		if err != nil {
 			t.Errorf("InternalNewServer failed: %v", err)
 			continue
@@ -789,7 +789,7 @@ func TestPublishOptions(t *testing.T) {
 			server.Stop()
 			continue
 		}
-		servers, err := mt.Resolve(InternalNewContext(), "mountpoint")
+		servers, err := ns.Resolve(InternalNewContext(), "mountpoint")
 		if err != nil {
 			t.Errorf("mountpoint not found in mounttable")
 			server.Stop()
@@ -869,7 +869,7 @@ func TestReconnect(t *testing.T) {
 }
 
 type proxyHandle struct {
-	MT      naming.MountTable
+	ns      naming.Namespace
 	process *blackbox.Child
 	mount   string
 }
@@ -881,7 +881,7 @@ func (h *proxyHandle) Start(t *testing.T) error {
 	if h.mount, err = h.process.ReadLineFromChild(); err != nil {
 		return err
 	}
-	if err := h.MT.Mount(&fakeContext{}, "proxy", h.mount, time.Hour); err != nil {
+	if err := h.ns.Mount(&fakeContext{}, "proxy", h.mount, time.Hour); err != nil {
 		return err
 	}
 	return nil
@@ -896,18 +896,18 @@ func (h *proxyHandle) Stop() error {
 	if len(h.mount) == 0 {
 		return nil
 	}
-	return h.MT.Unmount(&fakeContext{}, "proxy", h.mount)
+	return h.ns.Unmount(&fakeContext{}, "proxy", h.mount)
 }
 
 func TestProxy(t *testing.T) {
 	sm := imanager.InternalNew(naming.FixedRoutingID(0x555555555))
-	mt := newMountTable()
-	client, err := InternalNewClient(sm, mt, veyron2.LocalID(clientID))
+	ns := newNamespace()
+	client, err := InternalNewClient(sm, ns, veyron2.LocalID(clientID))
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer client.Close()
-	server, err := InternalNewServer(InternalNewContext(), sm, mt, listenerID(serverID))
+	server, err := InternalNewServer(InternalNewContext(), sm, ns, listenerID(serverID))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -928,7 +928,7 @@ func TestProxy(t *testing.T) {
 		}
 		return result, nil
 	}
-	proxy := &proxyHandle{MT: mt}
+	proxy := &proxyHandle{ns: ns}
 	if err := proxy.Start(t); err != nil {
 		t.Fatal(err)
 	}
@@ -939,7 +939,7 @@ func TestProxy(t *testing.T) {
 	if err := server.Publish("mountpoint"); err != nil {
 		t.Fatal(err)
 	}
-	verifyMount(t, mt, name)
+	verifyMount(t, ns, name)
 	// Proxied endpoint should be published and RPC should succeed (through proxy)
 	const expected = `method:"Echo",suffix:"suffix",arg:"batman"`
 	if result, err := makeCall(); result != expected || err != nil {
@@ -954,11 +954,11 @@ func TestProxy(t *testing.T) {
 		t.Fatalf(`Got (%v, %v) want ("", <non-nil>) as proxy is down`, result, err)
 	}
 	for {
-		if _, err := mt.Resolve(InternalNewContext(), name); err != nil {
+		if _, err := ns.Resolve(InternalNewContext(), name); err != nil {
 			break
 		}
 	}
-	verifyMountMissing(t, mt, name)
+	verifyMountMissing(t, ns, name)
 
 	// Proxy restarts, calls should eventually start succeeding.
 	if err := proxy.Start(t); err != nil {
@@ -989,10 +989,10 @@ func loadIdentityFromFile(file string) security.PrivateID {
 
 func runServer(argv []string) {
 	mgr := imanager.InternalNew(naming.FixedRoutingID(0x1111111))
-	mt := newMountTable()
+	ns := newNamespace()
 	id := loadIdentityFromFile(argv[1])
 	isecurity.TrustIdentityProviders(id)
-	server, err := InternalNewServer(InternalNewContext(), mgr, mt, listenerID(id))
+	server, err := InternalNewServer(InternalNewContext(), mgr, ns, listenerID(id))
 	if err != nil {
 		vlog.Fatalf("InternalNewServer failed: %v", err)
 	}

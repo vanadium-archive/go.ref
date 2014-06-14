@@ -35,13 +35,13 @@ func (g *glob) Help() string {
 	switch g.tag {
 	case ls:
 		return `<glob pattern>
-lists names using the local mountTable client's Glob method`
+lists names using the local namespace's Glob method (naming.Namespace.Glob)`
 	case lsat:
 		return `<name> <glob pattern>
 list names using by invoking the Glob method on name (name.Glob)`
 	case lsmt:
 		return `<name> <glob pattern>
-list names using the Glob method on the mountTable at name`
+list names using the Glob method on the mounttable at name (name.Glob)`
 	default:
 		return "unknown glob command"
 	}
@@ -82,8 +82,8 @@ func (g *glob) Run(args []string) (Variables, []string, Handle, error) {
 }
 
 func lsUsingLocalMountTable(pattern string) ([]string, error) {
-	lmt := rt.R().MountTable()
-	ch, err := lmt.Glob(rt.R().NewContext(), pattern)
+	lns := rt.R().Namespace()
+	ch, err := lns.Glob(rt.R().NewContext(), pattern)
 	if err != nil {
 		return nil, fmt.Errorf("pattern %q: %v", pattern, err)
 	}
@@ -118,8 +118,8 @@ func lsUsingResolve(name, pattern string) ([]string, error) {
 }
 
 func lsUsingResolveToMountTable(name, pattern string) ([]string, error) {
-	lmt := rt.R().MountTable()
-	servers, err := lmt.ResolveToMountTable(rt.R().NewContext(), name)
+	lns := rt.R().Namespace()
+	servers, err := lns.ResolveToMountTable(rt.R().NewContext(), name)
 	if err != nil {
 		return []string{}, err
 	}

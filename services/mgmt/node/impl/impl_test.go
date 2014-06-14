@@ -180,13 +180,13 @@ func TestUpdate(t *testing.T) {
 	defer runtime.Shutdown()
 	mtName, mtCleanup := startMountTable(t, runtime)
 	defer mtCleanup()
-	mt := runtime.MountTable()
-	// The local, client side MountTable is now relative to the
+	ns := runtime.Namespace()
+	// The local, client side Namespace is now relative to the
 	// MountTable server started above.
-	mt.SetRoots([]string{mtName})
+	ns.SetRoots([]string{mtName})
 	ctx := runtime.NewContext()
 
-	// Spawn a node manager with an identity blessed by the mounttable's
+	// Spawn a node manager with an identity blessed by the MountTable's
 	// identity under the name "test", and obtain its address.
 	//
 	// TODO(ataly): Eventually we want to use the same identity the node
@@ -197,7 +197,7 @@ func TestUpdate(t *testing.T) {
 	defer child.Cleanup()
 	child.Expect("ready")
 	name := naming.Join(mtName, "nm")
-	results, err := mt.Resolve(ctx, name)
+	results, err := ns.Resolve(ctx, name)
 	if err != nil {
 		t.Fatalf("Resolve(%v) failed: %v", name, err)
 	}
