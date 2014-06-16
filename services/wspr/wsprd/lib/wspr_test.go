@@ -373,35 +373,39 @@ func TestCallingGoWithStreaming(t *testing.T) {
 	})
 }
 
-func TestJavascriptPublish(t *testing.T) {
+type runningTest struct {
+	wspr             *WSPR
+	wsp              *websocketPipe
+	writer           *testWriter
+	mounttableServer ipc.Server
+	proxyServer      *proxy.Proxy
+}
+
+func publishServer() (*runningTest, error) {
 	mounttableServer, endpoint, err := startMountTableServer()
 
 	if err != nil {
-		t.Errorf("unable to start mounttable: %v", err)
-		return
+		return nil, fmt.Errorf("unable to start mounttable: %v", err)
 	}
-
-	defer mounttableServer.Stop()
 
 	proxyServer, err := startProxy()
 
 	if err != nil {
-		t.Errorf("unable to start proxy: %v", err)
-		return
+		return nil, fmt.Errorf("unable to start proxy: %v", err)
 	}
-
-	defer proxyServer.Shutdown()
 
 	proxyEndpoint := proxyServer.Endpoint().String()
 
 	wspr := NewWSPR(0, "/"+proxyEndpoint, veyron2.NamespaceRoots{"/" + endpoint.String() + "/mt"})
 	wspr.setup()
 	wsp := websocketPipe{ctx: wspr}
-	wsp.setup()
-	defer wsp.cleanup()
 	writer := testWriter{
 		logger: wspr.logger,
 	}
+	wsp.writerCreator = func(int64) clientWriter {
+		return &writer
+	}
+	wsp.setup()
 	wsp.publish(publishRequest{
 		Name: "adder",
 		Services: map[string]JSONServiceSignature{
@@ -409,11 +413,26 @@ func TestJavascriptPublish(t *testing.T) {
 		},
 	}, &writer)
 
-	if len(writer.stream) != 1 {
-		t.Errorf("expected only on response, got %d", len(writer.stream))
+	return &runningTest{
+		wspr, &wsp, &writer, mounttableServer, proxyServer,
+	}, nil
+}
+
+func TestJavascriptPublishServer(t *testing.T) {
+	rt, err := publishServer()
+	defer rt.mounttableServer.Stop()
+	defer rt.proxyServer.Shutdown()
+	defer rt.wsp.cleanup()
+
+	if err != nil {
+		t.Errorf("could not publish server %v", err)
 	}
 
-	resp := writer.stream[0]
+	if len(rt.writer.stream) != 1 {
+		t.Errorf("expected only on response, got %d", len(rt.writer.stream))
+	}
+
+	resp := rt.writer.stream[0]
 
 	if resp.Type != responseFinal {
 		t.Errorf("unknown stream message Got: %v, expected: publish response", resp)
@@ -424,9 +443,37 @@ func TestJavascriptPublish(t *testing.T) {
 		if _, err := r.NewEndpoint(msg); err == nil {
 			return
 		}
-
 	}
 	t.Errorf("invalid endpdoint returned from publish: %v", resp.Message)
+}
+
+func TestJavascriptStopServer(t *testing.T) {
+	rt, err := publishServer()
+	defer rt.mounttableServer.Stop()
+	defer rt.proxyServer.Shutdown()
+	defer rt.wsp.cleanup()
+
+	if err != nil {
+		t.Errorf("could not publish server %v", err)
+		return
+	}
+
+	// ensure there is only one server and then stop the server
+	if len(rt.wsp.servers) != 1 {
+		t.Errorf("expected only one server but got: %d", len(rt.wsp.servers))
+		return
+	}
+	for serverId := range rt.wsp.servers {
+		rt.wsp.removeServer(serverId)
+	}
+
+	// ensure there is no more servers now
+	if len(rt.wsp.servers) != 0 {
+		t.Errorf("expected no server after stopping the only one but got: %d", len(rt.wsp.servers))
+		return
+	}
+
+	return
 }
 
 type jsServerTestCase struct {
@@ -458,49 +505,20 @@ func sendServerStream(t *testing.T, wsp *websocketPipe, test *jsServerTestCase, 
 }
 
 func runJsServerTestCase(t *testing.T, test jsServerTestCase) {
-	mounttableServer, endpoint, err := startMountTableServer()
+	rt, err := publishServer()
+	defer rt.mounttableServer.Stop()
+	defer rt.proxyServer.Shutdown()
+	defer rt.wsp.cleanup()
 
 	if err != nil {
-		t.Errorf("unable to start mounttable: %v", err)
-		return
+		t.Errorf("could not publish server %v", err)
 	}
 
-	defer mounttableServer.Stop()
-
-	proxyServer, err := startProxy()
-
-	if err != nil {
-		t.Errorf("unable to start proxy: %v", err)
-		return
+	if len(rt.writer.stream) != 1 {
+		t.Errorf("expected only on response, got %d", len(rt.writer.stream))
 	}
 
-	defer proxyServer.Shutdown()
-
-	proxyEndpoint := proxyServer.Endpoint().String()
-
-	wspr := NewWSPR(0, "/"+proxyEndpoint, veyron2.NamespaceRoots{"/" + endpoint.String() + "/mt//"})
-	wspr.setup()
-	wsp := websocketPipe{ctx: wspr}
-	writer := testWriter{
-		logger: wspr.logger,
-	}
-	wsp.writerCreator = func(int64) clientWriter {
-		return &writer
-	}
-	wsp.setup()
-	defer wsp.cleanup()
-	wsp.publish(publishRequest{
-		Name: "adder",
-		Services: map[string]JSONServiceSignature{
-			"adder": adderServiceSignature,
-		},
-	}, &writer)
-
-	if len(writer.stream) != 1 {
-		t.Errorf("expected only on response, got %d", len(writer.stream))
-	}
-
-	resp := writer.stream[0]
+	resp := rt.writer.stream[0]
 
 	if resp.Type != responseFinal {
 		t.Errorf("unknown stream message Got: %v, expected: publish response", resp)
@@ -516,16 +534,16 @@ func runJsServerTestCase(t *testing.T, test jsServerTestCase) {
 		t.Errorf("invalid endpdoint returned from publish: %v", resp.Message)
 	}
 
-	writer.stream = nil
+	rt.writer.stream = nil
 
 	// Create a client using wspr's runtime so it points to the right mounttable.
-	client, err := wspr.rt.NewClient()
+	client, err := rt.wspr.rt.NewClient()
 
 	if err != nil {
 		t.Errorf("unable to create client: %v", err)
 	}
 
-	call, err := client.StartCall(wspr.rt.NewContext(), "/"+msg+"//adder", test.method, test.inArgs)
+	call, err := client.StartCall(rt.wspr.rt.NewContext(), "/"+msg+"//adder", test.method, test.inArgs)
 	if err != nil {
 		t.Errorf("failed to start call: %v", err)
 	}
@@ -547,7 +565,7 @@ func runJsServerTestCase(t *testing.T, test jsServerTestCase) {
 	}
 
 	// Wait until the rpc has started.
-	if err := writer.waitForMessage(len(expectedWebsocketMessage)); err != nil {
+	if err := rt.writer.waitForMessage(len(expectedWebsocketMessage)); err != nil {
 		t.Errorf("didn't recieve expected message: %v", err)
 	}
 	for _, msg := range test.clientStream {
@@ -558,14 +576,14 @@ func runJsServerTestCase(t *testing.T, test jsServerTestCase) {
 	}
 
 	// Wait until all the streaming messages have been acknowledged.
-	if err := writer.waitForMessage(len(expectedWebsocketMessage)); err != nil {
+	if err := rt.writer.waitForMessage(len(expectedWebsocketMessage)); err != nil {
 		t.Errorf("didn't recieve expected message: %v", err)
 	}
 
 	expectedWebsocketMessage = append(expectedWebsocketMessage, response{Type: responseStreamClose})
 
 	expectedStream := test.serverStream
-	go sendServerStream(t, &wsp, &test, &writer)
+	go sendServerStream(t, rt.wsp, &test, rt.writer)
 	for {
 		var data interface{}
 		if err := call.Recv(&data); err != nil {
@@ -599,11 +617,11 @@ func runJsServerTestCase(t *testing.T, test jsServerTestCase) {
 	}
 
 	// Wait until the close streaming messages have been acknowledged.
-	if err := writer.waitForMessage(len(expectedWebsocketMessage)); err != nil {
+	if err := rt.writer.waitForMessage(len(expectedWebsocketMessage)); err != nil {
 		t.Errorf("didn't recieve expected message: %v", err)
 	}
 
-	checkResponses(&writer, expectedWebsocketMessage, nil, t)
+	checkResponses(rt.writer, expectedWebsocketMessage, nil, t)
 }
 
 func TestSimpleJSServer(t *testing.T) {
