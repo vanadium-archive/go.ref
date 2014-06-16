@@ -827,7 +827,7 @@ func (ctx WSPR) Run() {
 		pipe.start(w, r)
 	})
 	ctx.logger.VI(1).Infof("Listening on port %d.", ctx.port)
-	httpErr := http.ListenAndServe(fmt.Sprintf(":%d", ctx.port), nil)
+	httpErr := http.ListenAndServe(fmt.Sprintf("127.0.0.1:%d", ctx.port), nil)
 	if httpErr != nil {
 		log.Fatalf("Failed to HTTP serve: %s", httpErr)
 	}
