@@ -19,7 +19,7 @@ import (
 // Viewer_ExcludingUniversal is the interface without internal framework-added methods
 // to enable embedding without method collisions.  Not to be used directly by clients.
 type Viewer_ExcludingUniversal interface {
-	// Pipe creates a bidirectional pipe between client and viewer service, returns a success message provided by the client
+	// Pipe creates a bidirectional pipe between client and viewer service, returns total number of bytes received by the service after streaming ends
 	Pipe(ctx _gen_context.T, opts ..._gen_ipc.CallOpt) (reply ViewerPipeStream, err error)
 }
 type Viewer interface {
@@ -30,8 +30,8 @@ type Viewer interface {
 // ViewerService is the interface the server implements.
 type ViewerService interface {
 
-	// Pipe creates a bidirectional pipe between client and viewer service, returns a success message provided by the client
-	Pipe(context _gen_ipc.ServerContext, stream ViewerServicePipeStream) (reply string, err error)
+	// Pipe creates a bidirectional pipe between client and viewer service, returns total number of bytes received by the service after streaming ends
+	Pipe(context _gen_ipc.ServerContext, stream ViewerServicePipeStream) (reply int64, err error)
 }
 
 // ViewerPipeStream is the interface for streaming responses of the method
@@ -50,7 +50,7 @@ type ViewerPipeStream interface {
 
 	// Finish closes the stream and returns the positional return values for
 	// call.
-	Finish() (reply string, err error)
+	Finish() (reply int64, err error)
 
 	// Cancel cancels the RPC, notifying the server to stop processing.
 	Cancel()
@@ -69,7 +69,7 @@ func (c *implViewerPipeStream) CloseSend() error {
 	return c.clientCall.CloseSend()
 }
 
-func (c *implViewerPipeStream) Finish() (reply string, err error) {
+func (c *implViewerPipeStream) Finish() (reply int64, err error) {
 	if ierr := c.clientCall.Finish(&reply, &err); ierr != nil {
 		err = ierr
 	}
@@ -208,7 +208,7 @@ func (__gen_s *ServerStubViewer) Signature(call _gen_ipc.ServerCall) (_gen_ipc.S
 	result.Methods["Pipe"] = _gen_ipc.MethodSignature{
 		InArgs: []_gen_ipc.MethodArgument{},
 		OutArgs: []_gen_ipc.MethodArgument{
-			{Name: "", Type: 3},
+			{Name: "", Type: 37},
 			{Name: "", Type: 65},
 		},
 		InStream: 67,
@@ -238,7 +238,7 @@ func (__gen_s *ServerStubViewer) UnresolveStep(call _gen_ipc.ServerCall) (reply 
 	return
 }
 
-func (__gen_s *ServerStubViewer) Pipe(call _gen_ipc.ServerCall) (reply string, err error) {
+func (__gen_s *ServerStubViewer) Pipe(call _gen_ipc.ServerCall) (reply int64, err error) {
 	stream := &implViewerServicePipeStream{serverCall: call}
 	reply, err = __gen_s.service.Pipe(call, stream)
 	return

@@ -87,8 +87,11 @@ func main() {
 		return
 	}
 
-	log.Infof("Stream finished with status: %v", result)
-	log.Infof("Total of %d bytes were piped to browser", numBytes)
+	if numBytes != result {
+		log.Infof("*** number of bytes sent and received do NOT match ***")
+	}
+	log.Infof("%d bytes were piped to browser", numBytes)
+	log.Infof("%d bytes were received by browser", result)
 
 	fmt.Println("Finished piping to browser! Thanks for using p2b.")
 }
