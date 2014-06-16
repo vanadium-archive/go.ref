@@ -1,0 +1,13 @@
+package schema
+
+// Dir is used to represent directories.
+type Dir struct{
+	// TODO(jyh): The IDL does not recognize empty structs.  Fix it and remove this
+	// useless field.
+	X byte
+}
+
+// Bank is used to represent the information stored in a bank.
+type Bank struct {
+        Accounts map[string]int64
+}

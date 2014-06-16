@@ -1,0 +1,28 @@
+/*
+Package bank implements an application to manipulate virtual money. The client's
+Veyron Identity determines the account they can manipulate. New identity's make
+a new account. Clients can deposit, withdraw, transfer, or query their balance
+in virtual currency.
+*/
+package bank
+
+import "veyron2/security"
+
+// Bank allows clients to store virtual money. Certain implementations can use persistent storage.
+// Uses the client's Veyron Identity to determine account access.
+type Bank interface {
+ // Connect causes the bank to bless a new user (string) and return their bank account number (int64). Existing users are not blessed (""), but still receive their account number (int64).
+ Connect() (newIdentity string, accountNumber int64, err error) {security.WriteLabel}
+}
+
+// The BankAccount can only be accessed by blessed users
+type BankAccount interface {
+ // Deposit adds the amount given to this account.
+ Deposit(amount int64) error {security.WriteLabel}
+ // Withdraw reduces the amount given from this account.
+ Withdraw(amount int64) error {security.WriteLabel}
+ // Transfer moves the amount given to the receiver's account.
+ Transfer(receiver int64, amount int64) error {security.WriteLabel}
+ // Balance returns the amount stored in this account.
+ Balance() (int64, error) {security.ReadLabel}
+}

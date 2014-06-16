@@ -14,6 +14,8 @@ import (
 	_ "veyron/examples/storage/mdb/schema"
 	// Register todos types.
 	_ "veyron/examples/todos/schema"
+	// Register bank types.
+	_ "veyron/examples/bank/schema"
 
 	"veyron2/vom"
 )
