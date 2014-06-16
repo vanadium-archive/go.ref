@@ -88,7 +88,7 @@ const (
 	websocketVeyronRequest websocketMessageType = 0
 
 	// Publishing this websocket under a veyron name
-	websocketPublish = 1
+	websocketPublishServer = 1
 
 	// A response from a service in javascript to a request
 	// from the proxy.
@@ -102,6 +102,9 @@ const (
 
 	// A request to get signature of a remote server
 	websocketSignatureRequest = 5
+
+	// A request to stop a server
+	websocketStopServer = 6
 )
 
 type websocketMessage struct {
@@ -610,8 +613,10 @@ func (wsp *websocketPipe) readLoop() {
 			wsp.sendOnStream(msg.Id, msg.Data, ww)
 		case websocketStreamClose:
 			wsp.closeStream(msg.Id)
-		case websocketPublish:
+		case websocketPublishServer:
 			go wsp.handlePublishRequest(msg.Data, ww)
+		case websocketStopServer:
+			go wsp.handleStopRequest(msg.Data, ww)
 		case websocketServerResponse:
 			go wsp.handleServerResponse(msg.Id, msg.Data)
 		case websocketSignatureRequest:
@@ -635,6 +640,19 @@ func (wsp *websocketPipe) maybeCreateServer(serverId uint64) (*server, error) {
 	}
 	wsp.servers[serverId] = server
 	return server, nil
+}
+
+func (wsp *websocketPipe) removeServer(serverId uint64) {
+	wsp.Lock()
+	server := wsp.servers[serverId]
+	if server == nil {
+		wsp.Unlock()
+		return
+	}
+	delete(wsp.servers, serverId)
+	wsp.Unlock()
+
+	server.Stop()
 }
 
 func (wsp *websocketPipe) publish(publishRequest publishRequest, w clientWriter) {
@@ -682,6 +700,27 @@ func (wsp *websocketPipe) handlePublishRequest(data string, w *websocketWriter) 
 		return
 	}
 	wsp.publish(publishRequest, w)
+}
+
+// handleStopRequest takes a request to stop a server.
+func (wsp *websocketPipe) handleStopRequest(data string, w *websocketWriter) {
+
+	var serverId uint64
+	decoder := json.NewDecoder(bytes.NewBufferString(data))
+	if err := decoder.Decode(&serverId); err != nil {
+		w.sendError(verror.Internalf("can't unmarshal JSONMessage: %v", err))
+		return
+	}
+
+	wsp.removeServer(serverId)
+
+	// Send true to indicate stop has finished
+	result := response{Type: responseFinal, Message: true}
+	if err := vom.ObjToJSON(w, vom.ValueOf(result)); err != nil {
+		w.sendError(verror.Internalf("error marshalling results: %v", err))
+		return
+	}
+	w.FinishMessage()
 }
 
 // handleServerResponse handles the completion of outstanding calls to JavaScript services
