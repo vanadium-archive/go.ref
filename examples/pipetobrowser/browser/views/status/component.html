@@ -23,7 +23,7 @@
       <h3>Total bytes received</h3>
       <p>{{ numBytes }}</p>
     </div>
-    <paper-button class="paper colored red" inkColor="#A9352C">Stop Service</paper-button>
+    <paper-button class="paper colored red" inkColor="#A9352C" on-click="{{ stopAction }}">Stop Service</paper-button>
   </template>
   <script>
     Polymer('p2b-status', {
@@ -54,7 +54,9 @@
           return 'Published';
         } else if(this.serviceState.publishing) {
           return 'Publishing';
-        } else {
+        } else if(this.serviceState.stopping) {
+          return 'Stopping';
+        }  else {
           return 'Stopped';
         }
       },
@@ -65,7 +67,7 @@
        * @type {string}
        */
       get publishDate() {
-        if (!this.serviceState) {
+        if (!this.serviceState || !this.serviceState.published) {
           return '';
         }
         return this.serviceState.date.toString();
@@ -77,7 +79,7 @@
        * @type {string}
        */
       get uptime() {
-        if (!this.serviceState || !this.formatDuration) {
+        if (!this.serviceState || !this.serviceState.published) {
           return '';
         }
         var elapsedSeconds = Math.floor((new Date() - this.serviceState.date) / 1000);
@@ -90,7 +92,7 @@
        * @type {string}
        */
       get numPipes() {
-        if (!this.serviceState) {
+        if (!this.serviceState || !this.serviceState.published) {
           return '';
         }
         return this.serviceState.numPipes.toString();
@@ -102,10 +104,18 @@
        * @type {string}
        */
       get numBytes() {
-        if (!this.serviceState) {
+        if (!this.serviceState || !this.serviceState.published) {
           return '';
         }
         return this.serviceState.numBytes.toString();
+      },
+
+      /*
+       * Stop action. Fires when user decides to stop the p2b service.
+       * @event
+       */
+      stopAction: function() {
+        this.fire('stop');
       }
 
     });

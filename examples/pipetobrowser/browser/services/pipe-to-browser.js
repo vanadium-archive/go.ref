@@ -18,6 +18,7 @@ export var state = {
   init() {
     this.published = false;
     this.publishing = false;
+    this.stopping = false;
     this.fullServiceName = null;
     this.date = null;
     this.numPipes = 0;
@@ -41,6 +42,7 @@ state.init();
  * @param {string} name Name to publish the service under
  * @param {function} pipeRequestHandler A function that will be called when
  * a request to handle a pipe stream comes in.
+ * @return {Promise} Promise that will resolve or reject when publish completes
  */
 export function publish(name, pipeRequestHandler) {
   log.debug('publishing under name:', name);
@@ -93,8 +95,14 @@ export function publish(name, pipeRequestHandler) {
 
 /*
  * Stops the service and unpublishes it, effectively destroying the service.
+ * @return {Promise} Promise that will resolve or reject when stopping completes
  */
 export function stopPublishing() {
-  //TODO(aghassemi) Implement in Veyron API and then here.
-  log.debug('Not Implemented');
+  log.debug('stopping service');
+  state.stopping = true;
+  return server.stop().then(function() {
+    log.debug('service stopped');
+    state.reset();
+    return;
+  });
 }

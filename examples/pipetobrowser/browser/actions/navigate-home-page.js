@@ -61,6 +61,13 @@ function showStatusView() {
   // Create a status view  and bind (dynamic) publish state with the view
   var statusView = new StatusView(publishState);
 
+  // Stop when user tells us to stop the service
+  statusView.onStopAction(() => {
+    stopPublishing().then(function() {
+      navigateHomePage();
+    }).catch((e) => { displayError(e); });
+  });
+
   // Display the status view in main content area and select the sidebar item
   page.title = 'Status';
   page.setSubPageView('home', statusView);

@@ -17,4 +17,14 @@ export class StatusView extends View {
 
 		super(el);
 	}
+
+/*
+ * Event representing user's intention to stop the published service
+ * @event
+ */
+  onStopAction(eventHandler) {
+    this.element.addEventListener('stop', (e) => {
+      eventHandler();
+    });
+  }
 }
