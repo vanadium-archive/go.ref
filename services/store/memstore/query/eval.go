@@ -607,7 +607,16 @@ func (a argsSorter) Len() int      { return len(a.results) }
 func (a argsSorter) Swap(i, j int) { a.results[i], a.results[j] = a.results[j], a.results[i] }
 func (a argsSorter) Less(i, j int) bool {
 	for n, arg := range a.e.args {
-		// TODO(kash): Look for "+" or "-" for sort ordering.
+		// Normally, exprUnary only supports numeric operands.  As part of a sort
+		// expression however, it is possible to negate a string operand to
+		// cause a descending sort.
+		ascending := true
+		unaryArg, ok := arg.(*exprUnary)
+		if ok {
+			// Remove the +/- operator.
+			arg = unaryArg.operand
+			ascending = unaryArg.op == parse.OpPos
+		}
 		ival := arg.value(a.c, a.results[i])
 		jval := arg.value(a.c, a.results[j])
 		res, err := compare(a.c, ival, jval)
@@ -619,7 +628,11 @@ func (a argsSorter) Less(i, j int) bool {
 		if res == 0 {
 			continue
 		}
-		return res < 0
+		if ascending {
+			return res < 0
+		} else {
+			return res > 0
+		}
 	}
 	// Break ties based on name to get a deterministic order.
 	return a.results[i].Name < a.results[j].Name
@@ -711,15 +724,12 @@ func (p *predicateCompare) match(c *context, result *store.QueryResult) bool {
 // compare returns a negative number if lval is less than rval, 0 if they are
 // equal, and a positive number if  lval is greater than rval.
 func compare(c *context, lval, rval interface{}) (int, error) {
-	ltype := reflect.TypeOf(lval)
-	rtype := reflect.TypeOf(rval)
-
-	if ltype != rtype {
-		return 0, fmt.Errorf("type mismatch; left: %v, right: %v", ltype, rtype)
-	}
 	switch lval := lval.(type) {
 	case string:
-		rval := rval.(string)
+		rval, ok := rval.(string)
+		if !ok {
+			return 0, fmt.Errorf("type mismatch; left: %T, right: %T", lval, rval)
+		}
 		if lval < rval {
 			return -1, nil
 		} else if lval > rval {
@@ -728,11 +738,89 @@ func compare(c *context, lval, rval interface{}) (int, error) {
 			return 0, nil
 		}
 	case *big.Rat:
-		return lval.Cmp(rval.(*big.Rat)), nil
+		switch rval := rval.(type) {
+		case *big.Rat:
+			return lval.Cmp(rval), nil
+		case *big.Int:
+			return lval.Cmp(new(big.Rat).SetInt(rval)), nil
+		case int, int8, int16, int32, int64:
+			return lval.Cmp(new(big.Rat).SetInt64(toInt64(rval))), nil
+		case uint, uint8, uint16, uint32, uint64:
+			// It is not possible to convert to a big.Rat from an unsigned.  Need to
+			// go through big.Int first.
+			return lval.Cmp(new(big.Rat).SetInt(new(big.Int).SetUint64(toUint64(rval)))), nil
+		}
 	case *big.Int:
-		return lval.Cmp(rval.(*big.Int)), nil
+		switch rval := rval.(type) {
+		case *big.Rat:
+			return new(big.Rat).SetInt(lval).Cmp(rval), nil
+		case *big.Int:
+			return lval.Cmp(rval), nil
+		case int, int8, int16, int32, int64:
+			return lval.Cmp(big.NewInt(toInt64(rval))), nil
+		case uint, uint8, uint16, uint32, uint64:
+			return lval.Cmp(new(big.Int).SetUint64(toUint64(rval))), nil
+		}
+	case int, int8, int16, int32, int64:
+		switch rval := rval.(type) {
+		case *big.Rat:
+			return new(big.Rat).SetInt64(toInt64(lval)).Cmp(rval), nil
+		case *big.Int:
+			return new(big.Int).SetInt64(toInt64(lval)).Cmp(rval), nil
+		case int, int8, int16, int32, int64:
+			lint, rint := toInt64(lval), toInt64(rval)
+			if lint < rint {
+				return -1, nil
+			} else if lint > rint {
+				return 1, nil
+			} else {
+				return 0, nil
+			}
+		case uint, uint8, uint16, uint32, uint64:
+			lint, rint := toUint64(lval), toUint64(rval)
+			if lint < rint {
+				return -1, nil
+			} else if lint > rint {
+				return 1, nil
+			} else {
+				return 0, nil
+			}
+		}
+	}
+	return 0, fmt.Errorf("unexpected type %T", lval)
+}
+
+func toInt64(i interface{}) int64 {
+	switch i := i.(type) {
+	case int:
+		return int64(i)
+	case int8:
+		return int64(i)
+	case int16:
+		return int64(i)
+	case int32:
+		return int64(i)
+	case int64:
+		return int64(i)
 	default:
-		return 0, fmt.Errorf("unexpected type %T", lval)
+		panic(fmt.Errorf("unexpected type %T", i))
+	}
+}
+
+func toUint64(i interface{}) uint64 {
+	switch i := i.(type) {
+	case uint:
+		return uint64(i)
+	case uint8:
+		return uint64(i)
+	case uint16:
+		return uint64(i)
+	case uint32:
+		return uint64(i)
+	case uint64:
+		return uint64(i)
+	default:
+		panic(fmt.Errorf("unexpected type %T", i))
 	}
 }
 
@@ -807,6 +895,8 @@ func convertExpr(e parse.Expr) expr {
 		return &exprInt{e.Int, e.Pos}
 	case *parse.ExprName:
 		return &exprName{e.Name, e.Pos}
+	case *parse.ExprUnary:
+		return &exprUnary{convertExpr(e.Operand), e.Op, e.Pos}
 	// TODO(kash): Support the other types of expressions.
 	default:
 		panic(fmt.Errorf("unexpected type %T", e))
@@ -887,4 +977,58 @@ func mapKeys(m map[string]vdl.Any) string {
 	}
 	sort.Strings(s)
 	return strings.Join(s, ", ")
+}
+
+// exprUnary is an expr preceded by a '+' or '-'.
+type exprUnary struct {
+	// operand is the expression to be modified by Op.
+	operand expr
+	// op is the operator that modifies operand.
+	op parse.Operator
+	// pos specifies where in the query string this component started.
+	pos parse.Pos
+}
+
+// value implements the expr method.
+func (e *exprUnary) value(c *context, result *store.QueryResult) interface{} {
+	v := e.operand.value(c, result)
+	switch e.op {
+	case parse.OpNeg:
+		switch v := v.(type) {
+		case *big.Int:
+			// Need to create a temporary big.Int since Neg mutates the Int.
+			return new(big.Int).Set(v).Neg(v)
+		case *big.Rat:
+			// Need to create a temporary big.Rat since Neg mutates the Rat.
+			return new(big.Rat).Set(v).Neg(v)
+		case int:
+			return -v
+		case int8:
+			return -v
+		case int16:
+			return -v
+		case int32:
+			return -v
+		case int64:
+			return -v
+		case uint:
+			return -v
+		case uint8:
+			return -v
+		case uint16:
+			return -v
+		case uint32:
+			return -v
+		case uint64:
+			return -v
+		default:
+			sendError(c.errc, fmt.Errorf("cannot negate value of type %T for %s", v, result.Name))
+			return nil
+		}
+	case parse.OpPos:
+		return v
+	default:
+		sendError(c.errc, fmt.Errorf("unknown operator %d at Pos %v", e.op, e.pos))
+		return nil
+	}
 }

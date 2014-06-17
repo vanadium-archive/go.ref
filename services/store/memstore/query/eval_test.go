@@ -22,6 +22,7 @@ type team struct {
 
 type player struct {
 	Name string
+	Age  int
 }
 
 func populate(t *testing.T) *state.State {
@@ -32,10 +33,10 @@ func populate(t *testing.T) *state.State {
 	put(t, sn, "/", "")
 
 	put(t, sn, "/players", "")
-	alfredID := put(t, sn, "/players/alfred", player{"alfred"})
-	aliceID := put(t, sn, "/players/alice", player{"alice"})
-	bettyID := put(t, sn, "/players/betty", player{"betty"})
-	bobID := put(t, sn, "/players/bob", player{"bob"})
+	alfredID := put(t, sn, "/players/alfred", player{"alfred", 17})
+	aliceID := put(t, sn, "/players/alice", player{"alice", 16})
+	bettyID := put(t, sn, "/players/betty", player{"betty", 23})
+	bobID := put(t, sn, "/players/bob", player{"bob", 21})
 
 	put(t, sn, "/teams", "")
 	put(t, sn, "/teams/cardinals", team{"cardinals", "CA"})
@@ -94,6 +95,8 @@ func TestEval(t *testing.T) {
 		{"", "teams | ?2.3 != 1.0", []string{"teams"}},
 		{"", "teams | ?2.3 <= 1.0", []string{}},
 		{"", "teams | ?2.3 >= 1.0", []string{"teams"}},
+		{"", "teams | ?-2.3 >= 1.0", []string{}},
+		{"", "teams | ?2.3 <= -1.0", []string{}},
 		// Integer constants:
 		{"", "teams | ?2 > 1", []string{"teams"}},
 		{"", "teams | ?2 < 1", []string{}},
@@ -101,10 +104,16 @@ func TestEval(t *testing.T) {
 		{"", "teams | ?2 != 1", []string{"teams"}},
 		{"", "teams | ?2 <= 1", []string{}},
 		{"", "teams | ?2 >= 1", []string{"teams"}},
+		// Compare an integer with a rational number:
+		{"", "teams | ?2 > 1.7", []string{"teams"}},
+		{"", "teams | ?2.3 > 1", []string{"teams"}},
+		{"", "teams | ?-2 > 1.7", []string{}},
 		// Veyron names:
 		{"", "teams/* | type team | ?Name > 'bar'", []string{"teams/cardinals", "teams/sharks", "teams/bears"}},
 		{"", "teams/* | type team | ?Name > 'foo'", []string{"teams/sharks"}},
 		{"", "teams/* | type team | ?Name != 'bears'", []string{"teams/cardinals", "teams/sharks"}},
+		{"", "players/* | type player | ?Age > 20", []string{"players/betty", "players/bob"}},
+		{"", "players/* | type player | ?-Age < -20", []string{"players/betty", "players/bob"}},
 
 		// predicateAnd:
 		{"", "teams | ?true && true", []string{"teams"}},
@@ -122,7 +131,6 @@ func TestEval(t *testing.T) {
 		{"", "teams | ?!(true || false)", []string{}},
 	}
 	for _, test := range tests {
-
 		it := Eval(st.Snapshot(), rootPublicID, storage.ParsePath(test.suffix), query.Query{test.query})
 		names := map[string]bool{}
 		for it.Next() {
@@ -195,6 +203,60 @@ func TestSorting(t *testing.T) {
 				&store.QueryResult{0, "teams/sharks", nil, team{"sharks", "NY"}},
 			},
 		},
+		{
+			"'teams/*' | type team | sort(+Location)",
+			[]*store.QueryResult{
+				&store.QueryResult{0, "teams/cardinals", nil, team{"cardinals", "CA"}},
+				&store.QueryResult{0, "teams/bears", nil, team{"bears", "CO"}},
+				&store.QueryResult{0, "teams/beavers", nil, team{"beavers", "CO"}},
+				&store.QueryResult{0, "teams/sharks", nil, team{"sharks", "NY"}},
+			},
+		},
+		{
+			"'teams/*' | type team | sort(-Location)",
+			[]*store.QueryResult{
+				&store.QueryResult{0, "teams/sharks", nil, team{"sharks", "NY"}},
+				&store.QueryResult{0, "teams/bears", nil, team{"bears", "CO"}},
+				&store.QueryResult{0, "teams/beavers", nil, team{"beavers", "CO"}},
+				&store.QueryResult{0, "teams/cardinals", nil, team{"cardinals", "CA"}},
+			},
+		},
+		{
+			"'teams/*' | type team | sort(-Location, Name)",
+			[]*store.QueryResult{
+				&store.QueryResult{0, "teams/sharks", nil, team{"sharks", "NY"}},
+				&store.QueryResult{0, "teams/bears", nil, team{"bears", "CO"}},
+				&store.QueryResult{0, "teams/beavers", nil, team{"beavers", "CO"}},
+				&store.QueryResult{0, "teams/cardinals", nil, team{"cardinals", "CA"}},
+			},
+		},
+		{
+			"'teams/*' | type team | sort(-Location, -Name)",
+			[]*store.QueryResult{
+				&store.QueryResult{0, "teams/sharks", nil, team{"sharks", "NY"}},
+				&store.QueryResult{0, "teams/beavers", nil, team{"beavers", "CO"}},
+				&store.QueryResult{0, "teams/bears", nil, team{"bears", "CO"}},
+				&store.QueryResult{0, "teams/cardinals", nil, team{"cardinals", "CA"}},
+			},
+		},
+		{
+			"'players/*' | type player | sort(Age)",
+			[]*store.QueryResult{
+				&store.QueryResult{0, "players/alice", nil, player{"alice", 16}},
+				&store.QueryResult{0, "players/alfred", nil, player{"alfred", 17}},
+				&store.QueryResult{0, "players/bob", nil, player{"bob", 21}},
+				&store.QueryResult{0, "players/betty", nil, player{"betty", 23}},
+			},
+		},
+		{
+			"'players/*' | type player | sort(-Age)",
+			[]*store.QueryResult{
+				&store.QueryResult{0, "players/betty", nil, player{"betty", 23}},
+				&store.QueryResult{0, "players/bob", nil, player{"bob", 21}},
+				&store.QueryResult{0, "players/alfred", nil, player{"alfred", 17}},
+				&store.QueryResult{0, "players/alice", nil, player{"alice", 16}},
+			},
+		},
 	}
 	for _, test := range tests {
 		it := Eval(st.Snapshot(), rootPublicID, storage.ParsePath(""), query.Query{test.query})
@@ -206,7 +268,7 @@ func TestSorting(t *testing.T) {
 				break
 			}
 			if got, want := result, test.expectedResults[i]; !reflect.DeepEqual(got, want) {
-				t.Errorf("query: %s;\nGOT  %s\nWANT %s", test.query, got, want)
+				t.Errorf("query: %s;\nGOT  %v\nWANT %v", test.query, got, want)
 			}
 			i++
 		}
@@ -324,6 +386,7 @@ func TestError(t *testing.T) {
 		// use a type filter.
 		{"teams/* | ?Name > 'foo'", "could not look up name 'Name' relative to 'teams': not found"},
 		{"'teams/cardinals' | {Name as myname, Location as myloc} | ? Name == 'foo'", "name 'Name' was not selected from 'teams/cardinals', found: [myloc, myname]"},
+		{"teams/* | type team | sort(Name) | ?-Name > 'foo'", "cannot negate value of type string for teams/bears"},
 
 		// TODO(kash): Selection with conflicting names.
 		// TODO(kash): Trying to sort an aggregate.  "... | avg | sort()"
