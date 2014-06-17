@@ -1,4 +1,3 @@
-// Package caveat provides some third-party caveat implementations for the Google runtime.
 package caveat
 
 import (
@@ -11,7 +10,6 @@ import (
 	"math/big"
 	"time"
 
-	vcaveat "veyron/security/caveat"
 	"veyron2/security"
 	"veyron2/security/wire"
 	"veyron2/vom"
@@ -197,7 +195,7 @@ func NewPublicKeyDischarge(discharger security.PrivateID, caveat security.ThirdP
 		return nil, fmt.Errorf("failed to validate DischargeMintingCaveat: %s", err)
 	}
 	now := time.Now()
-	expiryCaveat := &vcaveat.Expiry{IssueTime: now, ExpiryTime: now.Add(duration)}
+	expiryCaveat := &Expiry{IssueTime: now, ExpiryTime: now.Add(duration)}
 	caveats = append(caveats, security.UniversalCaveat(expiryCaveat))
 	encodedCaveats, err := wire.EncodeCaveats(caveats)
 	if err != nil {

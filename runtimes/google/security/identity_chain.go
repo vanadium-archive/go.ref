@@ -11,7 +11,6 @@ import (
 	"reflect"
 	"time"
 
-	icaveat "veyron/runtimes/google/security/caveat"
 	"veyron/runtimes/google/security/keys"
 	"veyron/security/caveat"
 
@@ -211,7 +210,7 @@ func (id *chainPrivateID) Derive(pub security.PublicID) (security.PrivateID, err
 }
 
 func (id *chainPrivateID) MintDischarge(cav security.ThirdPartyCaveat, ctx security.Context, duration time.Duration, dischargeCaveats []security.ServiceCaveat) (security.ThirdPartyDischarge, error) {
-	return icaveat.NewPublicKeyDischarge(id, cav, ctx, duration, dischargeCaveats)
+	return caveat.NewPublicKeyDischarge(id, cav, ctx, duration, dischargeCaveats)
 }
 
 // newChainPrivateID returns a new PrivateID containing a freshly generated

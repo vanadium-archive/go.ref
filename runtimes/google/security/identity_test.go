@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"veyron/runtimes/google/security/caveat"
+	"veyron/security/caveat"
 	"veyron2/security"
 	"veyron2/security/wire"
 	"veyron2/vom"
