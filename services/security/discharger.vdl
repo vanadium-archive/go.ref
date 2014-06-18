@@ -1,0 +1,15 @@
+package security
+
+import "veyron2/security"
+
+// DischargeIssuer service issues caveat discharges when requested.
+type Discharger interface {
+  // Discharge is called by a principal that holds a blessing with a third
+  // party caveat and seeks to get a discharge that proves the fulfillment of
+  // this caveat.
+  // Caveat and Discharge are of type ThirdPartyCaveat and ThirdPartyDischarge
+  // respectively. (not enforced here because vdl does not know these types)
+  // TODO(ataly,ashankar): Figure out a VDL representation for ThirdPartyCaveat
+  // and Discharge and use those here?
+  Discharge(Caveat any) (Discharge any, err error) {security.ReadLabel}
+}
