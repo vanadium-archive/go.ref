@@ -35,6 +35,12 @@ func (st *State) Timestamp() uint64 {
 	return st.timestamp
 }
 
+// DeepCopy creates a copy of the state.  Mutations to the copy do not affect
+// the original, and vice versa.
+func (st *State) DeepCopy() *State {
+	return &State{st.MutableSnapshot(), st.timestamp}
+}
+
 // GC performs a manual garbage collection.
 func (st *State) GC() {
 	st.snapshot.gc()

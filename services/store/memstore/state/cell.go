@@ -74,7 +74,7 @@ func (c *Cell) setRefs() {
 }
 
 // get the *storage.Entry for a cell.
-func (c *Cell) getEntry() *storage.Entry {
+func (c *Cell) GetEntry() *storage.Entry {
 	entry := newSubfieldEntry(c.Value)
 	c.fillStat(&entry.Stat)
 	return entry

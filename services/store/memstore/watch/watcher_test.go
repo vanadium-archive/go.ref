@@ -1,6 +1,7 @@
 package watch
 
 import (
+	"bytes"
 	"io"
 	"sync"
 	"testing"
@@ -10,10 +11,11 @@ import (
 	watchtesting "veyron/services/store/memstore/watch/testing"
 	"veyron/services/store/raw"
 
+	"veyron2/services/watch"
 	"veyron2/storage"
 )
 
-func TestWatch(t *testing.T) {
+func TestWatchRaw(t *testing.T) {
 	// Create a new store.
 	dbName, st, cleanup := createStore(t)
 	defer cleanup()
@@ -43,7 +45,7 @@ func TestWatch(t *testing.T) {
 	if change.Continued {
 		t.Error("Expected change to be the last in this transaction")
 	}
-	expectExists(t, changes, id1, storage.NoVersion, post1, true, "val1", empty)
+	watchtesting.ExpectMutationExists(t, changes, id1, storage.NoVersion, post1, true, "val1", watchtesting.EmptyDir)
 
 	// Put /a
 	tr = memstore.NewTransaction()
@@ -69,8 +71,63 @@ func TestWatch(t *testing.T) {
 	if change.Continued {
 		t.Error("Expected change to be the last in this transaction")
 	}
-	expectExists(t, changes, id1, pre1, post1, true, "val1", dir("a", id2))
-	expectExists(t, changes, id2, storage.NoVersion, post2, false, "val2", empty)
+	watchtesting.ExpectMutationExists(t, changes, id1, pre1, post1, true, "val1", watchtesting.DirOf("a", id2))
+	watchtesting.ExpectMutationExists(t, changes, id2, storage.NoVersion, post2, false, "val2", watchtesting.EmptyDir)
+}
+
+func TestWatchGlob(t *testing.T) {
+	// Create a new store.
+	dbName, st, cleanup := createStore(t)
+	defer cleanup()
+
+	// Create a new watcher.
+	w, cleanup := createWatcher(t, dbName)
+	defer cleanup()
+
+	// Put /
+	tr := memstore.NewTransaction()
+	id1 := put(t, st, tr, "/", "val1")
+	commit(t, tr)
+
+	// Start a watch request.
+	path := storage.ParsePath("/")
+	req := watch.GlobRequest{Pattern: "..."}
+	ws := watchtesting.WatchGlobOnPath(rootPublicID, w.WatchGlob, path, req)
+
+	// Check that watch detects the changes in the first transaction.
+	cb, err := ws.Recv()
+	if err != nil {
+		t.Error("Recv() failed: %v", err)
+	}
+	changes := cb.Changes
+	change := changes[0]
+	if change.Continued {
+		t.Error("Expected change to be the last in this transaction")
+	}
+	watchtesting.ExpectEntryExists(t, changes, "", id1, "val1")
+
+	// Put /a
+	tr = memstore.NewTransaction()
+	id2 := put(t, st, tr, "/a", "val2")
+	commit(t, tr)
+
+	// Check that watch detects the changes in the second transaction.
+
+	cb, err = ws.Recv()
+	if err != nil {
+		t.Error("Recv() failed: %v", err)
+	}
+	changes = cb.Changes
+	change = changes[0]
+	if !change.Continued {
+		t.Error("Expected change to continue the transaction")
+	}
+	change = changes[1]
+	if change.Continued {
+		t.Error("Expected change to be the last in this transaction")
+	}
+	watchtesting.ExpectEntryExists(t, changes, "", id1, "val1")
+	watchtesting.ExpectEntryExists(t, changes, "a", id2, "val2")
 }
 
 func TestWatchCancellation(t *testing.T) {
@@ -213,7 +270,7 @@ func TestStateResumeMarker(t *testing.T) {
 	if change.Continued {
 		t.Error("Expected change to be the last in this transaction")
 	}
-	expectExists(t, changes, id1, storage.NoVersion, post11, true, "val1", empty)
+	watchtesting.ExpectMutationExists(t, changes, id1, storage.NoVersion, post11, true, "val1", watchtesting.EmptyDir)
 
 	cb, err = ws.Recv()
 	if err != nil {
@@ -228,8 +285,8 @@ func TestStateResumeMarker(t *testing.T) {
 	if change.Continued {
 		t.Error("Expected change to be the last in this transaction")
 	}
-	expectExists(t, changes, id1, pre21, post21, true, "val1", dir("a", id2))
-	expectExists(t, changes, id2, storage.NoVersion, post22, false, "val2", empty)
+	watchtesting.ExpectMutationExists(t, changes, id1, pre21, post21, true, "val1", watchtesting.DirOf("a", id2))
+	watchtesting.ExpectMutationExists(t, changes, id2, storage.NoVersion, post22, false, "val2", watchtesting.EmptyDir)
 }
 
 func TestTransactionResumeMarker(t *testing.T) {
@@ -288,7 +345,7 @@ func TestTransactionResumeMarker(t *testing.T) {
 	if change.Continued {
 		t.Error("Expected change to be the last in this transaction")
 	}
-	expectExists(t, changes, id1, storage.NoVersion, post11, true, "val1", empty)
+	watchtesting.ExpectMutationExists(t, changes, id1, storage.NoVersion, post11, true, "val1", watchtesting.EmptyDir)
 
 	cb, err = ws.Recv()
 	if err != nil {
@@ -304,8 +361,8 @@ func TestTransactionResumeMarker(t *testing.T) {
 		t.Error("Expected change to be the last in this transaction")
 	}
 	resumeMarker2 := change.ResumeMarker
-	expectExists(t, changes, id1, pre21, post21, true, "val1", dir("a", id2))
-	expectExists(t, changes, id2, storage.NoVersion, post22, false, "val2", empty)
+	watchtesting.ExpectMutationExists(t, changes, id1, pre21, post21, true, "val1", watchtesting.DirOf("a", id2))
+	watchtesting.ExpectMutationExists(t, changes, id2, storage.NoVersion, post22, false, "val2", watchtesting.EmptyDir)
 
 	// Cancel the watch request.
 	ws.Cancel()
@@ -329,8 +386,8 @@ func TestTransactionResumeMarker(t *testing.T) {
 	if change.Continued {
 		t.Error("Expected change to be the last in this transaction")
 	}
-	expectExists(t, changes, id1, pre21, post21, true, "val1", dir("a", id2))
-	expectExists(t, changes, id2, storage.NoVersion, post22, false, "val2", empty)
+	watchtesting.ExpectMutationExists(t, changes, id1, pre21, post21, true, "val1", watchtesting.DirOf("a", id2))
+	watchtesting.ExpectMutationExists(t, changes, id2, storage.NoVersion, post22, false, "val2", watchtesting.EmptyDir)
 }
 
 func TestNowResumeMarker(t *testing.T) {
@@ -377,7 +434,7 @@ func TestNowResumeMarker(t *testing.T) {
 	}
 	changes := cb.Changes
 	change := changes[0]
-	expectInitialStateSkipped(t, change)
+	watchtesting.ExpectInitialStateSkipped(t, change)
 
 	// Check that watch detects the changes in the third transaction.
 	cb, err = ws.Recv()
@@ -393,8 +450,8 @@ func TestNowResumeMarker(t *testing.T) {
 	if change.Continued {
 		t.Error("Expected change to be the last in this transaction")
 	}
-	expectExists(t, changes, id2, pre32, post32, false, "val2", dir("b", id3))
-	expectExists(t, changes, id3, storage.NoVersion, post33, false, "val3", empty)
+	watchtesting.ExpectMutationExists(t, changes, id2, pre32, post32, false, "val2", watchtesting.DirOf("b", id3))
+	watchtesting.ExpectMutationExists(t, changes, id3, storage.NoVersion, post33, false, "val3", watchtesting.EmptyDir)
 }
 
 func TestUnknownResumeMarkers(t *testing.T) {
@@ -429,5 +486,48 @@ func TestUnknownResumeMarkers(t *testing.T) {
 	// The resume marker should be unknown.
 	if err := ws.Finish(); err != ErrUnknownResumeMarker {
 		t.Errorf("Unexpected error: %v", err)
+	}
+}
+
+func TestConsistentResumeMarkers(t *testing.T) {
+	// Create a new store.
+	dbName, st, cleanup := createStore(t)
+	defer cleanup()
+
+	// Create a new watcher.
+	w, cleanup := createWatcher(t, dbName)
+	defer cleanup()
+
+	// Put /
+	tr := memstore.NewTransaction()
+	put(t, st, tr, "/", "val1")
+	commit(t, tr)
+
+	// Start a watch request.
+	path := storage.ParsePath("/")
+	req := watch.GlobRequest{Pattern: "..."}
+	ws := watchtesting.WatchGlobOnPath(rootPublicID, w.WatchGlob, path, req)
+
+	cb, err := ws.Recv()
+	if err != nil {
+		t.Error("Recv() failed: %v", err)
+	}
+	changes := cb.Changes
+	change := changes[0]
+	// Save the ResumeMarker of the change.
+	r := change.ResumeMarker
+
+	// Start another watch request.
+	ws = watchtesting.WatchGlobOnPath(rootPublicID, w.WatchGlob, path, req)
+
+	cb, err = ws.Recv()
+	if err != nil {
+		t.Error("Recv() failed: %v", err)
+	}
+	changes = cb.Changes
+	change = changes[0]
+	// Expect the same ResumeMarker.
+	if !bytes.Equal(r, change.ResumeMarker) {
+		t.Error("Inconsistent ResumeMarker.")
 	}
 }

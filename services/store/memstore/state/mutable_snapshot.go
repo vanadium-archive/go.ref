@@ -355,7 +355,7 @@ func (sn *MutableSnapshot) Get(pid security.PublicID, path storage.PathName) (*s
 	}
 	var e *storage.Entry
 	if len(suffix) == 0 {
-		e = cell.getEntry()
+		e = cell.GetEntry()
 	} else {
 		e = newSubfieldEntry(v)
 	}

@@ -14,9 +14,11 @@ type reqProcessor interface {
 	// the store. The returned changes need not be the sequence of changes that
 	// originally created the initial state (e.g. in the case of compress), but
 	// are sufficient to re-construct the state viewable within the request.
+	// processState may modify its input.
 	processState(st *state.State) ([]watch.Change, error)
 
 	// processTransaction returns the set of changes made in some transaction.
 	// The changes are returned in no specific order.
+	// processTransaction may modify its input.
 	processTransaction(mu *state.Mutations) ([]watch.Change, error)
 }

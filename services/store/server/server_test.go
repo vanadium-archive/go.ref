@@ -132,38 +132,6 @@ func newServer() (*Server, func()) {
 	return s, closer
 }
 
-func expectExists(t *testing.T, changes []watch.Change, id storage.ID, value string) {
-	change := findChange(t, changes, id)
-	if change.State != watch.Exists {
-		t.Fatalf("Expected id to exist: %v", id)
-	}
-	cv := change.Value.(*raw.Mutation)
-	if cv.Value != value {
-		t.Fatalf("Expected Value to be: %v, but was: %v", value, cv.Value)
-	}
-}
-
-func expectDoesNotExist(t *testing.T, changes []watch.Change, id storage.ID) {
-	change := findChange(t, changes, id)
-	if change.State != watch.DoesNotExist {
-		t.Fatalf("Expected id to not exist: %v", id)
-	}
-}
-
-func findChange(t *testing.T, changes []watch.Change, id storage.ID) watch.Change {
-	for _, change := range changes {
-		cv, ok := change.Value.(*raw.Mutation)
-		if !ok {
-			t.Fatal("Expected a Mutation")
-		}
-		if cv.ID == id {
-			return change
-		}
-	}
-	t.Fatalf("Expected a change for id: %v", id)
-	panic("should not reach here")
-}
-
 func TestPutGetRemoveRoot(t *testing.T) {
 	s, c := newServer()
 	defer c()
@@ -390,7 +358,7 @@ func TestWatch(t *testing.T) {
 		if change.Continued {
 			t.Error("Expected change to be the last in this transaction")
 		}
-		expectExists(t, []watch.Change{change}, id1, value1)
+		watchtesting.ExpectMutationExistsNoVersionCheck(t, changes, id1, value1)
 	}
 
 	path2 := "/a"
@@ -429,8 +397,107 @@ func TestWatch(t *testing.T) {
 		if change.Continued {
 			t.Error("Expected change to be the last in this transaction")
 		}
-		expectExists(t, changes, id1, value1)
-		expectExists(t, changes, id2, value2)
+		watchtesting.ExpectMutationExistsNoVersionCheck(t, changes, id1, value1)
+		watchtesting.ExpectMutationExistsNoVersionCheck(t, changes, id2, value2)
+	}
+}
+
+func TestWatchGlob(t *testing.T) {
+	s, c := newServer()
+	defer c()
+
+	value1 := "v1"
+	var id1 storage.ID
+
+	o1 := s.lookupObject("/")
+	o2 := s.lookupObject("/a")
+
+	// Before the watch request has been made, commit a transaction that puts /.
+	{
+		tr := newTransaction()
+		if err := s.CreateTransaction(rootCtx, tr, nil); err != nil {
+			t.Errorf("Unexpected error: %s", err)
+		}
+		st, err := o1.Put(rootCtx, tr, value1)
+		if err != nil {
+			t.Errorf("Unexpected error: %s", err)
+		}
+		id1 = st.ID
+		if err := s.Commit(rootCtx, tr); err != nil {
+			t.Errorf("Unexpected error: %s", err)
+		}
+	}
+
+	// Start watch requests on / and /a.
+	req := watch.GlobRequest{Pattern: "..."}
+	ws1 := watchtesting.WatchGlob(rootPublicID, o1.WatchGlob, req)
+	ws2 := watchtesting.WatchGlob(rootPublicID, o2.WatchGlob, req)
+
+	// The watch on / should send a change on /.
+	{
+		cb, err := ws1.Recv()
+		if err != nil {
+			t.Error("Recv() failed: %v", err)
+		}
+		changes := cb.Changes
+		change := changes[0]
+		if change.Continued {
+			t.Error("Expected change to be the last in this transaction")
+		}
+		watchtesting.ExpectServiceEntryExists(t, changes, "", id1, value1)
+	}
+	// The watch on /a should send no change. The first change it sends is
+	// verified below.
+
+	value2 := "v2"
+	var id2 storage.ID
+
+	// Commit a second transaction that puts /a.
+	{
+		tr := newTransaction()
+		if err := s.CreateTransaction(rootCtx, tr, nil); err != nil {
+			t.Errorf("Unexpected error: %s", err)
+		}
+		st, err := o2.Put(rootCtx, tr, value2)
+		if err != nil {
+			t.Errorf("Unexpected error: %s", err)
+		}
+		id2 = st.ID
+		if err := s.Commit(rootCtx, tr); err != nil {
+			t.Errorf("Unexpected error: %s", err)
+		}
+	}
+
+	// The watch on / should send changes on / and /a.
+	{
+		cb, err := ws1.Recv()
+		if err != nil {
+			t.Error("Recv() failed: %v", err)
+		}
+		changes := cb.Changes
+		change := changes[0]
+		if !change.Continued {
+			t.Error("Expected change to continue the transaction")
+		}
+		change = changes[1]
+		if change.Continued {
+			t.Error("Expected change to be the last in this transaction")
+		}
+		watchtesting.ExpectServiceEntryExists(t, changes, "", id1, value1)
+		watchtesting.ExpectServiceEntryExists(t, changes, "a", id2, value2)
+	}
+	// The watch on /a should send a change on /a.
+	{
+		cb, err := ws2.Recv()
+		if err != nil {
+			t.Error("Recv() failed: %v", err)
+		}
+		changes := cb.Changes
+		change := changes[0]
+		if change.Continued {
+			t.Error("Expected change to be the last in this transaction")
+		}
+		watchtesting.ExpectServiceEntryExists(t, changes, "a", id2, value2)
 	}
 }
 
@@ -474,7 +541,7 @@ func TestGarbageCollectionOnCommit(t *testing.T) {
 		if change.Continued {
 			t.Error("Expected change to be the last in this transaction")
 		}
-		expectExists(t, []watch.Change{change}, id1, value1)
+		watchtesting.ExpectMutationExistsNoVersionCheck(t, changes, id1, value1)
 	}
 
 	path2 := "/a"
@@ -513,8 +580,8 @@ func TestGarbageCollectionOnCommit(t *testing.T) {
 		if change.Continued {
 			t.Error("Expected change to be the last in this transaction")
 		}
-		expectExists(t, changes, id1, value1)
-		expectExists(t, changes, id2, value2)
+		watchtesting.ExpectMutationExistsNoVersionCheck(t, changes, id1, value1)
+		watchtesting.ExpectMutationExistsNoVersionCheck(t, changes, id2, value2)
 	}
 
 	// Commit a third transaction that removes /a.
@@ -543,7 +610,7 @@ func TestGarbageCollectionOnCommit(t *testing.T) {
 		if change.Continued {
 			t.Error("Expected change to be the last in this transaction")
 		}
-		expectExists(t, changes, id1, value1)
+		watchtesting.ExpectMutationExistsNoVersionCheck(t, changes, id1, value1)
 	}
 
 	// Check that watch detects the garbage collection of /a.
@@ -557,7 +624,7 @@ func TestGarbageCollectionOnCommit(t *testing.T) {
 		if change.Continued {
 			t.Error("Expected change to be the last in this transaction")
 		}
-		expectDoesNotExist(t, changes, id2)
+		watchtesting.ExpectMutationDoesNotExistNoVersionCheck(t, changes, id2)
 	}
 }
 

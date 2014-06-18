@@ -98,7 +98,7 @@ func (sn *snapshot) Get(pid security.PublicID, path storage.PathName) (*storage.
 	}
 	var e *storage.Entry
 	if len(suffix) == 0 {
-		e = cell.getEntry()
+		e = cell.GetEntry()
 	} else {
 		e = newSubfieldEntry(v)
 	}
