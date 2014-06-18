@@ -20,8 +20,8 @@ func main() {
 	// TODO(rthellend): Remove the address and protocol flags when the config manager is working.
 	var address, protocol, publishAs string
 	flag.StringVar(&address, "address", "localhost:0", "network address to listen on")
-	flag.StringVar(&publishAs, "name", "", "name to publish the node manager at")
 	flag.StringVar(&protocol, "protocol", "tcp", "network type to listen on")
+	flag.StringVar(&publishAs, "name", "", "name to publish the node manager at")
 	flag.Parse()
 	if os.Getenv(impl.ORIGIN_ENV) == "" {
 		vlog.Fatalf("Specify the node manager origin as environment variable %s=<name>", impl.ORIGIN_ENV)
@@ -37,19 +37,14 @@ func main() {
 	if err != nil {
 		vlog.Fatalf("Listen(%v, %v) failed: %v", protocol, address, err)
 	}
-	envelope := &application.Envelope{}
-	suffix, crSuffix, arSuffix := "", "cr", "ar"
+	suffix, envelope := "", &application.Envelope{}
 	name := naming.MakeTerminal(naming.JoinAddressName(endpoint.String(), suffix))
 	vlog.VI(0).Infof("Node manager name: %v", name)
-	dispatcher, crDispatcher, arDispatcher := impl.NewDispatchers(vflag.NewAuthorizerOrDie(), envelope, name)
+	// TODO(jsimsa): Replace PREVIOUS_ENV with a command-line flag when
+	// command-line flags are supported in tests.
+	dispatcher := impl.NewDispatcher(vflag.NewAuthorizerOrDie(), envelope, name, os.Getenv(impl.PREVIOUS_ENV))
 	if err := server.Register(suffix, dispatcher); err != nil {
 		vlog.Fatalf("Register(%v, %v) failed: %v", suffix, dispatcher, err)
-	}
-	if err := server.Register(crSuffix, crDispatcher); err != nil {
-		vlog.Fatalf("Register(%v, %v) failed: %v", crSuffix, crDispatcher, err)
-	}
-	if err := server.Register(arSuffix, arDispatcher); err != nil {
-		vlog.Fatalf("Register(%v, %v) failed: %v", arSuffix, arDispatcher, err)
 	}
 	if len(publishAs) > 0 {
 		if err := server.Publish(publishAs); err != nil {

@@ -1,27 +1,149 @@
-package impl
+package impl_test
 
 import (
+	"errors"
 	"fmt"
+	"io"
+	"io/ioutil"
 	"os"
+	"path/filepath"
+	"regexp"
+	"strings"
 	"syscall"
 	"testing"
+	"time"
 
 	"veyron/lib/exec"
 	"veyron/lib/signals"
 	"veyron/lib/testutil"
 	"veyron/lib/testutil/blackbox"
 	"veyron/services/mgmt/node"
+	"veyron/services/mgmt/node/impl"
 	mtlib "veyron/services/mounttable/lib"
 
 	"veyron2"
+	"veyron2/ipc"
 	"veyron2/naming"
 	"veyron2/rt"
 	"veyron2/services/mgmt/application"
+	"veyron2/services/mgmt/content"
 	"veyron2/vlog"
+)
+
+const (
+	TEST_ENV = "VEYRON_NM_TEST"
+)
+
+var (
+	errOperationFailed = errors.New("operation failed")
 )
 
 func init() {
 	blackbox.CommandTable["nodeManager"] = nodeManager
+}
+
+// arInvoker holds the state of an application repository invocation
+// mock.
+type arInvoker struct{}
+
+// APPLICATION REPOSITORY INTERFACE IMPLEMENTATION
+
+func (i *arInvoker) Match(ipc.ServerContext, []string) (application.Envelope, error) {
+	vlog.VI(0).Infof("Match()")
+	envelope := generateEnvelope()
+	envelope.Env = exec.Setenv(envelope.Env, TEST_ENV, "child")
+	envelope.Binary = "cr"
+	return *envelope, nil
+}
+
+// crInvoker holds the state of a content repository invocation mock.
+type crInvoker struct{}
+
+// CONTENT REPOSITORY INTERFACE IMPLEMENTATION
+
+func (i *crInvoker) Delete(ipc.ServerContext) error {
+	vlog.VI(0).Infof("Delete()")
+	return nil
+}
+
+func (i *crInvoker) Download(_ ipc.ServerContext, stream content.RepositoryServiceDownloadStream) error {
+	vlog.VI(0).Infof("Download()")
+	file, err := os.Open(os.Args[0])
+	if err != nil {
+		vlog.Errorf("Open() failed: %v", err)
+		return errOperationFailed
+	}
+	defer file.Close()
+	bufferLength := 4096
+	buffer := make([]byte, bufferLength)
+	for {
+		n, err := file.Read(buffer)
+		switch err {
+		case io.EOF:
+			return nil
+		case nil:
+			if err := stream.Send(buffer[:n]); err != nil {
+				vlog.Errorf("Send() failed: %v", err)
+				return errOperationFailed
+			}
+		default:
+			vlog.Errorf("Read() failed: %v", err)
+			return errOperationFailed
+		}
+	}
+}
+
+func (i *crInvoker) Upload(ipc.ServerContext, content.RepositoryServiceUploadStream) (string, error) {
+	vlog.VI(0).Infof("Upload()")
+	return "", nil
+}
+
+func generateBinary(workspace string) string {
+	path := filepath.Join(workspace, "noded")
+	if err := os.Link(os.Args[0], path); err != nil {
+		vlog.Fatalf("Link(%v, %v) failed: %v", os.Args[0], path, err)
+	}
+	return path
+}
+
+func generateEnvelope() *application.Envelope {
+	envelope := &application.Envelope{}
+	envelope.Args = os.Args[1:]
+	re := regexp.MustCompile("^([^=]*)=(.*)$")
+	for _, env := range os.Environ() {
+		envelope.Env = append(envelope.Env, re.ReplaceAllString(env, "$1=\"$2\""))
+	}
+	return envelope
+}
+
+func generateLink(root, workspace string) {
+	link := filepath.Join(root, impl.CURRENT)
+	newLink := link + ".new"
+	fi, err := os.Lstat(newLink)
+	if err == nil {
+		if err := os.Remove(fi.Name()); err != nil {
+			vlog.Fatalf("Remove(%v) failed: %v", fi.Name(), err)
+		}
+	}
+	if err := os.Symlink(workspace, newLink); err != nil {
+		vlog.Fatalf("Symlink(%v, %v) failed: %v", workspace, newLink, err)
+	}
+	if err := os.Rename(newLink, link); err != nil {
+		vlog.Fatalf("Rename(%v, %v) failed: %v", newLink, link, err)
+	}
+}
+
+func generateScript(workspace, binary string) string {
+	envelope := generateEnvelope()
+	envelope.Env = exec.Setenv(envelope.Env, TEST_ENV, "parent")
+	output := "#!/bin/bash\n"
+	output += strings.Join(envelope.Env, " ") + " "
+	output += binary + " " + strings.Join(envelope.Args, " ")
+	path := filepath.Join(workspace, "noded.sh")
+	if err := ioutil.WriteFile(path, []byte(output), 0755); err != nil {
+		vlog.Fatalf("WriteFile(%v) failed: %v", path, err)
+	}
+	return path
 }
 
 func invokeCallback(name string) {
@@ -48,62 +170,129 @@ func invokeCallback(name string) {
 	}
 }
 
-func invokeUpdate(t *testing.T, nmAddress string) {
-	address := naming.JoinAddressName(nmAddress, "nm")
-	nmClient, err := node.BindNode(address)
+func invokeUpdate(t *testing.T, name string) {
+	address := naming.JoinAddressName(name, "nm")
+	stub, err := node.BindNode(address)
 	if err != nil {
 		t.Fatalf("BindNode(%v) failed: %v", address, err)
 	}
-	if err := nmClient.Update(rt.R().NewContext()); err != nil {
-		t.Fatalf("%v.Update() failed: %v", address, err)
+	if err := stub.Update(rt.R().NewContext()); err != nil {
+		t.Fatalf("Update() failed: %v", err)
 	}
 }
 
-// nodeManager is an enclosure for the node manager blackbox process.
+// nodeManager is an enclosure for setting up and starting the parent
+// and child node manager used by the TestUpdate() method.
 func nodeManager(argv []string) {
-	// The node manager program logic assumes that its binary is
-	// executed through a symlink. To meet this assumption, the first
-	// time this binary is started it creates a symlink to itself and
-	// restarts itself using this symlink.
-	fi, err := os.Lstat(os.Args[0])
-	if err != nil {
-		vlog.Fatalf("Lstat(%v) failed: %v", os.Args[0], err)
-	}
-	if fi.Mode()&os.ModeSymlink != os.ModeSymlink && os.Getenv(TEST_UPDATE_ENV) == "" {
-		symlink := os.Args[0] + ".symlink"
-		if err := os.Symlink(os.Args[0], symlink); err != nil {
-			vlog.Fatalf("Symlink(%v, %v) failed: %v", os.Args[0], symlink, err)
+	root := os.Getenv(impl.ROOT_ENV)
+	switch os.Getenv(TEST_ENV) {
+	case "setup":
+		workspace := filepath.Join(root, fmt.Sprintf("%v", time.Now().Format(time.RFC3339Nano)))
+		perm := os.FileMode(0755)
+		if err := os.MkdirAll(workspace, perm); err != nil {
+			vlog.Fatalf("MkdirAll(%v, %v) failed: %v", workspace, perm, err)
 		}
-		argv := append([]string{symlink}, os.Args[1:]...)
-		envv := os.Environ()
-		if err := syscall.Exec(symlink, argv, envv); err != nil {
-			vlog.Fatalf("Exec(%v, %v, %v) failed: %v", symlink, argv, envv, err)
+		binary := generateBinary(workspace)
+		script := generateScript(workspace, binary)
+		generateLink(root, workspace)
+		argv, envv := []string{}, []string{}
+		if err := syscall.Exec(script, argv, envv); err != nil {
+			vlog.Fatalf("Exec(%v, %v, %v) failed: %v", script, argv, envv, err)
 		}
-	} else {
+	case "parent":
 		runtime := rt.Init()
 		defer runtime.Shutdown()
-		address, nmCleanup := startNodeManager(runtime, argv[0], argv[1])
+		// Set up a mock content repository, a mock application repository, and a node manager.
+		_, crCleanup := startContentRepository()
+		defer crCleanup()
+		_, arCleanup := startApplicationRepository()
+		defer arCleanup()
+		_, nmCleanup := startNodeManager()
 		defer nmCleanup()
-		invokeCallback(address)
+		// Wait until shutdown.
+		<-signals.ShutdownOnSignals()
+		blackbox.WaitForEOFOnStdin()
+	case "child":
+		runtime := rt.Init()
+		defer runtime.Shutdown()
+		// Set up a node manager.
+		name, nmCleanup := startNodeManager()
+		defer nmCleanup()
+		invokeCallback(name)
 		// Wait until shutdown.
 		<-signals.ShutdownOnSignals()
 		blackbox.WaitForEOFOnStdin()
 	}
 }
 
-func spawnNodeManager(t *testing.T, mtAddress string, idFile string) *blackbox.Child {
-	child := blackbox.HelperCommand(t, "nodeManager", mtAddress, idFile)
-	child.Cmd.Env = exec.SetEnv(child.Cmd.Env, "MOUNTTABLE_ROOT", mtAddress)
-	child.Cmd.Env = exec.SetEnv(child.Cmd.Env, "VEYRON_IDENTITY", idFile)
-	child.Cmd.Env = exec.SetEnv(child.Cmd.Env, "VEYRON_NM_ROOT", os.TempDir())
+func spawnNodeManager(t *testing.T, mtName string, idFile string) *blackbox.Child {
+	root := filepath.Join(os.TempDir(), "noded")
+	child := blackbox.HelperCommand(t, "nodeManager")
+	child.Cmd.Env = exec.Setenv(child.Cmd.Env, "MOUNTTABLE_ROOT", mtName)
+	child.Cmd.Env = exec.Setenv(child.Cmd.Env, "VEYRON_IDENTITY", idFile)
+	child.Cmd.Env = exec.Setenv(child.Cmd.Env, impl.ORIGIN_ENV, "ar")
+	child.Cmd.Env = exec.Setenv(child.Cmd.Env, impl.ROOT_ENV, root)
+	child.Cmd.Env = exec.Setenv(child.Cmd.Env, TEST_ENV, "setup")
 	if err := child.Cmd.Start(); err != nil {
 		t.Fatalf("Start() failed: %v", err)
 	}
 	return child
 }
 
-func startMountTable(t *testing.T, runtime veyron2.Runtime) (string, func()) {
-	server, err := runtime.NewServer(veyron2.ServesMountTableOpt(true))
+func startApplicationRepository() (string, func()) {
+	server, err := rt.R().NewServer()
+	if err != nil {
+		vlog.Fatalf("NewServer() failed: %v", err)
+	}
+	suffix, dispatcher := "", ipc.SoloDispatcher(application.NewServerRepository(&arInvoker{}), nil)
+	if err := server.Register(suffix, dispatcher); err != nil {
+		vlog.Fatalf("Register(%v, %v) failed: %v", suffix, dispatcher, err)
+	}
+	protocol, hostname := "tcp", "localhost:0"
+	endpoint, err := server.Listen(protocol, hostname)
+	if err != nil {
+		vlog.Fatalf("Listen(%v, %v) failed: %v", protocol, hostname, err)
+	}
+	vlog.VI(1).Infof("Application repository running at endpoint: %s", endpoint)
+	name := "ar"
+	if err := server.Publish(name); err != nil {
+		vlog.Fatalf("Publish(%v) failed: %v", name, err)
+	}
+	return name, func() {
+		if err := server.Stop(); err != nil {
+			vlog.Fatalf("Stop() failed: %v", err)
+		}
+	}
+}
+
+func startContentRepository() (string, func()) {
+	server, err := rt.R().NewServer()
+	if err != nil {
+		vlog.Fatalf("NewServer() failed: %v", err)
+	}
+	suffix, dispatcher := "", ipc.SoloDispatcher(content.NewServerRepository(&crInvoker{}), nil)
+	if err := server.Register(suffix, dispatcher); err != nil {
+		vlog.Fatalf("Register(%v, %v) failed: %v", suffix, dispatcher, err)
+	}
+	protocol, hostname := "tcp", "localhost:0"
+	endpoint, err := server.Listen(protocol, hostname)
+	if err != nil {
+		vlog.Fatalf("Listen(%v, %v) failed: %v", protocol, hostname, err)
+	}
+	vlog.VI(1).Infof("Content repository running at endpoint: %s", endpoint)
+	name := "cr"
+	if err := server.Publish(name); err != nil {
+		vlog.Fatalf("Publish(%v) failed: %v", name, err)
+	}
+	return name, func() {
+		if err := server.Stop(); err != nil {
+			vlog.Fatalf("Stop() failed: %v", err)
+		}
+	}
+}
+
+func startMountTable(t *testing.T) (string, func()) {
+	server, err := rt.R().NewServer(veyron2.ServesMountTableOpt(true))
 	if err != nil {
 		t.Fatalf("NewServer() failed: %v", err)
 	}
@@ -129,8 +318,8 @@ func startMountTable(t *testing.T, runtime veyron2.Runtime) (string, func()) {
 	}
 }
 
-func startNodeManager(runtime veyron2.Runtime, mtAddress, idFile string) (string, func()) {
-	server, err := runtime.NewServer()
+func startNodeManager() (string, func()) {
+	server, err := rt.R().NewServer()
 	if err != nil {
 		vlog.Fatalf("NewServer() failed: %v", err)
 	}
@@ -139,29 +328,19 @@ func startNodeManager(runtime veyron2.Runtime, mtAddress, idFile string) (string
 	if err != nil {
 		vlog.Fatalf("Listen(%v, %v) failed: %v", protocol, hostname, err)
 	}
-	envelope := &application.Envelope{}
-	envelope.Args = make([]string, 0)
-	envelope.Args = os.Args[1:]
-	envelope.Env = make([]string, 0)
-	envelope.Env = append(envelope.Env, os.Environ()...)
-	suffix, crSuffix, arSuffix := "", "cr", "ar"
+	suffix, envelope := "", &application.Envelope{}
 	name := naming.MakeTerminal(naming.JoinAddressName(endpoint.String(), suffix))
-	vlog.VI(1).Infof("Node manager name: %v", name)
-	dispatcher, crDispatcher, arDispatcher := NewDispatchers(nil, envelope, name)
+	vlog.VI(0).Infof("Node manager name: %v", name)
+	// TODO(jsimsa): Replace PREVIOUS_ENV with a command-line flag when
+	// command-line flags in tests are supported.
+	dispatcher := impl.NewDispatcher(nil, envelope, name, os.Getenv(impl.PREVIOUS_ENV))
 	if err := server.Register(suffix, dispatcher); err != nil {
 		vlog.Fatalf("Register(%v, %v) failed: %v", suffix, dispatcher, err)
-	}
-	if err := server.Register(crSuffix, crDispatcher); err != nil {
-		vlog.Fatalf("Register(%v, %v) failed: %v", crSuffix, crDispatcher, err)
-	}
-	if err := server.Register(arSuffix, arDispatcher); err != nil {
-		vlog.Fatalf("Register(%v, %v) failed: %v", arSuffix, arDispatcher, err)
 	}
 	publishAs := "nm"
 	if err := server.Publish(publishAs); err != nil {
 		vlog.Fatalf("Publish(%v) failed: %v", publishAs, err)
 	}
-	os.Setenv(ORIGIN_ENV, naming.JoinAddressName(name, "ar"))
 	fmt.Printf("ready\n")
 	return name, func() {
 		if err := server.Stop(); err != nil {
@@ -174,18 +353,44 @@ func TestHelperProcess(t *testing.T) {
 	blackbox.HelperProcess(t)
 }
 
+// TestUpdate checks that the node manager Update() method works as
+// expected. To that end, this test spawns a new process that invokes
+// the nodeManager() method. The behavior of this method depends on
+// the value of the VEYRON_NM_TEST environment variable:
+//
+// 1) Initially, the value of VEYRON_NM_TEST is set to be "setup",
+// which prompts the nodeManager() method to setup a new workspace
+// that mimics the structure used for storing the node manager
+// binary. The method then sets VEYRON_NM_TEST to "parent" and
+// restarts itself using syscall.Exec(), effectively becoming the
+// process described next.
+//
+// 2) The "parent" branch sets up a mock application and content
+// repository and a node manager that is pointed to the mock
+// application repository for updates. When all three services start,
+// the TestUpdate() method is notified and it proceeds to invoke
+// Update() on the node manager. This in turn results in the node
+// manager downloading an application envelope from the mock
+// application repository and a binary from the mock content
+// repository. These are identical to the application envelope of the
+// "parent" node manager, except for the VEYRON_NM_TEST variable,
+// which is set to "child". The Update() method then spawns the child
+// node manager, checks that it is a valid node manager, and
+// terminates.
+//
+// 3) The "child" branch sets up a node manager and then calls back to
+// the "parent" node manager. This prompts the parent node manager to
+// invoke the Revert() method on the child node manager, which
+// terminates the child.
 func TestUpdate(t *testing.T) {
 	// Set up a mount table.
 	runtime := rt.Init()
-	defer runtime.Shutdown()
-	mtName, mtCleanup := startMountTable(t, runtime)
+	mtName, mtCleanup := startMountTable(t)
 	defer mtCleanup()
 	ns := runtime.Namespace()
-	// The local, client side Namespace is now relative to the
+	// The local, client-side Namespace is now relative to the
 	// MountTable server started above.
 	ns.SetRoots([]string{mtName})
-	ctx := runtime.NewContext()
-
 	// Spawn a node manager with an identity blessed by the MountTable's
 	// identity under the name "test", and obtain its address.
 	//
@@ -196,7 +401,7 @@ func TestUpdate(t *testing.T) {
 	child := spawnNodeManager(t, mtName, idFile)
 	defer child.Cleanup()
 	child.Expect("ready")
-	name := naming.Join(mtName, "nm")
+	ctx, name := runtime.NewContext(), naming.Join(mtName, "nm")
 	results, err := ns.Resolve(ctx, name)
 	if err != nil {
 		t.Fatalf("Resolve(%v) failed: %v", name, err)
@@ -204,11 +409,6 @@ func TestUpdate(t *testing.T) {
 	if expected, got := 1, len(results); expected != got {
 		t.Fatalf("Unexpected number of results: expected %d, got %d", expected, got)
 	}
-	nmAddress := results[0]
-	vlog.VI(1).Infof("Node manager name: %v address: %v", name, nmAddress)
-
-	// Invoke the Update method and check that another instance of the
-	// node manager binary has been started.
-	invokeUpdate(t, nmAddress)
+	invokeUpdate(t, name)
 	child.Expect("ready")
 }

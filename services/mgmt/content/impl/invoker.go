@@ -116,7 +116,7 @@ func (i *invoker) Delete(context ipc.ServerContext) error {
 	return nil
 }
 
-func (i *invoker) Download(context ipc.ServerContext, stream content.ContentServiceDownloadStream) error {
+func (i *invoker) Download(context ipc.ServerContext, stream content.RepositoryServiceDownloadStream) error {
 	vlog.VI(0).Infof("%v.Download()", i.suffix)
 	if !isValid(i.suffix) {
 		return errInvalidSuffix
@@ -147,7 +147,7 @@ func (i *invoker) Download(context ipc.ServerContext, stream content.ContentServ
 	return nil
 }
 
-func (i *invoker) Upload(context ipc.ServerContext, stream content.ContentServiceUploadStream) (string, error) {
+func (i *invoker) Upload(context ipc.ServerContext, stream content.RepositoryServiceUploadStream) (string, error) {
 	vlog.VI(0).Infof("%v.Upload()", i.suffix)
 	if i.suffix != "" {
 		return "", errInvalidSuffix

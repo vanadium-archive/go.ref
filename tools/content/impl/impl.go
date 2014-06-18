@@ -24,7 +24,7 @@ func runDelete(cmd *cmdline.Command, args []string) error {
 	if expected, got := 1, len(args); expected != got {
 		return cmd.Errorf("delete: incorrect number of arguments, expected %d, got %d", expected, got)
 	}
-	c, err := content.BindContent(args[0])
+	c, err := content.BindRepository(args[0])
 	if err != nil {
 		return fmt.Errorf("bind error: %v", err)
 	}
@@ -61,7 +61,7 @@ func runDownload(cmd *cmdline.Command, args []string) error {
 	}
 	defer f.Close()
 
-	c, err := content.BindContent(args[0])
+	c, err := content.BindRepository(args[0])
 	if err != nil {
 		return fmt.Errorf("bind error: %v", err)
 	}
@@ -119,7 +119,7 @@ func runUpload(cmd *cmdline.Command, args []string) error {
 	}
 	defer f.Close()
 
-	c, err := content.BindContent(args[0])
+	c, err := content.BindRepository(args[0])
 	if err != nil {
 		return fmt.Errorf("bind error: %v", err)
 	}

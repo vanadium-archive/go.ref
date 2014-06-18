@@ -32,14 +32,14 @@ func (s *server) Delete(ipc.ServerContext) error {
 	return nil
 }
 
-func (s *server) Download(_ ipc.ServerContext, stream content.ContentServiceDownloadStream) error {
+func (s *server) Download(_ ipc.ServerContext, stream content.RepositoryServiceDownloadStream) error {
 	vlog.VI(2).Infof("Download() was called. suffix=%v", s.suffix)
 	stream.Send([]byte("Hello"))
 	stream.Send([]byte("World"))
 	return nil
 }
 
-func (s *server) Upload(_ ipc.ServerContext, stream content.ContentServiceUploadStream) (string, error) {
+func (s *server) Upload(_ ipc.ServerContext, stream content.RepositoryServiceUploadStream) (string, error) {
 	vlog.VI(2).Infof("Upload() was called. suffix=%v", s.suffix)
 	for {
 		if _, err := stream.Recv(); err != nil {
@@ -57,7 +57,7 @@ func NewDispatcher() *dispatcher {
 }
 
 func (d *dispatcher) Lookup(suffix string) (ipc.Invoker, security.Authorizer, error) {
-	invoker := ipc.ReflectInvoker(content.NewServerContent(&server{suffix: suffix}))
+	invoker := ipc.ReflectInvoker(content.NewServerRepository(&server{suffix: suffix}))
 	return invoker, nil, nil
 }
 
