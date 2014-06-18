@@ -25,7 +25,7 @@ var (
 
 // invokeUpload invokes the Upload RPC using the given client stub
 // <stub> and streams the given content <content> to it.
-func invokeUpload(t *testing.T, stub content.Content, content []byte) (string, error) {
+func invokeUpload(t *testing.T, stub content.Repository, content []byte) (string, error) {
 	stream, err := stub.Upload(rt.R().NewContext())
 	if err != nil {
 		return "", err
@@ -47,7 +47,7 @@ func invokeUpload(t *testing.T, stub content.Content, content []byte) (string, e
 
 // invokeDownload invokes the Download RPC using the given client stub
 // <stub> and streams content from to it.
-func invokeDownload(t *testing.T, stub content.Content) ([]byte, error) {
+func invokeDownload(t *testing.T, stub content.Repository) ([]byte, error) {
 	stream, err := stub.Download(rt.R().NewContext())
 	if err != nil {
 		return nil, err
@@ -62,7 +62,7 @@ func invokeDownload(t *testing.T, stub content.Content) ([]byte, error) {
 
 // invokeDelete invokes the Delete RPC using the given client stub
 // <stub>.
-func invokeDelete(t *testing.T, stub content.Content) error {
+func invokeDelete(t *testing.T, stub content.Repository) error {
 	return stub.Delete(rt.R().NewContext())
 }
 
@@ -92,9 +92,9 @@ func testInterface(t *testing.T, runtime veyron2.Runtime, depth int) {
 
 	// Create client stubs for talking to the server.
 	name := naming.JoinAddressName(endpoint.String(), "//")
-	stub, err := content.BindContent(name)
+	stub, err := content.BindRepository(name)
 	if err != nil {
-		t.Fatalf("BindContent() failed: %v", err)
+		t.Fatalf("BindRepository() failed: %v", err)
 	}
 
 	// Upload
@@ -110,9 +110,9 @@ func testInterface(t *testing.T, runtime veyron2.Runtime, depth int) {
 	}
 
 	// Download
-	stub, err = content.BindContent(naming.Join(name, checksum))
+	stub, err = content.BindRepository(naming.Join(name, checksum))
 	if err != nil {
-		t.Fatalf("BindContent() failed: %v", err)
+		t.Fatalf("BindRepository() failed: %v", err)
 	}
 	output, err := invokeDownload(t, stub)
 	if err != nil {

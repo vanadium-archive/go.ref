@@ -1,5 +1,29 @@
 package impl
 
+// The implementation of the node manager expects that the node
+// manager installations are all organized in the following directory
+// structure:
+//
+// VEYRON_NM_ROOT/
+//   current # symlink to one of the workspaces
+//   workspace-1/
+//     noded - the node manager binary
+//     noded.sh - a shell script to start the binary
+//  ...
+//   workspace-n/
+//     noded - the node manager binary
+//     noded.sh - a shell script to start the binary
+//
+// The node manager is always expected to be started through
+// VEYRON_NM_ROOT/current/noded.sh, which is monitored by an init
+// daemon. This provides for simple and robust updates.
+//
+// To update the node manager to a newer version, a new workspace is
+// created and the "current" symlink is updated
+// accordingly. Similarly, to revert the node manager to a previous
+// version, all that is required is to update the symlink to point to
+// the previous workspace.
+
 import (
 	"bytes"
 	"errors"
@@ -31,7 +55,9 @@ import (
 	"veyron2/vlog"
 )
 
-var updateSuffix = regexp.MustCompile(`^apps\/.*$`)
+const CURRENT = "current"
+
+var appsSuffix = regexp.MustCompile(`^apps\/.*$`)
 
 // state wraps state shared between different node manager
 // invocations.
@@ -46,6 +72,9 @@ type state struct {
 	envelope *application.Envelope
 	// name is the node manager name.
 	name string
+	// previous holds the local path to the previous version of the node
+	// manager.
+	previous string
 	// updating is a flag that records whether this instance of node
 	// manager is being updated.
 	updating bool
@@ -298,7 +327,7 @@ func (i *invoker) Reset(call ipc.ServerContext, deadline uint64) error {
 // APPLICATION INTERFACE IMPLEMENTATION
 
 func downloadBinary(workspace, binary string) error {
-	stub, err := content.BindContent(binary)
+	stub, err := content.BindRepository(binary)
 	if err != nil {
 		vlog.Errorf("BindContent(%q) failed: %v", binary, err)
 		return errOperationFailed
@@ -372,10 +401,19 @@ func generateBinary(workspace string, envelope *application.Envelope, newBinary 
 	return nil
 }
 
+// TODO(jsimsa): Replace PREVIOUS_ENV with a command-line flag when
+// command-line flags in tests are supported.
 func generateScript(workspace string, envelope *application.Envelope) error {
+	path, err := filepath.EvalSymlinks(os.Args[0])
+	if err != nil {
+		vlog.Errorf("EvalSymlinks(%v) failed: %v", os.Args[0], err)
+		return errOperationFailed
+	}
 	output := "#!/bin/bash\n"
-	output += strings.Join(envelope.Env, " ") + " " + os.Args[0] + " " + strings.Join(envelope.Args, " ")
-	path := filepath.Join(workspace, "noded.sh")
+	output += PREVIOUS_ENV + "=" + filepath.Dir(path) + " "
+	output += strings.Join(envelope.Env, " ") + " "
+	output += os.Args[0] + " " + strings.Join(envelope.Args, " ")
+	path = filepath.Join(workspace, "noded.sh")
 	if err := ioutil.WriteFile(path, []byte(output), 0755); err != nil {
 		vlog.Errorf("WriteFile(%v) failed: %v", path, err)
 		return errOperationFailed
@@ -383,8 +421,25 @@ func generateScript(workspace string, envelope *application.Envelope) error {
 	return nil
 }
 
+// getCurrentFileInfo returns the os.FileInfo for both the symbolic
+// link $VEYRON_NM_ROOT/current and the workspace this link points to.
+func getCurrentFileInfo() (os.FileInfo, os.FileInfo, error) {
+	path := filepath.Join(os.Getenv(ROOT_ENV), CURRENT)
+	link, err := os.Lstat(path)
+	if err != nil {
+		vlog.Errorf("Lstat(%v) failed: %v", path, err)
+		return nil, nil, err
+	}
+	workspace, err := os.Stat(path)
+	if err != nil {
+		vlog.Errorf("Stat(%v) failed: %v", path, err)
+		return nil, nil, err
+	}
+	return link, workspace, nil
+}
+
 func updateLink(workspace string) error {
-	link := filepath.Join(os.Getenv(ROOT_ENV), "stable")
+	link := filepath.Join(os.Getenv(ROOT_ENV), CURRENT)
 	newLink := link + ".new"
 	fi, err := os.Lstat(newLink)
 	if err == nil {
@@ -410,12 +465,17 @@ func (i *invoker) registerCallback(id string, channel chan string) {
 	i.state.channels[id] = channel
 }
 
+func (i *invoker) revertNodeManager() error {
+	if err := updateLink(i.state.previous); err != nil {
+		return err
+	}
+	rt.R().Stop()
+	return nil
+}
+
 func (i *invoker) testNodeManager(workspace string, envelope *application.Envelope) error {
-	path := filepath.Join(workspace, "noded")
-	cmd := exec.Command(path, envelope.Args...)
-	cmd.Env = envelope.Env
-	cmd.Env = vexec.SetEnv(cmd.Env, ORIGIN_ENV, naming.JoinAddressName(i.state.name, "ar"))
-	cmd.Env = vexec.SetEnv(cmd.Env, TEST_UPDATE_ENV, "1")
+	path := filepath.Join(workspace, "noded.sh")
+	cmd := exec.Command(path)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	// Setup up the child process callback.
@@ -446,21 +506,48 @@ func (i *invoker) testNodeManager(workspace string, envelope *application.Envelo
 		nmClient, err := node.BindNode(address)
 		if err != nil {
 			vlog.Errorf("BindNode(%v) failed: %v", address, err)
-			if err := cmd.Process.Kill(); err != nil {
-				vlog.Errorf("Kill() failed: %v", err)
+			if err := handle.Clean(); err != nil {
+				vlog.Errorf("Clean() failed: %v", err)
 			}
 			return errOperationFailed
 		}
-		if err := nmClient.Update(rt.R().NewContext()); err != nil {
-			if err := cmd.Process.Kill(); err != nil {
-				vlog.Errorf("Kill() failed: %v", err)
+		linkOld, workspaceOld, err := getCurrentFileInfo()
+		if err != nil {
+			if err := handle.Clean(); err != nil {
+				vlog.Errorf("Clean() failed: %v", err)
 			}
+			return errOperationFailed
+		}
+		if err := nmClient.Revert(rt.R().NewContext()); err != nil {
+			if err := handle.Clean(); err != nil {
+				vlog.Errorf("Clean() failed: %v", err)
+			}
+			return errOperationFailed
+		}
+		linkNew, workspaceNew, err := getCurrentFileInfo()
+		if err != nil {
+			if err := handle.Clean(); err != nil {
+				vlog.Errorf("Clean() failed: %v", err)
+			}
+			return errOperationFailed
+		}
+		// Check that the new node manager updated the symbolic link
+		// $VEYRON_NM_ROOT/current.
+		if !linkOld.ModTime().Before(linkNew.ModTime()) {
+			vlog.Errorf("new node manager test failed")
+			return errOperationFailed
+		}
+		// Check that the symbolic link $VEYRON_NM_ROOT/current points to
+		// the same workspace.
+		if workspaceOld.Name() != workspaceNew.Name() {
+			updateLink(workspaceOld.Name())
+			vlog.Errorf("new node manager test failed")
 			return errOperationFailed
 		}
 	case <-time.After(testTimeout):
 		vlog.Errorf("Waiting for callback timed out")
-		if err := cmd.Process.Kill(); err != nil {
-			vlog.Errorf("Kill() failed: %v", err)
+		if err := handle.Clean(); err != nil {
+			vlog.Errorf("Clean() failed: %v", err)
 		}
 		return errOperationFailed
 	}
@@ -500,24 +587,18 @@ func (i *invoker) updateNodeManager() error {
 			}
 			return err
 		}
-		if os.Getenv(TEST_UPDATE_ENV) == "" {
-			if err := i.testNodeManager(workspace, envelope); err != nil {
-				if err := os.RemoveAll(workspace); err != nil {
-					vlog.Errorf("RemoveAll(%v) failed: %v", workspace, err)
-				}
-				return err
-			}
-			// If the binary has changed, update the node manager symlink.
-			if err := updateLink(workspace); err != nil {
-				if err := os.RemoveAll(workspace); err != nil {
-					vlog.Errorf("RemoveAll(%v) failed: %v", workspace, err)
-				}
-				return err
-			}
-		} else {
+		if err := i.testNodeManager(workspace, envelope); err != nil {
 			if err := os.RemoveAll(workspace); err != nil {
 				vlog.Errorf("RemoveAll(%v) failed: %v", workspace, err)
 			}
+			return err
+		}
+		// If the binary has changed, update the node manager symlink.
+		if err := updateLink(workspace); err != nil {
+			if err := os.RemoveAll(workspace); err != nil {
+				vlog.Errorf("RemoveAll(%v) failed: %v", workspace, err)
+			}
+			return err
 		}
 		rt.R().Stop()
 	}
@@ -530,10 +611,60 @@ func (i *invoker) Install(call ipc.ServerContext) (string, error) {
 	return "", nil
 }
 
+func (i *invoker) Refresh(call ipc.ServerContext) error {
+	vlog.VI(0).Infof("%v.Refresh()", i.suffix)
+	// TODO(jsimsa): Implement.
+	return nil
+}
+
+func (i *invoker) Restart(call ipc.ServerContext) error {
+	vlog.VI(0).Infof("%v.Restart()", i.suffix)
+	// TODO(jsimsa): Implement.
+	return nil
+}
+
+func (i *invoker) Resume(call ipc.ServerContext) error {
+	vlog.VI(0).Infof("%v.Resume()", i.suffix)
+	// TODO(jsimsa): Implement.
+	return nil
+}
+
+func (i *invoker) Revert(call ipc.ServerContext) error {
+	vlog.VI(0).Infof("%v.Revert()", i.suffix)
+	if i.state.previous == "" {
+		return errOperationFailed
+	}
+	i.state.updatingMutex.Lock()
+	if i.state.updating {
+		i.state.updatingMutex.Unlock()
+		return errUpdateInProgress
+	} else {
+		i.state.updating = true
+	}
+	i.state.updatingMutex.Unlock()
+	err := i.revertNodeManager()
+	i.state.updatingMutex.Lock()
+	i.state.updating = false
+	i.state.updatingMutex.Unlock()
+	return err
+}
+
 func (i *invoker) Start(call ipc.ServerContext) ([]string, error) {
 	vlog.VI(0).Infof("%v.Start()", i.suffix)
 	// TODO(jsimsa): Implement.
 	return make([]string, 0), nil
+}
+
+func (i *invoker) Stop(call ipc.ServerContext, deadline uint64) error {
+	vlog.VI(0).Infof("%v.Stop(%v)", i.suffix, deadline)
+	// TODO(jsimsa): Implement.
+	return nil
+}
+
+func (i *invoker) Suspend(call ipc.ServerContext) error {
+	vlog.VI(0).Infof("%v.Suspend()", i.suffix)
+	// TODO(jsimsa): Implement.
+	return nil
 }
 
 func (i *invoker) Uninstall(call ipc.ServerContext) error {
@@ -556,44 +687,16 @@ func (i *invoker) Update(call ipc.ServerContext) error {
 		}
 		i.state.updatingMutex.Unlock()
 		err := i.updateNodeManager()
+		i.state.updatingMutex.Lock()
 		i.state.updating = false
+		i.state.updatingMutex.Unlock()
 		return err
-	case updateSuffix.MatchString(i.suffix):
+	case appsSuffix.MatchString(i.suffix):
 		// TODO(jsimsa): Implement.
 		return nil
 	default:
 		return errInvalidSuffix
 	}
-}
-
-func (i *invoker) Refresh(call ipc.ServerContext) error {
-	vlog.VI(0).Infof("%v.Refresh()", i.suffix)
-	// TODO(jsimsa): Implement.
-	return nil
-}
-
-func (i *invoker) Restart(call ipc.ServerContext) error {
-	vlog.VI(0).Infof("%v.Restart()", i.suffix)
-	// TODO(jsimsa): Implement.
-	return nil
-}
-
-func (i *invoker) Resume(call ipc.ServerContext) error {
-	vlog.VI(0).Infof("%v.Resume()", i.suffix)
-	// TODO(jsimsa): Implement.
-	return nil
-}
-
-func (i *invoker) Shutdown(call ipc.ServerContext, deadline uint64) error {
-	vlog.VI(0).Infof("%v.Shutdown(%v)", i.suffix, deadline)
-	// TODO(jsimsa): Implement.
-	return nil
-}
-
-func (i *invoker) Suspend(call ipc.ServerContext) error {
-	vlog.VI(0).Infof("%v.Suspend()", i.suffix)
-	// TODO(jsimsa): Implement.
-	return nil
 }
 
 // CALLBACK RECEIVER INTERFACE IMPLEMENTATION
@@ -608,90 +711,4 @@ func (i *invoker) Callback(call ipc.ServerContext, name string) error {
 	}
 	channel <- name
 	return nil
-}
-
-// invoker holds the state of a node manager content repository invocation.
-type crInvoker struct {
-	suffix string
-}
-
-// NewCRInvoker is the node manager content repository invoker factory.
-func NewCRInvoker(suffix string) *crInvoker {
-	return &crInvoker{
-		suffix: suffix,
-	}
-}
-
-// CONTENT REPOSITORY INTERFACE IMPLEMENTATION
-
-func (i *crInvoker) Delete(ipc.ServerContext) error {
-	vlog.VI(0).Infof("%v.Delete()", i.suffix)
-	return nil
-}
-
-func (i *crInvoker) Download(_ ipc.ServerContext, stream content.ContentServiceDownloadStream) error {
-	vlog.VI(0).Infof("%v.Download()", i.suffix)
-	file, err := os.Open(os.Args[0])
-	if err != nil {
-		vlog.Errorf("Open() failed: %v", err)
-		return errOperationFailed
-	}
-	defer file.Close()
-	bufferLength := 4096
-	buffer := make([]byte, bufferLength)
-	for {
-		n, err := file.Read(buffer)
-		switch err {
-		case io.EOF:
-			return nil
-		case nil:
-			if err := stream.Send(buffer[:n]); err != nil {
-				vlog.Errorf("Send() failed: %v", err)
-				return errOperationFailed
-			}
-		default:
-			vlog.Errorf("Read() failed: %v", err)
-			return errOperationFailed
-		}
-	}
-}
-
-func (i *crInvoker) Upload(ipc.ServerContext, content.ContentServiceUploadStream) (string, error) {
-	vlog.VI(0).Infof("%v.Upload()", i.suffix)
-	return "", nil
-}
-
-// arState wraps state shared by different node manager application
-// repository invocations.
-type arState struct {
-	// envelope is the node manager application envelope.
-	envelope *application.Envelope
-	// name is the node manager name.
-	name string
-}
-
-// invoker holds the state of a node manager application repository invocation.
-type arInvoker struct {
-	state  *arState
-	suffix string
-}
-
-// NewARInvoker is the node manager content repository invoker factory.
-
-func NewARInvoker(state *arState, suffix string) *arInvoker {
-	return &arInvoker{
-		state:  state,
-		suffix: suffix,
-	}
-}
-
-// APPLICATION REPOSITORY INTERFACE IMPLEMENTATION
-
-func (i *arInvoker) Match(ipc.ServerContext, []string) (application.Envelope, error) {
-	vlog.VI(0).Infof("%v.Match()", i.suffix)
-	envelope := application.Envelope{}
-	envelope.Args = i.state.envelope.Args
-	envelope.Binary = naming.JoinAddressName(i.state.name, "cr")
-	envelope.Env = i.state.envelope.Env
-	return envelope, nil
 }
