@@ -85,7 +85,6 @@ func (l *wlog) writeState(st *Store) error {
 	if l.file == nil {
 		return errLogIsClosed
 	}
-	defer l.file.Sync()
 	return st.State.Write(l.enc)
 }
 
@@ -98,7 +97,6 @@ func (l *wlog) appendTransaction(m *state.Mutations) error {
 	if l.file == nil {
 		return errLogIsClosed
 	}
-	defer l.file.Sync()
 	return l.enc.Encode(m)
 }
 
