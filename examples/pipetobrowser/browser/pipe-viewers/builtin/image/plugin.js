@@ -1,5 +1,6 @@
 /*
  * Image is a Pipe Viewer that displays an image
+ * @tutorial cat image.jpg | p2b google/p2b/[name]/image
  * @fileoverview
  */
 

@@ -1,0 +1,19 @@
+tr.notstaged {
+  background-color: #FF9700;
+}
+
+tr.conflicted {
+  background-color: #DA4336;
+}
+
+tr.untracked {
+  background-color: #FFEA3A;
+}
+
+tr.ignored {
+  background-color: #E0E0E0;
+}
+
+tr.staged {
+  background-color: #8AC249;
+}

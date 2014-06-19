@@ -20,14 +20,16 @@
 
   <!-- TODO(aghassemi) Dynamic loading of plugins. Plugins should be able to use a provided module to load web components if they need to. We don't want to load all plugins for no reason! There could be hundreds of them -->
   <link rel="import" href="pipe-viewers/builtin/console/component.html">
+  <link rel="import" href="pipe-viewers/builtin/git/status/component.html">
 
 </head>
 <body>
 
-  <!-- These are Browserified NodeJS modules. Bundle at build time into a single file and move to package.json-->
+  <!-- TODO(aghassemi) These are Browserified NodeJS modules. Bundle at build time into a single file and move to package.json -->
   <script src="libs/vendor/veyron/veyron.js"></script>
   <script src="libs/vendor/nodejs/buffer.js"></script>
   <script src="libs/vendor/nodejs/stream.js"></script>
+  <script src="libs/vendor/nodejs/event-stream.js"></script>
 
   <!-- TODO(aghassemi) For Production - Use traceur at build time for ES6 instead -->
   <script src="libs/vendor/traceur/traceur.js"></script>

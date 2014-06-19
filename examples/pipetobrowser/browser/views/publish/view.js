@@ -18,7 +18,7 @@ export class PublishView extends View {
  * @type {string} Requested name for service to be published under
  */
   onPublishAction(eventHandler) {
-    this.element.addEventListener('publish', () => {
+    this.element.addEventListener('publish', (e) => {
       eventHandler(e.detail.publishName);
     });
   }
