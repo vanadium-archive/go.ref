@@ -72,6 +72,6 @@ function getPath(name) {
   if(isAbsoulteUrl(name)) {
     return name;
   } else {
-    return 'pipe-viewers/builtin/' + name + '/' + name;
+    return 'pipe-viewers/builtin/' + name + '/plugin';
   }
 }

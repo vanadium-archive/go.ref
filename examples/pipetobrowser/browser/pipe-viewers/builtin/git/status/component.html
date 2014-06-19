@@ -1,0 +1,37 @@
+<link rel="import" href="/libs/vendor/polymer/polymer/polymer.html">
+
+<polymer-element name="p2b-plugin-git-status">
+  <template>
+    <link rel="stylesheet" href="component.css">
+    <table summary="Data Grid displaying status of modified file for the git repository.">
+      <thead>
+        <tr>
+          <th>Status</th>
+          <th>Action</th>
+          <th>File</th>
+          <th>Summary</th>
+        </tr>
+      </thead>
+      <tbody>
+        <template repeat="{{ item in statusItems }}">
+          <tr class="{{ item.fileState }}">
+            <td>{{ item.fileState }}</td>
+            <td>{{ item.fileAction }}</td>
+            <th scope="row">{{ item.filePath }}</th>
+            <td>{{ item.summary }}</td>
+          </tr>
+        </template>
+      </tbody>
+    </table>
+
+  </template>
+  <script>
+    Polymer('p2b-plugin-git-status', {
+      /*
+       * List of git status items to display
+       * @type {object}
+       */
+      statusItems: []
+    });
+    </script>
+</polymer-element>

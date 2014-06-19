@@ -23,7 +23,7 @@ export class StatusView extends View {
  * @event
  */
   onStopAction(eventHandler) {
-    this.element.addEventListener('stop', (e) => {
+    this.element.addEventListener('stop', () => {
       eventHandler();
     });
   }
