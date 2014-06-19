@@ -18,10 +18,8 @@ var (
 	nullID   storage.ID
 )
 
-// syncProcessor processes log entries into watch changes exclusively for Sync.
-// The returned changes contain sufficient information for Sync to reconstruct
-// the store externally.
-type syncProcessor struct {
+// rawProcessor processes log entries into mutations.
+type rawProcessor struct {
 	// st is true iff the initial state has been processed.
 	hasProcessedState bool
 	// pid is the identity of the client watching for changes.
@@ -34,22 +32,22 @@ type syncProcessor struct {
 	// sent by watch, but deleted entries have not been processed from the log.
 	// This set consists of deleted store roots, because
 	// 1) A root deletion is propagated as a deletion change on the root.
-	// 2) A root deletion must be propagated immediately to keep stores in sync.
+	// 2) A root deletion must be propagated immediately.
 	// 3) GC is lazy, so we aggressively create a deletion change for the root.
 	// An id is removed from preparedDeletions when the corresponding deleted
 	// entry is processed from the log.
 	preparedDeletions map[storage.ID]bool
 }
 
-func newSyncProcessor(pid security.PublicID) (reqProcessor, error) {
-	return &syncProcessor{
+func newRawProcessor(pid security.PublicID) (reqProcessor, error) {
+	return &rawProcessor{
 		hasProcessedState: false,
 		pid:               pid,
 		preparedDeletions: make(map[storage.ID]bool),
 	}, nil
 }
 
-func (p *syncProcessor) processState(st *state.State) ([]watch.Change, error) {
+func (p *rawProcessor) processState(st *state.State) ([]watch.Change, error) {
 	// Check that the initial state has not already been processed.
 	if p.hasProcessedState {
 		return nil, errors.New("cannot process state after processing the initial state")
@@ -99,7 +97,7 @@ func (p *syncProcessor) processState(st *state.State) ([]watch.Change, error) {
 	return changes, nil
 }
 
-func (p *syncProcessor) processTransaction(mus *state.Mutations) ([]watch.Change, error) {
+func (p *rawProcessor) processTransaction(mus *state.Mutations) ([]watch.Change, error) {
 	// Ensure that the initial state has been processed.
 	if !p.hasProcessedState {
 		return nil, errors.New("cannot process a transaction before processing the initial state")
@@ -195,7 +193,7 @@ func uidName(id storage.ID) string {
 	return fmt.Sprintf("/%s/%s", storage.UIDDirName, id)
 }
 
-// TODO(tilaks): revisit when vsync.Mutation.Dir is of type []*storage.DEntry
+// TODO(tilaks): revisit when raw.Mutation.Dir is of type []*storage.DEntry
 // (once we support optional structs in the idl).
 func flattenDir(pdir []*storage.DEntry) []storage.DEntry {
 	fdir := make([]storage.DEntry, len(pdir))

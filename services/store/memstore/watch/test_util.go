@@ -102,10 +102,10 @@ func openLog(t *testing.T, dbName string) (*memstore.RLog, func(), reqProcessor)
 		log.Close()
 	}
 
-	processor, err := newSyncProcessor(rootPublicID)
+	processor, err := newRawProcessor(rootPublicID)
 	if err != nil {
 		cleanup()
-		t.Fatalf("newSyncProcessor() failed: %v", err)
+		t.Fatalf("newRawProcessor() failed: %v", err)
 	}
 
 	return log, cleanup, processor

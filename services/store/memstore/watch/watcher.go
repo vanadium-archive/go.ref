@@ -9,11 +9,14 @@ import (
 	"time"
 
 	"veyron/services/store/memstore"
+	"veyron/services/store/raw"
 	"veyron/services/store/service"
 
 	"veyron2/ipc"
 	"veyron2/security"
 	"veyron2/services/watch"
+	"veyron2/storage"
+	"veyron2/verror"
 )
 
 var (
@@ -51,11 +54,39 @@ func New(admin security.PublicID, dbName string) (service.Watcher, error) {
 	}, nil
 }
 
+// WatchRaw returns a stream of all changes.
+func (w *watcher) WatchRaw(ctx ipc.ServerContext, req raw.Request, stream raw.StoreServiceWatchStream) error {
+	processor, err := newRawProcessor(ctx.RemoteID())
+	if err != nil {
+		return err
+	}
+	return w.Watch(ctx, processor, req.ResumeMarker, stream)
+}
+
+// WatchGlob returns a stream of changes that match a pattern.
+func (w *watcher) WatchGlob(ctx ipc.ServerContext, path storage.PathName,
+	req watch.GlobRequest, stream watch.GlobWatcherServiceWatchGlobStream) error {
+	return verror.Internalf("WatchGlob not yet implemented")
+}
+
+// WatchQuery returns a stream of changes that satisfy a query.
+func (w *watcher) WatchQuery(ctx ipc.ServerContext, path storage.PathName,
+	req watch.QueryRequest, stream watch.QueryWatcherServiceWatchQueryStream) error {
+	return verror.Internalf("WatchQuery not yet implemented")
+}
+
+// WatchStream is the interface for streaming responses of Watch methods.
+type WatchStream interface {
+	// Send places the item onto the output stream, blocking if there is no
+	// buffer space available.
+	Send(item watch.ChangeBatch) error
+}
+
 // Watch handles the specified request, processing records in the store log and
 // sending changes to the specified watch stream. If the call is cancelled or
 // otherwise closed early, Watch will terminate and return an error.
 // Watch implements the service.Watcher interface.
-func (w *watcher) Watch(ctx ipc.ServerContext, req watch.Request, stream watch.WatcherServiceWatchStream) error {
+func (w *watcher) Watch(ctx ipc.ServerContext, processor reqProcessor, resumeMarker watch.ResumeMarker, stream WatchStream) error {
 	// Closing cancel terminates processRequest.
 	cancel := make(chan struct{})
 	defer close(cancel)
@@ -66,7 +97,7 @@ func (w *watcher) Watch(ctx ipc.ServerContext, req watch.Request, stream watch.W
 	// This goroutine does not leak because processRequest is always terminated.
 	go func() {
 		defer w.pending.Done()
-		done <- w.processRequest(cancel, ctx, req, stream)
+		done <- w.processRequest(cancel, processor, resumeMarker, stream)
 		close(done)
 	}()
 
@@ -82,7 +113,7 @@ func (w *watcher) Watch(ctx ipc.ServerContext, req watch.Request, stream watch.W
 	return ErrWatchClosed
 }
 
-func (w *watcher) processRequest(cancel <-chan struct{}, ctx ipc.ServerContext, req watch.Request, stream watch.WatcherServiceWatchStream) error {
+func (w *watcher) processRequest(cancel <-chan struct{}, processor reqProcessor, resumeMarker watch.ResumeMarker, stream WatchStream) error {
 	log, err := memstore.OpenLog(w.dbName, true)
 	if err != nil {
 		return err
@@ -101,12 +132,6 @@ func (w *watcher) processRequest(cancel <-chan struct{}, ctx ipc.ServerContext, 
 		// TODO(tilaks): cancel processState(), processTransaction().
 	}()
 
-	processor, err := w.findProcessor(ctx.RemoteID(), req)
-	if err != nil {
-		return err
-	}
-
-	resumeMarker := req.ResumeMarker
 	filter, err := newChangeFilter(resumeMarker)
 	if err != nil {
 		return err
@@ -171,12 +196,6 @@ func (w *watcher) isClosed() bool {
 	default:
 		return false
 	}
-}
-
-func (w *watcher) findProcessor(client security.PublicID, req watch.Request) (reqProcessor, error) {
-	// TODO(tilaks): verify Sync requests.
-	// TODO(tilaks): handle application requests.
-	return newSyncProcessor(client)
 }
 
 type changeFilter interface {
@@ -250,13 +269,13 @@ func (f *onAndAfterFilter) shouldProcessChanges(timestamp uint64) (bool, error) 
 	return true, nil
 }
 
-func processChanges(stream watch.WatcherServiceWatchStream, changes []watch.Change, timestamp uint64) error {
+func processChanges(stream WatchStream, changes []watch.Change, timestamp uint64) error {
 	addContinued(changes)
 	addResumeMarkers(changes, timestampToResumeMarker(timestamp))
 	return sendChanges(stream, changes)
 }
 
-func sendChanges(stream watch.WatcherServiceWatchStream, changes []watch.Change) error {
+func sendChanges(stream WatchStream, changes []watch.Change) error {
 	if len(changes) == 0 {
 		return nil
 	}

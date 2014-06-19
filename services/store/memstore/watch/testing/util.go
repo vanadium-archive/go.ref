@@ -5,6 +5,8 @@ import (
 	"sync"
 	"time"
 
+	"veyron/services/store/raw"
+
 	"veyron2/ipc"
 	"veyron2/naming"
 	"veyron2/security"
@@ -142,7 +144,7 @@ func (s *watcherWatchStream) Cancel() {
 	s.ctx.Cancel()
 }
 
-func Watch(id security.PublicID, watchFn func(ipc.ServerContext, watch.Request, watch.WatcherServiceWatchStream) error, req watch.Request) watch.WatcherWatchStream {
+func WatchRaw(id security.PublicID, watchFn func(ipc.ServerContext, raw.Request, raw.StoreServiceWatchStream) error, req raw.Request) raw.StoreWatchStream {
 	mu := &sync.Mutex{}
 	ctx := NewCancellableContext(id)
 	c := make(chan watch.ChangeBatch, 1)

@@ -52,7 +52,7 @@ func (*fakeVStore) Signature(_ context.T, _ ...ipc.CallOpt) (ipc.ServiceSignatur
 	panic("not implemented")
 }
 
-func (v *fakeVStore) Watch(_ context.T, req watch.Request, _ ...ipc.CallOpt) (watch.WatcherWatchStream, error) {
+func (v *fakeVStore) Watch(_ context.T, req raw.Request, _ ...ipc.CallOpt) (raw.StoreWatchStream, error) {
 	// If "failWatch" is set, simulate a failed RPC call.
 	if info.failWatch {
 		info.failWatchCount++

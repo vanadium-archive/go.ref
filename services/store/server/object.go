@@ -12,7 +12,6 @@ import (
 	"veyron2/services/watch"
 	"veyron2/storage"
 	"veyron2/vdl"
-	"veyron2/verror"
 )
 
 type object struct {
@@ -215,7 +214,14 @@ func (o *object) GlobT(ctx ipc.ServerContext, tid store.TransactionID, pattern s
 	return nil
 }
 
-// Watch returns a stream of changes.
-func (o *object) Watch(ctx ipc.ServerContext, req watch.Request, stream watch.WatcherServiceWatchStream) error {
-	return verror.Internalf("Watch not yet implemented")
+// WatchGlob returns a stream of changes that match a pattern.
+func (o *object) WatchGlob(ctx ipc.ServerContext, req watch.GlobRequest, stream watch.GlobWatcherServiceWatchGlobStream) error {
+	path := storage.ParsePath(o.name)
+	return o.server.watcher.WatchGlob(ctx, path, req, stream)
+}
+
+// WatchQuery returns a stream of changes that satisfy a query.
+func (o *object) WatchQuery(ctx ipc.ServerContext, req watch.QueryRequest, stream watch.QueryWatcherServiceWatchQueryStream) error {
+	path := storage.ParsePath(o.name)
+	return o.server.watcher.WatchQuery(ctx, path, req, stream)
 }

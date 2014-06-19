@@ -376,8 +376,8 @@ func TestWatch(t *testing.T) {
 	}
 
 	// Start a watch request.
-	req := watch.Request{}
-	ws := watchtesting.Watch(rootPublicID, s.Watch, req)
+	req := raw.Request{}
+	ws := watchtesting.WatchRaw(rootPublicID, s.Watch, req)
 
 	// Check that watch detects the changes in the first transaction.
 	{
@@ -460,8 +460,8 @@ func TestGarbageCollectionOnCommit(t *testing.T) {
 	}
 
 	// Start a watch request.
-	req := watch.Request{}
-	ws := watchtesting.Watch(rootPublicID, s.Watch, req)
+	req := raw.Request{}
+	ws := watchtesting.WatchRaw(rootPublicID, s.Watch, req)
 
 	// Check that watch detects the changes in the first transaction.
 	{

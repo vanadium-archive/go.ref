@@ -8,7 +8,8 @@ import (
 
 	"veyron/services/store/memstore"
 	watchtesting "veyron/services/store/memstore/watch/testing"
-	"veyron2/services/watch"
+	"veyron/services/store/raw"
+
 	"veyron2/storage"
 )
 
@@ -29,8 +30,8 @@ func TestWatch(t *testing.T) {
 	post1 := st.Snapshot().Find(id1).Version
 
 	// Start a watch request.
-	req := watch.Request{}
-	ws := watchtesting.Watch(rootPublicID, w.Watch, req)
+	req := raw.Request{}
+	ws := watchtesting.WatchRaw(rootPublicID, w.WatchRaw, req)
 
 	// Check that watch detects the changes in the first transaction.
 	cb, err := ws.Recv()
@@ -82,8 +83,8 @@ func TestWatchCancellation(t *testing.T) {
 	defer cleanup()
 
 	// Start a watch request.
-	req := watch.Request{}
-	ws := watchtesting.Watch(rootPublicID, w.Watch, req)
+	req := raw.Request{}
+	ws := watchtesting.WatchRaw(rootPublicID, w.WatchRaw, req)
 
 	// Commit a transaction.
 	tr := memstore.NewTransaction()
@@ -127,8 +128,8 @@ func TestWatchClosed(t *testing.T) {
 	defer once.Do(cleanup)
 
 	// Start a watch request.
-	req := watch.Request{}
-	ws := watchtesting.Watch(rootPublicID, w.Watch, req)
+	req := raw.Request{}
+	ws := watchtesting.WatchRaw(rootPublicID, w.WatchRaw, req)
 
 	// Commit a transaction.
 	tr := memstore.NewTransaction()
@@ -182,8 +183,8 @@ func TestStateResumeMarker(t *testing.T) {
 	post22 := st.Snapshot().Find(id2).Version
 
 	// Start a watch request.
-	req := watch.Request{}
-	ws := watchtesting.Watch(rootPublicID, w.Watch, req)
+	req := raw.Request{}
+	ws := watchtesting.WatchRaw(rootPublicID, w.WatchRaw, req)
 
 	// Retrieve the resume marker for the initial state.
 	cb, err := ws.Recv()
@@ -198,9 +199,9 @@ func TestStateResumeMarker(t *testing.T) {
 	ws.Cancel()
 	ws.Finish()
 
-	// Start a watch request at the initial state.
-	req = watch.Request{ResumeMarker: resumeMarker1}
-	ws = watchtesting.Watch(rootPublicID, w.Watch, req)
+	// Start a watch request after the initial state.
+	req = raw.Request{ResumeMarker: resumeMarker1}
+	ws = watchtesting.WatchRaw(rootPublicID, w.WatchRaw, req)
 
 	// Check that watch detects the changes in the state and the transaction.
 	cb, err = ws.Recv()
@@ -257,8 +258,8 @@ func TestTransactionResumeMarker(t *testing.T) {
 	post22 := st.Snapshot().Find(id2).Version
 
 	// Start a watch request.
-	req := watch.Request{}
-	ws := watchtesting.Watch(rootPublicID, w.Watch, req)
+	req := raw.Request{}
+	ws := watchtesting.WatchRaw(rootPublicID, w.WatchRaw, req)
 
 	// Retrieve the resume marker for the first transaction.
 	cb, err := ws.Recv()
@@ -273,9 +274,9 @@ func TestTransactionResumeMarker(t *testing.T) {
 	ws.Cancel()
 	ws.Finish()
 
-	// Start a watch request at the first transaction.
-	req = watch.Request{ResumeMarker: resumeMarker1}
-	ws = watchtesting.Watch(rootPublicID, w.Watch, req)
+	// Start a watch request after the first transaction.
+	req = raw.Request{ResumeMarker: resumeMarker1}
+	ws = watchtesting.WatchRaw(rootPublicID, w.WatchRaw, req)
 
 	// Check that watch detects the changes in the first and second transaction.
 	cb, err = ws.Recv()
@@ -311,8 +312,8 @@ func TestTransactionResumeMarker(t *testing.T) {
 	ws.Finish()
 
 	// Start a watch request at the second transaction.
-	req = watch.Request{ResumeMarker: resumeMarker2}
-	ws = watchtesting.Watch(rootPublicID, w.Watch, req)
+	req = raw.Request{ResumeMarker: resumeMarker2}
+	ws = watchtesting.WatchRaw(rootPublicID, w.WatchRaw, req)
 
 	// Check that watch detects the changes in the second transaction.
 	cb, err = ws.Recv()
@@ -354,8 +355,8 @@ func TestNowResumeMarker(t *testing.T) {
 	post22 := st.Snapshot().Find(id2).Version
 
 	// Start a watch request with the "now" resume marker.
-	req := watch.Request{ResumeMarker: nowResumeMarker}
-	ws := watchtesting.Watch(rootPublicID, w.Watch, req)
+	req := raw.Request{ResumeMarker: nowResumeMarker}
+	ws := watchtesting.WatchRaw(rootPublicID, w.WatchRaw, req)
 
 	// Give watch some time to pick "now".
 	time.Sleep(time.Second)
@@ -412,8 +413,8 @@ func TestUnknownResumeMarkers(t *testing.T) {
 
 	// Start a watch request with a resume marker that's too early.
 	resumeMarker := timestampToResumeMarker(1)
-	req := watch.Request{ResumeMarker: resumeMarker}
-	ws := watchtesting.Watch(rootPublicID, w.Watch, req)
+	req := raw.Request{ResumeMarker: resumeMarker}
+	ws := watchtesting.WatchRaw(rootPublicID, w.WatchRaw, req)
 
 	// The resume marker should be unknown.
 	if err := ws.Finish(); err != ErrUnknownResumeMarker {
@@ -422,8 +423,8 @@ func TestUnknownResumeMarkers(t *testing.T) {
 
 	// Start a watch request with a resume marker that's too late.
 	resumeMarker = timestampToResumeMarker(2 ^ 63 - 1)
-	req = watch.Request{ResumeMarker: resumeMarker}
-	ws = watchtesting.Watch(rootPublicID, w.Watch, req)
+	req = raw.Request{ResumeMarker: resumeMarker}
+	ws = watchtesting.WatchRaw(rootPublicID, w.WatchRaw, req)
 
 	// The resume marker should be unknown.
 	if err := ws.Finish(); err != ErrUnknownResumeMarker {

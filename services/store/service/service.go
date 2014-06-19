@@ -128,10 +128,18 @@ type QueryStream interface {
 	Abort()
 }
 
-// Watcher is the interface for watching store updates that match a query.
+// Watcher is the interface for watching store updates matching a pattern or query.
 type Watcher interface {
-	// Watch returns a stream of changes that match a query.
-	Watch(ctx ipc.ServerContext, req watch.Request, stream watch.WatcherServiceWatchStream) error
+	// WatchRaw returns a stream of all changes.
+	WatchRaw(ctx ipc.ServerContext, req raw.Request, stream raw.StoreServiceWatchStream) error
+
+	// WatchGlob returns a stream of changes that match a pattern.
+	WatchGlob(ctx ipc.ServerContext, path storage.PathName, req watch.GlobRequest,
+		stream watch.GlobWatcherServiceWatchGlobStream) error
+
+	// WatchQuery returns a stream of changes that satisfy a query.
+	WatchQuery(ctx ipc.ServerContext, path storage.PathName, req watch.QueryRequest,
+		stream watch.QueryWatcherServiceWatchQueryStream) error
 
 	// Close closes the Watcher, blocking until all Watch invocations complete.
 	Close() error
