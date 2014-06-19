@@ -228,7 +228,7 @@ func nodeManager(argv []string) {
 func spawnNodeManager(t *testing.T, mtName string, idFile string) *blackbox.Child {
 	root := filepath.Join(os.TempDir(), "noded")
 	child := blackbox.HelperCommand(t, "nodeManager")
-	child.Cmd.Env = exec.Setenv(child.Cmd.Env, "MOUNTTABLE_ROOT", mtName)
+	child.Cmd.Env = exec.Setenv(child.Cmd.Env, "NAMESPACE_ROOT", mtName)
 	child.Cmd.Env = exec.Setenv(child.Cmd.Env, "VEYRON_IDENTITY", idFile)
 	child.Cmd.Env = exec.Setenv(child.Cmd.Env, impl.ORIGIN_ENV, "ar")
 	child.Cmd.Env = exec.Setenv(child.Cmd.Env, impl.ROOT_ENV, root)

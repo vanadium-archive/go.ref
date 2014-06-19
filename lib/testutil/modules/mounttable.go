@@ -59,7 +59,7 @@ func (mt *mountTable) Run(args []string) (Variables, []string, Handle, error) {
 	name := map[bool]string{true: "rootMT", false: "nodeMT"}[mt.root]
 	var env []string
 	if !mt.root {
-		env = append(env, "MOUNTTABLE_ROOT="+args[0])
+		env = append(env, "NAMESPACE_ROOT="+args[0])
 		args = args[1:]
 	}
 	c, v, r, err := bbSpawn(name, args, env)

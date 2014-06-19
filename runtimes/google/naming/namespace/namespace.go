@@ -47,6 +47,7 @@ func (ns *namespace) SetRoots(roots []string) error {
 	}
 	ns.Lock()
 	defer ns.Unlock()
+	// TODO(cnicolaou): filter out duplicate values.
 	ns.roots = roots
 	return nil
 }

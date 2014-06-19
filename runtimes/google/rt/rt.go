@@ -4,6 +4,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"strings"
 	"sync"
 
 	"veyron/lib/exec"
@@ -94,16 +95,24 @@ func (rt *vrt) init(opts ...veyron2.ROpt) error {
 	}
 
 	if len(nsRoots) == 0 {
-		// TODO(cnicolaou,caprita): remove this when NAMESPACE_ROOT is in use.
-		if nsRoot := os.Getenv("MOUNTTABLE_ROOT"); nsRoot != "" {
-			nsRoots = append(nsRoots, nsRoot)
+		found := false
+		for _, ev := range os.Environ() {
+			p := strings.SplitN(ev, "=", 2)
+			if len(p) != 2 {
+				continue
+			}
+			k, v := p[0], p[1]
+			if strings.HasPrefix(k, "NAMESPACE_ROOT") {
+				nsRoots = append(nsRoots, v)
+				found = true
+			}
 		}
-		// TODO(cnicolaou,caprita): rename this to NAMESPACE_ROOT.
-		if nsRoot := os.Getenv("NAMESPACE_ROOT"); nsRoot != "" {
-			nsRoots = append(nsRoots, nsRoot)
+		if !found {
+			// TODO(cnicolaou,caprita): remove this when NAMESPACE_ROOT is in use.
+			if nsRoot := os.Getenv("MOUNTTABLE_ROOT"); nsRoot != "" {
+				nsRoots = append(nsRoots, nsRoot)
+			}
 		}
-		// TODO(cnicolaou,caprita): decide if want to allow NAMESPACE_ROOTS
-		// e.g. comma separated list of roots.
 	}
 
 	if ns, err := namespace.New(rt, nsRoots...); err != nil {

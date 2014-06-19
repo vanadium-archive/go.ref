@@ -175,7 +175,7 @@ func (e *echo) Run(args []string) (Variables, []string, Handle, error) {
 }
 
 func runServer(name string, args []string) (Variables, []string, Handle, error) {
-	env := []string{"MOUNTTABLE_ROOT=" + args[0]}
+	env := []string{"NAMESPACE_ROOT=" + args[0]}
 	c, v, r, err := bbSpawn(name, args, env)
 	if err != nil {
 		return v, r, nil, err

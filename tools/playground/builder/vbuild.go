@@ -286,7 +286,7 @@ func StartMount() (err error) {
 			log.Fatal("mounttable died")
 		}
 		Log("mount at ", endpoint)
-		return os.Setenv("MOUNTTABLE_ROOT", endpoint)
+		return os.Setenv("NAMESPACE_ROOT", endpoint)
 	}
 	return err
 }

@@ -45,7 +45,7 @@ daemons:
 	export VEYRON_IDENTITY=$(VEYRON_IDENTITY_PATH) ; \
 	$(VEYRON_IDENTITYD) --port=$(VEYRON_IDENTITY_PORT) & \
 	$(VEYRON_MOUNTTABLE) --address=:$(VEYRON_MOUNTTABLE_PORT) & \
-	export MOUNTTABLE_ROOT=/localhost:$(VEYRON_MOUNTTABLE_PORT)/mt ; \
+	export NAMESPACE_ROOT=/localhost:$(VEYRON_MOUNTTABLE_PORT)/mt ; \
 	$(VEYRON_PROXY) -address=$(VEYRON_PROXY_ADDR) & \
 	$(VEYRON_WSPR) --v=1 -logtostderr=true -vproxy=$(VEYRON_PROXY_ADDR) --port $(VEYRON_WSPR_PORT) & \
 	$(VEYRON_STORE) --address=:$(VEYRON_STORE_PORT) --name=global/$(USER)/store &

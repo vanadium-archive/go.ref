@@ -439,7 +439,7 @@ func (wsp *websocketPipe) start(w http.ResponseWriter, req *http.Request) {
 
 // Upon first connect, we send a message with the wsprConfig.
 func (wsp *websocketPipe) sendInitialMessage() {
-	mounttableRoots := strings.Split(os.Getenv("MOUNTTABLE_ROOT"), ",")
+	mounttableRoots := strings.Split(os.Getenv("NAMESPACE_ROOT"), ",")
 	if len(mounttableRoots) == 1 && mounttableRoots[0] == "" {
 		mounttableRoots = []string{}
 	}
