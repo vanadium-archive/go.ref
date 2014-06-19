@@ -8,6 +8,7 @@
 import { Logger } from 'libs/logs/logger'
 import { config } from 'config'
 import { ByteObjectStreamAdapter } from 'libs/utils/byte-object-stream-adapter'
+import { StreamByteCounter } from 'libs/utils/stream-byte-counter'
 
 var log = new Logger('services/p2b');
 var v = new Veyron(config.veyron);
@@ -55,13 +56,21 @@ export function publish(name, pipeRequestHandler) {
     pipe($suffix, $stream) {
       return new Promise(function(resolve, reject) {
         log.debug('received pipe request for:', $suffix);
+        var numBytesForThisCall = 0;
 
         var bufferStream = new ByteObjectStreamAdapter();
-        $stream.pipe(bufferStream);
+        var streamByteCounter = new StreamByteCounter((numBytesRead) => {
+          // increment total number of bytes received and total for this call
+          numBytesForThisCall += numBytesRead;
+          state.numBytes += numBytesRead;
+        });
+
+        var stream = $stream.pipe(bufferStream).pipe(streamByteCounter);
 
         bufferStream.on('end', () => {
           log.debug('end of stream');
-          resolve('done');
+          // send total number of bytes received for this call as final result
+          resolve(numBytesForThisCall);
         });
 
         bufferStream.on('error', (e) => {
@@ -70,9 +79,8 @@ export function publish(name, pipeRequestHandler) {
         });
 
         state.numPipes++;
-        //TODO(aghassemi) pipe to a byte-size-sniffer to update state.numBytes
 
-        pipeRequestHandler($suffix, bufferStream);
+        pipeRequestHandler($suffix, stream);
       });
     }
   };
