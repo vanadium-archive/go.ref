@@ -74,10 +74,8 @@ import (
 	"veyron2"
 	"veyron2/ipc"
 	"veyron2/naming"
-	"veyron2/query"
 	"veyron2/rt"
 	"veyron2/security"
-	"veyron2/services/watch"
 	"veyron2/storage/vstore"
 	"veyron2/storage/vstore/primitives"
 	"veyron2/vom"
@@ -183,7 +181,7 @@ func (gs *goState) monitorStore() {
 		if err != nil {
 			panic(fmt.Errorf("Failed to raw.Bind Store:%v", err))
 		}
-		req := watch.Request{Query: query.Query{}}
+		req := raw.Request{}
 		stream, err := rst.Watch(ctx, req, veyron2.CallTimeout(ipc.NoTimeout))
 		if err != nil {
 			panic(fmt.Errorf("Can't watch store: %s: %s", gs.storeEndpoint, err))
