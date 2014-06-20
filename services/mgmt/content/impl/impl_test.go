@@ -11,7 +11,7 @@ import (
 	"veyron2"
 	"veyron2/naming"
 	"veyron2/rt"
-	"veyron2/services/mgmt/content"
+	"veyron2/services/mgmt/repository"
 )
 
 const (
@@ -25,7 +25,7 @@ var (
 
 // invokeUpload invokes the Upload RPC using the given client stub
 // <stub> and streams the given content <content> to it.
-func invokeUpload(t *testing.T, stub content.Repository, content []byte) (string, error) {
+func invokeUpload(t *testing.T, stub repository.Content, content []byte) (string, error) {
 	stream, err := stub.Upload(rt.R().NewContext())
 	if err != nil {
 		return "", err
@@ -47,7 +47,7 @@ func invokeUpload(t *testing.T, stub content.Repository, content []byte) (string
 
 // invokeDownload invokes the Download RPC using the given client stub
 // <stub> and streams content from to it.
-func invokeDownload(t *testing.T, stub content.Repository) ([]byte, error) {
+func invokeDownload(t *testing.T, stub repository.Content) ([]byte, error) {
 	stream, err := stub.Download(rt.R().NewContext())
 	if err != nil {
 		return nil, err
@@ -62,19 +62,19 @@ func invokeDownload(t *testing.T, stub content.Repository) ([]byte, error) {
 
 // invokeDelete invokes the Delete RPC using the given client stub
 // <stub>.
-func invokeDelete(t *testing.T, stub content.Repository) error {
+func invokeDelete(t *testing.T, stub repository.Content) error {
 	return stub.Delete(rt.R().NewContext())
 }
 
-// testInterface tests the content manager interface using the given
-// depth for hierarchy of content objects.
+// testInterface tests the content repository interface using the
+// given depth for hierarchy of content objects.
 func testInterface(t *testing.T, runtime veyron2.Runtime, depth int) {
 	root, err := ioutil.TempDir("", veyronPrefix)
 	if err != nil {
 		t.Fatalf("TempDir() failed: %v", err)
 	}
 
-	// Setup and start the content manager server.
+	// Setup and start the content repository server.
 	server, err := runtime.NewServer()
 	if err != nil {
 		t.Fatalf("NewServer() failed: %v", err)
@@ -92,7 +92,7 @@ func testInterface(t *testing.T, runtime veyron2.Runtime, depth int) {
 
 	// Create client stubs for talking to the server.
 	name := naming.JoinAddressName(endpoint.String(), "//")
-	stub, err := content.BindRepository(name)
+	stub, err := repository.BindContent(name)
 	if err != nil {
 		t.Fatalf("BindRepository() failed: %v", err)
 	}
@@ -110,7 +110,7 @@ func testInterface(t *testing.T, runtime veyron2.Runtime, depth int) {
 	}
 
 	// Download
-	stub, err = content.BindRepository(naming.Join(name, checksum))
+	stub, err = repository.BindContent(naming.Join(name, checksum))
 	if err != nil {
 		t.Fatalf("BindRepository() failed: %v", err)
 	}
@@ -133,13 +133,13 @@ func testInterface(t *testing.T, runtime veyron2.Runtime, depth int) {
 		t.Fatalf("Remove() failed: %v", err)
 	}
 
-	// Shutdown the content manager server.
+	// Shutdown the content repository server.
 	if err := server.Stop(); err != nil {
 		t.Fatalf("Stop() failed: %v", err)
 	}
 }
 
-// TestHierarchy checks that the content manager works correctly for
+// TestHierarchy checks that the content repository works correctly for
 // all possible valid values of the depth used for the directory
 // hierarchy that stores content objects in the local file system.
 func TestHierarchy(t *testing.T) {

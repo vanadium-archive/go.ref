@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	iapp "veyron/services/mgmt/application"
+	"veyron/services/mgmt/repository"
 	"veyron/tools/application/impl"
 
 	"veyron2"
@@ -67,7 +67,7 @@ func NewDispatcher() *dispatcher {
 }
 
 func (d *dispatcher) Lookup(suffix string) (ipc.Invoker, security.Authorizer, error) {
-	invoker := ipc.ReflectInvoker(iapp.NewServerRepository(&server{suffix: suffix}))
+	invoker := ipc.ReflectInvoker(repository.NewServerApplication(&server{suffix: suffix}))
 	return invoker, nil, nil
 }
 

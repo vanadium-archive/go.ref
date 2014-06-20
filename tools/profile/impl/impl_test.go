@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"veyron/services/mgmt/profile"
+	"veyron/services/mgmt/repository"
 	"veyron/tools/profile/impl"
 
 	"veyron2"
@@ -23,7 +24,7 @@ var (
 		Format:      profile.Format{Name: "elf", Attributes: map[string]string{"os": "linux"}},
 		Libraries:   map[profile.Library]struct{}{profile.Library{Name: "foo", MajorVersion: "1", MinorVersion: "0"}: struct{}{}},
 		Label:       "example",
-		Description: "Example profile to test the profile manager implementation.",
+		Description: "Example profile to test the profile repository implementation.",
 	}
 )
 
@@ -76,7 +77,7 @@ func NewDispatcher() *dispatcher {
 }
 
 func (d *dispatcher) Lookup(suffix string) (ipc.Invoker, security.Authorizer, error) {
-	invoker := ipc.ReflectInvoker(profile.NewServerProfile(&server{suffix: suffix}))
+	invoker := ipc.ReflectInvoker(repository.NewServerProfile(&server{suffix: suffix}))
 	return invoker, nil, nil
 }
 

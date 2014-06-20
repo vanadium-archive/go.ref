@@ -12,7 +12,7 @@ import (
 	"veyron2/vlog"
 )
 
-// invoker holds the profile manager invocation.
+// invoker holds the profile repository invocation.
 type invoker struct {
 	// store is the storage server used for storing profile data.
 	store storage.Store

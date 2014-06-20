@@ -8,14 +8,14 @@ import (
 	"veyron/lib/cmdline"
 
 	"veyron2/rt"
-	"veyron2/services/mgmt/content"
+	"veyron2/services/mgmt/repository"
 )
 
 var cmdDelete = &cmdline.Command{
 	Run:      runDelete,
 	Name:     "delete",
 	Short:    "Delete content",
-	Long:     "Delete connects to the content server and deletes the specified content",
+	Long:     "Delete connects to the content repository and deletes the specified content",
 	ArgsName: "<content>",
 	ArgsLong: "<content> is the full name of the content to delete.",
 }
@@ -24,7 +24,7 @@ func runDelete(cmd *cmdline.Command, args []string) error {
 	if expected, got := 1, len(args); expected != got {
 		return cmd.Errorf("delete: incorrect number of arguments, expected %d, got %d", expected, got)
 	}
-	c, err := content.BindRepository(args[0])
+	c, err := repository.BindContent(args[0])
 	if err != nil {
 		return fmt.Errorf("bind error: %v", err)
 	}
@@ -40,7 +40,7 @@ var cmdDownload = &cmdline.Command{
 	Name:  "download",
 	Short: "Download content",
 	Long: `
-Download connects to the content server, downloads the specified content, and
+Download connects to the content repository, downloads the specified content, and
 writes it to a file.
 `,
 	ArgsName: "<content> <filename>",
@@ -61,7 +61,7 @@ func runDownload(cmd *cmdline.Command, args []string) error {
 	}
 	defer f.Close()
 
-	c, err := content.BindRepository(args[0])
+	c, err := repository.BindContent(args[0])
 	if err != nil {
 		return fmt.Errorf("bind error: %v", err)
 	}
@@ -98,12 +98,12 @@ var cmdUpload = &cmdline.Command{
 	Name:  "upload",
 	Short: "Upload content",
 	Long: `
-Upload connects to the content server and uploads the content of the specified
+Upload connects to the content repository and uploads the content of the specified
 file. When successful, it writes the name of the new content to stdout.
 `,
 	ArgsName: "<server> <filename>",
 	ArgsLong: `
-<server> is the veyron name or endpoint of the content server.
+<server> is the veyron name or endpoint of the content repository.
 <filename> is the name of the file to upload.
 `,
 }
@@ -119,7 +119,7 @@ func runUpload(cmd *cmdline.Command, args []string) error {
 	}
 	defer f.Close()
 
-	c, err := content.BindRepository(args[0])
+	c, err := repository.BindContent(args[0])
 	if err != nil {
 		return fmt.Errorf("bind error: %v", err)
 	}
@@ -158,8 +158,8 @@ func runUpload(cmd *cmdline.Command, args []string) error {
 func Root() *cmdline.Command {
 	return &cmdline.Command{
 		Name:     "content",
-		Short:    "Command-line tool for interacting with the Veyron content server",
-		Long:     "Command-line tool for interacting with the Veyron content server",
+		Short:    "Command-line tool for interacting with the veyron content repository",
+		Long:     "Command-line tool for interacting with the veyron content repository",
 		Children: []*cmdline.Command{cmdDelete, cmdDownload, cmdUpload},
 	}
 }

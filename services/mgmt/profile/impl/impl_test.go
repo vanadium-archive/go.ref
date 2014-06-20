@@ -5,7 +5,8 @@ import (
 	"testing"
 
 	"veyron/services/mgmt/profile"
-	istore "veyron/services/store/testutil"
+	"veyron/services/mgmt/repository"
+	"veyron/services/store/testutil"
 
 	"veyron2/naming"
 	"veyron2/rt"
@@ -17,7 +18,7 @@ var (
 		Format:      profile.Format{Name: "elf", Attributes: map[string]string{"os": "linux", "arch": "amd64"}},
 		Libraries:   map[profile.Library]struct{}{profile.Library{Name: "foo", MajorVersion: "1", MinorVersion: "0"}: struct{}{}},
 		Label:       "example",
-		Description: "Example profile to test the profile manager implementation.",
+		Description: "Example profile to test the profile repository implementation.",
 	}
 )
 
@@ -29,14 +30,14 @@ func TestInterface(t *testing.T) {
 
 	ctx := runtime.NewContext()
 
-	// Setup and start the profile manager server.
+	// Setup and start the profile repository server.
 	server, err := runtime.NewServer()
 	if err != nil {
 		t.Fatalf("NewServer() failed: %v", err)
 	}
 
 	// Setup and start a store server.
-	mountPoint, cleanup := istore.NewStore(t, server, runtime.Identity().PublicID())
+	mountPoint, cleanup := testutil.NewStore(t, server, runtime.Identity().PublicID())
 	defer cleanup()
 
 	dispatcher, err := NewDispatcher(mountPoint, nil)
@@ -56,10 +57,10 @@ func TestInterface(t *testing.T) {
 	if err := server.Publish(name); err != nil {
 		t.Fatalf("Publish(%v) failed: %v", name, err)
 	}
-	t.Logf("Profile manager published at %v/%v", endpoint, name)
+	t.Logf("Profile repository published at %v/%v", endpoint, name)
 
 	// Create client stubs for talking to the server.
-	stub, err := profile.BindProfile(naming.JoinAddressName(endpoint.String(), "//linux/base"))
+	stub, err := repository.BindProfile(naming.JoinAddressName(endpoint.String(), "//linux/base"))
 	if err != nil {
 		t.Fatalf("BindApplication() failed: %v", err)
 	}

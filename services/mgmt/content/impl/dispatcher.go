@@ -5,10 +5,10 @@ import (
 
 	"veyron2/ipc"
 	"veyron2/security"
-	"veyron2/services/mgmt/content"
+	"veyron2/services/mgmt/repository"
 )
 
-// dispatcher holds the state of the content manager dispatcher.
+// dispatcher holds the state of the content repository dispatcher.
 type dispatcher struct {
 	root  string
 	depth int
@@ -24,6 +24,6 @@ func NewDispatcher(root string, depth int, authorizer security.Authorizer) *disp
 // DISPATCHER INTERFACE IMPLEMENTATION
 
 func (d *dispatcher) Lookup(suffix string) (ipc.Invoker, security.Authorizer, error) {
-	invoker := ipc.ReflectInvoker(content.NewServerRepository(newInvoker(d.root, d.depth, &d.fs, suffix)))
+	invoker := ipc.ReflectInvoker(repository.NewServerContent(newInvoker(d.root, d.depth, &d.fs, suffix)))
 	return invoker, d.auth, nil
 }

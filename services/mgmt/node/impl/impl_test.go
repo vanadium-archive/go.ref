@@ -26,7 +26,7 @@ import (
 	"veyron2/naming"
 	"veyron2/rt"
 	"veyron2/services/mgmt/application"
-	"veyron2/services/mgmt/content"
+	"veyron2/services/mgmt/repository"
 	"veyron2/vlog"
 )
 
@@ -66,7 +66,7 @@ func (i *crInvoker) Delete(ipc.ServerContext) error {
 	return nil
 }
 
-func (i *crInvoker) Download(_ ipc.ServerContext, stream content.RepositoryServiceDownloadStream) error {
+func (i *crInvoker) Download(_ ipc.ServerContext, stream repository.ContentServiceDownloadStream) error {
 	vlog.VI(0).Infof("Download()")
 	file, err := os.Open(os.Args[0])
 	if err != nil {
@@ -93,7 +93,7 @@ func (i *crInvoker) Download(_ ipc.ServerContext, stream content.RepositoryServi
 	}
 }
 
-func (i *crInvoker) Upload(ipc.ServerContext, content.RepositoryServiceUploadStream) (string, error) {
+func (i *crInvoker) Upload(ipc.ServerContext, repository.ContentServiceUploadStream) (string, error) {
 	vlog.VI(0).Infof("Upload()")
 	return "", nil
 }
@@ -244,7 +244,7 @@ func startApplicationRepository() (string, func()) {
 	if err != nil {
 		vlog.Fatalf("NewServer() failed: %v", err)
 	}
-	suffix, dispatcher := "", ipc.SoloDispatcher(application.NewServerRepository(&arInvoker{}), nil)
+	suffix, dispatcher := "", ipc.SoloDispatcher(repository.NewServerApplication(&arInvoker{}), nil)
 	if err := server.Register(suffix, dispatcher); err != nil {
 		vlog.Fatalf("Register(%v, %v) failed: %v", suffix, dispatcher, err)
 	}
@@ -270,7 +270,7 @@ func startContentRepository() (string, func()) {
 	if err != nil {
 		vlog.Fatalf("NewServer() failed: %v", err)
 	}
-	suffix, dispatcher := "", ipc.SoloDispatcher(content.NewServerRepository(&crInvoker{}), nil)
+	suffix, dispatcher := "", ipc.SoloDispatcher(repository.NewServerContent(&crInvoker{}), nil)
 	if err := server.Register(suffix, dispatcher); err != nil {
 		vlog.Fatalf("Register(%v, %v) failed: %v", suffix, dispatcher, err)
 	}

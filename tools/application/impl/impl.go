@@ -11,13 +11,13 @@ import (
 	"strings"
 
 	"veyron/lib/cmdline"
-	iapp "veyron/services/mgmt/application"
+	"veyron/services/mgmt/repository"
 
 	"veyron2/rt"
 	"veyron2/services/mgmt/application"
 )
 
-func getEnvelopeJSON(app iapp.Repository, profiles string) ([]byte, error) {
+func getEnvelopeJSON(app repository.Application, profiles string) ([]byte, error) {
 	env, err := app.Match(rt.R().NewContext(), strings.Split(profiles, ","))
 	if err != nil {
 		env = application.Envelope{}
@@ -29,7 +29,7 @@ func getEnvelopeJSON(app iapp.Repository, profiles string) ([]byte, error) {
 	return j, nil
 }
 
-func putEnvelopeJSON(app iapp.Repository, profiles string, j []byte) error {
+func putEnvelopeJSON(app repository.Application, profiles string, j []byte) error {
 	var env application.Envelope
 	if err := json.Unmarshal(j, &env); err != nil {
 		return fmt.Errorf("json: %v", err)
@@ -64,7 +64,7 @@ func runMatch(cmd *cmdline.Command, args []string) error {
 	if expected, got := 2, len(args); expected != got {
 		return cmd.Errorf("match: incorrect number of arguments, expected %d, got %d", expected, got)
 	}
-	app, err := iapp.BindRepository(args[0])
+	app, err := repository.BindApplication(args[0])
 	if err != nil {
 		return fmt.Errorf("bind error: %v", err)
 	}
@@ -92,7 +92,7 @@ func runPut(cmd *cmdline.Command, args []string) error {
 	if expected, got := 3, len(args); expected != got {
 		return cmd.Errorf("put: incorrect number of arguments, expected %d, got %d", expected, got)
 	}
-	app, err := iapp.BindRepository(args[0])
+	app, err := repository.BindApplication(args[0])
 	if err != nil {
 		return fmt.Errorf("bind error: %v", err)
 	}
@@ -122,7 +122,7 @@ func runRemove(cmd *cmdline.Command, args []string) error {
 	if expected, got := 2, len(args); expected != got {
 		return cmd.Errorf("remove: incorrect number of arguments, expected %d, got %d", expected, got)
 	}
-	app, err := iapp.BindRepository(args[0])
+	app, err := repository.BindApplication(args[0])
 	if err != nil {
 		return fmt.Errorf("bind error: %v", err)
 	}
@@ -148,7 +148,7 @@ func runEdit(cmd *cmdline.Command, args []string) error {
 	if expected, got := 2, len(args); expected != got {
 		return cmd.Errorf("edit: incorrect number of arguments, expected %d, got %d", expected, got)
 	}
-	app, err := iapp.BindRepository(args[0])
+	app, err := repository.BindApplication(args[0])
 	if err != nil {
 		return fmt.Errorf("bind error: %v", err)
 	}
@@ -207,8 +207,8 @@ func runEdit(cmd *cmdline.Command, args []string) error {
 func Root() *cmdline.Command {
 	return &cmdline.Command{
 		Name:     "application",
-		Short:    "Command-line tool for interacting with the Veyron application manager",
-		Long:     "Command-line tool for interacting with the Veyron application manager",
+		Short:    "Command-line tool for interacting with the veyron application repository",
+		Long:     "Command-line tool for interacting with the veyron application repository",
 		Children: []*cmdline.Command{cmdMatch, cmdPut, cmdRemove, cmdEdit},
 	}
 }

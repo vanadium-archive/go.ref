@@ -12,7 +12,7 @@ import (
 	"veyron2/vlog"
 )
 
-// invoker holds the state of an application manager invocation.
+// invoker holds the state of an application repository invocation.
 type invoker struct {
 	// store is the storage server used for storing application
 	// metadata.
