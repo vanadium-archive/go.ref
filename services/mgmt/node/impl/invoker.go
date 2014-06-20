@@ -55,7 +55,7 @@ import (
 	"veyron2/vlog"
 )
 
-const CURRENT = "current"
+const CurrentWorkspace = "current"
 
 var appsSuffix = regexp.MustCompile(`^apps\/.*$`)
 
@@ -401,7 +401,7 @@ func generateBinary(workspace string, envelope *application.Envelope, newBinary 
 	return nil
 }
 
-// TODO(jsimsa): Replace PREVIOUS_ENV with a command-line flag when
+// TODO(jsimsa): Replace <PreviousEnv> with a command-line flag when
 // command-line flags in tests are supported.
 func generateScript(workspace string, envelope *application.Envelope) error {
 	path, err := filepath.EvalSymlinks(os.Args[0])
@@ -410,7 +410,7 @@ func generateScript(workspace string, envelope *application.Envelope) error {
 		return errOperationFailed
 	}
 	output := "#!/bin/bash\n"
-	output += PREVIOUS_ENV + "=" + filepath.Dir(path) + " "
+	output += PreviousEnv + "=" + filepath.Dir(path) + " "
 	output += strings.Join(envelope.Env, " ") + " "
 	output += os.Args[0] + " " + strings.Join(envelope.Args, " ")
 	path = filepath.Join(workspace, "noded.sh")
@@ -424,7 +424,7 @@ func generateScript(workspace string, envelope *application.Envelope) error {
 // getCurrentFileInfo returns the os.FileInfo for both the symbolic
 // link $VEYRON_NM_ROOT/current and the workspace this link points to.
 func getCurrentFileInfo() (os.FileInfo, os.FileInfo, error) {
-	path := filepath.Join(os.Getenv(ROOT_ENV), CURRENT)
+	path := filepath.Join(os.Getenv(RootEnv), CurrentWorkspace)
 	link, err := os.Lstat(path)
 	if err != nil {
 		vlog.Errorf("Lstat(%v) failed: %v", path, err)
@@ -439,7 +439,7 @@ func getCurrentFileInfo() (os.FileInfo, os.FileInfo, error) {
 }
 
 func updateLink(workspace string) error {
-	link := filepath.Join(os.Getenv(ROOT_ENV), CURRENT)
+	link := filepath.Join(os.Getenv(RootEnv), CurrentWorkspace)
 	newLink := link + ".new"
 	fi, err := os.Lstat(newLink)
 	if err == nil {
@@ -561,13 +561,13 @@ func (i *invoker) unregisterCallback(id string) {
 }
 
 func (i *invoker) updateNodeManager() error {
-	envelope, err := fetchEnvelope(os.Getenv(ORIGIN_ENV))
+	envelope, err := fetchEnvelope(os.Getenv(OriginEnv))
 	if err != nil {
 		return err
 	}
 	if !reflect.DeepEqual(envelope, i.state.envelope) {
 		// Create new workspace.
-		workspace := filepath.Join(os.Getenv(ROOT_ENV), fmt.Sprintf("%v", time.Now().Format(time.RFC3339Nano)))
+		workspace := filepath.Join(os.Getenv(RootEnv), fmt.Sprintf("%v", time.Now().Format(time.RFC3339Nano)))
 		perm := os.FileMode(0755)
 		if err := os.MkdirAll(workspace, perm); err != nil {
 			vlog.Errorf("MkdirAll(%v, %v) failed: %v", workspace, perm, err)

@@ -23,8 +23,8 @@ func main() {
 	flag.StringVar(&protocol, "protocol", "tcp", "network type to listen on")
 	flag.StringVar(&publishAs, "name", "", "name to publish the node manager at")
 	flag.Parse()
-	if os.Getenv(impl.ORIGIN_ENV) == "" {
-		vlog.Fatalf("Specify the node manager origin as environment variable %s=<name>", impl.ORIGIN_ENV)
+	if os.Getenv(impl.OriginEnv) == "" {
+		vlog.Fatalf("Specify the node manager origin as environment variable %s=<name>", impl.OriginEnv)
 	}
 	runtime := rt.Init()
 	defer runtime.Shutdown()
@@ -40,9 +40,9 @@ func main() {
 	suffix, envelope := "", &application.Envelope{}
 	name := naming.MakeTerminal(naming.JoinAddressName(endpoint.String(), suffix))
 	vlog.VI(0).Infof("Node manager name: %v", name)
-	// TODO(jsimsa): Replace PREVIOUS_ENV with a command-line flag when
+	// TODO(jsimsa): Replace <PreviousEnv> with a command-line flag when
 	// command-line flags are supported in tests.
-	dispatcher := impl.NewDispatcher(vflag.NewAuthorizerOrDie(), envelope, name, os.Getenv(impl.PREVIOUS_ENV))
+	dispatcher := impl.NewDispatcher(vflag.NewAuthorizerOrDie(), envelope, name, os.Getenv(impl.PreviousEnv))
 	if err := server.Register(suffix, dispatcher); err != nil {
 		vlog.Fatalf("Register(%v, %v) failed: %v", suffix, dispatcher, err)
 	}

@@ -31,7 +31,7 @@ import (
 )
 
 const (
-	TEST_ENV = "VEYRON_NM_TEST"
+	testEnv = "VEYRON_NM_TEST"
 )
 
 var (
@@ -51,7 +51,7 @@ type arInvoker struct{}
 func (i *arInvoker) Match(ipc.ServerContext, []string) (application.Envelope, error) {
 	vlog.VI(0).Infof("Match()")
 	envelope := generateEnvelope()
-	envelope.Env = exec.Setenv(envelope.Env, TEST_ENV, "child")
+	envelope.Env = exec.Setenv(envelope.Env, testEnv, "child")
 	envelope.Binary = "cr"
 	return *envelope, nil
 }
@@ -117,7 +117,7 @@ func generateEnvelope() *application.Envelope {
 }
 
 func generateLink(root, workspace string) {
-	link := filepath.Join(root, impl.CURRENT)
+	link := filepath.Join(root, impl.CurrentWorkspace)
 	newLink := link + ".new"
 	fi, err := os.Lstat(newLink)
 	if err == nil {
@@ -135,7 +135,7 @@ func generateLink(root, workspace string) {
 
 func generateScript(workspace, binary string) string {
 	envelope := generateEnvelope()
-	envelope.Env = exec.Setenv(envelope.Env, TEST_ENV, "parent")
+	envelope.Env = exec.Setenv(envelope.Env, testEnv, "parent")
 	output := "#!/bin/bash\n"
 	output += strings.Join(envelope.Env, " ") + " "
 	output += binary + " " + strings.Join(envelope.Args, " ")
@@ -184,8 +184,8 @@ func invokeUpdate(t *testing.T, name string) {
 // nodeManager is an enclosure for setting up and starting the parent
 // and child node manager used by the TestUpdate() method.
 func nodeManager(argv []string) {
-	root := os.Getenv(impl.ROOT_ENV)
-	switch os.Getenv(TEST_ENV) {
+	root := os.Getenv(impl.RootEnv)
+	switch os.Getenv(testEnv) {
 	case "setup":
 		workspace := filepath.Join(root, fmt.Sprintf("%v", time.Now().Format(time.RFC3339Nano)))
 		perm := os.FileMode(0755)
@@ -230,9 +230,9 @@ func spawnNodeManager(t *testing.T, mtName string, idFile string) *blackbox.Chil
 	child := blackbox.HelperCommand(t, "nodeManager")
 	child.Cmd.Env = exec.Setenv(child.Cmd.Env, "NAMESPACE_ROOT", mtName)
 	child.Cmd.Env = exec.Setenv(child.Cmd.Env, "VEYRON_IDENTITY", idFile)
-	child.Cmd.Env = exec.Setenv(child.Cmd.Env, impl.ORIGIN_ENV, "ar")
-	child.Cmd.Env = exec.Setenv(child.Cmd.Env, impl.ROOT_ENV, root)
-	child.Cmd.Env = exec.Setenv(child.Cmd.Env, TEST_ENV, "setup")
+	child.Cmd.Env = exec.Setenv(child.Cmd.Env, impl.OriginEnv, "ar")
+	child.Cmd.Env = exec.Setenv(child.Cmd.Env, impl.RootEnv, root)
+	child.Cmd.Env = exec.Setenv(child.Cmd.Env, testEnv, "setup")
 	if err := child.Cmd.Start(); err != nil {
 		t.Fatalf("Start() failed: %v", err)
 	}
@@ -331,9 +331,9 @@ func startNodeManager() (string, func()) {
 	suffix, envelope := "", &application.Envelope{}
 	name := naming.MakeTerminal(naming.JoinAddressName(endpoint.String(), suffix))
 	vlog.VI(0).Infof("Node manager name: %v", name)
-	// TODO(jsimsa): Replace PREVIOUS_ENV with a command-line flag when
+	// TODO(jsimsa): Replace <PreviousEnv> with a command-line flag when
 	// command-line flags in tests are supported.
-	dispatcher := impl.NewDispatcher(nil, envelope, name, os.Getenv(impl.PREVIOUS_ENV))
+	dispatcher := impl.NewDispatcher(nil, envelope, name, os.Getenv(impl.PreviousEnv))
 	if err := server.Register(suffix, dispatcher); err != nil {
 		vlog.Fatalf("Register(%v, %v) failed: %v", suffix, dispatcher, err)
 	}
