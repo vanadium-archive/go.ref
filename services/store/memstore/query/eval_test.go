@@ -5,14 +5,16 @@ import (
 	"reflect"
 	"testing"
 	"time"
-	"veyron2/services/store"
-	"veyron2/vdl"
 
+	_ "veyron/lib/testutil"
 	"veyron/services/store/memstore/state"
 
 	"veyron2/query"
 	"veyron2/security"
+	"veyron2/services/store"
 	"veyron2/storage"
+	"veyron2/vdl"
+	"veyron2/vlog"
 )
 
 type team struct {
@@ -43,10 +45,18 @@ func populate(t *testing.T) *state.State {
 	put(t, sn, "/teams/sharks", team{"sharks", "NY"})
 	put(t, sn, "/teams/bears", team{"bears", "CO"})
 
-	put(t, sn, "/teams/cardinals/alfred", alfredID)
-	put(t, sn, "/teams/sharks/alice", aliceID)
-	put(t, sn, "/teams/sharks/betty", bettyID)
-	put(t, sn, "/teams/sharks/bob", bobID)
+	put(t, sn, "/teams/cardinals/players", "")
+	put(t, sn, "/teams/sharks/players", "")
+	put(t, sn, "/teams/bears/players", "")
+
+	put(t, sn, "/teams/cardinals/players/alfred", alfredID)
+	put(t, sn, "/teams/sharks/players/alice", aliceID)
+	put(t, sn, "/teams/sharks/players/betty", bettyID)
+	// Call him something different to make sure we are handling
+	// paths correctly in subqueries.  We don't want the subquery
+	// "teams/sharks | type team | { players/*}" to work with
+	// "/players/bob".
+	put(t, sn, "/teams/sharks/players/robert", bobID)
 
 	commit(t, st, sn)
 	return st
@@ -329,7 +339,8 @@ func TestSelection(t *testing.T) {
 						"myname": "cardinals",
 						"myloc":  "CA",
 					},
-					nil},
+					nil,
+				},
 			},
 		},
 		{
@@ -342,15 +353,86 @@ func TestSelection(t *testing.T) {
 						"myname": "cardinals",
 						"myloc":  "CA",
 					},
-					nil},
+					nil,
+				},
+			},
+		},
+		{
+			"",
+			"'teams/*' | type team | {" +
+				"    Name as myname," +
+				"    players/* | type player | ?Age >=21 | sort() as drinkers," +
+				"    players/* | type player | ?Age < 21 | sort() as nondrinkers" +
+				"} | sort(myname)",
+			[]*store.QueryResult{
+				&store.QueryResult{
+					0,
+					"teams/bears",
+					map[string]vdl.Any{
+						"myname":      "bears",
+						"drinkers":    store.NestedResult(1),
+						"nondrinkers": store.NestedResult(2),
+					},
+					nil,
+				},
+				&store.QueryResult{
+					0,
+					"teams/cardinals",
+					map[string]vdl.Any{
+						"myname":      "cardinals",
+						"drinkers":    store.NestedResult(3),
+						"nondrinkers": store.NestedResult(4),
+					},
+					nil,
+				},
+				&store.QueryResult{
+					4,
+					"teams/cardinals/players/alfred",
+					nil,
+					player{"alfred", 17},
+				},
+				&store.QueryResult{
+					0,
+					"teams/sharks",
+					map[string]vdl.Any{
+						"myname":      "sharks",
+						"drinkers":    store.NestedResult(5),
+						"nondrinkers": store.NestedResult(6),
+					},
+					nil,
+				},
+				&store.QueryResult{
+					5,
+					"teams/sharks/players/betty",
+					nil,
+					player{"betty", 23},
+				},
+				&store.QueryResult{
+					5,
+					"teams/sharks/players/robert",
+					nil,
+					player{"bob", 21},
+				},
+				&store.QueryResult{
+					6,
+					"teams/sharks/players/alice",
+					nil,
+					player{"alice", 16},
+				},
 			},
 		},
 	}
 	for _, test := range tests {
+		vlog.VI(1).Infof("Testing %s\n", test.query)
 		it := Eval(st.Snapshot(), rootPublicID, storage.ParsePath(test.suffix), query.Query{test.query})
 		i := 0
 		for it.Next() {
 			result := it.Get()
+			if i >= len(test.expectedResults) {
+				t.Errorf("query: %s, not enough expected results, need at least %d", i)
+				it.Abort()
+				break
+			}
 			if got, want := result, test.expectedResults[i]; !reflect.DeepEqual(got, want) {
 				t.Errorf("query: %s;\nGOT  %s\nWANT %s", test.query, got, want)
 			}
@@ -480,7 +562,7 @@ func TestEvalAbort(t *testing.T) {
 			if i == 0 {
 				// Give the evaluators time to fill up the channels.  Ensure that they
 				// don't block forever on a full channel.
-				for len(it.(*evalIterator).results) < maxChannelSize {
+				for len(it.(*evalIterator).results[0].results) < maxChannelSize {
 					time.Sleep(time.Millisecond)
 				}
 			}

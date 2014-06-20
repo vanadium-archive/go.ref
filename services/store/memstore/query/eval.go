@@ -8,6 +8,7 @@ import (
 	"sort"
 	"strings"
 	"sync"
+	"veyron2/vlog"
 
 	"veyron/services/store/memstore/state"
 	"veyron/services/store/service"
@@ -40,13 +41,28 @@ type evalIterator struct {
 	// call is guarded by mu.
 	abort chan bool
 
-	// results is the output of the top-level evaluator for the query.
-	results <-chan *store.QueryResult
+	// results represents a stack of result channels.  evalIterator is
+	// essentially an iterator of iterators.  Each subquery adds a nestedChannel
+	// to this stack.  The top of the stack is the end of the slice.
+	results []nestedChannel
 	// errc is the path that evaluator implementations use to pass errors
 	// to evalIterator.  Any error will abort query evaluation.
 	errc chan error
 	// cleanup is used for testing to ensure that no goroutines are leaked.
 	cleanup sync.WaitGroup
+	// maxNesting is the largest value used for nestedChannel.nesting.  It
+	// is the maximum nesting over the duration of the query while len(results)
+	// is just the instantaneous nesting.
+	maxNesting int
+}
+
+// nestedChannel contains the results of a subquery.
+type nestedChannel struct {
+	// nesting is the value to use for the NestedResult field of all
+	// objects that come out of the results channel.
+	nesting int
+	// results is the stream of results for this subquery.
+	results <-chan *store.QueryResult
 }
 
 // Next implements the QueryStream method.
@@ -58,19 +74,63 @@ func (it *evalIterator) Next() bool {
 	}
 	it.mu.Unlock()
 
+	depth := len(it.results) - 1
 	select {
-	case result, ok := <-it.results:
+	case result, ok := <-it.results[depth].results:
 		if !ok {
+			it.results = it.results[:depth]
+			if len(it.results) > 0 {
+				return it.Next()
+			}
+			it.Abort() // Cause the handleErrors() goroutine to exit.
 			return false
 		}
+
+		// Set the correct value for NestedResult.
+		result.NestedResult = store.NestedResult(it.results[depth].nesting)
+
+		it.enqueueNestedChannels(result)
+
 		it.mu.Lock()
 		defer it.mu.Unlock()
-		// TODO(kash): Need to watch out for fields of type channel and pull them
-		// out of line.
 		it.result = result
 		return true
 	case <-it.abort:
 		return false
+	}
+}
+
+// enqueueNestedChannels looks through result.Fields for nested result
+// channels.  If there are any, they are appended to it.results.  We use
+// the result.Fields key to append them in reverse alphabetical order.
+// We use reverse alphabetical order because it.results is a stack--
+// we want to process them in alphabetical order.
+func (it *evalIterator) enqueueNestedChannels(result *store.QueryResult) {
+	if result.Fields == nil {
+		return
+	}
+	var nestingKeys []string
+	for key, val := range result.Fields {
+		// TODO(kash): If a stored value happens to be a store.QueryResult, we'll
+		// do the wrong thing here.  Once we store vom.Value instead of raw structs,
+		// this should not be a problem.
+		if _, ok := val.(chan *store.QueryResult); ok {
+			nestingKeys = append(nestingKeys, key)
+		}
+	}
+	// Figure out the store.NestedResult values based on alphabetical order of
+	// the keys.
+	sort.Sort(sort.StringSlice(nestingKeys))
+	var nested []nestedChannel
+	for _, key := range nestingKeys {
+		it.maxNesting++
+		nested = append(nested,
+			nestedChannel{it.maxNesting, result.Fields[key].(chan *store.QueryResult)})
+		result.Fields[key] = store.NestedResult(it.maxNesting)
+	}
+	// Add the nested result channels in reverse alphabetical order.
+	for i := len(nested) - 1; i >= 0; i-- {
+		it.results = append(it.results, nested[i])
 	}
 }
 
@@ -121,7 +181,7 @@ func (it *evalIterator) wait() {
 }
 
 // sendError sends err on errc unless that would block.  In that case, sendError
-// does nothing because there was aleady an error reported.
+// does nothing because there was already an error reported.
 func sendError(errc chan<- error, err error) {
 	select {
 	case errc <- err:
@@ -153,22 +213,21 @@ func Eval(sn state.Snapshot, clientID security.PublicID, name storage.PathName, 
 
 	out := make(chan *store.QueryResult, maxChannelSize)
 	it := &evalIterator{
-		results: out,
+		results: []nestedChannel{nestedChannel{0, out}},
 		abort:   make(chan bool),
 		errc:    make(chan error),
 	}
 	go it.handleErrors()
 	it.cleanup.Add(1)
 	go evaluator.eval(&context{
-		sn:           sn,
-		suffix:       name.String(),
-		clientID:     clientID,
-		nestedResult: &monotonicInt{},
-		in:           in,
-		out:          out,
-		abort:        it.abort,
-		errc:         it.errc,
-		cleanup:      &it.cleanup,
+		sn:       sn,
+		suffix:   name.String(),
+		clientID: clientID,
+		in:       in,
+		out:      out,
+		abort:    it.abort,
+		errc:     it.errc,
+		cleanup:  &it.cleanup,
 	})
 	return it
 }
@@ -182,9 +241,6 @@ type context struct {
 	suffix string
 	// clientID is the identity of the client that issued the query.
 	clientID security.PublicID
-	// nestedResult produces a unique nesting identifier to be used as
-	// QueryResult.NestedResult.
-	nestedResult *monotonicInt
 	// in produces the intermediate results from the previous stage of the
 	// query.  It will be closed when the evaluator should stop processing
 	// results.  It is not necessary to select on 'in' and 'errc'.
@@ -207,6 +263,7 @@ type context struct {
 // nil.  Returns true if the caller should continue iterating, returns
 // false if it is time to abort.
 func (c *context) emit(result *store.QueryResult) bool {
+	vlog.VI(2).Info("emit", result)
 	if result == nil {
 		// Check for an abort before continuing iteration.
 		select {
@@ -301,15 +358,15 @@ func (e *nameEvaluator) eval(c *context) {
 	defer close(c.out)
 
 	for result := range c.in {
-		nestedResult := c.nestedResult.Next()
-		basePath := naming.Join(c.suffix, result.Name)
-		path := storage.ParsePath(naming.Join(basePath, e.wildcardName.VName))
+		basepath := naming.Join(result.Name, e.wildcardName.VName)
+		path := storage.ParsePath(naming.Join(c.suffix, basepath))
+		vlog.VI(2).Infof("nameEvaluator suffix: %s, result.Name: %s, VName: %s",
+			c.suffix, result.Name, e.wildcardName.VName)
 		for it := c.sn.NewIterator(c.clientID, path, state.ImmediateFilter); it.IsValid(); it.Next() {
 			entry := it.Get()
 			result := &store.QueryResult{
-				NestedResult: store.NestedResult(nestedResult),
-				Name:         naming.Join(e.wildcardName.VName, it.Name()),
-				Value:        entry.Value,
+				Name:  naming.Join(basepath, it.Name()),
+				Value: entry.Value,
 			}
 			if !c.emit(result) {
 				return
@@ -336,15 +393,14 @@ func (e *nameEvaluator) name() string {
 func startSource(c *context, src evaluator) chan *store.QueryResult {
 	srcOut := make(chan *store.QueryResult, maxChannelSize)
 	srcContext := context{
-		sn:           c.sn,
-		suffix:       c.suffix,
-		clientID:     c.clientID,
-		nestedResult: c.nestedResult,
-		in:           c.in,
-		out:          srcOut,
-		abort:        c.abort,
-		errc:         c.errc,
-		cleanup:      c.cleanup,
+		sn:       c.sn,
+		suffix:   c.suffix,
+		clientID: c.clientID,
+		in:       c.in,
+		out:      srcOut,
+		abort:    c.abort,
+		errc:     c.errc,
+		cleanup:  c.cleanup,
 	}
 	c.cleanup.Add(1)
 	go src.eval(&srcContext)
@@ -367,6 +423,7 @@ func (e *typeEvaluator) eval(c *context) {
 	defer close(c.out)
 
 	for result := range startSource(c, e.src) {
+		vlog.VI(2).Info("typeEvaluator", result)
 		if val := reflect.ValueOf(result.Value); e.ty != val.Type().Name() {
 			continue
 		}
@@ -403,6 +460,7 @@ func (e *filterEvaluator) eval(c *context) {
 	defer close(c.out)
 
 	for result := range startSource(c, e.src) {
+		vlog.VI(2).Info("filterEvaluator", result)
 		if e.pred.match(c, result) {
 			if !c.emit(result) {
 				return
@@ -473,6 +531,7 @@ func (e *selectionEvaluator) eval(c *context) {
 }
 
 func (e *selectionEvaluator) processSubpipelines(c *context, result *store.QueryResult) bool {
+	vlog.VI(2).Info("selection: ", result.Name)
 	sel := &store.QueryResult{
 		Name:   result.Name,
 		Fields: make(map[string]vdl.Any),
@@ -485,15 +544,14 @@ func (e *selectionEvaluator) processSubpipelines(c *context, result *store.Query
 		close(in)
 		out := make(chan *store.QueryResult, maxChannelSize)
 		ctxt := &context{
-			sn:           c.sn,
-			suffix:       c.suffix,
-			clientID:     c.clientID,
-			nestedResult: c.nestedResult,
-			in:           in,
-			out:          out,
-			abort:        c.abort,
-			errc:         c.errc,
-			cleanup:      c.cleanup,
+			sn:       c.sn,
+			suffix:   c.suffix,
+			clientID: c.clientID,
+			in:       in,
+			out:      out,
+			abort:    c.abort,
+			errc:     c.errc,
+			cleanup:  c.cleanup,
 		}
 		c.cleanup.Add(1)
 		go a.evaluator.eval(ctxt)
@@ -829,7 +887,7 @@ func toUint64(i interface{}) uint64 {
 type predicateAnd struct {
 	// lhs is the left-hand-side of the conjunction.
 	lhs predicate
-	// rhs is the right-hand-side of the conjuction.
+	// rhs is the right-hand-side of the conjunction.
 	rhs predicate
 	// pos specifies where in the query string this component started.
 	pos parse.Pos
