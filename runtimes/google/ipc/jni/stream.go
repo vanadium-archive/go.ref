@@ -1,6 +1,6 @@
 // +build android
 
-package main
+package jni
 
 import (
 	"encoding/json"
@@ -10,7 +10,7 @@ import (
 )
 
 // #include <stdlib.h>
-// #include "jni_wrapper.h"
+// #include <jni.h>
 import "C"
 
 func newStream(s ipc.Stream, mArgs *methodArgs) stream {

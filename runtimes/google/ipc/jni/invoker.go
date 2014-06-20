@@ -1,6 +1,6 @@
 // +build android
 
-package main
+package jni
 
 import (
 	"encoding/json"
@@ -13,7 +13,7 @@ import (
 	"veyron2/verror"
 )
 
-// #cgo LDFLAGS: -llog
+// #cgo LDFLAGS: -llog -ljniwrapper
 // #include <stdlib.h>
 // #include <android/log.h>
 // #include "jni_wrapper.h"
@@ -35,18 +35,18 @@ import (
 import "C"
 
 func newJNIInvoker(env *C.JNIEnv, jVM *C.JavaVM, jObj C.jobject) (ipc.Invoker, error) {
-	// Create a new Java IDLInvoker object.
-	cid := jMethodID(env, jIDLInvokerClass, "<init>", fmt.Sprintf("(%s)%s", objectSign, voidSign))
-	jInvoker := C.CallNewInvokerObject(env, jIDLInvokerClass, cid, jObj)
+	// Create a new Java VDLInvoker object.
+	cid := jMethodID(env, jVDLInvokerClass, "<init>", fmt.Sprintf("(%s)%s", objectSign, voidSign))
+	jInvoker := C.CallNewInvokerObject(env, jVDLInvokerClass, cid, jObj)
 	if err := jExceptionMsg(env); err != nil {
-		return nil, fmt.Errorf("error creating Java IDLInvoker object: %v", err)
+		return nil, fmt.Errorf("error creating Java VDLInvoker object: %v", err)
 	}
 	// Fetch the argGetter for the object.
-	pid := jMethodID(env, jIDLInvokerClass, "getInterfacePath", fmt.Sprintf("()%s", stringSign))
+	pid := jMethodID(env, jVDLInvokerClass, "getInterfacePath", fmt.Sprintf("()%s", stringSign))
 	jPath := C.jstring(C.CallGetInterfacePath(env, jInvoker, pid))
 	getter := newArgGetter(strings.Join(strings.Split(goString(env, jPath), ".")[1:], "/"))
 	if getter == nil {
-		return nil, fmt.Errorf("couldn't find IDL interface corresponding to path %q", goString(env, jPath))
+		return nil, fmt.Errorf("couldn't find VDL interface corresponding to path %q", goString(env, jPath))
 	}
 	// Reference Java invoker; it will be de-referenced when the go invoker
 	// created below is garbage-collected (through the finalizer callback we
@@ -80,7 +80,7 @@ func (i *jniInvoker) Prepare(method string, numArgs int) (argptrs []interface{},
 	// pending VOM encoder/decoder changes as well as Java (de)serializer.
 	mArgs := i.argGetter.FindMethod(method, numArgs)
 	if mArgs == nil {
-		err = fmt.Errorf("couldn't find IDL method %q with %d args", method, numArgs)
+		err = fmt.Errorf("couldn't find VDL method %q with %d args", method, numArgs)
 		return
 	}
 	argptrs = mArgs.InPtrs()
@@ -104,7 +104,7 @@ func (i *jniInvoker) Invoke(method string, call ipc.ServerCall, argptrs []interf
 	// Create a new Java server call instance.
 	mArgs := i.argGetter.FindMethod(method, len(argptrs))
 	if mArgs == nil {
-		err = fmt.Errorf("couldn't find IDL method %q with %d args", method, len(argptrs))
+		err = fmt.Errorf("couldn't find VDL method %q with %d args", method, len(argptrs))
 	}
 	sCall := newServerCall(call, mArgs)
 	cid := jMethodID(env, jServerCallClass, "<init>", fmt.Sprintf("(%s)%s", longSign, voidSign))
@@ -118,7 +118,7 @@ func (i *jniInvoker) Invoke(method string, call ipc.ServerCall, argptrs []interf
 	}
 	// Invoke the method.
 	const callSign = "Lcom/veyron2/ipc/ServerCall;"
-	const replySign = "Lcom/veyron/runtimes/google/ipc/IDLInvoker$InvokeReply;"
+	const replySign = "Lcom/veyron/runtimes/google/VDLInvoker$InvokeReply;"
 	mid := jMethodID(env, C.GetObjectClass(env, i.jInvoker), "invoke", fmt.Sprintf("(%s%s[%s)%s", stringSign, callSign, stringSign, replySign))
 	jReply := C.CallInvokeMethod(env, i.jInvoker, mid, jString(env, camelCase(method)), jServerCall, jArgs)
 	if err := jExceptionMsg(env); err != nil {
