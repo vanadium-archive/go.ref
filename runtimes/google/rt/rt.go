@@ -148,11 +148,19 @@ func (rt *vrt) init(opts ...veyron2.ROpt) error {
 		return err
 	}
 
+	if err := rt.mgmt.init(rt); err != nil {
+		return err
+	}
+
 	vlog.VI(2).Infof("rt.Init done")
 	return nil
 }
 
 func (rt *vrt) Shutdown() {
+	// TODO(caprita): Consider shutting down mgmt later in the runtime's
+	// shutdown sequence, to capture some of the runtime internal shutdown
+	// tasks in the task tracker.
+	rt.mgmt.shutdown()
 	rt.sm.Shutdown()
 	rt.shutdownSignalHandling()
 	rt.shutdownLogging()

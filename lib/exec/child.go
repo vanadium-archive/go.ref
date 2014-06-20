@@ -6,6 +6,8 @@ import (
 	"io"
 	"os"
 	"sync"
+
+	"veyron/lib/config"
 )
 
 var (
@@ -14,19 +16,15 @@ var (
 )
 
 type ChildHandle struct {
-	// CallbackName is a callback name that can be use to notify the
-	// parent that the child has started up successfully via the
-	// Callback() RPC.
-	CallbackName string
+	// Config is passed down from the parent.
+	Config config.Config
 	// Secret is a secret passed to the child by its parent via a
 	// trusted channel.
 	Secret string
-	// statusPipe is a pipe that is used to notify the parent that the
-	// child process has started successfully. Unlike the Callback()
-	// RPC, which is to be invoked by the application to notify the
-	// parent that the application is "ready", the statusPipe is to be
-	// invoked by the veyron framework to notify the parent that the
-	// child process has successfully started.
+	// statusPipe is a pipe that is used to notify the parent that the child
+	// process has started successfully. It is meant to be invoked by the
+	// veyron framework to notify the parent that the child process has
+	// successfully started.
 	statusPipe *os.File
 }
 
@@ -84,8 +82,12 @@ func createChildHandle() (*ChildHandle, error) {
 		return nil, ErrUnsupportedVersion
 	}
 	dataPipe := os.NewFile(3, "data_rd")
-	name, err := decodeString(dataPipe)
+	serializedConfig, err := decodeString(dataPipe)
 	if err != nil {
+		return nil, err
+	}
+	cfg := config.New()
+	if err := cfg.MergeFrom(serializedConfig); err != nil {
 		return nil, err
 	}
 	secret, err := decodeString(dataPipe)
@@ -93,9 +95,9 @@ func createChildHandle() (*ChildHandle, error) {
 		return nil, err
 	}
 	childHandle = &ChildHandle{
-		CallbackName: name,
-		Secret:       secret,
-		statusPipe:   os.NewFile(4, "status_wr"),
+		Config:     cfg,
+		Secret:     secret,
+		statusPipe: os.NewFile(4, "status_wr"),
 	}
 	return childHandle, nil
 }

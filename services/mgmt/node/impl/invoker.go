@@ -41,11 +41,13 @@ import (
 	"sync"
 	"time"
 
+	"veyron/lib/config"
 	vexec "veyron/lib/exec"
 	ibuild "veyron/services/mgmt/build"
 	"veyron/services/mgmt/profile"
 
 	"veyron2/ipc"
+	"veyron2/mgmt"
 	"veyron2/naming"
 	"veyron2/rt"
 	"veyron2/services/mgmt/application"
@@ -480,7 +482,9 @@ func (i *invoker) testNodeManager(workspace string, envelope *application.Envelo
 	cmd.Stderr = os.Stderr
 	// Setup up the child process callback.
 	id := fmt.Sprintf("%d", rand.Int())
-	handle := vexec.NewParentHandle(cmd, vexec.CallbackNameOpt(naming.JoinAddressName(i.state.name, id)))
+	cfg := config.New()
+	cfg.Set(mgmt.ParentNodeManagerConfigKey, naming.JoinAddressName(i.state.name, id))
+	handle := vexec.NewParentHandle(cmd, vexec.ConfigOpt{cfg})
 	callbackChan := make(chan string)
 	i.registerCallback(id, callbackChan)
 	defer i.unregisterCallback(id)
@@ -699,16 +703,21 @@ func (i *invoker) Update(call ipc.ServerContext) error {
 	}
 }
 
-// CALLBACK RECEIVER INTERFACE IMPLEMENTATION
+// CONFIG INTERFACE IMPLEMENTATION
 
-func (i *invoker) Callback(call ipc.ServerContext, name string) error {
-	vlog.VI(0).Infof("%v.Callback()", i.suffix)
+func (i *invoker) Set(_ ipc.ServerContext, key, value string) error {
+	vlog.VI(0).Infof("%v.Set(%v, %v)", i.suffix, key, value)
+	// For now, only handle the child node manager name.  We'll add handling
+	// for the child's app cycle manager name later on.
+	if key != mgmt.ChildNodeManagerConfigKey {
+		return nil
+	}
 	i.state.channelsMutex.Lock()
 	channel, ok := i.state.channels[i.suffix]
 	i.state.channelsMutex.Unlock()
 	if !ok {
 		return errInvalidSuffix
 	}
-	channel <- name
+	channel <- value
 	return nil
 }

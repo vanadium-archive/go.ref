@@ -9,6 +9,7 @@ import (
 	"syscall"
 	"time"
 
+	"veyron/lib/config"
 	"veyron/lib/testutil/blackbox/parent"
 	// TODO(cnicolaou): move timekeeper out of runtimes
 	"veyron/runtimes/google/lib/timekeeper"
@@ -25,7 +26,7 @@ var (
 // A ParentHandle is the Parent process' means of managing a single child.
 type ParentHandle struct {
 	c           *exec.Cmd
-	name        string
+	config      config.Config
 	secret      string
 	statusRead  *os.File
 	statusWrite *os.File
@@ -39,19 +40,21 @@ type ParentHandleOpt interface {
 	ExecParentHandleOpt()
 }
 
-// CallbackNameOpt can be used to seed the parent handle with a
-// custom callback name.
-type CallbackNameOpt string
+// ConfigOpt can be used to seed the parent handle with a
+// config to be passed to the child.
+type ConfigOpt struct {
+	config.Config
+}
 
-// ExecParentHandleOpt makes CallbackNameOpt an instance of
+// ExecParentHandleOpt makes ConfigOpt an instance of
 // ParentHandleOpt.
-func (cno CallbackNameOpt) ExecParentHandleOpt() {}
+func (ConfigOpt) ExecParentHandleOpt() {}
 
 // SecretOpt can be used to seed the parent handle with a custom secret.
 type SecretOpt string
 
 // ExecParentHandleOpt makes SecretOpt an instance of ParentHandleOpt.
-func (so SecretOpt) ExecParentHandleOpt() {}
+func (SecretOpt) ExecParentHandleOpt() {}
 
 // TimeKeeperOpt can be used to seed the parent handle with a custom timekeeper.
 type TimeKeeperOpt struct {
@@ -59,18 +62,18 @@ type TimeKeeperOpt struct {
 }
 
 // ExecParentHandleOpt makes TimeKeeperOpt an instance of ParentHandleOpt.
-func (tko TimeKeeperOpt) ExecParentHandleOpt() {}
+func (TimeKeeperOpt) ExecParentHandleOpt() {}
 
 // NewParentHandle creates a ParentHandle for the child process represented by
 // an instance of exec.Cmd.
 func NewParentHandle(c *exec.Cmd, opts ...ParentHandleOpt) *ParentHandle {
 	c.Env = append(c.Env, versionVariable+"="+version1)
-	name, secret := "", ""
+	cfg, secret := config.New(), ""
 	tk := timekeeper.RealTime()
 	for _, opt := range opts {
 		switch v := opt.(type) {
-		case CallbackNameOpt:
-			name = string(v)
+		case ConfigOpt:
+			cfg = v
 		case SecretOpt:
 			secret = string(v)
 		case TimeKeeperOpt:
@@ -81,7 +84,7 @@ func NewParentHandle(c *exec.Cmd, opts ...ParentHandleOpt) *ParentHandle {
 	}
 	return &ParentHandle{
 		c:      c,
-		name:   name,
+		config: cfg,
 		secret: secret,
 		tk:     tk,
 	}
@@ -125,7 +128,11 @@ func (p *ParentHandle) Start() error {
 		return err
 	}
 	// Pass data to the child using a pipe.
-	if err := encodeString(dataWrite, p.name); err != nil {
+	serializedConfig, err := p.config.Serialize()
+	if err != nil {
+		return err
+	}
+	if err := encodeString(dataWrite, serializedConfig); err != nil {
 		p.statusWrite.Close()
 		p.statusRead.Close()
 		return err

@@ -2,15 +2,22 @@ package signals
 
 import (
 	"fmt"
+	"io"
 	"os"
 	"syscall"
 	"testing"
 
 	"veyron2"
+	"veyron2/ipc"
+	"veyron2/mgmt"
+	"veyron2/naming"
 	"veyron2/rt"
+	"veyron2/services/mgmt/appcycle"
 
-	_ "veyron/lib/testutil"
+	"veyron/lib/testutil"
 	"veyron/lib/testutil/blackbox"
+	vflag "veyron/security/flag"
+	"veyron/services/mgmt/node"
 )
 
 // TestHelperProcess is boilerplate for the blackbox setup.
@@ -38,12 +45,13 @@ func stopLoop(ch chan<- struct{}) {
 }
 
 func program(signals ...os.Signal) {
-	defer rt.Init().Shutdown()
+	r := rt.Init()
 	closeStopLoop := make(chan struct{})
 	go stopLoop(closeStopLoop)
 	wait := ShutdownOnSignals(signals...)
 	fmt.Println("ready")
 	fmt.Println("received signal", <-wait)
+	r.Shutdown()
 	<-closeStopLoop
 }
 
@@ -258,4 +266,73 @@ func TestParseSignalsList(t *testing.T) {
 	if !isSignalInSet(STOP, list) {
 		t.Errorf("signal %s not in signal set, as expected: %v", STOP, list)
 	}
+}
+
+type configServer struct {
+	ch chan<- string
+}
+
+func (c *configServer) Set(_ ipc.ServerContext, key, value string) error {
+	if key != mgmt.AppCycleManagerConfigKey {
+		return fmt.Errorf("Unexpected key: %v", key)
+	}
+	c.ch <- value
+	return nil
+
+}
+
+func createConfigServer(t *testing.T) (ipc.Server, string, <-chan string) {
+	server, err := rt.R().NewServer()
+	if err != nil {
+		t.Fatalf("Got error: %v", err)
+	}
+	const suffix = ""
+	ch := make(chan string)
+	if err := server.Register(suffix, ipc.SoloDispatcher(node.NewServerConfig(&configServer{ch}), vflag.NewAuthorizerOrDie())); err != nil {
+		t.Fatalf("Got error: %v", err)
+	}
+	var ep naming.Endpoint
+	if ep, err = server.Listen("tcp", "127.0.0.1:0"); err != nil {
+		t.Fatalf("Got error: %v", err)
+	}
+	return server, naming.JoinAddressName(ep.String(), suffix), ch
+
+}
+
+// TestCleanRemoteShutdown verifies that remote shutdown works correctly.
+func TestCleanRemoteShutdown(t *testing.T) {
+	r := rt.Init()
+	defer r.Shutdown()
+	c := blackbox.HelperCommand(t, "handleDefaults")
+	defer c.Cleanup()
+	// This sets up the child's identity to be derived from the parent's (so
+	// that default authorization works for RPCs between the two).
+	// TODO(caprita): Consider making this boilerplate part of blackbox.
+	id := r.Identity()
+	idFile := testutil.SaveIdentityToFile(testutil.NewBlessedIdentity(id, "test"))
+	defer os.Remove(idFile)
+	configServer, configServiceName, ch := createConfigServer(t)
+	defer configServer.Stop()
+	c.Cmd.Env = append(c.Cmd.Env, fmt.Sprintf("VEYRON_IDENTITY=%v", idFile),
+		fmt.Sprintf("%v=%v", mgmt.ParentNodeManagerConfigKey, configServiceName))
+	c.Cmd.Start()
+	appCycleName := <-ch
+	c.Expect("ready")
+	appCycle, err := appcycle.BindAppCycle(appCycleName)
+	if err != nil {
+		t.Fatalf("Got error: %v", err)
+	}
+	stream, err := appCycle.Stop(r.NewContext())
+	if err != nil {
+		t.Fatalf("Got error: %v", err)
+	}
+	if task, err := stream.Recv(); err != io.EOF {
+		t.Errorf("Expected (nil, EOF), got (%v, %v) instead: ", task, err)
+	}
+	if err := stream.Finish(); err != nil {
+		t.Fatalf("Got error: %v", err)
+	}
+	c.Expect(fmt.Sprintf("received signal %s", veyron2.RemoteStop))
+	c.WriteLine("close")
+	c.ExpectEOFAndWait()
 }

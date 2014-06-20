@@ -18,37 +18,32 @@ import (
 	_gen_wiretype "veyron2/wiretype"
 )
 
-// CallbackReceiver can receive callbacks from previously spawned
-// processes.
-// CallbackReceiver is the interface the client binds and uses.
-// CallbackReceiver_ExcludingUniversal is the interface without internal framework-added methods
+// Config is an RPC API to the config service.
+// Config is the interface the client binds and uses.
+// Config_ExcludingUniversal is the interface without internal framework-added methods
 // to enable embedding without method collisions.  Not to be used directly by clients.
-type CallbackReceiver_ExcludingUniversal interface {
-	// Callback receives a callback from a process that the callee
-	// previously spawned, providing the callee with a name that can be
-	// used to communicate with the caller.
-	Callback(ctx _gen_context.T, name string, opts ..._gen_ipc.CallOpt) (err error)
+type Config_ExcludingUniversal interface {
+	// Set sets the value for key.
+	Set(ctx _gen_context.T, key string, value string, opts ..._gen_ipc.CallOpt) (err error)
 }
-type CallbackReceiver interface {
+type Config interface {
 	_gen_ipc.UniversalServiceMethods
-	CallbackReceiver_ExcludingUniversal
+	Config_ExcludingUniversal
 }
 
-// CallbackReceiverService is the interface the server implements.
-type CallbackReceiverService interface {
+// ConfigService is the interface the server implements.
+type ConfigService interface {
 
-	// Callback receives a callback from a process that the callee
-	// previously spawned, providing the callee with a name that can be
-	// used to communicate with the caller.
-	Callback(context _gen_ipc.ServerContext, name string) (err error)
+	// Set sets the value for key.
+	Set(context _gen_ipc.ServerContext, key string, value string) (err error)
 }
 
-// BindCallbackReceiver returns the client stub implementing the CallbackReceiver
+// BindConfig returns the client stub implementing the Config
 // interface.
 //
 // If no _gen_ipc.Client is specified, the default _gen_ipc.Client in the
 // global Runtime is used.
-func BindCallbackReceiver(name string, opts ..._gen_ipc.BindOpt) (CallbackReceiver, error) {
+func BindConfig(name string, opts ..._gen_ipc.BindOpt) (Config, error) {
 	var client _gen_ipc.Client
 	switch len(opts) {
 	case 0:
@@ -65,30 +60,30 @@ func BindCallbackReceiver(name string, opts ..._gen_ipc.BindOpt) (CallbackReceiv
 	default:
 		return nil, _gen_vdl.ErrTooManyOptionsToBind
 	}
-	stub := &clientStubCallbackReceiver{client: client, name: name}
+	stub := &clientStubConfig{client: client, name: name}
 
 	return stub, nil
 }
 
-// NewServerCallbackReceiver creates a new server stub.
+// NewServerConfig creates a new server stub.
 //
-// It takes a regular server implementing the CallbackReceiverService
+// It takes a regular server implementing the ConfigService
 // interface, and returns a new server stub.
-func NewServerCallbackReceiver(server CallbackReceiverService) interface{} {
-	return &ServerStubCallbackReceiver{
+func NewServerConfig(server ConfigService) interface{} {
+	return &ServerStubConfig{
 		service: server,
 	}
 }
 
-// clientStubCallbackReceiver implements CallbackReceiver.
-type clientStubCallbackReceiver struct {
+// clientStubConfig implements Config.
+type clientStubConfig struct {
 	client _gen_ipc.Client
 	name   string
 }
 
-func (__gen_c *clientStubCallbackReceiver) Callback(ctx _gen_context.T, name string, opts ..._gen_ipc.CallOpt) (err error) {
+func (__gen_c *clientStubConfig) Set(ctx _gen_context.T, key string, value string, opts ..._gen_ipc.CallOpt) (err error) {
 	var call _gen_ipc.Call
-	if call, err = __gen_c.client.StartCall(ctx, __gen_c.name, "Callback", []interface{}{name}, opts...); err != nil {
+	if call, err = __gen_c.client.StartCall(ctx, __gen_c.name, "Set", []interface{}{key, value}, opts...); err != nil {
 		return
 	}
 	if ierr := call.Finish(&err); ierr != nil {
@@ -97,7 +92,7 @@ func (__gen_c *clientStubCallbackReceiver) Callback(ctx _gen_context.T, name str
 	return
 }
 
-func (__gen_c *clientStubCallbackReceiver) UnresolveStep(ctx _gen_context.T, opts ..._gen_ipc.CallOpt) (reply []string, err error) {
+func (__gen_c *clientStubConfig) UnresolveStep(ctx _gen_context.T, opts ..._gen_ipc.CallOpt) (reply []string, err error) {
 	var call _gen_ipc.Call
 	if call, err = __gen_c.client.StartCall(ctx, __gen_c.name, "UnresolveStep", nil, opts...); err != nil {
 		return
@@ -108,7 +103,7 @@ func (__gen_c *clientStubCallbackReceiver) UnresolveStep(ctx _gen_context.T, opt
 	return
 }
 
-func (__gen_c *clientStubCallbackReceiver) Signature(ctx _gen_context.T, opts ..._gen_ipc.CallOpt) (reply _gen_ipc.ServiceSignature, err error) {
+func (__gen_c *clientStubConfig) Signature(ctx _gen_context.T, opts ..._gen_ipc.CallOpt) (reply _gen_ipc.ServiceSignature, err error) {
 	var call _gen_ipc.Call
 	if call, err = __gen_c.client.StartCall(ctx, __gen_c.name, "Signature", nil, opts...); err != nil {
 		return
@@ -119,7 +114,7 @@ func (__gen_c *clientStubCallbackReceiver) Signature(ctx _gen_context.T, opts ..
 	return
 }
 
-func (__gen_c *clientStubCallbackReceiver) GetMethodTags(ctx _gen_context.T, method string, opts ..._gen_ipc.CallOpt) (reply []interface{}, err error) {
+func (__gen_c *clientStubConfig) GetMethodTags(ctx _gen_context.T, method string, opts ..._gen_ipc.CallOpt) (reply []interface{}, err error) {
 	var call _gen_ipc.Call
 	if call, err = __gen_c.client.StartCall(ctx, __gen_c.name, "GetMethodTags", []interface{}{method}, opts...); err != nil {
 		return
@@ -130,30 +125,31 @@ func (__gen_c *clientStubCallbackReceiver) GetMethodTags(ctx _gen_context.T, met
 	return
 }
 
-// ServerStubCallbackReceiver wraps a server that implements
-// CallbackReceiverService and provides an object that satisfies
+// ServerStubConfig wraps a server that implements
+// ConfigService and provides an object that satisfies
 // the requirements of veyron2/ipc.ReflectInvoker.
-type ServerStubCallbackReceiver struct {
-	service CallbackReceiverService
+type ServerStubConfig struct {
+	service ConfigService
 }
 
-func (__gen_s *ServerStubCallbackReceiver) GetMethodTags(call _gen_ipc.ServerCall, method string) ([]interface{}, error) {
+func (__gen_s *ServerStubConfig) GetMethodTags(call _gen_ipc.ServerCall, method string) ([]interface{}, error) {
 	// TODO(bprosnitz) GetMethodTags() will be replaces with Signature().
 	// Note: This exhibits some weird behavior like returning a nil error if the method isn't found.
 	// This will change when it is replaced with Signature().
 	switch method {
-	case "Callback":
+	case "Set":
 		return []interface{}{}, nil
 	default:
 		return nil, nil
 	}
 }
 
-func (__gen_s *ServerStubCallbackReceiver) Signature(call _gen_ipc.ServerCall) (_gen_ipc.ServiceSignature, error) {
+func (__gen_s *ServerStubConfig) Signature(call _gen_ipc.ServerCall) (_gen_ipc.ServiceSignature, error) {
 	result := _gen_ipc.ServiceSignature{Methods: make(map[string]_gen_ipc.MethodSignature)}
-	result.Methods["Callback"] = _gen_ipc.MethodSignature{
+	result.Methods["Set"] = _gen_ipc.MethodSignature{
 		InArgs: []_gen_ipc.MethodArgument{
-			{Name: "name", Type: 3},
+			{Name: "key", Type: 3},
+			{Name: "value", Type: 3},
 		},
 		OutArgs: []_gen_ipc.MethodArgument{
 			{Name: "", Type: 65},
@@ -166,7 +162,7 @@ func (__gen_s *ServerStubCallbackReceiver) Signature(call _gen_ipc.ServerCall) (
 	return result, nil
 }
 
-func (__gen_s *ServerStubCallbackReceiver) UnresolveStep(call _gen_ipc.ServerCall) (reply []string, err error) {
+func (__gen_s *ServerStubConfig) UnresolveStep(call _gen_ipc.ServerCall) (reply []string, err error) {
 	if unresolver, ok := __gen_s.service.(_gen_ipc.Unresolver); ok {
 		return unresolver.UnresolveStep(call)
 	}
@@ -184,13 +180,13 @@ func (__gen_s *ServerStubCallbackReceiver) UnresolveStep(call _gen_ipc.ServerCal
 	return
 }
 
-func (__gen_s *ServerStubCallbackReceiver) Callback(call _gen_ipc.ServerCall, name string) (err error) {
-	err = __gen_s.service.Callback(call, name)
+func (__gen_s *ServerStubConfig) Set(call _gen_ipc.ServerCall, key string, value string) (err error) {
+	err = __gen_s.service.Set(call, key, value)
 	return
 }
 
 // Node describes a node manager internally. In addition to the public
-// Node interface, it implements the callback functionality.
+// Node interface, it implements the config functionality.
 // Node is the interface the client binds and uses.
 // Node_ExcludingUniversal is the interface without internal framework-added methods
 // to enable embedding without method collisions.  Not to be used directly by clients.
@@ -198,9 +194,8 @@ type Node_ExcludingUniversal interface {
 	// Node can be used to manage a node. The idea is that this interace
 	// will be invoked using a veyron name that identifies the node.
 	node.Node_ExcludingUniversal
-	// CallbackReceiver can receive callbacks from previously spawned
-	// processes.
-	CallbackReceiver_ExcludingUniversal
+	// Config is an RPC API to the config service.
+	Config_ExcludingUniversal
 }
 type Node interface {
 	_gen_ipc.UniversalServiceMethods
@@ -213,9 +208,8 @@ type NodeService interface {
 	// Node can be used to manage a node. The idea is that this interace
 	// will be invoked using a veyron name that identifies the node.
 	node.NodeService
-	// CallbackReceiver can receive callbacks from previously spawned
-	// processes.
-	CallbackReceiverService
+	// Config is an RPC API to the config service.
+	ConfigService
 }
 
 // BindNode returns the client stub implementing the Node
@@ -242,7 +236,7 @@ func BindNode(name string, opts ..._gen_ipc.BindOpt) (Node, error) {
 	}
 	stub := &clientStubNode{client: client, name: name}
 	stub.Node_ExcludingUniversal, _ = node.BindNode(name, client)
-	stub.CallbackReceiver_ExcludingUniversal, _ = BindCallbackReceiver(name, client)
+	stub.Config_ExcludingUniversal, _ = BindConfig(name, client)
 
 	return stub, nil
 }
@@ -253,16 +247,16 @@ func BindNode(name string, opts ..._gen_ipc.BindOpt) (Node, error) {
 // interface, and returns a new server stub.
 func NewServerNode(server NodeService) interface{} {
 	return &ServerStubNode{
-		ServerStubNode:             *node.NewServerNode(server).(*node.ServerStubNode),
-		ServerStubCallbackReceiver: *NewServerCallbackReceiver(server).(*ServerStubCallbackReceiver),
-		service:                    server,
+		ServerStubNode:   *node.NewServerNode(server).(*node.ServerStubNode),
+		ServerStubConfig: *NewServerConfig(server).(*ServerStubConfig),
+		service:          server,
 	}
 }
 
 // clientStubNode implements Node.
 type clientStubNode struct {
 	node.Node_ExcludingUniversal
-	CallbackReceiver_ExcludingUniversal
+	Config_ExcludingUniversal
 
 	client _gen_ipc.Client
 	name   string
@@ -306,7 +300,7 @@ func (__gen_c *clientStubNode) GetMethodTags(ctx _gen_context.T, method string, 
 // the requirements of veyron2/ipc.ReflectInvoker.
 type ServerStubNode struct {
 	node.ServerStubNode
-	ServerStubCallbackReceiver
+	ServerStubConfig
 
 	service NodeService
 }
@@ -318,7 +312,7 @@ func (__gen_s *ServerStubNode) GetMethodTags(call _gen_ipc.ServerCall, method st
 	if resp, err := __gen_s.ServerStubNode.GetMethodTags(call, method); resp != nil || err != nil {
 		return resp, err
 	}
-	if resp, err := __gen_s.ServerStubCallbackReceiver.GetMethodTags(call, method); resp != nil || err != nil {
+	if resp, err := __gen_s.ServerStubConfig.GetMethodTags(call, method); resp != nil || err != nil {
 		return resp, err
 	}
 	return nil, nil
@@ -383,7 +377,7 @@ func (__gen_s *ServerStubNode) Signature(call _gen_ipc.ServerCall) (_gen_ipc.Ser
 		}
 		result.TypeDefs = append(result.TypeDefs, d)
 	}
-	ss, _ = __gen_s.ServerStubCallbackReceiver.Signature(call)
+	ss, _ = __gen_s.ServerStubConfig.Signature(call)
 	firstAdded = len(result.TypeDefs)
 	for k, v := range ss.Methods {
 		for i, _ := range v.InArgs {

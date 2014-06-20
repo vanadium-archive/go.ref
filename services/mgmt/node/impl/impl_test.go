@@ -23,6 +23,7 @@ import (
 
 	"veyron2"
 	"veyron2/ipc"
+	"veyron2/mgmt"
 	"veyron2/naming"
 	"veyron2/rt"
 	"veyron2/services/mgmt/application"
@@ -153,18 +154,19 @@ func invokeCallback(name string) {
 		// Node manager was started by self-update, notify the parent
 		// process that you are ready.
 		handle.SetReady()
-		if handle.CallbackName != "" {
-			nmClient, err := node.BindNode(handle.CallbackName)
-			if err != nil {
-				vlog.Fatalf("BindNode(%v) failed: %v", handle.CallbackName, err)
-			}
-			if err := nmClient.Callback(rt.R().NewContext(), name); err != nil {
-				vlog.Fatalf("Callback(%v) failed: %v", name, err)
-			}
+		callbackName, err := handle.Config.Get(mgmt.ParentNodeManagerConfigKey)
+		if err != nil {
+			vlog.Fatalf("Failed to get callback name from config: %v", err)
+		}
+		nmClient, err := node.BindNode(callbackName)
+		if err != nil {
+			vlog.Fatalf("BindNode(%v) failed: %v", callbackName, err)
+		}
+		if err := nmClient.Set(rt.R().NewContext(), mgmt.ChildNodeManagerConfigKey, name); err != nil {
+			vlog.Fatalf("Set(%v, %v) failed: %v", mgmt.ChildNodeManagerConfigKey, name, err)
 		}
 	case exec.ErrNoVersion:
-		// Node manager was not started by self-update, no action is
-		// needed.
+		vlog.Fatalf("invokeCallback should only be called from child node manager")
 	default:
 		vlog.Fatalf("NewChildHandle() failed: %v", err)
 	}

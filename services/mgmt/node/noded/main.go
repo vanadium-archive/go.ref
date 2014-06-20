@@ -10,6 +10,7 @@ import (
 	"veyron/services/mgmt/node"
 	"veyron/services/mgmt/node/impl"
 
+	"veyron2/mgmt"
 	"veyron2/naming"
 	"veyron2/rt"
 	"veyron2/services/mgmt/application"
@@ -51,14 +52,18 @@ func main() {
 			vlog.Fatalf("Publish(%v) failed: %v", publishAs, err)
 		}
 	}
-	handle, err := exec.GetChildHandle()
-	if handle != nil && handle.CallbackName != "" {
-		nmClient, err := node.BindCallbackReceiver(handle.CallbackName)
+	handle, _ := exec.GetChildHandle()
+	if handle != nil {
+		callbackName, err := handle.Config.Get(mgmt.ParentNodeManagerConfigKey)
 		if err != nil {
-			vlog.Fatalf("BindNode(%v) failed: %v", handle.CallbackName, err)
+			vlog.Fatalf("Couldn't get callback name from config: %v", err)
 		}
-		if err := nmClient.Callback(rt.R().NewContext(), name); err != nil {
-			vlog.Fatalf("Callback(%v) failed: %v", name, err)
+		nmClient, err := node.BindConfig(callbackName)
+		if err != nil {
+			vlog.Fatalf("BindNode(%v) failed: %v", callbackName, err)
+		}
+		if err := nmClient.Set(rt.R().NewContext(), mgmt.ChildNodeManagerConfigKey, name); err != nil {
+			vlog.Fatalf("Callback(%v, %v) failed: %v", mgmt.ChildNodeManagerConfigKey, name, err)
 		}
 	}
 	// Wait until shutdown.

@@ -6,18 +6,15 @@ import (
 	public "veyron2/services/mgmt/node"
 )
 
-// CallbackReceiver can receive callbacks from previously spawned
-// processes.
-type CallbackReceiver interface {
-	// Callback receives a callback from a process that the callee
-	// previously spawned, providing the callee with a name that can be
-	// used to communicate with the caller.
-	Callback(name string) error
+// Config is an RPC API to the config service.
+type Config interface {
+	// Set sets the value for key.
+	Set(key, value string) error
 }
 
 // Node describes a node manager internally. In addition to the public
-// Node interface, it implements the callback functionality.
+// Node interface, it implements the config functionality.
 type Node interface {
 	public.Node
-	CallbackReceiver
+	Config
 }

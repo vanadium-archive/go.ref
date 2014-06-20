@@ -10,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	"veyron/lib/config"
 	vexec "veyron/lib/exec"
 	// Use mock timekeeper to avoid actually sleeping during the test.
 	"veyron/runtimes/google/testing/timekeeper"
@@ -99,19 +100,25 @@ func expectMessage(r io.Reader, m string) bool {
 	panic("unreachable")
 }
 
-func TestCallbackNameExchange(t *testing.T) {
-	cmd := helperCommand("testCallbackName")
+func TestConfigExchange(t *testing.T) {
+	cmd := helperCommand("testConfig")
 	stderr, _ := cmd.StderrPipe()
-	ph := vexec.NewParentHandle(cmd, vexec.CallbackNameOpt("dummy_name"))
+	cfg := config.New()
+	cfg.Set("foo", "bar")
+	ph := vexec.NewParentHandle(cmd, vexec.ConfigOpt{cfg})
 	err := ph.Start()
 	if err != nil {
-		t.Fatalf("testCallbackNameTest: start: %v", err)
+		t.Fatalf("testConfig: start: %v", err)
 	}
-	if !expectMessage(stderr, "dummy_name") {
+	serialized, err := cfg.Serialize()
+	if err != nil {
+		t.Fatalf("testConfig: failed to serialize config: %v", err)
+	}
+	if !expectMessage(stderr, serialized) {
 		t.Errorf("unexpected output from child")
 	} else {
 		if err = cmd.Wait(); err != nil {
-			t.Errorf("testCallbackNameTest: wait: %v", err)
+			t.Errorf("testConfig: wait: %v", err)
 		}
 	}
 	clean(t, ph)
@@ -480,12 +487,16 @@ func TestHelperProcess(*testing.T) {
 		}()
 		r := <-rc
 		os.Exit(r)
-	case "testCallbackName":
+	case "testConfig":
 		ch, err := vexec.GetChildHandle()
 		if err != nil {
 			log.Fatalf("%v", err)
 		} else {
-			fmt.Fprintf(os.Stderr, "%s", ch.CallbackName)
+			serialized, err := ch.Config.Serialize()
+			if err != nil {
+				log.Fatalf("%v", err)
+			}
+			fmt.Fprintf(os.Stderr, "%s", serialized)
 		}
 	case "testSecret":
 		ch, err := vexec.GetChildHandle()
