@@ -9,7 +9,7 @@
 import { isAbsoulteUrl } from 'libs/utils/url'
 import { Logger } from 'libs/logs/logger'
 
-var log = new Logger('pipe-viwer/manager');
+var log = new Logger('pipe-viewer/manager');
 
 // cache loaded viewers
 var loadedPipeViewers = {};

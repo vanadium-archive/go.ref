@@ -8,6 +8,7 @@ window.addEventListener('polymer-ready', function(e) {
   System.paths = {
     '*': '*.js',
     'pipe-viewer': 'pipe-viewers/pipe-viewer.js',
+    'pipe-viewer-delegation': 'pipe-viewers/pipe-viewer-delegation.js',
     'view': 'libs/mvc/view.js'
   };
 
