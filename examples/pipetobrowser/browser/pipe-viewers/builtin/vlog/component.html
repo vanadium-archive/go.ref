@@ -1,0 +1,39 @@
+<link rel="import" href="/libs/vendor/polymer/polymer/polymer.html">
+
+<polymer-element name="p2b-plugin-vlog">
+  <template>
+    <link rel="stylesheet" href="component.css">
+    <table summary="Data Grid displaying veyron log items in a tabular format.">
+      <thead>
+        <tr>
+          <th>Log Level</th>
+          <th>File</th>
+          <th>Message</th>
+          <th>Date</th>
+          <th>ThreadId</th>
+        </tr>
+      </thead>
+      <tbody>
+        <template repeat="{{ item in logItems }}">
+          <tr class="{{ item.level }}">
+            <td>{{ item.level }}</td>
+            <th scope="row">{{ item.file }}<span class="lineNumber">{{ item.fileLine }}<span/></th>
+            <td>{{ item.message }}</td>
+            <td>{{ item.date }}</td>
+            <td>{{ item.threadId }}</td>
+          </tr>
+        </template>
+      </tbody>
+    </table>
+
+  </template>
+  <script>
+    Polymer('p2b-plugin-vlog', {
+      /*
+       * List of log items to display
+       * @type {object}
+       */
+      logItems: []
+    });
+    </script>
+</polymer-element>

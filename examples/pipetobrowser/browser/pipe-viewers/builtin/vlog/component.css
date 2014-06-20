@@ -1,0 +1,24 @@
+tr.error {
+  background-color: #FF9700;
+}
+
+tr.fatal {
+  background-color: #DA4336;
+}
+
+tr.warning {
+  background-color: #FFEA3A;
+}
+
+tr.info {
+  background-color: #FAFAFA;
+}
+
+.lineNumber::before {
+  content: '#';
+}
+
+.lineNumber {
+  color: rgb(51, 103, 214);
+  margin-left: 0.1em;
+}

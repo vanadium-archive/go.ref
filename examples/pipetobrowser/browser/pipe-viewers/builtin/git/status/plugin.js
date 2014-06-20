@@ -18,8 +18,6 @@ class GitStatusPipeViewer extends PipeViewer {
   }
 
   play(stream) {
-    var listView = document.createElement('ul');
-
     // TODO(aghassemi) let's have the plugin specify if they expect data in
     // in binary or text so p2b can set the proper encoding for them rather
     // than each plugin doing it like this.
