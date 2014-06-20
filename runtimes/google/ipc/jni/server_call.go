@@ -1,6 +1,6 @@
 // +build android
 
-package main
+package jni
 
 import (
 	"veyron2/ipc"

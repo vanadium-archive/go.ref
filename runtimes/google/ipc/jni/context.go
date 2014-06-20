@@ -1,12 +1,13 @@
 // +build android
 
-package main
+package jni
 
 import (
 	"fmt"
 	"runtime"
 )
 
+// #cgo LDFLAGS: -ljniwrapper
 // #include "jni_wrapper.h"
 import "C"
 

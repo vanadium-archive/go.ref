@@ -1,6 +1,6 @@
 // +build android
 
-package main
+package jni
 
 import (
 	"fmt"
@@ -10,6 +10,7 @@ import (
 	"veyron2/security"
 )
 
+// #cgo LDFLAGS: -ljniwrapper
 // #include "jni_wrapper.h"
 // // CGO doesn't support variadic functions so we have to hard-code these
 // // functions to match the invoking code. Ugh!

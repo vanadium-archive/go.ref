@@ -1,4 +1,4 @@
-package main
+package jni
 
 import (
 	"fmt"
@@ -8,7 +8,7 @@ import (
 	// Imported VDLs.  Please add a link to all VDLs you care about here,
 	// and add all interfaces you care about to the init() function below.
 	"veyron/examples/fortune"
-	"veyron2/context"
+	ctx "veyron2/context"
 	"veyron2/ipc"
 )
 
@@ -32,7 +32,7 @@ func registerInterface(ifacePtr interface{}) {
 		panic(fmt.Sprintf("expected interface type for %q, got: %v", ifacePtr, t.Kind()))
 	}
 
-	contextType := reflect.TypeOf((*context.T)(nil)).Elem()
+	contextType := reflect.TypeOf((*ctx.T)(nil)).Elem()
 	serverContextType := reflect.TypeOf((*ipc.ServerContext)(nil)).Elem()
 	optType := reflect.TypeOf(([]ipc.CallOpt)(nil))
 	// Create a new arg getter.

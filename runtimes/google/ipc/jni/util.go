@@ -1,6 +1,6 @@
 // +build android
 
-package main
+package jni
 
 import (
 	"errors"
@@ -14,6 +14,7 @@ import (
 	"veyron2/verror"
 )
 
+// #cgo LDFLAGS: -ljniwrapper
 // #include <stdlib.h>
 // #include "jni_wrapper.h"
 // // CGO doesn't support variadic functions so we have to hard-code these
@@ -69,14 +70,13 @@ func ptrValue(ptr interface{}) C.jlong {
 }
 
 // ptr returns the pointer represented by the provided (Java C.jlong) value.
-func ptr(ptrValue C.jlong) (ptr interface{}) {
-	ptr = unsafe.Pointer(uintptr(ptrValue))
-	return
+func ptr(ptrValue C.jlong) unsafe.Pointer {
+	return unsafe.Pointer(uintptr(ptrValue))
 }
 
 // isPointer returns true iff the provided value is a pointer.
 func isPointer(val interface{}) bool {
-	return reflect.ValueOf(ptr).Kind() == reflect.Ptr
+	return reflect.ValueOf(val).Kind() == reflect.Ptr
 }
 
 // goString returns a Go string given the Java string.
