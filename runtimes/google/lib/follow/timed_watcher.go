@@ -10,14 +10,17 @@ const defaultSleep = time.Second
 // channel at an interval specified by sleep.
 // The event receiver must determine whether the event is spurious, or
 // corresponds to a modification of the file.
-func newFSTimedWatch(filename string) func(chan<- error, <-chan bool, chan<- bool) {
+func newFSTimedWatch(filename string) func(chan<- error, chan<- struct{}, <-chan struct{}, chan<- struct{}) {
 	return newCustomFSTimedWatch(filename, defaultSleep)
 }
 
-func newCustomFSTimedWatch(filename string, sleep time.Duration) func(chan<- error, <-chan bool, chan<- bool) {
-	return func(events chan<- error, stop <-chan bool, done chan<- bool) {
+func newCustomFSTimedWatch(filename string, sleep time.Duration) func(chan<- error, chan<- struct{}, <-chan struct{}, chan<- struct{}) {
+	return func(events chan<- error, initialized chan<- struct{}, stop <-chan struct{}, done chan<- struct{}) {
 		defer close(done)
 		defer close(events)
+
+		close(initialized)
+
 		for {
 			// Look for a stop command.
 			select {

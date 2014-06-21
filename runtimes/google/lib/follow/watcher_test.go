@@ -10,7 +10,7 @@ func TestSendEvent(t *testing.T) {
 
 	// Test that 1) a nil can be sent 2) an error can be sent after a nil.
 	events := make(chan error, 1)
-	stop := make(chan bool)
+	stop := make(chan struct{})
 	if !sendEvent(events, nil, stop) {
 		t.Fatal("Expected that the event will be sent")
 	}
@@ -26,7 +26,7 @@ func TestSendEvent(t *testing.T) {
 
 	// Test that nils are coalesced.
 	events = make(chan error, 1)
-	stop = make(chan bool)
+	stop = make(chan struct{})
 	if !sendEvent(events, nil, stop) {
 		t.Fatal("Expected that the event will be sent")
 	}
@@ -39,7 +39,7 @@ func TestSendEvent(t *testing.T) {
 
 	// Test that an error is not sent if stop is closed.
 	events = make(chan error, 1)
-	stop = make(chan bool)
+	stop = make(chan struct{})
 	close(stop)
 	// The stop signal may not be handled immediately.
 	for sendEvent(events, event, stop) {
@@ -47,7 +47,7 @@ func TestSendEvent(t *testing.T) {
 
 	// Test that a nil is not sent if stop is closed.
 	events = make(chan error, 1)
-	stop = make(chan bool)
+	stop = make(chan struct{})
 	close(stop)
 	// The stop signal may not be handled immediately.
 	for sendEvent(events, nil, stop) {
@@ -55,7 +55,7 @@ func TestSendEvent(t *testing.T) {
 
 	// Test that an error is not sent if stop is closed while send is blocked.
 	events = make(chan error, 1)
-	stop = make(chan bool)
+	stop = make(chan struct{})
 	if !sendEvent(events, nil, stop) {
 		t.Fatal("Expected that the event will be sent")
 	}

@@ -12,8 +12,8 @@ import (
 // events channel. Further fsnotify events are not received until the nil
 // value is received from the events channel.
 // The function sends any errors on the events channel.
-func newFSNotifyWatch(filename string) func(chan<- error, <-chan bool, chan<- bool) {
-	return func(events chan<- error, stop <-chan bool, done chan<- bool) {
+func newFSNotifyWatch(filename string) func(chan<- error, chan<- struct{}, <-chan struct{}, chan<- struct{}) {
+	return func(events chan<- error, initialized chan<- struct{}, stop <-chan struct{}, done chan<- struct{}) {
 		defer close(done)
 		defer close(events)
 		source, err := fsnotify.NewWatcher()
@@ -26,6 +26,9 @@ func newFSNotifyWatch(filename string) func(chan<- error, <-chan bool, chan<- bo
 			events <- err
 			return
 		}
+
+		close(initialized)
+
 		for {
 			// Receive:
 			//  (A) An fsnotify modification event. Send nil.
