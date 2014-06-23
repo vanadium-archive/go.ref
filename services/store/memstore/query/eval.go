@@ -39,15 +39,12 @@ type evalIterator struct {
 	// abort is used as the signal to query evaluation to terminate early.
 	// evaluator implementations will test for abort closing.  The close()
 	// call is guarded by mu.
-	abort chan bool
+	abort chan struct{}
 
 	// results represents a stack of result channels.  evalIterator is
 	// essentially an iterator of iterators.  Each subquery adds a nestedChannel
 	// to this stack.  The top of the stack is the end of the slice.
 	results []nestedChannel
-	// errc is the path that evaluator implementations use to pass errors
-	// to evalIterator.  Any error will abort query evaluation.
-	errc chan error
 	// cleanup is used for testing to ensure that no goroutines are leaked.
 	cleanup sync.WaitGroup
 	// maxNesting is the largest value used for nestedChannel.nesting.  It
@@ -82,7 +79,6 @@ func (it *evalIterator) Next() bool {
 			if len(it.results) > 0 {
 				return it.Next()
 			}
-			it.Abort() // Cause the handleErrors() goroutine to exit.
 			return false
 		}
 
@@ -161,17 +157,17 @@ func (it *evalIterator) Err() error {
 	return it.err
 }
 
-// handleErrors watches for errors on it.errc, calling it.Abort when it finds
-// one.  It should run in a goroutine.
-func (it *evalIterator) handleErrors() {
-	select {
-	case <-it.abort:
-	case err := <-it.errc:
-		it.mu.Lock()
+func (it *evalIterator) setErrorf(format string, args ...interface{}) {
+	it.setError(fmt.Errorf(format, args...))
+}
+
+func (it *evalIterator) setError(err error) {
+	it.mu.Lock()
+	if it.err == nil {
 		it.err = err
-		it.mu.Unlock()
-		it.Abort()
 	}
+	it.mu.Unlock()
+	it.Abort()
 }
 
 // wait blocks until all children goroutines are finished.  This is useful in
@@ -180,15 +176,10 @@ func (it *evalIterator) wait() {
 	it.cleanup.Wait()
 }
 
-// sendError sends err on errc unless that would block.  In that case, sendError
-// does nothing because there was already an error reported.
-func sendError(errc chan<- error, err error) {
-	select {
-	case errc <- err:
-		// Sent error successfully.
-	default:
-		// Sending the error would block because there is already an error in the
-		// channel.  The first error wins.
+func newErrorIterator(err error) service.QueryStream {
+	return &evalIterator{
+		err:   err,
+		abort: make(chan struct{}),
 	}
 }
 
@@ -199,11 +190,11 @@ func sendError(errc chan<- error, err error) {
 func Eval(sn state.Snapshot, clientID security.PublicID, name storage.PathName, q query.Query) service.QueryStream {
 	ast, err := parse.Parse(q)
 	if err != nil {
-		return &evalIterator{err: err}
+		return newErrorIterator(err)
 	}
 	evaluator, err := convert(ast)
 	if err != nil {
-		return &evalIterator{err: err}
+		return newErrorIterator(err)
 	}
 
 	// Seed the input with the root entity.
@@ -214,10 +205,8 @@ func Eval(sn state.Snapshot, clientID security.PublicID, name storage.PathName, 
 	out := make(chan *store.QueryResult, maxChannelSize)
 	it := &evalIterator{
 		results: []nestedChannel{nestedChannel{0, out}},
-		abort:   make(chan bool),
-		errc:    make(chan error),
+		abort:   make(chan struct{}),
 	}
-	go it.handleErrors()
 	it.cleanup.Add(1)
 	go evaluator.eval(&context{
 		sn:       sn,
@@ -225,8 +214,8 @@ func Eval(sn state.Snapshot, clientID security.PublicID, name storage.PathName, 
 		clientID: clientID,
 		in:       in,
 		out:      out,
+		evalIt:   it,
 		abort:    it.abort,
-		errc:     it.errc,
 		cleanup:  &it.cleanup,
 	})
 	return it
@@ -249,11 +238,12 @@ type context struct {
 	// evaluators should use context.emit instead of writing directly
 	// to out.
 	out chan<- *store.QueryResult
+	// evalIt is the iterator that interfaces with the client.  It is here
+	// to allow the evaluation code to propagate errors via setError().
+	evalIt *evalIterator
 	// abort will be closed if query evaluation should terminate early.
 	// evaluator implementations should regularly test if it is still open.
-	abort chan bool
-	// errc is where evaluators can propagate errors to the client.
-	errc chan<- error
+	abort chan struct{}
 	// cleanup is used for testing to ensure that no goroutines are leaked.
 	// evaluator.eval implementations should call Done when finished processing.
 	cleanup *sync.WaitGroup
@@ -398,8 +388,8 @@ func startSource(c *context, src evaluator) chan *store.QueryResult {
 		clientID: c.clientID,
 		in:       c.in,
 		out:      srcOut,
+		evalIt:   c.evalIt,
 		abort:    c.abort,
-		errc:     c.errc,
 		cleanup:  c.cleanup,
 	}
 	c.cleanup.Add(1)
@@ -549,8 +539,8 @@ func (e *selectionEvaluator) processSubpipelines(c *context, result *store.Query
 			clientID: c.clientID,
 			in:       in,
 			out:      out,
+			evalIt:   c.evalIt,
 			abort:    c.abort,
-			errc:     c.errc,
 			cleanup:  c.cleanup,
 		}
 		c.cleanup.Add(1)
@@ -679,8 +669,8 @@ func (a argsSorter) Less(i, j int) bool {
 		jval := arg.value(a.c, a.results[j])
 		res, err := compare(a.c, ival, jval)
 		if err != nil {
-			sendError(a.c.errc, fmt.Errorf("error while sorting (Pos %v Arg: %d) left: %s, right: %s; %v",
-				a.e.pos, n, a.results[i].Name, a.results[j].Name, err))
+			a.c.evalIt.setErrorf("error while sorting (Pos %v Arg: %d) left: %s, right: %s; %v",
+				a.e.pos, n, a.results[i].Name, a.results[j].Name, err)
 			return false
 		}
 		if res == 0 {
@@ -756,8 +746,8 @@ func (p *predicateCompare) match(c *context, result *store.QueryResult) bool {
 
 	res, err := compare(c, lval, rval)
 	if err != nil {
-		sendError(c.errc, fmt.Errorf("error while evaluating predicate (Pos %v) for name '%s': %v",
-			p.pos, result.Name, err))
+		c.evalIt.setErrorf("error while evaluating predicate (Pos %v) for name '%s': %v",
+			p.pos, result.Name, err)
 		return false
 	}
 	switch p.comp {
@@ -774,7 +764,7 @@ func (p *predicateCompare) match(c *context, result *store.QueryResult) bool {
 	case parse.CompGE:
 		return res >= 0
 	default:
-		sendError(c.errc, fmt.Errorf("unknown comparator %d at Pos %v", p.comp, p.pos))
+		c.evalIt.setErrorf("unknown comparator %d at Pos %v", p.comp, p.pos)
 		return false
 	}
 }
@@ -1013,8 +1003,8 @@ func (e *exprName) value(c *context, result *store.QueryResult) interface{} {
 		// e.name has no slashes.
 		val, ok := result.Fields[e.name]
 		if !ok {
-			sendError(c.errc, fmt.Errorf("name '%s' was not selected from '%s', found: [%s]",
-				e.name, result.Name, mapKeys(result.Fields)))
+			c.evalIt.setErrorf("name '%s' was not selected from '%s', found: [%s]",
+				e.name, result.Name, mapKeys(result.Fields))
 			return nil
 		}
 		return val
@@ -1022,7 +1012,8 @@ func (e *exprName) value(c *context, result *store.QueryResult) interface{} {
 	fullpath := naming.Join(result.Name, e.name)
 	entry, err := c.sn.Get(c.clientID, storage.ParsePath(fullpath))
 	if err != nil {
-		sendError(c.errc, fmt.Errorf("could not look up name '%s' relative to '%s': %v", e.name, result.Name, err))
+		c.evalIt.setErrorf("could not look up name '%s' relative to '%s': %v",
+			e.name, result.Name, err)
 		return nil
 	}
 	return entry.Value
@@ -1080,13 +1071,13 @@ func (e *exprUnary) value(c *context, result *store.QueryResult) interface{} {
 		case uint64:
 			return -v
 		default:
-			sendError(c.errc, fmt.Errorf("cannot negate value of type %T for %s", v, result.Name))
+			c.evalIt.setErrorf("cannot negate value of type %T for %s", v, result.Name)
 			return nil
 		}
 	case parse.OpPos:
 		return v
 	default:
-		sendError(c.errc, fmt.Errorf("unknown operator %d at Pos %v", e.op, e.pos))
+		c.evalIt.setErrorf("unknown operator %d at Pos %v", e.op, e.pos)
 		return nil
 	}
 }
