@@ -68,14 +68,16 @@ import (
 	"veyron/examples/boxes"
 	inaming "veyron/runtimes/google/naming"
 	vsync "veyron/runtimes/google/vsync"
-	"veyron/services/store/raw"
-	storage "veyron/services/store/server"
+	sstore "veyron/services/store/server"
 
 	"veyron2"
 	"veyron2/ipc"
 	"veyron2/naming"
 	"veyron2/rt"
 	"veyron2/security"
+	istore "veyron2/services/store"
+	iwatch "veyron2/services/watch"
+	"veyron2/storage"
 	"veyron2/storage/vstore"
 	"veyron2/storage/vstore/primitives"
 	"veyron2/vom"
@@ -95,7 +97,6 @@ type boxesDispatcher struct {
 
 type goState struct {
 	runtime       veyron2.Runtime
-	store         *storage.Server
 	ipc           ipc.Server
 	disp          boxesDispatcher
 	drawStream    boxes.DrawInterfaceServiceDrawStream
@@ -192,14 +193,16 @@ func (gs *goState) streamBoxesLoop() {
 func (gs *goState) monitorStore() {
 	ctx := gs.runtime.NewContext()
 
+	vst, err := vstore.New(gs.storeEndpoint)
+	if err != nil {
+		panic(fmt.Errorf("Failed to init veyron store:%v", err))
+	}
+	root := vst.Bind("/")
+
 	// Watch for any box updates from the store
 	go func() {
-		rst, err := raw.BindStore(naming.JoinAddressName(gs.storeEndpoint, raw.RawStoreSuffix))
-		if err != nil {
-			panic(fmt.Errorf("Failed to raw.Bind Store:%v", err))
-		}
-		req := raw.Request{}
-		stream, err := rst.Watch(ctx, req, veyron2.CallTimeout(ipc.NoTimeout))
+		req := iwatch.GlobRequest{Pattern: "*"}
+		stream, err := root.WatchGlob(ctx, req)
 		if err != nil {
 			panic(fmt.Errorf("Can't watch store: %s: %s", gs.storeEndpoint, err))
 		}
@@ -209,20 +212,16 @@ func (gs *goState) monitorStore() {
 				panic(fmt.Errorf("Can't receive watch event: %s: %s", gs.storeEndpoint, err))
 			}
 			for _, change := range cb.Changes {
-				if mu, ok := change.Value.(*raw.Mutation); ok && len(mu.Dir) == 0 {
-					if box, ok := mu.Value.(boxes.Box); ok && box.DeviceId != gs.myIPAddr {
+				if entry, ok := change.Value.(*storage.Entry); ok {
+					if box, ok := entry.Value.(boxes.Box); ok && box.DeviceId != gs.myIPAddr {
 						nativeJava.addBox(&box)
 					}
 				}
 			}
 		}
 	}()
+
 	// Send any box updates to the store
-	vst, err := vstore.New(gs.storeEndpoint)
-	if err != nil {
-		panic(fmt.Errorf("Failed to init veyron store:%v", err))
-	}
-	root := vst.Bind("/")
 	tr := primitives.NewTransaction(ctx)
 	if _, err := root.Put(ctx, tr, ""); err != nil {
 		panic(fmt.Errorf("Put for %s failed:%v", root, err))
@@ -321,10 +320,10 @@ func initStoreService() {
 	}
 
 	// Create a new store server
-	var err error
 	storeDBName := storePath + "/" + storeDatabase
-	if gs.store, err = storage.New(storage.ServerConfig{Admin: publicID, DBName: storeDBName}); err != nil {
-		panic(fmt.Errorf("storage.New() failed:%v", err))
+	store, err := sstore.New(sstore.ServerConfig{Admin: publicID, DBName: storeDBName})
+	if err != nil {
+		panic(fmt.Errorf("store.New() failed:%v", err))
 	}
 
 	// Create ACL Authorizer with read/write permissions for the identity
@@ -333,7 +332,7 @@ func initStoreService() {
 		panic(fmt.Errorf("LoadACL failed:%v", err))
 	}
 	auth := security.NewACLAuthorizer(acl)
-	gs.disp.storeDispatcher = storage.NewStoreDispatcher(gs.store, auth)
+	gs.disp.storeDispatcher = sstore.NewStoreDispatcher(gs.store, auth)
 
 	// Create an endpoint and start listening
 	if _, err = gs.ipc.Listen("tcp", gs.myIPAddr+storeServicePort); err != nil {
@@ -360,7 +359,10 @@ func initSyncService(peerEndpoint string) {
 }
 
 func init() {
-	vom.Register(&raw.Mutation{})
+	// Register *store.Entry for WatchGlob.
+	// TODO(tilaks): store.Entry is declared in vdl, vom should register the
+	// pointer automatically.
+	vom.Register(&istore.Entry{})
 	runtime.GOMAXPROCS(runtime.NumCPU())
 }
 
