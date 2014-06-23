@@ -401,7 +401,7 @@ func (p *Proxy) routeCounters(process *process, counters message.Counters) {
 	// flow). This optimization is left an as excercise to the interested.
 	for cid, bytes := range counters {
 		srcVCI := cid.VCI()
-		if vc := process.servers[srcVCI]; vc != nil {
+		if vc := process.ServerVC(srcVCI); vc != nil {
 			vc.ReleaseCounters(cid.Flow(), bytes)
 			continue
 		}
