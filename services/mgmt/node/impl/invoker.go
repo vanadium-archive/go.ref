@@ -420,7 +420,6 @@ func generateScript(workspace string, envelope *application.Envelope) error {
 		vlog.Errorf("WriteFile(%v) failed: %v", path, err)
 		return errOperationFailed
 	}
-	vlog.VI(1).Infof("%s", output)
 	return nil
 }
 

@@ -7,7 +7,6 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
-	"regexp"
 	"strings"
 	"syscall"
 	"testing"
@@ -110,9 +109,9 @@ func generateBinary(workspace string) string {
 func generateEnvelope() *application.Envelope {
 	envelope := &application.Envelope{}
 	envelope.Args = os.Args[1:]
-	re := regexp.MustCompile("^([^=]*)=(.*)$")
 	for _, env := range os.Environ() {
-		envelope.Env = append(envelope.Env, re.ReplaceAllString(env, "$1=\"$2\""))
+		i := strings.Index(env, "=")
+		envelope.Env = append(envelope.Env, fmt.Sprintf("%s=%q", env[:i], env[i+1:]))
 	}
 	return envelope
 }
