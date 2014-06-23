@@ -5,6 +5,7 @@ import (
 
 	"veyron/lib/cmdline"
 	"veyron/services/mgmt/profile"
+	"veyron/services/mgmt/repository"
 
 	"veyron2/rt"
 )
@@ -22,7 +23,7 @@ func runLabel(cmd *cmdline.Command, args []string) error {
 	if expected, got := 1, len(args); expected != got {
 		return cmd.Errorf("label: incorrect number of arguments, expected %d, got %d", expected, got)
 	}
-	p, err := profile.BindProfile(args[0])
+	p, err := repository.BindProfile(args[0])
 	if err != nil {
 		return fmt.Errorf("bind error: %v", err)
 	}
@@ -47,7 +48,7 @@ func runDescription(cmd *cmdline.Command, args []string) error {
 	if expected, got := 1, len(args); expected != got {
 		return cmd.Errorf("description: incorrect number of arguments, expected %d, got %d", expected, got)
 	}
-	p, err := profile.BindProfile(args[0])
+	p, err := repository.BindProfile(args[0])
 	if err != nil {
 		return fmt.Errorf("bind error: %v", err)
 	}
@@ -72,7 +73,7 @@ func runSpec(cmd *cmdline.Command, args []string) error {
 	if expected, got := 1, len(args); expected != got {
 		return cmd.Errorf("spec: incorrect number of arguments, expected %d, got %d", expected, got)
 	}
-	p, err := profile.BindProfile(args[0])
+	p, err := repository.BindProfile(args[0])
 	if err != nil {
 		return fmt.Errorf("bind error: %v", err)
 	}
@@ -97,7 +98,7 @@ func runPut(cmd *cmdline.Command, args []string) error {
 	if expected, got := 1, len(args); expected != got {
 		return cmd.Errorf("put: incorrect number of arguments, expected %d, got %d", expected, got)
 	}
-	p, err := profile.BindProfile(args[0])
+	p, err := repository.BindProfile(args[0])
 	if err != nil {
 		return fmt.Errorf("bind error: %v", err)
 	}
@@ -129,7 +130,7 @@ func runRemove(cmd *cmdline.Command, args []string) error {
 	if expected, got := 1, len(args); expected != got {
 		return cmd.Errorf("remove: incorrect number of arguments, expected %d, got %d", expected, got)
 	}
-	p, err := profile.BindProfile(args[0])
+	p, err := repository.BindProfile(args[0])
 	if err != nil {
 		return fmt.Errorf("bind error: %v", err)
 	}
@@ -143,8 +144,8 @@ func runRemove(cmd *cmdline.Command, args []string) error {
 func Root() *cmdline.Command {
 	return &cmdline.Command{
 		Name:     "profile",
-		Short:    "Command-line tool for interacting with the Veyron profile manager",
-		Long:     "Command-line tool for interacting with the Veyron profile manager",
+		Short:    "Command-line tool for interacting with the veyron profile repository",
+		Long:     "Command-line tool for interacting with the veyron profile repository",
 		Children: []*cmdline.Command{cmdLabel, cmdDescription, cmdSpec, cmdPut, cmdRemove},
 	}
 }

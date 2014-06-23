@@ -52,8 +52,8 @@ import (
 	"veyron2/rt"
 	"veyron2/services/mgmt/application"
 	"veyron2/services/mgmt/build"
-	"veyron2/services/mgmt/content"
 	"veyron2/services/mgmt/node"
+	"veyron2/services/mgmt/repository"
 	"veyron2/vlog"
 )
 
@@ -329,7 +329,7 @@ func (i *invoker) Reset(call ipc.ServerContext, deadline uint64) error {
 // APPLICATION INTERFACE IMPLEMENTATION
 
 func downloadBinary(workspace, binary string) error {
-	stub, err := content.BindRepository(binary)
+	stub, err := repository.BindContent(binary)
 	if err != nil {
 		vlog.Errorf("BindContent(%q) failed: %v", binary, err)
 		return errOperationFailed
@@ -373,7 +373,7 @@ func downloadBinary(workspace, binary string) error {
 }
 
 func fetchEnvelope(origin string) (*application.Envelope, error) {
-	stub, err := application.BindRepository(origin)
+	stub, err := repository.BindApplication(origin)
 	if err != nil {
 		vlog.Errorf("BindRepository(%v) failed: %v", origin, err)
 		return nil, errOperationFailed

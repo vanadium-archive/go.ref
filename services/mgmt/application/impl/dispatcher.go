@@ -1,7 +1,7 @@
 package impl
 
 import (
-	"veyron/services/mgmt/application"
+	"veyron/services/mgmt/repository"
 
 	"veyron2/ipc"
 	"veyron2/security"
@@ -9,7 +9,7 @@ import (
 	"veyron2/storage/vstore"
 )
 
-// dispatcher holds the state of the application manager dispatcher.
+// dispatcher holds the state of the application repository dispatcher.
 type dispatcher struct {
 	store storage.Store
 	auth  security.Authorizer
@@ -27,6 +27,6 @@ func NewDispatcher(name string, authorizer security.Authorizer) (*dispatcher, er
 // DISPATCHER INTERFACE IMPLEMENTATION
 
 func (d *dispatcher) Lookup(suffix string) (ipc.Invoker, security.Authorizer, error) {
-	invoker := ipc.ReflectInvoker(application.NewServerRepository(NewInvoker(d.store, suffix)))
+	invoker := ipc.ReflectInvoker(repository.NewServerApplication(NewInvoker(d.store, suffix)))
 	return invoker, d.auth, nil
 }

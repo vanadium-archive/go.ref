@@ -14,17 +14,17 @@ import (
 	"syscall"
 
 	"veyron2/ipc"
-	"veyron2/services/mgmt/content"
+	"veyron2/services/mgmt/repository"
 	"veyron2/vlog"
 )
 
-// invoker holds the state of a content manager invocation.
+// invoker holds the state of a content repository invocation.
 type invoker struct {
-	// root is the directory at which the content manager namespace is
+	// root is the directory at which the content repository namespace is
 	// mounted.
 	root string
 	// depth determines the depth of the directory hierarchy that the
-	// content manager uses to organize the content in the local file
+	// content repository uses to organize the content in the local file
 	// system. There is a trade-off here: smaller values lead to faster
 	// access, while higher values allow the performance to scale to
 	// large content collections. The number should be a value in
@@ -36,7 +36,7 @@ type invoker struct {
 	// filesystem limitations), then you should set depth to at least
 	// log_256(X/Y). For example, using hierarchyDepth = 3 with a local
 	// filesystem that can handle up to 1,000 entries per directory
-	// before its performance degrades allows the content manager to
+	// before its performance degrades allows the content repository to
 	// store 16B objects.
 	depth int
 	// fs is a lock used to atomatically modify the contents of the
@@ -116,7 +116,7 @@ func (i *invoker) Delete(context ipc.ServerContext) error {
 	return nil
 }
 
-func (i *invoker) Download(context ipc.ServerContext, stream content.RepositoryServiceDownloadStream) error {
+func (i *invoker) Download(context ipc.ServerContext, stream repository.ContentServiceDownloadStream) error {
 	vlog.VI(0).Infof("%v.Download()", i.suffix)
 	if !isValid(i.suffix) {
 		return errInvalidSuffix
@@ -147,7 +147,7 @@ func (i *invoker) Download(context ipc.ServerContext, stream content.RepositoryS
 	return nil
 }
 
-func (i *invoker) Upload(context ipc.ServerContext, stream content.RepositoryServiceUploadStream) (string, error) {
+func (i *invoker) Upload(context ipc.ServerContext, stream repository.ContentServiceUploadStream) (string, error) {
 	vlog.VI(0).Infof("%v.Upload()", i.suffix)
 	if i.suffix != "" {
 		return "", errInvalidSuffix

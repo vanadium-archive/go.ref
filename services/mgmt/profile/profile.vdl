@@ -2,11 +2,6 @@
 // types used by the implementation of Veyron profiles.
 package profile
 
-import (
-  "veyron2/security"
-  public "veyron2/services/mgmt/profile"
-)
-
 // Format includes a type (e.g. ELF) and each instance of the format
 // has some specific attributes. The key attributes are the target
 // operating system (e.g. for ELF this could be one of System V,
@@ -14,45 +9,29 @@ import (
 // the target instruction set architecture (e.g. for ELF this could be
 // one of SPARC, x86, PowerPC, ARM, IA-64, x86-64, and AArch64).
 type Format struct {
-  Name       string
-  Attributes map[string]string
+	Name       string
+	Attributes map[string]string
 }
 
 // Library describes a shared library that applications may use.
 type Library struct {
-  // Name is the name of the library.
-  Name string
-  // MajorVersion is the major version of the library.
-  MajorVersion string
-  // MinorVersion is the minor version of the library.
-  MinorVersion string
+	// Name is the name of the library.
+	Name         string
+	// MajorVersion is the major version of the library.
+	MajorVersion string
+	// MinorVersion is the minor version of the library.
+	MinorVersion string
 }
 
 // Specification is how we represent a profile internally. It should
 // provide enough information to allow matching of binaries to nodes.
 type Specification struct {
-  // Format is the file format of the application binary.
-  Format Format
-  // Libraries is a set of libraries the application binary depends on.
-  Libraries set[Library]
-  // A human-friendly concise label for the profile, e.g. "linux-media"
-  Label string
-  // A human-friendly description of the profile.
-  Description string
-}
-
-// Profile describes a profile internally. Besides the public Profile
-// interface, it allows to access and manage the actual profile
-// implementation information.
-type Profile interface {
-  public.Profile
-  // Specification returns the profile specification for the profile
-  // identified through the veyron name suffix.
-  Specification() (Specification, error) {security.ReadLabel}
-  // Put sets the profile specification for the profile identified
-  // through the veyron name suffix.
-  Put(Specification Specification) error {security.WriteLabel}
-  // Remove removes the profile specification for the profile
-  // identified through the veyron name suffix.
-  Remove() error {security.WriteLabel}
+	// Format is the file format of the application binary.
+	Format      Format
+	// Libraries is a set of libraries the application binary depends on.
+	Libraries   set[Library]
+	// A human-friendly concise label for the profile, e.g. "linux-media"
+	Label       string
+	// A human-friendly description of the profile.
+	Description string
 }

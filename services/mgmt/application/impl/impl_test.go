@@ -4,8 +4,8 @@ import (
 	"reflect"
 	"testing"
 
-	iapplication "veyron/services/mgmt/application"
-	istore "veyron/services/store/testutil"
+	"veyron/services/mgmt/repository"
+	"veyron/services/store/testutil"
 
 	"veyron2/naming"
 	"veyron2/rt"
@@ -19,14 +19,14 @@ func TestInterface(t *testing.T) {
 	ctx := runtime.NewContext()
 	defer runtime.Shutdown()
 
-	// Setup and start the application manager server.
+	// Setup and start the application repository server.
 	server, err := runtime.NewServer()
 	if err != nil {
 		t.Fatalf("NewServer() failed: %v", err)
 	}
 
 	// Setup and start a store server.
-	name, cleanup := istore.NewStore(t, server, runtime.Identity().PublicID())
+	name, cleanup := testutil.NewStore(t, server, runtime.Identity().PublicID())
 	defer cleanup()
 
 	dispatcher, err := NewDispatcher(name, nil)
@@ -44,15 +44,15 @@ func TestInterface(t *testing.T) {
 	}
 
 	// Create client stubs for talking to the server.
-	stub, err := iapplication.BindRepository(naming.JoinAddressName(endpoint.String(), "//search"))
+	stub, err := repository.BindApplication(naming.JoinAddressName(endpoint.String(), "//search"))
 	if err != nil {
 		t.Fatalf("BindRepository() failed: %v", err)
 	}
-	stubV1, err := iapplication.BindRepository(naming.JoinAddressName(endpoint.String(), "//search/v1"))
+	stubV1, err := repository.BindApplication(naming.JoinAddressName(endpoint.String(), "//search/v1"))
 	if err != nil {
 		t.Fatalf("BindRepository() failed: %v", err)
 	}
-	stubV2, err := iapplication.BindRepository(naming.JoinAddressName(endpoint.String(), "//search/v2"))
+	stubV2, err := repository.BindApplication(naming.JoinAddressName(endpoint.String(), "//search/v2"))
 	if err != nil {
 		t.Fatalf("BindRepository() failed: %v", err)
 	}
@@ -138,7 +138,7 @@ func TestInterface(t *testing.T) {
 		t.Fatalf("Unexpected error: expected %v, got %v", errNotFound, err)
 	}
 
-	// Shutdown the application manager server.
+	// Shutdown the application repository server.
 	if err := server.Stop(); err != nil {
 		t.Fatalf("Stop() failed: %v", err)
 	}
