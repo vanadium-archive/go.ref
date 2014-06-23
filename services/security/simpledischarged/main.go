@@ -2,10 +2,10 @@ package main
 
 import (
 	"errors"
-	"log"
-	"fmt"
-	"time"
 	"flag"
+	"fmt"
+	"log"
+	"time"
 
 	"veyron/lib/signals"
 	isecurity "veyron/services/security"
@@ -24,6 +24,7 @@ var port = flag.Int("port", 0, "port to listen on")
 var publish = flag.String("publish", "", "the namespace where to publish this service")
 
 type dischargeAuthorizer struct{}
+
 func (dischargeAuthorizer) Authorize(c security.Context) error {
 	if c.Method() == "Discharge" {
 		return nil
