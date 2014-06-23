@@ -21,12 +21,12 @@ const (
 // frequent modification but conserves resources during periods of inactivity.
 // The default values of minSleep and maxSleep can be overriden using the
 // newCustomFSStatWatcher() constructor.
-func newFSStatWatch(filename string) func(chan<- error, <-chan bool, chan<- bool) {
+func newFSStatWatch(filename string) func(chan<- error, chan<- struct{}, <-chan struct{}, chan<- struct{}) {
 	return newCustomFSStatWatch(filename, defaultMinSleep, defaultMaxSleep)
 }
 
-func newCustomFSStatWatch(filename string, minSleep, maxSleep time.Duration) func(chan<- error, <-chan bool, chan<- bool) {
-	return func(events chan<- error, stop <-chan bool, done chan<- bool) {
+func newCustomFSStatWatch(filename string, minSleep, maxSleep time.Duration) func(chan<- error, chan<- struct{}, <-chan struct{}, chan<- struct{}) {
+	return func(events chan<- error, initialized chan<- struct{}, stop <-chan struct{}, done chan<- struct{}) {
 		defer close(done)
 		defer close(events)
 		file, err := os.Open(filename)
@@ -40,7 +40,11 @@ func newCustomFSStatWatch(filename string, minSleep, maxSleep time.Duration) fun
 			events <- err
 			return
 		}
-		lastFileSize := fileInfo.Size()
+		initialFileSize := fileInfo.Size()
+
+		close(initialized)
+
+		lastFileSize := initialFileSize
 		sleep := minSleep
 		for {
 			// Look for a stop command.
