@@ -23,12 +23,21 @@ Usage:
 
   For example:
 
-	ls -l | p2b pipetobrowser/jane/DataTable
+	ls -l | p2b google/p2b/jane/console
 
-  where <name> (pipetobrowser/jane) is the veyron name where p2b
-  service is running in the browser. <viewer> (DataTable) specifies what
+	or
+
+	cat cat.jpg | google/p2b/jane/image
+
+  where <name> (google/p2b/jane) is the veyron name where p2b
+  service is running in the browser. <viewer> (console, image) specifies what
   viewer should be used to display the data.
 
+  To redirect stderr of a process, in *nix system you can use 2>&1 before piping to P2B.
+
+  For example many daemons may write log lines to stderr instead of stdout:
+
+  serverd -alsologtostderr=true 2>&1 | google/p2b/jane/vlog
 `
 
 func Usage() {
