@@ -370,9 +370,7 @@ func defaultACL(id security.PublicID) security.ACL {
 	}
 	acl := make(security.ACL)
 	for _, n := range id.Names() {
-		if !strings.HasPrefix(n, wire.UntrustedIDProviderPrefix) {
-			acl[security.PrincipalPattern(n+wire.ChainSeparator+security.AllPrincipals)] = security.AllLabels
-		}
+		acl[security.PrincipalPattern(n+wire.ChainSeparator+security.AllPrincipals)] = security.AllLabels
 	}
 	return acl
 }

@@ -19,6 +19,17 @@ import (
 	"veyron2/vom"
 )
 
+const (
+	// unknownIDProviderPrefix is the prefix added when stringifying
+	// an identity for which there is no entry for the root certificate
+	// in the trusted keys set.
+	unknownIDProviderPrefix = "unknown/"
+	// mistrustedIDProviderPrefix is the prefix added when stringifying
+	// an identity whose root certificate has a public key that does
+	// not exist in the (non-empty) set of trusted keys for that root.
+	mistrustedIDProviderPrefix = "mistrusted/"
+)
+
 // chainPublicID implements security.PublicID.
 type chainPublicID struct {
 	certificates []wire.Certificate
@@ -50,10 +61,14 @@ func (id *chainPublicID) PublicKey() *ecdsa.PublicKey { return id.publicKey }
 
 func (id *chainPublicID) String() string {
 	// Add a prefix if the identity provider is not trusted.
-	if keys.LevelOfTrust(id.rootKey, id.certificates[0].Name) != keys.Trusted {
-		return wire.UntrustedIDProviderPrefix + id.name
+	switch keys.LevelOfTrust(id.rootKey, id.certificates[0].Name) {
+	case keys.Trusted:
+		return id.name
+	case keys.Mistrusted:
+		return mistrustedIDProviderPrefix + id.name
+	default:
+		return unknownIDProviderPrefix + id.name
 	}
-	return id.name
 }
 
 func (id *chainPublicID) VomEncode() (*wire.ChainPublicID, error) {
@@ -80,24 +95,10 @@ func (id *chainPublicID) VomDecode(w *wire.ChainPublicID) error {
 }
 
 // Authorize checks if all caveats on the PublicID validate with respect to the
-// provided context and that the identity provider (root public key) is not
-// mistrusted. If so returns the original PublicID. This method assumes that
+// provided context and if so returns the original PublicID. This method assumes that
 // the existing PublicID was obtained after successfully decoding a serialized
 // PublicID and hence has integrity.
 func (id *chainPublicID) Authorize(context security.Context) (security.PublicID, error) {
-	rootCert := id.certificates[0]
-	rootKey, err := rootCert.PublicKey.Decode()
-	if err != nil {
-		// unlikely to hit this case, as chainPublicID would have integrity.
-		return nil, err
-	}
-	// Implicit "caveat": The identity provider should not be mistrusted.
-	switch tl := keys.LevelOfTrust(rootKey, rootCert.Name); tl {
-	case keys.Unknown, keys.Trusted:
-		// No-op
-	default:
-		return nil, fmt.Errorf("%v public key(%v) for identity provider %q", tl, rootKey, rootCert.Name)
-	}
 	for _, c := range id.certificates {
 		if err := c.ValidateCaveats(context); err != nil {
 			return nil, fmt.Errorf("not authorized because %v", err)
@@ -217,6 +218,9 @@ func (id *chainPrivateID) MintDischarge(cav security.ThirdPartyCaveat, ctx secur
 // private key, and a single self-signed certificate specifying the provided
 // name and the public key corresponding to the generated private key.
 func newChainPrivateID(name string) (security.PrivateID, error) {
+	if err := wire.ValidateBlessingName(name); err != nil {
+		return nil, err
+	}
 	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	if err != nil {
 		return nil, err

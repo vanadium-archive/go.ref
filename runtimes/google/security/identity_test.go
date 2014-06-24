@@ -16,6 +16,28 @@ import (
 
 type S []string
 
+func TestNewPrivateID(t *testing.T) {
+	testdata := []struct {
+		name, err string
+	}{
+		{"alice", ""},
+		{"alice#google", ""},
+		{"alice@google", ""},
+		{"bob.smith", ""},
+		{"", "invalid blessing name"},
+		{"/", "invalid blessing name"},
+		{"/alice", "invalid blessing name"},
+		{"alice/", "invalid blessing name"},
+		{"google/alice", "invalid blessing name"},
+		{"google/alice/bob", "invalid blessing name"},
+	}
+	for _, d := range testdata {
+		if _, err := NewPrivateID(d.name); !matchesErrorPattern(err, d.err) {
+			t.Errorf("NewPrivateID(%q): got: %s, want to match: %s", d.name, err, d.err)
+		}
+	}
+}
+
 func TestNameAndAuth(t *testing.T) {
 	var (
 		cUnknownAlice    = newChain("alice").PublicID()
@@ -30,11 +52,10 @@ func TestNameAndAuth(t *testing.T) {
 	testdata := []struct {
 		id    security.PublicID
 		names []string
-		err   string
 	}{
 		{id: cUnknownAlice},
 		{id: cTrustedAlice, names: S{"veyron/alice"}},
-		{id: cMistrustedAlice, err: "Mistrusted"},
+		{id: cMistrustedAlice},
 		{id: sAlice, names: S{"veyron/alice", "google/alice"}},
 		{id: sBadAlice},
 		{id: sGoogleAlice, names: S{"google/alice"}},
@@ -47,9 +68,6 @@ func TestNameAndAuth(t *testing.T) {
 		if (authID != nil) == (err != nil) {
 			t.Errorf("%q.Authorize returned: (%v, %v), exactly one return value must be nil", d.id, authID, err)
 			continue
-		}
-		if !matchesErrorPattern(err, d.err) {
-			t.Errorf("%q.Authorize returned error: %v, want to match: %q", d.id, err, d.err)
 		}
 		if err := verifyAuthorizedID(d.id, authID, d.names); err != nil {
 			t.Error(err)
