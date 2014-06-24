@@ -37,8 +37,8 @@ func TestNull(t *testing.T) {
 	crypter.String() // Only to test that String does not crash.
 }
 
-func testSimple(t *testing.T, crypters func(testing.TB) (Crypter, Crypter)) {
-	c1, c2 := crypters(t)
+func TestTLS(t *testing.T) {
+	c1, c2 := tlsCrypters(t)
 	// Execute String just to check that it does not crash.
 	c1.String()
 	c2.String()
@@ -62,9 +62,6 @@ func testSimple(t *testing.T, crypters func(testing.TB) (Crypter, Crypter)) {
 	}
 	t.Logf("Byte overhead of encryption: %v", overhead)
 }
-
-func TestTLS(t *testing.T) { testSimple(t, tlsCrypters) }
-func TestBox(t *testing.T) { testSimple(t, boxCrypters) }
 
 func TestTLSNil(t *testing.T) {
 	c1, c2 := tlsCrypters(t)
@@ -126,27 +123,12 @@ func tlsCrypters(t testing.TB) (Crypter, Crypter) {
 	return c1, c2
 }
 
-func boxCrypters(t testing.TB) (Crypter, Crypter) {
-	serverConn, clientConn := net.Pipe()
-	crypters := make(chan Crypter)
-	for _, conn := range []net.Conn{serverConn, clientConn} {
-		go func(conn net.Conn) {
-			crypter, err := NewBoxCrypter(conn, iobuf.NewPool(0))
-			if err != nil {
-				t.Fatal(err)
-			}
-			crypters <- crypter
-		}(conn)
-	}
-	return <-crypters, <-crypters
-}
-
-func benchmarkEncrypt(b *testing.B, crypters func(testing.TB) (Crypter, Crypter), size int) {
+func benchmarkEncrypt(b *testing.B, size int) {
 	plaintext := make([]byte, size)
 	if _, err := rand.Read(plaintext); err != nil {
 		b.Fatal(err)
 	}
-	e, _ := crypters(b)
+	e, _ := tlsCrypters(b)
 	b.SetBytes(int64(size))
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
@@ -158,19 +140,13 @@ func benchmarkEncrypt(b *testing.B, crypters func(testing.TB) (Crypter, Crypter)
 	}
 }
 
-func BenchmarkTLSEncrypt_1B(b *testing.B)  { benchmarkEncrypt(b, tlsCrypters, 1) }
-func BenchmarkTLSEncrypt_1K(b *testing.B)  { benchmarkEncrypt(b, tlsCrypters, 1<<10) }
-func BenchmarkTLSEncrypt_10K(b *testing.B) { benchmarkEncrypt(b, tlsCrypters, 10<<10) }
-func BenchmarkTLSEncrypt_1M(b *testing.B)  { benchmarkEncrypt(b, tlsCrypters, 1<<20) }
-func BenchmarkTLSEncrypt_5M(b *testing.B)  { benchmarkEncrypt(b, tlsCrypters, 5<<20) }
+func BenchmarkEncrypt_1B(b *testing.B)  { benchmarkEncrypt(b, 1) }
+func BenchmarkEncrypt_1K(b *testing.B)  { benchmarkEncrypt(b, 1<<10) }
+func BenchmarkEncrypt_10K(b *testing.B) { benchmarkEncrypt(b, 10<<10) }
+func BenchmarkEncrypt_1M(b *testing.B)  { benchmarkEncrypt(b, 1<<20) }
+func BenchmarkEncrypt_5M(b *testing.B)  { benchmarkEncrypt(b, 5<<20) }
 
-func BenchmarkBoxEncrypt_1B(b *testing.B)  { benchmarkEncrypt(b, boxCrypters, 1) }
-func BenchmarkBoxEncrypt_1K(b *testing.B)  { benchmarkEncrypt(b, boxCrypters, 1<<10) }
-func BenchmarkBoxEncrypt_10K(b *testing.B) { benchmarkEncrypt(b, boxCrypters, 10<<10) }
-func BenchmarkBoxEncrypt_1M(b *testing.B)  { benchmarkEncrypt(b, boxCrypters, 1<<20) }
-func BenchmarkBoxEncrypt_5M(b *testing.B)  { benchmarkEncrypt(b, boxCrypters, 5<<20) }
-
-func benchmarkRoundTrip(b *testing.B, crypters func(testing.TB) (Crypter, Crypter), size int) {
+func benchmarkRoundTrip(b *testing.B, size int) {
 	plaintext := make([]byte, size)
 	if _, err := rand.Read(plaintext); err != nil {
 		b.Fatal(err)
@@ -190,14 +166,8 @@ func benchmarkRoundTrip(b *testing.B, crypters func(testing.TB) (Crypter, Crypte
 		plainslice.Release()
 	}
 }
-func BenchmarkTLSRoundTrip_1B(b *testing.B)  { benchmarkRoundTrip(b, tlsCrypters, 1) }
-func BenchmarkTLSRoundTrip_1K(b *testing.B)  { benchmarkRoundTrip(b, tlsCrypters, 1<<10) }
-func BenchmarkTLSRoundTrip_10K(b *testing.B) { benchmarkRoundTrip(b, tlsCrypters, 10<<10) }
-func BenchmarkTLSRoundTrip_1M(b *testing.B)  { benchmarkRoundTrip(b, tlsCrypters, 1<<20) }
-func BenchmarkTLSRoundTrip_5M(b *testing.B)  { benchmarkRoundTrip(b, tlsCrypters, 5<<20) }
-
-func BenchmarkBoxRoundTrip_1B(b *testing.B)  { benchmarkRoundTrip(b, boxCrypters, 1) }
-func BenchmarkBoxRoundTrip_1K(b *testing.B)  { benchmarkRoundTrip(b, boxCrypters, 1<<10) }
-func BenchmarkBoxRoundTrip_10K(b *testing.B) { benchmarkRoundTrip(b, boxCrypters, 10<<10) }
-func BenchmarkBoxRoundTrip_1M(b *testing.B)  { benchmarkRoundTrip(b, boxCrypters, 1<<20) }
-func BenchmarkBoxRoundTrip_5M(b *testing.B)  { benchmarkRoundTrip(b, boxCrypters, 5<<20) }
+func BenchmarkRoundTrip_1B(b *testing.B)  { benchmarkRoundTrip(b, 1) }
+func BenchmarkRoundTrip_1K(b *testing.B)  { benchmarkRoundTrip(b, 1<<10) }
+func BenchmarkRoundTrip_10K(b *testing.B) { benchmarkRoundTrip(b, 10<<10) }
+func BenchmarkRoundTrip_1M(b *testing.B)  { benchmarkRoundTrip(b, 1<<20) }
+func BenchmarkRoundTrip_5M(b *testing.B)  { benchmarkRoundTrip(b, 5<<20) }
