@@ -19,7 +19,7 @@ import (
 	"code.google.com/p/mdns"
 )
 
-const endpointPrefix = "endpoint:"
+const addressPrefix = "address:"
 
 // neighborhood defines a set of machines on the same multicast media.
 type neighborhood struct {
@@ -34,8 +34,14 @@ type neighborhoodService struct {
 	nh    *neighborhood
 }
 
-func getPort(e naming.Endpoint) uint16 {
-	addr := e.Addr()
+func getPort(address string) uint16 {
+	epAddr, _ := naming.SplitAddressName(address)
+
+	ep, err := rt.R().NewEndpoint(epAddr)
+	if err != nil {
+		return 0
+	}
+	addr := ep.Addr()
 	if addr == nil {
 		return 0
 	}
@@ -53,18 +59,18 @@ func getPort(e naming.Endpoint) uint16 {
 	return uint16(port)
 }
 
-func newNeighborhoodServer(prefix, host string, eps []naming.Endpoint, loopback bool) (*neighborhood, error) {
-	// Create the TXT contents with endpoints to announce.   Also pick up a port number.
+func newNeighborhoodServer(prefix, host string, addresses []string, loopback bool) (*neighborhood, error) {
+	// Create the TXT contents with addresses to announce. Also pick up a port number.
 	var txt []string
 	var port uint16
-	for _, ep := range eps {
-		txt = append(txt, endpointPrefix+ep.String())
+	for _, addr := range addresses {
+		txt = append(txt, addressPrefix+addr)
 		if port == 0 {
-			port = getPort(ep)
+			port = getPort(addr)
 		}
 	}
 	if txt == nil {
-		return nil, errors.New("neighborhood passed no useful endpoint")
+		return nil, errors.New("neighborhood passed no useful addresses")
 	}
 	if port == 0 {
 		return nil, errors.New("neighborhood couldn't determine a port to use")
@@ -88,18 +94,18 @@ func newNeighborhoodServer(prefix, host string, eps []naming.Endpoint, loopback 
 }
 
 // NewLoopbackNeighborhoodServer creates a new instance of a neighborhood server on loopback interfaces for testing.
-func NewLoopbackNeighborhoodServer(prefix, host string, eps []naming.Endpoint) (*neighborhood, error) {
-	return newNeighborhoodServer(prefix, host, eps, true)
+func NewLoopbackNeighborhoodServer(prefix, host string, addresses ...string) (*neighborhood, error) {
+	return newNeighborhoodServer(prefix, host, addresses, true)
 }
 
 // NewNeighborhoodServer creates a new instance of a neighborhood server.
-func NewNeighborhoodServer(prefix, host string, eps []naming.Endpoint) (*neighborhood, error) {
-	return newNeighborhoodServer(prefix, host, eps, false)
+func NewNeighborhoodServer(prefix, host string, addresses ...string) (*neighborhood, error) {
+	return newNeighborhoodServer(prefix, host, addresses, false)
 }
 
 // Lookup implements ipc.Dispatcher.Lookup.
 func (nh *neighborhood) Lookup(name string) (ipc.Invoker, security.Authorizer, error) {
-	vlog.Infof("*********************LookupServer '%s'\n", name)
+	vlog.VI(1).Infof("*********************LookupServer '%s'\n", name)
 	elems := strings.Split(name, "/")[nh.nelems:]
 	if name == "" {
 		elems = nil
@@ -109,7 +115,13 @@ func (nh *neighborhood) Lookup(name string) (ipc.Invoker, security.Authorizer, e
 		elems: elems,
 		nh:    nh,
 	}
-	return ipc.ReflectInvoker(mounttable.NewServerMountTable(ns)), nil, nil
+	return ipc.ReflectInvoker(mounttable.NewServerMountTable(ns)), nh, nil
+}
+
+func (nh *neighborhood) Authorize(context security.Context) error {
+	// TODO(rthellend): Figure out whether it's OK to accept all requests
+	// unconditionally.
+	return nil
 }
 
 // Stop performs cleanup.
@@ -122,30 +134,30 @@ func (nh *neighborhood) neighbor(instance string) []mounttable.MountedServer {
 	var reply []mounttable.MountedServer
 	si := nh.mdns.ResolveInstance(instance, "veyron")
 
-	// If we have any TXT records with endpoints, they take precedence.
+	// Look for any TXT records with addresses.
 	for _, rr := range si.TxtRRs {
-		// Use a map to dedup any endpoints seen
-		epmap := make(map[string]uint32)
+		// Use a map to dedup any addresses seen
+		addrMap := make(map[string]uint32)
 		for _, s := range rr.Txt {
-			if !strings.HasPrefix(s, endpointPrefix) {
+			if !strings.HasPrefix(s, addressPrefix) {
 				continue
 			}
-			epstring := s[len(endpointPrefix):]
-			// Make sure its a legal endpoint string.
-			if _, err := rt.R().NewEndpoint(epstring); err != nil {
-				continue
-			}
-			epmap[epstring] = rr.Header().Ttl
+			addr := s[len(addressPrefix):]
+			addrMap[addr] = rr.Header().Ttl
 		}
-		for epstring, ttl := range epmap {
-			reply = append(reply, mounttable.MountedServer{naming.JoinAddressName(epstring, ""), ttl})
+		for addr, ttl := range addrMap {
+			reply = append(reply, mounttable.MountedServer{addr, ttl})
 		}
 	}
+
 	if reply != nil {
 		return reply
 	}
 
 	// If we didn't get any direct endpoints, make some up from the target and port.
+	// TODO(rthellend): Do we need the code below? If we haven't received
+	// any results at this point, it would seem to indicate a bug somewhere
+	// because NeighborhoodServer won't start without at least one address.
 	for _, rr := range si.SrvRRs {
 		ips, ttl := nh.mdns.ResolveAddress(rr.Target)
 		for _, ip := range ips {

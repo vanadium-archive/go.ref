@@ -38,12 +38,16 @@ func TestNeighborhood(t *testing.T) {
 		boom(t, "Failed to Listen mount table: %s", err)
 	}
 	estr := e.String()
-
+	addresses := []string{
+		naming.JoinAddressName(estr, ""),
+		naming.JoinAddressName(estr, "suffix1"),
+		naming.JoinAddressName(estr, "suffix2"),
+	}
 	// Add neighborhood server.
 	nhPrefix := "neighborhood"
-	nhd, err := NewLoopbackNeighborhoodServer(nhPrefix, "joeblow", []naming.Endpoint{e})
+	nhd, err := NewLoopbackNeighborhoodServer(nhPrefix, "joeblow", addresses...)
 	if err != nil {
-		t.Logf("Failed to create neighborhood server: %s\n", err)
+		boom(t, "Failed to create neighborhood server: %s\n", err)
 	}
 	defer nhd.Stop()
 	if err := server.Register(nhPrefix, nhd); err != nil {
@@ -90,14 +94,22 @@ L:
 	if len(servers) == 0 {
 		boom(t, "resolveStep returns no severs")
 	}
-
+L2:
 	for _, s := range servers {
-		address, suffix := naming.SplitAddressName(s.Server)
-		if len(suffix) != 0 {
-			boom(t, "Endpoint %s: unexpected suffix", s.Server)
+		for _, a := range addresses {
+			if a == s.Server {
+				continue L2
+			}
 		}
-		if address != e.String() {
-			boom(t, "Expected %s got %s", e, address)
+		boom(t, "Unexpected address from resolveStep result: %v", s.Server)
+	}
+L3:
+	for _, a := range addresses {
+		for _, s := range servers {
+			if a == s.Server {
+				continue L3
+			}
 		}
+		boom(t, "Missing address from resolveStep result: %v", a)
 	}
 }
