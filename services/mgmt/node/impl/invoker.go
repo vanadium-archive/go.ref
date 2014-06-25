@@ -522,6 +522,10 @@ func (i *invoker) testNodeManager(workspace string, envelope *application.Envelo
 			}
 			return errOperationFailed
 		}
+		// Since the resolution of mtime for files is seconds,
+		// the test sleeps for a second to make sure it can
+		// check whether the "current" symlink is updated.
+		time.Sleep(time.Second)
 		if err := nmClient.Revert(rt.R().NewContext()); err != nil {
 			if err := handle.Clean(); err != nil {
 				vlog.Errorf("Clean() failed: %v", err)
