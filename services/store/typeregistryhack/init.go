@@ -16,6 +16,8 @@ import (
 	_ "veyron/examples/todos/schema"
 	// Register bank types.
 	_ "veyron/examples/bank/schema"
+	// Register stfortune types.
+	_ "veyron/examples/stfortune/schema"
 
 	"veyron2/vom"
 )
