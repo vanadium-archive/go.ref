@@ -7,7 +7,7 @@ import (
 	"sync"
 	"time"
 
-	"veyron/runtimes/google/lib/unit"
+	"veyron/lib/unit"
 	"veyron2/ipc"
 	prox "veyron2/services/proximity"
 	"veyron2/vlog"

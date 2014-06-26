@@ -6,7 +6,7 @@ import (
 	"math"
 	"testing"
 
-	"veyron/runtimes/google/lib/unit"
+	"veyron/lib/unit"
 )
 
 func TestDistanceFromRSSI(t *testing.T) {

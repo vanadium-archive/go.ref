@@ -12,7 +12,7 @@ import (
 
 	"veyron/lib/signals"
 
-	"veyron/runtimes/google/lib/gateway"
+	"veyron/services/gateway/lib"
 	"veyron2/rt"
 	"veyron2/vlog"
 )

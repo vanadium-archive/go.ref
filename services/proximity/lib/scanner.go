@@ -1,10 +1,12 @@
 package proximity
 
 import (
+	"fmt"
 	"net"
 	"time"
 
-	"veyron/runtimes/google/lib/unit"
+	"veyron/lib/bluetooth"
+	"veyron/lib/unit"
 )
 
 // Scanner denotes a (local) entity that is capable of scanning for nearby
@@ -36,4 +38,56 @@ type ScanReading struct {
 	Distance unit.Distance
 	// Time is the time the advertisement packed was received/scanned.
 	Time time.Time
+}
+
+type BluetoothScanner struct {
+	device *bluetooth.Device
+	c      chan ScanReading
+}
+
+func (s *BluetoothScanner) StartScan(scanInterval, scanWindow time.Duration) (<-chan ScanReading, error) {
+	if s.device != nil || s.c != nil {
+		return nil, fmt.Errorf("scan already in progress")
+	}
+	var err error
+	s.device, err = bluetooth.OpenFirstAvailableDevice()
+	if err != nil {
+		return nil, fmt.Errorf("couldn't find an available bluetooth device: %v", err)
+	}
+	bc, err := s.device.StartScan(scanInterval, scanWindow)
+	if err != nil {
+		return nil, fmt.Errorf("couldn't start bluetooth scan: %v", err)
+	}
+	s.c = make(chan ScanReading, 10)
+	go func() {
+		for r := range bc {
+			s.c <- ScanReading{
+				Name:     r.Name,
+				MAC:      r.MAC,
+				Distance: r.Distance,
+				Time:     r.Time,
+			}
+		}
+	}()
+	return s.c, nil
+}
+
+func (s *BluetoothScanner) StopScan() error {
+	if s.device == nil || s.c == nil {
+		if s.device != nil {
+			s.device.StopScan()
+			s.device.Close()
+			s.device = nil
+		} else {
+			close(s.c)
+			s.c = nil
+		}
+		return fmt.Errorf("scan not in progress")
+	}
+	s.device.StopScan()
+	s.device.Close()
+	s.device = nil
+	close(s.c)
+	s.c = nil
+	return nil
 }

@@ -3,7 +3,7 @@ package gateway
 import (
 	"fmt"
 
-	"veyron/runtimes/google/lib/bluetooth"
+	"veyron/lib/bluetooth"
 	"veyron2/services/proximity"
 	"veyron2/vlog"
 )

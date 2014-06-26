@@ -11,9 +11,9 @@ import (
 
 	"veyron/lib/signals"
 
-	"veyron/runtimes/google/lib/bluetooth"
-	"veyron/runtimes/google/lib/proximity"
+	"veyron/lib/bluetooth"
 	vflag "veyron/security/flag"
+	"veyron/services/proximity/lib"
 	"veyron2/ipc"
 	"veyron2/rt"
 	prox "veyron2/services/proximity"
@@ -49,12 +49,7 @@ func main() {
 		vlog.Fatal("couldn't find an available bluetooth device")
 	}
 	defer advertiser.Close()
-	scanner, err := bluetooth.OpenFirstAvailableDevice()
-	if err != nil {
-		vlog.Fatal("couldn't find an available bluetooth device")
-	}
-	defer scanner.Close()
-	p, err := proximity.New(advertiser, scanner, 1*time.Second, 500*time.Millisecond)
+	p, err := proximity.New(advertiser, &proximity.BluetoothScanner{}, 1*time.Second, 500*time.Millisecond)
 	if err != nil {
 		vlog.Fatal("couldn't create proximity service:", err)
 	}
