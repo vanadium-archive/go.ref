@@ -58,16 +58,8 @@ func newServer(id uint64, veyronProxy string, helper serverHelper) (*server, err
 		veyronProxy:               veyronProxy,
 		outstandingServerRequests: make(map[int64]chan *serverRPCReply),
 	}
-
-	manager, err := helper.rt().NewStreamManager()
-
-	if err != nil {
-		return nil, err
-	}
-
-	server.server, err = helper.rt().NewServer(veyron2.StreamManager(manager))
-
-	if err != nil {
+	var err error
+	if server.server, err = helper.rt().NewServer(); err != nil {
 		return nil, err
 	}
 	return server, nil

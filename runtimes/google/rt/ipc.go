@@ -1,6 +1,8 @@
 package rt
 
 import (
+	"fmt"
+
 	iipc "veyron/runtimes/google/ipc"
 	imanager "veyron/runtimes/google/ipc/stream/manager"
 
@@ -47,16 +49,28 @@ func (rt *vrt) TODOContext() context.T {
 }
 
 func (rt *vrt) NewServer(opts ...ipc.ServerOpt) (ipc.Server, error) {
-	// Start the http debug server exactly once for this process
-	rt.startHTTPDebugServerOnce()
+	var err error
 
+	// Create a new RoutingID (and StreamManager) for each server.
+	// Except, in the common case of a process having a single Server,
+	// use the same RoutingID (and StreamManager) that is used for Clients.
+	rt.mu.Lock()
 	sm := rt.sm
+	rt.nServers++
+	if rt.nServers > 1 {
+		sm, err = rt.NewStreamManager()
+	}
+	rt.mu.Unlock()
+
+	if err != nil {
+		return nil, fmt.Errorf("failed to create ipc/stream/Manager: %v", err)
+	}
+	// Start the http debug server exactly once for this runtime.
+	rt.startHTTPDebugServerOnce()
 	ns := rt.ns
 	var otherOpts []ipc.ServerOpt
 	for _, opt := range opts {
 		switch topt := opt.(type) {
-		case veyron2.StreamManagerOpt:
-			sm = topt
 		case veyron2.NamespaceOpt:
 			ns = topt
 		default:
@@ -75,10 +89,7 @@ func (rt *vrt) NewStreamManager(opts ...stream.ManagerOpt) (stream.Manager, erro
 	if err != nil {
 		return nil, err
 	}
-	rt.rid = rid
-	return imanager.InternalNew(rt.rid), nil
-}
-
-func (rt *vrt) StreamManager() stream.Manager {
-	return rt.sm
+	sm := imanager.InternalNew(rid)
+	rt.debug.RegisterStreamManager(rid, sm)
+	return sm, nil
 }

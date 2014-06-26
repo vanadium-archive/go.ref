@@ -19,15 +19,17 @@ import (
 )
 
 type vrt struct {
-	product    product.T
-	httpServer string
-	sm         stream.Manager
-	ns         naming.Namespace
-	rid        naming.RoutingID
-	signals    chan os.Signal
-	id         *currentIDOpt
-	client     ipc.Client
-	mgmt       *mgmtImpl
+	product product.T
+	sm      stream.Manager
+	ns      naming.Namespace
+	signals chan os.Signal
+	id      *currentIDOpt
+	client  ipc.Client
+	mgmt    *mgmtImpl
+	debug   debugServer
+
+	mu       sync.Mutex
+	nServers int // GUARDED_BY(mu)
 }
 
 var (
@@ -58,13 +60,7 @@ func Init(opts ...veyron2.ROpt) (veyron2.Runtime, error) {
 // init initalizes the runtime instance it is invoked on.
 func (rt *vrt) init(opts ...veyron2.ROpt) error {
 	flag.Parse()
-	// TODO(ashankar,cnicolaou): Change the default debug address to
-	// the empty string.
-	// In March 2014 this was temporarily set to "127.0.0.1:0" so that the debugging
-	// HTTP server always runs, which was useful during initial veyron
-	// development. We restrict it to localhost to avoid annoying firewall
-	// warnings and to provide a modicum of security.
-	rt.httpServer = "127.0.0.1:0"
+	rt.initHTTPDebugServer()
 	rt.id = &currentIDOpt{}
 	nsRoots := []string{}
 
@@ -77,7 +73,7 @@ func (rt *vrt) init(opts ...veyron2.ROpt) error {
 		case veyron2.NamespaceRoots:
 			nsRoots = v
 		case veyron2.HTTPDebugOpt:
-			rt.httpServer = string(v)
+			rt.debug.addr = string(v)
 		default:
 			return fmt.Errorf("option has wrong type %T", o)
 		}
