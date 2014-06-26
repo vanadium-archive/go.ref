@@ -9,7 +9,8 @@ import (
 	"veyron/lib/bluetooth"
 )
 
-// NewBluetoothScanner returns a bluetooth Scanner instance.
+// NewBluetoothScanner returns a Scanner instance that uses Low-Energy Bluetooth to scan
+// for nearby devices.
 func NewBluetoothScanner() (Scanner, error) {
 	return &bluetoothScanner{}, nil
 }
