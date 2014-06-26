@@ -18,6 +18,11 @@ type globIterator struct {
 
 // Glob returns an iterator that emits all values that match the given pattern.
 func Glob(sn state.Snapshot, clientID security.PublicID, path storage.PathName, pattern string) (service.GlobStream, error) {
+	return GlobIterator(sn, clientID, path, pattern)
+}
+
+// GlobIterator returns an iterator that emits all values that match the given pattern.
+func GlobIterator(sn state.Snapshot, clientID security.PublicID, path storage.PathName, pattern string) (state.Iterator, error) {
 	parsed, err := glob.Parse(pattern)
 	if err != nil {
 		return nil, err

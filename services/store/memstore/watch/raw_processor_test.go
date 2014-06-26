@@ -4,6 +4,8 @@ import (
 	"testing"
 
 	"veyron/services/store/memstore"
+	watchtesting "veyron/services/store/memstore/watch/testing"
+
 	"veyron2/storage"
 )
 
@@ -34,8 +36,9 @@ func TestRawProcessState(t *testing.T) {
 	st, cleanup = openStore(t, dbName)
 	defer cleanup()
 
-	log, cleanup, processor := openLog(t, dbName)
+	log, cleanup := openLog(t, dbName)
 	defer cleanup()
+	processor := createRawProcessor(t)
 
 	post1 := st.Snapshot().Find(id1).Version
 	post2 := st.Snapshot().Find(id2).Version
@@ -43,38 +46,20 @@ func TestRawProcessState(t *testing.T) {
 	// Expect initial state that
 	// 1) Contains / with value val1 and implicit directory entry /a
 	// 2) Contains /a with value val2
-	logstore, err := log.ReadState(rootPublicID)
-	if err != nil {
-		t.Fatalf("ReadState() failed: %v", err)
-	}
-	logst := logstore.State
-	changes, err := processor.processState(logst)
-	if len(changes) != 2 {
-		t.Fatalf("Expected changes to have 2 entries, got: %v", changes)
-	}
-	expectExists(t, changes, id1, storage.NoVersion, post1, true, "val1", dir("a", id2))
-	expectExists(t, changes, id2, storage.NoVersion, post2, false, "val2", empty)
+	changes := expectState(t, log, processor, 2)
+	watchtesting.ExpectMutationExists(t, changes, id1, storage.NoVersion, post1, true, "val1", watchtesting.DirOf("a", id2))
+	watchtesting.ExpectMutationExists(t, changes, id2, storage.NoVersion, post2, false, "val2", watchtesting.EmptyDir)
 }
 
 func TestRawProcessTransactionAddRemove(t *testing.T) {
 	dbName, st, cleanup := createStore(t)
 	defer cleanup()
 
-	log, cleanup, processor := openLog(t, dbName)
+	log, cleanup := openLog(t, dbName)
 	defer cleanup()
+	processor := createRawProcessor(t)
 
-	logstore, err := log.ReadState(rootPublicID)
-	if err != nil {
-		t.Fatalf("ReadState() failed: %v", err)
-	}
-	logst := logstore.State
-	changes, err := processor.processState(logst)
-	if err != nil {
-		t.Fatalf("processState() failed: %v", err)
-	}
-	if len(changes) != 0 {
-		t.Fatal("Expected changes to have 0 entries")
-	}
+	expectState(t, log, processor, 0)
 
 	// First transaction, put /, /a, /a/b
 	tr := memstore.NewTransaction()
@@ -91,20 +76,10 @@ func TestRawProcessTransactionAddRemove(t *testing.T) {
 	// 1) Adds / with value val1 and implicit directory entry /a
 	// 2) Adds /a with value val2 and implicit directory entry /a/b
 	// 3) Adds /a/b with value val3
-	logmu, err := log.ReadTransaction()
-	if err != nil {
-		t.Fatalf("ReadTransaction() failed: %v", err)
-	}
-	changes, err = processor.processTransaction(logmu)
-	if err != nil {
-		t.Fatalf("processTransaction() failed: %v", err)
-	}
-	if len(changes) != 3 {
-		t.Fatal("Expected changes to have 3 entries")
-	}
-	expectExists(t, changes, id1, storage.NoVersion, post1, true, "val1", dir("a", id2))
-	expectExists(t, changes, id2, storage.NoVersion, post2, false, "val2", dir("b", id3))
-	expectExists(t, changes, id3, storage.NoVersion, post3, false, "val3", empty)
+	changes := expectTransaction(t, log, processor, 3)
+	watchtesting.ExpectMutationExists(t, changes, id1, storage.NoVersion, post1, true, "val1", watchtesting.DirOf("a", id2))
+	watchtesting.ExpectMutationExists(t, changes, id2, storage.NoVersion, post2, false, "val2", watchtesting.DirOf("b", id3))
+	watchtesting.ExpectMutationExists(t, changes, id3, storage.NoVersion, post3, false, "val3", watchtesting.EmptyDir)
 
 	// Next transaction, remove /a/b
 	tr = memstore.NewTransaction()
@@ -116,61 +91,31 @@ func TestRawProcessTransactionAddRemove(t *testing.T) {
 	post2 = st.Snapshot().Find(id2).Version
 
 	// Expect transaction that removes implicit dir entry /a/b from /a
-	logmu, err = log.ReadTransaction()
-	if err != nil {
-		t.Fatalf("ReadTransaction() failed: %v", err)
-	}
-	changes, err = processor.processTransaction(logmu)
-	if err != nil {
-		t.Fatalf("processTransaction() failed: %v", err)
-	}
-	if len(changes) != 1 {
-		t.Fatal("Expected changes to have 1 entry")
-	}
-	expectExists(t, changes, id2, pre2, post2, false, "val2", empty)
+	changes = expectTransaction(t, log, processor, 1)
+	watchtesting.ExpectMutationExists(t, changes, id2, pre2, post2, false, "val2", watchtesting.EmptyDir)
 
 	// Garbage-collect the node at /a/b
 	gc(t, st)
 
 	// Expect transaction that deletes the node at /a/b
-	logmu, err = log.ReadTransaction()
-	if err != nil {
-		t.Fatalf("ReadTransaction() failed: %v", err)
-	}
-	changes, err = processor.processTransaction(logmu)
-	if err != nil {
-		t.Fatalf("processTransaction() failed: %v", err)
-	}
-	if len(changes) != 1 {
-		t.Fatal("Expected changes to have 1 entry")
-	}
-	expectDoesNotExist(t, changes, id3, pre3, false)
+	changes = expectTransaction(t, log, processor, 1)
+	watchtesting.ExpectMutationDoesNotExist(t, changes, id3, pre3, false)
 }
 
 func TestRawProcessTransactionRemoveRecursive(t *testing.T) {
 	dbName, st, cleanup := createStore(t)
 	defer cleanup()
 
-	log, cleanup, processor := openLog(t, dbName)
+	log, cleanup := openLog(t, dbName)
 	defer cleanup()
+	processor := createRawProcessor(t)
 
 	processor, err := newRawProcessor(rootPublicID)
 	if err != nil {
 		t.Fatalf("newRawProcessor() failed: %v", err)
 	}
 
-	logstore, err := log.ReadState(rootPublicID)
-	if err != nil {
-		t.Fatalf("ReadState() failed: %v", err)
-	}
-	logst := logstore.State
-	changes, err := processor.processState(logst)
-	if err != nil {
-		t.Fatalf("processState() failed: %v", err)
-	}
-	if len(changes) != 0 {
-		t.Fatal("Expected changes to have 0 entries")
-	}
+	expectState(t, log, processor, 0)
 
 	// First transaction, put /, /a, /a/b
 	tr := memstore.NewTransaction()
@@ -187,13 +132,7 @@ func TestRawProcessTransactionRemoveRecursive(t *testing.T) {
 	// 1) Adds / with value val1 and implicit directory entry /a
 	// 2) Adds /a with value val2 and implicit directory entry /a/b
 	// 3) Adds /a/b with value val3
-	logmu, err := log.ReadTransaction()
-	if err != nil {
-		t.Fatalf("ReadTransaction() failed: %v", err)
-	}
-	if _, err := processor.processTransaction(logmu); err != nil {
-		t.Fatalf("processTransaction() failed: %v", err)
-	}
+	expectTransaction(t, log, processor, 3)
 
 	// Next transaction, remove /a
 	tr = memstore.NewTransaction()
@@ -206,62 +145,32 @@ func TestRawProcessTransactionRemoveRecursive(t *testing.T) {
 	post1 = st.Snapshot().Find(id1).Version
 
 	// Expect transaction that removes implicit dir entry /a from /
-	logmu, err = log.ReadTransaction()
-	if err != nil {
-		t.Fatalf("ReadTransaction() failed: %v", err)
-	}
-	changes, err = processor.processTransaction(logmu)
-	if err != nil {
-		t.Fatalf("processTransaction() failed: %v", err)
-	}
-	if len(changes) != 1 {
-		t.Fatal("Expected changes to have 1 entry")
-	}
-	expectExists(t, changes, id1, pre1, post1, true, "val1", empty)
+	changes := expectTransaction(t, log, processor, 1)
+	watchtesting.ExpectMutationExists(t, changes, id1, pre1, post1, true, "val1", watchtesting.EmptyDir)
 
 	// Garbage-collect the nodes at /a and /a/b
 	gc(t, st)
 
 	// Expect transaction that deletes the nodes at /a and /a/b
-	logmu, err = log.ReadTransaction()
-	if err != nil {
-		t.Fatalf("ReadTransaction() failed: %v", err)
-	}
-	changes, err = processor.processTransaction(logmu)
-	if err != nil {
-		t.Fatalf("processTransaction() failed: %v", err)
-	}
-	if len(changes) != 2 {
-		t.Fatal("Expected changes to have 2 entries")
-	}
-	expectDoesNotExist(t, changes, id2, pre2, false)
-	expectDoesNotExist(t, changes, id3, pre3, false)
+	changes = expectTransaction(t, log, processor, 2)
+	watchtesting.ExpectMutationDoesNotExist(t, changes, id2, pre2, false)
+	watchtesting.ExpectMutationDoesNotExist(t, changes, id3, pre3, false)
 }
 
 func TestRawProcessTransactionUpdateRemoveRoot(t *testing.T) {
 	dbName, st, cleanup := createStore(t)
 	defer cleanup()
 
-	log, cleanup, processor := openLog(t, dbName)
+	log, cleanup := openLog(t, dbName)
 	defer cleanup()
+	processor := createRawProcessor(t)
 
 	processor, err := newRawProcessor(rootPublicID)
 	if err != nil {
 		t.Fatalf("newRawProcessor() failed: %v", err)
 	}
 
-	logstore, err := log.ReadState(rootPublicID)
-	if err != nil {
-		t.Fatalf("ReadState() failed: %v", err)
-	}
-	logst := logstore.State
-	changes, err := processor.processState(logst)
-	if err != nil {
-		t.Fatalf("processState() failed: %v", err)
-	}
-	if len(changes) != 0 {
-		t.Fatal("Expected changes to have 0 entries")
-	}
+	expectState(t, log, processor, 0)
 
 	// First transaction, put /, /a
 	tr := memstore.NewTransaction()
@@ -275,13 +184,7 @@ func TestRawProcessTransactionUpdateRemoveRoot(t *testing.T) {
 	// Assume the first transaction
 	// 1) Adds / with value val1 and implicit directory entry /a
 	// 2) Adds /a with value val2
-	logmu, err := log.ReadTransaction()
-	if err != nil {
-		t.Fatalf("ReadTransaction() failed: %v", err)
-	}
-	if _, err := processor.processTransaction(logmu); err != nil {
-		t.Fatalf("processTransaction() failed: %v", err)
-	}
+	expectTransaction(t, log, processor, 2)
 
 	// Next transaction, update /
 	tr = memstore.NewTransaction()
@@ -292,18 +195,8 @@ func TestRawProcessTransactionUpdateRemoveRoot(t *testing.T) {
 	post1 = st.Snapshot().Find(id1).Version
 
 	// Expect transaction that updates / with value val3
-	logmu, err = log.ReadTransaction()
-	if err != nil {
-		t.Fatalf("ReadTransaction() failed: %v", err)
-	}
-	changes, err = processor.processTransaction(logmu)
-	if err != nil {
-		t.Fatalf("processTransaction() failed: %v", err)
-	}
-	if len(changes) != 1 {
-		t.Fatal("Expected changes to have 1 entry")
-	}
-	expectExists(t, changes, id1, pre1, post1, true, "val3", dir("a", id2))
+	changes := expectTransaction(t, log, processor, 1)
+	watchtesting.ExpectMutationExists(t, changes, id1, pre1, post1, true, "val3", watchtesting.DirOf("a", id2))
 
 	// Next transaction, remove /
 	tr = memstore.NewTransaction()
@@ -314,33 +207,13 @@ func TestRawProcessTransactionUpdateRemoveRoot(t *testing.T) {
 	pre2 := post2
 
 	// Expect a transaction that deletes /
-	logmu, err = log.ReadTransaction()
-	if err != nil {
-		t.Fatalf("ReadTransaction() failed: %v", err)
-	}
-	changes, err = processor.processTransaction(logmu)
-	if err != nil {
-		t.Fatalf("processTransaction() failed: %v", err)
-	}
-	if len(changes) != 1 {
-		t.Fatal("Expected changes to have 1 entry")
-	}
-	expectDoesNotExist(t, changes, id1, pre1, true)
+	changes = expectTransaction(t, log, processor, 1)
+	watchtesting.ExpectMutationDoesNotExist(t, changes, id1, pre1, true)
 
 	// Garbage-collect the nodes at / and /a
 	gc(t, st)
 
 	// Expect transaction that deletes the nodes at / and /a
-	logmu, err = log.ReadTransaction()
-	if err != nil {
-		t.Fatalf("ReadTransaction() failed: %v", err)
-	}
-	changes, err = processor.processTransaction(logmu)
-	if err != nil {
-		t.Fatalf("processTransaction() failed: %v", err)
-	}
-	if len(changes) != 1 {
-		t.Fatal("Expected changes to have 1 entry")
-	}
-	expectDoesNotExist(t, changes, id2, pre2, false)
+	changes = expectTransaction(t, log, processor, 1)
+	watchtesting.ExpectMutationDoesNotExist(t, changes, id2, pre2, false)
 }

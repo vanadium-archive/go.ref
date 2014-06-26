@@ -118,7 +118,7 @@ func (sn *snapshot) NewIterator(pid security.PublicID, path storage.PathName, fi
 		r.AddValue(v)
 		set = r.Get()
 	} else {
-		it.entry = cell.getEntry()
+		it.entry = cell.GetEntry()
 		it.visited[cell.ID] = struct{}{}
 		set = cell.refs
 	}
@@ -203,7 +203,7 @@ func (it *iterator) Next() {
 
 	// Mark as visited.
 	it.visited[n.id] = struct{}{}
-	it.entry, it.path = c.getEntry(), fullPath
+	it.entry, it.path = c.GetEntry(), fullPath
 }
 
 func (it *iterator) Snapshot() Snapshot {

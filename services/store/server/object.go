@@ -214,14 +214,46 @@ func (o *object) GlobT(ctx ipc.ServerContext, tid store.TransactionID, pattern s
 	return nil
 }
 
+// ChangeBatchStream is an interface for streaming responses of type ChangeBatch.
+type ChangeBatchStream interface {
+	// Send places the item onto the output stream, blocking if there is no buffer
+	// space available.
+	Send(watch.ChangeBatch) error
+}
+
+// entryTransformStream implements GlobWatcherServiceWatchGlobStream and
+// QueryWatcherServiceWatchQueryStream. It wraps a ChangeBatchStream,
+// transforming the value in each change from *storage.Entry to *store.Entry.
+type entryTransformStream struct {
+	delegate ChangeBatchStream
+}
+
+func (s *entryTransformStream) Send(cb watch.ChangeBatch) error {
+	// Copy and transform the ChangeBatch.
+	changes := cb.Changes
+	changesCp := make([]watch.Change, len(changes))
+	cbCp := watch.ChangeBatch{changesCp}
+	for i, changeCp := range changes {
+		if changes[i].Value != nil {
+			entry := changes[i].Value.(*storage.Entry)
+			serviceEntry := makeServiceEntry(entry)
+			changeCp.Value = &serviceEntry
+		}
+		changesCp[i] = changeCp
+	}
+	return s.delegate.Send(cbCp)
+}
+
 // WatchGlob returns a stream of changes that match a pattern.
 func (o *object) WatchGlob(ctx ipc.ServerContext, req watch.GlobRequest, stream watch.GlobWatcherServiceWatchGlobStream) error {
 	path := storage.ParsePath(o.name)
+	stream = &entryTransformStream{stream}
 	return o.server.watcher.WatchGlob(ctx, path, req, stream)
 }
 
 // WatchQuery returns a stream of changes that satisfy a query.
 func (o *object) WatchQuery(ctx ipc.ServerContext, req watch.QueryRequest, stream watch.QueryWatcherServiceWatchQueryStream) error {
 	path := storage.ParsePath(o.name)
+	stream = &entryTransformStream{stream}
 	return o.server.watcher.WatchQuery(ctx, path, req, stream)
 }

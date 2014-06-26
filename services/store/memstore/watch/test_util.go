@@ -7,7 +7,7 @@ import (
 	"testing"
 
 	"veyron/services/store/memstore"
-	"veyron/services/store/raw"
+	"veyron/services/store/memstore/state"
 	"veyron/services/store/service"
 
 	"veyron2/security"
@@ -93,22 +93,31 @@ func openStore(t *testing.T, dbName string) (*memstore.Store, func()) {
 	}
 }
 
-func openLog(t *testing.T, dbName string) (*memstore.RLog, func(), reqProcessor) {
+func openLog(t *testing.T, dbName string) (*memstore.RLog, func()) {
 	log, err := memstore.OpenLog(dbName, true)
 	if err != nil {
 		t.Fatalf("openLog() failed: %v", err)
 	}
-	cleanup := func() {
+
+	return log, func() {
 		log.Close()
 	}
+}
 
+func createRawProcessor(t *testing.T) reqProcessor {
 	processor, err := newRawProcessor(rootPublicID)
 	if err != nil {
-		cleanup()
 		t.Fatalf("newRawProcessor() failed: %v", err)
 	}
+	return processor
+}
 
-	return log, cleanup, processor
+func createGlobProcessor(t *testing.T, path storage.PathName, pattern string) reqProcessor {
+	processor, err := newGlobProcessor(rootPublicID, path, pattern)
+	if err != nil {
+		t.Fatalf("newGlobProcessor() failed: %v", err)
+	}
+	return processor
 }
 
 func createWatcher(t *testing.T, dbName string) (service.Watcher, func()) {
@@ -121,95 +130,50 @@ func createWatcher(t *testing.T, dbName string) (service.Watcher, func()) {
 	}
 }
 
-var (
-	empty = []storage.DEntry{}
-)
-
-func dir(name string, id storage.ID) []storage.DEntry {
-	return []storage.DEntry{storage.DEntry{
-		Name: name,
-		ID:   id,
-	}}
+func expectState(t *testing.T, log *memstore.RLog, processor reqProcessor, numChanges int) []watch.Change {
+	st := readState(t, log)
+	return processState(t, processor, st, numChanges)
 }
 
-func expectInitialStateSkipped(t *testing.T, change watch.Change) {
-	if change.Name != "" {
-		t.Fatalf("Expect Name to be \"\" but was: %v", change.Name)
+func readState(t *testing.T, log *memstore.RLog) *state.State {
+	st, err := log.ReadState(rootPublicID)
+	if err != nil {
+		t.Fatalf("ReadState() failed: %v", err)
 	}
-	if change.State != watch.InitialStateSkipped {
-		t.Fatalf("Expect State to be InitialStateSkipped but was: %v", change.State)
-	}
-	if len(change.ResumeMarker) != 0 {
-		t.Fatalf("Expect no ResumeMarker but was: %v", change.ResumeMarker)
-	}
+	return st.State
 }
 
-func expectExists(t *testing.T, changes []watch.Change, id storage.ID, pre, post storage.Version, isRoot bool, value string, dir []storage.DEntry) {
-	change := findChange(t, changes, id)
-	if change.State != watch.Exists {
-		t.Fatalf("Expected id to exist: %v", id)
+func processState(t *testing.T, processor reqProcessor, st *state.State, numChanges int) []watch.Change {
+	changes, err := processor.processState(st)
+	if err != nil {
+		t.Fatalf("processState() failed: %v", err)
 	}
-	cv := change.Value.(*raw.Mutation)
-	if cv.PriorVersion != pre {
-		t.Fatalf("Expected PriorVersion to be %v, but was: %v", pre, cv.PriorVersion)
+	if len(changes) != numChanges {
+		t.Fatalf("Expected state to have %d changes, got %d", numChanges, len(changes))
 	}
-	if cv.Version != post {
-		t.Fatalf("Expected Version to be %v, but was: %v", post, cv.Version)
-	}
-	if cv.IsRoot != isRoot {
-		t.Fatalf("Expected IsRoot to be: %v, but was: %v", isRoot, cv.IsRoot)
-	}
-	if cv.Value != value {
-		t.Fatalf("Expected Value to be: %v, but was: %v", value, cv.Value)
-	}
-	expectDirEquals(t, cv.Dir, dir)
+	return changes
 }
 
-func expectDoesNotExist(t *testing.T, changes []watch.Change, id storage.ID, pre storage.Version, isRoot bool) {
-	change := findChange(t, changes, id)
-	if change.State != watch.DoesNotExist {
-		t.Fatalf("Expected id to not exist: %v", id)
-	}
-	cv := change.Value.(*raw.Mutation)
-	if cv.PriorVersion != pre {
-		t.Fatalf("Expected PriorVersion to be %v, but was: %v", pre, cv.PriorVersion)
-	}
-	if cv.Version != storage.NoVersion {
-		t.Fatalf("Expected Version to be NoVersion, but was: %v", cv.Version)
-	}
-	if cv.IsRoot != isRoot {
-		t.Fatalf("Expected IsRoot to be: %v, but was: %v", isRoot, cv.IsRoot)
-	}
-	if cv.Value != nil {
-		t.Fatal("Expected Value to be nil")
-	}
-	if cv.Dir != nil {
-		t.Fatal("Expected Dir to be nil")
-	}
+func expectTransaction(t *testing.T, log *memstore.RLog, processor reqProcessor, numChanges int) []watch.Change {
+	mus := readTransaction(t, log)
+	return processTransaction(t, processor, mus, numChanges)
 }
 
-func findChange(t *testing.T, changes []watch.Change, id storage.ID) watch.Change {
-	for _, change := range changes {
-		cv, ok := change.Value.(*raw.Mutation)
-		if !ok {
-			t.Fatal("Expected a Mutation")
-		}
-		if cv.ID == id {
-			return change
-		}
+func readTransaction(t *testing.T, log *memstore.RLog) *state.Mutations {
+	mus, err := log.ReadTransaction()
+	if err != nil {
+		t.Fatalf("ReadTransaction() failed: %v", err)
 	}
-	t.Fatalf("Expected a change for id: %v", id)
-	panic("should not reach here")
+	return mus
 }
 
-func expectDirEquals(t *testing.T, actual, expected []storage.DEntry) {
-	if len(actual) != len(expected) {
-		t.Fatalf("Expected Dir to have %v refs, but had %v", len(expected), len(actual))
+func processTransaction(t *testing.T, processor reqProcessor, mus *state.Mutations, numChanges int) []watch.Change {
+	changes, err := processor.processTransaction(mus)
+	if err != nil {
+		t.Fatalf("processTransaction() failed: %v", err)
 	}
-	for i, e := range expected {
-		a := actual[i]
-		if a != e {
-			t.Fatalf("Expected Dir entry %v to be %v, but was %v", i, e, a)
-		}
+	if len(changes) != numChanges {
+		t.Fatalf("Expected transaction to have %d changes, got %d", numChanges, len(changes))
 	}
+	return changes
 }

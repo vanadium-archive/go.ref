@@ -55,7 +55,9 @@ func New(admin security.PublicID, dbName string) (service.Watcher, error) {
 }
 
 // WatchRaw returns a stream of all changes.
-func (w *watcher) WatchRaw(ctx ipc.ServerContext, req raw.Request, stream raw.StoreServiceWatchStream) error {
+func (w *watcher) WatchRaw(ctx ipc.ServerContext, req raw.Request,
+	stream raw.StoreServiceWatchStream) error {
+
 	processor, err := newRawProcessor(ctx.RemoteID())
 	if err != nil {
 		return err
@@ -66,12 +68,18 @@ func (w *watcher) WatchRaw(ctx ipc.ServerContext, req raw.Request, stream raw.St
 // WatchGlob returns a stream of changes that match a pattern.
 func (w *watcher) WatchGlob(ctx ipc.ServerContext, path storage.PathName,
 	req watch.GlobRequest, stream watch.GlobWatcherServiceWatchGlobStream) error {
-	return verror.Internalf("WatchGlob not yet implemented")
+
+	processor, err := newGlobProcessor(ctx.RemoteID(), path, req.Pattern)
+	if err != nil {
+		return err
+	}
+	return w.Watch(ctx, processor, req.ResumeMarker, stream)
 }
 
 // WatchQuery returns a stream of changes that satisfy a query.
 func (w *watcher) WatchQuery(ctx ipc.ServerContext, path storage.PathName,
 	req watch.QueryRequest, stream watch.QueryWatcherServiceWatchQueryStream) error {
+
 	return verror.Internalf("WatchQuery not yet implemented")
 }
 
@@ -86,7 +94,9 @@ type WatchStream interface {
 // sending changes to the specified watch stream. If the call is cancelled or
 // otherwise closed early, Watch will terminate and return an error.
 // Watch implements the service.Watcher interface.
-func (w *watcher) Watch(ctx ipc.ServerContext, processor reqProcessor, resumeMarker watch.ResumeMarker, stream WatchStream) error {
+func (w *watcher) Watch(ctx ipc.ServerContext, processor reqProcessor,
+	resumeMarker watch.ResumeMarker, stream WatchStream) error {
+
 	// Closing cancel terminates processRequest.
 	cancel := make(chan struct{})
 	defer close(cancel)
@@ -113,7 +123,9 @@ func (w *watcher) Watch(ctx ipc.ServerContext, processor reqProcessor, resumeMar
 	return ErrWatchClosed
 }
 
-func (w *watcher) processRequest(cancel <-chan struct{}, processor reqProcessor, resumeMarker watch.ResumeMarker, stream WatchStream) error {
+func (w *watcher) processRequest(cancel <-chan struct{}, processor reqProcessor,
+	resumeMarker watch.ResumeMarker, stream WatchStream) error {
+
 	log, err := memstore.OpenLog(w.dbName, true)
 	if err != nil {
 		return err
@@ -147,11 +159,12 @@ func (w *watcher) processRequest(cancel <-chan struct{}, processor reqProcessor,
 		return err
 	}
 	st := store.State
+	// Save timestamp as processState may modify st.
+	timestamp := st.Timestamp()
 	changes, err := processor.processState(st)
 	if err != nil {
 		return err
 	}
-	timestamp := st.Timestamp()
 	if send, err := filter.shouldProcessChanges(timestamp); err != nil {
 		return err
 	} else if send {
@@ -166,11 +179,12 @@ func (w *watcher) processRequest(cancel <-chan struct{}, processor reqProcessor,
 		if err != nil {
 			return err
 		}
+		// Save timestamp as processTransaction may modify mu.
+		timestamp := mu.Timestamp
 		changes, err = processor.processTransaction(mu)
 		if err != nil {
 			return err
 		}
-		timestamp := mu.Timestamp
 		if send, err := filter.shouldProcessChanges(timestamp); err != nil {
 			return err
 		} else if send {
