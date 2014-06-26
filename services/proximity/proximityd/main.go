@@ -49,7 +49,11 @@ func main() {
 		vlog.Fatal("couldn't find an available bluetooth device")
 	}
 	defer advertiser.Close()
-	p, err := proximity.New(advertiser, &proximity.BluetoothScanner{}, 1*time.Second, 500*time.Millisecond)
+	scanner, err := proximity.NewBluetoothScanner()
+	if err != nil {
+		vlog.Fatalf("couldn't create bluetooth scanner: %v", err)
+	}
+	p, err := proximity.New(advertiser, scanner, 1*time.Second, 500*time.Millisecond)
 	if err != nil {
 		vlog.Fatal("couldn't create proximity service:", err)
 	}
