@@ -4,6 +4,7 @@ package main
 import (
 	"flag"
 	"fmt"
+	"net"
 	"os"
 	"time"
 
@@ -57,42 +58,57 @@ func main() {
 	r := rt.Init()
 	defer r.Shutdown()
 
-	server, err := r.NewServer(veyron2.ServesMountTableOpt(true))
+	mtServer, err := r.NewServer(veyron2.ServesMountTableOpt(true))
 	if err != nil {
 		vlog.Errorf("r.NewServer failed: %v", err)
 		return
 	}
-	defer server.Stop()
+	defer mtServer.Stop()
 	mt, err := mounttable.NewMountTable(*aclFile)
 	if err != nil {
 		vlog.Errorf("r.NewMountTable failed: %v", err)
 		return
 	}
-	if err := server.Register(*prefix, mt); err != nil {
-		vlog.Errorf("server.Register failed to register mount table: %v", err)
+	if err := mtServer.Register(*prefix, mt); err != nil {
+		vlog.Errorf("mtServer.Register failed to register mount table: %v", err)
 		return
 	}
-	endpoint, err := server.Listen("tcp", *address)
+	mtEndpoint, err := mtServer.Listen("tcp", *address)
 	if err != nil {
-		vlog.Errorf("server.Listen failed: %v", err)
+		vlog.Errorf("mtServer.Listen failed: %v", err)
 		return
 	}
 
 	if len(*nhName) > 0 {
-		mtAddr := naming.JoinAddressName(endpoint.String(), *prefix)
+		nhServer, err := r.NewServer(veyron2.ServesMountTableOpt(true))
+		if err != nil {
+			vlog.Errorf("r.NewServer failed: %v", err)
+			return
+		}
+		defer nhServer.Stop()
+		host, _, err := net.SplitHostPort(*address)
+		if err != nil {
+			vlog.Errorf("parsing of address(%q) failed: %v", *address, err)
+			return
+		}
+		nhEndpoint, err := nhServer.Listen("tcp", net.JoinHostPort(host, "0"))
+		if err != nil {
+			vlog.Errorf("nhServer.Listen failed: %v", err)
+			return
+		}
+		mtAddr := naming.JoinAddressName(mtEndpoint.String(), *prefix)
 
 		nh, err := mounttable.NewNeighborhoodServer("", *nhName, mtAddr)
 		if err != nil {
 			vlog.Errorf("NewNeighborhoodServer failed: %v", err)
 			return
 		}
-		nhPrefix := "nh"
-		if err := server.Register(nhPrefix, nh); err != nil {
-			vlog.Errorf("server.Register failed to register neighborhood: %v", err)
+		if err := nhServer.Register("", nh); err != nil {
+			vlog.Errorf("nhServer.Register failed to register neighborhood: %v", err)
 			return
 		}
-		nhAddr := naming.JoinAddressName(endpoint.String(), nhPrefix)
-		nhMount := naming.Join(mtAddr, nhPrefix)
+		nhAddr := naming.JoinAddressName(nhEndpoint.String(), "")
+		nhMount := naming.Join(mtAddr, "nh")
 
 		ns := rt.R().Namespace()
 		forever := time.Duration(0)
@@ -103,17 +119,17 @@ func main() {
 	}
 
 	if name := *mountName; len(name) > 0 {
-		if err := server.Publish(name); err != nil {
+		if err := mtServer.Publish(name); err != nil {
 			vlog.Errorf("Publish(%v) failed: %v", name, err)
 			return
 		}
 		vlog.Infof("Mount table service at: %s (%s)",
 			naming.Join(name, *prefix),
-			naming.JoinAddressName(endpoint.String(), *prefix))
+			naming.JoinAddressName(mtEndpoint.String(), *prefix))
 
 	} else {
 		vlog.Infof("Mount table at: %s",
-			naming.JoinAddressName(endpoint.String(), *prefix))
+			naming.JoinAddressName(mtEndpoint.String(), *prefix))
 	}
 
 	// Wait until signal is received.
