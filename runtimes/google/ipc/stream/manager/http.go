@@ -26,6 +26,6 @@ func HTTPHandler(mgr stream.Manager) (http.Handler, error) {
 type httpHandler struct{ m *manager }
 
 func (h httpHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "text/plain")
+	w.Header().Set("Content-Type", "text/plain; charset=UTF-8")
 	w.Write([]byte(h.m.DebugString()))
 }
