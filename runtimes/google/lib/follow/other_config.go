@@ -2,9 +2,8 @@
 
 package follow
 
-// newFSWatcher starts and returns a new timer-based fsWatcher.
+// newFSWatcher starts and returns a new os.Stat()-based fsWatcher.
 // filename specifies the file to watch.
-func newFSWatcher(filename string) (*fsWatcher, error) {
-	watch := newFSTimedWatch(filename)
-	return newCustomFSWatcher(watch)
+func newFSWatcher(filename string) (fsWatcher, error) {
+	return newFSStatWatcher(filename)
 }

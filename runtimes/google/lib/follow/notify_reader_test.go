@@ -21,8 +21,7 @@ func TestNotifyReadPartial(t *testing.T) {
 	defer os.Remove(testFileName)
 
 	// Create the fsnotify-based fsWatcher.
-	watch := newFSNotifyWatch(testFileName)
-	watcher, err := newCustomFSWatcher(watch)
+	watcher, err := newFSNotifyWatcher(testFileName)
 	if err != nil {
 		t.Fatalf("newCustomFSWatcher() failed: %v", err)
 	}
@@ -46,8 +45,7 @@ func TestNotifyReadFull(t *testing.T) {
 	defer os.Remove(testFileName)
 
 	// Create the fsnotify-based fsWatcher.
-	watch := newFSNotifyWatch(testFileName)
-	watcher, err := newCustomFSWatcher(watch)
+	watcher, err := newFSNotifyWatcher(testFileName)
 	if err != nil {
 		t.Fatalf("newCustomFSWatcher() failed: %v", err)
 	}
@@ -71,8 +69,7 @@ func TestNotifyClose(t *testing.T) {
 	defer os.Remove(testFileName)
 
 	// Create the fsnotify-based fsWatcher.
-	watch := newFSNotifyWatch(testFileName)
-	watcher, err := newCustomFSWatcher(watch)
+	watcher, err := newFSNotifyWatcher(testFileName)
 	if err != nil {
 		t.Fatalf("newCustomFSWatcher() failed: %v", err)
 	}
