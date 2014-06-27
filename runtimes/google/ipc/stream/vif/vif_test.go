@@ -6,21 +6,19 @@ package vif_test
 
 import (
 	"bytes"
-	crand "crypto/rand"
-	"encoding/base64"
 	"fmt"
 	"io"
-	"math/rand"
 	"net"
 	"reflect"
 	"runtime"
 	"sort"
 	"testing"
 
-	_ "veyron/lib/testutil"
+	"veyron/lib/testutil"
 	"veyron/runtimes/google/ipc/stream/vc"
 	"veyron/runtimes/google/ipc/stream/vif"
 	iversion "veyron/runtimes/google/ipc/version"
+
 	"veyron2"
 	"veyron2/ipc/stream"
 	"veyron2/ipc/version"
@@ -121,7 +119,7 @@ func testMultipleVCsAndMultipleFlows(t *testing.T, gomaxprocs int) {
 	// Fill in random strings that will be written over the Flows.
 	dataWritten := make([]string, nFlows)
 	for i := 0; i < nFlows; i++ {
-		dataWritten[i] = mkRandomString(maxBytesPerFlow)
+		dataWritten[i] = string(testutil.RandomBytes(maxBytesPerFlow))
 	}
 
 	// write writes data to flow in randomly sized chunks.
@@ -130,7 +128,7 @@ func testMultipleVCsAndMultipleFlows(t *testing.T, gomaxprocs int) {
 		buf := []byte(data)
 		// Split into a random number of Write calls.
 		for len(buf) > 0 {
-			size := 1 + rand.Intn(len(buf)) // Random number in [1, len(buf)]
+			size := 1 + testutil.Rand.Intn(len(buf)) // Random number in [1, len(buf)]
 			n, err := flow.Write(buf[:size])
 			if err != nil {
 				t.Errorf("Write failed: (%d, %v)", n, err)
@@ -146,7 +144,7 @@ func testMultipleVCsAndMultipleFlows(t *testing.T, gomaxprocs int) {
 		var buf bytes.Buffer
 		var tmp [1024]byte
 		for {
-			n, err := flow.Read(tmp[:rand.Intn(len(tmp))])
+			n, err := flow.Read(tmp[:testutil.Rand.Intn(len(tmp))])
 			buf.Write(tmp[:n])
 			if err == io.EOF {
 				break
@@ -383,18 +381,6 @@ func TestNetworkFailure(t *testing.T) {
 
 func makeEP(rid uint64) naming.Endpoint {
 	return iversion.Endpoint("test", "addr", naming.FixedRoutingID(rid))
-}
-
-func mkRandomString(maxSize int) string {
-	// Pick a random size.
-	// base64 encodes 6-bits in each byte, so adjust the maxSize accordingly.
-	size := rand.Intn(maxSize * 8 / 6)
-	bytes := make([]byte, size)
-	// Don't really need a cryptographically random string, but that is the easiest way to fill in bytes.
-	if _, err := crand.Read(bytes); err != nil {
-		panic(err)
-	}
-	return base64.StdEncoding.EncodeToString(bytes)
 }
 
 // pipeAddr provides a more descriptive String implementation than provided by net.Pipe.

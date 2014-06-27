@@ -5,17 +5,14 @@ package vc_test
 import (
 	"bytes"
 	"io"
-	"math/rand"
 	"net"
-	"os"
 	"reflect"
 	"runtime"
-	"strconv"
 	"strings"
 	"sync"
 	"testing"
-	"time"
 
+	"veyron/lib/testutil"
 	"veyron/runtimes/google/ipc/stream/id"
 	"veyron/runtimes/google/ipc/stream/vc"
 	"veyron/runtimes/google/lib/bqueue"
@@ -26,7 +23,6 @@ import (
 	"veyron2/ipc/stream"
 	"veyron2/naming"
 	"veyron2/security"
-	"veyron2/vlog"
 )
 
 // Convenience alias to avoid conflicts between the package name "vc" and variables called "vc".
@@ -47,11 +43,11 @@ var (
 // ensures that the same string is read back.
 func testFlowEcho(t *testing.T, flow stream.Flow, size int) {
 	defer flow.Close()
-	wrote := randomString(size)
+	wrote := testutil.RandomBytes(size)
 	go func() {
 		buf := wrote
 		for len(buf) > 0 {
-			limit := 1 + rand.Intn(len(buf)) // Random number in [1, n]
+			limit := 1 + testutil.Rand.Intn(len(buf)) // Random number in [1, n]
 			n, err := flow.Write(buf[:limit])
 			if n != limit || err != nil {
 				t.Errorf("Write returned (%d, %v) want (%d, nil)", n, err, limit)
@@ -376,63 +372,6 @@ func (h *helper) Close() {
 		otherEnd.mu.Unlock()
 		otherEnd.Close()
 	}
-}
-
-func init() {
-	// Initialize pseudo-random number generator.
-	var seed int64
-	seedString := os.Getenv("VEYRON_RNG_SEED")
-	if seedString == "" {
-		seed = time.Since(time.Unix(0, 0)).Nanoseconds()
-	} else {
-		var err error
-		base, bits := 10, 64
-		if seed, err = strconv.ParseInt(seedString, base, bits); err != nil {
-			vlog.Fatalf("ParseInt(%v, %v, %v) failed: %v", seedString, base, bits, err)
-		}
-	}
-	rand.Seed(seed)
-	vlog.VI(0).Infof("Using pseudo-random number generator seed = %v", seed)
-}
-
-var (
-	randomMutex sync.Mutex
-	random      []byte
-)
-
-func generateBits(size int) []byte {
-	buffer := make([]byte, size)
-	offset := 0
-	for {
-		bits := int64(rand.Int63())
-		for i := 0; i < 8; i++ {
-			buffer[offset] = byte(bits & 0xff)
-			size--
-			if size == 0 {
-				return buffer
-			}
-			offset++
-			bits >>= 8
-		}
-	}
-}
-
-func randomString(size int) []byte {
-	buffer := make([]byte, size)
-	randomMutex.Lock()
-	defer randomMutex.Unlock()
-	// Generate a 10MB of random bytes since that is a value commonly
-	// used in this test.
-	if len(random) == 0 {
-		random = generateBits(10 << 20)
-	}
-	if size > len(random) {
-		extra := generateBits(size - len(random))
-		random = append(random, extra...)
-	}
-	start := rand.Intn(len(random) - size + 1)
-	copy(buffer, random[start:start+size])
-	return buffer
 }
 
 type endpoint naming.RoutingID

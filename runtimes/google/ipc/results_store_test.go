@@ -1,17 +1,18 @@
 package ipc
 
 import (
-	"math/rand"
 	"sort"
 	"sync"
 	"testing"
+
+	"veyron/lib/testutil"
 )
 
 func randomKeys() []uint64 {
-	n := (rand.Intn(256*10) / 10) + 256
+	n := (testutil.Rand.Intn(256*10) / 10) + 256
 	k := make([]uint64, n)
 	for i := 0; i < n; i++ {
-		k[i] = uint64(rand.Int63())
+		k[i] = uint64(testutil.Rand.Int63())
 	}
 	return k
 }

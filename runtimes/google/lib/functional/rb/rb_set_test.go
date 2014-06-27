@@ -3,10 +3,9 @@ package rb
 import (
 	"fmt"
 	"log"
-	"math/rand"
 	"testing"
-	"time"
 
+	"veyron/lib/testutil"
 	"veyron/runtimes/google/lib/functional"
 )
 
@@ -158,22 +157,18 @@ func TestAddRemove(t *testing.T) {
 
 // Randomized add and remove.
 func TestRandom(t *testing.T) {
-	now := time.Now().UnixNano()
-	log.Printf("value used to seed rand: %v", now)
-	seed := rand.NewSource(now)
-	rnd := rand.New(seed)
 	s := NewSet(intCompare)
 	elements := make(map[int]struct{})
 	for i := 0; i != kLoopCount; i++ {
-		switch rnd.Intn(2) {
+		switch testutil.Rand.Intn(2) {
 		case 0:
 			// Insertion
-			x := rnd.Intn(kMaxElement)
+			x := testutil.Rand.Intn(kMaxElement)
 			elements[x] = struct{}{}
 			s = s.Put(x)
 		case 1:
 			// Deletion
-			x := rnd.Intn(kMaxElement)
+			x := testutil.Rand.Intn(kMaxElement)
 			delete(elements, x)
 			s = s.Remove(x)
 		}
@@ -275,23 +270,19 @@ func TestSequentialMap(t *testing.T) {
 }
 
 func TestRandomMap(t *testing.T) {
-	now := time.Now().UnixNano()
-	log.Printf("value used to seed rand: %v", now)
-	seed := rand.NewSource(now)
-	rnd := rand.New(seed)
 	s := NewSet(entryLessThan)
 	elements := make(map[int]interface{})
 	for i := 0; i != kLoopCount; i++ {
-		switch rnd.Intn(2) {
+		switch testutil.Rand.Intn(2) {
 		case 0:
 			// Insertion
-			k := rnd.Intn(kMaxElement)
-			v := rnd.Int()
+			k := testutil.Rand.Intn(kMaxElement)
+			v := testutil.Rand.Int()
 			elements[k] = v
 			s = s.Put(&entry{key: k, value: v})
 		case 1:
 			// Deletion
-			k := rnd.Intn(kMaxElement)
+			k := testutil.Rand.Intn(kMaxElement)
 			delete(elements, k)
 			s = s.Remove(&entry{key: k})
 		}
@@ -412,21 +403,19 @@ func makeOperations() []opname {
 }
 
 func BenchmarkRandom(b *testing.B) {
-	seed := rand.NewSource(time.Now().UnixNano())
-	rnd := rand.New(seed)
 	operations := makeOperations()
 	s := NewSet(intCompare)
 
 	for i := 0; i != b.N; i++ {
-		switch operations[rnd.Intn(len(operations))] {
+		switch operations[testutil.Rand.Intn(len(operations))] {
 		case CONTAINS:
-			s.Contains(rnd.Intn(kMaxElement))
+			s.Contains(testutil.Rand.Intn(kMaxElement))
 
 		case PUT:
-			s = s.Put(rnd.Intn(kMaxElement))
+			s = s.Put(testutil.Rand.Intn(kMaxElement))
 
 		case REMOVE:
-			s = s.Remove(rnd.Intn(kMaxElement))
+			s = s.Remove(testutil.Rand.Intn(kMaxElement))
 
 		case ITERATE:
 			s.Iter(func(it interface{}) bool { return true })

@@ -1,8 +1,9 @@
 package deque
 
 import (
-	"math/rand"
 	"testing"
+
+	"veyron/lib/testutil"
 )
 
 func TestBasic(t *testing.T) {
@@ -132,13 +133,13 @@ func TestRandom(t *testing.T) {
 	var q T
 	var contents []int
 	for i := 0; i != 1000; i++ {
-		switch rand.Intn(4) {
+		switch testutil.Rand.Intn(4) {
 		case 0:
-			i := rand.Int()
+			i := testutil.Rand.Int()
 			contents = append([]int{i}, contents...)
 			q.PushFront(i)
 		case 1:
-			i := rand.Int()
+			i := testutil.Rand.Int()
 			contents = append(contents, i)
 			q.PushBack(i)
 		case 2:
