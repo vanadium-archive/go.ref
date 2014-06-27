@@ -35,11 +35,11 @@ import (
 // established over a single VIF.
 type VIF struct {
 	conn    net.Conn
-	pending *waitGroup
 	pool    *iobuf.Pool
 	localEP naming.Endpoint
 
-	vcMap *vcMap
+	vcMap              *vcMap
+	wpending, rpending *waitGroup
 
 	muListen     sync.Mutex
 	acceptor     *upcqueue.T          // GUARDED_BY(muListen)
@@ -158,9 +158,10 @@ func internalNew(conn net.Conn, rid naming.RoutingID, initialVCI id.VC, versions
 	}
 	vif := &VIF{
 		conn:         conn,
-		pending:      newWaitGroup(),
 		pool:         iobuf.NewPool(0),
 		vcMap:        newVCMap(),
+		wpending:     newWaitGroup(),
+		rpending:     newWaitGroup(),
 		acceptor:     acceptor,
 		listenerOpts: listenerOpts,
 		localEP:      ep,
@@ -219,7 +220,7 @@ func (vif *VIF) Close() {
 	}
 	// Wait for the vcWriteLoops to exit (after draining queued up messages).
 	vif.stopQ.Close()
-	vif.pending.Wait()
+	vif.wpending.Wait()
 	// Close the underlying network connection.
 	// No need to send individual messages to close all pending VCs since
 	// the remote end should know to close all VCs when the VIF's
@@ -374,6 +375,7 @@ func (vif *VIF) handleMessage(msg message.T) {
 
 func (vif *VIF) vcDispatchLoop(vc *vc.VC, messages *pcqueue.T) {
 	defer vlog.VI(2).Infof("Exiting vcDispatchLoop(%v) on VIF %v", vc, vif)
+	defer vif.rpending.Done()
 	for {
 		qm, err := messages.Get(nil)
 		if err != nil {
@@ -394,6 +396,7 @@ func (vif *VIF) stopVCDispatchLoops() {
 	for _, v := range vcs {
 		v.RQ.Close()
 	}
+	vif.rpending.Wait()
 }
 
 func (vif *VIF) acceptFlowsLoop(vc *vc.VC, c <-chan vc.HandshakeResult) {
@@ -491,7 +494,7 @@ func (vif *VIF) writeLoop() {
 
 func (vif *VIF) vcWriteLoop(vc *vc.VC, messages *pcqueue.T) {
 	defer vlog.VI(2).Infof("Exiting vcWriteLoop(%v) on VIF %v", vc, vif)
-	defer vif.pending.Done()
+	defer vif.wpending.Done()
 	for {
 		qm, err := messages.Get(nil)
 		if err != nil {
@@ -605,17 +608,26 @@ func (vif *VIF) newVC(vci id.VC, localEP, remoteEP naming.Endpoint, dialed bool)
 		Helper:       vcHelper{vif},
 	})
 	added, rq, wq := vif.vcMap.Insert(vc)
-	// Add to pending iff vcMap.Insert succeeded.
-	// Start vcDispatchLoop and vcWriteLoop iff pending.TryAdd succeeds.
-	added = added && vif.pending.TryAdd()
+	// Start vcWriteLoop
+	if added = added && vif.wpending.TryAdd(); added {
+		go vif.vcWriteLoop(vc, wq)
+	}
+	// Start vcDispatchLoop
+	if added = added && vif.rpending.TryAdd(); added {
+		go vif.vcDispatchLoop(vc, rq)
+	}
 	if !added {
+		if rq != nil {
+			rq.Close()
+		}
+		if wq != nil {
+			wq.Close()
+		}
 		vif.vcMap.Delete(vci)
 		vc.Close("underlying network connection shutting down")
 		// Should a custom errorid be used?
 		return nil, verror.Abortedf("underlying network connection(%v) shutting down", vif)
 	}
-	go vif.vcDispatchLoop(vc, rq)
-	go vif.vcWriteLoop(vc, wq)
 	return vc, nil
 }
 
