@@ -173,8 +173,8 @@ func Java_com_veyron_runtimes_google_Runtime_00024Server_nativePublish(env *C.JN
 	}
 }
 
-//export Java_com_veyron_runtimes_google_jni_Runtime_00024Server_nativeStop
-func Java_com_veyron_runtimes_google_jni_Runtime_00024Server_nativeStop(env *C.JNIEnv, server C.jobject, goServerPtr C.jlong) {
+//export Java_com_veyron_runtimes_google_Runtime_00024Server_nativeStop
+func Java_com_veyron_runtimes_google_Runtime_00024Server_nativeStop(env *C.JNIEnv, server C.jobject, goServerPtr C.jlong) {
 	s := (*ipc.Server)(ptr(goServerPtr))
 	if s == nil {
 		jThrowV(env, fmt.Errorf("Couldn't find Go server with pointer: %d", int(goServerPtr)))
@@ -186,8 +186,8 @@ func Java_com_veyron_runtimes_google_jni_Runtime_00024Server_nativeStop(env *C.J
 	}
 }
 
-//export Java_com_veyron_runtimes_google_jni_Runtime_00024Server_nativeFinalize
-func Java_com_veyron_runtimes_google_jni_Runtime_00024Server_nativeFinalize(env *C.JNIEnv, server C.jobject, goServerPtr C.jlong) {
+//export Java_com_veyron_runtimes_google_Runtime_00024Server_nativeFinalize
+func Java_com_veyron_runtimes_google_Runtime_00024Server_nativeFinalize(env *C.JNIEnv, server C.jobject, goServerPtr C.jlong) {
 	s := (*ipc.Server)(ptr(goServerPtr))
 	if s != nil {
 		goUnref(s)

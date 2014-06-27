@@ -10,11 +10,18 @@ import (
 	"veyron/examples/fortune"
 	ctx "veyron2/context"
 	"veyron2/ipc"
+	"veyron2/services/proximity"
 )
 
 func init() {
 	registerInterface((*fortune.Fortune)(nil))
 	registerInterface((*fortune.FortuneService)(nil))
+	registerInterface((*proximity.Proximity)(nil))
+	registerInterface((*proximity.ProximityService)(nil))
+	registerInterface((*proximity.ProximityScanner)(nil))
+	registerInterface((*proximity.ProximityScannerService)(nil))
+	registerInterface((*proximity.ProximityAnnouncer)(nil))
+	registerInterface((*proximity.ProximityAnnouncerService)(nil))
 }
 
 // A list of all registered argGetter-s.

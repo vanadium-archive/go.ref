@@ -37,9 +37,10 @@ func (c *client) StartCall(env *C.JNIEnv, jContext C.jobject, name, method strin
 		argStrs[i] = goString(env, C.jstring(C.GetObjectArrayElement(env, jArgs, C.jsize(i))))
 	}
 	// Get argument instances that correspond to the provided method.
-	getter := newArgGetter(strings.Join(strings.Split(goString(env, jPath), ".")[1:], "/"))
+	vdlPackagePath := strings.Join(strings.Split(goString(env, jPath), ".")[1:], "/")
+	getter := newArgGetter(vdlPackagePath)
 	if getter == nil {
-		return nil, fmt.Errorf("couldn't find VDL interface corresponding to path %q", goString(env, jPath))
+		return nil, fmt.Errorf("couldn't find VDL interface corresponding to path %q", vdlPackagePath)
 	}
 	mArgs := getter.FindMethod(method, len(argStrs))
 	if mArgs == nil {
@@ -116,6 +117,7 @@ func (c *clientCall) Finish(env *C.JNIEnv) (C.jobjectArray, error) {
 			return nil, fmt.Errorf("error marshalling %q into JSON", resultptr)
 		}
 	}
+
 	// Convert to Java array of C.jstring.
 	ret := C.NewObjectArray(env, C.jsize(len(jsonResults)), jStringClass, nil)
 	for i, result := range jsonResults {

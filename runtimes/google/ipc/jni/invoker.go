@@ -44,9 +44,10 @@ func newJNIInvoker(env *C.JNIEnv, jVM *C.JavaVM, jObj C.jobject) (ipc.Invoker, e
 	// Fetch the argGetter for the object.
 	pid := jMethodID(env, jVDLInvokerClass, "getInterfacePath", fmt.Sprintf("()%s", stringSign))
 	jPath := C.jstring(C.CallGetInterfacePath(env, jInvoker, pid))
-	getter := newArgGetter(strings.Join(strings.Split(goString(env, jPath), ".")[1:], "/"))
+	vdlPackagePath := strings.Join(strings.Split(goString(env, jPath), ".")[1:], "/")
+	getter := newArgGetter(vdlPackagePath)
 	if getter == nil {
-		return nil, fmt.Errorf("couldn't find VDL interface corresponding to path %q", goString(env, jPath))
+		return nil, fmt.Errorf("couldn't find VDL interface corresponding to path %q", vdlPackagePath)
 	}
 	// Reference Java invoker; it will be de-referenced when the go invoker
 	// created below is garbage-collected (through the finalizer callback we
