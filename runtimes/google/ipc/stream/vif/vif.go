@@ -21,6 +21,7 @@ import (
 	"veyron/runtimes/google/lib/bqueue/drrqueue"
 	"veyron/runtimes/google/lib/iobuf"
 	"veyron/runtimes/google/lib/pcqueue"
+	vsync "veyron/runtimes/google/lib/sync"
 	"veyron/runtimes/google/lib/upcqueue"
 
 	"veyron2/ipc/stream"
@@ -39,7 +40,7 @@ type VIF struct {
 	localEP naming.Endpoint
 
 	vcMap              *vcMap
-	wpending, rpending *waitGroup
+	wpending, rpending vsync.WaitGroup
 
 	muListen     sync.Mutex
 	acceptor     *upcqueue.T          // GUARDED_BY(muListen)
@@ -160,8 +161,6 @@ func internalNew(conn net.Conn, rid naming.RoutingID, initialVCI id.VC, versions
 		conn:         conn,
 		pool:         iobuf.NewPool(0),
 		vcMap:        newVCMap(),
-		wpending:     newWaitGroup(),
-		rpending:     newWaitGroup(),
 		acceptor:     acceptor,
 		listenerOpts: listenerOpts,
 		localEP:      ep,
@@ -730,51 +729,4 @@ func releaseBufs(bufs []*iobuf.Slice) {
 	for _, b := range bufs {
 		b.Release()
 	}
-}
-
-// waitGroup implements a sync.WaitGroup like structure that does not require
-// all calls to Add to be made before Wait, instead calls to Add after Wait
-// will fail.
-type waitGroup struct {
-	n    int
-	wait bool
-	mu   sync.Mutex
-	cond *sync.Cond
-}
-
-func newWaitGroup() *waitGroup {
-	w := &waitGroup{}
-	w.cond = sync.NewCond(&w.mu)
-	return w
-}
-
-func (w *waitGroup) TryAdd() bool {
-	w.mu.Lock()
-	defer w.mu.Unlock()
-	if !w.wait {
-		w.n++
-		return true
-	}
-	return false
-}
-
-func (w *waitGroup) Done() {
-	w.mu.Lock()
-	defer w.mu.Unlock()
-	w.n--
-	if w.n < 0 {
-		panic(fmt.Sprintf("more calls to Done than Add"))
-	}
-	if w.n == 0 {
-		w.cond.Broadcast()
-	}
-}
-
-func (w *waitGroup) Wait() {
-	w.mu.Lock()
-	w.wait = true
-	for w.n > 0 {
-		w.cond.Wait()
-	}
-	w.mu.Unlock()
 }
