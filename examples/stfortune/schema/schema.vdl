@@ -1,0 +1,16 @@
+package schema
+
+import (
+	"veyron2/storage"
+)
+
+// User contains the information corresponding to a particular UserName in the store.
+type User struct {
+	Name string
+}
+
+// FortuneData contains the information regarding a fortune.
+type FortuneData struct {
+	Fortune  string
+	UserName storage.ID
+}
