@@ -10,7 +10,6 @@ import (
 
 	rps "veyron/examples/rockpaperscissors"
 
-	"veyron2/naming"
 	"veyron2/rt"
 	"veyron2/vlog"
 )
@@ -78,25 +77,10 @@ func findAll(t string) ([]string, error) {
 	}
 	var servers []string
 	for e := range c {
-		if len(e.Servers) > 0 {
-			servers = append(servers, pickBestServer(e.Servers))
-		}
+		servers = append(servers, e.Name)
 	}
 	vlog.VI(1).Infof("findAll(%q) elapsed: %s", t, time.Now().Sub(start))
 	return servers, nil
-}
-
-// pickBestServer returns the server with the highest TTL.
-func pickBestServer(servers []naming.MountedServer) string {
-	var server string
-	var max time.Duration
-	for _, x := range servers {
-		if x.TTL > max {
-			max = x.TTL
-			server = x.Server
-		}
-	}
-	return server
 }
 
 func FormatScoreCard(score rps.ScoreCard) string {

@@ -131,8 +131,8 @@ func recvChallenge(rt veyron2.Runtime) gameChallenge {
 // and asking the user to select one of each, to select the game options, what
 // to play, etc.
 func initiateGame() error {
-	jChan := make(chan findResult)
-	oChan := make(chan findResult)
+	jChan := make(chan []string)
+	oChan := make(chan []string)
 	go findAll("judge", jChan)
 	go findAll("player", oChan)
 
@@ -140,36 +140,36 @@ func initiateGame() error {
 	judges := <-jChan
 	opponents := <-oChan
 	fmt.Println()
-	if len(judges.names) == 0 || len(opponents.names) == 0 {
+	if len(judges) == 0 || len(opponents) == 0 {
 		return errors.New("no one to play with")
 	}
 
 	fmt.Println("Choose a judge:")
-	j := selectOne(judges.names)
+	j := selectOne(judges)
 	fmt.Println("Choose an opponent:")
-	o := selectOne(opponents.names)
+	o := selectOne(opponents)
 	fmt.Println("Choose the type of rock-paper-scissors game would you like to play:")
 	gameType := selectOne([]string{"Classic", "LizardSpock"})
 	fmt.Println("Choose the number of rounds required to win:")
 	numRounds := selectOne([]string{"1", "2", "3", "4", "5", "6"}) + 1
 	gameOpts := rps.GameOptions{NumRounds: int32(numRounds), GameType: rps.GameTypeTag(gameType)}
 
-	gameID, err := createGame(judges.servers[j], gameOpts)
+	gameID, err := createGame(judges[j], gameOpts)
 	if err != nil {
 		vlog.Infof("createGame: %v", err)
 		return err
 	}
 	for {
-		err := sendChallenge(opponents.servers[o], judges.servers[j], gameID, gameOpts)
+		err := sendChallenge(opponents[o], judges[j], gameID, gameOpts)
 		if err == nil {
 			break
 		}
-		fmt.Printf("Challenge was declined by %s (%v)\n", opponents.names[o], err)
+		fmt.Printf("Challenge was declined by %s (%v)\n", opponents[o], err)
 		fmt.Println("Choose another opponent:")
-		o = selectOne(opponents.names)
+		o = selectOne(opponents)
 	}
 	fmt.Println("Joining the game...")
-	if _, err = playGame(judges.servers[j], gameID); err != nil {
+	if _, err = playGame(judges[j], gameID); err != nil {
 		vlog.Infof("playGame: %v", err)
 		return err
 	}
@@ -285,28 +285,9 @@ func selectOne(choices []string) (choice int) {
 	return
 }
 
-type findResult struct {
-	names   []string
-	servers []string
-}
-
-// byName implements sort.Interface for findResult.
-type byName findResult
-
-func (n byName) Len() int {
-	return len(n.names)
-}
-func (n byName) Swap(i, j int) {
-	n.names[i], n.names[j] = n.names[j], n.names[i]
-	n.servers[i], n.servers[j] = n.servers[j], n.servers[i]
-}
-func (n byName) Less(i, j int) bool {
-	return n.names[i] < n.names[j]
-}
-
-func findAll(t string, out chan findResult) {
+func findAll(t string, out chan []string) {
 	ns := rt.R().Namespace()
-	var result findResult
+	var result []string
 	c, err := ns.Glob(rt.R().TODOContext(), "rps/"+t+"/*")
 	if err != nil {
 		vlog.Infof("ns.Glob failed: %v", err)
@@ -315,11 +296,8 @@ func findAll(t string, out chan findResult) {
 	}
 	for e := range c {
 		fmt.Print(".")
-		if len(e.Servers) > 0 {
-			result.names = append(result.names, e.Name)
-			result.servers = append(result.servers, e.Servers[0].Server)
-		}
+		result = append(result, e.Name)
 	}
-	sort.Sort(byName(result))
+	sort.Strings(result)
 	out <- result
 }
