@@ -43,7 +43,7 @@ func complexServerProgram() {
 	// second signal or stop command while critical cleanup code is
 	// executing.
 	var blocking sync.WaitGroup
-	blocking.Add(1)
+	blockingCh := make(chan struct{})
 
 	// This is how to wait for a signal or stop command and initiate the
 	// clean shutdown steps.
@@ -66,7 +66,7 @@ func complexServerProgram() {
 		case <-sigChan:
 		case <-stopChan:
 		}
-		blocking.Wait()
+		<-blockingCh
 		os.Exit(1)
 	}()
 
@@ -137,7 +137,8 @@ func complexServerProgram() {
 	// Simulate two sequential cleanup steps, one blocking and one
 	// interruptible.
 	fmt.Println("Sequential blocking cleanup")
-	blocking.Done()
+	blocking.Wait()
+	close(blockingCh)
 
 	fmt.Println("Sequential interruptible cleanup")
 
