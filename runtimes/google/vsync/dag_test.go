@@ -5,11 +5,12 @@ package vsync
 import (
 	"errors"
 	"fmt"
-	"math/rand"
 	"os"
 	"reflect"
 	"testing"
 	"time"
+
+	"veyron/lib/testutil"
 
 	"veyron2/storage"
 )
@@ -1076,12 +1077,12 @@ func TestDAGCompact(t *testing.T) {
 	headMap := make(map[storage.ID]storage.Version)
 	for i := 0; i < 10; i++ {
 		// Generate a random object id in [0, 1000).
-		oid, err := strToObjID(fmt.Sprintf("%d", rand.Intn(1000)))
+		oid, err := strToObjID(fmt.Sprintf("%d", testutil.Rand.Intn(1000)))
 		if err != nil {
 			t.Fatal(err)
 		}
 		// Generate a random version number for this object.
-		vers := storage.Version(rand.Intn(5000))
+		vers := storage.Version(testutil.Rand.Intn(5000))
 
 		// Cache this <oid,version> pair to verify with getHead().
 		headMap[oid] = vers
@@ -1102,10 +1103,10 @@ func TestDAGCompact(t *testing.T) {
 	nodeMap := make(map[nodeKey]*dagNode)
 	for oid, vers := range headMap {
 		// Generate a random dag node for this <oid, vers>.
-		l := uint64(rand.Intn(20))
-		p1 := storage.Version(rand.Intn(5000))
-		p2 := storage.Version(rand.Intn(5000))
-		log := fmt.Sprintf("%d", rand.Intn(1000))
+		l := uint64(testutil.Rand.Intn(20))
+		p1 := storage.Version(testutil.Rand.Intn(5000))
+		p2 := storage.Version(testutil.Rand.Intn(5000))
+		log := fmt.Sprintf("%d", testutil.Rand.Intn(1000))
 		node := &dagNode{Level: l, Parents: []storage.Version{p1, p2}, Logrec: log}
 
 		// Cache this <oid,version, dagNode> to verify with getNode().
