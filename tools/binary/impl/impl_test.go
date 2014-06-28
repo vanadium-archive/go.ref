@@ -9,13 +9,14 @@ import (
 	"strings"
 	"testing"
 
-	"veyron/tools/content/impl"
+	"veyron/tools/binary/impl"
 
 	"veyron2"
 	"veyron2/ipc"
 	"veyron2/naming"
 	"veyron2/rt"
 	"veyron2/security"
+	"veyron2/services/mgmt/binary"
 	"veyron2/services/mgmt/repository"
 	"veyron2/vlog"
 )
@@ -24,29 +25,44 @@ type server struct {
 	suffix string
 }
 
+func (s *server) Create(ipc.ServerContext, int32) error {
+	vlog.VI(2).Infof("Create() was called. suffix=%v", s.suffix)
+	return nil
+}
+
 func (s *server) Delete(ipc.ServerContext) error {
 	vlog.VI(2).Infof("Delete() was called. suffix=%v", s.suffix)
 	if s.suffix != "exists" {
-		return fmt.Errorf("content doesn't exist: %v", s.suffix)
+		return fmt.Errorf("binary doesn't exist: %v", s.suffix)
 	}
 	return nil
 }
 
-func (s *server) Download(_ ipc.ServerContext, stream repository.ContentServiceDownloadStream) error {
+func (s *server) Download(_ ipc.ServerContext, _ int32, stream repository.BinaryServiceDownloadStream) error {
 	vlog.VI(2).Infof("Download() was called. suffix=%v", s.suffix)
 	stream.Send([]byte("Hello"))
 	stream.Send([]byte("World"))
 	return nil
 }
 
-func (s *server) Upload(_ ipc.ServerContext, stream repository.ContentServiceUploadStream) (string, error) {
+func (s *server) DownloadURL(ipc.ServerContext) (string, int64, error) {
+	vlog.VI(2).Infof("DownloadURL() was called. suffix=%v", s.suffix)
+	return "", 0, nil
+}
+
+func (s *server) Stat(ipc.ServerContext) ([]binary.PartInfo, error) {
+	vlog.VI(2).Infof("Stat() was called. suffix=%v", s.suffix)
+	return []binary.PartInfo{}, nil
+}
+
+func (s *server) Upload(_ ipc.ServerContext, _ int32, stream repository.BinaryServiceUploadStream) error {
 	vlog.VI(2).Infof("Upload() was called. suffix=%v", s.suffix)
 	for {
 		if _, err := stream.Recv(); err != nil {
 			break
 		}
 	}
-	return "newcontentid", nil
+	return nil
 }
 
 type dispatcher struct {
@@ -57,7 +73,7 @@ func NewDispatcher() *dispatcher {
 }
 
 func (d *dispatcher) Lookup(suffix string) (ipc.Invoker, security.Authorizer, error) {
-	invoker := ipc.ReflectInvoker(repository.NewServerContent(&server{suffix: suffix}))
+	invoker := ipc.ReflectInvoker(repository.NewServerBinary(&server{suffix: suffix}))
 	return invoker, nil, nil
 }
 
@@ -86,7 +102,7 @@ func stopServer(t *testing.T, server ipc.Server) {
 	}
 }
 
-func TestContentClient(t *testing.T) {
+func TestBinaryClient(t *testing.T) {
 	runtime := rt.Init()
 	server, endpoint, err := startServer(t, runtime)
 	if err != nil {
@@ -102,13 +118,13 @@ func TestContentClient(t *testing.T) {
 	if err := cmd.Execute([]string{"delete", naming.JoinAddressName(endpoint.String(), "//exists")}); err != nil {
 		t.Fatalf("%v", err)
 	}
-	if expected, got := "Content deleted successfully", strings.TrimSpace(stdout.String()); got != expected {
+	if expected, got := "Binary deleted successfully", strings.TrimSpace(stdout.String()); got != expected {
 		t.Errorf("Got %q, expected %q", got, expected)
 	}
 	stdout.Reset()
 
 	// Test the 'download' command.
-	dir, err := ioutil.TempDir("", "contentimpltest")
+	dir, err := ioutil.TempDir("", "binaryimpltest")
 	if err != nil {
 		t.Fatalf("%v", err)
 	}
@@ -118,7 +134,7 @@ func TestContentClient(t *testing.T) {
 	if err := cmd.Execute([]string{"download", naming.JoinAddressName(endpoint.String(), "//exists"), file}); err != nil {
 		t.Fatalf("%v", err)
 	}
-	if expected, got := "Content downloaded to file "+file, strings.TrimSpace(stdout.String()); got != expected {
+	if expected, got := "Binary downloaded to file "+file, strings.TrimSpace(stdout.String()); got != expected {
 		t.Errorf("Got %q, expected %q", got, expected)
 	}
 	buf, err := ioutil.ReadFile(file)
@@ -131,10 +147,7 @@ func TestContentClient(t *testing.T) {
 	stdout.Reset()
 
 	// Test the 'upload' command.
-	if err := cmd.Execute([]string{"upload", naming.JoinAddressName(endpoint.String(), ""), file}); err != nil {
+	if err := cmd.Execute([]string{"upload", naming.JoinAddressName(endpoint.String(), "//exists"), file}); err != nil {
 		t.Fatalf("%v", err)
-	}
-	if expected, got := "newcontentid", strings.TrimSpace(stdout.String()); got != expected {
-		t.Errorf("Got %q, expected %q", got, expected)
 	}
 }

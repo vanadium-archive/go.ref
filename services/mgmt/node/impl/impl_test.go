@@ -26,6 +26,7 @@ import (
 	"veyron2/naming"
 	"veyron2/rt"
 	"veyron2/services/mgmt/application"
+	"veyron2/services/mgmt/binary"
 	"veyron2/services/mgmt/repository"
 	"veyron2/vlog"
 )
@@ -56,17 +57,22 @@ func (i *arInvoker) Match(ipc.ServerContext, []string) (application.Envelope, er
 	return *envelope, nil
 }
 
-// crInvoker holds the state of a content repository invocation mock.
+// crInvoker holds the state of a binary repository invocation mock.
 type crInvoker struct{}
 
-// CONTENT REPOSITORY INTERFACE IMPLEMENTATION
+// BINARY REPOSITORY INTERFACE IMPLEMENTATION
+
+func (*crInvoker) Create(ipc.ServerContext, int32) error {
+	vlog.VI(0).Infof("Create()")
+	return nil
+}
 
 func (i *crInvoker) Delete(ipc.ServerContext) error {
 	vlog.VI(0).Infof("Delete()")
 	return nil
 }
 
-func (i *crInvoker) Download(_ ipc.ServerContext, stream repository.ContentServiceDownloadStream) error {
+func (i *crInvoker) Download(_ ipc.ServerContext, _ int32, stream repository.BinaryServiceDownloadStream) error {
 	vlog.VI(0).Infof("Download()")
 	file, err := os.Open(os.Args[0])
 	if err != nil {
@@ -93,9 +99,19 @@ func (i *crInvoker) Download(_ ipc.ServerContext, stream repository.ContentServi
 	}
 }
 
-func (i *crInvoker) Upload(ipc.ServerContext, repository.ContentServiceUploadStream) (string, error) {
+func (*crInvoker) DownloadURL(ipc.ServerContext) (string, int64, error) {
+	vlog.VI(0).Infof("DownloadURL()")
+	return "", 0, nil
+}
+
+func (*crInvoker) Stat(ipc.ServerContext) ([]binary.PartInfo, error) {
+	vlog.VI(0).Infof("Stat()")
+	return make([]binary.PartInfo, 1), nil
+}
+
+func (i *crInvoker) Upload(ipc.ServerContext, int32, repository.BinaryServiceUploadStream) error {
 	vlog.VI(0).Infof("Upload()")
-	return "", nil
+	return nil
 }
 
 func generateBinary(workspace string) string {
@@ -203,8 +219,8 @@ func nodeManager(argv []string) {
 	case "parent":
 		runtime := rt.Init()
 		defer runtime.Shutdown()
-		// Set up a mock content repository, a mock application repository, and a node manager.
-		_, crCleanup := startContentRepository()
+		// Set up a mock binary repository, a mock application repository, and a node manager.
+		_, crCleanup := startBinaryRepository()
 		defer crCleanup()
 		_, arCleanup := startApplicationRepository()
 		defer arCleanup()
@@ -266,12 +282,12 @@ func startApplicationRepository() (string, func()) {
 	}
 }
 
-func startContentRepository() (string, func()) {
+func startBinaryRepository() (string, func()) {
 	server, err := rt.R().NewServer()
 	if err != nil {
 		vlog.Fatalf("NewServer() failed: %v", err)
 	}
-	suffix, dispatcher := "", ipc.SoloDispatcher(repository.NewServerContent(&crInvoker{}), nil)
+	suffix, dispatcher := "", ipc.SoloDispatcher(repository.NewServerBinary(&crInvoker{}), nil)
 	if err := server.Register(suffix, dispatcher); err != nil {
 		vlog.Fatalf("Register(%v, %v) failed: %v", suffix, dispatcher, err)
 	}
@@ -280,7 +296,7 @@ func startContentRepository() (string, func()) {
 	if err != nil {
 		vlog.Fatalf("Listen(%v, %v) failed: %v", protocol, hostname, err)
 	}
-	vlog.VI(1).Infof("Content repository running at endpoint: %s", endpoint)
+	vlog.VI(1).Infof("Binary repository running at endpoint: %s", endpoint)
 	name := "cr"
 	if err := server.Publish(name); err != nil {
 		vlog.Fatalf("Publish(%v) failed: %v", name, err)
@@ -366,13 +382,13 @@ func TestHelperProcess(t *testing.T) {
 // restarts itself using syscall.Exec(), effectively becoming the
 // process described next.
 //
-// 2) The "parent" branch sets up a mock application and content
+// 2) The "parent" branch sets up a mock application and binary
 // repository and a node manager that is pointed to the mock
 // application repository for updates. When all three services start,
 // the TestUpdate() method is notified and it proceeds to invoke
 // Update() on the node manager. This in turn results in the node
 // manager downloading an application envelope from the mock
-// application repository and a binary from the mock content
+// application repository and a binary from the mock binary
 // repository. These are identical to the application envelope of the
 // "parent" node manager, except for the VEYRON_NM_TEST variable,
 // which is set to "child". The Update() method then spawns the child

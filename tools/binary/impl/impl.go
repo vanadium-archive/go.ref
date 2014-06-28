@@ -14,39 +14,41 @@ import (
 var cmdDelete = &cmdline.Command{
 	Run:      runDelete,
 	Name:     "delete",
-	Short:    "Delete content",
-	Long:     "Delete connects to the content repository and deletes the specified content",
-	ArgsName: "<content>",
-	ArgsLong: "<content> is the full name of the content to delete.",
+	Short:    "Delete binary",
+	Long:     "Delete connects to the binary repository and deletes the specified binary",
+	ArgsName: "<binary>",
+	ArgsLong: "<binary> is the veyron name of the binary to delete",
 }
 
 func runDelete(cmd *cmdline.Command, args []string) error {
 	if expected, got := 1, len(args); expected != got {
 		return cmd.Errorf("delete: incorrect number of arguments, expected %d, got %d", expected, got)
 	}
-	c, err := repository.BindContent(args[0])
+	binary := args[0]
+
+	c, err := repository.BindBinary(binary)
 	if err != nil {
 		return fmt.Errorf("bind error: %v", err)
 	}
 	if err = c.Delete(rt.R().NewContext()); err != nil {
 		return err
 	}
-	fmt.Fprintf(cmd.Stdout(), "Content deleted successfully\n")
+	fmt.Fprintf(cmd.Stdout(), "Binary deleted successfully\n")
 	return nil
 }
 
 var cmdDownload = &cmdline.Command{
 	Run:   runDownload,
 	Name:  "download",
-	Short: "Download content",
+	Short: "Download binary",
 	Long: `
-Download connects to the content repository, downloads the specified content, and
+Download connects to the binary repository, downloads the specified binary, and
 writes it to a file.
 `,
-	ArgsName: "<content> <filename>",
+	ArgsName: "<binary> <filename>",
 	ArgsLong: `
-<content> is the full name of the content to download
-<filename> is the name of the file where the content will be written
+<binary> is the veyron name of the binary to download
+<filename> is the name of the file where the binary will be written
 `,
 }
 
@@ -54,19 +56,22 @@ func runDownload(cmd *cmdline.Command, args []string) error {
 	if expected, got := 2, len(args); expected != got {
 		return cmd.Errorf("download: incorrect number of arguments, expected %d, got %d", expected, got)
 	}
-
-	f, err := os.OpenFile(args[1], os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0600)
+	binary, filename := args[0], args[1]
+	f, err := os.OpenFile(filename, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0700)
 	if err != nil {
-		return fmt.Errorf("failed to open %q: %v", args[0], err)
+		return fmt.Errorf("failed to open %q: %v", filename, err)
 	}
 	defer f.Close()
 
-	c, err := repository.BindContent(args[0])
+	c, err := repository.BindBinary(binary)
 	if err != nil {
 		return fmt.Errorf("bind error: %v", err)
 	}
 
-	stream, err := c.Download(rt.R().NewContext())
+	// TODO(jsimsa): Replace the code below with a call to a client-side
+	// binary library once this library exists. In particular, we should
+	// take care of resumption and consistency checking.
+	stream, err := c.Download(rt.R().NewContext(), 0)
 	if err != nil {
 		return err
 	}
@@ -89,22 +94,22 @@ func runDownload(cmd *cmdline.Command, args []string) error {
 		return fmt.Errorf("finish error: %v", err)
 	}
 
-	fmt.Fprintf(cmd.Stdout(), "Content downloaded to file %s\n", args[1])
+	fmt.Fprintf(cmd.Stdout(), "Binary downloaded to file %s\n", filename)
 	return nil
 }
 
 var cmdUpload = &cmdline.Command{
 	Run:   runUpload,
 	Name:  "upload",
-	Short: "Upload content",
+	Short: "Upload binary",
 	Long: `
-Upload connects to the content repository and uploads the content of the specified
-file. When successful, it writes the name of the new content to stdout.
+Upload connects to the binary repository and uploads the binary of the specified
+file. When successful, it writes the name of the new binary to stdout.
 `,
-	ArgsName: "<server> <filename>",
+	ArgsName: "<binary> <filename>",
 	ArgsLong: `
-<server> is the veyron name or endpoint of the content repository.
-<filename> is the name of the file to upload.
+<binary> is the veyron name of the binary to upload
+<filename> is the name of the file to upload
 `,
 }
 
@@ -112,19 +117,24 @@ func runUpload(cmd *cmdline.Command, args []string) error {
 	if expected, got := 2, len(args); expected != got {
 		return cmd.Errorf("upload: incorrect number of arguments, expected %d, got %d", expected, got)
 	}
-
-	f, err := os.Open(args[1])
+	binary, filename := args[0], args[1]
+	f, err := os.Open(filename)
 	if err != nil {
-		return fmt.Errorf("failed to open %q: %v", args[1], err)
+		return fmt.Errorf("failed to open %q: %v", filename, err)
 	}
 	defer f.Close()
 
-	c, err := repository.BindContent(args[0])
+	c, err := repository.BindBinary(binary)
 	if err != nil {
 		return fmt.Errorf("bind error: %v", err)
 	}
 
-	stream, err := c.Upload(rt.R().NewContext())
+	// TODO(jsimsa): Add support for uploading multi-part binaries.
+	if err := c.Create(rt.R().NewContext(), 1); err != nil {
+		return err
+	}
+
+	stream, err := c.Upload(rt.R().NewContext(), 0)
 	if err != nil {
 		return err
 	}
@@ -138,28 +148,26 @@ func runUpload(cmd *cmdline.Command, args []string) error {
 			}
 			return fmt.Errorf("read error: %v", err)
 		}
-		if err = stream.Send(buf[:n]); err != nil {
+		if err := stream.Send(buf[:n]); err != nil {
 			return fmt.Errorf("send error: %v", err)
 		}
 	}
-	if err = stream.CloseSend(); err != nil {
+	if err := stream.CloseSend(); err != nil {
 		return fmt.Errorf("closesend error: %v", err)
 	}
 
-	name, err := stream.Finish()
-	if err != nil {
+	if err := stream.Finish(); err != nil {
 		return fmt.Errorf("finish error: %v", err)
 	}
 
-	fmt.Fprintf(cmd.Stdout(), "%s\n", name)
 	return nil
 }
 
 func Root() *cmdline.Command {
 	return &cmdline.Command{
-		Name:     "content",
-		Short:    "Command-line tool for interacting with the veyron content repository",
-		Long:     "Command-line tool for interacting with the veyron content repository",
+		Name:     "binary",
+		Short:    "Command-line tool for interacting with the veyron binary repository",
+		Long:     "Command-line tool for interacting with the veyron binary repository",
 		Children: []*cmdline.Command{cmdDelete, cmdDownload, cmdUpload},
 	}
 }

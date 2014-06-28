@@ -329,14 +329,9 @@ func (i *invoker) Reset(call ipc.ServerContext, deadline uint64) error {
 // APPLICATION INTERFACE IMPLEMENTATION
 
 func downloadBinary(workspace, binary string) error {
-	stub, err := repository.BindContent(binary)
+	stub, err := repository.BindBinary(binary)
 	if err != nil {
-		vlog.Errorf("BindContent(%q) failed: %v", binary, err)
-		return errOperationFailed
-	}
-	stream, err := stub.Download(rt.R().NewContext())
-	if err != nil {
-		vlog.Errorf("Download() failed: %v", err)
+		vlog.Errorf("BindBinary(%q) failed: %v", binary, err)
 		return errOperationFailed
 	}
 	path := filepath.Join(workspace, "noded")
@@ -346,23 +341,38 @@ func downloadBinary(workspace, binary string) error {
 		return errOperationFailed
 	}
 	defer file.Close()
-	for {
-		bytes, err := stream.Recv()
-		if err == io.EOF {
-			break
-		}
-		if err != nil {
-			vlog.Errorf("Recv() failed: %v", err)
-			return errOperationFailed
-		}
-		if _, err := file.Write(bytes); err != nil {
-			vlog.Errorf("Write() failed: %v", err)
-			return errOperationFailed
-		}
-	}
-	if err := stream.Finish(); err != nil {
-		vlog.Errorf("Finish() failed: %v", err)
+	parts, err := stub.Stat(rt.R().NewContext())
+	if err != nil {
+		vlog.Errorf("Stat() failed: %v", err)
 		return errOperationFailed
+	}
+	// TODO(jsimsa): Replace the code below with a call to a client-side
+	// binary library once this library exists. In particular, we should
+	// take care of resumption and consistency checking.
+	for i := 0; i < len(parts); i++ {
+		stream, err := stub.Download(rt.R().NewContext(), int32(i))
+		if err != nil {
+			vlog.Errorf("Download() failed: %v", err)
+			return errOperationFailed
+		}
+		for {
+			bytes, err := stream.Recv()
+			if err == io.EOF {
+				break
+			}
+			if err != nil {
+				vlog.Errorf("Recv() failed: %v", err)
+				return errOperationFailed
+			}
+			if _, err := file.Write(bytes); err != nil {
+				vlog.Errorf("Write() failed: %v", err)
+				return errOperationFailed
+			}
+		}
+		if err := stream.Finish(); err != nil {
+			vlog.Errorf("Finish() failed: %v", err)
+			return errOperationFailed
+		}
 	}
 	mode := os.FileMode(0755)
 	if err := file.Chmod(mode); err != nil {
