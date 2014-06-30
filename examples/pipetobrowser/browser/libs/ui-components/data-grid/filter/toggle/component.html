@@ -1,0 +1,32 @@
+<link rel="import" href="/libs/vendor/polymer/polymer/polymer.html">
+<link rel="import" href="/libs/vendor/polymer/paper-toggle-button/paper-toggle-button.html">
+<polymer-element name="p2b-grid-filter-toggle" attributes="key checked label" grid-filter expects-grid-state>
+  <template>
+    <link rel="stylesheet" href="component.css">
+    <paper-toggle-button id="toggle" on-change="{{ updateGridState }}" checked?="{{ checked }}"></paper-toggle-button>
+  </template>
+  <script>
+    Polymer('p2b-grid-filter-toggle', {
+      /*
+       * Label text for the toggle filter
+       * @type {string}
+       */
+      label: '',
+
+      /*
+       * Whether toggle is checked or not
+       * @type {boolean}
+       */
+      checked: false,
+
+      /*
+       * Key that will be added to filters map passed to the fetch() function of your data source.
+       * @type {string}
+       */
+      key: '',
+      updateGridState: function() {
+        this.gridState.filters[this.key] = this.$.toggle.checked;
+      }
+    });
+    </script>
+</polymer-element>

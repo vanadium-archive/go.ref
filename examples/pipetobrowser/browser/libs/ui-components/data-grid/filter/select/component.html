@@ -1,0 +1,67 @@
+<link rel="import" href="/libs/vendor/polymer/polymer/polymer.html">
+<link rel="import" href="/libs/vendor/polymer/paper-checkbox/paper-checkbox.html">
+<link rel="import" href="/libs/vendor/polymer/paper-radio-button/paper-radio-button.html">
+<link rel="import" href="/libs/vendor/polymer/paper-radio-group/paper-radio-group.html">
+<polymer-element name="p2b-grid-filter-select" attributes="multiple key" grid-filter expects-grid-state>
+  <template>
+    <link rel="stylesheet" href="component.css">
+    <content id="content" select="*"></content>
+    <div>
+      <template if="{{ multiple }}" bind>
+        <core-selector id="multiSelector" multi selectedAttribute="checked" valueattr="value" core-select="{{updateGridState}}" selected="{{ selected }}">
+          <template repeat="{{ item in items }}">
+            <paper-checkbox value="{{ item.value }}" on-change="{{ updateGridState }}" label="{{ item.label }}"></paper-checkbox>
+          </template>
+        </core-selector>
+      </template>
+
+      <template if="{{ !multiple }}" bind>
+        <paper-radio-group id="singleSelector" valueattr="value" selected="{{ selected }}">
+          <template repeat="{{ item in items }}">
+            <paper-radio-button value="{{ item.value }}" on-change="{{ updateGridState }}" label="{{ item.label }}"></paper-radio-button>
+          </template>
+        </paper-radio-group>
+      </template>
+    </div>
+  </template>
+  <script>
+    Polymer('p2b-grid-filter-select', {
+     /*
+      * Whether multiple items can be selected
+      * @type {boolean}
+      */
+      multiple: false,
+
+      /*
+       * Key that will be added to filters map passed to the fetch() function of your data source.
+       * @type {string}
+       */
+      key: '',
+
+      ready: function() {
+        // find the selected items from the child nodes
+        this.items = Array.prototype.slice.call(this.$.content.getDistributedNodes());
+        for(var i=0; i < this.items.length; i++){
+          if(this.items[i].checked) {
+            if(this.multiple) {
+              this.selected = this.selected || [];
+              this.selected.push(this.items[i].value);
+            } else {
+              this.selected = this.items[i].value;
+            }
+          }
+        }
+      },
+
+      updateGridState: function() {
+        if( this.multiple ) {
+          // quirk: we need to copy the array so change is observed. .slice() does that
+          this.gridState.filters[this.key] = this.$.multiSelector.selected.slice();
+        } else {
+          this.gridState.filters[this.key] = this.$.singleSelector.selected.slice();
+        }
+      }
+
+    });
+    </script>
+</polymer-element>

@@ -15,7 +15,7 @@ class DevNullPipeViewer extends PipeViewer {
 
   play(stream) {
 
-    var blackhole = document.createElement('p2b-ui-components-blackhole');
+    var blackhole = document.createElement('p2b-blackhole');
     blackhole.start();
 
     stream.on('data', () => {

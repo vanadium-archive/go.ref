@@ -8,8 +8,10 @@
  */
 import { View } from 'view';
 import { PipeViewer } from 'pipe-viewer';
+import { vLogDataSource } from './data-source';
+import { Logger } from 'logger'
 
-import { parse } from './parser';
+var log = new Logger('pipe-viewers/builtin/vlog');
 
 var streamUtil = require('event-stream');
 
@@ -23,17 +25,24 @@ class vLogPipeViewer extends PipeViewer {
 
     // split by new line
     stream = stream.pipe(streamUtil.split(/\r?\n/));
-
-    var logItems = [];
     var logView = document.createElement('p2b-plugin-vlog');
-    logView.logItems = logItems;
 
-    stream.on('data', (line) => {
-      // try to parse and display as much as we can.
-      try {
-        logItems.push( parse(line) );
-      } catch(e) {}
+    // create a new data source from the stream and set it.
+    logView.dataSource = new vLogDataSource(
+      stream,
+      function onNewItem() {
+        // also refresh the grid when new data comes in.
+        // grid component batches requests and refreshes UI on the next animation frame.
+        logView.refreshGrid();
+      },
+      function onError(err) {
+        log.debug(err);
+      });
 
+    // also refresh the grid when new data comes in.
+    // grid component batches requests and refreshes UI on the next animation frame.
+    stream.on('data', () => {
+      logView.refreshGrid();
     });
 
     return new View(logView);

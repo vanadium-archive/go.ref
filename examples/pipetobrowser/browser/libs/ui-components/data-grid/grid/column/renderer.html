@@ -1,0 +1,32 @@
+<link rel="import" href="/libs/vendor/polymer/polymer/polymer.html">
+<polymer-element name="p2b-grid-column-renderer" extends="th" attributes="data gridState" expects-grid-state on-tap="{{ updateGridState }}">
+  <template>
+    <link rel="stylesheet" href="renderer.css">
+    <span> {{ data.label }}</span>
+    <template if="{{ data.sortable && gridState.sort.key == data.key }}">
+
+      <template if="{{ gridState.sort.ascending }}">
+        <span>▲</span>
+      </template>
+
+      <template if="{{ !gridState.sort.ascending }}">
+        <span>▼</span>
+      </template>
+    </template>
+
+  </template>
+  <script>
+   /*
+    * @private
+    */
+    Polymer('p2b-grid-column-renderer', {
+      updateGridState:function() {
+        if( !this.data.sortable ) {
+          return;
+        }
+        this.gridState.sort.ascending = !this.gridState.sort.ascending;
+        this.gridState.sort.key = this.data.key;
+      }
+    });
+  </script>
+</polymer-element>
