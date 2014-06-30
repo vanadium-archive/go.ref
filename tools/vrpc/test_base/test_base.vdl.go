@@ -24,15 +24,15 @@ type Struct struct {
 // to enable embedding without method collisions.  Not to be used directly by clients.
 type TypeTester_ExcludingUniversal interface {
 	// Methods to test support for generic types.
-	EchoBool(ctx _gen_context.T, I1 bool, opts ..._gen_ipc.CallOpt) (reply bool, err error)
-	EchoFloat32(ctx _gen_context.T, I1 float32, opts ..._gen_ipc.CallOpt) (reply float32, err error)
-	EchoFloat64(ctx _gen_context.T, I1 float64, opts ..._gen_ipc.CallOpt) (reply float64, err error)
-	EchoInt32(ctx _gen_context.T, I1 int32, opts ..._gen_ipc.CallOpt) (reply int32, err error)
-	EchoInt64(ctx _gen_context.T, I1 int64, opts ..._gen_ipc.CallOpt) (reply int64, err error)
-	EchoString(ctx _gen_context.T, I1 string, opts ..._gen_ipc.CallOpt) (reply string, err error)
-	EchoByte(ctx _gen_context.T, I1 byte, opts ..._gen_ipc.CallOpt) (reply byte, err error)
-	EchoUInt32(ctx _gen_context.T, I1 uint32, opts ..._gen_ipc.CallOpt) (reply uint32, err error)
-	EchoUInt64(ctx _gen_context.T, I1 uint64, opts ..._gen_ipc.CallOpt) (reply uint64, err error)
+	Bool(ctx _gen_context.T, I1 bool, opts ..._gen_ipc.CallOpt) (reply bool, err error)
+	Float32(ctx _gen_context.T, I1 float32, opts ..._gen_ipc.CallOpt) (reply float32, err error)
+	Float64(ctx _gen_context.T, I1 float64, opts ..._gen_ipc.CallOpt) (reply float64, err error)
+	Int32(ctx _gen_context.T, I1 int32, opts ..._gen_ipc.CallOpt) (reply int32, err error)
+	Int64(ctx _gen_context.T, I1 int64, opts ..._gen_ipc.CallOpt) (reply int64, err error)
+	String(ctx _gen_context.T, I1 string, opts ..._gen_ipc.CallOpt) (reply string, err error)
+	Byte(ctx _gen_context.T, I1 byte, opts ..._gen_ipc.CallOpt) (reply byte, err error)
+	UInt32(ctx _gen_context.T, I1 uint32, opts ..._gen_ipc.CallOpt) (reply uint32, err error)
+	UInt64(ctx _gen_context.T, I1 uint64, opts ..._gen_ipc.CallOpt) (reply uint64, err error)
 	// Methods to test support for composite types.
 	InputArray(ctx _gen_context.T, I1 [2]byte, opts ..._gen_ipc.CallOpt) (err error)
 	InputMap(ctx _gen_context.T, I1 map[byte]byte, opts ..._gen_ipc.CallOpt) (err error)
@@ -57,15 +57,15 @@ type TypeTester interface {
 type TypeTesterService interface {
 
 	// Methods to test support for generic types.
-	EchoBool(context _gen_ipc.ServerContext, I1 bool) (reply bool, err error)
-	EchoFloat32(context _gen_ipc.ServerContext, I1 float32) (reply float32, err error)
-	EchoFloat64(context _gen_ipc.ServerContext, I1 float64) (reply float64, err error)
-	EchoInt32(context _gen_ipc.ServerContext, I1 int32) (reply int32, err error)
-	EchoInt64(context _gen_ipc.ServerContext, I1 int64) (reply int64, err error)
-	EchoString(context _gen_ipc.ServerContext, I1 string) (reply string, err error)
-	EchoByte(context _gen_ipc.ServerContext, I1 byte) (reply byte, err error)
-	EchoUInt32(context _gen_ipc.ServerContext, I1 uint32) (reply uint32, err error)
-	EchoUInt64(context _gen_ipc.ServerContext, I1 uint64) (reply uint64, err error)
+	Bool(context _gen_ipc.ServerContext, I1 bool) (reply bool, err error)
+	Float32(context _gen_ipc.ServerContext, I1 float32) (reply float32, err error)
+	Float64(context _gen_ipc.ServerContext, I1 float64) (reply float64, err error)
+	Int32(context _gen_ipc.ServerContext, I1 int32) (reply int32, err error)
+	Int64(context _gen_ipc.ServerContext, I1 int64) (reply int64, err error)
+	String(context _gen_ipc.ServerContext, I1 string) (reply string, err error)
+	Byte(context _gen_ipc.ServerContext, I1 byte) (reply byte, err error)
+	UInt32(context _gen_ipc.ServerContext, I1 uint32) (reply uint32, err error)
+	UInt64(context _gen_ipc.ServerContext, I1 uint64) (reply uint64, err error)
 	// Methods to test support for composite types.
 	InputArray(context _gen_ipc.ServerContext, I1 [2]byte) (err error)
 	InputMap(context _gen_ipc.ServerContext, I1 map[byte]byte) (err error)
@@ -179,9 +179,9 @@ type clientStubTypeTester struct {
 	name   string
 }
 
-func (__gen_c *clientStubTypeTester) EchoBool(ctx _gen_context.T, I1 bool, opts ..._gen_ipc.CallOpt) (reply bool, err error) {
+func (__gen_c *clientStubTypeTester) Bool(ctx _gen_context.T, I1 bool, opts ..._gen_ipc.CallOpt) (reply bool, err error) {
 	var call _gen_ipc.Call
-	if call, err = __gen_c.client.StartCall(ctx, __gen_c.name, "EchoBool", []interface{}{I1}, opts...); err != nil {
+	if call, err = __gen_c.client.StartCall(ctx, __gen_c.name, "Bool", []interface{}{I1}, opts...); err != nil {
 		return
 	}
 	if ierr := call.Finish(&reply, &err); ierr != nil {
@@ -190,9 +190,9 @@ func (__gen_c *clientStubTypeTester) EchoBool(ctx _gen_context.T, I1 bool, opts 
 	return
 }
 
-func (__gen_c *clientStubTypeTester) EchoFloat32(ctx _gen_context.T, I1 float32, opts ..._gen_ipc.CallOpt) (reply float32, err error) {
+func (__gen_c *clientStubTypeTester) Float32(ctx _gen_context.T, I1 float32, opts ..._gen_ipc.CallOpt) (reply float32, err error) {
 	var call _gen_ipc.Call
-	if call, err = __gen_c.client.StartCall(ctx, __gen_c.name, "EchoFloat32", []interface{}{I1}, opts...); err != nil {
+	if call, err = __gen_c.client.StartCall(ctx, __gen_c.name, "Float32", []interface{}{I1}, opts...); err != nil {
 		return
 	}
 	if ierr := call.Finish(&reply, &err); ierr != nil {
@@ -201,9 +201,9 @@ func (__gen_c *clientStubTypeTester) EchoFloat32(ctx _gen_context.T, I1 float32,
 	return
 }
 
-func (__gen_c *clientStubTypeTester) EchoFloat64(ctx _gen_context.T, I1 float64, opts ..._gen_ipc.CallOpt) (reply float64, err error) {
+func (__gen_c *clientStubTypeTester) Float64(ctx _gen_context.T, I1 float64, opts ..._gen_ipc.CallOpt) (reply float64, err error) {
 	var call _gen_ipc.Call
-	if call, err = __gen_c.client.StartCall(ctx, __gen_c.name, "EchoFloat64", []interface{}{I1}, opts...); err != nil {
+	if call, err = __gen_c.client.StartCall(ctx, __gen_c.name, "Float64", []interface{}{I1}, opts...); err != nil {
 		return
 	}
 	if ierr := call.Finish(&reply, &err); ierr != nil {
@@ -212,9 +212,9 @@ func (__gen_c *clientStubTypeTester) EchoFloat64(ctx _gen_context.T, I1 float64,
 	return
 }
 
-func (__gen_c *clientStubTypeTester) EchoInt32(ctx _gen_context.T, I1 int32, opts ..._gen_ipc.CallOpt) (reply int32, err error) {
+func (__gen_c *clientStubTypeTester) Int32(ctx _gen_context.T, I1 int32, opts ..._gen_ipc.CallOpt) (reply int32, err error) {
 	var call _gen_ipc.Call
-	if call, err = __gen_c.client.StartCall(ctx, __gen_c.name, "EchoInt32", []interface{}{I1}, opts...); err != nil {
+	if call, err = __gen_c.client.StartCall(ctx, __gen_c.name, "Int32", []interface{}{I1}, opts...); err != nil {
 		return
 	}
 	if ierr := call.Finish(&reply, &err); ierr != nil {
@@ -223,9 +223,9 @@ func (__gen_c *clientStubTypeTester) EchoInt32(ctx _gen_context.T, I1 int32, opt
 	return
 }
 
-func (__gen_c *clientStubTypeTester) EchoInt64(ctx _gen_context.T, I1 int64, opts ..._gen_ipc.CallOpt) (reply int64, err error) {
+func (__gen_c *clientStubTypeTester) Int64(ctx _gen_context.T, I1 int64, opts ..._gen_ipc.CallOpt) (reply int64, err error) {
 	var call _gen_ipc.Call
-	if call, err = __gen_c.client.StartCall(ctx, __gen_c.name, "EchoInt64", []interface{}{I1}, opts...); err != nil {
+	if call, err = __gen_c.client.StartCall(ctx, __gen_c.name, "Int64", []interface{}{I1}, opts...); err != nil {
 		return
 	}
 	if ierr := call.Finish(&reply, &err); ierr != nil {
@@ -234,9 +234,9 @@ func (__gen_c *clientStubTypeTester) EchoInt64(ctx _gen_context.T, I1 int64, opt
 	return
 }
 
-func (__gen_c *clientStubTypeTester) EchoString(ctx _gen_context.T, I1 string, opts ..._gen_ipc.CallOpt) (reply string, err error) {
+func (__gen_c *clientStubTypeTester) String(ctx _gen_context.T, I1 string, opts ..._gen_ipc.CallOpt) (reply string, err error) {
 	var call _gen_ipc.Call
-	if call, err = __gen_c.client.StartCall(ctx, __gen_c.name, "EchoString", []interface{}{I1}, opts...); err != nil {
+	if call, err = __gen_c.client.StartCall(ctx, __gen_c.name, "String", []interface{}{I1}, opts...); err != nil {
 		return
 	}
 	if ierr := call.Finish(&reply, &err); ierr != nil {
@@ -245,9 +245,9 @@ func (__gen_c *clientStubTypeTester) EchoString(ctx _gen_context.T, I1 string, o
 	return
 }
 
-func (__gen_c *clientStubTypeTester) EchoByte(ctx _gen_context.T, I1 byte, opts ..._gen_ipc.CallOpt) (reply byte, err error) {
+func (__gen_c *clientStubTypeTester) Byte(ctx _gen_context.T, I1 byte, opts ..._gen_ipc.CallOpt) (reply byte, err error) {
 	var call _gen_ipc.Call
-	if call, err = __gen_c.client.StartCall(ctx, __gen_c.name, "EchoByte", []interface{}{I1}, opts...); err != nil {
+	if call, err = __gen_c.client.StartCall(ctx, __gen_c.name, "Byte", []interface{}{I1}, opts...); err != nil {
 		return
 	}
 	if ierr := call.Finish(&reply, &err); ierr != nil {
@@ -256,9 +256,9 @@ func (__gen_c *clientStubTypeTester) EchoByte(ctx _gen_context.T, I1 byte, opts 
 	return
 }
 
-func (__gen_c *clientStubTypeTester) EchoUInt32(ctx _gen_context.T, I1 uint32, opts ..._gen_ipc.CallOpt) (reply uint32, err error) {
+func (__gen_c *clientStubTypeTester) UInt32(ctx _gen_context.T, I1 uint32, opts ..._gen_ipc.CallOpt) (reply uint32, err error) {
 	var call _gen_ipc.Call
-	if call, err = __gen_c.client.StartCall(ctx, __gen_c.name, "EchoUInt32", []interface{}{I1}, opts...); err != nil {
+	if call, err = __gen_c.client.StartCall(ctx, __gen_c.name, "UInt32", []interface{}{I1}, opts...); err != nil {
 		return
 	}
 	if ierr := call.Finish(&reply, &err); ierr != nil {
@@ -267,9 +267,9 @@ func (__gen_c *clientStubTypeTester) EchoUInt32(ctx _gen_context.T, I1 uint32, o
 	return
 }
 
-func (__gen_c *clientStubTypeTester) EchoUInt64(ctx _gen_context.T, I1 uint64, opts ..._gen_ipc.CallOpt) (reply uint64, err error) {
+func (__gen_c *clientStubTypeTester) UInt64(ctx _gen_context.T, I1 uint64, opts ..._gen_ipc.CallOpt) (reply uint64, err error) {
 	var call _gen_ipc.Call
-	if call, err = __gen_c.client.StartCall(ctx, __gen_c.name, "EchoUInt64", []interface{}{I1}, opts...); err != nil {
+	if call, err = __gen_c.client.StartCall(ctx, __gen_c.name, "UInt64", []interface{}{I1}, opts...); err != nil {
 		return
 	}
 	if ierr := call.Finish(&reply, &err); ierr != nil {
@@ -442,23 +442,23 @@ func (__gen_s *ServerStubTypeTester) GetMethodTags(call _gen_ipc.ServerCall, met
 	// Note: This exhibits some weird behavior like returning a nil error if the method isn't found.
 	// This will change when it is replaced with Signature().
 	switch method {
-	case "EchoBool":
+	case "Bool":
 		return []interface{}{}, nil
-	case "EchoFloat32":
+	case "Float32":
 		return []interface{}{}, nil
-	case "EchoFloat64":
+	case "Float64":
 		return []interface{}{}, nil
-	case "EchoInt32":
+	case "Int32":
 		return []interface{}{}, nil
-	case "EchoInt64":
+	case "Int64":
 		return []interface{}{}, nil
-	case "EchoString":
+	case "String":
 		return []interface{}{}, nil
-	case "EchoByte":
+	case "Byte":
 		return []interface{}{}, nil
-	case "EchoUInt32":
+	case "UInt32":
 		return []interface{}{}, nil
-	case "EchoUInt64":
+	case "UInt64":
 		return []interface{}{}, nil
 	case "InputArray":
 		return []interface{}{}, nil
@@ -489,7 +489,7 @@ func (__gen_s *ServerStubTypeTester) GetMethodTags(call _gen_ipc.ServerCall, met
 
 func (__gen_s *ServerStubTypeTester) Signature(call _gen_ipc.ServerCall) (_gen_ipc.ServiceSignature, error) {
 	result := _gen_ipc.ServiceSignature{Methods: make(map[string]_gen_ipc.MethodSignature)}
-	result.Methods["EchoBool"] = _gen_ipc.MethodSignature{
+	result.Methods["Bool"] = _gen_ipc.MethodSignature{
 		InArgs: []_gen_ipc.MethodArgument{
 			{Name: "I1", Type: 2},
 		},
@@ -498,7 +498,7 @@ func (__gen_s *ServerStubTypeTester) Signature(call _gen_ipc.ServerCall) (_gen_i
 			{Name: "E", Type: 65},
 		},
 	}
-	result.Methods["EchoByte"] = _gen_ipc.MethodSignature{
+	result.Methods["Byte"] = _gen_ipc.MethodSignature{
 		InArgs: []_gen_ipc.MethodArgument{
 			{Name: "I1", Type: 66},
 		},
@@ -507,7 +507,7 @@ func (__gen_s *ServerStubTypeTester) Signature(call _gen_ipc.ServerCall) (_gen_i
 			{Name: "E", Type: 65},
 		},
 	}
-	result.Methods["EchoFloat32"] = _gen_ipc.MethodSignature{
+	result.Methods["Float32"] = _gen_ipc.MethodSignature{
 		InArgs: []_gen_ipc.MethodArgument{
 			{Name: "I1", Type: 25},
 		},
@@ -516,57 +516,12 @@ func (__gen_s *ServerStubTypeTester) Signature(call _gen_ipc.ServerCall) (_gen_i
 			{Name: "E", Type: 65},
 		},
 	}
-	result.Methods["EchoFloat64"] = _gen_ipc.MethodSignature{
+	result.Methods["Float64"] = _gen_ipc.MethodSignature{
 		InArgs: []_gen_ipc.MethodArgument{
 			{Name: "I1", Type: 26},
 		},
 		OutArgs: []_gen_ipc.MethodArgument{
 			{Name: "O1", Type: 26},
-			{Name: "E", Type: 65},
-		},
-	}
-	result.Methods["EchoInt32"] = _gen_ipc.MethodSignature{
-		InArgs: []_gen_ipc.MethodArgument{
-			{Name: "I1", Type: 36},
-		},
-		OutArgs: []_gen_ipc.MethodArgument{
-			{Name: "O1", Type: 36},
-			{Name: "E", Type: 65},
-		},
-	}
-	result.Methods["EchoInt64"] = _gen_ipc.MethodSignature{
-		InArgs: []_gen_ipc.MethodArgument{
-			{Name: "I1", Type: 37},
-		},
-		OutArgs: []_gen_ipc.MethodArgument{
-			{Name: "O1", Type: 37},
-			{Name: "E", Type: 65},
-		},
-	}
-	result.Methods["EchoString"] = _gen_ipc.MethodSignature{
-		InArgs: []_gen_ipc.MethodArgument{
-			{Name: "I1", Type: 3},
-		},
-		OutArgs: []_gen_ipc.MethodArgument{
-			{Name: "O1", Type: 3},
-			{Name: "E", Type: 65},
-		},
-	}
-	result.Methods["EchoUInt32"] = _gen_ipc.MethodSignature{
-		InArgs: []_gen_ipc.MethodArgument{
-			{Name: "I1", Type: 52},
-		},
-		OutArgs: []_gen_ipc.MethodArgument{
-			{Name: "O1", Type: 52},
-			{Name: "E", Type: 65},
-		},
-	}
-	result.Methods["EchoUInt64"] = _gen_ipc.MethodSignature{
-		InArgs: []_gen_ipc.MethodArgument{
-			{Name: "I1", Type: 53},
-		},
-		OutArgs: []_gen_ipc.MethodArgument{
-			{Name: "O1", Type: 53},
 			{Name: "E", Type: 65},
 		},
 	}
@@ -599,6 +554,24 @@ func (__gen_s *ServerStubTypeTester) Signature(call _gen_ipc.ServerCall) (_gen_i
 			{Name: "I1", Type: 70},
 		},
 		OutArgs: []_gen_ipc.MethodArgument{
+			{Name: "E", Type: 65},
+		},
+	}
+	result.Methods["Int32"] = _gen_ipc.MethodSignature{
+		InArgs: []_gen_ipc.MethodArgument{
+			{Name: "I1", Type: 36},
+		},
+		OutArgs: []_gen_ipc.MethodArgument{
+			{Name: "O1", Type: 36},
+			{Name: "E", Type: 65},
+		},
+	}
+	result.Methods["Int64"] = _gen_ipc.MethodSignature{
+		InArgs: []_gen_ipc.MethodArgument{
+			{Name: "I1", Type: 37},
+		},
+		OutArgs: []_gen_ipc.MethodArgument{
+			{Name: "O1", Type: 37},
 			{Name: "E", Type: 65},
 		},
 	}
@@ -658,6 +631,33 @@ func (__gen_s *ServerStubTypeTester) Signature(call _gen_ipc.ServerCall) (_gen_i
 
 		OutStream: 2,
 	}
+	result.Methods["String"] = _gen_ipc.MethodSignature{
+		InArgs: []_gen_ipc.MethodArgument{
+			{Name: "I1", Type: 3},
+		},
+		OutArgs: []_gen_ipc.MethodArgument{
+			{Name: "O1", Type: 3},
+			{Name: "E", Type: 65},
+		},
+	}
+	result.Methods["UInt32"] = _gen_ipc.MethodSignature{
+		InArgs: []_gen_ipc.MethodArgument{
+			{Name: "I1", Type: 52},
+		},
+		OutArgs: []_gen_ipc.MethodArgument{
+			{Name: "O1", Type: 52},
+			{Name: "E", Type: 65},
+		},
+	}
+	result.Methods["UInt64"] = _gen_ipc.MethodSignature{
+		InArgs: []_gen_ipc.MethodArgument{
+			{Name: "I1", Type: 53},
+		},
+		OutArgs: []_gen_ipc.MethodArgument{
+			{Name: "O1", Type: 53},
+			{Name: "E", Type: 65},
+		},
+	}
 
 	result.TypeDefs = []_gen_vdl.Any{
 		_gen_wiretype.NamedPrimitiveType{Type: 0x1, Name: "error", Tags: []string(nil)}, _gen_wiretype.NamedPrimitiveType{Type: 0x32, Name: "byte", Tags: []string(nil)}, _gen_wiretype.ArrayType{Elem: 0x42, Len: 0x2, Name: "", Tags: []string(nil)}, _gen_wiretype.MapType{Key: 0x42, Elem: 0x42, Name: "", Tags: []string(nil)}, _gen_wiretype.SliceType{Elem: 0x42, Name: "", Tags: []string(nil)}, _gen_wiretype.StructType{
@@ -689,48 +689,48 @@ func (__gen_s *ServerStubTypeTester) UnresolveStep(call _gen_ipc.ServerCall) (re
 	return
 }
 
-func (__gen_s *ServerStubTypeTester) EchoBool(call _gen_ipc.ServerCall, I1 bool) (reply bool, err error) {
-	reply, err = __gen_s.service.EchoBool(call, I1)
+func (__gen_s *ServerStubTypeTester) Bool(call _gen_ipc.ServerCall, I1 bool) (reply bool, err error) {
+	reply, err = __gen_s.service.Bool(call, I1)
 	return
 }
 
-func (__gen_s *ServerStubTypeTester) EchoFloat32(call _gen_ipc.ServerCall, I1 float32) (reply float32, err error) {
-	reply, err = __gen_s.service.EchoFloat32(call, I1)
+func (__gen_s *ServerStubTypeTester) Float32(call _gen_ipc.ServerCall, I1 float32) (reply float32, err error) {
+	reply, err = __gen_s.service.Float32(call, I1)
 	return
 }
 
-func (__gen_s *ServerStubTypeTester) EchoFloat64(call _gen_ipc.ServerCall, I1 float64) (reply float64, err error) {
-	reply, err = __gen_s.service.EchoFloat64(call, I1)
+func (__gen_s *ServerStubTypeTester) Float64(call _gen_ipc.ServerCall, I1 float64) (reply float64, err error) {
+	reply, err = __gen_s.service.Float64(call, I1)
 	return
 }
 
-func (__gen_s *ServerStubTypeTester) EchoInt32(call _gen_ipc.ServerCall, I1 int32) (reply int32, err error) {
-	reply, err = __gen_s.service.EchoInt32(call, I1)
+func (__gen_s *ServerStubTypeTester) Int32(call _gen_ipc.ServerCall, I1 int32) (reply int32, err error) {
+	reply, err = __gen_s.service.Int32(call, I1)
 	return
 }
 
-func (__gen_s *ServerStubTypeTester) EchoInt64(call _gen_ipc.ServerCall, I1 int64) (reply int64, err error) {
-	reply, err = __gen_s.service.EchoInt64(call, I1)
+func (__gen_s *ServerStubTypeTester) Int64(call _gen_ipc.ServerCall, I1 int64) (reply int64, err error) {
+	reply, err = __gen_s.service.Int64(call, I1)
 	return
 }
 
-func (__gen_s *ServerStubTypeTester) EchoString(call _gen_ipc.ServerCall, I1 string) (reply string, err error) {
-	reply, err = __gen_s.service.EchoString(call, I1)
+func (__gen_s *ServerStubTypeTester) String(call _gen_ipc.ServerCall, I1 string) (reply string, err error) {
+	reply, err = __gen_s.service.String(call, I1)
 	return
 }
 
-func (__gen_s *ServerStubTypeTester) EchoByte(call _gen_ipc.ServerCall, I1 byte) (reply byte, err error) {
-	reply, err = __gen_s.service.EchoByte(call, I1)
+func (__gen_s *ServerStubTypeTester) Byte(call _gen_ipc.ServerCall, I1 byte) (reply byte, err error) {
+	reply, err = __gen_s.service.Byte(call, I1)
 	return
 }
 
-func (__gen_s *ServerStubTypeTester) EchoUInt32(call _gen_ipc.ServerCall, I1 uint32) (reply uint32, err error) {
-	reply, err = __gen_s.service.EchoUInt32(call, I1)
+func (__gen_s *ServerStubTypeTester) UInt32(call _gen_ipc.ServerCall, I1 uint32) (reply uint32, err error) {
+	reply, err = __gen_s.service.UInt32(call, I1)
 	return
 }
 
-func (__gen_s *ServerStubTypeTester) EchoUInt64(call _gen_ipc.ServerCall, I1 uint64) (reply uint64, err error) {
-	reply, err = __gen_s.service.EchoUInt64(call, I1)
+func (__gen_s *ServerStubTypeTester) UInt64(call _gen_ipc.ServerCall, I1 uint64) (reply uint64, err error) {
+	reply, err = __gen_s.service.UInt64(call, I1)
 	return
 }
 
