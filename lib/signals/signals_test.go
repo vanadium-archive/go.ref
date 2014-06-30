@@ -14,8 +14,9 @@ import (
 	"veyron2/rt"
 	"veyron2/services/mgmt/appcycle"
 
-	"veyron/lib/testutil"
+	_ "veyron/lib/testutil"
 	"veyron/lib/testutil/blackbox"
+	"veyron/lib/testutil/security"
 	vflag "veyron/security/flag"
 	"veyron/services/mgmt/node"
 )
@@ -309,7 +310,7 @@ func TestCleanRemoteShutdown(t *testing.T) {
 	// that default authorization works for RPCs between the two).
 	// TODO(caprita): Consider making this boilerplate part of blackbox.
 	id := r.Identity()
-	idFile := testutil.SaveIdentityToFile(testutil.NewBlessedIdentity(id, "test"))
+	idFile := security.SaveIdentityToFile(security.NewBlessedIdentity(id, "test"))
 	defer os.Remove(idFile)
 	configServer, configServiceName, ch := createConfigServer(t)
 	defer configServer.Stop()

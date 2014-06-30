@@ -2,18 +2,9 @@ package testutil
 
 import (
 	"fmt"
-	"io/ioutil"
-	"math/rand"
-	"os"
 	"path/filepath"
 	"runtime"
-	"strconv"
 	"sync"
-	"time"
-
-	isecurity "veyron/runtimes/google/security"
-
-	"veyron2/security"
 )
 
 var (
@@ -68,26 +59,6 @@ func FormatLogLine(depth int, format string, args ...interface{}) string {
 	return fmt.Sprintf("%s:%d: "+format, nargs...)
 }
 
-// NewBlessedIdentity creates a new identity and blesses it using the provided blesser
-// under the provided name. This function is meant to be used for testing purposes only,
-// it panics if there is an error.
-func NewBlessedIdentity(blesser security.PrivateID, name string) security.PrivateID {
-	id, err := isecurity.NewPrivateID("test")
-	if err != nil {
-		panic(err)
-	}
-
-	blessedID, err := blesser.Bless(id.PublicID(), name, 5*time.Minute, nil)
-	if err != nil {
-		panic(err)
-	}
-	derivedID, err := id.Derive(blessedID)
-	if err != nil {
-		panic(err)
-	}
-	return derivedID
-}
-
 // RandomBytes generates the given number of random bytes.
 func RandomBytes(size int) []byte {
 	buffer := make([]byte, size)
@@ -105,41 +76,4 @@ func RandomBytes(size int) []byte {
 	start := Rand.Intn(len(random) - size + 1)
 	copy(buffer, random[start:start+size])
 	return buffer
-}
-
-// SaveACLToFile saves the provided ACL in JSON format to a randomly created
-// temporary file, and returns the path to the file. This function is meant
-// to be used for testing purposes only, it panics if there is an error. The
-// caller must ensure that the created file is removed once it is no longer needed.
-func SaveACLToFile(acl security.ACL) string {
-	f, err := ioutil.TempFile("", "saved_acl")
-	if err != nil {
-		panic(err)
-	}
-	defer f.Close()
-	if err := security.SaveACL(f, acl); err != nil {
-		defer os.Remove(f.Name())
-		panic(err)
-	}
-	return f.Name()
-}
-
-// SaveIdentityToFile saves the provided identity in Base64VOM format
-// to a randomly created temporary file, and returns the path to the file.
-// This function is meant to be used for testing purposes only, it panics
-// if there is an error. The caller must ensure that the created file
-// is removed once it is no longer needed.
-func SaveIdentityToFile(id security.PrivateID) string {
-	f, err := ioutil.TempFile("", strconv.Itoa(rand.Int()))
-	if err != nil {
-		panic(err)
-	}
-	defer f.Close()
-	filePath := f.Name()
-
-	if err := security.SaveIdentity(f, id); err != nil {
-		os.Remove(filePath)
-		panic(err)
-	}
-	return filePath
 }

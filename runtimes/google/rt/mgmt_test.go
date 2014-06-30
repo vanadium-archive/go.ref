@@ -14,8 +14,9 @@ import (
 	"veyron2/naming"
 	"veyron2/services/mgmt/appcycle"
 
-	"veyron/lib/testutil"
+	_ "veyron/lib/testutil"
 	"veyron/lib/testutil/blackbox"
+	"veyron/lib/testutil/security"
 	"veyron/runtimes/google/rt"
 	vflag "veyron/security/flag"
 	"veyron/services/mgmt/node"
@@ -264,7 +265,7 @@ func setupRemoteAppCycleMgr(t *testing.T) (*blackbox.Child, appcycle.AppCycle, f
 	}
 	c := blackbox.HelperCommand(t, "app")
 	id := r.Identity()
-	idFile := testutil.SaveIdentityToFile(testutil.NewBlessedIdentity(id, "test"))
+	idFile := security.SaveIdentityToFile(security.NewBlessedIdentity(id, "test"))
 	configServer, configServiceName, ch := createConfigServer(t)
 	c.Cmd.Env = append(c.Cmd.Env, fmt.Sprintf("VEYRON_IDENTITY=%v", idFile),
 		fmt.Sprintf("%v=%v", mgmt.ParentNodeManagerConfigKey, configServiceName))

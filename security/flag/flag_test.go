@@ -6,7 +6,7 @@ import (
 	"reflect"
 	"testing"
 
-	"veyron/lib/testutil"
+	tsecurity "veyron/lib/testutil/security"
 
 	"veyron2/security"
 )
@@ -31,7 +31,7 @@ func TestNewAuthorizerOrDie(t *testing.T) {
 		acl1 = security.ACL{}
 		acl2 = security.ACL{"veyron/alice": security.LabelSet(security.ReadLabel | security.WriteLabel), "veyron/bob": security.LabelSet(security.ReadLabel)}
 	)
-	acl2File := testutil.SaveACLToFile(acl2)
+	acl2File := tsecurity.SaveACLToFile(acl2)
 	defer os.Remove(acl2File)
 
 	testdata := []struct {

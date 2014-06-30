@@ -12,8 +12,9 @@ import (
 	"testing"
 	"time"
 
-	"veyron/lib/testutil"
+	_ "veyron/lib/testutil"
 	"veyron/lib/testutil/blackbox"
+	tsecurity "veyron/lib/testutil/security"
 	imanager "veyron/runtimes/google/ipc/stream/manager"
 	"veyron/runtimes/google/ipc/stream/proxy"
 	"veyron/runtimes/google/ipc/stream/vc"
@@ -823,7 +824,7 @@ func TestPublishOptions(t *testing.T) {
 func TestReconnect(t *testing.T) {
 	b := createBundle(t, clientID, nil, nil) // We only need the client from the bundle.
 	defer b.cleanup(t)
-	idFile := testutil.SaveIdentityToFile(derive(clientID, "server"))
+	idFile := tsecurity.SaveIdentityToFile(derive(clientID, "server"))
 	server := blackbox.HelperCommand(t, "runServer", "127.0.0.1:0", idFile)
 	server.Cmd.Start()
 	addr, err := server.ReadLineFromChild()
