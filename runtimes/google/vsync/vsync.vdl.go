@@ -70,7 +70,7 @@ type LogValue struct {
 	// Continue tracks the transaction boundaries in a range of mutations.
 	// It is set to true in all transaction mutations except the last one
 	// in which it is set to false to mark the end of the transaction.
-	Continue bool
+	Continues bool
 }
 
 const (
@@ -88,7 +88,7 @@ const (
 type Sync_ExcludingUniversal interface {
 	// GetDeltas returns a device's current generation vector and all the missing log records
 	// when compared to the incoming generation vector.
-	GetDeltas(ctx _gen_context.T, In GenVector, ClientID DeviceID, opts ..._gen_ipc.CallOpt) (reply SyncGetDeltasStream, err error)
+	GetDeltas(ctx _gen_context.T, InVec GenVector, ClientID DeviceID, opts ..._gen_ipc.CallOpt) (reply SyncGetDeltasStream, err error)
 }
 type Sync interface {
 	_gen_ipc.UniversalServiceMethods
@@ -100,7 +100,7 @@ type SyncService interface {
 
 	// GetDeltas returns a device's current generation vector and all the missing log records
 	// when compared to the incoming generation vector.
-	GetDeltas(context _gen_ipc.ServerContext, In GenVector, ClientID DeviceID, stream SyncServiceGetDeltasStream) (reply GenVector, err error)
+	GetDeltas(context _gen_ipc.ServerContext, InVec GenVector, ClientID DeviceID, stream SyncServiceGetDeltasStream) (reply GenVector, err error)
 }
 
 // SyncGetDeltasStream is the interface for streaming responses of the method
@@ -200,9 +200,9 @@ type clientStubSync struct {
 	name   string
 }
 
-func (__gen_c *clientStubSync) GetDeltas(ctx _gen_context.T, In GenVector, ClientID DeviceID, opts ..._gen_ipc.CallOpt) (reply SyncGetDeltasStream, err error) {
+func (__gen_c *clientStubSync) GetDeltas(ctx _gen_context.T, InVec GenVector, ClientID DeviceID, opts ..._gen_ipc.CallOpt) (reply SyncGetDeltasStream, err error) {
 	var call _gen_ipc.Call
-	if call, err = __gen_c.client.StartCall(ctx, __gen_c.name, "GetDeltas", []interface{}{In, ClientID}, opts...); err != nil {
+	if call, err = __gen_c.client.StartCall(ctx, __gen_c.name, "GetDeltas", []interface{}{InVec, ClientID}, opts...); err != nil {
 		return
 	}
 	reply = &implSyncGetDeltasStream{clientCall: call}
@@ -265,11 +265,11 @@ func (__gen_s *ServerStubSync) Signature(call _gen_ipc.ServerCall) (_gen_ipc.Ser
 	result := _gen_ipc.ServiceSignature{Methods: make(map[string]_gen_ipc.MethodSignature)}
 	result.Methods["GetDeltas"] = _gen_ipc.MethodSignature{
 		InArgs: []_gen_ipc.MethodArgument{
-			{Name: "In", Type: 67},
+			{Name: "InVec", Type: 67},
 			{Name: "ClientID", Type: 65},
 		},
 		OutArgs: []_gen_ipc.MethodArgument{
-			{Name: "Out", Type: 67},
+			{Name: "OutVec", Type: 67},
 			{Name: "Err", Type: 68},
 		},
 
@@ -305,7 +305,7 @@ func (__gen_s *ServerStubSync) Signature(call _gen_ipc.ServerCall) (_gen_ipc.Ser
 				_gen_wiretype.FieldType{Type: 0x50, Name: "Mutation"},
 				_gen_wiretype.FieldType{Type: 0x25, Name: "SyncTime"},
 				_gen_wiretype.FieldType{Type: 0x2, Name: "Delete"},
-				_gen_wiretype.FieldType{Type: 0x2, Name: "Continue"},
+				_gen_wiretype.FieldType{Type: 0x2, Name: "Continues"},
 			},
 			"veyron/runtimes/google/vsync.LogValue", []string(nil)},
 		_gen_wiretype.StructType{
@@ -343,8 +343,8 @@ func (__gen_s *ServerStubSync) UnresolveStep(call _gen_ipc.ServerCall) (reply []
 	return
 }
 
-func (__gen_s *ServerStubSync) GetDeltas(call _gen_ipc.ServerCall, In GenVector, ClientID DeviceID) (reply GenVector, err error) {
+func (__gen_s *ServerStubSync) GetDeltas(call _gen_ipc.ServerCall, InVec GenVector, ClientID DeviceID) (reply GenVector, err error) {
 	stream := &implSyncServiceGetDeltasStream{serverCall: call}
-	reply, err = __gen_s.service.GetDeltas(call, In, ClientID, stream)
+	reply, err = __gen_s.service.GetDeltas(call, InVec, ClientID, stream)
 	return
 }

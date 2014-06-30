@@ -21,48 +21,48 @@ type server struct{}
 
 // TypeTester interface implementation
 
-func (*server) Bool(call ipc.ServerContext, i1 bool) (bool, error) {
-	vlog.VI(2).Info("Bool(%v) was called.", i1)
+func (*server) EchoBool(call ipc.ServerContext, i1 bool) (bool, error) {
+	vlog.VI(2).Info("EchoBool(%v) was called.", i1)
 	return i1, nil
 }
 
-func (*server) Float32(call ipc.ServerContext, i1 float32) (float32, error) {
-	vlog.VI(2).Info("Float32(%u) was called.", i1)
+func (*server) EchoFloat32(call ipc.ServerContext, i1 float32) (float32, error) {
+	vlog.VI(2).Info("EchoFloat32(%u) was called.", i1)
 	return i1, nil
 }
 
-func (*server) Float64(call ipc.ServerContext, i1 float64) (float64, error) {
-	vlog.VI(2).Info("Float64(%u) was called.", i1)
+func (*server) EchoFloat64(call ipc.ServerContext, i1 float64) (float64, error) {
+	vlog.VI(2).Info("EchoFloat64(%u) was called.", i1)
 	return i1, nil
 }
 
-func (*server) Int32(call ipc.ServerContext, i1 int32) (int32, error) {
-	vlog.VI(2).Info("Int32(%v) was called.", i1)
+func (*server) EchoInt32(call ipc.ServerContext, i1 int32) (int32, error) {
+	vlog.VI(2).Info("EchoInt32(%v) was called.", i1)
 	return i1, nil
 }
 
-func (*server) Int64(call ipc.ServerContext, i1 int64) (int64, error) {
-	vlog.VI(2).Info("Int64(%v) was called.", i1)
+func (*server) EchoInt64(call ipc.ServerContext, i1 int64) (int64, error) {
+	vlog.VI(2).Info("EchoInt64(%v) was called.", i1)
 	return i1, nil
 }
 
-func (*server) String(call ipc.ServerContext, i1 string) (string, error) {
-	vlog.VI(2).Info("String(%v) was called.", i1)
+func (*server) EchoString(call ipc.ServerContext, i1 string) (string, error) {
+	vlog.VI(2).Info("EchoString(%v) was called.", i1)
 	return i1, nil
 }
 
-func (*server) Byte(call ipc.ServerContext, i1 byte) (byte, error) {
-	vlog.VI(2).Info("Byte(%v) was called.", i1)
+func (*server) EchoByte(call ipc.ServerContext, i1 byte) (byte, error) {
+	vlog.VI(2).Info("EchoByte(%v) was called.", i1)
 	return i1, nil
 }
 
-func (*server) UInt32(call ipc.ServerContext, i1 uint32) (uint32, error) {
-	vlog.VI(2).Info("UInt32(%u) was called.", i1)
+func (*server) EchoUInt32(call ipc.ServerContext, i1 uint32) (uint32, error) {
+	vlog.VI(2).Info("EchoUInt32(%u) was called.", i1)
 	return i1, nil
 }
 
-func (*server) UInt64(call ipc.ServerContext, i1 uint64) (uint64, error) {
-	vlog.VI(2).Info("UInt64(%u) was called.", i1)
+func (*server) EchoUInt64(call ipc.ServerContext, i1 uint64) (uint64, error) {
+	vlog.VI(2).Info("EchoUInt64(%u) was called.", i1)
 	return i1, nil
 }
 
@@ -194,15 +194,15 @@ func TestVRPC(t *testing.T) {
 	}
 
 	expectedSignature := []string{
-		"func Bool(I1 bool) (O1 bool, E error)",
-		"func Float32(I1 float32) (O1 float32, E error)",
-		"func Float64(I1 float64) (O1 float64, E error)",
-		"func Int32(I1 int32) (O1 int32, E error)",
-		"func Int64(I1 int64) (O1 int64, E error)",
-		"func String(I1 string) (O1 string, E error)",
-		"func Byte(I1 byte) (O1 byte, E error)",
-		"func UInt32(I1 uint32) (O1 uint32, E error)",
-		"func UInt64(I1 uint64) (O1 uint64, E error)",
+		"func EchoBool(I1 bool) (O1 bool, E error)",
+		"func EchoFloat32(I1 float32) (O1 float32, E error)",
+		"func EchoFloat64(I1 float64) (O1 float64, E error)",
+		"func EchoInt32(I1 int32) (O1 int32, E error)",
+		"func EchoInt64(I1 int64) (O1 int64, E error)",
+		"func EchoString(I1 string) (O1 string, E error)",
+		"func EchoByte(I1 byte) (O1 byte, E error)",
+		"func EchoUInt32(I1 uint32) (O1 uint32, E error)",
+		"func EchoUInt64(I1 uint64) (O1 uint64, E error)",
 		"func InputArray(I1 [2]byte) (E error)",
 		"func InputMap(I1 map[byte]byte) (E error)",
 		"func InputSlice(I1 []byte) (E error)",
@@ -239,15 +239,15 @@ func TestVRPC(t *testing.T) {
 	// Test the 'invoke' command.
 
 	tests := [][]string{
-		[]string{"Bool", "Bool(true) = [true, <nil>]", "[\"bool\",true]"},
-		[]string{"Float32", "Float32(3.2) = [3.2, <nil>]", "[\"float32\",3.2]"},
-		[]string{"Float64", "Float64(6.4) = [6.4, <nil>]", "[\"float64\",6.4]"},
-		[]string{"Int32", "Int32(-32) = [-32, <nil>]", "[\"int32\",-32]"},
-		[]string{"Int64", "Int64(-64) = [-64, <nil>]", "[\"int64\",-64]"},
-		[]string{"String", "String(Hello World!) = [Hello World!, <nil>]", "[\"string\",\"Hello World!\"]"},
-		[]string{"Byte", "Byte(8) = [8, <nil>]", "[\"byte\",8]"},
-		[]string{"UInt32", "UInt32(32) = [32, <nil>]", "[\"uint32\",32]"},
-		[]string{"UInt64", "UInt64(64) = [64, <nil>]", "[\"uint64\",64]"},
+		[]string{"EchoBool", "EchoBool(true) = [true, <nil>]", "[\"bool\",true]"},
+		[]string{"EchoFloat32", "EchoFloat32(3.2) = [3.2, <nil>]", "[\"float32\",3.2]"},
+		[]string{"EchoFloat64", "EchoFloat64(6.4) = [6.4, <nil>]", "[\"float64\",6.4]"},
+		[]string{"EchoInt32", "EchoInt32(-32) = [-32, <nil>]", "[\"int32\",-32]"},
+		[]string{"EchoInt64", "EchoInt64(-64) = [-64, <nil>]", "[\"int64\",-64]"},
+		[]string{"EchoString", "EchoString(Hello World!) = [Hello World!, <nil>]", "[\"string\",\"Hello World!\"]"},
+		[]string{"EchoByte", "EchoByte(8) = [8, <nil>]", "[\"byte\",8]"},
+		[]string{"EchoUInt32", "EchoUInt32(32) = [32, <nil>]", "[\"uint32\",32]"},
+		[]string{"EchoUInt64", "EchoUInt64(64) = [64, <nil>]", "[\"uint64\",64]"},
 		// TODO(jsimsa): The InputArray currently triggers an error in the
 		// vom decoder. Benj is looking into this.
 		//
@@ -277,7 +277,7 @@ func TestVRPC(t *testing.T) {
 	}
 
 	testErrors := [][]string{
-		[]string{"Bool", "usage error"},
+		[]string{"EchoBool", "usage error"},
 		[]string{"DoesNotExit", "invoke: method DoesNotExit not found"},
 	}
 	for _, test := range testErrors {
