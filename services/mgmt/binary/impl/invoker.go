@@ -310,7 +310,6 @@ func (i *invoker) Delete(context ipc.ServerContext) error {
 	// Use os.Rename() to atomically remove the binary directory
 	// structure.
 	path := filepath.Join(filepath.Dir(i.path), "removing-"+filepath.Base(i.path))
-	vlog.Infof("from %v to %v", i.path, path)
 	if err := os.Rename(i.path, path); err != nil {
 		vlog.Errorf("Rename(%v, %v) failed: %v", i.path, path, err)
 		return errOperationFailed
@@ -467,7 +466,6 @@ func (i *invoker) Upload(context ipc.ServerContext, part int32, stream repositor
 		}
 		return errOperationFailed
 	}
-	vlog.Infof("%v", checksumFile)
 	dataFile := filepath.Join(path, data)
 	if err := os.Rename(file.Name(), dataFile); err != nil {
 		vlog.Errorf("Rename(%v, %v) failed: %v", file.Name(), dataFile, err)
@@ -476,6 +474,5 @@ func (i *invoker) Upload(context ipc.ServerContext, part int32, stream repositor
 		}
 		return errOperationFailed
 	}
-	vlog.Infof("%v", dataFile)
 	return nil
 }

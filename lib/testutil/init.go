@@ -38,6 +38,10 @@ func init() {
 		// if GOMAXPROCS is not set in the environment.
 		runtime.GOMAXPROCS(runtime.NumCPU())
 	}
+	// At this point all of the flags that we're going to use for
+	// tests must be defined.
+	flag.Parse()
+	vlog.ConfigureLibraryLoggerFromFlags()
 	// Initialize pseudo-random number generator.
 	seed := time.Now().UnixNano()
 	seedString := os.Getenv(SeedEnv)
@@ -51,8 +55,4 @@ func init() {
 	}
 	vlog.Infof("Seeding pseudo-random number generator with %v", seed)
 	Rand = rand.New(rand.NewSource(seed))
-	// At this point all of the flags that we're going to use for
-	// tests must be defined.
-	flag.Parse()
-	vlog.ConfigureLibraryLoggerFromFlags()
 }

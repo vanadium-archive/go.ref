@@ -6,12 +6,11 @@ import (
 	"encoding/hex"
 	"io"
 	"io/ioutil"
-	"math/rand"
 	"os"
 	"path/filepath"
-	"strconv"
 	"testing"
-	"time"
+
+	"veyron/lib/testutil"
 
 	"veyron2/naming"
 	"veyron2/rt"
@@ -20,30 +19,11 @@ import (
 )
 
 const (
-	seedEnv      = "VEYRON_RNG_SEED"
 	veyronPrefix = "veyron_binary_repository"
-)
-
-var (
-	random []byte
-	rnd    *rand.Rand
 )
 
 func init() {
 	rt.Init()
-	// Initialize pseudo-random number generator.
-	seed := time.Now().UnixNano()
-	seedString := os.Getenv(seedEnv)
-	if seedString != "" {
-		var err error
-		base, bitSize := 0, 64
-		seed, err = strconv.ParseInt(seedString, 0, 64)
-		if err != nil {
-			vlog.Fatalf("ParseInt(%v, %v, %v) failed: %v", seedString, base, bitSize, err)
-		}
-	}
-	vlog.VI(0).Infof("Using pseudo-random number generator seed = %v", seed)
-	rnd = rand.New(rand.NewSource(seed))
 }
 
 // invokeUpload invokes the Upload RPC using the given client binary
@@ -105,39 +85,6 @@ func invokeDownload(t *testing.T, binary repository.Binary, part int32) ([]byte,
 	return output, nil
 }
 
-func generateBits(size int) []byte {
-	buffer := make([]byte, size)
-	offset := 0
-	for {
-		bits := int64(rnd.Int63())
-		for i := 0; i < 8; i++ {
-			buffer[offset] = byte(bits & 0xff)
-			size--
-			if size == 0 {
-				return buffer
-			}
-			offset++
-			bits >>= 8
-		}
-	}
-}
-
-func randomBytes(size int) []byte {
-	buffer := make([]byte, size)
-	// Generate a 4MB of random bytes since that is a value commonly
-	// used in this test.
-	if len(random) == 0 {
-		random = generateBits(4 << 20)
-	}
-	if size > len(random) {
-		extra := generateBits(size - len(random))
-		random = append(random, extra...)
-	}
-	start := rnd.Intn(len(random) - size + 1)
-	copy(buffer, random[start:start+size])
-	return buffer
-}
-
 // startServer starts the binary repository server.
 func startServer(t *testing.T, depth int) (repository.Binary, func()) {
 	// Setup the root of the binary repository.
@@ -196,8 +143,8 @@ func TestHierarchy(t *testing.T) {
 		binary, cleanup := startServer(t, i)
 		defer cleanup()
 		// Create up to 4MB of random bytes.
-		size := rnd.Intn(1000 * bufferLength)
-		data := randomBytes(size)
+		size := testutil.Rand.Intn(1000 * bufferLength)
+		data := testutil.RandomBytes(size)
 		// Test the binary repository interface.
 		if err := binary.Create(rt.R().NewContext(), 1); err != nil {
 			t.Fatalf("Create() failed: %v", err)
@@ -241,8 +188,8 @@ func TestMultiPart(t *testing.T) {
 		// Create <length> chunks of up to 4MB of random bytes.
 		data := make([][]byte, length)
 		for i := 0; i < length; i++ {
-			size := rnd.Intn(1000 * bufferLength)
-			data[i] = randomBytes(size)
+			size := testutil.Rand.Intn(1000 * bufferLength)
+			data[i] = testutil.RandomBytes(size)
 		}
 		// Test the binary repository interface.
 		if err := binary.Create(rt.R().NewContext(), int32(length)); err != nil {
@@ -293,8 +240,8 @@ func TestResumption(t *testing.T) {
 		// Create <length> chunks of up to 4MB of random bytes.
 		data := make([][]byte, length)
 		for i := 0; i < length; i++ {
-			size := rnd.Intn(1000 * bufferLength)
-			data[i] = randomBytes(size)
+			size := testutil.Rand.Intn(1000 * bufferLength)
+			data[i] = testutil.RandomBytes(size)
 		}
 		if err := binary.Create(rt.R().NewContext(), int32(length)); err != nil {
 			t.Fatalf("Create() failed: %v", err)
@@ -314,7 +261,7 @@ func TestResumption(t *testing.T) {
 				break
 			}
 			for i := 0; i < length; i++ {
-				fail := rnd.Intn(2)
+				fail := testutil.Rand.Intn(2)
 				if parts[i] == MissingPart && fail != 0 {
 					if err := invokeUpload(t, binary, data[i], int32(i)); err != nil {
 						t.FailNow()
@@ -335,10 +282,10 @@ func TestErrors(t *testing.T) {
 	length := 2
 	data := make([][]byte, length)
 	for i := 0; i < length; i++ {
-		size := rnd.Intn(1000 * bufferLength)
+		size := testutil.Rand.Intn(1000 * bufferLength)
 		data[i] = make([]byte, size)
 		for j := 0; j < size; j++ {
-			data[i][j] = byte(rnd.Int())
+			data[i][j] = byte(testutil.Rand.Int())
 		}
 	}
 	if err := binary.Create(rt.R().NewContext(), int32(length)); err != nil {
