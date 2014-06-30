@@ -10,16 +10,10 @@ import (
 	"sync"
 )
 
-// BlackboxTest returns true if the environment variables passed to
-// it contain the variable (GO_WANT_HELPER_PROCESS_BLACKBOX=1) indicating that
-// a blackbox test is configured.
-func BlackboxTest(env []string) bool {
-	for _, v := range env {
-		if v == "GO_WANT_HELPER_PROCESS_BLACKBOX=1" {
-			return true
-		}
-	}
-	return false
+// BlackboxTest returns true if the current process has been spawned
+// using the blackbox testing framework.
+func BlackboxTest() bool {
+	return os.Getenv("VEYRON_BLACKBOX_TEST") == "1"
 }
 
 type pipeList struct {
@@ -29,12 +23,13 @@ type pipeList struct {
 
 var pipes pipeList
 
-// InitBlacboxParent initializes the exec.Command instance passed in for
-// use with a process that is to be run as blackbox test. This is needed
-// for processes, such as the node manager, which want to run subprocesses
-// from within blackbox tests but are not themselves test code.
-// It must be called before any changes are made to ExtraFiles since it will
-// use the first entry for itself, overwriting anything that's there.
+// InitBlackboxParent initializes the exec.Command instance passed in
+// for use with a process that is to be run as blackbox test. This is
+// needed for processes, such as the node manager, which want to run
+// subprocesses from within blackbox tests but are not themselves test
+// code. It must be called before any changes are made to ExtraFiles
+// since it will use the first entry for itself, overwriting anything
+// that's there.
 func InitBlackboxParent(cmd *exec.Cmd) error {
 	reader, writer, err := os.Pipe()
 	if err != nil {
