@@ -44,7 +44,7 @@ func init() {
 	if seedString != "" {
 		var err error
 		base, bitSize := 0, 64
-		seed, err = strconv.ParseInt(seedString, 0, 64)
+		seed, err = strconv.ParseInt(seedString, base, bitSize)
 		if err != nil {
 			vlog.Fatalf("ParseInt(%v, %v, %v) failed: %v", seedString, base, bitSize, err)
 		}

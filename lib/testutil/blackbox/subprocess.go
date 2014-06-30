@@ -64,7 +64,7 @@ func initBlackboxParent(cmd *exec.Cmd) (*os.File, error) {
 	if err != nil {
 		return nil, err
 	}
-	cmd.Env = append([]string{"GO_WANT_HELPER_PROCESS_BLACKBOX=1"}, os.Environ()...)
+	cmd.Env = append([]string{"VEYRON_BLACKBOX_TEST=1"}, os.Environ()...)
 	cmd.ExtraFiles = []*os.File{reader}
 	return writer, nil
 }
@@ -127,7 +127,7 @@ func HelperCommand(t *testing.T, command string, args ...string) *Child {
 func HelperProcess(t *testing.T) {
 	// Return immediately if this is not run as the child helper
 	// for the other tests.
-	if os.Getenv("GO_WANT_HELPER_PROCESS_BLACKBOX") != "1" {
+	if os.Getenv("VEYRON_BLACKBOX_TEST") != "1" {
 		return
 	}
 	if len(subcommand) == 0 {
