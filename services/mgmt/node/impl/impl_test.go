@@ -14,8 +14,9 @@ import (
 
 	"veyron/lib/exec"
 	"veyron/lib/signals"
-	"veyron/lib/testutil"
+	_ "veyron/lib/testutil"
 	"veyron/lib/testutil/blackbox"
+	"veyron/lib/testutil/security"
 	"veyron/services/mgmt/node"
 	"veyron/services/mgmt/node/impl"
 	mtlib "veyron/services/mounttable/lib"
@@ -413,7 +414,7 @@ func TestUpdate(t *testing.T) {
 	//
 	// TODO(ataly): Eventually we want to use the same identity the node
 	// manager would have if it was running in production.
-	idFile := testutil.SaveIdentityToFile(testutil.NewBlessedIdentity(runtime.Identity(), "test"))
+	idFile := security.SaveIdentityToFile(security.NewBlessedIdentity(runtime.Identity(), "test"))
 	defer os.Remove(idFile)
 	child := spawnNodeManager(t, mtName, idFile)
 	defer child.Cleanup()

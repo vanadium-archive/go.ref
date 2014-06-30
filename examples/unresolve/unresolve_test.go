@@ -6,8 +6,9 @@ import (
 	"reflect"
 	"testing"
 
-	"veyron/lib/testutil"
+	_ "veyron/lib/testutil"
 	"veyron/lib/testutil/blackbox"
+	"veyron/lib/testutil/security"
 
 	"veyron2"
 	"veyron2/naming"
@@ -118,7 +119,7 @@ func TestUnresolve(t *testing.T) {
 	b := blackbox.HelperCommand(t, "childMT", "b")
 	defer shutdown(b)
 
-	idFile := testutil.SaveIdentityToFile(testutil.NewBlessedIdentity(idA, "test"))
+	idFile := security.SaveIdentityToFile(security.NewBlessedIdentity(idA, "test"))
 	defer os.Remove(idFile)
 	b.Cmd.Env = append(b.Cmd.Env, fmt.Sprintf("VEYRON_IDENTITY=%v", idFile), fmt.Sprintf("NAMESPACE_ROOT=%v", aOA))
 	b.Cmd.Start()
@@ -141,7 +142,7 @@ func TestUnresolve(t *testing.T) {
 	// Create server C.
 	c := blackbox.HelperCommand(t, "childFortune", "c")
 	defer shutdown(c)
-	idFile = testutil.SaveIdentityToFile(testutil.NewBlessedIdentity(idA, "test"))
+	idFile = security.SaveIdentityToFile(security.NewBlessedIdentity(idA, "test"))
 	defer os.Remove(idFile)
 	c.Cmd.Env = append(c.Cmd.Env, fmt.Sprintf("VEYRON_IDENTITY=%v", idFile), fmt.Sprintf("NAMESPACE_ROOT=%v", bOA))
 	c.Cmd.Start()
@@ -152,7 +153,7 @@ func TestUnresolve(t *testing.T) {
 	// Create server D.
 	d := blackbox.HelperCommand(t, "childFortuneCustomUnresolve", "d")
 	defer shutdown(d)
-	idFile = testutil.SaveIdentityToFile(testutil.NewBlessedIdentity(idA, "test"))
+	idFile = security.SaveIdentityToFile(security.NewBlessedIdentity(idA, "test"))
 	defer os.Remove(idFile)
 	d.Cmd.Env = append(d.Cmd.Env, fmt.Sprintf("VEYRON_IDENTITY=%v", idFile), fmt.Sprintf("NAMESPACE_ROOT=%v", bOA))
 	d.Cmd.Start()
@@ -163,7 +164,7 @@ func TestUnresolve(t *testing.T) {
 	// Create server E.
 	e := blackbox.HelperCommand(t, "childFortune", "e1", "e2")
 	defer shutdown(e)
-	idFile = testutil.SaveIdentityToFile(testutil.NewBlessedIdentity(idA, "test"))
+	idFile = security.SaveIdentityToFile(security.NewBlessedIdentity(idA, "test"))
 	defer os.Remove(idFile)
 	e.Cmd.Env = append(e.Cmd.Env, fmt.Sprintf("VEYRON_IDENTITY=%v", idFile), fmt.Sprintf("NAMESPACE_ROOT=%v", bOA))
 	e.Cmd.Start()
@@ -174,7 +175,7 @@ func TestUnresolve(t *testing.T) {
 	// Create server F.
 	f := blackbox.HelperCommand(t, "childFortune", "f")
 	defer shutdown(f)
-	idFile = testutil.SaveIdentityToFile(testutil.NewBlessedIdentity(idA, "test"))
+	idFile = security.SaveIdentityToFile(security.NewBlessedIdentity(idA, "test"))
 	defer os.Remove(idFile)
 	f.Cmd.Env = append(f.Cmd.Env, fmt.Sprintf("VEYRON_IDENTITY=%v", idFile), fmt.Sprintf("NAMESPACE_ROOT=%v", naming.Join(aOA, "b/mt")))
 	f.Cmd.Start()
@@ -185,7 +186,7 @@ func TestUnresolve(t *testing.T) {
 	// Create server G.
 	g := blackbox.HelperCommand(t, "childFortuneNoIDL", "g")
 	defer shutdown(g)
-	idFile = testutil.SaveIdentityToFile(testutil.NewBlessedIdentity(idA, "test"))
+	idFile = security.SaveIdentityToFile(security.NewBlessedIdentity(idA, "test"))
 	defer os.Remove(idFile)
 	g.Cmd.Env = append(g.Cmd.Env, fmt.Sprintf("VEYRON_IDENTITY=%v", idFile), fmt.Sprintf("NAMESPACE_ROOT=%v", bOA))
 	g.Cmd.Start()
@@ -196,7 +197,7 @@ func TestUnresolve(t *testing.T) {
 	// Check that things resolve correctly.
 
 	// Create a client runtime with oOA as its root.
-	idFile = testutil.SaveIdentityToFile(testutil.NewBlessedIdentity(idA, "test"))
+	idFile = security.SaveIdentityToFile(security.NewBlessedIdentity(idA, "test"))
 	defer os.Remove(idFile)
 	os.Setenv("VEYRON_IDENTITY", idFile)
 
