@@ -1,0 +1,23 @@
+<link rel="import" href="/libs/vendor/polymer/polymer/polymer.html">
+<link rel="import" href="/libs/vendor/polymer/paper-input/paper-input.html">
+<polymer-element name="p2b-grid-search" grid-search expects-grid-state attributes="label">
+  <template>
+    <link rel="stylesheet" href="component.css">
+    <paper-input on-change="{{ updateGridState }}" id="search" label="{{ label }}"></paper-input>
+  </template>
+  <script>
+    /*
+     * Renders a search box inside the grid components
+     */
+    Polymer('p2b-grid-search', {
+      /*
+       * Label text for the search
+       * @type {string}
+       */
+      label: '',
+      updateGridState: function() {
+        this.gridState.search.keyword = this.$.search.value.trim();
+      }
+    });
+  </script>
+</polymer-element>

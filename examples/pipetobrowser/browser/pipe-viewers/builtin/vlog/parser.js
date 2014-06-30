@@ -17,16 +17,15 @@
  *  file             The file name
  *  line             The line number
  *  msg              The user-supplied message
- * @param {string} vlogLine A single line of
- * by git status --short command
+ * @param {string} vlogLine A single line of veyron log
  * @return {parser.item} A parsed object containing log level, date, file,
  * line number, thread id and message.
  */
 export function parse(vlogLine) {
 
-  var validLogLineRegEx =  /^([IWEF])(\d{2})(\d{2})\s(\d{2}:\d{2}:\d{2}\.\d+)\s(\d+)\s(.*):(\d+)]\s+(.*)$/
+  var validLogLineRegEx = /^([IWEF])(\d{2})(\d{2})\s(\d{2}:\d{2}:\d{2}\.\d+)\s(\d+)\s(.*):(\d+)]\s+(.*)$/
   var logParts = vlogLine.match(validLogLineRegEx);
-  if(!logParts || logParts.length != 8+1) { // 8 parts + 1 whole match
+  if (!logParts || logParts.length != 8 + 1) { // 8 parts + 1 whole match
     throw new Error('Invalid vlog line format. ' + vlogLine +
       ' Lmmdd hh:mm:ss.uuuuuu threadid file:line] msg.. pattern');
   }
@@ -44,7 +43,7 @@ export function parse(vlogLine) {
   var year = now.getFullYear();
   var thisMonth = now.getMonth() + 1; // JS months are 0-11
   // Year flip edge case, if log month > this month, we assume log line is from previous year
-  if(parseInt(month) > thisMonth) {
+  if (parseInt(month) > thisMonth) {
     year--;
   }
 

@@ -1,0 +1,24 @@
+<link rel="import" href="/libs/vendor/polymer/polymer/polymer.html">
+<polymer-element name="p2b-grid-column" grid-column attributes="label sortable key">
+  <script>
+    Polymer('p2b-grid-column', {
+      /*
+       * Label text for the column
+       * @type {string}
+       */
+      label: '',
+
+      /*
+       * whether this column is sortable
+       * @type {boolean}
+       */
+      sortable: false,
+
+      /*
+       * Key that will be pass as sort.key to fetch() function of your data source.
+       * @type {string}
+       */
+      key: ''
+    });
+  </script>
+</polymer-element>

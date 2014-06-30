@@ -1,0 +1,230 @@
+<link rel="import" href="/libs/vendor/polymer/polymer/polymer.html">
+<link rel="import" href="/libs/ui-components/data-grid/grid/row/renderer.html">
+<link rel="import" href="/libs/ui-components/data-grid/grid/cell/renderer.html">
+<link rel="import" href="/libs/ui-components/data-grid/grid/column/renderer.html">
+
+<polymer-element name="p2b-grid" attributes="summary dataSource defaultSortKey defaultSortAscending">
+  <template>
+    <link rel="stylesheet" href="component.css">
+    <div id="templates"></div>
+    <div>
+      <content select="[grid-search]"></content>
+    </div>
+    <div>
+      <content select="[grid-filter]"></content>
+    </div>
+    <div>{{ dataSourceResult.length }} items</div>
+    <table summary="{{ summary }}">
+      <thead>
+        <tr>
+          <th is="p2b-grid-column-renderer" gridState="{{ gridState }}" data="{{ col.columnData }}" repeat="{{ col in columns }}" template></th>
+        </tr>
+      </thead>
+      <tbody>
+        <!-- quirk: Shadow Dom breaks parent-child relationships in HTML, this causes issues with
+         elements like table. Ideally we could have had <grid><grid-row><grid-cell> but we can't do
+         that yet since the tr and td rendered by <grid-row> <grid-cell> will be in shadow Dom and isolated.
+         Chromium bug: https://code.google.com/p/chromium/issues/detail?id=374315
+         W3C Spec bug: https://www.w3.org/Bugs/Public/show_bug.cgi?id=15616
+         -->
+        <tr is="p2b-grid-row-renderer" repeat="{{ item in dataSourceResult }}" template>
+          <td is="p2b-grid-cell-renderer" repeat="{{ col in columns }}" template>
+            <template ref="{{ col.cellTemplateId }}" bind></template>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </template>
+  <script>
+    /*
+     * Reusable grid that can host search, filters and supports sortable columns and custom cell renderer
+     * @example usage:
+
+           <p2b-grid defaultSortKey="firstName"
+            defaultSortAscending
+            dataSource="{{ myContactsDataSource }}"
+            summary="Displays your contacts in a tabular format">
+
+            <!-- Search contacts-->
+            <p2b-grid-search label="Search Contacts"></p2b-grid-search>
+
+            <!-- Filter for circles -->
+            <p2b-grid-filter-select multiple key="circle" label="Circles">
+              <p2b-grid-filter-select-item checked label="Close Friends" value="close"></p2b-grid-filter-select-item>
+              <p2b-grid-filter-select-item label="Colleagues" value="far"></p2b-grid-filter-select-item>
+            </p2b-grid-filter-select>
+
+            <!-- Toggle to allow filtering by online mode-->
+            <p2b-grid-filter-toggle key="online" label="Show online only" checked></p2b-grid-filter-toggle>
+
+            <!-- Columns, sorting and cell templates -->
+            <p2b-grid-column sortable label="First Name" key="firstName" />
+              <template>{{ item.firstName }}</template>
+            </p2b-grid-column>
+
+            <p2b-grid-column sortable label="Last Name" key="lastName" />
+              <template>
+                <span style="text-transform:uppercase;">
+                  {{ item.lastName }}
+                </span>
+              </template>
+            </p2b-grid-column>
+
+            <p2b-grid-column label="Circle" key="circle"/>
+              <template>
+                <img src="images\circls\{{ item.circle }}.jpg" alt="in {{ item.circle }} circle"><img>
+              </template>
+            </p2b-grid-column>
+
+          </p2b-grid>
+
+     * DataSource attribute expects an object that has a fetch(search, sort, filters) method. Please see
+     * documentation on DataSource property for details.
+     */
+    Polymer('p2b-grid', {
+      /*
+       * DataSource is an object that has a fetch(search, sort, filters) method where
+       * search{key<string>} is current search keyword
+       * sort{key<string>, ascending<bool>} current sort key and direction
+       * filter{map{key<string>, values<Array>}} Map of filter keys to currently selected filter values
+       * search, sort and filters are provided by the grid control whenever they are changed by the user.
+       * DataSource is called automatically by the grid when user interacts with the component
+       * Grid does some batching of user actions and only calls fetch when needed in a requestAnimationFrame
+       * Keys provided for sort and filters correspond to keys set in the markup when constructing the grid.
+       * DataSource.fetch() is expected to return an array of filtered sorted results of the items.
+       */
+      dataSource: null,
+
+      /*
+       * Summary for the grid.
+       * @type {string}
+       */
+      summary: '',
+
+      /*
+       * Initial sort key
+       * @type {string}
+       */
+      defaultSortKey: '',
+
+      /*
+       * Initial sort direction
+       * @type {string}
+       */
+      defaultSortAscending: false,
+
+      ready: function() {
+
+        // private property fields
+        this.columns = [];
+        this.shouldRefetchData = true;
+        this.dataSource = null;
+        this.cachedDataSourceResult = [];
+        this.gridState = {
+          sort: {
+            key: '',
+            ascending: false
+          },
+          search: {
+            keyword: ''
+          },
+          filters: {}
+        },
+
+        // set the default sort and direction on the state object
+        this.gridState.sort.key = this.defaultSortKey;
+        this.gridState.sort.ascending = this.defaultSortAscending;
+
+        this.initTemplates(); // loads cell templates
+        this.initGridStateDependents(); //  initialize filters and search
+        this.initGridStateObserver(); // observe changes to grid state by filters
+      },
+
+      dataSourceChanged: function() {
+        this.refresh();
+      },
+
+      /*
+       * Sets up an object observer to get any mutations on the grid state object.
+       * Filters or sortable columns can change the state and we like to refresh
+       * when changes happens.
+       * @private
+       */
+      initGridStateObserver: function() {
+        var self = this;
+        for (key in this.gridState) {
+          var observer = new ObjectObserver(this.gridState[key])
+          observer.open(function() {
+            // refresh the grid on any mutations
+            self.refresh();
+          });
+        }
+      },
+
+      /*
+       * Copies the cell templates as defined by the user for each column into
+       * the grid so that we can reference them in a loop.
+       * quirk: Need to reference them by Id so a new Id is generated for each one
+       * Ids are scoped in the shadow DOM so no collisions.
+       * @private
+       */
+      initTemplates: function() {
+        var columnNodes = this.querySelectorAll('[grid-column]');
+        for (var i = 0; i < columnNodes.length; i++) {
+          var col = columnNodes[i];
+          var cellTemplate = col.querySelector('template');
+          var cellTemplateId = "userProvidedCellTemplate" + i;
+          cellTemplate.id = cellTemplateId;
+          this.$.templates.appendChild(cellTemplate);
+          this.columns.push({
+            cellTemplateId: cellTemplateId,
+            columnData: col
+          });
+        }
+      },
+
+      /*
+       * Provide the grid state to any component that expects it so they can mutate
+       * without the grid needing to know about them at all.
+       * @private
+       */
+      initGridStateDependents: function() {
+        var gridStateDependents = this.querySelectorAll('[expects-grid-state]');
+        for (var i = 0; i < gridStateDependents.length; i++) {
+          gridStateDependents[i].gridState = this.gridState;
+        }
+      },
+
+      /*
+       * Refreshed the grid by fetching the data again and updating the UI in the next render tick
+       */
+      refresh: function() {
+        var self = this;
+        requestAnimationFrame(function() {
+          self.shouldRefetchData = true;
+        });
+      },
+
+      /*
+       * dataSourceResult is what the UI binds to and integrate over.
+       * Only fetches data if scheduled to do so
+       * @private
+       */
+      get dataSourceResult() {
+        if (!this.shouldRefetchData || !this.dataSource) {
+          return this.cachedDataSourceResult;
+        }
+
+        this.cachedDataSourceResult = this.dataSource.fetch(
+          this.gridState.search,
+          this.gridState.sort,
+          this.gridState.filters
+        );
+
+        this.shouldRefetchData = false;
+
+        return this.cachedDataSourceResult;
+      }
+    });
+  </script>
+</polymer-element>
