@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"veyron/lib/config"
-	"veyron/lib/testutil/blackbox/parent"
 	// TODO(cnicolaou): move timekeeper out of runtimes
 	"veyron/runtimes/google/lib/timekeeper"
 
@@ -93,11 +92,6 @@ func NewParentHandle(c *exec.Cmd, opts ...ParentHandleOpt) *ParentHandle {
 // Start starts the child process, sharing a secret with it and
 // setting up a communication channel over which to read its status.
 func (p *ParentHandle) Start() error {
-	if parent.BlackboxTest() {
-		if err := parent.InitBlackboxParent(p.c); err != nil {
-			return err
-		}
-	}
 	// Create anonymous pipe for communicating data between the child
 	// and the parent.
 	dataRead, dataWrite, err := os.Pipe()
