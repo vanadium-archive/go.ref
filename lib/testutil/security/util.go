@@ -1,3 +1,5 @@
+// Package security contains utility testing functions related to
+// security.
 package security
 
 import (
