@@ -213,8 +213,8 @@ func (f *CodeFile) Write() error {
 
 func (f *CodeFile) Compile() error {
 	var cmd *exec.Cmd
-	if path.Ext(f.Name) == ".idl" {
-		cmd = MakeCmd("idlc", "generate", "-status=false", f.pkg)
+	if path.Ext(f.Name) == ".vdl" {
+		cmd = MakeCmd("vdl", "generate", f.pkg)
 	} else {
 		cmd = MakeCmd("go", "install", f.pkg)
 		cmd.Dir = "/usr/local/veyron/veyron"
