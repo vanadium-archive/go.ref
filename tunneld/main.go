@@ -48,9 +48,6 @@ func main() {
 	}
 	defer server.Stop()
 
-	if err := server.Register("", ipc.SoloDispatcher(tunnel.NewServerTunnel(&impl.T{}), sflag.NewAuthorizerOrDie())); err != nil {
-		vlog.Fatalf("Register failed: %v", err)
-	}
 	ep, err := server.Listen(*protocol, *address)
 	if err != nil {
 		vlog.Fatalf("Listen(%q, %q) failed: %v", "tcp", *address, err)
@@ -73,8 +70,8 @@ func main() {
 	}
 	published := false
 	for _, n := range names {
-		if err := server.Publish(n); err != nil {
-			vlog.Infof("Publish(%v) failed: %v", n, err)
+		if err := server.Serve(n, ipc.SoloDispatcher(tunnel.NewServerTunnel(&impl.T{}), sflag.NewAuthorizerOrDie())); err != nil {
+			vlog.Infof("Serve(%v) failed: %v", n, err)
 			continue
 		}
 		published = true
