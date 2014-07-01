@@ -285,7 +285,7 @@ func startBinaryRepository() (string, func()) {
 	if err != nil {
 		vlog.Fatalf("NewServer() failed: %v", err)
 	}
-	dispatcher := ipc.SoloDispatcher(repository.NewServerContent(&crInvoker{}), nil)
+	dispatcher := ipc.SoloDispatcher(repository.NewServerBinary(&crInvoker{}), nil)
 	protocol, hostname := "tcp", "localhost:0"
 	endpoint, err := server.Listen(protocol, hostname)
 	if err != nil {

@@ -74,18 +74,13 @@ func main() {
 		vlog.Errorf("NewDispatcher(%v, %v, %v) failed: %v", root, defaultDepth, auth, err)
 		return
 	}
-	suffix := ""
-	if err := server.Register(suffix, dispatcher); err != nil {
-		vlog.Errorf("Register(%v, %v) failed: %v", suffix, dispatcher, err)
-		return
-	}
 	endpoint, err := server.Listen(protocol, address)
 	if err != nil {
 		vlog.Errorf("Listen(%v, %v) failed: %v", protocol, address, err)
 		return
 	}
-	if err := server.Publish(name); err != nil {
-		vlog.Errorf("Publish(%v) failed: %v", name, err)
+	if err := server.Serve(name, dispatcher); err != nil {
+		vlog.Errorf("Server(%v) failed: %v", name, err)
 		return
 	}
 	vlog.Infof("Binary repository published at %v/%v", endpoint, name)

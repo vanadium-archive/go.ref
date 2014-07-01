@@ -59,11 +59,6 @@ func main() {
 	}
 	defer p.Stop()
 
-	// Register the service with the server.
-	if err := s.Register("", ipc.SoloDispatcher(prox.NewServerProximity(p), vflag.NewAuthorizerOrDie())); err != nil {
-		vlog.Fatal("error registering service:", err)
-	}
-
 	// Create an endpoint to listen on.
 	endpoint, err := s.Listen(*protocol, *address)
 	if err != nil {
@@ -73,7 +68,7 @@ func main() {
 
 	// Start the server and register it with the mounttable under the
 	// given name.
-	if err := s.Publish(*name); err != nil {
+	if err := s.Serve(*name, ipc.SoloDispatcher(prox.NewServerProximity(p), vflag.NewAuthorizerOrDie())); err != nil {
 		vlog.Fatalf("error publishing service (%s): %v", *name, err)
 	}
 

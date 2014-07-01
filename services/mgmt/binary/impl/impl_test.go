@@ -105,19 +105,19 @@ func startServer(t *testing.T, depth int) (repository.Binary, func()) {
 	if err != nil {
 		t.Fatalf("NewDispatcher(%v, %v, %v) failed: %v", root, depth, nil, err)
 	}
-	suffix := ""
-	if err := server.Register(suffix, dispatcher); err != nil {
-		t.Fatalf("Register(%v, %v) failed: %v", suffix, dispatcher, err)
-	}
 	protocol, hostname := "tcp", "localhost:0"
 	endpoint, err := server.Listen(protocol, hostname)
 	if err != nil {
 		t.Fatalf("Listen(%v, %v) failed: %v", protocol, hostname, err)
 	}
-	name := naming.JoinAddressName(endpoint.String(), "//test")
+	suffix := "test"
+	if err := server.Serve(suffix, dispatcher); err != nil {
+		t.Fatalf("Serve(%v) failed: %v", suffix, err)
+	}
+	name := naming.JoinAddressName(endpoint.String(), suffix)
 	binary, err := repository.BindBinary(name)
 	if err != nil {
-		t.Fatalf("BindRepository() failed: %v", err)
+		t.Fatalf("BindBinary(%v) failed: %v", name, err)
 	}
 	return binary, func() {
 		// Shutdown the binary repository server.
