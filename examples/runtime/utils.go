@@ -26,11 +26,11 @@ func makeServer() ipc.Server {
 	if err != nil {
 		vlog.Fatalf("r.NewServer error: %s", err)
 	}
-	if err := server.Register("", new(dispatcher)); err != nil {
-		vlog.Fatalf("server.Register error: %s", err)
-	}
 	if _, err := server.Listen("tcp", "127.0.0.1:0"); err != nil {
 		vlog.Fatalf("server.Listen error: %s", err)
+	}
+	if err := server.Serve("", new(dispatcher)); err != nil {
+		vlog.Fatalf("server.Serve error: %s", err)
 	}
 	return server
 }

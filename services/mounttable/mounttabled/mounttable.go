@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"net"
 	"os"
-	"time"
 
 	"veyron2"
 	"veyron2/naming"
@@ -22,7 +21,6 @@ var (
 	mountName = flag.String("name", "", "Name to mount this mountable as.  Empty means don't mount.")
 	// TODO(rthellend): Remove the address flag when the config manager is working.
 	address = flag.String("address", ":0", "Address to listen on.  Default is to use a randomly assigned port")
-	prefix  = flag.String("prefix", "mt", "The prefix to register the mounttable at.")
 	aclFile = flag.String("acls", "", "ACL file. Default is to allow all access.")
 	nhName  = flag.String("neighborhood_name", "", "If non-empty, publish in the local neighborhood under this name.")
 )
@@ -44,7 +42,7 @@ Usage:
   <nh name>, if provided, will enable sharing with the local neighborhood with
   the provided name. The address of this mounttable will be published to the
   neighboorhood and everything in the neighborhood will be visible on this
-  mounttable with the "nh" prefix.
+  mounttable.
 `
 
 func Usage() {
@@ -52,8 +50,6 @@ func Usage() {
 }
 
 func main() {
-	// TODO(cnicolaou): fix Usage so that it includes the flags defined by
-	// the runtime
 	flag.Usage = Usage
 	r := rt.Init()
 	defer r.Shutdown()
@@ -69,15 +65,22 @@ func main() {
 		vlog.Errorf("r.NewMountTable failed: %v", err)
 		return
 	}
-	if err := mtServer.Register(*prefix, mt); err != nil {
-		vlog.Errorf("mtServer.Register failed to register mount table: %v", err)
-		return
-	}
 	mtEndpoint, err := mtServer.Listen("tcp", *address)
 	if err != nil {
 		vlog.Errorf("mtServer.Listen failed: %v", err)
 		return
 	}
+	name := *mountName
+	if err := mtServer.Serve(name, mt); err != nil {
+		vlog.Errorf("Serve(%v) failed: %v", name, err)
+		return
+	}
+	mtAddr := naming.JoinAddressName(mtEndpoint.String(), "")
+	r.Namespace().SetRoots(mtAddr)
+
+	vlog.Infof("Mount table service at: %q (%s)",
+		name,
+		naming.JoinAddressName(mtEndpoint.String(), ""))
 
 	if len(*nhName) > 0 {
 		nhServer, err := r.NewServer(veyron2.ServesMountTableOpt(true))
@@ -91,45 +94,19 @@ func main() {
 			vlog.Errorf("parsing of address(%q) failed: %v", *address, err)
 			return
 		}
-		nhEndpoint, err := nhServer.Listen("tcp", net.JoinHostPort(host, "0"))
-		if err != nil {
+		if _, err = nhServer.Listen("tcp", net.JoinHostPort(host, "0")); err != nil {
 			vlog.Errorf("nhServer.Listen failed: %v", err)
 			return
 		}
-		mtAddr := naming.JoinAddressName(mtEndpoint.String(), *prefix)
-
 		nh, err := mounttable.NewNeighborhoodServer("", *nhName, mtAddr)
 		if err != nil {
 			vlog.Errorf("NewNeighborhoodServer failed: %v", err)
 			return
 		}
-		if err := nhServer.Register("", nh); err != nil {
-			vlog.Errorf("nhServer.Register failed to register neighborhood: %v", err)
+		if err := nhServer.Serve("nh", nh); err != nil {
+			vlog.Errorf("nhServer.Serve failed to register neighborhood: %v", err)
 			return
 		}
-		nhAddr := naming.JoinAddressName(nhEndpoint.String(), "")
-		nhMount := naming.Join(mtAddr, "nh")
-
-		ns := rt.R().Namespace()
-		forever := time.Duration(0)
-		if err = ns.Mount(rt.R().NewContext(), nhMount, nhAddr, forever); err != nil {
-			vlog.Errorf("ns.Mount failed to mount neighborhood: %v", err)
-			return
-		}
-	}
-
-	if name := *mountName; len(name) > 0 {
-		if err := mtServer.Publish(name); err != nil {
-			vlog.Errorf("Publish(%v) failed: %v", name, err)
-			return
-		}
-		vlog.Infof("Mount table service at: %s (%s)",
-			naming.Join(name, *prefix),
-			naming.JoinAddressName(mtEndpoint.String(), *prefix))
-
-	} else {
-		vlog.Infof("Mount table at: %s",
-			naming.JoinAddressName(mtEndpoint.String(), *prefix))
 	}
 
 	// Wait until signal is received.

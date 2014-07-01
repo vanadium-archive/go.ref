@@ -102,8 +102,12 @@ func (stupidNS) Glob(ctx context.T, pattern string) (chan naming.MountEntry, err
 	return nil, errors.New("Glob is not implemented in this MountTable")
 }
 
-func (s stupidNS) SetRoots([]string) error {
+func (s stupidNS) SetRoots(...string) error {
 	return nil
+}
+
+func (s stupidNS) Roots() []string {
+	return []string{}
 }
 
 func doMount(t *testing.T, name, service string, shouldSucceed bool, id ipc.ClientOpt) {
@@ -164,26 +168,46 @@ func checkContents(t *testing.T, name, expected string, shouldSucceed bool, id i
 	}
 }
 
-func newServer(acl string, t *testing.T) (ipc.Server, string) {
+func newMT(t *testing.T, acl string) (ipc.Server, string) {
 	r := rt.Init()
-	server, err := r.NewServer()
+	server, err := r.NewServer(veyron2.ServesMountTableOpt(true))
 	if err != nil {
 		boom(t, "r.NewServer: %s", err)
 	}
-
 	// Add mount table service.
 	mt, err := NewMountTable(acl)
 	if err != nil {
 		boom(t, "NewMountTable: %v", err)
 	}
-	if err := server.Register("mounttable", mt); err != nil {
-		boom(t, "Failed to register mount table: %s", err)
-	}
-
 	// Start serving on a loopback address.
 	e, err := server.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
 		boom(t, "Failed to Listen mount table: %s", err)
+	}
+	if err := server.Serve("", mt); err != nil {
+		boom(t, "Failed to register mock collection: %s", err)
+	}
+	estr := e.String()
+	t.Logf("endpoint %s", estr)
+	return server, estr
+}
+
+func newCollection(t *testing.T, acl string) (ipc.Server, string) {
+	r := rt.Init()
+	server, err := r.NewServer()
+	if err != nil {
+		boom(t, "r.NewServer: %s", err)
+	}
+	// Start serving on a loopback address.
+	e, err := server.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		boom(t, "Failed to Listen mount table: %s", err)
+	}
+	// Add a collection service.  This is just a service we can mount
+	// and test against.
+	cPrefix := "collection"
+	if err := server.Serve(cPrefix, newCollectionServer()); err != nil {
+		boom(t, "Failed to register mock collection: %s", err)
 	}
 	estr := e.String()
 	t.Logf("endpoint %s", estr)
@@ -191,63 +215,61 @@ func newServer(acl string, t *testing.T) (ipc.Server, string) {
 }
 
 func TestMountTable(t *testing.T) {
-	server, estr := newServer("testdata/test.acl", t)
-	defer server.Stop()
-	// Add a collection service.  This is just a service we can mount
-	// and test against.
-	cPrefix := "collection"
-	if err := server.Register(cPrefix, newCollectionServer()); err != nil {
-		boom(t, "Failed to register mock collection: %s", err)
-	}
+	mt, mtAddr := newMT(t, "testdata/test.acl")
+	defer mt.Stop()
+	collection, collectionAddr := newCollection(t, "testdata/test.acl")
+	defer collection.Stop()
+
+	collectionName := naming.JoinAddressName(collectionAddr, "collection")
 
 	// Mount the collection server into the mount table.
-	doMount(t, naming.JoinAddressName(estr, "//mounttable/stuff"), naming.JoinAddressName(estr, "collection"), true, rootID)
+	doMount(t, naming.JoinAddressName(mtAddr, "//mounttable/stuff"), collectionName, true, rootID)
 
 	// Create a few objects and make sure we can read them.
-	create(t, naming.JoinAddressName(estr, "mounttable/stuff/the/rain"), "the rain")
-	create(t, naming.JoinAddressName(estr, "mounttable/stuff/in/spain"), "in spain")
-	create(t, naming.JoinAddressName(estr, "mounttable/stuff/falls"), "falls mainly on the plain")
-	checkContents(t, naming.JoinAddressName(estr, "mounttable/stuff/the/rain"), "the rain", true, rootID)
-	checkContents(t, naming.JoinAddressName(estr, "mounttable/stuff/in/spain"), "in spain", true, rootID)
-	checkContents(t, naming.JoinAddressName(estr, "mounttable/stuff/falls"), "falls mainly on the plain", true, rootID)
-	checkContents(t, naming.JoinAddressName(estr, "mounttable//stuff/falls"), "falls mainly on the plain", false, rootID)
-	checkContents(t, naming.JoinAddressName(estr, "mounttable/stuff/nonexistant"), "falls mainly on the plain", false, rootID)
-	checkContents(t, naming.JoinAddressName(estr, "mounttable/stuff/the/rain"), "the rain", true, bobID)
-	checkContents(t, naming.JoinAddressName(estr, "mounttable/stuff/the/rain"), "the rain", false, aliceID)
+	create(t, naming.JoinAddressName(mtAddr, "mounttable/stuff/the/rain"), "the rain")
+	create(t, naming.JoinAddressName(mtAddr, "mounttable/stuff/in/spain"), "in spain")
+	create(t, naming.JoinAddressName(mtAddr, "mounttable/stuff/falls"), "falls mainly on the plain")
+	checkContents(t, naming.JoinAddressName(mtAddr, "mounttable/stuff/the/rain"), "the rain", true, rootID)
+	checkContents(t, naming.JoinAddressName(mtAddr, "mounttable/stuff/in/spain"), "in spain", true, rootID)
+	checkContents(t, naming.JoinAddressName(mtAddr, "mounttable/stuff/falls"), "falls mainly on the plain", true, rootID)
+	checkContents(t, naming.JoinAddressName(mtAddr, "mounttable//stuff/falls"), "falls mainly on the plain", false, rootID)
+	checkContents(t, naming.JoinAddressName(mtAddr, "mounttable/stuff/nonexistant"), "falls mainly on the plain", false, rootID)
+	checkContents(t, naming.JoinAddressName(mtAddr, "mounttable/stuff/the/rain"), "the rain", true, bobID)
+	checkContents(t, naming.JoinAddressName(mtAddr, "mounttable/stuff/the/rain"), "the rain", false, aliceID)
 
 	// Test multiple mounts.
-	doMount(t, naming.JoinAddressName(estr, "//mounttable//a/b"), naming.JoinAddressName(estr, "collection"), true, rootID)
-	doMount(t, naming.JoinAddressName(estr, "//mounttable/x/y"), naming.JoinAddressName(estr, "collection"), true, rootID)
-	doMount(t, naming.JoinAddressName(estr, "//mounttable/alpha//beta"), naming.JoinAddressName(estr, "collection"), true, rootID)
-	checkContents(t, naming.JoinAddressName(estr, "mounttable/stuff/falls"), "falls mainly on the plain", true, rootID)
-	checkContents(t, naming.JoinAddressName(estr, "mounttable/a/b/falls"), "falls mainly on the plain", true, rootID)
-	checkContents(t, naming.JoinAddressName(estr, "mounttable/x/y/falls"), "falls mainly on the plain", true, rootID)
-	checkContents(t, naming.JoinAddressName(estr, "mounttable/alpha/beta/falls"), "falls mainly on the plain", true, rootID)
-	checkContents(t, naming.JoinAddressName(estr, "mounttable/a/b/falls"), "falls mainly on the plain", true, aliceID)
-	checkContents(t, naming.JoinAddressName(estr, "mounttable/a/b/falls"), "falls mainly on the plain", false, bobID)
+	doMount(t, naming.JoinAddressName(mtAddr, "//mounttable//a/b"), collectionName, true, rootID)
+	doMount(t, naming.JoinAddressName(mtAddr, "//mounttable/x/y"), collectionName, true, rootID)
+	doMount(t, naming.JoinAddressName(mtAddr, "//mounttable/alpha//beta"), collectionName, true, rootID)
+	checkContents(t, naming.JoinAddressName(mtAddr, "mounttable/stuff/falls"), "falls mainly on the plain", true, rootID)
+	checkContents(t, naming.JoinAddressName(mtAddr, "mounttable/a/b/falls"), "falls mainly on the plain", true, rootID)
+	checkContents(t, naming.JoinAddressName(mtAddr, "mounttable/x/y/falls"), "falls mainly on the plain", true, rootID)
+	checkContents(t, naming.JoinAddressName(mtAddr, "mounttable/alpha/beta/falls"), "falls mainly on the plain", true, rootID)
+	checkContents(t, naming.JoinAddressName(mtAddr, "mounttable/a/b/falls"), "falls mainly on the plain", true, aliceID)
+	checkContents(t, naming.JoinAddressName(mtAddr, "mounttable/a/b/falls"), "falls mainly on the plain", false, bobID)
 
 	// Test generic unmount.
-	doUnmount(t, naming.JoinAddressName(estr, "//mounttable/a/b"), "", true, rootID)
-	checkContents(t, naming.JoinAddressName(estr, "mounttable/a/b/falls"), "falls mainly on the plain", false, rootID)
+	doUnmount(t, naming.JoinAddressName(mtAddr, "//mounttable/a/b"), "", true, rootID)
+	checkContents(t, naming.JoinAddressName(mtAddr, "mounttable/a/b/falls"), "falls mainly on the plain", false, rootID)
 
 	// Test specific unmount.
-	doMount(t, naming.JoinAddressName(estr, "//mounttable/a/b"), naming.JoinAddressName(estr, "collection"), true, rootID)
-	doUnmount(t, naming.JoinAddressName(estr, "//mounttable/a/b"), naming.JoinAddressName(estr, "collection"), true, rootID)
-	checkContents(t, naming.JoinAddressName(estr, "mounttable/a/b/falls"), "falls mainly on the plain", false, rootID)
+	doMount(t, naming.JoinAddressName(mtAddr, "//mounttable/a/b"), collectionName, true, rootID)
+	doUnmount(t, naming.JoinAddressName(mtAddr, "//mounttable/a/b"), collectionName, true, rootID)
+	checkContents(t, naming.JoinAddressName(mtAddr, "mounttable/a/b/falls"), "falls mainly on the plain", false, rootID)
 
 	// Try timing out a mount.
 	ft := NewFakeTimeClock()
 	setServerListClock(ft)
-	doMount(t, naming.JoinAddressName(estr, "//mounttable/stuffWithTTL"), naming.JoinAddressName(estr, "collection"), true, rootID)
-	checkContents(t, naming.JoinAddressName(estr, "mounttable/stuffWithTTL/the/rain"), "the rain", true, rootID)
+	doMount(t, naming.JoinAddressName(mtAddr, "//mounttable/stuffWithTTL"), collectionName, true, rootID)
+	checkContents(t, naming.JoinAddressName(mtAddr, "mounttable/stuffWithTTL/the/rain"), "the rain", true, rootID)
 	ft.advance(time.Duration(ttlSecs+4) * time.Second)
-	checkContents(t, naming.JoinAddressName(estr, "mounttable/stuffWithTTL/the/rain"), "the rain", false, rootID)
+	checkContents(t, naming.JoinAddressName(mtAddr, "mounttable/stuffWithTTL/the/rain"), "the rain", false, rootID)
 
 	// test unauthorized mount
-	doMount(t, naming.JoinAddressName(estr, "//mounttable//a/b"), naming.JoinAddressName(estr, "collection"), false, bobID)
-	doMount(t, naming.JoinAddressName(estr, "//mounttable//a/b"), naming.JoinAddressName(estr, "collection"), false, aliceID)
+	doMount(t, naming.JoinAddressName(mtAddr, "//mounttable//a/b"), collectionName, false, bobID)
+	doMount(t, naming.JoinAddressName(mtAddr, "//mounttable//a/b"), collectionName, false, aliceID)
 
-	doUnmount(t, naming.JoinAddressName(estr, "//mounttable/x/y"), naming.JoinAddressName(estr, "collection"), false, bobID)
+	doUnmount(t, naming.JoinAddressName(mtAddr, "//mounttable/x/y"), collectionName, false, bobID)
 }
 
 func doGlob(t *testing.T, name, pattern string, id ipc.ClientOpt) []string {
@@ -287,14 +309,14 @@ func checkMatch(t *testing.T, want []string, got []string) {
 }
 
 func TestGlob(t *testing.T) {
-	server, estr := newServer("", t)
+	server, estr := newMT(t, "")
 	defer server.Stop()
 
 	// set up a mount space
 	fakeServer := naming.JoinAddressName(estr, "quux")
-	doMount(t, naming.JoinAddressName(estr, "//mounttable/one/bright/day"), fakeServer, true, rootID)
-	doMount(t, naming.JoinAddressName(estr, "//mounttable/in/the/middle"), fakeServer, true, rootID)
-	doMount(t, naming.JoinAddressName(estr, "//mounttable/of/the/night"), fakeServer, true, rootID)
+	doMount(t, naming.JoinAddressName(estr, "//one/bright/day"), fakeServer, true, rootID)
+	doMount(t, naming.JoinAddressName(estr, "//in/the/middle"), fakeServer, true, rootID)
+	doMount(t, naming.JoinAddressName(estr, "//of/the/night"), fakeServer, true, rootID)
 
 	// Try various globs.
 	tests := []struct {
@@ -311,19 +333,19 @@ func TestGlob(t *testing.T) {
 		{"", []string{""}},
 	}
 	for _, test := range tests {
-		out := doGlob(t, naming.JoinAddressName(estr, "//mounttable"), test.in, rootID)
+		out := doGlob(t, naming.JoinAddressName(estr, "//"), test.in, rootID)
 		checkMatch(t, test.expected, out)
 	}
 }
 
 func TestGlobACLs(t *testing.T) {
-	server, estr := newServer("testdata/test.acl", t)
+	server, estr := newMT(t, "testdata/test.acl")
 	defer server.Stop()
 
 	// set up a mount space
 	fakeServer := naming.JoinAddressName(estr, "quux")
-	doMount(t, naming.JoinAddressName(estr, "//mounttable/one/bright/day"), fakeServer, true, rootID)
-	doMount(t, naming.JoinAddressName(estr, "//mounttable/a/b/c"), fakeServer, true, rootID)
+	doMount(t, naming.JoinAddressName(estr, "//one/bright/day"), fakeServer, true, rootID)
+	doMount(t, naming.JoinAddressName(estr, "//a/b/c"), fakeServer, true, rootID)
 
 	// Try various globs.
 	tests := []struct {
@@ -339,13 +361,13 @@ func TestGlobACLs(t *testing.T) {
 		{bobID, "*/...", []string{"one", "one/bright", "one/bright/day"}},
 	}
 	for _, test := range tests {
-		out := doGlob(t, naming.JoinAddressName(estr, "//mounttable"), test.in, test.id)
+		out := doGlob(t, naming.JoinAddressName(estr, "//"), test.in, test.id)
 		checkMatch(t, test.expected, out)
 	}
 }
 
 func TestServerFormat(t *testing.T) {
-	server, estr := newServer("", t)
+	server, estr := newMT(t, "")
 	defer server.Stop()
 
 	doMount(t, naming.JoinAddressName(estr, "//mounttable/endpoint"), naming.JoinAddressName(estr, "life/on/the/mississippi"), true, rootID)
@@ -357,15 +379,19 @@ func TestServerFormat(t *testing.T) {
 }
 
 func TestExpiry(t *testing.T) {
-	server, estr := newServer("", t)
+	server, estr := newMT(t, "")
 	defer server.Stop()
+	collection, collectionAddr := newCollection(t, "testdata/test.acl")
+	defer collection.Stop()
+
+	collectionName := naming.JoinAddressName(collectionAddr, "collection")
 
 	ft := NewFakeTimeClock()
 	setServerListClock(ft)
-	doMount(t, naming.JoinAddressName(estr, "//mounttable/a1/b1"), naming.JoinAddressName(estr, "collection"), true, rootID)
-	doMount(t, naming.JoinAddressName(estr, "//mounttable/a1/b2"), naming.JoinAddressName(estr, "collection"), true, rootID)
-	doMount(t, naming.JoinAddressName(estr, "//mounttable/a2/b1"), naming.JoinAddressName(estr, "collection"), true, rootID)
-	doMount(t, naming.JoinAddressName(estr, "//mounttable/a2/b2/c"), naming.JoinAddressName(estr, "collection"), true, rootID)
+	doMount(t, naming.JoinAddressName(estr, "//mounttable/a1/b1"), collectionName, true, rootID)
+	doMount(t, naming.JoinAddressName(estr, "//mounttable/a1/b2"), collectionName, true, rootID)
+	doMount(t, naming.JoinAddressName(estr, "//mounttable/a2/b1"), collectionName, true, rootID)
+	doMount(t, naming.JoinAddressName(estr, "//mounttable/a2/b2/c"), collectionName, true, rootID)
 
 	checkMatch(t, []string{"a1/b1", "a2/b1"}, doGlob(t, naming.JoinAddressName(estr, "//mounttable"), "*/b1/...", rootID))
 	ft.advance(time.Duration(ttlSecs/2) * time.Second)
@@ -373,7 +399,7 @@ func TestExpiry(t *testing.T) {
 	checkMatch(t, []string{"c"}, doGlob(t, naming.JoinAddressName(estr, "//mounttable/a2/b2"), "*", rootID))
 	// Refresh only a1/b1.  All the other mounts will expire upon the next
 	// ft advance.
-	doMount(t, naming.JoinAddressName(estr, "//mounttable/a1/b1"), naming.JoinAddressName(estr, "collection"), true, rootID)
+	doMount(t, naming.JoinAddressName(estr, "//mounttable/a1/b1"), collectionName, true, rootID)
 	ft.advance(time.Duration(ttlSecs/2+4) * time.Second)
 	checkMatch(t, []string{"a1"}, doGlob(t, naming.JoinAddressName(estr, "//mounttable"), "*", rootID))
 	checkMatch(t, []string{"a1/b1"}, doGlob(t, naming.JoinAddressName(estr, "//mounttable"), "*/b1/...", rootID))

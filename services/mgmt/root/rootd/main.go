@@ -17,11 +17,7 @@ func main() {
 		return
 	}
 	defer server.Stop()
-	suffix, dispatcher := "", impl.NewDispatcher()
-	if err := server.Register(suffix, dispatcher); err != nil {
-		vlog.Errorf("Register(%v, %v) failed: %v", suffix, dispatcher, err)
-		return
-	}
+	dispatcher := impl.NewDispatcher()
 	protocol, hostname := "tcp", "localhost:0"
 	ep, err := server.Listen(protocol, hostname)
 	if err != nil {
@@ -30,8 +26,8 @@ func main() {
 	}
 	vlog.VI(0).Infof("Listening on %v", ep)
 	name := ""
-	if err := server.Publish(name); err != nil {
-		vlog.Errorf("Publish(%v) failed: %v", name, err)
+	if err := server.Serve(name, dispatcher); err != nil {
+		vlog.Errorf("Serve(%v) failed: %v", name, err)
 		return
 	}
 

@@ -55,16 +55,15 @@ func startServer() (string, func()) {
 
 	// Register the services.
 	storeDisp := server.NewStoreDispatcher(storeService, nil)
-	if err := s.Register("", storeDisp); err != nil {
-		log.Fatal("s.Register(storeDisp) failed: ", err)
-	}
 
 	// Create an endpoint and start listening.
 	ep, err := s.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
 		log.Fatal("s.Listen() failed: ", err)
 	}
-
+	if err := s.Serve("", storeDisp); err != nil {
+		log.Fatal("s.Serve(storeDisp) failed: ", err)
+	}
 	return naming.JoinAddressName(ep.String(), "//"), func() {
 		s.Stop()
 		os.Remove(dbDir)

@@ -414,10 +414,7 @@ func main() {
 	bankAuth := security.NewACLAuthorizer(security.ACL{security.AllPrincipals: security.LabelSet(security.ReadLabel | security.WriteLabel)})
 	bankAccountAuth := AccountAuthorizer(runtime.Identity().PublicID().Names()[0] + SUFFIX_REGEXP)
 
-	// Register the "bank" prefix with a bank dispatcher.
-	if err := s.Register("bank", newBankDispatcher(bankServer, bankAccountServer, bankAuth, bankAccountAuth)); err != nil {
-		vlog.Fatal("error registering service: ", err)
-	}
+	dispatcher := newBankDispatcher(bankServer, bankAccountServer, bankAuth, bankAccountAuth)
 
 	// Create an endpoint and begin listening.
 	endpoint, err := s.Listen("tcp", "127.0.0.1:0")
@@ -428,10 +425,10 @@ func main() {
 	}
 
 	// Publish the service in the mount table.
-	mountName := "veyron"
+	mountName := "veyron/bank"
 	fmt.Printf("Mounting bank on %s, endpoint /%s\n", mountName, endpoint)
-	if err := s.Publish(mountName); err != nil {
-		vlog.Fatal("s.Publish() failed: ", err)
+	if err := s.Serve(mountName, dispatcher); err != nil {
+		vlog.Fatal("s.Serve() failed: ", err)
 	}
 
 	// Wait forever.

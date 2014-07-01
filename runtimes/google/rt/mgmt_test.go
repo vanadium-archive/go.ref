@@ -245,16 +245,16 @@ func createConfigServer(t *testing.T) (ipc.Server, string, <-chan string) {
 	if err != nil {
 		t.Fatalf("Got error: %v", err)
 	}
-	const suffix = ""
 	ch := make(chan string)
-	if err := server.Register(suffix, ipc.SoloDispatcher(node.NewServerConfig(&configServer{ch}), vflag.NewAuthorizerOrDie())); err != nil {
-		t.Fatalf("Got error: %v", err)
-	}
+
 	var ep naming.Endpoint
 	if ep, err = server.Listen("tcp", "127.0.0.1:0"); err != nil {
 		t.Fatalf("Got error: %v", err)
 	}
-	return server, naming.JoinAddressName(ep.String(), suffix), ch
+	if err := server.Serve("", ipc.SoloDispatcher(node.NewServerConfig(&configServer{ch}), vflag.NewAuthorizerOrDie())); err != nil {
+		t.Fatalf("Got error: %v", err)
+	}
+	return server, naming.JoinAddressName(ep.String(), ""), ch
 
 }
 

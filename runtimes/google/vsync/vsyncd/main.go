@@ -41,9 +41,7 @@ func main() {
 	// Register the "sync" prefix with the sync dispatcher.
 	syncd := vsync.NewSyncd(*peerEndpoints, *peerDeviceIDs, *devid, *storePath, *vstoreEndpoint, *syncTick)
 	serverSync := vsync.NewServerSync(syncd)
-	if err := s.Register("sync", ipc.SoloDispatcher(serverSync, nil)); err != nil {
-		vlog.Fatalf("syncd:: error registering service: err %v", err)
-	}
+	dispatcher := ipc.SoloDispatcher(serverSync, nil)
 
 	// Create an endpoint and begin listening.
 	if endpoint, err := s.Listen("tcp", *address); err == nil {
@@ -54,7 +52,7 @@ func main() {
 
 	// Publish the vsync service. This will register it in the mount table and maintain the
 	// registration while the program runs.
-	if err := s.Publish("sync"); err != nil {
+	if err := s.Serve("sync", dispatcher); err != nil {
 		vlog.Fatalf("syncd: error publishing service: err %v", err)
 	}
 

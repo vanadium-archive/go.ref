@@ -2,6 +2,7 @@ package lib
 
 import (
 	"fmt"
+	"strings"
 
 	"veyron2"
 	"veyron2/ipc"
@@ -12,11 +13,15 @@ import (
 )
 
 type cacheDispatcher struct {
-	cached interface{}
+	cache        interface{}
+	errorThrower interface{}
 }
 
-func (cd *cacheDispatcher) Lookup(string) (ipc.Invoker, security.Authorizer, error) {
-	return ipc.ReflectInvoker(cd.cached), nil, nil
+func (cd *cacheDispatcher) Lookup(suffix string) (ipc.Invoker, security.Authorizer, error) {
+	if strings.HasPrefix(suffix, "errorThrower") {
+		return ipc.ReflectInvoker(cd.errorThrower), nil, nil
+	}
+	return ipc.ReflectInvoker(cd.cache), nil, nil
 }
 
 func StartServer(r veyron2.Runtime) (ipc.Server, naming.Endpoint, error) {
@@ -26,16 +31,9 @@ func StartServer(r veyron2.Runtime) (ipc.Server, naming.Endpoint, error) {
 		return nil, nil, fmt.Errorf("failure creating server: %v", err)
 	}
 
-	// Register the "cache" prefix with the cache dispatcher.
-	serverCache := sample.NewServerCache(NewCached())
-	if err := s.Register("cache", &cacheDispatcher{cached: serverCache}); err != nil {
-		return nil, nil, fmt.Errorf("error registering cache service: %v", err)
-	}
-
-	// Register the "errorthrower" prefix with the errorthrower dispatcher.
-	errorThrower := sample.NewServerErrorThrower(NewErrorThrower())
-	if err := s.Register("errorthrower", &cacheDispatcher{cached: errorThrower}); err != nil {
-		return nil, nil, fmt.Errorf("error registering error thrower service: %v", err)
+	disp := &cacheDispatcher{
+		cache:        sample.NewServerCache(NewCached()),
+		errorThrower: sample.NewServerErrorThrower(NewErrorThrower()),
 	}
 
 	// Create an endpoint and begin listening.
@@ -46,9 +44,8 @@ func StartServer(r veyron2.Runtime) (ipc.Server, naming.Endpoint, error) {
 
 	// Publish the cache service. This will register it in the mount table and maintain the
 	// registration until StopServing is called.
-	if err := s.Publish("cache"); err != nil {
+	if err := s.Serve("cache", disp); err != nil {
 		return nil, nil, fmt.Errorf("error publishing service: %v", err)
 	}
-
 	return s, endpoint, nil
 }

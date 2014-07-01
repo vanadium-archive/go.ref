@@ -9,6 +9,7 @@ import (
 	"veyron2/ipc"
 	"veyron2/naming"
 	"veyron2/rt"
+	"veyron2/security"
 	mtidl "veyron2/services/mounttable"
 	"veyron2/vlog"
 
@@ -23,50 +24,39 @@ func initRT(opts ...veyron2.ROpt) func() {
 	return rt.Init(opts...).Shutdown
 }
 
-func newServer(opts ...ipc.ServerOpt) ipc.Server {
+func createServer(name string, dispatcher ipc.Dispatcher, opts ...ipc.ServerOpt) (ipc.Server, string) {
 	server, err := rt.R().NewServer(opts...)
 	if err != nil {
 		panic(fmt.Sprintf("r.NewServer failed with %v", err))
-	}
-	return server
-}
-
-func createServer(server ipc.Server, prefix string, dispatcher ipc.Dispatcher) string {
-	if err := server.Register(prefix, dispatcher); err != nil {
-		panic(fmt.Sprintf("server.Register failed with %v", err))
 	}
 	ep, err := server.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
 		panic(fmt.Sprintf("server.Listen failed with %v", err))
 	}
-	return naming.JoinAddressName(ep.String(), prefix)
+	if err := server.Serve(name, dispatcher); err != nil {
+		panic(fmt.Sprintf("server.Serve failed with %v", err))
+	}
+	oa := naming.JoinAddressName(ep.String(), "")
+	vlog.Infof("created %s -> %s", name, oa)
+	return server, oa
 }
 
-func serverMain(servesMT bool, serviceCreator func(ipc.Server) string, args []string) {
+func childMT(args []string) {
 	defer initRT()()
-	server := newServer(veyron2.ServesMountTableOpt(servesMT))
-	defer server.Stop()
-	service := serviceCreator(server)
-	vlog.Infof("created %v", service)
 	for _, arg := range args {
-		if err := server.Publish(arg); err != nil {
-			panic(fmt.Sprintf("server.Publish(%q) failed with %v", arg, err))
-		}
+		server, _ := createMTServer(arg)
+		defer server.Stop()
 	}
 	fmt.Println("ready")
 	blackbox.WaitForEOFOnStdin()
 }
 
-func createMT(server ipc.Server) string {
+func createMTServer(mp string) (ipc.Server, string) {
 	mt, err := mounttable.NewMountTable("")
 	if err != nil {
 		panic(fmt.Sprintf("NewMountTable failed with %v", err))
 	}
-	return createServer(server, "mt", mt)
-}
-
-func childMT(args []string) {
-	serverMain(true, createMT, args)
+	return createServer(mp, mt, veyron2.ServesMountTableOpt(true))
 }
 
 func createMTClient(name string) mtidl.MountTable {
@@ -89,12 +79,15 @@ func (*fortune) Add(ipc.ServerContext, string) error {
 	return nil
 }
 
-func createFortune(server ipc.Server) string {
-	return createServer(server, "fortune", ipc.SoloDispatcher(fortuneidl.NewServerFortune(new(fortune)), nil))
-}
-
 func childFortune(args []string) {
-	serverMain(false, createFortune, args)
+	defer initRT()()
+	server, _ := createServer(args[0], ipc.SoloDispatcher(fortuneidl.NewServerFortune(new(fortune)), nil))
+	defer server.Stop()
+	for _, arg := range args[1:] {
+		server.Serve(arg, nil)
+	}
+	fmt.Println("ready")
+	blackbox.WaitForEOFOnStdin()
 }
 
 type fortuneCustomUnresolve struct {
@@ -122,18 +115,40 @@ func (*fortuneCustomUnresolve) UnresolveStep(context ipc.ServerContext) ([]strin
 	return reply, nil
 }
 
-func createFortuneCustomUnresolve(server ipc.Server) string {
-	oa := createServer(server, "tell/me/the/future", ipc.SoloDispatcher(fortuneidl.NewServerFortune(new(fortuneCustomUnresolve)), nil))
-	ep, _ := naming.SplitAddressName(oa)
-	oa = naming.MakeTerminal(naming.JoinAddressName(ep, "tell/me"))
-	// Doesn't get unmounted.  Fine for a test.
-	oa = naming.MakeTerminal(oa)
-	rt.R().Namespace().Mount(rt.R().NewContext(), "I/want/to/know", oa, 0)
-	return oa
+// Can't use the soloDispatcher (which is a bad name in any case) since it
+// doesn't allow name suffixes (which is also a silly restriction).
+// TODO(cnicolaou): rework soloDispatcher.
+type fortuned struct{ obj interface{} }
+
+func (f *fortuned) Lookup(string) (ipc.Invoker, security.Authorizer, error) {
+	return ipc.ReflectInvoker(f.obj), nil, nil
+}
+
+func createFortuneCustomUnresolve(mp string) (ipc.Server, string) {
+	server, oa := createServer(mp, &fortuned{fortuneidl.NewServerFortune(new(fortuneCustomUnresolve))})
+	rt.R().Namespace().Mount(rt.R().NewContext(), "I/want/to/know", oa+"//", 0)
+	rt.R().Namespace().Mount(rt.R().NewContext(), "tell/me", oa+"//", 0)
+	return server, oa
 }
 
 func childFortuneCustomUnresolve(args []string) {
-	serverMain(false, createFortuneCustomUnresolve, args)
+	defer initRT()()
+	for _, arg := range args {
+		server, _ := createFortuneCustomUnresolve(arg)
+		defer server.Stop()
+	}
+	fmt.Println("ready")
+	blackbox.WaitForEOFOnStdin()
+}
+
+func childFortuneNoIDL(args []string) {
+	defer initRT()()
+	for _, arg := range args {
+		server, _ := createServer(arg, ipc.SoloDispatcher(new(fortuneNoIDL), nil))
+		defer server.Stop()
+	}
+	fmt.Println("ready")
+	blackbox.WaitForEOFOnStdin()
 }
 
 func createFortuneClient(rt veyron2.Runtime, name string) fortuneidl.Fortune {
@@ -161,14 +176,6 @@ func (*fortuneNoIDL) UnresolveStep(ipc.ServerCall) ([]string, error) {
 		reply = append(reply, naming.Join(r, "fortune"))
 	}
 	return reply, nil
-}
-
-func createFortuneNoIDL(server ipc.Server) string {
-	return createServer(server, "fortune", ipc.SoloDispatcher(new(fortuneNoIDL), nil))
-}
-
-func childFortuneNoIDL(args []string) {
-	serverMain(false, createFortuneNoIDL, args)
 }
 
 func resolveStep(t *testing.T, name string) string {
@@ -226,4 +233,17 @@ func unresolve(t *testing.T, ns naming.Namespace, name string) string {
 		return ""
 	}
 	return results[0]
+}
+
+func glob(t *testing.T, pattern string) []string {
+	var replies []string
+	rc, err := rt.R().Namespace().Glob(rt.R().NewContext(), pattern)
+	if err != nil {
+		t.Errorf("Glob(%s): err %v", pattern, err)
+		return nil
+	}
+	for s := range rc {
+		replies = append(replies, s.Name)
+	}
+	return replies
 }

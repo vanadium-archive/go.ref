@@ -34,16 +34,12 @@ func main() {
 	if err != nil {
 		vlog.Fatalf("NewDispatcher() failed: %v", err)
 	}
-	suffix := ""
-	if err := server.Register(suffix, dispatcher); err != nil {
-		vlog.Fatalf("Register(%v, %v) failed: %v", suffix, dispatcher, err)
-	}
 	endpoint, err := server.Listen(protocol, address)
 	if err != nil {
 		vlog.Fatalf("Listen(%v, %v) failed: %v", protocol, address, err)
 	}
-	if err := server.Publish(name); err != nil {
-		vlog.Fatalf("Publish(%v) failed: %v", name, err)
+	if err := server.Serve(name, dispatcher); err != nil {
+		vlog.Fatalf("Serve(%v) failed: %v", name, err)
 	}
 	vlog.VI(0).Infof("Application manager published at %v/%v", endpoint, name)
 

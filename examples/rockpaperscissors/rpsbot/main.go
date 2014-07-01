@@ -39,9 +39,8 @@ func main() {
 	rand.Seed(time.Now().UTC().UnixNano())
 	rpsService := impl.NewRPS()
 
-	if err := server.Register("", ipc.SoloDispatcher(rps.NewServerRockPaperScissors(rpsService), sflag.NewAuthorizerOrDie())); err != nil {
-		vlog.Fatalf("Register failed: %v", err)
-	}
+	dispatcher := ipc.SoloDispatcher(rps.NewServerRockPaperScissors(rpsService), sflag.NewAuthorizerOrDie())
+
 	ep, err := server.Listen(*protocol, *address)
 	if err != nil {
 		vlog.Fatalf("Listen(%q, %q) failed: %v", "tcp", *address, err)
@@ -56,8 +55,8 @@ func main() {
 		fmt.Sprintf("rps/scorekeeper/%s", hostname),
 	}
 	for _, n := range names {
-		if err := server.Publish(n); err != nil {
-			vlog.Fatalf("Publish(%v) failed: %v", n, err)
+		if err := server.Serve(n, dispatcher); err != nil {
+			vlog.Fatalf("Serve(%v) failed: %v", n, err)
 		}
 	}
 	vlog.Infof("Listening on endpoint /%s (published as %v)", ep, names)

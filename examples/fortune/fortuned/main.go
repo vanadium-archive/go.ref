@@ -56,16 +56,17 @@ func main() {
 	// Create the fortune server stub.
 	serverFortune := fortune.NewServerFortune(newFortuned())
 
-	// Register the "fortune" prefix with a fortune dispatcher.
-	if err := s.Register("fortune", ipc.SoloDispatcher(serverFortune, vflag.NewAuthorizerOrDie())); err != nil {
-		log.Fatal("error registering service: ", err)
-	}
-
 	// Create an endpoint and begin listening.
 	if endpoint, err := s.Listen("tcp", "127.0.0.1:0"); err == nil {
 		fmt.Printf("Listening at: %v\n", endpoint)
 	} else {
 		log.Fatal("error listening to service: ", err)
+	}
+
+	// Serve the fortune dispatcher, but don't publish its existence
+	// to a mount table.
+	if err := s.Serve("", ipc.SoloDispatcher(serverFortune, vflag.NewAuthorizerOrDie())); err != nil {
+		log.Fatal("error serving service: ", err)
 	}
 
 	// Wait forever.

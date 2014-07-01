@@ -88,13 +88,13 @@ func startServer(t *testing.T, r veyron2.Runtime) (ipc.Server, naming.Endpoint, 
 		t.Errorf("NewServer failed: %v", err)
 		return nil, nil, err
 	}
-	if err := server.Register("", dispatcher); err != nil {
-		t.Errorf("Register failed: %v", err)
-		return nil, nil, err
-	}
 	endpoint, err := server.Listen("tcp", "localhost:0")
 	if err != nil {
 		t.Errorf("Listen failed: %v", err)
+		return nil, nil, err
+	}
+	if err := server.Serve("", dispatcher); err != nil {
+		t.Errorf("Serve failed: %v", err)
 		return nil, nil, err
 	}
 	return server, endpoint, nil

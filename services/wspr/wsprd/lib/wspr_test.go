@@ -91,26 +91,10 @@ func (s simpleAdder) Signature(call ipc.ServerCall) (ipc.ServiceSignature, error
 	return result, nil
 }
 
-// A function that will register an handlers on the given server
-type registerFunc func(ipc.Server) error
-
-func startServer(registerer registerFunc) (ipc.Server, naming.Endpoint, error) {
-	return startAnyServer(false, registerer)
-}
-
-func startMTServer(registerer registerFunc) (ipc.Server, naming.Endpoint, error) {
-	return startAnyServer(true, registerer)
-}
-
-func startAnyServer(servesMT bool, registerer registerFunc) (ipc.Server, naming.Endpoint, error) {
+func startAnyServer(servesMT bool, dispatcher ipc.Dispatcher) (ipc.Server, naming.Endpoint, error) {
 	// Create a new server instance.
 	s, err := r.NewServer(veyron2.ServesMountTableOpt(servesMT))
 	if err != nil {
-		return nil, nil, err
-	}
-
-	// Register the "fortune" prefix with the fortune dispatcher.
-	if err := registerer(s); err != nil {
 		return nil, nil, err
 	}
 
@@ -118,13 +102,15 @@ func startAnyServer(servesMT bool, registerer registerFunc) (ipc.Server, naming.
 	if err != nil {
 		return nil, nil, err
 	}
+
+	if err := s.Serve("", dispatcher); err != nil {
+		return nil, nil, err
+	}
 	return s, endpoint, nil
 }
 
 func startAdderServer() (ipc.Server, naming.Endpoint, error) {
-	return startServer(func(server ipc.Server) error {
-		return server.Register("cache", ipc.SoloDispatcher(simpleAdder{}, nil))
-	})
+	return startAnyServer(false, ipc.SoloDispatcher(simpleAdder{}, nil))
 }
 
 func startProxy() (*proxy.Proxy, error) {
@@ -132,18 +118,15 @@ func startProxy() (*proxy.Proxy, error) {
 	if err != nil {
 		return nil, err
 	}
-
 	return proxy.New(rid, nil, "tcp", "127.0.0.1:0", "")
 }
 
 func startMountTableServer() (ipc.Server, naming.Endpoint, error) {
-	return startMTServer(func(server ipc.Server) error {
-		mt, err := mounttable.NewMountTable("")
-		if err != nil {
-			return err
-		}
-		return server.Register("mt", mt)
-	})
+	mt, err := mounttable.NewMountTable("")
+	if err != nil {
+		return nil, nil, err
+	}
+	return startAnyServer(true, mt)
 }
 
 type testWriter struct {
@@ -251,7 +234,7 @@ func TestGetGoServerSignature(t *testing.T) {
 	wspr.setup()
 	wsp := websocketPipe{ctx: wspr}
 	wsp.setup()
-	jsSig, err := wsp.getSignature("/"+endpoint.String()+"//cache", "")
+	jsSig, err := wsp.getSignature("/"+endpoint.String(), "")
 	if err != nil {
 		t.Errorf("Failed to get signature: %v", err)
 	}
@@ -304,7 +287,7 @@ func runGoServerTestCase(t *testing.T, test goServerTestCase) {
 	}
 
 	request := veyronRPC{
-		Name:        "/" + endpoint.String() + "//cache",
+		Name:        "/" + endpoint.String(),
 		Method:      test.method,
 		InArgs:      test.inArgs,
 		NumOutArgs:  test.numOutArgs,
@@ -396,7 +379,7 @@ func publishServer() (*runningTest, error) {
 
 	proxyEndpoint := proxyServer.Endpoint().String()
 
-	wspr := NewWSPR(0, "/"+proxyEndpoint, veyron2.NamespaceRoots{"/" + endpoint.String() + "/mt"})
+	wspr := NewWSPR(0, "/"+proxyEndpoint, veyron2.NamespaceRoots{"/" + endpoint.String()})
 	wspr.setup()
 	wsp := websocketPipe{ctx: wspr}
 	writer := testWriter{
@@ -429,7 +412,8 @@ func TestJavascriptPublishServer(t *testing.T) {
 	}
 
 	if len(rt.writer.stream) != 1 {
-		t.Errorf("expected only on response, got %d", len(rt.writer.stream))
+		t.Errorf("expected only one response, got %d", len(rt.writer.stream))
+		return
 	}
 
 	resp := rt.writer.stream[0]
@@ -516,6 +500,7 @@ func runJsServerTestCase(t *testing.T, test jsServerTestCase) {
 
 	if len(rt.writer.stream) != 1 {
 		t.Errorf("expected only on response, got %d", len(rt.writer.stream))
+		return
 	}
 
 	resp := rt.writer.stream[0]
@@ -558,7 +543,7 @@ func runJsServerTestCase(t *testing.T, test jsServerTestCase) {
 				"args":        test.inArgs,
 				"context": map[string]interface{}{
 					"name":   "adder",
-					"suffix": "",
+					"suffix": "adder",
 				},
 			},
 		},

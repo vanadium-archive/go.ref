@@ -44,13 +44,8 @@ func main() {
 	// TODO(jsimsa): Replace <PreviousEnv> with a command-line flag when
 	// command-line flags are supported in tests.
 	dispatcher := impl.NewDispatcher(vflag.NewAuthorizerOrDie(), envelope, name, os.Getenv(impl.PreviousEnv))
-	if err := server.Register(suffix, dispatcher); err != nil {
-		vlog.Fatalf("Register(%v, %v) failed: %v", suffix, dispatcher, err)
-	}
-	if len(publishAs) > 0 {
-		if err := server.Publish(publishAs); err != nil {
-			vlog.Fatalf("Publish(%v) failed: %v", publishAs, err)
-		}
+	if err := server.Serve(publishAs, dispatcher); err != nil {
+		vlog.Fatalf("Serve(%v) failed: %v", publishAs, err)
 	}
 	handle, _ := exec.GetChildHandle()
 	if handle != nil {

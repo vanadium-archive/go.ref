@@ -105,22 +105,16 @@ func TestFlowClientServer(t *testing.T) {
 		err    error
 	}
 	tests := []testcase{
-		{"closure", "A", nil, nil, nil},
-		{"closure/foo", "B", nil, nil, errors.New("foo")},
-
-		{"echo", "A", v{""}, v{`method:"A",suffix:"",arg:""`}, nil},
-		{"echo", "B", v{"foo"}, v{`method:"B",suffix:"",arg:"foo"`}, nil},
-		{"echo/abc", "C", v{""}, v{`method:"C",suffix:"abc",arg:""`}, nil},
-		{"echo/abc", "D", v{"foo"}, v{`method:"D",suffix:"abc",arg:"foo"`}, nil},
+		{"echo", "A", v{""}, v{`method:"A",suffix:"echo",arg:""`}, nil},
+		{"echo", "B", v{"foo"}, v{`method:"B",suffix:"echo",arg:"foo"`}, nil},
+		{"echo/abc", "C", v{""}, v{`method:"C",suffix:"echo/abc",arg:""`}, nil},
+		{"echo/abc", "D", v{"foo"}, v{`method:"D",suffix:"echo/abc",arg:"foo"`}, nil},
 	}
 	name := func(t testcase) string {
 		return fmt.Sprintf("%s.%s%v", t.suffix, t.method, t.args)
 	}
 
-	disptrie := newDisptrie()
-	disptrie.Register("echo", testDisp{newEchoInvoker})
-	disptrie.Register("closure", testDisp{newClosureInvoker})
-	ipcServer := &server{disptrie: disptrie}
+	ipcServer := &server{disp: testDisp{newEchoInvoker}}
 	for _, test := range tests {
 		clientFlow, serverFlow := newTestFlows()
 		client := newFlowClient(clientFlow)

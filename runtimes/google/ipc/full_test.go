@@ -202,31 +202,33 @@ func (ns *namespace) Glob(ctx context.T, pattern string) (chan naming.MountEntry
 	return nil, nil
 }
 
-func (ns *namespace) SetRoots([]string) error {
+func (ns *namespace) SetRoots(...string) error {
 	panic("SetRoots not implemented")
 	return nil
 }
 
-func startServer(t *testing.T, serverID security.PrivateID, sm stream.Manager, ns naming.Namespace, ts interface{}) ipc.Server {
+func (ns *namespace) Roots() []string {
+	panic("Roots not implemented")
+	return nil
+}
+
+func startServer(t *testing.T, serverID security.PrivateID, sm stream.Manager, ns naming.Namespace, ts interface{}) (naming.Endpoint, ipc.Server) {
 	vlog.VI(1).Info("InternalNewServer")
 	server, err := InternalNewServer(InternalNewContext(), sm, ns, listenerID(serverID))
 	if err != nil {
 		t.Errorf("InternalNewServer failed: %v", err)
 	}
-	vlog.VI(1).Info("server.Register")
-	disp := testServerDisp{ts}
-	if err := server.Register("server", disp); err != nil {
-		t.Errorf("server.Register failed: %v", err)
-	}
 	vlog.VI(1).Info("server.Listen")
-	if _, err := server.Listen("tcp", "localhost:0"); err != nil {
+	ep, err := server.Listen("tcp", "localhost:0")
+	if err != nil {
 		t.Errorf("server.Listen failed: %v", err)
 	}
-	vlog.VI(1).Info("server.Publish")
-	if err := server.Publish("mountpoint"); err != nil {
+	vlog.VI(1).Info("server.Serve")
+	disp := testServerDisp{ts}
+	if err := server.Serve("mountpoint/server", disp); err != nil {
 		t.Errorf("server.Publish failed: %v", err)
 	}
-	return server
+	return ep, server
 }
 
 func verifyMount(t *testing.T, ns naming.Namespace, name string) {
@@ -243,28 +245,35 @@ func verifyMountMissing(t *testing.T, ns naming.Namespace, name string) {
 
 func stopServer(t *testing.T, server ipc.Server, ns naming.Namespace) {
 	vlog.VI(1).Info("server.Stop")
-	verifyMount(t, ns, "mountpoint/server")
+	n1 := "mountpoint/server"
+	n2 := "should_appear_in_mt/server"
+	verifyMount(t, ns, n1)
 
-	// Check that we can still publish.
-	server.Publish("should_appear_in_mt")
-	verifyMount(t, ns, "should_appear_in_mt/server")
+	// publish a second name
+	if err := server.Serve(n2, nil); err != nil {
+		t.Errorf("server.Serve failed: %v", err)
+	}
+	verifyMount(t, ns, n2)
 
 	if err := server.Stop(); err != nil {
 		t.Errorf("server.Stop failed: %v", err)
 	}
-	// Check that we can no longer publish after Stop.
-	server.Publish("should_not_appear_in_mt")
-	verifyMountMissing(t, ns, "should_not_appear_in_mt/server")
 
-	verifyMountMissing(t, ns, "mountpoint/server")
-	verifyMountMissing(t, ns, "should_appear_in_mt/server")
-	verifyMountMissing(t, ns, "should_not_appear_in_mt/server")
+	verifyMountMissing(t, ns, n1)
+	verifyMountMissing(t, ns, n2)
+
+	// Check that we can no longer serve after Stop.
+	err := server.Serve("name doesn't matter", nil)
+	if err == nil || err.Error() != "ipc: server is stopped" {
+		t.Errorf("either no error, or a wrong error was returned: %v", err)
+	}
 	vlog.VI(1).Info("server.Stop DONE")
 }
 
 type bundle struct {
 	client ipc.Client
 	server ipc.Server
+	ep     naming.Endpoint
 	ns     naming.Namespace
 	sm     stream.Manager
 }
@@ -277,7 +286,7 @@ func (b bundle) cleanup(t *testing.T) {
 func createBundle(t *testing.T, clientID, serverID security.PrivateID, ts interface{}) (b bundle) {
 	b.sm = imanager.InternalNew(naming.FixedRoutingID(0x555555555))
 	b.ns = newNamespace()
-	b.server = startServer(t, serverID, b.sm, b.ns, ts)
+	b.ep, b.server = startServer(t, serverID, b.sm, b.ns, ts)
 	var err error
 	b.client, err = InternalNewClient(b.sm, b.ns, veyron2.LocalID(clientID))
 	if err != nil {
@@ -311,6 +320,53 @@ func matchesErrorPattern(err error, pattern string) bool {
 		return false
 	}
 	return err == nil || strings.Index(err.Error(), pattern) >= 0
+}
+
+func TestMultipleCallsToServe(t *testing.T) {
+	sm := imanager.InternalNew(naming.FixedRoutingID(0x555555555))
+	ns := newNamespace()
+	server, err := InternalNewServer(InternalNewContext(), sm, ns, listenerID(serverID))
+	if err != nil {
+		t.Errorf("InternalNewServer failed: %v", err)
+	}
+	_, err = server.Listen("tcp", "localhost:0")
+	if err != nil {
+		t.Errorf("server.Listen failed: %v", err)
+	}
+
+	disp := &testServerDisp{&testServer{}}
+	if err := server.Serve("mountpoint/server", disp); err != nil {
+		t.Errorf("server.Publish failed: %v", err)
+	}
+
+	n1 := "mountpoint/server"
+	n2 := "should_appear_in_mt/server"
+	n3 := "should_appear_in_mt/server"
+	n4 := "should_not_appear_in_mt/server"
+
+	verifyMount(t, ns, n1)
+
+	if err := server.Serve(n2, disp); err != nil {
+		t.Errorf("server.Serve failed: %v", err)
+	}
+	if err := server.Serve(n3, nil); err != nil {
+		t.Errorf("server.Serve failed: %v", err)
+	}
+	verifyMount(t, ns, n2)
+	verifyMount(t, ns, n3)
+
+	if err := server.Serve(n4, &testServerDisp{&testServer{}}); err == nil {
+		t.Errorf("server.Serve should have failed")
+	}
+	verifyMountMissing(t, ns, n4)
+
+	if err := server.Stop(); err != nil {
+		t.Errorf("server.Stop failed: %v", err)
+	}
+
+	verifyMountMissing(t, ns, n1)
+	verifyMountMissing(t, ns, n2)
+	verifyMountMissing(t, ns, n3)
 }
 
 func TestStartCall(t *testing.T) {
@@ -355,7 +411,7 @@ func TestStartCall(t *testing.T) {
 	ns := newNamespace()
 	for _, test := range tests {
 		name := fmt.Sprintf("(clientID:%q serverID:%q)", test.clientID, test.serverID)
-		server := startServer(t, test.serverID, mgr, ns, &testServer{})
+		_, server := startServer(t, test.serverID, mgr, ns, &testServer{})
 		client, err := InternalNewClient(mgr, ns, veyron2.LocalID(test.clientID))
 		if err != nil {
 			t.Errorf("%s: Client creation failed: %v", name, err)
@@ -732,15 +788,16 @@ func TestConnectWithIncompatibleServers(t *testing.T) {
 	publisher.AddServer("/@2@tcp@localhost:10000@@1000000@2000000@@")
 	publisher.AddServer("/@2@tcp@localhost:10001@@2000000@3000000@@")
 
-	_, err := b.client.StartCall(&fakeContext{}, "incompatible/server/suffix", "Echo", []interface{}{"foo"})
+	_, err := b.client.StartCall(&fakeContext{}, "incompatible/suffix", "Echo", []interface{}{"foo"})
 	if !strings.Contains(err.Error(), version.NoCompatibleVersionErr.Error()) {
 		t.Errorf("Expected error %v, found: %v", version.NoCompatibleVersionErr, err)
 	}
 
 	// Now add a server with a compatible endpoint and try again.
-	b.server.Publish("incompatible")
+	publisher.AddServer("/" + b.ep.String())
+	publisher.AddName("incompatible")
 
-	call, err := b.client.StartCall(&fakeContext{}, "incompatible/server/suffix", "Echo", []interface{}{"foo"})
+	call, err := b.client.StartCall(&fakeContext{}, "incompatible/suffix", "Echo", []interface{}{"foo"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -785,7 +842,7 @@ func TestPublishOptions(t *testing.T) {
 			server.Stop()
 			continue
 		}
-		if err := server.Publish("mountpoint"); err != nil {
+		if err := server.Serve("mountpoint", &testServerDisp{}); err != nil {
 			t.Errorf("server.Publish failed: %v", err)
 			server.Stop()
 			continue
@@ -835,7 +892,7 @@ func TestReconnect(t *testing.T) {
 	if err != nil {
 		t.Fatalf("inaming.NewEndpoint(%q): %v", addr, err)
 	}
-	serverName := naming.JoinAddressName(ep.String(), "server/suffix")
+	serverName := naming.JoinAddressName(ep.String(), "suffix")
 	makeCall := func() (string, error) {
 		call, err := b.client.StartCall(&fakeContext{}, serverName, "Echo", []interface{}{"bratman"})
 		if err != nil {
@@ -913,9 +970,6 @@ func TestProxy(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer server.Stop()
-	if err := server.Register("server", testServerDisp{&testServer{}}); err != nil {
-		t.Fatal(err)
-	}
 
 	name := "mountpoint/server/suffix"
 	makeCall := func() (string, error) {
@@ -937,7 +991,7 @@ func TestProxy(t *testing.T) {
 	if _, err := server.Listen(inaming.Network, "proxy"); err != nil {
 		t.Fatal(err)
 	}
-	if err := server.Publish("mountpoint"); err != nil {
+	if err := server.Serve("mountpoint/server", testServerDisp{&testServer{}}); err != nil {
 		t.Fatal(err)
 	}
 	verifyMount(t, ns, name)
@@ -998,7 +1052,7 @@ func runServer(argv []string) {
 		vlog.Fatalf("InternalNewServer failed: %v", err)
 	}
 	disp := testServerDisp{new(testServer)}
-	if err := server.Register("server", disp); err != nil {
+	if err := server.Serve("server", disp); err != nil {
 		vlog.Fatalf("server.Register failed: %v", err)
 	}
 	ep, err := server.Listen("tcp", argv[0])

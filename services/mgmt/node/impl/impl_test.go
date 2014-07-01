@@ -262,10 +262,7 @@ func startApplicationRepository() (string, func()) {
 	if err != nil {
 		vlog.Fatalf("NewServer() failed: %v", err)
 	}
-	suffix, dispatcher := "", ipc.SoloDispatcher(repository.NewServerApplication(&arInvoker{}), nil)
-	if err := server.Register(suffix, dispatcher); err != nil {
-		vlog.Fatalf("Register(%v, %v) failed: %v", suffix, dispatcher, err)
-	}
+	dispatcher := ipc.SoloDispatcher(repository.NewServerApplication(&arInvoker{}), nil)
 	protocol, hostname := "tcp", "localhost:0"
 	endpoint, err := server.Listen(protocol, hostname)
 	if err != nil {
@@ -273,8 +270,8 @@ func startApplicationRepository() (string, func()) {
 	}
 	vlog.VI(1).Infof("Application repository running at endpoint: %s", endpoint)
 	name := "ar"
-	if err := server.Publish(name); err != nil {
-		vlog.Fatalf("Publish(%v) failed: %v", name, err)
+	if err := server.Serve(name, dispatcher); err != nil {
+		vlog.Fatalf("Serve(%v) failed: %v", name, err)
 	}
 	return name, func() {
 		if err := server.Stop(); err != nil {
@@ -288,10 +285,7 @@ func startBinaryRepository() (string, func()) {
 	if err != nil {
 		vlog.Fatalf("NewServer() failed: %v", err)
 	}
-	suffix, dispatcher := "", ipc.SoloDispatcher(repository.NewServerBinary(&crInvoker{}), nil)
-	if err := server.Register(suffix, dispatcher); err != nil {
-		vlog.Fatalf("Register(%v, %v) failed: %v", suffix, dispatcher, err)
-	}
+	dispatcher := ipc.SoloDispatcher(repository.NewServerContent(&crInvoker{}), nil)
 	protocol, hostname := "tcp", "localhost:0"
 	endpoint, err := server.Listen(protocol, hostname)
 	if err != nil {
@@ -299,8 +293,8 @@ func startBinaryRepository() (string, func()) {
 	}
 	vlog.VI(1).Infof("Binary repository running at endpoint: %s", endpoint)
 	name := "cr"
-	if err := server.Publish(name); err != nil {
-		vlog.Fatalf("Publish(%v) failed: %v", name, err)
+	if err := server.Serve(name, dispatcher); err != nil {
+		vlog.Fatalf("Serve(%v) failed: %v", name, err)
 	}
 	return name, func() {
 		if err := server.Stop(); err != nil {
@@ -318,16 +312,15 @@ func startMountTable(t *testing.T) (string, func()) {
 	if err != nil {
 		t.Fatalf("NewMountTable() failed: %v", err)
 	}
-	suffix := "mt"
-	if err := server.Register(suffix, dispatcher); err != nil {
-		t.Fatalf("Register(%v, %v) failed: %v", suffix, dispatcher, err)
-	}
 	protocol, hostname := "tcp", "localhost:0"
 	endpoint, err := server.Listen(protocol, hostname)
 	if err != nil {
 		t.Fatalf("Listen(%v, %v) failed: %v", protocol, hostname, err)
 	}
-	name := naming.JoinAddressName(endpoint.String(), suffix)
+	if err := server.Serve("", dispatcher); err != nil {
+		t.Fatalf("Serve(%v) failed: %v", dispatcher, err)
+	}
+	name := naming.JoinAddressName(endpoint.String(), "")
 	vlog.VI(1).Infof("Mount table name: %v", name)
 	return name, func() {
 		if err := server.Stop(); err != nil {
@@ -346,18 +339,15 @@ func startNodeManager() (string, func()) {
 	if err != nil {
 		vlog.Fatalf("Listen(%v, %v) failed: %v", protocol, hostname, err)
 	}
-	suffix, envelope := "", &application.Envelope{}
-	name := naming.MakeTerminal(naming.JoinAddressName(endpoint.String(), suffix))
+	envelope := &application.Envelope{}
+	name := naming.MakeTerminal(naming.JoinAddressName(endpoint.String(), ""))
 	vlog.VI(0).Infof("Node manager name: %v", name)
 	// TODO(jsimsa): Replace <PreviousEnv> with a command-line flag when
 	// command-line flags in tests are supported.
 	dispatcher := impl.NewDispatcher(nil, envelope, name, os.Getenv(impl.PreviousEnv))
-	if err := server.Register(suffix, dispatcher); err != nil {
-		vlog.Fatalf("Register(%v, %v) failed: %v", suffix, dispatcher, err)
-	}
 	publishAs := "nm"
-	if err := server.Publish(publishAs); err != nil {
-		vlog.Fatalf("Publish(%v) failed: %v", publishAs, err)
+	if err := server.Serve(publishAs, dispatcher); err != nil {
+		vlog.Fatalf("Serve(%v) failed: %v", publishAs, err)
 	}
 	fmt.Printf("ready\n")
 	return name, func() {
@@ -408,7 +398,7 @@ func TestUpdate(t *testing.T) {
 	ns := runtime.Namespace()
 	// The local, client-side Namespace is now relative to the
 	// MountTable server started above.
-	ns.SetRoots([]string{mtName})
+	ns.SetRoots(mtName)
 	// Spawn a node manager with an identity blessed by the MountTable's
 	// identity under the name "test", and obtain its address.
 	//

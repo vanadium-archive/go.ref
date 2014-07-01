@@ -35,29 +35,31 @@ func TestInterface(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewServer() failed: %v", err)
 	}
+	defer server.Stop()
 
 	// Setup and start a store server.
 	mountPoint, cleanup := testutil.NewStore(t, server, runtime.Identity().PublicID())
 	defer cleanup()
 
+	// Setup and start the profile server.
+	server, err = runtime.NewServer()
+	if err != nil {
+		t.Fatalf("NewServer() failed: %v", err)
+	}
+
 	dispatcher, err := NewDispatcher(mountPoint, nil)
 	if err != nil {
 		t.Fatalf("NewDispatcher() failed: %v", err)
-	}
-	suffix := ""
-	if err := server.Register(suffix, dispatcher); err != nil {
-		t.Fatalf("Register(%v, %v) failed: %v", suffix, dispatcher, err)
 	}
 	protocol, hostname := "tcp", "localhost:0"
 	endpoint, err := server.Listen(protocol, hostname)
 	if err != nil {
 		t.Fatalf("Listen(%v, %v) failed: %v", protocol, hostname, err)
 	}
-	name := ""
-	if err := server.Publish(name); err != nil {
-		t.Fatalf("Publish(%v) failed: %v", name, err)
+	if err := server.Serve("", dispatcher); err != nil {
+		t.Fatalf("Serve failed: %v", err)
 	}
-	t.Logf("Profile repository published at %v/%v", endpoint, name)
+	t.Logf("Profile repository at %v", endpoint)
 
 	// Create client stubs for talking to the server.
 	stub, err := repository.BindProfile(naming.JoinAddressName(endpoint.String(), "//linux/base"))

@@ -2,6 +2,7 @@ package namespace
 
 import (
 	"errors"
+	"runtime"
 
 	"veyron2/context"
 	"veyron2/ipc"
@@ -72,60 +73,77 @@ func makeTerminal(names []string) (ret []string) {
 	return
 }
 
-// Resolve implements veyron2/naming.MountTable.
+// Resolve implements veyron2/naming.Namespace.
 func (ns *namespace) Resolve(ctx context.T, name string) ([]string, error) {
-	vlog.VI(2).Infof("Resolve %s", name)
 	names := ns.rootName(name)
+	if vlog.V(2) {
+		_, file, line, _ := runtime.Caller(1)
+		vlog.Infof("Resolve(%s) called from %s:%d", name, file, line)
+		vlog.Infof("Resolve(%s) -> rootNames %s", name, names)
+	}
 	if len(names) == 0 {
 		return nil, naming.ErrNoMountTable
 	}
 	// Iterate walking through mount table servers.
 	for remaining := maxDepth; remaining > 0; remaining-- {
-		vlog.VI(2).Infof("Resolve loop %s", names)
+		vlog.VI(2).Infof("Resolve(%s) loop %s", name, names)
 		if terminal(names) {
+			vlog.VI(1).Infof("Resolve(%s) -> %s", name, names)
 			return names, nil
 		}
 		var err error
 		curr := names
 		if names, err = resolveAgainstMountTable(ctx, ns.rt.Client(), names); err != nil {
-
 			// If the name could not be found in the mount table, return an error.
 			if verror.Equal(naming.ErrNoSuchNameRoot, err) {
 				err = naming.ErrNoSuchName
 			}
 			if verror.Equal(naming.ErrNoSuchName, err) {
+				vlog.VI(1).Infof("Resolve(%s) -> (NoSuchName: %v)", name, curr)
 				return nil, err
 			}
 			// Any other failure (server not found, no ResolveStep
 			// method, etc.) are a sign that iterative resolution can
 			// stop.
-			return makeTerminal(curr), nil
+			t := makeTerminal(curr)
+			vlog.VI(1).Infof("Resolve(%s) -> %s", name, t)
+			return t, nil
 		}
 	}
 	return nil, naming.ErrResolutionDepthExceeded
 }
 
-// ResolveToMountTable implements veyron2/naming.MountTable.
+// ResolveToMountTable implements veyron2/naming.Namespace.
 func (ns *namespace) ResolveToMountTable(ctx context.T, name string) ([]string, error) {
 	names := ns.rootName(name)
-	vlog.VI(2).Infof("ResolveToMountTable %s -> rootNames %s", name, names)
+	if vlog.V(2) {
+		_, file, line, _ := runtime.Caller(1)
+		vlog.Infof("ResolveToMountTable(%s) called from %s:%d", name, file, line)
+		vlog.Infof("ResolveToMountTable(%s) -> rootNames %s", name, names)
+	}
 	if len(names) == 0 {
 		return nil, naming.ErrNoMountTable
 	}
 	last := names
 	for remaining := maxDepth; remaining > 0; remaining-- {
-		vlog.VI(2).Infof("ResolveToMountTable loop %s", names)
+		vlog.VI(2).Infof("ResolveToMountTable(%s) loop %s", name, names)
 		var err error
 		curr := names
 		if terminal(curr) {
-			return makeTerminal(last), nil
+			t := makeTerminal(last)
+			vlog.VI(1).Infof("ResolveToMountTable(%s) -> %s", name, t)
+			return t, nil
 		}
 		if names, err = resolveAgainstMountTable(ctx, ns.rt.Client(), names); err != nil {
 			if verror.Equal(naming.ErrNoSuchNameRoot, err) {
-				return makeTerminal(last), nil
+				t := makeTerminal(last)
+				vlog.VI(1).Infof("ResolveToMountTable(%s) -> %s (NoSuchRoot: %v)", name, t, curr)
+				return t, nil
 			}
 			if verror.Equal(naming.ErrNoSuchName, err) {
-				return makeTerminal(curr), nil
+				t := makeTerminal(curr)
+				vlog.VI(1).Infof("ResolveToMountTable(%s) -> %s (NoSuchName: %v)", name, t, curr)
+				return t, nil
 			}
 			// Lots of reasons why another error can happen.  We are trying
 			// to single out "this isn't a mount table".
@@ -133,11 +151,14 @@ func (ns *namespace) ResolveToMountTable(ctx context.T, name string) ([]string, 
 			// that means "we are up but don't implement what you are
 			// asking for".
 			if notAnMT(err) {
-				return makeTerminal(last), nil
+				t := makeTerminal(last)
+				vlog.VI(1).Infof("ResolveToMountTable(%s) -> %s", name, t)
+				return t, nil
 			}
 			// TODO(caprita): If the server is unreachable for
 			// example, we may still want to return its parent
 			// mounttable rather than an error.
+			vlog.VI(1).Infof("ResolveToMountTable(%s) -> %v", name, err)
 			return nil, err
 		}
 
@@ -184,7 +205,7 @@ func unresolveAgainstServer(ctx context.T, client ipc.Client, names []string) ([
 // selecting the right branch (or should we return a representative of all
 // branches?).
 
-// Unesolve implements veyron2/naming.MountTable.
+// Unesolve implements veyron2/naming.Namespace.
 func (ns *namespace) Unresolve(ctx context.T, name string) ([]string, error) {
 	vlog.VI(2).Infof("Unresolve %s", name)
 	names, err := ns.Resolve(ctx, name)

@@ -36,10 +36,10 @@ type server struct {
 	sync.Mutex
 	ctx              context.T                // context used by the server to make internal RPCs.
 	streamMgr        stream.Manager           // stream manager to listen for new flows.
-	disptrie         *disptrie                // dispatch trie for method dispatching.
 	publisher        publisher.Publisher      // publisher to publish mounttable mounts.
 	listenerOpts     []stream.ListenerOpt     // listener opts passed to Listen.
 	listeners        map[stream.Listener]bool // listeners created by Listen.
+	disp             ipc.Dispatcher           // dispatcher to serve RPCs
 	active           sync.WaitGroup           // active goroutines we've spawned.
 	stopped          bool                     // whether the server has been stopped.
 	stoppedChan      chan struct{}            // closed when the server has been stopped.
@@ -53,7 +53,6 @@ func InternalNewServer(ctx context.T, streamMgr stream.Manager, ns naming.Namesp
 	s := &server{
 		ctx:         ctx,
 		streamMgr:   streamMgr,
-		disptrie:    newDisptrie(),
 		publisher:   publisher.New(ctx, ns, publishPeriod),
 		listeners:   make(map[stream.Listener]bool),
 		stoppedChan: make(chan struct{}),
@@ -71,15 +70,6 @@ func InternalNewServer(ctx context.T, streamMgr stream.Manager, ns naming.Namesp
 		}
 	}
 	return s, nil
-}
-
-func (s *server) Register(prefix string, disp ipc.Dispatcher) error {
-	s.Lock()
-	defer s.Unlock()
-	if s.stopped {
-		return errServerStopped
-	}
-	return s.disptrie.Register(prefix, disp)
 }
 
 func (s *server) Published() ([]string, error) {
@@ -246,8 +236,21 @@ func (s *server) listenLoop(ln stream.Listener, ep naming.Endpoint) {
 	}
 }
 
-func (s *server) Publish(name string) error {
-	s.publisher.AddName(name)
+func (s *server) Serve(name string, disp ipc.Dispatcher) error {
+	s.Lock()
+	defer s.Unlock()
+	if s.stopped {
+		return errServerStopped
+	}
+	if s.disp != nil && disp != nil && s.disp != disp {
+		return fmt.Errorf("attempt to change dispatcher")
+	}
+	if disp != nil {
+		s.disp = disp
+	}
+	if len(name) > 0 {
+		s.publisher.AddName(name)
+	}
 	return nil
 }
 
@@ -297,39 +300,37 @@ func (s *server) Stop() error {
 
 	// Wait for the publisher and active listener + flows to finish.
 	s.active.Wait()
-
-	// Once all outstanding requests are done, we can clean up the rest of
-	// the state.
-	s.disptrie.Stop()
-
+	s.Lock()
+	s.disp = nil
+	s.Unlock()
 	return firstErr
 }
 
 // flowServer implements the RPC server-side protocol for a single RPC, over a
 // flow that's already connected to the client.
 type flowServer struct {
-	disptrie *disptrie    // dispatch trie
-	server   ipc.Server   // ipc.Server that this flow server belongs to
-	dec      *vom.Decoder // to decode requests and args from the client
-	enc      *vom.Encoder // to encode responses and results to the client
-	flow     stream.Flow  // underlying flow
+	disp   ipc.Dispatcher
+	server ipc.Server   // ipc.Server that this flow server belongs to
+	dec    *vom.Decoder // to decode requests and args from the client
+	enc    *vom.Encoder // to encode responses and results to the client
+	flow   stream.Flow  // underlying flow
 	// Fields filled in during the server invocation.
 
 	// authorizedRemoteID is the PublicID obtained after authorizing the remoteID
 	// of the underlying flow for the current request context.
-	authorizedRemoteID   security.PublicID
-	blessing             security.PublicID
-	method, name, suffix string
-	label                security.Label
-	discharges           security.CaveatDischargeMap
-	deadline             time.Time
-	endStreamArgs        bool // are the stream args at EOF?
+	authorizedRemoteID security.PublicID
+	blessing           security.PublicID
+	method, suffix     string
+	label              security.Label
+	discharges         security.CaveatDischargeMap
+	deadline           time.Time
+	endStreamArgs      bool // are the stream args at EOF?
 }
 
 func newFlowServer(flow stream.Flow, server *server) *flowServer {
 	return &flowServer{
-		server:   server,
-		disptrie: server.disptrie,
+		server: server,
+		disp:   server.disp,
 		// TODO(toddw): Support different codecs
 		dec:  vom.NewDecoder(flow),
 		enc:  vom.NewEncoder(flow),
@@ -449,10 +450,10 @@ func (fs *flowServer) processRequest() ([]interface{}, verror.E) {
 		// should servers be able to assume that a blessing is something that does not
 		// have the authorizations that the server's own identity has?
 	}
+
 	// Lookup the invoker.
-	invoker, auth, name, suffix, verr := fs.lookup(req.Suffix)
-	fs.name = name
-	fs.suffix = suffix
+	invoker, auth, suffix, verr := fs.lookup(req.Suffix)
+	fs.suffix = suffix // with leading /'s stripped
 	if verr != nil {
 		return nil, verr
 	}
@@ -479,7 +480,6 @@ func (fs *flowServer) processRequest() ([]interface{}, verror.E) {
 				LocalID:    fs.flow.LocalID(),
 				RemoteID:   fs.flow.RemoteID(),
 				Method:     fs.method,
-				Name:       fs.name,
 				Suffix:     fs.suffix,
 				Discharges: fs.discharges,
 				Label:      fs.label})); err != nil {
@@ -499,20 +499,18 @@ func (fs *flowServer) processRequest() ([]interface{}, verror.E) {
 // name.  The name is stripped of any leading slashes, and the invoker is looked
 // up in the server's dispatcher.  The (stripped) name and dispatch suffix are
 // also returned.
-func (fs *flowServer) lookup(name string) (ipc.Invoker, security.Authorizer, string, string, verror.E) {
+func (fs *flowServer) lookup(name string) (ipc.Invoker, security.Authorizer, string, verror.E) {
 	name = strings.TrimLeft(name, "/")
-	disps, suffix := fs.disptrie.Lookup(name)
-	for _, disp := range disps {
-		invoker, auth, err := disp.Lookup(suffix)
+	if fs.disp != nil {
+		invoker, auth, err := fs.disp.Lookup(name)
 		switch {
 		case err != nil:
-			return nil, nil, "", "", verror.Convert(err)
+			return nil, nil, "", verror.Convert(err)
 		case invoker != nil:
-			return invoker, auth, name, suffix, nil
+			return invoker, auth, name, nil
 		}
-		// The dispatcher doesn't handle this suffix, try the next one.
 	}
-	return nil, nil, "", "", verror.NotFoundf(fmt.Sprintf("ipc: dispatcher not found for %q", name))
+	return nil, nil, "", verror.NotFoundf(fmt.Sprintf("ipc: dispatcher not found for %q", name))
 }
 
 func (fs *flowServer) authorize(auth security.Authorizer) error {
@@ -561,18 +559,23 @@ func (fs *flowServer) Recv(itemptr interface{}) error {
 
 // Implementations of ipc.ServerContext methods.
 
-func (fs *flowServer) Server() ipc.Server                            { return fs.server }
-func (fs *flowServer) Method() string                                { return fs.method }
-func (fs *flowServer) Name() string                                  { return fs.name }
-func (fs *flowServer) Suffix() string                                { return fs.suffix }
-func (fs *flowServer) Label() security.Label                         { return fs.label }
 func (fs *flowServer) CaveatDischarges() security.CaveatDischargeMap { return fs.discharges }
-func (fs *flowServer) LocalID() security.PublicID                    { return fs.flow.LocalID() }
-func (fs *flowServer) RemoteID() security.PublicID                   { return fs.authorizedRemoteID }
-func (fs *flowServer) Deadline() time.Time                           { return fs.deadline }
-func (fs *flowServer) Blessing() security.PublicID                   { return fs.blessing }
-func (fs *flowServer) LocalEndpoint() naming.Endpoint                { return fs.flow.LocalEndpoint() }
-func (fs *flowServer) RemoteEndpoint() naming.Endpoint               { return fs.flow.RemoteEndpoint() }
+
+func (fs *flowServer) Server() ipc.Server { return fs.server }
+func (fs *flowServer) Method() string     { return fs.method }
+
+// TODO(cnicolaou): remove Name from ipc.ServerContext and all of
+// its implementations
+func (fs *flowServer) Name() string          { return fs.suffix }
+func (fs *flowServer) Suffix() string        { return fs.suffix }
+func (fs *flowServer) Label() security.Label { return fs.label }
+
+func (fs *flowServer) LocalID() security.PublicID      { return fs.flow.LocalID() }
+func (fs *flowServer) RemoteID() security.PublicID     { return fs.authorizedRemoteID }
+func (fs *flowServer) Deadline() time.Time             { return fs.deadline }
+func (fs *flowServer) Blessing() security.PublicID     { return fs.blessing }
+func (fs *flowServer) LocalEndpoint() naming.Endpoint  { return fs.flow.LocalEndpoint() }
+func (fs *flowServer) RemoteEndpoint() naming.Endpoint { return fs.flow.RemoteEndpoint() }
 
 func (fs *flowServer) IsClosed() bool {
 	return fs.flow.IsClosed()

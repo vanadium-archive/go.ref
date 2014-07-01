@@ -41,9 +41,6 @@ func main() {
 
 	var boxApp boxAppEndpoint
 	srv := boxes.NewServerBoxSignalling(&boxApp)
-	if err := s.Register(signallingServiceName, ipc.SoloDispatcher(srv, nil)); err != nil {
-		log.Fatal("failed to Register signalling service: ", err)
-	}
 
 	// Create an endpoint and begin listening.
 	if endPt, err := s.Listen("tcp", signallingServicePort); err == nil {
@@ -52,8 +49,8 @@ func main() {
 		log.Fatal("failed Listen: ", err)
 	}
 
-	if err := s.Publish("/" + signallingServiceName); err != nil {
-		log.Fatal("failed Publish:", err)
+	if err := s.Serve("/"+signallingServiceName, ipc.SoloDispatcher(srv, nil)); err != nil {
+		log.Fatal("failed Serve:", err)
 	}
 
 	<-signals.ShutdownOnSignals()

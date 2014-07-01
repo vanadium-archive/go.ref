@@ -107,9 +107,7 @@ func recvChallenge(rt veyron2.Runtime) gameChallenge {
 	}
 	ch := make(chan gameChallenge)
 
-	if err := server.Register("", ipc.SoloDispatcher(rps.NewServerPlayer(&impl{ch: ch}), sflag.NewAuthorizerOrDie())); err != nil {
-		vlog.Fatalf("Register failed: %v", err)
-	}
+	dispatcher := ipc.SoloDispatcher(rps.NewServerPlayer(&impl{ch: ch}), sflag.NewAuthorizerOrDie())
 	ep, err := server.Listen(*protocol, *address)
 	if err != nil {
 		vlog.Fatalf("Listen(%q, %q) failed: %v", "tcp", *address, err)
@@ -118,8 +116,8 @@ func recvChallenge(rt veyron2.Runtime) gameChallenge {
 	if err != nil {
 		vlog.Fatalf("os.Hostname failed: %v", err)
 	}
-	if err := server.Publish(fmt.Sprintf("rps/player/%s@%s", os.Getenv("USER"), hostname)); err != nil {
-		vlog.Fatalf("Publish failed: %v", err)
+	if err := server.Serve(fmt.Sprintf("rps/player/%s@%s", os.Getenv("USER"), hostname), dispatcher); err != nil {
+		vlog.Fatalf("Serve failed: %v", err)
 	}
 	vlog.Infof("Listening on endpoint /%s", ep)
 	result := <-ch

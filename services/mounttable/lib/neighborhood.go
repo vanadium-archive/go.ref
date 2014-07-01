@@ -24,7 +24,6 @@ const addressPrefix = "address:"
 // neighborhood defines a set of machines on the same multicast media.
 type neighborhood struct {
 	mdns   *mdns.MDNS
-	prefix string // mount point in the process namespace
 	nelems int
 }
 
@@ -59,7 +58,7 @@ func getPort(address string) uint16 {
 	return uint16(port)
 }
 
-func newNeighborhoodServer(prefix, host string, addresses []string, loopback bool) (*neighborhood, error) {
+func newNeighborhoodServer(host string, addresses []string, loopback bool) (*neighborhood, error) {
 	// Create the TXT contents with addresses to announce. Also pick up a port number.
 	var txt []string
 	var port uint16
@@ -87,20 +86,19 @@ func newNeighborhoodServer(prefix, host string, addresses []string, loopback boo
 	mdns.AddService("veyron", "", port, txt...)
 
 	nh := &neighborhood{
-		mdns:   mdns,
-		prefix: prefix,
+		mdns: mdns,
 	}
 	return nh, nil
 }
 
 // NewLoopbackNeighborhoodServer creates a new instance of a neighborhood server on loopback interfaces for testing.
-func NewLoopbackNeighborhoodServer(prefix, host string, addresses ...string) (*neighborhood, error) {
-	return newNeighborhoodServer(prefix, host, addresses, true)
+func NewLoopbackNeighborhoodServer(host string, addresses ...string) (*neighborhood, error) {
+	return newNeighborhoodServer(host, addresses, true)
 }
 
 // NewNeighborhoodServer creates a new instance of a neighborhood server.
-func NewNeighborhoodServer(prefix, host string, addresses ...string) (*neighborhood, error) {
-	return newNeighborhoodServer(prefix, host, addresses, false)
+func NewNeighborhoodServer(host string, addresses ...string) (*neighborhood, error) {
+	return newNeighborhoodServer(host, addresses, false)
 }
 
 // Lookup implements ipc.Dispatcher.Lookup.

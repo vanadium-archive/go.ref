@@ -31,6 +31,7 @@ func TestNeighborhood(t *testing.T) {
 	if err != nil {
 		boom(t, "r.NewServer: %s", err)
 	}
+	defer server.Stop()
 
 	// Start serving on a loopback address.
 	e, err := server.Listen("tcp", "127.0.0.1:0")
@@ -44,20 +45,19 @@ func TestNeighborhood(t *testing.T) {
 		naming.JoinAddressName(estr, "suffix2"),
 	}
 	// Add neighborhood server.
-	nhPrefix := "neighborhood"
-	nhd, err := NewLoopbackNeighborhoodServer(nhPrefix, "joeblow", addresses...)
+	nhd, err := NewLoopbackNeighborhoodServer("joeblow", addresses...)
 	if err != nil {
 		boom(t, "Failed to create neighborhood server: %s\n", err)
 	}
 	defer nhd.Stop()
-	if err := server.Register(nhPrefix, nhd); err != nil {
+	if err := server.Serve("", nhd); err != nil {
 		boom(t, "Failed to register neighborhood server: %s", err)
 	}
 
 	// Wait for the mounttable to appear in mdns
 L:
 	for tries := 1; tries < 2; tries++ {
-		names := doGlob(t, naming.JoinAddressName(estr, "//"+nhPrefix), "*", id)
+		names := doGlob(t, naming.JoinAddressName(estr, "//"), "*", id)
 		t.Logf("names %v", names)
 		for _, n := range names {
 			if n == "joeblow" {
@@ -67,18 +67,18 @@ L:
 		time.Sleep(1 * time.Second)
 	}
 
-	want, got := []string{"joeblow"}, doGlob(t, naming.JoinAddressName(estr, "//neighborhood"), "*", id)
+	want, got := []string{"joeblow"}, doGlob(t, naming.JoinAddressName(estr, "//"), "*", id)
 	if !reflect.DeepEqual(want, got) {
 		t.Errorf("Unexpected Glob result want: %q, got: %q", want, got)
 	}
-	want, got = []string{""}, doGlob(t, naming.JoinAddressName(estr, "//neighborhood/joeblow"), "", id)
+	want, got = []string{""}, doGlob(t, naming.JoinAddressName(estr, "//joeblow"), "", id)
 	if !reflect.DeepEqual(want, got) {
 		t.Errorf("Unexpected Glob result want: %q, got: %q", want, got)
 	}
 
 	// Make sure we can resolve through the neighborhood.
 	expectedSuffix := "a/b"
-	objectPtr, err := mounttable.BindMountTable(naming.JoinAddressName(estr, "//neighborhood/joeblow"+"/"+expectedSuffix), quuxClient(id))
+	objectPtr, err := mounttable.BindMountTable(naming.JoinAddressName(estr, "//joeblow"+"/"+expectedSuffix), quuxClient(id))
 	if err != nil {
 		boom(t, "BindMountTable: %s", err)
 	}

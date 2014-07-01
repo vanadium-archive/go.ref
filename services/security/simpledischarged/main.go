@@ -65,22 +65,14 @@ func main() {
 
 	discharger := isecurity.NewServerDischarger(&discharged{
 		id: r.Identity(), expiration: expiration})
-	err = server.Register("discharged", ipc.SoloDispatcher(discharger, dischargeAuthorizer{}))
-	if err != nil {
-		log.Fatal(err)
-	}
-
+	dispatcher := ipc.SoloDispatcher(discharger, dischargeAuthorizer{})
 	endpoint, err := server.Listen(*protocol, *address+":"+fmt.Sprint(*port))
 	if err != nil {
 		log.Fatal(err)
 	}
-
-	if *publish != "" {
-		if err := server.Publish(*publish); err != nil {
-			log.Fatal(err)
-		}
+	if err := server.Serve(*publish, dispatcher); err != nil {
+		log.Fatal(err)
 	}
-
 	fmt.Println(endpoint)
 	<-signals.ShutdownOnSignals()
 }

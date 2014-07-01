@@ -5,6 +5,7 @@ import (
 
 	"veyron2/context"
 	"veyron2/ipc"
+	"veyron2/vlog"
 )
 
 // mountIntoMountTable mounts a single server into a single mount table.
@@ -52,6 +53,7 @@ func (ns *namespace) Mount(ctx context.T, name, server string, ttl time.Duration
 			finalerr = err
 		}
 	}
+	vlog.VI(1).Infof("Mount(%s, %s) -> %v", name, server, finalerr)
 	return finalerr
 }
 

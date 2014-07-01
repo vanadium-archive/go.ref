@@ -2,7 +2,6 @@ package testutil
 
 import (
 	"crypto/rand"
-	"fmt"
 	"io/ioutil"
 	"os"
 	"testing"
@@ -37,12 +36,9 @@ func NewStore(t *testing.T, server ipc.Server, id security.PublicID) (string, fu
 		t.Fatalf("rand.Read() failed: %v", err)
 	}
 
-	name := fmt.Sprintf("test/%x", buf)
-	t.Logf("Storage server at %v", name)
-
 	// Register the services.
 	storeDispatcher := istore.NewStoreDispatcher(storeService, nil)
-	if err := server.Register(name, storeDispatcher); err != nil {
+	if err := server.Serve("", storeDispatcher); err != nil {
 		t.Fatalf("Register(%v) failed: %v", storeDispatcher, err)
 	}
 
@@ -53,8 +49,7 @@ func NewStore(t *testing.T, server ipc.Server, id security.PublicID) (string, fu
 		t.Fatalf("Listen(%v, %v) failed: %v", protocol, hostname, err)
 	}
 
-	name = naming.JoinAddressName(ep.String(), name)
-	name = naming.MakeTerminal(name)
+	name := naming.JoinAddressName(ep.String(), "")
 
 	// Create a closure that cleans things up.
 	cleanup := func() {

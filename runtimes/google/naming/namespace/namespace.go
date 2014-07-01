@@ -41,7 +41,7 @@ func New(rt veyron2.Runtime, roots ...string) (*namespace, error) {
 }
 
 // SetRoots implements naming.MountTable.SetRoots
-func (ns *namespace) SetRoots(roots []string) error {
+func (ns *namespace) SetRoots(roots ...string) error {
 	if !rooted(roots) {
 		return badRoots(roots)
 	}
@@ -50,6 +50,17 @@ func (ns *namespace) SetRoots(roots []string) error {
 	// TODO(cnicolaou): filter out duplicate values.
 	ns.roots = roots
 	return nil
+}
+
+// Roots implements naming.MountTable.Roots
+func (ns *namespace) Roots() []string {
+	ns.RLock()
+	defer ns.RUnlock()
+	roots := make([]string, len(ns.roots))
+	for i, r := range ns.roots {
+		roots[i] = r
+	}
+	return roots
 }
 
 // rootName 'roots' a name: if name is not a rooted name, it prepends the root

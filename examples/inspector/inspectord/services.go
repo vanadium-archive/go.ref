@@ -5,6 +5,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"veyron2/ipc"
@@ -24,10 +25,7 @@ const (
 
 // Dispatchers create servers, based on the names used. Dispatchers
 // create stubbed or stubless servers.
-type dispatcher struct {
-	service serviceType
-	stubbed bool
-}
+type dispatcher struct{}
 
 // A service represents one of the file, proc or device service
 type server struct {
@@ -138,12 +136,6 @@ func (s *server) ls(glob string, details bool, impl serverInterface) error {
 	return nil
 }
 
-// List is a stubless server method
-func (s *server) List(call ipc.ServerCall, glob string, details bool) error {
-	log.Infof("List: %q details %t", glob, details)
-	return s.ls(glob, details, &stublessServer{call})
-}
-
 // Ls is a stubbed server method
 func (s *server) Ls(context ipc.ServerContext, Glob string, Stream inspector.InspectorServiceLsStream) error {
 	log.Infof("Ls %q", Glob)
@@ -156,37 +148,50 @@ func (s *server) LsDetails(context ipc.ServerContext, Glob string, Stream inspec
 	return s.ls(Glob, true, &stubbedServer{context: context, details: Stream})
 }
 
+type stubwrapper struct {
+	s *server
+}
+
+// List is a stubless server method
+func (s *stubwrapper) List(call ipc.ServerCall, glob string, details bool) error {
+	log.Infof("List: %q details %t", glob, details)
+	return s.s.ls(glob, details, &stublessServer{call})
+}
+
 func (d *dispatcher) Lookup(suffix string) (ipc.Invoker, security.Authorizer, error) {
-	s := &server{service: d.service, suffix: suffix}
-	switch d.service {
-	case fileSvc:
-		cwd, err := os.Getwd()
-		if err != nil {
-			return nil, nil, err
-		}
+	s := &server{}
+	cwd, err := os.Getwd()
+	if err != nil {
+		return nil, nil, err
+	}
+	switch {
+	case strings.HasPrefix(suffix, "stubbed/files"):
 		s.root = cwd
-	case deviceSvc:
-		s.root = "/dev"
-	case procSvc:
-		s.root = "/proc"
-	}
-	if d.stubbed {
+		s.suffix = strings.TrimPrefix(suffix, "stubbed/files")
 		return ipc.ReflectInvoker(inspector.NewServerInspector(s)), nil, nil
-	} else {
+	case strings.HasPrefix(suffix, "stubbed/proc"):
+		s.root = "/proc"
+		s.suffix = strings.TrimPrefix(suffix, "stubbed/proc")
+		return ipc.ReflectInvoker(inspector.NewServerInspector(s)), nil, nil
+	case strings.HasPrefix(suffix, "stubbed/devices"):
+		s.root = "/dev"
+		s.suffix = strings.TrimPrefix(suffix, "stubbed/devices")
+		return ipc.ReflectInvoker(inspector.NewServerInspector(s)), nil, nil
+	case strings.HasPrefix(suffix, "stubless/files"):
+		s.root = cwd
+		s.suffix = strings.TrimPrefix(suffix, "stubless/files")
+		return ipc.ReflectInvoker(&stubwrapper{s}), nil, nil
+	case strings.HasPrefix(suffix, "stubless/proc"):
+		s.root = "/dev"
+		s.suffix = strings.TrimPrefix(suffix, "stubless/proc")
+		return ipc.ReflectInvoker(&stubwrapper{s}), nil, nil
+	case strings.HasPrefix(suffix, "stubless/devices"):
+		s.root = "/proc"
+		s.suffix = strings.TrimPrefix(suffix, "stubless/dev")
 		return ipc.ReflectInvoker(s), nil, nil
+	default:
+		return nil, nil, fmt.Errorf("unrecognised name: %q", suffix)
 	}
-}
-
-func NewFileSvc(stubbed bool) ipc.Dispatcher {
-	return &dispatcher{service: fileSvc, stubbed: stubbed}
-}
-
-func NewProcSvc(stubbed bool) ipc.Dispatcher {
-	return &dispatcher{service: procSvc, stubbed: stubbed}
-}
-
-func NewDeviceSvc(stubbed bool) ipc.Dispatcher {
-	return &dispatcher{service: deviceSvc, stubbed: stubbed}
 }
 
 func readdir(dirname, glob string, ch chan []os.FileInfo, errch chan error) {

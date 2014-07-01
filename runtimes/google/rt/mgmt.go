@@ -52,16 +52,15 @@ func (m *mgmtImpl) init(rt *vrt) error {
 	if m.server, err = rt.NewServer(); err != nil {
 		return err
 	}
-	const suffix = ""
-	if err := m.server.Register(suffix, ipc.SoloDispatcher(appcycle.NewServerAppCycle(m), vflag.NewAuthorizerOrDie())); err != nil {
-		return err
-	}
 	// TODO(caprita): We should pick the address to listen on from config.
 	var ep naming.Endpoint
 	if ep, err = m.server.Listen("tcp", "127.0.0.1:0"); err != nil {
 		return err
 	}
-	return m.callbackToParent(parentName, naming.JoinAddressName(ep.String(), suffix))
+	if err := m.server.Serve("", ipc.SoloDispatcher(appcycle.NewServerAppCycle(m), vflag.NewAuthorizerOrDie())); err != nil {
+		return err
+	}
+	return m.callbackToParent(parentName, naming.JoinAddressName(ep.String(), ""))
 }
 
 func (m *mgmtImpl) callbackToParent(parentName, myName string) error {

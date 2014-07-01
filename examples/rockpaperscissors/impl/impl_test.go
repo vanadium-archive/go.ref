@@ -20,16 +20,16 @@ func startMountTable(t *testing.T, runtime veyron2.Runtime) (string, func()) {
 		t.Fatalf("NewServer() failed: %v", err)
 	}
 	dispatcher, err := mtlib.NewMountTable("")
-	suffix := "mt"
-	if err := server.Register(suffix, dispatcher); err != nil {
-		t.Fatalf("Register(%v, %v) failed: %v", suffix, dispatcher, err)
-	}
+
 	protocol, hostname := "tcp", "localhost:0"
 	endpoint, err := server.Listen(protocol, hostname)
 	if err != nil {
 		t.Fatalf("Listen(%v, %v) failed: %v", protocol, hostname, err)
 	}
-	address := naming.JoinAddressName(endpoint.String(), suffix)
+	if err := server.Serve("", dispatcher); err != nil {
+		t.Fatalf("Serve(%v) failed: %v", dispatcher, err)
+	}
+	address := naming.JoinAddressName(endpoint.String(), "")
 	vlog.VI(1).Infof("Mount table running at endpoint: %s", address)
 	return address, func() {
 		if err := server.Stop(); err != nil {
@@ -40,22 +40,21 @@ func startMountTable(t *testing.T, runtime veyron2.Runtime) (string, func()) {
 
 func startRockPaperScissors(t *testing.T, rt veyron2.Runtime, mtAddress string) (*impl.RPS, func()) {
 	ns := rt.Namespace()
-	ns.SetRoots([]string{mtAddress})
+	ns.SetRoots(mtAddress)
 	server, err := rt.NewServer()
 	if err != nil {
 		t.Fatalf("NewServer failed: %v", err)
 	}
 	rpsService := impl.NewRPS()
-	if err := server.Register("", ipc.SoloDispatcher(rps.NewServerRockPaperScissors(rpsService), nil)); err != nil {
-		t.Fatalf("Register failed: %v", err)
-	}
+
 	if _, err = server.Listen("tcp", "localhost:0"); err != nil {
 		t.Fatalf("Listen failed: %v", err)
 	}
+	disp := ipc.SoloDispatcher(rps.NewServerRockPaperScissors(rpsService), nil)
 	names := []string{"rps/judge/test", "rps/player/test", "rps/scorekeeper/test"}
 	for _, n := range names {
-		if err := server.Publish(n); err != nil {
-			t.Fatalf("Publish(%v) failed: %v", n, err)
+		if err := server.Serve(n, disp); err != nil {
+			t.Fatalf("Serve(%v) failed: %v", n, err)
 		}
 	}
 	return rpsService, func() {

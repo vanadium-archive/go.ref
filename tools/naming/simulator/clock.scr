@@ -3,24 +3,24 @@
 # and with a mount table.
 #
 
-# A 'stand-alone' server, with an internal namespace of 'mt/...'
-clockServer "" mt clock
+# A 'stand-alone' server
+clockServer "" ""
 set STAND_ALONE_CLOCK_NAME=$NAME
 
 set N=$STAND_ALONE_CLOCK_NAME
 print "Stand alone clock server at" $N
 time $N "Using $N"
-set N=/$ADDR//mt
+set N=/$ADDR
 time $N "Using $N"
 
 # Run a root MountTable.
-rootMT mt
+rootMT
 set ROOT_ADDR=$MT_ADDR ROOT_NAME=$MT_NAME
 print ""
 print "Root MountTable at $ROOT_NAME"
 
-clockServer $MT_NAME clocks home_clock
-set CLOCK_NAME=/$ADDR//clocks
+clockServer $MT_NAME clock
+set CLOCK_NAME=/$ADDR
 print "Running Clock Server at $CLOCK_NAME"
 
 # Still bypassing the MountTable
@@ -29,26 +29,17 @@ time $CLOCK_NAME bar
 # Now, let's use the MountTable
 setLocalRoots $ROOT_NAME
 
-set N=home_clock
+set N=clock
 resolve $N
 print $N -> $R0
 
-set N=home_clock/clocks
+set N=/$ROOT_ADDR/clock
 resolve $N
 print $N -> $R0
 
-set N=/$ROOT_ADDR/home_clock/clocks
-resolve $N
-print $N -> $R0
-
-set N=home_clock/clocks
-time $N "Using $N"
-set N=$ROOT_NAME/home_clock/clocks
-time $N "Using $N"
-
-# ls * returns home_clock
+# ls * returns clock
 ls *
-# ls ... returns "" and home_clock - i.e two items. Is this a bug?
+# ls ... returns "" and clock - i.e two items. Is this a bug?
 ls ...
 
 # These all behave as above

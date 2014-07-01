@@ -6,7 +6,9 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"strings"
 	"sync"
+
 	"veyron2"
 	"veyron2/ipc"
 	"veyron2/security"
@@ -35,7 +37,9 @@ type server struct {
 
 	// The server that handles the ipc layer.  Listen on this server is
 	// lazily started.
-	server ipc.Server
+	server     ipc.Server
+	dispatcher exactMatchDispatcher
+
 	// The endpoint of the server.  This is empty until the server has been
 	// started and listen has been called on it.
 	endpoint string
@@ -57,6 +61,7 @@ func newServer(id uint64, veyronProxy string, helper serverHelper) (*server, err
 		helper:                    helper,
 		veyronProxy:               veyronProxy,
 		outstandingServerRequests: make(map[int64]chan *serverRPCReply),
+		dispatcher:                exactMatchDispatcher{dispatchers: make(map[string]ipc.Dispatcher)},
 	}
 	var err error
 	if server.server, err = helper.rt().NewServer(); err != nil {
@@ -141,10 +146,41 @@ func proxyStream(stream ipc.Stream, w clientWriter, logger vlog.Logger) {
 	}
 }
 
+type exactMatchDispatcher struct {
+	sync.Mutex
+	dispatchers map[string]ipc.Dispatcher
+}
+
+func (em *exactMatchDispatcher) Lookup(suffix string) (ipc.Invoker, security.Authorizer, error) {
+	parts := strings.Split(suffix, "/")
+	if len(parts) == 0 || len(parts[0]) == 0 {
+		return nil, nil, fmt.Errorf("can't extract first path component from %q", suffix)
+	}
+	name := parts[0]
+	em.Lock()
+	defer em.Unlock()
+	if disp := em.dispatchers[name]; disp == nil {
+		return nil, nil, fmt.Errorf("no dispatcher registered for %q, from %q", name, suffix)
+	} else {
+		suffix = strings.TrimLeft(suffix, "/")
+		suffix = strings.TrimPrefix(suffix, name[0])
+		suffix = strings.TrimLeft(suffix, "/")
+		return disp.Lookup(suffix)
+	}
+}
+
+// register associates a dispatcher with name, where name cannot contain
+// any /s. Incoming invocations of the form <name>/... will be passed
+// on to the dispatcher with <name>/... as the parameter to its lookup
+// method.
 func (s *server) register(name string, sig JSONServiceSignature) error {
 	serviceSig, err := sig.ServiceSignature()
 	if err != nil {
 		return err
+	}
+
+	if strings.Contains(name, "/") {
+		return fmt.Errorf("%q must not contain /", name)
 	}
 
 	remoteInvokeFunc := s.createRemoteInvokerFunc(name)
@@ -157,10 +193,9 @@ func (s *server) register(name string, sig JSONServiceSignature) error {
 		security.ACL{security.AllPrincipals: security.AllLabels},
 	))
 
-	if err := s.server.Register(name, dispatcher); err != nil {
-		return err
-	}
-
+	s.dispatcher.Lock()
+	s.dispatcher.dispatchers[name] = dispatcher
+	s.dispatcher.Unlock()
 	return nil
 }
 
@@ -175,7 +210,7 @@ func (s *server) publish(name string) (string, error) {
 		}
 		s.endpoint = endpoint.String()
 	}
-	if err := s.server.Publish(name); err != nil {
+	if err := s.server.Serve(name, &s.dispatcher); err != nil {
 		return "", err
 	}
 	s.helper.getLogger().VI(1).Infof("endpoint is %s", s.endpoint)

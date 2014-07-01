@@ -11,7 +11,6 @@ import (
 	mounttable "veyron/services/mounttable/lib"
 
 	"veyron2"
-	"veyron2/ipc"
 	"veyron2/naming"
 	"veyron2/rt"
 	"veyron2/vlog"
@@ -44,16 +43,15 @@ func (*mountTable) Daemon() bool {
 
 func (mt *mountTable) Help() string {
 	if mt.root {
-		return `<prefix>
-run a root mounTable using Register(prefix...)`
+		return "run a root mounTable"
 	} else {
-		return `<root> <prefix> <suffix>
-run a mountTable with root as its root mountTable and using Register(prefix...) and Publish(suffix)`
+		return `<root> <mount point>
+run a mountTable, with <root> as the root for its Namespace, mounted on <mount point>`
 	}
 }
 
 func (mt *mountTable) Run(args []string) (Variables, []string, Handle, error) {
-	if (mt.root && len(args) != 1) || (!mt.root && len(args) != 3) {
+	if (mt.root && len(args) != 0) || (!mt.root && len(args) != 2) {
 		return nil, nil, nil, fmt.Errorf("wrong #args: %s", mt.Help())
 	}
 	name := map[bool]string{true: "rootMT", false: "nodeMT"}[mt.root]
@@ -73,14 +71,14 @@ func (mt *mountTable) Run(args []string) (Variables, []string, Handle, error) {
 }
 
 func rootMTChild(args []string) {
-	if len(args) != 1 {
+	if len(args) != 0 {
 		bbExitWithError("wrong #args")
 	}
 	serveMountTable(true, args)
 }
 
 func leafMTChild(args []string) {
-	if len(args) != 2 {
+	if len(args) != 1 {
 		bbExitWithError("wrong #args")
 	}
 	serveMountTable(false, args)
@@ -93,40 +91,30 @@ func serveMountTable(root bool, args []string) {
 	if err != nil {
 		bbExitWithError(fmt.Sprintf("root failed: %v", err))
 	}
-	prefix := args[0]
-	name, err := newMountTableServer(server, prefix)
+	mp := ""
+	if !root {
+		mp = args[0]
+	}
+	mt, err := mounttable.NewMountTable("")
 	if err != nil {
+		bbExitWithError(fmt.Sprintf("mounttable.NewMountTable failed with %v", err))
+	}
+	ep, err := server.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		bbExitWithError(fmt.Sprintf("server.Listen failed with %v", err))
+	}
+	if err := server.Serve(mp, mt); err != nil {
 		bbExitWithError(fmt.Sprintf("root failed: %v", err))
 	}
-	addr, _ := naming.SplitAddressName(name)
-	if !root {
-		if err := server.Publish(args[1]); err != nil {
-			bbExitWithError(fmt.Sprintf("root failed: %v", err))
-		}
-	}
-	fmt.Printf("MT_ADDR=%s\n", addr)
+	name := naming.JoinAddressName(ep.String(), "")
+	vlog.Infof("Serving MountTable on %q", name)
+
+	fmt.Printf("MT_ADDR=%s\n", ep)
 	fmt.Printf("MT_NAME=%s\n", name)
 	fmt.Printf("PID=%d\n", os.Getpid())
 	fmt.Println("running\n")
 	blackbox.WaitForEOFOnStdin()
 	fmt.Println("done\n")
-}
-
-func newMountTableServer(server ipc.Server, prefix string) (string, error) {
-	mt, err := mounttable.NewMountTable("")
-	if err != nil {
-		return "", fmt.Errorf("NewMountTableServer failed with %v", err)
-	}
-	if err := server.Register(prefix, mt); err != nil {
-		return "", fmt.Errorf("server.Register failed with %v", err)
-	}
-	ep, err := server.Listen("tcp", "127.0.0.1:0")
-	if err != nil {
-		return "", fmt.Errorf("server.Listen failed with %v", err)
-	}
-	name := naming.JoinAddressName(ep.String(), prefix)
-	vlog.Infof("Serving MountTable on %q", name)
-	return name, nil
 }
 
 type setroot struct{}
@@ -151,7 +139,7 @@ func (s *setroot) Run(args []string) (Variables, []string, Handle, error) {
 			return nil, nil, nil, fmt.Errorf("name %q must be rooted", r)
 		}
 	}
-	rt.R().Namespace().SetRoots(args)
+	rt.R().Namespace().SetRoots(args...)
 	return nil, nil, nil, nil
 }
 

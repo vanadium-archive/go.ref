@@ -69,20 +69,15 @@ func main() {
 
 	// Register the services.
 	storeDisp := server.NewStoreDispatcher(storeService, auth)
-	if err := s.Register("", storeDisp); err != nil {
-		log.Fatal("s.Register(storeDisp) failed: ", err)
-	}
-
 	// Create an endpoint and start listening.
 	ep, err := s.Listen("tcp", *address)
 	if err != nil {
 		log.Fatal("s.Listen() failed: ", err)
 	}
-
 	// Publish the service in the mount table.
 	log.Printf("Mounting store on %s, endpoint /%s", mountName, ep)
-	if err := s.Publish(mountName); err != nil {
-		log.Fatal("s.Publish() failed: ", err)
+	if err := s.Serve(mountName, storeDisp); err != nil {
+		log.Fatal("s.Serve() failed: ", err)
 	}
 
 	// Wait forever.

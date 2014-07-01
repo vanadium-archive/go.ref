@@ -58,7 +58,7 @@ func main() {
 			return
 		}
 	}
-	fmt.Fprintf(os.Stderr, "need to use a one of '.../stubbed/...' or '.../stubless/...'\n")
+	fmt.Fprintf(os.Stderr, "need to use one of '.../stubbed/...' or '.../stubless/...'\n")
 	os.Exit(1)
 }
 
@@ -117,8 +117,12 @@ func stubless() {
 	} else {
 		ls(call)
 	}
-	if err := call.Finish(); err != nil && err != io.EOF {
+	var verr error
+	if err := call.Finish(&verr); err != nil && err != io.EOF {
 		vlog.Fatalf("%q", err)
+	}
+	if verr != nil {
+		vlog.Fatalf("%q", verr)
 	}
 }
 

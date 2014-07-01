@@ -24,23 +24,29 @@ func TestInterface(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewServer() failed: %v", err)
 	}
+	defer server.Stop()
 
 	// Setup and start a store server.
-	name, cleanup := testutil.NewStore(t, server, runtime.Identity().PublicID())
+	store, cleanup := testutil.NewStore(t, server, runtime.Identity().PublicID())
 	defer cleanup()
 
-	dispatcher, err := NewDispatcher(name, nil)
+	server, err = runtime.NewServer()
+	if err != nil {
+		t.Fatalf("NewServer() failed: %v", err)
+	}
+
+	dispatcher, err := NewDispatcher(store, nil)
 	if err != nil {
 		t.Fatalf("NewDispatcher() failed: %v", err)
 	}
-	suffix := ""
-	if err := server.Register(suffix, dispatcher); err != nil {
-		t.Fatalf("Register(%v, %v) failed: %v", suffix, dispatcher, err)
-	}
+
 	protocol, hostname := "tcp", "localhost:0"
 	endpoint, err := server.Listen(protocol, hostname)
 	if err != nil {
 		t.Fatalf("Listen(%v, %v) failed: %v", protocol, hostname, err)
+	}
+	if err := server.Serve("", dispatcher); err != nil {
+		t.Fatalf("Serve(%v) failed: %v", dispatcher, err)
 	}
 
 	// Create client stubs for talking to the server.

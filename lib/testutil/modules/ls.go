@@ -99,7 +99,7 @@ func lsUsingResolve(name, pattern string) ([]string, error) {
 	if err != nil {
 		return []string{}, err
 	}
-	stream, err := mtpt.Glob(nil, pattern)
+	stream, err := mtpt.Glob(rt.R().NewContext(), pattern)
 	if err != nil {
 		return []string{}, err
 	}
