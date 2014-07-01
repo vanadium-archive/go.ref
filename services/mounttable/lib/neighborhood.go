@@ -132,10 +132,11 @@ func (nh *neighborhood) neighbor(instance string) []mounttable.MountedServer {
 	var reply []mounttable.MountedServer
 	si := nh.mdns.ResolveInstance(instance, "veyron")
 
+	// Use a map to dedup any addresses seen
+	addrMap := make(map[string]uint32)
+
 	// Look for any TXT records with addresses.
 	for _, rr := range si.TxtRRs {
-		// Use a map to dedup any addresses seen
-		addrMap := make(map[string]uint32)
 		for _, s := range rr.Txt {
 			if !strings.HasPrefix(s, addressPrefix) {
 				continue
@@ -143,9 +144,9 @@ func (nh *neighborhood) neighbor(instance string) []mounttable.MountedServer {
 			addr := s[len(addressPrefix):]
 			addrMap[addr] = rr.Header().Ttl
 		}
-		for addr, ttl := range addrMap {
-			reply = append(reply, mounttable.MountedServer{addr, ttl})
-		}
+	}
+	for addr, ttl := range addrMap {
+		reply = append(reply, mounttable.MountedServer{addr, ttl})
 	}
 
 	if reply != nil {

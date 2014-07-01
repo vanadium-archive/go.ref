@@ -78,7 +78,7 @@ func main() {
 	mtAddr := naming.JoinAddressName(mtEndpoint.String(), "")
 	r.Namespace().SetRoots(mtAddr)
 
-	vlog.Infof("Mount table service at: %q (%s)",
+	vlog.Infof("Mount table service at: %q endpoint: %s",
 		name,
 		naming.JoinAddressName(mtEndpoint.String(), ""))
 
@@ -98,7 +98,7 @@ func main() {
 			vlog.Errorf("nhServer.Listen failed: %v", err)
 			return
 		}
-		nh, err := mounttable.NewNeighborhoodServer("", *nhName, mtAddr)
+		nh, err := mounttable.NewNeighborhoodServer(*nhName, mtAddr)
 		if err != nil {
 			vlog.Errorf("NewNeighborhoodServer failed: %v", err)
 			return
