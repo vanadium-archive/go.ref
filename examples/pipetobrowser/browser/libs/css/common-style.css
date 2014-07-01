@@ -1,0 +1,28 @@
+.hidden {
+  display: none !important;
+}
+
+.secondary-text {
+  color: rgba(0,0,0,.54);
+}
+
+.no-wrap {
+  white-space: nowrap;
+}
+
+.screen-reader {
+  position: absolute;
+  top: -1000px;
+  left: -1000px;
+  width: 0px !important;
+  height: 0px !important;
+}
+
+@-webkit-keyframes blink {
+  0% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0.05;
+  }
+}

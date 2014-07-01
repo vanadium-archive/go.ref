@@ -1,31 +1,47 @@
 <link rel="import" href="/libs/vendor/polymer/polymer/polymer.html">
-<polymer-element name="p2b-grid-column-renderer" extends="th" attributes="data gridState" expects-grid-state on-tap="{{ updateGridState }}">
+<link rel="import" href="/libs/vendor/polymer/paper-button/paper-button.html">
+<polymer-element name="p2b-grid-column-renderer" extends="th" attributes="data gridState" expects-grid-state>
   <template>
     <link rel="stylesheet" href="renderer.css">
-    <span> {{ data.label }}</span>
-    <template if="{{ data.sortable && gridState.sort.key == data.key }}">
-
-      <template if="{{ gridState.sort.ascending }}">
-        <span>▲</span>
-      </template>
-
-      <template if="{{ !gridState.sort.ascending }}">
-        <span>▼</span>
-      </template>
-    </template>
-
+    <paper-button label="{{ formattedLabel }}" disabled?="{{!data.sortable}}" on-tap="{{ updateGridState }}"></paper-button>
   </template>
   <script>
    /*
     * @private
     */
     Polymer('p2b-grid-column-renderer', {
+      'observe': {
+        'data.flex' : 'updateWidth',
+        'data.totalFlex' : 'updateWidth'
+      },
+
+      domReady: function() {
+        this.updateWidth();
+      },
+
+      updateWidth: function() {
+        // calculate the width value based on flex and total flex of the whole grid.
+        this.style.width = (this.data.flex / this.data.totalFlex) * 100 + '%';
+      },
+
       updateGridState:function() {
         if( !this.data.sortable ) {
           return;
         }
         this.gridState.sort.ascending = !this.gridState.sort.ascending;
         this.gridState.sort.key = this.data.key;
+      },
+
+      get formattedLabel() {
+        if (!this.data.sortable || this.gridState.sort.key != this.data.key) {
+          return this.data.label;
+        }
+
+        if (this.gridState.sort.ascending) {
+          return this.data.label + ' \u21A7'; // up wedge unicode character
+        } else {
+          return this.data.label + ' \u21A5'; // down wedge unicode character
+        }
       }
     });
   </script>

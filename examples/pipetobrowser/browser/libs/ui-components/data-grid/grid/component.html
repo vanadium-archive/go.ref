@@ -1,23 +1,34 @@
 <link rel="import" href="/libs/vendor/polymer/polymer/polymer.html">
+<link rel="import" href="/libs/vendor/polymer/paper-icon-button/paper-icon-button.html">
+<link rel="import" href="/libs/vendor/polymer/paper-dialog/paper-dialog.html">
+<link rel="import" href="/libs/vendor/polymer/paper-dialog/paper-dialog-transition.html">
+<link rel="import" href="/libs/vendor/polymer/paper-fab/paper-fab.html">
+<link rel="import" href="/libs/vendor/polymer/core-collapse/core-collapse.html">
 <link rel="import" href="/libs/ui-components/data-grid/grid/row/renderer.html">
 <link rel="import" href="/libs/ui-components/data-grid/grid/cell/renderer.html">
 <link rel="import" href="/libs/ui-components/data-grid/grid/column/renderer.html">
 
 <polymer-element name="p2b-grid" attributes="summary dataSource defaultSortKey defaultSortAscending">
   <template>
+    <link rel="stylesheet" href="/libs/css/common-style.css">
     <link rel="stylesheet" href="component.css">
     <div id="templates"></div>
-    <div>
-      <content select="[grid-search]"></content>
-    </div>
-    <div>
-      <content select="[grid-filter]"></content>
-    </div>
-    <div>{{ dataSourceResult.length }} items</div>
-    <table summary="{{ summary }}">
+    <core-collapse id="searchTools">
+      <div class="result-count">Showing {{ dataSourceResult.length }} items</div>
+      <div>
+        <content select="[grid-search]"></content>
+      </div>
+      <div>
+        <content select="[grid-filter]"></content>
+      </div>
+    </core-collapse>
+    <table id="table" summary="{{ summary }}" cellpadding="0" cellpadding="0" border="0"  style="visibility:hidden" >
       <thead>
         <tr>
           <th is="p2b-grid-column-renderer" gridState="{{ gridState }}" data="{{ col.columnData }}" repeat="{{ col in columns }}" template></th>
+          <th style="width:40px">&nbsp;<span class="screen-reader">More info</span>
+            <paper-fab class="search-fab" focused icon="search" on-tap="{{ toggleSearchTools }}"></paper-fab>
+          </th>
         </tr>
       </thead>
       <tbody>
@@ -28,12 +39,31 @@
          W3C Spec bug: https://www.w3.org/Bugs/Public/show_bug.cgi?id=15616
          -->
         <tr is="p2b-grid-row-renderer" repeat="{{ item in dataSourceResult }}" template>
-          <td is="p2b-grid-cell-renderer" repeat="{{ col in columns }}" template>
+          <td is="p2b-grid-cell-renderer" data="{{ col.columnData }}" repeat="{{ col in columns }}" template>
             <template ref="{{ col.cellTemplateId }}" bind></template>
+          </td>
+          <td>
+            <paper-icon-button on-tap="{{ showMoreInfo }}" class="more-icon" icon="more-vert" title="more info"></paper-icon-button
+            >
           </td>
         </tr>
       </tbody>
     </table>
+
+    <!-- Dialog that displays all columns and their values when more info icon activated -->
+    <paper-dialog layered id="dialog" heading="Details" transition="paper-dialog-transition-bottom">
+      <template id="moreInfoTemplate" bind>
+        <div class="more-dialog-content">
+          <template repeat="{{ item in selectedItems }}">
+            <template repeat="{{ col in columns }}">
+              <h3 class="heading">{{ col.columnData.label }}</h3>
+              <div class="details"><template ref="{{ col.cellTemplateId }}" bind></template></div>
+            </template>
+          </template>
+        </div>
+      </template>
+    </paper-dialog>
+
   </template>
   <script>
     /*
@@ -113,6 +143,16 @@
        */
       defaultSortAscending: false,
 
+      showMoreInfo: function(e) {
+        // quirk + hack: cheating here and breaking shadow dom boundaries
+        // since paper-dialog does not support backdrop yet
+        this.$.dialog.shadowRoot.querySelector('#overlay').backdrop = true;
+
+        var item = e.target.templateInstance.model.item;
+        this.selectedItems = [item];
+        this.$.dialog.opened = true;
+      },
+
       ready: function() {
 
         // private property fields
@@ -138,8 +178,22 @@
         this.initTemplates(); // loads cell templates
         this.initGridStateDependents(); //  initialize filters and search
         this.initGridStateObserver(); // observe changes to grid state by filters
+
       },
 
+      /*
+       * Called by Polymer when DOM is read.
+       * @private
+       */
+      domReady: function() {
+        this.adjustFlexWidths();
+        this.$.table.style.visibility = 'visible';
+      },
+
+      /*
+       * Called by Polymer when dataSource attribute changes.
+       * @private
+       */
       dataSourceChanged: function() {
         this.refresh();
       },
@@ -169,18 +223,50 @@
        * @private
        */
       initTemplates: function() {
+        var self = this;
         var columnNodes = this.querySelectorAll('[grid-column]');
+        var totalFlex = 0;
         for (var i = 0; i < columnNodes.length; i++) {
           var col = columnNodes[i];
           var cellTemplate = col.querySelector('template');
+          this.originalContext = cellTemplate.model;
           var cellTemplateId = "userProvidedCellTemplate" + i;
           cellTemplate.id = cellTemplateId;
           this.$.templates.appendChild(cellTemplate);
+          totalFlex += col.flex;
+          col.origFlex = col.flex;
           this.columns.push({
             cellTemplateId: cellTemplateId,
             columnData: col
           });
         }
+
+        // add up the total value of flex attribute on each column and add it to data
+        this.columns.forEach(function(c) {
+          c.columnData.totalFlex = totalFlex;
+        });
+
+        // readjust the widths on resize
+        var previousTableWidth = self.$.table.offsetWidth;
+        onResizeHandler = function() {
+          var newWidth = self.$.table.offsetWidth;
+          if (newWidth != previousTableWidth) {
+            self.adjustFlexWidths();
+          }
+          previousTableWidth = newWidth;
+        };
+
+        // quirks: since there is no good way to know if width changes, we pull.
+        // window.resize does not cover all resize cases
+        this.resizeInterval = setInterval(onResizeHandler, 50);
+      },
+
+      /*
+       * Called by Polymer when DOM is gone. We need to unbind custom event listeners here.
+       * @private
+       */
+      detached: function() {
+        clearInterval(this.resizeInterval);
       },
 
       /*
@@ -206,6 +292,80 @@
       },
 
       /*
+       * Performs responsive changes for the grid.
+       * Values of flex, minFlex and priority attributes on the grid column decides
+       * the responsive behavior.
+       * Grid assumes the original total number of columns can fit on a 768px width,
+       * if width of the grid container is less than that, then it starts to reduce
+       * flex values for each columns in reverse priority one by one until it reaches
+       * the minFlex value for all columns.
+       * If it still needs to reduce the width of the table at this point, it starts hiding
+       * columns in reverse priority order.
+       */
+      adjustFlexWidths: function() {
+        var minWidth = 768;
+        var tableWidth = this.$.table.offsetWidth;
+
+        if (tableWidth >= minWidth) {
+          return;
+        }
+
+        // reset to original flex values
+        for (var i = 0; i < this.columns.length; i++) {
+          var col = this.columns[i];
+          col.columnData.flex = col.columnData.origFlex;
+        }
+
+        // total of all flex values from all columns
+        var totalFlex = this.columns.reduce( function(prev, col) {
+          return prev + col.columnData.flex;
+        }, 0);
+
+        // number of pixels per flex point
+        var pixelPerFlex = Math.floor(tableWidth / totalFlex);
+        // number of flex points we need to eliminate to same pixelPerFlex as the minWidth case
+        var numFlexToEliminate = Math.ceil((minWidth - tableWidth) / pixelPerFlex);
+
+        // sort from least important to most important
+        var sortedColumnsData = this.columns.map(function(col) {
+          return col.columnData
+        }).sort(function(a, b) {
+          return b.priority - a.priority;
+        });
+
+        // first try to reduce each flex value until we hit min-flex for each column
+        var numElimintedFlex = 0
+        var numIrreducableColumns = 0;
+        var numColumns = sortedColumnsData.length;
+        while (numElimintedFlex < numFlexToEliminate && numIrreducableColumns < numColumns) {
+          for (var i = 0; i < numColumns; i++) {
+            var col = sortedColumnsData[i];
+            if (col.flex > col.minFlex) {
+              col.flex--;
+              numElimintedFlex++;
+            } else {
+              numIrreducableColumns++;
+            }
+          }
+        }
+
+        // if still need to reduce, start eliminating whole columns based on priority
+        // never eliminate the top priority column, hence only iterate to numColumns - 1
+        if (numElimintedFlex < numFlexToEliminate) {
+          for (var i = 0; i < numColumns - 1 && numElimintedFlex < numFlexToEliminate; i++) {
+            var col = sortedColumnsData[i];
+            numElimintedFlex += col.flex;
+            col.flex = 0;
+          }
+        }
+
+        // update the new totalFlex for each column
+        this.columns.forEach(function(c) {
+          c.columnData.totalFlex = totalFlex - numFlexToEliminate;
+        });
+      },
+
+      /*
        * dataSourceResult is what the UI binds to and integrate over.
        * Only fetches data if scheduled to do so
        * @private
@@ -224,6 +384,14 @@
         this.shouldRefetchData = false;
 
         return this.cachedDataSourceResult;
+      },
+
+      /*
+       * collapse/show search and filter container.
+       * @private
+       */
+      toggleSearchTools: function() {
+        this.$.searchTools.toggle();
       }
     });
   </script>

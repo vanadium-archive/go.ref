@@ -1,5 +1,5 @@
 <link rel="import" href="/libs/vendor/polymer/polymer/polymer.html">
-<polymer-element name="p2b-grid-column" grid-column attributes="label sortable key">
+<polymer-element name="p2b-grid-column" grid-column attributes="label sortable key primary wrap flex minFlex priority">
   <script>
     Polymer('p2b-grid-column', {
       /*
@@ -9,10 +9,50 @@
       label: '',
 
       /*
+       * number specifying how flexible the width of the column is
+       * compared to other columns. For instance for a grid with three columns
+       * flex values of 1, 3, 1. means the middle column needs to be three times
+       * as wide as the other two.
+       * Flex value of 0 means the column should not be displayed.
+       * Flex values for all the columns can add up to any value.
+       * @type {integer}
+       */
+      flex: 1,
+
+      /*
+       * minimum Flex value that this column can be reduced to by the responsive data grid
+       * Defaults to 1 meaning column can be reduced to 1 flex as available space shrinks.
+       * @type {integer}
+       */
+      minFlex: 1,
+
+      /*
+       * specifies the importance of this column. Responsive grid uses this number
+       * to decide which columns to reduce/hide when available space shrinks.
+       * Lower number means more important.
+       * @type {integer}
+       */
+      priority: 1,
+
+      /*
        * whether this column is sortable
        * @type {boolean}
        */
       sortable: false,
+
+      /*
+       * whether this the primary column of the grid.
+       * Normally there is a single column that other columns are dependents on
+       * @type {boolean}
+       */
+      primary: false,
+
+
+      /*
+       * whether text inside the cells of this columns are allowed to wrap.
+       * @type {boolean}
+       */
+      wrap: false,
 
       /*
        * Key that will be pass as sort.key to fetch() function of your data source.

@@ -3,7 +3,7 @@
 <polymer-element name="p2b-grid-search" grid-search expects-grid-state attributes="label">
   <template>
     <link rel="stylesheet" href="component.css">
-    <paper-input on-change="{{ updateGridState }}" id="search" label="{{ label }}"></paper-input>
+    <paper-input inputValue="{{ value }}" id="search" label="{{ label }}"></paper-input>
   </template>
   <script>
     /*
@@ -15,8 +15,8 @@
        * @type {string}
        */
       label: '',
-      updateGridState: function() {
-        this.gridState.search.keyword = this.$.search.value.trim();
+      valueChanged: function() {
+        this.gridState.search.keyword = this.value;
       }
     });
   </script>

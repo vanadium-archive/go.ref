@@ -10,7 +10,6 @@ import { View } from 'view';
 import { PipeViewer } from 'pipe-viewer';
 import { vLogDataSource } from './data-source';
 import { Logger } from 'logger'
-
 var log = new Logger('pipe-viewers/builtin/vlog');
 
 var streamUtil = require('event-stream');
@@ -30,23 +29,53 @@ class vLogPipeViewer extends PipeViewer {
     // create a new data source from the stream and set it.
     logView.dataSource = new vLogDataSource(
       stream,
-      function onNewItem() {
+      function onNewItem(item) {
         // also refresh the grid when new data comes in.
         // grid component batches requests and refreshes UI on the next animation frame.
         logView.refreshGrid();
+
+        // add additional, UI related properties to the item
+        addAdditionalUIProperties(item);
       },
       function onError(err) {
         log.debug(err);
       });
 
-    // also refresh the grid when new data comes in.
-    // grid component batches requests and refreshes UI on the next animation frame.
-    stream.on('data', () => {
-      logView.refreshGrid();
-    });
-
     return new View(logView);
   }
+}
+
+/*
+ * Adds additional UI specific properties to the item
+ * @private
+ */
+function addAdditionalUIProperties(item) {
+  addIconProperty(item);
+}
+
+/*
+ * Adds an icon property to the item specifying what icon to display
+ * based on log level
+ * @private
+ */
+function addIconProperty(item) {
+  var iconName = 'info';
+  switch (item.level) {
+    case 'info':
+      iconName = 'info-outline';
+      break;
+    case 'warning':
+      iconName = 'warning';
+      break;
+    case 'error':
+      iconName = 'info';
+      break;
+    case 'fatal':
+      iconName = 'block';
+      break;
+  }
+
+  item.icon = iconName;
 }
 
 export default vLogPipeViewer;

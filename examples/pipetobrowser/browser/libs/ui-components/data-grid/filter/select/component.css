@@ -1,0 +1,19 @@
+paper-checkbox, paper-radio-button {
+  padding: 16px 16px 0px 12px !important;
+}
+
+paper-checkbox::shadow #ink[checked] {
+  color: #4285f4;
+}
+
+paper-checkbox::shadow #checkbox.checked {
+  border-color: #4285f4;
+}
+
+paper-radio-button::shadow #ink[checked] {
+  color: #e91e63;
+}
+
+paper-radio-button::shadow #onRadio {
+  background-color: #e91e63;
+}

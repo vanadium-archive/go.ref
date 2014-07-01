@@ -1,0 +1,26 @@
+:host {
+  color: rgba(0,0,0, 0.26);
+  font-weight: normal;
+  text-align: left;
+  white-space: nowrap;
+}
+
+paper-button {
+  text-align: left;
+  width: 100%;
+  text-transform: none;
+}
+
+paper-button[disabled] {
+  background: inherit !important;
+  color: inherit !important;
+}
+
+paper-button[disabled] {
+  background: inherit !important;
+  color: inherit !important;
+}
+
+paper-button::shadow #ripple {
+  color: #0f9d58;
+}

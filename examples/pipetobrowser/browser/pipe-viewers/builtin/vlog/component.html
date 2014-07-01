@@ -1,4 +1,5 @@
 <link rel="import" href="/libs/vendor/polymer/polymer/polymer.html">
+<link rel="import" href="/libs/vendor/polymer/core-icon/core-icon.html">
 <link rel="import" href="/libs/ui-components/data-grid/grid/component.html">
 <link rel="import" href="/libs/ui-components/data-grid/grid/column/component.html">
 <link rel="import" href="/libs/ui-components/data-grid/filter/select/component.html">
@@ -8,6 +9,7 @@
 
 <polymer-element name="p2b-plugin-vlog">
   <template>
+    <link rel="stylesheet" href="/libs/css/common-style.css">
     <link rel="stylesheet" href="component.css">
 
     <p2b-grid id="grid" defaultSortKey="date" defaultSortAscending dataSource="{{ dataSource }}" summary="Data Grid displaying veyron log items in a tabular format with filters and search options.">
@@ -16,7 +18,7 @@
       <p2b-grid-search label="Search Logs"></p2b-grid-search>
 
       <!-- Filter to select log level (multiple allowed) -->
-      <p2b-grid-filter-select multiple key="level" label="Levels">
+      <p2b-grid-filter-select multiple key="level" label="Show levels">
         <p2b-grid-filter-select-item checked label="Fatal" value="fatal"></p2b-grid-filter-select-item>
         <p2b-grid-filter-select-item checked label="Error" value="error"></p2b-grid-filter-select-item>
         <p2b-grid-filter-select-item checked label="Warning" value="warning"></p2b-grid-filter-select-item>
@@ -24,7 +26,7 @@
       </p2b-grid-filter-select>
 
       <!-- Filter to select date range -->
-      <p2b-grid-filter-select key="date" label="Date">
+      <p2b-grid-filter-select key="date" label="Logs since">
         <p2b-grid-filter-select-item checked label="Any time" value="all"></p2b-grid-filter-select-item>
         <p2b-grid-filter-select-item label="Past 1 hour" value="1"></p2b-grid-filter-select-item>
         <p2b-grid-filter-select-item label="Past 24 hours" value="24"></p2b-grid-filter-select-item>
@@ -34,20 +36,22 @@
       <p2b-grid-filter-toggle key="autorefresh" label="Live Refresh" checked></p2b-grid-filter-toggle>
 
       <!-- Columns, sorting and cell templates -->
-      <p2b-grid-column sortable label="Level" key="level">
-        <template>{{ item.level }}</template>
+      <p2b-grid-column label="Level" key="level" sortable flex="1" priority="2" >
+        <template>
+          <core-icon class="level-icon {{ item.level }}" icon="{{ item.icon }}" title="{{item.level}}"></core-icon>
+        </template>
       </p2b-grid-column>
-      <p2b-grid-column sortable label="File" key="file">
-        <template>{{ item.file }}<span class="lineNumber">{{ item.fileLine }}</template>
+      <p2b-grid-column label="File" key="file" sortable flex="3" minFlex="2" priority="4" >
+        <template>{{ item.file }}<span class="line-number">{{ item.fileLine }}</span></template>
       </p2b-grid-column>
-      <p2b-grid-column label="Message" key="message">
-        <template>{{ item.message }}</template>
+      <p2b-grid-column label="Message" key="message" primary flex="7" minFlex="5" priority="1" >
+        <template><div class="message-text">{{ item.message }}</div></template>
       </p2b-grid-column>
-      <p2b-grid-column sortable label="Date" key="date">
-        <template>{{ item.date }}</template>
+      <p2b-grid-column label="Date" key="date" sortable flex="5" minFlex="3" priority="3">
+        <template><span class="smaller-text">{{ item.date }}</span></template>
       </p2b-grid-column>
-      <p2b-grid-column sortable label="threadid" key="threadid">
-        <template>{{ item.threadid }}</template>
+      <p2b-grid-column label="Threadid" key="threadid" sortable flex="0" priority="5">
+        <template>{{ item.threadId }}</template>
       </p2b-grid-column>
 
     </p2b-grid>

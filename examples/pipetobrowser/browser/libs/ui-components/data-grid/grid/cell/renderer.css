@@ -1,0 +1,9 @@
+.cell {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  padding: 0.75em 0.5em;
+}
+
+:host {
+  overflow: hidden;
+}

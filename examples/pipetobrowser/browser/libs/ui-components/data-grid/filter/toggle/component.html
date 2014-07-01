@@ -3,7 +3,11 @@
 <polymer-element name="p2b-grid-filter-toggle" attributes="key checked label" grid-filter expects-grid-state>
   <template>
     <link rel="stylesheet" href="component.css">
-    <paper-toggle-button id="toggle" on-change="{{ updateGridState }}" checked?="{{ checked }}"></paper-toggle-button>
+    <link rel="stylesheet" href="../common.css">
+    <div class="filter-container">
+      <h3>{{label}}</h3>
+      <paper-toggle-button id="toggle" on-change="{{ updateGridState }}" checked?="{{ checked }}"></paper-toggle-button>
+    </div>
   </template>
   <script>
     Polymer('p2b-grid-filter-toggle', {
