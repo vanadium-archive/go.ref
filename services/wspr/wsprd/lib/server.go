@@ -163,7 +163,7 @@ func (em *exactMatchDispatcher) Lookup(suffix string) (ipc.Invoker, security.Aut
 		return nil, nil, fmt.Errorf("no dispatcher registered for %q, from %q", name, suffix)
 	} else {
 		suffix = strings.TrimLeft(suffix, "/")
-		suffix = strings.TrimPrefix(suffix, name[0])
+		suffix = strings.TrimPrefix(suffix, name)
 		suffix = strings.TrimLeft(suffix, "/")
 		return disp.Lookup(suffix)
 	}
