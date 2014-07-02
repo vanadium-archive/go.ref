@@ -245,18 +245,13 @@ func (gs *goState) monitorStore() {
 
 func (gs *goState) registerAsPeer() {
 	auth := security.NewACLAuthorizer(security.ACL{security.AllPrincipals: security.LabelSet(security.AdminLabel)})
-	srv, err := gs.runtime.NewServer()
-	if err != nil {
-		panic(fmt.Errorf("Failed runtime.NewServer:%v", err))
-	}
-	drawServer := boxes.NewServerDrawInterface(gs)
 	gs.disp.drawAuth = auth
-	gs.disp.drawServer = ipc.ReflectInvoker(drawServer)
-	endPt, err := srv.Listen("tcp", gs.myIPAddr+drawServicePort)
+	gs.disp.drawServer = ipc.ReflectInvoker(boxes.NewServerDrawInterface(gs))
+	endPt, err := gs.ipc.Listen("tcp", gs.myIPAddr+drawServicePort)
 	if err != nil {
 		panic(fmt.Errorf("Failed to Listen:%v", err))
 	}
-	if err := srv.Serve("", &gs.disp); err != nil {
+	if err := gs.ipc.Serve("", &gs.disp); err != nil {
 		panic(fmt.Errorf("Failed Register:%v", err))
 	}
 	if err := gs.signalling.Add(gs.runtime.TODOContext(), endPt.String()); err != nil {
