@@ -4,12 +4,14 @@ package main
 
 import (
 	"log"
+	"strings"
 
 	"veyron/examples/boxes"
 	"veyron/lib/signals"
 
 	"veyron2/ipc"
 	"veyron2/rt"
+	"veyron2/security"
 )
 
 const (
@@ -28,6 +30,15 @@ func (b *boxAppEndpoint) Add(_ ipc.ServerContext, Endpoint string) (err error) {
 func (b *boxAppEndpoint) Get(_ ipc.ServerContext) (Endpoint string, err error) {
 	log.Printf("Returning endpoints:%v from signalling service", *b)
 	return string(*b), nil
+}
+
+type dispatcher struct {
+	invoker ipc.Invoker
+}
+
+func (d *dispatcher) Lookup(suffix string) (ipc.Invoker, security.Authorizer, error) {
+	suffix = strings.TrimPrefix(suffix, signallingServiceName)
+	return d.invoker, nil, nil
 }
 
 func main() {
@@ -49,7 +60,7 @@ func main() {
 		log.Fatal("failed Listen: ", err)
 	}
 
-	if err := s.Serve("/"+signallingServiceName, ipc.SoloDispatcher(srv, nil)); err != nil {
+	if err := s.Serve("", &dispatcher{ipc.ReflectInvoker(srv)}); err != nil {
 		log.Fatal("failed Serve:", err)
 	}
 
