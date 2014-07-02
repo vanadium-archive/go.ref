@@ -1,19 +1,28 @@
-tr.notstaged {
-  background-color: #FF9700;
+::shadow /deep/ .state-icon.notstaged {
+  fill: #f57c00;
 }
 
-tr.conflicted {
-  background-color: #DA4336;
+::shadow /deep/ .state-icon.staged {
+  fill: #689f38;
 }
 
-tr.untracked {
-  background-color: #FFEA3A;
+::shadow /deep/ .state-icon.conflicted {
+  fill: #e51c23;
 }
 
-tr.ignored {
-  background-color: #E0E0E0;
+::shadow /deep/ .state-icon.untracked {
+  fill: #bf360c;
 }
 
-tr.staged {
-  background-color: #8AC249;
+::shadow /deep/ .state-icon.ignored {
+  fill: #bf360c;
+}
+
+::shadow /deep/ .action-icon {
+  fill: #91a7ff;
+}
+
+::shadow /deep/ .file-parent {
+  font-size: 0.8em;
+  color: rgba(0,0,0,.54);
 }

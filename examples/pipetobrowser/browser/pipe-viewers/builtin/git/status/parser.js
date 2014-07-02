@@ -57,18 +57,18 @@ export function parse(gitStatusLine) {
 
 /*
  * A structure representing the status of a git file.
- * @param {string} fileAction, one of added, deleted, renamed, copied, modified, unknown
- * @param {string} fileState, one staged, notstaged, conflicted, untracked, ignored
- * @param {string} filePath filename and path
+ * @param {string} action, one of added, deleted, renamed, copied, modified, unknown
+ * @param {string} state, one staged, notstaged, conflicted, untracked, ignored
+ * @param {string} file filename and path
  * @param {string} summary A summary text for what these states mean
  * @class
  * @private
  */
 class item {
-  constructor(fileAction, fileState, filePath, summary) {
-    this.fileAction = fileAction;
-    this.fileState = fileState;
-    this.filePath = filePath;
+  constructor(action, state, file, summary) {
+    this.action = action;
+    this.state = state;
+    this.file = file;
     this.summary = summary;
   }
 }

@@ -36,18 +36,19 @@
       <p2b-grid-filter-toggle key="autorefresh" label="Live Refresh" checked></p2b-grid-filter-toggle>
 
       <!-- Columns, sorting and cell templates -->
-      <p2b-grid-column label="Level" key="level" sortable flex="1" priority="2" >
+      <p2b-grid-column label="Level" key="level" sortable flex="2" priority="2" >
         <template>
           <core-icon class="level-icon {{ item.level }}" icon="{{ item.icon }}" title="{{item.level}}"></core-icon>
+          <span  moreInfoOnly style="vertical-align:middle">{{item.level}}</span>
         </template>
       </p2b-grid-column>
-      <p2b-grid-column label="File" key="file" sortable flex="3" minFlex="2" priority="4" >
+      <p2b-grid-column label="File" key="file" sortable flex="4" minFlex="2" priority="4" >
         <template>{{ item.file }}<span class="line-number">{{ item.fileLine }}</span></template>
       </p2b-grid-column>
-      <p2b-grid-column label="Message" key="message" primary flex="7" minFlex="5" priority="1" >
+      <p2b-grid-column label="Message" key="message" primary flex="8" minFlex="5" priority="1" >
         <template><div class="message-text">{{ item.message }}</div></template>
       </p2b-grid-column>
-      <p2b-grid-column label="Date" key="date" sortable flex="5" minFlex="3" priority="3">
+      <p2b-grid-column label="Date" key="date" sortable flex="6" minFlex="3" priority="3">
         <template><span class="smaller-text">{{ item.date }}</span></template>
       </p2b-grid-column>
       <p2b-grid-column label="Threadid" key="threadid" sortable flex="0" priority="5">

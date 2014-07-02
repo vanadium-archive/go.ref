@@ -42,7 +42,7 @@
           <td is="p2b-grid-cell-renderer" data="{{ col.columnData }}" repeat="{{ col in columns }}" template>
             <template ref="{{ col.cellTemplateId }}" bind></template>
           </td>
-          <td>
+          <td class="info-column">
             <paper-icon-button on-tap="{{ showMoreInfo }}" class="more-icon" icon="more-vert" title="more info"></paper-icon-button
             >
           </td>
@@ -250,7 +250,7 @@
         var previousTableWidth = self.$.table.offsetWidth;
         onResizeHandler = function() {
           var newWidth = self.$.table.offsetWidth;
-          if (newWidth != previousTableWidth) {
+          if (newWidth != previousTableWidth && newWidth > 0) {
             self.adjustFlexWidths();
           }
           previousTableWidth = newWidth;
