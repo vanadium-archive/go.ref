@@ -28,7 +28,7 @@ const (
 // It contains log related metadata: DevID is the id of the
 // device that created the log record, GNum is the ID of the
 // generation that the log record is part of, LSN is the log
-// sequence number of the log record in the generation GNum, 
+// sequence number of the log record in the generation GNum,
 // and RecType is the type of log record.
 //
 // It also contains information relevant to the updates to an object
@@ -59,10 +59,10 @@ type LogValue struct {
   // Delete indicates whether the mutation resulted in the object being
   // deleted from the store.
   Delete   bool
-  // Continue tracks the transaction boundaries in a range of mutations.
+  // Continued tracks the transaction boundaries in a range of mutations.
   // It is set to true in all transaction mutations except the last one
   // in which it is set to false to mark the end of the transaction.
-  Continue bool
+  Continued bool
 }
 
 // Sync allows a device to GetDeltas from another device.
