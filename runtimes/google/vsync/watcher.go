@@ -166,7 +166,7 @@ func (w *syncWatcher) processChanges(changes watch.ChangeBatch, syncTime int64) 
 			return fmt.Errorf("invalid change value, not a mutation: %#v", ch)
 		}
 
-		val := &LogValue{Mutation: *mu, SyncTime: syncTime, Delete: ch.State == watch.DoesNotExist, Continue: ch.Continued}
+		val := &LogValue{Mutation: *mu, SyncTime: syncTime, Delete: ch.State == watch.DoesNotExist, Continued: ch.Continued}
 		var parents []storage.Version
 		if mu.PriorVersion != storage.NoVersion {
 			parents = []storage.Version{mu.PriorVersion}

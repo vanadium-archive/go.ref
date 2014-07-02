@@ -67,10 +67,10 @@ type LogValue struct {
 	// Delete indicates whether the mutation resulted in the object being
 	// deleted from the store.
 	Delete bool
-	// Continue tracks the transaction boundaries in a range of mutations.
+	// Continued tracks the transaction boundaries in a range of mutations.
 	// It is set to true in all transaction mutations except the last one
 	// in which it is set to false to mark the end of the transaction.
-	Continue bool
+	Continued bool
 }
 
 const (
@@ -305,7 +305,7 @@ func (__gen_s *ServerStubSync) Signature(call _gen_ipc.ServerCall) (_gen_ipc.Ser
 				_gen_wiretype.FieldType{Type: 0x50, Name: "Mutation"},
 				_gen_wiretype.FieldType{Type: 0x25, Name: "SyncTime"},
 				_gen_wiretype.FieldType{Type: 0x2, Name: "Delete"},
-				_gen_wiretype.FieldType{Type: 0x2, Name: "Continue"},
+				_gen_wiretype.FieldType{Type: 0x2, Name: "Continued"},
 			},
 			"veyron/runtimes/google/vsync.LogValue", []string(nil)},
 		_gen_wiretype.StructType{
