@@ -71,7 +71,7 @@ func main() {
 
 func realMain() int {
 	r := rt.Init()
-	defer r.Shutdown()
+	defer r.Cleanup()
 
 	host, cmd, err := veyronNameAndCommandLine()
 	if err != nil {
