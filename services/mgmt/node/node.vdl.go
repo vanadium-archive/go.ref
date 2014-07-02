@@ -192,7 +192,7 @@ func (__gen_s *ServerStubConfig) Set(call _gen_ipc.ServerCall, key string, value
 // to enable embedding without method collisions.  Not to be used directly by clients.
 type Node_ExcludingUniversal interface {
 	// Node can be used to manage a node. The idea is that this interace
-	// will be invoked using a veyron name that identifies the node.
+	// will be invoked using an object name that identifies the node.
 	node.Node_ExcludingUniversal
 	// Config is an RPC API to the config service.
 	Config_ExcludingUniversal
@@ -206,7 +206,7 @@ type Node interface {
 type NodeService interface {
 
 	// Node can be used to manage a node. The idea is that this interace
-	// will be invoked using a veyron name that identifies the node.
+	// will be invoked using an object name that identifies the node.
 	node.NodeService
 	// Config is an RPC API to the config service.
 	ConfigService

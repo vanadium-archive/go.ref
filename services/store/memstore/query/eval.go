@@ -296,7 +296,7 @@ type evaluator interface {
 	//   { Name: "teams/cardinals", Fields: {"numplayers": [{Name: "numplayers", Value: 5}]}}
 	singleResult() bool
 
-	// name returns a relative Veyron name that is appropriate for the query
+	// name returns a relative Object name that is appropriate for the query
 	// results produced by this evaluator.
 	name() string
 }
@@ -1000,9 +1000,9 @@ func (e *exprInt) value(c *context, result *store.QueryResult) interface{} {
 	return e.i
 }
 
-// exprName is an expr for a Veyron name literal.
+// exprName is an expr for an Object name literal.
 type exprName struct {
-	// name is the Veyron name used in the query.
+	// name is the Object name used in the query.
 	name string
 	// pos specifies where in the query string this component started.
 	pos parse.Pos

@@ -118,7 +118,7 @@ func TestEval(t *testing.T) {
 		{"", "teams | ?2 > 1.7", []string{"teams"}},
 		{"", "teams | ?2.3 > 1", []string{"teams"}},
 		{"", "teams | ?-2 > 1.7", []string{}},
-		// Veyron names:
+		// Object names:
 		{"", "teams/* | type team | ?Name > 'bar'", []string{"teams/cardinals", "teams/sharks", "teams/bears"}},
 		{"", "teams/* | type team | ?Name > 'foo'", []string{"teams/sharks"}},
 		{"", "teams/* | type team | ?Name != 'bears'", []string{"teams/cardinals", "teams/sharks"}},

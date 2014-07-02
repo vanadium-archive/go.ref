@@ -33,7 +33,7 @@ import (
 type Application_ExcludingUniversal interface {
 	// Application provides access to application envelopes. An
 	// application envelope is identified by an application name and an
-	// application version, which are specified through the veyron name,
+	// application version, which are specified through the object name,
 	// and a profile name, which is specified using a method argument.
 	//
 	// Example:
@@ -43,11 +43,11 @@ type Application_ExcludingUniversal interface {
 	//   on either the "base" or "media" profile.
 	repository.Application_ExcludingUniversal
 	// Put adds the given tuple of application version (specified
-	// through the veyron name suffix) and application envelope to all
+	// through the object name suffix) and application envelope to all
 	// of the given application profiles.
 	Put(ctx _gen_context.T, Profiles []string, Envelope application.Envelope, opts ..._gen_ipc.CallOpt) (err error)
 	// Remove removes the application envelope for the given profile
-	// name and application version (specified through the veyron name
+	// name and application version (specified through the object name
 	// suffix). If no version is specified as part of the suffix, the
 	// method removes all versions for the given profile.
 	//
@@ -65,7 +65,7 @@ type ApplicationService interface {
 
 	// Application provides access to application envelopes. An
 	// application envelope is identified by an application name and an
-	// application version, which are specified through the veyron name,
+	// application version, which are specified through the object name,
 	// and a profile name, which is specified using a method argument.
 	//
 	// Example:
@@ -75,11 +75,11 @@ type ApplicationService interface {
 	//   on either the "base" or "media" profile.
 	repository.ApplicationService
 	// Put adds the given tuple of application version (specified
-	// through the veyron name suffix) and application envelope to all
+	// through the object name suffix) and application envelope to all
 	// of the given application profiles.
 	Put(context _gen_ipc.ServerContext, Profiles []string, Envelope application.Envelope) (err error)
 	// Remove removes the application envelope for the given profile
-	// name and application version (specified through the veyron name
+	// name and application version (specified through the object name
 	// suffix). If no version is specified as part of the suffix, the
 	// method removes all versions for the given profile.
 	//
@@ -344,13 +344,13 @@ type Profile_ExcludingUniversal interface {
 	// devices, and are used to match them.
 	repository.Profile_ExcludingUniversal
 	// Specification returns the profile specification for the profile
-	// identified through the veyron name suffix.
+	// identified through the object name suffix.
 	Specification(ctx _gen_context.T, opts ..._gen_ipc.CallOpt) (reply profile.Specification, err error)
 	// Put sets the profile specification for the profile identified
-	// through the veyron name suffix.
+	// through the object name suffix.
 	Put(ctx _gen_context.T, Specification profile.Specification, opts ..._gen_ipc.CallOpt) (err error)
 	// Remove removes the profile specification for the profile
-	// identified through the veyron name suffix.
+	// identified through the object name suffix.
 	Remove(ctx _gen_context.T, opts ..._gen_ipc.CallOpt) (err error)
 }
 type Profile interface {
@@ -367,13 +367,13 @@ type ProfileService interface {
 	// devices, and are used to match them.
 	repository.ProfileService
 	// Specification returns the profile specification for the profile
-	// identified through the veyron name suffix.
+	// identified through the object name suffix.
 	Specification(context _gen_ipc.ServerContext) (reply profile.Specification, err error)
 	// Put sets the profile specification for the profile identified
-	// through the veyron name suffix.
+	// through the object name suffix.
 	Put(context _gen_ipc.ServerContext, Specification profile.Specification) (err error)
 	// Remove removes the profile specification for the profile
-	// identified through the veyron name suffix.
+	// identified through the object name suffix.
 	Remove(context _gen_ipc.ServerContext) (err error)
 }
 

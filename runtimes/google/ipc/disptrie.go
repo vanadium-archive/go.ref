@@ -15,7 +15,7 @@ var (
 
 // disptrie represents the dispatch trie, where each trie node holds a slice of
 // dispatchers for that node, and a mapping of children keyed by slash-delimited
-// veyron name fragment.  The trie performs longest-prefix name lookup, and is
+// object name fragment.  The trie performs longest-prefix name lookup, and is
 // safe for concurrent access.
 type disptrie struct {
 	sync.RWMutex
@@ -26,7 +26,7 @@ func newDisptrie() *disptrie {
 	return &disptrie{root: new(trienode)}
 }
 
-// splitName splits the veyron name into its slash-separated components.
+// splitName splits the object name into its slash-separated components.
 func splitName(name string) []string {
 	name = strings.TrimLeft(name, "/")
 	if name == "" {

@@ -17,7 +17,7 @@ func main() {
 	flag.StringVar(&address, "address", "localhost:0", "network address to listen on")
 	flag.StringVar(&name, "name", "", "name to mount the application manager as")
 	flag.StringVar(&protocol, "protocol", "tcp", "network type to listen on")
-	flag.StringVar(&storeName, "store", "", "veyron name of the application manager store")
+	flag.StringVar(&storeName, "store", "", "object name of the application manager store")
 	flag.Parse()
 	if storeName == "" {
 		vlog.Fatalf("Specify a store using --store=<name>")

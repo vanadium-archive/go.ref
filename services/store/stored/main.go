@@ -7,8 +7,8 @@
 //     - <name> is the Veyron mount point name, default /global/vstore/<hostname>/<username>.
 //     - <dbName> is the filename in which to store the data.
 //
-// The store service has Veyron name, <name>/.store.
-// The raw store service has Veyron name, <name>/.store.raw.
+// The store service has Object name, <name>/.store.
+// The raw store service has Object name, <name>/.store.raw.
 // Individual values with path <path> have name <name>/<path>.
 package main
 

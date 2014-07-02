@@ -78,7 +78,7 @@ var cmdMount = &cmdline.Command{
 	ArgsName: "<mount name> <name> <ttl>",
 	ArgsLong: `
 <mount name> is a mount name on a mount table.
-<name> is the rooted veyron name of the server.
+<name> is the rooted object name of the server.
 <ttl> is the TTL of the new entry. It is a decimal number followed by a unit
 suffix (s, m, h). A value of 0s represents an infinite duration.
 `,
@@ -113,7 +113,7 @@ var cmdUnmount = &cmdline.Command{
 	ArgsName: "<mount name> <name>",
 	ArgsLong: `
 <mount name> is a mount name on a mount table.
-<name> is the rooted veyron name of the server.
+<name> is the rooted object name of the server.
 `,
 }
 

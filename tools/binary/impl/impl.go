@@ -17,7 +17,7 @@ var cmdDelete = &cmdline.Command{
 	Short:    "Delete binary",
 	Long:     "Delete connects to the binary repository and deletes the specified binary",
 	ArgsName: "<binary>",
-	ArgsLong: "<binary> is the veyron name of the binary to delete",
+	ArgsLong: "<binary> is the object name of the binary to delete",
 }
 
 func runDelete(cmd *cmdline.Command, args []string) error {
@@ -47,7 +47,7 @@ writes it to a file.
 `,
 	ArgsName: "<binary> <filename>",
 	ArgsLong: `
-<binary> is the veyron name of the binary to download
+<binary> is the object name of the binary to download
 <filename> is the name of the file where the binary will be written
 `,
 }
@@ -108,7 +108,7 @@ file. When successful, it writes the name of the new binary to stdout.
 `,
 	ArgsName: "<binary> <filename>",
 	ArgsLong: `
-<binary> is the veyron name of the binary to upload
+<binary> is the object name of the binary to upload
 <filename> is the name of the file to upload
 `,
 }

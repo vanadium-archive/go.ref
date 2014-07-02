@@ -26,8 +26,8 @@ type mgmtImpl struct {
 	server       ipc.Server // Serves AppCycle service.
 }
 
-// parentName returns the veyron name for the Config service on which we should
-// communicate the veyron name of the app cycle service.  Currently, this can
+// parentName returns the object name for the Config service on which we should
+// communicate the object name of the app cycle service.  Currently, this can
 // be configured either via env vars or via the exec config passed from parent.
 func parentName() (name string) {
 	name = os.Getenv(mgmt.ParentNodeManagerConfigKey)

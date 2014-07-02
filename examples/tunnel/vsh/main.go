@@ -21,7 +21,7 @@ import (
 var (
 	disablePty = flag.Bool("T", false, "Disable pseudo-terminal allocation.")
 	forcePty   = flag.Bool("t", false, "Force allocation of pseudo-terminal.")
-	vname      = flag.String("vname", "", "Veyron name (or endpoint) for tunneling service.")
+	oname      = flag.String("oname", "", "Object name (or endpoint) for tunneling service.")
 
 	portforward = flag.String("L", "", "localaddr,remoteaddr Forward local 'localaddr' to 'remoteaddr'")
 	lprotocol   = flag.String("local_protocol", "tcp", "Local network protocol for port forwarding")
@@ -39,10 +39,10 @@ This tool is used to run shell commands or an interactive shell on a remote
 tunneld service.
 
 To open an interactive shell, use:
-  %s --host=<veyron name or endpoint>
+  %s --host=<object name or endpoint>
 
 To run a shell command, use:
-  %s --host=<veyron name or endpoint> <command to run>
+  %s --host=<object name or endpoint> <command to run>
 
 The -L flag will forward connections from a local port to a remote address
 through the tunneld service. The flag value is localaddr,remoteaddr. E.g.
@@ -145,12 +145,12 @@ func environment() []string {
 	return env
 }
 
-// veyronNameAndCommandLine extracts the veyron name and the remote command to
-// send to the server. The name can be specified with the --vname flag or as the
+// veyronNameAndCommandLine extracts the object name and the remote command to
+// send to the server. The name can be specified with the --oname flag or as the
 // first non-flag argument. The command line is the concatenation of all the
-// non-flag arguments, minus the veyron name.
+// non-flag arguments, minus the object name.
 func veyronNameAndCommandLine() (string, string, error) {
-	name := *vname
+	name := *oname
 	args := flag.Args()
 	if len(name) == 0 {
 		if len(args) > 0 {
@@ -159,7 +159,7 @@ func veyronNameAndCommandLine() (string, string, error) {
 		}
 	}
 	if len(name) == 0 {
-		return "", "", errors.New("veyron name missing")
+		return "", "", errors.New("object name missing")
 	}
 	// For compatibility with tools like rsync. Because veyron addresses
 	// don't look like traditional hostnames, tools that work with rsh and

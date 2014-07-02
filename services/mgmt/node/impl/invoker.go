@@ -89,7 +89,7 @@ type state struct {
 type invoker struct {
 	state *state
 	// suffix is the suffix of the current invocation that is assumed to
-	// be used as a relative veyron name to identify an application,
+	// be used as a relative object name to identify an application,
 	// installation, or instance.
 	suffix string
 }

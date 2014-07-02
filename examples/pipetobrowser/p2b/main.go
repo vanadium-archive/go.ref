@@ -29,7 +29,7 @@ Usage:
 
 	cat cat.jpg | google/p2b/jane/image
 
-  where <name> (google/p2b/jane) is the veyron name where p2b
+  where <name> (google/p2b/jane) is the object name where p2b
   service is running in the browser. <viewer> (console, image) specifies what
   viewer should be used to display the data.
 
