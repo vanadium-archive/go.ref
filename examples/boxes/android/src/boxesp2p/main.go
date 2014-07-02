@@ -87,10 +87,17 @@ type jniState struct {
 	jMID C.jmethodID
 }
 
+type boxesDispatcher struct {
+	drawAuth, syncAuth     security.Authorizer
+	drawServer, syncServer ipc.Invoker
+	storeDispatcher        ipc.Dispatcher
+}
+
 type goState struct {
 	runtime       veyron2.Runtime
 	store         *storage.Server
 	ipc           ipc.Server
+	disp          boxesDispatcher
 	drawStream    boxes.DrawInterfaceServiceDrawStream
 	signalling    boxes.BoxSignalling
 	boxList       chan boxes.Box
@@ -128,6 +135,16 @@ func (jni *jniState) addBox(box *boxes.Box) {
 	jBoxId := C.CToJString(env, C.CString(box.BoxId))
 	// Invoke the AddBox method in Java
 	C.callMethod(env, jni.jObj, jni.jMID, jBoxId, &jPoints[0])
+}
+
+func (d *boxesDispatcher) Lookup(suffix string) (ipc.Invoker, security.Authorizer, error) {
+	if strings.HasSuffix(suffix, "draw") {
+		return d.drawServer, d.drawAuth, nil
+	}
+	if strings.HasSuffix(suffix, "sync") {
+		return d.syncServer, d.syncAuth, nil
+	}
+	return d.storeDispatcher.Lookup(suffix)
 }
 
 func (gs *goState) SyncBoxes(context ipc.ServerContext) error {
@@ -233,12 +250,14 @@ func (gs *goState) registerAsPeer() {
 		panic(fmt.Errorf("Failed runtime.NewServer:%v", err))
 	}
 	drawServer := boxes.NewServerDrawInterface(gs)
-	if err := srv.Register("draw", ipc.SoloDispatcher(drawServer, auth)); err != nil {
-		panic(fmt.Errorf("Failed Register:%v", err))
-	}
+	gs.disp.drawAuth = auth
+	gs.disp.drawServer = ipc.ReflectInvoker(drawServer)
 	endPt, err := srv.Listen("tcp", gs.myIPAddr+drawServicePort)
 	if err != nil {
 		panic(fmt.Errorf("Failed to Listen:%v", err))
+	}
+	if err := srv.Serve("", &gs.disp); err != nil {
+		panic(fmt.Errorf("Failed Register:%v", err))
 	}
 	if err := gs.signalling.Add(gs.runtime.TODOContext(), endPt.String()); err != nil {
 		panic(fmt.Errorf("Failed to Add endpoint to signalling server:%v", err))
@@ -319,15 +338,15 @@ func initStoreService() {
 		panic(fmt.Errorf("LoadACL failed:%v", err))
 	}
 	auth := security.NewACLAuthorizer(acl)
-
-	// Register the services
-	if err = gs.ipc.Register("", storage.NewStoreDispatcher(gs.store, auth)); err != nil {
-		panic(fmt.Errorf("s.Register(store) failed:%v", err))
-	}
+	gs.disp.storeDispatcher = storage.NewStoreDispatcher(gs.store, auth)
 
 	// Create an endpoint and start listening
 	if _, err = gs.ipc.Listen("tcp", gs.myIPAddr+storeServicePort); err != nil {
 		panic(fmt.Errorf("s.Listen() failed:%v", err))
+	}
+	// Register the services
+	if err = gs.ipc.Serve("", &gs.disp); err != nil {
+		panic(fmt.Errorf("s.Serve(store) failed:%v", err))
 	}
 	gs.storeEndpoint = "/" + gs.myIPAddr + storeServicePort
 }
@@ -335,11 +354,13 @@ func initStoreService() {
 func initSyncService(peerEndpoint string) {
 	peerSyncAddr := strings.Split(peerEndpoint, ":")[0]
 	srv := vsync.NewServerSync(vsync.NewSyncd(peerSyncAddr+syncServicePort, peerSyncAddr /* peer deviceID */, gs.myIPAddr /* my deviceID */, storePath, gs.storeEndpoint, 0))
-	if err := gs.ipc.Register("sync", ipc.SoloDispatcher(srv, nil)); err != nil {
-		panic(fmt.Errorf("syncd:: error registering service: err %v", err))
-	}
+	gs.disp.syncAuth = nil
+	gs.disp.syncServer = ipc.ReflectInvoker(srv)
 	if _, err := gs.ipc.Listen("tcp", gs.myIPAddr+syncServicePort); err != nil {
 		panic(fmt.Errorf("syncd:: error listening to service: err %v", err))
+	}
+	if err := gs.ipc.Serve("", &gs.disp); err != nil {
+		panic(fmt.Errorf("syncd:: error serving service: err %v", err))
 	}
 }
 
