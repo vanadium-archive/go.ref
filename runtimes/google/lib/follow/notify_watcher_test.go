@@ -17,8 +17,7 @@ func TestModificationNotify(t *testing.T) {
 	defer testfile.Close()
 	defer os.Remove(testFileName)
 
-	watch := newFSNotifyWatch(testFileName)
-	watcher, err := newCustomFSWatcher(watch)
+	watcher, err := newFSNotifyWatcher(testFileName)
 	if err != nil {
 		t.Fatalf("newCustomFSWatcer() failed: %v", err)
 	}

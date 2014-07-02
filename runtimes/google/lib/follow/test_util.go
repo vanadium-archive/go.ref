@@ -14,6 +14,20 @@ var (
 	errUnexpectedModification = errors.New("unexpected modification event")
 )
 
+func events(watcher fsWatcher) <-chan error {
+	events := make(chan error)
+	go func() {
+		for {
+			event := watcher.Wait()
+			events <- event
+			if event == io.EOF {
+				break
+			}
+		}
+	}()
+	return events
+}
+
 // readString reads a string of the specified length from the reader.
 // Returns an error if:
 //  (A) reader.Read returned an error
@@ -91,31 +105,32 @@ func expectModification(events <-chan error, timeout time.Duration) error {
 
 // testModification tests that the watcher sends events when the file is
 // modified.
-func testModification(file *os.File, watcher *fsWatcher, timeout time.Duration) error {
+func testModification(file *os.File, watcher fsWatcher, timeout time.Duration) error {
+	events := events(watcher)
 	// no modifications, expect no events.
-	if err := expectSilence(watcher.events, timeout); err != nil {
+	if err := expectSilence(events, timeout); err != nil {
 		return errors.New(fmt.Sprintf("expectSilence() failed with no modifications: %v ", err))
 	}
 	// modify once, expect event.
 	if err := writeString(file, "modification one"); err != nil {
 		return errors.New(fmt.Sprintf("writeString() failed on modification one: %v ", err))
 	}
-	if err := expectModification(watcher.events, timeout); err != nil {
+	if err := expectModification(events, timeout); err != nil {
 		return errors.New(fmt.Sprintf("expectModication() failed on modification one: %v ", err))
 	}
 	// no further modifications, expect no events.
-	if err := expectSilence(watcher.events, timeout); err != nil {
+	if err := expectSilence(events, timeout); err != nil {
 		return errors.New(fmt.Sprintf("expectSilence() failed after modification one: %v ", err))
 	}
 	// modify again, expect event.
 	if err := writeString(file, "modification two"); err != nil {
 		return errors.New(fmt.Sprintf("writeString() failed on modification two: %v ", err))
 	}
-	if err := expectModification(watcher.events, timeout); err != nil {
+	if err := expectModification(events, time.Hour); err != nil {
 		return errors.New(fmt.Sprintf("expectModification() failed on modification two: %v ", err))
 	}
 	// no further modifications, expect no events.
-	if err := expectSilence(watcher.events, timeout); err != nil {
+	if err := expectSilence(events, timeout); err != nil {
 		return errors.New(fmt.Sprintf("expectSilence() failed after modification two: %v ", err))
 	}
 	return nil
@@ -124,7 +139,7 @@ func testModification(file *os.File, watcher *fsWatcher, timeout time.Duration) 
 // testClose tests the implementation of fsReader.Read(). Specifically,
 // tests that Read() blocks if the requested bytes are not available for
 // reading in the underlying file.
-func testReadPartial(testFileName string, watcher *fsWatcher, timeout time.Duration) error {
+func testReadPartial(testFileName string, watcher fsWatcher, timeout time.Duration) error {
 	s0 := "part"
 
 	// Open the file for writing.
@@ -172,7 +187,7 @@ func testReadPartial(testFileName string, watcher *fsWatcher, timeout time.Durat
 // testClose tests the implementation of fsReader.Read(). Specifically,
 // tests that Read() returns the requested bytes when they are available
 // for reading in the underlying file.
-func testReadFull(testFileName string, watcher *fsWatcher, timeout time.Duration) error {
+func testReadFull(testFileName string, watcher fsWatcher, timeout time.Duration) error {
 	s0, s1, s2 := "partitioned", "parti", "tioned"
 
 	// Open the file for writing.
@@ -217,7 +232,7 @@ func testReadFull(testFileName string, watcher *fsWatcher, timeout time.Duration
 }
 
 // testClose tests the implementation of fsReader.Close()
-func testClose(testFileName string, watcher *fsWatcher, timeout time.Duration) error {
+func testClose(testFileName string, watcher fsWatcher, timeout time.Duration) error {
 	s := "word"
 
 	// Open the file for writing.

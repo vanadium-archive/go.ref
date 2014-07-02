@@ -9,13 +9,12 @@ import (
 // fsReader is an implementation of io.ReadCloser that reads synchronously
 // from a file, blocking until at least one byte is written to the file and is
 // available for reading.
-// fsReader should not be accessed concurrently.
 type fsReader struct {
 	mu sync.Mutex
 	// The file to read.
 	file *os.File // GUARDED_BY(mu)
 	// The watcher of modifications to the file.
-	watcher *fsWatcher
+	watcher fsWatcher
 	// True if the reader is open for reading, false otherwise.
 	closed bool // GUARDED_BY(mu)
 }
@@ -23,10 +22,12 @@ type fsReader struct {
 // NewReader creates a new reader that reads synchronously from a file,
 // blocking until at least one byte is written to the file and is available
 // for reading.
-// The returned ReadCloser should not be accessed concurrently.
+// The returned io.ReadCloser supports limited concurrency:
+// 1) Reads may not be called concurrently.
+// 2) Close may be called concurrently with Read, and will terminate Read.
 func NewReader(filename string) (reader io.ReadCloser, err error) {
 	var file *os.File
-	var watcher *fsWatcher
+	var watcher fsWatcher
 	defer func() {
 		if err == nil {
 			return
@@ -51,7 +52,7 @@ func NewReader(filename string) (reader io.ReadCloser, err error) {
 	return newCustomReader(file, watcher)
 }
 
-func newCustomReader(file *os.File, watcher *fsWatcher) (io.ReadCloser, error) {
+func newCustomReader(file *os.File, watcher fsWatcher) (io.ReadCloser, error) {
 	reader := &fsReader{
 		file:    file,
 		watcher: watcher,
@@ -77,23 +78,12 @@ func (r *fsReader) Read(p []byte) (int, error) {
 		// Wait until the file is modified one or more times. The new
 		// bytes from each corresponding modification have been
 		// written to the file already, and therefore won't be skipped.
-		if err := receiveEvents(r.watcher.events); err != nil {
+		if err := r.watcher.Wait(); err != nil {
 			return 0, err
 		}
 
 		r.mu.Lock()
 	}
-}
-
-// receiveEvents receives events from an event channel, blocking until at
-// least one event is available..
-// io.EOF is returned if the event channel is closed (as a result of Close()).
-func receiveEvents(events <-chan error) error {
-	err, ok := <-events
-	if !ok {
-		return io.EOF
-	}
-	return err
 }
 
 // Close closes the reader synchronously.

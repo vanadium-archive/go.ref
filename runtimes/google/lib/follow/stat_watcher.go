@@ -1,72 +1,100 @@
 package follow
 
 import (
+	"io"
 	"os"
+	"sync"
 	"time"
+
+	vsync "veyron/runtimes/google/lib/sync"
 )
 
 const (
-	defaultMinSleep = time.Second
-	defaultMaxSleep = time.Minute
+	defaultMinSleep = 10 * time.Millisecond
+	defaultMaxSleep = 5 * time.Second
 )
 
-// newFSStatWatch returns a function that polls os.Stat(), observing file size.
-// If the file size is larger than the previously-recorded file size,
-// fsStatWatcher assumes the file has been modified and sends a nil value on
-// the events channel.
-// The function starts polling os.Stat() at an interval specified by
-// minSleep, doubling that interval as long the file is not modified, upto
-// a maximum interval specified by maxSleep. The interval is reset to minSleep
-// once the file is modified. This allows faster detection during periods of
-// frequent modification but conserves resources during periods of inactivity.
-// The default values of minSleep and maxSleep can be overriden using the
-// newCustomFSStatWatcher() constructor.
-func newFSStatWatch(filename string) func(chan<- error, chan<- struct{}, <-chan struct{}, chan<- struct{}) {
-	return newCustomFSStatWatch(filename, defaultMinSleep, defaultMaxSleep)
+type fsStatWatcher struct {
+	minSleep     time.Duration
+	maxSleep     time.Duration
+	file         *os.File
+	lastFileSize int64
+	// cancel signals Wait to terminate.
+	cancel chan struct{}
+	// pending allows Close to block till ongoing calls to Wait terminate.
+	pending vsync.WaitGroup
+	// mu and closed ensure that Close is idempotent.
+	mu     sync.Mutex
+	closed bool // GUARDED_BY(mu)
 }
 
-func newCustomFSStatWatch(filename string, minSleep, maxSleep time.Duration) func(chan<- error, chan<- struct{}, <-chan struct{}, chan<- struct{}) {
-	return func(events chan<- error, initialized chan<- struct{}, stop <-chan struct{}, done chan<- struct{}) {
-		defer close(done)
-		defer close(events)
-		file, err := os.Open(filename)
-		if err != nil {
-			events <- err
-			return
-		}
-		defer file.Close()
-		fileInfo, err := file.Stat()
-		if err != nil {
-			events <- err
-			return
-		}
-		initialFileSize := fileInfo.Size()
+// newFSStatWatcher returns an fsWatcher that polls os.Stat(), observing file
+// size. If the file size is larger than the previously-recorded file size,
+// the watcher assumes the file has been modified.
+// Wait() polls os.Stat() at an interval specified by minSleep, doubling that
+// interval as long the file is not modified, upto a maximum interval specified
+// by maxSleep. This allows faster detection during periods of frequent
+// modification but conserves resources during periods of inactivity.
+// The default values of minSleep and maxSleep can be overriden using the
+// newCustomFSStatWatcher() constructor.
+func newFSStatWatcher(filename string) (fsWatcher, error) {
+	return newCustomFSStatWatcher(filename, defaultMinSleep, defaultMaxSleep)
+}
 
-		close(initialized)
-
-		lastFileSize := initialFileSize
-		sleep := minSleep
-		for {
-			// Look for a stop command.
-			select {
-			case <-stop:
-				return
-			default:
-			}
-			fileInfo, err := file.Stat()
-			if err != nil {
-				if !sendEvent(events, err, stop) {
-					return
-				}
-			} else if fileSize := fileInfo.Size(); lastFileSize < fileSize {
-				lastFileSize = fileSize
-				if !sendEvent(events, nil, stop) {
-					return
-				}
-				sleep = minSleep
-			}
-			time.Sleep(sleep)
-			sleep = minDuration(sleep*2, maxSleep)
-		}
+func newCustomFSStatWatcher(filename string, minSleep, maxSleep time.Duration) (fsWatcher, error) {
+	file, err := os.Open(filename)
+	if err != nil {
+		return nil, err
 	}
+	fileInfo, err := file.Stat()
+	if err != nil {
+		file.Close()
+		return nil, err
+	}
+	return &fsStatWatcher{
+		minSleep:     minSleep,
+		maxSleep:     maxSleep,
+		file:         file,
+		lastFileSize: fileInfo.Size(),
+		cancel:       make(chan struct{}),
+	}, nil
+}
+
+func (w *fsStatWatcher) Wait() error {
+	// After Close returns, any call to Wait must return io.EOF.
+	if !w.pending.TryAdd() {
+		return io.EOF
+	}
+	defer w.pending.Done()
+
+	sleep := w.minSleep
+	for {
+		select {
+		case <-w.cancel:
+			// After Close returns, any call to Wait must return io.EOF.
+			return io.EOF
+		default:
+		}
+		fileInfo, err := w.file.Stat()
+		if err != nil {
+			return err
+		} else if fileSize := fileInfo.Size(); w.lastFileSize < fileSize {
+			w.lastFileSize = fileSize
+			return nil
+		}
+		time.Sleep(sleep)
+		sleep = minDuration(sleep*2, w.maxSleep)
+	}
+}
+
+func (w *fsStatWatcher) Close() error {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	if w.closed {
+		return nil
+	}
+	w.closed = true
+	close(w.cancel)
+	w.pending.Wait()
+	return w.file.Close()
 }

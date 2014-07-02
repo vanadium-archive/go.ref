@@ -21,8 +21,7 @@ func TestStatReadPartial(t *testing.T) {
 	// Create the os.Stat()-based fsWatcher.
 	minSleep := 10 * time.Millisecond
 	maxSleep := 100 * time.Millisecond
-	watch := newCustomFSStatWatch(testFileName, minSleep, maxSleep)
-	watcher, err := newCustomFSWatcher(watch)
+	watcher, err := newCustomFSStatWatcher(testFileName, minSleep, maxSleep)
 	if err != nil {
 		t.Fatalf("newCustomFSWatcher() failed: %v", err)
 	}
@@ -48,8 +47,7 @@ func TestStatReadFull(t *testing.T) {
 	// Create the os.Stat()-based fsWatcher.
 	minSleep := 10 * time.Millisecond
 	maxSleep := 100 * time.Millisecond
-	watch := newCustomFSStatWatch(testFileName, minSleep, maxSleep)
-	watcher, err := newCustomFSWatcher(watch)
+	watcher, err := newCustomFSStatWatcher(testFileName, minSleep, maxSleep)
 	if err != nil {
 		t.Fatalf("newCustomFSWatcher() failed: %v", err)
 	}
@@ -75,8 +73,7 @@ func TestStatClose(t *testing.T) {
 	// Create the os.Stat()-based fsWatcher.
 	minSleep := 10 * time.Millisecond
 	maxSleep := 100 * time.Millisecond
-	watch := newCustomFSStatWatch(testFileName, minSleep, maxSleep)
-	watcher, err := newCustomFSWatcher(watch)
+	watcher, err := newCustomFSStatWatcher(testFileName, minSleep, maxSleep)
 	if err != nil {
 		t.Fatalf("newCustomFSWatcher() failed: %v", err)
 	}

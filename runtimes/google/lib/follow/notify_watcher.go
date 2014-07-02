@@ -3,51 +3,83 @@
 package follow
 
 import (
+	"fmt"
 	"github.com/howeyc/fsnotify"
+	"io"
+	"sync"
+
+	vsync "veyron/runtimes/google/lib/sync"
 )
 
-// newFSNotifyWatch returns a function that listens on fsnotify and sends
-// corresponding modification events.
-// For each fsnotify modification event, a single nil value is sent on the
-// events channel. Further fsnotify events are not received until the nil
-// value is received from the events channel.
-// The function sends any errors on the events channel.
-func newFSNotifyWatch(filename string) func(chan<- error, chan<- struct{}, <-chan struct{}, chan<- struct{}) {
-	return func(events chan<- error, initialized chan<- struct{}, stop <-chan struct{}, done chan<- struct{}) {
-		defer close(done)
-		defer close(events)
-		source, err := fsnotify.NewWatcher()
-		if err != nil {
-			events <- err
-			return
-		}
-		defer source.Close()
-		if err := source.Watch(filename); err != nil {
-			events <- err
-			return
-		}
+type fsNotifyWatcher struct {
+	filename string
+	source   *fsnotify.Watcher
+	// cancel signals Wait to terminate.
+	cancel chan struct{}
+	// pending allows Close to block till ongoing calls to Wait terminate.
+	pending vsync.WaitGroup
+	// mu and closed ensure that Close is idempotent.
+	mu     sync.Mutex
+	closed bool // GUARDED_BY(mu)
+}
 
-		close(initialized)
+// newFSNotifyWatcher returns an fsnotify-based fsWatcher.
+// Wait() blocks until it receives a file modification event from fsnotify.
+func newFSNotifyWatcher(filename string) (fsWatcher, error) {
+	source, err := fsnotify.NewWatcher()
+	if err != nil {
+		return nil, err
+	}
+	if err := source.Watch(filename); err != nil {
+		source.Close()
+		return nil, err
+	}
+	return &fsNotifyWatcher{
+		source: source,
+		cancel: make(chan struct{}),
+	}, nil
+}
 
-		for {
-			// Receive:
-			//  (A) An fsnotify modification event. Send nil.
-			//  (B) An fsnotify error. Send the error.
-			//  (C) A stop command. Stop listening and clean up.
-			select {
-			case event := <-source.Event:
-				if event.IsModify() {
-					if !sendEvent(events, nil, stop) {
-						return
+func (w *fsNotifyWatcher) Wait() error {
+	// After Close returns, any call to Wait must return io.EOF.
+	if !w.pending.TryAdd() {
+		return io.EOF
+	}
+	defer w.pending.Done()
+
+	for {
+		select {
+		case event := <-w.source.Event:
+			if event.IsModify() {
+				// Drain the event queue.
+				drained := false
+				for !drained {
+					select {
+					case <-w.source.Event:
+					default:
+						drained = true
 					}
 				}
-			case err := <-source.Error:
-				if !sendEvent(events, err, stop) {
-					return
-				}
-			case <-stop:
-				return
+				return nil
 			}
+			return fmt.Errorf("Unexpected event %v", event)
+		case err := <-w.source.Error:
+			return err
+		case <-w.cancel:
+			// After Close returns, any call to Wait must return io.EOF.
+			return io.EOF
 		}
 	}
+}
+
+func (w *fsNotifyWatcher) Close() error {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	if w.closed {
+		return nil
+	}
+	w.closed = true
+	close(w.cancel)
+	w.pending.Wait()
+	return w.source.Close()
 }

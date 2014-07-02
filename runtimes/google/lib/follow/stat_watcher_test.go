@@ -17,8 +17,7 @@ func TestModificationStat(t *testing.T) {
 
 	minSleep := 10 * time.Millisecond
 	maxSleep := 100 * time.Millisecond
-	watch := newCustomFSStatWatch(testFileName, minSleep, maxSleep)
-	watcher, err := newCustomFSWatcher(watch)
+	watcher, err := newCustomFSStatWatcher(testFileName, minSleep, maxSleep)
 	if err != nil {
 		t.Fatalf("newCustomFSWatcher() failed : %v", err)
 	}

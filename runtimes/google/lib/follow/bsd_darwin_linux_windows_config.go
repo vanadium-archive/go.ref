@@ -4,7 +4,6 @@ package follow
 
 // newFSWatcher starts and returns a new fsnotify-based fsWatcher.
 // filename specifies the file to watch.
-func newFSWatcher(filename string) (*fsWatcher, error) {
-	watch := newFSNotifyWatch(filename)
-	return newCustomFSWatcher(watch)
+func newFSWatcher(filename string) (fsWatcher, error) {
+	return newFSNotifyWatcher(filename)
 }
