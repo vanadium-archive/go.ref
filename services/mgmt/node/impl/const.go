@@ -6,7 +6,7 @@ const (
 	// the node manager.
 	PreviousEnv = "VEYRON_NM_PREVIOUS"
 	// OriginEnv is the name of the environment variable that holds the
-	// veyron name of the application repository that can be used to
+	// object name of the application repository that can be used to
 	// retrieve the node manager application envelope.
 	OriginEnv = "VEYRON_NM_ORIGIN"
 	// RootEnv is the name of the environment variable that holds the

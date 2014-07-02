@@ -48,7 +48,7 @@ type publicKeyCaveat struct {
 	// ValidationKey specifies the public key of the discharging-party.
 	ValidationKey wire.PublicKey
 
-	// ThirdPartyLocation specifies the global Veyron name of the discharging-party.
+	// ThirdPartyLocation specifies the global Object name of the discharging-party.
 	ThirdPartyLocation string
 }
 

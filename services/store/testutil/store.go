@@ -14,7 +14,7 @@ import (
 )
 
 // NewStore creates a new testing instance of the store server and returns
-// a veyron name that identifies the instance and a closure that can
+// an object name that identifies the instance and a closure that can
 // be used to terminate the instance and clean up.
 func NewStore(t *testing.T, server ipc.Server, id security.PublicID) (string, func()) {
 	// Create a temporary directory for the store server.

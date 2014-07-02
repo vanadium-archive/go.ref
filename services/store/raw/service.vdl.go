@@ -54,8 +54,8 @@ type Request struct {
 }
 
 const (
-	// The raw Store has Veyron name "<mount>/.store.raw", where <mount> is the
-	// Veyron name of the mount point.
+	// The raw Store has Object name "<mount>/.store.raw", where <mount> is the
+	// Object name of the mount point.
 	RawStoreSuffix = ".store.raw"
 )
 

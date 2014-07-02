@@ -88,7 +88,7 @@ type ContextArgs struct {
 	Method string
 	// Name is the undispatched name for the request.
 	Name string
-	// Suffix is the veyron name suffix for the request.
+	// Suffix is the object name suffix for the request.
 	Suffix string
 	// Label is the security label of the method being invoked.
 	Label security.Label

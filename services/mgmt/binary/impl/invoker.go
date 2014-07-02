@@ -1,6 +1,6 @@
 // The implementation of the binary repository interface stores
-// objects identified by veyron name suffixes using the local file
-// system. Given a veyron name suffix, the implementation computes an
+// objects identified by object name suffixes using the local file
+// system. Given an object name suffix, the implementation computes an
 // MD5 hash of the suffix and generates the following path in the
 // local filesystem: /<root>/<dir_1>/.../<dir_n>/<hash>. The root and
 // the directory depth are parameters of the implementation. The
@@ -65,13 +65,13 @@ type state struct {
 // invoker holds the state of a binary repository invocation.
 type invoker struct {
 	// path is the local filesystem path to the object identified by the
-	// veyron name suffix.
+	// object name suffix.
 	path string
 	// state holds the state shared across different binary repository
 	// invocations.
 	state *state
 	// suffix is the suffix of the current invocation that is assumed to
-	// be used as a relative veyron name to identify a binary.
+	// be used as a relative object name to identify a binary.
 	suffix string
 }
 
@@ -99,7 +99,7 @@ var MissingPart = binary.PartInfo{
 // newInvoker is the invoker factory.
 func newInvoker(state *state, suffix string) *invoker {
 	// Generate the local filesystem path for the object identified by
-	// the veyron name suffix.
+	// the object name suffix.
 	h := md5.New()
 	h.Write([]byte(suffix))
 	hash := hex.EncodeToString(h.Sum(nil))

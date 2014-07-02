@@ -11,7 +11,7 @@ import (
 )
 
 var (
-	server      = flag.String("server", "", "veyron name of the server to connect to")
+	server      = flag.String("server", "", "object name of the server to connect to")
 	count       = flag.Int("count", 1, "number of RPCs to send")
 	chunkCount  = flag.Int("chunk_count", 0, "number of stream chunks to send")
 	payloadSize = flag.Int("payload_size", 32, "the size of the payload")

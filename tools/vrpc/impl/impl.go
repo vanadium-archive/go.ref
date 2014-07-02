@@ -23,7 +23,7 @@ import (
 
 const serverDesc = `
 <server> identifies the Veyron RPC server. It can either be the object address of
-the server or a Veyron name in which case the vrpc will use Veyron's name
+the server or an Object name in which case the vrpc will use Veyron's name
 resolution to match this name to an end-point.
 `
 const methodDesc = `

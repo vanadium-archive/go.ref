@@ -17,7 +17,7 @@ type invoker struct {
 	// store is the storage server used for storing profile data.
 	store storage.Store
 	// suffix is the suffix of the current invocation that is assumed to
-	// be used as a relative veyron name to identify a profile
+	// be used as a relative object name to identify a profile
 	// specification.
 	suffix string
 }

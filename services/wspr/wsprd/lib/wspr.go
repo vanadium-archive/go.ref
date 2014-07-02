@@ -87,7 +87,7 @@ const (
 	// Making a veyron client request, streaming or otherwise
 	websocketVeyronRequest websocketMessageType = 0
 
-	// Publishing this websocket under a veyron name
+	// Publishing this websocket under an object name
 	websocketPublishServer = 1
 
 	// A response from a service in javascript to a request

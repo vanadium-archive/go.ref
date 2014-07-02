@@ -15,7 +15,7 @@ or
 cat cat.jpg | p2b -binary google/p2b/jane/image
 ``
 
-where **google/p2b/jane** is the Veyron name where p2b service is running in the browser. The suffix **console** or **image** specifies what viewer should be used to display the data.
+where **google/p2b/jane** is the Object name where p2b service is running in the browser. The suffix **console** or **image** specifies what viewer should be used to display the data.
 
 ## Building and Running
 TODO
@@ -48,7 +48,7 @@ Action names are a similar concepts to routes and simply provide an indirection 
 ### Pipe To Browser
 
 #### Pipe-Viewer
-When a user sends a pipe request to p2b, the suffix of the Veyron name indicates what **viewer** should be used to display the data. For instance:
+When a user sends a pipe request to p2b, the suffix of the Object name indicates what **viewer** should be used to display the data. For instance:
 
 ``
 ls -l | p2b google/p2b/aghassemi/DataTable

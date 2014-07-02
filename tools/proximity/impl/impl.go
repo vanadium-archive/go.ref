@@ -16,7 +16,7 @@ var cmdRegister = &cmdline.Command{
 	Long:     "register adds a name that the remote device will be associated with.",
 	ArgsName: "<address> <name>",
 	ArgsLong: `
-<address> is the veyron name of the proximity server.
+<address> is the object name of the proximity server.
 <name> is the name to register.
 `,
 }
@@ -43,7 +43,7 @@ var cmdUnregister = &cmdline.Command{
 	Long:     "unregister removes a name that the remote device it is associated with.",
 	ArgsName: "<address> <name>",
 	ArgsLong: `
-<address> is the veyron name of the proximity server.
+<address> is the object name of the proximity server.
 <name> is the name to unregister.
 `,
 }
@@ -69,7 +69,7 @@ var cmdNearbyDevices = &cmdline.Command{
 	Short:    "nearbydevices displayes the most up-to-date list of nearby devices.",
 	Long:     "nearbydevices displayes the most up-to-date list of nearby devices.",
 	ArgsName: "<address>",
-	ArgsLong: "<address> is the veyron name of the proximity server.",
+	ArgsLong: "<address> is the object name of the proximity server.",
 }
 
 func runNearbyDevices(cmd *cmdline.Command, args []string) error {

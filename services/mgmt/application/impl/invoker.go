@@ -18,7 +18,7 @@ type invoker struct {
 	// metadata.
 	store storage.Store
 	// suffix is the suffix of the current invocation that is assumed to
-	// be used as a relative veyron name to identify an application.
+	// be used as a relative object name to identify an application.
 	suffix string
 }
 
