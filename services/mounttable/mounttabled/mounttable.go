@@ -52,7 +52,7 @@ func Usage() {
 func main() {
 	flag.Usage = Usage
 	r := rt.Init()
-	defer r.Shutdown()
+	defer r.Cleanup()
 
 	mtServer, err := r.NewServer(veyron2.ServesMountTableOpt(true))
 	if err != nil {

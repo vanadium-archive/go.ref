@@ -68,7 +68,7 @@ func startRockPaperScissors(t *testing.T, rt veyron2.Runtime, mtAddress string) 
 // that all the counters are consistent.
 func TestRockPaperScissorsImpl(t *testing.T) {
 	runtime := rt.Init()
-	defer runtime.Shutdown()
+	defer runtime.Cleanup()
 	mtAddress, mtStop := startMountTable(t, runtime)
 	defer mtStop()
 	rpsService, rpsStop := startRockPaperScissors(t, runtime, mtAddress)

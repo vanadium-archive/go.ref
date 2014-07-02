@@ -7,6 +7,6 @@ import (
 )
 
 func main() {
-	defer rt.Init().Shutdown()
+	defer rt.Init().Cleanup()
 	impl.Root().Main()
 }

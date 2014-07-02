@@ -17,9 +17,9 @@ import (
 func complexServerProgram() {
 	// Initialize the runtime.  This is boilerplate.
 	r := rt.Init()
-	// r.Shutdown is optional, but it's a good idea to clean up, especially
+	// r.Cleanup is optional, but it's a good idea to clean up, especially
 	// since it takes care of flushing the logs before exiting.
-	defer r.Shutdown()
+	defer r.Cleanup()
 
 	// Create a couple servers, and start serving.
 	server1 := makeServer()

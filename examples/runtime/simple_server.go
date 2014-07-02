@@ -16,13 +16,13 @@ func simpleServerProgram() {
 	// Initialize the runtime.  This is boilerplate.
 	r := rt.Init()
 
-	// r.Shutdown is optional, but it's a good idea to clean up, especially
+	// r.Cleanup is optional, but it's a good idea to clean up, especially
 	// since it takes care of flushing the logs before exiting.
 	//
 	// We use defer to ensure this is the last thing in the program (to
 	// avoid shutting down the runtime while it may still be in use), and to
 	// allow it to execute even if a panic occurs down the road.
-	defer r.Shutdown()
+	defer r.Cleanup()
 
 	// Create a server, and start serving.
 	server := makeServer()

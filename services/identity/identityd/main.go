@@ -33,7 +33,7 @@ func main() {
 	// Setup flags and logging
 	flag.Usage = usage
 	r := rt.Init()
-	defer r.Shutdown()
+	defer r.Cleanup()
 
 	if len(*generate) > 0 {
 		generateAndSaveIdentity()

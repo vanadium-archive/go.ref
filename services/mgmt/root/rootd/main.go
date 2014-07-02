@@ -10,7 +10,7 @@ import (
 
 func main() {
 	r := rt.Init()
-	defer r.Shutdown()
+	defer r.Cleanup()
 	server, err := r.NewServer()
 	if err != nil {
 		vlog.Errorf("NewServer() failed: %v", err)

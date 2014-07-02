@@ -26,7 +26,7 @@ var (
 // the Profile interface.
 func TestInterface(t *testing.T) {
 	runtime := rt.Init()
-	defer runtime.Shutdown()
+	defer runtime.Cleanup()
 
 	ctx := runtime.NewContext()
 

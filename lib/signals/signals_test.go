@@ -52,7 +52,7 @@ func program(signals ...os.Signal) {
 	wait := ShutdownOnSignals(signals...)
 	fmt.Println("ready")
 	fmt.Println("received signal", <-wait)
-	r.Shutdown()
+	r.Cleanup()
 	<-closeStopLoop
 }
 
@@ -69,7 +69,7 @@ func handleCustomWithStop([]string) {
 }
 
 func handleDefaultsIgnoreChan([]string) {
-	defer rt.Init().Shutdown()
+	defer rt.Init().Cleanup()
 	closeStopLoop := make(chan struct{})
 	go stopLoop(closeStopLoop)
 	ShutdownOnSignals()
@@ -302,7 +302,7 @@ func createConfigServer(t *testing.T) (ipc.Server, string, <-chan string) {
 // TestCleanRemoteShutdown verifies that remote shutdown works correctly.
 func TestCleanRemoteShutdown(t *testing.T) {
 	r := rt.Init()
-	defer r.Shutdown()
+	defer r.Cleanup()
 	c := blackbox.HelperCommand(t, "handleDefaults")
 	defer c.Cleanup()
 	// This sets up the child's identity to be derived from the parent's (so

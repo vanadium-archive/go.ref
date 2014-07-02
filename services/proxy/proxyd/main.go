@@ -26,7 +26,7 @@ func main() {
 	)
 
 	r := rt.Init()
-	defer r.Shutdown()
+	defer r.Cleanup()
 
 	rid, err := naming.NewRoutingID()
 	if err != nil {

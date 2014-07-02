@@ -37,7 +37,7 @@ func TestRandom(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer r.Shutdown()
+	defer r.Cleanup()
 	ts := httptest.NewServer(Random{r})
 	defer ts.Close()
 
@@ -55,7 +55,7 @@ func TestBless(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer r.Shutdown()
+	defer r.Cleanup()
 
 	ts := httptest.NewServer(http.HandlerFunc(Bless))
 	defer ts.Close()

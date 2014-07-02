@@ -30,7 +30,7 @@ var (
 func main() {
 	// Get the runtime.
 	r := rt.Init()
-	defer r.Shutdown()
+	defer r.Cleanup()
 
 	// Create a new server.
 	s, err := r.NewServer()

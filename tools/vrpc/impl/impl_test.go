@@ -170,7 +170,7 @@ func testError(t *testing.T, cmd *cmdline.Command, args []string, expected strin
 
 func TestVRPC(t *testing.T) {
 	runtime := rt.Init()
-	// Skip defer runtime.Shutdown() to avoid messing up other tests in the
+	// Skip defer runtime.Cleanup() to avoid messing up other tests in the
 	// same process.
 	server, endpoint, err := startServer(t, runtime)
 	if err != nil {

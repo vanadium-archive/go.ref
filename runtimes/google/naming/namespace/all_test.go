@@ -391,7 +391,7 @@ func TestCycles(t *testing.T) {
 
 	sr := rt.Init()
 	r, _ := rt.New() // We use a different runtime for the client side.
-	defer r.Shutdown()
+	defer r.Cleanup()
 
 	root, _, _, stopper := createNamespace(t, sr)
 	defer stopper()
@@ -455,7 +455,7 @@ func TestUnresolve(t *testing.T) {
 	t.Skip()
 	sr := rt.Init()
 	r, _ := rt.New() // We use a different runtime for the client side.
-	defer r.Shutdown()
+	defer r.Cleanup()
 	root, mts, jokes, stopper := createNamespace(t, sr)
 	runNestedMountTables(t, sr, mts)
 	defer stopper()
@@ -472,7 +472,7 @@ func TestGoroutineLeaks(t *testing.T) {
 	t.Skip()
 	sr := rt.Init()
 	r, _ := rt.New() // We use a different runtime for the client side.
-	defer r.Shutdown()
+	defer r.Cleanup()
 	_, _, _, stopper := createNamespace(t, sr)
 	defer func() {
 		vlog.Infof("%d goroutines:", runtime.NumGoroutine())
@@ -486,7 +486,7 @@ func TestGoroutineLeaks(t *testing.T) {
 
 func TestBadRoots(t *testing.T) {
 	r, _ := rt.New()
-	defer r.Shutdown()
+	defer r.Cleanup()
 	if _, err := namespace.New(r); err != nil {
 		t.Errorf("namespace.New should not have failed with no roots")
 	}

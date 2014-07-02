@@ -61,7 +61,7 @@ func main() {
 	}
 	vlog.Infof("Binary repository rooted at %v", root)
 	runtime := rt.Init()
-	defer runtime.Shutdown()
+	defer runtime.Cleanup()
 	server, err := runtime.NewServer()
 	if err != nil {
 		vlog.Errorf("NewServer() failed: %v", err)

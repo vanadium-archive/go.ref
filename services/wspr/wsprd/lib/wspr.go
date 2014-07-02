@@ -873,7 +873,7 @@ func (ctx WSPR) Run() {
 }
 
 func (ctx WSPR) Shutdown() {
-	ctx.rt.Shutdown()
+	ctx.rt.Cleanup()
 }
 
 // Creates a new WebSocket Proxy object.

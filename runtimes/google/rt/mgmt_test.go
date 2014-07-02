@@ -164,7 +164,7 @@ func TestProgress(t *testing.T) {
 	checkNoProgress(t, ch)
 	m.AdvanceGoal(0)
 	checkNoProgress(t, ch)
-	m.Shutdown()
+	m.Cleanup()
 	if _, ok := <-ch; ok {
 		t.Errorf("Expected channel to be closed")
 	}
@@ -197,7 +197,7 @@ func TestProgressMultipleTrackers(t *testing.T) {
 	m.AdvanceGoal(4)
 	checkProgress(t, ch1, 11, 4)
 	checkProgress(t, ch2, 11, 4)
-	m.Shutdown()
+	m.Cleanup()
 	if _, ok := <-ch1; ok {
 		t.Errorf("Expected channel to be closed")
 	}
@@ -216,7 +216,7 @@ func app([]string) {
 		fmt.Printf("Error creating runtime: %v\n", err)
 		return
 	}
-	defer r.Shutdown()
+	defer r.Cleanup()
 	ch := make(chan string, 1)
 	r.WaitForStop(ch)
 	fmt.Printf("Got %s\n", <-ch)
@@ -279,7 +279,7 @@ func setupRemoteAppCycleMgr(t *testing.T) (*blackbox.Child, appcycle.AppCycle, f
 		configServer.Stop()
 		c.Cleanup()
 		os.Remove(idFile)
-		// Don't do r.Shutdown() since the runtime needs to be used by
+		// Don't do r.Cleanup() since the runtime needs to be used by
 		// more than one test case.
 	}
 }
