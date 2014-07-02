@@ -5,9 +5,9 @@ import (
 	"encoding/binary"
 	"errors"
 	"io"
-	"sync"
 	"time"
 
+	"veyron/runtimes/google/lib/sync"
 	"veyron/services/store/memstore"
 	"veyron/services/store/raw"
 	"veyron/services/store/service"
@@ -103,7 +103,9 @@ func (w *watcher) Watch(ctx ipc.ServerContext, processor reqProcessor,
 
 	done := make(chan error, 1)
 
-	w.pending.Add(1)
+	if !w.pending.TryAdd() {
+		return ErrWatchClosed
+	}
 	// This goroutine does not leak because processRequest is always terminated.
 	go func() {
 		defer w.pending.Done()

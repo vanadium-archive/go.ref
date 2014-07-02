@@ -10,6 +10,7 @@ import (
 	"sync"
 	"veyron2/vlog"
 
+	vsync "veyron/runtimes/google/lib/sync"
 	"veyron/services/store/memstore/state"
 	"veyron/services/store/service"
 
@@ -46,7 +47,7 @@ type evalIterator struct {
 	// to this stack.  The top of the stack is the end of the slice.
 	results []nestedChannel
 	// cleanup is used for testing to ensure that no goroutines are leaked.
-	cleanup sync.WaitGroup
+	cleanup vsync.WaitGroup
 	// maxNesting is the largest value used for nestedChannel.nesting.  It
 	// is the maximum nesting over the duration of the query while len(results)
 	// is just the instantaneous nesting.
@@ -207,7 +208,10 @@ func Eval(sn state.Snapshot, clientID security.PublicID, name storage.PathName, 
 		results: []nestedChannel{nestedChannel{0, out}},
 		abort:   make(chan struct{}),
 	}
-	it.cleanup.Add(1)
+	if !it.cleanup.TryAdd() {
+		// The query has been aborted by a call to Cancel.
+		return it
+	}
 	go evaluator.eval(&context{
 		sn:       sn,
 		suffix:   name.String(),
@@ -218,6 +222,7 @@ func Eval(sn state.Snapshot, clientID security.PublicID, name storage.PathName, 
 		abort:    it.abort,
 		cleanup:  &it.cleanup,
 	})
+
 	return it
 }
 
@@ -246,7 +251,7 @@ type context struct {
 	abort chan struct{}
 	// cleanup is used for testing to ensure that no goroutines are leaked.
 	// evaluator.eval implementations should call Done when finished processing.
-	cleanup *sync.WaitGroup
+	cleanup *vsync.WaitGroup
 }
 
 // emit sends result on c.out.  It is careful to watch for aborts.  result can be
@@ -392,7 +397,11 @@ func startSource(c *context, src evaluator) chan *store.QueryResult {
 		abort:    c.abort,
 		cleanup:  c.cleanup,
 	}
-	c.cleanup.Add(1)
+	if !c.cleanup.TryAdd() {
+		// The query has been aborted by a call to Cancel.
+		close(srcOut)
+		return srcOut
+	}
 	go src.eval(&srcContext)
 	return srcOut
 }
@@ -543,7 +552,10 @@ func (e *selectionEvaluator) processSubpipelines(c *context, result *store.Query
 			abort:    c.abort,
 			cleanup:  c.cleanup,
 		}
-		c.cleanup.Add(1)
+		if !c.cleanup.TryAdd() {
+			// The query has been aborted by a call to Cancel.
+			return false
+		}
 		go a.evaluator.eval(ctxt)
 
 		// If the subpipeline would produce a single result, use that single result
