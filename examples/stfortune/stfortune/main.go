@@ -17,9 +17,12 @@ import (
 	"veyron2/context"
 	"veyron2/naming"
 	"veyron2/rt"
+	istore "veyron2/services/store"
+	iwatch "veyron2/services/watch"
 	"veyron2/storage"
 	"veyron2/storage/vstore"
 	"veyron2/storage/vstore/primitives"
+	"veyron2/vom"
 )
 
 func fortunePath(name string) string {
@@ -42,21 +45,24 @@ func getMD5Hash(text string) string {
 func waitForStore(store storage.Store) {
 	ctx := rt.R().NewContext()
 
+	// Register *store.Entry for WatchGlob.
+	// TODO(tilaks): store.Entry is declared in vdl, vom should register the
+	// pointer automatically.
+	vom.Register(&istore.Entry{})
+
 	fmt.Printf("Waiting for Store to be initialized with fortune schema...\n")
 	// List of paths to check in store.
 	paths := []string{appPath, fortunePath(""), userPath("")}
-	for _, p := range paths {
-		for {
-			exists, err := store.Bind(p).Exists(ctx, nil)
-			if err != nil {
-				log.Fatalf("exists %s failed: %v", p, err)
-			}
-			if exists {
-				break
-			}
-			// Retry until ready.
-			time.Sleep(5 * time.Second)
+	for _, path := range paths {
+		req := iwatch.GlobRequest{Pattern: ""}
+		stream, err := store.Bind(path).WatchGlob(ctx, req)
+		if err != nil {
+			log.Fatalf("WatchGlob %s failed: %v", path, err)
 		}
+		if _, err := stream.Recv(); err != nil {
+			log.Fatalf("Recv failed: %v", err)
+		}
+		stream.Cancel()
 	}
 
 	fmt.Printf("Store is ready\n")
