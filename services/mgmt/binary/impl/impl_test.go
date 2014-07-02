@@ -110,11 +110,11 @@ func startServer(t *testing.T, depth int) (repository.Binary, func()) {
 	if err != nil {
 		t.Fatalf("Listen(%v, %v) failed: %v", protocol, hostname, err)
 	}
-	suffix := "test"
-	if err := server.Serve(suffix, dispatcher); err != nil {
-		t.Fatalf("Serve(%v) failed: %v", suffix, err)
+	dontPublishName := ""
+	if err := server.Serve(dontPublishName, dispatcher); err != nil {
+		t.Fatalf("Serve(%q) failed: %v", dontPublishName, err)
 	}
-	name := naming.JoinAddressName(endpoint.String(), suffix)
+	name := naming.JoinAddressName(endpoint.String(), "//test")
 	binary, err := repository.BindBinary(name)
 	if err != nil {
 		t.Fatalf("BindBinary(%v) failed: %v", name, err)
