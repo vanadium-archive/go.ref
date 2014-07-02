@@ -71,3 +71,15 @@ paper-dialog /deep/ #shadow {
   color: #616161;
   float: right;
 }
+
+.info-column {
+  text-align: center;
+}
+
+[moreInfoOnly] {
+  display: none;
+}
+
+.more-dialog-content [moreInfoOnly] {
+  display: initial;
+}
