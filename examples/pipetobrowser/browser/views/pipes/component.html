@@ -76,6 +76,10 @@
         tabToolbar.addEventListener('close-action', function() {
           self.removeTab(key);
         });
+        tabToolbar.addEventListener('fullscreen-action', function() {
+          var tabContent = self.pipeTabs[key].tabContent;
+          tabContent.fullscreen();
+        });
 
         // Create the content of the tab
         var tabContent = document.createElement('p2b-pipes-tab-content');

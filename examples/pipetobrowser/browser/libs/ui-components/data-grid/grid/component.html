@@ -306,14 +306,14 @@
         var minWidth = 768;
         var tableWidth = this.$.table.offsetWidth;
 
-        if (tableWidth >= minWidth) {
-          return;
-        }
-
         // reset to original flex values
         for (var i = 0; i < this.columns.length; i++) {
           var col = this.columns[i];
           col.columnData.flex = col.columnData.origFlex;
+        }
+
+        if (tableWidth >= minWidth) {
+          return;
         }
 
         // total of all flex values from all columns

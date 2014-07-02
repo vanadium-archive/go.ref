@@ -22,6 +22,18 @@
         //TODO(aghassemi) There must be a better way for these .innerHTML='', figure it out.
         this.$.main.innerHTML = '';
         this.$.main.appendChild(newEl);
+      },
+
+      /*
+       * Puts the tab content into fullscreen mode
+       */
+      fullscreen: function() {
+        var flag = Element.ALLOW_KEYBOARD_INPUT;
+        if (this.$.main.requestFullscreen) {
+          this.$.main.requestFullscreen(flag);
+        } else if( this.$.main.webkitRequestFullscreen ) {
+          this.$.main.webkitRequestFullscreen(flag);
+        }
       }
     });
   </script>
