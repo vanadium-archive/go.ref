@@ -219,7 +219,7 @@ func nodeManager(argv []string) {
 		}
 	case "parent":
 		runtime := rt.Init()
-		defer runtime.Shutdown()
+		defer runtime.Cleanup()
 		// Set up a mock binary repository, a mock application repository, and a node manager.
 		_, crCleanup := startBinaryRepository()
 		defer crCleanup()
@@ -232,7 +232,7 @@ func nodeManager(argv []string) {
 		blackbox.WaitForEOFOnStdin()
 	case "child":
 		runtime := rt.Init()
-		defer runtime.Shutdown()
+		defer runtime.Cleanup()
 		// Set up a node manager.
 		name, nmCleanup := startNodeManager()
 		defer nmCleanup()

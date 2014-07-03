@@ -28,7 +28,7 @@ func main() {
 		vlog.Fatalf("Specify the node manager origin as environment variable %s=<name>", impl.OriginEnv)
 	}
 	runtime := rt.Init()
-	defer runtime.Shutdown()
+	defer runtime.Cleanup()
 	server, err := runtime.NewServer()
 	if err != nil {
 		vlog.Fatalf("NewServer() failed: %v", err)

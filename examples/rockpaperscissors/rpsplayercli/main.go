@@ -31,7 +31,7 @@ var (
 
 func main() {
 	r := rt.Init()
-	defer r.Shutdown()
+	defer r.Cleanup()
 	for {
 		if selectOne([]string{"Initiate Game", "Wait For Challenge"}) == 0 {
 			initiateGame()

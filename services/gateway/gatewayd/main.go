@@ -37,7 +37,7 @@ func main() {
 
 	// Get the runtime.
 	r := rt.Init()
-	defer r.Shutdown()
+	defer r.Cleanup()
 
 	// Create a new instance of the gateway service.
 	vlog.Info("Connecting to proximity service: ", *proximity)

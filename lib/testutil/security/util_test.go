@@ -17,7 +17,7 @@ func TestNewBlessedIdentity(t *testing.T) {
 	if err != nil {
 		t.Fatalf("rt.New failed: %v", err)
 	}
-	defer r.Shutdown()
+	defer r.Cleanup()
 	newID := func(name string) security.PrivateID {
 		id, err := r.NewIdentity(name)
 		if err != nil {
@@ -48,7 +48,7 @@ func TestSaveACLToFile(t *testing.T) {
 	if err != nil {
 		t.Fatalf("rt.New failed: %v", err)
 	}
-	defer r.Shutdown()
+	defer r.Cleanup()
 	acl := security.ACL{
 		"veyron/alice": security.LabelSet(security.ReadLabel | security.WriteLabel),
 		"veyron/bob":   security.LabelSet(security.ReadLabel),
@@ -76,7 +76,7 @@ func TestSaveIdentityToFile(t *testing.T) {
 	if err != nil {
 		t.Fatalf("rt.New failed: %v", err)
 	}
-	defer r.Shutdown()
+	defer r.Cleanup()
 	id, err := r.NewIdentity("test")
 	if err != nil {
 		t.Fatalf("r.NewIdentity failed: %v", err)

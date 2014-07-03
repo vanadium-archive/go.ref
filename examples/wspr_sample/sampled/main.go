@@ -12,7 +12,7 @@ import (
 func main() {
 	// Create the runtime
 	r := rt.Init()
-	defer r.Shutdown()
+	defer r.Cleanup()
 
 	s, endpoint, err := lib.StartServer(r)
 	if err != nil {

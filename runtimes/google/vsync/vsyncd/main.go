@@ -30,7 +30,7 @@ func main() {
 
 	// Create the runtime.
 	r := rt.Init()
-	defer r.Shutdown()
+	defer r.Cleanup()
 
 	// Create a new server instance.
 	s, err := r.NewServer()

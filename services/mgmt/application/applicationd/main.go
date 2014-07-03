@@ -23,7 +23,7 @@ func main() {
 		vlog.Fatalf("Specify a store using --store=<name>")
 	}
 	runtime := rt.Init()
-	defer runtime.Shutdown()
+	defer runtime.Cleanup()
 	server, err := runtime.NewServer()
 	if err != nil {
 		vlog.Fatalf("NewServer() failed: %v", err)

@@ -17,7 +17,7 @@ import (
 func TestInterface(t *testing.T) {
 	runtime := rt.Init()
 	ctx := runtime.NewContext()
-	defer runtime.Shutdown()
+	defer runtime.Cleanup()
 
 	// Setup and start the application repository server.
 	server, err := runtime.NewServer()

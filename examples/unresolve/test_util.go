@@ -21,7 +21,7 @@ import (
 )
 
 func initRT(opts ...veyron2.ROpt) func() {
-	return rt.Init(opts...).Shutdown
+	return rt.Init(opts...).Cleanup
 }
 
 func createServer(name string, dispatcher ipc.Dispatcher, opts ...ipc.ServerOpt) (ipc.Server, string) {

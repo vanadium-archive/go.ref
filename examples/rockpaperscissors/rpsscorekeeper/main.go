@@ -35,7 +35,7 @@ func (i *impl) Record(ctx ipc.ServerContext, score rps.ScoreCard) error {
 
 func main() {
 	r := rt.Init()
-	defer r.Shutdown()
+	defer r.Cleanup()
 	server, err := r.NewServer()
 	if err != nil {
 		vlog.Fatalf("NewServer failed: %v", err)

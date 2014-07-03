@@ -152,7 +152,7 @@ func (rt *vrt) init(opts ...veyron2.ROpt) error {
 	return nil
 }
 
-func (rt *vrt) Shutdown() {
+func (rt *vrt) Cleanup() {
 	// TODO(caprita): Consider shutting down mgmt later in the runtime's
 	// shutdown sequence, to capture some of the runtime internal shutdown
 	// tasks in the task tracker.
