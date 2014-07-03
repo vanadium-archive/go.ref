@@ -136,10 +136,19 @@ func addFortune(store storage.Store, fortune string, userName string) error {
 		}
 	}()
 
+	// Check if this fortune already exists. If yes, return.
+	hash := getMD5Hash(naming.Join(fortune, userName))
+	exists, err := store.Bind(fortunePath(hash)).Exists(ctx, tr)
+	if err != nil {
+		return err
+	}
+	if exists {
+		return nil
+	}
+
 	// Check if the UserName exists. If yes, get its OID. If not, create a new user.
-	p := userPath(userName)
-	o := store.Bind(p)
-	exists, err := o.Exists(ctx, tr)
+	o := store.Bind(userPath(userName))
+	exists, err = o.Exists(ctx, tr)
 	if err != nil {
 		return err
 	}
@@ -161,15 +170,13 @@ func addFortune(store storage.Store, fortune string, userName string) error {
 
 	// Create a new fortune entry.
 	f := schema.FortuneData{Fortune: fortune, UserName: userid}
-	hash := getMD5Hash(naming.Join(fortune, userName))
-	p = fortunePath(hash)
-	s, err := store.Bind(p).Put(ctx, tr, f)
+	s, err := store.Bind(fortunePath(hash)).Put(ctx, tr, f)
 	if err != nil {
 		return err
 	}
 
 	// Link the new fortune to UserName.
-	p = userPath(naming.Join(userName, hash))
+	p := userPath(naming.Join(userName, hash))
 	if _, err = store.Bind(p).Put(ctx, tr, s.ID); err != nil {
 		return err
 	}
