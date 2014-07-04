@@ -29,7 +29,8 @@ table tbody tr:nth-child(2) td {
 }
 
 paper-dialog {
-  width: 50%;
+  max-width: 80em;
+  width: 80vw;
 }
 
 /* hack: wrong z-index in shadow of paper-dialog disables text selection in dialog */

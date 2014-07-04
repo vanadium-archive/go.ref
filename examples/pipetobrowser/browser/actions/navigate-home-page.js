@@ -7,7 +7,7 @@
 import { Logger } from 'libs/logs/logger'
 import { register, trigger } from 'libs/mvc/actions'
 
-import { publish, stopPublishing, state as publishState } from 'services/pipe-to-browser'
+import { publish, stopPublishing, state as publishState } from 'services/pipe-to-browser-server'
 
 import { displayError } from 'actions/display-error'
 import { addPipeViewer } from 'actions/add-pipe-viewer'

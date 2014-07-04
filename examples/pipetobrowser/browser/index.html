@@ -10,20 +10,23 @@
 
   <script src="libs/vendor/polymer/platform/platform.js"></script>
 
-  <!-- TODO(aghassemi) For Production - Use Volcanize to combine all components into a single import at build time -->
-  <link rel="import" href="views/page/component.html">
-  <link rel="import" href="views/publish/component.html">
-  <link rel="import" href="views/status/component.html">
-  <link rel="import" href="views/error/component.html">
-  <link rel="import" href="views/loading/component.html">
-  <link rel="import" href="views/pipes/component.html">
+  <link rel="stylesheet" type="text/css" href="index.css"/>
 
-  <link rel="import" href="libs/ui-components/blackhole/component.html">
+  <!-- TODO(aghassemi) For Production - Use Volcanize to combine all components into a single import at build time -->
+  <link rel="import" href="views/page/component.html"/>
+  <link rel="import" href="views/publish/component.html"/>
+  <link rel="import" href="views/status/component.html"/>
+  <link rel="import" href="views/error/component.html"/>
+  <link rel="import" href="views/loading/component.html"/>
+  <link rel="import" href="views/pipes/component.html"/>
+  <link rel="import" href="views/redirect-pipe-dialog/component.html"/>
+
+  <link rel="import" href="libs/ui-components/blackhole/component.html"/>
 
   <!-- TODO(aghassemi) Dynamic loading of plugins. Plugins should be able to use a provided module to load web components if they need to. We don't want to load all plugins for no reason! There could be hundreds of them -->
-  <link rel="import" href="pipe-viewers/builtin/console/component.html">
-  <link rel="import" href="pipe-viewers/builtin/git/status/component.html">
-  <link rel="import" href="pipe-viewers/builtin/vlog/component.html">
+  <link rel="import" href="pipe-viewers/builtin/console/component.html"/>
+  <link rel="import" href="pipe-viewers/builtin/git/status/component.html"/>
+  <link rel="import" href="pipe-viewers/builtin/vlog/component.html"/>
 
 </head>
 <body>

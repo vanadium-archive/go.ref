@@ -1,4 +1,6 @@
 <link rel="import" href="/libs/vendor/polymer/polymer/polymer.html">
+<link rel="import" href="/libs/vendor/polymer/paper-icon-button/paper-icon-button.html">
+<link rel="import" href="/libs/vendor/polymer/core-icons/iconsets/hardware-icons.html">
 
 <polymer-element name="p2b-pipes-tab-toolbar">
   <template>
@@ -7,6 +9,7 @@
       <span flex>
         {{ title }}
       </span>
+      <span id="customActions"></span>
       <paper-icon-button id="fullscreenIcon" icon="fullscreen" on-click="{{ fireFullscreenAction }}"></paper-icon-button>
       <paper-icon-button icon="close" on-click="{{ fireCloseAction }}"></paper-icon-button>
     </core-toolbar>
@@ -34,6 +37,18 @@
        */
       fireFullscreenAction: function() {
         this.fire('fullscreen-action');
+      },
+
+      /*
+       * Adds a new action to the toolbar
+       * @param icon {string} icon Icon for the action
+       * @param onClick {function} event handler for the action
+       */
+      add: function(icon, onClick) {
+        var button = document.createElement('paper-icon-button');
+        button.icon = icon;
+        button.addEventListener('click', onClick);
+        this.$.customActions.appendChild(button);
       }
     });
   </script>

@@ -23,6 +23,16 @@ export class PipesView extends View {
     this.element.addTab(key, name, view.element);
   }
 
+  /*
+   * Adds a new toolbar action for the tab's toolbar
+   * @param {string} key Key of the tab to add action to
+   * @param icon {string} icon key for the action
+   * @param onClick {function} event handler for the action
+   */
+  addToolbarAction(tabKey, icon, onClick) {
+    this.element.addToolbarAction(tabKey, icon, onClick);
+  }
+
  /*
   * Replaces the content of the tab identified via key by the new view.
   * @param {string} key A string key identifier for the tab.

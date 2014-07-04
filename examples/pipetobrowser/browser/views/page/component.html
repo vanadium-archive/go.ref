@@ -7,6 +7,8 @@
 <link rel="import" href="/libs/vendor/polymer/core-selector/core-selector.html">
 <link rel="import" href="/libs/vendor/polymer/paper-appbar/paper-appbar.html">
 <link rel="import" href="/libs/vendor/polymer/paper-icon-button/paper-icon-button.html">
+<link rel="import" href="/libs/vendor/polymer/paper-toast/paper-toast.html">
+
 <link href='http://fonts.googleapis.com/css?family=Roboto' rel='stylesheet' type='text/css'>
 
 <polymer-element name="p2b-page">
@@ -39,6 +41,7 @@
         </core-selector>
       </core-header-panel>
     </core-drawer-panel>
+     <paper-toast id="toast"></paper-toast>
   </template>
   <script>
     Polymer('p2b-page', {
@@ -84,6 +87,15 @@
           }
           self.selectedSubPageKey = key;
         });
+      },
+
+     /*
+      * Displays a message toast for a few seconds e.g. "Saved Successfully"
+      * @param {string} text Text of the toast
+      */
+      showToast: function(text) {
+        this.$.toast.text = text;
+        this.$.toast.show();
       },
 
       /*

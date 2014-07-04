@@ -9,10 +9,10 @@ import { Logger } from 'libs/logs/logger'
 import { config } from 'config'
 import { ByteObjectStreamAdapter } from 'libs/utils/byte-object-stream-adapter'
 import { StreamByteCounter } from 'libs/utils/stream-byte-counter'
+import { StreamCopy } from 'libs/utils/stream-copy'
 
-var log = new Logger('services/p2b');
-var v = new Veyron(config.veyron);
-var server = v.newServer();
+var log = new Logger('services/p2b-server');
+var server;
 
 // State of p2b service
 export var state = {
@@ -47,7 +47,8 @@ state.init();
  */
 export function publish(name, pipeRequestHandler) {
   log.debug('publishing under name:', name);
-
+  var veyron = new Veyron(config.veyron);
+  server = veyron.newServer();
   /*
    * Veyron pipe to browser service implementation.
    * Implements the p2b IDL.
@@ -55,6 +56,9 @@ export function publish(name, pipeRequestHandler) {
   var p2b = {
     pipe($suffix, $stream) {
       return new Promise(function(resolve, reject) {
+        //TODO(aghassemi) publish-issue hack for now since suffix is broken in JS API - p2b
+        $suffix = $suffix.substr(4);
+
         log.debug('received pipe request for:', $suffix);
         var numBytesForThisCall = 0;
 
@@ -65,7 +69,9 @@ export function publish(name, pipeRequestHandler) {
           state.numBytes += numBytesRead;
         });
 
-        var stream = $stream.pipe(bufferStream).pipe(streamByteCounter);
+        var streamCopier = $stream.pipe(new StreamCopy());
+        var stream = streamCopier.pipe(bufferStream).pipe(streamByteCounter);
+        stream.copier = streamCopier;
 
         bufferStream.on('end', () => {
           log.debug('end of stream');
@@ -79,7 +85,6 @@ export function publish(name, pipeRequestHandler) {
         });
 
         state.numPipes++;
-
         pipeRequestHandler($suffix, stream);
       });
     }
@@ -87,13 +92,14 @@ export function publish(name, pipeRequestHandler) {
 
   state.publishing = true;
 
-  return server.register(name, p2b).then(() => {
-    return server.publish(config.publishNamePrefix).then((endpoint) => {
+  //TODO(aghassemi) publish-issue
+  return server.register('p2b', p2b).then(() => {
+    return server.publish(config.publishNamePrefix + '/' + name).then((endpoint) => {
       log.debug('published with endpoint:', endpoint);
 
       state.published = true;
       state.publishing = false;
-      state.fullServiceName = config.publishNamePrefix + '/' + name;
+      state.fullServiceName = config.publishNamePrefix + '/' + name + '/p2b'; //TODO(aghassemi) publish-issue
       state.date = new Date();
 
       return endpoint;

@@ -4,6 +4,7 @@ import { registerNavigateHomePageAction,  navigateHomePage } from 'actions/navig
 import { registerDisplayErrorAction } from 'actions/display-error'
 import { registerAddPipeViewerAction } from 'actions/add-pipe-viewer'
 import { registerNavigatePipesPageAction, navigatePipesPage } from 'actions/navigate-pipes-page'
+import { registerRedirectPipeAction } from 'actions/redirect-pipe'
 
 import { SubPageItem } from 'views/page/view'
 
@@ -40,6 +41,7 @@ function registerActions() {
   registerDisplayErrorAction();
   registerAddPipeViewerAction();
   registerNavigatePipesPageAction();
+  registerRedirectPipeAction();
 }
 
 /*

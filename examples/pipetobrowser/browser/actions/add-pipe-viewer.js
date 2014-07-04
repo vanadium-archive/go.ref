@@ -14,6 +14,7 @@ import { get as getPipeViewer } from 'pipe-viewers/manager'
 
 import { displayError } from 'actions/display-error'
 import { navigatePipesPage } from 'actions/navigate-pipes-page'
+import { redirectPipe } from 'actions/redirect-pipe'
 
 import { LoadingView } from 'views/loading/view'
 
@@ -67,6 +68,12 @@ function actionHandler(name, stream) {
   // then replace the loading view with the actual viewer when ready
   var loadingView = new LoadingView();
   pipesViewInstance.addTab(tabKey, tabName, loadingView);
+
+  // Add the redirect stream action
+  var icon = 'hardware:cast';
+  pipesViewInstance.addToolbarAction(tabKey, icon, () => {
+    redirectPipe(stream);
+  });
 
   // Take the user to the pipes view.
   navigatePipesPage();

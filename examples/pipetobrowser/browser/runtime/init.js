@@ -10,7 +10,8 @@ window.addEventListener('polymer-ready', function(e) {
     'pipe-viewer': 'pipe-viewers/pipe-viewer.js',
     'pipe-viewer-delegation': 'pipe-viewers/pipe-viewer-delegation.js',
     'view': 'libs/mvc/view.js',
-    'logger': 'libs/logs/logger.js'
+    'logger': 'libs/logs/logger.js',
+    'stream-helpers': 'libs/utils/stream-helpers.js'
   };
 
   System.import('runtime/app').then(function(app) {
