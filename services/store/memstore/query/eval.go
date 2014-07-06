@@ -357,7 +357,9 @@ func (e *nameEvaluator) eval(c *context) {
 		path := storage.ParsePath(naming.Join(c.suffix, basepath))
 		vlog.VI(2).Infof("nameEvaluator suffix: %s, result.Name: %s, VName: %s",
 			c.suffix, result.Name, e.wildcardName.VName)
-		for it := c.sn.NewIterator(c.clientID, path, state.ImmediateFilter); it.IsValid(); it.Next() {
+		for it := c.sn.NewIterator(c.clientID, path,
+			state.ListObjects, state.ImmediateFilter); it.IsValid(); it.Next() {
+
 			entry := it.Get()
 			result := &store.QueryResult{
 				Name:  naming.Join(basepath, it.Name()),

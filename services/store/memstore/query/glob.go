@@ -32,7 +32,7 @@ func GlobIterator(sn state.Snapshot, clientID security.PublicID, path storage.Pa
 		pathLen: len(path),
 		glob:    parsed,
 	}
-	g.Iterator = sn.NewIterator(clientID, path, state.IterFilter(g.filter))
+	g.Iterator = sn.NewIterator(clientID, path, state.ListPaths, state.IterFilter(g.filter))
 
 	return g, nil
 }

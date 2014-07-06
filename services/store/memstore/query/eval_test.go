@@ -492,7 +492,7 @@ type mockSnapshot struct {
 	it state.Iterator
 }
 
-func (m *mockSnapshot) NewIterator(pid security.PublicID, path storage.PathName, filter state.IterFilter) state.Iterator {
+func (m *mockSnapshot) NewIterator(pid security.PublicID, path storage.PathName, pathFilter state.PathFilter, filter state.IterFilter) state.Iterator {
 	return m.it
 }
 

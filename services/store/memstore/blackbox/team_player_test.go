@@ -122,7 +122,9 @@ func TestManyToManyWithRole(t *testing.T) {
 	// Iterate over the rockets.
 	players := make(map[storage.ID]*Player)
 	name := storage.ParsePath("/teamsapp/players")
-	for it := st.Snapshot().NewIterator(rootPublicID, name, nil); it.IsValid(); it.Next() {
+	for it := st.Snapshot().NewIterator(rootPublicID, name,
+		state.ListPaths, nil); it.IsValid(); it.Next() {
+
 		e := it.Get()
 		if p, ok := e.Value.(*Player); ok {
 			if _, ok := players[e.Stat.ID]; ok {
@@ -148,7 +150,9 @@ func TestManyToManyWithRole(t *testing.T) {
 	// Iterate over all teams, nonrecursively.
 	teams := make(map[storage.ID]*Team)
 	name = storage.ParsePath("/teamsapp/teams")
-	for it := st.Snapshot().NewIterator(rootPublicID, name, state.ImmediateFilter); it.IsValid(); it.Next() {
+	for it := st.Snapshot().NewIterator(rootPublicID, name,
+		state.ListPaths, state.ImmediateFilter); it.IsValid(); it.Next() {
+
 		e := it.Get()
 		v := e.Value
 		if _, ok := v.(*Player); ok {
@@ -173,17 +177,19 @@ func TestManyToManyWithRole(t *testing.T) {
 	}
 
 	// Iterate over all teams, recursively.
-	playerCount := 0
+	contractCount := 0
 	teamCount := 0
 	players = make(map[storage.ID]*Player)
 	teams = make(map[storage.ID]*Team)
 	name = storage.ParsePath("/teamsapp/teams")
-	for it := st.Snapshot().NewIterator(rootPublicID, name, nil); it.IsValid(); it.Next() {
+	for it := st.Snapshot().NewIterator(rootPublicID, name,
+		state.ListPaths, nil); it.IsValid(); it.Next() {
+
 		e := it.Get()
 		v := e.Value
 		if p, ok := v.(*Player); ok {
 			players[e.Stat.ID] = p
-			playerCount++
+			contractCount++
 		}
 		if team, ok := v.(*Team); ok {
 			teams[e.Stat.ID] = team
@@ -202,8 +208,8 @@ func TestManyToManyWithRole(t *testing.T) {
 	if team, ok := teams[hornetsID]; !ok || team.FullName != "Hornets" {
 		t.Errorf("Should have Hornets, have %v", team)
 	}
-	if playerCount != 3 {
-		t.Errorf("Should have 3 players: have %d", playerCount)
+	if contractCount != 4 {
+		t.Errorf("Should have 4 contracts: have %d", contractCount)
 	}
 	if len(players) != 3 {
 		t.Errorf("Should have 3 players: have %v", players)

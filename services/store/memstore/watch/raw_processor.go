@@ -67,7 +67,9 @@ func (p *rawProcessor) processState(st *state.State) ([]watch.Change, error) {
 	// Create a change for each id in the state. In each change, the object
 	// exists, has no PriorVersion, has the Version of the new cell, and
 	// has the Value, Tags and Dir of the new cell.
-	for it := sn.NewIterator(p.pid, nil, state.RecursiveFilter); it.IsValid(); it.Next() {
+	for it := sn.NewIterator(p.pid, nil,
+		state.ListObjects, state.RecursiveFilter); it.IsValid(); it.Next() {
+
 		entry := it.Get()
 		id := entry.Stat.ID
 		// Retrieve Value, Tags and Dir from the corresponding cell.
