@@ -332,9 +332,10 @@ func newFlowServer(flow stream.Flow, server *server) *flowServer {
 		server: server,
 		disp:   server.disp,
 		// TODO(toddw): Support different codecs
-		dec:  vom.NewDecoder(flow),
-		enc:  vom.NewEncoder(flow),
-		flow: flow,
+		dec:        vom.NewDecoder(flow),
+		enc:        vom.NewEncoder(flow),
+		flow:       flow,
+		discharges: make(security.CaveatDischargeMap),
 	}
 }
 
@@ -450,7 +451,14 @@ func (fs *flowServer) processRequest() ([]interface{}, verror.E) {
 		// should servers be able to assume that a blessing is something that does not
 		// have the authorizations that the server's own identity has?
 	}
-
+	// Receive third party caveat discharges the client sent
+	for i := uint64(0); i < req.NumDischarges; i++ {
+		var d security.ThirdPartyDischarge
+		if err := fs.dec.Decode(&d); err != nil {
+			return nil, verror.BadProtocolf("ipc: decoding discharge %d of %d failed: %v", i, req.NumDischarges, err)
+		}
+		fs.discharges[d.CaveatID()] = d
+	}
 	// Lookup the invoker.
 	invoker, auth, suffix, verr := fs.lookup(req.Suffix)
 	fs.suffix = suffix // with leading /'s stripped
@@ -461,7 +469,6 @@ func (fs *flowServer) processRequest() ([]interface{}, verror.E) {
 	numArgs := int(req.NumPosArgs)
 	argptrs, label, err := invoker.Prepare(req.Method, numArgs)
 	fs.label = label
-	// TODO(ataly, ashankar): Populate the "discharges" field from the request object req.
 	if err != nil {
 		return nil, verror.Makef(verror.ErrorID(err), "%s: name: %q", err, req.Suffix)
 	}

@@ -30,17 +30,46 @@ import (
 	"veyron2/ipc/stream"
 	"veyron2/naming"
 	"veyron2/security"
+	"veyron2/vdl"
 	"veyron2/verror"
 	"veyron2/vlog"
+	"veyron2/vom"
 )
 
 var (
+	errAuthorizer = errors.New("ipc: application Authorizer denied access")
 	errMethod = verror.Abortedf("server returned an error")
 	clientID  security.PrivateID
 	serverID  security.PrivateID
+	clock     = new(fakeClock)
 )
 
-var errAuthorizer = errors.New("ipc: application Authorizer denied access")
+type fakeClock struct {
+	sync.Mutex
+	time int
+}
+
+func (c *fakeClock) Now() int {
+	c.Lock()
+	defer c.Unlock()
+	return c.time
+}
+
+func (c *fakeClock) Advance(steps uint) {
+	c.Lock()
+	c.time += int(steps)
+	c.Unlock()
+}
+
+type fakeTimeCaveat int
+
+func (c fakeTimeCaveat) Validate(security.Context) error {
+	now := clock.Now()
+	if now > int(c) {
+		return fmt.Errorf("fakeTimeCaveat expired: now=%d > then=%d", now, c)
+	}
+	return nil
+}
 
 type fakeContext struct{}
 
@@ -99,6 +128,18 @@ func (*testServer) Unauthorized(ipc.ServerCall) (string, error) {
 	return "UnauthorizedResult", fmt.Errorf("Unauthorized should never be called")
 }
 
+type dischargeServer struct{}
+
+func (*dischargeServer) Discharge(ctx ipc.ServerCall, caveat vdl.Any) (vdl.Any, error) {
+	c, ok := caveat.(security.ThirdPartyCaveat)
+	if !ok {
+		return nil, fmt.Errorf("discharger: unknown caveat(%T)", caveat)
+	}
+	// Add a fakeTimeCaveat to allow the discharge to expire
+	expiry := fakeTimeCaveat(clock.Now())
+	return serverID.MintDischarge(c, ctx, time.Hour, []security.ServiceCaveat{security.UniversalCaveat(expiry)})
+}
+
 type testServerAuthorizer struct{}
 
 func (testServerAuthorizer) Authorize(c security.Context) error {
@@ -113,18 +154,22 @@ type testServerDisp struct{ server interface{} }
 func (t testServerDisp) Lookup(suffix string) (ipc.Invoker, security.Authorizer, error) {
 	// If suffix is "nilAuth" we use default authorization, if it is "aclAuth" we
 	// use an ACL based authorizer, and otherwise we use the custom testServerAuthorizer.
-	if suffix == "nilAuth" {
-		return ipc.ReflectInvoker(t.server), nil, nil
-	}
-	if suffix == "aclAuth" {
+	var authorizer security.Authorizer
+	switch suffix {
+	case "discharger":
+		return ipc.ReflectInvoker(&dischargeServer{}), testServerAuthorizer{}, nil
+	case "nilAuth":
+		authorizer = nil
+	case "aclAuth":
 		// Only authorize clients matching patterns "client" or "server/*".
-		acl := security.ACL{
+		authorizer = security.NewACLAuthorizer(security.ACL{
 			"server/*": security.LabelSet(security.AdminLabel),
 			"client":   security.LabelSet(security.AdminLabel),
-		}
-		return ipc.ReflectInvoker(t.server), security.NewACLAuthorizer(acl), nil
+		})
+	default:
+		authorizer = testServerAuthorizer{}
 	}
-	return ipc.ReflectInvoker(t.server), testServerAuthorizer{}, nil
+	return ipc.ReflectInvoker(t.server), authorizer, nil
 }
 
 // namespace is a simple partial implementation of naming.Namespace.  In
@@ -228,6 +273,9 @@ func startServer(t *testing.T, serverID security.PrivateID, sm stream.Manager, n
 	if err := server.Serve("mountpoint/server", disp); err != nil {
 		t.Errorf("server.Publish failed: %v", err)
 	}
+	if err := server.Serve("mountpoint/discharger", disp); err != nil {
+		t.Errorf("server.Publish for discharger failed: %v", err)
+	}
 	return ep, server
 }
 
@@ -315,6 +363,27 @@ func derive(blessor security.PrivateID, name string, caveats ...security.Service
 	return derivedID
 }
 
+// deriveForThirdPartyCaveats creates a SetPrivateID that can be used for
+//  1. talking to the server, if the caveats are fulfilled
+//  2. getting discharges, even if the caveats are not fulfilled
+// As an identity with an unfulfilled caveat is invalid (even for asking for  a
+// discharge), this function creates a set of two identities. The first will
+// have the caveats, the second will always be valid, but only for getting
+// discharges. The client presents both blessings in both cases, the discharger
+// ignores the first if it is invalid.
+func deriveForThirdPartyCaveats(blessor security.PrivateID, name string, caveats ...security.ServiceCaveat) security.PrivateID {
+	id := derive(blessor, name, caveats...)
+	dischargeID, err := id.Derive(bless(blessor, id.PublicID(), name, security.UniversalCaveat(caveat.MethodRestriction{"Discharge"})))
+	if err != nil {
+		panic(err)
+	}
+	id, err = isecurity.NewSetPrivateID(id, dischargeID)
+	if err != nil {
+		panic(err)
+	}
+	return id
+}
+
 func matchesErrorPattern(err error, pattern string) bool {
 	if (len(pattern) == 0) != (err == nil) {
 		return false
@@ -370,20 +439,23 @@ func TestMultipleCallsToServe(t *testing.T) {
 }
 
 func TestStartCall(t *testing.T) {
-	authorizeErr := "not authorized because"
-	nameErr := "does not match the provided pattern"
+	const (
+		authorizeErr = "not authorized because"
+		nameErr      = "does not match the provided pattern"
+	)
+	var (
+		now        = time.Now()
+		cavOnlyV1  = security.UniversalCaveat(caveat.PeerIdentity{"client/v1"})
+		cavExpired = security.ServiceCaveat{
+			Service: security.AllPrincipals,
+			Caveat:  &caveat.Expiry{IssueTime: now, ExpiryTime: now},
+		}
 
-	cavOnlyV1 := security.UniversalCaveat(caveat.PeerIdentity{"client/v1"})
-	now := time.Now()
-	cavExpired := security.ServiceCaveat{
-		Service: security.AllPrincipals,
-		Caveat:  &caveat.Expiry{IssueTime: now, ExpiryTime: now},
-	}
-
-	clientV1ID := derive(clientID, "v1")
-	clientV2ID := derive(clientID, "v2")
-	serverV1ID := derive(serverID, "v1", cavOnlyV1)
-	serverExpiredID := derive(serverID, "expired", cavExpired)
+		clientV1ID      = derive(clientID, "v1")
+		clientV2ID      = derive(clientID, "v2")
+		serverV1ID      = derive(serverID, "v1", cavOnlyV1)
+		serverExpiredID = derive(serverID, "expired", cavExpired)
+	)
 
 	tests := []struct {
 		clientID, serverID security.PrivateID
@@ -546,21 +618,46 @@ func TestBlessing(t *testing.T) {
 	}
 }
 
+func mkThirdPartyCaveat(discharger security.PublicID, location string, c security.Caveat) security.ThirdPartyCaveat {
+	tpc, err := caveat.NewPublicKeyCaveat(c, discharger, location)
+	if err != nil {
+		panic(err)
+	}
+	return tpc
+}
+
 func TestRPCAuthorization(t *testing.T) {
-	cavOnlyEcho := security.ServiceCaveat{
-		Service: security.AllPrincipals,
-		Caveat:  caveat.MethodRestriction{"Echo"},
-	}
-	now := time.Now()
-	cavExpired := security.ServiceCaveat{
-		Service: security.AllPrincipals,
-		Caveat:  &caveat.Expiry{IssueTime: now, ExpiryTime: now},
-	}
+	var (
+		now = time.Now()
+		// First-party caveats
+		cavOnlyEcho = security.ServiceCaveat{
+			Service: security.AllPrincipals,
+			Caveat:  caveat.MethodRestriction{"Echo"},
+		}
+		cavExpired = security.ServiceCaveat{
+			Service: security.AllPrincipals,
+			Caveat:  &caveat.Expiry{IssueTime: now, ExpiryTime: now},
+		}
+		// Third-party caveats
+		// The Discharge service can be run by any identity, but in our tests the same server runs
+		// a Discharge service as well.
+		dischargerID = serverID.PublicID()
+		cavTPValid   = security.ServiceCaveat{
+			Service: security.PrincipalPattern(serverID.PublicID().Names()[0]),
+			Caveat:  mkThirdPartyCaveat(dischargerID, "mountpoint/server/discharger", &caveat.Expiry{ExpiryTime: now.Add(24 * time.Hour)}),
+		}
+		cavTPExpired = security.ServiceCaveat{
+			Service: security.PrincipalPattern(serverID.PublicID().Names()[0]),
+			Caveat:  mkThirdPartyCaveat(dischargerID, "mountpoint/server/discharger", &caveat.Expiry{IssueTime: now, ExpiryTime: now}),
+		}
 
-	blessedByServerOnlyEcho := derive(serverID, "onlyEcho", cavOnlyEcho)
-	blessedByServerExpired := derive(serverID, "expired", cavExpired)
-	blessedByClient := derive(clientID, "blessed")
-
+		// Client blessings that will be tested
+		blessedByServerOnlyEcho  = derive(serverID, "onlyEcho", cavOnlyEcho)
+		blessedByServerExpired   = derive(serverID, "expired", cavExpired)
+		blessedByServerTPValid   = deriveForThirdPartyCaveats(serverID, "tpvalid", cavTPValid)
+		blessedByServerTPExpired = deriveForThirdPartyCaveats(serverID, "tpexpired", cavTPExpired)
+		blessedByClient          = derive(clientID, "blessed")
+	)
 	const (
 		expiredIDErr = "forbids credential from being used at this time"
 		aclAuthErr   = "no matching ACL entry found"
@@ -599,7 +696,6 @@ func TestRPCAuthorization(t *testing.T) {
 		{clientID, "mountpoint/server/aclAuth", "Closure", nil, nil, ""},
 		{blessedByClient, "mountpoint/server/aclAuth", "Closure", nil, nil, aclAuthErr},
 		{serverID, "mountpoint/server/aclAuth", "Closure", nil, nil, ""},
-
 		// All methods except "Unauthorized" are authorized by the custom authorizer.
 		{clientID, "mountpoint/server/suffix", "Echo", v{"foo"}, v{`method:"Echo",suffix:"suffix",arg:"foo"`}, ""},
 		{blessedByClient, "mountpoint/server/suffix", "Echo", v{"foo"}, v{`method:"Echo",suffix:"suffix",arg:"foo"`}, ""},
@@ -611,6 +707,9 @@ func TestRPCAuthorization(t *testing.T) {
 		{clientID, "mountpoint/server/suffix", "Unauthorized", nil, v{""}, "application Authorizer denied access"},
 		{blessedByClient, "mountpoint/server/suffix", "Unauthorized", nil, v{""}, "application Authorizer denied access"},
 		{serverID, "mountpoint/server/suffix", "Unauthorized", nil, v{""}, "application Authorizer denied access"},
+		// Third-party caveat discharges should be fetched and forwarded
+		{blessedByServerTPValid, "mountpoint/server/suffix", "Echo", v{"foo"}, v{`method:"Echo",suffix:"suffix",arg:"foo"`}, ""},
+		{blessedByServerTPExpired, "mountpoint/server/suffix", "Echo", v{"foo"}, v{""}, "missing discharge"},
 	}
 	name := func(t testcase) string {
 		return fmt.Sprintf("%q RPCing %s.%s(%v)", t.clientID.PublicID(), t.name, t.method, t.args)
@@ -637,6 +736,49 @@ func TestRPCAuthorization(t *testing.T) {
 		if !matchesErrorPattern(err, test.finishErr) {
 			t.Errorf(`%s call.Finish got error: "%v", want to match: "%v"`, name(test), err, test.finishErr)
 		}
+	}
+}
+
+type alwaysValidCaveat struct{}
+
+func (alwaysValidCaveat) Validate(security.Context) error { return nil }
+
+func TestDischargePurgeFromCache(t *testing.T) {
+	var (
+		dischargerID = serverID.PublicID()
+		caveat       = mkThirdPartyCaveat(dischargerID, "mountpoint/server/discharger", alwaysValidCaveat{})
+		clientCID    = deriveForThirdPartyCaveats(serverID, "client", security.UniversalCaveat(caveat))
+	)
+	b := createBundle(t, clientCID, serverID, &testServer{})
+	defer b.cleanup(t)
+
+	call := func() error {
+		call, err := b.client.StartCall(&fakeContext{}, "mountpoint/server/suffix", "Echo", []interface{}{"batman"})
+		if err != nil {
+			return fmt.Errorf("client.StartCall failed: %v", err)
+		}
+		var got string
+		if err := call.Finish(&got); err != nil {
+			return fmt.Errorf("client.Finish failed: %v", err)
+		}
+		if want := `method:"Echo",suffix:"suffix",arg:"batman"`; got != want {
+			return fmt.Errorf("Got [%v] want [%v]", got, want)
+		}
+		return nil
+	}
+
+	// First call should succeed
+	if err := call(); err != nil {
+		t.Fatal(err)
+	}
+	// Advance virtual clock, which will invalidate the discharge
+	clock.Advance(1)
+	if err := call(); !matchesErrorPattern(err, "fakeTimeCaveat expired") {
+		t.Errorf("Got error [%v] wanted to match pattern 'fakeTimeCaveat expired'", err)
+	}
+	// But retrying will succeed since the discharge should be purged from cache and refreshed
+	if err := call(); err != nil {
+		t.Fatal(err)
 	}
 }
 
@@ -1095,4 +1237,6 @@ func init() {
 
 	blackbox.CommandTable["runServer"] = runServer
 	blackbox.CommandTable["runProxy"] = runProxy
+
+	vom.Register(fakeTimeCaveat(0))
 }

@@ -117,7 +117,7 @@ func TestFlowClientServer(t *testing.T) {
 	ipcServer := &server{disp: testDisp{newEchoInvoker}}
 	for _, test := range tests {
 		clientFlow, serverFlow := newTestFlows()
-		client := newFlowClient(clientFlow)
+		client := newFlowClient(clientFlow, nil, nil)
 		server := newFlowServer(serverFlow, ipcServer)
 		err := client.start(test.suffix, test.method, test.args, time.Duration(0), nil)
 		if err != nil {
