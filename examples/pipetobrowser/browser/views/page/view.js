@@ -23,6 +23,14 @@ export class PageView extends View {
 	}
 
  /*
+  * Displayed a message toast for a few seconds e.g. "Saved Successfully"
+  * @type {SubPageItem}
+  */
+  showToast(text) {
+    this.element.showToast(text);
+  }
+
+ /*
   * Collection of sub pages
   * @type {SubPageItem}
   */

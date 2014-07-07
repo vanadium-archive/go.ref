@@ -1,0 +1,58 @@
+<link rel="import" href="/libs/vendor/polymer/polymer/polymer.html">
+<link rel="import" href="/libs/vendor/polymer/paper-input/paper-input.html">
+<link rel="import" href="/libs/vendor/polymer/paper-button/paper-button.html">
+<link rel="import" href="/libs/vendor/polymer/paper-dialog/paper-dialog.html">
+<link rel="import" href="/libs/vendor/polymer/paper-dialog/paper-dialog-transition.html">
+
+<polymer-element name="p2b-redirect-pipe-dialog">
+
+  <template id="template">
+    <link rel="stylesheet" href="../common/common.css">
+    <link rel="stylesheet" href="component.css">
+    <paper-dialog id="dialog" heading="Redirect" transition="paper-dialog-transition-bottom">
+      <p>
+        <paper-input focused id="nameInput" label="Name to redirect to" floatinglabel></paper-input>
+        <paper-checkbox id="newDataOnly" label="Only redirect new data"></paper-checkbox>
+      </p>
+      <paper-button label="Cancel" dismissive></paper-button>
+      <paper-button label="Redirect" affirmative default on-tap="{{ fireRedirectActionEvent }}"></paper-button>
+    </paper-dialog>
+  </template>
+  <script>
+    Polymer('p2b-redirect-pipe-dialog', {
+      ready: function() {
+        var self = this;
+        var dialog = this.$.dialog;
+        var container = document.querySelector('#redirectDialogContainer');
+        if (!container) {
+          var container = document.createElement('div');
+          container.id = 'redirectDialogContainer';
+          document.body.appendChild(container);
+        }
+        this.container = container;
+      },
+
+      /*
+       * Opens the dialog
+       */
+      open: function() {
+        this.container.innerHTML = ''
+        this.container.appendChild(this);
+        this.$.dialog.toggle();
+      },
+
+      /*
+       * Fires redirect event representing user's intention to redirect
+       * @type {string} Requested name for service to be redirected
+       * @type {boolean} Whether only new data should be redirected
+       */
+      fireRedirectActionEvent: function() {
+        var name = this.$.nameInput.value;
+        this.fire('redirect', {
+          name: name,
+          newDataOnly: this.$.newDataOnly.checked
+        });
+      }
+    });
+  </script>
+</polymer-element>

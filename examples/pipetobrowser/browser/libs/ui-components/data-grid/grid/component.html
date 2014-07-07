@@ -51,7 +51,7 @@
     </table>
 
     <!-- Dialog that displays all columns and their values when more info icon activated -->
-    <paper-dialog layered id="dialog" heading="Details" transition="paper-dialog-transition-bottom">
+    <paper-dialog id="dialog" heading="Details" transition="paper-dialog-transition-bottom">
       <template id="moreInfoTemplate" bind>
         <div class="more-dialog-content">
           <template repeat="{{ item in selectedItems }}">
@@ -62,6 +62,7 @@
           </template>
         </div>
       </template>
+      <paper-button label="Close" dismissive></paper-button>
     </paper-dialog>
 
   </template>
@@ -144,10 +145,6 @@
       defaultSortAscending: false,
 
       showMoreInfo: function(e) {
-        // quirk + hack: cheating here and breaking shadow dom boundaries
-        // since paper-dialog does not support backdrop yet
-        this.$.dialog.shadowRoot.querySelector('#overlay').backdrop = true;
-
         var item = e.target.templateInstance.model.item;
         this.selectedItems = [item];
         this.$.dialog.opened = true;

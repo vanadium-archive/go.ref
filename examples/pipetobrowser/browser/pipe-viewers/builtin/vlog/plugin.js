@@ -8,12 +8,11 @@
  */
 import { View } from 'view';
 import { PipeViewer } from 'pipe-viewer';
+import { streamUtil } from 'stream-helpers';
 import { Logger } from 'logger'
 import { vLogDataSource } from './data-source';
 
 var log = new Logger('pipe-viewers/builtin/vlog');
-
-var streamUtil = require('event-stream');
 
 class vLogPipeViewer extends PipeViewer {
   get name() {

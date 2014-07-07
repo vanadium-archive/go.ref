@@ -1,0 +1,21 @@
+paper-input {
+  width: 90%;
+}
+
+paper-input, paper-checkbox {
+  display: block;
+}
+
+paper-dialog {
+  max-width: 40em;
+  width: 80vw;
+}
+
+/* hack: wrong z-index in shadow of paper-dialog disables text selection in dialog */
+paper-dialog /deep/ #shadow {
+  z-index: -1 !important;
+}
+
+paper-button[affirmative] {
+  color: #4285f4;
+}

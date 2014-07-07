@@ -94,10 +94,22 @@
         this.pipeTabs[key] = {
           name: name,
           tab: tab,
-          tabContent: tabContent
+          tabContent: tabContent,
+          tabToolbar: tabToolbar
         };
 
         this.selectedTabKey = key;
+      },
+
+      /*
+       * Adds a new toolbar action for the tab's toolbar
+       * @param {string} tabKey Key of the tab to add action to
+       * @param icon {string} icon Icon name for the action
+       * @param onClick {function} event handler for the action
+       */
+      addToolbarAction: function(tabKey, icon, onClick) {
+        var toolbar = this.pipeTabs[tabKey].tabToolbar;
+        toolbar.add(icon, onClick);
       },
 
       /*
