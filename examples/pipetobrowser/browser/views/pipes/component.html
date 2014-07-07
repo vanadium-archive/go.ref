@@ -140,11 +140,16 @@
       /*
        * Replaces content of a tab
        * @param {string} key Key of the tab to replace content for
+       * @param {string} newName new name for the tab
        * @param {DOMElement} el New content of the tab
        */
-      replaceTabContent: function(key, newEl) {
+      replaceTabContent: function(key, newName, newEl) {
         var tabContent = this.pipeTabs[key].tabContent;
         tabContent.replaceTabContent(newEl);
+        if (newName) {
+          this.pipeTabs[key].tab.textContent = newName;
+          this.pipeTabs[key].tabToolbar.title = newName;
+        }
       },
 
       /*

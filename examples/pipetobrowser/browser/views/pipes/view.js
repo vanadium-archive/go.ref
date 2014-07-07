@@ -36,9 +36,10 @@ export class PipesView extends View {
  /*
   * Replaces the content of the tab identified via key by the new view.
   * @param {string} key A string key identifier for the tab.
+  * @param {string} newName New name for the tab
   * @param {View} view View to replace the current tab content
   */
-  replaceTabView(key, newView) {
-    this.element.replaceTabContent(key, newView.element);
+  replaceTabView(key, newName, newView) {
+    this.element.replaceTabContent(key, newName, newView.element);
   }
 }

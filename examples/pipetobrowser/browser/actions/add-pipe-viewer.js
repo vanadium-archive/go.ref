@@ -53,15 +53,16 @@ function actionHandler(name, stream) {
   var count = (pipesPerNameCounter[name] || 0) + 1;
   pipesPerNameCounter[name] = count;
   var tabKey = name + count;
-  var tabName = name + ' #' + count;
+  var tabName = 'Loading...';
 
   // Get the plugin that can render the stream, ask it to play it and display
   // the element returned by the pipeViewer.
   getPipeViewer(name).then((pipeViewer) => {
+    tabName = pipeViewer.name + ' #' + count
     return pipeViewer.play(stream);
   }).then((pipeViewerView) => {
     // replace the loading view with the actual viewerView
-    pipesViewInstance.replaceTabView(tabKey, pipeViewerView);
+    pipesViewInstance.replaceTabView(tabKey, tabName, pipeViewerView);
   }).catch((e) => { displayError(e); });
 
   // Add a new tab and show a loading indicator for now,
