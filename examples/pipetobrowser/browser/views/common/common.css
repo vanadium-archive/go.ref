@@ -23,3 +23,9 @@ paper-button.colored.red {
   flex-direction: column;
   flex: 1 1 0px;
 }
+
+[page-title] {
+  font-size: 1.5em;
+  color: #4285f4;
+  margin: 0px;
+}

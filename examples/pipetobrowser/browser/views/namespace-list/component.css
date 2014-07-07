@@ -1,0 +1,19 @@
+[selectable] .selected {
+  background-color: #00e5ff;
+  opacity: 0.8;
+}
+
+[selectable] core-item {
+  cursor: pointer;
+}
+
+core-item {
+  box-sizing: border-box;
+  border-bottom: 1px solid rgba(0,0,0,0.05);
+  margin: 0;
+  padding: 0 1em;
+}
+
+core-item:last-child {
+  border-bottom: none;
+}

@@ -4,6 +4,7 @@ import { registerNavigateHomePageAction,  navigateHomePage } from 'actions/navig
 import { registerDisplayErrorAction } from 'actions/display-error'
 import { registerAddPipeViewerAction } from 'actions/add-pipe-viewer'
 import { registerNavigatePipesPageAction, navigatePipesPage } from 'actions/navigate-pipes-page'
+import { registerNavigateNeigbourhoodAction, navigateNeigbourhood } from 'actions/navigate-neighborhood'
 import { registerRedirectPipeAction } from 'actions/redirect-pipe'
 
 import { SubPageItem } from 'views/page/view'
@@ -41,6 +42,7 @@ function registerActions() {
   registerDisplayErrorAction();
   registerAddPipeViewerAction();
   registerNavigatePipesPageAction();
+  registerNavigateNeigbourhoodAction();
   registerRedirectPipeAction();
 }
 
@@ -63,6 +65,12 @@ function initPageView() {
   pipesSubPageItem.icon = 'arrow-forward';
   pipesSubPageItem.onActivate = navigatePipesPage;
   page.subPages.push(pipesSubPageItem);
+
+  var neighborhoodSubPageItem = new SubPageItem('neighborhood');
+  neighborhoodSubPageItem.name = 'Neighborhood';
+  neighborhoodSubPageItem.icon = 'social:circles-extended';
+  neighborhoodSubPageItem.onActivate = navigateNeigbourhood;
+  page.subPages.push(neighborhoodSubPageItem);
 
   var helpSubPageItem = new SubPageItem('help');
   helpSubPageItem.name = 'Help';

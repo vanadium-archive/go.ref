@@ -73,7 +73,7 @@ function actionHandler(name, stream) {
   // Add the redirect stream action
   var icon = 'hardware:cast';
   pipesViewInstance.addToolbarAction(tabKey, icon, () => {
-    redirectPipe(stream);
+    redirectPipe(stream, name);
   });
 
   // Take the user to the pipes view.

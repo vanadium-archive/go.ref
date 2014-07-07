@@ -19,3 +19,9 @@ paper-dialog /deep/ #shadow {
 paper-button[affirmative] {
   color: #4285f4;
 }
+
+.label {
+  margin: 0;
+  margin-top: 1em;
+  font-size: 1.1em;
+}

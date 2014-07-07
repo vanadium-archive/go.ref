@@ -1,0 +1,55 @@
+<link rel="import" href="/libs/vendor/polymer/polymer/polymer.html">
+<link rel="import" href="/libs/vendor/polymer/core-list/core-list.html">
+<link rel="import" href="/libs/vendor/polymer/core-item/core-item.html">
+
+<polymer-element name="p2b-namespace-list" attributes="names selectable">
+  <template>
+    <link rel="stylesheet" href="component.css">
+    <template if="{{_items.length > 0}}">
+      <core-list selectable?="{{selectable}}" height="40" on-core-activate="{{fireSelectEvent}}" data="{{_items}}" height="20">
+        <template>
+          <core-item class="{{ {selected: selected} | tokenList }}" label="{{name}}"></core-item>
+        </template>
+      </core-list>
+    </template>
+  </template>
+  <script>
+    Polymer('p2b-namespace-list', {
+     /*
+      * List of names to be displayed
+      * @type {Array<string>}
+      */
+      names: [],
+
+     /*
+      * Whether the names displayed are selectable
+      * if selectable, 'select' event will fire with the name of the selected item
+      * @type {boolean}
+      */
+      selectable: false,
+
+      /*
+       * transformed collection of names to objects
+       * @private
+       */
+      _items: [],
+      namesChanged: function() {
+        // transform from [string] to [object] since core-items expects array of objects
+        this._items = this.names.map( function(n) {
+          return {name: n};
+        });
+      },
+
+      /*
+       * fires the select event pass the name as event argument
+       * @private
+       */
+      fireSelectEvent: function(e) {
+        if (!this.selectable) {
+          return;
+        }
+        this.fire('select', e.detail.data.name);
+      }
+    });
+    </script>
+</polymer-element>

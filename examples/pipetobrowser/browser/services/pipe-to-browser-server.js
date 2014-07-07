@@ -4,7 +4,6 @@
  * It also exposes the state of the service.
  * @fileoverview
  */
-
 import { Logger } from 'libs/logs/logger'
 import { config } from 'config'
 import { ByteObjectStreamAdapter } from 'libs/utils/byte-object-stream-adapter'
@@ -56,8 +55,8 @@ export function publish(name, pipeRequestHandler) {
   var p2b = {
     pipe($suffix, $stream) {
       return new Promise(function(resolve, reject) {
-        //TODO(aghassemi) publish-issue hack for now since suffix is broken in JS API - p2b
-        $suffix = $suffix.substr(4);
+        //TODO(aghassemi) publish-issue remove /pipe/ from the suffix
+        $suffix = $suffix.substr(5);
 
         log.debug('received pipe request for:', $suffix);
         var numBytesForThisCall = 0;
@@ -92,14 +91,13 @@ export function publish(name, pipeRequestHandler) {
 
   state.publishing = true;
 
-  //TODO(aghassemi) publish-issue
-  return server.register('p2b', p2b).then(() => {
-    return server.publish(config.publishNamePrefix + '/' + name).then((endpoint) => {
+  return server.register('pipe', p2b).then(() => { //TODO(aghassemi) publish-issue add pipe for now since we can't register under empty name
+    return server.publish(config.publishNamePrefix + '/' + name).then((endpoint) => { //TODO(aghassemi) publish-issue
       log.debug('published with endpoint:', endpoint);
 
       state.published = true;
       state.publishing = false;
-      state.fullServiceName = config.publishNamePrefix + '/' + name + '/p2b'; //TODO(aghassemi) publish-issue
+      state.fullServiceName = config.publishNamePrefix + '/' + name + '/pipe'; //TODO(aghassemi) publish-issue
       state.date = new Date();
 
       return endpoint;

@@ -11,10 +11,12 @@
 
 [sidebar] {
   padding: 0.5em;
+  fill: #9e9e9e;
 }
 
 [sidebar] .core-selected {
   color: #00bcd4;
+  fill: #212121;
 }
 
 [main] {

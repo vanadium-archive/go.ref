@@ -26,11 +26,8 @@
 }
 
 .empty-message {
-  font-size: 1.5em;
-  padding: 1.5em;
+  padding: 1em;
   position: absolute;
-  margin: 0px;
-  color: #4285f4;
 }
 
 .container {

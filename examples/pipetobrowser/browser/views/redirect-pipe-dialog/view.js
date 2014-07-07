@@ -19,6 +19,14 @@ export class RedirectPipeDialogView extends View {
     this.element.open();
   }
 
+  /*
+   * List of existing names to show in the dialog for the user to pick from
+   * @type {Array<string>}
+   */
+  set existingNames(val) {
+    this.element.existingNames = val;
+  }
+
  /*
   * Event representing user's intention to redirect
   * @event

@@ -11,5 +11,6 @@ export var config = {
     proxy: 'http://localhost:5165',
     logLevel: veyronLogLevels.INFO
   },
-  publishNamePrefix: 'google' //TODO(aghassemi) publish-issue
+  namespaceRoot: '/localhost:5167',
+  publishNamePrefix: 'google/p2b'
 }

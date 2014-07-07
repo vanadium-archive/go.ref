@@ -3,6 +3,7 @@
 <link rel="import" href="/libs/vendor/polymer/paper-button/paper-button.html">
 <link rel="import" href="/libs/vendor/polymer/paper-dialog/paper-dialog.html">
 <link rel="import" href="/libs/vendor/polymer/paper-dialog/paper-dialog-transition.html">
+<link rel="import" href="/views/namespace-list/component.html">
 
 <polymer-element name="p2b-redirect-pipe-dialog">
 
@@ -13,6 +14,10 @@
       <p>
         <paper-input focused id="nameInput" label="Name to redirect to" floatinglabel></paper-input>
         <paper-checkbox id="newDataOnly" label="Only redirect new data"></paper-checkbox>
+        <template if="{{existingNames.length > 0}}">
+          <h2 class="label">Currently online</h2>
+          <p2b-namespace-list selectable on-select="{{updateNameInput}}" names="{{existingNames}}"></p2b-namespace-list>
+        </template>
       </p>
       <paper-button label="Cancel" dismissive></paper-button>
       <paper-button label="Redirect" affirmative default on-tap="{{ fireRedirectActionEvent }}"></paper-button>
@@ -20,6 +25,13 @@
   </template>
   <script>
     Polymer('p2b-redirect-pipe-dialog', {
+
+      /*
+       * List of existing names to show in the dialog for the user to pick from
+       * @type {Array<string>}
+       */
+      existingNames: [],
+
       ready: function() {
         var self = this;
         var dialog = this.$.dialog;
@@ -52,6 +64,14 @@
           name: name,
           newDataOnly: this.$.newDataOnly.checked
         });
+      },
+
+      /*
+       * Updates the input value
+       * @private
+       */
+      updateNameInput: function(e) {
+        this.$.nameInput.value = e.detail;
       }
     });
   </script>

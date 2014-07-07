@@ -11,6 +11,7 @@ import { page } from 'runtime/context'
 
 import { RedirectPipeDialogView } from 'views/redirect-pipe-dialog/view'
 import { pipe } from 'services/pipe-to-browser-client'
+import { getAll as getAllPublishedP2BNames } from 'services/pipe-to-browser-namespace'
 
 var log = new Logger('actions/redirect-pipe');
 const ACTION_NAME = 'redirect-pipe';
@@ -25,9 +26,10 @@ export function registerRedirectPipeAction() {
 /*
  * Triggers the redirect pipe action
  * @param {stream} stream Stream object to redirect
+ * @param {string} currentPluginName name of the current plugin
  */
-export function redirectPipe(stream) {
-  return trigger(ACTION_NAME, stream, name);
+export function redirectPipe(stream, currentPluginName) {
+  return trigger(ACTION_NAME, stream, currentPluginName);
 }
 
 /*
@@ -35,7 +37,7 @@ export function redirectPipe(stream) {
  *
  * @private
  */
-function actionHandler(stream) {
+function actionHandler(stream, currentPluginName) {
   log.debug('redirect pipe action triggered');
 
   // display a dialog asking user where to redirect and whether to redirect
@@ -53,5 +55,15 @@ function actionHandler(stream) {
       page.showToast('FAILED to redirect to ' + name + '. Please see console for error details.');
       log.debug('FAILED to redirect to', name, e);
     });
+  });
+
+  // also get the list of all existing P2B names in the namespace and supply it to the dialog
+  getAllPublishedP2BNames().then((allNames) => {
+    // append current plugin name to the veyron names for better UX
+    dialog.existingNames = allNames.map((n) => {
+      return n + '/pipe/' + (currentPluginName || ''); //TODO(aghassemi) publish issue
+    });
+  }).catch((e) => {
+    log.debug('getAllPublishedP2BNames failed', e);
   });
 }
