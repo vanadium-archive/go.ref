@@ -129,8 +129,8 @@ func Java_com_veyron_runtimes_google_Runtime_nativeFinalize(env *C.JNIEnv, jRunt
 	}
 }
 
-//export Java_com_veyron_runtimes_google_Runtime_00024Server_nativeRegister
-func Java_com_veyron_runtimes_google_Runtime_00024Server_nativeRegister(env *C.JNIEnv, jServer C.jobject, goServerPtr C.jlong, prefix C.jstring, dispatcher C.jobject) {
+//export Java_com_veyron_runtimes_google_Runtime_00024Server_nativeServe
+func Java_com_veyron_runtimes_google_Runtime_00024Server_nativeServe(env *C.JNIEnv, jServer C.jobject, goServerPtr C.jlong, name C.jstring, dispatcher C.jobject) {
 	s := (*ipc.Server)(ptr(goServerPtr))
 	if s == nil {
 		jThrowV(env, fmt.Errorf("Couldn't find Go server with pointer: %d", int(goServerPtr)))
@@ -142,7 +142,10 @@ func Java_com_veyron_runtimes_google_Runtime_00024Server_nativeRegister(env *C.J
 		jThrowV(env, err)
 		return
 	}
-	(*s).Register(goString(env, prefix), d)
+	if err := (*s).Serve(goString(env, name), d); err != nil {
+		jThrowV(env, err)
+		return
+	}
 }
 
 //export Java_com_veyron_runtimes_google_Runtime_00024Server_nativeListen
@@ -158,19 +161,6 @@ func Java_com_veyron_runtimes_google_Runtime_00024Server_nativeListen(env *C.JNI
 		return nil
 	}
 	return jString(env, ep.String())
-}
-
-//export Java_com_veyron_runtimes_google_Runtime_00024Server_nativePublish
-func Java_com_veyron_runtimes_google_Runtime_00024Server_nativePublish(env *C.JNIEnv, server C.jobject, goServerPtr C.jlong, name C.jstring) {
-	s := (*ipc.Server)(ptr(goServerPtr))
-	if s == nil {
-		jThrowV(env, fmt.Errorf("Couldn't find Go server with pointer: %d", int(goServerPtr)))
-		return
-	}
-	if err := (*s).Publish(goString(env, name)); err != nil {
-		jThrowV(env, err)
-		return
-	}
 }
 
 //export Java_com_veyron_runtimes_google_Runtime_00024Server_nativeStop
