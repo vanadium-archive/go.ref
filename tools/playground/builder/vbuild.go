@@ -266,7 +266,7 @@ func StartMount() (err error) {
 		return err
 	}
 	buf := bufio.NewReader(reader)
-	pat := regexp.MustCompile("Mount table at: (.+)\n")
+	pat := regexp.MustCompile("Mount table .+ endpoint: (.+)\n")
 
 	timeout := time.After(RUN_TIMEOUT)
 	ch := make(chan string)
@@ -274,6 +274,8 @@ func StartMount() (err error) {
 		for line, err := buf.ReadString('\n'); err == nil; line, err = buf.ReadString('\n') {
 			if groups := pat.FindStringSubmatch(line); groups != nil {
 				ch <- groups[1]
+			} else {
+				Log(line)
 			}
 		}
 		close(ch)
