@@ -4,8 +4,12 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"math/rand"
 	"net/http"
+	"os"
 	"os/exec"
+	"os/signal"
+	"syscall"
 	"time"
 )
 
@@ -17,6 +21,19 @@ type Event struct {
 type Response struct {
 	Errors string
 	Events []Event
+}
+
+// This channel is closed when the server begins shutting down.
+// No values are ever sent to it.
+var lameduck chan bool = make(chan bool)
+
+func healthz(w http.ResponseWriter, r *http.Request) {
+	select {
+	case <- lameduck:
+		w.WriteHeader(http.StatusInternalServerError)
+	default:
+		w.Write([]byte("OK"))
+	}
 }
 
 func handler(w http.ResponseWriter, r *http.Request) {
@@ -68,6 +85,54 @@ func init() {
 }
 
 func main() {
+	limit_min := 60
+	delay_min := limit_min/2 + rand.Intn(limit_min/2)
+
+	// VMs will be periodically killed to prevent any owned vms from
+	// causing damage. We want to shutdown cleanly before then so
+	// we don't cause requests to fail.
+	go WaitForShutdown(time.Minute * time.Duration(delay_min))
+
 	http.HandleFunc("/compile", handler)
+	http.HandleFunc("/healthz", healthz)
 	http.ListenAndServe(":8181", nil)
+}
+
+func WaitForShutdown(limit time.Duration) {
+	var beforeExit func() error
+
+	// Shutdown if we get a SIGTERM
+	term := make(chan os.Signal, 1)
+	signal.Notify(term, syscall.SIGTERM)
+
+	// Or if the time limit expires
+	deadline := time.After(limit)
+	fmt.Println("Shutting down at", time.Now().Add(limit))
+Loop:
+	for {
+		select {
+		case <-deadline:
+			// Shutdown the vm.
+			fmt.Println("Deadline expired, shutting down.")
+			beforeExit = exec.Command("sudo", "halt").Run
+			break Loop
+		case <-term:
+			fmt.Println("Got SIGTERM, shutting down.")
+			// VM is probably already shutting down, so just exit.
+			break Loop
+		}
+	}
+	// Fail health checks so we stop getting requests.
+	close(lameduck)
+	// Give running requests time to finish.
+	time.Sleep(30 * time.Second)
+
+	// Then go ahead and shutdown.
+	if beforeExit != nil {
+		err := beforeExit()
+		if err != nil {
+			panic(err)
+		}
+	}
+	os.Exit(0)
 }
