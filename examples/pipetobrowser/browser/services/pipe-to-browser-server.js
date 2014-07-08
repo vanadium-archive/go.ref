@@ -55,7 +55,7 @@ export function publish(name, pipeRequestHandler) {
   var p2b = {
     pipe($suffix, $stream) {
       return new Promise(function(resolve, reject) {
-        //TODO(aghassemi) publish-issue remove /pipe/ from the suffix
+        //TODO(aghassemi) publish-issue remove /pipe from the suffix
         $suffix = $suffix.substr(5);
 
         log.debug('received pipe request for:', $suffix);
