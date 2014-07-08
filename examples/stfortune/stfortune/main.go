@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"log"
 	"math/rand"
+	"os"
 	"strings"
 	"time"
 
@@ -67,6 +68,52 @@ func waitForStore(store storage.Store) {
 
 	fmt.Printf("Store is ready\n")
 	return
+}
+
+// runAsWatcher monitors updates to the fortunes in the store and
+// prints out that information.  It does not return.
+func runAsWatcher(store storage.Store, user string) {
+	// TODO(tilaks): remove this when the store.Entry is auto-registered by VOM.
+	vom.Register(&istore.Entry{})
+	ctx := rt.R().NewContext()
+
+	// Monitor all new fortunes or only those of a specific user.
+	var path string
+	if user == "" {
+		path = fortunePath("")
+	} else {
+		path = userPath(user)
+	}
+	fmt.Printf("Running as a Watcher monitoring new fortunes under %s...\n", path)
+
+	req := iwatch.GlobRequest{Pattern: "*"}
+	stream, err := store.Bind(path).WatchGlob(ctx, req)
+	if err != nil {
+		log.Fatalf("watcher WatchGlob %s failed: %v", path, err)
+	}
+
+	for {
+		batch, err := stream.Recv()
+		if err != nil {
+			log.Fatalf("watcher Recv failed: %v", err)
+		}
+
+		for _, change := range batch.Changes {
+			entry, ok := change.Value.(*storage.Entry)
+			if !ok {
+				log.Printf("watcher change Value not a storage Entry: %#v", change.Value)
+				continue
+			}
+
+			fortune, ok := entry.Value.(schema.FortuneData)
+			if !ok {
+				log.Printf("watcher data not a FortuneData Entry: %#v", entry.Value)
+				continue
+			}
+
+			fmt.Printf("watcher: new fortune: %s\n", fortune.Fortune)
+		}
+	}
 }
 
 // pickFortune finds all available fortunes under the input path and
@@ -192,6 +239,7 @@ var (
 	storeAddress = flag.String("store", "", "the address/endpoint of the Veyron Store")
 	newFortune   = flag.String("new_fortune", "", "an optional, new fortune to add to the server's set")
 	user         = flag.String("user_name", "", "an optional username of the fortune creator to get/add to the server's set")
+	watch        = flag.Bool("watch", false, "run as a watcher reporting new fortunes")
 )
 
 func main() {
@@ -225,5 +273,11 @@ func main() {
 		if err := addFortune(store, *newFortune, *user); err != nil {
 			log.Fatal("error adding fortune: ", err)
 		}
+	}
+
+	// Run as a watcher if --watch is set.
+	if *watch {
+		runAsWatcher(store, *user)
+		os.Exit(0)
 	}
 }
