@@ -11,6 +11,7 @@ import (
 	"os"
 	"runtime"
 	"strconv"
+	"sync"
 	// Need to import all of the packages that could possibly
 	// define flags that we care about. In practice, this is the
 	// flags defined by the testing package, the logging library
@@ -28,8 +29,35 @@ const (
 	SeedEnv = "VEYRON_RNG_SEED"
 )
 
+// Random is a concurrent-access friendly source of randomness.
+type Random struct {
+	mu   sync.Mutex
+	rand *rand.Rand
+}
+
+// Int returns a non-negative pseudo-random int.
+func (r *Random) Int() int {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return r.rand.Int()
+}
+
+// Intn returns a non-negative pseudo-random int in the range [0, n).
+func (r *Random) Intn(n int) int {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return r.rand.Intn(n)
+}
+
+// Int63 returns a non-negative 63-bit pseudo-random integer as an int64.
+func (r *Random) Int63() int64 {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return r.rand.Int63()
+}
+
 var (
-	Rand *rand.Rand
+	Rand *Random
 )
 
 func init() {
@@ -54,5 +82,5 @@ func init() {
 		}
 	}
 	vlog.Infof("Seeding pseudo-random number generator with %v", seed)
-	Rand = rand.New(rand.NewSource(seed))
+	Rand = &Random{rand: rand.New(rand.NewSource(seed))}
 }
