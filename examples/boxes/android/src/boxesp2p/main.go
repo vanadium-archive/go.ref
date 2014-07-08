@@ -332,7 +332,7 @@ func initStoreService() {
 		panic(fmt.Errorf("LoadACL failed:%v", err))
 	}
 	auth := security.NewACLAuthorizer(acl)
-	gs.disp.storeDispatcher = sstore.NewStoreDispatcher(gs.store, auth)
+	gs.disp.storeDispatcher = sstore.NewStoreDispatcher(store, auth)
 
 	// Create an endpoint and start listening
 	if _, err = gs.ipc.Listen("tcp", gs.myIPAddr+storeServicePort); err != nil {
