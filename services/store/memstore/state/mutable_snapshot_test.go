@@ -16,6 +16,11 @@ type Dir struct {
 	Entries map[string]storage.ID
 }
 
+// Value is a simple value.
+type Value struct {
+	X int
+}
+
 var (
 	root     = &Dir{}
 	rootPath = storage.ParsePath("/")
@@ -287,5 +292,42 @@ func TestAppendToSlice(t *testing.T) {
 	}
 	if _, err := sn.Put(rootPublicID, storage.ParsePath("/@"), 1); err != nil {
 		t.Error("failure during append to slice: ", err)
+	}
+}
+
+// Replace a struct value with a hard link.
+func TestReplaceStructWithLink(t *testing.T) {
+	sn := newMutableSnapshot(rootPublicID)
+
+	mkdir(t, sn, "/")
+	x := &Value{X: 1}
+	stat, err := sn.Put(rootPublicID, storage.ParsePath("/a"), x)
+	if err != nil {
+		t.Errorf("/a: %s", err)
+	}
+	x.X = 2
+	if _, err := sn.Put(rootPublicID, storage.ParsePath("/b"), x); err != nil {
+		t.Errorf("/b: %s", err)
+	}
+	if v, err := sn.Get(rootPublicID, storage.ParsePath("/a")); err != nil || v.Value.(*Value).X != 1 {
+		t.Errorf("Expected 1, got %v", v)
+	}
+	if v, err := sn.Get(rootPublicID, storage.ParsePath("/b")); err != nil || v.Value.(*Value).X != 2 {
+		t.Errorf("Expected 2, got %v", v)
+	}
+
+	// Create a link.
+	if _, err := sn.Put(rootPublicID, storage.ParsePath("/b"), stat.ID); err != nil {
+		t.Errorf("/b: %s", err)
+	}
+	if v, err := sn.Get(rootPublicID, storage.ParsePath("/b")); err != nil || v.Value.(*Value).X != 1 {
+		t.Errorf("Expected 1, got %v", v)
+	}
+	x.X = 3
+	if _, err := sn.Put(rootPublicID, storage.ParsePath("/b"), x); err != nil {
+		t.Errorf("/b: %s", err)
+	}
+	if v, err := sn.Get(rootPublicID, storage.ParsePath("/a")); err != nil || v.Value.(*Value).X != 3 {
+		t.Errorf("Expected 3, got %v", v)
 	}
 }

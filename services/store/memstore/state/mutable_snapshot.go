@@ -475,25 +475,30 @@ func (sn *MutableSnapshot) putTags(checker *acl.Checker, c *Cell, v interface{})
 // putDirEntry replaces or adds a directory entry.
 func (sn *MutableSnapshot) putDirEntry(checker *acl.Checker, c *Cell, name string, v interface{}) (*Cell, error) {
 	r := &refs.Ref{Path: refs.NewSingletonPath(name), Label: security.ReadLabel}
+	if id, ok := v.(storage.ID); ok {
+		ncell := sn.Find(id)
+		if ncell == nil {
+			return nil, ErrNotFound
+		}
+		r.ID = id
+		dir := c.Dir.Put(r)
+		if _, err := sn.replaceDir(checker, c, dir); err != nil {
+			return nil, err
+		}
+		return ncell, nil
+	}
+
 	x, ok := c.Dir.Get(r)
 	if !ok {
-		var ncell *Cell
-		if id, ok := v.(storage.ID); ok {
-			// The entry is a hard link.
-			r.ID = id
-			ncell = sn.Find(id)
-		} else {
-			// The entry does not exist yet; create it.
-			var err error
-			id := storage.NewID()
-			ncell, err = sn.add(checker, id, v)
-			if err != nil {
-				return nil, err
-			}
-			r.ID = id
-			// The sn.add may have modified the cell, so fetch it again.
-			c = sn.Find(c.ID)
+		// The entry does not exist yet; create it.
+		id := storage.NewID()
+		ncell, err := sn.add(checker, id, v)
+		if err != nil {
+			return nil, err
 		}
+		r.ID = id
+		// The sn.add may have modified the cell, so fetch it again.
+		c = sn.Find(c.ID)
 		dir := c.Dir.Put(r)
 		if _, err := sn.replaceDir(checker, c, dir); err != nil {
 			return nil, err
