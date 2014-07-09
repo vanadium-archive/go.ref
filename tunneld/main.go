@@ -50,7 +50,7 @@ func main() {
 
 	ep, err := server.Listen(*protocol, *address)
 	if err != nil {
-		vlog.Fatalf("Listen(%q, %q) failed: %v", "tcp", *address, err)
+		vlog.Fatalf("Listen(%q, %q) failed: %v", *protocol, *address, err)
 	}
 	hwaddr, err := firstHardwareAddrInUse()
 	if err != nil {

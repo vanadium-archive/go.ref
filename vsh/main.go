@@ -21,7 +21,6 @@ import (
 var (
 	disablePty = flag.Bool("T", false, "Disable pseudo-terminal allocation.")
 	forcePty   = flag.Bool("t", false, "Force allocation of pseudo-terminal.")
-	oname      = flag.String("oname", "", "Object name (or endpoint) for tunneling service.")
 
 	portforward = flag.String("L", "", "localaddr,remoteaddr Forward local 'localaddr' to 'remoteaddr'")
 	lprotocol   = flag.String("local_protocol", "tcp", "Local network protocol for port forwarding")
@@ -39,21 +38,21 @@ This tool is used to run shell commands or an interactive shell on a remote
 tunneld service.
 
 To open an interactive shell, use:
-  %s --host=<object name or endpoint>
+  %s <object name>
 
 To run a shell command, use:
-  %s --host=<object name or endpoint> <command to run>
+  %s <object name> <command to run>
 
 The -L flag will forward connections from a local port to a remote address
 through the tunneld service. The flag value is localaddr,remoteaddr. E.g.
   -L :14141,www.google.com:80
 
-%s can't be used directly with tools like rsync because veyron addresses don't
-look like traditional hostnames, which rsync doesn't understand. For
+%s can't be used directly with tools like rsync because veyron object names
+don't look like traditional hostnames, which rsync doesn't understand. For
 compatibility with such tools, %s has a special feature that allows passing the
-veyron address via the VSH_NAME environment variable.
+veyron object name via the VSH_NAME environment variable.
 
-  $ VSH_NAME=<veyron address> rsync -avh -e %s /foo/* veyron:/foo/
+  $ VSH_NAME=<object name> rsync -avh -e %s /foo/* veyron:/foo/
 
 In this example, the "veyron" host will be substituted with $VSH_NAME by %s
 and rsync will work as expected.
@@ -73,20 +72,20 @@ func realMain() int {
 	r := rt.Init()
 	defer r.Cleanup()
 
-	host, cmd, err := veyronNameAndCommandLine()
+	oname, cmd, err := objectNameAndCommandLine()
 	if err != nil {
 		flag.Usage()
 		fmt.Fprintf(os.Stderr, "\n%v\n", err)
 		return 1
 	}
 
-	t, err := tunnel.BindTunnel(host)
+	t, err := tunnel.BindTunnel(oname)
 	if err != nil {
-		vlog.Fatalf("BindTunnel(%q) failed: %v", host, err)
+		vlog.Fatalf("BindTunnel(%q) failed: %v", oname, err)
 	}
 
 	if len(*portforward) > 0 {
-		go runPortForwarding(t, host)
+		go runPortForwarding(t, oname)
 	}
 
 	if *noshell {
@@ -105,7 +104,7 @@ func realMain() int {
 	defer lib.RestoreTerminalSettings(saved)
 	runIOManager(os.Stdin, os.Stdout, os.Stderr, stream)
 
-	exitMsg := fmt.Sprintf("Connection to %s closed.", host)
+	exitMsg := fmt.Sprintf("Connection to %s closed.", oname)
 	exitStatus, err := stream.Finish()
 	if err != nil {
 		exitMsg += fmt.Sprintf(" (%v)", err)
@@ -145,28 +144,23 @@ func environment() []string {
 	return env
 }
 
-// veyronNameAndCommandLine extracts the object name and the remote command to
-// send to the server. The name can be specified with the --oname flag or as the
-// first non-flag argument. The command line is the concatenation of all the
-// non-flag arguments, minus the object name.
-func veyronNameAndCommandLine() (string, string, error) {
-	name := *oname
+// objectNameAndCommandLine extracts the object name and the remote command to
+// send to the server. The object name is the first non-flag argument.
+// The command line is the concatenation of all non-flag arguments excluding
+// the object name.
+func objectNameAndCommandLine() (string, string, error) {
 	args := flag.Args()
-	if len(name) == 0 {
-		if len(args) > 0 {
-			name = args[0]
-			args = args[1:]
-		}
-	}
-	if len(name) == 0 {
+	if len(args) < 1 {
 		return "", "", errors.New("object name missing")
 	}
-	// For compatibility with tools like rsync. Because veyron addresses
+	name := args[0]
+	args = args[1:]
+	// For compatibility with tools like rsync. Because object names
 	// don't look like traditional hostnames, tools that work with rsh and
 	// ssh can't work directly with vsh. This trick makes the following
 	// possible:
-	//   $ VSH_NAME=<veyron address> rsync -avh -e vsh /foo/* veyron:/foo/
-	// The "veyron" host will be substituted with <veyron address>.
+	//   $ VSH_NAME=<object name> rsync -avh -e vsh /foo/* veyron:/foo/
+	// The "veyron" host will be substituted with <object name>.
 	if envName := os.Getenv("VSH_NAME"); len(envName) > 0 && name == "veyron" {
 		name = envName
 	}
@@ -174,7 +168,7 @@ func veyronNameAndCommandLine() (string, string, error) {
 	return name, cmd, nil
 }
 
-func runPortForwarding(t tunnel.Tunnel, host string) {
+func runPortForwarding(t tunnel.Tunnel, oname string) {
 	// *portforward is localaddr,remoteaddr
 	parts := strings.Split(*portforward, ",")
 	var laddr, raddr string
@@ -202,7 +196,7 @@ func runPortForwarding(t tunnel.Tunnel, host string) {
 			conn.Close()
 			continue
 		}
-		name := fmt.Sprintf("%v-->%v-->(%v)-->%v", conn.RemoteAddr(), conn.LocalAddr(), host, raddr)
+		name := fmt.Sprintf("%v-->%v-->(%v)-->%v", conn.RemoteAddr(), conn.LocalAddr(), oname, raddr)
 		go func() {
 			vlog.VI(1).Infof("TUNNEL START: %v", name)
 			errf := lib.Forward(conn, stream)
