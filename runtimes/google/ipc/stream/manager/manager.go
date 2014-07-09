@@ -9,6 +9,7 @@ import (
 	"strings"
 	"sync"
 
+	"veyron/lib/bluetooth"
 	"veyron/runtimes/google/ipc/stream/crypto"
 	"veyron/runtimes/google/ipc/stream/vif"
 	"veyron/runtimes/google/ipc/version"
@@ -48,6 +49,13 @@ type manager struct {
 	shutdown    bool              // GUARDED_BY(muListeners)
 }
 
+func dial(network, address string) (net.Conn, error) {
+	if network == bluetooth.Network {
+		return bluetooth.Dial(address)
+	}
+	return net.Dial(network, address)
+}
+
 // FindOrDialVIF returns the network connection (VIF) to the provided address
 // from the cache in the manager. If not already present in the cache, a new
 // connection will be created using net.Dial.
@@ -57,7 +65,7 @@ func (m *manager) FindOrDialVIF(addr net.Addr) (*vif.VIF, error) {
 		return vf, nil
 	}
 	vlog.VI(1).Infof("(%q, %q) not in VIF cache. Dialing", network, address)
-	conn, err := net.Dial(network, address)
+	conn, err := dial(network, address)
 	if err != nil {
 		return nil, fmt.Errorf("net.Dial(%q, %q) failed: %v", network, address, err)
 	}
@@ -108,6 +116,13 @@ func (m *manager) Dial(remote naming.Endpoint, opts ...stream.VCOpt) (stream.VC,
 	return nil, verror.Internalf("should not reach here")
 }
 
+func listen(protocol, address string) (net.Listener, error) {
+	if protocol == bluetooth.Network {
+		return bluetooth.Listen(address)
+	}
+	return net.Listen(protocol, address)
+}
+
 func (m *manager) Listen(protocol, address string, opts ...stream.ListenerOpt) (stream.Listener, naming.Endpoint, error) {
 	var rewriteEP string
 	var filteredOpts []stream.ListenerOpt
@@ -135,7 +150,7 @@ func (m *manager) Listen(protocol, address string, opts ...stream.ListenerOpt) (
 		}
 		return m.remoteListen(ep, opts)
 	}
-	netln, err := net.Listen(protocol, address)
+	netln, err := listen(protocol, address)
 	if err != nil {
 		return nil, nil, fmt.Errorf("net.Listen(%q, %q) failed: %v", protocol, address, err)
 	}
