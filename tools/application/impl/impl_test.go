@@ -21,11 +21,13 @@ import (
 
 var (
 	envelope = application.Envelope{
+		Title:  "fifa world cup",
 		Args:   []string{"arg1", "arg2", "arg3"},
 		Binary: "/path/to/binary",
 		Env:    []string{"env1", "env2", "env3"},
 	}
 	jsonEnv = `{
+  "Title": "fifa world cup",
   "Args": [
     "arg1",
     "arg2",

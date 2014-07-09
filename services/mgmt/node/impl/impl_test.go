@@ -53,6 +53,7 @@ type arInvoker struct{}
 func (i *arInvoker) Match(ipc.ServerContext, []string) (application.Envelope, error) {
 	vlog.VI(0).Infof("Match()")
 	envelope := generateEnvelope()
+	envelope.Title = application.NodeManagerTitle
 	envelope.Env = exec.Setenv(envelope.Env, testEnv, "child")
 	envelope.Binary = "cr"
 	return *envelope, nil
@@ -360,6 +361,9 @@ func startNodeManager() (string, func()) {
 func TestHelperProcess(t *testing.T) {
 	blackbox.HelperProcess(t)
 }
+
+// TODO(caprita): Add test logic to verify that update fails when
+// the app title mismatches.
 
 // TestUpdate checks that the node manager Update() method works as
 // expected. To that end, this test spawns a new process that invokes

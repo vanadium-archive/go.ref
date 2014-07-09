@@ -54,12 +54,11 @@ import (
 	"veyron2/services/mgmt/build"
 	"veyron2/services/mgmt/node"
 	"veyron2/services/mgmt/repository"
+	"veyron2/verror"
 	"veyron2/vlog"
 )
 
 const CurrentWorkspace = "current"
-
-var appsSuffix = regexp.MustCompile(`^apps\/.*$`)
 
 // state wraps state shared between different node manager
 // invocations.
@@ -95,9 +94,12 @@ type invoker struct {
 }
 
 var (
-	errInvalidSuffix    = errors.New("invalid suffix")
-	errOperationFailed  = errors.New("operation failed")
-	errUpdateInProgress = errors.New("update in progress")
+	appsSuffix = regexp.MustCompile(`^apps\/.*$`)
+
+	errInvalidSuffix      = verror.BadArgf("invalid suffix")
+	errOperationFailed    = verror.Internalf("operation failed")
+	errUpdateInProgress   = verror.Existsf("update in progress")
+	errIncompatibleUpdate = verror.BadArgf("update failed: mismatching app title")
 )
 
 // NewInvoker is the invoker factory.
@@ -583,6 +585,9 @@ func (i *invoker) updateNodeManager() error {
 	if err != nil {
 		return err
 	}
+	if envelope.Title != application.NodeManagerTitle {
+		return errIncompatibleUpdate
+	}
 	if !reflect.DeepEqual(envelope, i.state.envelope) {
 		// Create new workspace.
 		workspace := filepath.Join(os.Getenv(RootEnv), fmt.Sprintf("%v", time.Now().Format(time.RFC3339Nano)))
@@ -623,8 +628,8 @@ func (i *invoker) updateNodeManager() error {
 	return nil
 }
 
-func (i *invoker) Install(call ipc.ServerContext) (string, error) {
-	vlog.VI(0).Infof("%v.Install()", i.suffix)
+func (i *invoker) Install(call ipc.ServerContext, von string) (string, error) {
+	vlog.VI(0).Infof("%v.Install(%q)", i.suffix, von)
 	// TODO(jsimsa): Implement.
 	return "", nil
 }
@@ -715,6 +720,13 @@ func (i *invoker) Update(call ipc.ServerContext) error {
 	default:
 		return errInvalidSuffix
 	}
+
+}
+
+func (i *invoker) UpdateTo(call ipc.ServerContext, von string) error {
+	vlog.VI(0).Infof("%v.UpdateTo(%q)", i.suffix, von)
+	// TODO(jsimsa): Implement.
+	return nil
 }
 
 // CONFIG INTERFACE IMPLEMENTATION
