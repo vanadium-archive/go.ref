@@ -29,6 +29,7 @@ import (
 	"veyron2/services/mgmt/application"
 	"veyron2/services/mgmt/binary"
 	"veyron2/services/mgmt/repository"
+	"veyron2/verror"
 	"veyron2/vlog"
 )
 
@@ -45,15 +46,25 @@ func init() {
 }
 
 // arInvoker holds the state of an application repository invocation
-// mock.
-type arInvoker struct{}
+// mock.  On its first invocation of Match, this mock will return a bogus
+// application title.  On the second invocation, it will return the correct
+// node manager app title.  We make use of this behavior to test that Update
+// fails when the app title mismatches.
+type arInvoker struct {
+	firstInvocation bool
+}
 
 // APPLICATION REPOSITORY INTERFACE IMPLEMENTATION
 
 func (i *arInvoker) Match(ipc.ServerContext, []string) (application.Envelope, error) {
-	vlog.VI(0).Infof("Match()")
+	vlog.VI(0).Infof("Match(), first invocation: %t", i.firstInvocation)
 	envelope := generateEnvelope()
-	envelope.Title = application.NodeManagerTitle
+	if i.firstInvocation {
+		i.firstInvocation = false
+		envelope.Title = "gibberish"
+	} else {
+		envelope.Title = application.NodeManagerTitle
+	}
 	envelope.Env = exec.Setenv(envelope.Env, testEnv, "child")
 	envelope.Binary = "cr"
 	return *envelope, nil
@@ -189,13 +200,18 @@ func invokeCallback(name string) {
 	}
 }
 
-func invokeUpdate(t *testing.T, name string) {
+func invokeUpdate(t *testing.T, name string, expectFail bool) {
 	address := naming.JoinAddressName(name, "nm")
 	stub, err := node.BindNode(address)
 	if err != nil {
 		t.Fatalf("BindNode(%v) failed: %v", address, err)
 	}
-	if err := stub.Update(rt.R().NewContext()); err != nil {
+	err = stub.Update(rt.R().NewContext())
+	if expectFail {
+		if !verror.Is(err, verror.BadArg) {
+			t.Fatalf("Unexpected update error: %v", err)
+		}
+	} else if err != nil {
 		t.Fatalf("Update() failed: %v", err)
 	}
 }
@@ -263,7 +279,7 @@ func startApplicationRepository() (string, func()) {
 	if err != nil {
 		vlog.Fatalf("NewServer() failed: %v", err)
 	}
-	dispatcher := ipc.SoloDispatcher(repository.NewServerApplication(&arInvoker{}), nil)
+	dispatcher := ipc.SoloDispatcher(repository.NewServerApplication(&arInvoker{firstInvocation: true}), nil)
 	protocol, hostname := "tcp", "localhost:0"
 	endpoint, err := server.Listen(protocol, hostname)
 	if err != nil {
@@ -362,9 +378,6 @@ func TestHelperProcess(t *testing.T) {
 	blackbox.HelperProcess(t)
 }
 
-// TODO(caprita): Add test logic to verify that update fails when
-// the app title mismatches.
-
 // TestUpdate checks that the node manager Update() method works as
 // expected. To that end, this test spawns a new process that invokes
 // the nodeManager() method. The behavior of this method depends on
@@ -421,6 +434,9 @@ func TestUpdate(t *testing.T) {
 	if expected, got := 1, len(results); expected != got {
 		t.Fatalf("Unexpected number of results: expected %d, got %d", expected, got)
 	}
-	invokeUpdate(t, name)
+	// First invocation will cause app repository mock to return a bogus
+	// app title and hence the update should fail.
+	invokeUpdate(t, name, true)
+	invokeUpdate(t, name, false)
 	child.Expect("ready")
 }
