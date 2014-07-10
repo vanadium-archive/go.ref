@@ -91,17 +91,15 @@ export function publish(name, pipeRequestHandler) {
 
   state.publishing = true;
 
-  return server.register('pipe', p2b).then(() => { //TODO(aghassemi) publish-issue add pipe for now since we can't register under empty name
-    return server.publish(config.publishNamePrefix + '/' + name).then((endpoint) => { //TODO(aghassemi) publish-issue
-      log.debug('published with endpoint:', endpoint);
+  return server.serve(config.publishNamePrefix + '/' + name + '/pipe', p2b).then((endpoint) => { //TODO(aghassemi) publish-issue
+    log.debug('published with endpoint:', endpoint);
 
-      state.published = true;
-      state.publishing = false;
-      state.fullServiceName = config.publishNamePrefix + '/' + name + '/pipe'; //TODO(aghassemi) publish-issue
-      state.date = new Date();
+    state.published = true;
+    state.publishing = false;
+    state.fullServiceName = config.publishNamePrefix + '/' + name + '/pipe'; //TODO(aghassemi) publish-issue
+    state.date = new Date();
 
-      return endpoint;
-    });
+    return endpoint;
   }).catch((err) => { state.reset(); throw err; });
 }
 

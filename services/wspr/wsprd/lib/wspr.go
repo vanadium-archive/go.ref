@@ -87,8 +87,8 @@ const (
 	// Making a veyron client request, streaming or otherwise
 	websocketVeyronRequest websocketMessageType = 0
 
-	// Publishing this websocket under an object name
-	websocketPublishServer = 1
+	// Serving this websocket under an object name
+	websocketServe = 1
 
 	// A response from a service in javascript to a request
 	// from the proxy.
@@ -112,7 +112,7 @@ type websocketMessage struct {
 	// This contains the json encoded payload.
 	Data string
 
-	// Whether it is an rpc request or a publish request.
+	// Whether it is an rpc request or a serve request.
 	Type websocketMessageType
 }
 
@@ -135,32 +135,11 @@ type veyronRPC struct {
 	IsStreaming bool
 }
 
-// A request javascript to publish on a particular name
-type publishRequest struct {
+// A request javascript to serve undern a particular name
+type serveRequest struct {
 	Name     string
 	ServerId uint64
-	Services map[string]JSONServiceSignature
-}
-
-// A request from javascript to register a particular prefix
-type registerRequest struct {
-	Prefix string
-	// TODO(bjornick): Do we care about the methods?
-}
-
-// A request from the proxy to javascript to handle an RPC
-type serverRPCRequest struct {
-	ServerId    uint64
-	ServiceName string
-	Method      string
-	Args        []interface{}
-	Context     serverRPCRequestContext
-}
-
-// call context for a serverRPCRequest
-type serverRPCRequestContext struct {
-	Suffix string
-	Name   string
+	Service  JSONServiceSignature
 }
 
 // The response from the javascript server to the proxy.
@@ -355,7 +334,7 @@ type websocketPipe struct {
 	// A manager that handles fetching and caching signature of remote services
 	signatureManager *signatureManager
 
-	// We maintain multiple Veyron server per websocket pipe for publishing JavaScript
+	// We maintain multiple Veyron server per websocket pipe for serving JavaScript
 	// services.
 	servers map[uint64]*server
 
@@ -613,8 +592,8 @@ func (wsp *websocketPipe) readLoop() {
 			wsp.sendOnStream(msg.Id, msg.Data, ww)
 		case websocketStreamClose:
 			wsp.closeStream(msg.Id)
-		case websocketPublishServer:
-			go wsp.handlePublishRequest(msg.Data, ww)
+		case websocketServe:
+			go wsp.handleServeRequest(msg.Data, ww)
 		case websocketStopServer:
 			go wsp.handleStopRequest(msg.Data, ww)
 		case websocketServerResponse:
@@ -655,25 +634,18 @@ func (wsp *websocketPipe) removeServer(serverId uint64) {
 	server.Stop()
 }
 
-func (wsp *websocketPipe) publish(publishRequest publishRequest, w clientWriter) {
+func (wsp *websocketPipe) serve(serveRequest serveRequest, w clientWriter) {
 	// Create a server for the websocket pipe, if it does not exist already
-	server, err := wsp.maybeCreateServer(publishRequest.ServerId)
+	server, err := wsp.maybeCreateServer(serveRequest.ServerId)
 	if err != nil {
 		w.sendError(verror.Internalf("error creating server: %v", err))
 	}
 
-	wsp.ctx.logger.VI(2).Infof("publishing under name: %q", publishRequest.Name)
+	wsp.ctx.logger.VI(2).Infof("serving under name: %q", serveRequest.Name)
 
-	// Register each service under the server
-	for serviceName, jsonIDLSig := range publishRequest.Services {
-		if err := server.register(serviceName, jsonIDLSig); err != nil {
-			w.sendError(verror.Internalf("error registering service: %v", err))
-		}
-	}
-
-	endpoint, err := server.publish(publishRequest.Name)
+	endpoint, err := server.serve(serveRequest.Name, serveRequest.Service)
 	if err != nil {
-		w.sendError(verror.Internalf("error publishing service: %v", err))
+		w.sendError(verror.Internalf("error serving service: %v", err))
 		return
 	}
 	// Send the endpoint back
@@ -689,17 +661,17 @@ func (wsp *websocketPipe) publish(publishRequest publishRequest, w clientWriter)
 	}
 }
 
-// handlePublishRequest takes a request to publish a server, creates
+// handleServeRequest takes a request to serve a server, creates
 // a server, registers the provided services and sends the endpoint back.
-func (wsp *websocketPipe) handlePublishRequest(data string, w *websocketWriter) {
-	// Decode the publish request which includes IDL, registered services and name
-	var publishRequest publishRequest
+func (wsp *websocketPipe) handleServeRequest(data string, w *websocketWriter) {
+	// Decode the serve request which includes IDL, registered services and name
+	var serveRequest serveRequest
 	decoder := json.NewDecoder(bytes.NewBufferString(data))
-	if err := decoder.Decode(&publishRequest); err != nil {
+	if err := decoder.Decode(&serveRequest); err != nil {
 		w.sendError(verror.Internalf("can't unmarshal JSONMessage: %v", err))
 		return
 	}
-	wsp.publish(publishRequest, w)
+	wsp.serve(serveRequest, w)
 }
 
 // handleStopRequest takes a request to stop a server.
