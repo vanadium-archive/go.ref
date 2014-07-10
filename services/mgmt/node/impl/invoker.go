@@ -386,7 +386,8 @@ func generateScript(workspace string, envelope *application.Envelope) error {
 	output := "#!/bin/bash\n"
 	output += PreviousEnv + "=" + filepath.Dir(path) + " "
 	output += strings.Join(envelope.Env, " ") + " "
-	output += os.Args[0] + " " + strings.Join(envelope.Args, " ")
+	output += filepath.Join(workspace, "noded") + " "
+	output += strings.Join(envelope.Args, " ")
 	path = filepath.Join(workspace, "noded.sh")
 	if err := ioutil.WriteFile(path, []byte(output), 0755); err != nil {
 		vlog.Errorf("WriteFile(%v) failed: %v", path, err)
