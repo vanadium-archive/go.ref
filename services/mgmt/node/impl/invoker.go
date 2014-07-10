@@ -28,7 +28,6 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	"io"
 	"io/ioutil"
 	"math/rand"
 	"os"
@@ -44,6 +43,7 @@ import (
 	"veyron/lib/config"
 	vexec "veyron/lib/exec"
 	ibuild "veyron/services/mgmt/build"
+	"veyron/services/mgmt/lib/binary"
 	"veyron/services/mgmt/profile"
 
 	"veyron2/ipc"
@@ -330,55 +330,15 @@ func (i *invoker) Reset(call ipc.ServerContext, deadline uint64) error {
 
 // APPLICATION INTERFACE IMPLEMENTATION
 
-func downloadBinary(workspace, binary string) error {
-	stub, err := repository.BindBinary(binary)
+func downloadBinary(workspace, name string) error {
+	data, err := binary.Download(name)
 	if err != nil {
-		vlog.Errorf("BindBinary(%q) failed: %v", binary, err)
+		vlog.Errorf("Download(%v) failed: %v", name, err)
 		return errOperationFailed
 	}
-	path := filepath.Join(workspace, "noded")
-	file, err := os.Create(path)
-	if err != nil {
-		vlog.Errorf("Create(%q) failed: %v", path, err)
-		return errOperationFailed
-	}
-	defer file.Close()
-	parts, err := stub.Stat(rt.R().NewContext())
-	if err != nil {
-		vlog.Errorf("Stat() failed: %v", err)
-		return errOperationFailed
-	}
-	// TODO(jsimsa): Replace the code below with a call to a client-side
-	// binary library once this library exists. In particular, we should
-	// take care of resumption and consistency checking.
-	for i := 0; i < len(parts); i++ {
-		stream, err := stub.Download(rt.R().NewContext(), int32(i))
-		if err != nil {
-			vlog.Errorf("Download() failed: %v", err)
-			return errOperationFailed
-		}
-		for {
-			bytes, err := stream.Recv()
-			if err == io.EOF {
-				break
-			}
-			if err != nil {
-				vlog.Errorf("Recv() failed: %v", err)
-				return errOperationFailed
-			}
-			if _, err := file.Write(bytes); err != nil {
-				vlog.Errorf("Write() failed: %v", err)
-				return errOperationFailed
-			}
-		}
-		if err := stream.Finish(); err != nil {
-			vlog.Errorf("Finish() failed: %v", err)
-			return errOperationFailed
-		}
-	}
-	mode := os.FileMode(0755)
-	if err := file.Chmod(mode); err != nil {
-		vlog.Errorf("Chmod(%v) failed: %v", mode, err)
+	path, perm := filepath.Join(workspace, "noded"), os.FileMode(755)
+	if err := ioutil.WriteFile(path, data, perm); err != nil {
+		vlog.Errorf("WriteFile(%v, %v) failed: %v", path, perm, err)
 		return errOperationFailed
 	}
 	return nil

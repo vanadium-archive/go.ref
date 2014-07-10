@@ -29,7 +29,7 @@ var lameduck chan bool = make(chan bool)
 
 func healthz(w http.ResponseWriter, r *http.Request) {
 	select {
-	case <- lameduck:
+	case <-lameduck:
 		w.WriteHeader(http.StatusInternalServerError)
 	default:
 		w.Write([]byte("OK"))

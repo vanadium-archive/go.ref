@@ -84,7 +84,6 @@ func main() {
 		return
 	}
 	vlog.Infof("Binary repository published at %v/%v", endpoint, name)
-
 	// Wait until shutdown.
 	<-signals.ShutdownOnSignals()
 }

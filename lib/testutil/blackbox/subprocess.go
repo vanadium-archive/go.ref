@@ -81,11 +81,11 @@ func HelperCommand(t *testing.T, command string, args ...string) *Child {
 	stdout, _ := cmd.StdoutPipe()
 	stdin, _ := cmd.StdinPipe()
 	return &Child{
-		Cmd:    cmd,
-		Name:   command,
-		Stdout: bufio.NewReader(stdout),
-		Stdin:  stdin,
-		stderr: stderr,
+		Cmd:       cmd,
+		Name:      command,
+		Stdout:    bufio.NewReader(stdout),
+		Stdin:     stdin,
+		stderr:    stderr,
 		t:         t,
 		hasFailed: false,
 	}

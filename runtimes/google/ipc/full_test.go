@@ -38,10 +38,10 @@ import (
 
 var (
 	errAuthorizer = errors.New("ipc: application Authorizer denied access")
-	errMethod = verror.Abortedf("server returned an error")
-	clientID  security.PrivateID
-	serverID  security.PrivateID
-	clock     = new(fakeClock)
+	errMethod     = verror.Abortedf("server returned an error")
+	clientID      security.PrivateID
+	serverID      security.PrivateID
+	clock         = new(fakeClock)
 )
 
 type fakeClock struct {

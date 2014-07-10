@@ -1,6 +1,8 @@
 package impl_test
 
 import (
+	"crypto/md5"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"io"
@@ -119,7 +121,14 @@ func (*crInvoker) DownloadURL(ipc.ServerContext) (string, int64, error) {
 
 func (*crInvoker) Stat(ipc.ServerContext) ([]binary.PartInfo, error) {
 	vlog.VI(0).Infof("Stat()")
-	return make([]binary.PartInfo, 1), nil
+	h := md5.New()
+	bytes, err := ioutil.ReadFile(os.Args[0])
+	if err != nil {
+		return []binary.PartInfo{}, errOperationFailed
+	}
+	h.Write(bytes)
+	part := binary.PartInfo{Checksum: hex.EncodeToString(h.Sum(nil)), Size: int64(len(bytes))}
+	return []binary.PartInfo{part}, nil
 }
 
 func (i *crInvoker) Upload(ipc.ServerContext, int32, repository.BinaryServiceUploadStream) error {

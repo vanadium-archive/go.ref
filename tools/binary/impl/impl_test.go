@@ -2,6 +2,8 @@ package impl_test
 
 import (
 	"bytes"
+	"crypto/md5"
+	"encoding/hex"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -26,12 +28,12 @@ type server struct {
 }
 
 func (s *server) Create(ipc.ServerContext, int32) error {
-	vlog.VI(2).Infof("Create() was called. suffix=%v", s.suffix)
+	vlog.Infof("Create() was called. suffix=%v", s.suffix)
 	return nil
 }
 
 func (s *server) Delete(ipc.ServerContext) error {
-	vlog.VI(2).Infof("Delete() was called. suffix=%v", s.suffix)
+	vlog.Infof("Delete() was called. suffix=%v", s.suffix)
 	if s.suffix != "exists" {
 		return fmt.Errorf("binary doesn't exist: %v", s.suffix)
 	}
@@ -39,24 +41,28 @@ func (s *server) Delete(ipc.ServerContext) error {
 }
 
 func (s *server) Download(_ ipc.ServerContext, _ int32, stream repository.BinaryServiceDownloadStream) error {
-	vlog.VI(2).Infof("Download() was called. suffix=%v", s.suffix)
+	vlog.Infof("Download() was called. suffix=%v", s.suffix)
 	stream.Send([]byte("Hello"))
 	stream.Send([]byte("World"))
 	return nil
 }
 
 func (s *server) DownloadURL(ipc.ServerContext) (string, int64, error) {
-	vlog.VI(2).Infof("DownloadURL() was called. suffix=%v", s.suffix)
+	vlog.Infof("DownloadURL() was called. suffix=%v", s.suffix)
 	return "", 0, nil
 }
 
 func (s *server) Stat(ipc.ServerContext) ([]binary.PartInfo, error) {
-	vlog.VI(2).Infof("Stat() was called. suffix=%v", s.suffix)
-	return []binary.PartInfo{}, nil
+	vlog.Infof("Stat() was called. suffix=%v", s.suffix)
+	h := md5.New()
+	text := "HelloWorld"
+	h.Write([]byte(text))
+	part := binary.PartInfo{Checksum: hex.EncodeToString(h.Sum(nil)), Size: int64(len(text))}
+	return []binary.PartInfo{part}, nil
 }
 
 func (s *server) Upload(_ ipc.ServerContext, _ int32, stream repository.BinaryServiceUploadStream) error {
-	vlog.VI(2).Infof("Upload() was called. suffix=%v", s.suffix)
+	vlog.Infof("Upload() was called. suffix=%v", s.suffix)
 	for {
 		if _, err := stream.Recv(); err != nil {
 			break
