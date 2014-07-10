@@ -9,6 +9,7 @@ package vsync
 // log records to get in sync with the sender.
 import (
 	"fmt"
+	"strings"
 	"sync"
 	"time"
 
@@ -16,6 +17,7 @@ import (
 
 	"veyron2/ipc"
 	"veyron2/naming"
+	"veyron2/security"
 	"veyron2/storage"
 	"veyron2/vlog"
 	"veyron2/vom"
@@ -47,6 +49,23 @@ type syncd struct {
 	hdlGC        *syncGC
 	hdlWatcher   *syncWatcher
 	hdlInitiator *syncInitiator
+}
+
+type syncDispatcher struct {
+	server ipc.Invoker
+	auth   security.Authorizer
+}
+
+// NewSyncDispatcher returns an object dispatcher.
+func NewSyncDispatcher(s interface{}, auth security.Authorizer) ipc.Dispatcher {
+	return &syncDispatcher{ipc.ReflectInvoker(s), auth}
+}
+
+func (d *syncDispatcher) Lookup(suffix string) (ipc.Invoker, security.Authorizer, error) {
+	if strings.HasSuffix(suffix, "sync") {
+		return d.server, d.auth, nil
+	}
+	return nil, nil, fmt.Errorf("Lookup:: failed on suffix: %s", suffix)
 }
 
 // NewSyncd creates a new syncd instance.

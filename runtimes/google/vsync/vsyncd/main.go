@@ -6,7 +6,8 @@ import (
 	"os"
 
 	"veyron/runtimes/google/vsync"
-	"veyron2/ipc"
+	vflag "veyron/security/flag"
+
 	"veyron2/rt"
 	"veyron2/vlog"
 )
@@ -38,10 +39,15 @@ func main() {
 		vlog.Fatalf("syncd:: failure creating server: err %v", err)
 	}
 
-	// Register the "sync" prefix with the sync dispatcher.
+	// Create a new SyncService.
 	syncd := vsync.NewSyncd(*peerEndpoints, *peerDeviceIDs, *devid, *storePath, *vstoreEndpoint, *syncTick)
-	serverSync := vsync.NewServerSync(syncd)
-	dispatcher := ipc.SoloDispatcher(serverSync, nil)
+	syncService := vsync.NewServerSync(syncd)
+
+	// Create the authorizer.
+	auth := vflag.NewAuthorizerOrDie()
+
+	// Register the service.
+	syncDisp := vsync.NewSyncDispatcher(syncService, auth)
 
 	// Create an endpoint and begin listening.
 	if endpoint, err := s.Listen("tcp", *address); err == nil {
@@ -50,9 +56,9 @@ func main() {
 		vlog.Fatalf("syncd:: error listening to service: err %v", err)
 	}
 
-	// Publish the vsync service. This will register it in the mount table and maintain the
-	// registration while the program runs.
-	if err := s.Serve("sync", dispatcher); err != nil {
+	// Publish the vsync service.
+	name := "global/vsync/" + *devid
+	if err := s.Serve(name, syncDisp); err != nil {
 		vlog.Fatalf("syncd: error publishing service: err %v", err)
 	}
 
