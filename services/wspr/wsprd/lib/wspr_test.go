@@ -364,7 +364,7 @@ type runningTest struct {
 	proxyServer      *proxy.Proxy
 }
 
-func publishServer() (*runningTest, error) {
+func serveServer() (*runningTest, error) {
 	mounttableServer, endpoint, err := startMountTableServer()
 
 	if err != nil {
@@ -389,11 +389,9 @@ func publishServer() (*runningTest, error) {
 		return &writer
 	}
 	wsp.setup()
-	wsp.publish(publishRequest{
-		Name: "adder",
-		Services: map[string]JSONServiceSignature{
-			"adder": adderServiceSignature,
-		},
+	wsp.serve(serveRequest{
+		Name:    "adder",
+		Service: adderServiceSignature,
 	}, &writer)
 
 	return &runningTest{
@@ -401,14 +399,14 @@ func publishServer() (*runningTest, error) {
 	}, nil
 }
 
-func TestJavascriptPublishServer(t *testing.T) {
-	rt, err := publishServer()
+func TestJavascriptServeServer(t *testing.T) {
+	rt, err := serveServer()
 	defer rt.mounttableServer.Stop()
 	defer rt.proxyServer.Shutdown()
 	defer rt.wsp.cleanup()
 
 	if err != nil {
-		t.Errorf("could not publish server %v", err)
+		t.Errorf("could not serve server %v", err)
 	}
 
 	if len(rt.writer.stream) != 1 {
@@ -419,7 +417,7 @@ func TestJavascriptPublishServer(t *testing.T) {
 	resp := rt.writer.stream[0]
 
 	if resp.Type != responseFinal {
-		t.Errorf("unknown stream message Got: %v, expected: publish response", resp)
+		t.Errorf("unknown stream message Got: %v, expected: serve response", resp)
 		return
 	}
 
@@ -428,17 +426,17 @@ func TestJavascriptPublishServer(t *testing.T) {
 			return
 		}
 	}
-	t.Errorf("invalid endpdoint returned from publish: %v", resp.Message)
+	t.Errorf("invalid endpdoint returned from serve: %v", resp.Message)
 }
 
 func TestJavascriptStopServer(t *testing.T) {
-	rt, err := publishServer()
+	rt, err := serveServer()
 	defer rt.mounttableServer.Stop()
 	defer rt.proxyServer.Shutdown()
 	defer rt.wsp.cleanup()
 
 	if err != nil {
-		t.Errorf("could not publish server %v", err)
+		t.Errorf("could not serve server %v", err)
 		return
 	}
 
@@ -489,13 +487,13 @@ func sendServerStream(t *testing.T, wsp *websocketPipe, test *jsServerTestCase, 
 }
 
 func runJsServerTestCase(t *testing.T, test jsServerTestCase) {
-	rt, err := publishServer()
+	rt, err := serveServer()
 	defer rt.mounttableServer.Stop()
 	defer rt.proxyServer.Shutdown()
 	defer rt.wsp.cleanup()
 
 	if err != nil {
-		t.Errorf("could not publish server %v", err)
+		t.Errorf("could not serve server %v", err)
 	}
 
 	if len(rt.writer.stream) != 1 {
@@ -506,17 +504,17 @@ func runJsServerTestCase(t *testing.T, test jsServerTestCase) {
 	resp := rt.writer.stream[0]
 
 	if resp.Type != responseFinal {
-		t.Errorf("unknown stream message Got: %v, expected: publish response", resp)
+		t.Errorf("unknown stream message Got: %v, expected: serve response", resp)
 		return
 	}
 
 	msg, ok := resp.Message.(string)
 	if !ok {
-		t.Errorf("invalid endpdoint returned from publish: %v", resp.Message)
+		t.Errorf("invalid endpdoint returned from serve: %v", resp.Message)
 	}
 
 	if _, err := r.NewEndpoint(msg); err != nil {
-		t.Errorf("invalid endpdoint returned from publish: %v", resp.Message)
+		t.Errorf("invalid endpdoint returned from serve: %v", resp.Message)
 	}
 
 	rt.writer.stream = nil
@@ -528,7 +526,7 @@ func runJsServerTestCase(t *testing.T, test jsServerTestCase) {
 		t.Errorf("unable to create client: %v", err)
 	}
 
-	call, err := client.StartCall(rt.wspr.rt.NewContext(), "/"+msg+"//adder", test.method, test.inArgs)
+	call, err := client.StartCall(rt.wspr.rt.NewContext(), "/"+msg+"/adder", test.method, test.inArgs)
 	if err != nil {
 		t.Errorf("failed to start call: %v", err)
 	}
@@ -537,10 +535,9 @@ func runJsServerTestCase(t *testing.T, test jsServerTestCase) {
 		response{
 			Type: responseServerRequest,
 			Message: map[string]interface{}{
-				"serverId":    0.0,
-				"serviceName": "adder",
-				"method":      lowercaseFirstCharacter(test.method),
-				"args":        test.inArgs,
+				"serverId": 0.0,
+				"method":   lowercaseFirstCharacter(test.method),
+				"args":     test.inArgs,
 				"context": map[string]interface{}{
 					"name":   "adder",
 					"suffix": "adder",

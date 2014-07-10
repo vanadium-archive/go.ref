@@ -6,7 +6,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"strings"
 	"sync"
 
 	"veyron2"
@@ -20,6 +19,20 @@ import (
 type flow struct {
 	id     int64
 	writer clientWriter
+}
+
+// A request from the proxy to javascript to handle an RPC
+type serverRPCRequest struct {
+	ServerId uint64
+	Method   string
+	Args     []interface{}
+	Context  serverRPCRequestContext
+}
+
+// call context for a serverRPCRequest
+type serverRPCRequestContext struct {
+	Suffix string
+	Name   string
 }
 
 type serverHelper interface {
@@ -37,8 +50,10 @@ type server struct {
 
 	// The server that handles the ipc layer.  Listen on this server is
 	// lazily started.
-	server     ipc.Server
-	dispatcher exactMatchDispatcher
+	server ipc.Server
+
+	// The saved dispatcher to reuse when serve is called multiple times.
+	dispatcher ipc.Dispatcher
 
 	// The endpoint of the server.  This is empty until the server has been
 	// started and listen has been called on it.
@@ -61,7 +76,6 @@ func newServer(id uint64, veyronProxy string, helper serverHelper) (*server, err
 		helper:                    helper,
 		veyronProxy:               veyronProxy,
 		outstandingServerRequests: make(map[int64]chan *serverRPCReply),
-		dispatcher:                exactMatchDispatcher{dispatchers: make(map[string]ipc.Dispatcher)},
 	}
 	var err error
 	if server.server, err = helper.rt().NewServer(); err != nil {
@@ -74,7 +88,7 @@ func newServer(id uint64, veyronProxy string, helper serverHelper) (*server, err
 // communicate the result back via a channel to the caller
 type remoteInvokeFunc func(methodName string, args []interface{}, call ipc.ServerCall) <-chan *serverRPCReply
 
-func (s *server) createRemoteInvokerFunc(serviceName string) remoteInvokeFunc {
+func (s *server) createRemoteInvokerFunc() remoteInvokeFunc {
 	return func(methodName string, args []interface{}, call ipc.ServerCall) <-chan *serverRPCReply {
 		flow := s.helper.createNewFlow(s, senderWrapper{stream: call})
 		replyChan := make(chan *serverRPCReply, 1)
@@ -87,11 +101,10 @@ func (s *server) createRemoteInvokerFunc(serviceName string) remoteInvokeFunc {
 		}
 		// Send a invocation request to JavaScript
 		message := serverRPCRequest{
-			ServerId:    s.id,
-			ServiceName: serviceName,
-			Method:      lowercaseFirstCharacter(methodName),
-			Args:        args,
-			Context:     context,
+			ServerId: s.id,
+			Method:   lowercaseFirstCharacter(methodName),
+			Args:     args,
+			Context:  context,
 		}
 
 		data := response{Type: responseServerRequest, Message: message}
@@ -114,8 +127,8 @@ func (s *server) createRemoteInvokerFunc(serviceName string) remoteInvokeFunc {
 		}
 
 		s.helper.getLogger().VI(3).Infof("request received to call method %q on "+
-			"JavaScript server %q with args %v, MessageId %d was assigned.",
-			methodName, serviceName, args, flow.id)
+			"JavaScript server with args %v, MessageId %d was assigned.",
+			methodName, args, flow.id)
 
 		go proxyStream(call, flow.writer, s.helper.getLogger())
 		return replyChan
@@ -146,62 +159,28 @@ func proxyStream(stream ipc.Stream, w clientWriter, logger vlog.Logger) {
 	}
 }
 
-type exactMatchDispatcher struct {
-	sync.Mutex
-	dispatchers map[string]ipc.Dispatcher
-}
+func (s *server) serve(name string, sig JSONServiceSignature) (string, error) {
+	s.Lock()
+	defer s.Unlock()
 
-func (em *exactMatchDispatcher) Lookup(suffix string) (ipc.Invoker, security.Authorizer, error) {
-	parts := strings.Split(suffix, "/")
-	if len(parts) == 0 || len(parts[0]) == 0 {
-		return nil, nil, fmt.Errorf("can't extract first path component from %q", suffix)
-	}
-	name := parts[0]
-	em.Lock()
-	defer em.Unlock()
-	if disp := em.dispatchers[name]; disp == nil {
-		return nil, nil, fmt.Errorf("no dispatcher registered for %q, from %q", name, suffix)
-	} else {
-		suffix = strings.TrimLeft(suffix, "/")
-		suffix = strings.TrimPrefix(suffix, name)
-		suffix = strings.TrimLeft(suffix, "/")
-		return disp.Lookup(suffix)
-	}
-}
-
-// register associates a dispatcher with name, where name cannot contain
-// any /s. Incoming invocations of the form <name>/... will be passed
-// on to the dispatcher with <name>/... as the parameter to its lookup
-// method.
-func (s *server) register(name string, sig JSONServiceSignature) error {
 	serviceSig, err := sig.ServiceSignature()
 	if err != nil {
-		return err
+		return "", err
 	}
 
-	if strings.Contains(name, "/") {
-		return fmt.Errorf("%q must not contain /", name)
-	}
-
-	remoteInvokeFunc := s.createRemoteInvokerFunc(name)
+	remoteInvokeFunc := s.createRemoteInvokerFunc()
 	invoker, err := newInvoker(serviceSig, remoteInvokeFunc)
 
 	if err != nil {
-		return err
+		return "", err
 	}
-	dispatcher := newDispatcher(invoker, security.NewACLAuthorizer(
-		security.ACL{security.AllPrincipals: security.AllLabels},
-	))
 
-	s.dispatcher.Lock()
-	s.dispatcher.dispatchers[name] = dispatcher
-	s.dispatcher.Unlock()
-	return nil
-}
+	if s.dispatcher == nil {
+		s.dispatcher = newDispatcher(invoker, security.NewACLAuthorizer(
+			security.ACL{security.AllPrincipals: security.AllLabels},
+		))
+	}
 
-func (s *server) publish(name string) (string, error) {
-	s.Lock()
-	defer s.Unlock()
 	if s.endpoint == "" {
 		endpoint, err := s.server.Listen("veyron", s.veyronProxy)
 
@@ -210,7 +189,7 @@ func (s *server) publish(name string) (string, error) {
 		}
 		s.endpoint = endpoint.String()
 	}
-	if err := s.server.Serve(name, &s.dispatcher); err != nil {
+	if err := s.server.Serve(name, s.dispatcher); err != nil {
 		return "", err
 	}
 	s.helper.getLogger().VI(1).Infof("endpoint is %s", s.endpoint)
