@@ -6,6 +6,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"veyron2/ipc"
 	"veyron2/security"
@@ -36,7 +37,7 @@ func NewDispatcher(root string, depth int, authorizer security.Authorizer) (*dis
 	if err != nil {
 		return nil, fmt.Errorf("ReadFile(%v) failed: %v", path, err)
 	}
-	if expected, got := Version, string(output); expected != got {
+	if expected, got := Version, strings.TrimSpace(string(output)); expected != got {
 		return nil, fmt.Errorf("Unexpected version: expected %v, got %v", expected, got)
 	}
 	return &dispatcher{
