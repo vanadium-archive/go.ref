@@ -24,8 +24,8 @@ func init() {
 	registerInterface((*proximity.ProximityAnnouncerService)(nil))
 }
 
-// A list of all registered argGetter-s.
-var register map[string]*argGetter = make(map[string]*argGetter)
+// A list of all registered serviceArgGetter-s.
+var register map[string]*serviceArgGetter = make(map[string]*serviceArgGetter)
 
 // registerInterface registers the provided VDL client or server interface
 // so that its methods' arguments can be created on-the-fly.
@@ -81,7 +81,7 @@ func registerInterface(ifacePtr interface{}) {
 		methods[m.Name] = append(methods[m.Name], &mArgs)
 	}
 	path := path.Join(t.PkgPath(), t.Name())
-	register[path] = &argGetter{
+	register[path] = &serviceArgGetter{
 		methods: methods,
 		vdlPath: path,
 	}
@@ -115,19 +115,47 @@ func fillStreamArgs(stream reflect.Type, mArgs *methodArgs) error {
 	return nil
 }
 
-// newArgGetter returns the argument getter for the provided VDL interface.
-func newArgGetter(vdlIfacePath string) *argGetter {
-	return register[vdlIfacePath]
-}
-
-// argGetter serves method arguments for a specific interface.
-type argGetter struct {
+// serviceArgGetter serves method arguments for a specific service.
+type serviceArgGetter struct {
 	methods map[string][]*methodArgs
 	vdlPath string
 }
 
+func (sag *serviceArgGetter) String() (ret string) {
+	ret = "VDLPath: " + sag.vdlPath
+	for k, v := range sag.methods {
+		for _, m := range v {
+			ret += "; "
+			ret += fmt.Sprintf("Method: %s, Args: %v", k, m)
+		}
+	}
+	return
+}
+
+// argGetter serves method arguments for a service object.
+// (which may implement multiple services)
+type argGetter struct {
+	methods map[string][]*methodArgs
+}
+
+// newArgGetter returns the argument getter for the provided service object.
+func newArgGetter(paths []string) (*argGetter, error) {
+	ag := &argGetter{
+		methods: make(map[string][]*methodArgs),
+	}
+	for _, path := range paths {
+		sag := register[path]
+		if sag == nil {
+			return nil, fmt.Errorf("unknown service %s", path)
+		}
+		for method, args := range sag.methods {
+			ag.methods[method] = args
+		}
+	}
+	return ag, nil
+}
+
 func (ag *argGetter) String() (ret string) {
-	ret = "VDLPath: " + ag.vdlPath
 	for k, v := range ag.methods {
 		for _, m := range v {
 			ret += "; "
@@ -153,9 +181,6 @@ func (ag *argGetter) FindMethod(method string, numInArgs int) *methodArgs {
 	}
 	return m
 }
-
-// argGetters is a cache of created argument getters, keyed by VDL interface path.
-var argGetters map[string]*argGetter = make(map[string]*argGetter)
 
 // method contains argument type information for a method belonging to an interface.
 type methodArgs struct {

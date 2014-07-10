@@ -35,6 +35,10 @@ const (
 	objectSign = "Ljava/lang/Object;"
 )
 
+func arraySign(sign string) string {
+	return "[" + sign
+}
+
 // refs stores references to instances of various Go types, namely instances
 // that are referenced only by the Java code.  The only purpose of this store
 // is to prevent Go runtime from garbage collecting those instances.
@@ -94,6 +98,19 @@ func jString(env *C.JNIEnv, str string) C.jstring {
 	cString := C.CString(str)
 	defer C.free(unsafe.Pointer(cString))
 	return C.NewStringUTF(env, cString)
+}
+
+// goStringArray converts a Java string array to a go string array.
+func goStringArray(env *C.JNIEnv, jStrArray C.jobjectArray) []string {
+	if jStrArray == nil {
+		return nil
+	}
+	length := C.GetArrayLength(env, C.jarray(jStrArray))
+	ret := make([]string, int(length))
+	for i := 0; i < int(length); i++ {
+		ret[i] = goString(env, C.jstring(C.GetObjectArrayElement(env, jStrArray, C.jsize(i))))
+	}
+	return ret
 }
 
 // jThrow throws a new Java exception of the provided type with the given message.
@@ -165,15 +182,7 @@ func jStringArrayField(env *C.JNIEnv, obj C.jobject, field string) []string {
 	defer C.free(unsafe.Pointer(cSig))
 	fid := C.GetFieldID(env, C.GetObjectClass(env, obj), cField, cSig)
 	jStrArray := C.jobjectArray(C.GetObjectField(env, obj, fid))
-	if jStrArray == nil {
-		return nil
-	}
-	length := C.GetArrayLength(env, C.jarray(jStrArray))
-	ret := make([]string, int(length))
-	for i := 0; i < int(length); i++ {
-		ret[i] = goString(env, C.jstring(C.GetObjectArrayElement(env, jStrArray, C.jsize(i))))
-	}
-	return ret
+	return goStringArray(env, jStrArray)
 }
 
 // jMethodID returns the Java method ID for the given method.

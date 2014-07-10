@@ -38,13 +38,13 @@ func (c *client) StartCall(env *C.JNIEnv, jContext C.jobject, name, method strin
 	}
 	// Get argument instances that correspond to the provided method.
 	vdlPackagePath := strings.Join(strings.Split(goString(env, jPath), ".")[1:], "/")
-	getter := newArgGetter(vdlPackagePath)
-	if getter == nil {
-		return nil, fmt.Errorf("couldn't find VDL interface corresponding to path %q", vdlPackagePath)
+	getter, err := newArgGetter([]string{vdlPackagePath})
+	if err != nil {
+		return nil, err
 	}
 	mArgs := getter.FindMethod(method, len(argStrs))
 	if mArgs == nil {
-		return nil, fmt.Errorf("couldn't find method %s with %d args in VDL interface at path %q, getter: %v", method, len(argStrs), goString(env, jPath), getter)
+		return nil, fmt.Errorf("couldn't find method %s with %d args in VDL interface at path %q", method, len(argStrs), goString(env, jPath))
 	}
 	argptrs := mArgs.InPtrs()
 	if len(argptrs) != len(argStrs) {

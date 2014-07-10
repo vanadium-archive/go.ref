@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"runtime"
-	"strings"
 
 	"veyron2/ipc"
 	"veyron2/security"
@@ -42,12 +41,12 @@ func newJNIInvoker(env *C.JNIEnv, jVM *C.JavaVM, jObj C.jobject) (ipc.Invoker, e
 		return nil, fmt.Errorf("error creating Java VDLInvoker object: %v", err)
 	}
 	// Fetch the argGetter for the object.
-	pid := jMethodID(env, jVDLInvokerClass, "getInterfacePath", fmt.Sprintf("()%s", stringSign))
-	jPath := C.jstring(C.CallGetInterfacePath(env, jInvoker, pid))
-	vdlPackagePath := strings.Join(strings.Split(goString(env, jPath), ".")[1:], "/")
-	getter := newArgGetter(vdlPackagePath)
-	if getter == nil {
-		return nil, fmt.Errorf("couldn't find VDL interface corresponding to path %q", vdlPackagePath)
+	pid := jMethodID(env, jVDLInvokerClass, "getImplementedServices", fmt.Sprintf("()%s", arraySign(stringSign)))
+	jPathArray := C.jobjectArray(C.CallGetInterfacePath(env, jInvoker, pid))
+	paths := goStringArray(env, jPathArray)
+	getter, err := newArgGetter(paths)
+	if err != nil {
+		return nil, err
 	}
 	// Reference Java invoker; it will be de-referenced when the go invoker
 	// created below is garbage-collected (through the finalizer callback we
