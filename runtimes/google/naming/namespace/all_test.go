@@ -383,6 +383,13 @@ func TestGlob(t *testing.T) {
 	for _, test := range globTests {
 		out := doGlob(t, r, ns, test.pattern)
 		compare(t, "Glob", test.pattern, test.expected, out)
+		// Do the same with a full rooted name.
+		out = doGlob(t, r, ns, naming.JoinAddressName(root.name, test.pattern))
+		var expectedWithRoot []string
+		for _, s := range test.expected {
+			expectedWithRoot = append(expectedWithRoot, naming.JoinAddressName(root.name, s))
+		}
+		compare(t, "Glob", test.pattern, expectedWithRoot, out)
 	}
 }
 
