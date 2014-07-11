@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"veyron/runtimes/google/jni/util"
 	"veyron2"
 	"veyron2/ipc"
 )
@@ -34,17 +35,17 @@ func (c *client) StartCall(env *C.JNIEnv, jContext C.jobject, name, method strin
 	// Convert Java argument array into []string.
 	argStrs := make([]string, int(C.GetArrayLength(env, C.jarray(jArgs))))
 	for i := 0; i < len(argStrs); i++ {
-		argStrs[i] = goString(env, C.jstring(C.GetObjectArrayElement(env, jArgs, C.jsize(i))))
+		argStrs[i] = util.GoString(env, C.GetObjectArrayElement(env, jArgs, C.jsize(i)))
 	}
 	// Get argument instances that correspond to the provided method.
-	vdlPackagePath := strings.Join(strings.Split(goString(env, jPath), ".")[1:], "/")
+	vdlPackagePath := strings.Join(strings.Split(util.GoString(env, jPath), ".")[1:], "/")
 	getter, err := newArgGetter([]string{vdlPackagePath})
 	if err != nil {
 		return nil, err
 	}
 	mArgs := getter.FindMethod(method, len(argStrs))
 	if mArgs == nil {
-		return nil, fmt.Errorf("couldn't find method %s with %d args in VDL interface at path %q", method, len(argStrs), goString(env, jPath))
+		return nil, fmt.Errorf("couldn't find method %s with %d args in VDL interface at path %q", method, len(argStrs), util.GoString(env, jPath))
 	}
 	argptrs := mArgs.InPtrs()
 	if len(argptrs) != len(argStrs) {
@@ -58,7 +59,7 @@ func (c *client) StartCall(env *C.JNIEnv, jContext C.jobject, name, method strin
 		}
 		// Remove the pointer from the argument.  Simply *argptr[i] doesn't work
 		// as argptr[i] is of type interface{}.
-		args[i] = derefOrDie(argptrs[i])
+		args[i] = util.DerefOrDie(argptrs[i])
 	}
 	// Process options.
 	options := []ipc.CallOpt{}
@@ -110,7 +111,7 @@ func (c *clientCall) Finish(env *C.JNIEnv) (C.jobjectArray, error) {
 	for i, resultptr := range resultptrs {
 		// Remove the pointer from the result.  Simply *resultptr doesn't work
 		// as resultptr is of type interface{}.
-		result := derefOrDie(resultptr)
+		result := util.DerefOrDie(resultptr)
 		var err error
 		jsonResults[i], err = json.Marshal(result)
 		if err != nil {
@@ -121,7 +122,7 @@ func (c *clientCall) Finish(env *C.JNIEnv) (C.jobjectArray, error) {
 	// Convert to Java array of C.jstring.
 	ret := C.NewObjectArray(env, C.jsize(len(jsonResults)), jStringClass, nil)
 	for i, result := range jsonResults {
-		C.SetObjectArrayElement(env, ret, C.jsize(i), C.jobject(jString(env, string(result))))
+		C.SetObjectArrayElement(env, ret, C.jsize(i), C.jobject(util.JStringPtr(env, string(result))))
 	}
 	return ret, nil
 }

@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"runtime"
 
+	"veyron/runtimes/google/jni/util"
 	"veyron2/ipc"
 	"veyron2/security"
 	"veyron2/verror"
@@ -33,17 +34,17 @@ import (
 // }
 import "C"
 
-func newJNIInvoker(env *C.JNIEnv, jVM *C.JavaVM, jObj C.jobject) (ipc.Invoker, error) {
+func newInvoker(env *C.JNIEnv, jVM *C.JavaVM, jObj C.jobject) (*invoker, error) {
 	// Create a new Java VDLInvoker object.
-	cid := jMethodID(env, jVDLInvokerClass, "<init>", fmt.Sprintf("(%s)%s", objectSign, voidSign))
+	cid := C.jmethodID(util.JMethodIDPtr(env, jVDLInvokerClass, "<init>", fmt.Sprintf("(%s)%s", util.ObjectSign, util.VoidSign)))
 	jInvoker := C.CallNewInvokerObject(env, jVDLInvokerClass, cid, jObj)
-	if err := jExceptionMsg(env); err != nil {
+	if err := util.JExceptionMsg(env); err != nil {
 		return nil, fmt.Errorf("error creating Java VDLInvoker object: %v", err)
 	}
 	// Fetch the argGetter for the object.
-	pid := jMethodID(env, jVDLInvokerClass, "getImplementedServices", fmt.Sprintf("()%s", arraySign(stringSign)))
+	pid := C.jmethodID(util.JMethodIDPtr(env, jVDLInvokerClass, "getImplementedServices", fmt.Sprintf("()%s", util.ArraySign(util.StringSign))))
 	jPathArray := C.jobjectArray(C.CallGetInterfacePath(env, jInvoker, pid))
-	paths := goStringArray(env, jPathArray)
+	paths := util.GoStringArray(env, jPathArray)
 	getter, err := newArgGetter(paths)
 	if err != nil {
 		return nil, err
@@ -52,12 +53,12 @@ func newJNIInvoker(env *C.JNIEnv, jVM *C.JavaVM, jObj C.jobject) (ipc.Invoker, e
 	// created below is garbage-collected (through the finalizer callback we
 	// setup just below).
 	jInvoker = C.NewGlobalRef(env, jInvoker)
-	i := &jniInvoker{
+	i := &invoker{
 		jVM:       jVM,
 		jInvoker:  jInvoker,
 		argGetter: getter,
 	}
-	runtime.SetFinalizer(i, func(i *jniInvoker) {
+	runtime.SetFinalizer(i, func(i *invoker) {
 		var env *C.JNIEnv
 		C.AttachCurrentThread(i.jVM, &env, nil)
 		defer C.DetachCurrentThread(i.jVM)
@@ -66,13 +67,13 @@ func newJNIInvoker(env *C.JNIEnv, jVM *C.JavaVM, jObj C.jobject) (ipc.Invoker, e
 	return i, nil
 }
 
-type jniInvoker struct {
+type invoker struct {
 	jVM       *C.JavaVM
 	jInvoker  C.jobject
 	argGetter *argGetter
 }
 
-func (i *jniInvoker) Prepare(method string, numArgs int) (argptrs []interface{}, label security.Label, err error) {
+func (i *invoker) Prepare(method string, numArgs int) (argptrs []interface{}, label security.Label, err error) {
 	// NOTE(spetrovic): In the long-term, this method will return an array of
 	// []vom.Value.  This will in turn result in VOM decoding all input
 	// arguments into vom.Value objects, which we shall then de-serialize into
@@ -89,7 +90,7 @@ func (i *jniInvoker) Prepare(method string, numArgs int) (argptrs []interface{},
 	return
 }
 
-func (i *jniInvoker) Invoke(method string, call ipc.ServerCall, argptrs []interface{}) (results []interface{}, err error) {
+func (i *invoker) Invoke(method string, call ipc.ServerCall, argptrs []interface{}) (results []interface{}, err error) {
 	// NOTE(spetrovic): In the long-term, all input arguments will be of
 	// vom.Value type (see comments for Prepare() method above).  Through JNI,
 	// we will call Java functions that transform a serialized vom.Value into
@@ -107,9 +108,9 @@ func (i *jniInvoker) Invoke(method string, call ipc.ServerCall, argptrs []interf
 		err = fmt.Errorf("couldn't find VDL method %q with %d args", method, len(argptrs))
 	}
 	sCall := newServerCall(call, mArgs)
-	cid := jMethodID(env, jServerCallClass, "<init>", fmt.Sprintf("(%s)%s", longSign, voidSign))
-	jServerCall := C.CallNewServerCallObject(env, jServerCallClass, cid, ptrValue(sCall))
-	goRef(sCall) // unref-ed when jServerCall is garbage-collected
+	cid := C.jmethodID(util.JMethodIDPtr(env, jServerCallClass, "<init>", fmt.Sprintf("(%s)%s", util.LongSign, util.VoidSign)))
+	jServerCall := C.CallNewServerCallObject(env, jServerCallClass, cid, C.jlong(util.PtrValue(sCall)))
+	util.GoRef(sCall) // unref-ed when jServerCall is garbage-collected
 
 	// Translate input args to JSON.
 	jArgs, err := i.encodeArgs(env, argptrs)
@@ -119,9 +120,9 @@ func (i *jniInvoker) Invoke(method string, call ipc.ServerCall, argptrs []interf
 	// Invoke the method.
 	const callSign = "Lcom/veyron2/ipc/ServerCall;"
 	const replySign = "Lcom/veyron/runtimes/google/VDLInvoker$InvokeReply;"
-	mid := jMethodID(env, C.GetObjectClass(env, i.jInvoker), "invoke", fmt.Sprintf("(%s%s[%s)%s", stringSign, callSign, stringSign, replySign))
-	jReply := C.CallInvokeMethod(env, i.jInvoker, mid, jString(env, camelCase(method)), jServerCall, jArgs)
-	if err := jExceptionMsg(env); err != nil {
+	mid := C.jmethodID(util.JMethodIDPtr(env, C.GetObjectClass(env, i.jInvoker), "invoke", fmt.Sprintf("(%s%s[%s)%s", util.StringSign, callSign, util.StringSign, replySign)))
+	jReply := C.CallInvokeMethod(env, i.jInvoker, mid, C.jstring(util.JStringPtr(env, util.CamelCase(method))), jServerCall, jArgs)
+	if err := util.JExceptionMsg(env); err != nil {
 		return nil, fmt.Errorf("error invoking Java method %q: %v", method, err)
 	}
 	// Decode and return results.
@@ -130,13 +131,13 @@ func (i *jniInvoker) Invoke(method string, call ipc.ServerCall, argptrs []interf
 
 // encodeArgs JSON-encodes the provided argument pointers, converts them into
 // Java strings, and returns a Java string array response.
-func (*jniInvoker) encodeArgs(env *C.JNIEnv, argptrs []interface{}) (C.jobjectArray, error) {
+func (*invoker) encodeArgs(env *C.JNIEnv, argptrs []interface{}) (C.jobjectArray, error) {
 	// JSON encode.
 	jsonArgs := make([][]byte, len(argptrs))
 	for i, argptr := range argptrs {
 		// Remove the pointer from the argument.  Simply *argptr doesn't work
 		// as argptr is of type interface{}.
-		arg := derefOrDie(argptr)
+		arg := util.DerefOrDie(argptr)
 		var err error
 		jsonArgs[i], err = json.Marshal(arg)
 		if err != nil {
@@ -147,19 +148,19 @@ func (*jniInvoker) encodeArgs(env *C.JNIEnv, argptrs []interface{}) (C.jobjectAr
 	// Convert to Java array of C.jstring.
 	ret := C.NewObjectArray(env, C.jsize(len(argptrs)), jStringClass, nil)
 	for i, arg := range jsonArgs {
-		C.SetObjectArrayElement(env, ret, C.jsize(i), C.jobject(jString(env, string(arg))))
+		C.SetObjectArrayElement(env, ret, C.jsize(i), C.jobject(util.JStringPtr(env, string(arg))))
 	}
 	return ret, nil
 }
 
 // decodeResults JSON-decodes replies stored in the Java reply object and
 // returns an array of Go reply objects.
-func (i *jniInvoker) decodeResults(env *C.JNIEnv, method string, numArgs int, jReply C.jobject) ([]interface{}, error) {
+func (i *invoker) decodeResults(env *C.JNIEnv, method string, numArgs int, jReply C.jobject) ([]interface{}, error) {
 	// Unpack the replies.
-	results := jStringArrayField(env, jReply, "results")
-	hasAppErr := jBoolField(env, jReply, "hasApplicationError")
-	errorID := jStringField(env, jReply, "errorID")
-	errorMsg := jStringField(env, jReply, "errorMsg")
+	results := util.JStringArrayField(env, jReply, "results")
+	hasAppErr := util.JBoolField(env, jReply, "hasApplicationError")
+	errorID := util.JStringField(env, jReply, "errorID")
+	errorMsg := util.JStringField(env, jReply, "errorMsg")
 
 	// Get result instances.
 	mArgs := i.argGetter.FindMethod(method, numArgs)
@@ -189,7 +190,7 @@ func (i *jniInvoker) decodeResults(env *C.JNIEnv, method string, numArgs int, jR
 func resultsWithError(resultptrs []interface{}, err error) []interface{} {
 	ret := make([]interface{}, len(resultptrs)+1)
 	for i, resultptr := range resultptrs {
-		ret[i] = derefOrDie(resultptr)
+		ret[i] = util.DerefOrDie(resultptr)
 	}
 	ret[len(resultptrs)] = err
 	return ret

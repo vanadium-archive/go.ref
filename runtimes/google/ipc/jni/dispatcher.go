@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"runtime"
 
+	"veyron/runtimes/google/jni/util"
 	"veyron2/ipc"
 	"veyron2/security"
 )
@@ -19,7 +20,7 @@ import (
 // }
 import "C"
 
-func newJNIDispatcher(env *C.JNIEnv, jDispatcher C.jobject) (ipc.Dispatcher, error) {
+func newDispatcher(env *C.JNIEnv, jDispatcher C.jobject) (*dispatcher, error) {
 	// We cannot cache Java environments as they are only valid in the current
 	// thread.  We can, however, cache the Java VM and obtain an environment
 	// from it in whatever thread happens to be running at the time.
@@ -31,35 +32,35 @@ func newJNIDispatcher(env *C.JNIEnv, jDispatcher C.jobject) (ipc.Dispatcher, err
 	// dispatcher created below is garbage-collected (through the finalizer
 	// callback we setup below).
 	jDispatcher = C.NewGlobalRef(env, jDispatcher)
-	d := &jniDispatcher{
-		jVM:   jVM,
-		jDObj: jDispatcher,
+	d := &dispatcher{
+		jVM:         jVM,
+		jDispatcher: jDispatcher,
 	}
-	runtime.SetFinalizer(d, func(d *jniDispatcher) {
+	runtime.SetFinalizer(d, func(d *dispatcher) {
 		var env *C.JNIEnv
 		C.AttachCurrentThread(d.jVM, &env, nil)
 		defer C.DetachCurrentThread(d.jVM)
-		C.DeleteGlobalRef(env, d.jDObj)
+		C.DeleteGlobalRef(env, d.jDispatcher)
 	})
 
 	return d, nil
 }
 
-type jniDispatcher struct {
-	jVM   *C.JavaVM
-	jDObj C.jobject
+type dispatcher struct {
+	jVM         *C.JavaVM
+	jDispatcher C.jobject
 }
 
-func (d *jniDispatcher) Lookup(suffix string) (ipc.Invoker, security.Authorizer, error) {
+func (d *dispatcher) Lookup(suffix string) (ipc.Invoker, security.Authorizer, error) {
 	// Get Java environment.
 	var env *C.JNIEnv
 	C.AttachCurrentThread(d.jVM, &env, nil)
 	defer C.DetachCurrentThread(d.jVM)
 
 	// Call Java dispatcher's lookup() method.
-	lid := jMethodID(env, C.GetObjectClass(env, d.jDObj), "lookup", fmt.Sprintf("(%s)%s", stringSign, objectSign))
-	jObj := C.CallLookupMethod(env, d.jDObj, lid, jString(env, suffix))
-	if err := jExceptionMsg(env); err != nil {
+	lid := C.jmethodID(util.JMethodIDPtr(env, C.GetObjectClass(env, d.jDispatcher), "lookup", fmt.Sprintf("(%s)%s", util.StringSign, util.ObjectSign)))
+	jObj := C.CallLookupMethod(env, d.jDispatcher, lid, C.jstring(util.JStringPtr(env, suffix)))
+	if err := util.JExceptionMsg(env); err != nil {
 		return nil, nil, fmt.Errorf("error invoking Java dispatcher's lookup() method: %v", err)
 	}
 	if jObj == nil {
@@ -67,7 +68,7 @@ func (d *jniDispatcher) Lookup(suffix string) (ipc.Invoker, security.Authorizer,
 		// handling the object - this is not an error.
 		return nil, nil, nil
 	}
-	i, err := newJNIInvoker(env, d.jVM, jObj)
+	i, err := newInvoker(env, d.jVM, jObj)
 	if err != nil {
 		return nil, nil, err
 	}
