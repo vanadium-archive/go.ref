@@ -28,12 +28,9 @@ func compareTypes(t *testing.T, method string, got, want []interface{}, argKind 
 
 func TestGetter(t *testing.T) {
 	iface := "veyron2/vdl/test_base/ServiceB"
-	getter := newArgGetter(iface)
-	if getter == nil {
-		t.Fatalf("no getter for interface: %v ", iface)
-	}
-	if got, want := getter.vdlPath, iface; got != want {
-		t.Errorf("invalid pathname: got %v , want %v ", got, want)
+	getter, err := newArgGetter([]string{iface})
+	if err != nil {
+		t.Fatalf("couldn't find getter for interface: %v ", iface)
 	}
 	data := []struct {
 		Method       string
