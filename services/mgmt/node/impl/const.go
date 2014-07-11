@@ -1,6 +1,9 @@
 package impl
 
 const (
+	// BinaryEnv is the name of the environment variable that holds the
+	// object name used for obtaining the node manager binary.
+	BinaryEnv = "VEYRON_NM_BINARY"
 	// PreviousEnv is the name of the environment variable that holds
 	// the path to the workspace that contains the previous version of
 	// the node manager.

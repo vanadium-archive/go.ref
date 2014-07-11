@@ -384,6 +384,7 @@ func generateScript(workspace string, envelope *application.Envelope) error {
 		return errOperationFailed
 	}
 	output := "#!/bin/bash\n"
+	output += BinaryEnv + "=" + envelope.Binary + " "
 	output += PreviousEnv + "=" + filepath.Dir(path) + " "
 	output += strings.Join(envelope.Env, " ") + " "
 	output += filepath.Join(workspace, "noded") + " "
