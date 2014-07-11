@@ -17,6 +17,15 @@ import (
 	"veyron2/vlog"
 )
 
+func generateEnvelope() *application.Envelope {
+	return &application.Envelope{
+		Args:   os.Args,
+		Binary: os.Getenv(impl.BinaryEnv),
+		Env:    os.Environ(),
+		Title:  application.NodeManagerTitle,
+	}
+}
+
 func main() {
 	// TODO(rthellend): Remove the address and protocol flags when the config manager is working.
 	var address, protocol, publishAs string
@@ -38,7 +47,7 @@ func main() {
 	if err != nil {
 		vlog.Fatalf("Listen(%v, %v) failed: %v", protocol, address, err)
 	}
-	suffix, envelope := "", &application.Envelope{}
+	suffix, envelope := "", generateEnvelope()
 	name := naming.MakeTerminal(naming.JoinAddressName(endpoint.String(), suffix))
 	vlog.VI(0).Infof("Node manager name: %v", name)
 	// TODO(jsimsa): Replace <PreviousEnv> with a command-line flag when
