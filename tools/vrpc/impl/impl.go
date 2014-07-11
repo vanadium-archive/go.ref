@@ -16,7 +16,7 @@ import (
 	"veyron2/vom"
 	"veyron2/wiretype"
 
-	idl_build "veyron2/services/mgmt/build"
+	idl_binary "veyron2/services/mgmt/binary"
 	idl_node "veyron2/services/mgmt/node"
 	idl_mounttable "veyron2/services/mounttable"
 )
@@ -126,7 +126,7 @@ func runInvoke(cmd *cmdline.Command, args []string) error {
 	vom.Register(x1)
 	var x2 idl_node.Description
 	vom.Register(x2)
-	var x3 idl_build.BinaryDescription
+	var x3 idl_binary.Description
 	vom.Register(x3)
 	var x4 idl_mounttable.MountedServer
 	vom.Register(x4)

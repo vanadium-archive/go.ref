@@ -80,7 +80,7 @@ func main() {
 		return
 	}
 	if err := server.Serve(name, dispatcher); err != nil {
-		vlog.Errorf("Server(%v) failed: %v", name, err)
+		vlog.Errorf("Serve(%v) failed: %v", name, err)
 		return
 	}
 	vlog.Infof("Binary repository published at %v/%v", endpoint, name)
