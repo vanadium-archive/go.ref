@@ -14,11 +14,11 @@ import (
 	"testing"
 	"time"
 
-	"veyron/lib/exec"
 	"veyron/lib/signals"
 	_ "veyron/lib/testutil"
 	"veyron/lib/testutil/blackbox"
 	"veyron/lib/testutil/security"
+	"veyron/services/mgmt/lib/exec"
 	"veyron/services/mgmt/node"
 	"veyron/services/mgmt/node/impl"
 	mtlib "veyron/services/mounttable/lib"

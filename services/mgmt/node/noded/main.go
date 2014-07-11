@@ -4,9 +4,9 @@ import (
 	"flag"
 	"os"
 
-	"veyron/lib/exec"
 	"veyron/lib/signals"
 	vflag "veyron/security/flag"
+	"veyron/services/mgmt/lib/exec"
 	"veyron/services/mgmt/node"
 	"veyron/services/mgmt/node/impl"
 

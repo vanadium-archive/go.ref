@@ -7,8 +7,8 @@ import (
 	"strings"
 	"sync"
 
-	"veyron/lib/exec"
 	"veyron/runtimes/google/naming/namespace"
+	"veyron/services/mgmt/lib/exec"
 
 	"veyron2"
 	"veyron2/ipc"

@@ -41,9 +41,9 @@ import (
 	"time"
 
 	"veyron/lib/config"
-	vexec "veyron/lib/exec"
 	ibuild "veyron/services/mgmt/build"
 	"veyron/services/mgmt/lib/binary"
+	vexec "veyron/services/mgmt/lib/exec"
 	"veyron/services/mgmt/profile"
 
 	"veyron2/ipc"
