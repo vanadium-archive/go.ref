@@ -55,7 +55,6 @@ export function publish(name, pipeRequestHandler) {
   var p2b = {
     pipe($suffix, $stream) {
       return new Promise(function(resolve, reject) {
-
         log.debug('received pipe request for:', $suffix);
         var numBytesForThisCall = 0;
 
@@ -89,12 +88,12 @@ export function publish(name, pipeRequestHandler) {
 
   state.publishing = true;
 
-  return server.serve(config.publishNamePrefix + '/' + name + '/pipe', p2b).then((endpoint) => { //TODO(aghassemi) publish-issue
+  return server.serve(config.publishNamePrefix + '/' + name, p2b).then((endpoint) => {
     log.debug('published with endpoint:', endpoint);
 
     state.published = true;
     state.publishing = false;
-    state.fullServiceName = config.publishNamePrefix + '/' + name + '/pipe'; //TODO(aghassemi) publish-issue
+    state.fullServiceName = config.publishNamePrefix + '/' + name;
     state.date = new Date();
 
     return endpoint;
