@@ -13,7 +13,7 @@ import { NeighborhoodView } from 'views/neighborhood/view'
 import { getAll as getAllPublishedP2BNames } from 'services/pipe-to-browser-namespace'
 
 var log = new Logger('actions/navigate-neighborhood');
-const ACTION_NAME = 'neighborhood';
+var ACTION_NAME = 'neighborhood';
 
 /*
  * Registers the action

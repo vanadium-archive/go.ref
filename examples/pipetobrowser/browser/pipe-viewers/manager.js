@@ -9,6 +9,17 @@
 import { isAbsoulteUrl } from 'libs/utils/url'
 import { Logger } from 'libs/logs/logger'
 
+/*
+ * Preload certain common builtin plugins.
+ * Plugins are normally loaded on demand and this makes the initial bundle larger
+ * but common plugins should be preloaded for better performance.
+ * This is kind of a hack as it simply exposes a path to these
+ * plugins so that build bundler finds them and bundles them with the reset of the app
+ */
+import { default as plugin } from './builtin/vlog/plugin'
+import { default as plugin } from './builtin/image/plugin'
+import { default as plugin } from './builtin/console/plugin'
+
 var log = new Logger('pipe-viewer/manager');
 
 // cache loaded viewers

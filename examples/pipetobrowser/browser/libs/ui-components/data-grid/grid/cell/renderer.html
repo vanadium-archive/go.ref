@@ -1,8 +1,8 @@
-<link rel="import" href="/libs/vendor/polymer/polymer/polymer.html">
+<link rel="import" href="../../../../../third-party/polymer/polymer.html">
 <polymer-element name="p2b-grid-cell-renderer" extends="td" attributes="data">
   <template>
     <link rel="stylesheet" href="renderer.css">
-    <link rel="stylesheet" href="/libs/css/common-style.css">
+    <link rel="stylesheet" href="../../../../css/common-style.css">
     <div class="cell {{ {'secondary-text': !data.primary, 'no-wrap': !data.wrap} | tokenList }}">
       <content></content>
     </div>

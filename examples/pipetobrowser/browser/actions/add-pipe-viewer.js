@@ -21,7 +21,7 @@ import { LoadingView } from 'views/loading/view'
 import { pipesViewInstance } from 'runtime/context'
 
 var log = new Logger('actions/add-pipe-viewer');
-const ACTION_NAME = 'addPipeViewer';
+var ACTION_NAME = 'addPipeViewer';
 var pipesPerNameCounter = {};
 
 /*

@@ -15,7 +15,6 @@ import { page } from 'runtime/context'
 var log = new Logger('app');
 
 export function start() {
-
   log.debug('start called');
 
   // Initialize a new page, sets up toolbar and action bar for the app

@@ -5,7 +5,7 @@
  * @fileoverview
  */
 import { Logger } from 'libs/logs/logger'
-import { config } from 'config'
+import { config } from 'config/config'
 import { ByteObjectStreamAdapter } from 'libs/utils/byte-object-stream-adapter'
 import { StreamByteCounter } from 'libs/utils/stream-byte-counter'
 import { StreamCopy } from 'libs/utils/stream-copy'

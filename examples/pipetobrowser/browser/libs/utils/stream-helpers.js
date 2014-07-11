@@ -1,4 +1,5 @@
-var es = require('event-stream');
+import { default as es } from "npm:event-stream"
+
 export var streamUtil = {
   split: es.split,
   map: es.map,

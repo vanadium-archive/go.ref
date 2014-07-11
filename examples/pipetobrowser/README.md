@@ -18,7 +18,21 @@ cat cat.jpg | p2b -binary google/p2b/jane/image
 where **google/p2b/jane** is the Object name where p2b service is running in the browser. The suffix **console** or **image** specifies what viewer should be used to display the data.
 
 ## Building and Running
-TODO
+To build
+``
+make
+``
+To run
+``
+make daemons #Runs the required Veyron daemons
+make start #Starts a web server at 8080
+``
+and then navigate to http://localhost:8080
+
+To clean
+``
+make clean
+``
 
 ## Built-in Viewers
 TODO

@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="description" content="Pipe To Browser (p2b) is a utility built with veyron technology that allows piping of stdout and std from console into local or remote browser windows. Different plugins exist to format the incoming data and display them in an appropriate and interactive format.">
+  <title>Pipe To Browser - because life is too short to stare at unformatted stdout text, and is hard enough already not to have a spell-checker for stdin</title>
+
+  <script src="third-party/platform/platform.js"></script>
+  <link rel="import" href="views/page/component.html"/>
+
+  <style type="text/css">
+    body {
+      font-family: 'Roboto', sans-serif;
+      color: rgba(0,0,0,0.87);
+    }
+  </style>
+</head>
+<body>
+  <!-- TODO(aghassemi) use CJS version of Veyron and provide an ES6 shim -->
+  <script src="third-party/veyron/veyron.js"></script>
+
+  <script src="third-party/traceur-runtime@0.0.49.js"></script>
+  <script src="third-party/system@0.6.js"></script>
+  <script src="config.js"></script>
+  <script src="build.js"></script>
+
+  <script>
+    window.addEventListener('polymer-ready', function(e) {
+      System.import('app').then(function(app) {
+        app.start();
+      }).catch(function(e) {
+        console.error(e);
+      });
+    });
+  </script>
+</body>
+</html>
