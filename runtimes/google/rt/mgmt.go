@@ -6,9 +6,9 @@ import (
 	"sync"
 	"time"
 
-	"veyron/lib/exec"
 	"veyron/runtimes/google/appcycle"
 	vflag "veyron/security/flag"
+	"veyron/services/mgmt/lib/exec"
 
 	"veyron2"
 	"veyron2/ipc"
