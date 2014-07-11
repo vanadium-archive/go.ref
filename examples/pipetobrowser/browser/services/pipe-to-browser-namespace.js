@@ -4,7 +4,7 @@
  * @fileoverview
  */
 import { Logger } from 'libs/logs/logger'
-import { config } from 'config'
+import { config } from 'config/config'
 
 var log = new Logger('services/p2b-namespace');
 var veyron = new Veyron(config.veyron);

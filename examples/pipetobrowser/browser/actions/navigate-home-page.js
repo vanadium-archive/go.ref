@@ -18,7 +18,7 @@ import { StatusView } from 'views/status/view'
 import { page } from 'runtime/context'
 
 var log = new Logger('actions/navigate-home-page');
-const ACTION_NAME = 'home';
+var ACTION_NAME = 'home';
 
 /*
  * Registers the home action

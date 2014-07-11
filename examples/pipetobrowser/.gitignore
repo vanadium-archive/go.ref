@@ -1,2 +1,4 @@
-browser/libs/vendor/veyron
-browser/libs/vendor/polymer
+browser/index.html
+browser/build.js
+browser/third-party
+node_modules

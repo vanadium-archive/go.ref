@@ -1,37 +1,77 @@
-#
-# TODO(aghassemi) These commands are just for convenience.
-# Remove this file and references to it from README before release.
-#
-
+PATH:=$(PATH):node_modules/.bin
 PATH:=$(PATH):$(VEYRON_ROOT)/environment/cout/node/bin
-VEYRON_MOUNTTABLE=$(VEYRON_ROOT)/veyron/go/bin/mounttabled
-VEYRON_WSPR=$(VEYRON_ROOT)/veyron/go/bin/wsprd
-VEYRON_PROXY=$(VEYRON_ROOT)/veyron/go/bin/proxyd
-VEYRON_IDENT=$(VEYRON_ROOT)/veyron/go/bin/identity
-VEYRON_IDENTITYD=$(VEYRON_ROOT)/veyron/go/bin/identityd
-VEYRON_MOUNTTABLE=$(VEYRON_ROOT)/veyron/go/bin/mounttabled
+PATH:=$(PATH):$(VEYRON_ROOT)/veyron/go/bin
+
 VEYRON_PROXY_PORT=5164
 VEYRON_MOUNTTABLE_PORT=5167
 VEYRON_PROXY_ADDR=127.0.0.1:$(VEYRON_PROXY_PORT)
 VEYRON_WSPR_PORT=5165
 VEYRON_IDENTITY_PORT=5163
 VEYRON_JS_API=$(VEYRON_ROOT)/veyron/javascript/api
+VEYRON_BUILD_SCRIPT=$(VEYRON_ROOT)/veyron/scripts/build/go
 VEYRON_IDENTITY_PATH=/tmp/p2b_identity
 
+# All JS files except build.js and third party
+JS_FILES = $(shell find browser -name "*.js" -a -not -name "build.js" -a -not -path "*third-party*")
+# All HTML/CSS files except index.html and third party
+HTML_FILES = $(shell find browser -name "*.css" -a -not -path "*third-party*" -o  -name "*.html" -a -not -name "index.html" -a -not -path "*third-party*")
+
 # Builds everything
-all: browser/libs/vendor/polymer browser/libs/vendor/veyron
+all: node_modules browser/third-party browser/third-party/veyron browser/build.js browser/index.html $(VEYRON_ROOT)/veyron/go/bin
 
-browser/libs/vendor/polymer:
-	cp -rf $(VEYRON_ROOT)/third_party/javascript/polymer ./browser/libs/vendor/polymer
+# Build p2b cli binary
+$(VEYRON_ROOT)/veyron/go/bin: cli/main.go
+	$(VEYRON_BUILD_SCRIPT) install veyron/examples/pipetobrowser/...
 
-browser/libs/vendor/veyron:
-	(cd $(VEYRON_JS_API) && ./vgrunt build) && \
-	mkdir -p ./browser/libs/vendor/veyron && \
-	cp -rf $(VEYRON_JS_API)/dist/*.* ./browser/libs/vendor/veyron
+# Install what we need from NPM, tools such as jspm, serve, etc...
+node_modules: package.json
+	npm prune
+	npm install
+	touch node_modules
 
+# Build and copies Veyron from local source
+browser/third-party/veyron: $(VEYRON_JS_API)
+	mkdir browser/third-party -p
+	(cd $(VEYRON_JS_API) && ./vgrunt build)
+	mkdir browser/third-party/veyron -p
+	cp -rf $(VEYRON_JS_API)/dist/*.* browser/third-party/veyron
+
+# Install JSPM and Bower packages as listed in browser/package.json from JSPM and browser/bower.json from bower
+browser/third-party: browser/package.json browser/bower.json
+	cd browser; \
+	jspm prune; \
+	jspm install -h; \
+	bower prune; \
+	bower install
+	touch browser/third-party
+
+# Bundle whole app and third-party JavaScript into a single build.js
+browser/build.js: $(JS_FILES)
+	cd browser; \
+	jspm setmode local; \
+	jspm bundle app build.js
+	touch browser/third-party
+
+# Bundle all app web components and third-party web components into a single index.html
+browser/index.html: $(HTML_FILES)
+	cd browser; \
+	vulcanize -o index.html app.html
+
+# Serve the files
+start:
+	serve browser/. --port 8080 --compress
+
+# Continuously watch for changes to .js, .html or .css files.
+# Rebundle the appropriate file (build.js and/or index.html) when local files change
+watch:
+	watch -n 1 make
+
+# Clean all build artifacts
 clean:
-	rm -rf ./browser/libs/vendor/polymer
-	rm -rf browser/libs/vendor/veyron
+	rm -rf browser/third-party
+	rm -rf node_modules
+	rm -f browser/index.html
+	rm -f browser/build.js
 
 # Deploys Veyron daemons
 daemons:
@@ -39,22 +79,21 @@ daemons:
 		echo "Veyron proxy could not be found in $(VEYRON_PROXY). Please build and install veyron2 and services first"; \
 		exit 1; \
 	fi
-
-	$(VEYRON_IDENT) --name=veyron_p2b_identity > $(VEYRON_IDENTITY_PATH)
-
+	identity --name=veyron_p2b_identity > $(VEYRON_IDENTITY_PATH)
 	export VEYRON_IDENTITY=$(VEYRON_IDENTITY_PATH) ; \
-	$(VEYRON_IDENTITYD) --address=:$(VEYRON_IDENTITY_PORT) & \
-	$(VEYRON_MOUNTTABLE) --address=:$(VEYRON_MOUNTTABLE_PORT) & \
+	identityd --address=:$(VEYRON_IDENTITY_PORT) & \
+	mounttabled --address=:$(VEYRON_MOUNTTABLE_PORT) & \
 	export NAMESPACE_ROOT=/localhost:$(VEYRON_MOUNTTABLE_PORT) ; \
-	$(VEYRON_PROXY) -address=$(VEYRON_PROXY_ADDR) & \
-	$(VEYRON_WSPR) --v=1 -logtostderr=true -vproxy=$(VEYRON_PROXY_ADDR) --port $(VEYRON_WSPR_PORT) & \
+	proxyd -address=$(VEYRON_PROXY_ADDR) & \
+	wsprd --v=1 -logtostderr=true -vproxy=$(VEYRON_PROXY_ADDR) --port $(VEYRON_WSPR_PORT) & \
 	$(VEYRON_STORE) --address=:$(VEYRON_STORE_PORT) --name=global/$(USER)/store &
 
-killdaemons:
+# Kills the running daemons
+clean-daemons:
 	kill `lsof -t -i:$(VEYRON_MOUNTTABLE_PORT)`; \
 	kill `lsof -t -i:$(VEYRON_IDENTITY_PORT)`; \
 	kill `lsof -t -i:$(VEYRON_WSPR_PORT)`; \
 	kill `lsof -t -i:$(VEYRON_PROXY_PORT)`; \
 	kill `lsof -t -i:$(VEYRON_STORE_PORT)`
 
-.PHONY: all clean daemons killdaemons browser/libs/vendor/polymer browser/libs/vendor/veyron
+.PHONY: start clean daemons clean-daemons watch

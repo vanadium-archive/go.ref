@@ -11,7 +11,7 @@ import { ErrorView } from 'views/error/view'
 import { page } from 'runtime/context'
 
 var log = new Logger('actions/display-error');
-const ACTION_NAME = 'error';
+var ACTION_NAME = 'error';
 
 /*
  * Registers the error action

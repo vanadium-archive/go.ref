@@ -1,6 +1,9 @@
-var Transform = require('stream').Transform;
-var PassThrough = require('stream').PassThrough;
-var Buffer = require('buffer').Buffer;
+import { default as Stream } from "nodelibs/stream"
+import { default as buffer } from "nodelibs/buffer"
+
+var Transform = Stream.Transform;
+var PassThrough = Stream.PassThrough;
+var Buffer = buffer.Buffer;
 /*
  * A through transform stream keep a copy of the data piped to it and provides
  * functions to create new copies of the stream on-demand

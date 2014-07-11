@@ -14,7 +14,7 @@ import { pipe } from 'services/pipe-to-browser-client'
 import { getAll as getAllPublishedP2BNames } from 'services/pipe-to-browser-namespace'
 
 var log = new Logger('actions/redirect-pipe');
-const ACTION_NAME = 'redirect-pipe';
+var ACTION_NAME = 'redirect-pipe';
 
 /*
  * Registers the redirect pipe action

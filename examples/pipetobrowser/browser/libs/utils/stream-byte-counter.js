@@ -1,5 +1,6 @@
-var Transform = require('stream').Transform;
+import { default as Stream } from "nodelibs/stream"
 
+var Transform = Stream.Transform;
 /*
  * A through transform stream that counts number of bytes being piped to it
  * @param {function} onUpdate Callback function that gets called with number of

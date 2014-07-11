@@ -10,7 +10,7 @@ import { register, trigger } from 'libs/mvc/actions'
 import { page, pipesViewInstance } from 'runtime/context'
 
 var log = new Logger('actions/navigate-pipes-page');
-const ACTION_NAME = 'pipes';
+var ACTION_NAME = 'pipes';
 
 /*
  * Registers the pipes action
