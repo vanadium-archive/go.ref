@@ -32,12 +32,12 @@ state.init();
 
 /*
  * Publishes the p2b service under google/p2b/{name}
- * e.g. If name is "JohnTablet", p2b service will be accessible under name:
- * 'google/p2b/JohnTablet'
+ * e.g. If name is "john-tablet", p2b service will be accessible under name:
+ * 'google/p2b/john-tablet'
  *
  * pipe() method can be invoked on any 'google/p2b/{name}/suffix' name where
  * suffix identifies the viewer that can format and display the stream data
- * e.g. 'google/p2b/JohnTablet/DataTable'.pipe() will display the incoming
+ * e.g. 'google/p2b/john-tablet/console'.pipe() will display the incoming
  * data in a data table. See /app/viewer/ for a list of available viewers.
  * @param {string} name Name to publish the service under
  * @param {function} pipeRequestHandler A function that will be called when
@@ -55,8 +55,6 @@ export function publish(name, pipeRequestHandler) {
   var p2b = {
     pipe($suffix, $stream) {
       return new Promise(function(resolve, reject) {
-        //TODO(aghassemi) publish-issue remove /pipe from the suffix
-        $suffix = $suffix.substr(5);
 
         log.debug('received pipe request for:', $suffix);
         var numBytesForThisCall = 0;

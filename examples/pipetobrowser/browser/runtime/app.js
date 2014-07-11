@@ -5,6 +5,7 @@ import { registerDisplayErrorAction } from 'actions/display-error'
 import { registerAddPipeViewerAction } from 'actions/add-pipe-viewer'
 import { registerNavigatePipesPageAction, navigatePipesPage } from 'actions/navigate-pipes-page'
 import { registerNavigateNeigbourhoodAction, navigateNeigbourhood } from 'actions/navigate-neighborhood'
+import { registerHelpAction, navigateHelp } from 'actions/navigate-help'
 import { registerRedirectPipeAction } from 'actions/redirect-pipe'
 
 import { SubPageItem } from 'views/page/view'
@@ -44,6 +45,7 @@ function registerActions() {
   registerNavigatePipesPageAction();
   registerNavigateNeigbourhoodAction();
   registerRedirectPipeAction();
+  registerHelpAction();
 }
 
 /*
@@ -75,9 +77,8 @@ function initPageView() {
   var helpSubPageItem = new SubPageItem('help');
   helpSubPageItem.name = 'Help';
   helpSubPageItem.icon = 'help';
-  helpSubPageItem.onActivate = function() {
-    alert('Not Implemented');
-  };
+  helpSubPageItem.onActivate = navigateHelp;
+
   page.subPages.push(helpSubPageItem);
 
   document.body.appendChild(page.element);

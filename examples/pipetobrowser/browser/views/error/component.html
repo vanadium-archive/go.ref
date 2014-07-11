@@ -2,7 +2,10 @@
 
 <polymer-element name="p2b-error">
   <template>
-    <h1>error: {{errorMessage}}</h1>
+    <link rel="stylesheet" href="component.css">
+    <h2 page-title>Error</h2>
+    <h3>Sorry, some of the 1s and 0s got mixed.</h3>
+    <h3>{{errorMessage}}</h3>
   </template>
   <script>
     Polymer('p2b-error', {

@@ -1,0 +1,64 @@
+<link rel="import" href="/libs/vendor/polymer/polymer/polymer.html">
+
+<polymer-element name="p2b-help">
+<template>
+  <link rel="stylesheet" href="component.css">
+  <link rel="stylesheet" href="../common/common.css">
+  <h2 page-title>Help</h2>
+  <p>Pipe To Browser allows you to pipe anything from shell console to the browser. Piped data is then displayed in a graphical and formatted way by a viewer you can specify.</p>
+  <h3>Getting Started</h3>
+  <template if="{{serviceState.published}}">
+    <p>Looks like you have already started the service under <span class="name">{{publishedName}}</span>, great!</p>
+  </template>
+  <template if="{{!serviceState.published}}">
+    <p>Before we start, you need to start the service under a name. Go to Home and publish this instance of P2B under a name like <span class="name">john-tablet</span> or <span class="name">jane-desktop</span>
+    </p>
+  </template>
+  <p>Now let's use the <span class="name">console</span> viewer. It can pretty much display anything, so it's a good one to start with</p>
+  <p>In your Linux or Mac console run:</p>
+  <pre class="code">echo "Hello World" | p2b {{publishedName}}/console</pre>
+  <p>P2B follows a basic <span class="mono">cmd | p2b google/p2b/[name]/[viewer]</span> pattern. Where <span class="mono">[name]</span> is what you publish the service under and <span class="mono">[viewer]</span> can be the name of a built-in viewer like <span class="mono">image</span> or <span class="mono">console</span> or a Url to a remote viewer that is a P2B plug-in.</p>
+  <h3>Built-in Viewers</h3>
+  <p>In addition to the basic <span class="name">console</span> viewer, P2B is preloaded with the following viewers</p>
+
+  <h4>Image</h4>
+  <p><span class="name">image</span> can display most types of images.</p>
+  <pre class="code">cat grumpy-cat.jpg | p2b {{publishedName}}/image</pre>
+
+  <h4>Git Status</h4>
+  <p>Ever wanted to sort, search and filter result of <span class="mono">git status</span> to make sense of it all? <span class="name">git/status</span> can do that. You need to use <span class="mono">git status --short</span> though, so we can parse it.</p>
+  <pre class="code">git status --short | p2b {{publishedName}}/git/status</pre>
+
+  <h4>Veyron Log Viewer</h4>
+  <span class="name">vlog</span> displays Veyron logs in a DataGrid and supports sorting, searching, paging, pausing and filtering based on time and log level. DataGrid is responsive and may hide columns on smaller screens but you can always see all the fields by using the more info icon.</p>
+  <pre class="code">cat vlogfile.txt | p2b {{publishedName}}/vlog</pre>
+  <p>If you want to pipe logs from a Veyron service directly, you need to pipe stderr or strout first using <span class="mono">2&gt;&amp;1</span></p>
+  <pre class="code">myVeyronServerd -v=3 2&gt;&amp;1 | p2b {{publishedName}}/vlog</pre>
+
+  <h4>dev/null</h4>
+  <p>No system is complete without a <span class="name">dev/null</span>. Similar to *nix <span class="mono">dev/null</span>, anything piped to it will be discarded without mercy.</p>
+  <pre class="code">cat /dev/urandom | p2b {{publishedName}}/dev/null</pre>
+
+  <h3>Remote Viewers</h3>
+  <p>In addition to built-in viewers, ad-hoc remote viewers can be hosted anywhere and used with P2B. Remote viewers are referenced by their Url without the .js extension at the end og the plug-in JavaScript file</p>
+  <pre class="code">echo "Hello World" | p2b {{publishedName}}/http://googledrive.com/host/0BzmT5cnKdCAKa3hzNEVCU2tnd3c/helloworld</pre>
+  <p>Writing remote viewers is not different than writing built-in ones and basic plug-ins are pretty straight forward to write.</p>
+  <p>At high level, plug-ins are expected to implement a <span class="mono">PipeViewer</span> interface which has a <span class="mono">play(stream)</span> method. A <span class="mono">view</span> (which is a wrapper for a DOM element) is expected to be returned from <span class="mono">play(stream)</span>. You can look at the hello world remote plug-in <a href="http://googledrive.com/host/0BzmT5cnKdCAKa3hzNEVCU2tnd3c/helloworld.js" target="_blank">code on Google drive</a> to get started on writing new remote plug-ins</p>
+</template>
+<script>
+  Polymer('p2b-help', {
+      /*
+       * Dynamic binding for the state of publishing p2b service.
+       */
+       serviceState: null,
+       get publishedName() {
+        if( this.serviceState && this.serviceState.published ) {
+          return this.serviceState.fullServiceName
+        } else {
+          return 'google/p2b/[name]';
+        }
+      },
+
+    });
+  </script>
+</polymer-element>

@@ -7,7 +7,7 @@
   <template id="template">
     <link rel="stylesheet" href="../common/common.css">
     <link rel="stylesheet" href="component.css">
-    <paper-input id="publishNameInput" label="Name to publish under (e.g. JohnTablet)" error="You must pick a name!" floatinglabel/></paper-input>
+    <paper-input id="publishNameInput" label="Name to publish under (e.g. john-tablet)" error="You must pick a name!" floatinglabel/></paper-input>
     <paper-button class="paper colored" inkColor="#3367d6" on-click="{{ publishAction }}">Publish</paper-button>
   </template>
   <script>
@@ -19,7 +19,7 @@
        * @event
        */
       publishAction: function() {
-        var name = this.$.publishNameInput.value;
+        var name = this.$.publishNameInput.value.trim();
         if(name === "") {
           this.$.publishNameInput.invalid = true;
           this.$.publishNameInput.classList.toggle('invalid', true);

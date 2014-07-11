@@ -1,5 +1,8 @@
 import { exists } from 'libs/utils/exists'
 import { View } from 'libs/mvc/view'
+import { Logger } from 'libs/logs/logger'
+
+var log = new Logger('views/error');
 
 /*
  * View representing application error.
@@ -21,8 +24,9 @@ export class ErrorView extends View {
 		}
 
 		var errorMessage = err.toString();
+		log.debug(errorMessage);
 		if(exists(err.stack)) {
-			errorMessage += err.stack;
+			log.debug(err.stack);
 		}
 
 		this.element.errorMessage = errorMessage;

@@ -56,8 +56,9 @@ function loadViewer(name) {
     loadedPipeViewers[name] = pipeViewerClass;
     return pipeViewerClass;
   }).catch((e) => {
-    log.debug('could not load viewer JavaScript module for:', name, e);
-    return Promise.reject(e);
+    var errMessage = 'could not load viewer for: ' + name;
+    log.debug(errMessage, e);
+    return Promise.reject(new Error(errMessage));
   })
 }
 
