@@ -41,8 +41,8 @@ import (
 	"time"
 
 	"veyron/lib/config"
-	ibuild "veyron/services/mgmt/build"
-	"veyron/services/mgmt/lib/binary"
+	"veyron/services/mgmt/build"
+	cbinary "veyron/services/mgmt/lib/binary"
 	vexec "veyron/services/mgmt/lib/exec"
 	"veyron/services/mgmt/profile"
 
@@ -51,7 +51,7 @@ import (
 	"veyron2/naming"
 	"veyron2/rt"
 	"veyron2/services/mgmt/application"
-	"veyron2/services/mgmt/build"
+	"veyron2/services/mgmt/binary"
 	"veyron2/services/mgmt/node"
 	"veyron2/services/mgmt/repository"
 	"veyron2/verror"
@@ -125,24 +125,24 @@ func (i *invoker) computeNodeProfile() (*profile.Specification, error) {
 	// architecture is.
 	switch runtime.GOOS {
 	case "linux":
-		result.Format.Name = ibuild.ELF.String()
-		result.Format.Attributes["os"] = ibuild.LINUX.String()
+		result.Format.Name = build.ELF.String()
+		result.Format.Attributes["os"] = build.LINUX.String()
 	case "darwin":
-		result.Format.Name = ibuild.MACH.String()
-		result.Format.Attributes["os"] = ibuild.DARWIN.String()
+		result.Format.Name = build.MACH.String()
+		result.Format.Attributes["os"] = build.DARWIN.String()
 	case "windows":
-		result.Format.Name = ibuild.PE.String()
-		result.Format.Attributes["os"] = ibuild.WINDOWS.String()
+		result.Format.Name = build.PE.String()
+		result.Format.Attributes["os"] = build.WINDOWS.String()
 	default:
 		return nil, errors.New("Unsupported operating system: " + runtime.GOOS)
 	}
 	switch runtime.GOARCH {
 	case "amd64":
-		result.Format.Attributes["arch"] = ibuild.AMD64.String()
+		result.Format.Attributes["arch"] = build.AMD64.String()
 	case "arm":
-		result.Format.Attributes["arch"] = ibuild.AMD64.String()
+		result.Format.Attributes["arch"] = build.AMD64.String()
 	case "x86":
-		result.Format.Attributes["arch"] = ibuild.AMD64.String()
+		result.Format.Attributes["arch"] = build.AMD64.String()
 	default:
 		return nil, errors.New("Unsupported hardware architecture: " + runtime.GOARCH)
 	}
@@ -304,14 +304,14 @@ func (i *invoker) Describe(call ipc.ServerContext) (node.Description, error) {
 	return result, nil
 }
 
-func (i *invoker) IsRunnable(call ipc.ServerContext, binary build.BinaryDescription) (bool, error) {
-	vlog.VI(0).Infof("%v.IsRunnable(%v)", i.suffix, binary)
+func (i *invoker) IsRunnable(call ipc.ServerContext, description binary.Description) (bool, error) {
+	vlog.VI(0).Infof("%v.IsRunnable(%v)", i.suffix, description)
 	nodeProfile, err := i.computeNodeProfile()
 	if err != nil {
 		return false, err
 	}
 	binaryProfiles := make([]profile.Specification, 0)
-	for name, _ := range binary.Profiles {
+	for name, _ := range description.Profiles {
 		profile, err := i.getProfile(name)
 		if err != nil {
 			return false, err
@@ -331,7 +331,7 @@ func (i *invoker) Reset(call ipc.ServerContext, deadline uint64) error {
 // APPLICATION INTERFACE IMPLEMENTATION
 
 func downloadBinary(workspace, name string) error {
-	data, err := binary.Download(name)
+	data, err := cbinary.Download(name)
 	if err != nil {
 		vlog.Errorf("Download(%v) failed: %v", name, err)
 		return errOperationFailed
