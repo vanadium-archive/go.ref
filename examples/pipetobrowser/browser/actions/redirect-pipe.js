@@ -61,7 +61,7 @@ function actionHandler(stream, currentPluginName) {
   getAllPublishedP2BNames().then((allNames) => {
     // append current plugin name to the veyron names for better UX
     dialog.existingNames = allNames.map((n) => {
-      return n + '/pipe/' + (currentPluginName || ''); //TODO(aghassemi) publish issue
+      return n + (currentPluginName || '');
     });
   }).catch((e) => {
     log.debug('getAllPublishedP2BNames failed', e);
