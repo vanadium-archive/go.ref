@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	watchtesting "veyron/services/store/memstore/watch/testing"
+	watchtesting "veyron/services/store/memstore/testing"
 	"veyron/services/store/raw"
 
 	"veyron2/ipc"

@@ -1,7 +1,8 @@
-package blackbox
+package testing
 
 import (
-	"errors"
+	"io"
+	"runtime"
 	"sync"
 	"testing"
 	"time"
@@ -14,10 +15,6 @@ import (
 	"veyron2/services/store"
 	"veyron2/services/watch"
 	"veyron2/storage"
-)
-
-var (
-	ErrStreamClosed = errors.New("stream closed")
 )
 
 // CancellableContext implements ipc.ServerContext.
@@ -105,6 +102,80 @@ func (ctx *CancellableContext) Closed() <-chan struct{} {
 	return ctx.cancelled
 }
 
+// Utilities for PutMutations.
+
+// storeServicePutMutationsStream implements raw.StoreServicePutMutationsStream
+type storeServicePutMutationsStream struct {
+	mus <-chan raw.Mutation
+}
+
+func (s *storeServicePutMutationsStream) Recv() (raw.Mutation, error) {
+	mu, ok := <-s.mus
+	if !ok {
+		return mu, io.EOF
+	}
+	return mu, nil
+}
+
+// storePutMutationsStream implements raw.StorePutMutationsStream
+type storePutMutationsStream struct {
+	ctx    ipc.ServerContext
+	closed bool
+	mus    chan<- raw.Mutation
+	err    <-chan error
+}
+
+func (s *storePutMutationsStream) Send(mu raw.Mutation) error {
+	s.mus <- mu
+	return nil
+}
+
+func (s *storePutMutationsStream) CloseSend() error {
+	if !s.closed {
+		s.closed = true
+		close(s.mus)
+	}
+	return nil
+}
+
+func (s *storePutMutationsStream) Finish() error {
+	s.CloseSend()
+	return <-s.err
+}
+
+func (s *storePutMutationsStream) Cancel() {
+	s.ctx.(*CancellableContext).Cancel()
+	s.CloseSend()
+}
+
+func PutMutations(id security.PublicID, putMutationsFn func(ipc.ServerContext, raw.StoreServicePutMutationsStream) error) raw.StorePutMutationsStream {
+	ctx := NewCancellableContext(id)
+	mus := make(chan raw.Mutation)
+	err := make(chan error)
+	go func() {
+		err <- putMutationsFn(ctx, &storeServicePutMutationsStream{mus})
+		close(err)
+	}()
+	return &storePutMutationsStream{
+		ctx: ctx,
+		mus: mus,
+		err: err,
+	}
+}
+
+func PutMutationsBatch(t *testing.T, id security.PublicID, putMutationsFn func(ipc.ServerContext, raw.StoreServicePutMutationsStream) error, mus []raw.Mutation) {
+	storePutMutationsStream := PutMutations(id, putMutationsFn)
+	for _, mu := range mus {
+		storePutMutationsStream.Send(mu)
+	}
+	if err := storePutMutationsStream.Finish(); err != nil {
+		_, file, line, _ := runtime.Caller(1)
+		t.Errorf("%s(%d): can't put mutations %s: %s", file, line, mus, err)
+	}
+}
+
+// Utilities for Watch.
+
 // watcherServiceWatchStream implements watch.WatcherServiceWatchStream.
 type watcherServiceWatchStream struct {
 	mu     *sync.Mutex
@@ -119,7 +190,7 @@ func (s *watcherServiceWatchStream) Send(cb watch.ChangeBatch) error {
 	case s.output <- cb:
 		return nil
 	case <-s.ctx.Closed():
-		return ErrStreamClosed
+		return io.EOF
 	}
 }
 
@@ -133,7 +204,7 @@ type watcherWatchStream struct {
 func (s *watcherWatchStream) Recv() (watch.ChangeBatch, error) {
 	cb, ok := <-s.input
 	if !ok {
-		return cb, ErrStreamClosed
+		return cb, io.EOF
 	}
 	return cb, nil
 }

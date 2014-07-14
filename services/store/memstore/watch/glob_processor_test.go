@@ -4,7 +4,7 @@ import (
 	"testing"
 
 	"veyron/services/store/memstore"
-	watchtesting "veyron/services/store/memstore/watch/testing"
+	watchtesting "veyron/services/store/memstore/testing"
 
 	"veyron2/storage"
 )

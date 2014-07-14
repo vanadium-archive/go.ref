@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"veyron/services/store/memstore"
-	watchtesting "veyron/services/store/memstore/watch/testing"
+	watchtesting "veyron/services/store/memstore/testing"
 	"veyron/services/store/raw"
 
 	"veyron2/services/watch"
@@ -164,7 +164,7 @@ func TestWatchCancellation(t *testing.T) {
 	commit(t, tr)
 
 	// Check that watch did not processed the second transaction.
-	if _, err := ws.Recv(); err != watchtesting.ErrStreamClosed {
+	if _, err := ws.Recv(); err != io.EOF {
 		t.Errorf("Unexpected error: %v", err)
 	}
 

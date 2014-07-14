@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"veyron/services/store/memstore/state"
+	storetesting "veyron/services/store/memstore/testing"
 	"veyron/services/store/raw"
 
 	"veyron2/storage"
@@ -142,7 +143,7 @@ func TestPutMutations(t *testing.T) {
 	post1, post2, post3 := storage.NewVersion(), storage.NewVersion(), storage.NewVersion()
 	v1, v2, v3 := "v1", "v2", "v3"
 
-	putMutationsBatch(t, st, []raw.Mutation{
+	storetesting.PutMutationsBatch(t, rootPublicID, st.PutMutations, []raw.Mutation{
 		raw.Mutation{
 			ID:           id1,
 			PriorVersion: pre1,
@@ -177,14 +178,14 @@ func TestPutMutations(t *testing.T) {
 	pre1, pre2, pre3 = post1, post2, post3
 	post2 = storage.NewVersion()
 
-	putMutationsBatch(t, st, []raw.Mutation{raw.Mutation{
-		ID:           id2,
-		PriorVersion: pre2,
-		Version:      post2,
-		IsRoot:       false,
-		Value:        v2,
-		Dir:          empty,
-	}})
+	storetesting.PutMutationsBatch(t, rootPublicID, st.PutMutations, []raw.Mutation{
+		raw.Mutation{
+			ID: id2, PriorVersion: pre2,
+			Version: post2,
+			IsRoot:  false,
+			Value:   v2,
+			Dir:     empty,
+		}})
 
 	expectValue(t, st, nil, "/", v1)
 	expectValue(t, st, nil, "/a", v2)
@@ -193,12 +194,13 @@ func TestPutMutations(t *testing.T) {
 	// Garbage-collect /a/b
 	post3 = storage.NoVersion
 
-	putMutationsBatch(t, st, []raw.Mutation{raw.Mutation{
-		ID:           id3,
-		PriorVersion: pre3,
-		Version:      post3,
-		IsRoot:       false,
-	}})
+	storetesting.PutMutationsBatch(t, rootPublicID, st.PutMutations, []raw.Mutation{
+		raw.Mutation{
+			ID:           id3,
+			PriorVersion: pre3,
+			Version:      post3,
+			IsRoot:       false,
+		}})
 
 	expectValue(t, st, nil, "/", v1)
 	expectValue(t, st, nil, "/a", v2)
@@ -208,12 +210,13 @@ func TestPutMutations(t *testing.T) {
 	pre1, pre2, pre3 = post1, post2, post3
 	post1 = storage.NoVersion
 
-	putMutationsBatch(t, st, []raw.Mutation{raw.Mutation{
-		ID:           id1,
-		PriorVersion: pre1,
-		Version:      post1,
-		IsRoot:       true,
-	}})
+	storetesting.PutMutationsBatch(t, rootPublicID, st.PutMutations, []raw.Mutation{
+		raw.Mutation{
+			ID:           id1,
+			PriorVersion: pre1,
+			Version:      post1,
+			IsRoot:       true,
+		}})
 
 	expectNotExists(t, st, nil, "/")
 	expectNotExists(t, st, nil, "/a")
@@ -222,12 +225,13 @@ func TestPutMutations(t *testing.T) {
 	// Garbage-collect /a
 	post2 = storage.NoVersion
 
-	putMutationsBatch(t, st, []raw.Mutation{raw.Mutation{
-		ID:           id2,
-		PriorVersion: pre2,
-		Version:      post2,
-		IsRoot:       false,
-	}})
+	storetesting.PutMutationsBatch(t, rootPublicID, st.PutMutations, []raw.Mutation{
+		raw.Mutation{
+			ID:           id2,
+			PriorVersion: pre2,
+			Version:      post2,
+			IsRoot:       false,
+		}})
 
 	expectNotExists(t, st, nil, "/")
 	expectNotExists(t, st, nil, "/a")
@@ -253,7 +257,7 @@ func TestPutConflictingMutations(t *testing.T) {
 	post1, post2 := storage.NewVersion(), storage.NewVersion()
 	v1, v2 := "v1", "v2"
 
-	putMutationsBatch(t, st, []raw.Mutation{
+	storetesting.PutMutationsBatch(t, rootPublicID, st.PutMutations, []raw.Mutation{
 		raw.Mutation{
 			ID:           id1,
 			PriorVersion: pre1,
@@ -280,7 +284,7 @@ func TestPutConflictingMutations(t *testing.T) {
 	post2 = storage.NewVersion()
 	v2 = "v4"
 
-	s := putMutations(st)
+	s := storetesting.PutMutations(rootPublicID, st.PutMutations)
 	s.Send(raw.Mutation{
 		ID:           id2,
 		PriorVersion: pre2,
@@ -309,7 +313,7 @@ func TestPutDuplicateMutations(t *testing.T) {
 	}
 
 	id := storage.NewID()
-	s := putMutations(st)
+	s := storetesting.PutMutations(rootPublicID, st.PutMutations)
 	s.Send(raw.Mutation{
 		ID:           id,
 		PriorVersion: storage.NoVersion,
@@ -344,7 +348,7 @@ func TestCancelPutMutation(t *testing.T) {
 		t.Fatalf("New() failed: %v", err)
 	}
 
-	s := putMutations(st)
+	s := storetesting.PutMutations(rootPublicID, st.PutMutations)
 	s.Send(raw.Mutation{
 		ID:           storage.NewID(),
 		PriorVersion: storage.NoVersion,
