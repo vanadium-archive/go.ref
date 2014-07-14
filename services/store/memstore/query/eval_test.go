@@ -13,7 +13,7 @@ import (
 	"veyron2/security"
 	"veyron2/services/store"
 	"veyron2/storage"
-	"veyron2/vdl"
+	"veyron2/vdl/vdlutil"
 	"veyron2/vlog"
 )
 
@@ -308,25 +308,25 @@ func TestSelection(t *testing.T) {
 		{
 			"", "'teams/cardinals' | {Name}",
 			[]*store.QueryResult{
-				&store.QueryResult{0, "teams/cardinals", map[string]vdl.Any{"Name": "cardinals"}, nil},
+				&store.QueryResult{0, "teams/cardinals", map[string]vdlutil.Any{"Name": "cardinals"}, nil},
 			},
 		},
 		{
 			"teams", "'cardinals' | {Name}",
 			[]*store.QueryResult{
-				&store.QueryResult{0, "cardinals", map[string]vdl.Any{"Name": "cardinals"}, nil},
+				&store.QueryResult{0, "cardinals", map[string]vdlutil.Any{"Name": "cardinals"}, nil},
 			},
 		},
 		{
 			"teams/cardinals", ". | {Name}",
 			[]*store.QueryResult{
-				&store.QueryResult{0, "", map[string]vdl.Any{"Name": "cardinals"}, nil},
+				&store.QueryResult{0, "", map[string]vdlutil.Any{"Name": "cardinals"}, nil},
 			},
 		},
 		{
 			"", "'teams/cardinals' | {Name as Name}",
 			[]*store.QueryResult{
-				&store.QueryResult{0, "teams/cardinals", map[string]vdl.Any{"Name": "cardinals"}, nil},
+				&store.QueryResult{0, "teams/cardinals", map[string]vdlutil.Any{"Name": "cardinals"}, nil},
 			},
 		},
 		{
@@ -335,7 +335,7 @@ func TestSelection(t *testing.T) {
 				&store.QueryResult{
 					0,
 					"teams/cardinals",
-					map[string]vdl.Any{
+					map[string]vdlutil.Any{
 						"myname": "cardinals",
 						"myloc":  "CA",
 					},
@@ -349,7 +349,7 @@ func TestSelection(t *testing.T) {
 				&store.QueryResult{
 					0,
 					"teams/cardinals",
-					map[string]vdl.Any{
+					map[string]vdlutil.Any{
 						"myname": "cardinals",
 						"myloc":  "CA",
 					},
@@ -368,7 +368,7 @@ func TestSelection(t *testing.T) {
 				&store.QueryResult{
 					0,
 					"teams/bears",
-					map[string]vdl.Any{
+					map[string]vdlutil.Any{
 						"myname":      "bears",
 						"drinkers":    store.NestedResult(1),
 						"nondrinkers": store.NestedResult(2),
@@ -378,7 +378,7 @@ func TestSelection(t *testing.T) {
 				&store.QueryResult{
 					0,
 					"teams/cardinals",
-					map[string]vdl.Any{
+					map[string]vdlutil.Any{
 						"myname":      "cardinals",
 						"drinkers":    store.NestedResult(3),
 						"nondrinkers": store.NestedResult(4),
@@ -394,7 +394,7 @@ func TestSelection(t *testing.T) {
 				&store.QueryResult{
 					0,
 					"teams/sharks",
-					map[string]vdl.Any{
+					map[string]vdlutil.Any{
 						"myname":      "sharks",
 						"drinkers":    store.NestedResult(5),
 						"nondrinkers": store.NestedResult(6),

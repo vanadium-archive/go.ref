@@ -30,7 +30,7 @@ import (
 	"veyron2/ipc/stream"
 	"veyron2/naming"
 	"veyron2/security"
-	"veyron2/vdl"
+	"veyron2/vdl/vdlutil"
 	"veyron2/verror"
 	"veyron2/vlog"
 	"veyron2/vom"
@@ -130,7 +130,7 @@ func (*testServer) Unauthorized(ipc.ServerCall) (string, error) {
 
 type dischargeServer struct{}
 
-func (*dischargeServer) Discharge(ctx ipc.ServerCall, caveat vdl.Any) (vdl.Any, error) {
+func (*dischargeServer) Discharge(ctx ipc.ServerCall, caveat vdlutil.Any) (vdlutil.Any, error) {
 	c, ok := caveat.(security.ThirdPartyCaveat)
 	if !ok {
 		return nil, fmt.Errorf("discharger: unknown caveat(%T)", caveat)

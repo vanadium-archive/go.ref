@@ -10,7 +10,7 @@ import (
 	_gen_ipc "veyron2/ipc"
 	_gen_naming "veyron2/naming"
 	_gen_rt "veyron2/rt"
-	_gen_vdl "veyron2/vdl"
+	_gen_vdlutil "veyron2/vdl/vdlutil"
 	_gen_wiretype "veyron2/wiretype"
 )
 
@@ -203,10 +203,10 @@ func BindJudge(name string, opts ..._gen_ipc.BindOpt) (Judge, error) {
 		case _gen_ipc.Client:
 			client = o
 		default:
-			return nil, _gen_vdl.ErrUnrecognizedOption
+			return nil, _gen_vdlutil.ErrUnrecognizedOption
 		}
 	default:
-		return nil, _gen_vdl.ErrTooManyOptionsToBind
+		return nil, _gen_vdlutil.ErrTooManyOptionsToBind
 	}
 	stub := &clientStubJudge{client: client, name: name}
 
@@ -326,7 +326,7 @@ func (__gen_s *ServerStubJudge) Signature(call _gen_ipc.ServerCall) (_gen_ipc.Se
 		OutStream: 76,
 	}
 
-	result.TypeDefs = []_gen_vdl.Any{
+	result.TypeDefs = []_gen_vdlutil.Any{
 		_gen_wiretype.NamedPrimitiveType{Type: 0x32, Name: "veyron/examples/rockpaperscissors.GameTypeTag", Tags: []string(nil)}, _gen_wiretype.StructType{
 			[]_gen_wiretype.FieldType{
 				_gen_wiretype.FieldType{Type: 0x24, Name: "NumRounds"},
@@ -451,10 +451,10 @@ func BindPlayer(name string, opts ..._gen_ipc.BindOpt) (Player, error) {
 		case _gen_ipc.Client:
 			client = o
 		default:
-			return nil, _gen_vdl.ErrUnrecognizedOption
+			return nil, _gen_vdlutil.ErrUnrecognizedOption
 		}
 	default:
-		return nil, _gen_vdl.ErrTooManyOptionsToBind
+		return nil, _gen_vdlutil.ErrTooManyOptionsToBind
 	}
 	stub := &clientStubPlayer{client: client, name: name}
 
@@ -553,7 +553,7 @@ func (__gen_s *ServerStubPlayer) Signature(call _gen_ipc.ServerCall) (_gen_ipc.S
 		},
 	}
 
-	result.TypeDefs = []_gen_vdl.Any{
+	result.TypeDefs = []_gen_vdlutil.Any{
 		_gen_wiretype.StructType{
 			[]_gen_wiretype.FieldType{
 				_gen_wiretype.FieldType{Type: 0x3, Name: "ID"},
@@ -627,10 +627,10 @@ func BindScoreKeeper(name string, opts ..._gen_ipc.BindOpt) (ScoreKeeper, error)
 		case _gen_ipc.Client:
 			client = o
 		default:
-			return nil, _gen_vdl.ErrUnrecognizedOption
+			return nil, _gen_vdlutil.ErrUnrecognizedOption
 		}
 	default:
-		return nil, _gen_vdl.ErrTooManyOptionsToBind
+		return nil, _gen_vdlutil.ErrTooManyOptionsToBind
 	}
 	stub := &clientStubScoreKeeper{client: client, name: name}
 
@@ -727,7 +727,7 @@ func (__gen_s *ServerStubScoreKeeper) Signature(call _gen_ipc.ServerCall) (_gen_
 		},
 	}
 
-	result.TypeDefs = []_gen_vdl.Any{
+	result.TypeDefs = []_gen_vdlutil.Any{
 		_gen_wiretype.NamedPrimitiveType{Type: 0x32, Name: "veyron/examples/rockpaperscissors.GameTypeTag", Tags: []string(nil)}, _gen_wiretype.StructType{
 			[]_gen_wiretype.FieldType{
 				_gen_wiretype.FieldType{Type: 0x24, Name: "NumRounds"},
@@ -823,10 +823,10 @@ func BindRockPaperScissors(name string, opts ..._gen_ipc.BindOpt) (RockPaperScis
 		case _gen_ipc.Client:
 			client = o
 		default:
-			return nil, _gen_vdl.ErrUnrecognizedOption
+			return nil, _gen_vdlutil.ErrUnrecognizedOption
 		}
 	default:
-		return nil, _gen_vdl.ErrTooManyOptionsToBind
+		return nil, _gen_vdlutil.ErrTooManyOptionsToBind
 	}
 	stub := &clientStubRockPaperScissors{client: client, name: name}
 	stub.Judge_ExcludingUniversal, _ = BindJudge(name, client)
@@ -922,7 +922,7 @@ func (__gen_s *ServerStubRockPaperScissors) GetMethodTags(call _gen_ipc.ServerCa
 func (__gen_s *ServerStubRockPaperScissors) Signature(call _gen_ipc.ServerCall) (_gen_ipc.ServiceSignature, error) {
 	result := _gen_ipc.ServiceSignature{Methods: make(map[string]_gen_ipc.MethodSignature)}
 
-	result.TypeDefs = []_gen_vdl.Any{}
+	result.TypeDefs = []_gen_vdlutil.Any{}
 	var ss _gen_ipc.ServiceSignature
 	var firstAdded int
 	ss, _ = __gen_s.ServerStubJudge.Signature(call)

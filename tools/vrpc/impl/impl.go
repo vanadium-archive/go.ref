@@ -12,7 +12,7 @@ import (
 	"veyron2/context"
 	"veyron2/ipc"
 	"veyron2/rt"
-	"veyron2/vdl"
+	"veyron2/vdl/vdlutil"
 	"veyron2/vom"
 	"veyron2/wiretype"
 
@@ -224,8 +224,8 @@ func getSignature(ctx context.T, cmd *cmdline.Command, server string, client ipc
 }
 
 // formatWiretype generates a string representation of the specified type.
-func formatWiretype(td []vdl.Any, tid wiretype.TypeID) string {
-	var wt vdl.Any
+func formatWiretype(td []vdlutil.Any, tid wiretype.TypeID) string {
+	var wt vdlutil.Any
 	if tid >= wiretype.TypeIDFirst {
 		wt = td[tid-wiretype.TypeIDFirst]
 	} else {
@@ -269,7 +269,7 @@ func formatWiretype(td []vdl.Any, tid wiretype.TypeID) string {
 	}
 }
 
-func formatSignature(name string, ms ipc.MethodSignature, defs []vdl.Any) string {
+func formatSignature(name string, ms ipc.MethodSignature, defs []vdlutil.Any) string {
 	var buf bytes.Buffer
 	fmt.Fprintf(&buf, "func %s(", name)
 	for index, arg := range ms.InArgs {

@@ -16,7 +16,7 @@ import (
 	"veyron2/ipc"
 	"veyron2/security"
 	"veyron2/services/store"
-	"veyron2/vdl"
+	"veyron2/vdl/vdlutil"
 	"veyron2/verror"
 )
 
@@ -195,7 +195,7 @@ func (s *Server) gcLoop() {
 }
 
 // CreateTransaction creates a transaction.
-func (s *Server) CreateTransaction(ctx ipc.ServerContext, id store.TransactionID, opts []vdl.Any) error {
+func (s *Server) CreateTransaction(ctx ipc.ServerContext, id store.TransactionID, opts []vdlutil.Any) error {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 

@@ -10,7 +10,7 @@ import (
 	"veyron2/ipc"
 	"veyron2/naming"
 	"veyron2/rt"
-	"veyron2/vdl"
+	"veyron2/vdl/vdlutil"
 	"veyron2/verror"
 
 	hps "veyron/examples/wspr_sample"
@@ -97,7 +97,7 @@ func TestValueSetGet(t *testing.T) {
 
 // settable mirrors the cache's Set method to provide a consistent way to populate test cases.
 type settable interface {
-	Set(ctx context.T, key string, val vdl.Any, opts ...ipc.CallOpt) error
+	Set(ctx context.T, key string, val vdlutil.Any, opts ...ipc.CallOpt) error
 }
 
 // populateObject populates a settable with 12 values.
@@ -168,9 +168,9 @@ func setupManyResults(t *testing.T) (hps.Cache, ipc.Server) {
 }
 
 // settableMap is a map that implements the settable interface.
-type settableMap map[string]vdl.Any
+type settableMap map[string]vdlutil.Any
 
-func (sm settableMap) Set(ctx context.T, key string, val vdl.Any, opts ...ipc.CallOpt) error {
+func (sm settableMap) Set(ctx context.T, key string, val vdlutil.Any, opts ...ipc.CallOpt) error {
 	sm[key] = val
 	return nil
 }
@@ -187,7 +187,7 @@ func TestAsMap(t *testing.T) {
 		t.Fatal("error calling AsMap: ", err)
 	}
 
-	m := settableMap(make(map[string]vdl.Any))
+	m := settableMap(make(map[string]vdlutil.Any))
 	if err := populateObject(ctx, m); err != nil {
 		t.Fatal("error populating map: ", err)
 	}
@@ -211,7 +211,7 @@ func TestKeyValuePairs(t *testing.T) {
 		t.Fatal("error calling KeyValuePairs: ", err)
 	}
 
-	m := settableMap(make(map[string]vdl.Any))
+	m := settableMap(make(map[string]vdlutil.Any))
 	if err := populateObject(ctx, m); err != nil {
 		t.Fatal("error populating map: ", err)
 	}

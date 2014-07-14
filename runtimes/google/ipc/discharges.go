@@ -6,7 +6,7 @@ import (
 	"veyron2/context"
 	"veyron2/ipc"
 	"veyron2/security"
-	"veyron2/vdl"
+	"veyron2/vdl/vdlutil"
 	"veyron2/vlog"
 )
 
@@ -134,7 +134,7 @@ func (c *client) fetchDischarges(ctx context.T, caveats []security.ThirdPartyCav
 					vlog.VI(3).Infof("Discharge fetch for caveat %T from %v failed: %v", cav, cav.Location(), err)
 					return
 				}
-				var dAny vdl.Any
+				var dAny vdlutil.Any
 				// TODO(ashankar): Retry on errors like no-route-to-service, name resolution failures etc.
 				ierr := call.Finish(&dAny, &err)
 				if ierr != nil || err != nil {

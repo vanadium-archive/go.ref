@@ -12,7 +12,7 @@ import (
 	"veyron2/ipc"
 	"veyron2/rt"
 	"veyron2/security"
-	"veyron2/vdl"
+	"veyron2/vdl/vdlutil"
 )
 
 // TODO(ataly, andreser): ideally, the expiration time (and other caveats) of
@@ -40,8 +40,8 @@ type discharged struct {
 	expiration time.Duration
 }
 
-func (d *discharged) Discharge(ctx ipc.ServerContext, Caveat vdl.Any) (
-	Discharge vdl.Any, err error) {
+func (d *discharged) Discharge(ctx ipc.ServerContext, Caveat vdlutil.Any) (
+	Discharge vdlutil.Any, err error) {
 	caveat, ok := Caveat.(security.ThirdPartyCaveat)
 	if !ok {
 		err = errors.New("unknown caveat")

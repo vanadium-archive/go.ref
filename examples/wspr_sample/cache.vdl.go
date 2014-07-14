@@ -10,14 +10,14 @@ import (
 	_gen_ipc "veyron2/ipc"
 	_gen_naming "veyron2/naming"
 	_gen_rt "veyron2/rt"
-	_gen_vdl "veyron2/vdl"
+	_gen_vdlutil "veyron2/vdl/vdlutil"
 	_gen_wiretype "veyron2/wiretype"
 )
 
 // KeyValuePair is a representation of a cached key and value pair.
 type KeyValuePair struct {
 	Key   string
-	Value _gen_vdl.Any
+	Value _gen_vdlutil.Any
 }
 
 // A Cache service mimics the memcache interface.
@@ -26,10 +26,10 @@ type KeyValuePair struct {
 // to enable embedding without method collisions.  Not to be used directly by clients.
 type Cache_ExcludingUniversal interface {
 	// Set sets a value for a key.
-	Set(ctx _gen_context.T, key string, value _gen_vdl.Any, opts ..._gen_ipc.CallOpt) (err error)
+	Set(ctx _gen_context.T, key string, value _gen_vdlutil.Any, opts ..._gen_ipc.CallOpt) (err error)
 	// Get returns the value for a key.  If the value is not found, returns
 	// a not found error.
-	Get(ctx _gen_context.T, key string, opts ..._gen_ipc.CallOpt) (reply _gen_vdl.Any, err error)
+	Get(ctx _gen_context.T, key string, opts ..._gen_ipc.CallOpt) (reply _gen_vdlutil.Any, err error)
 	// Same as Get, but casts the return argument to an byte.
 	GetAsByte(ctx _gen_context.T, key string, opts ..._gen_ipc.CallOpt) (reply byte, err error)
 	// Same as Get, but casts the return argument to an int32.
@@ -51,7 +51,7 @@ type Cache_ExcludingUniversal interface {
 	// Same as Get, but casts the return argument to an error.
 	GetAsError(ctx _gen_context.T, key string, opts ..._gen_ipc.CallOpt) (reply error, err error)
 	// AsMap returns the full contents of the cache as a map.
-	AsMap(ctx _gen_context.T, opts ..._gen_ipc.CallOpt) (reply map[string]_gen_vdl.Any, err error)
+	AsMap(ctx _gen_context.T, opts ..._gen_ipc.CallOpt) (reply map[string]_gen_vdlutil.Any, err error)
 	// KeyValuePairs returns the full contents of the cache as a slice of pairs.
 	KeyValuePairs(ctx _gen_context.T, opts ..._gen_ipc.CallOpt) (reply []KeyValuePair, err error)
 	// MostRecentSet returns the key and value and the timestamp for the most
@@ -75,10 +75,10 @@ type Cache interface {
 type CacheService interface {
 
 	// Set sets a value for a key.
-	Set(context _gen_ipc.ServerContext, key string, value _gen_vdl.Any) (err error)
+	Set(context _gen_ipc.ServerContext, key string, value _gen_vdlutil.Any) (err error)
 	// Get returns the value for a key.  If the value is not found, returns
 	// a not found error.
-	Get(context _gen_ipc.ServerContext, key string) (reply _gen_vdl.Any, err error)
+	Get(context _gen_ipc.ServerContext, key string) (reply _gen_vdlutil.Any, err error)
 	// Same as Get, but casts the return argument to an byte.
 	GetAsByte(context _gen_ipc.ServerContext, key string) (reply byte, err error)
 	// Same as Get, but casts the return argument to an int32.
@@ -100,7 +100,7 @@ type CacheService interface {
 	// Same as Get, but casts the return argument to an error.
 	GetAsError(context _gen_ipc.ServerContext, key string) (reply error, err error)
 	// AsMap returns the full contents of the cache as a map.
-	AsMap(context _gen_ipc.ServerContext) (reply map[string]_gen_vdl.Any, err error)
+	AsMap(context _gen_ipc.ServerContext) (reply map[string]_gen_vdlutil.Any, err error)
 	// KeyValuePairs returns the full contents of the cache as a slice of pairs.
 	KeyValuePairs(context _gen_ipc.ServerContext) (reply []KeyValuePair, err error)
 	// MostRecentSet returns the key and value and the timestamp for the most
@@ -132,7 +132,7 @@ type CacheMultiGetStream interface {
 
 	// Recv returns the next item in the input stream, blocking until
 	// an item is available.  Returns io.EOF to indicate graceful end of input.
-	Recv() (item _gen_vdl.Any, err error)
+	Recv() (item _gen_vdlutil.Any, err error)
 
 	// Finish closes the stream and returns the positional return values for
 	// call.
@@ -155,7 +155,7 @@ func (c *implCacheMultiGetStream) CloseSend() error {
 	return c.clientCall.CloseSend()
 }
 
-func (c *implCacheMultiGetStream) Recv() (item _gen_vdl.Any, err error) {
+func (c *implCacheMultiGetStream) Recv() (item _gen_vdlutil.Any, err error) {
 	err = c.clientCall.Recv(&item)
 	return
 }
@@ -176,7 +176,7 @@ func (c *implCacheMultiGetStream) Cancel() {
 type CacheServiceMultiGetStream interface {
 	// Send places the item onto the output stream, blocking if there is no buffer
 	// space available.
-	Send(item _gen_vdl.Any) error
+	Send(item _gen_vdlutil.Any) error
 
 	// Recv fills itemptr with the next item in the input stream, blocking until
 	// an item is available.  Returns io.EOF to indicate graceful end of input.
@@ -188,7 +188,7 @@ type implCacheServiceMultiGetStream struct {
 	serverCall _gen_ipc.ServerCall
 }
 
-func (s *implCacheServiceMultiGetStream) Send(item _gen_vdl.Any) error {
+func (s *implCacheServiceMultiGetStream) Send(item _gen_vdlutil.Any) error {
 	return s.serverCall.Send(item)
 }
 
@@ -214,10 +214,10 @@ func BindCache(name string, opts ..._gen_ipc.BindOpt) (Cache, error) {
 		case _gen_ipc.Client:
 			client = o
 		default:
-			return nil, _gen_vdl.ErrUnrecognizedOption
+			return nil, _gen_vdlutil.ErrUnrecognizedOption
 		}
 	default:
-		return nil, _gen_vdl.ErrTooManyOptionsToBind
+		return nil, _gen_vdlutil.ErrTooManyOptionsToBind
 	}
 	stub := &clientStubCache{client: client, name: name}
 
@@ -240,7 +240,7 @@ type clientStubCache struct {
 	name   string
 }
 
-func (__gen_c *clientStubCache) Set(ctx _gen_context.T, key string, value _gen_vdl.Any, opts ..._gen_ipc.CallOpt) (err error) {
+func (__gen_c *clientStubCache) Set(ctx _gen_context.T, key string, value _gen_vdlutil.Any, opts ..._gen_ipc.CallOpt) (err error) {
 	var call _gen_ipc.Call
 	if call, err = __gen_c.client.StartCall(ctx, __gen_c.name, "Set", []interface{}{key, value}, opts...); err != nil {
 		return
@@ -251,7 +251,7 @@ func (__gen_c *clientStubCache) Set(ctx _gen_context.T, key string, value _gen_v
 	return
 }
 
-func (__gen_c *clientStubCache) Get(ctx _gen_context.T, key string, opts ..._gen_ipc.CallOpt) (reply _gen_vdl.Any, err error) {
+func (__gen_c *clientStubCache) Get(ctx _gen_context.T, key string, opts ..._gen_ipc.CallOpt) (reply _gen_vdlutil.Any, err error) {
 	var call _gen_ipc.Call
 	if call, err = __gen_c.client.StartCall(ctx, __gen_c.name, "Get", []interface{}{key}, opts...); err != nil {
 		return
@@ -372,7 +372,7 @@ func (__gen_c *clientStubCache) GetAsError(ctx _gen_context.T, key string, opts 
 	return
 }
 
-func (__gen_c *clientStubCache) AsMap(ctx _gen_context.T, opts ..._gen_ipc.CallOpt) (reply map[string]_gen_vdl.Any, err error) {
+func (__gen_c *clientStubCache) AsMap(ctx _gen_context.T, opts ..._gen_ipc.CallOpt) (reply map[string]_gen_vdlutil.Any, err error) {
 	var call _gen_ipc.Call
 	if call, err = __gen_c.client.StartCall(ctx, __gen_c.name, "AsMap", nil, opts...); err != nil {
 		return
@@ -679,7 +679,7 @@ func (__gen_s *ServerStubCache) Signature(call _gen_ipc.ServerCall) (_gen_ipc.Se
 		},
 	}
 
-	result.TypeDefs = []_gen_vdl.Any{
+	result.TypeDefs = []_gen_vdlutil.Any{
 		_gen_wiretype.NamedPrimitiveType{Type: 0x1, Name: "anydata", Tags: []string(nil)}, _gen_wiretype.NamedPrimitiveType{Type: 0x1, Name: "error", Tags: []string(nil)}, _gen_wiretype.NamedPrimitiveType{Type: 0x32, Name: "byte", Tags: []string(nil)}, _gen_wiretype.MapType{Key: 0x3, Elem: 0x41, Name: "", Tags: []string(nil)}, _gen_wiretype.StructType{
 			[]_gen_wiretype.FieldType{
 				_gen_wiretype.FieldType{Type: 0x3, Name: "Key"},
@@ -709,12 +709,12 @@ func (__gen_s *ServerStubCache) UnresolveStep(call _gen_ipc.ServerCall) (reply [
 	return
 }
 
-func (__gen_s *ServerStubCache) Set(call _gen_ipc.ServerCall, key string, value _gen_vdl.Any) (err error) {
+func (__gen_s *ServerStubCache) Set(call _gen_ipc.ServerCall, key string, value _gen_vdlutil.Any) (err error) {
 	err = __gen_s.service.Set(call, key, value)
 	return
 }
 
-func (__gen_s *ServerStubCache) Get(call _gen_ipc.ServerCall, key string) (reply _gen_vdl.Any, err error) {
+func (__gen_s *ServerStubCache) Get(call _gen_ipc.ServerCall, key string) (reply _gen_vdlutil.Any, err error) {
 	reply, err = __gen_s.service.Get(call, key)
 	return
 }
@@ -769,7 +769,7 @@ func (__gen_s *ServerStubCache) GetAsError(call _gen_ipc.ServerCall, key string)
 	return
 }
 
-func (__gen_s *ServerStubCache) AsMap(call _gen_ipc.ServerCall) (reply map[string]_gen_vdl.Any, err error) {
+func (__gen_s *ServerStubCache) AsMap(call _gen_ipc.ServerCall) (reply map[string]_gen_vdlutil.Any, err error) {
 	reply, err = __gen_s.service.AsMap(call)
 	return
 }

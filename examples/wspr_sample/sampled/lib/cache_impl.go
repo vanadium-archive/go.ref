@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"veyron2/ipc"
-	"veyron2/vdl"
+	"veyron2/vdl/vdlutil"
 	"veyron2/verror"
 
 	sample "veyron/examples/wspr_sample"
@@ -18,18 +18,18 @@ var typedNil []int
 
 // A simple in-memory implementation of a Cache service.
 type cacheImpl struct {
-	cache          map[string]vdl.Any
+	cache          map[string]vdlutil.Any
 	mostRecent     sample.KeyValuePair
 	lastUpdateTime time.Time
 }
 
 // NewCached returns a new implementation of the CacheService.
 func NewCached() sample.CacheService {
-	return &cacheImpl{cache: make(map[string]vdl.Any)}
+	return &cacheImpl{cache: make(map[string]vdlutil.Any)}
 }
 
 // Set sets a value for a key.  This should never return an error.
-func (c *cacheImpl) Set(_ ipc.ServerContext, key string, value vdl.Any) error {
+func (c *cacheImpl) Set(_ ipc.ServerContext, key string, value vdlutil.Any) error {
 	c.cache[key] = value
 	c.mostRecent = sample.KeyValuePair{Key: key, Value: value}
 	c.lastUpdateTime = time.Now()
@@ -38,7 +38,7 @@ func (c *cacheImpl) Set(_ ipc.ServerContext, key string, value vdl.Any) error {
 
 // Get returns the value for a key.  If the key is not in the map, it returns
 // an error.
-func (c *cacheImpl) Get(_ ipc.ServerContext, key string) (vdl.Any, error) {
+func (c *cacheImpl) Get(_ ipc.ServerContext, key string) (vdlutil.Any, error) {
 	if value, ok := c.cache[key]; ok {
 		return value, nil
 	}
@@ -122,7 +122,7 @@ func (c *cacheImpl) GetAsError(_ ipc.ServerContext, key string) (storedError err
 }
 
 // AsMap returns the full contents of the cache as a map.
-func (c *cacheImpl) AsMap(ipc.ServerContext) (map[string]vdl.Any, error) {
+func (c *cacheImpl) AsMap(ipc.ServerContext) (map[string]vdlutil.Any, error) {
 	return c.cache, nil
 }
 

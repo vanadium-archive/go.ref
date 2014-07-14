@@ -110,7 +110,6 @@ func (w *bsdNetConfigWatcher) watcher() {
 		}
 	}
 
-
 	w.Stop()
 	w.Lock()
 	close(w.c)

@@ -20,7 +20,7 @@ import (
 	"veyron2/security"
 	"veyron2/services/store"
 	"veyron2/storage"
-	"veyron2/vdl"
+	"veyron2/vdl/vdlutil"
 )
 
 // maxChannelSize is the maximum size of the channels used for concurrent
@@ -533,7 +533,7 @@ func (e *selectionEvaluator) processSubpipelines(c *context, result *store.Query
 	vlog.VI(2).Info("selection: ", result.Name)
 	sel := &store.QueryResult{
 		Name:   result.Name,
-		Fields: make(map[string]vdl.Any),
+		Fields: make(map[string]vdlutil.Any),
 	}
 	for _, a := range e.subpipelines {
 		// We create a new channel for each intermediate result, so there's no need to
@@ -1031,7 +1031,7 @@ func (e *exprName) value(c *context, result *store.QueryResult) interface{} {
 	return entry.Value
 }
 
-func mapKeys(m map[string]vdl.Any) string {
+func mapKeys(m map[string]vdlutil.Any) string {
 	s := make([]string, 0, len(m))
 	for key, _ := range m {
 		s = append(s, key)

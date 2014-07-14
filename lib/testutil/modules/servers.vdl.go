@@ -10,7 +10,7 @@ import (
 	_gen_ipc "veyron2/ipc"
 	_gen_naming "veyron2/naming"
 	_gen_rt "veyron2/rt"
-	_gen_vdl "veyron2/vdl"
+	_gen_vdlutil "veyron2/vdl/vdlutil"
 	_gen_wiretype "veyron2/wiretype"
 )
 
@@ -50,10 +50,10 @@ func BindClock(name string, opts ..._gen_ipc.BindOpt) (Clock, error) {
 		case _gen_ipc.Client:
 			client = o
 		default:
-			return nil, _gen_vdl.ErrUnrecognizedOption
+			return nil, _gen_vdlutil.ErrUnrecognizedOption
 		}
 	default:
-		return nil, _gen_vdl.ErrTooManyOptionsToBind
+		return nil, _gen_vdlutil.ErrTooManyOptionsToBind
 	}
 	stub := &clientStubClock{client: client, name: name}
 
@@ -151,7 +151,7 @@ func (__gen_s *ServerStubClock) Signature(call _gen_ipc.ServerCall) (_gen_ipc.Se
 		},
 	}
 
-	result.TypeDefs = []_gen_vdl.Any{
+	result.TypeDefs = []_gen_vdlutil.Any{
 		_gen_wiretype.NamedPrimitiveType{Type: 0x1, Name: "error", Tags: []string(nil)}}
 
 	return result, nil
@@ -216,10 +216,10 @@ func BindEcho(name string, opts ..._gen_ipc.BindOpt) (Echo, error) {
 		case _gen_ipc.Client:
 			client = o
 		default:
-			return nil, _gen_vdl.ErrUnrecognizedOption
+			return nil, _gen_vdlutil.ErrUnrecognizedOption
 		}
 	default:
-		return nil, _gen_vdl.ErrTooManyOptionsToBind
+		return nil, _gen_vdlutil.ErrTooManyOptionsToBind
 	}
 	stub := &clientStubEcho{client: client, name: name}
 
@@ -317,7 +317,7 @@ func (__gen_s *ServerStubEcho) Signature(call _gen_ipc.ServerCall) (_gen_ipc.Ser
 		},
 	}
 
-	result.TypeDefs = []_gen_vdl.Any{
+	result.TypeDefs = []_gen_vdlutil.Any{
 		_gen_wiretype.NamedPrimitiveType{Type: 0x1, Name: "error", Tags: []string(nil)}}
 
 	return result, nil

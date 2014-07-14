@@ -12,7 +12,7 @@ import (
 	_gen_ipc "veyron2/ipc"
 	_gen_naming "veyron2/naming"
 	_gen_rt "veyron2/rt"
-	_gen_vdl "veyron2/vdl"
+	_gen_vdlutil "veyron2/vdl/vdlutil"
 	_gen_wiretype "veyron2/wiretype"
 )
 
@@ -28,7 +28,7 @@ type Discharger_ExcludingUniversal interface {
 	// respectively. (not enforced here because vdl does not know these types)
 	// TODO(ataly,ashankar): Figure out a VDL representation for ThirdPartyCaveat
 	// and Discharge and use those here?
-	Discharge(ctx _gen_context.T, Caveat _gen_vdl.Any, opts ..._gen_ipc.CallOpt) (reply _gen_vdl.Any, err error)
+	Discharge(ctx _gen_context.T, Caveat _gen_vdlutil.Any, opts ..._gen_ipc.CallOpt) (reply _gen_vdlutil.Any, err error)
 }
 type Discharger interface {
 	_gen_ipc.UniversalServiceMethods
@@ -45,7 +45,7 @@ type DischargerService interface {
 	// respectively. (not enforced here because vdl does not know these types)
 	// TODO(ataly,ashankar): Figure out a VDL representation for ThirdPartyCaveat
 	// and Discharge and use those here?
-	Discharge(context _gen_ipc.ServerContext, Caveat _gen_vdl.Any) (reply _gen_vdl.Any, err error)
+	Discharge(context _gen_ipc.ServerContext, Caveat _gen_vdlutil.Any) (reply _gen_vdlutil.Any, err error)
 }
 
 // BindDischarger returns the client stub implementing the Discharger
@@ -65,10 +65,10 @@ func BindDischarger(name string, opts ..._gen_ipc.BindOpt) (Discharger, error) {
 		case _gen_ipc.Client:
 			client = o
 		default:
-			return nil, _gen_vdl.ErrUnrecognizedOption
+			return nil, _gen_vdlutil.ErrUnrecognizedOption
 		}
 	default:
-		return nil, _gen_vdl.ErrTooManyOptionsToBind
+		return nil, _gen_vdlutil.ErrTooManyOptionsToBind
 	}
 	stub := &clientStubDischarger{client: client, name: name}
 
@@ -91,7 +91,7 @@ type clientStubDischarger struct {
 	name   string
 }
 
-func (__gen_c *clientStubDischarger) Discharge(ctx _gen_context.T, Caveat _gen_vdl.Any, opts ..._gen_ipc.CallOpt) (reply _gen_vdl.Any, err error) {
+func (__gen_c *clientStubDischarger) Discharge(ctx _gen_context.T, Caveat _gen_vdlutil.Any, opts ..._gen_ipc.CallOpt) (reply _gen_vdlutil.Any, err error) {
 	var call _gen_ipc.Call
 	if call, err = __gen_c.client.StartCall(ctx, __gen_c.name, "Discharge", []interface{}{Caveat}, opts...); err != nil {
 		return
@@ -166,7 +166,7 @@ func (__gen_s *ServerStubDischarger) Signature(call _gen_ipc.ServerCall) (_gen_i
 		},
 	}
 
-	result.TypeDefs = []_gen_vdl.Any{
+	result.TypeDefs = []_gen_vdlutil.Any{
 		_gen_wiretype.NamedPrimitiveType{Type: 0x1, Name: "anydata", Tags: []string(nil)}, _gen_wiretype.NamedPrimitiveType{Type: 0x1, Name: "error", Tags: []string(nil)}}
 
 	return result, nil
@@ -190,7 +190,7 @@ func (__gen_s *ServerStubDischarger) UnresolveStep(call _gen_ipc.ServerCall) (re
 	return
 }
 
-func (__gen_s *ServerStubDischarger) Discharge(call _gen_ipc.ServerCall, Caveat _gen_vdl.Any) (reply _gen_vdl.Any, err error) {
+func (__gen_s *ServerStubDischarger) Discharge(call _gen_ipc.ServerCall, Caveat _gen_vdlutil.Any) (reply _gen_vdlutil.Any, err error) {
 	reply, err = __gen_s.service.Discharge(call, Caveat)
 	return
 }

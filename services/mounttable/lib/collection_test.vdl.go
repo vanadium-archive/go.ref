@@ -10,7 +10,7 @@ import (
 	_gen_ipc "veyron2/ipc"
 	_gen_naming "veyron2/naming"
 	_gen_rt "veyron2/rt"
-	_gen_vdl "veyron2/vdl"
+	_gen_vdlutil "veyron2/vdl/vdlutil"
 	_gen_wiretype "veyron2/wiretype"
 )
 
@@ -62,10 +62,10 @@ func BindCollection(name string, opts ..._gen_ipc.BindOpt) (Collection, error) {
 		case _gen_ipc.Client:
 			client = o
 		default:
-			return nil, _gen_vdl.ErrUnrecognizedOption
+			return nil, _gen_vdlutil.ErrUnrecognizedOption
 		}
 	default:
-		return nil, _gen_vdl.ErrTooManyOptionsToBind
+		return nil, _gen_vdlutil.ErrTooManyOptionsToBind
 	}
 	stub := &clientStubCollection{client: client, name: name}
 
@@ -183,7 +183,7 @@ func (__gen_s *ServerStubCollection) Signature(call _gen_ipc.ServerCall) (_gen_i
 		},
 	}
 
-	result.TypeDefs = []_gen_vdl.Any{
+	result.TypeDefs = []_gen_vdlutil.Any{
 		_gen_wiretype.NamedPrimitiveType{Type: 0x1, Name: "error", Tags: []string(nil)}, _gen_wiretype.NamedPrimitiveType{Type: 0x32, Name: "byte", Tags: []string(nil)}, _gen_wiretype.SliceType{Elem: 0x42, Name: "", Tags: []string(nil)}}
 
 	return result, nil

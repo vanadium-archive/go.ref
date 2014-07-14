@@ -18,7 +18,7 @@ import (
 	_gen_ipc "veyron2/ipc"
 	_gen_naming "veyron2/naming"
 	_gen_rt "veyron2/rt"
-	_gen_vdl "veyron2/vdl"
+	_gen_vdlutil "veyron2/vdl/vdlutil"
 	_gen_wiretype "veyron2/wiretype"
 )
 
@@ -38,7 +38,7 @@ type Mutation struct {
 	// 2) The entry is the store root immediately after the update.
 	IsRoot bool
 	// Value is value stored at this entry.
-	Value _gen_vdl.Any
+	Value _gen_vdlutil.Any
 	// Tags specify permissions on this entry.
 	Tags storage.TagList
 	// Dir is the implicit directory of this entry, and may contain references
@@ -224,10 +224,10 @@ func BindStore(name string, opts ..._gen_ipc.BindOpt) (Store, error) {
 		case _gen_ipc.Client:
 			client = o
 		default:
-			return nil, _gen_vdl.ErrUnrecognizedOption
+			return nil, _gen_vdlutil.ErrUnrecognizedOption
 		}
 	default:
-		return nil, _gen_vdl.ErrTooManyOptionsToBind
+		return nil, _gen_vdlutil.ErrTooManyOptionsToBind
 	}
 	stub := &clientStubStore{client: client, name: name}
 
@@ -342,7 +342,7 @@ func (__gen_s *ServerStubStore) Signature(call _gen_ipc.ServerCall) (_gen_ipc.Se
 		OutStream: 72,
 	}
 
-	result.TypeDefs = []_gen_vdl.Any{
+	result.TypeDefs = []_gen_vdlutil.Any{
 		_gen_wiretype.NamedPrimitiveType{Type: 0x32, Name: "byte", Tags: []string(nil)}, _gen_wiretype.SliceType{Elem: 0x41, Name: "veyron2/services/watch.ResumeMarker", Tags: []string(nil)}, _gen_wiretype.StructType{
 			[]_gen_wiretype.FieldType{
 				_gen_wiretype.FieldType{Type: 0x42, Name: "ResumeMarker"},
