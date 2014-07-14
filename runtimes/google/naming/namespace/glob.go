@@ -80,7 +80,8 @@ func (ns *namespace) globAtServer(ctx context.T, server *naming.MountEntry, patt
 
 // Glob implements naming.MountTable.Glob.
 func (ns *namespace) Glob(ctx context.T, pattern string) (chan naming.MountEntry, error) {
-	g, err := glob.Parse(pattern)
+	root, globPattern := naming.SplitAddressName(pattern)
+	g, err := glob.Parse(globPattern)
 	if err != nil {
 		return nil, err
 	}
@@ -90,6 +91,9 @@ func (ns *namespace) Glob(ctx context.T, pattern string) (chan naming.MountEntry
 	var prefixElements []string
 	prefixElements, g = g.SplitFixedPrefix()
 	prefix := strings.Join(prefixElements, "/")
+	if len(root) != 0 {
+		prefix = naming.JoinAddressName(root, prefix)
+	}
 
 	// Start a thread to get the results and return the reply channel to the caller.
 	servers := ns.rootName(prefix)
