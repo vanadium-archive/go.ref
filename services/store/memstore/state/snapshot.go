@@ -94,7 +94,7 @@ func (sn *snapshot) Get(pid security.PublicID, path storage.PathName) (*storage.
 	// Pass nil for 'mutations' since the snapshot is immutable.
 	cell, suffix, v := sn.resolveCell(checker, path, nil)
 	if cell == nil {
-		return nil, ErrNotFound
+		return nil, errNotFound
 	}
 	var e *storage.Entry
 	if len(suffix) == 0 {
@@ -139,7 +139,7 @@ func (sn *snapshot) resolve(checker *acl.Checker, id storage.ID, path storage.Pa
 		if len(path) > 0 && path[0] == refs.TagsDirName {
 			if !checker.IsAllowed(security.AdminLabel) {
 				// Access to .tags requires admin priviledges.
-				return nil, nil, ErrPermissionDenied
+				return nil, nil, errPermissionDenied
 			}
 			v, suffix = field.Get(cell.Tags, path[1:])
 		} else {

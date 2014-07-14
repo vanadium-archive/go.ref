@@ -1,8 +1,6 @@
 package server
 
 import (
-	"errors"
-
 	"veyron/services/store/service"
 
 	"veyron2/ipc"
@@ -12,6 +10,7 @@ import (
 	"veyron2/services/watch"
 	"veyron2/storage"
 	"veyron2/vdl/vdlutil"
+	"veyron2/verror"
 )
 
 type object struct {
@@ -21,8 +20,8 @@ type object struct {
 }
 
 var (
-	errNotAValue      = errors.New("not a storage.Value")
-	errNotAnAttribute = errors.New("not a storage.Attr")
+	errNotAValue      = verror.BadArgf("not a storage.Value")
+	errNotAnAttribute = verror.BadArgf("not a storage.Attr")
 
 	_ store.ObjectService = (*object)(nil)
 

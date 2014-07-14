@@ -1,11 +1,10 @@
 package state
 
 import (
-	"errors"
-
 	"veyron/services/store/memstore/refs"
 
 	"veyron2/storage"
+	"veyron2/verror"
 	"veyron2/vom"
 )
 
@@ -16,7 +15,7 @@ const (
 )
 
 var (
-	errUnsupportedLogVersion = errors.New("unsupported log version")
+	errUnsupportedLogVersion = verror.Internalf("unsupported log version")
 )
 
 // header contains the meta-information for a log file.

@@ -13,6 +13,7 @@ import (
 
 	"veyron2/services/watch"
 	"veyron2/storage"
+	"veyron2/verror"
 )
 
 func TestWatchRaw(t *testing.T) {
@@ -474,8 +475,8 @@ func TestUnknownResumeMarkers(t *testing.T) {
 	ws := watchtesting.WatchRaw(rootPublicID, w.WatchRaw, req)
 
 	// The resume marker should be unknown.
-	if err := ws.Finish(); err != ErrUnknownResumeMarker {
-		t.Errorf("Unexpected error: %v", err)
+	if err := ws.Finish(); !verror.Is(err, verror.BadArg) {
+		t.Errorf("Error should be %v: got %v", verror.BadArg, err)
 	}
 
 	// Start a watch request with a resume marker that's too late.
@@ -484,8 +485,8 @@ func TestUnknownResumeMarkers(t *testing.T) {
 	ws = watchtesting.WatchRaw(rootPublicID, w.WatchRaw, req)
 
 	// The resume marker should be unknown.
-	if err := ws.Finish(); err != ErrUnknownResumeMarker {
-		t.Errorf("Unexpected error: %v", err)
+	if err := ws.Finish(); !verror.Is(err, verror.BadArg) {
+		t.Errorf("Error should be %v: got %v", verror.BadArg, err)
 	}
 }
 

@@ -8,6 +8,7 @@ import (
 	"veyron/services/store/memstore/refs"
 
 	"veyron2/storage"
+	"veyron2/verror"
 	"veyron2/vom"
 )
 
@@ -198,8 +199,8 @@ func TestRef(t *testing.T) {
 
 	// Not possible to create a Dir with a dangling reference.
 	d := &Dir{Entries: map[string]storage.ID{"ref": storage.NewID()}}
-	if _, err := sn.Put(rootPublicID, ePath, d); err != ErrBadRef {
-		t.Errorf("Error should be %q: got %q", ErrBadRef, err)
+	if _, err := sn.Put(rootPublicID, ePath, d); !verror.Is(err, verror.BadArg) {
+		t.Errorf("Error should be %v: got %v", verror.BadArg, err)
 	}
 
 	// Set the Ref to refer to the root.

@@ -106,14 +106,14 @@ func (sn *MutableSnapshot) applyMutations(mu *Mutations) error {
 		// is 0 and the cell already exists, or pre is not 0 and the cell does
 		// not already exist or have the expected version.
 		if pre == 0 && ok || pre != 0 && (!ok || c.(*Cell).Version != pre) {
-			return ErrPreconditionFailed
+			return errPreconditionFailed
 		}
 	}
 	for id, pre := range mu.Deletions {
 		c, ok := table.Get(&Cell{ID: id})
 		// The target is not required to exist.
 		if ok && c.(*Cell).Version != pre {
-			return ErrPreconditionFailed
+			return errPreconditionFailed
 		}
 	}
 

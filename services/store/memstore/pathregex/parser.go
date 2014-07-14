@@ -2,10 +2,11 @@ package pathregex
 
 import (
 	"bytes"
-	"fmt"
 	"io"
 	"regexp"
 	"strings"
+
+	"veyron2/verror"
 )
 
 // parser is a recursive-descent parser for path regular expressions.
@@ -47,7 +48,7 @@ func compileRegex(s string) (regex, error) {
 	re := p.parsePath()
 	if p.isErrored || p.reader.Len() != 0 {
 		pos, _ := p.reader.Seek(0, 1)
-		err := fmt.Errorf("Syntax error at char %d: %q", pos, s)
+		err := verror.BadArgf("Syntax error at char %d: %q", pos, s)
 		return nil, err
 	}
 	return re, nil

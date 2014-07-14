@@ -1,8 +1,6 @@
 package watch
 
 import (
-	"errors"
-
 	iquery "veyron/services/store/memstore/query"
 	"veyron/services/store/memstore/state"
 
@@ -42,7 +40,7 @@ func newGlobProcessor(pid security.PublicID, path storage.PathName,
 func (p *globProcessor) processState(st *state.State) ([]watch.Change, error) {
 	// Check that the initial state has not already been processed.
 	if p.hasProcessedState {
-		return nil, errors.New("cannot process state after processing the initial state")
+		return nil, errInitialStateAlreadyProcessed
 	}
 	p.hasProcessedState = true
 
@@ -76,7 +74,7 @@ func (p *globProcessor) processState(st *state.State) ([]watch.Change, error) {
 func (p *globProcessor) processTransaction(mus *state.Mutations) ([]watch.Change, error) {
 	// Ensure that the initial state has been processed.
 	if !p.hasProcessedState {
-		return nil, errors.New("cannot process a transaction before processing the initial state")
+		return nil, errInitialStateNotProcessed
 	}
 
 	previousMatches := p.matches

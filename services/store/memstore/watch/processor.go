@@ -3,6 +3,12 @@ package watch
 import (
 	"veyron/services/store/memstore/state"
 	"veyron2/services/watch"
+	"veyron2/verror"
+)
+
+var (
+	errInitialStateAlreadyProcessed = verror.Internalf("cannot process state after processing the initial state")
+	errInitialStateNotProcessed     = verror.Internalf("cannot process a transaction before processing the initial state")
 )
 
 // reqProcessor processes log entries into watch changes. At first,

@@ -1,7 +1,6 @@
 package state
 
 import (
-	"errors"
 	"fmt"
 
 	"veyron/services/store/memstore/acl"
@@ -12,6 +11,7 @@ import (
 	"veyron/runtimes/google/lib/functional"
 	"veyron2/security"
 	"veyron2/storage"
+	"veyron2/verror"
 )
 
 // MutableSnapshot is a mutable version of the snapshot.  It contains a Snapshot
@@ -103,17 +103,14 @@ type Mutation struct {
 }
 
 var (
-	// TODO(tilaks): don't expose errors, use verror instead.
-	ErrBadPath              = errors.New("malformed path")
-	ErrTypeMismatch         = errors.New("type mismatch")
-	ErrNotFound             = errors.New("not found")
-	ErrBadRef               = errors.New("value has dangling references")
-	ErrCantUnlinkByID       = errors.New("can't unlink entries by ID")
-	ErrPreconditionFailed   = errors.New("precondition failed")
-	ErrIDsDoNotMatch        = errors.New("IDs do not match")
-	ErrPermissionDenied     = errors.New("permission denied") // TODO(tilaks): can permission denied leak store structure?
-	ErrNotTagList           = errors.New("not a TagList")
-	ErrDuplicatePutMutation = errors.New("duplicate calls to PutMutation for the same ID")
+	errBadPath              = verror.BadArgf("malformed path")
+	errBadRef               = verror.BadArgf("value has dangling references")
+	errCantUnlinkByID       = verror.BadArgf("can't unlink entries by ID")
+	errDuplicatePutMutation = verror.BadArgf("duplicate calls to PutMutation for the same ID")
+	errNotFound             = verror.NotFoundf("not found")
+	errNotTagList           = verror.BadArgf("not a TagList")
+	errPermissionDenied     = verror.NotAuthorizedf("")
+	errPreconditionFailed   = verror.Abortedf("precondition failed")
 
 	nullID storage.ID
 )
@@ -264,7 +261,7 @@ func (sn *MutableSnapshot) add(parentChecker *acl.Checker, id storage.ID, v inte
 		}
 		c.setRefs()
 		if !sn.refsExist(c.refs) {
-			return nil, ErrBadRef
+			return nil, errBadRef
 		}
 		sn.put(c)
 		sn.addRefs(id, c.refs)
@@ -280,13 +277,13 @@ func (sn *MutableSnapshot) add(parentChecker *acl.Checker, id storage.ID, v inte
 // replaceValue updates the cell.value.
 func (sn *MutableSnapshot) replaceValue(checker *acl.Checker, c *Cell, v interface{}) (*Cell, error) {
 	if !checker.IsAllowed(security.WriteLabel) {
-		return nil, ErrPermissionDenied
+		return nil, errPermissionDenied
 	}
 	cp := *c
 	cp.Value = v
 	cp.setRefs()
 	if !sn.refsExist(cp.refs) {
-		return nil, ErrBadRef
+		return nil, errBadRef
 	}
 	sn.put(&cp)
 	sn.updateRefs(c.ID, c.refs, cp.refs)
@@ -296,13 +293,13 @@ func (sn *MutableSnapshot) replaceValue(checker *acl.Checker, c *Cell, v interfa
 // replaceDir updates the cell.dir.
 func (sn *MutableSnapshot) replaceDir(checker *acl.Checker, c *Cell, d functional.Set) (*Cell, error) {
 	if !checker.IsAllowed(security.WriteLabel) {
-		return nil, ErrPermissionDenied
+		return nil, errPermissionDenied
 	}
 	cp := *c
 	cp.Dir = d
 	cp.setRefs()
 	if !sn.refsExist(cp.refs) {
-		return nil, ErrBadRef
+		return nil, errBadRef
 	}
 	sn.put(&cp)
 	sn.updateRefs(c.ID, c.refs, cp.refs)
@@ -312,13 +309,13 @@ func (sn *MutableSnapshot) replaceDir(checker *acl.Checker, c *Cell, d functiona
 // replaceTags replaces the cell.tags.
 func (sn *MutableSnapshot) replaceTags(checker *acl.Checker, c *Cell, tags storage.TagList) (*Cell, error) {
 	if !checker.IsAllowed(security.AdminLabel) {
-		return nil, ErrPermissionDenied
+		return nil, errPermissionDenied
 	}
 	cp := *c
 	cp.Tags = tags
 	cp.setRefs()
 	if !sn.refsExist(cp.refs) {
-		return nil, ErrBadRef
+		return nil, errBadRef
 	}
 	sn.put(&cp)
 	sn.updateRefs(c.ID, c.refs, cp.refs)
@@ -351,7 +348,7 @@ func (sn *MutableSnapshot) Get(pid security.PublicID, path storage.PathName) (*s
 	checker := sn.newPermChecker(pid)
 	cell, suffix, v := sn.resolveCell(checker, path, sn.mutations)
 	if cell == nil {
-		return nil, ErrNotFound
+		return nil, errNotFound
 	}
 	var e *storage.Entry
 	if len(suffix) == 0 {
@@ -394,7 +391,7 @@ func (sn *MutableSnapshot) putValue(checker *acl.Checker, path storage.PathName,
 	// Find the parent object.
 	c, suffix, _ := sn.resolveCell(checker, path[:len(path)-1], sn.mutations)
 	if c == nil {
-		return nil, ErrNotFound
+		return nil, errNotFound
 	}
 	if len(suffix) > 0 && suffix[0] == refs.TagsDirName {
 		return sn.putTagsValue(checker, path, suffix[1:], c, v)
@@ -402,7 +399,7 @@ func (sn *MutableSnapshot) putValue(checker *acl.Checker, path storage.PathName,
 	value := deepcopy(c.Value)
 	p, s := field.Get(makeInnerReference(value), suffix)
 	if len(s) != 0 {
-		return nil, ErrNotFound
+		return nil, errNotFound
 	}
 
 	// Add value to the parent.
@@ -411,7 +408,7 @@ func (sn *MutableSnapshot) putValue(checker *acl.Checker, path storage.PathName,
 	switch result {
 	case field.SetFailed:
 		if len(suffix) != 0 {
-			return nil, ErrNotFound
+			return nil, errNotFound
 		}
 		if name == refs.TagsDirName {
 			return sn.putTags(checker, c, v)
@@ -438,7 +435,7 @@ func (sn *MutableSnapshot) putTagsValue(checker *acl.Checker, path, suffix stora
 	tags := deepcopy(c.Tags).(storage.TagList)
 	p, s := field.Get(&tags, suffix)
 	if len(s) != 0 {
-		return nil, ErrNotFound
+		return nil, errNotFound
 	}
 
 	// Add value to the parent.
@@ -446,7 +443,7 @@ func (sn *MutableSnapshot) putTagsValue(checker *acl.Checker, path, suffix stora
 	result, id := field.Set(p, name, v)
 	switch result {
 	case field.SetFailed:
-		return nil, ErrNotFound
+		return nil, errNotFound
 	case field.SetAsID:
 		nc, err := sn.add(checker, id, v)
 		if err != nil {
@@ -467,7 +464,7 @@ func (sn *MutableSnapshot) putTagsValue(checker *acl.Checker, path, suffix stora
 func (sn *MutableSnapshot) putTags(checker *acl.Checker, c *Cell, v interface{}) (*Cell, error) {
 	tags, ok := v.(storage.TagList)
 	if !ok {
-		return nil, ErrNotTagList
+		return nil, errNotTagList
 	}
 	return sn.replaceTags(checker, c, tags)
 }
@@ -478,7 +475,7 @@ func (sn *MutableSnapshot) putDirEntry(checker *acl.Checker, c *Cell, name strin
 	if id, ok := v.(storage.ID); ok {
 		ncell := sn.Find(id)
 		if ncell == nil {
-			return nil, ErrNotFound
+			return nil, errNotFound
 		}
 		r.ID = id
 		dir := c.Dir.Put(r)
@@ -513,7 +510,7 @@ func (sn *MutableSnapshot) putDirEntry(checker *acl.Checker, c *Cell, name strin
 // putRoot replaces the root.
 func (sn *MutableSnapshot) putRoot(checker *acl.Checker, v interface{}) (*Cell, error) {
 	if !checker.IsAllowed(security.WriteLabel) {
-		return nil, ErrPermissionDenied
+		return nil, errPermissionDenied
 	}
 
 	id := sn.rootID
@@ -542,7 +539,7 @@ func (sn *MutableSnapshot) putRoot(checker *acl.Checker, v interface{}) (*Cell, 
 func (sn *MutableSnapshot) putValueByID(checker *acl.Checker, id storage.ID, v interface{}) (*Cell, error) {
 	checker.Update(uidTagList)
 	if !checker.IsAllowed(security.WriteLabel) {
-		return nil, ErrPermissionDenied
+		return nil, errPermissionDenied
 	}
 
 	sn.gc()
@@ -554,7 +551,7 @@ func (sn *MutableSnapshot) Remove(pid security.PublicID, path storage.PathName) 
 	checker := sn.newPermChecker(pid)
 	if path.IsRoot() {
 		if !checker.IsAllowed(security.WriteLabel) {
-			return ErrPermissionDenied
+			return errPermissionDenied
 		}
 		sn.unref(sn.rootID)
 		sn.rootID = nullID
@@ -563,13 +560,13 @@ func (sn *MutableSnapshot) Remove(pid security.PublicID, path storage.PathName) 
 		return nil
 	}
 	if path.IsStrictID() {
-		return ErrCantUnlinkByID
+		return errCantUnlinkByID
 	}
 
 	// Split the names into directory and field parts.
 	cell, suffix, _ := sn.resolveCell(checker, path[:len(path)-1], sn.mutations)
 	if cell == nil {
-		return ErrNotFound
+		return errNotFound
 	}
 
 	// Remove the field.
@@ -586,7 +583,7 @@ func (sn *MutableSnapshot) Remove(pid security.PublicID, path storage.PathName) 
 	value := deepcopy(cell.Value)
 	p, _ := field.Get(value, suffix)
 	if !field.Remove(p, name) {
-		return ErrNotFound
+		return errNotFound
 	}
 
 	_, err := sn.replaceValue(checker, cell, value)
@@ -600,7 +597,7 @@ func (sn *MutableSnapshot) PutMutation(extmu raw.Mutation) error {
 	id := extmu.ID
 	// Check that a mutation has not already been put for this id.
 	if _, ok := mus.Delta[id]; ok {
-		return ErrDuplicatePutMutation
+		return errDuplicatePutMutation
 	}
 	// If the object has no version, it was deleted.
 	if extmu.Version == storage.NoVersion {

@@ -1,7 +1,6 @@
 package memstore
 
 import (
-	"errors"
 	"io"
 
 	"veyron/runtimes/google/lib/sync"
@@ -13,6 +12,7 @@ import (
 	"veyron2/ipc"
 	"veyron2/security"
 	"veyron2/storage"
+	"veyron2/verror"
 )
 
 // Store is the in-memory state of the store.
@@ -31,7 +31,7 @@ type Store struct {
 var _ service.Store = (*Store)(nil)
 
 var (
-	ErrRequestCancelled = errors.New("request cancelled")
+	ErrRequestCancelled = verror.Abortedf("request cancelled")
 )
 
 // New creates a new store.  admin is the public ID of the administrator, dbName

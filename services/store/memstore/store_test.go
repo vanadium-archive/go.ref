@@ -5,11 +5,11 @@ import (
 	"os"
 	"testing"
 
-	"veyron/services/store/memstore/state"
 	storetesting "veyron/services/store/memstore/testing"
 	"veyron/services/store/raw"
 
 	"veyron2/storage"
+	"veyron2/verror"
 )
 
 func TestLogWrite(t *testing.T) {
@@ -86,8 +86,8 @@ func TestFailedLogWrite(t *testing.T) {
 	st.log.close()
 
 	// Commit the state. The call should fail.
-	if err := st.log.appendTransaction(nil); err != errLogIsClosed {
-		t.Errorf("Expected error %q, got %q", errLogIsClosed, err)
+	if err := st.log.appendTransaction(nil); !verror.Is(err, verror.Aborted) {
+		t.Errorf("Expected error %v, got %v", verror.Aborted, err)
 	}
 }
 
@@ -293,8 +293,8 @@ func TestPutConflictingMutations(t *testing.T) {
 		Value:        v2,
 		Dir:          empty,
 	})
-	if err := s.Finish(); err != state.ErrPreconditionFailed {
-		t.Fatalf("Expected precondition to fail")
+	if err := s.Finish(); !verror.Is(err, verror.Aborted) {
+		t.Errorf("Error should be %v: got %v", verror.Aborted, err)
 	}
 
 }
@@ -330,8 +330,8 @@ func TestPutDuplicateMutations(t *testing.T) {
 		Value:        "v2",
 		Dir:          empty,
 	})
-	if err := s.Finish(); err != state.ErrDuplicatePutMutation {
-		t.Fatalf("Expected precondition to fail")
+	if err := s.Finish(); !verror.Is(err, verror.BadArg) {
+		t.Errorf("Error should be %v: got %v", verror.BadArg, err)
 	}
 }
 
@@ -358,8 +358,8 @@ func TestCancelPutMutation(t *testing.T) {
 		Dir:          empty,
 	})
 	s.Cancel()
-	if err := s.Finish(); err != ErrRequestCancelled {
-		t.Fatalf("Expected request to be cancelled")
+	if err := s.Finish(); !verror.Is(err, verror.Aborted) {
+		t.Errorf("Error should be %v: got %v", verror.Aborted, err)
 	}
 
 	expectNotExists(t, st, nil, "/")

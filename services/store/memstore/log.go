@@ -12,7 +12,6 @@ package memstore
 // There are separate interfaces for reading writing; *wlog is used for writing,
 // and *rlog is used for reading.
 import (
-	"errors"
 	"io"
 	"os"
 	"path"
@@ -23,6 +22,7 @@ import (
 	"veyron/services/store/memstore/state"
 
 	"veyron2/security"
+	"veyron2/verror"
 	"veyron2/vom"
 )
 
@@ -34,7 +34,7 @@ const (
 )
 
 var (
-	errLogIsClosed = errors.New("log is closed")
+	errLogIsClosed = verror.Abortedf("log is closed")
 )
 
 // wlog is the type of log writers.

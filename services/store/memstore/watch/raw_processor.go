@@ -1,7 +1,6 @@
 package watch
 
 import (
-	"errors"
 	"fmt"
 
 	"veyron/services/store/memstore/refs"
@@ -11,6 +10,7 @@ import (
 	"veyron2/security"
 	"veyron2/services/watch"
 	"veyron2/storage"
+	"veyron2/verror"
 )
 
 var (
@@ -50,7 +50,7 @@ func newRawProcessor(pid security.PublicID) (reqProcessor, error) {
 func (p *rawProcessor) processState(st *state.State) ([]watch.Change, error) {
 	// Check that the initial state has not already been processed.
 	if p.hasProcessedState {
-		return nil, errors.New("cannot process state after processing the initial state")
+		return nil, errInitialStateAlreadyProcessed
 	}
 	p.hasProcessedState = true
 
@@ -100,7 +100,7 @@ func (p *rawProcessor) processState(st *state.State) ([]watch.Change, error) {
 func (p *rawProcessor) processTransaction(mus *state.Mutations) ([]watch.Change, error) {
 	// Ensure that the initial state has been processed.
 	if !p.hasProcessedState {
-		return nil, errors.New("cannot process a transaction before processing the initial state")
+		return nil, errInitialStateNotProcessed
 	}
 
 	// If the root was deleted, add extra space for a prepared deletion.
@@ -207,7 +207,7 @@ func flattenDir(pdir []*storage.DEntry) []storage.DEntry {
 // does not have a root, nullID is returned.
 func rootID(pid security.PublicID, sn *state.MutableSnapshot) (storage.ID, error) {
 	entry, err := sn.Get(pid, rootPath)
-	if err == state.ErrNotFound {
+	if verror.Is(err, verror.NotFound) {
 		return nullID, nil
 	}
 	if err != nil {

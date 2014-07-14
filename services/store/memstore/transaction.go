@@ -1,11 +1,11 @@
 package memstore
 
 import (
-	"errors"
 	"sync"
 
 	"veyron/services/store/memstore/state"
 	"veyron/services/store/service"
+	"veyron2/verror"
 )
 
 // Transaction is the type of transactions.  Each transaction has a snapshot of
@@ -22,7 +22,7 @@ type Transaction struct {
 }
 
 var (
-	errBadTransaction = errors.New("bad transaction")
+	errBadTransaction = verror.BadArgf("bad transaction")
 )
 
 // newNilTransaction is used when nil is passed in as the transaction for an

@@ -3,7 +3,6 @@ package watch
 import (
 	"bytes"
 	"encoding/binary"
-	"errors"
 	"io"
 	"time"
 
@@ -20,8 +19,8 @@ import (
 )
 
 var (
-	ErrWatchClosed            = io.EOF
-	ErrUnknownResumeMarker    = errors.New("Unknown ResumeMarker")
+	errWatchClosed            = io.EOF
+	errUnknownResumeMarker    = verror.BadArgf("Unknown ResumeMarker")
 	nowResumeMarker           = []byte("now") // UTF-8 conversion.
 	initialStateSkippedChange = watch.Change{
 		Name:  "",
@@ -104,7 +103,7 @@ func (w *watcher) Watch(ctx ipc.ServerContext, processor reqProcessor,
 	done := make(chan error, 1)
 
 	if !w.pending.TryAdd() {
-		return ErrWatchClosed
+		return errWatchClosed
 	}
 	// This goroutine does not leak because processRequest is always terminated.
 	go func() {
@@ -122,7 +121,7 @@ func (w *watcher) Watch(ctx ipc.ServerContext, processor reqProcessor,
 	case <-w.closed:
 	case <-ctx.Closed():
 	}
-	return ErrWatchClosed
+	return errWatchClosed
 }
 
 func (w *watcher) processRequest(cancel <-chan struct{}, processor reqProcessor,
@@ -251,7 +250,7 @@ func newChangeFilter(resumeMarker []byte) (changeFilter, error) {
 		return &onOrAfterFilter{baseFilter{uint64(time.Now().UnixNano()), false}}, nil
 	}
 	if len(resumeMarker) != 8 {
-		return nil, ErrUnknownResumeMarker
+		return nil, errUnknownResumeMarker
 	}
 	return &onAndAfterFilter{baseFilter{binary.BigEndian.Uint64(resumeMarker), false}}, nil
 }
@@ -276,7 +275,7 @@ func (f *onAndAfterFilter) shouldProcessChanges(timestamp uint64) (bool, error) 
 			return false, nil
 		}
 		if timestamp > f.initialTimestamp {
-			return false, ErrUnknownResumeMarker
+			return false, errUnknownResumeMarker
 		}
 		// TODO(tilaks): if the most recent timestamp in the log is less than
 		// initialTimestamp, return ErrUnknownResumeMarker.

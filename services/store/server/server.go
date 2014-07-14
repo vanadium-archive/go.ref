@@ -2,7 +2,6 @@
 package server
 
 import (
-	"errors"
 	"reflect"
 	"strings"
 	"sync"
@@ -34,10 +33,10 @@ var (
 
 	nullTransactionID store.TransactionID
 
-	errTransactionAlreadyExists = errors.New("transaction already exists")
-	errTransactionDoesNotExist  = errors.New("transaction does not exist")
+	errTransactionAlreadyExists = verror.Existsf("transaction already exists")
+	errTransactionDoesNotExist  = verror.NotFoundf("transaction does not exist")
 	// Transaction exists, but may not be used by the caller.
-	errPermissionDenied = errors.New("permission denied")
+	errPermissionDenied = verror.NotAuthorizedf("permission denied")
 )
 
 // Server stores the dictionary of all media items.  It has a scanner.Scanner
