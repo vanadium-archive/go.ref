@@ -75,7 +75,7 @@ func (id *publicID) Names() []string {
 	var env *C.JNIEnv
 	C.AttachCurrentThread(id.jVM, &env, nil)
 	defer C.DetachCurrentThread(id.jVM)
-	mid := C.jmethodID(util.JMethodIDPtr(env, C.GetObjectClass(env, id.jPublicID), "names", fmt.Sprintf("()[%s", util.StringSign)))
+	mid := C.jmethodID(util.JMethodIDPtrOrDie(env, C.GetObjectClass(env, id.jPublicID), "names", fmt.Sprintf("()[%s", util.StringSign)))
 	names := C.CallPublicIDNamesMethod(env, id.jPublicID, mid)
 	ret := make([]string, int(C.GetArrayLength(env, C.jarray(names))))
 	for i := 0; i < len(ret); i++ {
@@ -88,7 +88,7 @@ func (id *publicID) Match(pattern security.PrincipalPattern) bool {
 	var env *C.JNIEnv
 	C.AttachCurrentThread(id.jVM, &env, nil)
 	defer C.DetachCurrentThread(id.jVM)
-	mid := C.jmethodID(util.JMethodIDPtr(env, C.GetObjectClass(env, id.jPublicID), "match", fmt.Sprintf("(%s)%s", util.StringSign, util.BoolSign)))
+	mid := C.jmethodID(util.JMethodIDPtrOrDie(env, C.GetObjectClass(env, id.jPublicID), "match", fmt.Sprintf("(%s)%s", util.StringSign, util.BoolSign)))
 	return C.CallPublicIDMatchMethod(env, id.jPublicID, mid, C.jstring(util.JStringPtr(env, string(pattern)))) == C.JNI_TRUE
 }
 
@@ -96,7 +96,7 @@ func (id *publicID) PublicKey() *ecdsa.PublicKey {
 	var env *C.JNIEnv
 	C.AttachCurrentThread(id.jVM, &env, nil)
 	defer C.DetachCurrentThread(id.jVM)
-	mid := C.jmethodID(util.JMethodIDPtr(env, C.GetObjectClass(env, id.jPublicID), "publicKey", fmt.Sprintf("()%s", util.ObjectSign)))
+	mid := C.jmethodID(util.JMethodIDPtrOrDie(env, C.GetObjectClass(env, id.jPublicID), "publicKey", fmt.Sprintf("()%s", util.ObjectSign)))
 	jPublicKey := C.CallPublicIDPublicKeyMethod(env, id.jPublicID, mid)
 	return newPublicKey(env, jPublicKey)
 }
@@ -108,9 +108,9 @@ func (id *publicID) Authorize(context security.Context) (security.PublicID, erro
 	util.GoRef(&context) // un-refed when the Java Context object is finalized.
 	contextSign := "Lcom/veyron2/security/Context;"
 	publicIDSign := "Lcom/veyron2/security/PublicID;"
-	cid := C.jmethodID(util.JMethodIDPtr(env, jContextImplClass, "<init>", fmt.Sprintf("(%s)%s", util.LongSign, util.VoidSign)))
+	cid := C.jmethodID(util.JMethodIDPtrOrDie(env, jContextImplClass, "<init>", fmt.Sprintf("(%s)%s", util.LongSign, util.VoidSign)))
 	jContext := C.CallPublicIDNewContextObject(env, jContextImplClass, cid, C.jlong(util.PtrValue(&context)))
-	mid := C.jmethodID(util.JMethodIDPtr(env, C.GetObjectClass(env, id.jPublicID), "authorize", fmt.Sprintf("(%s)%s", contextSign, publicIDSign)))
+	mid := C.jmethodID(util.JMethodIDPtrOrDie(env, C.GetObjectClass(env, id.jPublicID), "authorize", fmt.Sprintf("(%s)%s", contextSign, publicIDSign)))
 	jPublicID := C.CallPublicIDAuthorizeMethod(env, id.jPublicID, mid, jContext)
 	if err := util.JExceptionMsg(env); err != nil {
 		return nil, err
@@ -123,7 +123,7 @@ func (id *publicID) ThirdPartyCaveats() []security.ServiceCaveat {
 	C.AttachCurrentThread(id.jVM, &env, nil)
 	defer C.DetachCurrentThread(id.jVM)
 	serviceCaveatSign := "Lcom/veyron2/security/ServiceCaveat;"
-	mid := C.jmethodID(util.JMethodIDPtr(env, C.GetObjectClass(env, id.jPublicID), "thirdPartyCaveats", fmt.Sprintf("()[%s", serviceCaveatSign)))
+	mid := C.jmethodID(util.JMethodIDPtrOrDie(env, C.GetObjectClass(env, id.jPublicID), "thirdPartyCaveats", fmt.Sprintf("()[%s", serviceCaveatSign)))
 	jServiceCaveats := C.CallPublicIDThirdPartyCaveatsMethod(env, id.jPublicID, mid)
 	length := int(C.GetArrayLength(env, C.jarray(jServiceCaveats)))
 	sCaveats := make([]security.ServiceCaveat, length)
@@ -140,7 +140,7 @@ func (id *publicID) ThirdPartyCaveats() []security.ServiceCaveat {
 func newPublicKey(env *C.JNIEnv, jPublicKey C.jobject) *ecdsa.PublicKey {
 	keySign := "Ljava/security/interfaces/ECPublicKey;"
 	keyInfoSign := "Lcom/veyron/runtimes/google/security/JNIPublicID$ECPublicKeyInfo;"
-	mid := C.jmethodID(util.JMethodIDPtr(env, jPublicIDImplClass, "getKeyInfo", fmt.Sprintf("(%s)%s", keySign, keyInfoSign)))
+	mid := C.jmethodID(util.JMethodIDPtrOrDie(env, jPublicIDImplClass, "getKeyInfo", fmt.Sprintf("(%s)%s", keySign, keyInfoSign)))
 	jKeyInfo := C.CallPublicIDGetKeyInfoMethod(env, jPublicIDImplClass, mid, jPublicKey)
 	keyX := new(big.Int).SetBytes(util.JByteArrayField(env, jKeyInfo, "keyX"))
 	keyY := new(big.Int).SetBytes(util.JByteArrayField(env, jKeyInfo, "keyY"))

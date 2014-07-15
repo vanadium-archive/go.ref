@@ -87,7 +87,7 @@ func Java_com_veyron_runtimes_google_security_PublicID_nativePublicKey(env *C.JN
 		util.JThrowV(env, err)
 		return C.jobject(nil)
 	}
-	cid := C.jmethodID(util.JMethodIDPtr(env, jECPublicKeyInfoClass, "<init>", fmt.Sprintf("([%s[%s[%s%s)%s", util.ByteSign, util.ByteSign, util.ByteSign, util.IntSign, util.VoidSign)))
+	cid := C.jmethodID(util.JMethodIDPtrOrDie(env, jECPublicKeyInfoClass, "<init>", fmt.Sprintf("([%s[%s[%s%s)%s", util.ByteSign, util.ByteSign, util.ByteSign, util.IntSign, util.VoidSign)))
 	return C.CallNewECPublicKeyInfoObject(env, jECPublicKeyInfoClass, cid, C.jbyteArray(util.JByteArrayPtr(env, key.X.Bytes())), C.jbyteArray(util.JByteArrayPtr(env, key.Y.Bytes())), C.jbyteArray(util.JByteArrayPtr(env, encoded)), C.jint(key.Params().BitSize))
 }
 
@@ -109,9 +109,9 @@ func Java_com_veyron_runtimes_google_security_PublicID_nativeThirdPartyCaveats(e
 	jServiceCaveats := C.NewObjectArray(env, C.jsize(len(sCaveats)), jServiceCaveatClass, nil)
 	for i, sCaveat := range sCaveats {
 		util.GoRef(&sCaveat) // Un-refed when the Java Caveat object is finalized.
-		cid := C.jmethodID(util.JMethodIDPtr(env, jCaveatImplClass, "<init>", fmt.Sprintf("(%s)%s", util.LongSign, util.VoidSign)))
+		cid := C.jmethodID(util.JMethodIDPtrOrDie(env, jCaveatImplClass, "<init>", fmt.Sprintf("(%s)%s", util.LongSign, util.VoidSign)))
 		jCaveat := C.CallNewCaveatObject(env, jCaveatImplClass, cid, C.jlong(util.PtrValue(&sCaveat)))
-		scid := C.jmethodID(util.JMethodIDPtr(env, jServiceCaveatClass, "<init>", fmt.Sprintf("(%s%s)%s", util.StringSign, caveatSign, util.VoidSign)))
+		scid := C.jmethodID(util.JMethodIDPtrOrDie(env, jServiceCaveatClass, "<init>", fmt.Sprintf("(%s%s)%s", util.StringSign, caveatSign, util.VoidSign)))
 		jServiceCaveat := C.CallNewServiceCaveatObject(env, jServiceCaveatClass, scid, C.jstring(util.JStringPtr(env, string(sCaveat.Service))), jCaveat)
 		C.SetObjectArrayElement(env, jServiceCaveats, C.jsize(i), jServiceCaveat)
 	}

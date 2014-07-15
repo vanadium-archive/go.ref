@@ -180,7 +180,7 @@ func JThrow(jEnv, jClass interface{}, msg string) {
 func JThrowV(jEnv interface{}, err error) {
 	env := getEnv(jEnv)
 	verr := verror.Convert(err)
-	id := C.jmethodID(JMethodIDPtr(env, jVeyronExceptionClass, "<init>", fmt.Sprintf("(%s%s)%s", StringSign, StringSign, VoidSign)))
+	id := C.jmethodID(JMethodIDPtrOrDie(env, jVeyronExceptionClass, "<init>", fmt.Sprintf("(%s%s)%s", StringSign, StringSign, VoidSign)))
 	obj := C.jthrowable(C.CallNewVeyronExceptionObject(env, jVeyronExceptionClass, id, C.jstring(JStringPtr(env, verr.Error())), C.jstring(JStringPtr(env, string(verr.ErrorID())))))
 	C.Throw(env, obj)
 }
@@ -197,7 +197,7 @@ func JExceptionMsg(jEnv interface{}) error {
 		return nil
 	}
 	C.ExceptionClear(env)
-	id := C.jmethodID(JMethodIDPtr(env, jThrowableClass, "getMessage", fmt.Sprintf("()%s", StringSign)))
+	id := C.jmethodID(JMethodIDPtrOrDie(env, jThrowableClass, "getMessage", fmt.Sprintf("()%s", StringSign)))
 	jMsg := C.CallGetExceptionMessage(env, C.jobject(e), id)
 	return errors.New(GoString(env, jMsg))
 }
@@ -209,11 +209,7 @@ func JExceptionMsg(jEnv interface{}) error {
 func JBoolField(jEnv, jObj interface{}, field string) bool {
 	env := getEnv(jEnv)
 	obj := getObject(jObj)
-	cField := C.CString(field)
-	defer C.free(unsafe.Pointer(cField))
-	cSig := C.CString(BoolSign)
-	defer C.free(unsafe.Pointer(cSig))
-	fid := C.GetFieldID(env, C.GetObjectClass(env, obj), cField, cSig)
+	fid := C.jfieldID(JFieldIDPtrOrDie(env, C.GetObjectClass(env, obj), field, BoolSign))
 	return C.GetBooleanField(env, obj, fid) != C.JNI_FALSE
 }
 
@@ -224,11 +220,7 @@ func JBoolField(jEnv, jObj interface{}, field string) bool {
 func JIntField(jEnv, jObj interface{}, field string) int {
 	env := getEnv(jEnv)
 	obj := getObject(jObj)
-	cField := C.CString(field)
-	defer C.free(unsafe.Pointer(cField))
-	cSig := C.CString(IntSign)
-	defer C.free(unsafe.Pointer(cSig))
-	fid := C.GetFieldID(env, C.GetObjectClass(env, obj), cField, cSig)
+	fid := C.jfieldID(JFieldIDPtrOrDie(env, C.GetObjectClass(env, obj), field, IntSign))
 	return int(C.GetIntField(env, obj, fid))
 }
 
@@ -240,11 +232,7 @@ func JIntField(jEnv, jObj interface{}, field string) int {
 func JStringField(jEnv, jObj interface{}, field string) string {
 	env := getEnv(jEnv)
 	obj := getObject(jObj)
-	cField := C.CString(field)
-	defer C.free(unsafe.Pointer(cField))
-	cSig := C.CString(StringSign)
-	defer C.free(unsafe.Pointer(cSig))
-	fid := C.GetFieldID(env, C.GetObjectClass(env, obj), cField, cSig)
+	fid := C.jfieldID(JFieldIDPtrOrDie(env, C.GetObjectClass(env, obj), field, StringSign))
 	jStr := C.jstring(C.GetObjectField(env, obj, fid))
 	return GoString(env, jStr)
 }
@@ -257,11 +245,7 @@ func JStringField(jEnv, jObj interface{}, field string) string {
 func JStringArrayField(jEnv, jObj interface{}, field string) []string {
 	env := getEnv(jEnv)
 	obj := getObject(jObj)
-	cField := C.CString(field)
-	defer C.free(unsafe.Pointer(cField))
-	cSig := C.CString("[" + StringSign)
-	defer C.free(unsafe.Pointer(cSig))
-	fid := C.GetFieldID(env, C.GetObjectClass(env, obj), cField, cSig)
+	fid := C.jfieldID(JFieldIDPtrOrDie(env, C.GetObjectClass(env, obj), field, ArraySign(StringSign)))
 	jStrArray := C.jobjectArray(C.GetObjectField(env, obj, fid))
 	return GoStringArray(env, jStrArray)
 }
@@ -274,11 +258,7 @@ func JStringArrayField(jEnv, jObj interface{}, field string) []string {
 func JByteArrayField(jEnv, jObj interface{}, field string) []byte {
 	env := getEnv(jEnv)
 	obj := getObject(jObj)
-	cField := C.CString(field)
-	defer C.free(unsafe.Pointer(cField))
-	cSig := C.CString("[" + StringSign)
-	defer C.free(unsafe.Pointer(cSig))
-	fid := C.GetFieldID(env, C.GetObjectClass(env, obj), cField, cSig)
+	fid := C.jfieldID(JFieldIDPtrOrDie(env, C.GetObjectClass(env, obj), field, ArraySign(ByteSign)))
 	arr := C.jbyteArray(C.GetObjectField(env, obj, fid))
 	if arr == nil {
 		return nil
@@ -345,21 +325,43 @@ func GoByteArray(jEnv, jArr interface{}) (ret []byte) {
 	return
 }
 
-// JMethodID returns the Java method ID for the given method.
+// JFieldIDPtrOrDie returns the Java field ID for the given field.
 // NOTE: Because CGO creates package-local types and because this method may be
 // invoked from a different package, Java types are passed in an empty interface
 // and then cast into their package local types.
-func JMethodIDPtr(jEnv, jClass interface{}, name, signature string) unsafe.Pointer {
+func JFieldIDPtrOrDie(jEnv, jClass interface{}, name, sign string) unsafe.Pointer {
+	env := getEnv(jEnv)
+	class := getClass(jClass)
+	cName := C.CString(name)
+	defer C.free(unsafe.Pointer(cName))
+	cSign := C.CString(sign)
+	defer C.free(unsafe.Pointer(cSign))
+	ptr := unsafe.Pointer(C.GetFieldID(env, class, cName, cSign))
+	if err := JExceptionMsg(env); err != nil || ptr == nil {
+		panic(fmt.Sprintf("couldn't find field %s: %v", name, err))
+	}
+	return ptr
+}
+
+// JMethodIDPtrOrDie returns the Java method ID for the given method.
+// NOTE: Because CGO creates package-local types and because this method may be
+// invoked from a different package, Java types are passed in an empty interface
+// and then cast into their package local types.
+func JMethodIDPtrOrDie(jEnv, jClass interface{}, name, signature string) unsafe.Pointer {
 	env := getEnv(jEnv)
 	class := getClass(jClass)
 	cName := C.CString(name)
 	defer C.free(unsafe.Pointer(cName))
 	cSignature := C.CString(signature)
 	defer C.free(unsafe.Pointer(cSignature))
-	return unsafe.Pointer(C.GetMethodID(env, class, cName, cSignature))
+	ptr := unsafe.Pointer(C.GetMethodID(env, class, cName, cSignature))
+	if err := JExceptionMsg(env); err != nil || ptr == nil {
+		panic(fmt.Sprintf("couldn't find method %s: %v", name, err))
+	}
+	return ptr
 }
 
-// JFindClassOrDie returns the global references to the Java class with the
+// JFindClasPtrsOrDie returns the global references to the Java class with the
 // given pathname, or panic-s if the class cannot be found.
 // NOTE: Because CGO creates package-local types and because this method may be
 // invoked from a different package, Java types are passed in an empty interface

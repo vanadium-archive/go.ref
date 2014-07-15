@@ -58,7 +58,7 @@ func (d *dispatcher) Lookup(suffix string) (ipc.Invoker, security.Authorizer, er
 	defer C.DetachCurrentThread(d.jVM)
 
 	// Call Java dispatcher's lookup() method.
-	lid := C.jmethodID(util.JMethodIDPtr(env, C.GetObjectClass(env, d.jDispatcher), "lookup", fmt.Sprintf("(%s)%s", util.StringSign, util.ObjectSign)))
+	lid := C.jmethodID(util.JMethodIDPtrOrDie(env, C.GetObjectClass(env, d.jDispatcher), "lookup", fmt.Sprintf("(%s)%s", util.StringSign, util.ObjectSign)))
 	jObj := C.CallLookupMethod(env, d.jDispatcher, lid, C.jstring(util.JStringPtr(env, suffix)))
 	if err := util.JExceptionMsg(env); err != nil {
 		return nil, nil, fmt.Errorf("error invoking Java dispatcher's lookup() method: %v", err)

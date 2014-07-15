@@ -58,10 +58,10 @@ func (c *caveat) Validate(context security.Context) error {
 	C.AttachCurrentThread(c.jVM, &env, nil)
 	defer C.DetachCurrentThread(c.jVM)
 	util.GoRef(&context) // un-refed when the Java Context object is finalized.
-	cid := C.jmethodID(util.JMethodIDPtr(env, jContextImplClass, "<init>", fmt.Sprintf("(%s)%s", util.LongSign, util.VoidSign)))
+	cid := C.jmethodID(util.JMethodIDPtrOrDie(env, jContextImplClass, "<init>", fmt.Sprintf("(%s)%s", util.LongSign, util.VoidSign)))
 	jContext := C.CallCaveatNewContextObject(env, jContextClass, cid, C.jlong(util.PtrValue(&context)))
 	contextSign := "Lcom/veyron2/security/Context;"
-	mid := C.jmethodID(util.JMethodIDPtr(env, C.GetObjectClass(env, c.jCaveat), "validate", fmt.Sprintf("(%s)%s", contextSign, util.VoidSign)))
+	mid := C.jmethodID(util.JMethodIDPtrOrDie(env, C.GetObjectClass(env, c.jCaveat), "validate", fmt.Sprintf("(%s)%s", contextSign, util.VoidSign)))
 	C.CallCaveatValidateMethod(env, c.jCaveat, mid, jContext)
 	return util.JExceptionMsg(env)
 }

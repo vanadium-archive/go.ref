@@ -62,7 +62,7 @@ func (c *context) Method() string {
 	var env *C.JNIEnv
 	C.AttachCurrentThread(c.jVM, &env, nil)
 	defer C.DetachCurrentThread(c.jVM)
-	mid := C.jmethodID(util.JMethodIDPtr(env, C.GetObjectClass(env, c.jContext), "method", fmt.Sprintf("()%s", util.StringSign)))
+	mid := C.jmethodID(util.JMethodIDPtrOrDie(env, C.GetObjectClass(env, c.jContext), "method", fmt.Sprintf("()%s", util.StringSign)))
 	return util.GoString(env, C.CallContextStringMethod(env, c.jContext, mid))
 }
 
@@ -70,7 +70,7 @@ func (c *context) Name() string {
 	var env *C.JNIEnv
 	C.AttachCurrentThread(c.jVM, &env, nil)
 	defer C.DetachCurrentThread(c.jVM)
-	mid := C.jmethodID(util.JMethodIDPtr(env, C.GetObjectClass(env, c.jContext), "name", fmt.Sprintf("()%s", util.StringSign)))
+	mid := C.jmethodID(util.JMethodIDPtrOrDie(env, C.GetObjectClass(env, c.jContext), "name", fmt.Sprintf("()%s", util.StringSign)))
 	return util.GoString(env, C.CallContextStringMethod(env, c.jContext, mid))
 }
 
@@ -78,7 +78,7 @@ func (c *context) Suffix() string {
 	var env *C.JNIEnv
 	C.AttachCurrentThread(c.jVM, &env, nil)
 	defer C.DetachCurrentThread(c.jVM)
-	mid := C.jmethodID(util.JMethodIDPtr(env, C.GetObjectClass(env, c.jContext), "suffix", fmt.Sprintf("()%s", util.StringSign)))
+	mid := C.jmethodID(util.JMethodIDPtrOrDie(env, C.GetObjectClass(env, c.jContext), "suffix", fmt.Sprintf("()%s", util.StringSign)))
 	return util.GoString(env, C.CallContextStringMethod(env, c.jContext, mid))
 }
 
@@ -86,7 +86,7 @@ func (c *context) Label() security.Label {
 	var env *C.JNIEnv
 	C.AttachCurrentThread(c.jVM, &env, nil)
 	defer C.DetachCurrentThread(c.jVM)
-	mid := C.jmethodID(util.JMethodIDPtr(env, C.GetObjectClass(env, c.jContext), "label", fmt.Sprintf("()%s", util.IntSign)))
+	mid := C.jmethodID(util.JMethodIDPtrOrDie(env, C.GetObjectClass(env, c.jContext), "label", fmt.Sprintf("()%s", util.IntSign)))
 	return security.Label(C.CallContextIntMethod(env, c.jContext, mid))
 }
 
@@ -100,7 +100,7 @@ func (c *context) LocalID() security.PublicID {
 	C.AttachCurrentThread(c.jVM, &env, nil)
 	defer C.DetachCurrentThread(c.jVM)
 	publicIDSign := "Lcom/veyron2/security/PublicID;"
-	mid := C.jmethodID(util.JMethodIDPtr(env, C.GetObjectClass(env, c.jContext), "localID", fmt.Sprintf("()%s", publicIDSign)))
+	mid := C.jmethodID(util.JMethodIDPtrOrDie(env, C.GetObjectClass(env, c.jContext), "localID", fmt.Sprintf("()%s", publicIDSign)))
 	jID := C.CallContextPublicIDMethod(env, c.jContext, mid)
 	return newPublicID(env, jID)
 }
@@ -110,7 +110,7 @@ func (c *context) RemoteID() security.PublicID {
 	C.AttachCurrentThread(c.jVM, &env, nil)
 	defer C.DetachCurrentThread(c.jVM)
 	publicIDSign := "Lcom/veyron2/security/PublicID;"
-	mid := C.jmethodID(util.JMethodIDPtr(env, C.GetObjectClass(env, c.jContext), "remoteID", fmt.Sprintf("()%s", publicIDSign)))
+	mid := C.jmethodID(util.JMethodIDPtrOrDie(env, C.GetObjectClass(env, c.jContext), "remoteID", fmt.Sprintf("()%s", publicIDSign)))
 	jID := C.CallContextPublicIDMethod(env, c.jContext, mid)
 	return newPublicID(env, jID)
 }
@@ -119,7 +119,7 @@ func (c *context) LocalEndpoint() naming.Endpoint {
 	var env *C.JNIEnv
 	C.AttachCurrentThread(c.jVM, &env, nil)
 	defer C.DetachCurrentThread(c.jVM)
-	mid := C.jmethodID(util.JMethodIDPtr(env, C.GetObjectClass(env, c.jContext), "localEndpoint", fmt.Sprintf("()%s", util.StringSign)))
+	mid := C.jmethodID(util.JMethodIDPtrOrDie(env, C.GetObjectClass(env, c.jContext), "localEndpoint", fmt.Sprintf("()%s", util.StringSign)))
 	// TODO(spetrovic): create a Java Endpoint interface.
 	epStr := util.GoString(env, C.CallContextStringMethod(env, c.jContext, mid))
 	ep, err := inaming.NewEndpoint(epStr)
@@ -133,7 +133,7 @@ func (c *context) RemoteEndpoint() naming.Endpoint {
 	var env *C.JNIEnv
 	C.AttachCurrentThread(c.jVM, &env, nil)
 	defer C.DetachCurrentThread(c.jVM)
-	mid := C.jmethodID(util.JMethodIDPtr(env, C.GetObjectClass(env, c.jContext), "remoteEndpoint", fmt.Sprintf("()%s", util.StringSign)))
+	mid := C.jmethodID(util.JMethodIDPtrOrDie(env, C.GetObjectClass(env, c.jContext), "remoteEndpoint", fmt.Sprintf("()%s", util.StringSign)))
 	// TODO(spetrovic): create a Java Endpoint interface.
 	epStr := util.GoString(env, C.CallContextStringMethod(env, c.jContext, mid))
 	ep, err := inaming.NewEndpoint(epStr)

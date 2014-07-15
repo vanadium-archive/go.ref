@@ -65,11 +65,11 @@ func (a *authorizer) Authorize(context security.Context) error {
 	defer C.DetachCurrentThread(a.jVM)
 	// Create a Java context.
 	util.GoRef(&context) // Un-refed when the Java Context object is finalized.
-	cid := C.jmethodID(util.JMethodIDPtr(env, jContextImplClass, "<init>", fmt.Sprintf("(%s)%s", util.LongSign, util.VoidSign)))
+	cid := C.jmethodID(util.JMethodIDPtrOrDie(env, jContextImplClass, "<init>", fmt.Sprintf("(%s)%s", util.LongSign, util.VoidSign)))
 	jContext := C.CallAuthorizerNewContextObject(env, jContextImplClass, cid, C.jlong(util.PtrValue(&context)))
 	// Run Java Authorizer.
 	contextSign := "Lcom/veyron2/security/Context;"
-	mid := C.jmethodID(util.JMethodIDPtr(env, C.GetObjectClass(env, a.jAuth), "authorize", fmt.Sprintf("(%s)%s", contextSign, util.VoidSign)))
+	mid := C.jmethodID(util.JMethodIDPtrOrDie(env, C.GetObjectClass(env, a.jAuth), "authorize", fmt.Sprintf("(%s)%s", contextSign, util.VoidSign)))
 	if mid == nil {
 		return fmt.Errorf("Srdjan's error")
 	}

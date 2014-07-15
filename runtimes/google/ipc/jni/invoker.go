@@ -36,13 +36,13 @@ import "C"
 
 func newInvoker(env *C.JNIEnv, jVM *C.JavaVM, jObj C.jobject) (*invoker, error) {
 	// Create a new Java VDLInvoker object.
-	cid := C.jmethodID(util.JMethodIDPtr(env, jVDLInvokerClass, "<init>", fmt.Sprintf("(%s)%s", util.ObjectSign, util.VoidSign)))
+	cid := C.jmethodID(util.JMethodIDPtrOrDie(env, jVDLInvokerClass, "<init>", fmt.Sprintf("(%s)%s", util.ObjectSign, util.VoidSign)))
 	jInvoker := C.CallNewInvokerObject(env, jVDLInvokerClass, cid, jObj)
 	if err := util.JExceptionMsg(env); err != nil {
 		return nil, fmt.Errorf("error creating Java VDLInvoker object: %v", err)
 	}
 	// Fetch the argGetter for the object.
-	pid := C.jmethodID(util.JMethodIDPtr(env, jVDLInvokerClass, "getImplementedServices", fmt.Sprintf("()%s", util.ArraySign(util.StringSign))))
+	pid := C.jmethodID(util.JMethodIDPtrOrDie(env, jVDLInvokerClass, "getImplementedServices", fmt.Sprintf("()%s", util.ArraySign(util.StringSign))))
 	jPathArray := C.jobjectArray(C.CallGetInterfacePath(env, jInvoker, pid))
 	paths := util.GoStringArray(env, jPathArray)
 	getter, err := newArgGetter(paths)
@@ -108,7 +108,7 @@ func (i *invoker) Invoke(method string, call ipc.ServerCall, argptrs []interface
 		err = fmt.Errorf("couldn't find VDL method %q with %d args", method, len(argptrs))
 	}
 	sCall := newServerCall(call, mArgs)
-	cid := C.jmethodID(util.JMethodIDPtr(env, jServerCallClass, "<init>", fmt.Sprintf("(%s)%s", util.LongSign, util.VoidSign)))
+	cid := C.jmethodID(util.JMethodIDPtrOrDie(env, jServerCallClass, "<init>", fmt.Sprintf("(%s)%s", util.LongSign, util.VoidSign)))
 	jServerCall := C.CallNewServerCallObject(env, jServerCallClass, cid, C.jlong(util.PtrValue(sCall)))
 	util.GoRef(sCall) // unref-ed when jServerCall is garbage-collected
 
@@ -120,7 +120,7 @@ func (i *invoker) Invoke(method string, call ipc.ServerCall, argptrs []interface
 	// Invoke the method.
 	const callSign = "Lcom/veyron2/ipc/ServerCall;"
 	const replySign = "Lcom/veyron/runtimes/google/VDLInvoker$InvokeReply;"
-	mid := C.jmethodID(util.JMethodIDPtr(env, C.GetObjectClass(env, i.jInvoker), "invoke", fmt.Sprintf("(%s%s[%s)%s", util.StringSign, callSign, util.StringSign, replySign)))
+	mid := C.jmethodID(util.JMethodIDPtrOrDie(env, C.GetObjectClass(env, i.jInvoker), "invoke", fmt.Sprintf("(%s%s[%s)%s", util.StringSign, callSign, util.StringSign, replySign)))
 	jReply := C.CallInvokeMethod(env, i.jInvoker, mid, C.jstring(util.JStringPtr(env, util.CamelCase(method))), jServerCall, jArgs)
 	if err := util.JExceptionMsg(env); err != nil {
 		return nil, fmt.Errorf("error invoking Java method %q: %v", method, err)
