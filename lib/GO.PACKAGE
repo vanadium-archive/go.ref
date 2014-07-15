@@ -1,0 +1,8 @@
+{
+	"dependencies": {
+		"incoming": [
+			{"allow": "veyron/lib/..."},
+			{"allow": "...", "comment": "dependencies on veyron/lib are temporarily allowed"}
+		]
+	}
+}
