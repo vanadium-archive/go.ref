@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	istore "veyron/services/store/server"
+	_ "veyron/services/store/typeregistryhack"
 
 	"veyron2/ipc"
 	"veyron2/naming"
