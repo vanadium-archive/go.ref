@@ -1,4 +1,5 @@
 <link rel="import" href="../../third-party/polymer/polymer.html">
+<link rel="import" href="../../third-party/paper-button/paper-button.html">
 
 <polymer-element name="p2b-status" attributes="status">
 
@@ -6,118 +7,83 @@
     <link rel="stylesheet" href="../common/common.css">
     <link rel="stylesheet" href="component.css">
     <h3>Status</h3>
-    <p>{{ statusText }}</p>
-    <div class="{{ {hidden : !serviceState.published} | tokenList}}">
+    <p>{{ serviceState | formatServiceState }}</p>
+    <div class="{{ {hidden : !serviceState.published} | tokenList }}">
       <h3>Name</h3>
       <p>{{ serviceState.fullServiceName }}</p>
 
       <h3>Published on</h3>
-      <p>{{ publishDate }}</p>
+      <p>{{ serviceState.date | formatDate }}</p>
 
-      <h3>Uptime</h3>
-      <p>{{ uptime }}</p>
+      <h3>Running Since</h3>
+      <p>{{ runningSince }}</p>
 
       <h3>Number of pipe requests</h3>
-      <p>{{ numPipes }}</p>
+      <p>{{ serviceState.numPipes | formatInteger }}</p>
 
       <h3>Total bytes received</h3>
-      <p>{{ numBytes }}</p>
+      <p>{{ serviceState.numBytes | formatBytes }}</p>
     </div>
-    <paper-button class="paper colored red" inkColor="#A9352C" on-click="{{ stopAction }}">Stop Service</paper-button>
+    <paper-button class="paper colored red" inkColor="#A9352C" on-click="{{ stopAction }}">Stop</paper-button>
   </template>
   <script>
-    Polymer('p2b-status', {
+    System.import('libs/utils/formatting').then(function(formatter) {
+      Polymer('p2b-status', {
 
-      /*
-       * Dynamic binding for the state of publishing p2b service.
-       * Any changes to this object will be reflected in the UI automatically
-       */
-      serviceState: null,
+        /*
+         * Dynamic binding for the state of publishing p2b service.
+         * Any changes to this object will be reflected in the UI automatically
+         */
+        serviceState: null,
 
-      /*
-       * A function that can format time duration
-       * @private
-       * @type {function}
-       */
-      formatDuration: null,
+        /*
+         * Human friendly formatting functions. Because polymer filter expressions
+         * don't accept obj.func we wrap them here
+         * @private
+         */
+        formatDate: formatter.formatDate,
+        formatInteger: formatter.formatInteger,
+        formatBytes: formatter.formatBytes,
 
-      /*
-       * Status text
-       * @private
-       * @type {string}
-       */
-      get statusText() {
-        if (!this.serviceState) {
-          return '';
+        /*
+         * Auto-updating Uptime text
+         * @private
+         * @type {string}
+         */
+        get runningSince() {
+          if (!this.serviceState) { return; }
+          return formatter.formatRelativeTime(this.serviceState.date);
+        },
+
+        /*
+         * Status text
+         * @private
+         * @type {string}
+         */
+        formatServiceState: function(serviceState) {
+          if (!serviceState) {
+            return '';
+          }
+          if (serviceState.published) {
+            return 'Published';
+          } else if(serviceState.publishing) {
+            return 'Publishing';
+          } else if(serviceState.stopping) {
+            return 'Stopping';
+          }  else {
+            return 'Stopped';
+          }
+        },
+
+        /*
+         * Stop action. Fires when user decides to stop the p2b service.
+         * @event
+         */
+        stopAction: function() {
+          this.fire('stop');
         }
-        if (this.serviceState.published) {
-          return 'Published';
-        } else if(this.serviceState.publishing) {
-          return 'Publishing';
-        } else if(this.serviceState.stopping) {
-          return 'Stopping';
-        }  else {
-          return 'Stopped';
-        }
-      },
 
-      /*
-       * Formatted publish date
-       * @private
-       * @type {string}
-       */
-      get publishDate() {
-        if (!this.serviceState || !this.serviceState.published) {
-          return '';
-        }
-        return this.serviceState.date.toString();
-      },
-
-      /*
-       * Formatted uptime
-       * @private
-       * @type {string}
-       */
-      get uptime() {
-        if (!this.serviceState || !this.serviceState.published) {
-          return '';
-        }
-        var elapsedSeconds = Math.floor((new Date() - this.serviceState.date) / 1000);
-        return this.formatDuration(elapsedSeconds);
-      },
-
-      /*
-       * Formatted number of pipes
-       * @private
-       * @type {string}
-       */
-      get numPipes() {
-        if (!this.serviceState || !this.serviceState.published) {
-          return '';
-        }
-        return this.serviceState.numPipes.toString();
-      },
-
-      /*
-       * Formatted number of bytes
-       * @private
-       * @type {string}
-       */
-      get numBytes() {
-        if (!this.serviceState || !this.serviceState.published) {
-          return '';
-        }
-        return this.serviceState.numBytes.toString();
-      },
-
-      /*
-       * Stop action. Fires when user decides to stop the p2b service.
-       * @event
-       */
-      stopAction: function() {
-        this.fire('stop');
-      }
-
+      });
     });
   </script>
 </polymer-element>

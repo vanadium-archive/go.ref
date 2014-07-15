@@ -9,6 +9,7 @@
 import { View } from 'view';
 import { PipeViewer } from 'pipe-viewer';
 import { streamUtil } from 'stream-helpers';
+import { formatDate } from 'formatting';
 import { Logger } from 'logger'
 import { vLogDataSource } from './data-source';
 
@@ -51,6 +52,7 @@ class vLogPipeViewer extends PipeViewer {
  */
 function addAdditionalUIProperties(item) {
   addIconProperty(item);
+  addFormattedDate(item);
 }
 
 /*
@@ -76,6 +78,14 @@ function addIconProperty(item) {
   }
 
   item.icon = iconName;
+}
+
+/*
+ * Adds a human friendly date field
+ * @private
+ */
+function addFormattedDate(item) {
+  item.formattedDate = formatDate(item.date);
 }
 
 export default vLogPipeViewer;

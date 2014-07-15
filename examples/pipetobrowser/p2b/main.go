@@ -8,6 +8,8 @@ import (
 	"io"
 	"os"
 
+	"veyron2"
+	"veyron2/ipc"
 	"veyron2/rt"
 
 	"veyron/examples/pipetobrowser"
@@ -73,7 +75,7 @@ func main() {
 		return
 	}
 
-	stream, err := s.Pipe(runtime.NewContext())
+	stream, err := s.Pipe(runtime.NewContext(), veyron2.CallTimeout(ipc.NoTimeout))
 	if err != nil {
 		log.Errorf("failed to pipe to '%s' please ensure p2b service is running in the browser and name is correct.\nERR:%v", name, err)
 		return
@@ -83,24 +85,17 @@ func main() {
 		stream,
 	}
 
-	numBytes, err := io.Copy(w, os.Stdin)
+	_, err = io.Copy(w, os.Stdin)
 	if err != nil {
 		log.Errorf("failed to copy the stdin pipe to the outgoing stream\nERR:%v", err)
 		return
 	}
 
-	stream.CloseSend()
-	result, err := stream.Finish()
+	_, err = stream.Finish()
 	if err != nil {
 		log.Errorf("error finishing stream: %v", err)
 		return
 	}
-
-	if numBytes != result {
-		log.Infof("*** number of bytes sent and received do NOT match ***")
-	}
-	log.Infof("%d bytes were piped to browser", numBytes)
-	log.Infof("%d bytes were received by browser", result)
 
 	fmt.Println("Finished piping to browser! Thanks for using p2b.")
 }

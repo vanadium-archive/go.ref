@@ -69,19 +69,32 @@ export function publish(name, pipeRequestHandler) {
         var stream = streamCopier.pipe(bufferStream).pipe(streamByteCounter);
         stream.copier = streamCopier;
 
-        bufferStream.on('end', () => {
+        streamByteCounter.on('end', () => {
           log.debug('end of stream');
           // send total number of bytes received for this call as final result
-          resolve(numBytesForThisCall);
+          resolve();
         });
 
-        bufferStream.on('error', (e) => {
+        stream.on('error', (e) => {
           log.debug('stream error', e);
-          reject(e);
+          // TODO(aghassemi) envyor issue #50
+          // we want to reject but because of #50 we can't
+          // reject('Browser P2B threw an exception. Please see browser console for details.');
+          // reject(e);
+          resolve();
         });
 
         state.numPipes++;
-        pipeRequestHandler($suffix, stream);
+        try {
+          pipeRequestHandler($suffix, stream);
+        } catch(e) {
+          // TODO(aghassemi) envyor issue #50
+          // we want to reject but because of #50 we can't
+          // reject('Browser P2B threw an exception. Please see browser console for details.');
+          log.debug('pipeRequestHandler error', e);
+          resolve();
+        }
+
       });
     }
   };

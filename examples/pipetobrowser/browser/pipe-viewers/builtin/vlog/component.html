@@ -12,7 +12,7 @@
     <link rel="stylesheet" href="../../../libs/css/common-style.css">
     <link rel="stylesheet" href="component.css">
 
-    <p2b-grid id="grid" defaultSortKey="date" defaultSortAscending dataSource="{{ dataSource }}" summary="Data Grid displaying veyron log items in a tabular format with filters and search options.">
+    <p2b-grid id="grid" defaultSortKey="date" dataSource="{{ dataSource }}" summary="Data Grid displaying veyron log items in a tabular format with filters and search options.">
 
       <!-- Search -->
       <p2b-grid-search label="Search Logs"></p2b-grid-search>
@@ -48,8 +48,12 @@
       <p2b-grid-column label="Message" key="message" primary flex="8" minFlex="5" priority="1" >
         <template><div class="message-text">{{ item.message }}</div></template>
       </p2b-grid-column>
-      <p2b-grid-column label="Date" key="date" sortable flex="6" minFlex="3" priority="3">
-        <template><span class="smaller-text">{{ item.date }}</span></template>
+      <p2b-grid-column label="Date" key="date" sortable flex="4" minFlex="3" priority="3">
+        <template>
+          <abbr gridOnly title="{{item.date}}">{{ item.formattedDate }}</abbr>
+          <span moreInfoOnly>{{item.date}}</span>
+        </template>
+
       </p2b-grid-column>
       <p2b-grid-column label="Threadid" key="threadid" sortable flex="0" priority="5">
         <template>{{ item.threadId }}</template>

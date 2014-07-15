@@ -12,8 +12,11 @@
   </template>
   <script>
     Polymer('p2b-plugin-console', {
-      autoScroll: true,
-      textBuffer: [],
+      ready: function() {
+        this.textBuffer = [];
+        this.autoScroll = true;
+      },
+
       attached: function() {
         this.renderLoop();
       },

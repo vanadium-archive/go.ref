@@ -26,16 +26,12 @@ table tbody tr:nth-child(2) td {
 
 .more-icon {
   fill: #0a7e07;
+  color: #0a7e07;
 }
 
 paper-dialog {
   max-width: 80em;
   width: 80vw;
-}
-
-/* hack: wrong z-index in shadow of paper-dialog disables text selection in dialog */
-paper-dialog /deep/ #shadow {
-  z-index: -1;
 }
 
 .more-dialog-content .heading {
@@ -83,6 +79,10 @@ paper-dialog /deep/ #shadow {
 
 .more-dialog-content [moreInfoOnly] {
   display: initial;
+}
+
+.more-dialog-content [gridOnly] {
+  display:none;
 }
 
 .paginator {

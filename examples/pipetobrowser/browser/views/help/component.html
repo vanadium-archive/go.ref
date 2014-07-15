@@ -1,4 +1,4 @@
-<link rel="import" href="/libs/vendor/polymer/polymer/polymer.html">
+<link rel="import" href="../../third-party/polymer/polymer.html">
 
 <polymer-element name="p2b-help">
 <template>
@@ -40,10 +40,13 @@
   <pre class="code">cat /dev/urandom | p2b {{publishedName}}/dev/null</pre>
 
   <h3>Remote Viewers</h3>
-  <p>In addition to built-in viewers, ad-hoc remote viewers can be hosted anywhere and used with P2B. Remote viewers are referenced by their Url without the .js extension at the end og the plug-in JavaScript file</p>
-  <pre class="code">echo "Hello World" | p2b {{publishedName}}/http://googledrive.com/host/0BzmT5cnKdCAKa3hzNEVCU2tnd3c/helloworld</pre>
+  <p>In addition to built-in viewers, ad-hoc remote viewers can be hosted anywhere and used with P2B. Remote viewers are referenced by the Url of the plug-in JavaScript file</p>
+  <pre class="code">echo "Hello World" | p2b {{publishedName}}/http://googledrive.com/host/0BzmT5cnKdCAKa3hzNEVCU2tnd3c/helloworld.js</pre>
   <p>Writing remote viewers is not different than writing built-in ones and basic plug-ins are pretty straight forward to write.</p>
   <p>At high level, plug-ins are expected to implement a <span class="mono">PipeViewer</span> interface which has a <span class="mono">play(stream)</span> method. A <span class="mono">view</span> (which is a wrapper for a DOM element) is expected to be returned from <span class="mono">play(stream)</span>. You can look at the hello world remote plug-in <a href="http://googledrive.com/host/0BzmT5cnKdCAKa3hzNEVCU2tnd3c/helloworld.js" target="_blank">code on Google drive</a> to get started on writing new remote plug-ins</p>
+  <p>It is also possible to write the UI layer of your plug-in in HTML and CSS as a Web Component to avoid mixing logic and layout/styling in a single file.</p>
+  <p>Grumpy cat meme plug-in takes that approach. You can look at the <a href="http://googledrive.com/host/0BzmT5cnKdCAKV1p6Q0pjak5Kams/meme.js" target="_blank">JavaScript</a> and <a onClick="window.open('view-source:' + 'http://googledrive.com/host/0BzmT5cnKdCAKV1p6Q0pjak5Kams/meme.html');">HTML Web Component</a> source files.</p>
+  <pre class="code">echo "I take stuff from stdin, and send them to /dev/null" | p2b {{publishedName}}/http://googledrive.com/host/0BzmT5cnKdCAKV1p6Q0pjak5Kams/meme.js</pre>
 </template>
 <script>
   Polymer('p2b-help', {

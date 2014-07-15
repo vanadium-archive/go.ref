@@ -67,8 +67,11 @@ function actionHandler(name, stream) {
 
   // Add a new tab and show a loading indicator for now,
   // then replace the loading view with the actual viewer when ready
+  // close the stream when tab closes
   var loadingView = new LoadingView();
-  pipesViewInstance.addTab(tabKey, tabName, loadingView);
+  pipesViewInstance.addTab(tabKey, tabName, loadingView, () => {
+    stream.end();
+  });
 
   // Add the redirect stream action
   var icon = 'hardware:cast';

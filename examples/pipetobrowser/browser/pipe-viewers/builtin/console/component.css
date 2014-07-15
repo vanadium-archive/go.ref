@@ -15,3 +15,12 @@ pre {
 
   color: #ffffff;
 }
+
+.auto-scroll {
+  position: fixed;
+  right: 40px;
+  bottom: 0;
+  opacity: 0.8;
+  padding: 0.8em;
+  background-color: #ffeb3b;
+}

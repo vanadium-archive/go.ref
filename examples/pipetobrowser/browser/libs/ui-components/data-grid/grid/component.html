@@ -157,15 +157,15 @@
 
       /*
        * Number if items displayed in each page.
-       * Defaults to 30
+       * Defaults to 20
        * @type {integer}
        */
-      pageSize: 30,
+      pageSize: 20,
 
       showMoreInfo: function(e) {
         var item = e.target.templateInstance.model.item;
         this.selectedItems = [item];
-        this.$.dialog.opened = true;
+        this.$.dialog.toggle();
       },
 
       ready: function() {
@@ -333,7 +333,7 @@
           col.columnData.flex = col.columnData.origFlex;
         }
 
-        if (tableWidth >= minWidth) {
+        if (tableWidth === 0 || tableWidth >= minWidth) {
           return;
         }
 

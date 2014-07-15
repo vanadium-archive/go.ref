@@ -82,7 +82,9 @@ function loadViewer(name) {
  */
 function getPath(name) {
   if(isAbsoulteUrl(name)) {
-    return name;
+    var encodedName = encodeURIComponent(name);
+    System.paths[encodedName] = name;
+    return encodedName;
   } else {
     return 'pipe-viewers/builtin/' + name + '/plugin';
   }

@@ -12,7 +12,7 @@ import { page } from 'runtime/context'
 import { HelpView } from 'views/help/view'
 
 var log = new Logger('actions/navigate-help');
-const ACTION_NAME = 'help';
+var ACTION_NAME = 'help';
 
 /*
  * Registers the action
