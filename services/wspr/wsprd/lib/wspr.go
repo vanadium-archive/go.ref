@@ -219,7 +219,7 @@ func (ctx WSPR) newClient(privateId string) (ipc.Client, error) {
 	var err error
 	if client == nil {
 		// TODO(bjornick): Use the identity to create the client.
-		client, err = ctx.rt.NewClient()
+		client, err = ctx.rt.NewClient(veyron2.CallTimeout(ipc.NoTimeout))
 		if err != nil {
 			return nil, fmt.Errorf("error creating client: %v", err)
 		}
