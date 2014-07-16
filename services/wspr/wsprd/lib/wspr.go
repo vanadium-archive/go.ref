@@ -461,6 +461,7 @@ func (wsp *websocketPipe) sendParsedMessageOnStream(id int64, msg interface{}, w
 	stream := wsp.outstandingStreams[id].stream
 	if stream == nil {
 		w.sendError(fmt.Errorf("unknown stream"))
+		return
 	}
 
 	stream.Send(msg, w)
