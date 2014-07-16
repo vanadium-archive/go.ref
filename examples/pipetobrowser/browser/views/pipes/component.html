@@ -61,8 +61,9 @@
        * @param {string} key Key of the tab to add
        * @param {string} name Name of the tab to add
        * @param {DOMElement} el Content of the tab
+       * @param {function} onClose Optional onClose callback.
        */
-      addTab: function(key, name, el) {
+      addTab: function(key, name, el, onClose) {
         var self = this;
 
         // Create a tab thumb
@@ -75,6 +76,9 @@
         tabToolbar.title = name;
         tabToolbar.addEventListener('close-action', function() {
           self.removeTab(key);
+          if (onClose) {
+            onClose();
+          }
         });
         tabToolbar.addEventListener('fullscreen-action', function() {
           var tabContent = self.pipeTabs[key].tabContent;
@@ -88,7 +92,6 @@
         tabContent.appendChild(el);
 
         this.$.tabPages.appendChild(tabContent);
-        this.$.tabs.appendChild(tab);
 
         // Add the tab to our list.
         this.pipeTabs[key] = {
@@ -99,6 +102,9 @@
         };
 
         this.selectedTabKey = key;
+        requestAnimationFrame(function() {
+          self.$.tabs.appendChild(tab);
+        });
       },
 
       /*
@@ -108,6 +114,9 @@
        * @param onClick {function} event handler for the action
        */
       addToolbarAction: function(tabKey, icon, onClick) {
+        if (!this.pipeTabs[tabKey]) {
+          return;
+        }
         var toolbar = this.pipeTabs[tabKey].tabToolbar;
         toolbar.add(icon, onClick);
       },
@@ -117,6 +126,9 @@
        * @param {string} key Key of the tab to remove
        */
       removeTab: function(key) {
+        if (!this.pipeTabs[key]) {
+          return;
+        }
         // Remove tab thumb and content
         var tab = this.pipeTabs[key].tab;
         tab.remove();
@@ -144,6 +156,9 @@
        * @param {DOMElement} el New content of the tab
        */
       replaceTabContent: function(key, newName, newEl) {
+        if (!this.pipeTabs[key]) {
+          return;
+        }
         var tabContent = this.pipeTabs[key].tabContent;
         tabContent.replaceTabContent(newEl);
         if (newName) {

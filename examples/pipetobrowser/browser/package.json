@@ -6,6 +6,7 @@
   },
   "dependencies": {
     "npm:event-stream": "^3.1.5",
+    "npm:humanize": "^0.0.9",
     "nodelibs": "master"
   }
 }

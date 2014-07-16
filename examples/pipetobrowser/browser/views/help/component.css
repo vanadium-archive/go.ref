@@ -29,4 +29,5 @@ h4 {
 a {
   color: #5677fc;
   text-decoration: none;
+  cursor: pointer;
 }

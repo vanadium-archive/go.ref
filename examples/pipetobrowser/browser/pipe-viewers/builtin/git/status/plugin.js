@@ -91,10 +91,10 @@ function addStateIconProperty(item) {
       iconName = 'warning';
       break;
     case 'conflicted':
-      iconName = 'error';
+      iconName = 'block';
       break;
     case 'untracked':
-      iconName = 'report';
+      iconName = 'error';
       break;
     case 'ignored':
       iconName = 'visibility-off';
@@ -122,7 +122,7 @@ function addActionIconProperty(item) {
       iconName = 'translate';
       break;
     case 'renamed':
-      iconName = 'sync';
+      iconName = 'swap-horiz';
       break;
     case 'copied':
       iconName = 'content-copy';

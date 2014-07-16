@@ -3,9 +3,6 @@ import { default as buffer } from "nodelibs/buffer"
 
 var Transform = Stream.Transform;
 var Buffer = buffer.Buffer;
-// TODO(aghassemi) doesn't look like ES6 and CommonJS modules can use the same
-// syntax to be referenced, but research more, maybe something can be done at
-// built time.
 
 /*
  * Adapts a stream of byte arrays in object mode to a regular stream of Buffer

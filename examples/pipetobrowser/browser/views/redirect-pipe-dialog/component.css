@@ -11,11 +11,6 @@ paper-dialog {
   width: 80vw;
 }
 
-/* hack: wrong z-index in shadow of paper-dialog disables text selection in dialog */
-paper-dialog /deep/ #shadow {
-  z-index: -1 !important;
-}
-
 paper-button[affirmative] {
   color: #4285f4;
 }

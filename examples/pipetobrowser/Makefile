@@ -20,8 +20,8 @@ HTML_FILES = $(shell find browser -name "*.css" -a -not -path "*third-party*" -o
 all: node_modules browser/third-party browser/third-party/veyron browser/build.js browser/index.html $(VEYRON_ROOT)/veyron/go/bin
 
 # Build p2b cli binary
-$(VEYRON_ROOT)/veyron/go/bin: cli/main.go
-	$(VEYRON_BUILD_SCRIPT) install veyron/examples/pipetobrowser/...
+$(VEYRON_ROOT)/veyron/go/bin: p2b/main.go
+	$(VEYRON_BUILD_SCRIPT) install veyron/...
 
 # Install what we need from NPM, tools such as jspm, serve, etc...
 node_modules: package.json
@@ -31,9 +31,9 @@ node_modules: package.json
 
 # Build and copies Veyron from local source
 browser/third-party/veyron: $(VEYRON_JS_API)
-	mkdir browser/third-party -p
+	mkdir -p browser/third-party
 	(cd $(VEYRON_JS_API) && ./vgrunt build)
-	mkdir browser/third-party/veyron -p
+	mkdir -p browser/third-party/veyron
 	cp -rf $(VEYRON_JS_API)/dist/*.* browser/third-party/veyron
 
 # Install JSPM and Bower packages as listed in browser/package.json from JSPM and browser/bower.json from bower
@@ -75,10 +75,6 @@ clean:
 
 # Deploys Veyron daemons
 daemons:
-	@if [[ ! -e $(VEYRON_PROXY) ]]; then \
-		echo "Veyron proxy could not be found in $(VEYRON_PROXY). Please build and install veyron2 and services first"; \
-		exit 1; \
-	fi
 	identity --name=veyron_p2b_identity > $(VEYRON_IDENTITY_PATH)
 	export VEYRON_IDENTITY=$(VEYRON_IDENTITY_PATH) ; \
 	identityd --address=:$(VEYRON_IDENTITY_PORT) & \
@@ -86,7 +82,6 @@ daemons:
 	export NAMESPACE_ROOT=/localhost:$(VEYRON_MOUNTTABLE_PORT) ; \
 	proxyd -address=$(VEYRON_PROXY_ADDR) & \
 	wsprd --v=1 -logtostderr=true -vproxy=$(VEYRON_PROXY_ADDR) --port $(VEYRON_WSPR_PORT) & \
-	$(VEYRON_STORE) --address=:$(VEYRON_STORE_PORT) --name=global/$(USER)/store &
 
 # Kills the running daemons
 clean-daemons:

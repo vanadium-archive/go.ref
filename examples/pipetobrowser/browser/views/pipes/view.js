@@ -18,9 +18,10 @@ export class PipesView extends View {
   * @param {string} name A short name for the tab that will be displayed as
   * the tab title
   * @param {View} view View to show inside the tab.
+  * @param {function} onClose Optional onClose callback.
   */
-  addTab(key, name, view) {
-    this.element.addTab(key, name, view.element);
+  addTab(key, name, view, onClose) {
+    this.element.addTab(key, name, view.element, onClose);
   }
 
   /*

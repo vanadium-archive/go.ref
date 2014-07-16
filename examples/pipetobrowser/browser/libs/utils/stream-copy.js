@@ -17,6 +17,13 @@ export class StreamCopy extends Transform {
     // TODO(aghassemi) make this a FIFO buffer with reasonable max-size
     this.buffer = [];
     this.copies = [];
+    var self = this;
+    this.on('end', () => {
+      self.ended = true;
+      for (var i=0; i < self.copies.length; i++) {
+        self.copies[i].end();
+      }
+    });
   }
 
   _transform(chunk, encoding, cb) {
@@ -42,7 +49,12 @@ export class StreamCopy extends Transform {
         copy.push(this.buffer[i]);
       }
     }
-    this.copies.push(copy);
+    if (this.ended) {
+      copy.push(null);
+    } else {
+      this.copies.push(copy);
+    }
+
     return copy;
   }
 }

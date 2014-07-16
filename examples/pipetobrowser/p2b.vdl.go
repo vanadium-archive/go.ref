@@ -31,7 +31,7 @@ type Viewer interface {
 type ViewerService interface {
 
 	// Pipe creates a bidirectional pipe between client and viewer service, returns total number of bytes received by the service after streaming ends
-	Pipe(context _gen_ipc.ServerContext, stream ViewerServicePipeStream) (reply int64, err error)
+	Pipe(context _gen_ipc.ServerContext, stream ViewerServicePipeStream) (reply _gen_vdlutil.Any, err error)
 }
 
 // ViewerPipeStream is the interface for streaming responses of the method
@@ -50,7 +50,7 @@ type ViewerPipeStream interface {
 
 	// Finish closes the stream and returns the positional return values for
 	// call.
-	Finish() (reply int64, err error)
+	Finish() (reply _gen_vdlutil.Any, err error)
 
 	// Cancel cancels the RPC, notifying the server to stop processing.
 	Cancel()
@@ -69,7 +69,7 @@ func (c *implViewerPipeStream) CloseSend() error {
 	return c.clientCall.CloseSend()
 }
 
-func (c *implViewerPipeStream) Finish() (reply int64, err error) {
+func (c *implViewerPipeStream) Finish() (reply _gen_vdlutil.Any, err error) {
 	if ierr := c.clientCall.Finish(&reply, &err); ierr != nil {
 		err = ierr
 	}
@@ -208,14 +208,14 @@ func (__gen_s *ServerStubViewer) Signature(call _gen_ipc.ServerCall) (_gen_ipc.S
 	result.Methods["Pipe"] = _gen_ipc.MethodSignature{
 		InArgs: []_gen_ipc.MethodArgument{},
 		OutArgs: []_gen_ipc.MethodArgument{
-			{Name: "", Type: 37},
 			{Name: "", Type: 65},
+			{Name: "", Type: 66},
 		},
-		InStream: 67,
+		InStream: 68,
 	}
 
 	result.TypeDefs = []_gen_vdlutil.Any{
-		_gen_wiretype.NamedPrimitiveType{Type: 0x1, Name: "error", Tags: []string(nil)}, _gen_wiretype.NamedPrimitiveType{Type: 0x32, Name: "byte", Tags: []string(nil)}, _gen_wiretype.SliceType{Elem: 0x42, Name: "", Tags: []string(nil)}}
+		_gen_wiretype.NamedPrimitiveType{Type: 0x1, Name: "anydata", Tags: []string(nil)}, _gen_wiretype.NamedPrimitiveType{Type: 0x1, Name: "error", Tags: []string(nil)}, _gen_wiretype.NamedPrimitiveType{Type: 0x32, Name: "byte", Tags: []string(nil)}, _gen_wiretype.SliceType{Elem: 0x43, Name: "", Tags: []string(nil)}}
 
 	return result, nil
 }
@@ -238,7 +238,7 @@ func (__gen_s *ServerStubViewer) UnresolveStep(call _gen_ipc.ServerCall) (reply 
 	return
 }
 
-func (__gen_s *ServerStubViewer) Pipe(call _gen_ipc.ServerCall) (reply int64, err error) {
+func (__gen_s *ServerStubViewer) Pipe(call _gen_ipc.ServerCall) (reply _gen_vdlutil.Any, err error) {
 	stream := &implViewerServicePipeStream{serverCall: call}
 	reply, err = __gen_s.service.Pipe(call, stream)
 	return

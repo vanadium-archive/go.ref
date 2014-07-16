@@ -7,7 +7,8 @@
 }
 
 ::shadow /deep/ .state-icon.conflicted {
-  fill: #e51c23;
+  fill: #bf360c;
+  -webkit-animation: blink 0.6s infinite alternate;
 }
 
 ::shadow /deep/ .state-icon.untracked {
@@ -15,7 +16,7 @@
 }
 
 ::shadow /deep/ .state-icon.ignored {
-  fill: #bf360c;
+  fill: #689f38;
 }
 
 ::shadow /deep/ .action-icon {
