@@ -1,14 +1,10 @@
-package lib
+package signature
 
 import (
+	"veyron/services/wsprd/lib"
 	"veyron2/ipc"
 	"veyron2/vdl/vdlutil"
 	"veyron2/wiretype"
-)
-
-const (
-	// agreed-upon name of the signature method that's available on all services
-	signatureMethodName = "Signature"
 )
 
 var (
@@ -49,7 +45,7 @@ func NewJSONServiceSignature(sig ipc.ServiceSignature) JSONServiceSignature {
 			jmethSig.InArgs[i] = inarg.Name
 		}
 
-		jsig[lowercaseFirstCharacter(name)] = jmethSig
+		jsig[lib.LowercaseFirstCharacter(name)] = jmethSig
 	}
 
 	return jsig
@@ -88,7 +84,7 @@ func (jss JSONServiceSignature) ServiceSignature() (ipc.ServiceSignature, error)
 			ms.OutStream = anydataTypeID
 		}
 
-		ss.Methods[uppercaseFirstCharacter(name)] = ms
+		ss.Methods[lib.UppercaseFirstCharacter(name)] = ms
 	}
 
 	ss.TypeDefs = []vdlutil.Any{anydataType, errType}

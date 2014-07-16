@@ -1,4 +1,4 @@
-package lib
+package wspr
 
 import (
 	"bytes"
@@ -8,6 +8,9 @@ import (
 	"sync"
 	"testing"
 	"time"
+	"veyron/services/wsprd/ipc/client"
+	"veyron/services/wsprd/lib"
+	"veyron/services/wsprd/signature"
 	"veyron2"
 	"veyron2/ipc"
 	"veyron2/naming"
@@ -132,7 +135,6 @@ func startMountTableServer() (ipc.Server, naming.Endpoint, error) {
 type testWriter struct {
 	sync.Mutex
 	stream []response
-	buf    bytes.Buffer
 	err    error
 	logger vlog.Logger
 	// If this channel is set then a message will be sent
@@ -140,29 +142,32 @@ type testWriter struct {
 	notifier chan bool
 }
 
-func (w *testWriter) Write(p []byte) (int, error) {
-	return w.buf.Write(p)
-
-}
-
-func (w *testWriter) sendError(err error) {
-	w.err = err
-}
-
-func (w *testWriter) FinishMessage() error {
-	var resp response
-	p := w.buf.Bytes()
-	w.buf.Reset()
-	if err := json.Unmarshal(p, &resp); err != nil {
+func (w *testWriter) Send(responseType lib.ResponseType, msg interface{}) error {
+	w.Lock()
+	defer w.Unlock()
+	// We serialize and deserialize the reponse so that we can do deep equal with
+	// messages that contain non-exported structs.
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response{Type: responseType, Message: msg}); err != nil {
 		return err
 	}
-	w.Lock()
-	w.stream = append(w.stream, resp)
+
+	var r response
+
+	if err := json.NewDecoder(&buf).Decode(&r); err != nil {
+		return err
+	}
+
+	w.stream = append(w.stream, r)
 	if w.notifier != nil {
 		w.notifier <- true
 	}
-	w.Unlock()
 	return nil
+
+}
+
+func (w *testWriter) Error(err error) {
+	w.err = err
 }
 
 func (w *testWriter) streamLength() int {
@@ -204,18 +209,18 @@ func checkResponses(w *testWriter, expectedStream []response, err error, t *test
 	}
 }
 
-var adderServiceSignature JSONServiceSignature = JSONServiceSignature{
-	"add": JSONMethodSignature{
+var adderServiceSignature signature.JSONServiceSignature = signature.JSONServiceSignature{
+	"add": signature.JSONMethodSignature{
 		InArgs:      []string{"A", "B"},
 		NumOutArgs:  2,
 		IsStreaming: false,
 	},
-	"divide": JSONMethodSignature{
+	"divide": signature.JSONMethodSignature{
 		InArgs:      []string{"A", "B"},
 		NumOutArgs:  2,
 		IsStreaming: false,
 	},
-	"streamingAdd": JSONMethodSignature{
+	"streamingAdd": signature.JSONMethodSignature{
 		InArgs:      []string{},
 		NumOutArgs:  2,
 		IsStreaming: true,
@@ -275,7 +280,7 @@ func runGoServerTestCase(t *testing.T, test goServerTestCase) {
 	if len(test.streamingInputs) > 0 {
 		signal = make(chan ipc.Stream, 1)
 		wsp.outstandingStreams[0] = outstandingStream{
-			stream: startQueueingStream(signal),
+			stream: client.StartQueueingStream(signal),
 			inType: test.streamingInputType,
 		}
 		go func() {
@@ -294,6 +299,7 @@ func runGoServerTestCase(t *testing.T, test goServerTestCase) {
 		IsStreaming: signal != nil,
 	}
 	wsp.sendVeyronRequest(0, &request, &writer, signal)
+
 	checkResponses(&writer, test.expectedStream, test.expectedError, t)
 }
 
@@ -304,8 +310,8 @@ func TestCallingGoServer(t *testing.T) {
 		numOutArgs: 2,
 		expectedStream: []response{
 			response{
-				Message: []interface{}{float64(5)},
-				Type:    responseFinal,
+				Message: []interface{}{5.0},
+				Type:    lib.ResponseFinal,
 			},
 		},
 	})
@@ -330,27 +336,27 @@ func TestCallingGoWithStreaming(t *testing.T) {
 		expectedStream: []response{
 			response{
 				Message: 1.0,
-				Type:    responseStream,
+				Type:    lib.ResponseStream,
 			},
 			response{
 				Message: 3.0,
-				Type:    responseStream,
+				Type:    lib.ResponseStream,
 			},
 			response{
 				Message: 6.0,
-				Type:    responseStream,
+				Type:    lib.ResponseStream,
 			},
 			response{
 				Message: 10.0,
-				Type:    responseStream,
+				Type:    lib.ResponseStream,
 			},
 			response{
 				Message: nil,
-				Type:    responseStreamClose,
+				Type:    lib.ResponseStreamClose,
 			},
 			response{
 				Message: []interface{}{10.0},
-				Type:    responseFinal,
+				Type:    lib.ResponseFinal,
 			},
 		},
 	})
@@ -385,7 +391,7 @@ func serveServer() (*runningTest, error) {
 	writer := testWriter{
 		logger: wspr.logger,
 	}
-	wsp.writerCreator = func(int64) clientWriter {
+	wsp.writerCreator = func(int64) lib.ClientWriter {
 		return &writer
 	}
 	wsp.setup()
@@ -416,7 +422,7 @@ func TestJavascriptServeServer(t *testing.T) {
 
 	resp := rt.writer.stream[0]
 
-	if resp.Type != responseFinal {
+	if resp.Type != lib.ResponseFinal {
 		t.Errorf("unknown stream message Got: %v, expected: serve response", resp)
 		return
 	}
@@ -469,14 +475,14 @@ type jsServerTestCase struct {
 	err           *verror.Standard
 }
 
-func sendServerStream(t *testing.T, wsp *websocketPipe, test *jsServerTestCase, w clientWriter) {
+func sendServerStream(t *testing.T, wsp *websocketPipe, test *jsServerTestCase, w lib.ClientWriter) {
 	for _, msg := range test.serverStream {
 		wsp.sendParsedMessageOnStream(0, msg, w)
 	}
 
-	serverReply := serverRPCReply{
-		Results: []interface{}{test.finalResponse},
-		Err:     test.err,
+	serverReply := map[string]interface{}{
+		"Results": []interface{}{test.finalResponse},
+		"Err":     test.err,
 	}
 
 	bytes, err := json.Marshal(serverReply)
@@ -503,7 +509,7 @@ func runJsServerTestCase(t *testing.T, test jsServerTestCase) {
 
 	resp := rt.writer.stream[0]
 
-	if resp.Type != responseFinal {
+	if resp.Type != lib.ResponseFinal {
 		t.Errorf("unknown stream message Got: %v, expected: serve response", resp)
 		return
 	}
@@ -533,14 +539,14 @@ func runJsServerTestCase(t *testing.T, test jsServerTestCase) {
 
 	expectedWebsocketMessage := []response{
 		response{
-			Type: responseServerRequest,
+			Type: lib.ResponseServerRequest,
 			Message: map[string]interface{}{
-				"serverId": 0.0,
-				"method":   lowercaseFirstCharacter(test.method),
-				"args":     test.inArgs,
-				"context": map[string]interface{}{
-					"name":   "adder",
-					"suffix": "adder",
+				"ServerId": 0.0,
+				"Method":   lib.LowercaseFirstCharacter(test.method),
+				"Args":     test.inArgs,
+				"Context": map[string]interface{}{
+					"Name":   "adder",
+					"Suffix": "adder",
 				},
 			},
 		},
@@ -551,7 +557,7 @@ func runJsServerTestCase(t *testing.T, test jsServerTestCase) {
 		t.Errorf("didn't recieve expected message: %v", err)
 	}
 	for _, msg := range test.clientStream {
-		expectedWebsocketMessage = append(expectedWebsocketMessage, response{Type: responseStream, Message: msg})
+		expectedWebsocketMessage = append(expectedWebsocketMessage, response{Type: lib.ResponseStream, Message: msg})
 		if err := call.Send(msg); err != nil {
 			t.Errorf("unexpected error while sending %v: %v", msg, err)
 		}
@@ -562,7 +568,7 @@ func runJsServerTestCase(t *testing.T, test jsServerTestCase) {
 		t.Errorf("didn't recieve expected message: %v", err)
 	}
 
-	expectedWebsocketMessage = append(expectedWebsocketMessage, response{Type: responseStreamClose})
+	expectedWebsocketMessage = append(expectedWebsocketMessage, response{Type: lib.ResponseStreamClose})
 
 	expectedStream := test.serverStream
 	go sendServerStream(t, rt.wsp, &test, rt.writer)

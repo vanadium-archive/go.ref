@@ -4,7 +4,7 @@ import (
 	"flag"
 
 	"veyron/lib/signals"
-	"veyron/services/wspr/wsprd/lib"
+	"veyron/services/wsprd/wspr"
 )
 
 func main() {
@@ -12,7 +12,7 @@ func main() {
 	veyronProxy := flag.String("vproxy", "", "The endpoint for the veyron proxy to publish on. This must be set")
 	flag.Parse()
 
-	proxy := lib.NewWSPR(*port, *veyronProxy)
+	proxy := wspr.NewWSPR(*port, *veyronProxy)
 	defer proxy.Shutdown()
 	go func() {
 		proxy.Run()

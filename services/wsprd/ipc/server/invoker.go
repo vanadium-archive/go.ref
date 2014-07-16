@@ -1,4 +1,4 @@
-package lib
+package server
 
 import (
 	"veyron2/ipc"
@@ -24,7 +24,7 @@ func newInvoker(sig ipc.ServiceSignature, invokeFunc remoteInvokeFunc) (ipc.Invo
 	predefinedInvokers := make(map[string]ipc.Invoker)
 
 	// Special handling for predefined "signature" method
-	predefinedInvokers[signatureMethodName] = newSignatureInvoker(sig)
+	predefinedInvokers["Signature"] = newSignatureInvoker(sig)
 
 	i := &invoker{sig, invokeFunc, predefinedInvokers}
 	return i, nil

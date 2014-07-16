@@ -13,7 +13,7 @@
 //   "IsStreaming" : true/false
 // }
 //
-package lib
+package wspr
 
 import (
 	"bytes"
@@ -31,6 +31,11 @@ import (
 	"sync"
 	"time"
 
+	"veyron/services/wsprd/ipc/client"
+	"veyron/services/wsprd/ipc/server"
+	"veyron/services/wsprd/ipc/stream"
+	"veyron/services/wsprd/lib"
+	"veyron/services/wsprd/signature"
 	"veyron2"
 	"veyron2/ipc"
 	"veyron2/rt"
@@ -55,27 +60,11 @@ type wsprConfig struct {
 
 type WSPR struct {
 	tlsCert       *tls.Certificate
-	clientCache   *ClientCache
+	clientCache   *lib.ClientCache
 	rt            veyron2.Runtime
 	logger        vlog.Logger
 	port          int
 	veyronProxyEP string
-}
-
-type responseType int
-
-const (
-	responseFinal         responseType = 0
-	responseStream                     = 1
-	responseError                      = 2
-	responseServerRequest              = 3
-	responseStreamClose                = 4
-)
-
-// Wraps a response to the proxy client and adds a message type.
-type response struct {
-	Type    responseType
-	Message interface{}
 }
 
 var logger vlog.Logger
@@ -139,17 +128,11 @@ type veyronRPC struct {
 type serveRequest struct {
 	Name     string
 	ServerId uint64
-	Service  JSONServiceSignature
-}
-
-// The response from the javascript server to the proxy.
-type serverRPCReply struct {
-	Results []interface{}
-	Err     *verror.Standard
+	Service  signature.JSONServiceSignature
 }
 
 // finishCall waits for the call to finish and write out the response to w.
-func (wsp *websocketPipe) finishCall(w clientWriter, clientCall ipc.Call, msg *veyronRPC) {
+func (wsp *websocketPipe) finishCall(w lib.ClientWriter, clientCall ipc.Call, msg *veyronRPC) {
 	if msg.IsStreaming {
 		for {
 			var item interface{}
@@ -157,24 +140,16 @@ func (wsp *websocketPipe) finishCall(w clientWriter, clientCall ipc.Call, msg *v
 				if err == io.EOF {
 					break
 				}
-				w.sendError(err) // Send streaming error as is
+				w.Error(err) // Send streaming error as is
 				return
 			}
-			data := &response{Type: responseStream, Message: item}
-			if err := vom.ObjToJSON(w, vom.ValueOf(data)); err != nil {
-				w.sendError(verror.Internalf("unable to marshal: %v", item))
-				continue
-			}
-			if err := w.FinishMessage(); err != nil {
-				wsp.ctx.logger.Error("WSPR: error finishing message: ", err)
+			if err := w.Send(lib.ResponseStream, item); err != nil {
+				w.Error(verror.Internalf("unable to marshal: %v", item))
 			}
 		}
 
-		if err := vom.ObjToJSON(w, vom.ValueOf(response{Type: responseStreamClose})); err != nil {
-			w.sendError(verror.Internalf("unable to marshal close stream message"))
-		}
-		if err := w.FinishMessage(); err != nil {
-			wsp.ctx.logger.Error("WSPR: error finishing message: ", err)
+		if err := w.Send(lib.ResponseStreamClose, nil); err != nil {
+			w.Error(verror.Internalf("unable to marshal close stream message"))
 		}
 	}
 
@@ -186,30 +161,23 @@ func (wsp *websocketPipe) finishCall(w clientWriter, clientCall ipc.Call, msg *v
 	}
 	if err := clientCall.Finish(resultptrs...); err != nil {
 		// return the call system error as is
-		w.sendError(err)
+		w.Error(err)
 		return
 	}
 	// for now we assume last out argument is always error
 	if len(results) < 1 {
-		w.sendError(verror.Internalf("client call did not return any results"))
+		w.Error(verror.Internalf("client call did not return any results"))
 		return
 	}
 
 	if err, ok := results[len(results)-1].(error); ok {
 		// return the call application error as is
-		w.sendError(err)
+		w.Error(err)
 		return
 	}
 
-	data := response{Type: responseFinal, Message: results[0 : len(results)-1]}
-	if err := vom.ObjToJSON(w, vom.ValueOf(data)); err != nil {
-		w.sendError(verror.Internalf("error marshalling results: %v", err))
-		return
-	}
-
-	if err := w.FinishMessage(); err != nil {
-		wsp.ctx.logger.Error("WSPR: error finishing message: ", err)
-		return
+	if err := w.Send(lib.ResponseFinal, results[0:len(results)-1]); err != nil {
+		w.Error(verror.Internalf("error marshalling results: %v", err))
 	}
 }
 
@@ -229,16 +197,17 @@ func (ctx WSPR) newClient(privateId string) (ipc.Client, error) {
 	return client, nil
 }
 
-func (ctx WSPR) startVeyronRequest(w clientWriter, msg *veyronRPC) (ipc.Call, error) {
+func (ctx WSPR) startVeyronRequest(w lib.ClientWriter, msg *veyronRPC) (ipc.Call, error) {
 	// Issue request to the endpoint.
 	client, err := ctx.newClient(msg.PrivateId)
 	if err != nil {
 		return nil, err
 	}
-	clientCall, err := client.StartCall(ctx.rt.TODOContext(), msg.Name, uppercaseFirstCharacter(msg.Method), msg.InArgs)
+	methodName := lib.UppercaseFirstCharacter(msg.Method)
+	clientCall, err := client.StartCall(ctx.rt.TODOContext(), msg.Name, methodName, msg.InArgs)
 
 	if err != nil {
-		return nil, fmt.Errorf("error starting call (name: %v, method: %v, args: %v): %v", msg.Name, uppercaseFirstCharacter(msg.Method), msg.InArgs, err)
+		return nil, fmt.Errorf("error starting call (name: %v, method: %v, args: %v): %v", msg.Name, methodName, msg.InArgs, err)
 	}
 
 	return clientCall, nil
@@ -311,7 +280,7 @@ func setAccessControl(w http.ResponseWriter) {
 }
 
 type outstandingStream struct {
-	stream sender
+	stream stream.Sender
 	inType vom.Type
 }
 
@@ -329,43 +298,43 @@ type websocketPipe struct {
 	outstandingStreams map[int64]outstandingStream
 
 	// Maps flowids to the server that owns them.
-	flowMap map[int64]*server
+	flowMap map[int64]*server.Server
 
 	// A manager that handles fetching and caching signature of remote services
-	signatureManager *signatureManager
+	signatureManager lib.SignatureManager
 
 	// We maintain multiple Veyron server per websocket pipe for serving JavaScript
 	// services.
-	servers map[uint64]*server
+	servers map[uint64]*server.Server
 
 	// Creates a client writer for a given flow.  This is a member so that tests can override
 	// the default implementation.
-	writerCreator func(id int64) clientWriter
+	writerCreator func(id int64) lib.ClientWriter
 }
 
 // Implements the serverHelper interface
-func (wsp *websocketPipe) createNewFlow(server *server, stream sender) *flow {
+func (wsp *websocketPipe) CreateNewFlow(s *server.Server, stream stream.Sender) *server.Flow {
 	wsp.Lock()
 	defer wsp.Unlock()
 	id := wsp.lastGeneratedId
 	wsp.lastGeneratedId += 2
-	wsp.flowMap[id] = server
+	wsp.flowMap[id] = s
 	wsp.outstandingStreams[id] = outstandingStream{stream, vom_wiretype.Type{ID: 1}}
-	return &flow{id: id, writer: wsp.writerCreator(id)}
+	return &server.Flow{ID: id, Writer: wsp.writerCreator(id)}
 }
 
-func (wsp *websocketPipe) cleanupFlow(id int64) {
+func (wsp *websocketPipe) CleanupFlow(id int64) {
 	wsp.Lock()
 	defer wsp.Unlock()
 	delete(wsp.outstandingStreams, id)
 	delete(wsp.flowMap, id)
 }
 
-func (wsp *websocketPipe) getLogger() vlog.Logger {
+func (wsp *websocketPipe) GetLogger() vlog.Logger {
 	return wsp.ctx.logger
 }
 
-func (wsp *websocketPipe) rt() veyron2.Runtime {
+func (wsp *websocketPipe) RT() veyron2.Runtime {
 	return wsp.ctx.rt
 }
 
@@ -385,13 +354,13 @@ func (wsp *websocketPipe) cleanup() {
 }
 
 func (wsp *websocketPipe) setup() {
-	wsp.signatureManager = newSignatureManager()
+	wsp.signatureManager = lib.NewSignatureManager()
 	wsp.outstandingStreams = make(map[int64]outstandingStream)
-	wsp.flowMap = make(map[int64]*server)
-	wsp.servers = make(map[uint64]*server)
+	wsp.flowMap = make(map[int64]*server.Server)
+	wsp.servers = make(map[uint64]*server.Server)
 
 	if wsp.writerCreator == nil {
-		wsp.writerCreator = func(id int64) clientWriter {
+		wsp.writerCreator = func(id int64) lib.ClientWriter {
 			return &websocketWriter{ws: wsp.ws, id: id, logger: wsp.ctx.logger}
 		}
 	}
@@ -455,12 +424,12 @@ func (wsp *websocketPipe) pongHandler(msg string) error {
 	return nil
 }
 
-func (wsp *websocketPipe) sendParsedMessageOnStream(id int64, msg interface{}, w clientWriter) {
+func (wsp *websocketPipe) sendParsedMessageOnStream(id int64, msg interface{}, w lib.ClientWriter) {
 	wsp.Lock()
 	defer wsp.Unlock()
 	stream := wsp.outstandingStreams[id].stream
 	if stream == nil {
-		w.sendError(fmt.Errorf("unknown stream"))
+		w.Error(fmt.Errorf("unknown stream"))
 		return
 	}
 
@@ -469,7 +438,7 @@ func (wsp *websocketPipe) sendParsedMessageOnStream(id int64, msg interface{}, w
 }
 
 // sendOnStream writes data on id's stream.  Returns an error if the send failed.
-func (wsp *websocketPipe) sendOnStream(id int64, data string, w clientWriter) {
+func (wsp *websocketPipe) sendOnStream(id int64, data string, w lib.ClientWriter) {
 	wsp.Lock()
 	typ := wsp.outstandingStreams[id].inType
 	wsp.Unlock()
@@ -485,12 +454,12 @@ func (wsp *websocketPipe) sendOnStream(id int64, data string, w clientWriter) {
 	wsp.sendParsedMessageOnStream(id, payload, w)
 }
 
-func (wsp *websocketPipe) sendVeyronRequest(id int64, veyronMsg *veyronRPC, w clientWriter, signal chan ipc.Stream) {
+func (wsp *websocketPipe) sendVeyronRequest(id int64, veyronMsg *veyronRPC, w lib.ClientWriter, signal chan ipc.Stream) {
 	// We have to make the start call synchronous so we can make sure that we populate
 	// the call map before we can handle a recieve call.
 	call, err := wsp.ctx.startVeyronRequest(w, veyronMsg)
 	if err != nil {
-		w.sendError(verror.Internalf("can't start Veyron Request: %v", err))
+		w.Error(verror.Internalf("can't start Veyron Request: %v", err))
 		return
 	}
 
@@ -510,7 +479,7 @@ func (wsp *websocketPipe) sendVeyronRequest(id int64, veyronMsg *veyronRPC, w cl
 func (wsp *websocketPipe) handleVeyronRequest(id int64, data string, w *websocketWriter) {
 	veyronMsg, inStreamType, err := wsp.parseVeyronRequest(bytes.NewBufferString(data))
 	if err != nil {
-		w.sendError(verror.Internalf("can't parse Veyron Request: %v", err))
+		w.Error(verror.Internalf("can't parse Veyron Request: %v", err))
 		return
 	}
 
@@ -525,7 +494,7 @@ func (wsp *websocketPipe) handleVeyronRequest(id int64, data string, w *websocke
 	if veyronMsg.IsStreaming {
 		signal = make(chan ipc.Stream)
 		wsp.outstandingStreams[id] = outstandingStream{
-			stream: startQueueingStream(signal),
+			stream: client.StartQueueingStream(signal),
 			inType: inStreamType,
 		}
 	}
@@ -541,9 +510,9 @@ func (wsp *websocketPipe) closeStream(id int64) {
 		return
 	}
 
-	var call queueingStream
+	var call client.QueueingStream
 	var ok bool
-	if call, ok = stream.(queueingStream); !ok {
+	if call, ok = stream.(client.QueueingStream); !ok {
 		wsp.ctx.logger.Errorf("can't close server stream: %v", id)
 		return
 	}
@@ -602,19 +571,19 @@ func (wsp *websocketPipe) readLoop() {
 		case websocketSignatureRequest:
 			go wsp.handleSignatureRequest(msg.Data, ww)
 		default:
-			ww.sendError(verror.Unknownf("unknown message type: %v", msg.Type))
+			ww.Error(verror.Unknownf("unknown message type: %v", msg.Type))
 		}
 	}
 	wsp.cleanup()
 }
 
-func (wsp *websocketPipe) maybeCreateServer(serverId uint64) (*server, error) {
+func (wsp *websocketPipe) maybeCreateServer(serverId uint64) (*server.Server, error) {
 	wsp.Lock()
 	defer wsp.Unlock()
 	if server, ok := wsp.servers[serverId]; ok {
 		return server, nil
 	}
-	server, err := newServer(serverId, wsp.ctx.veyronProxyEP, wsp)
+	server, err := server.NewServer(serverId, wsp.ctx.veyronProxyEP, wsp)
 	if err != nil {
 		return nil, err
 	}
@@ -635,29 +604,23 @@ func (wsp *websocketPipe) removeServer(serverId uint64) {
 	server.Stop()
 }
 
-func (wsp *websocketPipe) serve(serveRequest serveRequest, w clientWriter) {
+func (wsp *websocketPipe) serve(serveRequest serveRequest, w lib.ClientWriter) {
 	// Create a server for the websocket pipe, if it does not exist already
 	server, err := wsp.maybeCreateServer(serveRequest.ServerId)
 	if err != nil {
-		w.sendError(verror.Internalf("error creating server: %v", err))
+		w.Error(verror.Internalf("error creating server: %v", err))
 	}
 
 	wsp.ctx.logger.VI(2).Infof("serving under name: %q", serveRequest.Name)
 
-	endpoint, err := server.serve(serveRequest.Name, serveRequest.Service)
+	endpoint, err := server.Serve(serveRequest.Name, serveRequest.Service)
 	if err != nil {
-		w.sendError(verror.Internalf("error serving service: %v", err))
+		w.Error(verror.Internalf("error serving service: %v", err))
 		return
 	}
 	// Send the endpoint back
-	endpointData := response{Type: responseFinal, Message: endpoint}
-	if err := vom.ObjToJSON(w, vom.ValueOf(endpointData)); err != nil {
-		w.sendError(verror.Internalf("error marshalling results: %v", err))
-		return
-	}
-
-	if err := w.FinishMessage(); err != nil {
-		wsp.ctx.logger.Error("WSPR: error finishing message: ", err)
+	if err := w.Send(lib.ResponseFinal, endpoint); err != nil {
+		w.Error(verror.Internalf("error marshalling results: %v", err))
 		return
 	}
 }
@@ -669,7 +632,7 @@ func (wsp *websocketPipe) handleServeRequest(data string, w *websocketWriter) {
 	var serveRequest serveRequest
 	decoder := json.NewDecoder(bytes.NewBufferString(data))
 	if err := decoder.Decode(&serveRequest); err != nil {
-		w.sendError(verror.Internalf("can't unmarshal JSONMessage: %v", err))
+		w.Error(verror.Internalf("can't unmarshal JSONMessage: %v", err))
 		return
 	}
 	wsp.serve(serveRequest, w)
@@ -681,19 +644,17 @@ func (wsp *websocketPipe) handleStopRequest(data string, w *websocketWriter) {
 	var serverId uint64
 	decoder := json.NewDecoder(bytes.NewBufferString(data))
 	if err := decoder.Decode(&serverId); err != nil {
-		w.sendError(verror.Internalf("can't unmarshal JSONMessage: %v", err))
+		w.Error(verror.Internalf("can't unmarshal JSONMessage: %v", err))
 		return
 	}
 
 	wsp.removeServer(serverId)
 
 	// Send true to indicate stop has finished
-	result := response{Type: responseFinal, Message: true}
-	if err := vom.ObjToJSON(w, vom.ValueOf(result)); err != nil {
-		w.sendError(verror.Internalf("error marshalling results: %v", err))
+	if err := w.Send(lib.ResponseFinal, true); err != nil {
+		w.Error(verror.Internalf("error marshalling results: %v", err))
 		return
 	}
-	w.FinishMessage()
 }
 
 // handleServerResponse handles the completion of outstanding calls to JavaScript services
@@ -708,7 +669,7 @@ func (wsp *websocketPipe) handleServerResponse(id int64, data string) {
 		//Ignore unknown responses that don't belong to any channel
 		return
 	}
-	server.handleServerResponse(id, data)
+	server.HandleServerResponse(id, data)
 }
 
 // parseVeyronRequest parses a json rpc request into a veyronRPC object.
@@ -726,12 +687,12 @@ func (wsp *websocketPipe) parseVeyronRequest(r io.Reader) (*veyronRPC, vom.Type,
 
 	// Fetch and adapt signature from the SignatureManager
 	ctx := wsp.ctx.rt.TODOContext()
-	sig, err := wsp.signatureManager.signature(ctx, tempMsg.Name, client)
+	sig, err := wsp.signatureManager.Signature(ctx, tempMsg.Name, client)
 	if err != nil {
 		return nil, nil, verror.Internalf("error getting service signature for %s: %v", tempMsg.Name, err)
 	}
 
-	methName := uppercaseFirstCharacter(tempMsg.Method)
+	methName := lib.UppercaseFirstCharacter(tempMsg.Method)
 	methSig, ok := sig.Methods[methName]
 	if !ok {
 		return nil, nil, fmt.Errorf("Method not found in signature: %v (full sig: %v)", methName, sig)
@@ -778,7 +739,7 @@ type signatureRequest struct {
 	PrivateId string
 }
 
-func (wsp *websocketPipe) getSignature(name string, privateId string) (JSONServiceSignature, error) {
+func (wsp *websocketPipe) getSignature(name string, privateId string) (signature.JSONServiceSignature, error) {
 	client, err := wsp.ctx.newClient(privateId)
 	if err != nil {
 		return nil, verror.Internalf("error creating client: %v", err)
@@ -786,12 +747,12 @@ func (wsp *websocketPipe) getSignature(name string, privateId string) (JSONServi
 
 	// Fetch and adapt signature from the SignatureManager
 	ctx := wsp.ctx.rt.TODOContext()
-	sig, err := wsp.signatureManager.signature(ctx, name, client)
+	sig, err := wsp.signatureManager.Signature(ctx, name, client)
 	if err != nil {
 		return nil, verror.Internalf("error getting service signature for %s: %v", name, err)
 	}
 
-	return NewJSONServiceSignature(*sig), nil
+	return signature.NewJSONServiceSignature(*sig), nil
 }
 
 // handleSignatureRequest uses signature manager to get and cache signature of a remote server
@@ -800,7 +761,7 @@ func (wsp *websocketPipe) handleSignatureRequest(data string, w *websocketWriter
 	var request signatureRequest
 	decoder := json.NewDecoder(bytes.NewBufferString(data))
 	if err := decoder.Decode(&request); err != nil {
-		w.sendError(verror.Internalf("can't unmarshal JSONMessage: %v", err))
+		w.Error(verror.Internalf("can't unmarshal JSONMessage: %v", err))
 		return
 	}
 
@@ -808,25 +769,20 @@ func (wsp *websocketPipe) handleSignatureRequest(data string, w *websocketWriter
 	wsp.ctx.logger.VI(2).Info("private id is", request.PrivateId)
 	jsSig, err := wsp.getSignature(request.Name, request.PrivateId)
 	if err != nil {
-		w.sendError(err)
+		w.Error(err)
 		return
 	}
 
 	// Send the signature back
-	signatureData := response{Type: responseFinal, Message: jsSig}
-	if err := vom.ObjToJSON(w, vom.ValueOf(signatureData)); err != nil {
-		w.sendError(verror.Internalf("error marshalling results: %v", err))
-		return
-	}
-	if err := w.FinishMessage(); err != nil {
-		w.logger.Error("WSPR: error finishing message: ", err)
+	if err := w.Send(lib.ResponseFinal, jsSig); err != nil {
+		w.Error(verror.Internalf("error marshalling results: %v", err))
 		return
 	}
 }
 
 func (ctx *WSPR) setup() {
 	// Cache up to 20 identity.PrivateID->ipc.Client mappings
-	ctx.clientCache = NewClientCache(20)
+	ctx.clientCache = lib.NewClientCache(20)
 }
 
 // Starts the proxy and listens for requests. This method is blocking.

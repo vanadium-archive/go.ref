@@ -10,8 +10,7 @@
 // information, but not the private keys for each app.
 // TODO(bjornick,ataly,ashankar): Have all the accounts share the same private key which will be stored
 // in a TPM, so no private key gets serialized to disk.
-
-package lib
+package security
 
 import (
 	"crypto/ecdsa"
