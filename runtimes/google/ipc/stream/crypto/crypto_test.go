@@ -175,7 +175,7 @@ func benchmarkRoundTrip(b *testing.B, crypters func(testing.TB) (Crypter, Crypte
 	if _, err := rand.Read(plaintext); err != nil {
 		b.Fatal(err)
 	}
-	e, d := tlsCrypters(b)
+	e, d := crypters(b)
 	b.SetBytes(int64(size))
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
