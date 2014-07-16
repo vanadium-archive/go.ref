@@ -6,6 +6,7 @@ package main
 import (
 	"bufio"
 	"encoding/json"
+	"flag"
 	"fmt"
 	"go/parser"
 	"go/token"
@@ -22,7 +23,7 @@ import (
 )
 
 const RUN_TIMEOUT = time.Second
-const debug = false
+var debug = flag.Bool("v", false, "Verbose mode")
 
 type CodeFile struct {
 	Name       string
@@ -55,7 +56,7 @@ type Exit struct {
 }
 
 func Log(args ...interface{}) {
-	if debug {
+	if *debug {
 		log.Println(args...)
 	}
 }
@@ -108,6 +109,7 @@ func ParseRequest(in io.Reader) (r Request, err error) {
 }
 
 func main() {
+	flag.Parse()
 	r, err := ParseRequest(os.Stdin)
 	if err != nil {
 		log.Fatal(err)
@@ -275,7 +277,7 @@ func StartMount() (err error) {
 			if groups := pat.FindStringSubmatch(line); groups != nil {
 				ch <- groups[1]
 			} else {
-				Log(line)
+				Log("mounttabld: %s", line)
 			}
 		}
 		close(ch)
