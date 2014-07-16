@@ -1,0 +1,3 @@
+package discharger
+
+type Dir struct {} // TODO(tilaks, andreser): move this to store?
