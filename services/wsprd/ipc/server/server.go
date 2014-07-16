@@ -1,6 +1,6 @@
 // An implementation of a server for WSPR
 
-package lib
+package server
 
 import (
 	"bytes"
@@ -8,17 +8,19 @@ import (
 	"fmt"
 	"sync"
 
+	"veyron/services/wsprd/ipc/stream"
+	"veyron/services/wsprd/lib"
+	"veyron/services/wsprd/signature"
 	"veyron2"
 	"veyron2/ipc"
 	"veyron2/security"
 	"veyron2/verror"
 	"veyron2/vlog"
-	"veyron2/vom"
 )
 
-type flow struct {
-	id     int64
-	writer clientWriter
+type Flow struct {
+	ID     int64
+	Writer lib.ClientWriter
 }
 
 // A request from the proxy to javascript to handle an RPC
@@ -35,17 +37,23 @@ type serverRPCRequestContext struct {
 	Name   string
 }
 
-type serverHelper interface {
-	createNewFlow(server *server, sender sender) *flow
-
-	cleanupFlow(id int64)
-
-	getLogger() vlog.Logger
-
-	rt() veyron2.Runtime
+// The response from the javascript server to the proxy.
+type serverRPCReply struct {
+	Results []interface{}
+	Err     *verror.Standard
 }
 
-type server struct {
+type ServerHelper interface {
+	CreateNewFlow(server *Server, sender stream.Sender) *Flow
+
+	CleanupFlow(id int64)
+
+	GetLogger() vlog.Logger
+
+	RT() veyron2.Runtime
+}
+
+type Server struct {
 	sync.Mutex
 
 	// The server that handles the ipc layer.  Listen on this server is
@@ -61,7 +69,7 @@ type server struct {
 
 	// The server id.
 	id     uint64
-	helper serverHelper
+	helper ServerHelper
 
 	// The proxy to listen through.
 	veyronProxy string
@@ -70,15 +78,15 @@ type server struct {
 	outstandingServerRequests map[int64]chan *serverRPCReply
 }
 
-func newServer(id uint64, veyronProxy string, helper serverHelper) (*server, error) {
-	server := &server{
+func NewServer(id uint64, veyronProxy string, helper ServerHelper) (*Server, error) {
+	server := &Server{
 		id:                        id,
 		helper:                    helper,
 		veyronProxy:               veyronProxy,
 		outstandingServerRequests: make(map[int64]chan *serverRPCReply),
 	}
 	var err error
-	if server.server, err = helper.rt().NewServer(); err != nil {
+	if server.server, err = helper.RT().NewServer(); err != nil {
 		return nil, err
 	}
 	return server, nil
@@ -88,12 +96,12 @@ func newServer(id uint64, veyronProxy string, helper serverHelper) (*server, err
 // communicate the result back via a channel to the caller
 type remoteInvokeFunc func(methodName string, args []interface{}, call ipc.ServerCall) <-chan *serverRPCReply
 
-func (s *server) createRemoteInvokerFunc() remoteInvokeFunc {
+func (s *Server) createRemoteInvokerFunc() remoteInvokeFunc {
 	return func(methodName string, args []interface{}, call ipc.ServerCall) <-chan *serverRPCReply {
-		flow := s.helper.createNewFlow(s, senderWrapper{stream: call})
+		flow := s.helper.CreateNewFlow(s, senderWrapper{stream: call})
 		replyChan := make(chan *serverRPCReply, 1)
 		s.Lock()
-		s.outstandingServerRequests[flow.id] = replyChan
+		s.outstandingServerRequests[flow.ID] = replyChan
 		s.Unlock()
 		context := serverRPCRequestContext{
 			Suffix: call.Suffix(),
@@ -102,13 +110,12 @@ func (s *server) createRemoteInvokerFunc() remoteInvokeFunc {
 		// Send a invocation request to JavaScript
 		message := serverRPCRequest{
 			ServerId: s.id,
-			Method:   lowercaseFirstCharacter(methodName),
+			Method:   lib.LowercaseFirstCharacter(methodName),
 			Args:     args,
 			Context:  context,
 		}
 
-		data := response{Type: responseServerRequest, Message: message}
-		if err := vom.ObjToJSON(flow.writer, vom.ValueOf(data)); err != nil {
+		if err := flow.Writer.Send(lib.ResponseServerRequest, message); err != nil {
 			// Error in marshaling, pass the error through the channel immediately
 			replyChan <- &serverRPCReply{nil,
 				&verror.Standard{
@@ -117,49 +124,32 @@ func (s *server) createRemoteInvokerFunc() remoteInvokeFunc {
 			}
 			return replyChan
 		}
-		if err := flow.writer.FinishMessage(); err != nil {
-			replyChan <- &serverRPCReply{nil,
-				&verror.Standard{
-					ID:  verror.Internal,
-					Msg: fmt.Sprintf("WSPR: error finishing message: %v", err)},
-			}
-			return replyChan
-		}
 
-		s.helper.getLogger().VI(3).Infof("request received to call method %q on "+
+		s.helper.GetLogger().VI(3).Infof("request received to call method %q on "+
 			"JavaScript server with args %v, MessageId %d was assigned.",
-			methodName, args, flow.id)
+			methodName, args, flow.ID)
 
-		go proxyStream(call, flow.writer, s.helper.getLogger())
+		go proxyStream(call, flow.Writer, s.helper.GetLogger())
 		return replyChan
 	}
 }
 
-func proxyStream(stream ipc.Stream, w clientWriter, logger vlog.Logger) {
+func proxyStream(stream ipc.Stream, w lib.ClientWriter, logger vlog.Logger) {
 	var item interface{}
 	for err := stream.Recv(&item); err == nil; err = stream.Recv(&item) {
-		data := response{Type: responseStream, Message: item}
-		if err := vom.ObjToJSON(w, vom.ValueOf(data)); err != nil {
-			w.sendError(verror.Internalf("error marshalling stream: %v:", err))
-			return
-		}
-		if err := w.FinishMessage(); err != nil {
-			logger.Error("WSPR: error finishing message", err)
+		if err := w.Send(lib.ResponseStream, item); err != nil {
+			w.Error(verror.Internalf("error marshalling stream: %v:", err))
 			return
 		}
 	}
 
-	if err := vom.ObjToJSON(w, vom.ValueOf(response{Type: responseStreamClose})); err != nil {
-		w.sendError(verror.Internalf("error closing stream: %v:", err))
-		return
-	}
-	if err := w.FinishMessage(); err != nil {
-		logger.Error("WSPR: error finishing message", err)
+	if err := w.Send(lib.ResponseStreamClose, nil); err != nil {
+		w.Error(verror.Internalf("error closing stream: %v:", err))
 		return
 	}
 }
 
-func (s *server) serve(name string, sig JSONServiceSignature) (string, error) {
+func (s *Server) Serve(name string, sig signature.JSONServiceSignature) (string, error) {
 	s.Lock()
 	defer s.Unlock()
 
@@ -192,17 +182,17 @@ func (s *server) serve(name string, sig JSONServiceSignature) (string, error) {
 	if err := s.server.Serve(name, s.dispatcher); err != nil {
 		return "", err
 	}
-	s.helper.getLogger().VI(1).Infof("endpoint is %s", s.endpoint)
+	s.helper.GetLogger().VI(1).Infof("endpoint is %s", s.endpoint)
 	return s.endpoint, nil
 }
 
-func (s *server) handleServerResponse(id int64, data string) {
+func (s *Server) HandleServerResponse(id int64, data string) {
 	s.Lock()
 	ch := s.outstandingServerRequests[id]
 	delete(s.outstandingServerRequests, id)
 	s.Unlock()
 	if ch == nil {
-		s.helper.getLogger().Errorf("unexpected result from JavaScript. No channel "+
+		s.helper.GetLogger().Errorf("unexpected result from JavaScript. No channel "+
 			"for MessageId: %d exists. Ignoring the results.", id)
 		//Ignore unknown responses that don't belong to any channel
 		return
@@ -218,13 +208,13 @@ func (s *server) handleServerResponse(id int64, data string) {
 		serverReply = serverRPCReply{nil, &err}
 	}
 
-	s.helper.getLogger().VI(3).Infof("response received from JavaScript server for "+
+	s.helper.GetLogger().VI(3).Infof("response received from JavaScript server for "+
 		"MessageId %d with result %v", id, serverReply)
-	s.helper.cleanupFlow(id)
+	s.helper.CleanupFlow(id)
 	ch <- &serverReply
 }
 
-func (s *server) Stop() {
+func (s *Server) Stop() {
 	result := serverRPCReply{
 		Results: []interface{}{nil},
 		Err: &verror.Standard{

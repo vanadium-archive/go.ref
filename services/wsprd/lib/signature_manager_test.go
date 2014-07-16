@@ -15,6 +15,10 @@ const (
 	name = "/veyron/name"
 )
 
+func init() {
+	rt.Init()
+}
+
 func expectedSignature() ipc.ServiceSignature {
 	return ipc.ServiceSignature{
 		Methods: make(map[string]ipc.MethodSignature),
@@ -30,7 +34,7 @@ func expectedSignature() ipc.ServiceSignature {
 func client() *mocks_ipc.SimpleMockClient {
 	return mocks_ipc.NewSimpleClient(
 		map[string][]interface{}{
-			signatureMethodName: []interface{}{expectedSignature(), nil},
+			"Signature": []interface{}{expectedSignature(), nil},
 		},
 	)
 }
@@ -75,8 +79,8 @@ func assertSignatureAsExpected(t *testing.T, got, expected *ipc.ServiceSignature
 }
 
 func TestFetching(t *testing.T) {
-	sm := newSignatureManager()
-	got, err := sm.signature(rt.R().NewContext(), name, client())
+	sm := NewSignatureManager()
+	got, err := sm.Signature(rt.R().NewContext(), name, client())
 	if err != nil {
 		t.Errorf(`Did not expect an error but got %v`, err)
 		return
@@ -86,8 +90,8 @@ func TestFetching(t *testing.T) {
 }
 
 func TestThatCachedAfterFetching(t *testing.T) {
-	sm := newSignatureManager()
-	sig, _ := sm.signature(rt.R().NewContext(), name, client())
+	sm := NewSignatureManager().(*signatureManager)
+	sig, _ := sm.Signature(rt.R().NewContext(), name, client())
 	cache, ok := sm.cache[name]
 	if !ok {
 		t.Errorf(`Signature manager did not cache the results`)
@@ -98,30 +102,30 @@ func TestThatCachedAfterFetching(t *testing.T) {
 
 func TestThatCacheIsUsed(t *testing.T) {
 	client := client()
-	sm := newSignatureManager()
+	sm := NewSignatureManager()
 
 	// call twice
-	sm.signature(rt.R().NewContext(), name, client)
-	sm.signature(rt.R().NewContext(), name, client)
+	sm.Signature(rt.R().NewContext(), name, client)
+	sm.Signature(rt.R().NewContext(), name, client)
 
 	// expect number of calls to Signature method of client to still be 1 since cache
 	// should have been used despite the second call
-	if client.TimesCalled(signatureMethodName) != 1 {
+	if client.TimesCalled("Signature") != 1 {
 		t.Errorf("Signature cache was not used for the second call")
 	}
 }
 
 func TestThatLastAccessedGetUpdated(t *testing.T) {
 	client := client()
-	sm := newSignatureManager()
-	sm.signature(rt.R().NewContext(), name, client)
+	sm := NewSignatureManager().(*signatureManager)
+	sm.Signature(rt.R().NewContext(), name, client)
 	// make last accessed be in the past to account for the fact that
 	// two consecutive calls to time.Now() can return identical values.
 	sm.cache[name].lastAccessed = sm.cache[name].lastAccessed.Add(-ttl / 2)
 	prevAccess := sm.cache[name].lastAccessed
 
 	// access again
-	sm.signature(rt.R().NewContext(), name, client)
+	sm.Signature(rt.R().NewContext(), name, client)
 	newAccess := sm.cache[name].lastAccessed
 
 	if !newAccess.After(prevAccess) {
@@ -131,17 +135,17 @@ func TestThatLastAccessedGetUpdated(t *testing.T) {
 
 func TestThatTTLExpires(t *testing.T) {
 	client := client()
-	sm := newSignatureManager()
-	sm.signature(rt.R().NewContext(), name, client)
+	sm := NewSignatureManager().(*signatureManager)
+	sm.Signature(rt.R().NewContext(), name, client)
 
 	// make last accessed go over the ttl
 	sm.cache[name].lastAccessed = sm.cache[name].lastAccessed.Add(-2 * ttl)
 
 	// make a second call
-	sm.signature(rt.R().NewContext(), name, client)
+	sm.Signature(rt.R().NewContext(), name, client)
 
 	// expect number of calls to Signature method of client to be 2 since cache should have expired
-	if client.TimesCalled(signatureMethodName) != 2 {
+	if client.TimesCalled("Signature") != 2 {
 		t.Errorf("Cache was still used but TTL had passed. It should have been fetched again")
 	}
 }

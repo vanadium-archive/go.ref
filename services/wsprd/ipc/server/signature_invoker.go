@@ -1,4 +1,4 @@
-package lib
+package server
 
 import (
 	"veyron2/ipc"
