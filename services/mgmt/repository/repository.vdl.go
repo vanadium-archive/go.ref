@@ -523,46 +523,42 @@ func (__gen_s *ServerStubProfile) Signature(call _gen_ipc.ServerCall) (_gen_ipc.
 	result := _gen_ipc.ServiceSignature{Methods: make(map[string]_gen_ipc.MethodSignature)}
 	result.Methods["Put"] = _gen_ipc.MethodSignature{
 		InArgs: []_gen_ipc.MethodArgument{
-			{Name: "Specification", Type: 69},
+			{Name: "Specification", Type: 70},
 		},
 		OutArgs: []_gen_ipc.MethodArgument{
-			{Name: "", Type: 70},
+			{Name: "", Type: 71},
 		},
 	}
 	result.Methods["Remove"] = _gen_ipc.MethodSignature{
 		InArgs: []_gen_ipc.MethodArgument{},
 		OutArgs: []_gen_ipc.MethodArgument{
-			{Name: "", Type: 70},
+			{Name: "", Type: 71},
 		},
 	}
 	result.Methods["Specification"] = _gen_ipc.MethodSignature{
 		InArgs: []_gen_ipc.MethodArgument{},
 		OutArgs: []_gen_ipc.MethodArgument{
-			{Name: "", Type: 69},
 			{Name: "", Type: 70},
+			{Name: "", Type: 71},
 		},
 	}
 
 	result.TypeDefs = []_gen_vdlutil.Any{
-		_gen_wiretype.MapType{Key: 0x3, Elem: 0x3, Name: "", Tags: []string(nil)}, _gen_wiretype.StructType{
-			[]_gen_wiretype.FieldType{
-				_gen_wiretype.FieldType{Type: 0x3, Name: "Name"},
-				_gen_wiretype.FieldType{Type: 0x41, Name: "Attributes"},
-			},
-			"veyron/services/mgmt/profile.Format", []string(nil)},
-		_gen_wiretype.StructType{
+		_gen_wiretype.NamedPrimitiveType{Type: 0x32, Name: "veyron2/services/mgmt/build.Architecture", Tags: []string(nil)}, _gen_wiretype.NamedPrimitiveType{Type: 0x32, Name: "veyron2/services/mgmt/build.Format", Tags: []string(nil)}, _gen_wiretype.StructType{
 			[]_gen_wiretype.FieldType{
 				_gen_wiretype.FieldType{Type: 0x3, Name: "Name"},
 				_gen_wiretype.FieldType{Type: 0x3, Name: "MajorVersion"},
 				_gen_wiretype.FieldType{Type: 0x3, Name: "MinorVersion"},
 			},
 			"veyron/services/mgmt/profile.Library", []string(nil)},
-		_gen_wiretype.MapType{Key: 0x43, Elem: 0x2, Name: "", Tags: []string(nil)}, _gen_wiretype.StructType{
+		_gen_wiretype.MapType{Key: 0x43, Elem: 0x2, Name: "", Tags: []string(nil)}, _gen_wiretype.NamedPrimitiveType{Type: 0x32, Name: "veyron2/services/mgmt/build.OperatingSystem", Tags: []string(nil)}, _gen_wiretype.StructType{
 			[]_gen_wiretype.FieldType{
+				_gen_wiretype.FieldType{Type: 0x41, Name: "Arch"},
+				_gen_wiretype.FieldType{Type: 0x3, Name: "Description"},
 				_gen_wiretype.FieldType{Type: 0x42, Name: "Format"},
 				_gen_wiretype.FieldType{Type: 0x44, Name: "Libraries"},
 				_gen_wiretype.FieldType{Type: 0x3, Name: "Label"},
-				_gen_wiretype.FieldType{Type: 0x3, Name: "Description"},
+				_gen_wiretype.FieldType{Type: 0x45, Name: "OS"},
 			},
 			"veyron/services/mgmt/profile.Specification", []string(nil)},
 		_gen_wiretype.NamedPrimitiveType{Type: 0x1, Name: "error", Tags: []string(nil)}}

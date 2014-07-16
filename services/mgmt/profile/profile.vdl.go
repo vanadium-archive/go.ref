@@ -5,16 +5,9 @@
 // types used by the implementation of Veyron profiles.
 package profile
 
-// Format includes a type (e.g. ELF) and each instance of the format
-// has some specific attributes. The key attributes are the target
-// operating system (e.g. for ELF this could be one of System V,
-// HP-UX, NetBSD, Linux, Solaris, AIX, IRIX, FreeBSD, and OpenBSD) and
-// the target instruction set architecture (e.g. for ELF this could be
-// one of SPARC, x86, PowerPC, ARM, IA-64, x86-64, and AArch64).
-type Format struct {
-	Name       string
-	Attributes map[string]string
-}
+import (
+	"veyron2/services/mgmt/build"
+)
 
 // Library describes a shared library that applications may use.
 type Library struct {
@@ -29,12 +22,17 @@ type Library struct {
 // Specification is how we represent a profile internally. It should
 // provide enough information to allow matching of binaries to nodes.
 type Specification struct {
-	// Format is the file format of the application binary.
-	Format Format
-	// Libraries is a set of libraries the application binary depends on.
-	Libraries map[Library]struct{}
-	// A human-friendly concise label for the profile, e.g. "linux-media"
-	Label string
-	// A human-friendly description of the profile.
+	// Arch is the target hardware architecture of the profile.
+	Arch build.Architecture
+	// Description is a human-friendly description of the profile.
 	Description string
+	// Format is the file format supported by the profile.
+	Format build.Format
+	// Libraries is a set of libraries the profile requires.
+	Libraries map[Library]struct{}
+	// Label is a human-friendly concise label for the profile,
+	// e.g. "linux-media".
+	Label string
+	// OS is the target operating system of the profile.
+	OS build.OperatingSystem
 }

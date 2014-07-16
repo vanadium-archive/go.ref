@@ -41,8 +41,7 @@ import (
 	"time"
 
 	"veyron/lib/config"
-	"veyron/services/mgmt/build"
-	cbinary "veyron/services/mgmt/lib/binary"
+	blib "veyron/services/mgmt/lib/binary"
 	vexec "veyron/services/mgmt/lib/exec"
 	"veyron/services/mgmt/profile"
 
@@ -52,6 +51,7 @@ import (
 	"veyron2/rt"
 	"veyron2/services/mgmt/application"
 	"veyron2/services/mgmt/binary"
+	"veyron2/services/mgmt/build"
 	"veyron2/services/mgmt/node"
 	"veyron2/services/mgmt/repository"
 	"veyron2/verror"
@@ -119,30 +119,30 @@ func NewInvoker(state *state, suffix string) *invoker {
 // TODO(jsimsa): Avoid computing the host node description from
 // scratch if a recent cached copy exists.
 func (i *invoker) computeNodeProfile() (*profile.Specification, error) {
-	result := profile.Specification{Format: profile.Format{Attributes: make(map[string]string)}}
+	result := profile.Specification{}
 
 	// Find out what the supported file format, operating system, and
 	// architecture is.
 	switch runtime.GOOS {
-	case "linux":
-		result.Format.Name = build.ELF.String()
-		result.Format.Attributes["os"] = build.LINUX.String()
 	case "darwin":
-		result.Format.Name = build.MACH.String()
-		result.Format.Attributes["os"] = build.DARWIN.String()
+		result.Format = build.MACH
+		result.OS = build.Darwin
+	case "linux":
+		result.Format = build.ELF
+		result.OS = build.Linux
 	case "windows":
-		result.Format.Name = build.PE.String()
-		result.Format.Attributes["os"] = build.WINDOWS.String()
+		result.Format = build.PE
+		result.OS = build.Windows
 	default:
 		return nil, errors.New("Unsupported operating system: " + runtime.GOOS)
 	}
 	switch runtime.GOARCH {
 	case "amd64":
-		result.Format.Attributes["arch"] = build.AMD64.String()
+		result.Arch = build.AMD64
 	case "arm":
-		result.Format.Attributes["arch"] = build.AMD64.String()
+		result.Arch = build.ARM
 	case "x86":
-		result.Format.Attributes["arch"] = build.AMD64.String()
+		result.Arch = build.X86
 	default:
 		return nil, errors.New("Unsupported hardware architecture: " + runtime.GOARCH)
 	}
@@ -269,13 +269,13 @@ func (i *invoker) matchProfiles(p *profile.Specification, known []profile.Specif
 	result := node.Description{Profiles: make(map[string]struct{})}
 loop:
 	for _, profile := range known {
-		if profile.Format.Name != p.Format.Name {
+		if profile.Format != p.Format {
 			continue
 		}
-		if profile.Format.Attributes["os"] != p.Format.Attributes["os"] {
+		if profile.OS != p.OS {
 			continue
 		}
-		if profile.Format.Attributes["arch"] != p.Format.Attributes["arch"] {
+		if profile.Arch != p.Arch {
 			continue
 		}
 		for library := range profile.Libraries {
@@ -331,7 +331,7 @@ func (i *invoker) Reset(call ipc.ServerContext, deadline uint64) error {
 // APPLICATION INTERFACE IMPLEMENTATION
 
 func downloadBinary(workspace, name string) error {
-	data, err := cbinary.Download(name)
+	data, err := blib.Download(name)
 	if err != nil {
 		vlog.Errorf("Download(%v) failed: %v", name, err)
 		return errOperationFailed

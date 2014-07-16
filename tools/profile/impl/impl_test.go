@@ -15,16 +15,19 @@ import (
 	"veyron2/naming"
 	"veyron2/rt"
 	"veyron2/security"
+	"veyron2/services/mgmt/build"
 	"veyron2/vlog"
 )
 
 var (
 	// spec is an example profile specification used throughout the test.
 	spec = profile.Specification{
-		Format:      profile.Format{Name: "elf", Attributes: map[string]string{"os": "linux"}},
+		Arch:        build.AMD64,
+		Description: "Example profile to test the profile repository implementation.",
+		Format:      build.ELF,
 		Libraries:   map[profile.Library]struct{}{profile.Library{Name: "foo", MajorVersion: "1", MinorVersion: "0"}: struct{}{}},
 		Label:       "example",
-		Description: "Example profile to test the profile repository implementation.",
+		OS:          build.Linux,
 	}
 )
 

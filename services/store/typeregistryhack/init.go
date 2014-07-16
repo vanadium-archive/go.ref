@@ -5,10 +5,7 @@
 package typeregistryhack
 
 import (
-	"veyron/services/mgmt/profile"
-	"veyron2/services/mgmt/application"
-
-	// Register boxes types
+	// Register boxes types.
 	"veyron/examples/boxes"
 	// Register mdb types.
 	_ "veyron/examples/storage/mdb/schema"
@@ -18,6 +15,12 @@ import (
 	_ "veyron/examples/bank/schema"
 	// Register stfortune types.
 	_ "veyron/examples/stfortune/schema"
+	// Register profile types.
+	"veyron/services/mgmt/profile"
+	// Register application types.
+	"veyron2/services/mgmt/application"
+	// Register build types.
+	_ "veyron2/services/mgmt/build"
 
 	"veyron2/vom"
 )

@@ -8,6 +8,7 @@ import (
 	"veyron/services/mgmt/repository"
 
 	"veyron2/rt"
+	"veyron2/services/mgmt/build"
 )
 
 var cmdLabel = &cmdline.Command{
@@ -105,10 +106,12 @@ func runPut(cmd *cmdline.Command, args []string) error {
 
 	// TODO(rthellend): Read an actual specification from a file.
 	spec := profile.Specification{
-		Format:      profile.Format{Name: "elf", Attributes: map[string]string{"os": "linux", "arch": "amd64"}},
+		Arch:        build.AMD64,
+		Description: "Example profile to test the profile manager implementation.",
+		Format:      build.ELF,
 		Libraries:   map[profile.Library]struct{}{profile.Library{Name: "foo", MajorVersion: "1", MinorVersion: "0"}: struct{}{}},
 		Label:       "example",
-		Description: "Example profile to test the profile manager implementation.",
+		OS:          build.Linux,
 	}
 	if err := p.Put(rt.R().NewContext(), spec); err != nil {
 		return err

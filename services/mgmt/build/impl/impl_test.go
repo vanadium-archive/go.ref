@@ -1,6 +1,7 @@
 package impl
 
 import (
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -49,31 +50,43 @@ func startServer(t *testing.T) (build.Build, func()) {
 	}
 }
 
-func invokeBuild(t *testing.T, client build.Build, files []build.File) ([]byte, error) {
+func invokeBuild(t *testing.T, client build.Build, files []build.File) ([]byte, []build.File, error) {
 	stream, err := client.Build(rt.R().NewContext())
 	if err != nil {
 		t.Errorf("Build() failed: %v", err)
-		return nil, err
+		return nil, nil, err
 	}
 	for _, file := range files {
 		if err := stream.Send(file); err != nil {
 			t.Logf("Send() failed: %v", err)
 			stream.Cancel()
-			return nil, err
+			return nil, nil, err
 		}
 	}
 	if err := stream.CloseSend(); err != nil {
 		t.Logf("CloseSend() failed: %v", err)
 		stream.Cancel()
-		return nil, err
+		return nil, nil, err
+	}
+	bins := make([]build.File, 0)
+	for {
+		bin, err := stream.Recv()
+		if err != nil && err != io.EOF {
+			t.Logf("Recv() failed: %v", err)
+			return nil, nil, err
+		}
+		if err == io.EOF {
+			break
+		}
+		bins = append(bins, bin)
 	}
 	output, err := stream.Finish()
 	if err != nil {
 		t.Logf("Finish() failed: %v", err)
 		stream.Cancel()
-		return nil, err
+		return nil, nil, err
 	}
-	return output, nil
+	return output, bins, nil
 }
 
 const mainSrc = `package main
@@ -97,12 +110,15 @@ func TestSuccess(t *testing.T) {
 			Contents: []byte(mainSrc),
 		},
 	}
-	output, err := invokeBuild(t, client, files)
+	output, bins, err := invokeBuild(t, client, files)
 	if err != nil {
 		t.FailNow()
 	}
 	if got, expected := strings.TrimSpace(string(output)), "test"; got != expected {
 		t.Fatalf("Unexpected output: got %v, expected %v", got, expected)
+	}
+	if got, expected := len(bins), 1; got != expected {
+		t.Fatalf("Unexpected number of binaries: got %v, expected %v", got, expected)
 	}
 }
 
@@ -118,7 +134,7 @@ func TestFailure(t *testing.T) {
 			Contents: []byte(""),
 		},
 	}
-	if _, err := invokeBuild(t, client, files); err == nil {
+	if _, _, err := invokeBuild(t, client, files); err == nil {
 		t.FailNow()
 	}
 }
