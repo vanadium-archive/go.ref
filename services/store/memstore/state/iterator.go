@@ -37,10 +37,13 @@ type Iterator interface {
 type iterator struct {
 	snapshot Snapshot
 
-	// Set of IDs already visited.
+	// Set of IDs already visited on this path.
 	visited map[storage.ID]struct{}
 
-	// Stack of IDs to visit next.  Some of these may already have been visited.
+	// Stack of actions to consider next. Actions are one of:
+	// - visit a node accessible from the current path (the node may already
+	//   have been visited on the current path).
+	// - unvisit a node (backtrack the current path).
 	next []next
 
 	// Depth of starting path.
@@ -49,6 +52,8 @@ type iterator struct {
 	// Current value.
 	entry *storage.Entry
 	path  *refs.FullPath
+
+	pathFilter PathFilter
 
 	filter IterFilter
 }
@@ -59,11 +64,30 @@ type next struct {
 	parent  *refs.FullPath
 	path    *refs.Path
 	id      storage.ID
+	action  action
 }
+
+type action int
+
+const (
+	visit = action(iota)
+	unvisit
+)
 
 var (
 	_ Iterator = (*iterator)(nil)
 	_ Iterator = (*errorIterator)(nil)
+)
+
+// A PathFilter automatically limits the traversal of certain paths,
+type PathFilter int
+
+const (
+	// ListPaths permits any path that does not visit the same object twice.
+	ListPaths = PathFilter(iota)
+	// ListObjects permits any path that does not revisit any object on a
+	// previously traversed path 'Q', even if Q did not satisfy it.filter.
+	ListObjects
 )
 
 // An IterFilter examines entries as they are considered by the
@@ -84,11 +108,14 @@ func ImmediateFilter(_ *refs.FullPath, path *refs.Path) (bool, bool) {
 	return true, path == nil
 }
 
-// NewIterator returns an Iterator that starts with the value at
-// <path>.  If filter is given it is used to limit traversal beneath
-// certain paths. filter can be specified to limit the results of the iteration.
-// If filter is nil, all decendents of the specified path are returned.
-func (sn *snapshot) NewIterator(pid security.PublicID, path storage.PathName, filter IterFilter) Iterator {
+// NewIterator returns an Iterator that starts with the value at <path>.
+// pathFilter is used to automatically limit traversal of certain paths.
+// If filter is given, it is used to limit traversal beneath certain paths and
+// limit the results of the iteration. If filter is nil, all decendents of the
+// specified path are returned.
+func (sn *snapshot) NewIterator(pid security.PublicID, path storage.PathName,
+	pathFilter PathFilter, filter IterFilter) Iterator {
+
 	checker := sn.newPermChecker(pid)
 	cell, suffix, v := sn.resolveCell(checker, path, nil)
 	if cell == nil {
@@ -104,6 +131,7 @@ func (sn *snapshot) NewIterator(pid security.PublicID, path storage.PathName, fi
 		visited:      make(map[storage.ID]struct{}),
 		initialDepth: len(path),
 		path:         refs.NewFullPathFromName(path),
+		pathFilter:   pathFilter,
 		filter:       filter,
 	}
 
@@ -120,11 +148,12 @@ func (sn *snapshot) NewIterator(pid security.PublicID, path storage.PathName, fi
 	} else {
 		it.entry = cell.GetEntry()
 		it.visited[cell.ID] = struct{}{}
+		it.pushUnvisit(nil, cell.ID)
 		set = cell.refs
 	}
 
 	if expand {
-		it.pushAll(checker, it.path, set)
+		it.pushVisitAll(checker, it.path, set)
 	}
 	if !ret {
 		it.Next()
@@ -133,11 +162,25 @@ func (sn *snapshot) NewIterator(pid security.PublicID, path storage.PathName, fi
 	return it
 }
 
-func (it *iterator) pushAll(checker *acl.Checker, parentPath *refs.FullPath, set refs.Set) {
+func (it *iterator) pushUnvisit(path *refs.Path, id storage.ID) {
+	switch it.pathFilter {
+	case ListPaths:
+		it.next = append(it.next, next{nil, nil, path, id, unvisit})
+	case ListObjects:
+		// Do not unvisit the object, as it is on a path already seen by
+		// it.filter.
+	default:
+		panic("unknown PathFilter")
+	}
+}
+
+func (it *iterator) pushVisitAll(checker *acl.Checker,
+	parentPath *refs.FullPath, set refs.Set) {
+
 	set.Iter(func(x interface{}) bool {
 		ref := x.(*refs.Ref)
 		if checker.IsAllowed(ref.Label) {
-			it.next = append(it.next, next{checker, parentPath, ref.Path, ref.ID})
+			it.next = append(it.next, next{checker, parentPath, ref.Path, ref.ID, visit})
 		}
 		return true
 	})
@@ -171,9 +214,19 @@ func (it *iterator) Next() {
 			return
 		}
 		n, it.next = it.next[topIndex], it.next[:topIndex]
+
+		if n.action == unvisit {
+			delete(it.visited, n.id)
+			continue
+		}
+
 		if _, ok := it.visited[n.id]; ok {
 			continue
 		}
+
+		// Mark as visited.
+		it.visited[n.id] = struct{}{}
+		it.pushUnvisit(n.path, n.id)
 
 		// Fetch the cell.
 		c = it.snapshot.Find(n.id)
@@ -193,7 +246,7 @@ func (it *iterator) Next() {
 		ret, expand := it.filter(n.parent, n.path)
 		fullPath = n.parent.AppendPath(n.path)
 		if expand {
-			it.pushAll(checker, fullPath, c.refs)
+			it.pushVisitAll(checker, fullPath, c.refs)
 		}
 		if ret {
 			// Found a value.
@@ -201,8 +254,6 @@ func (it *iterator) Next() {
 		}
 	}
 
-	// Mark as visited.
-	it.visited[n.id] = struct{}{}
 	it.entry, it.path = c.GetEntry(), fullPath
 }
 

@@ -12,11 +12,12 @@ import (
 )
 
 type Snapshot interface {
-	// NewIterator returns an Iterator that starts with the value at <path>.  If
-	// filter is given it is used to limit traversal beneath certain paths.
-	// filter can be specified to limit the results of the iteration. If filter
-	// is nil, all decendents of the specified path are returned.
-	NewIterator(pid security.PublicID, path storage.PathName, filter IterFilter) Iterator
+	// NewIterator returns an Iterator that starts with the value at <path>.
+	// pathFilter is used to automatically limit traversal of certain paths.
+	// If filter is given, it is used to limit traversal beneath certain paths
+	// and limit the results of the iteration. If filter is nil, all decendents
+	// of the specified path are returned.
+	NewIterator(pid security.PublicID, path storage.PathName, pathFilter PathFilter, filter IterFilter) Iterator
 
 	// PathMatch returns true iff there is a name for the store value that
 	// matches the pathRegex.

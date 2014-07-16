@@ -19,6 +19,9 @@ func TestGlobProcessState(t *testing.T) {
 	id1 := put(t, st, tr, "/", "val1")
 	id2 := put(t, st, tr, "/a", "val2")
 	put(t, st, tr, "/a/b", "val3")
+	id4 := put(t, st, tr, "/a/c", "val4")
+	// Test duplicate paths to the same object.
+	put(t, st, tr, "/a/d", id4)
 	commit(t, tr)
 
 	// Remove /a/b.
@@ -44,20 +47,26 @@ func TestGlobProcessState(t *testing.T) {
 	aRecursiveProcessor := createGlobProcessor(t, storage.ParsePath("/a"), "...")
 	aListProcessor := createGlobProcessor(t, storage.ParsePath("/a"), "*")
 
-	// Expect initial state that contains / and /a.
+	// Expect initial state that contains /, /a, /a/c and /a/d.
 	logst := readState(t, log)
 
-	changes := processState(t, rootRecursiveProcessor, logst, 2)
+	changes := processState(t, rootRecursiveProcessor, logst, 4)
 	watchtesting.ExpectEntryExists(t, changes, "", id1, "val1")
 	watchtesting.ExpectEntryExists(t, changes, "a", id2, "val2")
+	watchtesting.ExpectEntryExists(t, changes, "a/c", id4, "val4")
+	watchtesting.ExpectEntryExists(t, changes, "a/d", id4, "val4")
 
 	changes = processState(t, rootListProcessor, logst, 1)
 	watchtesting.ExpectEntryExists(t, changes, "a", id2, "val2")
 
-	changes = processState(t, aRecursiveProcessor, logst, 1)
+	changes = processState(t, aRecursiveProcessor, logst, 3)
 	watchtesting.ExpectEntryExists(t, changes, "a", id2, "val2")
+	watchtesting.ExpectEntryExists(t, changes, "a/c", id4, "val4")
+	watchtesting.ExpectEntryExists(t, changes, "a/d", id4, "val4")
 
-	processState(t, aListProcessor, logst, 0)
+	processState(t, aListProcessor, logst, 2)
+	watchtesting.ExpectEntryExists(t, changes, "a/c", id4, "val4")
+	watchtesting.ExpectEntryExists(t, changes, "a/d", id4, "val4")
 }
 
 func TestGlobProcessTransactionAdd(t *testing.T) {
@@ -85,25 +94,34 @@ func TestGlobProcessTransactionAdd(t *testing.T) {
 	id1 := put(t, st, tr, "/", "val1")
 	id2 := put(t, st, tr, "/a", "val2")
 	id3 := put(t, st, tr, "/a/b", "val3")
+	id4 := put(t, st, tr, "/a/c", "val4")
+	// Test duplicate paths to the same object.
+	put(t, st, tr, "/a/d", id4)
 	commit(t, tr)
 
 	// Expect transaction that adds /, /a and /a/b.
 	mus := readTransaction(t, log)
 
-	changes := processTransaction(t, rootRecursiveProcessor, mus, 3)
+	changes := processTransaction(t, rootRecursiveProcessor, mus, 5)
 	watchtesting.ExpectEntryExists(t, changes, "", id1, "val1")
 	watchtesting.ExpectEntryExists(t, changes, "a", id2, "val2")
 	watchtesting.ExpectEntryExists(t, changes, "a/b", id3, "val3")
+	watchtesting.ExpectEntryExists(t, changes, "a/c", id4, "val4")
+	watchtesting.ExpectEntryExists(t, changes, "a/d", id4, "val4")
 
 	changes = processTransaction(t, rootListProcessor, mus, 1)
 	watchtesting.ExpectEntryExists(t, changes, "a", id2, "val2")
 
-	changes = processTransaction(t, aRecursiveProcessor, mus, 2)
+	changes = processTransaction(t, aRecursiveProcessor, mus, 4)
 	watchtesting.ExpectEntryExists(t, changes, "a", id2, "val2")
 	watchtesting.ExpectEntryExists(t, changes, "a/b", id3, "val3")
+	watchtesting.ExpectEntryExists(t, changes, "a/c", id4, "val4")
+	watchtesting.ExpectEntryExists(t, changes, "a/d", id4, "val4")
 
-	changes = processTransaction(t, aListProcessor, mus, 1)
+	changes = processTransaction(t, aListProcessor, mus, 3)
 	watchtesting.ExpectEntryExists(t, changes, "a/b", id3, "val3")
+	watchtesting.ExpectEntryExists(t, changes, "a/c", id4, "val4")
+	watchtesting.ExpectEntryExists(t, changes, "a/d", id4, "val4")
 
 	changes = processTransaction(t, bRecursiveProcessor, mus, 1)
 	watchtesting.ExpectEntryExists(t, changes, "a/b", id3, "val3")

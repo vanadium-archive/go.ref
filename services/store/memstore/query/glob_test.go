@@ -9,51 +9,64 @@ import (
 	"veyron2/storage"
 )
 
-type nameOptions []string
-
 type globTest struct {
 	path     string
 	pattern  string
-	expected []nameOptions
+	expected []string
 }
 
 var globTests = []globTest{
-	{"", "mvps/...", []nameOptions{
-		{"mvps"},
-		{"mvps/Links/0"},
-		{"mvps/Links/1"},
+	{"", "...", []string{
+		"",
+		"mvps",
+		"mvps/Links/0",
+		"mvps/Links/1",
+		"players",
+		"players/alfred",
+		"players/alice",
+		"players/betty",
+		"players/bob",
+		"teams",
+		"teams/bears",
+		"teams/cardinals",
+		"teams/sharks",
 	}},
-	{"", "players/...", []nameOptions{
-		{"players"},
-		{"players/alfred"},
-		{"players/alice"},
-		{"players/betty"},
-		{"players/bob"},
+	{"", "mvps/...", []string{
+		"mvps",
+		"mvps/Links/0",
+		"mvps/Links/1",
+	}},
+	{"", "players/...", []string{
+		"players",
+		"players/alfred",
+		"players/alice",
+		"players/betty",
+		"players/bob",
 	}},
 	// Note(mattr): This test case shows that Glob does not return
 	// subfield nodes.
-	{"", "mvps/*", []nameOptions{}},
-	{"", "mvps/Links/*", []nameOptions{
-		{"mvps/Links/0"},
-		{"mvps/Links/1"},
+	{"", "mvps/*", []string{}},
+	{"", "mvps/Links/*", []string{
+		"mvps/Links/0",
+		"mvps/Links/1",
 	}},
-	{"", "players/alfred", []nameOptions{
-		{"players/alfred"},
+	{"", "players/alfred", []string{
+		"players/alfred",
 	}},
-	{"", "mvps/Links/0", []nameOptions{
-		{"mvps/Links/0"},
+	{"", "mvps/Links/0", []string{
+		"mvps/Links/0",
 	}},
 	// An empty pattern returns the element referred to by the path.
-	{"/mvps/Links/0", "", []nameOptions{
-		{""},
+	{"/mvps/Links/0", "", []string{
+		"",
 	}},
-	{"mvps", "Links/*", []nameOptions{
-		{"Links/0"},
-		{"Links/1"},
+	{"mvps", "Links/*", []string{
+		"Links/0",
+		"Links/1",
 	}},
-	{"mvps/Links", "*", []nameOptions{
-		{"0"},
-		{"1"},
+	{"mvps/Links", "*", []string{
+		"0",
+		"1",
 	}},
 }
 
@@ -102,16 +115,9 @@ func TestGlob(t *testing.T) {
 			t.Errorf("Wrong number of names for %s.  got %v, wanted %v",
 				gt.pattern, names, gt.expected)
 		}
-		for _, options := range gt.expected {
-			found := false
-			for _, name := range options {
-				if names[name] {
-					found = true
-					break
-				}
-			}
-			if !found {
-				t.Errorf("Expected to find one of %v in %v", options, names)
+		for _, name := range gt.expected {
+			if !names[name] {
+				t.Errorf("Expected to find %v in %v", name, names)
 			}
 		}
 	}
