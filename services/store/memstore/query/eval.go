@@ -63,6 +63,12 @@ type nestedChannel struct {
 	results <-chan *store.QueryResult
 }
 
+// hiddenResult wraps a value so evalIterator can elide it from
+// storage.QueryResult.Fields that are sent to the client.
+type hiddenResult struct {
+	value vdlutil.Any
+}
+
 // Next implements the QueryStream method.
 func (it *evalIterator) Next() bool {
 	it.mu.Lock()
@@ -102,17 +108,23 @@ func (it *evalIterator) Next() bool {
 // the result.Fields key to append them in reverse alphabetical order.
 // We use reverse alphabetical order because it.results is a stack--
 // we want to process them in alphabetical order.
+//
+// enqueueNestedChannels also removes any result.Fields that are of the
+// type hiddenResult.
 func (it *evalIterator) enqueueNestedChannels(result *store.QueryResult) {
 	if result.Fields == nil {
 		return
 	}
 	var nestingKeys []string
 	for key, val := range result.Fields {
-		// TODO(kash): If a stored value happens to be a store.QueryResult, we'll
-		// do the wrong thing here.  Once we store vom.Value instead of raw structs,
-		// this should not be a problem.
-		if _, ok := val.(chan *store.QueryResult); ok {
+		switch val.(type) {
+		case chan *store.QueryResult:
 			nestingKeys = append(nestingKeys, key)
+		case hiddenResult:
+			// If a field is "hidden", the value will be wrapped in the type
+			// hiddenResult to make it possible for evalIterator to elide it
+			// from the results sent to the client.
+			delete(result.Fields, key)
 		}
 	}
 	// Figure out the store.NestedResult values based on alphabetical order of
@@ -504,7 +516,6 @@ type alias struct {
 	alias string
 	// hidden is true if this field in the selection should not be included
 	// in the results sent to the client.
-	// TODO(kash): hidden is currently ignored during evaluation.
 	hidden bool
 }
 
@@ -579,6 +590,12 @@ func (e *selectionEvaluator) processSubpipelines(c *context, result *store.Query
 		}
 
 		if a.alias != "" {
+			if a.hidden {
+				// If a field is "hidden", the value will be wrapped in the type
+				// hiddenResult to make it possible for evalIterator to elide it
+				// from the results sent to the client.
+				value = hiddenResult{value}
+			}
 			sel.Fields[a.alias] = value
 		} else {
 			sel.Fields[a.evaluator.name()] = value
@@ -1020,6 +1037,12 @@ func (e *exprName) value(c *context, result *store.QueryResult) interface{} {
 			c.evalIt.setErrorf("name '%s' was not selected from '%s', found: [%s]",
 				e.name, result.Name, mapKeys(result.Fields))
 			return nil
+		}
+		// If a field is "hidden", the value will be wrapped in the type
+		// hiddenResult to make it possible for evalIterator to elide it
+		// from the results sent to the client.
+		if v, ok := val.(hiddenResult); ok {
+			return v.value
 		}
 		return val
 	}

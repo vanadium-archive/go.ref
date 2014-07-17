@@ -358,6 +358,19 @@ func TestSelection(t *testing.T) {
 			},
 		},
 		{
+			"", "'teams/cardinals' | {Name as myname hidden, Location as myloc} | ? myname == 'cardinals'",
+			[]*store.QueryResult{
+				&store.QueryResult{
+					0,
+					"teams/cardinals",
+					map[string]vdlutil.Any{
+						"myloc": "CA",
+					},
+					nil,
+				},
+			},
+		},
+		{
 			"",
 			"'teams/*' | type team | {" +
 				"    Name as myname," +
@@ -434,7 +447,7 @@ func TestSelection(t *testing.T) {
 				break
 			}
 			if got, want := result, test.expectedResults[i]; !reflect.DeepEqual(got, want) {
-				t.Errorf("query: %s;\nGOT  %s\nWANT %s", test.query, got, want)
+				t.Errorf("query: %s;\nGOT  %v\nWANT %v", test.query, got, want)
 			}
 			i++
 		}
