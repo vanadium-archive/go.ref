@@ -21,15 +21,19 @@ const (
 )
 
 // authenticateAsServer executes the authentication protocol at the server and
-// returns the identity of the client.
-func authenticateAsServer(conn io.ReadWriteCloser, serverID security.PrivateID, crypter crypto.Crypter) (clientID security.PublicID, err error) {
+// returns the identity of the client and server.
+func authenticateAsServer(conn io.ReadWriteCloser, localID LocalID, crypter crypto.Crypter) (clientID, serverID security.PublicID, err error) {
 	// The authentication protocol has the server doing the final read, so
 	// it is the one that closes the connection.
 	defer conn.Close()
-	if err = writeIdentity(conn, serverChannelEnd, crypter, serverID); err != nil {
+	if serverID, err = localID.AsServer(); err != nil {
 		return
 	}
-	return readIdentity(conn, clientChannelEnd, crypter)
+	if err = writeIdentity(conn, serverChannelEnd, crypter, localID, serverID); err != nil {
+		return
+	}
+	clientID, err = readIdentity(conn, clientChannelEnd, crypter)
+	return
 }
 
 // authenticateAsClient executes the authentication protocol at the client and
@@ -37,12 +41,17 @@ func authenticateAsServer(conn io.ReadWriteCloser, serverID security.PrivateID, 
 //
 // If serverName is non-nil, the authentication protocol will be considered
 // successfull iff the server identity matches the provided regular expression.
-func authenticateAsClient(conn io.ReadWriteCloser, clientID security.PrivateID, crypter crypto.Crypter) (serverID security.PublicID, err error) {
+func authenticateAsClient(conn io.ReadWriteCloser, localID LocalID, crypter crypto.Crypter) (serverID, clientID security.PublicID, err error) {
 	defer conn.Close()
 	if serverID, err = readIdentity(conn, serverChannelEnd, crypter); err != nil {
 		return
 	}
-	err = writeIdentity(conn, clientChannelEnd, crypter, clientID)
+	// TODO(ashankar,ataly): Have the ability to avoid talking to a server we do not want to.
+	// Will require calling Authorize on the server id?
+	if clientID, err = localID.AsClient(serverID); err != nil {
+		return
+	}
+	err = writeIdentity(conn, clientChannelEnd, crypter, localID, clientID)
 	return
 }
 
@@ -64,7 +73,7 @@ var (
 	errSingleCertificateRequired = errors.New("exactly one X.509 certificate chain with exactly one certificate is required")
 )
 
-func writeIdentity(w io.Writer, chEnd string, enc crypto.Encrypter, id security.PrivateID) error {
+func writeIdentity(w io.Writer, chEnd string, enc crypto.Encrypter, id LocalID, pub security.PublicID) error {
 	// Compute channel id - encrypted chEnd string
 	chid, err := enc.Encrypt(iobuf.NewSlice([]byte(chEnd)))
 	if err != nil {
@@ -74,7 +83,7 @@ func writeIdentity(w io.Writer, chEnd string, enc crypto.Encrypter, id security.
 
 	// VOM-encode and encrypt the (public) identity.
 	var buf bytes.Buffer
-	if err := vom.NewEncoder(&buf).Encode(id.PublicID()); err != nil {
+	if err := vom.NewEncoder(&buf).Encode(pub); err != nil {
 		return err
 	}
 	eid, err := enc.Encrypt(iobuf.NewSlice(buf.Bytes()))

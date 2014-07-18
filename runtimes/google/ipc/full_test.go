@@ -39,8 +39,8 @@ import (
 var (
 	errAuthorizer = errors.New("ipc: application Authorizer denied access")
 	errMethod     = verror.Abortedf("server returned an error")
-	clientID      security.PrivateID
-	serverID      security.PrivateID
+	clientID      = newID("client")
+	serverID      = newID("server")
 	clock         = new(fakeClock)
 )
 
@@ -259,7 +259,7 @@ func (ns *namespace) Roots() []string {
 
 func startServer(t *testing.T, serverID security.PrivateID, sm stream.Manager, ns naming.Namespace, ts interface{}) (naming.Endpoint, ipc.Server) {
 	vlog.VI(1).Info("InternalNewServer")
-	server, err := InternalNewServer(InternalNewContext(), sm, ns, listenerID(serverID))
+	server, err := InternalNewServer(InternalNewContext(), sm, ns, vc.FixedLocalID(serverID))
 	if err != nil {
 		t.Errorf("InternalNewServer failed: %v", err)
 	}
@@ -327,18 +327,25 @@ type bundle struct {
 }
 
 func (b bundle) cleanup(t *testing.T) {
-	stopServer(t, b.server, b.ns)
-	b.client.Close()
+	if b.server != nil {
+		stopServer(t, b.server, b.ns)
+	}
+	if b.client != nil {
+		b.client.Close()
+	}
 }
 
 func createBundle(t *testing.T, clientID, serverID security.PrivateID, ts interface{}) (b bundle) {
 	b.sm = imanager.InternalNew(naming.FixedRoutingID(0x555555555))
 	b.ns = newNamespace()
-	b.ep, b.server = startServer(t, serverID, b.sm, b.ns, ts)
-	var err error
-	b.client, err = InternalNewClient(b.sm, b.ns, veyron2.LocalID(clientID))
-	if err != nil {
-		t.Fatalf("InternalNewClient failed: %v", err)
+	if serverID != nil {
+		b.ep, b.server = startServer(t, serverID, b.sm, b.ns, ts)
+	}
+	if clientID != nil {
+		var err error
+		if b.client, err = InternalNewClient(b.sm, b.ns, vc.FixedLocalID(clientID)); err != nil {
+			t.Fatalf("InternalNewClient failed: %v", err)
+		}
 	}
 	return
 }
@@ -352,10 +359,7 @@ func bless(blessor security.PrivateID, blessee security.PublicID, name string, c
 }
 
 func derive(blessor security.PrivateID, name string, caveats ...security.ServiceCaveat) security.PrivateID {
-	id, err := isecurity.NewPrivateID("irrelevant")
-	if err != nil {
-		panic(err)
-	}
+	id := newID("irrelevant")
 	derivedID, err := id.Derive(bless(blessor, id.PublicID(), name, caveats...))
 	if err != nil {
 		panic(err)
@@ -394,7 +398,7 @@ func matchesErrorPattern(err error, pattern string) bool {
 func TestMultipleCallsToServe(t *testing.T) {
 	sm := imanager.InternalNew(naming.FixedRoutingID(0x555555555))
 	ns := newNamespace()
-	server, err := InternalNewServer(InternalNewContext(), sm, ns, listenerID(serverID))
+	server, err := InternalNewServer(InternalNewContext(), sm, ns, vc.FixedLocalID(serverID))
 	if err != nil {
 		t.Errorf("InternalNewServer failed: %v", err)
 	}
@@ -484,7 +488,7 @@ func TestStartCall(t *testing.T) {
 	for _, test := range tests {
 		name := fmt.Sprintf("(clientID:%q serverID:%q)", test.clientID, test.serverID)
 		_, server := startServer(t, test.serverID, mgr, ns, &testServer{})
-		client, err := InternalNewClient(mgr, ns, veyron2.LocalID(test.clientID))
+		client, err := InternalNewClient(mgr, ns, vc.FixedLocalID(test.clientID))
 		if err != nil {
 			t.Errorf("%s: Client creation failed: %v", name, err)
 			stopServer(t, server, ns)
@@ -715,10 +719,10 @@ func TestRPCAuthorization(t *testing.T) {
 		return fmt.Sprintf("%q RPCing %s.%s(%v)", t.clientID.PublicID(), t.name, t.method, t.args)
 	}
 
-	b := createBundle(t, nil, serverID, &testServer{})
+	b := createBundle(t, nil, serverID, &testServer{}) // we only create the server, a separate client will be created for each test.
 	defer b.cleanup(t)
 	for _, test := range tests {
-		client, err := InternalNewClient(b.sm, b.ns, veyron2.LocalID(test.clientID))
+		client, err := InternalNewClient(b.sm, b.ns, vc.FixedLocalID(test.clientID))
 		if err != nil {
 			t.Fatalf("InternalNewClient failed: %v", err)
 		}
@@ -969,7 +973,7 @@ func TestPublishOptions(t *testing.T) {
 		{[]ipc.ServerOpt{veyron2.PublishFirst, veyron2.EndpointRewriteOpt("example.com")}, []string{"example.com"}},
 	}
 	for i, c := range cases {
-		server, err := InternalNewServer(InternalNewContext(), sm, ns, append([]ipc.ServerOpt{listenerID(serverID)}, c.opts...)...)
+		server, err := InternalNewServer(InternalNewContext(), sm, ns, append(c.opts, vc.FixedLocalID(serverID))...)
 		if err != nil {
 			t.Errorf("InternalNewServer failed: %v", err)
 			continue
@@ -1102,12 +1106,12 @@ func (h *proxyHandle) Stop() error {
 func TestProxy(t *testing.T) {
 	sm := imanager.InternalNew(naming.FixedRoutingID(0x555555555))
 	ns := newNamespace()
-	client, err := InternalNewClient(sm, ns, veyron2.LocalID(clientID))
+	client, err := InternalNewClient(sm, ns, vc.FixedLocalID(clientID))
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer client.Close()
-	server, err := InternalNewServer(InternalNewContext(), sm, ns, listenerID(serverID))
+	server, err := InternalNewServer(InternalNewContext(), sm, ns, vc.FixedLocalID(serverID))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1189,7 +1193,7 @@ func runServer(argv []string) {
 	ns := newNamespace()
 	id := loadIdentityFromFile(argv[1])
 	isecurity.TrustIdentityProviders(id)
-	server, err := InternalNewServer(InternalNewContext(), mgr, ns, listenerID(id))
+	server, err := InternalNewServer(InternalNewContext(), mgr, ns, vc.FixedLocalID(id))
 	if err != nil {
 		vlog.Fatalf("InternalNewServer failed: %v", err)
 	}
@@ -1225,13 +1229,6 @@ func TestHelperProcess(t *testing.T) {
 }
 
 func init() {
-	var err error
-	if clientID, err = isecurity.NewPrivateID("client"); err != nil {
-		vlog.Fatalf("failed isecurity.NewPrivateID: %s", err)
-	}
-	if serverID, err = isecurity.NewPrivateID("server"); err != nil {
-		vlog.Fatalf("failed isecurity.NewPrivateID: %s", err)
-	}
 	isecurity.TrustIdentityProviders(clientID)
 	isecurity.TrustIdentityProviders(serverID)
 

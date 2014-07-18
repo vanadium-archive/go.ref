@@ -90,27 +90,48 @@ type Params struct {
 	Helper       Helper
 }
 
-// ListenerIDOpt is the interface for providing an identity to an ipc.StreamListener.
-type ListenerIDOpt interface {
+// LocalID is the interface for providing a PrivateID and a PublicIDStore to
+// be used at the local end of VCs.
+type LocalID interface {
 	stream.ListenerOpt
-	// Identity returns the identity to be used by the ipc.StreamListener.
-	Identity() security.PrivateID
+	stream.VCOpt
+	// Sign signs an arbitrary length message (often the hash of a larger message)
+	// using a private key.
+	Sign(message []byte) (security.Signature, error)
+
+	// AsClient returns a PublicID to be used while authenticating as a client to the
+	// provided server as a client. An error is returned if no such PublicID can be returned.
+	AsClient(server security.PublicID) (security.PublicID, error)
+
+	// AsServer returns a PublicID to be used while authenticating as a server to other
+	// clients. An error is returned if no such PublicID can be returned.
+	AsServer() (security.PublicID, error)
+	IPCClientOpt()
+	IPCServerOpt()
 }
 
-// listenerIDOpt implements ListenerIDOpt.
-type listenerIDOpt struct {
-	id security.PrivateID
+// fixedLocalID implements vc.LocalID.
+type fixedLocalID struct {
+	security.PrivateID
 }
 
-func (opt *listenerIDOpt) Identity() security.PrivateID {
-	return opt.id
+func (f fixedLocalID) AsClient(security.PublicID) (security.PublicID, error) {
+	return f.PrivateID.PublicID(), nil
 }
 
-func (*listenerIDOpt) IPCStreamListenerOpt() {}
+func (f fixedLocalID) AsServer() (security.PublicID, error) {
+	return f.PrivateID.PublicID(), nil
+}
 
-// ListenerID provides an implementation of ListenerIDOpt with a fixed identity.
-func ListenerID(id security.PrivateID) ListenerIDOpt {
-	return &listenerIDOpt{id}
+func (fixedLocalID) IPCStreamListenerOpt() {}
+func (fixedLocalID) IPCStreamVCOpt()       {}
+func (fixedLocalID) IPCClientOpt()         {}
+func (fixedLocalID) IPCServerOpt()         {}
+
+// FixedLocalID creates a LocalID using the provided PrivateID. The
+// provided PrivateID must always be non-nil.
+func FixedLocalID(id security.PrivateID) LocalID {
+	return fixedLocalID{id}
 }
 
 // InternalNew creates a new VC, which implements the stream.VC interface.
@@ -347,13 +368,13 @@ func (vc *VC) err(err error) error {
 // authentication etc.) under the assumption that the VC was initiated by the
 // local process (i.e., the local process "Dial"ed to create the VC).
 func (vc *VC) HandshakeDialedVC(opts ...stream.VCOpt) error {
-	var localID security.PrivateID
+	var localID LocalID
 	var tlsSessionCache tls.ClientSessionCache
 	var securityLevel veyron2.VCSecurityLevel
 	for _, o := range opts {
 		switch v := o.(type) {
-		case veyron2.LocalIDOpt:
-			localID = v.PrivateID
+		case LocalID:
+			localID = v
 		case veyron2.VCSecurityLevel:
 			securityLevel = v
 		case crypto.TLSClientSessionCache:
@@ -362,7 +383,9 @@ func (vc *VC) HandshakeDialedVC(opts ...stream.VCOpt) error {
 	}
 	switch securityLevel {
 	case veyron2.VCSecurityConfidential:
-		localID = anonymousIfNilPrivateID(localID)
+		if localID == nil {
+			localID = FixedLocalID(anonymousID)
+		}
 	case veyron2.VCSecurityNone:
 		return nil
 	default:
@@ -394,7 +417,7 @@ func (vc *VC) HandshakeDialedVC(opts ...stream.VCOpt) error {
 	if err != nil {
 		return vc.err(fmt.Errorf("failed to create a Flow for authentication: %v", err))
 	}
-	remoteID, err := authenticateAsClient(authConn, localID, crypter)
+	rID, lID, err := authenticateAsClient(authConn, localID, crypter)
 	if err != nil {
 		return vc.err(fmt.Errorf("authentication failed: %v", err))
 	}
@@ -403,11 +426,11 @@ func (vc *VC) HandshakeDialedVC(opts ...stream.VCOpt) error {
 	vc.handshakeFID = handshakeFID
 	vc.authFID = authFID
 	vc.crypter = crypter
-	vc.localID = localID.PublicID()
-	vc.remoteID = remoteID
+	vc.localID = lID
+	vc.remoteID = rID
 	vc.mu.Unlock()
 
-	vlog.VI(1).Infof("Client VC %v authenticated. RemoteID:%v LocalID:%v", vc, remoteID, localID)
+	vlog.VI(1).Infof("Client VC %v authenticated. RemoteID:%v LocalID:%v", vc, rID, lID)
 	return nil
 }
 
@@ -430,12 +453,12 @@ func (vc *VC) HandshakeAcceptedVC(opts ...stream.ListenerOpt) <-chan HandshakeRe
 		result <- HandshakeResult{ln, err}
 		return result
 	}
-	var localID security.PrivateID
+	var localID LocalID
 	var securityLevel veyron2.VCSecurityLevel
 	for _, o := range opts {
 		switch v := o.(type) {
-		case ListenerIDOpt:
-			localID = v.Identity()
+		case LocalID:
+			localID = v
 		case veyron2.VCSecurityLevel:
 			securityLevel = v
 		}
@@ -450,7 +473,9 @@ func (vc *VC) HandshakeAcceptedVC(opts ...stream.ListenerOpt) <-chan HandshakeRe
 	vc.helper.AddReceiveBuffers(vc.VCI(), SharedFlowID, DefaultBytesBufferedPerFlow)
 	switch securityLevel {
 	case veyron2.VCSecurityConfidential:
-		localID = anonymousIfNilPrivateID(localID)
+		if localID == nil {
+			localID = FixedLocalID(anonymousID)
+		}
 	case veyron2.VCSecurityNone:
 		return finish(ln, nil)
 	default:
@@ -493,7 +518,7 @@ func (vc *VC) HandshakeAcceptedVC(opts ...stream.ListenerOpt) <-chan HandshakeRe
 		vc.mu.Lock()
 		vc.authFID = vc.findFlowLocked(authConn)
 		vc.mu.Unlock()
-		remoteID, err := authenticateAsServer(authConn, localID, crypter)
+		rID, lID, err := authenticateAsServer(authConn, localID, crypter)
 		if err != nil {
 			sendErr(fmt.Errorf("Authentication failed: %v", err))
 			return
@@ -501,12 +526,12 @@ func (vc *VC) HandshakeAcceptedVC(opts ...stream.ListenerOpt) <-chan HandshakeRe
 
 		vc.mu.Lock()
 		vc.crypter = crypter
-		vc.localID = localID.PublicID()
-		vc.remoteID = remoteID
+		vc.localID = lID
+		vc.remoteID = rID
 		close(vc.acceptHandshakeDone)
 		vc.acceptHandshakeDone = nil
 		vc.mu.Unlock()
-		vlog.VI(1).Infof("Server VC %v authenticated. RemoteID:%v LocalID:%v", vc, remoteID, localID)
+		vlog.VI(1).Infof("Server VC %v authenticated. RemoteID:%v LocalID:%v", vc, rID, lID)
 		result <- HandshakeResult{ln, nil}
 	}()
 	return result
@@ -641,15 +666,5 @@ func anonymousIfNilPublicID(id security.PublicID) security.PublicID {
 	if id != nil {
 		return id
 	}
-	// TODO(ashankar): Have an Anonymous identity that also encodes the
-	// public key so that changing the keys in code doesn't prevent new
-	// binaries from talking to old ones.
-	return security.FakePublicID("anonymous")
-}
-
-func anonymousIfNilPrivateID(id security.PrivateID) security.PrivateID {
-	if id != nil {
-		return id
-	}
-	return security.FakePrivateID("anonymous")
+	return anonymousID.PublicID()
 }

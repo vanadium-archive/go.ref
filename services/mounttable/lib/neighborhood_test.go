@@ -25,7 +25,7 @@ func protocolAndAddress(e naming.Endpoint) (string, string, error) {
 
 func TestNeighborhood(t *testing.T) {
 	r := rt.Init()
-	id := veyron2.LocalID(rt.R().Identity())
+	id := veyron2.LocalID(rt.R().Identity().PublicID())
 	vlog.Infof("TestNeighborhood")
 	server, err := r.NewServer()
 	if err != nil {

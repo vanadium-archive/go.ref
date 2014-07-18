@@ -166,7 +166,7 @@ func main() {
 	// (since only the admin can put data). The identity here matches with that
 	// used for server.ServerConfig.Admin in todos_stored/main.go. An alternative
 	// would be to relax the ACLs on the store.
-	rt.Init(veyron2.LocalID(security.FakePrivateID("anonymous")))
+	rt.Init(veyron2.RuntimeID(security.FakePrivateID("anonymous")))
 
 	vlog.Infof("Binding to store on %s", storeName)
 	st, err := vstore.New(storeName)

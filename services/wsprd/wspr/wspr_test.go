@@ -410,9 +410,8 @@ func TestJavascriptServeServer(t *testing.T) {
 	defer rt.mounttableServer.Stop()
 	defer rt.proxyServer.Shutdown()
 	defer rt.wsp.cleanup()
-
 	if err != nil {
-		t.Errorf("could not serve server %v", err)
+		t.Fatalf("could not serve server %v", err)
 	}
 
 	if len(rt.writer.stream) != 1 {
