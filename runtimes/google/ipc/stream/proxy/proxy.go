@@ -31,7 +31,7 @@ var (
 type Proxy struct {
 	ln         net.Listener
 	rid        naming.RoutingID
-	id         security.PrivateID
+	id         vc.LocalID
 	mu         sync.RWMutex
 	servers    *servermap
 	processes  map[*process]struct{}
@@ -135,14 +135,17 @@ func New(rid naming.RoutingID, identity security.PrivateID, network, address, pu
 	proxy := &Proxy{
 		ln:         ln,
 		rid:        rid,
-		id:         identity,
 		servers:    &servermap{m: make(map[naming.RoutingID]*server)},
 		processes:  make(map[*process]struct{}),
 		pubAddress: pubAddress,
 	}
+	if identity != nil {
+		proxy.id = vc.FixedLocalID(identity)
+	}
 	go proxy.listenLoop()
 	return proxy, nil
 }
+
 func (p *Proxy) listenLoop() {
 	proxyLog().Infof("Proxy listening on (%q, %q): %v", p.ln.Addr().Network(), p.ln.Addr(), p.Endpoint())
 	for {
@@ -313,7 +316,7 @@ func (p *Proxy) readLoop(process *process) {
 				p.routeCounters(process, m.Counters)
 				if vcObj != nil {
 					server := &server{Process: process, VC: vcObj}
-					go p.runServer(server, vcObj.HandshakeAcceptedVC(vc.ListenerID(p.id)))
+					go p.runServer(server, vcObj.HandshakeAcceptedVC(p.id))
 				}
 				break
 			}

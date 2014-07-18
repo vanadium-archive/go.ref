@@ -398,7 +398,7 @@ func main() {
 
 	// Initialize veyron runtime and bind to the signalling server used to rendezvous with
 	// another peer device. TODO(gauthamt): Switch to using the nameserver for signalling.
-	gs.runtime = rt.Init(veyron2.LocalID(privateID))
+	gs.runtime = rt.Init(veyron2.RuntimeID(privateID))
 	if gs.signalling, err = boxes.BindBoxSignalling(naming.JoinAddressName("@2@tcp@162.222.181.93:8509@08a93d90836cd94d4dc1acbe40b9048d@1@1@@", "signalling")); err != nil {
 		panic(fmt.Errorf("failed to bind to signalling server:%v\n", err))
 	}

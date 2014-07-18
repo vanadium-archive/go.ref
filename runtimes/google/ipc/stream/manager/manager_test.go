@@ -15,13 +15,21 @@ import (
 	"veyron/runtimes/google/ipc/stream/vc"
 	"veyron/runtimes/google/ipc/version"
 	inaming "veyron/runtimes/google/naming"
+	isecurity "veyron/runtimes/google/security"
 
-	"veyron2"
 	"veyron2/ipc/stream"
 	"veyron2/naming"
 	"veyron2/security"
 	"veyron2/vlog"
 )
+
+func newID(name string) security.PrivateID {
+	id, err := isecurity.NewPrivateID(name)
+	if err != nil {
+		panic(err)
+	}
+	return id
+}
 
 func init() {
 	// The testutil package's init sets GOMAXPROCS to NumCPU.  We want to
@@ -121,12 +129,11 @@ func TestAuthenticatedByDefault(t *testing.T) {
 	server := InternalNew(naming.FixedRoutingID(0x55555555))
 	client := InternalNew(naming.FixedRoutingID(0xcccccccc))
 
-	serverID := security.FakePrivateID("server")
-	clientID := security.FakePrivateID("client")
-
+	clientID := newID("client")
+	serverID := newID("server")
 	// VCSecurityLevel is intentionally not provided to Listen - to test
 	// default behavior.
-	ln, ep, err := server.Listen("tcp", "localhost:0", vc.ListenerID(serverID))
+	ln, ep, err := server.Listen("tcp", "localhost:0", vc.FixedLocalID(serverID))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -156,7 +163,7 @@ func TestAuthenticatedByDefault(t *testing.T) {
 	go func() {
 		// VCSecurityLevel is intentionally not provided to Dial - to
 		// test default behavior.
-		vc, err := client.Dial(ep, veyron2.LocalID(clientID))
+		vc, err := client.Dial(ep, vc.FixedLocalID(clientID))
 		if err != nil {
 			errs <- err
 			return
@@ -287,16 +294,14 @@ func TestShutdownEndpoint(t *testing.T) {
 }
 
 func TestSessionTicketCache(t *testing.T) {
-	serverID := vc.ListenerID(security.FakePrivateID("TestSessionTicketCacheServer"))
 	server := InternalNew(naming.FixedRoutingID(0x55555555))
-	_, ep, err := server.Listen("tcp", "localhost:0", serverID)
+	_, ep, err := server.Listen("tcp", "localhost:0", vc.FixedLocalID(newID("server")))
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	clientID := veyron2.LocalID(security.FakePrivateID("TestSessionTicketCacheClient"))
 	client := InternalNew(naming.FixedRoutingID(0xcccccccc))
-	if _, err = client.Dial(ep, clientID); err != nil {
+	if _, err = client.Dial(ep, vc.FixedLocalID(newID("TestSessionTicketCacheClient"))); err != nil {
 		t.Fatalf("Dial(%q) failed: %v", ep, err)
 	}
 
@@ -314,7 +319,7 @@ func TestMultipleVCs(t *testing.T) {
 
 	// Have the server read from each flow and write to rchan.
 	rchan := make(chan string)
-	ln, ep, err := server.Listen("tcp", "localhost:0", vc.ListenerID(security.FakePrivateID("server")))
+	ln, ep, err := server.Listen("tcp", "localhost:0", vc.FixedLocalID(newID("server")))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -350,7 +355,7 @@ func TestMultipleVCs(t *testing.T) {
 	var vcs [nVCs]stream.VC
 	for i := 0; i < nVCs; i++ {
 		var err error
-		vcs[i], err = client.Dial(ep, veyron2.LocalID(security.FakePrivateID("client")))
+		vcs[i], err = client.Dial(ep, vc.FixedLocalID(newID("client")))
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -399,7 +404,7 @@ func TestAddressResolution(t *testing.T) {
 	}
 	go acceptLoop(ln)
 
-	// We'd like an enpoint that contains an address that's different
+	// We'd like an endpoint that contains an address that's different
 	// to the one used for the connection. In practice this is awkward
 	// to achieve since we don't want to listen on ":0" since that will
 	// annoy firewalls. Instead we listen on 127.0.0.1 and we fabricate an
@@ -465,7 +470,7 @@ func TestHelperProcess(t *testing.T) {
 
 func runServer(argv []string) {
 	server := InternalNew(naming.FixedRoutingID(0x55555555))
-	_, ep, err := server.Listen("tcp", argv[0], vc.ListenerID(security.FakePrivateID("server")))
+	_, ep, err := server.Listen("tcp", argv[0], vc.FixedLocalID(newID("server")))
 	if err != nil {
 		fmt.Println(err)
 		return

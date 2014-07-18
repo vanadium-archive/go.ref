@@ -9,11 +9,15 @@ import (
 	"time"
 
 	_ "veyron/lib/testutil"
+	isecurity "veyron/runtimes/google/security"
+
 	"veyron2/ipc"
 	"veyron2/naming"
 	"veyron2/security"
 	"veyron2/verror"
 )
+
+var testID = newID("test")
 
 // newTestFlows returns the two ends of a bidirectional flow.  Each end has its
 // own bookkeeping, to allow testing of method calls.
@@ -34,8 +38,8 @@ func (f *testFlow) LocalAddr() net.Addr                { return nil }
 func (f *testFlow) RemoteAddr() net.Addr               { return nil }
 func (f *testFlow) LocalEndpoint() naming.Endpoint     { return nil }
 func (f *testFlow) RemoteEndpoint() naming.Endpoint    { return nil }
-func (f *testFlow) LocalID() security.PublicID         { return security.FakePublicID("test") }
-func (f *testFlow) RemoteID() security.PublicID        { return security.FakePublicID("test") }
+func (f *testFlow) LocalID() security.PublicID         { return testID.PublicID() }
+func (f *testFlow) RemoteID() security.PublicID        { return testID.PublicID() }
 func (f *testFlow) SetReadDeadline(t time.Time) error  { return nil }
 func (f *testFlow) SetWriteDeadline(t time.Time) error { return nil }
 func (f *testFlow) SetDeadline(t time.Time) error      { return nil }
@@ -138,4 +142,8 @@ func TestFlowClientServer(t *testing.T) {
 			t.Errorf("%s got %d server close calls, want 1", name(test), serverFlow.numCloseCalls)
 		}
 	}
+}
+
+func init() {
+	isecurity.TrustIdentityProviders(testID)
 }

@@ -29,9 +29,9 @@ type stupidNS struct {
 }
 
 var (
-	rootID  = veyron2.LocalID(security.FakePrivateID("root"))
-	bobID   = veyron2.LocalID(security.FakePrivateID("bob"))
-	aliceID = veyron2.LocalID(security.FakePrivateID("alice"))
+	rootID  = veyron2.LocalID(security.FakePublicID("root"))
+	bobID   = veyron2.LocalID(security.FakePublicID("bob"))
+	aliceID = veyron2.LocalID(security.FakePublicID("alice"))
 )
 
 const ttlSecs = 60 * 60
@@ -169,7 +169,12 @@ func checkContents(t *testing.T, name, expected string, shouldSucceed bool, id i
 }
 
 func newMT(t *testing.T, acl string) (ipc.Server, string) {
-	r := rt.Init()
+	// It is necessary for the private key of runtime's identity and
+	// the public key of the LocalIDOpts passed to clients to correspond.
+	// Since the LocalIDOpts are FakePublicIDs, we initialize the runtime
+	// below with a FakePrivateID. (Note all FakePublicIDs and FakePrivateIDs
+	// always have corresponding public and private keys respectively.)
+	r := rt.Init(veyron2.RuntimeID(security.FakePrivateID("irrelevant")))
 	server, err := r.NewServer(veyron2.ServesMountTableOpt(true))
 	if err != nil {
 		boom(t, "r.NewServer: %s", err)

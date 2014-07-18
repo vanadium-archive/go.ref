@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"io"
+	"reflect"
 	"strings"
 	"testing"
 
@@ -11,11 +12,20 @@ import (
 	"veyron/runtimes/google/ipc/stream/manager"
 	"veyron/runtimes/google/ipc/stream/proxy"
 	"veyron/runtimes/google/ipc/stream/vc"
+	isecurity "veyron/runtimes/google/security"
 
 	"veyron2/ipc/stream"
 	"veyron2/naming"
 	"veyron2/security"
 )
+
+func newID(name string) security.PrivateID {
+	id, err := isecurity.NewPrivateID(name)
+	if err != nil {
+		panic(err)
+	}
+	return id
+}
 
 func TestProxy(t *testing.T) {
 	// Using "tcp4" instead of "tcp" because the latter can end up with
@@ -110,7 +120,8 @@ func TestDuplicateRoutingID(t *testing.T) {
 }
 
 func TestProxyIdentity(t *testing.T) {
-	proxy, err := proxy.New(naming.FixedRoutingID(0xbbbbbbbbbbbbbbbb), security.FakePrivateID("proxy"), "tcp4", "127.0.0.1:0", "")
+	proxyID := newID("proxy")
+	proxy, err := proxy.New(naming.FixedRoutingID(0xbbbbbbbbbbbbbbbb), proxyID, "tcp4", "127.0.0.1:0", "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -128,7 +139,7 @@ func TestProxyIdentity(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got, want := fmt.Sprintf("%v", flow.RemoteID()), "fake/proxy"; got != want {
+	if got, want := fmt.Sprintf("%v", flow.RemoteID()), fmt.Sprintf("%v", proxyID.PublicID()); got != want {
 		t.Errorf("Proxy has identity %q want %q", flow.RemoteID(), want)
 	}
 }
@@ -141,8 +152,11 @@ func TestServerIdentity(t *testing.T) {
 
 	server := manager.InternalNew(naming.FixedRoutingID(0x5555555555555555))
 	defer server.Shutdown()
-	serverID := security.FakePrivateID("server")
-	ln, ep, err := server.Listen(proxy.Endpoint().Network(), proxy.Endpoint().String(), vc.ListenerID(serverID))
+	serverID := newID("server")
+	if err != nil {
+		t.Fatal(err)
+	}
+	ln, ep, err := server.Listen(proxy.Endpoint().Network(), proxy.Endpoint().String(), vc.FixedLocalID(serverID))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -165,7 +179,7 @@ func TestServerIdentity(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got, want := fmt.Sprintf("%v", flow.RemoteID()), "fake/server"; got != want {
+	if got, want := flow.RemoteID(), serverID.PublicID(); !reflect.DeepEqual(got, want) {
 		t.Errorf("Got %q want %q", got, want)
 	}
 }

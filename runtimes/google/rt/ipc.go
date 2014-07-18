@@ -1,22 +1,81 @@
 package rt
 
 import (
+	"errors"
 	"fmt"
 
 	iipc "veyron/runtimes/google/ipc"
 	imanager "veyron/runtimes/google/ipc/stream/manager"
+	"veyron/runtimes/google/ipc/stream/vc"
 
 	"veyron2"
 	"veyron2/context"
 	"veyron2/ipc"
 	"veyron2/ipc/stream"
 	"veyron2/naming"
+	"veyron2/security"
 )
+
+// fixedPublicIDStore implements security.PublicIDStore. It embeds a (fixed) PublicID that
+// is both the default and the PublicID to be used for any peer. Adding a new PublicID
+// to the store is disallowed, and setting the default principal-pattern is a no-op.
+type fixedPublicIDStore struct {
+	id security.PublicID
+}
+
+func (fixedPublicIDStore) Add(id security.PublicID, peerPattern security.PrincipalPattern) error {
+	return errors.New("adding new PublicIDs is disallowed for this PublicIDStore")
+}
+
+func (s fixedPublicIDStore) ForPeer(peer security.PublicID) (security.PublicID, error) {
+	return s.id, nil
+}
+
+func (s fixedPublicIDStore) DefaultPublicID() (security.PublicID, error) {
+	return s.id, nil
+}
+
+func (fixedPublicIDStore) SetDefaultPrincipalPattern(pattern security.PrincipalPattern) {}
+
+// localID is an option for passing a PrivateID and PublicIDStore
+// to a server or client.
+type localID struct {
+	id    security.PrivateID
+	store security.PublicIDStore
+}
+
+func (lID *localID) Sign(message []byte) (security.Signature, error) {
+	return lID.id.Sign(message)
+}
+
+func (lID *localID) AsClient(server security.PublicID) (security.PublicID, error) {
+	return lID.store.ForPeer(server)
+}
+
+func (lID *localID) AsServer() (security.PublicID, error) {
+	return lID.store.DefaultPublicID()
+}
+
+func (*localID) IPCClientOpt()         {}
+func (*localID) IPCStreamVCOpt()       {}
+func (*localID) IPCServerOpt()         {}
+func (*localID) IPCStreamListenerOpt() {}
+
+// newLocalID returns a localID embedding the runtime's PrivateID and a fixed
+// PublicIDStore constructed from the provided PublicID or the runtiume's PublicIDStore
+// if the provided PublicID is nil.
+func (rt *vrt) newLocalID(id security.PublicID) vc.LocalID {
+	lID := &localID{id: rt.id, store: rt.store}
+	if id != nil {
+		lID.store = fixedPublicIDStore{id}
+	}
+	return lID
+}
 
 func (rt *vrt) NewClient(opts ...ipc.ClientOpt) (ipc.Client, error) {
 	sm := rt.sm
 	ns := rt.ns
-	cIDOpt := veyron2.LocalID(rt.id.Identity())
+	var id security.PublicID
 	var otherOpts []ipc.ClientOpt
 	for _, opt := range opts {
 		switch topt := opt.(type) {
@@ -25,14 +84,14 @@ func (rt *vrt) NewClient(opts ...ipc.ClientOpt) (ipc.Client, error) {
 		case veyron2.NamespaceOpt:
 			ns = topt.Namespace
 		case veyron2.LocalIDOpt:
-			cIDOpt = topt
+			id = topt.PublicID
 		default:
 			otherOpts = append(otherOpts, opt)
 		}
 	}
-	if cIDOpt.PrivateID != nil {
-		otherOpts = append(otherOpts, cIDOpt)
-	}
+	// Add the option that provides the local identity to the client.
+	otherOpts = append(otherOpts, rt.newLocalID(id))
+
 	return iipc.InternalNewClient(sm, ns, otherOpts...)
 }
 
@@ -68,17 +127,20 @@ func (rt *vrt) NewServer(opts ...ipc.ServerOpt) (ipc.Server, error) {
 	// Start the http debug server exactly once for this runtime.
 	rt.startHTTPDebugServerOnce()
 	ns := rt.ns
+	var id security.PublicID
 	var otherOpts []ipc.ServerOpt
 	for _, opt := range opts {
 		switch topt := opt.(type) {
 		case veyron2.NamespaceOpt:
 			ns = topt
+		case veyron2.LocalIDOpt:
+			id = topt.PublicID
 		default:
 			otherOpts = append(otherOpts, opt)
 		}
 	}
-	// Add the option that provides the identity currently used by the runtime.
-	otherOpts = append(otherOpts, rt.id)
+	// Add the option that provides the local identity to the server.
+	otherOpts = append(otherOpts, rt.newLocalID(id))
 
 	ctx := rt.NewContext()
 	return iipc.InternalNewServer(ctx, sm, ns, otherOpts...)

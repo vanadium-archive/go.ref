@@ -21,7 +21,7 @@ import (
 // getRuntime initializes the veyron2.Runtime if needed, then returns it.
 func getRuntime() veyron2.Runtime {
 	// returns Runtime if already initialized
-	return rt.Init(veyron2.LocalID(security.FakePrivateID("todos")))
+	return rt.Init(veyron2.RuntimeID(security.FakePrivateID("todos")))
 }
 
 // startServer starts a store server and returns the server name as well as a

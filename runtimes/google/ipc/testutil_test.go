@@ -5,7 +5,10 @@ import (
 	"testing"
 
 	_ "veyron/lib/testutil"
+	"veyron/runtimes/google/ipc/stream/vc"
+	isecurity "veyron/runtimes/google/security"
 
+	"veyron2/ipc"
 	"veyron2/security"
 	"veyron2/verror"
 )
@@ -38,19 +41,13 @@ func checkResultPtrs(t *testing.T, name string, gotptrs, want []interface{}) {
 	}
 }
 
-// listenerIDOpt implements vc.ListenerIDOpt and veyron2/ipc.ServerOpt.
-type listenerIDOpt struct {
-	id security.PrivateID
+func newID(name string) security.PrivateID {
+	id, err := isecurity.NewPrivateID(name)
+	if err != nil {
+		panic(err)
+	}
+	return id
 }
 
-func (opt *listenerIDOpt) Identity() security.PrivateID {
-	return opt.id
-}
-
-func (*listenerIDOpt) IPCStreamListenerOpt() {}
-
-func (*listenerIDOpt) IPCServerOpt() {}
-
-func listenerID(id security.PrivateID) *listenerIDOpt {
-	return &listenerIDOpt{id}
-}
+var _ ipc.ClientOpt = vc.FixedLocalID(newID("irrelevant"))
+var _ ipc.ServerOpt = vc.FixedLocalID(newID("irrelevant"))

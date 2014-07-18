@@ -4,6 +4,7 @@ package vc_test
 
 import (
 	"bytes"
+	"fmt"
 	"io"
 	"net"
 	"reflect"
@@ -18,6 +19,7 @@ import (
 	"veyron/runtimes/google/lib/bqueue"
 	"veyron/runtimes/google/lib/bqueue/drrqueue"
 	"veyron/runtimes/google/lib/iobuf"
+	isecurity "veyron/runtimes/google/security"
 
 	"veyron2"
 	"veyron2/ipc/stream"
@@ -35,9 +37,17 @@ const (
 )
 
 var (
-	clientID = security.FakePrivateID("client")
-	serverID = security.FakePrivateID("server")
+	clientID = newID("client")
+	serverID = newID("server")
 )
+
+func newID(name string) security.PrivateID {
+	id, err := isecurity.NewPrivateID(name)
+	if err != nil {
+		panic(err)
+	}
+	return id
+}
 
 // testFlowEcho writes a random string of 'size' bytes on the flow and then
 // ensures that the same string is read back.
@@ -73,30 +83,43 @@ func testFlowEcho(t *testing.T, flow stream.Flow, size int) {
 	}
 }
 
+func matchID(got, want security.PublicID) error {
+	if want == nil {
+		if got.Names() != nil {
+			return fmt.Errorf("got identity with names: %v, want one with names: nil", got.Names())
+		}
+		return nil
+	}
+	if g, w := got.Names(), want.Names(); !reflect.DeepEqual(got.Names(), want.Names()) {
+		return fmt.Errorf("got identity with names: %v, want one with names: %v", g, w)
+	}
+	if g, w := got.PublicKey(), want.PublicKey(); !reflect.DeepEqual(got.PublicKey(), want.PublicKey()) {
+		return fmt.Errorf("got identity with public key: %v, want one with public key: %v", g, w)
+	}
+	return nil
+}
+
 func testHandshake(t *testing.T, security veyron2.VCSecurityLevel, localID, remoteID security.PublicID) {
 	h, vc := New(security)
 	flow, err := vc.Connect()
 	if err != nil {
 		t.Fatal(err)
 	}
-	lID := flow.LocalID()
-	if !reflect.DeepEqual(lID.Names(), localID.Names()) {
-		t.Errorf("Client says LocalID is %q want %q", lID, localID)
+	lID, rID := flow.LocalID(), flow.RemoteID()
+	if (lID == nil) || (rID == nil) {
+		t.Error("Either the LocalID or the RemoteID of the flow is nil")
 	}
-	rID := flow.RemoteID()
-	if !reflect.DeepEqual(rID.Names(), remoteID.Names()) {
-		t.Errorf("Client says RemoteID is %q want %q", rID, remoteID)
+	if err := matchID(lID, localID); err != nil {
+		t.Errorf("Client identity mismatch: %s", err)
 	}
-	if g, w := lID.PublicKey(), localID.PublicKey(); !reflect.DeepEqual(g, w) {
-		t.Errorf("Client identity public key mismatch. Got %v want %v", g, w)
-	}
-	if g, w := rID.PublicKey(), remoteID.PublicKey(); !reflect.DeepEqual(g, w) {
-		t.Errorf("Server identity public key mismatch. Got %v want %v", g, w)
+	if err := matchID(rID, remoteID); err != nil {
+		t.Errorf("Server identity mismatch: %s", err)
 	}
 	h.Close()
 }
+
 func TestHandshake(t *testing.T) {
-	testHandshake(t, SecurityNone, security.FakePublicID("anonymous"), security.FakePublicID("anonymous"))
+	testHandshake(t, SecurityNone, nil, nil)
 }
 func TestHandshakeTLS(t *testing.T) {
 	testHandshake(t, SecurityTLS, clientID.PublicID(), serverID.PublicID())
@@ -273,8 +296,8 @@ func New(security veyron2.VCSecurityLevel) (*helper, stream.VC) {
 	go clientH.pipeLoop(serverH.VC)
 	go serverH.pipeLoop(clientH.VC)
 
-	c := serverH.VC.HandshakeAcceptedVC(security, vc.ListenerID(serverID))
-	if err := clientH.VC.HandshakeDialedVC(security, veyron2.LocalID(clientID)); err != nil {
+	c := serverH.VC.HandshakeAcceptedVC(security, vc.FixedLocalID(serverID))
+	if err := clientH.VC.HandshakeDialedVC(security, vc.FixedLocalID(clientID)); err != nil {
 		panic(err)
 	}
 	hr := <-c

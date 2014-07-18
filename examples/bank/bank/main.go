@@ -95,7 +95,7 @@ func main() {
 		}
 
 		// Make a NewClient and update the other one. Do not close the old client; we need its connection to the Mount Table.
-		client, err = runtime.NewClient(veyron2.LocalID(derivedIdentity))
+		client, err = runtime.NewClient(veyron2.LocalID(newPublicID))
 		if err != nil {
 			log.Fatalf("failed to create new client: %s\n", err)
 		}

@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"os"
 	"os/user"
-	"sync"
 
 	isecurity "veyron/runtimes/google/security"
 
@@ -12,61 +11,53 @@ import (
 	"veyron2/vlog"
 )
 
-// currentIDOpt is an option that can be used to pass the identity currently used
-// by the runtime to an ipc.Server or ipc.StreamListener.
-type currentIDOpt struct {
-	id security.PrivateID
-	mu sync.RWMutex
-}
-
-func (id *currentIDOpt) Identity() security.PrivateID {
-	id.mu.RLock()
-	defer id.mu.RUnlock()
-	return id.id
-}
-
-func (id *currentIDOpt) setIdentity(newID security.PrivateID) {
-	// TODO(ataly): Whenever setIdentity is invoked on the identity currently used by
-	// the runtime, the following changes must also be performed:
-	// * the identity provider of the new identity must be tursted.
-	// * the default client used by the runtime must also be replaced with
-	//   a client using the new identity.
-	id.mu.Lock()
-	defer id.mu.Unlock()
-	id.id = newID
-}
-
-func (*currentIDOpt) IPCServerOpt() {}
-
-func (*currentIDOpt) IPCStreamListenerOpt() {}
-
 func (rt *vrt) NewIdentity(name string) (security.PrivateID, error) {
 	return isecurity.NewPrivateID(name)
 }
 
 func (rt *vrt) Identity() security.PrivateID {
-	return rt.id.Identity()
+	return rt.id
+}
+
+func (rt *vrt) PublicIDStore() security.PublicIDStore {
+	return rt.store
+}
+
+func (rt *vrt) initSecurity() error {
+	if err := rt.initIdentity(); err != nil {
+		return err
+	}
+	if rt.store == nil {
+		rt.store = isecurity.NewPublicIDStore()
+		// TODO(ashankar,ataly): What should the tag for the runtime's PublicID in the
+		// runtime's store be? Below we use security.AllPrincipals but this means that
+		// the PublicID *always* gets used for any peer. This may not be desirable.
+		if err := rt.store.Add(rt.id.PublicID(), security.AllPrincipals); err != nil {
+			return fmt.Errorf("could not initialize a PublicIDStore for the runtime: %s", err)
+		}
+	}
+	// Always trust our own identity providers.
+	// TODO(ataly, ashankar): We should trust the identity providers of all PublicIDs in the store.
+	trustIdentityProviders(rt.id)
+	return nil
 }
 
 func (rt *vrt) initIdentity() error {
-	if rt.id.Identity() == nil {
-		var id security.PrivateID
-		var err error
-		if file := os.Getenv("VEYRON_IDENTITY"); len(file) > 0 {
-			if id, err = loadIdentityFromFile(file); err != nil {
-				return fmt.Errorf("Could not load identity from %q: %v", file, err)
-			}
-		} else {
-			name := defaultIdentityName()
-			vlog.VI(2).Infof("No identity provided to the runtime, minting one for %q", name)
-			if id, err = rt.NewIdentity(name); err != nil {
-				return fmt.Errorf("Could not create new identity: %v", err)
-			}
-		}
-		rt.id.setIdentity(id)
+	if rt.id != nil {
+		return nil
 	}
-	// Always trust our own identity providers.
-	trustIdentityProviders(rt.id.Identity())
+	var err error
+	if file := os.Getenv("VEYRON_IDENTITY"); len(file) > 0 {
+		if rt.id, err = loadIdentityFromFile(file); err != nil || rt.id == nil {
+			return fmt.Errorf("Could not load identity from %q: %v", file, err)
+		}
+	} else {
+		name := defaultIdentityName()
+		vlog.VI(2).Infof("No identity provided to the runtime, minting one for %q", name)
+		if rt.id, err = rt.NewIdentity(name); err != nil || rt.id == nil {
+			return fmt.Errorf("Could not create new identity: %v", err)
+		}
+	}
 	return nil
 }
 

@@ -18,13 +18,20 @@ import (
 	"veyron/runtimes/google/ipc/stream/vc"
 	"veyron/runtimes/google/ipc/stream/vif"
 	iversion "veyron/runtimes/google/ipc/version"
+	isecurity "veyron/runtimes/google/security"
 
-	"veyron2"
 	"veyron2/ipc/stream"
 	"veyron2/ipc/version"
 	"veyron2/naming"
-	"veyron2/security"
 )
+
+func newLocalID(name string) vc.LocalID {
+	id, err := isecurity.NewPrivateID(name)
+	if err != nil {
+		panic(err)
+	}
+	return vc.FixedLocalID(id)
+}
 
 func TestSingleFlowCreatedAtClient(t *testing.T) {
 	client, server := NewClientServer()
@@ -415,8 +422,7 @@ func NewVersionedClientServer(clientVersions, serverVersions *iversion.Range) (c
 	if client, err = vif.InternalNewDialedVIF(c1, naming.FixedRoutingID(0xc), clientVersions); err != nil {
 		panic(err)
 	}
-	serverID := vc.ListenerID(security.FakePrivateID("server"))
-	if server, err = vif.InternalNewAcceptedVIF(c2, naming.FixedRoutingID(0x5), serverVersions, serverID); err != nil {
+	if server, err = vif.InternalNewAcceptedVIF(c2, naming.FixedRoutingID(0x5), serverVersions, newLocalID("server")); err != nil {
 		panic(err)
 	}
 	return
@@ -456,8 +462,7 @@ func createVC(client, server *vif.VIF, ep naming.Endpoint) (clientVC stream.VC, 
 	scChan := make(chan stream.Connector)
 	errChan := make(chan error)
 	go func() {
-		clientID := veyron2.LocalID(security.FakePrivateID("client"))
-		vc, err := client.Dial(ep, clientID)
+		vc, err := client.Dial(ep, newLocalID("client"))
 		errChan <- err
 		vcChan <- vc
 	}()

@@ -15,6 +15,7 @@ import (
 	"veyron2/ipc/stream"
 	"veyron2/naming"
 	"veyron2/product"
+	"veyron2/security"
 	"veyron2/vlog"
 )
 
@@ -23,7 +24,8 @@ type vrt struct {
 	sm      stream.Manager
 	ns      naming.Namespace
 	signals chan os.Signal
-	id      *currentIDOpt
+	id      security.PrivateID
+	store   security.PublicIDStore
 	client  ipc.Client
 	mgmt    *mgmtImpl
 	debug   debugServer
@@ -61,13 +63,13 @@ func Init(opts ...veyron2.ROpt) (veyron2.Runtime, error) {
 func (rt *vrt) init(opts ...veyron2.ROpt) error {
 	flag.Parse()
 	rt.initHTTPDebugServer()
-	rt.id = &currentIDOpt{}
 	nsRoots := []string{}
-
 	for _, o := range opts {
 		switch v := o.(type) {
-		case veyron2.LocalIDOpt:
-			rt.id.setIdentity(v.PrivateID)
+		case veyron2.RuntimeIDOpt:
+			rt.id = v.PrivateID
+		case veyron2.RuntimePublicIDStoreOpt:
+			rt.store = v
 		case veyron2.ProductOpt:
 			rt.product = v.T
 		case veyron2.NamespaceRoots:
@@ -123,11 +125,11 @@ func (rt *vrt) init(opts ...veyron2.ROpt) error {
 		return err
 	}
 
-	if err = rt.initIdentity(); err != nil {
+	if err = rt.initSecurity(); err != nil {
 		return err
 	}
 
-	if rt.client, err = rt.NewClient(veyron2.LocalID(rt.id.Identity())); err != nil {
+	if rt.client, err = rt.NewClient(); err != nil {
 		return err
 	}
 
