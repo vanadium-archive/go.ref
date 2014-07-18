@@ -58,7 +58,7 @@ func (w viewerPipeStreamWriter) Write(p []byte) (n int, err error) {
 
 func main() {
 	flag.Usage = Usage
-	runtime := rt.Init()
+	runtime := rt.Init(veyron2.NamespaceRoots{"/proxy.envyor.com:8101"})
 	log := runtime.Logger()
 
 	if flag.NArg() != 1 {

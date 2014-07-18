@@ -172,10 +172,10 @@
 
         // private property fields
         this.columns = [];
-        this.shouldRefetchData = true;
         this.pageNumber = 1;
         this.dataSource = null;
         this.cachedDataSourceResult = [];
+        this.dataSourceResult = [];
         this.gridState = {
           sort: {
             key: '',
@@ -308,7 +308,7 @@
           if (goBackToPageOne) {
             self.pageNumber = 1;
           }
-          self.shouldRefetchData = true;
+          self.updateDataSource();
         });
       },
 
@@ -391,9 +391,9 @@
        * Only fetches data if scheduled to do so
        * @private
        */
-      get dataSourceResult() {
-        if (!this.shouldRefetchData || !this.dataSource) {
-          return this.cachedDataSourceResult;
+      updateDataSource: function() {
+        if (!this.dataSource) {
+          return;
         }
 
         // fetch the data
@@ -417,9 +417,7 @@
         var endIndex = startIndex + this.pageSize;
         this.cachedDataSourceResult = this.cachedDataSourceResult.slice(startIndex, endIndex);
 
-        this.shouldRefetchData = false;
-
-        return this.cachedDataSourceResult;
+        this.dataSourceResult = this.cachedDataSourceResult;
       },
 
       /*

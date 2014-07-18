@@ -30,6 +30,19 @@
     System.import('libs/utils/formatting').then(function(formatter) {
       Polymer('p2b-status', {
 
+        ready: function() {
+          this.runningSince = 'just now';
+        },
+
+        attached: function() {
+          // Update the running since every second.
+          this.runningSinceIntervalId = setInterval(this.updateRunningSince.bind(this), 1000);
+        },
+
+        detached: function() {
+          clearInterval(this.runningSinceIntervalId);
+        },
+
         /*
          * Dynamic binding for the state of publishing p2b service.
          * Any changes to this object will be reflected in the UI automatically
@@ -50,9 +63,9 @@
          * @private
          * @type {string}
          */
-        get runningSince() {
+        updateRunningSince: function() {
           if (!this.serviceState) { return; }
-          return formatter.formatRelativeTime(this.serviceState.date);
+          this.runningSince = formatter.formatRelativeTime(this.serviceState.date);
         },
 
         /*

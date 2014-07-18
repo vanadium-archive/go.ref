@@ -47,13 +47,8 @@
        */
       selectionHistoryStack: [],
 
-      /*
-       * Number of open tabs
-       * @type {integer}
-       * @private
-       */
-      get numTabs() {
-        return Object.keys(this.pipeTabs).length;
+      ready: function() {
+        this.numTabs = 0
       },
 
       /*
@@ -73,7 +68,7 @@
 
         // Create a tab toolbar and assign the close handler
         var tabToolbar = document.createElement('p2b-pipes-tab-toolbar');
-        tabToolbar.title = name;
+        tabToolbar.toolbarTitle = name;
         tabToolbar.addEventListener('close-action', function() {
           self.removeTab(key);
           if (onClose) {
@@ -100,6 +95,8 @@
           tabContent: tabContent,
           tabToolbar: tabToolbar
         };
+
+        this.numTabs++;
 
         this.selectedTabKey = key;
         requestAnimationFrame(function() {
@@ -137,6 +134,7 @@
 
         // Delete tab from the map
         delete this.pipeTabs[key];
+        this.numTabs--;
 
         // Select an existing tab from previous selection history
         var toSelect = this.selectionHistoryStack.pop();
@@ -163,7 +161,7 @@
         tabContent.replaceTabContent(newEl);
         if (newName) {
           this.pipeTabs[key].tab.textContent = newName;
-          this.pipeTabs[key].tabToolbar.title = newName;
+          this.pipeTabs[key].tabToolbar.toolbarTitle = newName;
         }
       },
 

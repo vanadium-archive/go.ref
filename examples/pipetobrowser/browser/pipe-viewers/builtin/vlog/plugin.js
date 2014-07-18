@@ -23,18 +23,27 @@ class vLogPipeViewer extends PipeViewer {
   play(stream) {
     stream.setEncoding('utf8');
 
+    var logView = document.createElement('p2b-plugin-vlog');
+    var newData = true;
+    var refreshGrid = function() {
+      requestAnimationFrame(() => {
+        if( newData ) {
+          logView.refreshGrid();
+          newData = false;
+        }
+        refreshGrid();
+      });
+    };
+    refreshGrid();
+
     // split by new line
     stream = stream.pipe(streamUtil.split(/\r?\n/));
-    var logView = document.createElement('p2b-plugin-vlog');
 
     // create a new data source from the stream and set it.
     logView.dataSource = new vLogDataSource(
       stream,
       function onNewItem(item) {
-        // also refresh the grid when new data comes in.
-        // grid component batches requests and refreshes UI on the next animation frame.
-        logView.refreshGrid();
-
+        newData = true;
         // add additional, UI related properties to the item
         addAdditionalUIProperties(item);
       },

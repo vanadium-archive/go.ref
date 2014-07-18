@@ -43,7 +43,7 @@ export class PageView extends View {
   * @type {string}
   */
   set title(title) {
-    this.element.title = title;
+    this.element.pageTitle = title;
   }
 
 }

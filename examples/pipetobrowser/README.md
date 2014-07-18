@@ -24,10 +24,14 @@ make
 ``
 To run
 ``
-make daemons #Runs the required Veyron daemons
 make start #Starts a web server at 8080
 ``
 and then navigate to http://localhost:8080
+
+To stop
+``
+make stop
+``
 
 To clean
 ``

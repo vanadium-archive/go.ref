@@ -6,7 +6,7 @@
     <link rel="stylesheet" href="component.css">
     <core-toolbar>
       <span flex>
-        {{ title }}
+        {{ toolbarTitle }}
       </span>
       <span id="customActions"></span>
       <paper-icon-button id="fullscreenIcon" icon="fullscreen" on-click="{{ fireFullscreenAction }}"></paper-icon-button>
@@ -20,7 +20,7 @@
        * Title of the toolbar
        * @type {string}
        */
-      title: '',
+      toolbarTitle: '',
 
       /*
        * Event that's fired when close action of the toolbar is triggered

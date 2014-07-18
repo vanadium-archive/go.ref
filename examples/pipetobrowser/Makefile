@@ -1,12 +1,11 @@
-PATH:=$(PATH):node_modules/.bin
-PATH:=$(PATH):$(VEYRON_ROOT)/environment/cout/node/bin
-PATH:=$(PATH):$(VEYRON_ROOT)/veyron/go/bin
+PATH:=$(VEYRON_ROOT)/environment/cout/node/bin:$(PATH)
+PATH:=$(VEYRON_ROOT)/veyron/go/bin:$(PATH)
+PATH:=node_modules/.bin:../node_modules/.bin:$(PATH)
 
-VEYRON_PROXY_PORT=5164
-VEYRON_MOUNTTABLE_PORT=5167
-VEYRON_PROXY_ADDR=127.0.0.1:$(VEYRON_PROXY_PORT)
-VEYRON_WSPR_PORT=5165
-VEYRON_IDENTITY_PORT=5163
+VEYRON_PROXY_ADDR=proxy.envyor.com:8100
+VEYRON_WSPR_PORT=7776
+HTTP_PORT=8080
+NAMESPACE_ROOT=/proxy.envyor.com:8101
 VEYRON_JS_API=$(VEYRON_ROOT)/veyron/javascript/api
 VEYRON_BUILD_SCRIPT=$(VEYRON_ROOT)/veyron/scripts/build/go
 VEYRON_IDENTITY_PATH=/tmp/p2b_identity
@@ -28,6 +27,7 @@ node_modules: package.json
 	npm prune
 	npm install
 	touch node_modules
+	export
 
 # Build and copies Veyron from local source
 browser/third-party/veyron: $(VEYRON_JS_API)
@@ -57,9 +57,18 @@ browser/index.html: $(HTML_FILES)
 	cd browser; \
 	vulcanize -o index.html app.html
 
-# Serve the files
+# Serve
 start:
-	serve browser/. --port 8080 --compress
+	identity --name=veyron_p2b_identity > $(VEYRON_IDENTITY_PATH)
+	export VEYRON_IDENTITY=$(VEYRON_IDENTITY_PATH) ; \
+	export NAMESPACE_ROOT=$(NAMESPACE_ROOT); \
+	wsprd --v=1 -alsologtostderr=true -vproxy=$(VEYRON_PROXY_ADDR) --port $(VEYRON_WSPR_PORT) & \
+	serve browser/. --port $(HTTP_PORT) --compress &
+
+# Stop serving
+stop:
+	pkill wsprd || true
+	lsof -i:$(HTTP_PORT) | grep node | awk '{printf "%s\n",$$2}' | xargs --no-run-if-empty kill
 
 # Continuously watch for changes to .js, .html or .css files.
 # Rebundle the appropriate file (build.js and/or index.html) when local files change
@@ -67,28 +76,10 @@ watch:
 	watch -n 1 make
 
 # Clean all build artifacts
-clean:
+clean: stop
 	rm -rf browser/third-party
 	rm -rf node_modules
 	rm -f browser/index.html
 	rm -f browser/build.js
 
-# Deploys Veyron daemons
-daemons:
-	identity --name=veyron_p2b_identity > $(VEYRON_IDENTITY_PATH)
-	export VEYRON_IDENTITY=$(VEYRON_IDENTITY_PATH) ; \
-	identityd --address=:$(VEYRON_IDENTITY_PORT) & \
-	mounttabled --address=:$(VEYRON_MOUNTTABLE_PORT) & \
-	export NAMESPACE_ROOT=/localhost:$(VEYRON_MOUNTTABLE_PORT) ; \
-	proxyd -address=$(VEYRON_PROXY_ADDR) & \
-	wsprd --v=1 -logtostderr=true -vproxy=$(VEYRON_PROXY_ADDR) --port $(VEYRON_WSPR_PORT) & \
-
-# Kills the running daemons
-clean-daemons:
-	kill `lsof -t -i:$(VEYRON_MOUNTTABLE_PORT)`; \
-	kill `lsof -t -i:$(VEYRON_IDENTITY_PORT)`; \
-	kill `lsof -t -i:$(VEYRON_WSPR_PORT)`; \
-	kill `lsof -t -i:$(VEYRON_PROXY_PORT)`; \
-	kill `lsof -t -i:$(VEYRON_STORE_PORT)`
-
-.PHONY: start clean daemons clean-daemons watch
+.PHONY: start stop clean watch
