@@ -36,7 +36,7 @@ func compare(t *testing.T, caller, name string, got, want []string) {
 	}
 }
 
-func doGlob(t *testing.T, ctx context.T, ns naming.Namespace, pattern string) []string {
+func doGlob(t *testing.T, ctx context.T, ns naming.Namespace, pattern string, limit int) []string {
 	var replies []string
 	rc, err := ns.Glob(ctx, pattern)
 	if err != nil {
@@ -44,6 +44,9 @@ func doGlob(t *testing.T, ctx context.T, ns naming.Namespace, pattern string) []
 	}
 	for s := range rc {
 		replies = append(replies, s.Name)
+		if limit > 0 && len(replies) > limit {
+			boom(t, "Glob returns too many results, perhaps not limiting recursion")
+		}
 	}
 	return replies
 }
@@ -381,10 +384,10 @@ func TestGlob(t *testing.T) {
 		{"*/f??/*z", []string{"mt4/foo/baz"}},
 	}
 	for _, test := range globTests {
-		out := doGlob(t, r, ns, test.pattern)
+		out := doGlob(t, r, ns, test.pattern, 0)
 		compare(t, "Glob", test.pattern, test.expected, out)
 		// Do the same with a full rooted name.
-		out = doGlob(t, r, ns, naming.JoinAddressName(root.name, test.pattern))
+		out = doGlob(t, r, ns, naming.JoinAddressName(root.name, test.pattern), 0)
 		var expectedWithRoot []string
 		for _, s := range test.expected {
 			expectedWithRoot = append(expectedWithRoot, naming.JoinAddressName(root.name, s))
@@ -394,8 +397,6 @@ func TestGlob(t *testing.T) {
 }
 
 func TestCycles(t *testing.T) {
-	t.Skip() // Remove when the bug is fixed.
-
 	sr := rt.Init()
 	r, _ := rt.New() // We use a different runtime for the client side.
 	defer r.Cleanup()
@@ -440,19 +441,8 @@ func TestCycles(t *testing.T) {
 		boom(t, "Failed to detect cycle")
 	}
 
-	// Remove the timeout when the bug is fixed, right now, this just
-	// finishes the test immediately. Add a comparison for the expected
-	// output from glob also.
-	ch := make(chan struct{})
-	go func() {
-		doGlob(t, r, ns, "c1/...")
-		close(ch)
-	}()
-	select {
-	case <-ch:
-	case <-time.After(time.Millisecond * 100):
-		t.Errorf("glob timedout")
-	}
+	// Perform the glob with a response length limit.
+	doGlob(t, r, ns, "c1/...", 1000)
 }
 
 func TestUnresolve(t *testing.T) {
@@ -469,7 +459,7 @@ func TestUnresolve(t *testing.T) {
 	ns := r.Namespace()
 	ns.SetRoots(root.name)
 
-	vlog.Infof("Glob: %v", doGlob(t, r, ns, "*"))
+	vlog.Infof("Glob: %v", doGlob(t, r, ns, "*", 0))
 	testResolve(t, r, ns, "joke1", jokes["joke1"].name)
 	testUnresolve(t, r, ns, "joke1", "")
 }
