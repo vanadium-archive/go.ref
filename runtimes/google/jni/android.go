@@ -1,3 +1,5 @@
+// +build android
+
 package main
 
 //TODO(bprosnitz) Move android code to a separate package so that we can make dependencies work
