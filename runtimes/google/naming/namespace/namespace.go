@@ -9,6 +9,9 @@ import (
 	"veyron2/verror"
 )
 
+const defaultMaxResolveDepth = 32
+const defaultMaxRecursiveGlobDepth = 10
+
 // namespace is an implementation of naming.MountTable.
 type namespace struct {
 	sync.RWMutex
@@ -16,6 +19,10 @@ type namespace struct {
 
 	// the default root servers for resolutions in this namespace.
 	roots []string
+
+	// depth limits
+	maxResolveDepth       int
+	maxRecursiveGlobDepth int
 }
 
 func rooted(names []string) bool {
@@ -37,7 +44,12 @@ func New(rt veyron2.Runtime, roots ...string) (*namespace, error) {
 		return nil, badRoots(roots)
 	}
 	// A namespace with no roots can still be used for lookups of rooted names.
-	return &namespace{rt: rt, roots: roots}, nil
+	return &namespace{
+		rt:                    rt,
+		roots:                 roots,
+		maxResolveDepth:       defaultMaxResolveDepth,
+		maxRecursiveGlobDepth: defaultMaxRecursiveGlobDepth,
+	}, nil
 }
 
 // SetRoots implements naming.MountTable.SetRoots
@@ -50,6 +62,16 @@ func (ns *namespace) SetRoots(roots ...string) error {
 	// TODO(cnicolaou): filter out duplicate values.
 	ns.roots = roots
 	return nil
+}
+
+// SetDepthLimits overrides the default limits.
+func (ns *namespace) SetDepthLimits(resolve, glob int) {
+	if resolve >= 0 {
+		ns.maxResolveDepth = resolve
+	}
+	if glob >= 0 {
+		ns.maxRecursiveGlobDepth = glob
+	}
 }
 
 // Roots implements naming.MountTable.Roots

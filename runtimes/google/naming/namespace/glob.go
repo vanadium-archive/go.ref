@@ -15,6 +15,11 @@ import (
 
 const mountTableGlobReplyStreamLength = 100
 
+type queuedEntry struct {
+	me    *naming.MountEntry
+	depth int // number of mount tables traversed recursively
+}
+
 // globAtServer performs a Glob at a single server and adds any results to the list.  Paramters are:
 //   server    the server to perform the glob at.  This may include multiple names for different
 //             instances of the same server.
@@ -22,7 +27,8 @@ const mountTableGlobReplyStreamLength = 100
 //   l         the list to add results to.
 //   recursive true to continue below the matched pattern
 // We return a bool foundRoot which indicates whether the empty name "" was found on a target server.
-func (ns *namespace) globAtServer(ctx context.T, server *naming.MountEntry, pattern *glob.Glob, l *list.List) (bool, error) {
+func (ns *namespace) globAtServer(ctx context.T, qe *queuedEntry, pattern *glob.Glob, l *list.List) (bool, error) {
+	server := qe.me
 	pstr := pattern.String()
 	foundRoot := false
 	vlog.VI(2).Infof("globAtServer(%v, %v)", *server, pstr)
@@ -62,10 +68,21 @@ func (ns *namespace) globAtServer(ctx context.T, server *naming.MountEntry, patt
 
 				// Convert to the ever so slightly different name.MountTable version of a MountEntry
 				// and add it to the list.
-				l.PushBack(&naming.MountEntry{
-					Name:    e.Name,
-					Servers: convertServers(e.Servers),
-				})
+				x := &queuedEntry{
+					me: &naming.MountEntry{
+						Name:    e.Name,
+						Servers: convertServers(e.Servers),
+					},
+					depth: qe.depth,
+				}
+				// x.depth is the number of severs we've walked through since we've gone
+				// recursive (i.e. with pattern length of 0).
+				if pattern.Len() == 0 {
+					if x.depth++; x.depth > ns.maxRecursiveGlobDepth {
+						continue
+					}
+				}
+				l.PushBack(x)
 			}
 
 			if err := call.Finish(); err != nil {
@@ -135,16 +152,20 @@ func depth(name string) int {
 func (ns *namespace) globLoop(ctx context.T, servers []string, prefix string, pattern *glob.Glob, reply chan naming.MountEntry) {
 	defer close(reply)
 
+	// As we encounter new mount tables while traversing the Glob, we add them to the list 'l'.  The loop below
+	// traverses this list removing a mount table each time and calling globAtServer to perform a glob at that
+	// server.  globAtServer will send on 'reply' any terminal entries that match the glob and add any new mount
+	// tables to be traversed to the list 'l'.
 	l := list.New()
-	l.PushBack(&naming.MountEntry{Name: "", Servers: convertStringsToServers(servers)})
+	l.PushBack(&queuedEntry{me: &naming.MountEntry{Name: "", Servers: convertStringsToServers(servers)}})
 
 	// Perform a breadth first search of the name graph.
 	for le := l.Front(); le != nil; le = l.Front() {
 		l.Remove(le)
-		e := le.Value.(*naming.MountEntry)
+		e := le.Value.(*queuedEntry)
 
 		// Get the pattern elements below the current path.
-		suffix := pattern.Split(depth(e.Name))
+		suffix := pattern.Split(depth(e.me.Name))
 
 		// Perform a glob at the server.
 		foundRoot, err := ns.globAtServer(ctx, e, suffix, l)
@@ -152,7 +173,7 @@ func (ns *namespace) globLoop(ctx context.T, servers []string, prefix string, pa
 		// We want to output this entry if:
 		// 1. There was a real error, we return whatever name gave us the error.
 		if err != nil && !notAnMT(err) {
-			x := *e
+			x := *e.me
 			x.Name = naming.Join(prefix, x.Name)
 			x.Error = err
 			reply <- x
@@ -161,7 +182,7 @@ func (ns *namespace) globLoop(ctx context.T, servers []string, prefix string, pa
 		// 2. The current name fullfills the pattern and further servers did not respond
 		//    with "".  That is, we want to prefer foo/ over foo.
 		if suffix.Len() == 0 && !foundRoot {
-			x := *e
+			x := *e.me
 			x.Name = naming.Join(prefix, x.Name)
 			reply <- x
 		}

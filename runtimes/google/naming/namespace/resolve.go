@@ -11,8 +11,6 @@ import (
 	"veyron2/vlog"
 )
 
-const maxDepth = 32
-
 func convertServersToStrings(servers []mountedServer, suffix string) (ret []string) {
 	for _, s := range servers {
 		ret = append(ret, naming.Join(s.Server, suffix))
@@ -85,7 +83,7 @@ func (ns *namespace) Resolve(ctx context.T, name string) ([]string, error) {
 		return nil, naming.ErrNoMountTable
 	}
 	// Iterate walking through mount table servers.
-	for remaining := maxDepth; remaining > 0; remaining-- {
+	for remaining := ns.maxResolveDepth; remaining > 0; remaining-- {
 		vlog.VI(2).Infof("Resolve(%s) loop %s", name, names)
 		if terminal(names) {
 			vlog.VI(1).Infof("Resolve(%s) -> %s", name, names)
@@ -125,7 +123,7 @@ func (ns *namespace) ResolveToMountTable(ctx context.T, name string) ([]string, 
 		return nil, naming.ErrNoMountTable
 	}
 	last := names
-	for remaining := maxDepth; remaining > 0; remaining-- {
+	for remaining := ns.maxResolveDepth; remaining > 0; remaining-- {
 		vlog.VI(2).Infof("ResolveToMountTable(%s) loop %s", name, names)
 		var err error
 		curr := names
@@ -212,7 +210,7 @@ func (ns *namespace) Unresolve(ctx context.T, name string) ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
-	for remaining := maxDepth; remaining > 0; remaining-- {
+	for remaining := ns.maxResolveDepth; remaining > 0; remaining-- {
 		vlog.VI(2).Infof("Unresolve loop %s", names)
 		curr := names
 		if names, err = unresolveAgainstServer(ctx, ns.rt.Client(), names); err != nil {
