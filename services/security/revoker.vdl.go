@@ -20,7 +20,7 @@ import (
 type RevocationToken [16]byte
 
 // Revoker is the interface for preventing discharges from being issued. The
-// dicharger ensures ensures that no discharges will be issued for caveats that
+// dicharger ensures that no discharges will be issued for caveats that
 // have been explicitly revoked using this interface. To prevent discharge
 // stealing caveats just have to be unique; the exact structure is not relevant
 // to the client or the verifier. To make Revoker's job easy, each caveat
