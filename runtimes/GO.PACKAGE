@@ -1,0 +1,9 @@
+{
+	"dependencies": {
+		"incoming": [
+			{"allow": "veyron/runtimes/..."},
+			{"allow": "veyron2/rt/..."},
+			{"deny": "..."}
+		]
+	}
+}
