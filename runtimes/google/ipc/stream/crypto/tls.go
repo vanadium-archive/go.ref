@@ -195,9 +195,11 @@ func ServerTLSConfig() *tls.Config {
 		Certificates:       []tls.Certificate{c},
 		InsecureSkipVerify: true,
 		ClientAuth:         tls.NoClientCert,
-		// TLS_ECDHE_RSA_WITH_RC4_128_SHA is 4-5X faster compared to
-		// the other cipher suites and is what google.com seems to use.
-		CipherSuites: []uint16{tls.TLS_ECDHE_RSA_WITH_RC4_128_SHA},
+		// RC4_128_SHA is 4-5X faster compared to the other cipher suites
+		// and is what google.com seems to use.
+		// Allowing ECDHE_RSA for the key exchange since some older binaries
+		// have an RSA certificate hardcoded in them.
+		CipherSuites: []uint16{tls.TLS_ECDHE_ECDSA_WITH_RC4_128_SHA},
 	}
 }
 
@@ -206,45 +208,28 @@ func ServerTLSConfig() *tls.Config {
 //
 // PEM-encoded certificates and keys used in the tests.
 // One way to generate them is:
-//   go run $GOROOT/src/pkg/crypto/tls/generate_cert.go  --host=localhost
+//   go run $GOROOT/src/pkg/crypto/tls/generate_cert.go  --host=localhost --duration=87600h --ecdsa-curve=P256
+// (This generates a self-signed certificate valid for 10 years)
+// (The --ecdsa-curve flag has not yet been submitted back to the Go repository)
 // which will create cert.pem and key.pem files.
 const (
 	serverCert = `
 -----BEGIN CERTIFICATE-----
-MIIC1jCCAj+gAwIBAgIJAOsQamnsz2kWMA0GCSqGSIb3DQEBBQUAMIGDMQswCQYD
-VQQGEwJERTEMMAoGA1UECAwDTlJXMQ4wDAYDVQQHDAVFYXJ0aDEXMBUGA1UECgwO
-UmFuZG9tIENvbXBhbnkxCzAJBgNVBAsMAklUMRcwFQYDVQQDDA53d3cucmFuZG9t
-LmNvbTEXMBUGCSqGSIb3DQEJARYIZ2F1dGhhbXQwHhcNMTMwNDIzMjEzMTA4WhcN
-MjMwNDIxMjEzMTA4WjCBgzELMAkGA1UEBhMCREUxDDAKBgNVBAgMA05SVzEOMAwG
-A1UEBwwFRWFydGgxFzAVBgNVBAoMDlJhbmRvbSBDb21wYW55MQswCQYDVQQLDAJJ
-VDEXMBUGA1UEAwwOd3d3LnJhbmRvbS5jb20xFzAVBgkqhkiG9w0BCQEWCGdhdXRo
-YW10MIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQDBaDlmU0csZctqYP8AWJ60
-IYGPmT/gGWGo6p0B6jPy02LuY91jQAn0XkiAdjgdtkkkWQyRtQgaaGsGC6qT5qVX
-Ogx/5l/wb5hOa75gGiOdaGxStkzCjS8hAn4Lr0AbI/JmssUQ0xwNJr6t+aHBJ5Go
-gjG0TsedkLL3qw6ktQd47wIDAQABo1AwTjAdBgNVHQ4EFgQUh166SbXiiSTt+Tud
-rLWaA0sS3bQwHwYDVR0jBBgwFoAUh166SbXiiSTt+TudrLWaA0sS3bQwDAYDVR0T
-BAUwAwEB/zANBgkqhkiG9w0BAQUFAAOBgQB8550EwYMrcFXEwQHktpFrcaOEUWN+
-50NeS0lJ0IHwb31dcMywCX0xsteKyUwkXUCSjE8Ubnktjelo3KPMaur78Jy12pK1
-g3Ay6y3nBDKwpBDPcoy7Pt/pz0yL8Qy54fVnU2iQBiHMjTR/kmDsK+BwRksJfk9V
-MFLsr6ZAZxOPbg==
+MIIBbTCCAROgAwIBAgIQMD+Kzawjvhij1B/BmvHxLDAKBggqhkjOPQQDAjASMRAw
+DgYDVQQKEwdBY21lIENvMB4XDTE0MDcxODIzMTYxMloXDTI0MDcxNTIzMTYxMlow
+EjEQMA4GA1UEChMHQWNtZSBDbzBZMBMGByqGSM49AgEGCCqGSM49AwEHA0IABLiz
+Ajsly1DS8NJF2KE195V83TgidfgGEB7nudscdKWH3+5uQHgCc+2BV/7AGGj3yePR
+ZZLzYD95goJ/a7eet/2jSzBJMA4GA1UdDwEB/wQEAwIAoDATBgNVHSUEDDAKBggr
+BgEFBQcDATAMBgNVHRMBAf8EAjAAMBQGA1UdEQQNMAuCCWxvY2FsaG9zdDAKBggq
+hkjOPQQDAgNIADBFAiAb4tBxggEpnKdxv66TBVFxAUn3EBWX25XlL1G2GF8RkAIh
+AOAwys3mvzM4Td/2kV9QNyQPZ9kLLQr9A9ryB0H3N9Yz
 -----END CERTIFICATE-----
 `
 	serverKey = `
------BEGIN PRIVATE KEY-----
-MIICdgIBADANBgkqhkiG9w0BAQEFAASCAmAwggJcAgEAAoGBAMFoOWZTRyxly2pg
-/wBYnrQhgY+ZP+AZYajqnQHqM/LTYu5j3WNACfReSIB2OB22SSRZDJG1CBpoawYL
-qpPmpVc6DH/mX/BvmE5rvmAaI51obFK2TMKNLyECfguvQBsj8mayxRDTHA0mvq35
-ocEnkaiCMbROx52QsverDqS1B3jvAgMBAAECgYEAl2Xk+Orb3i9ZSs7fDwBQS6Wm
-7CgEzoJP5pCxk1woij9bRE28cgMhR7++dYEVcHzPSLrEkhLqYvG2RadAQkLczcy+
-NgXFm1I0HcZXbVT2rafaKS27GpT7NicIrIw48goncMwAI0+UB3Ply9RDwfs+VhDo
-G2a8JTVx2FNpJoIIJOECQQDl80AJPi17TbJehEByQOF0Q7KgfN4aD9hx+E6SLdPq
-ddn0xqnmsbBD1EPv25qeAtQ6sHRxjlP03gvhQ4CQQ0+nAkEA11ExtkqGXayf2hAe
-dMwi2JrAuIGtOCQHQOCAADYgIH+3/SIf05kk/PUiXFTlGkm69qpBmLPaiDSfHV6g
-taT1eQJAe9KClveOUilCdTbN5TgerxaNJ3JVvr7tlGFbHcfjpwsS9IXNk1X3Tm8M
-rioYliF72qaN7V/wwZiX2RMaNZSpXQJAXmuBlEG8CGoBsztsT6WRBlFef8qF7l+G
-OsH3/5+8mOPJCB0lvcGjgbXxenHUAaIhdbeVimQcSaxhthxf9ye+aQJAMstlAS7X
-4rJXYVJUL5JQISgz/D5BzM5pbgJivVRcHO2Qk3HZO2F95Sg3lpD1tdOWBtOhOyRS
-AS91NC8w9ruJeg==
------END PRIVATE KEY-----
+-----BEGIN ECDSA PRIVATE KEY-----
+MHcCAQEEIPLfwg+SVC2/xUcKq0bI9y2+SDEEdCeGuxuBz22BhAw1oAoGCCqGSM49
+AwEHoUQDQgAEuLMCOyXLUNLw0kXYoTX3lXzdOCJ1+AYQHue52xx0pYff7m5AeAJz
+7YFX/sAYaPfJ49FlkvNgP3mCgn9rt563/Q==
+-----END ECDSA PRIVATE KEY-----
 `
 )
