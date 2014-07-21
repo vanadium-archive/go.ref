@@ -14,6 +14,10 @@ import (
 	_gen_wiretype "veyron2/wiretype"
 )
 
+// TODO(bprosnitz) Remove this line once signatures are updated to use typevals.
+// It corrects a bug where _gen_wiretype is unused in VDL pacakges where only bootstrap types are used on interfaces.
+const _ = _gen_wiretype.TypeIDInvalid
+
 // Viewer allows clients to stream data to it and to request a particular viewer to format and display the data.
 // Viewer is the interface the client binds and uses.
 // Viewer_ExcludingUniversal is the interface without internal framework-added methods

@@ -81,6 +81,10 @@ const (
 	LinkRec = byte(1)
 )
 
+// TODO(bprosnitz) Remove this line once signatures are updated to use typevals.
+// It corrects a bug where _gen_wiretype is unused in VDL pacakges where only bootstrap types are used on interfaces.
+const _ = _gen_wiretype.TypeIDInvalid
+
 // Sync allows a device to GetDeltas from another device.
 // Sync is the interface the client binds and uses.
 // Sync_ExcludingUniversal is the interface without internal framework-added methods

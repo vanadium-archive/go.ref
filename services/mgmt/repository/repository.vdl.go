@@ -24,6 +24,10 @@ import (
 	_gen_wiretype "veyron2/wiretype"
 )
 
+// TODO(bprosnitz) Remove this line once signatures are updated to use typevals.
+// It corrects a bug where _gen_wiretype is unused in VDL pacakges where only bootstrap types are used on interfaces.
+const _ = _gen_wiretype.TypeIDInvalid
+
 // Application describes an application repository internally. Besides
 // the public Application interface, it allows to add and remove
 // application envelopes.

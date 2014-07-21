@@ -16,6 +16,10 @@ import (
 	_gen_wiretype "veyron2/wiretype"
 )
 
+// TODO(bprosnitz) Remove this line once signatures are updated to use typevals.
+// It corrects a bug where _gen_wiretype is unused in VDL pacakges where only bootstrap types are used on interfaces.
+const _ = _gen_wiretype.TypeIDInvalid
+
 // Root is an interface to be implemented by a process with root level
 // privileges.
 // Root is the interface the client binds and uses.
