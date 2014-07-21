@@ -501,7 +501,6 @@ func convertSelection(p *parse.PipelineSelection) evaluator {
 		pos:          p.Pos,
 	}
 	for i, a := range p.SubPipelines {
-		// TODO(kash): Protect against aliases that have slashes in them?
 		e.subpipelines[i] = alias{convertPipeline(a.Pipeline), a.Alias, a.Hidden}
 	}
 	return e
@@ -580,10 +579,9 @@ func (e *selectionEvaluator) processSubpipelines(c *context, result *store.Query
 			case <-c.abort:
 				return false
 			case sub, ok := <-out:
-				if !ok {
-					return false
+				if ok {
+					value = sub.Value
 				}
-				value = sub.Value
 			}
 		} else {
 			value = out
