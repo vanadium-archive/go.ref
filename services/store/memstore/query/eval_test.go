@@ -40,6 +40,9 @@ func populate(t *testing.T) *state.State {
 	bettyID := put(t, sn, "/players/betty", player{"betty", 23})
 	bobID := put(t, sn, "/players/bob", player{"bob", 21})
 
+	put(t, sn, "/players/betty/bio", "")
+	put(t, sn, "/players/betty/bio/hometown", "Tampa")
+
 	put(t, sn, "/teams", "")
 	put(t, sn, "/teams/cardinals", team{"cardinals", "CA"})
 	put(t, sn, "/teams/sharks", team{"sharks", "NY"})
@@ -431,6 +434,31 @@ func TestSelection(t *testing.T) {
 					"teams/sharks/players/alice",
 					nil,
 					player{"alice", 16},
+				},
+			},
+		},
+		// Test for selection of a nested name ('bio/hometown').  Only betty has this
+		// nested name, so other players should get a nil value.
+		{
+			"", "'players/*' | type player | {Name, 'bio/hometown'} | ? Name == 'alfred' || Name == 'betty' | sort()",
+			[]*store.QueryResult{
+				&store.QueryResult{
+					0,
+					"players/alfred",
+					map[string]vdlutil.Any{
+						"Name":         "alfred",
+						"bio/hometown": nil,
+					},
+					nil,
+				},
+				&store.QueryResult{
+					0,
+					"players/betty",
+					map[string]vdlutil.Any{
+						"Name":         "betty",
+						"bio/hometown": "Tampa",
+					},
+					nil,
 				},
 			},
 		},
