@@ -27,6 +27,10 @@ type Box struct {
 	Points [4]float32
 }
 
+// TODO(bprosnitz) Remove this line once signatures are updated to use typevals.
+// It corrects a bug where _gen_wiretype is unused in VDL pacakges where only bootstrap types are used on interfaces.
+const _ = _gen_wiretype.TypeIDInvalid
+
 // BoxSignalling allows peers to rendezvous with each other
 // BoxSignalling is the interface the client binds and uses.
 // BoxSignalling_ExcludingUniversal is the interface without internal framework-added methods
