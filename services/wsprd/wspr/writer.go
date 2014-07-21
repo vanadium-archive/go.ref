@@ -23,7 +23,7 @@ type response struct {
 
 // Implements clientWriter interface for sending messages over websockets.
 type websocketWriter struct {
-	ws     *websocket.Conn
+	wsp    *websocketPipe
 	logger vlog.Logger
 	id     int64
 }
@@ -35,16 +35,14 @@ func (w *websocketWriter) Send(messageType lib.ResponseType, data interface{}) e
 		return err
 	}
 
-	wc, err := w.ws.NextWriter(websocket.TextMessage)
-	if err != nil {
-		w.logger.Error("Failed to get a writer from the websocket", err)
-		return err
-	}
-	if err := vom.ObjToJSON(wc, vom.ValueOf(websocketMessage{Id: w.id, Data: buf.String()})); err != nil {
+	var buf2 bytes.Buffer
+
+	if err := vom.ObjToJSON(&buf2, vom.ValueOf(websocketMessage{Id: w.id, Data: buf.String()})); err != nil {
 		w.logger.Error("Failed to write the message", err)
 		return err
 	}
-	wc.Close()
+
+	w.wsp.writeQueue <- wsMessage{messageType: websocket.TextMessage, buf: buf2.Bytes()}
 
 	return nil
 }
