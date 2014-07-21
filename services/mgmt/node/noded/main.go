@@ -2,29 +2,16 @@ package main
 
 import (
 	"flag"
-	"os"
 
 	"veyron/lib/signals"
 	vflag "veyron/security/flag"
-	"veyron/services/mgmt/lib/exec"
-	"veyron/services/mgmt/node"
+	"veyron/services/mgmt/node/config"
 	"veyron/services/mgmt/node/impl"
 
-	"veyron2/mgmt"
 	"veyron2/naming"
 	"veyron2/rt"
-	"veyron2/services/mgmt/application"
 	"veyron2/vlog"
 )
-
-func generateEnvelope() *application.Envelope {
-	return &application.Envelope{
-		Args:   os.Args,
-		Binary: os.Getenv(impl.BinaryEnv),
-		Env:    os.Environ(),
-		Title:  application.NodeManagerTitle,
-	}
-}
 
 func main() {
 	// TODO(rthellend): Remove the address and protocol flags when the config manager is working.
@@ -33,9 +20,6 @@ func main() {
 	flag.StringVar(&protocol, "protocol", "tcp", "network type to listen on")
 	flag.StringVar(&publishAs, "name", "", "name to publish the node manager at")
 	flag.Parse()
-	if os.Getenv(impl.OriginEnv) == "" {
-		vlog.Fatalf("Specify the node manager origin as environment variable %s=<name>", impl.OriginEnv)
-	}
 	runtime := rt.Init()
 	defer runtime.Cleanup()
 	server, err := runtime.NewServer()
@@ -47,29 +31,26 @@ func main() {
 	if err != nil {
 		vlog.Fatalf("Listen(%v, %v) failed: %v", protocol, address, err)
 	}
-	suffix, envelope := "", generateEnvelope()
-	name := naming.MakeTerminal(naming.JoinAddressName(endpoint.String(), suffix))
-	vlog.VI(0).Infof("Node manager name: %v", name)
-	// TODO(jsimsa): Replace <PreviousEnv> with a command-line flag when
-	// command-line flags are supported in tests.
-	dispatcher := impl.NewDispatcher(vflag.NewAuthorizerOrDie(), envelope, name, os.Getenv(impl.PreviousEnv))
+	name := naming.MakeTerminal(naming.JoinAddressName(endpoint.String(), ""))
+	vlog.VI(0).Infof("Node manager object name: %v", name)
+	configState, err := config.Load()
+	if err != nil {
+		vlog.Fatalf("Failed to load config passed from parent: %v", err)
+		return
+	}
+	configState.Name = name
+	// TODO(caprita): We need a way to set config fields outside of the
+	// update mechanism (since that should ideally be an opaque
+	// implementation detail).
+	dispatcher, err := impl.NewDispatcher(vflag.NewAuthorizerOrDie(), configState)
+	if err != nil {
+		vlog.Fatalf("Failed to create dispatcher: %v", err)
+	}
 	if err := server.Serve(publishAs, dispatcher); err != nil {
 		vlog.Fatalf("Serve(%v) failed: %v", publishAs, err)
 	}
-	handle, _ := exec.GetChildHandle()
-	if handle != nil {
-		callbackName, err := handle.Config.Get(mgmt.ParentNodeManagerConfigKey)
-		if err != nil {
-			vlog.Fatalf("Couldn't get callback name from config: %v", err)
-		}
-		nmClient, err := node.BindConfig(callbackName)
-		if err != nil {
-			vlog.Fatalf("BindNode(%v) failed: %v", callbackName, err)
-		}
-		if err := nmClient.Set(rt.R().NewContext(), mgmt.ChildNodeManagerConfigKey, name); err != nil {
-			vlog.Fatalf("Callback(%v, %v) failed: %v", mgmt.ChildNodeManagerConfigKey, name, err)
-		}
-	}
+	impl.InvokeCallback(name)
+
 	// Wait until shutdown.
 	<-signals.ShutdownOnSignals()
 }

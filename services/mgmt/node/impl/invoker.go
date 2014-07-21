@@ -1,11 +1,9 @@
 package impl
 
-// The implementation of the node manager expects that the node
-// manager installations are all organized in the following directory
-// structure:
+// The implementation of the node manager expects that the node manager
+// installations are all organized in the following directory structure:
 //
 // VEYRON_NM_ROOT/
-//   current # symlink to one of the workspaces
 //   workspace-1/
 //     noded - the node manager binary
 //     noded.sh - a shell script to start the binary
@@ -14,15 +12,14 @@ package impl
 //     noded - the node manager binary
 //     noded.sh - a shell script to start the binary
 //
-// The node manager is always expected to be started through
-// VEYRON_NM_ROOT/current/noded.sh, which is monitored by an init
-// daemon. This provides for simple and robust updates.
+// The node manager is always expected to be started through the symbolic link
+// passed in as config.CurrentLink, which is monitored by an init daemon. This
+// provides for simple and robust updates.
 //
-// To update the node manager to a newer version, a new workspace is
-// created and the "current" symlink is updated
-// accordingly. Similarly, to revert the node manager to a previous
-// version, all that is required is to update the symlink to point to
-// the previous workspace.
+// To update the node manager to a newer version, a new workspace is created and
+// the symlink is updated to the new noded.sh script. Similarly, to revert the
+// node manager to a previous version, all that is required is to update the
+// symlink to point to the previous noded.sh script.
 
 import (
 	"bytes"
@@ -43,6 +40,7 @@ import (
 	"veyron/lib/config"
 	blib "veyron/services/mgmt/lib/binary"
 	vexec "veyron/services/mgmt/lib/exec"
+	iconfig "veyron/services/mgmt/node/config"
 	"veyron/services/mgmt/profile"
 
 	"veyron2/ipc"
@@ -58,24 +56,15 @@ import (
 	"veyron2/vlog"
 )
 
-const CurrentWorkspace = "current"
-
-// state wraps state shared between different node manager
+// internalState wraps state shared between different node manager
 // invocations.
-type state struct {
+type internalState struct {
 	// channels maps callback identifiers to channels that are used to
 	// communicate information from child processes.
 	channels map[string]chan string
 	// channelsMutex is a lock for coordinating concurrent access to
 	// <channels>.
 	channelsMutex *sync.Mutex
-	// envelope is the node manager application envelope.
-	envelope *application.Envelope
-	// name is the node manager name.
-	name string
-	// previous holds the local path to the previous version of the node
-	// manager.
-	previous string
 	// updating is a flag that records whether this instance of node
 	// manager is being updated.
 	updating bool
@@ -86,7 +75,11 @@ type state struct {
 
 // invoker holds the state of a node manager invocation.
 type invoker struct {
-	state *state
+	// internal holds the node manager's internal state that persists across
+	// RPC requests.
+	internal *internalState
+	// config holds the node manager's (immutable) configuration state.
+	config *iconfig.State
 	// suffix is the suffix of the current invocation that is assumed to
 	// be used as a relative object name to identify an application,
 	// installation, or instance.
@@ -100,15 +93,8 @@ var (
 	errOperationFailed    = verror.Internalf("operation failed")
 	errUpdateInProgress   = verror.Existsf("update in progress")
 	errIncompatibleUpdate = verror.BadArgf("update failed: mismatching app title")
+	errUpdateNoOp         = verror.NotFoundf("no different version available")
 )
-
-// NewInvoker is the invoker factory.
-func NewInvoker(state *state, suffix string) *invoker {
-	return &invoker{
-		state:  state,
-		suffix: suffix,
-	}
-}
 
 // NODE INTERFACE IMPLEMENTATION
 
@@ -290,7 +276,7 @@ loop:
 }
 
 func (i *invoker) Describe(call ipc.ServerContext) (node.Description, error) {
-	vlog.VI(0).Infof("%v.Describe()", i.suffix)
+	vlog.VI(1).Infof("%v.Describe()", i.suffix)
 	empty := node.Description{}
 	nodeProfile, err := i.computeNodeProfile()
 	if err != nil {
@@ -305,7 +291,7 @@ func (i *invoker) Describe(call ipc.ServerContext) (node.Description, error) {
 }
 
 func (i *invoker) IsRunnable(call ipc.ServerContext, description binary.Description) (bool, error) {
-	vlog.VI(0).Infof("%v.IsRunnable(%v)", i.suffix, description)
+	vlog.VI(1).Infof("%v.IsRunnable(%v)", i.suffix, description)
 	nodeProfile, err := i.computeNodeProfile()
 	if err != nil {
 		return false, err
@@ -323,7 +309,7 @@ func (i *invoker) IsRunnable(call ipc.ServerContext, description binary.Descript
 }
 
 func (i *invoker) Reset(call ipc.ServerContext, deadline uint64) error {
-	vlog.VI(0).Infof("%v.Reset(%v)", i.suffix, deadline)
+	vlog.VI(1).Infof("%v.Reset(%v)", i.suffix, deadline)
 	// TODO(jsimsa): Implement.
 	return nil
 }
@@ -377,16 +363,14 @@ func generateBinary(workspace string, envelope *application.Envelope, newBinary 
 
 // TODO(jsimsa): Replace <PreviousEnv> with a command-line flag when
 // command-line flags in tests are supported.
-func generateScript(workspace string, envelope *application.Envelope) error {
+func generateScript(workspace string, configSettings []string, envelope *application.Envelope) error {
 	path, err := filepath.EvalSymlinks(os.Args[0])
 	if err != nil {
 		vlog.Errorf("EvalSymlinks(%v) failed: %v", os.Args[0], err)
 		return errOperationFailed
 	}
 	output := "#!/bin/bash\n"
-	output += BinaryEnv + "=" + envelope.Binary + " "
-	output += PreviousEnv + "=" + filepath.Dir(path) + " "
-	output += strings.Join(envelope.Env, " ") + " "
+	output += strings.Join(iconfig.QuoteEnv(append(envelope.Env, configSettings...)), " ") + " "
 	output += filepath.Join(workspace, "noded") + " "
 	output += strings.Join(envelope.Args, " ")
 	path = filepath.Join(workspace, "noded.sh")
@@ -397,25 +381,25 @@ func generateScript(workspace string, envelope *application.Envelope) error {
 	return nil
 }
 
-// getCurrentFileInfo returns the os.FileInfo for both the symbolic
-// link $VEYRON_NM_ROOT/current and the workspace this link points to.
-func getCurrentFileInfo() (os.FileInfo, os.FileInfo, error) {
-	path := filepath.Join(os.Getenv(RootEnv), CurrentWorkspace)
+// getCurrentFileInfo returns the os.FileInfo for both the symbolic link
+// CurrentLink, and the node script in the workspace that this link points to.
+func (i *invoker) getCurrentFileInfo() (os.FileInfo, string, error) {
+	path := i.config.CurrentLink
 	link, err := os.Lstat(path)
 	if err != nil {
 		vlog.Errorf("Lstat(%v) failed: %v", path, err)
-		return nil, nil, err
+		return nil, "", err
 	}
-	workspace, err := os.Stat(path)
+	scriptPath, err := filepath.EvalSymlinks(path)
 	if err != nil {
-		vlog.Errorf("Stat(%v) failed: %v", path, err)
-		return nil, nil, err
+		vlog.Errorf("EvalSymlinks(%v) failed: %v", path, err)
+		return nil, "", err
 	}
-	return link, workspace, nil
+	return link, scriptPath, nil
 }
 
-func updateLink(workspace string) error {
-	link := filepath.Join(os.Getenv(RootEnv), CurrentWorkspace)
+func (i *invoker) updateLink(newScript string) error {
+	link := i.config.CurrentLink
 	newLink := link + ".new"
 	fi, err := os.Lstat(newLink)
 	if err == nil {
@@ -424,8 +408,8 @@ func updateLink(workspace string) error {
 			return errOperationFailed
 		}
 	}
-	if err := os.Symlink(workspace, newLink); err != nil {
-		vlog.Errorf("Symlink(%v, %v) failed: %v", workspace, newLink, err)
+	if err := os.Symlink(newScript, newLink); err != nil {
+		vlog.Errorf("Symlink(%v, %v) failed: %v", newScript, newLink, err)
 		return errOperationFailed
 	}
 	if err := os.Rename(newLink, link); err != nil {
@@ -436,13 +420,13 @@ func updateLink(workspace string) error {
 }
 
 func (i *invoker) registerCallback(id string, channel chan string) {
-	i.state.channelsMutex.Lock()
-	defer i.state.channelsMutex.Unlock()
-	i.state.channels[id] = channel
+	i.internal.channelsMutex.Lock()
+	defer i.internal.channelsMutex.Unlock()
+	i.internal.channels[id] = channel
 }
 
 func (i *invoker) revertNodeManager() error {
-	if err := updateLink(i.state.previous); err != nil {
+	if err := i.updateLink(i.config.Previous); err != nil {
 		return err
 	}
 	rt.R().Stop()
@@ -457,7 +441,7 @@ func (i *invoker) testNodeManager(workspace string, envelope *application.Envelo
 	// Setup up the child process callback.
 	id := fmt.Sprintf("%d", rand.Int())
 	cfg := config.New()
-	cfg.Set(mgmt.ParentNodeManagerConfigKey, naming.JoinAddressName(i.state.name, id))
+	cfg.Set(mgmt.ParentNodeManagerConfigKey, naming.MakeTerminal(naming.Join(i.config.Name, id)))
 	handle := vexec.NewParentHandle(cmd, vexec.ConfigOpt{cfg})
 	callbackChan := make(chan string)
 	i.registerCallback(id, callbackChan)
@@ -478,18 +462,18 @@ func (i *invoker) testNodeManager(workspace string, envelope *application.Envelo
 	}
 	// Wait for the child process to invoke the Callback().
 	select {
-	case address := <-callbackChan:
+	case childName := <-callbackChan:
 		// Check that invoking Update() succeeds.
-		address = naming.JoinAddressName(address, "nm")
-		nmClient, err := node.BindNode(address)
+		childName = naming.MakeTerminal(naming.Join(childName, "nm"))
+		nmClient, err := node.BindNode(childName)
 		if err != nil {
-			vlog.Errorf("BindNode(%v) failed: %v", address, err)
+			vlog.Errorf("BindNode(%v) failed: %v", childName, err)
 			if err := handle.Clean(); err != nil {
 				vlog.Errorf("Clean() failed: %v", err)
 			}
 			return errOperationFailed
 		}
-		linkOld, workspaceOld, err := getCurrentFileInfo()
+		linkOld, pathOld, err := i.getCurrentFileInfo()
 		if err != nil {
 			if err := handle.Clean(); err != nil {
 				vlog.Errorf("Clean() failed: %v", err)
@@ -498,7 +482,7 @@ func (i *invoker) testNodeManager(workspace string, envelope *application.Envelo
 		}
 		// Since the resolution of mtime for files is seconds,
 		// the test sleeps for a second to make sure it can
-		// check whether the "current" symlink is updated.
+		// check whether the current symlink is updated.
 		time.Sleep(time.Second)
 		if err := nmClient.Revert(rt.R().NewContext()); err != nil {
 			if err := handle.Clean(); err != nil {
@@ -506,23 +490,23 @@ func (i *invoker) testNodeManager(workspace string, envelope *application.Envelo
 			}
 			return errOperationFailed
 		}
-		linkNew, workspaceNew, err := getCurrentFileInfo()
+		linkNew, pathNew, err := i.getCurrentFileInfo()
 		if err != nil {
 			if err := handle.Clean(); err != nil {
 				vlog.Errorf("Clean() failed: %v", err)
 			}
 			return errOperationFailed
 		}
-		// Check that the new node manager updated the symbolic link
-		// $VEYRON_NM_ROOT/current.
+		// Check that the new node manager updated the current symbolic
+		// link.
 		if !linkOld.ModTime().Before(linkNew.ModTime()) {
 			vlog.Errorf("new node manager test failed")
 			return errOperationFailed
 		}
-		// Check that the symbolic link $VEYRON_NM_ROOT/current points to
-		// the same workspace.
-		if workspaceOld.Name() != workspaceNew.Name() {
-			updateLink(workspaceOld.Name())
+		// Ensure that the current symbolic link points to the same
+		// script.
+		if pathNew != pathOld {
+			i.updateLink(pathOld)
 			vlog.Errorf("new node manager test failed")
 			return errOperationFailed
 		}
@@ -537,144 +521,162 @@ func (i *invoker) testNodeManager(workspace string, envelope *application.Envelo
 }
 
 func (i *invoker) unregisterCallback(id string) {
-	i.state.channelsMutex.Lock()
-	defer i.state.channelsMutex.Unlock()
-	delete(i.state.channels, id)
+	i.internal.channelsMutex.Lock()
+	defer i.internal.channelsMutex.Unlock()
+	delete(i.internal.channels, id)
 }
 
 func (i *invoker) updateNodeManager() error {
-	envelope, err := fetchEnvelope(os.Getenv(OriginEnv))
+	if len(i.config.Origin) == 0 {
+		return errUpdateNoOp
+	}
+	envelope, err := fetchEnvelope(i.config.Origin)
 	if err != nil {
 		return err
 	}
 	if envelope.Title != application.NodeManagerTitle {
 		return errIncompatibleUpdate
 	}
-	if !reflect.DeepEqual(envelope, i.state.envelope) {
-		// Create new workspace.
-		workspace := filepath.Join(os.Getenv(RootEnv), fmt.Sprintf("%v", time.Now().Format(time.RFC3339Nano)))
-		perm := os.FileMode(0755)
-		if err := os.MkdirAll(workspace, perm); err != nil {
-			vlog.Errorf("MkdirAll(%v, %v) failed: %v", workspace, perm, err)
-			return errOperationFailed
-		}
-		// Populate the new workspace with a node manager binary.
-		if err := generateBinary(workspace, envelope, envelope.Binary != i.state.envelope.Binary); err != nil {
-			if err := os.RemoveAll(workspace); err != nil {
-				vlog.Errorf("RemoveAll(%v) failed: %v", workspace, err)
-			}
-			return err
-		}
-		// Populate the new workspace with a node manager script.
-		if err := generateScript(workspace, envelope); err != nil {
-			if err := os.RemoveAll(workspace); err != nil {
-				vlog.Errorf("RemoveAll(%v) failed: %v", workspace, err)
-			}
-			return err
-		}
-		if err := i.testNodeManager(workspace, envelope); err != nil {
-			if err := os.RemoveAll(workspace); err != nil {
-				vlog.Errorf("RemoveAll(%v) failed: %v", workspace, err)
-			}
-			return err
-		}
-		// If the binary has changed, update the node manager symlink.
-		if err := updateLink(workspace); err != nil {
-			if err := os.RemoveAll(workspace); err != nil {
-				vlog.Errorf("RemoveAll(%v) failed: %v", workspace, err)
-			}
-			return err
-		}
-		rt.R().Stop()
+	if i.config.Envelope != nil && reflect.DeepEqual(envelope, i.config.Envelope) {
+		return errUpdateNoOp
 	}
+	// Create new workspace.
+	workspace := filepath.Join(i.config.Root, fmt.Sprintf("%v", time.Now().Format(time.RFC3339Nano)))
+	perm := os.FileMode(0755)
+	if err := os.MkdirAll(workspace, perm); err != nil {
+		vlog.Errorf("MkdirAll(%v, %v) failed: %v", workspace, perm, err)
+		return errOperationFailed
+	}
+	// Populate the new workspace with a node manager binary.
+	// TODO(caprita): match identical binaries on binary metadata
+	// rather than binary object name.
+	sameBinary := i.config.Envelope != nil && envelope.Binary == i.config.Envelope.Binary
+	if err := generateBinary(workspace, envelope, !sameBinary); err != nil {
+		if err := os.RemoveAll(workspace); err != nil {
+			vlog.Errorf("RemoveAll(%v) failed: %v", workspace, err)
+		}
+		return err
+	}
+	// Populate the new workspace with a node manager script.
+	configSettings, err := i.config.Save(envelope)
+	if err != nil {
+		if err := os.RemoveAll(workspace); err != nil {
+			vlog.Errorf("RemoveAll(%v) failed: %v", workspace, err)
+		}
+		return errOperationFailed
+	}
+	if err := generateScript(workspace, configSettings, envelope); err != nil {
+		if err := os.RemoveAll(workspace); err != nil {
+			vlog.Errorf("RemoveAll(%v) failed: %v", workspace, err)
+		}
+		return err
+	}
+	if err := i.testNodeManager(workspace, envelope); err != nil {
+		if err := os.RemoveAll(workspace); err != nil {
+			vlog.Errorf("RemoveAll(%v) failed: %v", workspace, err)
+		}
+		return err
+	}
+	// If the binary has changed, update the node manager symlink.
+	if err := i.updateLink(filepath.Join(workspace, "noded.sh")); err != nil {
+		if err := os.RemoveAll(workspace); err != nil {
+			vlog.Errorf("RemoveAll(%v) failed: %v", workspace, err)
+		}
+		return err
+	}
+	rt.R().Stop()
 	return nil
 }
 
 func (i *invoker) Install(call ipc.ServerContext, von string) (string, error) {
-	vlog.VI(0).Infof("%v.Install(%q)", i.suffix, von)
+	vlog.VI(1).Infof("%v.Install(%q)", i.suffix, von)
 	// TODO(jsimsa): Implement.
 	return "", nil
 }
 
 func (i *invoker) Refresh(call ipc.ServerContext) error {
-	vlog.VI(0).Infof("%v.Refresh()", i.suffix)
+	vlog.VI(1).Infof("%v.Refresh()", i.suffix)
 	// TODO(jsimsa): Implement.
 	return nil
 }
 
 func (i *invoker) Restart(call ipc.ServerContext) error {
-	vlog.VI(0).Infof("%v.Restart()", i.suffix)
+	vlog.VI(1).Infof("%v.Restart()", i.suffix)
 	// TODO(jsimsa): Implement.
 	return nil
 }
 
 func (i *invoker) Resume(call ipc.ServerContext) error {
-	vlog.VI(0).Infof("%v.Resume()", i.suffix)
+	vlog.VI(1).Infof("%v.Resume()", i.suffix)
 	// TODO(jsimsa): Implement.
 	return nil
 }
 
 func (i *invoker) Revert(call ipc.ServerContext) error {
-	vlog.VI(0).Infof("%v.Revert()", i.suffix)
-	if i.state.previous == "" {
-		return errOperationFailed
+	vlog.VI(1).Infof("%v.Revert()", i.suffix)
+	if i.config.Previous == "" {
+		return errUpdateNoOp
 	}
-	i.state.updatingMutex.Lock()
-	if i.state.updating {
-		i.state.updatingMutex.Unlock()
+	i.internal.updatingMutex.Lock()
+	if i.internal.updating {
+		i.internal.updatingMutex.Unlock()
 		return errUpdateInProgress
 	} else {
-		i.state.updating = true
+		i.internal.updating = true
 	}
-	i.state.updatingMutex.Unlock()
+	i.internal.updatingMutex.Unlock()
 	err := i.revertNodeManager()
-	i.state.updatingMutex.Lock()
-	i.state.updating = false
-	i.state.updatingMutex.Unlock()
+	if err != nil {
+		i.internal.updatingMutex.Lock()
+		i.internal.updating = false
+		i.internal.updatingMutex.Unlock()
+	}
 	return err
 }
 
 func (i *invoker) Start(call ipc.ServerContext) ([]string, error) {
-	vlog.VI(0).Infof("%v.Start()", i.suffix)
+	vlog.VI(1).Infof("%v.Start()", i.suffix)
 	// TODO(jsimsa): Implement.
 	return make([]string, 0), nil
 }
 
 func (i *invoker) Stop(call ipc.ServerContext, deadline uint64) error {
-	vlog.VI(0).Infof("%v.Stop(%v)", i.suffix, deadline)
+	vlog.VI(1).Infof("%v.Stop(%v)", i.suffix, deadline)
 	// TODO(jsimsa): Implement.
 	return nil
 }
 
 func (i *invoker) Suspend(call ipc.ServerContext) error {
-	vlog.VI(0).Infof("%v.Suspend()", i.suffix)
+	vlog.VI(1).Infof("%v.Suspend()", i.suffix)
 	// TODO(jsimsa): Implement.
 	return nil
 }
 
 func (i *invoker) Uninstall(call ipc.ServerContext) error {
-	vlog.VI(0).Infof("%v.Uninstall()", i.suffix)
+	vlog.VI(1).Infof("%v.Uninstall()", i.suffix)
 	// TODO(jsimsa): Implement.
 	return nil
 }
 
 func (i *invoker) Update(call ipc.ServerContext) error {
-	vlog.VI(0).Infof("%v.Update()", i.suffix)
+	vlog.VI(1).Infof("%v.Update()", i.suffix)
 	switch {
 	case i.suffix == "nm":
 		// This branch attempts to update the node manager itself.
-		i.state.updatingMutex.Lock()
-		if i.state.updating {
-			i.state.updatingMutex.Unlock()
+		i.internal.updatingMutex.Lock()
+		if i.internal.updating {
+			i.internal.updatingMutex.Unlock()
 			return errUpdateInProgress
 		} else {
-			i.state.updating = true
+			i.internal.updating = true
 		}
-		i.state.updatingMutex.Unlock()
+		i.internal.updatingMutex.Unlock()
 		err := i.updateNodeManager()
-		i.state.updatingMutex.Lock()
-		i.state.updating = false
-		i.state.updatingMutex.Unlock()
+		if err != nil {
+			i.internal.updatingMutex.Lock()
+			i.internal.updating = false
+			i.internal.updatingMutex.Unlock()
+		}
 		return err
 	case appsSuffix.MatchString(i.suffix):
 		// TODO(jsimsa): Implement.
@@ -686,7 +688,7 @@ func (i *invoker) Update(call ipc.ServerContext) error {
 }
 
 func (i *invoker) UpdateTo(call ipc.ServerContext, von string) error {
-	vlog.VI(0).Infof("%v.UpdateTo(%q)", i.suffix, von)
+	vlog.VI(1).Infof("%v.UpdateTo(%q)", i.suffix, von)
 	// TODO(jsimsa): Implement.
 	return nil
 }
@@ -694,15 +696,15 @@ func (i *invoker) UpdateTo(call ipc.ServerContext, von string) error {
 // CONFIG INTERFACE IMPLEMENTATION
 
 func (i *invoker) Set(_ ipc.ServerContext, key, value string) error {
-	vlog.VI(0).Infof("%v.Set(%v, %v)", i.suffix, key, value)
+	vlog.VI(1).Infof("%v.Set(%v, %v)", i.suffix, key, value)
 	// For now, only handle the child node manager name.  We'll add handling
 	// for the child's app cycle manager name later on.
 	if key != mgmt.ChildNodeManagerConfigKey {
 		return nil
 	}
-	i.state.channelsMutex.Lock()
-	channel, ok := i.state.channels[i.suffix]
-	i.state.channelsMutex.Unlock()
+	i.internal.channelsMutex.Lock()
+	channel, ok := i.internal.channels[i.suffix]
+	i.internal.channelsMutex.Unlock()
 	if !ok {
 		return errInvalidSuffix
 	}
