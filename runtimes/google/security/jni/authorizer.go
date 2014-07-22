@@ -70,10 +70,6 @@ func (a *authorizer) Authorize(context security.Context) error {
 	// Run Java Authorizer.
 	contextSign := "Lcom/veyron2/security/Context;"
 	mid := C.jmethodID(util.JMethodIDPtrOrDie(env, C.GetObjectClass(env, a.jAuth), "authorize", fmt.Sprintf("(%s)%s", contextSign, util.VoidSign)))
-	if mid == nil {
-		return fmt.Errorf("Srdjan's error")
-	}
-	return nil
 	C.CallAuthorizerAuthorizeMethod(env, a.jAuth, mid, jContext)
 	if err := util.JExceptionMsg(env); err != nil {
 		return err

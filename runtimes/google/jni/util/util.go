@@ -43,6 +43,8 @@ const (
 	StringSign = "Ljava/lang/String;"
 	// ObjectSign denotes a signature of a Java Object type.
 	ObjectSign = "Ljava/lang/Object;"
+	// ClassSign denotes a signature of a Java Class type.
+	ClassSign = "Ljava/lang/Class;"
 )
 
 // ArraySign returns the array signature, given the underlying array type.

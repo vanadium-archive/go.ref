@@ -7,6 +7,7 @@ import (
 	"runtime"
 
 	"veyron/runtimes/google/jni/util"
+	isecurity "veyron/runtimes/google/security/jni"
 	"veyron2/ipc"
 	"veyron2/security"
 )
@@ -15,8 +16,14 @@ import (
 // #include "jni_wrapper.h"
 // // CGO doesn't support variadic functions so we have to hard-code these
 // // functions to match the invoking code. Ugh!
-// static jobject CallLookupMethod(JNIEnv* env, jobject obj, jmethodID id, jstring str) {
+// static jobject CallDispatcherLookupMethod(JNIEnv* env, jobject obj, jmethodID id, jstring str) {
 //   return (*env)->CallObjectMethod(env, obj, id, str);
+// }
+// static jobject CallDispatcherGetObjectMethod(JNIEnv* env, jobject obj, jmethodID id) {
+//   return (*env)->CallObjectMethod(env, obj, id);
+// }
+// static jobject CallDispatcherGetAuthorizerMethod(JNIEnv* env, jobject obj, jmethodID id) {
+//   return (*env)->CallObjectMethod(env, obj, id);
 // }
 import "C"
 
@@ -58,21 +65,36 @@ func (d *dispatcher) Lookup(suffix string) (ipc.Invoker, security.Authorizer, er
 	defer C.DetachCurrentThread(d.jVM)
 
 	// Call Java dispatcher's lookup() method.
-	lid := C.jmethodID(util.JMethodIDPtrOrDie(env, C.GetObjectClass(env, d.jDispatcher), "lookup", fmt.Sprintf("(%s)%s", util.StringSign, util.ObjectSign)))
-	jObj := C.CallLookupMethod(env, d.jDispatcher, lid, C.jstring(util.JStringPtr(env, suffix)))
+	serviceObjectWithAuthorizerSign := "Lcom/veyron2/ipc/ServiceObjectWithAuthorizer;"
+	lid := C.jmethodID(util.JMethodIDPtrOrDie(env, C.GetObjectClass(env, d.jDispatcher), "lookup", fmt.Sprintf("(%s)%s", util.StringSign, serviceObjectWithAuthorizerSign)))
+	jServiceObjectWithAuthorizer := C.CallDispatcherLookupMethod(env, d.jDispatcher, lid, C.jstring(util.JStringPtr(env, suffix)))
 	if err := util.JExceptionMsg(env); err != nil {
 		return nil, nil, fmt.Errorf("error invoking Java dispatcher's lookup() method: %v", err)
 	}
-	if jObj == nil {
-		// Lookup returned null object, which means that the dispatcher isn't
-		// handling the object - this is not an error.
+	if jServiceObjectWithAuthorizer == nil {
+		// Lookup returned null, which means that the dispatcher isn't handling the object -
+		// this is not an error.
 		return nil, nil, nil
 	}
+
+	// Extract the Java service object and Authorizer.
+	oid := C.jmethodID(util.JMethodIDPtrOrDie(env, C.GetObjectClass(env, jServiceObjectWithAuthorizer), "getServiceObject", fmt.Sprintf("()%s", util.ObjectSign)))
+	jObj := C.CallDispatcherGetObjectMethod(env, jServiceObjectWithAuthorizer, oid)
+	if jObj == nil {
+		return nil, nil, fmt.Errorf("null service object returned by Java's ServiceObjectWithAuthorizer")
+	}
+	authSign := "Lcom/veyron2/security/Authorizer;"
+	aid := C.jmethodID(util.JMethodIDPtrOrDie(env, C.GetObjectClass(env, jServiceObjectWithAuthorizer), "getAuthorizer", fmt.Sprintf("()%s", authSign)))
+	jAuth := C.CallDispatcherGetAuthorizerMethod(env, jServiceObjectWithAuthorizer, aid)
+
+	// Create Go Invoker and Authorizer.
 	i, err := newInvoker(env, d.jVM, jObj)
 	if err != nil {
 		return nil, nil, err
 	}
-	// TODO(spetrovic): create JNI version of authorizer that invokes Java's
-	// authorizer methods.
-	return i, security.NewACLAuthorizer(security.ACL{security.AllPrincipals: security.LabelSet(security.AdminLabel)}), nil
+	var a security.Authorizer
+	if jAuth != nil {
+		a = isecurity.NewAuthorizer(env, jAuth)
+	}
+	return i, a, nil
 }
