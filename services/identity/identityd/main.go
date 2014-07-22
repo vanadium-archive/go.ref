@@ -9,24 +9,30 @@ import (
 	"os"
 	"strings"
 
+	"veyron/lib/signals"
+	"veyron/services/identity/blesser"
 	"veyron/services/identity/googleoauth"
 	"veyron/services/identity/handlers"
 	"veyron/services/identity/util"
+	"veyron2"
+	"veyron2/ipc"
 	"veyron2/rt"
 	"veyron2/security"
 	"veyron2/vlog"
 )
 
 var (
-	address       = flag.String("address", "localhost:8125", "Address on which the HTTP server listens on.")
+	httpaddr  = flag.String("httpaddr", "localhost:8125", "Address on which the HTTP server listens on.")
+	tlsconfig = flag.String("tlsconfig", "", "Comma-separated list of TLS certificate and private key files. If empty, will not use HTTPS.")
+	// TODO(ashankar): Revisit the choices for -vaddr and -vprotocol once the proxy design in relation to mounttables has been finalized.
+	address       = flag.String("vaddr", "proxy.envyor.com:8100", "Address on which the Veyron blessing server listens on. Enabled iff --google_config is set")
+	protocol      = flag.String("vprotocol", "veyron", "Protocol used to interpret --vaddr")
 	host          = flag.String("host", defaultHost(), "Hostname the HTTP server listens on. This can be the name of the host running the webserver, but if running behind a NAT or load balancer, this should be the host name that clients will connect to. For example, if set to 'x.com', Veyron identities will have the IssuerName set to 'x.com' and clients can expect to find the public key of the signer at 'x.com/pubkey/'.")
-	tlsconfig     = flag.String("tlsconfig", "", "Comma-separated list of TLS certificate and private key files. If empty, will not use HTTPS.")
 	minExpiryDays = flag.Int("min_expiry_days", 365, "Minimum expiry time (in days) of identities issued by this server")
 	googleConfig  = flag.String("google_config", "", "Path to the JSON-encoded file containing the ClientID for web applications registered with the Google Developer Console. (Use the 'Download JSON' link on the Google APIs console).")
 	googleDomain  = flag.String("google_domain", "", "An optional domain name. When set, only email addresses from this domain are allowed to authenticate via Google OAuth")
-
-	generate = flag.String("generate", "", "If non-empty, instead of running an HTTP server, a new identity will be created with the provided name and saved to --identity (if specified) and dumped to STDOUT in base64-encoded-vom")
-	identity = flag.String("identity", "", "Path to the file where the VOM-encoded security.PrivateID created with --generate will be written.")
+	generate      = flag.String("generate", "", "If non-empty, instead of running an HTTP server, a new identity will be created with the provided name and saved to --identity (if specified) and dumped to STDOUT in base64-encoded-vom")
+	identity      = flag.String("identity", "", "Path to the file where the VOM-encoded security.PrivateID created with --generate will be written.")
 )
 
 func main() {
@@ -47,41 +53,78 @@ func main() {
 		http.Handle("/random/", handlers.Random{r}) // mint identities with a random name
 	}
 	http.HandleFunc("/bless/", handlers.Bless) // use a provided PrivateID to bless a provided PublicID
+
 	// Google OAuth
-	if enableGoogleOAuth() {
-		_, port, err := net.SplitHostPort(*address)
+	if enabled, clientID, clientSecret := enableGoogleOAuth(); enabled {
+		// Setup veyron service
+		server, err := setupGoogleBlessingServer(r, clientID, clientSecret)
 		if err != nil {
-			vlog.Fatalf("Failed to parse %q: %v", *address, err)
+			vlog.Fatalf("failed to setup veyron services for blessing: %v", err)
 		}
-		f, err := os.Open(*googleConfig)
+		defer server.Stop()
+
+		// Setup HTTP handler
+		_, port, err := net.SplitHostPort(*httpaddr)
 		if err != nil {
-			vlog.Fatalf("Failed to open %q: %v", *googleConfig, err)
+			vlog.Fatalf("Failed to parse %q: %v", *httpaddr, err)
 		}
-		clientid, secret, err := googleoauth.ClientIDAndSecretFromJSON(f)
-		if err != nil {
-			vlog.Fatalf("Failed to decode %q: %v", *googleConfig, err)
-		}
-		f.Close()
 		n := "/google/"
 		http.Handle(n, googleoauth.NewHandler(googleoauth.HandlerArgs{
 			UseTLS:              enableTLS(),
 			Addr:                fmt.Sprintf("%s:%s", *host, port),
 			Prefix:              n,
-			ClientID:            clientid,
-			ClientSecret:        secret,
+			ClientID:            clientID,
+			ClientSecret:        clientSecret,
 			MinExpiryDays:       *minExpiryDays,
 			Runtime:             r,
 			RestrictEmailDomain: *googleDomain,
 		}))
 	}
-	startHTTPServer(*address)
+	go runHTTPServer(*httpaddr)
+	<-signals.ShutdownOnSignals()
 }
 
-func enableTLS() bool           { return len(*tlsconfig) > 0 }
-func enableGoogleOAuth() bool   { return len(*googleConfig) > 0 }
-func enableRandomHandler() bool { return !enableGoogleOAuth() }
+func setupGoogleBlessingServer(r veyron2.Runtime, clientID, clientSecret string) (ipc.Server, error) {
+	server, err := r.NewServer()
+	if err != nil {
+		return nil, fmt.Errorf("failed to create new ipc.Server: %v", err)
+	}
+	ep, err := server.Listen(*protocol, *address)
+	if err != nil {
+		return nil, fmt.Errorf("server.Listen(%q, %q) failed: %v", "tcp", *address, err)
+	}
+	allowEveryoneACL := security.ACL{security.AllPrincipals: security.AllLabels}
+	objectname := fmt.Sprintf("identity/%s/google", r.Identity().PublicID().Names()[0])
+	if err := server.Serve(objectname, ipc.SoloDispatcher(blesser.NewGoogleOAuthBlesserServer(r, clientID, clientSecret), security.NewACLAuthorizer(allowEveryoneACL))); err != nil {
+		return nil, fmt.Errorf("failed to start Veyron service: %v", err)
+	}
+	vlog.Infof("Google blessing service enabled at endpoint %v and name %q", ep, objectname)
+	return server, nil
+}
 
-func startHTTPServer(addr string) {
+func enableTLS() bool { return len(*tlsconfig) > 0 }
+func enableRandomHandler() bool {
+	disable, _, _ := enableGoogleOAuth()
+	return !disable
+}
+func enableGoogleOAuth() (enabled bool, clientID, clientSecret string) {
+	fname := *googleConfig
+	if len(fname) == 0 {
+		return false, "", ""
+	}
+	f, err := os.Open(fname)
+	if err != nil {
+		vlog.Fatalf("Failed to open %q: %v", fname, err)
+	}
+	defer f.Close()
+	clientID, clientSecret, err = googleoauth.ClientIDAndSecretFromJSON(f)
+	if err != nil {
+		vlog.Fatalf("Failed to decode JSON in %q: %v", fname, err)
+	}
+	return true, clientID, clientSecret
+}
+
+func runHTTPServer(addr string) {
 	if !enableTLS() {
 		vlog.Infof("Starting HTTP server (without TLS) at http://%v", addr)
 		if err := http.ListenAndServe(addr, nil); err != nil {
@@ -142,7 +185,7 @@ func handleMain(w http.ResponseWriter, r *http.Request) {
 This HTTP server mints veyron identities. The public key of the identity of this server is available in
 <a class="btn btn-xs btn-info" href="/pubkey/base64vom">base64-encoded-vom-encoded</a> format.
 </div>`))
-	if enableGoogleOAuth() {
+	if ok, _, _ := enableGoogleOAuth(); ok {
 		w.Write([]byte(`<a class="btn btn-lg btn-primary" href="/google/auth">Google</a> `))
 	}
 	if enableRandomHandler() {

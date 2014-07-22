@@ -49,7 +49,7 @@ func (rt *vrt) initIdentity() error {
 	var err error
 	if file := os.Getenv("VEYRON_IDENTITY"); len(file) > 0 {
 		if rt.id, err = loadIdentityFromFile(file); err != nil || rt.id == nil {
-			return fmt.Errorf("Could not load identity from %q: %v", file, err)
+			return fmt.Errorf("Could not load identity from the VEYRON_IDENTITY environment variable (%q): %v", file, err)
 		}
 	} else {
 		name := defaultIdentityName()
