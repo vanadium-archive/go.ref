@@ -10,7 +10,11 @@ type sender interface {
 	Send([]uint8) error
 }
 type receiver interface {
-	Recv() ([]uint8, error)
+	Advance() bool
+
+	Value() []uint8
+
+	Err() error
 }
 
 // stream is the interface common to TunnelForwardStream and TunnelServiceForwardStream.
@@ -53,19 +57,13 @@ func conn2stream(r io.Reader, s sender, done chan error) {
 }
 
 func stream2conn(r receiver, w io.Writer, done chan error) {
-	for {
-		buf, err := r.Recv()
-		if err == io.EOF {
-			done <- nil
-			return
-		}
-		if err != nil {
-			done <- err
-			return
-		}
+	for r.Advance() {
+		buf := r.Value()
+
 		if n, err := w.Write(buf); n != len(buf) || err != nil {
 			done <- fmt.Errorf("conn.Write returned (%d, %v) want (%d, nil)", n, err, len(buf))
 			return
 		}
 	}
+	done <- r.Err()
 }
