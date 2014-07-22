@@ -4,10 +4,12 @@ package main
 import (
 	"flag"
 	"fmt"
+	"html/template"
 	"net"
 	"net/http"
 	"os"
 	"strings"
+	"time"
 
 	"veyron/lib/signals"
 	"veyron/services/identity/blesser"
@@ -29,10 +31,13 @@ var (
 	protocol      = flag.String("vprotocol", "veyron", "Protocol used to interpret --vaddr")
 	host          = flag.String("host", defaultHost(), "Hostname the HTTP server listens on. This can be the name of the host running the webserver, but if running behind a NAT or load balancer, this should be the host name that clients will connect to. For example, if set to 'x.com', Veyron identities will have the IssuerName set to 'x.com' and clients can expect to find the public key of the signer at 'x.com/pubkey/'.")
 	minExpiryDays = flag.Int("min_expiry_days", 365, "Minimum expiry time (in days) of identities issued by this server")
-	googleConfig  = flag.String("google_config", "", "Path to the JSON-encoded file containing the ClientID for web applications registered with the Google Developer Console. (Use the 'Download JSON' link on the Google APIs console).")
-	googleDomain  = flag.String("google_domain", "", "An optional domain name. When set, only email addresses from this domain are allowed to authenticate via Google OAuth")
-	generate      = flag.String("generate", "", "If non-empty, instead of running an HTTP server, a new identity will be created with the provided name and saved to --identity (if specified) and dumped to STDOUT in base64-encoded-vom")
-	identity      = flag.String("identity", "", "Path to the file where the VOM-encoded security.PrivateID created with --generate will be written.")
+
+	googleConfigWeb       = flag.String("google_config_web", "", "Path to the JSON-encoded file containing the ClientID for web applications registered with the Google Developer Console. (Use the 'Download JSON' link on the Google APIs console).")
+	googleConfigInstalled = flag.String("google_config_installed", "", "Path to the JSON-encoded file containing the ClientID for installed applications registered with the Google Developer console. (Use the 'Download JSON' link on the Google APIs console).")
+
+	googleDomain = flag.String("google_domain", "", "An optional domain name. When set, only email addresses from this domain are allowed to authenticate via Google OAuth")
+	generate     = flag.String("generate", "", "If non-empty, instead of running an HTTP server, a new identity will be created with the provided name and saved to --identity (if specified) and dumped to STDOUT in base64-encoded-vom")
+	identity     = flag.String("identity", "", "Path to the file where the VOM-encoded security.PrivateID created with --generate will be written.")
 )
 
 func main() {
@@ -47,7 +52,6 @@ func main() {
 	}
 
 	// Setup handlers
-	http.HandleFunc("/", handleMain)
 	http.Handle("/pubkey/", handlers.Object{r.Identity().PublicID().PublicKey()}) // public key of this identity server
 	if enableRandomHandler() {
 		http.Handle("/random/", handlers.Random{r}) // mint identities with a random name
@@ -55,15 +59,15 @@ func main() {
 	http.HandleFunc("/bless/", handlers.Bless) // use a provided PrivateID to bless a provided PublicID
 
 	// Google OAuth
-	if enabled, clientID, clientSecret := enableGoogleOAuth(); enabled {
-		// Setup veyron service
-		server, err := setupGoogleBlessingServer(r, clientID, clientSecret)
-		if err != nil {
+	var ipcServer ipc.Server
+	if enabled, clientID, clientSecret := enableGoogleOAuth(*googleConfigInstalled); enabled {
+		var err error
+		if ipcServer, err = setupGoogleBlessingServer(r, clientID, clientSecret); err != nil {
 			vlog.Fatalf("failed to setup veyron services for blessing: %v", err)
 		}
-		defer server.Stop()
-
-		// Setup HTTP handler
+		defer ipcServer.Stop()
+	}
+	if enabled, clientID, clientSecret := enableGoogleOAuth(*googleConfigWeb); enabled {
 		_, port, err := net.SplitHostPort(*httpaddr)
 		if err != nil {
 			vlog.Fatalf("Failed to parse %q: %v", *httpaddr, err)
@@ -80,6 +84,23 @@ func main() {
 			RestrictEmailDomain: *googleDomain,
 		}))
 	}
+	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		var servers []string
+		if ipcServer != nil {
+			servers, _ = ipcServer.Published()
+		}
+		args := struct {
+			GoogleWeb, RandomWeb bool
+			GoogleServers        []string
+		}{
+			GoogleWeb:     len(*googleConfigWeb) > 0,
+			RandomWeb:     enableRandomHandler(),
+			GoogleServers: servers,
+		}
+		if err := tmpl.Execute(w, args); err != nil {
+			vlog.Info("Failed to render template:", err)
+		}
+	})
 	go runHTTPServer(*httpaddr)
 	<-signals.ShutdownOnSignals()
 }
@@ -95,20 +116,17 @@ func setupGoogleBlessingServer(r veyron2.Runtime, clientID, clientSecret string)
 	}
 	allowEveryoneACL := security.ACL{security.AllPrincipals: security.AllLabels}
 	objectname := fmt.Sprintf("identity/%s/google", r.Identity().PublicID().Names()[0])
-	if err := server.Serve(objectname, ipc.SoloDispatcher(blesser.NewGoogleOAuthBlesserServer(r, clientID, clientSecret), security.NewACLAuthorizer(allowEveryoneACL))); err != nil {
+	if err := server.Serve(objectname, ipc.SoloDispatcher(blesser.NewGoogleOAuthBlesserServer(r, clientID, clientSecret, time.Duration(*minExpiryDays)*24*time.Hour, *googleDomain), security.NewACLAuthorizer(allowEveryoneACL))); err != nil {
 		return nil, fmt.Errorf("failed to start Veyron service: %v", err)
 	}
 	vlog.Infof("Google blessing service enabled at endpoint %v and name %q", ep, objectname)
 	return server, nil
 }
 
-func enableTLS() bool { return len(*tlsconfig) > 0 }
-func enableRandomHandler() bool {
-	disable, _, _ := enableGoogleOAuth()
-	return !disable
-}
-func enableGoogleOAuth() (enabled bool, clientID, clientSecret string) {
-	fname := *googleConfig
+func enableTLS() bool           { return len(*tlsconfig) > 0 }
+func enableRandomHandler() bool { return len(*googleConfigInstalled)+len(*googleConfigWeb) == 0 }
+func enableGoogleOAuth(config string) (enabled bool, clientID, clientSecret string) {
+	fname := config
 	if len(fname) == 0 {
 		return false, "", ""
 	}
@@ -168,35 +186,6 @@ func defaultHost() string {
 	return host
 }
 
-func handleMain(w http.ResponseWriter, r *http.Request) {
-	w.Write([]byte(`
-<!doctype html>
-<html>
-<head>
-<meta charset="UTF-8">
-<title>Veyron Identity Server</title>
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<link rel="stylesheet" href="//netdna.bootstrapcdn.com/bootstrap/3.0.0/css/bootstrap.min.css">
-</head>
-<body>
-<div class="container">
-<div class="page-header"><h1>Veyron Identity Generation</h1></div>
-<div class="well">
-This HTTP server mints veyron identities. The public key of the identity of this server is available in
-<a class="btn btn-xs btn-info" href="/pubkey/base64vom">base64-encoded-vom-encoded</a> format.
-</div>`))
-	if ok, _, _ := enableGoogleOAuth(); ok {
-		w.Write([]byte(`<a class="btn btn-lg btn-primary" href="/google/auth">Google</a> `))
-	}
-	if enableRandomHandler() {
-		w.Write([]byte(`<a class="btn btn-lg btn-primary" href="/random/">Random</a> `))
-	}
-	w.Write([]byte(`<a class="btn btn-lg btn-primary" href="/bless/">Bless As</a>
-</div>
-</body>
-</html>`))
-}
-
 func generateAndSaveIdentity() {
 	id, err := rt.R().NewIdentity(*generate)
 	if err != nil {
@@ -225,3 +214,39 @@ func saveIdentity(filePath string, id security.PrivateID) error {
 	}
 	return nil
 }
+
+var tmpl = template.Must(template.New("main").Parse(`<!doctype html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Veyron Identity Server</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="stylesheet" href="//netdna.bootstrapcdn.com/bootstrap/3.2.0/css/bootstrap.min.css">
+</head>
+<body>
+<div class="container">
+<div class="page-header"><h1>Veyron Identity Generation</h1></div>
+<div class="well">
+This HTTP server mints veyron identities. The public key of the identity of this server is available in
+<a class="btn btn-xs btn-info" href="/pubkey/base64vom">base64-encoded-vom-encoded</a> format.
+</div>
+{{if .GoogleServers}}
+<div class="well">
+The Veyron service for blessing is published at:
+<tt>
+{{range .GoogleServers}}{{.}}{{end}}
+</tt>
+</div>
+{{end}}
+
+{{if .GoogleWeb}}
+<a class="btn btn-lg btn-primary" href="/google/auth">Google</a>
+{{end}}
+{{if .RandomWeb}}
+<a class="btn btn-lg btn-primary" href="/random/">Random</a>
+{{end}}
+<a class="btn btn-lg btn-primary" href="/bless/">Bless As</a>
+
+</div>
+</body>
+</html>`))
