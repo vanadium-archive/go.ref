@@ -55,20 +55,28 @@ func (a *HandlerArgs) redirectURL() string {
 	return fmt.Sprintf("%s://%s%soauth2callback", scheme, a.Addr, a.Prefix)
 }
 
+// URL used to verify GoogleIDTokens.
+// (From https://developers.google.com/accounts/docs/OAuth2Login#validatinganidtoken)
+const VerifyURL = "https://www.googleapis.com/oauth2/v1/tokeninfo?id_token="
+
 // NewHandler returns an http.Handler that expects to be rooted at args.Prefix
 // and can be used to use OAuth 2.0 to authenticate with Google, mint a new
 // identity and bless it with the Google email address.
 func NewHandler(args HandlerArgs) http.Handler {
-	config := &oauth.Config{
-		ClientId:     args.ClientID,
-		ClientSecret: args.ClientSecret,
-		RedirectURL:  args.redirectURL(),
+	config := NewOAuthConfig(args.ClientID, args.ClientSecret, args.redirectURL())
+	return &handler{config, args.Addr, args.MinExpiryDays, util.NewCSRFCop(), args.Runtime, args.RestrictEmailDomain}
+}
+
+// NewOAuthConfig returns the oauth.Config required for obtaining just the email address from Google using OAuth 2.0.
+func NewOAuthConfig(clientID, clientSecret, redirectURL string) *oauth.Config {
+	return &oauth.Config{
+		ClientId:     clientID,
+		ClientSecret: clientSecret,
+		RedirectURL:  redirectURL,
 		Scope:        "email",
 		AuthURL:      "https://accounts.google.com/o/oauth2/auth",
 		TokenURL:     "https://accounts.google.com/o/oauth2/token",
 	}
-	verifyURL := "https://www.googleapis.com/oauth2/v1/tokeninfo?id_token="
-	return &handler{config, args.Addr, args.MinExpiryDays, util.NewCSRFCop(), args.Runtime, verifyURL, args.RestrictEmailDomain}
 }
 
 type handler struct {
@@ -77,7 +85,6 @@ type handler struct {
 	minExpiryDays int
 	csrfCop       *util.CSRFCop
 	rt            veyron2.Runtime
-	verifyURL     string
 	domain        string
 }
 
@@ -108,44 +115,13 @@ func (h *handler) callback(w http.ResponseWriter, r *http.Request) {
 		util.HTTPBadRequest(w, r, fmt.Errorf("Suspected request forgery: %v", err))
 		return
 	}
-	transport := &oauth.Transport{Config: h.config}
-	t, err := transport.Exchange(r.FormValue("code"))
+	email, err := ExchangeAuthCodeForEmail(h.config, r.FormValue("code"))
 	if err != nil {
-		util.HTTPBadRequest(w, r, fmt.Errorf("Failed to fetch GoogleIDToken: %v", err))
+		util.HTTPBadRequest(w, r, err)
 		return
 	}
-	// Ideally, would validate the token ourselves without an HTTP roundtrip.
-	// However, for now, as per:
-	// https://developers.google.com/accounts/docs/OAuth2Login#validatinganidtoken
-	// pay an HTTP round-trip to have Google do this.
-	if t.Extra == nil {
-		util.HTTPServerError(w, fmt.Errorf("No GoogleIDToken found in exchange"))
-		return
-	}
-	tinfo, err := http.Get(h.verifyURL + t.Extra["id_token"])
-	if err != nil {
-		util.HTTPServerError(w, err)
-		return
-	}
-	if tinfo.StatusCode != http.StatusOK {
-		util.HTTPBadRequest(w, r, fmt.Errorf("failed to decode GoogleIDToken: %q", tinfo.Status))
-		return
-	}
-	var gtoken token
-	if err = json.NewDecoder(tinfo.Body).Decode(&gtoken); err != nil {
-		util.HTTPBadRequest(w, r, fmt.Errorf("invalid response from Google's tokeninfo API: %v", err))
-		return
-	}
-	if !gtoken.VerifiedEmail {
-		util.HTTPBadRequest(w, r, fmt.Errorf("email not verified: %#v", gtoken))
-		return
-	}
-	if gtoken.Issuer != "accounts.google.com" {
-		util.HTTPBadRequest(w, r, fmt.Errorf("invalid issuer: %v", gtoken.Issuer))
-		return
-	}
-	if gtoken.Audience != h.config.ClientId {
-		util.HTTPBadRequest(w, r, fmt.Errorf("unexpected audience(%v) in GoogleIDToken", gtoken.Audience))
+	if len(h.domain) > 0 && !strings.HasSuffix(email, "@"+h.domain) {
+		util.HTTPServerError(w, fmt.Errorf("email domain in %s is not allowed", email))
 		return
 	}
 	minted, err := h.rt.NewIdentity("unblessed")
@@ -153,11 +129,7 @@ func (h *handler) callback(w http.ResponseWriter, r *http.Request) {
 		util.HTTPServerError(w, fmt.Errorf("Failed to mint new identity: %v", err))
 		return
 	}
-	if len(h.domain) > 0 && !strings.HasSuffix(gtoken.Email, "@"+h.domain) {
-		util.HTTPServerError(w, fmt.Errorf("Email domain in %s is not allowed", gtoken.Email))
-		return
-	}
-	blessing, err := h.rt.Identity().Bless(minted.PublicID(), gtoken.Email, 24*time.Hour*time.Duration(h.minExpiryDays), nil)
+	blessing, err := h.rt.Identity().Bless(minted.PublicID(), email, 24*time.Hour*time.Duration(h.minExpiryDays), nil)
 	if err != nil {
 		util.HTTPServerError(w, fmt.Errorf("%v.Bless(%q, %q, %d days, nil) failed: %v", h.rt.Identity(), minted, h.minExpiryDays, err))
 		return
@@ -169,6 +141,44 @@ func (h *handler) callback(w http.ResponseWriter, r *http.Request) {
 	}
 	vlog.Infof("Created new identity: %v", blessed)
 	util.HTTPSend(w, blessed)
+}
+
+// ExchangeAuthCodeForEmail exchanges the authorization code (which must
+// have been obtained with scope=email) for an OAuth token and then uses Google's
+// tokeninfo API to extract the email address from that token.
+func ExchangeAuthCodeForEmail(config *oauth.Config, authcode string) (string, error) {
+	t, err := (&oauth.Transport{Config: config}).Exchange(authcode)
+	if err != nil {
+		return "", fmt.Errorf("failed to exchange authorization code for token: %v", err)
+	}
+	// Ideally, would validate the token ourselves without an HTTP roundtrip.
+	// However, for now, as per:
+	// https://developers.google.com/accounts/docs/OAuth2Login#validatinganidtoken
+	// pay an HTTP round-trip to have Google do this.
+	if t.Extra == nil || len(t.Extra["id_token"]) == 0 {
+		return "", fmt.Errorf("no GoogleIDToken found in OAuth token")
+	}
+	tinfo, err := http.Get(VerifyURL + t.Extra["id_token"])
+	if err != nil {
+		return "", fmt.Errorf("failed to talk to GoogleIDToken verifier (%q): %v", VerifyURL, err)
+	}
+	if tinfo.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("failed to verify GoogleIDToken: %s", tinfo.Status)
+	}
+	var gtoken token
+	if err := json.NewDecoder(tinfo.Body).Decode(&gtoken); err != nil {
+		return "", fmt.Errorf("invalid JSON response from Google's tokeninfo API: %v", err)
+	}
+	if !gtoken.VerifiedEmail {
+		return "", fmt.Errorf("email not verified: %#v", gtoken)
+	}
+	if gtoken.Issuer != "accounts.google.com" {
+		return "", fmt.Errorf("invalid issuer: %v", gtoken.Issuer)
+	}
+	if gtoken.Audience != config.ClientId {
+		return "", fmt.Errorf("unexpected audience(%v) in GoogleIDToken", gtoken.Audience)
+	}
+	return gtoken.Email, nil
 }
 
 // IDToken JSON message returned by Google's verification endpoint.
