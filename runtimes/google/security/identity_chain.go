@@ -122,8 +122,12 @@ type chainPrivateID struct {
 
 func (id *chainPrivateID) PublicID() security.PublicID { return id.publicID }
 
-func (id *chainPrivateID) Sign(message []byte) (signature security.Signature, err error) {
-	signature.R, signature.S, err = ecdsa.Sign(rand.Reader, id.privateKey, message)
+func (id *chainPrivateID) Sign(message []byte) (sig security.Signature, err error) {
+	r, s, err := ecdsa.Sign(rand.Reader, id.privateKey, message)
+	if err != nil {
+		return
+	}
+	sig.R, sig.S = r.Bytes(), s.Bytes()
 	return
 }
 

@@ -590,9 +590,9 @@ func (vif *VIF) allocVCI() id.VC {
 }
 
 func (vif *VIF) newVC(vci id.VC, localEP, remoteEP naming.Endpoint, dialed bool) (*vc.VC, error) {
-	_, err := version.CommonVersion(localEP, remoteEP)
+	version, err := version.CommonVersion(localEP, remoteEP)
 	if vif.versions != nil {
-		_, err = vif.versions.CommonVersion(localEP, remoteEP)
+		version, err = vif.versions.CommonVersion(localEP, remoteEP)
 	}
 	if err != nil {
 		return nil, err
@@ -605,6 +605,7 @@ func (vif *VIF) newVC(vci id.VC, localEP, remoteEP naming.Endpoint, dialed bool)
 		Pool:         vif.pool,
 		ReserveBytes: message.HeaderSizeBytes,
 		Helper:       vcHelper{vif},
+		Version:      version,
 	})
 	added, rq, wq := vif.vcMap.Insert(vc)
 	// Start vcWriteLoop

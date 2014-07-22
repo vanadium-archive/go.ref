@@ -13,7 +13,6 @@
 package security
 
 import (
-	"crypto/ecdsa"
 	"crypto/sha256"
 	"io"
 	"sync"
@@ -116,7 +115,7 @@ func NewIDManager(rt veyron2.Runtime, serializer Serializer) (*IDManager, error)
 		return result, nil
 	}
 
-	if !ecdsa.Verify(rt.Identity().PublicID().PublicKey(), signed, sig.R, sig.S) {
+	if !sig.Verify(rt.Identity().PublicID().PublicKey(), signed) {
 		return nil, verror.NotAuthorizedf("signature verification failed")
 	}
 

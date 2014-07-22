@@ -11,6 +11,7 @@ import (
 	"veyron/runtimes/google/ipc/stream/crypto"
 	"veyron/runtimes/google/lib/iobuf"
 
+	"veyron2/ipc/version"
 	"veyron2/security"
 	"veyron2/vom"
 )
@@ -22,17 +23,17 @@ const (
 
 // authenticateAsServer executes the authentication protocol at the server and
 // returns the identity of the client and server.
-func authenticateAsServer(conn io.ReadWriteCloser, localID LocalID, crypter crypto.Crypter) (clientID, serverID security.PublicID, err error) {
+func authenticateAsServer(conn io.ReadWriteCloser, localID LocalID, crypter crypto.Crypter, v version.IPCVersion) (clientID, serverID security.PublicID, err error) {
 	// The authentication protocol has the server doing the final read, so
 	// it is the one that closes the connection.
 	defer conn.Close()
 	if serverID, err = localID.AsServer(); err != nil {
 		return
 	}
-	if err = writeIdentity(conn, serverChannelEnd, crypter, localID, serverID); err != nil {
+	if err = writeIdentity(conn, serverChannelEnd, crypter, localID, serverID, v); err != nil {
 		return
 	}
-	clientID, err = readIdentity(conn, clientChannelEnd, crypter)
+	clientID, err = readIdentity(conn, clientChannelEnd, crypter, v)
 	return
 }
 
@@ -41,9 +42,9 @@ func authenticateAsServer(conn io.ReadWriteCloser, localID LocalID, crypter cryp
 //
 // If serverName is non-nil, the authentication protocol will be considered
 // successfull iff the server identity matches the provided regular expression.
-func authenticateAsClient(conn io.ReadWriteCloser, localID LocalID, crypter crypto.Crypter) (serverID, clientID security.PublicID, err error) {
+func authenticateAsClient(conn io.ReadWriteCloser, localID LocalID, crypter crypto.Crypter, v version.IPCVersion) (serverID, clientID security.PublicID, err error) {
 	defer conn.Close()
-	if serverID, err = readIdentity(conn, serverChannelEnd, crypter); err != nil {
+	if serverID, err = readIdentity(conn, serverChannelEnd, crypter, v); err != nil {
 		return
 	}
 	// TODO(ashankar,ataly): Have the ability to avoid talking to a server we do not want to.
@@ -51,7 +52,7 @@ func authenticateAsClient(conn io.ReadWriteCloser, localID LocalID, crypter cryp
 	if clientID, err = localID.AsClient(serverID); err != nil {
 		return
 	}
-	err = writeIdentity(conn, clientChannelEnd, crypter, localID, clientID)
+	err = writeIdentity(conn, clientChannelEnd, crypter, localID, clientID, v)
 	return
 }
 
@@ -60,9 +61,11 @@ func authenticateAsClient(conn io.ReadWriteCloser, localID LocalID, crypter cryp
 //
 // Each field in the message is encrypted by the sender.
 type identityMessage struct {
-	ChannelID    []byte
-	ID           []byte // VOM-encoded
-	SignR, SignS []byte
+	ChannelID []byte
+	ID        []byte // VOM-encoded
+	SignR     []byte
+	SignS     []byte
+	Signature []byte // VOM-encoded
 }
 
 var (
@@ -73,7 +76,7 @@ var (
 	errSingleCertificateRequired = errors.New("exactly one X.509 certificate chain with exactly one certificate is required")
 )
 
-func writeIdentity(w io.Writer, chEnd string, enc crypto.Encrypter, id LocalID, pub security.PublicID) error {
+func writeIdentity(w io.Writer, chEnd string, enc crypto.Encrypter, id LocalID, pub security.PublicID, v version.IPCVersion) error {
 	// Compute channel id - encrypted chEnd string
 	chid, err := enc.Encrypt(iobuf.NewSlice([]byte(chEnd)))
 	if err != nil {
@@ -97,27 +100,40 @@ func writeIdentity(w io.Writer, chEnd string, enc crypto.Encrypter, id LocalID, 
 	if err != nil {
 		return err
 	}
-	er, err := enc.Encrypt(iobuf.NewSlice(signature.R.Bytes()))
-	if err != nil {
-		return err
-	}
-	defer er.Release()
-	es, err := enc.Encrypt(iobuf.NewSlice(signature.S.Bytes()))
-	if err != nil {
-		return err
-	}
-	defer es.Release()
-
-	// Write the message out.
-	return vom.NewEncoder(w).Encode(identityMessage{
+	msg := identityMessage{
 		ID:        eid.Contents,
 		ChannelID: chid.Contents,
-		SignR:     er.Contents,
-		SignS:     es.Contents,
-	})
+	}
+	if v == version.IPCVersion1 {
+		er, err := enc.Encrypt(iobuf.NewSlice(signature.R))
+		if err != nil {
+			return err
+		}
+		defer er.Release()
+		es, err := enc.Encrypt(iobuf.NewSlice(signature.S))
+		if err != nil {
+			return err
+		}
+		defer es.Release()
+		msg.SignR, msg.SignS = er.Contents, es.Contents
+	} else {
+		buf = bytes.Buffer{}
+		if err := vom.NewEncoder(&buf).Encode(signature); err != nil {
+			return err
+		}
+		esig, err := enc.Encrypt(iobuf.NewSlice(buf.Bytes()))
+		if err != nil {
+			return err
+		}
+		defer esig.Release()
+		msg.Signature = esig.Contents
+	}
+
+	// Write the message out.
+	return vom.NewEncoder(w).Encode(msg)
 }
 
-func readIdentity(reader io.Reader, expectedChEnd string, dec crypto.Decrypter) (security.PublicID, error) {
+func readIdentity(reader io.Reader, expectedChEnd string, dec crypto.Decrypter, v version.IPCVersion) (security.PublicID, error) {
 	// Read the message.
 	var msg identityMessage
 	if err := vom.NewDecoder(reader).Decode(&msg); err != nil {
@@ -149,19 +165,34 @@ func readIdentity(reader io.Reader, expectedChEnd string, dec crypto.Decrypter) 
 	}
 
 	// Decrypt the signature
-	r, err := dec.Decrypt(iobuf.NewSlice(msg.SignR))
-	if err != nil {
-		return nil, fmt.Errorf("failed to decrypt SignR: %v", err)
-	}
-	defer r.Release()
-	s, err := dec.Decrypt(iobuf.NewSlice(msg.SignS))
-	if err != nil {
-		return nil, fmt.Errorf("failed to decrypt SignS: %v", err)
-	}
-	defer s.Release()
-	// Validate the signature
-	if !ecdsa.Verify(id.PublicKey(), msg.ChannelID, bigInt(r), bigInt(s)) {
-		return nil, errInvalidSignatureInMessage
+	if v == version.IPCVersion1 {
+		r, err := dec.Decrypt(iobuf.NewSlice(msg.SignR))
+		if err != nil {
+			return nil, fmt.Errorf("failed to decrypt SignR: %v", err)
+		}
+		defer r.Release()
+		s, err := dec.Decrypt(iobuf.NewSlice(msg.SignS))
+		if err != nil {
+			return nil, fmt.Errorf("failed to decrypt SignS: %v", err)
+		}
+		defer s.Release()
+		if !ecdsa.Verify(id.PublicKey(), msg.ChannelID, bigInt(r), bigInt(s)) {
+			return nil, errInvalidSignatureInMessage
+		}
+	} else {
+		sigbytes, err := dec.Decrypt(iobuf.NewSlice(msg.Signature))
+		if err != nil {
+			return nil, fmt.Errorf("failed to decrypt Signature: %v", err)
+		}
+		defer sigbytes.Release()
+		var sig security.Signature
+		if err = vom.NewDecoder(bytes.NewBuffer(sigbytes.Contents)).Decode(&sig); err != nil {
+			return nil, fmt.Errorf("failed to decode security.Signature: %v", err)
+		}
+		// Validate the signature
+		if !sig.Verify(id.PublicKey(), msg.ChannelID) {
+			return nil, errInvalidSignatureInMessage
+		}
 	}
 
 	return id, nil

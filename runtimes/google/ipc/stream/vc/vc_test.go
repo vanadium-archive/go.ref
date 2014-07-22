@@ -23,6 +23,7 @@ import (
 
 	"veyron2"
 	"veyron2/ipc/stream"
+	"veyron2/ipc/version"
 	"veyron2/naming"
 	"veyron2/security"
 )
@@ -100,7 +101,7 @@ func matchID(got, want security.PublicID) error {
 }
 
 func testHandshake(t *testing.T, security veyron2.VCSecurityLevel, localID, remoteID security.PublicID) {
-	h, vc := New(security)
+	h, vc := New(security, version.IPCVersion2)
 	flow, err := vc.Connect()
 	if err != nil {
 		t.Fatal(err)
@@ -126,7 +127,7 @@ func TestHandshakeTLS(t *testing.T) {
 }
 
 func testConnect_Small(t *testing.T, security veyron2.VCSecurityLevel) {
-	h, vc := New(security)
+	h, vc := New(security, version.IPCVersion2)
 	defer h.Close()
 	flow, err := vc.Connect()
 	if err != nil {
@@ -138,7 +139,7 @@ func TestConnect_Small(t *testing.T)    { testConnect_Small(t, SecurityNone) }
 func TestConnect_SmallTLS(t *testing.T) { testConnect_Small(t, SecurityTLS) }
 
 func testConnect(t *testing.T, security veyron2.VCSecurityLevel) {
-	h, vc := New(security)
+	h, vc := New(security, version.IPCVersion2)
 	defer h.Close()
 	flow, err := vc.Connect()
 	if err != nil {
@@ -149,13 +150,26 @@ func testConnect(t *testing.T, security veyron2.VCSecurityLevel) {
 func TestConnect(t *testing.T)    { testConnect(t, SecurityNone) }
 func TestConnectTLS(t *testing.T) { testConnect(t, SecurityTLS) }
 
+func testConnect_Version1(t *testing.T, security veyron2.VCSecurityLevel) {
+	h, vc := New(security, version.IPCVersion1)
+	defer h.Close()
+	flow, err := vc.Connect()
+	if err != nil {
+		t.Fatal(err)
+	}
+	testFlowEcho(t, flow, 10)
+}
+func TestConnect_Version1(t *testing.T)    { testConnect_Version1(t, SecurityNone) }
+func TestConnect_Version1TLS(t *testing.T) { testConnect_Version1(t, SecurityTLS) }
+
+
 // helper function for testing concurrent operations on multiple flows over the
 // same VC.  Such tests are most useful when running the race detector.
 // (go test -race ...)
 func testConcurrentFlows(t *testing.T, security veyron2.VCSecurityLevel, flows, gomaxprocs int) {
 	mp := runtime.GOMAXPROCS(gomaxprocs)
 	defer runtime.GOMAXPROCS(mp)
-	h, vc := New(security)
+	h, vc := New(security, version.IPCVersion2)
 	defer h.Close()
 
 	var wg sync.WaitGroup
@@ -182,7 +196,7 @@ func TestConcurrentFlows_10TLS(t *testing.T) { testConcurrentFlows(t, SecurityTL
 
 func testListen(t *testing.T, security veyron2.VCSecurityLevel) {
 	data := "the dark knight"
-	h, vc := New(security)
+	h, vc := New(security, version.IPCVersion2)
 	defer h.Close()
 	if err := h.VC.AcceptFlow(id.Flow(21)); err == nil {
 		t.Errorf("Expected AcceptFlow on a new flow to fail as Listen was not called")
@@ -229,7 +243,7 @@ func TestListen(t *testing.T)    { testListen(t, SecurityNone) }
 func TestListenTLS(t *testing.T) { testListen(t, SecurityTLS) }
 
 func testNewFlowAfterClose(t *testing.T, security veyron2.VCSecurityLevel) {
-	h, _ := New(security)
+	h, _ := New(security, version.IPCVersion2)
 	defer h.Close()
 	h.VC.Close("reason")
 	if err := h.VC.AcceptFlow(id.Flow(10)); err == nil {
@@ -240,7 +254,7 @@ func TestNewFlowAfterClose(t *testing.T)    { testNewFlowAfterClose(t, SecurityN
 func TestNewFlowAfterCloseTLS(t *testing.T) { testNewFlowAfterClose(t, SecurityTLS) }
 
 func testConnectAfterClose(t *testing.T, security veyron2.VCSecurityLevel) {
-	h, vc := New(security)
+	h, vc := New(security, version.IPCVersion2)
 	defer h.Close()
 	h.VC.Close("myerr")
 	if f, err := vc.Connect(); f != nil || err == nil || !strings.Contains(err.Error(), "myerr") {
@@ -262,7 +276,7 @@ type helper struct {
 // New creates both ends of a VC but returns only the "client" end (i.e., the
 // one that initiated the VC). The "server" end (the one that "accepted" the VC)
 // listens for flows and simply echoes data read.
-func New(security veyron2.VCSecurityLevel) (*helper, stream.VC) {
+func New(security veyron2.VCSecurityLevel, v version.IPCVersion) (*helper, stream.VC) {
 	clientH := &helper{bq: drrqueue.New(vc.MaxPayloadSizeBytes)}
 	serverH := &helper{bq: drrqueue.New(vc.MaxPayloadSizeBytes)}
 	clientH.otherEnd = serverH
@@ -280,6 +294,7 @@ func New(security veyron2.VCSecurityLevel) (*helper, stream.VC) {
 		RemoteEP: serverEP,
 		Pool:     iobuf.NewPool(0),
 		Helper:   clientH,
+		Version:  v,
 	}
 	serverParams := vc.Params{
 		VCI:      vci,
@@ -287,6 +302,7 @@ func New(security veyron2.VCSecurityLevel) (*helper, stream.VC) {
 		RemoteEP: clientEP,
 		Pool:     iobuf.NewPool(0),
 		Helper:   serverH,
+		Version:  v,
 	}
 
 	clientH.VC = vc.InternalNew(clientParams)
