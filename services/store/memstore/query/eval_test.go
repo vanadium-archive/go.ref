@@ -309,31 +309,31 @@ func TestSelection(t *testing.T) {
 
 	tests := []testCase{
 		{
-			"", "'teams/cardinals' | {Name}",
+			"", "'teams/cardinals' | {Name: Name}",
 			[]*store.QueryResult{
 				&store.QueryResult{0, "teams/cardinals", map[string]vdlutil.Any{"Name": "cardinals"}, nil},
 			},
 		},
 		{
-			"teams", "'cardinals' | {Name}",
+			"teams", "'cardinals' | {Name: Name}",
 			[]*store.QueryResult{
 				&store.QueryResult{0, "cardinals", map[string]vdlutil.Any{"Name": "cardinals"}, nil},
 			},
 		},
 		{
-			"teams/cardinals", ". | {Name}",
+			"teams/cardinals", ". | {Name: Name}",
 			[]*store.QueryResult{
 				&store.QueryResult{0, "", map[string]vdlutil.Any{"Name": "cardinals"}, nil},
 			},
 		},
 		{
-			"", "'teams/cardinals' | {Name as Name}",
+			"", "'teams/cardinals' | {Name: Name}",
 			[]*store.QueryResult{
 				&store.QueryResult{0, "teams/cardinals", map[string]vdlutil.Any{"Name": "cardinals"}, nil},
 			},
 		},
 		{
-			"", "'teams/cardinals' | {Name as myname, Location as myloc}",
+			"", "'teams/cardinals' | {myname: Name, myloc: Location}",
 			[]*store.QueryResult{
 				&store.QueryResult{
 					0,
@@ -347,7 +347,7 @@ func TestSelection(t *testing.T) {
 			},
 		},
 		{
-			"", "'teams/cardinals' | {Name as myname, Location as myloc} | ? myname == 'cardinals'",
+			"", "'teams/cardinals' | {myname: Name, myloc: Location} | ? myname == 'cardinals'",
 			[]*store.QueryResult{
 				&store.QueryResult{
 					0,
@@ -361,7 +361,7 @@ func TestSelection(t *testing.T) {
 			},
 		},
 		{
-			"", "'teams/cardinals' | {Name as myname hidden, Location as myloc} | ? myname == 'cardinals'",
+			"", "'teams/cardinals' | {myname hidden: Name, myloc: Location} | ? myname == 'cardinals'",
 			[]*store.QueryResult{
 				&store.QueryResult{
 					0,
@@ -374,11 +374,25 @@ func TestSelection(t *testing.T) {
 			},
 		},
 		{
+			"", "'teams/cardinals' | {self: ., myname: Name} | ? myname == 'cardinals'",
+			[]*store.QueryResult{
+				&store.QueryResult{
+					0,
+					"teams/cardinals",
+					map[string]vdlutil.Any{
+						"self":   team{"cardinals", "CA"},
+						"myname": "cardinals",
+					},
+					nil,
+				},
+			},
+		},
+		{
 			"",
 			"'teams/*' | type team | {" +
-				"    Name as myname," +
-				"    players/* | type player | ?Age >=21 | sort() as drinkers," +
-				"    players/* | type player | ?Age < 21 | sort() as nondrinkers" +
+				"    myname: Name," +
+				"    drinkers: players/* | type player | ?Age >=21 | sort()," +
+				"    nondrinkers: players/* | type player | ?Age < 21 | sort()" +
 				"} | sort(myname)",
 			[]*store.QueryResult{
 				&store.QueryResult{
@@ -440,14 +454,14 @@ func TestSelection(t *testing.T) {
 		// Test for selection of a nested name ('bio/hometown').  Only betty has this
 		// nested name, so other players should get a nil value.
 		{
-			"", "'players/*' | type player | {Name, 'bio/hometown'} | ? Name == 'alfred' || Name == 'betty' | sort()",
+			"", "'players/*' | type player | {Name: Name, hometown: 'bio/hometown'} | ? Name == 'alfred' || Name == 'betty' | sort()",
 			[]*store.QueryResult{
 				&store.QueryResult{
 					0,
 					"players/alfred",
 					map[string]vdlutil.Any{
-						"Name":         "alfred",
-						"bio/hometown": nil,
+						"Name":     "alfred",
+						"hometown": nil,
 					},
 					nil,
 				},
@@ -455,8 +469,8 @@ func TestSelection(t *testing.T) {
 					0,
 					"players/betty",
 					map[string]vdlutil.Any{
-						"Name":         "betty",
-						"bio/hometown": "Tampa",
+						"Name":     "betty",
+						"hometown": "Tampa",
 					},
 					nil,
 				},
@@ -508,7 +522,7 @@ func TestError(t *testing.T) {
 		// TODO(kash): We probably want an error message that says that you must
 		// use a type filter.
 		{"teams/* | ?Name > 'foo'", "could not look up name 'Name' relative to 'teams': not found"},
-		{"'teams/cardinals' | {Name as myname, Location as myloc} | ? Name == 'foo'", "name 'Name' was not selected from 'teams/cardinals', found: [myloc, myname]"},
+		{"'teams/cardinals' | {myname: Name, myloc: Location} | ? Name == 'foo'", "name 'Name' was not selected from 'teams/cardinals', found: [myloc, myname]"},
 		{"teams/* | type team | sort(Name) | ?-Name > 'foo'", "cannot negate value of type string for teams/bears"},
 
 		// TODO(kash): Selection with conflicting names.
