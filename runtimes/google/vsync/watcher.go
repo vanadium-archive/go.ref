@@ -7,6 +7,7 @@ package vsync
 
 import (
 	"fmt"
+	"io"
 	"time"
 
 	"veyron/services/store/raw"
@@ -123,26 +124,28 @@ func (w *syncWatcher) getWatchStream(ctx context.T) watch.GlobWatcherWatchGlobSt
 // If the stream is closed, distinguish between the cases of end-of-stream vs Syncd canceling
 // the stream to trigger a clean exit.
 func (w *syncWatcher) processWatchStream(stream watch.GlobWatcherWatchGlobStream) {
-	for {
-		changes, err := stream.Recv()
-		if err != nil {
-			if w.syncd.isSyncClosing() {
-				vlog.VI(1).Info("processWatchStream: exiting, Syncd closed its channel: ", err)
-			} else {
-				vlog.VI(1).Info("processWatchStream: RPC stream error, re-issue Watch(): ", err)
-			}
-			return
-		}
+	for stream.Advance() {
+		changes := stream.Value()
 
 		// Timestamp of these changes arriving at the Sync server.
 		syncTime := time.Now().UnixNano()
 
-		if err = w.processChanges(changes, syncTime); err != nil {
+		if err := w.processChanges(changes, syncTime); err != nil {
 			// TODO(rdaoud): don't crash, instead add retry policies to attempt some degree of
 			// self-healing from a data corruption where feasible, otherwise quarantine this device
 			// from the cluster and stop Syncd to avoid propagating data corruptions.
 			vlog.Fatal("processWatchStream:", err)
 		}
+	}
+
+	err := stream.Err()
+	if err == nil {
+		err = io.EOF
+	}
+	if w.syncd.isSyncClosing() {
+		vlog.VI(1).Info("processWatchStream: exiting, Syncd closed its channel: ", err)
+	} else {
+		vlog.VI(1).Info("processWatchStream: RPC stream error, re-issue Watch(): ", err)
 	}
 }
 

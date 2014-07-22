@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"crypto/md5"
 	"encoding/hex"
-	"io"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -64,20 +63,15 @@ func invokeDownload(t *testing.T, binary repository.Binary, part int32) ([]byte,
 		return nil, err
 	}
 	output := make([]byte, 0)
-	for {
-		bytes, err := stream.Recv()
-		if err != nil && err != io.EOF {
-			if err := stream.Finish(); err != nil {
-				t.Logf("Finish() failed: %v", err)
-			}
-			t.Logf("Recv() failed: %v", err)
-			return nil, err
-		}
-		if err == io.EOF {
-			break
-		}
+	for stream.Advance() {
+		bytes := stream.Value()
 		output = append(output, bytes...)
 	}
+
+	if err := stream.Err(); err != nil {
+		t.Logf("Advance() failed with: %v", err)
+	}
+
 	if err := stream.Finish(); err != nil {
 		t.Logf("Finish() failed: %v", err)
 		return nil, err

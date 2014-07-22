@@ -106,15 +106,22 @@ func (ctx *CancellableContext) Closed() <-chan struct{} {
 
 // storeServicePutMutationsStream implements raw.StoreServicePutMutationsStream
 type storeServicePutMutationsStream struct {
-	mus <-chan raw.Mutation
+	mus   <-chan raw.Mutation
+	value raw.Mutation
 }
 
-func (s *storeServicePutMutationsStream) Recv() (raw.Mutation, error) {
-	mu, ok := <-s.mus
-	if !ok {
-		return mu, io.EOF
-	}
-	return mu, nil
+func (s *storeServicePutMutationsStream) Advance() bool {
+	var ok bool
+	s.value, ok = <-s.mus
+	return ok
+}
+
+func (s *storeServicePutMutationsStream) Value() raw.Mutation {
+	return s.value
+}
+
+func (s *storeServicePutMutationsStream) Err() error {
+	return nil
 }
 
 // storePutMutationsStream implements raw.StorePutMutationsStream
@@ -153,7 +160,7 @@ func PutMutations(id security.PublicID, putMutationsFn func(ipc.ServerContext, r
 	mus := make(chan raw.Mutation)
 	err := make(chan error)
 	go func() {
-		err <- putMutationsFn(ctx, &storeServicePutMutationsStream{mus})
+		err <- putMutationsFn(ctx, &storeServicePutMutationsStream{mus: mus})
 		close(err)
 	}()
 	return &storePutMutationsStream{
@@ -197,16 +204,23 @@ func (s *watcherServiceWatchStream) Send(cb watch.ChangeBatch) error {
 // watcherWatchStream implements watch.WatcherWatchStream.
 type watcherWatchStream struct {
 	ctx   *CancellableContext
+	value watch.ChangeBatch
 	input <-chan watch.ChangeBatch
 	err   <-chan error
 }
 
-func (s *watcherWatchStream) Recv() (watch.ChangeBatch, error) {
-	cb, ok := <-s.input
-	if !ok {
-		return cb, io.EOF
-	}
-	return cb, nil
+func (s *watcherWatchStream) Advance() bool {
+	var ok bool
+	s.value, ok = <-s.input
+	return ok
+}
+
+func (s *watcherWatchStream) Value() watch.ChangeBatch {
+	return s.value
+}
+
+func (*watcherWatchStream) Err() error {
+	return nil
 }
 
 func (s *watcherWatchStream) Finish() error {

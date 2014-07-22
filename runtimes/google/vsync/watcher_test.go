@@ -5,7 +5,6 @@ package vsync
 import (
 	"bytes"
 	"fmt"
-	"io"
 	"os"
 	"testing"
 	"time"
@@ -73,6 +72,7 @@ func (*fakeVStore) PutMutations(_ context.T, _ ...ipc.CallOpt) (raw.StorePutMuta
 // fakeStream is used to simulate the reply stream of the Watch() API.
 type fakeStream struct {
 	canceled chan struct{}
+	err      error
 }
 
 func newFakeStream() *fakeStream {
@@ -81,30 +81,35 @@ func newFakeStream() *fakeStream {
 	return s
 }
 
-func (s *fakeStream) Recv() (watch.ChangeBatch, error) {
-	var empty watch.ChangeBatch
+func (s *fakeStream) Advance() bool {
 	// If "failRecv" is set, simulate a failed call.
 	if info.failRecv {
 		info.failRecvCount++
-		return empty, fmt.Errorf("fake recv error on fake stream: %d", info.failRecvCount)
+		s.err = fmt.Errorf("fake recv error on fake stream: %d", info.failRecvCount)
+		return false
 	}
 
 	// If "eofRecv" is set, simulate a closed stream and make sure the next Recv() call blocks.
 	if info.eofRecv {
 		info.eofRecv, info.blockRecv = false, true
-		return empty, io.EOF
+		s.err = nil
+		return false
 	}
 
 	// If "blockRecv" is set, simulate blocking the call until the stream is canceled.
 	if info.blockRecv {
 		close(recvBlocked)
 		<-s.canceled
-		return empty, io.EOF
+		s.err = nil
+		return false
 	}
-
 	// Otherwise return a batch of changes, and make sure the next Recv() call returns EOF on the stream.
 	// Adjust the resume marker of the change records to follow the one given to the Watch request.
 	info.eofRecv = true
+	return true
+}
+
+func (s *fakeStream) Value() watch.ChangeBatch {
 	changes := getChangeBatch()
 
 	var lastCount byte
@@ -121,9 +126,12 @@ func (s *fakeStream) Recv() (watch.ChangeBatch, error) {
 		}
 	}
 
-	return changes, nil
+	return changes
 }
 
+func (s *fakeStream) Err() error {
+	return s.err
+}
 func (s *fakeStream) Finish() error {
 	return nil
 }

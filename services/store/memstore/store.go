@@ -1,8 +1,6 @@
 package memstore
 
 import (
-	"io"
-
 	"veyron/runtimes/google/lib/sync"
 
 	"veyron/services/store/memstore/state"
@@ -152,23 +150,23 @@ func (st *Store) ApplyMutations(mu *state.Mutations) error {
 // stream has been closed.
 func (st *Store) PutMutations(ctx ipc.ServerContext, stream raw.StoreServicePutMutationsStream) error {
 	tr := st.newNilTransaction()
-	for {
-		mu, err := stream.Recv()
-		if err == io.EOF {
-			if ctx.IsClosed() {
-				tr.Abort()
-				return ErrRequestCancelled
-			}
-			break
-		}
-		if err != nil {
-			tr.Abort()
-			return err
-		}
+	for stream.Advance() {
+		mu := stream.Value()
+
 		if err := tr.snapshot.PutMutation(mu); err != nil {
 			tr.Abort()
 			return err
 		}
+	}
+	err := stream.Err()
+	if err != nil {
+		tr.Abort()
+		return err
+	}
+
+	if ctx.IsClosed() {
+		tr.Abort()
+		return ErrRequestCancelled
 	}
 	return tr.Commit()
 }

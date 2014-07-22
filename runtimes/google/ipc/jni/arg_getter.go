@@ -97,9 +97,9 @@ func fillStreamArgs(stream reflect.Type, mArgs *methodArgs) error {
 		mArgs.streamSendType = mSend.Type.In(0)
 	}
 	// Get the stream recv type.
-	if mRecv, ok := stream.MethodByName("Recv"); ok {
-		if mRecv.Type.NumOut() != 2 {
-			return fmt.Errorf("Illegal number of arguments for Recv method in stream %v", stream)
+	if mRecv, ok := stream.MethodByName("Value"); ok {
+		if mRecv.Type.NumOut() != 1 {
+			return fmt.Errorf("Illegal number of arguments for Value method in stream %v", stream)
 		}
 		mArgs.streamRecvType = mRecv.Type.Out(0)
 	}

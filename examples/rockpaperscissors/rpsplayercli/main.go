@@ -6,7 +6,6 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"io"
 	"os"
 	"sort"
 	"strings"
@@ -201,16 +200,8 @@ func playGame(judge string, gameID rps.GameID) (rps.PlayResult, error) {
 		return rps.PlayResult{}, err
 	}
 	var playerNum int32
-	for {
-		in, err := game.Recv()
-		if err == io.EOF {
-			fmt.Println("Game Ended")
-			break
-		}
-		if err != nil {
-			vlog.Infof("recv error: %v", err)
-			break
-		}
+	for game.Advance() {
+		in := game.Value()
 		if in.PlayerNum > 0 {
 			playerNum = in.PlayerNum
 			fmt.Printf("You are player %d\n", in.PlayerNum)
@@ -255,6 +246,12 @@ func playGame(judge string, gameID rps.GameID) (rps.PlayResult, error) {
 			}
 		}
 	}
+	if err := game.Err(); err == nil {
+		fmt.Println("Game Ended")
+	} else {
+		vlog.Infof("stream error: %v", err)
+	}
+
 	return game.Finish()
 }
 

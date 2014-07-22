@@ -3,7 +3,6 @@ package vsync
 import (
 	"errors"
 	"fmt"
-	"io"
 	"math/rand"
 	"strings"
 	"time"
@@ -256,14 +255,8 @@ func (i *syncInitiator) processLogStream(stream SyncGetDeltasStream) (GenVector,
 	// Compute the minimum generation for every device in this set.
 	minGens := GenVector{}
 
-	for {
-		rec, err := stream.Recv()
-		if err == io.EOF {
-			break
-		}
-		if err != nil {
-			return GenVector{}, err
-		}
+	for stream.Advance() {
+		rec := stream.Value()
 
 		if err := i.insertRecInLogAndDag(&rec); err != nil {
 			return GenVector{}, err
@@ -292,6 +285,9 @@ func (i *syncInitiator) processLogStream(stream SyncGetDeltasStream) (GenVector,
 		}
 	}
 
+	if err := stream.Err(); err != nil {
+		return GenVector{}, err
+	}
 	if err := i.createGenMetadataBatch(newGens, orderGens); err != nil {
 		return GenVector{}, err
 	}

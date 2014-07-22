@@ -114,20 +114,18 @@ func (j *Judge) play(name string, id rps.GameID, stream rps.JudgeServicePlayStre
 	done := make(chan struct{}, 1)
 	defer func() { done <- struct{}{} }()
 	go func() {
-		for {
-			action, err := stream.Recv()
-			if err != nil {
-				select {
-				case c <- playerInput{player: playerNum, action: rps.PlayerAction{Quit: true}}:
-				case <-done:
-				}
-				return
-			}
+		for stream.Advance() {
+			action := stream.Value()
+
 			select {
 			case c <- playerInput{player: playerNum, action: action}:
 			case <-done:
 				return
 			}
+		}
+		select {
+		case c <- playerInput{player: playerNum, action: rps.PlayerAction{Quit: true}}:
+		case <-done:
 		}
 	}()
 

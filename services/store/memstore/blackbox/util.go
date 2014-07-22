@@ -2,7 +2,6 @@ package blackbox
 
 import (
 	"fmt"
-	"io"
 	"io/ioutil"
 	"os"
 	"runtime"
@@ -195,17 +194,22 @@ type putMutationsStream struct {
 
 func newPutMutationsStream(mus []raw.Mutation) raw.StoreServicePutMutationsStream {
 	return &putMutationsStream{
-		mus: mus,
+		mus:   mus,
+		index: -1,
 	}
 }
 
-func (s *putMutationsStream) Recv() (raw.Mutation, error) {
-	if s.index < len(s.mus) {
-		index := s.index
-		s.index++
-		return s.mus[index], nil
-	}
-	return nullMutation, io.EOF
+func (s *putMutationsStream) Advance() bool {
+	s.index++
+	return s.index < len(s.mus)
+}
+
+func (s *putMutationsStream) Value() raw.Mutation {
+	return s.mus[s.index]
+}
+
+func (*putMutationsStream) Err() error {
+	return nil
 }
 
 func PutMutations(t *testing.T, st *memstore.Store, mus []raw.Mutation) {

@@ -5,6 +5,7 @@ package inspector
 
 import (
 	// The non-user imports are prefixed with "_gen_" to prevent collisions.
+	_gen_io "io"
 	_gen_veyron2 "veyron2"
 	_gen_context "veyron2/context"
 	_gen_ipc "veyron2/ipc"
@@ -25,6 +26,10 @@ type Details struct {
 	ModNano int32
 	IsDir   bool
 }
+
+// TODO(bprosnitz) Remove this line once signatures are updated to use typevals.
+// It corrects a bug where _gen_wiretype is unused in VDL pacakges where only bootstrap types are used on interfaces.
+const _ = _gen_wiretype.TypeIDInvalid
 
 // Inspector is the interface the client binds and uses.
 // Inspector_ExcludingUniversal is the interface without internal framework-added methods
@@ -48,26 +53,64 @@ type InspectorService interface {
 // Ls in the service interface Inspector.
 type InspectorLsStream interface {
 
-	// Recv returns the next item in the input stream, blocking until
-	// an item is available.  Returns io.EOF to indicate graceful end of input.
-	Recv() (item string, err error)
+	// Advance stages an element so the client can retrieve it
+	// with Value.  Advance returns true iff there is an
+	// element to retrieve.  The client must call Advance before
+	// calling Value.  The client must call Cancel if it does
+	// not iterate through all elements (i.e. until Advance
+	// returns false).  Advance may block if an element is not
+	// immediately available.
+	Advance() bool
 
-	// Finish closes the stream and returns the positional return values for
+	// Value returns the element that was staged by Advance.
+	// Value may panic if Advance returned false or was not
+	// called at all.  Value does not block.
+	Value() string
+
+	// Err returns a non-nil error iff the stream encountered
+	// any errors.  Err does not block.
+	Err() error
+
+	// Finish blocks until the server is done and returns the positional
+	// return values for call.
+	//
+	// If Cancel has been called, Finish will return immediately; the output of
+	// Finish could either be an error signalling cancelation, or the correct
+	// positional return values from the server depending on the timing of the
 	// call.
+	//
+	// Calling Finish is mandatory for releasing stream resources, unless Cancel
+	// has been called or any of the other methods return a non-EOF error.
+	// Finish should be called at most once.
 	Finish() (err error)
 
-	// Cancel cancels the RPC, notifying the server to stop processing.
+	// Cancel cancels the RPC, notifying the server to stop processing.  It
+	// is safe to call Cancel concurrently with any of the other stream methods.
+	// Calling Cancel after Finish has returned is a no-op.
 	Cancel()
 }
 
 // Implementation of the InspectorLsStream interface that is not exported.
 type implInspectorLsStream struct {
 	clientCall _gen_ipc.Call
+	val        string
+	err        error
 }
 
-func (c *implInspectorLsStream) Recv() (item string, err error) {
-	err = c.clientCall.Recv(&item)
-	return
+func (c *implInspectorLsStream) Advance() bool {
+	c.err = c.clientCall.Recv(&c.val)
+	return c.err == nil
+}
+
+func (c *implInspectorLsStream) Value() string {
+	return c.val
+}
+
+func (c *implInspectorLsStream) Err() error {
+	if c.err == _gen_io.EOF {
+		return nil
+	}
+	return c.err
 }
 
 func (c *implInspectorLsStream) Finish() (err error) {
@@ -85,7 +128,7 @@ func (c *implInspectorLsStream) Cancel() {
 // Ls in the service interface Inspector.
 type InspectorServiceLsStream interface {
 	// Send places the item onto the output stream, blocking if there is no buffer
-	// space available.
+	// space available.  If the client has canceled, an error is returned.
 	Send(item string) error
 }
 
@@ -102,26 +145,65 @@ func (s *implInspectorServiceLsStream) Send(item string) error {
 // LsDetails in the service interface Inspector.
 type InspectorLsDetailsStream interface {
 
-	// Recv returns the next item in the input stream, blocking until
-	// an item is available.  Returns io.EOF to indicate graceful end of input.
-	Recv() (item Details, err error)
+	// Advance stages an element so the client can retrieve it
+	// with Value.  Advance returns true iff there is an
+	// element to retrieve.  The client must call Advance before
+	// calling Value.  The client must call Cancel if it does
+	// not iterate through all elements (i.e. until Advance
+	// returns false).  Advance may block if an element is not
+	// immediately available.
+	Advance() bool
 
-	// Finish closes the stream and returns the positional return values for
+	// Value returns the element that was staged by Advance.
+	// Value may panic if Advance returned false or was not
+	// called at all.  Value does not block.
+	Value() Details
+
+	// Err returns a non-nil error iff the stream encountered
+	// any errors.  Err does not block.
+	Err() error
+
+	// Finish blocks until the server is done and returns the positional
+	// return values for call.
+	//
+	// If Cancel has been called, Finish will return immediately; the output of
+	// Finish could either be an error signalling cancelation, or the correct
+	// positional return values from the server depending on the timing of the
 	// call.
+	//
+	// Calling Finish is mandatory for releasing stream resources, unless Cancel
+	// has been called or any of the other methods return a non-EOF error.
+	// Finish should be called at most once.
 	Finish() (err error)
 
-	// Cancel cancels the RPC, notifying the server to stop processing.
+	// Cancel cancels the RPC, notifying the server to stop processing.  It
+	// is safe to call Cancel concurrently with any of the other stream methods.
+	// Calling Cancel after Finish has returned is a no-op.
 	Cancel()
 }
 
 // Implementation of the InspectorLsDetailsStream interface that is not exported.
 type implInspectorLsDetailsStream struct {
 	clientCall _gen_ipc.Call
+	val        Details
+	err        error
 }
 
-func (c *implInspectorLsDetailsStream) Recv() (item Details, err error) {
-	err = c.clientCall.Recv(&item)
-	return
+func (c *implInspectorLsDetailsStream) Advance() bool {
+	c.val = Details{}
+	c.err = c.clientCall.Recv(&c.val)
+	return c.err == nil
+}
+
+func (c *implInspectorLsDetailsStream) Value() Details {
+	return c.val
+}
+
+func (c *implInspectorLsDetailsStream) Err() error {
+	if c.err == _gen_io.EOF {
+		return nil
+	}
+	return c.err
 }
 
 func (c *implInspectorLsDetailsStream) Finish() (err error) {
@@ -139,7 +221,7 @@ func (c *implInspectorLsDetailsStream) Cancel() {
 // LsDetails in the service interface Inspector.
 type InspectorServiceLsDetailsStream interface {
 	// Send places the item onto the output stream, blocking if there is no buffer
-	// space available.
+	// space available.  If the client has canceled, an error is returned.
 	Send(item Details) error
 }
 

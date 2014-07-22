@@ -436,18 +436,8 @@ func (i *invoker) Upload(context ipc.ServerContext, part int32, stream repositor
 	}
 	defer file.Close()
 	h := md5.New()
-	for {
-		bytes, err := stream.Recv()
-		if err != nil && err != io.EOF {
-			vlog.Errorf("Recv() failed: %v", err)
-			if err := os.Remove(file.Name()); err != nil {
-				vlog.Errorf("Remove(%v) failed: %v", file.Name(), err)
-			}
-			return errOperationFailed
-		}
-		if err == io.EOF {
-			break
-		}
+	for stream.Advance() {
+		bytes := stream.Value()
 		if _, err := file.Write(bytes); err != nil {
 			vlog.Errorf("Write() failed: %v", err)
 			if err := os.Remove(file.Name()); err != nil {
@@ -457,6 +447,15 @@ func (i *invoker) Upload(context ipc.ServerContext, part int32, stream repositor
 		}
 		h.Write(bytes)
 	}
+
+	if err := stream.Err(); err != nil {
+		vlog.Errorf("Recv() failed: %v", err)
+		if err := os.Remove(file.Name()); err != nil {
+			vlog.Errorf("Remove(%v) failed: %v", file.Name(), err)
+		}
+		return errOperationFailed
+	}
+
 	hash := hex.EncodeToString(h.Sum(nil))
 	checksumFile, perm := filepath.Join(path, checksum), os.FileMode(0600)
 	if err := ioutil.WriteFile(checksumFile, []byte(hash), perm); err != nil {

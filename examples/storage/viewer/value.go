@@ -27,11 +27,8 @@ func glob(st storage.Store, path, pattern string) ([]string, error) {
 	}
 	defer results.Finish()
 	names := []string{}
-	for {
-		name, err := results.Recv()
-		if err != nil {
-			break
-		}
+	for results.Advance() {
+		name := results.Value()
 		names = append(names, "/"+name)
 	}
 	sort.Strings(names)

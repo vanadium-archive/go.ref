@@ -62,8 +62,8 @@ func CallEchoStream(address string, rpcCount, messageCount, payloadSize int, log
 		}
 		done := make(chan error, 1)
 		go func() {
-			for {
-				chunk, err := stream.Recv()
+			for stream.Advance() {
+				chunk := stream.Value()
 				if err == io.EOF {
 					done <- nil
 					return
@@ -77,6 +77,8 @@ func CallEchoStream(address string, rpcCount, messageCount, payloadSize int, log
 					return
 				}
 			}
+
+			done <- stream.Err()
 		}()
 		for j := 0; j < messageCount; j++ {
 			if err = stream.Send(payload); err != nil {

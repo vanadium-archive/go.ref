@@ -2,7 +2,6 @@ package signals
 
 import (
 	"fmt"
-	"io"
 	"os"
 	"syscall"
 	"testing"
@@ -326,8 +325,8 @@ func TestCleanRemoteShutdown(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Got error: %v", err)
 	}
-	if task, err := stream.Recv(); err != io.EOF {
-		t.Errorf("Expected (nil, EOF), got (%v, %v) instead: ", task, err)
+	if stream.Advance() || stream.Err() != nil {
+		t.Errorf("Expected EOF, got (%v, %v) instead: ", stream.Value(), stream.Err())
 	}
 	if err := stream.Finish(); err != nil {
 		t.Fatalf("Got error: %v", err)

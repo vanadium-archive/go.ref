@@ -74,16 +74,8 @@ func download(w io.WriteSeeker, von string) error {
 				continue
 			}
 			h, nreceived := md5.New(), 0
-			for {
-				bytes, err := stream.Recv()
-				if err != nil {
-					if err != io.EOF {
-						vlog.Errorf("Recv() failed: %v", err)
-						stream.Cancel()
-						continue download
-					}
-					break
-				}
+			for stream.Advance() {
+				bytes := stream.Value()
 				if _, err := w.Write(bytes); err != nil {
 					vlog.Errorf("Write() failed: %v", err)
 					stream.Cancel()
@@ -91,6 +83,13 @@ func download(w io.WriteSeeker, von string) error {
 				}
 				h.Write(bytes)
 				nreceived += len(bytes)
+			}
+
+			if err := stream.Err(); err != nil {
+				vlog.Errorf("stream failed: %v", err)
+				stream.Cancel()
+				continue download
+
 			}
 			if err := stream.Finish(); err != nil {
 				vlog.Errorf("Finish() failed: %v", err)

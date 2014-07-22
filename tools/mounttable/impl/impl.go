@@ -2,7 +2,6 @@ package impl
 
 import (
 	"fmt"
-	"io"
 	"time"
 
 	"veyron/lib/cmdline"
@@ -49,19 +48,18 @@ func runGlob(cmd *cmdline.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	for {
-		buf, err := stream.Recv()
-		if err != nil {
-			if err == io.EOF {
-				break
-			}
-			return fmt.Errorf("recv error: %v", err)
-		}
+	for stream.Advance() {
+		buf := stream.Value()
+
 		fmt.Fprint(cmd.Stdout(), buf.Name)
 		for _, s := range buf.Servers {
 			fmt.Fprintf(cmd.Stdout(), " %s (TTL %s)", s.Server, time.Duration(s.TTL)*time.Second)
 		}
 		fmt.Fprintln(cmd.Stdout())
+	}
+
+	if err := stream.Err(); err != nil {
+		return fmt.Errorf("advance error: %v", err)
 	}
 	err = stream.Finish()
 	if err != nil {

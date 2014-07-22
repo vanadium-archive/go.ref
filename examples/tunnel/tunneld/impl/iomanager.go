@@ -93,13 +93,8 @@ func (m *ioManager) stderr2outchan() {
 
 // stream2stdin reads data from the stream and sends it to the shell's stdin.
 func (m *ioManager) stream2stdin() {
-	for {
-		packet, err := m.stream.Recv()
-		if err != nil {
-			vlog.VI(2).Infof("stream2stdin: %v", err)
-			m.done <- err
-			return
-		}
+	for m.stream.Advance() {
+		packet := m.stream.Value()
 		if len(packet.Stdin) > 0 {
 			if n, err := m.stdin.Write(packet.Stdin); n != len(packet.Stdin) || err != nil {
 				m.done <- fmt.Errorf("stdin.Write returned (%d, %v) want (%d, nil)", n, err, len(packet.Stdin))
@@ -110,4 +105,12 @@ func (m *ioManager) stream2stdin() {
 			setWindowSize(m.ptyFd, packet.Rows, packet.Cols)
 		}
 	}
+
+	err := m.stream.Err()
+	if err == nil {
+		err = io.EOF
+	}
+
+	vlog.VI(2).Infof("stream2stdin: %v", err)
+	m.done <- err
 }

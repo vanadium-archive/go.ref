@@ -91,13 +91,9 @@ func (m *ioManager) user2outchan() {
 
 // stream2user reads data from the stream and sends it to either stdout or stderr.
 func (m *ioManager) stream2user() {
-	for {
-		packet, err := m.stream.Recv()
-		if err != nil {
-			vlog.VI(2).Infof("stream2user: %v", err)
-			m.done <- err
-			return
-		}
+	for m.stream.Advance() {
+		packet := m.stream.Value()
+
 		if len(packet.Stdout) > 0 {
 			if n, err := m.stdout.Write(packet.Stdout); n != len(packet.Stdout) || err != nil {
 				m.done <- fmt.Errorf("stdout.Write returned (%d, %v) want (%d, nil)", n, err, len(packet.Stdout))
@@ -111,4 +107,10 @@ func (m *ioManager) stream2user() {
 			}
 		}
 	}
+	err := m.stream.Err()
+	if err == nil {
+		err = io.EOF
+	}
+	vlog.VI(2).Infof("stream2user: %v", err)
+	m.done <- err
 }

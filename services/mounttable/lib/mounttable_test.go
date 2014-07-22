@@ -2,7 +2,6 @@ package mounttable
 
 import (
 	"errors"
-	"io"
 	"reflect"
 	"runtime/debug"
 	"sort"
@@ -287,15 +286,13 @@ func doGlob(t *testing.T, name, pattern string, id ipc.ClientOpt) []string {
 		boom(t, "Failed call to %s.Glob(%s): %s", name, pattern, err)
 	}
 	var reply []string
-	for {
-		e, err := stream.Recv()
-		if err == io.EOF {
-			break
-		}
-		if err != nil {
-			boom(t, "Glob %s: %s", name, err)
-		}
+	for stream.Advance() {
+		e := stream.Value()
 		reply = append(reply, e.Name)
+	}
+
+	if err := stream.Err(); err != nil {
+		boom(t, "Glob %s: %s", name, err)
 	}
 	return reply
 }

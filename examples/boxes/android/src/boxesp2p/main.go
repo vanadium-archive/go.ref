@@ -59,6 +59,7 @@ import "C"
 import (
 	"bytes"
 	"fmt"
+	"io"
 	"net"
 	"os"
 	"runtime"
@@ -174,11 +175,8 @@ func (gs *goState) sendBox(box boxes.Box) {
 func (gs *goState) streamBoxesLoop() {
 	// Loop to receive boxes from remote peer
 	go func() {
-		for {
-			box, err := gs.drawStream.Recv()
-			if err != nil {
-				return
-			}
+		for gs.drawStream.Advance() {
+			box := gs.drawStream.Value()
 			nativeJava.addBox(&box)
 		}
 	}()
@@ -206,11 +204,8 @@ func (gs *goState) monitorStore() {
 		if err != nil {
 			panic(fmt.Errorf("Can't watch store: %s: %s", gs.storeEndpoint, err))
 		}
-		for {
-			cb, err := stream.Recv()
-			if err != nil {
-				panic(fmt.Errorf("Can't receive watch event: %s: %s", gs.storeEndpoint, err))
-			}
+		for stream.Advance() {
+			cb := stream.Value()
 			for _, change := range cb.Changes {
 				if entry, ok := change.Value.(*storage.Entry); ok {
 					if box, ok := entry.Value.(boxes.Box); ok && box.DeviceId != gs.myIPAddr {
@@ -219,6 +214,13 @@ func (gs *goState) monitorStore() {
 				}
 			}
 		}
+
+		err = stream.Err()
+		if err == nil {
+			err = io.EOF
+		}
+		panic(fmt.Errorf("Can't receive watch event: %s: %s", gs.storeEndpoint, err))
+
 	}()
 
 	// Send any box updates to the store

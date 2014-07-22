@@ -63,10 +63,7 @@ func (s *server) Stat(ipc.ServerContext) ([]binary.PartInfo, error) {
 
 func (s *server) Upload(_ ipc.ServerContext, _ int32, stream repository.BinaryServiceUploadStream) error {
 	vlog.Infof("Upload() was called. suffix=%v", s.suffix)
-	for {
-		if _, err := stream.Recv(); err != nil {
-			break
-		}
+	for stream.Advance() {
 	}
 	return nil
 }

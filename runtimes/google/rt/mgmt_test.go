@@ -2,7 +2,6 @@ package rt_test
 
 import (
 	"fmt"
-	"io"
 	"os"
 	"reflect"
 	"strings"
@@ -305,17 +304,19 @@ func TestRemoteStop(t *testing.T) {
 		t.Fatalf("Got error: %v", err)
 	}
 	expectTask := func(progress, goal int32) {
-		if task, err := stream.Recv(); err != nil {
-			t.Fatalf("unexpected streaming error: %q", err)
-		} else if task.Progress != progress || task.Goal != goal {
+		if !stream.Advance() {
+			t.Fatalf("unexpected streaming error: %q", stream.Err())
+		}
+		task := stream.Value()
+		if task.Progress != progress || task.Goal != goal {
 			t.Errorf("Got (%d, %d), want (%d, %d)", task.Progress, task.Goal, progress, goal)
 		}
 	}
 	expectTask(0, 10)
 	expectTask(2, 10)
 	expectTask(7, 10)
-	if task, err := stream.Recv(); err != io.EOF {
-		t.Errorf("Expected (nil, EOF), got (%v, %v) instead", task, err)
+	if stream.Advance() || stream.Err() != nil {
+		t.Errorf("Expected EOF, got (%v, %v) instead", stream.Value(), stream.Err())
 	}
 	if err := stream.Finish(); err != nil {
 		t.Errorf("Got error %v", err)

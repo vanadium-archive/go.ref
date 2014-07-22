@@ -3,7 +3,6 @@ package impl
 import (
 	"bytes"
 	"errors"
-	"io"
 	"io/ioutil"
 	"os"
 	"os/exec"
@@ -52,15 +51,8 @@ func (i *invoker) Build(_ ipc.ServerContext, stream build.BuildServiceBuildStrea
 		vlog.Errorf("MkdirAll(%v, %v) failed: %v", srcDir, dirPerm, err)
 		return nil, errInternalError
 	}
-	for {
-		srcFile, err := stream.Recv()
-		if err != nil && err != io.EOF {
-			vlog.Errorf("Recv() failed: %v", err)
-			return nil, errInternalError
-		}
-		if err == io.EOF {
-			break
-		}
+	for stream.Advance() {
+		srcFile := stream.Value()
 		filePath := filepath.Join(srcDir, filepath.FromSlash(srcFile.Name))
 		dir := filepath.Dir(filePath)
 		if err := os.MkdirAll(dir, dirPerm); err != nil {
@@ -71,6 +63,11 @@ func (i *invoker) Build(_ ipc.ServerContext, stream build.BuildServiceBuildStrea
 			vlog.Errorf("WriteFile(%v, %v) failed: %v", filePath, filePerm, err)
 			return nil, errInternalError
 		}
+	}
+
+	if err := stream.Err(); err != nil {
+		vlog.Errorf("stream failed: %v", err)
+		return nil, errInternalError
 	}
 	cmd := exec.Command(i.gobin, "install", "-v", "...")
 	cmd.Env = append(cmd.Env, "GOPATH="+filepath.Dir(srcDir))

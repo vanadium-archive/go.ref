@@ -128,15 +128,13 @@ func stubless() {
 
 // streamNames and streamDetails are idiomatic for use with stubs
 func streamNames(stream inspector.InspectorLsStream) {
-	for {
-		if name, err := stream.Recv(); err != nil {
-			if err == io.EOF {
-				break
-			}
-			vlog.Fatalf("unexpected streaming error: %q", err)
-		} else {
-			fmt.Printf("%s\n", name)
-		}
+	for stream.Advance() {
+		name := stream.Value()
+		fmt.Printf("%s\n", name)
+	}
+
+	if err := stream.Err(); err != nil {
+		vlog.Fatalf("unexpected streaming error: %q", err)
 	}
 	if err := stream.Finish(); err != nil && err != io.EOF {
 		vlog.Fatalf("%q", err)
@@ -144,18 +142,17 @@ func streamNames(stream inspector.InspectorLsStream) {
 }
 
 func streamDetails(stream inspector.InspectorLsDetailsStream) {
-	for {
-		if details, err := stream.Recv(); err != nil {
-			if err == io.EOF {
-				break
-			}
-			vlog.Fatalf("unexpected streaming error: %q", err)
-		} else {
-			mode := os.FileMode(details.Mode)
-			modtime := time.Unix(details.ModUnixSecs, int64(details.ModNano))
-			fmt.Printf("%s: %d %s %s%s\n", details.Name, details.Size, mode, modtime, map[bool]string{false: "", true: "/"}[details.IsDir])
-		}
+	for stream.Advance() {
+		details := stream.Value()
+		mode := os.FileMode(details.Mode)
+		modtime := time.Unix(details.ModUnixSecs, int64(details.ModNano))
+		fmt.Printf("%s: %d %s %s%s\n", details.Name, details.Size, mode, modtime, map[bool]string{false: "", true: "/"}[details.IsDir])
 	}
+
+	if err := stream.Err(); err != nil {
+		vlog.Fatalf("unexpected streaming error: %q", err)
+	}
+
 	if err := stream.Finish(); err != nil && err != io.EOF {
 		vlog.Fatalf("%q", err)
 	}

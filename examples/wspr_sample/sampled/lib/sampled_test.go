@@ -288,28 +288,28 @@ func TestMultiGet(t *testing.T) {
 	stream.Send("C")
 	stream.Send("E")
 
-	if item, err := stream.Recv(); err == nil {
-		if item != "A" {
+	if stream.Advance() {
+		if stream.Value() != "A" {
 			t.Errorf("value for 'A' didn't match")
 		}
 	} else {
-		t.Fatal("error on recv: %v", err)
+		t.Fatal("error on advance: %v", stream.Err())
 	}
 
-	if item, err := stream.Recv(); err == nil {
-		if item != uint32(7) {
+	if stream.Advance() {
+		if stream.Value() != uint32(7) {
 			t.Errorf("value for 'C' didn't match")
 		}
 	} else {
-		t.Fatal("error on recv: %v", err)
+		t.Fatal("error on advance: %v", stream.Err())
 	}
 
-	if item, err := stream.Recv(); err == nil {
-		if item != true {
+	if stream.Advance() {
+		if stream.Value() != true {
 			t.Errorf("value for 'E' didn't match")
 		}
 	} else {
-		t.Fatal("error on recv: %v", err)
+		t.Fatal("error on advance: %v", stream.Err())
 	}
 
 	stream.CloseSend()

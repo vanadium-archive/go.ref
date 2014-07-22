@@ -2,7 +2,6 @@ package modules
 
 import (
 	"fmt"
-	"io"
 	"strconv"
 	"strings"
 
@@ -104,17 +103,12 @@ func lsUsingResolve(name, pattern string) ([]string, error) {
 		return []string{}, err
 	}
 	var reply []string
-	for {
-		e, err := stream.Recv()
-		if err == io.EOF {
-			break
-		}
-		if err != nil {
-			return reply, err
-		}
+	for stream.Advance() {
+		e := stream.Value()
 		reply = append(reply, fmt.Sprintf("%q", e.Name))
 	}
-	return reply, nil
+
+	return reply, stream.Err()
 }
 
 func lsUsingResolveToMountTable(name, pattern string) ([]string, error) {

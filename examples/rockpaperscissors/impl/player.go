@@ -1,7 +1,6 @@
 package impl
 
 import (
-	"io"
 	"math/rand"
 	"time"
 
@@ -117,16 +116,9 @@ func (p *Player) playGame(judge string, gameID rps.GameID) (rps.PlayResult, erro
 	if err != nil {
 		return rps.PlayResult{}, err
 	}
-	for {
-		in, err := game.Recv()
-		if err == io.EOF {
-			vlog.VI(1).Infof("Game Ended")
-			break
-		}
-		if err != nil {
-			vlog.Infof("recv error: %v", err)
-			break
-		}
+	for game.Advance() {
+		in := game.Value()
+
 		if in.PlayerNum > 0 {
 			vlog.VI(1).Infof("I'm player %d", in.PlayerNum)
 		}
@@ -147,6 +139,12 @@ func (p *Player) playGame(judge string, gameID rps.GameID) (rps.PlayResult, erro
 		if len(in.Score.Players) > 0 {
 			vlog.VI(1).Infof("Score card: %s", common.FormatScoreCard(in.Score))
 		}
+	}
+
+	if err := game.Err(); err != nil {
+		vlog.Infof("stream error: %v", err)
+	} else {
+		vlog.VI(1).Infof("Game Ended")
 	}
 	result, err := game.Finish()
 	p.gamesPlayed.Add(1)

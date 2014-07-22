@@ -2,7 +2,6 @@ package lib
 
 import (
 	"fmt"
-	"io"
 	"reflect"
 	"sort"
 	"time"
@@ -182,15 +181,8 @@ func (c *cacheImpl) Size(ipc.ServerContext) (int64, error) {
 // keys in the stream is not in the map or if there was an issue reading
 // the stream.
 func (c *cacheImpl) MultiGet(_ ipc.ServerContext, stream sample.CacheServiceMultiGetStream) error {
-	for {
-		key, err := stream.Recv()
-		if err == io.EOF {
-			return nil
-		}
-
-		if err != nil {
-			return err
-		}
+	for stream.Advance() {
+		key := stream.Value()
 
 		value, ok := c.cache[key]
 		if !ok {
@@ -198,4 +190,5 @@ func (c *cacheImpl) MultiGet(_ ipc.ServerContext, stream sample.CacheServiceMult
 		}
 		stream.Send(value)
 	}
+	return stream.Err()
 }

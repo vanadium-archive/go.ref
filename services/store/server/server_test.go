@@ -349,10 +349,10 @@ func TestWatch(t *testing.T) {
 
 	// Check that watch detects the changes in the first transaction.
 	{
-		cb, err := ws.Recv()
-		if err != nil {
-			t.Error("Recv() failed: %v", err)
+		if !ws.Advance() {
+			t.Error("Advance() failed: %v", ws.Err())
 		}
+		cb := ws.Value()
 		changes := cb.Changes
 		change := changes[0]
 		if change.Continued {
@@ -384,10 +384,10 @@ func TestWatch(t *testing.T) {
 
 	// Check that watch detects the changes in the second transaction.
 	{
-		cb, err := ws.Recv()
-		if err != nil {
-			t.Error("Recv() failed: %v", err)
+		if !ws.Advance() {
+			t.Error("Advance() failed: %v", ws.Err())
 		}
+		cb := ws.Value()
 		changes := cb.Changes
 		change := changes[0]
 		if !change.Continued {
@@ -435,10 +435,10 @@ func TestWatchGlob(t *testing.T) {
 
 	// The watch on / should send a change on /.
 	{
-		cb, err := ws1.Recv()
-		if err != nil {
-			t.Error("Recv() failed: %v", err)
+		if !ws1.Advance() {
+			t.Error("Advance() failed: %v", ws1.Err())
 		}
+		cb := ws1.Value()
 		changes := cb.Changes
 		change := changes[0]
 		if change.Continued {
@@ -470,10 +470,10 @@ func TestWatchGlob(t *testing.T) {
 
 	// The watch on / should send changes on / and /a.
 	{
-		cb, err := ws1.Recv()
-		if err != nil {
-			t.Error("Recv() failed: %v", err)
+		if !ws1.Advance() {
+			t.Error("Advance() failed: %v", ws1.Err())
 		}
+		cb := ws1.Value()
 		changes := cb.Changes
 		change := changes[0]
 		if !change.Continued {
@@ -488,10 +488,10 @@ func TestWatchGlob(t *testing.T) {
 	}
 	// The watch on /a should send a change on /a.
 	{
-		cb, err := ws2.Recv()
-		if err != nil {
-			t.Error("Recv() failed: %v", err)
+		if !ws2.Advance() {
+			t.Error("Advance() failed: %v", ws2.Err())
 		}
+		cb := ws2.Value()
 		changes := cb.Changes
 		change := changes[0]
 		if change.Continued {
@@ -532,10 +532,10 @@ func TestGarbageCollectionOnCommit(t *testing.T) {
 
 	// Check that watch detects the changes in the first transaction.
 	{
-		cb, err := ws.Recv()
-		if err != nil {
-			t.Error("Recv() failed: %v", err)
+		if !ws.Advance() {
+			t.Error("Advance() failed: %v", ws.Err())
 		}
+		cb := ws.Value()
 		changes := cb.Changes
 		change := changes[0]
 		if change.Continued {
@@ -567,10 +567,10 @@ func TestGarbageCollectionOnCommit(t *testing.T) {
 
 	// Check that watch detects the changes in the second transaction.
 	{
-		cb, err := ws.Recv()
-		if err != nil {
-			t.Error("Recv() failed: %v", err)
+		if !ws.Advance() {
+			t.Error("Advance() failed: %v", ws.Err())
 		}
+		cb := ws.Value()
 		changes := cb.Changes
 		change := changes[0]
 		if !change.Continued {
@@ -601,10 +601,10 @@ func TestGarbageCollectionOnCommit(t *testing.T) {
 
 	// Check that watch detects the changes in the third transaction.
 	{
-		cb, err := ws.Recv()
-		if err != nil {
-			t.Error("Recv() failed: %v", err)
+		if !ws.Advance() {
+			t.Error("Advance() failed: %v", ws.Err())
 		}
+		cb := ws.Value()
 		changes := cb.Changes
 		change := changes[0]
 		if change.Continued {
@@ -615,10 +615,10 @@ func TestGarbageCollectionOnCommit(t *testing.T) {
 
 	// Check that watch detects the garbage collection of /a.
 	{
-		cb, err := ws.Recv()
-		if err != nil {
-			t.Error("Recv() failed: %v", err)
+		if !ws.Advance() {
+			t.Error("Advance() failed: %v", ws.Err())
 		}
+		cb := ws.Value()
 		changes := cb.Changes
 		change := changes[0]
 		if change.Continued {

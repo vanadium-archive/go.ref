@@ -4,7 +4,6 @@ package vsync
 import (
 	"container/list"
 	"fmt"
-	"io"
 	"os"
 	"time"
 
@@ -36,7 +35,8 @@ func getFileSize(fname string) int64 {
 
 // dummyStream struct emulates stream of log records received from RPC.
 type dummyStream struct {
-	l *list.List
+	l     *list.List
+	value LogRec
 }
 
 func newStream() *dummyStream {
@@ -46,13 +46,19 @@ func newStream() *dummyStream {
 	return ds
 }
 
-func (ds *dummyStream) Recv() (LogRec, error) {
+func (ds *dummyStream) Advance() bool {
 	if ds.l.Len() > 0 {
-		item := ds.l.Remove(ds.l.Front()).(LogRec)
-		return item, nil
+		ds.value = ds.l.Remove(ds.l.Front()).(LogRec)
+		return true
 	}
-	return LogRec{}, io.EOF
+	return false
 }
+
+func (ds *dummyStream) Value() LogRec {
+	return ds.value
+}
+
+func (*dummyStream) Err() error { return nil }
 
 func (ds *dummyStream) Finish() (GenVector, error) {
 	return GenVector{}, nil

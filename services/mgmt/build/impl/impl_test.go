@@ -1,7 +1,6 @@
 package impl
 
 import (
-	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -69,17 +68,16 @@ func invokeBuild(t *testing.T, client build.Build, files []build.File) ([]byte, 
 		return nil, nil, err
 	}
 	bins := make([]build.File, 0)
-	for {
-		bin, err := stream.Recv()
-		if err != nil && err != io.EOF {
-			t.Logf("Recv() failed: %v", err)
-			return nil, nil, err
-		}
-		if err == io.EOF {
-			break
-		}
+	for stream.Advance() {
+		bin := stream.Value()
 		bins = append(bins, bin)
 	}
+
+	if err := stream.Err(); err != nil {
+		t.Logf("Recv() failed: %v", err)
+		return nil, nil, err
+	}
+
 	output, err := stream.Finish()
 	if err != nil {
 		t.Logf("Finish() failed: %v", err)

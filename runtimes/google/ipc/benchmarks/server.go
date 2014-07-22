@@ -1,8 +1,6 @@
 package benchmarks
 
 import (
-	"io"
-
 	sflag "veyron/security/flag"
 
 	"veyron2/ipc"
@@ -19,19 +17,14 @@ func (i *impl) Echo(ctx ipc.ServerContext, payload []byte) ([]byte, error) {
 }
 
 func (i *impl) EchoStream(ctx ipc.ServerContext, stream BenchmarkServiceEchoStreamStream) error {
-	for {
-		chunk, err := stream.Recv()
-		if err == io.EOF {
-			break
-		}
-		if err != nil {
-			return err
-		}
+	for stream.Advance() {
+		chunk := stream.Value()
 		if err := stream.Send(chunk); err != nil {
 			return err
 		}
 	}
-	return nil
+
+	return stream.Err()
 }
 
 // StartServer starts a server that implements the Benchmark service. The

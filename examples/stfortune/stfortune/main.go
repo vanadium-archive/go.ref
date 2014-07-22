@@ -7,6 +7,7 @@ import (
 	"encoding/hex"
 	"flag"
 	"fmt"
+	"io"
 	"log"
 	"math/rand"
 	"os"
@@ -60,8 +61,8 @@ func waitForStore(store storage.Store) {
 		if err != nil {
 			log.Fatalf("WatchGlob %s failed: %v", path, err)
 		}
-		if _, err := stream.Recv(); err != nil {
-			log.Fatalf("Recv failed: %v", err)
+		if !stream.Advance() {
+			log.Fatalf("Advance failed: %v", stream.Err())
 		}
 		stream.Cancel()
 	}
@@ -92,11 +93,8 @@ func runAsWatcher(store storage.Store, user string) {
 		log.Fatalf("watcher WatchGlob %s failed: %v", path, err)
 	}
 
-	for {
-		batch, err := stream.Recv()
-		if err != nil {
-			log.Fatalf("watcher Recv failed: %v", err)
-		}
+	for stream.Advance() {
+		batch := stream.Value()
 
 		for _, change := range batch.Changes {
 			entry, ok := change.Value.(*storage.Entry)
@@ -114,6 +112,11 @@ func runAsWatcher(store storage.Store, user string) {
 			fmt.Printf("watcher: new fortune: %s\n", fortune.Fortune)
 		}
 	}
+	err = stream.Err()
+	if err == nil {
+		err = io.EOF
+	}
+	log.Fatalf("watcher Advance failed: %v", err)
 }
 
 // pickFortune finds all available fortunes under the input path and
@@ -127,11 +130,8 @@ func pickFortune(store storage.Store, ctx context.T, path string) (string, error
 		return "", err
 	}
 	var names []string
-	for {
-		name, err := results.Recv()
-		if err != nil {
-			break
-		}
+	for results.Advance() {
+		name := results.Value()
 		names = append(names, name)
 	}
 	results.Finish()

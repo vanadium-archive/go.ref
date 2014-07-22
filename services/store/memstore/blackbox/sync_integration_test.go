@@ -45,10 +45,10 @@ func TestSyncState(t *testing.T) {
 	// Create a sync request
 	stream := watchtesting.WatchRaw(rootPublicID, w.WatchRaw, raw.Request{})
 
-	cb, err := stream.Recv()
-	if err != nil {
-		t.Fatalf("Recv() failed: %v", err)
+	if !stream.Advance() {
+		t.Fatalf("Advance() failed: %v", stream.Err())
 	}
+	cb := stream.Value()
 	// Update target
 	PutMutations(t, target, Mutations(cb.Changes))
 	GC(t, target)
@@ -78,10 +78,10 @@ func TestSyncTransaction(t *testing.T) {
 	id3 := Put(t, st, tr, "/a/b", "val3")
 	Commit(t, tr)
 
-	cb, err := stream.Recv()
-	if err != nil {
-		t.Fatalf("Recv() failed: %v", err)
+	if !stream.Advance() {
+		t.Fatalf("Advance() failed: %v", stream.Err())
 	}
+	cb := stream.Value()
 	// Update target
 	PutMutations(t, target, Mutations(cb.Changes))
 	GC(t, target)
@@ -96,10 +96,11 @@ func TestSyncTransaction(t *testing.T) {
 	Remove(t, st, tr, "/a/b")
 	Commit(t, tr)
 
-	cb, err = stream.Recv()
-	if err != nil {
-		t.Fatalf("Recv() failed: %v", err)
+	if !stream.Advance() {
+		t.Fatalf("Advance() failed: %v", stream.Err())
 	}
+
+	cb = stream.Value()
 	// Update target
 	PutMutations(t, target, Mutations(cb.Changes))
 	GC(t, target)
