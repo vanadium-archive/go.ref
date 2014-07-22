@@ -5,6 +5,7 @@ package jni
 import (
 	"encoding/asn1"
 	"fmt"
+	"reflect"
 	"time"
 	"unsafe"
 
@@ -38,8 +39,6 @@ var (
 	jCaveatImplClass C.jclass
 	// Global reference for com.veyron.runtimes.google.security.Context class.
 	jContextImplClass C.jclass
-	// Global reference for com.veyron2.security.Context class.
-	jContextClass C.jclass
 	// Global reference for com.veyron2.security.Caveat class.
 	jCaveatClass C.jclass
 	// Global reference for com.veyron2.security.ServiceCaveat class.
@@ -59,7 +58,6 @@ func Init(jEnv interface{}) {
 	jPublicIDImplClass = C.jclass(util.JFindClassPtrOrDie(env, "com/veyron/runtimes/google/security/PublicID"))
 	jECPublicKeyInfoClass = C.jclass(util.JFindClassPtrOrDie(env, "com/veyron/runtimes/google/security/PublicID$ECPublicKeyInfo"))
 	jCaveatImplClass = C.jclass(util.JFindClassPtrOrDie(env, "com/veyron/runtimes/google/security/Caveat"))
-	jContextClass = C.jclass(util.JFindClassPtrOrDie(env, "com/veyron2/security/Context"))
 	jContextImplClass = C.jclass(util.JFindClassPtrOrDie(env, "com/veyron/runtimes/google/security/Context"))
 	jCaveatClass = C.jclass(util.JFindClassPtrOrDie(env, "com/veyron2/security/Caveat"))
 	jServiceCaveatClass = C.jclass(util.JFindClassPtrOrDie(env, "com/veyron2/security/ServiceCaveat"))
@@ -116,6 +114,16 @@ func Java_com_veyron_runtimes_google_security_PublicID_nativeThirdPartyCaveats(e
 		C.SetObjectArrayElement(env, jServiceCaveats, C.jsize(i), jServiceCaveat)
 	}
 	return jServiceCaveats
+}
+
+//export Java_com_veyron_runtimes_google_security_PublicID_nativeEquals
+func Java_com_veyron_runtimes_google_security_PublicID_nativeEquals(env *C.JNIEnv, jPublicID C.jobject, goPublicIDPtr, goOtherPublicIDPtr C.jlong) C.jboolean {
+	id := *(*security.PublicID)(util.Ptr(goPublicIDPtr))
+	other := *(*security.PublicID)(util.Ptr(goOtherPublicIDPtr))
+	if reflect.DeepEqual(id, other) {
+		return C.JNI_TRUE
+	}
+	return C.JNI_FALSE
 }
 
 //export Java_com_veyron_runtimes_google_security_PublicID_nativeFinalize

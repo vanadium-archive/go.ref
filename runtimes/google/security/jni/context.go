@@ -26,6 +26,9 @@ import (
 // static jobject CallContextPublicIDMethod(JNIEnv* env, jobject obj, jmethodID id) {
 // 	return (*env)->CallObjectMethod(env, obj, id);
 // }
+// static jobject CallContextLabelMethod(JNIEnv* env, jobject obj, jmethodID id) {
+// 	return (*env)->CallObjectMethod(env, obj, id);
+// }
 import "C"
 
 func newContext(env *C.JNIEnv, jContext C.jobject) *context {
@@ -86,8 +89,10 @@ func (c *context) Label() security.Label {
 	var env *C.JNIEnv
 	C.AttachCurrentThread(c.jVM, &env, nil)
 	defer C.DetachCurrentThread(c.jVM)
-	mid := C.jmethodID(util.JMethodIDPtrOrDie(env, C.GetObjectClass(env, c.jContext), "label", fmt.Sprintf("()%s", util.IntSign)))
-	return security.Label(C.CallContextIntMethod(env, c.jContext, mid))
+	labelSign := "Lcom/veyron2/security/Label;"
+	mid := C.jmethodID(util.JMethodIDPtrOrDie(env, C.GetObjectClass(env, c.jContext), "label", fmt.Sprintf("()%s", labelSign)))
+	jLabel := C.CallContextLabelMethod(env, c.jContext, mid)
+	return security.Label(util.JIntField(env, jLabel, "value"))
 }
 
 func (c *context) CaveatDischarges() security.CaveatDischargeMap {

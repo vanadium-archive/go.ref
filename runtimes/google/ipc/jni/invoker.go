@@ -20,30 +20,33 @@ import (
 //
 // // CGO doesn't support variadic functions so we have to hard-code these
 // // functions to match the invoking code. Ugh!
-// static jobject CallInvokeMethod(JNIEnv* env, jobject obj, jmethodID id, jstring method, jobject call, jobjectArray inArgs) {
-//   return (*env)->CallObjectMethod(env, obj, id, method, call, inArgs);
+// static jobject CallInvokerInvokeMethod(JNIEnv* env, jobject obj, jmethodID id, jstring method, jobject call, jobjectArray inArgs) {
+// 	return (*env)->CallObjectMethod(env, obj, id, method, call, inArgs);
 // }
-// static jobject CallNewInvokerObject(JNIEnv* env, jclass class, jmethodID id, jobject obj) {
-//   return (*env)->NewObject(env, class, id, obj);
+// static jobject CallInvokerNewInvokerObject(JNIEnv* env, jclass class, jmethodID id, jobject obj) {
+// 	return (*env)->NewObject(env, class, id, obj);
 // }
-// static jobject CallGetInterfacePath(JNIEnv* env, jobject obj, jmethodID id) {
-//   return (*env)->CallObjectMethod(env, obj, id);
+// static jobject CallInvokerGetInterfacePath(JNIEnv* env, jobject obj, jmethodID id) {
+// 	return (*env)->CallObjectMethod(env, obj, id);
 // }
-// static jobject CallNewServerCallObject(JNIEnv* env, jclass class, jmethodID id, jlong ref) {
-//   return (*env)->NewObject(env, class, id, ref);
+// static jobject CallInvokerGetSecurityLabelMethod(JNIEnv* env, jobject obj, jmethodID id, jstring method) {
+// 	return (*env)->CallObjectMethod(env, obj, id, method);
+// }
+// static jobject CallInvokerNewServerCallObject(JNIEnv* env, jclass class, jmethodID id, jlong ref) {
+// 	return (*env)->NewObject(env, class, id, ref);
 // }
 import "C"
 
 func newInvoker(env *C.JNIEnv, jVM *C.JavaVM, jObj C.jobject) (*invoker, error) {
 	// Create a new Java VDLInvoker object.
 	cid := C.jmethodID(util.JMethodIDPtrOrDie(env, jVDLInvokerClass, "<init>", fmt.Sprintf("(%s)%s", util.ObjectSign, util.VoidSign)))
-	jInvoker := C.CallNewInvokerObject(env, jVDLInvokerClass, cid, jObj)
+	jInvoker := C.CallInvokerNewInvokerObject(env, jVDLInvokerClass, cid, jObj)
 	if err := util.JExceptionMsg(env); err != nil {
 		return nil, fmt.Errorf("error creating Java VDLInvoker object: %v", err)
 	}
 	// Fetch the argGetter for the object.
 	pid := C.jmethodID(util.JMethodIDPtrOrDie(env, jVDLInvokerClass, "getImplementedServices", fmt.Sprintf("()%s", util.ArraySign(util.StringSign))))
-	jPathArray := C.jobjectArray(C.CallGetInterfacePath(env, jInvoker, pid))
+	jPathArray := C.jobjectArray(C.CallInvokerGetInterfacePath(env, jInvoker, pid))
 	paths := util.GoStringArray(env, jPathArray)
 	getter, err := newArgGetter(paths)
 	if err != nil {
@@ -79,14 +82,28 @@ func (i *invoker) Prepare(method string, numArgs int) (argptrs []interface{}, la
 	// arguments into vom.Value objects, which we shall then de-serialize into
 	// Java objects (see Invoke comments below).  This approach is blocked on
 	// pending VOM encoder/decoder changes as well as Java (de)serializer.
+	var env *C.JNIEnv
+	C.AttachCurrentThread(i.jVM, &env, nil)
+	defer C.DetachCurrentThread(i.jVM)
+
 	mArgs := i.argGetter.FindMethod(method, numArgs)
 	if mArgs == nil {
 		err = fmt.Errorf("couldn't find VDL method %q with %d args", method, numArgs)
 		return
 	}
 	argptrs = mArgs.InPtrs()
-	// TODO(spetrovic): ask the Java object to give us the label.
-	label = security.AdminLabel
+
+	// Get the security label.
+	labelSign := "Lcom/veyron2/security/Label;"
+	mid := C.jmethodID(util.JMethodIDPtrOrDie(env, C.GetObjectClass(env, i.jInvoker), "getSecurityLabel", fmt.Sprintf("(%s)%s", util.StringSign, labelSign)))
+	if err = util.JExceptionMsg(env); err != nil {
+		return
+	}
+	jLabel := C.CallInvokerGetSecurityLabelMethod(env, i.jInvoker, mid, C.jstring(util.JStringPtr(env, util.CamelCase(method))))
+	if err = util.JExceptionMsg(env); err != nil {
+		return
+	}
+	label = security.Label(util.JIntField(env, jLabel, "value"))
 	return
 }
 
@@ -109,7 +126,7 @@ func (i *invoker) Invoke(method string, call ipc.ServerCall, argptrs []interface
 	}
 	sCall := newServerCall(call, mArgs)
 	cid := C.jmethodID(util.JMethodIDPtrOrDie(env, jServerCallClass, "<init>", fmt.Sprintf("(%s)%s", util.LongSign, util.VoidSign)))
-	jServerCall := C.CallNewServerCallObject(env, jServerCallClass, cid, C.jlong(util.PtrValue(sCall)))
+	jServerCall := C.CallInvokerNewServerCallObject(env, jServerCallClass, cid, C.jlong(util.PtrValue(sCall)))
 	util.GoRef(sCall) // unref-ed when jServerCall is garbage-collected
 
 	// Translate input args to JSON.
@@ -121,7 +138,7 @@ func (i *invoker) Invoke(method string, call ipc.ServerCall, argptrs []interface
 	const callSign = "Lcom/veyron2/ipc/ServerCall;"
 	const replySign = "Lcom/veyron/runtimes/google/VDLInvoker$InvokeReply;"
 	mid := C.jmethodID(util.JMethodIDPtrOrDie(env, C.GetObjectClass(env, i.jInvoker), "invoke", fmt.Sprintf("(%s%s[%s)%s", util.StringSign, callSign, util.StringSign, replySign)))
-	jReply := C.CallInvokeMethod(env, i.jInvoker, mid, C.jstring(util.JStringPtr(env, util.CamelCase(method))), jServerCall, jArgs)
+	jReply := C.CallInvokerInvokeMethod(env, i.jInvoker, mid, C.jstring(util.JStringPtr(env, util.CamelCase(method))), jServerCall, jArgs)
 	if err := util.JExceptionMsg(env); err != nil {
 		return nil, fmt.Errorf("error invoking Java method %q: %v", method, err)
 	}
