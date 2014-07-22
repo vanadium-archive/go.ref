@@ -19,10 +19,6 @@ import (
 // RevocationToken can be presented to a revocation service to revoke a caveat
 type RevocationToken [16]byte
 
-// TODO(bprosnitz) Remove this line once signatures are updated to use typevals.
-// It corrects a bug where _gen_wiretype is unused in VDL pacakges where only bootstrap types are used on interfaces.
-const _ = _gen_wiretype.TypeIDInvalid
-
 // Revoker is the interface for preventing discharges from being issued. The
 // dicharger ensures that no discharges will be issued for caveats that
 // have been explicitly revoked using this interface. To prevent discharge

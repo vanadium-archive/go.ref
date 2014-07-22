@@ -22,10 +22,6 @@ import (
 	_gen_wiretype "veyron2/wiretype"
 )
 
-// TODO(bprosnitz) Remove this line once signatures are updated to use typevals.
-// It corrects a bug where _gen_wiretype is unused in VDL pacakges where only bootstrap types are used on interfaces.
-const _ = _gen_wiretype.TypeIDInvalid
-
 // Bank allows clients to store virtual money. Certain implementations can use persistent storage.
 // Uses the client's Veyron Identity to determine account access.
 // Bank is the interface the client binds and uses.
