@@ -20,6 +20,7 @@ import (
 
 	"veyron2"
 	"veyron2/ipc/stream"
+	"veyron2/ipc/version"
 	"veyron2/naming"
 	"veyron2/security"
 	"veyron2/vlog"
@@ -57,6 +58,7 @@ type VC struct {
 	closeReason         string // reason why the VC was closed
 
 	helper Helper
+	version             version.IPCVersion
 }
 
 // Helper is the interface for functionality required by the stream.VC
@@ -88,6 +90,7 @@ type Params struct {
 	Pool         *iobuf.Pool     // Byte pool used for read and write buffer allocations.
 	ReserveBytes uint            // Number of bytes to reserve in iobuf.Slices.
 	Helper       Helper
+	Version      version.IPCVersion
 }
 
 // LocalID is the interface for providing a PrivateID and a PublicIDStore to
@@ -161,6 +164,7 @@ func InternalNew(p Params) *VC {
 		nextConnectFID: id.Flow(NumReservedFlows + fidOffset),
 		crypter:        crypto.NewNullCrypter(),
 		helper:         p.Helper,
+		version:        p.Version,
 	}
 }
 
@@ -417,7 +421,7 @@ func (vc *VC) HandshakeDialedVC(opts ...stream.VCOpt) error {
 	if err != nil {
 		return vc.err(fmt.Errorf("failed to create a Flow for authentication: %v", err))
 	}
-	rID, lID, err := authenticateAsClient(authConn, localID, crypter)
+	rID, lID, err := authenticateAsClient(authConn, localID, crypter, vc.version)
 	if err != nil {
 		return vc.err(fmt.Errorf("authentication failed: %v", err))
 	}
@@ -518,7 +522,7 @@ func (vc *VC) HandshakeAcceptedVC(opts ...stream.ListenerOpt) <-chan HandshakeRe
 		vc.mu.Lock()
 		vc.authFID = vc.findFlowLocked(authConn)
 		vc.mu.Unlock()
-		rID, lID, err := authenticateAsServer(authConn, localID, crypter)
+		rID, lID, err := authenticateAsServer(authConn, localID, crypter, vc.version)
 		if err != nil {
 			sendErr(fmt.Errorf("Authentication failed: %v", err))
 			return

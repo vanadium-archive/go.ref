@@ -2,12 +2,10 @@ package caveat
 
 import (
 	"bytes"
-	"crypto/ecdsa"
 	"crypto/rand"
 	"crypto/sha256"
 	"encoding/binary"
 	"fmt"
-	"math/big"
 	"time"
 
 	"veyron2/security"
@@ -95,8 +93,7 @@ func (c *publicKeyCaveat) Validate(ctx security.Context) error {
 	if err != nil {
 		return errPublicKeyCaveat(c, err)
 	}
-	var r, s big.Int
-	if !ecdsa.Verify(key, pkDischarge.contentHash(), r.SetBytes(pkDischarge.Signature.R), s.SetBytes(pkDischarge.Signature.S)) {
+	if !pkDischarge.Signature.Verify(key, pkDischarge.contentHash()) {
 		return errPublicKeyCaveat(c, fmt.Errorf("discharge %v has invalid signature", dis))
 	}
 	return nil
@@ -116,7 +113,7 @@ type publicKeyDischarge struct {
 
 	// Signature on the contents of the discharge obtained using the private key
 	// corresponding to the validaton key in the caveat.
-	Signature wire.Signature
+	Signature security.Signature
 }
 
 // CaveatID returns a unique identity for the discharge based on the random nonce and
@@ -130,13 +127,9 @@ func (d *publicKeyDischarge) ThirdPartyCaveats() []security.ServiceCaveat {
 }
 
 // sign uses the provided identity to sign the contents of the discharge.
-func (d *publicKeyDischarge) sign(discharger security.PrivateID) error {
-	signature, err := discharger.Sign(d.contentHash())
-	if err != nil {
-		return err
-	}
-	d.Signature.Set(signature)
-	return nil
+func (d *publicKeyDischarge) sign(discharger security.PrivateID) (err error) {
+	d.Signature, err = discharger.Sign(d.contentHash())
+	return
 }
 
 func (d *publicKeyDischarge) contentHash() []byte {
