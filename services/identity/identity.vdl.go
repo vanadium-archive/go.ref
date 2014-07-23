@@ -15,6 +15,10 @@ import (
 	_gen_wiretype "veyron2/wiretype"
 )
 
+// TODO(bprosnitz) Remove this line once signatures are updated to use typevals.
+// It corrects a bug where _gen_wiretype is unused in VDL pacakges where only bootstrap types are used on interfaces.
+const _ = _gen_wiretype.TypeIDInvalid
+
 // OAuthBlesser exchanges the provided authorization code for an email addres
 // from an OAuth-based identity provider and uses the email address as the
 // name to bless the client with.
