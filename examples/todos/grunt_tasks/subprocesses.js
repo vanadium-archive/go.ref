@@ -53,7 +53,7 @@ module.exports = function(grunt) {
     };
     var veyronIdentitySubprocess = startSubprocess(
         VEYRON_IDENTITY_BIN,
-        ['-port=' + c.VEYRON_IDENTITY_PORT]);
+        ['-httpaddr=localhost:' + c.VEYRON_IDENTITY_PORT]);
     var veyronProxySubprocess = startSubprocess(
         VEYRON_PROXY_BIN,
         ['-log_dir=' + c.LOG_DIR, '-addr=' + VEYRON_PROXY_ADDR]);
