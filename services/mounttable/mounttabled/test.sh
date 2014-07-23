@@ -15,15 +15,15 @@ thisscript=$0
 
 echo "Test directory: $(dirname $0)"
 
-builddir=$(mktemp -d --tmpdir=${toplevel}/go)
-tmplog=$(mktemp)
+workdir=$(mktemp -d ${toplevel}/go/tmp.XXXXXXXXXX)
+export TMPDIR=$workdir
 trap onexit EXIT
 
 onexit() {
 	cd /
 	exec 2> /dev/null
 	kill -9 $(jobs -p)
-	rm -rf $builddir $tmplog
+	rm -rf $workdir
 }
 
 FAIL() {
@@ -38,16 +38,17 @@ PASS() {
 }
 
 # Build mounttabled and mounttable binaries.
-cd $builddir
+cd $workdir
 $go build veyron/services/mounttable/mounttabled || FAIL "line $LINENO: failed to build mounttabled"
 $go build veyron/tools/mounttable || FAIL "line $LINENO: failed to build mounttable"
 
 # Start mounttabled and find its endpoint.
 nhname=test$$
-./mounttabled --address=localhost:0 --neighborhood_name=$nhname > $tmplog 2>&1 &
+mtlog=$workdir/mt.log
+./mounttabled --address=localhost:0 --neighborhood_name=$nhname > $mtlog 2>&1 &
 
 for i in 1 2 3 4; do
-	ep=$(grep "Mount table service at:" $tmplog | sed -re 's/^.*endpoint: ([^ ]*).*/\1/')
+	ep=$(grep "Mount table service at:" $mtlog | sed -re 's/^.*endpoint: ([^ ]*).*/\1/')
 	if [ -n "$ep" ]; then
 		break
 	fi
