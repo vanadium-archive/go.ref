@@ -8,7 +8,6 @@ package benchmarks
 import (
 	// The non-user imports are prefixed with "_gen_" to prevent collisions.
 	_gen_io "io"
-	_gen_veyron2 "veyron2"
 	_gen_context "veyron2/context"
 	_gen_ipc "veyron2/ipc"
 	_gen_naming "veyron2/naming"
