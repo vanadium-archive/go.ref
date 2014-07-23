@@ -1,14 +1,8 @@
 PATH:=$(VEYRON_ROOT)/environment/cout/node/bin:$(PATH)
-PATH:=$(VEYRON_ROOT)/veyron/go/bin:$(PATH)
 PATH:=node_modules/.bin:../node_modules/.bin:$(PATH)
 
-VEYRON_PROXY_ADDR=proxy.envyor.com:8100
-VEYRON_WSPR_PORT=7776
-HTTP_PORT=8080
-NAMESPACE_ROOT=/proxy.envyor.com:8101
 VEYRON_JS_API=$(VEYRON_ROOT)/veyron/javascript/api
 VEYRON_BUILD_SCRIPT=$(VEYRON_ROOT)/veyron/scripts/build/go
-VEYRON_IDENTITY_PATH=/tmp/p2b_identity
 
 # All JS files except build.js and third party
 JS_FILES = $(shell find browser -name "*.js" -a -not -name "build.js" -a -not -path "*third-party*")
@@ -39,7 +33,6 @@ browser/third-party/veyron: $(VEYRON_JS_API)
 # Install JSPM and Bower packages as listed in browser/package.json from JSPM and browser/bower.json from bower
 browser/third-party: browser/package.json browser/bower.json
 	cd browser; \
-	jspm prune; \
 	jspm install -h; \
 	bower prune; \
 	bower install
@@ -59,16 +52,7 @@ browser/index.html: $(HTML_FILES)
 
 # Serve
 start:
-	identity generate veyron_p2b_identity > $(VEYRON_IDENTITY_PATH)
-	export VEYRON_IDENTITY=$(VEYRON_IDENTITY_PATH) ; \
-	export NAMESPACE_ROOT=$(NAMESPACE_ROOT); \
-	wsprd --v=1 -alsologtostderr=true -vproxy=$(VEYRON_PROXY_ADDR) --port $(VEYRON_WSPR_PORT) & \
-	serve browser/. --port $(HTTP_PORT) --compress &
-
-# Stop serving
-stop:
-	pkill wsprd || true
-	lsof -i:$(HTTP_PORT) | grep node | awk '{printf "%s\n",$$2}' | xargs --no-run-if-empty kill
+	./services.sh
 
 # Continuously watch for changes to .js, .html or .css files.
 # Rebundle the appropriate file (build.js and/or index.html) when local files change
@@ -76,10 +60,10 @@ watch:
 	watch -n 1 make
 
 # Clean all build artifacts
-clean: stop
+clean:
 	rm -rf browser/third-party
 	rm -rf node_modules
 	rm -f browser/index.html
 	rm -f browser/build.js
 
-.PHONY: start stop clean watch
+.PHONY: start clean watch
