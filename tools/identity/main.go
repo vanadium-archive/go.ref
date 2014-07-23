@@ -144,9 +144,13 @@ or security.PrivateID
 			name := args[1]
 			var blessee security.PublicID
 			var private security.PrivateID
-			if err := decode(args[0], &blessee); err != nil {
-				if err := decode(args[0], &private); err != nil {
-					return fmt.Errorf("failed to extract security.PublicID or security.PrivateID: %v", err)
+			encoded, err := read(args[0])
+			if err != nil {
+				return err
+			}
+			if util.Base64VomDecode(encoded, &blessee); err != nil || blessee == nil {
+				if err := util.Base64VomDecode(encoded, &private); err != nil || private == nil {
+					return fmt.Errorf("failed to extract security.PublicID or security.PrivateID: (%v, %v)", private, err)
 				}
 				blessee = private.PublicID()
 			}
@@ -260,23 +264,31 @@ identification in veyron.
 	}).Main()
 }
 
-func decode(fname string, val interface{}) error {
+func read(fname string) (string, error) {
 	if len(fname) == 0 {
-		return nil
+		return "", nil
 	}
-	var f *os.File
-	var err error
-	if fname == "-" {
-		f = os.Stdin
-	} else if f, err = os.Open(fname); err != nil {
-		return fmt.Errorf("failed to open %q: %v", fname, err)
+	f := os.Stdin
+	if fname != "-" {
+		var err error
+		if f, err = os.Open(fname); err != nil {
+			return "", fmt.Errorf("failed to open %q: %v", fname, err)
+		}
 	}
 	defer f.Close()
 	var buf bytes.Buffer
 	if _, err := io.Copy(&buf, f); err != nil {
-		return fmt.Errorf("failed to read %q: %v", fname, err)
+		return "", fmt.Errorf("failed to read %q: %v", fname, err)
 	}
-	if err := util.Base64VomDecode(buf.String(), val); err != nil || val == nil {
+	return buf.String(), nil
+}
+
+func decode(fname string, val interface{}) error {
+	str, err := read(fname)
+	if err != nil {
+		return err
+	}
+	if err := util.Base64VomDecode(str, val); err != nil || val == nil {
 		return fmt.Errorf("failed to decode %q: %v", fname, err)
 	}
 	return nil
