@@ -342,36 +342,29 @@ func (__gen_s *ServerStubSync) Signature(call _gen_ipc.ServerCall) (_gen_ipc.Ser
 			{Name: "Err", Type: 68},
 		},
 
-		OutStream: 82,
+		OutStream: 79,
 	}
 
 	result.TypeDefs = []_gen_vdlutil.Any{
-		_gen_wiretype.NamedPrimitiveType{Type: 0x3, Name: "veyron/runtimes/google/vsync.DeviceID", Tags: []string(nil)}, _gen_wiretype.NamedPrimitiveType{Type: 0x35, Name: "veyron/runtimes/google/vsync.GenID", Tags: []string(nil)}, _gen_wiretype.MapType{Key: 0x41, Elem: 0x42, Name: "veyron/runtimes/google/vsync.GenVector", Tags: []string(nil)}, _gen_wiretype.NamedPrimitiveType{Type: 0x1, Name: "error", Tags: []string(nil)}, _gen_wiretype.NamedPrimitiveType{Type: 0x35, Name: "veyron/runtimes/google/vsync.LSN", Tags: []string(nil)}, _gen_wiretype.NamedPrimitiveType{Type: 0x32, Name: "byte", Tags: []string(nil)}, _gen_wiretype.ArrayType{Elem: 0x46, Len: 0x10, Name: "veyron2/storage.ID", Tags: []string(nil)}, _gen_wiretype.NamedPrimitiveType{Type: 0x35, Name: "veyron2/storage.Version", Tags: []string(nil)}, _gen_wiretype.SliceType{Elem: 0x48, Name: "", Tags: []string(nil)}, _gen_wiretype.NamedPrimitiveType{Type: 0x1, Name: "anydata", Tags: []string(nil)}, _gen_wiretype.NamedPrimitiveType{Type: 0x32, Name: "veyron2/storage.TagOp", Tags: []string(nil)}, _gen_wiretype.StructType{
-			[]_gen_wiretype.FieldType{
-				_gen_wiretype.FieldType{Type: 0x4b, Name: "Op"},
-				_gen_wiretype.FieldType{Type: 0x47, Name: "ACL"},
-			},
-			"veyron2/storage.Tag", []string(nil)},
-		_gen_wiretype.SliceType{Elem: 0x4c, Name: "veyron2/storage.TagList", Tags: []string(nil)}, _gen_wiretype.StructType{
+		_gen_wiretype.NamedPrimitiveType{Type: 0x3, Name: "veyron/runtimes/google/vsync.DeviceID", Tags: []string(nil)}, _gen_wiretype.NamedPrimitiveType{Type: 0x35, Name: "veyron/runtimes/google/vsync.GenID", Tags: []string(nil)}, _gen_wiretype.MapType{Key: 0x41, Elem: 0x42, Name: "veyron/runtimes/google/vsync.GenVector", Tags: []string(nil)}, _gen_wiretype.NamedPrimitiveType{Type: 0x1, Name: "error", Tags: []string(nil)}, _gen_wiretype.NamedPrimitiveType{Type: 0x35, Name: "veyron/runtimes/google/vsync.LSN", Tags: []string(nil)}, _gen_wiretype.NamedPrimitiveType{Type: 0x32, Name: "byte", Tags: []string(nil)}, _gen_wiretype.ArrayType{Elem: 0x46, Len: 0x10, Name: "veyron2/storage.ID", Tags: []string(nil)}, _gen_wiretype.NamedPrimitiveType{Type: 0x35, Name: "veyron2/storage.Version", Tags: []string(nil)}, _gen_wiretype.SliceType{Elem: 0x48, Name: "", Tags: []string(nil)}, _gen_wiretype.NamedPrimitiveType{Type: 0x1, Name: "anydata", Tags: []string(nil)}, _gen_wiretype.StructType{
 			[]_gen_wiretype.FieldType{
 				_gen_wiretype.FieldType{Type: 0x3, Name: "Name"},
 				_gen_wiretype.FieldType{Type: 0x47, Name: "ID"},
 			},
 			"veyron2/storage.DEntry", []string(nil)},
-		_gen_wiretype.SliceType{Elem: 0x4e, Name: "", Tags: []string(nil)}, _gen_wiretype.StructType{
+		_gen_wiretype.SliceType{Elem: 0x4b, Name: "", Tags: []string(nil)}, _gen_wiretype.StructType{
 			[]_gen_wiretype.FieldType{
 				_gen_wiretype.FieldType{Type: 0x47, Name: "ID"},
 				_gen_wiretype.FieldType{Type: 0x48, Name: "PriorVersion"},
 				_gen_wiretype.FieldType{Type: 0x48, Name: "Version"},
 				_gen_wiretype.FieldType{Type: 0x2, Name: "IsRoot"},
 				_gen_wiretype.FieldType{Type: 0x4a, Name: "Value"},
-				_gen_wiretype.FieldType{Type: 0x4d, Name: "Tags"},
-				_gen_wiretype.FieldType{Type: 0x4f, Name: "Dir"},
+				_gen_wiretype.FieldType{Type: 0x4c, Name: "Dir"},
 			},
 			"veyron/services/store/raw.Mutation", []string(nil)},
 		_gen_wiretype.StructType{
 			[]_gen_wiretype.FieldType{
-				_gen_wiretype.FieldType{Type: 0x50, Name: "Mutation"},
+				_gen_wiretype.FieldType{Type: 0x4d, Name: "Mutation"},
 				_gen_wiretype.FieldType{Type: 0x25, Name: "SyncTime"},
 				_gen_wiretype.FieldType{Type: 0x2, Name: "Delete"},
 				_gen_wiretype.FieldType{Type: 0x2, Name: "Continued"},
@@ -386,7 +379,7 @@ func (__gen_s *ServerStubSync) Signature(call _gen_ipc.ServerCall) (_gen_ipc.Ser
 				_gen_wiretype.FieldType{Type: 0x47, Name: "ObjID"},
 				_gen_wiretype.FieldType{Type: 0x48, Name: "CurVers"},
 				_gen_wiretype.FieldType{Type: 0x49, Name: "Parents"},
-				_gen_wiretype.FieldType{Type: 0x51, Name: "Value"},
+				_gen_wiretype.FieldType{Type: 0x4e, Name: "Value"},
 			},
 			"veyron/runtimes/google/vsync.LogRec", []string(nil)},
 	}

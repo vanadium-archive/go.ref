@@ -3,7 +3,6 @@ package state
 import (
 	"fmt"
 
-	"veyron/services/store/memstore/acl"
 	"veyron/services/store/memstore/field"
 	"veyron/services/store/memstore/refs"
 	"veyron/services/store/raw"
@@ -88,11 +87,6 @@ type Mutation struct {
 	// Value is the new value.
 	Value interface{}
 
-	// Tags are the new tags.
-	//
-	// TODO(jyh): Replace with a delta encoding.
-	Tags storage.TagList
-
 	// Dir is the set of new directory entries.
 	//
 	// TODO(jyh): Replace this with a delta, to support large directories.
@@ -108,8 +102,6 @@ var (
 	errBadValue             = verror.BadArgf("value has the wrong type")
 	errDuplicatePutMutation = verror.BadArgf("duplicate calls to PutMutation for the same ID")
 	errNotFound             = verror.NotFoundf("not found")
-	errNotTagList           = verror.BadArgf("not a TagList")
-	errPermissionDenied     = verror.NotAuthorizedf("")
 	errPreconditionFailed   = verror.Abortedf("precondition failed")
 
 	nullID storage.ID
@@ -168,7 +160,6 @@ func (sn *MutableSnapshot) GetSnapshot() Snapshot {
 	// Perform a GC to clear out gcRoots.
 	sn.gc()
 	cp := sn.snapshot
-	cp.resetACLCache()
 	return &cp
 }
 
@@ -180,7 +171,6 @@ func (sn *MutableSnapshot) deepCopy() *MutableSnapshot {
 	cp := *sn
 	cp.mutations = newMutations()
 	cp.gcRoots = make(map[storage.ID]struct{})
-	cp.resetACLCache()
 	return &cp
 }
 
@@ -206,7 +196,6 @@ func (sn *MutableSnapshot) deref(id storage.ID) *Cell {
 func (sn *MutableSnapshot) delete(c *Cell) {
 	sn.idTable = sn.idTable.Remove(c)
 	sn.deletions[c.ID] = c.Version
-	sn.aclCache.Invalidate(c.ID)
 }
 
 // put adds a cell to the state, also adding the new value to the Mutations set.
@@ -218,44 +207,32 @@ func (sn *MutableSnapshot) put(c *Cell) {
 		m.Value = c.Value
 		m.refs = c.refs
 		m.Dir = d
-		m.Tags = c.Tags
 	} else {
 		mu.Preconditions[c.ID] = c.Version
 		m = &Mutation{
 			Postcondition: storage.NewVersion(),
 			Value:         c.Value,
 			Dir:           d,
-			Tags:          c.Tags,
 			refs:          c.refs,
 		}
 		mu.Delta[c.ID] = m
 	}
 	c.Version = m.Postcondition
 	sn.idTable = sn.idTable.Put(c)
-	sn.aclCache.Invalidate(c.ID)
 }
 
 // add adds a new Value to the state, updating reference counts.  Fails if the
 // new value contains dangling references.
-func (sn *MutableSnapshot) add(parentChecker *acl.Checker, id storage.ID, v interface{}) (*Cell, error) {
+func (sn *MutableSnapshot) add(id storage.ID, v interface{}) (*Cell, error) {
 	c := sn.Find(id)
 	if c == nil {
 		// There is no current value, so create a new cell for the value and add
 		// it.
-		//
-		// There is no permissions check here because the caller is not modifying a preexisting value.
-		//
-		// TODO(jyh): However, the new value is created with default
-		// permissions, which does not include the ability to set the tags on
-		// the cell.  So the caller can wind up in a odd situation where they
-		// can create a value, but not be able to read it back, and no way to
-		// fix it.  Figure out whether this is a problem.
 		c = &Cell{
 			ID:       id,
 			refcount: 0,
 			Value:    v,
 			Dir:      refs.EmptyDir,
-			Tags:     storage.TagList{},
 			inRefs:   refs.Empty,
 			Version:  storage.NoVersion,
 		}
@@ -269,16 +246,11 @@ func (sn *MutableSnapshot) add(parentChecker *acl.Checker, id storage.ID, v inte
 	}
 
 	// There is already a value in the state, so replace it with the new value.
-	checker := parentChecker.Copy()
-	checker.Update(c.Tags)
-	return sn.replaceValue(checker, c, v)
+	return sn.replaceValue(c, v)
 }
 
 // replaceValue updates the cell.value.
-func (sn *MutableSnapshot) replaceValue(checker *acl.Checker, c *Cell, v interface{}) (*Cell, error) {
-	if !checker.IsAllowed(security.WriteLabel) {
-		return nil, errPermissionDenied
-	}
+func (sn *MutableSnapshot) replaceValue(c *Cell, v interface{}) (*Cell, error) {
 	cp := *c
 	cp.Value = v
 	cp.setRefs()
@@ -291,10 +263,7 @@ func (sn *MutableSnapshot) replaceValue(checker *acl.Checker, c *Cell, v interfa
 }
 
 // replaceDir updates the cell.dir.
-func (sn *MutableSnapshot) replaceDir(checker *acl.Checker, c *Cell, d functional.Set) (*Cell, error) {
-	if !checker.IsAllowed(security.WriteLabel) {
-		return nil, errPermissionDenied
-	}
+func (sn *MutableSnapshot) replaceDir(c *Cell, d functional.Set) (*Cell, error) {
 	cp := *c
 	cp.Dir = d
 	cp.setRefs()
@@ -306,26 +275,9 @@ func (sn *MutableSnapshot) replaceDir(checker *acl.Checker, c *Cell, d functiona
 	return &cp, nil
 }
 
-// replaceTags replaces the cell.tags.
-func (sn *MutableSnapshot) replaceTags(checker *acl.Checker, c *Cell, tags storage.TagList) (*Cell, error) {
-	if !checker.IsAllowed(security.AdminLabel) {
-		return nil, errPermissionDenied
-	}
-	cp := *c
-	cp.Tags = tags
-	cp.setRefs()
-	if !sn.refsExist(cp.refs) {
-		return nil, errBadRef
-	}
-	sn.put(&cp)
-	sn.updateRefs(c.ID, c.refs, cp.refs)
-	return &cp, nil
-}
-
 // Get returns the value for a path.
 func (sn *MutableSnapshot) Get(pid security.PublicID, path storage.PathName) (*storage.Entry, error) {
-	checker := sn.newPermChecker(pid)
-	cell, suffix, v := sn.resolveCell(checker, path, sn.mutations)
+	cell, suffix, v := sn.resolveCell(path, sn.mutations)
 	if cell == nil {
 		return nil, errNotFound
 	}
@@ -341,21 +293,20 @@ func (sn *MutableSnapshot) Get(pid security.PublicID, path storage.PathName) (*s
 // Put adds a new value to the state or replaces an existing one.  Returns
 // the *Stat for the enclosing *cell.
 func (sn *MutableSnapshot) Put(pid security.PublicID, path storage.PathName, v interface{}) (*storage.Stat, error) {
-	checker := sn.newPermChecker(pid)
-	c, err := sn.putValueByPath(checker, path, v)
+	c, err := sn.putValueByPath(path, v)
 	if err != nil {
 		return nil, err
 	}
 	return c.getStat(), nil
 }
 
-func (sn *MutableSnapshot) putValueByPath(checker *acl.Checker, path storage.PathName, v interface{}) (*Cell, error) {
+func (sn *MutableSnapshot) putValueByPath(path storage.PathName, v interface{}) (*Cell, error) {
 	v = deepcopy(v)
 
 	if path.IsRoot() {
-		return sn.putRoot(checker, v)
+		return sn.putRoot(v)
 	}
-	return sn.putValue(checker, path, v)
+	return sn.putValue(path, v)
 }
 
 // putValue is called for a normal Put() operation, where a new value is being
@@ -363,14 +314,11 @@ func (sn *MutableSnapshot) putValueByPath(checker *acl.Checker, path storage.Pat
 // There are two cases: 1) the value <v> is written directly into the parent, or
 // 2) the field has type storage.ID.  In the latter case, the <id> is assigned
 // into the parent, and the value id->v is added to the idTable.
-func (sn *MutableSnapshot) putValue(checker *acl.Checker, path storage.PathName, v interface{}) (*Cell, error) {
+func (sn *MutableSnapshot) putValue(path storage.PathName, v interface{}) (*Cell, error) {
 	// Find the parent object.
-	c, suffix, _ := sn.resolveCell(checker, path[:len(path)-1], sn.mutations)
+	c, suffix, _ := sn.resolveCell(path[:len(path)-1], sn.mutations)
 	if c == nil {
 		return nil, errNotFound
-	}
-	if len(suffix) > 0 && suffix[0] == refs.TagsDirName {
-		return sn.putTagsValue(checker, path, suffix[1:], c, v)
 	}
 	value := deepcopy(c.Value)
 	p, s := field.Get(makeInnerReference(value), suffix)
@@ -386,72 +334,28 @@ func (sn *MutableSnapshot) putValue(checker *acl.Checker, path storage.PathName,
 		if len(suffix) != 0 {
 			return nil, errNotFound
 		}
-		if name == refs.TagsDirName {
-			return sn.putTags(checker, c, v)
-		}
-		return sn.putDirEntry(checker, c, name, v)
+		return sn.putDirEntry(c, name, v)
 	case field.SetFailedWrongType:
 		return nil, errBadValue
 	case field.SetAsID:
-		nc, err := sn.add(checker, id, v)
+		nc, err := sn.add(id, v)
 		if err != nil {
 			return nil, err
 		}
 		// The sn.add may have modified the cell, so fetch it again.
-		if _, err = sn.replaceValue(checker, sn.Find(c.ID), value); err != nil {
+		if _, err = sn.replaceValue(sn.Find(c.ID), value); err != nil {
 			return nil, err
 		}
 		return nc, nil
 	case field.SetAsValue:
-		return sn.replaceValue(checker, c, value)
+		return sn.replaceValue(c, value)
 	}
 	panic("not reached")
-}
-
-// putTagsValue modifies the cell.tags value.
-func (sn *MutableSnapshot) putTagsValue(checker *acl.Checker, path, suffix storage.PathName, c *Cell, v interface{}) (*Cell, error) {
-	tags := deepcopy(c.Tags).(storage.TagList)
-	p, s := field.Get(&tags, suffix)
-	if len(s) != 0 {
-		return nil, errNotFound
-	}
-
-	// Add value to the parent.
-	name := path[len(path)-1]
-	result, id := field.Set(p, name, v)
-	switch result {
-	case field.SetFailedNotFound:
-		return nil, errNotFound
-	case field.SetFailedWrongType:
-		return nil, errBadValue
-	case field.SetAsID:
-		nc, err := sn.add(checker, id, v)
-		if err != nil {
-			return nil, err
-		}
-		// The sn.add may have modified the cell, so fetch it again.
-		if _, err = sn.replaceTags(checker, sn.Find(c.ID), tags); err != nil {
-			return nil, err
-		}
-		return nc, nil
-	case field.SetAsValue:
-		return sn.replaceTags(checker, c, tags)
-	}
-	panic("not reached")
-}
-
-// putTags updates the tags.
-func (sn *MutableSnapshot) putTags(checker *acl.Checker, c *Cell, v interface{}) (*Cell, error) {
-	tags, ok := v.(storage.TagList)
-	if !ok {
-		return nil, errNotTagList
-	}
-	return sn.replaceTags(checker, c, tags)
 }
 
 // putDirEntry replaces or adds a directory entry.
-func (sn *MutableSnapshot) putDirEntry(checker *acl.Checker, c *Cell, name string, v interface{}) (*Cell, error) {
-	r := &refs.Ref{Path: refs.NewSingletonPath(name), Label: security.ReadLabel}
+func (sn *MutableSnapshot) putDirEntry(c *Cell, name string, v interface{}) (*Cell, error) {
+	r := &refs.Ref{Path: refs.NewSingletonPath(name)}
 	if id, ok := v.(storage.ID); ok {
 		ncell := sn.Find(id)
 		if ncell == nil {
@@ -459,7 +363,7 @@ func (sn *MutableSnapshot) putDirEntry(checker *acl.Checker, c *Cell, name strin
 		}
 		r.ID = id
 		dir := c.Dir.Put(r)
-		if _, err := sn.replaceDir(checker, c, dir); err != nil {
+		if _, err := sn.replaceDir(c, dir); err != nil {
 			return nil, err
 		}
 		return ncell, nil
@@ -469,7 +373,7 @@ func (sn *MutableSnapshot) putDirEntry(checker *acl.Checker, c *Cell, name strin
 	if !ok {
 		// The entry does not exist yet; create it.
 		id := storage.NewID()
-		ncell, err := sn.add(checker, id, v)
+		ncell, err := sn.add(id, v)
 		if err != nil {
 			return nil, err
 		}
@@ -477,22 +381,18 @@ func (sn *MutableSnapshot) putDirEntry(checker *acl.Checker, c *Cell, name strin
 		// The sn.add may have modified the cell, so fetch it again.
 		c = sn.Find(c.ID)
 		dir := c.Dir.Put(r)
-		if _, err := sn.replaceDir(checker, c, dir); err != nil {
+		if _, err := sn.replaceDir(c, dir); err != nil {
 			return nil, err
 		}
 		return ncell, nil
 	}
 
 	// Replace the existing value.
-	return sn.add(checker, x.(*refs.Ref).ID, v)
+	return sn.add(x.(*refs.Ref).ID, v)
 }
 
 // putRoot replaces the root.
-func (sn *MutableSnapshot) putRoot(checker *acl.Checker, v interface{}) (*Cell, error) {
-	if !checker.IsAllowed(security.WriteLabel) {
-		return nil, errPermissionDenied
-	}
-
+func (sn *MutableSnapshot) putRoot(v interface{}) (*Cell, error) {
 	id := sn.rootID
 	c := sn.Find(id)
 	if c == nil {
@@ -500,7 +400,7 @@ func (sn *MutableSnapshot) putRoot(checker *acl.Checker, v interface{}) (*Cell, 
 	}
 
 	// Add the new element.
-	ncell, err := sn.add(checker, id, v)
+	ncell, err := sn.add(id, v)
 	if err != nil {
 		return nil, err
 	}
@@ -517,11 +417,7 @@ func (sn *MutableSnapshot) putRoot(checker *acl.Checker, v interface{}) (*Cell, 
 
 // Remove removes a value.
 func (sn *MutableSnapshot) Remove(pid security.PublicID, path storage.PathName) error {
-	checker := sn.newPermChecker(pid)
 	if path.IsRoot() {
-		if !checker.IsAllowed(security.WriteLabel) {
-			return errPermissionDenied
-		}
 		sn.unref(sn.rootID)
 		sn.rootID = nullID
 		sn.mutations.RootID = nullID
@@ -530,20 +426,16 @@ func (sn *MutableSnapshot) Remove(pid security.PublicID, path storage.PathName) 
 	}
 
 	// Split the names into directory and field parts.
-	cell, suffix, _ := sn.resolveCell(checker, path[:len(path)-1], sn.mutations)
+	cell, suffix, _ := sn.resolveCell(path[:len(path)-1], sn.mutations)
 	if cell == nil {
 		return errNotFound
 	}
 
 	// Remove the field.
 	name := path[len(path)-1]
-	if name == refs.TagsDirName {
-		_, err := sn.replaceTags(checker, cell, storage.TagList{})
-		return err
-	}
-	r := &refs.Ref{Path: refs.NewSingletonPath(name), Label: security.ReadLabel}
+	r := &refs.Ref{Path: refs.NewSingletonPath(name)}
 	if cell.Dir.Contains(r) {
-		_, err := sn.replaceDir(checker, cell, cell.Dir.Remove(r))
+		_, err := sn.replaceDir(cell, cell.Dir.Remove(r))
 		return err
 	}
 	value := deepcopy(cell.Value)
@@ -552,7 +444,7 @@ func (sn *MutableSnapshot) Remove(pid security.PublicID, path storage.PathName) 
 		return errNotFound
 	}
 
-	_, err := sn.replaceValue(checker, cell, value)
+	_, err := sn.replaceValue(cell, value)
 	return err
 }
 

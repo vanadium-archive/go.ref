@@ -23,10 +23,7 @@ type Cell struct {
 	// Implicit directory.
 	Dir refs.Set
 
-	// tags are the access control tags.
-	Tags storage.TagList
-
-	// refs includes the references in the value, the dir, and the tags.
+	// refs includes the references in the value and the dir.
 	//
 	// TODO(jyh): This is simple, but it would be more space efficient to
 	// include only the refs in the value, or drop this field entirely.
@@ -69,7 +66,6 @@ func (c *Cell) setRefs() {
 	r := refs.NewBuilder()
 	r.AddValue(c.Value)
 	r.AddDir(c.Dir)
-	r.AddTags(c.Tags)
 	c.refs = r.Get()
 }
 

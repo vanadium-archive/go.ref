@@ -5,7 +5,6 @@ import (
 	"veyron/runtimes/google/lib/functional"
 	"veyron/runtimes/google/lib/functional/rb"
 
-	"veyron2/security"
 	"veyron2/storage"
 )
 
@@ -15,9 +14,8 @@ type Set functional.Set // *Ref
 // Ref represents a single reference in a store value.  It includes the
 // storage.ID, and the path to the reference.
 type Ref struct {
-	ID    storage.ID
-	Path  *Path
-	Label security.Label
+	ID   storage.ID
+	Path *Path
 }
 
 // Dir represents a directory, which is a set of *Ref, sorted by path.
@@ -58,7 +56,7 @@ func FlattenDir(d Dir) []*storage.DEntry {
 func BuildDir(l []*storage.DEntry) Dir {
 	d := EmptyDir
 	for _, de := range l {
-		d = d.Put(&Ref{ID: de.ID, Path: NewSingletonPath(de.Name), Label: security.ReadLabel})
+		d = d.Put(&Ref{ID: de.ID, Path: NewSingletonPath(de.Name)})
 	}
 	return d
 }

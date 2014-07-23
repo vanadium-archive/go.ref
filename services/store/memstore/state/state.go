@@ -75,11 +75,6 @@ func (st *State) Deletions() *Mutations {
 }
 
 // ApplyMutations applies a set of mutations atomically.
-//
-// We don't need to check permissions because:
-//    1. Permissions were checked as the mutations were created.
-//    2. Preconditions ensure that all paths to modified values haven't changed.
-//    3. The client cannot fabricate a mutations value.
 func (st *State) ApplyMutations(mu *Mutations) error {
 	// Assign a timestamp.
 	ts := uint64(time.Now().UnixNano())
@@ -125,14 +120,12 @@ func (sn *MutableSnapshot) applyMutations(mu *Mutations) error {
 	for id, m := range mu.Delta {
 		d := refs.BuildDir(m.Dir)
 		cl, ok := table.Get(&Cell{ID: id})
-		sn.aclCache.Invalidate(id)
 		if !ok {
 			c := &Cell{
 				ID:      id,
 				Version: m.Postcondition,
 				Value:   m.Value,
 				Dir:     d,
-				Tags:    m.Tags,
 				refs:    m.refs,
 				inRefs:  refs.Empty,
 			}
@@ -144,7 +137,6 @@ func (sn *MutableSnapshot) applyMutations(mu *Mutations) error {
 			cp.Version = m.Postcondition
 			cp.Value = m.Value
 			cp.Dir = d
-			cp.Tags = m.Tags
 			cp.refs = m.refs
 			table = table.Put(&cp)
 			updates = append(updates, &refUpdate{id: c.ID, before: c.refs, after: cp.refs})

@@ -16,14 +16,6 @@ type Node struct {
 
 var (
 	rootPublicID security.PublicID = security.FakePublicID("root")
-	johnPublicID security.PublicID = security.FakePublicID("john")
-	janePublicID security.PublicID = security.FakePublicID("jane")
-	joanPublicID security.PublicID = security.FakePublicID("joan")
-
-	rootUser = security.PrincipalPattern("fake/root")
-	johnUser = security.PrincipalPattern("fake/john")
-	janeUser = security.PrincipalPattern("fake/jane")
-	joanUser = security.PrincipalPattern("fake/joan")
 )
 
 // makeParentNodes creates the parent nodes if they do not already exist.

@@ -21,15 +21,9 @@ type pathHashConsTable struct {
 	table map[Path]*Path
 }
 
-const (
-	TagsDirName = ".tags"
-)
-
 var (
 	pathTable = &pathHashConsTable{table: make(map[Path]*Path)}
 	nilPath   *Path
-
-	tagsDir = NewSingletonPath(TagsDirName)
 )
 
 // ComparePaths defines a total order over *Path values, based on pointer

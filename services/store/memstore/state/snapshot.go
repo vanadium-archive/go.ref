@@ -3,7 +3,6 @@ package state
 import (
 	"reflect"
 
-	"veyron/services/store/memstore/acl"
 	"veyron/services/store/memstore/field"
 	"veyron/services/store/memstore/refs"
 
@@ -53,27 +52,14 @@ type snapshot struct {
 
 	// rootID is the identifier of the root object.
 	rootID storage.ID
-
-	// aclCache caches a set of ACLs.
-	aclCache acl.Cache
-
-	// defaultACLSet is the ACLSet used to access the root directory.
-	defaultACLSet acl.Set
 }
 
 // newSnapshot returns an empty snapshot.
 func newSnapshot(admin security.PublicID) snapshot {
 	sn := snapshot{
-		idTable:       emptyIDTable,
-		defaultACLSet: makeDefaultACLSet(admin),
+		idTable: emptyIDTable,
 	}
-	sn.aclCache = acl.NewCache(sn.makeFindACLFunc())
 	return sn
-}
-
-// resetACLCache resets the aclCache.
-func (sn *snapshot) resetACLCache() {
-	sn.aclCache.UpdateFinder(sn.makeFindACLFunc())
 }
 
 // Find performs a lookup based on storage.ID, returning nil if the cell is not found.
@@ -87,9 +73,8 @@ func (sn *snapshot) Find(id storage.ID) *Cell {
 
 // Get implements the Snapshot method.
 func (sn *snapshot) Get(pid security.PublicID, path storage.PathName) (*storage.Entry, error) {
-	checker := sn.newPermChecker(pid)
 	// Pass nil for 'mutations' since the snapshot is immutable.
-	cell, suffix, v := sn.resolveCell(checker, path, nil)
+	cell, suffix, v := sn.resolveCell(path, nil)
 	if cell == nil {
 		return nil, errNotFound
 	}
@@ -107,7 +92,7 @@ func (sn *snapshot) Get(pid security.PublicID, path storage.PathName) (*storage.
 // Returns (cell, suffix, v), where cell contains the value, suffix is the path
 // to the value, v is the value itself.  If the operation failed, the returned
 // cell is nil.
-func (sn *snapshot) resolveCell(checker *acl.Checker, path storage.PathName, mu *Mutations) (*Cell, storage.PathName, interface{}) {
+func (sn *snapshot) resolveCell(path storage.PathName, mu *Mutations) (*Cell, storage.PathName, interface{}) {
 	cell := sn.Find(sn.rootID)
 	if cell == nil {
 		return nil, nil, nil
@@ -116,23 +101,9 @@ func (sn *snapshot) resolveCell(checker *acl.Checker, path storage.PathName, mu 
 		if mu != nil {
 			mu.addPrecondition(cell)
 		}
-		checker.Update(cell.Tags)
 		var v reflect.Value
 		var suffix storage.PathName
-		if len(path) > 0 && path[0] == refs.TagsDirName {
-			if !checker.IsAllowed(security.AdminLabel) {
-				// Access to .tags requires admin priviledges.
-				return nil, nil, errPermissionDenied
-			}
-			v, suffix = field.Get(cell.Tags, path[1:])
-		} else {
-			if !checker.IsAllowed(security.ReadLabel) {
-				// Do not return errPermissionDenied because that would leak the
-				// existence of the inaccessible value.
-				return nil, nil, nil
-			}
-			v, suffix = field.Get(cell.Value, path)
-		}
+		v, suffix = field.Get(cell.Value, path)
 		x := v.Interface()
 		if id, ok := x.(storage.ID); ok {
 			// Always dereference IDs.

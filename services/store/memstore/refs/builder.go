@@ -6,7 +6,6 @@ import (
 
 	"veyron/runtimes/google/lib/functional"
 
-	"veyron2/security"
 	"veyron2/storage"
 )
 
@@ -45,7 +44,7 @@ func (b *Builder) AddDir(d functional.Set) {
 // AddDEntries adds the references contained in the DEntry list.
 func (b *Builder) AddDEntries(d []*storage.DEntry) {
 	for _, de := range d {
-		b.refs = b.refs.Put(&Ref{ID: de.ID, Path: NewSingletonPath(de.Name), Label: security.ReadLabel})
+		b.refs = b.refs.Put(&Ref{ID: de.ID, Path: NewSingletonPath(de.Name)})
 	}
 }
 
@@ -58,20 +57,13 @@ func (b *Builder) AddValue(v interface{}) {
 	b.addRefs(nil, reflect.ValueOf(v))
 }
 
-// AddTags adds the references contained in the TagList.
-func (b *Builder) AddTags(v storage.TagList) {
-	for i, tag := range v {
-		b.refs.Put(&Ref{ID: tag.ACL, Path: tagsDir.Append(strconv.Itoa(i)), Label: security.AdminLabel})
-	}
-}
-
 func (b *Builder) addRefs(path *Path, v reflect.Value) {
 	if !v.IsValid() {
 		return
 	}
 	ty := v.Type()
 	if ty == tyID {
-		b.refs = b.refs.Put(&Ref{ID: v.Interface().(storage.ID), Path: path, Label: security.ReadLabel})
+		b.refs = b.refs.Put(&Ref{ID: v.Interface().(storage.ID), Path: path})
 		return
 	}
 	switch ty.Kind() {
