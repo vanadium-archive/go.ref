@@ -3,7 +3,6 @@
 package jni
 
 import (
-	"fmt"
 	"runtime"
 	"unsafe"
 
@@ -65,11 +64,11 @@ func (a *authorizer) Authorize(context security.Context) error {
 	defer C.DetachCurrentThread(a.jVM)
 	// Create a Java context.
 	util.GoRef(&context) // Un-refed when the Java Context object is finalized.
-	cid := C.jmethodID(util.JMethodIDPtrOrDie(env, jContextImplClass, "<init>", fmt.Sprintf("(%s)%s", util.LongSign, util.VoidSign)))
+	cid := C.jmethodID(util.JMethodIDPtrOrDie(env, jContextImplClass, "<init>", util.FuncSign([]util.Sign{util.LongSign}, util.VoidSign)))
 	jContext := C.CallAuthorizerNewContextObject(env, jContextImplClass, cid, C.jlong(util.PtrValue(&context)))
 	// Run Java Authorizer.
-	contextSign := "Lcom/veyron2/security/Context;"
-	mid := C.jmethodID(util.JMethodIDPtrOrDie(env, C.GetObjectClass(env, a.jAuth), "authorize", fmt.Sprintf("(%s)%s", contextSign, util.VoidSign)))
+	contextSign := util.ClassSign("com.veyron2.security.Context")
+	mid := C.jmethodID(util.JMethodIDPtrOrDie(env, C.GetObjectClass(env, a.jAuth), "authorize", util.FuncSign([]util.Sign{contextSign}, util.VoidSign)))
 	C.CallAuthorizerAuthorizeMethod(env, a.jAuth, mid, jContext)
 	if err := util.JExceptionMsg(env); err != nil {
 		return err

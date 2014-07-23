@@ -28,30 +28,6 @@ import (
 // }
 import "C"
 
-const (
-	// VoidSign denotes a signature of a Java void type.
-	VoidSign = "V"
-	// ByteSign denotes a signature of a Java byte type.
-	ByteSign = "B"
-	// BoolSign denotes a signature of a Java boolean type.
-	BoolSign = "Z"
-	// IntSign denotes a signature of a Java int type.
-	IntSign = "I"
-	// LongSign denotes a signature of a Java long type.
-	LongSign = "J"
-	// StringSign denotes a signature of a Java String type.
-	StringSign = "Ljava/lang/String;"
-	// ObjectSign denotes a signature of a Java Object type.
-	ObjectSign = "Ljava/lang/Object;"
-	// ClassSign denotes a signature of a Java Class type.
-	ClassSign = "Ljava/lang/Class;"
-)
-
-// ArraySign returns the array signature, given the underlying array type.
-func ArraySign(sign string) string {
-	return "[" + sign
-}
-
 var (
 	// Global reference for com.veyron2.ipc.VeyronException class.
 	jVeyronExceptionClass C.jclass
@@ -182,7 +158,7 @@ func JThrow(jEnv, jClass interface{}, msg string) {
 func JThrowV(jEnv interface{}, err error) {
 	env := getEnv(jEnv)
 	verr := verror.Convert(err)
-	id := C.jmethodID(JMethodIDPtrOrDie(env, jVeyronExceptionClass, "<init>", fmt.Sprintf("(%s%s)%s", StringSign, StringSign, VoidSign)))
+	id := C.jmethodID(JMethodIDPtrOrDie(env, jVeyronExceptionClass, "<init>", FuncSign([]Sign{StringSign, StringSign}, VoidSign)))
 	obj := C.jthrowable(C.CallNewVeyronExceptionObject(env, jVeyronExceptionClass, id, C.jstring(JStringPtr(env, verr.Error())), C.jstring(JStringPtr(env, string(verr.ErrorID())))))
 	C.Throw(env, obj)
 }
@@ -199,7 +175,7 @@ func JExceptionMsg(jEnv interface{}) error {
 		return nil
 	}
 	C.ExceptionClear(env)
-	id := C.jmethodID(JMethodIDPtrOrDie(env, jThrowableClass, "getMessage", fmt.Sprintf("()%s", StringSign)))
+	id := C.jmethodID(JMethodIDPtrOrDie(env, jThrowableClass, "getMessage", FuncSign(nil, StringSign)))
 	jMsg := C.CallGetExceptionMessage(env, C.jobject(e), id)
 	return errors.New(GoString(env, jMsg))
 }
@@ -331,12 +307,12 @@ func GoByteArray(jEnv, jArr interface{}) (ret []byte) {
 // NOTE: Because CGO creates package-local types and because this method may be
 // invoked from a different package, Java types are passed in an empty interface
 // and then cast into their package local types.
-func JFieldIDPtrOrDie(jEnv, jClass interface{}, name, sign string) unsafe.Pointer {
+func JFieldIDPtrOrDie(jEnv, jClass interface{}, name string, sign Sign) unsafe.Pointer {
 	env := getEnv(jEnv)
 	class := getClass(jClass)
 	cName := C.CString(name)
 	defer C.free(unsafe.Pointer(cName))
-	cSign := C.CString(sign)
+	cSign := C.CString(string(sign))
 	defer C.free(unsafe.Pointer(cSign))
 	ptr := unsafe.Pointer(C.GetFieldID(env, class, cName, cSign))
 	if err := JExceptionMsg(env); err != nil || ptr == nil {
@@ -349,12 +325,12 @@ func JFieldIDPtrOrDie(jEnv, jClass interface{}, name, sign string) unsafe.Pointe
 // NOTE: Because CGO creates package-local types and because this method may be
 // invoked from a different package, Java types are passed in an empty interface
 // and then cast into their package local types.
-func JMethodIDPtrOrDie(jEnv, jClass interface{}, name, signature string) unsafe.Pointer {
+func JMethodIDPtrOrDie(jEnv, jClass interface{}, name string, signature Sign) unsafe.Pointer {
 	env := getEnv(jEnv)
 	class := getClass(jClass)
 	cName := C.CString(name)
 	defer C.free(unsafe.Pointer(cName))
-	cSignature := C.CString(signature)
+	cSignature := C.CString(string(signature))
 	defer C.free(unsafe.Pointer(cSignature))
 	ptr := unsafe.Pointer(C.GetMethodID(env, class, cName, cSignature))
 	if err := JExceptionMsg(env); err != nil || ptr == nil {

@@ -65,8 +65,8 @@ func (d *dispatcher) Lookup(suffix string) (ipc.Invoker, security.Authorizer, er
 	defer C.DetachCurrentThread(d.jVM)
 
 	// Call Java dispatcher's lookup() method.
-	serviceObjectWithAuthorizerSign := "Lcom/veyron2/ipc/ServiceObjectWithAuthorizer;"
-	lid := C.jmethodID(util.JMethodIDPtrOrDie(env, C.GetObjectClass(env, d.jDispatcher), "lookup", fmt.Sprintf("(%s)%s", util.StringSign, serviceObjectWithAuthorizerSign)))
+	serviceObjectWithAuthorizerSign := util.ClassSign("com.veyron2.ipc.ServiceObjectWithAuthorizer")
+	lid := C.jmethodID(util.JMethodIDPtrOrDie(env, C.GetObjectClass(env, d.jDispatcher), "lookup", util.FuncSign([]util.Sign{util.StringSign}, serviceObjectWithAuthorizerSign)))
 	jServiceObjectWithAuthorizer := C.CallDispatcherLookupMethod(env, d.jDispatcher, lid, C.jstring(util.JStringPtr(env, suffix)))
 	if err := util.JExceptionMsg(env); err != nil {
 		return nil, nil, fmt.Errorf("error invoking Java dispatcher's lookup() method: %v", err)
@@ -78,13 +78,13 @@ func (d *dispatcher) Lookup(suffix string) (ipc.Invoker, security.Authorizer, er
 	}
 
 	// Extract the Java service object and Authorizer.
-	oid := C.jmethodID(util.JMethodIDPtrOrDie(env, C.GetObjectClass(env, jServiceObjectWithAuthorizer), "getServiceObject", fmt.Sprintf("()%s", util.ObjectSign)))
+	oid := C.jmethodID(util.JMethodIDPtrOrDie(env, C.GetObjectClass(env, jServiceObjectWithAuthorizer), "getServiceObject", util.FuncSign(nil, util.ObjectSign)))
 	jObj := C.CallDispatcherGetObjectMethod(env, jServiceObjectWithAuthorizer, oid)
 	if jObj == nil {
 		return nil, nil, fmt.Errorf("null service object returned by Java's ServiceObjectWithAuthorizer")
 	}
-	authSign := "Lcom/veyron2/security/Authorizer;"
-	aid := C.jmethodID(util.JMethodIDPtrOrDie(env, C.GetObjectClass(env, jServiceObjectWithAuthorizer), "getAuthorizer", fmt.Sprintf("()%s", authSign)))
+	authSign := util.ClassSign("com.veyron2.security.Authorizer")
+	aid := C.jmethodID(util.JMethodIDPtrOrDie(env, C.GetObjectClass(env, jServiceObjectWithAuthorizer), "getAuthorizer", util.FuncSign(nil, authSign)))
 	jAuth := C.CallDispatcherGetAuthorizerMethod(env, jServiceObjectWithAuthorizer, aid)
 
 	// Create Go Invoker and Authorizer.

@@ -14,39 +14,17 @@ import (
 )
 
 // #cgo LDFLAGS: -llog -ljniwrapper
-// #include <stdlib.h>
-// #include <android/log.h>
 // #include "jni_wrapper.h"
-//
-// // CGO doesn't support variadic functions so we have to hard-code these
-// // functions to match the invoking code. Ugh!
-// static jobject CallInvokerInvokeMethod(JNIEnv* env, jobject obj, jmethodID id, jstring method, jobject call, jobjectArray inArgs) {
-// 	return (*env)->CallObjectMethod(env, obj, id, method, call, inArgs);
-// }
-// static jobject CallInvokerNewInvokerObject(JNIEnv* env, jclass class, jmethodID id, jobject obj) {
-// 	return (*env)->NewObject(env, class, id, obj);
-// }
-// static jobject CallInvokerGetInterfacePath(JNIEnv* env, jobject obj, jmethodID id) {
-// 	return (*env)->CallObjectMethod(env, obj, id);
-// }
-// static jobject CallInvokerGetSecurityLabelMethod(JNIEnv* env, jobject obj, jmethodID id, jstring method) {
-// 	return (*env)->CallObjectMethod(env, obj, id, method);
-// }
-// static jobject CallInvokerNewServerCallObject(JNIEnv* env, jclass class, jmethodID id, jlong ref) {
-// 	return (*env)->NewObject(env, class, id, ref);
-// }
 import "C"
 
 func newInvoker(env *C.JNIEnv, jVM *C.JavaVM, jObj C.jobject) (*invoker, error) {
 	// Create a new Java VDLInvoker object.
-	cid := C.jmethodID(util.JMethodIDPtrOrDie(env, jVDLInvokerClass, "<init>", fmt.Sprintf("(%s)%s", util.ObjectSign, util.VoidSign)))
-	jInvoker := C.CallInvokerNewInvokerObject(env, jVDLInvokerClass, cid, jObj)
+	jInvoker := C.jobject(util.NewObject(env, jVDLInvokerClass, []util.Sign{util.ObjectSign}, jObj))
 	if err := util.JExceptionMsg(env); err != nil {
 		return nil, fmt.Errorf("error creating Java VDLInvoker object: %v", err)
 	}
 	// Fetch the argGetter for the object.
-	pid := C.jmethodID(util.JMethodIDPtrOrDie(env, jVDLInvokerClass, "getImplementedServices", fmt.Sprintf("()%s", util.ArraySign(util.StringSign))))
-	jPathArray := C.jobjectArray(C.CallInvokerGetInterfacePath(env, jInvoker, pid))
+	jPathArray := C.jobjectArray(util.CallObjectMethod(env, jInvoker, "getImplementedServices", nil, util.ArraySign(util.StringSign)))
 	paths := util.GoStringArray(env, jPathArray)
 	getter, err := newArgGetter(paths)
 	if err != nil {
@@ -94,12 +72,8 @@ func (i *invoker) Prepare(method string, numArgs int) (argptrs []interface{}, la
 	argptrs = mArgs.InPtrs()
 
 	// Get the security label.
-	labelSign := "Lcom/veyron2/security/Label;"
-	mid := C.jmethodID(util.JMethodIDPtrOrDie(env, C.GetObjectClass(env, i.jInvoker), "getSecurityLabel", fmt.Sprintf("(%s)%s", util.StringSign, labelSign)))
-	if err = util.JExceptionMsg(env); err != nil {
-		return
-	}
-	jLabel := C.CallInvokerGetSecurityLabelMethod(env, i.jInvoker, mid, C.jstring(util.JStringPtr(env, util.CamelCase(method))))
+	labelSign := util.ClassSign("com.veyron2.security.Label")
+	jLabel := C.jobject(util.CallObjectMethod(env, i.jInvoker, "getSecurityLabel", []util.Sign{util.StringSign}, labelSign, util.CamelCase(method)))
 	if err = util.JExceptionMsg(env); err != nil {
 		return
 	}
@@ -125,8 +99,7 @@ func (i *invoker) Invoke(method string, call ipc.ServerCall, argptrs []interface
 		err = fmt.Errorf("couldn't find VDL method %q with %d args", method, len(argptrs))
 	}
 	sCall := newServerCall(call, mArgs)
-	cid := C.jmethodID(util.JMethodIDPtrOrDie(env, jServerCallClass, "<init>", fmt.Sprintf("(%s)%s", util.LongSign, util.VoidSign)))
-	jServerCall := C.CallInvokerNewServerCallObject(env, jServerCallClass, cid, C.jlong(util.PtrValue(sCall)))
+	jServerCall := C.jobject(util.NewObject(env, jServerCallClass, []util.Sign{util.LongSign}, sCall))
 	util.GoRef(sCall) // unref-ed when jServerCall is garbage-collected
 
 	// Translate input args to JSON.
@@ -135,10 +108,9 @@ func (i *invoker) Invoke(method string, call ipc.ServerCall, argptrs []interface
 		return
 	}
 	// Invoke the method.
-	const callSign = "Lcom/veyron2/ipc/ServerCall;"
-	const replySign = "Lcom/veyron/runtimes/google/VDLInvoker$InvokeReply;"
-	mid := C.jmethodID(util.JMethodIDPtrOrDie(env, C.GetObjectClass(env, i.jInvoker), "invoke", fmt.Sprintf("(%s%s[%s)%s", util.StringSign, callSign, util.StringSign, replySign)))
-	jReply := C.CallInvokerInvokeMethod(env, i.jInvoker, mid, C.jstring(util.JStringPtr(env, util.CamelCase(method))), jServerCall, jArgs)
+	callSign := util.ClassSign("com.veyron2.ipc.ServerCall")
+	replySign := util.ClassSign("com.veyron.runtimes.google.VDLInvoker$InvokeReply")
+	jReply := C.jobject(util.CallObjectMethod(env, i.jInvoker, "invoke", []util.Sign{util.StringSign, callSign, util.ArraySign(util.StringSign)}, replySign, util.CamelCase(method), jServerCall, jArgs))
 	if err := util.JExceptionMsg(env); err != nil {
 		return nil, fmt.Errorf("error invoking Java method %q: %v", method, err)
 	}
