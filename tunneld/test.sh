@@ -55,7 +55,7 @@ done
 [ -z $ep ] && FAIL "line $LINENO: no mounttable server"
 
 tmpid=$(mktemp --tmpdir=.)
-./identity --name=test > $tmpid
+./identity generate test > $tmpid
 
 export NAMESPACE_ROOT=$ep
 export VEYRON_IDENTITY=$tmpid
