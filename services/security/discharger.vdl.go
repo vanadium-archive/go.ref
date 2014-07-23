@@ -149,7 +149,7 @@ func (__gen_s *ServerStubDischarger) GetMethodTags(call _gen_ipc.ServerCall, met
 	// This will change when it is replaced with Signature().
 	switch method {
 	case "Discharge":
-		return []interface{}{security.Label(1)}, nil
+		return []interface{}{security.Label(2)}, nil
 	default:
 		return nil, nil
 	}

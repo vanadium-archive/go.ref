@@ -156,7 +156,7 @@ func (__gen_s *ServerStubRevoker) GetMethodTags(call _gen_ipc.ServerCall, method
 	// This will change when it is replaced with Signature().
 	switch method {
 	case "Revoke":
-		return []interface{}{security.Label(2)}, nil
+		return []interface{}{security.Label(4)}, nil
 	default:
 		return nil, nil
 	}

@@ -152,9 +152,9 @@ func (__gen_s *ServerStubFortune) GetMethodTags(call _gen_ipc.ServerCall, method
 	// This will change when it is replaced with Signature().
 	switch method {
 	case "Get":
-		return []interface{}{security.Label(1)}, nil
-	case "Add":
 		return []interface{}{security.Label(2)}, nil
+	case "Add":
+		return []interface{}{security.Label(4)}, nil
 	default:
 		return nil, nil
 	}
