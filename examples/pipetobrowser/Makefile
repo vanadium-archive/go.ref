@@ -59,7 +59,7 @@ browser/index.html: $(HTML_FILES)
 
 # Serve
 start:
-	identity --name=veyron_p2b_identity > $(VEYRON_IDENTITY_PATH)
+	identity generate veyron_p2b_identity > $(VEYRON_IDENTITY_PATH)
 	export VEYRON_IDENTITY=$(VEYRON_IDENTITY_PATH) ; \
 	export NAMESPACE_ROOT=$(NAMESPACE_ROOT); \
 	wsprd --v=1 -alsologtostderr=true -vproxy=$(VEYRON_PROXY_ADDR) --port $(VEYRON_WSPR_PORT) & \
