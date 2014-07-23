@@ -12,14 +12,15 @@ thisscript=$0
 
 echo "Test directory: $(dirname $0)"
 
-builddir=$(mktemp -d --tmpdir=${toplevel}/go)
+workdir=$(mktemp -d ${toplevel}/go/tmp.XXXXXXXXXXX)
+export TMPDIR=$workdir
 trap onexit EXIT
 
 onexit() {
 	cd /
 	exec 2> /dev/null
 	kill -9 $(jobs -p)
-	rm -rf $builddir
+	rm -rf $workdir
 }
 
 FAIL() {
@@ -34,7 +35,7 @@ PASS() {
 }
 
 # Build binaries.
-cd $builddir
+cd $workdir
 $go build veyron/examples/tunnel/tunneld || FAIL "line $LINENO: failed to build tunneld"
 $go build veyron/examples/tunnel/vsh || FAIL "line $LINENO: failed to build vsh"
 $go build veyron/services/mounttable/mounttabled || FAIL "line $LINENO: failed to build mounttabled"
@@ -42,7 +43,7 @@ $go build veyron/tools/mounttable || FAIL "line $LINENO: failed to build mountta
 $go build veyron/tools/identity || FAIL "line $LINENO: failed to build identity"
 
 # Start mounttabled and find its endpoint.
-mtlog=$(mktemp --tmpdir=.)
+mtlog=${workdir}/mt.log
 ./mounttabled --address=localhost:0 > $mtlog 2>&1 &
 
 for i in 1 2 3 4; do
@@ -54,14 +55,14 @@ for i in 1 2 3 4; do
 done
 [ -z $ep ] && FAIL "line $LINENO: no mounttable server"
 
-tmpid=$(mktemp --tmpdir=.)
+tmpid=$workdir/id
 ./identity generate test > $tmpid
 
 export NAMESPACE_ROOT=$ep
 export VEYRON_IDENTITY=$tmpid
 
 # Start tunneld and find its endpoint.
-tunlog=$(mktemp --tmpdir=.)
+tunlog=$workdir/tunnel.log
 ./tunneld --address=localhost:0 > $tunlog 2>&1 &
 
 for i in 1 2 3 4; do
