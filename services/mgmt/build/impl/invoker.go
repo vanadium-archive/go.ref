@@ -83,12 +83,12 @@ func (i *invoker) Build(_ ipc.ServerContext, stream build.BuildServiceBuildStrea
 	}
 	binDir := filepath.Join(root, "go", "bin")
 	files, err := ioutil.ReadDir(binDir)
-	if err != nil {
+	if err != nil && !os.IsNotExist(err) {
 		vlog.Errorf("ReadDir(%v) failed: %v", binDir, err)
 		return nil, errInternalError
 	}
-	// TODO(jsimsa): Analyze the binary files for non-standard shared
-	// library dependencies.
+	// TODO(jsimsa): Analyze the binary files for shared library
+	// dependencies and ship these back.
 	for _, file := range files {
 		binPath := filepath.Join(root, "go", "bin", file.Name())
 		bytes, err := ioutil.ReadFile(binPath)
