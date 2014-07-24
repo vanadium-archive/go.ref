@@ -1,6 +1,3 @@
-// +build linux
-
-// TODO(srdjan): port this to mac etc.
 // Binary proximityd provides means for devices to announce their precence
 // to nearby devices and to obtain the list of nearby devices.
 package main

@@ -57,8 +57,8 @@ type VC struct {
 	crypter             crypto.Crypter
 	closeReason         string // reason why the VC was closed
 
-	helper Helper
-	version             version.IPCVersion
+	helper  Helper
+	version version.IPCVersion
 }
 
 // Helper is the interface for functionality required by the stream.VC

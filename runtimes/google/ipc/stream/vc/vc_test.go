@@ -162,7 +162,6 @@ func testConnect_Version1(t *testing.T, security veyron2.VCSecurityLevel) {
 func TestConnect_Version1(t *testing.T)    { testConnect_Version1(t, SecurityNone) }
 func TestConnect_Version1TLS(t *testing.T) { testConnect_Version1(t, SecurityTLS) }
 
-
 // helper function for testing concurrent operations on multiple flows over the
 // same VC.  Such tests are most useful when running the race detector.
 // (go test -race ...)

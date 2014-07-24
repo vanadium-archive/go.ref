@@ -9,7 +9,7 @@ import (
 
 	"veyron/lib/unit"
 	"veyron2/ipc"
-	prox "veyron2/services/proximity"
+	"veyron2/services/proximity"
 	"veyron2/vlog"
 )
 
@@ -97,7 +97,7 @@ type service struct {
 	deviceLock sync.RWMutex
 	nameLock   sync.RWMutex
 	devices    map[string]*device
-	nearby     []prox.Device
+	nearby     []proximity.Device
 	names      map[string]int
 
 	advertiser       Advertiser
@@ -141,7 +141,7 @@ func (s *service) UnregisterName(_ ipc.ServerContext, name string) error {
 
 // NearbyDevices returns the list of nearby devices, sorted in increasing
 // distance order.
-func (s *service) NearbyDevices(_ ipc.ServerContext) ([]prox.Device, error) {
+func (s *service) NearbyDevices(_ ipc.ServerContext) ([]proximity.Device, error) {
 	s.deviceLock.RLock()
 	defer s.deviceLock.RUnlock()
 	return s.nearby, nil
@@ -313,11 +313,11 @@ func (s *service) updateNearbyState() {
 	})
 
 	// Update device list.
-	newDevs := make([]prox.Device, len(devices))
+	newDevs := make([]proximity.Device, len(devices))
 	for i, d := range devices {
 		// Sort names just for stability.
 		sort.Strings(d.names)
-		newDevs[i] = prox.Device{
+		newDevs[i] = proximity.Device{
 			Names:    d.names,
 			MAC:      d.mac.String(),
 			Distance: d.distance.String(),

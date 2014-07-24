@@ -23,6 +23,7 @@ import (
 )
 
 const RUN_TIMEOUT = time.Second
+
 var debug = flag.Bool("v", false, "Verbose mode")
 
 type CodeFile struct {
