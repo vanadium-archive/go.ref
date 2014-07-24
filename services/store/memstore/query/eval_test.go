@@ -605,10 +605,6 @@ func (m *mockSnapshot) NewIterator(pid security.PublicID, path storage.PathName,
 	return m.it
 }
 
-func (m *mockSnapshot) PathMatch(pid security.PublicID, id storage.ID, regex *state.PathRegex) bool {
-	return false
-}
-
 func (m *mockSnapshot) Find(id storage.ID) *state.Cell {
 	return nil
 }

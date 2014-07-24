@@ -19,10 +19,6 @@ type Snapshot interface {
 	// of the specified path are returned.
 	NewIterator(pid security.PublicID, path storage.PathName, pathFilter PathFilter, filter IterFilter) Iterator
 
-	// PathMatch returns true iff there is a name for the store value that
-	// matches the pathRegex.
-	PathMatch(pid security.PublicID, id storage.ID, regex *PathRegex) bool
-
 	// Find performs a lookup based on storage.ID, returning nil if the cell is not found.
 	Find(id storage.ID) *Cell
 
