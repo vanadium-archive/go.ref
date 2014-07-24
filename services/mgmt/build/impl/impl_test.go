@@ -120,6 +120,39 @@ func TestSuccess(t *testing.T) {
 	}
 }
 
+const fooSrc = `package foo
+
+import "fmt"
+
+func foo() {
+	fmt.Println("Hello World!")
+}
+`
+
+// TestEmpty checks that the build server successfully builds a
+// package that does not produce a binary.
+func TestEmpty(t *testing.T) {
+	client, cleanup := startServer(t)
+	defer cleanup()
+
+	files := []build.File{
+		build.File{
+			Name:     "test/foo.go",
+			Contents: []byte(fooSrc),
+		},
+	}
+	output, bins, err := invokeBuild(t, client, files)
+	if err != nil {
+		t.FailNow()
+	}
+	if got, expected := strings.TrimSpace(string(output)), "test"; got != expected {
+		t.Fatalf("Unexpected output: got %v, expected %v", got, expected)
+	}
+	if got, expected := len(bins), 0; got != expected {
+		t.Fatalf("Unexpected number of binaries: got %v, expected %v", got, expected)
+	}
+}
+
 // TestFailure checks that the build server fails to build a package
 // consisting of an empty file.
 func TestFailure(t *testing.T) {
