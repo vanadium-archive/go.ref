@@ -1,8 +1,6 @@
 package watch
 
 import (
-	"fmt"
-
 	"veyron/services/store/memstore/refs"
 	"veyron/services/store/memstore/state"
 	"veyron/services/store/raw"
@@ -89,7 +87,6 @@ func (p *rawProcessor) processState(st *state.State) ([]watch.Change, error) {
 			Dir:          flattenDir(refs.FlattenDir(cell.Dir)),
 		}
 		change := watch.Change{
-			Name:  uidName(id),
 			State: watch.Exists,
 			Value: value,
 		}
@@ -125,7 +122,6 @@ func (p *rawProcessor) processTransaction(mus *state.Mutations) ([]watch.Change,
 			}
 			// TODO(tilaks): don't clone value.
 			change := watch.Change{
-				Name:  uidName(p.rootID),
 				State: watch.DoesNotExist,
 				Value: value,
 			}
@@ -157,7 +153,6 @@ func (p *rawProcessor) processTransaction(mus *state.Mutations) ([]watch.Change,
 		}
 		// TODO(tilaks): don't clone value.
 		change := watch.Change{
-			Name:  uidName(id),
 			State: watch.Exists,
 			Value: value,
 		}
@@ -180,7 +175,6 @@ func (p *rawProcessor) processTransaction(mus *state.Mutations) ([]watch.Change,
 		}
 		// TODO(tilaks): don't clone value.
 		change := watch.Change{
-			Name:  uidName(id),
 			State: watch.DoesNotExist,
 			Value: value,
 		}
@@ -188,11 +182,6 @@ func (p *rawProcessor) processTransaction(mus *state.Mutations) ([]watch.Change,
 		changes = append(changes, change)
 	}
 	return changes, nil
-}
-
-// uidName returns path "<uid dir name>/<id>" for the object.
-func uidName(id storage.ID) string {
-	return fmt.Sprintf("/%s/%s", storage.UIDDirName, id)
 }
 
 // TODO(tilaks): revisit when raw.Mutation.Dir is of type []*storage.DEntry

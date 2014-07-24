@@ -1,7 +1,6 @@
 package blackbox
 
 import (
-	"fmt"
 	"io/ioutil"
 	"os"
 	"runtime"
@@ -123,19 +122,22 @@ func Commit(t *testing.T, tr service.Transaction) {
 	}
 }
 
-func ExpectExists(t *testing.T, st *memstore.Store, id storage.ID) {
-	_, err := st.Bind(fmt.Sprintf("/uid/%s", id)).Get(rootPublicID, nil)
+func ExpectExists(t *testing.T, st *memstore.Store, path string, id storage.ID) {
+	_, file, line, _ := runtime.Caller(1)
+	e, err := st.Bind(path).Get(rootPublicID, nil)
 	if err != nil {
-		_, file, line, _ := runtime.Caller(1)
 		t.Errorf("%s(%d): Expected value for ID: %x", file, line, id)
+	}
+	if e.Stat.ID != id {
+		t.Errorf("%s(%d): expected id to be %v, but was %v", file, line, id, e.Stat.ID)
 	}
 }
 
-func ExpectNotExists(t *testing.T, st *memstore.Store, id storage.ID) {
-	x, err := st.Bind(fmt.Sprintf("/uid/%s", id)).Get(rootPublicID, nil)
+func ExpectNotExists(t *testing.T, st *memstore.Store, path string, id storage.ID) {
+	_, file, line, _ := runtime.Caller(1)
+	e, err := st.Bind(path).Get(rootPublicID, nil)
 	if err == nil {
-		_, file, line, _ := runtime.Caller(1)
-		t.Errorf("%s(%d): Unexpected value: %v", file, line, x)
+		t.Errorf("%s(%d): Unexpected value: %v", file, line, e)
 	}
 }
 

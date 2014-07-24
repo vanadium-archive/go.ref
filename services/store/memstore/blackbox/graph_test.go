@@ -1,7 +1,6 @@
 package blackbox
 
 import (
-	"fmt"
 	"testing"
 
 	_ "veyron/lib/testutil"
@@ -54,8 +53,10 @@ func TestLinear(t *testing.T) {
 
 	// Verify that all the nodes still exist.
 	st.GC()
-	for _, id := range ids {
-		ExpectExists(t, st, id)
+	for i, node := range nodes {
+		path := node.Label
+		id := ids[i]
+		ExpectExists(t, st, path, id)
 	}
 
 	// Truncate the graph to length 3.
@@ -68,11 +69,13 @@ func TestLinear(t *testing.T) {
 	}
 
 	st.GC()
-	for i, id := range ids {
+	for i, node := range nodes {
+		path := node.Label
+		id := ids[i]
 		if i < 3 {
-			ExpectExists(t, st, id)
+			ExpectExists(t, st, path, id)
 		} else {
-			ExpectNotExists(t, st, id)
+			ExpectNotExists(t, st, path, id)
 		}
 	}
 }
@@ -97,17 +100,18 @@ func TestLollipop(t *testing.T) {
 	}
 	id := stat.ID
 
-	// Create a linked list using /uid/xxx names.
-	tr := memstore.NewTransaction()
+	// Create a linked list.
+	path := ""
 	var nodes [linearNodeCount]*Node
 	var ids [linearNodeCount]storage.ID
+	tr := memstore.NewTransaction()
 	for i := 0; i != linearNodeCount; i++ {
-		node := &Node{Label: fmt.Sprintf("Node[%d]", i)}
+		path = path + "/Children/a"
+		node := &Node{Label: path}
 		nodes[i] = node
-		name := fmt.Sprintf("/uid/%s/Children/a", id)
-		stat, err := st.Bind(name).Put(rootPublicID, tr, node)
+		stat, err := st.Bind(path).Put(rootPublicID, tr, node)
 		if err != nil || stat == nil {
-			t.Errorf("Unexpected error: %s: %s", name, err)
+			t.Errorf("Unexpected error: %s: %s", path, err)
 		}
 		id = stat.ID
 		ids[i] = id
@@ -116,9 +120,8 @@ func TestLollipop(t *testing.T) {
 	// Add a back-loop.
 	{
 		node := nodes[linearNodeCount-1]
-		id := ids[linearNodeCount-1]
 		node.Children = map[string]storage.ID{"a": ids[loopNodeIndex]}
-		if _, err := st.Bind(fmt.Sprintf("/uid/%s", id)).Put(rootPublicID, tr, node); err != nil {
+		if _, err := st.Bind(node.Label).Put(rootPublicID, tr, node); err != nil {
 			t.Errorf("Unexpected error: %s", err)
 		}
 	}
@@ -126,26 +129,29 @@ func TestLollipop(t *testing.T) {
 
 	// Verify that all the nodes still exist.
 	st.GC()
-	for _, id := range ids {
-		ExpectExists(t, st, id)
+	for i, node := range nodes {
+		path := node.Label
+		id := ids[i]
+		ExpectExists(t, st, path, id)
 	}
 
 	// Truncate part of the loop.
 	{
 		node := nodes[cutNodeIndex]
-		id := ids[cutNodeIndex]
 		node.Children = nil
-		if _, err := st.Bind(fmt.Sprintf("/uid/%s", id)).Put(rootPublicID, nil, node); err != nil {
+		if _, err := st.Bind(node.Label).Put(rootPublicID, nil, node); err != nil {
 			t.Errorf("Unexpected error: %s", err)
 		}
 	}
 
 	st.GC()
-	for i, id := range ids {
+	for i, node := range nodes {
+		path := node.Label
+		id := ids[i]
 		if i <= cutNodeIndex {
-			ExpectExists(t, st, id)
+			ExpectExists(t, st, path, id)
 		} else {
-			ExpectNotExists(t, st, id)
+			ExpectNotExists(t, st, path, id)
 		}
 	}
 }

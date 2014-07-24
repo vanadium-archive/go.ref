@@ -105,7 +105,6 @@ type Mutation struct {
 var (
 	errBadPath              = verror.BadArgf("malformed path")
 	errBadRef               = verror.BadArgf("value has dangling references")
-	errCantUnlinkByID       = verror.BadArgf("can't unlink entries by ID")
 	errDuplicatePutMutation = verror.BadArgf("duplicate calls to PutMutation for the same ID")
 	errNotFound             = verror.NotFoundf("not found")
 	errNotTagList           = verror.BadArgf("not a TagList")
@@ -322,27 +321,6 @@ func (sn *MutableSnapshot) replaceTags(checker *acl.Checker, c *Cell, tags stora
 	return &cp, nil
 }
 
-// resolveCell performs a path-based lookup, traversing the state from the
-// root.
-//
-// Returns (cell, suffix, v), where cell contains the value, suffix is the path
-// to the value, v is the value itself.  If the operation failed, the returned
-// cell is nil.
-func (sn *MutableSnapshot) resolveCell(checker *acl.Checker, path storage.PathName, mu *Mutations) (*Cell, storage.PathName, interface{}) {
-	// Get the starting object.
-	id, suffix, ok := path.GetID()
-	if ok {
-		path = suffix
-		// Remove garbage so that only valid uids are visible.
-		sn.gc()
-		checker.Update(uidTagList)
-	} else {
-		id = sn.rootID
-	}
-
-	return sn.resolve(checker, id, path, mu)
-}
-
 // Get returns the value for a path.
 func (sn *MutableSnapshot) Get(pid security.PublicID, path storage.PathName) (*storage.Entry, error) {
 	checker := sn.newPermChecker(pid)
@@ -375,9 +353,6 @@ func (sn *MutableSnapshot) putValueByPath(checker *acl.Checker, path storage.Pat
 
 	if path.IsRoot() {
 		return sn.putRoot(checker, v)
-	}
-	if id, suffix, ok := path.GetID(); ok && len(suffix) == 0 {
-		return sn.putValueByID(checker, id, v)
 	}
 	return sn.putValue(checker, path, v)
 }
@@ -535,17 +510,6 @@ func (sn *MutableSnapshot) putRoot(checker *acl.Checker, v interface{}) (*Cell, 
 	return ncell, nil
 }
 
-// putValueByID replaces a value referred to by ID.
-func (sn *MutableSnapshot) putValueByID(checker *acl.Checker, id storage.ID, v interface{}) (*Cell, error) {
-	checker.Update(uidTagList)
-	if !checker.IsAllowed(security.WriteLabel) {
-		return nil, errPermissionDenied
-	}
-
-	sn.gc()
-	return sn.add(checker, id, v)
-}
-
 // Remove removes a value.
 func (sn *MutableSnapshot) Remove(pid security.PublicID, path storage.PathName) error {
 	checker := sn.newPermChecker(pid)
@@ -558,9 +522,6 @@ func (sn *MutableSnapshot) Remove(pid security.PublicID, path storage.PathName) 
 		sn.mutations.RootID = nullID
 		sn.mutations.SetRootID = true
 		return nil
-	}
-	if path.IsStrictID() {
-		return errCantUnlinkByID
 	}
 
 	// Split the names into directory and field parts.

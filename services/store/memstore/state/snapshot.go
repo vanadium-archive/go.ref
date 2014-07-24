@@ -106,27 +106,13 @@ func (sn *snapshot) Get(pid security.PublicID, path storage.PathName) (*storage.
 	return e, nil
 }
 
-// resolveCell performs a path-based lookup, traversing the state from the
-// root.
+// resolveCell performs a path-based lookup, traversing the state from the root.
 //
 // Returns (cell, suffix, v), where cell contains the value, suffix is the path
 // to the value, v is the value itself.  If the operation failed, the returned
 // cell is nil.
 func (sn *snapshot) resolveCell(checker *acl.Checker, path storage.PathName, mu *Mutations) (*Cell, storage.PathName, interface{}) {
-	// Get the starting object.
-	id, suffix, ok := path.GetID()
-	if ok {
-		path = suffix
-		checker.Update(uidTagList)
-	} else {
-		id = sn.rootID
-	}
-
-	return sn.resolve(checker, id, path, mu)
-}
-
-func (sn *snapshot) resolve(checker *acl.Checker, id storage.ID, path storage.PathName, mu *Mutations) (*Cell, storage.PathName, interface{}) {
-	cell := sn.Find(id)
+	cell := sn.Find(sn.rootID)
 	if cell == nil {
 		return nil, nil, nil
 	}
