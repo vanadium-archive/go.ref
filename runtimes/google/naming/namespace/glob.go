@@ -36,6 +36,17 @@ func (ns *namespace) globAtServer(ctx context.T, qe *queuedEntry, pattern *glob.
 	var lastErr error
 	// Trying each instance till we get one that works.
 	for _, s := range server.Servers {
+		// If the pattern is finished (so we're only querying about the root on the
+		// remote server) and the server is not another MT, then we needn't send the
+		// query on since we know the server will not supply a new address for the
+		// current name.
+		if pattern.Finished() {
+			_, n := naming.SplitAddressName(s.Server)
+			if strings.HasPrefix(n, "//") {
+				return false, nil
+			}
+		}
+
 		mtServers, err := ns.ResolveToMountTable(ctx, s.Server)
 		if err != nil {
 			lastErr = err

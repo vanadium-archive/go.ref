@@ -5,6 +5,7 @@ import (
 	"runtime"
 	"runtime/debug"
 	"sort"
+	"sync"
 	"testing"
 	"time"
 
@@ -17,6 +18,7 @@ import (
 	"veyron2/ipc"
 	"veyron2/naming"
 	"veyron2/rt"
+	"veyron2/services/mounttable"
 	"veyron2/vlog"
 )
 
@@ -393,6 +395,60 @@ func TestGlob(t *testing.T) {
 			expectedWithRoot = append(expectedWithRoot, naming.JoinAddressName(root.name, s))
 		}
 		compare(t, "Glob", test.pattern, expectedWithRoot, out)
+	}
+}
+
+type GlobbableServer struct {
+	callCount int
+	mu        sync.Mutex
+}
+
+func (g *GlobbableServer) Glob(ipc.ServerContext, string, mounttable.GlobableServiceGlobStream) error {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	g.callCount++
+	return nil
+}
+
+func (g *GlobbableServer) GetAndResetCount() int {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	cnt := g.callCount
+	g.callCount = 0
+
+	return cnt
+}
+
+// TestGlobEarlyStop tests that Glob doesn't query terminal servers with finished patterns.
+func TestGlobEarlyStop(t *testing.T) {
+	sr := rt.Init()
+	r, _ := rt.New() // We use a different runtime for the client side.
+	root, mts, _, stopper := createNamespace(t, sr)
+	runNestedMountTables(t, sr, mts)
+	defer stopper()
+
+	globServer := &GlobbableServer{}
+	name := naming.JoinAddressName(mts["mt4/foo/bar"].name, "glob")
+	runningGlobServer := runServer(t, r, ipc.SoloDispatcher(mounttable.NewServerGlobable(globServer), nil), name)
+	defer runningGlobServer.server.Stop()
+
+	ns := r.Namespace()
+	ns.SetRoots(root.name)
+
+	tests := []struct {
+		pattern       string
+		expectedCalls int
+	}{
+		{"mt4/foo/bar/glob", 0},
+		{"mt4/foo/bar/glob/...", 1},
+		{"mt4/foo/bar/*", 0},
+	}
+	for _, test := range tests {
+		out := doGlob(t, r, ns, test.pattern, 0)
+		compare(t, "Glob", test.pattern, []string{"mt4/foo/bar/glob"}, out)
+		if calls := globServer.GetAndResetCount(); calls != test.expectedCalls {
+			boom(t, "Wrong number of Glob calls to terminal server got: %d want: %d.", calls, test.expectedCalls)
+		}
 	}
 }
 
