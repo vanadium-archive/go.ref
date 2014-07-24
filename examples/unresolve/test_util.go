@@ -152,7 +152,7 @@ func childFortuneNoIDL(args []string) {
 }
 
 func createFortuneClient(rt veyron2.Runtime, name string) fortuneidl.Fortune {
-	client, err := fortuneidl.BindFortune(name, veyron2.RuntimeOpt{rt})
+	client, err := fortuneidl.BindFortune(name, rt.Client())
 	if err != nil {
 		panic(fmt.Sprintf("BindFortune failed with %v", err))
 	}
