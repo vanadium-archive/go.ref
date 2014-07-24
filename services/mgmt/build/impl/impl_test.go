@@ -69,15 +69,12 @@ func invokeBuild(t *testing.T, client build.Build, files []build.File) ([]byte, 
 	}
 	bins := make([]build.File, 0)
 	for stream.Advance() {
-		bin := stream.Value()
-		bins = append(bins, bin)
+		bins = append(bins, stream.Value())
 	}
-
 	if err := stream.Err(); err != nil {
-		t.Logf("Recv() failed: %v", err)
+		t.Logf("Advance() failed: %v", err)
 		return nil, nil, err
 	}
-
 	output, err := stream.Finish()
 	if err != nil {
 		t.Logf("Finish() failed: %v", err)
