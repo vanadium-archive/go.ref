@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 # Test the tunneld binary
 #
@@ -9,8 +9,6 @@
 toplevel=$(git rev-parse --show-toplevel)
 go=${toplevel}/scripts/build/go
 thisscript=$0
-
-echo "Test directory: $(dirname $0)"
 
 workdir=$(mktemp -d ${toplevel}/go/tmp.XXXXXXXXXXX)
 export TMPDIR=$workdir
@@ -75,18 +73,21 @@ done
 [ -z $ep ] && FAIL "line $LINENO: no tunnel server"
 
 # Run remote command with the endpoint.
-got=$(./vsh $ep echo HELLO WORLD)
-want="HELLO WORLD"
+vshlog=$workdir/vsh.log
+got=$(./vsh --logtostderr --v=1 $ep echo HELLO ENDPOINT 2>$vshlog)
+want="HELLO ENDPOINT"
 
 if [ "$got" != "$want" ]; then
+        cat $vshlog
 	FAIL "line $LINENO: unexpected output. Got $got, want $want"
 fi
 
 # Run remote command with the object name.
-got=$(./vsh tunnel/id/test echo HELLO WORLD)
-want="HELLO WORLD"
+got=$(./vsh --logtostderr --v=1 tunnel/id/test echo HELLO NAME 2>$vshlog)
+want="HELLO NAME"
 
 if [ "$got" != "$want" ]; then
+        cat $vshlog
 	FAIL "line $LINENO: unexpected output. Got $got, want $want"
 fi
 
