@@ -2,9 +2,13 @@ package security
 
 import "veyron2/security"
 
-// NewPrivateID returns a new PrivateID containing a freshly generated
-// private key, and a single self-signed certificate specifying the provided
-// name and the public key corresponding to the generated private key.
-func NewPrivateID(name string) (security.PrivateID, error) {
-	return newChainPrivateID(name)
+// NewPrivateID returns a new PrivateID that uses the provided Signer to generate
+// signatures.  The returned PrivateID additionaly contains a single self-signed
+// certificate with the given name.
+//
+// If a nil signer is provided, this method will generate a new public/private key pair
+// and use a system-default signer, which stores the private key in the clear in the memory
+// of the running process.
+func NewPrivateID(name string, signer security.Signer) (security.PrivateID, error) {
+	return newChainPrivateID(name, signer)
 }

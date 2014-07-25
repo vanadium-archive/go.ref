@@ -16,7 +16,7 @@ var testID = newID("test")
 type noopFlow struct{}
 
 func newID(name string) security.PrivateID {
-	id, err := isecurity.NewPrivateID(name)
+	id, err := isecurity.NewPrivateID(name, nil)
 	if err != nil {
 		panic(err)
 	}

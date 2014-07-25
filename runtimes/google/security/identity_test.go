@@ -32,7 +32,7 @@ func TestNewPrivateID(t *testing.T) {
 		{"google/alice/bob", "invalid blessing name"},
 	}
 	for _, d := range testdata {
-		if _, err := NewPrivateID(d.name); !matchesErrorPattern(err, d.err) {
+		if _, err := NewPrivateID(d.name, nil); !matchesErrorPattern(err, d.err) {
 			t.Errorf("NewPrivateID(%q): got: %s, want to match: %s", d.name, err, d.err)
 		}
 	}

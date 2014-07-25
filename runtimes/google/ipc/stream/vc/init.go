@@ -11,7 +11,7 @@ var anonymousID security.PrivateID
 
 func init() {
 	var err error
-	if anonymousID, err = isecurity.NewPrivateID("anonymous"); err != nil {
+	if anonymousID, err = isecurity.NewPrivateID("anonymous", nil); err != nil {
 		vlog.Fatalf("could create anonymousID for IPCs: %s", err)
 	}
 }

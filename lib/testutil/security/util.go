@@ -18,7 +18,7 @@ import (
 // under the provided name. This function is meant to be used for testing purposes only,
 // it panics if there is an error.
 func NewBlessedIdentity(blesser security.PrivateID, name string) security.PrivateID {
-	id, err := isecurity.NewPrivateID("test")
+	id, err := isecurity.NewPrivateID("test", nil)
 	if err != nil {
 		panic(err)
 	}

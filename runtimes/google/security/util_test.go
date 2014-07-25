@@ -50,7 +50,7 @@ func roundTrip(id security.PublicID) (security.PublicID, error) {
 }
 
 func newChain(name string) security.PrivateID {
-	id, err := newChainPrivateID(name)
+	id, err := newChainPrivateID(name, nil)
 	if err != nil {
 		panic(err)
 	}

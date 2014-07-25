@@ -26,7 +26,7 @@ import (
 )
 
 func newLocalID(name string) vc.LocalID {
-	id, err := isecurity.NewPrivateID(name)
+	id, err := isecurity.NewPrivateID(name, nil)
 	if err != nil {
 		panic(err)
 	}

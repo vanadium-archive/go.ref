@@ -116,24 +116,20 @@ func (id *chainPublicID) ThirdPartyCaveats() (thirdPartyCaveats []security.Servi
 
 // chainPrivateID implements security.PrivateID
 type chainPrivateID struct {
+	security.Signer
 	publicID   *chainPublicID
-	privateKey *ecdsa.PrivateKey
+	privateKey *ecdsa.PrivateKey // can be nil
 }
 
 func (id *chainPrivateID) PublicID() security.PublicID { return id.publicID }
 
-func (id *chainPrivateID) Sign(message []byte) (sig security.Signature, err error) {
-	r, s, err := ecdsa.Sign(rand.Reader, id.privateKey, message)
-	if err != nil {
-		return
-	}
-	sig.R, sig.S = r.Bytes(), s.Bytes()
-	return
-}
-
 func (id *chainPrivateID) String() string { return fmt.Sprintf("PrivateID:%v", id.publicID) }
 
 func (id *chainPrivateID) VomEncode() (*wire.ChainPrivateID, error) {
+	if id.privateKey == nil {
+		// TODO(ataly): Figure out a clean way to serialize Signers.
+		return nil, fmt.Errorf("cannot vom-encode a chainPrivateID that doesn't have access to a private key")
+	}
 	pub, err := id.publicID.VomEncode()
 	if err != nil {
 		return nil, err
@@ -150,6 +146,7 @@ func (id *chainPrivateID) VomDecode(w *wire.ChainPrivateID) error {
 		PublicKey: *id.publicID.publicKey,
 		D:         new(big.Int).SetBytes(w.Secret),
 	}
+	id.Signer = NewClearSigner(id.privateKey)
 	return nil
 }
 
@@ -172,11 +169,11 @@ func (id *chainPrivateID) Bless(blessee security.PublicID, blessingName string, 
 	if cert.Caveats, err = wire.EncodeCaveats(caveats); err != nil {
 		return nil, err
 	}
-	vomID, err := id.VomEncode()
+	vomPubID, err := id.publicID.VomEncode()
 	if err != nil {
 		return nil, err
 	}
-	if err := cert.Sign(vomID); err != nil {
+	if err := cert.Sign(id, vomPubID); err != nil {
 		return nil, err
 	}
 	w := &wire.ChainPublicID{
@@ -197,6 +194,7 @@ func (id *chainPrivateID) Derive(pub security.PublicID) (security.PrivateID, err
 	switch p := pub.(type) {
 	case *chainPublicID:
 		return &chainPrivateID{
+			Signer:     id.Signer,
 			publicID:   p,
 			privateKey: id.privateKey,
 		}, nil
@@ -218,35 +216,47 @@ func (id *chainPrivateID) MintDischarge(cav security.ThirdPartyCaveat, ctx secur
 	return caveat.NewPublicKeyDischarge(id, cav, ctx, duration, dischargeCaveats)
 }
 
-// newChainPrivateID returns a new PrivateID containing a freshly generated
-// private key, and a single self-signed certificate specifying the provided
-// name and the public key corresponding to the generated private key.
-func newChainPrivateID(name string) (security.PrivateID, error) {
+// newChainPrivateID returns a new PrivateID that uses the provided Signer to generate
+// signatures.  The returned PrivateID additionaly contains a single self-signed
+// certificate with the given name.
+//
+// If a nil signer is provided, this method will generate a new public/private key pair
+// and use a system-default signer, which stores the private key in the clear in the memory
+// of the running process.
+func newChainPrivateID(name string, signer security.Signer) (security.PrivateID, error) {
 	if err := wire.ValidateBlessingName(name); err != nil {
 		return nil, err
 	}
-	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
-	if err != nil {
-		return nil, err
+	var privKey *ecdsa.PrivateKey
+	if signer == nil {
+		var err error
+		privKey, err = ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+		if err != nil {
+			return nil, err
+		}
+		signer = NewClearSigner(privKey)
 	}
+
 	id := &chainPrivateID{
+		Signer: signer,
 		publicID: &chainPublicID{
 			certificates: []wire.Certificate{{Name: name}},
 			name:         name,
-			publicKey:    &key.PublicKey,
-			rootKey:      &key.PublicKey,
+			publicKey:    signer.PublicKey(),
+			rootKey:      signer.PublicKey(),
 		},
-		privateKey: key,
+		privateKey: privKey,
 	}
+	// Self-sign the (single) certificate.
 	cert := &id.publicID.certificates[0]
-	if err := cert.PublicKey.Encode(&key.PublicKey); err != nil {
+	if err := cert.PublicKey.Encode(signer.PublicKey()); err != nil {
 		return nil, err
 	}
-	vomID, err := id.VomEncode()
+	vomPubID, err := id.publicID.VomEncode()
 	if err != nil {
 		return nil, err
 	}
-	if err := cert.Sign(vomID); err != nil {
+	if err := cert.Sign(id, vomPubID); err != nil {
 		return nil, err
 	}
 	return id, nil

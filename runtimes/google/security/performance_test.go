@@ -58,7 +58,7 @@ func benchmarkDecode(b *testing.B, idBytes []byte) {
 
 func BenchmarkNewChain(b *testing.B) {
 	for i := 0; i < b.N; i++ {
-		if _, err := newChainPrivateID("X"); err != nil {
+		if _, err := newChainPrivateID("X", nil); err != nil {
 			b.Fatalf("Failed newChainPrivateID #%d: %v", i, err)
 		}
 

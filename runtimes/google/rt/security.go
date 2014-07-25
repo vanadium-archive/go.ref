@@ -12,7 +12,7 @@ import (
 )
 
 func (rt *vrt) NewIdentity(name string) (security.PrivateID, error) {
-	return isecurity.NewPrivateID(name)
+	return isecurity.NewPrivateID(name, nil)
 }
 
 func (rt *vrt) Identity() security.PrivateID {

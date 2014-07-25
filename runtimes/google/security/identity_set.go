@@ -167,6 +167,8 @@ func (s setPrivateID) PublicID() security.PublicID {
 
 func (s setPrivateID) Sign(message []byte) (security.Signature, error) { return s[0].Sign(message) }
 
+func (s setPrivateID) PublicKey() *ecdsa.PublicKey { return s[0].PublicKey() }
+
 func (s setPrivateID) Bless(blessee security.PublicID, blessingName string, duration time.Duration, caveats []security.ServiceCaveat) (security.PublicID, error) {
 	pubs := make([]security.PublicID, len(s))
 	for ix, id := range s {
