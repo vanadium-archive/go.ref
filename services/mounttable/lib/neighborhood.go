@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"veyron/lib/glob"
+	"veyron/runtimes/google/lib/netconfig"
 
 	"veyron2/ipc"
 	"veyron2/naming"
@@ -25,6 +26,7 @@ const addressPrefix = "address:"
 type neighborhood struct {
 	mdns   *mdns.MDNS
 	nelems int
+	nw     netconfig.NetConfigWatcher
 }
 
 type neighborhoodService struct {
@@ -88,6 +90,23 @@ func newNeighborhoodServer(host string, addresses []string, loopback bool) (*nei
 	nh := &neighborhood{
 		mdns: mdns,
 	}
+
+	// Watch the network configuration so that we can make MDNS reattach to
+	// interfaces when the network changes.
+	nh.nw, err = netconfig.NewNetConfigWatcher()
+	if err != nil {
+		vlog.Errorf("nighborhood can't watch network: %s", err)
+		return nh, nil
+	}
+	go func() {
+		if _, ok := <-nh.nw.Channel(); !ok {
+			return
+		}
+		if _, err := nh.mdns.ScanInterfaces(); err != nil {
+			vlog.Errorf("nighborhood can't scan interfaces: %s", err)
+		}
+	}()
+
 	return nh, nil
 }
 
@@ -124,6 +143,9 @@ func (nh *neighborhood) Authorize(context security.Context) error {
 
 // Stop performs cleanup.
 func (nh *neighborhood) Stop() {
+	if nh.nw != nil {
+		nh.nw.Stop()
+	}
 	nh.mdns.Stop()
 }
 
