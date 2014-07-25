@@ -1,6 +1,7 @@
 package query
 
 import (
+	"crypto/rand"
 	"fmt"
 	"math/big"
 	"reflect"
@@ -8,7 +9,6 @@ import (
 	"sort"
 	"strings"
 	"sync"
-	"veyron2/vlog"
 
 	vsync "veyron/runtimes/google/lib/sync"
 	"veyron/services/store/memstore/state"
@@ -21,6 +21,7 @@ import (
 	"veyron2/services/store"
 	"veyron2/storage"
 	"veyron2/vdl/vdlutil"
+	"veyron2/vlog"
 )
 
 // maxChannelSize is the maximum size of the channels used for concurrent
@@ -622,22 +623,24 @@ func convertPipelineFunc(p *parse.PipelineFunc) evaluator {
 	switch p.FuncName {
 	case "sort":
 		if src.singleResult() {
-			panic(fmt.Errorf("found aggregate function at %v, sort expects multiple results"))
+			panic(fmt.Errorf("%v: sort expects multiple inputs not a single input", p.Pos))
 		}
 		return &funcSortEvaluator{
 			src:  convertPipeline(p.Src),
 			args: args,
 			pos:  p.Pos,
 		}
+	case "sample":
+		return convertSampleFunc(src, args, p.Pos)
 	default:
 		panic(fmt.Errorf("unknown function %s at Pos %v", p.FuncName, p.Pos))
 	}
 }
 
 type funcSortEvaluator struct {
-	// src produces intermediate results that will be transformed by func.
+	// src produces intermediate results that will be sorted.
 	src evaluator
-	// args is the list of arguments passed to the function.
+	// args is the list of arguments passed to sort().
 	args []expr
 	// pos specifies where in the query string this component started.
 	pos parse.Pos
@@ -713,6 +716,77 @@ func (a argsSorter) Less(i, j int) bool {
 	}
 	// Break ties based on name to get a deterministic order.
 	return a.results[i].Name < a.results[j].Name
+}
+
+// funcSampleEvaluator is an evaluator that uses reservior sampling to
+// filter results to a desired number.
+type funcSampleEvaluator struct {
+	// src produces intermediate results that will be transformed by func.
+	src evaluator
+	// numSamples is the number of samples to send to the output.
+	numSamples int64
+	// pos specifies where in the query string this component started.
+	pos parse.Pos
+}
+
+func convertSampleFunc(src evaluator, args []expr, pos parse.Pos) evaluator {
+	if src.singleResult() {
+		panic(fmt.Errorf("%v: sample expects multiple inputs not a single input", pos))
+	}
+	if len(args) != 1 {
+		panic(fmt.Errorf("%v: sample expects exactly one integer argument specifying the number of results to include in the sample", pos))
+	}
+	n, ok := args[0].(*exprInt)
+	if !ok {
+		panic(fmt.Errorf("%v: sample expects exactly one integer argument specifying the number of results to include in the sample", pos))
+	}
+	return &funcSampleEvaluator{src, n.i.Int64(), pos}
+}
+
+// eval implements the evaluator method.
+func (e *funcSampleEvaluator) eval(c *context) {
+	defer c.cleanup.Done()
+	defer close(c.out)
+	srcOut := startSource(c, e.src)
+
+	reservoir := make([]*store.QueryResult, e.numSamples)
+	i := int64(0)
+	for result := range srcOut {
+		if i < e.numSamples {
+			// Fill the reservoir.
+			reservoir[i] = result
+		} else {
+			// Sample with decreasing probability.
+			bigJ, err := rand.Int(rand.Reader, big.NewInt(i+1))
+			if err != nil {
+				c.evalIt.setErrorf("error while sampling: %v", err)
+				return
+			}
+			j := bigJ.Int64()
+			if j < e.numSamples {
+				reservoir[j] = result
+			}
+		}
+		i++
+	}
+	for _, result := range reservoir {
+		if !c.emit(result) {
+			return
+		}
+	}
+}
+
+// singleResult implements the evaluator method.
+func (e *funcSampleEvaluator) singleResult() bool {
+	// During construction, we tested that e.src is not singleResult.
+	return false
+}
+
+// name implements the evaluator method.
+func (e *funcSampleEvaluator) name() string {
+	// A sampled resultset is still the same as the original resultset, so it
+	// should have the same name.
+	return e.src.name()
 }
 
 // predicate determines whether an intermediate query result should be

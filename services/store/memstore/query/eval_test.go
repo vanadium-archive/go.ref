@@ -148,6 +148,9 @@ func TestEval(t *testing.T) {
 		names := map[string]bool{}
 		for it.Next() {
 			result := it.Get()
+			if _, ok := names[result.Name]; ok {
+				t.Errorf("query: %s, duplicate results for %s", test.query, result.Name)
+			}
 			names[result.Name] = true
 		}
 		if it.Err() != nil {
@@ -161,6 +164,54 @@ func TestEval(t *testing.T) {
 		for _, name := range test.expectedNames {
 			if !names[name] {
 				t.Errorf("Did not find '%s' in %v", name, names)
+			}
+		}
+		// Ensure that all the goroutines are cleaned up.
+		it.(*evalIterator).wait()
+	}
+}
+
+func TestSample(t *testing.T) {
+	st := populate(t)
+
+	type testCase struct {
+		query            string
+		expectedNumNames int
+	}
+
+	tests := []testCase{
+		{"teams/* | type team | sample(1)", 1},
+		{"teams/* | type team | sample(2)", 2},
+		{"teams/* | type team | sample(3)", 3},
+		{"teams/* | type team | sample(4)", 3}, // Can't sample more values than exist.
+	}
+
+	for _, test := range tests {
+		it := Eval(st.Snapshot(), rootPublicID, storage.ParsePath(""), query.Query{test.query})
+		names := make(map[string]struct{})
+		for it.Next() {
+			result := it.Get()
+			if _, ok := names[result.Name]; ok {
+				t.Errorf("query: %s, duplicate results for %s", test.query, result.Name)
+			}
+			names[result.Name] = struct{}{}
+		}
+		if it.Err() != nil {
+			t.Errorf("query: %s, Error during eval: %v", test.query, it.Err())
+			continue
+		}
+		if len(names) != test.expectedNumNames {
+			t.Errorf("query: %s, Wrong number of names.  got %v, wanted %v", test.query, names, test.expectedNumNames)
+			continue
+		}
+		possibleNames := map[string]struct{}{
+			"teams/cardinals": struct{}{},
+			"teams/sharks":    struct{}{},
+			"teams/bears":     struct{}{},
+		}
+		for name, _ := range names {
+			if _, ok := possibleNames[name]; !ok {
+				t.Errorf("Did not find '%s' in %v", name, possibleNames)
 			}
 		}
 		// Ensure that all the goroutines are cleaned up.
@@ -524,6 +575,9 @@ func TestError(t *testing.T) {
 		{"teams/* | ?Name > 'foo'", "could not look up name 'Name' relative to 'teams': not found"},
 		{"'teams/cardinals' | {myname: Name, myloc: Location} | ? Name == 'foo'", "name 'Name' was not selected from 'teams/cardinals', found: [myloc, myname]"},
 		{"teams/* | type team | sort(Name) | ?-Name > 'foo'", "cannot negate value of type string for teams/bears"},
+		{"teams/* | type team | sample(2, 3)", "1:21: sample expects exactly one integer argument specifying the number of results to include in the sample"},
+		{"teams/* | type team | sample(2.0)", "1:21: sample expects exactly one integer argument specifying the number of results to include in the sample"},
+		{"teams/* | type team | sample(-1)", "1:21: sample expects exactly one integer argument specifying the number of results to include in the sample"},
 
 		// TODO(kash): Selection with conflicting names.
 		// TODO(kash): Trying to sort an aggregate.  "... | avg | sort()"
