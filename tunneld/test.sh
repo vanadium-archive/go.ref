@@ -6,103 +6,109 @@
 # that vsh can run commands through it and that all the expected names are
 # in the mounttable.
 
-toplevel=$(git rev-parse --show-toplevel)
-go=${toplevel}/scripts/build/go
-thisscript=$0
+readonly repo_root=$(git rev-parse --show-toplevel)
+readonly thisscript="$0"
+readonly workdir=$(mktemp -d "${repo_root}/go/tmp.XXXXXXXXXXX")
 
-workdir=$(mktemp -d ${toplevel}/go/tmp.XXXXXXXXXXX)
-export TMPDIR=$workdir
+export TMPDIR="${workdir}"
 trap onexit EXIT
 
 onexit() {
-	cd /
-	exec 2> /dev/null
-	kill -9 $(jobs -p)
-	rm -rf $workdir
+  cd /
+  exec 2> /dev/null
+  kill -9 $(jobs -p)
+  rm -rf "${workdir}"
 }
 
-FAIL() {
-	[ $# -gt 0 ] && echo "$thisscript $*"
-	echo FAIL
-	exit 1
+fail() {
+  [[ $# -gt 0 ]] && echo "${thisscript} $*"
+  echo FAIL
+  exit 1
 }
 
-PASS() {
-	echo PASS
-	exit 0
+pass() {
+  echo PASS
+  exit 0
 }
 
-# Build binaries.
-cd $workdir
-$go build veyron/examples/tunnel/tunneld || FAIL "line $LINENO: failed to build tunneld"
-$go build veyron/examples/tunnel/vsh || FAIL "line $LINENO: failed to build vsh"
-$go build veyron/services/mounttable/mounttabled || FAIL "line $LINENO: failed to build mounttabled"
-$go build veyron/tools/mounttable || FAIL "line $LINENO: failed to build mounttable"
-$go build veyron/tools/identity || FAIL "line $LINENO: failed to build identity"
+build() {
+  local go="${repo_root}/scripts/build/go"
+  "${go}" build veyron/examples/tunnel/tunneld || fail "line ${LINENO}: failed to build tunneld"
+  "${go}" build veyron/examples/tunnel/vsh || fail "line ${LINENO}: failed to build vsh"
+  "${go}" build veyron/services/mounttable/mounttabled || fail "line ${LINENO}: failed to build mounttabled"
+  "${go}" build veyron/tools/mounttable || fail "line ${LINENO}: failed to build mounttable"
+  "${go}" build veyron/tools/identity || fail "line ${LINENO}: failed to build identity"
+}
 
-# Start mounttabled and find its endpoint.
-mtlog=${workdir}/mt.log
-./mounttabled --address=localhost:0 > $mtlog 2>&1 &
+main() {
+  cd "${workdir}"
+  build
 
-for i in 1 2 3 4; do
-	ep=$(grep "Mount table service at:" $mtlog | sed -re 's/^.*endpoint: ([^ ]*).*/\1/')
-	if [ -n "$ep" ]; then
-		break
-	fi
-	sleep 1
-done
-[ -z $ep ] && FAIL "line $LINENO: no mounttable server"
+  # Start mounttabled and find its endpoint.
+  local mtlog="${workdir}/mt.log"
+  ./mounttabled --address=localhost:0 > "${mtlog}" 2>&1 &
+  for i in 1 2 3 4; do
+    ep=$(grep "Mount table service at:" "${mtlog}" | sed -e 's/^.*endpoint: //')
+    if [[ -n "${ep}" ]]; then
+      break
+    fi
+    sleep 1
+  done
+  [[ -z "${ep}" ]] && fail "line ${LINENO}: no mounttable server"
 
-tmpid=$workdir/id
-./identity generate test > $tmpid
+  # Generate an identity for the tunnel server and client
+  readonly id="${workdir}/id"
+  VEYRON_IDENTITY="" ./identity generate test >${id}
 
-export NAMESPACE_ROOT=$ep
-export VEYRON_IDENTITY=$tmpid
+  export NAMESPACE_ROOT="${ep}"
+  export VEYRON_IDENTITY="${id}"
 
-# Start tunneld and find its endpoint.
-tunlog=$workdir/tunnel.log
-./tunneld --address=localhost:0 > $tunlog 2>&1 &
+  # Start tunneld and find its endpoint.
+  local tunlog="${workdir}/tunnel.log"
+  ./tunneld --address=localhost:0 > "${tunlog}" 2>&1 &
+  for i in 1 2 3 4; do
+    ep=$(grep "Listening on endpoint" "${tunlog}" | sed -e 's/^.*endpoint //' | awk '{print $1}')
+    if [[ -n "${ep}" ]]; then
+      break
+    fi
+    sleep 1
+  done
+  [[ -z "${ep}" ]] && fail "line ${LINENO}: no tunnel server"
 
-for i in 1 2 3 4; do
-	ep=$(grep "Listening on endpoint" $tunlog | sed -re 's/^.*endpoint ([^ ]*).*/\1/')
-	if [ -n "$ep" ]; then
-		break
-	fi
-	sleep 1
-done
-[ -z $ep ] && FAIL "line $LINENO: no tunnel server"
+  # Run remote command with the endpoint.
+  local vshlog="${workdir}/vsh.log"
+  local got=$(./vsh --logtostderr --v=1 "${ep}" echo HELLO ENDPOINT 2>"${vshlog}")
+  local want="HELLO ENDPOINT"
 
-# Run remote command with the endpoint.
-vshlog=$workdir/vsh.log
-got=$(./vsh --logtostderr --v=1 $ep echo HELLO ENDPOINT 2>$vshlog)
-want="HELLO ENDPOINT"
+  if [[ "${got}" != "${want}" ]]; then
+    cat "${vshlog}"
+    fail "line ${LINENO}: unexpected output. Got ${got}, want ${want}"
+  fi
 
-if [ "$got" != "$want" ]; then
-        cat $vshlog
-	FAIL "line $LINENO: unexpected output. Got $got, want $want"
-fi
+  # Run remote command with the object name.
+  got=$(./vsh --logtostderr --v=1 tunnel/id/test echo HELLO NAME 2>"${vshlog}")
+  want="HELLO NAME"
 
-# Run remote command with the object name.
-got=$(./vsh --logtostderr --v=1 tunnel/id/test echo HELLO NAME 2>$vshlog)
-want="HELLO NAME"
+  if [[ "${got}" != "${want}" ]]; then
+    cat "${vshlog}"
+    fail "line ${LINENO}: unexpected output. Got ${got}, want ${want}"
+  fi
 
-if [ "$got" != "$want" ]; then
-        cat $vshlog
-	FAIL "line $LINENO: unexpected output. Got $got, want $want"
-fi
+  # Verify that all the published names are there.
+  got=$(./mounttable glob "${NAMESPACE_ROOT}" 'tunnel/*/*' |    \
+        sed -e 's/TTL .m..s/TTL XmXXs/'                     \
+            -e 's!hwaddr/[^ ]*!hwaddr/XX:XX:XX:XX:XX:XX!' | \
+        sort)
+  want="[${NAMESPACE_ROOT}]
+tunnel/hostname/$(hostname) ${ep}// (TTL XmXXs)
+tunnel/hwaddr/XX:XX:XX:XX:XX:XX ${ep}// (TTL XmXXs)
+tunnel/id/test ${ep}// (TTL XmXXs)"
 
-# Verify that all the published names are there.
-got=$(./mounttable glob $NAMESPACE_ROOT 'tunnel/*/*' |    \
-      sed -e 's/TTL .m..s/TTL XmXXs/'                     \
-          -e 's!hwaddr/[^ ]*!hwaddr/XX:XX:XX:XX:XX:XX!' | \
-      sort)
-want="[$NAMESPACE_ROOT]
-tunnel/hostname/$(hostname) $ep// (TTL XmXXs)
-tunnel/hwaddr/XX:XX:XX:XX:XX:XX $ep// (TTL XmXXs)
-tunnel/id/test $ep// (TTL XmXXs)"
+  if [[ "${got}" != "${want}" ]]; then
+    fail "line ${LINENO}: unexpected output. Got ${got}, want ${want}"
+  fi
 
-if [ "$got" != "$want" ]; then
-	FAIL "line $LINENO: unexpected output. Got $got, want $want"
-fi
+  pass
+}
 
-PASS
+main "$@"
