@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"strings"
 
 	"veyron/examples/tunnel"
 	"veyron/examples/tunnel/tunneld/impl"
@@ -30,8 +31,11 @@ func firstHardwareAddrInUse() (string, error) {
 		return "", err
 	}
 	for _, i := range interfaces {
-		if i.Name != "lo" && i.Flags&net.FlagUp != 0 {
+		if !strings.HasPrefix(i.Name, "lo") && i.Flags&net.FlagUp != 0 {
 			name := i.HardwareAddr.String()
+			if len(name) == 0 {
+				continue
+			}
 			vlog.Infof("Using %q (from %v)", name, i.Name)
 			return name, nil
 		}

@@ -1,43 +1,61 @@
-#!/bin/sh
+#!/bin/bash
 
-tl=$(git rev-parse --show-toplevel)
-go=$tl/scripts/build/go
-bin=$tl/go/bin
-script=$0
-bd=$(dirname $script)
-bd=$(realpath $bd)
+readonly repo_root=$(git rev-parse --show-toplevel)
+readonly thisscript="$0"
+readonly workdir=$(mktemp -d "${repo_root}/go/tmp.XXXXXXXXXX")
 
-cleanup() {
-	code=$1; msg=$2; shift; shift
-	[ "$*" != "" ] && echo "cleanup: $*"
-	rm -f $bd/.ep $bd/.id
-	kill $pid > /dev/null 2>&1
-	killall inspectord > /dev/null 2>&1
-	echo $script $msg
-	return $code
+export TMPDIR="${workdir}"
+trap onexit EXIT
+
+onexit() {
+  cd /
+  exec 2> /dev/null
+  kill -9 $(jobs -p)
+  rm -rf "${workdir}"
 }
 
-($go install veyron/examples/inspector/... veyron/tools/identity/...) || cleanup 1 FAIL "binary builds failed" || exit 1
+fail() {
+  [[ $# -gt 0 ]] && echo "${thisscript} $*"
+  echo FAIL
+  exit 1
+}
 
-# Generate an identity for the client and server
-# For now, using the same one for both
-$bin/identity generate "inspector" >$bd/.id || cleanup 1 FAIL "server identity" || exit 1
-export VEYRON_IDENTITY=$bd/.id
+pass() {
+  echo PASS
+  exit 0
+}
 
-$bin/inspectord >$bd/.ep &
-pid=$!
+build() {
+  local go="${repo_root}/scripts/build/go"
+  "${go}" build veyron/examples/inspector/inspector || fail "line ${LINENO}: failed to build inspector"
+  "${go}" build veyron/examples/inspector/inspectord || fail "line ${LINENO}: failed to build inspectord"
+  "${go}" build veyron/tools/identity || fail "line ${LINENO}: failed to build identity"
+}
 
-for i in 1 2 3 4; do
-	ep=$(cat $bd/.ep)
-	if [ "$ep" != "" ]; then
-		break
-	fi
-	sleep $i
-done
+main() {
+  cd "${workdir}"
+  build
 
-[ ! $ep ] && cleanup 0 FAIL "no server" && exit 1
+  # Generate an identity for the client and server
+  # For now, using the same one for both
+  local id="${workdir}/id"
+  ./identity generate inspector >"${id}" || fail "line ${LINENO}: failed to generate an identity"
+  export VEYRON_IDENTITY="${id}"
 
-$bin/inspector --service /$ep/stubbed/files -glob='m*' || cleanup 1 FAIL "stubbed/files" || exit 1
-$bin/inspector --service /$ep/stubless/files -glob='m*'|| cleanup 1 FAIL "stubless/files" || exit 1
+  ./inspectord >ep &
+  for i in 1 2 3 4; do
+    ep=$(cat ep)
+    if [[ -n "${ep}" ]]; then
+      break
+    fi
+    sleep $i
+  done
+  [[ -z "${ep}" ]] && fail "line ${LINENO}: no inspectord"
 
-cleanup 0 PASS && exit 0
+  ./inspector --service "/${ep}/stubbed/files" -glob='m*' || fail "line ${LINENO}: stubbed/files"
+  ./inspector --service "/${ep}/stubless/files" -glob='m*'|| fail "line ${LINENO}: stubless/files"
+
+  pass
+}
+
+main "$@"
