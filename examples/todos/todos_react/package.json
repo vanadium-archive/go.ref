@@ -1,0 +1,9 @@
+{
+  "name": "todos",
+  "version": "0.0.1",
+  "dependencies": {
+    "browserify": "^5.0.8",
+    "express": "^4.6.1",
+    "minimongo": "^2.4.2"
+  }
+}

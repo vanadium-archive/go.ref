@@ -1,0 +1,3 @@
+- Browserify, use require() syntax
+- Use Veyron store and sync
+- Write alternative, Mercury-based UI

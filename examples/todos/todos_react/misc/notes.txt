@@ -1,0 +1,7 @@
+http://facebook.github.io/react/
+http://facebook.github.io/react/docs/flux-overview.html
+http://facebook.github.io/react/docs/flux-todo-list.html
+
+Compared to Meteor:
+- Nice (maybe?) that event bindings live with DOM definition.
+- Annoying that we must put activateInput in componentDidUpdate.
