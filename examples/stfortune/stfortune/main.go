@@ -13,6 +13,7 @@ import (
 	"os"
 	"strings"
 	"time"
+	"veyron2/query"
 
 	"veyron/examples/stfortune/schema"
 
@@ -62,7 +63,7 @@ func waitForStore(store storage.Store) {
 			log.Fatalf("WatchGlob %s failed: %v", path, err)
 		}
 		if !stream.Advance() {
-			log.Fatalf("Advance failed: %v", stream.Err())
+			log.Fatalf("waitForStore, path: %s, Advance failed: %v", path, stream.Err())
 		}
 		stream.Cancel()
 	}
@@ -119,9 +120,9 @@ func runAsWatcher(store storage.Store, user string) {
 	log.Fatalf("watcher Advance failed: %v", err)
 }
 
-// pickFortune finds all available fortunes under the input path and
-// chooses one randomly.
-func pickFortune(store storage.Store, ctx context.T, path string) (string, error) {
+// pickFortuneGlob uses Glob to find all available fortunes under the input
+// path and then it chooses one randomly.
+func pickFortuneGlob(store storage.Store, ctx context.T, path string) (string, error) {
 	tr := primitives.NewTransaction(ctx)
 	defer tr.Abort(ctx)
 
@@ -153,6 +154,31 @@ func pickFortune(store storage.Store, ctx context.T, path string) (string, error
 	return fortune.Fortune, nil
 }
 
+// pickFortuneQuery uses a query to find all available fortunes under the input
+// path and choose one randomly.
+func pickFortuneQuery(store storage.Store, ctx context.T, path string) (string, error) {
+	results := store.Bind(path).Query(ctx, nil,
+		query.Query{
+			"* |" + // Inspect all children of path.
+				"type FortuneData |" + // Include only objects of type FortuneData.
+				"{Fortune: Fortune} |" + // Create a new struct containing only the Fortune field.
+				"sample(1)", // Randomly select one.
+		})
+	for results.Advance() {
+		f := results.Value().Fields()["Fortune"]
+		fortune, ok := f.(string)
+		if !ok {
+			return "", fmt.Errorf("unexpected type for fortune, got %T, expected string", f)
+		}
+		results.Cancel()
+		return fortune, nil
+	}
+	if results.Err() != nil {
+		return "", results.Err()
+	}
+	return "", nil // No fortunes found.
+}
+
 // getFortune returns a random fortune corresponding to a UserName if
 // specified. If not, it picks a random fortune.
 func getFortune(store storage.Store, userName string) (string, error) {
@@ -167,7 +193,14 @@ func getFortune(store storage.Store, userName string) (string, error) {
 		p = fortunePath("")
 	}
 
-	return pickFortune(store, ctx, p)
+	switch *pickMethod {
+	case "glob":
+		return pickFortuneGlob(store, ctx, p)
+	case "query":
+		return pickFortuneQuery(store, ctx, p)
+	default:
+		return "", fmt.Errorf("unsupported value for --pick_method.  use 'glob' or 'query'")
+	}
 }
 
 // addFortune adds a new fortune to the store and links it to the specified
@@ -247,6 +280,7 @@ var (
 	newFortune   = flag.String("new_fortune", "", "an optional, new fortune to add to the server's set")
 	user         = flag.String("user_name", "", "an optional username of the fortune creator to get/add to the server's set")
 	watch        = flag.Bool("watch", false, "run as a watcher reporting new fortunes")
+	pickMethod   = flag.String("pick_method", "glob", "use 'glob' or 'query' to randomly select a fortune")
 )
 
 func main() {
