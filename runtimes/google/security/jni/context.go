@@ -13,22 +13,13 @@ import (
 
 // #cgo LDFLAGS: -ljniwrapper
 // #include "jni_wrapper.h"
-//
-// // CGO doesn't support variadic functions so we have to hard-code these
-// // functions to match the invoking code. Ugh!
-// static jstring CallContextStringMethod(JNIEnv* env, jobject obj, jmethodID id) {
-// 	return (jstring)(*env)->CallObjectMethod(env, obj, id);
-// }
-// static jint CallContextIntMethod(JNIEnv* env, jobject obj, jmethodID id) {
-// 	return (*env)->CallIntMethod(env, obj, id);
-// }
-// static jobject CallContextPublicIDMethod(JNIEnv* env, jobject obj, jmethodID id) {
-// 	return (*env)->CallObjectMethod(env, obj, id);
-// }
-// static jobject CallContextLabelMethod(JNIEnv* env, jobject obj, jmethodID id) {
-// 	return (*env)->CallObjectMethod(env, obj, id);
-// }
 import "C"
+
+// newJavaContext constructs a new context in java based on the passed go context.
+func newJavaContext(env interface{}, context security.Context) C.jobject {
+	util.GoRef(&context) // Un-refed when the Java Context object is finalized.
+	return C.jobject(util.NewObjectOrCatch(env, jContextImplClass, []util.Sign{util.LongSign}, &context))
+}
 
 func newContext(env *C.JNIEnv, jContext C.jobject) *context {
 	// We cannot cache Java environments as they are only valid in the current
@@ -55,33 +46,22 @@ func newContext(env *C.JNIEnv, jContext C.jobject) *context {
 	return c
 }
 
+// context is the go interface to the java implementation of security.Context
 type context struct {
 	jVM      *C.JavaVM
 	jContext C.jobject
 }
 
 func (c *context) Method() string {
-	var env *C.JNIEnv
-	C.AttachCurrentThread(c.jVM, &env, nil)
-	defer C.DetachCurrentThread(c.jVM)
-	mid := C.jmethodID(util.JMethodIDPtrOrDie(env, C.GetObjectClass(env, c.jContext), "method", util.FuncSign(nil, util.StringSign)))
-	return util.GoString(env, C.CallContextStringMethod(env, c.jContext, mid))
+	return c.callStringMethod("method")
 }
 
 func (c *context) Name() string {
-	var env *C.JNIEnv
-	C.AttachCurrentThread(c.jVM, &env, nil)
-	defer C.DetachCurrentThread(c.jVM)
-	mid := C.jmethodID(util.JMethodIDPtrOrDie(env, C.GetObjectClass(env, c.jContext), "name", util.FuncSign(nil, util.StringSign)))
-	return util.GoString(env, C.CallContextStringMethod(env, c.jContext, mid))
+	return c.callStringMethod("name")
 }
 
 func (c *context) Suffix() string {
-	var env *C.JNIEnv
-	C.AttachCurrentThread(c.jVM, &env, nil)
-	defer C.DetachCurrentThread(c.jVM)
-	mid := C.jmethodID(util.JMethodIDPtrOrDie(env, C.GetObjectClass(env, c.jContext), "suffix", util.FuncSign(nil, util.StringSign)))
-	return util.GoString(env, C.CallContextStringMethod(env, c.jContext, mid))
+	return c.callStringMethod("suffix")
 }
 
 func (c *context) Label() security.Label {
@@ -89,8 +69,7 @@ func (c *context) Label() security.Label {
 	C.AttachCurrentThread(c.jVM, &env, nil)
 	defer C.DetachCurrentThread(c.jVM)
 	labelSign := util.ClassSign("com.veyron2.security.Label")
-	mid := C.jmethodID(util.JMethodIDPtrOrDie(env, C.GetObjectClass(env, c.jContext), "label", util.FuncSign(nil, labelSign)))
-	jLabel := C.CallContextLabelMethod(env, c.jContext, mid)
+	jLabel := C.jobject(util.CallObjectMethodOrCatch(env, c.jContext, "label", nil, labelSign))
 	return security.Label(util.JIntField(env, jLabel, "value"))
 }
 
@@ -104,8 +83,7 @@ func (c *context) LocalID() security.PublicID {
 	C.AttachCurrentThread(c.jVM, &env, nil)
 	defer C.DetachCurrentThread(c.jVM)
 	publicIDSign := util.ClassSign("com.veyron2.security.PublicID")
-	mid := C.jmethodID(util.JMethodIDPtrOrDie(env, C.GetObjectClass(env, c.jContext), "localID", util.FuncSign(nil, publicIDSign)))
-	jID := C.CallContextPublicIDMethod(env, c.jContext, mid)
+	jID := C.jobject(util.CallObjectMethodOrCatch(env, c.jContext, "localID", nil, publicIDSign))
 	return newPublicID(env, jID)
 }
 
@@ -114,8 +92,7 @@ func (c *context) RemoteID() security.PublicID {
 	C.AttachCurrentThread(c.jVM, &env, nil)
 	defer C.DetachCurrentThread(c.jVM)
 	publicIDSign := util.ClassSign("com.veyron2.security.PublicID")
-	mid := C.jmethodID(util.JMethodIDPtrOrDie(env, C.GetObjectClass(env, c.jContext), "remoteID", util.FuncSign(nil, publicIDSign)))
-	jID := C.CallContextPublicIDMethod(env, c.jContext, mid)
+	jID := C.jobject(util.CallObjectMethodOrCatch(env, c.jContext, "remoteID", nil, publicIDSign))
 	return newPublicID(env, jID)
 }
 
@@ -123,9 +100,8 @@ func (c *context) LocalEndpoint() naming.Endpoint {
 	var env *C.JNIEnv
 	C.AttachCurrentThread(c.jVM, &env, nil)
 	defer C.DetachCurrentThread(c.jVM)
-	mid := C.jmethodID(util.JMethodIDPtrOrDie(env, C.GetObjectClass(env, c.jContext), "localEndpoint", util.FuncSign(nil, util.StringSign)))
 	// TODO(spetrovic): create a Java Endpoint interface.
-	epStr := util.GoString(env, C.CallContextStringMethod(env, c.jContext, mid))
+	epStr := util.CallStringMethodOrCatch(env, c.jContext, "localEndpoint", nil)
 	ep, err := inaming.NewEndpoint(epStr)
 	if err != nil {
 		panic("Couldn't parse endpoint string: " + epStr)
@@ -137,12 +113,18 @@ func (c *context) RemoteEndpoint() naming.Endpoint {
 	var env *C.JNIEnv
 	C.AttachCurrentThread(c.jVM, &env, nil)
 	defer C.DetachCurrentThread(c.jVM)
-	mid := C.jmethodID(util.JMethodIDPtrOrDie(env, C.GetObjectClass(env, c.jContext), "remoteEndpoint", util.FuncSign(nil, util.StringSign)))
 	// TODO(spetrovic): create a Java Endpoint interface.
-	epStr := util.GoString(env, C.CallContextStringMethod(env, c.jContext, mid))
+	epStr := util.CallStringMethodOrCatch(env, c.jContext, "remoteEndpoint", nil)
 	ep, err := inaming.NewEndpoint(epStr)
 	if err != nil {
 		panic("Couldn't parse endpoint string: " + epStr)
 	}
 	return ep
+}
+
+func (c *context) callStringMethod(methodName string) string {
+	var env *C.JNIEnv
+	C.AttachCurrentThread(c.jVM, &env, nil)
+	defer C.DetachCurrentThread(c.jVM)
+	return util.CallStringMethodOrCatch(env, c.jContext, methodName, nil)
 }

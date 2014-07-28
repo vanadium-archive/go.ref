@@ -14,17 +14,6 @@ import (
 
 // #cgo LDFLAGS: -ljniwrapper
 // #include "jni_wrapper.h"
-// // CGO doesn't support variadic functions so we have to hard-code these
-// // functions to match the invoking code. Ugh!
-// static jobject CallDispatcherLookupMethod(JNIEnv* env, jobject obj, jmethodID id, jstring str) {
-//   return (*env)->CallObjectMethod(env, obj, id, str);
-// }
-// static jobject CallDispatcherGetObjectMethod(JNIEnv* env, jobject obj, jmethodID id) {
-//   return (*env)->CallObjectMethod(env, obj, id);
-// }
-// static jobject CallDispatcherGetAuthorizerMethod(JNIEnv* env, jobject obj, jmethodID id) {
-//   return (*env)->CallObjectMethod(env, obj, id);
-// }
 import "C"
 
 func newDispatcher(env *C.JNIEnv, jDispatcher C.jobject) (*dispatcher, error) {
@@ -66,29 +55,27 @@ func (d *dispatcher) Lookup(suffix string) (ipc.Invoker, security.Authorizer, er
 
 	// Call Java dispatcher's lookup() method.
 	serviceObjectWithAuthorizerSign := util.ClassSign("com.veyron2.ipc.ServiceObjectWithAuthorizer")
-	lid := C.jmethodID(util.JMethodIDPtrOrDie(env, C.GetObjectClass(env, d.jDispatcher), "lookup", util.FuncSign([]util.Sign{util.StringSign}, serviceObjectWithAuthorizerSign)))
-	jServiceObjectWithAuthorizer := C.CallDispatcherLookupMethod(env, d.jDispatcher, lid, C.jstring(util.JStringPtr(env, suffix)))
-	if err := util.JExceptionMsg(env); err != nil {
+	tempJObj, err := util.CallObjectMethod(env, d.jDispatcher, "lookup", []util.Sign{util.StringSign}, serviceObjectWithAuthorizerSign, suffix)
+	jObj := C.jobject(tempJObj)
+	if err != nil {
 		return nil, nil, fmt.Errorf("error invoking Java dispatcher's lookup() method: %v", err)
 	}
-	if jServiceObjectWithAuthorizer == nil {
+	if jObj == nil {
 		// Lookup returned null, which means that the dispatcher isn't handling the object -
 		// this is not an error.
 		return nil, nil, nil
 	}
 
 	// Extract the Java service object and Authorizer.
-	oid := C.jmethodID(util.JMethodIDPtrOrDie(env, C.GetObjectClass(env, jServiceObjectWithAuthorizer), "getServiceObject", util.FuncSign(nil, util.ObjectSign)))
-	jObj := C.CallDispatcherGetObjectMethod(env, jServiceObjectWithAuthorizer, oid)
-	if jObj == nil {
+	jServiceObj := C.jobject(util.CallObjectMethodOrCatch(env, jObj, "getServiceObject", nil, util.ObjectSign))
+	if jServiceObj == nil {
 		return nil, nil, fmt.Errorf("null service object returned by Java's ServiceObjectWithAuthorizer")
 	}
 	authSign := util.ClassSign("com.veyron2.security.Authorizer")
-	aid := C.jmethodID(util.JMethodIDPtrOrDie(env, C.GetObjectClass(env, jServiceObjectWithAuthorizer), "getAuthorizer", util.FuncSign(nil, authSign)))
-	jAuth := C.CallDispatcherGetAuthorizerMethod(env, jServiceObjectWithAuthorizer, aid)
+	jAuth := C.jobject(util.CallObjectMethodOrCatch(env, jObj, "getAuthorizer", nil, authSign))
 
 	// Create Go Invoker and Authorizer.
-	i, err := newInvoker(env, d.jVM, jObj)
+	i, err := newInvoker(env, d.jVM, jServiceObj)
 	if err != nil {
 		return nil, nil, err
 	}

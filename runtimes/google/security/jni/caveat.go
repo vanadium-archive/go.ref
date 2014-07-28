@@ -11,15 +11,6 @@ import (
 
 // #cgo LDFLAGS: -ljniwrapper
 // #include "jni_wrapper.h"
-//
-// // CGO doesn't support variadic functions so we have to hard-code these
-// // functions to match the invoking code. Ugh!
-// static jobject CallCaveatNewContextObject(JNIEnv* env, jclass class, jmethodID id, jlong goContextPtr) {
-// 	return (*env)->NewObject(env, class, id, goContextPtr);
-// }
-// static void CallCaveatValidateMethod(JNIEnv* env, jobject obj, jmethodID id, jobject context) {
-// 	return (*env)->CallVoidMethod(env, obj, id, context);
-// }
 import "C"
 
 func newCaveat(env *C.JNIEnv, jCaveat C.jobject) *caveat {
@@ -56,11 +47,7 @@ func (c *caveat) Validate(context security.Context) error {
 	var env *C.JNIEnv
 	C.AttachCurrentThread(c.jVM, &env, nil)
 	defer C.DetachCurrentThread(c.jVM)
-	util.GoRef(&context) // un-refed when the Java Context object is finalized.
-	cid := C.jmethodID(util.JMethodIDPtrOrDie(env, jContextImplClass, "<init>", util.FuncSign([]util.Sign{util.LongSign}, util.VoidSign)))
-	jContext := C.CallCaveatNewContextObject(env, jContextImplClass, cid, C.jlong(util.PtrValue(&context)))
+	jContext := newJavaContext(env, context)
 	contextSign := util.ClassSign("com.veyron2.security.Context")
-	mid := C.jmethodID(util.JMethodIDPtrOrDie(env, C.GetObjectClass(env, c.jCaveat), "validate", util.FuncSign([]util.Sign{contextSign}, util.VoidSign)))
-	C.CallCaveatValidateMethod(env, c.jCaveat, mid, jContext)
-	return util.JExceptionMsg(env)
+	return util.CallVoidMethod(env, c.jCaveat, "validate", []util.Sign{contextSign}, jContext)
 }

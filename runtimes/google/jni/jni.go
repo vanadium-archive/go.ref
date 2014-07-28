@@ -25,18 +25,9 @@ func JNI_OnLoad(jVM *C.JavaVM, reserved unsafe.Pointer) C.jint {
 		C.AttachCurrentThread(jVM, &env, nil)
 		defer C.DetachCurrentThread(jVM)
 	}
-	log.Println("Here1")
 	util.Init(env)
-	log.Println("Here2")
 	ipc.Init(env)
-	log.Println("Here3")
 	security.Init(env)
-	log.Println("Here4")
-	log.Println("Here4")
-	log.Println("Here4")
-	log.Println("Here4")
-	log.Println("Here4")
-	log.Println("Here4")
 	return C.JNI_VERSION_1_6
 }
 

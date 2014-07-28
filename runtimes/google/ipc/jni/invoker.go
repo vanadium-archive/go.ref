@@ -19,12 +19,13 @@ import "C"
 
 func newInvoker(env *C.JNIEnv, jVM *C.JavaVM, jObj C.jobject) (*invoker, error) {
 	// Create a new Java VDLInvoker object.
-	jInvoker := C.jobject(util.NewObject(env, jVDLInvokerClass, []util.Sign{util.ObjectSign}, jObj))
-	if err := util.JExceptionMsg(env); err != nil {
+	tempJInvoker, err := util.NewObject(env, jVDLInvokerClass, []util.Sign{util.ObjectSign}, jObj)
+	jInvoker := C.jobject(tempJInvoker)
+	if err != nil {
 		return nil, fmt.Errorf("error creating Java VDLInvoker object: %v", err)
 	}
 	// Fetch the argGetter for the object.
-	jPathArray := C.jobjectArray(util.CallObjectMethod(env, jInvoker, "getImplementedServices", nil, util.ArraySign(util.StringSign)))
+	jPathArray := C.jobjectArray(util.CallObjectMethodOrCatch(env, jInvoker, "getImplementedServices", nil, util.ArraySign(util.StringSign)))
 	paths := util.GoStringArray(env, jPathArray)
 	getter, err := newArgGetter(paths)
 	if err != nil {
@@ -73,9 +74,9 @@ func (i *invoker) Prepare(method string, numArgs int) (argptrs []interface{}, la
 
 	// Get the security label.
 	labelSign := util.ClassSign("com.veyron2.security.Label")
-	jLabel := C.jobject(util.CallObjectMethod(env, i.jInvoker, "getSecurityLabel", []util.Sign{util.StringSign}, labelSign, util.CamelCase(method)))
-	if err = util.JExceptionMsg(env); err != nil {
-		return
+	jLabel, err := util.CallObjectMethod(env, i.jInvoker, "getSecurityLabel", []util.Sign{util.StringSign}, labelSign, util.CamelCase(method))
+	if err != nil {
+		return nil, security.Label(0), err
 	}
 	label = security.Label(util.JIntField(env, jLabel, "value"))
 	return
@@ -99,7 +100,7 @@ func (i *invoker) Invoke(method string, call ipc.ServerCall, argptrs []interface
 		err = fmt.Errorf("couldn't find VDL method %q with %d args", method, len(argptrs))
 	}
 	sCall := newServerCall(call, mArgs)
-	jServerCall := C.jobject(util.NewObject(env, jServerCallClass, []util.Sign{util.LongSign}, sCall))
+	jServerCall := C.jobject(util.NewObjectOrCatch(env, jServerCallClass, []util.Sign{util.LongSign}, sCall))
 	util.GoRef(sCall) // unref-ed when jServerCall is garbage-collected
 
 	// Translate input args to JSON.
@@ -110,12 +111,12 @@ func (i *invoker) Invoke(method string, call ipc.ServerCall, argptrs []interface
 	// Invoke the method.
 	callSign := util.ClassSign("com.veyron2.ipc.ServerCall")
 	replySign := util.ClassSign("com.veyron.runtimes.google.VDLInvoker$InvokeReply")
-	jReply := C.jobject(util.CallObjectMethod(env, i.jInvoker, "invoke", []util.Sign{util.StringSign, callSign, util.ArraySign(util.StringSign)}, replySign, util.CamelCase(method), jServerCall, jArgs))
-	if err := util.JExceptionMsg(env); err != nil {
+	jReply, err := util.CallObjectMethod(env, i.jInvoker, "invoke", []util.Sign{util.StringSign, callSign, util.ArraySign(util.StringSign)}, replySign, util.CamelCase(method), jServerCall, jArgs)
+	if err != nil {
 		return nil, fmt.Errorf("error invoking Java method %q: %v", method, err)
 	}
 	// Decode and return results.
-	return i.decodeResults(env, method, len(argptrs), jReply)
+	return i.decodeResults(env, method, len(argptrs), C.jobject(jReply))
 }
 
 // encodeArgs JSON-encodes the provided argument pointers, converts them into

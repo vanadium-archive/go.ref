@@ -15,18 +15,6 @@ import (
 
 // #cgo LDFLAGS: -ljniwrapper
 // #include "jni_wrapper.h"
-//
-// // CGO doesn't support variadic functions so we have to hard-code these
-// // functions to match the invoking code. Ugh!
-// static jobject CallNewECPublicKeyInfoObject(JNIEnv* env, jclass class, jmethodID id, jbyteArray keyX, jbyteArray keyY, jbyteArray encodedKey, jint fieldBitSize) {
-//   return (*env)->NewObject(env, class, id, keyX, keyY, encodedKey, fieldBitSize);
-// }
-// static jobject CallNewCaveatObject(JNIEnv* env, jclass class, jmethodID id, jlong nativePtr) {
-//   return (*env)->NewObject(env, class, id, nativePtr);
-// }
-// static jobject CallNewServiceCaveatObject(JNIEnv* env, jclass class, jmethodID id, jstring service, jobject caveat) {
-//   return (*env)->NewObject(env, class, id, service, caveat);
-// }
 import "C"
 
 var (
@@ -84,8 +72,7 @@ func Java_com_veyron_runtimes_google_security_PublicID_nativePublicKey(env *C.JN
 		util.JThrowV(env, err)
 		return C.jobject(nil)
 	}
-	cid := C.jmethodID(util.JMethodIDPtrOrDie(env, jECPublicKeyInfoClass, "<init>", util.FuncSign([]util.Sign{util.ArraySign(util.ByteSign), util.ArraySign(util.ByteSign), util.ArraySign(util.ByteSign), util.IntSign}, util.VoidSign)))
-	return C.CallNewECPublicKeyInfoObject(env, jECPublicKeyInfoClass, cid, C.jbyteArray(util.JByteArrayPtr(env, key.X.Bytes())), C.jbyteArray(util.JByteArrayPtr(env, key.Y.Bytes())), C.jbyteArray(util.JByteArrayPtr(env, encoded)), C.jint(key.Params().BitSize))
+	return C.jobject(util.NewObjectOrCatch(env, jECPublicKeyInfoClass, []util.Sign{util.ArraySign(util.ByteSign), util.ArraySign(util.ByteSign), util.ArraySign(util.ByteSign), util.IntSign}, key.X.Bytes(), key.Y.Bytes(), encoded, key.Params().BitSize))
 }
 
 //export Java_com_veyron_runtimes_google_security_PublicID_nativeAuthorize
@@ -106,10 +93,8 @@ func Java_com_veyron_runtimes_google_security_PublicID_nativeThirdPartyCaveats(e
 	jServiceCaveats := C.NewObjectArray(env, C.jsize(len(sCaveats)), jServiceCaveatClass, nil)
 	for i, sCaveat := range sCaveats {
 		util.GoRef(&sCaveat) // Un-refed when the Java Caveat object is finalized.
-		cid := C.jmethodID(util.JMethodIDPtrOrDie(env, jCaveatImplClass, "<init>", util.FuncSign([]util.Sign{util.LongSign}, util.VoidSign)))
-		jCaveat := C.CallNewCaveatObject(env, jCaveatImplClass, cid, C.jlong(util.PtrValue(&sCaveat)))
-		scid := C.jmethodID(util.JMethodIDPtrOrDie(env, jServiceCaveatClass, "<init>", util.FuncSign([]util.Sign{util.StringSign, caveatSign}, util.VoidSign)))
-		jServiceCaveat := C.CallNewServiceCaveatObject(env, jServiceCaveatClass, scid, C.jstring(util.JStringPtr(env, string(sCaveat.Service))), jCaveat)
+		jCaveat := C.jobject(util.NewObjectOrCatch(env, jCaveatImplClass, []util.Sign{util.LongSign}, &sCaveat))
+		jServiceCaveat := C.jobject(util.NewObjectOrCatch(env, jServiceCaveatClass, []util.Sign{util.StringSign, caveatSign}, sCaveat.Service, jCaveat))
 		C.SetObjectArrayElement(env, jServiceCaveats, C.jsize(i), jServiceCaveat)
 	}
 	return jServiceCaveats
@@ -132,7 +117,7 @@ func Java_com_veyron_runtimes_google_security_PublicID_nativeFinalize(env *C.JNI
 
 //export Java_com_veyron_runtimes_google_security_PrivateID_nativeCreate
 func Java_com_veyron_runtimes_google_security_PrivateID_nativeCreate(env *C.JNIEnv, jPrivateIDClass C.jclass, name C.jstring) C.jlong {
-	id, err := isecurity.NewPrivateID(util.GoString(env, name))
+	id, err := isecurity.NewPrivateID(util.GoString(env, name), nil)
 	if err != nil {
 		util.JThrowV(env, err)
 		return C.jlong(0)
