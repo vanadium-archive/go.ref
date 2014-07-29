@@ -412,7 +412,7 @@ func (l *iLog) processWatchRecord(objID storage.ID, vers storage.Version, par []
 	}
 
 	// Insert the new log record into dag.
-	if err = l.s.dag.addNode(rec.ObjID, rec.CurVers, false, rec.Parents, logKey); err != nil {
+	if err = l.s.dag.addNode(rec.ObjID, rec.CurVers, false, rec.Parents, logKey, NoTxID); err != nil {
 		return err
 	}
 

@@ -68,13 +68,16 @@ package vsync
 // in the Veyron Store) have moved past some version for that object, the
 // DAG for that object can be pruned, deleting all prior (ancestor) nodes.
 //
-// The DAG DB contains two tables persisted to disk (nodes, heads) and
-// an in-memory (ephemeral) graft map:
+// The DAG DB contains three tables persisted to disk (nodes, heads, trans)
+// and three in-memory (ephemeral) maps (graft, txSet, txGC):
 //   * nodes: one entry per (object, version) with references to the
-//            parent node(s) it is derived from, and a reference to the
-//            log record identifying that change
+//            parent node(s) it is derived from, a reference to the
+//            log record identifying that change, and a reference to
+//            its transaction set (or NoTxID if none)
 //   * heads: one entry per object pointing to its most recent version
-//            in the nodes collection
+//            in the nodes table
+//   * trans: one entry per transaction ID containing the set of objects
+//            that forms the transaction and their versions.
 //   * graft: during a sync operation, it tracks the nodes where the new
 //            DAG fragments are attached to the existing graph for each
 //            mutated object.  This map is used to determine whether a
@@ -82,6 +85,14 @@ package vsync
 //            recent common ancestor from these graft points to use when
 //            resolving the conflict.  At the end of a sync operation the
 //            graft map is destroyed.
+//   * txSet: used to incrementally construct the transaction sets that
+//            are stored in the "trans" table once all the nodes of a
+//            transaction have been added.  Multiple transaction sets
+//            can be constructed to support the concurrency between the
+//            Sync Initiator and Watcher threads.
+//   * txGC:  used to track the transactions impacted by objects being
+//            pruned.  At the end of the pruning operation the records
+//            of the "trans" table are updated from the txGC information.
 //
 // Note: for regular (no-conflict) changes, a node has a reference to
 // one parent from which it was derived.  When a conflict is resolved,
@@ -95,23 +106,37 @@ import (
 	"container/list"
 	"errors"
 	"fmt"
+	"math/rand"
+	"time"
 
 	"veyron2/storage"
 	"veyron2/vlog"
 )
+
+const (
+	NoTxID = TxID(0)
+)
+
+type TxID uint64
+type dagTxMap map[storage.ID]storage.Version
 
 type dag struct {
 	fname string                    // file pathname
 	store *kvdb                     // underlying K/V store
 	heads *kvtable                  // pointer to "heads" table in the store
 	nodes *kvtable                  // pointer to "nodes" table in the store
+	trans *kvtable                  // pointer to "trans" table in the store
 	graft map[storage.ID]*graftInfo // in-memory state of DAG object grafting
+	txSet map[TxID]dagTxMap         // in-memory construction of transaction sets
+	txGC  map[TxID]dagTxMap         // in-memory tracking of transaction sets to cleanup
+	txGen *rand.Rand                // transaction ID random number generator
 }
 
 type dagNode struct {
 	Level   uint64            // node distance from root
 	Parents []storage.Version // references to parent versions
 	Logrec  string            // reference to log record change
+	TxID    TxID              // ID of a transaction set
 }
 
 type graftInfo struct {
@@ -123,8 +148,8 @@ type graftInfo struct {
 // openDAG opens or creates a DAG for the given filename.
 func openDAG(filename string) (*dag, error) {
 	// Open the file and create it if it does not exist.
-	// Also initialize the store and its two collections.
-	db, tbls, err := kvdbOpen(filename, []string{"heads", "nodes"})
+	// Also initialize the store and its tables.
+	db, tbls, err := kvdbOpen(filename, []string{"heads", "nodes", "trans"})
 	if err != nil {
 		return nil, err
 	}
@@ -134,9 +159,13 @@ func openDAG(filename string) (*dag, error) {
 		store: db,
 		heads: tbls[0],
 		nodes: tbls[1],
+		trans: tbls[2],
+		txGen: rand.New(rand.NewSource(time.Now().UTC().UnixNano())),
+		txSet: make(map[TxID]dagTxMap),
 	}
 
 	d.clearGraft()
+	d.clearTxGC()
 
 	return d, nil
 }
@@ -161,13 +190,14 @@ func (d *dag) compact() error {
 	if d.store == nil {
 		return errors.New("invalid DAG")
 	}
-	db, tbls, err := d.store.compact(d.fname, []string{"heads", "nodes"})
+	db, tbls, err := d.store.compact(d.fname, []string{"heads", "nodes", "trans"})
 	if err != nil {
 		return err
 	}
 	d.store = db
 	d.heads = tbls[0]
 	d.nodes = tbls[1]
+	d.trans = tbls[2]
 	return nil
 }
 
@@ -175,6 +205,13 @@ func (d *dag) compact() error {
 func (d *dag) clearGraft() {
 	if d.store != nil {
 		d.graft = make(map[storage.ID]*graftInfo)
+	}
+}
+
+// clearTxGC clears the temporary in-memory transaction garbage collection maps.
+func (d *dag) clearTxGC() {
+	if d.store != nil {
+		d.txGC = make(map[TxID]dagTxMap)
 	}
 }
 
@@ -218,6 +255,52 @@ func (d *dag) getObjectGraft(oid storage.ID, create bool) *graftInfo {
 	return graft
 }
 
+// addNodeTxStart generates a transaction ID and returns it to the caller.
+// The transaction ID is purely internal to the DAG.  It is used to track
+// DAG nodes that are part of the same transaction.
+func (d *dag) addNodeTxStart() TxID {
+	if d.store == nil {
+		return NoTxID
+	}
+
+	// Generate a random 64-bit transaction ID different than NoTxID.
+	// Also make sure the ID is not already being used.
+	tid := NoTxID
+	for (tid == NoTxID) || (d.txSet[tid] != nil) {
+		// Generate an unsigned 64-bit random value by combining a
+		// random 63-bit value and a random 1-bit value.
+		tid = (TxID(d.txGen.Int63()) << 1) | TxID(d.txGen.Int63n(2))
+	}
+
+	// Initialize the in-memory object/version map for that transaction ID.
+	d.txSet[tid] = make(dagTxMap)
+
+	return tid
+}
+
+// addNodeTxEnd marks the end of a given transaction.
+// The DAG completes its internal tracking of the transaction information.
+func (d *dag) addNodeTxEnd(tid TxID) error {
+	if d.store == nil {
+		return errors.New("invalid DAG")
+	}
+	if tid == NoTxID {
+		return fmt.Errorf("invalid TxID: %v", tid)
+	}
+
+	txMap, ok := d.txSet[tid]
+	if !ok {
+		return fmt.Errorf("unknown transaction ID: %v", tid)
+	}
+
+	if err := d.setTransaction(tid, txMap); err != nil {
+		return err
+	}
+
+	delete(d.txSet, tid)
+	return nil
+}
+
 // addNode adds a new node for an object in the DAG, linking it to its parent nodes.
 // It verifies that this node does not exist and that its parent nodes are valid.
 // It also determines the DAG level of the node from its parent nodes (max() + 1).
@@ -228,10 +311,15 @@ func (d *dag) getObjectGraft(oid storage.ID, create bool) *graftInfo {
 // - If a parent node is not new, mark it as a DAG graft point.
 // - Mark this version as a new node.
 // - Update the new head node pointer of the grafted DAG.
-func (d *dag) addNode(oid storage.ID, version storage.Version, remote bool, parents []storage.Version, logrec string) error {
+//
+// If the transaction ID is set to NoTxID, this node is not part of a transaction.
+// Otherwise, track its membership in the given transaction ID.
+func (d *dag) addNode(oid storage.ID, version storage.Version, remote bool,
+	parents []storage.Version, logrec string, tid TxID) error {
 	if d.store == nil {
 		return errors.New("invalid DAG")
 	}
+
 	if parents != nil {
 		if len(parents) > 2 {
 			return fmt.Errorf("cannot have more than 2 parents, not %d", len(parents))
@@ -314,12 +402,22 @@ func (d *dag) addNode(oid storage.ID, version storage.Version, remote bool, pare
 		graft.newHeads[version] = struct{}{}
 	}
 
+	// If this node is part of a transaction, add it to that set.
+	if tid != NoTxID {
+		txMap, ok := d.txSet[tid]
+		if !ok {
+			return fmt.Errorf("unknown transaction ID: %v", tid)
+		}
+
+		txMap[oid] = version
+	}
+
 	// Insert the new node in the kvdb.
-	node := &dagNode{Level: level, Parents: parents, Logrec: logrec}
+	node := &dagNode{Level: level, Parents: parents, Logrec: logrec, TxID: tid}
 	return d.setNode(oid, version, node)
 }
 
-// hasNode returns true if the node (oid, version) exists in the DAG.
+// hasNode returns true if the node (oid, version) exists in the DAG DB.
 func (d *dag) hasNode(oid storage.ID, version storage.Version) bool {
 	if d.store == nil {
 		return false
@@ -523,6 +621,9 @@ func (d *dag) ancestorIter(oid storage.ID, startVersions []storage.Version,
 // node it calls the given callback function to delete its log record.
 // This function should only be called when Sync determines that all devices
 // that know about the object have gotten past this version.
+// Also track any transaction sets affected by deleting DAG objects that
+// have transaction IDs.  This is later used to do garbage collection
+// on transaction sets when pruneDone() is called.
 func (d *dag) prune(oid storage.ID, version storage.Version, delLogRec func(logrec string) error) error {
 	if d.store == nil {
 		return errors.New("invalid DAG")
@@ -548,8 +649,17 @@ func (d *dag) prune(oid storage.ID, version storage.Version, delLogRec func(logr
 
 	// Delete all ancestor nodes and their log records.
 	// Delete as many as possible and track the error counts.
+	// Keep track of objects deleted from transaction in order
+	// to cleanup transaction sets when pruneDone() is called.
 	numNodeErrs, numLogErrs := 0, 0
 	err = d.ancestorIter(oid, iterVersions, func(oid storage.ID, v storage.Version, node *dagNode) error {
+		if tid := node.TxID; tid != NoTxID {
+			if d.txGC[tid] == nil {
+				d.txGC[tid] = make(dagTxMap)
+			}
+			d.txGC[tid][oid] = v
+		}
+
 		if err := delLogRec(node.Logrec); err != nil {
 			numLogErrs++
 		}
@@ -567,6 +677,40 @@ func (d *dag) prune(oid storage.ID, version storage.Version, delLogRec func(logr
 	return nil
 }
 
+// pruneDone is called when object pruning is finished within a single pass
+// of the Sync garbage collector.  It updates the transaction sets affected
+// by the objects deleted by the prune() calls.
+func (d *dag) pruneDone() error {
+	if d.store == nil {
+		return errors.New("invalid DAG")
+	}
+
+	// Update transaction sets by removing from them the objects that
+	// were pruned.  If the resulting set is empty, delete it.
+	for tid, txMapGC := range d.txGC {
+		txMap, err := d.getTransaction(tid)
+		if err != nil {
+			return err
+		}
+
+		for oid := range txMapGC {
+			delete(txMap, oid)
+		}
+
+		if len(txMap) > 0 {
+			err = d.setTransaction(tid, txMap)
+		} else {
+			err = d.delTransaction(tid)
+		}
+		if err != nil {
+			return err
+		}
+	}
+
+	d.clearTxGC()
+	return nil
+}
+
 // getLogrec returns the log record information for a given object version.
 func (d *dag) getLogrec(oid storage.ID, version storage.Version) (string, error) {
 	node, err := d.getNode(oid, version)
@@ -577,13 +721,13 @@ func (d *dag) getLogrec(oid storage.ID, version storage.Version) (string, error)
 }
 
 // objNodeKey returns the key used to access the object node (oid, version)
-// in the DAG.
+// in the DAG DB.
 func objNodeKey(oid storage.ID, version storage.Version) string {
 	return fmt.Sprintf("%s:%d", oid.String(), version)
 }
 
 // setNode stores the dagNode structure for the object node (oid, version)
-// in the DAG.
+// in the DAG DB.
 func (d *dag) setNode(oid storage.ID, version storage.Version, node *dagNode) error {
 	if d.store == nil {
 		return errors.New("invalid DAG")
@@ -593,7 +737,7 @@ func (d *dag) setNode(oid storage.ID, version storage.Version, node *dagNode) er
 }
 
 // getNode retrieves the dagNode structure for the object node (oid, version)
-// from the DAG.
+// from the DAG DB.
 func (d *dag) getNode(oid storage.ID, version storage.Version) (*dagNode, error) {
 	if d.store == nil {
 		return nil, errors.New("invalid DAG")
@@ -606,7 +750,7 @@ func (d *dag) getNode(oid storage.ID, version storage.Version) (*dagNode, error)
 	return &node, nil
 }
 
-// delNode deletes the object node (oid, version) from the DAG.
+// delNode deletes the object node (oid, version) from the DAG DB.
 func (d *dag) delNode(oid storage.ID, version storage.Version) error {
 	if d.store == nil {
 		return errors.New("invalid DAG")
@@ -615,12 +759,12 @@ func (d *dag) delNode(oid storage.ID, version storage.Version) error {
 	return d.nodes.del(key)
 }
 
-// objHeadKey returns the key used to access the object head in the DAG.
+// objHeadKey returns the key used to access the object head in the DAG DB.
 func objHeadKey(oid storage.ID) string {
 	return oid.String()
 }
 
-// setHead stores version as the object head in the DAG.
+// setHead stores version as the object head in the DAG DB.
 func (d *dag) setHead(oid storage.ID, version storage.Version) error {
 	if d.store == nil {
 		return errors.New("invalid DAG")
@@ -629,7 +773,7 @@ func (d *dag) setHead(oid storage.ID, version storage.Version) error {
 	return d.heads.set(key, version)
 }
 
-// getHead retrieves the object head from the DAG.
+// getHead retrieves the object head from the DAG DB.
 func (d *dag) getHead(oid storage.ID) (storage.Version, error) {
 	var version storage.Version
 	if d.store == nil {
@@ -641,6 +785,51 @@ func (d *dag) getHead(oid storage.ID) (storage.Version, error) {
 		version = storage.NoVersion
 	}
 	return version, err
+}
+
+// dagTransactionKey returns the key used to access the transaction in the DAG DB.
+func dagTransactionKey(tid TxID) string {
+	return fmt.Sprintf("%v", tid)
+}
+
+// setTransaction stores the transaction object/version map in the DAG DB.
+func (d *dag) setTransaction(tid TxID, txMap dagTxMap) error {
+	if d.store == nil {
+		return errors.New("invalid DAG")
+	}
+	if tid == NoTxID {
+		return fmt.Errorf("invalid TxID: %v", tid)
+	}
+	key := dagTransactionKey(tid)
+	return d.trans.set(key, txMap)
+}
+
+// getTransaction retrieves the transaction object/version map from the DAG DB.
+func (d *dag) getTransaction(tid TxID) (dagTxMap, error) {
+	if d.store == nil {
+		return nil, errors.New("invalid DAG")
+	}
+	if tid == NoTxID {
+		return nil, fmt.Errorf("invalid TxID: %v", tid)
+	}
+	var txMap dagTxMap
+	key := dagTransactionKey(tid)
+	if err := d.trans.get(key, &txMap); err != nil {
+		return nil, err
+	}
+	return txMap, nil
+}
+
+// delTransaction deletes the transation object/version map from the DAG DB.
+func (d *dag) delTransaction(tid TxID) error {
+	if d.store == nil {
+		return errors.New("invalid DAG")
+	}
+	if tid == NoTxID {
+		return fmt.Errorf("invalid TxID: %v", tid)
+	}
+	key := dagTransactionKey(tid)
+	return d.trans.del(key)
 }
 
 // getParentMap is a testing and debug helper function that returns for

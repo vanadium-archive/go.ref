@@ -309,7 +309,7 @@ func (i *syncInitiator) insertRecInLogAndDag(rec *LogRec) error {
 	vlog.VI(2).Infof("insertRecInLogAndDag:: Adding log record %v", rec)
 	switch rec.RecType {
 	case NodeRec:
-		return i.syncd.dag.addNode(rec.ObjID, rec.CurVers, true, rec.Parents, logKey)
+		return i.syncd.dag.addNode(rec.ObjID, rec.CurVers, true, rec.Parents, logKey, NoTxID)
 	case LinkRec:
 		return i.syncd.dag.addParent(rec.ObjID, rec.CurVers, rec.Parents[0], true)
 	default:
@@ -617,7 +617,7 @@ func (i *syncInitiator) updateLogAndDag() error {
 			// Add a new DAG node.
 			switch rec.RecType {
 			case NodeRec:
-				err = i.syncd.dag.addNode(obj, rec.CurVers, false, rec.Parents, logKey)
+				err = i.syncd.dag.addNode(obj, rec.CurVers, false, rec.Parents, logKey, NoTxID)
 			case LinkRec:
 				err = i.syncd.dag.addParent(obj, rec.CurVers, rec.Parents[0], false)
 			default:

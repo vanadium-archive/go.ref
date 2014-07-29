@@ -192,7 +192,7 @@ func dagReplayCommands(dag *dag, syncfile string) error {
 	for _, cmd := range cmds {
 		switch cmd.cmd {
 		case addLocal:
-			if err = dag.addNode(cmd.objID, cmd.version, false, cmd.parents, cmd.logrec); err != nil {
+			if err = dag.addNode(cmd.objID, cmd.version, false, cmd.parents, cmd.logrec, NoTxID); err != nil {
 				return fmt.Errorf("cannot add local node %d:%d to DAG: %v", cmd.objID, cmd.version, err)
 			}
 			if err := dag.moveHead(cmd.objID, cmd.version); err != nil {
@@ -201,7 +201,7 @@ func dagReplayCommands(dag *dag, syncfile string) error {
 			dag.flush()
 
 		case addRemote:
-			if err = dag.addNode(cmd.objID, cmd.version, true, cmd.parents, cmd.logrec); err != nil {
+			if err = dag.addNode(cmd.objID, cmd.version, true, cmd.parents, cmd.logrec, NoTxID); err != nil {
 				return fmt.Errorf("cannot add remote node %d:%d to DAG: %v", cmd.objID, cmd.version, err)
 			}
 			dag.flush()

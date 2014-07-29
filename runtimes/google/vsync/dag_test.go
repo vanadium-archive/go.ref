@@ -99,7 +99,7 @@ func TestInvalidDAG(t *testing.T) {
 		t.Error(err)
 	}
 
-	err = dag.addNode(oid, 4, false, []storage.Version{2, 3}, "foobar")
+	err = dag.addNode(oid, 4, false, []storage.Version{2, 3}, "foobar", NoTxID)
 	if err == nil || err.Error() != "invalid DAG" {
 		t.Errorf("addNode() did not fail on a closed DAG: %v", err)
 	}
@@ -124,6 +124,11 @@ func TestInvalidDAG(t *testing.T) {
 	})
 	if err == nil || err.Error() != "invalid DAG" {
 		t.Errorf("prune() did not fail on a closed DAG: %v", err)
+	}
+
+	err = dag.pruneDone()
+	if err == nil || err.Error() != "invalid DAG" {
+		t.Errorf("pruneDone() did not fail on a closed DAG: %v", err)
 	}
 
 	node := &dagNode{Level: 15, Parents: []storage.Version{444, 555}, Logrec: "logrec-23"}
@@ -162,8 +167,33 @@ func TestInvalidDAG(t *testing.T) {
 		t.Errorf("compact() did not fail on a closed DAG: %v", err)
 	}
 
+	if tid := dag.addNodeTxStart(); tid != NoTxID {
+		t.Errorf("addNodeTxStart() did not fail on a closed DAG: TxID %v", tid)
+	}
+
+	err = dag.addNodeTxEnd(1)
+	if err == nil || err.Error() != "invalid DAG" {
+		t.Errorf("addNodeTxEnd() did not fail on a closed DAG: %v", err)
+	}
+
+	err = dag.setTransaction(1, nil)
+	if err == nil || err.Error() != "invalid DAG" {
+		t.Errorf("setTransaction() did not fail on a closed DAG: %v", err)
+	}
+
+	_, err = dag.getTransaction(1)
+	if err == nil || err.Error() != "invalid DAG" {
+		t.Errorf("getTransaction() did not fail on a closed DAG: %v", err)
+	}
+
+	err = dag.delTransaction(1)
+	if err == nil || err.Error() != "invalid DAG" {
+		t.Errorf("delTransaction() did not fail on a closed DAG: %v", err)
+	}
+
 	// These calls should be harmless NOPs.
 	dag.clearGraft()
+	dag.clearTxGC()
 	dag.flush()
 	dag.close()
 	if dag.hasNode(oid, 4) {
@@ -421,10 +451,14 @@ func checkEndOfSync(d *dag, oid storage.ID) error {
 	// Clear grafting info; this happens at the end of a sync log replay.
 	d.clearGraft()
 
-	// There should be no grafting info, and hasConflict() should fail.
+	// There should be no grafting or transaction info, and hasConflict() should fail.
 	newHeads, grafts := d.getGraftNodes(oid)
 	if newHeads != nil || grafts != nil {
 		return fmt.Errorf("Object %d: graft info not cleared: newHeads (%v), grafts (%v)", oid, newHeads, grafts)
+	}
+
+	if n := len(d.txSet); n != 0 {
+		return fmt.Errorf("transaction set not empty: %d entries found", n)
 	}
 
 	isConflict, newHead, oldHead, ancestor, errConflict := d.hasConflict(oid)
@@ -472,26 +506,26 @@ func TestLocalUpdates(t *testing.T) {
 	}
 
 	// Make sure an existing node cannot be added again.
-	if err = dag.addNode(oid, 1, false, []storage.Version{0, 2}, "foobar"); err == nil {
+	if err = dag.addNode(oid, 1, false, []storage.Version{0, 2}, "foobar", NoTxID); err == nil {
 		t.Errorf("addNode() did not fail when given an existing node")
 	}
 
 	// Make sure a new node cannot have more than 2 parents.
-	if err = dag.addNode(oid, 3, false, []storage.Version{0, 1, 2}, "foobar"); err == nil {
+	if err = dag.addNode(oid, 3, false, []storage.Version{0, 1, 2}, "foobar", NoTxID); err == nil {
 		t.Errorf("addNode() did not fail when given 3 parents")
 	}
 
 	// Make sure a new node cannot have an invalid parent.
-	if err = dag.addNode(oid, 3, false, []storage.Version{0, 555}, "foobar"); err == nil {
+	if err = dag.addNode(oid, 3, false, []storage.Version{0, 555}, "foobar", NoTxID); err == nil {
 		t.Errorf("addNode() did not fail when using an invalid parent")
 	}
 
 	// Make sure a new root node (no parents) cannot be added once a root exists.
 	// For the parents array, check both the "nil" and the empty array as input.
-	if err = dag.addNode(oid, 6789, false, nil, "foobar"); err == nil {
+	if err = dag.addNode(oid, 6789, false, nil, "foobar", NoTxID); err == nil {
 		t.Errorf("Adding a 2nd root node (nil parents) for object %d in DAG file %s did not fail", oid, dagfile)
 	}
-	if err = dag.addNode(oid, 6789, false, []storage.Version{}, "foobar"); err == nil {
+	if err = dag.addNode(oid, 6789, false, []storage.Version{}, "foobar", NoTxID); err == nil {
 		t.Errorf("Adding a 2nd root node (empty parents) for object %d in DAG file %s did not fail", oid, dagfile)
 	}
 
@@ -982,6 +1016,11 @@ func TestPruning(t *testing.T) {
 			t.Errorf("Object %d has wrong head in DAG file %s: %d", oid, dagfile, head)
 		}
 
+		err = dag.pruneDone()
+		if err != nil {
+			t.Errorf("pruneDone() failed in DAG file %s: %v", dagfile, err)
+		}
+
 		// Remove pruned nodes from the expected parent map used to validate
 		// and set the parents of the pruned node to nil.
 		if version < 10 {
@@ -1047,6 +1086,11 @@ func TestPruningCallbackError(t *testing.T) {
 	}
 	if del != expDel {
 		t.Errorf("pruning object %d:%d deleted %d log records instead of %d", oid, version, del, expDel)
+	}
+
+	err = dag.pruneDone()
+	if err != nil {
+		t.Errorf("pruneDone() failed in DAG file %s: %v", dagfile, err)
 	}
 
 	if head, err := dag.getHead(oid); err != nil || head != 8 {
@@ -1497,5 +1541,378 @@ func TestRemoteLinkedConflictNewHeadOvertake(t *testing.T) {
 
 	if err := checkEndOfSync(dag, oid); err != nil {
 		t.Fatal(err)
+	}
+}
+
+// TestAddNodeTransactional tests adding multiple DAG nodes grouped within a transaction.
+func TestAddNodeTransactional(t *testing.T) {
+	dagfile := dagFilename()
+	defer os.Remove(dagfile)
+
+	dag, err := openDAG(dagfile)
+	if err != nil {
+		t.Fatalf("Cannot open new DAG file %s", dagfile)
+	}
+
+	if err = dagReplayCommands(dag, "local-init-02.sync"); err != nil {
+		t.Fatal(err)
+	}
+
+	oid_a, err := strToObjID("12345")
+	if err != nil {
+		t.Fatal(err)
+	}
+	oid_b, err := strToObjID("67890")
+	if err != nil {
+		t.Fatal(err)
+	}
+	oid_c, err := strToObjID("222")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Verify NoTxID is reported as an error.
+	if err := dag.addNodeTxEnd(NoTxID); err == nil {
+		t.Errorf("addNodeTxEnd() did not fail for invalid 'NoTxID' value")
+	}
+	if _, err := dag.getTransaction(NoTxID); err == nil {
+		t.Errorf("getTransaction() did not fail for invalid 'NoTxID' value")
+	}
+	if err := dag.setTransaction(NoTxID, nil); err == nil {
+		t.Errorf("setTransaction() did not fail for invalid 'NoTxID' value")
+	}
+	if err := dag.delTransaction(NoTxID); err == nil {
+		t.Errorf("delTransaction() did not fail for invalid 'NoTxID' value")
+	}
+
+	// Mutate 2 objects within a transaction.
+	tid_1 := dag.addNodeTxStart()
+	if tid_1 == NoTxID {
+		t.Fatal("Cannot start 1st DAG addNode() transaction")
+	}
+
+	txMap, ok := dag.txSet[tid_1]
+	if !ok {
+		t.Errorf("Transactions map for Tx ID %v not found in DAG file %s", tid_1, dagfile)
+	}
+	if n := len(txMap); n != 0 {
+		t.Errorf("Transactions map for Tx ID %v has length %d instead of 0 in DAG file %s", tid_1, n, dagfile)
+	}
+
+	if err := dag.addNode(oid_a, 3, false, []storage.Version{2}, "logrec-a-03", tid_1); err != nil {
+		t.Errorf("Cannot addNode() on object %d and Tx ID %v in DAG file %s: %v", oid_a, tid_1, dagfile, err)
+	}
+	if err := dag.addNode(oid_b, 3, false, []storage.Version{2}, "logrec-b-03", tid_1); err != nil {
+		t.Errorf("Cannot addNode() on object %d and Tx ID %v in DAG file %s: %v", oid_b, tid_1, dagfile, err)
+	}
+
+	// At the same time mutate the 3rd object in another transaction.
+	tid_2 := dag.addNodeTxStart()
+	if tid_2 == NoTxID {
+		t.Fatal("Cannot start 2nd DAG addNode() transaction")
+	}
+
+	txMap, ok = dag.txSet[tid_2]
+	if !ok {
+		t.Errorf("Transactions map for Tx ID %v not found in DAG file %s", tid_2, dagfile)
+	}
+	if n := len(txMap); n != 0 {
+		t.Errorf("Transactions map for Tx ID %v has length %d instead of 0 in DAG file %s", tid_2, n, dagfile)
+	}
+
+	if err := dag.addNode(oid_c, 2, false, []storage.Version{1}, "logrec-c-02", tid_2); err != nil {
+		t.Errorf("Cannot addNode() on object %d and Tx ID %v in DAG file %s: %v", oid_c, tid_2, dagfile, err)
+	}
+
+	// Verify the in-memory transaction sets constructed.
+	txMap, ok = dag.txSet[tid_1]
+	if !ok {
+		t.Errorf("Transactions map for Tx ID %v not found in DAG file %s", tid_1, dagfile)
+	}
+
+	expTxMap := dagTxMap{oid_a: 3, oid_b: 3}
+	if !reflect.DeepEqual(txMap, expTxMap) {
+		t.Errorf("Invalid transaction map for Tx ID %v in DAG file %s: %v instead of %v", tid_1, dagfile, txMap, expTxMap)
+	}
+
+	txMap, ok = dag.txSet[tid_2]
+	if !ok {
+		t.Errorf("Transactions map for Tx ID %v not found in DAG file %s", tid_2, dagfile)
+	}
+
+	expTxMap = dagTxMap{oid_c: 2}
+	if !reflect.DeepEqual(txMap, expTxMap) {
+		t.Errorf("Invalid transaction map for Tx ID %v in DAG file %s: %v instead of %v", tid_2, dagfile, txMap, expTxMap)
+	}
+
+	// Verify failing to use a Tx ID not returned by addNodeTxStart().
+	bad_tid := tid_1 + 1
+	for bad_tid == NoTxID || bad_tid == tid_2 {
+		bad_tid++
+	}
+
+	if err := dag.addNode(oid_c, 3, false, []storage.Version{2}, "logrec-c-03", bad_tid); err == nil {
+		t.Errorf("addNode() did not fail on object %d for a bad Tx ID %v in DAG file %s", oid_c, bad_tid, dagfile)
+	}
+	if err := dag.addNodeTxEnd(bad_tid); err == nil {
+		t.Errorf("addNodeTxEnd() did not fail for a bad Tx ID %v in DAG file %s", bad_tid, dagfile)
+	}
+
+	// End the 1st transaction and verify the in-memory and in-DAG data.
+	if err := dag.addNodeTxEnd(tid_1); err != nil {
+		t.Errorf("Cannot addNodeTxEnd() for Tx ID %v in DAG file %s: %v", tid_1, dagfile, err)
+	}
+
+	if _, ok = dag.txSet[tid_1]; ok {
+		t.Errorf("Transactions map for Tx ID %v still exists in DAG file %s", tid_1, dagfile)
+	}
+
+	txMap, err = dag.getTransaction(tid_1)
+	if err != nil {
+		t.Errorf("Cannot getTransaction() for Tx ID %v in DAG file %s: %v", tid_1, dagfile, err)
+	}
+
+	expTxMap = dagTxMap{oid_a: 3, oid_b: 3}
+	if !reflect.DeepEqual(txMap, expTxMap) {
+		t.Errorf("Invalid transaction map from DAG storage for Tx ID %v in DAG file %s: %v instead of %v",
+			tid_1, dagfile, txMap, expTxMap)
+	}
+
+	txMap, ok = dag.txSet[tid_2]
+	if !ok {
+		t.Errorf("Transactions map for Tx ID %v not found in DAG file %s", tid_2, dagfile)
+	}
+
+	expTxMap = dagTxMap{oid_c: 2}
+	if !reflect.DeepEqual(txMap, expTxMap) {
+		t.Errorf("Invalid transaction map for Tx ID %v in DAG file %s: %v instead of %v", tid_2, dagfile, txMap, expTxMap)
+	}
+
+	// End the 2nd transaction and re-verify the in-memory and in-DAG data.
+	if err := dag.addNodeTxEnd(tid_2); err != nil {
+		t.Errorf("Cannot addNodeTxEnd() for Tx ID %v in DAG file %s: %v", tid_2, dagfile, err)
+	}
+
+	if _, ok = dag.txSet[tid_2]; ok {
+		t.Errorf("Transactions map for Tx ID %v still exists in DAG file %s", tid_2, dagfile)
+	}
+
+	txMap, err = dag.getTransaction(tid_2)
+	if err != nil {
+		t.Errorf("Cannot getTransaction() for Tx ID %v in DAG file %s: %v", tid_2, dagfile, err)
+	}
+
+	expTxMap = dagTxMap{oid_c: 2}
+	if !reflect.DeepEqual(txMap, expTxMap) {
+		t.Errorf("Invalid transaction map for Tx ID %v in DAG file %s: %v instead of %v", tid_2, dagfile, txMap, expTxMap)
+	}
+
+	if n := len(dag.txSet); n != 0 {
+		t.Errorf("Transaction sets in-memory: %d entries found, should be empty in DAG file %s", n, dagfile)
+	}
+
+	// Get the 3 new nodes from the DAG and verify their Tx IDs.
+	node, err := dag.getNode(oid_a, 3)
+	if err != nil {
+		t.Errorf("Cannot find object %d:3 in DAG file %s: %v", oid_a, dagfile, err)
+	}
+	if node.TxID != tid_1 {
+		t.Errorf("Invalid TxID for object %d:3 in DAG file %s: %v instead of %v", oid_a, dagfile, node.TxID, tid_1)
+	}
+	node, err = dag.getNode(oid_b, 3)
+	if err != nil {
+		t.Errorf("Cannot find object %d:3 in DAG file %s: %v", oid_b, dagfile, err)
+	}
+	if node.TxID != tid_1 {
+		t.Errorf("Invalid TxID for object %d:3 in DAG file %s: %v instead of %v", oid_b, dagfile, node.TxID, tid_1)
+	}
+	node, err = dag.getNode(oid_c, 2)
+	if err != nil {
+		t.Errorf("Cannot find object %d:2 in DAG file %s: %v", oid_c, dagfile, err)
+	}
+	if node.TxID != tid_2 {
+		t.Errorf("Invalid TxID for object %d:2 in DAG file %s: %v instead of %v", oid_c, dagfile, node.TxID, tid_2)
+	}
+
+	for _, oid := range []storage.ID{oid_a, oid_b, oid_c} {
+		if err := checkEndOfSync(dag, oid); err != nil {
+			t.Fatal(err)
+		}
+	}
+}
+
+// TestPruningTransactions tests pruning DAG nodes grouped within transactions.
+func TestPruningTransactions(t *testing.T) {
+	dagfile := dagFilename()
+	defer os.Remove(dagfile)
+
+	dag, err := openDAG(dagfile)
+	if err != nil {
+		t.Fatalf("Cannot open new DAG file %s", dagfile)
+	}
+
+	if err = dagReplayCommands(dag, "local-init-02.sync"); err != nil {
+		t.Fatal(err)
+	}
+
+	oid_a, err := strToObjID("12345")
+	if err != nil {
+		t.Fatal(err)
+	}
+	oid_b, err := strToObjID("67890")
+	if err != nil {
+		t.Fatal(err)
+	}
+	oid_c, err := strToObjID("222")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Mutate objects in 2 transactions then add non-transactional mutations
+	// to act as the pruning points.  Before pruning the DAG is:
+	// a1 -- a2 -- (a3) --- a4
+	// b1 -- b2 -- (b3) -- (b4) -- b5
+	// c1 ---------------- (c2)
+	// Now by pruning at (a4, b5, c2), the new DAG should be:
+	// a4
+	// b5
+	// (c2)
+	// Transaction 1 (a3, b3) gets deleted, but transaction 2 (b4, c2) still
+	// has (c2) dangling waiting for a future pruning.
+	tid_1 := dag.addNodeTxStart()
+	if tid_1 == NoTxID {
+		t.Fatal("Cannot start 1st DAG addNode() transaction")
+	}
+	if err := dag.addNode(oid_a, 3, false, []storage.Version{2}, "logrec-a-03", tid_1); err != nil {
+		t.Errorf("Cannot addNode() on object %d and Tx ID %v in DAG file %s: %v", oid_a, tid_1, dagfile, err)
+	}
+	if err := dag.addNode(oid_b, 3, false, []storage.Version{2}, "logrec-b-03", tid_1); err != nil {
+		t.Errorf("Cannot addNode() on object %d and Tx ID %v in DAG file %s: %v", oid_b, tid_1, dagfile, err)
+	}
+	if err := dag.addNodeTxEnd(tid_1); err != nil {
+		t.Errorf("Cannot addNodeTxEnd() for Tx ID %v in DAG file %s: %v", tid_1, dagfile, err)
+	}
+
+	tid_2 := dag.addNodeTxStart()
+	if tid_2 == NoTxID {
+		t.Fatal("Cannot start 2nd DAG addNode() transaction")
+	}
+	if err := dag.addNode(oid_b, 4, false, []storage.Version{3}, "logrec-b-04", tid_2); err != nil {
+		t.Errorf("Cannot addNode() on object %d and Tx ID %v in DAG file %s: %v", oid_b, tid_2, dagfile, err)
+	}
+	if err := dag.addNode(oid_c, 2, false, []storage.Version{1}, "logrec-c-02", tid_2); err != nil {
+		t.Errorf("Cannot addNode() on object %d and Tx ID %v in DAG file %s: %v", oid_c, tid_2, dagfile, err)
+	}
+	if err := dag.addNodeTxEnd(tid_2); err != nil {
+		t.Errorf("Cannot addNodeTxEnd() for Tx ID %v in DAG file %s: %v", tid_2, dagfile, err)
+	}
+
+	if err := dag.addNode(oid_a, 4, false, []storage.Version{3}, "logrec-a-04", NoTxID); err != nil {
+		t.Errorf("Cannot addNode() on object %d and Tx ID %v in DAG file %s: %v", oid_a, tid_1, dagfile, err)
+	}
+	if err := dag.addNode(oid_b, 5, false, []storage.Version{4}, "logrec-b-05", NoTxID); err != nil {
+		t.Errorf("Cannot addNode() on object %d and Tx ID %v in DAG file %s: %v", oid_b, tid_2, dagfile, err)
+	}
+
+	if err = dag.moveHead(oid_a, 4); err != nil {
+		t.Errorf("Object %d cannot move head in DAG file %s: %v", oid_a, dagfile, err)
+	}
+	if err = dag.moveHead(oid_b, 5); err != nil {
+		t.Errorf("Object %d cannot move head in DAG file %s: %v", oid_b, dagfile, err)
+	}
+	if err = dag.moveHead(oid_c, 2); err != nil {
+		t.Errorf("Object %d cannot move head in DAG file %s: %v", oid_c, dagfile, err)
+	}
+
+	// Verify the transaction sets.
+	txMap, err := dag.getTransaction(tid_1)
+	if err != nil {
+		t.Errorf("Cannot getTransaction() for Tx ID %v in DAG file %s: %v", tid_1, dagfile, err)
+	}
+
+	expTxMap := dagTxMap{oid_a: 3, oid_b: 3}
+	if !reflect.DeepEqual(txMap, expTxMap) {
+		t.Errorf("Invalid transaction map from DAG storage for Tx ID %v in DAG file %s: %v instead of %v",
+			tid_1, dagfile, txMap, expTxMap)
+	}
+
+	txMap, err = dag.getTransaction(tid_2)
+	if err != nil {
+		t.Errorf("Cannot getTransaction() for Tx ID %v in DAG file %s: %v", tid_2, dagfile, err)
+	}
+
+	expTxMap = dagTxMap{oid_b: 4, oid_c: 2}
+	if !reflect.DeepEqual(txMap, expTxMap) {
+		t.Errorf("Invalid transaction map for Tx ID %v in DAG file %s: %v instead of %v", tid_2, dagfile, txMap, expTxMap)
+	}
+
+	// Prune the 3 objects at their head nodes.
+	for _, oid := range []storage.ID{oid_a, oid_b, oid_c} {
+		head, err := dag.getHead(oid)
+		if err != nil {
+			t.Errorf("Cannot getHead() on object %d in DAG file %s: %v", oid, dagfile, err)
+		}
+		err = dag.prune(oid, head, func(lr string) error {
+			return nil
+		})
+		if err != nil {
+			t.Errorf("Cannot prune() on object %d in DAG file %s: %v", oid, dagfile, err)
+		}
+	}
+
+	if err = dag.pruneDone(); err != nil {
+		t.Errorf("pruneDone() failed in DAG file %s: %v", dagfile, err)
+	}
+
+	if n := len(dag.txGC); n != 0 {
+		t.Errorf("Transaction GC map not empty after pruneDone() in DAG file %s: %d", dagfile, n)
+	}
+
+	// Verify that Tx-1 was deleted and Tx-2 still has c2 in it.
+	txMap, err = dag.getTransaction(tid_1)
+	if err == nil {
+		t.Errorf("getTransaction() did not fail for Tx ID %v in DAG file %s: %v", tid_1, dagfile, txMap)
+	}
+
+	txMap, err = dag.getTransaction(tid_2)
+	if err != nil {
+		t.Errorf("Cannot getTransaction() for Tx ID %v in DAG file %s: %v", tid_2, dagfile, err)
+	}
+
+	expTxMap = dagTxMap{oid_c: 2}
+	if !reflect.DeepEqual(txMap, expTxMap) {
+		t.Errorf("Invalid transaction map for Tx ID %v in DAG file %s: %v instead of %v", tid_2, dagfile, txMap, expTxMap)
+	}
+
+	// Add c3 as a new head and prune at that point.  This should GC Tx-2.
+	if err := dag.addNode(oid_c, 3, false, []storage.Version{2}, "logrec-c-03", NoTxID); err != nil {
+		t.Errorf("Cannot addNode() on object %d in DAG file %s: %v", oid_c, dagfile, err)
+	}
+	if err = dag.moveHead(oid_c, 3); err != nil {
+		t.Errorf("Object %d cannot move head in DAG file %s: %v", oid_c, dagfile, err)
+	}
+
+	err = dag.prune(oid_c, 3, func(lr string) error {
+		return nil
+	})
+	if err != nil {
+		t.Errorf("Cannot prune() on object %d in DAG file %s: %v", oid_c, dagfile, err)
+	}
+	if err = dag.pruneDone(); err != nil {
+		t.Errorf("pruneDone() #2 failed in DAG file %s: %v", dagfile, err)
+	}
+	if n := len(dag.txGC); n != 0 {
+		t.Errorf("Transaction GC map not empty after pruneDone() in DAG file %s: %d", dagfile, n)
+	}
+
+	txMap, err = dag.getTransaction(tid_2)
+	if err == nil {
+		t.Errorf("getTransaction() did not fail for Tx ID %v in DAG file %s: %v", tid_2, dagfile, txMap)
+	}
+
+	for _, oid := range []storage.ID{oid_a, oid_b, oid_c} {
+		if err := checkEndOfSync(dag, oid); err != nil {
+			t.Fatal(err)
+		}
 	}
 }

@@ -1,0 +1,10 @@
+# Create DAGs for 3 objects locally.
+# The format is: <cmd>|<objid>|<version>|<parent1>|<parent2>|<logrec>
+
+addl|12345|1|||logrec-a-01
+addl|12345|2|1||logrec-a-02
+
+addl|67890|1|||logrec-b-01
+addl|67890|2|1||logrec-b-02
+
+addl|222|1|||logrec-c-01

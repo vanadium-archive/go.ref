@@ -163,7 +163,7 @@ func populateLogAndDAG(s *syncd, rec *LogRec) error {
 	if err != nil {
 		return err
 	}
-	if err := s.dag.addNode(rec.ObjID, rec.CurVers, false, rec.Parents, logKey); err != nil {
+	if err := s.dag.addNode(rec.ObjID, rec.CurVers, false, rec.Parents, logKey, NoTxID); err != nil {
 		return err
 	}
 	if err := s.dag.moveHead(rec.ObjID, rec.CurVers); err != nil {
