@@ -84,7 +84,7 @@ func logReplayCommands(log *iLog, syncfile string) (GenVector, error) {
 	for _, cmd := range cmds {
 		switch cmd.cmd {
 		case addLocal:
-			err = log.processWatchRecord(cmd.objID, cmd.version, cmd.parents, &LogValue{Mutation: raw.Mutation{Version: cmd.version}})
+			err = log.processWatchRecord(cmd.objID, cmd.version, cmd.parents, &LogValue{Mutation: raw.Mutation{Version: cmd.version}}, NoTxID)
 			if err != nil {
 				return nil, fmt.Errorf("cannot replay local log records %d:%s err %v",
 					cmd.objID, cmd.version, err)
@@ -139,7 +139,8 @@ func createReplayStream(syncfile string) (*dummyStream, error) {
 			CurVers: cmd.version,
 			Parents: cmd.parents,
 			Value: LogValue{
-				Mutation: raw.Mutation{Version: cmd.version},
+				Mutation:  raw.Mutation{Version: cmd.version},
+				Continued: cmd.continued,
 			},
 		}
 
@@ -196,7 +197,7 @@ func vsyncInitState(s *syncd, syncfile string) error {
 				ObjID:   cmd.objID,
 				CurVers: cmd.version,
 				Parents: cmd.parents,
-				Value:   LogValue{},
+				Value:   LogValue{Continued: cmd.continued},
 			}
 			if err := populateLogAndDAG(s, rec); err != nil {
 				return err

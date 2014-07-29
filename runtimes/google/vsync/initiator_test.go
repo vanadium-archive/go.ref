@@ -2,6 +2,7 @@ package vsync
 
 // Tests for sync initiator.
 import (
+	"fmt"
 	"os"
 	"reflect"
 	"testing"
@@ -297,6 +298,127 @@ func TestLogStreamGCedRemote(t *testing.T) {
 	// Verify DAG state.
 	if head, err := s.dag.getHead(objid); err != nil || head != 2 {
 		t.Errorf("Invalid object %d head in DAG %s, err %v", objid, head, err)
+	}
+}
+
+// TestLogStreamRemoteWithTx tests processing of a remote log stream that contains transactions.
+func TestLogStreamRemoteWithTx(t *testing.T) {
+	dir, err := createTempDir()
+	if err != nil {
+		t.Errorf("Could not create tempdir %v", err)
+	}
+	// Set a large value to prevent the threads from firing.
+	// Test is not thread safe.
+	peerSyncInterval = 1 * time.Hour
+	garbageCollectInterval = 1 * time.Hour
+	s := NewSyncd("", "", "VeyronTab", dir, "", 0)
+
+	defer s.Close()
+	defer os.RemoveAll(dir)
+
+	stream, err := createReplayStream("remote-init-02.log.sync")
+	if err != nil {
+		t.Fatalf("createReplayStream failed with err %v", err)
+	}
+	var minGens GenVector
+	if minGens, err = s.hdlInitiator.processLogStream(stream); err != nil {
+		t.Fatalf("processLogStream failed with err %v", err)
+	}
+
+	// Check minGens.
+	expVec := GenVector{"VeyronPhone": 1, "VeyronTab": 1}
+	if !reflect.DeepEqual(expVec, minGens) {
+		t.Errorf("Data mismatch for minGens: %v instead of %v",
+			minGens, expVec)
+	}
+
+	// Verify transaction state.
+	objs := []string{"123", "456", "789"}
+	objids := make([]storage.ID, 3)
+	maxVers := []storage.Version{2, 1, 3}
+	txVers := map[string]struct{}{
+		"123-1": struct{}{},
+		"123-2": struct{}{},
+		"456-0": struct{}{},
+		"456-1": struct{}{},
+		"789-0": struct{}{},
+	}
+	for pos, o := range objs {
+		var err error
+		objids[pos], err = strToObjID(o)
+		if err != nil {
+			t.Errorf("Could not create objid %v", err)
+		}
+		for i := storage.Version(0); i <= storage.Version(maxVers[pos]); i++ {
+			node, err := s.dag.getNode(objids[pos], i)
+			if err != nil {
+				t.Errorf("cannot find dag node for object %d %v: %s", objids[pos], i, err)
+			}
+			key := fmt.Sprintf("%s-%d", objs[pos], i)
+			_, ok := txVers[key]
+			if !ok && node.TxID != NoTxID {
+				t.Errorf("expecting NoTxID, found txid %v for object %d:%v", node.TxID, objids[pos], i)
+			}
+			if ok && node.TxID == NoTxID {
+				t.Errorf("expecting non nil txid for object %d:%v", objids[pos], i)
+			}
+		}
+	}
+
+	// Verify transaction state for the first transaction.
+	node, err := s.dag.getNode(objids[0], storage.Version(1))
+	if err != nil {
+		t.Errorf("cannot find dag node for object %d v1: %s", objids[0], err)
+	}
+	if node.TxID == NoTxID {
+		t.Errorf("expecting non nil txid for object %d:v1", objids[0])
+	}
+	txMap, err := s.dag.getTransaction(node.TxID)
+	if err != nil {
+		t.Errorf("cannot find transaction for id %v: %s", node.TxID, err)
+	}
+	expTxMap := dagTxMap{
+		objids[0]: storage.Version(1),
+		objids[1]: storage.Version(0),
+		objids[2]: storage.Version(0),
+	}
+	if !reflect.DeepEqual(txMap, expTxMap) {
+		t.Errorf("Data mismatch for txid %v txmap %v instead of %v",
+			node.TxID, txMap, expTxMap)
+	}
+
+	// Verify transaction state for the second transaction.
+	node, err = s.dag.getNode(objids[0], storage.Version(2))
+	if err != nil {
+		t.Errorf("cannot find dag node for object %d v1: %s", objids[0], err)
+	}
+	if node.TxID == NoTxID {
+		t.Errorf("expecting non nil txid for object %d:v1", objids[0])
+	}
+	txMap, err = s.dag.getTransaction(node.TxID)
+	if err != nil {
+		t.Errorf("cannot find transaction for id %v: %s", node.TxID, err)
+	}
+	expTxMap = dagTxMap{
+		objids[0]: storage.Version(2),
+		objids[1]: storage.Version(1),
+	}
+	if !reflect.DeepEqual(txMap, expTxMap) {
+		t.Errorf("Data mismatch for txid %v txmap %v instead of %v",
+			node.TxID, txMap, expTxMap)
+	}
+
+	if err := s.hdlInitiator.detectConflicts(); err != nil {
+		t.Fatalf("detectConflicts failed with err %v", err)
+	}
+	if len(s.hdlInitiator.updObjects) != 3 {
+		t.Errorf("Unexpected number of updated objects %d", len(s.hdlInitiator.updObjects))
+	}
+	if err := s.hdlInitiator.resolveConflicts(); err != nil {
+		t.Fatalf("resolveConflicts failed with err %v", err)
+	}
+	if err := s.hdlInitiator.updateStoreAndSync(nil, GenVector{}, minGens, GenVector{}, "VeyronPhone"); err != nil {
+		t.Fatalf("updateStoreAndSync failed with err %v", err)
 	}
 }
 

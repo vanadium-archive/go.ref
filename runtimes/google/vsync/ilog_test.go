@@ -133,7 +133,7 @@ func TestInvalidLog(t *testing.T) {
 		t.Errorf("CreateLocalGeneration did not fail on a closed log: %v", err)
 	}
 
-	err = log.processWatchRecord(storage.NewID(), 2, []storage.Version{0, 1}, &LogValue{})
+	err = log.processWatchRecord(storage.NewID(), 2, []storage.Version{0, 1}, &LogValue{}, NoTxID)
 	if err == nil || err != errInvalidLog {
 		t.Errorf("ProcessWatchRecord did not fail on a closed log: %v", err)
 	}

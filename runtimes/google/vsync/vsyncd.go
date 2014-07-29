@@ -191,8 +191,6 @@ func (s *syncd) GetDeltas(_ ipc.ServerContext, In GenVector, ClientID DeviceID, 
 		vlog.Fatalf("GetDeltas:: updateDeviceInfo failed with err %v", err)
 	}
 
-	// TODO(hpucha): Hack, fills fake log and dag state for testing.
-	//s.log.fillFakeWatchRecords()
 	out, gens, gensInfo, err := s.prepareGensToReply(In)
 	if err != nil {
 		vlog.Fatalf("GetDeltas:: prepareGensToReply failed with err %v", err)

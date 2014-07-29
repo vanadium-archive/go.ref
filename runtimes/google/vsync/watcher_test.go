@@ -6,6 +6,7 @@ import (
 	"bytes"
 	"fmt"
 	"os"
+	"reflect"
 	"testing"
 	"time"
 
@@ -360,6 +361,49 @@ func TestWatcherChanges(t *testing.T) {
 		} else if head != expHead {
 			t.Errorf("wrong head for object %d: %d instead of %d", oid, head, expHead)
 		}
+	}
+
+	// Verify transaction state for the first transaction.
+	node, err := s.dag.getNode(oidRoot, heads[0])
+	if err != nil {
+		t.Errorf("cannot find dag node for object %d %v: %s", oidRoot, heads[0], err)
+	}
+	if node.TxID == NoTxID {
+		t.Errorf("expecting non nil txid for object %d:%v", oidRoot, heads[0])
+	}
+	txMap, err := s.dag.getTransaction(node.TxID)
+	if err != nil {
+		t.Errorf("cannot find transaction for id %v: %s", node.TxID, err)
+	}
+	expTxMap := dagTxMap{
+		oidRoot: heads[0],
+		oidA:    storage.Version(0x57e9d1860d1d68d8),
+		oidB:    heads[2],
+	}
+	if !reflect.DeepEqual(txMap, expTxMap) {
+		t.Errorf("Data mismatch for txid %v txmap %v instead of %v",
+			node.TxID, txMap, expTxMap)
+	}
+
+	// Verify transaction state for the second transaction.
+	node, err = s.dag.getNode(oidA, heads[1])
+	if err != nil {
+		t.Errorf("cannot find dag node for object %d %v: %s", oidA, heads[1], err)
+	}
+	if node.TxID == NoTxID {
+		t.Errorf("expecting non nil txid for object %d:%v", oidA, heads[1])
+	}
+	txMap, err = s.dag.getTransaction(node.TxID)
+	if err != nil {
+		t.Errorf("cannot find transaction for id %v: %s", node.TxID, err)
+	}
+	expTxMap = dagTxMap{
+		oidA: heads[1],
+		oidC: heads[3],
+	}
+	if !reflect.DeepEqual(txMap, expTxMap) {
+		t.Errorf("Data mismatch for txid %v txmap %v instead of %v",
+			node.TxID, txMap, expTxMap)
 	}
 
 	expResmark := []byte{2, 0, 0, 0, 0, 0, 0, 0}

@@ -27,13 +27,14 @@ const (
 )
 
 type syncCommand struct {
-	cmd     int
-	objID   storage.ID
-	version storage.Version
-	parents []storage.Version
-	logrec  string
-	devID   DeviceID
-	genVec  GenVector
+	cmd       int
+	objID     storage.ID
+	version   storage.Version
+	parents   []storage.Version
+	logrec    string
+	devID     DeviceID
+	genVec    GenVector
+	continued bool
 }
 
 func strToObjID(objStr string) (storage.ID, error) {
@@ -90,7 +91,7 @@ func parseSyncCommands(file string) ([]syncCommand, error) {
 
 		switch args[0] {
 		case "addl", "addr":
-			expNargs := 6
+			expNargs := 7
 			if nargs != expNargs {
 				return nil, fmt.Errorf("%s:%d: need %d args instead of %d", file, lineno, expNargs, nargs)
 			}
@@ -109,7 +110,11 @@ func parseSyncCommands(file string) ([]syncCommand, error) {
 				}
 			}
 
-			cmd := syncCommand{version: version, parents: parents, logrec: args[5]}
+			continued, err := strconv.ParseBool(args[6])
+			if err != nil {
+				return nil, fmt.Errorf("%s:%d: invalid continued bit: %s", file, lineno, args[6])
+			}
+			cmd := syncCommand{version: version, parents: parents, logrec: args[5], continued: continued}
 			if args[0] == "addl" {
 				cmd.cmd = addLocal
 			} else {

@@ -42,8 +42,6 @@ import (
 	"strconv"
 	"strings"
 
-	"veyron/services/store/raw"
-
 	"veyron2/storage"
 	"veyron2/vlog"
 )
@@ -388,7 +386,7 @@ func (l *iLog) createLocalGeneration() (GenID, error) {
 }
 
 // processWatchRecord processes new object versions obtained from the local store.
-func (l *iLog) processWatchRecord(objID storage.ID, vers storage.Version, par []storage.Version, val *LogValue) error {
+func (l *iLog) processWatchRecord(objID storage.ID, vers storage.Version, par []storage.Version, val *LogValue, txID TxID) error {
 	if l.db == nil {
 		return errInvalidLog
 	}
@@ -412,7 +410,7 @@ func (l *iLog) processWatchRecord(objID storage.ID, vers storage.Version, par []
 	}
 
 	// Insert the new log record into dag.
-	if err = l.s.dag.addNode(rec.ObjID, rec.CurVers, false, rec.Parents, logKey, NoTxID); err != nil {
+	if err = l.s.dag.addNode(rec.ObjID, rec.CurVers, false, rec.Parents, logKey, txID); err != nil {
 		return err
 	}
 
@@ -440,20 +438,4 @@ func (l *iLog) dumpILog() {
 		fmt.Println("Current generation: ", head.Curgen, head.Curlsn, " Current order: ", head.Curorder)
 	}
 	fmt.Println("================================================")
-}
-
-// fillFakeWatchRecords fills fake log and dag state (testing only).
-// TODO(hpucha): remove and clean up raw import.
-func (l *iLog) fillFakeWatchRecords() {
-	const num = 10
-	var parvers []storage.Version
-	id := storage.NewID()
-	for i := int(0); i < num; i++ {
-		// Create a local log record.
-		curvers := storage.Version(i)
-		if err := l.processWatchRecord(id, curvers, parvers, &LogValue{Mutation: raw.Mutation{Version: curvers}}); err != nil {
-			return
-		}
-		parvers = []storage.Version{curvers}
-	}
 }

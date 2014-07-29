@@ -255,12 +255,29 @@ func (i *syncInitiator) processLogStream(stream SyncGetDeltasStream) (GenVector,
 	// Compute the minimum generation for every device in this set.
 	minGens := GenVector{}
 
+	curTx := NoTxID
 	for stream.Advance() {
 		rec := stream.Value()
 
-		if err := i.insertRecInLogAndDag(&rec); err != nil {
+		// Begin a new transaction if needed.
+		if curTx == NoTxID && rec.Value.Continued {
+			curTx = i.syncd.dag.addNodeTxStart()
+			vlog.VI(2).Infof("processLogStream:: Begin Tx %v", curTx)
+		}
+
+		if err := i.insertRecInLogAndDag(&rec, curTx); err != nil {
 			return GenVector{}, err
 		}
+
+		// End the previous transaction if any.
+		if curTx != NoTxID && !rec.Value.Continued {
+			if err := i.syncd.dag.addNodeTxEnd(curTx); err != nil {
+				return GenVector{}, err
+			}
+			vlog.VI(2).Infof("processLogStream:: End Tx %v", curTx)
+			curTx = NoTxID
+		}
+
 		// Mark object dirty.
 		i.updObjects[rec.ObjID] = &objConflictState{}
 
@@ -288,6 +305,9 @@ func (i *syncInitiator) processLogStream(stream SyncGetDeltasStream) (GenVector,
 	if err := stream.Err(); err != nil {
 		return GenVector{}, err
 	}
+	if curTx != NoTxID {
+		return GenVector{}, fmt.Errorf("incomplete transaction in a generation")
+	}
 	if err := i.createGenMetadataBatch(newGens, orderGens); err != nil {
 		return GenVector{}, err
 	}
@@ -296,7 +316,7 @@ func (i *syncInitiator) processLogStream(stream SyncGetDeltasStream) (GenVector,
 }
 
 // insertLogAndDag adds a new log record to log and dag data structures.
-func (i *syncInitiator) insertRecInLogAndDag(rec *LogRec) error {
+func (i *syncInitiator) insertRecInLogAndDag(rec *LogRec, txID TxID) error {
 	// TODO(hpucha): Eliminate reaching into syncd's lock.
 	i.syncd.lock.Lock()
 	defer i.syncd.lock.Unlock()
@@ -306,10 +326,10 @@ func (i *syncInitiator) insertRecInLogAndDag(rec *LogRec) error {
 		return err
 	}
 
-	vlog.VI(2).Infof("insertRecInLogAndDag:: Adding log record %v", rec)
+	vlog.VI(2).Infof("insertRecInLogAndDag:: Adding log record %v, Tx %v", rec, txID)
 	switch rec.RecType {
 	case NodeRec:
-		return i.syncd.dag.addNode(rec.ObjID, rec.CurVers, true, rec.Parents, logKey, NoTxID)
+		return i.syncd.dag.addNode(rec.ObjID, rec.CurVers, true, rec.Parents, logKey, txID)
 	case LinkRec:
 		return i.syncd.dag.addParent(rec.ObjID, rec.CurVers, rec.Parents[0], true)
 	default:
@@ -617,6 +637,9 @@ func (i *syncInitiator) updateLogAndDag() error {
 			// Add a new DAG node.
 			switch rec.RecType {
 			case NodeRec:
+				// TODO(hpucha): addNode operations arising out of conflict resolution
+				// may need to be part of a transaction when app-driven resolution
+				// is introduced.
 				err = i.syncd.dag.addNode(obj, rec.CurVers, false, rec.Parents, logKey, NoTxID)
 			case LinkRec:
 				err = i.syncd.dag.addParent(obj, rec.CurVers, rec.Parents[0], false)

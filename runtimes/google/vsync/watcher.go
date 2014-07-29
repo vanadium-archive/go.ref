@@ -34,11 +34,17 @@ var (
 type syncWatcher struct {
 	// syncd is a pointer to the Syncd instance owning this Watcher.
 	syncd *syncd
+
+	// curTx is the transaction ID of the latest transaction being processed by the Watcher.
+	curTx TxID
+
+	// curTxSyncTime is the timestamp of the latest transaction being processed by the Watcher.
+	curTxSyncTime int64
 }
 
 // newWatcher creates a new Sync Watcher instance attached to the given Syncd instance.
 func newWatcher(syncd *syncd) *syncWatcher {
-	return &syncWatcher{syncd: syncd}
+	return &syncWatcher{syncd: syncd, curTx: NoTxID}
 }
 
 // watchStreamCanceler is a helper goroutine that cancels the watcher RPC when Syncd notifies
@@ -124,6 +130,7 @@ func (w *syncWatcher) getWatchStream(ctx context.T) watch.GlobWatcherWatchGlobSt
 // If the stream is closed, distinguish between the cases of end-of-stream vs Syncd canceling
 // the stream to trigger a clean exit.
 func (w *syncWatcher) processWatchStream(stream watch.GlobWatcherWatchGlobStream) {
+	w.curTx = NoTxID
 	for stream.Advance() {
 		changes := stream.Value()
 
@@ -155,8 +162,6 @@ func (w *syncWatcher) processChanges(changes watch.ChangeBatch, syncTime int64) 
 	w.syncd.lock.Lock()
 	defer w.syncd.lock.Unlock()
 
-	// TODO(rdaoud): use the "Continued" flag to track transaction boundaries
-	// within the batch and apply the transaction changes in a bundle.
 	// TODO(rdaoud): handle object deletion (State == DoesNotExist)
 
 	vlog.VI(1).Infof("processChanges:: ready to process changes")
@@ -169,19 +174,38 @@ func (w *syncWatcher) processChanges(changes watch.ChangeBatch, syncTime int64) 
 			return fmt.Errorf("invalid change value, not a mutation: %#v", ch)
 		}
 
-		val := &LogValue{Mutation: *mu, SyncTime: syncTime, Delete: ch.State == watch.DoesNotExist, Continued: ch.Continued}
+		// Begin a new transaction if needed.
+		if w.curTx == NoTxID && ch.Continued {
+			w.curTx = w.syncd.dag.addNodeTxStart()
+			w.curTxSyncTime = syncTime
+		}
+
+		time := syncTime
+		if w.curTx != NoTxID {
+			// All LogValues belonging to the same transaction get the same timestamp.
+			time = w.curTxSyncTime
+		}
+		val := &LogValue{Mutation: *mu, SyncTime: time, Delete: ch.State == watch.DoesNotExist, Continued: ch.Continued}
 		var parents []storage.Version
 		if mu.PriorVersion != storage.NoVersion {
 			parents = []storage.Version{mu.PriorVersion}
 		}
 
-		vlog.VI(2).Infof("processChanges:: processing record %v", val)
-		if err := w.syncd.log.processWatchRecord(mu.ID, mu.Version, parents, val); err != nil {
+		vlog.VI(2).Infof("processChanges:: processing record %v, Tx %v", val, w.curTx)
+		if err := w.syncd.log.processWatchRecord(mu.ID, mu.Version, parents, val, w.curTx); err != nil {
 			return fmt.Errorf("cannot process mutation: %#v: %s", ch, err)
 		}
 
 		if !ch.Continued {
 			lastResmark = ch.ResumeMarker
+		}
+
+		// End the previous transaction if any.
+		if w.curTx != NoTxID && !ch.Continued {
+			if err := w.syncd.dag.addNodeTxEnd(w.curTx); err != nil {
+				return err
+			}
+			w.curTx = NoTxID
 		}
 	}
 

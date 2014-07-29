@@ -1,8 +1,8 @@
 # Update an object remotely three times without triggering a conflict
 # after it was created locally up to v2 (i.e. assume the remote sync
 # received it from the local sync first, then updated it).
-# The format is: <cmd>|<objid>|<version>|<parent1>|<parent2>|<logrec>
+# The format is: <cmd>|<objid>|<version>|<parent1>|<parent2>|<logrec>|<continued>
 
-addr|12345|3|2||logrec-03
-addr|12345|4|3||logrec-04
-addr|12345|5|4||logrec-05
+addr|12345|3|2||logrec-03|false
+addr|12345|4|3||logrec-04|false
+addr|12345|5|4||logrec-05|false

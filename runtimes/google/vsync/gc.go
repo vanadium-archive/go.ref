@@ -420,7 +420,8 @@ func (g *syncGC) pruneObjectBatch() error {
 		delete(g.pruneObjects, obj)
 		count++
 	}
-	return nil
+
+	return (g.syncd.dag.pruneDone())
 }
 
 // dagPruneCallBack deletes the log record associated with the dag

@@ -23,7 +23,7 @@ func TestGCOnlineConsistencyCheck(t *testing.T) {
 
 	testFile := "test-1obj.gc.sync"
 	if err := vsyncInitState(s, testFile); err != nil {
-		t.Error(err)
+		t.Fatal(err)
 	}
 
 	if err := s.hdlGC.onlineConsistencyCheck(); err != nil {
@@ -153,7 +153,7 @@ func setupGarbageCollectGeneration(t *testing.T) {
 
 	testFile := "test-1obj.gc.sync"
 	if err := vsyncInitState(s, testFile); err != nil {
-		t.Error(err)
+		t.Fatal(err)
 	}
 
 	// Test GenID of 0.
@@ -248,7 +248,7 @@ func setupGCReclaimSpace1Obj(t *testing.T) {
 
 	testFile := "test-1obj.gc.sync"
 	if err := vsyncInitState(s, testFile); err != nil {
-		t.Error(err)
+		t.Fatal(err)
 	}
 
 	if err := s.hdlGC.reclaimSpace(); err != nil {
@@ -322,7 +322,7 @@ func setupGCReclaimSpace3Objs(t *testing.T) {
 
 	testFile := "test-3obj.gc.sync"
 	if err := vsyncInitState(s, testFile); err != nil {
-		t.Error(err)
+		t.Fatal(err)
 	}
 
 	if err := s.hdlGC.reclaimSpace(); err != nil {
@@ -448,7 +448,7 @@ func setupGCDAGPruneCallBack(t *testing.T) {
 
 	testFile := "test-1obj.gc.sync"
 	if err := vsyncInitState(s, testFile); err != nil {
-		t.Error(err)
+		t.Fatal(err)
 	}
 	s.devtab.head.ReclaimVec = GenVector{"A": 2, "B": 1, "C": 2}
 
@@ -493,7 +493,7 @@ func setupGCDAGPruneCallBackStrict(t *testing.T) {
 
 	testFile := "test-1obj.gc.sync"
 	if err := vsyncInitState(s, testFile); err != nil {
-		t.Error(err)
+		t.Fatal(err)
 	}
 	s.devtab.head.ReclaimVec = GenVector{"A": 2, "B": 1, "C": 2}
 	if !strictCheck {
@@ -548,7 +548,7 @@ func setupGCDAGPruneCBPartGen(t *testing.T) {
 
 	testFile := "test-3obj.gc.sync"
 	if err := vsyncInitState(s, testFile); err != nil {
-		t.Error(err)
+		t.Fatal(err)
 	}
 	s.devtab.head.ReclaimVec = GenVector{"A": 4, "B": 3, "C": 4}
 	s.hdlGC.checkConsistency = false
@@ -643,7 +643,7 @@ func setupGCPruneObject(t *testing.T) {
 
 	testFile := "test-1obj.gc.sync"
 	if err := vsyncInitState(s, testFile); err != nil {
-		t.Error(err)
+		t.Fatal(err)
 	}
 	if err := s.hdlGC.reclaimSpace(); err != nil {
 		t.Errorf("reclaimSpace failed for test %s, err %v\n", testFile, err)
@@ -719,7 +719,7 @@ func setupGCPruneObjectBatching(t *testing.T) {
 
 	testFile := "test-3obj.gc.sync"
 	if err := vsyncInitState(s, testFile); err != nil {
-		t.Error(err)
+		t.Fatal(err)
 	}
 	if err := s.hdlGC.reclaimSpace(); err != nil {
 		t.Errorf("reclaimSpace failed for test %s, err %v\n", testFile, err)
@@ -762,7 +762,7 @@ func TestGCPruneObjCheckError(t *testing.T) {
 
 	testFile := "test-3obj.gc.sync"
 	if err := vsyncInitState(s, testFile); err != nil {
-		t.Error(err)
+		t.Fatal(err)
 	}
 	if err := s.hdlGC.reclaimSpace(); err != nil {
 		t.Errorf("reclaimSpace failed for test %s, err %v\n", testFile, err)
@@ -796,7 +796,7 @@ func setupGCPrune3Objects(t *testing.T) {
 
 	testFile := "test-3obj.gc.sync"
 	if err := vsyncInitState(s, testFile); err != nil {
-		t.Error(err)
+		t.Fatal(err)
 	}
 	if err := s.hdlGC.reclaimSpace(); err != nil {
 		t.Errorf("reclaimSpace failed for test %s, err %v\n", testFile, err)
@@ -878,7 +878,7 @@ func setupGCReclaimAndOnlineCk(t *testing.T) {
 
 	testFile := "test-3obj.gc.sync"
 	if err := vsyncInitState(s, testFile); err != nil {
-		t.Error(err)
+		t.Fatal(err)
 	}
 	if err := s.hdlGC.reclaimSpace(); err != nil {
 		t.Errorf("reclaimSpace failed for test %s, err %v\n", testFile, err)
@@ -968,7 +968,7 @@ func setupGCReclaimAndOnlineCkIncr(t *testing.T) {
 
 	testFile := "test-1obj.gc.sync"
 	if err := vsyncInitState(s, testFile); err != nil {
-		t.Error(err)
+		t.Fatal(err)
 	}
 	// Fast-forward the reclaimSnap and ReclaimVec.
 	s.hdlGC.reclaimSnap = GenVector{"A": 2, "B": 1, "C": 2}
@@ -1028,7 +1028,7 @@ func setupGCOnlineCkAndPrune(t *testing.T) {
 
 	testFile := "test-3obj.gc.sync"
 	if err := vsyncInitState(s, testFile); err != nil {
-		t.Error(err)
+		t.Fatal(err)
 	}
 	if err := s.hdlGC.reclaimSpace(); err != nil {
 		t.Errorf("reclaimSpace failed for test %s, err %v\n", testFile, err)
