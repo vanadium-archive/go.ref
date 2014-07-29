@@ -127,8 +127,8 @@ func parseServerIdentifier(identifier string) (veyron2.RemoteID, string, error) 
 	if len(pieces) < 2 || len(pieces[0]) == 0 || len(pieces[1]) == 0 {
 		// TODO(andreser,ataly,ashankar): hard-fail on missing pattern
 		// return "", "", fmt.Errorf("server identifier must be of form principalpattern@@objectname")
-		vlog.Errorf("ipc: server identifier argument to Bind() or StartCall() must be of form principalpattern@@objectname (got \"%s\").\nSee <https://docs.google.com/a/google.com/document/d/1x7JKd3WdrstBZl7hupXMItOkMzcoXVPegLnVGqdGVCs>.", identifier)
-		return veyron2.RemoteID(security.PrincipalPattern(pieces[0])), identifier, nil
+		vlog.Errorf("ipc: server identifier argument to Bind() or StartCall() must be of form principalpattern@@objectname (got \"%s\"). See <https://docs.google.com/a/google.com/document/d/1x7JKd3WdrstBZl7hupXMItOkMzcoXVPegLnVGqdGVCs>.", identifier)
+		return security.AllPrincipals, identifier, nil
 	}
 	return veyron2.RemoteID(security.PrincipalPattern(pieces[0])), pieces[1], nil
 }
