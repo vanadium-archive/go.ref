@@ -149,7 +149,7 @@ func getChangeBatch() watch.ChangeBatch {
 	batch.Changes = []watch.Change{
 		// 1st transaction: create "/" and "/a" and "/a/b" as 3 new objects (prior versions are 0).
 		watch.Change{
-			Name:  "/uid/4c6db51aa740d8c62b90df874503e285",
+			Name:  "",
 			State: 0,
 			Value: &raw.Mutation{
 				ID: storage.ID{0x4c, 0x6d, 0xb5, 0x1a, 0xa7, 0x40, 0xd8, 0xc6,
@@ -170,7 +170,7 @@ func getChangeBatch() watch.ChangeBatch {
 			Continued:    true,
 		},
 		watch.Change{
-			Name:  "/uid/082bc42e15af4fcf611d7f19a8d7831f",
+			Name:  "",
 			State: 0,
 			Value: &raw.Mutation{
 				ID: storage.ID{0x8, 0x2b, 0xc4, 0x2e, 0x15, 0xaf, 0x4f, 0xcf,
@@ -191,7 +191,7 @@ func getChangeBatch() watch.ChangeBatch {
 			Continued:    true,
 		},
 		watch.Change{
-			Name:  "/uid/6e4a327c297d76fb5142b1b1d95b2d07",
+			Name:  "",
 			State: 0,
 			Value: &raw.Mutation{
 				ID: storage.ID{0x6e, 0x4a, 0x32, 0x7c, 0x29, 0x7d, 0x76, 0xfb,
@@ -208,7 +208,7 @@ func getChangeBatch() watch.ChangeBatch {
 
 		// 2nd transaction: create "/a/c" as a new object, which also updates "a" (its "Dir" field).
 		watch.Change{
-			Name:  "/uid/082bc42e15af4fcf611d7f19a8d7831f",
+			Name:  "",
 			State: 0,
 			Value: &raw.Mutation{
 				ID: storage.ID{0x8, 0x2b, 0xc4, 0x2e, 0x15, 0xaf, 0x4f, 0xcf,
@@ -234,7 +234,7 @@ func getChangeBatch() watch.ChangeBatch {
 			Continued:    true,
 		},
 		watch.Change{
-			Name:  "/uid/70ff65ec0f825f44b69f895eea759d71",
+			Name:  "",
 			State: 0,
 			Value: &raw.Mutation{
 				ID: storage.ID{0x70, 0xff, 0x65, 0xec, 0xf, 0x82, 0x5f, 0x44,

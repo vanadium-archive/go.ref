@@ -1,7 +1,6 @@
 package state
 
 import (
-	"fmt"
 	"runtime"
 	"testing"
 
@@ -48,13 +47,17 @@ func mkdir(t *testing.T, sn *MutableSnapshot, path string) (storage.ID, interfac
 	return stat.ID, dir
 }
 
-func expectExists(t *testing.T, sn *MutableSnapshot, id storage.ID) {
+func expectExists(t *testing.T, sn *MutableSnapshot, path string, id storage.ID) {
 	_, file, line, _ := runtime.Caller(1)
 	if !sn.idTable.Contains(&Cell{ID: id}) {
 		t.Errorf("%s(%d): does not exist: %s", file, line, id)
 	}
-	if _, err := sn.Get(rootPublicID, storage.ParsePath(fmt.Sprintf("/uid/%s", id))); err != nil {
-		t.Errorf("%s(%d): does not exist: %s", file, line, id)
+	e, err := sn.Get(rootPublicID, storage.ParsePath(path))
+	if err != nil {
+		t.Errorf("%s(%d): does not exist: %s", file, line, path)
+	}
+	if e.Stat.ID != id {
+		t.Errorf("%s(%d): expected id to be %v, but was %v", file, line, id, e.Stat.ID)
 	}
 }
 
@@ -158,11 +161,11 @@ func TestDirTree(t *testing.T) {
 	id3, d3 := mkdir(t, sn, "/Entries/a/Entries/b")
 	id4, d4 := mkdir(t, sn, "/Entries/a/Entries/b/Entries/c")
 	id5, d5 := mkdir(t, sn, "/Entries/a/Entries/b/Entries/d")
-	expectExists(t, sn, id1)
-	expectExists(t, sn, id2)
-	expectExists(t, sn, id3)
-	expectExists(t, sn, id4)
-	expectExists(t, sn, id5)
+	expectExists(t, sn, "/", id1)
+	expectExists(t, sn, "/Entries/a", id2)
+	expectExists(t, sn, "/Entries/a/Entries/b", id3)
+	expectExists(t, sn, "/Entries/a/Entries/b/Entries/c", id4)
+	expectExists(t, sn, "/Entries/a/Entries/b/Entries/d", id5)
 
 	// Parent directory has to exist.
 	d := &Dir{}
@@ -182,8 +185,8 @@ func TestDirTree(t *testing.T) {
 		t.Errorf("Unexpected error: %s", err)
 	}
 	sn.gc()
-	expectExists(t, sn, id1)
-	expectExists(t, sn, id2)
+	expectExists(t, sn, "/", id1)
+	expectExists(t, sn, "/Entries/a", id2)
 	expectNotExists(t, sn, id3)
 	expectNotExists(t, sn, id4)
 	expectNotExists(t, sn, id5)
@@ -209,7 +212,7 @@ func TestRef(t *testing.T) {
 	if err != nil {
 		t.Errorf("Unexpected error: %s", err)
 	}
-	expectExists(t, sn, stat.ID)
+	expectExists(t, sn, "/Entries/a", stat.ID)
 	checkInRefs(t, sn)
 
 	// Change the ref to refer to itself.
@@ -218,7 +221,7 @@ func TestRef(t *testing.T) {
 		t.Errorf("Unexpected error: %s", err)
 	}
 	sn.gc()
-	expectExists(t, sn, stat.ID)
+	expectExists(t, sn, "/Entries/a", stat.ID)
 	checkInRefs(t, sn)
 
 	// Remove it.
@@ -239,11 +242,11 @@ func TestImplicitDirTree(t *testing.T) {
 	id3, d3 := mkdir(t, sn, "/a/b")
 	id4, d4 := mkdir(t, sn, "/a/b/c")
 	id5, d5 := mkdir(t, sn, "/a/b/c/d")
-	expectExists(t, sn, id1)
-	expectExists(t, sn, id2)
-	expectExists(t, sn, id3)
-	expectExists(t, sn, id4)
-	expectExists(t, sn, id5)
+	expectExists(t, sn, "/", id1)
+	expectExists(t, sn, "/a", id2)
+	expectExists(t, sn, "/a/b", id3)
+	expectExists(t, sn, "/a/b/c", id4)
+	expectExists(t, sn, "/a/b/c/d", id5)
 	checkInRefs(t, sn)
 
 	// Parent directory has to exisn.
@@ -264,8 +267,8 @@ func TestImplicitDirTree(t *testing.T) {
 		t.Errorf("Unexpected error: %s", err)
 	}
 	sn.gc()
-	expectExists(t, sn, id1)
-	expectExists(t, sn, id2)
+	expectExists(t, sn, "/", id1)
+	expectExists(t, sn, "/a", id2)
 	expectNotExists(t, sn, id3)
 	expectNotExists(t, sn, id4)
 	expectNotExists(t, sn, id5)

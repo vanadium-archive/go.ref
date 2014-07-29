@@ -17,7 +17,7 @@ func TestSyncState(t *testing.T) {
 	tr := memstore.NewTransaction()
 	id1 := Put(t, st, tr, "/", "val1")
 	id2 := Put(t, st, tr, "/a", "val2")
-	Put(t, st, tr, "/a/b", "val3")
+	id3 := Put(t, st, tr, "/a/b", "val3")
 	Commit(t, tr)
 
 	// Remove /a/b
@@ -53,9 +53,10 @@ func TestSyncState(t *testing.T) {
 	PutMutations(t, target, Mutations(cb.Changes))
 	GC(t, target)
 
-	// Expect that the target contains id1 and id2
-	ExpectExists(t, target, id1)
-	ExpectExists(t, target, id2)
+	// Expect that the target contains id1 and id2 but not id3
+	ExpectExists(t, target, "/", id1)
+	ExpectExists(t, target, "/a", id2)
+	ExpectNotExists(t, target, "/a/b", id3)
 }
 
 func TestSyncTransaction(t *testing.T) {
@@ -87,9 +88,9 @@ func TestSyncTransaction(t *testing.T) {
 	GC(t, target)
 
 	// Expect that the target contains id1, id2, id3
-	ExpectExists(t, target, id1)
-	ExpectExists(t, target, id2)
-	ExpectExists(t, target, id3)
+	ExpectExists(t, target, "/", id1)
+	ExpectExists(t, target, "/a", id2)
+	ExpectExists(t, target, "/a/b", id3)
 
 	// Next transaction, remove /a/b
 	tr = memstore.NewTransaction()
@@ -106,7 +107,7 @@ func TestSyncTransaction(t *testing.T) {
 	GC(t, target)
 
 	// Expect that the target contains id1, id2, but not id3
-	ExpectExists(t, target, id1)
-	ExpectExists(t, target, id2)
-	ExpectNotExists(t, target, id3)
+	ExpectExists(t, target, "/", id1)
+	ExpectExists(t, target, "/a", id2)
+	ExpectNotExists(t, target, "/a/b", id3)
 }
