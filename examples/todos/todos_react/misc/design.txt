@@ -1,0 +1,70 @@
+Component tree
+========================================
+
+Page
+  Lists
+    List
+  Todos
+    Todo
+      Tags
+  TagFilter
+
+
+Component descriptions
+========================================
+
+Page
+- Props: dispatcher
+- State: listId, tagFilter, lists, todos
+- Gets notified if App state changes, queries for new App state and renders
+
+Lists
+- Props: listId, lists, setListId
+
+List
+- Props: list (item from lists)
+- State: editingName
+
+Todos
+- Props: listId, todos, tagFilter (or maybe just, filtered todos?)
+
+Todo
+- Props: todo (item from todos)
+- State: editingName
+
+Tags
+- Props: todoId, tags
+- State: addingTag
+
+TagFilter
+- Props: todos, tagFilter, setTagFilter
+
+
+State (both App and UI)
+========================================
+
+App state
+- All lists
+- For each list, all todos
+- For each todo, all tags
+
+UI state
+- Current listId
+- Current tagFilter
+- Text edit state of {list, new list, todo, new todo, new tag}
+
+
+Actions that affect App state
+========================================
+
+Lists
+- Add list
+- Edit list name
+
+Todos
+- Add todo
+- Remove todo
+- Edit todo name
+- Mark todo done
+- Add tag
+- Remove tag
