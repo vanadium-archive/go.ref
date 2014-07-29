@@ -463,36 +463,29 @@ func TestStartCall(t *testing.T) {
 
 	tests := []struct {
 		clientID, serverID security.PrivateID
-		serverIdentifier   string
-		remoteIDPolicy     string
+		pattern            security.PrincipalPattern // pattern on the server identity expected by client.
 		err                string
 	}{
 		// Client accepts talking to server only if server's identity matches the
 		// provided pattern.
-		{clientID, serverID, "*@@mountpoint/server/suffix", "*", ""},
-		{clientID, serverID, "server@@mountpoint/server/suffix", "*", ""},
-		{clientID, serverID, "server/v1@@mountpoint/server/suffix", "*", ""},
-		{clientID, serverID, "anotherServer@@mountpoint/server/suffix", "*", nameErr},
+		{clientID, serverID, security.AllPrincipals, ""},
+		{clientID, serverID, "server", ""},
+		{clientID, serverID, "server/v1", ""},
+		{clientID, serverID, "anotherServer", nameErr},
 
 		// All clients reject talking to a server with an expired identity.
-		{clientID, serverExpiredID, "*@@mountpoint/server/suffix", "*", authorizeErr},
-		{clientV1ID, serverExpiredID, "*@@mountpoint/server/suffix", "*", authorizeErr},
-		{clientV2ID, serverExpiredID, "*@@mountpoint/server/suffix", "*", authorizeErr},
+		{clientID, serverExpiredID, security.AllPrincipals, authorizeErr},
+		{clientV1ID, serverExpiredID, security.AllPrincipals, authorizeErr},
+		{clientV2ID, serverExpiredID, security.AllPrincipals, authorizeErr},
 
 		// Only clientV1 accepts talking to serverV1.
-		{clientV1ID, serverV1ID, "*@@mountpoint/server/suffix", "*", ""},
-		{clientV2ID, serverV1ID, "*@@mountpoint/server/suffix", "*", authorizeErr},
-
-		// RemoteID Policies are enforced
-		{clientID, serverID, "*@@mountpoint/server/suffix", "server/*", ""},
-		{clientID, serverID, "*@@mountpoint/server/suffix", "notThisServer/*", nameErr},
-		{clientID, serverID, "server/v1@@mountpoint/server/suffix", "server/v1", ""},
+		{clientV1ID, serverV1ID, security.AllPrincipals, ""},
+		{clientV2ID, serverV1ID, security.AllPrincipals, authorizeErr},
 	}
 	// Servers and clients will be created per-test, use the same stream manager and mounttable.
 	mgr := imanager.InternalNew(naming.FixedRoutingID(0x1111111))
 	ns := newNamespace()
 	for _, test := range tests {
-		fmt.Println(test)
 		name := fmt.Sprintf("(clientID:%q serverID:%q)", test.clientID, test.serverID)
 		_, server := startServer(t, test.serverID, mgr, ns, &testServer{})
 		client, err := InternalNewClient(mgr, ns, vc.FixedLocalID(test.clientID))
@@ -501,7 +494,7 @@ func TestStartCall(t *testing.T) {
 			stopServer(t, server, ns)
 			continue
 		}
-		if _, err := client.StartCall(&fakeContext{}, test.serverIdentifier, "irrelevant", nil, veyron2.RemoteID(test.remoteIDPolicy)); !matchesErrorPattern(err, test.err) {
+		if _, err := client.StartCall(&fakeContext{}, "mountpoint/server/suffix", "irrelevant", nil, veyron2.RemoteID(test.pattern)); !matchesErrorPattern(err, test.err) {
 			t.Errorf(`%s: client.StartCall: got error "%v", want to match "%v"`, name, err, test.err)
 		}
 		client.Close()
@@ -552,7 +545,7 @@ func testRPC(t *testing.T, shouldCloseSend bool) {
 	defer b.cleanup(t)
 	for _, test := range tests {
 		vlog.VI(1).Infof("%s client.StartCall", name(test))
-		call, err := b.client.StartCall(&fakeContext{}, "server@@"+test.name, test.method, test.args)
+		call, err := b.client.StartCall(&fakeContext{}, test.name, test.method, test.args)
 		if err != test.startErr {
 			t.Errorf(`%s client.StartCall got error "%v", want "%v"`, name(test), err, test.startErr)
 			continue
@@ -609,7 +602,7 @@ func TestBlessing(t *testing.T) {
 		{granter: granter{id: clientID.PublicID()}, finisherr: "blessing provided not bound to this server"},
 	}
 	for _, test := range tests {
-		call, err := b.client.StartCall(&fakeContext{}, "server@@mountpoint/server/suffix", "EchoBlessing", []interface{}{"argument"}, test.granter)
+		call, err := b.client.StartCall(&fakeContext{}, "mountpoint/server/suffix", "EchoBlessing", []interface{}{"argument"}, test.granter)
 		if !matchesErrorPattern(err, test.starterr) {
 			t.Errorf("%+v: StartCall returned error %v", test, err)
 		}
@@ -629,8 +622,8 @@ func TestBlessing(t *testing.T) {
 	}
 }
 
-func mkThirdPartyCaveat(discharger security.PublicID, dischargerIdentifier string, c security.Caveat) security.ThirdPartyCaveat {
-	tpc, err := caveat.NewPublicKeyCaveat(c, discharger, dischargerIdentifier)
+func mkThirdPartyCaveat(discharger security.PublicID, location string, c security.Caveat) security.ThirdPartyCaveat {
+	tpc, err := caveat.NewPublicKeyCaveat(c, discharger, location)
 	if err != nil {
 		panic(err)
 	}
@@ -655,11 +648,11 @@ func TestRPCAuthorization(t *testing.T) {
 		dischargerID = serverID.PublicID()
 		cavTPValid   = security.ServiceCaveat{
 			Service: security.PrincipalPattern(serverID.PublicID().Names()[0]),
-			Caveat:  mkThirdPartyCaveat(dischargerID, "server@@mountpoint/server/discharger", &caveat.Expiry{ExpiryTime: now.Add(24 * time.Hour)}),
+			Caveat:  mkThirdPartyCaveat(dischargerID, "mountpoint/server/discharger", &caveat.Expiry{ExpiryTime: now.Add(24 * time.Hour)}),
 		}
 		cavTPExpired = security.ServiceCaveat{
 			Service: security.PrincipalPattern(serverID.PublicID().Names()[0]),
-			Caveat:  mkThirdPartyCaveat(dischargerID, "server@@mountpoint/server/discharger", &caveat.Expiry{IssueTime: now, ExpiryTime: now}),
+			Caveat:  mkThirdPartyCaveat(dischargerID, "mountpoint/server/discharger", &caveat.Expiry{IssueTime: now, ExpiryTime: now}),
 		}
 
 		// Client blessings that will be tested
@@ -734,7 +727,7 @@ func TestRPCAuthorization(t *testing.T) {
 			t.Fatalf("InternalNewClient failed: %v", err)
 		}
 		defer client.Close()
-		call, err := client.StartCall(&fakeContext{}, "server@@"+test.name, test.method, test.args)
+		call, err := client.StartCall(&fakeContext{}, test.name, test.method, test.args)
 		if err != nil {
 			t.Errorf(`%s client.StartCall got unexpected error: "%v"`, name(test), err)
 			continue
@@ -757,14 +750,14 @@ func (alwaysValidCaveat) Validate(security.Context) error { return nil }
 func TestDischargePurgeFromCache(t *testing.T) {
 	var (
 		dischargerID = serverID.PublicID()
-		caveat       = mkThirdPartyCaveat(dischargerID, "server@@mountpoint/server/discharger", alwaysValidCaveat{})
+		caveat       = mkThirdPartyCaveat(dischargerID, "mountpoint/server/discharger", alwaysValidCaveat{})
 		clientCID    = deriveForThirdPartyCaveats(serverID, "client", security.UniversalCaveat(caveat))
 	)
 	b := createBundle(t, clientCID, serverID, &testServer{})
 	defer b.cleanup(t)
 
 	call := func() error {
-		call, err := b.client.StartCall(&fakeContext{}, "server@@mountpoint/server/suffix", "Echo", []interface{}{"batman"})
+		call, err := b.client.StartCall(&fakeContext{}, "mountpoint/server/suffix", "Echo", []interface{}{"batman"})
 		if err != nil {
 			return fmt.Errorf("client.StartCall failed: %v", err)
 		}
@@ -845,7 +838,7 @@ func TestCancel(t *testing.T) {
 	b := createBundle(t, clientID, serverID, ts)
 	defer b.cleanup(t)
 
-	call, err := b.client.StartCall(&fakeContext{}, "server@@mountpoint/server/suffix", "CancelStreamReader", []interface{}{})
+	call, err := b.client.StartCall(&fakeContext{}, "mountpoint/server/suffix", "CancelStreamReader", []interface{}{})
 	if err != nil {
 		t.Fatalf("Start call failed: %v", err)
 	}
@@ -865,7 +858,7 @@ func TestCancelWithFullBuffers(t *testing.T) {
 	b := createBundle(t, clientID, serverID, ts)
 	defer b.cleanup(t)
 
-	call, err := b.client.StartCall(&fakeContext{}, "server@@mountpoint/server/suffix", "CancelStreamIgnorer", []interface{}{})
+	call, err := b.client.StartCall(&fakeContext{}, "mountpoint/server/suffix", "CancelStreamIgnorer", []interface{}{})
 	if err != nil {
 		t.Fatalf("Start call failed: %v", err)
 	}
@@ -901,7 +894,7 @@ func TestStreamReadTerminatedByServer(t *testing.T) {
 	b := createBundle(t, clientID, serverID, s)
 	defer b.cleanup(t)
 
-	call, err := b.client.StartCall(&fakeContext{}, "server@@mountpoint/server/suffix", "RecvInGoroutine", []interface{}{})
+	call, err := b.client.StartCall(&fakeContext{}, "mountpoint/server/suffix", "RecvInGoroutine", []interface{}{})
 	if err != nil {
 		t.Fatalf("StartCall failed: %v", err)
 	}
@@ -941,7 +934,7 @@ func TestConnectWithIncompatibleServers(t *testing.T) {
 	publisher.AddServer("/@2@tcp@localhost:10000@@1000000@2000000@@")
 	publisher.AddServer("/@2@tcp@localhost:10001@@2000000@3000000@@")
 
-	_, err := b.client.StartCall(&fakeContext{}, "*@@incompatible/suffix", "Echo", []interface{}{"foo"})
+	_, err := b.client.StartCall(&fakeContext{}, "incompatible/suffix", "Echo", []interface{}{"foo"})
 	if !strings.Contains(err.Error(), version.NoCompatibleVersionErr.Error()) {
 		t.Errorf("Expected error %v, found: %v", version.NoCompatibleVersionErr, err)
 	}
@@ -950,7 +943,7 @@ func TestConnectWithIncompatibleServers(t *testing.T) {
 	publisher.AddServer("/" + b.ep.String())
 	publisher.AddName("incompatible")
 
-	call, err := b.client.StartCall(&fakeContext{}, "*@@incompatible/suffix", "Echo", []interface{}{"foo"})
+	call, err := b.client.StartCall(&fakeContext{}, "incompatible/suffix", "Echo", []interface{}{"foo"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1045,9 +1038,9 @@ func TestReconnect(t *testing.T) {
 	if err != nil {
 		t.Fatalf("inaming.NewEndpoint(%q): %v", addr, err)
 	}
-	serverIdentifier := "client/server@@" + naming.JoinAddressName(ep.String(), "suffix")
+	serverName := naming.JoinAddressName(ep.String(), "suffix")
 	makeCall := func() (string, error) {
-		call, err := b.client.StartCall(&fakeContext{}, serverIdentifier, "Echo", []interface{}{"bratman"})
+		call, err := b.client.StartCall(&fakeContext{}, serverName, "Echo", []interface{}{"bratman"})
 		if err != nil {
 			return "", err
 		}
@@ -1126,7 +1119,7 @@ func TestProxy(t *testing.T) {
 
 	name := "mountpoint/server/suffix"
 	makeCall := func() (string, error) {
-		call, err := client.StartCall(&fakeContext{}, "server@@"+name, "Echo", []interface{}{"batman"})
+		call, err := client.StartCall(&fakeContext{}, name, "Echo", []interface{}{"batman"})
 		if err != nil {
 			return "", err
 		}

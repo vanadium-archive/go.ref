@@ -3,7 +3,6 @@ package ipc
 import (
 	"fmt"
 	"io"
-	"strings"
 	"sync"
 	"time"
 
@@ -120,33 +119,15 @@ func (c *client) connectFlow(server string) (stream.Flow, string, error) {
 	return flow, suffix, nil
 }
 
-// parseServerIdentifier extracts the principal pattern and object name from
-// the server identifier argument of StartCall/Bind
-func parseServerIdentifier(identifier string) (veyron2.RemoteID, string, error) {
-	pieces := strings.SplitN(identifier, "@@", 2)
-	if len(pieces) < 2 || len(pieces[0]) == 0 || len(pieces[1]) == 0 {
-		// TODO(andreser,ataly,ashankar): hard-fail on missing pattern
-		// return "", "", fmt.Errorf("server identifier must be of form principalpattern@@objectname")
-		vlog.Errorf("ipc: server identifier argument to Bind() or StartCall() must be of form principalpattern@@objectname (got \"%s\"). See <https://docs.google.com/a/google.com/document/d/1x7JKd3WdrstBZl7hupXMItOkMzcoXVPegLnVGqdGVCs>.", identifier)
-		return security.AllPrincipals, identifier, nil
-	}
-	return veyron2.RemoteID(security.PrincipalPattern(pieces[0])), pieces[1], nil
-}
-
-func (c *client) StartCall(ctx context.T, serverIdentifier, method string, args []interface{}, opts ...ipc.CallOpt) (ipc.Call, error) {
-	return c.startCall(ctx, serverIdentifier, method, args, opts...)
+func (c *client) StartCall(ctx context.T, name, method string, args []interface{}, opts ...ipc.CallOpt) (ipc.Call, error) {
+	return c.startCall(ctx, name, method, args, opts...)
 }
 
 // startCall ensures StartCall always returns verror.E.
-func (c *client) startCall(ctx context.T, serverIdentifier, method string, args []interface{}, opts ...ipc.CallOpt) (ipc.Call, verror.E) {
+func (c *client) startCall(ctx context.T, name, method string, args []interface{}, opts ...ipc.CallOpt) (ipc.Call, verror.E) {
 	if ctx == nil {
-		return nil, verror.BadArgf("ipc: %s.%s called with nil context", serverIdentifier, method)
+		return nil, verror.BadArgf("ipc: %s.%s called with nil context", name, method)
 	}
-	remoteID, name, err := parseServerIdentifier(serverIdentifier)
-	if err != nil {
-		return nil, verror.BadArgf("ipc: ParseServerIdentifier(%q) failed: %v", serverIdentifier, err)
-	}
-	opts = append([]ipc.CallOpt{remoteID}, opts...)
 	servers, err := c.ns.Resolve(ctx, name)
 	if err != nil {
 		return nil, verror.NotFoundf("ipc: Resolve(%q) failed: %v", name, err)
