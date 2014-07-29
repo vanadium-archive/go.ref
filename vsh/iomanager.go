@@ -30,6 +30,8 @@ type ioManager struct {
 	// outchan is used to serialize the output to the stream. This is
 	// needed because stream.Send is not thread-safe.
 	outchan chan tunnel.ClientShellPacket
+	// closed is closed when run() exits
+	closed chan struct{}
 }
 
 func (m *ioManager) run() error {
@@ -38,7 +40,8 @@ func (m *ioManager) run() error {
 	// chan2stream() receives data sent by handleWindowResize() and
 	// user2outchan() and sends it to the stream.
 	m.outchan = make(chan tunnel.ClientShellPacket)
-	defer close(m.outchan)
+	m.closed = make(chan struct{})
+	defer close(m.closed)
 	go m.chan2stream()
 	// When the terminal window is resized, we receive a SIGWINCH. Then we
 	// send the new window size to the server.
@@ -64,6 +67,15 @@ func (m *ioManager) chan2stream() {
 	m.done <- io.EOF
 }
 
+func (m *ioManager) sendOnOutchan(p tunnel.ClientShellPacket) bool {
+	select {
+	case m.outchan <- p:
+		return true
+	case <-m.closed:
+		return false
+	}
+}
+
 func (m *ioManager) handleWindowResize(winch chan os.Signal) {
 	for _ = range winch {
 		ws, err := lib.GetWindowSize()
@@ -71,7 +83,9 @@ func (m *ioManager) handleWindowResize(winch chan os.Signal) {
 			vlog.Infof("GetWindowSize failed: %v", err)
 			continue
 		}
-		m.outchan <- tunnel.ClientShellPacket{Rows: uint32(ws.Row), Cols: uint32(ws.Col)}
+		if !m.sendOnOutchan(tunnel.ClientShellPacket{Rows: uint32(ws.Row), Cols: uint32(ws.Col)}) {
+			return
+		}
 	}
 }
 
@@ -85,7 +99,9 @@ func (m *ioManager) user2outchan() {
 			m.done <- err
 			return
 		}
-		m.outchan <- tunnel.ClientShellPacket{Stdin: buf[:n]}
+		if !m.sendOnOutchan(tunnel.ClientShellPacket{Stdin: buf[:n]}) {
+			return
+		}
 	}
 }
 

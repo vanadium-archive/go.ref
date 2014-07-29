@@ -27,18 +27,20 @@ type ioManager struct {
 	// outchan is used to serialize the output to the stream. This is
 	// needed because stream.Send is not thread-safe.
 	outchan chan tunnel.ServerShellPacket
+	// closed is closed when run() exits.
+	closed chan struct{}
 }
 
 func (m *ioManager) run() error {
 	// done receives any error from chan2stream, stdout2stream, or
 	// stream2stdin.
 	m.done = make(chan error, 3)
-
 	// outchan is used to serialize the output to the stream.
 	// chan2stream() receives data sent by stdout2outchan() and
 	// stderr2outchan() and sends it to the stream.
 	m.outchan = make(chan tunnel.ServerShellPacket)
-	defer close(m.outchan)
+	m.closed = make(chan struct{})
+	defer close(m.closed)
 	go m.chan2stream()
 
 	// Forward data between the shell's stdio and the stream.
@@ -63,6 +65,15 @@ func (m *ioManager) chan2stream() {
 	m.done <- io.EOF
 }
 
+func (m *ioManager) sendOnOutchan(p tunnel.ServerShellPacket) bool {
+	select {
+	case m.outchan <- p:
+		return true
+	case <-m.closed:
+		return false
+	}
+}
+
 // stdout2stream reads data from the shell's stdout and sends it to the outchan.
 func (m *ioManager) stdout2outchan() {
 	for {
@@ -73,7 +84,9 @@ func (m *ioManager) stdout2outchan() {
 			m.done <- err
 			return
 		}
-		m.outchan <- tunnel.ServerShellPacket{Stdout: buf[:n]}
+		if !m.sendOnOutchan(tunnel.ServerShellPacket{Stdout: buf[:n]}) {
+			return
+		}
 	}
 }
 
@@ -87,7 +100,9 @@ func (m *ioManager) stderr2outchan() {
 			m.done <- err
 			return
 		}
-		m.outchan <- tunnel.ServerShellPacket{Stderr: buf[:n]}
+		if !m.sendOnOutchan(tunnel.ServerShellPacket{Stderr: buf[:n]}) {
+			return
+		}
 	}
 }
 
