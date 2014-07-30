@@ -21,6 +21,9 @@ func TestState(t *testing.T) {
 		t.Fatalf("MkdirAll(%v) failed: %v", currScript, err)
 	}
 	defer os.RemoveAll(currScript)
+	// On some operating systems (e.g. darwin) os.TempDir() can
+	// return a symlink. To avoid having to account for this
+	// eventuality later, evaluate the symlink.
 	currScript, err = filepath.EvalSymlinks(currScript)
 	if err != nil {
 		t.Fatalf("EvalSymlinks() failed: %v", err)
@@ -30,6 +33,7 @@ func TestState(t *testing.T) {
 		t.Fatalf("Symlink(%v, %v) failed: %v", currScript, currLink, err)
 	}
 	defer os.Remove(currLink)
+	// For the same reasons mentioned above, evaluate the symlink.
 	currLink, err = filepath.EvalSymlinks(currLink)
 	if err != nil {
 		t.Fatalf("EvalSymlinks() failed: %v", err)
