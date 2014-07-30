@@ -3,10 +3,12 @@ package impl
 import (
 	"bytes"
 	"errors"
+	"fmt"
 	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 
 	"veyron2/ipc"
 	"veyron2/services/mgmt/binary"
