@@ -21,6 +21,11 @@ type Value struct {
 	X int
 }
 
+// Nest is a struct that nests a Value.
+type Nest struct {
+	V Value
+}
+
 var (
 	root     = &Dir{}
 	rootPath = storage.ParsePath("/")
@@ -333,5 +338,46 @@ func TestReplaceStructWithLink(t *testing.T) {
 	}
 	if v, err := sn.Get(rootPublicID, storage.ParsePath("/a")); err != nil || v.Value.(*Value).X != 3 {
 		t.Errorf("Expected 3, got %v", v)
+	}
+}
+
+// Put a value of the wrong type to a subfield.
+func TestPutWrongType(t *testing.T) {
+	sn := newMutableSnapshot(rootPublicID)
+
+	_, err := sn.Put(rootPublicID, rootPath, Value{7})
+	if err != nil {
+		t.Errorf("/: %v", err)
+	}
+	_, err = sn.Put(rootPublicID, storage.ParsePath("/X"), "string")
+	if !verror.Is(err, verror.BadArg) {
+		t.Errorf("/X: %v", err)
+	}
+	v, err := sn.Get(rootPublicID, storage.ParsePath("/X"))
+	if err != nil {
+		t.Errorf("/X: %v", err)
+	}
+	if v.Value != 7 {
+		t.Errorf("Expected 7, got %v", v.Value)
+	}
+
+	_, err = sn.Put(rootPublicID, storage.ParsePath("/a"), Nest{Value{42}})
+	if err != nil {
+		t.Errorf("/a: %v", err)
+	}
+	_, err = sn.Put(rootPublicID, storage.ParsePath("/a/V"), "string")
+	if !verror.Is(err, verror.BadArg) {
+		t.Errorf("/a/V: %v", err)
+	}
+	_, err = sn.Put(rootPublicID, storage.ParsePath("/a/V/X"), "string")
+	if !verror.Is(err, verror.BadArg) {
+		t.Errorf("/a/V/X: %v", err)
+	}
+	v, err = sn.Get(rootPublicID, storage.ParsePath("/a/V/X"))
+	if err != nil {
+		t.Errorf("/a/V/X: %v", err)
+	}
+	if v.Value != 42 {
+		t.Errorf("Expected 42, got %v", v.Value)
 	}
 }

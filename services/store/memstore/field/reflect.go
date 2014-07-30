@@ -2,9 +2,9 @@ package field
 
 // reflect.go uses reflection to access the fields in a value.
 //
-//    getField(v, path)
-//    setField(v, path, x)
-//    removeField(v, path)
+//    Get(v, path)
+//    Set(v, path, x)
+//    Remove(v, path)
 //
 // The path is JSON-style, using field names.  For example, consider the
 // following value.
@@ -19,19 +19,19 @@ package field
 // Here are some possible paths:
 //
 //    var x MyValue = ...
-//    getField(x, storage.PathName{"A"}) == x.A
-//    getField(x, storage.PathName{"B", "7"}) == x.B[7]
-//    getField(x, storage.PathName{"C", "a"}) == x.C["a"]
-//    getField(x, storage.PathName{"D", "a", "E"}) == x.D["a"].E
+//    Get(x, storage.PathName{"A"}) == x.A
+//    Get(x, storage.PathName{"B", "7"}) == x.B[7]
+//    Get(x, storage.PathName{"C", "a"}) == x.C["a"]
+//    Get(x, storage.PathName{"D", "a", "E"}) == x.D["a"].E
 //
-//    setField(x, storage.PathName{"A"}, 17)
-//    getField(x, storage.PathName{"A"}) == 17
+//    Set(x, storage.PathName{"A"}, 17)
+//    Get(x, storage.PathName{"A"}) == 17
 //
-//    setField(x, storage.PathName{"D", "a"}, struct{E: 12})
-//    getField(x, storage.PathName{"D", "a", "E"}) == 12
+//    Set(x, storage.PathName{"D", "a"}, struct{E: 12})
+//    Get(x, storage.PathName{"D", "a", "E"}) == 12
 //
-//    removeField(x, storage.PathName{"D", "a"}
-//    getField(x, storage.PathName{"D", "a", "E"}) fails
+//    Remove(x, storage.PathName{"D", "a"}
+//    Get(x, storage.PathName{"D", "a", "E"}) fails
 
 import (
 	"reflect"
@@ -43,7 +43,8 @@ import (
 type SetResult uint32
 
 const (
-	SetFailed SetResult = iota
+	SetFailedNotFound SetResult = iota
+	SetFailedWrongType
 	SetAsValue
 	SetAsID
 )
@@ -135,26 +136,27 @@ func findMapField(v reflect.Value, field string) reflect.Value {
 //
 // Here are the possible cases:
 //
-// 1. SetFailed if the operation failed because the value has the wrong type
-//    or the path doesn't exist.
+// 1. SetFailedNotFound if the operation failed because the path doesn't exist.
 //
-// 2. SetAsValue if the operation was successful, and the value xval was
+// 2. SetFailedWrongType if the operation failed because the value has the wrong type.
+//
+// 3. SetAsValue if the operation was successful, and the value xval was
 //    stored.  The returned storage.ID is null.
 //
-// 3. SetAsId if the operation was successful, but the type of the field is
+// 4. SetAsId if the operation was successful, but the type of the field is
 //    storage.ID and xval does not have type storage.ID.  In this case, the value
 //    xval is not stored; the storage.ID is returned instead.  If the field does
 //    not already exist, a new storage.ID is created (and returned).
 //
-// The setFieldAsID case means that the value xval is to be stored as a separate
+// The setAsID case means that the value xval is to be stored as a separate
 // value in the store, not as a subfield of the current value.
 //
 // As a special case, if the field type is storage.ID, and xval has type storage.ID,
-// then it is case #2, setFieldAsValue.  The returned storage.ID is zero.
+// then it is case #2, setAsValue.  The returned storage.ID is zero.
 func Set(v reflect.Value, name string, xval interface{}) (SetResult, storage.ID) {
 	v = followPointers(v)
 	if !v.IsValid() {
-		return SetFailed, nullID
+		return SetFailedNotFound, nullID
 	}
 	switch v.Type().Kind() {
 	case reflect.Map:
@@ -164,7 +166,7 @@ func Set(v reflect.Value, name string, xval interface{}) (SetResult, storage.ID)
 	case reflect.Struct:
 		return setStructField(v, name, xval)
 	default:
-		return SetFailed, nullID
+		return SetFailedNotFound, nullID
 	}
 }
 
@@ -172,12 +174,12 @@ func setMapField(v reflect.Value, name string, xval interface{}) (SetResult, sto
 	tyV := v.Type()
 	tyKey := tyV.Key()
 	if tyKey.Kind() != reflect.String {
-		return SetFailed, nullID
+		return SetFailedNotFound, nullID
 	}
 	key := reflect.ValueOf(name).Convert(tyKey)
 	r, x, id := coerceValue(tyV.Elem(), v.MapIndex(key), xval)
-	if r == SetFailed {
-		return SetFailed, nullID
+	if r == SetFailedWrongType {
+		return SetFailedWrongType, nullID
 	}
 	v.SetMapIndex(key, x)
 	return r, id
@@ -186,8 +188,8 @@ func setMapField(v reflect.Value, name string, xval interface{}) (SetResult, sto
 func setSliceField(v reflect.Value, field string, xval interface{}) (SetResult, storage.ID) {
 	if field == SliceAppendSuffix {
 		r, x, id := coerceValue(v.Type().Elem(), nullValue, xval)
-		if r == SetFailed {
-			return SetFailed, nullID
+		if r == SetFailedWrongType {
+			return SetFailedWrongType, nullID
 		}
 		// This can panic if v is not settable. It is a requirement that users of this method
 		// ensure that it is settable.
@@ -197,11 +199,11 @@ func setSliceField(v reflect.Value, field string, xval interface{}) (SetResult, 
 	l := v.Len()
 	i, err := strconv.Atoi(field)
 	if err != nil || i < 0 || i >= l {
-		return SetFailed, nullID
+		return SetFailedNotFound, nullID
 	}
 	r, x, id := coerceValue(v.Type().Elem(), v.Index(i), xval)
-	if r == SetFailed {
-		return SetFailed, nullID
+	if r == SetFailedWrongType {
+		return SetFailedWrongType, nullID
 	}
 	v.Index(i).Set(x)
 	return r, id
@@ -210,12 +212,12 @@ func setSliceField(v reflect.Value, field string, xval interface{}) (SetResult, 
 func setStructField(v reflect.Value, name string, xval interface{}) (SetResult, storage.ID) {
 	field, found := v.Type().FieldByName(name)
 	if !found {
-		return SetFailed, nullID
+		return SetFailedNotFound, nullID
 	}
 	fieldVal := v.FieldByName(name)
 	r, x, id := coerceValue(field.Type, fieldVal, xval)
-	if r == SetFailed {
-		return SetFailed, nullID
+	if r == SetFailedWrongType {
+		return SetFailedWrongType, nullID
 	}
 	fieldVal.Set(x)
 	return r, id
@@ -232,7 +234,7 @@ func coerceValue(ty reflect.Type, prev reflect.Value, xval interface{}) (SetResu
 		if prev.IsValid() {
 			var ok bool
 			if id, ok = prev.Interface().(storage.ID); !ok {
-				return SetFailed, nullValue, nullID
+				return SetFailedWrongType, nullValue, nullID
 			}
 		} else {
 			id = storage.NewID()
@@ -243,7 +245,7 @@ func coerceValue(ty reflect.Type, prev reflect.Value, xval interface{}) (SetResu
 	case x.Type().ConvertibleTo(ty):
 		return SetAsValue, x.Convert(ty), nullID
 	default:
-		return SetFailed, nullValue, nullID
+		return SetFailedWrongType, nullValue, nullID
 	}
 }
 

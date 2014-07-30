@@ -105,6 +105,7 @@ type Mutation struct {
 var (
 	errBadPath              = verror.BadArgf("malformed path")
 	errBadRef               = verror.BadArgf("value has dangling references")
+	errBadValue             = verror.BadArgf("value has the wrong type")
 	errDuplicatePutMutation = verror.BadArgf("duplicate calls to PutMutation for the same ID")
 	errNotFound             = verror.NotFoundf("not found")
 	errNotTagList           = verror.BadArgf("not a TagList")
@@ -381,7 +382,7 @@ func (sn *MutableSnapshot) putValue(checker *acl.Checker, path storage.PathName,
 	name := path[len(path)-1]
 	result, id := field.Set(p, name, v)
 	switch result {
-	case field.SetFailed:
+	case field.SetFailedNotFound:
 		if len(suffix) != 0 {
 			return nil, errNotFound
 		}
@@ -389,6 +390,8 @@ func (sn *MutableSnapshot) putValue(checker *acl.Checker, path storage.PathName,
 			return sn.putTags(checker, c, v)
 		}
 		return sn.putDirEntry(checker, c, name, v)
+	case field.SetFailedWrongType:
+		return nil, errBadValue
 	case field.SetAsID:
 		nc, err := sn.add(checker, id, v)
 		if err != nil {
@@ -417,8 +420,10 @@ func (sn *MutableSnapshot) putTagsValue(checker *acl.Checker, path, suffix stora
 	name := path[len(path)-1]
 	result, id := field.Set(p, name, v)
 	switch result {
-	case field.SetFailed:
+	case field.SetFailedNotFound:
 		return nil, errNotFound
+	case field.SetFailedWrongType:
+		return nil, errBadValue
 	case field.SetAsID:
 		nc, err := sn.add(checker, id, v)
 		if err != nil {
