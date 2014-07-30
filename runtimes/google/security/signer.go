@@ -9,6 +9,7 @@ import (
 
 // NewClearSigner creates a Signer that uses the provided private key to sign messages.
 // This private key is kept in the clear in the memory of the running process.
+// No hashing is applied prior to signing.
 func NewClearSigner(key *ecdsa.PrivateKey) security.Signer {
 	return &clearSigner{key}
 }
@@ -23,6 +24,7 @@ func (c *clearSigner) Sign(message []byte) (sig security.Signature, err error) {
 		return
 	}
 	sig.R, sig.S = r.Bytes(), s.Bytes()
+	sig.Hash = security.NoHash
 	return
 }
 
