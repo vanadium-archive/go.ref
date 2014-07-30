@@ -169,8 +169,22 @@ func TestUpdateAndRevert(t *testing.T) {
 
 	// This is the local filesystem location that the node manager is told
 	// to use.
-	root := filepath.Join(os.TempDir(), "nodemanager")
+	root, perm := filepath.Join(os.TempDir(), "nodemanager"), os.FileMode(0700)
+	if err := os.Mkdir(root, perm); err != nil {
+		t.Fatalf("Mkdir(%v, %v) failed: %v", root, perm, err)
+	}
 	defer os.RemoveAll(root)
+
+	// On some operating systems (e.g. darwin) os.TempDir() can
+	// return a symlink. To avoid having to account for this
+	// eventuality later, evaluate the symlink.
+	{
+		var err error
+		root, err = filepath.EvalSymlinks(root)
+		if err != nil {
+			t.Fatalf("EvalSymlinks(%v) failed: %v", root, err)
+		}
+	}
 
 	// Current link does not have to live in the root dir.
 	currLink := filepath.Join(os.TempDir(), "testcurrent")
