@@ -40,6 +40,13 @@ build() {
   "${go}" build veyron/tools/identity || fail "line ${LINENO}: failed to build identity"
 }
 
+dumplogs() {
+  for x in $*; do
+    echo "-- $(basename "${x}") --"
+    cat "${x}"
+  done
+}
+
 main() {
   cd "${workdir}"
   build
@@ -81,7 +88,7 @@ main() {
   local want="HELLO ENDPOINT"
 
   if [[ "${got}" != "${want}" ]]; then
-    cat "${vshlog}"
+    dumplogs "${vshlog}" "${tunlog}" "${mtlog}"
     fail "line ${LINENO}: unexpected output. Got ${got}, want ${want}"
   fi
 
@@ -90,7 +97,7 @@ main() {
   want="HELLO NAME"
 
   if [[ "${got}" != "${want}" ]]; then
-    cat "${vshlog}"
+    dumplogs "${vshlog}" "${tunlog}" "${mtlog}"
     fail "line ${LINENO}: unexpected output. Got ${got}, want ${want}"
   fi
 
