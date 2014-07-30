@@ -7,6 +7,7 @@ import (
 	goexec "os/exec"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 
 	"veyron/lib/signals"
@@ -52,14 +53,20 @@ func execScript(args []string) {
 		Stderr: os.Stderr,
 		Stdout: os.Stdout,
 	}
+	// os.exec.Cmd is not thread safe
+	var cmdLock sync.Mutex
 	go func() {
+		cmdLock.Lock()
 		stdin, err := cmd.StdinPipe()
+		cmdLock.Unlock()
 		if err != nil {
 			vlog.Fatalf("Failed to get stdin pipe: %v", err)
 		}
 		blackbox.WaitForEOFOnStdin()
 		stdin.Close()
 	}()
+	cmdLock.Lock()
+	defer cmdLock.Unlock()
 	if err := cmd.Run(); err != nil {
 		vlog.Fatalf("Run cmd %v failed: %v", cmd, err)
 	}
