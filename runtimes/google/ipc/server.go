@@ -309,11 +309,11 @@ func (s *server) Stop() error {
 // flowServer implements the RPC server-side protocol for a single RPC, over a
 // flow that's already connected to the client.
 type flowServer struct {
-	disp   ipc.Dispatcher
-	server ipc.Server   // ipc.Server that this flow server belongs to
-	dec    *vom.Decoder // to decode requests and args from the client
-	enc    *vom.Encoder // to encode responses and results to the client
-	flow   stream.Flow  // underlying flow
+	server ipc.Server     // ipc.Server that this flow server belongs to
+	disp   ipc.Dispatcher // ipc.Dispatcher that will serve RPCs on this flow
+	dec    *vom.Decoder   // to decode requests and args from the client
+	enc    *vom.Encoder   // to encode responses and results to the client
+	flow   stream.Flow    // underlying flow
 	// Fields filled in during the server invocation.
 
 	// authorizedRemoteID is the PublicID obtained after authorizing the remoteID
@@ -328,9 +328,12 @@ type flowServer struct {
 }
 
 func newFlowServer(flow stream.Flow, server *server) *flowServer {
+	server.Lock()
+	disp := server.disp
+	server.Unlock()
 	return &flowServer{
 		server: server,
-		disp:   server.disp,
+		disp:   disp,
 		// TODO(toddw): Support different codecs
 		dec:        vom.NewDecoder(flow),
 		enc:        vom.NewEncoder(flow),
