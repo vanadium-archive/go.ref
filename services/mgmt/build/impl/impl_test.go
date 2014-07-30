@@ -50,9 +50,10 @@ func startServer(t *testing.T) (build.Build, func()) {
 }
 
 func invokeBuild(t *testing.T, client build.Build, files []build.File) ([]byte, []build.File, error) {
-	stream, err := client.Build(rt.R().NewContext())
+	arch, opsys := getArch(), getOS()
+	stream, err := client.Build(rt.R().NewContext(), arch, opsys)
 	if err != nil {
-		t.Errorf("Build() failed: %v", err)
+		t.Errorf("Build(%v, %v) failed: %v", err, arch, opsys)
 		return nil, nil, err
 	}
 	for _, file := range files {
