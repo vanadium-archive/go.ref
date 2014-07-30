@@ -36,8 +36,11 @@ func NewInvoker(gobin string) *invoker {
 
 // TODO(jsimsa): Add support for building for a specific profile
 // specified as a suffix the Build().
-func (i *invoker) Build(_ ipc.ServerContext, stream build.BuildServiceBuildStream) ([]byte, error) {
-	vlog.VI(1).Infof("Build() called.")
+//
+// TODO(jsimsa): Analyze the binary files for shared library
+// dependencies and ship these back.
+func (i *invoker) Build(_ ipc.ServerContext, arch build.Architecture, opsys build.OperatingSystem, stream build.BuildServiceBuildStream) ([]byte, error) {
+	vlog.VI(1).Infof("Build(%v, %v) called.", arch, opsys)
 	dir, prefix := "", ""
 	dirPerm, filePerm := os.FileMode(0700), os.FileMode(0600)
 	root, err := ioutil.TempDir(dir, prefix)
@@ -70,6 +73,8 @@ func (i *invoker) Build(_ ipc.ServerContext, stream build.BuildServiceBuildStrea
 		return nil, errInternalError
 	}
 	cmd := exec.Command(i.gobin, "install", "-v", "...")
+	cmd.Env = append(cmd.Env, "GOARCH="+archString(arch))
+	cmd.Env = append(cmd.Env, "GOOS="+osString(opsys))
 	cmd.Env = append(cmd.Env, "GOPATH="+filepath.Dir(srcDir))
 	var output bytes.Buffer
 	cmd.Stdout = &output
@@ -87,8 +92,6 @@ func (i *invoker) Build(_ ipc.ServerContext, stream build.BuildServiceBuildStrea
 		vlog.Errorf("ReadDir(%v) failed: %v", binDir, err)
 		return nil, errInternalError
 	}
-	// TODO(jsimsa): Analyze the binary files for shared library
-	// dependencies and ship these back.
 	for _, file := range files {
 		binPath := filepath.Join(root, "go", "bin", file.Name())
 		bytes, err := ioutil.ReadFile(binPath)
