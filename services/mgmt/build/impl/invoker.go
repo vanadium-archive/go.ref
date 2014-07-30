@@ -87,13 +87,16 @@ func (i *invoker) Build(_ ipc.ServerContext, arch build.Architecture, opsys buil
 		return output.Bytes(), errBuildFailed
 	}
 	binDir := filepath.Join(root, "go", "bin")
+	if runtime.GOARCH != archString(arch) || runtime.GOOS != osString(opsys) {
+		binDir = filepath.Join(binDir, fmt.Sprintf("%v_%v", osString(opsys), archString(arch)))
+	}
 	files, err := ioutil.ReadDir(binDir)
 	if err != nil && !os.IsNotExist(err) {
 		vlog.Errorf("ReadDir(%v) failed: %v", binDir, err)
 		return nil, errInternalError
 	}
 	for _, file := range files {
-		binPath := filepath.Join(root, "go", "bin", file.Name())
+		binPath := filepath.Join(binDir, file.Name())
 		bytes, err := ioutil.ReadFile(binPath)
 		if err != nil {
 			vlog.Errorf("ReadFile(%v) failed: %v", binPath, err)
