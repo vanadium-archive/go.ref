@@ -15,16 +15,25 @@ import (
 // TestState checks that encoding/decoding State to child/from parent works
 // as expected.
 func TestState(t *testing.T) {
+	var err error
 	currScript := filepath.Join(os.TempDir(), "fido/was/here")
 	if err := os.MkdirAll(currScript, 0700); err != nil {
-		t.Fatalf("MkdirAll failed: %v", err)
+		t.Fatalf("MkdirAll(%v) failed: %v", currScript, err)
 	}
 	defer os.RemoveAll(currScript)
+	currScript, err = filepath.EvalSymlinks(currScript)
+	if err != nil {
+		t.Fatalf("EvalSymlinks() failed: %v", err)
+	}
 	currLink := filepath.Join(os.TempDir(), "familydog")
 	if err := os.Symlink(currScript, currLink); err != nil {
-		t.Fatalf("Symlink failed: %v", err)
+		t.Fatalf("Symlink(%v, %v) failed: %v", currScript, currLink, err)
 	}
 	defer os.Remove(currLink)
+	currLink, err = filepath.EvalSymlinks(currLink)
+	if err != nil {
+		t.Fatalf("EvalSymlinks() failed: %v", err)
+	}
 	state := &config.State{
 		Name:        "fido",
 		Previous:    "doesn't matter",
@@ -58,7 +67,7 @@ func TestState(t *testing.T) {
 	expectedState.Name = ""
 	expectedState.Previous = currScript
 	if !reflect.DeepEqual(decodedState, expectedState) {
-		t.Errorf("Decode state: want %v, got %v", expectedState, decodedState)
+		t.Errorf("Decode state: want %#v, got %#v", expectedState, decodedState)
 	}
 }
 
