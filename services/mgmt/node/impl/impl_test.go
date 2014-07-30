@@ -170,8 +170,8 @@ func TestUpdateAndRevert(t *testing.T) {
 	// This is the local filesystem location that the node manager is told
 	// to use.
 	root, perm := filepath.Join(os.TempDir(), "nodemanager"), os.FileMode(0700)
-	if err := os.Mkdir(root, perm); err != nil {
-		t.Fatalf("Mkdir(%v, %v) failed: %v", root, perm, err)
+	if err := os.MkdirAll(root, perm); err != nil {
+		t.Fatalf("MkdirAll(%v, %v) failed: %v", root, perm, err)
 	}
 	defer os.RemoveAll(root)
 
