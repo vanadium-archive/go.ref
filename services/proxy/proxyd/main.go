@@ -18,11 +18,12 @@ import (
 func main() {
 	var (
 		// TODO(rthellend): Remove the address and protocol flags when the config manager is working.
-		address    = flag.String("address", ":0", "Network address the proxy listens on")
-		pubAddress = flag.String("published_address", "", "Network address the proxy publishes. If empty, the value of --address will be used")
-		protocol   = flag.String("protocol", "tcp", "Network type the proxy listens on")
-		httpAddr   = flag.String("http", ":14142", "Network address on which the HTTP debug server runs")
-		name       = flag.String("name", "", "Name to mount the proxy as")
+		address     = flag.String("address", ":0", "Network address the proxy listens on")
+		pubAddress  = flag.String("published_address", "", "Network address the proxy publishes. If empty, the value of --address will be used")
+		protocol    = flag.String("protocol", "tcp", "Network type the proxy listens on")
+		httpAddr    = flag.String("http", ":14142", "Network address on which the HTTP debug server runs")
+		healthzAddr = flag.String("healthz_address", "", "Network address on which the HTTP healthz server runs. It is intended to be used with a load balancer. The load balancer must be able to reach this address in order to verify that the proxy server is running")
+		name        = flag.String("name", "", "Name to mount the proxy as")
 	)
 
 	r := rt.Init()
@@ -47,8 +48,34 @@ func main() {
 		publisher.AddName(*name)
 	}
 
+	if len(*healthzAddr) != 0 {
+		go startHealthzServer(*healthzAddr)
+	}
+
 	http.Handle("/", proxy)
 	if err = http.ListenAndServe(*httpAddr, nil); err != nil {
+		vlog.Fatal(err)
+	}
+}
+
+// healthzHandler implements net/http.Handler
+type healthzHandler struct{}
+
+func (healthzHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	w.Write([]byte("ok"))
+}
+
+// startHealthzServer starts a HTTP server that simply returns "ok" to every
+// request. This is needed to let the load balancer know that the proxy server
+// is running.
+func startHealthzServer(addr string) {
+	s := http.Server{
+		Addr:         addr,
+		Handler:      healthzHandler{},
+		ReadTimeout:  10 * time.Second,
+		WriteTimeout: 10 * time.Second,
+	}
+	if err := s.ListenAndServe(); err != nil {
 		vlog.Fatal(err)
 	}
 }
