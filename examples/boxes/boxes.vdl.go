@@ -394,6 +394,7 @@ type implDrawInterfaceServiceDrawStreamIterator struct {
 }
 
 func (s *implDrawInterfaceServiceDrawStreamIterator) Advance() bool {
+	s.val = Box{}
 	s.err = s.serverCall.Recv(&s.val)
 	return s.err == nil
 }

@@ -253,6 +253,7 @@ type implJudgeServicePlayStreamIterator struct {
 }
 
 func (s *implJudgeServicePlayStreamIterator) Advance() bool {
+	s.val = PlayerAction{}
 	s.err = s.serverCall.Recv(&s.val)
 	return s.err == nil
 }
