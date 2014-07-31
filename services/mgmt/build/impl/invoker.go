@@ -75,8 +75,8 @@ func (i *invoker) Build(_ ipc.ServerContext, arch build.Architecture, opsys buil
 		return nil, errInternalError
 	}
 	cmd := exec.Command(i.gobin, "install", "-v", "...")
-	cmd.Env = append(cmd.Env, "GOARCH="+archString(arch))
-	cmd.Env = append(cmd.Env, "GOOS="+osString(opsys))
+	cmd.Env = append(cmd.Env, "GOARCH="+string(arch))
+	cmd.Env = append(cmd.Env, "GOOS="+string(opsys))
 	cmd.Env = append(cmd.Env, "GOPATH="+filepath.Dir(srcDir))
 	var output bytes.Buffer
 	cmd.Stdout = &output
@@ -89,8 +89,8 @@ func (i *invoker) Build(_ ipc.ServerContext, arch build.Architecture, opsys buil
 		return output.Bytes(), errBuildFailed
 	}
 	binDir := filepath.Join(root, "go", "bin")
-	if runtime.GOARCH != archString(arch) || runtime.GOOS != osString(opsys) {
-		binDir = filepath.Join(binDir, fmt.Sprintf("%v_%v", osString(opsys), archString(arch)))
+	if runtime.GOARCH != string(arch) || runtime.GOOS != string(opsys) {
+		binDir = filepath.Join(binDir, fmt.Sprintf("%v_%v", string(opsys), string(arch)))
 	}
 	files, err := ioutil.ReadDir(binDir)
 	if err != nil && !os.IsNotExist(err) {
