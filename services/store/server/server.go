@@ -52,7 +52,7 @@ type Server struct {
 	mutex sync.RWMutex
 
 	// store is the actual store implementation.
-	store service.Store
+	store *memstore.Store
 
 	// transactions is the set of active transactions.
 	transactions map[transactionID]*transaction

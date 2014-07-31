@@ -5,7 +5,6 @@ import (
 
 	"veyron/services/store/memstore/state"
 	"veyron/services/store/raw"
-	"veyron/services/store/service"
 
 	"veyron2/ipc"
 	"veyron2/security"
@@ -24,9 +23,6 @@ type Store struct {
 	// An ephemeral state has a nil log, and does not persist to disk.
 	log *wlog
 }
-
-// Store implements the service.Store interface.
-var _ service.Store = (*Store)(nil)
 
 var (
 	ErrRequestCancelled = verror.Abortedf("request cancelled")
@@ -81,6 +77,13 @@ func (st *Store) setLog(dbName string) error {
 		st.log = log
 	}
 	return nil
+}
+
+// Bind returns an Object representing a value in the store.  The value need not
+// exist; the Put method can be used to add the value if it doesn't already
+// exist.
+func (st *Store) Bind(path string) *Object {
+	return &Object{path: storage.ParsePath(path), store: st}
 }
 
 func (st *Store) Close() error {

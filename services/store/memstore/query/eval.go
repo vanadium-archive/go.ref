@@ -12,7 +12,6 @@ import (
 
 	vsync "veyron/runtimes/google/lib/sync"
 	"veyron/services/store/memstore/state"
-	"veyron/services/store/service"
 
 	"veyron2/naming"
 	"veyron2/query"
@@ -28,7 +27,39 @@ import (
 // query evaluation.
 const maxChannelSize = 100
 
-// evalIterator implements service.QueryStream.
+// QueryStream yields the results of a query. Usage:
+//   qs, _ := obj.Query
+//   for qs.Next() {
+//     result := qs.Get()
+//     ...
+//     if enough_results {
+//       qs.Abort()
+//     }
+//   }
+//   if err := qs.Err(); err != nil {
+//     ...
+//   }
+// Iterator is thread-safe.
+type QueryStream interface {
+	// Next advances the iterator.  It must be called before calling Get.
+	// Returns true if there is a value to be retrieved with Get.  Returns
+	// false when iteration is finished.
+	Next() bool
+
+	// Get retrieves a query result.  It is idempotent.
+	Get() *store.QueryResult
+
+	// Err returns the first error encountered during query evaluation.  It is
+	// idempotent.
+	Err() error
+
+	// Abort stops query evaluation early.  The client must call Abort unless
+	// iteration goes to completion (i.e. Next returns false).  It is
+	// idempotent and can be called from any thread.
+	Abort()
+}
+
+// evalIterator implements QueryStream.
 type evalIterator struct {
 	// mu guards 'result', 'err', and the closing of 'abort'.
 	mu sync.Mutex
@@ -190,7 +221,7 @@ func (it *evalIterator) wait() {
 	it.cleanup.Wait()
 }
 
-func newErrorIterator(err error) service.QueryStream {
+func newErrorIterator(err error) QueryStream {
 	return &evalIterator{
 		err:   err,
 		abort: make(chan struct{}),
@@ -201,7 +232,7 @@ func newErrorIterator(err error) service.QueryStream {
 // an error parsing the query, it will show up as an error in the QueryStream.
 // Query evaluation is concurrent, so it is important to call QueryStream.Abort
 // if the client does not consume all of the results.
-func Eval(sn state.Snapshot, clientID security.PublicID, name storage.PathName, q query.Query) service.QueryStream {
+func Eval(sn state.Snapshot, clientID security.PublicID, name storage.PathName, q query.Query) QueryStream {
 	ast, err := parse.Parse(q)
 	if err != nil {
 		return newErrorIterator(err)
