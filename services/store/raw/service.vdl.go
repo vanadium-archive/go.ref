@@ -295,6 +295,7 @@ type implStoreServicePutMutationsStreamIterator struct {
 }
 
 func (s *implStoreServicePutMutationsStreamIterator) Advance() bool {
+	s.val = Mutation{}
 	s.err = s.serverCall.Recv(&s.val)
 	return s.err == nil
 }

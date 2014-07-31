@@ -448,6 +448,7 @@ type implTunnelServiceShellStreamIterator struct {
 }
 
 func (s *implTunnelServiceShellStreamIterator) Advance() bool {
+	s.val = ClientShellPacket{}
 	s.err = s.serverCall.Recv(&s.val)
 	return s.err == nil
 }
