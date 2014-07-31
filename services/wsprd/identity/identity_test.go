@@ -1,8 +1,6 @@
-package security
+package identity
 
 import (
-	"bytes"
-	"io"
 	"reflect"
 	"sort"
 	"strings"
@@ -38,48 +36,9 @@ func createChain(r veyron2.Runtime, name string) security.PrivateID {
 	return id
 }
 
-type bufferCloser struct {
-	bytes.Buffer
-}
-
-func (*bufferCloser) Close() error {
-	return nil
-}
-
-type serializer struct {
-	data      bufferCloser
-	signature bufferCloser
-	hasData   bool
-}
-
-func (s *serializer) DataWriter() io.WriteCloser {
-	s.hasData = true
-	s.data.Reset()
-	return &s.data
-}
-
-func (s *serializer) SignatureWriter() io.WriteCloser {
-	s.signature.Reset()
-	return &s.signature
-}
-
-func (s *serializer) DataReader() io.Reader {
-	if s.hasData {
-		return &s.data
-	}
-	return nil
-}
-
-func (s *serializer) SignatureReader() io.Reader {
-	if s.hasData {
-		return &s.signature
-	}
-	return nil
-}
-
 func TestSavingAndFetchingIdentity(t *testing.T) {
 	r := rt.Init()
-	manager, err := NewIDManager(r, &serializer{})
+	manager, err := NewIDManager(r, &InMemorySerializer{})
 	if err != nil {
 		t.Fatalf("creating identity manager failed with: %v", err)
 	}
@@ -100,7 +59,7 @@ func TestSavingAndFetchingIdentity(t *testing.T) {
 func TestAccountsMatching(t *testing.T) {
 	r := rt.Init()
 	topLevelName := r.Identity().PublicID().Names()[0]
-	manager, err := NewIDManager(r, &serializer{})
+	manager, err := NewIDManager(r, &InMemorySerializer{})
 	if err != nil {
 		t.Fatalf("creating identity manager failed with: %v", err)
 	}
@@ -118,7 +77,7 @@ func TestAccountsMatching(t *testing.T) {
 
 func TestGenerateIDWithUnknownBlesser(t *testing.T) {
 	r := rt.Init()
-	manager, err := NewIDManager(r, &serializer{})
+	manager, err := NewIDManager(r, &InMemorySerializer{})
 	if err != nil {
 		t.Fatalf("creating identity manager failed with: %v", err)
 	}
@@ -132,7 +91,7 @@ func TestGenerateIDWithUnknownBlesser(t *testing.T) {
 
 func TestSerializingAndDeserializing(t *testing.T) {
 	r := rt.Init()
-	var serializer serializer
+	var serializer InMemorySerializer
 
 	manager, err := NewIDManager(r, &serializer)
 	if err != nil {

@@ -10,7 +10,7 @@
 // information, but not the private keys for each app.
 // TODO(bjornick,ataly,ashankar): Have all the accounts share the same private key which will be stored
 // in a TPM, so no private key gets serialized to disk.
-package security
+package identity
 
 import (
 	"crypto/sha256"
@@ -160,8 +160,12 @@ func (i *IDManager) Identity(origin string) (security.PrivateID, error) {
 	if !found {
 		return nil, OriginDoesNotExist
 	}
-
-	return i.generateBlessedID(origin, perm.Account, perm.Caveats)
+	// TODO(bjornick): Return a blessed identity, not the raw identity for the account.
+	identity, found := i.state.Accounts[perm.Account]
+	if !found {
+		return nil, OriginDoesNotExist
+	}
+	return identity, nil
 }
 
 // AccountsMatching returns a list of accounts that match the given pattern.

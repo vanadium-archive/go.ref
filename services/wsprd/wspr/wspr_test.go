@@ -15,6 +15,7 @@ import (
 	"veyron2/ipc"
 	"veyron2/naming"
 	"veyron2/rt"
+	"veyron2/security"
 	"veyron2/vdl/vdlutil"
 	"veyron2/verror"
 	"veyron2/vlog"
@@ -236,16 +237,54 @@ func TestGetGoServerSignature(t *testing.T) {
 	}
 	defer s.Stop()
 	wspr := NewWSPR(0, "mockVeyronProxyEP")
-	wspr.setup()
 	wsp := websocketPipe{ctx: wspr}
 	wsp.setup()
-	jsSig, err := wsp.getSignature("/"+endpoint.String(), "")
+	jsSig, err := wsp.getSignature("/" + endpoint.String())
 	if err != nil {
 		t.Errorf("Failed to get signature: %v", err)
 	}
 
 	if !reflect.DeepEqual(jsSig, adderServiceSignature) {
 		t.Errorf("Unexpected signature, got :%v, expected: %v", jsSig, adderServiceSignature)
+	}
+}
+
+func TestEncodeDecodeIdentity(t *testing.T) {
+	identity := security.FakePrivateID("/fake/private/id")
+	resultIdentity := decodeIdentity(r.Logger(), encodeIdentity(r.Logger(), identity))
+	if identity != resultIdentity {
+		t.Errorf("expected decodeIdentity(encodeIdentity(identity)) to be %v, got %v", identity, resultIdentity)
+	}
+}
+
+func TestHandleAssocIdentity(t *testing.T) {
+	wspr := NewWSPR(0, "mockVeyronProxyEP")
+	wsp := websocketPipe{ctx: wspr}
+	wsp.setup()
+
+	privateId := security.FakePrivateID("/fake/private/id")
+	identityData := assocIdentityData{
+		Account:  "test@example.org",
+		Identity: encodeIdentity(wspr.logger, privateId),
+		Origin:   "my.webapp.com",
+	}
+	jsonIdentityDataBytes, err := json.Marshal(identityData)
+	if err != nil {
+		t.Errorf("json.Marshal(%v) failed: %v", identityData, err)
+	}
+	jsonIdentityData := string(jsonIdentityDataBytes)
+	writer := testWriter{
+		logger: wspr.logger,
+	}
+	wsp.handleAssocIdentity(jsonIdentityData, lib.ClientWriter(&writer))
+	// Check that the pipe has the privateId
+	if wsp.privateId != privateId {
+		t.Errorf("wsp.privateId was not set. got: %v, expected: %v", wsp.privateId, identityData.Identity)
+	}
+	// Check that wspr idManager has the origin
+	_, err = wspr.idManager.Identity(identityData.Origin)
+	if err != nil {
+		t.Errorf("wspr.idManager.Identity(%v) failed: %v", identityData.Origin, err)
 	}
 }
 
@@ -269,7 +308,6 @@ func runGoServerTestCase(t *testing.T, test goServerTestCase) {
 	defer s.Stop()
 
 	wspr := NewWSPR(0, "mockVeyronProxyEP")
-	wspr.setup()
 	wsp := websocketPipe{ctx: wspr}
 	wsp.setup()
 	writer := testWriter{
@@ -386,7 +424,6 @@ func serveServer() (*runningTest, error) {
 	proxyEndpoint := proxyServer.Endpoint().String()
 
 	wspr := NewWSPR(0, "/"+proxyEndpoint, veyron2.NamespaceRoots{"/" + endpoint.String()})
-	wspr.setup()
 	wsp := websocketPipe{ctx: wspr}
 	writer := testWriter{
 		logger: wspr.logger,
