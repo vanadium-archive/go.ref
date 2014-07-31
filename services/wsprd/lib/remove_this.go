@@ -10,7 +10,6 @@ import (
 
 func init() {
 	vom.Register(mounttable.MountEntry{})
-	vom.Register(store.Conflict{})
 	vom.Register(store.Entry{})
 	vom.Register(store.NestedResult(0))
 	vom.Register(store.QueryResult{})

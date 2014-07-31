@@ -34,8 +34,6 @@ const (
 )
 
 var (
-	_ store.StoreService = (*Server)(nil)
-
 	errNestedTransaction = verror.BadArgf("cannot create a nested Transaction")
 	// Note, this can happen e.g. due to expiration.
 	errTransactionDoesNotExist = verror.NotFoundf("transaction does not exist")
@@ -325,12 +323,6 @@ func (s *Server) PutMutations(ctx ipc.ServerContext, stream raw.StoreServicePutM
 	return s.store.PutMutations(ctx, stream)
 }
 
-// ReadConflicts returns the stream of conflicts to store values.  A
-// conflict occurs when there is a concurrent modification to a value.
-func (s *Server) ReadConflicts(_ ipc.ServerContext, stream store.StoreServiceReadConflictsStream) error {
-	return verror.Internalf("ReadConflicts not yet implemented")
-}
-
 type storeDispatcher struct {
 	s    *Server
 	auth security.Authorizer
@@ -353,9 +345,7 @@ func (d *storeDispatcher) lookupServer(suffix string) (interface{}, error) {
 	// Strip leading "/" if present so that server internals can reliably use
 	// naming.Join(suffix, "foo").
 	suffix = strings.TrimPrefix(suffix, "/")
-	if strings.HasSuffix(suffix, store.StoreSuffix) {
-		return store.NewServerStore(d.s), nil
-	} else if strings.HasSuffix(suffix, raw.RawStoreSuffix) {
+	if strings.HasSuffix(suffix, raw.RawStoreSuffix) {
 		return raw.NewServerStore(d.s), nil
 	} else {
 		// TODO(sadovsky): Create Object, Transaction, and TransactionRoot stubs,

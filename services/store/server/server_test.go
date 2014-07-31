@@ -661,7 +661,6 @@ func TestTransactionSecurity(t *testing.T) {
 }
 
 func TestStoreDispatcher(t *testing.T) {
-	storeType := reflect.PtrTo(reflect.TypeOf(store.ServerStubStore{}))
 	rawType := reflect.PtrTo(reflect.TypeOf(raw.ServerStubStore{}))
 	objectType := reflect.PtrTo(reflect.TypeOf(store.ServerStubObject{}))
 
@@ -669,9 +668,6 @@ func TestStoreDispatcher(t *testing.T) {
 		name string
 		t    reflect.Type
 	}{
-		{store.StoreSuffix, storeType},
-		{"a/b/" + store.StoreSuffix, storeType},
-		{"a/b/c" + store.StoreSuffix, storeType},
 		{raw.RawStoreSuffix, rawType},
 		{"a/b/" + raw.RawStoreSuffix, rawType},
 		{"a/b/c" + raw.RawStoreSuffix, rawType},
