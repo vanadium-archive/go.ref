@@ -21,15 +21,13 @@ type Value struct {
 
 // glob performs a glob expansion of the pattern.  The results are sorted.
 func glob(st storage.Store, path, pattern string) ([]string, error) {
-	results, err := st.Bind(path).GlobT(rt.R().TODOContext(), nil, pattern)
-	if err != nil {
-		return nil, err
-	}
-	defer results.Finish()
+	results := st.BindObject(path).Glob(rt.R().TODOContext(), pattern)
 	names := []string{}
 	for results.Advance() {
-		name := results.Value()
-		names = append(names, "/"+name)
+		names = append(names, "/"+results.Value())
+	}
+	if err := results.Err(); err != nil {
+		return nil, err
 	}
 	sort.Strings(names)
 	return names, nil
@@ -68,7 +66,7 @@ func (v *Value) Glob(pattern string) ([]string, error) {
 // exist.
 func (v *Value) Get(path string) interface{} {
 	path = v.fullpath(path)
-	e, err := v.store.Bind(path).Get(rt.R().TODOContext(), nil)
+	e, err := v.store.BindObject(path).Get(rt.R().TODOContext())
 	if err != nil {
 		return nil
 	}

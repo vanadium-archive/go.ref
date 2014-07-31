@@ -80,7 +80,6 @@ import (
 	iwatch "veyron2/services/watch"
 	"veyron2/storage"
 	"veyron2/storage/vstore"
-	"veyron2/storage/vstore/primitives"
 	"veyron2/vom"
 )
 
@@ -195,7 +194,8 @@ func (gs *goState) monitorStore() {
 	if err != nil {
 		panic(fmt.Errorf("Failed to init veyron store:%v", err))
 	}
-	root := vst.Bind("/")
+	rootName := "/"
+	root := vst.BindObject(rootName)
 
 	// Watch for any box updates from the store
 	go func() {
@@ -224,21 +224,29 @@ func (gs *goState) monitorStore() {
 	}()
 
 	// Send any box updates to the store
-	tr := primitives.NewTransaction(ctx)
-	if _, err := root.Put(ctx, tr, ""); err != nil {
-		panic(fmt.Errorf("Put for %s failed:%v", root, err))
+	tid, err := vst.BindTransactionRoot(rootName).CreateTransaction(ctx)
+	if err != nil {
+		panic(fmt.Errorf("CreateTransaction for %s failed:%v", rootName, err))
 	}
-	if err := tr.Commit(ctx); err != nil {
+	tname := naming.Join(rootName, tid)
+	if _, err := vst.BindObject(tname).Put(ctx, ""); err != nil {
+		panic(fmt.Errorf("Put for %s failed:%v", tname, err))
+	}
+	if err := vst.BindTransaction(tname).Commit(ctx); err != nil {
 		panic(fmt.Errorf("Commit transaction failed:%v", err))
 	}
 	for {
 		box := <-gs.boxList
-		boxes := vst.Bind("/" + box.BoxId)
-		tr = primitives.NewTransaction(ctx)
-		if _, err := boxes.Put(ctx, tr, box); err != nil {
-			panic(fmt.Errorf("Put for %s failed:%v", boxes, err))
+		boxesName := "/" + box.BoxId
+		tid, err = vst.BindTransactionRoot(boxesName).CreateTransaction(ctx)
+		if err != nil {
+			panic(fmt.Errorf("CreateTransaction for %s failed:%v", boxesName, err))
 		}
-		if err := tr.Commit(ctx); err != nil {
+		tname := naming.Join(boxesName, tid)
+		if _, err := vst.BindObject(tname).Put(ctx, box); err != nil {
+			panic(fmt.Errorf("Put for %s failed:%v", tname, err))
+		}
+		if err := vst.BindTransaction(tname).Commit(ctx); err != nil {
 			panic(fmt.Errorf("Commit transaction failed:%v", err))
 		}
 	}

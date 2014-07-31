@@ -73,7 +73,7 @@ func mustParse(name, text string) *template.Template {
 // is based on the type of the value, under /template/<pkgPath>/<typeName>.
 func (s *server) loadTemplate(v interface{}) *template.Template {
 	path := templatePath(v)
-	e, err := s.store.Bind(path).Get(rt.R().TODOContext(), nil)
+	e, err := s.store.BindObject(path).Get(rt.R().TODOContext())
 	if err != nil {
 		return nil
 	}
@@ -125,7 +125,7 @@ func (s *server) printRawPage(w http.ResponseWriter, v interface{}) {
 // ServeHTTP is the main HTTP handler.
 func (s *server) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	path := req.URL.Path
-	e, err := s.store.Bind(path).Get(rt.R().TODOContext(), nil)
+	e, err := s.store.BindObject(path).Get(rt.R().TODOContext())
 	if err != nil {
 		msg := fmt.Sprintf("<html><body><h1>%s</h1><h2>Error: %s</h2></body></html>",
 			html.EscapeString(path),

@@ -1,6 +1,6 @@
 // todos_init is a tool to initialize the store with an initial database. This
 // is really for demo purposes; in a real database, the contents would be
-// persistant.
+// persistent.
 //
 // The data is loaded from a JSON file, todos_init/data.json.
 //
@@ -20,11 +20,11 @@ import (
 
 	"veyron/examples/todos/schema"
 	"veyron2"
+	"veyron2/naming"
 	"veyron2/rt"
 	"veyron2/security"
 	"veyron2/storage"
 	"veyron2/storage/vstore"
-	"veyron2/storage/vstore/primitives"
 	"veyron2/vlog"
 )
 
@@ -60,8 +60,8 @@ type List struct {
 
 // state is the initial store state.
 type state struct {
-	store       storage.Store
-	transaction storage.Transaction
+	store storage.Store
+	tname string // Current transaction name; nil if there's no transaction.
 }
 
 // newState returns a fresh state.
@@ -74,7 +74,7 @@ func newState(st storage.Store) *state {
 func (st *state) put(path string, v interface{}) {
 	vlog.Infof("Storing %q = %+v", path, v)
 	st.makeParentDirs(path)
-	if _, err := st.store.Bind(path).Put(rt.R().TODOContext(), st.transaction, v); err != nil {
+	if _, err := st.store.BindObject(naming.Join(st.tname, path)).Put(rt.R().TODOContext(), v); err != nil {
 		vlog.Errorf("put failed: %s: %s", path, err)
 		return
 	}
@@ -86,9 +86,9 @@ func (st *state) makeParentDirs(path string) {
 	l := strings.Split(path, "/")
 	for i, _ := range l {
 		prefix := filepath.Join(l[:i]...)
-		o := st.store.Bind(prefix)
-		if _, err := o.Get(rt.R().TODOContext(), st.transaction); err != nil {
-			if _, err := o.Put(rt.R().TODOContext(), st.transaction, &schema.Dir{}); err != nil {
+		o := st.store.BindObject(naming.Join(st.tname, prefix))
+		if _, err := o.Get(rt.R().TODOContext()); err != nil {
+			if _, err := o.Put(rt.R().TODOContext(), &schema.Dir{}); err != nil {
 				vlog.Errorf("Error creating parent %q: %s", prefix, err)
 			}
 		}
@@ -97,15 +97,23 @@ func (st *state) makeParentDirs(path string) {
 
 // newTransaction starts a new transaction.
 func (st *state) newTransaction() {
-	st.transaction = primitives.NewTransaction(rt.R().TODOContext())
+	tid, err := st.store.BindTransactionRoot("").CreateTransaction(rt.R().TODOContext())
+	if err != nil {
+		vlog.Fatalf("Failed to create transaction: %s", err)
+	}
+	st.tname = tid // Transaction is rooted at "", so tname == tid.
 }
 
 // commit commits the current transaction.
 func (st *state) commit() {
-	if err := st.transaction.Commit(rt.R().TODOContext()); err != nil {
+	if st.tname == "" {
+		vlog.Fatalf("No transaction to commit")
+	}
+	err := st.store.BindTransaction(st.tname).Commit(rt.R().TODOContext())
+	st.tname = ""
+	if err != nil {
 		vlog.Errorf("Failed to commit transaction: %s", err)
 	}
-	st.transaction = nil
 }
 
 // storeList saves a schema.List to the store with name /lists/<Name>, and also

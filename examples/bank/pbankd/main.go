@@ -26,11 +26,11 @@ import (
 
 	"veyron2"
 	"veyron2/ipc"
+	"veyron2/naming"
 	"veyron2/rt"
 	"veyron2/security"
 	"veyron2/storage"
 	"veyron2/storage/vstore"
-	"veyron2/storage/vstore/primitives"
 	"veyron2/vlog"
 )
 
@@ -77,8 +77,8 @@ type pbankd struct {
 	// Pointer to the store
 	store storage.Store
 
-	// Current Transaction
-	transaction storage.Transaction
+	// Current Transaction name; empty if there's no transaction
+	tname string
 
 	// The bank's private ID (used for blessing)
 	ID security.PrivateID
@@ -95,7 +95,11 @@ func newPbankd(store storage.Store, identity security.PrivateID) *pbankd {
 
 // InitializeBank bank details in the store; currently only initializes the root.
 func (b *pbankd) initializeBank() {
-	b.newTransaction()
+	if err := b.newTransaction(); err != nil {
+		vlog.Fatal(err)
+	}
+	// NOTE(sadovsky): initializeBankRoot ought to return an error. Currently,
+	// some errors (e.g. failed puts) could slip through unnoticed.
 	b.initializeBankRoot()
 	if err := b.commit(); err != nil {
 		vlog.Fatal(err)
@@ -110,11 +114,11 @@ func (b *pbankd) initializeBankRoot() {
 	for i, _ := range l {
 		fmt.Println(i)
 		prefix := filepath.Join(l[:i]...)
-		o := b.store.Bind(prefix)
-		if exist, err := o.Exists(runtime.TODOContext(), b.transaction); err != nil {
+		o := b.store.BindObject(naming.Join(b.tname, prefix))
+		if exist, err := o.Exists(runtime.TODOContext()); err != nil {
 			vlog.Infof("Error checking existence at %q: %s", prefix, err)
 		} else if !exist {
-			if _, err := o.Put(runtime.TODOContext(), b.transaction, &schema.Dir{}); err != nil {
+			if _, err := o.Put(runtime.TODOContext(), &schema.Dir{}); err != nil {
 				vlog.Infof("Error creating parent %q: %s", prefix, err)
 			}
 			fmt.Printf("%q was created!\n", prefix)
@@ -124,11 +128,11 @@ func (b *pbankd) initializeBankRoot() {
 	}
 
 	// Add the bank schema to the store at BANK_ROOT, if necessary
-	o := b.store.Bind(BANK_ROOT)
-	if exist, err := o.Exists(runtime.TODOContext(), b.transaction); err != nil {
+	o := b.store.BindObject(naming.Join(b.tname, BANK_ROOT))
+	if exist, err := o.Exists(runtime.TODOContext()); err != nil {
 		vlog.Infof("Error checking existence at %q: %s", BANK_ROOT, err)
 	} else if !exist {
-		_, err := o.Put(runtime.TODOContext(), b.transaction, &schema.Bank{})
+		_, err := o.Put(runtime.TODOContext(), &schema.Bank{})
 		if err != nil {
 			vlog.Infof("Error creating bank at %q: %s", BANK_ROOT, err)
 		}
@@ -146,7 +150,9 @@ func (b *pbankd) Connect(context ipc.ServerContext) (string, int64, error) {
 	} else {
 		fmt.Println("This client isn't blessed. Let's bless them!")
 		// Use the store
-		b.newTransaction()
+		if err := b.newTransaction(); err != nil {
+			vlog.Fatal(err)
+		}
 
 		// Keep rolling until we get an unseen number
 		randID := rand.Int63n(MAX_ACCOUNT_NUMBER-MIN_ACCOUNT_NUMBER) + MIN_ACCOUNT_NUMBER
@@ -194,7 +200,9 @@ func (b *pbankd) Deposit(context ipc.ServerContext, amount int64) error {
 	if user == 0 {
 		return fmt.Errorf("couldn't retrieve account number")
 	}
-	b.newTransaction()
+	if err := b.newTransaction(); err != nil {
+		return err
+	}
 	if !b.isUser(user) {
 		return fmt.Errorf("user isn't registered")
 	} else if amount < 0 {
@@ -210,7 +218,9 @@ func (b *pbankd) Withdraw(context ipc.ServerContext, amount int64) error {
 	if user == 0 {
 		return fmt.Errorf("couldn't retrieve account number")
 	}
-	b.newTransaction()
+	if err := b.newTransaction(); err != nil {
+		return err
+	}
 	if !b.isUser(user) {
 		return fmt.Errorf("user isn't registered")
 	} else if amount < 0 {
@@ -228,7 +238,9 @@ func (b *pbankd) Transfer(context ipc.ServerContext, accountNumber int64, amount
 	if user == 0 {
 		return fmt.Errorf("couldn't retrieve account number")
 	}
-	b.newTransaction()
+	if err := b.newTransaction(); err != nil {
+		return err
+	}
 	if !b.isUser(user) {
 		return fmt.Errorf("user isn't registered")
 	} else if !b.isUser(accountNumber) {
@@ -261,14 +273,23 @@ func (b *pbankd) Balance(context ipc.ServerContext) (int64, error) {
 */
 
 // newTransaction starts a new transaction.
-func (b *pbankd) newTransaction() {
-	b.transaction = primitives.NewTransaction(runtime.TODOContext())
+func (b *pbankd) newTransaction() error {
+	tid, err := b.store.BindTransactionRoot("").CreateTransaction(runtime.TODOContext())
+	if err != nil {
+		b.tname = ""
+		return err
+	}
+	b.tname = tid // Transaction is rooted at "", so tname == tid.
+	return nil
 }
 
 // commit commits the current transaction.
 func (b *pbankd) commit() error {
-	err := b.transaction.Commit(runtime.TODOContext())
-	b.transaction = nil
+	if b.tname == "" {
+		return errors.New("No transaction to commit")
+	}
+	err := b.store.BindTransaction(b.tname).Commit(runtime.TODOContext())
+	b.tname = ""
 	if err != nil {
 		return fmt.Errorf("Failed to commit transaction: %s", err)
 	}
@@ -279,8 +300,8 @@ func (b *pbankd) commit() error {
 func (b *pbankd) isUser(accountNumber int64) bool {
 	// If this is a user, their location in the store should exist.
 	prefix := filepath.Join(BANK_ROOT, ACCOUNTS, fmt.Sprintf("%d", accountNumber))
-	o := b.store.Bind(prefix)
-	exist, err := o.Exists(runtime.TODOContext(), b.transaction)
+	o := b.store.BindObject(naming.Join(b.tname, prefix))
+	exist, err := o.Exists(runtime.TODOContext())
 	if err != nil {
 		vlog.Infof("Error checking existence at %s: %s", prefix, err)
 		return false
@@ -319,8 +340,8 @@ func getBankAccountNumber(context ipc.ServerContext) int64 {
 func (b *pbankd) registerNewUser(user int64) {
 	// Create the user's account
 	prefix := filepath.Join(BANK_ROOT, ACCOUNTS, fmt.Sprintf("%d", user))
-	o := b.store.Bind(prefix)
-	if _, err := o.Put(runtime.TODOContext(), b.transaction, int64(0)); err != nil {
+	o := b.store.BindObject(naming.Join(b.tname, prefix))
+	if _, err := o.Put(runtime.TODOContext(), int64(0)); err != nil {
 		vlog.Infof("Error creating %s: %s", prefix, err)
 	}
 }
@@ -328,8 +349,8 @@ func (b *pbankd) registerNewUser(user int64) {
 // checkBalance gets the user's balance from the store
 func (b *pbankd) checkBalance(user int64) int64 {
 	prefix := filepath.Join(BANK_ROOT, ACCOUNTS, fmt.Sprintf("%d", user))
-	o := b.store.Bind(prefix)
-	e, err := o.Get(runtime.TODOContext(), b.transaction)
+	o := b.store.BindObject(naming.Join(b.tname, prefix))
+	e, err := o.Get(runtime.TODOContext())
 	if err != nil {
 		vlog.Infof("Error getting %s: %s", prefix, err)
 	}
@@ -340,12 +361,12 @@ func (b *pbankd) checkBalance(user int64) int64 {
 // changeBalance modifies the user's balance in the store
 func (b *pbankd) changeBalance(user int64, amount int64) {
 	prefix := filepath.Join(BANK_ROOT, ACCOUNTS, fmt.Sprintf("%d", user))
-	o := b.store.Bind(prefix)
-	e, err := o.Get(runtime.TODOContext(), b.transaction)
+	o := b.store.BindObject(naming.Join(b.tname, prefix))
+	e, err := o.Get(runtime.TODOContext())
 	if err != nil {
 		vlog.Infof("Error getting %s: %s", prefix, err)
 	}
-	if _, err := o.Put(runtime.TODOContext(), b.transaction, e.Value.(int64)+amount); err != nil {
+	if _, err := o.Put(runtime.TODOContext(), e.Value.(int64)+amount); err != nil {
 		vlog.Infof("Error changing %s: %s", prefix, err)
 	}
 }

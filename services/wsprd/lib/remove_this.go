@@ -15,7 +15,6 @@ func init() {
 	vom.Register(store.NestedResult(0))
 	vom.Register(store.QueryResult{})
 	vom.Register(store.Stat{})
-	vom.Register(store.TransactionID(0))
 	vom.Register(watch.GlobRequest{})
 	vom.Register(watch.QueryRequest{})
 	vom.Register(watch.ChangeBatch{})

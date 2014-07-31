@@ -24,7 +24,6 @@ import (
 	iwatch "veyron2/services/watch"
 	"veyron2/storage"
 	"veyron2/storage/vstore"
-	"veyron2/storage/vstore/primitives"
 	"veyron2/vom"
 )
 
@@ -58,7 +57,7 @@ func waitForStore(store storage.Store) {
 	paths := []string{appPath, fortunePath(""), userPath("")}
 	for _, path := range paths {
 		req := iwatch.GlobRequest{Pattern: ""}
-		stream, err := store.Bind(path).WatchGlob(ctx, req)
+		stream, err := store.BindObject(path).WatchGlob(ctx, req)
 		if err != nil {
 			log.Fatalf("WatchGlob %s failed: %v", path, err)
 		}
@@ -89,7 +88,7 @@ func runAsWatcher(store storage.Store, user string) {
 	fmt.Printf("Running as a Watcher monitoring new fortunes under %s...\n", path)
 
 	req := iwatch.GlobRequest{Pattern: "*"}
-	stream, err := store.Bind(path).WatchGlob(ctx, req)
+	stream, err := store.BindObject(path).WatchGlob(ctx, req)
 	if err != nil {
 		log.Fatalf("watcher WatchGlob %s failed: %v", path, err)
 	}
@@ -123,27 +122,32 @@ func runAsWatcher(store storage.Store, user string) {
 // pickFortuneGlob uses Glob to find all available fortunes under the input
 // path and then it chooses one randomly.
 func pickFortuneGlob(store storage.Store, ctx context.T, path string) (string, error) {
-	tr := primitives.NewTransaction(ctx)
-	defer tr.Abort(ctx)
-
-	results, err := store.Bind(path).GlobT(ctx, tr, "*")
+	// Transaction is rooted at "", so tname == tid.
+	tname, err := store.BindTransactionRoot("").CreateTransaction(ctx)
 	if err != nil {
 		return "", err
 	}
+
+	// This transaction is read-only, so we always abort it at the end.
+	defer store.BindTransaction(tname).Abort(ctx)
+
+	trPath := func(path string) string {
+		return naming.Join(tname, path)
+	}
+
+	results := store.BindObject(trPath(path)).Glob(ctx, "*")
 	var names []string
 	for results.Advance() {
-		name := results.Value()
-		names = append(names, name)
+		names = append(names, results.Value())
 	}
-	results.Finish()
-	if names == nil || len(names) < 1 {
-		return "", nil
+	if err := results.Err(); err != nil || len(names) == 0 {
+		return "", err
 	}
 
 	// Get a random fortune using the glob results.
 	random := rand.New(rand.NewSource(time.Now().UTC().UnixNano()))
 	p := fortunePath(names[random.Intn(len(names))])
-	f, err := store.Bind(p).Get(ctx, tr)
+	f, err := store.BindObject(trPath(p)).Get(ctx)
 	if err != nil {
 		return "", err
 	}
@@ -157,7 +161,7 @@ func pickFortuneGlob(store storage.Store, ctx context.T, path string) (string, e
 // pickFortuneQuery uses a query to find all available fortunes under the input
 // path and choose one randomly.
 func pickFortuneQuery(store storage.Store, ctx context.T, path string) (string, error) {
-	results := store.Bind(path).Query(ctx, nil,
+	results := store.BindObject(path).Query(ctx,
 		query.Query{
 			"* |" + // Inspect all children of path.
 				"type FortuneData |" + // Include only objects of type FortuneData.
@@ -208,17 +212,27 @@ func getFortune(store storage.Store, userName string) (string, error) {
 // user is created.
 func addFortune(store storage.Store, fortune string, userName string) error {
 	ctx := rt.R().NewContext()
-	tr := primitives.NewTransaction(ctx)
+
+	// Transaction is rooted at "", so tname == tid.
+	tname, err := store.BindTransactionRoot("").CreateTransaction(ctx)
+	if err != nil {
+		return err
+	}
+
 	committed := false
 	defer func() {
 		if !committed {
-			tr.Abort(ctx)
+			store.BindTransaction(tname).Abort(ctx)
 		}
 	}()
 
+	trPath := func(path string) string {
+		return naming.Join(tname, path)
+	}
+
 	// Check if this fortune already exists. If yes, return.
 	hash := getMD5Hash(naming.Join(fortune, userName))
-	exists, err := store.Bind(fortunePath(hash)).Exists(ctx, tr)
+	exists, err := store.BindObject(trPath(fortunePath(hash))).Exists(ctx)
 	if err != nil {
 		return err
 	}
@@ -227,21 +241,21 @@ func addFortune(store storage.Store, fortune string, userName string) error {
 	}
 
 	// Check if the UserName exists. If yes, get its OID. If not, create a new user.
-	o := store.Bind(userPath(userName))
-	exists, err = o.Exists(ctx, tr)
+	o := store.BindObject(trPath(userPath(userName)))
+	exists, err = o.Exists(ctx)
 	if err != nil {
 		return err
 	}
 	var userid storage.ID
 	if !exists {
 		u := schema.User{Name: userName}
-		stat, err := o.Put(ctx, tr, u)
+		stat, err := o.Put(ctx, u)
 		if err != nil {
 			return err
 		}
 		userid = stat.ID
 	} else {
-		u, err := o.Get(ctx, tr)
+		u, err := o.Get(ctx)
 		if err != nil {
 			return err
 		}
@@ -250,14 +264,14 @@ func addFortune(store storage.Store, fortune string, userName string) error {
 
 	// Create a new fortune entry.
 	f := schema.FortuneData{Fortune: fortune, UserName: userid}
-	s, err := store.Bind(fortunePath(hash)).Put(ctx, tr, f)
+	s, err := store.BindObject(trPath(fortunePath(hash))).Put(ctx, f)
 	if err != nil {
 		return err
 	}
 
 	// Link the new fortune to UserName.
 	p := userPath(naming.Join(userName, hash))
-	if _, err = store.Bind(p).Put(ctx, tr, s.ID); err != nil {
+	if _, err = store.BindObject(trPath(p)).Put(ctx, s.ID); err != nil {
 		return err
 	}
 
@@ -267,7 +281,7 @@ func addFortune(store storage.Store, fortune string, userName string) error {
 	// locking. When the error for this scenario is
 	// exposed via the Commit API, one could retry the
 	// transaction.
-	if err := tr.Commit(ctx); err != nil {
+	if err := store.BindTransaction(tname).Commit(ctx); err != nil {
 		return err
 	}
 	committed = true

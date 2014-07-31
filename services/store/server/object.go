@@ -1,5 +1,8 @@
 package server
 
+// This file defines object, which implements the server-side Object API from
+// veyron2/services/store/service.vdl.
+
 import (
 	"veyron/services/store/service"
 
@@ -14,8 +17,9 @@ import (
 )
 
 type object struct {
-	name   string
+	name   string // will never contain a transaction id
 	obj    service.Object
+	tid    transactionID // may be nullTransactionID
 	server *Server
 }
 
@@ -84,9 +88,25 @@ func attrsToAnyData(attrs []storage.Attr) []vdlutil.Any {
 	return uattrs
 }
 
+// CreateTransaction creates a transaction.
+func (o *object) CreateTransaction(ctx ipc.ServerContext, opts []vdlutil.Any) (string, error) {
+	if o.tid != nullTransactionID {
+		return "", errNestedTransaction
+	}
+	return o.server.createTransaction(ctx, o.name)
+}
+
+func (o *object) Commit(ctx ipc.ServerContext) error {
+	return o.server.commitTransaction(ctx, o.tid)
+}
+
+func (o *object) Abort(ctx ipc.ServerContext) error {
+	return o.server.abortTransaction(ctx, o.tid)
+}
+
 // Exists returns true iff the Entry has a value.
-func (o *object) Exists(ctx ipc.ServerContext, tid store.TransactionID) (bool, error) {
-	t, err := o.server.findTransaction(ctx, tid)
+func (o *object) Exists(ctx ipc.ServerContext) (bool, error) {
+	t, err := o.server.findTransaction(ctx, o.tid)
 	if err != nil {
 		return false, err
 	}
@@ -96,8 +116,8 @@ func (o *object) Exists(ctx ipc.ServerContext, tid store.TransactionID) (bool, e
 // Get returns the value for the Object.  The value returned is from the
 // most recent mutation of the entry in the Transaction, or from the
 // Transaction's snapshot if there is no mutation.
-func (o *object) Get(ctx ipc.ServerContext, tid store.TransactionID) (store.Entry, error) {
-	t, err := o.server.findTransaction(ctx, tid)
+func (o *object) Get(ctx ipc.ServerContext) (store.Entry, error) {
+	t, err := o.server.findTransaction(ctx, o.tid)
 	if err != nil {
 		return nullEntry, err
 	}
@@ -109,8 +129,8 @@ func (o *object) Get(ctx ipc.ServerContext, tid store.TransactionID) (store.Entr
 }
 
 // Put modifies the value of the Object.
-func (o *object) Put(ctx ipc.ServerContext, tid store.TransactionID, val vdlutil.Any) (store.Stat, error) {
-	t, err := o.server.findTransaction(ctx, tid)
+func (o *object) Put(ctx ipc.ServerContext, val vdlutil.Any) (store.Stat, error) {
+	t, err := o.server.findTransaction(ctx, o.tid)
 	if err != nil {
 		return nullStat, err
 	}
@@ -122,8 +142,8 @@ func (o *object) Put(ctx ipc.ServerContext, tid store.TransactionID, val vdlutil
 }
 
 // Remove removes the Object.
-func (o *object) Remove(ctx ipc.ServerContext, tid store.TransactionID) error {
-	t, err := o.server.findTransaction(ctx, tid)
+func (o *object) Remove(ctx ipc.ServerContext) error {
+	t, err := o.server.findTransaction(ctx, o.tid)
 	if err != nil {
 		return err
 	}
@@ -133,8 +153,8 @@ func (o *object) Remove(ctx ipc.ServerContext, tid store.TransactionID) error {
 // SetAttr changes the attributes of the entry, such as permissions and
 // replication groups.  Attributes are associated with the value, not the
 // path.
-func (o *object) SetAttr(ctx ipc.ServerContext, tid store.TransactionID, attrs []vdlutil.Any) error {
-	t, err := o.server.findTransaction(ctx, tid)
+func (o *object) SetAttr(ctx ipc.ServerContext, attrs []vdlutil.Any) error {
+	t, err := o.server.findTransaction(ctx, o.tid)
 	if err != nil {
 		return err
 	}
@@ -146,8 +166,8 @@ func (o *object) SetAttr(ctx ipc.ServerContext, tid store.TransactionID, attrs [
 }
 
 // Stat returns entry info.
-func (o *object) Stat(ctx ipc.ServerContext, tid store.TransactionID) (store.Stat, error) {
-	t, err := o.server.findTransaction(ctx, tid)
+func (o *object) Stat(ctx ipc.ServerContext) (store.Stat, error) {
+	t, err := o.server.findTransaction(ctx, o.tid)
 	if err != nil {
 		return nullStat, err
 	}
@@ -159,8 +179,8 @@ func (o *object) Stat(ctx ipc.ServerContext, tid store.TransactionID) (store.Sta
 }
 
 // Query returns a sequence of objects that match the given query.
-func (o *object) Query(ctx ipc.ServerContext, tid store.TransactionID, q query.Query, stream store.ObjectServiceQueryStream) error {
-	t, err := o.server.findTransaction(ctx, tid)
+func (o *object) Query(ctx ipc.ServerContext, q query.Query, stream store.ObjectServiceQueryStream) error {
+	t, err := o.server.findTransaction(ctx, o.tid)
 	if err != nil {
 		return err
 	}
@@ -189,12 +209,7 @@ func (a *globStreamAdapter) Send(item string) error {
 
 // Glob streams a series of names that match the given pattern.
 func (o *object) Glob(ctx ipc.ServerContext, pattern string, stream mounttable.GlobableServiceGlobStream) error {
-	return o.GlobT(ctx, nullTransactionID, pattern, &globStreamAdapter{stream})
-}
-
-// Glob streams a series of names that match the given pattern.
-func (o *object) GlobT(ctx ipc.ServerContext, tid store.TransactionID, pattern string, stream store.ObjectServiceGlobTStream) error {
-	t, err := o.server.findTransaction(ctx, tid)
+	t, err := o.server.findTransaction(ctx, o.tid)
 	if err != nil {
 		return err
 	}
@@ -202,11 +217,12 @@ func (o *object) GlobT(ctx ipc.ServerContext, tid store.TransactionID, pattern s
 	if err != nil {
 		return err
 	}
+	gsa := &globStreamAdapter{stream}
 	for ; it.IsValid(); it.Next() {
 		if ctx.IsClosed() {
 			break
 		}
-		if err := stream.Send(it.Name()); err != nil {
+		if err := gsa.Send(it.Name()); err != nil {
 			return err
 		}
 	}

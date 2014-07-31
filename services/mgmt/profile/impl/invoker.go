@@ -7,8 +7,8 @@ import (
 	"veyron/services/mgmt/profile"
 
 	"veyron2/ipc"
+	"veyron2/naming"
 	"veyron2/storage"
-	"veyron2/storage/vstore/primitives"
 	"veyron2/vlog"
 )
 
@@ -38,13 +38,13 @@ func NewInvoker(store storage.Store, suffix string) *invoker {
 type dir struct{}
 
 // makeParentNodes creates the parent nodes if they do not already exist.
-func makeParentNodes(context ipc.ServerContext, store storage.Store, transaction storage.Transaction, path string) error {
+func makeParentNodes(context ipc.ServerContext, store storage.Store, path string) error {
 	pathComponents := storage.ParsePath(path)
 	for i := 0; i < len(pathComponents); i++ {
 		name := pathComponents[:i].String()
-		object := store.Bind(name)
-		if _, err := object.Get(context, transaction); err != nil {
-			if _, err := object.Put(context, transaction, &dir{}); err != nil {
+		object := store.BindObject(name)
+		if _, err := object.Get(context); err != nil {
+			if _, err := object.Put(context, &dir{}); err != nil {
 				return errOperationFailed
 			}
 		}
@@ -54,16 +54,20 @@ func makeParentNodes(context ipc.ServerContext, store storage.Store, transaction
 
 func (i *invoker) Put(context ipc.ServerContext, profile profile.Specification) error {
 	vlog.VI(0).Infof("%v.Put(%v)", i.suffix, profile)
-	transaction := primitives.NewTransaction(context)
-	path := path.Join("/profiles", i.suffix)
-	if err := makeParentNodes(context, i.store, transaction, path); err != nil {
+	// Transaction is rooted at "", so tname == tid.
+	tname, err := i.store.BindTransactionRoot("").CreateTransaction(context)
+	if err != nil {
 		return err
 	}
-	object := i.store.Bind(path)
-	if _, err := object.Put(context, transaction, profile); err != nil {
+	path := naming.Join(tname, path.Join("/profiles", i.suffix))
+	if err := makeParentNodes(context, i.store, path); err != nil {
+		return err
+	}
+	object := i.store.BindObject(path)
+	if _, err := object.Put(context, profile); err != nil {
 		return errOperationFailed
 	}
-	if err := transaction.Commit(context); err != nil {
+	if err := i.store.BindTransaction(tname).Commit(context); err != nil {
 		return errOperationFailed
 	}
 	return nil
@@ -71,20 +75,24 @@ func (i *invoker) Put(context ipc.ServerContext, profile profile.Specification) 
 
 func (i *invoker) Remove(context ipc.ServerContext) error {
 	vlog.VI(0).Infof("%v.Remove()", i.suffix)
-	transaction := primitives.NewTransaction(context)
-	path := path.Join("/profiles", i.suffix)
-	object := i.store.Bind(path)
-	found, err := object.Exists(context, transaction)
+	// Transaction is rooted at "", so tname == tid.
+	tname, err := i.store.BindTransactionRoot("").CreateTransaction(context)
+	if err != nil {
+		return err
+	}
+	path := naming.Join(tname, path.Join("/profiles", i.suffix))
+	object := i.store.BindObject(path)
+	found, err := object.Exists(context)
 	if err != nil {
 		return errOperationFailed
 	}
 	if !found {
 		return errNotFound
 	}
-	if err := object.Remove(context, transaction); err != nil {
+	if err := object.Remove(context); err != nil {
 		return errOperationFailed
 	}
-	if err := transaction.Commit(context); err != nil {
+	if err := i.store.BindTransaction(tname).Commit(context); err != nil {
 		return errOperationFailed
 	}
 	return nil
@@ -95,8 +103,7 @@ func (i *invoker) Remove(context ipc.ServerContext) error {
 func (i *invoker) lookup(context ipc.ServerContext) (profile.Specification, error) {
 	empty := profile.Specification{}
 	path := path.Join("/profiles", i.suffix)
-	object := i.store.Bind(path)
-	entry, err := object.Get(context, nil)
+	entry, err := i.store.BindObject(path).Get(context)
 	if err != nil {
 		return empty, errNotFound
 	}

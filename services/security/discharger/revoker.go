@@ -16,7 +16,6 @@ import (
 	"veyron2/security"
 	"veyron2/storage"
 	"veyron2/storage/vstore"
-	"veyron2/storage/vstore/primitives"
 	"veyron2/vlog"
 	"veyron2/vom"
 )
@@ -40,11 +39,9 @@ type revocationCaveat [32]byte
 func (cav revocationCaveat) Validate(security.Context) error {
 	// TODO(ashankar,mattr): Figure out how to get the context of an existing RPC here
 	rctx := rt.R().NewContext()
-	revocation := revocationService.store.Bind(naming.Join(revocationService.pathInStore,
-		hex.EncodeToString(cav[:])))
-	tx := primitives.NewTransaction(rctx)
-	defer tx.Abort(rctx)
-	exists, err := revocation.Exists(rctx, tx)
+	revocation := revocationService.store.BindObject(
+		naming.Join(revocationService.pathInStore, hex.EncodeToString(cav[:])))
+	exists, err := revocation.Exists(rctx)
 	if err != nil {
 		return err
 	}
@@ -69,13 +66,11 @@ func NewRevocationCaveat(dischargerID security.PublicID, dischargerLocation stri
 
 func (revoceationService *revocationServiceT) Revoke(ctx ipc.ServerContext, caveatPreimage ssecurity.RevocationToken) error {
 	caveatNonce := sha256.Sum256(caveatPreimage[:])
-	tx := primitives.NewTransaction(ctx)
-	revocation := revocationService.store.Bind(naming.Join(revocationService.pathInStore, hex.EncodeToString(caveatNonce[:])))
-	if _, err := revocation.Put(ctx, tx, caveatPreimage[:]); err != nil {
-		tx.Abort(ctx)
+	revocation := revocationService.store.BindObject(naming.Join(revocationService.pathInStore, hex.EncodeToString(caveatNonce[:])))
+	if _, err := revocation.Put(ctx, caveatPreimage[:]); err != nil {
 		return err
 	}
-	return tx.Commit(ctx)
+	return nil
 }
 
 // NewRevoker returns a new revoker service that can be passed to a dispatcher.
@@ -94,7 +89,11 @@ func NewRevoker(storeName, pathInStore string) (interface{}, error) {
 	}
 
 	rctx := rt.R().NewContext()
-	tx := primitives.NewTransaction(rctx)
+	// Transaction is rooted at "", so tname == tid.
+	tname, err := revocationService.store.BindTransactionRoot("").CreateTransaction(rctx)
+	if err != nil {
+		return nil, err
+	}
 
 	// Create parent directories for the revoker root, if necessary
 	// TODO(tilaks,andreser): provide a `mkdir -p` equivalent in store
@@ -103,17 +102,17 @@ func NewRevoker(storeName, pathInStore string) (interface{}, error) {
 	for i := 0; i <= len(l); i++ {
 		fmt.Println(i, filepath.Join(l[:i]...))
 		prefix := filepath.Join(l[:i]...)
-		o := revocationService.store.Bind(prefix)
-		if exist, err := o.Exists(rctx, tx); err != nil {
+		o := revocationService.store.BindObject(naming.Join(tname, prefix))
+		if exist, err := o.Exists(rctx); err != nil {
 			vlog.Infof("Error checking existence at %q: %s", prefix, err)
 		} else if !exist {
-			if _, err := o.Put(rctx, tx, &Dir{}); err != nil {
+			if _, err := o.Put(rctx, &Dir{}); err != nil {
 				vlog.Infof("Error creating directory %q: %s", prefix, err)
 			}
 		}
 	}
-	if err := tx.Commit(rctx); err != nil {
-		vlog.Fatalf("Commit creation of revocer root et %s: %s", pathInStore, err)
+	if err := revocationService.store.BindTransaction(tname).Commit(rctx); err != nil {
+		vlog.Fatalf("Failed to commit creation of revoker root at %s: %s", pathInStore, err)
 	}
 	return ssecurity.NewServerRevoker(revocationService.revocationServiceT), nil
 }

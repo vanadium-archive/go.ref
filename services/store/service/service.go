@@ -1,5 +1,9 @@
 package service
 
+// Defines the store server Go API.
+// NOTE(sadovsky): See comments in go/vcl/3292 for why we have this API. It may
+// no longer be necessary.
+
 import (
 	"veyron/services/store/raw"
 
@@ -11,8 +15,8 @@ import (
 	"veyron2/storage"
 )
 
-// Transaction is like storage.Transaction, but doesn't include extra client-side
-// parameters.
+// Transaction is like storage.Transaction, but doesn't include extra
+// client-side parameters.
 type Transaction interface {
 	// Commit commits the changes (the Set and Delete operations) in the
 	// transaction to the store.  The operation is atomic, so all Set/Delete
@@ -30,7 +34,7 @@ type Transaction interface {
 }
 
 // Object is like storage.Object, but it include extra server-side parameters.
-// In perticular, each method takes the identity of the client.
+// In particular, each method takes the identity of the client.
 type Object interface {
 	// Exists returns true iff the Entry has a value.
 	Exists(clientID security.PublicID, t Transaction) (bool, error)
@@ -60,7 +64,7 @@ type Object interface {
 	// Query returns entries matching the given query.
 	Query(clientID security.PublicID, t Transaction, q query.Query) (QueryStream, error)
 
-	// Glob returns the sequence of names that match the given pattern.
+	// Glob returns names that match the given pattern.
 	Glob(clientID security.PublicID, t Transaction, pattern string) (GlobStream, error)
 }
 

@@ -6,9 +6,11 @@ import (
 	"log"
 	"os"
 	"reflect"
+	"runtime"
 	"testing"
 	"time"
 
+	_ "veyron/lib/testutil" // initialize vlog
 	watchtesting "veyron/services/store/memstore/testing"
 	"veyron/services/store/raw"
 
@@ -18,6 +20,7 @@ import (
 	"veyron2/services/store"
 	"veyron2/services/watch"
 	"veyron2/storage"
+	_ "veyron2/vlog"
 	"veyron2/vom"
 )
 
@@ -25,8 +28,6 @@ var (
 	rootPublicID    security.PublicID = security.FakePublicID("root")
 	rootName                          = fmt.Sprintf("%s", rootPublicID)
 	blessedPublicId security.PublicID = security.FakePublicID("root/blessed")
-
-	nextTransactionID store.TransactionID = 1
 
 	rootCtx    ipc.ServerContext = &testContext{rootPublicID}
 	blessedCtx ipc.ServerContext = &testContext{blessedPublicId}
@@ -105,11 +106,6 @@ func newValue() interface{} {
 	return &Dir{}
 }
 
-func newTransaction() store.TransactionID {
-	nextTransactionID++
-	return nextTransactionID
-}
-
 func closeTest(config ServerConfig, s *Server) {
 	s.Close()
 	os.Remove(config.DBName)
@@ -132,12 +128,56 @@ func newServer() (*Server, func()) {
 	return s, closer
 }
 
+func lookupObjectOrDie(s *Server, name string) *object {
+	o, err := s.lookupObject(name)
+	if err != nil {
+		panic(err)
+	}
+	return o
+}
+
+// createTransaction creates a new transaction and returns its store-relative
+// name.
+func createTransaction(t *testing.T, s *Server, ctx ipc.ServerContext, name string) string {
+	_, file, line, _ := runtime.Caller(1)
+	tid, err := lookupObjectOrDie(s, name).CreateTransaction(ctx, nil)
+	if err != nil {
+		t.Fatalf("%s(%d): can't create transaction %s: %s", file, line, name, err)
+	}
+	return naming.Join(name, tid)
+}
+
+func TestLookupInvalidTransactionName(t *testing.T) {
+	s, c := newServer()
+	defer c()
+
+	_, err := s.lookupObject("/$tid.bad/foo")
+	if err == nil {
+		t.Errorf("lookupObject should've failed, but didn't")
+	}
+}
+
+func TestNestedTransactionError(t *testing.T) {
+	s, c := newServer()
+	defer c()
+	tname := createTransaction(t, s, rootCtx, "/")
+	if _, err := lookupObjectOrDie(s, tname).CreateTransaction(rootCtx, nil); err == nil {
+		t.Fatalf("creating nested transaction at %s should've failed, but didn't", tname)
+	}
+	// Try again with a valid object in between the two $tid components;
+	// CreateTransaction should still fail.
+	lookupObjectOrDie(s, tname).Put(rootCtx, newValue())
+	foo := naming.Join(tname, "foo")
+	if _, err := lookupObjectOrDie(s, foo).CreateTransaction(rootCtx, nil); err == nil {
+		t.Fatalf("creating nested transaction at %s should've failed, but didn't", foo)
+	}
+}
+
 func TestPutGetRemoveRoot(t *testing.T) {
 	s, c := newServer()
 	defer c()
 
-	o := s.lookupObject("/")
-	testPutGetRemove(t, s, o)
+	testPutGetRemove(t, s, "/")
 }
 
 func TestPutGetRemoveChild(t *testing.T) {
@@ -146,199 +186,158 @@ func TestPutGetRemoveChild(t *testing.T) {
 
 	{
 		// Create a root.
-		o := s.lookupObject("/")
+		name := "/"
 		value := newValue()
-		tr1 := newTransaction()
-		if err := s.CreateTransaction(rootCtx, tr1, nil); err != nil {
+
+		tobj1 := lookupObjectOrDie(s, createTransaction(t, s, rootCtx, name))
+		if _, err := tobj1.Put(rootCtx, value); err != nil {
 			t.Errorf("Unexpected error: %s", err)
 		}
-		if _, err := o.Put(rootCtx, tr1, value); err != nil {
-			t.Errorf("Unexpected error: %s", err)
-		}
-		if err := s.Commit(rootCtx, tr1); err != nil {
+		if err := tobj1.Commit(rootCtx); err != nil {
 			t.Errorf("Unexpected error: %s", err)
 		}
 
-		tr2 := newTransaction()
-		if err := s.CreateTransaction(rootCtx, tr2, nil); err != nil {
-			t.Errorf("Unexpected error: %s", err)
-		}
-		if ok, err := o.Exists(rootCtx, tr2); !ok || err != nil {
+		tobj2 := lookupObjectOrDie(s, createTransaction(t, s, rootCtx, name))
+		if ok, err := tobj2.Exists(rootCtx); !ok || err != nil {
 			t.Errorf("Should exist: %s", err)
 		}
-		if _, err := o.Get(rootCtx, tr2); err != nil {
+		if _, err := tobj2.Get(rootCtx); err != nil {
 			t.Errorf("Object should exist: %s", err)
 		}
-		if err := s.Abort(rootCtx, tr2); err != nil {
+		if err := tobj2.Abort(rootCtx); err != nil {
 			t.Errorf("Unexpected error: %s", err)
 		}
 	}
 
-	o := s.lookupObject("/Entries/a")
-	testPutGetRemove(t, s, o)
+	testPutGetRemove(t, s, "/Entries/a")
 }
 
-func testPutGetRemove(t *testing.T, s *Server, o *object) {
+func testPutGetRemove(t *testing.T, s *Server, name string) {
 	value := newValue()
 	{
 		// Check that the object does not exist.
-		tr := newTransaction()
-		if err := s.CreateTransaction(rootCtx, tr, nil); err != nil {
-			t.Errorf("Unexpected error: %s", err)
-		}
-		if ok, err := o.Exists(rootCtx, tr); ok || err != nil {
+		tobj := lookupObjectOrDie(s, createTransaction(t, s, rootCtx, name))
+		if ok, err := tobj.Exists(rootCtx); ok || err != nil {
 			t.Errorf("Should not exist: %s", err)
 		}
-		if v, err := o.Get(rootCtx, tr); v.Stat.ID.IsValid() && err == nil {
+		if v, err := tobj.Get(rootCtx); v.Stat.ID.IsValid() && err == nil {
 			t.Errorf("Should not exist: %v, %s", v, err)
 		}
 	}
 
 	{
 		// Add the object.
-		tr1 := newTransaction()
-		if err := s.CreateTransaction(rootCtx, tr1, nil); err != nil {
+		tobj1 := lookupObjectOrDie(s, createTransaction(t, s, rootCtx, name))
+		if _, err := tobj1.Put(rootCtx, value); err != nil {
 			t.Errorf("Unexpected error: %s", err)
 		}
-		if _, err := o.Put(rootCtx, tr1, value); err != nil {
-			t.Errorf("Unexpected error: %s", err)
-		}
-		if ok, err := o.Exists(rootCtx, tr1); !ok || err != nil {
+		if ok, err := tobj1.Exists(rootCtx); !ok || err != nil {
 			t.Errorf("Should exist: %s", err)
 		}
-		if _, err := o.Get(rootCtx, tr1); err != nil {
+		if _, err := tobj1.Get(rootCtx); err != nil {
 			t.Errorf("Object should exist: %s", err)
 		}
 
 		// Transactions are isolated.
-		tr2 := newTransaction()
-		if err := s.CreateTransaction(rootCtx, tr2, nil); err != nil {
-			t.Errorf("Unexpected error: %s", err)
-		}
-		if ok, err := o.Exists(rootCtx, tr2); ok || err != nil {
+		tobj2 := lookupObjectOrDie(s, createTransaction(t, s, rootCtx, name))
+		if ok, err := tobj2.Exists(rootCtx); ok || err != nil {
 			t.Errorf("Should not exist: %s", err)
 		}
-		if v, err := o.Get(rootCtx, tr2); v.Stat.ID.IsValid() && err == nil {
+		if v, err := tobj2.Get(rootCtx); v.Stat.ID.IsValid() && err == nil {
 			t.Errorf("Should not exist: %v, %s", v, err)
 		}
 
-		// Apply tr1.
-		if err := s.Commit(rootCtx, tr1); err != nil {
+		// Apply tobj1.
+		if err := tobj1.Commit(rootCtx); err != nil {
 			t.Errorf("Unexpected error: %s", err)
 		}
 
-		// tr2 is still isolated.
-		if ok, err := o.Exists(rootCtx, tr2); ok || err != nil {
+		// tobj2 is still isolated.
+		if ok, err := tobj2.Exists(rootCtx); ok || err != nil {
 			t.Errorf("Should not exist: %s", err)
 		}
-		if v, err := o.Get(rootCtx, tr2); v.Stat.ID.IsValid() && err == nil {
+		if v, err := tobj2.Get(rootCtx); v.Stat.ID.IsValid() && err == nil {
 			t.Errorf("Should not exist: %v, %s", v, err)
 		}
 
-		// tr3 observes the commit.
-		tr3 := newTransaction()
-		if err := s.CreateTransaction(rootCtx, tr3, nil); err != nil {
-			t.Errorf("Unexpected error: %s", err)
-		}
-		if ok, err := o.Exists(rootCtx, tr3); !ok || err != nil {
+		// tobj3 observes the commit.
+		tobj3 := lookupObjectOrDie(s, createTransaction(t, s, rootCtx, name))
+		if ok, err := tobj3.Exists(rootCtx); !ok || err != nil {
 			t.Errorf("Should exist: %s", err)
 		}
-		if _, err := o.Get(rootCtx, tr3); err != nil {
+		if _, err := tobj3.Get(rootCtx); err != nil {
 			t.Errorf("Object should exist: %s", err)
 		}
 	}
 
 	{
 		// Remove the object.
-		tr1 := newTransaction()
-		if err := s.CreateTransaction(rootCtx, tr1, nil); err != nil {
+		tobj1 := lookupObjectOrDie(s, createTransaction(t, s, rootCtx, name))
+		if err := tobj1.Remove(rootCtx); err != nil {
 			t.Errorf("Unexpected error: %s", err)
 		}
-		if err := o.Remove(rootCtx, tr1); err != nil {
-			t.Errorf("Unexpected error: %s", err)
-		}
-		if ok, err := o.Exists(rootCtx, tr1); ok || err != nil {
+		if ok, err := tobj1.Exists(rootCtx); ok || err != nil {
 			t.Errorf("Should not exist: %s", err)
 		}
-		if v, err := o.Get(rootCtx, tr1); v.Stat.ID.IsValid() || err == nil {
+		if v, err := tobj1.Get(rootCtx); v.Stat.ID.IsValid() || err == nil {
 			t.Errorf("Object should not exist: %T, %v, %s", v, v, err)
 		}
 
 		// The removal is isolated.
-		tr2 := newTransaction()
-		if err := s.CreateTransaction(rootCtx, tr2, nil); err != nil {
-			t.Errorf("Unexpected error: %s", err)
-		}
-		if ok, err := o.Exists(rootCtx, tr2); !ok || err != nil {
+		tobj2 := lookupObjectOrDie(s, createTransaction(t, s, rootCtx, name))
+		if ok, err := tobj2.Exists(rootCtx); !ok || err != nil {
 			t.Errorf("Should exist: %s", err)
 		}
-		if _, err := o.Get(rootCtx, tr2); err != nil {
+		if _, err := tobj2.Get(rootCtx); err != nil {
 			t.Errorf("Object should exist: %s", err)
 		}
 
-		// Apply tr1.
-		if err := s.Commit(rootCtx, tr1); err != nil {
+		// Apply tobj1.
+		if err := tobj1.Commit(rootCtx); err != nil {
 			t.Errorf("Unexpected error: %s", err)
 		}
 
 		// The removal is isolated.
-		if ok, err := o.Exists(rootCtx, tr2); !ok || err != nil {
+		if ok, err := tobj2.Exists(rootCtx); !ok || err != nil {
 			t.Errorf("Should exist: %s", err)
 		}
-		if _, err := o.Get(rootCtx, tr2); err != nil {
+		if _, err := tobj2.Get(rootCtx); err != nil {
 			t.Errorf("Object should exist: %s", err)
 		}
 	}
 
 	{
 		// Check that the object does not exist.
-		tr1 := newTransaction()
-		if err := s.CreateTransaction(rootCtx, tr1, nil); err != nil {
-			t.Errorf("Unexpected error: %s", err)
-		}
-		if ok, err := o.Exists(rootCtx, tr1); ok || err != nil {
+		tobj1 := lookupObjectOrDie(s, createTransaction(t, s, rootCtx, name))
+		if ok, err := tobj1.Exists(rootCtx); ok || err != nil {
 			t.Errorf("Should not exist")
 		}
-		if v, err := o.Get(rootCtx, tr1); v.Stat.ID.IsValid() && err == nil {
+		if v, err := tobj1.Get(rootCtx); v.Stat.ID.IsValid() && err == nil {
 			t.Errorf("Should not exist: %v, %s", v, err)
 		}
 	}
 }
 
-func TestNilTransaction(t *testing.T) {
-	s, c := newServer()
-	defer c()
-
-	if err := s.Commit(rootCtx, nullTransactionID); err != errTransactionDoesNotExist {
-		t.Errorf("Unexpected error: %v", err)
-	}
-
-	if err := s.Abort(rootCtx, nullTransactionID); err != errTransactionDoesNotExist {
-		t.Errorf("Unexpected error: %v", err)
-	}
-}
+// TODO(sadovsky): Add test cases for committing and aborting an expired
+// transaction. The client should get back errTransactionDoesNotExist.
 
 func TestWatch(t *testing.T) {
 	s, c := newServer()
 	defer c()
 
-	path1 := "/"
+	name1 := "/"
 	value1 := "v1"
 	var id1 storage.ID
 
 	// Before the watch request has been made, commit a transaction that puts /.
 	{
-		tr := newTransaction()
-		if err := s.CreateTransaction(rootCtx, tr, nil); err != nil {
-			t.Errorf("Unexpected error: %s", err)
-		}
-		o := s.lookupObject(path1)
-		st, err := o.Put(rootCtx, tr, value1)
+		tobj := lookupObjectOrDie(s, createTransaction(t, s, rootCtx, name1))
+		st, err := tobj.Put(rootCtx, value1)
 		if err != nil {
 			t.Errorf("Unexpected error: %s", err)
 		}
 		id1 = st.ID
-		if err := s.Commit(rootCtx, tr); err != nil {
+		if err := tobj.Commit(rootCtx); err != nil {
 			t.Errorf("Unexpected error: %s", err)
 		}
 	}
@@ -361,23 +360,19 @@ func TestWatch(t *testing.T) {
 		watchtesting.ExpectMutationExistsNoVersionCheck(t, changes, id1, value1)
 	}
 
-	path2 := "/a"
+	name2 := "/a"
 	value2 := "v2"
 	var id2 storage.ID
 
 	// Commit a second transaction that puts /a.
 	{
-		tr := newTransaction()
-		if err := s.CreateTransaction(rootCtx, tr, nil); err != nil {
-			t.Errorf("Unexpected error: %s", err)
-		}
-		o := s.lookupObject(path2)
-		st, err := o.Put(rootCtx, tr, value2)
+		tobj := lookupObjectOrDie(s, createTransaction(t, s, rootCtx, name2))
+		st, err := tobj.Put(rootCtx, value2)
 		if err != nil {
 			t.Errorf("Unexpected error: %s", err)
 		}
 		id2 = st.ID
-		if err := s.Commit(rootCtx, tr); err != nil {
+		if err := tobj.Commit(rootCtx); err != nil {
 			t.Errorf("Unexpected error: %s", err)
 		}
 	}
@@ -409,21 +404,18 @@ func TestWatchGlob(t *testing.T) {
 	value1 := "v1"
 	var id1 storage.ID
 
-	o1 := s.lookupObject("/")
-	o2 := s.lookupObject("/a")
+	name1, name2 := "/", "/a"
+	o1, o2 := lookupObjectOrDie(s, name1), lookupObjectOrDie(s, name2)
 
 	// Before the watch request has been made, commit a transaction that puts /.
 	{
-		tr := newTransaction()
-		if err := s.CreateTransaction(rootCtx, tr, nil); err != nil {
-			t.Errorf("Unexpected error: %s", err)
-		}
-		st, err := o1.Put(rootCtx, tr, value1)
+		tobj := lookupObjectOrDie(s, createTransaction(t, s, rootCtx, name1))
+		st, err := tobj.Put(rootCtx, value1)
 		if err != nil {
 			t.Errorf("Unexpected error: %s", err)
 		}
 		id1 = st.ID
-		if err := s.Commit(rootCtx, tr); err != nil {
+		if err := tobj.Commit(rootCtx); err != nil {
 			t.Errorf("Unexpected error: %s", err)
 		}
 	}
@@ -454,16 +446,13 @@ func TestWatchGlob(t *testing.T) {
 
 	// Commit a second transaction that puts /a.
 	{
-		tr := newTransaction()
-		if err := s.CreateTransaction(rootCtx, tr, nil); err != nil {
-			t.Errorf("Unexpected error: %s", err)
-		}
-		st, err := o2.Put(rootCtx, tr, value2)
+		tobj := lookupObjectOrDie(s, createTransaction(t, s, rootCtx, name2))
+		st, err := tobj.Put(rootCtx, value2)
 		if err != nil {
 			t.Errorf("Unexpected error: %s", err)
 		}
 		id2 = st.ID
-		if err := s.Commit(rootCtx, tr); err != nil {
+		if err := tobj.Commit(rootCtx); err != nil {
 			t.Errorf("Unexpected error: %s", err)
 		}
 	}
@@ -505,23 +494,19 @@ func TestGarbageCollectionOnCommit(t *testing.T) {
 	s, c := newServer()
 	defer c()
 
-	path1 := "/"
+	name1 := "/"
 	value1 := "v1"
 	var id1 storage.ID
 
 	// Before the watch request has been made, commit a transaction that puts /.
 	{
-		tr := newTransaction()
-		if err := s.CreateTransaction(rootCtx, tr, nil); err != nil {
-			t.Errorf("Unexpected error: %s", err)
-		}
-		o := s.lookupObject(path1)
-		st, err := o.Put(rootCtx, tr, value1)
+		tobj := lookupObjectOrDie(s, createTransaction(t, s, rootCtx, name1))
+		st, err := tobj.Put(rootCtx, value1)
 		if err != nil {
 			t.Errorf("Unexpected error: %s", err)
 		}
 		id1 = st.ID
-		if err := s.Commit(rootCtx, tr); err != nil {
+		if err := tobj.Commit(rootCtx); err != nil {
 			t.Errorf("Unexpected error: %s", err)
 		}
 	}
@@ -544,23 +529,19 @@ func TestGarbageCollectionOnCommit(t *testing.T) {
 		watchtesting.ExpectMutationExistsNoVersionCheck(t, changes, id1, value1)
 	}
 
-	path2 := "/a"
+	name2 := "/a"
 	value2 := "v2"
 	var id2 storage.ID
 
 	// Commit a second transaction that puts /a.
 	{
-		tr := newTransaction()
-		if err := s.CreateTransaction(rootCtx, tr, nil); err != nil {
-			t.Errorf("Unexpected error: %s", err)
-		}
-		o := s.lookupObject(path2)
-		st, err := o.Put(rootCtx, tr, value2)
+		tobj := lookupObjectOrDie(s, createTransaction(t, s, rootCtx, name2))
+		st, err := tobj.Put(rootCtx, value2)
 		if err != nil {
 			t.Errorf("Unexpected error: %s", err)
 		}
 		id2 = st.ID
-		if err := s.Commit(rootCtx, tr); err != nil {
+		if err := tobj.Commit(rootCtx); err != nil {
 			t.Errorf("Unexpected error: %s", err)
 		}
 	}
@@ -586,15 +567,11 @@ func TestGarbageCollectionOnCommit(t *testing.T) {
 
 	// Commit a third transaction that removes /a.
 	{
-		tr := newTransaction()
-		if err := s.CreateTransaction(rootCtx, tr, nil); err != nil {
+		tobj := lookupObjectOrDie(s, createTransaction(t, s, rootCtx, "/a"))
+		if err := tobj.Remove(rootCtx); err != nil {
 			t.Errorf("Unexpected error: %s", err)
 		}
-		o := s.lookupObject("/a")
-		if err := o.Remove(rootCtx, tr); err != nil {
-			t.Errorf("Unexpected error: %s", err)
-		}
-		if err := s.Commit(rootCtx, tr); err != nil {
+		if err := tobj.Commit(rootCtx); err != nil {
 			t.Errorf("Unexpected error: %s", err)
 		}
 	}
@@ -633,62 +610,52 @@ func TestTransactionSecurity(t *testing.T) {
 	defer c()
 
 	// Create a root.
-	o := s.lookupObject("/")
+	name := "/"
 	value := newValue()
 
 	// Create a transaction in the root's session.
-	tr := newTransaction()
-	if err := s.CreateTransaction(rootCtx, tr, nil); err != nil {
-		t.Errorf("Unexpected error: %s", err)
-	}
-	// Check that the transaction cannot be created or accessed by the blessee.
-	if err := s.CreateTransaction(blessedCtx, tr, nil); err != errTransactionAlreadyExists {
+	tobj := lookupObjectOrDie(s, createTransaction(t, s, rootCtx, name))
+
+	// Check that the transaction cannot be accessed by the blessee.
+	if _, err := tobj.Exists(blessedCtx); err != errPermissionDenied {
 		t.Errorf("Unexpected error: %v", err)
 	}
-	if _, err := o.Exists(blessedCtx, tr); err != errPermissionDenied {
+	if _, err := tobj.Get(blessedCtx); err != errPermissionDenied {
 		t.Errorf("Unexpected error: %v", err)
 	}
-	if _, err := o.Get(blessedCtx, tr); err != errPermissionDenied {
+	if _, err := tobj.Put(blessedCtx, value); err != errPermissionDenied {
 		t.Errorf("Unexpected error: %v", err)
 	}
-	if _, err := o.Put(blessedCtx, tr, value); err != errPermissionDenied {
+	if err := tobj.Remove(blessedCtx); err != errPermissionDenied {
 		t.Errorf("Unexpected error: %v", err)
 	}
-	if err := o.Remove(blessedCtx, tr); err != errPermissionDenied {
+	if err := tobj.Abort(blessedCtx); err != errPermissionDenied {
 		t.Errorf("Unexpected error: %v", err)
 	}
-	if err := s.Abort(blessedCtx, tr); err != errPermissionDenied {
-		t.Errorf("Unexpected error: %v", err)
-	}
-	if err := s.Commit(blessedCtx, tr); err != errPermissionDenied {
+	if err := tobj.Commit(blessedCtx); err != errPermissionDenied {
 		t.Errorf("Unexpected error: %v", err)
 	}
 
 	// Create a transaction in the blessee's session.
-	tr = newTransaction()
-	if err := s.CreateTransaction(blessedCtx, tr, nil); err != nil {
-		t.Errorf("Unexpected error: %s", err)
-	}
-	// Check that the transaction cannot be created or accessed by the root.
-	if err := s.CreateTransaction(rootCtx, tr, nil); err != errTransactionAlreadyExists {
+	tobj = lookupObjectOrDie(s, createTransaction(t, s, blessedCtx, name))
+
+	// Check that the transaction cannot be accessed by the root.
+	if _, err := tobj.Exists(rootCtx); err != errPermissionDenied {
 		t.Errorf("Unexpected error: %v", err)
 	}
-	if _, err := o.Exists(rootCtx, tr); err != errPermissionDenied {
+	if _, err := tobj.Get(rootCtx); err != errPermissionDenied {
 		t.Errorf("Unexpected error: %v", err)
 	}
-	if _, err := o.Get(rootCtx, tr); err != errPermissionDenied {
+	if _, err := tobj.Put(rootCtx, value); err != errPermissionDenied {
 		t.Errorf("Unexpected error: %v", err)
 	}
-	if _, err := o.Put(rootCtx, tr, value); err != errPermissionDenied {
+	if err := tobj.Remove(rootCtx); err != errPermissionDenied {
 		t.Errorf("Unexpected error: %v", err)
 	}
-	if err := o.Remove(rootCtx, tr); err != errPermissionDenied {
+	if err := tobj.Abort(rootCtx); err != errPermissionDenied {
 		t.Errorf("Unexpected error: %v", err)
 	}
-	if err := s.Abort(rootCtx, tr); err != errPermissionDenied {
-		t.Errorf("Unexpected error: %v", err)
-	}
-	if err := s.Commit(rootCtx, tr); err != errPermissionDenied {
+	if err := tobj.Commit(rootCtx); err != errPermissionDenied {
 		t.Errorf("Unexpected error: %v", err)
 	}
 }
@@ -716,12 +683,16 @@ func TestStoreDispatcher(t *testing.T) {
 	s, c := newServer()
 	defer c()
 
-	// TODO(bprosnitz) Switch this to use just exported methods (using signature) once signature stabilizes.
+	// TODO(bprosnitz): Switch this to use just exported methods (using signature)
+	// once signature stabilizes.
 	d := NewStoreDispatcher(s, nil).(*storeDispatcher)
 	for _, test := range tests {
-		srvr := d.lookupServer(test.name)
-		if reflect.TypeOf(srvr) != test.t {
-			t.Errorf("error looking up %s. got %T, expected %v", test.name, srvr, test.t)
+		serv, err := d.lookupServer(test.name)
+		if err != nil {
+			t.Errorf("error looking up %s: %s", test.name, err)
+		}
+		if reflect.TypeOf(serv) != test.t {
+			t.Errorf("error looking up %s. got %T, expected %v", test.name, serv, test.t)
 		}
 	}
 }

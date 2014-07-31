@@ -20,9 +20,9 @@ import (
 
 	bb "veyron/lib/testutil/blackbox"
 
+	"veyron2/naming"
 	"veyron2/rt"
 	"veyron2/storage"
-	"veyron2/storage/vstore/primitives"
 	"veyron2/vom"
 )
 
@@ -95,9 +95,9 @@ func newTodo(text string) *Todo {
 ////////////////////////////////////////////////////////////////////////////////
 // Type-specific helpers
 
-func getList(t *testing.T, st storage.Store, tr storage.Transaction, path string) *List {
+func getList(t *testing.T, st storage.Store, path string) *List {
 	_, file, line, _ := runtime.Caller(1)
-	v := get(t, st, tr, path)
+	v := get(t, st, path)
 	res, ok := v.(*List)
 	if !ok {
 		t.Fatalf("%s(%d): %s: not a List: %v", file, line, path, v)
@@ -105,9 +105,9 @@ func getList(t *testing.T, st storage.Store, tr storage.Transaction, path string
 	return res
 }
 
-func getTodo(t *testing.T, st storage.Store, tr storage.Transaction, path string) *Todo {
+func getTodo(t *testing.T, st storage.Store, path string) *Todo {
 	_, file, line, _ := runtime.Caller(1)
-	v := get(t, st, tr, path)
+	v := get(t, st, path)
 	res, ok := v.(*Todo)
 	if !ok {
 		t.Fatalf("%s(%d): %s: not a Todo: %v", file, line, path, v)
@@ -120,42 +120,41 @@ func getTodo(t *testing.T, st storage.Store, tr storage.Transaction, path string
 
 func testTodos(t *testing.T, st storage.Store) {
 	ctx := rt.R().NewContext()
+
 	// Create lists.
 	{
 		// NOTE(sadovsky): Currently, we can't put /x/y until we put / and /x.
-		tr := primitives.NewTransaction(ctx)
-		put(t, st, tr, "/", newDir())
-		put(t, st, tr, "/lists", newDir())
-		put(t, st, tr, "/lists/drinks", newList())
-		put(t, st, tr, "/lists/snacks", newList())
-		commit(t, tr)
+		tname := createTransaction(t, st, "")
+		put(t, st, tname, newDir())
+		put(t, st, naming.Join(tname, "lists"), newDir())
+		put(t, st, naming.Join(tname, "lists/drinks"), newList())
+		put(t, st, naming.Join(tname, "lists/snacks"), newList())
+		commit(t, st, tname)
 	}
 
 	// Add some todos.
 	{
-		tr := primitives.NewTransaction(ctx)
+		tname := createTransaction(t, st, "")
 		// NOTE(sadovsky): It feels awkward to create my own names (ids) for these
 		// Todo objects. I'd like some way to create them in some "directory"
 		// without explicitly naming them. I.e. in this case I want to think of the
 		// directory as a list, not a map.
-		put(t, st, tr, "/lists/drinks/Todos/@", newTodo("milk"))
-		put(t, st, tr, "/lists/drinks/Todos/@", newTodo("beer"))
-		put(t, st, tr, "/lists/snacks/Todos/@", newTodo("chips"))
-		commit(t, tr)
+		put(t, st, naming.Join(tname, "lists/drinks/Todos/@"), newTodo("milk"))
+		put(t, st, naming.Join(tname, "lists/drinks/Todos/@"), newTodo("beer"))
+		put(t, st, naming.Join(tname, "lists/snacks/Todos/@"), newTodo("chips"))
+		commit(t, st, tname)
 	}
 
 	// Verify some of the photos.
 	{
-		tr := primitives.NewTransaction(ctx)
-		todo := getTodo(t, st, tr, "/lists/drinks/Todos/0")
+		todo := getTodo(t, st, "/lists/drinks/Todos/0")
 		if todo.Text != "milk" {
 			t.Errorf("Expected %q, got %q", "milk", todo.Text)
 		}
 	}
 
 	{
-		tr := primitives.NewTransaction(ctx)
-		todo := getTodo(t, st, tr, "/lists/snacks/Todos/0")
+		todo := getTodo(t, st, "/lists/snacks/Todos/0")
 		if todo.Text != "chips" {
 			t.Errorf("Expected %q, got %q", "chips", todo.Text)
 		}
@@ -163,27 +162,24 @@ func testTodos(t *testing.T, st storage.Store) {
 
 	// Move a todo item from one list to another.
 	{
-		tr := primitives.NewTransaction(ctx)
-		todo := getTodo(t, st, tr, "/lists/drinks/Todos/1")
+		tname := createTransaction(t, st, "")
+		todo := getTodo(t, st, naming.Join(tname, "lists/drinks/Todos/1"))
 		// NOTE(sadovsky): Remove works for map entries, but not yet for slices.
 		// Instead, we read the list, prune it, and write it back.
 		//remove(t, st, tr, "/lists/drinks/Todos/1")
-		list := getList(t, st, tr, "/lists/drinks")
+		list := getList(t, st, naming.Join(tname, "lists/drinks"))
 		list.Todos = list.Todos[:1]
-		put(t, st, tr, "lists/drinks", list)
-		put(t, st, tr, "/lists/snacks/Todos/@", todo)
-		commit(t, tr)
+		put(t, st, naming.Join(tname, "lists/drinks"), list)
+		put(t, st, naming.Join(tname, "lists/snacks/Todos/@"), todo)
+		commit(t, st, tname)
 	}
 
 	// Verify that the original todo is no longer there.
 	// TODO(sadovsky): Use queries to verify that both lists have changed.
 	{
-		tr := primitives.NewTransaction(ctx)
-		// Note, this will be much prettier in veyron2.
-		_, file, line, _ := runtime.Caller(1)
 		path := "/lists/drinks/1"
-		if _, err := st.Bind(path).Get(ctx, tr); err == nil {
-			t.Fatalf("%s(%d): got removed object %s", file, line, path)
+		if _, err := st.BindObject(path).Get(ctx); err == nil {
+			t.Fatalf("Got removed object: %s", path)
 		}
 	}
 }

@@ -1,7 +1,8 @@
-/*
-Package raw defines a raw interface for the Veyron store.
-The raw interface supports synchronizing with remote stores by transporting Mutations.
-*/
+// Package raw defines a raw interface for the Veyron store.
+//
+// The raw interface supports synchronizing with remote stores by transporting
+// Mutations.
+
 package raw
 
 import (

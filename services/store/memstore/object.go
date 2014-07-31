@@ -14,9 +14,9 @@ import (
 // path.  This means that in different transactions, the object may refer to
 // different values with different store.IDs.
 //
-// TODO(jyh): Perhaps a more sensible alternative is to resolve the path at
-// Bind time, and have the object then refer to the value by storage.ID.  However,
-// there are two problems with that,
+// TODO(jyh): Perhaps a more sensible alternative is to resolve the path at Bind
+// time, and have the object then refer to the value by storage.ID. However,
+// there are two problems with that:
 //
 //    - We can't resolve the path for objects that don't yet exist.
 //    - Bind is transactionless, so the path resolution wouldn't be consistent.
@@ -107,7 +107,7 @@ func (o *object) Query(pid security.PublicID, trans service.Transaction, q query
 	return stream, nil
 }
 
-// Glob returns the sequence of names that match the given pattern.
+// Glob returns names that match the given pattern.
 func (o *object) Glob(pid security.PublicID, trans service.Transaction, pattern string) (service.GlobStream, error) {
 	tr, _, err := o.store.getTransaction(trans)
 	if err != nil {
