@@ -4,7 +4,6 @@ import (
 	"veyron/lib/glob"
 	"veyron/services/store/memstore/refs"
 	"veyron/services/store/memstore/state"
-	"veyron/services/store/service"
 
 	"veyron2/security"
 	"veyron2/storage"
@@ -16,8 +15,20 @@ type globIterator struct {
 	glob    *glob.Glob
 }
 
+// GlobStream represents a sequence of results from a glob call.
+type GlobStream interface {
+	// IsValid returns true iff the iterator refers to an element.
+	IsValid() bool
+
+	// Return one possible name for this entry.
+	Name() string
+
+	// Next advances to the next element.
+	Next()
+}
+
 // Glob returns an iterator that emits all values that match the given pattern.
-func Glob(sn state.Snapshot, clientID security.PublicID, path storage.PathName, pattern string) (service.GlobStream, error) {
+func Glob(sn state.Snapshot, clientID security.PublicID, path storage.PathName, pattern string) (GlobStream, error) {
 	return GlobIterator(sn, clientID, path, pattern)
 }
 

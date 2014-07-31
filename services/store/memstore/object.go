@@ -10,32 +10,16 @@ import (
 	"veyron2/verror"
 )
 
-// object is a binding to a store value.  This is currently represented as a
+// Object is a binding to a store value.  This is currently represented as a
 // path.  This means that in different transactions, the object may refer to
 // different values with different store.IDs.
-//
-// TODO(jyh): Perhaps a more sensible alternative is to resolve the path at Bind
-// time, and have the object then refer to the value by storage.ID. However,
-// there are two problems with that:
-//
-//    - We can't resolve the path for objects that don't yet exist.
-//    - Bind is transactionless, so the path resolution wouldn't be consistent.
-//
-// Discuss and decide on a semantics.
-type object struct {
+type Object struct {
 	path  storage.PathName
 	store *Store
 }
 
-// Bind returns an Object representing a value in the store.  The value need not
-// exist; the Put method can be used to add the value if it doesn't already
-// exist.
-func (st *Store) Bind(path string) service.Object {
-	return &object{path: storage.ParsePath(path), store: st}
-}
-
 // Exists returns true iff the object has a value in the current transaction.
-func (o *object) Exists(pid security.PublicID, trans service.Transaction) (bool, error) {
+func (o *Object) Exists(pid security.PublicID, trans service.Transaction) (bool, error) {
 	tr, _, err := o.store.getTransaction(trans)
 	if err != nil {
 		return false, err
@@ -46,7 +30,7 @@ func (o *object) Exists(pid security.PublicID, trans service.Transaction) (bool,
 }
 
 // Get returns the value for an object.
-func (o *object) Get(pid security.PublicID, trans service.Transaction) (*storage.Entry, error) {
+func (o *Object) Get(pid security.PublicID, trans service.Transaction) (*storage.Entry, error) {
 	tr, _, err := o.store.getTransaction(trans)
 	if err != nil {
 		return nil, err
@@ -55,7 +39,7 @@ func (o *object) Get(pid security.PublicID, trans service.Transaction) (*storage
 }
 
 // Put updates the value for an object.
-func (o *object) Put(pid security.PublicID, trans service.Transaction, v interface{}) (*storage.Stat, error) {
+func (o *Object) Put(pid security.PublicID, trans service.Transaction, v interface{}) (*storage.Stat, error) {
 	tr, commit, err := o.store.getTransaction(trans)
 	if err != nil {
 		return nil, err
@@ -71,7 +55,7 @@ func (o *object) Put(pid security.PublicID, trans service.Transaction, v interfa
 }
 
 // Remove removes the value for an object.
-func (o *object) Remove(pid security.PublicID, trans service.Transaction) error {
+func (o *Object) Remove(pid security.PublicID, trans service.Transaction) error {
 	tr, commit, err := o.store.getTransaction(trans)
 	if err != nil {
 		return err
@@ -88,17 +72,17 @@ func (o *object) Remove(pid security.PublicID, trans service.Transaction) error 
 // SetAttr changes the attributes of the entry, such as permissions and
 // replication groups.  Attributes are associated with the value, not the
 // path.
-func (o *object) SetAttr(pid security.PublicID, tr service.Transaction, attrs ...storage.Attr) error {
+func (o *Object) SetAttr(pid security.PublicID, tr service.Transaction, attrs ...storage.Attr) error {
 	return verror.Internalf("SetAttr not yet implemented")
 }
 
 // Stat returns entry info.
-func (o *object) Stat(pid security.PublicID, tr service.Transaction) (*storage.Stat, error) {
+func (o *Object) Stat(pid security.PublicID, tr service.Transaction) (*storage.Stat, error) {
 	return nil, verror.Internalf("Stat not yet implemented")
 }
 
 // Query returns entries matching the given query.
-func (o *object) Query(pid security.PublicID, trans service.Transaction, q query.Query) (service.QueryStream, error) {
+func (o *Object) Query(pid security.PublicID, trans service.Transaction, q query.Query) (iquery.QueryStream, error) {
 	tr, _, err := o.store.getTransaction(trans)
 	if err != nil {
 		return nil, err
@@ -108,7 +92,7 @@ func (o *object) Query(pid security.PublicID, trans service.Transaction, q query
 }
 
 // Glob returns names that match the given pattern.
-func (o *object) Glob(pid security.PublicID, trans service.Transaction, pattern string) (service.GlobStream, error) {
+func (o *Object) Glob(pid security.PublicID, trans service.Transaction, pattern string) (iquery.GlobStream, error) {
 	tr, _, err := o.store.getTransaction(trans)
 	if err != nil {
 		return nil, err

@@ -4,7 +4,7 @@ package server
 // veyron2/services/store/service.vdl.
 
 import (
-	"veyron/services/store/service"
+	"veyron/services/store/memstore"
 
 	"veyron2/ipc"
 	"veyron2/query"
@@ -18,7 +18,7 @@ import (
 
 type object struct {
 	name   string // will never contain a transaction id
-	obj    service.Object
+	obj    *memstore.Object
 	tid    transactionID // may be nullTransactionID
 	server *Server
 }

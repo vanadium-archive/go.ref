@@ -4,8 +4,6 @@ import (
 	"runtime"
 	"testing"
 
-	"veyron/services/store/service"
-
 	"veyron2/query"
 )
 
@@ -34,7 +32,7 @@ func TestPutGetRemoveChild(t *testing.T) {
 	testGetPutRemove(t, st, o)
 }
 
-func testGetPutRemove(t *testing.T, st *Store, o service.Object) {
+func testGetPutRemove(t *testing.T, st *Store, o *Object) {
 	value := newValue()
 
 	{
