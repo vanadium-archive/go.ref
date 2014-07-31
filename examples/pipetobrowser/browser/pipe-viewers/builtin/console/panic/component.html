@@ -1,0 +1,122 @@
+<link rel="import" href="../../../../third-party/polymer/polymer.html">
+<link rel="import" href="../../../../third-party/paper-checkbox/paper-checkbox.html">
+
+<polymer-element name="p2b-plugin-console-panic">
+  <template>
+    <link rel="stylesheet" href="component.css">
+    <link rel="stylesheet" href="../../../../libs/css/common-style.css">
+    <div title="Auto Scroll" class="auto-scroll {{ {hidden : !scrolling} | tokenList}}">
+      <paper-checkbox checked="{{autoScroll}}" label="Auto Scroll" id="autoscroll"></paper-checkbox>
+    </div>
+    <paper-input id="filter" label="Filter by keyword..."></paper-input>
+    <pre id="console"></pre>
+  </template>
+  <script>
+    Polymer('p2b-plugin-console-panic', {
+      ready: function() {
+        this.autoScroll = true;
+
+        // Prepare our current container and current line
+        this.startNewContainer(false);
+        this.startNewLine();
+
+        this.$.filter.addEventListener('input', this.filterAllText.bind(this), false);
+      },
+      /*
+       * Scrolls the plugin console, if this.autoScroll is true
+       */
+      scrollAuto: function() {
+        // Scroll if we need to.
+        var scrollTop = this.scrollTop;
+        this.scrolling =  scrollTop > 0;
+        if (this.autoScroll) {
+          this.scrollTop = this.scrollHeight;
+        }
+      },
+      /*
+       * Turns off autoscrolling
+       */
+      scrollOff: function() {
+        this.autoScroll = false;
+      },
+      /*
+       * Create a new container div for lines of text
+       * @param {boolean} whether or not the container should start hidden or not
+       * @param {string} (optional) the control button's name for toggling hidden on this container.
+       */
+      startNewContainer: function(isCollapsed, withToggleButtonName) {
+        this.container = document.createElement('div');
+
+        // If the container should be collapsed, hide it.
+        if (isCollapsed) {
+          this.container.classList.toggle('hidden');
+        }
+
+        if (withToggleButtonName) {
+          // This button controls whether to show/hide the container.
+          var control = document.createElement('core-item');
+          control.label = withToggleButtonName;
+          control.classList.add("showHide");
+          control.icon = "swap-vert";
+          var container = this.container;
+          control.addEventListener(
+            'click',
+            function toggle() {
+              container.classList.toggle('hidden');
+            },
+            false
+          );
+          this.$.console.appendChild(control);
+        }
+
+        this.$.console.appendChild(this.container);
+      },
+      /*
+       * Create a new div for the current line of text. Scroll if necessary.
+       */
+      startNewLine: function() {
+        this.line = document.createElement('div');
+        this.line.classList.add('line');
+        this.container.appendChild(this.line);
+        this.scrollAuto();
+      },
+      /*
+       * Add a <br> element to the container. Scroll if necessary.
+       */
+      addLineBreak: function() {
+        this.container.appendChild(document.createElement('br'));
+        this.scrollAuto();
+      },
+      /*
+       * Append text to the current line of text.
+       * Additionally, filter this line since it was modified.
+       * @param {string} the text to be appended
+       */
+      addText: function(text) {
+        this.line.appendChild(document.createTextNode(text));
+        this.filter(this.line);
+      },
+      /*
+       * All elements with class 'line' are filtered.
+       */
+      filterAllText: function() {
+        var elems = this.$.console.getElementsByClassName('line');
+        for (var i = 0; i < elems.length; i++) {
+          this.filter(elems[i]);
+        }
+      },
+      /*
+       * If the given element's text contains the filter's input value,
+       * a yellow background is assigned. Otherwise, it is removed.
+       * @param {div} the given element whose background will be modified
+       */
+      filter: function(elem) {
+        var value = this.$.filter.inputValue;
+
+        // Force add/remove the yellowback class depending on if the element has the value or not. Don't highlight if the value is empty.
+        var shouldHighlight = (value && elem.textContent.indexOf(value) >= 0);
+        elem.classList.toggle('yellowback', shouldHighlight);
+      }
+    });
+    </script>
+</polymer-element>

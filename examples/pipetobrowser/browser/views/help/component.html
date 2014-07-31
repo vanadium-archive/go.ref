@@ -35,6 +35,10 @@
   <p>If you want to pipe logs from a Veyron service directly, you need to pipe stderr or strout first using <span class="mono">2&gt;&amp;1</span></p>
   <pre class="code">myVeyronServerd -v=3 2&gt;&amp;1 | p2b {{publishedName}}/vlog</pre>
 
+  <h4>Panic Console</h4>
+  <span class="name">console/panic</span> renders plaintext as <span class="name">console</span> until it detects a Go panic. Go panics crash every running goroutine, leading to a spew of stderr logs. This plugin groups goroutine crash logs into show/hide blocks. The plugin stops scrolling at the first goroutine block, which caused the panic. To further assist the debugging process, lines can be highlighted by keyword using an input filter. Don't forget to pipe both stdout and stderr to this plugin!
+  <pre class="code">./goProgram 2>&1 | p2b {{publishedName}}/console/panic</pre>
+
   <h4>dev/null</h4>
   <p>No system is complete without a <span class="name">dev/null</span>. Similar to *nix <span class="mono">dev/null</span>, anything piped to it will be discarded without mercy.</p>
   <pre class="code">cat /dev/urandom | p2b {{publishedName}}/dev/null</pre>
