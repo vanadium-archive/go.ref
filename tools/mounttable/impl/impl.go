@@ -48,8 +48,9 @@ func runGlob(cmd *cmdline.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	for stream.Advance() {
-		buf := stream.Value()
+	rStream := stream.RecvStream()
+	for rStream.Advance() {
+		buf := rStream.Value()
 
 		fmt.Fprint(cmd.Stdout(), buf.Name)
 		for _, s := range buf.Servers {
@@ -58,7 +59,7 @@ func runGlob(cmd *cmdline.Command, args []string) error {
 		fmt.Fprintln(cmd.Stdout())
 	}
 
-	if err := stream.Err(); err != nil {
+	if err := rStream.Err(); err != nil {
 		return fmt.Errorf("advance error: %v", err)
 	}
 	err = stream.Finish()

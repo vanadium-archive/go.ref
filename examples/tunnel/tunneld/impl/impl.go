@@ -29,7 +29,7 @@ func (t *T) Forward(ctx ipc.ServerContext, network, address string, stream tunne
 	}
 	name := fmt.Sprintf("RemoteID:%v LocalAddr:%v RemoteAddr:%v", ctx.RemoteID(), conn.LocalAddr(), conn.RemoteAddr())
 	vlog.Infof("TUNNEL START: %v", name)
-	err = lib.Forward(conn, stream)
+	err = lib.Forward(conn, stream.SendStream(), stream.RecvStream())
 	vlog.Infof("TUNNEL END  : %v (%v)", name, err)
 	return err
 }
@@ -149,7 +149,7 @@ func sendMotd(s tunnel.TunnelServiceShellStream) {
 		return
 	}
 	packet := tunnel.ServerShellPacket{Stdout: []byte(data)}
-	if err = s.Send(packet); err != nil {
+	if err = s.SendStream().Send(packet); err != nil {
 		vlog.Infof("Send failed: %v", err)
 	}
 }

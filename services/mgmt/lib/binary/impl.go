@@ -74,8 +74,9 @@ func download(w io.WriteSeeker, von string) error {
 				continue
 			}
 			h, nreceived := md5.New(), 0
-			for stream.Advance() {
-				bytes := stream.Value()
+			rStream := stream.RecvStream()
+			for rStream.Advance() {
+				bytes := rStream.Value()
 				if _, err := w.Write(bytes); err != nil {
 					vlog.Errorf("Write() failed: %v", err)
 					stream.Cancel()
@@ -85,8 +86,8 @@ func download(w io.WriteSeeker, von string) error {
 				nreceived += len(bytes)
 			}
 
-			if err := stream.Err(); err != nil {
-				vlog.Errorf("stream failed: %v", err)
+			if err := rStream.Err(); err != nil {
+				vlog.Errorf("Advance() failed: %v", err)
 				stream.Cancel()
 				continue download
 
@@ -210,19 +211,20 @@ func upload(r io.ReadSeeker, von string) error {
 					continue upload
 				}
 			}
+			sender := stream.SendStream()
 			for from := 0; from < len(buffer); from += subpartSize {
 				to := from + subpartSize
 				if to > len(buffer) {
 					to = len(buffer)
 				}
-				if err := stream.Send(buffer[from:to]); err != nil {
+				if err := sender.Send(buffer[from:to]); err != nil {
 					vlog.Errorf("Send() failed: %v", err)
 					stream.Cancel()
 					continue upload
 				}
 			}
-			if err := stream.CloseSend(); err != nil {
-				vlog.Errorf("CloseSend() failed: %v", err)
+			if err := sender.Close(); err != nil {
+				vlog.Errorf("Close() failed: %v", err)
 				parts, statErr := client.Stat(rt.R().NewContext())
 				if statErr != nil {
 					vlog.Errorf("Stat() failed: %v", statErr)

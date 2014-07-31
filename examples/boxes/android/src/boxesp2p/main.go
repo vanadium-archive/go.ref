@@ -174,14 +174,16 @@ func (gs *goState) sendBox(box boxes.Box) {
 func (gs *goState) streamBoxesLoop() {
 	// Loop to receive boxes from remote peer
 	go func() {
-		for gs.drawStream.Advance() {
-			box := gs.drawStream.Value()
+		rStream := gs.drawStream.RecvStream()
+		for rStream.Advance() {
+			box := rStream.Value()
 			nativeJava.addBox(&box)
 		}
 	}()
 	// Loop to send boxes to remote peer
+	sender := gs.drawStream.SendStream()
 	for {
-		if err := gs.drawStream.Send(<-gs.boxList); err != nil {
+		if err := sender.Send(<-gs.boxList); err != nil {
 			break
 		}
 	}
@@ -204,8 +206,9 @@ func (gs *goState) monitorStore() {
 		if err != nil {
 			panic(fmt.Errorf("Can't watch store: %s: %s", gs.storeEndpoint, err))
 		}
-		for stream.Advance() {
-			cb := stream.Value()
+		rStream := stream.RecvStream()
+		for rStream.Advance() {
+			cb := rStream.Value()
 			for _, change := range cb.Changes {
 				if entry, ok := change.Value.(*storage.Entry); ok {
 					if box, ok := entry.Value.(boxes.Box); ok && box.DeviceId != gs.myIPAddr {
@@ -215,7 +218,7 @@ func (gs *goState) monitorStore() {
 			}
 		}
 
-		err = stream.Err()
+		err = rStream.Err()
 		if err == nil {
 			err = io.EOF
 		}
@@ -268,6 +271,19 @@ func (gs *goState) registerAsPeer() {
 	}
 }
 
+// wrapper is an object that modifies the signature of DrawInterfaceDrawCall
+// to match DrawInterfaceServiceDrawStream.  This needs to happen because the
+// anonymous interface returned by SendStream in DrawInterfaceDrawCall has
+// an extra method (Close) that we need to remove from the function signataure.
+type wrapper struct {
+	boxes.DrawInterfaceDrawCall
+}
+
+func (w *wrapper) SendStream() interface {
+	Send(b boxes.Box) error
+} {
+	return w.DrawInterfaceDrawCall.SendStream()
+}
 func (gs *goState) connectPeer() {
 	endpointStr, err := gs.signalling.Get(gs.runtime.TODOContext())
 	if err != nil {
@@ -278,9 +294,11 @@ func (gs *goState) connectPeer() {
 		panic(fmt.Errorf("failed BindDrawInterface:%v", err))
 	}
 	if !useStoreService {
-		if gs.drawStream, err = drawInterface.Draw(gs.runtime.TODOContext()); err != nil {
+		val, err := drawInterface.Draw(gs.runtime.TODOContext())
+		if err != nil {
 			panic(fmt.Errorf("failed to get handle to Draw stream:%v\n", err))
 		}
+		gs.drawStream = &wrapper{val}
 		go gs.streamBoxesLoop()
 	} else {
 		// Initialize the store sync service that listens for updates from a peer

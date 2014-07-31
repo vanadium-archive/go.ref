@@ -230,7 +230,7 @@ func (__gen_s *ServerStubBoxSignalling) Get(call _gen_ipc.ServerCall) (reply str
 // to enable embedding without method collisions.  Not to be used directly by clients.
 type DrawInterface_ExcludingUniversal interface {
 	// Draw is used to send/receive a stream of boxes to another peer
-	Draw(ctx _gen_context.T, opts ..._gen_ipc.CallOpt) (reply DrawInterfaceDrawStream, err error)
+	Draw(ctx _gen_context.T, opts ..._gen_ipc.CallOpt) (reply DrawInterfaceDrawCall, err error)
 	// SyncBoxes is used to setup a sync service over store to send/receive
 	// boxes to another peer
 	SyncBoxes(ctx _gen_context.T, opts ..._gen_ipc.CallOpt) (err error)
@@ -250,54 +250,58 @@ type DrawInterfaceService interface {
 	SyncBoxes(context _gen_ipc.ServerContext) (err error)
 }
 
-// DrawInterfaceDrawStream is the interface for streaming responses of the method
+// DrawInterfaceDrawCall is the interface for call object of the method
 // Draw in the service interface DrawInterface.
-type DrawInterfaceDrawStream interface {
+type DrawInterfaceDrawCall interface {
+	// RecvStream returns the recv portion of the stream
+	RecvStream() interface {
+		// Advance stages an element so the client can retrieve it
+		// with Value.  Advance returns true iff there is an
+		// element to retrieve.  The client must call Advance before
+		// calling Value.  The client must call Cancel if it does
+		// not iterate through all elements (i.e. until Advance
+		// returns false).  Advance may block if an element is not
+		// immediately available.
+		Advance() bool
 
-	// Send places the item onto the output stream, blocking if there is no
-	// buffer space available.  Calls to Send after having called CloseSend
-	// or Cancel will fail.  Any blocked Send calls will be unblocked upon
-	// calling Cancel.
-	Send(item Box) error
+		// Value returns the element that was staged by Advance.
+		// Value may panic if Advance returned false or was not
+		// called at all.  Value does not block.
+		Value() Box
 
-	// CloseSend indicates to the server that no more items will be sent;
-	// server Recv calls will receive io.EOF after all sent items.  This is
-	// an optional call - it's used by streaming clients that need the
-	// server to receive the io.EOF terminator before the client calls
-	// Finish (for example, if the client needs to continue receiving items
-	// from the server after having finished sending).
-	// Calls to CloseSend after having called Cancel will fail.
-	// Like Send, CloseSend blocks when there's no buffer space available.
-	CloseSend() error
+		// Err returns a non-nil error iff the stream encountered
+		// any errors.  Err does not block.
+		Err() error
+	}
 
-	// Advance stages an element so the client can retrieve it
-	// with Value.  Advance returns true iff there is an
-	// element to retrieve.  The client must call Advance before
-	// calling Value.  The client must call Cancel if it does
-	// not iterate through all elements (i.e. until Advance
-	// returns false).  Advance may block if an element is not
-	// immediately available.
-	Advance() bool
+	// SendStream returns the send portion of the stream
+	SendStream() interface {
+		// Send places the item onto the output stream, blocking if there is no
+		// buffer space available.  Calls to Send after having called Close
+		// or Cancel will fail.  Any blocked Send calls will be unblocked upon
+		// calling Cancel.
+		Send(item Box) error
 
-	// Value returns the element that was staged by Advance.
-	// Value may panic if Advance returned false or was not
-	// called at all.  Value does not block.
-	Value() Box
+		// Close indicates to the server that no more items will be sent;
+		// server Recv calls will receive io.EOF after all sent items.  This is
+		// an optional call - it's used by streaming clients that need the
+		// server to receive the io.EOF terminator before the client calls
+		// Finish (for example, if the client needs to continue receiving items
+		// from the server after having finished sending).
+		// Calls to Close after having called Cancel will fail.
+		// Like Send, Close blocks when there's no buffer space available.
+		Close() error
+	}
 
-	// Err returns a non-nil error iff the stream encountered
-	// any errors.  Err does not block.
-	Err() error
-
-	// Finish performs the equivalent of CloseSend, then blocks until the server
+	// Finish performs the equivalent of SendStream().Close, then blocks until the server
 	// is done, and returns the positional return values for call.
-	//
 	// If Cancel has been called, Finish will return immediately; the output of
 	// Finish could either be an error signalling cancelation, or the correct
 	// positional return values from the server depending on the timing of the
 	// call.
 	//
 	// Calling Finish is mandatory for releasing stream resources, unless Cancel
-	// has been called or any of the other methods return a non-EOF error.
+	// has been called or any of the other methods return an error.
 	// Finish should be called at most once.
 	Finish() (err error)
 
@@ -307,56 +311,150 @@ type DrawInterfaceDrawStream interface {
 	Cancel()
 }
 
-// Implementation of the DrawInterfaceDrawStream interface that is not exported.
-type implDrawInterfaceDrawStream struct {
+type implDrawInterfaceDrawStreamSender struct {
+	clientCall _gen_ipc.Call
+}
+
+func (c *implDrawInterfaceDrawStreamSender) Send(item Box) error {
+	return c.clientCall.Send(item)
+}
+
+func (c *implDrawInterfaceDrawStreamSender) Close() error {
+	return c.clientCall.CloseSend()
+}
+
+type implDrawInterfaceDrawStreamIterator struct {
 	clientCall _gen_ipc.Call
 	val        Box
 	err        error
 }
 
-func (c *implDrawInterfaceDrawStream) Send(item Box) error {
-	return c.clientCall.Send(item)
-}
-
-func (c *implDrawInterfaceDrawStream) CloseSend() error {
-	return c.clientCall.CloseSend()
-}
-
-func (c *implDrawInterfaceDrawStream) Advance() bool {
+func (c *implDrawInterfaceDrawStreamIterator) Advance() bool {
 	c.val = Box{}
 	c.err = c.clientCall.Recv(&c.val)
 	return c.err == nil
 }
 
-func (c *implDrawInterfaceDrawStream) Value() Box {
+func (c *implDrawInterfaceDrawStreamIterator) Value() Box {
 	return c.val
 }
 
-func (c *implDrawInterfaceDrawStream) Err() error {
+func (c *implDrawInterfaceDrawStreamIterator) Err() error {
 	if c.err == _gen_io.EOF {
 		return nil
 	}
 	return c.err
 }
 
-func (c *implDrawInterfaceDrawStream) Finish() (err error) {
+// Implementation of the DrawInterfaceDrawCall interface that is not exported.
+type implDrawInterfaceDrawCall struct {
+	clientCall  _gen_ipc.Call
+	writeStream implDrawInterfaceDrawStreamSender
+	readStream  implDrawInterfaceDrawStreamIterator
+}
+
+func (c *implDrawInterfaceDrawCall) SendStream() interface {
+	Send(item Box) error
+	Close() error
+} {
+	return &c.writeStream
+}
+
+func (c *implDrawInterfaceDrawCall) RecvStream() interface {
+	Advance() bool
+	Value() Box
+	Err() error
+} {
+	return &c.readStream
+}
+
+func (c *implDrawInterfaceDrawCall) Finish() (err error) {
 	if ierr := c.clientCall.Finish(&err); ierr != nil {
 		err = ierr
 	}
 	return
 }
 
-func (c *implDrawInterfaceDrawStream) Cancel() {
+func (c *implDrawInterfaceDrawCall) Cancel() {
 	c.clientCall.Cancel()
+}
+
+type implDrawInterfaceServiceDrawStreamSender struct {
+	serverCall _gen_ipc.ServerCall
+}
+
+func (s *implDrawInterfaceServiceDrawStreamSender) Send(item Box) error {
+	return s.serverCall.Send(item)
+}
+
+type implDrawInterfaceServiceDrawStreamIterator struct {
+	serverCall _gen_ipc.ServerCall
+	val        Box
+	err        error
+}
+
+func (s *implDrawInterfaceServiceDrawStreamIterator) Advance() bool {
+	s.err = s.serverCall.Recv(&s.val)
+	return s.err == nil
+}
+
+func (s *implDrawInterfaceServiceDrawStreamIterator) Value() Box {
+	return s.val
+}
+
+func (s *implDrawInterfaceServiceDrawStreamIterator) Err() error {
+	if s.err == _gen_io.EOF {
+		return nil
+	}
+	return s.err
 }
 
 // DrawInterfaceServiceDrawStream is the interface for streaming responses of the method
 // Draw in the service interface DrawInterface.
 type DrawInterfaceServiceDrawStream interface {
+	// SendStream returns the send portion of the stream.
+	SendStream() interface {
+		// Send places the item onto the output stream, blocking if there is no buffer
+		// space available.  If the client has canceled, an error is returned.
+		Send(item Box) error
+	}
+	// RecvStream returns the recv portion of the stream
+	RecvStream() interface {
+		// Advance stages an element so the client can retrieve it
+		// with Value.  Advance returns true iff there is an
+		// element to retrieve.  The client must call Advance before
+		// calling Value.  The client must call Cancel if it does
+		// not iterate through all elements (i.e. until Advance
+		// returns false).  Advance may block if an element is not
+		// immediately available.
+		Advance() bool
+
+		// Value returns the element that was staged by Advance.
+		// Value may panic if Advance returned false or was not
+		// called at all.  Value does not block.
+		Value() Box
+
+		// Err returns a non-nil error iff the stream encountered
+		// any errors.  Err does not block.
+		Err() error
+	}
+}
+
+// Implementation of the DrawInterfaceServiceDrawStream interface that is not exported.
+type implDrawInterfaceServiceDrawStream struct {
+	writer implDrawInterfaceServiceDrawStreamSender
+	reader implDrawInterfaceServiceDrawStreamIterator
+}
+
+func (s *implDrawInterfaceServiceDrawStream) SendStream() interface {
 	// Send places the item onto the output stream, blocking if there is no buffer
 	// space available.  If the client has canceled, an error is returned.
 	Send(item Box) error
+} {
+	return &s.writer
+}
 
+func (s *implDrawInterfaceServiceDrawStream) RecvStream() interface {
 	// Advance stages an element so the client can retrieve it
 	// with Value.  Advance returns true iff there is an
 	// element to retrieve.  The client must call Advance before
@@ -369,44 +467,13 @@ type DrawInterfaceServiceDrawStream interface {
 	// Value returns the element that was staged by Advance.
 	// Value may panic if Advance returned false or was not
 	// called at all.  Value does not block.
-	//
-	// In general, Value is undefined if the underlying collection
-	// of elements changes while iteration is in progress.  If
-	// <DataProvider> supports concurrent modification, it should
-	// document its behavior.
 	Value() Box
 
 	// Err returns a non-nil error iff the stream encountered
 	// any errors.  Err does not block.
 	Err() error
-}
-
-// Implementation of the DrawInterfaceServiceDrawStream interface that is not exported.
-type implDrawInterfaceServiceDrawStream struct {
-	serverCall _gen_ipc.ServerCall
-	val        Box
-	err        error
-}
-
-func (s *implDrawInterfaceServiceDrawStream) Send(item Box) error {
-	return s.serverCall.Send(item)
-}
-
-func (s *implDrawInterfaceServiceDrawStream) Advance() bool {
-	s.val = Box{}
-	s.err = s.serverCall.Recv(&s.val)
-	return s.err == nil
-}
-
-func (s *implDrawInterfaceServiceDrawStream) Value() Box {
-	return s.val
-}
-
-func (s *implDrawInterfaceServiceDrawStream) Err() error {
-	if s.err == _gen_io.EOF {
-		return nil
-	}
-	return s.err
+} {
+	return &s.reader
 }
 
 // BindDrawInterface returns the client stub implementing the DrawInterface
@@ -450,12 +517,12 @@ type clientStubDrawInterface struct {
 	name   string
 }
 
-func (__gen_c *clientStubDrawInterface) Draw(ctx _gen_context.T, opts ..._gen_ipc.CallOpt) (reply DrawInterfaceDrawStream, err error) {
+func (__gen_c *clientStubDrawInterface) Draw(ctx _gen_context.T, opts ..._gen_ipc.CallOpt) (reply DrawInterfaceDrawCall, err error) {
 	var call _gen_ipc.Call
 	if call, err = __gen_c.client.StartCall(ctx, __gen_c.name, "Draw", nil, opts...); err != nil {
 		return
 	}
-	reply = &implDrawInterfaceDrawStream{clientCall: call}
+	reply = &implDrawInterfaceDrawCall{clientCall: call, writeStream: implDrawInterfaceDrawStreamSender{clientCall: call}, readStream: implDrawInterfaceDrawStreamIterator{clientCall: call}}
 	return
 }
 
@@ -573,7 +640,7 @@ func (__gen_s *ServerStubDrawInterface) UnresolveStep(call _gen_ipc.ServerCall) 
 }
 
 func (__gen_s *ServerStubDrawInterface) Draw(call _gen_ipc.ServerCall) (err error) {
-	stream := &implDrawInterfaceServiceDrawStream{serverCall: call}
+	stream := &implDrawInterfaceServiceDrawStream{reader: implDrawInterfaceServiceDrawStreamIterator{serverCall: call}, writer: implDrawInterfaceServiceDrawStreamSender{serverCall: call}}
 	err = __gen_s.service.Draw(call, stream)
 	return
 }

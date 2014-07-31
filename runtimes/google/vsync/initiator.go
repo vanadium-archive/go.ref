@@ -243,8 +243,8 @@ func (i *syncInitiator) getDeltasFromPeer(dID, ep string, local GenVector) {
 // call. It does not perform any conflict resolution during replay.
 // This avoids resolving conflicts that have already been resolved by
 // other devices.
-func (i *syncInitiator) processLogStream(stream SyncGetDeltasStream) (GenVector, error) {
-	// Map to track new generations received in the RPC reply.
+func (i *syncInitiator) processLogStream(stream SyncGetDeltasCall) (GenVector, error) {
+	// Map to track new generations received in the Call reply.
 	// TODO(hpucha): If needed, this can be optimized under the
 	// assumption that an entire generation is received
 	// sequentially. We can then parse a generation at a time.
@@ -256,8 +256,9 @@ func (i *syncInitiator) processLogStream(stream SyncGetDeltasStream) (GenVector,
 	minGens := GenVector{}
 
 	curTx := NoTxID
-	for stream.Advance() {
-		rec := stream.Value()
+	rStream := stream.RecvStream()
+	for rStream.Advance() {
+		rec := rStream.Value()
 
 		// Begin a new transaction if needed.
 		if curTx == NoTxID && rec.Value.Continued {
@@ -302,7 +303,7 @@ func (i *syncInitiator) processLogStream(stream SyncGetDeltasStream) (GenVector,
 		}
 	}
 
-	if err := stream.Err(); err != nil {
+	if err := rStream.Err(); err != nil {
 		return GenVector{}, err
 	}
 	if curTx != NoTxID {
@@ -560,13 +561,14 @@ func (i *syncInitiator) updateStoreAndSync(ctx context.T, local, minGens, remote
 			vlog.Errorf("updateStoreAndSync:: putmutations err %v", err)
 			return err
 		}
+		sender := stream.SendStream()
 		for i := range m {
-			if err := stream.Send(m[i]); err != nil {
+			if err := sender.Send(m[i]); err != nil {
 				vlog.Errorf("updateStoreAndSync:: send err %v", err)
 				return err
 			}
 		}
-		if err := stream.CloseSend(); err != nil {
+		if err := sender.Close(); err != nil {
 			vlog.Errorf("updateStoreAndSync:: closesend err %v", err)
 			return err
 		}

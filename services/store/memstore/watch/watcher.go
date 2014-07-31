@@ -61,7 +61,7 @@ func (w *watcher) WatchRaw(ctx ipc.ServerContext, req raw.Request,
 	if err != nil {
 		return err
 	}
-	return w.Watch(ctx, processor, req.ResumeMarker, stream)
+	return w.Watch(ctx, processor, req.ResumeMarker, stream.SendStream())
 }
 
 // WatchGlob returns a stream of changes that match a pattern.
@@ -72,7 +72,7 @@ func (w *watcher) WatchGlob(ctx ipc.ServerContext, path storage.PathName,
 	if err != nil {
 		return err
 	}
-	return w.Watch(ctx, processor, req.ResumeMarker, stream)
+	return w.Watch(ctx, processor, req.ResumeMarker, stream.SendStream())
 }
 
 // WatchQuery returns a stream of changes that satisfy a query.

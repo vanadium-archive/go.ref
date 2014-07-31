@@ -116,8 +116,10 @@ func (p *Player) playGame(judge string, gameID rps.GameID) (rps.PlayResult, erro
 	if err != nil {
 		return rps.PlayResult{}, err
 	}
-	for game.Advance() {
-		in := game.Value()
+	rStream := game.RecvStream()
+	sender := game.SendStream()
+	for rStream.Advance() {
+		in := rStream.Value()
 
 		if in.PlayerNum > 0 {
 			vlog.VI(1).Infof("I'm player %d", in.PlayerNum)
@@ -128,7 +130,7 @@ func (p *Player) playGame(judge string, gameID rps.GameID) (rps.PlayResult, erro
 		if len(in.MoveOptions) > 0 {
 			n := rand.Intn(len(in.MoveOptions))
 			vlog.VI(1).Infof("My turn to play. Picked %q from %v", in.MoveOptions[n], in.MoveOptions)
-			if err := game.Send(rps.PlayerAction{Move: in.MoveOptions[n]}); err != nil {
+			if err := sender.Send(rps.PlayerAction{Move: in.MoveOptions[n]}); err != nil {
 				return rps.PlayResult{}, err
 			}
 		}
@@ -141,7 +143,7 @@ func (p *Player) playGame(judge string, gameID rps.GameID) (rps.PlayResult, erro
 		}
 	}
 
-	if err := game.Err(); err != nil {
+	if err := rStream.Err(); err != nil {
 		vlog.Infof("stream error: %v", err)
 	} else {
 		vlog.VI(1).Infof("Game Ended")

@@ -23,10 +23,11 @@ type Value struct {
 func glob(st storage.Store, path, pattern string) ([]string, error) {
 	results := st.BindObject(path).Glob(rt.R().TODOContext(), pattern)
 	names := []string{}
-	for results.Advance() {
-		names = append(names, "/"+results.Value())
+	rStream := results.RecvStream()
+	for rStream.Advance() {
+		names = append(names, "/"+rStream.Value())
 	}
-	if err := results.Err(); err != nil {
+	if err := rStream.Err(); err != nil {
 		return nil, err
 	}
 	sort.Strings(names)

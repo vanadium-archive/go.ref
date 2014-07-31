@@ -17,14 +17,16 @@ func (i *impl) Echo(ctx ipc.ServerContext, payload []byte) ([]byte, error) {
 }
 
 func (i *impl) EchoStream(ctx ipc.ServerContext, stream BenchmarkServiceEchoStreamStream) error {
-	for stream.Advance() {
-		chunk := stream.Value()
-		if err := stream.Send(chunk); err != nil {
+	rStream := stream.RecvStream()
+	sender := stream.SendStream()
+	for rStream.Advance() {
+		chunk := rStream.Value()
+		if err := sender.Send(chunk); err != nil {
 			return err
 		}
 	}
 
-	return stream.Err()
+	return rStream.Err()
 }
 
 // StartServer starts a server that implements the Benchmark service. The

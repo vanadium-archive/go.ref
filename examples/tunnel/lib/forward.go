@@ -17,14 +17,8 @@ type receiver interface {
 	Err() error
 }
 
-// stream is the interface common to TunnelForwardStream and TunnelServiceForwardStream.
-type stream interface {
-	sender
-	receiver
-}
-
 // Forward forwards data read from net.Conn to a TunnelForwardStream or a TunnelServiceForwardStream.
-func Forward(conn net.Conn, stream stream) error {
+func Forward(conn net.Conn, s sender, r receiver) error {
 	defer conn.Close()
 	// Both conn2stream and stream2conn will write to the channel exactly
 	// once.
@@ -32,8 +26,8 @@ func Forward(conn net.Conn, stream stream) error {
 	// A buffered channel is used to prevent the other write to the channel
 	// from blocking.
 	done := make(chan error, 1)
-	go conn2stream(conn, stream, done)
-	go stream2conn(stream, conn, done)
+	go conn2stream(conn, s, done)
+	go stream2conn(r, conn, done)
 	return <-done
 }
 

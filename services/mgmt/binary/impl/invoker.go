@@ -350,6 +350,7 @@ func (i *invoker) Download(context ipc.ServerContext, part int32, stream reposit
 	}
 	defer file.Close()
 	buffer := make([]byte, bufferLength)
+	sender := stream.SendStream()
 	for {
 		n, err := file.Read(buffer)
 		if err != nil && err != io.EOF {
@@ -359,7 +360,7 @@ func (i *invoker) Download(context ipc.ServerContext, part int32, stream reposit
 		if n == 0 {
 			break
 		}
-		if err := stream.Send(buffer[:n]); err != nil {
+		if err := sender.Send(buffer[:n]); err != nil {
 			vlog.Errorf("Send() failed: %v", err)
 			return errOperationFailed
 		}
@@ -436,8 +437,9 @@ func (i *invoker) Upload(context ipc.ServerContext, part int32, stream repositor
 	}
 	defer file.Close()
 	h := md5.New()
-	for stream.Advance() {
-		bytes := stream.Value()
+	rStream := stream.RecvStream()
+	for rStream.Advance() {
+		bytes := rStream.Value()
 		if _, err := file.Write(bytes); err != nil {
 			vlog.Errorf("Write() failed: %v", err)
 			if err := os.Remove(file.Name()); err != nil {
@@ -448,8 +450,8 @@ func (i *invoker) Upload(context ipc.ServerContext, part int32, stream repositor
 		h.Write(bytes)
 	}
 
-	if err := stream.Err(); err != nil {
-		vlog.Errorf("Recv() failed: %v", err)
+	if err := rStream.Err(); err != nil {
+		vlog.Errorf("Advance() failed: %v", err)
 		if err := os.Remove(file.Name()); err != nil {
 			vlog.Errorf("Remove(%v) failed: %v", file.Name(), err)
 		}

@@ -27,7 +27,7 @@ type Benchmark_ExcludingUniversal interface {
 	// Echo returns the payload that it receives.
 	Echo(ctx _gen_context.T, Payload []byte, opts ..._gen_ipc.CallOpt) (reply []byte, err error)
 	// EchoStream returns the payload that it receives via the stream.
-	EchoStream(ctx _gen_context.T, opts ..._gen_ipc.CallOpt) (reply BenchmarkEchoStreamStream, err error)
+	EchoStream(ctx _gen_context.T, opts ..._gen_ipc.CallOpt) (reply BenchmarkEchoStreamCall, err error)
 }
 type Benchmark interface {
 	_gen_ipc.UniversalServiceMethods
@@ -43,54 +43,58 @@ type BenchmarkService interface {
 	EchoStream(context _gen_ipc.ServerContext, stream BenchmarkServiceEchoStreamStream) (err error)
 }
 
-// BenchmarkEchoStreamStream is the interface for streaming responses of the method
+// BenchmarkEchoStreamCall is the interface for call object of the method
 // EchoStream in the service interface Benchmark.
-type BenchmarkEchoStreamStream interface {
+type BenchmarkEchoStreamCall interface {
+	// RecvStream returns the recv portion of the stream
+	RecvStream() interface {
+		// Advance stages an element so the client can retrieve it
+		// with Value.  Advance returns true iff there is an
+		// element to retrieve.  The client must call Advance before
+		// calling Value.  The client must call Cancel if it does
+		// not iterate through all elements (i.e. until Advance
+		// returns false).  Advance may block if an element is not
+		// immediately available.
+		Advance() bool
 
-	// Send places the item onto the output stream, blocking if there is no
-	// buffer space available.  Calls to Send after having called CloseSend
-	// or Cancel will fail.  Any blocked Send calls will be unblocked upon
-	// calling Cancel.
-	Send(item []byte) error
+		// Value returns the element that was staged by Advance.
+		// Value may panic if Advance returned false or was not
+		// called at all.  Value does not block.
+		Value() []byte
 
-	// CloseSend indicates to the server that no more items will be sent;
-	// server Recv calls will receive io.EOF after all sent items.  This is
-	// an optional call - it's used by streaming clients that need the
-	// server to receive the io.EOF terminator before the client calls
-	// Finish (for example, if the client needs to continue receiving items
-	// from the server after having finished sending).
-	// Calls to CloseSend after having called Cancel will fail.
-	// Like Send, CloseSend blocks when there's no buffer space available.
-	CloseSend() error
+		// Err returns a non-nil error iff the stream encountered
+		// any errors.  Err does not block.
+		Err() error
+	}
 
-	// Advance stages an element so the client can retrieve it
-	// with Value.  Advance returns true iff there is an
-	// element to retrieve.  The client must call Advance before
-	// calling Value.  The client must call Cancel if it does
-	// not iterate through all elements (i.e. until Advance
-	// returns false).  Advance may block if an element is not
-	// immediately available.
-	Advance() bool
+	// SendStream returns the send portion of the stream
+	SendStream() interface {
+		// Send places the item onto the output stream, blocking if there is no
+		// buffer space available.  Calls to Send after having called Close
+		// or Cancel will fail.  Any blocked Send calls will be unblocked upon
+		// calling Cancel.
+		Send(item []byte) error
 
-	// Value returns the element that was staged by Advance.
-	// Value may panic if Advance returned false or was not
-	// called at all.  Value does not block.
-	Value() []byte
+		// Close indicates to the server that no more items will be sent;
+		// server Recv calls will receive io.EOF after all sent items.  This is
+		// an optional call - it's used by streaming clients that need the
+		// server to receive the io.EOF terminator before the client calls
+		// Finish (for example, if the client needs to continue receiving items
+		// from the server after having finished sending).
+		// Calls to Close after having called Cancel will fail.
+		// Like Send, Close blocks when there's no buffer space available.
+		Close() error
+	}
 
-	// Err returns a non-nil error iff the stream encountered
-	// any errors.  Err does not block.
-	Err() error
-
-	// Finish performs the equivalent of CloseSend, then blocks until the server
+	// Finish performs the equivalent of SendStream().Close, then blocks until the server
 	// is done, and returns the positional return values for call.
-	//
 	// If Cancel has been called, Finish will return immediately; the output of
 	// Finish could either be an error signalling cancelation, or the correct
 	// positional return values from the server depending on the timing of the
 	// call.
 	//
 	// Calling Finish is mandatory for releasing stream resources, unless Cancel
-	// has been called or any of the other methods return a non-EOF error.
+	// has been called or any of the other methods return an error.
 	// Finish should be called at most once.
 	Finish() (err error)
 
@@ -100,55 +104,149 @@ type BenchmarkEchoStreamStream interface {
 	Cancel()
 }
 
-// Implementation of the BenchmarkEchoStreamStream interface that is not exported.
-type implBenchmarkEchoStreamStream struct {
+type implBenchmarkEchoStreamStreamSender struct {
+	clientCall _gen_ipc.Call
+}
+
+func (c *implBenchmarkEchoStreamStreamSender) Send(item []byte) error {
+	return c.clientCall.Send(item)
+}
+
+func (c *implBenchmarkEchoStreamStreamSender) Close() error {
+	return c.clientCall.CloseSend()
+}
+
+type implBenchmarkEchoStreamStreamIterator struct {
 	clientCall _gen_ipc.Call
 	val        []byte
 	err        error
 }
 
-func (c *implBenchmarkEchoStreamStream) Send(item []byte) error {
-	return c.clientCall.Send(item)
-}
-
-func (c *implBenchmarkEchoStreamStream) CloseSend() error {
-	return c.clientCall.CloseSend()
-}
-
-func (c *implBenchmarkEchoStreamStream) Advance() bool {
+func (c *implBenchmarkEchoStreamStreamIterator) Advance() bool {
 	c.err = c.clientCall.Recv(&c.val)
 	return c.err == nil
 }
 
-func (c *implBenchmarkEchoStreamStream) Value() []byte {
+func (c *implBenchmarkEchoStreamStreamIterator) Value() []byte {
 	return c.val
 }
 
-func (c *implBenchmarkEchoStreamStream) Err() error {
+func (c *implBenchmarkEchoStreamStreamIterator) Err() error {
 	if c.err == _gen_io.EOF {
 		return nil
 	}
 	return c.err
 }
 
-func (c *implBenchmarkEchoStreamStream) Finish() (err error) {
+// Implementation of the BenchmarkEchoStreamCall interface that is not exported.
+type implBenchmarkEchoStreamCall struct {
+	clientCall  _gen_ipc.Call
+	writeStream implBenchmarkEchoStreamStreamSender
+	readStream  implBenchmarkEchoStreamStreamIterator
+}
+
+func (c *implBenchmarkEchoStreamCall) SendStream() interface {
+	Send(item []byte) error
+	Close() error
+} {
+	return &c.writeStream
+}
+
+func (c *implBenchmarkEchoStreamCall) RecvStream() interface {
+	Advance() bool
+	Value() []byte
+	Err() error
+} {
+	return &c.readStream
+}
+
+func (c *implBenchmarkEchoStreamCall) Finish() (err error) {
 	if ierr := c.clientCall.Finish(&err); ierr != nil {
 		err = ierr
 	}
 	return
 }
 
-func (c *implBenchmarkEchoStreamStream) Cancel() {
+func (c *implBenchmarkEchoStreamCall) Cancel() {
 	c.clientCall.Cancel()
+}
+
+type implBenchmarkServiceEchoStreamStreamSender struct {
+	serverCall _gen_ipc.ServerCall
+}
+
+func (s *implBenchmarkServiceEchoStreamStreamSender) Send(item []byte) error {
+	return s.serverCall.Send(item)
+}
+
+type implBenchmarkServiceEchoStreamStreamIterator struct {
+	serverCall _gen_ipc.ServerCall
+	val        []byte
+	err        error
+}
+
+func (s *implBenchmarkServiceEchoStreamStreamIterator) Advance() bool {
+	s.err = s.serverCall.Recv(&s.val)
+	return s.err == nil
+}
+
+func (s *implBenchmarkServiceEchoStreamStreamIterator) Value() []byte {
+	return s.val
+}
+
+func (s *implBenchmarkServiceEchoStreamStreamIterator) Err() error {
+	if s.err == _gen_io.EOF {
+		return nil
+	}
+	return s.err
 }
 
 // BenchmarkServiceEchoStreamStream is the interface for streaming responses of the method
 // EchoStream in the service interface Benchmark.
 type BenchmarkServiceEchoStreamStream interface {
+	// SendStream returns the send portion of the stream.
+	SendStream() interface {
+		// Send places the item onto the output stream, blocking if there is no buffer
+		// space available.  If the client has canceled, an error is returned.
+		Send(item []byte) error
+	}
+	// RecvStream returns the recv portion of the stream
+	RecvStream() interface {
+		// Advance stages an element so the client can retrieve it
+		// with Value.  Advance returns true iff there is an
+		// element to retrieve.  The client must call Advance before
+		// calling Value.  The client must call Cancel if it does
+		// not iterate through all elements (i.e. until Advance
+		// returns false).  Advance may block if an element is not
+		// immediately available.
+		Advance() bool
+
+		// Value returns the element that was staged by Advance.
+		// Value may panic if Advance returned false or was not
+		// called at all.  Value does not block.
+		Value() []byte
+
+		// Err returns a non-nil error iff the stream encountered
+		// any errors.  Err does not block.
+		Err() error
+	}
+}
+
+// Implementation of the BenchmarkServiceEchoStreamStream interface that is not exported.
+type implBenchmarkServiceEchoStreamStream struct {
+	writer implBenchmarkServiceEchoStreamStreamSender
+	reader implBenchmarkServiceEchoStreamStreamIterator
+}
+
+func (s *implBenchmarkServiceEchoStreamStream) SendStream() interface {
 	// Send places the item onto the output stream, blocking if there is no buffer
 	// space available.  If the client has canceled, an error is returned.
 	Send(item []byte) error
+} {
+	return &s.writer
+}
 
+func (s *implBenchmarkServiceEchoStreamStream) RecvStream() interface {
 	// Advance stages an element so the client can retrieve it
 	// with Value.  Advance returns true iff there is an
 	// element to retrieve.  The client must call Advance before
@@ -161,43 +259,13 @@ type BenchmarkServiceEchoStreamStream interface {
 	// Value returns the element that was staged by Advance.
 	// Value may panic if Advance returned false or was not
 	// called at all.  Value does not block.
-	//
-	// In general, Value is undefined if the underlying collection
-	// of elements changes while iteration is in progress.  If
-	// <DataProvider> supports concurrent modification, it should
-	// document its behavior.
 	Value() []byte
 
 	// Err returns a non-nil error iff the stream encountered
 	// any errors.  Err does not block.
 	Err() error
-}
-
-// Implementation of the BenchmarkServiceEchoStreamStream interface that is not exported.
-type implBenchmarkServiceEchoStreamStream struct {
-	serverCall _gen_ipc.ServerCall
-	val        []byte
-	err        error
-}
-
-func (s *implBenchmarkServiceEchoStreamStream) Send(item []byte) error {
-	return s.serverCall.Send(item)
-}
-
-func (s *implBenchmarkServiceEchoStreamStream) Advance() bool {
-	s.err = s.serverCall.Recv(&s.val)
-	return s.err == nil
-}
-
-func (s *implBenchmarkServiceEchoStreamStream) Value() []byte {
-	return s.val
-}
-
-func (s *implBenchmarkServiceEchoStreamStream) Err() error {
-	if s.err == _gen_io.EOF {
-		return nil
-	}
-	return s.err
+} {
+	return &s.reader
 }
 
 // BindBenchmark returns the client stub implementing the Benchmark
@@ -252,12 +320,12 @@ func (__gen_c *clientStubBenchmark) Echo(ctx _gen_context.T, Payload []byte, opt
 	return
 }
 
-func (__gen_c *clientStubBenchmark) EchoStream(ctx _gen_context.T, opts ..._gen_ipc.CallOpt) (reply BenchmarkEchoStreamStream, err error) {
+func (__gen_c *clientStubBenchmark) EchoStream(ctx _gen_context.T, opts ..._gen_ipc.CallOpt) (reply BenchmarkEchoStreamCall, err error) {
 	var call _gen_ipc.Call
 	if call, err = __gen_c.client.StartCall(ctx, __gen_c.name, "EchoStream", nil, opts...); err != nil {
 		return
 	}
-	reply = &implBenchmarkEchoStreamStream{clientCall: call}
+	reply = &implBenchmarkEchoStreamCall{clientCall: call, writeStream: implBenchmarkEchoStreamStreamSender{clientCall: call}, readStream: implBenchmarkEchoStreamStreamIterator{clientCall: call}}
 	return
 }
 
@@ -365,7 +433,7 @@ func (__gen_s *ServerStubBenchmark) Echo(call _gen_ipc.ServerCall, Payload []byt
 }
 
 func (__gen_s *ServerStubBenchmark) EchoStream(call _gen_ipc.ServerCall) (err error) {
-	stream := &implBenchmarkServiceEchoStreamStream{serverCall: call}
+	stream := &implBenchmarkServiceEchoStreamStream{reader: implBenchmarkServiceEchoStreamStreamIterator{serverCall: call}, writer: implBenchmarkServiceEchoStreamStreamSender{serverCall: call}}
 	err = __gen_s.service.EchoStream(call, stream)
 	return
 }

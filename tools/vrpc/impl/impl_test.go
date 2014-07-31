@@ -118,8 +118,9 @@ func (*server) MultipleArguments(call ipc.ServerContext, i1, i2 int32) (int32, i
 
 func (*server) StreamingOutput(call ipc.ServerContext, nStream int32, item bool, reply test_base.TypeTesterServiceStreamingOutputStream) error {
 	vlog.VI(2).Info("StreamingOutput(%v,%v) was called.", nStream, item)
+	sender := reply.SendStream()
 	for i := int32(0); i < nStream; i++ {
-		reply.Send(item)
+		sender.Send(item)
 	}
 	return nil
 }

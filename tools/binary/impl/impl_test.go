@@ -42,8 +42,9 @@ func (s *server) Delete(ipc.ServerContext) error {
 
 func (s *server) Download(_ ipc.ServerContext, _ int32, stream repository.BinaryServiceDownloadStream) error {
 	vlog.Infof("Download() was called. suffix=%v", s.suffix)
-	stream.Send([]byte("Hello"))
-	stream.Send([]byte("World"))
+	sender := stream.SendStream()
+	sender.Send([]byte("Hello"))
+	sender.Send([]byte("World"))
 	return nil
 }
 
@@ -63,7 +64,8 @@ func (s *server) Stat(ipc.ServerContext) ([]binary.PartInfo, error) {
 
 func (s *server) Upload(_ ipc.ServerContext, _ int32, stream repository.BinaryServiceUploadStream) error {
 	vlog.Infof("Upload() was called. suffix=%v", s.suffix)
-	for stream.Advance() {
+	rStream := stream.RecvStream()
+	for rStream.Advance() {
 	}
 	return nil
 }

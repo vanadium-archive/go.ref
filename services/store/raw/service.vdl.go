@@ -66,11 +66,11 @@ const _ = _gen_wiretype.TypeIDInvalid
 // to enable embedding without method collisions.  Not to be used directly by clients.
 type Store_ExcludingUniversal interface {
 	// Watch returns a stream of all changes.
-	Watch(ctx _gen_context.T, Req Request, opts ..._gen_ipc.CallOpt) (reply StoreWatchStream, err error)
+	Watch(ctx _gen_context.T, Req Request, opts ..._gen_ipc.CallOpt) (reply StoreWatchCall, err error)
 	// PutMutations atomically commits a stream of Mutations when the stream is
 	// closed. Mutations are not committed if the request is cancelled before
 	// the stream has been closed.
-	PutMutations(ctx _gen_context.T, opts ..._gen_ipc.CallOpt) (reply StorePutMutationsStream, err error)
+	PutMutations(ctx _gen_context.T, opts ..._gen_ipc.CallOpt) (reply StorePutMutationsCall, err error)
 }
 type Store interface {
 	_gen_ipc.UniversalServiceMethods
@@ -88,27 +88,29 @@ type StoreService interface {
 	PutMutations(context _gen_ipc.ServerContext, stream StoreServicePutMutationsStream) (err error)
 }
 
-// StoreWatchStream is the interface for streaming responses of the method
+// StoreWatchCall is the interface for call object of the method
 // Watch in the service interface Store.
-type StoreWatchStream interface {
+type StoreWatchCall interface {
+	// RecvStream returns the recv portion of the stream
+	RecvStream() interface {
+		// Advance stages an element so the client can retrieve it
+		// with Value.  Advance returns true iff there is an
+		// element to retrieve.  The client must call Advance before
+		// calling Value.  The client must call Cancel if it does
+		// not iterate through all elements (i.e. until Advance
+		// returns false).  Advance may block if an element is not
+		// immediately available.
+		Advance() bool
 
-	// Advance stages an element so the client can retrieve it
-	// with Value.  Advance returns true iff there is an
-	// element to retrieve.  The client must call Advance before
-	// calling Value.  The client must call Cancel if it does
-	// not iterate through all elements (i.e. until Advance
-	// returns false).  Advance may block if an element is not
-	// immediately available.
-	Advance() bool
+		// Value returns the element that was staged by Advance.
+		// Value may panic if Advance returned false or was not
+		// called at all.  Value does not block.
+		Value() watch.ChangeBatch
 
-	// Value returns the element that was staged by Advance.
-	// Value may panic if Advance returned false or was not
-	// called at all.  Value does not block.
-	Value() watch.ChangeBatch
-
-	// Err returns a non-nil error iff the stream encountered
-	// any errors.  Err does not block.
-	Err() error
+		// Err returns a non-nil error iff the stream encountered
+		// any errors.  Err does not block.
+		Err() error
+	}
 
 	// Finish blocks until the server is done and returns the positional
 	// return values for call.
@@ -119,7 +121,7 @@ type StoreWatchStream interface {
 	// call.
 	//
 	// Calling Finish is mandatory for releasing stream resources, unless Cancel
-	// has been called or any of the other methods return a non-EOF error.
+	// has been called or any of the other methods return an error.
 	// Finish should be called at most once.
 	Finish() (err error)
 
@@ -129,88 +131,118 @@ type StoreWatchStream interface {
 	Cancel()
 }
 
-// Implementation of the StoreWatchStream interface that is not exported.
-type implStoreWatchStream struct {
+type implStoreWatchStreamIterator struct {
 	clientCall _gen_ipc.Call
 	val        watch.ChangeBatch
 	err        error
 }
 
-func (c *implStoreWatchStream) Advance() bool {
+func (c *implStoreWatchStreamIterator) Advance() bool {
 	c.val = watch.ChangeBatch{}
 	c.err = c.clientCall.Recv(&c.val)
 	return c.err == nil
 }
 
-func (c *implStoreWatchStream) Value() watch.ChangeBatch {
+func (c *implStoreWatchStreamIterator) Value() watch.ChangeBatch {
 	return c.val
 }
 
-func (c *implStoreWatchStream) Err() error {
+func (c *implStoreWatchStreamIterator) Err() error {
 	if c.err == _gen_io.EOF {
 		return nil
 	}
 	return c.err
 }
 
-func (c *implStoreWatchStream) Finish() (err error) {
+// Implementation of the StoreWatchCall interface that is not exported.
+type implStoreWatchCall struct {
+	clientCall _gen_ipc.Call
+	readStream implStoreWatchStreamIterator
+}
+
+func (c *implStoreWatchCall) RecvStream() interface {
+	Advance() bool
+	Value() watch.ChangeBatch
+	Err() error
+} {
+	return &c.readStream
+}
+
+func (c *implStoreWatchCall) Finish() (err error) {
 	if ierr := c.clientCall.Finish(&err); ierr != nil {
 		err = ierr
 	}
 	return
 }
 
-func (c *implStoreWatchStream) Cancel() {
+func (c *implStoreWatchCall) Cancel() {
 	c.clientCall.Cancel()
+}
+
+type implStoreServiceWatchStreamSender struct {
+	serverCall _gen_ipc.ServerCall
+}
+
+func (s *implStoreServiceWatchStreamSender) Send(item watch.ChangeBatch) error {
+	return s.serverCall.Send(item)
 }
 
 // StoreServiceWatchStream is the interface for streaming responses of the method
 // Watch in the service interface Store.
 type StoreServiceWatchStream interface {
-	// Send places the item onto the output stream, blocking if there is no buffer
-	// space available.  If the client has canceled, an error is returned.
-	Send(item watch.ChangeBatch) error
+	// SendStream returns the send portion of the stream.
+	SendStream() interface {
+		// Send places the item onto the output stream, blocking if there is no buffer
+		// space available.  If the client has canceled, an error is returned.
+		Send(item watch.ChangeBatch) error
+	}
 }
 
 // Implementation of the StoreServiceWatchStream interface that is not exported.
 type implStoreServiceWatchStream struct {
-	serverCall _gen_ipc.ServerCall
+	writer implStoreServiceWatchStreamSender
 }
 
-func (s *implStoreServiceWatchStream) Send(item watch.ChangeBatch) error {
-	return s.serverCall.Send(item)
+func (s *implStoreServiceWatchStream) SendStream() interface {
+	// Send places the item onto the output stream, blocking if there is no buffer
+	// space available.  If the client has canceled, an error is returned.
+	Send(item watch.ChangeBatch) error
+} {
+	return &s.writer
 }
 
-// StorePutMutationsStream is the interface for streaming responses of the method
+// StorePutMutationsCall is the interface for call object of the method
 // PutMutations in the service interface Store.
-type StorePutMutationsStream interface {
+type StorePutMutationsCall interface {
 
-	// Send places the item onto the output stream, blocking if there is no
-	// buffer space available.  Calls to Send after having called CloseSend
-	// or Cancel will fail.  Any blocked Send calls will be unblocked upon
-	// calling Cancel.
-	Send(item Mutation) error
+	// SendStream returns the send portion of the stream
+	SendStream() interface {
+		// Send places the item onto the output stream, blocking if there is no
+		// buffer space available.  Calls to Send after having called Close
+		// or Cancel will fail.  Any blocked Send calls will be unblocked upon
+		// calling Cancel.
+		Send(item Mutation) error
 
-	// CloseSend indicates to the server that no more items will be sent;
-	// server Recv calls will receive io.EOF after all sent items.  This is
-	// an optional call - it's used by streaming clients that need the
-	// server to receive the io.EOF terminator before the client calls
-	// Finish (for example, if the client needs to continue receiving items
-	// from the server after having finished sending).
-	// Calls to CloseSend after having called Cancel will fail.
-	// Like Send, CloseSend blocks when there's no buffer space available.
-	CloseSend() error
+		// Close indicates to the server that no more items will be sent;
+		// server Recv calls will receive io.EOF after all sent items.  This is
+		// an optional call - it's used by streaming clients that need the
+		// server to receive the io.EOF terminator before the client calls
+		// Finish (for example, if the client needs to continue receiving items
+		// from the server after having finished sending).
+		// Calls to Close after having called Cancel will fail.
+		// Like Send, Close blocks when there's no buffer space available.
+		Close() error
+	}
 
-	// Finish performs the equivalent of CloseSend, then blocks until the server
+	// Finish performs the equivalent of SendStream().Close, then blocks until the server
 	// is done, and returns the positional return values for call.
-	//
 	// If Cancel has been called, Finish will return immediately; the output of
 	// Finish could either be an error signalling cancelation, or the correct
 	// positional return values from the server depending on the timing of the
 	// call.
 	//
 	// Calling Finish is mandatory for releasing stream resources, unless Cancel
-	// has been called or any of the other methods return a non-EOF error.
+	// has been called or any of the other methods return an error.
 	// Finish should be called at most once.
 	Finish() (err error)
 
@@ -220,34 +252,95 @@ type StorePutMutationsStream interface {
 	Cancel()
 }
 
-// Implementation of the StorePutMutationsStream interface that is not exported.
-type implStorePutMutationsStream struct {
+type implStorePutMutationsStreamSender struct {
 	clientCall _gen_ipc.Call
 }
 
-func (c *implStorePutMutationsStream) Send(item Mutation) error {
+func (c *implStorePutMutationsStreamSender) Send(item Mutation) error {
 	return c.clientCall.Send(item)
 }
 
-func (c *implStorePutMutationsStream) CloseSend() error {
+func (c *implStorePutMutationsStreamSender) Close() error {
 	return c.clientCall.CloseSend()
 }
 
-func (c *implStorePutMutationsStream) Finish() (err error) {
+// Implementation of the StorePutMutationsCall interface that is not exported.
+type implStorePutMutationsCall struct {
+	clientCall  _gen_ipc.Call
+	writeStream implStorePutMutationsStreamSender
+}
+
+func (c *implStorePutMutationsCall) SendStream() interface {
+	Send(item Mutation) error
+	Close() error
+} {
+	return &c.writeStream
+}
+
+func (c *implStorePutMutationsCall) Finish() (err error) {
 	if ierr := c.clientCall.Finish(&err); ierr != nil {
 		err = ierr
 	}
 	return
 }
 
-func (c *implStorePutMutationsStream) Cancel() {
+func (c *implStorePutMutationsCall) Cancel() {
 	c.clientCall.Cancel()
+}
+
+type implStoreServicePutMutationsStreamIterator struct {
+	serverCall _gen_ipc.ServerCall
+	val        Mutation
+	err        error
+}
+
+func (s *implStoreServicePutMutationsStreamIterator) Advance() bool {
+	s.err = s.serverCall.Recv(&s.val)
+	return s.err == nil
+}
+
+func (s *implStoreServicePutMutationsStreamIterator) Value() Mutation {
+	return s.val
+}
+
+func (s *implStoreServicePutMutationsStreamIterator) Err() error {
+	if s.err == _gen_io.EOF {
+		return nil
+	}
+	return s.err
 }
 
 // StoreServicePutMutationsStream is the interface for streaming responses of the method
 // PutMutations in the service interface Store.
 type StoreServicePutMutationsStream interface {
+	// RecvStream returns the recv portion of the stream
+	RecvStream() interface {
+		// Advance stages an element so the client can retrieve it
+		// with Value.  Advance returns true iff there is an
+		// element to retrieve.  The client must call Advance before
+		// calling Value.  The client must call Cancel if it does
+		// not iterate through all elements (i.e. until Advance
+		// returns false).  Advance may block if an element is not
+		// immediately available.
+		Advance() bool
 
+		// Value returns the element that was staged by Advance.
+		// Value may panic if Advance returned false or was not
+		// called at all.  Value does not block.
+		Value() Mutation
+
+		// Err returns a non-nil error iff the stream encountered
+		// any errors.  Err does not block.
+		Err() error
+	}
+}
+
+// Implementation of the StoreServicePutMutationsStream interface that is not exported.
+type implStoreServicePutMutationsStream struct {
+	reader implStoreServicePutMutationsStreamIterator
+}
+
+func (s *implStoreServicePutMutationsStream) RecvStream() interface {
 	// Advance stages an element so the client can retrieve it
 	// with Value.  Advance returns true iff there is an
 	// element to retrieve.  The client must call Advance before
@@ -260,40 +353,13 @@ type StoreServicePutMutationsStream interface {
 	// Value returns the element that was staged by Advance.
 	// Value may panic if Advance returned false or was not
 	// called at all.  Value does not block.
-	//
-	// In general, Value is undefined if the underlying collection
-	// of elements changes while iteration is in progress.  If
-	// <DataProvider> supports concurrent modification, it should
-	// document its behavior.
 	Value() Mutation
 
 	// Err returns a non-nil error iff the stream encountered
 	// any errors.  Err does not block.
 	Err() error
-}
-
-// Implementation of the StoreServicePutMutationsStream interface that is not exported.
-type implStoreServicePutMutationsStream struct {
-	serverCall _gen_ipc.ServerCall
-	val        Mutation
-	err        error
-}
-
-func (s *implStoreServicePutMutationsStream) Advance() bool {
-	s.val = Mutation{}
-	s.err = s.serverCall.Recv(&s.val)
-	return s.err == nil
-}
-
-func (s *implStoreServicePutMutationsStream) Value() Mutation {
-	return s.val
-}
-
-func (s *implStoreServicePutMutationsStream) Err() error {
-	if s.err == _gen_io.EOF {
-		return nil
-	}
-	return s.err
+} {
+	return &s.reader
 }
 
 // BindStore returns the client stub implementing the Store
@@ -337,21 +403,21 @@ type clientStubStore struct {
 	name   string
 }
 
-func (__gen_c *clientStubStore) Watch(ctx _gen_context.T, Req Request, opts ..._gen_ipc.CallOpt) (reply StoreWatchStream, err error) {
+func (__gen_c *clientStubStore) Watch(ctx _gen_context.T, Req Request, opts ..._gen_ipc.CallOpt) (reply StoreWatchCall, err error) {
 	var call _gen_ipc.Call
 	if call, err = __gen_c.client.StartCall(ctx, __gen_c.name, "Watch", []interface{}{Req}, opts...); err != nil {
 		return
 	}
-	reply = &implStoreWatchStream{clientCall: call}
+	reply = &implStoreWatchCall{clientCall: call, readStream: implStoreWatchStreamIterator{clientCall: call}}
 	return
 }
 
-func (__gen_c *clientStubStore) PutMutations(ctx _gen_context.T, opts ..._gen_ipc.CallOpt) (reply StorePutMutationsStream, err error) {
+func (__gen_c *clientStubStore) PutMutations(ctx _gen_context.T, opts ..._gen_ipc.CallOpt) (reply StorePutMutationsCall, err error) {
 	var call _gen_ipc.Call
 	if call, err = __gen_c.client.StartCall(ctx, __gen_c.name, "PutMutations", nil, opts...); err != nil {
 		return
 	}
-	reply = &implStorePutMutationsStream{clientCall: call}
+	reply = &implStorePutMutationsCall{clientCall: call, writeStream: implStorePutMutationsStreamSender{clientCall: call}}
 	return
 }
 
@@ -496,13 +562,13 @@ func (__gen_s *ServerStubStore) UnresolveStep(call _gen_ipc.ServerCall) (reply [
 }
 
 func (__gen_s *ServerStubStore) Watch(call _gen_ipc.ServerCall, Req Request) (err error) {
-	stream := &implStoreServiceWatchStream{serverCall: call}
+	stream := &implStoreServiceWatchStream{writer: implStoreServiceWatchStreamSender{serverCall: call}}
 	err = __gen_s.service.Watch(call, Req, stream)
 	return
 }
 
 func (__gen_s *ServerStubStore) PutMutations(call _gen_ipc.ServerCall) (err error) {
-	stream := &implStoreServicePutMutationsStream{serverCall: call}
+	stream := &implStoreServicePutMutationsStream{reader: implStoreServicePutMutationsStreamIterator{serverCall: call}}
 	err = __gen_s.service.PutMutations(call, stream)
 	return
 }

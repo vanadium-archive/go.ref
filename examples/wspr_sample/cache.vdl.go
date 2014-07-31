@@ -68,7 +68,7 @@ type Cache_ExcludingUniversal interface {
 	// Size returns the total number of entries in the cache.
 	Size(ctx _gen_context.T, opts ..._gen_ipc.CallOpt) (reply int64, err error)
 	// MultiGet sets up a stream that allows fetching multiple keys.
-	MultiGet(ctx _gen_context.T, opts ..._gen_ipc.CallOpt) (reply CacheMultiGetStream, err error)
+	MultiGet(ctx _gen_context.T, opts ..._gen_ipc.CallOpt) (reply CacheMultiGetCall, err error)
 }
 type Cache interface {
 	_gen_ipc.UniversalServiceMethods
@@ -120,54 +120,58 @@ type CacheService interface {
 	MultiGet(context _gen_ipc.ServerContext, stream CacheServiceMultiGetStream) (err error)
 }
 
-// CacheMultiGetStream is the interface for streaming responses of the method
+// CacheMultiGetCall is the interface for call object of the method
 // MultiGet in the service interface Cache.
-type CacheMultiGetStream interface {
+type CacheMultiGetCall interface {
+	// RecvStream returns the recv portion of the stream
+	RecvStream() interface {
+		// Advance stages an element so the client can retrieve it
+		// with Value.  Advance returns true iff there is an
+		// element to retrieve.  The client must call Advance before
+		// calling Value.  The client must call Cancel if it does
+		// not iterate through all elements (i.e. until Advance
+		// returns false).  Advance may block if an element is not
+		// immediately available.
+		Advance() bool
 
-	// Send places the item onto the output stream, blocking if there is no
-	// buffer space available.  Calls to Send after having called CloseSend
-	// or Cancel will fail.  Any blocked Send calls will be unblocked upon
-	// calling Cancel.
-	Send(item string) error
+		// Value returns the element that was staged by Advance.
+		// Value may panic if Advance returned false or was not
+		// called at all.  Value does not block.
+		Value() _gen_vdlutil.Any
 
-	// CloseSend indicates to the server that no more items will be sent;
-	// server Recv calls will receive io.EOF after all sent items.  This is
-	// an optional call - it's used by streaming clients that need the
-	// server to receive the io.EOF terminator before the client calls
-	// Finish (for example, if the client needs to continue receiving items
-	// from the server after having finished sending).
-	// Calls to CloseSend after having called Cancel will fail.
-	// Like Send, CloseSend blocks when there's no buffer space available.
-	CloseSend() error
+		// Err returns a non-nil error iff the stream encountered
+		// any errors.  Err does not block.
+		Err() error
+	}
 
-	// Advance stages an element so the client can retrieve it
-	// with Value.  Advance returns true iff there is an
-	// element to retrieve.  The client must call Advance before
-	// calling Value.  The client must call Cancel if it does
-	// not iterate through all elements (i.e. until Advance
-	// returns false).  Advance may block if an element is not
-	// immediately available.
-	Advance() bool
+	// SendStream returns the send portion of the stream
+	SendStream() interface {
+		// Send places the item onto the output stream, blocking if there is no
+		// buffer space available.  Calls to Send after having called Close
+		// or Cancel will fail.  Any blocked Send calls will be unblocked upon
+		// calling Cancel.
+		Send(item string) error
 
-	// Value returns the element that was staged by Advance.
-	// Value may panic if Advance returned false or was not
-	// called at all.  Value does not block.
-	Value() _gen_vdlutil.Any
+		// Close indicates to the server that no more items will be sent;
+		// server Recv calls will receive io.EOF after all sent items.  This is
+		// an optional call - it's used by streaming clients that need the
+		// server to receive the io.EOF terminator before the client calls
+		// Finish (for example, if the client needs to continue receiving items
+		// from the server after having finished sending).
+		// Calls to Close after having called Cancel will fail.
+		// Like Send, Close blocks when there's no buffer space available.
+		Close() error
+	}
 
-	// Err returns a non-nil error iff the stream encountered
-	// any errors.  Err does not block.
-	Err() error
-
-	// Finish performs the equivalent of CloseSend, then blocks until the server
+	// Finish performs the equivalent of SendStream().Close, then blocks until the server
 	// is done, and returns the positional return values for call.
-	//
 	// If Cancel has been called, Finish will return immediately; the output of
 	// Finish could either be an error signalling cancelation, or the correct
 	// positional return values from the server depending on the timing of the
 	// call.
 	//
 	// Calling Finish is mandatory for releasing stream resources, unless Cancel
-	// has been called or any of the other methods return a non-EOF error.
+	// has been called or any of the other methods return an error.
 	// Finish should be called at most once.
 	Finish() (err error)
 
@@ -177,56 +181,150 @@ type CacheMultiGetStream interface {
 	Cancel()
 }
 
-// Implementation of the CacheMultiGetStream interface that is not exported.
-type implCacheMultiGetStream struct {
+type implCacheMultiGetStreamSender struct {
+	clientCall _gen_ipc.Call
+}
+
+func (c *implCacheMultiGetStreamSender) Send(item string) error {
+	return c.clientCall.Send(item)
+}
+
+func (c *implCacheMultiGetStreamSender) Close() error {
+	return c.clientCall.CloseSend()
+}
+
+type implCacheMultiGetStreamIterator struct {
 	clientCall _gen_ipc.Call
 	val        _gen_vdlutil.Any
 	err        error
 }
 
-func (c *implCacheMultiGetStream) Send(item string) error {
-	return c.clientCall.Send(item)
-}
-
-func (c *implCacheMultiGetStream) CloseSend() error {
-	return c.clientCall.CloseSend()
-}
-
-func (c *implCacheMultiGetStream) Advance() bool {
+func (c *implCacheMultiGetStreamIterator) Advance() bool {
 	c.val = nil
 	c.err = c.clientCall.Recv(&c.val)
 	return c.err == nil
 }
 
-func (c *implCacheMultiGetStream) Value() _gen_vdlutil.Any {
+func (c *implCacheMultiGetStreamIterator) Value() _gen_vdlutil.Any {
 	return c.val
 }
 
-func (c *implCacheMultiGetStream) Err() error {
+func (c *implCacheMultiGetStreamIterator) Err() error {
 	if c.err == _gen_io.EOF {
 		return nil
 	}
 	return c.err
 }
 
-func (c *implCacheMultiGetStream) Finish() (err error) {
+// Implementation of the CacheMultiGetCall interface that is not exported.
+type implCacheMultiGetCall struct {
+	clientCall  _gen_ipc.Call
+	writeStream implCacheMultiGetStreamSender
+	readStream  implCacheMultiGetStreamIterator
+}
+
+func (c *implCacheMultiGetCall) SendStream() interface {
+	Send(item string) error
+	Close() error
+} {
+	return &c.writeStream
+}
+
+func (c *implCacheMultiGetCall) RecvStream() interface {
+	Advance() bool
+	Value() _gen_vdlutil.Any
+	Err() error
+} {
+	return &c.readStream
+}
+
+func (c *implCacheMultiGetCall) Finish() (err error) {
 	if ierr := c.clientCall.Finish(&err); ierr != nil {
 		err = ierr
 	}
 	return
 }
 
-func (c *implCacheMultiGetStream) Cancel() {
+func (c *implCacheMultiGetCall) Cancel() {
 	c.clientCall.Cancel()
+}
+
+type implCacheServiceMultiGetStreamSender struct {
+	serverCall _gen_ipc.ServerCall
+}
+
+func (s *implCacheServiceMultiGetStreamSender) Send(item _gen_vdlutil.Any) error {
+	return s.serverCall.Send(item)
+}
+
+type implCacheServiceMultiGetStreamIterator struct {
+	serverCall _gen_ipc.ServerCall
+	val        string
+	err        error
+}
+
+func (s *implCacheServiceMultiGetStreamIterator) Advance() bool {
+	s.err = s.serverCall.Recv(&s.val)
+	return s.err == nil
+}
+
+func (s *implCacheServiceMultiGetStreamIterator) Value() string {
+	return s.val
+}
+
+func (s *implCacheServiceMultiGetStreamIterator) Err() error {
+	if s.err == _gen_io.EOF {
+		return nil
+	}
+	return s.err
 }
 
 // CacheServiceMultiGetStream is the interface for streaming responses of the method
 // MultiGet in the service interface Cache.
 type CacheServiceMultiGetStream interface {
+	// SendStream returns the send portion of the stream.
+	SendStream() interface {
+		// Send places the item onto the output stream, blocking if there is no buffer
+		// space available.  If the client has canceled, an error is returned.
+		Send(item _gen_vdlutil.Any) error
+	}
+	// RecvStream returns the recv portion of the stream
+	RecvStream() interface {
+		// Advance stages an element so the client can retrieve it
+		// with Value.  Advance returns true iff there is an
+		// element to retrieve.  The client must call Advance before
+		// calling Value.  The client must call Cancel if it does
+		// not iterate through all elements (i.e. until Advance
+		// returns false).  Advance may block if an element is not
+		// immediately available.
+		Advance() bool
+
+		// Value returns the element that was staged by Advance.
+		// Value may panic if Advance returned false or was not
+		// called at all.  Value does not block.
+		Value() string
+
+		// Err returns a non-nil error iff the stream encountered
+		// any errors.  Err does not block.
+		Err() error
+	}
+}
+
+// Implementation of the CacheServiceMultiGetStream interface that is not exported.
+type implCacheServiceMultiGetStream struct {
+	writer implCacheServiceMultiGetStreamSender
+	reader implCacheServiceMultiGetStreamIterator
+}
+
+func (s *implCacheServiceMultiGetStream) SendStream() interface {
 	// Send places the item onto the output stream, blocking if there is no buffer
 	// space available.  If the client has canceled, an error is returned.
 	Send(item _gen_vdlutil.Any) error
+} {
+	return &s.writer
+}
 
+func (s *implCacheServiceMultiGetStream) RecvStream() interface {
 	// Advance stages an element so the client can retrieve it
 	// with Value.  Advance returns true iff there is an
 	// element to retrieve.  The client must call Advance before
@@ -239,43 +337,13 @@ type CacheServiceMultiGetStream interface {
 	// Value returns the element that was staged by Advance.
 	// Value may panic if Advance returned false or was not
 	// called at all.  Value does not block.
-	//
-	// In general, Value is undefined if the underlying collection
-	// of elements changes while iteration is in progress.  If
-	// <DataProvider> supports concurrent modification, it should
-	// document its behavior.
 	Value() string
 
 	// Err returns a non-nil error iff the stream encountered
 	// any errors.  Err does not block.
 	Err() error
-}
-
-// Implementation of the CacheServiceMultiGetStream interface that is not exported.
-type implCacheServiceMultiGetStream struct {
-	serverCall _gen_ipc.ServerCall
-	val        string
-	err        error
-}
-
-func (s *implCacheServiceMultiGetStream) Send(item _gen_vdlutil.Any) error {
-	return s.serverCall.Send(item)
-}
-
-func (s *implCacheServiceMultiGetStream) Advance() bool {
-	s.err = s.serverCall.Recv(&s.val)
-	return s.err == nil
-}
-
-func (s *implCacheServiceMultiGetStream) Value() string {
-	return s.val
-}
-
-func (s *implCacheServiceMultiGetStream) Err() error {
-	if s.err == _gen_io.EOF {
-		return nil
-	}
-	return s.err
+} {
+	return &s.reader
 }
 
 // BindCache returns the client stub implementing the Cache
@@ -506,12 +574,12 @@ func (__gen_c *clientStubCache) Size(ctx _gen_context.T, opts ..._gen_ipc.CallOp
 	return
 }
 
-func (__gen_c *clientStubCache) MultiGet(ctx _gen_context.T, opts ..._gen_ipc.CallOpt) (reply CacheMultiGetStream, err error) {
+func (__gen_c *clientStubCache) MultiGet(ctx _gen_context.T, opts ..._gen_ipc.CallOpt) (reply CacheMultiGetCall, err error) {
 	var call _gen_ipc.Call
 	if call, err = __gen_c.client.StartCall(ctx, __gen_c.name, "MultiGet", nil, opts...); err != nil {
 		return
 	}
-	reply = &implCacheMultiGetStream{clientCall: call}
+	reply = &implCacheMultiGetCall{clientCall: call, writeStream: implCacheMultiGetStreamSender{clientCall: call}, readStream: implCacheMultiGetStreamIterator{clientCall: call}}
 	return
 }
 
@@ -874,7 +942,7 @@ func (__gen_s *ServerStubCache) Size(call _gen_ipc.ServerCall) (reply int64, err
 }
 
 func (__gen_s *ServerStubCache) MultiGet(call _gen_ipc.ServerCall) (err error) {
-	stream := &implCacheServiceMultiGetStream{serverCall: call}
+	stream := &implCacheServiceMultiGetStream{reader: implCacheServiceMultiGetStreamIterator{serverCall: call}, writer: implCacheServiceMultiGetStreamSender{serverCall: call}}
 	err = __gen_s.service.MultiGet(call, stream)
 	return
 }

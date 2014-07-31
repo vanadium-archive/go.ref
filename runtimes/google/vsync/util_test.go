@@ -58,6 +58,14 @@ func (ds *dummyStream) Value() LogRec {
 	return ds.value
 }
 
+func (ds *dummyStream) RecvStream() interface {
+	Advance() bool
+	Value() LogRec
+	Err() error
+} {
+	return ds
+}
+
 func (*dummyStream) Err() error { return nil }
 
 func (ds *dummyStream) Finish() (GenVector, error) {

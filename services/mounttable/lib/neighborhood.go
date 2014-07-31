@@ -240,13 +240,14 @@ func (ns *neighborhoodService) Glob(_ ipc.ServerContext, pattern string, reply m
 	// return all neighbors that match the first element of the pattern.
 	nh := ns.nh
 
+	sender := reply.SendStream()
 	switch len(ns.elems) {
 	case 0:
 		for k, n := range nh.neighbors() {
 			if ok, _ := g.MatchInitialSegment(k); !ok {
 				continue
 			}
-			if err := reply.Send(mounttable.MountEntry{Name: k, Servers: n}); err != nil {
+			if err := sender.Send(mounttable.MountEntry{Name: k, Servers: n}); err != nil {
 				return err
 			}
 		}
@@ -256,7 +257,7 @@ func (ns *neighborhoodService) Glob(_ ipc.ServerContext, pattern string, reply m
 		if neighbor == nil {
 			return naming.ErrNoSuchName
 		}
-		return reply.Send(mounttable.MountEntry{Name: "", Servers: neighbor})
+		return sender.Send(mounttable.MountEntry{Name: "", Servers: neighbor})
 	default:
 		return naming.ErrNoSuchName
 	}

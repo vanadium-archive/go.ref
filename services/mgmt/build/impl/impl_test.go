@@ -56,23 +56,25 @@ func invokeBuild(t *testing.T, client build.Build, files []build.File) ([]byte, 
 		t.Errorf("Build(%v, %v) failed: %v", err, arch, opsys)
 		return nil, nil, err
 	}
+	sender := stream.SendStream()
 	for _, file := range files {
-		if err := stream.Send(file); err != nil {
+		if err := sender.Send(file); err != nil {
 			t.Logf("Send() failed: %v", err)
 			stream.Cancel()
 			return nil, nil, err
 		}
 	}
-	if err := stream.CloseSend(); err != nil {
-		t.Logf("CloseSend() failed: %v", err)
+	if err := sender.Close(); err != nil {
+		t.Logf("Close() failed: %v", err)
 		stream.Cancel()
 		return nil, nil, err
 	}
 	bins := make([]build.File, 0)
-	for stream.Advance() {
-		bins = append(bins, stream.Value())
+	rStream := stream.RecvStream()
+	for rStream.Advance() {
+		bins = append(bins, rStream.Value())
 	}
-	if err := stream.Err(); err != nil {
+	if err := rStream.Err(); err != nil {
 		t.Logf("Advance() failed: %v", err)
 		return nil, nil, err
 	}

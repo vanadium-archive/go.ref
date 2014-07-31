@@ -51,7 +51,7 @@ func newWatcher(syncd *syncd) *syncWatcher {
 // its goroutines to exit by closing its internal channel.  This in turn unblocks the watcher
 // enabling it to exit.  If the RPC fails, the watcher notifies the canceler to exit by
 // closing a private "done" channel between them.
-func (w *syncWatcher) watchStreamCanceler(stream watch.GlobWatcherWatchGlobStream, done chan struct{}) {
+func (w *syncWatcher) watchStreamCanceler(stream watch.GlobWatcherWatchGlobCall, done chan struct{}) {
 	select {
 	case <-w.syncd.closed:
 		vlog.VI(1).Info("watchStreamCanceler: Syncd channel closed, cancel stream and exit")
@@ -103,7 +103,7 @@ func (w *syncWatcher) watchStore() {
 
 // getWatchStream() returns a Watch API stream and handles retries if the Watch() call fails.
 // If the stream is nil, it means Syncd is exiting cleanly and the caller should terminate.
-func (w *syncWatcher) getWatchStream(ctx context.T) watch.GlobWatcherWatchGlobStream {
+func (w *syncWatcher) getWatchStream(ctx context.T) watch.GlobWatcherWatchGlobCall {
 	for {
 		req := raw.Request{}
 		if resmark := w.syncd.devtab.head.Resmark; resmark != nil {
@@ -129,8 +129,9 @@ func (w *syncWatcher) getWatchStream(ctx context.T) watch.GlobWatcherWatchGlobSt
 // Ideally this call does not return as the stream should be un-ending (like "tail -f").
 // If the stream is closed, distinguish between the cases of end-of-stream vs Syncd canceling
 // the stream to trigger a clean exit.
-func (w *syncWatcher) processWatchStream(stream watch.GlobWatcherWatchGlobStream) {
+func (w *syncWatcher) processWatchStream(call watch.GlobWatcherWatchGlobCall) {
 	w.curTx = NoTxID
+	stream := call.RecvStream()
 	for stream.Advance() {
 		changes := stream.Value()
 

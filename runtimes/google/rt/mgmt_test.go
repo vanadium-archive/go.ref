@@ -303,11 +303,12 @@ func TestRemoteStop(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Got error: %v", err)
 	}
+	rStream := stream.RecvStream()
 	expectTask := func(progress, goal int32) {
-		if !stream.Advance() {
-			t.Fatalf("unexpected streaming error: %q", stream.Err())
+		if !rStream.Advance() {
+			t.Fatalf("unexpected streaming error: %q", rStream.Err())
 		}
-		task := stream.Value()
+		task := rStream.Value()
 		if task.Progress != progress || task.Goal != goal {
 			t.Errorf("Got (%d, %d), want (%d, %d)", task.Progress, task.Goal, progress, goal)
 		}
@@ -315,8 +316,8 @@ func TestRemoteStop(t *testing.T) {
 	expectTask(0, 10)
 	expectTask(2, 10)
 	expectTask(7, 10)
-	if stream.Advance() || stream.Err() != nil {
-		t.Errorf("Expected EOF, got (%v, %v) instead", stream.Value(), stream.Err())
+	if rStream.Advance() || rStream.Err() != nil {
+		t.Errorf("Expected EOF, got (%v, %v) instead", rStream.Value(), rStream.Err())
 	}
 	if err := stream.Finish(); err != nil {
 		t.Errorf("Got error %v", err)

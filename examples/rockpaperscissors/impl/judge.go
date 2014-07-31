@@ -25,11 +25,15 @@ type Judge struct {
 	gamesRun common.Counter
 }
 
+type sendStream interface {
+	Send(item rps.JudgeAction) error
+}
+
 type gameInfo struct {
 	id         rps.GameID
 	startTime  time.Time
 	score      rps.ScoreCard
-	streams    []rps.JudgeServicePlayStream
+	streams    []sendStream
 	playerChan chan playerInput
 	scoreChan  chan scoreData
 }
@@ -114,8 +118,9 @@ func (j *Judge) play(name string, id rps.GameID, stream rps.JudgeServicePlayStre
 	done := make(chan struct{}, 1)
 	defer func() { done <- struct{}{} }()
 	go func() {
-		for stream.Advance() {
-			action := stream.Value()
+		rStream := stream.RecvStream()
+		for rStream.Advance() {
+			action := rStream.Value()
 
 			select {
 			case c <- playerInput{player: playerNum, action: action}:
@@ -129,7 +134,7 @@ func (j *Judge) play(name string, id rps.GameID, stream rps.JudgeServicePlayStre
 		}
 	}()
 
-	if err := stream.Send(rps.JudgeAction{PlayerNum: int32(playerNum)}); err != nil {
+	if err := stream.SendStream().Send(rps.JudgeAction{PlayerNum: int32(playerNum)}); err != nil {
 		return nilResult, err
 	}
 	// When the second player connects, we start the game.
@@ -268,7 +273,7 @@ func (j *Judge) addPlayer(name string, id rps.GameID, stream rps.JudgeServicePla
 		return 0, errTooManyPlayers
 	}
 	info.score.Players = append(info.score.Players, name)
-	info.streams = append(info.streams, stream)
+	info.streams = append(info.streams, stream.SendStream())
 	return len(info.streams), nil
 }
 

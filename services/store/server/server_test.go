@@ -346,12 +346,13 @@ func TestWatch(t *testing.T) {
 	req := raw.Request{}
 	ws := watchtesting.WatchRaw(rootPublicID, s.Watch, req)
 
+	rStream := ws.RecvStream()
 	// Check that watch detects the changes in the first transaction.
 	{
-		if !ws.Advance() {
-			t.Error("Advance() failed: %v", ws.Err())
+		if !rStream.Advance() {
+			t.Error("Advance() failed: %v", rStream.Err())
 		}
-		cb := ws.Value()
+		cb := rStream.Value()
 		changes := cb.Changes
 		change := changes[0]
 		if change.Continued {
@@ -379,10 +380,10 @@ func TestWatch(t *testing.T) {
 
 	// Check that watch detects the changes in the second transaction.
 	{
-		if !ws.Advance() {
-			t.Error("Advance() failed: %v", ws.Err())
+		if !rStream.Advance() {
+			t.Error("Advance() failed: %v", rStream.Err())
 		}
-		cb := ws.Value()
+		cb := rStream.Value()
 		changes := cb.Changes
 		change := changes[0]
 		if !change.Continued {
@@ -425,12 +426,14 @@ func TestWatchGlob(t *testing.T) {
 	ws1 := watchtesting.WatchGlob(rootPublicID, o1.WatchGlob, req)
 	ws2 := watchtesting.WatchGlob(rootPublicID, o2.WatchGlob, req)
 
+	rStream1 := ws1.RecvStream()
+	rStream2 := ws2.RecvStream()
 	// The watch on / should send a change on /.
 	{
-		if !ws1.Advance() {
-			t.Error("Advance() failed: %v", ws1.Err())
+		if !rStream1.Advance() {
+			t.Error("Advance() failed: %v", rStream1.Err())
 		}
-		cb := ws1.Value()
+		cb := rStream1.Value()
 		changes := cb.Changes
 		change := changes[0]
 		if change.Continued {
@@ -459,10 +462,10 @@ func TestWatchGlob(t *testing.T) {
 
 	// The watch on / should send changes on / and /a.
 	{
-		if !ws1.Advance() {
-			t.Error("Advance() failed: %v", ws1.Err())
+		if !rStream1.Advance() {
+			t.Error("Advance() failed: %v", rStream1.Err())
 		}
-		cb := ws1.Value()
+		cb := rStream1.Value()
 		changes := cb.Changes
 		change := changes[0]
 		if !change.Continued {
@@ -477,10 +480,10 @@ func TestWatchGlob(t *testing.T) {
 	}
 	// The watch on /a should send a change on /a.
 	{
-		if !ws2.Advance() {
-			t.Error("Advance() failed: %v", ws2.Err())
+		if !rStream2.Advance() {
+			t.Error("Advance() failed: %v", rStream2.Err())
 		}
-		cb := ws2.Value()
+		cb := rStream2.Value()
 		changes := cb.Changes
 		change := changes[0]
 		if change.Continued {
@@ -515,12 +518,13 @@ func TestGarbageCollectionOnCommit(t *testing.T) {
 	req := raw.Request{}
 	ws := watchtesting.WatchRaw(rootPublicID, s.Watch, req)
 
+	rStream := ws.RecvStream()
 	// Check that watch detects the changes in the first transaction.
 	{
-		if !ws.Advance() {
-			t.Error("Advance() failed: %v", ws.Err())
+		if !rStream.Advance() {
+			t.Error("Advance() failed: %v", rStream.Err())
 		}
-		cb := ws.Value()
+		cb := rStream.Value()
 		changes := cb.Changes
 		change := changes[0]
 		if change.Continued {
@@ -548,10 +552,10 @@ func TestGarbageCollectionOnCommit(t *testing.T) {
 
 	// Check that watch detects the changes in the second transaction.
 	{
-		if !ws.Advance() {
-			t.Error("Advance() failed: %v", ws.Err())
+		if !rStream.Advance() {
+			t.Error("Advance() failed: %v", rStream.Err())
 		}
-		cb := ws.Value()
+		cb := rStream.Value()
 		changes := cb.Changes
 		change := changes[0]
 		if !change.Continued {
@@ -578,10 +582,10 @@ func TestGarbageCollectionOnCommit(t *testing.T) {
 
 	// Check that watch detects the changes in the third transaction.
 	{
-		if !ws.Advance() {
-			t.Error("Advance() failed: %v", ws.Err())
+		if !rStream.Advance() {
+			t.Error("Advance() failed: %v", rStream.Err())
 		}
-		cb := ws.Value()
+		cb := rStream.Value()
 		changes := cb.Changes
 		change := changes[0]
 		if change.Continued {
@@ -592,10 +596,10 @@ func TestGarbageCollectionOnCommit(t *testing.T) {
 
 	// Check that watch detects the garbage collection of /a.
 	{
-		if !ws.Advance() {
-			t.Error("Advance() failed: %v", ws.Err())
+		if !rStream.Advance() {
+			t.Error("Advance() failed: %v", rStream.Err())
 		}
-		cb := ws.Value()
+		cb := rStream.Value()
 		changes := cb.Changes
 		change := changes[0]
 		if change.Continued {

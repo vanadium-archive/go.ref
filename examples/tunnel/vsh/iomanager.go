@@ -12,7 +12,7 @@ import (
 	"veyron2/vlog"
 )
 
-func runIOManager(stdin io.Reader, stdout, stderr io.Writer, stream tunnel.TunnelShellStream) error {
+func runIOManager(stdin io.Reader, stdout, stderr io.Writer, stream tunnel.TunnelShellCall) error {
 	m := ioManager{stdin: stdin, stdout: stdout, stderr: stderr, stream: stream}
 	return m.run()
 }
@@ -22,7 +22,7 @@ func runIOManager(stdin io.Reader, stdout, stderr io.Writer, stream tunnel.Tunne
 type ioManager struct {
 	stdin          io.Reader
 	stdout, stderr io.Writer
-	stream         tunnel.TunnelShellStream
+	stream         tunnel.TunnelShellCall
 
 	// done receives any error from chan2stream, user2outchan, or
 	// stream2user.
@@ -58,8 +58,9 @@ func (m *ioManager) run() error {
 
 // chan2stream receives ClientShellPacket from outchan and sends it to stream.
 func (m *ioManager) chan2stream() {
+	sender := m.stream.SendStream()
 	for packet := range m.outchan {
-		if err := m.stream.Send(packet); err != nil {
+		if err := sender.Send(packet); err != nil {
 			m.done <- err
 			return
 		}
@@ -107,8 +108,9 @@ func (m *ioManager) user2outchan() {
 
 // stream2user reads data from the stream and sends it to either stdout or stderr.
 func (m *ioManager) stream2user() {
-	for m.stream.Advance() {
-		packet := m.stream.Value()
+	rStream := m.stream.RecvStream()
+	for rStream.Advance() {
+		packet := rStream.Value()
 
 		if len(packet.Stdout) > 0 {
 			if n, err := m.stdout.Write(packet.Stdout); n != len(packet.Stdout) || err != nil {
@@ -123,7 +125,7 @@ func (m *ioManager) stream2user() {
 			}
 		}
 	}
-	err := m.stream.Err()
+	err := rStream.Err()
 	if err == nil {
 		err = io.EOF
 	}

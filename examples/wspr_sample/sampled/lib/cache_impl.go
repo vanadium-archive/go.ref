@@ -181,14 +181,16 @@ func (c *cacheImpl) Size(ipc.ServerContext) (int64, error) {
 // keys in the stream is not in the map or if there was an issue reading
 // the stream.
 func (c *cacheImpl) MultiGet(_ ipc.ServerContext, stream sample.CacheServiceMultiGetStream) error {
-	for stream.Advance() {
-		key := stream.Value()
+	rStream := stream.RecvStream()
+	sender := stream.SendStream()
+	for rStream.Advance() {
+		key := rStream.Value()
 
 		value, ok := c.cache[key]
 		if !ok {
 			return fmt.Errorf("key not found: %v", key)
 		}
-		stream.Send(value)
+		sender.Send(value)
 	}
-	return stream.Err()
+	return rStream.Err()
 }

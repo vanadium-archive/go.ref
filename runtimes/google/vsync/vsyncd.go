@@ -207,7 +207,7 @@ func (s *syncd) GetDeltas(_ ipc.ServerContext, In GenVector, ClientID DeviceID, 
 					v.devID, v.genID, i, err)
 			}
 			vlog.VI(1).Infof("Sending log record %v", rec)
-			if err := Stream.Send(*rec); err != nil {
+			if err := Stream.SendStream().Send(*rec); err != nil {
 				vlog.Errorf("GetDeltas:: Couldn't send stream err: %v", err)
 				return GenVector{}, err
 			}

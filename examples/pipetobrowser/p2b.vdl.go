@@ -24,7 +24,7 @@ const _ = _gen_wiretype.TypeIDInvalid
 // to enable embedding without method collisions.  Not to be used directly by clients.
 type Viewer_ExcludingUniversal interface {
 	// Pipe creates a bidirectional pipe between client and viewer service, returns total number of bytes received by the service after streaming ends
-	Pipe(ctx _gen_context.T, opts ..._gen_ipc.CallOpt) (reply ViewerPipeStream, err error)
+	Pipe(ctx _gen_context.T, opts ..._gen_ipc.CallOpt) (reply ViewerPipeCall, err error)
 }
 type Viewer interface {
 	_gen_ipc.UniversalServiceMethods
@@ -38,36 +38,38 @@ type ViewerService interface {
 	Pipe(context _gen_ipc.ServerContext, stream ViewerServicePipeStream) (reply _gen_vdlutil.Any, err error)
 }
 
-// ViewerPipeStream is the interface for streaming responses of the method
+// ViewerPipeCall is the interface for call object of the method
 // Pipe in the service interface Viewer.
-type ViewerPipeStream interface {
+type ViewerPipeCall interface {
 
-	// Send places the item onto the output stream, blocking if there is no
-	// buffer space available.  Calls to Send after having called CloseSend
-	// or Cancel will fail.  Any blocked Send calls will be unblocked upon
-	// calling Cancel.
-	Send(item []byte) error
+	// SendStream returns the send portion of the stream
+	SendStream() interface {
+		// Send places the item onto the output stream, blocking if there is no
+		// buffer space available.  Calls to Send after having called Close
+		// or Cancel will fail.  Any blocked Send calls will be unblocked upon
+		// calling Cancel.
+		Send(item []byte) error
 
-	// CloseSend indicates to the server that no more items will be sent;
-	// server Recv calls will receive io.EOF after all sent items.  This is
-	// an optional call - it's used by streaming clients that need the
-	// server to receive the io.EOF terminator before the client calls
-	// Finish (for example, if the client needs to continue receiving items
-	// from the server after having finished sending).
-	// Calls to CloseSend after having called Cancel will fail.
-	// Like Send, CloseSend blocks when there's no buffer space available.
-	CloseSend() error
+		// Close indicates to the server that no more items will be sent;
+		// server Recv calls will receive io.EOF after all sent items.  This is
+		// an optional call - it's used by streaming clients that need the
+		// server to receive the io.EOF terminator before the client calls
+		// Finish (for example, if the client needs to continue receiving items
+		// from the server after having finished sending).
+		// Calls to Close after having called Cancel will fail.
+		// Like Send, Close blocks when there's no buffer space available.
+		Close() error
+	}
 
-	// Finish performs the equivalent of CloseSend, then blocks until the server
+	// Finish performs the equivalent of SendStream().Close, then blocks until the server
 	// is done, and returns the positional return values for call.
-	//
 	// If Cancel has been called, Finish will return immediately; the output of
 	// Finish could either be an error signalling cancelation, or the correct
 	// positional return values from the server depending on the timing of the
 	// call.
 	//
 	// Calling Finish is mandatory for releasing stream resources, unless Cancel
-	// has been called or any of the other methods return a non-EOF error.
+	// has been called or any of the other methods return an error.
 	// Finish should be called at most once.
 	Finish() (reply _gen_vdlutil.Any, err error)
 
@@ -77,34 +79,95 @@ type ViewerPipeStream interface {
 	Cancel()
 }
 
-// Implementation of the ViewerPipeStream interface that is not exported.
-type implViewerPipeStream struct {
+type implViewerPipeStreamSender struct {
 	clientCall _gen_ipc.Call
 }
 
-func (c *implViewerPipeStream) Send(item []byte) error {
+func (c *implViewerPipeStreamSender) Send(item []byte) error {
 	return c.clientCall.Send(item)
 }
 
-func (c *implViewerPipeStream) CloseSend() error {
+func (c *implViewerPipeStreamSender) Close() error {
 	return c.clientCall.CloseSend()
 }
 
-func (c *implViewerPipeStream) Finish() (reply _gen_vdlutil.Any, err error) {
+// Implementation of the ViewerPipeCall interface that is not exported.
+type implViewerPipeCall struct {
+	clientCall  _gen_ipc.Call
+	writeStream implViewerPipeStreamSender
+}
+
+func (c *implViewerPipeCall) SendStream() interface {
+	Send(item []byte) error
+	Close() error
+} {
+	return &c.writeStream
+}
+
+func (c *implViewerPipeCall) Finish() (reply _gen_vdlutil.Any, err error) {
 	if ierr := c.clientCall.Finish(&reply, &err); ierr != nil {
 		err = ierr
 	}
 	return
 }
 
-func (c *implViewerPipeStream) Cancel() {
+func (c *implViewerPipeCall) Cancel() {
 	c.clientCall.Cancel()
+}
+
+type implViewerServicePipeStreamIterator struct {
+	serverCall _gen_ipc.ServerCall
+	val        []byte
+	err        error
+}
+
+func (s *implViewerServicePipeStreamIterator) Advance() bool {
+	s.err = s.serverCall.Recv(&s.val)
+	return s.err == nil
+}
+
+func (s *implViewerServicePipeStreamIterator) Value() []byte {
+	return s.val
+}
+
+func (s *implViewerServicePipeStreamIterator) Err() error {
+	if s.err == _gen_io.EOF {
+		return nil
+	}
+	return s.err
 }
 
 // ViewerServicePipeStream is the interface for streaming responses of the method
 // Pipe in the service interface Viewer.
 type ViewerServicePipeStream interface {
+	// RecvStream returns the recv portion of the stream
+	RecvStream() interface {
+		// Advance stages an element so the client can retrieve it
+		// with Value.  Advance returns true iff there is an
+		// element to retrieve.  The client must call Advance before
+		// calling Value.  The client must call Cancel if it does
+		// not iterate through all elements (i.e. until Advance
+		// returns false).  Advance may block if an element is not
+		// immediately available.
+		Advance() bool
 
+		// Value returns the element that was staged by Advance.
+		// Value may panic if Advance returned false or was not
+		// called at all.  Value does not block.
+		Value() []byte
+
+		// Err returns a non-nil error iff the stream encountered
+		// any errors.  Err does not block.
+		Err() error
+	}
+}
+
+// Implementation of the ViewerServicePipeStream interface that is not exported.
+type implViewerServicePipeStream struct {
+	reader implViewerServicePipeStreamIterator
+}
+
+func (s *implViewerServicePipeStream) RecvStream() interface {
 	// Advance stages an element so the client can retrieve it
 	// with Value.  Advance returns true iff there is an
 	// element to retrieve.  The client must call Advance before
@@ -117,39 +180,13 @@ type ViewerServicePipeStream interface {
 	// Value returns the element that was staged by Advance.
 	// Value may panic if Advance returned false or was not
 	// called at all.  Value does not block.
-	//
-	// In general, Value is undefined if the underlying collection
-	// of elements changes while iteration is in progress.  If
-	// <DataProvider> supports concurrent modification, it should
-	// document its behavior.
 	Value() []byte
 
 	// Err returns a non-nil error iff the stream encountered
 	// any errors.  Err does not block.
 	Err() error
-}
-
-// Implementation of the ViewerServicePipeStream interface that is not exported.
-type implViewerServicePipeStream struct {
-	serverCall _gen_ipc.ServerCall
-	val        []byte
-	err        error
-}
-
-func (s *implViewerServicePipeStream) Advance() bool {
-	s.err = s.serverCall.Recv(&s.val)
-	return s.err == nil
-}
-
-func (s *implViewerServicePipeStream) Value() []byte {
-	return s.val
-}
-
-func (s *implViewerServicePipeStream) Err() error {
-	if s.err == _gen_io.EOF {
-		return nil
-	}
-	return s.err
+} {
+	return &s.reader
 }
 
 // BindViewer returns the client stub implementing the Viewer
@@ -193,12 +230,12 @@ type clientStubViewer struct {
 	name   string
 }
 
-func (__gen_c *clientStubViewer) Pipe(ctx _gen_context.T, opts ..._gen_ipc.CallOpt) (reply ViewerPipeStream, err error) {
+func (__gen_c *clientStubViewer) Pipe(ctx _gen_context.T, opts ..._gen_ipc.CallOpt) (reply ViewerPipeCall, err error) {
 	var call _gen_ipc.Call
 	if call, err = __gen_c.client.StartCall(ctx, __gen_c.name, "Pipe", nil, opts...); err != nil {
 		return
 	}
-	reply = &implViewerPipeStream{clientCall: call}
+	reply = &implViewerPipeCall{clientCall: call, writeStream: implViewerPipeStreamSender{clientCall: call}}
 	return
 }
 
@@ -290,7 +327,7 @@ func (__gen_s *ServerStubViewer) UnresolveStep(call _gen_ipc.ServerCall) (reply 
 }
 
 func (__gen_s *ServerStubViewer) Pipe(call _gen_ipc.ServerCall) (reply _gen_vdlutil.Any, err error) {
-	stream := &implViewerServicePipeStream{serverCall: call}
+	stream := &implViewerServicePipeStream{reader: implViewerServicePipeStreamIterator{serverCall: call}}
 	reply, err = __gen_s.service.Pipe(call, stream)
 	return
 }

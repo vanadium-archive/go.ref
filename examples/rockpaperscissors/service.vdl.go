@@ -92,7 +92,7 @@ type Judge_ExcludingUniversal interface {
 	// identifier that can be used by the players to join the game.
 	CreateGame(ctx _gen_context.T, Opts GameOptions, opts ..._gen_ipc.CallOpt) (reply GameID, err error)
 	// Play lets a player join an existing game and play.
-	Play(ctx _gen_context.T, ID GameID, opts ..._gen_ipc.CallOpt) (reply JudgePlayStream, err error)
+	Play(ctx _gen_context.T, ID GameID, opts ..._gen_ipc.CallOpt) (reply JudgePlayCall, err error)
 }
 type Judge interface {
 	_gen_ipc.UniversalServiceMethods
@@ -109,54 +109,58 @@ type JudgeService interface {
 	Play(context _gen_ipc.ServerContext, ID GameID, stream JudgeServicePlayStream) (reply PlayResult, err error)
 }
 
-// JudgePlayStream is the interface for streaming responses of the method
+// JudgePlayCall is the interface for call object of the method
 // Play in the service interface Judge.
-type JudgePlayStream interface {
+type JudgePlayCall interface {
+	// RecvStream returns the recv portion of the stream
+	RecvStream() interface {
+		// Advance stages an element so the client can retrieve it
+		// with Value.  Advance returns true iff there is an
+		// element to retrieve.  The client must call Advance before
+		// calling Value.  The client must call Cancel if it does
+		// not iterate through all elements (i.e. until Advance
+		// returns false).  Advance may block if an element is not
+		// immediately available.
+		Advance() bool
 
-	// Send places the item onto the output stream, blocking if there is no
-	// buffer space available.  Calls to Send after having called CloseSend
-	// or Cancel will fail.  Any blocked Send calls will be unblocked upon
-	// calling Cancel.
-	Send(item PlayerAction) error
+		// Value returns the element that was staged by Advance.
+		// Value may panic if Advance returned false or was not
+		// called at all.  Value does not block.
+		Value() JudgeAction
 
-	// CloseSend indicates to the server that no more items will be sent;
-	// server Recv calls will receive io.EOF after all sent items.  This is
-	// an optional call - it's used by streaming clients that need the
-	// server to receive the io.EOF terminator before the client calls
-	// Finish (for example, if the client needs to continue receiving items
-	// from the server after having finished sending).
-	// Calls to CloseSend after having called Cancel will fail.
-	// Like Send, CloseSend blocks when there's no buffer space available.
-	CloseSend() error
+		// Err returns a non-nil error iff the stream encountered
+		// any errors.  Err does not block.
+		Err() error
+	}
 
-	// Advance stages an element so the client can retrieve it
-	// with Value.  Advance returns true iff there is an
-	// element to retrieve.  The client must call Advance before
-	// calling Value.  The client must call Cancel if it does
-	// not iterate through all elements (i.e. until Advance
-	// returns false).  Advance may block if an element is not
-	// immediately available.
-	Advance() bool
+	// SendStream returns the send portion of the stream
+	SendStream() interface {
+		// Send places the item onto the output stream, blocking if there is no
+		// buffer space available.  Calls to Send after having called Close
+		// or Cancel will fail.  Any blocked Send calls will be unblocked upon
+		// calling Cancel.
+		Send(item PlayerAction) error
 
-	// Value returns the element that was staged by Advance.
-	// Value may panic if Advance returned false or was not
-	// called at all.  Value does not block.
-	Value() JudgeAction
+		// Close indicates to the server that no more items will be sent;
+		// server Recv calls will receive io.EOF after all sent items.  This is
+		// an optional call - it's used by streaming clients that need the
+		// server to receive the io.EOF terminator before the client calls
+		// Finish (for example, if the client needs to continue receiving items
+		// from the server after having finished sending).
+		// Calls to Close after having called Cancel will fail.
+		// Like Send, Close blocks when there's no buffer space available.
+		Close() error
+	}
 
-	// Err returns a non-nil error iff the stream encountered
-	// any errors.  Err does not block.
-	Err() error
-
-	// Finish performs the equivalent of CloseSend, then blocks until the server
+	// Finish performs the equivalent of SendStream().Close, then blocks until the server
 	// is done, and returns the positional return values for call.
-	//
 	// If Cancel has been called, Finish will return immediately; the output of
 	// Finish could either be an error signalling cancelation, or the correct
 	// positional return values from the server depending on the timing of the
 	// call.
 	//
 	// Calling Finish is mandatory for releasing stream resources, unless Cancel
-	// has been called or any of the other methods return a non-EOF error.
+	// has been called or any of the other methods return an error.
 	// Finish should be called at most once.
 	Finish() (reply PlayResult, err error)
 
@@ -166,56 +170,150 @@ type JudgePlayStream interface {
 	Cancel()
 }
 
-// Implementation of the JudgePlayStream interface that is not exported.
-type implJudgePlayStream struct {
+type implJudgePlayStreamSender struct {
+	clientCall _gen_ipc.Call
+}
+
+func (c *implJudgePlayStreamSender) Send(item PlayerAction) error {
+	return c.clientCall.Send(item)
+}
+
+func (c *implJudgePlayStreamSender) Close() error {
+	return c.clientCall.CloseSend()
+}
+
+type implJudgePlayStreamIterator struct {
 	clientCall _gen_ipc.Call
 	val        JudgeAction
 	err        error
 }
 
-func (c *implJudgePlayStream) Send(item PlayerAction) error {
-	return c.clientCall.Send(item)
-}
-
-func (c *implJudgePlayStream) CloseSend() error {
-	return c.clientCall.CloseSend()
-}
-
-func (c *implJudgePlayStream) Advance() bool {
+func (c *implJudgePlayStreamIterator) Advance() bool {
 	c.val = JudgeAction{}
 	c.err = c.clientCall.Recv(&c.val)
 	return c.err == nil
 }
 
-func (c *implJudgePlayStream) Value() JudgeAction {
+func (c *implJudgePlayStreamIterator) Value() JudgeAction {
 	return c.val
 }
 
-func (c *implJudgePlayStream) Err() error {
+func (c *implJudgePlayStreamIterator) Err() error {
 	if c.err == _gen_io.EOF {
 		return nil
 	}
 	return c.err
 }
 
-func (c *implJudgePlayStream) Finish() (reply PlayResult, err error) {
+// Implementation of the JudgePlayCall interface that is not exported.
+type implJudgePlayCall struct {
+	clientCall  _gen_ipc.Call
+	writeStream implJudgePlayStreamSender
+	readStream  implJudgePlayStreamIterator
+}
+
+func (c *implJudgePlayCall) SendStream() interface {
+	Send(item PlayerAction) error
+	Close() error
+} {
+	return &c.writeStream
+}
+
+func (c *implJudgePlayCall) RecvStream() interface {
+	Advance() bool
+	Value() JudgeAction
+	Err() error
+} {
+	return &c.readStream
+}
+
+func (c *implJudgePlayCall) Finish() (reply PlayResult, err error) {
 	if ierr := c.clientCall.Finish(&reply, &err); ierr != nil {
 		err = ierr
 	}
 	return
 }
 
-func (c *implJudgePlayStream) Cancel() {
+func (c *implJudgePlayCall) Cancel() {
 	c.clientCall.Cancel()
+}
+
+type implJudgeServicePlayStreamSender struct {
+	serverCall _gen_ipc.ServerCall
+}
+
+func (s *implJudgeServicePlayStreamSender) Send(item JudgeAction) error {
+	return s.serverCall.Send(item)
+}
+
+type implJudgeServicePlayStreamIterator struct {
+	serverCall _gen_ipc.ServerCall
+	val        PlayerAction
+	err        error
+}
+
+func (s *implJudgeServicePlayStreamIterator) Advance() bool {
+	s.err = s.serverCall.Recv(&s.val)
+	return s.err == nil
+}
+
+func (s *implJudgeServicePlayStreamIterator) Value() PlayerAction {
+	return s.val
+}
+
+func (s *implJudgeServicePlayStreamIterator) Err() error {
+	if s.err == _gen_io.EOF {
+		return nil
+	}
+	return s.err
 }
 
 // JudgeServicePlayStream is the interface for streaming responses of the method
 // Play in the service interface Judge.
 type JudgeServicePlayStream interface {
+	// SendStream returns the send portion of the stream.
+	SendStream() interface {
+		// Send places the item onto the output stream, blocking if there is no buffer
+		// space available.  If the client has canceled, an error is returned.
+		Send(item JudgeAction) error
+	}
+	// RecvStream returns the recv portion of the stream
+	RecvStream() interface {
+		// Advance stages an element so the client can retrieve it
+		// with Value.  Advance returns true iff there is an
+		// element to retrieve.  The client must call Advance before
+		// calling Value.  The client must call Cancel if it does
+		// not iterate through all elements (i.e. until Advance
+		// returns false).  Advance may block if an element is not
+		// immediately available.
+		Advance() bool
+
+		// Value returns the element that was staged by Advance.
+		// Value may panic if Advance returned false or was not
+		// called at all.  Value does not block.
+		Value() PlayerAction
+
+		// Err returns a non-nil error iff the stream encountered
+		// any errors.  Err does not block.
+		Err() error
+	}
+}
+
+// Implementation of the JudgeServicePlayStream interface that is not exported.
+type implJudgeServicePlayStream struct {
+	writer implJudgeServicePlayStreamSender
+	reader implJudgeServicePlayStreamIterator
+}
+
+func (s *implJudgeServicePlayStream) SendStream() interface {
 	// Send places the item onto the output stream, blocking if there is no buffer
 	// space available.  If the client has canceled, an error is returned.
 	Send(item JudgeAction) error
+} {
+	return &s.writer
+}
 
+func (s *implJudgeServicePlayStream) RecvStream() interface {
 	// Advance stages an element so the client can retrieve it
 	// with Value.  Advance returns true iff there is an
 	// element to retrieve.  The client must call Advance before
@@ -228,44 +326,13 @@ type JudgeServicePlayStream interface {
 	// Value returns the element that was staged by Advance.
 	// Value may panic if Advance returned false or was not
 	// called at all.  Value does not block.
-	//
-	// In general, Value is undefined if the underlying collection
-	// of elements changes while iteration is in progress.  If
-	// <DataProvider> supports concurrent modification, it should
-	// document its behavior.
 	Value() PlayerAction
 
 	// Err returns a non-nil error iff the stream encountered
 	// any errors.  Err does not block.
 	Err() error
-}
-
-// Implementation of the JudgeServicePlayStream interface that is not exported.
-type implJudgeServicePlayStream struct {
-	serverCall _gen_ipc.ServerCall
-	val        PlayerAction
-	err        error
-}
-
-func (s *implJudgeServicePlayStream) Send(item JudgeAction) error {
-	return s.serverCall.Send(item)
-}
-
-func (s *implJudgeServicePlayStream) Advance() bool {
-	s.val = PlayerAction{}
-	s.err = s.serverCall.Recv(&s.val)
-	return s.err == nil
-}
-
-func (s *implJudgeServicePlayStream) Value() PlayerAction {
-	return s.val
-}
-
-func (s *implJudgeServicePlayStream) Err() error {
-	if s.err == _gen_io.EOF {
-		return nil
-	}
-	return s.err
+} {
+	return &s.reader
 }
 
 // BindJudge returns the client stub implementing the Judge
@@ -320,12 +387,12 @@ func (__gen_c *clientStubJudge) CreateGame(ctx _gen_context.T, Opts GameOptions,
 	return
 }
 
-func (__gen_c *clientStubJudge) Play(ctx _gen_context.T, ID GameID, opts ..._gen_ipc.CallOpt) (reply JudgePlayStream, err error) {
+func (__gen_c *clientStubJudge) Play(ctx _gen_context.T, ID GameID, opts ..._gen_ipc.CallOpt) (reply JudgePlayCall, err error) {
 	var call _gen_ipc.Call
 	if call, err = __gen_c.client.StartCall(ctx, __gen_c.name, "Play", []interface{}{ID}, opts...); err != nil {
 		return
 	}
-	reply = &implJudgePlayStream{clientCall: call}
+	reply = &implJudgePlayCall{clientCall: call, writeStream: implJudgePlayStreamSender{clientCall: call}, readStream: implJudgePlayStreamIterator{clientCall: call}}
 	return
 }
 
@@ -487,7 +554,7 @@ func (__gen_s *ServerStubJudge) CreateGame(call _gen_ipc.ServerCall, Opts GameOp
 }
 
 func (__gen_s *ServerStubJudge) Play(call _gen_ipc.ServerCall, ID GameID) (reply PlayResult, err error) {
-	stream := &implJudgeServicePlayStream{serverCall: call}
+	stream := &implJudgeServicePlayStream{reader: implJudgeServicePlayStreamIterator{serverCall: call}, writer: implJudgeServicePlayStreamSender{serverCall: call}}
 	reply, err = __gen_s.service.Play(call, ID, stream)
 	return
 }

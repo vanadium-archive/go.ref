@@ -103,12 +103,13 @@ func lsUsingResolve(name, pattern string) ([]string, error) {
 		return []string{}, err
 	}
 	var reply []string
-	for stream.Advance() {
-		e := stream.Value()
+	rStream := stream.RecvStream()
+	for rStream.Advance() {
+		e := rStream.Value()
 		reply = append(reply, fmt.Sprintf("%q", e.Name))
 	}
 
-	return reply, stream.Err()
+	return reply, rStream.Err()
 }
 
 func lsUsingResolveToMountTable(name, pattern string) ([]string, error) {

@@ -62,8 +62,9 @@ func CallEchoStream(address string, rpcCount, messageCount, payloadSize int, log
 		}
 		done := make(chan error, 1)
 		go func() {
-			for stream.Advance() {
-				chunk := stream.Value()
+			rStream := stream.RecvStream()
+			for rStream.Advance() {
+				chunk := rStream.Value()
 				if err == io.EOF {
 					done <- nil
 					return
@@ -78,15 +79,16 @@ func CallEchoStream(address string, rpcCount, messageCount, payloadSize int, log
 				}
 			}
 
-			done <- stream.Err()
+			done <- rStream.Err()
 		}()
+		sender := stream.SendStream()
 		for j := 0; j < messageCount; j++ {
-			if err = stream.Send(payload); err != nil {
+			if err = sender.Send(payload); err != nil {
 				vlog.Fatalf("Send failed: %v", err)
 			}
 		}
-		if err = stream.CloseSend(); err != nil {
-			vlog.Fatalf("CloseSend() failed: %v", err)
+		if err = sender.Close(); err != nil {
+			vlog.Fatalf("Close() failed: %v", err)
 		}
 		if err = <-done; err != nil {
 			vlog.Fatalf("%v", err)

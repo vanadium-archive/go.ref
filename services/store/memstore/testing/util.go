@@ -110,6 +110,14 @@ type storeServicePutMutationsStream struct {
 	value raw.Mutation
 }
 
+func (s *storeServicePutMutationsStream) RecvStream() interface {
+	Advance() bool
+	Value() raw.Mutation
+	Err() error
+} {
+	return s
+}
+
 func (s *storeServicePutMutationsStream) Advance() bool {
 	var ok bool
 	s.value, ok = <-s.mus
@@ -126,10 +134,8 @@ func (s *storeServicePutMutationsStream) Err() error {
 
 // storePutMutationsStream implements raw.StorePutMutationsStream
 type storePutMutationsStream struct {
-	ctx    ipc.ServerContext
 	closed bool
 	mus    chan<- raw.Mutation
-	err    <-chan error
 }
 
 func (s *storePutMutationsStream) Send(mu raw.Mutation) error {
@@ -137,7 +143,7 @@ func (s *storePutMutationsStream) Send(mu raw.Mutation) error {
 	return nil
 }
 
-func (s *storePutMutationsStream) CloseSend() error {
+func (s *storePutMutationsStream) Close() error {
 	if !s.closed {
 		s.closed = true
 		close(s.mus)
@@ -145,17 +151,30 @@ func (s *storePutMutationsStream) CloseSend() error {
 	return nil
 }
 
-func (s *storePutMutationsStream) Finish() error {
-	s.CloseSend()
+type storePutMutationsCall struct {
+	ctx    ipc.ServerContext
+	stream storePutMutationsStream
+	err    <-chan error
+}
+
+func (s *storePutMutationsCall) SendStream() interface {
+	Send(mu raw.Mutation) error
+	Close() error
+} {
+	return &s.stream
+}
+
+func (s *storePutMutationsCall) Finish() error {
+	s.stream.Close()
 	return <-s.err
 }
 
-func (s *storePutMutationsStream) Cancel() {
+func (s *storePutMutationsCall) Cancel() {
 	s.ctx.(*CancellableContext).Cancel()
-	s.CloseSend()
+	s.stream.Close()
 }
 
-func PutMutations(id security.PublicID, putMutationsFn func(ipc.ServerContext, raw.StoreServicePutMutationsStream) error) raw.StorePutMutationsStream {
+func PutMutations(id security.PublicID, putMutationsFn func(ipc.ServerContext, raw.StoreServicePutMutationsStream) error) raw.StorePutMutationsCall {
 	ctx := NewCancellableContext(id)
 	mus := make(chan raw.Mutation)
 	err := make(chan error)
@@ -163,17 +182,19 @@ func PutMutations(id security.PublicID, putMutationsFn func(ipc.ServerContext, r
 		err <- putMutationsFn(ctx, &storeServicePutMutationsStream{mus: mus})
 		close(err)
 	}()
-	return &storePutMutationsStream{
+	return &storePutMutationsCall{
 		ctx: ctx,
-		mus: mus,
 		err: err,
+		stream: storePutMutationsStream{
+			mus: mus,
+		},
 	}
 }
 
 func PutMutationsBatch(t *testing.T, id security.PublicID, putMutationsFn func(ipc.ServerContext, raw.StoreServicePutMutationsStream) error, mus []raw.Mutation) {
 	storePutMutationsStream := PutMutations(id, putMutationsFn)
 	for _, mu := range mus {
-		storePutMutationsStream.Send(mu)
+		storePutMutationsStream.SendStream().Send(mu)
 	}
 	if err := storePutMutationsStream.Finish(); err != nil {
 		_, file, line, _ := runtime.Caller(1)
@@ -183,14 +204,14 @@ func PutMutationsBatch(t *testing.T, id security.PublicID, putMutationsFn func(i
 
 // Utilities for Watch.
 
-// watcherServiceWatchStream implements watch.WatcherServiceWatchStream.
-type watcherServiceWatchStream struct {
+// watcherServiceWatchStreamSender implements watch.WatcherServiceWatchStreamSender
+type watcherServiceWatchStreamSender struct {
 	mu     *sync.Mutex
 	ctx    ipc.ServerContext
 	output chan<- watch.ChangeBatch
 }
 
-func (s *watcherServiceWatchStream) Send(cb watch.ChangeBatch) error {
+func (s *watcherServiceWatchStreamSender) Send(cb watch.ChangeBatch) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	select {
@@ -200,6 +221,18 @@ func (s *watcherServiceWatchStream) Send(cb watch.ChangeBatch) error {
 		return io.EOF
 	}
 }
+
+// watcherServiceWatchStream implements watch.WatcherServiceWatchStream
+type watcherServiceWatchStream struct {
+	watcherServiceWatchStreamSender
+}
+
+func (s *watcherServiceWatchStream) SendStream() interface {
+	Send(cb watch.ChangeBatch) error
+} {
+	return s
+}
+func (*watcherServiceWatchStream) Cancel() {}
 
 // watcherWatchStream implements watch.WatcherWatchStream.
 type watcherWatchStream struct {
@@ -232,6 +265,14 @@ func (s *watcherWatchStream) Cancel() {
 	s.ctx.Cancel()
 }
 
+func (s *watcherWatchStream) RecvStream() interface {
+	Advance() bool
+	Value() watch.ChangeBatch
+	Err() error
+} {
+	return s
+}
+
 func watchImpl(id security.PublicID, watchFn func(ipc.ServerContext, *watcherServiceWatchStream) error) *watcherWatchStream {
 	mu := &sync.Mutex{}
 	ctx := NewCancellableContext(id)
@@ -239,9 +280,11 @@ func watchImpl(id security.PublicID, watchFn func(ipc.ServerContext, *watcherSer
 	errc := make(chan error, 1)
 	go func() {
 		stream := &watcherServiceWatchStream{
-			mu:     mu,
-			ctx:    ctx,
-			output: c,
+			watcherServiceWatchStreamSender{
+				mu:     mu,
+				ctx:    ctx,
+				output: c,
+			},
 		}
 		err := watchFn(ctx, stream)
 		mu.Lock()
@@ -258,19 +301,19 @@ func watchImpl(id security.PublicID, watchFn func(ipc.ServerContext, *watcherSer
 	}
 }
 
-func WatchRaw(id security.PublicID, watchFn func(ipc.ServerContext, raw.Request, raw.StoreServiceWatchStream) error, req raw.Request) raw.StoreWatchStream {
+func WatchRaw(id security.PublicID, watchFn func(ipc.ServerContext, raw.Request, raw.StoreServiceWatchStream) error, req raw.Request) raw.StoreWatchCall {
 	return watchImpl(id, func(ctx ipc.ServerContext, stream *watcherServiceWatchStream) error {
 		return watchFn(ctx, req, stream)
 	})
 }
 
-func WatchGlob(id security.PublicID, watchFn func(ipc.ServerContext, watch.GlobRequest, watch.GlobWatcherServiceWatchGlobStream) error, req watch.GlobRequest) watch.GlobWatcherWatchGlobStream {
-	return watchImpl(id, func(ctx ipc.ServerContext, stream *watcherServiceWatchStream) error {
-		return watchFn(ctx, req, stream)
+func WatchGlob(id security.PublicID, watchFn func(ipc.ServerContext, watch.GlobRequest, watch.GlobWatcherServiceWatchGlobStream) error, req watch.GlobRequest) watch.GlobWatcherWatchGlobCall {
+	return watchImpl(id, func(ctx ipc.ServerContext, iterator *watcherServiceWatchStream) error {
+		return watchFn(ctx, req, iterator)
 	})
 }
 
-func WatchGlobOnPath(id security.PublicID, watchFn func(ipc.ServerContext, storage.PathName, watch.GlobRequest, watch.GlobWatcherServiceWatchGlobStream) error, path storage.PathName, req watch.GlobRequest) watch.GlobWatcherWatchGlobStream {
+func WatchGlobOnPath(id security.PublicID, watchFn func(ipc.ServerContext, storage.PathName, watch.GlobRequest, watch.GlobWatcherServiceWatchGlobStream) error, path storage.PathName, req watch.GlobRequest) watch.GlobWatcherWatchGlobCall {
 	return watchImpl(id, func(ctx ipc.ServerContext, stream *watcherServiceWatchStream) error {
 		return watchFn(ctx, path, req, stream)
 	})
