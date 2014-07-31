@@ -50,13 +50,13 @@ type Tunnel_ExcludingUniversal interface {
 	// the byte stream is forwarded to the requested network address and all the
 	// data received from that network connection is sent back in the reply
 	// stream.
-	Forward(ctx _gen_context.T, network string, address string, opts ..._gen_ipc.CallOpt) (reply TunnelForwardStream, err error)
+	Forward(ctx _gen_context.T, network string, address string, opts ..._gen_ipc.CallOpt) (reply TunnelForwardCall, err error)
 	// The Shell method is used to either run shell commands remotely, or to open
 	// an interactive shell. The data received over the byte stream is sent to the
 	// shell's stdin, and the data received from the shell's stdout and stderr is
 	// sent back in the reply stream. It returns the exit status of the shell
 	// command.
-	Shell(ctx _gen_context.T, command string, shellOpts ShellOpts, opts ..._gen_ipc.CallOpt) (reply TunnelShellStream, err error)
+	Shell(ctx _gen_context.T, command string, shellOpts ShellOpts, opts ..._gen_ipc.CallOpt) (reply TunnelShellCall, err error)
 }
 type Tunnel interface {
 	_gen_ipc.UniversalServiceMethods
@@ -79,54 +79,58 @@ type TunnelService interface {
 	Shell(context _gen_ipc.ServerContext, command string, shellOpts ShellOpts, stream TunnelServiceShellStream) (reply int32, err error)
 }
 
-// TunnelForwardStream is the interface for streaming responses of the method
+// TunnelForwardCall is the interface for call object of the method
 // Forward in the service interface Tunnel.
-type TunnelForwardStream interface {
+type TunnelForwardCall interface {
+	// RecvStream returns the recv portion of the stream
+	RecvStream() interface {
+		// Advance stages an element so the client can retrieve it
+		// with Value.  Advance returns true iff there is an
+		// element to retrieve.  The client must call Advance before
+		// calling Value.  The client must call Cancel if it does
+		// not iterate through all elements (i.e. until Advance
+		// returns false).  Advance may block if an element is not
+		// immediately available.
+		Advance() bool
 
-	// Send places the item onto the output stream, blocking if there is no
-	// buffer space available.  Calls to Send after having called CloseSend
-	// or Cancel will fail.  Any blocked Send calls will be unblocked upon
-	// calling Cancel.
-	Send(item []byte) error
+		// Value returns the element that was staged by Advance.
+		// Value may panic if Advance returned false or was not
+		// called at all.  Value does not block.
+		Value() []byte
 
-	// CloseSend indicates to the server that no more items will be sent;
-	// server Recv calls will receive io.EOF after all sent items.  This is
-	// an optional call - it's used by streaming clients that need the
-	// server to receive the io.EOF terminator before the client calls
-	// Finish (for example, if the client needs to continue receiving items
-	// from the server after having finished sending).
-	// Calls to CloseSend after having called Cancel will fail.
-	// Like Send, CloseSend blocks when there's no buffer space available.
-	CloseSend() error
+		// Err returns a non-nil error iff the stream encountered
+		// any errors.  Err does not block.
+		Err() error
+	}
 
-	// Advance stages an element so the client can retrieve it
-	// with Value.  Advance returns true iff there is an
-	// element to retrieve.  The client must call Advance before
-	// calling Value.  The client must call Cancel if it does
-	// not iterate through all elements (i.e. until Advance
-	// returns false).  Advance may block if an element is not
-	// immediately available.
-	Advance() bool
+	// SendStream returns the send portion of the stream
+	SendStream() interface {
+		// Send places the item onto the output stream, blocking if there is no
+		// buffer space available.  Calls to Send after having called Close
+		// or Cancel will fail.  Any blocked Send calls will be unblocked upon
+		// calling Cancel.
+		Send(item []byte) error
 
-	// Value returns the element that was staged by Advance.
-	// Value may panic if Advance returned false or was not
-	// called at all.  Value does not block.
-	Value() []byte
+		// Close indicates to the server that no more items will be sent;
+		// server Recv calls will receive io.EOF after all sent items.  This is
+		// an optional call - it's used by streaming clients that need the
+		// server to receive the io.EOF terminator before the client calls
+		// Finish (for example, if the client needs to continue receiving items
+		// from the server after having finished sending).
+		// Calls to Close after having called Cancel will fail.
+		// Like Send, Close blocks when there's no buffer space available.
+		Close() error
+	}
 
-	// Err returns a non-nil error iff the stream encountered
-	// any errors.  Err does not block.
-	Err() error
-
-	// Finish performs the equivalent of CloseSend, then blocks until the server
+	// Finish performs the equivalent of SendStream().Close, then blocks until the server
 	// is done, and returns the positional return values for call.
-	//
 	// If Cancel has been called, Finish will return immediately; the output of
 	// Finish could either be an error signalling cancelation, or the correct
 	// positional return values from the server depending on the timing of the
 	// call.
 	//
 	// Calling Finish is mandatory for releasing stream resources, unless Cancel
-	// has been called or any of the other methods return a non-EOF error.
+	// has been called or any of the other methods return an error.
 	// Finish should be called at most once.
 	Finish() (err error)
 
@@ -136,126 +140,149 @@ type TunnelForwardStream interface {
 	Cancel()
 }
 
-// Implementation of the TunnelForwardStream interface that is not exported.
-type implTunnelForwardStream struct {
+type implTunnelForwardStreamSender struct {
+	clientCall _gen_ipc.Call
+}
+
+func (c *implTunnelForwardStreamSender) Send(item []byte) error {
+	return c.clientCall.Send(item)
+}
+
+func (c *implTunnelForwardStreamSender) Close() error {
+	return c.clientCall.CloseSend()
+}
+
+type implTunnelForwardStreamIterator struct {
 	clientCall _gen_ipc.Call
 	val        []byte
 	err        error
 }
 
-func (c *implTunnelForwardStream) Send(item []byte) error {
-	return c.clientCall.Send(item)
-}
-
-func (c *implTunnelForwardStream) CloseSend() error {
-	return c.clientCall.CloseSend()
-}
-
-func (c *implTunnelForwardStream) Advance() bool {
+func (c *implTunnelForwardStreamIterator) Advance() bool {
 	c.err = c.clientCall.Recv(&c.val)
 	return c.err == nil
 }
 
-func (c *implTunnelForwardStream) Value() []byte {
+func (c *implTunnelForwardStreamIterator) Value() []byte {
 	return c.val
 }
 
-func (c *implTunnelForwardStream) Err() error {
+func (c *implTunnelForwardStreamIterator) Err() error {
 	if c.err == _gen_io.EOF {
 		return nil
 	}
 	return c.err
 }
 
-func (c *implTunnelForwardStream) Finish() (err error) {
+// Implementation of the TunnelForwardCall interface that is not exported.
+type implTunnelForwardCall struct {
+	clientCall  _gen_ipc.Call
+	writeStream implTunnelForwardStreamSender
+	readStream  implTunnelForwardStreamIterator
+}
+
+func (c *implTunnelForwardCall) SendStream() interface {
+	Send(item []byte) error
+	Close() error
+} {
+	return &c.writeStream
+}
+
+func (c *implTunnelForwardCall) RecvStream() interface {
+	Advance() bool
+	Value() []byte
+	Err() error
+} {
+	return &c.readStream
+}
+
+func (c *implTunnelForwardCall) Finish() (err error) {
 	if ierr := c.clientCall.Finish(&err); ierr != nil {
 		err = ierr
 	}
 	return
 }
 
-func (c *implTunnelForwardStream) Cancel() {
+func (c *implTunnelForwardCall) Cancel() {
 	c.clientCall.Cancel()
 }
 
-// TunnelServiceForwardStream is the interface for streaming responses of the method
-// Forward in the service interface Tunnel.
-type TunnelServiceForwardStream interface {
-	// Send places the item onto the output stream, blocking if there is no buffer
-	// space available.  If the client has canceled, an error is returned.
-	Send(item []byte) error
-
-	// Advance stages an element so the client can retrieve it
-	// with Value.  Advance returns true iff there is an
-	// element to retrieve.  The client must call Advance before
-	// calling Value.  The client must call Cancel if it does
-	// not iterate through all elements (i.e. until Advance
-	// returns false).  Advance may block if an element is not
-	// immediately available.
-	Advance() bool
-
-	// Value returns the element that was staged by Advance.
-	// Value may panic if Advance returned false or was not
-	// called at all.  Value does not block.
-	//
-	// In general, Value is undefined if the underlying collection
-	// of elements changes while iteration is in progress.  If
-	// <DataProvider> supports concurrent modification, it should
-	// document its behavior.
-	Value() []byte
-
-	// Err returns a non-nil error iff the stream encountered
-	// any errors.  Err does not block.
-	Err() error
+type implTunnelServiceForwardStreamSender struct {
+	serverCall _gen_ipc.ServerCall
 }
 
-// Implementation of the TunnelServiceForwardStream interface that is not exported.
-type implTunnelServiceForwardStream struct {
+func (s *implTunnelServiceForwardStreamSender) Send(item []byte) error {
+	return s.serverCall.Send(item)
+}
+
+type implTunnelServiceForwardStreamIterator struct {
 	serverCall _gen_ipc.ServerCall
 	val        []byte
 	err        error
 }
 
-func (s *implTunnelServiceForwardStream) Send(item []byte) error {
-	return s.serverCall.Send(item)
-}
-
-func (s *implTunnelServiceForwardStream) Advance() bool {
+func (s *implTunnelServiceForwardStreamIterator) Advance() bool {
 	s.err = s.serverCall.Recv(&s.val)
 	return s.err == nil
 }
 
-func (s *implTunnelServiceForwardStream) Value() []byte {
+func (s *implTunnelServiceForwardStreamIterator) Value() []byte {
 	return s.val
 }
 
-func (s *implTunnelServiceForwardStream) Err() error {
+func (s *implTunnelServiceForwardStreamIterator) Err() error {
 	if s.err == _gen_io.EOF {
 		return nil
 	}
 	return s.err
 }
 
-// TunnelShellStream is the interface for streaming responses of the method
-// Shell in the service interface Tunnel.
-type TunnelShellStream interface {
+// TunnelServiceForwardStream is the interface for streaming responses of the method
+// Forward in the service interface Tunnel.
+type TunnelServiceForwardStream interface {
+	// SendStream returns the send portion of the stream.
+	SendStream() interface {
+		// Send places the item onto the output stream, blocking if there is no buffer
+		// space available.  If the client has canceled, an error is returned.
+		Send(item []byte) error
+	}
+	// RecvStream returns the recv portion of the stream
+	RecvStream() interface {
+		// Advance stages an element so the client can retrieve it
+		// with Value.  Advance returns true iff there is an
+		// element to retrieve.  The client must call Advance before
+		// calling Value.  The client must call Cancel if it does
+		// not iterate through all elements (i.e. until Advance
+		// returns false).  Advance may block if an element is not
+		// immediately available.
+		Advance() bool
 
-	// Send places the item onto the output stream, blocking if there is no
-	// buffer space available.  Calls to Send after having called CloseSend
-	// or Cancel will fail.  Any blocked Send calls will be unblocked upon
-	// calling Cancel.
-	Send(item ClientShellPacket) error
+		// Value returns the element that was staged by Advance.
+		// Value may panic if Advance returned false or was not
+		// called at all.  Value does not block.
+		Value() []byte
 
-	// CloseSend indicates to the server that no more items will be sent;
-	// server Recv calls will receive io.EOF after all sent items.  This is
-	// an optional call - it's used by streaming clients that need the
-	// server to receive the io.EOF terminator before the client calls
-	// Finish (for example, if the client needs to continue receiving items
-	// from the server after having finished sending).
-	// Calls to CloseSend after having called Cancel will fail.
-	// Like Send, CloseSend blocks when there's no buffer space available.
-	CloseSend() error
+		// Err returns a non-nil error iff the stream encountered
+		// any errors.  Err does not block.
+		Err() error
+	}
+}
 
+// Implementation of the TunnelServiceForwardStream interface that is not exported.
+type implTunnelServiceForwardStream struct {
+	writer implTunnelServiceForwardStreamSender
+	reader implTunnelServiceForwardStreamIterator
+}
+
+func (s *implTunnelServiceForwardStream) SendStream() interface {
+	// Send places the item onto the output stream, blocking if there is no buffer
+	// space available.  If the client has canceled, an error is returned.
+	Send(item []byte) error
+} {
+	return &s.writer
+}
+
+func (s *implTunnelServiceForwardStream) RecvStream() interface {
 	// Advance stages an element so the client can retrieve it
 	// with Value.  Advance returns true iff there is an
 	// element to retrieve.  The client must call Advance before
@@ -268,22 +295,67 @@ type TunnelShellStream interface {
 	// Value returns the element that was staged by Advance.
 	// Value may panic if Advance returned false or was not
 	// called at all.  Value does not block.
-	Value() ServerShellPacket
+	Value() []byte
 
 	// Err returns a non-nil error iff the stream encountered
 	// any errors.  Err does not block.
 	Err() error
+} {
+	return &s.reader
+}
 
-	// Finish performs the equivalent of CloseSend, then blocks until the server
+// TunnelShellCall is the interface for call object of the method
+// Shell in the service interface Tunnel.
+type TunnelShellCall interface {
+	// RecvStream returns the recv portion of the stream
+	RecvStream() interface {
+		// Advance stages an element so the client can retrieve it
+		// with Value.  Advance returns true iff there is an
+		// element to retrieve.  The client must call Advance before
+		// calling Value.  The client must call Cancel if it does
+		// not iterate through all elements (i.e. until Advance
+		// returns false).  Advance may block if an element is not
+		// immediately available.
+		Advance() bool
+
+		// Value returns the element that was staged by Advance.
+		// Value may panic if Advance returned false or was not
+		// called at all.  Value does not block.
+		Value() ServerShellPacket
+
+		// Err returns a non-nil error iff the stream encountered
+		// any errors.  Err does not block.
+		Err() error
+	}
+
+	// SendStream returns the send portion of the stream
+	SendStream() interface {
+		// Send places the item onto the output stream, blocking if there is no
+		// buffer space available.  Calls to Send after having called Close
+		// or Cancel will fail.  Any blocked Send calls will be unblocked upon
+		// calling Cancel.
+		Send(item ClientShellPacket) error
+
+		// Close indicates to the server that no more items will be sent;
+		// server Recv calls will receive io.EOF after all sent items.  This is
+		// an optional call - it's used by streaming clients that need the
+		// server to receive the io.EOF terminator before the client calls
+		// Finish (for example, if the client needs to continue receiving items
+		// from the server after having finished sending).
+		// Calls to Close after having called Cancel will fail.
+		// Like Send, Close blocks when there's no buffer space available.
+		Close() error
+	}
+
+	// Finish performs the equivalent of SendStream().Close, then blocks until the server
 	// is done, and returns the positional return values for call.
-	//
 	// If Cancel has been called, Finish will return immediately; the output of
 	// Finish could either be an error signalling cancelation, or the correct
 	// positional return values from the server depending on the timing of the
 	// call.
 	//
 	// Calling Finish is mandatory for releasing stream resources, unless Cancel
-	// has been called or any of the other methods return a non-EOF error.
+	// has been called or any of the other methods return an error.
 	// Finish should be called at most once.
 	Finish() (reply int32, err error)
 
@@ -293,56 +365,150 @@ type TunnelShellStream interface {
 	Cancel()
 }
 
-// Implementation of the TunnelShellStream interface that is not exported.
-type implTunnelShellStream struct {
+type implTunnelShellStreamSender struct {
+	clientCall _gen_ipc.Call
+}
+
+func (c *implTunnelShellStreamSender) Send(item ClientShellPacket) error {
+	return c.clientCall.Send(item)
+}
+
+func (c *implTunnelShellStreamSender) Close() error {
+	return c.clientCall.CloseSend()
+}
+
+type implTunnelShellStreamIterator struct {
 	clientCall _gen_ipc.Call
 	val        ServerShellPacket
 	err        error
 }
 
-func (c *implTunnelShellStream) Send(item ClientShellPacket) error {
-	return c.clientCall.Send(item)
-}
-
-func (c *implTunnelShellStream) CloseSend() error {
-	return c.clientCall.CloseSend()
-}
-
-func (c *implTunnelShellStream) Advance() bool {
+func (c *implTunnelShellStreamIterator) Advance() bool {
 	c.val = ServerShellPacket{}
 	c.err = c.clientCall.Recv(&c.val)
 	return c.err == nil
 }
 
-func (c *implTunnelShellStream) Value() ServerShellPacket {
+func (c *implTunnelShellStreamIterator) Value() ServerShellPacket {
 	return c.val
 }
 
-func (c *implTunnelShellStream) Err() error {
+func (c *implTunnelShellStreamIterator) Err() error {
 	if c.err == _gen_io.EOF {
 		return nil
 	}
 	return c.err
 }
 
-func (c *implTunnelShellStream) Finish() (reply int32, err error) {
+// Implementation of the TunnelShellCall interface that is not exported.
+type implTunnelShellCall struct {
+	clientCall  _gen_ipc.Call
+	writeStream implTunnelShellStreamSender
+	readStream  implTunnelShellStreamIterator
+}
+
+func (c *implTunnelShellCall) SendStream() interface {
+	Send(item ClientShellPacket) error
+	Close() error
+} {
+	return &c.writeStream
+}
+
+func (c *implTunnelShellCall) RecvStream() interface {
+	Advance() bool
+	Value() ServerShellPacket
+	Err() error
+} {
+	return &c.readStream
+}
+
+func (c *implTunnelShellCall) Finish() (reply int32, err error) {
 	if ierr := c.clientCall.Finish(&reply, &err); ierr != nil {
 		err = ierr
 	}
 	return
 }
 
-func (c *implTunnelShellStream) Cancel() {
+func (c *implTunnelShellCall) Cancel() {
 	c.clientCall.Cancel()
+}
+
+type implTunnelServiceShellStreamSender struct {
+	serverCall _gen_ipc.ServerCall
+}
+
+func (s *implTunnelServiceShellStreamSender) Send(item ServerShellPacket) error {
+	return s.serverCall.Send(item)
+}
+
+type implTunnelServiceShellStreamIterator struct {
+	serverCall _gen_ipc.ServerCall
+	val        ClientShellPacket
+	err        error
+}
+
+func (s *implTunnelServiceShellStreamIterator) Advance() bool {
+	s.err = s.serverCall.Recv(&s.val)
+	return s.err == nil
+}
+
+func (s *implTunnelServiceShellStreamIterator) Value() ClientShellPacket {
+	return s.val
+}
+
+func (s *implTunnelServiceShellStreamIterator) Err() error {
+	if s.err == _gen_io.EOF {
+		return nil
+	}
+	return s.err
 }
 
 // TunnelServiceShellStream is the interface for streaming responses of the method
 // Shell in the service interface Tunnel.
 type TunnelServiceShellStream interface {
+	// SendStream returns the send portion of the stream.
+	SendStream() interface {
+		// Send places the item onto the output stream, blocking if there is no buffer
+		// space available.  If the client has canceled, an error is returned.
+		Send(item ServerShellPacket) error
+	}
+	// RecvStream returns the recv portion of the stream
+	RecvStream() interface {
+		// Advance stages an element so the client can retrieve it
+		// with Value.  Advance returns true iff there is an
+		// element to retrieve.  The client must call Advance before
+		// calling Value.  The client must call Cancel if it does
+		// not iterate through all elements (i.e. until Advance
+		// returns false).  Advance may block if an element is not
+		// immediately available.
+		Advance() bool
+
+		// Value returns the element that was staged by Advance.
+		// Value may panic if Advance returned false or was not
+		// called at all.  Value does not block.
+		Value() ClientShellPacket
+
+		// Err returns a non-nil error iff the stream encountered
+		// any errors.  Err does not block.
+		Err() error
+	}
+}
+
+// Implementation of the TunnelServiceShellStream interface that is not exported.
+type implTunnelServiceShellStream struct {
+	writer implTunnelServiceShellStreamSender
+	reader implTunnelServiceShellStreamIterator
+}
+
+func (s *implTunnelServiceShellStream) SendStream() interface {
 	// Send places the item onto the output stream, blocking if there is no buffer
 	// space available.  If the client has canceled, an error is returned.
 	Send(item ServerShellPacket) error
+} {
+	return &s.writer
+}
 
+func (s *implTunnelServiceShellStream) RecvStream() interface {
 	// Advance stages an element so the client can retrieve it
 	// with Value.  Advance returns true iff there is an
 	// element to retrieve.  The client must call Advance before
@@ -355,44 +521,13 @@ type TunnelServiceShellStream interface {
 	// Value returns the element that was staged by Advance.
 	// Value may panic if Advance returned false or was not
 	// called at all.  Value does not block.
-	//
-	// In general, Value is undefined if the underlying collection
-	// of elements changes while iteration is in progress.  If
-	// <DataProvider> supports concurrent modification, it should
-	// document its behavior.
 	Value() ClientShellPacket
 
 	// Err returns a non-nil error iff the stream encountered
 	// any errors.  Err does not block.
 	Err() error
-}
-
-// Implementation of the TunnelServiceShellStream interface that is not exported.
-type implTunnelServiceShellStream struct {
-	serverCall _gen_ipc.ServerCall
-	val        ClientShellPacket
-	err        error
-}
-
-func (s *implTunnelServiceShellStream) Send(item ServerShellPacket) error {
-	return s.serverCall.Send(item)
-}
-
-func (s *implTunnelServiceShellStream) Advance() bool {
-	s.val = ClientShellPacket{}
-	s.err = s.serverCall.Recv(&s.val)
-	return s.err == nil
-}
-
-func (s *implTunnelServiceShellStream) Value() ClientShellPacket {
-	return s.val
-}
-
-func (s *implTunnelServiceShellStream) Err() error {
-	if s.err == _gen_io.EOF {
-		return nil
-	}
-	return s.err
+} {
+	return &s.reader
 }
 
 // BindTunnel returns the client stub implementing the Tunnel
@@ -436,21 +571,21 @@ type clientStubTunnel struct {
 	name   string
 }
 
-func (__gen_c *clientStubTunnel) Forward(ctx _gen_context.T, network string, address string, opts ..._gen_ipc.CallOpt) (reply TunnelForwardStream, err error) {
+func (__gen_c *clientStubTunnel) Forward(ctx _gen_context.T, network string, address string, opts ..._gen_ipc.CallOpt) (reply TunnelForwardCall, err error) {
 	var call _gen_ipc.Call
 	if call, err = __gen_c.client.StartCall(ctx, __gen_c.name, "Forward", []interface{}{network, address}, opts...); err != nil {
 		return
 	}
-	reply = &implTunnelForwardStream{clientCall: call}
+	reply = &implTunnelForwardCall{clientCall: call, writeStream: implTunnelForwardStreamSender{clientCall: call}, readStream: implTunnelForwardStreamIterator{clientCall: call}}
 	return
 }
 
-func (__gen_c *clientStubTunnel) Shell(ctx _gen_context.T, command string, shellOpts ShellOpts, opts ..._gen_ipc.CallOpt) (reply TunnelShellStream, err error) {
+func (__gen_c *clientStubTunnel) Shell(ctx _gen_context.T, command string, shellOpts ShellOpts, opts ..._gen_ipc.CallOpt) (reply TunnelShellCall, err error) {
 	var call _gen_ipc.Call
 	if call, err = __gen_c.client.StartCall(ctx, __gen_c.name, "Shell", []interface{}{command, shellOpts}, opts...); err != nil {
 		return
 	}
-	reply = &implTunnelShellStream{clientCall: call}
+	reply = &implTunnelShellCall{clientCall: call, writeStream: implTunnelShellStreamSender{clientCall: call}, readStream: implTunnelShellStreamIterator{clientCall: call}}
 	return
 }
 
@@ -580,13 +715,13 @@ func (__gen_s *ServerStubTunnel) UnresolveStep(call _gen_ipc.ServerCall) (reply 
 }
 
 func (__gen_s *ServerStubTunnel) Forward(call _gen_ipc.ServerCall, network string, address string) (err error) {
-	stream := &implTunnelServiceForwardStream{serverCall: call}
+	stream := &implTunnelServiceForwardStream{reader: implTunnelServiceForwardStreamIterator{serverCall: call}, writer: implTunnelServiceForwardStreamSender{serverCall: call}}
 	err = __gen_s.service.Forward(call, network, address, stream)
 	return
 }
 
 func (__gen_s *ServerStubTunnel) Shell(call _gen_ipc.ServerCall, command string, shellOpts ShellOpts) (reply int32, err error) {
-	stream := &implTunnelServiceShellStream{serverCall: call}
+	stream := &implTunnelServiceShellStream{reader: implTunnelServiceShellStreamIterator{serverCall: call}, writer: implTunnelServiceShellStreamSender{serverCall: call}}
 	reply, err = __gen_s.service.Shell(call, command, shellOpts, stream)
 	return
 }

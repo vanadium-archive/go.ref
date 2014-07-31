@@ -199,7 +199,7 @@ func runPortForwarding(t tunnel.Tunnel, oname string) {
 		name := fmt.Sprintf("%v-->%v-->(%v)-->%v", conn.RemoteAddr(), conn.LocalAddr(), oname, raddr)
 		go func() {
 			vlog.VI(1).Infof("TUNNEL START: %v", name)
-			errf := lib.Forward(conn, stream)
+			errf := lib.Forward(conn, stream.SendStream(), stream.RecvStream())
 			err := stream.Finish()
 			vlog.VI(1).Infof("TUNNEL END  : %v (%v, %v)", name, errf, err)
 		}()

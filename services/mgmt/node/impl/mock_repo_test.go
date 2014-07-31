@@ -90,13 +90,14 @@ func (i *brInvoker) Download(_ ipc.ServerContext, _ int32, stream repository.Bin
 	defer file.Close()
 	bufferLength := 4096
 	buffer := make([]byte, bufferLength)
+	sender := stream.SendStream()
 	for {
 		n, err := file.Read(buffer)
 		switch err {
 		case io.EOF:
 			return nil
 		case nil:
-			if err := stream.Send(buffer[:n]); err != nil {
+			if err := sender.Send(buffer[:n]); err != nil {
 				vlog.Errorf("Send() failed: %v", err)
 				return errOperationFailed
 			}

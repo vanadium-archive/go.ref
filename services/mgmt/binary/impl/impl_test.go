@@ -33,18 +33,19 @@ func invokeUpload(t *testing.T, binary repository.Binary, data []byte, part int3
 		t.Errorf("Upload() failed: %v", err)
 		return err
 	}
-	if err := stream.Send(data); err != nil {
+	sender := stream.SendStream()
+	if err := sender.Send(data); err != nil {
 		if err := stream.Finish(); err != nil {
 			t.Logf("Finish() failed: %v", err)
 		}
 		t.Logf("Send() failed: %v", err)
 		return err
 	}
-	if err := stream.CloseSend(); err != nil {
+	if err := sender.Close(); err != nil {
 		if err := stream.Finish(); err != nil {
 			t.Logf("Finish() failed: %v", err)
 		}
-		t.Logf("CloseSend() failed: %v", err)
+		t.Logf("Close() failed: %v", err)
 		return err
 	}
 	if err := stream.Finish(); err != nil {
@@ -63,12 +64,13 @@ func invokeDownload(t *testing.T, binary repository.Binary, part int32) ([]byte,
 		return nil, err
 	}
 	output := make([]byte, 0)
-	for stream.Advance() {
-		bytes := stream.Value()
+	rStream := stream.RecvStream()
+	for rStream.Advance() {
+		bytes := rStream.Value()
 		output = append(output, bytes...)
 	}
 
-	if err := stream.Err(); err != nil {
+	if err := rStream.Err(); err != nil {
 		t.Logf("Advance() failed with: %v", err)
 	}
 

@@ -46,9 +46,13 @@ func Usage() {
 	fmt.Fprintf(os.Stdout, usage, os.Args[0], os.Args[0])
 }
 
+type sender interface {
+	Send(p []byte) error
+}
+
 // viewerPipeStreamWriter adapts ViewerPipeStream to io.Writer
 type viewerPipeStreamWriter struct {
-	pipetobrowser.ViewerPipeStream
+	sender
 }
 
 func (w viewerPipeStreamWriter) Write(p []byte) (n int, err error) {
@@ -81,9 +85,7 @@ func main() {
 		return
 	}
 
-	w := viewerPipeStreamWriter{
-		stream,
-	}
+	w := viewerPipeStreamWriter{stream.SendStream()}
 
 	_, err = io.Copy(w, os.Stdin)
 	if err != nil {

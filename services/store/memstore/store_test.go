@@ -285,7 +285,7 @@ func TestPutConflictingMutations(t *testing.T) {
 	v2 = "v4"
 
 	s := storetesting.PutMutations(rootPublicID, st.PutMutations)
-	s.Send(raw.Mutation{
+	s.SendStream().Send(raw.Mutation{
 		ID:           id2,
 		PriorVersion: pre2,
 		Version:      post2,
@@ -314,7 +314,7 @@ func TestPutDuplicateMutations(t *testing.T) {
 
 	id := storage.NewID()
 	s := storetesting.PutMutations(rootPublicID, st.PutMutations)
-	s.Send(raw.Mutation{
+	s.SendStream().Send(raw.Mutation{
 		ID:           id,
 		PriorVersion: storage.NoVersion,
 		Version:      storage.NewVersion(),
@@ -322,7 +322,7 @@ func TestPutDuplicateMutations(t *testing.T) {
 		Value:        "v1",
 		Dir:          empty,
 	})
-	s.Send(raw.Mutation{
+	s.SendStream().Send(raw.Mutation{
 		ID:           id,
 		PriorVersion: storage.NoVersion,
 		Version:      storage.NewVersion(),
@@ -349,7 +349,7 @@ func TestCancelPutMutation(t *testing.T) {
 	}
 
 	s := storetesting.PutMutations(rootPublicID, st.PutMutations)
-	s.Send(raw.Mutation{
+	s.SendStream().Send(raw.Mutation{
 		ID:           storage.NewID(),
 		PriorVersion: storage.NoVersion,
 		Version:      storage.NewVersion(),

@@ -37,10 +37,11 @@ func TestWatchRaw(t *testing.T) {
 	ws := watchtesting.WatchRaw(rootPublicID, w.WatchRaw, req)
 
 	// Check that watch detects the changes in the first transaction.
-	if !ws.Advance() {
-		t.Error("Advance() failed: %v", ws.Err())
+	rStream := ws.RecvStream()
+	if !rStream.Advance() {
+		t.Error("Advance() failed: %v", rStream.Err())
 	}
-	cb := ws.Value()
+	cb := rStream.Value()
 	changes := cb.Changes
 	change := changes[0]
 	if change.Continued {
@@ -59,10 +60,10 @@ func TestWatchRaw(t *testing.T) {
 
 	// Check that watch detects the changes in the second transaction.
 
-	if !ws.Advance() {
-		t.Error("Advance() failed: %v", ws.Err())
+	if !rStream.Advance() {
+		t.Error("Advance() failed: %v", rStream.Err())
 	}
-	cb = ws.Value()
+	cb = rStream.Value()
 	changes = cb.Changes
 	change = changes[0]
 	if !change.Continued {
@@ -95,11 +96,12 @@ func TestWatchGlob(t *testing.T) {
 	req := watch.GlobRequest{Pattern: "..."}
 	ws := watchtesting.WatchGlobOnPath(rootPublicID, w.WatchGlob, path, req)
 
+	rStream := ws.RecvStream()
 	// Check that watch detects the changes in the first transaction.
-	if !ws.Advance() {
-		t.Error("Advance() failed: %v", ws.Err())
+	if !rStream.Advance() {
+		t.Error("Advance() failed: %v", rStream.Err())
 	}
-	cb := ws.Value()
+	cb := rStream.Value()
 	changes := cb.Changes
 	change := changes[0]
 	if change.Continued {
@@ -113,10 +115,10 @@ func TestWatchGlob(t *testing.T) {
 	commit(t, tr)
 
 	// Check that watch detects the changes in the second transaction.
-	if !ws.Advance() {
-		t.Error("Advance() failed: %v", ws.Err())
+	if !rStream.Advance() {
+		t.Error("Advance() failed: %v", rStream.Err())
 	}
-	cb = ws.Value()
+	cb = rStream.Value()
 
 	changes = cb.Changes
 	change = changes[0]
@@ -150,7 +152,8 @@ func TestWatchCancellation(t *testing.T) {
 	commit(t, tr)
 
 	// Check that watch processed the first transaction.
-	if !ws.Advance() {
+	rStream := ws.RecvStream()
+	if !rStream.Advance() {
 		t.Error("Expected a change.")
 	}
 
@@ -165,8 +168,8 @@ func TestWatchCancellation(t *testing.T) {
 	commit(t, tr)
 
 	// Check that watch did not processed the second transaction.
-	if ws.Advance() || ws.Err() != nil {
-		t.Errorf("Unexpected error: %v", ws.Err())
+	if rStream.Advance() || rStream.Err() != nil {
+		t.Errorf("Unexpected error: %v", rStream.Err())
 	}
 
 	// Check that io.EOF was returned.
@@ -195,7 +198,7 @@ func TestWatchClosed(t *testing.T) {
 	commit(t, tr)
 
 	// Check that watch processed the first transaction.
-	if !ws.Advance() {
+	if !ws.RecvStream().Advance() {
 		t.Error("Expected a change.")
 	}
 
@@ -245,10 +248,11 @@ func TestStateResumeMarker(t *testing.T) {
 	ws := watchtesting.WatchRaw(rootPublicID, w.WatchRaw, req)
 
 	// Retrieve the resume marker for the initial state.
-	if !ws.Advance() {
-		t.Error("Advance() failed: %v", ws.Err())
+	rStream := ws.RecvStream()
+	if !rStream.Advance() {
+		t.Error("Advance() failed: %v", rStream.Err())
 	}
-	cb := ws.Value()
+	cb := rStream.Value()
 
 	changes := cb.Changes
 	change := changes[0]
@@ -262,11 +266,12 @@ func TestStateResumeMarker(t *testing.T) {
 	req = raw.Request{ResumeMarker: resumeMarker1}
 	ws = watchtesting.WatchRaw(rootPublicID, w.WatchRaw, req)
 
+	rStream = ws.RecvStream()
 	// Check that watch detects the changes in the state and the transaction.
-	if !ws.Advance() {
-		t.Error("Advance() failed: %v", ws.Err())
+	if !rStream.Advance() {
+		t.Error("Advance() failed: %v", rStream.Err())
 	}
-	cb = ws.Value()
+	cb = rStream.Value()
 
 	changes = cb.Changes
 	change = changes[0]
@@ -276,10 +281,10 @@ func TestStateResumeMarker(t *testing.T) {
 	watchtesting.ExpectMutationExists(t, changes, id1, storage.NoVersion, post11, true, "val1", watchtesting.EmptyDir)
 
 	// Check that watch detects the changes in the state and the transaction.
-	if !ws.Advance() {
-		t.Error("Advance() failed: %v", ws.Err())
+	if !rStream.Advance() {
+		t.Error("Advance() failed: %v", rStream.Err())
 	}
-	cb = ws.Value()
+	cb = rStream.Value()
 
 	changes = cb.Changes
 	change = changes[0]
@@ -324,10 +329,11 @@ func TestTransactionResumeMarker(t *testing.T) {
 	ws := watchtesting.WatchRaw(rootPublicID, w.WatchRaw, req)
 
 	// Retrieve the resume marker for the first transaction.
-	if !ws.Advance() {
-		t.Error("Advance() failed: %v", ws.Err())
+	rStream := ws.RecvStream()
+	if !rStream.Advance() {
+		t.Error("Advance() failed: %v", rStream.Err())
 	}
-	cb := ws.Value()
+	cb := rStream.Value()
 
 	changes := cb.Changes
 	change := changes[0]
@@ -342,10 +348,11 @@ func TestTransactionResumeMarker(t *testing.T) {
 	ws = watchtesting.WatchRaw(rootPublicID, w.WatchRaw, req)
 
 	// Check that watch detects the changes in the first and second transaction.
-	if !ws.Advance() {
-		t.Error("Advance() failed: %v", ws.Err())
+	rStream = ws.RecvStream()
+	if !rStream.Advance() {
+		t.Error("Advance() failed: %v", rStream.Err())
 	}
-	cb = ws.Value()
+	cb = rStream.Value()
 
 	changes = cb.Changes
 	change = changes[0]
@@ -354,10 +361,10 @@ func TestTransactionResumeMarker(t *testing.T) {
 	}
 	watchtesting.ExpectMutationExists(t, changes, id1, storage.NoVersion, post11, true, "val1", watchtesting.EmptyDir)
 
-	if !ws.Advance() {
-		t.Error("Advance() failed: %v", ws.Err())
+	if !rStream.Advance() {
+		t.Error("Advance() failed: %v", rStream.Err())
 	}
-	cb = ws.Value()
+	cb = rStream.Value()
 
 	changes = cb.Changes
 	change = changes[0]
@@ -381,10 +388,11 @@ func TestTransactionResumeMarker(t *testing.T) {
 	ws = watchtesting.WatchRaw(rootPublicID, w.WatchRaw, req)
 
 	// Check that watch detects the changes in the second transaction.
-	if !ws.Advance() {
-		t.Error("Advance() failed: %v", ws.Err())
+	rStream = ws.RecvStream()
+	if !rStream.Advance() {
+		t.Error("Advance() failed: %v", rStream.Err())
 	}
-	cb = ws.Value()
+	cb = rStream.Value()
 
 	changes = cb.Changes
 	change = changes[0]
@@ -437,20 +445,21 @@ func TestNowResumeMarker(t *testing.T) {
 	post33 := st.Snapshot().Find(id3).Version
 
 	// Check that watch announces that the initial state was skipped.
-	if !ws.Advance() {
-		t.Error("Advance() failed: %v", ws.Err())
+	rStream := ws.RecvStream()
+	if !rStream.Advance() {
+		t.Error("Advance() failed: %v", rStream.Err())
 	}
-	cb := ws.Value()
+	cb := rStream.Value()
 
 	changes := cb.Changes
 	change := changes[0]
 	watchtesting.ExpectInitialStateSkipped(t, change)
 
 	// Check that watch detects the changes in the third transaction.
-	if !ws.Advance() {
-		t.Error("Advance() failed: %v", ws.Err())
+	if !rStream.Advance() {
+		t.Error("Advance() failed: %v", rStream.Err())
 	}
-	cb = ws.Value()
+	cb = rStream.Value()
 
 	changes = cb.Changes
 	change = changes[0]
@@ -519,10 +528,11 @@ func TestConsistentResumeMarkers(t *testing.T) {
 	req := watch.GlobRequest{Pattern: "..."}
 	ws := watchtesting.WatchGlobOnPath(rootPublicID, w.WatchGlob, path, req)
 
-	if !ws.Advance() {
-		t.Error("Advance() failed: %v", ws.Err())
+	rStream := ws.RecvStream()
+	if !rStream.Advance() {
+		t.Error("Advance() failed: %v", rStream.Err())
 	}
-	cb := ws.Value()
+	cb := rStream.Value()
 
 	changes := cb.Changes
 	change := changes[0]
@@ -532,10 +542,11 @@ func TestConsistentResumeMarkers(t *testing.T) {
 	// Start another watch request.
 	ws = watchtesting.WatchGlobOnPath(rootPublicID, w.WatchGlob, path, req)
 
-	if !ws.Advance() {
-		t.Error("Advance() failed: %v", ws.Err())
+	rStream = ws.RecvStream()
+	if !rStream.Advance() {
+		t.Error("Advance() failed: %v", rStream.Err())
 	}
-	cb = ws.Value()
+	cb = rStream.Value()
 
 	changes = cb.Changes
 	change = changes[0]

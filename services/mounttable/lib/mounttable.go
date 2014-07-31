@@ -328,6 +328,7 @@ func (mt *mountTable) globStep(n *node, name string, pattern *glob.Glob, context
 		}
 	}
 
+	sender := reply.SendStream()
 	// If this is a mount point, we're done.
 	if m := n.mount; m != nil {
 		// Garbage-collect if expired.
@@ -335,7 +336,7 @@ func (mt *mountTable) globStep(n *node, name string, pattern *glob.Glob, context
 			n.removeUseless()
 			return
 		}
-		reply.Send(mounttable.MountEntry{Name: name, Servers: m.servers.copyToSlice()})
+		sender.Send(mounttable.MountEntry{Name: name, Servers: m.servers.copyToSlice()})
 		return
 	}
 
@@ -345,7 +346,7 @@ func (mt *mountTable) globStep(n *node, name string, pattern *glob.Glob, context
 			n.removeUseless()
 			return
 		}
-		reply.Send(mounttable.MountEntry{Name: name})
+		sender.Send(mounttable.MountEntry{Name: name})
 	}
 
 	if pattern.Finished() {

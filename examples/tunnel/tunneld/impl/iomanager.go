@@ -56,8 +56,9 @@ func (m *ioManager) run() error {
 
 // chan2stream receives ServerShellPacket from outchan and sends it to stream.
 func (m *ioManager) chan2stream() {
+	sender := m.stream.SendStream()
 	for packet := range m.outchan {
-		if err := m.stream.Send(packet); err != nil {
+		if err := sender.Send(packet); err != nil {
 			m.done <- err
 			return
 		}
@@ -108,8 +109,9 @@ func (m *ioManager) stderr2outchan() {
 
 // stream2stdin reads data from the stream and sends it to the shell's stdin.
 func (m *ioManager) stream2stdin() {
-	for m.stream.Advance() {
-		packet := m.stream.Value()
+	rStream := m.stream.RecvStream()
+	for rStream.Advance() {
+		packet := rStream.Value()
 		if len(packet.Stdin) > 0 {
 			if n, err := m.stdin.Write(packet.Stdin); n != len(packet.Stdin) || err != nil {
 				m.done <- fmt.Errorf("stdin.Write returned (%d, %v) want (%d, nil)", n, err, len(packet.Stdin))
@@ -121,7 +123,7 @@ func (m *ioManager) stream2stdin() {
 		}
 	}
 
-	err := m.stream.Err()
+	err := rStream.Err()
 	if err == nil {
 		err = io.EOF
 	}

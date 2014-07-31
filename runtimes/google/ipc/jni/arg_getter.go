@@ -90,14 +90,29 @@ func registerInterface(ifacePtr interface{}) {
 // fillStreamArgs fills in stream argument types for the provided stream.
 func fillStreamArgs(stream reflect.Type, mArgs *methodArgs) error {
 	// Get the stream send type.
-	if mSend, ok := stream.MethodByName("Send"); ok {
+	if mSendStream, ok := stream.MethodByName("SendStream"); ok {
+		if mSendStream.Type.NumOut() != 1 {
+			return fmt.Errorf("Illegal number of arguments for SendStream method in stream %v", stream)
+		}
+		mSend, ok := mSendStream.Type.Out(0).MethodByName("Send")
+		if !ok {
+			return fmt.Errorf("Illegal Send method in SendStream %v", mSendStream)
+		}
+
 		if mSend.Type.NumIn() != 1 {
 			return fmt.Errorf("Illegal number of arguments for Send method in stream %v", stream)
 		}
 		mArgs.streamSendType = mSend.Type.In(0)
 	}
 	// Get the stream recv type.
-	if mRecv, ok := stream.MethodByName("Value"); ok {
+	if mRecvStream, ok := stream.MethodByName("RecvStream"); ok {
+		if mRecvStream.Type.NumOut() != 1 {
+			return fmt.Errorf("Illegal number of arguments for RecvStream method in stream %v", stream)
+		}
+		mRecv, ok := mRecvStream.Type.Out(0).MethodByName("Value")
+		if !ok {
+			return fmt.Errorf("Illegal Value method in RecvStream %v", mRecvStream)
+		}
 		if mRecv.Type.NumOut() != 1 {
 			return fmt.Errorf("Illegal number of arguments for Value method in stream %v", stream)
 		}

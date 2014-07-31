@@ -52,7 +52,7 @@ func (*fakeVStore) Signature(_ context.T, _ ...ipc.CallOpt) (ipc.ServiceSignatur
 	panic("not implemented")
 }
 
-func (v *fakeVStore) Watch(_ context.T, req raw.Request, _ ...ipc.CallOpt) (raw.StoreWatchStream, error) {
+func (v *fakeVStore) Watch(_ context.T, req raw.Request, _ ...ipc.CallOpt) (raw.StoreWatchCall, error) {
 	// If "failWatch" is set, simulate a failed RPC call.
 	if info.failWatch {
 		info.failWatchCount++
@@ -66,7 +66,7 @@ func (v *fakeVStore) Watch(_ context.T, req raw.Request, _ ...ipc.CallOpt) (raw.
 	return newFakeStream(), nil
 }
 
-func (*fakeVStore) PutMutations(_ context.T, _ ...ipc.CallOpt) (raw.StorePutMutationsStream, error) {
+func (*fakeVStore) PutMutations(_ context.T, _ ...ipc.CallOpt) (raw.StorePutMutationsCall, error) {
 	panic("not implemented")
 }
 
@@ -79,6 +79,14 @@ type fakeStream struct {
 func newFakeStream() *fakeStream {
 	s := &fakeStream{}
 	s.canceled = make(chan struct{})
+	return s
+}
+
+func (s *fakeStream) RecvStream() interface {
+	Advance() bool
+	Value() watch.ChangeBatch
+	Err() error
+} {
 	return s
 }
 

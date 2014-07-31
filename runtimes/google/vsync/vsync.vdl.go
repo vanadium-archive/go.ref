@@ -92,7 +92,7 @@ const _ = _gen_wiretype.TypeIDInvalid
 type Sync_ExcludingUniversal interface {
 	// GetDeltas returns a device's current generation vector and all the missing log records
 	// when compared to the incoming generation vector.
-	GetDeltas(ctx _gen_context.T, In GenVector, ClientID DeviceID, opts ..._gen_ipc.CallOpt) (reply SyncGetDeltasStream, err error)
+	GetDeltas(ctx _gen_context.T, In GenVector, ClientID DeviceID, opts ..._gen_ipc.CallOpt) (reply SyncGetDeltasCall, err error)
 }
 type Sync interface {
 	_gen_ipc.UniversalServiceMethods
@@ -107,27 +107,29 @@ type SyncService interface {
 	GetDeltas(context _gen_ipc.ServerContext, In GenVector, ClientID DeviceID, stream SyncServiceGetDeltasStream) (reply GenVector, err error)
 }
 
-// SyncGetDeltasStream is the interface for streaming responses of the method
+// SyncGetDeltasCall is the interface for call object of the method
 // GetDeltas in the service interface Sync.
-type SyncGetDeltasStream interface {
+type SyncGetDeltasCall interface {
+	// RecvStream returns the recv portion of the stream
+	RecvStream() interface {
+		// Advance stages an element so the client can retrieve it
+		// with Value.  Advance returns true iff there is an
+		// element to retrieve.  The client must call Advance before
+		// calling Value.  The client must call Cancel if it does
+		// not iterate through all elements (i.e. until Advance
+		// returns false).  Advance may block if an element is not
+		// immediately available.
+		Advance() bool
 
-	// Advance stages an element so the client can retrieve it
-	// with Value.  Advance returns true iff there is an
-	// element to retrieve.  The client must call Advance before
-	// calling Value.  The client must call Cancel if it does
-	// not iterate through all elements (i.e. until Advance
-	// returns false).  Advance may block if an element is not
-	// immediately available.
-	Advance() bool
+		// Value returns the element that was staged by Advance.
+		// Value may panic if Advance returned false or was not
+		// called at all.  Value does not block.
+		Value() LogRec
 
-	// Value returns the element that was staged by Advance.
-	// Value may panic if Advance returned false or was not
-	// called at all.  Value does not block.
-	Value() LogRec
-
-	// Err returns a non-nil error iff the stream encountered
-	// any errors.  Err does not block.
-	Err() error
+		// Err returns a non-nil error iff the stream encountered
+		// any errors.  Err does not block.
+		Err() error
+	}
 
 	// Finish blocks until the server is done and returns the positional
 	// return values for call.
@@ -138,7 +140,7 @@ type SyncGetDeltasStream interface {
 	// call.
 	//
 	// Calling Finish is mandatory for releasing stream resources, unless Cancel
-	// has been called or any of the other methods return a non-EOF error.
+	// has been called or any of the other methods return an error.
 	// Finish should be called at most once.
 	Finish() (reply GenVector, err error)
 
@@ -148,56 +150,84 @@ type SyncGetDeltasStream interface {
 	Cancel()
 }
 
-// Implementation of the SyncGetDeltasStream interface that is not exported.
-type implSyncGetDeltasStream struct {
+type implSyncGetDeltasStreamIterator struct {
 	clientCall _gen_ipc.Call
 	val        LogRec
 	err        error
 }
 
-func (c *implSyncGetDeltasStream) Advance() bool {
+func (c *implSyncGetDeltasStreamIterator) Advance() bool {
 	c.val = LogRec{}
 	c.err = c.clientCall.Recv(&c.val)
 	return c.err == nil
 }
 
-func (c *implSyncGetDeltasStream) Value() LogRec {
+func (c *implSyncGetDeltasStreamIterator) Value() LogRec {
 	return c.val
 }
 
-func (c *implSyncGetDeltasStream) Err() error {
+func (c *implSyncGetDeltasStreamIterator) Err() error {
 	if c.err == _gen_io.EOF {
 		return nil
 	}
 	return c.err
 }
 
-func (c *implSyncGetDeltasStream) Finish() (reply GenVector, err error) {
+// Implementation of the SyncGetDeltasCall interface that is not exported.
+type implSyncGetDeltasCall struct {
+	clientCall _gen_ipc.Call
+	readStream implSyncGetDeltasStreamIterator
+}
+
+func (c *implSyncGetDeltasCall) RecvStream() interface {
+	Advance() bool
+	Value() LogRec
+	Err() error
+} {
+	return &c.readStream
+}
+
+func (c *implSyncGetDeltasCall) Finish() (reply GenVector, err error) {
 	if ierr := c.clientCall.Finish(&reply, &err); ierr != nil {
 		err = ierr
 	}
 	return
 }
 
-func (c *implSyncGetDeltasStream) Cancel() {
+func (c *implSyncGetDeltasCall) Cancel() {
 	c.clientCall.Cancel()
+}
+
+type implSyncServiceGetDeltasStreamSender struct {
+	serverCall _gen_ipc.ServerCall
+}
+
+func (s *implSyncServiceGetDeltasStreamSender) Send(item LogRec) error {
+	return s.serverCall.Send(item)
 }
 
 // SyncServiceGetDeltasStream is the interface for streaming responses of the method
 // GetDeltas in the service interface Sync.
 type SyncServiceGetDeltasStream interface {
-	// Send places the item onto the output stream, blocking if there is no buffer
-	// space available.  If the client has canceled, an error is returned.
-	Send(item LogRec) error
+	// SendStream returns the send portion of the stream.
+	SendStream() interface {
+		// Send places the item onto the output stream, blocking if there is no buffer
+		// space available.  If the client has canceled, an error is returned.
+		Send(item LogRec) error
+	}
 }
 
 // Implementation of the SyncServiceGetDeltasStream interface that is not exported.
 type implSyncServiceGetDeltasStream struct {
-	serverCall _gen_ipc.ServerCall
+	writer implSyncServiceGetDeltasStreamSender
 }
 
-func (s *implSyncServiceGetDeltasStream) Send(item LogRec) error {
-	return s.serverCall.Send(item)
+func (s *implSyncServiceGetDeltasStream) SendStream() interface {
+	// Send places the item onto the output stream, blocking if there is no buffer
+	// space available.  If the client has canceled, an error is returned.
+	Send(item LogRec) error
+} {
+	return &s.writer
 }
 
 // BindSync returns the client stub implementing the Sync
@@ -241,12 +271,12 @@ type clientStubSync struct {
 	name   string
 }
 
-func (__gen_c *clientStubSync) GetDeltas(ctx _gen_context.T, In GenVector, ClientID DeviceID, opts ..._gen_ipc.CallOpt) (reply SyncGetDeltasStream, err error) {
+func (__gen_c *clientStubSync) GetDeltas(ctx _gen_context.T, In GenVector, ClientID DeviceID, opts ..._gen_ipc.CallOpt) (reply SyncGetDeltasCall, err error) {
 	var call _gen_ipc.Call
 	if call, err = __gen_c.client.StartCall(ctx, __gen_c.name, "GetDeltas", []interface{}{In, ClientID}, opts...); err != nil {
 		return
 	}
-	reply = &implSyncGetDeltasStream{clientCall: call}
+	reply = &implSyncGetDeltasCall{clientCall: call, readStream: implSyncGetDeltasStreamIterator{clientCall: call}}
 	return
 }
 
@@ -385,7 +415,7 @@ func (__gen_s *ServerStubSync) UnresolveStep(call _gen_ipc.ServerCall) (reply []
 }
 
 func (__gen_s *ServerStubSync) GetDeltas(call _gen_ipc.ServerCall, In GenVector, ClientID DeviceID) (reply GenVector, err error) {
-	stream := &implSyncServiceGetDeltasStream{serverCall: call}
+	stream := &implSyncServiceGetDeltasStream{writer: implSyncServiceGetDeltasStreamSender{serverCall: call}}
 	reply, err = __gen_s.service.GetDeltas(call, In, ClientID, stream)
 	return
 }

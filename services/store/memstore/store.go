@@ -153,15 +153,16 @@ func (st *Store) ApplyMutations(mu *state.Mutations) error {
 // stream has been closed.
 func (st *Store) PutMutations(ctx ipc.ServerContext, stream raw.StoreServicePutMutationsStream) error {
 	tr := st.newNilTransaction()
-	for stream.Advance() {
-		mu := stream.Value()
+	rStream := stream.RecvStream()
+	for rStream.Advance() {
+		mu := rStream.Value()
 
 		if err := tr.snapshot.PutMutation(mu); err != nil {
 			tr.Abort()
 			return err
 		}
 	}
-	err := stream.Err()
+	err := rStream.Err()
 	if err != nil {
 		tr.Abort()
 		return err

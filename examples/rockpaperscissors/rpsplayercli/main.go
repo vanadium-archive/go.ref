@@ -200,8 +200,9 @@ func playGame(judge string, gameID rps.GameID) (rps.PlayResult, error) {
 		return rps.PlayResult{}, err
 	}
 	var playerNum int32
-	for game.Advance() {
-		in := game.Value()
+	rStream := game.RecvStream()
+	for rStream.Advance() {
+		in := rStream.Value()
 		if in.PlayerNum > 0 {
 			playerNum = in.PlayerNum
 			fmt.Printf("You are player %d\n", in.PlayerNum)
@@ -230,7 +231,7 @@ func playGame(judge string, gameID rps.GameID) (rps.PlayResult, error) {
 			fmt.Println()
 			fmt.Println("Choose your weapon:")
 			m := selectOne(in.MoveOptions)
-			if err := game.Send(rps.PlayerAction{Move: in.MoveOptions[m]}); err != nil {
+			if err := game.SendStream().Send(rps.PlayerAction{Move: in.MoveOptions[m]}); err != nil {
 				return rps.PlayResult{}, err
 			}
 		}
@@ -246,7 +247,7 @@ func playGame(judge string, gameID rps.GameID) (rps.PlayResult, error) {
 			}
 		}
 	}
-	if err := game.Err(); err == nil {
+	if err := rStream.Err(); err == nil {
 		fmt.Println("Game Ended")
 	} else {
 		vlog.Infof("stream error: %v", err)

@@ -76,9 +76,9 @@ type stubbedServer struct {
 
 func (s *stubbedServer) send(fi os.FileInfo, details bool) error {
 	if !details {
-		return s.names.Send(fi.Name())
+		return s.names.SendStream().Send(fi.Name())
 	}
-	return s.details.Send(inspector.Details{
+	return s.details.SendStream().Send(inspector.Details{
 		Name:        fi.Name(),
 		Size:        fi.Size(),
 		Mode:        uint32(fi.Mode()),

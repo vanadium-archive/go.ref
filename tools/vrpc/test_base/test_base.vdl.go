@@ -50,7 +50,7 @@ type TypeTester_ExcludingUniversal interface {
 	NoArguments(ctx _gen_context.T, opts ..._gen_ipc.CallOpt) (err error)
 	MultipleArguments(ctx _gen_context.T, I1 int32, I2 int32, opts ..._gen_ipc.CallOpt) (O1 int32, O2 int32, err error)
 	// Methods to test support for streaming.
-	StreamingOutput(ctx _gen_context.T, NumStreamItems int32, StreamItem bool, opts ..._gen_ipc.CallOpt) (reply TypeTesterStreamingOutputStream, err error)
+	StreamingOutput(ctx _gen_context.T, NumStreamItems int32, StreamItem bool, opts ..._gen_ipc.CallOpt) (reply TypeTesterStreamingOutputCall, err error)
 }
 type TypeTester interface {
 	_gen_ipc.UniversalServiceMethods
@@ -86,27 +86,29 @@ type TypeTesterService interface {
 	StreamingOutput(context _gen_ipc.ServerContext, NumStreamItems int32, StreamItem bool, stream TypeTesterServiceStreamingOutputStream) (err error)
 }
 
-// TypeTesterStreamingOutputStream is the interface for streaming responses of the method
+// TypeTesterStreamingOutputCall is the interface for call object of the method
 // StreamingOutput in the service interface TypeTester.
-type TypeTesterStreamingOutputStream interface {
+type TypeTesterStreamingOutputCall interface {
+	// RecvStream returns the recv portion of the stream
+	RecvStream() interface {
+		// Advance stages an element so the client can retrieve it
+		// with Value.  Advance returns true iff there is an
+		// element to retrieve.  The client must call Advance before
+		// calling Value.  The client must call Cancel if it does
+		// not iterate through all elements (i.e. until Advance
+		// returns false).  Advance may block if an element is not
+		// immediately available.
+		Advance() bool
 
-	// Advance stages an element so the client can retrieve it
-	// with Value.  Advance returns true iff there is an
-	// element to retrieve.  The client must call Advance before
-	// calling Value.  The client must call Cancel if it does
-	// not iterate through all elements (i.e. until Advance
-	// returns false).  Advance may block if an element is not
-	// immediately available.
-	Advance() bool
+		// Value returns the element that was staged by Advance.
+		// Value may panic if Advance returned false or was not
+		// called at all.  Value does not block.
+		Value() bool
 
-	// Value returns the element that was staged by Advance.
-	// Value may panic if Advance returned false or was not
-	// called at all.  Value does not block.
-	Value() bool
-
-	// Err returns a non-nil error iff the stream encountered
-	// any errors.  Err does not block.
-	Err() error
+		// Err returns a non-nil error iff the stream encountered
+		// any errors.  Err does not block.
+		Err() error
+	}
 
 	// Finish blocks until the server is done and returns the positional
 	// return values for call.
@@ -117,7 +119,7 @@ type TypeTesterStreamingOutputStream interface {
 	// call.
 	//
 	// Calling Finish is mandatory for releasing stream resources, unless Cancel
-	// has been called or any of the other methods return a non-EOF error.
+	// has been called or any of the other methods return an error.
 	// Finish should be called at most once.
 	Finish() (err error)
 
@@ -127,55 +129,83 @@ type TypeTesterStreamingOutputStream interface {
 	Cancel()
 }
 
-// Implementation of the TypeTesterStreamingOutputStream interface that is not exported.
-type implTypeTesterStreamingOutputStream struct {
+type implTypeTesterStreamingOutputStreamIterator struct {
 	clientCall _gen_ipc.Call
 	val        bool
 	err        error
 }
 
-func (c *implTypeTesterStreamingOutputStream) Advance() bool {
+func (c *implTypeTesterStreamingOutputStreamIterator) Advance() bool {
 	c.err = c.clientCall.Recv(&c.val)
 	return c.err == nil
 }
 
-func (c *implTypeTesterStreamingOutputStream) Value() bool {
+func (c *implTypeTesterStreamingOutputStreamIterator) Value() bool {
 	return c.val
 }
 
-func (c *implTypeTesterStreamingOutputStream) Err() error {
+func (c *implTypeTesterStreamingOutputStreamIterator) Err() error {
 	if c.err == _gen_io.EOF {
 		return nil
 	}
 	return c.err
 }
 
-func (c *implTypeTesterStreamingOutputStream) Finish() (err error) {
+// Implementation of the TypeTesterStreamingOutputCall interface that is not exported.
+type implTypeTesterStreamingOutputCall struct {
+	clientCall _gen_ipc.Call
+	readStream implTypeTesterStreamingOutputStreamIterator
+}
+
+func (c *implTypeTesterStreamingOutputCall) RecvStream() interface {
+	Advance() bool
+	Value() bool
+	Err() error
+} {
+	return &c.readStream
+}
+
+func (c *implTypeTesterStreamingOutputCall) Finish() (err error) {
 	if ierr := c.clientCall.Finish(&err); ierr != nil {
 		err = ierr
 	}
 	return
 }
 
-func (c *implTypeTesterStreamingOutputStream) Cancel() {
+func (c *implTypeTesterStreamingOutputCall) Cancel() {
 	c.clientCall.Cancel()
+}
+
+type implTypeTesterServiceStreamingOutputStreamSender struct {
+	serverCall _gen_ipc.ServerCall
+}
+
+func (s *implTypeTesterServiceStreamingOutputStreamSender) Send(item bool) error {
+	return s.serverCall.Send(item)
 }
 
 // TypeTesterServiceStreamingOutputStream is the interface for streaming responses of the method
 // StreamingOutput in the service interface TypeTester.
 type TypeTesterServiceStreamingOutputStream interface {
-	// Send places the item onto the output stream, blocking if there is no buffer
-	// space available.  If the client has canceled, an error is returned.
-	Send(item bool) error
+	// SendStream returns the send portion of the stream.
+	SendStream() interface {
+		// Send places the item onto the output stream, blocking if there is no buffer
+		// space available.  If the client has canceled, an error is returned.
+		Send(item bool) error
+	}
 }
 
 // Implementation of the TypeTesterServiceStreamingOutputStream interface that is not exported.
 type implTypeTesterServiceStreamingOutputStream struct {
-	serverCall _gen_ipc.ServerCall
+	writer implTypeTesterServiceStreamingOutputStreamSender
 }
 
-func (s *implTypeTesterServiceStreamingOutputStream) Send(item bool) error {
-	return s.serverCall.Send(item)
+func (s *implTypeTesterServiceStreamingOutputStream) SendStream() interface {
+	// Send places the item onto the output stream, blocking if there is no buffer
+	// space available.  If the client has canceled, an error is returned.
+	Send(item bool) error
+} {
+	return &s.writer
 }
 
 // BindTypeTester returns the client stub implementing the TypeTester
@@ -428,12 +458,12 @@ func (__gen_c *clientStubTypeTester) MultipleArguments(ctx _gen_context.T, I1 in
 	return
 }
 
-func (__gen_c *clientStubTypeTester) StreamingOutput(ctx _gen_context.T, NumStreamItems int32, StreamItem bool, opts ..._gen_ipc.CallOpt) (reply TypeTesterStreamingOutputStream, err error) {
+func (__gen_c *clientStubTypeTester) StreamingOutput(ctx _gen_context.T, NumStreamItems int32, StreamItem bool, opts ..._gen_ipc.CallOpt) (reply TypeTesterStreamingOutputCall, err error) {
 	var call _gen_ipc.Call
 	if call, err = __gen_c.client.StartCall(ctx, __gen_c.name, "StreamingOutput", []interface{}{NumStreamItems, StreamItem}, opts...); err != nil {
 		return
 	}
-	reply = &implTypeTesterStreamingOutputStream{clientCall: call}
+	reply = &implTypeTesterStreamingOutputCall{clientCall: call, readStream: implTypeTesterStreamingOutputStreamIterator{clientCall: call}}
 	return
 }
 
@@ -825,7 +855,7 @@ func (__gen_s *ServerStubTypeTester) MultipleArguments(call _gen_ipc.ServerCall,
 }
 
 func (__gen_s *ServerStubTypeTester) StreamingOutput(call _gen_ipc.ServerCall, NumStreamItems int32, StreamItem bool) (err error) {
-	stream := &implTypeTesterServiceStreamingOutputStream{serverCall: call}
+	stream := &implTypeTesterServiceStreamingOutputStream{writer: implTypeTesterServiceStreamingOutputStreamSender{serverCall: call}}
 	err = __gen_s.service.StreamingOutput(call, NumStreamItems, StreamItem, stream)
 	return
 }

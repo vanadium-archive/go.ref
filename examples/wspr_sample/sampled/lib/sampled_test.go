@@ -284,33 +284,37 @@ func TestMultiGet(t *testing.T) {
 	if err != nil {
 		t.Fatal("error calling MultiGet: ", err)
 	}
-	stream.Send("A")
-	stream.Send("C")
-	stream.Send("E")
 
-	if stream.Advance() {
-		if stream.Value() != "A" {
+	sender := stream.SendStream()
+
+	sender.Send("A")
+	sender.Send("C")
+	sender.Send("E")
+
+	rStream := stream.RecvStream()
+	if rStream.Advance() {
+		if rStream.Value() != "A" {
 			t.Errorf("value for 'A' didn't match")
 		}
 	} else {
-		t.Fatal("error on advance: %v", stream.Err())
+		t.Fatal("error on advance: %v", rStream.Err())
 	}
 
-	if stream.Advance() {
-		if stream.Value() != uint32(7) {
+	if rStream.Advance() {
+		if rStream.Value() != uint32(7) {
 			t.Errorf("value for 'C' didn't match")
 		}
 	} else {
-		t.Fatal("error on advance: %v", stream.Err())
+		t.Fatal("error on advance: %v", rStream.Err())
 	}
 
-	if stream.Advance() {
-		if stream.Value() != true {
+	if rStream.Advance() {
+		if rStream.Value() != true {
 			t.Errorf("value for 'E' didn't match")
 		}
 	} else {
-		t.Fatal("error on advance: %v", stream.Err())
+		t.Fatal("error on advance: %v", rStream.Err())
 	}
 
-	stream.CloseSend()
+	sender.Close()
 }

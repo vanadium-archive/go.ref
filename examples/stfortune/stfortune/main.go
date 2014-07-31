@@ -61,8 +61,8 @@ func waitForStore(store storage.Store) {
 		if err != nil {
 			log.Fatalf("WatchGlob %s failed: %v", path, err)
 		}
-		if !stream.Advance() {
-			log.Fatalf("waitForStore, path: %s, Advance failed: %v", path, stream.Err())
+		if !stream.RecvStream().Advance() {
+			log.Fatalf("waitForStore, path: %s, Advance failed: %v", path, stream.RecvStream().Err())
 		}
 		stream.Cancel()
 	}
@@ -93,8 +93,9 @@ func runAsWatcher(store storage.Store, user string) {
 		log.Fatalf("watcher WatchGlob %s failed: %v", path, err)
 	}
 
-	for stream.Advance() {
-		batch := stream.Value()
+	rStream := stream.RecvStream()
+	for rStream.Advance() {
+		batch := rStream.Value()
 
 		for _, change := range batch.Changes {
 			entry, ok := change.Value.(*storage.Entry)
@@ -112,7 +113,7 @@ func runAsWatcher(store storage.Store, user string) {
 			fmt.Printf("watcher: new fortune: %s\n", fortune.Fortune)
 		}
 	}
-	err = stream.Err()
+	err = rStream.Err()
 	if err == nil {
 		err = io.EOF
 	}
@@ -137,8 +138,9 @@ func pickFortuneGlob(store storage.Store, ctx context.T, path string) (string, e
 
 	results := store.BindObject(trPath(path)).Glob(ctx, "*")
 	var names []string
-	for results.Advance() {
-		names = append(names, results.Value())
+	rStream := results.RecvStream()
+	for rStream.Advance() {
+		names = append(names, rStream.Value())
 	}
 	if err := results.Err(); err != nil || len(names) == 0 {
 		return "", err

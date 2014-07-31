@@ -295,12 +295,13 @@ func doGlob(t *testing.T, name, pattern string, id ipc.ClientOpt) []string {
 		boom(t, "Failed call to %s.Glob(%s): %s", name, pattern, err)
 	}
 	var reply []string
-	for stream.Advance() {
-		e := stream.Value()
+	rStream := stream.RecvStream()
+	for rStream.Advance() {
+		e := rStream.Value()
 		reply = append(reply, e.Name)
 	}
 
-	if err := stream.Err(); err != nil {
+	if err := rStream.Err(); err != nil {
 		boom(t, "Glob %s: %s", name, err)
 	}
 	return reply

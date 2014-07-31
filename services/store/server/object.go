@@ -189,7 +189,7 @@ func (o *object) Query(ctx ipc.ServerContext, q query.Query, stream store.Object
 		return err
 	}
 	for it.Next() {
-		if err := stream.Send(*it.Get()); err != nil {
+		if err := stream.SendStream().Send(*it.Get()); err != nil {
 			it.Abort()
 			return err
 		}
@@ -197,14 +197,24 @@ func (o *object) Query(ctx ipc.ServerContext, q query.Query, stream store.Object
 	return it.Err()
 }
 
+type globStreamSenderAdapter struct {
+	stream interface {
+		Send(entry mounttable.MountEntry) error
+	}
+}
+
+func (a *globStreamSenderAdapter) Send(item string) error {
+	return a.stream.Send(mounttable.MountEntry{Name: item})
+}
+
 type globStreamAdapter struct {
 	stream mounttable.GlobbableServiceGlobStream
 }
 
-func (a *globStreamAdapter) Send(item string) error {
-	return a.stream.Send(mounttable.MountEntry{
-		Name: item,
-	})
+func (a *globStreamAdapter) SendStream() interface {
+	Send(item string) error
+} {
+	return &globStreamSenderAdapter{a.stream.SendStream()}
 }
 
 // Glob streams a series of names that match the given pattern.
@@ -222,7 +232,7 @@ func (o *object) Glob(ctx ipc.ServerContext, pattern string, stream mounttable.G
 		if ctx.IsClosed() {
 			break
 		}
-		if err := gsa.Send(it.Name()); err != nil {
+		if err := gsa.SendStream().Send(it.Name()); err != nil {
 			return err
 		}
 	}
@@ -259,16 +269,22 @@ func (s *entryTransformStream) Send(cb watch.ChangeBatch) error {
 	return s.delegate.Send(cbCp)
 }
 
+func (s *entryTransformStream) SendStream() interface {
+	Send(cb watch.ChangeBatch) error
+} {
+	return s
+}
+
 // WatchGlob returns a stream of changes that match a pattern.
 func (o *object) WatchGlob(ctx ipc.ServerContext, req watch.GlobRequest, stream watch.GlobWatcherServiceWatchGlobStream) error {
 	path := storage.ParsePath(o.name)
-	stream = &entryTransformStream{stream}
+	stream = &entryTransformStream{stream.SendStream()}
 	return o.server.watcher.WatchGlob(ctx, path, req, stream)
 }
 
 // WatchQuery returns a stream of changes that satisfy a query.
 func (o *object) WatchQuery(ctx ipc.ServerContext, req watch.QueryRequest, stream watch.QueryWatcherServiceWatchQueryStream) error {
 	path := storage.ParsePath(o.name)
-	stream = &entryTransformStream{stream}
+	stream = &entryTransformStream{stream.SendStream()}
 	return o.server.watcher.WatchQuery(ctx, path, req, stream)
 }

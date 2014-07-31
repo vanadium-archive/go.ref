@@ -56,8 +56,9 @@ func (i *invoker) Build(_ ipc.ServerContext, arch build.Architecture, opsys buil
 		vlog.Errorf("MkdirAll(%v, %v) failed: %v", srcDir, dirPerm, err)
 		return nil, errInternalError
 	}
-	for stream.Advance() {
-		srcFile := stream.Value()
+	rStream := stream.RecvStream()
+	for rStream.Advance() {
+		srcFile := rStream.Value()
 		filePath := filepath.Join(srcDir, filepath.FromSlash(srcFile.Name))
 		dir := filepath.Dir(filePath)
 		if err := os.MkdirAll(dir, dirPerm); err != nil {
@@ -70,8 +71,8 @@ func (i *invoker) Build(_ ipc.ServerContext, arch build.Architecture, opsys buil
 		}
 	}
 
-	if err := stream.Err(); err != nil {
-		vlog.Errorf("stream failed: %v", err)
+	if err := rStream.Err(); err != nil {
+		vlog.Errorf("rStream failed: %v", err)
 		return nil, errInternalError
 	}
 	cmd := exec.Command(i.gobin, "install", "-v", "...")
@@ -108,7 +109,7 @@ func (i *invoker) Build(_ ipc.ServerContext, arch build.Architecture, opsys buil
 			Name:     "bin/" + file.Name(),
 			Contents: bytes,
 		}
-		if err := stream.Send(result); err != nil {
+		if err := stream.SendStream().Send(result); err != nil {
 			vlog.Errorf("Send() failed: %v", err)
 			return nil, errInternalError
 		}

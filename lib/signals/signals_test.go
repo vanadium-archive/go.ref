@@ -325,8 +325,9 @@ func TestCleanRemoteShutdown(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Got error: %v", err)
 	}
-	if stream.Advance() || stream.Err() != nil {
-		t.Errorf("Expected EOF, got (%v, %v) instead: ", stream.Value(), stream.Err())
+	rStream := stream.RecvStream()
+	if rStream.Advance() || rStream.Err() != nil {
+		t.Errorf("Expected EOF, got (%v, %v) instead: ", rStream.Value(), rStream.Err())
 	}
 	if err := stream.Finish(); err != nil {
 		t.Fatalf("Got error: %v", err)

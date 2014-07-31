@@ -201,6 +201,14 @@ func newPutMutationsStream(mus []raw.Mutation) raw.StoreServicePutMutationsStrea
 	}
 }
 
+func (s *putMutationsStream) RecvStream() interface {
+	Advance() bool
+	Value() raw.Mutation
+	Err() error
+} {
+	return s
+}
+
 func (s *putMutationsStream) Advance() bool {
 	s.index++
 	return s.index < len(s.mus)
