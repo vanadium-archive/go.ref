@@ -227,12 +227,15 @@ func TestMountTable(t *testing.T) {
 	collectionName := naming.JoinAddressName(collectionAddr, "collection")
 
 	// Mount the collection server into the mount table.
+	vlog.Infof("Mount the collection server into the mount table.")
 	doMount(t, naming.JoinAddressName(mtAddr, "//mounttable/stuff"), collectionName, true, rootID)
 
 	// Create a few objects and make sure we can read them.
+	vlog.Infof("Create a few objects.")
 	create(t, naming.JoinAddressName(mtAddr, "mounttable/stuff/the/rain"), "the rain")
 	create(t, naming.JoinAddressName(mtAddr, "mounttable/stuff/in/spain"), "in spain")
 	create(t, naming.JoinAddressName(mtAddr, "mounttable/stuff/falls"), "falls mainly on the plain")
+	vlog.Infof("Make sure we can read them.")
 	checkContents(t, naming.JoinAddressName(mtAddr, "mounttable/stuff/the/rain"), "the rain", true, rootID)
 	checkContents(t, naming.JoinAddressName(mtAddr, "mounttable/stuff/in/spain"), "in spain", true, rootID)
 	checkContents(t, naming.JoinAddressName(mtAddr, "mounttable/stuff/falls"), "falls mainly on the plain", true, rootID)
@@ -242,9 +245,11 @@ func TestMountTable(t *testing.T) {
 	checkContents(t, naming.JoinAddressName(mtAddr, "mounttable/stuff/the/rain"), "the rain", false, aliceID)
 
 	// Test multiple mounts.
+	vlog.Infof("Multiple mounts.")
 	doMount(t, naming.JoinAddressName(mtAddr, "//mounttable//a/b"), collectionName, true, rootID)
 	doMount(t, naming.JoinAddressName(mtAddr, "//mounttable/x/y"), collectionName, true, rootID)
 	doMount(t, naming.JoinAddressName(mtAddr, "//mounttable/alpha//beta"), collectionName, true, rootID)
+	vlog.Infof("Make sure we can read them.")
 	checkContents(t, naming.JoinAddressName(mtAddr, "mounttable/stuff/falls"), "falls mainly on the plain", true, rootID)
 	checkContents(t, naming.JoinAddressName(mtAddr, "mounttable/a/b/falls"), "falls mainly on the plain", true, rootID)
 	checkContents(t, naming.JoinAddressName(mtAddr, "mounttable/x/y/falls"), "falls mainly on the plain", true, rootID)
@@ -253,15 +258,18 @@ func TestMountTable(t *testing.T) {
 	checkContents(t, naming.JoinAddressName(mtAddr, "mounttable/a/b/falls"), "falls mainly on the plain", false, bobID)
 
 	// Test generic unmount.
+	vlog.Info("Test generic unmount.")
 	doUnmount(t, naming.JoinAddressName(mtAddr, "//mounttable/a/b"), "", true, rootID)
 	checkContents(t, naming.JoinAddressName(mtAddr, "mounttable/a/b/falls"), "falls mainly on the plain", false, rootID)
 
 	// Test specific unmount.
+	vlog.Info("Test specific unmount.")
 	doMount(t, naming.JoinAddressName(mtAddr, "//mounttable/a/b"), collectionName, true, rootID)
 	doUnmount(t, naming.JoinAddressName(mtAddr, "//mounttable/a/b"), collectionName, true, rootID)
 	checkContents(t, naming.JoinAddressName(mtAddr, "mounttable/a/b/falls"), "falls mainly on the plain", false, rootID)
 
 	// Try timing out a mount.
+	vlog.Info("Try timing out a mount.")
 	ft := NewFakeTimeClock()
 	setServerListClock(ft)
 	doMount(t, naming.JoinAddressName(mtAddr, "//mounttable/stuffWithTTL"), collectionName, true, rootID)
@@ -269,7 +277,8 @@ func TestMountTable(t *testing.T) {
 	ft.advance(time.Duration(ttlSecs+4) * time.Second)
 	checkContents(t, naming.JoinAddressName(mtAddr, "mounttable/stuffWithTTL/the/rain"), "the rain", false, rootID)
 
-	// test unauthorized mount
+	// Test unauthorized mount.
+	vlog.Info("Test unauthorized mount.")
 	doMount(t, naming.JoinAddressName(mtAddr, "//mounttable//a/b"), collectionName, false, bobID)
 	doMount(t, naming.JoinAddressName(mtAddr, "//mounttable//a/b"), collectionName, false, aliceID)
 
