@@ -94,7 +94,7 @@ func lsUsingLocalMountTable(pattern string) ([]string, error) {
 }
 
 func lsUsingResolve(name, pattern string) ([]string, error) {
-	mtpt, err := mounttable.BindGlobable(name)
+	mtpt, err := mounttable.BindGlobbable(name)
 	if err != nil {
 		return []string{}, err
 	}

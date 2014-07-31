@@ -403,7 +403,7 @@ type GlobbableServer struct {
 	mu        sync.Mutex
 }
 
-func (g *GlobbableServer) Glob(ipc.ServerContext, string, mounttable.GlobableServiceGlobStream) error {
+func (g *GlobbableServer) Glob(ipc.ServerContext, string, mounttable.GlobbableServiceGlobStream) error {
 	g.mu.Lock()
 	defer g.mu.Unlock()
 	g.callCount++
@@ -429,7 +429,7 @@ func TestGlobEarlyStop(t *testing.T) {
 
 	globServer := &GlobbableServer{}
 	name := naming.JoinAddressName(mts["mt4/foo/bar"].name, "glob")
-	runningGlobServer := runServer(t, r, ipc.SoloDispatcher(mounttable.NewServerGlobable(globServer), nil), name)
+	runningGlobServer := runServer(t, r, ipc.SoloDispatcher(mounttable.NewServerGlobbable(globServer), nil), name)
 	defer runningGlobServer.server.Stop()
 
 	ns := r.Namespace()

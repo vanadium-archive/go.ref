@@ -198,7 +198,7 @@ func (o *object) Query(ctx ipc.ServerContext, q query.Query, stream store.Object
 }
 
 type globStreamAdapter struct {
-	stream mounttable.GlobableServiceGlobStream
+	stream mounttable.GlobbableServiceGlobStream
 }
 
 func (a *globStreamAdapter) Send(item string) error {
@@ -208,7 +208,7 @@ func (a *globStreamAdapter) Send(item string) error {
 }
 
 // Glob streams a series of names that match the given pattern.
-func (o *object) Glob(ctx ipc.ServerContext, pattern string, stream mounttable.GlobableServiceGlobStream) error {
+func (o *object) Glob(ctx ipc.ServerContext, pattern string, stream mounttable.GlobbableServiceGlobStream) error {
 	t, err := o.server.findTransaction(ctx, o.tid)
 	if err != nil {
 		return err
