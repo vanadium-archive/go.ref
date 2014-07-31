@@ -543,14 +543,14 @@ func (__gen_s *ServerStubProfile) Signature(call _gen_ipc.ServerCall) (_gen_ipc.
 	}
 
 	result.TypeDefs = []_gen_vdlutil.Any{
-		_gen_wiretype.NamedPrimitiveType{Type: 0x32, Name: "veyron2/services/mgmt/build.Architecture", Tags: []string(nil)}, _gen_wiretype.NamedPrimitiveType{Type: 0x32, Name: "veyron2/services/mgmt/build.Format", Tags: []string(nil)}, _gen_wiretype.StructType{
+		_gen_wiretype.NamedPrimitiveType{Type: 0x3, Name: "veyron2/services/mgmt/build.Architecture", Tags: []string(nil)}, _gen_wiretype.NamedPrimitiveType{Type: 0x3, Name: "veyron2/services/mgmt/build.Format", Tags: []string(nil)}, _gen_wiretype.StructType{
 			[]_gen_wiretype.FieldType{
 				_gen_wiretype.FieldType{Type: 0x3, Name: "Name"},
 				_gen_wiretype.FieldType{Type: 0x3, Name: "MajorVersion"},
 				_gen_wiretype.FieldType{Type: 0x3, Name: "MinorVersion"},
 			},
 			"veyron/services/mgmt/profile.Library", []string(nil)},
-		_gen_wiretype.MapType{Key: 0x43, Elem: 0x2, Name: "", Tags: []string(nil)}, _gen_wiretype.NamedPrimitiveType{Type: 0x32, Name: "veyron2/services/mgmt/build.OperatingSystem", Tags: []string(nil)}, _gen_wiretype.StructType{
+		_gen_wiretype.MapType{Key: 0x43, Elem: 0x2, Name: "", Tags: []string(nil)}, _gen_wiretype.NamedPrimitiveType{Type: 0x3, Name: "veyron2/services/mgmt/build.OperatingSystem", Tags: []string(nil)}, _gen_wiretype.StructType{
 			[]_gen_wiretype.FieldType{
 				_gen_wiretype.FieldType{Type: 0x41, Name: "Arch"},
 				_gen_wiretype.FieldType{Type: 0x3, Name: "Description"},
