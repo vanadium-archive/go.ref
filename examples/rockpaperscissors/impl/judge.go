@@ -30,12 +30,13 @@ type sendStream interface {
 }
 
 type gameInfo struct {
-	id         rps.GameID
-	startTime  time.Time
-	score      rps.ScoreCard
-	streams    []sendStream
-	playerChan chan playerInput
-	scoreChan  chan scoreData
+	id        rps.GameID
+	startTime time.Time
+	score     rps.ScoreCard
+	streams   []sendStream
+	playerIn  chan playerInput
+	playerOut []chan rps.JudgeAction
+	scoreChan chan scoreData
 }
 
 func (g *gameInfo) moveOptions() []string {
@@ -90,11 +91,15 @@ func (j *Judge) createGame(ownName string, opts rps.GameOptions) (rps.GameID, er
 		}
 	}
 	j.games[id] = &gameInfo{
-		id:         id,
-		startTime:  now,
-		score:      score,
-		playerChan: make(chan playerInput),
-		scoreChan:  make(chan scoreData),
+		id:        id,
+		startTime: now,
+		score:     score,
+		playerIn:  make(chan playerInput),
+		playerOut: []chan rps.JudgeAction{
+			make(chan rps.JudgeAction),
+			make(chan rps.JudgeAction),
+		},
+		scoreChan: make(chan scoreData),
 	}
 	return id, nil
 }
@@ -104,7 +109,7 @@ func (j *Judge) play(name string, id rps.GameID, stream rps.JudgeServicePlayStre
 	vlog.VI(1).Infof("play from %q for %v", name, id)
 	nilResult := rps.PlayResult{}
 
-	c, s, err := j.gameChannels(id)
+	pIn, pOut, s, err := j.gameChannels(id)
 	if err != nil {
 		return nilResult, err
 	}
@@ -114,29 +119,37 @@ func (j *Judge) play(name string, id rps.GameID, stream rps.JudgeServicePlayStre
 	}
 	vlog.VI(1).Infof("This is player %d", playerNum)
 
-	// Send all user input to the player channel.
-	done := make(chan struct{}, 1)
-	defer func() { done <- struct{}{} }()
+	// Send all user input to the player input channel.
+	done := make(chan struct{})
+	defer close(done)
 	go func() {
 		rStream := stream.RecvStream()
 		for rStream.Advance() {
 			action := rStream.Value()
 
 			select {
-			case c <- playerInput{player: playerNum, action: action}:
+			case pIn <- playerInput{player: playerNum, action: action}:
 			case <-done:
 				return
 			}
 		}
 		select {
-		case c <- playerInput{player: playerNum, action: rps.PlayerAction{Quit: true}}:
+		case pIn <- playerInput{player: playerNum, action: rps.PlayerAction{Quit: true}}:
 		case <-done:
 		}
 	}()
+	// Send all the output to the user.
+	go func() {
+		for packet := range pOut[playerNum-1] {
+			if err := stream.SendStream().Send(packet); err != nil {
+				vlog.Infof("error sending to player stream: %v", err)
+			}
+		}
+	}()
+	defer close(pOut[playerNum-1])
 
-	if err := stream.SendStream().Send(rps.JudgeAction{PlayerNum: int32(playerNum)}); err != nil {
-		return nilResult, err
-	}
+	pOut[playerNum-1] <- rps.JudgeAction{PlayerNum: int32(playerNum)}
+
 	// When the second player connects, we start the game.
 	if playerNum == 2 {
 		go j.manageGame(id)
@@ -165,13 +178,7 @@ func (j *Judge) manageGame(id rps.GameID) {
 	// Inform each player of their opponent's name.
 	for p := 0; p < 2; p++ {
 		opp := 1 - p
-		action := rps.JudgeAction{OpponentName: info.score.Players[opp]}
-		if err := info.streams[p].Send(action); err != nil {
-			err := scoreData{err: err}
-			info.scoreChan <- err
-			info.scoreChan <- err
-			return
-		}
+		info.playerOut[p] <- rps.JudgeAction{OpponentName: info.score.Players[opp]}
 	}
 
 	win1, win2 := 0, 0
@@ -203,10 +210,8 @@ func (j *Judge) manageGame(id rps.GameID) {
 
 	// Send the score card to the players.
 	action := rps.JudgeAction{Score: info.score}
-	for _, s := range info.streams {
-		if err := s.Send(action); err != nil {
-			vlog.Infof("Stream closed after game finished")
-		}
+	for _, p := range info.playerOut {
+		p <- action
 	}
 
 	// Send the score card to the score keepers.
@@ -230,13 +235,11 @@ func (j *Judge) manageGame(id rps.GameID) {
 func (j *Judge) playOneRound(info *gameInfo) (rps.Round, error) {
 	round := rps.Round{StartTimeNS: time.Now().UnixNano()}
 	action := rps.JudgeAction{MoveOptions: info.moveOptions()}
-	for _, s := range info.streams {
-		if err := s.Send(action); err != nil {
-			return round, err
-		}
+	for _, p := range info.playerOut {
+		p <- action
 	}
 	for x := 0; x < 2; x++ {
-		in := <-info.playerChan
+		in := <-info.playerIn
 		if in.action.Quit {
 			return round, fmt.Errorf("player %d quit the game", in.player)
 		}
@@ -252,10 +255,8 @@ func (j *Judge) playOneRound(info *gameInfo) (rps.Round, error) {
 	vlog.VI(1).Infof("Player 1 played %q. Player 2 played %q. Winner: %d %s", round.Moves[0], round.Moves[1], round.Winner, round.Comment)
 
 	action = rps.JudgeAction{RoundResult: round}
-	for _, s := range info.streams {
-		if err := s.Send(action); err != nil {
-			return round, err
-		}
+	for _, p := range info.playerOut {
+		p <- action
 	}
 	round.EndTimeNS = time.Now().UnixNano()
 	return round, nil
@@ -277,14 +278,14 @@ func (j *Judge) addPlayer(name string, id rps.GameID, stream rps.JudgeServicePla
 	return len(info.streams), nil
 }
 
-func (j *Judge) gameChannels(id rps.GameID) (chan playerInput, chan scoreData, error) {
+func (j *Judge) gameChannels(id rps.GameID) (chan playerInput, []chan rps.JudgeAction, chan scoreData, error) {
 	j.lock.Lock()
 	defer j.lock.Unlock()
 	info, exists := j.games[id]
 	if !exists {
-		return nil, nil, errBadGameID
+		return nil, nil, nil, errBadGameID
 	}
-	return info.playerChan, info.scoreChan, nil
+	return info.playerIn, info.playerOut, info.scoreChan, nil
 }
 
 func (j *Judge) sendScore(address string, score rps.ScoreCard, done chan bool) error {
