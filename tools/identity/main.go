@@ -219,7 +219,7 @@ can be provided with the --for flag.
 				if err != nil {
 					vlog.Infof("Failed to get blessing from %q: %v, will try again in %v", flagSeekBlessingFrom, err, wait)
 					time.Sleep(wait)
-					if wait = wait + 2; wait > maxWait {
+					if wait = wait + 2*time.Second; wait > maxWait {
 						wait = maxWait
 					}
 					continue
