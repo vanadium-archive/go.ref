@@ -117,9 +117,7 @@ type JudgePlayCall interface {
 		// Advance stages an element so the client can retrieve it
 		// with Value.  Advance returns true iff there is an
 		// element to retrieve.  The client must call Advance before
-		// calling Value.  The client must call Cancel if it does
-		// not iterate through all elements (i.e. until Advance
-		// returns false).  Advance may block if an element is not
+		// calling Value. Advance may block if an element is not
 		// immediately available.
 		Advance() bool
 
@@ -283,9 +281,7 @@ type JudgeServicePlayStream interface {
 		// Advance stages an element so the client can retrieve it
 		// with Value.  Advance returns true iff there is an
 		// element to retrieve.  The client must call Advance before
-		// calling Value.  The client must call Cancel if it does
-		// not iterate through all elements (i.e. until Advance
-		// returns false).  Advance may block if an element is not
+		// calling Value.  Advance may block if an element is not
 		// immediately available.
 		Advance() bool
 
