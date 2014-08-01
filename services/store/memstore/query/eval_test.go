@@ -631,11 +631,11 @@ func (it *repeatForeverIterator) Get() *storage.Entry {
 }
 
 func (it *repeatForeverIterator) Name() string {
-	return fmt.Sprintf("teams/%v", it.entry.Stat.MTime)
+	return fmt.Sprintf("teams/%v", it.entry.Stat.MTimeNS)
 }
 
 func (it *repeatForeverIterator) Next() {
-	it.entry = &storage.Entry{storage.Stat{storage.NewID(), time.Now(), nil}, it.entry.Value}
+	it.entry = &storage.Entry{storage.Stat{storage.NewID(), time.Now().UnixNano(), nil}, it.entry.Value}
 }
 
 func (it *repeatForeverIterator) Snapshot() state.Snapshot {
@@ -657,7 +657,7 @@ func TestEvalAbort(t *testing.T) {
 	sn := &mockSnapshot{
 		&repeatForeverIterator{
 			entry: &storage.Entry{
-				storage.Stat{storage.NewID(), time.Now(), nil},
+				storage.Stat{storage.NewID(), time.Now().UnixNano(), nil},
 				dummyTeam,
 			},
 		},

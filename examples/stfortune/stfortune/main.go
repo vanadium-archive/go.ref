@@ -20,7 +20,6 @@ import (
 	"veyron2/context"
 	"veyron2/naming"
 	"veyron2/rt"
-	istore "veyron2/services/store"
 	iwatch "veyron2/services/watch"
 	"veyron2/storage"
 	"veyron2/storage/vstore"
@@ -47,10 +46,10 @@ func getMD5Hash(text string) string {
 func waitForStore(store storage.Store) {
 	ctx := rt.R().NewContext()
 
-	// Register *store.Entry for WatchGlob.
-	// TODO(tilaks): store.Entry is declared in vdl, vom should register the
+	// Register *storage.Entry for WatchGlob.
+	// TODO(tilaks): storage.Entry is declared in vdl, vom should register the
 	// pointer automatically.
-	vom.Register(&istore.Entry{})
+	vom.Register(&storage.Entry{})
 
 	fmt.Printf("Waiting for Store to be initialized with fortune schema...\n")
 	// List of paths to check in store.
@@ -74,8 +73,8 @@ func waitForStore(store storage.Store) {
 // runAsWatcher monitors updates to the fortunes in the store and
 // prints out that information.  It does not return.
 func runAsWatcher(store storage.Store, user string) {
-	// TODO(tilaks): remove this when the store.Entry is auto-registered by VOM.
-	vom.Register(&istore.Entry{})
+	// TODO(tilaks): remove this when the storage.Entry is auto-registered by VOM.
+	vom.Register(&storage.Entry{})
 	ctx := rt.R().NewContext()
 
 	// Monitor all new fortunes or only those of a specific user.

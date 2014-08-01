@@ -69,13 +69,6 @@ func (o *Object) Remove(pid security.PublicID, trans service.Transaction) error 
 	return nil
 }
 
-// SetAttr changes the attributes of the entry, such as permissions and
-// replication groups.  Attributes are associated with the value, not the
-// path.
-func (o *Object) SetAttr(pid security.PublicID, tr service.Transaction, attrs ...storage.Attr) error {
-	return verror.Internalf("SetAttr not yet implemented")
-}
-
 // Stat returns entry info.
 func (o *Object) Stat(pid security.PublicID, tr service.Transaction) (*storage.Stat, error) {
 	return nil, verror.Internalf("Stat not yet implemented")
