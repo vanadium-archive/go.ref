@@ -26,14 +26,11 @@ import (
 )
 
 type HandlerArgs struct {
-	// Whether the HTTP server is using TLS or not.
-	UseTLS bool
-	// Fully-qualified address (host:port) that the HTTP server is
-	// listening on (and where redirect requests from Google will come to).
+	// URL at which the hander is installed.
+	// e.g. http://host:port/google/
+	// This is where the handler is installed and where redirect requests
+	// from Google will come to.
 	Addr string
-	// Address prefix (including trailing slash) on which the Google OAuth
-	// based Identity generator should run.
-	Prefix string
 	// client_id and client_secret registered with the Google Developer
 	// Console for API access.
 	ClientID, ClientSecret string
@@ -47,24 +44,19 @@ type HandlerArgs struct {
 	RestrictEmailDomain string
 }
 
-func (a *HandlerArgs) redirectURL() string {
-	scheme := "http"
-	if a.UseTLS {
-		scheme = "https"
-	}
-	return fmt.Sprintf("%s://%s%soauth2callback", scheme, a.Addr, a.Prefix)
-}
+func (a *HandlerArgs) redirectURL() string { return path.Join(a.Addr, "oauth2callback") }
 
-// URL used to verify GoogleIDTokens.
-// (From https://developers.google.com/accounts/docs/OAuth2Login#validatinganidtoken)
-const VerifyURL = "https://www.googleapis.com/oauth2/v1/tokeninfo?id_token="
+// URL used to verify google tokens.
+// (From https://developers.google.com/accounts/docs/OAuth2Login#validatinganidtoken
+// and https://developers.google.com/accounts/docs/OAuth2UserAgent#validatetoken)
+const verifyURL = "https://www.googleapis.com/oauth2/v1/tokeninfo?"
 
-// NewHandler returns an http.Handler that expects to be rooted at args.Prefix
+// NewHandler returns an http.Handler that expects to be rooted at args.Addr
 // and can be used to use OAuth 2.0 to authenticate with Google, mint a new
 // identity and bless it with the Google email address.
 func NewHandler(args HandlerArgs) http.Handler {
 	config := NewOAuthConfig(args.ClientID, args.ClientSecret, args.redirectURL())
-	return &handler{config, args.Addr, args.MinExpiryDays, util.NewCSRFCop(), args.Runtime, args.RestrictEmailDomain}
+	return &handler{config, args.MinExpiryDays, util.NewCSRFCop(), args.Runtime, args.RestrictEmailDomain}
 }
 
 // NewOAuthConfig returns the oauth.Config required for obtaining just the email address from Google using OAuth 2.0.
@@ -81,7 +73,6 @@ func NewOAuthConfig(clientID, clientSecret, redirectURL string) *oauth.Config {
 
 type handler struct {
 	config        *oauth.Config
-	issuer        string
 	minExpiryDays int
 	csrfCop       *util.CSRFCop
 	rt            veyron2.Runtime
@@ -158,9 +149,9 @@ func ExchangeAuthCodeForEmail(config *oauth.Config, authcode string) (string, er
 	if t.Extra == nil || len(t.Extra["id_token"]) == 0 {
 		return "", fmt.Errorf("no GoogleIDToken found in OAuth token")
 	}
-	tinfo, err := http.Get(VerifyURL + t.Extra["id_token"])
+	tinfo, err := http.Get(verifyURL + "id_token=" + t.Extra["id_token"])
 	if err != nil {
-		return "", fmt.Errorf("failed to talk to GoogleIDToken verifier (%q): %v", VerifyURL, err)
+		return "", fmt.Errorf("failed to talk to GoogleIDToken verifier (%q): %v", verifyURL, err)
 	}
 	if tinfo.StatusCode != http.StatusOK {
 		return "", fmt.Errorf("failed to verify GoogleIDToken: %s", tinfo.Status)

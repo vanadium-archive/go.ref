@@ -15,7 +15,6 @@ import (
 	"veyron/services/identity/blesser"
 	"veyron/services/identity/googleoauth"
 	"veyron/services/identity/handlers"
-	"veyron/services/identity/util"
 	"veyron2"
 	"veyron2/ipc"
 	"veyron2/rt"
@@ -34,10 +33,7 @@ var (
 
 	googleConfigWeb       = flag.String("google_config_web", "", "Path to the JSON-encoded file containing the ClientID for web applications registered with the Google Developer Console. (Use the 'Download JSON' link on the Google APIs console).")
 	googleConfigInstalled = flag.String("google_config_installed", "", "Path to the JSON-encoded file containing the ClientID for installed applications registered with the Google Developer console. (Use the 'Download JSON' link on the Google APIs console).")
-
-	googleDomain = flag.String("google_domain", "", "An optional domain name. When set, only email addresses from this domain are allowed to authenticate via Google OAuth")
-	generate     = flag.String("generate", "", "If non-empty, instead of running an HTTP server, a new identity will be created with the provided name and saved to --identity (if specified) and dumped to STDOUT in base64-encoded-vom")
-	identity     = flag.String("identity", "", "Path to the file where the VOM-encoded security.PrivateID created with --generate will be written.")
+	googleDomain          = flag.String("google_domain", "", "An optional domain name. When set, only email addresses from this domain are allowed to authenticate via Google OAuth")
 )
 
 func main() {
@@ -45,11 +41,6 @@ func main() {
 	flag.Usage = usage
 	r := rt.Init()
 	defer r.Cleanup()
-
-	if len(*generate) > 0 {
-		generateAndSaveIdentity()
-		return
-	}
 
 	// Setup handlers
 	http.Handle("/pubkey/", handlers.Object{r.Identity().PublicID().PublicKey()}) // public key of this identity server
@@ -68,15 +59,9 @@ func main() {
 		defer ipcServer.Stop()
 	}
 	if enabled, clientID, clientSecret := enableGoogleOAuth(*googleConfigWeb); enabled {
-		_, port, err := net.SplitHostPort(*httpaddr)
-		if err != nil {
-			vlog.Fatalf("Failed to parse %q: %v", *httpaddr, err)
-		}
 		n := "/google/"
 		http.Handle(n, googleoauth.NewHandler(googleoauth.HandlerArgs{
-			UseTLS:              enableTLS(),
-			Addr:                fmt.Sprintf("%s:%s", *host, port),
-			Prefix:              n,
+			Addr:                fmt.Sprintf("%s%s", httpaddress(), n),
 			ClientID:            clientID,
 			ClientSecret:        clientSecret,
 			MinExpiryDays:       *minExpiryDays,
@@ -101,6 +86,7 @@ func main() {
 			vlog.Info("Failed to render template:", err)
 		}
 	})
+	vlog.Infof("Running HTTP server at: %v", httpaddress())
 	go runHTTPServer(*httpaddr)
 	<-signals.ShutdownOnSignals()
 }
@@ -144,7 +130,6 @@ func enableGoogleOAuth(config string) (enabled bool, clientID, clientSecret stri
 
 func runHTTPServer(addr string) {
 	if !enableTLS() {
-		vlog.Infof("Starting HTTP server (without TLS) at http://%v", addr)
 		if err := http.ListenAndServe(addr, nil); err != nil {
 			vlog.Fatalf("http.ListenAndServe failed: %v", err)
 		}
@@ -166,6 +151,10 @@ func usage() {
 To generate TLS certificates so the HTTP server can use SSL:
 go run $GOROOT/src/pkg/crypto/tls/generate_cert.go --host <IP address>
 
+To generate an identity for this service itself, use:
+go install veyron/tools/identity && ./bin/identity generate <name> ><filename>
+and set the VEYRON_IDENTITY environment variable when running this application.
+
 To enable use of Google APIs to use Google OAuth for authorization, set --google_config,
 which must point to the contents of a JSON file obtained after registering your application
 with the Google Developer Console at:
@@ -186,33 +175,16 @@ func defaultHost() string {
 	return host
 }
 
-func generateAndSaveIdentity() {
-	id, err := rt.R().NewIdentity(*generate)
+func httpaddress() string {
+	_, port, err := net.SplitHostPort(*httpaddr)
 	if err != nil {
-		vlog.Fatalf("Runtime.NewIdentity(%q) failed: %v", *generate, err)
+		vlog.Fatalf("Failed to parse %q: %v", *httpaddr, err)
 	}
-	if len(*identity) > 0 {
-		if err = saveIdentity(*identity, id); err != nil {
-			vlog.Fatalf("SaveIdentity %v: %v", *identity, err)
-		}
+	scheme := "http"
+	if enableTLS() {
+		scheme = "https"
 	}
-	b64, err := util.Base64VomEncode(id)
-	if err != nil {
-		vlog.Fatalf("Base64VomEncode(%q) failed: %v", id, err)
-	}
-	fmt.Println(b64)
-}
-
-func saveIdentity(filePath string, id security.PrivateID) error {
-	f, err := os.OpenFile(filePath, os.O_WRONLY, 0600)
-	if err != nil {
-		return err
-	}
-	defer f.Close()
-	if err := security.SaveIdentity(f, id); err != nil {
-		return err
-	}
-	return nil
+	return fmt.Sprintf("%s://%s:%v", scheme, *host, port)
 }
 
 var tmpl = template.Must(template.New("main").Parse(`<!doctype html>
