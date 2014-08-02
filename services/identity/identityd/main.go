@@ -31,8 +31,10 @@ var (
 	host          = flag.String("host", defaultHost(), "Hostname the HTTP server listens on. This can be the name of the host running the webserver, but if running behind a NAT or load balancer, this should be the host name that clients will connect to. For example, if set to 'x.com', Veyron identities will have the IssuerName set to 'x.com' and clients can expect to find the public key of the signer at 'x.com/pubkey/'.")
 	minExpiryDays = flag.Int("min_expiry_days", 365, "Minimum expiry time (in days) of identities issued by this server")
 
-	googleConfigWeb       = flag.String("google_config_web", "", "Path to the JSON-encoded file containing the ClientID for web applications registered with the Google Developer Console. (Use the 'Download JSON' link on the Google APIs console).")
-	googleConfigInstalled = flag.String("google_config_installed", "", "Path to the JSON-encoded file containing the ClientID for installed applications registered with the Google Developer console. (Use the 'Download JSON' link on the Google APIs console).")
+	// Configuration for various Google OAuth-based clients.
+	googleConfigWeb       = flag.String("google_config_web", "", "Path to JSON-encoded OAuth client configuration for the web application for generating PrivateIDs (Use the 'Download JSON' link on the Google APIs console).")
+	googleConfigInstalled = flag.String("google_config_installed", "", "Path to the JSON-encoded OAuth client configuration for installed client applications that obtain blessings (via the OAuthBlesser.BlessUsingAuthorizationCode RPC) from this server (like the 'identity' command like tool and its 'seekblessing' command.")
+	googleConfigChrome    = flag.String("google_config_chrome", "", "Path to the JSON-encoded OAuth client configuration for Chrome browser applications that obtain blessings from this server (via the OAuthBlesser.BlessUsingAccessToken RPC) from this server.")
 	googleDomain          = flag.String("google_domain", "", "An optional domain name. When set, only email addresses from this domain are allowed to authenticate via Google OAuth")
 )
 
@@ -50,12 +52,11 @@ func main() {
 	http.HandleFunc("/bless/", handlers.Bless) // use a provided PrivateID to bless a provided PublicID
 
 	// Google OAuth
-	var ipcServer ipc.Server
-	if enabled, clientID, clientSecret := enableGoogleOAuth(*googleConfigInstalled); enabled {
-		var err error
-		if ipcServer, err = setupGoogleBlessingServer(r, clientID, clientSecret); err != nil {
-			vlog.Fatalf("failed to setup veyron services for blessing: %v", err)
-		}
+	ipcServer, err := setupGoogleBlessingServer(r)
+	if err != nil {
+		vlog.Fatalf("Failed to setup veyron services for blessing: %v", err)
+	}
+	if ipcServer != nil {
 		defer ipcServer.Stop()
 	}
 	if enabled, clientID, clientSecret := enableGoogleOAuth(*googleConfigWeb); enabled {
@@ -91,7 +92,25 @@ func main() {
 	<-signals.ShutdownOnSignals()
 }
 
-func setupGoogleBlessingServer(r veyron2.Runtime, clientID, clientSecret string) (ipc.Server, error) {
+func setupGoogleBlessingServer(r veyron2.Runtime) (ipc.Server, error) {
+	var enable bool
+	params := blesser.GoogleParams{
+		R:                 r,
+		BlessingDuration:  time.Duration(*minExpiryDays) * 24 * time.Hour,
+		DomainRestriction: *googleDomain,
+	}
+	if authcode, clientID, clientSecret := enableGoogleOAuth(*googleConfigInstalled); authcode {
+		enable = true
+		params.AuthorizationCodeClient.ID = clientID
+		params.AuthorizationCodeClient.Secret = clientSecret
+	}
+	if accesstoken, clientID, _ := enableGoogleOAuth(*googleConfigChrome); accesstoken {
+		enable = true
+		params.AccessTokenClient.ID = clientID
+	}
+	if !enable {
+		return nil, nil
+	}
 	server, err := r.NewServer()
 	if err != nil {
 		return nil, fmt.Errorf("failed to create new ipc.Server: %v", err)
@@ -102,7 +121,7 @@ func setupGoogleBlessingServer(r veyron2.Runtime, clientID, clientSecret string)
 	}
 	allowEveryoneACL := security.ACL{security.AllPrincipals: security.AllLabels}
 	objectname := fmt.Sprintf("identity/%s/google", r.Identity().PublicID().Names()[0])
-	if err := server.Serve(objectname, ipc.SoloDispatcher(blesser.NewGoogleOAuthBlesserServer(r, clientID, clientSecret, time.Duration(*minExpiryDays)*24*time.Hour, *googleDomain), security.NewACLAuthorizer(allowEveryoneACL))); err != nil {
+	if err := server.Serve(objectname, ipc.SoloDispatcher(blesser.NewGoogleOAuthBlesserServer(params), security.NewACLAuthorizer(allowEveryoneACL))); err != nil {
 		return nil, fmt.Errorf("failed to start Veyron service: %v", err)
 	}
 	vlog.Infof("Google blessing service enabled at endpoint %v and name %q", ep, objectname)

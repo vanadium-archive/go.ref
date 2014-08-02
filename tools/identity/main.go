@@ -214,7 +214,7 @@ can be provided with the --for flag.
 			for {
 				blesser, err := identity.BindOAuthBlesser(flagSeekBlessingFrom, r.Client())
 				if err == nil {
-					reply, err = blesser.Bless(r.NewContext(), authcode, redirectURL)
+					reply, err = blesser.BlessUsingAuthorizationCode(r.NewContext(), authcode, redirectURL)
 				}
 				if err != nil {
 					vlog.Infof("Failed to get blessing from %q: %v, will try again in %v", flagSeekBlessingFrom, err, wait)

@@ -18,22 +18,40 @@ import (
 // It corrects a bug where _gen_wiretype is unused in VDL pacakges where only bootstrap types are used on interfaces.
 const _ = _gen_wiretype.TypeIDInvalid
 
-// OAuthBlesser exchanges the provided authorization code for an email addres
-// from an OAuth-based identity provider and uses the email address as the
-// name to bless the client with.
+// OAuthBlesser exchanges OAuth authorization codes OR access tokens for
+// an email address from an OAuth-based identity provider and uses the email
+// address obtained to bless the client.
 //
-// The redirect URL used to obtain the authorization code must also be
-// provided in order to ensure a successful exchange.
+// OAuth is described in RFC 6749 (http://tools.ietf.org/html/rfc6749),
+// though the Google implementation also has informative documentation at
+// https://developers.google.com/accounts/docs/OAuth2
+//
+// WARNING: There is no binding between the channel over which the
+// authorization code or access token was obtained (typically https)
+// and the channel used to make the RPC (a veyron virtual circuit).
+// Thus, if Mallory possesses the authorization code or access token
+// associated with Alice's account, she may be able to obtain a blessing
+// with Alice's name on it.
+//
+// TODO(ashankar,toddw): Once the "OneOf" type becomes available in VDL,
+// then the "any" should be replaced by:
+// OneOf<wire.ChainPublicID, []wire.ChainPublicID>
+// where wire is from:
+// import "veyron2/security/wire"
 // OAuthBlesser is the interface the client binds and uses.
 // OAuthBlesser_ExcludingUniversal is the interface without internal framework-added methods
 // to enable embedding without method collisions.  Not to be used directly by clients.
 type OAuthBlesser_ExcludingUniversal interface {
-	// TODO(ashankar,toddw): Once the "OneOf" type becomes available in VDL,
-	// then the "any" should be replaced by:
-	// OneOf<wire.ChainPublicID, []wire.ChainPublicID>
-	// where wire is from:
-	// import "veyron2/security/wire"
-	Bless(ctx _gen_context.T, authcode string, redirecturl string, opts ..._gen_ipc.CallOpt) (reply _gen_vdlutil.Any, err error)
+	// BlessUsingAuthorizationCode exchanges the provided authorization code
+	// for an access token and then uses that access token to obtain an
+	// email address.
+	//
+	// The redirect URL used to obtain the authorization code must also
+	// be provided.
+	BlessUsingAuthorizationCode(ctx _gen_context.T, authcode string, redirecturl string, opts ..._gen_ipc.CallOpt) (reply _gen_vdlutil.Any, err error)
+	// BlessUsingAccessToken uses the provided access token to obtain the email
+	// address and returns a blessing.
+	BlessUsingAccessToken(ctx _gen_context.T, token string, opts ..._gen_ipc.CallOpt) (reply _gen_vdlutil.Any, err error)
 }
 type OAuthBlesser interface {
 	_gen_ipc.UniversalServiceMethods
@@ -43,12 +61,16 @@ type OAuthBlesser interface {
 // OAuthBlesserService is the interface the server implements.
 type OAuthBlesserService interface {
 
-	// TODO(ashankar,toddw): Once the "OneOf" type becomes available in VDL,
-	// then the "any" should be replaced by:
-	// OneOf<wire.ChainPublicID, []wire.ChainPublicID>
-	// where wire is from:
-	// import "veyron2/security/wire"
-	Bless(context _gen_ipc.ServerContext, authcode string, redirecturl string) (reply _gen_vdlutil.Any, err error)
+	// BlessUsingAuthorizationCode exchanges the provided authorization code
+	// for an access token and then uses that access token to obtain an
+	// email address.
+	//
+	// The redirect URL used to obtain the authorization code must also
+	// be provided.
+	BlessUsingAuthorizationCode(context _gen_ipc.ServerContext, authcode string, redirecturl string) (reply _gen_vdlutil.Any, err error)
+	// BlessUsingAccessToken uses the provided access token to obtain the email
+	// address and returns a blessing.
+	BlessUsingAccessToken(context _gen_ipc.ServerContext, token string) (reply _gen_vdlutil.Any, err error)
 }
 
 // BindOAuthBlesser returns the client stub implementing the OAuthBlesser
@@ -92,9 +114,20 @@ type clientStubOAuthBlesser struct {
 	name   string
 }
 
-func (__gen_c *clientStubOAuthBlesser) Bless(ctx _gen_context.T, authcode string, redirecturl string, opts ..._gen_ipc.CallOpt) (reply _gen_vdlutil.Any, err error) {
+func (__gen_c *clientStubOAuthBlesser) BlessUsingAuthorizationCode(ctx _gen_context.T, authcode string, redirecturl string, opts ..._gen_ipc.CallOpt) (reply _gen_vdlutil.Any, err error) {
 	var call _gen_ipc.Call
-	if call, err = __gen_c.client.StartCall(ctx, __gen_c.name, "Bless", []interface{}{authcode, redirecturl}, opts...); err != nil {
+	if call, err = __gen_c.client.StartCall(ctx, __gen_c.name, "BlessUsingAuthorizationCode", []interface{}{authcode, redirecturl}, opts...); err != nil {
+		return
+	}
+	if ierr := call.Finish(&reply, &err); ierr != nil {
+		err = ierr
+	}
+	return
+}
+
+func (__gen_c *clientStubOAuthBlesser) BlessUsingAccessToken(ctx _gen_context.T, token string, opts ..._gen_ipc.CallOpt) (reply _gen_vdlutil.Any, err error) {
+	var call _gen_ipc.Call
+	if call, err = __gen_c.client.StartCall(ctx, __gen_c.name, "BlessUsingAccessToken", []interface{}{token}, opts...); err != nil {
 		return
 	}
 	if ierr := call.Finish(&reply, &err); ierr != nil {
@@ -148,7 +181,9 @@ func (__gen_s *ServerStubOAuthBlesser) GetMethodTags(call _gen_ipc.ServerCall, m
 	// Note: This exhibits some weird behavior like returning a nil error if the method isn't found.
 	// This will change when it is replaced with Signature().
 	switch method {
-	case "Bless":
+	case "BlessUsingAuthorizationCode":
+		return []interface{}{}, nil
+	case "BlessUsingAccessToken":
 		return []interface{}{}, nil
 	default:
 		return nil, nil
@@ -157,7 +192,16 @@ func (__gen_s *ServerStubOAuthBlesser) GetMethodTags(call _gen_ipc.ServerCall, m
 
 func (__gen_s *ServerStubOAuthBlesser) Signature(call _gen_ipc.ServerCall) (_gen_ipc.ServiceSignature, error) {
 	result := _gen_ipc.ServiceSignature{Methods: make(map[string]_gen_ipc.MethodSignature)}
-	result.Methods["Bless"] = _gen_ipc.MethodSignature{
+	result.Methods["BlessUsingAccessToken"] = _gen_ipc.MethodSignature{
+		InArgs: []_gen_ipc.MethodArgument{
+			{Name: "token", Type: 3},
+		},
+		OutArgs: []_gen_ipc.MethodArgument{
+			{Name: "blessing", Type: 65},
+			{Name: "err", Type: 66},
+		},
+	}
+	result.Methods["BlessUsingAuthorizationCode"] = _gen_ipc.MethodSignature{
 		InArgs: []_gen_ipc.MethodArgument{
 			{Name: "authcode", Type: 3},
 			{Name: "redirecturl", Type: 3},
@@ -192,7 +236,12 @@ func (__gen_s *ServerStubOAuthBlesser) UnresolveStep(call _gen_ipc.ServerCall) (
 	return
 }
 
-func (__gen_s *ServerStubOAuthBlesser) Bless(call _gen_ipc.ServerCall, authcode string, redirecturl string) (reply _gen_vdlutil.Any, err error) {
-	reply, err = __gen_s.service.Bless(call, authcode, redirecturl)
+func (__gen_s *ServerStubOAuthBlesser) BlessUsingAuthorizationCode(call _gen_ipc.ServerCall, authcode string, redirecturl string) (reply _gen_vdlutil.Any, err error) {
+	reply, err = __gen_s.service.BlessUsingAuthorizationCode(call, authcode, redirecturl)
+	return
+}
+
+func (__gen_s *ServerStubOAuthBlesser) BlessUsingAccessToken(call _gen_ipc.ServerCall, token string) (reply _gen_vdlutil.Any, err error) {
+	reply, err = __gen_s.service.BlessUsingAccessToken(call, token)
 	return
 }
