@@ -128,6 +128,24 @@ func GoString(jEnv, jStr interface{}) string {
 	return C.GoString(cString)
 }
 
+// GetEnv returns the Java environment for the running thread, creating a new
+// one if it doesn't already exist.  This method also returns a function which
+// must be invoked when the returned environment is no longer needed. The
+// returned environment can only be used by the thread that invoked this method,
+// and the function must be invoked by the same thread as well.
+func GetEnv(javaVM interface{}) (jEnv unsafe.Pointer, free func()) {
+	jVM := getJVM(javaVM)
+	var env *C.JNIEnv
+	if C.GetEnv(jVM, &env, C.JNI_VERSION_1_6) == C.JNI_OK {
+		return unsafe.Pointer(env), func() {}
+	}
+	// Couldn't get env, attach the thread.
+	C.AttachCurrentThread(jVM, &env, nil)
+	return unsafe.Pointer(env), func() {
+		C.DetachCurrentThread(jVM)
+	}
+}
+
 // JString returns a Java string given the Go string.
 // NOTE: Because CGO creates package-local types and because this method may be
 // invoked from a different package, Java types are passed in an empty interface
@@ -244,6 +262,19 @@ func JByteArrayField(jEnv, jObj interface{}, field string) []byte {
 	return GoByteArray(env, arr)
 }
 
+// JStaticStringField returns the value of the static String field of the
+// provided Java class, as a Go string.
+// NOTE: Because CGO creates package-local types and because this method may be
+// invoked from a different package, Java types are passed in an empty interface
+// and then cast into their package local types.
+func JStaticStringField(jEnv, jClass interface{}, field string) string {
+	env := getEnv(jEnv)
+	class := getClass(jClass)
+	fid := C.jfieldID(JStaticFieldIDPtrOrDie(env, class, field, StringSign))
+	jStr := C.jstring(C.GetStaticObjectField(env, class, fid))
+	return GoString(env, jStr)
+}
+
 // JStringArray converts the provided slice of Go strings into a Java array of strings.
 // NOTE: Because CGO creates package-local types and because this method may be
 // invoked from a different package, Java types are passed in an empty interface
@@ -303,7 +334,8 @@ func GoByteArray(jEnv, jArr interface{}) (ret []byte) {
 	return
 }
 
-// JFieldIDPtrOrDie returns the Java field ID for the given field.
+// JFieldIDPtrOrDie returns the Java field ID for the given object
+// (i.e., non-static) field.
 // NOTE: Because CGO creates package-local types and because this method may be
 // invoked from a different package, Java types are passed in an empty interface
 // and then cast into their package local types.
@@ -315,6 +347,24 @@ func JFieldIDPtrOrDie(jEnv, jClass interface{}, name string, sign Sign) unsafe.P
 	cSign := C.CString(string(sign))
 	defer C.free(unsafe.Pointer(cSign))
 	ptr := unsafe.Pointer(C.GetFieldID(env, class, cName, cSign))
+	if err := JExceptionMsg(env); err != nil || ptr == nil {
+		panic(fmt.Sprintf("couldn't find field %s: %v", name, err))
+	}
+	return ptr
+}
+
+// JStaticFieldIDPtrOrDie returns the Java field ID for the given static field.
+// NOTE: Because CGO creates package-local types and because this method may be
+// invoked from a different package, Java types are passed in an empty interface
+// and then cast into their package local types.
+func JStaticFieldIDPtrOrDie(jEnv, jClass interface{}, name string, sign Sign) unsafe.Pointer {
+	env := getEnv(jEnv)
+	class := getClass(jClass)
+	cName := C.CString(name)
+	defer C.free(unsafe.Pointer(cName))
+	cSign := C.CString(string(sign))
+	defer C.free(unsafe.Pointer(cSign))
+	ptr := unsafe.Pointer(C.GetStaticFieldID(env, class, cName, cSign))
 	if err := JExceptionMsg(env); err != nil || ptr == nil {
 		panic(fmt.Sprintf("couldn't find field %s: %v", name, err))
 	}
@@ -389,6 +439,9 @@ func (s *safeSet) delete(item interface{}) {
 // package's types.
 func getEnv(jEnv interface{}) *C.JNIEnv {
 	return (*C.JNIEnv)(unsafe.Pointer(PtrValue(jEnv)))
+}
+func getJVM(jVM interface{}) *C.JavaVM {
+	return (*C.JavaVM)(unsafe.Pointer(PtrValue(jVM)))
 }
 func getByteArray(jByteArray interface{}) C.jbyteArray {
 	return C.jbyteArray(unsafe.Pointer(PtrValue(jByteArray)))

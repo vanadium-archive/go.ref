@@ -4,7 +4,6 @@ package main
 
 import (
 	"flag"
-	"log"
 	"unsafe"
 
 	ipc "veyron/runtimes/google/ipc/jni"
@@ -18,13 +17,10 @@ import "C"
 
 //export JNI_OnLoad
 func JNI_OnLoad(jVM *C.JavaVM, reserved unsafe.Pointer) C.jint {
-	log.Println("On_Load")
-	var env *C.JNIEnv
-	if C.GetEnv(jVM, &env, C.JNI_VERSION_1_6) != C.JNI_OK {
-		// This should never happen as OnLoad is invoked from the main Java thread.
-		C.AttachCurrentThread(jVM, &env, nil)
-		defer C.DetachCurrentThread(jVM)
-	}
+	envPtr, freeFunc := util.GetEnv(jVM)
+	env := (*C.JNIEnv)(envPtr)
+	defer freeFunc()
+
 	util.Init(env)
 	ipc.Init(env)
 	security.Init(env)

@@ -4,8 +4,6 @@ package jni
 
 import (
 	"crypto/ecdsa"
-	"crypto/elliptic"
-	"math/big"
 	"runtime"
 
 	"veyron/runtimes/google/jni/util"
@@ -47,31 +45,38 @@ type publicID struct {
 }
 
 func (id *publicID) Names() []string {
-	var env *C.JNIEnv
-	C.AttachCurrentThread(id.jVM, &env, nil)
-	defer C.DetachCurrentThread(id.jVM)
+	envPtr, freeFunc := util.GetEnv(id.jVM)
+	env := (*C.JNIEnv)(envPtr)
+	defer freeFunc()
 	return util.CallStringArrayMethodOrCatch(env, id.jPublicID, "names", nil)
 }
 
 func (id *publicID) Match(pattern security.PrincipalPattern) bool {
-	var env *C.JNIEnv
-	C.AttachCurrentThread(id.jVM, &env, nil)
-	defer C.DetachCurrentThread(id.jVM)
+	envPtr, freeFunc := util.GetEnv(id.jVM)
+	env := (*C.JNIEnv)(envPtr)
+	defer freeFunc()
 	return util.CallBooleanMethodOrCatch(env, id.jPublicID, "match", []util.Sign{util.StringSign})
 }
 
 func (id *publicID) PublicKey() *ecdsa.PublicKey {
-	var env *C.JNIEnv
-	C.AttachCurrentThread(id.jVM, &env, nil)
-	defer C.DetachCurrentThread(id.jVM)
-	jPublicKey := C.jobject(util.CallObjectMethodOrCatch(env, id.jPublicID, "publicKey", nil, util.ObjectSign))
-	return newPublicKey(env, jPublicKey)
+	envPtr, freeFunc := util.GetEnv(id.jVM)
+	env := (*C.JNIEnv)(envPtr)
+	defer freeFunc()
+	publicKeySign := util.ClassSign("java.security.interfaces.ECPublicKey")
+	jPublicKey := C.jobject(util.CallObjectMethodOrCatch(env, id.jPublicID, "publicKey", nil, publicKeySign))
+	// Get the encoded version of the public key.
+	encoded := util.CallByteArrayMethodOrCatch(env, jPublicKey, "getEncoded", nil)
+	key, err := parsePKIXPublicKey(encoded)
+	if err != nil {
+		panic("couldn't parse Java ECDSA public key: " + err.Error())
+	}
+	return key
 }
 
 func (id *publicID) Authorize(context security.Context) (security.PublicID, error) {
-	var env *C.JNIEnv
-	C.AttachCurrentThread(id.jVM, &env, nil)
-	defer C.DetachCurrentThread(id.jVM)
+	envPtr, freeFunc := util.GetEnv(id.jVM)
+	env := (*C.JNIEnv)(envPtr)
+	defer freeFunc()
 	jContext := newJavaContext(env, context)
 	contextSign := util.ClassSign("com.veyron2.security.Context")
 	publicIDSign := util.ClassSign("com.veyron2.security.PublicID")
@@ -83,9 +88,9 @@ func (id *publicID) Authorize(context security.Context) (security.PublicID, erro
 }
 
 func (id *publicID) ThirdPartyCaveats() []security.ServiceCaveat {
-	var env *C.JNIEnv
-	C.AttachCurrentThread(id.jVM, &env, nil)
-	defer C.DetachCurrentThread(id.jVM)
+	envPtr, freeFunc := util.GetEnv(id.jVM)
+	env := (*C.JNIEnv)(envPtr)
+	defer freeFunc()
 	serviceCaveatSign := util.ClassSign("com.veyron2.security.ServiceCaveat")
 	jServiceCaveats := util.CallObjectArrayMethodOrCatch(env, id.jPublicID, "thirdPartyCaveats", nil, util.ArraySign(serviceCaveatSign))
 	sCaveats := make([]security.ServiceCaveat, len(jServiceCaveats))
@@ -96,30 +101,4 @@ func (id *publicID) ThirdPartyCaveats() []security.ServiceCaveat {
 		}
 	}
 	return sCaveats
-}
-
-func newPublicKey(env *C.JNIEnv, jPublicKey C.jobject) *ecdsa.PublicKey {
-	keySign := util.ClassSign("java.security.interfaces.ECPublicKey")
-	keyInfoSign := util.ClassSign("com.veyron.runtimes.google.security.PublicID$ECPublicKeyInfo")
-	jKeyInfo := C.jobject(util.CallStaticObjectMethodOrCatch(env, jPublicIDImplClass, "getKeyInfo", []util.Sign{keySign}, keyInfoSign, jPublicKey))
-	keyX := new(big.Int).SetBytes(util.JByteArrayField(env, jKeyInfo, "keyX"))
-	keyY := new(big.Int).SetBytes(util.JByteArrayField(env, jKeyInfo, "keyY"))
-	var curve elliptic.Curve
-	switch util.JIntField(env, jKeyInfo, "curveFieldBitSize") {
-	case 224:
-		curve = elliptic.P224()
-	case 256:
-		curve = elliptic.P256()
-	case 384:
-		curve = elliptic.P384()
-	case 521:
-		curve = elliptic.P521()
-	default: // Unknown curve
-		return nil
-	}
-	return &ecdsa.PublicKey{
-		Curve: curve,
-		X:     keyX,
-		Y:     keyY,
-	}
 }

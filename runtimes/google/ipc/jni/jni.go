@@ -8,6 +8,7 @@ import (
 	"unsafe"
 
 	"veyron/runtimes/google/jni/util"
+	jnisecurity "veyron/runtimes/google/security/jni"
 	"veyron2"
 	ctx "veyron2/context"
 	"veyron2/ipc"
@@ -24,6 +25,8 @@ var (
 	jServerCallClass C.jclass
 	// Global reference for com.veyron.runtimes.google.ipc.VDLInvoker class.
 	jVDLInvokerClass C.jclass
+	// Global reference for com.veyron2.OptionDefs class.
+	jOptionDefsClass C.jclass
 	// Global reference for java.io.EOFException class.
 	jEOFExceptionClass C.jclass
 	// Global reference for java.lang.String class.
@@ -42,22 +45,41 @@ func Init(jEnv interface{}) {
 	// thread, so we aren't able to invoke FindClass in other threads.
 	jServerCallClass = C.jclass(util.JFindClassPtrOrDie(env, "com/veyron/runtimes/google/Runtime$ServerCall"))
 	jVDLInvokerClass = C.jclass(util.JFindClassPtrOrDie(env, "com/veyron/runtimes/google/VDLInvoker"))
+	jOptionDefsClass = C.jclass(util.JFindClassPtrOrDie(env, "com/veyron2/OptionDefs"))
 	jEOFExceptionClass = C.jclass(util.JFindClassPtrOrDie(env, "java/io/EOFException"))
 	jStringClass = C.jclass(util.JFindClassPtrOrDie(env, "java/lang/String"))
 }
 
 //export Java_com_veyron_runtimes_google_Runtime_nativeInit
-func Java_com_veyron_runtimes_google_Runtime_nativeInit(env *C.JNIEnv, jRuntime C.jobject, create C.jboolean) C.jlong {
-	r := rt.Init()
-	if create == C.JNI_TRUE {
-		var err error
-		r, err = rt.New()
-		if err != nil {
-			util.JThrowV(env, err)
-		}
-	}
+func Java_com_veyron_runtimes_google_Runtime_nativeInit(env *C.JNIEnv, jRuntime C.jclass, jOptions C.jobject) C.jlong {
+	opts := goRuntimeOpts(env, jOptions)
+	r := rt.Init(opts...)
 	util.GoRef(&r) // Un-refed when the Java Runtime object is finalized.
 	return C.jlong(util.PtrValue(&r))
+}
+
+//export Java_com_veyron_runtimes_google_Runtime_nativeNewRuntime
+func Java_com_veyron_runtimes_google_Runtime_nativeNewRuntime(env *C.JNIEnv, jRuntime C.jclass, jOptions C.jobject) C.jlong {
+	opts := goRuntimeOpts(env, jOptions)
+	r, err := rt.New(opts...)
+	if err != nil {
+		util.JThrowV(env, err)
+		return C.jlong(0)
+	}
+	util.GoRef(&r)
+	return C.jlong(util.PtrValue(&r))
+}
+
+// goRuntimeOpts converts Java runtime options into Go runtime options.
+func goRuntimeOpts(env *C.JNIEnv, jOptions C.jobject) (ret []veyron2.ROpt) {
+	// Process RuntimeIDOpt.
+	runtimeIDKey := util.JStaticStringField(env, jOptionDefsClass, "RUNTIME_ID")
+	if util.CallBooleanMethodOrCatch(env, jOptions, "has", []util.Sign{util.StringSign}, runtimeIDKey) {
+		jPrivateID := C.jobject(util.CallObjectMethodOrCatch(env, jOptions, "get", []util.Sign{util.StringSign}, util.ObjectSign, runtimeIDKey))
+		id := jnisecurity.NewPrivateID(env, jPrivateID)
+		ret = append(ret, veyron2.RuntimeID(id))
+	}
+	return
 }
 
 //export Java_com_veyron_runtimes_google_Runtime_nativeNewClient

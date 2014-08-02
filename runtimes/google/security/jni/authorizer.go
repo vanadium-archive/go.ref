@@ -37,9 +37,9 @@ func NewAuthorizer(jEnv, jAuthPtr interface{}) security.Authorizer {
 		jAuth: jAuth,
 	}
 	runtime.SetFinalizer(a, func(a *authorizer) {
-		var env *C.JNIEnv
-		C.AttachCurrentThread(a.jVM, &env, nil)
-		defer C.DetachCurrentThread(a.jVM)
+		envPtr, freeFunc := util.GetEnv(a.jVM)
+		env := (*C.JNIEnv)(envPtr)
+		defer freeFunc()
 		C.DeleteGlobalRef(env, a.jAuth)
 	})
 	return a
@@ -51,9 +51,9 @@ type authorizer struct {
 }
 
 func (a *authorizer) Authorize(context security.Context) error {
-	var env *C.JNIEnv
-	C.AttachCurrentThread(a.jVM, &env, nil)
-	defer C.DetachCurrentThread(a.jVM)
+	envPtr, freeFunc := util.GetEnv(a.jVM)
+	env := (*C.JNIEnv)(envPtr)
+	defer freeFunc()
 	// Create a Java context.
 	jContext := newJavaContext(env, context)
 	// Run Java Authorizer.

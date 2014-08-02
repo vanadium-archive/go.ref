@@ -30,9 +30,9 @@ func newCaveat(env *C.JNIEnv, jCaveat C.jobject) *caveat {
 		jCaveat: jCaveat,
 	}
 	runtime.SetFinalizer(c, func(c *caveat) {
-		var env *C.JNIEnv
-		C.AttachCurrentThread(c.jVM, &env, nil)
-		defer C.DetachCurrentThread(c.jVM)
+		envPtr, freeFunc := util.GetEnv(c.jVM)
+		env := (*C.JNIEnv)(envPtr)
+		defer freeFunc()
 		C.DeleteGlobalRef(env, c.jCaveat)
 	})
 	return c
@@ -44,9 +44,9 @@ type caveat struct {
 }
 
 func (c *caveat) Validate(context security.Context) error {
-	var env *C.JNIEnv
-	C.AttachCurrentThread(c.jVM, &env, nil)
-	defer C.DetachCurrentThread(c.jVM)
+	envPtr, freeFunc := util.GetEnv(c.jVM)
+	env := (*C.JNIEnv)(envPtr)
+	defer freeFunc()
 	jContext := newJavaContext(env, context)
 	contextSign := util.ClassSign("com.veyron2.security.Context")
 	return util.CallVoidMethod(env, c.jCaveat, "validate", []util.Sign{contextSign}, jContext)

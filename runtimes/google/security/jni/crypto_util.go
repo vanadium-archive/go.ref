@@ -7,6 +7,9 @@ import (
 	"crypto/x509/pkix"
 	"encoding/asn1"
 	"fmt"
+	"math/big"
+
+	"veyron2/security"
 )
 
 var (
@@ -92,4 +95,35 @@ func parsePKIXPublicKey(data []byte) (*ecdsa.PublicKey, error) {
 		return nil, fmt.Errorf("not an ECDSA public key")
 	}
 	return eckey, nil
+}
+
+// ecdsaSignature is a helper struct that is used to (de)serialize security.Signature.
+type ecdsaSignature struct {
+	// R, S specify the pair of integers that make up an ECDSA signature.
+	R, S *big.Int
+}
+
+// marshalECDSASignature returns the ASN.1 encoding of the provided ECDSA signature.
+func marshalECDSASignature(s security.Signature) ([]byte, error) {
+	sig := &ecdsaSignature{
+		R: new(big.Int).SetBytes(s.R),
+		S: new(big.Int).SetBytes(s.S),
+	}
+	return asn1.Marshal(sig)
+}
+
+// parseECDSASignature parses the ASN.1 encoded ECDSA signature.
+func parseECDSASignature(data []byte) (security.Signature, error) {
+	var sig ecdsaSignature
+	rest, err := asn1.Unmarshal(data, &sig)
+	if err != nil {
+		return security.Signature{}, err
+	}
+	if len(rest) > 0 {
+		return security.Signature{}, fmt.Errorf("shouldn't have remainder in ECDSA signature")
+	}
+	return security.Signature{
+		R: sig.R.Bytes(),
+		S: sig.S.Bytes(),
+	}, nil
 }

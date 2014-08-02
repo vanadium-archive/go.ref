@@ -5,6 +5,8 @@ package jni
 import (
 	"fmt"
 	"runtime"
+
+	"veyron/runtimes/google/jni/util"
 )
 
 // #cgo LDFLAGS: -ljniwrapper
@@ -25,9 +27,9 @@ func newContext(env *C.JNIEnv, jContext C.jobject) (*context, error) {
 		jContext: jContext,
 	}
 	runtime.SetFinalizer(c, func(c *context) {
-		var env *C.JNIEnv
-		C.AttachCurrentThread(c.jVM, &env, nil)
-		defer C.DetachCurrentThread(c.jVM)
+		envPtr, freeFunc := util.GetEnv(c.jVM)
+		env := (*C.JNIEnv)(envPtr)
+		defer freeFunc()
 		C.DeleteGlobalRef(env, c.jContext)
 	})
 	return c, nil

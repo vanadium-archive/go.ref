@@ -38,9 +38,9 @@ func newContext(env *C.JNIEnv, jContext C.jobject) *context {
 		jContext: jContext,
 	}
 	runtime.SetFinalizer(c, func(c *context) {
-		var env *C.JNIEnv
-		C.AttachCurrentThread(c.jVM, &env, nil)
-		defer C.DetachCurrentThread(c.jVM)
+		envPtr, freeFunc := util.GetEnv(c.jVM)
+		env := (*C.JNIEnv)(envPtr)
+		defer freeFunc()
 		C.DeleteGlobalRef(env, c.jContext)
 	})
 	return c
@@ -65,9 +65,9 @@ func (c *context) Suffix() string {
 }
 
 func (c *context) Label() security.Label {
-	var env *C.JNIEnv
-	C.AttachCurrentThread(c.jVM, &env, nil)
-	defer C.DetachCurrentThread(c.jVM)
+	envPtr, freeFunc := util.GetEnv(c.jVM)
+	env := (*C.JNIEnv)(envPtr)
+	defer freeFunc()
 	labelSign := util.ClassSign("com.veyron2.security.Label")
 	jLabel := C.jobject(util.CallObjectMethodOrCatch(env, c.jContext, "label", nil, labelSign))
 	return security.Label(util.JIntField(env, jLabel, "value"))
@@ -79,27 +79,29 @@ func (c *context) CaveatDischarges() security.CaveatDischargeMap {
 }
 
 func (c *context) LocalID() security.PublicID {
-	var env *C.JNIEnv
-	C.AttachCurrentThread(c.jVM, &env, nil)
-	defer C.DetachCurrentThread(c.jVM)
+	envPtr, freeFunc := util.GetEnv(c.jVM)
+	env := (*C.JNIEnv)(envPtr)
+	defer freeFunc()
 	publicIDSign := util.ClassSign("com.veyron2.security.PublicID")
 	jID := C.jobject(util.CallObjectMethodOrCatch(env, c.jContext, "localID", nil, publicIDSign))
-	return newPublicID(env, jID)
+	idPtr := util.CallLongMethodOrCatch(env, jID, "getNativePtr", nil)
+	return (*(*security.PublicID)(util.Ptr(idPtr)))
 }
 
 func (c *context) RemoteID() security.PublicID {
-	var env *C.JNIEnv
-	C.AttachCurrentThread(c.jVM, &env, nil)
-	defer C.DetachCurrentThread(c.jVM)
+	envPtr, freeFunc := util.GetEnv(c.jVM)
+	env := (*C.JNIEnv)(envPtr)
+	defer freeFunc()
 	publicIDSign := util.ClassSign("com.veyron2.security.PublicID")
 	jID := C.jobject(util.CallObjectMethodOrCatch(env, c.jContext, "remoteID", nil, publicIDSign))
-	return newPublicID(env, jID)
+	idPtr := util.CallLongMethodOrCatch(env, jID, "getNativePtr", nil)
+	return (*(*security.PublicID)(util.Ptr(idPtr)))
 }
 
 func (c *context) LocalEndpoint() naming.Endpoint {
-	var env *C.JNIEnv
-	C.AttachCurrentThread(c.jVM, &env, nil)
-	defer C.DetachCurrentThread(c.jVM)
+	envPtr, freeFunc := util.GetEnv(c.jVM)
+	env := (*C.JNIEnv)(envPtr)
+	defer freeFunc()
 	// TODO(spetrovic): create a Java Endpoint interface.
 	epStr := util.CallStringMethodOrCatch(env, c.jContext, "localEndpoint", nil)
 	ep, err := inaming.NewEndpoint(epStr)
@@ -110,9 +112,9 @@ func (c *context) LocalEndpoint() naming.Endpoint {
 }
 
 func (c *context) RemoteEndpoint() naming.Endpoint {
-	var env *C.JNIEnv
-	C.AttachCurrentThread(c.jVM, &env, nil)
-	defer C.DetachCurrentThread(c.jVM)
+	envPtr, freeFunc := util.GetEnv(c.jVM)
+	env := (*C.JNIEnv)(envPtr)
+	defer freeFunc()
 	// TODO(spetrovic): create a Java Endpoint interface.
 	epStr := util.CallStringMethodOrCatch(env, c.jContext, "remoteEndpoint", nil)
 	ep, err := inaming.NewEndpoint(epStr)
@@ -123,8 +125,8 @@ func (c *context) RemoteEndpoint() naming.Endpoint {
 }
 
 func (c *context) callStringMethod(methodName string) string {
-	var env *C.JNIEnv
-	C.AttachCurrentThread(c.jVM, &env, nil)
-	defer C.DetachCurrentThread(c.jVM)
+	envPtr, freeFunc := util.GetEnv(c.jVM)
+	env := (*C.JNIEnv)(envPtr)
+	defer freeFunc()
 	return util.CallStringMethodOrCatch(env, c.jContext, methodName, nil)
 }

@@ -33,9 +33,9 @@ func newDispatcher(env *C.JNIEnv, jDispatcher C.jobject) (*dispatcher, error) {
 		jDispatcher: jDispatcher,
 	}
 	runtime.SetFinalizer(d, func(d *dispatcher) {
-		var env *C.JNIEnv
-		C.AttachCurrentThread(d.jVM, &env, nil)
-		defer C.DetachCurrentThread(d.jVM)
+		envPtr, freeFunc := util.GetEnv(d.jVM)
+		env := (*C.JNIEnv)(envPtr)
+		defer freeFunc()
 		C.DeleteGlobalRef(env, d.jDispatcher)
 	})
 
@@ -49,9 +49,9 @@ type dispatcher struct {
 
 func (d *dispatcher) Lookup(suffix string) (ipc.Invoker, security.Authorizer, error) {
 	// Get Java environment.
-	var env *C.JNIEnv
-	C.AttachCurrentThread(d.jVM, &env, nil)
-	defer C.DetachCurrentThread(d.jVM)
+	envPtr, freeFunc := util.GetEnv(d.jVM)
+	env := (*C.JNIEnv)(envPtr)
+	defer freeFunc()
 
 	// Call Java dispatcher's lookup() method.
 	serviceObjectWithAuthorizerSign := util.ClassSign("com.veyron2.ipc.ServiceObjectWithAuthorizer")

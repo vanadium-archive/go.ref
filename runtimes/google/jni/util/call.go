@@ -132,8 +132,17 @@ func CallObjectMethod(env interface{}, object interface{}, name string, argSigns
 
 // CallStringMethod calls a java method over JNI that returns a string.
 func CallStringMethod(env interface{}, object interface{}, name string, argSigns []Sign, args ...interface{}) (string, error) {
-	jstr, err := CallObjectMethod(env, object, name, argSigns, StringSign, args)
+	jstr, err := CallObjectMethod(env, object, name, argSigns, StringSign, args...)
 	return GoString(env, jstr), err
+}
+
+// CallByteArrayMethod calls a java method over JNI that returns a byte array.
+func CallByteArrayMethod(env interface{}, object interface{}, name string, argSigns []Sign, args ...interface{}) ([]byte, error) {
+	jArr, err := CallObjectMethod(env, object, name, argSigns, ArraySign(ByteSign), args...)
+	if err != nil {
+		return nil, err
+	}
+	return GoByteArray(env, jArr), nil
 }
 
 // CallObjectArrayMethod calls a java method over JNI that returns an object array.
@@ -176,6 +185,14 @@ func CallIntMethod(env interface{}, object interface{}, name string, argSigns []
 	return ret, JExceptionMsg(env)
 }
 
+// CallLongMethod calls a java method over JNI that returns an int64.
+func CallLongMethod(env interface{}, object interface{}, name string, argSigns []Sign, args ...interface{}) (int64, error) {
+	jenv, jobject, jmid, valArray, freeFunc := setupMethodCall(env, object, name, argSigns, LongSign, args)
+	defer freeFunc()
+	ret := int64(C.CallLongMethodA(jenv, jobject, jmid, valArray))
+	return ret, JExceptionMsg(env)
+}
+
 // CallVoidMethod calls a java method over JNI that "returns" void.
 func CallVoidMethod(env interface{}, object interface{}, name string, argSigns []Sign, args ...interface{}) error {
 	jenv, jobject, jmid, valArray, freeFunc := setupMethodCall(env, object, name, argSigns, VoidSign, args)
@@ -196,6 +213,13 @@ func CallStringMethodOrCatch(env interface{}, object interface{}, name string, a
 	str, err := CallStringMethod(env, object, name, argSigns, args...)
 	handleException(name, err)
 	return str
+}
+
+// CallByteArrayMethodOrCatch is a helper method that calls CallByteArrayMethod and panics if a Java exception occurred.
+func CallByteArrayMethodOrCatch(env interface{}, object interface{}, name string, argSigns []Sign, args ...interface{}) []byte {
+	arr, err := CallByteArrayMethod(env, object, name, argSigns, args...)
+	handleException(name, err)
+	return arr
 }
 
 // CallObjectArrayMethodOrCatch is a helper method that calls CallObjectArrayMethod and panics if a Java exception occurred.
@@ -224,6 +248,13 @@ func CallIntMethodOrCatch(env interface{}, object interface{}, name string, argS
 	i, err := CallIntMethod(env, object, name, argSigns, args...)
 	handleException(name, err)
 	return i
+}
+
+// CallLongMethodOrCatch is a helper method that calls CallLongMethod and panics if a Java exception occurred.
+func CallLongMethodOrCatch(env interface{}, object interface{}, name string, argSigns []Sign, args ...interface{}) int64 {
+	l, err := CallLongMethod(env, object, name, argSigns, args...)
+	handleException(name, err)
+	return l
 }
 
 // CallVoidMethodOrCatch is a helper method that calls CallVoidMethod and panics if a Java exception occurred.

@@ -3,7 +3,6 @@
 package jni
 
 import (
-	"encoding/asn1"
 	"reflect"
 	"time"
 	"unsafe"
@@ -20,8 +19,6 @@ import "C"
 var (
 	// Global reference for com.veyron.runtimes.google.security.PublicID class.
 	jPublicIDImplClass C.jclass
-	// Global reference for com.veyron.runtimes.google.security.PublicID$ECPublicKeyInfo class.
-	jECPublicKeyInfoClass C.jclass
 	// Global reference for com.veyron.runtimes.google.security.Caveat class.
 	jCaveatImplClass C.jclass
 	// Global reference for com.veyron.runtimes.google.security.Context class.
@@ -30,6 +27,10 @@ var (
 	jCaveatClass C.jclass
 	// Global reference for com.veyron2.security.ServiceCaveat class.
 	jServiceCaveatClass C.jclass
+	// Global reference for com.veyron2.security.PrincipalPattern class.
+	jPrincipalPatternClass C.jclass
+	// Global reference for org.joda.time.Duration class.
+	jDurationClass C.jclass
 )
 
 // Init initializes the JNI code with the given Java evironment. This method
@@ -43,11 +44,12 @@ func Init(jEnv interface{}) {
 	// necessary because JNI gets access to the class loader only in the system
 	// thread, so we aren't able to invoke FindClass in other threads.
 	jPublicIDImplClass = C.jclass(util.JFindClassPtrOrDie(env, "com/veyron/runtimes/google/security/PublicID"))
-	jECPublicKeyInfoClass = C.jclass(util.JFindClassPtrOrDie(env, "com/veyron/runtimes/google/security/PublicID$ECPublicKeyInfo"))
 	jCaveatImplClass = C.jclass(util.JFindClassPtrOrDie(env, "com/veyron/runtimes/google/security/Caveat"))
 	jContextImplClass = C.jclass(util.JFindClassPtrOrDie(env, "com/veyron/runtimes/google/security/Context"))
 	jCaveatClass = C.jclass(util.JFindClassPtrOrDie(env, "com/veyron2/security/Caveat"))
 	jServiceCaveatClass = C.jclass(util.JFindClassPtrOrDie(env, "com/veyron2/security/ServiceCaveat"))
+	jPrincipalPatternClass = C.jclass(util.JFindClassPtrOrDie(env, "com/veyron2/security/PrincipalPattern"))
+	jDurationClass = C.jclass(util.JFindClassPtrOrDie(env, "org/joda/time/Duration"))
 }
 
 //export Java_com_veyron_runtimes_google_security_PublicID_nativeNames
@@ -65,14 +67,14 @@ func Java_com_veyron_runtimes_google_security_PublicID_nativeMatch(env *C.JNIEnv
 }
 
 //export Java_com_veyron_runtimes_google_security_PublicID_nativePublicKey
-func Java_com_veyron_runtimes_google_security_PublicID_nativePublicKey(env *C.JNIEnv, jPublicID C.jobject, goPublicIDPtr C.jlong) C.jobject {
+func Java_com_veyron_runtimes_google_security_PublicID_nativePublicKey(env *C.JNIEnv, jPublicID C.jobject, goPublicIDPtr C.jlong) C.jbyteArray {
 	key := (*(*security.PublicID)(util.Ptr(goPublicIDPtr))).PublicKey()
 	encoded, err := marshalPKIXPublicKey(key)
 	if err != nil {
 		util.JThrowV(env, err)
-		return C.jobject(nil)
+		return C.jbyteArray(nil)
 	}
-	return C.jobject(util.NewObjectOrCatch(env, jECPublicKeyInfoClass, []util.Sign{util.ArraySign(util.ByteSign), util.ArraySign(util.ByteSign), util.ArraySign(util.ByteSign), util.IntSign}, key.X.Bytes(), key.Y.Bytes(), encoded, key.Params().BitSize))
+	return C.jbyteArray(util.JByteArrayPtr(env, encoded))
 }
 
 //export Java_com_veyron_runtimes_google_security_PublicID_nativeAuthorize
@@ -89,15 +91,7 @@ func Java_com_veyron_runtimes_google_security_PublicID_nativeAuthorize(env *C.JN
 //export Java_com_veyron_runtimes_google_security_PublicID_nativeThirdPartyCaveats
 func Java_com_veyron_runtimes_google_security_PublicID_nativeThirdPartyCaveats(env *C.JNIEnv, jPublicID C.jobject, goPublicIDPtr C.jlong) C.jobjectArray {
 	sCaveats := (*(*security.PublicID)(util.Ptr(goPublicIDPtr))).ThirdPartyCaveats()
-	caveatSign := util.ClassSign("com.veyron2.security.Caveat")
-	jServiceCaveats := C.NewObjectArray(env, C.jsize(len(sCaveats)), jServiceCaveatClass, nil)
-	for i, sCaveat := range sCaveats {
-		util.GoRef(&sCaveat) // Un-refed when the Java Caveat object is finalized.
-		jCaveat := C.jobject(util.NewObjectOrCatch(env, jCaveatImplClass, []util.Sign{util.LongSign}, &sCaveat))
-		jServiceCaveat := C.jobject(util.NewObjectOrCatch(env, jServiceCaveatClass, []util.Sign{util.StringSign, caveatSign}, sCaveat.Service, jCaveat))
-		C.SetObjectArrayElement(env, jServiceCaveats, C.jsize(i), jServiceCaveat)
-	}
-	return jServiceCaveats
+	return newJavaServiceCaveatArray(env, sCaveats)
 }
 
 //export Java_com_veyron_runtimes_google_security_PublicID_nativeEquals
@@ -116,8 +110,9 @@ func Java_com_veyron_runtimes_google_security_PublicID_nativeFinalize(env *C.JNI
 }
 
 //export Java_com_veyron_runtimes_google_security_PrivateID_nativeCreate
-func Java_com_veyron_runtimes_google_security_PrivateID_nativeCreate(env *C.JNIEnv, jPrivateIDClass C.jclass, name C.jstring) C.jlong {
-	id, err := isecurity.NewPrivateID(util.GoString(env, name), nil)
+func Java_com_veyron_runtimes_google_security_PrivateID_nativeCreate(env *C.JNIEnv, jPrivateIDClass C.jclass, name C.jstring, jSigner C.jobject) C.jlong {
+	signer := newSigner(env, jSigner)
+	id, err := isecurity.NewPrivateID(util.GoString(env, name), signer)
 	if err != nil {
 		util.JThrowV(env, err)
 		return C.jlong(0)
@@ -133,35 +128,13 @@ func Java_com_veyron_runtimes_google_security_PrivateID_nativePublicID(env *C.JN
 	return C.jlong(util.PtrValue(&id))
 }
 
-//export Java_com_veyron_runtimes_google_security_PrivateID_nativeSign
-func Java_com_veyron_runtimes_google_security_PrivateID_nativeSign(env *C.JNIEnv, jPrivateID C.jobject, goPrivateIDPtr C.jlong, msg C.jbyteArray) C.jbyteArray {
-	s, err := (*(*security.PrivateID)(util.Ptr(goPrivateIDPtr))).Sign(util.GoByteArray(env, msg))
-	if err != nil {
-		util.JThrowV(env, err)
-		return nil
-	}
-	data, err := asn1.Marshal(s)
-	if err != nil {
-		util.JThrowV(env, err)
-		return nil
-	}
-	return C.jbyteArray(util.JByteArrayPtr(env, data))
-}
-
 //export Java_com_veyron_runtimes_google_security_PrivateID_nativeBless
-func Java_com_veyron_runtimes_google_security_PrivateID_nativeBless(env *C.JNIEnv, jPrivateID C.jobject, goPrivateIDPtr C.jlong, jPublicID C.jobject, name C.jstring, jDurationMS C.jlong, jServiceCaveats C.jobjectArray) C.jlong {
-	blessee := newPublicID(env, jPublicID)
-	duration := time.Duration(jDurationMS) * time.Millisecond
-	length := int(C.GetArrayLength(env, C.jarray(jServiceCaveats)))
-	caveats := make([]security.ServiceCaveat, length)
-	for i := 0; i < length; i++ {
-		jServiceCaveat := C.GetObjectArrayElement(env, jServiceCaveats, C.jsize(i))
-		caveats[i] = security.ServiceCaveat{
-			Service: security.PrincipalPattern(util.JStringField(env, jServiceCaveat, "service")),
-			Caveat:  newCaveat(env, jServiceCaveat),
-		}
-	}
-	id, err := (*(*security.PrivateID)(util.Ptr(goPrivateIDPtr))).Bless(blessee, util.GoString(env, name), duration, caveats)
+func Java_com_veyron_runtimes_google_security_PrivateID_nativeBless(env *C.JNIEnv, jPrivateID C.jobject, goPrivateIDPtr C.jlong, jBlessee C.jobject, name C.jstring, jDuration C.jobject, jServiceCaveats C.jobjectArray) C.jlong {
+	blesseePtr := util.CallLongMethodOrCatch(env, jBlessee, "getNativePtr", nil)
+	blessee := (*(*security.PublicID)(util.Ptr(blesseePtr)))
+	duration := time.Duration(util.CallLongMethodOrCatch(env, jDuration, "getMillis", nil)) * time.Millisecond
+	sCaveats := newServiceCaveatArray(env, jServiceCaveats)
+	id, err := (*(*security.PrivateID)(util.Ptr(goPrivateIDPtr))).Bless(blessee, util.GoString(env, name), duration, sCaveats)
 	if err != nil {
 		util.JThrowV(env, err)
 		return C.jlong(0)
@@ -172,7 +145,9 @@ func Java_com_veyron_runtimes_google_security_PrivateID_nativeBless(env *C.JNIEn
 
 //export Java_com_veyron_runtimes_google_security_PrivateID_nativeDerive
 func Java_com_veyron_runtimes_google_security_PrivateID_nativeDerive(env *C.JNIEnv, jPrivateID C.jobject, goPrivateIDPtr C.jlong, jPublicID C.jobject) C.jlong {
-	id, err := (*(*security.PrivateID)(util.Ptr(goPrivateIDPtr))).Derive(newPublicID(env, jPublicID))
+	publicIDPtr := util.CallLongMethodOrCatch(env, jPublicID, "getNativePtr", nil)
+	publicID := (*(*security.PublicID)(util.Ptr(publicIDPtr)))
+	id, err := (*(*security.PrivateID)(util.Ptr(goPrivateIDPtr))).Derive(publicID)
 	if err != nil {
 		util.JThrowV(env, err)
 		return C.jlong(0)

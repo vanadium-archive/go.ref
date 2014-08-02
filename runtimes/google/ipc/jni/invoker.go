@@ -41,9 +41,9 @@ func newInvoker(env *C.JNIEnv, jVM *C.JavaVM, jObj C.jobject) (*invoker, error) 
 		argGetter: getter,
 	}
 	runtime.SetFinalizer(i, func(i *invoker) {
-		var env *C.JNIEnv
-		C.AttachCurrentThread(i.jVM, &env, nil)
-		defer C.DetachCurrentThread(i.jVM)
+		envPtr, freeFunc := util.GetEnv(i.jVM)
+		env := (*C.JNIEnv)(envPtr)
+		defer freeFunc()
 		C.DeleteGlobalRef(env, i.jInvoker)
 	})
 	return i, nil
@@ -61,9 +61,9 @@ func (i *invoker) Prepare(method string, numArgs int) (argptrs []interface{}, la
 	// arguments into vom.Value objects, which we shall then de-serialize into
 	// Java objects (see Invoke comments below).  This approach is blocked on
 	// pending VOM encoder/decoder changes as well as Java (de)serializer.
-	var env *C.JNIEnv
-	C.AttachCurrentThread(i.jVM, &env, nil)
-	defer C.DetachCurrentThread(i.jVM)
+	envPtr, freeFunc := util.GetEnv(i.jVM)
+	env := (*C.JNIEnv)(envPtr)
+	defer freeFunc()
 
 	mArgs := i.argGetter.FindMethod(method, numArgs)
 	if mArgs == nil {
@@ -90,9 +90,9 @@ func (i *invoker) Invoke(method string, call ipc.ServerCall, argptrs []interface
 	// method.  The returned Java objects will be converted into serialized
 	// vom.Values, which will then be returned.  This approach is blocked on VOM
 	// encoder/decoder changes as well as Java's (de)serializer.
-	var env *C.JNIEnv
-	C.AttachCurrentThread(i.jVM, &env, nil)
-	defer C.DetachCurrentThread(i.jVM)
+	envPtr, freeFunc := util.GetEnv(i.jVM)
+	env := (*C.JNIEnv)(envPtr)
+	defer freeFunc()
 
 	// Create a new Java server call instance.
 	mArgs := i.argGetter.FindMethod(method, len(argptrs))
