@@ -3,12 +3,13 @@ package impl
 import (
 	"fmt"
 	"io"
+	"sync"
 
 	"veyron/examples/tunnel"
 	"veyron2/vlog"
 )
 
-func runIOManager(stdin io.Writer, stdout, stderr io.Reader, ptyFd uintptr, stream tunnel.TunnelServiceShellStream) error {
+func runIOManager(stdin io.WriteCloser, stdout, stderr io.Reader, ptyFd uintptr, stream tunnel.TunnelServiceShellStream) error {
 	m := ioManager{stdin: stdin, stdout: stdout, stderr: stderr, ptyFd: ptyFd, stream: stream}
 	return m.run()
 }
@@ -16,105 +17,149 @@ func runIOManager(stdin io.Writer, stdout, stderr io.Reader, ptyFd uintptr, stre
 // ioManager manages the forwarding of all the data between the shell and the
 // stream.
 type ioManager struct {
-	stdin          io.Writer
+	stdin          io.WriteCloser
 	stdout, stderr io.Reader
 	ptyFd          uintptr
 	stream         tunnel.TunnelServiceShellStream
 
-	// done receives any error from chan2stream, user2stream, or
-	// stream2user.
-	done chan error
-	// outchan is used to serialize the output to the stream. This is
-	// needed because stream.Send is not thread-safe.
-	outchan chan tunnel.ServerShellPacket
-	// closed is closed when run() exits.
-	closed chan struct{}
+	// streamError receives errors coming from stream operations.
+	streamError chan error
+	// stdioError receives errors coming from stdio operations.
+	stdioError chan error
 }
 
 func (m *ioManager) run() error {
-	// done receives any error from chan2stream, stdout2stream, or
-	// stream2stdin.
-	m.done = make(chan error, 3)
-	// outchan is used to serialize the output to the stream.
-	// chan2stream() receives data sent by stdout2outchan() and
-	// stderr2outchan() and sends it to the stream.
-	m.outchan = make(chan tunnel.ServerShellPacket)
-	m.closed = make(chan struct{})
-	defer close(m.closed)
-	go m.chan2stream()
+	m.streamError = make(chan error, 1)
+	m.stdioError = make(chan error, 1)
+
+	var pendingShellOutput sync.WaitGroup
+	pendingShellOutput.Add(1)
+	var pendingStreamInput sync.WaitGroup
+	pendingStreamInput.Add(1)
 
 	// Forward data between the shell's stdio and the stream.
-	go m.stdout2outchan()
-	if m.stderr != nil {
-		go m.stderr2outchan()
-	}
-	go m.stream2stdin()
+	go func() {
+		defer pendingShellOutput.Done()
+		// outchan is used to serialize the output to the stream.
+		// chan2stream() receives data sent by stdout2outchan() and
+		// stderr2outchan() and sends it to the stream.
+		outchan := make(chan tunnel.ServerShellPacket)
+		var wgStream sync.WaitGroup
+		wgStream.Add(1)
+		go m.chan2stream(outchan, &wgStream)
+		var wgStdio sync.WaitGroup
+		wgStdio.Add(1)
+		go m.stdout2outchan(outchan, &wgStdio)
+		if m.stderr != nil {
+			wgStdio.Add(1)
+			go m.stderr2outchan(outchan, &wgStdio)
+		}
+		// When both stdout2outchan and stderr2outchan are done, close
+		// outchan to signal chan2stream to exit.
+		wgStdio.Wait()
+		close(outchan)
+		wgStream.Wait()
+	}()
+	go m.stream2stdin(&pendingStreamInput)
 
 	// Block until something reports an error.
-	return <-m.done
+	//
+	// If there is any stream error, we assume that both ends of the stream
+	// have an error, e.g. if stream.Reader.Advance fails then
+	// stream.Sender.Send will fail. We process any remaining input from
+	// the stream and then return.
+	//
+	// If there is any stdio error, we assume all 3 io channels will fail
+	// (if stdout.Read fails then stdin.Write and stderr.Read will also
+	// fail). We process is remaining output from the shell and then
+	// return.
+	select {
+	case err := <-m.streamError:
+		// Process remaining input from the stream before exiting.
+		vlog.VI(2).Infof("run stream error: %v", err)
+		pendingStreamInput.Wait()
+		return err
+	case err := <-m.stdioError:
+		// Process remaining output from the shell before exiting.
+		vlog.VI(2).Infof("run stdio error: %v", err)
+		pendingShellOutput.Wait()
+		return err
+	}
+}
+
+func (m *ioManager) sendStreamError(err error) {
+	select {
+	case m.streamError <- err:
+	default:
+	}
+}
+
+func (m *ioManager) sendStdioError(err error) {
+	select {
+	case m.stdioError <- err:
+	default:
+	}
 }
 
 // chan2stream receives ServerShellPacket from outchan and sends it to stream.
-func (m *ioManager) chan2stream() {
+func (m *ioManager) chan2stream(outchan <-chan tunnel.ServerShellPacket, wg *sync.WaitGroup) {
+	defer wg.Done()
 	sender := m.stream.SendStream()
-	for packet := range m.outchan {
+	for packet := range outchan {
+		vlog.VI(3).Infof("chan2stream packet: %+v", packet)
 		if err := sender.Send(packet); err != nil {
-			m.done <- err
-			return
+			vlog.VI(2).Infof("chan2stream: %v", err)
+			m.sendStreamError(err)
 		}
-	}
-	m.done <- io.EOF
-}
-
-func (m *ioManager) sendOnOutchan(p tunnel.ServerShellPacket) bool {
-	select {
-	case m.outchan <- p:
-		return true
-	case <-m.closed:
-		return false
 	}
 }
 
 // stdout2stream reads data from the shell's stdout and sends it to the outchan.
-func (m *ioManager) stdout2outchan() {
+func (m *ioManager) stdout2outchan(outchan chan<- tunnel.ServerShellPacket, wg *sync.WaitGroup) {
+	defer wg.Done()
 	for {
 		buf := make([]byte, 2048)
 		n, err := m.stdout.Read(buf[:])
 		if err != nil {
 			vlog.VI(2).Infof("stdout2outchan: %v", err)
-			m.done <- err
+			m.sendStdioError(err)
 			return
 		}
-		if !m.sendOnOutchan(tunnel.ServerShellPacket{Stdout: buf[:n]}) {
-			return
-		}
+		outchan <- tunnel.ServerShellPacket{Stdout: buf[:n]}
 	}
 }
 
 // stderr2stream reads data from the shell's stderr and sends it to the outchan.
-func (m *ioManager) stderr2outchan() {
+func (m *ioManager) stderr2outchan(outchan chan<- tunnel.ServerShellPacket, wg *sync.WaitGroup) {
+	defer wg.Done()
 	for {
 		buf := make([]byte, 2048)
 		n, err := m.stderr.Read(buf[:])
 		if err != nil {
 			vlog.VI(2).Infof("stderr2outchan: %v", err)
-			m.done <- err
+			m.sendStdioError(err)
 			return
 		}
-		if !m.sendOnOutchan(tunnel.ServerShellPacket{Stderr: buf[:n]}) {
-			return
-		}
+		outchan <- tunnel.ServerShellPacket{Stderr: buf[:n]}
 	}
 }
 
 // stream2stdin reads data from the stream and sends it to the shell's stdin.
-func (m *ioManager) stream2stdin() {
+func (m *ioManager) stream2stdin(wg *sync.WaitGroup) {
+	defer wg.Done()
 	rStream := m.stream.RecvStream()
 	for rStream.Advance() {
 		packet := rStream.Value()
+		vlog.VI(3).Infof("stream2stdin packet: %+v", packet)
 		if len(packet.Stdin) > 0 {
 			if n, err := m.stdin.Write(packet.Stdin); n != len(packet.Stdin) || err != nil {
-				m.done <- fmt.Errorf("stdin.Write returned (%d, %v) want (%d, nil)", n, err, len(packet.Stdin))
+				m.sendStdioError(fmt.Errorf("stdin.Write returned (%d, %v) want (%d, nil)", n, err, len(packet.Stdin)))
+				return
+			}
+		}
+		if packet.EOF {
+			if err := m.stdin.Close(); err != nil {
+				m.sendStdioError(fmt.Errorf("stdin.Close: %v", err))
 				return
 			}
 		}
@@ -129,5 +174,8 @@ func (m *ioManager) stream2stdin() {
 	}
 
 	vlog.VI(2).Infof("stream2stdin: %v", err)
-	m.done <- err
+	m.sendStreamError(err)
+	if err := m.stdin.Close(); err != nil {
+		m.sendStdioError(fmt.Errorf("stdin.Close: %v", err))
+	}
 }
