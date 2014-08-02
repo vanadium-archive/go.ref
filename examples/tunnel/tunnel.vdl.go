@@ -26,6 +26,8 @@ type ShellOpts struct {
 type ClientShellPacket struct {
 	// Bytes going to the shell's stdin.
 	Stdin []byte
+	// Indicates that stdin should be closed.
+	EOF bool
 	// A dynamic update of the window size. The default value of 0 means no-change.
 	Rows uint32
 	Cols uint32
@@ -674,6 +676,7 @@ func (__gen_s *ServerStubTunnel) Signature(call _gen_ipc.ServerCall) (_gen_ipc.S
 		_gen_wiretype.StructType{
 			[]_gen_wiretype.FieldType{
 				_gen_wiretype.FieldType{Type: 0x43, Name: "Stdin"},
+				_gen_wiretype.FieldType{Type: 0x2, Name: "EOF"},
 				_gen_wiretype.FieldType{Type: 0x34, Name: "Rows"},
 				_gen_wiretype.FieldType{Type: 0x34, Name: "Cols"},
 			},

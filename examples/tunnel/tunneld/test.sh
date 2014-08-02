@@ -101,6 +101,24 @@ main() {
     fail "line ${LINENO}: unexpected output. Got ${got}, want ${want}"
   fi
 
+  # Send input to remote command.
+  echo "HELLO SERVER" | ./vsh --logtostderr --v=1 "${ep}" "cat > ${workdir}/hello.txt" > "${vshlog}" 2>&1
+  got=$(cat "${workdir}/hello.txt")
+  want="HELLO SERVER"
+
+  if [[ "${got}" != "${want}" ]]; then
+    dumplogs "${vshlog}" "${tunlog}" "${mtlog}"
+    fail "line ${LINENO}: unexpected output. Got ${got}, want ${want}"
+  fi
+
+  got=$(echo "ECHO" | ./vsh --logtostderr --v=1 "${ep}" cat 2>"${vshlog}")
+  want="ECHO"
+
+  if [[ "${got}" != "${want}" ]]; then
+    dumplogs "${vshlog}" "${tunlog}" "${mtlog}"
+    fail "line ${LINENO}: unexpected output. Got ${got}, want ${want}"
+  fi
+
   # Verify that all the published names are there.
   got=$(./mounttable glob "${NAMESPACE_ROOT}" 'tunnel/*/*' |    \
         sed -e 's/TTL .m..s/TTL XmXXs/'                     \

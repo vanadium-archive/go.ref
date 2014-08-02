@@ -100,8 +100,10 @@ func realMain() int {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 		return 1
 	}
-	saved := lib.EnterRawTerminalMode()
-	defer lib.RestoreTerminalSettings(saved)
+	if opts.UsePty {
+		saved := lib.EnterRawTerminalMode()
+		defer lib.RestoreTerminalSettings(saved)
+	}
 	runIOManager(os.Stdin, os.Stdout, os.Stderr, stream)
 
 	exitMsg := fmt.Sprintf("Connection to %s closed.", oname)
