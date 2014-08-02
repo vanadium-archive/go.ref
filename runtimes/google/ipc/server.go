@@ -83,27 +83,29 @@ func (s *server) Published() ([]string, error) {
 
 // resolveToAddress will try to resolve the input to an address using the
 // mount table, if the input is not already an address.
-func (s *server) resolveToAddress(address string) string {
+func (s *server) resolveToAddress(address string) (string, error) {
 	if _, err := inaming.NewEndpoint(address); err == nil {
-		return address
+		return address, nil
 	}
-	if s.ns == nil {
-		return address
-	}
-	names, err := s.ns.Resolve(s.ctx, address)
-	if err != nil {
-		return address
+	var names []string
+	if s.ns != nil {
+		var err error
+		if names, err = s.ns.Resolve(s.ctx, address); err != nil {
+			return "", err
+		}
+	} else {
+		names = append(names, address)
 	}
 	for _, n := range names {
 		address, suffix := naming.SplitAddressName(n)
-		if len(suffix) != 0 {
+		if suffix != "" && suffix != "//" {
 			continue
 		}
 		if _, err := inaming.NewEndpoint(address); err == nil {
-			return address
+			return address, nil
 		}
 	}
-	return address
+	return "", fmt.Errorf("unable to resolve %q to an endpoint", address)
 }
 
 func (s *server) Listen(protocol, address string) (naming.Endpoint, error) {
@@ -118,7 +120,10 @@ func (s *server) Listen(protocol, address string) (naming.Endpoint, error) {
 	var proxyName string
 	if protocol == inaming.Network {
 		proxyName = address
-		address = s.resolveToAddress(address)
+		var err error
+		if address, err = s.resolveToAddress(address); err != nil {
+			return nil, err
+		}
 	}
 	ln, ep, err := s.streamMgr.Listen(protocol, address, s.listenerOpts...)
 	if err != nil {
@@ -184,11 +189,14 @@ func (s *server) proxyListenLoop(ln stream.Listener, ep naming.Endpoint, proxy s
 		for ln == nil {
 			select {
 			case <-time.After(backoff):
-				proxy = s.resolveToAddress(proxy)
-				var err error
-				ln, ep, err = s.streamMgr.Listen(inaming.Network, proxy, s.listenerOpts...)
+				resolved, err := s.resolveToAddress(proxy)
+				if err != nil {
+					vlog.VI(1).Infof("Failed to resolve proxy %q (%v), will retry in %v", proxy, err, backoff)
+					break
+				}
+				ln, ep, err = s.streamMgr.Listen(inaming.Network, resolved, s.listenerOpts...)
 				if err == nil {
-					vlog.VI(1).Infof("Reconnected to proxy at %v listener: (%v, %v)", proxy, ln, ep)
+					vlog.VI(1).Infof("Reconnected to proxy at %q listener: (%v, %v)", proxy, ln, ep)
 					break
 				}
 				if backoff = backoff * 2; backoff > max {
