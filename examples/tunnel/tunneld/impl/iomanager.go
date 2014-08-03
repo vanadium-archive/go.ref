@@ -9,9 +9,11 @@ import (
 	"veyron2/vlog"
 )
 
-func runIOManager(stdin io.WriteCloser, stdout, stderr io.Reader, ptyFd uintptr, stream tunnel.TunnelServiceShellStream) error {
+func runIOManager(stdin io.WriteCloser, stdout, stderr io.Reader, ptyFd uintptr, stream tunnel.TunnelServiceShellStream) <-chan error {
 	m := ioManager{stdin: stdin, stdout: stdout, stderr: stderr, ptyFd: ptyFd, stream: stream}
-	return m.run()
+	c := make(chan error, 1) // buffered channel so that the goroutine spawned below is not leaked if the channel is not read from.
+	go func() { c <- m.run() }()
+	return c
 }
 
 // ioManager manages the forwarding of all the data between the shell and the

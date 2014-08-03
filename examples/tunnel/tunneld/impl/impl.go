@@ -22,6 +22,8 @@ import (
 type T struct {
 }
 
+const nonShellErrorCode = 255
+
 func (t *T) Forward(ctx ipc.ServerContext, network, address string, stream tunnel.TunnelServiceForwardStream) error {
 	conn, err := net.Dial(network, address)
 	if err != nil {
@@ -36,14 +38,10 @@ func (t *T) Forward(ctx ipc.ServerContext, network, address string, stream tunne
 
 func (t *T) Shell(ctx ipc.ServerContext, command string, shellOpts tunnel.ShellOpts, stream tunnel.TunnelServiceShellStream) (int32, error) {
 	vlog.Infof("SHELL START for %v: %q", ctx.RemoteID(), command)
-
-	const nonShellErrorCode = 255
-
 	shell, err := findShell()
 	if err != nil {
 		return nonShellErrorCode, err
 	}
-
 	var c *exec.Cmd
 	// An empty command means that we need an interactive shell.
 	if len(command) == 0 {
@@ -108,16 +106,25 @@ func (t *T) Shell(ctx ipc.ServerContext, command string, shellOpts tunnel.ShellO
 
 	defer c.Process.Kill()
 
-	ferr := runIOManager(stdin, stdout, stderr, ptyFd, stream)
-	vlog.Infof("SHELL END for %v: %q (%v)", ctx.RemoteID(), command, ferr)
+	select {
+	case runErr := <-runIOManager(stdin, stdout, stderr, ptyFd, stream):
+		vlog.Infof("SHELL END for %v: %q (%v)", ctx.RemoteID(), command, runErr)
+		return harvestExitcode(c.Process, runErr)
+	case <-ctx.Closed():
+		return nonShellErrorCode, fmt.Errorf("remote end exited")
+	}
+}
 
+// harvestExitcode returns the (exitcode, error) pair to be returned for the Shell RPC
+// based on the status of the process and the error returned from runIOManager
+func harvestExitcode(process *os.Process, ioerr error) (int32, error) {
 	// Check the exit status.
 	var status syscall.WaitStatus
-	if _, err := syscall.Wait4(c.Process.Pid, &status, syscall.WNOHANG, nil); err != nil {
+	if _, err := syscall.Wait4(process.Pid, &status, syscall.WNOHANG, nil); err != nil {
 		return nonShellErrorCode, err
 	}
 	if status.Signaled() {
-		return int32(status), fmt.Errorf("process killed by signal %d (%v)", int(status.Signal()), status.Signal())
+		return int32(status), fmt.Errorf("process killed by signal %u (%v)", status.Signal(), status.Signal())
 	}
 	if status.Exited() {
 		if status.ExitStatus() == 0 {
@@ -125,9 +132,8 @@ func (t *T) Shell(ctx ipc.ServerContext, command string, shellOpts tunnel.ShellO
 		}
 		return int32(status.ExitStatus()), fmt.Errorf("process exited with exit status %d", status.ExitStatus())
 	}
-
 	// The process has not exited. Use the error from ForwardStdIO.
-	return nonShellErrorCode, ferr
+	return nonShellErrorCode, ioerr
 }
 
 // findShell returns the path to the first usable shell binary.
