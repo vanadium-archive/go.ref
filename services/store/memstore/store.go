@@ -174,9 +174,3 @@ func (st *Store) PutMutations(ctx ipc.ServerContext, stream raw.StoreServicePutM
 	}
 	return tr.Commit()
 }
-
-// SetConflictResolver specifies a function to perform conflict resolution.
-// The <ty> represents the IDL name for the type.
-func (st *Store) SetConflictResolver(ty string, r storage.ConflictResolver) {
-	panic("not implemented")
-}

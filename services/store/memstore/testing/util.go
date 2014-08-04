@@ -12,7 +12,6 @@ import (
 	"veyron2/ipc"
 	"veyron2/naming"
 	"veyron2/security"
-	"veyron2/services/store"
 	"veyron2/services/watch"
 	"veyron2/storage"
 )
@@ -363,7 +362,7 @@ func ExpectServiceEntryExists(t *testing.T, changes []watch.Change, name string,
 	if change.State != watch.Exists {
 		t.Fatalf("Expected name to exist: %v", name)
 	}
-	cv, ok := change.Value.(*store.Entry)
+	cv, ok := change.Value.(*storage.Entry)
 	if !ok {
 		t.Fatal("Expected a service Entry")
 	}

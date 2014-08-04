@@ -5,15 +5,16 @@ import (
 	"veyron2/services/mounttable"
 	"veyron2/services/store"
 	"veyron2/services/watch"
+	"veyron2/storage"
 	"veyron2/vom"
 )
 
 func init() {
 	vom.Register(mounttable.MountEntry{})
-	vom.Register(store.Entry{})
+	vom.Register(storage.Entry{})
+	vom.Register(storage.Stat{})
 	vom.Register(store.NestedResult(0))
 	vom.Register(store.QueryResult{})
-	vom.Register(store.Stat{})
 	vom.Register(watch.GlobRequest{})
 	vom.Register(watch.QueryRequest{})
 	vom.Register(watch.ChangeBatch{})

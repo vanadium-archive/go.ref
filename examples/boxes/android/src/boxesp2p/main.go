@@ -76,7 +76,6 @@ import (
 	"veyron2/naming"
 	"veyron2/rt"
 	"veyron2/security"
-	istore "veyron2/services/store"
 	iwatch "veyron2/services/watch"
 	"veyron2/storage"
 	"veyron2/storage/vstore"
@@ -387,10 +386,10 @@ func initSyncService(peerEndpoint string) {
 }
 
 func init() {
-	// Register *store.Entry for WatchGlob.
-	// TODO(tilaks): store.Entry is declared in vdl, vom should register the
+	// Register *storage.Entry for WatchGlob.
+	// TODO(tilaks): storage.Entry is declared in vdl, vom should register the
 	// pointer automatically.
-	vom.Register(&istore.Entry{})
+	vom.Register(&storage.Entry{})
 	runtime.GOMAXPROCS(runtime.NumCPU())
 }
 

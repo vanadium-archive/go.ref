@@ -29,33 +29,9 @@ var (
 
 	_ store.ObjectService = (*object)(nil)
 
-	nullEntry store.Entry
-	nullStat  store.Stat
+	nullEntry storage.Entry
+	nullStat  storage.Stat
 )
-
-func fillServiceStat(result *store.Stat, stat *storage.Stat) {
-	result.ID = stat.ID
-	result.MTimeNS = stat.MTime.UnixNano()
-	result.Attrs = attrsToAnyData(stat.Attrs)
-}
-
-func makeServiceStat(stat *storage.Stat) store.Stat {
-	if stat == nil {
-		return nullStat
-	}
-	var result store.Stat
-	fillServiceStat(&result, stat)
-	return result
-}
-
-func makeServiceEntry(e *storage.Entry) store.Entry {
-	if e == nil {
-		return nullEntry
-	}
-	result := store.Entry{Value: e.Value}
-	fillServiceStat(&result.Stat, &e.Stat)
-	return result
-}
 
 func (o *object) String() string {
 	return o.name
@@ -66,26 +42,6 @@ func (o *object) Attributes(arg string) map[string]string {
 		"health":     "ok",
 		"servertype": o.String(),
 	}
-}
-
-func attrsFromAnyData(attrs []vdlutil.Any) ([]storage.Attr, error) {
-	typedAttrs := make([]storage.Attr, len(attrs))
-	for i, x := range attrs {
-		a, ok := x.(storage.Attr)
-		if !ok {
-			return nil, errNotAnAttribute
-		}
-		typedAttrs[i] = a
-	}
-	return typedAttrs, nil
-}
-
-func attrsToAnyData(attrs []storage.Attr) []vdlutil.Any {
-	uattrs := make([]vdlutil.Any, len(attrs))
-	for i, x := range attrs {
-		uattrs[i] = x
-	}
-	return uattrs
 }
 
 // CreateTransaction creates a transaction.
@@ -116,7 +72,7 @@ func (o *object) Exists(ctx ipc.ServerContext) (bool, error) {
 // Get returns the value for the Object.  The value returned is from the
 // most recent mutation of the entry in the Transaction, or from the
 // Transaction's snapshot if there is no mutation.
-func (o *object) Get(ctx ipc.ServerContext) (store.Entry, error) {
+func (o *object) Get(ctx ipc.ServerContext) (storage.Entry, error) {
 	t, err := o.server.findTransaction(ctx, o.tid)
 	if err != nil {
 		return nullEntry, err
@@ -125,20 +81,20 @@ func (o *object) Get(ctx ipc.ServerContext) (store.Entry, error) {
 	if err != nil {
 		return nullEntry, err
 	}
-	return makeServiceEntry(entry), err
+	return *entry, err
 }
 
 // Put modifies the value of the Object.
-func (o *object) Put(ctx ipc.ServerContext, val vdlutil.Any) (store.Stat, error) {
+func (o *object) Put(ctx ipc.ServerContext, val vdlutil.Any) (storage.Stat, error) {
 	t, err := o.server.findTransaction(ctx, o.tid)
 	if err != nil {
 		return nullStat, err
 	}
-	stat, err := o.obj.Put(ctx.RemoteID(), t, interface{}(val))
+	s, err := o.obj.Put(ctx.RemoteID(), t, interface{}(val))
 	if err != nil {
 		return nullStat, err
 	}
-	return makeServiceStat(stat), nil
+	return *s, err
 }
 
 // Remove removes the Object.
@@ -150,32 +106,17 @@ func (o *object) Remove(ctx ipc.ServerContext) error {
 	return o.obj.Remove(ctx.RemoteID(), t)
 }
 
-// SetAttr changes the attributes of the entry, such as permissions and
-// replication groups.  Attributes are associated with the value, not the
-// path.
-func (o *object) SetAttr(ctx ipc.ServerContext, attrs []vdlutil.Any) error {
-	t, err := o.server.findTransaction(ctx, o.tid)
-	if err != nil {
-		return err
-	}
-	typedAttrs, err := attrsFromAnyData(attrs)
-	if err != nil {
-		return err
-	}
-	return o.obj.SetAttr(ctx.RemoteID(), t, typedAttrs...)
-}
-
 // Stat returns entry info.
-func (o *object) Stat(ctx ipc.ServerContext) (store.Stat, error) {
+func (o *object) Stat(ctx ipc.ServerContext) (storage.Stat, error) {
 	t, err := o.server.findTransaction(ctx, o.tid)
 	if err != nil {
 		return nullStat, err
 	}
-	stat, err := o.obj.Stat(ctx.RemoteID(), t)
+	s, err := o.obj.Stat(ctx.RemoteID(), t)
 	if err != nil {
 		return nullStat, err
 	}
-	return makeServiceStat(stat), nil
+	return *s, err
 }
 
 // Query returns a sequence of objects that match the given query.
@@ -239,52 +180,12 @@ func (o *object) Glob(ctx ipc.ServerContext, pattern string, stream mounttable.G
 	return nil
 }
 
-// ChangeBatchStream is an interface for streaming responses of type ChangeBatch.
-type ChangeBatchStream interface {
-	// Send places the item onto the output stream, blocking if there is no buffer
-	// space available.
-	Send(watch.ChangeBatch) error
-}
-
-// entryTransformStream implements GlobWatcherServiceWatchGlobStream and
-// QueryWatcherServiceWatchQueryStream. It wraps a ChangeBatchStream,
-// transforming the value in each change from *storage.Entry to *store.Entry.
-type entryTransformStream struct {
-	delegate ChangeBatchStream
-}
-
-func (s *entryTransformStream) Send(cb watch.ChangeBatch) error {
-	// Copy and transform the ChangeBatch.
-	changes := cb.Changes
-	changesCp := make([]watch.Change, len(changes))
-	cbCp := watch.ChangeBatch{changesCp}
-	for i, changeCp := range changes {
-		if changes[i].Value != nil {
-			entry := changes[i].Value.(*storage.Entry)
-			serviceEntry := makeServiceEntry(entry)
-			changeCp.Value = &serviceEntry
-		}
-		changesCp[i] = changeCp
-	}
-	return s.delegate.Send(cbCp)
-}
-
-func (s *entryTransformStream) SendStream() interface {
-	Send(cb watch.ChangeBatch) error
-} {
-	return s
-}
-
 // WatchGlob returns a stream of changes that match a pattern.
 func (o *object) WatchGlob(ctx ipc.ServerContext, req watch.GlobRequest, stream watch.GlobWatcherServiceWatchGlobStream) error {
-	path := storage.ParsePath(o.name)
-	stream = &entryTransformStream{stream.SendStream()}
-	return o.server.watcher.WatchGlob(ctx, path, req, stream)
+	return o.server.watcher.WatchGlob(ctx, storage.ParsePath(o.name), req, stream)
 }
 
 // WatchQuery returns a stream of changes that satisfy a query.
 func (o *object) WatchQuery(ctx ipc.ServerContext, req watch.QueryRequest, stream watch.QueryWatcherServiceWatchQueryStream) error {
-	path := storage.ParsePath(o.name)
-	stream = &entryTransformStream{stream.SendStream()}
-	return o.server.watcher.WatchQuery(ctx, path, req, stream)
+	return o.server.watcher.WatchQuery(ctx, storage.ParsePath(o.name), req, stream)
 }
