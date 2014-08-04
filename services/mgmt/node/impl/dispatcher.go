@@ -2,7 +2,6 @@ package impl
 
 import (
 	"fmt"
-	"sync"
 
 	"veyron/services/mgmt/node"
 	"veyron/services/mgmt/node/config"
@@ -27,10 +26,8 @@ func NewDispatcher(auth security.Authorizer, config *config.State) (*dispatcher,
 	return &dispatcher{
 		auth: auth,
 		internal: &internalState{
-			channels:      make(map[string]chan string),
-			channelsMutex: new(sync.Mutex),
-			updating:      false,
-			updatingMutex: new(sync.Mutex),
+			channels: make(map[string]map[string]chan string),
+			updating: false,
 		},
 		config: config,
 	}, nil
@@ -39,6 +36,10 @@ func NewDispatcher(auth security.Authorizer, config *config.State) (*dispatcher,
 // DISPATCHER INTERFACE IMPLEMENTATION
 
 func (d *dispatcher) Lookup(suffix string) (ipc.Invoker, security.Authorizer, error) {
+	// TODO(caprita): Split out the logic that operates on the node manager
+	// from the logic that operates on the applications that the node
+	// manager runs.  We can have different invoker implementations,
+	// dispatching based on the suffix ("nm" vs. "apps").
 	return ipc.ReflectInvoker(node.NewServerNode(&invoker{
 		internal: d.internal,
 		config:   d.config,
