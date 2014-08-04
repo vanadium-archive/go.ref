@@ -17,7 +17,6 @@ import (
 	"veyron/services/store/memstore"
 	memwatch "veyron/services/store/memstore/watch"
 	"veyron/services/store/raw"
-	"veyron/services/store/service"
 
 	"veyron2/ipc"
 	"veyron2/security"
@@ -61,7 +60,7 @@ type Server struct {
 	closed  chan struct{}
 
 	// watcher is the actual store watcher implementation.
-	watcher service.Watcher
+	watcher *memwatch.Watcher
 }
 
 // transactionID is an internal transaction identifier chosen by the server.
@@ -87,7 +86,7 @@ type transactionContext interface {
 }
 
 type transaction struct {
-	trans      service.Transaction
+	trans      *memstore.Transaction
 	expires    time.Time
 	creatorCtx transactionContext
 }
@@ -209,13 +208,13 @@ func (s *Server) createTransaction(ctx transactionContext, oname string) (string
 }
 
 // findTransaction returns the transaction for the given transaction ID.
-func (s *Server) findTransaction(ctx transactionContext, id transactionID) (service.Transaction, error) {
+func (s *Server) findTransaction(ctx transactionContext, id transactionID) (*memstore.Transaction, error) {
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()
 	return s.findTransactionLocked(ctx, id)
 }
 
-func (s *Server) findTransactionLocked(ctx transactionContext, id transactionID) (service.Transaction, error) {
+func (s *Server) findTransactionLocked(ctx transactionContext, id transactionID) (*memstore.Transaction, error) {
 	if id == nullTransactionID {
 		return nil, nil
 	}
