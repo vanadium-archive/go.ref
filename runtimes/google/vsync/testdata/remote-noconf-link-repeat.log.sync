@@ -1,5 +1,5 @@
 # Resolve the same conflict on two different devices.
-# The format is: <cmd>|<objid>|<version>|<parent1>|<parent2>|<logrec>
+# The format is: <cmd>|<objid>|<version>|<parent1>|<parent2>|<logrec>|<continued>|<deleted>
 
 linkr|12345|2|3||VeyronLaptop:1:0
 

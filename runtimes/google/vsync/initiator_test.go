@@ -49,7 +49,7 @@ func TestGetLogRec(t *testing.T) {
 	if _, err := s.hdlInitiator.getLogRec(objID, expRec.CurVers); err == nil {
 		t.Errorf("GetLogRec didn't fail")
 	}
-	if err = s.dag.addNode(objID, expRec.CurVers, false, expRec.Parents, logKey, NoTxID); err != nil {
+	if err = s.dag.addNode(objID, expRec.CurVers, false, false, expRec.Parents, logKey, NoTxID); err != nil {
 		t.Errorf("AddNode failed with err %v", err)
 	}
 	curRec, err := s.hdlInitiator.getLogRec(objID, expRec.CurVers)
@@ -98,7 +98,7 @@ func TestResolveConflictByTime(t *testing.T) {
 		if err != nil {
 			t.Errorf("PutLogRec failed with err %v", err)
 		}
-		if err = s.dag.addNode(objID, expRec.CurVers, false, expRec.Parents, logKey, NoTxID); err != nil {
+		if err = s.dag.addNode(objID, expRec.CurVers, false, false, expRec.Parents, logKey, NoTxID); err != nil {
 			t.Errorf("AddNode failed with err %v", err)
 		}
 	}

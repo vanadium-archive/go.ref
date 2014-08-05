@@ -1,0 +1,5 @@
+# The format is: <cmd>|<objid>|<version>|<parent1>|<parent2>|<logrec>|<continued>|<deleted>
+
+addl|12345|1|||logrec-01|false|false
+addl|12345|2|1||logrec-02|false|true
+addl|12345|3|2||logrec-03|false|false

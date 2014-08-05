@@ -35,6 +35,7 @@ type syncCommand struct {
 	devID     DeviceID
 	genVec    GenVector
 	continued bool
+	deleted   bool
 }
 
 func strToObjID(objStr string) (storage.ID, error) {
@@ -91,7 +92,7 @@ func parseSyncCommands(file string) ([]syncCommand, error) {
 
 		switch args[0] {
 		case "addl", "addr":
-			expNargs := 7
+			expNargs := 8
 			if nargs != expNargs {
 				return nil, fmt.Errorf("%s:%d: need %d args instead of %d", file, lineno, expNargs, nargs)
 			}
@@ -114,7 +115,11 @@ func parseSyncCommands(file string) ([]syncCommand, error) {
 			if err != nil {
 				return nil, fmt.Errorf("%s:%d: invalid continued bit: %s", file, lineno, args[6])
 			}
-			cmd := syncCommand{version: version, parents: parents, logrec: args[5], continued: continued}
+			del, err := strconv.ParseBool(args[7])
+			if err != nil {
+				return nil, fmt.Errorf("%s:%d: invalid deleted bit: %s", file, lineno, args[7])
+			}
+			cmd := syncCommand{version: version, parents: parents, logrec: args[5], continued: continued, deleted: del}
 			if args[0] == "addl" {
 				cmd.cmd = addLocal
 			} else {
@@ -197,7 +202,8 @@ func dagReplayCommands(dag *dag, syncfile string) error {
 	for _, cmd := range cmds {
 		switch cmd.cmd {
 		case addLocal:
-			if err = dag.addNode(cmd.objID, cmd.version, false, cmd.parents, cmd.logrec, NoTxID); err != nil {
+			err = dag.addNode(cmd.objID, cmd.version, false, cmd.deleted, cmd.parents, cmd.logrec, NoTxID)
+			if err != nil {
 				return fmt.Errorf("cannot add local node %d:%d to DAG: %v", cmd.objID, cmd.version, err)
 			}
 			if err := dag.moveHead(cmd.objID, cmd.version); err != nil {
@@ -206,7 +212,8 @@ func dagReplayCommands(dag *dag, syncfile string) error {
 			dag.flush()
 
 		case addRemote:
-			if err = dag.addNode(cmd.objID, cmd.version, true, cmd.parents, cmd.logrec, NoTxID); err != nil {
+			err = dag.addNode(cmd.objID, cmd.version, true, cmd.deleted, cmd.parents, cmd.logrec, NoTxID)
+			if err != nil {
 				return fmt.Errorf("cannot add remote node %d:%d to DAG: %v", cmd.objID, cmd.version, err)
 			}
 			dag.flush()

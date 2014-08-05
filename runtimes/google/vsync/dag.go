@@ -72,8 +72,9 @@ package vsync
 // and three in-memory (ephemeral) maps (graft, txSet, txGC):
 //   * nodes: one entry per (object, version) with references to the
 //            parent node(s) it is derived from, a reference to the
-//            log record identifying that change, and a reference to
-//            its transaction set (or NoTxID if none)
+//            log record identifying that change, a reference to its
+//            transaction set (or NoTxID if none), and a boolean to
+//            indicate whether this change was a deletion of the object.
 //   * heads: one entry per object pointing to its most recent version
 //            in the nodes table
 //   * trans: one entry per transaction ID containing the set of objects
@@ -137,6 +138,7 @@ type dagNode struct {
 	Parents []storage.Version // references to parent versions
 	Logrec  string            // reference to log record change
 	TxID    TxID              // ID of a transaction set
+	Deleted bool              // true if the change was a delete
 }
 
 type graftInfo struct {
@@ -314,7 +316,7 @@ func (d *dag) addNodeTxEnd(tid TxID) error {
 //
 // If the transaction ID is set to NoTxID, this node is not part of a transaction.
 // Otherwise, track its membership in the given transaction ID.
-func (d *dag) addNode(oid storage.ID, version storage.Version, remote bool,
+func (d *dag) addNode(oid storage.ID, version storage.Version, remote, deleted bool,
 	parents []storage.Version, logrec string, tid TxID) error {
 	if d.store == nil {
 		return errors.New("invalid DAG")
@@ -413,7 +415,7 @@ func (d *dag) addNode(oid storage.ID, version storage.Version, remote bool,
 	}
 
 	// Insert the new node in the kvdb.
-	node := &dagNode{Level: level, Parents: parents, Logrec: logrec, TxID: tid}
+	node := &dagNode{Level: level, Parents: parents, Logrec: logrec, TxID: tid, Deleted: deleted}
 	return d.setNode(oid, version, node)
 }
 
@@ -424,6 +426,83 @@ func (d *dag) hasNode(oid storage.ID, version storage.Version) bool {
 	}
 	key := objNodeKey(oid, version)
 	return d.nodes.hasKey(key)
+}
+
+// childOf returns true if the node is a child of the parent version.
+// It means that the parent version is found in the node's Parents array.
+func childOf(node *dagNode, parent storage.Version) bool {
+	if node == nil || parent == storage.NoVersion {
+		return false
+	}
+	for _, pver := range node.Parents {
+		if pver == parent {
+			return true
+		}
+	}
+	return false
+}
+
+// hasParent returns true if the node (oid, version) exists in the DAG DB
+// and has (oid, parent) as a parent node. Either "version" or "parent"
+// could be NoVersion (zero).  Thus the 4 cases:
+// 1- "version" and "parent" are _not_ NoVersion: return true if both nodes
+//    exist and have a parent/child relationship.
+// 2- Only "parent" is NoVersion: return true if (oid, version) exists and
+//    either it has no parents (root of the DAG) or at least one of its
+//    parent nodes is a deleted node (i.e. has its "Deleted" flag set true).
+// 3- Only "version" is NoVersion: return true if (oid, parent) exists and
+//    at least one of its children is a deleted node.
+// 4- Both "version" and "parent" are NoVersion: return false
+func (d *dag) hasParent(oid storage.ID, version, parent storage.Version) bool {
+	if d.store == nil {
+		return false
+	}
+
+	switch {
+	case version != storage.NoVersion && parent != storage.NoVersion:
+		if !d.hasNode(oid, parent) {
+			return false
+		}
+		node, err := d.getNode(oid, version)
+		if err != nil {
+			return false
+		}
+		return childOf(node, parent)
+
+	case version != storage.NoVersion && parent == storage.NoVersion:
+		node, err := d.getNode(oid, version)
+		if err != nil {
+			return false
+		}
+		if node.Parents == nil {
+			return true
+		}
+		for _, pver := range node.Parents {
+			if pnode, err := d.getNode(oid, pver); err == nil && pnode.Deleted {
+				return true
+			}
+		}
+		return false
+
+	case version == storage.NoVersion && parent != storage.NoVersion:
+		if !d.hasNode(oid, parent) {
+			return false
+		}
+		head, err := d.getHead(oid)
+		if err != nil {
+			return false
+		}
+		found := false
+		d.ancestorIter(oid, []storage.Version{head}, func(oid storage.ID, v storage.Version, node *dagNode) error {
+			if node.Deleted && childOf(node, parent) {
+				found = true
+				return errors.New("found it -- stop the iteration")
+			}
+			return nil
+		})
+		return found
+	}
+	return false
 }
 
 // addParent adds to the DAG node (oid, version) linkage to this parent node.

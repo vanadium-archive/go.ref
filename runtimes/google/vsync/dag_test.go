@@ -99,7 +99,7 @@ func TestInvalidDAG(t *testing.T) {
 		t.Error(err)
 	}
 
-	err = dag.addNode(oid, 4, false, []storage.Version{2, 3}, "foobar", NoTxID)
+	err = dag.addNode(oid, 4, false, false, []storage.Version{2, 3}, "foobar", NoTxID)
 	if err == nil || err.Error() != "invalid DAG" {
 		t.Errorf("addNode() did not fail on a closed DAG: %v", err)
 	}
@@ -198,6 +198,9 @@ func TestInvalidDAG(t *testing.T) {
 	dag.close()
 	if dag.hasNode(oid, 4) {
 		t.Errorf("hasNode() found an object on a closed DAG")
+	}
+	if dag.hasParent(oid, 3, 2) {
+		t.Errorf("hasParent() found an parent/child relationship on a closed DAG")
 	}
 	if pmap := dag.getParentMap(oid); len(pmap) != 0 {
 		t.Errorf("getParentMap() found data on a closed DAG: %v", pmap)
@@ -506,26 +509,26 @@ func TestLocalUpdates(t *testing.T) {
 	}
 
 	// Make sure an existing node cannot be added again.
-	if err = dag.addNode(oid, 1, false, []storage.Version{0, 2}, "foobar", NoTxID); err == nil {
+	if err = dag.addNode(oid, 1, false, false, []storage.Version{0, 2}, "foobar", NoTxID); err == nil {
 		t.Errorf("addNode() did not fail when given an existing node")
 	}
 
 	// Make sure a new node cannot have more than 2 parents.
-	if err = dag.addNode(oid, 3, false, []storage.Version{0, 1, 2}, "foobar", NoTxID); err == nil {
+	if err = dag.addNode(oid, 3, false, false, []storage.Version{0, 1, 2}, "foobar", NoTxID); err == nil {
 		t.Errorf("addNode() did not fail when given 3 parents")
 	}
 
 	// Make sure a new node cannot have an invalid parent.
-	if err = dag.addNode(oid, 3, false, []storage.Version{0, 555}, "foobar", NoTxID); err == nil {
+	if err = dag.addNode(oid, 3, false, false, []storage.Version{0, 555}, "foobar", NoTxID); err == nil {
 		t.Errorf("addNode() did not fail when using an invalid parent")
 	}
 
 	// Make sure a new root node (no parents) cannot be added once a root exists.
 	// For the parents array, check both the "nil" and the empty array as input.
-	if err = dag.addNode(oid, 6789, false, nil, "foobar", NoTxID); err == nil {
+	if err = dag.addNode(oid, 6789, false, false, nil, "foobar", NoTxID); err == nil {
 		t.Errorf("Adding a 2nd root node (nil parents) for object %d in DAG file %s did not fail", oid, dagfile)
 	}
-	if err = dag.addNode(oid, 6789, false, []storage.Version{}, "foobar", NoTxID); err == nil {
+	if err = dag.addNode(oid, 6789, false, false, []storage.Version{}, "foobar", NoTxID); err == nil {
 		t.Errorf("Adding a 2nd root node (empty parents) for object %d in DAG file %s did not fail", oid, dagfile)
 	}
 
@@ -1599,10 +1602,10 @@ func TestAddNodeTransactional(t *testing.T) {
 		t.Errorf("Transactions map for Tx ID %v has length %d instead of 0 in DAG file %s", tid_1, n, dagfile)
 	}
 
-	if err := dag.addNode(oid_a, 3, false, []storage.Version{2}, "logrec-a-03", tid_1); err != nil {
+	if err := dag.addNode(oid_a, 3, false, false, []storage.Version{2}, "logrec-a-03", tid_1); err != nil {
 		t.Errorf("Cannot addNode() on object %d and Tx ID %v in DAG file %s: %v", oid_a, tid_1, dagfile, err)
 	}
-	if err := dag.addNode(oid_b, 3, false, []storage.Version{2}, "logrec-b-03", tid_1); err != nil {
+	if err := dag.addNode(oid_b, 3, false, false, []storage.Version{2}, "logrec-b-03", tid_1); err != nil {
 		t.Errorf("Cannot addNode() on object %d and Tx ID %v in DAG file %s: %v", oid_b, tid_1, dagfile, err)
 	}
 
@@ -1620,7 +1623,7 @@ func TestAddNodeTransactional(t *testing.T) {
 		t.Errorf("Transactions map for Tx ID %v has length %d instead of 0 in DAG file %s", tid_2, n, dagfile)
 	}
 
-	if err := dag.addNode(oid_c, 2, false, []storage.Version{1}, "logrec-c-02", tid_2); err != nil {
+	if err := dag.addNode(oid_c, 2, false, false, []storage.Version{1}, "logrec-c-02", tid_2); err != nil {
 		t.Errorf("Cannot addNode() on object %d and Tx ID %v in DAG file %s: %v", oid_c, tid_2, dagfile, err)
 	}
 
@@ -1651,7 +1654,7 @@ func TestAddNodeTransactional(t *testing.T) {
 		bad_tid++
 	}
 
-	if err := dag.addNode(oid_c, 3, false, []storage.Version{2}, "logrec-c-03", bad_tid); err == nil {
+	if err := dag.addNode(oid_c, 3, false, false, []storage.Version{2}, "logrec-c-03", bad_tid); err == nil {
 		t.Errorf("addNode() did not fail on object %d for a bad Tx ID %v in DAG file %s", oid_c, bad_tid, dagfile)
 	}
 	if err := dag.addNodeTxEnd(bad_tid); err == nil {
@@ -1783,10 +1786,10 @@ func TestPruningTransactions(t *testing.T) {
 	if tid_1 == NoTxID {
 		t.Fatal("Cannot start 1st DAG addNode() transaction")
 	}
-	if err := dag.addNode(oid_a, 3, false, []storage.Version{2}, "logrec-a-03", tid_1); err != nil {
+	if err := dag.addNode(oid_a, 3, false, false, []storage.Version{2}, "logrec-a-03", tid_1); err != nil {
 		t.Errorf("Cannot addNode() on object %d and Tx ID %v in DAG file %s: %v", oid_a, tid_1, dagfile, err)
 	}
-	if err := dag.addNode(oid_b, 3, false, []storage.Version{2}, "logrec-b-03", tid_1); err != nil {
+	if err := dag.addNode(oid_b, 3, false, false, []storage.Version{2}, "logrec-b-03", tid_1); err != nil {
 		t.Errorf("Cannot addNode() on object %d and Tx ID %v in DAG file %s: %v", oid_b, tid_1, dagfile, err)
 	}
 	if err := dag.addNodeTxEnd(tid_1); err != nil {
@@ -1797,20 +1800,20 @@ func TestPruningTransactions(t *testing.T) {
 	if tid_2 == NoTxID {
 		t.Fatal("Cannot start 2nd DAG addNode() transaction")
 	}
-	if err := dag.addNode(oid_b, 4, false, []storage.Version{3}, "logrec-b-04", tid_2); err != nil {
+	if err := dag.addNode(oid_b, 4, false, false, []storage.Version{3}, "logrec-b-04", tid_2); err != nil {
 		t.Errorf("Cannot addNode() on object %d and Tx ID %v in DAG file %s: %v", oid_b, tid_2, dagfile, err)
 	}
-	if err := dag.addNode(oid_c, 2, false, []storage.Version{1}, "logrec-c-02", tid_2); err != nil {
+	if err := dag.addNode(oid_c, 2, false, false, []storage.Version{1}, "logrec-c-02", tid_2); err != nil {
 		t.Errorf("Cannot addNode() on object %d and Tx ID %v in DAG file %s: %v", oid_c, tid_2, dagfile, err)
 	}
 	if err := dag.addNodeTxEnd(tid_2); err != nil {
 		t.Errorf("Cannot addNodeTxEnd() for Tx ID %v in DAG file %s: %v", tid_2, dagfile, err)
 	}
 
-	if err := dag.addNode(oid_a, 4, false, []storage.Version{3}, "logrec-a-04", NoTxID); err != nil {
+	if err := dag.addNode(oid_a, 4, false, false, []storage.Version{3}, "logrec-a-04", NoTxID); err != nil {
 		t.Errorf("Cannot addNode() on object %d and Tx ID %v in DAG file %s: %v", oid_a, tid_1, dagfile, err)
 	}
-	if err := dag.addNode(oid_b, 5, false, []storage.Version{4}, "logrec-b-05", NoTxID); err != nil {
+	if err := dag.addNode(oid_b, 5, false, false, []storage.Version{4}, "logrec-b-05", NoTxID); err != nil {
 		t.Errorf("Cannot addNode() on object %d and Tx ID %v in DAG file %s: %v", oid_b, tid_2, dagfile, err)
 	}
 
@@ -1885,7 +1888,7 @@ func TestPruningTransactions(t *testing.T) {
 	}
 
 	// Add c3 as a new head and prune at that point.  This should GC Tx-2.
-	if err := dag.addNode(oid_c, 3, false, []storage.Version{2}, "logrec-c-03", NoTxID); err != nil {
+	if err := dag.addNode(oid_c, 3, false, false, []storage.Version{2}, "logrec-c-03", NoTxID); err != nil {
 		t.Errorf("Cannot addNode() on object %d in DAG file %s: %v", oid_c, dagfile, err)
 	}
 	if err = dag.moveHead(oid_c, 3); err != nil {
@@ -1915,4 +1918,66 @@ func TestPruningTransactions(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
+}
+
+// TestHasParent tests lookup of DAG parent/child relationship (i.e. hasParent()).
+func TestHasParent(t *testing.T) {
+	dagfile := dagFilename()
+	defer os.Remove(dagfile)
+
+	dag, err := openDAG(dagfile)
+	if err != nil {
+		t.Fatalf("Cannot open new DAG file %s", dagfile)
+	}
+
+	if err = dagReplayCommands(dag, "local-init-03.sync"); err != nil {
+		t.Fatal(err)
+	}
+
+	oid, err := strToObjID("12345")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// The object mutations are: v1 -> v2 (deleted) -> v3 with v3 as head node.
+
+	type hasParentTest struct {
+		parent storage.Version
+		child  storage.Version
+		result bool
+	}
+	tests := []hasParentTest{
+		{storage.NoVersion, storage.NoVersion, false},
+		{1, 2, true},
+		{2, 3, true},
+		{1, 999, false},
+		{999, 1, false},
+		{1, 3, false},
+		{1, storage.NoVersion, true},
+		{2, storage.NoVersion, false},
+		{3, storage.NoVersion, false},
+		{999, storage.NoVersion, false},
+		{storage.NoVersion, 1, true},
+		{storage.NoVersion, 2, false},
+		{storage.NoVersion, 3, true},
+		{storage.NoVersion, 999, false},
+	}
+
+	for _, test := range tests {
+		result := dag.hasParent(oid, test.child, test.parent)
+		if result != test.result {
+			t.Errorf("hasParent() for parent/child (%d/%d) in DAG file %s: %v instead of %v",
+				test.parent, test.child, dagfile, result, test.result)
+		}
+	}
+
+	// Increase coverage of internal helper function.
+	if childOf(nil, 3) {
+		t.Errorf("childOf() returned true on a nil node")
+	}
+	if childOf(&dagNode{}, storage.NoVersion) {
+		t.Errorf("childOf() returned true on a NoVersion parent")
+	}
+
+	dag.close()
 }

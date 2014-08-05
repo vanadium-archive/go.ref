@@ -330,7 +330,7 @@ func (i *syncInitiator) insertRecInLogAndDag(rec *LogRec, txID TxID) error {
 	vlog.VI(2).Infof("insertRecInLogAndDag:: Adding log record %v, Tx %v", rec, txID)
 	switch rec.RecType {
 	case NodeRec:
-		return i.syncd.dag.addNode(rec.ObjID, rec.CurVers, true, rec.Parents, logKey, txID)
+		return i.syncd.dag.addNode(rec.ObjID, rec.CurVers, true, rec.Value.Delete, rec.Parents, logKey, txID)
 	case LinkRec:
 		return i.syncd.dag.addParent(rec.ObjID, rec.CurVers, rec.Parents[0], true)
 	default:
@@ -642,7 +642,7 @@ func (i *syncInitiator) updateLogAndDag() error {
 				// TODO(hpucha): addNode operations arising out of conflict resolution
 				// may need to be part of a transaction when app-driven resolution
 				// is introduced.
-				err = i.syncd.dag.addNode(obj, rec.CurVers, false, rec.Parents, logKey, NoTxID)
+				err = i.syncd.dag.addNode(obj, rec.CurVers, false, rec.Value.Delete, rec.Parents, logKey, NoTxID)
 			case LinkRec:
 				err = i.syncd.dag.addParent(obj, rec.CurVers, rec.Parents[0], false)
 			default:

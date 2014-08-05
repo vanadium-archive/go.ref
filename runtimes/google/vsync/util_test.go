@@ -172,7 +172,7 @@ func populateLogAndDAG(s *syncd, rec *LogRec) error {
 	if err != nil {
 		return err
 	}
-	if err := s.dag.addNode(rec.ObjID, rec.CurVers, false, rec.Parents, logKey, NoTxID); err != nil {
+	if err := s.dag.addNode(rec.ObjID, rec.CurVers, false, rec.Value.Delete, rec.Parents, logKey, NoTxID); err != nil {
 		return err
 	}
 	if err := s.dag.moveHead(rec.ObjID, rec.CurVers); err != nil {
@@ -205,7 +205,7 @@ func vsyncInitState(s *syncd, syncfile string) error {
 				ObjID:   cmd.objID,
 				CurVers: cmd.version,
 				Parents: cmd.parents,
-				Value:   LogValue{Continued: cmd.continued},
+				Value:   LogValue{Continued: cmd.continued, Delete: cmd.deleted},
 			}
 			if err := populateLogAndDAG(s, rec); err != nil {
 				return err

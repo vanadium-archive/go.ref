@@ -163,8 +163,6 @@ func (w *syncWatcher) processChanges(changes watch.ChangeBatch, syncTime int64) 
 	w.syncd.lock.Lock()
 	defer w.syncd.lock.Unlock()
 
-	// TODO(rdaoud): handle object deletion (State == DoesNotExist)
-
 	vlog.VI(1).Infof("processChanges:: ready to process changes")
 
 	var lastResmark []byte
