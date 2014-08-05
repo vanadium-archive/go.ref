@@ -1,12 +1,4 @@
-// todos_init is a tool to initialize the store with an initial database. This
-// is really for demo purposes; in a real database, the contents would be
-// persistent.
-//
-// The data is loaded from a JSON file, todos_init/data.json.
-//
-// Since JSON doesn't support all of the store types, there is a translation
-// phase, where the contents are loaded into a string form, then converted to
-// the todos/schema schema.
+// todos_init reads data.json and populates the store with initial data.
 package main
 
 import (
@@ -42,7 +34,6 @@ func init() {
 	if h, err := os.Hostname(); err == nil {
 		hostname = h
 	}
-	// TODO(sadovsky): Change this to be the correct veyron2 path.
 	dir := "global/vstore/" + hostname + "/" + username
 	flag.StringVar(&storeName, "store", dir, "Name of the Veyron store")
 }
@@ -61,7 +52,7 @@ type List struct {
 // state is the initial store state.
 type state struct {
 	store storage.Store
-	tname string // Current transaction name; nil if there's no transaction.
+	tname string // Current transaction name; empty if there's no transaction.
 }
 
 // newState returns a fresh state.
@@ -87,9 +78,11 @@ func (st *state) makeParentDirs(path string) {
 	for i, _ := range l {
 		prefix := filepath.Join(l[:i]...)
 		o := st.store.BindObject(naming.Join(st.tname, prefix))
-		if _, err := o.Get(rt.R().TODOContext()); err != nil {
+		if exist, err := o.Exists(rt.R().TODOContext()); err != nil {
+			vlog.Infof("Error checking existence at %q: %s", prefix, err)
+		} else if !exist {
 			if _, err := o.Put(rt.R().TODOContext(), &schema.Dir{}); err != nil {
-				vlog.Errorf("Error creating parent %q: %s", prefix, err)
+				vlog.Infof("Error creating parent %q: %s", prefix, err)
 			}
 		}
 	}
@@ -171,9 +164,8 @@ func (st *state) processJSONFile(path string) error {
 // main reads the data JSON file and populates the store.
 func main() {
 	// The client's identity needs to match the Admin ACLs at the empty store
-	// (since only the admin can put data). The identity here matches with that
-	// used for server.ServerConfig.Admin in todos_stored/main.go. An alternative
-	// would be to relax the ACLs on the store.
+	// (since only the admin can put data).
+	// TODO(sadovsky): What identity should we pass here?
 	rt.Init(veyron2.RuntimeID(security.FakePrivateID("anonymous")))
 
 	vlog.Infof("Binding to store on %s", storeName)

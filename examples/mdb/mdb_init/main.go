@@ -22,7 +22,7 @@ import (
 	"strings"
 	"time"
 
-	"veyron/examples/storage/mdb/schema"
+	"veyron/examples/mdb/schema"
 	"veyron2/naming"
 	"veyron2/rt"
 	"veyron2/storage"
@@ -353,7 +353,7 @@ func (st *state) processRawFile(path, name string) error {
 	return nil
 }
 
-// processFile stores the contens of the file to the store.
+// processFile stores the contents of the file in the store.
 func (st *state) processFile(path, name string) error {
 	switch filepath.Ext(path) {
 	case ".json":
@@ -375,11 +375,6 @@ func (st *state) processFile(path, name string) error {
 // main reads all the files in the templates directory and adds them to the
 // store.
 func main() {
-	// The client's identity needs to match the Admin ACLs at the empty
-	// store (since only the admin can put data).  The identity here
-	// matches with that used for server.ServerConfig.Admin in
-	// mdb_stored/main.go.  An alternative would be to relax the ACLs on
-	// the store.
 	rt.Init()
 
 	vlog.Infof("Binding to store on %s", storeName)
@@ -389,11 +384,13 @@ func main() {
 	}
 	state := newState(st)
 
-	// Store all templates.
+	// Store all data and templates.
 	filepath.Walk(*templatesDir, func(path string, _ os.FileInfo, _ error) error {
 		err := state.processFile(path, strings.TrimPrefix(path, *templatesDir))
 		if err != nil {
-			vlog.Infof("%s: %s", path, err)
+			vlog.Fatalf("Error processing %s: %s", path, err)
+		} else {
+			vlog.Infof("Processed %s", path)
 		}
 		return err
 	})
