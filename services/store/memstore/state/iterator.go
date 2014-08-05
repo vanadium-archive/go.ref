@@ -3,7 +3,6 @@ package state
 import (
 	"fmt"
 
-	"veyron/services/store/memstore/acl"
 	"veyron/services/store/memstore/refs"
 
 	"veyron2/security"
@@ -59,12 +58,10 @@ type iterator struct {
 }
 
 type next struct {
-	// checker is the acl.Checker for the object _containing_ the reference.
-	checker *acl.Checker
-	parent  *refs.FullPath
-	path    *refs.Path
-	id      storage.ID
-	action  action
+	parent *refs.FullPath
+	path   *refs.Path
+	id     storage.ID
+	action action
 }
 
 type action int
@@ -116,8 +113,7 @@ func ImmediateFilter(_ *refs.FullPath, path *refs.Path) (bool, bool) {
 func (sn *snapshot) NewIterator(pid security.PublicID, path storage.PathName,
 	pathFilter PathFilter, filter IterFilter) Iterator {
 
-	checker := sn.newPermChecker(pid)
-	cell, suffix, v := sn.resolveCell(checker, path, nil)
+	cell, suffix, v := sn.resolveCell(path, nil)
 	if cell == nil {
 		return &errorIterator{snapshot: sn}
 	}
@@ -153,7 +149,7 @@ func (sn *snapshot) NewIterator(pid security.PublicID, path storage.PathName,
 	}
 
 	if expand {
-		it.pushVisitAll(checker, it.path, set)
+		it.pushVisitAll(it.path, set)
 	}
 	if !ret {
 		it.Next()
@@ -165,7 +161,7 @@ func (sn *snapshot) NewIterator(pid security.PublicID, path storage.PathName,
 func (it *iterator) pushUnvisit(path *refs.Path, id storage.ID) {
 	switch it.pathFilter {
 	case ListPaths:
-		it.next = append(it.next, next{nil, nil, path, id, unvisit})
+		it.next = append(it.next, next{nil, path, id, unvisit})
 	case ListObjects:
 		// Do not unvisit the object, as it is on a path already seen by
 		// it.filter.
@@ -174,14 +170,11 @@ func (it *iterator) pushUnvisit(path *refs.Path, id storage.ID) {
 	}
 }
 
-func (it *iterator) pushVisitAll(checker *acl.Checker,
-	parentPath *refs.FullPath, set refs.Set) {
+func (it *iterator) pushVisitAll(parentPath *refs.FullPath, set refs.Set) {
 
 	set.Iter(func(x interface{}) bool {
 		ref := x.(*refs.Ref)
-		if checker.IsAllowed(ref.Label) {
-			it.next = append(it.next, next{checker, parentPath, ref.Path, ref.ID, visit})
-		}
+		it.next = append(it.next, next{parentPath, ref.Path, ref.ID, visit})
 		return true
 	})
 }
@@ -205,7 +198,6 @@ func (it *iterator) Get() *storage.Entry {
 func (it *iterator) Next() {
 	var n next
 	var fullPath *refs.FullPath
-	var checker *acl.Checker
 	var c *Cell
 	for {
 		topIndex := len(it.next) - 1
@@ -235,18 +227,11 @@ func (it *iterator) Next() {
 			panic(fmt.Sprintf("Dangling reference: %s", n.id))
 		}
 
-		// Check permissions.
-		checker = n.checker.Copy()
-		checker.Update(c.Tags)
-		if !checker.IsAllowed(security.ReadLabel) {
-			continue
-		}
-
 		// Check the filter
 		ret, expand := it.filter(n.parent, n.path)
 		fullPath = n.parent.AppendPath(n.path)
 		if expand {
-			it.pushVisitAll(checker, fullPath, c.refs)
+			it.pushVisitAll(fullPath, c.refs)
 		}
 		if ret {
 			// Found a value.

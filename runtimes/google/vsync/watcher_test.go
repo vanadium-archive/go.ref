@@ -166,7 +166,6 @@ func getChangeBatch() watch.ChangeBatch {
 				PriorVersion: 0x0,
 				Version:      0x4d65822107fcfd52,
 				Value:        "value-root",
-				Tags:         nil,
 				Dir: []storage.DEntry{
 					storage.DEntry{
 						Name: "a",
@@ -187,7 +186,6 @@ func getChangeBatch() watch.ChangeBatch {
 				PriorVersion: 0x0,
 				Version:      0x57e9d1860d1d68d8,
 				Value:        "value-a",
-				Tags:         nil,
 				Dir: []storage.DEntry{
 					storage.DEntry{
 						Name: "b",
@@ -208,7 +206,6 @@ func getChangeBatch() watch.ChangeBatch {
 				PriorVersion: 0x0,
 				Version:      0x55104dc76695721d,
 				Value:        "value-b",
-				Tags:         nil,
 				Dir:          nil,
 			},
 			ResumeMarker: nil,
@@ -225,7 +222,6 @@ func getChangeBatch() watch.ChangeBatch {
 				PriorVersion: 0x57e9d1860d1d68d8,
 				Version:      0x365a858149c6e2d1,
 				Value:        "value-a",
-				Tags:         nil,
 				Dir: []storage.DEntry{
 					storage.DEntry{
 						Name: "b",
@@ -251,7 +247,6 @@ func getChangeBatch() watch.ChangeBatch {
 				PriorVersion: 0x0,
 				Version:      0x380704bb7b4d7c03,
 				Value:        "value-c",
-				Tags:         nil,
 				Dir:          nil,
 			},
 			ResumeMarker: nil,

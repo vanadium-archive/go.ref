@@ -67,13 +67,13 @@ func (sn *MutableSnapshot) addRef(id storage.ID, r *refs.Ref) {
 
 	// Add the inverse link.
 	c := sn.Find(r.ID)
-	c.inRefs = c.inRefs.Put(&refs.Ref{ID: id, Path: r.Path, Label: r.Label})
+	c.inRefs = c.inRefs.Put(&refs.Ref{ID: id, Path: r.Path})
 }
 
 func (sn *MutableSnapshot) removeRef(id storage.ID, r *refs.Ref) {
 	// Remove the inverse link.
 	c := sn.deref(r.ID)
-	c.inRefs = c.inRefs.Remove(&refs.Ref{ID: id, Path: r.Path, Label: r.Label})
+	c.inRefs = c.inRefs.Remove(&refs.Ref{ID: id, Path: r.Path})
 
 	// Update refcount.
 	sn.unref(r.ID)

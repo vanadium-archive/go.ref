@@ -75,7 +75,7 @@ func expectNotExists(t *testing.T, sn *MutableSnapshot, id storage.ID) {
 
 func expectValue(t *testing.T, sn *MutableSnapshot, path string, v interface{}) {
 	_, file, line, _ := runtime.Caller(1)
-	cell, _, _ := sn.resolveCell(sn.newPermChecker(rootPublicID), storage.ParsePath(path), nil)
+	cell, _, _ := sn.resolveCell(storage.ParsePath(path), nil)
 	if cell == nil {
 		t.Errorf("%s(%d): path does not exist: %s", file, line, path)
 	}

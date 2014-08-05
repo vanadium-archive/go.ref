@@ -35,8 +35,6 @@ type Mutation struct {
 	IsRoot bool
 	// Value is value stored at this entry.
 	Value _gen_vdlutil.Any
-	// Tags specify permissions on this entry.
-	Tags storage.TagList
 	// Dir is the implicit directory of this entry, and may contain references
 	// to other entries in the store.
 	Dir []storage.DEntry
@@ -479,7 +477,7 @@ func (__gen_s *ServerStubStore) Signature(call _gen_ipc.ServerCall) (_gen_ipc.Se
 		OutArgs: []_gen_ipc.MethodArgument{
 			{Name: "", Type: 68},
 		},
-		InStream: 80,
+		InStream: 77,
 	}
 	result.Methods["Watch"] = _gen_ipc.MethodSignature{
 		InArgs: []_gen_ipc.MethodArgument{
@@ -512,27 +510,20 @@ func (__gen_s *ServerStubStore) Signature(call _gen_ipc.ServerCall) (_gen_ipc.Se
 				_gen_wiretype.FieldType{Type: 0x47, Name: "Changes"},
 			},
 			"veyron2/services/watch.ChangeBatch", []string(nil)},
-		_gen_wiretype.ArrayType{Elem: 0x41, Len: 0x10, Name: "veyron2/storage.ID", Tags: []string(nil)}, _gen_wiretype.NamedPrimitiveType{Type: 0x35, Name: "veyron2/storage.Version", Tags: []string(nil)}, _gen_wiretype.NamedPrimitiveType{Type: 0x32, Name: "veyron2/storage.TagOp", Tags: []string(nil)}, _gen_wiretype.StructType{
-			[]_gen_wiretype.FieldType{
-				_gen_wiretype.FieldType{Type: 0x4b, Name: "Op"},
-				_gen_wiretype.FieldType{Type: 0x49, Name: "ACL"},
-			},
-			"veyron2/storage.Tag", []string(nil)},
-		_gen_wiretype.SliceType{Elem: 0x4c, Name: "veyron2/storage.TagList", Tags: []string(nil)}, _gen_wiretype.StructType{
+		_gen_wiretype.ArrayType{Elem: 0x41, Len: 0x10, Name: "veyron2/storage.ID", Tags: []string(nil)}, _gen_wiretype.NamedPrimitiveType{Type: 0x35, Name: "veyron2/storage.Version", Tags: []string(nil)}, _gen_wiretype.StructType{
 			[]_gen_wiretype.FieldType{
 				_gen_wiretype.FieldType{Type: 0x3, Name: "Name"},
 				_gen_wiretype.FieldType{Type: 0x49, Name: "ID"},
 			},
 			"veyron2/storage.DEntry", []string(nil)},
-		_gen_wiretype.SliceType{Elem: 0x4e, Name: "", Tags: []string(nil)}, _gen_wiretype.StructType{
+		_gen_wiretype.SliceType{Elem: 0x4b, Name: "", Tags: []string(nil)}, _gen_wiretype.StructType{
 			[]_gen_wiretype.FieldType{
 				_gen_wiretype.FieldType{Type: 0x49, Name: "ID"},
 				_gen_wiretype.FieldType{Type: 0x4a, Name: "PriorVersion"},
 				_gen_wiretype.FieldType{Type: 0x4a, Name: "Version"},
 				_gen_wiretype.FieldType{Type: 0x2, Name: "IsRoot"},
 				_gen_wiretype.FieldType{Type: 0x45, Name: "Value"},
-				_gen_wiretype.FieldType{Type: 0x4d, Name: "Tags"},
-				_gen_wiretype.FieldType{Type: 0x4f, Name: "Dir"},
+				_gen_wiretype.FieldType{Type: 0x4c, Name: "Dir"},
 			},
 			"veyron/services/store/raw.Mutation", []string(nil)},
 	}

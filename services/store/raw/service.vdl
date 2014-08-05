@@ -38,9 +38,6 @@ type Mutation struct {
   // Value is value stored at this entry.
   Value any
 
-  // Tags specify permissions on this entry.
-  Tags storage.TagList
-
   // Dir is the implicit directory of this entry, and may contain references
   // to other entries in the store.
   Dir []storage.DEntry

@@ -83,7 +83,6 @@ func (p *rawProcessor) processState(st *state.State) ([]watch.Change, error) {
 			Version:      cell.Version,
 			IsRoot:       isRoot,
 			Value:        cell.Value,
-			Tags:         cell.Tags,
 			Dir:          flattenDir(refs.FlattenDir(cell.Dir)),
 		}
 		change := watch.Change{
@@ -148,7 +147,6 @@ func (p *rawProcessor) processTransaction(mus *state.Mutations) ([]watch.Change,
 			Version:      mu.Postcondition,
 			IsRoot:       isRoot,
 			Value:        mu.Value,
-			Tags:         mu.Tags,
 			Dir:          flattenDir(mu.Dir),
 		}
 		// TODO(tilaks): don't clone value.
