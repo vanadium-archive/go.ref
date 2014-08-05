@@ -41,7 +41,7 @@ func NewInvoker(gobin string) *invoker {
 //
 // TODO(jsimsa): Analyze the binary files for shared library
 // dependencies and ship these back.
-func (i *invoker) Build(_ ipc.ServerContext, arch build.Architecture, opsys build.OperatingSystem, stream build.BuildServiceBuildStream) ([]byte, error) {
+func (i *invoker) Build(_ ipc.ServerContext, arch build.Architecture, opsys build.OperatingSystem, stream build.BuilderServiceBuildStream) ([]byte, error) {
 	vlog.VI(1).Infof("Build(%v, %v) called.", arch, opsys)
 	dir, prefix := "", ""
 	dirPerm, filePerm := os.FileMode(0700), os.FileMode(0600)
