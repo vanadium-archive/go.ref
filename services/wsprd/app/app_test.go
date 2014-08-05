@@ -1,4 +1,4 @@
-package wspr
+package app
 
 import (
 	"bytes"
@@ -15,7 +15,6 @@ import (
 	"veyron2/ipc"
 	"veyron2/naming"
 	"veyron2/rt"
-	"veyron2/security"
 	"veyron2/vdl/vdlutil"
 	"veyron2/verror"
 	"veyron2/vlog"
@@ -133,6 +132,11 @@ func startMountTableServer() (ipc.Server, naming.Endpoint, error) {
 	return startAnyServer(true, mt)
 }
 
+type response struct {
+	Type    lib.ResponseType
+	Message interface{}
+}
+
 type testWriter struct {
 	sync.Mutex
 	stream []response
@@ -236,55 +240,15 @@ func TestGetGoServerSignature(t *testing.T) {
 		return
 	}
 	defer s.Stop()
-	wspr := NewWSPR(0, "mockVeyronProxyEP")
-	wsp := websocketPipe{ctx: wspr}
-	wsp.setup()
-	jsSig, err := wsp.getSignature("/" + endpoint.String())
+	controller := NewController(nil, "mockVeyronProxyEP")
+	controller.UpdateIdentity(nil)
+	jsSig, err := controller.getSignature("/" + endpoint.String())
 	if err != nil {
 		t.Errorf("Failed to get signature: %v", err)
 	}
 
 	if !reflect.DeepEqual(jsSig, adderServiceSignature) {
 		t.Errorf("Unexpected signature, got :%v, expected: %v", jsSig, adderServiceSignature)
-	}
-}
-
-func TestEncodeDecodeIdentity(t *testing.T) {
-	identity := security.FakePrivateID("/fake/private/id")
-	resultIdentity := decodeIdentity(r.Logger(), encodeIdentity(r.Logger(), identity))
-	if identity != resultIdentity {
-		t.Errorf("expected decodeIdentity(encodeIdentity(identity)) to be %v, got %v", identity, resultIdentity)
-	}
-}
-
-func TestHandleAssocIdentity(t *testing.T) {
-	wspr := NewWSPR(0, "mockVeyronProxyEP")
-	wsp := websocketPipe{ctx: wspr}
-	wsp.setup()
-
-	privateId := security.FakePrivateID("/fake/private/id")
-	identityData := assocIdentityData{
-		Account:  "test@example.org",
-		Identity: encodeIdentity(wspr.logger, privateId),
-		Origin:   "my.webapp.com",
-	}
-	jsonIdentityDataBytes, err := json.Marshal(identityData)
-	if err != nil {
-		t.Errorf("json.Marshal(%v) failed: %v", identityData, err)
-	}
-	jsonIdentityData := string(jsonIdentityDataBytes)
-	writer := testWriter{
-		logger: wspr.logger,
-	}
-	wsp.handleAssocIdentity(jsonIdentityData, lib.ClientWriter(&writer))
-	// Check that the pipe has the privateId
-	if wsp.privateId != privateId {
-		t.Errorf("wsp.privateId was not set. got: %v, expected: %v", wsp.privateId, identityData.Identity)
-	}
-	// Check that wspr idManager has the origin
-	_, err = wspr.idManager.Identity(identityData.Origin)
-	if err != nil {
-		t.Errorf("wspr.idManager.Identity(%v) failed: %v", identityData.Origin, err)
 	}
 }
 
@@ -307,25 +271,24 @@ func runGoServerTestCase(t *testing.T, test goServerTestCase) {
 	}
 	defer s.Stop()
 
-	wspr := NewWSPR(0, "mockVeyronProxyEP")
-	wsp := websocketPipe{ctx: wspr}
-	wsp.setup()
-	writer := testWriter{
-		logger: wspr.logger,
-	}
+	controller := NewController(nil, "mockVeyronProxyEP")
+	controller.UpdateIdentity(nil)
 
+	writer := testWriter{
+		logger: controller.logger,
+	}
 	var signal chan ipc.Stream
 	if len(test.streamingInputs) > 0 {
 		signal = make(chan ipc.Stream, 1)
-		wsp.outstandingStreams[0] = outstandingStream{
+		controller.outstandingStreams[0] = outstandingStream{
 			stream: client.StartQueueingStream(signal),
 			inType: test.streamingInputType,
 		}
 		go func() {
 			for _, value := range test.streamingInputs {
-				wsp.sendOnStream(0, value, &writer)
+				controller.SendOnStream(0, value, &writer)
 			}
-			wsp.closeStream(0)
+			controller.CloseStream(0)
 		}()
 	}
 
@@ -336,7 +299,7 @@ func runGoServerTestCase(t *testing.T, test goServerTestCase) {
 		NumOutArgs:  test.numOutArgs,
 		IsStreaming: signal != nil,
 	}
-	wsp.sendVeyronRequest(0, &request, &writer, signal)
+	controller.sendVeyronRequest(0, &request, &writer, signal)
 
 	checkResponses(&writer, test.expectedStream, test.expectedError, t)
 }
@@ -401,8 +364,7 @@ func TestCallingGoWithStreaming(t *testing.T) {
 }
 
 type runningTest struct {
-	wspr             *WSPR
-	wsp              *websocketPipe
+	controller       *Controller
 	writer           *testWriter
 	mounttableServer ipc.Server
 	proxyServer      *proxy.Proxy
@@ -423,22 +385,22 @@ func serveServer() (*runningTest, error) {
 
 	proxyEndpoint := proxyServer.Endpoint().String()
 
-	wspr := NewWSPR(0, "/"+proxyEndpoint, veyron2.NamespaceRoots{"/" + endpoint.String()})
-	wsp := websocketPipe{ctx: wspr}
-	writer := testWriter{
-		logger: wspr.logger,
-	}
-	wsp.writerCreator = func(int64) lib.ClientWriter {
+	writer := testWriter{}
+
+	writerCreator := func(int64) lib.ClientWriter {
 		return &writer
 	}
-	wsp.setup()
-	wsp.serve(serveRequest{
+	controller := NewController(writerCreator, "/"+proxyEndpoint, veyron2.NamespaceRoots{"/" + endpoint.String()})
+	controller.UpdateIdentity(nil)
+	writer.logger = controller.logger
+
+	controller.serve(serveRequest{
 		Name:    "adder",
 		Service: adderServiceSignature,
 	}, &writer)
 
 	return &runningTest{
-		wspr, &wsp, &writer, mounttableServer, proxyServer,
+		controller, &writer, mounttableServer, proxyServer,
 	}, nil
 }
 
@@ -446,7 +408,7 @@ func TestJavascriptServeServer(t *testing.T) {
 	rt, err := serveServer()
 	defer rt.mounttableServer.Stop()
 	defer rt.proxyServer.Shutdown()
-	defer rt.wsp.cleanup()
+	defer rt.controller.Cleanup()
 	if err != nil {
 		t.Fatalf("could not serve server %v", err)
 	}
@@ -475,7 +437,7 @@ func TestJavascriptStopServer(t *testing.T) {
 	rt, err := serveServer()
 	defer rt.mounttableServer.Stop()
 	defer rt.proxyServer.Shutdown()
-	defer rt.wsp.cleanup()
+	defer rt.controller.Cleanup()
 
 	if err != nil {
 		t.Errorf("could not serve server %v", err)
@@ -483,17 +445,17 @@ func TestJavascriptStopServer(t *testing.T) {
 	}
 
 	// ensure there is only one server and then stop the server
-	if len(rt.wsp.servers) != 1 {
-		t.Errorf("expected only one server but got: %d", len(rt.wsp.servers))
+	if len(rt.controller.servers) != 1 {
+		t.Errorf("expected only one server but got: %d", len(rt.controller.servers))
 		return
 	}
-	for serverId := range rt.wsp.servers {
-		rt.wsp.removeServer(serverId)
+	for serverId := range rt.controller.servers {
+		rt.controller.removeServer(serverId)
 	}
 
 	// ensure there is no more servers now
-	if len(rt.wsp.servers) != 0 {
-		t.Errorf("expected no server after stopping the only one but got: %d", len(rt.wsp.servers))
+	if len(rt.controller.servers) != 0 {
+		t.Errorf("expected no server after stopping the only one but got: %d", len(rt.controller.servers))
 		return
 	}
 
@@ -511,9 +473,9 @@ type jsServerTestCase struct {
 	err           *verror.Standard
 }
 
-func sendServerStream(t *testing.T, wsp *websocketPipe, test *jsServerTestCase, w lib.ClientWriter) {
+func sendServerStream(t *testing.T, controller *Controller, test *jsServerTestCase, w lib.ClientWriter) {
 	for _, msg := range test.serverStream {
-		wsp.sendParsedMessageOnStream(0, msg, w)
+		controller.sendParsedMessageOnStream(0, msg, w)
 	}
 
 	serverReply := map[string]interface{}{
@@ -525,14 +487,14 @@ func sendServerStream(t *testing.T, wsp *websocketPipe, test *jsServerTestCase, 
 	if err != nil {
 		t.Fatalf("Failed to serialize the reply: %v", err)
 	}
-	wsp.handleServerResponse(0, string(bytes))
+	controller.HandleServerResponse(0, string(bytes))
 }
 
 func runJsServerTestCase(t *testing.T, test jsServerTestCase) {
 	rt, err := serveServer()
 	defer rt.mounttableServer.Stop()
 	defer rt.proxyServer.Shutdown()
-	defer rt.wsp.cleanup()
+	defer rt.controller.Cleanup()
 
 	if err != nil {
 		t.Errorf("could not serve server %v", err)
@@ -561,14 +523,14 @@ func runJsServerTestCase(t *testing.T, test jsServerTestCase) {
 
 	rt.writer.stream = nil
 
-	// Create a client using wspr's runtime so it points to the right mounttable.
-	client, err := rt.wspr.rt.NewClient()
+	// Create a client using app's runtime so it points to the right mounttable.
+	client, err := rt.controller.rt.NewClient()
 
 	if err != nil {
 		t.Errorf("unable to create client: %v", err)
 	}
 
-	call, err := client.StartCall(rt.wspr.rt.NewContext(), "/"+msg+"/adder", test.method, test.inArgs)
+	call, err := client.StartCall(rt.controller.rt.NewContext(), "/"+msg+"/adder", test.method, test.inArgs)
 	if err != nil {
 		t.Errorf("failed to start call: %v", err)
 	}
@@ -607,7 +569,7 @@ func runJsServerTestCase(t *testing.T, test jsServerTestCase) {
 	expectedWebsocketMessage = append(expectedWebsocketMessage, response{Type: lib.ResponseStreamClose})
 
 	expectedStream := test.serverStream
-	go sendServerStream(t, rt.wsp, &test, rt.writer)
+	go sendServerStream(t, rt.controller, &test, rt.writer)
 	for {
 		var data interface{}
 		if err := call.Recv(&data); err != nil {

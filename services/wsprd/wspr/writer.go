@@ -23,7 +23,7 @@ type response struct {
 
 // Implements clientWriter interface for sending messages over websockets.
 type websocketWriter struct {
-	wsp    *websocketPipe
+	p      *pipe
 	logger vlog.Logger
 	id     int64
 }
@@ -42,7 +42,7 @@ func (w *websocketWriter) Send(messageType lib.ResponseType, data interface{}) e
 		return err
 	}
 
-	w.wsp.writeQueue <- wsMessage{messageType: websocket.TextMessage, buf: buf2.Bytes()}
+	w.p.writeQueue <- wsMessage{messageType: websocket.TextMessage, buf: buf2.Bytes()}
 
 	return nil
 }
