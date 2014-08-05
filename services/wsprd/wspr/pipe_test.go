@@ -39,8 +39,8 @@ func TestHandleAssocIdentity(t *testing.T) {
 	writer := testWriter{}
 	p.handleAssocIdentity(jsonIdentityData, lib.ClientWriter(&writer))
 	// Check that the pipe has the privateId
-	if p.app.RT().Identity() != privateId {
-		t.Errorf("p.privateId was not set. got: %v, expected: %v", p.app.RT().Identity(), identityData.Identity)
+	if p.controller.RT().Identity() != privateId {
+		t.Errorf("p.privateId was not set. got: %v, expected: %v", p.controller.RT().Identity(), identityData.Identity)
 	}
 	// Check that wspr idManager has the origin
 	_, err = wspr.idManager.Identity(identityData.Origin)
