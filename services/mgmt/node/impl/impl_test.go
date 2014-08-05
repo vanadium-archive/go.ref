@@ -1,6 +1,8 @@
 package impl_test
 
 import (
+	"crypto/md5"
+	"encoding/base64"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -16,9 +18,11 @@ import (
 	"veyron/services/mgmt/node/config"
 	"veyron/services/mgmt/node/impl"
 
+	"veyron2/ipc"
 	"veyron2/naming"
 	"veyron2/rt"
 	"veyron2/services/mgmt/application"
+	"veyron2/services/mgmt/node"
 	"veyron2/verror"
 	"veyron2/vlog"
 )
@@ -33,8 +37,9 @@ func init() {
 	// create it here.
 	rt.Init()
 
-	blackbox.CommandTable["nodeManager"] = nodeManager
 	blackbox.CommandTable["execScript"] = execScript
+	blackbox.CommandTable["nodeManager"] = nodeManager
+	blackbox.CommandTable["app"] = app
 }
 
 // execScript launches the script passed as argument.
@@ -123,6 +128,38 @@ func nodeManager(args []string) {
 	}
 }
 
+// appService defines a test service that the test app should be running.
+// TODO(caprita): Use this to make calls to the app and verify how Suspend/Stop
+// interact with an active service.
+type appService struct{}
+
+func (appService) Echo(_ ipc.ServerCall, message string) (string, error) {
+	return message, nil
+}
+
+func app(args []string) {
+	if expected, got := 1, len(args); expected != got {
+		vlog.Fatalf("Unexpected number of arguments: expected %d, got %d", expected, got)
+	}
+	publishName := args[0]
+
+	defer rt.R().Cleanup()
+	server, _ := newServer()
+	defer server.Stop()
+	if err := server.Serve(publishName, ipc.SoloDispatcher(new(appService), nil)); err != nil {
+		vlog.Fatalf("Serve(%v) failed: %v", publishName, err)
+	}
+	if call, err := rt.R().Client().StartCall(rt.R().NewContext(), "pingserver", "Ping", nil); err != nil {
+		vlog.Fatalf("StartCall failed: %v", err)
+	} else if err = call.Finish(); err != nil {
+		vlog.Fatalf("Finish failed: %v", err)
+	}
+	<-signals.ShutdownOnSignals()
+	if err := ioutil.WriteFile("testfile", []byte("goodbye world"), 0600); err != nil {
+		vlog.Fatalf("Failed to write testfile: %v", err)
+	}
+}
+
 // generateScript is very similar in behavior to its namesake in invoker.go.
 // However, we chose to re-implement it here for two reasons: (1) avoid making
 // generateScript public; and (2) how the test choses to invoke the node manager
@@ -145,22 +182,28 @@ func generateScript(t *testing.T, root string, cmd *goexec.Cmd) string {
 	return path
 }
 
+// nodeEnvelopeFromCmd returns a node manager application envelope that
+// describes the given command object.
+func nodeEnvelopeFromCmd(cmd *goexec.Cmd) *application.Envelope {
+	return envelopeFromCmd(application.NodeManagerTitle, cmd)
+}
+
 // envelopeFromCmd returns an envelope that describes the given command object.
-func envelopeFromCmd(cmd *goexec.Cmd) *application.Envelope {
+func envelopeFromCmd(title string, cmd *goexec.Cmd) *application.Envelope {
 	return &application.Envelope{
-		Title:  application.NodeManagerTitle,
+		Title:  title,
 		Args:   cmd.Args[1:],
 		Env:    cmd.Env,
 		Binary: "br",
 	}
 }
 
-// TestUpdateAndRevert makes the node manager go through the motions of updating
+// TestNodeManagerUpdateAndRevert makes the node manager go through the motions of updating
 // itself to newer versions (twice), and reverting itself back (twice).  It also
 // checks that update and revert fail when they're supposed to.  The initial
 // node manager is started 'by hand' via a blackbox command.  Further versions
 // are started through the soft link that the node manager itself updates.
-func TestUpdateAndRevert(t *testing.T) {
+func TestNodeManagerUpdateAndRevert(t *testing.T) {
 	// Set up mount table, application, and binary repositories.
 	defer setupLocalNamespace(t)()
 	envelope, cleanup := startApplicationRepository()
@@ -226,7 +269,7 @@ func TestUpdateAndRevert(t *testing.T) {
 	resolve(t, "factoryNM") // Verify the node manager has published itself.
 
 	// Simulate an invalid envelope in the application repository.
-	*envelope = *envelopeFromCmd(nm.Cmd)
+	*envelope = *nodeEnvelopeFromCmd(nm.Cmd)
 	envelope.Title = "bogus"
 	updateExpectError(t, "factoryNM", verror.BadArg)   // Incorrect title.
 	revertExpectError(t, "factoryNM", verror.NotFound) // No previous version available.
@@ -239,7 +282,7 @@ func TestUpdateAndRevert(t *testing.T) {
 	// node manager to stage the next version.
 	nmV2 := blackbox.HelperCommand(t, "nodeManager", "v2NM")
 	defer setupChildCommand(nmV2)()
-	*envelope = *envelopeFromCmd(nmV2.Cmd)
+	*envelope = *nodeEnvelopeFromCmd(nmV2.Cmd)
 	update(t, "factoryNM")
 
 	// Current link should have been updated to point to v2.
@@ -288,7 +331,7 @@ func TestUpdateAndRevert(t *testing.T) {
 	// Create a third version of the node manager and issue an update.
 	nmV3 := blackbox.HelperCommand(t, "nodeManager", "v3NM")
 	defer setupChildCommand(nmV3)()
-	*envelope = *envelopeFromCmd(nmV3.Cmd)
+	*envelope = *nodeEnvelopeFromCmd(nmV3.Cmd)
 	update(t, "v2NM")
 
 	scriptPathV3 := evalLink()
@@ -359,4 +402,105 @@ func TestUpdateAndRevert(t *testing.T) {
 	deferrer = runNM.Cleanup
 	runNM.Expect("ready")
 	resolve(t, "factoryNM") // Current link should have been launching factory version.
+}
+
+type pingServerDisp chan struct{}
+
+func (p pingServerDisp) Ping(ipc.ServerCall) { close(p) }
+
+// TestAppStartStop installs an app, starts it, and then stops it.
+func TestAppStartStop(t *testing.T) {
+	// Set up mount table, application, and binary repositories.
+	defer setupLocalNamespace(t)()
+	envelope, cleanup := startApplicationRepository()
+	defer cleanup()
+	defer startBinaryRepository()()
+
+	// This is the local filesystem location that the node manager is told
+	// to use.
+	root := filepath.Join(os.TempDir(), "nodemanager")
+	defer os.RemoveAll(root)
+
+	// Set up the node manager.  Since we won't do node manager updates,
+	// don't worry about its application envelope and current link.
+	nm := blackbox.HelperCommand(t, "nodeManager", "nm", root, "unused app repo name", "unused curr link")
+	defer setupChildCommand(nm)()
+	if err := nm.Cmd.Start(); err != nil {
+		t.Fatalf("Start() failed: %v", err)
+	}
+	defer nm.Cleanup()
+	nm.Expect("ready")
+
+	// Create the local server that the app uses to let us know it's ready.
+	server, _ := newServer()
+	defer server.Stop()
+	pingCh := make(chan struct{})
+	if err := server.Serve("pingserver", ipc.SoloDispatcher(pingServerDisp(pingCh), nil)); err != nil {
+		t.Errorf("Failed to set up ping server")
+	}
+
+	// Create an envelope for an app.
+	app := blackbox.HelperCommand(t, "app", "app1")
+	defer setupChildCommand(app)()
+	appTitle := "google naps"
+	*envelope = *envelopeFromCmd(appTitle, app.Cmd)
+
+	appsName := "nm//apps"
+	stub, err := node.BindApplication(appsName)
+	if err != nil {
+		t.Fatalf("BindApplication(%v) failed: %v", appsName, err)
+	}
+	appID, err := stub.Install(rt.R().NewContext(), "ar")
+	if err != nil {
+		t.Fatalf("Install failed: %v", err)
+	}
+	appName := naming.Join(appsName, appID)
+	stub, err = node.BindApplication(appName)
+	if err != nil {
+		t.Fatalf("BindApplication(%v) failed: %v", appName, err)
+	}
+	var instanceID string
+	if instanceIDs, err := stub.Start(rt.R().NewContext()); err != nil {
+		t.Fatalf("Start failed: %v", err)
+	} else {
+		if want, got := 1, len(instanceIDs); want != got {
+			t.Fatalf("Expected %v instance ids, got %v instead", want, got)
+		}
+		instanceID = instanceIDs[0]
+	}
+	// Wait until the app pings us that it's ready.
+	<-pingCh
+
+	instanceName := naming.Join(appName, instanceID)
+	stub, err = node.BindApplication(instanceName)
+	if err != nil {
+		t.Fatalf("BindApplication(%v) failed: %v", instanceName, err)
+	}
+	if err := stub.Stop(rt.R().NewContext(), 5); err != nil {
+		t.Errorf("Stop failed: %v", err)
+	}
+
+	// HACK ALERT: for now, we peek inside the node manager's directory
+	// structure (which ought to be opaque) to check for what the app has
+	// written to its local root.
+	//
+	// TODO(caprita): add support to node manager to browse logs/app local
+	// root.
+	applicationDirName := func(title string) string {
+		h := md5.New()
+		h.Write([]byte(title))
+		hash := strings.TrimRight(base64.URLEncoding.EncodeToString(h.Sum(nil)), "=")
+		return "app-" + hash
+	}
+	components := strings.Split(appID, "/")
+	appTitle, installationID := components[0], components[1]
+	instanceDir := filepath.Join(root, applicationDirName(appTitle), "installation-"+installationID, "instances", "stopped-instance-"+instanceID)
+	rootDir := filepath.Join(instanceDir, "root")
+	testFile := filepath.Join(rootDir, "testfile")
+	if read, err := ioutil.ReadFile(testFile); err != nil {
+		t.Errorf("Failed to read %v: %v", testFile, err)
+	} else if want, got := "goodbye world", string(read); want != got {
+		t.Errorf("Expected to read %v, got %v instead", want, got)
+	}
+	// END HACK
 }

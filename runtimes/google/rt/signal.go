@@ -8,6 +8,10 @@ import (
 )
 
 func (r *vrt) initSignalHandling() {
+	// TODO(caprita): Given that our node manager implementation is to
+	// kill all child apps when the node manager dies, we should
+	// enable SIGHUP on apps by default.
+
 	// Automatically handle SIGHUP to prevent applications started as
 	// daemons from being killed.  The developer can choose to still listen
 	// on SIGHUP and take a different action if desired.
