@@ -233,53 +233,11 @@ func (p *pipe) readLoop() {
 			go p.controller.HandleServerResponse(msg.Id, msg.Data)
 		case websocketSignatureRequest:
 			go p.controller.HandleSignatureRequest(msg.Data, ww)
-		case websocketAssocIdentity:
-			p.handleAssocIdentity(msg.Data, ww)
 		default:
 			ww.Error(verror.Unknownf("unknown message type: %v", msg.Type))
 		}
 	}
 	p.cleanup()
-}
-
-type assocIdentityData struct {
-	Account  string
-	Identity string // base64(vom(security.PrivateID))
-	Origin   string
-}
-
-// handleAssocIdentityRequest associates the identity with the origin
-func (p *pipe) handleAssocIdentity(data string, w lib.ClientWriter) {
-	// Decode the request
-	var parsedData assocIdentityData
-	decoder := json.NewDecoder(bytes.NewBufferString(data))
-	if err := decoder.Decode(&parsedData); err != nil {
-		w.Error(verror.Internalf("can't unmarshal JSONMessage: %v", err))
-		return
-	}
-
-	p.logger.VI(2).Info("associating name %v and private id %v to origin %v",
-		parsedData.Account,
-		parsedData.Identity,
-		parsedData.Origin)
-
-	idManager := p.wspr.idManager
-
-	id := decodeIdentity(p.logger, parsedData.Identity)
-	p.controller.UpdateIdentity(id)
-
-	if err := idManager.AddAccount(parsedData.Account, id); err != nil {
-		w.Error(verror.Internalf("identity.AddAccount(%v, %v) failed: %v", parsedData.Account, id, err))
-	}
-
-	if err := idManager.AddOrigin(parsedData.Origin, parsedData.Account, []security.ServiceCaveat{}); err != nil {
-		w.Error(verror.Internalf("identity.AddOrigin(%v, %v, %v) failed: %v", parsedData.Origin, parsedData.Account, []security.ServiceCaveat{}, err))
-	}
-
-	if err := w.Send(lib.ResponseFinal, nil); err != nil {
-		w.Error(verror.Internalf("error marshalling results: %v", err))
-		return
-	}
 }
 
 func decodeIdentity(logger vlog.Logger, msg string) security.PrivateID {
