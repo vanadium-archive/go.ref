@@ -14,6 +14,7 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"log"
 	"os"
 	"os/user"
@@ -22,6 +23,8 @@ import (
 	"veyron/services/store/server"
 
 	"veyron2/rt"
+	"veyron2/storage/viewer"
+	"veyron2/storage/vstore"
 
 	_ "veyron/services/store/typeregistryhack"
 )
@@ -29,8 +32,11 @@ import (
 var (
 	mountName string
 	dbName    = flag.String("db", "/var/tmp/veyron_store.db", "Metadata database")
-	// TODO(rthellend): Remove the address flag when the config manager is working.
-	address = flag.String("address", ":0", "Address to listen on.")
+	// TODO(rthellend): Remove the address flag when the config manager is
+	// working.
+	address    = flag.String("address", ":0", "Address to listen on")
+	viewerPort = flag.Int("viewerPort", 5000,
+		"IPV4 port to serve viewer from, or 0 to disable viewer")
 )
 
 func init() {
@@ -46,8 +52,7 @@ func init() {
 	flag.StringVar(&mountName, "name", dir, "Mount point for media")
 }
 
-// Main starts the content service, taking arguments from the command line
-// flags.
+// main starts the store service, taking args from command line flags.
 func main() {
 	r := rt.Init()
 
@@ -58,7 +63,8 @@ func main() {
 	}
 
 	// Create a new StoreService.
-	storeService, err := server.New(server.ServerConfig{Admin: r.Identity().PublicID(), DBName: *dbName})
+	storeService, err := server.New(
+		server.ServerConfig{Admin: r.Identity().PublicID(), DBName: *dbName})
 	if err != nil {
 		log.Fatal("server.New() failed: ", err)
 	}
@@ -78,6 +84,15 @@ func main() {
 	log.Printf("Mounting store on %s, endpoint /%s", mountName, ep)
 	if err := s.Serve(mountName, storeDisp); err != nil {
 		log.Fatal("s.Serve() failed: ", err)
+	}
+
+	// Run viewer if requested.
+	if *viewerPort > 0 {
+		vst, err := vstore.New(mountName)
+		if err != nil {
+			log.Fatalf("Failed to start viewer: %s", err)
+		}
+		go viewer.ListenAndServe(fmt.Sprintf(":%d", *viewerPort), vst)
 	}
 
 	// Wait forever.

@@ -1,6 +1,6 @@
 // todos_appd is a web application backed by a Veyron store.
 //
-// For now, it simply displays the raw contents of the store.
+// It doesn't work yet, but it will soon. :)
 
 // TODO(sadovsky): Implement actual app, using Veyron {store,query,watch,sync}
 // over veyron.js.
@@ -11,22 +11,18 @@ import (
 	"fmt"
 	"html/template"
 	"io"
-	"log"
 	"net/http"
 	"os"
 	"os/user"
 	"path"
 
-	"veyron/examples/storage/viewer"
 	_ "veyron/examples/todos/schema" // Register the todos/schema types.
 	"veyron2/rt"
-	"veyron2/storage/vstore"
 )
 
 var (
 	storeName string
-	port      = flag.Int("port", 10000, "IPV4 port number to serve")
-	useViewer = flag.Bool("useViewer", false, "If true, serve viewer instead")
+	port      = flag.Int("port", 10000, "IPV4 port to serve")
 )
 
 var rootDir = path.Join(
@@ -45,16 +41,6 @@ func init() {
 	// TODO(sadovsky): Change this to be the correct veyron2 path.
 	dir := "global/vstore/" + hostname + "/" + username
 	flag.StringVar(&storeName, "store", dir, "Name of the Veyron store")
-}
-
-func serveViewer() {
-	log.Printf("Binding to store on %s", storeName)
-	st, err := vstore.New(storeName)
-	if err != nil {
-		log.Fatalf("Can't connect to store: %s: %s", storeName, err)
-	}
-
-	viewer.ListenAndServe(fmt.Sprintf(":%d", *port), st)
 }
 
 func renderTemplate(w io.Writer, basename string, data interface{}) {
@@ -84,13 +70,10 @@ func wrap(fn http.HandlerFunc) http.HandlerFunc {
 func main() {
 	rt.Init()
 
-	if *useViewer {
-		serveViewer()
-	} else {
-		http.HandleFunc("/", wrap(handleHome))
-		http.Handle("/css/", http.FileServer(http.Dir(rootDir)))
-		http.Handle("/js/", http.FileServer(http.Dir(rootDir)))
-		fmt.Printf("Server running at http://localhost:%d\n", *port)
-		http.ListenAndServe(fmt.Sprintf(":%d", *port), nil)
-	}
+	http.HandleFunc("/", wrap(handleHome))
+	http.Handle("/css/", http.FileServer(http.Dir(rootDir)))
+	http.Handle("/js/", http.FileServer(http.Dir(rootDir)))
+
+	fmt.Printf("Server running at http://localhost:%d\n", *port)
+	http.ListenAndServe(fmt.Sprintf(":%d", *port), nil)
 }

@@ -8,7 +8,7 @@ import (
 	// Register boxes types.
 	"veyron/examples/boxes"
 	// Register mdb types.
-	_ "veyron/examples/storage/mdb/schema"
+	_ "veyron/examples/mdb/schema"
 	// Register todos types.
 	_ "veyron/examples/todos/schema"
 	// Register bank types.
