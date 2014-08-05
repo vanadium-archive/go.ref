@@ -34,7 +34,7 @@ func main() {
 		vlog.Errorf("Listen(%v, %v) failed: %v", protocol, address, err)
 		return
 	}
-	if err := server.Serve(name, ipc.SoloDispatcher(build.NewServerBuild(impl.NewInvoker(gobin)), vflag.NewAuthorizerOrDie())); err != nil {
+	if err := server.Serve(name, ipc.SoloDispatcher(build.NewServerBuilder(impl.NewInvoker(gobin)), vflag.NewAuthorizerOrDie())); err != nil {
 		vlog.Errorf("Serve(%v) failed: %v", name, err)
 		return
 	}

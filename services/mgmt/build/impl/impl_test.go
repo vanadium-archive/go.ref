@@ -18,7 +18,7 @@ func init() {
 }
 
 // startServer starts the build server.
-func startServer(t *testing.T) (build.Build, func()) {
+func startServer(t *testing.T) (build.Builder, func()) {
 	root := os.Getenv("VEYRON_ROOT")
 	if root == "" {
 		t.Fatalf("VEYRON_ROOT is not set")
@@ -34,13 +34,13 @@ func startServer(t *testing.T) (build.Build, func()) {
 		t.Fatalf("Listen(%v, %v) failed: %v", protocol, hostname, err)
 	}
 	unpublished := ""
-	if err := server.Serve(unpublished, ipc.SoloDispatcher(build.NewServerBuild(NewInvoker(gobin)), nil)); err != nil {
+	if err := server.Serve(unpublished, ipc.SoloDispatcher(build.NewServerBuilder(NewInvoker(gobin)), nil)); err != nil {
 		t.Fatalf("Serve(%q) failed: %v", unpublished, err)
 	}
 	name := "/" + endpoint.String()
-	client, err := build.BindBuild(name)
+	client, err := build.BindBuilder(name)
 	if err != nil {
-		t.Fatalf("BindBuild(%v) failed: %v", name, err)
+		t.Fatalf("BindBuilder(%v) failed: %v", name, err)
 	}
 	return client, func() {
 		if err := server.Stop(); err != nil {
@@ -49,7 +49,7 @@ func startServer(t *testing.T) (build.Build, func()) {
 	}
 }
 
-func invokeBuild(t *testing.T, client build.Build, files []build.File) ([]byte, []build.File, error) {
+func invokeBuild(t *testing.T, client build.Builder, files []build.File) ([]byte, []build.File, error) {
 	arch, opsys := getArch(), getOS()
 	stream, err := client.Build(rt.R().NewContext(), arch, opsys)
 	if err != nil {
