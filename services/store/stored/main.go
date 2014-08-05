@@ -21,9 +21,9 @@ import (
 
 	vflag "veyron/security/flag"
 	"veyron/services/store/server"
+	"veyron/services/store/viewer"
 
 	"veyron2/rt"
-	"veyron2/storage/viewer"
 	"veyron2/storage/vstore"
 
 	_ "veyron/services/store/typeregistryhack"
