@@ -15,6 +15,7 @@ package identity
 import (
 	"crypto/sha256"
 	"io"
+	"net/url"
 	"sync"
 	"time"
 
@@ -160,12 +161,11 @@ func (i *IDManager) Identity(origin string) (security.PrivateID, error) {
 	if !found {
 		return nil, OriginDoesNotExist
 	}
-	// TODO(bjornick): Return a blessed identity, not the raw identity for the account.
-	identity, found := i.state.Accounts[perm.Account]
-	if !found {
-		return nil, OriginDoesNotExist
+	blessedID, err := i.generateBlessedID(origin, perm.Account, perm.Caveats)
+	if err != nil {
+		return nil, err
 	}
-	return identity, nil
+	return blessedID, nil
 }
 
 // AccountsMatching returns a list of accounts that match the given pattern.
@@ -221,12 +221,14 @@ func (i *IDManager) AddOrigin(origin string, account string, caveats []security.
 	return nil
 }
 
-func (i *IDManager) generateBlessedID(name string, account string, caveats []security.ServiceCaveat) (security.PrivateID, error) {
+func (i *IDManager) generateBlessedID(origin string, account string, caveats []security.ServiceCaveat) (security.PrivateID, error) {
 	blessor := i.state.Accounts[account]
 	if blessor == nil {
 		return nil, verror.NotFoundf("unknown account %s", account)
 	}
-	// The name here is irrelevant, since we'll only be storing the blessed name.
+	// Origins have the form protocol://hostname:port, which is not a valid
+	// blessing name. Hence we must url-encode.
+	name := url.QueryEscape(origin)
 	blessee, err := i.rt.NewIdentity(name)
 	if err != nil {
 		return nil, err
