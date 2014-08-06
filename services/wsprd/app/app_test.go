@@ -240,8 +240,11 @@ func TestGetGoServerSignature(t *testing.T) {
 		return
 	}
 	defer s.Stop()
-	controller := NewController(nil, "mockVeyronProxyEP")
-	controller.UpdateIdentity(nil)
+	controller, err := NewController(nil, "mockVeyronProxyEP")
+
+	if err != nil {
+		t.Errorf("Failed to create controller: %v", err)
+	}
 	jsSig, err := controller.getSignature("/" + endpoint.String())
 	if err != nil {
 		t.Errorf("Failed to get signature: %v", err)
@@ -271,8 +274,13 @@ func runGoServerTestCase(t *testing.T, test goServerTestCase) {
 	}
 	defer s.Stop()
 
-	controller := NewController(nil, "mockVeyronProxyEP")
-	controller.UpdateIdentity(nil)
+	controller, err := NewController(nil, "mockVeyronProxyEP")
+
+	if err != nil {
+		t.Errorf("unable to create controller: %v", err)
+		t.Fail()
+		return
+	}
 
 	writer := testWriter{
 		logger: controller.logger,
@@ -390,8 +398,12 @@ func serveServer() (*runningTest, error) {
 	writerCreator := func(int64) lib.ClientWriter {
 		return &writer
 	}
-	controller := NewController(writerCreator, "/"+proxyEndpoint, veyron2.NamespaceRoots{"/" + endpoint.String()})
-	controller.UpdateIdentity(nil)
+	controller, err := NewController(writerCreator, "/"+proxyEndpoint,
+		veyron2.NamespaceRoots{"/" + endpoint.String()})
+	if err != nil {
+		return nil, err
+	}
+
 	writer.logger = controller.logger
 
 	controller.serve(serveRequest{

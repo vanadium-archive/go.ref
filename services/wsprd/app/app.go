@@ -17,7 +17,6 @@ import (
 	"veyron2"
 	"veyron2/ipc"
 	"veyron2/rt"
-	"veyron2/security"
 	"veyron2/verror"
 	"veyron2/vlog"
 	"veyron2/vom"
@@ -62,11 +61,6 @@ type Controller struct {
 
 	logger vlog.Logger
 
-	// A set of options that will be used to construct a runtime.  This will
-	// eventually be removed, since we should construct the runtime in
-	// the constructor instead of at a later point.
-	opts []veyron2.ROpt
-
 	// The runtime to use to create new clients.
 	rt veyron2.Runtime
 
@@ -96,19 +90,31 @@ type Controller struct {
 	client ipc.Client
 
 	veyronProxyEP string
-
-	// privateId associated with the app.
-	// TODO(bjornick): We probably don't need the identity anymore. Verify and then remove.
-	privateId security.PrivateID
 }
 
 // NewController creates a new Controller.  writerCreator will be used to create a new flow for rpcs to
 // javascript server. veyronProxyEP is an endpoint for the veyron proxy to serve through.  It can't be empty.
 // opts are any options that should be passed to the rt.New(), such as the mounttable root.
-func NewController(writerCreator func(id int64) lib.ClientWriter, veyronProxyEP string, opts ...veyron2.ROpt) *Controller {
-	controller := &Controller{writerCreator: writerCreator, veyronProxyEP: veyronProxyEP, opts: opts}
+func NewController(writerCreator func(id int64) lib.ClientWriter,
+	veyronProxyEP string, opts ...veyron2.ROpt) (*Controller, error) {
+	r, err := rt.New(opts...)
+	if err != nil {
+		return nil, err
+	}
+	client, err := r.NewClient(veyron2.CallTimeout(ipc.NoTimeout))
+	if err != nil {
+		return nil, err
+	}
+
+	controller := &Controller{
+		rt:            r,
+		logger:        r.Logger(),
+		client:        client,
+		writerCreator: writerCreator,
+		veyronProxyEP: veyronProxyEP,
+	}
 	controller.setup()
-	return controller
+	return controller, nil
 }
 
 // finishCall waits for the call to finish and write out the response to w.
@@ -159,29 +165,6 @@ func (c *Controller) finishCall(w lib.ClientWriter, clientCall ipc.Call, msg *ve
 	if err := w.Send(lib.ResponseFinal, results[0:len(results)-1]); err != nil {
 		w.Error(verror.Internalf("error marshalling results: %v", err))
 	}
-}
-
-// UpdateIdentity updates the identity used by the Controller. This must be called before any veyron requests are
-// made. This is only temporary as in the future, we'd expect to set the identity at construction time.
-func (c *Controller) UpdateIdentity(identity security.PrivateID) error {
-	c.Lock()
-	defer c.Unlock()
-	args := c.opts
-	if identity != nil {
-		args = append(c.opts, veyron2.RuntimeID(identity))
-	}
-	r, err := rt.New(args...)
-	if err != nil {
-		return err
-	}
-	client, err := r.NewClient(veyron2.CallTimeout(ipc.NoTimeout))
-	if err != nil {
-		return err
-	}
-	c.rt = r
-	c.logger = c.rt.Logger()
-	c.client = client
-	return nil
 }
 
 func (c *Controller) startCall(w lib.ClientWriter, msg *veyronRPC) (ipc.Call, error) {
