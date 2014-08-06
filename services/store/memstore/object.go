@@ -2,7 +2,6 @@ package memstore
 
 import (
 	iquery "veyron/services/store/memstore/query"
-	"veyron/services/store/service"
 
 	"veyron2/query"
 	"veyron2/security"
@@ -19,7 +18,7 @@ type Object struct {
 }
 
 // Exists returns true iff the object has a value in the current transaction.
-func (o *Object) Exists(pid security.PublicID, trans service.Transaction) (bool, error) {
+func (o *Object) Exists(pid security.PublicID, trans *Transaction) (bool, error) {
 	tr, _, err := o.store.getTransaction(trans)
 	if err != nil {
 		return false, err
@@ -30,7 +29,7 @@ func (o *Object) Exists(pid security.PublicID, trans service.Transaction) (bool,
 }
 
 // Get returns the value for an object.
-func (o *Object) Get(pid security.PublicID, trans service.Transaction) (*storage.Entry, error) {
+func (o *Object) Get(pid security.PublicID, trans *Transaction) (*storage.Entry, error) {
 	tr, _, err := o.store.getTransaction(trans)
 	if err != nil {
 		return nil, err
@@ -39,7 +38,7 @@ func (o *Object) Get(pid security.PublicID, trans service.Transaction) (*storage
 }
 
 // Put updates the value for an object.
-func (o *Object) Put(pid security.PublicID, trans service.Transaction, v interface{}) (*storage.Stat, error) {
+func (o *Object) Put(pid security.PublicID, trans *Transaction, v interface{}) (*storage.Stat, error) {
 	tr, commit, err := o.store.getTransaction(trans)
 	if err != nil {
 		return nil, err
@@ -55,7 +54,7 @@ func (o *Object) Put(pid security.PublicID, trans service.Transaction, v interfa
 }
 
 // Remove removes the value for an object.
-func (o *Object) Remove(pid security.PublicID, trans service.Transaction) error {
+func (o *Object) Remove(pid security.PublicID, trans *Transaction) error {
 	tr, commit, err := o.store.getTransaction(trans)
 	if err != nil {
 		return err
@@ -70,12 +69,12 @@ func (o *Object) Remove(pid security.PublicID, trans service.Transaction) error 
 }
 
 // Stat returns entry info.
-func (o *Object) Stat(pid security.PublicID, tr service.Transaction) (*storage.Stat, error) {
+func (o *Object) Stat(pid security.PublicID, trans *Transaction) (*storage.Stat, error) {
 	return nil, verror.Internalf("Stat not yet implemented")
 }
 
 // Query returns entries matching the given query.
-func (o *Object) Query(pid security.PublicID, trans service.Transaction, q query.Query) (iquery.QueryStream, error) {
+func (o *Object) Query(pid security.PublicID, trans *Transaction, q query.Query) (iquery.QueryStream, error) {
 	tr, _, err := o.store.getTransaction(trans)
 	if err != nil {
 		return nil, err
@@ -85,7 +84,7 @@ func (o *Object) Query(pid security.PublicID, trans service.Transaction, q query
 }
 
 // Glob returns names that match the given pattern.
-func (o *Object) Glob(pid security.PublicID, trans service.Transaction, pattern string) (iquery.GlobStream, error) {
+func (o *Object) Glob(pid security.PublicID, trans *Transaction, pattern string) (iquery.GlobStream, error) {
 	tr, _, err := o.store.getTransaction(trans)
 	if err != nil {
 		return nil, err

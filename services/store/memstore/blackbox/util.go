@@ -10,7 +10,6 @@ import (
 	"veyron/services/store/memstore"
 	memwatch "veyron/services/store/memstore/watch"
 	"veyron/services/store/raw"
-	"veyron/services/store/service"
 
 	"veyron2/ipc"
 	"veyron2/naming"
@@ -84,7 +83,7 @@ func (rootContext) Closed() <-chan struct{} {
 	return nil
 }
 
-func Get(t *testing.T, st *memstore.Store, tr service.Transaction, path string) *storage.Entry {
+func Get(t *testing.T, st *memstore.Store, tr *memstore.Transaction, path string) *storage.Entry {
 	_, file, line, _ := runtime.Caller(1)
 	e, err := st.Bind(path).Get(rootPublicID, tr)
 	if err != nil {
@@ -93,7 +92,7 @@ func Get(t *testing.T, st *memstore.Store, tr service.Transaction, path string) 
 	return e
 }
 
-func Put(t *testing.T, st *memstore.Store, tr service.Transaction, path string, v interface{}) storage.ID {
+func Put(t *testing.T, st *memstore.Store, tr *memstore.Transaction, path string, v interface{}) storage.ID {
 	_, file, line, _ := runtime.Caller(1)
 	stat, err := st.Bind(path).Put(rootPublicID, tr, v)
 	if err != nil {
@@ -109,14 +108,14 @@ func Put(t *testing.T, st *memstore.Store, tr service.Transaction, path string, 
 	return storage.ID{}
 }
 
-func Remove(t *testing.T, st *memstore.Store, tr service.Transaction, path string) {
+func Remove(t *testing.T, st *memstore.Store, tr *memstore.Transaction, path string) {
 	_, file, line, _ := runtime.Caller(1)
 	if err := st.Bind(path).Remove(rootPublicID, tr); err != nil {
 		t.Fatalf("%s(%d): can't remove %s: %s", file, line, path, err)
 	}
 }
 
-func Commit(t *testing.T, tr service.Transaction) {
+func Commit(t *testing.T, tr *memstore.Transaction) {
 	if err := tr.Commit(); err != nil {
 		t.Fatalf("Transaction aborted: %s", err)
 	}
@@ -177,7 +176,7 @@ func OpenStore(t *testing.T, dbName string) (*memstore.Store, func()) {
 	}
 }
 
-func OpenWatch(t *testing.T, dbName string) (service.Watcher, func()) {
+func OpenWatch(t *testing.T, dbName string) (*memwatch.Watcher, func()) {
 	w, err := memwatch.New(rootPublicID, dbName)
 	if err != nil {
 		t.Fatalf("New() failed: %v", err)

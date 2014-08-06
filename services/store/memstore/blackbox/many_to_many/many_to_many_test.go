@@ -6,7 +6,6 @@ import (
 
 	"veyron/services/store/memstore"
 	"veyron/services/store/memstore/blackbox"
-	"veyron/services/store/service"
 
 	"veyron2/security"
 	"veyron2/storage"
@@ -89,7 +88,7 @@ func newRole(pos string, playerID, teamID storage.ID) *Role {
 	return &Role{Position: pos, Player: playerID, Team: teamID}
 }
 
-func getPerson(t *testing.T, st *memstore.Store, tr service.Transaction, path string) (storage.ID, *Person) {
+func getPerson(t *testing.T, st *memstore.Store, tr *memstore.Transaction, path string) (storage.ID, *Person) {
 	_, file, line, _ := runtime.Caller(1)
 	e := blackbox.Get(t, st, tr, path)
 	v := e.Value
@@ -100,7 +99,7 @@ func getPerson(t *testing.T, st *memstore.Store, tr service.Transaction, path st
 	return e.Stat.ID, p
 }
 
-func getPlayer(t *testing.T, st *memstore.Store, tr service.Transaction, path string) (storage.ID, *Player) {
+func getPlayer(t *testing.T, st *memstore.Store, tr *memstore.Transaction, path string) (storage.ID, *Player) {
 	_, file, line, _ := runtime.Caller(1)
 	e := blackbox.Get(t, st, tr, path)
 	v := e.Value
@@ -111,7 +110,7 @@ func getPlayer(t *testing.T, st *memstore.Store, tr service.Transaction, path st
 	return e.Stat.ID, p
 }
 
-func getTeam(t *testing.T, st *memstore.Store, tr service.Transaction, path string) (storage.ID, *Team) {
+func getTeam(t *testing.T, st *memstore.Store, tr *memstore.Transaction, path string) (storage.ID, *Team) {
 	_, file, line, _ := runtime.Caller(1)
 	e := blackbox.Get(t, st, tr, path)
 	v := e.Value
@@ -122,7 +121,7 @@ func getTeam(t *testing.T, st *memstore.Store, tr service.Transaction, path stri
 	return e.Stat.ID, p
 }
 
-func getRole(t *testing.T, st *memstore.Store, tr service.Transaction, path string) (storage.ID, *Role) {
+func getRole(t *testing.T, st *memstore.Store, tr *memstore.Transaction, path string) (storage.ID, *Role) {
 	_, file, line, _ := runtime.Caller(1)
 	e := blackbox.Get(t, st, tr, path)
 	v := e.Value
@@ -221,7 +220,7 @@ func newDirectTeam() *DirectTeam {
 	return &DirectTeam{}
 }
 
-func getDirectPlayer(t *testing.T, st *memstore.Store, tr service.Transaction, path string) (storage.ID, *DirectPlayer) {
+func getDirectPlayer(t *testing.T, st *memstore.Store, tr *memstore.Transaction, path string) (storage.ID, *DirectPlayer) {
 	_, file, line, _ := runtime.Caller(1)
 	e := blackbox.Get(t, st, tr, path)
 	v := e.Value
@@ -232,7 +231,7 @@ func getDirectPlayer(t *testing.T, st *memstore.Store, tr service.Transaction, p
 	return e.Stat.ID, p
 }
 
-func getDirectTeam(t *testing.T, st *memstore.Store, tr service.Transaction, path string) (storage.ID, *DirectTeam) {
+func getDirectTeam(t *testing.T, st *memstore.Store, tr *memstore.Transaction, path string) (storage.ID, *DirectTeam) {
 	_, file, line, _ := runtime.Caller(1)
 	e := blackbox.Get(t, st, tr, path)
 	v := e.Value

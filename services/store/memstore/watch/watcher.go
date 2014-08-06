@@ -9,7 +9,6 @@ import (
 	"veyron/runtimes/google/lib/sync"
 	"veyron/services/store/memstore"
 	"veyron/services/store/raw"
-	"veyron/services/store/service"
 
 	"veyron2/ipc"
 	"veyron2/security"
@@ -28,7 +27,7 @@ var (
 	}
 )
 
-type watcher struct {
+type Watcher struct {
 	// admin is the public id of the store administrator.
 	admin security.PublicID
 	// dbName is the name of the store's database directory.
@@ -45,8 +44,8 @@ type watcher struct {
 // concurrent invocations of Watch until it is closed.
 // admin is the public id of the store administrator. dbName is the name of the
 // of the store's database directory.
-func New(admin security.PublicID, dbName string) (service.Watcher, error) {
-	return &watcher{
+func New(admin security.PublicID, dbName string) (*Watcher, error) {
+	return &Watcher{
 		admin:  admin,
 		dbName: dbName,
 		closed: make(chan struct{}),
@@ -54,7 +53,7 @@ func New(admin security.PublicID, dbName string) (service.Watcher, error) {
 }
 
 // WatchRaw returns a stream of all changes.
-func (w *watcher) WatchRaw(ctx ipc.ServerContext, req raw.Request,
+func (w *Watcher) WatchRaw(ctx ipc.ServerContext, req raw.Request,
 	stream raw.StoreServiceWatchStream) error {
 
 	processor, err := newRawProcessor(ctx.RemoteID())
@@ -65,7 +64,7 @@ func (w *watcher) WatchRaw(ctx ipc.ServerContext, req raw.Request,
 }
 
 // WatchGlob returns a stream of changes that match a pattern.
-func (w *watcher) WatchGlob(ctx ipc.ServerContext, path storage.PathName,
+func (w *Watcher) WatchGlob(ctx ipc.ServerContext, path storage.PathName,
 	req watch.GlobRequest, stream watch.GlobWatcherServiceWatchGlobStream) error {
 
 	processor, err := newGlobProcessor(ctx.RemoteID(), path, req.Pattern)
@@ -76,7 +75,7 @@ func (w *watcher) WatchGlob(ctx ipc.ServerContext, path storage.PathName,
 }
 
 // WatchQuery returns a stream of changes that satisfy a query.
-func (w *watcher) WatchQuery(ctx ipc.ServerContext, path storage.PathName,
+func (w *Watcher) WatchQuery(ctx ipc.ServerContext, path storage.PathName,
 	req watch.QueryRequest, stream watch.QueryWatcherServiceWatchQueryStream) error {
 
 	return verror.Internalf("WatchQuery not yet implemented")
@@ -93,7 +92,7 @@ type WatchStream interface {
 // sending changes to the specified watch stream. If the call is cancelled or
 // otherwise closed early, Watch will terminate and return an error.
 // Watch implements the service.Watcher interface.
-func (w *watcher) Watch(ctx ipc.ServerContext, processor reqProcessor,
+func (w *Watcher) Watch(ctx ipc.ServerContext, processor reqProcessor,
 	resumeMarker watch.ResumeMarker, stream WatchStream) error {
 
 	// Closing cancel terminates processRequest.
@@ -124,7 +123,7 @@ func (w *watcher) Watch(ctx ipc.ServerContext, processor reqProcessor,
 	return errWatchClosed
 }
 
-func (w *watcher) processRequest(cancel <-chan struct{}, processor reqProcessor,
+func (w *Watcher) processRequest(cancel <-chan struct{}, processor reqProcessor,
 	resumeMarker watch.ResumeMarker, stream WatchStream) error {
 
 	log, err := memstore.OpenLog(w.dbName, true)
@@ -197,14 +196,14 @@ func (w *watcher) processRequest(cancel <-chan struct{}, processor reqProcessor,
 }
 
 // Close implements the service.Watcher interface.
-func (w *watcher) Close() error {
+func (w *Watcher) Close() error {
 	close(w.closed)
 	w.pending.Wait()
 	return nil
 }
 
 // IsClosed returns true iff the watcher has been closed.
-func (w *watcher) isClosed() bool {
+func (w *Watcher) isClosed() bool {
 	select {
 	case <-w.closed:
 		return true

@@ -8,7 +8,6 @@ import (
 
 	"veyron/services/store/memstore"
 	"veyron/services/store/memstore/state"
-	"veyron/services/store/service"
 
 	"veyron2/security"
 	"veyron2/services/watch"
@@ -19,7 +18,7 @@ var (
 	rootPublicID security.PublicID = security.FakePublicID("root")
 )
 
-func get(t *testing.T, st *memstore.Store, tr service.Transaction, path string) interface{} {
+func get(t *testing.T, st *memstore.Store, tr *memstore.Transaction, path string) interface{} {
 	_, file, line, _ := runtime.Caller(1)
 	e, err := st.Bind(path).Get(rootPublicID, tr)
 	if err != nil {
@@ -28,7 +27,7 @@ func get(t *testing.T, st *memstore.Store, tr service.Transaction, path string) 
 	return e.Value
 }
 
-func put(t *testing.T, st *memstore.Store, tr service.Transaction, path string, v interface{}) storage.ID {
+func put(t *testing.T, st *memstore.Store, tr *memstore.Transaction, path string, v interface{}) storage.ID {
 	_, file, line, _ := runtime.Caller(1)
 	stat, err := st.Bind(path).Put(rootPublicID, tr, v)
 	if err != nil {
@@ -43,14 +42,14 @@ func put(t *testing.T, st *memstore.Store, tr service.Transaction, path string, 
 	return storage.ID{}
 }
 
-func remove(t *testing.T, st *memstore.Store, tr service.Transaction, path string) {
+func remove(t *testing.T, st *memstore.Store, tr *memstore.Transaction, path string) {
 	if err := st.Bind(path).Remove(rootPublicID, tr); err != nil {
 		_, file, line, _ := runtime.Caller(1)
 		t.Fatalf("%s(%d): can't remove %s: %s", file, line, path, err)
 	}
 }
 
-func commit(t *testing.T, tr service.Transaction) {
+func commit(t *testing.T, tr *memstore.Transaction) {
 	if err := tr.Commit(); err != nil {
 		_, file, line, _ := runtime.Caller(1)
 		t.Fatalf("%s(%d): Transaction aborted: %s", file, line, err)
@@ -120,7 +119,7 @@ func createGlobProcessor(t *testing.T, path storage.PathName, pattern string) re
 	return processor
 }
 
-func createWatcher(t *testing.T, dbName string) (service.Watcher, func()) {
+func createWatcher(t *testing.T, dbName string) (*Watcher, func()) {
 	w, err := New(rootPublicID, dbName)
 	if err != nil {
 		t.Fatalf("New() failed: %v", err)

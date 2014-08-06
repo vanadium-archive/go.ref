@@ -4,8 +4,6 @@ import (
 	"sync"
 
 	"veyron/services/store/memstore/state"
-	"veyron/services/store/service"
-	"veyron2/verror"
 )
 
 // Transaction is the type of transactions.  Each transaction has a snapshot of
@@ -21,10 +19,6 @@ type Transaction struct {
 	snapshot *state.MutableSnapshot
 }
 
-var (
-	errBadTransaction = verror.BadArgf("bad transaction")
-)
-
 // newNilTransaction is used when nil is passed in as the transaction for an
 // object operation.  This means that the operation is to be performed on the
 // state <st>.
@@ -39,20 +33,16 @@ func (st *Store) newNilTransaction() *Transaction {
 // that the transaction lifetime is the duration of the operation (so the
 // transaction should be committed immediately after the operation that uses it
 // is performed).
-func (st *Store) getTransaction(tr service.Transaction) (*Transaction, bool, error) {
+func (st *Store) getTransaction(tr *Transaction) (*Transaction, bool, error) {
 	if tr == nil {
 		return st.newNilTransaction(), true, nil
 	}
-	t, ok := tr.(*Transaction)
-	if !ok {
-		return nil, false, errBadTransaction
-	}
-	t.useState(st)
-	return t, false, nil
+	tr.useState(st)
+	return tr, false, nil
 }
 
 // GetTransactionSnapshot returns a read-only snapshot from the transaction.
-func (st *Store) GetTransactionSnapshot(tr service.Transaction) (state.Snapshot, error) {
+func (st *Store) GetTransactionSnapshot(tr *Transaction) (state.Snapshot, error) {
 	t, _, err := st.getTransaction(tr)
 	if err != nil {
 		return nil, err
