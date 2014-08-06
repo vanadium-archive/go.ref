@@ -13,11 +13,12 @@
 package identity
 
 import (
-	"crypto/sha256"
 	"io"
 	"net/url"
 	"sync"
 	"time"
+
+	"veyron/security/serialization"
 
 	"veyron2"
 	"veyron2/security"
@@ -43,24 +44,15 @@ type persistentState struct {
 	Accounts map[string]security.PrivateID
 }
 
-// Serializer is a factory for managing the readers and writers used by the IDManager
-// for serialization and deserialization
+// Serializer is a factory for managing the readers and writers used by the
+// IDManager for serialization and deserialization
 type Serializer interface {
-	// DataWriter returns a writer that is used to write the data portion
-	// of the IDManager
-	DataWriter() io.WriteCloser
-
-	// SignatureWriter returns a writer that is used to write the signature
-	// of the serialized data.
-	SignatureWriter() io.WriteCloser
-
-	// DataReader returns a reader that is used to read the serialized data.
-	// If nil is returned, then there is no seralized data to load.
-	DataReader() io.Reader
-
-	// SignatureReader returns a reader that is used to read the signature of the
-	// serialized data.  If nil is returned, then there is no signature to load.
-	SignatureReader() io.Reader
+	// Readers returns io.Readers for reading the IDManager's serialized
+	// data and its signature.
+	Readers() (data io.Reader, signature io.Reader, err error)
+	// Writers returns io.WriteClosers for writing the IDManager's
+	// serialized data and integrity its signature.
+	Writers() (data io.WriteCloser, signature io.WriteCloser, err error)
 }
 
 var OriginDoesNotExist = verror.NotFoundf("origin not found")
@@ -77,7 +69,8 @@ type IDManager struct {
 	serializer Serializer
 }
 
-// NewIDManager creates a new IDManager from the reader passed in. serializer can't be nil
+// NewIDManager creates a new IDManager by reading it from the serializer passed in.
+// serializer can't be nil
 func NewIDManager(rt veyron2.Runtime, serializer Serializer) (*IDManager, error) {
 	result := &IDManager{
 		rt: rt,
@@ -88,68 +81,38 @@ func NewIDManager(rt veyron2.Runtime, serializer Serializer) (*IDManager, error)
 		serializer: serializer,
 	}
 
-	reader := serializer.DataReader()
-	var hadData bool
-	hash := sha256.New()
-	if reader != nil {
-		hadData = true
-		if err := vom.NewDecoder(io.TeeReader(reader, hash)).Decode(&result.state); err != nil {
-			return nil, err
-		}
-
+	data, signature, err := serializer.Readers()
+	if err != nil {
+		return nil, err
 	}
-	signed := hash.Sum(nil)
-
-	var sig security.Signature
-
-	reader = serializer.SignatureReader()
-
-	var hadSig bool
-	if reader != nil {
-		hadSig = true
-		if err := vom.NewDecoder(serializer.SignatureReader()).Decode(&sig); err != nil {
-			return nil, err
-		}
+	vr, err := serialization.NewVerifyingReader(data, signature, rt.Identity().PublicKey())
+	if err != nil {
+		return nil, err
 	}
-
-	if !hadSig && !hadData {
+	if vr == nil {
+		// No serialized data exists, returning aan empty IDManager.
 		return result, nil
 	}
-
-	if !sig.Verify(rt.Identity().PublicID().PublicKey(), signed) {
-		return nil, verror.NotAuthorizedf("signature verification failed")
+	if err := vom.NewDecoder(vr).Decode(&result.state); err != nil {
+		return nil, err
 	}
-
 	return result, nil
 }
 
-// Save serializes the IDManager to the writer.
 func (i *IDManager) save() error {
-	hash := sha256.New()
-	writer := i.serializer.DataWriter()
-
-	if err := vom.NewEncoder(io.MultiWriter(writer, hash)).Encode(i.state); err != nil {
-		return err
-	}
-
-	if err := writer.Close(); err != nil {
-		return err
-	}
-
-	signed := hash.Sum(nil)
-	signature, err := i.rt.Identity().Sign(signed)
-
+	data, signature, err := i.serializer.Writers()
 	if err != nil {
 		return err
 	}
 
-	writer = i.serializer.SignatureWriter()
-
-	if err := vom.NewEncoder(writer).Encode(signature); err != nil {
+	swc, err := serialization.NewSigningWriteCloser(data, signature, i.rt.Identity(), nil)
+	if err != nil {
 		return err
 	}
-
-	return writer.Close()
+	if err := vom.NewEncoder(swc).Encode(i.state); err != nil {
+		return err
+	}
+	return swc.Close()
 }
 
 // Identity returns the identity for an origin.  Returns OriginDoesNotExist if
@@ -244,4 +207,8 @@ func (i *IDManager) generateBlessedID(origin string, account string, caveats []s
 		return nil, verror.Internalf("failed to derive private id: %v", err)
 	}
 	return blessee, nil
+}
+
+func init() {
+	vom.Register(&persistentState{})
 }

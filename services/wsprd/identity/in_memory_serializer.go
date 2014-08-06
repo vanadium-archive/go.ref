@@ -5,6 +5,7 @@ import (
 	"io"
 )
 
+// bufferCloser implements io.ReadWriteCloser.
 type bufferCloser struct {
 	bytes.Buffer
 }
@@ -13,33 +14,27 @@ func (*bufferCloser) Close() error {
 	return nil
 }
 
+// InMemorySerializer implements Serializer. This Serializer should only be
+// used in tests.
+// TODO(ataly, bjornick): Get rid of all uses of this Serializer from non-test
+// code and use a file backed (or some persistent storage backed) Serializer there
+// instead.
 type InMemorySerializer struct {
 	data      bufferCloser
 	signature bufferCloser
 	hasData   bool
 }
 
-func (s *InMemorySerializer) DataWriter() io.WriteCloser {
+func (s *InMemorySerializer) Readers() (io.Reader, io.Reader, error) {
+	if !s.hasData {
+		return nil, nil, nil
+	}
+	return &s.data, &s.signature, nil
+}
+
+func (s *InMemorySerializer) Writers() (io.WriteCloser, io.WriteCloser, error) {
 	s.hasData = true
 	s.data.Reset()
-	return &s.data
-}
-
-func (s *InMemorySerializer) SignatureWriter() io.WriteCloser {
 	s.signature.Reset()
-	return &s.signature
-}
-
-func (s *InMemorySerializer) DataReader() io.Reader {
-	if s.hasData {
-		return &s.data
-	}
-	return nil
-}
-
-func (s *InMemorySerializer) SignatureReader() io.Reader {
-	if s.hasData {
-		return &s.signature
-	}
-	return nil
+	return &s.data, &s.signature, nil
 }
