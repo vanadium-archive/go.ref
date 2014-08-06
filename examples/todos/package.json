@@ -2,9 +2,6 @@
   "name": "todos",
   "version": "0.0.1",
   "devDependencies": {
-    "grunt": "~0.4.4",
-    "grunt-cli": "~0.1.13",
-    "grunt-contrib-jshint": "~0.10.0",
-    "load-grunt-tasks": "~0.4.0"
+    "jshint": "^2.5.2"
   }
 }

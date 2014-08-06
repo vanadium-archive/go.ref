@@ -52,7 +52,7 @@ var app = app || {};
     },
     insert: function(v) {
       console.assert(!_.has(v, '_id'));
-      v = _.extend(v, {_id: this.vals_.length});
+      v = _.assign({}, v, {_id: this.vals_.length});
       this.vals_.push(v);
       this.dispatchEvent_(new ChangeEvent());
       return v._id;

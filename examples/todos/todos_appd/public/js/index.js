@@ -125,7 +125,7 @@ var app = app || {};
       if (this.state.addingTag) {
         children.push(React.DOM.div(
           {className: 'tag edittag'},
-          React.DOM.input(_.extend({
+          React.DOM.input(_.assign({
             type: 'text',
             id: 'edittag-input',
             defaultValue: ''
@@ -168,7 +168,7 @@ var app = app || {};
       if (this.state.editingText) {
         children.push(React.DOM.div(
           {className: 'edit'},
-          React.DOM.input(_.extend({
+          React.DOM.input(_.assign({
             id: 'todo-input',
             type: 'text',
             defaultValue: todo.text
@@ -232,7 +232,7 @@ var app = app || {};
         });
         children.push(React.DOM.div(
           {id: 'new-todo-box'},
-          React.DOM.input(_.extend({
+          React.DOM.input(_.assign({
             type: 'text',
             id: 'new-todo',
             placeholder: 'New item'
@@ -268,7 +268,7 @@ var app = app || {};
       if (this.state.editingName) {
         child = React.DOM.div(
           {className: 'edit'},
-          React.DOM.input(_.extend({
+          React.DOM.input(_.assign({
             className: 'list-name-input',
             id: 'list-name-input',
             type: 'text',
@@ -324,7 +324,7 @@ var app = app || {};
         children.push(React.DOM.div({id: 'lists'}, lists));
         children.push(React.DOM.div(
           {id: 'createList'},
-          React.DOM.input(_.extend({
+          React.DOM.input(_.assign({
             type: 'text',
             id: 'new-list',
             placeholder: 'New list'

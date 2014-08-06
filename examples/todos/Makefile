@@ -1,37 +1,37 @@
-GO_BIN=../../../../../scripts/build/go
-VEYRON_JS_API=../../../../../javascript/api
+VEYRON_JS_API := ${VEYRON_ROOT}/veyron/javascript/api
 
-GRUNT=./node_modules/.bin/grunt
-NPM=${VEYRON_ROOT}/environment/cout/node/bin/npm
+export PATH := node_modules/.bin:${PATH}
 
-# TODO(sadovsky): For some reason the first line below fixes 'start' and 'lint'
-# but breaks 'buildgo' and 'echopath', while the second does not fix 'start' and
-# 'lint'. For now, we require users to already have node in their paths.
-#PATH:=${VEYRON_ROOT}/environment/cout/node/bin:${PATH}  # for node
-#PATH:=${PATH}:${VEYRON_ROOT}/environment/cout/node/bin  # for node
-
-default: build
 build: buildgo buildnode buildbrowser
 
 buildgo:
-	${GO_BIN} install {veyron,veyron2}/...
+	${VEYRON_ROOT}/veyron/scripts/build/go install {veyron,veyron2}/...
 
 buildnode:
-	${NPM} install
+	npm install
 
 buildbrowser:
 	(cd ${VEYRON_JS_API} && ./vgrunt build) && \
-	mkdir -p ./todos_appd/js && \
-	cp -rf ${VEYRON_JS_API}/dist/*.* ./todos_appd/js
+	mkdir -p todos_appd/public/js && \
+	cp -rf ${VEYRON_JS_API}/dist/veyron.* todos_appd/public/js
 
-start:
-	${GRUNT} start
+run: build
+	./run.sh
+
+# TODO(sadovsky): Merge into other rules once everything's wired up.
+runapp:
+	(cd todos_appd && npm install && npm start)
 
 gofmt:
-	gofmt -w ./
+	gofmt -w .
+
+clean:
+	rm -rf node_modules
+	rm -rf todos_appd/node_modules
+	rm -rf todos_appd/public/js/veyron.*
 
 lint:
-	${GRUNT} jshint
+	npm install --dev
+	jshint todos_appd/server.js todos_appd/public/js/*.js --exclude "**/veyron.*"
 
-echopath:
-	@echo ${PATH}
+.PHONY: build buildgo buildnode buildbrowser run runapp gofmt clean lint

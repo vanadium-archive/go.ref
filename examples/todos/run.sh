@@ -34,7 +34,7 @@ ${VEYRON_BIN}/stored &
 sleep 1
 
 # Initialize the store with data and templates.
-${VEYRON_BIN}/mdb_init --load-all
+${VEYRON_BIN}/todos_init --data-path=todos_init/data.json
 
 echo
 echo 'Visit http://localhost:5000 to browse the store.'

@@ -11,10 +11,8 @@ import (
 	"strings"
 
 	"veyron/examples/todos/schema"
-	"veyron2"
 	"veyron2/naming"
 	"veyron2/rt"
-	"veyron2/security"
 	"veyron2/storage"
 	"veyron2/storage/vstore"
 	"veyron2/vlog"
@@ -163,10 +161,7 @@ func (st *state) processJSONFile(path string) error {
 
 // main reads the data JSON file and populates the store.
 func main() {
-	// The client's identity needs to match the Admin ACLs at the empty store
-	// (since only the admin can put data).
-	// TODO(sadovsky): What identity should we pass here?
-	rt.Init(veyron2.RuntimeID(security.FakePrivateID("anonymous")))
+	rt.Init()
 
 	vlog.Infof("Binding to store on %s", storeName)
 	st, err := vstore.New(storeName)

@@ -1,4 +1,4 @@
-log
 node_modules
-todos_appd/js/env.js
-todos_appd/js/veyron.*
+npm-debug.log
+todos_appd/node_modules
+todos_appd/public/js/veyron.*
