@@ -14,6 +14,7 @@ import (
 
 	"veyron/services/wsprd/app"
 	"veyron/services/wsprd/lib"
+	"veyron2"
 	"veyron2/security"
 	"veyron2/verror"
 	"veyron2/vlog"
@@ -77,6 +78,8 @@ type pipe struct {
 
 	wspr *WSPR
 
+	// Creates a client writer for a given flow.  This is a member so that tests can override
+	// the default implementation.
 	writerCreator func(id int64) lib.ClientWriter
 
 	// There is a single write goroutine because ws.NewWriter() creates a new writer that
@@ -89,7 +92,37 @@ type pipe struct {
 }
 
 func newPipe(w http.ResponseWriter, req *http.Request, wspr *WSPR, creator func(id int64) lib.ClientWriter) *pipe {
-	pipe := &pipe{logger: wspr.rt.Logger(), writerCreator: creator, req: req, wspr: wspr}
+	pipe := &pipe{logger: wspr.rt.Logger(), wspr: wspr, req: req}
+
+	if creator == nil {
+		creator = func(id int64) lib.ClientWriter {
+			return &websocketWriter{p: pipe, id: id, logger: pipe.logger}
+		}
+	}
+	pipe.writerCreator = creator
+	origin := req.Header.Get("Origin")
+	if origin == "" {
+		wspr.rt.Logger().Errorf("Could not read origin from the request")
+		http.Error(w, "Could not read origin from the request", http.StatusBadRequest)
+		return nil
+	}
+
+	id, err := wspr.idManager.Identity(origin)
+
+	if err != nil {
+		id = wspr.rt.Identity()
+		wspr.rt.Logger().Errorf("no identity associated with origin %s: %v", origin, err)
+		// TODO(bjornick): Send an error to the client when all of the identity stuff is set up.
+	}
+
+	pipe.controller, err = app.NewController(creator, wspr.veyronProxyEP, veyron2.RuntimeID(id))
+
+	if err != nil {
+		wspr.rt.Logger().Errorf("Could not create controller: %v", err)
+		http.Error(w, fmt.Sprintf("Failed to create controller: %v", err), http.StatusInternalServerError)
+		return nil
+	}
+
 	pipe.start(w, req)
 	return pipe
 }
@@ -102,18 +135,8 @@ func (p *pipe) cleanup() {
 }
 
 func (p *pipe) setup() {
-	if p.writerCreator == nil {
-		p.writerCreator = func(id int64) lib.ClientWriter {
-			return &websocketWriter{p: p, id: id, logger: p.logger}
-		}
-	}
-
 	p.writeQueue = make(chan wsMessage, 50)
 	go p.writeLoop()
-
-	p.controller = app.NewController(p.writerCreator, p.wspr.veyronProxyEP)
-	// TODO(bjornick):  Pass in the identity linked to this origin.
-	p.controller.UpdateIdentity(nil)
 }
 
 func (p *pipe) writeLoop() {

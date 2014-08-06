@@ -86,9 +86,14 @@ func (ctx WSPR) Run() {
 	http.Handle("/favicon.ico", http.NotFoundHandler())
 	http.HandleFunc("/ws", func(w http.ResponseWriter, r *http.Request) {
 		ctx.logger.VI(0).Info("Creating a new websocket")
+		p := newPipe(w, r, &ctx, nil)
+
+		if p == nil {
+			return
+		}
 		ctx.mu.Lock()
 		defer ctx.mu.Unlock()
-		ctx.pipes[r] = newPipe(w, r, &ctx, nil)
+		ctx.pipes[r] = p
 	})
 	ctx.logger.VI(1).Infof("Listening on port %d.", ctx.port)
 	httpErr := http.ListenAndServe(fmt.Sprintf("127.0.0.1:%d", ctx.port), nil)
