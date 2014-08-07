@@ -9,8 +9,8 @@ readonly ID_FILE=/var/tmp/id
 trap onexit INT TERM EXIT
 
 onexit() {
-  exec 2> /dev/null
-  kill $(jobs -pr)
+  exec 2>/dev/null
+  kill $(jobs -p)
   rm -rf "${ID_FILE}"
 }
 
