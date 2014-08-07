@@ -2,7 +2,6 @@ package wspr
 
 import (
 	"bytes"
-	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -15,7 +14,6 @@ import (
 	"veyron/services/wsprd/app"
 	"veyron/services/wsprd/lib"
 	"veyron2"
-	"veyron2/security"
 	"veyron2/verror"
 	"veyron2/vlog"
 	"veyron2/vom"
@@ -261,38 +259,4 @@ func (p *pipe) readLoop() {
 		}
 	}
 	p.cleanup()
-}
-
-func decodeIdentity(logger vlog.Logger, msg string) security.PrivateID {
-	if len(msg) == 0 {
-		return nil
-	}
-	// PrivateIds are sent as base64-encoded-vom-encoded identity.PrivateID.
-	// Pure JSON or pure VOM could not have been used.
-	// - JSON cannot be used because identity.PrivateID contains an
-	//   ecdsa.PrivateKey (which encoding/json cannot decode).
-	// - Regular VOM cannot be used because it only has a binary,
-	//   Go-specific implementation at this time.
-	// The "portable" encoding is base64-encoded VOM (see
-	// veyron/daemon/cmd/identity/responder/responder.go).
-	// When toddw@ has the text-based VOM encoding going, that can probably
-	// be used instead.
-	var id security.PrivateID
-	if err := vom.NewDecoder(base64.NewDecoder(base64.URLEncoding, strings.NewReader(msg))).Decode(&id); err != nil {
-		logger.Error("Could not decode identity:", err)
-		return nil
-	}
-	return id
-}
-
-func encodeIdentity(logger vlog.Logger, identity security.PrivateID) string {
-	var vomEncoded bytes.Buffer
-	if err := vom.NewEncoder(&vomEncoded).Encode(identity); err != nil {
-		logger.Error("Could not encode identity: %v", err)
-	}
-	var base64Encoded bytes.Buffer
-	encoder := base64.NewEncoder(base64.URLEncoding, &base64Encoded)
-	encoder.Write(vomEncoded.Bytes())
-	encoder.Close()
-	return base64Encoded.String()
 }
