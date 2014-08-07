@@ -630,9 +630,9 @@ func (__gen_s *ServerStubTunnel) GetMethodTags(call _gen_ipc.ServerCall, method 
 	// This will change when it is replaced with Signature().
 	switch method {
 	case "Forward":
-		return []interface{}{security.Label(4)}, nil
+		return []interface{}{security.Label(8)}, nil
 	case "Shell":
-		return []interface{}{security.Label(4)}, nil
+		return []interface{}{security.Label(8)}, nil
 	default:
 		return nil, nil
 	}

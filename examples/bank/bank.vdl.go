@@ -144,7 +144,7 @@ func (__gen_s *ServerStubBank) GetMethodTags(call _gen_ipc.ServerCall, method st
 	// This will change when it is replaced with Signature().
 	switch method {
 	case "Connect":
-		return []interface{}{security.Label(2)}, nil
+		return []interface{}{security.Label(4)}, nil
 	default:
 		return nil, nil
 	}
@@ -353,13 +353,13 @@ func (__gen_s *ServerStubBankAccount) GetMethodTags(call _gen_ipc.ServerCall, me
 	// This will change when it is replaced with Signature().
 	switch method {
 	case "Deposit":
-		return []interface{}{security.Label(2)}, nil
+		return []interface{}{security.Label(4)}, nil
 	case "Withdraw":
-		return []interface{}{security.Label(2)}, nil
+		return []interface{}{security.Label(4)}, nil
 	case "Transfer":
-		return []interface{}{security.Label(2)}, nil
+		return []interface{}{security.Label(4)}, nil
 	case "Balance":
-		return []interface{}{security.Label(1)}, nil
+		return []interface{}{security.Label(2)}, nil
 	default:
 		return nil, nil
 	}

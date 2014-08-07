@@ -209,9 +209,9 @@ func (__gen_s *ServerStubApplication) GetMethodTags(call _gen_ipc.ServerCall, me
 	}
 	switch method {
 	case "Put":
-		return []interface{}{security.Label(2)}, nil
+		return []interface{}{security.Label(4)}, nil
 	case "Remove":
-		return []interface{}{security.Label(2)}, nil
+		return []interface{}{security.Label(4)}, nil
 	default:
 		return nil, nil
 	}
@@ -508,11 +508,11 @@ func (__gen_s *ServerStubProfile) GetMethodTags(call _gen_ipc.ServerCall, method
 	}
 	switch method {
 	case "Specification":
-		return []interface{}{security.Label(1)}, nil
+		return []interface{}{security.Label(2)}, nil
 	case "Put":
-		return []interface{}{security.Label(2)}, nil
+		return []interface{}{security.Label(4)}, nil
 	case "Remove":
-		return []interface{}{security.Label(2)}, nil
+		return []interface{}{security.Label(4)}, nil
 	default:
 		return nil, nil
 	}
