@@ -128,7 +128,7 @@ func (c *client) fetchDischarges(ctx context.T, caveats []security.ThirdPartyCav
 			wg.Add(1)
 			go func(i int, cav security.ThirdPartyCaveat) {
 				defer wg.Done()
-				vlog.VI(3).Infof("Fetching discharge for %T from %v", cav.ID(), cav, cav.Location())
+				vlog.VI(3).Infof("Fetching discharge for %T from %v", cav, cav.Location())
 				call, err := c.StartCall(ctx, cav.Location(), "Discharge", []interface{}{cav}, opts...)
 				if err != nil {
 					vlog.VI(3).Infof("Discharge fetch for caveat %T from %v failed: %v", cav, cav.Location(), err)

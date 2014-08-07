@@ -1236,4 +1236,5 @@ func init() {
 	blackbox.CommandTable["runProxy"] = runProxy
 
 	vom.Register(fakeTimeCaveat(0))
+	vom.Register(alwaysValidCaveat{})
 }
