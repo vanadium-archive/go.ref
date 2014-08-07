@@ -1,26 +1,33 @@
-VEYRON_JS_API := ${VEYRON_ROOT}/veyron/javascript/api
+# TODO(sadovsky): Eliminate separate {build,run,watch}app rules once everything
+# is wired together.
 
 export PATH := node_modules/.bin:${PATH}
 
-build: buildgo buildnode buildbrowser
+VEYRON_JS_API := ${VEYRON_ROOT}/veyron/javascript/api
+BUNDLE_JS := todos_appd/public/bundle.js
+
+node_modules:
+	npm install
+	(cd todos_appd && npm install)
 
 buildgo:
 	${VEYRON_ROOT}/veyron/scripts/build/go install {veyron,veyron2}/...
 
-buildnode:
-	npm install
+buildapp: node_modules
+	browserify -d todos_appd/browser/*.js -p [minifyify --map bundle.js.map --output ${BUNDLE_JS}.map] -o ${BUNDLE_JS}
+	(cd ${VEYRON_JS_API} && ./vgrunt build)
+	cp -rf ${VEYRON_JS_API}/dist/veyron.* todos_appd/third_party/
 
-buildbrowser:
-	(cd ${VEYRON_JS_API} && ./vgrunt build) && \
-	mkdir -p todos_appd/public/js && \
-	cp -rf ${VEYRON_JS_API}/dist/veyron.* todos_appd/public/js
+build: buildgo buildapp
 
 run: build
 	./run.sh
 
-# TODO(sadovsky): Merge into other rules once everything's wired up.
-runapp:
-	(cd todos_appd && npm install && npm start)
+runapp: buildapp
+	(cd todos_appd && npm start)
+
+watchapp:
+	watch -n 1 make buildapp
 
 gofmt:
 	gofmt -w .
@@ -28,10 +35,10 @@ gofmt:
 clean:
 	rm -rf node_modules
 	rm -rf todos_appd/node_modules
-	rm -rf todos_appd/public/js/veyron.*
+	rm -rf todos_appd/public/bundle.*
+	rm -rf todos_appd/third_party/veyron.*
 
-lint:
-	npm install --dev
-	jshint todos_appd/server.js todos_appd/public/js/*.js --exclude "**/veyron.*"
+lint: node_modules
+	jshint todos_appd/server.js todos_appd/browser/*.js
 
-.PHONY: build buildgo buildnode buildbrowser run runapp gofmt clean lint
+.PHONY: buildgo buildapp build run runapp watchapp gofmt clean lint

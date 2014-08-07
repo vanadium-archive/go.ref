@@ -1,10 +1,7 @@
 {
-  "name": "todos",
+  "name": "todos_appd",
   "version": "0.0.1",
   "dependencies": {
     "express": "^4.6.1"
-  },
-  "devDependencies": {
-    "browserify": "^5.0.8"
   }
 }

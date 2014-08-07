@@ -2,6 +2,8 @@
   "name": "todos",
   "version": "0.0.1",
   "devDependencies": {
-    "jshint": "^2.5.2"
+    "browserify": "^5.9.1",
+    "jshint": "^2.5.2",
+    "minifyify": "^4.0.3"
   }
 }

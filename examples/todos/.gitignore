@@ -1,4 +1,5 @@
 node_modules
 npm-debug.log
 todos_appd/node_modules
-todos_appd/public/js/veyron.*
+todos_appd/public/bundle.*
+todos_appd/third_party/veyron.*
