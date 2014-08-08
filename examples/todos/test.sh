@@ -8,19 +8,20 @@
 set -e
 set -u
 
-readonly THIS_SCRIPT="$0"
-readonly WORK_DIR=$(mktemp -d)
+readonly repo_root=$(git rev-parse --show-toplevel)
+readonly thisscript="$0"
+readonly workdir=$(mktemp -d "${repo_root}/go/tmp.XXXXXXXXXXX")
 
 trap onexit INT TERM EXIT
 
 onexit() {
   exec 2>/dev/null
   kill $(jobs -p)
-  rm -rf "${WORK_DIR}"
+  rm -rf "${workdir}"
 }
 
 fail() {
-  [[ $# -gt 0 ]] && echo "${THIS_SCRIPT} $*"
+  [[ $# -gt 0 ]] && echo "${thisscript} $*"
   echo FAIL
   exit 1
 }
@@ -31,13 +32,14 @@ pass() {
 }
 
 main() {
+  cd "${repo_root}/go/src/veyron/examples/todos"
   make build || fail "line ${LINENO}: failed to build"
   ./run.sh >/dev/null 2>&1 &
 
   sleep 5  # Wait for services to warm up.
 
-  URL="http://localhost:5000"
-  FILE="${WORK_DIR}/index.html"
+  local -r URL="http://localhost:5000"
+  local -r FILE="${workdir}/index.html"
 
   curl 2>/dev/null "${URL}" -o "${FILE}" || fail "line ${LINENO}: failed to fetch ${URL}"
 
