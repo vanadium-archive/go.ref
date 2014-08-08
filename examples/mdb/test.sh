@@ -34,19 +34,25 @@ pass() {
 main() {
   cd "${repo_root}/go/src/veyron/examples/mdb"
   make build || fail "line ${LINENO}: failed to build"
-  ./run.sh >/dev/null 2>&1 &
+
+  local -r VIEWER_PORT_FILE="${workdir}/viewer_port.txt"
+  ./run.sh "${VIEWER_PORT_FILE}" >/dev/null 2>&1 &
 
   sleep 5  # Wait for services to warm up.
 
-  local -r URL="http://localhost:5000"
-  local -r FILE="${workdir}/index.html"
+  if [ ! -f "${VIEWER_PORT_FILE}" ]; then
+    fail "line ${LINENO}: failed to get viewer url"
+  fi
+  local VIEWER_PORT
+  VIEWER_PORT=$(cat "${VIEWER_PORT_FILE}")
 
-  curl 2>/dev/null "${URL}" -o "${FILE}" || fail "line ${LINENO}: failed to fetch ${URL}"
+  local -r HTML_FILE="${workdir}/index.html"
+  curl 2>/dev/null "http://localhost:${VIEWER_PORT}" -o "${HTML_FILE}" || fail "line ${LINENO}: failed to fetch ${URL}"
 
-  if grep -q "moviesbox" "${FILE}"; then
+  if grep -q "moviesbox" "${HTML_FILE}"; then
     pass
   else
-    cat ${FILE}
+    cat "${HTML_FILE}"
     fail "line ${LINENO}: fetched page does not meet expectations"
   fi
 }
