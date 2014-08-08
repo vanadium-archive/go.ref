@@ -175,11 +175,11 @@ func (ctx WSPR) handleWS(w http.ResponseWriter, r *http.Request) {
 
 // Structs for marshalling input/output to create-account route.
 type createAccountInput struct {
-	AccessToken string `json:access_token`
+	AccessToken string `json:"access_token"`
 }
 
 type createAccountOutput struct {
-	Names []string `json:names`
+	Names []string `json:"names"`
 }
 
 // Handler for creating an account in the identity manager.
@@ -244,13 +244,14 @@ func (ctx WSPR) handleCreateAccount(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Success.
+	w.Header().Set("Content-Type", "application/json")
 	fmt.Fprintf(w, string(outJson))
 }
 
 // Struct for marshalling input to assoc-account route.
 type assocAccountInput struct {
-	Name   string `json:name`
-	Origin string `json:origin`
+	Name   string `json:"name"`
+	Origin string `json:"origin"`
 }
 
 // Handler for associating an existing privateID with an origin.
