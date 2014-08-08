@@ -4,7 +4,11 @@
 // or sensitive RPC method invocations.
 package audit
 
-import "time"
+import (
+	"fmt"
+	"strings"
+	"time"
+)
 
 // Auditor is the interface for writing auditable events.
 type Auditor interface {
@@ -25,4 +29,22 @@ type Entry struct {
 
 	// Timestamp of method invocation.
 	Timestamp time.Time
+}
+
+func (e Entry) String() string {
+	return fmt.Sprintf("%v: %s(%s)%s", e.Timestamp.Format(time.RFC3339), e.Method, join(e.Arguments, "", ""), join(e.Results, " = (", ")"))
+}
+
+func join(elems []interface{}, prefix, suffix string) string {
+	switch len(elems) {
+	case 0:
+		return ""
+	case 1:
+		return fmt.Sprintf("%s%v%s", prefix, elems[0], suffix)
+	}
+	strs := make([]string, len(elems))
+	for i, e := range elems {
+		strs[i] = fmt.Sprintf("%v", e)
+	}
+	return prefix + strings.Join(strs, ", ") + suffix
 }
