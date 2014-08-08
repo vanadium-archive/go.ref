@@ -1,4 +1,4 @@
-package auditor
+package audit
 
 import (
 	"crypto/ecdsa"

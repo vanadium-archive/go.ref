@@ -1,4 +1,4 @@
-package auditor_test
+package audit_test
 
 import (
 	"crypto/ecdsa"
@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"veyron/security/auditor"
+	"veyron/security/audit"
 	"veyron2/naming"
 	"veyron2/security"
 )
@@ -37,7 +37,7 @@ func TestAuditingID(t *testing.T) {
 		mockID      = new(mockID)
 		mockAuditor = new(mockAuditor)
 	)
-	id := auditor.NewPrivateID(mockID, mockAuditor)
+	id := audit.NewPrivateID(mockID, mockAuditor)
 	tests := []struct {
 		Method        string
 		Args          V
@@ -62,7 +62,7 @@ func TestAuditingID(t *testing.T) {
 			t.Errorf("id.%v(%#v) returned (..., %v), want (..., %v)", test.Method, test.Args, got, wantErr)
 		}
 		// Nothing should be audited
-		if audited := mockAuditor.Release(); !reflect.DeepEqual(audited, auditor.Entry{}) {
+		if audited := mockAuditor.Release(); !reflect.DeepEqual(audited, audit.Entry{}) {
 			t.Errorf("id.%v(%#v) resulted in [%+v] being written to the audit log, nothing should have been", test.Method, test.Args, audited)
 		}
 
@@ -96,7 +96,7 @@ func TestAuditingID(t *testing.T) {
 		if audited.Timestamp.Before(now) || audited.Timestamp.IsZero() {
 			t.Errorf("id.%v(%#v) audited the time as %v, should have been a time after %v", test.Method, test.Args, audited.Timestamp, now)
 		}
-		if want := (auditor.Entry{
+		if want := (audit.Entry{
 			Method:    test.Method,
 			Arguments: []interface{}(test.Args),
 			Results:   []interface{}{test.AuditedResult},
@@ -150,11 +150,11 @@ func (id *mockID) reset() {
 func (id *mockID) PublicKey() *ecdsa.PublicKey { return id.publicKey }
 
 type mockAuditor struct {
-	LastEntry auditor.Entry
+	LastEntry audit.Entry
 	NextError error
 }
 
-func (a *mockAuditor) Audit(entry auditor.Entry) error {
+func (a *mockAuditor) Audit(entry audit.Entry) error {
 	if a.NextError != nil {
 		err := a.NextError
 		a.NextError = nil
@@ -164,9 +164,9 @@ func (a *mockAuditor) Audit(entry auditor.Entry) error {
 	return nil
 }
 
-func (a *mockAuditor) Release() auditor.Entry {
+func (a *mockAuditor) Release() audit.Entry {
 	entry := a.LastEntry
-	a.LastEntry = auditor.Entry{}
+	a.LastEntry = audit.Entry{}
 	return entry
 }
 
