@@ -219,11 +219,8 @@ func runBuild(command *cmdline.Command, args []string) error {
 			}
 		}
 	}
-	for _, err := range errors {
-		fmt.Fprintf(command.Stderr(), "%v", err)
-	}
 	if len(errors) != 0 {
-		return fmt.Errorf("build failed")
+		return fmt.Errorf("build failed(%v)", errors)
 	}
 	return nil
 }
