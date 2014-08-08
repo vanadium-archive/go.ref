@@ -41,7 +41,7 @@ main() {
 
   curl 2>/dev/null "${URL}" -o "${FILE}" || fail "line ${LINENO}: failed to fetch ${URL}"
 
-  if grep -q "moviesbox" "${FILE}"; then
+  if grep -q "/lists" "${FILE}"; then
     pass
   else
     cat ${FILE}
