@@ -15,8 +15,6 @@ buildgo:
 
 buildapp: node_modules
 	browserify -d todos_appd/browser/*.js -p [minifyify --map bundle.js.map --output ${BUNDLE_JS}.map] -o ${BUNDLE_JS}
-	(cd ${VEYRON_JS_API} && ./vgrunt build)
-	cp -rf ${VEYRON_JS_API}/dist/veyron.* todos_appd/third_party/
 
 build: buildgo buildapp
 

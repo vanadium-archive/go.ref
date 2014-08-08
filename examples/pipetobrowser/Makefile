@@ -1,7 +1,6 @@
 PATH:=$(VEYRON_ROOT)/environment/cout/node/bin:$(PATH)
 PATH:=node_modules/.bin:../node_modules/.bin:$(PATH)
 
-VEYRON_JS_API=$(VEYRON_ROOT)/veyron/javascript/api
 VEYRON_BUILD_SCRIPT=$(VEYRON_ROOT)/veyron/scripts/build/go
 
 # All JS files except build.js and third party
@@ -24,11 +23,8 @@ node_modules: package.json
 	export
 
 # Build and copies Veyron from local source
-browser/third-party/veyron: $(VEYRON_JS_API)
-	mkdir -p browser/third-party
-	(cd $(VEYRON_JS_API) && ./vgrunt build)
-	mkdir -p browser/third-party/veyron
-	cp -rf $(VEYRON_JS_API)/dist/*.* browser/third-party/veyron
+browser/third-party/veyron: node_modules
+	cp -rf $</veyron/dist/ $@
 
 # Install JSPM and Bower packages as listed in browser/package.json from JSPM and browser/bower.json from bower
 browser/third-party: browser/package.json browser/bower.json
