@@ -5,6 +5,8 @@ import (
 	"path"
 	"strings"
 
+	_ "veyron/services/store/typeregistryhack"
+
 	"veyron2/ipc"
 	"veyron2/naming"
 	"veyron2/services/mgmt/application"
@@ -56,7 +58,9 @@ func makeParentNodes(context ipc.ServerContext, store storage.Store, path string
 	for i := 0; i < len(pathComponents); i++ {
 		name := pathComponents[:i].String()
 		object := store.BindObject(name)
-		if _, err := object.Get(context); err != nil {
+		if exists, err := object.Exists(context); err != nil {
+			return errOperationFailed
+		} else if !exists {
 			if _, err := object.Put(context, &dir{}); err != nil {
 				return errOperationFailed
 			}
