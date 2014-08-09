@@ -7,8 +7,8 @@ VEYRON_JS_API := ${VEYRON_ROOT}/veyron/javascript/api
 BUNDLE_JS := todos_appd/public/bundle.js
 
 node_modules:
-	npm install
-	(cd todos_appd && npm install)
+	${VEYRON_ROOT}/environment/cout/node/bin/npm install
+	(cd todos_appd && ${VEYRON_ROOT}/environment/cout/node/bin/npm install)
 
 buildgo:
 	${VEYRON_ROOT}/veyron/scripts/build/go install veyron/examples/todos/... veyron/services/mounttable/mounttabled veyron/services/store/stored veyron/tools/findunusedport veyron/tools/identity
@@ -25,7 +25,7 @@ test:
 	./test.sh
 
 runapp: buildapp
-	(cd todos_appd && npm start)
+	(cd todos_appd && ${VEYRON_ROOT}/environment/cout/node/bin/npm start)
 
 watchapp:
 	watch -n 1 make buildapp
