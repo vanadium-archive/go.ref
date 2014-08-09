@@ -14,6 +14,7 @@ import (
 	"veyron2/naming"
 	"veyron2/rt"
 	"veyron2/services/mgmt/repository"
+	"veyron2/verror"
 	"veyron2/vlog"
 )
 
@@ -27,41 +28,43 @@ func init() {
 
 // invokeUpload invokes the Upload RPC using the given client binary
 // <binary> and streams the given binary <binary> to it.
-func invokeUpload(t *testing.T, binary repository.Binary, data []byte, part int32) error {
+func invokeUpload(t *testing.T, binary repository.Binary, data []byte, part int32) (error, error) {
 	stream, err := binary.Upload(rt.R().NewContext(), part)
 	if err != nil {
 		t.Errorf("Upload() failed: %v", err)
-		return err
+		return nil, err
 	}
 	sender := stream.SendStream()
-	if err := sender.Send(data); err != nil {
-		if err := stream.Finish(); err != nil {
+	if streamErr := sender.Send(data); streamErr != nil {
+		err := stream.Finish()
+		if err != nil {
 			t.Logf("Finish() failed: %v", err)
 		}
-		t.Logf("Send() failed: %v", err)
-		return err
+		t.Logf("Send() failed: %v", streamErr)
+		return streamErr, err
 	}
-	if err := sender.Close(); err != nil {
-		if err := stream.Finish(); err != nil {
+	if streamErr := sender.Close(); streamErr != nil {
+		err := stream.Finish()
+		if err != nil {
 			t.Logf("Finish() failed: %v", err)
 		}
-		t.Logf("Close() failed: %v", err)
-		return err
+		t.Logf("Close() failed: %v", streamErr)
+		return streamErr, err
 	}
 	if err := stream.Finish(); err != nil {
 		t.Logf("Finish() failed: %v", err)
-		return err
+		return nil, err
 	}
-	return nil
+	return nil, nil
 }
 
 // invokeDownload invokes the Download RPC using the given client binary
 // <binary> and streams binary from to it.
-func invokeDownload(t *testing.T, binary repository.Binary, part int32) ([]byte, error) {
+func invokeDownload(t *testing.T, binary repository.Binary, part int32) ([]byte, error, error) {
 	stream, err := binary.Download(rt.R().NewContext(), part)
 	if err != nil {
 		t.Errorf("Download() failed: %v", err)
-		return nil, err
+		return nil, nil, err
 	}
 	output := make([]byte, 0)
 	rStream := stream.RecvStream()
@@ -70,15 +73,20 @@ func invokeDownload(t *testing.T, binary repository.Binary, part int32) ([]byte,
 		output = append(output, bytes...)
 	}
 
-	if err := rStream.Err(); err != nil {
-		t.Logf("Advance() failed with: %v", err)
+	if streamErr := rStream.Err(); streamErr != nil {
+		err := stream.Finish()
+		if err != nil {
+			t.Logf("Finish() failed: %v", err)
+		}
+		t.Logf("Advance() failed with: %v", streamErr)
+		return nil, streamErr, err
 	}
 
 	if err := stream.Finish(); err != nil {
 		t.Logf("Finish() failed: %v", err)
-		return nil, err
+		return nil, nil, err
 	}
-	return output, nil
+	return output, nil, nil
 }
 
 // startServer starts the binary repository server.
@@ -145,7 +153,7 @@ func TestHierarchy(t *testing.T) {
 		if err := binary.Create(rt.R().NewContext(), 1); err != nil {
 			t.Fatalf("Create() failed: %v", err)
 		}
-		if err := invokeUpload(t, binary, data, 0); err != nil {
+		if streamErr, err := invokeUpload(t, binary, data, 0); streamErr != nil || err != nil {
 			t.FailNow()
 		}
 		parts, err := binary.Stat(rt.R().NewContext())
@@ -161,8 +169,8 @@ func TestHierarchy(t *testing.T) {
 		if expected, got := len(data), int(parts[0].Size); expected != got {
 			t.Fatalf("Unexpected size: expected %v, got %v", expected, got)
 		}
-		output, err := invokeDownload(t, binary, 0)
-		if err != nil {
+		output, streamErr, err := invokeDownload(t, binary, 0)
+		if streamErr != nil || err != nil {
 			t.FailNow()
 		}
 		if bytes.Compare(output, data) != 0 {
@@ -192,7 +200,7 @@ func TestMultiPart(t *testing.T) {
 			t.Fatalf("Create() failed: %v", err)
 		}
 		for i := 0; i < length; i++ {
-			if err := invokeUpload(t, binary, data[i], int32(i)); err != nil {
+			if streamErr, err := invokeUpload(t, binary, data[i], int32(i)); streamErr != nil || err != nil {
 				t.FailNow()
 			}
 		}
@@ -203,8 +211,8 @@ func TestMultiPart(t *testing.T) {
 		h := md5.New()
 		for i := 0; i < length; i++ {
 			hpart := md5.New()
-			output, err := invokeDownload(t, binary, int32(i))
-			if err != nil {
+			output, streamErr, err := invokeDownload(t, binary, int32(i))
+			if streamErr != nil || err != nil {
 				t.FailNow()
 			}
 			if bytes.Compare(output, data[i]) != 0 {
@@ -259,7 +267,7 @@ func TestResumption(t *testing.T) {
 			for i := 0; i < length; i++ {
 				fail := testutil.Rand.Intn(2)
 				if parts[i] == MissingPart && fail != 0 {
-					if err := invokeUpload(t, binary, data[i], int32(i)); err != nil {
+					if streamErr, err := invokeUpload(t, binary, data[i], int32(i)); streamErr != nil || err != nil {
 						t.FailNow()
 					}
 				}
@@ -289,20 +297,26 @@ func TestErrors(t *testing.T) {
 	}
 	if err := binary.Create(rt.R().NewContext(), int32(length)); err == nil {
 		t.Fatalf("Create() did not fail when it should have")
+	} else if want := verror.Exists; !verror.Is(err, want) {
+		t.Fatalf("Unexpected error: %v, expected error id %v", err, want)
 	}
-	if err := invokeUpload(t, binary, data[0], 0); err != nil {
+	if streamErr, err := invokeUpload(t, binary, data[0], 0); streamErr != nil || err != nil {
 		t.Fatalf("Upload() failed: %v", err)
 	}
-	if err := invokeUpload(t, binary, data[0], 0); err == nil {
+	if _, err := invokeUpload(t, binary, data[0], 0); err == nil {
 		t.Fatalf("Upload() did not fail when it should have")
+	} else if want := verror.Exists; !verror.Is(err, want) {
+		t.Fatalf("Unexpected error: %v, expected error id %v", err, want)
 	}
-	if _, err := invokeDownload(t, binary, 1); err == nil {
+	if _, _, err := invokeDownload(t, binary, 1); err == nil {
 		t.Fatalf("Download() did not fail when it should have")
+	} else if want := verror.NotFound; !verror.Is(err, want) {
+		t.Fatalf("Unexpected error: %v, expected error id %v", err, want)
 	}
-	if err := invokeUpload(t, binary, data[1], 1); err != nil {
+	if streamErr, err := invokeUpload(t, binary, data[1], 1); streamErr != nil || err != nil {
 		t.Fatalf("Upload() failed: %v", err)
 	}
-	if _, err := invokeDownload(t, binary, 0); err != nil {
+	if _, streamErr, err := invokeDownload(t, binary, 0); streamErr != nil || err != nil {
 		t.Fatalf("Download() failed: %v", err)
 	}
 	if err := binary.Delete(rt.R().NewContext()); err != nil {
@@ -310,5 +324,7 @@ func TestErrors(t *testing.T) {
 	}
 	if err := binary.Delete(rt.R().NewContext()); err == nil {
 		t.Fatalf("Delete() did not fail when it should have")
+	} else if want := verror.NotFound; !verror.Is(err, want) {
+		t.Fatalf("Unexpected error: %v, expected error id %v", err, want)
 	}
 }

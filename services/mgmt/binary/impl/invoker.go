@@ -23,7 +23,6 @@ package impl
 import (
 	"crypto/md5"
 	"encoding/hex"
-	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -35,6 +34,7 @@ import (
 	"veyron2/ipc"
 	"veyron2/services/mgmt/binary"
 	"veyron2/services/mgmt/repository"
+	"veyron2/verror"
 	"veyron2/vlog"
 )
 
@@ -82,11 +82,11 @@ const (
 )
 
 var (
-	errExist           = errors.New("binary already exists")
-	errNotExist        = errors.New("binary does not exist")
-	errInProgress      = errors.New("identical upload already in progress")
-	errInvalidParts    = errors.New("invalid number of parts")
-	errOperationFailed = errors.New("operation failed")
+	errExists          = verror.Existsf("binary already exists")
+	errNotFound        = verror.NotFoundf("binary not found")
+	errInProgress      = verror.Internalf("identical upload already in progress")
+	errInvalidParts    = verror.BadArgf("invalid number of binary parts")
+	errOperationFailed = verror.Internalf("operation failed")
 )
 
 // TODO(jsimsa): When VDL supports composite literal constants, remove
@@ -119,95 +119,6 @@ func newInvoker(state *state, suffix string) *invoker {
 
 const bufferLength = 4096
 
-// consolidate checks if all parts of a binary have been uploaded and
-// if so, creates the aggregate binary and checksum.
-func (i *invoker) consolidate() error {
-	// Coordinate concurrent uploaders to make sure the aggregate binary
-	// and checksum is created only once.
-	err := i.checksumExists(i.path)
-	switch err {
-	case nil:
-		return nil
-	case errNotExist:
-	default:
-		return err
-	}
-	// Check if all parts have been uploaded.
-	parts, err := i.getParts()
-	if err != nil {
-		return err
-	}
-	for _, part := range parts {
-		err := i.checksumExists(part)
-		switch err {
-		case errNotExist:
-			return nil
-		case nil:
-		default:
-			return err
-		}
-	}
-	// Create the aggregate binary and its checksum.
-	suffix := ""
-	output, err := ioutil.TempFile(i.path, suffix)
-	if err != nil {
-		vlog.Errorf("TempFile(%v, %v) failed: %v", i.path, suffix, err)
-		return errOperationFailed
-	}
-	defer output.Close()
-	buffer, h := make([]byte, bufferLength), md5.New()
-	for _, part := range parts {
-		input, err := os.Open(filepath.Join(part, data))
-		if err != nil {
-			vlog.Errorf("Open(%v) failed: %v", filepath.Join(part, data), err)
-			if err := os.Remove(output.Name()); err != nil {
-				vlog.Errorf("Remove(%v) failed: %v", output.Name(), err)
-			}
-			return errOperationFailed
-		}
-		defer input.Close()
-		for {
-			n, err := input.Read(buffer)
-			if err != nil && err != io.EOF {
-				vlog.Errorf("Read() failed: %v", err)
-				if err := os.Remove(output.Name()); err != nil {
-					vlog.Errorf("Remove(%v) failed: %v", output.Name(), err)
-				}
-				return errOperationFailed
-			}
-			if n == 0 {
-				break
-			}
-			if _, err := output.Write(buffer[:n]); err != nil {
-				vlog.Errorf("Write() failed: %v", err)
-				if err := os.Remove(output.Name()); err != nil {
-					vlog.Errorf("Remove(%v) failed: %v", output.Name(), err)
-				}
-				return errOperationFailed
-			}
-			h.Write(buffer[:n])
-		}
-	}
-	hash := hex.EncodeToString(h.Sum(nil))
-	checksumFile, perm := filepath.Join(i.path, checksum), os.FileMode(0600)
-	if err := ioutil.WriteFile(checksumFile, []byte(hash), perm); err != nil {
-		vlog.Errorf("WriteFile(%v, %v, %v) failed: %v", checksumFile, hash, perm, err)
-		if err := os.Remove(output.Name()); err != nil {
-			vlog.Errorf("Remove(%v) failed: %v", output.Name(), err)
-		}
-		return errOperationFailed
-	}
-	dataFile := filepath.Join(i.path, data)
-	if err := os.Rename(output.Name(), dataFile); err != nil {
-		vlog.Errorf("Rename(%v, %v) failed: %v", output.Name(), dataFile, err)
-		if err := os.Remove(output.Name()); err != nil {
-			vlog.Errorf("Remove(%v) failed: %v", output.Name(), err)
-		}
-		return errOperationFailed
-	}
-	return nil
-}
-
 // checksumExists checks whether the given path contains a
 // checksum. The implementation uses the existence of checksum to
 // determine whether the binary (part) identified by the given path
@@ -217,7 +128,7 @@ func (i *invoker) checksumExists(path string) error {
 	_, err := os.Stat(checksumFile)
 	switch {
 	case os.IsNotExist(err):
-		return errNotExist
+		return errNotFound
 	case err != nil:
 		vlog.Errorf("Stat(%v) failed: %v", path, err)
 		return errOperationFailed
@@ -289,8 +200,8 @@ func (i *invoker) Create(_ ipc.ServerContext, nparts int32) error {
 				vlog.Errorf("RemoveAll(%v) failed: %v", tmpDir, err)
 			}
 		}()
-		if os.IsExist(err) {
-			return errExist
+		if linkErr, ok := err.(*os.LinkError); ok && linkErr.Err == syscall.ENOTEMPTY {
+			return errExists
 		}
 		vlog.Errorf("Rename(%v, %v) failed: %v", tmpDir, i.path, err)
 		return errOperationFailed
@@ -302,7 +213,7 @@ func (i *invoker) Delete(context ipc.ServerContext) error {
 	vlog.Infof("%v.Delete()", i.suffix)
 	if _, err := os.Stat(i.path); err != nil {
 		if os.IsNotExist(err) {
-			return errNotExist
+			return errNotFound
 		}
 		vlog.Errorf("Stat(%v) failed: %v", i.path, err)
 		return errOperationFailed
@@ -413,8 +324,8 @@ func (i *invoker) Upload(context ipc.ServerContext, part int32, stream repositor
 	err := i.checksumExists(path)
 	switch err {
 	case nil:
-		return errExist
-	case errNotExist:
+		return errExists
+	case errNotFound:
 	default:
 		return err
 	}
