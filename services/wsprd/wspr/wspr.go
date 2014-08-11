@@ -134,6 +134,7 @@ func NewWSPR(port int, veyronProxyEP, identdEP string, opts ...veyron2.ROpt) *WS
 		rt:            newrt,
 		logger:        newrt.Logger(),
 		idManager:     idManager,
+		pipes:         map[*http.Request]*pipe{},
 	}
 }
 
