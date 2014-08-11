@@ -7,6 +7,8 @@ import (
 	"errors"
 	"flag"
 
+	vsecurity "veyron/security"
+
 	"veyron2/security"
 )
 
@@ -27,11 +29,11 @@ func NewAuthorizerOrDie() security.Authorizer {
 		panic(errors.New("only one of the flags \"--acl\" or \"--acl_file\" must be provided"))
 	}
 	if len(*aclFile) != 0 {
-		return security.NewFileACLAuthorizer(*aclFile)
+		return vsecurity.NewFileACLAuthorizer(*aclFile)
 	}
 	a, err := security.LoadACL(bytes.NewBufferString(*acl))
 	if err != nil {
 		return nil
 	}
-	return security.NewACLAuthorizer(a)
+	return vsecurity.NewACLAuthorizer(a)
 }

@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	tsecurity "veyron/lib/testutil/security"
+	vsecurity "veyron/security"
 
 	"veyron2/security"
 )
@@ -45,19 +46,19 @@ func TestNewAuthorizerOrDie(t *testing.T) {
 		},
 		{
 			flags:    flagValue{"acl": "{}"},
-			wantAuth: security.NewACLAuthorizer(acl1),
+			wantAuth: vsecurity.NewACLAuthorizer(acl1),
 		},
 		{
 			flags:    flagValue{"acl": "{\"veyron/alice\":\"RW\", \"veyron/bob\": \"R\"}"},
-			wantAuth: security.NewACLAuthorizer(acl2),
+			wantAuth: vsecurity.NewACLAuthorizer(acl2),
 		},
 		{
 			flags:    flagValue{"acl": "{\"veyron/bob\":\"R\", \"veyron/alice\": \"WR\"}"},
-			wantAuth: security.NewACLAuthorizer(acl2),
+			wantAuth: vsecurity.NewACLAuthorizer(acl2),
 		},
 		{
 			flags:    flagValue{"acl_file": acl2File},
-			wantAuth: security.NewFileACLAuthorizer(acl2File),
+			wantAuth: vsecurity.NewFileACLAuthorizer(acl2File),
 		},
 		{
 			flags:     flagValue{"acl_file": acl2File, "acl": "{\"veyron/alice\":\"RW\", \"veyron/bob\": \"R\"}"},

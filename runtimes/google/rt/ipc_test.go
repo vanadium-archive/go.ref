@@ -9,6 +9,7 @@ import (
 
 	_ "veyron/lib/testutil"
 	isecurity "veyron/runtimes/google/security"
+	vsecurity "veyron/security"
 
 	"veyron2"
 	"veyron2/ipc"
@@ -157,7 +158,7 @@ func TestClientServerIDs(t *testing.T) {
 			continue
 		}
 		defer stopServer(server)
-		if err := server.Serve("", ipc.SoloDispatcher(&testService{}, security.NewACLAuthorizer(security.ACL{security.AllPrincipals: security.AllLabels}))); err != nil {
+		if err := server.Serve("", ipc.SoloDispatcher(&testService{}, vsecurity.NewACLAuthorizer(security.ACL{security.AllPrincipals: security.AllLabels}))); err != nil {
 			t.Errorf("error serving service: ", err)
 			continue
 		}

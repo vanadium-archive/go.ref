@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"veyron/lib/glob"
+	vsecurity "veyron/security"
 
 	"veyron2/ipc"
 	"veyron2/naming"
@@ -81,7 +82,7 @@ func parseACLs(path string) (map[string]security.Authorizer, error) {
 	}
 	result := make(map[string]security.Authorizer)
 	for name, acl := range acls {
-		result[name] = security.NewACLAuthorizer(acl)
+		result[name] = vsecurity.NewACLAuthorizer(acl)
 	}
 	if result["/"] == nil {
 		return nil, fmt.Errorf("No acl for / in %s", path)
