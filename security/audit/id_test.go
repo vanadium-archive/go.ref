@@ -2,6 +2,8 @@ package audit_test
 
 import (
 	"crypto/ecdsa"
+	"crypto/elliptic"
+	"crypto/rand"
 	"errors"
 	"reflect"
 	"strings"
@@ -27,7 +29,6 @@ func TestAuditingID(t *testing.T) {
 		// A bunch of values that will be returned as results
 		rSignature = security.Signature{R: []byte{1}, S: []byte{1}}
 		rBlessing  = security.FakePublicID("blessed")
-		rDerived   = new(mockID)
 		rDischarge = new(discharge)
 
 		// The error returned by call calls to mockID operations
@@ -46,7 +47,6 @@ func TestAuditingID(t *testing.T) {
 	}{
 		{"Sign", V{byteSlice}, rSignature, nil},
 		{"Bless", V{publicID, str, duration, caveats}, rBlessing, rBlessing},
-		{"Derive", V{publicID}, rDerived, nil},
 		{"MintDischarge", V{thirdPartyCaveat, context, duration, caveats}, rDischarge, nil},
 	}
 	for _, test := range tests {
@@ -99,7 +99,7 @@ func TestAuditingID(t *testing.T) {
 		if want := (audit.Entry{
 			Method:    test.Method,
 			Arguments: []interface{}(test.Args),
-			Results:   []interface{}{test.AuditedResult},
+			Results:   sliceOrNil(test.AuditedResult),
 			Timestamp: audited.Timestamp, // Hard to come up with the expected timestamp, relying on sanity check above.
 		}); !reflect.DeepEqual(audited, want) {
 			t.Errorf("id.%v(%#v) resulted in [%#v] being audited, wanted [%#v]", test.Method, test.Args, audited, want)
@@ -107,10 +107,71 @@ func TestAuditingID(t *testing.T) {
 	}
 }
 
+func sliceOrNil(item interface{}) []interface{} {
+	if item == nil {
+		return nil
+	}
+	return []interface{}{item}
+}
+
+func TestUnauditedMethods(t *testing.T) {
+	var (
+		mockID      = new(mockID)
+		mockAuditor = new(mockAuditor)
+		id          = audit.NewPrivateID(mockID, mockAuditor)
+		key, err    = ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+		emptyEntry  audit.Entry
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	mockID.NextResult = &key.PublicKey
+	if got, want := id.PublicKey(), &key.PublicKey; got != want {
+		t.Errorf("Got %v want %v", got, want)
+	}
+	if entry := mockAuditor.Release(); !reflect.DeepEqual(entry, emptyEntry) {
+		t.Errorf("Unexpected audit: %v", entry)
+	}
+
+	var pubID security.PublicID
+	mockID.NextResult = pubID
+	if got, want := id.PublicID(), pubID; got != want {
+		t.Errorf("Got %v want %v", got, want)
+	}
+	if entry := mockAuditor.Release(); !reflect.DeepEqual(entry, emptyEntry) {
+		t.Errorf("Unexpected audit: %v", entry)
+	}
+}
+
+func TestDerive(t *testing.T) {
+	var (
+		mockID      = new(mockID)
+		mockAuditor = new(mockAuditor)
+		id          = audit.NewPrivateID(mockID, mockAuditor)
+		publicID    = security.FakePublicID("publicid")
+		rSignature  = security.Signature{R: []byte{2}, S: []byte{2}}
+		msg         = []byte{1, 2, 3}
+	)
+	mockID.NextResult = mockID
+	derived, err := id.Derive(publicID)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	mockID.NextResult = rSignature
+	if got, err := derived.Sign(msg); err != nil || !reflect.DeepEqual(got, rSignature) {
+		t.Fatalf("Got (%v, %v) want (%v, nil)", got, err, rSignature)
+	}
+	got := mockAuditor.Release()
+	if want := (audit.Entry{Method: "Sign", Arguments: []interface{}{msg}, Timestamp: got.Timestamp}); !reflect.DeepEqual(got, want) {
+		t.Fatalf("Audit log shows [%v] want [%v]", got, want)
+	}
+}
+
 type mockID struct {
 	NextError  error
 	NextResult interface{}
-	publicKey  *ecdsa.PublicKey
 }
 
 func (id *mockID) Sign(message []byte) (security.Signature, error) {
@@ -124,6 +185,9 @@ func (id *mockID) Sign(message []byte) (security.Signature, error) {
 
 func (id *mockID) PublicID() security.PublicID {
 	defer id.reset()
+	if id.NextResult == nil {
+		return nil
+	}
 	return id.NextResult.(security.PublicID)
 }
 func (id *mockID) Bless(blessee security.PublicID, blessingName string, duration time.Duration, caveats []security.ServiceCaveat) (security.PublicID, error) {
@@ -147,7 +211,7 @@ func (id *mockID) reset() {
 	id.NextResult = nil
 }
 
-func (id *mockID) PublicKey() *ecdsa.PublicKey { return id.publicKey }
+func (id *mockID) PublicKey() *ecdsa.PublicKey { return id.NextResult.(*ecdsa.PublicKey) }
 
 type mockAuditor struct {
 	LastEntry audit.Entry

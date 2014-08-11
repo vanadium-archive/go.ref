@@ -31,11 +31,11 @@ func (id *auditingID) Sign(message []byte) (security.Signature, error) {
 }
 
 func (id *auditingID) PublicKey() *ecdsa.PublicKey {
-	return id.PublicKey()
+	return id.id.PublicKey()
 }
 
 func (id *auditingID) PublicID() security.PublicID {
-	return id.PublicID()
+	return id.id.PublicID()
 }
 
 func (id *auditingID) Bless(blessee security.PublicID, blessingName string, duration time.Duration, caveats []security.ServiceCaveat) (security.PublicID, error) {
@@ -47,12 +47,15 @@ func (id *auditingID) Bless(blessee security.PublicID, blessingName string, dura
 }
 
 func (id *auditingID) Derive(publicID security.PublicID) (security.PrivateID, error) {
+	// No auditing for Derive. Two reasons:
+	// (1) This method is expected to go away (ataly@)
+	// (2) There is no operation on the private key here.
+	// However, operations on the Derived id do need to be audited.
 	derived, err := id.id.Derive(publicID)
-	// Do not save the derived private ID itself, do not want to log private keys etc. in the derived ID.
-	if err = id.audit(err, "Derive", args{publicID}, nil); err != nil {
+	if err != nil {
 		return nil, err
 	}
-	return derived, nil
+	return NewPrivateID(derived, id.auditor), nil
 }
 
 func (id *auditingID) MintDischarge(caveat security.ThirdPartyCaveat, context security.Context, duration time.Duration, caveats []security.ServiceCaveat) (security.ThirdPartyDischarge, error) {
@@ -67,12 +70,14 @@ func (id *auditingID) audit(err error, method string, args args, result interfac
 	if err != nil {
 		return err
 	}
-	if err = id.auditor.Audit(Entry{
-		Method:    method,
-		Arguments: []interface{}(args),
-		Results:   []interface{}{result},
-		Timestamp: time.Now(),
-	}); err != nil {
+	entry := Entry{Method: method, Timestamp: time.Now()}
+	if len(args) > 0 {
+		entry.Arguments = []interface{}(args)
+	}
+	if result != nil {
+		entry.Results = []interface{}{result}
+	}
+	if err := id.auditor.Audit(entry); err != nil {
 		return fmt.Errorf("failed to audit call to %q: %v", method, err)
 	}
 	return nil
