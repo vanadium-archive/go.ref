@@ -11,7 +11,7 @@ main() {
   # TODO(sadovsky): Reenable this test when we can get it to pass on Jenkins.
   shell_test::pass
 
-  cd "${repo_root}/go/src/veyron/examples/mdb"
+  cd "${REPO_ROOT}/go/src/veyron/examples/mdb"
   make build || shell_test::fail "line ${LINENO}: failed to build"
   local -r VIEWER_PORT_FILE="${TMPDIR}/viewer_port.txt"
   ./run.sh "${VIEWER_PORT_FILE}" &>/dev/null &

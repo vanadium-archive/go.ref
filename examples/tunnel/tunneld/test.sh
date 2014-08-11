@@ -9,7 +9,7 @@
 source "${VEYRON_ROOT}/environment/scripts/lib/shell_test.sh"
 
 build() {
-  local -r GO="${repo_root}/scripts/build/go"
+  local -r GO="${REPO_ROOT}/scripts/build/go"
   "${GO}" build veyron/examples/tunnel/tunneld || shell_test::fail "line ${LINENO}: failed to build tunneld"
   "${GO}" build veyron/examples/tunnel/vsh || shell_test::fail "line ${LINENO}: failed to build vsh"
   "${GO}" build veyron/services/mounttable/mounttabled || shell_test::fail "line ${LINENO}: failed to build mounttabled"

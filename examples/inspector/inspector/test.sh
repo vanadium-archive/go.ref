@@ -3,7 +3,7 @@
 source "${VEYRON_ROOT}/environment/scripts/lib/shell_test.sh"
 
 build() {
-  local -r GO="${repo_root}/scripts/build/go"
+  local -r GO="${REPO_ROOT}/scripts/build/go"
   "${GO}" build veyron/examples/inspector/inspector || shell_test::fail "line ${LINENO}: failed to build inspector"
   "${GO}" build veyron/examples/inspector/inspectord || shell_test::fail "line ${LINENO}: failed to build inspectord"
   "${GO}" build veyron/tools/identity || shell_test::fail "line ${LINENO}: failed to build identity"

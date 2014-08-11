@@ -11,7 +11,7 @@ source "${VEYRON_ROOT}/environment/scripts/lib/shell_test.sh"
 main() {
   # Build binaries.
   cd "${TMPDIR}"
-  local -r GO="${repo_root}/scripts/build/go"
+  local -r GO="${REPO_ROOT}/scripts/build/go"
   "${GO}" build veyron/tools/identity || shell_test::fail "line ${LINENO}: failed to build identity"
 
   ./identity print >/dev/null || shell_test::fail "line ${LINENO}: print failed"
