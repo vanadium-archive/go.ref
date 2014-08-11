@@ -1,57 +1,59 @@
 #!/bin/bash
 
-set -e
-set -u
-
-# Used by test.sh to get the store viewer port.
-VIEWER_PORT_FILE=""
-if [ $# -eq 1 ]; then
-  VIEWER_PORT_FILE="$1"
-fi
-readonly VIEWER_PORT_FILE
-
-readonly VEYRON_BIN=${VEYRON_ROOT}/veyron/go/bin
-
-readonly repo_root=$(git rev-parse --show-toplevel)
-readonly id_file=$(mktemp "${repo_root}/go/tmp.XXXXXXXXXXX")
-readonly db_dir=$(mktemp -d "${repo_root}/go/tmp.XXXXXXXXXXX")
+source "${VEYRON_ROOT}/environment/scripts/lib/shell.sh"
 
 trap onexit INT TERM EXIT
 
+readonly REPO_ROOT=$(git rev-parse --show-toplevel)
+readonly ID_FILE=$(shell::tmp_file)
+readonly DB_DIR=$(shell::tmp_dir)
+
 onexit() {
   exec 2>/dev/null
-  kill $(jobs -p)
-  rm -rf "${id_file}" "${db_dir}"
+  rm -rf "${ID_FILE}" "${DB_DIR}"
+  kill -9 $(jobs -p) || true
 }
 
-# Generate a self-signed identity.
-${VEYRON_BIN}/identity generate > ${id_file}
+main() {
+  # Used by test.sh to get the store viewer port.
+  local VIEWER_PORT_FILE=""
+  if [[ "$#" -eq 1 ]]; then
+    VIEWER_PORT_FILE="$1"
+  fi
+  local -r VIEWER_PORT_FILE
+  local -r VEYRON_BIN="${VEYRON_ROOT}/veyron/go/bin"
 
-# Start the mounttable daemon.
-readonly mt_port=$(${VEYRON_BIN}/findunusedport)
-${VEYRON_BIN}/mounttabled --address=":${mt_port}" &
+  # Generate a self-signed identity.
+  "${VEYRON_BIN}/identity" generate > "${ID_FILE}"
 
-# Wait for mounttabled to start up.
-sleep 1
+  # Start the mounttable daemon.
+  local -r MT_PORT=$("${VEYRON_BIN}/findunusedport")
+  "${VEYRON_BIN}/mounttabled" --address=":${MT_PORT}" &
 
-export VEYRON_IDENTITY=${id_file}
-export NAMESPACE_ROOT="/127.0.0.1:${mt_port}"
+  # Wait for mounttabled to start up.
+  sleep 1
 
-# Start the store daemon.
-readonly viewer_port=$(${VEYRON_BIN}/findunusedport)
-${VEYRON_BIN}/stored --db="${db_dir}" --viewerPort="${viewer_port}" &
+  export VEYRON_IDENTITY="${ID_FILE}"
+  export NAMESPACE_ROOT="/127.0.0.1:${MT_PORT}"
 
-# Wait for stored to start up.
-sleep 1
+  # Start the store daemon.
+  local -r viewer_port=$("${VEYRON_BIN}/findunusedport")
+  "${VEYRON_BIN}/stored" --db="${DB_DIR}" --viewerPort="${viewer_port}" &
 
-# Initialize the store with data and templates.
-${VEYRON_BIN}/mdb_init --load-all
+  # Wait for stored to start up.
+  sleep 1
 
-if [ -n "${VIEWER_PORT_FILE}" ]; then
-  echo "${viewer_port}" > "${VIEWER_PORT_FILE}"
-fi
+  # Initialize the store with data and templates.
+  "${VEYRON_BIN}/mdb_init" --load-all
 
-echo
-echo "Visit http://localhost:${viewer_port} to browse the store."
-echo "Hit Ctrl-C to kill all running services."
-wait
+  if [[ -n "${VIEWER_PORT_FILE}" ]]; then
+    echo "${viewer_port}" > "${VIEWER_PORT_FILE}"
+  fi
+
+  echo
+  echo "Visit http://localhost:${viewer_port} to browse the store."
+  echo "Hit Ctrl-C to kill all running services."
+  wait
+}
+
+main "$@"
