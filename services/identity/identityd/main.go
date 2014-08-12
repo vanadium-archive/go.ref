@@ -13,12 +13,15 @@ import (
 
 	"veyron/lib/signals"
 	vsecurity "veyron/security"
+	"veyron/security/audit"
+	"veyron/services/identity/auditor"
 	"veyron/services/identity/blesser"
 	"veyron/services/identity/googleoauth"
 	"veyron/services/identity/handlers"
 
 	"veyron2"
 	"veyron2/ipc"
+	"veyron2/naming"
 	"veyron2/rt"
 	"veyron2/security"
 	"veyron2/vlog"
@@ -33,19 +36,25 @@ var (
 	host          = flag.String("host", defaultHost(), "Hostname the HTTP server listens on. This can be the name of the host running the webserver, but if running behind a NAT or load balancer, this should be the host name that clients will connect to. For example, if set to 'x.com', Veyron identities will have the IssuerName set to 'x.com' and clients can expect to find the public key of the signer at 'x.com/pubkey/'.")
 	minExpiryDays = flag.Int("min_expiry_days", 365, "Minimum expiry time (in days) of identities issued by this server")
 
+	auditprefix = flag.String("audit", "", "File prefix to files where auditing information will be written.")
+	auditfilter = flag.String("audit_filter", "", "If non-empty, instead of starting the server the audit log will be dumped to STDOUT (with the filter set to the value of this flag. '/' can be used to dump all events).")
+
 	// Configuration for various Google OAuth-based clients.
-	googleConfigWeb       = flag.String("google_config_web", "", "Path to JSON-encoded OAuth client configuration for the web application for generating PrivateIDs (Use the 'Download JSON' link on the Google APIs console).")
+	googleConfigWeb       = flag.String("google_config_web", "", "Path to JSON-encoded OAuth client configuration for the web application that renders the audit log for blessings provided by this provider.")
 	googleConfigInstalled = flag.String("google_config_installed", "", "Path to the JSON-encoded OAuth client configuration for installed client applications that obtain blessings (via the OAuthBlesser.BlessUsingAuthorizationCode RPC) from this server (like the 'identity' command like tool and its 'seekblessing' command.")
 	googleConfigChrome    = flag.String("google_config_chrome", "", "Path to the JSON-encoded OAuth client configuration for Chrome browser applications that obtain blessings from this server (via the OAuthBlesser.BlessUsingAccessToken RPC) from this server.")
 	googleDomain          = flag.String("google_domain", "", "An optional domain name. When set, only email addresses from this domain are allowed to authenticate via Google OAuth")
 )
 
 func main() {
-	// Setup flags and logging
 	flag.Usage = usage
-	r := rt.Init()
+	r := rt.Init(providerIdentity())
 	defer r.Cleanup()
 
+	if len(*auditfilter) > 0 {
+		dumpAuditLog()
+		return
+	}
 	// Setup handlers
 	http.Handle("/pubkey/", handlers.Object{r.Identity().PublicID().PublicKey()}) // public key of this identity server
 	if enableRandomHandler() {
@@ -54,22 +63,20 @@ func main() {
 	http.HandleFunc("/bless/", handlers.Bless) // use a provided PrivateID to bless a provided PublicID
 
 	// Google OAuth
-	ipcServer, err := setupGoogleBlessingServer(r)
+	ipcServer, ipcServerEP, err := setupGoogleBlessingServer(r)
 	if err != nil {
 		vlog.Fatalf("Failed to setup veyron services for blessing: %v", err)
 	}
 	if ipcServer != nil {
 		defer ipcServer.Stop()
 	}
-	if enabled, clientID, clientSecret := enableGoogleOAuth(*googleConfigWeb); enabled {
+	if enabled, clientID, clientSecret := enableGoogleOAuth(*googleConfigWeb); enabled && len(*auditprefix) > 0 {
 		n := "/google/"
 		http.Handle(n, googleoauth.NewHandler(googleoauth.HandlerArgs{
-			Addr:                fmt.Sprintf("%s%s", httpaddress(), n),
-			ClientID:            clientID,
-			ClientSecret:        clientSecret,
-			MinExpiryDays:       *minExpiryDays,
-			Runtime:             r,
-			RestrictEmailDomain: *googleDomain,
+			Addr:         fmt.Sprintf("%s%s", httpaddress(), n),
+			ClientID:     clientID,
+			ClientSecret: clientSecret,
+			Auditor:      *auditprefix,
 		}))
 	}
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
@@ -77,10 +84,16 @@ func main() {
 		if ipcServer != nil {
 			servers, _ = ipcServer.Published()
 		}
+		if len(servers) == 0 {
+			// No addresses published, publish the endpoint instead (which may not be usable everywhere, but oh-well).
+			servers = append(servers, naming.JoinAddressName(ipcServerEP.String(), ""))
+		}
 		args := struct {
+			Self                 string
 			GoogleWeb, RandomWeb bool
 			GoogleServers        []string
 		}{
+			Self:          rt.R().Identity().PublicID().Names()[0],
 			GoogleWeb:     len(*googleConfigWeb) > 0,
 			RandomWeb:     enableRandomHandler(),
 			GoogleServers: servers,
@@ -94,7 +107,7 @@ func main() {
 	<-signals.ShutdownOnSignals()
 }
 
-func setupGoogleBlessingServer(r veyron2.Runtime) (ipc.Server, error) {
+func setupGoogleBlessingServer(r veyron2.Runtime) (ipc.Server, naming.Endpoint, error) {
 	var enable bool
 	params := blesser.GoogleParams{
 		R:                 r,
@@ -111,27 +124,29 @@ func setupGoogleBlessingServer(r veyron2.Runtime) (ipc.Server, error) {
 		params.AccessTokenClient.ID = clientID
 	}
 	if !enable {
-		return nil, nil
+		return nil, nil, nil
 	}
 	server, err := r.NewServer()
 	if err != nil {
-		return nil, fmt.Errorf("failed to create new ipc.Server: %v", err)
+		return nil, nil, fmt.Errorf("failed to create new ipc.Server: %v", err)
 	}
 	ep, err := server.Listen(*protocol, *address)
 	if err != nil {
-		return nil, fmt.Errorf("server.Listen(%q, %q) failed: %v", "tcp", *address, err)
+		return nil, nil, fmt.Errorf("server.Listen(%q, %q) failed: %v", "tcp", *address, err)
 	}
 	allowEveryoneACL := security.ACL{security.AllPrincipals: security.AllLabels}
 	objectname := fmt.Sprintf("identity/%s/google", r.Identity().PublicID().Names()[0])
 	if err := server.Serve(objectname, ipc.SoloDispatcher(blesser.NewGoogleOAuthBlesserServer(params), vsecurity.NewACLAuthorizer(allowEveryoneACL))); err != nil {
-		return nil, fmt.Errorf("failed to start Veyron service: %v", err)
+		return nil, nil, fmt.Errorf("failed to start Veyron service: %v", err)
 	}
 	vlog.Infof("Google blessing service enabled at endpoint %v and name %q", ep, objectname)
-	return server, nil
+	return server, ep, nil
 }
 
-func enableTLS() bool           { return len(*tlsconfig) > 0 }
-func enableRandomHandler() bool { return len(*googleConfigInstalled)+len(*googleConfigWeb) == 0 }
+func enableTLS() bool { return len(*tlsconfig) > 0 }
+func enableRandomHandler() bool {
+	return len(*googleConfigInstalled)+len(*googleConfigWeb)+len(*googleConfigChrome) == 0
+}
 func enableGoogleOAuth(config string) (enabled bool, clientID, clientSecret string) {
 	fname := config
 	if len(fname) == 0 {
@@ -196,6 +211,26 @@ func defaultHost() string {
 	return host
 }
 
+// providerIdentity returns the identity of the identity provider (i.e., this program) itself.
+func providerIdentity() veyron2.ROpt {
+	// TODO(ashankar): This scheme of initializing a runtime just to share the "load identity" code is ridiculous.
+	// Figure out a way to update the runtime's identity with a wrapper and avoid this spurios "New" call.
+	r, err := rt.New()
+	if err != nil {
+		vlog.Fatal(err)
+	}
+	defer r.Cleanup()
+	id := r.Identity()
+	if len(*auditprefix) > 0 {
+		auditor, err := auditor.NewFileAuditor(*auditprefix)
+		if err != nil {
+			vlog.Fatal(err)
+		}
+		id = audit.NewPrivateID(id, auditor)
+	}
+	return veyron2.RuntimeID(id)
+}
+
 func httpaddress() string {
 	_, port, err := net.SplitHostPort(*httpaddr)
 	if err != nil {
@@ -208,6 +243,21 @@ func httpaddress() string {
 	return fmt.Sprintf("%s://%s:%v", scheme, *host, port)
 }
 
+func dumpAuditLog() {
+	if len(*auditprefix) == 0 {
+		vlog.Fatalf("Must set --audit")
+	}
+	ch, err := auditor.ReadAuditLog(*auditprefix, *auditfilter)
+	if err != nil {
+		vlog.Fatal(err)
+	}
+	idx := 0
+	for entry := range ch {
+		fmt.Printf("%6d) %v\n", idx, entry)
+		idx++
+	}
+}
+
 var tmpl = template.Must(template.New("main").Parse(`<!doctype html>
 <html>
 <head>
@@ -218,27 +268,34 @@ var tmpl = template.Must(template.New("main").Parse(`<!doctype html>
 </head>
 <body>
 <div class="container">
-<div class="page-header"><h1>Veyron Identity Generation</h1></div>
+<div class="page-header"><h2>{{.Self}}</h2><h4>A Veyron Identity Provider</h4></div>
 <div class="well">
-This HTTP server mints veyron identities. The public key of the identity of this server is available in
-<a class="btn btn-xs btn-info" href="/pubkey/base64vom">base64-encoded-vom-encoded</a> format.
+This is a Veyron identity provider that provides blessings with the name prefix <mark>{{.Self}}</mark>. The public
+key of this provider is available in <a class="btn btn-xs btn-primary" href="/pubkey/base64vom">base64-encoded-vom-encoded</a> format.
 </div>
+
 {{if .GoogleServers}}
 <div class="well">
-The Veyron service for blessing is published at:
-<tt>
-{{range .GoogleServers}}{{.}}{{end}}
-</tt>
+Blessings are provided via Veyron RPCs to: <tt>{{range .GoogleServers}}{{.}}{{end}}</tt>
 </div>
 {{end}}
 
 {{if .GoogleWeb}}
-<a class="btn btn-lg btn-primary" href="/google/auth">Google</a>
+<div class="well">
+This page provides the ability to <a class="btn btn-xs btn-primary" href="/google/auth">enumerate</a> blessings provided with your
+email address as the name.
+</div>
 {{end}}
+
 {{if .RandomWeb}}
-<a class="btn btn-lg btn-primary" href="/random/">Random</a>
+<div class="well">
+You can obtain a randomly assigned PrivateID <a class="btn btn-sm btn-primary" href="/random/">here</a>
+</div>
 {{end}}
-<a class="btn btn-lg btn-primary" href="/bless/">Bless As</a>
+
+<div class="well">
+You can use <a class="btn btn-xs btn-primary" href="/bless/">this form</a> to offload crypto for blessing to this HTTP server
+</div>
 
 </div>
 </body>
