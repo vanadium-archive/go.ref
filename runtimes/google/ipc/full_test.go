@@ -22,6 +22,7 @@ import (
 	"veyron/runtimes/google/lib/publisher"
 	inaming "veyron/runtimes/google/naming"
 	isecurity "veyron/runtimes/google/security"
+	vsecurity "veyron/security"
 	"veyron/security/caveat"
 
 	"veyron2"
@@ -162,7 +163,7 @@ func (t testServerDisp) Lookup(suffix string) (ipc.Invoker, security.Authorizer,
 		authorizer = nil
 	case "aclAuth":
 		// Only authorize clients matching patterns "client" or "server/*".
-		authorizer = security.NewACLAuthorizer(security.ACL{
+		authorizer = vsecurity.NewACLAuthorizer(security.ACL{
 			"server/*": security.LabelSet(security.AdminLabel),
 			"client":   security.LabelSet(security.AdminLabel),
 		})

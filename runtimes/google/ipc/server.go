@@ -11,6 +11,7 @@ import (
 	"veyron/runtimes/google/lib/publisher"
 	inaming "veyron/runtimes/google/naming"
 	isecurity "veyron/runtimes/google/security"
+	vsecurity "veyron/security"
 
 	"veyron2"
 	"veyron2/context"
@@ -538,8 +539,8 @@ func (fs *flowServer) authorize(auth security.Authorizer) error {
 	// Since the provided authorizer is nil we create a default IDAuthorizer
 	// for the local identity of the flow. This authorizer only authorizes
 	// remote identities that have either been blessed by the local identity
-	// or have blessed the local identity. (See security.NewACLAuthorizer)
-	return security.NewACLAuthorizer(defaultACL(fs.flow.LocalID())).Authorize(fs)
+	// or have blessed the local identity. (See vsecurity.NewACLAuthorizer)
+	return vsecurity.NewACLAuthorizer(defaultACL(fs.flow.LocalID())).Authorize(fs)
 }
 
 // setDeadline sets a deadline on the flow. The flow will be cancelled if it

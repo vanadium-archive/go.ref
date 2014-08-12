@@ -4,7 +4,9 @@ import (
 	"flag"
 
 	"veyron/lib/signals"
+	vsecurity "veyron/security"
 	"veyron/services/security/discharger"
+
 	"veyron2/ipc"
 	"veyron2/rt"
 	"veyron2/security"
@@ -25,9 +27,9 @@ var (
 
 func authorizer(file string) security.Authorizer {
 	if file == "" {
-		return security.NewACLAuthorizer(security.ACL{security.AllPrincipals: security.AllLabels})
+		return vsecurity.NewACLAuthorizer(security.ACL{security.AllPrincipals: security.AllLabels})
 	}
-	return security.NewFileACLAuthorizer(file)
+	return vsecurity.NewFileACLAuthorizer(file)
 }
 
 func main() {

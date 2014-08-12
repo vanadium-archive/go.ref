@@ -8,9 +8,11 @@ import (
 	"fmt"
 	"sync"
 
+	vsecurity "veyron/security"
 	"veyron/services/wsprd/ipc/stream"
 	"veyron/services/wsprd/lib"
 	"veyron/services/wsprd/signature"
+
 	"veyron2"
 	"veyron2/ipc"
 	"veyron2/security"
@@ -166,7 +168,7 @@ func (s *Server) Serve(name string, sig signature.JSONServiceSignature) (string,
 	}
 
 	if s.dispatcher == nil {
-		s.dispatcher = newDispatcher(invoker, security.NewACLAuthorizer(
+		s.dispatcher = newDispatcher(invoker, vsecurity.NewACLAuthorizer(
 			security.ACL{security.AllPrincipals: security.AllLabels},
 		))
 	}

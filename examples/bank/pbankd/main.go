@@ -21,6 +21,7 @@ import (
 	"veyron/examples/bank"
 	"veyron/examples/bank/schema"
 	"veyron/lib/signals"
+	vsecurity "veyron/security"
 	"veyron/security/caveat"
 	idutil "veyron/services/identity/util"
 
@@ -432,7 +433,7 @@ func main() {
 	bankAccountServer := bank.NewServerBankAccount(pbankd)
 
 	// Setup bank and account authorizers.
-	bankAuth := security.NewACLAuthorizer(security.ACL{security.AllPrincipals: security.LabelSet(security.ReadLabel | security.WriteLabel)})
+	bankAuth := vsecurity.NewACLAuthorizer(security.ACL{security.AllPrincipals: security.LabelSet(security.ReadLabel | security.WriteLabel)})
 	bankAccountAuth := AccountAuthorizer(runtime.Identity().PublicID().Names()[0] + SUFFIX_REGEXP)
 
 	dispatcher := newBankDispatcher(bankServer, bankAccountServer, bankAuth, bankAccountAuth)

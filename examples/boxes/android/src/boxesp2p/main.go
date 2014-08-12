@@ -69,6 +69,7 @@ import (
 	"veyron/examples/boxes"
 	inaming "veyron/runtimes/google/naming"
 	vsync "veyron/runtimes/google/vsync"
+	vsecurity "veyron/security"
 	sstore "veyron/services/store/server"
 
 	"veyron2"
@@ -255,7 +256,7 @@ func (gs *goState) monitorStore() {
 }
 
 func (gs *goState) registerAsPeer() {
-	auth := security.NewACLAuthorizer(security.ACL{security.AllPrincipals: security.LabelSet(security.AdminLabel)})
+	auth := vsecurity.NewACLAuthorizer(security.ACL{security.AllPrincipals: security.LabelSet(security.AdminLabel)})
 	gs.disp.drawAuth = auth
 	gs.disp.drawServer = ipc.ReflectInvoker(boxes.NewServerDrawInterface(gs))
 	endPt, err := gs.ipc.Listen("tcp", gs.myIPAddr+drawServicePort)
@@ -358,7 +359,7 @@ func initStoreService() {
 	if err != nil {
 		panic(fmt.Errorf("LoadACL failed:%v", err))
 	}
-	auth := security.NewACLAuthorizer(acl)
+	auth := vsecurity.NewACLAuthorizer(acl)
 	gs.disp.storeDispatcher = sstore.NewStoreDispatcher(store, auth)
 
 	// Create an endpoint and start listening
