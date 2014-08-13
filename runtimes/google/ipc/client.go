@@ -391,12 +391,12 @@ func (fc *flowClient) finish(resultptrs ...interface{}) verror.E {
 		}
 	}
 	if fc.response.Error != nil {
-		if verror.Is(fc.response.Error, verror.NotAuthorized) {
+		if verror.Is(fc.response.Error, verror.NotAuthorized) && fc.dischargeCache != nil {
 			// In case the error was caused by a bad discharge, we do not want to get stuck
 			// with retrying again and again with this discharge. As there is no direct way
 			// to detect it, we conservatively flush all discharges we used from the cache.
 			// TODO(ataly,andreser): add verror.BadDischarge and handle it explicitly?
-			vlog.VI(3).Infof("Discarding %d discharges as RPC failed with %v", len(fc.discharges), fc.response.Error)
+			vlog.VI(3).Infof("Discarging %d discharges as RPC failed with %v", len(fc.discharges), fc.response.Error)
 			fc.dischargeCache.Invalidate(fc.discharges...)
 		}
 		return fc.close(verror.ConvertWithDefault(verror.Internal, fc.response.Error))
