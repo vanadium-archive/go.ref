@@ -547,6 +547,11 @@ func runJsServerTestCase(t *testing.T, test jsServerTestCase) {
 		t.Errorf("failed to start call: %v", err)
 	}
 
+	typedNames := rt.controller.rt.Identity().PublicID().Names()
+	names := []interface{}{}
+	for _, n := range typedNames {
+		names = append(names, n)
+	}
 	expectedWebsocketMessage := []response{
 		response{
 			Type: lib.ResponseServerRequest,
@@ -557,6 +562,9 @@ func runJsServerTestCase(t *testing.T, test jsServerTestCase) {
 				"Context": map[string]interface{}{
 					"Name":   "adder",
 					"Suffix": "adder",
+					"RemoteID": map[string]interface{}{
+						"Names": names,
+					},
 				},
 			},
 		},
