@@ -28,7 +28,7 @@ main() {
 
   # Start the mounttable daemon.
   local -r MT_PORT=$("${VEYRON_BIN}/findunusedport")
-  "${VEYRON_BIN}/mounttabled" --address=":${MT_PORT}" &
+  "${VEYRON_BIN}/mounttabled" --address="127.0.0.1:${MT_PORT}" &
 
   # Wait for mounttabled to start up.
   sleep 1
@@ -37,8 +37,8 @@ main() {
   export NAMESPACE_ROOT="/127.0.0.1:${MT_PORT}"
 
   # Start the store daemon.
-  local -r viewer_port=$("${VEYRON_BIN}/findunusedport")
-  "${VEYRON_BIN}/stored" --db="${DB_DIR}" --viewerPort="${viewer_port}" &
+  local -r VIEWER_PORT=$("${VEYRON_BIN}/findunusedport")
+  "${VEYRON_BIN}/stored" --address=127.0.0.1:0 --db="${DB_DIR}" --viewerPort="${VIEWER_PORT}" &
 
   # Wait for stored to start up.
   sleep 1
@@ -47,11 +47,11 @@ main() {
   "${VEYRON_BIN}/mdb_init" --load-all
 
   if [[ -n "${VIEWER_PORT_FILE}" ]]; then
-    echo "${viewer_port}" > "${VIEWER_PORT_FILE}"
+    echo "${VIEWER_PORT}" > "${VIEWER_PORT_FILE}"
   fi
 
   echo
-  echo "Visit http://localhost:${viewer_port} to browse the store."
+  echo "Visit http://localhost:${VIEWER_PORT} to browse the store."
   echo "Hit Ctrl-C to kill all running services."
   wait
 }

@@ -28,7 +28,7 @@ main() {
 
   # Start the mounttable daemon.
   local -r MT_PORT=$("${VEYRON_BIN}/findunusedport")
-  "${VEYRON_BIN}/mounttabled" --address=":${MT_PORT}" &
+  "${VEYRON_BIN}/mounttabled" --address="127.0.0.1:${MT_PORT}" &
 
   # Wait for mounttabled to start up.
   sleep 1
@@ -38,7 +38,7 @@ main() {
 
   # Start the store daemon.
   local -r VIEWER_PORT=$("${VEYRON_BIN}/findunusedport")
-  "${VEYRON_BIN}/stored" --db="${DB_DIR}" --viewerPort="${VIEWER_PORT}" &
+  "${VEYRON_BIN}/stored" --address=127.0.0.1:0 --db="${DB_DIR}" --viewerPort="${VIEWER_PORT}" &
 
   # Wait for stored to start up.
   sleep 1
@@ -56,4 +56,4 @@ main() {
   wait
 }
 
-main() "$@"
+main "$@"
