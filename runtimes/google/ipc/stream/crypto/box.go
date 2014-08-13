@@ -15,6 +15,7 @@ type boxcrypter struct {
 	conn                  net.Conn
 	alloc                 *iobuf.Allocator
 	sharedKey             [32]byte
+	sortedPubkeys         []byte
 	writeNonce, readNonce uint64
 }
 
@@ -48,8 +49,10 @@ func NewBoxCrypter(conn net.Conn, pool *iobuf.Pool) (Crypter, error) {
 	// be using 1, 3, 5...
 	if bytes.Compare(pk[:], theirPK[:]) < 0 {
 		ret.writeNonce, ret.readNonce = 0, 1
+		ret.sortedPubkeys = append(pk[:], theirPK[:]...)
 	} else {
 		ret.writeNonce, ret.readNonce = 1, 0
+		ret.sortedPubkeys = append(theirPK[:], pk[:]...)
 	}
 	return ret, nil
 }
@@ -80,6 +83,10 @@ func (c *boxcrypter) Decrypt(src *iobuf.Slice) (*iobuf.Slice, error) {
 		return nil, fmt.Errorf("message authentication failed")
 	}
 	return ret, nil
+}
+
+func (c *boxcrypter) ChannelBinding() []byte {
+	return c.sortedPubkeys
 }
 
 func (c *boxcrypter) String() string {

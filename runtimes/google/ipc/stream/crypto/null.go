@@ -7,6 +7,7 @@ func NewNullCrypter() Crypter { return null{} }
 
 type null struct{}
 
-func (c null) Encrypt(src *iobuf.Slice) (*iobuf.Slice, error) { return src, nil }
-func (c null) Decrypt(src *iobuf.Slice) (*iobuf.Slice, error) { return src, nil }
-func (c null) String() string                                 { return "Null" }
+func (null) Encrypt(src *iobuf.Slice) (*iobuf.Slice, error) { return src, nil }
+func (null) Decrypt(src *iobuf.Slice) (*iobuf.Slice, error) { return src, nil }
+func (null) String() string                                 { return "Null" }
+func (null) ChannelBinding() []byte                         { return nil }
