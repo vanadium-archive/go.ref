@@ -433,10 +433,13 @@ func (d *dag) hasNode(oid storage.ID, version storage.Version) bool {
 // by blessing an existing version), no need to update the grafting structure.
 // Otherwise a remote change (from the Sync protocol) updates the graft.
 //
-// TODO(rdaoud): add a check to avoid the creation of cycles in the DAG.
 // TODO(rdaoud): recompute the levels of reachable child-nodes if the new
 // parent's level is greater or equal to the node's current level.
 func (d *dag) addParent(oid storage.ID, version, parent storage.Version, remote bool) error {
+	if version == parent {
+		return fmt.Errorf("addParent: object %v: node %d cannot be its own parent", oid, version)
+	}
+
 	node, err := d.getNode(oid, version)
 	if err != nil {
 		return err
@@ -459,6 +462,19 @@ func (d *dag) addParent(oid storage.ID, version, parent storage.Version, remote 
 
 	// If the parent is not yet linked (local or remote) add it.
 	if !found {
+		// Make sure that adding the link does not create a cycle in the DAG.
+		// This is done by verifying that the node is not an ancestor of the
+		// parent that it is being linked to.
+		err = d.ancestorIter(oid, pnode.Parents, func(oid storage.ID, v storage.Version, nd *dagNode) error {
+			if v == version {
+				return fmt.Errorf("addParent: cycle on object %v: node %d is an ancestor of parent node %d",
+					oid, version, parent)
+			}
+			return nil
+		})
+		if err != nil {
+			return err
+		}
 		node.Parents = append(node.Parents, parent)
 		err = d.setNode(oid, version, node)
 		if err != nil {

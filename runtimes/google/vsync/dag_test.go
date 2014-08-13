@@ -344,7 +344,7 @@ func TestAddParent(t *testing.T) {
 	}
 
 	version := storage.Version(7)
-	oid, err := strToObjID("789")
+	oid, err := strToObjID("12345")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -353,18 +353,26 @@ func TestAddParent(t *testing.T) {
 		t.Errorf("addParent() did not fail for an unknown object %d:%d in DAG file %s", oid, version, dagfile)
 	}
 
+	if err = dagReplayCommands(dag, "local-init-00.log.sync"); err != nil {
+		t.Fatal(err)
+	}
+
 	node := &dagNode{Level: 15, Logrec: "logrec-22"}
 	if err = dag.setNode(oid, version, node); err != nil {
 		t.Fatalf("Cannot set object %d:%d (%v) in DAG file %s", oid, version, node, dagfile)
 	}
 
-	for _, parent := range []storage.Version{1, 2, 3} {
+	if err = dag.addParent(oid, version, version, true); err == nil {
+		t.Errorf("addParent() did not fail on a self-parent for object %d:%d in DAG file %s", oid, version, dagfile)
+	}
+
+	for _, parent := range []storage.Version{4, 5, 6} {
 		if err = dag.addParent(oid, version, parent, true); err == nil {
 			t.Errorf("addParent() did not reject invalid parent %d for object %d:%d in DAG file %s",
 				parent, oid, version, dagfile)
 		}
 
-		pnode := &dagNode{Level: 11, Logrec: fmt.Sprint("logrec-%d", parent)}
+		pnode := &dagNode{Level: 11, Logrec: fmt.Sprint("logrec-%d", parent), Parents: []storage.Version{3}}
 		if err = dag.setNode(oid, parent, pnode); err != nil {
 			t.Fatalf("Cannot set parent object %d:%d (%v) in DAG file %s", oid, parent, pnode, dagfile)
 		}
@@ -383,10 +391,18 @@ func TestAddParent(t *testing.T) {
 		t.Errorf("Cannot find stored object %d:%d in DAG file %s", oid, version, dagfile)
 	}
 
-	expParents := []storage.Version{1, 2, 3}
+	expParents := []storage.Version{4, 5, 6}
 	if !reflect.DeepEqual(node2.Parents, expParents) {
 		t.Errorf("invalid parents for object %d:%d in DAG file %s: %v instead of %v",
 			oid, version, dagfile, node2.Parents, expParents)
+	}
+
+	// Creating cycles should fail.
+	for v := storage.Version(1); v < version; v++ {
+		if err = dag.addParent(oid, v, version, false); err == nil {
+			t.Errorf("addParent() failed to reject a cycle for object %d: from ancestor %d to node %d in DAG file %s",
+				oid, v, version, dagfile)
+		}
 	}
 
 	dag.close()
