@@ -24,6 +24,8 @@ func (TLSClientSessionCache) IPCStreamVCOpt() {}
 // handshaker was initiated by a client.
 func NewTLSClient(handshaker net.Conn, sessionCache tls.ClientSessionCache, pool *iobuf.Pool) (Crypter, error) {
 	var config tls.Config
+	// TLS + resumption + channel bindings is broken: <https://secure-resumption.com/#channelbindings>.
+	config.SessionTicketsDisabled = true
 	config.InsecureSkipVerify = true
 	config.ClientSessionCache = sessionCache
 	return newTLSCrypter(handshaker, &config, pool, false)
@@ -192,15 +194,20 @@ func ServerTLSConfig() *tls.Config {
 		panic(err)
 	}
 	return &tls.Config{
-		Certificates:       []tls.Certificate{c},
-		InsecureSkipVerify: true,
-		ClientAuth:         tls.NoClientCert,
+		// TLS + resumption + channel bindings is broken: <https://secure-resumption.com/#channelbindings>.
+		SessionTicketsDisabled: true,
+		Certificates:           []tls.Certificate{c},
+		InsecureSkipVerify:     true,
 		// RC4_128_SHA is 4-5X faster compared to the other cipher suites
 		// and is what google.com seems to use.
 		// Allowing ECDHE_RSA for the key exchange since some older binaries
 		// have an RSA certificate hardcoded in them.
 		CipherSuites: []uint16{tls.TLS_ECDHE_ECDSA_WITH_RC4_128_SHA},
 	}
+}
+
+func (c *tlsCrypter) ChannelBinding() []byte {
+	return c.tls.ConnectionState().TLSUnique
 }
 
 // TODO(ashankar): Get rid of TLS certificates completely after implementing an

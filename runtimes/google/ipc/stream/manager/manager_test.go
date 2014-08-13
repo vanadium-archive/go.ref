@@ -293,6 +293,7 @@ func TestShutdownEndpoint(t *testing.T) {
 	}
 }
 
+/* TLS + resumption + channel bindings is broken: <https://secure-resumption.com/#channelbindings>.
 func TestSessionTicketCache(t *testing.T) {
 	server := InternalNew(naming.FixedRoutingID(0x55555555))
 	_, ep, err := server.Listen("tcp", "localhost:0", vc.FixedLocalID(newID("server")))
@@ -309,6 +310,7 @@ func TestSessionTicketCache(t *testing.T) {
 		t.Fatalf("SessionTicket from TLS handshake not cached")
 	}
 }
+*/
 
 func TestMultipleVCs(t *testing.T) {
 	server := InternalNew(naming.FixedRoutingID(0x55555555))

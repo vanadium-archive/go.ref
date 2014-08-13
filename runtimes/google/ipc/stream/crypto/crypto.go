@@ -25,5 +25,11 @@ type Decrypter interface {
 type Crypter interface {
 	Encrypter
 	Decrypter
+	// ChannelBinding Returns a byte slice that is unique for the the
+	// particular crypter (and the parties between which it is operationg).
+	// Having both parties assert out of the band that they are indeed
+	// participating in a connection with that channel binding value is
+	// sufficient to authenticate the data received through the crypter.
+	ChannelBinding() []byte
 	String() string
 }
