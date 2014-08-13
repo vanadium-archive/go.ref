@@ -17,7 +17,6 @@ import (
 	"veyron2/ipc"
 	"veyron2/rt"
 	"veyron2/services/watch"
-	"veyron2/storage"
 	"veyron2/vlog"
 )
 
@@ -185,13 +184,8 @@ func (w *syncWatcher) processChanges(changes watch.ChangeBatch, syncTime int64) 
 			time = w.curTxSyncTime
 		}
 		val := &LogValue{Mutation: *mu, SyncTime: time, Delete: ch.State == watch.DoesNotExist, Continued: ch.Continued}
-		var parents []storage.Version
-		if mu.PriorVersion != storage.NoVersion {
-			parents = []storage.Version{mu.PriorVersion}
-		}
-
 		vlog.VI(2).Infof("processChanges:: processing record %v, Tx %v", val, w.curTx)
-		if err := w.syncd.log.processWatchRecord(mu.ID, mu.Version, parents, val, w.curTx); err != nil {
+		if err := w.syncd.log.processWatchRecord(mu.ID, mu.Version, mu.PriorVersion, val, w.curTx); err != nil {
 			return fmt.Errorf("cannot process mutation: %#v: %s", ch, err)
 		}
 

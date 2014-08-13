@@ -1,0 +1,7 @@
+# Update one object and delete another object remotely.
+# The format is: <cmd>|<objid>|<version>|<parent1>|<parent2>|<logrec>|<continued>|<deleted>
+
+addr|123|4|3||VeyronPhone:1:0|false|false
+addr|123|5|4||VeyronPhone:1:1|false|false
+addr|123|6|5||VeyronPhone:1:2|false|true
+addr|456|2|1||VeyronPhone:1:3|false|false
