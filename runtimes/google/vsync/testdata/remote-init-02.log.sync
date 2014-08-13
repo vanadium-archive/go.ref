@@ -1,17 +1,17 @@
-# Create an object remotely and update it twice (linked-list).
+# Create objects and transactions remotely.
 # The format is: <cmd>|<objid>|<version>|<parent1>|<parent2>|<logrec>|<continued>|<deleted>
 
-addr|123|0|||VeyronPhone:1:0|false|false
+addr|123|1|||VeyronPhone:1:0|false|false
 
-addr|123|1|0||VeyronPhone:1:1|true|false
-addr|456|0|||VeyronPhone:1:2|true|false
-addr|789|0|||VeyronPhone:1:3|false|false
+addr|123|2|1||VeyronPhone:1:1|true|false
+addr|456|1|||VeyronPhone:1:2|true|false
+addr|789|1|||VeyronPhone:1:3|false|false
 
-addr|789|1|0||VeyronPhone:1:4|false|false
+addr|789|2|1||VeyronPhone:1:4|false|false
 
-addr|789|2|0||VeyronTab:1:0|false|false
+addr|789|3|1||VeyronTab:1:0|false|false
 
-addr|789|3|1|2|VeyronPhone:2:0|false|false
+addr|789|4|2|3|VeyronPhone:2:0|false|false
 
-addr|123|2|1||VeyronPhone:2:1|true|false
-addr|456|1|0||VeyronPhone:2:2|false|false
+addr|123|3|2||VeyronPhone:2:1|true|false
+addr|456|2|1||VeyronPhone:2:2|false|false

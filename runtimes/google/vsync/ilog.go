@@ -386,19 +386,42 @@ func (l *iLog) createLocalGeneration() (GenID, error) {
 }
 
 // processWatchRecord processes new object versions obtained from the local store.
-func (l *iLog) processWatchRecord(objID storage.ID, vers storage.Version, par []storage.Version, val *LogValue, txID TxID) error {
+func (l *iLog) processWatchRecord(objID storage.ID, vers, parent storage.Version, val *LogValue, txID TxID) error {
 	if l.db == nil {
 		return errInvalidLog
 	}
 
 	vlog.VI(2).Infof("processWatchRecord:: adding object %v %v", objID, vers)
-	// Check if the object version already exists in the DAG. if so return.
-	if l.s.dag.hasNode(objID, vers) {
-		return nil
+
+	if vers != storage.NoVersion {
+		// Check if the object's vers already exists in the DAG.
+		if l.s.dag.hasNode(objID, vers) {
+			return nil
+		}
+	} else {
+		// Check if the parent version has a deleted
+		// descendant already in the DAG.
+		if l.s.dag.hasDeletedDescendant(objID, parent) {
+			return nil
+		}
+	}
+
+	var pars []storage.Version
+	if parent != storage.NoVersion {
+		pars = []storage.Version{parent}
+	}
+
+	// If the current version is a deletion, generate a new version number.
+	if val.Delete {
+		if vers != storage.NoVersion {
+			return fmt.Errorf("deleted vers is %v", vers)
+		}
+		vers = storage.NewVersion()
+		val.Mutation.Version = vers
 	}
 
 	// Create a log record from Watch's Change Record.
-	rec, err := l.createLocalLogRec(objID, vers, par, val)
+	rec, err := l.createLocalLogRec(objID, vers, pars, val)
 	if err != nil {
 		return err
 	}

@@ -1214,11 +1214,11 @@ func TestDAGCompact(t *testing.T) {
 // TestRemoteLinkedNoConflictSameHead tests sync of remote updates that contain
 // linked nodes (conflict resolution by selecting an existing version) on top of
 // a local initial state without conflict.  An object is created locally and
-// updated twice (v0 -> v1 -> v2).  Another device has learned about v0, created
-// (v0 -> v3), then learned about (v0 -> v1) and resolved that conflict by selecting
-// v1 over v3.  Now it sends that new info (v3 and the v1/v3 link) back to the
-// original (local) device.  Instead of a v2/v3 conflict, the device sees that
-// v1 was chosen over v3 and resolves it as a no-conflict case.
+// updated twice (v1 -> v2 -> v3).  Another device has learned about v1, created
+// (v1 -> v4), then learned about (v1 -> v2) and resolved that conflict by selecting
+// v2 over v4.  Now it sends that new info (v4 and the v2/v4 link) back to the
+// original (local) device.  Instead of a v3/v4 conflict, the device sees that
+// v2 was chosen over v4 and resolves it as a no-conflict case.
 func TestRemoteLinkedNoConflictSameHead(t *testing.T) {
 	dagfile := dagFilename()
 	defer os.Remove(dagfile)
@@ -1228,27 +1228,27 @@ func TestRemoteLinkedNoConflictSameHead(t *testing.T) {
 		t.Fatalf("Cannot open new DAG file %s", dagfile)
 	}
 
-	if err = dagReplayCommands(dag, "local-init-00.sync"); err != nil {
+	if err = dagReplayCommands(dag, "local-init-00.log.sync"); err != nil {
 		t.Fatal(err)
 	}
 	if err = dagReplayCommands(dag, "remote-noconf-link-00.log.sync"); err != nil {
 		t.Fatal(err)
 	}
 
-	// The head must not have moved (i.e. still at v2) and the parent map
+	// The head must not have moved (i.e. still at v3) and the parent map
 	// shows the newly grafted DAG fragment on top of the prior DAG.
 	oid, err := strToObjID("12345")
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	if head, e := dag.getHead(oid); e != nil || head != 2 {
+	if head, e := dag.getHead(oid); e != nil || head != 3 {
 		t.Errorf("Object %d has wrong head in DAG file %s: %d", oid, dagfile, head)
 	}
 
 	pmap := dag.getParentMap(oid)
 
-	exp := map[storage.Version][]storage.Version{0: nil, 1: {0, 3}, 2: {1}, 3: {0}}
+	exp := map[storage.Version][]storage.Version{1: nil, 2: {1, 4}, 3: {2}, 4: {1}}
 
 	if !reflect.DeepEqual(pmap, exp) {
 		t.Errorf("Invalid object %d parent map in DAG file %s: (%v) instead of (%v)", oid, dagfile, pmap, exp)
@@ -1257,19 +1257,19 @@ func TestRemoteLinkedNoConflictSameHead(t *testing.T) {
 	// Verify the grafting of remote nodes.
 	newHeads, grafts := dag.getGraftNodes(oid)
 
-	expNewHeads := map[storage.Version]struct{}{2: struct{}{}}
+	expNewHeads := map[storage.Version]struct{}{3: struct{}{}}
 	if !reflect.DeepEqual(newHeads, expNewHeads) {
 		t.Errorf("Object %d has invalid newHeads in DAG file %s: (%v) instead of (%v)", oid, dagfile, newHeads, expNewHeads)
 	}
 
-	expgrafts := map[storage.Version]uint64{0: 0, 3: 1}
+	expgrafts := map[storage.Version]uint64{1: 0, 4: 1}
 	if !reflect.DeepEqual(grafts, expgrafts) {
 		t.Errorf("Invalid object %d graft in DAG file %s: (%v) instead of (%v)", oid, dagfile, grafts, expgrafts)
 	}
 
 	// There should be no conflict.
 	isConflict, newHead, oldHead, ancestor, errConflict := dag.hasConflict(oid)
-	if !(!isConflict && newHead == 2 && oldHead == 2 && ancestor == 0 && errConflict == nil) {
+	if !(!isConflict && newHead == 3 && oldHead == 3 && ancestor == storage.NoVersion && errConflict == nil) {
 		t.Errorf("Object %d wrong conflict info: flag %t, newHead %d, oldHead %d, ancestor %d, err %v",
 			oid, isConflict, newHead, oldHead, ancestor, errConflict)
 	}
@@ -1290,10 +1290,10 @@ func TestRemoteLinkedNoConflictSameHead(t *testing.T) {
 // TestRemoteLinkedConflict tests sync of remote updates that contain linked
 // nodes (conflict resolution by selecting an existing version) on top of a local
 // initial state triggering a local conflict.  An object is created locally and
-// updated twice (v0 -> v1 -> v2).  Another device has along the way learned about v0,
-// created (v0 -> v3), then learned about (v0 -> v1) and resolved that conflict by
-// selecting v3 over v1.  Now it sends that new info (v3 and the v3/v1 link) back
-// to the original (local) device.  The device sees a v2/v3 conflict.
+// updated twice (v1 -> v2 -> v3).  Another device has along the way learned about v1,
+// created (v1 -> v4), then learned about (v1 -> v2) and resolved that conflict by
+// selecting v4 over v2.  Now it sends that new info (v4 and the v4/v2 link) back
+// to the original (local) device.  The device sees a v3/v4 conflict.
 func TestRemoteLinkedConflict(t *testing.T) {
 	dagfile := dagFilename()
 	defer os.Remove(dagfile)
@@ -1303,7 +1303,7 @@ func TestRemoteLinkedConflict(t *testing.T) {
 		t.Fatalf("Cannot open new DAG file %s", dagfile)
 	}
 
-	if err = dagReplayCommands(dag, "local-init-00.sync"); err != nil {
+	if err = dagReplayCommands(dag, "local-init-00.log.sync"); err != nil {
 		t.Fatal(err)
 	}
 	if err = dagReplayCommands(dag, "remote-conf-link.log.sync"); err != nil {
@@ -1317,13 +1317,13 @@ func TestRemoteLinkedConflict(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if head, e := dag.getHead(oid); e != nil || head != 2 {
+	if head, e := dag.getHead(oid); e != nil || head != 3 {
 		t.Errorf("Object %d has wrong head in DAG file %s: %d", oid, dagfile, head)
 	}
 
 	pmap := dag.getParentMap(oid)
 
-	exp := map[storage.Version][]storage.Version{0: nil, 1: {0}, 2: {1}, 3: {0, 1}}
+	exp := map[storage.Version][]storage.Version{1: nil, 2: {1}, 3: {2}, 4: {1, 2}}
 
 	if !reflect.DeepEqual(pmap, exp) {
 		t.Errorf("Invalid object %d parent map in DAG file %s: (%v) instead of (%v)", oid, dagfile, pmap, exp)
@@ -1332,19 +1332,19 @@ func TestRemoteLinkedConflict(t *testing.T) {
 	// Verify the grafting of remote nodes.
 	newHeads, grafts := dag.getGraftNodes(oid)
 
-	expNewHeads := map[storage.Version]struct{}{2: struct{}{}, 3: struct{}{}}
+	expNewHeads := map[storage.Version]struct{}{3: struct{}{}, 4: struct{}{}}
 	if !reflect.DeepEqual(newHeads, expNewHeads) {
 		t.Errorf("Object %d has invalid newHeads in DAG file %s: (%v) instead of (%v)", oid, dagfile, newHeads, expNewHeads)
 	}
 
-	expgrafts := map[storage.Version]uint64{0: 0, 1: 1}
+	expgrafts := map[storage.Version]uint64{1: 0, 2: 1}
 	if !reflect.DeepEqual(grafts, expgrafts) {
 		t.Errorf("Invalid object %d graft in DAG file %s: (%v) instead of (%v)", oid, dagfile, grafts, expgrafts)
 	}
 
-	// There should be no conflict.
+	// There should be a conflict.
 	isConflict, newHead, oldHead, ancestor, errConflict := dag.hasConflict(oid)
-	if !(isConflict && newHead == 3 && oldHead == 2 && ancestor == 1 && errConflict == nil) {
+	if !(isConflict && newHead == 4 && oldHead == 3 && ancestor == 2 && errConflict == nil) {
 		t.Errorf("Object %d wrong conflict info: flag %t, newHead %d, oldHead %d, ancestor %d, err %v",
 			oid, isConflict, newHead, oldHead, ancestor, errConflict)
 	}
@@ -1365,11 +1365,11 @@ func TestRemoteLinkedConflict(t *testing.T) {
 // TestRemoteLinkedNoConflictNewHead tests sync of remote updates that contain
 // linked nodes (conflict resolution by selecting an existing version) on top of
 // a local initial state without conflict, but moves the head node to a new one.
-// An object is created locally and updated twice (v0 -> v1 -> v2).  Another device
-// has along the way learned about v0, created (v0 -> v3), then learned about
-// (v0 -> v1 -> v2) and resolved that conflict by selecting v3 over v2.  Now it
-// sends that new info (v3 and the v3/v2 link) back to the original (local) device.
-// The device sees that the new head v3 is "derived" from v2 thus no conflict.
+// An object is created locally and updated twice (v1 -> v2 -> v3).  Another device
+// has along the way learned about v1, created (v1 -> v4), then learned about
+// (v1 -> v2 -> v3) and resolved that conflict by selecting v4 over v3.  Now it
+// sends that new info (v4 and the v4/v3 link) back to the original (local) device.
+// The device sees that the new head v4 is "derived" from v3 thus no conflict.
 func TestRemoteLinkedConflictNewHead(t *testing.T) {
 	dagfile := dagFilename()
 	defer os.Remove(dagfile)
@@ -1379,7 +1379,7 @@ func TestRemoteLinkedConflictNewHead(t *testing.T) {
 		t.Fatalf("Cannot open new DAG file %s", dagfile)
 	}
 
-	if err = dagReplayCommands(dag, "local-init-00.sync"); err != nil {
+	if err = dagReplayCommands(dag, "local-init-00.log.sync"); err != nil {
 		t.Fatal(err)
 	}
 	if err = dagReplayCommands(dag, "remote-noconf-link-01.log.sync"); err != nil {
@@ -1393,13 +1393,13 @@ func TestRemoteLinkedConflictNewHead(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if head, e := dag.getHead(oid); e != nil || head != 2 {
+	if head, e := dag.getHead(oid); e != nil || head != 3 {
 		t.Errorf("Object %d has wrong head in DAG file %s: %d", oid, dagfile, head)
 	}
 
 	pmap := dag.getParentMap(oid)
 
-	exp := map[storage.Version][]storage.Version{0: nil, 1: {0}, 2: {1}, 3: {0, 2}}
+	exp := map[storage.Version][]storage.Version{1: nil, 2: {1}, 3: {2}, 4: {1, 3}}
 
 	if !reflect.DeepEqual(pmap, exp) {
 		t.Errorf("Invalid object %d parent map in DAG file %s: (%v) instead of (%v)", oid, dagfile, pmap, exp)
@@ -1408,19 +1408,19 @@ func TestRemoteLinkedConflictNewHead(t *testing.T) {
 	// Verify the grafting of remote nodes.
 	newHeads, grafts := dag.getGraftNodes(oid)
 
-	expNewHeads := map[storage.Version]struct{}{3: struct{}{}}
+	expNewHeads := map[storage.Version]struct{}{4: struct{}{}}
 	if !reflect.DeepEqual(newHeads, expNewHeads) {
 		t.Errorf("Object %d has invalid newHeads in DAG file %s: (%v) instead of (%v)", oid, dagfile, newHeads, expNewHeads)
 	}
 
-	expgrafts := map[storage.Version]uint64{0: 0, 2: 2}
+	expgrafts := map[storage.Version]uint64{1: 0, 3: 2}
 	if !reflect.DeepEqual(grafts, expgrafts) {
 		t.Errorf("Invalid object %d graft in DAG file %s: (%v) instead of (%v)", oid, dagfile, grafts, expgrafts)
 	}
 
 	// There should be no conflict.
 	isConflict, newHead, oldHead, ancestor, errConflict := dag.hasConflict(oid)
-	if !(!isConflict && newHead == 3 && oldHead == 2 && ancestor == 0 && errConflict == nil) {
+	if !(!isConflict && newHead == 4 && oldHead == 3 && ancestor == storage.NoVersion && errConflict == nil) {
 		t.Errorf("Object %d wrong conflict info: flag %t, newHead %d, oldHead %d, ancestor %d, err %v",
 			oid, isConflict, newHead, oldHead, ancestor, errConflict)
 	}
@@ -1442,12 +1442,12 @@ func TestRemoteLinkedConflictNewHead(t *testing.T) {
 // contain linked nodes (conflict resolution by selecting an existing version)
 // on top of a local initial state without conflict, but moves the head node
 // to a new one that overtook the linked node.
-// An object is created locally and updated twice (v0 -> v1 -> v2).  Another
-// device has along the way learned about v0, created (v0 -> v3), then learned
-// about (v0 -> v1 -> v2) and resolved that conflict by selecting v2 over v3.
-// Then it creates a new update v4 from v2 (v2 -> v4).  Now it sends that new
-// info (v3, the v2/v3 link, and v4) back to the original (local) device.
-// The device sees that the new head v4 is "derived" from v2 thus no conflict.
+// An object is created locally and updated twice (v1 -> v2 -> v3).  Another
+// device has along the way learned about v1, created (v1 -> v4), then learned
+// about (v1 -> v2 -> v3) and resolved that conflict by selecting v3 over v4.
+// Then it creates a new update v5 from v3 (v3 -> v5).  Now it sends that new
+// info (v4, the v3/v4 link, and v5) back to the original (local) device.
+// The device sees that the new head v5 is "derived" from v3 thus no conflict.
 func TestRemoteLinkedConflictNewHeadOvertake(t *testing.T) {
 	dagfile := dagFilename()
 	defer os.Remove(dagfile)
@@ -1457,7 +1457,7 @@ func TestRemoteLinkedConflictNewHeadOvertake(t *testing.T) {
 		t.Fatalf("Cannot open new DAG file %s", dagfile)
 	}
 
-	if err = dagReplayCommands(dag, "local-init-00.sync"); err != nil {
+	if err = dagReplayCommands(dag, "local-init-00.log.sync"); err != nil {
 		t.Fatal(err)
 	}
 	if err = dagReplayCommands(dag, "remote-noconf-link-02.log.sync"); err != nil {
@@ -1471,13 +1471,13 @@ func TestRemoteLinkedConflictNewHeadOvertake(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if head, e := dag.getHead(oid); e != nil || head != 2 {
+	if head, e := dag.getHead(oid); e != nil || head != 3 {
 		t.Errorf("Object %d has wrong head in DAG file %s: %d", oid, dagfile, head)
 	}
 
 	pmap := dag.getParentMap(oid)
 
-	exp := map[storage.Version][]storage.Version{0: nil, 1: {0}, 2: {1, 3}, 3: {0}, 4: {2}}
+	exp := map[storage.Version][]storage.Version{1: nil, 2: {1}, 3: {2, 4}, 4: {1}, 5: {3}}
 
 	if !reflect.DeepEqual(pmap, exp) {
 		t.Errorf("Invalid object %d parent map in DAG file %s: (%v) instead of (%v)", oid, dagfile, pmap, exp)
@@ -1486,19 +1486,19 @@ func TestRemoteLinkedConflictNewHeadOvertake(t *testing.T) {
 	// Verify the grafting of remote nodes.
 	newHeads, grafts := dag.getGraftNodes(oid)
 
-	expNewHeads := map[storage.Version]struct{}{4: struct{}{}}
+	expNewHeads := map[storage.Version]struct{}{5: struct{}{}}
 	if !reflect.DeepEqual(newHeads, expNewHeads) {
 		t.Errorf("Object %d has invalid newHeads in DAG file %s: (%v) instead of (%v)", oid, dagfile, newHeads, expNewHeads)
 	}
 
-	expgrafts := map[storage.Version]uint64{0: 0, 2: 2, 3: 1}
+	expgrafts := map[storage.Version]uint64{1: 0, 3: 2, 4: 1}
 	if !reflect.DeepEqual(grafts, expgrafts) {
 		t.Errorf("Invalid object %d graft in DAG file %s: (%v) instead of (%v)", oid, dagfile, grafts, expgrafts)
 	}
 
 	// There should be no conflict.
 	isConflict, newHead, oldHead, ancestor, errConflict := dag.hasConflict(oid)
-	if !(!isConflict && newHead == 4 && oldHead == 2 && ancestor == 0 && errConflict == nil) {
+	if !(!isConflict && newHead == 5 && oldHead == 3 && ancestor == storage.NoVersion && errConflict == nil) {
 		t.Errorf("Object %d wrong conflict info: flag %t, newHead %d, oldHead %d, ancestor %d, err %v",
 			oid, isConflict, newHead, oldHead, ancestor, errConflict)
 	}
@@ -1522,7 +1522,7 @@ func TestRemoteLinkedConflictNewHeadOvertake(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if head, e := dag.getHead(oid); e != nil || head != 4 {
+	if head, e := dag.getHead(oid); e != nil || head != 5 {
 		t.Errorf("Object %d has wrong head in DAG file %s: %d", oid, dagfile, head)
 	}
 
@@ -1537,7 +1537,7 @@ func TestRemoteLinkedConflictNewHeadOvertake(t *testing.T) {
 	}
 
 	isConflict, newHead, oldHead, ancestor, errConflict = dag.hasConflict(oid)
-	if !(!isConflict && newHead == 4 && oldHead == 4 && ancestor == 0 && errConflict == nil) {
+	if !(!isConflict && newHead == 5 && oldHead == 5 && ancestor == storage.NoVersion && errConflict == nil) {
 		t.Errorf("Object %d wrong conflict info: flag %t, newHead %d, oldHead %d, ancestor %d, err %v",
 			oid, isConflict, newHead, oldHead, ancestor, errConflict)
 	}

@@ -133,7 +133,7 @@ func TestInvalidLog(t *testing.T) {
 		t.Errorf("CreateLocalGeneration did not fail on a closed log: %v", err)
 	}
 
-	err = log.processWatchRecord(storage.NewID(), 2, []storage.Version{0, 1}, &LogValue{}, NoTxID)
+	err = log.processWatchRecord(storage.NewID(), 2, storage.Version(999), &LogValue{}, NoTxID)
 	if err == nil || err != errInvalidLog {
 		t.Errorf("ProcessWatchRecord did not fail on a closed log: %v", err)
 	}
@@ -774,7 +774,7 @@ func TestCreateGeneration(t *testing.T) {
 }
 
 // TestProcessWatchRecord tests that local updates are correctly handled.
-// Commands are in file testdata/local-init-00.sync.
+// Commands are in file testdata/local-init-00.log.sync.
 func TestProcessWatchRecord(t *testing.T) {
 	logfile := getFileName()
 	defer os.Remove(logfile)
@@ -792,7 +792,7 @@ func TestProcessWatchRecord(t *testing.T) {
 		t.Fatalf("Cannot open new log file %s, err %v", logfile, err)
 	}
 
-	if _, err = logReplayCommands(log, "local-init-00.sync"); err != nil {
+	if _, err = logReplayCommands(log, "local-init-00.log.sync"); err != nil {
 		t.Error(err)
 	}
 
@@ -819,7 +819,7 @@ func TestProcessWatchRecord(t *testing.T) {
 	}
 
 	// Verify DAG state.
-	if head, err := log.s.dag.getHead(objid); err != nil || head != 2 {
+	if head, err := log.s.dag.getHead(objid); err != nil || head != 3 {
 		t.Errorf("Invalid object %d head in DAG %s, err %v", objid, head, err)
 	}
 

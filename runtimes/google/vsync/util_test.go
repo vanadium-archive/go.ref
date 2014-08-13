@@ -8,6 +8,8 @@ import (
 	"time"
 
 	"veyron/services/store/raw"
+
+	"veyron2/storage"
 )
 
 // getFileName generates a filename for a temporary (per unit test) kvdb file.
@@ -92,7 +94,11 @@ func logReplayCommands(log *iLog, syncfile string) (GenVector, error) {
 	for _, cmd := range cmds {
 		switch cmd.cmd {
 		case addLocal:
-			err = log.processWatchRecord(cmd.objID, cmd.version, cmd.parents, &LogValue{Mutation: raw.Mutation{Version: cmd.version}}, NoTxID)
+			parent := storage.NoVersion
+			if cmd.parents != nil {
+				parent = cmd.parents[0]
+			}
+			err = log.processWatchRecord(cmd.objID, cmd.version, parent, &LogValue{Mutation: raw.Mutation{Version: cmd.version}, Delete: cmd.deleted}, NoTxID)
 			if err != nil {
 				return nil, fmt.Errorf("cannot replay local log records %d:%s err %v",
 					cmd.objID, cmd.version, err)
@@ -149,6 +155,7 @@ func createReplayStream(syncfile string) (*dummyStream, error) {
 			Value: LogValue{
 				Mutation:  raw.Mutation{Version: cmd.version},
 				Continued: cmd.continued,
+				Delete:    cmd.deleted,
 			},
 		}
 
@@ -172,6 +179,7 @@ func populateLogAndDAG(s *syncd, rec *LogRec) error {
 	if err != nil {
 		return err
 	}
+
 	if err := s.dag.addNode(rec.ObjID, rec.CurVers, false, rec.Value.Delete, rec.Parents, logKey, NoTxID); err != nil {
 		return err
 	}
