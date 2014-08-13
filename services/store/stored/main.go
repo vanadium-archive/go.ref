@@ -31,10 +31,14 @@ import (
 
 var (
 	mountName string
-	dbName    = flag.String("db", "/var/tmp/veyron_store.db", "Metadata database")
-	// TODO(rthellend): Remove the address flag when the config manager is
-	// working.
-	address    = flag.String("address", ":0", "Address to listen on")
+
+	// TODO(rthellend): Remove the protocol and address flags when the config
+	// manager is working.
+	protocol = flag.String("protocol", "tcp", "protocol to listen on")
+	address  = flag.String("address", ":0", "address to listen on")
+
+	dbName = flag.String("db", "/var/tmp/veyron_store.db",
+		"Metadata database")
 	viewerPort = flag.Int("viewerPort", 5000,
 		"IPV4 port to serve viewer from, or 0 to disable viewer")
 )
@@ -76,7 +80,7 @@ func main() {
 	// Register the services.
 	storeDisp := server.NewStoreDispatcher(storeService, auth)
 	// Create an endpoint and start listening.
-	ep, err := s.Listen("tcp", *address)
+	ep, err := s.Listen(*protocol, *address)
 	if err != nil {
 		log.Fatal("s.Listen() failed: ", err)
 	}

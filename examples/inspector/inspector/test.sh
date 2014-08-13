@@ -19,7 +19,7 @@ main() {
   ./identity generate inspector >"${ID}" || shell_test::fail "line ${LINENO}: failed to generate an identity"
   export VEYRON_IDENTITY="${ID}"
 
-  ./inspectord >ep &
+  ./inspectord --address=127.0.0.1:0 >ep &
   for i in 1 2 3 4; do
     local EP=$(cat ep)
     if [[ -n "${EP}" ]]; then

@@ -20,9 +20,11 @@ func getOAuthAuthorizationCodeFromGoogle(clientID string, blessing <-chan string
 	// 1. Generate a state token to be included in the HTTP request
 	//    (though, arguably, the random port assignment for the HTTP server is
 	//    enough for XSRF protecetion)
-	// 2. Setup an HTTP server which will intercept redirect links from the OAuth flow.
+	// 2. Setup an HTTP server which will intercept redirect links from the OAuth
+	//    flow.
 	// 3. Print out the link for the user to click
-	// 4. Return the authorization code obtained from the redirect to the "result" channel.
+	// 4. Return the authorization code obtained from the redirect to the "result"
+	//    channel.
 	var stateBuf [32]byte
 	if _, err := rand.Read(stateBuf[:]); err != nil {
 		return nil, fmt.Errorf("failed to generate state token for OAuth: %v", err)

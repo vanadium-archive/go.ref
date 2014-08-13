@@ -27,7 +27,7 @@ type listener struct {
 func createListeners(mode veyron2.VCSecurityLevel, m stream.Manager, N int) (servers []listener, err error) {
 	for i := 0; i < N; i++ {
 		var l listener
-		if l.ln, l.ep, err = m.Listen("tcp", "localhost:0", mode); err != nil {
+		if l.ln, l.ep, err = m.Listen("tcp", "127.0.0.1:0", mode); err != nil {
 			return
 		}
 		servers = append(servers, l)

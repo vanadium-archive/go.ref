@@ -89,7 +89,7 @@ func startServer(t *testing.T, r veyron2.Runtime) (ipc.Server, naming.Endpoint, 
 		t.Errorf("NewServer failed: %v", err)
 		return nil, nil, err
 	}
-	endpoint, err := server.Listen("tcp", "localhost:0")
+	endpoint, err := server.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
 		t.Errorf("Listen failed: %v", err)
 		return nil, nil, err

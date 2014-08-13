@@ -34,7 +34,7 @@ func setupLocalNamespace(t *testing.T) func() {
 	if err != nil {
 		t.Fatalf("NewMountTable() failed: %v", err)
 	}
-	protocol, hostname := "tcp", "localhost:0"
+	protocol, hostname := "tcp", "127.0.0.1:0"
 	endpoint, err := server.Listen(protocol, hostname)
 	if err != nil {
 		t.Fatalf("Listen(%v, %v) failed: %v", protocol, hostname, err)
@@ -80,7 +80,7 @@ func newServer() (ipc.Server, string) {
 	if err != nil {
 		vlog.Fatalf("NewServer() failed: %v", err)
 	}
-	protocol, hostname := "tcp", "localhost:0"
+	protocol, hostname := "tcp", "127.0.0.1:0"
 	endpoint, err := server.Listen(protocol, hostname)
 	if err != nil {
 		vlog.Fatalf("Listen(%v, %v) failed: %v", protocol, hostname, err)

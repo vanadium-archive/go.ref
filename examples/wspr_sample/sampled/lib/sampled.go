@@ -42,8 +42,8 @@ func StartServer(r veyron2.Runtime) (ipc.Server, naming.Endpoint, error) {
 		return nil, nil, fmt.Errorf("error listening to service: %v", err)
 	}
 
-	// Publish the cache service. This will register it in the mount table and maintain the
-	// registration until StopServing is called.
+	// Publish the cache service. This will register it in the mount table and
+	// maintain the registration until StopServing is called.
 	if err := s.Serve("cache", disp); err != nil {
 		return nil, nil, fmt.Errorf("error publishing service: %v", err)
 	}

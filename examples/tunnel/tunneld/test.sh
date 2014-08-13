@@ -30,7 +30,7 @@ main() {
 
   # Start mounttabled and find its endpoint.
   local -r MTLOG="${TMPDIR}/mt.log"
-  ./mounttabled --address=localhost:0 > "${MTLOG}" 2>&1 &
+  ./mounttabled --address=127.0.0.1:0 > "${MTLOG}" 2>&1 &
   for i in 1 2 3 4; do
     local EP=$(grep "Mount table service at:" "${MTLOG}" | sed -e 's/^.*endpoint: //')
     if [[ -n "${EP}" ]]; then
@@ -49,7 +49,7 @@ main() {
 
   # Start tunneld and find its endpoint.
   local -r TUNLOG="${TMPDIR}/tunnel.log"
-  ./tunneld --address=localhost:0 > "${TUNLOG}" 2>&1 &
+  ./tunneld --address=127.0.0.1:0 > "${TUNLOG}" 2>&1 &
   for i in 1 2 3 4; do
     local EP=$(grep "Listening on endpoint" "${TUNLOG}" | sed -e 's/^.*endpoint //' | awk '{print $1}')
     if [[ -n "${EP}" ]]; then

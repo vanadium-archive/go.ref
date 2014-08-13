@@ -12,8 +12,10 @@ import (
 )
 
 var (
-	address  = flag.String("address", ":0", "address to listen on")
+	// TODO(rthellend): Remove the protocol and address flags when the config
+	// manager is working.
 	protocol = flag.String("protocol", "tcp", "protocol to listen on")
+	address  = flag.String("address", ":0", "address to listen on")
 )
 
 func main() {

@@ -265,7 +265,7 @@ func startServer(t *testing.T, serverID security.PrivateID, sm stream.Manager, n
 		t.Errorf("InternalNewServer failed: %v", err)
 	}
 	vlog.VI(1).Info("server.Listen")
-	ep, err := server.Listen("tcp", "localhost:0")
+	ep, err := server.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
 		t.Errorf("server.Listen failed: %v", err)
 	}
@@ -403,7 +403,7 @@ func TestMultipleCallsToServe(t *testing.T) {
 	if err != nil {
 		t.Errorf("InternalNewServer failed: %v", err)
 	}
-	_, err = server.Listen("tcp", "localhost:0")
+	_, err = server.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
 		t.Errorf("server.Listen failed: %v", err)
 	}
@@ -979,12 +979,12 @@ func TestPublishOptions(t *testing.T) {
 			t.Errorf("InternalNewServer failed: %v", err)
 			continue
 		}
-		if _, err := server.Listen("tcp", "localhost:0"); err != nil {
+		if _, err := server.Listen("tcp", "127.0.0.1:0"); err != nil {
 			t.Errorf("server.Listen failed: %v", err)
 			server.Stop()
 			continue
 		}
-		if _, err := server.Listen("tcp", "localhost:0"); err != nil {
+		if _, err := server.Listen("tcp", "127.0.0.1:0"); err != nil {
 			t.Errorf("server.Listen failed: %v", err)
 			server.Stop()
 			continue
@@ -1216,7 +1216,7 @@ func runProxy([]string) {
 	if err != nil {
 		vlog.Fatal(err)
 	}
-	proxy, err := proxy.New(rid, nil, "tcp4", "127.0.0.1:0", "")
+	proxy, err := proxy.New(rid, nil, "tcp", "127.0.0.1:0", "")
 	if err != nil {
 		vlog.Fatal(err)
 	}

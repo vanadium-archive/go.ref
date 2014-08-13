@@ -26,12 +26,12 @@ type debugServer struct {
 }
 
 func (rt *vrt) initHTTPDebugServer() {
-	// TODO(ashankar,cnicolaou): Change the default debug address to
-	// the empty string.
-	// In March 2014 this was temporarily set to "127.0.0.1:0" so that the debugging
-	// HTTP server always runs, which was useful during initial veyron
-	// development. We restrict it to localhost to avoid annoying firewall
-	// warnings and to provide a modicum of security.
+	// TODO(ashankar,cnicolaou): Change the default debug address to the empty
+	// string.
+	// In March 2014 this was temporarily set to "127.0.0.1:0" so that the
+	// debugging HTTP server always runs, which was useful during initial veyron
+	// development. We restrict it in this way to avoid annoying firewall warnings
+	// and to provide a modicum of security.
 	rt.debug.addr = "127.0.0.1:0"
 	rt.debug.mux = http.NewServeMux()
 }

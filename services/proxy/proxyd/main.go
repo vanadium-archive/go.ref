@@ -15,17 +15,19 @@ import (
 	"veyron2/vlog"
 )
 
-func main() {
-	var (
-		// TODO(rthellend): Remove the address and protocol flags when the config manager is working.
-		address     = flag.String("address", ":0", "Network address the proxy listens on")
-		pubAddress  = flag.String("published_address", "", "Network address the proxy publishes. If empty, the value of --address will be used")
-		protocol    = flag.String("protocol", "tcp", "Network type the proxy listens on")
-		httpAddr    = flag.String("http", ":14142", "Network address on which the HTTP debug server runs")
-		healthzAddr = flag.String("healthz_address", "", "Network address on which the HTTP healthz server runs. It is intended to be used with a load balancer. The load balancer must be able to reach this address in order to verify that the proxy server is running")
-		name        = flag.String("name", "", "Name to mount the proxy as")
-	)
+var (
+	// TODO(rthellend): Remove the protocol and address flags when the config
+	// manager is working.
+	protocol = flag.String("protocol", "tcp", "protocol to listen on")
+	address  = flag.String("address", ":0", "address to listen on")
 
+	pubAddress  = flag.String("published_address", "", "Network address the proxy publishes. If empty, the value of --address will be used")
+	httpAddr    = flag.String("http", ":14142", "Network address on which the HTTP debug server runs")
+	healthzAddr = flag.String("healthz_address", "", "Network address on which the HTTP healthz server runs. It is intended to be used with a load balancer. The load balancer must be able to reach this address in order to verify that the proxy server is running")
+	name        = flag.String("name", "", "Name to mount the proxy as")
+)
+
+func main() {
 	r := rt.Init()
 	defer r.Cleanup()
 

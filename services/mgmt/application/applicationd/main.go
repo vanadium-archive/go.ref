@@ -11,15 +11,19 @@ import (
 	"veyron2/vlog"
 )
 
+var (
+	// TODO(rthellend): Remove the protocol and address flags when the config
+	// manager is working.
+	protocol = flag.String("protocol", "tcp", "protocol to listen on")
+	address  = flag.String("address", ":0", "address to listen on")
+
+	name      = flag.String("name", "", "name to mount the application manager as")
+	storeName = flag.String("store", "", "object name of the application manager store")
+)
+
 func main() {
-	var address, protocol, name, storeName string
-	// TODO(rthellend): Remove the address and protocol flags when the config manager is working.
-	flag.StringVar(&address, "address", "localhost:0", "network address to listen on")
-	flag.StringVar(&name, "name", "", "name to mount the application manager as")
-	flag.StringVar(&protocol, "protocol", "tcp", "network type to listen on")
-	flag.StringVar(&storeName, "store", "", "object name of the application manager store")
 	flag.Parse()
-	if storeName == "" {
+	if *storeName == "" {
 		vlog.Fatalf("Specify a store using --store=<name>")
 	}
 	runtime := rt.Init()
@@ -30,18 +34,18 @@ func main() {
 	}
 	defer server.Stop()
 
-	dispatcher, err := impl.NewDispatcher(storeName, vflag.NewAuthorizerOrDie())
+	dispatcher, err := impl.NewDispatcher(*storeName, vflag.NewAuthorizerOrDie())
 	if err != nil {
 		vlog.Fatalf("NewDispatcher() failed: %v", err)
 	}
-	endpoint, err := server.Listen(protocol, address)
+	endpoint, err := server.Listen(*protocol, *address)
 	if err != nil {
-		vlog.Fatalf("Listen(%v, %v) failed: %v", protocol, address, err)
+		vlog.Fatalf("Listen(%v, %v) failed: %v", *protocol, *address, err)
 	}
-	if err := server.Serve(name, dispatcher); err != nil {
-		vlog.Fatalf("Serve(%v) failed: %v", name, err)
+	if err := server.Serve(*name, dispatcher); err != nil {
+		vlog.Fatalf("Serve(%v) failed: %v", *name, err)
 	}
-	vlog.VI(0).Infof("Application manager published at %v/%v", endpoint, name)
+	vlog.VI(0).Infof("Application manager published at %v/%v", endpoint, *name)
 
 	// Wait until shutdown.
 	<-signals.ShutdownOnSignals()

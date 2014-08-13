@@ -45,7 +45,7 @@ func TestSimpleFlow(t *testing.T) {
 	server := InternalNew(naming.FixedRoutingID(0x55555555))
 	client := InternalNew(naming.FixedRoutingID(0xcccccccc))
 
-	ln, ep, err := server.Listen("tcp", "localhost:0")
+	ln, ep, err := server.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -133,7 +133,7 @@ func TestAuthenticatedByDefault(t *testing.T) {
 	serverID := newID("server")
 	// VCSecurityLevel is intentionally not provided to Listen - to test
 	// default behavior.
-	ln, ep, err := server.Listen("tcp", "localhost:0", vc.FixedLocalID(serverID))
+	ln, ep, err := server.Listen("tcp", "127.0.0.1:0", vc.FixedLocalID(serverID))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -191,11 +191,10 @@ func numVIFs(m stream.Manager) int        { return len(m.(*manager).vifs.List())
 
 func TestListenEndpoints(t *testing.T) {
 	server := InternalNew(naming.FixedRoutingID(0xcafe))
-	ln1, ep1, err1 := server.Listen("tcp", "localhost:0")
-	ln2, ep2, err2 := server.Listen("tcp", "localhost:0")
-	// Since "localhost:0" was used as the network address, a random port
-	// will be assigned in each case. The endpoint should include that
-	// random port.
+	ln1, ep1, err1 := server.Listen("tcp", "127.0.0.1:0")
+	ln2, ep2, err2 := server.Listen("tcp", "127.0.0.1:0")
+	// Since "127.0.0.1:0" was used as the network address, a random port will be
+	// assigned in each case. The endpoint should include that random port.
 	if err1 != nil {
 		t.Error(err1)
 	}
@@ -231,7 +230,7 @@ func acceptLoop(ln stream.Listener) {
 func TestCloseListener(t *testing.T) {
 	server := InternalNew(naming.FixedRoutingID(0x5e97e9))
 
-	ln, ep, err := server.Listen("tcp", "localhost:0")
+	ln, ep, err := server.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -250,7 +249,7 @@ func TestCloseListener(t *testing.T) {
 
 func TestShutdown(t *testing.T) {
 	server := InternalNew(naming.FixedRoutingID(0x5e97e9))
-	ln, _, err := server.Listen("tcp", "localhost:0")
+	ln, _, err := server.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -260,7 +259,7 @@ func TestShutdown(t *testing.T) {
 		t.Errorf("expecting %d listeners, got %d for %s", n, expect, debugString(server))
 	}
 	server.Shutdown()
-	if _, _, err := server.Listen("tcp", "localhost:0"); err == nil {
+	if _, _, err := server.Listen("tcp", "127.0.0.1:0"); err == nil {
 		t.Error("server should have shut down")
 	}
 	if n, expect := numListeners(server), 0; n != expect {
@@ -272,7 +271,7 @@ func TestShutdownEndpoint(t *testing.T) {
 	server := InternalNew(naming.FixedRoutingID(0x55555555))
 	client := InternalNew(naming.FixedRoutingID(0xcccccccc))
 
-	ln, ep, err := server.Listen("tcp", "localhost:0")
+	ln, ep, err := server.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -295,7 +294,7 @@ func TestShutdownEndpoint(t *testing.T) {
 
 func TestSessionTicketCache(t *testing.T) {
 	server := InternalNew(naming.FixedRoutingID(0x55555555))
-	_, ep, err := server.Listen("tcp", "localhost:0", vc.FixedLocalID(newID("server")))
+	_, ep, err := server.Listen("tcp", "127.0.0.1:0", vc.FixedLocalID(newID("server")))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -319,7 +318,7 @@ func TestMultipleVCs(t *testing.T) {
 
 	// Have the server read from each flow and write to rchan.
 	rchan := make(chan string)
-	ln, ep, err := server.Listen("tcp", "localhost:0", vc.FixedLocalID(newID("server")))
+	ln, ep, err := server.Listen("tcp", "127.0.0.1:0", vc.FixedLocalID(newID("server")))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -393,9 +392,9 @@ func TestAddressResolution(t *testing.T) {
 	server := InternalNew(naming.FixedRoutingID(0x55555555))
 	client := InternalNew(naming.FixedRoutingID(0xcccccccc))
 
-	// Using "tcp4" instead of "tcp" because the latter can end up with
-	// IPv6 addresses and our Google Compute Engine integration test
-	// machines cannot resolve IPv6 addresses.
+	// Using "tcp4" instead of "tcp" because the latter can end up with IPv6
+	// addresses and our Google Compute Engine integration test machines cannot
+	// resolve IPv6 addresses.
 	// As of April 2014, https://developers.google.com/compute/docs/networking
 	// said that IPv6 is not yet supported.
 	ln, ep, err := server.Listen("tcp4", "127.0.0.1:0")
@@ -404,14 +403,13 @@ func TestAddressResolution(t *testing.T) {
 	}
 	go acceptLoop(ln)
 
-	// We'd like an endpoint that contains an address that's different
-	// to the one used for the connection. In practice this is awkward
-	// to achieve since we don't want to listen on ":0" since that will
-	// annoy firewalls. Instead we listen on 127.0.0.1 and we fabricate an
-	// endpoint that doesn't contain 127.0.0.1 by using ":0" to create it.
-	// This leads to an endpoint such that the address
-	// encoded in the endpoint (e.g. "0.0.0.0:55324") is different from
-	// address of the connection (e.g. "127.0.0.1:55324").
+	// We'd like an endpoint that contains an address that's different than the
+	// one used for the connection. In practice this is awkward to achieve since
+	// we don't want to listen on ":0" since that will annoy firewalls. Instead we
+	// listen on 127.0.0.1 and we fabricate an endpoint that doesn't contain
+	// 127.0.0.1 by using ":0" to create it. This leads to an endpoint such that
+	// the address encoded in the endpoint (e.g. "0.0.0.0:55324") is different
+	// from the address of the connection (e.g. "127.0.0.1:55324").
 	_, port, _ := net.SplitHostPort(ep.Addr().String())
 	nep := version.Endpoint(ep.Addr().Network(), net.JoinHostPort("", port), ep.RoutingID())
 

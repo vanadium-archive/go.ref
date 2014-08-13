@@ -13,13 +13,17 @@ import (
 	"veyron2/vlog"
 )
 
+var (
+	// TODO(rthellend): Remove the protocol and address flags when the config
+	// manager is working.
+	protocol = flag.String("protocol", "tcp", "protocol to listen on")
+	address  = flag.String("address", ":0", "address to listen on")
+
+	gobin = flag.String("gobin", "go", "path to the Go compiler")
+	name  = flag.String("name", "", "name to mount the build server as")
+)
+
 func main() {
-	var address, gobin, name, protocol string
-	// TODO(rthellend): Remove the address and protocol flags when the config manager is working.
-	flag.StringVar(&address, "address", "localhost:0", "network address to listen on")
-	flag.StringVar(&gobin, "gobin", "go", "path to the Go compiler")
-	flag.StringVar(&name, "name", "", "name to mount the build server as")
-	flag.StringVar(&protocol, "protocol", "tcp", "network type to listen on")
 	flag.Parse()
 	runtime := rt.Init()
 	defer runtime.Cleanup()
@@ -29,16 +33,16 @@ func main() {
 		return
 	}
 	defer server.Stop()
-	endpoint, err := server.Listen(protocol, address)
+	endpoint, err := server.Listen(*protocol, *address)
 	if err != nil {
-		vlog.Errorf("Listen(%v, %v) failed: %v", protocol, address, err)
+		vlog.Errorf("Listen(%v, %v) failed: %v", *protocol, *address, err)
 		return
 	}
-	if err := server.Serve(name, ipc.SoloDispatcher(build.NewServerBuilder(impl.NewInvoker(gobin)), vflag.NewAuthorizerOrDie())); err != nil {
-		vlog.Errorf("Serve(%v) failed: %v", name, err)
+	if err := server.Serve(*name, ipc.SoloDispatcher(build.NewServerBuilder(impl.NewInvoker(*gobin)), vflag.NewAuthorizerOrDie())); err != nil {
+		vlog.Errorf("Serve(%v) failed: %v", *name, err)
 		return
 	}
-	vlog.Infof("Build server endpoint=%q name=%q", endpoint, name)
+	vlog.Infof("Build server endpoint=%q name=%q", endpoint, *name)
 
 	// Wait until shutdown.
 	<-signals.ShutdownOnSignals()

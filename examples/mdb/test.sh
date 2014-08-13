@@ -24,7 +24,7 @@ main() {
   local VIEWER_PORT=$(cat "${VIEWER_PORT_FILE}")
 
   local -r HTML_FILE="${TMPDIR}/index.html"
-  curl 2>/dev/null "http://localhost:${VIEWER_PORT}" -o "${HTML_FILE}" || shell_test::fail "line ${LINENO}: failed to fetch http://localhost:${VIEWER_PORT}"
+  curl 2>/dev/null "http://127.0.0.1:${VIEWER_PORT}" -o "${HTML_FILE}" || shell_test::fail "line ${LINENO}: failed to fetch http://127.0.0.1:${VIEWER_PORT}"
 
   if grep -q "moviesbox" "${HTML_FILE}"; then
     shell_test::pass

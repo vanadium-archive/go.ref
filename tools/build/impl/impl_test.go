@@ -34,7 +34,7 @@ func startServer(t *testing.T) (ipc.Server, naming.Endpoint) {
 	if err != nil {
 		t.Fatalf("NewServer failed: %v", err)
 	}
-	protocol, address := "tcp", "localhost:0"
+	protocol, address := "tcp", "127.0.0.1:0"
 	endpoint, err := server.Listen(protocol, address)
 	if err != nil {
 		t.Fatalf("Listen(%v, %v) failed: %v", protocol, address, err)

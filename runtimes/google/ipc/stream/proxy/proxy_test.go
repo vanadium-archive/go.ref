@@ -28,12 +28,7 @@ func newID(name string) security.PrivateID {
 }
 
 func TestProxy(t *testing.T) {
-	// Using "tcp4" instead of "tcp" because the latter can end up with
-	// IPv6 addresses and our Google Compute Engine integration test
-	// machines cannot resolve IPv6 addresses.
-	// As of April 2014, https://developers.google.com/compute/docs/networking
-	// said that IPv6 is not yet supported.
-	proxy, err := proxy.New(naming.FixedRoutingID(0xbbbbbbbbbbbbbbbb), nil, "tcp4", "127.0.0.1:0", "")
+	proxy, err := proxy.New(naming.FixedRoutingID(0xbbbbbbbbbbbbbbbb), nil, "tcp", "127.0.0.1:0", "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -93,7 +88,7 @@ func TestProxy(t *testing.T) {
 }
 
 func TestDuplicateRoutingID(t *testing.T) {
-	proxy, err := proxy.New(naming.FixedRoutingID(0xbbbbbbbbbbbbbbbb), nil, "tcp4", "127.0.0.1:0", "")
+	proxy, err := proxy.New(naming.FixedRoutingID(0xbbbbbbbbbbbbbbbb), nil, "tcp", "127.0.0.1:0", "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -121,7 +116,7 @@ func TestDuplicateRoutingID(t *testing.T) {
 
 func TestProxyIdentity(t *testing.T) {
 	proxyID := newID("proxy")
-	proxy, err := proxy.New(naming.FixedRoutingID(0xbbbbbbbbbbbbbbbb), proxyID, "tcp4", "127.0.0.1:0", "")
+	proxy, err := proxy.New(naming.FixedRoutingID(0xbbbbbbbbbbbbbbbb), proxyID, "tcp", "127.0.0.1:0", "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -145,7 +140,7 @@ func TestProxyIdentity(t *testing.T) {
 }
 
 func TestServerIdentity(t *testing.T) {
-	proxy, err := proxy.New(naming.FixedRoutingID(0xbbbbbbbbbbbbbbbb), nil, "tcp4", "127.0.0.1:0", "")
+	proxy, err := proxy.New(naming.FixedRoutingID(0xbbbbbbbbbbbbbbbb), nil, "tcp", "127.0.0.1:0", "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -185,7 +180,7 @@ func TestServerIdentity(t *testing.T) {
 }
 
 func TestHostPort(t *testing.T) {
-	proxy, err := proxy.New(naming.FixedRoutingID(0xbbbbbbbbbbbbbbbb), nil, "tcp4", "127.0.0.1:0", "")
+	proxy, err := proxy.New(naming.FixedRoutingID(0xbbbbbbbbbbbbbbbb), nil, "tcp", "127.0.0.1:0", "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -202,7 +197,7 @@ func TestHostPort(t *testing.T) {
 }
 
 func TestClientBecomesServer(t *testing.T) {
-	proxy, err := proxy.New(naming.FixedRoutingID(0xbbbbbbbbbbbbbbbb), nil, "tcp4", "127.0.0.1:0", "")
+	proxy, err := proxy.New(naming.FixedRoutingID(0xbbbbbbbbbbbbbbbb), nil, "tcp", "127.0.0.1:0", "")
 	if err != nil {
 		t.Fatal(err)
 	}

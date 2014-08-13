@@ -12,18 +12,23 @@ import (
 	"veyron2/vlog"
 )
 
-func main() {
-	peerEndpoints := flag.String("peers", "",
-		"comma separated list of endpoints of the vsync peer")
-	peerDeviceIDs := flag.String("peerids", "",
-		"comma separated list of deviceids of the vsync peer")
-	devid := flag.String("devid", "", "Device ID")
-	storePath := flag.String("store", os.TempDir(), "path to store files")
-	vstoreEndpoint := flag.String("vstore", "", "endpoint of the local Veyron store")
-	// TODO(rthellend): Remove the address flag when the config manager is working.
-	address := flag.String("address", ":0", "address to listen on")
-	syncTick := flag.Duration("synctick", 0, "clock tick duration for sync with a peer (e.g. 10s)")
+var (
+	// TODO(rthellend): Remove the protocol and address flags when the config
+	// manager is working.
+	protocol = flag.String("protocol", "tcp", "protocol to listen on")
+	address  = flag.String("address", ":0", "address to listen on")
 
+	peerEndpoints = flag.String("peers", "",
+		"comma separated list of endpoints of the vsync peer")
+	peerDeviceIDs = flag.String("peerids", "",
+		"comma separated list of deviceids of the vsync peer")
+	devid          = flag.String("devid", "", "Device ID")
+	storePath      = flag.String("store", os.TempDir(), "path to store files")
+	vstoreEndpoint = flag.String("vstore", "", "endpoint of the local Veyron store")
+	syncTick       = flag.Duration("synctick", 0, "clock tick duration for sync with a peer (e.g. 10s)")
+)
+
+func main() {
 	flag.Parse()
 	if *devid == "" {
 		vlog.Fatalf("syncd:: --devid needs to be specified")
@@ -50,7 +55,7 @@ func main() {
 	syncDisp := vsync.NewSyncDispatcher(syncService, auth)
 
 	// Create an endpoint and begin listening.
-	if endpoint, err := s.Listen("tcp", *address); err == nil {
+	if endpoint, err := s.Listen(*protocol, *address); err == nil {
 		vlog.VI(0).Infof("syncd:: Listening now at %v", endpoint)
 	} else {
 		vlog.Fatalf("syncd:: error listening to service: err %v", err)

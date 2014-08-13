@@ -21,7 +21,7 @@ func startMountTable(t *testing.T, runtime veyron2.Runtime) (string, func()) {
 	}
 	dispatcher, err := mtlib.NewMountTable("")
 
-	protocol, hostname := "tcp", "localhost:0"
+	protocol, hostname := "tcp", "127.0.0.1:0"
 	endpoint, err := server.Listen(protocol, hostname)
 	if err != nil {
 		t.Fatalf("Listen(%v, %v) failed: %v", protocol, hostname, err)
@@ -47,7 +47,7 @@ func startRockPaperScissors(t *testing.T, rt veyron2.Runtime, mtAddress string) 
 	}
 	rpsService := impl.NewRPS()
 
-	if _, err = server.Listen("tcp", "localhost:0"); err != nil {
+	if _, err = server.Listen("tcp", "127.0.0.1:0"); err != nil {
 		t.Fatalf("Listen failed: %v", err)
 	}
 	disp := ipc.SoloDispatcher(rps.NewServerRockPaperScissors(rpsService), nil)

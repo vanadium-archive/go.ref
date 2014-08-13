@@ -43,7 +43,7 @@ func setupRepository(t *testing.T) (string, func()) {
 	if err != nil {
 		t.Fatalf("NewDispatcher(%v, %v, %v) failed: %v", root, depth, nil, err)
 	}
-	protocol, hostname := "tcp", "localhost:0"
+	protocol, hostname := "tcp", "127.0.0.1:0"
 	endpoint, err := server.Listen(protocol, hostname)
 	if err != nil {
 		t.Fatalf("Listen(%v, %v) failed: %v", protocol, hostname, err)

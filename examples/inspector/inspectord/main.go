@@ -1,6 +1,7 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"os"
 
@@ -12,21 +13,22 @@ import (
 var (
 	log vlog.Logger
 	r   veyron2.Runtime
+
+	// TODO(rthellend): Remove the protocol and address flags when the config
+	// manager is working.
+	protocol = flag.String("protocol", "tcp", "protocol to listen on")
+	address  = flag.String("address", ":0", "address to listen on")
 )
 
 func main() {
-	var err error
 	r = rt.Init()
 	log = r.Logger()
-	if err != nil {
-		log.Fatalf("failed to init runtime: %q", err)
-	}
 	hostname, _ := os.Hostname()
 	server, err := r.NewServer()
 	if err != nil {
 		log.Fatalf("failed to create server: %q", err)
 	}
-	ep, err := server.Listen("tcp", "localhost:0")
+	ep, err := server.Listen(*protocol, *address)
 	if err != nil {
 		log.Fatalf("listen failed: %q", err)
 	}

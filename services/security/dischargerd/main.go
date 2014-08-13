@@ -14,10 +14,13 @@ import (
 )
 
 var (
+	// TODO(rthellend): Remove the protocol and address flags when the config
+	// manager is working.
 	protocol = flag.String("protocol", "tcp", "protocol to listen on")
 	address  = flag.String("address", ":0", "address to listen on")
-	aclFile  = flag.String("discharger-acl", "", "ACL to use for the discharge service")
-	publish  = flag.String("publish", "discharger", "the Object Name under which to publish this service")
+
+	aclFile = flag.String("discharger-acl", "", "ACL to use for the discharge service")
+	publish = flag.String("publish", "discharger", "the Object Name under which to publish this service")
 
 	storeName      = flag.String("revocation-store", "", "Object Name of the Veyron store to be used for revocation. Omit to disable revocation functionality.")
 	publishRevoker = flag.String("publish-revoker", "revoker", "the Object Name under which to publish this service")

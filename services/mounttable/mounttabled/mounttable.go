@@ -18,9 +18,13 @@ import (
 )
 
 var (
+	// TODO(rthellend): Remove the protocol and address flags when the config
+	// manager is working.
+	protocol = flag.String("protocol", "tcp", "protocol to listen on")
+	address  = flag.String("address", ":0", "address to listen on")
+
 	mountName = flag.String("name", "", "Name to mount this mountable as.  Empty means don't mount.")
-	// TODO(rthellend): Remove the address flag when the config manager is working.
-	address = flag.String("address", ":0", "Address to listen on.  Default is to use a randomly assigned port")
+
 	aclFile = flag.String("acls", "", "ACL file. Default is to allow all access.")
 	nhName  = flag.String("neighborhood_name", "", "If non-empty, publish in the local neighborhood under this name.")
 )
@@ -65,7 +69,7 @@ func main() {
 		vlog.Errorf("r.NewMountTable failed: %v", err)
 		return
 	}
-	mtEndpoint, err := mtServer.Listen("tcp", *address)
+	mtEndpoint, err := mtServer.Listen(*protocol, *address)
 	if err != nil {
 		vlog.Errorf("mtServer.Listen failed: %v", err)
 		return
@@ -94,7 +98,7 @@ func main() {
 			vlog.Errorf("parsing of address(%q) failed: %v", *address, err)
 			return
 		}
-		if _, err = nhServer.Listen("tcp", net.JoinHostPort(host, "0")); err != nil {
+		if _, err = nhServer.Listen(*protocol, net.JoinHostPort(host, "0")); err != nil {
 			vlog.Errorf("nhServer.Listen failed: %v", err)
 			return
 		}

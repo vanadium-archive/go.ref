@@ -18,10 +18,12 @@ import (
 )
 
 var (
-	// TODO(rthellend): Remove the address and protocol flags when the config manager is working.
-	protocol = flag.String("protocol", "tcp", "network to listen on. For example, set to 'veyron' and set --address to the endpoint/name of a proxy to have this service proxied.")
+	// TODO(rthellend): Remove the protocol and address flags when the config
+	// manager is working.
+	protocol = flag.String("protocol", "tcp", "protocol to listen on")
 	address  = flag.String("address", ":0", "address to listen on")
-	name     = flag.String("name", "", "name to mount the proximity service as")
+
+	name = flag.String("name", "", "name to mount the proximity service as")
 )
 
 func main() {

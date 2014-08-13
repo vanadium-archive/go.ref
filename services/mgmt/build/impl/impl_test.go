@@ -28,7 +28,7 @@ func startServer(t *testing.T) (build.Builder, func()) {
 	if err != nil {
 		t.Fatalf("NewServer() failed: %v", err)
 	}
-	protocol, hostname := "tcp", "localhost:0"
+	protocol, hostname := "tcp", "127.0.0.1:0"
 	endpoint, err := server.Listen(protocol, hostname)
 	if err != nil {
 		t.Fatalf("Listen(%v, %v) failed: %v", protocol, hostname, err)

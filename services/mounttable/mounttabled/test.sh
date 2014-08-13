@@ -24,7 +24,7 @@ main() {
   # Start mounttabled and find its endpoint.
   local NHNAME=test$$
   local MTLOG="${TMPDIR}/mt.log"
-  ./mounttabled --address=localhost:0 --neighborhood_name="${NHNAME}" > "${MTLOG}" 2>&1 &
+  ./mounttabled --address=127.0.0.1:0 --neighborhood_name="${NHNAME}" > "${MTLOG}" 2>&1 &
 
   for i in 1 2 3 4; do
     local EP=$(grep "Mount table service at:" "${MTLOG}" | sed -e 's/^.*endpoint: //')

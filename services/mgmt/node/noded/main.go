@@ -13,12 +13,16 @@ import (
 	"veyron2/vlog"
 )
 
+var (
+	// TODO(rthellend): Remove the protocol and address flags when the config
+	// manager is working.
+	protocol = flag.String("protocol", "tcp", "protocol to listen on")
+	address  = flag.String("address", ":0", "address to listen on")
+
+	publishAs = flag.String("name", "", "name to publish the node manager at")
+)
+
 func main() {
-	// TODO(rthellend): Remove the address and protocol flags when the config manager is working.
-	var address, protocol, publishAs string
-	flag.StringVar(&address, "address", "localhost:0", "network address to listen on")
-	flag.StringVar(&protocol, "protocol", "tcp", "network type to listen on")
-	flag.StringVar(&publishAs, "name", "", "name to publish the node manager at")
 	flag.Parse()
 	runtime := rt.Init()
 	defer runtime.Cleanup()
@@ -27,9 +31,9 @@ func main() {
 		vlog.Fatalf("NewServer() failed: %v", err)
 	}
 	defer server.Stop()
-	endpoint, err := server.Listen(protocol, address)
+	endpoint, err := server.Listen(*protocol, *address)
 	if err != nil {
-		vlog.Fatalf("Listen(%v, %v) failed: %v", protocol, address, err)
+		vlog.Fatalf("Listen(%v, %v) failed: %v", *protocol, *address, err)
 	}
 	name := naming.MakeTerminal(naming.JoinAddressName(endpoint.String(), ""))
 	vlog.VI(0).Infof("Node manager object name: %v", name)
@@ -46,8 +50,8 @@ func main() {
 	if err != nil {
 		vlog.Fatalf("Failed to create dispatcher: %v", err)
 	}
-	if err := server.Serve(publishAs, dispatcher); err != nil {
-		vlog.Fatalf("Serve(%v) failed: %v", publishAs, err)
+	if err := server.Serve(*publishAs, dispatcher); err != nil {
+		vlog.Fatalf("Serve(%v) failed: %v", *publishAs, err)
 	}
 	impl.InvokeCallback(name)
 
