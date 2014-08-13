@@ -2,7 +2,6 @@ package impl
 
 import (
 	"errors"
-	"path"
 	"strings"
 
 	_ "veyron/services/store/typeregistryhack"
@@ -80,7 +79,7 @@ func (i *invoker) Match(context ipc.ServerContext, profiles []string) (applicati
 		return empty, errInvalidSuffix
 	}
 	for _, profile := range profiles {
-		path := path.Join("/applications", name, profile, version)
+		path := naming.Join("/applications", name, profile, version)
 		entry, err := i.store.BindObject(path).Get(context)
 		if err != nil {
 			continue
@@ -110,7 +109,7 @@ func (i *invoker) Put(context ipc.ServerContext, profiles []string, envelope app
 	}
 	var entry storage.Stat
 	for _, profile := range profiles {
-		path := naming.Join(tname, path.Join("/applications", name, profile, version))
+		path := naming.Join(tname, "/applications", name, profile, version)
 		if err := makeParentNodes(context, i.store, path); err != nil {
 			return err
 		}
@@ -142,7 +141,7 @@ func (i *invoker) Remove(context ipc.ServerContext, profile string) error {
 	if err != nil {
 		return err
 	}
-	path := naming.Join(tname, path.Join("/applications", name, profile))
+	path := naming.Join(tname, "/applications", name, profile)
 	if version != "" {
 		path += "/" + version
 	}
