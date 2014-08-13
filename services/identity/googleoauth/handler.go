@@ -1,6 +1,6 @@
 // Package googleoauth implements an http.Handler that uses OAuth 2.0 to
-// authenticate with Google and then generates a Veyron identity and
-// blesses it with the identity of the HTTP server.
+// authenticate with Google and then renders a page that displays all the
+// blessings that were provided for that Google user.
 //
 // The GoogleIDToken is currently validated by sending an HTTP request to
 // googleapis.com.  This adds a round-trip and service may be denied by
@@ -16,12 +16,11 @@ import (
 	"net/http"
 	"path"
 	"strings"
-	"time"
 
 	"code.google.com/p/goauth2/oauth"
 
+	"veyron/services/identity/auditor"
 	"veyron/services/identity/util"
-	"veyron2"
 	"veyron2/vlog"
 )
 
@@ -34,17 +33,19 @@ type HandlerArgs struct {
 	// client_id and client_secret registered with the Google Developer
 	// Console for API access.
 	ClientID, ClientSecret string
-	// Minimum expiry time (in days) of identities issued by the server
-	MinExpiryDays int
-	// Runtime from which the identity of the server itself will be extracted,
-	// and new identities will be created for blessing.
-	Runtime veyron2.Runtime
-	// When set, restricts the allowed email addresses to this domain, e.g.
-	// google.com.
-	RestrictEmailDomain string
+	// Prefix for the audit log from which data will be sourced.
+	// (auditor.ReadAuditLog).
+	Auditor string
 }
 
-func (a *HandlerArgs) redirectURL() string { return path.Join(a.Addr, "oauth2callback") }
+func (a *HandlerArgs) redirectURL() string {
+	ret := a.Addr
+	if !strings.HasSuffix(ret, "/") {
+		ret += "/"
+	}
+	ret += "oauth2callback"
+	return ret
+}
 
 // URL used to verify google tokens.
 // (From https://developers.google.com/accounts/docs/OAuth2Login#validatinganidtoken
@@ -56,7 +57,7 @@ const verifyURL = "https://www.googleapis.com/oauth2/v1/tokeninfo?"
 // identity and bless it with the Google email address.
 func NewHandler(args HandlerArgs) http.Handler {
 	config := NewOAuthConfig(args.ClientID, args.ClientSecret, args.redirectURL())
-	return &handler{config, args.MinExpiryDays, util.NewCSRFCop(), args.Runtime, args.RestrictEmailDomain}
+	return &handler{config, util.NewCSRFCop(), args.Auditor}
 }
 
 // NewOAuthConfig returns the oauth.Config required for obtaining just the email address from Google using OAuth 2.0.
@@ -72,11 +73,9 @@ func NewOAuthConfig(clientID, clientSecret, redirectURL string) *oauth.Config {
 }
 
 type handler struct {
-	config        *oauth.Config
-	minExpiryDays int
-	csrfCop       *util.CSRFCop
-	rt            veyron2.Runtime
-	domain        string
+	config  *oauth.Config
+	csrfCop *util.CSRFCop
+	auditor string
 }
 
 func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -111,27 +110,18 @@ func (h *handler) callback(w http.ResponseWriter, r *http.Request) {
 		util.HTTPBadRequest(w, r, err)
 		return
 	}
-	if len(h.domain) > 0 && !strings.HasSuffix(email, "@"+h.domain) {
-		util.HTTPServerError(w, fmt.Errorf("email domain in %s is not allowed", email))
-		return
-	}
-	minted, err := h.rt.NewIdentity("unblessed")
+	// TODO(ashankar): Render a nice HTML page instead with the browser's timezone
+	// and all that good stuff. Will do that in a subsequent change.
+	ch, err := auditor.ReadAuditLog(h.auditor, email)
 	if err != nil {
-		util.HTTPServerError(w, fmt.Errorf("Failed to mint new identity: %v", err))
+		vlog.Errorf("Unable to read audit log: %v", err)
+		util.HTTPServerError(w, fmt.Errorf("unable to read audit log"))
 		return
 	}
-	blessing, err := h.rt.Identity().Bless(minted.PublicID(), email, 24*time.Hour*time.Duration(h.minExpiryDays), nil)
-	if err != nil {
-		util.HTTPServerError(w, fmt.Errorf("%v.Bless(%q, %q, %d days, nil) failed: %v", h.rt.Identity(), minted, h.minExpiryDays, err))
-		return
+	w.Header().Set("Context-Type", "text/plain")
+	for entry := range ch {
+		w.Write([]byte(fmt.Sprintf("%v\n", entry)))
 	}
-	blessed, err := minted.Derive(blessing)
-	if err != nil {
-		util.HTTPServerError(w, fmt.Errorf("%v.Derive(%q) failed: %v", minted, blessed, err))
-		return
-	}
-	vlog.Infof("Created new identity: %v", blessed)
-	util.HTTPSend(w, blessed)
 }
 
 // ExchangeAuthCodeForEmail exchanges the authorization code (which must
