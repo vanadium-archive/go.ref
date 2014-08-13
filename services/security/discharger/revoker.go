@@ -82,7 +82,7 @@ func NewRevoker(storeName, pathInStore string) (interface{}, error) {
 		return nil, fmt.Errorf("revoker.Revoker called more than once")
 	}
 	var err error
-	revocationService.revocationServiceT = new(revocationServiceT)
+	revocationService.revocationServiceT = &revocationServiceT{pathInStore: pathInStore}
 	revocationService.store, err = vstore.New(storeName)
 	if err != nil {
 		return nil, err
