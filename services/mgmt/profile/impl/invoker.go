@@ -2,7 +2,6 @@ package impl
 
 import (
 	"errors"
-	"path"
 
 	"veyron/services/mgmt/profile"
 
@@ -59,7 +58,7 @@ func (i *invoker) Put(context ipc.ServerContext, profile profile.Specification) 
 	if err != nil {
 		return err
 	}
-	path := naming.Join(tname, path.Join("/profiles", i.suffix))
+	path := naming.Join(tname, "/profiles", i.suffix)
 	if err := makeParentNodes(context, i.store, path); err != nil {
 		return err
 	}
@@ -80,7 +79,7 @@ func (i *invoker) Remove(context ipc.ServerContext) error {
 	if err != nil {
 		return err
 	}
-	path := naming.Join(tname, path.Join("/profiles", i.suffix))
+	path := naming.Join(tname, "/profiles", i.suffix)
 	object := i.store.BindObject(path)
 	found, err := object.Exists(context)
 	if err != nil {
@@ -102,7 +101,7 @@ func (i *invoker) Remove(context ipc.ServerContext) error {
 
 func (i *invoker) lookup(context ipc.ServerContext) (profile.Specification, error) {
 	empty := profile.Specification{}
-	path := path.Join("/profiles", i.suffix)
+	path := naming.Join("/profiles", i.suffix)
 	entry, err := i.store.BindObject(path).Get(context)
 	if err != nil {
 		return empty, errNotFound

@@ -357,7 +357,7 @@ func (mt *mountTable) globStep(n *node, name string, pattern *glob.Glob, context
 	// Recurse through the children.
 	for k, c := range n.children {
 		if ok, suffix := pattern.MatchInitialSegment(k); ok {
-			mt.globStep(c, path.Join(name, k), suffix, context, reply)
+			mt.globStep(c, naming.Join(name, k), suffix, context, reply)
 		}
 	}
 }

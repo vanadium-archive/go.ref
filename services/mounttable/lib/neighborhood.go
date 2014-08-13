@@ -3,7 +3,6 @@ package mounttable
 import (
 	"errors"
 	"net"
-	"path"
 	"strconv"
 	"strings"
 
@@ -217,7 +216,7 @@ func (ns *neighborhoodService) ResolveStep(_ ipc.ServerContext) (servers []mount
 	if neighbor == nil {
 		return nil, "", naming.ErrNoSuchName
 	}
-	return neighbor, path.Join(ns.elems[1:]...), nil
+	return neighbor, naming.Join(ns.elems[1:]...), nil
 }
 
 // Mount not implemented.

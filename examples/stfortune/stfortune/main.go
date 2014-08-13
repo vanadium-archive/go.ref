@@ -27,11 +27,11 @@ import (
 )
 
 func fortunePath(name string) string {
-	return naming.Join(naming.Join(appPath, "fortunes"), name)
+	return naming.Join(appPath, "fortunes", name)
 }
 
 func userPath(name string) string {
-	return naming.Join(naming.Join(appPath, "usernames"), name)
+	return naming.Join(appPath, "usernames", name)
 }
 
 // Hashes a string.
