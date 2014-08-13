@@ -33,10 +33,15 @@ type serverRPCRequest struct {
 	Context  serverRPCRequestContext
 }
 
+type publicID struct {
+	Names []string
+}
+
 // call context for a serverRPCRequest
 type serverRPCRequestContext struct {
-	Suffix string
-	Name   string
+	Suffix   string
+	Name     string
+	RemoteID publicID
 }
 
 // The response from the javascript server to the proxy.
@@ -108,6 +113,9 @@ func (s *Server) createRemoteInvokerFunc() remoteInvokeFunc {
 		context := serverRPCRequestContext{
 			Suffix: call.Suffix(),
 			Name:   call.Name(),
+			RemoteID: publicID{
+				Names: call.RemoteID().Names(),
+			},
 		}
 		// Send a invocation request to JavaScript
 		message := serverRPCRequest{
