@@ -1,5 +1,10 @@
 # The format is: <cmd>|<objid>|<version>|<parent1>|<parent2>|<logrec>|<continued>|<deleted>
 
 addl|12345|1|||logrec-01|false|false
-addl|12345|2|1||logrec-02|false|true
-addl|12345|3|2||logrec-03|false|false
+addl|12345|2|1||logrec-02|false|false
+addl|12345|3|1||logrec-03|false|false
+addl|12345|4|2||logrec-04|false|false
+addl|12345|5|2||logrec-05|false|true
+addl|12345|6|4|5|logrec-06|false|false
+addl|12345|7|3|5|logrec-07|false|false
+addl|12345|8|6|7|logrec-08|false|false

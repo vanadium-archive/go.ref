@@ -428,83 +428,6 @@ func (d *dag) hasNode(oid storage.ID, version storage.Version) bool {
 	return d.nodes.hasKey(key)
 }
 
-// childOf returns true if the node is a child of the parent version.
-// It means that the parent version is found in the node's Parents array.
-func childOf(node *dagNode, parent storage.Version) bool {
-	if node == nil || parent == storage.NoVersion {
-		return false
-	}
-	for _, pver := range node.Parents {
-		if pver == parent {
-			return true
-		}
-	}
-	return false
-}
-
-// hasParent returns true if the node (oid, version) exists in the DAG DB
-// and has (oid, parent) as a parent node. Either "version" or "parent"
-// could be NoVersion (zero).  Thus the 4 cases:
-// 1- "version" and "parent" are _not_ NoVersion: return true if both nodes
-//    exist and have a parent/child relationship.
-// 2- Only "parent" is NoVersion: return true if (oid, version) exists and
-//    either it has no parents (root of the DAG) or at least one of its
-//    parent nodes is a deleted node (i.e. has its "Deleted" flag set true).
-// 3- Only "version" is NoVersion: return true if (oid, parent) exists and
-//    at least one of its children is a deleted node.
-// 4- Both "version" and "parent" are NoVersion: return false
-func (d *dag) hasParent(oid storage.ID, version, parent storage.Version) bool {
-	if d.store == nil {
-		return false
-	}
-
-	switch {
-	case version != storage.NoVersion && parent != storage.NoVersion:
-		if !d.hasNode(oid, parent) {
-			return false
-		}
-		node, err := d.getNode(oid, version)
-		if err != nil {
-			return false
-		}
-		return childOf(node, parent)
-
-	case version != storage.NoVersion && parent == storage.NoVersion:
-		node, err := d.getNode(oid, version)
-		if err != nil {
-			return false
-		}
-		if node.Parents == nil {
-			return true
-		}
-		for _, pver := range node.Parents {
-			if pnode, err := d.getNode(oid, pver); err == nil && pnode.Deleted {
-				return true
-			}
-		}
-		return false
-
-	case version == storage.NoVersion && parent != storage.NoVersion:
-		if !d.hasNode(oid, parent) {
-			return false
-		}
-		head, err := d.getHead(oid)
-		if err != nil {
-			return false
-		}
-		found := false
-		d.ancestorIter(oid, []storage.Version{head}, func(oid storage.ID, v storage.Version, node *dagNode) error {
-			if node.Deleted && childOf(node, parent) {
-				found = true
-				return errors.New("found it -- stop the iteration")
-			}
-			return nil
-		})
-		return found
-	}
-	return false
-}
-
 // addParent adds to the DAG node (oid, version) linkage to this parent node.
 // If the parent linkage is due to a local change (from conflict resolution
 // by blessing an existing version), no need to update the grafting structure.
@@ -693,6 +616,70 @@ func (d *dag) ancestorIter(oid storage.ID, startVersions []storage.Version,
 	}
 
 	return nil
+}
+
+// hasDeletedDescendant returns true if the node (oid, version) exists in the
+// DAG DB and one of its descendants is a deleted node (i.e. has its "Deleted"
+// flag set true).  This means that at some object mutation after this version,
+// the object was deleted.
+func (d *dag) hasDeletedDescendant(oid storage.ID, version storage.Version) bool {
+	if d.store == nil {
+		return false
+	}
+	if !d.hasNode(oid, version) {
+		return false
+	}
+
+	// Do a breadth-first traversal from the object's head node back to
+	// the given version.  Along the way, track whether a deleted node is
+	// traversed.  Return true only if a traversal reaches the given version
+	// and had seen a deleted node along the way.
+
+	// nodeStep tracks a step along a traversal.  It stores the node to visit
+	// when taking that step and a boolean tracking whether a deleted node
+	// was seen so far along that trajectory.
+	head, err := d.getHead(oid)
+	if err != nil {
+		return false
+	}
+
+	type nodeStep struct {
+		node    storage.Version
+		deleted bool
+	}
+
+	visited := make(map[nodeStep]struct{})
+	queue := list.New()
+
+	step := nodeStep{node: head, deleted: false}
+	queue.PushBack(&step)
+	visited[step] = struct{}{}
+
+	for queue.Len() > 0 {
+		step := queue.Remove(queue.Front()).(*nodeStep)
+		if step.node == version {
+			if step.deleted {
+				return true
+			}
+			continue
+		}
+		node, err := d.getNode(oid, step.node)
+		if err != nil {
+			// Ignore it, the parent was previously pruned.
+			continue
+		}
+		nextDel := step.deleted || node.Deleted
+
+		for _, parent := range node.Parents {
+			nextStep := nodeStep{node: parent, deleted: nextDel}
+			if _, ok := visited[nextStep]; !ok {
+				queue.PushBack(&nextStep)
+				visited[nextStep] = struct{}{}
+			}
+		}
+	}
+
+	return false
 }
 
 // prune trims the DAG of an object at a given version (node) by deleting

@@ -199,8 +199,8 @@ func TestInvalidDAG(t *testing.T) {
 	if dag.hasNode(oid, 4) {
 		t.Errorf("hasNode() found an object on a closed DAG")
 	}
-	if dag.hasParent(oid, 3, 2) {
-		t.Errorf("hasParent() found an parent/child relationship on a closed DAG")
+	if dag.hasDeletedDescendant(oid, 3) {
+		t.Errorf("hasDeletedDescendant() returned true on a closed DAG")
 	}
 	if pmap := dag.getParentMap(oid); len(pmap) != 0 {
 		t.Errorf("getParentMap() found data on a closed DAG: %v", pmap)
@@ -1920,8 +1920,8 @@ func TestPruningTransactions(t *testing.T) {
 	}
 }
 
-// TestHasParent tests lookup of DAG parent/child relationship (i.e. hasParent()).
-func TestHasParent(t *testing.T) {
+// TestHasDeletedDescendant tests lookup of DAG deleted nodes descending from a given node.
+func TestHasDeletedDescendant(t *testing.T) {
 	dagfile := dagFilename()
 	defer os.Remove(dagfile)
 
@@ -1939,44 +1939,34 @@ func TestHasParent(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// The object mutations are: v1 -> v2 (deleted) -> v3 with v3 as head node.
+	// Delete node v3 to create a dangling parent link from v7 (increase code coverage).
+	if err = dag.delNode(oid, 3); err != nil {
+		t.Errorf("cannot delete node %d:3 in DAG file %s: %v", oid, dagfile, err)
+	}
 
-	type hasParentTest struct {
-		parent storage.Version
-		child  storage.Version
+	type hasDelDescTest struct {
+		node   storage.Version
 		result bool
 	}
-	tests := []hasParentTest{
-		{storage.NoVersion, storage.NoVersion, false},
-		{1, 2, true},
-		{2, 3, true},
-		{1, 999, false},
-		{999, 1, false},
-		{1, 3, false},
-		{1, storage.NoVersion, true},
-		{2, storage.NoVersion, false},
-		{3, storage.NoVersion, false},
-		{999, storage.NoVersion, false},
-		{storage.NoVersion, 1, true},
-		{storage.NoVersion, 2, false},
-		{storage.NoVersion, 3, true},
-		{storage.NoVersion, 999, false},
+	tests := []hasDelDescTest{
+		{storage.NoVersion, false},
+		{999, false},
+		{1, true},
+		{2, true},
+		{3, false},
+		{4, false},
+		{5, false},
+		{6, false},
+		{7, false},
+		{8, false},
 	}
 
 	for _, test := range tests {
-		result := dag.hasParent(oid, test.child, test.parent)
+		result := dag.hasDeletedDescendant(oid, test.node)
 		if result != test.result {
-			t.Errorf("hasParent() for parent/child (%d/%d) in DAG file %s: %v instead of %v",
-				test.parent, test.child, dagfile, result, test.result)
+			t.Errorf("hasDeletedDescendant() for node %d in DAG file %s: %v instead of %v",
+				test.node, dagfile, result, test.result)
 		}
-	}
-
-	// Increase coverage of internal helper function.
-	if childOf(nil, 3) {
-		t.Errorf("childOf() returned true on a nil node")
-	}
-	if childOf(&dagNode{}, storage.NoVersion) {
-		t.Errorf("childOf() returned true on a NoVersion parent")
 	}
 
 	dag.close()
