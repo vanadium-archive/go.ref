@@ -16,11 +16,13 @@ import (
 	"net/http"
 	"path"
 	"strings"
+	"time"
 
 	"code.google.com/p/goauth2/oauth"
 
 	"veyron/services/identity/auditor"
 	"veyron/services/identity/util"
+	"veyron2/security"
 	"veyron2/vlog"
 )
 
@@ -110,17 +112,46 @@ func (h *handler) callback(w http.ResponseWriter, r *http.Request) {
 		util.HTTPBadRequest(w, r, err)
 		return
 	}
-	// TODO(ashankar): Render a nice HTML page instead with the browser's timezone
-	// and all that good stuff. Will do that in a subsequent change.
-	ch, err := auditor.ReadAuditLog(h.auditor, email)
-	if err != nil {
+	type tmplentry struct {
+		Blessee    security.PublicID
+		Start, End time.Time
+		Blessed    security.PublicID
+	}
+	tmplargs := struct {
+		Log   chan tmplentry
+		Email string
+	}{
+		Log:   make(chan tmplentry),
+		Email: email,
+	}
+	if entrych, err := auditor.ReadAuditLog(h.auditor, email); err != nil {
 		vlog.Errorf("Unable to read audit log: %v", err)
 		util.HTTPServerError(w, fmt.Errorf("unable to read audit log"))
 		return
+	} else {
+		go func(ch chan tmplentry) {
+			defer close(ch)
+			for entry := range entrych {
+				if entry.Method != "Bless" || len(entry.Arguments) < 2 {
+					continue
+				}
+				var tmplentry tmplentry
+				tmplentry.Blessee, _ = entry.Arguments[0].(security.PublicID)
+				tmplentry.Start = entry.Timestamp
+				if duration, ok := entry.Arguments[2].(int64); ok {
+					tmplentry.End = tmplentry.Start.Add(time.Duration(duration))
+				}
+				if len(entry.Results) > 0 {
+					tmplentry.Blessed, _ = entry.Results[0].(security.PublicID)
+				}
+				ch <- tmplentry
+			}
+		}(tmplargs.Log)
 	}
-	w.Header().Set("Context-Type", "text/plain")
-	for entry := range ch {
-		w.Write([]byte(fmt.Sprintf("%v\n", entry)))
+	w.Header().Set("Context-Type", "text/html")
+	if err := tmpl.Execute(w, tmplargs); err != nil {
+		vlog.Errorf("Unable to execute audit page template: %v", err)
+		util.HTTPServerError(w, err)
 	}
 }
 
