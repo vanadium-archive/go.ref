@@ -7,60 +7,37 @@ import (
 	"strings"
 	"sync"
 
-	"veyron/runtimes/google/naming/namespace"
-	"veyron/services/mgmt/lib/exec"
-
 	"veyron2"
+	"veyron2/config"
 	"veyron2/ipc"
 	"veyron2/ipc/stream"
 	"veyron2/naming"
-	"veyron2/product"
 	"veyron2/security"
 	"veyron2/vlog"
+
+	"veyron/runtimes/google/naming/namespace"
+	"veyron/services/mgmt/lib/exec"
 )
 
 type vrt struct {
-	product product.T
-	sm      stream.Manager
-	ns      naming.Namespace
-	signals chan os.Signal
-	id      security.PrivateID
-	store   security.PublicIDStore
-	client  ipc.Client
-	mgmt    *mgmtImpl
-	debug   debugServer
+	profile   veyron2.Profile
+	publisher *config.Publisher
+	sm        stream.Manager
+	ns        naming.Namespace
+	signals   chan os.Signal
+	id        security.PrivateID
+	store     security.PublicIDStore
+	client    ipc.Client
+	mgmt      *mgmtImpl
+	debug     debugServer
 
 	mu       sync.Mutex
 	nServers int // GUARDED_BY(mu)
 }
 
-var (
-	globalR   veyron2.Runtime
-	globalErr error
-	once      sync.Once
-)
-
 // Implements veyron2/rt.New
 func New(opts ...veyron2.ROpt) (veyron2.Runtime, error) {
-	r := &vrt{mgmt: new(mgmtImpl)}
-	return r, r.init(opts...)
-}
-
-// Implements veyron2/rt.R
-func R() veyron2.Runtime {
-	return globalR
-}
-
-// Used to implement veyron2/rt.Init
-func Init(opts ...veyron2.ROpt) (veyron2.Runtime, error) {
-	once.Do(func() {
-		globalR, globalErr = New(opts...)
-	})
-	return globalR, globalErr
-}
-
-// init initalizes the runtime instance it is invoked on.
-func (rt *vrt) init(opts ...veyron2.ROpt) error {
+	rt := &vrt{mgmt: new(mgmtImpl)}
 	flag.Parse()
 	rt.initHTTPDebugServer()
 	nsRoots := []string{}
@@ -70,27 +47,28 @@ func (rt *vrt) init(opts ...veyron2.ROpt) error {
 			rt.id = v.PrivateID
 		case veyron2.RuntimePublicIDStoreOpt:
 			rt.store = v
-		case veyron2.ProductOpt:
-			rt.product = v.T
+		case veyron2.ProfileOpt:
+			rt.profile = v.Profile
 		case veyron2.NamespaceRoots:
 			nsRoots = v
 		case veyron2.HTTPDebugOpt:
 			rt.debug.addr = string(v)
+		case veyron2.RuntimeOpt:
+			if v.Name != "google" && v.Name != "" {
+				return nil, fmt.Errorf("%q is the wrong name for this runtime", v.Name)
+			}
 		default:
-			return fmt.Errorf("option has wrong type %T", o)
+			return nil, fmt.Errorf("option has wrong type %T", o)
 		}
 	}
 
 	rt.initLogging()
 	rt.initSignalHandling()
 
-	if rt.Product() == nil {
-		product, err := product.DetermineProduct()
-		if err != nil {
-			return err
-		}
-		rt.product = product
+	if rt.profile == nil {
+		rt.profile = &generic{}
 	}
+	vlog.VI(1).Infof("Using profile %q", rt.profile.Name())
 
 	if len(nsRoots) == 0 {
 		found := false
@@ -114,7 +92,7 @@ func (rt *vrt) init(opts ...veyron2.ROpt) error {
 	}
 
 	if ns, err := namespace.New(rt, nsRoots...); err != nil {
-		return fmt.Errorf("Couldn't create mount table: %v", err)
+		return nil, fmt.Errorf("Couldn't create mount table: %v", err)
 	} else {
 		rt.ns = ns
 	}
@@ -122,15 +100,15 @@ func (rt *vrt) init(opts ...veyron2.ROpt) error {
 
 	var err error
 	if rt.sm, err = rt.NewStreamManager(); err != nil {
-		return err
+		return nil, err
 	}
 
 	if err = rt.initSecurity(); err != nil {
-		return err
+		return nil, err
 	}
 
 	if rt.client, err = rt.NewClient(); err != nil {
-		return err
+		return nil, err
 	}
 
 	handle, err := exec.GetChildHandle()
@@ -143,15 +121,26 @@ func (rt *vrt) init(opts ...veyron2.ROpt) error {
 		// library. Signal the parent the the child is ready.
 		handle.SetReady()
 	default:
-		return err
+		return nil, err
 	}
 
 	if err := rt.mgmt.init(rt); err != nil {
-		return err
+		return nil, err
 	}
 
+	rt.publisher = config.NewPublisher()
+	rt.profile.Init(rt, rt.publisher)
+
 	vlog.VI(2).Infof("rt.Init done")
-	return nil
+	return rt, nil
+}
+
+func (rt *vrt) Publisher() *config.Publisher {
+	return rt.publisher
+}
+
+func (r *vrt) Profile() veyron2.Profile {
+	return r.profile
 }
 
 func (rt *vrt) Cleanup() {

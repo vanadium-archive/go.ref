@@ -5,8 +5,10 @@ import (
 	"syscall"
 	"testing"
 
+	"veyron2"
+	"veyron2/rt"
+
 	"veyron/lib/testutil/blackbox"
-	"veyron/runtimes/google/rt"
 )
 
 func init() {
@@ -21,7 +23,10 @@ func simpleEchoProgram() {
 }
 
 func withRuntime([]string) {
-	rt.Init()
+	// Make sure that we use "google" runtime implementation in this
+	// package even though we have to use the public API which supports
+	// arbitrary runtime implementations.
+	rt.Init(veyron2.RuntimeOpt{veyron2.GoogleRuntimeName})
 	simpleEchoProgram()
 }
 

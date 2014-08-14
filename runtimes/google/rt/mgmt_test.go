@@ -11,6 +11,7 @@ import (
 	"veyron2/ipc"
 	"veyron2/mgmt"
 	"veyron2/naming"
+	prt "veyron2/rt"
 	"veyron2/services/mgmt/appcycle"
 
 	_ "veyron/lib/testutil"
@@ -239,8 +240,8 @@ func (c *configServer) Set(_ ipc.ServerContext, key, value string) error {
 
 }
 
-func createConfigServer(t *testing.T) (ipc.Server, string, <-chan string) {
-	server, err := rt.R().NewServer()
+func createConfigServer(t *testing.T, r veyron2.Runtime) (ipc.Server, string, <-chan string) {
+	server, err := r.NewServer()
 	if err != nil {
 		t.Fatalf("Got error: %v", err)
 	}
@@ -258,14 +259,15 @@ func createConfigServer(t *testing.T) (ipc.Server, string, <-chan string) {
 }
 
 func setupRemoteAppCycleMgr(t *testing.T) (*blackbox.Child, appcycle.AppCycle, func()) {
-	r, err := rt.Init()
-	if err != nil {
-		t.Fatalf("Error creating runtime: %v", err)
-	}
+	// We need to use the public API since stubs are used below (and they
+	// refer to the global rt.R() function), but we take care to make sure
+	// that the "google" runtime we are trying to test in this package is
+	// the one being used.
+	r := prt.Init(veyron2.RuntimeOpt{veyron2.GoogleRuntimeName})
 	c := blackbox.HelperCommand(t, "app")
 	id := r.Identity()
 	idFile := security.SaveIdentityToFile(security.NewBlessedIdentity(id, "test"))
-	configServer, configServiceName, ch := createConfigServer(t)
+	configServer, configServiceName, ch := createConfigServer(t, r)
 	c.Cmd.Env = append(c.Cmd.Env, fmt.Sprintf("VEYRON_IDENTITY=%v", idFile),
 		fmt.Sprintf("%v=%v", mgmt.ParentNodeManagerConfigKey, configServiceName))
 	c.Cmd.Start()
@@ -286,9 +288,10 @@ func setupRemoteAppCycleMgr(t *testing.T) (*blackbox.Child, appcycle.AppCycle, f
 // TestRemoteForceStop verifies that the child process exits when sending it
 // a remote ForceStop rpc.
 func TestRemoteForceStop(t *testing.T) {
+	r, _ := rt.New()
 	c, appCycle, cleanup := setupRemoteAppCycleMgr(t)
 	defer cleanup()
-	if err := appCycle.ForceStop(rt.R().NewContext()); err == nil || !strings.Contains(err.Error(), "EOF") {
+	if err := appCycle.ForceStop(r.NewContext()); err == nil || !strings.Contains(err.Error(), "EOF") {
 		t.Fatalf("Expected EOF error, got %v instead", err)
 	}
 	c.ExpectEOFAndWaitForExitCode(fmt.Errorf("exit status %d", veyron2.ForceStopExitCode))
@@ -297,9 +300,10 @@ func TestRemoteForceStop(t *testing.T) {
 // TestRemoteStop verifies that the child shuts down cleanly when sending it
 // a remote Stop rpc.
 func TestRemoteStop(t *testing.T) {
+	r, _ := rt.New()
 	c, appCycle, cleanup := setupRemoteAppCycleMgr(t)
 	defer cleanup()
-	stream, err := appCycle.Stop(rt.R().NewContext())
+	stream, err := appCycle.Stop(r.NewContext())
 	if err != nil {
 		t.Fatalf("Got error: %v", err)
 	}
