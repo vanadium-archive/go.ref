@@ -10,16 +10,17 @@ import (
 	"veyron2/security"
 )
 
+// str converts the input byte slice to a string, ignoring everything following
+// a null character (including the null character).
 func str(c []int8) string {
-	r := ""
-	for i, v := range c {
-		if i == 0 {
-			// strip terminating null
-			return c[:i]
+	ret := make([]byte, 0, len(c))
+	for _, v := range c {
+		if v == 0 {
+			break
 		}
+		ret = append(ret, byte(v))
 	}
-	// no terminating null
-	return string(c)
+	return string(ret)
 }
 
 // Platform returns the description of the Platform this process is running on.
