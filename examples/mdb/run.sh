@@ -2,15 +2,15 @@
 
 source "${VEYRON_ROOT}/environment/scripts/lib/shell.sh"
 
-trap onexit INT TERM EXIT
+trap at_exit INT TERM EXIT
 
 readonly REPO_ROOT=$(git rev-parse --show-toplevel)
 readonly ID_FILE=$(shell::tmp_file)
 readonly DB_DIR=$(shell::tmp_dir)
 
-onexit() {
+at_exit() {
   exec 2>/dev/null
-  rm -rf "${ID_FILE}" "${DB_DIR}"
+  shell::at_exit  # deletes ID_FILE and DB_DIR
   kill -9 $(jobs -p) || true
 }
 
