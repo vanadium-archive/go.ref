@@ -27,15 +27,17 @@ func (rt *vrt) initSecurity() error {
 	if err := rt.initIdentity(); err != nil {
 		return err
 	}
-	if rt.store == nil {
-		rt.store = isecurity.NewPublicIDStore()
-		// TODO(ashankar,ataly): What should the tag for the runtime's PublicID in the
-		// runtime's store be? Below we use security.AllPrincipals but this means that
-		// the PublicID *always* gets used for any peer. This may not be desirable.
-		if err := rt.store.Add(rt.id.PublicID(), security.AllPrincipals); err != nil {
-			return fmt.Errorf("could not initialize a PublicIDStore for the runtime: %s", err)
-		}
+	if err := rt.initPublicIDStore(); err != nil {
+		return err
 	}
+	// Initialize the runtime's PublicIDStore with the runtime's PublicID.
+	// TODO(ashankar,ataly): What should be the tag for the PublicID? Below we use
+	// security.AllPrincipals but this means that the PublicID *always* gets used
+	// for any peer. This may not be desirable.
+	if err := rt.store.Add(rt.id.PublicID(), security.AllPrincipals); err != nil {
+		return fmt.Errorf("could not initialize a PublicIDStore for the runtime: %s", err)
+	}
+
 	// Always trust our own identity providers.
 	// TODO(ataly, ashankar): We should trust the identity providers of all PublicIDs in the store.
 	trustIdentityProviders(rt.id)
@@ -57,6 +59,24 @@ func (rt *vrt) initIdentity() error {
 		if rt.id, err = rt.NewIdentity(name); err != nil || rt.id == nil {
 			return fmt.Errorf("Could not create new identity: %v", err)
 		}
+	}
+	return nil
+}
+
+func (rt *vrt) initPublicIDStore() error {
+	if rt.store != nil {
+		return nil
+	}
+
+	var backup *isecurity.PublicIDStoreParams
+	// TODO(ataly): Get rid of this environment variable and have a single variable for
+	// all security related initialization.
+	if dir := os.Getenv("VEYRON_PUBLICID_STORE"); len(dir) > 0 {
+		backup = &isecurity.PublicIDStoreParams{dir, rt.id}
+	}
+	var err error
+	if rt.store, err = isecurity.NewPublicIDStore(backup); err != nil {
+		return fmt.Errorf("Could not create PublicIDStore for runtime: %v", err)
 	}
 	return nil
 }

@@ -2,6 +2,8 @@ package security
 
 import (
 	"crypto/ecdsa"
+	"io/ioutil"
+	"os"
 	"reflect"
 	"testing"
 
@@ -33,29 +35,68 @@ func TestStoreAdd(t *testing.T) {
 		cBob         = newChain("bob")
 		cVeyronAlice = derive(bless(cAlice.PublicID(), veyronChain, "alice", nil), cAlice)
 
-		sAlice = newSetPublicID(cAlice.PublicID(), cVeyronAlice.PublicID())
+		sAlice    = newSetPublicID(cAlice.PublicID(), cVeyronAlice.PublicID())
+		fakeID    = security.FakePublicID("alice")
+		fakeSetID = newSetPublicID(security.FakePublicID("bob"), fakeID)
 	)
-	s := NewPublicIDStore()
+	s, err := NewPublicIDStore(nil)
+	if err != nil {
+		t.Fatalf("NewPublicIDStore failed: %s", err)
+	}
 	// First Add should succeed for any PublicID (cAlice.PublicID() below)
 	if err := s.Add(cAlice.PublicID(), "alice/*"); err != nil {
-		t.Fatalf("%q.Add(%q, ...) failed unexpectedly: %s", s, cAlice, err)
+		t.Fatalf("%s.Add(%q, ...) failed unexpectedly: %s", s, cAlice.PublicID(), err)
 	}
 	// Subsequent Adds must succeed only for PublicIDs with cAlice's public key.
 	if err := s.Add(cVeyronAlice.PublicID(), "*"); err != nil {
-		t.Fatalf("%q.Add(%q, ...) failed unexpectedly: %s", s, cVeyronAlice, err)
+		t.Fatalf("%s.Add(%q, ...) failed unexpectedly: %s", s, cVeyronAlice.PublicID(), err)
 	}
 	if err := s.Add(sAlice, "alice/*"); err != nil {
-		t.Fatalf("%q.Add(%q, ...) failed unexpectedly: %s", s, sAlice, err)
+		t.Fatalf("%s.Add(%q, ...) failed unexpectedly: %s", s, sAlice, err)
 	}
 	if got, want := s.Add(cBob.PublicID(), "bob/*"), errStoreAddMismatch; got != want {
-		t.Fatalf("%q.Add(%q, ...): got: %s, want: %s", s, cBob, got, want)
+		t.Fatalf("%s.Add(%q, ...): got: %s, want: %s", s, cBob, got, want)
+	}
+	// Adding non-chain PublicIDs or sets containing non-chain PublicIDs should fail.
+	if err := s.Add(fakeID, "*"); err == nil {
+		t.Fatalf("Unexpectedly added PublicID of type %T to the store", fakeID)
+	}
+	if err := s.Add(fakeSetID, "*"); err == nil {
+		t.Fatalf("Unexpectedly added PublicID of type %T to the store", fakeSetID)
+	}
+}
+
+func TestSetDefaultPattern(t *testing.T) {
+	s, err := NewPublicIDStore(nil)
+	if err != nil {
+		t.Fatalf("NewPublicIDStore failed: %s", err)
+	}
+	defaultPatterns := []struct {
+		pattern security.PrincipalPattern
+		success bool
+	}{
+		{"veyron", true},
+		{"veyron/alice@google", true},
+		{"veyron/alice@google/bob", true},
+		{"veyron/alice@google/*", true},
+		{"", false},
+		{"veyron*", false},
+		{"*veyron", false},
+		{"/veyron", false},
+		{"veyron/", false},
+		{"veyron/*/alice", false},
+	}
+	for _, d := range defaultPatterns {
+		if got := s.SetDefaultPrincipalPattern(d.pattern); d.success != (got == nil) {
+			t.Errorf("%s.SetDefaultPattern(%q) returned: %v, expected it to succeed: %v", s, d.pattern, got, d.success)
+		}
 	}
 }
 
 func TestStoreGetters(t *testing.T) {
 	add := func(s security.PublicIDStore, id security.PublicID, peers security.PrincipalPattern) {
 		if err := s.Add(id, peers); err != nil {
-			t.Fatalf("Add(%q, %q) failed unexpectedly: %s", id, peers, err)
+			t.Fatalf("%s.Add(%q, %q) failed unexpectedly: %s", s, id, peers, err)
 		}
 	}
 	var (
@@ -80,7 +121,10 @@ func TestStoreGetters(t *testing.T) {
 	)
 
 	// Create a new PublicIDStore and add Add Alice's PublicIDs to the store.
-	s := NewPublicIDStore()
+	s, err := NewPublicIDStore(nil)
+	if err != nil {
+		t.Fatalf("NewPublicIDStore failed: %s", err)
+	}
 	add(s, cGoogleAlice, "google")                  // use cGoogleAlice against all peers matching "google/*"
 	add(s, cGoogleAlice, "veyron")                  // use cGoogleAlice against all peers matching "veyron/*" as well
 	add(s, cVeyronAlice, "veyron/*")                // use cVeyronAlice against peers matching "veyron/*"
@@ -93,7 +137,7 @@ func TestStoreGetters(t *testing.T) {
 	pkey := cAlice.PublicID().PublicKey()
 
 	// Test ForPeer.
-	testDataByPeer := []struct {
+	testDataForPeer := []struct {
 		peer  security.PublicID
 		names []string
 	}{
@@ -104,7 +148,7 @@ func TestStoreGetters(t *testing.T) {
 		{cGoogleServiceApp.PublicID(), []string{"google/service/user-42"}},
 		{cBob.PublicID(), nil},
 	}
-	for _, d := range testDataByPeer {
+	for _, d := range testDataForPeer {
 		if got, err := s.ForPeer(d.peer); !verifyNamesAndPublicKey(got, err, d.names, pkey) {
 			t.Errorf("%s.ForPeer(%s): got: %q, want PublicID with the exact set of names %q", s, d.peer, got, d.names)
 		}
@@ -138,4 +182,73 @@ func TestStoreGetters(t *testing.T) {
 			t.Errorf("%s.DefaultPublicID(): got: %s, want PublicID with the exact set of names: %s", s, got, d.defaultNames)
 		}
 	}
+}
+
+func TestPublicIDStorePersistence(t *testing.T) {
+	newTempDir := func(name string) string {
+		dir, err := ioutil.TempDir("", name)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return dir
+	}
+
+	var (
+		signer = newChain("signer")
+
+		cAlice       = newChain("alice")
+		cBob         = newChain("bob")
+		cVeyronAlice = bless(cAlice.PublicID(), veyronChain, "alice", nil)
+		cGoogleAlice = bless(cAlice.PublicID(), googleChain, "alice", nil)
+		sAllAlice    = newSetPublicID(cGoogleAlice, cVeyronAlice)
+
+		pkey = cAlice.PublicID().PublicKey()
+	)
+
+	// Create a new PublicIDStore that saves all mutations to the provided directory.
+	dir := newTempDir("publicid_store")
+	defer os.RemoveAll(dir)
+
+	s, err := NewPublicIDStore(&PublicIDStoreParams{dir, signer})
+	if err != nil {
+		t.Fatalf("NewPublicIDStore failed: %s", err)
+	}
+	if err := s.Add(sAllAlice, "google/*"); err != nil {
+		t.Fatalf("%s.Add(%q, ...) failed unexpectedly: %s", s, sAllAlice, err)
+	}
+	if err := s.SetDefaultPrincipalPattern("veyron/*"); err != nil {
+		t.Fatalf("%s.SetDefaultPrincipalPattern failed: %s", s, err)
+	}
+
+	// Test that all mutations are appropriately reflected in a PublicIDStore read from
+	// the directory.
+	s, err = NewPublicIDStore(&PublicIDStoreParams{dir, signer})
+	if err != nil {
+		t.Fatalf("NewPublicIDStore failed: %s", err)
+	}
+
+	testDataForPeer := []struct {
+		peer  security.PublicID
+		names []string
+	}{
+		{googleChain.PublicID(), []string{"veyron/alice", "google/alice"}},
+		{veyronChain.PublicID(), nil},
+		{cBob.PublicID(), nil},
+	}
+	for _, d := range testDataForPeer {
+		if got, err := s.ForPeer(d.peer); !verifyNamesAndPublicKey(got, err, d.names, pkey) {
+			t.Errorf("%s.ForPeer(%s): got: %q, want PublicID with the exact set of names %q", s, d.peer, got, d.names)
+		}
+	}
+
+	wantDefaultNames := []string{"veyron/alice"}
+	if got, err := s.DefaultPublicID(); !verifyNamesAndPublicKey(got, err, wantDefaultNames, pkey) {
+		t.Errorf("%s.DefaultPublicID(): got: %s, want PublicID with the exact set of names: %s", s, got, wantDefaultNames)
+	}
+
+	diffPubKeyID := newChain("immaterial").PublicID()
+	if got, want := s.Add(diffPubKeyID, security.AllPrincipals), errStoreAddMismatch; got != want {
+		t.Fatalf("%s.Add(%q, ...): got: %v, want: %v", s, diffPubKeyID, got, want)
+	}
+
 }

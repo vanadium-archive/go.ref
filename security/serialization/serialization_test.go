@@ -3,6 +3,8 @@ package serialization
 import (
 	"bytes"
 	"crypto/ecdsa"
+	"crypto/elliptic"
+	"crypto/rand"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -12,8 +14,8 @@ import (
 	"testing"
 
 	"veyron/lib/testutil"
+	"veyron/security/signing"
 
-	"veyron2/rt"
 	"veyron2/security"
 )
 
@@ -50,17 +52,11 @@ func verifyingRead(d, s io.Reader, key *ecdsa.PublicKey) ([]byte, error) {
 }
 
 func newSigner() security.Signer {
-	// TODO(ashankar,ataly): Remove use of "rt" here and replace with a factory
-	// function for PrivateID/Signer when possible.
-	r, err := rt.New()
+	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	if err != nil {
 		panic(err)
 	}
-	id, err := r.NewIdentity("irrelevant")
-	if err != nil {
-		panic(err)
-	}
-	return id
+	return signing.NewClearSigner(key)
 }
 
 func matchesErrorPattern(err error, pattern string) bool {

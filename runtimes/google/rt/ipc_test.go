@@ -146,7 +146,10 @@ func TestClientServerIDs(t *testing.T) {
 		return fmt.Sprintf("TestCase{clientPublicIDStore: %v, serverPublicIDStore: %v, client option: %v, server option: %v}", clientR.PublicIDStore(), serverR.PublicIDStore(), t.client, t.server)
 	}
 	for _, test := range tests {
-		serverR.PublicIDStore().SetDefaultPrincipalPattern(test.defaultPattern)
+		if err := serverR.PublicIDStore().SetDefaultPrincipalPattern(test.defaultPattern); err != nil {
+			t.Errorf("serverR.PublicIDStore.SetDefaultPrincipalPattern failed: %s", err)
+			continue
+		}
 		server, err := serverR.NewServer(veyron2.LocalID(test.server))
 		if err != nil {
 			t.Errorf("serverR.NewServer(...) failed: %s", err)

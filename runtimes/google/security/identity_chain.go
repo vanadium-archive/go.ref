@@ -13,6 +13,7 @@ import (
 
 	"veyron/runtimes/google/security/keys"
 	"veyron/security/caveat"
+	"veyron/security/signing"
 
 	"veyron2/security"
 	"veyron2/security/wire"
@@ -146,7 +147,7 @@ func (id *chainPrivateID) VomDecode(w *wire.ChainPrivateID) error {
 		PublicKey: *id.publicID.publicKey,
 		D:         new(big.Int).SetBytes(w.Secret),
 	}
-	id.Signer = NewClearSigner(id.privateKey)
+	id.Signer = signing.NewClearSigner(id.privateKey)
 	return nil
 }
 
@@ -234,7 +235,7 @@ func newChainPrivateID(name string, signer security.Signer) (security.PrivateID,
 		if err != nil {
 			return nil, err
 		}
-		signer = NewClearSigner(privKey)
+		signer = signing.NewClearSigner(privKey)
 	}
 
 	id := &chainPrivateID{

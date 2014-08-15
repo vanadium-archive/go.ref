@@ -35,7 +35,9 @@ func (s fixedPublicIDStore) DefaultPublicID() (security.PublicID, error) {
 	return s.id, nil
 }
 
-func (fixedPublicIDStore) SetDefaultPrincipalPattern(pattern security.PrincipalPattern) {}
+func (fixedPublicIDStore) SetDefaultPrincipalPattern(pattern security.PrincipalPattern) error {
+	return errors.New("SetDefaultPrincipalPattern is disallowed on a fixed PublicIDStore")
+}
 
 // localID is an option for passing a PrivateID and PublicIDStore
 // to a server or client.
