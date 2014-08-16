@@ -12,13 +12,23 @@ import (
 	"veyron2/rt"
 	"veyron2/services/mgmt/binary"
 	"veyron2/services/mgmt/build"
+	"veyron2/verror"
 	"veyron2/vlog"
 )
 
+var errInternalError = verror.Internalf("internal error")
+
 type mock struct{}
 
-func (mock) Build(_ ipc.ServerContext, arch build.Architecture, opsys build.OperatingSystem, _ build.BuilderServiceBuildStream) ([]byte, error) {
+func (mock) Build(_ ipc.ServerContext, arch build.Architecture, opsys build.OperatingSystem, stream build.BuilderServiceBuildStream) ([]byte, error) {
 	vlog.VI(2).Infof("Build(%v, %v) was called", arch, opsys)
+	iterator := stream.RecvStream()
+	for iterator.Advance() {
+	}
+	if err := iterator.Err(); err != nil {
+		vlog.Errorf("Advance() failed: %v", err)
+		return nil, errInternalError
+	}
 	return nil, nil
 }
 

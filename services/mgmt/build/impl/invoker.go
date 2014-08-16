@@ -2,7 +2,6 @@ package impl
 
 import (
 	"bytes"
-	"errors"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -13,12 +12,13 @@ import (
 	"veyron2/ipc"
 	"veyron2/services/mgmt/binary"
 	"veyron2/services/mgmt/build"
+	"veyron2/verror"
 	"veyron2/vlog"
 )
 
 var (
-	errBuildFailed   = errors.New("build failed")
-	errInternalError = errors.New("internal error")
+	errBuildFailed   = verror.Internalf("build failed")
+	errInternalError = verror.Internalf("internal error")
 )
 
 // invoker holds the state of a build server invocation.
@@ -56,9 +56,9 @@ func (i *invoker) Build(_ ipc.ServerContext, arch build.Architecture, opsys buil
 		vlog.Errorf("MkdirAll(%v, %v) failed: %v", srcDir, dirPerm, err)
 		return nil, errInternalError
 	}
-	rStream := stream.RecvStream()
-	for rStream.Advance() {
-		srcFile := rStream.Value()
+	iterator := stream.RecvStream()
+	for iterator.Advance() {
+		srcFile := iterator.Value()
 		filePath := filepath.Join(srcDir, filepath.FromSlash(srcFile.Name))
 		dir := filepath.Dir(filePath)
 		if err := os.MkdirAll(dir, dirPerm); err != nil {
@@ -70,9 +70,8 @@ func (i *invoker) Build(_ ipc.ServerContext, arch build.Architecture, opsys buil
 			return nil, errInternalError
 		}
 	}
-
-	if err := rStream.Err(); err != nil {
-		vlog.Errorf("rStream failed: %v", err)
+	if err := iterator.Err(); err != nil {
+		vlog.Errorf("Advance() failed: %v", err)
 		return nil, errInternalError
 	}
 	cmd := exec.Command(i.gobin, "install", "-v", "...")
