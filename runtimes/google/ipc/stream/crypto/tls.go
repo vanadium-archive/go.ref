@@ -1,3 +1,5 @@
+// +build go1.4
+
 package crypto
 
 import (
@@ -20,14 +22,21 @@ type TLSClientSessionCache struct{ tls.ClientSessionCache }
 
 func (TLSClientSessionCache) IPCStreamVCOpt() {}
 
+// NewTLSClientSessionCache creates a new session cache.
+// TODO(ashankar): Remove this once go1.4 is released and tlsfork can be release, at that
+// point use crypto/tls.NewLRUClientSessionCache directly.
+func NewTLSClientSessionCache() TLSClientSessionCache {
+	return TLSClientSessionCache{tls.NewLRUClientSessionCache(-1)}
+}
+
 // NewTLSClient returns a Crypter implementation that uses TLS, assuming
 // handshaker was initiated by a client.
-func NewTLSClient(handshaker net.Conn, sessionCache tls.ClientSessionCache, pool *iobuf.Pool) (Crypter, error) {
+func NewTLSClient(handshaker net.Conn, sessionCache TLSClientSessionCache, pool *iobuf.Pool) (Crypter, error) {
 	var config tls.Config
 	// TLS + resumption + channel bindings is broken: <https://secure-resumption.com/#channelbindings>.
 	config.SessionTicketsDisabled = true
 	config.InsecureSkipVerify = true
-	config.ClientSessionCache = sessionCache
+	config.ClientSessionCache = sessionCache.ClientSessionCache
 	return newTLSCrypter(handshaker, &config, pool, false)
 }
 

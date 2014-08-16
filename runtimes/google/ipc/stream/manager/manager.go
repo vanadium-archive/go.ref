@@ -2,7 +2,6 @@
 package manager
 
 import (
-	"crypto/tls"
 	"errors"
 	"fmt"
 	"net"
@@ -34,7 +33,7 @@ func InternalNew(rid naming.RoutingID) stream.Manager {
 	return &manager{
 		rid:          rid,
 		vifs:         vif.NewSet(),
-		sessionCache: crypto.TLSClientSessionCache{tls.NewLRUClientSessionCache(-1)},
+		sessionCache: crypto.NewTLSClientSessionCache(),
 		listeners:    make(map[listener]bool),
 	}
 }

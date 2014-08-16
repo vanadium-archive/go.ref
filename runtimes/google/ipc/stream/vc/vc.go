@@ -5,7 +5,6 @@ package vc
 // Verbosity level 2 is for per-Flow messages.
 
 import (
-	"crypto/tls"
 	"errors"
 	"fmt"
 	"sort"
@@ -373,7 +372,7 @@ func (vc *VC) err(err error) error {
 // local process (i.e., the local process "Dial"ed to create the VC).
 func (vc *VC) HandshakeDialedVC(opts ...stream.VCOpt) error {
 	var localID LocalID
-	var tlsSessionCache tls.ClientSessionCache
+	var tlsSessionCache crypto.TLSClientSessionCache
 	var securityLevel veyron2.VCSecurityLevel
 	for _, o := range opts {
 		switch v := o.(type) {
@@ -382,7 +381,7 @@ func (vc *VC) HandshakeDialedVC(opts ...stream.VCOpt) error {
 		case veyron2.VCSecurityLevel:
 			securityLevel = v
 		case crypto.TLSClientSessionCache:
-			tlsSessionCache = (tls.ClientSessionCache)(v)
+			tlsSessionCache = v
 		}
 	}
 	switch securityLevel {
