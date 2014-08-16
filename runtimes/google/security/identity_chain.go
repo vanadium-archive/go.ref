@@ -49,15 +49,6 @@ func (id *chainPublicID) Names() []string {
 	return nil
 }
 
-// Match determines if the PublicID's chained name can be extended to match the
-// provided PrincipalPattern. An extension of a chained name is any name obtained
-// by joining additional strings to the name using wire.ChainSeparator. Ex: extensions
-// of the name "foo/bar" are the names "foo/bar", "foo/bar/baz", "foo/bar/baz/car", and
-// so on.
-func (id *chainPublicID) Match(pattern security.PrincipalPattern) bool {
-	return matchPrincipalPattern(id.Names(), pattern)
-}
-
 func (id *chainPublicID) PublicKey() *ecdsa.PublicKey { return id.publicKey }
 
 func (id *chainPublicID) String() string {

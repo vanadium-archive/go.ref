@@ -18,7 +18,6 @@ var (
 	errACL          = errors.New("no matching ACL entry found")
 	errInvalidLabel = errors.New("label is invalid")
 	errNilID        = errors.New("identity being matched is nil")
-	errNilACL       = errors.New("ACL is nil")
 	nullACL         security.ACL
 )
 
@@ -82,13 +81,8 @@ func matchesACL(id security.PublicID, label security.Label, acl security.ACL) er
 	if id == nil {
 		return errNilID
 	}
-	if acl == nil {
-		return errNilACL
-	}
-	for key, labels := range acl {
-		if labels.HasLabel(label) && id.Match(key) {
-			return nil
-		}
+	if acl.Matches(id, label) {
+		return nil
 	}
 	return errACL
 }
@@ -96,7 +90,7 @@ func matchesACL(id security.PublicID, label security.Label, acl security.ACL) er
 func loadACLFromFile(filePath string) (security.ACL, error) {
 	f, err := os.Open(filePath)
 	if err != nil {
-		return nil, err
+		return nullACL, err
 	}
 	defer f.Close()
 	return security.LoadACL(f)

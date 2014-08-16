@@ -162,14 +162,19 @@ func TestACLAuthorizer(t *testing.T) {
 	var (
 		veyronPrivateID = security.FakePrivateID("veyron")
 		alicePrivateID  = security.FakePrivateID("alice")
+		bobPrivateID    = security.FakePrivateID("bob")
+		chePrivateID    = security.FakePrivateID("che")
 		veyron          = veyronPrivateID.PublicID()
 		alice           = alicePrivateID.PublicID()
-		bob             = security.FakePrivateID("bob").PublicID()
+		bob             = bobPrivateID.PublicID()
+		che             = chePrivateID.PublicID()
 
 		// Blessed principals
 		veyronAlice       = bless(alice, veyronPrivateID, "alice")
 		veyronBob         = bless(bob, veyronPrivateID, "bob")
+		veyronChe         = bless(che, veyronPrivateID, "che")
 		veyronAliceFriend = bless(bob, derive(veyronAlice, alicePrivateID), "friend")
+		veyronCheFriend   = bless(che, derive(veyronChe, chePrivateID), "friend")
 	)
 	// Convenience function for combining Labels into a LabelSet.
 	LS := func(labels ...security.Label) security.LabelSet {
@@ -181,11 +186,17 @@ func TestACLAuthorizer(t *testing.T) {
 	}
 
 	// ACL for testing
-	acl := security.ACL{
+	acl := security.ACL{}
+	acl.In.Principals = map[security.PrincipalPattern]security.LabelSet{
 		"*": LS(R),
 		"fake/veyron/alice/*": LS(W, R),
 		"fake/veyron/alice":   LS(A, D, M),
 		"fake/veyron/bob":     LS(D, M),
+		"fake/veyron/che/*":   LS(W, R),
+		"fake/veyron/che":     LS(W, R),
+	}
+	acl.NotIn.Principals = map[security.PrincipalPattern]security.LabelSet{
+		"fake/veyron/che/friend": LS(W),
 	}
 
 	// Authorizations for the above ACL.
@@ -193,6 +204,7 @@ func TestACLAuthorizer(t *testing.T) {
 		// alice and bob have only what "*" has.
 		alice: LS(R),
 		bob:   LS(R),
+		che:   LS(R),
 		// veyron and veyronAlice have R, W, A, D, M from the "veyron/alice" and
 		// "veyron/alice/*" ACL entries.
 		veyron:      LS(R, W, A, D, M),
@@ -201,6 +213,11 @@ func TestACLAuthorizer(t *testing.T) {
 		veyronBob: LS(R, D, M),
 		// veyronAliceFriend has W, R from the "veyron/alice/*" ACL entry.
 		veyronAliceFriend: LS(W, R),
+		// veyronChe has W, R from the "veyron/che" entry.
+		veyronChe: LS(W, R),
+		// veyronCheFriend has W, R from the "veyron/che/*" entry, but loses W
+		// from the blacklist entry "veyron/che/friend".
+		veyronCheFriend: LS(R),
 		// nil PublicIDs are not authorized.
 		nil: LS(),
 	}
@@ -219,7 +236,7 @@ func TestACLAuthorizer(t *testing.T) {
 
 	// Modify the ACL stored in the file and verify that the authorizations appropriately
 	// change for the fileACLAuthorizer.
-	acl["fake/veyron/bob"] = LS(R, W, A, D, M)
+	acl.In.Principals["fake/veyron/bob"] = LS(R, W, A, D, M)
 	updateACLInFile(fileName, acl)
 
 	authorizations[veyronBob] = LS(R, W, A, D, M)
@@ -243,7 +260,7 @@ func TestACLAuthorizer(t *testing.T) {
 }
 
 func TestNilACLAuthorizer(t *testing.T) {
-	authorizer := NewACLAuthorizer(nil)
+	authorizer := NewACLAuthorizer(nullACL)
 	testNothingPermitted(t, authorizer)
 	testSelfRPCs(t, authorizer)
 }

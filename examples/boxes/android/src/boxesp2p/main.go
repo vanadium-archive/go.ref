@@ -256,7 +256,10 @@ func (gs *goState) monitorStore() {
 }
 
 func (gs *goState) registerAsPeer() {
-	auth := vsecurity.NewACLAuthorizer(security.ACL{security.AllPrincipals: security.LabelSet(security.AdminLabel)})
+	auth := vsecurity.NewACLAuthorizer(security.NewWhitelistACL(
+		map[security.PrincipalPattern]security.LabelSet{
+			security.AllPrincipals: security.LabelSet(security.AdminLabel),
+		}))
 	gs.disp.drawAuth = auth
 	gs.disp.drawServer = ipc.ReflectInvoker(boxes.NewServerDrawInterface(gs))
 	endPt, err := gs.ipc.Listen("tcp", gs.myIPAddr+drawServicePort)

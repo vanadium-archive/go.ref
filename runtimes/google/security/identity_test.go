@@ -137,7 +137,7 @@ func TestMatch(t *testing.T) {
 	}
 	for _, d := range testdata {
 		for _, m := range d.matchData {
-			if got := d.id.Match(m.pattern); got != m.want {
+			if got := security.Matches(d.id, m.pattern); got != m.want {
 				t.Errorf("%q.Match(%s), Got %t, want %t", d.id, m.pattern, got, m.want)
 			}
 		}

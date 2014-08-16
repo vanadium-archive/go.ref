@@ -30,7 +30,10 @@ var (
 
 func authorizer(file string) security.Authorizer {
 	if file == "" {
-		return vsecurity.NewACLAuthorizer(security.ACL{security.AllPrincipals: security.AllLabels})
+		return vsecurity.NewACLAuthorizer(security.NewWhitelistACL(
+			map[security.PrincipalPattern]security.LabelSet{
+				security.AllPrincipals: security.AllLabels,
+			}))
 	}
 	return vsecurity.NewFileACLAuthorizer(file)
 }

@@ -52,7 +52,7 @@ type PeerIdentity []security.PrincipalPattern
 // identified by the PrincipalPatterns on the caveat.
 func (c PeerIdentity) Validate(ctx security.Context) error {
 	for _, p := range c {
-		if ctx.LocalID() != nil && ctx.LocalID().Match(p) {
+		if ctx.LocalID() != nil && security.Matches(ctx.LocalID(), p) {
 			return nil
 		}
 	}

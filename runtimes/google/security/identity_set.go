@@ -52,15 +52,6 @@ func (s *setPublicID) Names() []string {
 	return names
 }
 
-func (s *setPublicID) Match(pattern security.PrincipalPattern) bool {
-	for _, id := range *s {
-		if id.Match(pattern) {
-			return true
-		}
-	}
-	return false
-}
-
 func (s *setPublicID) PublicKey() *ecdsa.PublicKey {
 	return (*s)[0].PublicKey()
 }
