@@ -126,7 +126,7 @@ func tlsCrypters(t testing.TB, serverConn, clientConn net.Conn) (Crypter, Crypte
 	}()
 
 	go func() {
-		client, err := NewTLSClient(clientConn, nil, iobuf.NewPool(0))
+		client, err := NewTLSClient(clientConn, TLSClientSessionCache{}, iobuf.NewPool(0))
 		if err != nil {
 			t.Fatal(err)
 		}
