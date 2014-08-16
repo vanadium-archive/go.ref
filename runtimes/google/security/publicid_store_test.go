@@ -34,10 +34,7 @@ func TestStoreAdd(t *testing.T) {
 		cAlice       = newChain("alice")
 		cBob         = newChain("bob")
 		cVeyronAlice = derive(bless(cAlice.PublicID(), veyronChain, "alice", nil), cAlice)
-
-		sAlice    = newSetPublicID(cAlice.PublicID(), cVeyronAlice.PublicID())
-		fakeID    = security.FakePublicID("alice")
-		fakeSetID = newSetPublicID(security.FakePublicID("bob"), fakeID)
+		sAlice       = newSetPublicID(cAlice.PublicID(), cVeyronAlice.PublicID())
 	)
 	s, err := NewPublicIDStore(nil)
 	if err != nil {
@@ -56,13 +53,6 @@ func TestStoreAdd(t *testing.T) {
 	}
 	if got, want := s.Add(cBob.PublicID(), "bob/*"), errStoreAddMismatch; got != want {
 		t.Fatalf("%s.Add(%q, ...): got: %s, want: %s", s, cBob, got, want)
-	}
-	// Adding non-chain PublicIDs or sets containing non-chain PublicIDs should fail.
-	if err := s.Add(fakeID, "*"); err == nil {
-		t.Fatalf("Unexpectedly added PublicID of type %T to the store", fakeID)
-	}
-	if err := s.Add(fakeSetID, "*"); err == nil {
-		t.Fatalf("Unexpectedly added PublicID of type %T to the store", fakeSetID)
 	}
 }
 
