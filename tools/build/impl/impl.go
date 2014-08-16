@@ -72,6 +72,11 @@ func importPackages(paths []string, pkgMap map[string]*build.Package) error {
 			srcDir, mode := "", build.ImportMode(0)
 			pkg, err := build.Import(path, srcDir, mode)
 			if err != nil {
+				// "C" is a pseudo-package for cgo: http://golang.org/cmd/cgo/
+				// Do not attempt recursive imports.
+				if pkg.ImportPath == "C" {
+					continue
+				}
 				return fmt.Errorf("Import(%q,%q,%v) failed: %v", path, srcDir, mode, err)
 			}
 			if pkg.Goroot {
