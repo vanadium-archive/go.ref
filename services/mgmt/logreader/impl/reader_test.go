@@ -76,7 +76,6 @@ func TestFollowReaderWithFollow(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ioutil.TempFile: unexpected error: %v", err)
 	}
-	defer w.Close()
 	defer os.Remove(w.Name())
 
 	tests := []string{
@@ -95,6 +94,7 @@ func TestFollowReaderWithFollow(t *testing.T) {
 		writeAndSync(t, w, "world ")
 		sleep()
 		writeAndSync(t, w, "Four\n")
+		w.Close()
 	}()
 
 	r, err := os.Open(w.Name())
