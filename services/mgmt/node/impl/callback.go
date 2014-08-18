@@ -1,6 +1,8 @@
 package impl
 
 import (
+	"time"
+
 	"veyron/services/mgmt/lib/exec"
 	inode "veyron/services/mgmt/node"
 
@@ -24,7 +26,9 @@ func InvokeCallback(name string) {
 		if err != nil {
 			vlog.Fatalf("BindNode(%v) failed: %v", callbackName, err)
 		}
-		if err := nmClient.Set(rt.R().NewContext(), mgmt.ChildNodeManagerConfigKey, name); err != nil {
+		ctx, cancel := rt.R().NewContext().WithTimeout(time.Minute)
+		defer cancel()
+		if err := nmClient.Set(ctx, mgmt.ChildNodeManagerConfigKey, name); err != nil {
 			vlog.Fatalf("Set(%v, %v) failed: %v", mgmt.ChildNodeManagerConfigKey, name, err)
 		}
 	case exec.ErrNoVersion:

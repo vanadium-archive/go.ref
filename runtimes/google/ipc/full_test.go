@@ -72,8 +72,6 @@ func (c fakeTimeCaveat) Validate(security.Context) error {
 	return nil
 }
 
-type fakeContext struct{}
-
 type userType string
 
 type testServer struct{}
@@ -495,7 +493,7 @@ func TestStartCall(t *testing.T) {
 			stopServer(t, server, ns)
 			continue
 		}
-		if _, err := client.StartCall(&fakeContext{}, "mountpoint/server/suffix", "irrelevant", nil, veyron2.RemoteID(test.pattern)); !matchesErrorPattern(err, test.err) {
+		if _, err := client.StartCall(InternalNewContext(), "mountpoint/server/suffix", "irrelevant", nil, veyron2.RemoteID(test.pattern)); !matchesErrorPattern(err, test.err) {
 			t.Errorf(`%s: client.StartCall: got error "%v", want to match "%v"`, name, err, test.err)
 		}
 		client.Close()
@@ -546,7 +544,7 @@ func testRPC(t *testing.T, shouldCloseSend bool) {
 	defer b.cleanup(t)
 	for _, test := range tests {
 		vlog.VI(1).Infof("%s client.StartCall", name(test))
-		call, err := b.client.StartCall(&fakeContext{}, test.name, test.method, test.args)
+		call, err := b.client.StartCall(InternalNewContext(), test.name, test.method, test.args)
 		if err != test.startErr {
 			t.Errorf(`%s client.StartCall got error "%v", want "%v"`, name(test), err, test.startErr)
 			continue
@@ -603,7 +601,7 @@ func TestBlessing(t *testing.T) {
 		{granter: granter{id: clientID.PublicID()}, finisherr: "blessing provided not bound to this server"},
 	}
 	for _, test := range tests {
-		call, err := b.client.StartCall(&fakeContext{}, "mountpoint/server/suffix", "EchoBlessing", []interface{}{"argument"}, test.granter)
+		call, err := b.client.StartCall(InternalNewContext(), "mountpoint/server/suffix", "EchoBlessing", []interface{}{"argument"}, test.granter)
 		if !matchesErrorPattern(err, test.starterr) {
 			t.Errorf("%+v: StartCall returned error %v", test, err)
 		}
@@ -728,7 +726,7 @@ func TestRPCAuthorization(t *testing.T) {
 			t.Fatalf("InternalNewClient failed: %v", err)
 		}
 		defer client.Close()
-		call, err := client.StartCall(&fakeContext{}, test.name, test.method, test.args)
+		call, err := client.StartCall(InternalNewContext(), test.name, test.method, test.args)
 		if err != nil {
 			t.Errorf(`%s client.StartCall got unexpected error: "%v"`, name(test), err)
 			continue
@@ -758,7 +756,7 @@ func TestDischargePurgeFromCache(t *testing.T) {
 	defer b.cleanup(t)
 
 	call := func() error {
-		call, err := b.client.StartCall(&fakeContext{}, "mountpoint/server/suffix", "Echo", []interface{}{"batman"})
+		call, err := b.client.StartCall(InternalNewContext(), "mountpoint/server/suffix", "Echo", []interface{}{"batman"})
 		if err != nil {
 			return fmt.Errorf("client.StartCall failed: %v", err)
 		}
@@ -806,23 +804,27 @@ func (s *cancelTestServer) CancelStreamReader(call ipc.ServerCall) error {
 		if err := call.Recv(&b); err != nil && err != io.EOF {
 			return err
 		}
-		if call.IsClosed() {
+		select {
+		case <-call.Done():
 			close(s.cancelled)
 			return nil
+		default:
 		}
 	}
 }
 
 // CancelStreamIgnorer doesn't read from it's input stream so all it's
-// buffers fill.  The intention is to show that call.IsClosed is updated
+// buffers fill.  The intention is to show that call.Done() is closed
 // even when the stream is stalled.
 func (s *cancelTestServer) CancelStreamIgnorer(call ipc.ServerCall) error {
 	close(s.started)
 	for {
 		time.Sleep(time.Millisecond)
-		if call.IsClosed() {
+		select {
+		case <-call.Done():
 			close(s.cancelled)
 			return nil
+		default:
 		}
 	}
 }
@@ -839,7 +841,7 @@ func TestCancel(t *testing.T) {
 	b := createBundle(t, clientID, serverID, ts)
 	defer b.cleanup(t)
 
-	call, err := b.client.StartCall(&fakeContext{}, "mountpoint/server/suffix", "CancelStreamReader", []interface{}{})
+	call, err := b.client.StartCall(InternalNewContext(), "mountpoint/server/suffix", "CancelStreamReader", []interface{}{})
 	if err != nil {
 		t.Fatalf("Start call failed: %v", err)
 	}
@@ -859,7 +861,7 @@ func TestCancelWithFullBuffers(t *testing.T) {
 	b := createBundle(t, clientID, serverID, ts)
 	defer b.cleanup(t)
 
-	call, err := b.client.StartCall(&fakeContext{}, "mountpoint/server/suffix", "CancelStreamIgnorer", []interface{}{})
+	call, err := b.client.StartCall(InternalNewContext(), "mountpoint/server/suffix", "CancelStreamIgnorer", []interface{}{})
 	if err != nil {
 		t.Fatalf("Start call failed: %v", err)
 	}
@@ -895,7 +897,7 @@ func TestStreamReadTerminatedByServer(t *testing.T) {
 	b := createBundle(t, clientID, serverID, s)
 	defer b.cleanup(t)
 
-	call, err := b.client.StartCall(&fakeContext{}, "mountpoint/server/suffix", "RecvInGoroutine", []interface{}{})
+	call, err := b.client.StartCall(InternalNewContext(), "mountpoint/server/suffix", "RecvInGoroutine", []interface{}{})
 	if err != nil {
 		t.Fatalf("StartCall failed: %v", err)
 	}
@@ -935,7 +937,7 @@ func TestConnectWithIncompatibleServers(t *testing.T) {
 	publisher.AddServer("/@2@tcp@localhost:10000@@1000000@2000000@@")
 	publisher.AddServer("/@2@tcp@localhost:10001@@2000000@3000000@@")
 
-	_, err := b.client.StartCall(&fakeContext{}, "incompatible/suffix", "Echo", []interface{}{"foo"})
+	_, err := b.client.StartCall(InternalNewContext(), "incompatible/suffix", "Echo", []interface{}{"foo"})
 	if !strings.Contains(err.Error(), version.NoCompatibleVersionErr.Error()) {
 		t.Errorf("Expected error %v, found: %v", version.NoCompatibleVersionErr, err)
 	}
@@ -944,7 +946,7 @@ func TestConnectWithIncompatibleServers(t *testing.T) {
 	publisher.AddServer("/" + b.ep.String())
 	publisher.AddName("incompatible")
 
-	call, err := b.client.StartCall(&fakeContext{}, "incompatible/suffix", "Echo", []interface{}{"foo"})
+	call, err := b.client.StartCall(InternalNewContext(), "incompatible/suffix", "Echo", []interface{}{"foo"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1041,7 +1043,7 @@ func TestReconnect(t *testing.T) {
 	}
 	serverName := naming.JoinAddressName(ep.String(), "suffix")
 	makeCall := func() (string, error) {
-		call, err := b.client.StartCall(&fakeContext{}, serverName, "Echo", []interface{}{"bratman"})
+		call, err := b.client.StartCall(InternalNewContext(), serverName, "Echo", []interface{}{"bratman"})
 		if err != nil {
 			return "", err
 		}
@@ -1086,7 +1088,7 @@ func (h *proxyHandle) Start(t *testing.T) error {
 	if h.mount, err = h.process.ReadLineFromChild(); err != nil {
 		return err
 	}
-	if err := h.ns.Mount(&fakeContext{}, "proxy", h.mount, time.Hour); err != nil {
+	if err := h.ns.Mount(InternalNewContext(), "proxy", h.mount, time.Hour); err != nil {
 		return err
 	}
 	return nil
@@ -1101,7 +1103,7 @@ func (h *proxyHandle) Stop() error {
 	if len(h.mount) == 0 {
 		return nil
 	}
-	return h.ns.Unmount(&fakeContext{}, "proxy", h.mount)
+	return h.ns.Unmount(InternalNewContext(), "proxy", h.mount)
 }
 
 func TestProxy(t *testing.T) {
@@ -1120,7 +1122,7 @@ func TestProxy(t *testing.T) {
 
 	name := "mountpoint/server/suffix"
 	makeCall := func() (string, error) {
-		call, err := client.StartCall(&fakeContext{}, name, "Echo", []interface{}{"batman"})
+		call, err := client.StartCall(InternalNewContext(), name, "Echo", []interface{}{"batman"})
 		if err != nil {
 			return "", err
 		}

@@ -29,10 +29,9 @@ var (
 )
 
 type client struct {
-	streamMgr   stream.Manager
-	ns          naming.Namespace
-	vcOpts      []stream.VCOpt // vc opts passed to dial
-	callTimeout time.Duration  // call timeout
+	streamMgr stream.Manager
+	ns        naming.Namespace
+	vcOpts    []stream.VCOpt // vc opts passed to dial
 
 	// We support concurrent calls to StartCall and Close, so we must protect the
 	// vcMap.  Everything else is initialized upon client construction, and safe
@@ -55,7 +54,6 @@ func InternalNewClient(streamMgr stream.Manager, ns naming.Namespace, opts ...ip
 		streamMgr:      streamMgr,
 		ns:             ns,
 		vcMap:          make(map[string]*vcInfo),
-		callTimeout:    defaultCallTimeout,
 		dischargeCache: dischargeCache{CaveatDischargeMap: make(security.CaveatDischargeMap)},
 	}
 	for _, opt := range opts {
@@ -65,8 +63,6 @@ func InternalNewClient(streamMgr stream.Manager, ns naming.Namespace, opts ...ip
 		}
 		// Now handle individual opts.
 		switch topt := opt.(type) {
-		case veyron2.CallTimeout:
-			c.callTimeout = time.Duration(topt)
 		}
 	}
 	return c, nil
@@ -142,10 +138,13 @@ func (c *client) startCall(ctx context.T, name, method string, args []interface{
 			vlog.VI(2).Infof("ipc: couldn't connect to server %v: %v", server, err)
 			continue // Try the next server.
 		}
-		timeout := c.getCallTimeout(opts)
-		if err := flow.SetDeadline(time.Now().Add(timeout)); err != nil {
-			lastErr = verror.Internalf("ipc: flow.SetDeadline failed: %v", err)
-			continue
+		timeout := time.Duration(ipc.NoTimeout)
+		if deadline, hasDeadline := ctx.Deadline(); hasDeadline {
+			timeout = deadline.Sub(time.Now())
+			if err := flow.SetDeadline(deadline); err != nil {
+				lastErr = verror.Internalf("ipc: flow.SetDeadline failed: %v", err)
+				continue
+			}
 		}
 
 		// Validate caveats on the server's identity for the context associated with this call.
@@ -160,6 +159,12 @@ func (c *client) startCall(ctx context.T, name, method string, args []interface{
 
 		lastErr = nil
 		fc := newFlowClient(flow, &c.dischargeCache, discharges)
+
+		go func() {
+			<-ctx.Done()
+			fc.Cancel()
+		}()
+
 		if verr := fc.start(suffix, method, args, timeout, blessing); verr != nil {
 			return nil, verr
 		}
@@ -208,16 +213,6 @@ func authorizeServer(client, server security.PublicID, opts []ipc.CallOpt) (secu
 		}
 	}
 	return blessing, nil
-}
-
-func (c *client) getCallTimeout(opts []ipc.CallOpt) time.Duration {
-	timeout := c.callTimeout
-	for _, opt := range opts {
-		if ct, ok := opt.(veyron2.CallTimeout); ok {
-			timeout = time.Duration(ct)
-		}
-	}
-	return timeout
 }
 
 func (c *client) Close() {

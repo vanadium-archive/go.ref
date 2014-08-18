@@ -168,9 +168,11 @@ func (st *Store) PutMutations(ctx ipc.ServerContext, stream raw.StoreServicePutM
 		return err
 	}
 
-	if ctx.IsClosed() {
+	select {
+	case <-ctx.Done():
 		tr.Abort()
 		return ErrRequestCancelled
+	default:
+		return tr.Commit()
 	}
-	return tr.Commit()
 }

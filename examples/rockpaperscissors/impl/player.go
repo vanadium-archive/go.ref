@@ -7,7 +7,6 @@ import (
 	rps "veyron/examples/rockpaperscissors"
 	"veyron/examples/rockpaperscissors/common"
 
-	"veyron2"
 	"veyron2/rt"
 	"veyron2/vlog"
 )
@@ -112,7 +111,8 @@ func (p *Player) playGame(judge string, gameID rps.GameID) (rps.PlayResult, erro
 	if err != nil {
 		return rps.PlayResult{}, err
 	}
-	game, err := j.Play(rt.R().TODOContext(), gameID, veyron2.CallTimeout(10*time.Minute))
+	ctx, _ := rt.R().NewContext().WithTimeout(10 * time.Minute)
+	game, err := j.Play(ctx, gameID)
 	if err != nil {
 		return rps.PlayResult{}, err
 	}

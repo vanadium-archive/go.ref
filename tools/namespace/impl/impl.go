@@ -28,7 +28,9 @@ func runGlob(cmd *cmdline.Command, args []string) error {
 	}
 	pattern := args[0]
 	ns := rt.R().Namespace()
-	c, err := ns.Glob(rt.R().NewContext(), pattern)
+	ctx, cancel := rt.R().NewContext().WithTimeout(time.Minute)
+	defer cancel()
+	c, err := ns.Glob(ctx, pattern)
 	if err != nil {
 		vlog.Infof("ns.Glob(%q) failed: %v", pattern, err)
 		return err
@@ -70,7 +72,9 @@ func runMount(cmd *cmdline.Command, args []string) error {
 		return fmt.Errorf("TTL parse error: %v", err)
 	}
 	ns := rt.R().Namespace()
-	if err = ns.Mount(rt.R().NewContext(), name, server, ttl); err != nil {
+	ctx, cancel := rt.R().NewContext().WithTimeout(time.Minute)
+	defer cancel()
+	if err = ns.Mount(ctx, name, server, ttl); err != nil {
 		vlog.Infof("ns.Mount(%q, %q, %s) failed: %v", name, server, ttl, err)
 		return err
 	}
@@ -97,7 +101,9 @@ func runUnmount(cmd *cmdline.Command, args []string) error {
 	name := args[0]
 	server := args[1]
 	ns := rt.R().Namespace()
-	if err := ns.Unmount(rt.R().NewContext(), name, server); err != nil {
+	ctx, cancel := rt.R().NewContext().WithTimeout(time.Minute)
+	defer cancel()
+	if err := ns.Unmount(ctx, name, server); err != nil {
 		vlog.Infof("ns.Unmount(%q, %q) failed: %v", name, server, err)
 		return err
 	}
@@ -120,7 +126,9 @@ func runResolve(cmd *cmdline.Command, args []string) error {
 	}
 	name := args[0]
 	ns := rt.R().Namespace()
-	servers, err := ns.Resolve(rt.R().NewContext(), name)
+	ctx, cancel := rt.R().NewContext().WithTimeout(time.Minute)
+	defer cancel()
+	servers, err := ns.Resolve(ctx, name)
 	if err != nil {
 		vlog.Infof("ns.Resolve(%q) failed: %v", name, err)
 		return err
@@ -146,7 +154,9 @@ func runResolveToMT(cmd *cmdline.Command, args []string) error {
 	}
 	name := args[0]
 	ns := rt.R().Namespace()
-	servers, err := ns.ResolveToMountTable(rt.R().NewContext(), name)
+	ctx, cancel := rt.R().NewContext().WithTimeout(time.Minute)
+	defer cancel()
+	servers, err := ns.ResolveToMountTable(ctx, name)
 	if err != nil {
 		vlog.Infof("ns.ResolveToMountTable(%q) failed: %v", name, err)
 		return err
@@ -172,7 +182,9 @@ func runUnresolve(cmd *cmdline.Command, args []string) error {
 	}
 	name := args[0]
 	ns := rt.R().Namespace()
-	servers, err := ns.Unresolve(rt.R().NewContext(), name)
+	ctx, cancel := rt.R().NewContext().WithTimeout(time.Minute)
+	defer cancel()
+	servers, err := ns.Unresolve(ctx, name)
 	if err != nil {
 		vlog.Infof("ns.Unresolve(%q) failed: %v", name, err)
 		return err

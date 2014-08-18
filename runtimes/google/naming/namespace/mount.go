@@ -10,7 +10,8 @@ import (
 
 // mountIntoMountTable mounts a single server into a single mount table.
 func mountIntoMountTable(ctx context.T, client ipc.Client, name, server string, ttl time.Duration) error {
-	call, err := client.StartCall(ctx, name, "Mount", []interface{}{server, uint32(ttl.Seconds())}, callTimeout)
+	ctx, _ = ctx.WithTimeout(callTimeout)
+	call, err := client.StartCall(ctx, name, "Mount", []interface{}{server, uint32(ttl.Seconds())})
 	if err != nil {
 		return err
 	}
@@ -22,7 +23,8 @@ func mountIntoMountTable(ctx context.T, client ipc.Client, name, server string, 
 
 // unmountFromMountTable removes a single mounted server from a single mount table.
 func unmountFromMountTable(ctx context.T, client ipc.Client, name, server string) error {
-	call, err := client.StartCall(ctx, name, "Unmount", []interface{}{server}, callTimeout)
+	ctx, _ = ctx.WithTimeout(callTimeout)
+	call, err := client.StartCall(ctx, name, "Unmount", []interface{}{server})
 	if err != nil {
 		return err
 	}

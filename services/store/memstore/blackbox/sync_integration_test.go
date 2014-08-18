@@ -6,9 +6,13 @@ import (
 	"veyron/services/store/memstore"
 	watchtesting "veyron/services/store/memstore/testing"
 	"veyron/services/store/raw"
+
+	"veyron2/rt"
 )
 
 func TestSyncState(t *testing.T) {
+	rt.Init()
+
 	// Create a new store.
 	dbName, st, cleanup := CreateStore(t, "vstore_source")
 	defer cleanup()
@@ -61,6 +65,8 @@ func TestSyncState(t *testing.T) {
 }
 
 func TestSyncTransaction(t *testing.T) {
+	rt.Init()
+
 	_, target, cleanup := CreateStore(t, "vstore_target")
 	defer cleanup()
 

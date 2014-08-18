@@ -14,7 +14,6 @@ import (
 	service "veyron/services/mounttable/lib"
 
 	"veyron2"
-	"veyron2/context"
 	"veyron2/ipc"
 	"veyron2/naming"
 	"veyron2/rt"
@@ -38,9 +37,9 @@ func compare(t *testing.T, caller, name string, got, want []string) {
 	}
 }
 
-func doGlob(t *testing.T, ctx context.T, ns naming.Namespace, pattern string, limit int) []string {
+func doGlob(t *testing.T, r veyron2.Runtime, ns naming.Namespace, pattern string, limit int) []string {
 	var replies []string
-	rc, err := ns.Glob(ctx, pattern)
+	rc, err := ns.Glob(r.NewContext(), pattern)
 	if err != nil {
 		boom(t, "Glob(%s): %s", pattern, err)
 	}
@@ -493,7 +492,7 @@ func TestCycles(t *testing.T) {
 	for i := 0; i < 40; i++ {
 		cycle += "/c3/c4"
 	}
-	if _, err := ns.Resolve(r, "c1/"+cycle); err.Error() != "Resolution depth exceeded" {
+	if _, err := ns.Resolve(r.NewContext(), "c1/"+cycle); err.Error() != "Resolution depth exceeded" {
 		boom(t, "Failed to detect cycle")
 	}
 

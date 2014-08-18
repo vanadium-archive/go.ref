@@ -75,7 +75,8 @@ func waitForStore(store storage.Store) {
 func runAsWatcher(store storage.Store, user string) {
 	// TODO(tilaks): remove this when the storage.Entry is auto-registered by VOM.
 	vom.Register(&storage.Entry{})
-	ctx := rt.R().NewContext()
+	ctx, cancel := rt.R().NewContext().WithTimeout(time.Minute)
+	defer cancel()
 
 	// Monitor all new fortunes or only those of a specific user.
 	var path string
@@ -187,7 +188,8 @@ func pickFortuneQuery(store storage.Store, ctx context.T, path string) (string, 
 // getFortune returns a random fortune corresponding to a UserName if
 // specified. If not, it picks a random fortune.
 func getFortune(store storage.Store, userName string) (string, error) {
-	ctx := rt.R().NewContext()
+	ctx, cancel := rt.R().NewContext().WithTimeout(time.Minute)
+	defer cancel()
 
 	var p string
 	if userName != "" {
@@ -212,7 +214,8 @@ func getFortune(store storage.Store, userName string) (string, error) {
 // UserName. In this process, if the UserName doesn't exist, a new
 // user is created.
 func addFortune(store storage.Store, fortune string, userName string) error {
-	ctx := rt.R().NewContext()
+	ctx, cancel := rt.R().NewContext().WithTimeout(time.Minute)
+	defer cancel()
 
 	// Transaction is rooted at "", so tname == tid.
 	tname, err := store.BindTransactionRoot("").CreateTransaction(ctx)

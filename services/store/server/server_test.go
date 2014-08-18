@@ -8,7 +8,6 @@ import (
 	"reflect"
 	"runtime"
 	"testing"
-	"time"
 
 	_ "veyron/lib/testutil" // initialize vlog
 	watchtesting "veyron/services/store/memstore/testing"
@@ -16,6 +15,7 @@ import (
 
 	"veyron2/ipc"
 	"veyron2/naming"
+	"veyron2/rt"
 	"veyron2/security"
 	"veyron2/services/store"
 	"veyron2/services/watch"
@@ -28,70 +28,7 @@ var (
 	rootPublicID    security.PublicID = security.FakePublicID("root")
 	rootName                          = fmt.Sprintf("%s", rootPublicID)
 	blessedPublicId security.PublicID = security.FakePublicID("root/blessed")
-
-	rootCtx    ipc.ServerContext = &testContext{rootPublicID}
-	blessedCtx ipc.ServerContext = &testContext{blessedPublicId}
 )
-
-type testContext struct {
-	id security.PublicID
-}
-
-func (*testContext) Server() ipc.Server {
-	return nil
-}
-
-func (*testContext) Method() string {
-	return ""
-}
-
-func (*testContext) Name() string {
-	return ""
-}
-
-func (*testContext) Suffix() string {
-	return ""
-}
-
-func (*testContext) Label() (l security.Label) {
-	return
-}
-
-func (*testContext) CaveatDischarges() security.CaveatDischargeMap {
-	return nil
-}
-
-func (ctx *testContext) LocalID() security.PublicID {
-	return ctx.id
-}
-
-func (ctx *testContext) RemoteID() security.PublicID {
-	return ctx.id
-}
-
-func (*testContext) Blessing() security.PublicID {
-	return nil
-}
-
-func (*testContext) LocalEndpoint() naming.Endpoint {
-	return nil
-}
-
-func (*testContext) RemoteEndpoint() naming.Endpoint {
-	return nil
-}
-
-func (*testContext) Deadline() (t time.Time) {
-	return
-}
-
-func (testContext) IsClosed() bool {
-	return false
-}
-
-func (testContext) Closed() <-chan struct{} {
-	return nil
-}
 
 // Dir is a simple directory.
 type Dir struct {
@@ -158,8 +95,11 @@ func TestLookupInvalidTransactionName(t *testing.T) {
 }
 
 func TestNestedTransactionError(t *testing.T) {
+	rt.Init()
 	s, c := newServer()
 	defer c()
+
+	rootCtx := watchtesting.NewFakeServerContext(rootPublicID)
 	tname := createTransaction(t, s, rootCtx, "/")
 	if _, err := lookupObjectOrDie(s, tname).CreateTransaction(rootCtx, nil); err == nil {
 		t.Fatalf("creating nested transaction at %s should've failed, but didn't", tname)
@@ -181,10 +121,14 @@ func TestPutGetRemoveRoot(t *testing.T) {
 }
 
 func TestPutGetRemoveChild(t *testing.T) {
+	rt.Init()
+
 	s, c := newServer()
 	defer c()
 
 	{
+		rootCtx := watchtesting.NewFakeServerContext(rootPublicID)
+
 		// Create a root.
 		name := "/"
 		value := newValue()
@@ -213,6 +157,8 @@ func TestPutGetRemoveChild(t *testing.T) {
 }
 
 func testPutGetRemove(t *testing.T, s *Server, name string) {
+	rt.Init()
+	rootCtx := watchtesting.NewFakeServerContext(rootPublicID)
 	value := newValue()
 	{
 		// Check that the object does not exist.
@@ -322,6 +268,9 @@ func testPutGetRemove(t *testing.T, s *Server, name string) {
 // transaction. The client should get back errTransactionDoesNotExist.
 
 func TestWatch(t *testing.T) {
+	rt.Init()
+	rootCtx := watchtesting.NewFakeServerContext(rootPublicID)
+
 	s, c := newServer()
 	defer c()
 
@@ -399,6 +348,9 @@ func TestWatch(t *testing.T) {
 }
 
 func TestWatchGlob(t *testing.T) {
+	rt.Init()
+	rootCtx := watchtesting.NewFakeServerContext(rootPublicID)
+
 	s, c := newServer()
 	defer c()
 
@@ -494,6 +446,9 @@ func TestWatchGlob(t *testing.T) {
 }
 
 func TestGarbageCollectionOnCommit(t *testing.T) {
+	rt.Init()
+	rootCtx := watchtesting.NewFakeServerContext(rootPublicID)
+
 	s, c := newServer()
 	defer c()
 
@@ -610,6 +565,10 @@ func TestGarbageCollectionOnCommit(t *testing.T) {
 }
 
 func TestTransactionSecurity(t *testing.T) {
+	rt.Init()
+	rootCtx := watchtesting.NewFakeServerContext(rootPublicID)
+	blessedCtx := watchtesting.NewFakeServerContext(blessedPublicId)
+
 	s, c := newServer()
 	defer c()
 

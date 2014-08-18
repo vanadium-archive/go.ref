@@ -5,14 +5,12 @@ import (
 	"os"
 	"runtime"
 	"testing"
-	"time"
 
 	"veyron/services/store/memstore"
+	mtest "veyron/services/store/memstore/testing"
 	memwatch "veyron/services/store/memstore/watch"
 	"veyron/services/store/raw"
 
-	"veyron2/ipc"
-	"veyron2/naming"
 	"veyron2/security"
 	"veyron2/services/watch"
 	"veyron2/storage"
@@ -20,68 +18,8 @@ import (
 
 var (
 	rootPublicID security.PublicID = security.FakePublicID("root")
-	rootCtx      ipc.ServerContext = rootContext{}
 	nullMutation                   = raw.Mutation{}
 )
-
-// rootContext implements ipc.Context.
-type rootContext struct{}
-
-func (rootContext) Server() ipc.Server {
-	return nil
-}
-
-func (rootContext) Method() string {
-	return ""
-}
-
-func (rootContext) Name() string {
-	return ""
-}
-
-func (rootContext) Suffix() string {
-	return ""
-}
-
-func (rootContext) Label() (l security.Label) {
-	return
-}
-
-func (rootContext) CaveatDischarges() security.CaveatDischargeMap {
-	return nil
-}
-
-func (rootContext) LocalID() security.PublicID {
-	return rootPublicID
-}
-
-func (rootContext) RemoteID() security.PublicID {
-	return rootPublicID
-}
-
-func (rootContext) Blessing() security.PublicID {
-	return nil
-}
-
-func (rootContext) LocalEndpoint() naming.Endpoint {
-	return nil
-}
-
-func (rootContext) RemoteEndpoint() naming.Endpoint {
-	return nil
-}
-
-func (rootContext) Deadline() (t time.Time) {
-	return
-}
-
-func (rootContext) IsClosed() bool {
-	return false
-}
-
-func (rootContext) Closed() <-chan struct{} {
-	return nil
-}
 
 func Get(t *testing.T, st *memstore.Store, tr *memstore.Transaction, path string) *storage.Entry {
 	_, file, line, _ := runtime.Caller(1)
@@ -223,6 +161,7 @@ func (*putMutationsStream) Err() error {
 
 func PutMutations(t *testing.T, st *memstore.Store, mus []raw.Mutation) {
 	stream := newPutMutationsStream(mus)
+	rootCtx := mtest.NewFakeServerContext(rootPublicID)
 	if err := st.PutMutations(rootCtx, stream); err != nil {
 		_, file, line, _ := runtime.Caller(1)
 		t.Errorf("%s(%d): can't put mutations %s: %s", file, line, mus, err)

@@ -63,7 +63,8 @@ func (m *mgmtImpl) init(rt *vrt) error {
 }
 
 func (m *mgmtImpl) callbackToParent(parentName, myName string) error {
-	call, err := m.rt.Client().StartCall(m.rt.NewContext(), parentName, "Set", []interface{}{mgmt.AppCycleManagerConfigKey, myName}, veyron2.CallTimeout(10*time.Second))
+	ctx, _ := m.rt.NewContext().WithTimeout(10 * time.Second)
+	call, err := m.rt.Client().StartCall(ctx, parentName, "Set", []interface{}{mgmt.AppCycleManagerConfigKey, myName})
 	if err != nil {
 		return err
 	}

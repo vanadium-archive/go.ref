@@ -54,8 +54,9 @@ func (ns *namespace) globAtServer(ctx context.T, qe *queuedEntry, pattern *glob.
 		}
 
 		for _, s := range mtServers {
+			callCtx, _ := ctx.WithTimeout(callTimeout)
 			client := ns.rt.Client()
-			call, err := client.StartCall(ctx, s, "Glob", []interface{}{pstr}, callTimeout)
+			call, err := client.StartCall(callCtx, s, "Glob", []interface{}{pstr})
 			if err != nil {
 				lastErr = err
 				continue // try another instance

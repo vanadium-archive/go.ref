@@ -11,7 +11,9 @@ import (
 	"io"
 	"io/ioutil"
 	"os"
+	"time"
 
+	"veyron2/context"
 	"veyron2/rt"
 	"veyron2/services/mgmt/binary"
 	"veyron2/services/mgmt/repository"
@@ -36,20 +38,22 @@ func Delete(name string) error {
 		vlog.Errorf("BindBinary(%v) failed: %v", name, err)
 		return err
 	}
-	if err := client.Delete(rt.R().NewContext()); err != nil {
+	ctx, cancel := rt.R().NewContext().WithTimeout(time.Minute)
+	defer cancel()
+	if err := client.Delete(ctx); err != nil {
 		vlog.Errorf("Delete() failed: %v", err)
 		return err
 	}
 	return nil
 }
 
-func download(w io.WriteSeeker, von string) error {
+func download(ctx context.T, w io.WriteSeeker, von string) error {
 	client, err := repository.BindBinary(von)
 	if err != nil {
 		vlog.Errorf("BindBinary(%v) failed: %v", von, err)
 		return err
 	}
-	parts, err := client.Stat(rt.R().NewContext())
+	parts, err := client.Stat(ctx)
 	if err != nil {
 		vlog.Errorf("Stat() failed: %v", err)
 		return err
@@ -68,7 +72,7 @@ func download(w io.WriteSeeker, von string) error {
 				vlog.Errorf("Seek(%v, %v) failed: %v", offset, whence, err)
 				continue
 			}
-			stream, err := client.Download(rt.R().NewContext(), int32(i))
+			stream, err := client.Download(ctx, int32(i))
 			if err != nil {
 				vlog.Errorf("Download(%v) failed: %v", i, err)
 				continue
@@ -123,7 +127,9 @@ func Download(von string) ([]byte, error) {
 	}
 	defer os.Remove(file.Name())
 	defer file.Close()
-	if err := download(file, von); err != nil {
+	ctx, cancel := rt.R().NewContext().WithTimeout(time.Minute)
+	defer cancel()
+	if err := download(ctx, file, von); err != nil {
 		return nil, errOperationFailed
 	}
 	bytes, err := ioutil.ReadFile(file.Name())
@@ -142,7 +148,9 @@ func DownloadToFile(von, path string) error {
 		return errOperationFailed
 	}
 	defer file.Close()
-	if err := download(file, von); err != nil {
+	ctx, cancel := rt.R().NewContext().WithTimeout(time.Minute)
+	defer cancel()
+	if err := download(ctx, file, von); err != nil {
 		if err := os.Remove(file.Name()); err != nil {
 			vlog.Errorf("Remove(%v) failed: %v", file.Name(), err)
 		}
@@ -166,7 +174,7 @@ func DownloadToFile(von, path string) error {
 	return nil
 }
 
-func upload(r io.ReadSeeker, von string) error {
+func upload(ctx context.T, r io.ReadSeeker, von string) error {
 	client, err := repository.BindBinary(von)
 	if err != nil {
 		vlog.Errorf("BindBinary(%v) failed: %v", von, err)
@@ -179,7 +187,7 @@ func upload(r io.ReadSeeker, von string) error {
 		return errOperationFailed
 	}
 	nparts := (size-1)/partSize + 1
-	if err := client.Create(rt.R().NewContext(), int32(nparts)); err != nil {
+	if err := client.Create(ctx, int32(nparts)); err != nil {
 		vlog.Errorf("Create() failed: %v", err)
 		return err
 	}
@@ -192,7 +200,7 @@ func upload(r io.ReadSeeker, von string) error {
 				vlog.Errorf("Seek(%v, %v) failed: %v", offset, whence, err)
 				continue
 			}
-			stream, err := client.Upload(rt.R().NewContext(), int32(i))
+			stream, err := client.Upload(ctx, int32(i))
 			if err != nil {
 				vlog.Errorf("Upload(%v) failed: %v", i, err)
 				continue
@@ -225,10 +233,10 @@ func upload(r io.ReadSeeker, von string) error {
 			}
 			if err := sender.Close(); err != nil {
 				vlog.Errorf("Close() failed: %v", err)
-				parts, statErr := client.Stat(rt.R().NewContext())
+				parts, statErr := client.Stat(ctx)
 				if statErr != nil {
 					vlog.Errorf("Stat() failed: %v", statErr)
-					if deleteErr := client.Delete(rt.R().NewContext()); err != nil {
+					if deleteErr := client.Delete(ctx); err != nil {
 						vlog.Errorf("Delete() failed: %v", deleteErr)
 					}
 					return err
@@ -240,10 +248,10 @@ func upload(r io.ReadSeeker, von string) error {
 			}
 			if err := stream.Finish(); err != nil {
 				vlog.Errorf("Finish() failed: %v", err)
-				parts, statErr := client.Stat(rt.R().NewContext())
+				parts, statErr := client.Stat(ctx)
 				if statErr != nil {
 					vlog.Errorf("Stat() failed: %v", statErr)
-					if deleteErr := client.Delete(rt.R().NewContext()); err != nil {
+					if deleteErr := client.Delete(ctx); err != nil {
 						vlog.Errorf("Delete() failed: %v", deleteErr)
 					}
 					return err
@@ -263,7 +271,9 @@ func upload(r io.ReadSeeker, von string) error {
 
 func Upload(von string, data []byte) error {
 	buffer := bytes.NewReader(data)
-	return upload(buffer, von)
+	ctx, cancel := rt.R().NewContext().WithTimeout(time.Minute)
+	defer cancel()
+	return upload(ctx, buffer, von)
 }
 
 func UploadFromFile(von, path string) error {
@@ -273,5 +283,7 @@ func UploadFromFile(von, path string) error {
 		vlog.Errorf("Open(%v) failed: %v", err)
 		return errOperationFailed
 	}
-	return upload(file, von)
+	ctx, cancel := rt.R().NewContext().WithTimeout(time.Minute)
+	defer cancel()
+	return upload(ctx, file, von)
 }

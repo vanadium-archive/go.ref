@@ -2,6 +2,7 @@ package impl
 
 import (
 	"fmt"
+	"time"
 
 	"veyron/lib/cmdline"
 	"veyron/services/mgmt/profile"
@@ -28,7 +29,9 @@ func runLabel(cmd *cmdline.Command, args []string) error {
 	if err != nil {
 		return fmt.Errorf("bind error: %v", err)
 	}
-	label, err := p.Label(rt.R().NewContext())
+	ctx, cancel := rt.R().NewContext().WithTimeout(time.Minute)
+	defer cancel()
+	label, err := p.Label(ctx)
 	if err != nil {
 		return err
 	}
@@ -53,7 +56,9 @@ func runDescription(cmd *cmdline.Command, args []string) error {
 	if err != nil {
 		return fmt.Errorf("bind error: %v", err)
 	}
-	desc, err := p.Description(rt.R().NewContext())
+	ctx, cancel := rt.R().NewContext().WithTimeout(time.Minute)
+	defer cancel()
+	desc, err := p.Description(ctx)
 	if err != nil {
 		return err
 	}
@@ -78,7 +83,9 @@ func runSpec(cmd *cmdline.Command, args []string) error {
 	if err != nil {
 		return fmt.Errorf("bind error: %v", err)
 	}
-	spec, err := p.Specification(rt.R().NewContext())
+	ctx, cancel := rt.R().NewContext().WithTimeout(time.Minute)
+	defer cancel()
+	spec, err := p.Specification(ctx)
 	if err != nil {
 		return err
 	}
@@ -113,7 +120,9 @@ func runPut(cmd *cmdline.Command, args []string) error {
 		Label:       "example",
 		OS:          build.Linux,
 	}
-	if err := p.Put(rt.R().NewContext(), spec); err != nil {
+	ctx, cancel := rt.R().NewContext().WithTimeout(time.Minute)
+	defer cancel()
+	if err := p.Put(ctx, spec); err != nil {
 		return err
 	}
 	fmt.Fprintln(cmd.Stdout(), "Specification updated successfully.")
@@ -137,7 +146,9 @@ func runRemove(cmd *cmdline.Command, args []string) error {
 	if err != nil {
 		return fmt.Errorf("bind error: %v", err)
 	}
-	if err = p.Remove(rt.R().NewContext()); err != nil {
+	ctx, cancel := rt.R().NewContext().WithTimeout(time.Minute)
+	defer cancel()
+	if err = p.Remove(ctx); err != nil {
 		return err
 	}
 	fmt.Fprintln(cmd.Stdout(), "Profile removed successfully.")

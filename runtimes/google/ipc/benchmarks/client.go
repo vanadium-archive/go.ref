@@ -6,7 +6,6 @@ import (
 	"io"
 	"time"
 
-	"veyron2"
 	"veyron2/rt"
 	"veyron2/vlog"
 )
@@ -56,7 +55,8 @@ func CallEchoStream(address string, rpcCount, messageCount, payloadSize int, log
 
 	for i := 0; i < rpcCount; i++ {
 		start := time.Now()
-		stream, err := stub.EchoStream(rt.R().TODOContext(), veyron2.CallTimeout(time.Hour))
+		ctx, _ := rt.R().NewContext().WithTimeout(time.Hour)
+		stream, err := stub.EchoStream(ctx)
 		if err != nil {
 			vlog.Fatalf("EchoStream failed: %v", err)
 		}

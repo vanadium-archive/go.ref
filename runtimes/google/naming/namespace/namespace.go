@@ -119,4 +119,4 @@ func notAnMT(err error) bool {
 
 // all operations against the mount table service use this fixed timeout for the
 // time being.
-const callTimeout = veyron2.CallTimeout(10 * time.Second)
+const callTimeout = 10 * time.Second

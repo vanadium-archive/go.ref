@@ -123,7 +123,7 @@ func TestFlowClientServer(t *testing.T) {
 		clientFlow, serverFlow := newTestFlows()
 		client := newFlowClient(clientFlow, nil, nil)
 		server := newFlowServer(serverFlow, ipcServer)
-		err := client.start(test.suffix, test.method, test.args, time.Duration(0), nil)
+		err := client.start(test.suffix, test.method, test.args, 0, nil)
 		if err != nil {
 			t.Errorf("%s client.start unexpected error: %v", name(test), err)
 		}

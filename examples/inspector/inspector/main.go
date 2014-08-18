@@ -104,7 +104,11 @@ func stubless() {
 		vlog.Fatalf("failed to create new client: %q", err)
 	}
 	defer client.Close()
-	call, err := client.StartCall(rt.R().NewContext(), service, "List", []interface{}{glob, details})
+
+	ctx, cancel := rt.R().NewContext().WithTimeout(time.Minute)
+	defer cancel()
+
+	call, err := client.StartCall(ctx, service, "List", []interface{}{glob, details})
 	if err != nil {
 		vlog.Fatalf("failed to start call: %q", err)
 	}
@@ -169,7 +173,8 @@ func stubbed() {
 	bail := func(err error) {
 		vlog.Fatalf("failed to start call: %q", err)
 	}
-	ctx := rt.R().NewContext()
+	ctx, cancel := rt.R().NewContext().WithTimeout(time.Minute)
+	defer cancel()
 	if details {
 		if stream, err := inspector.LsDetails(ctx, glob); err != nil {
 			bail(err)

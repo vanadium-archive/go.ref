@@ -11,12 +11,15 @@ import (
 	watchtesting "veyron/services/store/memstore/testing"
 	"veyron/services/store/raw"
 
+	"veyron2/rt"
 	"veyron2/services/watch"
 	"veyron2/storage"
 	"veyron2/verror"
 )
 
 func TestWatchRaw(t *testing.T) {
+	rt.Init()
+
 	// Create a new store.
 	dbName, st, cleanup := createStore(t)
 	defer cleanup()
@@ -78,6 +81,8 @@ func TestWatchRaw(t *testing.T) {
 }
 
 func TestWatchGlob(t *testing.T) {
+	rt.Init()
+
 	// Create a new store.
 	dbName, st, cleanup := createStore(t)
 	defer cleanup()
@@ -134,6 +139,8 @@ func TestWatchGlob(t *testing.T) {
 }
 
 func TestWatchCancellation(t *testing.T) {
+	rt.Init()
+
 	// Create a new store.
 	dbName, st, cleanup := createStore(t)
 	defer cleanup()
@@ -179,6 +186,8 @@ func TestWatchCancellation(t *testing.T) {
 }
 
 func TestWatchClosed(t *testing.T) {
+	rt.Init()
+
 	// Create a new store.
 	dbName, st, cleanup := createStore(t)
 	defer cleanup()
@@ -210,6 +219,8 @@ func TestWatchClosed(t *testing.T) {
 }
 
 func TestStateResumeMarker(t *testing.T) {
+	rt.Init()
+
 	// Create a new store.
 	dbName, st, cleanup := createStore(t)
 	defer cleanup()
@@ -300,6 +311,8 @@ func TestStateResumeMarker(t *testing.T) {
 }
 
 func TestTransactionResumeMarker(t *testing.T) {
+	rt.Init()
+
 	// Create a new store.
 	dbName, st, cleanup := createStore(t)
 	defer cleanup()
@@ -408,6 +421,8 @@ func TestTransactionResumeMarker(t *testing.T) {
 }
 
 func TestNowResumeMarker(t *testing.T) {
+	rt.Init()
+
 	// Create a new store.
 	dbName, st, cleanup := createStore(t)
 	defer cleanup()
@@ -475,6 +490,8 @@ func TestNowResumeMarker(t *testing.T) {
 }
 
 func TestUnknownResumeMarkers(t *testing.T) {
+	rt.Init()
+
 	// Create a new store.
 	dbName, st, cleanup := createStore(t)
 	defer cleanup()
@@ -510,6 +527,8 @@ func TestUnknownResumeMarkers(t *testing.T) {
 }
 
 func TestConsistentResumeMarkers(t *testing.T) {
+	rt.Init()
+
 	// Create a new store.
 	dbName, st, cleanup := createStore(t)
 	defer cleanup()

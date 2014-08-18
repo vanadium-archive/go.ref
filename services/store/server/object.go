@@ -170,9 +170,6 @@ func (o *object) Glob(ctx ipc.ServerContext, pattern string, stream mounttable.G
 	}
 	gsa := &globStreamAdapter{stream}
 	for ; it.IsValid(); it.Next() {
-		if ctx.IsClosed() {
-			break
-		}
 		if err := gsa.SendStream().Send(it.Name()); err != nil {
 			return err
 		}

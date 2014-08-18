@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+	"time"
 	"veyron/security/caveat"
 	ssecurity "veyron/services/security"
 	"veyron2/ipc"
@@ -38,7 +39,9 @@ type revocationCaveat [32]byte
 
 func (cav revocationCaveat) Validate(security.Context) error {
 	// TODO(ashankar,mattr): Figure out how to get the context of an existing RPC here
-	rctx := rt.R().NewContext()
+	rctx, cancel := rt.R().NewContext().WithTimeout(time.Minute)
+	defer cancel()
+
 	revocation := revocationService.store.BindObject(
 		naming.Join(revocationService.pathInStore, hex.EncodeToString(cav[:])))
 	exists, err := revocation.Exists(rctx)
@@ -88,7 +91,9 @@ func NewRevoker(storeName, pathInStore string) (interface{}, error) {
 		return nil, err
 	}
 
-	rctx := rt.R().NewContext()
+	rctx, cancel := rt.R().NewContext().WithTimeout(time.Minute)
+	defer cancel()
+
 	// Transaction is rooted at "", so tname == tid.
 	tname, err := revocationService.store.BindTransactionRoot("").CreateTransaction(rctx)
 	if err != nil {

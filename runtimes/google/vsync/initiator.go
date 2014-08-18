@@ -200,7 +200,8 @@ func (i *syncInitiator) updateLocalGeneration() (GenVector, error) {
 
 // getDeltasFromPeer contacts the specified endpoint to obtain deltas wrt its current generation vector.
 func (i *syncInitiator) getDeltasFromPeer(dID, ep string, local GenVector) {
-	ctx := rt.R().NewContext()
+	ctx, cancel := rt.R().NewContext().WithTimeout(time.Minute)
+	defer cancel()
 
 	vlog.VI(1).Infof("GetDeltasFromPeer:: From server %s with DeviceID %s at %v", ep, dID, time.Now().UTC())
 

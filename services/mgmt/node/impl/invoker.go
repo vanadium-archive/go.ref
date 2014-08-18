@@ -105,6 +105,7 @@ import (
 	iconfig "veyron/services/mgmt/node/config"
 	"veyron/services/mgmt/profile"
 
+	"veyron2/context"
 	"veyron2/ipc"
 	"veyron2/mgmt"
 	"veyron2/naming"
@@ -227,7 +228,7 @@ func downloadBinary(workspace, fileName, name string) error {
 	return nil
 }
 
-func fetchEnvelope(origin string) (*application.Envelope, error) {
+func fetchEnvelope(ctx context.T, origin string) (*application.Envelope, error) {
 	stub, err := repository.BindApplication(origin)
 	if err != nil {
 		vlog.Errorf("BindRepository(%v) failed: %v", origin, err)
@@ -236,7 +237,7 @@ func fetchEnvelope(origin string) (*application.Envelope, error) {
 	// TODO(jsimsa): Include logic that computes the set of supported
 	// profiles.
 	profiles := []string{"test"}
-	envelope, err := stub.Match(rt.R().NewContext(), profiles)
+	envelope, err := stub.Match(ctx, profiles)
 	if err != nil {
 		vlog.Errorf("Match(%v) failed: %v", profiles, err)
 		return nil, errOperationFailed
@@ -340,7 +341,7 @@ func (i *invoker) revertNodeManager() error {
 	return nil
 }
 
-func (i *invoker) testNodeManager(workspace string, envelope *application.Envelope) error {
+func (i *invoker) testNodeManager(ctx context.T, workspace string, envelope *application.Envelope) error {
 	path := filepath.Join(workspace, "noded.sh")
 	cmd := exec.Command(path)
 	cmd.Stdout = os.Stdout
@@ -390,7 +391,7 @@ func (i *invoker) testNodeManager(workspace string, envelope *application.Envelo
 		// the test sleeps for a second to make sure it can
 		// check whether the current symlink is updated.
 		time.Sleep(time.Second)
-		if err := nmClient.Revert(rt.R().NewContext()); err != nil {
+		if err := nmClient.Revert(ctx); err != nil {
 			return errOperationFailed
 		}
 		linkNew, pathNew, err := i.getCurrentFileInfo()
@@ -423,11 +424,11 @@ func (i *invoker) unregisterCallbacks(id string) {
 	delete(i.internal.channels, id)
 }
 
-func (i *invoker) updateNodeManager() error {
+func (i *invoker) updateNodeManager(ctx context.T) error {
 	if len(i.config.Origin) == 0 {
 		return errUpdateNoOp
 	}
-	envelope, err := fetchEnvelope(i.config.Origin)
+	envelope, err := fetchEnvelope(ctx, i.config.Origin)
 	if err != nil {
 		return err
 	}
@@ -469,7 +470,7 @@ func (i *invoker) updateNodeManager() error {
 	if err := generateScript(workspace, configSettings, envelope); err != nil {
 		return err
 	}
-	if err := i.testNodeManager(workspace, envelope); err != nil {
+	if err := i.testNodeManager(ctx, workspace, envelope); err != nil {
 		return err
 	}
 	// If the binary has changed, update the node manager symlink.
@@ -563,7 +564,9 @@ func (i *invoker) Install(call ipc.ServerContext, applicationVON string) (string
 	if i.suffix != "apps" {
 		return "", errInvalidSuffix
 	}
-	envelope, err := fetchEnvelope(applicationVON)
+	ctx, cancel := rt.R().NewContext().WithTimeout(time.Minute)
+	defer cancel()
+	envelope, err := fetchEnvelope(ctx, applicationVON)
 	if err != nil {
 		return "", err
 	}
@@ -814,6 +817,8 @@ func loadInstanceInfo(dir string) (*instanceInfo, error) {
 
 func (i *invoker) Stop(call ipc.ServerContext, deadline uint32) error {
 	// TODO(caprita): implement deadline.
+	ctx, cancel := rt.R().NewContext().WithTimeout(time.Minute)
+	defer cancel()
 	vlog.VI(1).Infof("%v.Stop(%v)", i.suffix, deadline)
 	if !strings.HasPrefix(i.suffix, "apps") {
 		return errInvalidSuffix
@@ -847,7 +852,7 @@ func (i *invoker) Stop(call ipc.ServerContext, deadline uint32) error {
 		vlog.Errorf("BindAppCycle(%v) failed: %v", info.AppCycleMgrName, err)
 		return errOperationFailed
 	}
-	stream, err := appStub.Stop(rt.R().NewContext())
+	stream, err := appStub.Stop(ctx)
 	if err != nil {
 		vlog.Errorf("Got error: %v", err)
 		return errOperationFailed
@@ -881,6 +886,8 @@ func (i *invoker) Uninstall(call ipc.ServerContext) error {
 
 func (i *invoker) Update(call ipc.ServerContext) error {
 	vlog.VI(1).Infof("%v.Update()", i.suffix)
+	ctx, cancel := rt.R().NewContext().WithTimeout(time.Minute)
+	defer cancel()
 	switch {
 	case i.suffix == "nm":
 		// This branch attempts to update the node manager itself.
@@ -892,7 +899,7 @@ func (i *invoker) Update(call ipc.ServerContext) error {
 			i.internal.updating = true
 		}
 		i.internal.updatingMutex.Unlock()
-		err := i.updateNodeManager()
+		err := i.updateNodeManager(ctx)
 		if err != nil {
 			i.internal.updatingMutex.Lock()
 			i.internal.updating = false

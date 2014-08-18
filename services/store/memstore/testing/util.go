@@ -5,101 +5,47 @@ import (
 	"runtime"
 	"sync"
 	"testing"
-	"time"
 
 	"veyron/services/store/raw"
 
+	"veyron2/context"
 	"veyron2/ipc"
 	"veyron2/naming"
+	"veyron2/rt"
 	"veyron2/security"
 	"veyron2/services/watch"
 	"veyron2/storage"
 )
 
-// CancellableContext implements ipc.ServerContext.
-type CancellableContext struct {
-	id        security.PublicID
-	mu        sync.Mutex
-	cancelled chan struct{}
+// FakeServerContext implements ipc.ServerContext.
+type FakeServerContext struct {
+	context.T
+	cancel context.CancelFunc
+	id     security.PublicID
 }
 
-func NewCancellableContext(id security.PublicID) *CancellableContext {
-	return &CancellableContext{
-		id:        id,
-		cancelled: make(chan struct{}),
+func NewFakeServerContext(id security.PublicID) *FakeServerContext {
+	ctx, cancel := rt.R().NewContext().WithCancel()
+
+	return &FakeServerContext{
+		T:      ctx,
+		cancel: cancel,
+		id:     id,
 	}
 }
 
-func (*CancellableContext) Server() ipc.Server {
-	return nil
-}
-
-func (*CancellableContext) Method() string {
-	return ""
-}
-
-func (*CancellableContext) Name() string {
-	return ""
-}
-
-func (*CancellableContext) Suffix() string {
-	return ""
-}
-
-func (*CancellableContext) Label() (l security.Label) {
-	return
-}
-
-func (*CancellableContext) CaveatDischarges() security.CaveatDischargeMap {
-	return nil
-}
-
-func (ctx *CancellableContext) LocalID() security.PublicID {
-	return ctx.id
-}
-
-func (ctx *CancellableContext) RemoteID() security.PublicID {
-	return ctx.id
-}
-
-func (*CancellableContext) Blessing() security.PublicID {
-	return nil
-}
-
-func (*CancellableContext) LocalEndpoint() naming.Endpoint {
-	return nil
-}
-
-func (*CancellableContext) RemoteEndpoint() naming.Endpoint {
-	return nil
-}
-
-func (*CancellableContext) Deadline() (t time.Time) {
-	return
-}
-
-func (ctx *CancellableContext) IsClosed() bool {
-	select {
-	case <-ctx.cancelled:
-		return true
-	default:
-		return false
-	}
-}
-
-// cancel synchronously closes the context. After cancel returns, calls to
-// IsClosed will return true and the stream returned by Closed will be closed.
-func (ctx *CancellableContext) Cancel() {
-	ctx.mu.Lock()
-	defer ctx.mu.Unlock()
-	if !ctx.IsClosed() {
-		close(ctx.cancelled)
-	}
-}
-
-func (ctx *CancellableContext) Closed() <-chan struct{} {
-	return ctx.cancelled
-}
+func (*FakeServerContext) Server() ipc.Server                            { return nil }
+func (*FakeServerContext) Method() string                                { return "" }
+func (*FakeServerContext) Name() string                                  { return "" }
+func (*FakeServerContext) Suffix() string                                { return "" }
+func (*FakeServerContext) Label() (l security.Label)                     { return }
+func (*FakeServerContext) CaveatDischarges() security.CaveatDischargeMap { return nil }
+func (ctx *FakeServerContext) LocalID() security.PublicID                { return ctx.id }
+func (ctx *FakeServerContext) RemoteID() security.PublicID               { return ctx.id }
+func (*FakeServerContext) Blessing() security.PublicID                   { return nil }
+func (*FakeServerContext) LocalEndpoint() naming.Endpoint                { return nil }
+func (*FakeServerContext) RemoteEndpoint() naming.Endpoint               { return nil }
+func (ctx *FakeServerContext) Cancel()                                   { ctx.cancel() }
 
 // Utilities for PutMutations.
 
@@ -169,12 +115,12 @@ func (s *storePutMutationsCall) Finish() error {
 }
 
 func (s *storePutMutationsCall) Cancel() {
-	s.ctx.(*CancellableContext).Cancel()
+	s.ctx.(*FakeServerContext).Cancel()
 	s.stream.Close()
 }
 
 func PutMutations(id security.PublicID, putMutationsFn func(ipc.ServerContext, raw.StoreServicePutMutationsStream) error) raw.StorePutMutationsCall {
-	ctx := NewCancellableContext(id)
+	ctx := NewFakeServerContext(id)
 	mus := make(chan raw.Mutation)
 	err := make(chan error)
 	go func() {
@@ -216,7 +162,7 @@ func (s *watcherServiceWatchStreamSender) Send(cb watch.ChangeBatch) error {
 	select {
 	case s.output <- cb:
 		return nil
-	case <-s.ctx.Closed():
+	case <-s.ctx.Done():
 		return io.EOF
 	}
 }
@@ -235,7 +181,7 @@ func (*watcherServiceWatchStream) Cancel() {}
 
 // watcherWatchStream implements watch.WatcherWatchStream.
 type watcherWatchStream struct {
-	ctx   *CancellableContext
+	ctx   *FakeServerContext
 	value watch.ChangeBatch
 	input <-chan watch.ChangeBatch
 	err   <-chan error
@@ -274,7 +220,7 @@ func (s *watcherWatchStream) RecvStream() interface {
 
 func watchImpl(id security.PublicID, watchFn func(ipc.ServerContext, *watcherServiceWatchStream) error) *watcherWatchStream {
 	mu := &sync.Mutex{}
-	ctx := NewCancellableContext(id)
+	ctx := NewFakeServerContext(id)
 	c := make(chan watch.ChangeBatch, 1)
 	errc := make(chan error, 1)
 	go func() {

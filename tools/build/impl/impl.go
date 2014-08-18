@@ -8,9 +8,11 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+	"time"
 
 	"veyron/lib/cmdline"
 
+	"veyron2/context"
 	"veyron2/rt"
 	vbuild "veyron2/services/mgmt/build"
 )
@@ -133,7 +135,7 @@ func getSources(pkgMap map[string]*build.Package, cancel <-chan struct{}, errcha
 	return sources
 }
 
-func invokeBuild(name string, sources <-chan vbuild.File, cancel <-chan struct{}, errchan chan<- error) <-chan vbuild.File {
+func invokeBuild(ctx context.T, name string, sources <-chan vbuild.File, cancel <-chan struct{}, errchan chan<- error) <-chan vbuild.File {
 	binaries := make(chan vbuild.File)
 	go func() {
 		defer close(binaries)
@@ -143,7 +145,7 @@ func invokeBuild(name string, sources <-chan vbuild.File, cancel <-chan struct{}
 			errchan <- fmt.Errorf("BindBuilder(%v) failed: %v", name, err)
 			return
 		}
-		stream, err := client.Build(rt.R().NewContext(), vbuild.Architecture(flagArch), vbuild.OperatingSystem(flagOS))
+		stream, err := client.Build(ctx, vbuild.Architecture(flagArch), vbuild.OperatingSystem(flagOS))
 		if err != nil {
 			errchan <- fmt.Errorf("Build() failed: %v", err)
 			return
@@ -162,6 +164,8 @@ func invokeBuild(name string, sources <-chan vbuild.File, cancel <-chan struct{}
 		}
 		iterator := stream.RecvStream()
 		for iterator.Advance() {
+			// TODO(mattr): This custom cancellation can probably be folded into the
+			// cancellation mechanism provided by the context.
 			select {
 			case binaries <- iterator.Value():
 			case <-cancel:
@@ -209,9 +213,13 @@ func runBuild(command *cmdline.Command, args []string) error {
 	}
 	cancel, errchan := make(chan struct{}), make(chan error)
 	defer close(errchan)
+
+	ctx, ctxCancel := rt.R().NewContext().WithTimeout(time.Minute)
+	defer ctxCancel()
+
 	// Start all stages of the pipeline.
 	sources := getSources(pkgMap, cancel, errchan)
-	binaries := invokeBuild(name, sources, cancel, errchan)
+	binaries := invokeBuild(ctx, name, sources, cancel, errchan)
 	saveBinaries(os.TempDir(), binaries, cancel, errchan)
 	// Wait for all stages of the pipeline to terminate.
 	cancelled, errors, numStages := false, []error{}, 3

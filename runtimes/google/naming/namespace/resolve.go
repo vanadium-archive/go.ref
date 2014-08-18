@@ -26,7 +26,8 @@ func resolveAgainstMountTable(ctx context.T, client ipc.Client, names []string) 
 		// address, without recursing through ourselves. To this we force
 		// the entire name component to be terminal.
 		name = naming.MakeTerminal(name)
-		call, err := client.StartCall(ctx, name, "ResolveStep", nil, callTimeout)
+		callCtx, _ := ctx.WithTimeout(callTimeout)
+		call, err := client.StartCall(callCtx, name, "ResolveStep", nil)
 		if err != nil {
 			finalErr = err
 			vlog.VI(2).Infof("ResolveStep.StartCall %s failed: %s", name, err)
@@ -178,7 +179,8 @@ func unresolveAgainstServer(ctx context.T, client ipc.Client, names []string) ([
 	finalErr := errors.New("no servers to unresolve")
 	for _, name := range names {
 		name = naming.MakeTerminal(name)
-		call, err := client.StartCall(ctx, name, "UnresolveStep", nil, callTimeout)
+		callCtx, _ := ctx.WithTimeout(callTimeout)
+		call, err := client.StartCall(callCtx, name, "UnresolveStep", nil)
 		if err != nil {
 			finalErr = err
 			vlog.VI(2).Infof("StartCall %q.UnresolveStep() failed: %s", name, err)

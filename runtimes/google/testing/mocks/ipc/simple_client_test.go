@@ -2,9 +2,29 @@ package ipc
 
 import (
 	"testing"
+	"time"
+
+	"veyron2/context"
 )
 
 type fakeContext struct{}
+
+func (*fakeContext) Deadline() (deadline time.Time, ok bool) { return }
+func (*fakeContext) Done() <-chan struct{}                   { return nil }
+func (*fakeContext) Err() error                              { return nil }
+func (*fakeContext) Value(key interface{}) interface{}       { return nil }
+func (*fakeContext) WithCancel() (context.T, context.CancelFunc) {
+	return &fakeContext{}, func() {}
+}
+func (*fakeContext) WithDeadline(time.Time) (context.T, context.CancelFunc) {
+	return &fakeContext{}, func() {}
+}
+func (*fakeContext) WithTimeout(time.Duration) (context.T, context.CancelFunc) {
+	return &fakeContext{}, func() {}
+}
+func (*fakeContext) WithValue(k, v interface{}) context.T {
+	return &fakeContext{}
+}
 
 func TestSuccessfulCalls(t *testing.T) {
 

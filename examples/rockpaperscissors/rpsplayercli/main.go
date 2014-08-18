@@ -196,7 +196,9 @@ func playGame(judge string, gameID rps.GameID) (rps.PlayResult, error) {
 	if err != nil {
 		return rps.PlayResult{}, err
 	}
-	game, err := j.Play(rt.R().TODOContext(), gameID, veyron2.CallTimeout(10*time.Minute))
+
+	ctx, _ := rt.R().NewContext().WithTimeout(10 * time.Minute)
+	game, err := j.Play(ctx, gameID)
 	if err != nil {
 		return rps.PlayResult{}, err
 	}

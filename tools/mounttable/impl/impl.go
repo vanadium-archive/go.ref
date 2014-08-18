@@ -6,12 +6,12 @@ import (
 
 	"veyron/lib/cmdline"
 
+	"veyron2/context"
 	"veyron2/rt"
 	"veyron2/services/mounttable"
 )
 
-func bindMT(name string) (mounttable.MountTable, error) {
-	ctx := rt.R().NewContext()
+func bindMT(ctx context.T, name string) (mounttable.MountTable, error) {
 	mts, err := rt.R().Namespace().ResolveToMountTable(ctx, name)
 	if err != nil {
 		return nil, err
@@ -40,11 +40,13 @@ func runGlob(cmd *cmdline.Command, args []string) error {
 	if expected, got := 2, len(args); expected != got {
 		return cmd.Errorf("glob: incorrect number of arguments, expected %d, got %d", expected, got)
 	}
-	c, err := bindMT(args[0])
+	ctx, cancel := rt.R().NewContext().WithTimeout(time.Minute)
+	defer cancel()
+	c, err := bindMT(ctx, args[0])
 	if err != nil {
 		return fmt.Errorf("bind error: %v", err)
 	}
-	stream, err := c.Glob(rt.R().NewContext(), args[1])
+	stream, err := c.Glob(ctx, args[1])
 	if err != nil {
 		return err
 	}
@@ -87,7 +89,9 @@ func runMount(cmd *cmdline.Command, args []string) error {
 	if expected, got := 3, len(args); expected != got {
 		return cmd.Errorf("mount: incorrect number of arguments, expected %d, got %d", expected, got)
 	}
-	c, err := bindMT(args[0])
+	ctx, cancel := rt.R().NewContext().WithTimeout(time.Minute)
+	defer cancel()
+	c, err := bindMT(ctx, args[0])
 	if err != nil {
 		return fmt.Errorf("bind error: %v", err)
 	}
@@ -95,7 +99,7 @@ func runMount(cmd *cmdline.Command, args []string) error {
 	if err != nil {
 		return fmt.Errorf("TTL parse error: %v", err)
 	}
-	err = c.Mount(rt.R().NewContext(), args[1], uint32(ttl.Seconds()))
+	err = c.Mount(ctx, args[1], uint32(ttl.Seconds()))
 	if err != nil {
 		return err
 	}
@@ -120,11 +124,13 @@ func runUnmount(cmd *cmdline.Command, args []string) error {
 	if expected, got := 2, len(args); expected != got {
 		return cmd.Errorf("unmount: incorrect number of arguments, expected %d, got %d", expected, got)
 	}
-	c, err := bindMT(args[0])
+	ctx, cancel := rt.R().NewContext().WithTimeout(time.Minute)
+	defer cancel()
+	c, err := bindMT(ctx, args[0])
 	if err != nil {
 		return fmt.Errorf("bind error: %v", err)
 	}
-	err = c.Unmount(rt.R().NewContext(), args[1])
+	err = c.Unmount(ctx, args[1])
 	if err != nil {
 		return err
 	}
@@ -148,11 +154,13 @@ func runResolveStep(cmd *cmdline.Command, args []string) error {
 	if expected, got := 1, len(args); expected != got {
 		return cmd.Errorf("mount: incorrect number of arguments, expected %d, got %d", expected, got)
 	}
-	c, err := bindMT(args[0])
+	ctx, cancel := rt.R().NewContext().WithTimeout(time.Minute)
+	defer cancel()
+	c, err := bindMT(ctx, args[0])
 	if err != nil {
 		return fmt.Errorf("bind error: %v", err)
 	}
-	servers, suffix, err := c.ResolveStep(rt.R().NewContext())
+	servers, suffix, err := c.ResolveStep(ctx)
 	if err != nil {
 		return err
 	}

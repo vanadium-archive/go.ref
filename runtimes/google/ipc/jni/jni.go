@@ -83,13 +83,10 @@ func goRuntimeOpts(env *C.JNIEnv, jOptions C.jobject) (ret []veyron2.ROpt) {
 }
 
 //export Java_com_veyron_runtimes_google_Runtime_nativeNewClient
+// TODO(mattr): Eliminate timeoutMillis, it is no longer functional.
 func Java_com_veyron_runtimes_google_Runtime_nativeNewClient(env *C.JNIEnv, jRuntime C.jobject, goRuntimePtr C.jlong, timeoutMillis C.jlong) C.jlong {
 	r := (*veyron2.Runtime)(util.Ptr(goRuntimePtr))
-	options := []ipc.ClientOpt{}
-	if int(timeoutMillis) > 0 {
-		options = append(options, veyron2.CallTimeout(time.Duration(timeoutMillis)*time.Millisecond))
-	}
-	rc, err := (*r).NewClient(options...)
+	rc, err := (*r).NewClient()
 	if err != nil {
 		util.JThrowV(env, err)
 		return C.jlong(0)
@@ -267,7 +264,8 @@ func Java_com_veyron_runtimes_google_Runtime_00024ServerCall_nativeDeadline(env 
 		// Error, return current time as deadline.
 		d = time.Now()
 	} else {
-		d = s.Deadline()
+		// TODO(mattr): Deal with missing deadlines by adjusting the JAVA api to allow it.
+		d, _ = s.Deadline()
 	}
 	return C.jlong(d.UnixNano() / 1000)
 }
@@ -275,8 +273,10 @@ func Java_com_veyron_runtimes_google_Runtime_00024ServerCall_nativeDeadline(env 
 //export Java_com_veyron_runtimes_google_Runtime_00024ServerCall_nativeClosed
 func Java_com_veyron_runtimes_google_Runtime_00024ServerCall_nativeClosed(env *C.JNIEnv, jServerCall C.jobject, goServerCallPtr C.jlong) C.jboolean {
 	s := (*serverCall)(util.Ptr(goServerCallPtr))
-	if s.IsClosed() {
+	select {
+	case <-s.Done():
 		return C.JNI_TRUE
+	default:
+		return C.JNI_FALSE
 	}
-	return C.JNI_FALSE
 }

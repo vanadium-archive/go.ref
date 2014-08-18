@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"io"
+	"time"
 
 	"veyron/lib/cmdline"
 	idl_test_base "veyron/tools/vrpc/test_base"
@@ -60,7 +61,8 @@ func runDescribe(cmd *cmdline.Command, args []string) error {
 	}
 	defer client.Close()
 
-	ctx := runtime.NewContext()
+	ctx, cancel := runtime.NewContext().WithTimeout(time.Minute)
+	defer cancel()
 	signature, err := getSignature(ctx, cmd, args[0], client)
 	if err != nil {
 		return err
@@ -99,7 +101,8 @@ func runInvoke(cmd *cmdline.Command, args []string) error {
 	}
 	defer client.Close()
 
-	ctx := runtime.NewContext()
+	ctx, cancel := runtime.NewContext().WithTimeout(time.Minute)
+	defer cancel()
 	signature, err := getSignature(ctx, cmd, server, client)
 	if err != nil {
 		return fmt.Errorf("invoke: failed to get signature for %v: %v", server, err)

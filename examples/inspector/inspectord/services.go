@@ -65,7 +65,12 @@ func (s *stublessServer) send(fi os.FileInfo, details bool) error {
 }
 
 func (s *stublessServer) cancelled() bool {
-	return s.call.IsClosed()
+	select {
+	case <-s.call.Done():
+		return true
+	default:
+		return false
+	}
 }
 
 type stubbedServer struct {
@@ -89,7 +94,12 @@ func (s *stubbedServer) send(fi os.FileInfo, details bool) error {
 }
 
 func (s *stubbedServer) cancelled() bool {
-	return s.context.IsClosed()
+	select {
+	case <-s.context.Done():
+		return true
+	default:
+		return false
+	}
 }
 
 // ls is shared by both stubbed and stubless calls and contains

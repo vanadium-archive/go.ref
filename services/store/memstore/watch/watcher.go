@@ -118,7 +118,7 @@ func (w *Watcher) Watch(ctx ipc.ServerContext, processor reqProcessor,
 	// 1) The watcher has been closed.
 	// 2) The call closes. This is signalled on the context's closed channel.
 	case <-w.closed:
-	case <-ctx.Closed():
+	case <-ctx.Done():
 	}
 	return errWatchClosed
 }

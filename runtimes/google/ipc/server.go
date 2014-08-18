@@ -318,6 +318,7 @@ func (s *server) Stop() error {
 // flowServer implements the RPC server-side protocol for a single RPC, over a
 // flow that's already connected to the client.
 type flowServer struct {
+	context.T
 	server ipc.Server     // ipc.Server that this flow server belongs to
 	disp   ipc.Dispatcher // ipc.Dispatcher that will serve RPCs on this flow
 	dec    *vom.Decoder   // to decode requests and args from the client
@@ -430,7 +431,8 @@ func (fs *flowServer) processRequest() ([]interface{}, verror.E) {
 	// Set a default timeout before reading from the flow. Without this timeout,
 	// a client that sends no request or a partial request will retain the flow
 	// indefinitely (and lock up server resources).
-	if verr := fs.setDeadline(start.Add(defaultCallTimeout)); verr != nil {
+	deadline := start.Add(defaultCallTimeout)
+	if verr := fs.setDeadline(deadline); verr != nil {
 		return nil, verr
 	}
 	// Decode the initial request.
@@ -439,16 +441,29 @@ func (fs *flowServer) processRequest() ([]interface{}, verror.E) {
 		return nil, verror.BadProtocolf("ipc: request decoding failed: %v", err)
 	}
 	fs.method = req.Method
+
 	// Set the appropriate deadline, if specified.
 	if req.Timeout == ipc.NoTimeout {
-		if verr := fs.setDeadline(time.Time{}); verr != nil {
-			return nil, verr
-		}
+		deadline = time.Time{}
 	} else if req.Timeout > 0 {
-		if verr := fs.setDeadline(start.Add(time.Duration(req.Timeout))); verr != nil {
-			return nil, verr
-		}
+		deadline = start.Add(time.Duration(req.Timeout))
 	}
+	if verr := fs.setDeadline(deadline); verr != nil {
+		return nil, verr
+	}
+	var cancel context.CancelFunc
+	if !deadline.IsZero() {
+		fs.T, cancel = InternalNewContext().WithDeadline(deadline)
+	} else {
+		fs.T, cancel = InternalNewContext().WithCancel()
+	}
+
+	// Notify the context when the channel is closed.
+	go func() {
+		<-fs.flow.Closed()
+		cancel()
+	}()
+
 	// If additional credentials are provided, make them available in the context
 	if req.HasBlessing {
 		if err := fs.dec.Decode(&fs.blessing); err != nil {
@@ -547,7 +562,6 @@ func (fs *flowServer) authorize(auth security.Authorizer) error {
 // is not closed by the specified deadline.
 // A zero deadline (time.Time.IsZero) implies that no cancellation is desired.
 func (fs *flowServer) setDeadline(deadline time.Time) verror.E {
-	fs.deadline = deadline
 	if err := fs.flow.SetDeadline(deadline); err != nil {
 		return verror.Internalf("ipc: flow SetDeadline failed: %v", err)
 	}
@@ -591,15 +605,6 @@ func (fs *flowServer) Label() security.Label { return fs.label }
 
 func (fs *flowServer) LocalID() security.PublicID      { return fs.flow.LocalID() }
 func (fs *flowServer) RemoteID() security.PublicID     { return fs.authorizedRemoteID }
-func (fs *flowServer) Deadline() time.Time             { return fs.deadline }
 func (fs *flowServer) Blessing() security.PublicID     { return fs.blessing }
 func (fs *flowServer) LocalEndpoint() naming.Endpoint  { return fs.flow.LocalEndpoint() }
 func (fs *flowServer) RemoteEndpoint() naming.Endpoint { return fs.flow.RemoteEndpoint() }
-
-func (fs *flowServer) IsClosed() bool {
-	return fs.flow.IsClosed()
-}
-
-func (fs *flowServer) Closed() <-chan struct{} {
-	return fs.flow.Closed()
-}

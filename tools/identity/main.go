@@ -208,13 +208,17 @@ can be provided with the --for flag.
 			redirectURL := <-authcodeChan
 			authcode := <-authcodeChan
 
+			ctx, cancel := r.NewContext().WithTimeout(time.Minute)
+			defer cancel()
+
 			wait := time.Second
 			const maxWait = 20 * time.Second
 			var reply vdlutil.Any
 			for {
 				blesser, err := identity.BindOAuthBlesser(flagSeekBlessingFrom, r.Client())
 				if err == nil {
-					reply, err = blesser.BlessUsingAuthorizationCode(r.NewContext(), authcode, redirectURL)
+
+					reply, err = blesser.BlessUsingAuthorizationCode(ctx, authcode, redirectURL)
 				}
 				if err != nil {
 					vlog.Infof("Failed to get blessing from %q: %v, will try again in %v", flagSeekBlessingFrom, err, wait)

@@ -101,7 +101,7 @@ func NewController(writerCreator func(id int64) lib.ClientWriter,
 	if err != nil {
 		return nil, err
 	}
-	client, err := r.NewClient(veyron2.CallTimeout(ipc.NoTimeout))
+	client, err := r.NewClient()
 	if err != nil {
 		return nil, err
 	}

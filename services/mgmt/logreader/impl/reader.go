@@ -43,8 +43,12 @@ func (f *followReader) read(b []byte) (int, error) {
 		return 0, f.err
 	}
 	for {
-		if f.ctx != nil && f.ctx.IsClosed() {
-			return 0, errCanceled
+		if f.ctx != nil {
+			select {
+			case <-f.ctx.Done():
+				return 0, errCanceled
+			default:
+			}
 		}
 		n, err := f.reader.Read(b)
 		if n == 0 && err == nil {

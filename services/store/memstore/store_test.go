@@ -8,6 +8,7 @@ import (
 	storetesting "veyron/services/store/memstore/testing"
 	"veyron/services/store/raw"
 
+	"veyron2/rt"
 	"veyron2/storage"
 	"veyron2/verror"
 )
@@ -125,6 +126,7 @@ func TestRecoverFromLog(t *testing.T) {
 }
 
 func TestPutMutations(t *testing.T) {
+	rt.Init()
 	dbName, err := ioutil.TempDir(os.TempDir(), "vstore")
 	if err != nil {
 		t.Fatalf("ioutil.TempDir() failed: %v", err)

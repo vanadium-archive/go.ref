@@ -9,8 +9,8 @@ import (
 	"time"
 
 	"veyron/runtimes/google/jni/util"
-	"veyron2"
 	"veyron2/ipc"
+	"veyron2/rt"
 )
 
 // #cgo LDFLAGS: -ljniwrapper
@@ -28,6 +28,7 @@ func newClient(c ipc.Client) *client {
 	}
 }
 
+// TODO(mattr): Remove the jTimeout param. after we move deadlines to contexts on java.
 func (c *client) StartCall(env *C.JNIEnv, jContext C.jobject, name, method string, jArgs C.jobjectArray, jPath C.jstring, jTimeout C.jlong) (*clientCall, error) {
 	// NOTE(spetrovic): In the long-term, we will decode JSON arguments into an
 	// array of vom.Value instances and send this array across the wire.
@@ -61,17 +62,19 @@ func (c *client) StartCall(env *C.JNIEnv, jContext C.jobject, name, method strin
 		// as argptr[i] is of type interface{}.
 		args[i] = util.DerefOrDie(argptrs[i])
 	}
-	// Process options.
-	options := []ipc.CallOpt{}
-	if int(jTimeout) >= 0 {
-		options = append(options, veyron2.CallTimeout(time.Duration(int(jTimeout))*time.Millisecond))
-	}
-	context, err := newContext(env, jContext)
+
+	// TODO(mattr): It's not clear what needs to be done with the result of newContext.
+	// We should be getting access to the veyron context object perhaps maintained inside
+	// jContext somehow.  For now I'll create a new context with a deadline derived from
+	// jTimeout.  Eventually we should remove jTimeout altogether.
+	_, err = newContext(env, jContext)
 	if err != nil {
 		return nil, err
 	}
+	context, _ := rt.R().NewContext().WithTimeout(time.Duration(int(jTimeout)) * time.Millisecond)
+
 	// Invoke StartCall
-	call, err := c.client.StartCall(context, name, method, args, options...)
+	call, err := c.client.StartCall(context, name, method, args)
 	if err != nil {
 		return nil, err
 	}

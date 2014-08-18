@@ -9,7 +9,6 @@ import (
 	"os"
 
 	"veyron2"
-	"veyron2/ipc"
 	"veyron2/rt"
 
 	"veyron/examples/pipetobrowser"
@@ -79,7 +78,7 @@ func main() {
 		return
 	}
 
-	stream, err := s.Pipe(runtime.NewContext(), veyron2.CallTimeout(ipc.NoTimeout))
+	stream, err := s.Pipe(runtime.NewContext())
 	if err != nil {
 		log.Errorf("failed to pipe to '%s' please ensure p2b service is running in the browser and name is correct.\nERR:%v", name, err)
 		return
