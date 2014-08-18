@@ -565,7 +565,17 @@ func testRPC(t *testing.T, shouldCloseSend bool) {
 		}
 		if shouldCloseSend {
 			vlog.VI(1).Infof("%s call.CloseSend", name(test))
-			if err := call.CloseSend(); err != nil {
+			// When the method does not involve streaming
+			// arguments, the server gets all the arguments in
+			// StartCall and then sends a response without
+			// (unnecessarily) waiting for a CloseSend message from
+			// the client.  If the server responds before the
+			// CloseSend call is made at the client, the CloseSend
+			// call will fail.  Thus, only check for errors on
+			// CloseSend if there are streaming arguments to begin
+			// with (i.e., only if the server is expected to wait
+			// for the CloseSend notification).
+			if err := call.CloseSend(); err != nil && len(test.streamArgs) > 0 {
 				t.Errorf(`%s call.CloseSend got unexpected error "%v"`, name(test), err)
 			}
 		}
@@ -731,9 +741,6 @@ func TestRPCAuthorization(t *testing.T) {
 		if err != nil {
 			t.Errorf(`%s client.StartCall got unexpected error: "%v"`, name(test), err)
 			continue
-		}
-		if err := call.CloseSend(); err != nil {
-			t.Errorf(`%s call.CloseSend got unexpected error: "%v"`, name(test), err)
 		}
 		results := makeResultPtrs(test.results)
 		err = call.Finish(results...)
