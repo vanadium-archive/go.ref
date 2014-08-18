@@ -1,6 +1,3 @@
-// Package impl implements the LogFile interface from
-// veyron2/services/mgmt/logreader. It can be used to allow remote access to
-// log files.
 package impl
 
 import (
@@ -8,16 +5,14 @@ import (
 	"math"
 	"os"
 	"path"
-	"strings"
 
 	"veyron2/ipc"
 	"veyron2/services/mgmt/logreader"
-	"veyron2/verror"
 	"veyron2/vlog"
 )
 
-// invoker holds the state of a logfile invocation.
-type invoker struct {
+// logFileInvoker holds the state of a logfile invocation.
+type logFileInvoker struct {
 	// root is the root directory from which the object names are based.
 	root string
 	// suffix is the suffix of the current invocation that is assumed to
@@ -25,37 +20,18 @@ type invoker struct {
 	suffix string
 }
 
-var (
-	errCanceled        = verror.Abortedf("operation canceled")
-	errNotFound        = verror.NotFoundf("log file not found")
-	errEOF             = verror.Make(logreader.EOF, "EOF")
-	errOperationFailed = verror.Internalf("operation failed")
-)
-
-// NewInvoker is the invoker factory.
-func NewInvoker(root, suffix string) *invoker {
-	return &invoker{
+// NewLogFileInvoker is the invoker factory.
+func NewLogFileInvoker(root, suffix string) *logFileInvoker {
+	return &logFileInvoker{
 		root:   path.Clean(root),
 		suffix: suffix,
 	}
 }
 
-// fileName returns the file name that corresponds to the object name.
-func (i *invoker) fileName() (string, error) {
-	p := path.Join(i.root, i.suffix)
-	// Make sure we're not asked to read a file outside of the root
-	// directory. This could happen if suffix contains "../", which get
-	// collapsed by path.Join().
-	if !strings.HasPrefix(p, i.root) {
-		return "", errOperationFailed
-	}
-	return p, nil
-}
-
 // Size returns the size of the log file, in bytes.
-func (i *invoker) Size(context ipc.ServerContext) (int64, error) {
+func (i *logFileInvoker) Size(context ipc.ServerContext) (int64, error) {
 	vlog.VI(1).Infof("%v.Size()", i.suffix)
-	fname, err := i.fileName()
+	fname, err := translateNameToFilename(i.root, i.suffix)
 	if err != nil {
 		return 0, err
 	}
@@ -74,9 +50,9 @@ func (i *invoker) Size(context ipc.ServerContext) (int64, error) {
 }
 
 // ReadLog returns log entries from the log file.
-func (i *invoker) ReadLog(context ipc.ServerContext, startpos int64, numEntries int32, follow bool, stream logreader.LogFileServiceReadLogStream) (int64, error) {
+func (i *logFileInvoker) ReadLog(context ipc.ServerContext, startpos int64, numEntries int32, follow bool, stream logreader.LogFileServiceReadLogStream) (int64, error) {
 	vlog.VI(1).Infof("%v.ReadLog(%v, %v, %v)", i.suffix, startpos, numEntries, follow)
-	fname, err := i.fileName()
+	fname, err := translateNameToFilename(i.root, i.suffix)
 	if err != nil {
 		return 0, err
 	}

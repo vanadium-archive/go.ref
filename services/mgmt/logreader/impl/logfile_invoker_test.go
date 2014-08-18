@@ -16,38 +16,13 @@ import (
 	"veyron2/verror"
 )
 
-type dispatcher struct {
+type logFileDispatcher struct {
 	root string
 }
 
-func (d *dispatcher) Lookup(suffix string) (ipc.Invoker, security.Authorizer, error) {
-	invoker := ipc.ReflectInvoker(logreader.NewServerLogFile(impl.NewInvoker(d.root, suffix)))
+func (d *logFileDispatcher) Lookup(suffix string) (ipc.Invoker, security.Authorizer, error) {
+	invoker := ipc.ReflectInvoker(logreader.NewServerLogFile(impl.NewLogFileInvoker(d.root, suffix)))
 	return invoker, nil, nil
-}
-
-func startServer(t *testing.T, root string) (ipc.Server, string, error) {
-	disp := &dispatcher{root}
-	server, err := rt.R().NewServer()
-	if err != nil {
-		t.Fatalf("NewServer failed: %v", err)
-		return nil, "", err
-	}
-	endpoint, err := server.Listen("tcp", "localhost:0")
-	if err != nil {
-		t.Fatalf("Listen failed: %v", err)
-		return nil, "", err
-	}
-	if err := server.Serve("", disp); err != nil {
-		t.Fatalf("Serve failed: %v", err)
-		return nil, "", err
-	}
-	return server, endpoint.String(), nil
-}
-
-func stopServer(t *testing.T, server ipc.Server) {
-	if err := server.Stop(); err != nil {
-		t.Errorf("server.Stop failed: %v", err)
-	}
 }
 
 func writeAndSync(t *testing.T, w *os.File, s string) {
@@ -67,7 +42,7 @@ func TestReadLogImplNoFollow(t *testing.T) {
 		t.Fatalf("ioutil.TempDir: %v", err)
 	}
 	defer os.RemoveAll(workdir)
-	server, endpoint, err := startServer(t, workdir)
+	server, endpoint, err := startServer(t, &logFileDispatcher{workdir})
 	if err != nil {
 		t.Fatalf("startServer failed: %v", err)
 	}
@@ -159,7 +134,7 @@ func TestReadLogImplWithFollow(t *testing.T) {
 		t.Fatalf("ioutil.TempDir: %v", err)
 	}
 	defer os.RemoveAll(workdir)
-	server, endpoint, err := startServer(t, workdir)
+	server, endpoint, err := startServer(t, &logFileDispatcher{workdir})
 	if err != nil {
 		t.Fatalf("startServer failed: %v", err)
 	}
