@@ -60,7 +60,9 @@ func Java_com_veyron_runtimes_google_security_PublicID_nativeNames(env *C.JNIEnv
 
 //export Java_com_veyron_runtimes_google_security_PublicID_nativeMatch
 func Java_com_veyron_runtimes_google_security_PublicID_nativeMatch(env *C.JNIEnv, jPublicID C.jobject, goPublicIDPtr C.jlong, jPattern C.jstring) C.jboolean {
-	if (*(*security.PublicID)(util.Ptr(goPublicIDPtr))).Match(security.PrincipalPattern(util.GoString(env, jPattern))) {
+	id := *(*security.PublicID)(util.Ptr(goPublicIDPtr))
+	pattern := security.PrincipalPattern(util.GoString(env, jPattern))
+	if security.Matches(id, pattern) {
 		return C.JNI_TRUE
 	}
 	return C.JNI_FALSE
