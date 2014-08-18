@@ -5,46 +5,53 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
+	"io/ioutil"
+	"os"
 	"path/filepath"
-	"strings"
 	"sync"
-	"time"
 	"veyron/security/caveat"
 	ssecurity "veyron/services/security"
 	"veyron2/ipc"
-	"veyron2/naming"
-	"veyron2/rt"
 	"veyron2/security"
-	"veyron2/storage"
-	"veyron2/storage/vstore"
-	"veyron2/vlog"
 	"veyron2/vom"
 )
 
-// TODO(ataly, andreser) This package uses a global variable to store the
-// revoker state to make it accessible to caveat.Validate. Ideally, we would
-// pass this in through the context (or something equivalent).
+// The revocation caveats will be stored in a directory with a file for each.
+type revocationDir string
 
-type revocationServiceT struct {
-	store       storage.Store
-	pathInStore string
+// Returns whether the caveat exists in the recovation file.
+func (dir revocationDir) exists(cav string) (bool, error) {
+	if len(dir) == 0 {
+		return false, fmt.Errorf("missing call to NewRecocationCaveat")
+	}
+	_, err := os.Stat(filepath.Join(string(dir), cav))
+	return !os.IsNotExist(err), nil
+}
+
+func (dir revocationDir) put(caveatNonce string, caveatPreimage []byte) error {
+	if len(dir) == 0 {
+		return fmt.Errorf("missing call to NewRecocationCaveat")
+	}
+	return ioutil.WriteFile(filepath.Join(string(dir), caveatNonce), caveatPreimage, 0777)
+}
+
+func (dir revocationDir) Revoke(ctx ipc.ServerContext, caveatPreimage ssecurity.RevocationToken) error {
+	if len(dir) == 0 {
+		return fmt.Errorf("missing call to NewRecocationCaveat")
+	}
+	caveatNonce := sha256.Sum256(caveatPreimage[:])
+	return revocationService.put(hex.EncodeToString(caveatNonce[:]), caveatPreimage[:])
 }
 
 var revocationService struct {
-	*revocationServiceT
+	revocationDir
 	sync.Mutex
 }
 
 type revocationCaveat [32]byte
 
 func (cav revocationCaveat) Validate(security.Context) error {
-	// TODO(ashankar,mattr): Figure out how to get the context of an existing RPC here
-	rctx, cancel := rt.R().NewContext().WithTimeout(time.Minute)
-	defer cancel()
-
-	revocation := revocationService.store.BindObject(
-		naming.Join(revocationService.pathInStore, hex.EncodeToString(cav[:])))
-	exists, err := revocation.Exists(rctx)
+	exists, err := revocationService.exists(hex.EncodeToString(cav[:]))
 	if err != nil {
 		return err
 	}
@@ -67,59 +74,20 @@ func NewRevocationCaveat(dischargerID security.PublicID, dischargerLocation stri
 	return revocation, cav, err
 }
 
-func (revoceationService *revocationServiceT) Revoke(ctx ipc.ServerContext, caveatPreimage ssecurity.RevocationToken) error {
-	caveatNonce := sha256.Sum256(caveatPreimage[:])
-	revocation := revocationService.store.BindObject(naming.Join(revocationService.pathInStore, hex.EncodeToString(caveatNonce[:])))
-	if _, err := revocation.Put(ctx, caveatPreimage[:]); err != nil {
-		return err
-	}
-	return nil
-}
-
-// NewRevoker returns a new revoker service that can be passed to a dispatcher.
-// Currently, due to the use of global variables, this function can be called only once.
-func NewRevoker(storeName, pathInStore string) (interface{}, error) {
+// NewRevoker returns a revoker service implementation that persists information about revocations on the filesystem in dir.
+// Can only be called once due to global variables.
+func NewRevoker(dir string) (ssecurity.RevokerService, error) {
 	revocationService.Lock()
 	defer revocationService.Unlock()
-	if revocationService.revocationServiceT != nil {
-		return nil, fmt.Errorf("revoker.Revoker called more than once")
+	if len(revocationService.revocationDir) > 0 {
+		return nil, fmt.Errorf("revoker.Revoker called more than once.")
 	}
-	var err error
-	revocationService.revocationServiceT = &revocationServiceT{pathInStore: pathInStore}
-	revocationService.store, err = vstore.New(storeName)
-	if err != nil {
-		return nil, err
-	}
+	revocationService.revocationDir = revocationDir(dir)
 
-	rctx, cancel := rt.R().NewContext().WithTimeout(time.Minute)
-	defer cancel()
+	// create the directory if not already there.
+	os.MkdirAll(dir, 0700)
 
-	// Transaction is rooted at "", so tname == tid.
-	tname, err := revocationService.store.BindTransactionRoot("").CreateTransaction(rctx)
-	if err != nil {
-		return nil, err
-	}
-
-	// Create parent directories for the revoker root, if necessary
-	// TODO(tilaks,andreser): provide a `mkdir -p` equivalent in store
-	l := strings.Split(pathInStore, "/")
-	fmt.Println(l)
-	for i := 0; i <= len(l); i++ {
-		fmt.Println(i, filepath.Join(l[:i]...))
-		prefix := filepath.Join(l[:i]...)
-		o := revocationService.store.BindObject(naming.Join(tname, prefix))
-		if exist, err := o.Exists(rctx); err != nil {
-			vlog.Infof("Error checking existence at %q: %s", prefix, err)
-		} else if !exist {
-			if _, err := o.Put(rctx, &Dir{}); err != nil {
-				vlog.Infof("Error creating directory %q: %s", prefix, err)
-			}
-		}
-	}
-	if err := revocationService.store.BindTransaction(tname).Commit(rctx); err != nil {
-		vlog.Fatalf("Failed to commit creation of revoker root at %s: %s", pathInStore, err)
-	}
-	return ssecurity.NewServerRevoker(revocationService.revocationServiceT), nil
+	return revocationService.revocationDir, nil
 }
 
 func init() {

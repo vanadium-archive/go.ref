@@ -25,7 +25,7 @@ func (d dischargerd) Discharge(ctx ipc.ServerContext, caveatAny vdlutil.Any) (vd
 	return d.id.MintDischarge(caveat, ctx, time.Minute, nil)
 }
 
-// New returns a Discharger server that can be passed to a dispatcher
-func New(id security.PrivateID) interface{} {
-	return ssecurity.NewServerDischarger(&dischargerd{id})
+// NewDischarger returns a discharger service implementation that grants discharges using id.MintDischarge.
+func NewDischarger(id security.PrivateID) ssecurity.DischargerService {
+	return dischargerd{id}
 }

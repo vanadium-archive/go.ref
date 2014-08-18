@@ -1,29 +1,22 @@
 package discharger
 
 import (
+	"os"
+	"path/filepath"
 	"testing"
 	ssecurity "veyron/services/security"
-	teststore "veyron/services/store/testutil"
+	"veyron2"
 	"veyron2/ipc"
 	"veyron2/naming"
 	"veyron2/rt"
 	"veyron2/security"
 )
 
-func init() {
-	rt.Init()
-}
-
-func setup(t *testing.T) (dischargerID security.PublicID, dischargerEndpoint, revokerEndpoint string, closeFunc func()) {
-	// Create and start the store instance that the revoker will use
-	storeServer, err := rt.R().NewServer()
-	if err != nil {
-		t.Fatalf("rt.R().NewServer: %s", err)
-	}
-	storeVeyronName, closeStore := teststore.NewStore(t, storeServer, rt.R().Identity().PublicID())
-
+func revokerSetup(t *testing.T) (dischargerID security.PublicID, dischargerEndpoint, revokerEndpoint string, closeFunc func(), runtime veyron2.Runtime) {
+	var revokerDirPath = filepath.Join(os.TempDir(), "revoker_dir")
+	r := rt.Init()
 	// Create and start revoker and revocation discharge service
-	revokerServer, err := rt.R().NewServer()
+	revokerServer, err := r.NewServer()
 	if err != nil {
 		t.Fatalf("rt.R().NewServer: %s", err)
 	}
@@ -31,11 +24,12 @@ func setup(t *testing.T) (dischargerID security.PublicID, dischargerEndpoint, re
 	if err != nil {
 		t.Fatalf("revokerServer.Listen failed: %v", err)
 	}
-	revokerService, err := NewRevoker(storeVeyronName, "/testrevoker")
+	revokerService, err := NewRevoker(revokerDirPath)
 	if err != nil {
-		t.Fatalf("setup revoker service: %s", err)
+		t.Fatalf("NewRevoker failed: $v", err)
 	}
-	err = revokerServer.Serve("", ipc.SoloDispatcher(revokerService, nil))
+	revokerServiceStub := ssecurity.NewServerRevoker(revokerService)
+	err = revokerServer.Serve("", ipc.SoloDispatcher(revokerServiceStub, nil))
 	if err != nil {
 		t.Fatalf("revokerServer.Serve discharger: %s", err)
 	}
@@ -48,22 +42,23 @@ func setup(t *testing.T) (dischargerID security.PublicID, dischargerEndpoint, re
 	if err != nil {
 		t.Fatalf("revokerServer.Listen failed: %v", err)
 	}
-	err = dischargerServer.Serve("", ipc.SoloDispatcher(New(rt.R().Identity()), nil))
-	if err != nil {
+	dischargerServiceStub := ssecurity.NewServerDischarger(NewDischarger(r.Identity()))
+	if err := dischargerServer.Serve("", ipc.SoloDispatcher(dischargerServiceStub, nil)); err != nil {
 		t.Fatalf("revokerServer.Serve revoker: %s", err)
 	}
-	return rt.R().Identity().PublicID(),
+	return r.Identity().PublicID(),
 		naming.JoinAddressName(dischargerEP.String(), ""),
 		naming.JoinAddressName(revokerEP.String(), ""),
 		func() {
+			defer os.RemoveAll(revokerDirPath)
 			revokerServer.Stop()
 			dischargerServer.Stop()
-			closeStore()
-		}
+		},
+		r
 }
 
 func TestDischargeRevokeDischargeRevokeDischarge(t *testing.T) {
-	dcID, dc, rv, closeFunc := setup(t)
+	dcID, dc, rv, closeFunc, r := revokerSetup(t)
 	defer closeFunc()
 	revoker, err := ssecurity.BindRevoker(rv)
 	if err != nil {
@@ -78,20 +73,19 @@ func TestDischargeRevokeDischargeRevokeDischarge(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create public key caveat: %s", err)
 	}
-
-	if _, err = discharger.Discharge(rt.R().NewContext(), cav); err != nil {
+	if _, err = discharger.Discharge(r.NewContext(), cav); err != nil {
 		t.Fatalf("failed to get discharge: %s", err)
 	}
-	if err = revoker.Revoke(rt.R().NewContext(), preimage); err != nil {
+	if err = revoker.Revoke(r.NewContext(), preimage); err != nil {
 		t.Fatalf("failed to revoke: %s", err)
 	}
-	if discharge, err := discharger.Discharge(rt.R().NewContext(), cav); err == nil || discharge != nil {
+	if discharge, err := discharger.Discharge(r.NewContext(), cav); err == nil || discharge != nil {
 		t.Fatalf("got a discharge for a revoked caveat: %s", err)
 	}
-	if err = revoker.Revoke(rt.R().NewContext(), preimage); err != nil {
+	if err = revoker.Revoke(r.NewContext(), preimage); err != nil {
 		t.Fatalf("failed to revoke again: %s", err)
 	}
-	if discharge, err := discharger.Discharge(rt.R().NewContext(), cav); err == nil || discharge != nil {
+	if discharge, err := discharger.Discharge(r.NewContext(), cav); err == nil || discharge != nil {
 		t.Fatalf("got a discharge for a doubly revoked caveat: %s", err)
 	}
 }
