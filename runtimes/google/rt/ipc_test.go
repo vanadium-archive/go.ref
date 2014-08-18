@@ -161,7 +161,11 @@ func TestClientServerIDs(t *testing.T) {
 			continue
 		}
 		defer stopServer(server)
-		if err := server.Serve("", ipc.SoloDispatcher(&testService{}, vsecurity.NewACLAuthorizer(security.ACL{security.AllPrincipals: security.AllLabels}))); err != nil {
+		if err := server.Serve("", ipc.SoloDispatcher(&testService{},
+			vsecurity.NewACLAuthorizer(security.NewWhitelistACL(
+				map[security.PrincipalPattern]security.LabelSet{
+					security.AllPrincipals: security.AllLabels,
+				})))); err != nil {
 			t.Errorf("error serving service: ", err)
 			continue
 		}

@@ -49,9 +49,14 @@ func TestSaveACLToFile(t *testing.T) {
 		t.Fatalf("rt.New failed: %v", err)
 	}
 	defer r.Cleanup()
-	acl := security.ACL{
+	acl := security.ACL{}
+	acl.In.Principals = map[security.PrincipalPattern]security.LabelSet{
+		"veyron/*":     security.LabelSet(security.ReadLabel),
 		"veyron/alice": security.LabelSet(security.ReadLabel | security.WriteLabel),
-		"veyron/bob":   security.LabelSet(security.ReadLabel),
+		"veyron/bob":   security.LabelSet(security.AdminLabel),
+	}
+	acl.NotIn.Principals = map[security.PrincipalPattern]security.LabelSet{
+		"veyron/che": security.LabelSet(security.ReadLabel),
 	}
 
 	filePath := SaveACLToFile(acl)

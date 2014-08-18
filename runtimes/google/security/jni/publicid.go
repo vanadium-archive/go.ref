@@ -51,13 +51,6 @@ func (id *publicID) Names() []string {
 	return util.CallStringArrayMethodOrCatch(env, id.jPublicID, "names", nil)
 }
 
-func (id *publicID) Match(pattern security.PrincipalPattern) bool {
-	envPtr, freeFunc := util.GetEnv(id.jVM)
-	env := (*C.JNIEnv)(envPtr)
-	defer freeFunc()
-	return util.CallBooleanMethodOrCatch(env, id.jPublicID, "match", []util.Sign{util.StringSign})
-}
-
 func (id *publicID) PublicKey() *ecdsa.PublicKey {
 	envPtr, freeFunc := util.GetEnv(id.jVM)
 	env := (*C.JNIEnv)(envPtr)

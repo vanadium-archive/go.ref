@@ -4,12 +4,10 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	"strings"
 
 	"veyron/runtimes/google/security/keys"
 	"veyron2/naming"
 	"veyron2/security"
-	"veyron2/security/wire"
 )
 
 var errDeriveMismatch = errors.New("public key does not match that of deriving identity")
@@ -27,49 +25,6 @@ func TrustIdentityProviders(id security.PrivateID) {
 	default:
 		// Silently ignore
 	}
-}
-
-// matchesPattern checks if the provided name conforms to the provided pattern.
-// This function assumes pattern to be one of the following forms:
-// - Pattern is a chained name of the form p_0/.../p_k; in this case the check
-//   succeeds iff the provided name is of the form n_0/.../n_m such that m <= k
-//   and for all i from 0 to m, p_i = n_i.
-// - Pattern is a chained name of the form p_0/.../p_k/*; in this case the check
-//   succeeds iff the provided name is of the form n_0/.../n_m such that for all i
-//   from 0 to min(m, k), p_i = n_i.
-func matchesPattern(name, pattern string) bool {
-	patternParts := strings.Split(pattern, wire.ChainSeparator)
-	patternLen := len(patternParts)
-	nameParts := strings.Split(name, wire.ChainSeparator)
-	nameLen := len(nameParts)
-
-	if patternParts[patternLen-1] != security.AllPrincipals && nameLen > patternLen {
-		return false
-	}
-
-	min := nameLen
-	if patternParts[patternLen-1] == security.AllPrincipals && nameLen > patternLen-1 {
-		min = patternLen - 1
-	}
-
-	for i := 0; i < min; i++ {
-		if patternParts[i] != nameParts[i] {
-			return false
-		}
-	}
-	return true
-}
-
-func matchPrincipalPattern(names []string, pattern security.PrincipalPattern) bool {
-	if pattern == security.AllPrincipals {
-		return true
-	}
-	for _, n := range names {
-		if matchesPattern(n, string(pattern)) {
-			return true
-		}
-	}
-	return false
 }
 
 // ContextArgs holds the arguments for creating a new security.Context for an IPC.

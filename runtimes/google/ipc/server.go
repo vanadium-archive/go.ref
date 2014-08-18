@@ -19,7 +19,6 @@ import (
 	"veyron2/ipc/stream"
 	"veyron2/naming"
 	"veyron2/security"
-	"veyron2/security/wire"
 	"veyron2/verror"
 	"veyron2/vlog"
 	"veyron2/vom"
@@ -381,13 +380,13 @@ func result2vom(res interface{}) vom.Value {
 
 func defaultACL(id security.PublicID) security.ACL {
 	if id == nil {
-		return nil
+		return security.ACL{}
 	}
-	acl := make(security.ACL)
+	in := map[security.PrincipalPattern]security.LabelSet{}
 	for _, n := range id.Names() {
-		acl[security.PrincipalPattern(n+wire.ChainSeparator+security.AllPrincipals)] = security.AllLabels
+		in[security.PrincipalPattern(n+security.ChainSeparator+security.AllPrincipals)] = security.AllLabels
 	}
-	return acl
+	return security.NewWhitelistACL(in)
 }
 
 func (fs *flowServer) serve() error {
