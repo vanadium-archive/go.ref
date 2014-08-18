@@ -18,7 +18,7 @@ func convertServersToStrings(servers []mountedServer, suffix string) (ret []stri
 	return
 }
 
-func resolveAgainstMountTable(ctx context.T, client ipc.Client, names []string) ([]string, error) {
+func (ns *namespace) resolveAgainstMountTable(ctx context.T, client ipc.Client, names []string) ([]string, error) {
 	// Try each server till one answers.
 	finalErr := errors.New("no servers to resolve query")
 	for _, name := range names {
@@ -26,6 +26,11 @@ func resolveAgainstMountTable(ctx context.T, client ipc.Client, names []string) 
 		// address, without recursing through ourselves. To this we force
 		// the entire name component to be terminal.
 		name = naming.MakeTerminal(name)
+		// First check the cache.
+		if servers, suffix := ns.resolutionCache.lookup(name); len(servers) > 0 {
+			return convertServersToStrings(servers, suffix), nil
+		}
+		// Not in cache, call the real server.
 		callCtx, _ := ctx.WithTimeout(callTimeout)
 		call, err := client.StartCall(callCtx, name, "ResolveStep", nil)
 		if err != nil {
@@ -51,6 +56,8 @@ func resolveAgainstMountTable(ctx context.T, client ipc.Client, names []string) 
 			vlog.VI(2).Infof("ResolveStep %s failed: %s", name, err)
 			continue
 		}
+		// Add result to cache.
+		ns.resolutionCache.remember(naming.TrimSuffix(name, suffix), servers)
 		return convertServersToStrings(servers, suffix), nil
 	}
 	return nil, finalErr
@@ -92,7 +99,7 @@ func (ns *namespace) Resolve(ctx context.T, name string) ([]string, error) {
 		}
 		var err error
 		curr := names
-		if names, err = resolveAgainstMountTable(ctx, ns.rt.Client(), names); err != nil {
+		if names, err = ns.resolveAgainstMountTable(ctx, ns.rt.Client(), names); err != nil {
 			// If the name could not be found in the mount table, return an error.
 			if verror.Equal(naming.ErrNoSuchNameRoot, err) {
 				err = naming.ErrNoSuchName
@@ -133,7 +140,7 @@ func (ns *namespace) ResolveToMountTable(ctx context.T, name string) ([]string, 
 			vlog.VI(1).Infof("ResolveToMountTable(%s) -> %s", name, t)
 			return t, nil
 		}
-		if names, err = resolveAgainstMountTable(ctx, ns.rt.Client(), names); err != nil {
+		if names, err = ns.resolveAgainstMountTable(ctx, ns.rt.Client(), names); err != nil {
 			if verror.Equal(naming.ErrNoSuchNameRoot, err) {
 				t := makeTerminal(last)
 				vlog.VI(1).Infof("ResolveToMountTable(%s) -> %s (NoSuchRoot: %v)", name, t, curr)
@@ -223,4 +230,28 @@ func (ns *namespace) Unresolve(ctx context.T, name string) ([]string, error) {
 		}
 	}
 	return nil, naming.ErrResolutionDepthExceeded
+}
+
+// FlushCache flushes the most specific entry found for name.  It returns true if anything was
+// actually flushed.
+func (ns *namespace) FlushCacheEntry(name string) bool {
+	flushed := false
+	for _, n := range ns.rootName(name) {
+		// Walk the cache as we would in a resolution.  Unlike a resolution, we have to follow
+		// all branches since we want to flush all entries at which we might end up whereas in a resolution,
+		// we stop with the first branch that works.
+		n := naming.MakeTerminal(n)
+		if mts, suffix := ns.resolutionCache.lookup(n); mts != nil {
+			// Recurse.
+			for _, server := range mts {
+				flushed = flushed || ns.FlushCacheEntry(naming.Join(server.Server, suffix))
+			}
+			if !flushed {
+				// Forget the entry we just used.
+				ns.resolutionCache.forget([]string{naming.TrimSuffix(n, suffix)})
+				flushed = true
+			}
+		}
+	}
+	return flushed
 }

@@ -56,6 +56,8 @@ func (ns *namespace) Mount(ctx context.T, name, server string, ttl time.Duration
 		}
 	}
 	vlog.VI(1).Infof("Mount(%s, %s) -> %v", name, server, finalerr)
+	// Forget any previous cached information about these names.
+	ns.resolutionCache.forget(mtServers)
 	return finalerr
 }
 
@@ -80,5 +82,6 @@ func (ns *namespace) Unmount(ctx context.T, name, server string) error {
 			finalerr = err
 		}
 	}
+	ns.resolutionCache.forget(mts)
 	return finalerr
 }

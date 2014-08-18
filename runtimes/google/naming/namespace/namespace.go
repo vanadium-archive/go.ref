@@ -23,6 +23,9 @@ type namespace struct {
 	// depth limits
 	maxResolveDepth       int
 	maxRecursiveGlobDepth int
+
+	// cache for name resolutions
+	resolutionCache *cache
 }
 
 func rooted(names []string) bool {
@@ -49,6 +52,7 @@ func New(rt veyron2.Runtime, roots ...string) (*namespace, error) {
 		roots:                 roots,
 		maxResolveDepth:       defaultMaxResolveDepth,
 		maxRecursiveGlobDepth: defaultMaxRecursiveGlobDepth,
+		resolutionCache:       newCache(),
 	}, nil
 }
 
