@@ -13,7 +13,7 @@ import (
 	"veyron/examples/tunnel"
 	"veyron/examples/tunnel/lib"
 	"veyron/lib/signals"
-	"veyron2"
+	"veyron2/context"
 	"veyron2/rt"
 	"veyron2/vlog"
 )
@@ -84,8 +84,10 @@ func realMain() int {
 		vlog.Fatalf("BindTunnel(%q) failed: %v", oname, err)
 	}
 
+	ctx, _ := rt.R().NewContext().WithTimeout(24 * time.Hour)
+
 	if len(*portforward) > 0 {
-		go runPortForwarding(t, oname)
+		go runPortForwarding(ctx, t, oname)
 	}
 
 	if *noshell {
@@ -95,7 +97,7 @@ func realMain() int {
 
 	opts := shellOptions(cmd)
 
-	stream, err := t.Shell(rt.R().TODOContext(), cmd, opts, veyron2.CallTimeout(24*time.Hour))
+	stream, err := t.Shell(ctx, cmd, opts)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 		return 1
@@ -170,7 +172,7 @@ func objectNameAndCommandLine() (string, string, error) {
 	return name, cmd, nil
 }
 
-func runPortForwarding(t tunnel.Tunnel, oname string) {
+func runPortForwarding(ctx context.T, t tunnel.Tunnel, oname string) {
 	// *portforward is localaddr,remoteaddr
 	parts := strings.Split(*portforward, ",")
 	var laddr, raddr string
@@ -192,7 +194,7 @@ func runPortForwarding(t tunnel.Tunnel, oname string) {
 			vlog.Infof("Accept failed: %v", err)
 			continue
 		}
-		stream, err := t.Forward(rt.R().TODOContext(), *rprotocol, raddr, veyron2.CallTimeout(24*time.Hour))
+		stream, err := t.Forward(ctx, *rprotocol, raddr)
 		if err != nil {
 			vlog.Infof("Tunnel(%q, %q) failed: %v", *rprotocol, raddr, err)
 			conn.Close()

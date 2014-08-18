@@ -110,7 +110,7 @@ func (t *T) Shell(ctx ipc.ServerContext, command string, shellOpts tunnel.ShellO
 	case runErr := <-runIOManager(stdin, stdout, stderr, ptyFd, stream):
 		vlog.Infof("SHELL END for %v: %q (%v)", ctx.RemoteID(), command, runErr)
 		return harvestExitcode(c.Process, runErr)
-	case <-ctx.Closed():
+	case <-ctx.Done():
 		return nonShellErrorCode, fmt.Errorf("remote end exited")
 	}
 }
