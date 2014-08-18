@@ -96,6 +96,10 @@ func (stupidNS) ResolveToMountTable(ctx context.T, name string) ([]string, error
 	return nil, errors.New("ResolveToMountTable is not implemented in this MountTable")
 }
 
+func (stupidNS) FlushCacheEntry(name string) bool {
+	return false
+}
+
 // Glob implements naming.MountTable.Glob.
 func (stupidNS) Glob(ctx context.T, pattern string) (chan naming.MountEntry, error) {
 	return nil, errors.New("Glob is not implemented in this MountTable")

@@ -242,6 +242,10 @@ func (ns *namespace) Unresolve(ctx context.T, name string) ([]string, error) {
 	return nil, nil
 }
 
+func (ns *namespace) FlushCacheEntry(name string) bool {
+	return false
+}
+
 func (ns *namespace) Glob(ctx context.T, pattern string) (chan naming.MountEntry, error) {
 	panic("Glob not implemented")
 	return nil, nil
