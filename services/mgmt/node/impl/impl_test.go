@@ -295,7 +295,7 @@ func TestNodeManagerUpdateAndRevert(t *testing.T) {
 	}
 	scriptPathV2 := evalLink()
 	if scriptPathFactory == scriptPathV2 {
-		t.Errorf("current link didn't change")
+		t.Fatalf("current link didn't change")
 	}
 
 	// This is from the child node manager started by the node manager
@@ -325,7 +325,7 @@ func TestNodeManagerUpdateAndRevert(t *testing.T) {
 	// repository: this should fail, and current link should be unchanged.
 	updateExpectError(t, "v2NM", verror.NotFound)
 	if evalLink() != scriptPathV2 {
-		t.Errorf("script changed")
+		t.Fatalf("script changed")
 	}
 
 	// Create a third version of the node manager and issue an update.
@@ -336,7 +336,7 @@ func TestNodeManagerUpdateAndRevert(t *testing.T) {
 
 	scriptPathV3 := evalLink()
 	if scriptPathV3 == scriptPathV2 {
-		t.Errorf("current link didn't change")
+		t.Fatalf("current link didn't change")
 	}
 
 	// This is from the child node manager started by the node manager
@@ -369,7 +369,7 @@ func TestNodeManagerUpdateAndRevert(t *testing.T) {
 	nm.CloseStdin()
 	runNM.Expect("v3NM terminating")
 	if evalLink() != scriptPathV2 {
-		t.Errorf("current link didn't change")
+		t.Fatalf("current link was not reverted correctly")
 	}
 	deferrer = nil
 	runNM.Cleanup()
@@ -388,7 +388,7 @@ func TestNodeManagerUpdateAndRevert(t *testing.T) {
 	revert(t, "v2NM")
 	runNM.Expect("v2NM terminating")
 	if evalLink() != scriptPathFactory {
-		t.Errorf("current link didn't change")
+		t.Fatalf("current link was not reverted correctly")
 	}
 	deferrer = nil
 	runNM.Cleanup()
@@ -436,7 +436,7 @@ func TestAppStartStop(t *testing.T) {
 	defer server.Stop()
 	pingCh := make(chan struct{})
 	if err := server.Serve("pingserver", ipc.SoloDispatcher(pingServerDisp(pingCh), nil)); err != nil {
-		t.Errorf("Failed to set up ping server")
+		t.Fatalf("Failed to set up ping server")
 	}
 
 	// Create an envelope for an app.
@@ -477,7 +477,7 @@ func TestAppStartStop(t *testing.T) {
 		t.Fatalf("BindApplication(%v) failed: %v", instanceName, err)
 	}
 	if err := stub.Stop(rt.R().NewContext(), 5); err != nil {
-		t.Errorf("Stop failed: %v", err)
+		t.Fatalf("Stop failed: %v", err)
 	}
 
 	// HACK ALERT: for now, we peek inside the node manager's directory
@@ -498,9 +498,9 @@ func TestAppStartStop(t *testing.T) {
 	rootDir := filepath.Join(instanceDir, "root")
 	testFile := filepath.Join(rootDir, "testfile")
 	if read, err := ioutil.ReadFile(testFile); err != nil {
-		t.Errorf("Failed to read %v: %v", testFile, err)
+		t.Fatalf("Failed to read %v: %v", testFile, err)
 	} else if want, got := "goodbye world", string(read); want != got {
-		t.Errorf("Expected to read %v, got %v instead", want, got)
+		t.Fatalf("Expected to read %v, got %v instead", want, got)
 	}
 	// END HACK
 }

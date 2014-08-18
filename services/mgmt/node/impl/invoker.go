@@ -164,7 +164,7 @@ var (
 
 	errInvalidSuffix      = verror.BadArgf("invalid suffix")
 	errOperationFailed    = verror.Internalf("operation failed")
-	errUpdateInProgress   = verror.Existsf("update in progress")
+	errInProgress         = verror.Existsf("operation in progress")
 	errIncompatibleUpdate = verror.BadArgf("update failed: mismatching app title")
 	errUpdateNoOp         = verror.NotFoundf("no different version available")
 	errNotExist           = verror.NotFoundf("object does not exist")
@@ -638,7 +638,7 @@ func (i *invoker) Revert(call ipc.ServerContext) error {
 	i.internal.updatingMutex.Lock()
 	if i.internal.updating {
 		i.internal.updatingMutex.Unlock()
-		return errUpdateInProgress
+		return errInProgress
 	} else {
 		i.internal.updating = true
 	}
@@ -894,7 +894,7 @@ func (i *invoker) Update(call ipc.ServerContext) error {
 		i.internal.updatingMutex.Lock()
 		if i.internal.updating {
 			i.internal.updatingMutex.Unlock()
-			return errUpdateInProgress
+			return errInProgress
 		} else {
 			i.internal.updating = true
 		}

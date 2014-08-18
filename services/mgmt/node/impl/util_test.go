@@ -90,15 +90,17 @@ func newServer() (ipc.Server, string) {
 
 // resolveExpectError verifies that the given name is not in the mounttable.
 func resolveExpectError(t *testing.T, name string, errID verror.ID) {
+	rt.R().Namespace().FlushCacheEntry(name)
 	if results, err := rt.R().Namespace().Resolve(rt.R().NewContext(), name); err == nil {
-		t.Errorf("Resolve(%v) succeeded with results %v when it was expected to fail", name, results)
+		t.Fatalf("Resolve(%v) succeeded with results %v when it was expected to fail", name, results)
 	} else if !verror.Is(err, errID) {
-		t.Errorf("Resolve(%v) failed with error %v, expected error ID %v", err, errID)
+		t.Fatalf("Resolve(%v) failed with error %v, expected error ID %v", err, errID)
 	}
 }
 
 // resolve looks up the given name in the mounttable.
 func resolve(t *testing.T, name string) string {
+	rt.R().Namespace().FlushCacheEntry(name)
 	results, err := rt.R().Namespace().Resolve(rt.R().NewContext(), name)
 	if err != nil {
 		t.Fatalf("Resolve(%v) failed: %v", name, err)
@@ -114,13 +116,13 @@ func resolve(t *testing.T, name string) string {
 
 func updateExpectError(t *testing.T, name string, errID verror.ID) {
 	if err := invokeUpdate(t, name); !verror.Is(err, errID) {
-		t.Errorf("Unexpected update error %v, expected error ID %v", err, errID)
+		t.Fatalf("Unexpected update error %v, expected error ID %v", err, errID)
 	}
 }
 
 func update(t *testing.T, name string) {
 	if err := invokeUpdate(t, name); err != nil {
-		t.Errorf("Update() failed: %v", err)
+		t.Fatalf("Update() failed: %v", err)
 	}
 }
 
@@ -135,13 +137,13 @@ func invokeUpdate(t *testing.T, name string) error {
 
 func revertExpectError(t *testing.T, name string, errID verror.ID) {
 	if err := invokeRevert(t, name); !verror.Is(err, errID) {
-		t.Errorf("Unexpected revert error %v, expected error ID %v", err, errID)
+		t.Fatalf("Unexpected revert error %v, expected error ID %v", err, errID)
 	}
 }
 
 func revert(t *testing.T, name string) {
 	if err := invokeRevert(t, name); err != nil {
-		t.Errorf("Revert() failed: %v", err)
+		t.Fatalf("Revert() failed: %v", err)
 	}
 }
 
