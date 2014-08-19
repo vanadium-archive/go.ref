@@ -137,7 +137,7 @@ func TestApplicationClient(t *testing.T) {
 	if err := cmd.Execute([]string{"put", appName, profile, fileName}); err != nil {
 		t.Fatalf("%v", err)
 	}
-	if expected, got := "Application updated successfully.", strings.TrimSpace(stdout.String()); got != expected {
+	if expected, got := "Application envelope added successfully.", strings.TrimSpace(stdout.String()); got != expected {
 		t.Errorf("Unexpected output from put. Got %q, expected %q", got, expected)
 	}
 	stdout.Reset()
