@@ -21,7 +21,7 @@ main() {
     VIEWER_PORT_FILE="$1"
   fi
   local -r VIEWER_PORT_FILE
-  local -r VEYRON_BIN="${VEYRON_ROOT}/veyron/go/bin"
+  local -r VEYRON_BIN="${REPO_ROOT}/go/bin"
 
   # Generate a self-signed identity.
   "${VEYRON_BIN}/identity" generate > "${ID_FILE}"
