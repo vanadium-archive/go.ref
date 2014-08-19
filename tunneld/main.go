@@ -73,7 +73,7 @@ func main() {
 		fmt.Sprintf("tunnel/hwaddr/%s", hwaddr),
 		fmt.Sprintf("tunnel/id/%s", rt.R().Identity().PublicID()),
 	}
-	dispatcher := ipc.SoloDispatcher(tunnel.NewServerTunnel(&impl.T{}), sflag.NewAuthorizerOrDie())
+	dispatcher := ipc.LeafDispatcher(tunnel.NewServerTunnel(&impl.T{}), sflag.NewAuthorizerOrDie())
 	published := false
 	for _, n := range names {
 		if err := server.Serve(n, dispatcher); err != nil {
