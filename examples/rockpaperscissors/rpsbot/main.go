@@ -40,7 +40,7 @@ func main() {
 	rand.Seed(time.Now().UTC().UnixNano())
 	rpsService := impl.NewRPS()
 
-	dispatcher := ipc.SoloDispatcher(rps.NewServerRockPaperScissors(rpsService), sflag.NewAuthorizerOrDie())
+	dispatcher := ipc.LeafDispatcher(rps.NewServerRockPaperScissors(rpsService), sflag.NewAuthorizerOrDie())
 
 	ep, err := server.Listen(*protocol, *address)
 	if err != nil {

@@ -17,7 +17,7 @@ type cacheDispatcher struct {
 	errorThrower interface{}
 }
 
-func (cd *cacheDispatcher) Lookup(suffix string) (ipc.Invoker, security.Authorizer, error) {
+func (cd *cacheDispatcher) Lookup(suffix, method string) (ipc.Invoker, security.Authorizer, error) {
 	if strings.HasPrefix(suffix, "errorThrower") {
 		return ipc.ReflectInvoker(cd.errorThrower), nil, nil
 	}

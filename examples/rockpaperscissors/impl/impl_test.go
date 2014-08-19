@@ -50,7 +50,7 @@ func startRockPaperScissors(t *testing.T, rt veyron2.Runtime, mtAddress string) 
 	if _, err = server.Listen("tcp", "127.0.0.1:0"); err != nil {
 		t.Fatalf("Listen failed: %v", err)
 	}
-	disp := ipc.SoloDispatcher(rps.NewServerRockPaperScissors(rpsService), nil)
+	disp := ipc.LeafDispatcher(rps.NewServerRockPaperScissors(rpsService), nil)
 	names := []string{"rps/judge/test", "rps/player/test", "rps/scorekeeper/test"}
 	for _, n := range names {
 		if err := server.Serve(n, disp); err != nil {

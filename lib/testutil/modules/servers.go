@@ -19,12 +19,12 @@ func init() {
 }
 
 func clockChild(args []string) {
-	serve("clock", ipc.SoloDispatcher(NewServerClock(&clockServer{}), nil), args)
+	serve("clock", ipc.LeafDispatcher(NewServerClock(&clockServer{}), nil), args)
 
 }
 
 func echoChild(args []string) {
-	serve("echo", ipc.SoloDispatcher(NewServerEcho(&echoServer{}), nil), args)
+	serve("echo", ipc.LeafDispatcher(NewServerEcho(&echoServer{}), nil), args)
 }
 
 func serve(msg string, dispatcher ipc.Dispatcher, args []string) {

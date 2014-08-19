@@ -177,7 +177,7 @@ func createNamespace(t *testing.T, r veyron2.Runtime) (*serverEntry, map[string]
 	jokes := make(map[string]*serverEntry)
 	// Let's run some non-mount table services.
 	for _, j := range []string{j1MP, j2MP, j3MP} {
-		disp := ipc.SoloDispatcher(&testServer{}, nil)
+		disp := ipc.LeafDispatcher(&testServer{}, nil)
 		jokes[j] = runServer(t, r, disp, j)
 	}
 	return root, mts, jokes, func() {
@@ -343,7 +343,7 @@ func TestServers(t *testing.T) {
 		testResolve(t, r, ns, j, jokes[j].name)
 		knockKnock(t, r, j)
 		globalName := naming.JoinAddressName(mts["mt4"].name, j)
-		disp := ipc.SoloDispatcher(&testServer{}, nil)
+		disp := ipc.LeafDispatcher(&testServer{}, nil)
 		gj := "g_" + j
 		jokes[gj] = runServer(t, r, disp, globalName)
 		testResolve(t, r, ns, "mt4/"+j, jokes[gj].name)
@@ -428,7 +428,7 @@ func TestGlobEarlyStop(t *testing.T) {
 
 	globServer := &GlobbableServer{}
 	name := naming.JoinAddressName(mts["mt4/foo/bar"].name, "glob")
-	runningGlobServer := runServer(t, r, ipc.SoloDispatcher(mounttable.NewServerGlobbable(globServer), nil), name)
+	runningGlobServer := runServer(t, r, ipc.LeafDispatcher(mounttable.NewServerGlobbable(globServer), nil), name)
 	defer runningGlobServer.server.Stop()
 
 	ns := r.Namespace()

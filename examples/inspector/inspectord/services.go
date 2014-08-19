@@ -168,7 +168,7 @@ func (s *stubwrapper) List(call ipc.ServerCall, glob string, details bool) error
 	return s.s.ls(glob, details, &stublessServer{call})
 }
 
-func (d *dispatcher) Lookup(suffix string) (ipc.Invoker, security.Authorizer, error) {
+func (d *dispatcher) Lookup(suffix, method string) (ipc.Invoker, security.Authorizer, error) {
 	s := &server{}
 	cwd, err := os.Getwd()
 	if err != nil {

@@ -161,7 +161,7 @@ func TestClientServerIDs(t *testing.T) {
 			continue
 		}
 		defer stopServer(server)
-		if err := server.Serve("", ipc.SoloDispatcher(&testService{},
+		if err := server.Serve("", ipc.LeafDispatcher(&testService{},
 			vsecurity.NewACLAuthorizer(security.NewWhitelistACL(
 				map[security.PrincipalPattern]security.LabelSet{
 					security.AllPrincipals: security.AllLabels,

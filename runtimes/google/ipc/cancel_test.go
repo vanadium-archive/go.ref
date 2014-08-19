@@ -72,7 +72,7 @@ func makeCanceld(ns naming.Namespace, name, child string) (*canceld, error) {
 		stop:      s.Stop,
 	}
 
-	if err := s.Serve(name, ipc.SoloDispatcher(c, fakeAuthorizer(0))); err != nil {
+	if err := s.Serve(name, ipc.LeafDispatcher(c, fakeAuthorizer(0))); err != nil {
 		return nil, err
 	}
 

@@ -34,7 +34,7 @@ func startServer(t *testing.T) (build.Builder, func()) {
 		t.Fatalf("Listen(%v, %v) failed: %v", protocol, hostname, err)
 	}
 	unpublished := ""
-	if err := server.Serve(unpublished, ipc.SoloDispatcher(build.NewServerBuilder(NewInvoker(gobin)), nil)); err != nil {
+	if err := server.Serve(unpublished, ipc.LeafDispatcher(build.NewServerBuilder(NewInvoker(gobin)), nil)); err != nil {
 		t.Fatalf("Serve(%q) failed: %v", unpublished, err)
 	}
 	name := "/" + endpoint.String()

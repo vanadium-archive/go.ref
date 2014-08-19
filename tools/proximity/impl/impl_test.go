@@ -41,7 +41,7 @@ func (s *server) NearbyDevices(_ ipc.ServerContext) ([]proximity.Device, error) 
 type dispatcher struct {
 }
 
-func (d *dispatcher) Lookup(suffix string) (ipc.Invoker, security.Authorizer, error) {
+func (d *dispatcher) Lookup(suffix, method string) (ipc.Invoker, security.Authorizer, error) {
 	invoker := ipc.ReflectInvoker(proximity.NewServerProximity(&server{}))
 	return invoker, nil, nil
 }

@@ -81,7 +81,7 @@ func (*fortune) Add(ipc.ServerContext, string) error {
 
 func childFortune(args []string) {
 	defer initRT()()
-	server, _ := createServer(args[0], ipc.SoloDispatcher(fortuneidl.NewServerFortune(new(fortune)), nil))
+	server, _ := createServer(args[0], ipc.LeafDispatcher(fortuneidl.NewServerFortune(new(fortune)), nil))
 	defer server.Stop()
 	for _, arg := range args[1:] {
 		server.Serve(arg, nil)
@@ -115,12 +115,10 @@ func (*fortuneCustomUnresolve) UnresolveStep(context ipc.ServerContext) ([]strin
 	return reply, nil
 }
 
-// Can't use the soloDispatcher (which is a bad name in any case) since it
-// doesn't allow name suffixes (which is also a silly restriction).
-// TODO(cnicolaou): rework soloDispatcher.
+// Can't use the LeafDispatcher since it doesn't allow name suffixes.
 type fortuned struct{ obj interface{} }
 
-func (f *fortuned) Lookup(string) (ipc.Invoker, security.Authorizer, error) {
+func (f *fortuned) Lookup(suffix, method string) (ipc.Invoker, security.Authorizer, error) {
 	return ipc.ReflectInvoker(f.obj), nil, nil
 }
 
@@ -144,7 +142,7 @@ func childFortuneCustomUnresolve(args []string) {
 func childFortuneNoIDL(args []string) {
 	defer initRT()()
 	for _, arg := range args {
-		server, _ := createServer(arg, ipc.SoloDispatcher(new(fortuneNoIDL), nil))
+		server, _ := createServer(arg, ipc.LeafDispatcher(new(fortuneNoIDL), nil))
 		defer server.Stop()
 	}
 	fmt.Println("ready")

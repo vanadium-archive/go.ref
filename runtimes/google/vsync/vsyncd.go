@@ -61,7 +61,7 @@ func NewSyncDispatcher(s interface{}, auth security.Authorizer) ipc.Dispatcher {
 	return &syncDispatcher{ipc.ReflectInvoker(s), auth}
 }
 
-func (d *syncDispatcher) Lookup(suffix string) (ipc.Invoker, security.Authorizer, error) {
+func (d *syncDispatcher) Lookup(suffix, method string) (ipc.Invoker, security.Authorizer, error) {
 	if strings.HasSuffix(suffix, "sync") {
 		return d.server, d.auth, nil
 	}

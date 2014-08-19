@@ -22,7 +22,7 @@ type logDirectoryDispatcher struct {
 	root string
 }
 
-func (d *logDirectoryDispatcher) Lookup(suffix string) (ipc.Invoker, security.Authorizer, error) {
+func (d *logDirectoryDispatcher) Lookup(suffix, _ string) (ipc.Invoker, security.Authorizer, error) {
 	invoker := ipc.ReflectInvoker(mounttable.NewServerGlobbable(impl.NewLogDirectoryInvoker(d.root, suffix)))
 	return invoker, nil, nil
 }

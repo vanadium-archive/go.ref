@@ -41,7 +41,7 @@ func StartServer(protocol, address string) (string, func()) {
 	if err != nil {
 		vlog.Fatalf("Listen failed: %v", err)
 	}
-	if err := server.Serve("", ipc.SoloDispatcher(NewServerBenchmark(&impl{}), sflag.NewAuthorizerOrDie())); err != nil {
+	if err := server.Serve("", ipc.LeafDispatcher(NewServerBenchmark(&impl{}), sflag.NewAuthorizerOrDie())); err != nil {
 		vlog.Fatalf("Serve failed: %v", err)
 	}
 	return naming.JoinAddressName(ep.String(), ""), func() {

@@ -138,7 +138,7 @@ func setupGoogleBlessingServer(r veyron2.Runtime) (ipc.Server, naming.Endpoint, 
 		security.AllPrincipals: security.AllLabels,
 	})
 	objectname := fmt.Sprintf("identity/%s/google", r.Identity().PublicID().Names()[0])
-	if err := server.Serve(objectname, ipc.SoloDispatcher(blesser.NewGoogleOAuthBlesserServer(params), vsecurity.NewACLAuthorizer(allowEveryoneACL))); err != nil {
+	if err := server.Serve(objectname, ipc.LeafDispatcher(blesser.NewGoogleOAuthBlesserServer(params), vsecurity.NewACLAuthorizer(allowEveryoneACL))); err != nil {
 		return nil, nil, fmt.Errorf("failed to start Veyron service: %v", err)
 	}
 	vlog.Infof("Google blessing service enabled at endpoint %v and name %q", ep, objectname)

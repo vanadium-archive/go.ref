@@ -146,7 +146,7 @@ func app(args []string) {
 	defer rt.R().Cleanup()
 	server, _ := newServer()
 	defer server.Stop()
-	if err := server.Serve(publishName, ipc.SoloDispatcher(new(appService), nil)); err != nil {
+	if err := server.Serve(publishName, ipc.LeafDispatcher(new(appService), nil)); err != nil {
 		vlog.Fatalf("Serve(%v) failed: %v", publishName, err)
 	}
 	if call, err := rt.R().Client().StartCall(rt.R().NewContext(), "pingserver", "Ping", nil); err != nil {
@@ -435,7 +435,7 @@ func TestAppStartStop(t *testing.T) {
 	server, _ := newServer()
 	defer server.Stop()
 	pingCh := make(chan struct{})
-	if err := server.Serve("pingserver", ipc.SoloDispatcher(pingServerDisp(pingCh), nil)); err != nil {
+	if err := server.Serve("pingserver", ipc.LeafDispatcher(pingServerDisp(pingCh), nil)); err != nil {
 		t.Fatalf("Failed to set up ping server")
 	}
 

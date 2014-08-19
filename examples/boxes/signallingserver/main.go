@@ -36,7 +36,7 @@ type dispatcher struct {
 	invoker ipc.Invoker
 }
 
-func (d *dispatcher) Lookup(suffix string) (ipc.Invoker, security.Authorizer, error) {
+func (d *dispatcher) Lookup(suffix, method string) (ipc.Invoker, security.Authorizer, error) {
 	suffix = strings.TrimPrefix(suffix, signallingServiceName)
 	return d.invoker, nil, nil
 }

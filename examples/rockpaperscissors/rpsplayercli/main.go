@@ -107,7 +107,7 @@ func recvChallenge(rt veyron2.Runtime) gameChallenge {
 	}
 	ch := make(chan gameChallenge)
 
-	dispatcher := ipc.SoloDispatcher(rps.NewServerPlayer(&impl{ch: ch}), sflag.NewAuthorizerOrDie())
+	dispatcher := ipc.LeafDispatcher(rps.NewServerPlayer(&impl{ch: ch}), sflag.NewAuthorizerOrDie())
 	ep, err := server.Listen(*protocol, *address)
 	if err != nil {
 		vlog.Fatalf("Listen(%q, %q) failed: %v", "tcp", *address, err)

@@ -120,7 +120,7 @@ func NewNeighborhoodServer(host string, addresses ...string) (*neighborhood, err
 }
 
 // Lookup implements ipc.Dispatcher.Lookup.
-func (nh *neighborhood) Lookup(name string) (ipc.Invoker, security.Authorizer, error) {
+func (nh *neighborhood) Lookup(name, method string) (ipc.Invoker, security.Authorizer, error) {
 	vlog.VI(1).Infof("*********************LookupServer '%s'\n", name)
 	elems := strings.Split(name, "/")[nh.nelems:]
 	if name == "" {

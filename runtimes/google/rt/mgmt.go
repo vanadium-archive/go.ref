@@ -56,7 +56,7 @@ func (m *mgmtImpl) init(rt *vrt) error {
 	if ep, err = m.server.Listen("tcp", "127.0.0.1:0"); err != nil {
 		return err
 	}
-	if err := m.server.Serve("", ipc.SoloDispatcher(appcycle.NewServerAppCycle(m), nil)); err != nil {
+	if err := m.server.Serve("", ipc.LeafDispatcher(appcycle.NewServerAppCycle(m), nil)); err != nil {
 		return err
 	}
 	return m.callbackToParent(parentName, naming.JoinAddressName(ep.String(), ""))

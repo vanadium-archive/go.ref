@@ -65,7 +65,7 @@ func main() {
 
 	// Serve the fortune dispatcher, but don't publish its existence
 	// to a mount table.
-	if err := s.Serve("", ipc.SoloDispatcher(serverFortune, vflag.NewAuthorizerOrDie())); err != nil {
+	if err := s.Serve("", ipc.LeafDispatcher(serverFortune, vflag.NewAuthorizerOrDie())); err != nil {
 		log.Fatal("error serving service: ", err)
 	}
 

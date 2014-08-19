@@ -113,7 +113,7 @@ func startAnyServer(servesMT bool, dispatcher ipc.Dispatcher) (ipc.Server, namin
 }
 
 func startAdderServer() (ipc.Server, naming.Endpoint, error) {
-	return startAnyServer(false, ipc.SoloDispatcher(simpleAdder{}, nil))
+	return startAnyServer(false, ipc.LeafDispatcher(simpleAdder{}, nil))
 }
 
 func startProxy() (*proxy.Proxy, error) {

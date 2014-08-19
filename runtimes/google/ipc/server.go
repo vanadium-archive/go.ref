@@ -486,7 +486,7 @@ func (fs *flowServer) processRequest() ([]interface{}, verror.E) {
 		fs.discharges[d.CaveatID()] = d
 	}
 	// Lookup the invoker.
-	invoker, auth, suffix, verr := fs.lookup(req.Suffix)
+	invoker, auth, suffix, verr := fs.lookup(req.Suffix, req.Method)
 	fs.suffix = suffix // with leading /'s stripped
 	if verr != nil {
 		return nil, verr
@@ -529,13 +529,13 @@ func (fs *flowServer) processRequest() ([]interface{}, verror.E) {
 }
 
 // lookup returns the invoker and authorizer responsible for serving the given
-// name.  The name is stripped of any leading slashes, and the invoker is looked
-// up in the server's dispatcher.  The (stripped) name and dispatch suffix are
-// also returned.
-func (fs *flowServer) lookup(name string) (ipc.Invoker, security.Authorizer, string, verror.E) {
+// name and method.  The name is stripped of any leading slashes, and the
+// invoker is looked up in the server's dispatcher.  The (stripped) name
+// and dispatch suffix are also returned.
+func (fs *flowServer) lookup(name, method string) (ipc.Invoker, security.Authorizer, string, verror.E) {
 	name = strings.TrimLeft(name, "/")
 	if fs.disp != nil {
-		invoker, auth, err := fs.disp.Lookup(name)
+		invoker, auth, err := fs.disp.Lookup(name, method)
 		switch {
 		case err != nil:
 			return nil, nil, "", verror.Convert(err)

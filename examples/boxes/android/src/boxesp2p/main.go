@@ -138,14 +138,14 @@ func (jni *jniState) addBox(box *boxes.Box) {
 	C.callMethod(env, jni.jObj, jni.jMID, jBoxId, &jPoints[0])
 }
 
-func (d *boxesDispatcher) Lookup(suffix string) (ipc.Invoker, security.Authorizer, error) {
+func (d *boxesDispatcher) Lookup(suffix, method string) (ipc.Invoker, security.Authorizer, error) {
 	if strings.HasSuffix(suffix, "draw") {
 		return d.drawServer, d.drawAuth, nil
 	}
 	if strings.HasSuffix(suffix, "sync") {
 		return d.syncServer, d.syncAuth, nil
 	}
-	return d.storeDispatcher.Lookup(suffix)
+	return d.storeDispatcher.Lookup(suffix, method)
 }
 
 func (gs *goState) SyncBoxes(context ipc.ServerContext) error {

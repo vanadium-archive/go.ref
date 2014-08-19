@@ -150,7 +150,7 @@ func (testServerAuthorizer) Authorize(c security.Context) error {
 
 type testServerDisp struct{ server interface{} }
 
-func (t testServerDisp) Lookup(suffix string) (ipc.Invoker, security.Authorizer, error) {
+func (t testServerDisp) Lookup(suffix, method string) (ipc.Invoker, security.Authorizer, error) {
 	// If suffix is "nilAuth" we use default authorization, if it is "aclAuth" we
 	// use an ACL based authorizer, and otherwise we use the custom testServerAuthorizer.
 	var authorizer security.Authorizer

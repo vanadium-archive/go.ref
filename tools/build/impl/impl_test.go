@@ -50,7 +50,7 @@ func startServer(t *testing.T) (ipc.Server, naming.Endpoint) {
 		t.Fatalf("Listen(%v, %v) failed: %v", protocol, address, err)
 	}
 	unpublished := ""
-	if err := server.Serve(unpublished, ipc.SoloDispatcher(build.NewServerBuilder(&mock{}), nil)); err != nil {
+	if err := server.Serve(unpublished, ipc.LeafDispatcher(build.NewServerBuilder(&mock{}), nil)); err != nil {
 		t.Fatalf("Serve(%v) failed: %v", unpublished, err)
 	}
 	return server, endpoint

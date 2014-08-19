@@ -20,7 +20,7 @@ type logFileDispatcher struct {
 	root string
 }
 
-func (d *logFileDispatcher) Lookup(suffix string) (ipc.Invoker, security.Authorizer, error) {
+func (d *logFileDispatcher) Lookup(suffix, _ string) (ipc.Invoker, security.Authorizer, error) {
 	invoker := ipc.ReflectInvoker(logreader.NewServerLogFile(impl.NewLogFileInvoker(d.root, suffix)))
 	return invoker, nil, nil
 }

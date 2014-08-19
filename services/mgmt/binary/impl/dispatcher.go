@@ -51,7 +51,7 @@ func NewDispatcher(root string, depth int, authorizer security.Authorizer) (*dis
 
 // DISPATCHER INTERFACE IMPLEMENTATION
 
-func (d *dispatcher) Lookup(suffix string) (ipc.Invoker, security.Authorizer, error) {
+func (d *dispatcher) Lookup(suffix, method string) (ipc.Invoker, security.Authorizer, error) {
 	invoker := ipc.ReflectInvoker(repository.NewServerBinary(newInvoker(d.state, suffix)))
 	return invoker, d.auth, nil
 }

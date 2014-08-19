@@ -47,7 +47,7 @@ type dispatcher struct {
 	jDispatcher C.jobject
 }
 
-func (d *dispatcher) Lookup(suffix string) (ipc.Invoker, security.Authorizer, error) {
+func (d *dispatcher) Lookup(suffix, method string) (ipc.Invoker, security.Authorizer, error) {
 	// Get Java environment.
 	envPtr, freeFunc := util.GetEnv(d.jVM)
 	env := (*C.JNIEnv)(envPtr)

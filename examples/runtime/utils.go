@@ -16,7 +16,7 @@ import (
 // servers.
 type dispatcher struct{}
 
-func (dispatcher) Lookup(suffix string) (ipc.Invoker, security.Authorizer, error) {
+func (dispatcher) Lookup(suffix, method string) (ipc.Invoker, security.Authorizer, error) {
 	return nil, nil, nil
 }
 

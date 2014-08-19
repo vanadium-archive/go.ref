@@ -67,7 +67,7 @@ func main() {
 
 	// Start the server and register it with the mounttable under the
 	// given name.
-	if err := s.Serve(*name, ipc.SoloDispatcher(prox.NewServerProximity(p), vflag.NewAuthorizerOrDie())); err != nil {
+	if err := s.Serve(*name, ipc.LeafDispatcher(prox.NewServerProximity(p), vflag.NewAuthorizerOrDie())); err != nil {
 		vlog.Fatalf("error publishing service (%s): %v", *name, err)
 	}
 

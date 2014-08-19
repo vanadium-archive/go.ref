@@ -77,7 +77,7 @@ func NewDispatcher() *dispatcher {
 	return &dispatcher{}
 }
 
-func (d *dispatcher) Lookup(suffix string) (ipc.Invoker, security.Authorizer, error) {
+func (d *dispatcher) Lookup(suffix, method string) (ipc.Invoker, security.Authorizer, error) {
 	invoker := ipc.ReflectInvoker(repository.NewServerBinary(&server{suffix: suffix}))
 	return invoker, nil, nil
 }

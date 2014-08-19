@@ -251,7 +251,7 @@ func createConfigServer(t *testing.T, r veyron2.Runtime) (ipc.Server, string, <-
 	if ep, err = server.Listen("tcp", "127.0.0.1:0"); err != nil {
 		t.Fatalf("Got error: %v", err)
 	}
-	if err := server.Serve("", ipc.SoloDispatcher(node.NewServerConfig(&configServer{ch}), vflag.NewAuthorizerOrDie())); err != nil {
+	if err := server.Serve("", ipc.LeafDispatcher(node.NewServerConfig(&configServer{ch}), vflag.NewAuthorizerOrDie())); err != nil {
 		t.Fatalf("Got error: %v", err)
 	}
 	return server, naming.JoinAddressName(ep.String(), ""), ch

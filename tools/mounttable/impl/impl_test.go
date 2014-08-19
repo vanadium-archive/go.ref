@@ -48,7 +48,7 @@ func (s *server) ResolveStep(ipc.ServerContext) (servers []mounttable.MountedSer
 type dispatcher struct {
 }
 
-func (d *dispatcher) Lookup(suffix string) (ipc.Invoker, security.Authorizer, error) {
+func (d *dispatcher) Lookup(suffix, method string) (ipc.Invoker, security.Authorizer, error) {
 	invoker := ipc.ReflectInvoker(mounttable.NewServerMountTable(&server{suffix: suffix}))
 	return invoker, nil, nil
 }

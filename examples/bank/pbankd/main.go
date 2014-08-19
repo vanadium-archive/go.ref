@@ -393,7 +393,7 @@ package main
 // 	authBankAccount    security.Authorizer
 // }
 
-// func (d BankDispatcher) Lookup(suffix string) (ipc.Invoker, security.Authorizer, error) {
+// func (d BankDispatcher) Lookup(suffix, method string) (ipc.Invoker, security.Authorizer, error) {
 // 	fmt.Println("Dispatcher Lookup Suffix:", suffix)
 // 	if suffix != "" {
 // 		return d.invokerBankAccount, d.authBankAccount, nil

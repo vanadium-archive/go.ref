@@ -28,7 +28,7 @@ type arInvoker struct {
 func startApplicationRepository() (*application.Envelope, func()) {
 	server, _ := newServer()
 	invoker := new(arInvoker)
-	dispatcher := ipc.SoloDispatcher(repository.NewServerApplication(invoker), nil)
+	dispatcher := ipc.LeafDispatcher(repository.NewServerApplication(invoker), nil)
 	name := "ar"
 	if err := server.Serve(name, dispatcher); err != nil {
 		vlog.Fatalf("Serve(%v) failed: %v", name, err)
@@ -54,7 +54,7 @@ type brInvoker struct{}
 // returns a cleanup function.
 func startBinaryRepository() func() {
 	server, _ := newServer()
-	dispatcher := ipc.SoloDispatcher(repository.NewServerBinary(new(brInvoker)), nil)
+	dispatcher := ipc.LeafDispatcher(repository.NewServerBinary(new(brInvoker)), nil)
 	name := "br"
 	if err := server.Serve(name, dispatcher); err != nil {
 		vlog.Fatalf("Serve(%q) failed: %v", name, err)

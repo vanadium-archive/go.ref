@@ -29,7 +29,7 @@ func revokerSetup(t *testing.T) (dischargerID security.PublicID, dischargerEndpo
 		t.Fatalf("NewRevoker failed: $v", err)
 	}
 	revokerServiceStub := ssecurity.NewServerRevoker(revokerService)
-	err = revokerServer.Serve("", ipc.SoloDispatcher(revokerServiceStub, nil))
+	err = revokerServer.Serve("", ipc.LeafDispatcher(revokerServiceStub, nil))
 	if err != nil {
 		t.Fatalf("revokerServer.Serve discharger: %s", err)
 	}
@@ -43,7 +43,7 @@ func revokerSetup(t *testing.T) (dischargerID security.PublicID, dischargerEndpo
 		t.Fatalf("revokerServer.Listen failed: %v", err)
 	}
 	dischargerServiceStub := ssecurity.NewServerDischarger(NewDischarger(r.Identity()))
-	if err := dischargerServer.Serve("", ipc.SoloDispatcher(dischargerServiceStub, nil)); err != nil {
+	if err := dischargerServer.Serve("", ipc.LeafDispatcher(dischargerServiceStub, nil)); err != nil {
 		t.Fatalf("revokerServer.Serve revoker: %s", err)
 	}
 	return r.Identity().PublicID(),

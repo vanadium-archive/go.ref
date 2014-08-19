@@ -46,7 +46,7 @@ func main() {
 	ch := make(chan rps.ScoreCard)
 	rpsService := &impl{ch}
 
-	dispatcher := ipc.SoloDispatcher(rps.NewServerScoreKeeper(rpsService), sflag.NewAuthorizerOrDie())
+	dispatcher := ipc.LeafDispatcher(rps.NewServerScoreKeeper(rpsService), sflag.NewAuthorizerOrDie())
 	ep, err := server.Listen(*protocol, *address)
 	if err != nil {
 		vlog.Fatalf("Listen(%q, %q) failed: %v", "tcp", *address, err)

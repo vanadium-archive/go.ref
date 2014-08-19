@@ -62,7 +62,7 @@ func NewDispatcher(auth security.Authorizer, config *config.State) (*dispatcher,
 
 // DISPATCHER INTERFACE IMPLEMENTATION
 
-func (d *dispatcher) Lookup(suffix string) (ipc.Invoker, security.Authorizer, error) {
+func (d *dispatcher) Lookup(suffix, method string) (ipc.Invoker, security.Authorizer, error) {
 	components := strings.Split(suffix, "/")
 	for i := 0; i < len(components); i++ {
 		if len(components[i]) == 0 {

@@ -17,7 +17,7 @@ func newDispatcher(invoker ipc.Invoker, authorizer security.Authorizer) *dispatc
 }
 
 // Lookup implements dispatcher interface Lookup.
-func (d *dispatcher) Lookup(suffix string) (ipc.Invoker, security.Authorizer, error) {
+func (d *dispatcher) Lookup(suffix, method string) (ipc.Invoker, security.Authorizer, error) {
 	return d.invoker, d.authorizer, nil
 }
 

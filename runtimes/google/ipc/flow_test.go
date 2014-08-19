@@ -58,7 +58,7 @@ type testDisp struct {
 	newInvoker func(suffix string) ipc.Invoker
 }
 
-func (td testDisp) Lookup(suffix string) (ipc.Invoker, security.Authorizer, error) {
+func (td testDisp) Lookup(suffix, method string) (ipc.Invoker, security.Authorizer, error) {
 	return td.newInvoker(suffix), nil, nil
 }
 

@@ -332,7 +332,7 @@ func NewStoreDispatcher(s *Server, auth security.Authorizer) ipc.Dispatcher {
 	return &storeDispatcher{s: s, auth: auth}
 }
 
-func (d *storeDispatcher) Lookup(suffix string) (ipc.Invoker, security.Authorizer, error) {
+func (d *storeDispatcher) Lookup(suffix, method string) (ipc.Invoker, security.Authorizer, error) {
 	serv, err := d.lookupServer(suffix)
 	if err != nil {
 		return nil, nil, err

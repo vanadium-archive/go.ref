@@ -126,7 +126,7 @@ func (*server) StreamingOutput(call ipc.ServerContext, nStream int32, item bool,
 }
 
 func startServer(t *testing.T, r veyron2.Runtime) (ipc.Server, naming.Endpoint, error) {
-	dispatcher := ipc.SoloDispatcher(test_base.NewServerTypeTester(&server{}), nil)
+	dispatcher := ipc.LeafDispatcher(test_base.NewServerTypeTester(&server{}), nil)
 	server, err := r.NewServer()
 	if err != nil {
 		t.Errorf("NewServer failed: %v", err)
