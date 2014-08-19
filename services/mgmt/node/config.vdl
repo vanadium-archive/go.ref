@@ -1,0 +1,7 @@
+package node
+
+// Config is an RPC API to the config service.
+type Config interface {
+	// Set sets the value for key.
+	Set(key, value string) error
+}

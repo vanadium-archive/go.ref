@@ -4,7 +4,7 @@ import (
 	"time"
 
 	"veyron/services/mgmt/lib/exec"
-	inode "veyron/services/mgmt/node"
+	"veyron/services/mgmt/node"
 
 	"veyron2/mgmt"
 	"veyron2/rt"
@@ -22,7 +22,7 @@ func InvokeCallback(name string) {
 		if err != nil {
 			vlog.Fatalf("Failed to get callback name from config: %v", err)
 		}
-		nmClient, err := inode.BindNode(callbackName)
+		nmClient, err := node.BindConfig(callbackName)
 		if err != nil {
 			vlog.Fatalf("BindNode(%v) failed: %v", callbackName, err)
 		}
