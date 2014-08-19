@@ -45,7 +45,7 @@ func main() {
 	if err := server.Serve(*name, dispatcher); err != nil {
 		vlog.Fatalf("Serve(%v) failed: %v", *name, err)
 	}
-	vlog.VI(0).Infof("Application manager published at %v/%v", endpoint, *name)
+	vlog.VI(0).Infof("Application repository published at %v/%v", endpoint, *name)
 
 	// Wait until shutdown.
 	<-signals.ShutdownOnSignals()

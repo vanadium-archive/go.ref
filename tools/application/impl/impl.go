@@ -109,7 +109,7 @@ func runPut(cmd *cmdline.Command, args []string) error {
 	if err = putEnvelopeJSON(ctx, app, args[1], j); err != nil {
 		return err
 	}
-	fmt.Fprintln(cmd.Stdout(), "Application updated successfully.")
+	fmt.Fprintln(cmd.Stdout(), "Application envelope added successfully.")
 	return nil
 }
 
