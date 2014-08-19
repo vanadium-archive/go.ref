@@ -1,8 +1,15 @@
-// Package gce provides a way to test whether the current process is running on
+// +build linux
+
+// Package gce functions to test whether the current process is running on
 // Google Compute Engine, and to extract settings from this environment.
+// Any server that knows it will only ever run on GCE can import this Profile,
+// but in most cases, other Profiles will use the utility routines provided
+// by it to test to ensure that they are running on GCE and to obtain
+// metadata directly from its service APIs.
 package gce
 
 import (
+	"fmt"
 	"io/ioutil"
 	"net"
 	"net/http"
@@ -15,6 +22,7 @@ import (
 // the result of the GET request doesn't contain a "Metadata-Flavor: Google"
 // header, it is also not a GCE instance. The body of the document contains the
 // external IP address, if present. Otherwise, the body is empty.
+// See https://developers.google.com/compute/docs/metadata for details.
 const url = "http://metadata.google.internal/computeMetadata/v1/instance/network-interfaces/0/access-configs/0/external-ip"
 
 // How long to wait for the HTTP request to return.
@@ -22,47 +30,47 @@ const timeout = time.Second
 
 var (
 	once       sync.Once
-	isGCE      bool
+	isGCEErr   error
 	externalIP net.IP
 )
 
-// RunningOnGoogleComputeEngine returns true if the current process is running
+// RunningOnGCE returns true if the current process is running
 // on a Google Compute Engine instance.
-func RunningOnGoogleComputeEngine() bool {
+func RunningOnGCE() bool {
 	once.Do(func() {
-		isGCE, externalIP = googleComputeEngineTest(url)
+		externalIP, isGCEErr = gceTest(url)
 	})
-	return isGCE
+	return isGCEErr == nil
 }
 
-// GoogleComputeEngineExternalIPAddress returns the external IP address of this
-// Google Compute Engine instance, or nil if there is none. Must be called after
-// RunningOnGoogleComputeEngine.
-func GoogleComputeEngineExternalIPAddress() net.IP {
-	return externalIP
+// ExternalIPAddress returns the external IP address of this
+// Google Compute Engine instance, or nil if there is none. Must be
+// called after RunningOnGCE.
+func ExternalIPAddress() (net.IP, error) {
+	return externalIP, isGCEErr
 }
 
-func googleComputeEngineTest(url string) (bool, net.IP) {
+func gceTest(url string) (net.IP, error) {
 	client := &http.Client{Timeout: timeout}
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
-		return false, nil
+		return nil, err
 	}
 	req.Header.Add("Metadata-Flavor", "Google")
 	resp, err := client.Do(req)
 	if err != nil {
-		return false, nil
+		return nil, err
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != 200 {
-		return false, nil
+		return nil, fmt.Errorf("http error: %d", resp.StatusCode)
 	}
 	if flavor := resp.Header["Metadata-Flavor"]; len(flavor) != 1 || flavor[0] != "Google" {
-		return false, nil
+		return nil, fmt.Errorf("unexpected http header: %q", flavor)
 	}
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		return true, nil
+		return nil, err
 	}
-	return true, net.ParseIP(string(body))
+	return net.ParseIP(string(body)), nil
 }

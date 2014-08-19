@@ -1,3 +1,5 @@
+// +build linux
+
 package gce
 
 import (
@@ -47,16 +49,16 @@ func TestGCE(t *testing.T) {
 	defer stop()
 	baseURL := "http://" + addr.String()
 
-	if isGCE, ip := googleComputeEngineTest(baseURL + "/404"); isGCE != false || ip != nil {
-		t.Errorf("Unexpected result. Got %v:%v, want false:nil", isGCE, ip)
+	if ip, err := gceTest(baseURL + "/404"); err == nil || ip != nil {
+		t.Errorf("expected error, but not got nil")
 	}
-	if isGCE, ip := googleComputeEngineTest(baseURL + "/200_not_gce"); isGCE != false || ip != nil {
-		t.Errorf("Unexpected result. Got %v:%v, want false:nil", isGCE, ip)
+	if ip, err := gceTest(baseURL + "/200_not_gce"); err == nil || ip != nil {
+		t.Errorf("expected error, but not got nil")
 	}
-	if isGCE, ip := googleComputeEngineTest(baseURL + "/gce_no_ip"); isGCE != true || ip != nil {
-		t.Errorf("Unexpected result. Got %v:%v, want true:nil", isGCE, ip)
+	if ip, err := gceTest(baseURL + "/gce_no_ip"); err != nil || ip != nil {
+		t.Errorf("Unexpected result. Got (%v, %v), want nil:nil", ip, err)
 	}
-	if isGCE, ip := googleComputeEngineTest(baseURL + "/gce_with_ip"); isGCE != true || ip.String() != "1.2.3.4" {
-		t.Errorf("Unexpected result. Got %v:%v, want true:1.2.3.4", isGCE, ip)
+	if ip, err := gceTest(baseURL + "/gce_with_ip"); err != nil || ip.String() != "1.2.3.4" {
+		t.Errorf("Unexpected result. Got (%v, %v), want nil:1.2.3.4", ip, err)
 	}
 }

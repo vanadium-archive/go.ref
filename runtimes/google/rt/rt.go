@@ -15,6 +15,7 @@ import (
 	"veyron2/security"
 	"veyron2/vlog"
 
+	"veyron/profiles"
 	"veyron/runtimes/google/naming/namespace"
 	"veyron/services/mgmt/lib/exec"
 )
@@ -66,7 +67,7 @@ func New(opts ...veyron2.ROpt) (veyron2.Runtime, error) {
 	rt.initSignalHandling()
 
 	if rt.profile == nil {
-		rt.profile = &generic{}
+		rt.profile = profiles.New()
 	}
 	vlog.VI(1).Infof("Using profile %q", rt.profile.Name())
 
