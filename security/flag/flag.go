@@ -31,7 +31,7 @@ func NewAuthorizerOrDie() security.Authorizer {
 	if len(*aclFile) != 0 {
 		return vsecurity.NewFileACLAuthorizer(*aclFile)
 	}
-	a, err := security.LoadACL(bytes.NewBufferString(*acl))
+	a, err := vsecurity.LoadACL(bytes.NewBufferString(*acl))
 	if err != nil {
 		return nil
 	}

@@ -9,6 +9,11 @@ import (
 	"veyron2/vom"
 )
 
+// UniversalCaveat takes a Caveat and returns a ServiceCaveat bound to all principals.
+func UniversalCaveat(cav security.Caveat) security.ServiceCaveat {
+	return security.ServiceCaveat{Service: security.AllPrincipals, Caveat: cav}
+}
+
 // Expiry is a security.Caveat that restricts the validity period of
 // the credential bearing this caveat.
 type Expiry struct {
@@ -52,7 +57,7 @@ type PeerIdentity []security.PrincipalPattern
 // identified by the PrincipalPatterns on the caveat.
 func (c PeerIdentity) Validate(ctx security.Context) error {
 	for _, p := range c {
-		if ctx.LocalID() != nil && security.Matches(ctx.LocalID(), p) {
+		if ctx.LocalID() != nil && p.MatchedBy(ctx.LocalID()) {
 			return nil
 		}
 	}

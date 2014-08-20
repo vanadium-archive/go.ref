@@ -18,7 +18,6 @@ var (
 	errACL          = errors.New("no matching ACL entry found")
 	errInvalidLabel = errors.New("label is invalid")
 	errNilID        = errors.New("identity being matched is nil")
-	nullACL         security.ACL
 )
 
 // aclAuthorizer implements Authorizer.
@@ -81,8 +80,17 @@ func matchesACL(id security.PublicID, label security.Label, acl security.ACL) er
 	if id == nil {
 		return errNilID
 	}
-	if acl.Matches(id, label) {
-		return nil
+	names := id.Names()
+	if len(names) == 0 {
+		// If id.Names() is empty, create a list of one empty name to force a
+		// call to CanAccess. Otherwise, ids with no names will not have access
+		// on an AllPrincipals ACL.
+		names = make([]string, 1)
+	}
+	for _, name := range names {
+		if acl.CanAccess(name, label) {
+			return nil
+		}
 	}
 	return errACL
 }
@@ -93,5 +101,5 @@ func loadACLFromFile(filePath string) (security.ACL, error) {
 		return nullACL, err
 	}
 	defer f.Close()
-	return security.LoadACL(f)
+	return LoadACL(f)
 }

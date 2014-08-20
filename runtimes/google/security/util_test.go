@@ -116,7 +116,7 @@ func methodRestrictionCaveat(service security.PrincipalPattern, methods []string
 }
 
 func peerIdentityCaveat(p security.PrincipalPattern) []security.ServiceCaveat {
-	return []security.ServiceCaveat{security.UniversalCaveat(caveat.PeerIdentity{p})}
+	return []security.ServiceCaveat{caveat.UniversalCaveat(caveat.PeerIdentity{p})}
 }
 
 func init() {

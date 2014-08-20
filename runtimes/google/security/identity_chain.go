@@ -156,7 +156,7 @@ func (id *chainPrivateID) Bless(blessee security.PublicID, blessingName string, 
 		return nil, err
 	}
 	now := time.Now()
-	caveats = append(caveats, security.UniversalCaveat(&caveat.Expiry{IssueTime: now, ExpiryTime: now.Add(duration)}))
+	caveats = append(caveats, caveat.UniversalCaveat(&caveat.Expiry{IssueTime: now, ExpiryTime: now.Add(duration)}))
 	var err error
 	if cert.Caveats, err = wire.EncodeCaveats(caveats); err != nil {
 		return nil, err

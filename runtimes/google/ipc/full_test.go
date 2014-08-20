@@ -129,14 +129,14 @@ func (*testServer) Unauthorized(ipc.ServerCall) (string, error) {
 
 type dischargeServer struct{}
 
-func (*dischargeServer) Discharge(ctx ipc.ServerCall, caveat vdlutil.Any, _ security.DischargeImpetus) (vdlutil.Any, error) {
-	c, ok := caveat.(security.ThirdPartyCaveat)
+func (*dischargeServer) Discharge(ctx ipc.ServerCall, cav vdlutil.Any, _ security.DischargeImpetus) (vdlutil.Any, error) {
+	c, ok := cav.(security.ThirdPartyCaveat)
 	if !ok {
-		return nil, fmt.Errorf("discharger: unknown caveat(%T)", caveat)
+		return nil, fmt.Errorf("discharger: unknown caveat(%T)", cav)
 	}
 	// Add a fakeTimeCaveat to allow the discharge to expire
 	expiry := fakeTimeCaveat(clock.Now())
-	return serverID.MintDischarge(c, ctx, time.Hour, []security.ServiceCaveat{security.UniversalCaveat(expiry)})
+	return serverID.MintDischarge(c, ctx, time.Hour, []security.ServiceCaveat{caveat.UniversalCaveat(expiry)})
 }
 
 type testServerAuthorizer struct{}
@@ -161,7 +161,7 @@ func (t testServerDisp) Lookup(suffix, method string) (ipc.Invoker, security.Aut
 		authorizer = nil
 	case "aclAuth":
 		// Only authorize clients matching patterns "client" or "server/*".
-		authorizer = vsecurity.NewACLAuthorizer(security.NewWhitelistACL(
+		authorizer = vsecurity.NewACLAuthorizer(vsecurity.NewWhitelistACL(
 			map[security.PrincipalPattern]security.LabelSet{
 				"server/*": security.LabelSet(security.AdminLabel),
 				"client":   security.LabelSet(security.AdminLabel),
@@ -381,7 +381,7 @@ func derive(blessor security.PrivateID, name string, caveats ...security.Service
 // ignores the first if it is invalid.
 func deriveForThirdPartyCaveats(blessor security.PrivateID, name string, caveats ...security.ServiceCaveat) security.PrivateID {
 	id := derive(blessor, name, caveats...)
-	dischargeID, err := id.Derive(bless(blessor, id.PublicID(), name, security.UniversalCaveat(caveat.MethodRestriction{"Discharge"})))
+	dischargeID, err := id.Derive(bless(blessor, id.PublicID(), name, caveat.UniversalCaveat(caveat.MethodRestriction{"Discharge"})))
 	if err != nil {
 		panic(err)
 	}
@@ -453,7 +453,7 @@ func TestStartCall(t *testing.T) {
 	)
 	var (
 		now        = time.Now()
-		cavOnlyV1  = security.UniversalCaveat(caveat.PeerIdentity{"client/v1"})
+		cavOnlyV1  = caveat.UniversalCaveat(caveat.PeerIdentity{"client/v1"})
 		cavExpired = security.ServiceCaveat{
 			Service: security.AllPrincipals,
 			Caveat:  &caveat.Expiry{IssueTime: now, ExpiryTime: now},
@@ -669,7 +669,7 @@ func TestDischargeImpetus(t *testing.T) {
 			if err != nil {
 				t.Fatalf("Failed to create ThirdPartyCaveat: %v", err)
 			}
-			caveat := security.UniversalCaveat(tpc)
+			caveat := caveat.UniversalCaveat(tpc)
 			return deriveForThirdPartyCaveats(serverID, "client", caveat)
 		}
 	)
@@ -841,8 +841,8 @@ func (alwaysValidCaveat) Validate(security.Context) error { return nil }
 func TestDischargePurgeFromCache(t *testing.T) {
 	var (
 		dischargerID = serverID.PublicID()
-		caveat       = mkThirdPartyCaveat(dischargerID, "mountpoint/server/discharger", alwaysValidCaveat{})
-		clientCID    = deriveForThirdPartyCaveats(serverID, "client", security.UniversalCaveat(caveat))
+		c            = mkThirdPartyCaveat(dischargerID, "mountpoint/server/discharger", alwaysValidCaveat{})
+		clientCID    = deriveForThirdPartyCaveats(serverID, "client", caveat.UniversalCaveat(c))
 	)
 	b := createBundle(t, clientCID, serverID, &testServer{})
 	defer b.cleanup(t)
@@ -1275,7 +1275,7 @@ func loadIdentityFromFile(file string) security.PrivateID {
 	if err != nil {
 		vlog.Fatalf("failed to open %v: %v", file, err)
 	}
-	id, err := security.LoadIdentity(f)
+	id, err := vsecurity.LoadIdentity(f)
 	f.Close()
 	if err != nil {
 		vlog.Fatalf("Failed to load identity from %v: %v", file, err)

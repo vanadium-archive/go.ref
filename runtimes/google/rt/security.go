@@ -6,6 +6,7 @@ import (
 	"os/user"
 
 	isecurity "veyron/runtimes/google/security"
+	vsecurity "veyron/security"
 
 	"veyron2/security"
 	"veyron2/vlog"
@@ -102,5 +103,5 @@ func loadIdentityFromFile(filePath string) (security.PrivateID, error) {
 		return nil, err
 	}
 	defer f.Close()
-	return security.LoadIdentity(f)
+	return vsecurity.LoadIdentity(f)
 }

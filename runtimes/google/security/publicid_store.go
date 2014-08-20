@@ -119,7 +119,7 @@ func (s *publicIDStore) ForPeer(peer security.PublicID) (security.PublicID, erro
 	var matchingIDs []security.PublicID
 	for id, peerPatterns := range s.state.Store {
 		for _, peerPattern := range peerPatterns {
-			if security.Matches(peer, peerPattern) {
+			if peerPattern.MatchedBy(peer) {
 				matchingIDs = append(matchingIDs, id)
 				break
 			}
@@ -140,7 +140,7 @@ func (s *publicIDStore) DefaultPublicID() (security.PublicID, error) {
 	defer s.mu.RUnlock()
 	var matchingIDs []security.PublicID
 	for id, _ := range s.state.Store {
-		if security.Matches(id, s.state.DefaultPattern) {
+		if s.state.DefaultPattern.MatchedBy(id) {
 			matchingIDs = append(matchingIDs, id)
 		}
 	}
