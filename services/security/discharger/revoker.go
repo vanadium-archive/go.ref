@@ -70,7 +70,7 @@ func NewRevocationCaveat(dischargerID security.PublicID, dischargerLocation stri
 		return revocation, nil, err
 	}
 	restriction := revocationCaveat(sha256.Sum256(revocation[:]))
-	cav, err := caveat.NewPublicKeyCaveat(restriction, dischargerID, dischargerLocation)
+	cav, err := caveat.NewPublicKeyCaveat(restriction, dischargerID, dischargerLocation, security.ThirdPartyRequirements{})
 	return revocation, cav, err
 }
 

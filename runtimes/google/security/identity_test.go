@@ -411,7 +411,7 @@ func (proximityCaveat) Validate(ctx security.Context) error {
 
 func TestThirdPartyCaveatMinting(t *testing.T) {
 	minter := newChain("minter")
-	cav, err := caveat.NewPublicKeyCaveat(proximityCaveat{}, minter.PublicID(), "location")
+	cav, err := caveat.NewPublicKeyCaveat(proximityCaveat{}, minter.PublicID(), "location", security.ThirdPartyRequirements{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -443,7 +443,7 @@ func TestAuthorizeWithThirdPartyCaveats(t *testing.T) {
 		return derive(bless(id.PublicID(), googleChain, name, nil), id)
 	}
 	mkcaveat := func(id security.PrivateID) []security.ServiceCaveat {
-		c, err := caveat.NewPublicKeyCaveat(alwaysValidCaveat{}, id.PublicID(), fmt.Sprintf("%v location", id.PublicID()))
+		c, err := caveat.NewPublicKeyCaveat(alwaysValidCaveat{}, id.PublicID(), fmt.Sprintf("%v location", id.PublicID()), security.ThirdPartyRequirements{})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -564,7 +564,7 @@ func (s SortedThirdPartyCaveats) Swap(i, j int) { s[i], s[j] = s[j], s[i] }
 
 func TestThirdPartyCaveatAccessors(t *testing.T) {
 	mkTPCaveat := func(id security.PublicID) security.ThirdPartyCaveat {
-		tpCav, err := caveat.NewPublicKeyCaveat(alwaysValidCaveat{}, id, "someLocation")
+		tpCav, err := caveat.NewPublicKeyCaveat(alwaysValidCaveat{}, id, "someLocation", security.ThirdPartyRequirements{})
 		if err != nil {
 			t.Fatalf("NewPublicKeyCaveat(%q, ...) failed: %v", id, err)
 		}

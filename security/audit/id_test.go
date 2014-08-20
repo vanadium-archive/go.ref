@@ -242,6 +242,9 @@ type thirdPartyCaveat struct{}
 func (thirdPartyCaveat) Validate(security.Context) error { return nil }
 func (thirdPartyCaveat) ID() security.ThirdPartyCaveatID { return "thirdPartyCaveatID" }
 func (thirdPartyCaveat) Location() string                { return "thirdPartyCaveatLocation" }
+func (thirdPartyCaveat) Requirements() security.ThirdPartyRequirements {
+	return security.ThirdPartyRequirements{}
+}
 
 // context implements security.Context
 type context struct{}

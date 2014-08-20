@@ -155,7 +155,7 @@ func (c *client) startCall(ctx context.T, name, method string, args []interface{
 			continue
 		}
 
-		discharges := c.prepareDischarges(ctx, flow.LocalID(), flow.RemoteID(), method, opts)
+		discharges := c.prepareDischarges(ctx, flow.LocalID(), flow.RemoteID(), method, args, opts)
 
 		lastErr = nil
 		fc := newFlowClient(flow, &c.dischargeCache, discharges)

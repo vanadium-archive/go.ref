@@ -19,7 +19,7 @@ import (
 // It corrects a bug where _gen_wiretype is unused in VDL pacakges where only bootstrap types are used on interfaces.
 const _ = _gen_wiretype.TypeIDInvalid
 
-// DischargeIssuer service issues caveat discharges when requested.
+// Discharger is the interface for obtaining discharges for ThirdPartyCaveats.
 // Discharger is the interface the client binds and uses.
 // Discharger_ExcludingUniversal is the interface without internal framework-added methods
 // to enable embedding without method collisions.  Not to be used directly by clients.
@@ -27,11 +27,12 @@ type Discharger_ExcludingUniversal interface {
 	// Discharge is called by a principal that holds a blessing with a third
 	// party caveat and seeks to get a discharge that proves the fulfillment of
 	// this caveat.
+	//
 	// Caveat and Discharge are of type ThirdPartyCaveat and ThirdPartyDischarge
 	// respectively. (not enforced here because vdl does not know these types)
 	// TODO(ataly,ashankar): Figure out a VDL representation for ThirdPartyCaveat
 	// and Discharge and use those here?
-	Discharge(ctx _gen_context.T, Caveat _gen_vdlutil.Any, opts ..._gen_ipc.CallOpt) (reply _gen_vdlutil.Any, err error)
+	Discharge(ctx _gen_context.T, Caveat _gen_vdlutil.Any, Impetus security.DischargeImpetus, opts ..._gen_ipc.CallOpt) (reply _gen_vdlutil.Any, err error)
 }
 type Discharger interface {
 	_gen_ipc.UniversalServiceMethods
@@ -44,11 +45,12 @@ type DischargerService interface {
 	// Discharge is called by a principal that holds a blessing with a third
 	// party caveat and seeks to get a discharge that proves the fulfillment of
 	// this caveat.
+	//
 	// Caveat and Discharge are of type ThirdPartyCaveat and ThirdPartyDischarge
 	// respectively. (not enforced here because vdl does not know these types)
 	// TODO(ataly,ashankar): Figure out a VDL representation for ThirdPartyCaveat
 	// and Discharge and use those here?
-	Discharge(context _gen_ipc.ServerContext, Caveat _gen_vdlutil.Any) (reply _gen_vdlutil.Any, err error)
+	Discharge(context _gen_ipc.ServerContext, Caveat _gen_vdlutil.Any, Impetus security.DischargeImpetus) (reply _gen_vdlutil.Any, err error)
 }
 
 // BindDischarger returns the client stub implementing the Discharger
@@ -92,9 +94,9 @@ type clientStubDischarger struct {
 	name   string
 }
 
-func (__gen_c *clientStubDischarger) Discharge(ctx _gen_context.T, Caveat _gen_vdlutil.Any, opts ..._gen_ipc.CallOpt) (reply _gen_vdlutil.Any, err error) {
+func (__gen_c *clientStubDischarger) Discharge(ctx _gen_context.T, Caveat _gen_vdlutil.Any, Impetus security.DischargeImpetus, opts ..._gen_ipc.CallOpt) (reply _gen_vdlutil.Any, err error) {
 	var call _gen_ipc.Call
-	if call, err = __gen_c.client.StartCall(ctx, __gen_c.name, "Discharge", []interface{}{Caveat}, opts...); err != nil {
+	if call, err = __gen_c.client.StartCall(ctx, __gen_c.name, "Discharge", []interface{}{Caveat, Impetus}, opts...); err != nil {
 		return
 	}
 	if ierr := call.Finish(&reply, &err); ierr != nil {
@@ -160,15 +162,23 @@ func (__gen_s *ServerStubDischarger) Signature(call _gen_ipc.ServerCall) (_gen_i
 	result.Methods["Discharge"] = _gen_ipc.MethodSignature{
 		InArgs: []_gen_ipc.MethodArgument{
 			{Name: "Caveat", Type: 65},
+			{Name: "Impetus", Type: 67},
 		},
 		OutArgs: []_gen_ipc.MethodArgument{
 			{Name: "Discharge", Type: 65},
-			{Name: "err", Type: 66},
+			{Name: "err", Type: 68},
 		},
 	}
 
 	result.TypeDefs = []_gen_vdlutil.Any{
-		_gen_wiretype.NamedPrimitiveType{Type: 0x1, Name: "anydata", Tags: []string(nil)}, _gen_wiretype.NamedPrimitiveType{Type: 0x1, Name: "error", Tags: []string(nil)}}
+		_gen_wiretype.NamedPrimitiveType{Type: 0x1, Name: "anydata", Tags: []string(nil)}, _gen_wiretype.SliceType{Elem: 0x41, Name: "", Tags: []string(nil)}, _gen_wiretype.StructType{
+			[]_gen_wiretype.FieldType{
+				_gen_wiretype.FieldType{Type: 0x41, Name: "Server"},
+				_gen_wiretype.FieldType{Type: 0x3, Name: "Method"},
+				_gen_wiretype.FieldType{Type: 0x42, Name: "Arguments"},
+			},
+			"veyron2/security.DischargeImpetus", []string(nil)},
+		_gen_wiretype.NamedPrimitiveType{Type: 0x1, Name: "error", Tags: []string(nil)}}
 
 	return result, nil
 }
@@ -191,7 +201,7 @@ func (__gen_s *ServerStubDischarger) UnresolveStep(call _gen_ipc.ServerCall) (re
 	return
 }
 
-func (__gen_s *ServerStubDischarger) Discharge(call _gen_ipc.ServerCall, Caveat _gen_vdlutil.Any) (reply _gen_vdlutil.Any, err error) {
-	reply, err = __gen_s.service.Discharge(call, Caveat)
+func (__gen_s *ServerStubDischarger) Discharge(call _gen_ipc.ServerCall, Caveat _gen_vdlutil.Any, Impetus security.DischargeImpetus) (reply _gen_vdlutil.Any, err error) {
+	reply, err = __gen_s.service.Discharge(call, Caveat, Impetus)
 	return
 }

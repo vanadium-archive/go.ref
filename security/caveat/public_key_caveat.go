@@ -36,18 +36,17 @@ type publicKeyCaveat struct {
 	// RandNonce specifies a cryptographically random nonce (of fixed length) that
 	// uniquely identifies the caveat.
 	RandNonce []uint8
-
 	// DischargeMintingCaveat specifies the caveat that has to be validated
 	// before minting a discharge for a publicKeyCaveat. A byte slice containing
 	// VOM-encoded security.Caveat is used to enable a publicKeyCaveat to be
 	// validated by devices that cannot decode the discharge minting caveats.
 	DischargeMintingCaveat []byte
-
 	// ValidationKey specifies the public key of the discharging-party.
 	ValidationKey wire.PublicKey
-
-	// ThirdPartyLocation specifies the global Object name of the discharging-party.
+	// ThirdPartyLocation specifies the object name of the discharging-party.
 	ThirdPartyLocation string
+	// Information wanted in order to issue a discharge.
+	ThirdPartyRequirements security.ThirdPartyRequirements
 }
 
 // ID returns a unique 32bytes long identity for the caveat based on the random nonce
@@ -66,6 +65,10 @@ func (c *publicKeyCaveat) Location() string {
 
 func (c *publicKeyCaveat) String() string {
 	return fmt.Sprintf("publicKeyCaveat{DischargeMintingCaveat: (%v bytes), ThirdPartyLocation: %q}", len(c.DischargeMintingCaveat), c.ThirdPartyLocation)
+}
+
+func (c *publicKeyCaveat) Requirements() security.ThirdPartyRequirements {
+	return c.ThirdPartyRequirements
 }
 
 // Validate verifies whether the caveat validates for the provided context.
@@ -146,7 +149,7 @@ func (d *publicKeyDischarge) contentHash() []byte {
 
 // NewPublicKeyCaveat returns a new third-party caveat from the provided restriction,
 // third-party identity, and third-party location.
-func NewPublicKeyCaveat(dischargeMintingCaveat security.Caveat, thirdParty security.PublicID, location string) (security.ThirdPartyCaveat, error) {
+func NewPublicKeyCaveat(dischargeMintingCaveat security.Caveat, thirdParty security.PublicID, location string, requirements security.ThirdPartyRequirements) (security.ThirdPartyCaveat, error) {
 	nonce := make([]uint8, nonceLength)
 	if _, err := rand.Read(nonce); err != nil {
 		return nil, err
@@ -164,6 +167,7 @@ func NewPublicKeyCaveat(dischargeMintingCaveat security.Caveat, thirdParty secur
 		DischargeMintingCaveat: mintingCaveatEncoded.Bytes(),
 		ValidationKey:          validationKey,
 		ThirdPartyLocation:     location,
+		ThirdPartyRequirements: requirements,
 	}, nil
 }
 

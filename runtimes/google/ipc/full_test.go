@@ -129,7 +129,7 @@ func (*testServer) Unauthorized(ipc.ServerCall) (string, error) {
 
 type dischargeServer struct{}
 
-func (*dischargeServer) Discharge(ctx ipc.ServerCall, caveat vdlutil.Any) (vdlutil.Any, error) {
+func (*dischargeServer) Discharge(ctx ipc.ServerCall, caveat vdlutil.Any, _ security.DischargeImpetus) (vdlutil.Any, error) {
 	c, ok := caveat.(security.ThirdPartyCaveat)
 	if !ok {
 		return nil, fmt.Errorf("discharger: unknown caveat(%T)", caveat)
@@ -637,11 +637,91 @@ func TestBlessing(t *testing.T) {
 }
 
 func mkThirdPartyCaveat(discharger security.PublicID, location string, c security.Caveat) security.ThirdPartyCaveat {
-	tpc, err := caveat.NewPublicKeyCaveat(c, discharger, location)
+	tpc, err := caveat.NewPublicKeyCaveat(c, discharger, location, security.ThirdPartyRequirements{})
 	if err != nil {
 		panic(err)
 	}
 	return tpc
+}
+
+type dischargeImpetusTester struct {
+	LastDischargeImpetus security.DischargeImpetus
+}
+
+// Implements ipc.Dispatcher
+func (s *dischargeImpetusTester) Lookup(_, _ string) (ipc.Invoker, security.Authorizer, error) {
+	return ipc.ReflectInvoker(s), nil, nil
+}
+
+// Implements the discharge service: Always fails to issue a discharge, but records the impetus
+func (s *dischargeImpetusTester) Discharge(ctx ipc.ServerCall, cav vdlutil.Any, impetus security.DischargeImpetus) (vdlutil.Any, error) {
+	s.LastDischargeImpetus = impetus
+	return nil, fmt.Errorf("discharges not issued")
+}
+
+func TestDischargeImpetus(t *testing.T) {
+	var (
+		// The Discharge service can be run by anyone, but in these tests it is the same as the server.
+		dischargerID = serverID.PublicID()
+
+		mkClientID = func(req security.ThirdPartyRequirements) security.PrivateID {
+			tpc, err := caveat.NewPublicKeyCaveat(alwaysValidCaveat{}, dischargerID, "mountpoint/discharger", req)
+			if err != nil {
+				t.Fatalf("Failed to create ThirdPartyCaveat: %v", err)
+			}
+			caveat := security.UniversalCaveat(tpc)
+			return deriveForThirdPartyCaveats(serverID, "client", caveat)
+		}
+	)
+	sm := imanager.InternalNew(naming.FixedRoutingID(0x555555555))
+	ns := newNamespace()
+	server, err := InternalNewServer(InternalNewContext(), sm, ns, vc.FixedLocalID(serverID))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer server.Stop()
+	if _, err := server.Listen("tcp", "127.0.0.1:0"); err != nil {
+		t.Fatal(err)
+	}
+
+	var tester dischargeImpetusTester
+	if err := server.Serve("mountpoint", &tester); err != nil {
+		t.Fatal(err)
+	}
+
+	tests := []struct {
+		Requirements security.ThirdPartyRequirements
+		Impetus      security.DischargeImpetus
+	}{
+		{ // No requirements, no impetus
+			Requirements: security.ThirdPartyRequirements{},
+			Impetus:      security.DischargeImpetus{},
+		},
+		{ // Require everything
+			Requirements: security.ThirdPartyRequirements{ReportServer: true, ReportMethod: true, ReportArguments: true},
+			Impetus:      security.DischargeImpetus{Server: vdlutil.Any(serverID.PublicID()), Method: "Method", Arguments: []vdlutil.Any{vdlutil.Any("argument")}},
+		},
+		{ // Require only the method name
+			Requirements: security.ThirdPartyRequirements{ReportMethod: true},
+			Impetus:      security.DischargeImpetus{Method: "Method"},
+		},
+	}
+
+	for _, test := range tests {
+		client, err := InternalNewClient(sm, ns, vc.FixedLocalID(mkClientID(test.Requirements)))
+		if err != nil {
+			t.Fatalf("InternalNewClient(%+v) failed: %v", test.Requirements, err)
+		}
+		defer client.Close()
+		// StartCall should fetch the discharge, do not worry about finishing the RPC - do not care about that for this test.
+		if _, err := client.StartCall(InternalNewContext(), "mountpoint/object", "Method", []interface{}{"argument"}); err != nil {
+			t.Errorf("StartCall(%+v) failed: %v", test.Requirements, err)
+			continue
+		}
+		if got, want := tester.LastDischargeImpetus, test.Impetus; !reflect.DeepEqual(got, want) {
+			t.Errorf("Got [%v] want [%v] for test %+v", got, want, test.Requirements)
+		}
+	}
 }
 
 func TestRPCAuthorization(t *testing.T) {

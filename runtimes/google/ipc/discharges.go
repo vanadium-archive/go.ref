@@ -15,8 +15,7 @@ import (
 // options, or requested from the discharge issuer indicated on the caveat.
 // Note that requesting a discharge is an ipc call, so one copy of this
 // function must be able to successfully terminate while another is blocked.
-func (c *client) prepareDischarges(ctx context.T, blessing, server security.PublicID,
-	method string, opts []ipc.CallOpt) (ret []security.ThirdPartyDischarge) {
+func (c *client) prepareDischarges(ctx context.T, blessing, server security.PublicID, method string, args []interface{}, opts []ipc.CallOpt) (ret []security.ThirdPartyDischarge) {
 	// TODO(andreser,ataly): figure out whether this should return an error and how that should be handled
 	// Missing discharges do not necessarily mean the blessing is invalid (e.g., SetID)
 	if blessing == nil {
@@ -37,7 +36,7 @@ func (c *client) prepareDischarges(ctx context.T, blessing, server security.Publ
 	dischargesFromOpts(caveats, opts, discharges)
 	c.dischargeCache.Discharges(caveats, discharges)
 	if shouldFetchDischarges(opts) {
-		c.fetchDischarges(ctx, caveats, opts, discharges)
+		c.fetchDischarges(ctx, caveats, server, method, args, opts, discharges)
 	}
 	for _, d := range discharges {
 		if d != nil {
@@ -112,7 +111,7 @@ func dischargesFromOpts(caveats []security.ThirdPartyCaveat, opts []ipc.CallOpt,
 // caveats, fetchDischarges keeps retrying until either all discharges can be
 // fetched or no new discharges are fetched.
 // REQUIRES: len(caveats) == len(out)
-func (c *client) fetchDischarges(ctx context.T, caveats []security.ThirdPartyCaveat, opts []ipc.CallOpt, out []security.ThirdPartyDischarge) {
+func (c *client) fetchDischarges(ctx context.T, caveats []security.ThirdPartyCaveat, server security.PublicID, method string, args []interface{}, opts []ipc.CallOpt, out []security.ThirdPartyDischarge) {
 	opts = append([]ipc.CallOpt{dontFetchDischarges{}}, opts...)
 	var wg sync.WaitGroup
 	for {
@@ -128,8 +127,8 @@ func (c *client) fetchDischarges(ctx context.T, caveats []security.ThirdPartyCav
 			wg.Add(1)
 			go func(i int, cav security.ThirdPartyCaveat) {
 				defer wg.Done()
-				vlog.VI(3).Infof("Fetching discharge for %T from %v", cav, cav.Location())
-				call, err := c.StartCall(ctx, cav.Location(), "Discharge", []interface{}{cav}, opts...)
+				vlog.VI(3).Infof("Fetching discharge for %T from %v (%+v)", cav, cav.Location(), cav.Requirements())
+				call, err := c.StartCall(ctx, cav.Location(), "Discharge", []interface{}{cav, impetus(cav.Requirements(), server, method, args)}, opts...)
 				if err != nil {
 					vlog.VI(3).Infof("Discharge fetch for caveat %T from %v failed: %v", cav, cav.Location(), err)
 					return
@@ -163,7 +162,23 @@ func (c *client) fetchDischarges(ctx context.T, caveats []security.ThirdPartyCav
 	}
 }
 
-// dontFetchDischares is an ipc.CallOpt that indicates that no extre ipc-s
+func impetus(r security.ThirdPartyRequirements, server security.PublicID, method string, args []interface{}) (impetus security.DischargeImpetus) {
+	if r.ReportServer {
+		impetus.Server = server
+	}
+	if r.ReportMethod {
+		impetus.Method = method
+	}
+	if r.ReportArguments {
+		impetus.Arguments = make([]vdlutil.Any, len(args))
+		for i, a := range args {
+			impetus.Arguments[i] = vdlutil.Any(a)
+		}
+	}
+	return
+}
+
+// dontFetchDischares is an ipc.CallOpt that indicates that no extra ipc-s
 // should be done to fetch discharges for the call with this opt.
 // Discharges in the cache and in the call options are still used.
 type dontFetchDischarges struct{}
