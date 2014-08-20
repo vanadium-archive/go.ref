@@ -37,10 +37,25 @@ func healthz(w http.ResponseWriter, r *http.Request) {
 }
 
 func handler(w http.ResponseWriter, r *http.Request) {
+	// CORS headers.
+	// TODO(nlacasse): Fill the origin header in with actual playground origin
+	// before going to production.
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	w.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS")
+	w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Content-Length, Accept-Encoding")
+
+	// CORS sends an OPTIONS pre-flight request to make sure the request will be
+	// allowed.
+	if r.Method == "OPTIONS" {
+		w.WriteHeader(http.StatusOK)
+		return
+	}
+
 	if r.Body == nil || r.Method != "POST" {
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
+
 	id := <-uniq
 	cmd := Docker("run", "-i", "--name", id, "playground")
 	cmd.Stdin = r.Body
