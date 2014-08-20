@@ -45,7 +45,7 @@ main() {
   ./mounttable mount "${EP}/google" /www.google.com:80 5m > /dev/null || shell_test::fail "line ${LINENO}: failed to mount www.google.com"
 
   # <mounttable>.Glob('*')
-  local GOT=$(./mounttable glob "${EP}" '*' | sed 's/TTL .m..s/TTL XmXXs/' | sort)
+  local GOT=$(./mounttable glob "${EP}" '*' | sed -r 's/TTL (.m)?..s/TTL XmXXs/' | sort)
   local WANT="[${EP}]
 google /www.google.com:80 (TTL XmXXs)
 myself ${EP} (TTL XmXXs)
