@@ -100,6 +100,10 @@ func (stupidNS) FlushCacheEntry(name string) bool {
 	return false
 }
 
+func (stupidNS) CacheCtl(ctls ...naming.CacheCtl) []naming.CacheCtl {
+	return nil
+}
+
 // Glob implements naming.MountTable.Glob.
 func (stupidNS) Glob(ctx context.T, pattern string) (chan naming.MountEntry, error) {
 	return nil, errors.New("Glob is not implemented in this MountTable")

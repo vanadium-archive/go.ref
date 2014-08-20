@@ -246,6 +246,10 @@ func (ns *namespace) FlushCacheEntry(name string) bool {
 	return false
 }
 
+func (ns *namespace) CacheCtl(ctls ...naming.CacheCtl) []naming.CacheCtl {
+	return nil
+}
+
 func (ns *namespace) Glob(ctx context.T, pattern string) (chan naming.MountEntry, error) {
 	panic("Glob not implemented")
 	return nil, nil

@@ -25,7 +25,7 @@ func TestCache(t *testing.T) {
 		{"/h2//c/d", "d", "/h3"},
 		{"/h3//d", "", "/h4:1234"},
 	}
-	c := newCache()
+	c := newTTLCache()
 	for _, p := range preload {
 		c.remember(naming.TrimSuffix(p.name, p.suffix), []mountedServer{mountedServer{Server: p.server, TTL: 30}})
 	}
@@ -51,7 +51,7 @@ func TestCache(t *testing.T) {
 }
 
 func TestCacheLimit(t *testing.T) {
-	c := newCache()
+	c := newTTLCache().(*ttlCache)
 	servers := []mountedServer{mountedServer{Server: "the rain in spain", TTL: 3000}}
 	for i := 0; i < maxCacheEntries; i++ {
 		c.remember(fmt.Sprintf("%d", i), servers)
@@ -67,7 +67,7 @@ func TestCacheLimit(t *testing.T) {
 }
 
 func TestCacheTTL(t *testing.T) {
-	c := newCache()
+	c := newTTLCache().(*ttlCache)
 	// Fill cache.
 	servers := []mountedServer{mountedServer{Server: "the rain in spain", TTL: 3000}}
 	for i := 0; i < maxCacheEntries; i++ {
@@ -99,7 +99,7 @@ func TestFlushCacheEntry(t *testing.T) {
 		{"/h3//d", "/h4:1234"},
 	}
 	ns, _ := New(nil)
-	c := ns.resolutionCache
+	c := ns.resolutionCache.(*ttlCache)
 	for _, p := range preload {
 		c.remember(p.name, []mountedServer{mountedServer{Server: p.server, TTL: 3000}})
 	}
@@ -127,5 +127,52 @@ func TestFlushCacheEntry(t *testing.T) {
 	}
 	if len(c.entries) != 1 {
 		t.Errorf("%s flushed too many entries", toflush)
+	}
+}
+
+func disabled(ctls []naming.CacheCtl) bool {
+	for _, c := range ctls {
+		switch v := c.(type) {
+		case naming.DisableCache:
+			if v {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func TestCacheDisableEnable(t *testing.T) {
+	ns, _ := New(nil)
+
+	// Default should be working resolution cache.
+	name := "/h1//a"
+	serverName := "/h2//"
+	c := ns.resolutionCache.(*ttlCache)
+	c.remember(name, []mountedServer{mountedServer{Server: serverName, TTL: 3000}})
+	if servers, _ := c.lookup(name); servers == nil || servers[0].Server != serverName {
+		t.Errorf("should have found the server in the cache")
+	}
+
+	// Turn off the resolution cache.
+	ctls := ns.CacheCtl(naming.DisableCache(true))
+	if !disabled(ctls) {
+		t.Errorf("caching not disabled")
+	}
+	nc := ns.resolutionCache.(nullCache)
+	nc.remember(name, []mountedServer{mountedServer{Server: serverName, TTL: 3000}})
+	if servers, _ := nc.lookup(name); servers != nil {
+		t.Errorf("should not have found the server in the cache")
+	}
+
+	// Turn on the resolution cache.
+	ctls = ns.CacheCtl(naming.DisableCache(false))
+	if disabled(ctls) {
+		t.Errorf("caching disabled")
+	}
+	c = ns.resolutionCache.(*ttlCache)
+	c.remember(name, []mountedServer{mountedServer{Server: serverName, TTL: 3000}})
+	if servers, _ := c.lookup(name); servers == nil || servers[0].Server != serverName {
+		t.Errorf("should have found the server in the cache")
 	}
 }
