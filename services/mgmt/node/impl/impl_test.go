@@ -198,6 +198,23 @@ func envelopeFromCmd(title string, cmd *goexec.Cmd) *application.Envelope {
 	}
 }
 
+// setupRootDir sets up and returns the local filesystem location that the node
+// manager is told to use, as well as a cleanup function.
+func setupRootDir() (string, func()) {
+	// On some operating systems (e.g. darwin) os.TempDir() can return a
+	// symlink. To avoid having to account for this eventuality later,
+	// evaluate the symlink.
+	tmpDir, err := filepath.EvalSymlinks(os.TempDir())
+	if err != nil {
+		vlog.Fatalf("EvalSymlinks(%v) failed: %v", os.TempDir(), err)
+	}
+	root := filepath.Join(tmpDir, "nodemanager")
+	os.RemoveAll(root) // Start out with a clean slate.
+	return root, func() {
+		os.RemoveAll(root)
+	}
+}
+
 // TestNodeManagerUpdateAndRevert makes the node manager go through the motions of updating
 // itself to newer versions (twice), and reverting itself back (twice).  It also
 // checks that update and revert fail when they're supposed to.  The initial
@@ -210,27 +227,12 @@ func TestNodeManagerUpdateAndRevert(t *testing.T) {
 	defer cleanup()
 	defer startBinaryRepository()()
 
-	// This is the local filesystem location that the node manager is told
-	// to use.
-	root, perm := filepath.Join(os.TempDir(), "nodemanager"), os.FileMode(0700)
-	if err := os.MkdirAll(root, perm); err != nil {
-		t.Fatalf("MkdirAll(%v, %v) failed: %v", root, perm, err)
-	}
-	defer os.RemoveAll(root)
-
-	// On some operating systems (e.g. darwin) os.TempDir() can
-	// return a symlink. To avoid having to account for this
-	// eventuality later, evaluate the symlink.
-	{
-		var err error
-		root, err = filepath.EvalSymlinks(root)
-		if err != nil {
-			t.Fatalf("EvalSymlinks(%v) failed: %v", root, err)
-		}
-	}
+	root, cleanup := setupRootDir()
+	defer cleanup()
 
 	// Current link does not have to live in the root dir.
 	currLink := filepath.Join(os.TempDir(), "testcurrent")
+	os.Remove(currLink) // Start out with a clean slate.
 	defer os.Remove(currLink)
 
 	// Set up the initial version of the node manager, the so-called
@@ -416,10 +418,8 @@ func TestAppStartStop(t *testing.T) {
 	defer cleanup()
 	defer startBinaryRepository()()
 
-	// This is the local filesystem location that the node manager is told
-	// to use.
-	root := filepath.Join(os.TempDir(), "nodemanager")
-	defer os.RemoveAll(root)
+	root, cleanup := setupRootDir()
+	defer cleanup()
 
 	// Set up the node manager.  Since we won't do node manager updates,
 	// don't worry about its application envelope and current link.
