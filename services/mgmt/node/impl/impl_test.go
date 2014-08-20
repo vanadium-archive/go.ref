@@ -9,7 +9,6 @@ import (
 	goexec "os/exec"
 	"path/filepath"
 	"strings"
-	"sync"
 	"testing"
 
 	"veyron/lib/signals"
@@ -55,23 +54,10 @@ func execScript(args []string) {
 	cmd := goexec.Cmd{
 		Path:   script,
 		Env:    env,
+		Stdin:  os.Stdin,
 		Stderr: os.Stderr,
 		Stdout: os.Stdout,
 	}
-	// os.exec.Cmd is not thread safe
-	var cmdLock sync.Mutex
-	go func() {
-		cmdLock.Lock()
-		stdin, err := cmd.StdinPipe()
-		cmdLock.Unlock()
-		if err != nil {
-			vlog.Fatalf("Failed to get stdin pipe: %v", err)
-		}
-		blackbox.WaitForEOFOnStdin()
-		stdin.Close()
-	}()
-	cmdLock.Lock()
-	defer cmdLock.Unlock()
 	if err := cmd.Run(); err != nil {
 		vlog.Fatalf("Run cmd %v failed: %v", cmd, err)
 	}
@@ -366,7 +352,7 @@ func TestNodeManagerUpdateAndRevert(t *testing.T) {
 	// Revert the node manager to its previous version (v2).
 	revert(t, "v3NM")
 	revertExpectError(t, "v3NM", verror.Exists) // Revert already in progress.
-	nm.CloseStdin()
+	runNM.CloseStdin()
 	runNM.Expect("v3NM terminating")
 	if evalLink() != scriptPathV2 {
 		t.Fatalf("current link was not reverted correctly")
