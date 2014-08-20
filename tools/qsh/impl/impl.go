@@ -11,7 +11,8 @@ import (
 	"veyron2/storage"
 	"veyron2/storage/vstore"
 
-	// TODO(rjkroege@google.com): Replace with the appropriate vom2 functionality when available.
+	// TODO(rjkroege@google.com): Replace with the appropriate vom2 functionality
+	// when available.
 	_ "veyron/services/store/typeregistryhack"
 )
 
@@ -23,7 +24,8 @@ func indenter(w io.Writer, indent int) {
 
 // Prints a single QueryResult to the provided io.Writer.
 func printResult(qr storage.QueryResult, w io.Writer, indent int) {
-	// TODO(rjkroege@google.com): Consider permitting the user to provide a Go template to format output.
+	// TODO(rjkroege@google.com): Consider permitting the user to provide a Go
+	// template to format output.
 	if v := qr.Value(); v != nil {
 		indenter(w, indent)
 		fmt.Fprintf(w, "%s: %#v\n", qr.Name(), v)
@@ -67,13 +69,7 @@ func printStream(qs storage.QueryStream, w io.Writer, indent int) error {
 	return nil
 }
 
-func Runquery(storeName, queryString string) error {
+func RunQuery(queryRoot, queryString string) error {
 	ctx := rt.R().TODOContext()
-
-	store, err := vstore.New(storeName)
-	if err != nil {
-		return err
-	}
-	defer store.Close()
-	return printStream(store.BindObject("").Query(ctx, query.Query{queryString}), os.Stdout, 0)
+	return printStream(vstore.New().Bind(queryRoot).Query(ctx, query.Query{queryString}), os.Stdout, 0)
 }

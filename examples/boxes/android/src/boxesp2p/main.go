@@ -192,12 +192,10 @@ func (gs *goState) streamBoxesLoop() {
 func (gs *goState) monitorStore() {
 	ctx := gs.runtime.NewContext()
 
-	vst, err := vstore.New(gs.storeEndpoint)
-	if err != nil {
-		panic(fmt.Errorf("Failed to init veyron store:%v", err))
+	root := vstore.New().Bind(gs.storeEndpoint)
+	if _, err := root.Put(ctx, ""); err != nil {
+		panic(fmt.Errorf("Put for / failed:%v", err))
 	}
-	rootName := "/"
-	root := vst.BindObject(rootName)
 
 	// Watch for any box updates from the store
 	go func() {
@@ -223,34 +221,13 @@ func (gs *goState) monitorStore() {
 			err = io.EOF
 		}
 		panic(fmt.Errorf("Can't receive watch event: %s: %s", gs.storeEndpoint, err))
-
 	}()
 
 	// Send any box updates to the store
-	tid, err := vst.BindTransactionRoot(rootName).CreateTransaction(ctx)
-	if err != nil {
-		panic(fmt.Errorf("CreateTransaction for %s failed:%v", rootName, err))
-	}
-	tname := naming.Join(rootName, tid)
-	if _, err := vst.BindObject(tname).Put(ctx, ""); err != nil {
-		panic(fmt.Errorf("Put for %s failed:%v", tname, err))
-	}
-	if err := vst.BindTransaction(tname).Commit(ctx); err != nil {
-		panic(fmt.Errorf("Commit transaction failed:%v", err))
-	}
 	for {
 		box := <-gs.boxList
-		boxesName := "/" + box.BoxId
-		tid, err = vst.BindTransactionRoot(boxesName).CreateTransaction(ctx)
-		if err != nil {
-			panic(fmt.Errorf("CreateTransaction for %s failed:%v", boxesName, err))
-		}
-		tname := naming.Join(boxesName, tid)
-		if _, err := vst.BindObject(tname).Put(ctx, box); err != nil {
-			panic(fmt.Errorf("Put for %s failed:%v", tname, err))
-		}
-		if err := vst.BindTransaction(tname).Commit(ctx); err != nil {
-			panic(fmt.Errorf("Commit transaction failed:%v", err))
+		if _, err := root.Bind(box.BoxId).Put(ctx, box); err != nil {
+			panic(fmt.Errorf("Put for %s failed:%v", box.BoxId, err))
 		}
 	}
 }

@@ -26,6 +26,7 @@ import (
 	"net/http"
 	"path/filepath"
 
+	"veyron2/naming"
 	"veyron2/rt"
 	"veyron2/storage"
 	"veyron2/vlog"
@@ -33,7 +34,8 @@ import (
 
 // server is the HTTP server handler.
 type server struct {
-	store storage.Store
+	storeRoot string
+	store     storage.Store
 }
 
 var _ http.Handler = (*server)(nil)
@@ -74,8 +76,8 @@ func mustParse(name, text string) *template.Template {
 // loadTemplate fetches the template for the value from the store.  The template
 // is based on the type of the value, under /template/<pkgPath>/<typeName>.
 func (s *server) loadTemplate(v interface{}) *template.Template {
-	path := templatePath(v)
-	e, err := s.store.BindObject(path).Get(rt.R().TODOContext())
+	path := naming.Join(s.storeRoot, templatePath(v))
+	e, err := s.store.Bind(path).Get(rt.R().TODOContext())
 	if err != nil {
 		return nil
 	}
@@ -126,8 +128,8 @@ func (s *server) printRawPage(w http.ResponseWriter, v interface{}) {
 
 // ServeHTTP is the main HTTP handler.
 func (s *server) ServeHTTP(w http.ResponseWriter, req *http.Request) {
-	path := req.URL.Path
-	e, err := s.store.BindObject(path).Get(rt.R().TODOContext())
+	path := naming.Join(s.storeRoot, req.URL.Path)
+	e, err := s.store.Bind(path).Get(rt.R().TODOContext())
 	if err != nil {
 		msg := fmt.Sprintf("<html><body><h1>%s</h1><h2>Error: %s</h2></body></html>",
 			html.EscapeString(path),
@@ -152,8 +154,8 @@ func (s *server) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 
 // ListenAndServe is the main entry point.  It serves store at the specified
 // network address.
-func ListenAndServe(addr string, st storage.Store) error {
-	s := &server{store: st}
+func ListenAndServe(addr string, storeRoot string, st storage.Store) error {
+	s := &server{storeRoot: storeRoot, store: st}
 	vlog.Infof("Viewer running at http://localhost%s", addr)
 	return http.ListenAndServe(addr, s)
 }

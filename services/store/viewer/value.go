@@ -21,7 +21,7 @@ type Value struct {
 
 // glob performs a glob expansion of the pattern.  The results are sorted.
 func glob(st storage.Store, path, pattern string) ([]string, error) {
-	results := st.BindObject(path).Glob(rt.R().TODOContext(), pattern)
+	results := st.Bind(path).Glob(rt.R().TODOContext(), pattern)
 	names := []string{}
 	rStream := results.RecvStream()
 	for rStream.Advance() {
@@ -67,7 +67,7 @@ func (v *Value) Glob(pattern string) ([]string, error) {
 // exist.
 func (v *Value) Get(path string) interface{} {
 	path = v.fullpath(path)
-	e, err := v.store.BindObject(path).Get(rt.R().TODOContext())
+	e, err := v.store.Bind(path).Get(rt.R().TODOContext())
 	if err != nil {
 		return nil
 	}

@@ -92,11 +92,7 @@ func main() {
 
 	// Run viewer if requested.
 	if *viewerPort > 0 {
-		vst, err := vstore.New(mountName)
-		if err != nil {
-			log.Fatalf("Failed to start viewer: %s", err)
-		}
-		go viewer.ListenAndServe(fmt.Sprintf(":%d", *viewerPort), vst)
+		go viewer.ListenAndServe(fmt.Sprintf(":%d", *viewerPort), mountName, vstore.New())
 	}
 
 	// Wait forever.

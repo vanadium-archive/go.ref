@@ -43,7 +43,7 @@ func getMD5Hash(text string) string {
 
 // waitForStore waits for the local store to be ready by checking if
 // the schema information is synchronized.
-func waitForStore(store storage.Store) {
+func waitForStore(storeAddress string) {
 	ctx := rt.R().NewContext()
 
 	// Register *storage.Entry for WatchGlob.
@@ -55,13 +55,14 @@ func waitForStore(store storage.Store) {
 	// List of paths to check in store.
 	paths := []string{appPath, fortunePath(""), userPath("")}
 	for _, path := range paths {
+		abspath := naming.Join(storeAddress, path)
 		req := iwatch.GlobRequest{Pattern: ""}
-		stream, err := store.BindObject(path).WatchGlob(ctx, req)
+		stream, err := vstore.New().Bind(abspath).WatchGlob(ctx, req)
 		if err != nil {
-			log.Fatalf("WatchGlob %s failed: %v", path, err)
+			log.Fatalf("WatchGlob %s failed: %v", abspath, err)
 		}
 		if !stream.RecvStream().Advance() {
-			log.Fatalf("waitForStore, path: %s, Advance failed: %v", path, stream.RecvStream().Err())
+			log.Fatalf("waitForStore (abspath: %s) Advance failed: %v", abspath, stream.RecvStream().Err())
 		}
 		stream.Cancel()
 	}
@@ -72,7 +73,7 @@ func waitForStore(store storage.Store) {
 
 // runAsWatcher monitors updates to the fortunes in the store and
 // prints out that information.  It does not return.
-func runAsWatcher(store storage.Store, user string) {
+func runAsWatcher(storeAddress string, user string) {
 	// TODO(tilaks): remove this when the storage.Entry is auto-registered by VOM.
 	vom.Register(&storage.Entry{})
 	ctx, cancel := rt.R().NewContext().WithTimeout(time.Minute)
@@ -87,10 +88,11 @@ func runAsWatcher(store storage.Store, user string) {
 	}
 	fmt.Printf("Running as a Watcher monitoring new fortunes under %s...\n", path)
 
+	abspath := naming.Join(storeAddress, path)
 	req := iwatch.GlobRequest{Pattern: "*"}
-	stream, err := store.BindObject(path).WatchGlob(ctx, req)
+	stream, err := vstore.New().Bind(abspath).WatchGlob(ctx, req)
 	if err != nil {
-		log.Fatalf("watcher WatchGlob %s failed: %v", path, err)
+		log.Fatalf("watcher WatchGlob %s failed: %v", abspath, err)
 	}
 
 	rStream := stream.RecvStream()
@@ -122,21 +124,13 @@ func runAsWatcher(store storage.Store, user string) {
 
 // pickFortuneGlob uses Glob to find all available fortunes under the input
 // path and then it chooses one randomly.
-func pickFortuneGlob(store storage.Store, ctx context.T, path string) (string, error) {
-	// Transaction is rooted at "", so tname == tid.
-	tname, err := store.BindTransactionRoot("").CreateTransaction(ctx)
-	if err != nil {
-		return "", err
-	}
+func pickFortuneGlob(storeAddress string, ctx context.T, path string) (string, error) {
+	tx := vstore.New().NewTransaction(ctx, storeAddress)
 
 	// This transaction is read-only, so we always abort it at the end.
-	defer store.BindTransaction(tname).Abort(ctx)
+	defer tx.Abort(ctx)
 
-	trPath := func(path string) string {
-		return naming.Join(tname, path)
-	}
-
-	results := store.BindObject(trPath(path)).Glob(ctx, "*")
+	results := tx.Bind(path).Glob(ctx, "*")
 	var names []string
 	rStream := results.RecvStream()
 	for rStream.Advance() {
@@ -149,7 +143,7 @@ func pickFortuneGlob(store storage.Store, ctx context.T, path string) (string, e
 	// Get a random fortune using the glob results.
 	random := rand.New(rand.NewSource(time.Now().UTC().UnixNano()))
 	p := fortunePath(names[random.Intn(len(names))])
-	f, err := store.BindObject(trPath(p)).Get(ctx)
+	f, err := tx.Bind(p).Get(ctx)
 	if err != nil {
 		return "", err
 	}
@@ -162,8 +156,9 @@ func pickFortuneGlob(store storage.Store, ctx context.T, path string) (string, e
 
 // pickFortuneQuery uses a query to find all available fortunes under the input
 // path and choose one randomly.
-func pickFortuneQuery(store storage.Store, ctx context.T, path string) (string, error) {
-	results := store.BindObject(path).Query(ctx,
+func pickFortuneQuery(storeAddress string, ctx context.T, path string) (string, error) {
+	abspath := naming.Join(storeAddress, path)
+	results := vstore.New().Bind(abspath).Query(ctx,
 		query.Query{
 			"* |" + // Inspect all children of path.
 				"type FortuneData |" + // Include only objects of type FortuneData.
@@ -187,56 +182,49 @@ func pickFortuneQuery(store storage.Store, ctx context.T, path string) (string, 
 
 // getFortune returns a random fortune corresponding to a UserName if
 // specified. If not, it picks a random fortune.
-func getFortune(store storage.Store, userName string) (string, error) {
+func getFortune(storeAddress string, userName string) (string, error) {
 	ctx, cancel := rt.R().NewContext().WithTimeout(time.Minute)
 	defer cancel()
 
-	var p string
+	var path string
 	if userName != "" {
 		// Look for a random fortune belonging to UserName.
-		p = userPath(userName)
+		path = userPath(userName)
 	} else {
 		// Look for a random fortune.
-		p = fortunePath("")
+		path = fortunePath("")
 	}
 
 	switch *pickMethod {
 	case "glob":
-		return pickFortuneGlob(store, ctx, p)
+		return pickFortuneGlob(storeAddress, ctx, path)
 	case "query":
-		return pickFortuneQuery(store, ctx, p)
+		return pickFortuneQuery(storeAddress, ctx, path)
 	default:
 		return "", fmt.Errorf("unsupported value for --pick_method.  use 'glob' or 'query'")
 	}
 }
 
 // addFortune adds a new fortune to the store and links it to the specified
-// UserName. In this process, if the UserName doesn't exist, a new
-// user is created.
-func addFortune(store storage.Store, fortune string, userName string) error {
+// UserName. In this process, if the UserName doesn't exist, a new user is
+// created.
+func addFortune(storeAddress string, fortune string, userName string) error {
 	ctx, cancel := rt.R().NewContext().WithTimeout(time.Minute)
 	defer cancel()
 
-	// Transaction is rooted at "", so tname == tid.
-	tname, err := store.BindTransactionRoot("").CreateTransaction(ctx)
-	if err != nil {
-		return err
-	}
+	st := vstore.New()
+	tx := st.NewTransaction(ctx, storeAddress)
 
 	committed := false
 	defer func() {
 		if !committed {
-			store.BindTransaction(tname).Abort(ctx)
+			tx.Abort(ctx)
 		}
 	}()
 
-	trPath := func(path string) string {
-		return naming.Join(tname, path)
-	}
-
 	// Check if this fortune already exists. If yes, return.
 	hash := getMD5Hash(naming.Join(fortune, userName))
-	exists, err := store.BindObject(trPath(fortunePath(hash))).Exists(ctx)
+	exists, err := tx.Bind(fortunePath(hash)).Exists(ctx)
 	if err != nil {
 		return err
 	}
@@ -244,8 +232,9 @@ func addFortune(store storage.Store, fortune string, userName string) error {
 		return nil
 	}
 
-	// Check if the UserName exists. If yes, get its OID. If not, create a new user.
-	o := store.BindObject(trPath(userPath(userName)))
+	// Check if the UserName exists. If yes, get its OID. If not, create a new
+	// user.
+	o := tx.Bind(userPath(userName))
 	exists, err = o.Exists(ctx)
 	if err != nil {
 		return err
@@ -268,14 +257,14 @@ func addFortune(store storage.Store, fortune string, userName string) error {
 
 	// Create a new fortune entry.
 	f := schema.FortuneData{Fortune: fortune, UserName: userid}
-	s, err := store.BindObject(trPath(fortunePath(hash))).Put(ctx, f)
+	s, err := tx.Bind(fortunePath(hash)).Put(ctx, f)
 	if err != nil {
 		return err
 	}
 
 	// Link the new fortune to UserName.
 	p := userPath(naming.Join(userName, hash))
-	if _, err = store.BindObject(trPath(p)).Put(ctx, s.ID); err != nil {
+	if _, err = tx.Bind(p).Put(ctx, s.ID); err != nil {
 		return err
 	}
 
@@ -285,7 +274,7 @@ func addFortune(store storage.Store, fortune string, userName string) error {
 	// locking. When the error for this scenario is
 	// exposed via the Commit API, one could retry the
 	// transaction.
-	if err := store.BindTransaction(tname).Commit(ctx); err != nil {
+	if err := tx.Commit(ctx); err != nil {
 		return err
 	}
 	committed = true
@@ -307,17 +296,11 @@ func main() {
 		log.Fatal("--store needs to be specified")
 	}
 
-	// Create a handle to the backend store.
-	store, err := vstore.New(*storeAddress)
-	if err != nil {
-		log.Fatalf("Can't connect to store: %s: %v", *storeAddress, err)
-	}
-
 	// Wait for the store to be ready before proceeding.
-	waitForStore(store)
+	waitForStore(*storeAddress)
 
 	// Get a fortune from the store.
-	fortune, err := getFortune(store, *user)
+	fortune, err := getFortune(*storeAddress, *user)
 	if err != nil {
 		log.Fatal("error getting fortune: ", err)
 	}
@@ -329,14 +312,14 @@ func main() {
 			*user = "anonymous"
 		}
 		*user = strings.ToLower(*user)
-		if err := addFortune(store, *newFortune, *user); err != nil {
+		if err := addFortune(*storeAddress, *newFortune, *user); err != nil {
 			log.Fatal("error adding fortune: ", err)
 		}
 	}
 
 	// Run as a watcher if --watch is set.
 	if *watch {
-		runAsWatcher(store, *user)
+		runAsWatcher(*storeAddress, *user)
 		os.Exit(0)
 	}
 }

@@ -1,23 +1,21 @@
 package main
 
 import (
-	"veyron/tools/qsh/impl"
-
 	"flag"
 	"log"
-	"os"
+
+	"veyron/tools/qsh/impl"
 
 	"veyron2/rt"
 )
 
-var flagStoreName = flag.String("targetstore", "", "Store object name")
+var flagQueryRoot = flag.String("queryroot", "",
+	"An object name in the store to serve as the root of the query.")
 
 const usage = `
-Synopsis: qsh [--targetstore=<store in veyron namespace>] query...
+Synopsis: qsh --queryroot=<object in the store> query...
 
-Runs each given query against the specified Veyron store instance. If
-no target store is specified on the command line, qsh expects the
-environment variable VEYRON_STORE to specify the store to query.
+Runs a given query starting at the given root.
 `
 
 func main() {
@@ -26,18 +24,16 @@ func main() {
 	// TODO(rjkroege@google.com): Handle ^c nicely.
 	flag.Parse()
 	queryStringArgs := flag.Args()
-
-	// Command line overrides.
-	storeName := *flagStoreName
-	if storeName == "" {
-		storeName = os.ExpandEnv("${VEYRON_STORE}")
+	if len(queryStringArgs) != 1 {
+		log.Fatalf("qsh: Expected only one query arg\n" + usage)
 	}
 
-	if storeName == "" {
-		log.Fatalf("qsh: No store specified\n" + usage)
+	queryRoot := *flagQueryRoot
+	if queryRoot == "" {
+		log.Fatalf("qsh: No queryroot specified\n" + usage)
 	}
 
-	err := impl.Runquery(storeName, queryStringArgs[0])
+	err := impl.RunQuery(queryRoot, queryStringArgs[0])
 	if err != nil {
 		log.Printf("qsh: When attempting query: \"%s\" experienced an error: ", queryStringArgs[0], err.Error())
 	}
