@@ -14,6 +14,7 @@ import (
 	"veyron2/rt"
 	"veyron2/security"
 	"veyron2/services/watch"
+	"veyron2/services/watch/types"
 	"veyron2/storage"
 )
 
@@ -153,10 +154,10 @@ func PutMutationsBatch(t *testing.T, id security.PublicID, putMutationsFn func(i
 type watcherServiceWatchStreamSender struct {
 	mu     *sync.Mutex
 	ctx    ipc.ServerContext
-	output chan<- watch.ChangeBatch
+	output chan<- types.ChangeBatch
 }
 
-func (s *watcherServiceWatchStreamSender) Send(cb watch.ChangeBatch) error {
+func (s *watcherServiceWatchStreamSender) Send(cb types.ChangeBatch) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	select {
@@ -173,7 +174,7 @@ type watcherServiceWatchStream struct {
 }
 
 func (s *watcherServiceWatchStream) SendStream() interface {
-	Send(cb watch.ChangeBatch) error
+	Send(cb types.ChangeBatch) error
 } {
 	return s
 }
@@ -182,8 +183,8 @@ func (*watcherServiceWatchStream) Cancel() {}
 // watcherWatchStream implements watch.WatcherWatchStream.
 type watcherWatchStream struct {
 	ctx   *FakeServerContext
-	value watch.ChangeBatch
-	input <-chan watch.ChangeBatch
+	value types.ChangeBatch
+	input <-chan types.ChangeBatch
 	err   <-chan error
 }
 
@@ -193,7 +194,7 @@ func (s *watcherWatchStream) Advance() bool {
 	return ok
 }
 
-func (s *watcherWatchStream) Value() watch.ChangeBatch {
+func (s *watcherWatchStream) Value() types.ChangeBatch {
 	return s.value
 }
 
@@ -212,7 +213,7 @@ func (s *watcherWatchStream) Cancel() {
 
 func (s *watcherWatchStream) RecvStream() interface {
 	Advance() bool
-	Value() watch.ChangeBatch
+	Value() types.ChangeBatch
 	Err() error
 } {
 	return s
@@ -221,7 +222,7 @@ func (s *watcherWatchStream) RecvStream() interface {
 func watchImpl(id security.PublicID, watchFn func(ipc.ServerContext, *watcherServiceWatchStream) error) *watcherWatchStream {
 	mu := &sync.Mutex{}
 	ctx := NewFakeServerContext(id)
-	c := make(chan watch.ChangeBatch, 1)
+	c := make(chan types.ChangeBatch, 1)
 	errc := make(chan error, 1)
 	go func() {
 		stream := &watcherServiceWatchStream{
@@ -252,23 +253,23 @@ func WatchRaw(id security.PublicID, watchFn func(ipc.ServerContext, raw.Request,
 	})
 }
 
-func WatchGlob(id security.PublicID, watchFn func(ipc.ServerContext, watch.GlobRequest, watch.GlobWatcherServiceWatchGlobStream) error, req watch.GlobRequest) watch.GlobWatcherWatchGlobCall {
+func WatchGlob(id security.PublicID, watchFn func(ipc.ServerContext, types.GlobRequest, watch.GlobWatcherServiceWatchGlobStream) error, req types.GlobRequest) watch.GlobWatcherWatchGlobCall {
 	return watchImpl(id, func(ctx ipc.ServerContext, iterator *watcherServiceWatchStream) error {
 		return watchFn(ctx, req, iterator)
 	})
 }
 
-func WatchGlobOnPath(id security.PublicID, watchFn func(ipc.ServerContext, storage.PathName, watch.GlobRequest, watch.GlobWatcherServiceWatchGlobStream) error, path storage.PathName, req watch.GlobRequest) watch.GlobWatcherWatchGlobCall {
+func WatchGlobOnPath(id security.PublicID, watchFn func(ipc.ServerContext, storage.PathName, types.GlobRequest, watch.GlobWatcherServiceWatchGlobStream) error, path storage.PathName, req types.GlobRequest) watch.GlobWatcherWatchGlobCall {
 	return watchImpl(id, func(ctx ipc.ServerContext, stream *watcherServiceWatchStream) error {
 		return watchFn(ctx, path, req, stream)
 	})
 }
 
-func ExpectInitialStateSkipped(t *testing.T, change watch.Change) {
+func ExpectInitialStateSkipped(t *testing.T, change types.Change) {
 	if change.Name != "" {
 		t.Fatalf("Expect Name to be \"\" but was: %v", change.Name)
 	}
-	if change.State != watch.InitialStateSkipped {
+	if change.State != types.InitialStateSkipped {
 		t.Fatalf("Expect State to be InitialStateSkipped but was: %v", change.State)
 	}
 	if len(change.ResumeMarker) != 0 {
@@ -276,9 +277,9 @@ func ExpectInitialStateSkipped(t *testing.T, change watch.Change) {
 	}
 }
 
-func ExpectEntryExists(t *testing.T, changes []watch.Change, name string, id storage.ID, value string) {
+func ExpectEntryExists(t *testing.T, changes []types.Change, name string, id storage.ID, value string) {
 	change := findEntry(t, changes, name)
-	if change.State != watch.Exists {
+	if change.State != types.Exists {
 		t.Fatalf("Expected name to exist: %v", name)
 	}
 	cv, ok := change.Value.(*storage.Entry)
@@ -293,9 +294,9 @@ func ExpectEntryExists(t *testing.T, changes []watch.Change, name string, id sto
 	}
 }
 
-func ExpectEntryDoesNotExist(t *testing.T, changes []watch.Change, name string) {
+func ExpectEntryDoesNotExist(t *testing.T, changes []types.Change, name string) {
 	change := findEntry(t, changes, name)
-	if change.State != watch.DoesNotExist {
+	if change.State != types.DoesNotExist {
 		t.Fatalf("Expected name to not exist: %v", name)
 	}
 	if change.Value != nil {
@@ -303,9 +304,9 @@ func ExpectEntryDoesNotExist(t *testing.T, changes []watch.Change, name string) 
 	}
 }
 
-func ExpectServiceEntryExists(t *testing.T, changes []watch.Change, name string, id storage.ID, value string) {
+func ExpectServiceEntryExists(t *testing.T, changes []types.Change, name string, id storage.ID, value string) {
 	change := findEntry(t, changes, name)
-	if change.State != watch.Exists {
+	if change.State != types.Exists {
 		t.Fatalf("Expected name to exist: %v", name)
 	}
 	cv, ok := change.Value.(*storage.Entry)
@@ -320,9 +321,9 @@ func ExpectServiceEntryExists(t *testing.T, changes []watch.Change, name string,
 	}
 }
 
-func ExpectServiceEntryDoesNotExist(t *testing.T, changes []watch.Change, name string) {
+func ExpectServiceEntryDoesNotExist(t *testing.T, changes []types.Change, name string) {
 	change := findEntry(t, changes, name)
-	if change.State != watch.DoesNotExist {
+	if change.State != types.DoesNotExist {
 		t.Fatalf("Expected name to not exist: %v", name)
 	}
 	if change.Value != nil {
@@ -330,7 +331,7 @@ func ExpectServiceEntryDoesNotExist(t *testing.T, changes []watch.Change, name s
 	}
 }
 
-func findEntry(t *testing.T, changes []watch.Change, name string) watch.Change {
+func findEntry(t *testing.T, changes []types.Change, name string) types.Change {
 	for _, change := range changes {
 		if change.Name == name {
 			return change
@@ -351,9 +352,9 @@ func DirOf(name string, id storage.ID) []storage.DEntry {
 	}}
 }
 
-func ExpectMutationExists(t *testing.T, changes []watch.Change, id storage.ID, pre, post storage.Version, isRoot bool, value string, dir []storage.DEntry) {
+func ExpectMutationExists(t *testing.T, changes []types.Change, id storage.ID, pre, post storage.Version, isRoot bool, value string, dir []storage.DEntry) {
 	change := findMutation(t, changes, id)
-	if change.State != watch.Exists {
+	if change.State != types.Exists {
 		t.Fatalf("Expected id to exist: %v", id)
 	}
 	cv := change.Value.(*raw.Mutation)
@@ -372,9 +373,9 @@ func ExpectMutationExists(t *testing.T, changes []watch.Change, id storage.ID, p
 	expectDirEquals(t, cv.Dir, dir)
 }
 
-func ExpectMutationDoesNotExist(t *testing.T, changes []watch.Change, id storage.ID, pre storage.Version, isRoot bool) {
+func ExpectMutationDoesNotExist(t *testing.T, changes []types.Change, id storage.ID, pre storage.Version, isRoot bool) {
 	change := findMutation(t, changes, id)
-	if change.State != watch.DoesNotExist {
+	if change.State != types.DoesNotExist {
 		t.Fatalf("Expected id to not exist: %v", id)
 	}
 	cv := change.Value.(*raw.Mutation)
@@ -395,9 +396,9 @@ func ExpectMutationDoesNotExist(t *testing.T, changes []watch.Change, id storage
 	}
 }
 
-func ExpectMutationExistsNoVersionCheck(t *testing.T, changes []watch.Change, id storage.ID, value string) {
+func ExpectMutationExistsNoVersionCheck(t *testing.T, changes []types.Change, id storage.ID, value string) {
 	change := findMutation(t, changes, id)
-	if change.State != watch.Exists {
+	if change.State != types.Exists {
 		t.Fatalf("Expected id to exist: %v", id)
 	}
 	cv := change.Value.(*raw.Mutation)
@@ -406,14 +407,14 @@ func ExpectMutationExistsNoVersionCheck(t *testing.T, changes []watch.Change, id
 	}
 }
 
-func ExpectMutationDoesNotExistNoVersionCheck(t *testing.T, changes []watch.Change, id storage.ID) {
+func ExpectMutationDoesNotExistNoVersionCheck(t *testing.T, changes []types.Change, id storage.ID) {
 	change := findMutation(t, changes, id)
-	if change.State != watch.DoesNotExist {
+	if change.State != types.DoesNotExist {
 		t.Fatalf("Expected id to not exist: %v", id)
 	}
 }
 
-func findMutation(t *testing.T, changes []watch.Change, id storage.ID) watch.Change {
+func findMutation(t *testing.T, changes []types.Change, id storage.ID) types.Change {
 	for _, change := range changes {
 		cv, ok := change.Value.(*raw.Mutation)
 		if !ok {

@@ -9,9 +9,10 @@ import (
 	"veyron2/ipc"
 	"veyron2/query"
 	"veyron2/services/mounttable"
-	"veyron2/services/mounttable/types"
+	mttypes "veyron2/services/mounttable/types"
 	"veyron2/services/store"
 	"veyron2/services/watch"
+	watchtypes "veyron2/services/watch/types"
 	"veyron2/storage"
 	"veyron2/vdl/vdlutil"
 	"veyron2/verror"
@@ -141,12 +142,12 @@ func (o *object) Query(ctx ipc.ServerContext, q query.Query, stream store.Object
 
 type globStreamSenderAdapter struct {
 	stream interface {
-		Send(entry types.MountEntry) error
+		Send(entry mttypes.MountEntry) error
 	}
 }
 
 func (a *globStreamSenderAdapter) Send(item string) error {
-	return a.stream.Send(types.MountEntry{Name: item})
+	return a.stream.Send(mttypes.MountEntry{Name: item})
 }
 
 type globStreamAdapter struct {
@@ -179,11 +180,11 @@ func (o *object) Glob(ctx ipc.ServerContext, pattern string, stream mounttable.G
 }
 
 // WatchGlob returns a stream of changes that match a pattern.
-func (o *object) WatchGlob(ctx ipc.ServerContext, req watch.GlobRequest, stream watch.GlobWatcherServiceWatchGlobStream) error {
+func (o *object) WatchGlob(ctx ipc.ServerContext, req watchtypes.GlobRequest, stream watch.GlobWatcherServiceWatchGlobStream) error {
 	return o.server.watcher.WatchGlob(ctx, storage.ParsePath(o.name), req, stream)
 }
 
 // WatchQuery returns a stream of changes that satisfy a query.
-func (o *object) WatchQuery(ctx ipc.ServerContext, req watch.QueryRequest, stream watch.QueryWatcherServiceWatchQueryStream) error {
+func (o *object) WatchQuery(ctx ipc.ServerContext, req watchtypes.QueryRequest, stream watch.QueryWatcherServiceWatchQueryStream) error {
 	return o.server.watcher.WatchQuery(ctx, storage.ParsePath(o.name), req, stream)
 }

@@ -12,7 +12,7 @@ import (
 	"veyron/services/store/raw"
 
 	"veyron2/security"
-	"veyron2/services/watch"
+	"veyron2/services/watch/types"
 	"veyron2/storage"
 )
 
@@ -168,7 +168,7 @@ func PutMutations(t *testing.T, st *memstore.Store, mus []raw.Mutation) {
 	}
 }
 
-func Mutations(changes []watch.Change) []raw.Mutation {
+func Mutations(changes []types.Change) []raw.Mutation {
 	mutations := make([]raw.Mutation, len(changes))
 	for i, change := range changes {
 		mutations[i] = *(change.Value.(*raw.Mutation))

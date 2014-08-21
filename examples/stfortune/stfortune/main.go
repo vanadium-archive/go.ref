@@ -20,7 +20,7 @@ import (
 	"veyron2/context"
 	"veyron2/naming"
 	"veyron2/rt"
-	iwatch "veyron2/services/watch"
+	"veyron2/services/watch/types"
 	"veyron2/storage"
 	"veyron2/storage/vstore"
 	"veyron2/vom"
@@ -56,7 +56,7 @@ func waitForStore(storeAddress string) {
 	paths := []string{appPath, fortunePath(""), userPath("")}
 	for _, path := range paths {
 		abspath := naming.Join(storeAddress, path)
-		req := iwatch.GlobRequest{Pattern: ""}
+		req := types.GlobRequest{Pattern: ""}
 		stream, err := vstore.New().Bind(abspath).WatchGlob(ctx, req)
 		if err != nil {
 			log.Fatalf("WatchGlob %s failed: %v", abspath, err)
@@ -89,7 +89,7 @@ func runAsWatcher(storeAddress string, user string) {
 	fmt.Printf("Running as a Watcher monitoring new fortunes under %s...\n", path)
 
 	abspath := naming.Join(storeAddress, path)
-	req := iwatch.GlobRequest{Pattern: "*"}
+	req := types.GlobRequest{Pattern: "*"}
 	stream, err := vstore.New().Bind(abspath).WatchGlob(ctx, req)
 	if err != nil {
 		log.Fatalf("watcher WatchGlob %s failed: %v", abspath, err)

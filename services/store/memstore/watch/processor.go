@@ -2,7 +2,7 @@ package watch
 
 import (
 	"veyron/services/store/memstore/state"
-	"veyron2/services/watch"
+	"veyron2/services/watch/types"
 	"veyron2/verror"
 )
 
@@ -21,10 +21,10 @@ type reqProcessor interface {
 	// originally created the initial state (e.g. in the case of compress), but
 	// are sufficient to re-construct the state viewable within the request.
 	// processState may modify its input.
-	processState(st *state.State) ([]watch.Change, error)
+	processState(st *state.State) ([]types.Change, error)
 
 	// processTransaction returns the set of changes made in some transaction.
 	// The changes are returned in no specific order.
 	// processTransaction may modify its input.
-	processTransaction(mu *state.Mutations) ([]watch.Change, error)
+	processTransaction(mu *state.Mutations) ([]types.Change, error)
 }

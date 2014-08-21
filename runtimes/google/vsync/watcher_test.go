@@ -15,7 +15,7 @@ import (
 	"veyron2/context"
 	"veyron2/ipc"
 	"veyron2/rt"
-	"veyron2/services/watch"
+	"veyron2/services/watch/types"
 	"veyron2/storage"
 )
 
@@ -84,7 +84,7 @@ func newFakeStream() *fakeStream {
 
 func (s *fakeStream) RecvStream() interface {
 	Advance() bool
-	Value() watch.ChangeBatch
+	Value() types.ChangeBatch
 	Err() error
 } {
 	return s
@@ -118,7 +118,7 @@ func (s *fakeStream) Advance() bool {
 	return true
 }
 
-func (s *fakeStream) Value() watch.ChangeBatch {
+func (s *fakeStream) Value() types.ChangeBatch {
 	changes := getChangeBatch()
 
 	var lastCount byte
@@ -152,12 +152,12 @@ func (s *fakeStream) Cancel() {
 // getChangeBatch returns a batch of store mutations used to simulate the Watch API.
 // The batch contains two transactions to verify both new-object creation and the
 // mutation of an existing object.
-func getChangeBatch() watch.ChangeBatch {
-	var batch watch.ChangeBatch
+func getChangeBatch() types.ChangeBatch {
+	var batch types.ChangeBatch
 
-	batch.Changes = []watch.Change{
+	batch.Changes = []types.Change{
 		// 1st transaction: create "/" and "/a" and "/a/b" as 3 new objects (prior versions are 0).
-		watch.Change{
+		types.Change{
 			Name:  "",
 			State: 0,
 			Value: &raw.Mutation{
@@ -177,7 +177,7 @@ func getChangeBatch() watch.ChangeBatch {
 			ResumeMarker: nil,
 			Continued:    true,
 		},
-		watch.Change{
+		types.Change{
 			Name:  "",
 			State: 0,
 			Value: &raw.Mutation{
@@ -197,7 +197,7 @@ func getChangeBatch() watch.ChangeBatch {
 			ResumeMarker: nil,
 			Continued:    true,
 		},
-		watch.Change{
+		types.Change{
 			Name:  "",
 			State: 0,
 			Value: &raw.Mutation{
@@ -213,7 +213,7 @@ func getChangeBatch() watch.ChangeBatch {
 		},
 
 		// 2nd transaction: create "/a/c" as a new object, which also updates "a" (its "Dir" field).
-		watch.Change{
+		types.Change{
 			Name:  "",
 			State: 0,
 			Value: &raw.Mutation{
@@ -238,7 +238,7 @@ func getChangeBatch() watch.ChangeBatch {
 			ResumeMarker: nil,
 			Continued:    true,
 		},
-		watch.Change{
+		types.Change{
 			Name:  "",
 			State: 0,
 			Value: &raw.Mutation{
@@ -254,7 +254,7 @@ func getChangeBatch() watch.ChangeBatch {
 		},
 
 		// 3rd transaction: remove "/a/b" which updates "a" (its "Dir" field) and deletes "b".
-		watch.Change{
+		types.Change{
 			Name:  "",
 			State: 0,
 			Value: &raw.Mutation{
@@ -274,9 +274,9 @@ func getChangeBatch() watch.ChangeBatch {
 			ResumeMarker: nil,
 			Continued:    true,
 		},
-		watch.Change{
+		types.Change{
 			Name:  "",
-			State: watch.DoesNotExist,
+			State: types.DoesNotExist,
 			Value: &raw.Mutation{
 				ID: storage.ID{0x6e, 0x4a, 0x32, 0x7c, 0x29, 0x7d, 0x76, 0xfb,
 					0x51, 0x42, 0xb1, 0xb1, 0xd9, 0x5b, 0x2d, 0x7},

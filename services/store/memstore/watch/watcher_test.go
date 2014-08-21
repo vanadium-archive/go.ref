@@ -12,7 +12,7 @@ import (
 	"veyron/services/store/raw"
 
 	"veyron2/rt"
-	"veyron2/services/watch"
+	"veyron2/services/watch/types"
 	"veyron2/storage"
 	"veyron2/verror"
 )
@@ -98,7 +98,7 @@ func TestWatchGlob(t *testing.T) {
 
 	// Start a watch request.
 	path := storage.ParsePath("/")
-	req := watch.GlobRequest{Pattern: "..."}
+	req := types.GlobRequest{Pattern: "..."}
 	ws := watchtesting.WatchGlobOnPath(rootPublicID, w.WatchGlob, path, req)
 
 	rStream := ws.RecvStream()
@@ -544,7 +544,7 @@ func TestConsistentResumeMarkers(t *testing.T) {
 
 	// Start a watch request.
 	path := storage.ParsePath("/")
-	req := watch.GlobRequest{Pattern: "..."}
+	req := types.GlobRequest{Pattern: "..."}
 	ws := watchtesting.WatchGlobOnPath(rootPublicID, w.WatchGlob, path, req)
 
 	rStream := ws.RecvStream()

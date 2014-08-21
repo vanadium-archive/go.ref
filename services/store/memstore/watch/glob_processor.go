@@ -5,7 +5,7 @@ import (
 	"veyron/services/store/memstore/state"
 
 	"veyron2/security"
-	"veyron2/services/watch"
+	"veyron2/services/watch/types"
 	"veyron2/storage"
 )
 
@@ -37,7 +37,7 @@ func newGlobProcessor(pid security.PublicID, path storage.PathName,
 	}, nil
 }
 
-func (p *globProcessor) processState(st *state.State) ([]watch.Change, error) {
+func (p *globProcessor) processState(st *state.State) ([]types.Change, error) {
 	// Check that the initial state has not already been processed.
 	if p.hasProcessedState {
 		return nil, errInitialStateAlreadyProcessed
@@ -53,15 +53,15 @@ func (p *globProcessor) processState(st *state.State) ([]watch.Change, error) {
 	p.st = st
 	p.matches = matches
 
-	var changes []watch.Change
+	var changes []types.Change
 
 	// Create a change for every matching name.
 	for name, id := range matches {
 		cell := sn.Find(id)
 		entry := cell.GetEntry()
-		change := watch.Change{
+		change := types.Change{
 			Name:  name,
-			State: watch.Exists,
+			State: types.Exists,
 			Value: entry,
 		}
 		// TODO(tilaks): don't clone change.
@@ -71,7 +71,7 @@ func (p *globProcessor) processState(st *state.State) ([]watch.Change, error) {
 	return changes, nil
 }
 
-func (p *globProcessor) processTransaction(mus *state.Mutations) ([]watch.Change, error) {
+func (p *globProcessor) processTransaction(mus *state.Mutations) ([]types.Change, error) {
 	// Ensure that the initial state has been processed.
 	if !p.hasProcessedState {
 		return nil, errInitialStateNotProcessed
@@ -90,15 +90,15 @@ func (p *globProcessor) processTransaction(mus *state.Mutations) ([]watch.Change
 	}
 	p.matches = newMatches
 
-	var changes []watch.Change
+	var changes []types.Change
 
 	removed, updated := diffMatches(previousMatches, newMatches, mus.Delta)
 
 	// Create a change for every matching name that was removed.
 	for name := range removed {
-		change := watch.Change{
+		change := types.Change{
 			Name:  name,
-			State: watch.DoesNotExist,
+			State: types.DoesNotExist,
 		}
 		// TODO(tilaks): don't clone change
 		changes = append(changes, change)
@@ -109,9 +109,9 @@ func (p *globProcessor) processTransaction(mus *state.Mutations) ([]watch.Change
 		id := newMatches[name]
 		cell := sn.Find(id)
 		entry := cell.GetEntry()
-		change := watch.Change{
+		change := types.Change{
 			Name:  name,
-			State: watch.Exists,
+			State: types.Exists,
 			Value: entry,
 		}
 		// TODO(tilaks): don't clone change.

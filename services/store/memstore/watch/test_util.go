@@ -10,7 +10,7 @@ import (
 	"veyron/services/store/memstore/state"
 
 	"veyron2/security"
-	"veyron2/services/watch"
+	"veyron2/services/watch/types"
 	"veyron2/storage"
 )
 
@@ -129,7 +129,7 @@ func createWatcher(t *testing.T, dbName string) (*Watcher, func()) {
 	}
 }
 
-func expectState(t *testing.T, log *memstore.RLog, processor reqProcessor, numChanges int) []watch.Change {
+func expectState(t *testing.T, log *memstore.RLog, processor reqProcessor, numChanges int) []types.Change {
 	st := readState(t, log)
 	return processState(t, processor, st, numChanges)
 }
@@ -142,7 +142,7 @@ func readState(t *testing.T, log *memstore.RLog) *state.State {
 	return st.State
 }
 
-func processState(t *testing.T, processor reqProcessor, st *state.State, numChanges int) []watch.Change {
+func processState(t *testing.T, processor reqProcessor, st *state.State, numChanges int) []types.Change {
 	changes, err := processor.processState(st)
 	if err != nil {
 		t.Fatalf("processState() failed: %v", err)
@@ -153,7 +153,7 @@ func processState(t *testing.T, processor reqProcessor, st *state.State, numChan
 	return changes
 }
 
-func expectTransaction(t *testing.T, log *memstore.RLog, processor reqProcessor, numChanges int) []watch.Change {
+func expectTransaction(t *testing.T, log *memstore.RLog, processor reqProcessor, numChanges int) []types.Change {
 	mus := readTransaction(t, log)
 	return processTransaction(t, processor, mus, numChanges)
 }
@@ -166,7 +166,7 @@ func readTransaction(t *testing.T, log *memstore.RLog) *state.Mutations {
 	return mus
 }
 
-func processTransaction(t *testing.T, processor reqProcessor, mus *state.Mutations, numChanges int) []watch.Change {
+func processTransaction(t *testing.T, processor reqProcessor, mus *state.Mutations, numChanges int) []types.Change {
 	changes, err := processor.processTransaction(mus)
 	if err != nil {
 		t.Fatalf("processTransaction() failed: %v", err)

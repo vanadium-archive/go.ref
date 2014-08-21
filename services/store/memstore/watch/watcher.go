@@ -13,6 +13,7 @@ import (
 	"veyron2/ipc"
 	"veyron2/security"
 	"veyron2/services/watch"
+	"veyron2/services/watch/types"
 	"veyron2/storage"
 	"veyron2/verror"
 )
@@ -21,9 +22,9 @@ var (
 	errWatchClosed            = io.EOF
 	errUnknownResumeMarker    = verror.BadArgf("Unknown ResumeMarker")
 	nowResumeMarker           = []byte("now") // UTF-8 conversion.
-	initialStateSkippedChange = watch.Change{
+	initialStateSkippedChange = types.Change{
 		Name:  "",
-		State: watch.InitialStateSkipped,
+		State: types.InitialStateSkipped,
 	}
 )
 
@@ -65,7 +66,7 @@ func (w *Watcher) WatchRaw(ctx ipc.ServerContext, req raw.Request,
 
 // WatchGlob returns a stream of changes that match a pattern.
 func (w *Watcher) WatchGlob(ctx ipc.ServerContext, path storage.PathName,
-	req watch.GlobRequest, stream watch.GlobWatcherServiceWatchGlobStream) error {
+	req types.GlobRequest, stream watch.GlobWatcherServiceWatchGlobStream) error {
 
 	processor, err := newGlobProcessor(ctx.RemoteID(), path, req.Pattern)
 	if err != nil {
@@ -76,7 +77,7 @@ func (w *Watcher) WatchGlob(ctx ipc.ServerContext, path storage.PathName,
 
 // WatchQuery returns a stream of changes that satisfy a query.
 func (w *Watcher) WatchQuery(ctx ipc.ServerContext, path storage.PathName,
-	req watch.QueryRequest, stream watch.QueryWatcherServiceWatchQueryStream) error {
+	req types.QueryRequest, stream watch.QueryWatcherServiceWatchQueryStream) error {
 
 	return verror.Internalf("WatchQuery not yet implemented")
 }
@@ -85,7 +86,7 @@ func (w *Watcher) WatchQuery(ctx ipc.ServerContext, path storage.PathName,
 type WatchStream interface {
 	// Send places the item onto the output stream, blocking if there is no
 	// buffer space available.
-	Send(item watch.ChangeBatch) error
+	Send(item types.ChangeBatch) error
 }
 
 // Watch handles the specified request, processing records in the store log and
@@ -93,7 +94,7 @@ type WatchStream interface {
 // otherwise closed early, Watch will terminate and return an error.
 // Watch implements the service.Watcher interface.
 func (w *Watcher) Watch(ctx ipc.ServerContext, processor reqProcessor,
-	resumeMarker watch.ResumeMarker, stream WatchStream) error {
+	resumeMarker types.ResumeMarker, stream WatchStream) error {
 
 	// Closing cancel terminates processRequest.
 	cancel := make(chan struct{})
@@ -124,7 +125,7 @@ func (w *Watcher) Watch(ctx ipc.ServerContext, processor reqProcessor,
 }
 
 func (w *Watcher) processRequest(cancel <-chan struct{}, processor reqProcessor,
-	resumeMarker watch.ResumeMarker, stream WatchStream) error {
+	resumeMarker types.ResumeMarker, stream WatchStream) error {
 
 	log, err := memstore.OpenLog(w.dbName, true)
 	if err != nil {
@@ -150,7 +151,7 @@ func (w *Watcher) processRequest(cancel <-chan struct{}, processor reqProcessor,
 	}
 
 	if isNowResumeMarker(resumeMarker) {
-		sendChanges(stream, []watch.Change{initialStateSkippedChange})
+		sendChanges(stream, []types.Change{initialStateSkippedChange})
 	}
 
 	// Process initial state.
@@ -283,21 +284,21 @@ func (f *onAndAfterFilter) shouldProcessChanges(timestamp uint64) (bool, error) 
 	return true, nil
 }
 
-func processChanges(stream WatchStream, changes []watch.Change, timestamp uint64) error {
+func processChanges(stream WatchStream, changes []types.Change, timestamp uint64) error {
 	addContinued(changes)
 	addResumeMarkers(changes, timestampToResumeMarker(timestamp))
 	return sendChanges(stream, changes)
 }
 
-func sendChanges(stream WatchStream, changes []watch.Change) error {
+func sendChanges(stream WatchStream, changes []types.Change) error {
 	if len(changes) == 0 {
 		return nil
 	}
 	// TODO(tilaks): batch more aggressively.
-	return stream.Send(watch.ChangeBatch{Changes: changes})
+	return stream.Send(types.ChangeBatch{Changes: changes})
 }
 
-func addContinued(changes []watch.Change) {
+func addContinued(changes []types.Change) {
 	// Last change marks the end of the processed atomic group.
 	for i, _ := range changes {
 		changes[i].Continued = true
@@ -307,7 +308,7 @@ func addContinued(changes []watch.Change) {
 	}
 }
 
-func addResumeMarkers(changes []watch.Change, resumeMarker []byte) {
+func addResumeMarkers(changes []types.Change, resumeMarker []byte) {
 	for i, _ := range changes {
 		changes[i].ResumeMarker = resumeMarker
 	}

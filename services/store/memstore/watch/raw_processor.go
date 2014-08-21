@@ -6,7 +6,7 @@ import (
 	"veyron/services/store/raw"
 
 	"veyron2/security"
-	"veyron2/services/watch"
+	"veyron2/services/watch/types"
 	"veyron2/storage"
 	"veyron2/verror"
 )
@@ -45,7 +45,7 @@ func newRawProcessor(pid security.PublicID) (reqProcessor, error) {
 	}, nil
 }
 
-func (p *rawProcessor) processState(st *state.State) ([]watch.Change, error) {
+func (p *rawProcessor) processState(st *state.State) ([]types.Change, error) {
 	// Check that the initial state has not already been processed.
 	if p.hasProcessedState {
 		return nil, errInitialStateAlreadyProcessed
@@ -60,7 +60,7 @@ func (p *rawProcessor) processState(st *state.State) ([]watch.Change, error) {
 	}
 	p.rootID = rootID
 
-	var changes []watch.Change
+	var changes []types.Change
 
 	// Create a change for each id in the state. In each change, the object
 	// exists, has no PriorVersion, has the Version of the new cell, and
@@ -85,8 +85,8 @@ func (p *rawProcessor) processState(st *state.State) ([]watch.Change, error) {
 			Value:        cell.Value,
 			Dir:          flattenDir(refs.FlattenDir(cell.Dir)),
 		}
-		change := watch.Change{
-			State: watch.Exists,
+		change := types.Change{
+			State: types.Exists,
 			Value: value,
 		}
 		// TODO(tilaks): don't clone change
@@ -95,7 +95,7 @@ func (p *rawProcessor) processState(st *state.State) ([]watch.Change, error) {
 	return changes, nil
 }
 
-func (p *rawProcessor) processTransaction(mus *state.Mutations) ([]watch.Change, error) {
+func (p *rawProcessor) processTransaction(mus *state.Mutations) ([]types.Change, error) {
 	// Ensure that the initial state has been processed.
 	if !p.hasProcessedState {
 		return nil, errInitialStateNotProcessed
@@ -106,7 +106,7 @@ func (p *rawProcessor) processTransaction(mus *state.Mutations) ([]watch.Change,
 	if mus.SetRootID && !mus.RootID.IsValid() {
 		extra = 1
 	}
-	changes := make([]watch.Change, 0, len(mus.Delta)+len(mus.Deletions)+extra)
+	changes := make([]types.Change, 0, len(mus.Delta)+len(mus.Deletions)+extra)
 
 	if mus.SetRootID {
 		if mus.RootID.IsValid() {
@@ -120,8 +120,8 @@ func (p *rawProcessor) processTransaction(mus *state.Mutations) ([]watch.Change,
 				IsRoot:       true,
 			}
 			// TODO(tilaks): don't clone value.
-			change := watch.Change{
-				State: watch.DoesNotExist,
+			change := types.Change{
+				State: types.DoesNotExist,
 				Value: value,
 			}
 			changes = append(changes, change)
@@ -150,8 +150,8 @@ func (p *rawProcessor) processTransaction(mus *state.Mutations) ([]watch.Change,
 			Dir:          flattenDir(mu.Dir),
 		}
 		// TODO(tilaks): don't clone value.
-		change := watch.Change{
-			State: watch.Exists,
+		change := types.Change{
+			State: types.Exists,
 			Value: value,
 		}
 		// TODO(tilaks): don't clone change.
@@ -172,8 +172,8 @@ func (p *rawProcessor) processTransaction(mus *state.Mutations) ([]watch.Change,
 			IsRoot:       false,
 		}
 		// TODO(tilaks): don't clone value.
-		change := watch.Change{
-			State: watch.DoesNotExist,
+		change := types.Change{
+			State: types.DoesNotExist,
 			Value: value,
 		}
 		// TODO(tilaks): don't clone change.

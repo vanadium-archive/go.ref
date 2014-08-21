@@ -15,6 +15,7 @@ import (
 	"veyron2/context"
 	"veyron2/rt"
 	"veyron2/services/watch"
+	"veyron2/services/watch/types"
 	"veyron2/vlog"
 )
 
@@ -156,7 +157,7 @@ func (w *syncWatcher) processWatchStream(call watch.GlobWatcherWatchGlobCall) {
 
 // processChanges applies the batch of changes (object mutations) received from the Watch API.
 // The function grabs the write-lock to access the Log and DAG DBs.
-func (w *syncWatcher) processChanges(changes watch.ChangeBatch, syncTime int64) error {
+func (w *syncWatcher) processChanges(changes types.ChangeBatch, syncTime int64) error {
 	w.syncd.lock.Lock()
 	defer w.syncd.lock.Unlock()
 
@@ -181,7 +182,7 @@ func (w *syncWatcher) processChanges(changes watch.ChangeBatch, syncTime int64) 
 			// All LogValues belonging to the same transaction get the same timestamp.
 			time = w.curTxSyncTime
 		}
-		val := &LogValue{Mutation: *mu, SyncTime: time, Delete: ch.State == watch.DoesNotExist, Continued: ch.Continued}
+		val := &LogValue{Mutation: *mu, SyncTime: time, Delete: ch.State == types.DoesNotExist, Continued: ch.Continued}
 		vlog.VI(2).Infof("processChanges:: processing record %v, Tx %v", val, w.curTx)
 		if err := w.syncd.log.processWatchRecord(mu.ID, mu.Version, mu.PriorVersion, val, w.curTx); err != nil {
 			return fmt.Errorf("cannot process mutation: %#v: %s", ch, err)

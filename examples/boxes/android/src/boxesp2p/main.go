@@ -77,7 +77,7 @@ import (
 	"veyron2/naming"
 	"veyron2/rt"
 	"veyron2/security"
-	iwatch "veyron2/services/watch"
+	"veyron2/services/watch/types"
 	"veyron2/storage"
 	"veyron2/storage/vstore"
 	"veyron2/vom"
@@ -199,7 +199,7 @@ func (gs *goState) monitorStore() {
 
 	// Watch for any box updates from the store
 	go func() {
-		req := iwatch.GlobRequest{Pattern: "*"}
+		req := types.GlobRequest{Pattern: "*"}
 		stream, err := root.WatchGlob(ctx, req)
 		if err != nil {
 			panic(fmt.Errorf("Can't watch store: %s: %s", gs.storeEndpoint, err))

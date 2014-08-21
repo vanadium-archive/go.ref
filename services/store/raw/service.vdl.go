@@ -4,7 +4,7 @@
 package raw
 
 import (
-	"veyron2/services/watch"
+	"veyron2/services/watch/types"
 
 	"veyron2/storage"
 
@@ -44,7 +44,7 @@ type Mutation struct {
 type Request struct {
 	// ResumeMarker specifies how to resume from a previous Watch call.
 	// See the ResumeMarker type for detailed comments.
-	ResumeMarker watch.ResumeMarker
+	ResumeMarker types.ResumeMarker
 }
 
 const (
@@ -101,7 +101,7 @@ type StoreWatchCall interface {
 		// Value returns the element that was staged by Advance.
 		// Value may panic if Advance returned false or was not
 		// called at all.  Value does not block.
-		Value() watch.ChangeBatch
+		Value() types.ChangeBatch
 
 		// Err returns a non-nil error iff the stream encountered
 		// any errors.  Err does not block.
@@ -129,17 +129,17 @@ type StoreWatchCall interface {
 
 type implStoreWatchStreamIterator struct {
 	clientCall _gen_ipc.Call
-	val        watch.ChangeBatch
+	val        types.ChangeBatch
 	err        error
 }
 
 func (c *implStoreWatchStreamIterator) Advance() bool {
-	c.val = watch.ChangeBatch{}
+	c.val = types.ChangeBatch{}
 	c.err = c.clientCall.Recv(&c.val)
 	return c.err == nil
 }
 
-func (c *implStoreWatchStreamIterator) Value() watch.ChangeBatch {
+func (c *implStoreWatchStreamIterator) Value() types.ChangeBatch {
 	return c.val
 }
 
@@ -158,7 +158,7 @@ type implStoreWatchCall struct {
 
 func (c *implStoreWatchCall) RecvStream() interface {
 	Advance() bool
-	Value() watch.ChangeBatch
+	Value() types.ChangeBatch
 	Err() error
 } {
 	return &c.readStream
@@ -179,7 +179,7 @@ type implStoreServiceWatchStreamSender struct {
 	serverCall _gen_ipc.ServerCall
 }
 
-func (s *implStoreServiceWatchStreamSender) Send(item watch.ChangeBatch) error {
+func (s *implStoreServiceWatchStreamSender) Send(item types.ChangeBatch) error {
 	return s.serverCall.Send(item)
 }
 
@@ -190,7 +190,7 @@ type StoreServiceWatchStream interface {
 	SendStream() interface {
 		// Send places the item onto the output stream, blocking if there is no buffer
 		// space available.  If the client has canceled, an error is returned.
-		Send(item watch.ChangeBatch) error
+		Send(item types.ChangeBatch) error
 	}
 }
 
@@ -202,7 +202,7 @@ type implStoreServiceWatchStream struct {
 func (s *implStoreServiceWatchStream) SendStream() interface {
 	// Send places the item onto the output stream, blocking if there is no buffer
 	// space available.  If the client has canceled, an error is returned.
-	Send(item watch.ChangeBatch) error
+	Send(item types.ChangeBatch) error
 } {
 	return &s.writer
 }
@@ -491,7 +491,7 @@ func (__gen_s *ServerStubStore) Signature(call _gen_ipc.ServerCall) (_gen_ipc.Se
 	}
 
 	result.TypeDefs = []_gen_vdlutil.Any{
-		_gen_wiretype.NamedPrimitiveType{Type: 0x32, Name: "byte", Tags: []string(nil)}, _gen_wiretype.SliceType{Elem: 0x41, Name: "veyron2/services/watch.ResumeMarker", Tags: []string(nil)}, _gen_wiretype.StructType{
+		_gen_wiretype.NamedPrimitiveType{Type: 0x32, Name: "byte", Tags: []string(nil)}, _gen_wiretype.SliceType{Elem: 0x41, Name: "veyron2/services/watch/types.ResumeMarker", Tags: []string(nil)}, _gen_wiretype.StructType{
 			[]_gen_wiretype.FieldType{
 				_gen_wiretype.FieldType{Type: 0x42, Name: "ResumeMarker"},
 			},
@@ -504,12 +504,12 @@ func (__gen_s *ServerStubStore) Signature(call _gen_ipc.ServerCall) (_gen_ipc.Se
 				_gen_wiretype.FieldType{Type: 0x42, Name: "ResumeMarker"},
 				_gen_wiretype.FieldType{Type: 0x2, Name: "Continued"},
 			},
-			"veyron2/services/watch.Change", []string(nil)},
+			"veyron2/services/watch/types.Change", []string(nil)},
 		_gen_wiretype.SliceType{Elem: 0x46, Name: "", Tags: []string(nil)}, _gen_wiretype.StructType{
 			[]_gen_wiretype.FieldType{
 				_gen_wiretype.FieldType{Type: 0x47, Name: "Changes"},
 			},
-			"veyron2/services/watch.ChangeBatch", []string(nil)},
+			"veyron2/services/watch/types.ChangeBatch", []string(nil)},
 		_gen_wiretype.ArrayType{Elem: 0x41, Len: 0x10, Name: "veyron2/storage.ID", Tags: []string(nil)}, _gen_wiretype.NamedPrimitiveType{Type: 0x35, Name: "veyron2/storage.Version", Tags: []string(nil)}, _gen_wiretype.StructType{
 			[]_gen_wiretype.FieldType{
 				_gen_wiretype.FieldType{Type: 0x3, Name: "Name"},

@@ -18,7 +18,7 @@ import (
 	"veyron2/rt"
 	"veyron2/security"
 	"veyron2/services/store"
-	"veyron2/services/watch"
+	"veyron2/services/watch/types"
 	"veyron2/storage"
 	_ "veyron2/vlog"
 	"veyron2/vom"
@@ -374,7 +374,7 @@ func TestWatchGlob(t *testing.T) {
 	}
 
 	// Start watch requests on / and /a.
-	req := watch.GlobRequest{Pattern: "..."}
+	req := types.GlobRequest{Pattern: "..."}
 	ws1 := watchtesting.WatchGlob(rootPublicID, o1.WatchGlob, req)
 	ws2 := watchtesting.WatchGlob(rootPublicID, o2.WatchGlob, req)
 
