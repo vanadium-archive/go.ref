@@ -16,10 +16,6 @@ import (
 // #include "jni_wrapper.h"
 import "C"
 
-var (
-	publicIDSign = util.ClassSign("com.veyron2.security.PublicID")
-)
-
 // NewPrivateID creates an instance of security.PrivateID that uses the provided
 // Java PrivateID as its underlying implementation.
 // NOTE: Because CGO creates package-local types and because this method may be

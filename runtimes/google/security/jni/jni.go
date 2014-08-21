@@ -31,6 +31,11 @@ var (
 	jPrincipalPatternClass C.jclass
 	// Global reference for org.joda.time.Duration class.
 	jDurationClass C.jclass
+
+	// Signature of the PublicID interface.
+	publicIDSign = util.ClassSign("com.veyron2.security.PublicID")
+	// Signature of the PrincipalPattern class.
+	principalPatternSign = util.ClassSign("com.veyron2.security.PrincipalPattern")
 )
 
 // Init initializes the JNI code with the given Java evironment. This method
@@ -50,6 +55,76 @@ func Init(jEnv interface{}) {
 	jServiceCaveatClass = C.jclass(util.JFindClassPtrOrDie(env, "com/veyron2/security/ServiceCaveat"))
 	jPrincipalPatternClass = C.jclass(util.JFindClassPtrOrDie(env, "com/veyron2/security/PrincipalPattern"))
 	jDurationClass = C.jclass(util.JFindClassPtrOrDie(env, "org/joda/time/Duration"))
+}
+
+//export Java_com_veyron_runtimes_google_security_PublicIDStore_nativeCreate
+func Java_com_veyron_runtimes_google_security_PublicIDStore_nativeCreate(env *C.JNIEnv, jPublicIDStoreClass C.jclass, jParams C.jobject) C.jlong {
+	var params *isecurity.PublicIDStoreParams
+	if jParams != nil {
+		dir := util.JStringField(env, jParams, "dir")
+		jSigner := C.jobject(util.JObjectFieldPtr(env, jParams, "signer"))
+		signer := newSigner(env, jSigner)
+		params = &isecurity.PublicIDStoreParams{
+			Dir:    dir,
+			Signer: signer,
+		}
+	}
+	store, err := isecurity.NewPublicIDStore(params)
+	if err != nil {
+		util.JThrowV(env, err)
+		return C.jlong(0)
+	}
+	util.GoRef(&store) // Un-refed when the Java PublicIDStore is finalized.
+	return C.jlong(util.PtrValue(&store))
+}
+
+//export Java_com_veyron_runtimes_google_security_PublicIDStore_nativeAdd
+func Java_com_veyron_runtimes_google_security_PublicIDStore_nativeAdd(env *C.JNIEnv, jPublicIDStore C.jobject, goPublicIDStorePtr C.jlong, jID C.jobject, jPeerPattern C.jstring) {
+	idPtr := util.CallLongMethodOrCatch(env, jID, "getNativePtr", nil)
+	id := (*(*security.PublicID)(util.Ptr(idPtr)))
+	peerPattern := security.PrincipalPattern(util.GoString(env, jPeerPattern))
+	if err := (*(*security.PublicIDStore)(util.Ptr(goPublicIDStorePtr))).Add(id, peerPattern); err != nil {
+		util.JThrowV(env, err)
+		return
+	}
+}
+
+//export Java_com_veyron_runtimes_google_security_PublicIDStore_nativeGetPeerID
+func Java_com_veyron_runtimes_google_security_PublicIDStore_nativeGetPeerID(env *C.JNIEnv, jPublicIDStore C.jobject, goPublicIDStorePtr C.jlong, jPeerID C.jobject) C.jlong {
+	peerIDPtr := util.CallLongMethodOrCatch(env, jPeerID, "getNativePtr", nil)
+	peerID := (*(*security.PublicID)(util.Ptr(peerIDPtr)))
+	id, err := (*(*security.PublicIDStore)(util.Ptr(goPublicIDStorePtr))).ForPeer(peerID)
+	if err != nil {
+		util.JThrowV(env, err)
+		return C.jlong(0)
+	}
+	util.GoRef(&id) // Un-refed when the Java PublicID is finalized.
+	return C.jlong(util.PtrValue(&id))
+}
+
+//export Java_com_veyron_runtimes_google_security_PublicIDStore_nativeDefaultPublicID
+func Java_com_veyron_runtimes_google_security_PublicIDStore_nativeDefaultPublicID(env *C.JNIEnv, jPublicIDStore C.jobject, goPublicIDStorePtr C.jlong) C.jlong {
+	id, err := (*(*security.PublicIDStore)(util.Ptr(goPublicIDStorePtr))).DefaultPublicID()
+	if err != nil {
+		util.JThrowV(env, err)
+		return C.jlong(0)
+	}
+	util.GoRef(&id) // Un-refed when the Java PublicID is finalized.
+	return C.jlong(util.PtrValue(&id))
+}
+
+//export Java_com_veyron_runtimes_google_security_PublicIDStore_nativeSetDefaultPrincipalPattern
+func Java_com_veyron_runtimes_google_security_PublicIDStore_nativeSetDefaultPrincipalPattern(env *C.JNIEnv, jPublicIDStore C.jobject, goPublicIDStorePtr C.jlong, jPattern C.jstring) {
+	pattern := security.PrincipalPattern(util.GoString(env, jPattern))
+	if err := (*(*security.PublicIDStore)(util.Ptr(goPublicIDStorePtr))).SetDefaultPrincipalPattern(pattern); err != nil {
+		util.JThrowV(env, err)
+		return
+	}
+}
+
+//export Java_com_veyron_runtimes_google_security_PublicIDStore_nativeFinalize
+func Java_com_veyron_runtimes_google_security_PublicIDStore_nativeFinalize(env *C.JNIEnv, jPublicIDStore C.jobject, goPublicIDStorePtr C.jlong) {
+	util.GoUnref((*security.PublicIDStore)(util.Ptr(goPublicIDStorePtr)))
 }
 
 //export Java_com_veyron_runtimes_google_security_PublicID_nativeNames

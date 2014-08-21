@@ -198,6 +198,17 @@ func JExceptionMsg(jEnv interface{}) error {
 	return errors.New(GoString(env, jMsg))
 }
 
+// JObjectFieldPtr returns the value of the provided Java object's Object field.
+// NOTE: Because CGO creates package-local types and because this method may be
+// invoked from a different package, Java types are passed in an empty interface
+// and then cast into their package local types.
+func JObjectFieldPtr(jEnv, jObj interface{}, field string) unsafe.Pointer {
+	env := getEnv(jEnv)
+	obj := getObject(jObj)
+	fid := C.jfieldID(JFieldIDPtrOrDie(env, C.GetObjectClass(env, obj), field, ObjectSign))
+	return unsafe.Pointer(C.GetObjectField(env, obj, fid))
+}
+
 // JBoolField returns the value of the provided Java object's boolean field.
 // NOTE: Because CGO creates package-local types and because this method may be
 // invoked from a different package, Java types are passed in an empty interface
