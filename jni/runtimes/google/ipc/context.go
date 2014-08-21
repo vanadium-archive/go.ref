@@ -1,12 +1,12 @@
 // +build android
 
-package jni
+package ipc
 
 import (
 	"fmt"
 	"runtime"
 
-	"veyron/runtimes/google/jni/util"
+	"veyron/jni/runtimes/google/util"
 )
 
 // #cgo LDFLAGS: -ljniwrapper

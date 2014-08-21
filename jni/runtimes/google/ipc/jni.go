@@ -1,14 +1,14 @@
 // +build android
 
-package jni
+package ipc
 
 import (
 	"io"
 	"time"
 	"unsafe"
 
-	"veyron/runtimes/google/jni/util"
-	jnisecurity "veyron/runtimes/google/security/jni"
+	jnisecurity "veyron/jni/runtimes/google/security"
+	"veyron/jni/runtimes/google/util"
 	"veyron2"
 	ctx "veyron2/context"
 	"veyron2/ipc"

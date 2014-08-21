@@ -1,13 +1,13 @@
 // +build android
 
-package jni
+package ipc
 
 import (
 	"encoding/json"
 	"fmt"
 	"runtime"
 
-	"veyron/runtimes/google/jni/util"
+	"veyron/jni/runtimes/google/util"
 	"veyron2/ipc"
 	"veyron2/security"
 	"veyron2/verror"

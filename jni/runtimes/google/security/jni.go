@@ -1,13 +1,13 @@
 // +build android
 
-package jni
+package security
 
 import (
 	"reflect"
 	"time"
 	"unsafe"
 
-	"veyron/runtimes/google/jni/util"
+	"veyron/jni/runtimes/google/util"
 	isecurity "veyron/runtimes/google/security"
 	"veyron2/security"
 )
@@ -131,16 +131,6 @@ func Java_com_veyron_runtimes_google_security_PublicIDStore_nativeFinalize(env *
 func Java_com_veyron_runtimes_google_security_PublicID_nativeNames(env *C.JNIEnv, jPublicID C.jobject, goPublicIDPtr C.jlong) C.jobjectArray {
 	names := (*(*security.PublicID)(util.Ptr(goPublicIDPtr))).Names()
 	return C.jobjectArray(util.JStringArrayPtr(env, names))
-}
-
-//export Java_com_veyron_runtimes_google_security_PublicID_nativeMatch
-func Java_com_veyron_runtimes_google_security_PublicID_nativeMatch(env *C.JNIEnv, jPublicID C.jobject, goPublicIDPtr C.jlong, jPattern C.jstring) C.jboolean {
-	id := *(*security.PublicID)(util.Ptr(goPublicIDPtr))
-	pattern := security.PrincipalPattern(util.GoString(env, jPattern))
-	if security.Matches(id, pattern) {
-		return C.JNI_TRUE
-	}
-	return C.JNI_FALSE
 }
 
 //export Java_com_veyron_runtimes_google_security_PublicID_nativePublicKey

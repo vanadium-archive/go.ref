@@ -1,6 +1,6 @@
 // +build android
 
-package jni
+package security
 
 import (
 	"fmt"
@@ -8,7 +8,7 @@ import (
 	"time"
 	"unsafe"
 
-	"veyron/runtimes/google/jni/util"
+	"veyron/jni/runtimes/google/util"
 	"veyron2/security"
 )
 
