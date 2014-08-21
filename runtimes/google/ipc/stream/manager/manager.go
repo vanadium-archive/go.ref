@@ -8,7 +8,8 @@ import (
 	"strings"
 	"sync"
 
-	"veyron/lib/bluetooth"
+	"veyron.io/proximity/lib/bluetooth"
+
 	"veyron/runtimes/google/ipc/stream/crypto"
 	"veyron/runtimes/google/ipc/stream/vif"
 	"veyron/runtimes/google/ipc/version"

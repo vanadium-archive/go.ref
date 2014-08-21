@@ -5,12 +5,14 @@ import (
 	"path"
 	"reflect"
 
+	"veyron.io/proximity/api/services/proximity"
+
 	// Imported VDLs.  Please add a link to all VDLs you care about here,
 	// and add all interfaces you care about to the init() function below.
 	"veyron/examples/fortune"
+
 	ctx "veyron2/context"
 	"veyron2/ipc"
-	"veyron2/services/proximity"
 )
 
 func init() {
