@@ -16,8 +16,7 @@ import (
 
 type Counter struct {
 	value int64
-	// TODO(rthellend): Figure out why sync/atomic doesn't work properly on armv6l.
-	lock sync.Mutex
+	lock  sync.Mutex
 }
 
 func (c *Counter) Add(delta int64) int64 {
