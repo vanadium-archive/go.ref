@@ -25,9 +25,10 @@ func runLabel(cmd *cmdline.Command, args []string) error {
 	if expected, got := 1, len(args); expected != got {
 		return cmd.Errorf("label: incorrect number of arguments, expected %d, got %d", expected, got)
 	}
-	p, err := repository.BindProfile(args[0])
+	name := args[0]
+	p, err := repository.BindProfile(name)
 	if err != nil {
-		return fmt.Errorf("bind error: %v", err)
+		return fmt.Errorf("BindProfile(%v) failed: %v", name, err)
 	}
 	ctx, cancel := rt.R().NewContext().WithTimeout(time.Minute)
 	defer cancel()
@@ -52,9 +53,10 @@ func runDescription(cmd *cmdline.Command, args []string) error {
 	if expected, got := 1, len(args); expected != got {
 		return cmd.Errorf("description: incorrect number of arguments, expected %d, got %d", expected, got)
 	}
-	p, err := repository.BindProfile(args[0])
+	name := args[0]
+	p, err := repository.BindProfile(name)
 	if err != nil {
-		return fmt.Errorf("bind error: %v", err)
+		return fmt.Errorf("BindProfile(%v) failed: %v", name, err)
 	}
 	ctx, cancel := rt.R().NewContext().WithTimeout(time.Minute)
 	defer cancel()
@@ -66,8 +68,8 @@ func runDescription(cmd *cmdline.Command, args []string) error {
 	return nil
 }
 
-var cmdSpec = &cmdline.Command{
-	Run:      runSpec,
+var cmdSpecification = &cmdline.Command{
+	Run:      runSpecification,
 	Name:     "spec",
 	Short:    "Shows the specification of the profile.",
 	Long:     "Shows the specification of the profile.",
@@ -75,13 +77,14 @@ var cmdSpec = &cmdline.Command{
 	ArgsLong: "<profile> is the full name of the profile.",
 }
 
-func runSpec(cmd *cmdline.Command, args []string) error {
+func runSpecification(cmd *cmdline.Command, args []string) error {
 	if expected, got := 1, len(args); expected != got {
 		return cmd.Errorf("spec: incorrect number of arguments, expected %d, got %d", expected, got)
 	}
-	p, err := repository.BindProfile(args[0])
+	name := args[0]
+	p, err := repository.BindProfile(name)
 	if err != nil {
-		return fmt.Errorf("bind error: %v", err)
+		return fmt.Errorf("BindProfile(%v) failed: %v", name, err)
 	}
 	ctx, cancel := rt.R().NewContext().WithTimeout(time.Minute)
 	defer cancel()
@@ -106,9 +109,10 @@ func runPut(cmd *cmdline.Command, args []string) error {
 	if expected, got := 1, len(args); expected != got {
 		return cmd.Errorf("put: incorrect number of arguments, expected %d, got %d", expected, got)
 	}
-	p, err := repository.BindProfile(args[0])
+	name := args[0]
+	p, err := repository.BindProfile(name)
 	if err != nil {
-		return fmt.Errorf("bind error: %v", err)
+		return fmt.Errorf("BindProfile(%v) failed: %v", name, err)
 	}
 
 	// TODO(rthellend): Read an actual specification from a file.
@@ -125,7 +129,7 @@ func runPut(cmd *cmdline.Command, args []string) error {
 	if err := p.Put(ctx, spec); err != nil {
 		return err
 	}
-	fmt.Fprintln(cmd.Stdout(), "Specification updated successfully.")
+	fmt.Fprintln(cmd.Stdout(), "Profile added successfully.")
 	return nil
 }
 
@@ -142,9 +146,10 @@ func runRemove(cmd *cmdline.Command, args []string) error {
 	if expected, got := 1, len(args); expected != got {
 		return cmd.Errorf("remove: incorrect number of arguments, expected %d, got %d", expected, got)
 	}
-	p, err := repository.BindProfile(args[0])
+	name := args[0]
+	p, err := repository.BindProfile(name)
 	if err != nil {
-		return fmt.Errorf("bind error: %v", err)
+		return fmt.Errorf("BindProfile(%v) failed: %v", name, err)
 	}
 	ctx, cancel := rt.R().NewContext().WithTimeout(time.Minute)
 	defer cancel()
@@ -160,6 +165,6 @@ func Root() *cmdline.Command {
 		Name:     "profile",
 		Short:    "Command-line tool for interacting with the veyron profile repository",
 		Long:     "Command-line tool for interacting with the veyron profile repository",
-		Children: []*cmdline.Command{cmdLabel, cmdDescription, cmdSpec, cmdPut, cmdRemove},
+		Children: []*cmdline.Command{cmdLabel, cmdDescription, cmdSpecification, cmdPut, cmdRemove},
 	}
 }

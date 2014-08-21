@@ -22,11 +22,11 @@ import (
 func getEnvelopeJSON(ctx context.T, app repository.Application, profiles string) ([]byte, error) {
 	env, err := app.Match(ctx, strings.Split(profiles, ","))
 	if err != nil {
-		env = application.Envelope{}
+		return nil, err
 	}
 	j, err := json.MarshalIndent(env, "", "  ")
 	if err != nil {
-		return nil, fmt.Errorf("json: %v", err)
+		return nil, fmt.Errorf("MarshalIndent(%v) failed: %v", env, err)
 	}
 	return j, nil
 }
@@ -34,7 +34,7 @@ func getEnvelopeJSON(ctx context.T, app repository.Application, profiles string)
 func putEnvelopeJSON(ctx context.T, app repository.Application, profiles string, j []byte) error {
 	var env application.Envelope
 	if err := json.Unmarshal(j, &env); err != nil {
-		return fmt.Errorf("json: %v", err)
+		return fmt.Errorf("Unmarshal(%v) failed: %v", string(j), err)
 	}
 	if err := app.Put(ctx, strings.Split(profiles, ","), env); err != nil {
 		return err
@@ -66,13 +66,14 @@ func runMatch(cmd *cmdline.Command, args []string) error {
 	if expected, got := 2, len(args); expected != got {
 		return cmd.Errorf("match: incorrect number of arguments, expected %d, got %d", expected, got)
 	}
-	app, err := repository.BindApplication(args[0])
+	name, profiles := args[0], args[1]
+	app, err := repository.BindApplication(name)
 	if err != nil {
-		return fmt.Errorf("bind error: %v", err)
+		return fmt.Errorf("BindApplication(%v) failed: %v", name, err)
 	}
 	ctx, cancel := rt.R().NewContext().WithTimeout(time.Minute)
 	defer cancel()
-	j, err := getEnvelopeJSON(ctx, app, args[1])
+	j, err := getEnvelopeJSON(ctx, app, profiles)
 	if err != nil {
 		return err
 	}
@@ -96,17 +97,18 @@ func runPut(cmd *cmdline.Command, args []string) error {
 	if expected, got := 3, len(args); expected != got {
 		return cmd.Errorf("put: incorrect number of arguments, expected %d, got %d", expected, got)
 	}
-	app, err := repository.BindApplication(args[0])
+	name, profiles, envelope := args[0], args[1], args[2]
+	app, err := repository.BindApplication(name)
 	if err != nil {
-		return fmt.Errorf("bind error: %v", err)
+		return fmt.Errorf("BindApplication(%v) failed: %v", name, err)
 	}
-	j, err := ioutil.ReadFile(args[2])
+	j, err := ioutil.ReadFile(envelope)
 	if err != nil {
-		return fmt.Errorf("read file %s: %v", args[2], err)
+		return fmt.Errorf("ReadFile(%v): %v", envelope, err)
 	}
 	ctx, cancel := rt.R().NewContext().WithTimeout(time.Minute)
 	defer cancel()
-	if err = putEnvelopeJSON(ctx, app, args[1], j); err != nil {
+	if err = putEnvelopeJSON(ctx, app, profiles, j); err != nil {
 		return err
 	}
 	fmt.Fprintln(cmd.Stdout(), "Application envelope added successfully.")
@@ -128,13 +130,14 @@ func runRemove(cmd *cmdline.Command, args []string) error {
 	if expected, got := 2, len(args); expected != got {
 		return cmd.Errorf("remove: incorrect number of arguments, expected %d, got %d", expected, got)
 	}
-	app, err := repository.BindApplication(args[0])
+	name, profile := args[0], args[1]
+	app, err := repository.BindApplication(name)
 	if err != nil {
-		return fmt.Errorf("bind error: %v", err)
+		return fmt.Errorf("BindApplication(%v) failed: %v", name, err)
 	}
 	ctx, cancel := rt.R().NewContext().WithTimeout(time.Minute)
 	defer cancel()
-	if err = app.Remove(ctx, args[1]); err != nil {
+	if err = app.Remove(ctx, profile); err != nil {
 		return err
 	}
 	fmt.Fprintln(cmd.Stdout(), "Application envelope removed successfully.")
@@ -156,13 +159,14 @@ func runEdit(cmd *cmdline.Command, args []string) error {
 	if expected, got := 2, len(args); expected != got {
 		return cmd.Errorf("edit: incorrect number of arguments, expected %d, got %d", expected, got)
 	}
-	app, err := repository.BindApplication(args[0])
+	name, profile := args[0], args[1]
+	app, err := repository.BindApplication(name)
 	if err != nil {
-		return fmt.Errorf("bind error: %v", err)
+		return fmt.Errorf("BindApplication(%v) failed: %v", name, err)
 	}
 	f, err := ioutil.TempFile("", "application-edit-")
 	if err != nil {
-		return fmt.Errorf("bind error: %v", err)
+		return fmt.Errorf("TempFile() failed: %v", err)
 	}
 	fileName := f.Name()
 	f.Close()
@@ -170,7 +174,7 @@ func runEdit(cmd *cmdline.Command, args []string) error {
 
 	ctx, cancel := rt.R().NewContext().WithTimeout(time.Minute)
 	defer cancel()
-	envData, err := getEnvelopeJSON(ctx, app, args[1])
+	envData, err := getEnvelopeJSON(ctx, app, profile)
 	if err != nil {
 		return err
 	}
@@ -201,7 +205,7 @@ func runEdit(cmd *cmdline.Command, args []string) error {
 			fmt.Fprintln(cmd.Stdout(), "Nothing changed")
 			return nil
 		}
-		if err = putEnvelopeJSON(ctx, app, args[1], newData); err != nil {
+		if err = putEnvelopeJSON(ctx, app, profile, newData); err != nil {
 			fmt.Fprintf(cmd.Stdout(), "Error: %v\n", err)
 			if ans := promptUser(cmd, "Try again? [y/N] "); strings.ToUpper(ans) == "Y" {
 				continue
