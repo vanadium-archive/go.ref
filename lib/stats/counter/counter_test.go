@@ -1,6 +1,7 @@
 package counter_test
 
 import (
+	"sync"
 	"testing"
 	"time"
 
@@ -146,11 +147,32 @@ func TestCounterRate(t *testing.T) {
 	c.Reset()
 }
 
+func TestConcurrent(t *testing.T) {
+	const numGoRoutines = 100
+	const numIncrPerGoRoutine = 100000
+	c := counter.New()
+	var wg sync.WaitGroup
+	wg.Add(numGoRoutines)
+	for i := 0; i < numGoRoutines; i++ {
+		go func() {
+			for x := 0; x < numIncrPerGoRoutine; x++ {
+				c.Incr(1)
+			}
+			wg.Done()
+		}()
+	}
+	wg.Wait()
+	if expected, got := int64(numGoRoutines*numIncrPerGoRoutine), c.Value(); got != expected {
+		t.Errorf("unexpected result. Got %v, want %v", got, expected)
+	}
+}
+
 func BenchmarkCounterIncr(b *testing.B) {
 	c := counter.New()
-
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		c.Incr(1)
-	}
+	b.SetParallelism(100)
+	b.RunParallel(func(pb *testing.PB) {
+		for pb.Next() {
+			c.Incr(1)
+		}
+	})
 }
