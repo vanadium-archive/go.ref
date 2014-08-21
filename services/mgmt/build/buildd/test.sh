@@ -6,6 +6,7 @@
 # verify that <build>.Build() works as expected.
 
 source "${VEYRON_ROOT}/environment/scripts/lib/shell_test.sh"
+source "${VEYRON_ROOT}/environment/scripts/lib/go.sh"
 
 build() {
   local -r GO="${REPO_ROOT}/scripts/build/go"
@@ -21,7 +22,14 @@ main() {
 
   # Start the binary repository daemon.
   local -r SERVER="buildd-test-server"
-  shell_test::start_server ./buildd --name="${SERVER}" --gobin="${VEYRON_ROOT}/environment/go/bin/go" --address=127.0.0.1:0
+  local GO_BIN=$(which go)
+  if [[ -n "${GO_BIN}" ]] && go::usable_release "${GO_BIN}"; then
+    local -r GO_ROOT=$(go env GOROOT)
+  else
+    local -r GO_ROOT="${VEYRON_ROOT}/environment/go/$(go::os)/$(go::architecture)"
+    GO_BIN="${GO_ROOT}/bin/go"
+  fi
+  shell_test::start_server ./buildd --name="${SERVER}" --gobin="${GO_BIN}" --goroot="${GO_ROOT}" --address=127.0.0.1:0
 
   # Create and build a test source file.
   local -r ROOT=$(shell::tmp_dir)
