@@ -74,6 +74,33 @@ func TestBox(t *testing.T) {
 	testSimple(t, c1, c2)
 }
 
+// testChannelBinding attempts to ensure that:
+// (a) ChannelBinding returns the same value for both ends of a Crypter
+// (b) ChannelBindings are unique
+// For (b), we simply test many times and check that no two instances have the same ChannelBinding value.
+// Yes, this test isn't exhaustive. If you have ideas, please share.
+func testChannelBinding(t *testing.T, factory func(testing.TB, net.Conn, net.Conn) (Crypter, Crypter)) {
+	values := make([][]byte, 100)
+	for i := 0; i < len(values); i++ {
+		conn1, conn2 := net.Pipe()
+		c1, c2 := factory(t, conn1, conn2)
+		if !bytes.Equal(c1.ChannelBinding(), c2.ChannelBinding()) {
+			t.Fatalf("Two ends of the crypter ended up with different channel bindings (iteration #%d)", i)
+		}
+		values[i] = c1.ChannelBinding()
+	}
+	for i := 0; i < len(values); i++ {
+		for j := i + 1; j < len(values); j++ {
+			if bytes.Equal(values[i], values[j]) {
+				t.Fatalf("Same ChannelBinding seen on multiple channels (%d and %d)", i, j)
+			}
+		}
+	}
+}
+
+func TestChannelBindingTLS(t *testing.T) { testChannelBinding(t, tlsCrypters) }
+func TestChannelBindingBox(t *testing.T) { testChannelBinding(t, boxCrypters) }
+
 func TestTLSNil(t *testing.T) {
 	conn1, conn2 := net.Pipe()
 	c1, c2 := tlsCrypters(t, conn1, conn2)
