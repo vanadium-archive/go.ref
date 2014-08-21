@@ -79,6 +79,13 @@ func goRuntimeOpts(env *C.JNIEnv, jOptions C.jobject) (ret []veyron2.ROpt) {
 		id := jnisecurity.NewPrivateID(env, jPrivateID)
 		ret = append(ret, veyron2.RuntimeID(id))
 	}
+	// Process RuntimePublicIDStoreOpt
+	runtimePublicIDStoreKey := util.JStaticStringField(env, jOptionDefsClass, "RUNTIME_PUBLIC_ID_STORE")
+	if util.CallBooleanMethodOrCatch(env, jOptions, "has", []util.Sign{util.StringSign}, runtimePublicIDStoreKey) {
+		jStore := C.jobject(util.CallObjectMethodOrCatch(env, jOptions, "get", []util.Sign{util.StringSign}, util.ObjectSign, runtimePublicIDStoreKey))
+		store := jnisecurity.NewPublicIDStore(env, jStore)
+		ret = append(ret, veyron2.RuntimePublicIDStore(store))
+	}
 	return
 }
 
