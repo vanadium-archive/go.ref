@@ -61,9 +61,6 @@ func InternalNewClient(streamMgr stream.Manager, ns naming.Namespace, opts ...ip
 		if vcOpt, ok := opt.(stream.VCOpt); ok {
 			c.vcOpts = append(c.vcOpts, vcOpt)
 		}
-		// Now handle individual opts.
-		switch topt := opt.(type) {
-		}
 	}
 	return c, nil
 }

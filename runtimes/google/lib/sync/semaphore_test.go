@@ -107,16 +107,14 @@ func TestClosed(t *testing.T) {
 	s := NewSemaphore()
 	var pending sync.WaitGroup
 	pending.Add(1)
-	var err error
 	go func() {
-		err = s.Dec(nil)
+		if err := s.Dec(nil); err == nil {
+			t.Errorf("error should not be nil")
+		}
 		pending.Done()
 	}()
 	s.Close()
 	pending.Wait()
-	if err == nil {
-		t.Errorf("error should not be nil")
-	}
 }
 
 func TestCloseWhileInDec(t *testing.T) {
@@ -145,9 +143,10 @@ func TestCancel(t *testing.T) {
 	cancel := make(chan struct{})
 	var pending sync.WaitGroup
 	pending.Add(1)
-	var err error
 	go func() {
-		err = s.Dec(cancel)
+		if err := s.Dec(cancel); err == nil {
+			t.Errorf("error should not be nil")
+		}
 		pending.Done()
 	}()
 	close(cancel)

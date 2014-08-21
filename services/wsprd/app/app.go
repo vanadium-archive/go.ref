@@ -214,15 +214,18 @@ func (c *Controller) RT() veyron2.Runtime {
 	return c.rt
 }
 
-// Cleanup Cleans up any outstanding rpcs.
+// Cleanup cleans up any outstanding rpcs.
 func (c *Controller) Cleanup() {
 	c.logger.VI(0).Info("Cleaning up websocket")
 	c.Lock()
 	defer c.Unlock()
 	for _, stream := range c.outstandingStreams {
-		if call, ok := stream.stream.(ipc.Call); ok {
-			call.Cancel()
-		}
+		_ = stream
+		// TODO(bjornick): this is impossible type assertion and
+		// will panic at run time.
+		// if call, ok := stream.stream.(ipc.Call); ok {
+		// 	call.Cancel()
+		// }
 	}
 
 	for _, server := range c.servers {
