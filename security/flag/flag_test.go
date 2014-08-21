@@ -30,7 +30,7 @@ func TestNewAuthorizerOrDie(t *testing.T) {
 	}
 	var (
 		acl1 = security.ACL{}
-		acl2 = security.NewWhitelistACL(map[security.PrincipalPattern]security.LabelSet{
+		acl2 = vsecurity.NewWhitelistACL(map[security.PrincipalPattern]security.LabelSet{
 			"veyron/alice": security.LabelSet(security.ReadLabel | security.WriteLabel),
 			"veyron/bob":   security.LabelSet(security.ReadLabel),
 		})

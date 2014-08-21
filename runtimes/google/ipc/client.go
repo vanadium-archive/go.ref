@@ -197,7 +197,7 @@ func authorizeServer(client, server security.PublicID, opts []ipc.CallOpt) (secu
 	for _, o := range opts {
 		switch v := o.(type) {
 		case veyron2.RemoteID:
-			if !security.Matches(authID, security.PrincipalPattern(v)) {
+			if !security.PrincipalPattern(v).MatchedBy(authID) {
 				return nil, fmt.Errorf("server %q does not match the provided pattern %q", authID, v)
 			}
 		case ipc.Granter:

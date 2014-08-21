@@ -137,7 +137,7 @@ func (i *IDManager) AccountsMatching(trustedRoot security.PrincipalPattern) []st
 	defer i.mu.Unlock()
 	result := []string{}
 	for name, id := range i.state.Accounts {
-		if security.Matches(id.PublicID(), trustedRoot) {
+		if trustedRoot.MatchedBy(id.PublicID()) {
 			result = append(result, name)
 		}
 	}

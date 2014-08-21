@@ -134,7 +134,7 @@ func setupGoogleBlessingServer(r veyron2.Runtime) (ipc.Server, naming.Endpoint, 
 	if err != nil {
 		return nil, nil, fmt.Errorf("server.Listen(%q, %q) failed: %v", "tcp", *address, err)
 	}
-	allowEveryoneACL := security.NewWhitelistACL(map[security.PrincipalPattern]security.LabelSet{
+	allowEveryoneACL := vsecurity.NewWhitelistACL(map[security.PrincipalPattern]security.LabelSet{
 		security.AllPrincipals: security.AllLabels,
 	})
 	objectname := fmt.Sprintf("identity/%s/google", r.Identity().PublicID().Names()[0])

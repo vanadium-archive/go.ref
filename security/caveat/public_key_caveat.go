@@ -193,7 +193,7 @@ func NewPublicKeyDischarge(discharger security.PrivateID, caveat security.ThirdP
 	}
 	now := time.Now()
 	expiryCaveat := &Expiry{IssueTime: now, ExpiryTime: now.Add(duration)}
-	caveats = append(caveats, security.UniversalCaveat(expiryCaveat))
+	caveats = append(caveats, UniversalCaveat(expiryCaveat))
 	encodedCaveats, err := wire.EncodeCaveats(caveats)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode caveats in discharge: %v", err)

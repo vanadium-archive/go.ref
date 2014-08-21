@@ -10,6 +10,7 @@ import (
 
 	"veyron/lib/testutil"
 	isecurity "veyron/runtimes/google/security"
+	vsecurity "veyron/security"
 
 	"veyron2/security"
 )
@@ -44,7 +45,7 @@ func SaveACLToFile(acl security.ACL) string {
 		panic(err)
 	}
 	defer f.Close()
-	if err := security.SaveACL(f, acl); err != nil {
+	if err := vsecurity.SaveACL(f, acl); err != nil {
 		defer os.Remove(f.Name())
 		panic(err)
 	}
@@ -64,7 +65,7 @@ func SaveIdentityToFile(id security.PrivateID) string {
 	defer f.Close()
 	filePath := f.Name()
 
-	if err := security.SaveIdentity(f, id); err != nil {
+	if err := vsecurity.SaveIdentity(f, id); err != nil {
 		os.Remove(filePath)
 		panic(err)
 	}

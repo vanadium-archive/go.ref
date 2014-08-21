@@ -137,7 +137,7 @@ func TestMatch(t *testing.T) {
 	}
 	for _, d := range testdata {
 		for _, m := range d.matchData {
-			if got := security.Matches(d.id, m.pattern); got != m.want {
+			if got := m.pattern.MatchedBy(d.id); got != m.want {
 				t.Errorf("%q.Match(%s), Got %t, want %t", d.id, m.pattern, got, m.want)
 			}
 		}
@@ -447,7 +447,7 @@ func TestAuthorizeWithThirdPartyCaveats(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		return []security.ServiceCaveat{security.UniversalCaveat(c)}
+		return []security.ServiceCaveat{caveat.UniversalCaveat(c)}
 	}
 	var (
 		alice = newChain("alice")
@@ -593,7 +593,7 @@ func TestThirdPartyCaveatAccessors(t *testing.T) {
 
 		// Caveats
 		tpCavService   = security.ServiceCaveat{Service: "someService", Caveat: mkTPCaveat(alice.PublicID())}
-		tpCavUniversal = security.UniversalCaveat(mkTPCaveat(alice.PublicID()))
+		tpCavUniversal = caveat.UniversalCaveat(mkTPCaveat(alice.PublicID()))
 		cav            = methodRestrictionCaveat("someService", nil)[0]
 	)
 

@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	isecurity "veyron/runtimes/google/security"
+	vsecurity "veyron/security"
 
 	"veyron2/rt"
 	"veyron2/security"
@@ -67,7 +68,7 @@ func TestSaveACLToFile(t *testing.T) {
 		t.Fatalf("os.Open(%v) failed: %v", filePath, err)
 	}
 	defer f.Close()
-	loadedACL, err := security.LoadACL(f)
+	loadedACL, err := vsecurity.LoadACL(f)
 	if err != nil {
 		t.Fatalf("LoadACL failed: %v", err)
 	}
@@ -95,7 +96,7 @@ func TestSaveIdentityToFile(t *testing.T) {
 		t.Fatalf("os.Open(%v) failed: %v", filePath, err)
 	}
 	defer f.Close()
-	loadedID, err := security.LoadIdentity(f)
+	loadedID, err := vsecurity.LoadIdentity(f)
 	if err != nil {
 		t.Fatalf("LoadIdentity failed: %v", err)
 	}

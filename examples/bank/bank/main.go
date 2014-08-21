@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"veyron/examples/bank"
+	vsecurity "veyron/security"
 	idutil "veyron/services/identity/util"
 
 	"veyron2"
@@ -85,7 +86,7 @@ func main() {
 		if err != nil {
 			log.Fatalf("failed to open identity file for writing: %s\n", err)
 		}
-		err = security.SaveIdentity(f, derivedIdentity)
+		err = vsecurity.SaveIdentity(f, derivedIdentity)
 		if err != nil {
 			log.Fatalf("failed to save identity: %s\n", err)
 		}
