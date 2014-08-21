@@ -27,7 +27,7 @@ main() {
   # Create a binary file.
   local -r BINARY="${REPO}/test-binary"
   local -r BINARY_FILE=$(shell::tmp_file)
-  dd if=/dev/urandom of="${BINARY_FILE}" bs=1024*1024 count=16
+  dd if=/dev/urandom of="${BINARY_FILE}" bs=1000000 count=16
   ./binary upload "${BINARY}" "${BINARY_FILE}" || shell_test::fail "line ${LINENO}: 'upload' failed"
 
   # Download the binary file.
