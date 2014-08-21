@@ -8,6 +8,7 @@ import (
 
 	"veyron2/ipc"
 	"veyron2/services/mgmt/logreader"
+	"veyron2/services/mgmt/logreader/types"
 	"veyron2/vlog"
 )
 
@@ -64,7 +65,7 @@ func (i *logFileInvoker) ReadLog(context ipc.ServerContext, startpos int64, numE
 		return 0, errOperationFailed
 	}
 	reader := newFollowReader(context, f, startpos, follow)
-	if numEntries == logreader.AllEntries {
+	if numEntries == types.AllEntries {
 		numEntries = int32(math.MaxInt32)
 	}
 	sender := stream.SendStream()
@@ -79,7 +80,7 @@ func (i *logFileInvoker) ReadLog(context ipc.ServerContext, startpos int64, numE
 		if err != nil {
 			return reader.tell(), errOperationFailed
 		}
-		if err := sender.Send(logreader.LogEntry{Position: offset, Line: line}); err != nil {
+		if err := sender.Send(types.LogEntry{Position: offset, Line: line}); err != nil {
 			return reader.tell(), err
 		}
 	}

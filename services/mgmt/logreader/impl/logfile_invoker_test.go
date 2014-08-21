@@ -13,6 +13,7 @@ import (
 	"veyron2/rt"
 	"veyron2/security"
 	"veyron2/services/mgmt/logreader"
+	"veyron2/services/mgmt/logreader/types"
 	"veyron2/verror"
 )
 
@@ -87,7 +88,7 @@ func TestReadLogImplNoFollow(t *testing.T) {
 	}
 
 	// Read without follow.
-	stream, err := lf.ReadLog(runtime.NewContext(), 0, logreader.AllEntries, false)
+	stream, err := lf.ReadLog(runtime.NewContext(), 0, types.AllEntries, false)
 	if err != nil {
 		t.Errorf("ReadLog failed: %v", err)
 	}
@@ -116,12 +117,12 @@ func TestReadLogImplNoFollow(t *testing.T) {
 	}
 
 	// Read with follow from EOF (where the previous read ended).
-	stream, err = lf.ReadLog(runtime.NewContext(), offset, logreader.AllEntries, false)
+	stream, err = lf.ReadLog(runtime.NewContext(), offset, types.AllEntries, false)
 	if err != nil {
 		t.Errorf("ReadLog failed: %v", err)
 	}
 	_, err = stream.Finish()
-	if !verror.Is(err, logreader.EOF) {
+	if !verror.Is(err, types.EOF) {
 		t.Errorf("unexpected error, got %#v, want EOF", err)
 	}
 }
