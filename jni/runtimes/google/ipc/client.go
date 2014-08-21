@@ -1,6 +1,6 @@
 // +build android
 
-package jni
+package ipc
 
 import (
 	"encoding/json"
@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"veyron/runtimes/google/jni/util"
+	"veyron/jni/runtimes/google/util"
 	"veyron2/ipc"
 	"veyron2/rt"
 )

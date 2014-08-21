@@ -1,4 +1,4 @@
-package jni
+package security
 
 import (
 	"crypto/ecdsa"

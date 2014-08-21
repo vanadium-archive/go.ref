@@ -1,12 +1,12 @@
 // +build android
 
-package jni
+package security
 
 import (
 	"crypto/ecdsa"
 	"runtime"
 
-	"veyron/runtimes/google/jni/util"
+	"veyron/jni/runtimes/google/util"
 	"veyron2/security"
 )
 

@@ -1,6 +1,6 @@
 // +build android
 
-package jni
+package ipc
 
 // #cgo LDFLAGS: -llog
 // #include <android/log.h>

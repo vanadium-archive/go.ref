@@ -1,9 +1,9 @@
 // +build android
 
-package jni
+package security
 
 import (
-	"veyron/runtimes/google/jni/util"
+	"veyron/jni/runtimes/google/util"
 	"veyron2/security"
 )
 
