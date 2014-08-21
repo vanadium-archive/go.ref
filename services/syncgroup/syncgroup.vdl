@@ -1,0 +1,161 @@
+// Package syncgroup provides the means for Stores to set up SyncGroups for
+// subsequent synchronization of objects between them.
+//
+// The intent is that SyncGroup objects are created and administered by
+// SyncGroup servers, even though they are subsequently mirrored among SyncGroup
+// members by the normal synchronization mechanisms.
+//
+// SyncGroupServer also aids in discovering members of a particular SyncGroup.
+// SyncGroupServer maintains the names of joiners for a SyncGroup that are in
+// turn accessible to all members.  Each SyncGroup is also associated with a
+// set of mount tables.  A Store that joins a SyncGroup must advertise its name
+// (and optionally its SyncGroups) in these mount tables.  Stores are expected
+// also optionally to advertise the SyncGroups they join in the local
+// neighbourhood.
+package syncgroup
+
+import "veyron2/security"
+import "veyron2/services/security/access"
+// import "veyron2/services/watch"  // Watch call is not yet implemented
+import "veyron2/storage"
+
+// A SyncGroupInfo is the conceptual state of a SyncGroup object.
+type SyncGroupInfo struct {
+	Name    string          // Global Veyron name of object.
+	Config  SyncGroupConfig // Configuration parameters of this SyncGroup.
+	RootOID storage.ID      // ID of object at root of SyncGroup's tree.
+	ETag    string          // Version ID for concurrency control.
+
+	// The SyncGroup's object ID, which is chosen by the creating SyncGroupServer
+	// and is globally unique.
+	SGOID storage.ID
+
+	// A map from joiner names to the associated metaData for devices that
+	// have called Join() or Create() and not subsequently called Leave()
+	// or had Eject() called on them.  The map returned by the calls below
+	// may contain only a subset of joiners if the number is large.
+	Joiners map[NameIdentity]JoinerMetaData
+}
+
+// A SyncGroupConfig contains some fields of SyncGroupInfo that
+// are passed at create time, but which can be changed later.
+type SyncGroupConfig struct {
+	Desc         string         // Human readable description.
+	PathPatterns []string       // Global path patterns.
+	Options      map[string]any // Options for future evolution.
+	ACL          security.ACL   // The object's ACL.
+
+	// Mount tables used to advertise for synchronization.
+	// Typically, we will have only one entry.  However, an array allows
+	// mount tables to be changed over time.
+	MountTables []string
+}
+
+// A JoinerMetaData contains the non-name information stored per joiner.
+type JoinerMetaData struct {
+	// SyncPriority is a hint to bias the choice of syncing partners.
+	// Members of the SyncGroup should choose to synchronize more often
+	// with partners with lower values.
+	SyncPriority int32
+}
+
+// A NameIdentity gives a Veyron name and identity for a joiner.
+// TODO(m3b):  When names include an identity, this should become a single
+// string.
+type NameIdentity struct {
+	Name     string // Global name of joiner.
+	Identity string // Security identity of the joiner.
+}
+
+// SyncGroupServer is the collection of calls on SyncGroup objects at
+// a SyncGroup server.  The calls used most often, like Create and Join, are
+// used almost exclusively by the Store.  Clients typically call the Store to
+// cause these things to happen.
+//
+// Calls starting with "Set" take an eTag value that may be either empty, or
+// the value of ETag from a recent response to Get(), Watch(), or GetACL().
+type SyncGroupServer interface {
+	// Create creates this SyncGroup with the given arguments, and if
+	// joiner.Name!="", with {joiner, metaData} in its Joiners map.  It is
+	// expected that acl will give Read and Write access to any device that
+	// the administrator expects to join and sync; if the acl is empty, a
+	// default ACL giving access only to the caller is used.  On success,
+	// Create returns the SyncGroupInfo of the newly created object.
+	//
+	// Requires: this SyncGroup must not exist;
+	// the caller must have write permission at the SyncGroup server;
+	// the caller's identity must be a prefix of the SyncGroup's name.
+	// Beware that for Create(), the access label is matched against a
+	// server-wide ACL; for all other calls the access label is matched
+	// against the object's ACL.
+	Create(createArgs SyncGroupConfig, rootOID storage.ID,
+		joiner NameIdentity, metaData JoinerMetaData) (
+		sgInfo SyncGroupInfo, err error) {security.WriteLabel}
+
+	// Join adds {joiner, metaData} to the SyncGroup's Joiners map and
+	// returns the SyncGroupInfo for this SyncGroup.  The act of joining
+	// allows other devices to find the caller, which is still required to
+	// have read+write access on the SyncGroup to participate in
+	// synchronization.  A device may call Join again with the same
+	// NameIdentity in order to change metaData.
+	// For SyncGroups with large numbers of joiners, Join may return
+	// a subset of Joiners.
+	//
+	// Requires: this SyncGroup must exist;
+	// the caller must have both read and write permission on the
+	// SyncGroup.
+	// TODO(m3b): The label should be read and write; can that be expressed?
+	Join(joiner NameIdentity, metaData JoinerMetaData) (
+		sgInfo SyncGroupInfo, err error) {security.WriteLabel}
+
+	// Leave removes the joiner with the given name/identity from the
+	// SyncGroup's Joiners map.
+	//
+	// Requires: this SyncGroup must exist;
+	// the caller must assert the identity name.Identity.
+	// (Thus, a device that Joined may Leave even if it would no longer
+	// have permission to Join() the SyncGroup.)
+	Leave(name NameIdentity) error
+
+	// Eject is like Leave, but the caller must wield Admin
+	// privilege on the group, and need not wield name.Identity.
+	//
+	// Requires: the SyncGroup must exist;
+	// the caller must have admin permission on the SyncGroup.
+	Eject(name NameIdentity) error {security.AdminLabel}
+
+	// Destroy ejects all devices from the SyncGroup and removes it.
+	// Devices that had joined will learn of this when their
+	// SyncGroup object disappears.
+	//
+	// Requires: this SyncGroup must exist;
+	// the caller must have admin permission on the SyncGroup.
+	Destroy() error {security.AdminLabel}
+
+	// Get returns the SyncGroupInfo for this SyncGroup.  For SyncGroups
+	// with a large number of joiners, Get may return a subset of Joiners.
+	//
+	// Requires: this SyncGroup must exist;
+	// the caller must have read permission on the SyncGroup.
+	// TODO(m3b): This call may be removed when Watch is implemented.
+	Get() (sgInfo SyncGroupInfo, err error) {security.ReadLabel}
+
+	// Watch returns stream of SyncGroupInfo for this SyncGroup as
+	// it changes.
+	//
+	// Requires: this SyncGroup must exist;
+	// the caller must have read permission on the SyncGroup.
+	// TODO(m3b): This call is not yet implemented.
+	// Watch() stream<_, watch.ChangeBatch> error {security.ReadLabel}
+
+	// SetConfig sets the Config field of this SyncGroup.
+	//
+	// Requires:  this SyncGroup must exist;
+	// if non-empty, the eTag must match the value in the object;
+	// the caller must have admin permission on the SyncGroup.
+	SetConfig(config SyncGroupConfig, eTag string) error {security.AdminLabel}
+
+	// SetACL and GetACL are included from access.Object.
+	// TODO(m3b): This inherits AdminLabel for GetACL(); we might prefer ReadLabel.
+	access.Object
+}
