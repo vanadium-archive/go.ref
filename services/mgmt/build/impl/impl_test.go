@@ -19,15 +19,17 @@ func init() {
 	rt.Init()
 }
 
-// findGoBinary returns the path to the given Go binary.
-func findGoBinary(t *testing.T, name string) string {
+// findGoBinary returns the path to the given Go binary and
+// the GOROOT environment variable to use.
+func findGoBinary(t *testing.T, name string) (bin, goroot string) {
 	root := os.Getenv("VEYRON_ROOT")
 	if root == "" {
 		t.Fatalf("VEYRON_ROOT is not set")
 	}
-	envbin := filepath.Join(root, "environment", "go", runtime.GOOS, runtime.GOARCH, "go", "bin", name)
+	envroot := filepath.Join(root, "environment", "go", runtime.GOOS, runtime.GOARCH, "go")
+	envbin := filepath.Join(envroot, "bin", name)
 	if _, err := os.Stat(envbin); err == nil {
-		return envbin
+		return envbin, envroot
 	} else if !os.IsNotExist(err) {
 		t.Fatalf("Stat(%v) failed: %v", envbin, err)
 	}
@@ -39,12 +41,12 @@ func findGoBinary(t *testing.T, name string) string {
 			t.Fatalf("LookPath(%q) failed: %v", name, err)
 		}
 	}
-	return pathbin
+	return pathbin, ""
 }
 
 // startServer starts the build server.
 func startServer(t *testing.T) (build.Builder, func()) {
-	gobin := findGoBinary(t, "go")
+	gobin, goroot := findGoBinary(t, "go")
 	server, err := rt.R().NewServer()
 	if err != nil {
 		t.Fatalf("NewServer() failed: %v", err)
@@ -55,7 +57,7 @@ func startServer(t *testing.T) (build.Builder, func()) {
 		t.Fatalf("Listen(%v, %v) failed: %v", protocol, hostname, err)
 	}
 	unpublished := ""
-	if err := server.Serve(unpublished, ipc.LeafDispatcher(build.NewServerBuilder(NewInvoker(gobin)), nil)); err != nil {
+	if err := server.Serve(unpublished, ipc.LeafDispatcher(build.NewServerBuilder(NewInvoker(gobin, goroot)), nil)); err != nil {
 		t.Fatalf("Serve(%q) failed: %v", unpublished, err)
 	}
 	name := "/" + endpoint.String()

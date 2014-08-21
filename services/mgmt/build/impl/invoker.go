@@ -23,14 +23,15 @@ var (
 
 // invoker holds the state of a build server invocation.
 type invoker struct {
-	// gobin is the path to the Go compiler binary.
-	gobin string
+	// Path to the binary and the value of the GOROOT environment variable.
+	gobin, goroot string
 }
 
 // NewInvoker is the invoker factory.
-func NewInvoker(gobin string) *invoker {
+func NewInvoker(gobin, goroot string) *invoker {
 	return &invoker{
-		gobin: gobin,
+		gobin:  gobin,
+		goroot: goroot,
 	}
 }
 
@@ -78,6 +79,9 @@ func (i *invoker) Build(_ ipc.ServerContext, arch build.Architecture, opsys buil
 	cmd.Env = append(cmd.Env, "GOARCH="+string(arch))
 	cmd.Env = append(cmd.Env, "GOOS="+string(opsys))
 	cmd.Env = append(cmd.Env, "GOPATH="+filepath.Dir(srcDir))
+	if i.goroot != "" {
+		cmd.Env = append(cmd.Env, "GOROOT="+i.goroot)
+	}
 	var output bytes.Buffer
 	cmd.Stdout = &output
 	cmd.Stderr = &output

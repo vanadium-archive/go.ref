@@ -2,6 +2,7 @@ package main
 
 import (
 	"flag"
+	"os"
 
 	"veyron/lib/signals"
 	vflag "veyron/security/flag"
@@ -19,8 +20,9 @@ var (
 	protocol = flag.String("protocol", "tcp", "protocol to listen on")
 	address  = flag.String("address", ":0", "address to listen on")
 
-	gobin = flag.String("gobin", "go", "path to the Go compiler")
-	name  = flag.String("name", "", "name to mount the build server as")
+	gobin  = flag.String("gobin", "go", "path to the Go compiler")
+	goroot = flag.String("goroot", os.Getenv("GOROOT"), "GOROOT to use with the Go compiler")
+	name   = flag.String("name", "", "name to mount the build server as")
 )
 
 func main() {
@@ -38,7 +40,7 @@ func main() {
 		vlog.Errorf("Listen(%v, %v) failed: %v", *protocol, *address, err)
 		return
 	}
-	if err := server.Serve(*name, ipc.LeafDispatcher(build.NewServerBuilder(impl.NewInvoker(*gobin)), vflag.NewAuthorizerOrDie())); err != nil {
+	if err := server.Serve(*name, ipc.LeafDispatcher(build.NewServerBuilder(impl.NewInvoker(*gobin, *goroot)), vflag.NewAuthorizerOrDie())); err != nil {
 		vlog.Errorf("Serve(%v) failed: %v", *name, err)
 		return
 	}
