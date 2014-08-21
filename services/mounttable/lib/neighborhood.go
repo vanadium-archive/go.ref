@@ -14,6 +14,7 @@ import (
 	"veyron2/rt"
 	"veyron2/security"
 	"veyron2/services/mounttable"
+	"veyron2/services/mounttable/types"
 	"veyron2/vlog"
 
 	"code.google.com/p/mdns"
@@ -149,8 +150,8 @@ func (nh *neighborhood) Stop() {
 }
 
 // neighbor returns the MountedServers for a particular neighbor.
-func (nh *neighborhood) neighbor(instance string) []mounttable.MountedServer {
-	var reply []mounttable.MountedServer
+func (nh *neighborhood) neighbor(instance string) []types.MountedServer {
+	var reply []types.MountedServer
 	si := nh.mdns.ResolveInstance(instance, "veyron")
 
 	// Use a map to dedup any addresses seen
@@ -167,7 +168,7 @@ func (nh *neighborhood) neighbor(instance string) []mounttable.MountedServer {
 		}
 	}
 	for addr, ttl := range addrMap {
-		reply = append(reply, mounttable.MountedServer{addr, ttl})
+		reply = append(reply, types.MountedServer{addr, ttl})
 	}
 
 	if reply != nil {
@@ -183,15 +184,15 @@ func (nh *neighborhood) neighbor(instance string) []mounttable.MountedServer {
 		for _, ip := range ips {
 			addr := net.JoinHostPort(ip.String(), strconv.Itoa(int(rr.Port)))
 			ep := naming.FormatEndpoint("tcp", addr)
-			reply = append(reply, mounttable.MountedServer{naming.JoinAddressName(ep, ""), ttl})
+			reply = append(reply, types.MountedServer{naming.JoinAddressName(ep, ""), ttl})
 		}
 	}
 	return reply
 }
 
 // neighbors returns all neighbors and their MountedServer structs.
-func (nh *neighborhood) neighbors() map[string][]mounttable.MountedServer {
-	neighbors := make(map[string][]mounttable.MountedServer, 0)
+func (nh *neighborhood) neighbors() map[string][]types.MountedServer {
+	neighbors := make(map[string][]types.MountedServer, 0)
 	members := nh.mdns.ServiceDiscovery("veyron")
 	for _, m := range members {
 		if neighbor := nh.neighbor(m.Name); neighbor != nil {
@@ -203,7 +204,7 @@ func (nh *neighborhood) neighbors() map[string][]mounttable.MountedServer {
 }
 
 // ResolveStep implements ResolveStep
-func (ns *neighborhoodService) ResolveStep(_ ipc.ServerContext) (servers []mounttable.MountedServer, suffix string, err error) {
+func (ns *neighborhoodService) ResolveStep(_ ipc.ServerContext) (servers []types.MountedServer, suffix string, err error) {
 	nh := ns.nh
 	vlog.VI(2).Infof("ResolveStep %v\n", ns.elems)
 	if len(ns.elems) == 0 {
@@ -246,7 +247,7 @@ func (ns *neighborhoodService) Glob(_ ipc.ServerContext, pattern string, reply m
 			if ok, _ := g.MatchInitialSegment(k); !ok {
 				continue
 			}
-			if err := sender.Send(mounttable.MountEntry{Name: k, Servers: n}); err != nil {
+			if err := sender.Send(types.MountEntry{Name: k, Servers: n}); err != nil {
 				return err
 			}
 		}
@@ -256,7 +257,7 @@ func (ns *neighborhoodService) Glob(_ ipc.ServerContext, pattern string, reply m
 		if neighbor == nil {
 			return naming.ErrNoSuchName
 		}
-		return sender.Send(mounttable.MountEntry{Name: "", Servers: neighbor})
+		return sender.Send(types.MountEntry{Name: "", Servers: neighbor})
 	default:
 		return naming.ErrNoSuchName
 	}

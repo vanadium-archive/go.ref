@@ -2,7 +2,7 @@ package lib
 
 import (
 	rps "veyron/examples/rockpaperscissors"
-	"veyron2/services/mounttable"
+	mttypes "veyron2/services/mounttable/types"
 	"veyron2/services/store"
 	"veyron2/services/watch"
 	"veyron2/storage"
@@ -10,7 +10,7 @@ import (
 )
 
 func init() {
-	vom.Register(mounttable.MountEntry{})
+	vom.Register(mttypes.MountEntry{})
 	vom.Register(storage.Entry{})
 	vom.Register(storage.Stat{})
 	vom.Register(store.NestedResult(0))

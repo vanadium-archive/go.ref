@@ -8,6 +8,7 @@ import (
 
 	"veyron2/ipc"
 	"veyron2/services/mounttable"
+	"veyron2/services/mounttable/types"
 	"veyron2/vlog"
 )
 
@@ -42,7 +43,7 @@ func (i *logDirectoryInvoker) Glob(context ipc.ServerContext, pattern string, st
 // globStep applies a glob recursively.
 func (i *logDirectoryInvoker) globStep(name string, g *glob.Glob, isDir bool, stream mounttable.GlobbableServiceGlobStream) error {
 	if g.Len() == 0 && !isDir {
-		if err := stream.SendStream().Send(mounttable.MountEntry{Name: name}); err != nil {
+		if err := stream.SendStream().Send(types.MountEntry{Name: name}); err != nil {
 			return err
 		}
 	}

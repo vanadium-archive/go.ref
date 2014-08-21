@@ -9,6 +9,7 @@ import (
 	"veyron2/ipc"
 	"veyron2/query"
 	"veyron2/services/mounttable"
+	"veyron2/services/mounttable/types"
 	"veyron2/services/store"
 	"veyron2/services/watch"
 	"veyron2/storage"
@@ -140,12 +141,12 @@ func (o *object) Query(ctx ipc.ServerContext, q query.Query, stream store.Object
 
 type globStreamSenderAdapter struct {
 	stream interface {
-		Send(entry mounttable.MountEntry) error
+		Send(entry types.MountEntry) error
 	}
 }
 
 func (a *globStreamSenderAdapter) Send(item string) error {
-	return a.stream.Send(mounttable.MountEntry{Name: item})
+	return a.stream.Send(types.MountEntry{Name: item})
 }
 
 type globStreamAdapter struct {
