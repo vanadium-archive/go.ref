@@ -2,7 +2,9 @@ package impl
 
 import (
 	"os"
+	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -17,13 +19,32 @@ func init() {
 	rt.Init()
 }
 
-// startServer starts the build server.
-func startServer(t *testing.T) (build.Builder, func()) {
+// findGoBinary returns the path to the given Go binary.
+func findGoBinary(t *testing.T, name string) string {
 	root := os.Getenv("VEYRON_ROOT")
 	if root == "" {
 		t.Fatalf("VEYRON_ROOT is not set")
 	}
-	gobin := filepath.Join(root, "environment", "go", "bin", "go")
+	envbin := filepath.Join(root, "environment", "go", runtime.GOOS, runtime.GOARCH, "go", "bin", name)
+	if _, err := os.Stat(envbin); err == nil {
+		return envbin
+	} else if !os.IsNotExist(err) {
+		t.Fatalf("Stat(%v) failed: %v", envbin, err)
+	}
+	pathbin, err := exec.LookPath(name)
+	if err != nil {
+		if err == exec.ErrNotFound {
+			t.Fatalf("%q does not exist and %q not found in PATH", envbin, name)
+		} else {
+			t.Fatalf("LookPath(%q) failed: %v", name, err)
+		}
+	}
+	return pathbin
+}
+
+// startServer starts the build server.
+func startServer(t *testing.T) (build.Builder, func()) {
+	gobin := findGoBinary(t, "go")
 	server, err := rt.R().NewServer()
 	if err != nil {
 		t.Fatalf("NewServer() failed: %v", err)
