@@ -177,8 +177,8 @@ func invokeBuild(ctx context.T, name string, sources <-chan vbuild.File, cancel 
 			errchan <- fmt.Errorf("Advance() failed: %v", err)
 			return
 		}
-		if _, err := stream.Finish(); err != nil {
-			errchan <- fmt.Errorf("Finish() failed: %v", err)
+		if out, err := stream.Finish(); err != nil {
+			errchan <- fmt.Errorf("Finish() failed: (%v, %v)", out, err)
 			return
 		}
 		errchan <- nil

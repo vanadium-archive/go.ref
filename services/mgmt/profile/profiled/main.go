@@ -17,8 +17,8 @@ var (
 	protocol = flag.String("protocol", "tcp", "protocol to listen on")
 	address  = flag.String("address", ":0", "address to listen on")
 
-	name      = flag.String("name", "", "name to mount the profile manager as")
-	storeName = flag.String("store", "", "object name of the profile manager store")
+	name      = flag.String("name", "", "name to mount the profile repository as")
+	storeName = flag.String("store", "", "object name of the profile repository store")
 )
 
 func main() {
@@ -45,7 +45,7 @@ func main() {
 	if err := server.Serve(*name, dispatcher); err != nil {
 		vlog.Fatalf("Serve(%v) failed: %v", *name, err)
 	}
-	vlog.VI(0).Infof("Profile manager published at %v/%v", endpoint, *name)
+	vlog.Infof("Profile repository running at endpoint=%q", endpoint)
 
 	// Wait until shutdown.
 	<-signals.ShutdownOnSignals()

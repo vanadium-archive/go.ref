@@ -153,7 +153,7 @@ func TestProfileClient(t *testing.T) {
 	if err := cmd.Execute([]string{"put", exists}); err != nil {
 		t.Fatalf("%v", err)
 	}
-	if expected, got := "Specification updated successfully.", strings.TrimSpace(stdout.String()); got != expected {
+	if expected, got := "Profile added successfully.", strings.TrimSpace(stdout.String()); got != expected {
 		t.Errorf("Got %q, expected %q", got, expected)
 	}
 	stdout.Reset()

@@ -4,6 +4,7 @@ import (
 	"errors"
 
 	"veyron/services/mgmt/profile"
+	_ "veyron/services/store/typeregistryhack"
 
 	"veyron2/ipc"
 	"veyron2/naming"
@@ -43,9 +44,13 @@ func makeParentNodes(context ipc.ServerContext, tx storage.Transaction, path str
 	for i := 0; i < len(pathComponents); i++ {
 		name := pathComponents[:i].String()
 		object := tx.Bind(name)
-		if _, err := object.Get(context); err != nil {
-			if _, err := object.Put(context, &dir{}); err != nil {
-				return errOperationFailed
+		if exists, err := object.Exists(context); err != nil {
+			return errOperationFailed
+		} else if !exists {
+			if _, err := object.Get(context); err != nil {
+				if _, err := object.Put(context, &dir{}); err != nil {
+					return errOperationFailed
+				}
 			}
 		}
 	}

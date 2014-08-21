@@ -87,7 +87,7 @@ func main() {
 		vlog.Errorf("Serve(%v) failed: %v", *name, err)
 		return
 	}
-	vlog.Infof("Binary repository published at %v/%v", endpoint, *name)
+	vlog.Infof("Binary repository running at endpoint=%q", endpoint)
 	// Wait until shutdown.
 	<-signals.ShutdownOnSignals()
 }

@@ -42,7 +42,7 @@ func main() {
 		vlog.Errorf("Serve(%v) failed: %v", *name, err)
 		return
 	}
-	vlog.Infof("Build server endpoint=%q name=%q", endpoint, *name)
+	vlog.Infof("Build server running at endpoint=%q", endpoint)
 
 	// Wait until shutdown.
 	<-signals.ShutdownOnSignals()
