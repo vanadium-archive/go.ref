@@ -13,6 +13,7 @@ import (
 	"veyron2/rt"
 	"veyron2/security"
 	"veyron2/services/mounttable"
+	"veyron2/services/mounttable/types"
 	"veyron2/vlog"
 )
 
@@ -23,8 +24,8 @@ type server struct {
 func (s *server) Glob(_ ipc.ServerContext, pattern string, stream mounttable.GlobbableServiceGlobStream) error {
 	vlog.VI(2).Infof("Glob() was called. suffix=%v pattern=%q", s.suffix, pattern)
 	sender := stream.SendStream()
-	sender.Send(mounttable.MountEntry{"name1", []mounttable.MountedServer{{"server1", 123}}})
-	sender.Send(mounttable.MountEntry{"name2", []mounttable.MountedServer{{"server2", 456}, {"server3", 789}}})
+	sender.Send(types.MountEntry{"name1", []types.MountedServer{{"server1", 123}}})
+	sender.Send(types.MountEntry{"name2", []types.MountedServer{{"server2", 456}, {"server3", 789}}})
 	return nil
 }
 
@@ -38,9 +39,9 @@ func (s *server) Unmount(_ ipc.ServerContext, server string) error {
 	return nil
 }
 
-func (s *server) ResolveStep(ipc.ServerContext) (servers []mounttable.MountedServer, suffix string, err error) {
+func (s *server) ResolveStep(ipc.ServerContext) (servers []types.MountedServer, suffix string, err error) {
 	vlog.VI(2).Infof("ResolveStep() was called. suffix=%v", s.suffix)
-	servers = []mounttable.MountedServer{{"server1", 123}}
+	servers = []types.MountedServer{{"server1", 123}}
 	suffix = s.suffix
 	return
 }

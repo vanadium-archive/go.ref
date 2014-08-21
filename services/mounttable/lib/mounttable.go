@@ -17,6 +17,7 @@ import (
 	"veyron2/rt"
 	"veyron2/security"
 	"veyron2/services/mounttable"
+	"veyron2/services/mounttable/types"
 	"veyron2/verror"
 	"veyron2/vlog"
 )
@@ -205,7 +206,7 @@ func (ms *mountContext) Authorize(context security.Context) error {
 
 // ResolveStep returns the next server in a resolution, the name remaining below that server,
 // and whether or not that server is another mount table.
-func (ms *mountContext) ResolveStep(context ipc.ServerContext) (servers []mounttable.MountedServer, suffix string, err error) {
+func (ms *mountContext) ResolveStep(context ipc.ServerContext) (servers []types.MountedServer, suffix string, err error) {
 	vlog.VI(2).Infof("ResolveStep %q", ms.name)
 	mt := ms.mt
 	// TODO(caprita): we need to grab a write lock because walk may
@@ -337,7 +338,7 @@ func (mt *mountTable) globStep(n *node, name string, pattern *glob.Glob, context
 			n.removeUseless()
 			return
 		}
-		sender.Send(mounttable.MountEntry{Name: name, Servers: m.servers.copyToSlice()})
+		sender.Send(types.MountEntry{Name: name, Servers: m.servers.copyToSlice()})
 		return
 	}
 
@@ -347,7 +348,7 @@ func (mt *mountTable) globStep(n *node, name string, pattern *glob.Glob, context
 			n.removeUseless()
 			return
 		}
-		sender.Send(mounttable.MountEntry{Name: name})
+		sender.Send(types.MountEntry{Name: name})
 	}
 
 	if pattern.Finished() {
