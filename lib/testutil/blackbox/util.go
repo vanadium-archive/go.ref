@@ -41,7 +41,7 @@ func WaitForEOFOnStdin() {
 }
 
 // ReadLineFromStdin reads a line from os.Stdin, blocking until one is available
-// or until EOF is encoutnered.  The line is returned with the newline character
+// or until EOF is encountered.  The line is returned with the newline character
 // chopped off.
 func ReadLineFromStdin() string {
 	if read, err := bufio.NewReader(os.Stdin).ReadString('\n'); err != nil {

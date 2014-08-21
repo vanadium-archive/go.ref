@@ -53,7 +53,7 @@ func NewDispatcher(auth security.Authorizer, config *config.State) (*dispatcher,
 	return &dispatcher{
 		auth: auth,
 		internal: &internalState{
-			callback: newCallbackState(),
+			callback: newCallbackState(config.Name),
 			updating: newUpdatingState(),
 		},
 		config: config,

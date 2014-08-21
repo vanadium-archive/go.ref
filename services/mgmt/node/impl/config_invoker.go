@@ -8,8 +8,11 @@ package impl
 import (
 	"strconv"
 	"sync"
+	"time"
 
 	"veyron2/ipc"
+	"veyron2/naming"
+	"veyron2/vlog"
 )
 
 type callbackState struct {
@@ -17,15 +20,75 @@ type callbackState struct {
 	// channels maps callback identifiers and config keys to channels that
 	// are used to communicate corresponding config values from child
 	// processes.
-	channels map[string]map[string]chan string
+	channels map[string]map[string]chan<- string
 	// nextCallbackID provides the next callback identifier to use as a key
 	// for the channels map.
 	nextCallbackID int64
+	// name is the object name for making calls against the node manager's
+	// config service.
+	name string
 }
 
-func newCallbackState() *callbackState {
+func newCallbackState(name string) *callbackState {
 	return &callbackState{
-		channels: make(map[string]map[string]chan string),
+		channels: make(map[string]map[string]chan<- string),
+		name:     name,
+	}
+}
+
+// callbackListener abstracts out listening for values provided via the
+// callback mechanism for a given key.
+type callbackListener interface {
+	// waitForValue blocks until the value that this listener is expecting
+	// arrives; or until the timeout expires.
+	waitForValue(timeout time.Duration) (string, error)
+	// cleanup cleans up any state used by the listener.  Should be called
+	// when the listener is no longer needed.
+	cleanup()
+	// name returns the object name for the config service object that
+	// handles the key that the listener is listening for.
+	name() string
+}
+
+// listener implements callbackListener
+type listener struct {
+	id string
+	cs *callbackState
+	ch <-chan string
+	n  string
+}
+
+func (l *listener) waitForValue(timeout time.Duration) (string, error) {
+	select {
+	case value := <-l.ch:
+		return value, nil
+	case <-time.After(timeout):
+		vlog.Errorf("Waiting for callback timed out")
+		return "", errOperationFailed
+	}
+}
+
+func (l *listener) cleanup() {
+	l.cs.unregister(l.id)
+}
+
+func (l *listener) name() string {
+	return l.n
+}
+
+func (c *callbackState) listenFor(key string) callbackListener {
+	id := c.generateID()
+	callbackName := naming.MakeTerminal(naming.Join(c.name, configSuffix, id))
+	// Make the channel buffered to avoid blocking the Set method when
+	// nothing is receiving on the channel.  This happens e.g. when
+	// unregisterCallbacks executes before Set is called.
+	callbackChan := make(chan string, 1)
+	c.register(id, key, callbackChan)
+	return &listener{
+		id: id,
+		cs: c,
+		ch: callbackChan,
+		n:  callbackName,
 	}
 }
 
@@ -36,11 +99,11 @@ func (c *callbackState) generateID() string {
 	return strconv.FormatInt(c.nextCallbackID-1, 10)
 }
 
-func (c *callbackState) register(id, key string, channel chan string) {
+func (c *callbackState) register(id, key string, channel chan<- string) {
 	c.Lock()
 	defer c.Unlock()
 	if _, ok := c.channels[id]; !ok {
-		c.channels[id] = make(map[string]chan string)
+		c.channels[id] = make(map[string]chan<- string)
 	}
 	c.channels[id][key] = channel
 }

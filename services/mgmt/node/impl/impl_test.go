@@ -8,7 +8,9 @@ import (
 	"os"
 	goexec "os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
+	"syscall"
 	"testing"
 
 	"veyron/lib/signals"
@@ -71,6 +73,7 @@ func nodeManager(args []string) {
 		vlog.Fatalf("nodeManager expected at least an argument")
 	}
 	publishName := args[0]
+	args = args[1:]
 
 	defer fmt.Printf("%v terminating\n", publishName)
 	defer rt.R().Cleanup()
@@ -90,11 +93,11 @@ func nodeManager(args []string) {
 	// This exemplifies how to override or set specific config fields, if,
 	// for example, the node manager is invoked 'by hand' instead of via a
 	// script prepared by a previous version of the node manager.
-	if len(args) > 1 {
-		if want, got := 3, len(args)-1; want != got {
+	if len(args) > 0 {
+		if want, got := 3, len(args); want != got {
 			vlog.Fatalf("expected %d additional arguments, got %d instead", want, got)
 		}
-		configState.Root, configState.Origin, configState.CurrentLink = args[1], args[2], args[3]
+		configState.Root, configState.Origin, configState.CurrentLink = args[0], args[1], args[2]
 	}
 
 	dispatcher, err := impl.NewDispatcher(nil, configState)
@@ -106,11 +109,14 @@ func nodeManager(args []string) {
 	}
 
 	impl.InvokeCallback(name)
+	fmt.Printf("ready:%d\n", os.Getpid())
 
-	fmt.Println("ready")
 	<-signals.ShutdownOnSignals()
 	if os.Getenv("PAUSE_BEFORE_STOP") == "1" {
 		blackbox.WaitForEOFOnStdin()
+	}
+	if dispatcher.Leaking() {
+		vlog.Fatalf("node manager leaking resources")
 	}
 }
 
@@ -201,6 +207,26 @@ func setupRootDir() (string, func()) {
 	}
 }
 
+// readPID waits for the "ready:<PID>" line from the child and parses out the
+// PID of the child.
+func readPID(t *testing.T, c *blackbox.Child) int {
+	line, err := c.ReadLineFromChild()
+	if err != nil {
+		t.Fatalf("ReadLineFromChild() failed: %v", err)
+		return 0
+	}
+	colon := strings.LastIndex(line, ":")
+	if colon == -1 {
+		t.Fatalf("LastIndex(%q, %q) returned -1", line, ":")
+		return 0
+	}
+	pid, err := strconv.Atoi(line[colon+1:])
+	if err != nil {
+		t.Fatalf("Atoi(%q) failed: %v", line[colon+1:], err)
+	}
+	return pid
+}
+
 // TestNodeManagerUpdateAndRevert makes the node manager go through the motions of updating
 // itself to newer versions (twice), and reverting itself back (twice).  It also
 // checks that update and revert fail when they're supposed to.  The initial
@@ -253,7 +279,7 @@ func TestNodeManagerUpdateAndRevert(t *testing.T) {
 			deferrer()
 		}
 	}()
-	nm.Expect("ready")
+	readPID(t, nm)
 	resolve(t, "factoryNM") // Verify the node manager has published itself.
 
 	// Simulate an invalid envelope in the application repository.
@@ -288,7 +314,7 @@ func TestNodeManagerUpdateAndRevert(t *testing.T) {
 
 	// This is from the child node manager started by the node manager
 	// as an update test.
-	nm.Expect("ready")
+	readPID(t, nm)
 	nm.Expect("v2NM terminating")
 
 	updateExpectError(t, "factoryNM", verror.Exists) // Update already in progress.
@@ -306,7 +332,7 @@ func TestNodeManagerUpdateAndRevert(t *testing.T) {
 		t.Fatalf("Start() failed: %v", err)
 	}
 	deferrer = runNM.Cleanup
-	runNM.Expect("ready")
+	readPID(t, runNM)
 	resolve(t, "v2NM") // Current link should have been launching v2.
 
 	// Try issuing an update without changing the envelope in the application
@@ -329,7 +355,7 @@ func TestNodeManagerUpdateAndRevert(t *testing.T) {
 
 	// This is from the child node manager started by the node manager
 	// as an update test.
-	runNM.Expect("ready")
+	readPID(t, runNM)
 	// Both the parent and child node manager should terminate upon successful
 	// update.
 	runNM.ExpectSet([]string{"v3NM terminating", "v2NM terminating"})
@@ -348,7 +374,7 @@ func TestNodeManagerUpdateAndRevert(t *testing.T) {
 		t.Fatalf("Start() failed: %v", err)
 	}
 	deferrer = runNM.Cleanup
-	runNM.Expect("ready")
+	readPID(t, runNM)
 	resolve(t, "v3NM") // Current link should have been launching v3.
 
 	// Revert the node manager to its previous version (v2).
@@ -369,7 +395,7 @@ func TestNodeManagerUpdateAndRevert(t *testing.T) {
 		t.Fatalf("Start() failed: %v", err)
 	}
 	deferrer = runNM.Cleanup
-	runNM.Expect("ready")
+	readPID(t, runNM)
 	resolve(t, "v2NM") // Current link should have been launching v2.
 
 	// Revert the node manager to its previous version (factory).
@@ -388,8 +414,11 @@ func TestNodeManagerUpdateAndRevert(t *testing.T) {
 		t.Fatalf("Start() failed: %v", err)
 	}
 	deferrer = runNM.Cleanup
-	runNM.Expect("ready")
+	pid := readPID(t, runNM)
 	resolve(t, "factoryNM") // Current link should have been launching factory version.
+	syscall.Kill(pid, syscall.SIGINT)
+	runNM.Expect("factoryNM terminating")
+	runNM.ExpectEOFAndWait()
 }
 
 type pingServerDisp chan struct{}
@@ -415,7 +444,7 @@ func TestAppStartStop(t *testing.T) {
 		t.Fatalf("Start() failed: %v", err)
 	}
 	defer nm.Cleanup()
-	nm.Expect("ready")
+	readPID(t, nm)
 
 	// Create the local server that the app uses to let us know it's ready.
 	server, _ := newServer()
@@ -489,4 +518,8 @@ func TestAppStartStop(t *testing.T) {
 		t.Fatalf("Expected to read %v, got %v instead", want, got)
 	}
 	// END HACK
+
+	syscall.Kill(nm.Cmd.Process.Pid, syscall.SIGINT)
+	nm.Expect("nm terminating")
+	nm.ExpectEOFAndWait()
 }

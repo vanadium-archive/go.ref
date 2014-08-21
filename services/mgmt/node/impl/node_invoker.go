@@ -172,16 +172,11 @@ func (i *nodeInvoker) testNodeManager(ctx context.T, workspace string, envelope 
 	cmd.Stderr = os.Stderr
 	// Setup up the child process callback.
 	callbackState := i.callback
-	id := callbackState.generateID()
+	listener := callbackState.listenFor(mgmt.ChildNodeManagerConfigKey)
+	defer listener.cleanup()
 	cfg := config.New()
-	cfg.Set(mgmt.ParentNodeManagerConfigKey, naming.MakeTerminal(naming.Join(i.config.Name, configSuffix, id)))
+	cfg.Set(mgmt.ParentNodeManagerConfigKey, listener.name())
 	handle := vexec.NewParentHandle(cmd, vexec.ConfigOpt{cfg})
-	// Make the channel buffered to avoid blocking the Set method when
-	// nothing is receiving on the channel.  This happens e.g. when
-	// unregisterCallbacks executes before Set is called.
-	callbackChan := make(chan string, 1)
-	callbackState.register(id, mgmt.ChildNodeManagerConfigKey, callbackChan)
-	defer callbackState.unregister(id)
 	// Start the child process.
 	if err := handle.Start(); err != nil {
 		vlog.Errorf("Start() failed: %v", err)
@@ -198,46 +193,41 @@ func (i *nodeInvoker) testNodeManager(ctx context.T, workspace string, envelope 
 		vlog.Errorf("WaitForReady(%v) failed: %v", testTimeout, err)
 		return errOperationFailed
 	}
-	// Wait for the child process to invoke the Callback().
-	select {
-	case childName := <-callbackChan:
-		// Check that invoking Update() succeeds.
-		childName = naming.MakeTerminal(naming.Join(childName, "nm"))
-		nmClient, err := node.BindNode(childName)
-		if err != nil {
-			vlog.Errorf("BindNode(%v) failed: %v", childName, err)
-			return errOperationFailed
-		}
-		linkOld, pathOld, err := i.getCurrentFileInfo()
-		if err != nil {
-			return errOperationFailed
-		}
-		// Since the resolution of mtime for files is seconds,
-		// the test sleeps for a second to make sure it can
-		// check whether the current symlink is updated.
-		time.Sleep(time.Second)
-		if err := nmClient.Revert(ctx); err != nil {
-			return errOperationFailed
-		}
-		linkNew, pathNew, err := i.getCurrentFileInfo()
-		if err != nil {
-			return errOperationFailed
-		}
-		// Check that the new node manager updated the current symbolic
-		// link.
-		if !linkOld.ModTime().Before(linkNew.ModTime()) {
-			vlog.Errorf("new node manager test failed")
-			return errOperationFailed
-		}
-		// Ensure that the current symbolic link points to the same
-		// script.
-		if pathNew != pathOld {
-			i.updateLink(pathOld)
-			vlog.Errorf("new node manager test failed")
-			return errOperationFailed
-		}
-	case <-time.After(testTimeout):
-		vlog.Errorf("Waiting for callback timed out")
+	childName, err := listener.waitForValue(testTimeout)
+	if err != nil {
+		return errOperationFailed
+	}
+	// Check that invoking Update() succeeds.
+	childName = naming.MakeTerminal(naming.Join(childName, "nm"))
+	nmClient, err := node.BindNode(childName)
+	if err != nil {
+		vlog.Errorf("BindNode(%v) failed: %v", childName, err)
+		return errOperationFailed
+	}
+	linkOld, pathOld, err := i.getCurrentFileInfo()
+	if err != nil {
+		return errOperationFailed
+	}
+	// Since the resolution of mtime for files is seconds, the test sleeps
+	// for a second to make sure it can check whether the current symlink is
+	// updated.
+	time.Sleep(time.Second)
+	if err := nmClient.Revert(ctx); err != nil {
+		return errOperationFailed
+	}
+	linkNew, pathNew, err := i.getCurrentFileInfo()
+	if err != nil {
+		return errOperationFailed
+	}
+	// Check that the new node manager updated the current symbolic link.
+	if !linkOld.ModTime().Before(linkNew.ModTime()) {
+		vlog.Errorf("new node manager test failed")
+		return errOperationFailed
+	}
+	// Ensure that the current symbolic link points to the same script.
+	if pathNew != pathOld {
+		i.updateLink(pathOld)
+		vlog.Errorf("new node manager test failed")
 		return errOperationFailed
 	}
 	return nil

@@ -347,52 +347,44 @@ func (i *appInvoker) Start(ipc.ServerContext) ([]string, error) {
 	}
 	// Setup up the child process callback.
 	callbackState := i.callback
-	id := callbackState.generateID()
+	listener := callbackState.listenFor(mgmt.AppCycleManagerConfigKey)
+	defer listener.cleanup()
 	cfg := config.New()
-	cfg.Set(mgmt.ParentNodeManagerConfigKey, naming.MakeTerminal(naming.Join(i.config.Name, configSuffix, id)))
+	cfg.Set(mgmt.ParentNodeManagerConfigKey, listener.name())
 	handle := vexec.NewParentHandle(cmd, vexec.ConfigOpt{cfg})
-	// Make the channel buffered to avoid blocking the Set method when
-	// nothing is receiving on the channel.  This happens e.g. when
-	// unregisterCallbacks executes before Set is called.
-	callbackChan := make(chan string, 1)
-	callbackState.register(id, mgmt.AppCycleManagerConfigKey, callbackChan)
-	defer callbackState.unregister(id)
 	// Start the child process.
 	if err := handle.Start(); err != nil {
 		vlog.Errorf("Start() failed: %v", err)
 		return nil, errOperationFailed
 	}
 	// Wait for the child process to start.
-	testTimeout := 10 * time.Second
-	if err := handle.WaitForReady(testTimeout); err != nil {
-		vlog.Errorf("WaitForReady(%v) failed: %v", testTimeout, err)
+	timeout := 10 * time.Second
+	if err := handle.WaitForReady(timeout); err != nil {
+		vlog.Errorf("WaitForReady(%v) failed: %v", timeout, err)
 		if err := handle.Clean(); err != nil {
 			vlog.Errorf("Clean() failed: %v", err)
 		}
 		return nil, errOperationFailed
 	}
-	select {
-	case childName := <-callbackChan:
-		instanceInfo := &instanceInfo{
-			AppCycleMgrName: childName,
-			Pid:             handle.Pid(),
-		}
-		if err := saveInstanceInfo(instanceDir, instanceInfo); err != nil {
-			if err := handle.Clean(); err != nil {
-				vlog.Errorf("Clean() failed: %v", err)
-			}
-			return nil, err
-		}
-		// TODO(caprita): Spin up a goroutine to reap child status upon
-		// exit and transition it to suspended state if it exits on its
-		// own.
-	case <-time.After(testTimeout):
-		vlog.Errorf("Waiting for callback timed out")
+	childName, err := listener.waitForValue(timeout)
+	if err != nil {
 		if err := handle.Clean(); err != nil {
 			vlog.Errorf("Clean() failed: %v", err)
 		}
 		return nil, errOperationFailed
 	}
+	instanceInfo := &instanceInfo{
+		AppCycleMgrName: childName,
+		Pid:             handle.Pid(),
+	}
+	if err := saveInstanceInfo(instanceDir, instanceInfo); err != nil {
+		if err := handle.Clean(); err != nil {
+			vlog.Errorf("Clean() failed: %v", err)
+		}
+		return nil, err
+	}
+	// TODO(caprita): Spin up a goroutine to reap child status upon exit and
+	// transition it to suspended state if it exits on its own.
 	return []string{instanceID}, nil
 }
 
