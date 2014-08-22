@@ -7,7 +7,6 @@ import (
 	"path"
 
 	"veyron2/ipc"
-	"veyron2/services/mgmt/logreader"
 	"veyron2/services/mgmt/logreader/types"
 	"veyron2/vlog"
 )
@@ -22,15 +21,12 @@ type logFileInvoker struct {
 }
 
 // NewLogFileInvoker is the invoker factory.
-func NewLogFileInvoker(root, suffix string) *logFileInvoker {
-	return &logFileInvoker{
-		root:   path.Clean(root),
-		suffix: suffix,
-	}
+func NewLogFileInvoker(root, suffix string) ipc.Invoker {
+	return ipc.ReflectInvoker(&logFileInvoker{path.Clean(root), suffix})
 }
 
 // Size returns the size of the log file, in bytes.
-func (i *logFileInvoker) Size(context ipc.ServerContext) (int64, error) {
+func (i *logFileInvoker) Size(call ipc.ServerCall) (int64, error) {
 	vlog.VI(1).Infof("%v.Size()", i.suffix)
 	fname, err := translateNameToFilename(i.root, i.suffix)
 	if err != nil {
@@ -51,7 +47,7 @@ func (i *logFileInvoker) Size(context ipc.ServerContext) (int64, error) {
 }
 
 // ReadLog returns log entries from the log file.
-func (i *logFileInvoker) ReadLog(context ipc.ServerContext, startpos int64, numEntries int32, follow bool, stream logreader.LogFileServiceReadLogStream) (int64, error) {
+func (i *logFileInvoker) ReadLog(call ipc.ServerCall, startpos int64, numEntries int32, follow bool) (int64, error) {
 	vlog.VI(1).Infof("%v.ReadLog(%v, %v, %v)", i.suffix, startpos, numEntries, follow)
 	fname, err := translateNameToFilename(i.root, i.suffix)
 	if err != nil {
@@ -64,11 +60,10 @@ func (i *logFileInvoker) ReadLog(context ipc.ServerContext, startpos int64, numE
 		}
 		return 0, errOperationFailed
 	}
-	reader := newFollowReader(context, f, startpos, follow)
+	reader := newFollowReader(call, f, startpos, follow)
 	if numEntries == types.AllEntries {
 		numEntries = int32(math.MaxInt32)
 	}
-	sender := stream.SendStream()
 	for n := int32(0); n < numEntries; n++ {
 		line, offset, err := reader.readLine()
 		if err == io.EOF && n > 0 {
@@ -80,7 +75,7 @@ func (i *logFileInvoker) ReadLog(context ipc.ServerContext, startpos int64, numE
 		if err != nil {
 			return reader.tell(), errOperationFailed
 		}
-		if err := sender.Send(types.LogEntry{Position: offset, Line: line}); err != nil {
+		if err := call.Send(types.LogEntry{Position: offset, Line: line}); err != nil {
 			return reader.tell(), err
 		}
 	}

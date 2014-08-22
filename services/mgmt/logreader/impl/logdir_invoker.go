@@ -7,7 +7,6 @@ import (
 	"veyron/lib/glob"
 
 	"veyron2/ipc"
-	"veyron2/services/mounttable"
 	"veyron2/services/mounttable/types"
 	"veyron2/vlog"
 )
@@ -22,28 +21,25 @@ type logDirectoryInvoker struct {
 }
 
 // NewLogDirectoryInvoker is the invoker factory.
-func NewLogDirectoryInvoker(root, suffix string) *logDirectoryInvoker {
-	return &logDirectoryInvoker{
-		root:   path.Clean(root),
-		suffix: suffix,
-	}
+func NewLogDirectoryInvoker(root, suffix string) ipc.Invoker {
+	return ipc.ReflectInvoker(&logDirectoryInvoker{path.Clean(root), suffix})
 }
 
 // Glob streams the name of all the objects that match pattern.
-func (i *logDirectoryInvoker) Glob(context ipc.ServerContext, pattern string, stream mounttable.GlobbableServiceGlobStream) error {
+func (i *logDirectoryInvoker) Glob(call ipc.ServerCall, pattern string) error {
 	vlog.VI(1).Infof("%v.Glob(%v)", i.suffix, pattern)
 	g, err := glob.Parse(pattern)
 	if err != nil {
 		return err
 	}
 	i.root = path.Join(i.root, i.suffix)
-	return i.globStep("", g, true, stream)
+	return i.globStep("", g, true, call)
 }
 
 // globStep applies a glob recursively.
-func (i *logDirectoryInvoker) globStep(name string, g *glob.Glob, isDir bool, stream mounttable.GlobbableServiceGlobStream) error {
+func (i *logDirectoryInvoker) globStep(name string, g *glob.Glob, isDir bool, call ipc.ServerCall) error {
 	if g.Len() == 0 && !isDir {
-		if err := stream.SendStream().Send(types.MountEntry{Name: name}); err != nil {
+		if err := call.Send(types.MountEntry{Name: name}); err != nil {
 			return err
 		}
 	}
@@ -72,7 +68,7 @@ func (i *logDirectoryInvoker) globStep(name string, g *glob.Glob, isDir bool, st
 			continue
 		}
 		if ok, left := g.MatchInitialSegment(fileName); ok {
-			if err := i.globStep(path.Join(name, fileName), left, file.IsDir(), stream); err != nil {
+			if err := i.globStep(path.Join(name, fileName), left, file.IsDir(), call); err != nil {
 				return err
 			}
 		}
