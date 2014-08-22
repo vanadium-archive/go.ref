@@ -1,0 +1,20 @@
+// Packages stats defines the non-native types exported by the stats service.
+package stats
+
+// HistogramValue is the value of Histogram objects.
+type HistogramValue struct {
+	// Count is the total number of values added to the histogram.
+	Count int64
+	// Sum is the sum of all the values added to the histogram.
+	Sum int64
+	// Buckets contains all the buckets of the histogram.
+	Buckets []HistogramBucket
+}
+
+// HistogramBucket is one histogram bucket.
+type HistogramBucket struct {
+	// LowBound is the lower bound of the bucket.
+	LowBound int64
+	// Count is the number of values in the bucket.
+	Count int64
+}

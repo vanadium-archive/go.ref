@@ -47,11 +47,12 @@ func New() *Counter {
 	return c
 }
 
-func (c *Counter) advance() {
+func (c *Counter) advance() time.Time {
 	now := Now()
 	for _, ts := range c.ts {
 		ts.advanceTime(now)
 	}
+	return now
 }
 
 // Value returns the current value of the counter.
@@ -72,8 +73,7 @@ func (c *Counter) LastUpdate() time.Time {
 func (c *Counter) Set(value int64) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	c.advance()
-	c.lastUpdate = c.ts[minute].headTime()
+	c.lastUpdate = c.advance()
 	for _, ts := range c.ts {
 		ts.set(value)
 	}
@@ -83,8 +83,7 @@ func (c *Counter) Set(value int64) {
 func (c *Counter) Incr(delta int64) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	c.advance()
-	c.lastUpdate = c.ts[minute].headTime()
+	c.lastUpdate = c.advance()
 	for _, ts := range c.ts {
 		ts.incr(delta)
 	}

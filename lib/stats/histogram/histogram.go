@@ -7,12 +7,13 @@ import (
 	"time"
 
 	"veyron/lib/stats/counter"
+	"veyron/services/mgmt/stats"
 )
 
 // A Histogram accumulates values in the form of a histogram. The type of the
 // values is int64, which is suitable for keeping track of things like RPC
-// latency in milliseconds. New histogram objects should be obtain via the New()
-// function.
+// latency in milliseconds. New histogram objects should be obtained via the
+// New() function.
 type Histogram struct {
 	opts    Options
 	buckets []bucketInternal
@@ -32,24 +33,6 @@ type Options struct {
 	SmallestBucketSize float64
 	// MinValue is the lower bound of the first bucket.
 	MinValue int64
-}
-
-// HistogramValue is the value returned by Value(), and the Delta*() methods.
-type HistogramValue struct {
-	// Count is the total number of values added to the histogram.
-	Count int64
-	// Sum is the sum of all the values added to the histogram.
-	Sum int64
-	// Buckets contains all the buckets of the histogram.
-	Buckets []Bucket
-}
-
-// Bucket is one histogram bucket.
-type Bucket struct {
-	// LowBound is the lower bound of the bucket.
-	LowBound int64
-	// Count is the number of values in the bucket.
-	Count int64
 }
 
 // bucketInternal is the internal representation of a bucket, which includes a
@@ -108,16 +91,16 @@ func (h *Histogram) LastUpdate() time.Time {
 }
 
 // Value returns the accumulated state of the histogram since it was created.
-func (h *Histogram) Value() HistogramValue {
-	b := make([]Bucket, len(h.buckets))
+func (h *Histogram) Value() stats.HistogramValue {
+	b := make([]stats.HistogramBucket, len(h.buckets))
 	for i, v := range h.buckets {
-		b[i] = Bucket{
+		b[i] = stats.HistogramBucket{
 			LowBound: v.lowBound,
 			Count:    v.count.Value(),
 		}
 	}
 
-	v := HistogramValue{
+	v := stats.HistogramValue{
 		Count:   h.count.Value(),
 		Sum:     h.sum.Value(),
 		Buckets: b,
@@ -126,16 +109,16 @@ func (h *Histogram) Value() HistogramValue {
 }
 
 // Delta1h returns the change in the last hour.
-func (h *Histogram) Delta1h() HistogramValue {
-	b := make([]Bucket, len(h.buckets))
+func (h *Histogram) Delta1h() stats.HistogramValue {
+	b := make([]stats.HistogramBucket, len(h.buckets))
 	for i, v := range h.buckets {
-		b[i] = Bucket{
+		b[i] = stats.HistogramBucket{
 			LowBound: v.lowBound,
 			Count:    v.count.Delta1h(),
 		}
 	}
 
-	v := HistogramValue{
+	v := stats.HistogramValue{
 		Count:   h.count.Delta1h(),
 		Sum:     h.sum.Delta1h(),
 		Buckets: b,
@@ -144,16 +127,16 @@ func (h *Histogram) Delta1h() HistogramValue {
 }
 
 // Delta10m returns the change in the last 10 minutes.
-func (h *Histogram) Delta10m() HistogramValue {
-	b := make([]Bucket, len(h.buckets))
+func (h *Histogram) Delta10m() stats.HistogramValue {
+	b := make([]stats.HistogramBucket, len(h.buckets))
 	for i, v := range h.buckets {
-		b[i] = Bucket{
+		b[i] = stats.HistogramBucket{
 			LowBound: v.lowBound,
 			Count:    v.count.Delta10m(),
 		}
 	}
 
-	v := HistogramValue{
+	v := stats.HistogramValue{
 		Count:   h.count.Delta10m(),
 		Sum:     h.sum.Delta10m(),
 		Buckets: b,
@@ -162,16 +145,16 @@ func (h *Histogram) Delta10m() HistogramValue {
 }
 
 // Delta1m returns the change in the last 10 minutes.
-func (h *Histogram) Delta1m() HistogramValue {
-	b := make([]Bucket, len(h.buckets))
+func (h *Histogram) Delta1m() stats.HistogramValue {
+	b := make([]stats.HistogramBucket, len(h.buckets))
 	for i, v := range h.buckets {
-		b[i] = Bucket{
+		b[i] = stats.HistogramBucket{
 			LowBound: v.lowBound,
 			Count:    v.count.Delta1m(),
 		}
 	}
 
-	v := HistogramValue{
+	v := stats.HistogramValue{
 		Count:   h.count.Delta1m(),
 		Sum:     h.sum.Delta1m(),
 		Buckets: b,

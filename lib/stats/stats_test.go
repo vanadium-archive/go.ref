@@ -5,15 +5,17 @@ import (
 	"testing"
 	"time"
 
-	"veyron/lib/stats"
+	libstats "veyron/lib/stats"
 	"veyron/lib/stats/counter"
 	"veyron/lib/stats/histogram"
+	istats "veyron/services/mgmt/stats"
+
 	"veyron2/rt"
 )
 
-func doGlob(root, pattern string, since time.Time) ([]stats.KeyValue, error) {
-	it := stats.Glob(root, pattern, since, true)
-	out := []stats.KeyValue{}
+func doGlob(root, pattern string, since time.Time) ([]libstats.KeyValue, error) {
+	it := libstats.Glob(root, pattern, since, true)
+	out := []libstats.KeyValue{}
 	for it.Advance() {
 		v := it.Value()
 		out = append(out, v)
@@ -30,17 +32,17 @@ func TestStats(t *testing.T) {
 	now := time.Unix(1, 0)
 	counter.Now = func() time.Time { return now }
 
-	a := stats.NewInteger("ipc/test/aaa")
-	b := stats.NewFloat("ipc/test/bbb")
-	c := stats.NewString("ipc/test/ccc")
-	d := stats.NewCounter("ipc/test/ddd")
+	a := libstats.NewInteger("ipc/test/aaa")
+	b := libstats.NewFloat("ipc/test/bbb")
+	c := libstats.NewString("ipc/test/ccc")
+	d := libstats.NewCounter("ipc/test/ddd")
 
 	a.Set(1)
 	b.Set(2)
 	c.Set("Hello")
 	d.Set(4)
 
-	got, err := stats.Value("ipc/test/aaa")
+	got, err := libstats.Value("ipc/test/aaa")
 	if err != nil {
 		t.Errorf("unexpected error: %v", err)
 	}
@@ -48,16 +50,16 @@ func TestStats(t *testing.T) {
 		t.Errorf("unexpected result. Got %v, want %v", got, expected)
 	}
 
-	if _, err := stats.Value(""); err != stats.ErrNotFound {
+	if _, err := libstats.Value(""); err != libstats.ErrNotFound {
 		t.Errorf("expected error, got err=%v", err)
 	}
-	if _, err := stats.Value("does/not/exist"); err != stats.ErrNotFound {
+	if _, err := libstats.Value("does/not/exist"); err != libstats.ErrNotFound {
 		t.Errorf("expected error, got err=%v", err)
 	}
 
-	root := stats.NewInteger("")
+	root := libstats.NewInteger("")
 	root.Set(42)
-	got, err = stats.Value("")
+	got, err = libstats.Value("")
 	if err != nil {
 		t.Errorf("unexpected error: %v", err)
 	}
@@ -65,9 +67,9 @@ func TestStats(t *testing.T) {
 		t.Errorf("unexpected result. Got %v, want %v", got, expected)
 	}
 
-	foo := stats.NewInteger("foo")
+	foo := libstats.NewInteger("foo")
 	foo.Set(55)
-	got, err = stats.Value("foo")
+	got, err = libstats.Value("foo")
 	if err != nil {
 		t.Errorf("unexpected error: %v", err)
 	}
@@ -75,9 +77,9 @@ func TestStats(t *testing.T) {
 		t.Errorf("unexpected result. Got %v, want %v", got, expected)
 	}
 
-	bar := stats.NewInteger("foo/bar")
+	bar := libstats.NewInteger("foo/bar")
 	bar.Set(44)
-	got, err = stats.Value("foo/bar")
+	got, err = libstats.Value("foo/bar")
 	if err != nil {
 		t.Errorf("unexpected error: %v", err)
 	}
@@ -89,20 +91,20 @@ func TestStats(t *testing.T) {
 	if err != nil {
 		t.Errorf("unexpected error: %v", err)
 	}
-	expected := []stats.KeyValue{
-		stats.KeyValue{Key: "", Value: int64(42)},
-		stats.KeyValue{Key: "foo", Value: int64(55)},
-		stats.KeyValue{Key: "foo/bar", Value: int64(44)},
-		stats.KeyValue{Key: "ipc/test/aaa", Value: int64(1)},
-		stats.KeyValue{Key: "ipc/test/bbb", Value: float64(2)},
-		stats.KeyValue{Key: "ipc/test/ccc", Value: string("Hello")},
-		stats.KeyValue{Key: "ipc/test/ddd", Value: int64(4)},
-		stats.KeyValue{Key: "ipc/test/ddd/delta10m", Value: int64(0)},
-		stats.KeyValue{Key: "ipc/test/ddd/delta1h", Value: int64(0)},
-		stats.KeyValue{Key: "ipc/test/ddd/delta1m", Value: int64(0)},
-		stats.KeyValue{Key: "ipc/test/ddd/rate10m", Value: float64(0)},
-		stats.KeyValue{Key: "ipc/test/ddd/rate1h", Value: float64(0)},
-		stats.KeyValue{Key: "ipc/test/ddd/rate1m", Value: float64(0)},
+	expected := []libstats.KeyValue{
+		libstats.KeyValue{Key: "", Value: int64(42)},
+		libstats.KeyValue{Key: "foo", Value: int64(55)},
+		libstats.KeyValue{Key: "foo/bar", Value: int64(44)},
+		libstats.KeyValue{Key: "ipc/test/aaa", Value: int64(1)},
+		libstats.KeyValue{Key: "ipc/test/bbb", Value: float64(2)},
+		libstats.KeyValue{Key: "ipc/test/ccc", Value: string("Hello")},
+		libstats.KeyValue{Key: "ipc/test/ddd", Value: int64(4)},
+		libstats.KeyValue{Key: "ipc/test/ddd/delta10m", Value: int64(0)},
+		libstats.KeyValue{Key: "ipc/test/ddd/delta1h", Value: int64(0)},
+		libstats.KeyValue{Key: "ipc/test/ddd/delta1m", Value: int64(0)},
+		libstats.KeyValue{Key: "ipc/test/ddd/rate10m", Value: float64(0)},
+		libstats.KeyValue{Key: "ipc/test/ddd/rate1h", Value: float64(0)},
+		libstats.KeyValue{Key: "ipc/test/ddd/rate1m", Value: float64(0)},
 	}
 	if !reflect.DeepEqual(result, expected) {
 		t.Errorf("unexpected result. Got %#v, want %#v", result, expected)
@@ -112,11 +114,11 @@ func TestStats(t *testing.T) {
 	if err != nil {
 		t.Errorf("unexpected error: %v", err)
 	}
-	expected = []stats.KeyValue{
-		stats.KeyValue{Key: "ipc/test/aaa", Value: int64(1)},
-		stats.KeyValue{Key: "ipc/test/bbb", Value: float64(2)},
-		stats.KeyValue{Key: "ipc/test/ccc", Value: string("Hello")},
-		stats.KeyValue{Key: "ipc/test/ddd", Value: int64(4)},
+	expected = []libstats.KeyValue{
+		libstats.KeyValue{Key: "ipc/test/aaa", Value: int64(1)},
+		libstats.KeyValue{Key: "ipc/test/bbb", Value: float64(2)},
+		libstats.KeyValue{Key: "ipc/test/ccc", Value: string("Hello")},
+		libstats.KeyValue{Key: "ipc/test/ddd", Value: int64(4)},
 	}
 	if !reflect.DeepEqual(result, expected) {
 		t.Errorf("unexpected result. Got %#v, want %#v", result, expected)
@@ -129,13 +131,13 @@ func TestStats(t *testing.T) {
 	if err != nil {
 		t.Errorf("unexpected error: %v", err)
 	}
-	expected = []stats.KeyValue{
-		stats.KeyValue{Key: "ipc/test/ddd/delta10m", Value: int64(100)},
-		stats.KeyValue{Key: "ipc/test/ddd/delta1h", Value: int64(0)},
-		stats.KeyValue{Key: "ipc/test/ddd/delta1m", Value: int64(100)},
-		stats.KeyValue{Key: "ipc/test/ddd/rate10m", Value: float64(10)},
-		stats.KeyValue{Key: "ipc/test/ddd/rate1h", Value: float64(0)},
-		stats.KeyValue{Key: "ipc/test/ddd/rate1m", Value: float64(10)},
+	expected = []libstats.KeyValue{
+		libstats.KeyValue{Key: "ipc/test/ddd/delta10m", Value: int64(100)},
+		libstats.KeyValue{Key: "ipc/test/ddd/delta1h", Value: int64(0)},
+		libstats.KeyValue{Key: "ipc/test/ddd/delta1m", Value: int64(100)},
+		libstats.KeyValue{Key: "ipc/test/ddd/rate10m", Value: float64(10)},
+		libstats.KeyValue{Key: "ipc/test/ddd/rate1h", Value: float64(0)},
+		libstats.KeyValue{Key: "ipc/test/ddd/rate1m", Value: float64(10)},
 	}
 	if !reflect.DeepEqual(result, expected) {
 		t.Errorf("unexpected result. Got %#v, want %#v", result, expected)
@@ -146,11 +148,11 @@ func TestStats(t *testing.T) {
 	if err != nil {
 		t.Errorf("unexpected error: %v", err)
 	}
-	expected = []stats.KeyValue{
-		stats.KeyValue{Key: "aaa", Value: int64(1)},
-		stats.KeyValue{Key: "bbb", Value: float64(2)},
-		stats.KeyValue{Key: "ccc", Value: string("Hello")},
-		stats.KeyValue{Key: "ddd", Value: int64(104)},
+	expected = []libstats.KeyValue{
+		libstats.KeyValue{Key: "aaa", Value: int64(1)},
+		libstats.KeyValue{Key: "bbb", Value: float64(2)},
+		libstats.KeyValue{Key: "ccc", Value: string("Hello")},
+		libstats.KeyValue{Key: "ddd", Value: int64(104)},
 	}
 	if !reflect.DeepEqual(result, expected) {
 		t.Errorf("unexpected result. Got %#v, want %#v", result, expected)
@@ -160,8 +162,8 @@ func TestStats(t *testing.T) {
 	if err != nil {
 		t.Errorf("unexpected error: %v", err)
 	}
-	expected = []stats.KeyValue{
-		stats.KeyValue{Key: "", Value: int64(1)},
+	expected = []libstats.KeyValue{
+		libstats.KeyValue{Key: "", Value: int64(1)},
 	}
 	if !reflect.DeepEqual(result, expected) {
 		t.Errorf("unexpected result. Got %#v, want %#v", result, expected)
@@ -172,8 +174,8 @@ func TestStats(t *testing.T) {
 	if err != nil {
 		t.Errorf("unexpected error: %v", err)
 	}
-	expected = []stats.KeyValue{
-		stats.KeyValue{Key: "ddd", Value: int64(104)},
+	expected = []libstats.KeyValue{
+		libstats.KeyValue{Key: "ddd", Value: int64(104)},
 	}
 	if !reflect.DeepEqual(result, expected) {
 		t.Errorf("unexpected result. Got %#v, want %#v", result, expected)
@@ -183,13 +185,13 @@ func TestStats(t *testing.T) {
 	if err != nil {
 		t.Errorf("unexpected error: %v", err)
 	}
-	expected = []stats.KeyValue{}
+	expected = []libstats.KeyValue{}
 	if !reflect.DeepEqual(result, expected) {
 		t.Errorf("unexpected result. Got %#v, want %#v", result, expected)
 	}
 
 	// Test histogram
-	h := stats.NewHistogram("ipc/test/hhh", histogram.Options{NumBuckets: 5, GrowthFactor: 0})
+	h := libstats.NewHistogram("ipc/test/hhh", histogram.Options{NumBuckets: 5, GrowthFactor: 0})
 	h.Add(1)
 	h.Add(2)
 
@@ -197,18 +199,18 @@ func TestStats(t *testing.T) {
 	if err != nil {
 		t.Errorf("unexpected error: %v", err)
 	}
-	expected = []stats.KeyValue{
-		stats.KeyValue{
+	expected = []libstats.KeyValue{
+		libstats.KeyValue{
 			Key: "ipc/test/hhh",
-			Value: histogram.HistogramValue{
+			Value: istats.HistogramValue{
 				Count: 2,
 				Sum:   3,
-				Buckets: []histogram.Bucket{
-					histogram.Bucket{LowBound: 0, Count: 0},
-					histogram.Bucket{LowBound: 1, Count: 1},
-					histogram.Bucket{LowBound: 2, Count: 1},
-					histogram.Bucket{LowBound: 3, Count: 0},
-					histogram.Bucket{LowBound: 4, Count: 0},
+				Buckets: []istats.HistogramBucket{
+					istats.HistogramBucket{LowBound: 0, Count: 0},
+					istats.HistogramBucket{LowBound: 1, Count: 1},
+					istats.HistogramBucket{LowBound: 2, Count: 1},
+					istats.HistogramBucket{LowBound: 3, Count: 0},
+					istats.HistogramBucket{LowBound: 4, Count: 0},
 				},
 			},
 		},
@@ -226,18 +228,18 @@ func TestStats(t *testing.T) {
 	if err != nil {
 		t.Errorf("unexpected error: %v", err)
 	}
-	expected = []stats.KeyValue{
-		stats.KeyValue{
+	expected = []libstats.KeyValue{
+		libstats.KeyValue{
 			Key: "ipc/test/hhh/delta1m",
-			Value: histogram.HistogramValue{
+			Value: istats.HistogramValue{
 				Count: 2,
 				Sum:   5,
-				Buckets: []histogram.Bucket{
-					histogram.Bucket{LowBound: 0, Count: 0},
-					histogram.Bucket{LowBound: 1, Count: 0},
-					histogram.Bucket{LowBound: 2, Count: 1},
-					histogram.Bucket{LowBound: 3, Count: 1},
-					histogram.Bucket{LowBound: 4, Count: 0},
+				Buckets: []istats.HistogramBucket{
+					istats.HistogramBucket{LowBound: 0, Count: 0},
+					istats.HistogramBucket{LowBound: 1, Count: 0},
+					istats.HistogramBucket{LowBound: 2, Count: 1},
+					istats.HistogramBucket{LowBound: 3, Count: 1},
+					istats.HistogramBucket{LowBound: 4, Count: 0},
 				},
 			},
 		},
