@@ -26,16 +26,16 @@ main() {
   if [[ -n "${GO_BIN}" ]] && go::usable_release "${GO_BIN}"; then
     local -r GO_ROOT=$(go env GOROOT)
   else
-    local -r GO_ROOT="${VEYRON_ROOT}/environment/go/$(go::os)/$(go::architecture)"
+    local -r GO_ROOT="${VEYRON_ROOT}/environment/go/$(go::os)/$(go::architecture)/go"
     GO_BIN="${GO_ROOT}/bin/go"
   fi
   shell_test::start_server ./buildd --name="${SERVER}" --gobin="${GO_BIN}" --goroot="${GO_ROOT}" --address=127.0.0.1:0
 
   # Create and build a test source file.
-  local -r ROOT=$(shell::tmp_dir)
-  local -r BIN_DIR="${ROOT}/bin"
+  local -r GO_PATH=$(shell::tmp_dir)
+  local -r BIN_DIR="${GO_PATH}/bin"
   mkdir -p "${BIN_DIR}"
-  local -r SRC_DIR="${ROOT}/src/test"
+  local -r SRC_DIR="${GO_PATH}/src/test"
   mkdir -p "${SRC_DIR}"
   local -r SRC_FILE="${SRC_DIR}/test.go"
   cat > "${SRC_FILE}" <<EOF
@@ -47,7 +47,7 @@ func main() {
   fmt.Printf("Hello World!\n")
 }
 EOF
-  GOPATH="${ROOT}" TMPDIR="${BIN_DIR}" ./build build "${SERVER}" "test" || shell_test::fail "line ${LINENO}: 'build' failed"
+  GOPATH="${GO_PATH}" GOROOT="${GO_ROOT}" TMPDIR="${BIN_DIR}" ./build build "${SERVER}" "test" || shell_test::fail "line ${LINENO}: 'build' failed"
   if [[ ! -e "${BIN_DIR}/test" ]]; then
     shell_test::fail "test binary not found"
   fi
