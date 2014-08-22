@@ -132,6 +132,14 @@ func Java_com_veyron_runtimes_google_Runtime_nativeNewContext(env *C.JNIEnv, jRu
 	return C.jlong(util.PtrValue(&c))
 }
 
+//export Java_com_veyron_runtimes_google_Runtime_nativeGetPublicIDStore
+func Java_com_veyron_runtimes_google_Runtime_nativeGetPublicIDStore(env *C.JNIEnv, jRuntime C.jobject, goRuntimePtr C.jlong) C.jlong {
+	r := (*veyron2.Runtime)(util.Ptr(goRuntimePtr))
+	s := (*r).PublicIDStore()
+	util.GoRef(&s) // Un-refed when the Java PublicIDStore object is finalized.
+	return C.jlong(util.PtrValue(&s))
+}
+
 //export Java_com_veyron_runtimes_google_Runtime_nativeFinalize
 func Java_com_veyron_runtimes_google_Runtime_nativeFinalize(env *C.JNIEnv, jRuntime C.jobject, goRuntimePtr C.jlong) {
 	util.GoUnref((*veyron2.Runtime)(util.Ptr(goRuntimePtr)))
