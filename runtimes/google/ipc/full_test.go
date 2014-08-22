@@ -267,7 +267,7 @@ func (ns *namespace) Roots() []string {
 
 func startServer(t *testing.T, serverID security.PrivateID, sm stream.Manager, ns naming.Namespace, ts interface{}) (naming.Endpoint, ipc.Server) {
 	vlog.VI(1).Info("InternalNewServer")
-	server, err := InternalNewServer(InternalNewContext(), sm, ns, vc.FixedLocalID(serverID))
+	server, err := InternalNewServer(testContext(), sm, ns, vc.FixedLocalID(serverID))
 	if err != nil {
 		t.Errorf("InternalNewServer failed: %v", err)
 	}
@@ -288,13 +288,13 @@ func startServer(t *testing.T, serverID security.PrivateID, sm stream.Manager, n
 }
 
 func verifyMount(t *testing.T, ns naming.Namespace, name string) {
-	if _, err := ns.Resolve(InternalNewContext(), name); err != nil {
+	if _, err := ns.Resolve(testContext(), name); err != nil {
 		t.Errorf("%s not found in mounttable", name)
 	}
 }
 
 func verifyMountMissing(t *testing.T, ns naming.Namespace, name string) {
-	if servers, err := ns.Resolve(InternalNewContext(), name); err == nil {
+	if servers, err := ns.Resolve(testContext(), name); err == nil {
 		t.Errorf("%s not supposed to be found in mounttable; got %d servers instead", name, len(servers))
 	}
 }
@@ -406,7 +406,7 @@ func matchesErrorPattern(err error, pattern string) bool {
 func TestMultipleCallsToServe(t *testing.T) {
 	sm := imanager.InternalNew(naming.FixedRoutingID(0x555555555))
 	ns := newNamespace()
-	server, err := InternalNewServer(InternalNewContext(), sm, ns, vc.FixedLocalID(serverID))
+	server, err := InternalNewServer(testContext(), sm, ns, vc.FixedLocalID(serverID))
 	if err != nil {
 		t.Errorf("InternalNewServer failed: %v", err)
 	}
@@ -502,7 +502,7 @@ func TestStartCall(t *testing.T) {
 			stopServer(t, server, ns)
 			continue
 		}
-		if _, err := client.StartCall(InternalNewContext(), "mountpoint/server/suffix", "irrelevant", nil, veyron2.RemoteID(test.pattern)); !matchesErrorPattern(err, test.err) {
+		if _, err := client.StartCall(testContext(), "mountpoint/server/suffix", "irrelevant", nil, veyron2.RemoteID(test.pattern)); !matchesErrorPattern(err, test.err) {
 			t.Errorf(`%s: client.StartCall: got error "%v", want to match "%v"`, name, err, test.err)
 		}
 		client.Close()
@@ -553,7 +553,7 @@ func testRPC(t *testing.T, shouldCloseSend bool) {
 	defer b.cleanup(t)
 	for _, test := range tests {
 		vlog.VI(1).Infof("%s client.StartCall", name(test))
-		call, err := b.client.StartCall(InternalNewContext(), test.name, test.method, test.args)
+		call, err := b.client.StartCall(testContext(), test.name, test.method, test.args)
 		if err != test.startErr {
 			t.Errorf(`%s client.StartCall got error "%v", want "%v"`, name(test), err, test.startErr)
 			continue
@@ -620,7 +620,7 @@ func TestBlessing(t *testing.T) {
 		{granter: granter{id: clientID.PublicID()}, finisherr: "blessing provided not bound to this server"},
 	}
 	for _, test := range tests {
-		call, err := b.client.StartCall(InternalNewContext(), "mountpoint/server/suffix", "EchoBlessing", []interface{}{"argument"}, test.granter)
+		call, err := b.client.StartCall(testContext(), "mountpoint/server/suffix", "EchoBlessing", []interface{}{"argument"}, test.granter)
 		if !matchesErrorPattern(err, test.starterr) {
 			t.Errorf("%+v: StartCall returned error %v", test, err)
 		}
@@ -679,7 +679,7 @@ func TestDischargeImpetus(t *testing.T) {
 	)
 	sm := imanager.InternalNew(naming.FixedRoutingID(0x555555555))
 	ns := newNamespace()
-	server, err := InternalNewServer(InternalNewContext(), sm, ns, vc.FixedLocalID(serverID))
+	server, err := InternalNewServer(testContext(), sm, ns, vc.FixedLocalID(serverID))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -718,7 +718,7 @@ func TestDischargeImpetus(t *testing.T) {
 		}
 		defer client.Close()
 		// StartCall should fetch the discharge, do not worry about finishing the RPC - do not care about that for this test.
-		if _, err := client.StartCall(InternalNewContext(), "mountpoint/object", "Method", []interface{}{"argument"}); err != nil {
+		if _, err := client.StartCall(testContext(), "mountpoint/object", "Method", []interface{}{"argument"}); err != nil {
 			t.Errorf("StartCall(%+v) failed: %v", test.Requirements, err)
 			continue
 		}
@@ -825,7 +825,7 @@ func TestRPCAuthorization(t *testing.T) {
 			t.Fatalf("InternalNewClient failed: %v", err)
 		}
 		defer client.Close()
-		call, err := client.StartCall(InternalNewContext(), test.name, test.method, test.args)
+		call, err := client.StartCall(testContext(), test.name, test.method, test.args)
 		if err != nil {
 			t.Errorf(`%s client.StartCall got unexpected error: "%v"`, name(test), err)
 			continue
@@ -852,7 +852,7 @@ func TestDischargePurgeFromCache(t *testing.T) {
 	defer b.cleanup(t)
 
 	call := func() error {
-		call, err := b.client.StartCall(InternalNewContext(), "mountpoint/server/suffix", "Echo", []interface{}{"batman"})
+		call, err := b.client.StartCall(testContext(), "mountpoint/server/suffix", "Echo", []interface{}{"batman"})
 		if err != nil {
 			return fmt.Errorf("client.StartCall failed: %v", err)
 		}
@@ -937,7 +937,7 @@ func TestCancel(t *testing.T) {
 	b := createBundle(t, clientID, serverID, ts)
 	defer b.cleanup(t)
 
-	call, err := b.client.StartCall(InternalNewContext(), "mountpoint/server/suffix", "CancelStreamReader", []interface{}{})
+	call, err := b.client.StartCall(testContext(), "mountpoint/server/suffix", "CancelStreamReader", []interface{}{})
 	if err != nil {
 		t.Fatalf("Start call failed: %v", err)
 	}
@@ -957,7 +957,7 @@ func TestCancelWithFullBuffers(t *testing.T) {
 	b := createBundle(t, clientID, serverID, ts)
 	defer b.cleanup(t)
 
-	call, err := b.client.StartCall(InternalNewContext(), "mountpoint/server/suffix", "CancelStreamIgnorer", []interface{}{})
+	call, err := b.client.StartCall(testContext(), "mountpoint/server/suffix", "CancelStreamIgnorer", []interface{}{})
 	if err != nil {
 		t.Fatalf("Start call failed: %v", err)
 	}
@@ -993,7 +993,7 @@ func TestStreamReadTerminatedByServer(t *testing.T) {
 	b := createBundle(t, clientID, serverID, s)
 	defer b.cleanup(t)
 
-	call, err := b.client.StartCall(InternalNewContext(), "mountpoint/server/suffix", "RecvInGoroutine", []interface{}{})
+	call, err := b.client.StartCall(testContext(), "mountpoint/server/suffix", "RecvInGoroutine", []interface{}{})
 	if err != nil {
 		t.Fatalf("StartCall failed: %v", err)
 	}
@@ -1026,14 +1026,14 @@ func TestConnectWithIncompatibleServers(t *testing.T) {
 	defer b.cleanup(t)
 
 	// Publish some incompatible endpoints.
-	publisher := publisher.New(InternalNewContext(), b.ns, publishPeriod)
+	publisher := publisher.New(testContext(), b.ns, publishPeriod)
 	defer publisher.WaitForStop()
 	defer publisher.Stop()
 	publisher.AddName("incompatible")
 	publisher.AddServer("/@2@tcp@localhost:10000@@1000000@2000000@@")
 	publisher.AddServer("/@2@tcp@localhost:10001@@2000000@3000000@@")
 
-	_, err := b.client.StartCall(InternalNewContext(), "incompatible/suffix", "Echo", []interface{}{"foo"})
+	_, err := b.client.StartCall(testContext(), "incompatible/suffix", "Echo", []interface{}{"foo"})
 	if !strings.Contains(err.Error(), version.NoCompatibleVersionErr.Error()) {
 		t.Errorf("Expected error %v, found: %v", version.NoCompatibleVersionErr, err)
 	}
@@ -1042,7 +1042,7 @@ func TestConnectWithIncompatibleServers(t *testing.T) {
 	publisher.AddServer("/" + b.ep.String())
 	publisher.AddName("incompatible")
 
-	call, err := b.client.StartCall(InternalNewContext(), "incompatible/suffix", "Echo", []interface{}{"foo"})
+	call, err := b.client.StartCall(testContext(), "incompatible/suffix", "Echo", []interface{}{"foo"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1072,7 +1072,7 @@ func TestPublishOptions(t *testing.T) {
 		{[]ipc.ServerOpt{veyron2.PublishFirst, veyron2.EndpointRewriteOpt("example.com")}, []string{"example.com"}},
 	}
 	for i, c := range cases {
-		server, err := InternalNewServer(InternalNewContext(), sm, ns, append(c.opts, vc.FixedLocalID(serverID))...)
+		server, err := InternalNewServer(testContext(), sm, ns, append(c.opts, vc.FixedLocalID(serverID))...)
 		if err != nil {
 			t.Errorf("InternalNewServer failed: %v", err)
 			continue
@@ -1092,7 +1092,7 @@ func TestPublishOptions(t *testing.T) {
 			server.Stop()
 			continue
 		}
-		servers, err := ns.Resolve(InternalNewContext(), "mountpoint")
+		servers, err := ns.Resolve(testContext(), "mountpoint")
 		if err != nil {
 			t.Errorf("mountpoint not found in mounttable")
 			server.Stop()
@@ -1139,7 +1139,7 @@ func TestReconnect(t *testing.T) {
 	}
 	serverName := naming.JoinAddressName(ep.String(), "suffix")
 	makeCall := func() (string, error) {
-		call, err := b.client.StartCall(InternalNewContext(), serverName, "Echo", []interface{}{"bratman"})
+		call, err := b.client.StartCall(testContext(), serverName, "Echo", []interface{}{"bratman"})
 		if err != nil {
 			return "", err
 		}
@@ -1184,7 +1184,7 @@ func (h *proxyHandle) Start(t *testing.T) error {
 	if h.mount, err = h.process.ReadLineFromChild(); err != nil {
 		return err
 	}
-	if err := h.ns.Mount(InternalNewContext(), "proxy", h.mount, time.Hour); err != nil {
+	if err := h.ns.Mount(testContext(), "proxy", h.mount, time.Hour); err != nil {
 		return err
 	}
 	return nil
@@ -1199,7 +1199,7 @@ func (h *proxyHandle) Stop() error {
 	if len(h.mount) == 0 {
 		return nil
 	}
-	return h.ns.Unmount(InternalNewContext(), "proxy", h.mount)
+	return h.ns.Unmount(testContext(), "proxy", h.mount)
 }
 
 func TestProxy(t *testing.T) {
@@ -1210,7 +1210,7 @@ func TestProxy(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer client.Close()
-	server, err := InternalNewServer(InternalNewContext(), sm, ns, vc.FixedLocalID(serverID))
+	server, err := InternalNewServer(testContext(), sm, ns, vc.FixedLocalID(serverID))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1218,7 +1218,7 @@ func TestProxy(t *testing.T) {
 
 	name := "mountpoint/server/suffix"
 	makeCall := func() (string, error) {
-		call, err := client.StartCall(InternalNewContext(), name, "Echo", []interface{}{"batman"})
+		call, err := client.StartCall(testContext(), name, "Echo", []interface{}{"batman"})
 		if err != nil {
 			return "", err
 		}
@@ -1254,7 +1254,7 @@ func TestProxy(t *testing.T) {
 		t.Fatalf(`Got (%v, %v) want ("", <non-nil>) as proxy is down`, result, err)
 	}
 	for {
-		if _, err := ns.Resolve(InternalNewContext(), name); err != nil {
+		if _, err := ns.Resolve(testContext(), name); err != nil {
 			break
 		}
 	}
@@ -1292,7 +1292,7 @@ func runServer(argv []string) {
 	ns := newNamespace()
 	id := loadIdentityFromFile(argv[1])
 	isecurity.TrustIdentityProviders(id)
-	server, err := InternalNewServer(InternalNewContext(), mgr, ns, vc.FixedLocalID(id))
+	server, err := InternalNewServer(testContext(), mgr, ns, vc.FixedLocalID(id))
 	if err != nil {
 		vlog.Fatalf("InternalNewServer failed: %v", err)
 	}

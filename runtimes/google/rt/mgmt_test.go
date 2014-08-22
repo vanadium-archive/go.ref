@@ -11,7 +11,6 @@ import (
 	"veyron2/ipc"
 	"veyron2/mgmt"
 	"veyron2/naming"
-	prt "veyron2/rt"
 	"veyron2/services/mgmt/appcycle"
 
 	_ "veyron/lib/testutil"
@@ -258,12 +257,12 @@ func createConfigServer(t *testing.T, r veyron2.Runtime) (ipc.Server, string, <-
 
 }
 
-func setupRemoteAppCycleMgr(t *testing.T) (*blackbox.Child, appcycle.AppCycle, func()) {
+func setupRemoteAppCycleMgr(t *testing.T) (veyron2.Runtime, *blackbox.Child, appcycle.AppCycle, func()) {
 	// We need to use the public API since stubs are used below (and they
 	// refer to the global rt.R() function), but we take care to make sure
 	// that the "google" runtime we are trying to test in this package is
 	// the one being used.
-	r := prt.Init(veyron2.RuntimeOpt{veyron2.GoogleRuntimeName})
+	r, _ := rt.New(veyron2.RuntimeOpt{veyron2.GoogleRuntimeName})
 	c := blackbox.HelperCommand(t, "app")
 	id := r.Identity()
 	idFile := security.SaveIdentityToFile(security.NewBlessedIdentity(id, "test"))
@@ -276,7 +275,7 @@ func setupRemoteAppCycleMgr(t *testing.T) (*blackbox.Child, appcycle.AppCycle, f
 	if err != nil {
 		t.Fatalf("Got error: %v", err)
 	}
-	return c, appCycle, func() {
+	return r, c, appCycle, func() {
 		configServer.Stop()
 		c.Cleanup()
 		os.Remove(idFile)
@@ -288,8 +287,7 @@ func setupRemoteAppCycleMgr(t *testing.T) (*blackbox.Child, appcycle.AppCycle, f
 // TestRemoteForceStop verifies that the child process exits when sending it
 // a remote ForceStop rpc.
 func TestRemoteForceStop(t *testing.T) {
-	r, _ := rt.New()
-	c, appCycle, cleanup := setupRemoteAppCycleMgr(t)
+	r, c, appCycle, cleanup := setupRemoteAppCycleMgr(t)
 	defer cleanup()
 	if err := appCycle.ForceStop(r.NewContext()); err == nil || !strings.Contains(err.Error(), "EOF") {
 		t.Fatalf("Expected EOF error, got %v instead", err)
@@ -300,8 +298,7 @@ func TestRemoteForceStop(t *testing.T) {
 // TestRemoteStop verifies that the child shuts down cleanly when sending it
 // a remote Stop rpc.
 func TestRemoteStop(t *testing.T) {
-	r, _ := rt.New()
-	c, appCycle, cleanup := setupRemoteAppCycleMgr(t)
+	r, c, appCycle, cleanup := setupRemoteAppCycleMgr(t)
 	defer cleanup()
 	stream, err := appCycle.Stop(r.NewContext())
 	if err != nil {

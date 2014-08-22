@@ -318,7 +318,7 @@ func (s *server) Stop() error {
 // flow that's already connected to the client.
 type flowServer struct {
 	context.T
-	server ipc.Server     // ipc.Server that this flow server belongs to
+	server *server        // ipc.Server that this flow server belongs to
 	disp   ipc.Dispatcher // ipc.Dispatcher that will serve RPCs on this flow
 	dec    *vom.Decoder   // to decode requests and args from the client
 	enc    *vom.Encoder   // to encode responses and results to the client
@@ -450,11 +450,13 @@ func (fs *flowServer) processRequest() ([]interface{}, verror.E) {
 	if verr := fs.setDeadline(deadline); verr != nil {
 		return nil, verr
 	}
+
+	runtime := veyron2.RuntimeFromContext(fs.server.ctx)
 	var cancel context.CancelFunc
 	if !deadline.IsZero() {
-		fs.T, cancel = InternalNewContext().WithDeadline(deadline)
+		fs.T, cancel = InternalNewContext(runtime).WithDeadline(deadline)
 	} else {
-		fs.T, cancel = InternalNewContext().WithCancel()
+		fs.T, cancel = InternalNewContext(runtime).WithCancel()
 	}
 
 	// Notify the context when the channel is closed.
