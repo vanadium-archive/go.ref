@@ -8,8 +8,6 @@ import (
 	"strings"
 	"sync"
 
-	"veyron.io/proximity/lib/bluetooth"
-
 	"veyron/runtimes/google/ipc/stream/crypto"
 	"veyron/runtimes/google/ipc/stream/vif"
 	"veyron/runtimes/google/ipc/version"
@@ -50,8 +48,8 @@ type manager struct {
 }
 
 func dial(network, address string) (net.Conn, error) {
-	if network == bluetooth.Network {
-		return bluetooth.Dial(address)
+	if d, _ := stream.RegisteredProtocol(network); d != nil {
+		return d(address)
 	}
 	return net.Dial(network, address)
 }
@@ -117,8 +115,8 @@ func (m *manager) Dial(remote naming.Endpoint, opts ...stream.VCOpt) (stream.VC,
 }
 
 func listen(protocol, address string) (net.Listener, error) {
-	if protocol == bluetooth.Network {
-		return bluetooth.Listen(address)
+	if _, l := stream.RegisteredProtocol(protocol); l != nil {
+		return l(address)
 	}
 	return net.Listen(protocol, address)
 }
@@ -173,7 +171,10 @@ func (m *manager) Listen(protocol, address string, opts ...stream.ListenerOpt) (
 			address = net.JoinHostPort(rewriteEP, port)
 		}
 	}
-	ep := version.Endpoint(network, address, m.rid)
+	// We use protocol rather than network when creating the endpoint to
+	// honour the original request to Listen even if tcp is used under the
+	// covers.
+	ep := version.Endpoint(protocol, address, m.rid)
 	return ln, ep, nil
 }
 

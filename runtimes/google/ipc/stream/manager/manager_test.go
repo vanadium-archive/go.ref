@@ -10,17 +10,17 @@ import (
 	"strings"
 	"testing"
 
+	"veyron2/ipc/stream"
+	"veyron2/naming"
+	"veyron2/security"
+	"veyron2/vlog"
+
 	_ "veyron/lib/testutil"
 	"veyron/lib/testutil/blackbox"
 	"veyron/runtimes/google/ipc/stream/vc"
 	"veyron/runtimes/google/ipc/version"
 	inaming "veyron/runtimes/google/naming"
 	isecurity "veyron/runtimes/google/security"
-
-	"veyron2/ipc/stream"
-	"veyron2/naming"
-	"veyron2/security"
-	"veyron2/vlog"
 )
 
 func newID(name string) security.PrivateID {
@@ -502,4 +502,46 @@ func writeLine(f stream.Flow, data string) error {
 		return fmt.Errorf("Write returned (%d, %v)", n, err)
 	}
 	return nil
+}
+
+func TestRegistration(t *testing.T) {
+	server := InternalNew(naming.FixedRoutingID(0x55555555))
+	client := InternalNew(naming.FixedRoutingID(0xcccccccc))
+
+	dialer := func(addr string) (net.Conn, error) {
+		return nil, fmt.Errorf("tn.Dial")
+	}
+	listener := func(addr string) (net.Listener, error) {
+		return nil, fmt.Errorf("tn.Listen")
+	}
+	stream.RegisterProtocol("tn", dialer, listener)
+
+	_, _, err := server.Listen("tnx", "127.0.0.1:0")
+	if err == nil || !strings.Contains(err.Error(), "unknown network tnx") {
+		t.Fatal("expected error is missing (%v)", err)
+	}
+
+	_, _, err = server.Listen("tn", "127.0.0.1:0")
+	if err == nil || !strings.Contains(err.Error(), "tn.Listen") {
+		t.Fatal("expected error is missing (%v)", err)
+	}
+
+	// Need a functional listener to test Dial.
+	listener = func(addr string) (net.Listener, error) {
+		return net.Listen("tcp", addr)
+	}
+
+	if got, want := stream.RegisterProtocol("tn", dialer, listener), true; got != want {
+		t.Errorf("got %t, want %t", got, want)
+	}
+
+	_, ep, err := server.Listen("tn", "127.0.0.1:0")
+	if err != nil {
+		t.Errorf("unexpected error %s", err)
+	}
+
+	_, err = client.Dial(ep)
+	if err == nil || !strings.Contains(err.Error(), "tn.Dial") {
+		t.Fatal("expected error is missing (%v)", err)
+	}
 }
