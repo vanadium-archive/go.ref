@@ -12,7 +12,7 @@ import (
 const defaultMaxResolveDepth = 32
 const defaultMaxRecursiveGlobDepth = 10
 
-// namespace is an implementation of naming.MountTable.
+// namespace is an implementation of naming.Namespace.
 type namespace struct {
 	sync.RWMutex
 	rt veyron2.Runtime
@@ -25,7 +25,7 @@ type namespace struct {
 	maxRecursiveGlobDepth int
 
 	// cache for name resolutions
-	resolutionCache *cache
+	resolutionCache cache
 }
 
 func rooted(names []string) bool {
@@ -52,11 +52,11 @@ func New(rt veyron2.Runtime, roots ...string) (*namespace, error) {
 		roots:                 roots,
 		maxResolveDepth:       defaultMaxResolveDepth,
 		maxRecursiveGlobDepth: defaultMaxRecursiveGlobDepth,
-		resolutionCache:       newCache(),
+		resolutionCache:       newTTLCache(),
 	}, nil
 }
 
-// SetRoots implements naming.MountTable.SetRoots
+// SetRoots implements naming.Namespace.SetRoots
 func (ns *namespace) SetRoots(roots ...string) error {
 	if !rooted(roots) {
 		return badRoots(roots)
@@ -78,7 +78,7 @@ func (ns *namespace) SetDepthLimits(resolve, glob int) {
 	}
 }
 
-// Roots implements naming.MountTable.Roots
+// Roots implements naming.Namespace.Roots
 func (ns *namespace) Roots() []string {
 	ns.RLock()
 	defer ns.RUnlock()
@@ -124,3 +124,29 @@ func notAnMT(err error) bool {
 // all operations against the mount table service use this fixed timeout for the
 // time being.
 const callTimeout = 10 * time.Second
+
+// CacheCtl implements naming.Namespace.CacheCtl
+func (ns *namespace) CacheCtl(ctls ...naming.CacheCtl) []naming.CacheCtl {
+	for _, c := range ctls {
+		switch v := c.(type) {
+		case naming.DisableCache:
+			ns.Lock()
+			if _, isDisabled := ns.resolutionCache.(nullCache); isDisabled {
+				if !v {
+					ns.resolutionCache = newTTLCache()
+				}
+			} else {
+				if v {
+					ns.resolutionCache = newNullCache()
+				}
+			}
+			ns.Unlock()
+		}
+	}
+	ns.RLock()
+	defer ns.RUnlock()
+	if _, isDisabled := ns.resolutionCache.(nullCache); isDisabled {
+		return []naming.CacheCtl{naming.DisableCache(true)}
+	}
+	return nil
+}

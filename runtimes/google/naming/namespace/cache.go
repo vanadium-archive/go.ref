@@ -17,15 +17,23 @@ const maxCacheEntries = 4000
 // cacheHisteresisSize is how much we back off to if the cache gets filled up.
 const cacheHisteresisSize = (3 * maxCacheEntries) / 4
 
-type cache struct {
+// cache is a generic interface to the resolution cache.
+type cache interface {
+	remember(prefix string, servers []mountedServer)
+	forget(names []string)
+	lookup(name string) ([]mountedServer, string)
+}
+
+// ttlCache is an instance of cache that obeys ttl from the mount points.
+type ttlCache struct {
 	sync.Mutex
 	epochStart time.Time
 	entries    map[string][]mountedServer
 }
 
-// newCache creates a empty cache.
-func newCache() *cache {
-	return &cache{epochStart: time.Now(), entries: make(map[string][]mountedServer)}
+// newTTLCache creates an empty ttlCache.
+func newTTLCache() cache {
+	return &ttlCache{epochStart: time.Now(), entries: make(map[string][]mountedServer)}
 }
 
 func isStale(now uint32, servers []mountedServer) bool {
@@ -37,13 +45,22 @@ func isStale(now uint32, servers []mountedServer) bool {
 	return false
 }
 
+// normalize removes any single trailing slash.  Added for idiots who seem to
+// like adding trailing slashes.
+func normalize(name string) string {
+	if strings.HasSuffix(name, "//") {
+		return name
+	}
+	return strings.TrimSuffix(name, "/")
+}
+
 // esecs returns seconds since start of this cache's epoch.
-func (c *cache) esecs() uint32 {
+func (c *ttlCache) esecs() uint32 {
 	return uint32(time.Since(c.epochStart).Seconds())
 }
 
 // randomDrop randomly removes one cache entry.  Assumes we've already locked the cache.
-func (c *cache) randomDrop() {
+func (c *ttlCache) randomDrop() {
 	n := rand.Intn(len(c.entries))
 	for k := range c.entries {
 		if n == 0 {
@@ -55,7 +72,7 @@ func (c *cache) randomDrop() {
 }
 
 // cleaner reduces the number of entries.  Assumes we've already locked the cache.
-func (c *cache) cleaner() {
+func (c *ttlCache) cleaner() {
 	// First dump any stale entries.
 	now := c.esecs()
 	for k, v := range c.entries {
@@ -74,7 +91,8 @@ func (c *cache) cleaner() {
 }
 
 // remember the servers associated with name with suffix removed.
-func (c *cache) remember(prefix string, servers []mountedServer) {
+func (c *ttlCache) remember(prefix string, servers []mountedServer) {
+	prefix = normalize(prefix)
 	for i := range servers {
 		// Remember when this cached entry times out relative to our epoch.
 		servers[i].TTL += c.esecs()
@@ -92,11 +110,12 @@ func (c *cache) remember(prefix string, servers []mountedServer) {
 
 // forget cache entries whose index begins with an element of names.  If names is nil
 // forget all cached entries.
-func (c *cache) forget(names []string) {
+func (c *ttlCache) forget(names []string) {
 	c.Lock()
 	defer c.Unlock()
 	for key := range c.entries {
 		for _, n := range names {
+			n = normalize(n)
 			if strings.HasPrefix(key, n) {
 				delete(c.entries, key)
 				break
@@ -108,7 +127,8 @@ func (c *cache) forget(names []string) {
 // lookup searches the cache for a maximal prefix of name and returns the associated servers,
 // prefix, and suffix.  If any of the associated servers is past its TTL, don't return anything
 // since that would reduce availability.
-func (c *cache) lookup(name string) ([]mountedServer, string) {
+func (c *ttlCache) lookup(name string) ([]mountedServer, string) {
+	name = normalize(name)
 	c.Lock()
 	defer c.Unlock()
 	now := c.esecs()
@@ -146,3 +166,11 @@ func backup(prefix, suffix string) (string, string) {
 	}
 	return "", naming.Join(prefix, suffix)
 }
+
+// nullCache is an instance of cache that does nothing.
+type nullCache int
+
+func newNullCache() cache                                         { return nullCache(1) }
+func (nullCache) remember(prefix string, servers []mountedServer) {}
+func (nullCache) forget(names []string)                           {}
+func (nullCache) lookup(name string) ([]mountedServer, string)    { return nil, "" }
