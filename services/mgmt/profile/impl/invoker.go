@@ -3,18 +3,19 @@ package impl
 import (
 	"errors"
 
+	"veyron/services/mgmt/lib/fs"
 	"veyron/services/mgmt/profile"
-	_ "veyron/services/store/typeregistryhack"
+	//	_ "veyron/services/store/typeregistryhack"
 
 	"veyron2/ipc"
 	"veyron2/naming"
-	"veyron2/storage"
-	"veyron2/storage/vstore"
 	"veyron2/vlog"
 )
 
 // invoker holds the profile repository invocation.
 type invoker struct {
+	// store is the storage server used for storing profile data.
+	store *fs.Memstore
 	// storeRoot is a name in the Store under which all data will be stored.
 	storeRoot string
 	// suffix is the suffix of the current invocation that is assumed to
@@ -29,46 +30,27 @@ var (
 )
 
 // NewInvoker is the invoker factory.
-func NewInvoker(storeRoot, suffix string) *invoker {
-	return &invoker{storeRoot: storeRoot, suffix: suffix}
+func NewInvoker(store *fs.Memstore, storeRoot, suffix string) *invoker {
+	return &invoker{store: store, storeRoot: storeRoot, suffix: suffix}
 }
 
 // STORE MANAGEMENT INTERFACE IMPLEMENTATION
 
-// dir is used to organize directory contents in the store.
-type dir struct{}
-
-// makeParentNodes creates the parent nodes if they do not already exist.
-func makeParentNodes(context ipc.ServerContext, tx storage.Transaction, path string) error {
-	pathComponents := storage.ParsePath(path)
-	for i := 0; i < len(pathComponents); i++ {
-		name := pathComponents[:i].String()
-		object := tx.Bind(name)
-		if exists, err := object.Exists(context); err != nil {
-			return errOperationFailed
-		} else if !exists {
-			if _, err := object.Get(context); err != nil {
-				if _, err := object.Put(context, &dir{}); err != nil {
-					return errOperationFailed
-				}
-			}
-		}
-	}
-	return nil
-}
-
 func (i *invoker) Put(context ipc.ServerContext, profile profile.Specification) error {
 	vlog.VI(0).Infof("%v.Put(%v)", i.suffix, profile)
-	tx := vstore.New().NewTransaction(context, i.storeRoot)
-	path := naming.Join("/profiles", i.suffix)
-	if err := makeParentNodes(context, tx, path); err != nil {
+	// Transaction is rooted at "", so tname == tid.
+	i.store.Lock()
+	defer i.store.Unlock()
+	tname, err := i.store.BindTransactionRoot("").CreateTransaction(context)
+	if err != nil {
 		return err
 	}
-	object := tx.Bind(path)
+	path := naming.Join(tname, "/profiles", i.suffix)
+	object := i.store.BindObject(path)
 	if _, err := object.Put(context, profile); err != nil {
 		return errOperationFailed
 	}
-	if err := tx.Commit(context); err != nil {
+	if err := i.store.BindTransaction(tname).Commit(context); err != nil {
 		return errOperationFailed
 	}
 	return nil
@@ -76,9 +58,15 @@ func (i *invoker) Put(context ipc.ServerContext, profile profile.Specification) 
 
 func (i *invoker) Remove(context ipc.ServerContext) error {
 	vlog.VI(0).Infof("%v.Remove()", i.suffix)
-	tx := vstore.New().NewTransaction(context, i.storeRoot)
-	path := naming.Join("/profiles", i.suffix)
-	object := tx.Bind(path)
+	i.store.Lock()
+	defer i.store.Unlock()
+	// Transaction is rooted at "", so tname == tid.
+	tname, err := i.store.BindTransactionRoot("").CreateTransaction(context)
+	if err != nil {
+		return err
+	}
+	path := naming.Join(tname, "/profiles", i.suffix)
+	object := i.store.BindObject(path)
 	found, err := object.Exists(context)
 	if err != nil {
 		return errOperationFailed
@@ -89,7 +77,7 @@ func (i *invoker) Remove(context ipc.ServerContext) error {
 	if err := object.Remove(context); err != nil {
 		return errOperationFailed
 	}
-	if err := tx.Commit(context); err != nil {
+	if err := i.store.BindTransaction(tname).Commit(context); err != nil {
 		return errOperationFailed
 	}
 	return nil
@@ -99,8 +87,12 @@ func (i *invoker) Remove(context ipc.ServerContext) error {
 
 func (i *invoker) lookup(context ipc.ServerContext) (profile.Specification, error) {
 	empty := profile.Specification{}
-	path := naming.Join(i.storeRoot, "/profiles", i.suffix)
-	entry, err := vstore.New().Bind(path).Get(context)
+	path := naming.Join("/profiles", i.suffix)
+
+	i.store.Lock()
+	defer i.store.Unlock()
+
+	entry, err := i.store.BindObject(path).Get(context)
 	if err != nil {
 		return empty, errNotFound
 	}

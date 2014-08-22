@@ -4,18 +4,21 @@ import (
 	"errors"
 	"strings"
 
+	"veyron/services/mgmt/lib/fs"
 	_ "veyron/services/store/typeregistryhack"
-
 	"veyron2/ipc"
 	"veyron2/naming"
 	"veyron2/services/mgmt/application"
-	"veyron2/storage"
-	"veyron2/storage/vstore"
 	"veyron2/vlog"
 )
 
 // invoker holds the state of an application repository invocation.
 type invoker struct {
+	// store is the storage server used for storing application
+	// metadata.
+	// All Invokers share a single dispatcher's Memstore.
+	store *fs.Memstore
+
 	// storeRoot is a name in the Store under which all data will be stored.
 	storeRoot string
 	// suffix is the suffix of the current invocation that is assumed to
@@ -30,8 +33,8 @@ var (
 )
 
 // NewInvoker is the invoker factory.
-func NewInvoker(storeRoot, suffix string) *invoker {
-	return &invoker{storeRoot: storeRoot, suffix: suffix}
+func NewInvoker(store *fs.Memstore, storeRoot, suffix string) *invoker {
+	return &invoker{store: store, storeRoot: storeRoot, suffix: suffix}
 }
 
 func parse(suffix string) (string, string, error) {
@@ -48,26 +51,6 @@ func parse(suffix string) (string, string, error) {
 
 // APPLICATION INTERFACE IMPLEMENTATION
 
-// dir is used to organize directory contents in the store.
-type dir struct{}
-
-// makeParentNodes creates the parent nodes if they do not already exist.
-func makeParentNodes(context ipc.ServerContext, tx storage.Transaction, path string) error {
-	pathComponents := storage.ParsePath(path)
-	for i := 0; i < len(pathComponents); i++ {
-		name := pathComponents[:i].String()
-		object := tx.Bind(name)
-		if exists, err := object.Exists(context); err != nil {
-			return errOperationFailed
-		} else if !exists {
-			if _, err := object.Put(context, &dir{}); err != nil {
-				return errOperationFailed
-			}
-		}
-	}
-	return nil
-}
-
 func (i *invoker) Match(context ipc.ServerContext, profiles []string) (application.Envelope, error) {
 	vlog.VI(0).Infof("%v.Match(%v)", i.suffix, profiles)
 	empty := application.Envelope{}
@@ -78,10 +61,13 @@ func (i *invoker) Match(context ipc.ServerContext, profiles []string) (applicati
 	if version == "" {
 		return empty, errInvalidSuffix
 	}
-	root := vstore.New().Bind(i.storeRoot)
+
+	i.store.Lock()
+	defer i.store.Unlock()
+
 	for _, profile := range profiles {
 		path := naming.Join("/applications", name, profile, version)
-		entry, err := root.Bind(path).Get(context)
+		entry, err := i.store.BindObject(path).Get(context)
 		if err != nil {
 			continue
 		}
@@ -103,25 +89,24 @@ func (i *invoker) Put(context ipc.ServerContext, profiles []string, envelope app
 	if version == "" {
 		return errInvalidSuffix
 	}
-	tx := vstore.New().NewTransaction(context, i.storeRoot)
-	var entry storage.Stat
+	i.store.Lock()
+	defer i.store.Unlock()
+	// Transaction is rooted at "", so tname == tid.
+	tname, err := i.store.BindTransactionRoot("").CreateTransaction(context)
+	if err != nil {
+		return err
+	}
+
 	for _, profile := range profiles {
-		path := naming.Join("/applications", name, profile, version)
-		if err := makeParentNodes(context, tx, path); err != nil {
-			return err
-		}
-		object := tx.Bind(path)
-		if !entry.ID.IsValid() {
-			if entry, err = object.Put(context, envelope); err != nil {
-				return errOperationFailed
-			}
-		} else {
-			if _, err := object.Put(context, entry.ID); err != nil {
-				return errOperationFailed
-			}
+		path := naming.Join(tname, "/applications", name, profile, version)
+
+		object := i.store.BindObject(path)
+		_, err := object.Put(context, envelope)
+		if err != nil {
+			return errOperationFailed
 		}
 	}
-	if err := tx.Commit(context); err != nil {
+	if err := i.store.BindTransaction(tname).Commit(context); err != nil {
 		return errOperationFailed
 	}
 	return nil
@@ -133,9 +118,18 @@ func (i *invoker) Remove(context ipc.ServerContext, profile string) error {
 	if err != nil {
 		return err
 	}
-	tx := vstore.New().NewTransaction(context, i.storeRoot)
-	path := naming.Join("/applications", name, profile, version)
-	object := tx.Bind(path)
+	i.store.Lock()
+	defer i.store.Unlock()
+	// Transaction is rooted at "", so tname == tid.
+	tname, err := i.store.BindTransactionRoot("").CreateTransaction(context)
+	if err != nil {
+		return err
+	}
+	path := naming.Join(tname, "/applications", name, profile)
+	if version != "" {
+		path += "/" + version
+	}
+	object := i.store.BindObject(path)
 	found, err := object.Exists(context)
 	if err != nil {
 		return errOperationFailed
@@ -146,7 +140,7 @@ func (i *invoker) Remove(context ipc.ServerContext, profile string) error {
 	if err := object.Remove(context); err != nil {
 		return errOperationFailed
 	}
-	if err := tx.Commit(context); err != nil {
+	if err := i.store.BindTransaction(tname).Commit(context); err != nil {
 		return errOperationFailed
 	}
 	return nil

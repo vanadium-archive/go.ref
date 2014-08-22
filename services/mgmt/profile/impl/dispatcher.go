@@ -3,24 +3,31 @@ package impl
 import (
 	"veyron/services/mgmt/repository"
 
+	"veyron/services/mgmt/lib/fs"
 	"veyron2/ipc"
 	"veyron2/security"
 )
 
 // dispatcher holds the state of the profile repository dispatcher.
 type dispatcher struct {
-	storeRoot string
+	store     *fs.Memstore
 	auth      security.Authorizer
+	storeRoot string
 }
 
 // NewDispatcher is the dispatcher factory.
 func NewDispatcher(name string, authorizer security.Authorizer) (*dispatcher, error) {
-	return &dispatcher{storeRoot: name, auth: authorizer}, nil
+	// TODO(rjkroege@google.com): Use the config service.
+	store, err := fs.NewMemstore("")
+	if err != nil {
+		return nil, err
+	}
+	return &dispatcher{store: store, storeRoot: name, auth: authorizer}, nil
 }
 
 // DISPATCHER INTERFACE IMPLEMENTATION
 
 func (d *dispatcher) Lookup(suffix, method string) (ipc.Invoker, security.Authorizer, error) {
-	invoker := ipc.ReflectInvoker(repository.NewServerProfile(NewInvoker(d.storeRoot, suffix)))
+	invoker := ipc.ReflectInvoker(repository.NewServerProfile(NewInvoker(d.store, d.storeRoot, suffix)))
 	return invoker, d.auth, nil
 }
