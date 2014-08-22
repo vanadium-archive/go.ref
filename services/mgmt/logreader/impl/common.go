@@ -8,14 +8,14 @@ import (
 	"path"
 	"strings"
 
-	"veyron2/services/mgmt/logreader"
+	"veyron2/services/mgmt/logreader/types"
 	"veyron2/verror"
 )
 
 var (
 	errCanceled        = verror.Abortedf("operation canceled")
 	errNotFound        = verror.NotFoundf("log file not found")
-	errEOF             = verror.Make(logreader.EOF, "EOF")
+	errEOF             = verror.Make(types.EOF, "EOF")
 	errOperationFailed = verror.Internalf("operation failed")
 )
 
