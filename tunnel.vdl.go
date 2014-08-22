@@ -8,10 +8,10 @@ import (
 
 	// The non-user imports are prefixed with "_gen_" to prevent collisions.
 	_gen_io "io"
+	_gen_veyron2 "veyron2"
 	_gen_context "veyron2/context"
 	_gen_ipc "veyron2/ipc"
 	_gen_naming "veyron2/naming"
-	_gen_rt "veyron2/rt"
 	_gen_vdlutil "veyron2/vdl/vdlutil"
 	_gen_wiretype "veyron2/wiretype"
 )
@@ -534,18 +534,17 @@ func BindTunnel(name string, opts ..._gen_ipc.BindOpt) (Tunnel, error) {
 	var client _gen_ipc.Client
 	switch len(opts) {
 	case 0:
-		client = _gen_rt.R().Client()
+		// Do nothing.
 	case 1:
-		switch o := opts[0].(type) {
-		case _gen_ipc.Client:
-			client = o
-		default:
+		if clientOpt, ok := opts[0].(_gen_ipc.Client); opts[0] == nil || ok {
+			client = clientOpt
+		} else {
 			return nil, _gen_vdlutil.ErrUnrecognizedOption
 		}
 	default:
 		return nil, _gen_vdlutil.ErrTooManyOptionsToBind
 	}
-	stub := &clientStubTunnel{client: client, name: name}
+	stub := &clientStubTunnel{defaultClient: client, name: name}
 
 	return stub, nil
 }
@@ -562,13 +561,20 @@ func NewServerTunnel(server TunnelService) interface{} {
 
 // clientStubTunnel implements Tunnel.
 type clientStubTunnel struct {
-	client _gen_ipc.Client
-	name   string
+	defaultClient _gen_ipc.Client
+	name          string
+}
+
+func (__gen_c *clientStubTunnel) client(ctx _gen_context.T) _gen_ipc.Client {
+	if __gen_c.defaultClient != nil {
+		return __gen_c.defaultClient
+	}
+	return _gen_veyron2.RuntimeFromContext(ctx).Client()
 }
 
 func (__gen_c *clientStubTunnel) Forward(ctx _gen_context.T, network string, address string, opts ..._gen_ipc.CallOpt) (reply TunnelForwardCall, err error) {
 	var call _gen_ipc.Call
-	if call, err = __gen_c.client.StartCall(ctx, __gen_c.name, "Forward", []interface{}{network, address}, opts...); err != nil {
+	if call, err = __gen_c.client(ctx).StartCall(ctx, __gen_c.name, "Forward", []interface{}{network, address}, opts...); err != nil {
 		return
 	}
 	reply = &implTunnelForwardCall{clientCall: call, writeStream: implTunnelForwardStreamSender{clientCall: call}, readStream: implTunnelForwardStreamIterator{clientCall: call}}
@@ -577,7 +583,7 @@ func (__gen_c *clientStubTunnel) Forward(ctx _gen_context.T, network string, add
 
 func (__gen_c *clientStubTunnel) Shell(ctx _gen_context.T, command string, shellOpts ShellOpts, opts ..._gen_ipc.CallOpt) (reply TunnelShellCall, err error) {
 	var call _gen_ipc.Call
-	if call, err = __gen_c.client.StartCall(ctx, __gen_c.name, "Shell", []interface{}{command, shellOpts}, opts...); err != nil {
+	if call, err = __gen_c.client(ctx).StartCall(ctx, __gen_c.name, "Shell", []interface{}{command, shellOpts}, opts...); err != nil {
 		return
 	}
 	reply = &implTunnelShellCall{clientCall: call, writeStream: implTunnelShellStreamSender{clientCall: call}, readStream: implTunnelShellStreamIterator{clientCall: call}}
@@ -586,7 +592,7 @@ func (__gen_c *clientStubTunnel) Shell(ctx _gen_context.T, command string, shell
 
 func (__gen_c *clientStubTunnel) UnresolveStep(ctx _gen_context.T, opts ..._gen_ipc.CallOpt) (reply []string, err error) {
 	var call _gen_ipc.Call
-	if call, err = __gen_c.client.StartCall(ctx, __gen_c.name, "UnresolveStep", nil, opts...); err != nil {
+	if call, err = __gen_c.client(ctx).StartCall(ctx, __gen_c.name, "UnresolveStep", nil, opts...); err != nil {
 		return
 	}
 	if ierr := call.Finish(&reply, &err); ierr != nil {
@@ -597,7 +603,7 @@ func (__gen_c *clientStubTunnel) UnresolveStep(ctx _gen_context.T, opts ..._gen_
 
 func (__gen_c *clientStubTunnel) Signature(ctx _gen_context.T, opts ..._gen_ipc.CallOpt) (reply _gen_ipc.ServiceSignature, err error) {
 	var call _gen_ipc.Call
-	if call, err = __gen_c.client.StartCall(ctx, __gen_c.name, "Signature", nil, opts...); err != nil {
+	if call, err = __gen_c.client(ctx).StartCall(ctx, __gen_c.name, "Signature", nil, opts...); err != nil {
 		return
 	}
 	if ierr := call.Finish(&reply, &err); ierr != nil {
@@ -608,7 +614,7 @@ func (__gen_c *clientStubTunnel) Signature(ctx _gen_context.T, opts ..._gen_ipc.
 
 func (__gen_c *clientStubTunnel) GetMethodTags(ctx _gen_context.T, method string, opts ..._gen_ipc.CallOpt) (reply []interface{}, err error) {
 	var call _gen_ipc.Call
-	if call, err = __gen_c.client.StartCall(ctx, __gen_c.name, "GetMethodTags", []interface{}{method}, opts...); err != nil {
+	if call, err = __gen_c.client(ctx).StartCall(ctx, __gen_c.name, "GetMethodTags", []interface{}{method}, opts...); err != nil {
 		return
 	}
 	if ierr := call.Finish(&reply, &err); ierr != nil {
