@@ -4,15 +4,17 @@ import (
 	"sync"
 	"time"
 
+	"veyron2"
 	"veyron2/context"
 )
 
-var rootContext nilContext
-
 // InternalNewContext creates a new context.T.  This function should only
 // be called from within the runtime implementation.
-func InternalNewContext() context.T {
-	return rootContext
+func InternalNewContext(runtime veyron2.Runtime) context.T {
+	if runtime == nil {
+		panic("attempting to create a context with a nil runtime")
+	}
+	return rootContext{runtime}
 }
 
 // cancellable is an interface to cancellable contexts.
@@ -28,26 +30,29 @@ type child interface {
 	parent() context.T
 }
 
-// nilContext is an empty root context.  It has no deadline or values
+// rootContext is an empty root context.  It has no deadline or values
 // and can't be canceled.
-type nilContext struct{}
+type rootContext struct {
+	runtime veyron2.Runtime
+}
 
-func (n nilContext) parent() context.T                       { return nil }
-func (n nilContext) Deadline() (deadline time.Time, ok bool) { return }
-func (n nilContext) Done() <-chan struct{}                   { return nil }
-func (n nilContext) Err() error                              { return nil }
-func (n nilContext) Value(key interface{}) interface{}       { return nil }
-func (n nilContext) WithCancel() (ctx context.T, cancel context.CancelFunc) {
-	return newCancelContext(n)
+func (r rootContext) parent() context.T                       { return nil }
+func (r rootContext) Deadline() (deadline time.Time, ok bool) { return }
+func (r rootContext) Done() <-chan struct{}                   { return nil }
+func (r rootContext) Err() error                              { return nil }
+func (r rootContext) Value(key interface{}) interface{}       { return nil }
+func (r rootContext) Runtime() interface{}                    { return r.runtime }
+func (r rootContext) WithCancel() (ctx context.T, cancel context.CancelFunc) {
+	return newCancelContext(r)
 }
-func (n nilContext) WithDeadline(deadline time.Time) (context.T, context.CancelFunc) {
-	return newDeadlineContext(n, deadline)
+func (r rootContext) WithDeadline(deadline time.Time) (context.T, context.CancelFunc) {
+	return newDeadlineContext(r, deadline)
 }
-func (n nilContext) WithTimeout(timeout time.Duration) (context.T, context.CancelFunc) {
-	return newDeadlineContext(n, time.Now().Add(timeout))
+func (r rootContext) WithTimeout(timeout time.Duration) (context.T, context.CancelFunc) {
+	return newDeadlineContext(r, time.Now().Add(timeout))
 }
-func (n nilContext) WithValue(key interface{}, val interface{}) context.T {
-	return newValueContext(n, key, val)
+func (r rootContext) WithValue(key interface{}, val interface{}) context.T {
+	return newValueContext(r, key, val)
 }
 
 // A valueContext contains a single key/value mapping.

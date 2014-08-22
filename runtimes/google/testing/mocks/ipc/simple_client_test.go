@@ -13,6 +13,7 @@ func (*fakeContext) Deadline() (deadline time.Time, ok bool) { return }
 func (*fakeContext) Done() <-chan struct{}                   { return nil }
 func (*fakeContext) Err() error                              { return nil }
 func (*fakeContext) Value(key interface{}) interface{}       { return nil }
+func (*fakeContext) Runtime() interface{}                    { return nil }
 func (*fakeContext) WithCancel() (context.T, context.CancelFunc) {
 	return &fakeContext{}, func() {}
 }

@@ -102,11 +102,11 @@ func (rt *vrt) Client() ipc.Client {
 }
 
 func (rt *vrt) NewContext() context.T {
-	return iipc.InternalNewContext()
+	return iipc.InternalNewContext(rt)
 }
 
 func (rt *vrt) TODOContext() context.T {
-	return iipc.InternalNewContext()
+	return iipc.InternalNewContext(rt)
 }
 
 func (rt *vrt) NewServer(opts ...ipc.ServerOpt) (ipc.Server, error) {

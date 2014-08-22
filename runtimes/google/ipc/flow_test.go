@@ -118,7 +118,10 @@ func TestFlowClientServer(t *testing.T) {
 		return fmt.Sprintf("%s.%s%v", t.suffix, t.method, t.args)
 	}
 
-	ipcServer := &server{disp: testDisp{newEchoInvoker}}
+	ipcServer := &server{
+		ctx:  testContext(),
+		disp: testDisp{newEchoInvoker},
+	}
 	for _, test := range tests {
 		clientFlow, serverFlow := newTestFlows()
 		client := newFlowClient(clientFlow, nil, nil)

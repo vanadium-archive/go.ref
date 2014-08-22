@@ -5,10 +5,10 @@ package sample
 
 import (
 	// The non-user imports are prefixed with "_gen_" to prevent collisions.
+	_gen_veyron2 "veyron2"
 	_gen_context "veyron2/context"
 	_gen_ipc "veyron2/ipc"
 	_gen_naming "veyron2/naming"
-	_gen_rt "veyron2/rt"
 	_gen_vdlutil "veyron2/vdl/vdlutil"
 	_gen_wiretype "veyron2/wiretype"
 )
@@ -82,18 +82,17 @@ func BindErrorThrower(name string, opts ..._gen_ipc.BindOpt) (ErrorThrower, erro
 	var client _gen_ipc.Client
 	switch len(opts) {
 	case 0:
-		client = _gen_rt.R().Client()
+		// Do nothing.
 	case 1:
-		switch o := opts[0].(type) {
-		case _gen_ipc.Client:
-			client = o
-		default:
+		if clientOpt, ok := opts[0].(_gen_ipc.Client); opts[0] == nil || ok {
+			client = clientOpt
+		} else {
 			return nil, _gen_vdlutil.ErrUnrecognizedOption
 		}
 	default:
 		return nil, _gen_vdlutil.ErrTooManyOptionsToBind
 	}
-	stub := &clientStubErrorThrower{client: client, name: name}
+	stub := &clientStubErrorThrower{defaultClient: client, name: name}
 
 	return stub, nil
 }
@@ -110,13 +109,20 @@ func NewServerErrorThrower(server ErrorThrowerService) interface{} {
 
 // clientStubErrorThrower implements ErrorThrower.
 type clientStubErrorThrower struct {
-	client _gen_ipc.Client
-	name   string
+	defaultClient _gen_ipc.Client
+	name          string
+}
+
+func (__gen_c *clientStubErrorThrower) client(ctx _gen_context.T) _gen_ipc.Client {
+	if __gen_c.defaultClient != nil {
+		return __gen_c.defaultClient
+	}
+	return _gen_veyron2.RuntimeFromContext(ctx).Client()
 }
 
 func (__gen_c *clientStubErrorThrower) ThrowAborted(ctx _gen_context.T, opts ..._gen_ipc.CallOpt) (err error) {
 	var call _gen_ipc.Call
-	if call, err = __gen_c.client.StartCall(ctx, __gen_c.name, "ThrowAborted", nil, opts...); err != nil {
+	if call, err = __gen_c.client(ctx).StartCall(ctx, __gen_c.name, "ThrowAborted", nil, opts...); err != nil {
 		return
 	}
 	if ierr := call.Finish(&err); ierr != nil {
@@ -127,7 +133,7 @@ func (__gen_c *clientStubErrorThrower) ThrowAborted(ctx _gen_context.T, opts ...
 
 func (__gen_c *clientStubErrorThrower) ThrowBadArg(ctx _gen_context.T, opts ..._gen_ipc.CallOpt) (err error) {
 	var call _gen_ipc.Call
-	if call, err = __gen_c.client.StartCall(ctx, __gen_c.name, "ThrowBadArg", nil, opts...); err != nil {
+	if call, err = __gen_c.client(ctx).StartCall(ctx, __gen_c.name, "ThrowBadArg", nil, opts...); err != nil {
 		return
 	}
 	if ierr := call.Finish(&err); ierr != nil {
@@ -138,7 +144,7 @@ func (__gen_c *clientStubErrorThrower) ThrowBadArg(ctx _gen_context.T, opts ..._
 
 func (__gen_c *clientStubErrorThrower) ThrowBadProtocol(ctx _gen_context.T, opts ..._gen_ipc.CallOpt) (err error) {
 	var call _gen_ipc.Call
-	if call, err = __gen_c.client.StartCall(ctx, __gen_c.name, "ThrowBadProtocol", nil, opts...); err != nil {
+	if call, err = __gen_c.client(ctx).StartCall(ctx, __gen_c.name, "ThrowBadProtocol", nil, opts...); err != nil {
 		return
 	}
 	if ierr := call.Finish(&err); ierr != nil {
@@ -149,7 +155,7 @@ func (__gen_c *clientStubErrorThrower) ThrowBadProtocol(ctx _gen_context.T, opts
 
 func (__gen_c *clientStubErrorThrower) ThrowInternal(ctx _gen_context.T, opts ..._gen_ipc.CallOpt) (err error) {
 	var call _gen_ipc.Call
-	if call, err = __gen_c.client.StartCall(ctx, __gen_c.name, "ThrowInternal", nil, opts...); err != nil {
+	if call, err = __gen_c.client(ctx).StartCall(ctx, __gen_c.name, "ThrowInternal", nil, opts...); err != nil {
 		return
 	}
 	if ierr := call.Finish(&err); ierr != nil {
@@ -160,7 +166,7 @@ func (__gen_c *clientStubErrorThrower) ThrowInternal(ctx _gen_context.T, opts ..
 
 func (__gen_c *clientStubErrorThrower) ThrowNotAuthorized(ctx _gen_context.T, opts ..._gen_ipc.CallOpt) (err error) {
 	var call _gen_ipc.Call
-	if call, err = __gen_c.client.StartCall(ctx, __gen_c.name, "ThrowNotAuthorized", nil, opts...); err != nil {
+	if call, err = __gen_c.client(ctx).StartCall(ctx, __gen_c.name, "ThrowNotAuthorized", nil, opts...); err != nil {
 		return
 	}
 	if ierr := call.Finish(&err); ierr != nil {
@@ -171,7 +177,7 @@ func (__gen_c *clientStubErrorThrower) ThrowNotAuthorized(ctx _gen_context.T, op
 
 func (__gen_c *clientStubErrorThrower) ThrowNotFound(ctx _gen_context.T, opts ..._gen_ipc.CallOpt) (err error) {
 	var call _gen_ipc.Call
-	if call, err = __gen_c.client.StartCall(ctx, __gen_c.name, "ThrowNotFound", nil, opts...); err != nil {
+	if call, err = __gen_c.client(ctx).StartCall(ctx, __gen_c.name, "ThrowNotFound", nil, opts...); err != nil {
 		return
 	}
 	if ierr := call.Finish(&err); ierr != nil {
@@ -182,7 +188,7 @@ func (__gen_c *clientStubErrorThrower) ThrowNotFound(ctx _gen_context.T, opts ..
 
 func (__gen_c *clientStubErrorThrower) ThrowUnknown(ctx _gen_context.T, opts ..._gen_ipc.CallOpt) (err error) {
 	var call _gen_ipc.Call
-	if call, err = __gen_c.client.StartCall(ctx, __gen_c.name, "ThrowUnknown", nil, opts...); err != nil {
+	if call, err = __gen_c.client(ctx).StartCall(ctx, __gen_c.name, "ThrowUnknown", nil, opts...); err != nil {
 		return
 	}
 	if ierr := call.Finish(&err); ierr != nil {
@@ -193,7 +199,7 @@ func (__gen_c *clientStubErrorThrower) ThrowUnknown(ctx _gen_context.T, opts ...
 
 func (__gen_c *clientStubErrorThrower) ThrowGoError(ctx _gen_context.T, opts ..._gen_ipc.CallOpt) (err error) {
 	var call _gen_ipc.Call
-	if call, err = __gen_c.client.StartCall(ctx, __gen_c.name, "ThrowGoError", nil, opts...); err != nil {
+	if call, err = __gen_c.client(ctx).StartCall(ctx, __gen_c.name, "ThrowGoError", nil, opts...); err != nil {
 		return
 	}
 	if ierr := call.Finish(&err); ierr != nil {
@@ -204,7 +210,7 @@ func (__gen_c *clientStubErrorThrower) ThrowGoError(ctx _gen_context.T, opts ...
 
 func (__gen_c *clientStubErrorThrower) ThrowCustomStandardError(ctx _gen_context.T, opts ..._gen_ipc.CallOpt) (err error) {
 	var call _gen_ipc.Call
-	if call, err = __gen_c.client.StartCall(ctx, __gen_c.name, "ThrowCustomStandardError", nil, opts...); err != nil {
+	if call, err = __gen_c.client(ctx).StartCall(ctx, __gen_c.name, "ThrowCustomStandardError", nil, opts...); err != nil {
 		return
 	}
 	if ierr := call.Finish(&err); ierr != nil {
@@ -215,7 +221,7 @@ func (__gen_c *clientStubErrorThrower) ThrowCustomStandardError(ctx _gen_context
 
 func (__gen_c *clientStubErrorThrower) ListAllBuiltInErrorIDs(ctx _gen_context.T, opts ..._gen_ipc.CallOpt) (reply []string, err error) {
 	var call _gen_ipc.Call
-	if call, err = __gen_c.client.StartCall(ctx, __gen_c.name, "ListAllBuiltInErrorIDs", nil, opts...); err != nil {
+	if call, err = __gen_c.client(ctx).StartCall(ctx, __gen_c.name, "ListAllBuiltInErrorIDs", nil, opts...); err != nil {
 		return
 	}
 	if ierr := call.Finish(&reply, &err); ierr != nil {
@@ -226,7 +232,7 @@ func (__gen_c *clientStubErrorThrower) ListAllBuiltInErrorIDs(ctx _gen_context.T
 
 func (__gen_c *clientStubErrorThrower) UnresolveStep(ctx _gen_context.T, opts ..._gen_ipc.CallOpt) (reply []string, err error) {
 	var call _gen_ipc.Call
-	if call, err = __gen_c.client.StartCall(ctx, __gen_c.name, "UnresolveStep", nil, opts...); err != nil {
+	if call, err = __gen_c.client(ctx).StartCall(ctx, __gen_c.name, "UnresolveStep", nil, opts...); err != nil {
 		return
 	}
 	if ierr := call.Finish(&reply, &err); ierr != nil {
@@ -237,7 +243,7 @@ func (__gen_c *clientStubErrorThrower) UnresolveStep(ctx _gen_context.T, opts ..
 
 func (__gen_c *clientStubErrorThrower) Signature(ctx _gen_context.T, opts ..._gen_ipc.CallOpt) (reply _gen_ipc.ServiceSignature, err error) {
 	var call _gen_ipc.Call
-	if call, err = __gen_c.client.StartCall(ctx, __gen_c.name, "Signature", nil, opts...); err != nil {
+	if call, err = __gen_c.client(ctx).StartCall(ctx, __gen_c.name, "Signature", nil, opts...); err != nil {
 		return
 	}
 	if ierr := call.Finish(&reply, &err); ierr != nil {
@@ -248,7 +254,7 @@ func (__gen_c *clientStubErrorThrower) Signature(ctx _gen_context.T, opts ..._ge
 
 func (__gen_c *clientStubErrorThrower) GetMethodTags(ctx _gen_context.T, method string, opts ..._gen_ipc.CallOpt) (reply []interface{}, err error) {
 	var call _gen_ipc.Call
-	if call, err = __gen_c.client.StartCall(ctx, __gen_c.name, "GetMethodTags", []interface{}{method}, opts...); err != nil {
+	if call, err = __gen_c.client(ctx).StartCall(ctx, __gen_c.name, "GetMethodTags", []interface{}{method}, opts...); err != nil {
 		return
 	}
 	if ierr := call.Finish(&reply, &err); ierr != nil {

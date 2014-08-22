@@ -13,10 +13,10 @@ import (
 	"veyron2/security"
 
 	// The non-user imports are prefixed with "_gen_" to prevent collisions.
+	_gen_veyron2 "veyron2"
 	_gen_context "veyron2/context"
 	_gen_ipc "veyron2/ipc"
 	_gen_naming "veyron2/naming"
-	_gen_rt "veyron2/rt"
 	_gen_vdlutil "veyron2/vdl/vdlutil"
 	_gen_wiretype "veyron2/wiretype"
 )
@@ -55,18 +55,17 @@ func BindBank(name string, opts ..._gen_ipc.BindOpt) (Bank, error) {
 	var client _gen_ipc.Client
 	switch len(opts) {
 	case 0:
-		client = _gen_rt.R().Client()
+		// Do nothing.
 	case 1:
-		switch o := opts[0].(type) {
-		case _gen_ipc.Client:
-			client = o
-		default:
+		if clientOpt, ok := opts[0].(_gen_ipc.Client); opts[0] == nil || ok {
+			client = clientOpt
+		} else {
 			return nil, _gen_vdlutil.ErrUnrecognizedOption
 		}
 	default:
 		return nil, _gen_vdlutil.ErrTooManyOptionsToBind
 	}
-	stub := &clientStubBank{client: client, name: name}
+	stub := &clientStubBank{defaultClient: client, name: name}
 
 	return stub, nil
 }
@@ -83,13 +82,20 @@ func NewServerBank(server BankService) interface{} {
 
 // clientStubBank implements Bank.
 type clientStubBank struct {
-	client _gen_ipc.Client
-	name   string
+	defaultClient _gen_ipc.Client
+	name          string
+}
+
+func (__gen_c *clientStubBank) client(ctx _gen_context.T) _gen_ipc.Client {
+	if __gen_c.defaultClient != nil {
+		return __gen_c.defaultClient
+	}
+	return _gen_veyron2.RuntimeFromContext(ctx).Client()
 }
 
 func (__gen_c *clientStubBank) Connect(ctx _gen_context.T, opts ..._gen_ipc.CallOpt) (newIdentity string, accountNumber int64, err error) {
 	var call _gen_ipc.Call
-	if call, err = __gen_c.client.StartCall(ctx, __gen_c.name, "Connect", nil, opts...); err != nil {
+	if call, err = __gen_c.client(ctx).StartCall(ctx, __gen_c.name, "Connect", nil, opts...); err != nil {
 		return
 	}
 	if ierr := call.Finish(&newIdentity, &accountNumber, &err); ierr != nil {
@@ -100,7 +106,7 @@ func (__gen_c *clientStubBank) Connect(ctx _gen_context.T, opts ..._gen_ipc.Call
 
 func (__gen_c *clientStubBank) UnresolveStep(ctx _gen_context.T, opts ..._gen_ipc.CallOpt) (reply []string, err error) {
 	var call _gen_ipc.Call
-	if call, err = __gen_c.client.StartCall(ctx, __gen_c.name, "UnresolveStep", nil, opts...); err != nil {
+	if call, err = __gen_c.client(ctx).StartCall(ctx, __gen_c.name, "UnresolveStep", nil, opts...); err != nil {
 		return
 	}
 	if ierr := call.Finish(&reply, &err); ierr != nil {
@@ -111,7 +117,7 @@ func (__gen_c *clientStubBank) UnresolveStep(ctx _gen_context.T, opts ..._gen_ip
 
 func (__gen_c *clientStubBank) Signature(ctx _gen_context.T, opts ..._gen_ipc.CallOpt) (reply _gen_ipc.ServiceSignature, err error) {
 	var call _gen_ipc.Call
-	if call, err = __gen_c.client.StartCall(ctx, __gen_c.name, "Signature", nil, opts...); err != nil {
+	if call, err = __gen_c.client(ctx).StartCall(ctx, __gen_c.name, "Signature", nil, opts...); err != nil {
 		return
 	}
 	if ierr := call.Finish(&reply, &err); ierr != nil {
@@ -122,7 +128,7 @@ func (__gen_c *clientStubBank) Signature(ctx _gen_context.T, opts ..._gen_ipc.Ca
 
 func (__gen_c *clientStubBank) GetMethodTags(ctx _gen_context.T, method string, opts ..._gen_ipc.CallOpt) (reply []interface{}, err error) {
 	var call _gen_ipc.Call
-	if call, err = __gen_c.client.StartCall(ctx, __gen_c.name, "GetMethodTags", []interface{}{method}, opts...); err != nil {
+	if call, err = __gen_c.client(ctx).StartCall(ctx, __gen_c.name, "GetMethodTags", []interface{}{method}, opts...); err != nil {
 		return
 	}
 	if ierr := call.Finish(&reply, &err); ierr != nil {
@@ -231,18 +237,17 @@ func BindBankAccount(name string, opts ..._gen_ipc.BindOpt) (BankAccount, error)
 	var client _gen_ipc.Client
 	switch len(opts) {
 	case 0:
-		client = _gen_rt.R().Client()
+		// Do nothing.
 	case 1:
-		switch o := opts[0].(type) {
-		case _gen_ipc.Client:
-			client = o
-		default:
+		if clientOpt, ok := opts[0].(_gen_ipc.Client); opts[0] == nil || ok {
+			client = clientOpt
+		} else {
 			return nil, _gen_vdlutil.ErrUnrecognizedOption
 		}
 	default:
 		return nil, _gen_vdlutil.ErrTooManyOptionsToBind
 	}
-	stub := &clientStubBankAccount{client: client, name: name}
+	stub := &clientStubBankAccount{defaultClient: client, name: name}
 
 	return stub, nil
 }
@@ -259,13 +264,20 @@ func NewServerBankAccount(server BankAccountService) interface{} {
 
 // clientStubBankAccount implements BankAccount.
 type clientStubBankAccount struct {
-	client _gen_ipc.Client
-	name   string
+	defaultClient _gen_ipc.Client
+	name          string
+}
+
+func (__gen_c *clientStubBankAccount) client(ctx _gen_context.T) _gen_ipc.Client {
+	if __gen_c.defaultClient != nil {
+		return __gen_c.defaultClient
+	}
+	return _gen_veyron2.RuntimeFromContext(ctx).Client()
 }
 
 func (__gen_c *clientStubBankAccount) Deposit(ctx _gen_context.T, amount int64, opts ..._gen_ipc.CallOpt) (err error) {
 	var call _gen_ipc.Call
-	if call, err = __gen_c.client.StartCall(ctx, __gen_c.name, "Deposit", []interface{}{amount}, opts...); err != nil {
+	if call, err = __gen_c.client(ctx).StartCall(ctx, __gen_c.name, "Deposit", []interface{}{amount}, opts...); err != nil {
 		return
 	}
 	if ierr := call.Finish(&err); ierr != nil {
@@ -276,7 +288,7 @@ func (__gen_c *clientStubBankAccount) Deposit(ctx _gen_context.T, amount int64, 
 
 func (__gen_c *clientStubBankAccount) Withdraw(ctx _gen_context.T, amount int64, opts ..._gen_ipc.CallOpt) (err error) {
 	var call _gen_ipc.Call
-	if call, err = __gen_c.client.StartCall(ctx, __gen_c.name, "Withdraw", []interface{}{amount}, opts...); err != nil {
+	if call, err = __gen_c.client(ctx).StartCall(ctx, __gen_c.name, "Withdraw", []interface{}{amount}, opts...); err != nil {
 		return
 	}
 	if ierr := call.Finish(&err); ierr != nil {
@@ -287,7 +299,7 @@ func (__gen_c *clientStubBankAccount) Withdraw(ctx _gen_context.T, amount int64,
 
 func (__gen_c *clientStubBankAccount) Transfer(ctx _gen_context.T, receiver int64, amount int64, opts ..._gen_ipc.CallOpt) (err error) {
 	var call _gen_ipc.Call
-	if call, err = __gen_c.client.StartCall(ctx, __gen_c.name, "Transfer", []interface{}{receiver, amount}, opts...); err != nil {
+	if call, err = __gen_c.client(ctx).StartCall(ctx, __gen_c.name, "Transfer", []interface{}{receiver, amount}, opts...); err != nil {
 		return
 	}
 	if ierr := call.Finish(&err); ierr != nil {
@@ -298,7 +310,7 @@ func (__gen_c *clientStubBankAccount) Transfer(ctx _gen_context.T, receiver int6
 
 func (__gen_c *clientStubBankAccount) Balance(ctx _gen_context.T, opts ..._gen_ipc.CallOpt) (reply int64, err error) {
 	var call _gen_ipc.Call
-	if call, err = __gen_c.client.StartCall(ctx, __gen_c.name, "Balance", nil, opts...); err != nil {
+	if call, err = __gen_c.client(ctx).StartCall(ctx, __gen_c.name, "Balance", nil, opts...); err != nil {
 		return
 	}
 	if ierr := call.Finish(&reply, &err); ierr != nil {
@@ -309,7 +321,7 @@ func (__gen_c *clientStubBankAccount) Balance(ctx _gen_context.T, opts ..._gen_i
 
 func (__gen_c *clientStubBankAccount) UnresolveStep(ctx _gen_context.T, opts ..._gen_ipc.CallOpt) (reply []string, err error) {
 	var call _gen_ipc.Call
-	if call, err = __gen_c.client.StartCall(ctx, __gen_c.name, "UnresolveStep", nil, opts...); err != nil {
+	if call, err = __gen_c.client(ctx).StartCall(ctx, __gen_c.name, "UnresolveStep", nil, opts...); err != nil {
 		return
 	}
 	if ierr := call.Finish(&reply, &err); ierr != nil {
@@ -320,7 +332,7 @@ func (__gen_c *clientStubBankAccount) UnresolveStep(ctx _gen_context.T, opts ...
 
 func (__gen_c *clientStubBankAccount) Signature(ctx _gen_context.T, opts ..._gen_ipc.CallOpt) (reply _gen_ipc.ServiceSignature, err error) {
 	var call _gen_ipc.Call
-	if call, err = __gen_c.client.StartCall(ctx, __gen_c.name, "Signature", nil, opts...); err != nil {
+	if call, err = __gen_c.client(ctx).StartCall(ctx, __gen_c.name, "Signature", nil, opts...); err != nil {
 		return
 	}
 	if ierr := call.Finish(&reply, &err); ierr != nil {
@@ -331,7 +343,7 @@ func (__gen_c *clientStubBankAccount) Signature(ctx _gen_context.T, opts ..._gen
 
 func (__gen_c *clientStubBankAccount) GetMethodTags(ctx _gen_context.T, method string, opts ..._gen_ipc.CallOpt) (reply []interface{}, err error) {
 	var call _gen_ipc.Call
-	if call, err = __gen_c.client.StartCall(ctx, __gen_c.name, "GetMethodTags", []interface{}{method}, opts...); err != nil {
+	if call, err = __gen_c.client(ctx).StartCall(ctx, __gen_c.name, "GetMethodTags", []interface{}{method}, opts...); err != nil {
 		return
 	}
 	if ierr := call.Finish(&reply, &err); ierr != nil {
