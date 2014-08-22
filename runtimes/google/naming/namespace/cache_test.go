@@ -132,11 +132,8 @@ func TestFlushCacheEntry(t *testing.T) {
 
 func disabled(ctls []naming.CacheCtl) bool {
 	for _, c := range ctls {
-		switch v := c.(type) {
-		case naming.DisableCache:
-			if v {
-				return true
-			}
+		if v, ok := c.(naming.DisableCache); ok && bool(v) {
+			return true
 		}
 	}
 	return false
