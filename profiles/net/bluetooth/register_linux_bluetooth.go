@@ -3,7 +3,7 @@
 package bluetooth
 
 import (
-	"veyron/lib/bluetooth"
+	"veyron.io/proximity/lib/bluetooth"
 
 	"veyron2/ipc/stream"
 )

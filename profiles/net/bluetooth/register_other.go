@@ -1,4 +1,5 @@
 // +build !veyronbluetooth
+
 package bluetooth
 
 func registerBT() {
