@@ -90,7 +90,6 @@ func newServer() (ipc.Server, string) {
 
 // resolveExpectError verifies that the given name is not in the mounttable.
 func resolveExpectError(t *testing.T, name string, errID verror.ID) {
-	rt.R().Namespace().FlushCacheEntry(name)
 	if results, err := rt.R().Namespace().Resolve(rt.R().NewContext(), name); err == nil {
 		t.Fatalf("Resolve(%v) succeeded with results %v when it was expected to fail", name, results)
 	} else if !verror.Is(err, errID) {
@@ -100,7 +99,6 @@ func resolveExpectError(t *testing.T, name string, errID verror.ID) {
 
 // resolve looks up the given name in the mounttable.
 func resolve(t *testing.T, name string) string {
-	rt.R().Namespace().FlushCacheEntry(name)
 	results, err := rt.R().Namespace().Resolve(rt.R().NewContext(), name)
 	if err != nil {
 		t.Fatalf("Resolve(%v) failed: %v", name, err)

@@ -38,6 +38,11 @@ func init() {
 	// create it here.
 	rt.Init()
 
+	// Disable the cache because we will be manipulating/using the namespace
+	// across multiple processes and want predictable behaviour without
+	// relying on timeouts.
+	rt.R().Namespace().CacheCtl(naming.DisableCache(true))
+
 	blackbox.CommandTable["execScript"] = execScript
 	blackbox.CommandTable["nodeManager"] = nodeManager
 	blackbox.CommandTable["app"] = app
