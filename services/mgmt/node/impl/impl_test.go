@@ -129,6 +129,14 @@ func (appService) Echo(_ ipc.ServerCall, message string) (string, error) {
 	return message, nil
 }
 
+func ping() {
+	if call, err := rt.R().Client().StartCall(rt.R().NewContext(), "pingserver", "Ping", nil); err != nil {
+		vlog.Fatalf("StartCall failed: %v", err)
+	} else if err = call.Finish(); err != nil {
+		vlog.Fatalf("Finish failed: %v", err)
+	}
+}
+
 func app(args []string) {
 	if expected, got := 1, len(args); expected != got {
 		vlog.Fatalf("Unexpected number of arguments: expected %d, got %d", expected, got)
@@ -141,15 +149,12 @@ func app(args []string) {
 	if err := server.Serve(publishName, ipc.LeafDispatcher(new(appService), nil)); err != nil {
 		vlog.Fatalf("Serve(%v) failed: %v", publishName, err)
 	}
-	if call, err := rt.R().Client().StartCall(rt.R().NewContext(), "pingserver", "Ping", nil); err != nil {
-		vlog.Fatalf("StartCall failed: %v", err)
-	} else if err = call.Finish(); err != nil {
-		vlog.Fatalf("Finish failed: %v", err)
-	}
+	ping()
 	<-signals.ShutdownOnSignals()
 	if err := ioutil.WriteFile("testfile", []byte("goodbye world"), 0600); err != nil {
 		vlog.Fatalf("Failed to write testfile: %v", err)
 	}
+	ping()
 }
 
 // generateScript is very similar in behavior to its namesake in invoker.go.
@@ -421,45 +426,11 @@ func TestNodeManagerUpdateAndRevert(t *testing.T) {
 	runNM.ExpectEOFAndWait()
 }
 
-type pingServerDisp chan struct{}
+type pingServerDisp chan<- struct{}
 
-func (p pingServerDisp) Ping(ipc.ServerCall) { close(p) }
+func (p pingServerDisp) Ping(ipc.ServerCall) { p <- struct{}{} }
 
-// TestAppStartStop installs an app, starts it, and then stops it.
-func TestAppStartStop(t *testing.T) {
-	// Set up mount table, application, and binary repositories.
-	defer setupLocalNamespace(t)()
-	envelope, cleanup := startApplicationRepository()
-	defer cleanup()
-	defer startBinaryRepository()()
-
-	root, cleanup := setupRootDir()
-	defer cleanup()
-
-	// Set up the node manager.  Since we won't do node manager updates,
-	// don't worry about its application envelope and current link.
-	nm := blackbox.HelperCommand(t, "nodeManager", "nm", root, "unused app repo name", "unused curr link")
-	defer setupChildCommand(nm)()
-	if err := nm.Cmd.Start(); err != nil {
-		t.Fatalf("Start() failed: %v", err)
-	}
-	defer nm.Cleanup()
-	readPID(t, nm)
-
-	// Create the local server that the app uses to let us know it's ready.
-	server, _ := newServer()
-	defer server.Stop()
-	pingCh := make(chan struct{})
-	if err := server.Serve("pingserver", ipc.LeafDispatcher(pingServerDisp(pingCh), nil)); err != nil {
-		t.Fatalf("Failed to set up ping server")
-	}
-
-	// Create an envelope for an app.
-	app := blackbox.HelperCommand(t, "app", "app1")
-	defer setupChildCommand(app)()
-	appTitle := "google naps"
-	*envelope = *envelopeFromCmd(appTitle, app.Cmd)
-
+func installApp(t *testing.T) string {
 	appsName := "nm//apps"
 	stub, err := node.BindApplication(appsName)
 	if err != nil {
@@ -469,8 +440,13 @@ func TestAppStartStop(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Install failed: %v", err)
 	}
+	return appID
+}
+
+func startApp(t *testing.T, appID string) string {
+	appsName := "nm//apps"
 	appName := naming.Join(appsName, appID)
-	stub, err = node.BindApplication(appName)
+	stub, err := node.BindApplication(appName)
 	if err != nil {
 		t.Fatalf("BindApplication(%v) failed: %v", appName, err)
 	}
@@ -483,18 +459,23 @@ func TestAppStartStop(t *testing.T) {
 		}
 		instanceID = instanceIDs[0]
 	}
-	// Wait until the app pings us that it's ready.
-	<-pingCh
+	return instanceID
+}
 
+func stopApp(t *testing.T, appID, instanceID string) {
+	appsName := "nm//apps"
+	appName := naming.Join(appsName, appID)
 	instanceName := naming.Join(appName, instanceID)
-	stub, err = node.BindApplication(instanceName)
+	stub, err := node.BindApplication(instanceName)
 	if err != nil {
 		t.Fatalf("BindApplication(%v) failed: %v", instanceName, err)
 	}
 	if err := stub.Stop(rt.R().NewContext(), 5); err != nil {
 		t.Fatalf("Stop failed: %v", err)
 	}
+}
 
+func verifyAppWorkspace(t *testing.T, root, appID, instanceID string) {
 	// HACK ALERT: for now, we peek inside the node manager's directory
 	// structure (which ought to be opaque) to check for what the app has
 	// written to its local root.
@@ -518,7 +499,62 @@ func TestAppStartStop(t *testing.T) {
 		t.Fatalf("Expected to read %v, got %v instead", want, got)
 	}
 	// END HACK
+}
 
+// TestAppLifeCycle installs an app, starts it, suspends it, resumes it, and
+// then stops it.
+func TestAppLifeCycle(t *testing.T) {
+	// Set up mount table, application, and binary repositories.
+	defer setupLocalNamespace(t)()
+	envelope, cleanup := startApplicationRepository()
+	defer cleanup()
+	defer startBinaryRepository()()
+
+	root, cleanup := setupRootDir()
+	defer cleanup()
+
+	// Set up the node manager.  Since we won't do node manager updates,
+	// don't worry about its application envelope and current link.
+	nm := blackbox.HelperCommand(t, "nodeManager", "nm", root, "unused app repo name", "unused curr link")
+	defer setupChildCommand(nm)()
+	if err := nm.Cmd.Start(); err != nil {
+		t.Fatalf("Start() failed: %v", err)
+	}
+	defer nm.Cleanup()
+	readPID(t, nm)
+
+	// Create the local server that the app uses to let us know it's ready.
+	server, _ := newServer()
+	defer server.Stop()
+	pingCh := make(chan struct{}, 1)
+	if err := server.Serve("pingserver", ipc.LeafDispatcher(pingServerDisp(pingCh), nil)); err != nil {
+		t.Fatalf("Serve(%q, <dispatcher>) failed: %v", "pingserver", err)
+	}
+
+	// Create an envelope for an app.
+	app := blackbox.HelperCommand(t, "app", "app1")
+	defer setupChildCommand(app)()
+	appTitle := "google naps"
+	*envelope = *envelopeFromCmd(appTitle, app.Cmd)
+
+	// Install the app.
+	appID := installApp(t)
+
+	// Start the app.
+	instanceID := startApp(t, appID)
+	<-pingCh // Wait until the app pings us that it's ready.
+
+	// TODO(caprita): test Suspend and Resume, and verify various
+	// non-standard combinations (suspend when stopped; resume while still
+	// running; stop while suspended).
+
+	// Stop the app.
+	stopApp(t, appID, instanceID)
+	<-pingCh // App should have pinged us before it terminated.
+
+	verifyAppWorkspace(t, root, appID, instanceID)
+
+	// Cleanly shut down the node manager.
 	syscall.Kill(nm.Cmd.Process.Pid, syscall.SIGINT)
 	nm.Expect("nm terminating")
 	nm.ExpectEOFAndWait()
