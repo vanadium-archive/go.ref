@@ -68,17 +68,15 @@ type ScoreCard struct {
 	Winner      WinnerTag   // Who won the game.
 }
 
-const (
-	Classic = GameTypeTag(0) // Rock-Paper-Scissors
+const Classic = GameTypeTag(0) // Rock-Paper-Scissors
 
-	LizardSpock = GameTypeTag(1) // Rock-Paper-Scissors-Lizard-Spock
+const LizardSpock = GameTypeTag(1) // Rock-Paper-Scissors-Lizard-Spock
 
-	Draw = WinnerTag(0)
+const Draw = WinnerTag(0)
 
-	Player1 = WinnerTag(1)
+const Player1 = WinnerTag(1)
 
-	Player2 = WinnerTag(2)
-)
+const Player2 = WinnerTag(2)
 
 // TODO(bprosnitz) Remove this line once signatures are updated to use typevals.
 // It corrects a bug where _gen_wiretype is unused in VDL pacakges where only bootstrap types are used on interfaces.

@@ -73,13 +73,11 @@ type LogValue struct {
 	Continued bool
 }
 
-const (
-	// NodeRec type log record adds a new node in the dag.
-	NodeRec = byte(0)
+// NodeRec type log record adds a new node in the dag.
+const NodeRec = byte(0)
 
-	// LinkRec type log record adds a new link in the dag.
-	LinkRec = byte(1)
-)
+// LinkRec type log record adds a new link in the dag.
+const LinkRec = byte(1)
 
 // TODO(bprosnitz) Remove this line once signatures are updated to use typevals.
 // It corrects a bug where _gen_wiretype is unused in VDL pacakges where only bootstrap types are used on interfaces.

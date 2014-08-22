@@ -47,11 +47,9 @@ type Request struct {
 	ResumeMarker types.ResumeMarker
 }
 
-const (
-	// The raw Store has Object name "<mount>/.store.raw", where <mount> is the
-	// Object name of the mount point.
-	RawStoreSuffix = ".store.raw"
-)
+// The raw Store has Object name "<mount>/.store.raw", where <mount> is the
+// Object name of the mount point.
+const RawStoreSuffix = ".store.raw"
 
 // TODO(bprosnitz) Remove this line once signatures are updated to use typevals.
 // It corrects a bug where _gen_wiretype is unused in VDL pacakges where only bootstrap types are used on interfaces.
