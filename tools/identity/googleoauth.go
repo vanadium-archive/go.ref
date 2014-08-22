@@ -84,7 +84,12 @@ func getOAuthAuthorizationCodeFromGoogle(clientID string, blessing <-chan string
 	url := googleoauth.NewOAuthConfig(clientID, "", redirectURL).AuthCodeURL(state)
 	fmt.Fprintln(os.Stderr, "Please visit the following URL to authenticate with Google:")
 	fmt.Fprintln(os.Stderr, url)
-	exec.Command(openCommand, url).Run()
+	// Make an attempt to start the browser as a convenience.
+	// If it fails, doesn't matter - the client can see the URL printed above.
+	// Use exec.Command().Start instead of exec.Command().Run since there is no
+	// need to wait for the command to return (and indeed on some window managers,
+	// the command will not exit until the browser is closed).
+	exec.Command(openCommand, url).Start()
 	return result, nil
 }
 
