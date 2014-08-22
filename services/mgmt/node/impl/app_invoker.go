@@ -205,6 +205,9 @@ func stoppedInstanceDirName(instanceID string) string {
 }
 
 func (i *appInvoker) Install(call ipc.ServerContext, applicationVON string) (string, error) {
+	if len(i.suffix) > 0 {
+		return "", errInvalidSuffix
+	}
 	ctx, cancel := rt.R().NewContext().WithTimeout(time.Minute)
 	defer cancel()
 	envelope, err := fetchEnvelope(ctx, applicationVON)
@@ -311,21 +314,31 @@ func generateCommand(envelope *application.Envelope, binPath, instanceDir string
 	return cmd, nil
 }
 
-func (i *appInvoker) Start(ipc.ServerContext) ([]string, error) {
+// installationDir returns the path to the directory containing the app
+// installation referred to by the invoker's suffix.  Returns an error if the
+// suffix does not name an installation or if the named installation does not
+// exist.
+func (i *appInvoker) installationDir() (string, error) {
 	components := i.suffix
-	if nComponents := len(components); nComponents < 2 {
-		return nil, fmt.Errorf("Start all installations / all applications not yet implemented (%v)", naming.Join(i.suffix...))
-	} else if nComponents > 2 {
-		return nil, errInvalidSuffix
+	if nComponents := len(components); nComponents != 2 {
+		return "", errInvalidSuffix
 	}
 	app, installation := components[0], components[1]
 	installationDir := filepath.Join(i.config.Root, applicationDirName(app), installationDirName(installation))
 	if _, err := os.Stat(installationDir); err != nil {
 		if os.IsNotExist(err) {
-			return nil, errNotExist
+			return "", errNotExist
 		}
 		vlog.Errorf("Stat(%v) failed: %v", installationDir, err)
-		return nil, errOperationFailed
+		return "", errOperationFailed
+	}
+	return installationDir, nil
+}
+
+func (i *appInvoker) Start(ipc.ServerContext) ([]string, error) {
+	installationDir, err := i.installationDir()
+	if err != nil {
+		return nil, err
 	}
 	currLink := filepath.Join(installationDir, "current")
 	envelope, err := loadEnvelope(currLink)
@@ -388,20 +401,55 @@ func (i *appInvoker) Start(ipc.ServerContext) ([]string, error) {
 	return []string{instanceID}, nil
 }
 
-func (i *appInvoker) Stop(_ ipc.ServerContext, deadline uint32) error {
-	// TODO(caprita): implement deadline.
-	ctx, cancel := rt.R().NewContext().WithTimeout(time.Minute)
-	defer cancel()
+// instanceDir returns the path to the directory containing the app instance
+// referred to by the invoker's suffix, as well as the corresponding stopped
+// instance dir.  Returns an error if the suffix does not name an instance.
+func (i *appInvoker) instanceDir() (string, string, error) {
 	components := i.suffix
-	if nComponents := len(components); nComponents < 3 {
-		return fmt.Errorf("Stop all instances / all installations / all applications not yet implemented (%v)", naming.Join(i.suffix...))
-	} else if nComponents > 3 {
-		return errInvalidSuffix
+	if nComponents := len(components); nComponents != 3 {
+		return "", "", errInvalidSuffix
 	}
 	app, installation, instance := components[0], components[1], components[2]
 	instancesDir := filepath.Join(i.config.Root, applicationDirName(app), installationDirName(installation), "instances")
 	instanceDir := filepath.Join(instancesDir, instanceDirName(instance))
 	stoppedInstanceDir := filepath.Join(instancesDir, stoppedInstanceDirName(instance))
+	return instanceDir, stoppedInstanceDir, nil
+}
+
+func stopAppRemotely(appVON string) error {
+	appStub, err := appcycle.BindAppCycle(appVON)
+	if err != nil {
+		vlog.Errorf("BindAppCycle(%v) failed: %v", appVON, err)
+		return errOperationFailed
+	}
+	ctx, cancel := rt.R().NewContext().WithTimeout(time.Minute)
+	defer cancel()
+	stream, err := appStub.Stop(ctx)
+	if err != nil {
+		vlog.Errorf("%v.Stop() failed: %v", appVON, err)
+		return errOperationFailed
+	}
+	rstream := stream.RecvStream()
+	for rstream.Advance() {
+		vlog.VI(2).Infof("%v.Stop() task update: %v", appVON, rstream.Value())
+	}
+	if err := rstream.Err(); err != nil {
+		vlog.Errorf("Advance() failed: %v", err)
+		return errOperationFailed
+	}
+	if err := stream.Finish(); err != nil {
+		vlog.Errorf("Finish() failed: %v", err)
+		return errOperationFailed
+	}
+	return nil
+}
+
+func (i *appInvoker) Stop(_ ipc.ServerContext, deadline uint32) error {
+	// TODO(caprita): implement deadline.
+	instanceDir, stoppedInstanceDir, err := i.instanceDir()
+	if err != nil {
+		return err
+	}
 	if err := os.Rename(instanceDir, stoppedInstanceDir); err != nil {
 		vlog.Errorf("Rename(%v, %v) failed: %v", instanceDir, stoppedInstanceDir, err)
 		if os.IsNotExist(err) {
@@ -416,29 +464,7 @@ func (i *appInvoker) Stop(_ ipc.ServerContext, deadline uint32) error {
 	if err != nil {
 		return errOperationFailed
 	}
-	appStub, err := appcycle.BindAppCycle(info.AppCycleMgrName)
-	if err != nil {
-		vlog.Errorf("BindAppCycle(%v) failed: %v", info.AppCycleMgrName, err)
-		return errOperationFailed
-	}
-	stream, err := appStub.Stop(ctx)
-	if err != nil {
-		vlog.Errorf("Got error: %v", err)
-		return errOperationFailed
-	}
-	rstream := stream.RecvStream()
-	for rstream.Advance() {
-		vlog.VI(2).Infof("%v.Stop(%v) task update: %v", i.suffix, deadline, rstream.Value())
-	}
-	if err := rstream.Err(); err != nil {
-		vlog.Errorf("Stream returned an error: %v", err)
-		return errOperationFailed
-	}
-	if err := stream.Finish(); err != nil {
-		vlog.Errorf("Got error: %v", err)
-		return errOperationFailed
-	}
-	return nil
+	return stopAppRemotely(info.AppCycleMgrName)
 }
 
 func (*appInvoker) Suspend(ipc.ServerContext) error {
