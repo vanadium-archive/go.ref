@@ -13,6 +13,11 @@ import (
 
 func init() {
 	registerBT()
+	// Arguably, the registration should be conditionally compiled.
+	// Buf if it is, it becomes hard for the developer to know if bluetooth
+	// was event attempted.
+	// TODO(cnicolaou): use this in a couple of examples and see how it
+	// works out in practice.
 	rt.RegisterProfile(&profile{})
 }
 

@@ -45,10 +45,14 @@ var (
 func init() {
 	flag.StringVar(&listen_protocol, "veyron.protocol", "tcp4", "protocol to listen with")
 	flag.Var(&listen_addr, "veyron.address", "address to listen on")
-	rt.RegisterProfile(&profile{})
+	rt.RegisterProfile(New())
 }
 
 type profile struct{}
+
+func New() veyron2.Profile {
+	return &profile{}
+}
 
 func (p *profile) Platform() *veyron2.Platform {
 	platform, _ := profiles.Platform()
