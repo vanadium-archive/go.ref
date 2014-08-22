@@ -23,8 +23,7 @@ type logDirectoryDispatcher struct {
 }
 
 func (d *logDirectoryDispatcher) Lookup(suffix, _ string) (ipc.Invoker, security.Authorizer, error) {
-	invoker := ipc.ReflectInvoker(mounttable.NewServerGlobbable(impl.NewLogDirectoryInvoker(d.root, suffix)))
-	return invoker, nil, nil
+	return impl.NewLogDirectoryInvoker(d.root, suffix), nil, nil
 }
 
 func TestLogDirectory(t *testing.T) {
