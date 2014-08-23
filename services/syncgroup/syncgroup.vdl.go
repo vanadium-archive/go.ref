@@ -33,6 +33,9 @@ import (
 	_gen_wiretype "veyron2/wiretype"
 )
 
+// An ID is a globally unique identifier for a SyncGroup.
+type ID storage.ID
+
 // A SyncGroupInfo is the conceptual state of a SyncGroup object.
 type SyncGroupInfo struct {
 	Name    string          // Global Veyron name of object.
@@ -41,7 +44,7 @@ type SyncGroupInfo struct {
 	ETag    string          // Version ID for concurrency control.
 	// The SyncGroup's object ID, which is chosen by the creating SyncGroupServer
 	// and is globally unique.
-	SGOID storage.ID
+	SGOID ID
 	// A map from joiner names to the associated metaData for devices that
 	// have called Join() or Create() and not subsequently called Leave()
 	// or had Eject() called on them.  The map returned by the calls below
@@ -439,14 +442,14 @@ func (__gen_s *ServerStubSyncGroupServer) Signature(call _gen_ipc.ServerCall) (_
 			{Name: "metaData", Type: 76},
 		},
 		OutArgs: []_gen_ipc.MethodArgument{
-			{Name: "sgInfo", Type: 78},
-			{Name: "err", Type: 79},
+			{Name: "sgInfo", Type: 79},
+			{Name: "err", Type: 80},
 		},
 	}
 	result.Methods["Destroy"] = _gen_ipc.MethodSignature{
 		InArgs: []_gen_ipc.MethodArgument{},
 		OutArgs: []_gen_ipc.MethodArgument{
-			{Name: "", Type: 79},
+			{Name: "", Type: 80},
 		},
 	}
 	result.Methods["Eject"] = _gen_ipc.MethodSignature{
@@ -454,14 +457,14 @@ func (__gen_s *ServerStubSyncGroupServer) Signature(call _gen_ipc.ServerCall) (_
 			{Name: "name", Type: 75},
 		},
 		OutArgs: []_gen_ipc.MethodArgument{
-			{Name: "", Type: 79},
+			{Name: "", Type: 80},
 		},
 	}
 	result.Methods["Get"] = _gen_ipc.MethodSignature{
 		InArgs: []_gen_ipc.MethodArgument{},
 		OutArgs: []_gen_ipc.MethodArgument{
-			{Name: "sgInfo", Type: 78},
-			{Name: "err", Type: 79},
+			{Name: "sgInfo", Type: 79},
+			{Name: "err", Type: 80},
 		},
 	}
 	result.Methods["Join"] = _gen_ipc.MethodSignature{
@@ -470,8 +473,8 @@ func (__gen_s *ServerStubSyncGroupServer) Signature(call _gen_ipc.ServerCall) (_
 			{Name: "metaData", Type: 76},
 		},
 		OutArgs: []_gen_ipc.MethodArgument{
-			{Name: "sgInfo", Type: 78},
-			{Name: "err", Type: 79},
+			{Name: "sgInfo", Type: 79},
+			{Name: "err", Type: 80},
 		},
 	}
 	result.Methods["Leave"] = _gen_ipc.MethodSignature{
@@ -479,7 +482,7 @@ func (__gen_s *ServerStubSyncGroupServer) Signature(call _gen_ipc.ServerCall) (_
 			{Name: "name", Type: 75},
 		},
 		OutArgs: []_gen_ipc.MethodArgument{
-			{Name: "", Type: 79},
+			{Name: "", Type: 80},
 		},
 	}
 	result.Methods["SetConfig"] = _gen_ipc.MethodSignature{
@@ -488,7 +491,7 @@ func (__gen_s *ServerStubSyncGroupServer) Signature(call _gen_ipc.ServerCall) (_
 			{Name: "eTag", Type: 3},
 		},
 		OutArgs: []_gen_ipc.MethodArgument{
-			{Name: "", Type: 79},
+			{Name: "", Type: 80},
 		},
 	}
 
@@ -524,14 +527,14 @@ func (__gen_s *ServerStubSyncGroupServer) Signature(call _gen_ipc.ServerCall) (_
 				_gen_wiretype.FieldType{Type: 0x24, Name: "SyncPriority"},
 			},
 			"veyron/services/syncgroup.JoinerMetaData", []string(nil)},
-		_gen_wiretype.MapType{Key: 0x4b, Elem: 0x4c, Name: "", Tags: []string(nil)}, _gen_wiretype.StructType{
+		_gen_wiretype.ArrayType{Elem: 0x49, Len: 0x10, Name: "veyron/services/syncgroup.ID", Tags: []string(nil)}, _gen_wiretype.MapType{Key: 0x4b, Elem: 0x4c, Name: "", Tags: []string(nil)}, _gen_wiretype.StructType{
 			[]_gen_wiretype.FieldType{
 				_gen_wiretype.FieldType{Type: 0x3, Name: "Name"},
 				_gen_wiretype.FieldType{Type: 0x48, Name: "Config"},
 				_gen_wiretype.FieldType{Type: 0x4a, Name: "RootOID"},
 				_gen_wiretype.FieldType{Type: 0x3, Name: "ETag"},
-				_gen_wiretype.FieldType{Type: 0x4a, Name: "SGOID"},
-				_gen_wiretype.FieldType{Type: 0x4d, Name: "Joiners"},
+				_gen_wiretype.FieldType{Type: 0x4d, Name: "SGOID"},
+				_gen_wiretype.FieldType{Type: 0x4e, Name: "Joiners"},
 			},
 			"veyron/services/syncgroup.SyncGroupInfo", []string(nil)},
 		_gen_wiretype.NamedPrimitiveType{Type: 0x1, Name: "error", Tags: []string(nil)}}

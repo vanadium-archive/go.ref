@@ -19,6 +19,9 @@ import "veyron2/services/security/access"
 // import "veyron2/services/watch"  // Watch call is not yet implemented
 import "veyron2/storage"
 
+// An ID is a globally unique identifier for a SyncGroup.
+type ID storage.ID
+
 // A SyncGroupInfo is the conceptual state of a SyncGroup object.
 type SyncGroupInfo struct {
 	Name    string          // Global Veyron name of object.
@@ -28,7 +31,7 @@ type SyncGroupInfo struct {
 
 	// The SyncGroup's object ID, which is chosen by the creating SyncGroupServer
 	// and is globally unique.
-	SGOID storage.ID
+	SGOID ID
 
 	// A map from joiner names to the associated metaData for devices that
 	// have called Join() or Create() and not subsequently called Leave()
