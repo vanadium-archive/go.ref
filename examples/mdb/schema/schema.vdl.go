@@ -9,9 +9,6 @@ import (
 
 // Dir is used to represent directories.
 type Dir struct {
-	// TODO(jyh): The IDL does not recognize empty structs.  Fix it and remove this
-	// useless field.
-	X byte
 }
 
 // Movie represents a movie.

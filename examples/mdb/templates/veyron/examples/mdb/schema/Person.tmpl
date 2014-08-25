@@ -1,29 +1,34 @@
+<!DOCTYPE html>
 <html>
-<head>
-<title>{{.Value.Name}}</title>
-<link rel="stylesheet" href="/css/movie.css">
-</head>
-<body>
-<p><a href="/">Home</a></p>
-{{$value := .}}
-<p>
-<table>
-<tr>
-<td valign="top">
-<img src="{{.Value.Image}}" align="bottom">
-<td valign="top">
-<div>
-<span class="title">{{.Value.Name}}</span>
-</div>
-</tr>
-</table>
+  <head>
+    <title>{{.Value.Name}}</title>
+    <link rel="stylesheet" href="/css/movie.css">
+  </head>
+  <body>
+    <p><a href="/">Home</a></p>
+    {{$value := .}}
+    <table>
+      <tr>
+        <td valign="top">
+          <img src="{{.Value.Image}}" align="bottom">
+        </td>
+        <td valign="top">
+          <div>
+            <span class="title">{{.Value.Name}}</span>
+          </div>
+        </td>
+      </tr>
+    </table>
 
-<p>
-{{$date := $value.Date .Value.BirthDate}}
-Born: <span class="date">{{$date.Month}} {{$date.Day}}, {{$date.Year}}</span>
-</p>
+    <p>
+      {{$date := $value.Date .Value.BirthDate}}
+      Born:
+      <span class="date">
+        {{$date.Month}} {{$date.Day}}, {{$date.Year}}
+      </span>
+    </p>
 
-<!-- Debugging -->
-<span class="debug">{{.Name}} <a href="?raw">Raw</a></span>
-</body>
+    <!-- Debugging -->
+    <span class="debug">{{.Name}} <a href="?raw">Raw</a></span>
+  </body>
 </html>

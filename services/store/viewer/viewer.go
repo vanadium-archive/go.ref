@@ -44,8 +44,11 @@ var _ http.Handler = (*server)(nil)
 
 const (
 	// rawTemplateText is used to format the output in a raw textual form.
-	rawTemplateText = `<html>
-{{$value := .}}
+	rawTemplateText = `<!DOCTYPE html>
+<html>
+{{$entry := .}}
+{{$prefix := $entry.Name}}
+{{$rawSubdirs := $entry.RawSubdirs}}
 <head>
 <title>{{.Name}}</title>
 </head>
@@ -55,7 +58,8 @@ const (
 {{with .Subdirs}}
 <h3>Subdirectories</h3>
 {{range .}}
-<p><a href="{{.}}">{{$value.Base .}}</a></p>
+{{$name := $entry.Join $prefix .}}
+<p><a href="{{$name}}{{if $rawSubdirs}}?raw{{end}}">{{.}}</a></p>
 {{end}}
 {{end}}
 </body>
@@ -75,15 +79,20 @@ func mustParse(name, text string) *template.Template {
 	return tmpl
 }
 
+// abspath returns the absolute path from a path relative to the store root.
+func (s *server) abspath(path string) string {
+	return naming.Join(s.storeRoot, path)
+}
+
 // loadTemplate fetches the template for the value from the store.  The template
 // is based on the type of the value, under /template/<pkgPath>/<typeName>.
 func (s *server) loadTemplate(ctx context.T, v interface{}) *template.Template {
-	path := naming.Join(s.storeRoot, templatePath(v))
-	e, err := s.store.Bind(path).Get(ctx)
+	path := templatePath(v)
+	en, err := s.store.Bind(s.abspath(path)).Get(ctx)
 	if err != nil {
 		return nil
 	}
-	str, ok := e.Value.(string)
+	str, ok := en.Value.(string)
 	if !ok {
 		return nil
 	}
@@ -96,11 +105,11 @@ func (s *server) loadTemplate(ctx context.T, v interface{}) *template.Template {
 }
 
 // printRawValuePage prints the value in raw format.
-func (s *server) printRawValuePage(ctx context.T, w http.ResponseWriter, path string, v interface{}) {
+func (s *server) printRawValuePage(ctx context.T, w http.ResponseWriter, path string, v interface{}, rawSubdirs bool) {
 	var p printer
 	p.print(v)
-	subdirs, _ := glob(ctx, s.store, path, "*")
-	x := &Value{ctx: ctx, Name: path, Value: p.String(), Subdirs: subdirs}
+	x := &EntryForRawTemplate{&Entry{ctx: ctx, storeRoot: s.storeRoot, store: s.store, Name: path, Value: p.String()}, []string{}, rawSubdirs}
+	x.Subdirs, _ = x.Glob("*")
 	if err := rawTemplate.Execute(w, x); err != nil {
 		w.Write([]byte(html.EscapeString(err.Error())))
 	}
@@ -110,12 +119,13 @@ func (s *server) printRawValuePage(ctx context.T, w http.ResponseWriter, path st
 // is not found, the value is printed in raw format instead.
 func (s *server) printValuePage(ctx context.T, w http.ResponseWriter, path string, v interface{}) {
 	if tmpl := s.loadTemplate(ctx, v); tmpl != nil {
-		if err := tmpl.Execute(w, &Value{ctx: ctx, store: s.store, Name: path, Value: v}); err != nil {
+		x := &Entry{ctx: ctx, storeRoot: s.storeRoot, store: s.store, Name: path, Value: v}
+		if err := tmpl.Execute(w, x); err != nil {
 			w.Write([]byte(html.EscapeString(err.Error())))
 		}
 		return
 	}
-	s.printRawValuePage(ctx, w, path, v)
+	s.printRawValuePage(ctx, w, path, v, false)
 }
 
 // printRawPage prints a string value directly, without processing.
@@ -130,11 +140,12 @@ func (s *server) printRawPage(w http.ResponseWriter, v interface{}) {
 
 // ServeHTTP is the main HTTP handler.
 func (s *server) ServeHTTP(w http.ResponseWriter, req *http.Request) {
-	path := naming.Join(s.storeRoot, req.URL.Path)
+	path := req.URL.Path
 	ctx := s.runtime.NewContext()
-	e, err := s.store.Bind(path).Get(ctx)
+	en, err := s.store.Bind(s.abspath(path)).Get(ctx)
 	if err != nil {
-		msg := fmt.Sprintf("<html><body><h1>%s</h1><h2>Error: %s</h2></body></html>",
+		msg := fmt.Sprintf(
+			"<html><body><h1>%s</h1><h2>Error: %s</h2></body></html>",
 			html.EscapeString(path),
 			html.EscapeString(err.Error()))
 		w.WriteHeader(http.StatusNotFound)
@@ -145,12 +156,14 @@ func (s *server) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	q := req.URL.Query()
 	switch filepath.Ext(path) {
 	case ".css":
-		s.printRawPage(w, e.Value)
+		w.Header().Set("Content-Type", "text/css; charset=utf-8")
+		s.printRawPage(w, en.Value)
 	default:
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 		if q["raw"] != nil {
-			s.printRawValuePage(ctx, w, path, e.Value)
+			s.printRawValuePage(ctx, w, path, en.Value, true)
 		} else {
-			s.printValuePage(ctx, w, path, e.Value)
+			s.printValuePage(ctx, w, path, en.Value)
 		}
 	}
 }

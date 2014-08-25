@@ -5,9 +5,6 @@ package schema
 
 // Dir represents a directory.
 type Dir struct {
-	// TODO(jyh): The IDL does not recognize empty structs. Fix it and remove this
-	// useless field.
-	X byte
 }
 
 // List is a list of items.

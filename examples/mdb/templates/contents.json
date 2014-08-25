@@ -1,72 +1,89 @@
 {
   "People": {
-    "P1": { "Name": "Catherine Deneuve",
+    "P1": {
+	    "Name": "Catherine Deneuve",
 	    "BirthDate": "22/10/1943",
 	    "Image": "http://upload.wikimedia.org/wikipedia/commons/thumb/b/bc/Catherine_Deneuve_1995.jpg/388px-Catherine_Deneuve_1995.jpg"
 	  },
-    "P2": { "Name": "Nino Castelnuovo",
+    "P2": {
+	    "Name": "Nino Castelnuovo",
 	    "BirthDate": "28/10/1936",
 	    "Image": "http://upload.wikimedia.org/wikipedia/commons/4/4f/Quella_et%C3%A0_maliziosa.png"
 	  },
-    "P3": { "Name": "Anne Vernon",
+    "P3": {
+	    "Name": "Anne Vernon",
 	    "BirthDate": "24/1/1925",
 	    "Image": "http://upload.wikimedia.org/wikipedia/commons/6/6e/Anne_Vernon_1957.jpg"
 	  },
-    "P4": { "Name": "Marc Michel",
+    "P4": {
+	    "Name": "Marc Michel",
 	    "BirthDate": "4/12/1932"
 	  },
-    "P5": { "Name": "Leonardo DiCaprio",
+    "P5": {
+	    "Name": "Leonardo DiCaprio",
 	    "BirthDate": "11/11/1974",
 	    "Image": "http://upload.wikimedia.org/wikipedia/commons/thumb/4/4b/Leonardo_DiCaprio_%28Berlin_Film_Festival_2010%29_2_%28cropped%29.jpg/711px-Leonardo_DiCaprio_%28Berlin_Film_Festival_2010%29_2_%28cropped%29.jpg"
 	  },
-    "P6": { "Name": "Claire Danes",
+    "P6": {
+	    "Name": "Claire Danes",
 	    "BirthDate": "4/12/1979",
 	    "Image": "http://upload.wikimedia.org/wikipedia/commons/thumb/3/32/Claire_Danes_2012_Shankbone.JPG/479px-Claire_Danes_2012_Shankbone.JPG"
 	  },
-    "P7": { "Name": "John Leguizamo",
+    "P7": {
+	    "Name": "John Leguizamo",
 	    "BirthDate": "6/22/1964",
 	    "Image": "http://upload.wikimedia.org/wikipedia/commons/7/7c/John_Leguizamo_by_Gage_Skidmore.jpg"
 	  },
-    "P8": { "Name": "Harold Perrineau",
+    "P8": {
+	    "Name": "Harold Perrineau",
 	    "BirthDate": "8/7/1963",
 	    "Image": "http://upload.wikimedia.org/wikipedia/commons/thumb/3/3c/Harold_Perrineau%2C_Jr.jpg/549px-Harold_Perrineau%2C_Jr.jpg"
 	  },
-    "P9": { "Name": "Joseph Gordon-Levitt",
+    "P9": {
+	    "Name": "Joseph Gordon-Levitt",
 	    "BirthDate": "17/2/1981",
 	    "Image": "http://upload.wikimedia.org/wikipedia/commons/thumb/d/d3/Joseph_Gordon-Levitt.jpg/480px-Joseph_Gordon-Levitt.jpg"
 	  },
-    "P10": { "Name": "Ellen Page",
-	     "BirthDate": "21/2/1987",
-	     "Image": "http://upload.wikimedia.org/wikipedia/commons/thumb/0/07/Ellen_Page_at_TIFF_2009_cropped.jpg/449px-Ellen_Page_at_TIFF_2009_cropped.jpg"
-	   },
-    "P11": { "Name": "Michael Caine",
-	     "BirthDate": "14/3/1933",
-	     "Image": "http://upload.wikimedia.org/wikipedia/commons/thumb/e/e6/Michael_Caine_-_Viennale_2012_a.jpg/400px-Michael_Caine_-_Viennale_2012_a.jpg"
-	   },
-    "P12": { "Name": "Jacques Demy",
-	     "BirthDate": "5/6/1931",
-	     "Image": "http://upload.wikimedia.org/wikipedia/en/3/3a/Jacques_Demy.jpg"
-	   },
-    "P13": { "Name": "Baz Luhrmann",
-	     "BirthDate": "17/9/1962",
-	     "Image": "http://upload.wikimedia.org/wikipedia/commons/thumb/5/56/Baz_Luhrmann.jpg/399px-Baz_Luhrmann.jpg"
-	   },
-    "P14": { "Name": "Christopher Nolan",
-	     "BirthDate": "30/7/1970",
-	     "Image": "http://upload.wikimedia.org/wikipedia/commons/thumb/c/c4/Christopher_Nolan%2C_London%2C_2013_%28crop%29.jpg/409px-Christopher_Nolan%2C_London%2C_2013_%28crop%29.jpg"
-	   },
-    "P15": { "Name": "Jason Reitman",
-	     "BirthDate": "19/10/1977",
-	     "Image": "http://upload.wikimedia.org/wikipedia/commons/thumb/a/a8/Jason_Reitman_2013_TIFF.jpg/428px-Jason_Reitman_2013_TIFF.jpg"
-	   },
-    "P16": { "Name": "John Lasseter",
-	     "BirthDate": "12/1/1957",
-	     "Image": "http://upload.wikimedia.org/wikipedia/commons/thumb/b/b0/JohnLasseterOct2011.jpg/512px-JohnLasseterOct2011.jpg"
-	   }
+    "P10": {
+	    "Name": "Ellen Page",
+	    "BirthDate": "21/2/1987",
+	    "Image": "http://upload.wikimedia.org/wikipedia/commons/thumb/0/07/Ellen_Page_at_TIFF_2009_cropped.jpg/449px-Ellen_Page_at_TIFF_2009_cropped.jpg"
+	  },
+    "P11": {
+	    "Name": "Michael Caine",
+	    "BirthDate": "14/3/1933",
+	    "Image": "http://upload.wikimedia.org/wikipedia/commons/thumb/e/e6/Michael_Caine_-_Viennale_2012_a.jpg/400px-Michael_Caine_-_Viennale_2012_a.jpg"
+	  },
+    "P12": {
+	    "Name": "Jacques Demy",
+	    "BirthDate": "5/6/1931",
+	    "Image": "http://upload.wikimedia.org/wikipedia/en/3/3a/Jacques_Demy.jpg"
+	  },
+    "P13": {
+	    "Name": "Baz Luhrmann",
+	    "BirthDate": "17/9/1962",
+	    "Image": "http://upload.wikimedia.org/wikipedia/commons/thumb/5/56/Baz_Luhrmann.jpg/399px-Baz_Luhrmann.jpg"
+	  },
+    "P14": {
+	    "Name": "Christopher Nolan",
+	    "BirthDate": "30/7/1970",
+	    "Image": "http://upload.wikimedia.org/wikipedia/commons/thumb/c/c4/Christopher_Nolan%2C_London%2C_2013_%28crop%29.jpg/409px-Christopher_Nolan%2C_London%2C_2013_%28crop%29.jpg"
+	  },
+    "P15": {
+	    "Name": "Jason Reitman",
+	    "BirthDate": "19/10/1977",
+	    "Image": "http://upload.wikimedia.org/wikipedia/commons/thumb/a/a8/Jason_Reitman_2013_TIFF.jpg/428px-Jason_Reitman_2013_TIFF.jpg"
+	  },
+    "P16": {
+	    "Name": "John Lasseter",
+	    "BirthDate": "12/1/1957",
+	    "Image": "http://upload.wikimedia.org/wikipedia/commons/thumb/b/b0/JohnLasseterOct2011.jpg/512px-JohnLasseterOct2011.jpg"
+	  }
   },
 
   "Movies": {
-    "M1": { "Title": "The Umbrellas of Cherbourg",
+    "M1": {
+      "Title": "The Umbrellas of Cherbourg",
 	    "Image": "http://upload.wikimedia.org/wikipedia/en/3/39/ParapluiePoster.jpg",
 	    "Summary": "A young girl separated from her lover by war faces a life altering decision.",
 	    "Language": "French",
@@ -75,7 +92,8 @@
 	    "Genre": "musical",
 	    "Director": "P12"
 	  },
-    "M2": { "Title": "Romeo + Juliet",
+    "M2": {
+      "Title": "Romeo + Juliet",
 	    "Image": "http://upload.wikimedia.org/wikipedia/en/b/b4/William_shakespeares_romeo_and_juliet_movie_poster.jpg",
 	    "Summary": "Shakespeare's famous play is updated to the hip modern suburb of Verona still retaining its original dialogue.",
 	    "Language": "English",
@@ -84,7 +102,8 @@
 	    "Genre": "drama",
 	    "Director": "P13"
 	  },
-    "M3": { "Title": "Inception",
+    "M3": {
+      "Title": "Inception",
 	    "Image": "http://upload.wikimedia.org/wikipedia/en/7/7f/Inception_ver3.jpg",
 	    "Summary": "A skilled extractor is offered a chance to regain his old life as payment for a task considered to be impossible.",
 	    "Language": "English",
@@ -93,7 +112,8 @@
 	    "Genre": "action",
 	    "Director": "P14"
 	  },
-    "M4": { "Title": "Juno",
+    "M4": {
+      "Title": "Juno",
 	    "Image": "http://upload.wikimedia.org/wikipedia/en/e/ec/Junoposter2007.jpg",
 	    "Summary": "Faced with an unplanned pregnancy, an offbeat young woman makes an unusual decision regarding her unborn child.",
 	    "Language": "English",
@@ -102,7 +122,8 @@
 	    "Genre": "comedy",
 	    "Director": "P15"
 	  },
-    "M5": { "Title": "Cars 2",
+    "M5": {
+      "Title": "Cars 2",
 	    "Image": "http://upload.wikimedia.org/wikipedia/en/7/7f/Cars_2_Poster.jpg",
 	    "Summary": "Star race car Lightning McQueen and his pal Mater head overseas to compete in the World Grand Prix race. But the road to the championship becomes rocky as Mater gets caught up in an intriguing adventure of his own: international espionage.",
 	    "Language": "English",

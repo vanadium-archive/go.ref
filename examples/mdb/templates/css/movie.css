@@ -1,83 +1,83 @@
 body {
-    font-family: sans-serif;
+  font-family: sans-serif;
 }
 .title {
-    font-weight: bolder;
-    font-size: 5em;
-    font-family: Gill Sans Extrabold, sans-serif;
-    font-style: oblique;
+  font-weight: bolder;
+  font-size: 5em;
+  font-family: Gill Sans Extrabold, sans-serif;
+  font-style: oblique;
 }
 .genre {
-    font-family: sans-serif;
-    font-style: oblique;
+  font-family: sans-serif;
+  font-style: oblique;
 }
 .debug {
-    font-style: oblique;
-    color: gray;
+  font-style: oblique;
+  color: gray;
 }
 .castbox {
-    border: 1px solid #bbb;
-    border-radius: 10px;
-    background-color: #fbfbfb;
-    width: 95%;
+  border: 1px solid #bbb;
+  border-radius: 10px;
+  background-color: #fbfbfb;
+  width: 95%;
 }
 .cast {
-    border-collapse: collapse;
-    background-color: white;
-    margin: 5px;
-    width: 98%;
+  border-collapse: collapse;
+  background-color: white;
+  margin: 5px;
+  width: 98%;
 }
 .cast tr {
-    margin: 5px;
-    height: 32px;
+  margin: 5px;
+  height: 32px;
 }
 .cast tr:nth-child(even) {
-    background-color: #f6f6f5;
+  background-color: #f6f6f5;
 }
 .cast tr:nth-child(odd) {
-    background-color: #f2f2f8;
+  background-color: #f2f2f8;
 }
 .castchar {
-    width: 200px;
+  width: 200px;
 }
 .reviewbox {
-    border: 1px solid #bbb;
-    border-radius: 4px;
-    background-color: #fbfbfb;
-    margin: 5px;
-    width: 95%;
+  border: 1px solid #bbb;
+  border-radius: 4px;
+  background-color: #fbfbfb;
+  margin: 5px;
+  width: 95%;
 }
 .rating {
-    font-weight: bolder;
+  font-weight: bolder;
 }
 .reviewtext {
 }
 .moviesbox {
-    border: 1px solid #bbb;
-    border-radius: 10px;
-    background-color: #fbfbfb;
-    width: 95%;
+  border: 1px solid #bbb;
+  border-radius: 10px;
+  background-color: #fbfbfb;
+  width: 95%;
 }
 .moviestable {
-    border-collapse: collapse;
-    background-color: white;
-    margin: 5px;
-    width: 98%;
+  border-collapse: collapse;
+  background-color: white;
+  margin: 5px;
+  width: 98%;
 }
 .moviestable tr {
-    margin: 5px;
-    height: 32px;
+  margin: 5px;
+  height: 32px;
 }
 .moviestable tr:nth-child(even) {
-    background-color: #f6f6f5;
+  background-color: #f6f6f5;
 }
 .moviestable tr:nth-child(odd) {
-    background-color: #f2f2f8;
+  background-color: #f2f2f8;
 }
 .moviesentry {
 }
 .peoplebox {
-    background-color: #fbfbfb;
-    margin: 5px;
-    width: 95%;
+  background-color: #fbfbfb;
+  margin: 5px;
+  width: 95%;
 }
