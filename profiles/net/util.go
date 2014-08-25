@@ -65,10 +65,11 @@ func ipState() (ip4, ip6 ipAndIf, err error) {
 			continue
 		}
 		for _, addr := range addrs {
-			if _, ok := addr.(*net.IPAddr); ok {
+			ipn, ok := addr.(*net.IPNet)
+			if !ok {
 				continue
 			}
-			ip := net.ParseIP(addr.String())
+			ip := ipn.IP
 			if ip == nil || ip.IsLoopback() {
 				continue
 			}
@@ -114,15 +115,11 @@ func publicIP(ip net.IP) bool {
 	return netconfig.IsGloballyRoutable(ip)
 }
 
-func diffAB(a, b ipAndIf, added bool) ipAndIf {
+func diffAB(a, b ipAndIf) ipAndIf {
 	diff := make(ipAndIf)
 	for ak, av := range a {
 		if b[ak] == nil {
-			if added {
-				diff[ak] = av
-			} else {
-				diff[ak] = nil
-			}
+			diff[ak] = av
 			continue
 		}
 		for _, v := range av {
@@ -144,11 +141,11 @@ func diffAB(a, b ipAndIf, added bool) ipAndIf {
 // findAdded returns the set of interfaces and/or addresses that are
 // present in b, but not in a - i.e. have been added.
 func findAdded(a, b ipAndIf) ipAndIf {
-	return diffAB(b, a, true)
+	return diffAB(b, a)
 }
 
 // findRemoved returns the set of interfaces and/or addresses that
 // are present in a, but not in b - i.e. have been removed.
 func findRemoved(a, b ipAndIf) ipAndIf {
-	return diffAB(a, b, false)
+	return diffAB(a, b)
 }
