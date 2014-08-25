@@ -1,14 +1,18 @@
 # Running the playground compile server locally
 
-WARNING: Currently, this will cause your machine to power down after one hour,
-so you probably don't want to do this!
+Install Docker for Linux:
 
-TODO(ribrdb): Provide some simple way to run the Docker image locally for
-development purposes.
+TODO(sadovsky): These instructions don't seem to work, and furthermore, adding
+docker.list to sources.list.d may pose a security risk.
 
-Install Docker:
+  $ sudo sh -c "echo deb https://get.docker.io/ubuntu docker main > /etc/apt/sources.list.d/docker.list"
+  $ sudo apt-get update
+  $ sudo apt-get install lxc-docker
+  $ aptitude versions lxc-docker
 
-  $ sudo apt-get install lxc-docker-1.1.0
+Or for OS X, from this site:
+
+  https://github.com/boot2docker/osx-installer/releases
 
 Build the playground Docker image (this will take a while...):
 
@@ -22,10 +26,7 @@ Install the playground binaries:
 
 Run the compiler binary as root:
 
-  $ sudo compilerd
+  $ sudo go/bin/compilerd --shutdown=false --address=localhost:8181
 
-The server should now be running at http://localhost:8181, and responding to
+The server should now be running at http://localhost:8181 and responding to
 compile requests at http://localhost:8181/compile.
-
-Note that the server will automatically power down the machine after one hour.
-(It will tell you this when it starts.)
