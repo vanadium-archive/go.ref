@@ -19,7 +19,7 @@ Runs a given query starting at the given root.
 `
 
 func main() {
-	rt.Init()
+	r := rt.Init()
 
 	// TODO(rjkroege@google.com): Handle ^c nicely.
 	flag.Parse()
@@ -33,7 +33,7 @@ func main() {
 		log.Fatalf("qsh: No queryroot specified\n" + usage)
 	}
 
-	err := impl.RunQuery(queryRoot, queryStringArgs[0])
+	err := impl.RunQuery(r.NewContext(), queryRoot, queryStringArgs[0])
 	if err != nil {
 		log.Printf("qsh: When attempting query: \"%s\" experienced an error: ", queryStringArgs[0], err.Error())
 	}

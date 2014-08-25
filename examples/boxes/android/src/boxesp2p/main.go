@@ -73,6 +73,7 @@ import (
 	sstore "veyron/services/store/server"
 
 	"veyron2"
+	"veyron2/context"
 	"veyron2/ipc"
 	"veyron2/naming"
 	"veyron2/rt"
@@ -232,7 +233,7 @@ func (gs *goState) monitorStore() {
 	}
 }
 
-func (gs *goState) registerAsPeer() {
+func (gs *goState) registerAsPeer(ctx context.T) {
 	auth := vsecurity.NewACLAuthorizer(vsecurity.NewWhitelistACL(
 		map[security.PrincipalPattern]security.LabelSet{
 			security.AllPrincipals: security.LabelSet(security.AdminLabel),
@@ -246,7 +247,7 @@ func (gs *goState) registerAsPeer() {
 	if err := gs.ipc.Serve("", &gs.disp); err != nil {
 		panic(fmt.Errorf("Failed Register:%v", err))
 	}
-	if err := gs.signalling.Add(gs.runtime.TODOContext(), endPt.String()); err != nil {
+	if err := gs.signalling.Add(ctx, endPt.String()); err != nil {
 		panic(fmt.Errorf("Failed to Add endpoint to signalling server:%v", err))
 	}
 }
@@ -264,8 +265,8 @@ func (w *wrapper) SendStream() interface {
 } {
 	return w.DrawInterfaceDrawCall.SendStream()
 }
-func (gs *goState) connectPeer() {
-	endpointStr, err := gs.signalling.Get(gs.runtime.TODOContext())
+func (gs *goState) connectPeer(ctx context.T) {
+	endpointStr, err := gs.signalling.Get(ctx)
 	if err != nil {
 		panic(fmt.Errorf("failed to Get peer endpoint from signalling server:%v", err))
 	}
@@ -274,7 +275,7 @@ func (gs *goState) connectPeer() {
 		panic(fmt.Errorf("failed BindDrawInterface:%v", err))
 	}
 	if !useStoreService {
-		val, err := drawInterface.Draw(gs.runtime.TODOContext())
+		val, err := drawInterface.Draw(ctx)
 		if err != nil {
 			panic(fmt.Errorf("failed to get handle to Draw stream:%v\n", err))
 		}
@@ -286,7 +287,7 @@ func (gs *goState) connectPeer() {
 		if err != nil {
 			panic(fmt.Errorf("failed to parse endpoint:%v", err))
 		}
-		if err = drawInterface.SyncBoxes(gs.runtime.TODOContext()); err != nil {
+		if err = drawInterface.SyncBoxes(ctx); err != nil {
 			panic(fmt.Errorf("failed to setup remote sync service:%v", err))
 		}
 		initSyncService(endpoint.Addr().String())
@@ -302,12 +303,14 @@ func JNI_OnLoad(vm *C.JavaVM, reserved unsafe.Pointer) C.jint {
 
 //export Java_com_boxes_GoNative_registerAsPeer
 func Java_com_boxes_GoNative_registerAsPeer(env *C.JNIEnv) {
-	gs.registerAsPeer()
+	ctx := gs.runtime.NewContext()
+	gs.registerAsPeer(ctx)
 }
 
 //export Java_com_boxes_GoNative_connectPeer
 func Java_com_boxes_GoNative_connectPeer(env *C.JNIEnv) {
-	gs.connectPeer()
+	ctx := gs.runtime.NewContext()
+	gs.connectPeer(ctx)
 }
 
 //export Java_com_boxes_GoNative_sendDrawBox

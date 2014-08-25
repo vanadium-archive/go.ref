@@ -6,13 +6,14 @@ import (
 	"io"
 	"time"
 
+	"veyron2/context"
 	"veyron2/rt"
 	"veyron2/vlog"
 )
 
 // CallEcho calls the Echo method 'iterations' times with the given payload
 // size, and optionally logs the result.
-func CallEcho(address string, iterations, payloadSize int, log io.Writer) {
+func CallEcho(ctx context.T, address string, iterations, payloadSize int, log io.Writer) {
 	payload := make([]byte, payloadSize)
 	for _, i := range payload {
 		payload[i] = byte(i & 0xff)
@@ -25,7 +26,7 @@ func CallEcho(address string, iterations, payloadSize int, log io.Writer) {
 
 	for i := 0; i < iterations; i++ {
 		start := time.Now()
-		result, err := stub.Echo(rt.R().TODOContext(), payload)
+		result, err := stub.Echo(ctx, payload)
 		elapsed := time.Since(start)
 		if err != nil {
 			vlog.Fatalf("Echo failed: %v", err)

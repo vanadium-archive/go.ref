@@ -6,8 +6,8 @@ import (
 	"os"
 	"sort"
 
+	"veyron2/context"
 	"veyron2/query"
-	"veyron2/rt"
 	"veyron2/storage"
 	"veyron2/storage/vstore"
 
@@ -69,7 +69,6 @@ func printStream(qs storage.QueryStream, w io.Writer, indent int) error {
 	return nil
 }
 
-func RunQuery(queryRoot, queryString string) error {
-	ctx := rt.R().TODOContext()
+func RunQuery(ctx context.T, queryRoot, queryString string) error {
 	return printStream(vstore.New().Bind(queryRoot).Query(ctx, query.Query{queryString}), os.Stdout, 0)
 }

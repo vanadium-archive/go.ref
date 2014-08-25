@@ -19,8 +19,8 @@ var (
 )
 
 func main() {
-	rt.Init()
-	addr, stop := benchmarks.StartServer(*protocol, *address)
+	r := rt.Init()
+	addr, stop := benchmarks.StartServer(r, *protocol, *address)
 	vlog.Infof("Listening on %s", addr)
 	defer stop()
 	<-signals.ShutdownOnSignals()

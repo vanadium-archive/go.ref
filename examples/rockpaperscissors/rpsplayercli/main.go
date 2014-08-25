@@ -17,6 +17,7 @@ import (
 	sflag "veyron/security/flag"
 
 	"veyron2"
+	"veyron2/context"
 	"veyron2/ipc"
 	"veyron2/rt"
 	"veyron2/vlog"
@@ -32,13 +33,15 @@ var (
 func main() {
 	r := rt.Init()
 	defer r.Cleanup()
+
 	for {
+		ctx := r.NewContext()
 		if selectOne([]string{"Initiate Game", "Wait For Challenge"}) == 0 {
-			initiateGame()
+			initiateGame(ctx)
 		} else {
 			fmt.Println("Waiting to receive a challenge...")
 			game := recvChallenge(r)
-			playGame(game.address, game.id)
+			playGame(ctx, game.address, game.id)
 		}
 		if selectOne([]string{"Play Again", "Quit"}) == 1 {
 			break
@@ -128,11 +131,11 @@ func recvChallenge(rt veyron2.Runtime) gameChallenge {
 // initiateGame initiates a new game by getting a list of judges and players,
 // and asking the user to select one of each, to select the game options, what
 // to play, etc.
-func initiateGame() error {
+func initiateGame(ctx context.T) error {
 	jChan := make(chan []string)
 	oChan := make(chan []string)
-	go findAll("judge", jChan)
-	go findAll("player", oChan)
+	go findAll(ctx, "judge", jChan)
+	go findAll(ctx, "player", oChan)
 
 	fmt.Println("Looking for available participants...")
 	judges := <-jChan
@@ -152,13 +155,13 @@ func initiateGame() error {
 	numRounds := selectOne([]string{"1", "2", "3", "4", "5", "6"}) + 1
 	gameOpts := rps.GameOptions{NumRounds: int32(numRounds), GameType: rps.GameTypeTag(gameType)}
 
-	gameID, err := createGame(judges[j], gameOpts)
+	gameID, err := createGame(ctx, judges[j], gameOpts)
 	if err != nil {
 		vlog.Infof("createGame: %v", err)
 		return err
 	}
 	for {
-		err := sendChallenge(opponents[o], judges[j], gameID, gameOpts)
+		err := sendChallenge(ctx, opponents[o], judges[j], gameID, gameOpts)
 		if err == nil {
 			break
 		}
@@ -167,37 +170,39 @@ func initiateGame() error {
 		o = selectOne(opponents)
 	}
 	fmt.Println("Joining the game...")
-	if _, err = playGame(judges[j], gameID); err != nil {
+
+	if _, err = playGame(ctx, judges[j], gameID); err != nil {
 		vlog.Infof("playGame: %v", err)
 		return err
 	}
 	return nil
 }
 
-func createGame(server string, opts rps.GameOptions) (rps.GameID, error) {
+func createGame(ctx context.T, server string, opts rps.GameOptions) (rps.GameID, error) {
 	j, err := rps.BindRockPaperScissors(server)
 	if err != nil {
 		return rps.GameID{}, err
 	}
-	return j.CreateGame(rt.R().TODOContext(), opts)
+	return j.CreateGame(ctx, opts)
 }
 
-func sendChallenge(opponent, judge string, gameID rps.GameID, gameOpts rps.GameOptions) error {
+func sendChallenge(ctx context.T, opponent, judge string, gameID rps.GameID, gameOpts rps.GameOptions) error {
 	o, err := rps.BindRockPaperScissors(opponent)
 	if err != nil {
 		return err
 	}
-	return o.Challenge(rt.R().TODOContext(), judge, gameID, gameOpts)
+	return o.Challenge(ctx, judge, gameID, gameOpts)
 }
 
-func playGame(judge string, gameID rps.GameID) (rps.PlayResult, error) {
+func playGame(outer context.T, judge string, gameID rps.GameID) (rps.PlayResult, error) {
+	ctx, cancel := outer.WithTimeout(10 * time.Minute)
+	defer cancel()
 	fmt.Println()
 	j, err := rps.BindRockPaperScissors(judge)
 	if err != nil {
 		return rps.PlayResult{}, err
 	}
 
-	ctx, _ := rt.R().NewContext().WithTimeout(10 * time.Minute)
 	game, err := j.Play(ctx, gameID)
 	if err != nil {
 		return rps.PlayResult{}, err
@@ -284,10 +289,10 @@ func selectOne(choices []string) (choice int) {
 	return
 }
 
-func findAll(t string, out chan []string) {
+func findAll(ctx context.T, t string, out chan []string) {
 	ns := rt.R().Namespace()
 	var result []string
-	c, err := ns.Glob(rt.R().TODOContext(), "rps/"+t+"/*")
+	c, err := ns.Glob(ctx, "rps/"+t+"/*")
 	if err != nil {
 		vlog.Infof("ns.Glob failed: %v", err)
 		out <- result

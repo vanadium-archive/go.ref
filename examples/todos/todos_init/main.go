@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"veyron/examples/todos/schema"
+	"veyron2/context"
 	"veyron2/rt"
 	"veyron2/storage"
 	"veyron2/storage/vstore"
@@ -49,13 +50,14 @@ type List struct {
 // state is the initial store state.
 type state struct {
 	store     storage.Store
+	ctx       context.T
 	storeRoot string              // The name of the root of the store.
 	tx        storage.Transaction // Current transaction; nil if there's no transaction.
 }
 
 // newState returns a fresh state.
-func newState(st storage.Store, storeRoot string) *state {
-	return &state{store: st, storeRoot: storeRoot}
+func newState(ctx context.T, st storage.Store, storeRoot string) *state {
+	return &state{store: st, ctx: ctx, storeRoot: storeRoot}
 }
 
 // put adds a value to the store, creating the path to the value if it doesn't
@@ -63,7 +65,7 @@ func newState(st storage.Store, storeRoot string) *state {
 func (st *state) put(path string, v interface{}) {
 	vlog.Infof("Storing %q = %+v", path, v)
 	st.makeParentDirs(path)
-	if _, err := st.tx.Bind(path).Put(rt.R().TODOContext(), v); err != nil {
+	if _, err := st.tx.Bind(path).Put(st.ctx, v); err != nil {
 		vlog.Errorf("put failed: %s: %s", path, err)
 		return
 	}
@@ -76,10 +78,10 @@ func (st *state) makeParentDirs(path string) {
 	for i, _ := range l {
 		prefix := filepath.Join(l[:i]...)
 		o := st.tx.Bind(prefix)
-		if exist, err := o.Exists(rt.R().TODOContext()); err != nil {
+		if exist, err := o.Exists(st.ctx); err != nil {
 			vlog.Infof("Error checking existence at %q: %s", prefix, err)
 		} else if !exist {
-			if _, err := o.Put(rt.R().TODOContext(), &schema.Dir{}); err != nil {
+			if _, err := o.Put(st.ctx, &schema.Dir{}); err != nil {
 				vlog.Infof("Error creating parent %q: %s", prefix, err)
 			}
 		}
@@ -91,7 +93,7 @@ func (st *state) makeParentDirs(path string) {
 // examples.  It is better to pass a transaction around than risk the race
 // condition of st being used from multiple threads.
 func (st *state) newTransaction() {
-	st.tx = st.store.NewTransaction(rt.R().TODOContext(), st.storeRoot)
+	st.tx = st.store.NewTransaction(st.ctx, st.storeRoot)
 }
 
 // commit commits the current transaction.
@@ -99,7 +101,7 @@ func (st *state) commit() {
 	if st.tx == nil {
 		vlog.Fatalf("No transaction to commit")
 	}
-	err := st.tx.Commit(rt.R().TODOContext())
+	err := st.tx.Commit(st.ctx)
 	st.tx = nil
 	if err != nil {
 		vlog.Errorf("Failed to commit transaction: %s", err)
@@ -160,10 +162,11 @@ func (st *state) processJSONFile(path string) error {
 
 // main reads the data JSON file and populates the store.
 func main() {
-	rt.Init()
+	r := rt.Init()
+	ctx := r.NewContext()
 
 	vlog.Infof("Binding to store on %s", storeName)
-	state := newState(vstore.New(), storeName)
+	state := newState(ctx, vstore.New(), storeName)
 
 	if err := state.processJSONFile(*dataPath); err != nil {
 		vlog.Errorf("Failed to write data: %s", err)

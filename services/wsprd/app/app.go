@@ -15,6 +15,7 @@ import (
 	"veyron/services/wsprd/lib"
 	"veyron/services/wsprd/signature"
 	"veyron2"
+	"veyron2/context"
 	"veyron2/ipc"
 	"veyron2/rt"
 	"veyron2/verror"
@@ -167,14 +168,14 @@ func (c *Controller) finishCall(w lib.ClientWriter, clientCall ipc.Call, msg *ve
 	}
 }
 
-func (c *Controller) startCall(w lib.ClientWriter, msg *veyronRPC) (ipc.Call, error) {
+func (c *Controller) startCall(ctx context.T, w lib.ClientWriter, msg *veyronRPC) (ipc.Call, error) {
 	c.Lock()
 	defer c.Unlock()
 	if c.client == nil {
 		return nil, verror.BadArgf("no client created")
 	}
 	methodName := lib.UppercaseFirstCharacter(msg.Method)
-	clientCall, err := c.client.StartCall(c.rt.TODOContext(), msg.Name, methodName, msg.InArgs)
+	clientCall, err := c.client.StartCall(ctx, msg.Name, methodName, msg.InArgs)
 	if err != nil {
 		return nil, fmt.Errorf("error starting call (name: %v, method: %v, args: %v): %v", msg.Name, methodName, msg.InArgs, err)
 	}
@@ -272,10 +273,10 @@ func (c *Controller) SendOnStream(id int64, data string, w lib.ClientWriter) {
 
 // SendVeyronRequest makes a veyron request for the given flowId.  If signal is non-nil, it will receive
 // the call object after it has been constructed.
-func (c *Controller) sendVeyronRequest(id int64, veyronMsg *veyronRPC, w lib.ClientWriter, signal chan ipc.Stream) {
+func (c *Controller) sendVeyronRequest(ctx context.T, id int64, veyronMsg *veyronRPC, w lib.ClientWriter, signal chan ipc.Stream) {
 	// We have to make the start call synchronous so we can make sure that we populate
 	// the call map before we can Handle a recieve call.
-	call, err := c.startCall(w, veyronMsg)
+	call, err := c.startCall(ctx, w, veyronMsg)
 	if err != nil {
 		w.Error(verror.Internalf("can't start Veyron Request: %v", err))
 		return
@@ -294,8 +295,8 @@ func (c *Controller) sendVeyronRequest(id int64, veyronMsg *veyronRPC, w lib.Cli
 }
 
 // HandleVeyronRequest starts a veyron rpc and returns before the rpc has been completed.
-func (c *Controller) HandleVeyronRequest(id int64, data string, w lib.ClientWriter) {
-	veyronMsg, inStreamType, err := c.parseVeyronRequest(bytes.NewBufferString(data))
+func (c *Controller) HandleVeyronRequest(ctx context.T, id int64, data string, w lib.ClientWriter) {
+	veyronMsg, inStreamType, err := c.parseVeyronRequest(ctx, bytes.NewBufferString(data))
 	if err != nil {
 		w.Error(verror.Internalf("can't parse Veyron Request: %v", err))
 		return
@@ -316,7 +317,7 @@ func (c *Controller) HandleVeyronRequest(id int64, data string, w lib.ClientWrit
 			inType: inStreamType,
 		}
 	}
-	go c.sendVeyronRequest(id, veyronMsg, w, signal)
+	go c.sendVeyronRequest(ctx, id, veyronMsg, w, signal)
 }
 
 // CloseStream closes the stream for a given id.
@@ -437,7 +438,7 @@ func (c *Controller) HandleServerResponse(id int64, data string) {
 }
 
 // parseVeyronRequest parses a json rpc request into a veyronRPC object.
-func (c *Controller) parseVeyronRequest(r io.Reader) (*veyronRPC, vom.Type, error) {
+func (c *Controller) parseVeyronRequest(ctx context.T, r io.Reader) (*veyronRPC, vom.Type, error) {
 	var tempMsg veyronTempRPC
 	decoder := json.NewDecoder(r)
 	if err := decoder.Decode(&tempMsg); err != nil {
@@ -445,7 +446,6 @@ func (c *Controller) parseVeyronRequest(r io.Reader) (*veyronRPC, vom.Type, erro
 	}
 
 	// Fetch and adapt signature from the SignatureManager
-	ctx := c.rt.TODOContext()
 	sig, err := c.signatureManager.Signature(ctx, tempMsg.Name, c.client)
 	if err != nil {
 		return nil, nil, verror.Internalf("error getting service signature for %s: %v", tempMsg.Name, err)
@@ -496,9 +496,8 @@ type signatureRequest struct {
 	Name string
 }
 
-func (c *Controller) getSignature(name string) (signature.JSONServiceSignature, error) {
+func (c *Controller) getSignature(ctx context.T, name string) (signature.JSONServiceSignature, error) {
 	// Fetch and adapt signature from the SignatureManager
-	ctx := c.rt.TODOContext()
 	sig, err := c.signatureManager.Signature(ctx, name, c.client)
 	if err != nil {
 		return nil, verror.Internalf("error getting service signature for %s: %v", name, err)
@@ -508,7 +507,7 @@ func (c *Controller) getSignature(name string) (signature.JSONServiceSignature, 
 }
 
 // HandleSignatureRequest uses signature manager to get and cache signature of a remote server
-func (c *Controller) HandleSignatureRequest(data string, w lib.ClientWriter) {
+func (c *Controller) HandleSignatureRequest(ctx context.T, data string, w lib.ClientWriter) {
 	// Decode the request
 	var request signatureRequest
 	decoder := json.NewDecoder(bytes.NewBufferString(data))
@@ -518,7 +517,7 @@ func (c *Controller) HandleSignatureRequest(data string, w lib.ClientWriter) {
 	}
 
 	c.logger.VI(2).Infof("requesting Signature for %q", request.Name)
-	jsSig, err := c.getSignature(request.Name)
+	jsSig, err := c.getSignature(ctx, request.Name)
 	if err != nil {
 		w.Error(err)
 		return

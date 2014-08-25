@@ -8,20 +8,19 @@ import (
 	"veyron2/rt"
 )
 
-func init() {
-	rt.Init()
-}
+var runtime = rt.Init()
 
 func RunBenchmark(b *testing.B, payloadSize int) {
-	address, stop := benchmarks.StartServer("tcp", "127.0.0.1:0")
+	address, stop := benchmarks.StartServer(runtime, "tcp", "127.0.0.1:0")
+	ctx := runtime.NewContext()
 	defer stop()
-	benchmarks.CallEcho(address, 1, 1, nil) // Create VC
+	benchmarks.CallEcho(ctx, address, 1, 1, nil) // Create VC
 	b.ResetTimer()
-	benchmarks.CallEcho(address, b.N, payloadSize, nil)
+	benchmarks.CallEcho(ctx, address, b.N, payloadSize, nil)
 }
 
 func RunStreamBenchmark(b *testing.B, rpcCount, messageCount, payloadSize int) {
-	address, stop := benchmarks.StartServer("tcp", "127.0.0.1:0")
+	address, stop := benchmarks.StartServer(runtime, "tcp", "127.0.0.1:0")
 	defer stop()
 	benchmarks.CallEchoStream(address, 1, 1, 1, nil) // Create VC
 	b.ResetTimer()

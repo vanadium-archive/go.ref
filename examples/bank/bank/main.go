@@ -9,6 +9,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"time"
 
 	"veyron/examples/bank"
 	vsecurity "veyron/security"
@@ -57,8 +58,10 @@ func main() {
 		log.Fatal("error binding to server: ", err)
 	}
 
+	ctx, _ := runtime.NewContext().WithTimeout(time.Minute)
+
 	// First, Connect to the bank to retrieve the location you should bind to.
-	newIdentity, bankAccountNumber, err := bankServer.Connect(runtime.TODOContext(), veyron2.RemoteID(*serverPattern))
+	newIdentity, bankAccountNumber, err := bankServer.Connect(ctx, veyron2.RemoteID(*serverPattern))
 	if err != nil {
 		log.Fatalf("%s.Connect failed: %s\n", bankMountTableName, err)
 	}
@@ -142,7 +145,7 @@ func main() {
 			if e {
 				break
 			}
-			err := accountServer.Deposit(runtime.TODOContext(), amount, veyron2.RemoteID(*serverPattern))
+			err := accountServer.Deposit(ctx, amount, veyron2.RemoteID(*serverPattern))
 			if err != nil {
 				fmt.Printf("%s.Deposit failed: %s\n", accountMountTableName, err)
 				break
@@ -157,7 +160,7 @@ func main() {
 			if e {
 				break
 			}
-			err := accountServer.Withdraw(runtime.TODOContext(), amount, veyron2.RemoteID(*serverPattern))
+			err := accountServer.Withdraw(ctx, amount, veyron2.RemoteID(*serverPattern))
 			if err != nil {
 				fmt.Printf("%s.Withdraw failed: %s\n", accountMountTableName, err)
 				break
@@ -173,14 +176,14 @@ func main() {
 			if e1 || e2 {
 				break
 			}
-			err := accountServer.Transfer(runtime.TODOContext(), accountNumber, amount, veyron2.RemoteID(*serverPattern))
+			err := accountServer.Transfer(ctx, accountNumber, amount, veyron2.RemoteID(*serverPattern))
 			if err != nil {
 				fmt.Printf("%s.Transfer failed: %s\n", accountMountTableName, err)
 				break
 			}
 			fmt.Printf("Transferred %d to %d\n", amount, accountNumber)
 		case "balance":
-			balance, err := accountServer.Balance(runtime.TODOContext(), veyron2.RemoteID(*serverPattern))
+			balance, err := accountServer.Balance(ctx, veyron2.RemoteID(*serverPattern))
 			if err != nil {
 				fmt.Printf("%s.Balance failed: %s\n", accountMountTableName, err)
 				break

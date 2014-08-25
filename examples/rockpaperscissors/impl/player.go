@@ -7,7 +7,8 @@ import (
 	rps "veyron/examples/rockpaperscissors"
 	"veyron/examples/rockpaperscissors/common"
 
-	"veyron2/rt"
+	"veyron2"
+	"veyron2/context"
 	"veyron2/vlog"
 )
 
@@ -34,13 +35,13 @@ func (p *Player) WaitUntilIdle() {
 	}
 }
 
-func (p *Player) InitiateGame() error {
-	judge, err := common.FindJudge()
+func (p *Player) InitiateGame(ctx context.T) error {
+	judge, err := common.FindJudge(ctx)
 	if err != nil {
 		vlog.Infof("FindJudge: %v", err)
 		return err
 	}
-	gameID, gameOpts, err := p.createGame(judge)
+	gameID, gameOpts, err := p.createGame(ctx, judge)
 	if err != nil {
 		vlog.Infof("createGame: %v", err)
 		return err
@@ -48,18 +49,18 @@ func (p *Player) InitiateGame() error {
 	vlog.VI(1).Infof("Created gameID %q on %q", gameID, judge)
 
 	for {
-		opponent, err := common.FindPlayer()
+		opponent, err := common.FindPlayer(ctx)
 		if err != nil {
 			vlog.Infof("FindPlayer: %v", err)
 			return err
 		}
 		vlog.VI(1).Infof("chosen opponent is %q", opponent)
-		if err = p.sendChallenge(opponent, judge, gameID, gameOpts); err == nil {
+		if err = p.sendChallenge(ctx, opponent, judge, gameID, gameOpts); err == nil {
 			break
 		}
 		vlog.Infof("sendChallenge: %v", err)
 	}
-	result, err := p.playGame(judge, gameID)
+	result, err := p.playGame(ctx, judge, gameID)
 	if err != nil {
 		vlog.Infof("playGame: %v", err)
 		return err
@@ -72,7 +73,7 @@ func (p *Player) InitiateGame() error {
 	return nil
 }
 
-func (p *Player) createGame(server string) (rps.GameID, rps.GameOptions, error) {
+func (p *Player) createGame(ctx context.T, server string) (rps.GameID, rps.GameOptions, error) {
 	j, err := rps.BindRockPaperScissors(server)
 	if err != nil {
 		return rps.GameID{}, rps.GameOptions{}, err
@@ -83,35 +84,37 @@ func (p *Player) createGame(server string) (rps.GameID, rps.GameOptions, error) 
 		gameType = rps.LizardSpock
 	}
 	gameOpts := rps.GameOptions{NumRounds: int32(numRounds), GameType: gameType}
-	gameId, err := j.CreateGame(rt.R().TODOContext(), gameOpts)
+	gameId, err := j.CreateGame(ctx, gameOpts)
 	return gameId, gameOpts, err
 }
 
-func (p *Player) sendChallenge(opponent, judge string, gameID rps.GameID, gameOpts rps.GameOptions) error {
+func (p *Player) sendChallenge(ctx context.T, opponent, judge string, gameID rps.GameID, gameOpts rps.GameOptions) error {
 	o, err := rps.BindRockPaperScissors(opponent)
 	if err != nil {
 		return err
 	}
-	return o.Challenge(rt.R().TODOContext(), judge, gameID, gameOpts)
+	return o.Challenge(ctx, judge, gameID, gameOpts)
 }
 
-// challenge receives an incoming challenge.
-func (p *Player) challenge(judge string, gameID rps.GameID, _ rps.GameOptions) error {
+// challenge receives an incoming challenge and starts to play a new game.
+// Note that the new game will occur in a new context.
+func (p *Player) challenge(rt veyron2.Runtime, judge string, gameID rps.GameID, _ rps.GameOptions) error {
 	vlog.VI(1).Infof("challenge received: %s %v", judge, gameID)
-	go p.playGame(judge, gameID)
+	go p.playGame(rt.NewContext(), judge, gameID)
 	return nil
 }
 
 // playGame plays an entire game, which really only consists of reading
 // commands from the server, and picking a random "move" when asked to.
-func (p *Player) playGame(judge string, gameID rps.GameID) (rps.PlayResult, error) {
+func (p *Player) playGame(outer context.T, judge string, gameID rps.GameID) (rps.PlayResult, error) {
+	ctx, cancel := outer.WithTimeout(10 * time.Minute)
+	defer cancel()
 	p.gamesInProgress.Add(1)
 	defer p.gamesInProgress.Add(-1)
 	j, err := rps.BindRockPaperScissors(judge)
 	if err != nil {
 		return rps.PlayResult{}, err
 	}
-	ctx, _ := rt.R().NewContext().WithTimeout(10 * time.Minute)
 	game, err := j.Play(ctx, gameID)
 	if err != nil {
 		return rps.PlayResult{}, err
@@ -120,7 +123,6 @@ func (p *Player) playGame(judge string, gameID rps.GameID) (rps.PlayResult, erro
 	sender := game.SendStream()
 	for rStream.Advance() {
 		in := rStream.Value()
-
 		if in.PlayerNum > 0 {
 			vlog.VI(1).Infof("I'm player %d", in.PlayerNum)
 		}

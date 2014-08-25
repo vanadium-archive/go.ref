@@ -92,7 +92,7 @@ func main() {
 
 	// Run viewer if requested.
 	if *viewerPort > 0 {
-		go viewer.ListenAndServe(fmt.Sprintf(":%d", *viewerPort), mountName, vstore.New())
+		go viewer.ListenAndServe(r, fmt.Sprintf(":%d", *viewerPort), mountName, vstore.New())
 	}
 
 	// Wait forever.

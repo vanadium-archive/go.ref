@@ -5,7 +5,7 @@ import (
 	"sort"
 	"time"
 
-	"veyron2/rt"
+	"veyron2/context"
 	"veyron2/storage"
 )
 
@@ -20,8 +20,8 @@ type Value struct {
 }
 
 // glob performs a glob expansion of the pattern.  The results are sorted.
-func glob(st storage.Store, path, pattern string) ([]string, error) {
-	results := st.Bind(path).Glob(rt.R().TODOContext(), pattern)
+func glob(ctx context.T, st storage.Store, path, pattern string) ([]string, error) {
+	results := st.Bind(path).Glob(ctx, pattern)
 	names := []string{}
 	rStream := results.RecvStream()
 	for rStream.Advance() {
@@ -59,15 +59,15 @@ func (v *Value) Base(path string) string {
 }
 
 // Glob performs a glob expansion of a pattern.
-func (v *Value) Glob(pattern string) ([]string, error) {
-	return glob(v.store, v.Name, pattern)
+func (v *Value) Glob(ctx context.T, pattern string) ([]string, error) {
+	return glob(ctx, v.store, v.Name, pattern)
 }
 
 // Get fetches a value from the store.  The result is nil if the value does not
 // exist.
-func (v *Value) Get(path string) interface{} {
+func (v *Value) Get(ctx context.T, path string) interface{} {
 	path = v.fullpath(path)
-	e, err := v.store.Bind(path).Get(rt.R().TODOContext())
+	e, err := v.store.Bind(path).Get(ctx)
 	if err != nil {
 		return nil
 	}

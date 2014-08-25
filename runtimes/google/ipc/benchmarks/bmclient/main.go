@@ -18,9 +18,10 @@ var (
 )
 
 func main() {
-	rt.Init()
+	r := rt.Init()
+	ctx := r.NewContext()
 	if *chunkCount == 0 {
-		benchmarks.CallEcho(*server, *count, *payloadSize, os.Stdout)
+		benchmarks.CallEcho(ctx, *server, *count, *payloadSize, os.Stdout)
 	} else {
 		benchmarks.CallEchoStream(*server, *count, *chunkCount, *payloadSize, os.Stdout)
 	}

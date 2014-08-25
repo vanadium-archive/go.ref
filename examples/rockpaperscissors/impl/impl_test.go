@@ -69,6 +69,9 @@ func startRockPaperScissors(t *testing.T, rt veyron2.Runtime, mtAddress string) 
 func TestRockPaperScissorsImpl(t *testing.T) {
 	runtime := rt.Init()
 	defer runtime.Cleanup()
+
+	ctx := runtime.NewContext()
+
 	mtAddress, mtStop := startMountTable(t, runtime)
 	defer mtStop()
 	rpsService, rpsStop := startRockPaperScissors(t, runtime, mtAddress)
@@ -76,7 +79,7 @@ func TestRockPaperScissorsImpl(t *testing.T) {
 
 	const numGames = 10
 	for x := 0; x < numGames; x++ {
-		if err := rpsService.Player().InitiateGame(); err != nil {
+		if err := rpsService.Player().InitiateGame(ctx); err != nil {
 			t.Errorf("Failed to initiate game: %v", err)
 		}
 	}

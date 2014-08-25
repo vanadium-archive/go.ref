@@ -26,8 +26,9 @@ import (
 	"net/http"
 	"path/filepath"
 
+	"veyron2"
+	"veyron2/context"
 	"veyron2/naming"
-	"veyron2/rt"
 	"veyron2/storage"
 	"veyron2/vlog"
 )
@@ -36,6 +37,7 @@ import (
 type server struct {
 	storeRoot string
 	store     storage.Store
+	runtime   veyron2.Runtime
 }
 
 var _ http.Handler = (*server)(nil)
@@ -75,9 +77,9 @@ func mustParse(name, text string) *template.Template {
 
 // loadTemplate fetches the template for the value from the store.  The template
 // is based on the type of the value, under /template/<pkgPath>/<typeName>.
-func (s *server) loadTemplate(v interface{}) *template.Template {
+func (s *server) loadTemplate(ctx context.T, v interface{}) *template.Template {
 	path := naming.Join(s.storeRoot, templatePath(v))
-	e, err := s.store.Bind(path).Get(rt.R().TODOContext())
+	e, err := s.store.Bind(path).Get(ctx)
 	if err != nil {
 		return nil
 	}
@@ -94,10 +96,10 @@ func (s *server) loadTemplate(v interface{}) *template.Template {
 }
 
 // printRawValuePage prints the value in raw format.
-func (s *server) printRawValuePage(w http.ResponseWriter, path string, v interface{}) {
+func (s *server) printRawValuePage(ctx context.T, w http.ResponseWriter, path string, v interface{}) {
 	var p printer
 	p.print(v)
-	subdirs, _ := glob(s.store, path, "*")
+	subdirs, _ := glob(ctx, s.store, path, "*")
 	x := &Value{Name: path, Value: p.String(), Subdirs: subdirs}
 	if err := rawTemplate.Execute(w, x); err != nil {
 		w.Write([]byte(html.EscapeString(err.Error())))
@@ -106,14 +108,14 @@ func (s *server) printRawValuePage(w http.ResponseWriter, path string, v interfa
 
 // printValuePage prints the value using a template if possible.  If a template
 // is not found, the value is printed in raw format instead.
-func (s *server) printValuePage(w http.ResponseWriter, path string, v interface{}) {
-	if tmpl := s.loadTemplate(v); tmpl != nil {
+func (s *server) printValuePage(ctx context.T, w http.ResponseWriter, path string, v interface{}) {
+	if tmpl := s.loadTemplate(ctx, v); tmpl != nil {
 		if err := tmpl.Execute(w, &Value{store: s.store, Name: path, Value: v}); err != nil {
 			w.Write([]byte(html.EscapeString(err.Error())))
 		}
 		return
 	}
-	s.printRawValuePage(w, path, v)
+	s.printRawValuePage(ctx, w, path, v)
 }
 
 // printRawPage prints a string value directly, without processing.
@@ -129,7 +131,8 @@ func (s *server) printRawPage(w http.ResponseWriter, v interface{}) {
 // ServeHTTP is the main HTTP handler.
 func (s *server) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	path := naming.Join(s.storeRoot, req.URL.Path)
-	e, err := s.store.Bind(path).Get(rt.R().TODOContext())
+	ctx := s.runtime.NewContext()
+	e, err := s.store.Bind(path).Get(ctx)
 	if err != nil {
 		msg := fmt.Sprintf("<html><body><h1>%s</h1><h2>Error: %s</h2></body></html>",
 			html.EscapeString(path),
@@ -145,17 +148,17 @@ func (s *server) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 		s.printRawPage(w, e.Value)
 	default:
 		if q["raw"] != nil {
-			s.printRawValuePage(w, path, e.Value)
+			s.printRawValuePage(ctx, w, path, e.Value)
 		} else {
-			s.printValuePage(w, path, e.Value)
+			s.printValuePage(ctx, w, path, e.Value)
 		}
 	}
 }
 
 // ListenAndServe is the main entry point.  It serves store at the specified
 // network address.
-func ListenAndServe(addr string, storeRoot string, st storage.Store) error {
-	s := &server{storeRoot: storeRoot, store: st}
+func ListenAndServe(runtime veyron2.Runtime, addr string, storeRoot string, st storage.Store) error {
+	s := &server{storeRoot: storeRoot, store: st, runtime: runtime}
 	vlog.Infof("Viewer running at http://localhost%s", addr)
 	return http.ListenAndServe(addr, s)
 }

@@ -26,11 +26,7 @@ import (
 	mounttable "veyron/services/mounttable/lib"
 )
 
-var r veyron2.Runtime
-
-func init() {
-	r = rt.Init()
-}
+var r = rt.Init()
 
 type simpleAdder struct{}
 
@@ -245,7 +241,7 @@ func TestGetGoServerSignature(t *testing.T) {
 	if err != nil {
 		t.Errorf("Failed to create controller: %v", err)
 	}
-	jsSig, err := controller.getSignature("/" + endpoint.String())
+	jsSig, err := controller.getSignature(r.NewContext(), "/"+endpoint.String())
 	if err != nil {
 		t.Errorf("Failed to get signature: %v", err)
 	}
@@ -307,7 +303,7 @@ func runGoServerTestCase(t *testing.T, test goServerTestCase) {
 		NumOutArgs:  test.numOutArgs,
 		IsStreaming: signal != nil,
 	}
-	controller.sendVeyronRequest(0, &request, &writer, signal)
+	controller.sendVeyronRequest(r.NewContext(), 0, &request, &writer, signal)
 
 	checkResponses(&writer, test.expectedStream, test.expectedError, t)
 }

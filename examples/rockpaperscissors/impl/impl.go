@@ -4,6 +4,7 @@ import (
 	"errors"
 
 	rps "veyron/examples/rockpaperscissors"
+	"veyron2"
 	"veyron2/ipc"
 	"veyron2/vlog"
 )
@@ -46,12 +47,12 @@ func (r *RPS) Play(ctx ipc.ServerContext, id rps.GameID, stream rps.JudgeService
 	if len(names) == 0 {
 		return rps.PlayResult{}, errors.New("no names provided with remote ID")
 	}
-	return r.judge.play(names[0], id, stream)
+	return r.judge.play(ctx, names[0], id, stream)
 }
 
 func (r *RPS) Challenge(ctx ipc.ServerContext, address string, id rps.GameID, opts rps.GameOptions) error {
 	vlog.VI(1).Infof("Challenge (%q, %+v, %+v) from %s", address, id, opts, ctx.RemoteID())
-	return r.player.challenge(address, id, opts)
+	return r.player.challenge(veyron2.RuntimeFromContext(ctx), address, id, opts)
 }
 
 func (r *RPS) Record(ctx ipc.ServerContext, score rps.ScoreCard) error {

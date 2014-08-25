@@ -16,6 +16,7 @@ import (
 	"veyron/examples/rockpaperscissors/impl"
 	"veyron/lib/signals"
 	sflag "veyron/security/flag"
+	"veyron2/context"
 	"veyron2/ipc"
 	"veyron2/rt"
 	"veyron2/vlog"
@@ -62,13 +63,14 @@ func main() {
 	}
 	vlog.Infof("Listening on endpoint /%s (published as %v)", ep, names)
 
-	go initiateGames(rpsService)
+	ctx := r.NewContext()
+	go initiateGames(ctx, rpsService)
 	<-signals.ShutdownOnSignals()
 }
 
-func initiateGames(rpsService *impl.RPS) {
+func initiateGames(ctx context.T, rpsService *impl.RPS) {
 	for {
-		if err := rpsService.Player().InitiateGame(); err != nil {
+		if err := rpsService.Player().InitiateGame(ctx); err != nil {
 			vlog.Infof("Failed to initiate game: %v", err)
 		}
 	}

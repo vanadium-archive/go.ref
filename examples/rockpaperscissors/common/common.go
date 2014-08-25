@@ -10,6 +10,7 @@ import (
 
 	rps "veyron/examples/rockpaperscissors"
 
+	"veyron2/context"
 	"veyron2/rt"
 	"veyron2/vlog"
 )
@@ -33,8 +34,8 @@ func (c *Counter) Value() int64 {
 }
 
 // FindJudge returns a random rock-paper-scissors judge from the mount table.
-func FindJudge() (string, error) {
-	judges, err := findAll("judge")
+func FindJudge(ctx context.T) (string, error) {
+	judges, err := findAll(ctx, "judge")
 	if err != nil {
 		return "", err
 	}
@@ -45,8 +46,8 @@ func FindJudge() (string, error) {
 }
 
 // FindPlayer returns a random rock-paper-scissors player from the mount table.
-func FindPlayer() (string, error) {
-	players, err := findAll("player")
+func FindPlayer(ctx context.T) (string, error) {
+	players, err := findAll(ctx, "player")
 	if err != nil {
 		return "", err
 	}
@@ -58,18 +59,18 @@ func FindPlayer() (string, error) {
 
 // FindScoreKeepers returns all the rock-paper-scissors score keepers from the
 // mount table.
-func FindScoreKeepers() ([]string, error) {
-	sKeepers, err := findAll("scorekeeper")
+func FindScoreKeepers(ctx context.T) ([]string, error) {
+	sKeepers, err := findAll(ctx, "scorekeeper")
 	if err != nil {
 		return nil, err
 	}
 	return sKeepers, nil
 }
 
-func findAll(t string) ([]string, error) {
+func findAll(ctx context.T, t string) ([]string, error) {
 	start := time.Now()
 	ns := rt.R().Namespace()
-	c, err := ns.Glob(rt.R().TODOContext(), "rps/"+t+"/*")
+	c, err := ns.Glob(ctx, "rps/"+t+"/*")
 	if err != nil {
 		vlog.Infof("mt.Glob failed: %v", err)
 		return nil, err

@@ -23,6 +23,7 @@ import (
 	"time"
 
 	"veyron/examples/mdb/schema"
+	"veyron2/context"
 	"veyron2/rt"
 	"veyron2/storage"
 	"veyron2/storage/vstore"
@@ -82,6 +83,7 @@ type Contents struct {
 // state is the initial store state.
 type state struct {
 	store     storage.Store
+	ctx       context.T           // The context to use for all operations.
 	storeRoot string              // The name of the root of the store.
 	tx        storage.Transaction // Current transaction; nil if there's no transaction.
 	idTable   map[string]*value
@@ -135,8 +137,8 @@ func parseDuration(dur uint) int64 {
 }
 
 // newState returns a fresh state.
-func newState(st storage.Store, storeRoot string) *state {
-	return &state{store: st, storeRoot: storeRoot, idTable: make(map[string]*value)}
+func newState(ctx context.T, st storage.Store, storeRoot string) *state {
+	return &state{store: st, ctx: ctx, storeRoot: storeRoot, idTable: make(map[string]*value)}
 }
 
 // find fetches a value from the store.
@@ -149,7 +151,7 @@ func (st *state) find(name string) *value {
 func (st *state) put(path string, v interface{}) {
 	vlog.Infof("Storing %q = %+v", path, v)
 	st.makeParentDirs(path)
-	if _, err := st.tx.Bind(path).Put(rt.R().TODOContext(), v); err != nil {
+	if _, err := st.tx.Bind(path).Put(st.ctx, v); err != nil {
 		vlog.Infof("put failed: %s: %s", path, err)
 		return
 	}
@@ -160,7 +162,7 @@ func (st *state) put(path string, v interface{}) {
 func (st *state) putNamed(name, path string, v interface{}) {
 	vlog.Infof("Storing %s: %q = %+v", name, path, v)
 	st.makeParentDirs(path)
-	s, err := st.tx.Bind(path).Put(rt.R().TODOContext(), v)
+	s, err := st.tx.Bind(path).Put(st.ctx, v)
 	if err != nil {
 		vlog.Infof("Put failed: %s: %s", path, err)
 		return
@@ -175,10 +177,10 @@ func (st *state) makeParentDirs(path string) {
 	for i, _ := range l {
 		prefix := filepath.Join(l[:i]...)
 		o := st.tx.Bind(prefix)
-		if exist, err := o.Exists(rt.R().TODOContext()); err != nil {
+		if exist, err := o.Exists(st.ctx); err != nil {
 			vlog.Infof("Error checking existence at %q: %s", prefix, err)
 		} else if !exist {
-			if _, err := o.Put(rt.R().TODOContext(), &schema.Dir{}); err != nil {
+			if _, err := o.Put(st.ctx, &schema.Dir{}); err != nil {
 				vlog.Infof("Error creating parent %q: %s", prefix, err)
 			}
 		}
@@ -190,7 +192,7 @@ func (st *state) makeParentDirs(path string) {
 // examples.  It is better to pass a transaction around than risk the race
 // condition of st being used from multiple threads.
 func (st *state) newTransaction() {
-	st.tx = st.store.NewTransaction(rt.R().TODOContext(), st.storeRoot)
+	st.tx = st.store.NewTransaction(st.ctx, st.storeRoot)
 }
 
 // commit commits the current transaction.
@@ -198,7 +200,7 @@ func (st *state) commit() {
 	if st.tx == nil {
 		vlog.Fatalf("No transaction to commit")
 	}
-	err := st.tx.Commit(rt.R().TODOContext())
+	err := st.tx.Commit(st.ctx)
 	st.tx = nil
 	if err != nil {
 		vlog.Errorf("Failed to commit transaction: %s", err)
@@ -374,10 +376,10 @@ func (st *state) processFile(path, name string) error {
 // main reads all the files in the templates directory and adds them to the
 // store.
 func main() {
-	rt.Init()
+	r := rt.Init()
 
 	vlog.Infof("Binding to store on %s", storeName)
-	state := newState(vstore.New(), storeName)
+	state := newState(r.NewContext(), vstore.New(), storeName)
 
 	// Store all data and templates.
 	filepath.Walk(*templatesDir, func(path string, _ os.FileInfo, _ error) error {

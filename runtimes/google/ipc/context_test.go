@@ -40,7 +40,6 @@ func (*rt) NewClient(opts ...ipc.ClientOpt) (ipc.Client, error)                 
 func (*rt) NewServer(opts ...ipc.ServerOpt) (ipc.Server, error)                  { panic(badRuntime) }
 func (*rt) Client() ipc.Client                                                   { panic(badRuntime) }
 func (*rt) NewContext() context.T                                                { panic(badRuntime) }
-func (*rt) TODOContext() context.T                                               { panic(badRuntime) }
 func (*rt) NewStreamManager(opts ...stream.ManagerOpt) (stream.Manager, error)   { panic(badRuntime) }
 func (*rt) NewEndpoint(ep string) (naming.Endpoint, error)                       { panic(badRuntime) }
 func (*rt) Namespace() naming.Namespace                                          { panic(badRuntime) }

@@ -235,7 +235,10 @@ func (p *pipe) readLoop() {
 
 		switch msg.Type {
 		case websocketVeyronRequest:
-			p.controller.HandleVeyronRequest(msg.Id, msg.Data, ww)
+			// TODO(mattr): Get the proper context information
+			// from javascript.
+			ctx := p.wspr.rt.NewContext()
+			p.controller.HandleVeyronRequest(ctx, msg.Id, msg.Data, ww)
 		case websocketStreamingValue:
 			// This will asynchronous for a client rpc, but synchronous for a
 			// server rpc.  This could be potentially bad if the server is sending
@@ -253,7 +256,10 @@ func (p *pipe) readLoop() {
 		case websocketServerResponse:
 			go p.controller.HandleServerResponse(msg.Id, msg.Data)
 		case websocketSignatureRequest:
-			go p.controller.HandleSignatureRequest(msg.Data, ww)
+			// TODO(mattr): Get the proper context information
+			// from javascript.
+			ctx := p.wspr.rt.NewContext()
+			go p.controller.HandleSignatureRequest(ctx, msg.Data, ww)
 		default:
 			ww.Error(verror.Unknownf("unknown message type: %v", msg.Type))
 		}

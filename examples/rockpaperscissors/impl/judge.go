@@ -10,7 +10,7 @@ import (
 	rps "veyron/examples/rockpaperscissors"
 	"veyron/examples/rockpaperscissors/common"
 
-	"veyron2/rt"
+	"veyron2/context"
 	"veyron2/vlog"
 )
 
@@ -105,7 +105,7 @@ func (j *Judge) createGame(ownName string, opts rps.GameOptions) (rps.GameID, er
 }
 
 // play interacts with a player for the duration of a game.
-func (j *Judge) play(name string, id rps.GameID, stream rps.JudgeServicePlayStream) (rps.PlayResult, error) {
+func (j *Judge) play(ctx context.T, name string, id rps.GameID, stream rps.JudgeServicePlayStream) (rps.PlayResult, error) {
 	vlog.VI(1).Infof("play from %q for %v", name, id)
 	nilResult := rps.PlayResult{}
 
@@ -126,7 +126,6 @@ func (j *Judge) play(name string, id rps.GameID, stream rps.JudgeServicePlayStre
 		rStream := stream.RecvStream()
 		for rStream.Advance() {
 			action := rStream.Value()
-
 			select {
 			case pIn <- playerInput{player: playerNum, action: action}:
 			case <-done:
@@ -152,7 +151,7 @@ func (j *Judge) play(name string, id rps.GameID, stream rps.JudgeServicePlayStre
 
 	// When the second player connects, we start the game.
 	if playerNum == 2 {
-		go j.manageGame(id)
+		go j.manageGame(ctx, id)
 	}
 	// Wait for the ScoreCard.
 	scoreData := <-s
@@ -162,7 +161,7 @@ func (j *Judge) play(name string, id rps.GameID, stream rps.JudgeServicePlayStre
 	return rps.PlayResult{YouWon: scoreData.score.Winner == rps.WinnerTag(playerNum)}, nil
 }
 
-func (j *Judge) manageGame(id rps.GameID) {
+func (j *Judge) manageGame(ctx context.T, id rps.GameID) {
 	j.gamesRun.Add(1)
 	j.lock.Lock()
 	info, exists := j.games[id]
@@ -215,14 +214,14 @@ func (j *Judge) manageGame(id rps.GameID) {
 	}
 
 	// Send the score card to the score keepers.
-	keepers, err := common.FindScoreKeepers()
+	keepers, err := common.FindScoreKeepers(ctx)
 	if err != nil || len(keepers) == 0 {
 		vlog.Infof("No score keepers: %v", err)
 		return
 	}
 	done := make(chan bool)
 	for _, k := range keepers {
-		go j.sendScore(k, info.score, done)
+		go j.sendScore(ctx, k, info.score, done)
 	}
 	for _ = range keepers {
 		<-done
@@ -288,14 +287,14 @@ func (j *Judge) gameChannels(id rps.GameID) (chan playerInput, []chan rps.JudgeA
 	return info.playerIn, info.playerOut, info.scoreChan, nil
 }
 
-func (j *Judge) sendScore(address string, score rps.ScoreCard, done chan bool) error {
+func (j *Judge) sendScore(ctx context.T, address string, score rps.ScoreCard, done chan bool) error {
 	defer func() { done <- true }()
 	k, err := rps.BindRockPaperScissors(address)
 	if err != nil {
 		vlog.Infof("BindRockPaperScissors: %v", err)
 		return err
 	}
-	err = k.Record(rt.R().TODOContext(), score)
+	err = k.Record(ctx, score)
 	if err != nil {
 		vlog.Infof("Record: %v", err)
 		return err

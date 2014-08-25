@@ -3,9 +3,9 @@ package benchmarks
 import (
 	sflag "veyron/security/flag"
 
+	"veyron2"
 	"veyron2/ipc"
 	"veyron2/naming"
-	"veyron2/rt"
 	"veyron2/vlog"
 )
 
@@ -32,8 +32,8 @@ func (i *impl) EchoStream(ctx ipc.ServerContext, stream BenchmarkServiceEchoStre
 // StartServer starts a server that implements the Benchmark service. The
 // server listens to the given protocol and address, and returns the veyron
 // address of the server and a callback function to stop the server.
-func StartServer(protocol, address string) (string, func()) {
-	server, err := rt.R().NewServer()
+func StartServer(runtime veyron2.Runtime, protocol, address string) (string, func()) {
+	server, err := runtime.NewServer()
 	if err != nil {
 		vlog.Fatalf("NewServer failed: %v", err)
 	}
