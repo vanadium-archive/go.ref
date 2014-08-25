@@ -5,7 +5,7 @@
 package impl
 
 import (
-	"path"
+	"path/filepath"
 	"strings"
 
 	"veyron2/services/mgmt/logreader/types"
@@ -22,10 +22,11 @@ var (
 // translateNameToFilename returns the file name that corresponds to the object
 // name.
 func translateNameToFilename(root, name string) (string, error) {
-	p := path.Join(root, name)
+	name = filepath.Join(strings.Split(name, "/")...)
+	p := filepath.Join(root, name)
 	// Make sure we're not asked to read a file outside of the root
 	// directory. This could happen if suffix contains "../", which get
-	// collapsed by path.Join().
+	// collapsed by filepath.Join().
 	if !strings.HasPrefix(p, root) {
 		return "", errOperationFailed
 	}

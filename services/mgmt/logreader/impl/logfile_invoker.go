@@ -4,7 +4,7 @@ import (
 	"io"
 	"math"
 	"os"
-	"path"
+	"path/filepath"
 
 	"veyron2/ipc"
 	"veyron2/services/mgmt/logreader/types"
@@ -22,7 +22,7 @@ type logFileInvoker struct {
 
 // NewLogFileInvoker is the invoker factory.
 func NewLogFileInvoker(root, suffix string) ipc.Invoker {
-	return ipc.ReflectInvoker(&logFileInvoker{path.Clean(root), suffix})
+	return ipc.ReflectInvoker(&logFileInvoker{filepath.Clean(root), suffix})
 }
 
 // Size returns the size of the log file, in bytes.

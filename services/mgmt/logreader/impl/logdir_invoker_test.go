@@ -56,124 +56,182 @@ func TestLogDirectory(t *testing.T) {
 	}
 
 	// Try to access a directory that doesn't exist.
-	ld, err := mounttable.BindGlobbable(naming.JoinAddressName(endpoint, "//doesntexist"))
-	if err != nil {
-		t.Errorf("BindLogDirectory: %v", err)
-	}
-	stream, err := ld.Glob(runtime.NewContext(), "*")
-	if err != nil {
-		t.Errorf("unexpected error, got %v, want: nil", err)
-	}
-	if err := stream.Finish(); err != nil {
-		if expected := verror.NotFound; !verror.Is(err, expected) {
-			t.Errorf("unexpected error value, got %v, want: %v", err, expected)
+	{
+		ld, err := mounttable.BindGlobbable(naming.JoinAddressName(endpoint, "//doesntexist"))
+		if err != nil {
+			t.Errorf("BindLogDirectory: %v", err)
+		}
+		stream, err := ld.Glob(runtime.NewContext(), "*")
+		if err != nil {
+			t.Errorf("unexpected error, got %v, want: nil", err)
+		}
+		if err := stream.Finish(); err != nil {
+			if expected := verror.NotFound; !verror.Is(err, expected) {
+				t.Errorf("unexpected error value, got %v, want: %v", err, expected)
+			}
 		}
 	}
 
 	// Try to access a directory that does exist.
-	ld, err = mounttable.BindGlobbable(naming.JoinAddressName(endpoint, "//"))
-	if err != nil {
-		t.Errorf("BindLogDirectory: %v", err)
+	{
+		ld, err := mounttable.BindGlobbable(naming.JoinAddressName(endpoint, "//"))
+		if err != nil {
+			t.Errorf("BindLogDirectory: %v", err)
+		}
+
+		stream, err := ld.Glob(runtime.NewContext(), "...")
+		if err != nil {
+			t.Errorf("Glob failed: %v", err)
+		}
+		results := []string{}
+		iterator := stream.RecvStream()
+		for count := 0; iterator.Advance(); count++ {
+			results = append(results, iterator.Value().Name)
+		}
+		sort.Strings(tests)
+		sort.Strings(results)
+		if !reflect.DeepEqual(tests, results) {
+			t.Errorf("unexpected result. Got %v, want %v", results, tests)
+		}
+
+		if err := iterator.Err(); err != nil {
+			t.Errorf("unexpected stream error: %v", iterator.Err())
+		}
+		if err := stream.Finish(); err != nil {
+			t.Errorf("Finish failed: %v", err)
+		}
+
+		stream, err = ld.Glob(runtime.NewContext(), "*")
+		if err != nil {
+			t.Errorf("Glob failed: %v", err)
+		}
+		results = []string{}
+		iterator = stream.RecvStream()
+		for count := 0; iterator.Advance(); count++ {
+			results = append(results, iterator.Value().Name)
+		}
+		sort.Strings(results)
+		expected := []string{
+			"bar.txt",
+			"foo.txt",
+		}
+		if !reflect.DeepEqual(expected, results) {
+			t.Errorf("unexpected result. Got %v, want %v", results, expected)
+		}
+
+		if err := iterator.Err(); err != nil {
+			t.Errorf("unexpected stream error: %v", iterator.Err())
+		}
+		if err := stream.Finish(); err != nil {
+			t.Errorf("Finish failed: %v", err)
+		}
+
+		stream, err = ld.Glob(runtime.NewContext(), "subdir/*")
+		if err != nil {
+			t.Errorf("Glob failed: %v", err)
+		}
+		results = []string{}
+		iterator = stream.RecvStream()
+		for count := 0; iterator.Advance(); count++ {
+			results = append(results, iterator.Value().Name)
+		}
+		sort.Strings(results)
+		expected = []string{
+			"subdir/bar2.txt",
+			"subdir/foo2.txt",
+		}
+		if !reflect.DeepEqual(expected, results) {
+			t.Errorf("unexpected result. Got %v, want %v", results, expected)
+		}
+
+		if err := iterator.Err(); err != nil {
+			t.Errorf("unexpected stream error: %v", iterator.Err())
+		}
+		if err := stream.Finish(); err != nil {
+			t.Errorf("Finish failed: %v", err)
+		}
 	}
 
-	stream, err = ld.Glob(runtime.NewContext(), "...")
-	if err != nil {
-		t.Errorf("Glob failed: %v", err)
-	}
-	results := []string{}
-	iterator := stream.RecvStream()
-	for count := 0; iterator.Advance(); count++ {
-		results = append(results, iterator.Value().Name)
-	}
-	sort.Strings(tests)
-	sort.Strings(results)
-	if !reflect.DeepEqual(tests, results) {
-		t.Errorf("unexpected result. Got %v, want %v", results, tests)
+	// Try to access a sub-directory.
+	{
+		ld, err := mounttable.BindGlobbable(naming.JoinAddressName(endpoint, "//subdir"))
+		if err != nil {
+			t.Errorf("BindLogDirectory: %v", err)
+		}
+		stream, err := ld.Glob(runtime.NewContext(), "*")
+		if err != nil {
+			t.Errorf("Glob failed: %v", err)
+		}
+		results := []string{}
+		iterator := stream.RecvStream()
+		for count := 0; iterator.Advance(); count++ {
+			results = append(results, iterator.Value().Name)
+		}
+		sort.Strings(results)
+		expected := []string{
+			"bar2.txt",
+			"foo2.txt",
+		}
+		if !reflect.DeepEqual(expected, results) {
+			t.Errorf("unexpected result. Got %v, want %v", results, expected)
+		}
+
+		if err := iterator.Err(); err != nil {
+			t.Errorf("unexpected stream error: %v", iterator.Err())
+		}
+		if err := stream.Finish(); err != nil {
+			t.Errorf("Finish failed: %v", err)
+		}
 	}
 
-	if err := iterator.Err(); err != nil {
-		t.Errorf("unexpected stream error: %v", iterator.Err())
-	}
-	if err := stream.Finish(); err != nil {
-		t.Errorf("Finish failed: %v", err)
-	}
+	// Try to access a file.
+	{
+		ld, err := mounttable.BindGlobbable(naming.JoinAddressName(endpoint, "//foo.txt"))
+		if err != nil {
+			t.Errorf("BindLogDirectory: %v", err)
+		}
+		stream, err := ld.Glob(runtime.NewContext(), "*")
+		if err != nil {
+			t.Errorf("Glob failed: %v", err)
+		}
+		results := []string{}
+		iterator := stream.RecvStream()
+		for count := 0; iterator.Advance(); count++ {
+			results = append(results, iterator.Value().Name)
+		}
+		sort.Strings(results)
+		expected := []string{}
+		if !reflect.DeepEqual(expected, results) {
+			t.Errorf("unexpected result. Got %v, want %v", results, expected)
+		}
 
-	stream, err = ld.Glob(runtime.NewContext(), "*")
-	if err != nil {
-		t.Errorf("Glob failed: %v", err)
-	}
-	results = []string{}
-	iterator = stream.RecvStream()
-	for count := 0; iterator.Advance(); count++ {
-		results = append(results, iterator.Value().Name)
-	}
-	sort.Strings(results)
-	expected := []string{
-		"bar.txt",
-		"foo.txt",
-	}
-	if !reflect.DeepEqual(expected, results) {
-		t.Errorf("unexpected result. Got %v, want %v", results, expected)
-	}
+		if err := iterator.Err(); err != nil {
+			t.Errorf("unexpected stream error: %v", iterator.Err())
+		}
+		if err := stream.Finish(); err != nil {
+			t.Errorf("Finish failed: %v", err)
+		}
 
-	if err := iterator.Err(); err != nil {
-		t.Errorf("unexpected stream error: %v", iterator.Err())
-	}
-	if err := stream.Finish(); err != nil {
-		t.Errorf("Finish failed: %v", err)
-	}
+		stream, err = ld.Glob(runtime.NewContext(), "")
+		if err != nil {
+			t.Errorf("Glob failed: %v", err)
+		}
+		results = []string{}
+		iterator = stream.RecvStream()
+		for count := 0; iterator.Advance(); count++ {
+			results = append(results, iterator.Value().Name)
+		}
+		sort.Strings(results)
+		expected = []string{""}
+		if !reflect.DeepEqual(expected, results) {
+			t.Errorf("unexpected result. Got %#v, want %#v", results, expected)
+		}
 
-	stream, err = ld.Glob(runtime.NewContext(), "subdir/*")
-	if err != nil {
-		t.Errorf("Glob failed: %v", err)
-	}
-	results = []string{}
-	iterator = stream.RecvStream()
-	for count := 0; iterator.Advance(); count++ {
-		results = append(results, iterator.Value().Name)
-	}
-	sort.Strings(results)
-	expected = []string{
-		"subdir/bar2.txt",
-		"subdir/foo2.txt",
-	}
-	if !reflect.DeepEqual(expected, results) {
-		t.Errorf("unexpected result. Got %v, want %v", results, expected)
-	}
-
-	if err := iterator.Err(); err != nil {
-		t.Errorf("unexpected stream error: %v", iterator.Err())
-	}
-	if err := stream.Finish(); err != nil {
-		t.Errorf("Finish failed: %v", err)
-	}
-
-	ld, err = mounttable.BindGlobbable(naming.JoinAddressName(endpoint, "//subdir"))
-	if err != nil {
-		t.Errorf("BindLogDirectory: %v", err)
-	}
-	stream, err = ld.Glob(runtime.NewContext(), "*")
-	if err != nil {
-		t.Errorf("Glob failed: %v", err)
-	}
-	results = []string{}
-	iterator = stream.RecvStream()
-	for count := 0; iterator.Advance(); count++ {
-		results = append(results, iterator.Value().Name)
-	}
-	sort.Strings(results)
-	expected = []string{
-		"bar2.txt",
-		"foo2.txt",
-	}
-	if !reflect.DeepEqual(expected, results) {
-		t.Errorf("unexpected result. Got %v, want %v", results, expected)
-	}
-
-	if err := iterator.Err(); err != nil {
-		t.Errorf("unexpected stream error: %v", iterator.Err())
-	}
-	if err := stream.Finish(); err != nil {
-		t.Errorf("Finish failed: %v", err)
+		if err := iterator.Err(); err != nil {
+			t.Errorf("unexpected stream error: %v", iterator.Err())
+		}
+		if err := stream.Finish(); err != nil {
+			t.Errorf("Finish failed: %v", err)
+		}
 	}
 }
