@@ -100,7 +100,7 @@ func (s *server) printRawValuePage(ctx context.T, w http.ResponseWriter, path st
 	var p printer
 	p.print(v)
 	subdirs, _ := glob(ctx, s.store, path, "*")
-	x := &Value{Name: path, Value: p.String(), Subdirs: subdirs}
+	x := &Value{ctx: ctx, Name: path, Value: p.String(), Subdirs: subdirs}
 	if err := rawTemplate.Execute(w, x); err != nil {
 		w.Write([]byte(html.EscapeString(err.Error())))
 	}
@@ -110,7 +110,7 @@ func (s *server) printRawValuePage(ctx context.T, w http.ResponseWriter, path st
 // is not found, the value is printed in raw format instead.
 func (s *server) printValuePage(ctx context.T, w http.ResponseWriter, path string, v interface{}) {
 	if tmpl := s.loadTemplate(ctx, v); tmpl != nil {
-		if err := tmpl.Execute(w, &Value{store: s.store, Name: path, Value: v}); err != nil {
+		if err := tmpl.Execute(w, &Value{ctx: ctx, store: s.store, Name: path, Value: v}); err != nil {
 			w.Write([]byte(html.EscapeString(err.Error())))
 		}
 		return

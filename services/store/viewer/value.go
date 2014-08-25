@@ -13,6 +13,7 @@ import (
 // contains the name of the value, the actual value, and a list of
 // subdirectories.
 type Value struct {
+	ctx     context.T
 	store   storage.Store
 	Name    string
 	Value   interface{}
@@ -59,15 +60,15 @@ func (v *Value) Base(path string) string {
 }
 
 // Glob performs a glob expansion of a pattern.
-func (v *Value) Glob(ctx context.T, pattern string) ([]string, error) {
-	return glob(ctx, v.store, v.Name, pattern)
+func (v *Value) Glob(pattern string) ([]string, error) {
+	return glob(v.ctx, v.store, v.Name, pattern)
 }
 
 // Get fetches a value from the store.  The result is nil if the value does not
 // exist.
-func (v *Value) Get(ctx context.T, path string) interface{} {
+func (v *Value) Get(path string) interface{} {
 	path = v.fullpath(path)
-	e, err := v.store.Bind(path).Get(ctx)
+	e, err := v.store.Bind(path).Get(v.ctx)
 	if err != nil {
 		return nil
 	}
