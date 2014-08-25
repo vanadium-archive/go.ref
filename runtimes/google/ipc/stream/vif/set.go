@@ -2,6 +2,7 @@ package vif
 
 import (
 	"math/rand"
+	"runtime"
 	"sync"
 )
 
@@ -25,7 +26,9 @@ func NewSet() *Set {
 // If there are multiple VIFs established to the same remote network address,
 // Find will randomly return one of them.
 func (s *Set) Find(network, address string) *VIF {
-	if len(address) == 0 || (network == "pipe" && address == "pipe") {
+	if len(address) == 0 ||
+		(network == "pipe" && address == "pipe") ||
+		(runtime.GOOS == "linux" && network == "unix" && address == "@") { // autobind
 		// Some network connections (like those created with net.Pipe
 		// or Unix sockets) do not end up with distinct conn.RemoteAddrs
 		// on distinct net.Conns. For those cases, avoid the cache collisions
