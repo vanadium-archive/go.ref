@@ -31,7 +31,7 @@ func handleGCE(rt veyron2.Runtime, publisher *config.Publisher) bool {
 		if _, err := publisher.CreateStream(StreamName, "network configuration", ch); err != nil {
 			return false
 		}
-		publishInitialSettings(ch, listen_protocol, listen_addr.IP.String(), pub)
+		publishInitialSettings(ch, listenProtocolFlag.Protocol, listenSpecFlag.String(), pub)
 		return true
 	}
 	return false

@@ -56,7 +56,7 @@ func TestRemoved(t *testing.T) {
 	}
 
 	// missing interfaces
-	got, want = findRemoved(aif, bif), ipAndIf{"eth0": nil, "eth1": nil}
+	got, want = findRemoved(aif, bif), aif
 	if !reflect.DeepEqual(got, want) {
 		t.Errorf("got %s, want %s", got, want)
 	}
@@ -65,7 +65,7 @@ func TestRemoved(t *testing.T) {
 	bif["eth0"] = []net.IP{a, b, a6, b6}
 	got, want = findRemoved(aif, bif), ipAndIf{
 		"eth0": []net.IP{c, c6},
-		"eth1": nil,
+		"eth1": aif["eth1"],
 	}
 	if !reflect.DeepEqual(got, want) {
 		t.Errorf("got %s, want %s", got, want)

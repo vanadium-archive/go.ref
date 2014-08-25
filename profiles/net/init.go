@@ -38,13 +38,13 @@ const (
 )
 
 var (
-	listen_protocol string
-	listen_addr     config.IPFlag
+	listenProtocolFlag = config.TCPProtocolFlag{"tcp4"}
+	listenSpecFlag     = config.IPHostPortFlag{Port: ":0"}
 )
 
 func init() {
-	flag.StringVar(&listen_protocol, "veyron.protocol", "tcp4", "protocol to listen with")
-	flag.Var(&listen_addr, "veyron.address", "address to listen on")
+	flag.Var(&listenProtocolFlag, "veyron.tcpprotocol", "protocol to listen with")
+	flag.Var(&listenSpecFlag, "veyron.tcpaddress", "address to listen on")
 	rt.RegisterProfile(New())
 }
 
@@ -99,7 +99,7 @@ func (p *profile) Init(rt veyron2.Runtime, publisher *config.Publisher) {
 		log.Errorf("failed to create publisher: %s", err)
 		return
 	}
-	go monitorAndPublishNetworkSettings(rt, stop, ch, listen_protocol, listen_addr.IP.String())
+	go monitorAndPublishNetworkSettings(rt, stop, ch, listenProtocolFlag.Protocol, listenSpecFlag)
 }
 
 func publishInitialSettings(ch chan<- config.Setting, protocol, listenSpec string, addr net.IP) {
@@ -118,19 +118,24 @@ func publishInitialSettings(ch chan<- config.Setting, protocol, listenSpec strin
 // RmPublishAddressSetting without first sending an AddPublishAddressSetting.
 func monitorAndPublishNetworkSettings(rt veyron2.Runtime, stop <-chan struct{},
 	ch chan<- config.Setting,
-	listenProtocol string, listenSpec string) {
+	listenProtocol string, listenSpec config.IPHostPortFlag) {
 	defer close(ch)
 
 	log := rt.Logger()
+
 	prev4, _, prevAddr := firstUsableIPv4()
+	// TODO(cnicolaou): check that prev4 is one of the IPs that a hostname
+	// resolved to, if we used a hostname in the listenspec.
+
 	// prevAddr may be nil if we are currently offline.
 
-	publishInitialSettings(ch, listenProtocol, listenSpec, prevAddr)
+	log.Infof("Initial Settings: %s %s publish %s", listenProtocol, listenSpec, prevAddr)
+	publishInitialSettings(ch, listenProtocol, listenSpec.String(), prevAddr)
 
 	// Start the dhcp watcher.
 	watcher, err := netconfig.NewNetConfigWatcher()
 	if err != nil {
-		log.VI(1).Infof("Failed to get new config watcher: %s", err)
+		log.VI(2).Infof("Failed to get new config watcher: %s", err)
 		<-stop
 		return
 	}
@@ -139,16 +144,40 @@ func monitorAndPublishNetworkSettings(rt veyron2.Runtime, stop <-chan struct{},
 		select {
 		case <-watcher.Channel():
 			cur4, _, _ := ipState()
-			added := findAdded(prev4, cur4)
-			ifc, newAddr := added.first()
-			log.VI(1).Infof("new address found: %s:%s", ifc, newAddr)
 			removed := findRemoved(prev4, cur4)
-			if prevAddr == nil || (removed.has(prevAddr) && newAddr != nil) {
-				log.VI(1).Infof("address change from %s to %s:%s",
+			added := findAdded(prev4, cur4)
+			log.VI(2).Infof("Previous: %d: %s", len(prev4), prev4)
+			log.VI(2).Infof("Current : %d: %s", len(cur4), cur4)
+			log.VI(2).Infof("Added   : %d: %s", len(added), added)
+			log.VI(2).Infof("Removed : %d: %s", len(removed), removed)
+			if len(removed) == 0 && len(added) == 0 {
+				log.VI(2).Infof("Network event that lead to no address changes since our last 'baseline'")
+				continue
+			}
+			if len(added) == 0 {
+				// Nothing has been added, but something has been removed.
+				if !removed.has(prevAddr) {
+					log.VI(1).Infof("An address we were not using was removed")
+					continue
+				}
+				log.Infof("Publish address is no longer available: %s", prevAddr)
+				// Our currently published address has been removed and
+				// a new one has not been added.
+				// TODO(cnicolaou): look for a new address to use right now.
+				prevAddr = nil
+				continue
+			}
+			log.Infof("At least one address has been added and zero or more removed")
+			// something has been added, and maybe something has been removed
+			ifc, newAddr := added.first()
+			if newAddr != nil && (prevAddr == nil || removed.has(prevAddr)) {
+				log.Infof("Address being changed from %s to %s:%s",
 					prevAddr, ifc, newAddr)
 				ch <- config.NewIP(AddPublishAddressSetting, "new dhcp address to publish", newAddr)
 				ch <- config.NewIP(RmPublishAddressSetting, "remove address", prevAddr)
 				prevAddr = newAddr
+				prev4 = cur4
+				log.VI(2).Infof("Network baseline set to %s", cur4)
 			}
 		case <-stop:
 			return
