@@ -25,6 +25,14 @@ func NewSet() *Set {
 // If there are multiple VIFs established to the same remote network address,
 // Find will randomly return one of them.
 func (s *Set) Find(network, address string) *VIF {
+	if len(address) == 0 || (network == "pipe" && address == "pipe") {
+		// Some network connections (like those created with net.Pipe
+		// or Unix sockets) do not end up with distinct conn.RemoteAddrs
+		// on distinct net.Conns. For those cases, avoid the cache collisions
+		// by disabling cache lookups for them.
+		return nil
+	}
+
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	l, ok := s.set[s.key(network, address)]
