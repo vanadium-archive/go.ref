@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"encoding/json"
+	"flag"
 	"fmt"
 	"math/rand"
 	"net/http"
@@ -23,9 +24,16 @@ type Response struct {
 	Events []Event
 }
 
-// This channel is closed when the server begins shutting down.
-// No values are ever sent to it.
-var lameduck chan bool = make(chan bool)
+var (
+	// This channel is closed when the server begins shutting down.
+	// No values are ever sent to it.
+	lameduck chan bool = make(chan bool)
+
+	address = flag.String("address", ":8181", "address to listen on")
+
+	// Note, shutdown triggers on SIGTERM or when the time limit is hit.
+	shutdown = flag.Bool("shutdown", true, "whether to ever shutdown the machine")
+)
 
 func healthz(w http.ResponseWriter, r *http.Request) {
 	select {
@@ -62,7 +70,7 @@ func handler(w http.ResponseWriter, r *http.Request) {
 	buf := new(bytes.Buffer)
 	cmd.Stdout = buf
 	cmd.Stderr = buf
-	// Arbitrary deadline: 2s to compile/start, 1s to run, .5s to shutdown
+	// Arbitrary deadline: 2s to compile/start, 1s to run, .5s to shutdown.
 	timeout := time.After(3500 * time.Millisecond)
 	exit := make(chan error)
 
@@ -100,34 +108,40 @@ func init() {
 }
 
 func main() {
-	limit_min := 60
-	delay_min := limit_min/2 + rand.Intn(limit_min/2)
+	flag.Parse()
 
-	// VMs will be periodically killed to prevent any owned vms from
-	// causing damage. We want to shutdown cleanly before then so
-	// we don't cause requests to fail.
-	go WaitForShutdown(time.Minute * time.Duration(delay_min))
+	if *shutdown {
+		limit_min := 60
+		delay_min := limit_min/2 + rand.Intn(limit_min/2)
+
+		// VMs will be periodically killed to prevent any owned VMs from causing
+		// damage. We want to shutdown cleanly before then so we don't cause
+		// requests to fail.
+		go WaitForShutdown(time.Minute * time.Duration(delay_min))
+	}
 
 	http.HandleFunc("/compile", handler)
 	http.HandleFunc("/healthz", healthz)
-	http.ListenAndServe(":8181", nil)
+
+	fmt.Printf("Serving %s\n", *address)
+	http.ListenAndServe(*address, nil)
 }
 
 func WaitForShutdown(limit time.Duration) {
 	var beforeExit func() error
 
-	// Shutdown if we get a SIGTERM
+	// Shutdown if we get a SIGTERM.
 	term := make(chan os.Signal, 1)
 	signal.Notify(term, syscall.SIGTERM)
 
-	// Or if the time limit expires
+	// Or if the time limit expires.
 	deadline := time.After(limit)
 	fmt.Println("Shutting down at", time.Now().Add(limit))
 Loop:
 	for {
 		select {
 		case <-deadline:
-			// Shutdown the vm.
+			// Shutdown the VM.
 			fmt.Println("Deadline expired, shutting down.")
 			beforeExit = exec.Command("sudo", "halt").Run
 			break Loop
