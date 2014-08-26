@@ -45,8 +45,8 @@ type LogRec struct {
   RecType  byte
   // Object related information.
   ObjID    storage.ID
-  CurVers  storage.Version
-  Parents  []storage.Version
+  CurVers  raw.Version
+  Parents  []raw.Version
   Value    LogValue
 }
 

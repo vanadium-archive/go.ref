@@ -84,6 +84,8 @@ import (
 	"fmt"
 	"time"
 
+	"veyron/services/store/raw"
+
 	"veyron2/storage"
 	"veyron2/vlog"
 )
@@ -130,14 +132,14 @@ var (
 // generation. "pos" is the position of that generation in the local
 // log.
 type objGCState struct {
-	version storage.Version
+	version raw.Version
 	pos     uint32
 }
 
 // objVersHist tracks all the versions of the object that need to be
 // gc'ed when strictCheck is enabled.
 type objVersHist struct {
-	versions map[storage.Version]struct{}
+	versions map[raw.Version]struct{}
 }
 
 // syncGC contains the metadata and state for the Sync GC thread.
@@ -338,7 +340,7 @@ func (g *syncGC) garbageCollectGeneration(devid DeviceID, gnum GenID) error {
 			objHist, ok := g.verifyPruneMap[rec.ObjID]
 			if !ok {
 				objHist = &objVersHist{
-					versions: make(map[storage.Version]struct{}),
+					versions: make(map[raw.Version]struct{}),
 				}
 				g.verifyPruneMap[rec.ObjID] = objHist
 			}

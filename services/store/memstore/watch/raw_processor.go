@@ -25,7 +25,7 @@ type rawProcessor struct {
 	// rootID is the id of the root object after processing a change.
 	rootID storage.ID
 	// rootVersion is the version of the store root after processing a change.
-	rootVersion storage.Version
+	rootVersion raw.Version
 	// preparedDeletions is the set of ids for which deletion changes have been
 	// sent by watch, but deleted entries have not been processed from the log.
 	// This set consists of deleted store roots, because
@@ -79,7 +79,7 @@ func (p *rawProcessor) processState(st *state.State) ([]types.Change, error) {
 		}
 		value := &raw.Mutation{
 			ID:           id,
-			PriorVersion: storage.NoVersion,
+			PriorVersion: raw.NoVersion,
 			Version:      cell.Version,
 			IsRoot:       isRoot,
 			Value:        cell.Value,
@@ -116,7 +116,7 @@ func (p *rawProcessor) processTransaction(mus *state.Mutations) ([]types.Change,
 			value := &raw.Mutation{
 				ID:           p.rootID,
 				PriorVersion: p.rootVersion,
-				Version:      storage.NoVersion,
+				Version:      raw.NoVersion,
 				IsRoot:       true,
 			}
 			// TODO(tilaks): don't clone value.
@@ -128,7 +128,7 @@ func (p *rawProcessor) processTransaction(mus *state.Mutations) ([]types.Change,
 
 			p.preparedDeletions[p.rootID] = true
 			p.rootID = nullID
-			p.rootVersion = storage.NoVersion
+			p.rootVersion = raw.NoVersion
 		}
 	}
 
@@ -168,7 +168,7 @@ func (p *rawProcessor) processTransaction(mus *state.Mutations) ([]types.Change,
 		value := &raw.Mutation{
 			ID:           id,
 			PriorVersion: precondition,
-			Version:      storage.NoVersion,
+			Version:      raw.NoVersion,
 			IsRoot:       false,
 		}
 		// TODO(tilaks): don't clone value.

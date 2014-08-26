@@ -7,6 +7,8 @@ import (
 	"testing"
 
 	_ "veyron/lib/testutil"
+	"veyron/services/store/raw"
+
 	"veyron2/storage"
 )
 
@@ -113,9 +115,9 @@ func TestGCOnlineConsistencyCheck(t *testing.T) {
 	}
 	expMap1 := make(map[storage.ID]*objVersHist)
 	if strictCheck {
-		expMap1[objid] = &objVersHist{versions: make(map[storage.Version]struct{})}
+		expMap1[objid] = &objVersHist{versions: make(map[raw.Version]struct{})}
 		for i := 0; i < 5; i++ {
-			expMap1[objid].versions[storage.Version(i)] = struct{}{}
+			expMap1[objid].versions[raw.Version(i)] = struct{}{}
 		}
 		if !reflect.DeepEqual(expMap1, s.hdlGC.verifyPruneMap) {
 			t.Errorf("Data mismatch for verifyPruneMap: %v instead of %v", s.hdlGC.verifyPruneMap, expMap1)
@@ -183,8 +185,8 @@ func setupGarbageCollectGeneration(t *testing.T) {
 
 	expMap1 := make(map[storage.ID]*objVersHist)
 	if strictCheck {
-		expMap1[objid] = &objVersHist{versions: make(map[storage.Version]struct{})}
-		expMap1[objid].versions[storage.Version(3)] = struct{}{}
+		expMap1[objid] = &objVersHist{versions: make(map[raw.Version]struct{})}
+		expMap1[objid].versions[raw.Version(3)] = struct{}{}
 		if !reflect.DeepEqual(expMap1, s.hdlGC.verifyPruneMap) {
 			t.Errorf("Data mismatch for verifyPruneMap: %v instead of %v", s.hdlGC.verifyPruneMap, expMap1)
 		}
@@ -199,7 +201,7 @@ func setupGarbageCollectGeneration(t *testing.T) {
 	}
 
 	if strictCheck {
-		expMap1[objid].versions[storage.Version(2)] = struct{}{}
+		expMap1[objid].versions[raw.Version(2)] = struct{}{}
 		if !reflect.DeepEqual(expMap1, s.hdlGC.verifyPruneMap) {
 			t.Errorf("Data mismatch for verifyPruneMap: %v instead of %v", s.hdlGC.verifyPruneMap, expMap1)
 		}
@@ -216,7 +218,7 @@ func setupGarbageCollectGeneration(t *testing.T) {
 	}
 
 	if strictCheck {
-		expMap1[objid].versions[storage.Version(6)] = struct{}{}
+		expMap1[objid].versions[raw.Version(6)] = struct{}{}
 		if !reflect.DeepEqual(expMap1, s.hdlGC.verifyPruneMap) {
 			t.Errorf("Data mismatch for verifyPruneMap: %v instead of %v",
 				s.hdlGC.verifyPruneMap[objid], expMap1[objid])
@@ -267,10 +269,10 @@ func setupGCReclaimSpace1Obj(t *testing.T) {
 	}
 
 	expMap1 := make(map[storage.ID]*objVersHist)
-	expMap1[objid] = &objVersHist{versions: make(map[storage.Version]struct{})}
+	expMap1[objid] = &objVersHist{versions: make(map[raw.Version]struct{})}
 	if strictCheck {
 		for i := 0; i < 5; i++ {
-			expMap1[objid].versions[storage.Version(i)] = struct{}{}
+			expMap1[objid].versions[raw.Version(i)] = struct{}{}
 		}
 		if !reflect.DeepEqual(expMap1, s.hdlGC.verifyPruneMap) {
 			t.Errorf("Data mismatch for verifyPruneMap: %v instead of %v",
@@ -296,8 +298,8 @@ func setupGCReclaimSpace1Obj(t *testing.T) {
 		t.Errorf("Data mismatch for pruneObjects map: %v instead of %v", s.hdlGC.pruneObjects[objid], expMap[objid])
 	}
 	if strictCheck {
-		expMap1[objid].versions[storage.Version(5)] = struct{}{}
-		expMap1[objid].versions[storage.Version(6)] = struct{}{}
+		expMap1[objid].versions[raw.Version(5)] = struct{}{}
+		expMap1[objid].versions[raw.Version(6)] = struct{}{}
 		if !reflect.DeepEqual(expMap1, s.hdlGC.verifyPruneMap) {
 			t.Errorf("Data mismatch for verifyPruneMap: %v instead of %v",
 				s.hdlGC.verifyPruneMap[objid], expMap[objid])
@@ -337,9 +339,9 @@ func setupGCReclaimSpace3Objs(t *testing.T) {
 		t.Errorf("Could not create objid %v", err)
 	}
 	expMap[obj1] = &objGCState{pos: 8, version: 6}
-	expMap1[obj1] = &objVersHist{versions: make(map[storage.Version]struct{})}
+	expMap1[obj1] = &objVersHist{versions: make(map[raw.Version]struct{})}
 	for i := 1; i < 7; i++ {
-		expMap1[obj1].versions[storage.Version(i)] = struct{}{}
+		expMap1[obj1].versions[raw.Version(i)] = struct{}{}
 	}
 
 	obj2, err := strToObjID("456")
@@ -347,20 +349,20 @@ func setupGCReclaimSpace3Objs(t *testing.T) {
 		t.Errorf("Could not create objid %v", err)
 	}
 	expMap[obj2] = &objGCState{pos: 10, version: 7}
-	expMap1[obj2] = &objVersHist{versions: make(map[storage.Version]struct{})}
+	expMap1[obj2] = &objVersHist{versions: make(map[raw.Version]struct{})}
 	for i := 1; i < 6; i++ {
-		expMap1[obj2].versions[storage.Version(i)] = struct{}{}
+		expMap1[obj2].versions[raw.Version(i)] = struct{}{}
 	}
-	expMap1[obj2].versions[storage.Version(7)] = struct{}{}
+	expMap1[obj2].versions[raw.Version(7)] = struct{}{}
 
 	obj3, err := strToObjID("789")
 	if err != nil {
 		t.Errorf("Could not create objid %v", err)
 	}
 	expMap[obj3] = &objGCState{pos: 8, version: 4}
-	expMap1[obj3] = &objVersHist{versions: make(map[storage.Version]struct{})}
+	expMap1[obj3] = &objVersHist{versions: make(map[raw.Version]struct{})}
 	for i := 1; i < 5; i++ {
-		expMap1[obj3].versions[storage.Version(i)] = struct{}{}
+		expMap1[obj3].versions[raw.Version(i)] = struct{}{}
 	}
 
 	if !reflect.DeepEqual(expMap, s.hdlGC.pruneObjects) {
@@ -393,15 +395,15 @@ func setupGCReclaimSpace3Objs(t *testing.T) {
 
 	expMap[obj1] = &objGCState{pos: 12, version: 9}
 	for i := 7; i < 10; i++ {
-		expMap1[obj1].versions[storage.Version(i)] = struct{}{}
+		expMap1[obj1].versions[raw.Version(i)] = struct{}{}
 	}
 	expMap[obj2] = &objGCState{pos: 12, version: 8}
 	for i := 6; i < 9; i++ {
-		expMap1[obj2].versions[storage.Version(i)] = struct{}{}
+		expMap1[obj2].versions[raw.Version(i)] = struct{}{}
 	}
 	expMap[obj3] = &objGCState{pos: 12, version: 6}
 	for i := 5; i < 7; i++ {
-		expMap1[obj3].versions[storage.Version(i)] = struct{}{}
+		expMap1[obj3].versions[raw.Version(i)] = struct{}{}
 	}
 
 	if !reflect.DeepEqual(expMap, s.hdlGC.pruneObjects) {
@@ -459,7 +461,7 @@ func setupGCDAGPruneCallBack(t *testing.T) {
 			t.Errorf("Could not create objid %v", err)
 		}
 		s.hdlGC.verifyPruneMap[objid] = &objVersHist{
-			versions: make(map[storage.Version]struct{}),
+			versions: make(map[raw.Version]struct{}),
 		}
 	}
 	if err := s.hdlGC.dagPruneCallBack("A:1:0"); err != nil {
@@ -510,9 +512,9 @@ func setupGCDAGPruneCallBackStrict(t *testing.T) {
 		t.Errorf("Could not create objid %v", err)
 	}
 	s.hdlGC.verifyPruneMap[objid] = &objVersHist{
-		versions: make(map[storage.Version]struct{}),
+		versions: make(map[raw.Version]struct{}),
 	}
-	s.hdlGC.verifyPruneMap[objid].versions[storage.Version(2)] = struct{}{}
+	s.hdlGC.verifyPruneMap[objid].versions[raw.Version(2)] = struct{}{}
 	if err := s.hdlGC.dagPruneCallBack("A:1:0"); err != nil {
 		t.Errorf("dagPruneCallBack failed for test %s, err %v\n", testFile, err)
 	}
@@ -558,9 +560,9 @@ func setupGCDAGPruneCBPartGen(t *testing.T) {
 			t.Errorf("Could not create objid %v", err)
 		}
 		s.hdlGC.verifyPruneMap[objid] = &objVersHist{
-			versions: make(map[storage.Version]struct{}),
+			versions: make(map[raw.Version]struct{}),
 		}
-		s.hdlGC.verifyPruneMap[objid].versions[storage.Version(4)] = struct{}{}
+		s.hdlGC.verifyPruneMap[objid].versions[raw.Version(4)] = struct{}{}
 	}
 
 	// Before pruning.
@@ -600,9 +602,9 @@ func setupGCDAGPruneCBPartGen(t *testing.T) {
 			t.Errorf("Could not create objid %v", err)
 		}
 		s.hdlGC.verifyPruneMap[objid] = &objVersHist{
-			versions: make(map[storage.Version]struct{}),
+			versions: make(map[raw.Version]struct{}),
 		}
-		s.hdlGC.verifyPruneMap[objid].versions[storage.Version(6)] = struct{}{}
+		s.hdlGC.verifyPruneMap[objid].versions[raw.Version(6)] = struct{}{}
 	}
 	if err := s.hdlGC.dagPruneCallBack("A:3:0"); err != nil {
 		t.Errorf("dagPruneCallBack failed for test %s, err %v\n", testFile, err)
@@ -841,7 +843,7 @@ func setupGCPrune3Objects(t *testing.T) {
 	}
 	// Verify DAG state.
 	objArr := []string{"123", "456", "789"}
-	heads := []storage.Version{10, 8, 6}
+	heads := []raw.Version{10, 8, 6}
 	for pos, o := range objArr {
 		objid, err := strToObjID(o)
 		if err != nil {
@@ -941,7 +943,7 @@ func setupGCReclaimAndOnlineCk(t *testing.T) {
 	}
 	// Verify DAG state.
 	objArr := []string{"123", "456", "789"}
-	heads := []storage.Version{10, 8, 6}
+	heads := []raw.Version{10, 8, 6}
 	for pos, o := range objArr {
 		objid, err := strToObjID(o)
 		if err != nil {

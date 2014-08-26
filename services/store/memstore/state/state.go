@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"veyron/services/store/memstore/refs"
+	"veyron/services/store/raw"
 
 	"veyron2/security"
 	"veyron2/storage"
@@ -70,7 +71,7 @@ func (st *State) Deletions() *Mutations {
 	mu.Timestamp = ts
 	mu.Deletions = st.snapshot.deletions
 	st.timestamp = ts
-	st.snapshot.deletions = make(map[storage.ID]storage.Version)
+	st.snapshot.deletions = make(map[storage.ID]raw.Version)
 	return &mu
 }
 

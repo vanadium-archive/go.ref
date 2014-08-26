@@ -14,7 +14,17 @@ const (
   // The raw Store has Object name "<mount>/.store.raw", where <mount> is the
   // Object name of the mount point.
   RawStoreSuffix = ".store.raw"
+
+  // NoVersion means the entry is not present in the store.
+  NoVersion = Version(0)
 )
+
+// Version identifies the value in the store for a key at some point in time.
+// The version is a numeric identifier that is globally unique within the space
+// of a single ID, meaning that if two stores contain an entry with the same ID
+// and version, then the entries represent the same thing, at the same point in
+// time (as agreed upon by the two stores).
+type Version uint64
 
 // Mutation represents an update to an entry in the store, and contains enough
 // information for a privileged service to replicate the update elsewhere.
@@ -24,11 +34,11 @@ type Mutation struct {
 
   // The version of the entry immediately before the update. For new entries,
   // the PriorVersion is NoVersion.
-  PriorVersion storage.Version
+  PriorVersion Version
 
   // The version of the entry immediately after the update. For deleted entries,
   // the Version is NoVersion.
-  Version storage.Version
+  Version Version
 
   // IsRoot is true if
   // 1) The entry was the store root immediately before being deleted, or

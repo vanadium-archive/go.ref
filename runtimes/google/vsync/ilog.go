@@ -42,6 +42,8 @@ import (
 	"strconv"
 	"strings"
 
+	"veyron/services/store/raw"
+
 	"veyron2/storage"
 	"veyron2/vlog"
 )
@@ -300,7 +302,7 @@ func (l *iLog) delGenMetadata(devid DeviceID, gnum GenID) error {
 }
 
 // createLocalLogRec creates a new local log record of type NodeRec.
-func (l *iLog) createLocalLogRec(obj storage.ID, vers storage.Version, par []storage.Version, val *LogValue) (*LogRec, error) {
+func (l *iLog) createLocalLogRec(obj storage.ID, vers raw.Version, par []raw.Version, val *LogValue) (*LogRec, error) {
 	rec := &LogRec{
 		DevID:   l.s.id,
 		GNum:    l.head.Curgen,
@@ -320,7 +322,7 @@ func (l *iLog) createLocalLogRec(obj storage.ID, vers storage.Version, par []sto
 }
 
 // createLocalLinkLogRec creates a new local log record of type LinkRec.
-func (l *iLog) createLocalLinkLogRec(obj storage.ID, vers, par storage.Version) (*LogRec, error) {
+func (l *iLog) createLocalLinkLogRec(obj storage.ID, vers, par raw.Version) (*LogRec, error) {
 	rec := &LogRec{
 		DevID:   l.s.id,
 		GNum:    l.head.Curgen,
@@ -329,7 +331,7 @@ func (l *iLog) createLocalLinkLogRec(obj storage.ID, vers, par storage.Version) 
 
 		ObjID:   obj,
 		CurVers: vers,
-		Parents: []storage.Version{par},
+		Parents: []raw.Version{par},
 	}
 
 	// Increment the LSN for the local log.
@@ -386,14 +388,14 @@ func (l *iLog) createLocalGeneration() (GenID, error) {
 }
 
 // processWatchRecord processes new object versions obtained from the local store.
-func (l *iLog) processWatchRecord(objID storage.ID, vers, parent storage.Version, val *LogValue, txID TxID) error {
+func (l *iLog) processWatchRecord(objID storage.ID, vers, parent raw.Version, val *LogValue, txID TxID) error {
 	if l.db == nil {
 		return errInvalidLog
 	}
 
 	vlog.VI(2).Infof("processWatchRecord:: adding object %v %v", objID, vers)
 
-	if vers != storage.NoVersion {
+	if vers != raw.NoVersion {
 		// Check if the object's vers already exists in the DAG.
 		if l.s.dag.hasNode(objID, vers) {
 			return nil
@@ -406,17 +408,17 @@ func (l *iLog) processWatchRecord(objID storage.ID, vers, parent storage.Version
 		}
 	}
 
-	var pars []storage.Version
-	if parent != storage.NoVersion {
-		pars = []storage.Version{parent}
+	var pars []raw.Version
+	if parent != raw.NoVersion {
+		pars = []raw.Version{parent}
 	}
 
 	// If the current version is a deletion, generate a new version number.
 	if val.Delete {
-		if vers != storage.NoVersion {
+		if vers != raw.NoVersion {
 			return fmt.Errorf("deleted vers is %v", vers)
 		}
-		vers = storage.NewVersion()
+		vers = raw.NewVersion()
 		val.Mutation.Version = vers
 	}
 

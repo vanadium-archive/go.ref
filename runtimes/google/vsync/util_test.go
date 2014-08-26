@@ -8,8 +8,6 @@ import (
 	"time"
 
 	"veyron/services/store/raw"
-
-	"veyron2/storage"
 )
 
 // getFileName generates a filename for a temporary (per unit test) kvdb file.
@@ -94,7 +92,7 @@ func logReplayCommands(log *iLog, syncfile string) (GenVector, error) {
 	for _, cmd := range cmds {
 		switch cmd.cmd {
 		case addLocal:
-			parent := storage.NoVersion
+			parent := raw.NoVersion
 			if cmd.parents != nil {
 				parent = cmd.parents[0]
 			}

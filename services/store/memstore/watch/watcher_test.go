@@ -50,7 +50,7 @@ func TestWatchRaw(t *testing.T) {
 	if change.Continued {
 		t.Error("Expected change to be the last in this transaction")
 	}
-	watchtesting.ExpectMutationExists(t, changes, id1, storage.NoVersion, post1, true, "val1", watchtesting.EmptyDir)
+	watchtesting.ExpectMutationExists(t, changes, id1, raw.NoVersion, post1, true, "val1", watchtesting.EmptyDir)
 
 	// Put /a
 	tr = memstore.NewTransaction()
@@ -77,7 +77,7 @@ func TestWatchRaw(t *testing.T) {
 		t.Error("Expected change to be the last in this transaction")
 	}
 	watchtesting.ExpectMutationExists(t, changes, id1, pre1, post1, true, "val1", watchtesting.DirOf("a", id2))
-	watchtesting.ExpectMutationExists(t, changes, id2, storage.NoVersion, post2, false, "val2", watchtesting.EmptyDir)
+	watchtesting.ExpectMutationExists(t, changes, id2, raw.NoVersion, post2, false, "val2", watchtesting.EmptyDir)
 }
 
 func TestWatchGlob(t *testing.T) {
@@ -289,7 +289,7 @@ func TestStateResumeMarker(t *testing.T) {
 	if change.Continued {
 		t.Error("Expected change to be the last in this transaction")
 	}
-	watchtesting.ExpectMutationExists(t, changes, id1, storage.NoVersion, post11, true, "val1", watchtesting.EmptyDir)
+	watchtesting.ExpectMutationExists(t, changes, id1, raw.NoVersion, post11, true, "val1", watchtesting.EmptyDir)
 
 	// Check that watch detects the changes in the state and the transaction.
 	if !rStream.Advance() {
@@ -307,7 +307,7 @@ func TestStateResumeMarker(t *testing.T) {
 		t.Error("Expected change to be the last in this transaction")
 	}
 	watchtesting.ExpectMutationExists(t, changes, id1, pre21, post21, true, "val1", watchtesting.DirOf("a", id2))
-	watchtesting.ExpectMutationExists(t, changes, id2, storage.NoVersion, post22, false, "val2", watchtesting.EmptyDir)
+	watchtesting.ExpectMutationExists(t, changes, id2, raw.NoVersion, post22, false, "val2", watchtesting.EmptyDir)
 }
 
 func TestTransactionResumeMarker(t *testing.T) {
@@ -372,7 +372,7 @@ func TestTransactionResumeMarker(t *testing.T) {
 	if change.Continued {
 		t.Error("Expected change to be the last in this transaction")
 	}
-	watchtesting.ExpectMutationExists(t, changes, id1, storage.NoVersion, post11, true, "val1", watchtesting.EmptyDir)
+	watchtesting.ExpectMutationExists(t, changes, id1, raw.NoVersion, post11, true, "val1", watchtesting.EmptyDir)
 
 	if !rStream.Advance() {
 		t.Error("Advance() failed: %v", rStream.Err())
@@ -390,7 +390,7 @@ func TestTransactionResumeMarker(t *testing.T) {
 	}
 	resumeMarker2 := change.ResumeMarker
 	watchtesting.ExpectMutationExists(t, changes, id1, pre21, post21, true, "val1", watchtesting.DirOf("a", id2))
-	watchtesting.ExpectMutationExists(t, changes, id2, storage.NoVersion, post22, false, "val2", watchtesting.EmptyDir)
+	watchtesting.ExpectMutationExists(t, changes, id2, raw.NoVersion, post22, false, "val2", watchtesting.EmptyDir)
 
 	// Cancel the watch request.
 	ws.Cancel()
@@ -417,7 +417,7 @@ func TestTransactionResumeMarker(t *testing.T) {
 		t.Error("Expected change to be the last in this transaction")
 	}
 	watchtesting.ExpectMutationExists(t, changes, id1, pre21, post21, true, "val1", watchtesting.DirOf("a", id2))
-	watchtesting.ExpectMutationExists(t, changes, id2, storage.NoVersion, post22, false, "val2", watchtesting.EmptyDir)
+	watchtesting.ExpectMutationExists(t, changes, id2, raw.NoVersion, post22, false, "val2", watchtesting.EmptyDir)
 }
 
 func TestNowResumeMarker(t *testing.T) {
@@ -486,7 +486,7 @@ func TestNowResumeMarker(t *testing.T) {
 		t.Error("Expected change to be the last in this transaction")
 	}
 	watchtesting.ExpectMutationExists(t, changes, id2, pre32, post32, false, "val2", watchtesting.DirOf("b", id3))
-	watchtesting.ExpectMutationExists(t, changes, id3, storage.NoVersion, post33, false, "val3", watchtesting.EmptyDir)
+	watchtesting.ExpectMutationExists(t, changes, id3, raw.NoVersion, post33, false, "val3", watchtesting.EmptyDir)
 }
 
 func TestUnknownResumeMarkers(t *testing.T) {

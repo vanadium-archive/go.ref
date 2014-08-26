@@ -110,6 +110,8 @@ import (
 	"math/rand"
 	"time"
 
+	"veyron/services/store/raw"
+
 	"veyron2/storage"
 	"veyron2/vlog"
 )
@@ -119,7 +121,7 @@ const (
 )
 
 type TxID uint64
-type dagTxMap map[storage.ID]storage.Version
+type dagTxMap map[storage.ID]raw.Version
 
 type dag struct {
 	fname string                    // file pathname
@@ -134,17 +136,17 @@ type dag struct {
 }
 
 type dagNode struct {
-	Level   uint64            // node distance from root
-	Parents []storage.Version // references to parent versions
-	Logrec  string            // reference to log record change
-	TxID    TxID              // ID of a transaction set
-	Deleted bool              // true if the change was a delete
+	Level   uint64        // node distance from root
+	Parents []raw.Version // references to parent versions
+	Logrec  string        // reference to log record change
+	TxID    TxID          // ID of a transaction set
+	Deleted bool          // true if the change was a delete
 }
 
 type graftInfo struct {
-	newNodes   map[storage.Version]struct{} // set of newly added nodes during a sync
-	graftNodes map[storage.Version]uint64   // set of graft nodes and their level
-	newHeads   map[storage.Version]struct{} // set of candidate new head nodes
+	newNodes   map[raw.Version]struct{} // set of newly added nodes during a sync
+	graftNodes map[raw.Version]uint64   // set of graft nodes and their level
+	newHeads   map[raw.Version]struct{} // set of candidate new head nodes
 }
 
 // openDAG opens or creates a DAG for the given filename.
@@ -240,9 +242,9 @@ func (d *dag) getObjectGraft(oid storage.ID, create bool) *graftInfo {
 	graft := d.graft[oid]
 	if graft == nil && create {
 		graft = &graftInfo{
-			newNodes:   make(map[storage.Version]struct{}),
-			graftNodes: make(map[storage.Version]uint64),
-			newHeads:   make(map[storage.Version]struct{}),
+			newNodes:   make(map[raw.Version]struct{}),
+			graftNodes: make(map[raw.Version]uint64),
+			newHeads:   make(map[raw.Version]struct{}),
 		}
 
 		// If a current head node exists for this object, initialize
@@ -316,8 +318,8 @@ func (d *dag) addNodeTxEnd(tid TxID) error {
 //
 // If the transaction ID is set to NoTxID, this node is not part of a transaction.
 // Otherwise, track its membership in the given transaction ID.
-func (d *dag) addNode(oid storage.ID, version storage.Version, remote, deleted bool,
-	parents []storage.Version, logrec string, tid TxID) error {
+func (d *dag) addNode(oid storage.ID, version raw.Version, remote, deleted bool,
+	parents []raw.Version, logrec string, tid TxID) error {
 	if d.store == nil {
 		return errors.New("invalid DAG")
 	}
@@ -420,7 +422,7 @@ func (d *dag) addNode(oid storage.ID, version storage.Version, remote, deleted b
 }
 
 // hasNode returns true if the node (oid, version) exists in the DAG DB.
-func (d *dag) hasNode(oid storage.ID, version storage.Version) bool {
+func (d *dag) hasNode(oid storage.ID, version raw.Version) bool {
 	if d.store == nil {
 		return false
 	}
@@ -435,7 +437,7 @@ func (d *dag) hasNode(oid storage.ID, version storage.Version) bool {
 //
 // TODO(rdaoud): recompute the levels of reachable child-nodes if the new
 // parent's level is greater or equal to the node's current level.
-func (d *dag) addParent(oid storage.ID, version, parent storage.Version, remote bool) error {
+func (d *dag) addParent(oid storage.ID, version, parent raw.Version, remote bool) error {
 	if version == parent {
 		return fmt.Errorf("addParent: object %v: node %d cannot be its own parent", oid, version)
 	}
@@ -465,7 +467,7 @@ func (d *dag) addParent(oid storage.ID, version, parent storage.Version, remote 
 		// Make sure that adding the link does not create a cycle in the DAG.
 		// This is done by verifying that the node is not an ancestor of the
 		// parent that it is being linked to.
-		err = d.ancestorIter(oid, pnode.Parents, func(oid storage.ID, v storage.Version, nd *dagNode) error {
+		err = d.ancestorIter(oid, pnode.Parents, func(oid storage.ID, v raw.Version, nd *dagNode) error {
 			if v == version {
 				return fmt.Errorf("addParent: cycle on object %v: node %d is an ancestor of parent node %d",
 					oid, version, parent)
@@ -512,7 +514,7 @@ func (d *dag) addParent(oid storage.ID, version, parent storage.Version, remote 
 }
 
 // moveHead moves the object head node in the DAG.
-func (d *dag) moveHead(oid storage.ID, head storage.Version) error {
+func (d *dag) moveHead(oid storage.ID, head raw.Version) error {
 	if d.store == nil {
 		return errors.New("invalid DAG")
 	}
@@ -533,10 +535,10 @@ func (d *dag) moveHead(oid storage.ID, head storage.Version) error {
 // added object versions are not derived in part from this device's current
 // knowledge.  If there is a single new-head, the object changes were applied
 // without triggering a conflict.
-func (d *dag) hasConflict(oid storage.ID) (isConflict bool, newHead, oldHead, ancestor storage.Version, err error) {
-	oldHead = storage.NoVersion
-	newHead = storage.NoVersion
-	ancestor = storage.NoVersion
+func (d *dag) hasConflict(oid storage.ID) (isConflict bool, newHead, oldHead, ancestor raw.Version, err error) {
+	oldHead = raw.NoVersion
+	newHead = raw.NoVersion
+	ancestor = raw.NoVersion
 	if d.store == nil {
 		err = errors.New("invalid DAG")
 		return
@@ -604,9 +606,9 @@ func (d *dag) hasConflict(oid storage.ID) (isConflict bool, newHead, oldHead, an
 // breadth-first traversal starting from given version node(s).  In its
 // traversal it invokes the callback function once for each node, passing
 // the object ID, version number and a pointer to the dagNode.
-func (d *dag) ancestorIter(oid storage.ID, startVersions []storage.Version,
-	cb func(storage.ID, storage.Version, *dagNode) error) error {
-	visited := make(map[storage.Version]bool)
+func (d *dag) ancestorIter(oid storage.ID, startVersions []raw.Version,
+	cb func(storage.ID, raw.Version, *dagNode) error) error {
+	visited := make(map[raw.Version]bool)
 	queue := list.New()
 	for _, version := range startVersions {
 		queue.PushBack(version)
@@ -614,7 +616,7 @@ func (d *dag) ancestorIter(oid storage.ID, startVersions []storage.Version,
 	}
 
 	for queue.Len() > 0 {
-		version := queue.Remove(queue.Front()).(storage.Version)
+		version := queue.Remove(queue.Front()).(raw.Version)
 		node, err := d.getNode(oid, version)
 		if err != nil {
 			// Ignore it, the parent was previously pruned.
@@ -638,7 +640,7 @@ func (d *dag) ancestorIter(oid storage.ID, startVersions []storage.Version,
 // DAG DB and one of its descendants is a deleted node (i.e. has its "Deleted"
 // flag set true).  This means that at some object mutation after this version,
 // the object was deleted.
-func (d *dag) hasDeletedDescendant(oid storage.ID, version storage.Version) bool {
+func (d *dag) hasDeletedDescendant(oid storage.ID, version raw.Version) bool {
 	if d.store == nil {
 		return false
 	}
@@ -660,7 +662,7 @@ func (d *dag) hasDeletedDescendant(oid storage.ID, version storage.Version) bool
 	}
 
 	type nodeStep struct {
-		node    storage.Version
+		node    raw.Version
 		deleted bool
 	}
 
@@ -706,7 +708,7 @@ func (d *dag) hasDeletedDescendant(oid storage.ID, version storage.Version) bool
 // Also track any transaction sets affected by deleting DAG objects that
 // have transaction IDs.  This is later used to do garbage collection
 // on transaction sets when pruneDone() is called.
-func (d *dag) prune(oid storage.ID, version storage.Version, delLogRec func(logrec string) error) error {
+func (d *dag) prune(oid storage.ID, version raw.Version, delLogRec func(logrec string) error) error {
 	if d.store == nil {
 		return errors.New("invalid DAG")
 	}
@@ -734,7 +736,7 @@ func (d *dag) prune(oid storage.ID, version storage.Version, delLogRec func(logr
 	// Keep track of objects deleted from transaction in order
 	// to cleanup transaction sets when pruneDone() is called.
 	numNodeErrs, numLogErrs := 0, 0
-	err = d.ancestorIter(oid, iterVersions, func(oid storage.ID, v storage.Version, node *dagNode) error {
+	err = d.ancestorIter(oid, iterVersions, func(oid storage.ID, v raw.Version, node *dagNode) error {
 		if tid := node.TxID; tid != NoTxID {
 			if d.txGC[tid] == nil {
 				d.txGC[tid] = make(dagTxMap)
@@ -794,7 +796,7 @@ func (d *dag) pruneDone() error {
 }
 
 // getLogrec returns the log record information for a given object version.
-func (d *dag) getLogrec(oid storage.ID, version storage.Version) (string, error) {
+func (d *dag) getLogrec(oid storage.ID, version raw.Version) (string, error) {
 	node, err := d.getNode(oid, version)
 	if err != nil {
 		return "", err
@@ -804,13 +806,13 @@ func (d *dag) getLogrec(oid storage.ID, version storage.Version) (string, error)
 
 // objNodeKey returns the key used to access the object node (oid, version)
 // in the DAG DB.
-func objNodeKey(oid storage.ID, version storage.Version) string {
+func objNodeKey(oid storage.ID, version raw.Version) string {
 	return fmt.Sprintf("%s:%d", oid.String(), version)
 }
 
 // setNode stores the dagNode structure for the object node (oid, version)
 // in the DAG DB.
-func (d *dag) setNode(oid storage.ID, version storage.Version, node *dagNode) error {
+func (d *dag) setNode(oid storage.ID, version raw.Version, node *dagNode) error {
 	if d.store == nil {
 		return errors.New("invalid DAG")
 	}
@@ -820,7 +822,7 @@ func (d *dag) setNode(oid storage.ID, version storage.Version, node *dagNode) er
 
 // getNode retrieves the dagNode structure for the object node (oid, version)
 // from the DAG DB.
-func (d *dag) getNode(oid storage.ID, version storage.Version) (*dagNode, error) {
+func (d *dag) getNode(oid storage.ID, version raw.Version) (*dagNode, error) {
 	if d.store == nil {
 		return nil, errors.New("invalid DAG")
 	}
@@ -833,7 +835,7 @@ func (d *dag) getNode(oid storage.ID, version storage.Version) (*dagNode, error)
 }
 
 // delNode deletes the object node (oid, version) from the DAG DB.
-func (d *dag) delNode(oid storage.ID, version storage.Version) error {
+func (d *dag) delNode(oid storage.ID, version raw.Version) error {
 	if d.store == nil {
 		return errors.New("invalid DAG")
 	}
@@ -847,7 +849,7 @@ func objHeadKey(oid storage.ID) string {
 }
 
 // setHead stores version as the object head in the DAG DB.
-func (d *dag) setHead(oid storage.ID, version storage.Version) error {
+func (d *dag) setHead(oid storage.ID, version raw.Version) error {
 	if d.store == nil {
 		return errors.New("invalid DAG")
 	}
@@ -856,15 +858,15 @@ func (d *dag) setHead(oid storage.ID, version storage.Version) error {
 }
 
 // getHead retrieves the object head from the DAG DB.
-func (d *dag) getHead(oid storage.ID) (storage.Version, error) {
-	var version storage.Version
+func (d *dag) getHead(oid storage.ID) (raw.Version, error) {
+	var version raw.Version
 	if d.store == nil {
 		return version, errors.New("invalid DAG")
 	}
 	key := objHeadKey(oid)
 	err := d.heads.get(key, &version)
 	if err != nil {
-		version = storage.NoVersion
+		version = raw.NoVersion
 	}
 	return version, err
 }
@@ -917,9 +919,9 @@ func (d *dag) delTransaction(tid TxID) error {
 // getParentMap is a testing and debug helper function that returns for
 // an object a map of all the object version in the DAG and their parents.
 // The map represents the graph of the object version history.
-func (d *dag) getParentMap(oid storage.ID) map[storage.Version][]storage.Version {
-	parentMap := make(map[storage.Version][]storage.Version)
-	var iterVersions []storage.Version
+func (d *dag) getParentMap(oid storage.ID) map[raw.Version][]raw.Version {
+	parentMap := make(map[raw.Version][]raw.Version)
+	var iterVersions []raw.Version
 
 	if head, err := d.getHead(oid); err == nil {
 		iterVersions = append(iterVersions, head)
@@ -931,7 +933,7 @@ func (d *dag) getParentMap(oid storage.ID) map[storage.Version][]storage.Version
 	}
 
 	// Breadth-first traversal starting from the object head.
-	d.ancestorIter(oid, iterVersions, func(oid storage.ID, v storage.Version, node *dagNode) error {
+	d.ancestorIter(oid, iterVersions, func(oid storage.ID, v raw.Version, node *dagNode) error {
 		parentMap[v] = node.Parents
 		return nil
 	})
@@ -945,7 +947,7 @@ func (d *dag) getParentMap(oid storage.ID) map[storage.Version][]storage.Version
 // reported by the other device during a sync operation.  The graftNodes map
 // identifies the set of old nodes where the new DAG fragments were attached
 // and their depth level in the DAG.
-func (d *dag) getGraftNodes(oid storage.ID) (map[storage.Version]struct{}, map[storage.Version]uint64) {
+func (d *dag) getGraftNodes(oid storage.ID) (map[raw.Version]struct{}, map[raw.Version]uint64) {
 	if d.store != nil {
 		if ginfo := d.graft[oid]; ginfo != nil {
 			return ginfo.newHeads, ginfo.graftNodes

@@ -392,7 +392,7 @@ func TestWatcherChanges(t *testing.T) {
 	oidC := storage.ID{0x70, 0xff, 0x65, 0xec, 0xf, 0x82, 0x5f, 0x44, 0xb6, 0x9f, 0x89, 0x5e, 0xea, 0x75, 0x9d, 0x71}
 
 	oids := []storage.ID{oidRoot, oidA, oidC}
-	heads := []storage.Version{0x4d65822107fcfd52, 0xa858149c6e2d1000, 0x380704bb7b4d7c03}
+	heads := []raw.Version{0x4d65822107fcfd52, 0xa858149c6e2d1000, 0x380704bb7b4d7c03}
 
 	for i, oid := range oids {
 		expHead := heads[i]
@@ -409,7 +409,7 @@ func TestWatcherChanges(t *testing.T) {
 	if err != nil {
 		t.Errorf("cannot find head node for object %d: %s", oidB, err)
 	}
-	if headB == storage.NoVersion || headB == storage.Version(0x55104dc76695721d) {
+	if headB == raw.NoVersion || headB == raw.Version(0x55104dc76695721d) {
 		t.Errorf("wrong head for object B %d: %d ", oidB, headB)
 	}
 
@@ -427,8 +427,8 @@ func TestWatcherChanges(t *testing.T) {
 	}
 	expTxMap := dagTxMap{
 		oidRoot: heads[0],
-		oidA:    storage.Version(0x57e9d1860d1d68d8),
-		oidB:    storage.Version(0x55104dc76695721d),
+		oidA:    raw.Version(0x57e9d1860d1d68d8),
+		oidB:    raw.Version(0x55104dc76695721d),
 	}
 	if !reflect.DeepEqual(txMap, expTxMap) {
 		t.Errorf("Data mismatch for txid %v txmap %v instead of %v",
@@ -448,7 +448,7 @@ func TestWatcherChanges(t *testing.T) {
 		t.Errorf("cannot find transaction for id %v: %s", node.TxID, err)
 	}
 	expTxMap = dagTxMap{
-		oidA: storage.Version(0x365a858149c6e2d1),
+		oidA: raw.Version(0x365a858149c6e2d1),
 		oidC: heads[2],
 	}
 	if !reflect.DeepEqual(txMap, expTxMap) {
@@ -485,7 +485,7 @@ func TestWatcherChanges(t *testing.T) {
 	if !node.Deleted {
 		t.Errorf("deleted node not found for object %d %v: %s", oidB, headB, err)
 	}
-	if !s.dag.hasDeletedDescendant(oidB, storage.Version(0x55104dc76695721d)) {
+	if !s.dag.hasDeletedDescendant(oidB, raw.Version(0x55104dc76695721d)) {
 		t.Errorf("link to deleted node not found for object %d %v: %s", oidB, headB, err)
 	}
 

@@ -18,6 +18,13 @@ import (
 	_gen_wiretype "veyron2/wiretype"
 )
 
+// Version identifies the value in the store for a key at some point in time.
+// The version is a numeric identifier that is globally unique within the space
+// of a single ID, meaning that if two stores contain an entry with the same ID
+// and version, then the entries represent the same thing, at the same point in
+// time (as agreed upon by the two stores).
+type Version uint64
+
 // Mutation represents an update to an entry in the store, and contains enough
 // information for a privileged service to replicate the update elsewhere.
 type Mutation struct {
@@ -25,10 +32,10 @@ type Mutation struct {
 	ID storage.ID
 	// The version of the entry immediately before the update. For new entries,
 	// the PriorVersion is NoVersion.
-	PriorVersion storage.Version
+	PriorVersion Version
 	// The version of the entry immediately after the update. For deleted entries,
 	// the Version is NoVersion.
-	Version storage.Version
+	Version Version
 	// IsRoot is true if
 	// 1) The entry was the store root immediately before being deleted, or
 	// 2) The entry is the store root immediately after the update.
@@ -50,6 +57,9 @@ type Request struct {
 // The raw Store has Object name "<mount>/.store.raw", where <mount> is the
 // Object name of the mount point.
 const RawStoreSuffix = ".store.raw"
+
+// NoVersion means the entry is not present in the store.
+const NoVersion = Version(0)
 
 // TODO(bprosnitz) Remove this line once signatures are updated to use typevals.
 // It corrects a bug where _gen_wiretype is unused in VDL pacakges where only bootstrap types are used on interfaces.
@@ -514,7 +524,7 @@ func (__gen_s *ServerStubStore) Signature(call _gen_ipc.ServerCall) (_gen_ipc.Se
 				_gen_wiretype.FieldType{Type: 0x47, Name: "Changes"},
 			},
 			"veyron2/services/watch/types.ChangeBatch", []string(nil)},
-		_gen_wiretype.ArrayType{Elem: 0x41, Len: 0x10, Name: "veyron2/storage.ID", Tags: []string(nil)}, _gen_wiretype.NamedPrimitiveType{Type: 0x35, Name: "veyron2/storage.Version", Tags: []string(nil)}, _gen_wiretype.StructType{
+		_gen_wiretype.ArrayType{Elem: 0x41, Len: 0x10, Name: "veyron2/storage.ID", Tags: []string(nil)}, _gen_wiretype.NamedPrimitiveType{Type: 0x35, Name: "veyron/services/store/raw.Version", Tags: []string(nil)}, _gen_wiretype.StructType{
 			[]_gen_wiretype.FieldType{
 				_gen_wiretype.FieldType{Type: 0x3, Name: "Name"},
 				_gen_wiretype.FieldType{Type: 0x49, Name: "ID"},

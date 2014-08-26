@@ -5,8 +5,7 @@ import (
 
 	"veyron/services/store/memstore"
 	watchtesting "veyron/services/store/memstore/testing"
-
-	"veyron2/storage"
+	"veyron/services/store/raw"
 )
 
 func TestRawProcessState(t *testing.T) {
@@ -47,8 +46,8 @@ func TestRawProcessState(t *testing.T) {
 	// 1) Contains / with value val1 and implicit directory entry /a
 	// 2) Contains /a with value val2
 	changes := expectState(t, log, processor, 2)
-	watchtesting.ExpectMutationExists(t, changes, id1, storage.NoVersion, post1, true, "val1", watchtesting.DirOf("a", id2))
-	watchtesting.ExpectMutationExists(t, changes, id2, storage.NoVersion, post2, false, "val2", watchtesting.EmptyDir)
+	watchtesting.ExpectMutationExists(t, changes, id1, raw.NoVersion, post1, true, "val1", watchtesting.DirOf("a", id2))
+	watchtesting.ExpectMutationExists(t, changes, id2, raw.NoVersion, post2, false, "val2", watchtesting.EmptyDir)
 }
 
 func TestRawProcessTransactionAddRemove(t *testing.T) {
@@ -77,9 +76,9 @@ func TestRawProcessTransactionAddRemove(t *testing.T) {
 	// 2) Adds /a with value val2 and implicit directory entry /a/b
 	// 3) Adds /a/b with value val3
 	changes := expectTransaction(t, log, processor, 3)
-	watchtesting.ExpectMutationExists(t, changes, id1, storage.NoVersion, post1, true, "val1", watchtesting.DirOf("a", id2))
-	watchtesting.ExpectMutationExists(t, changes, id2, storage.NoVersion, post2, false, "val2", watchtesting.DirOf("b", id3))
-	watchtesting.ExpectMutationExists(t, changes, id3, storage.NoVersion, post3, false, "val3", watchtesting.EmptyDir)
+	watchtesting.ExpectMutationExists(t, changes, id1, raw.NoVersion, post1, true, "val1", watchtesting.DirOf("a", id2))
+	watchtesting.ExpectMutationExists(t, changes, id2, raw.NoVersion, post2, false, "val2", watchtesting.DirOf("b", id3))
+	watchtesting.ExpectMutationExists(t, changes, id3, raw.NoVersion, post3, false, "val3", watchtesting.EmptyDir)
 
 	// Next transaction, remove /a/b
 	tr = memstore.NewTransaction()

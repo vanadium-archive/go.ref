@@ -84,7 +84,7 @@ func TestResolveConflictByTime(t *testing.T) {
 		newHead:    20,
 		ancestor:   10,
 	}
-	versions := []storage.Version{10, 40, 20}
+	versions := []raw.Version{10, 40, 20}
 	for _, v := range versions {
 		expRec := &LogRec{
 			DevID:   "VeyronTab",
@@ -170,7 +170,7 @@ func TestLogStreamRemoteOnly(t *testing.T) {
 			t.Errorf("Data mismatch in log record %v", curRec)
 		}
 		// Verify DAG state.
-		if _, err := s.dag.getNode(objid, storage.Version(i+1)); err != nil {
+		if _, err := s.dag.getNode(objid, raw.Version(i+1)); err != nil {
 			t.Errorf("GetNode() can not find object %d %d in DAG, err %v", objid, i, err)
 		}
 	}
@@ -184,7 +184,7 @@ func TestLogStreamRemoteOnly(t *testing.T) {
 	if st.isConflict {
 		t.Errorf("Detected a conflict %v", st)
 	}
-	if st.newHead != 3 || st.oldHead != storage.NoVersion {
+	if st.newHead != 3 || st.oldHead != raw.NoVersion {
 		t.Errorf("Conflict detection didn't succeed %v", st)
 	}
 	if err := s.hdlInitiator.resolveConflicts(); err != nil {
@@ -193,7 +193,7 @@ func TestLogStreamRemoteOnly(t *testing.T) {
 	if err := s.hdlInitiator.updateStoreAndSync(nil, GenVector{}, minGens, GenVector{}, "VeyronPhone"); err != nil {
 		t.Fatalf("updateStoreAndSync failed with err %v", err)
 	}
-	if st.resolvVal.Mutation.PriorVersion != storage.NoVersion || st.resolvVal.Mutation.Version != 3 {
+	if st.resolvVal.Mutation.PriorVersion != raw.NoVersion || st.resolvVal.Mutation.Version != 3 {
 		t.Errorf("Mutation generation is not accurate %v", st)
 	}
 	if s.log.head.Curgen != 1 || s.log.head.Curlsn != 0 || s.log.head.Curorder != 1 {
@@ -266,7 +266,7 @@ func TestLogStreamGCedRemote(t *testing.T) {
 			t.Errorf("Data mismatch in log record %v", curRec)
 		}
 		// Verify DAG state.
-		if _, err := s.dag.getNode(objid, storage.Version(i+1)); err != nil {
+		if _, err := s.dag.getNode(objid, raw.Version(i+1)); err != nil {
 			t.Errorf("GetNode() can not find object %d %d in DAG, err %v", objid, i, err)
 		}
 	}
@@ -281,7 +281,7 @@ func TestLogStreamGCedRemote(t *testing.T) {
 	if st.isConflict {
 		t.Errorf("Detected a conflict %v", st)
 	}
-	if st.newHead != 3 || st.oldHead != storage.NoVersion {
+	if st.newHead != 3 || st.oldHead != raw.NoVersion {
 		t.Errorf("Conflict detection didn't succeed %v", st)
 	}
 	if err := s.hdlInitiator.resolveConflicts(); err != nil {
@@ -290,7 +290,7 @@ func TestLogStreamGCedRemote(t *testing.T) {
 	if err := s.hdlInitiator.updateStoreAndSync(nil, GenVector{}, minGens, GenVector{}, "VeyronPhone"); err != nil {
 		t.Fatalf("updateStoreAndSync failed with err %v", err)
 	}
-	if st.resolvVal.Mutation.PriorVersion != storage.NoVersion || st.resolvVal.Mutation.Version != 3 {
+	if st.resolvVal.Mutation.PriorVersion != raw.NoVersion || st.resolvVal.Mutation.Version != 3 {
 		t.Errorf("Mutation generation is not accurate %v", st)
 	}
 	if s.log.head.Curgen != 1 || s.log.head.Curlsn != 0 || s.log.head.Curorder != 1 {
@@ -338,7 +338,7 @@ func TestLogStreamRemoteWithTx(t *testing.T) {
 	// Verify transaction state.
 	objs := []string{"123", "456", "789"}
 	objids := make([]storage.ID, 3)
-	maxVers := []storage.Version{3, 2, 4}
+	maxVers := []raw.Version{3, 2, 4}
 	txVers := map[string]struct{}{
 		"123-2": struct{}{},
 		"123-3": struct{}{},
@@ -352,7 +352,7 @@ func TestLogStreamRemoteWithTx(t *testing.T) {
 		if err != nil {
 			t.Errorf("Could not create objid %v", err)
 		}
-		for i := storage.Version(1); i <= storage.Version(maxVers[pos]); i++ {
+		for i := raw.Version(1); i <= raw.Version(maxVers[pos]); i++ {
 			node, err := s.dag.getNode(objids[pos], i)
 			if err != nil {
 				t.Errorf("cannot find dag node for object %d %v: %s", objids[pos], i, err)
@@ -369,7 +369,7 @@ func TestLogStreamRemoteWithTx(t *testing.T) {
 	}
 
 	// Verify transaction state for the first transaction.
-	node, err := s.dag.getNode(objids[0], storage.Version(2))
+	node, err := s.dag.getNode(objids[0], raw.Version(2))
 	if err != nil {
 		t.Errorf("cannot find dag node for object %d v1: %s", objids[0], err)
 	}
@@ -381,9 +381,9 @@ func TestLogStreamRemoteWithTx(t *testing.T) {
 		t.Errorf("cannot find transaction for id %v: %s", node.TxID, err)
 	}
 	expTxMap := dagTxMap{
-		objids[0]: storage.Version(2),
-		objids[1]: storage.Version(1),
-		objids[2]: storage.Version(1),
+		objids[0]: raw.Version(2),
+		objids[1]: raw.Version(1),
+		objids[2]: raw.Version(1),
 	}
 	if !reflect.DeepEqual(txMap, expTxMap) {
 		t.Errorf("Data mismatch for txid %v txmap %v instead of %v",
@@ -391,7 +391,7 @@ func TestLogStreamRemoteWithTx(t *testing.T) {
 	}
 
 	// Verify transaction state for the second transaction.
-	node, err = s.dag.getNode(objids[0], storage.Version(3))
+	node, err = s.dag.getNode(objids[0], raw.Version(3))
 	if err != nil {
 		t.Errorf("cannot find dag node for object %d v1: %s", objids[0], err)
 	}
@@ -403,8 +403,8 @@ func TestLogStreamRemoteWithTx(t *testing.T) {
 		t.Errorf("cannot find transaction for id %v: %s", node.TxID, err)
 	}
 	expTxMap = dagTxMap{
-		objids[0]: storage.Version(3),
-		objids[1]: storage.Version(2),
+		objids[0]: raw.Version(3),
+		objids[1]: raw.Version(2),
 	}
 	if !reflect.DeepEqual(txMap, expTxMap) {
 		t.Errorf("Data mismatch for txid %v txmap %v instead of %v",
@@ -484,7 +484,7 @@ func TestLogStreamRemoteWithDel(t *testing.T) {
 			t.Errorf("Data mismatch in log record %v", curRec)
 		}
 		// Verify DAG state.
-		if _, err := s.dag.getNode(objid, storage.Version(i+1)); err != nil {
+		if _, err := s.dag.getNode(objid, raw.Version(i+1)); err != nil {
 			t.Errorf("GetNode() can not find object %d %d in DAG, err %v", objid, i, err)
 		}
 	}
@@ -498,7 +498,7 @@ func TestLogStreamRemoteWithDel(t *testing.T) {
 	if st.isConflict {
 		t.Errorf("Detected a conflict %v", st)
 	}
-	if st.newHead != 3 || st.oldHead != storage.NoVersion {
+	if st.newHead != 3 || st.oldHead != raw.NoVersion {
 		t.Errorf("Conflict detection didn't succeed %v", st)
 	}
 	if err := s.hdlInitiator.resolveConflicts(); err != nil {
@@ -507,14 +507,14 @@ func TestLogStreamRemoteWithDel(t *testing.T) {
 	if err := s.hdlInitiator.updateStoreAndSync(nil, GenVector{}, minGens, GenVector{}, "VeyronPhone"); err != nil {
 		t.Fatalf("updateStoreAndSync failed with err %v", err)
 	}
-	if st.resolvVal.Mutation.PriorVersion != storage.NoVersion || st.resolvVal.Mutation.Version != 3 {
+	if st.resolvVal.Mutation.PriorVersion != raw.NoVersion || st.resolvVal.Mutation.Version != 3 {
 		t.Errorf("Mutation generation is not accurate %v", st)
 	}
 	m, err := s.hdlInitiator.storeMutation(objid, st.resolvVal)
 	if err != nil {
 		t.Errorf("Could not translate mutation %v", err)
 	}
-	if m.Version != storage.NoVersion || m.PriorVersion != storage.NoVersion {
+	if m.Version != raw.NoVersion || m.PriorVersion != raw.NoVersion {
 		t.Errorf("Data mismatch in mutation translation %v", m)
 	}
 	if s.log.head.Curgen != 1 || s.log.head.Curlsn != 0 || s.log.head.Curorder != 1 {
@@ -525,17 +525,17 @@ func TestLogStreamRemoteWithDel(t *testing.T) {
 	if head, err := s.dag.getHead(objid); err != nil || head != 3 {
 		t.Errorf("Invalid object %d head in DAG %s, err %v", objid, head, err)
 	}
-	node, err := s.dag.getNode(objid, storage.Version(3))
+	node, err := s.dag.getNode(objid, raw.Version(3))
 	if err != nil {
 		t.Errorf("cannot find dag node for object %d v3: %s", objid, err)
 	}
 	if !node.Deleted {
 		t.Errorf("deleted node not found for object %d v3", objid)
 	}
-	if !s.dag.hasDeletedDescendant(objid, storage.Version(2)) {
+	if !s.dag.hasDeletedDescendant(objid, raw.Version(2)) {
 		t.Errorf("link to deleted node not found for object %d from v2", objid)
 	}
-	if !s.dag.hasDeletedDescendant(objid, storage.Version(1)) {
+	if !s.dag.hasDeletedDescendant(objid, raw.Version(1)) {
 		t.Errorf("link to deleted node not found for object %d from v1", objid)
 	}
 }
@@ -603,7 +603,7 @@ func TestLogStreamDel2Objs(t *testing.T) {
 	}
 
 	objs := []string{"123", "456"}
-	newHeads := []storage.Version{6, 2}
+	newHeads := []raw.Version{6, 2}
 	conflicts := []bool{false, true}
 	for pos, o := range objs {
 		objid, err := strToObjID(o)
@@ -634,24 +634,24 @@ func TestLogStreamDel2Objs(t *testing.T) {
 			if st.oldHead != 3 {
 				t.Errorf("Conflict detection didn't succeed for obj123 %v", st)
 			}
-			if m.Version != storage.NoVersion || m.PriorVersion != 3 {
+			if m.Version != raw.NoVersion || m.PriorVersion != 3 {
 				t.Errorf("Data mismatch in mutation translation for obj123 %v", m)
 			}
 			// Test echo back from watch for these mutations.
-			if err := s.log.processWatchRecord(objid, 0, storage.Version(3), &LogValue{}, NoTxID); err != nil {
+			if err := s.log.processWatchRecord(objid, 0, raw.Version(3), &LogValue{}, NoTxID); err != nil {
 				t.Errorf("Echo processing from watch failed %v", err)
 			}
 		}
 
 		if pos == 1 {
-			if st.oldHead == storage.NoVersion {
+			if st.oldHead == raw.NoVersion {
 				t.Errorf("Conflict detection didn't succeed for obj456 %v", st)
 			}
-			if m.Version != 2 || m.PriorVersion != storage.NoVersion {
+			if m.Version != 2 || m.PriorVersion != raw.NoVersion {
 				t.Errorf("Data mismatch in mutation translation for obj456 %v", m)
 			}
 			// Test echo back from watch for these mutations.
-			if err := s.log.processWatchRecord(objid, storage.Version(2), 0, &LogValue{}, NoTxID); err != nil {
+			if err := s.log.processWatchRecord(objid, raw.Version(2), 0, &LogValue{}, NoTxID); err != nil {
 				t.Errorf("Echo processing from watch failed %v", err)
 			}
 		}
@@ -718,7 +718,7 @@ func TestLogStreamNoConflict(t *testing.T) {
 	}
 	// Check all log records.
 	for _, devid := range []DeviceID{"VeyronPhone", "VeyronTab"} {
-		v := storage.Version(1)
+		v := raw.Version(1)
 		for i := LSN(0); i < 3; i++ {
 			curRec, err := s.log.getLogRec(devid, GenID(1), i)
 			if err != nil || curRec == nil {
@@ -832,7 +832,7 @@ func TestLogStreamConflict(t *testing.T) {
 	lcount := []LSN{3, 4}
 	// Check all log records.
 	for index, devid := range []DeviceID{"VeyronPhone", "VeyronTab"} {
-		v := storage.Version(1)
+		v := raw.Version(1)
 		for i := LSN(0); i < lcount[index]; i++ {
 			curRec, err := s.log.getLogRec(devid, GenID(1), i)
 			if err != nil || curRec == nil {
@@ -954,7 +954,7 @@ func TestMultipleLogStream(t *testing.T) {
 	// Check all log records.
 	lcount := []LSN{2, 4, 1}
 	for index, devid := range []DeviceID{"VeyronPhone", "VeyronTab", "VeyronLaptop"} {
-		v := storage.Version(1)
+		v := raw.Version(1)
 		for i := LSN(0); i < lcount[index]; i++ {
 			curRec, err := s.log.getLogRec(devid, GenID(1), i)
 			if err != nil || curRec == nil {

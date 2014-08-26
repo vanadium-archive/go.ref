@@ -15,6 +15,8 @@ import (
 	"strconv"
 	"strings"
 
+	"veyron/services/store/raw"
+
 	"veyron2/storage"
 )
 
@@ -29,8 +31,8 @@ const (
 type syncCommand struct {
 	cmd       int
 	objID     storage.ID
-	version   storage.Version
-	parents   []storage.Version
+	version   raw.Version
+	parents   []raw.Version
 	logrec    string
 	devID     DeviceID
 	genVec    GenVector
@@ -54,12 +56,12 @@ func strToObjID(objStr string) (storage.ID, error) {
 	return objID, nil
 }
 
-func strToVersion(verStr string) (storage.Version, error) {
+func strToVersion(verStr string) (raw.Version, error) {
 	ver, err := strconv.ParseUint(verStr, 10, 64)
 	if err != nil {
 		return 0, err
 	}
-	return storage.Version(ver), nil
+	return raw.Version(ver), nil
 }
 
 func strToGenID(genIDStr string) (GenID, error) {
@@ -100,7 +102,7 @@ func parseSyncCommands(file string) ([]syncCommand, error) {
 			if err != nil {
 				return nil, fmt.Errorf("%s:%d: invalid version: %s", file, lineno, args[2])
 			}
-			var parents []storage.Version
+			var parents []raw.Version
 			for i := 3; i <= 4; i++ {
 				if args[i] != "" {
 					pver, err := strToVersion(args[i])
@@ -173,7 +175,7 @@ func parseSyncCommands(file string) ([]syncCommand, error) {
 				return nil, fmt.Errorf("%s:%d: invalid parent (to-node) version: %s", file, lineno, args[3])
 			}
 
-			cmd := syncCommand{version: version, parents: []storage.Version{parent}, logrec: args[5]}
+			cmd := syncCommand{version: version, parents: []raw.Version{parent}, logrec: args[5]}
 			if args[0] == "linkl" {
 				cmd.cmd = linkLocal
 			} else {

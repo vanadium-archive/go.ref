@@ -2,6 +2,7 @@ package state
 
 import (
 	"veyron/services/store/memstore/refs"
+	"veyron/services/store/raw"
 
 	"veyron2/storage"
 	"veyron2/verror"
@@ -39,7 +40,7 @@ type value struct {
 	ID      storage.ID
 	Value   interface{}
 	Dir     []*storage.DEntry
-	Version storage.Version
+	Version raw.Version
 }
 
 func (st *State) Write(enc *vom.Encoder) error {

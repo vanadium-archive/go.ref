@@ -48,7 +48,7 @@ type MutableSnapshot struct {
 
 	// deletions is the current set of deletions.  The version is at
 	// the point of deletion.
-	deletions map[storage.ID]storage.Version
+	deletions map[storage.ID]raw.Version
 }
 
 // Mutations represents a set of mutations to the state.  This is used to
@@ -66,7 +66,7 @@ type Mutations struct {
 	SetRootID bool
 
 	// Preconditions is the set of expected versions.
-	Preconditions map[storage.ID]storage.Version
+	Preconditions map[storage.ID]raw.Version
 
 	// Delta is the set of changes.
 	Delta map[storage.ID]*Mutation
@@ -76,13 +76,13 @@ type Mutations struct {
 	// precondition, where *if* the value exists, it should have the specified
 	// version.  The target snapshot is allowed to perform garbage collection
 	// too, so the deleted value is not required to exist.
-	Deletions map[storage.ID]storage.Version
+	Deletions map[storage.ID]raw.Version
 }
 
 // mutation is an update to a single value in the state.
 type Mutation struct {
 	// Postcondition is the version after the mutation.
-	Postcondition storage.Version
+	Postcondition raw.Version
 
 	// Value is the new value.
 	Value interface{}
@@ -116,9 +116,9 @@ func newMutations() *Mutations {
 
 // reset resets the Mutations state.
 func (m *Mutations) reset() {
-	m.Preconditions = make(map[storage.ID]storage.Version)
+	m.Preconditions = make(map[storage.ID]raw.Version)
 	m.Delta = make(map[storage.ID]*Mutation)
-	m.Deletions = make(map[storage.ID]storage.Version)
+	m.Deletions = make(map[storage.ID]raw.Version)
 }
 
 // addPrecondition adds a precondition if it does not already exisn.
@@ -146,7 +146,7 @@ func newMutableSnapshot(admin security.PublicID) *MutableSnapshot {
 		snapshot:  newSnapshot(admin),
 		gcRoots:   make(map[storage.ID]struct{}),
 		mutations: newMutations(),
-		deletions: make(map[storage.ID]storage.Version),
+		deletions: make(map[storage.ID]raw.Version),
 	}
 }
 
@@ -210,7 +210,7 @@ func (sn *MutableSnapshot) put(c *Cell) {
 	} else {
 		mu.Preconditions[c.ID] = c.Version
 		m = &Mutation{
-			Postcondition: storage.NewVersion(),
+			Postcondition: raw.NewVersion(),
 			Value:         c.Value,
 			Dir:           d,
 			refs:          c.refs,
@@ -234,7 +234,7 @@ func (sn *MutableSnapshot) add(id storage.ID, v interface{}) (*Cell, error) {
 			Value:    v,
 			Dir:      refs.EmptyDir,
 			inRefs:   refs.Empty,
-			Version:  storage.NoVersion,
+			Version:  raw.NoVersion,
 		}
 		c.setRefs()
 		if !sn.refsExist(c.refs) {
@@ -458,7 +458,7 @@ func (sn *MutableSnapshot) PutMutation(extmu raw.Mutation) error {
 		return errDuplicatePutMutation
 	}
 	// If the object has no version, it was deleted.
-	if extmu.Version == storage.NoVersion {
+	if extmu.Version == raw.NoVersion {
 		mus.Deletions[id] = extmu.PriorVersion
 		if extmu.IsRoot {
 			mus.SetRootID = true

@@ -352,7 +352,7 @@ func DirOf(name string, id storage.ID) []storage.DEntry {
 	}}
 }
 
-func ExpectMutationExists(t *testing.T, changes []types.Change, id storage.ID, pre, post storage.Version, isRoot bool, value string, dir []storage.DEntry) {
+func ExpectMutationExists(t *testing.T, changes []types.Change, id storage.ID, pre, post raw.Version, isRoot bool, value string, dir []storage.DEntry) {
 	change := findMutation(t, changes, id)
 	if change.State != types.Exists {
 		t.Fatalf("Expected id to exist: %v", id)
@@ -373,7 +373,7 @@ func ExpectMutationExists(t *testing.T, changes []types.Change, id storage.ID, p
 	expectDirEquals(t, cv.Dir, dir)
 }
 
-func ExpectMutationDoesNotExist(t *testing.T, changes []types.Change, id storage.ID, pre storage.Version, isRoot bool) {
+func ExpectMutationDoesNotExist(t *testing.T, changes []types.Change, id storage.ID, pre raw.Version, isRoot bool) {
 	change := findMutation(t, changes, id)
 	if change.State != types.DoesNotExist {
 		t.Fatalf("Expected id to not exist: %v", id)
@@ -382,7 +382,7 @@ func ExpectMutationDoesNotExist(t *testing.T, changes []types.Change, id storage
 	if cv.PriorVersion != pre {
 		t.Fatalf("Expected PriorVersion to be %v, but was: %v", pre, cv.PriorVersion)
 	}
-	if cv.Version != storage.NoVersion {
+	if cv.Version != raw.NoVersion {
 		t.Fatalf("Expected Version to be NoVersion, but was: %v", cv.Version)
 	}
 	if cv.IsRoot != isRoot {

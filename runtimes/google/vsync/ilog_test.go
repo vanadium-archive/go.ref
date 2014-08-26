@@ -6,6 +6,8 @@ import (
 	"reflect"
 	"testing"
 
+	"veyron/services/store/raw"
+
 	"veyron2/storage"
 )
 
@@ -133,7 +135,7 @@ func TestInvalidLog(t *testing.T) {
 		t.Errorf("CreateLocalGeneration did not fail on a closed log: %v", err)
 	}
 
-	err = log.processWatchRecord(storage.NewID(), 2, storage.Version(999), &LogValue{}, NoTxID)
+	err = log.processWatchRecord(storage.NewID(), 2, raw.Version(999), &LogValue{}, NoTxID)
 	if err == nil || err != errInvalidLog {
 		t.Errorf("ProcessWatchRecord did not fail on a closed log: %v", err)
 	}
@@ -304,7 +306,7 @@ func TestPutGetLogRec(t *testing.T) {
 		LSN:     lsn,
 		ObjID:   objID,
 		CurVers: 2,
-		Parents: []storage.Version{0, 1},
+		Parents: []raw.Version{0, 1},
 		Value:   LogValue{},
 	}
 
@@ -366,7 +368,7 @@ func TestDelLogRec(t *testing.T) {
 		LSN:     lsn,
 		ObjID:   objID,
 		CurVers: 2,
-		Parents: []storage.Version{0, 1},
+		Parents: []raw.Version{0, 1},
 		Value:   LogValue{},
 	}
 
@@ -596,11 +598,11 @@ func TestPersistLogState(t *testing.T) {
 // fillFakeLogRecords fills fake log records for testing purposes.
 func (l *iLog) fillFakeLogRecords() {
 	const num = 10
-	var parvers []storage.Version
+	var parvers []raw.Version
 	id := storage.NewID()
 	for i := int(0); i < num; i++ {
 		// Create a local log record.
-		curvers := storage.Version(i)
+		curvers := raw.Version(i)
 		rec, err := l.createLocalLogRec(id, curvers, parvers, &LogValue{})
 		if err != nil {
 			return
@@ -610,7 +612,7 @@ func (l *iLog) fillFakeLogRecords() {
 		if err != nil {
 			return
 		}
-		parvers = []storage.Version{curvers}
+		parvers = []raw.Version{curvers}
 	}
 }
 
@@ -632,11 +634,11 @@ func TestCreateGeneration(t *testing.T) {
 	}
 
 	const num = 10
-	var parvers []storage.Version
+	var parvers []raw.Version
 	id := storage.NewID()
 	for i := int(0); i < num; i++ {
 		// Create a local log record.
-		curvers := storage.Version(i)
+		curvers := raw.Version(i)
 		rec, err := log.createLocalLogRec(id, curvers, parvers, &LogValue{})
 		if err != nil {
 			t.Fatalf("Cannot create local log rec ObjID: %v Current: %s Parents: %v Error: %v",
@@ -663,7 +665,7 @@ func TestCreateGeneration(t *testing.T) {
 			t.Errorf("Cannot put log record:: failed with err %v", err)
 		}
 
-		parvers = []storage.Version{curvers}
+		parvers = []raw.Version{curvers}
 	}
 
 	if err = log.close(); err != nil {
@@ -895,7 +897,7 @@ func TestILogCompact(t *testing.T) {
 			t.Fatalf("GetLogRec() can not find object %s:1:%d in log file %s, err %v",
 				log.s.id, i, logfile, err)
 		}
-		if curRec.CurVers != storage.Version(i) {
+		if curRec.CurVers != raw.Version(i) {
 			t.Errorf("Data mismatch for logrec %s:1:%d in log file %s: %v",
 				log.s.id, i, logfile, curRec)
 		}

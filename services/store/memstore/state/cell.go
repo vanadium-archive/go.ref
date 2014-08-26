@@ -4,6 +4,7 @@ import (
 	"bytes"
 
 	"veyron/services/store/memstore/refs"
+	"veyron/services/store/raw"
 
 	// TODO(cnicolaou): mv lib/functional into veyron somewhere.
 	"veyron/runtimes/google/lib/functional"
@@ -39,7 +40,7 @@ type Cell struct {
 	buffered bool
 
 	// version is the version number.
-	Version storage.Version
+	Version raw.Version
 
 	// TODO(jyh): Add stat info and attributes.
 }
