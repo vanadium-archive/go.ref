@@ -355,7 +355,7 @@ func (__gen_s *ServerStubSync) Signature(call _gen_ipc.ServerCall) (_gen_ipc.Ser
 				_gen_wiretype.FieldType{Type: 0x3, Name: "Name"},
 				_gen_wiretype.FieldType{Type: 0x47, Name: "ID"},
 			},
-			"veyron2/storage.DEntry", []string(nil)},
+			"veyron/services/store/raw.DEntry", []string(nil)},
 		_gen_wiretype.SliceType{Elem: 0x4b, Name: "", Tags: []string(nil)}, _gen_wiretype.StructType{
 			[]_gen_wiretype.FieldType{
 				_gen_wiretype.FieldType{Type: 0x47, Name: "ID"},
