@@ -97,23 +97,21 @@ func runAsWatcher(storeAddress string, user string) {
 
 	rStream := stream.RecvStream()
 	for rStream.Advance() {
-		batch := rStream.Value()
+		change := rStream.Value()
 
-		for _, change := range batch.Changes {
-			entry, ok := change.Value.(*storage.Entry)
-			if !ok {
-				log.Printf("watcher change Value not a storage Entry: %#v", change.Value)
-				continue
-			}
-
-			fortune, ok := entry.Value.(schema.FortuneData)
-			if !ok {
-				log.Printf("watcher data not a FortuneData Entry: %#v", entry.Value)
-				continue
-			}
-
-			fmt.Printf("watcher: new fortune: %s\n", fortune.Fortune)
+		entry, ok := change.Value.(*storage.Entry)
+		if !ok {
+			log.Printf("watcher change Value not a storage Entry: %#v", change.Value)
+			continue
 		}
+
+		fortune, ok := entry.Value.(schema.FortuneData)
+		if !ok {
+			log.Printf("watcher data not a FortuneData Entry: %#v", entry.Value)
+			continue
+		}
+
+		fmt.Printf("watcher: new fortune: %s\n", fortune.Fortune)
 	}
 	err = rStream.Err()
 	if err == nil {

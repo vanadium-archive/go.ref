@@ -207,12 +207,10 @@ func (gs *goState) monitorStore() {
 		}
 		rStream := stream.RecvStream()
 		for rStream.Advance() {
-			cb := rStream.Value()
-			for _, change := range cb.Changes {
-				if entry, ok := change.Value.(*storage.Entry); ok {
-					if box, ok := entry.Value.(boxes.Box); ok && box.DeviceId != gs.myIPAddr {
-						nativeJava.addBox(&box)
-					}
+			change := rStream.Value()
+			if entry, ok := change.Value.(*storage.Entry); ok {
+				if box, ok := entry.Value.(boxes.Box); ok && box.DeviceId != gs.myIPAddr {
+					nativeJava.addBox(&box)
 				}
 			}
 		}

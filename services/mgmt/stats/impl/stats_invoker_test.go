@@ -118,11 +118,7 @@ func TestStatsInvoker(t *testing.T) {
 			t.Fatalf("expected more stream values")
 		}
 		got := iterator.Value()
-		expected := types.ChangeBatch{
-			Changes: []types.Change{
-				types.Change{Name: "testing/foo/bar", Value: int64(10)},
-			},
-		}
+		expected := types.Change{Name: "testing/foo/bar", Value: int64(10)}
 		if !reflect.DeepEqual(got, expected) {
 			t.Errorf("unexpected result. Got %#v, want %#v", got, expected)
 		}
@@ -133,11 +129,7 @@ func TestStatsInvoker(t *testing.T) {
 			t.Fatalf("expected more stream values")
 		}
 		got = iterator.Value()
-		expected = types.ChangeBatch{
-			Changes: []types.Change{
-				types.Change{Name: "testing/foo/bar", Value: int64(15)},
-			},
-		}
+		expected = types.Change{Name: "testing/foo/bar", Value: int64(15)}
 		if !reflect.DeepEqual(got, expected) {
 			t.Errorf("unexpected result. Got %#v, want %#v", got, expected)
 		}
@@ -148,11 +140,7 @@ func TestStatsInvoker(t *testing.T) {
 			t.Fatalf("expected more stream values")
 		}
 		got = iterator.Value()
-		expected = types.ChangeBatch{
-			Changes: []types.Change{
-				types.Change{Name: "testing/foo/bar", Value: int64(17)},
-			},
-		}
+		expected = types.Change{Name: "testing/foo/bar", Value: int64(17)}
 		if !reflect.DeepEqual(got, expected) {
 			t.Errorf("unexpected result. Got %#v, want %#v", got, expected)
 		}
