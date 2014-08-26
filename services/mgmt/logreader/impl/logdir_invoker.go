@@ -3,6 +3,7 @@ package impl
 import (
 	"os"
 	"path"
+	"path/filepath"
 
 	"veyron/lib/glob"
 
@@ -22,7 +23,7 @@ type logDirectoryInvoker struct {
 
 // NewLogDirectoryInvoker is the invoker factory.
 func NewLogDirectoryInvoker(root, suffix string) ipc.Invoker {
-	return ipc.ReflectInvoker(&logDirectoryInvoker{path.Clean(root), suffix})
+	return ipc.ReflectInvoker(&logDirectoryInvoker{filepath.Clean(root), suffix})
 }
 
 // Glob streams the name of all the objects that match pattern.
@@ -32,8 +33,18 @@ func (i *logDirectoryInvoker) Glob(call ipc.ServerCall, pattern string) error {
 	if err != nil {
 		return err
 	}
-	i.root = path.Join(i.root, i.suffix)
-	return i.globStep("", g, true, call)
+	i.root, err = translateNameToFilename(i.root, i.suffix)
+	if err != nil {
+		return err
+	}
+	fi, err := os.Stat(i.root)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return errNotFound
+		}
+		return errOperationFailed
+	}
+	return i.globStep("", g, fi.IsDir(), call)
 }
 
 // globStep applies a glob recursively.
