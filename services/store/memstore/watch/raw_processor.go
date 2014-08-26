@@ -182,10 +182,10 @@ func (p *rawProcessor) processTransaction(mus *state.Mutations) ([]types.Change,
 	return changes, nil
 }
 
-// TODO(tilaks): revisit when raw.Mutation.Dir is of type []*storage.DEntry
+// TODO(tilaks): revisit when raw.Mutation.Dir is of type []*raw.DEntry
 // (once we support optional structs in the idl).
-func flattenDir(pdir []*storage.DEntry) []storage.DEntry {
-	fdir := make([]storage.DEntry, len(pdir))
+func flattenDir(pdir []*raw.DEntry) []raw.DEntry {
+	fdir := make([]raw.DEntry, len(pdir))
 	for i, p := range pdir {
 		fdir[i] = *p
 	}

@@ -166,8 +166,8 @@ func getChangeBatch() types.ChangeBatch {
 				PriorVersion: 0x0,
 				Version:      0x4d65822107fcfd52,
 				Value:        "value-root",
-				Dir: []storage.DEntry{
-					storage.DEntry{
+				Dir: []raw.DEntry{
+					raw.DEntry{
 						Name: "a",
 						ID: storage.ID{0x8, 0x2b, 0xc4, 0x2e, 0x15, 0xaf, 0x4f, 0xcf,
 							0x61, 0x1d, 0x7f, 0x19, 0xa8, 0xd7, 0x83, 0x1f},
@@ -186,8 +186,8 @@ func getChangeBatch() types.ChangeBatch {
 				PriorVersion: 0x0,
 				Version:      0x57e9d1860d1d68d8,
 				Value:        "value-a",
-				Dir: []storage.DEntry{
-					storage.DEntry{
+				Dir: []raw.DEntry{
+					raw.DEntry{
 						Name: "b",
 						ID: storage.ID{0x6e, 0x4a, 0x32, 0x7c, 0x29, 0x7d, 0x76, 0xfb,
 							0x51, 0x42, 0xb1, 0xb1, 0xd9, 0x5b, 0x2d, 0x7},
@@ -222,13 +222,13 @@ func getChangeBatch() types.ChangeBatch {
 				PriorVersion: 0x57e9d1860d1d68d8,
 				Version:      0x365a858149c6e2d1,
 				Value:        "value-a",
-				Dir: []storage.DEntry{
-					storage.DEntry{
+				Dir: []raw.DEntry{
+					raw.DEntry{
 						Name: "b",
 						ID: storage.ID{0x6e, 0x4a, 0x32, 0x7c, 0x29, 0x7d, 0x76, 0xfb,
 							0x51, 0x42, 0xb1, 0xb1, 0xd9, 0x5b, 0x2d, 0x7},
 					},
-					storage.DEntry{
+					raw.DEntry{
 						Name: "c",
 						ID: storage.ID{0x70, 0xff, 0x65, 0xec, 0xf, 0x82, 0x5f, 0x44,
 							0xb6, 0x9f, 0x89, 0x5e, 0xea, 0x75, 0x9d, 0x71},
@@ -263,8 +263,8 @@ func getChangeBatch() types.ChangeBatch {
 				PriorVersion: 0x365a858149c6e2d1,
 				Version:      0xa858149c6e2d1000,
 				Value:        "value-a",
-				Dir: []storage.DEntry{
-					storage.DEntry{
+				Dir: []raw.DEntry{
+					raw.DEntry{
 						Name: "c",
 						ID: storage.ID{0x70, 0xff, 0x65, 0xec, 0xf, 0x82, 0x5f, 0x44,
 							0xb6, 0x9f, 0x89, 0x5e, 0xea, 0x75, 0x9d, 0x71},

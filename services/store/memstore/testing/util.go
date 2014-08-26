@@ -342,17 +342,17 @@ func findEntry(t *testing.T, changes []types.Change, name string) types.Change {
 }
 
 var (
-	EmptyDir = []storage.DEntry{}
+	EmptyDir = []raw.DEntry{}
 )
 
-func DirOf(name string, id storage.ID) []storage.DEntry {
-	return []storage.DEntry{storage.DEntry{
+func DirOf(name string, id storage.ID) []raw.DEntry {
+	return []raw.DEntry{raw.DEntry{
 		Name: name,
 		ID:   id,
 	}}
 }
 
-func ExpectMutationExists(t *testing.T, changes []types.Change, id storage.ID, pre, post raw.Version, isRoot bool, value string, dir []storage.DEntry) {
+func ExpectMutationExists(t *testing.T, changes []types.Change, id storage.ID, pre, post raw.Version, isRoot bool, value string, dir []raw.DEntry) {
 	change := findMutation(t, changes, id)
 	if change.State != types.Exists {
 		t.Fatalf("Expected id to exist: %v", id)
@@ -428,7 +428,7 @@ func findMutation(t *testing.T, changes []types.Change, id storage.ID) types.Cha
 	panic("Should not reach here")
 }
 
-func expectDirEquals(t *testing.T, actual, expected []storage.DEntry) {
+func expectDirEquals(t *testing.T, actual, expected []raw.DEntry) {
 	if len(actual) != len(expected) {
 		t.Fatalf("Expected Dir to have %v refs, but had %v", len(expected), len(actual))
 	}

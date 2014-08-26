@@ -4,6 +4,7 @@ package refs
 import (
 	"veyron/runtimes/google/lib/functional"
 	"veyron/runtimes/google/lib/functional/rb"
+	"veyron/services/store/raw"
 
 	"veyron2/storage"
 )
@@ -40,12 +41,12 @@ func compareRefsByPath(a, b interface{}) bool {
 }
 
 // FlattenDir flattens the directory map into an association list.
-func FlattenDir(d Dir) []*storage.DEntry {
-	l := make([]*storage.DEntry, d.Len())
+func FlattenDir(d Dir) []*raw.DEntry {
+	l := make([]*raw.DEntry, d.Len())
 	i := 0
 	d.Iter(func(v interface{}) bool {
 		r := v.(*Ref)
-		l[i] = &storage.DEntry{ID: r.ID, Name: r.Path.hd}
+		l[i] = &raw.DEntry{ID: r.ID, Name: r.Path.hd}
 		i++
 		return true
 	})
@@ -53,7 +54,7 @@ func FlattenDir(d Dir) []*storage.DEntry {
 }
 
 // BuildDir builds a Dir from the association list.
-func BuildDir(l []*storage.DEntry) Dir {
+func BuildDir(l []*raw.DEntry) Dir {
 	d := EmptyDir
 	for _, de := range l {
 		d = d.Put(&Ref{ID: de.ID, Path: NewSingletonPath(de.Name)})

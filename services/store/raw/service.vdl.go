@@ -25,6 +25,12 @@ import (
 // time (as agreed upon by the two stores).
 type Version uint64
 
+// DEntry is a directory entry.
+type DEntry struct {
+	Name string
+	ID   storage.ID
+}
+
 // Mutation represents an update to an entry in the store, and contains enough
 // information for a privileged service to replicate the update elsewhere.
 type Mutation struct {
@@ -44,7 +50,7 @@ type Mutation struct {
 	Value _gen_vdlutil.Any
 	// Dir is the implicit directory of this entry, and may contain references
 	// to other entries in the store.
-	Dir []storage.DEntry
+	Dir []DEntry
 }
 
 // Request specifies how to resume from a previous Watch call.
@@ -529,7 +535,7 @@ func (__gen_s *ServerStubStore) Signature(call _gen_ipc.ServerCall) (_gen_ipc.Se
 				_gen_wiretype.FieldType{Type: 0x3, Name: "Name"},
 				_gen_wiretype.FieldType{Type: 0x49, Name: "ID"},
 			},
-			"veyron2/storage.DEntry", []string(nil)},
+			"veyron/services/store/raw.DEntry", []string(nil)},
 		_gen_wiretype.SliceType{Elem: 0x4b, Name: "", Tags: []string(nil)}, _gen_wiretype.StructType{
 			[]_gen_wiretype.FieldType{
 				_gen_wiretype.FieldType{Type: 0x49, Name: "ID"},

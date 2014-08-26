@@ -5,6 +5,7 @@ import (
 	"strconv"
 
 	"veyron/runtimes/google/lib/functional"
+	"veyron/services/store/raw"
 
 	"veyron2/storage"
 )
@@ -42,7 +43,7 @@ func (b *Builder) AddDir(d functional.Set) {
 }
 
 // AddDEntries adds the references contained in the DEntry list.
-func (b *Builder) AddDEntries(d []*storage.DEntry) {
+func (b *Builder) AddDEntries(d []*raw.DEntry) {
 	for _, de := range d {
 		b.refs = b.refs.Put(&Ref{ID: de.ID, Path: NewSingletonPath(de.Name)})
 	}

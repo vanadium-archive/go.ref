@@ -39,7 +39,7 @@ type header struct {
 type value struct {
 	ID      storage.ID
 	Value   interface{}
-	Dir     []*storage.DEntry
+	Dir     []*raw.DEntry
 	Version raw.Version
 }
 

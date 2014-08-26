@@ -18,7 +18,6 @@ import (
 	"veyron2/ipc"
 	"veyron2/naming"
 	"veyron2/security"
-	"veyron2/storage"
 	"veyron2/vlog"
 	"veyron2/vom"
 
@@ -137,7 +136,7 @@ func newSyncdCore(peerEndpoints, peerDeviceIDs, devid, storePath, storeEndpoint 
 	// Register these Watch data types with VOM.
 	// TODO(tilaks): why aren't they auto-retrieved from the IDL?
 	vom.Register(&raw.Mutation{})
-	vom.Register(&storage.DEntry{})
+	vom.Register(&raw.DEntry{})
 
 	// Channel to propagate close event to all threads.
 	s.closed = make(chan struct{})

@@ -26,6 +26,12 @@ const (
 // time (as agreed upon by the two stores).
 type Version uint64
 
+// DEntry is a directory entry.
+type DEntry struct {
+  Name string
+  ID   storage.ID
+}
+
 // Mutation represents an update to an entry in the store, and contains enough
 // information for a privileged service to replicate the update elsewhere.
 type Mutation struct {
@@ -50,7 +56,7 @@ type Mutation struct {
 
   // Dir is the implicit directory of this entry, and may contain references
   // to other entries in the store.
-  Dir []storage.DEntry
+  Dir []DEntry
 }
 
 // Request specifies how to resume from a previous Watch call.

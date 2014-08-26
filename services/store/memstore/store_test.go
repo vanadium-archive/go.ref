@@ -368,11 +368,11 @@ func TestCancelPutMutation(t *testing.T) {
 }
 
 var (
-	empty = []storage.DEntry{}
+	empty = []raw.DEntry{}
 )
 
-func dir(name string, id storage.ID) []storage.DEntry {
-	return []storage.DEntry{storage.DEntry{
+func dir(name string, id storage.ID) []raw.DEntry {
+	return []raw.DEntry{raw.DEntry{
 		Name: name,
 		ID:   id,
 	}}

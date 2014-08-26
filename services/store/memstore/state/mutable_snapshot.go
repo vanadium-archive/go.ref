@@ -90,7 +90,7 @@ type Mutation struct {
 	// Dir is the set of new directory entries.
 	//
 	// TODO(jyh): Replace this with a delta, to support large directories.
-	Dir []*storage.DEntry
+	Dir []*raw.DEntry
 
 	// Refs are the set of references in the Value and Dir.
 	refs refs.Set
@@ -481,10 +481,10 @@ func (sn *MutableSnapshot) PutMutation(extmu raw.Mutation) error {
 	return nil
 }
 
-// TODO(tilaks): revisit when vsync.Mutation.Dir is of type []*storage.DEntry
+// TODO(tilaks): revisit when vsync.Mutation.Dir is of type []*raw.DEntry
 // (once we support optional structs in the idl).
-func unflattenDir(fdir []storage.DEntry) []*storage.DEntry {
-	pdir := make([]*storage.DEntry, len(fdir))
+func unflattenDir(fdir []raw.DEntry) []*raw.DEntry {
+	pdir := make([]*raw.DEntry, len(fdir))
 	for i, _ := range fdir {
 		pdir[i] = &fdir[i]
 	}
