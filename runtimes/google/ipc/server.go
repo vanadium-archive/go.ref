@@ -386,7 +386,7 @@ func defaultACL(id security.PublicID) security.ACL {
 	for _, n := range id.Names() {
 		in[security.BlessingPattern(n+security.ChainSeparator+string(security.AllPrincipals))] = security.AllLabels
 	}
-	return vsecurity.NewWhitelistACL(in)
+	return security.ACL{In: in}
 }
 
 func (fs *flowServer) serve() error {

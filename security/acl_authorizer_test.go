@@ -187,35 +187,35 @@ func TestACLAuthorizer(t *testing.T) {
 
 	// ACL for testing
 	acl := security.ACL{}
-	acl.In.Principals = map[security.BlessingPattern]security.LabelSet{
-		"*": LS(R),
-		"fake/veyron/alice/*": LS(W, R),
-		"fake/veyron/alice":   LS(A, D, M),
-		"fake/veyron/bob":     LS(D, M),
-		"fake/veyron/che/*":   LS(W, R),
-		"fake/veyron/che":     LS(W, R),
+	acl.In = map[security.BlessingPattern]security.LabelSet{
+		"...": LS(R),
+		"fake/veyron/alice/...": LS(W, R),
+		"fake/veyron/alice":     LS(A, D, M),
+		"fake/veyron/bob":       LS(D, M),
+		"fake/veyron/che/...":   LS(W, R),
+		"fake/veyron/che":       LS(W, R),
 	}
-	acl.NotIn.Principals = map[security.BlessingPattern]security.LabelSet{
+	acl.NotIn = map[string]security.LabelSet{
 		"fake/veyron/che/friend": LS(W),
 	}
 
 	// Authorizations for the above ACL.
 	authorizations := authMap{
-		// alice and bob have only what "*" has.
+		// alice and bob have only what "..." has.
 		alice: LS(R),
 		bob:   LS(R),
 		che:   LS(R),
 		// veyron and veyronAlice have R, W, A, D, M from the "veyron/alice" and
-		// "veyron/alice/*" ACL entries.
+		// "veyron/alice/..." ACL entries.
 		veyron:      LS(R, W, A, D, M),
 		veyronAlice: LS(R, W, A, D, M),
-		// veyronBob has R, D, M from "*" and "veyron/bob" ACL entries.
+		// veyronBob has R, D, M from "..." and "veyron/bob" ACL entries.
 		veyronBob: LS(R, D, M),
-		// veyronAliceFriend has W, R from the "veyron/alice/*" ACL entry.
+		// veyronAliceFriend has W, R from the "veyron/alice/..." ACL entry.
 		veyronAliceFriend: LS(W, R),
 		// veyronChe has W, R from the "veyron/che" entry.
 		veyronChe: LS(W, R),
-		// veyronCheFriend has W, R from the "veyron/che/*" entry, but loses W
+		// veyronCheFriend has W, R from the "veyron/che/..." entry, but loses W
 		// from the blacklist entry "veyron/che/friend".
 		veyronCheFriend: LS(R),
 		// nil PublicIDs are not authorized.
@@ -236,7 +236,7 @@ func TestACLAuthorizer(t *testing.T) {
 
 	// Modify the ACL stored in the file and verify that the authorizations appropriately
 	// change for the fileACLAuthorizer.
-	acl.In.Principals["fake/veyron/bob"] = LS(R, W, A, D, M)
+	acl.In["fake/veyron/bob"] = LS(R, W, A, D, M)
 	updateACLInFile(fileName, acl)
 
 	authorizations[veyronBob] = LS(R, W, A, D, M)

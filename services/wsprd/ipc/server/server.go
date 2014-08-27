@@ -177,10 +177,9 @@ func (s *Server) Serve(name string, sig signature.JSONServiceSignature) (string,
 
 	if s.dispatcher == nil {
 		s.dispatcher = newDispatcher(invoker,
-			vsecurity.NewACLAuthorizer(vsecurity.NewWhitelistACL(
-				map[security.BlessingPattern]security.LabelSet{
-					security.AllPrincipals: security.AllLabels,
-				})))
+			vsecurity.NewACLAuthorizer(security.ACL{In: map[security.BlessingPattern]security.LabelSet{
+				security.AllPrincipals: security.AllLabels,
+			}}))
 	}
 
 	if s.endpoint == "" {

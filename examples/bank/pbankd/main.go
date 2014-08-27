@@ -442,10 +442,10 @@ func main() {
 	// 	bankAccountServer := bank.NewServerBankAccount(pbankd)
 
 	// 	// Setup bank and account authorizers.
-	//  bankAuth := vsecurity.NewACLAuthorizer(security.NewWhitelistACL(
+	//  bankAuth := vsecurity.NewACLAuthorizer(security.ACL{In:
 	// 		map[security.BlessingPattern]security.LabelSet{
 	// 			security.AllPrincipals: security.LabelSet(security.ReadLabel | security.WriteLabel),
-	// 		}))
+	// 		}})
 	// 	bankAccountAuth := AccountAuthorizer(runtime.Identity().PublicID().Names()[0] + SUFFIX_REGEXP)
 
 	// 	dispatcher := newBankDispatcher(bankServer, bankAccountServer, bankAuth, bankAccountAuth)
