@@ -5,8 +5,16 @@
 # This test starts a build server daemon and uses the build client to
 # verify that <build>.Build() works as expected.
 
-source "${VEYRON_ROOT}/environment/scripts/lib/shell_test.sh"
+# shell_test.sh must be sourced *last* Because it has a "trap" statement that
+# cleans up processes on exit and we want to avoid this trap statement being
+# overridden by other scripts.  For example, go.sh sources a script which sets
+# up a different trap handler and thus, if go.sh is sourced second, then it
+# overrides the trap handler setup in shell_test.sh.
+# TODO(jsimsa,ashankar): Figure out a way to execute all trap handlers instead
+# of having to worry about ordering the imports and/or skipping some trap
+# handlers.
 source "${VEYRON_ROOT}/environment/scripts/lib/go.sh"
+source "${VEYRON_ROOT}/environment/scripts/lib/shell_test.sh"
 
 build() {
   local -r GO="${REPO_ROOT}/scripts/build/go"
