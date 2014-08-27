@@ -11,6 +11,7 @@
 package googleoauth
 
 import (
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -21,6 +22,7 @@ import (
 	"code.google.com/p/goauth2/oauth"
 
 	"veyron/services/identity/auditor"
+	"veyron/services/identity/revocation"
 	"veyron/services/identity/util"
 	"veyron2/security"
 	"veyron2/vlog"
@@ -113,9 +115,10 @@ func (h *handler) callback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	type tmplentry struct {
-		Blessee    security.PublicID
-		Start, End time.Time
-		Blessed    security.PublicID
+		Blessee            security.PublicID
+		Start, End         time.Time
+		Blessed            security.PublicID
+		RevocationCaveatID string
 	}
 	tmplargs := struct {
 		Log   chan tmplentry
@@ -136,14 +139,21 @@ func (h *handler) callback(w http.ResponseWriter, r *http.Request) {
 					continue
 				}
 				var tmplentry tmplentry
-				tmplentry.Blessee, _ = entry.Arguments[0].(security.PublicID)
-				tmplentry.Start = entry.Timestamp
-				if duration, ok := entry.Arguments[2].(int64); ok {
-					tmplentry.End = tmplentry.Start.Add(time.Duration(duration))
+				var blessEntry revocation.BlessingAuditEntry
+				blessEntry, err = revocation.ReadBlessAuditEntry(entry)
+				tmplentry.Blessee = blessEntry.Blessee
+				tmplentry.Blessed = blessEntry.Blessed
+				tmplentry.Start = blessEntry.Start
+				tmplentry.End = blessEntry.End
+				if err != nil {
+					vlog.Errorf("Unable to read bless audit entry: %v", err)
+					continue
 				}
-				if len(entry.Results) > 0 {
-					tmplentry.Blessed, _ = entry.Results[0].(security.PublicID)
+				if blessEntry.RevocationCaveat != nil {
+					tmplentry.RevocationCaveatID = base64.URLEncoding.EncodeToString([]byte(blessEntry.RevocationCaveat.ID()))
 				}
+				// TODO(suharshs): Make the UI depend on where the caveatID exists and if it hasn't been revoked.
+				// Use the revocation manager IsRevoked function.
 				ch <- tmplentry
 			}
 		}(tmplargs.Log)

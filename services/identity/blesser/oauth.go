@@ -9,18 +9,23 @@ import (
 
 	"veyron/services/identity"
 	"veyron/services/identity/googleoauth"
+	"veyron/services/identity/revocation"
+
 	"veyron2"
 	"veyron2/ipc"
+	"veyron2/security"
 	"veyron2/vdl/vdlutil"
 	"veyron2/vlog"
 )
 
 type googleOAuth struct {
-	rt                veyron2.Runtime
-	authcodeClient    struct{ ID, Secret string }
-	accessTokenClient struct{ ID string }
-	duration          time.Duration
-	domain            string
+	rt                 veyron2.Runtime
+	authcodeClient     struct{ ID, Secret string }
+	accessTokenClient  struct{ ID string }
+	duration           time.Duration
+	domain             string
+	dischargerLocation string
+	revocationManager  *revocation.RevocationManager
 }
 
 // GoogleParams represents all the parameters provided to NewGoogleOAuthBlesserServer
@@ -39,6 +44,10 @@ type GoogleParams struct {
 	BlessingDuration time.Duration
 	// If non-empty, only email addresses from this domain will be blessed.
 	DomainRestriction string
+	// The object name of the discharger service. If this is empty then revocation caveats will not be granted.
+	DischargerLocation string
+	// The revocation manager that generates caveats and manages revocation.
+	RevocationManager *revocation.RevocationManager
 }
 
 // NewGoogleOAuthBlesserServer provides an identity.OAuthBlesserService that uses authorization
@@ -51,9 +60,11 @@ type GoogleParams struct {
 // are generated only for email addresses from that domain.
 func NewGoogleOAuthBlesserServer(p GoogleParams) interface{} {
 	b := &googleOAuth{
-		rt:       p.R,
-		duration: p.BlessingDuration,
-		domain:   p.DomainRestriction,
+		rt:                 p.R,
+		duration:           p.BlessingDuration,
+		domain:             p.DomainRestriction,
+		dischargerLocation: p.DischargerLocation,
+		revocationManager:  p.RevocationManager,
 	}
 	b.authcodeClient.ID = p.AuthorizationCodeClient.ID
 	b.authcodeClient.Secret = p.AuthorizationCodeClient.Secret
@@ -119,7 +130,13 @@ func (b *googleOAuth) bless(ctx ipc.ServerContext, name string) (vdlutil.Any, er
 	if self, err = self.Derive(ctx.LocalID()); err != nil {
 		return nil, err
 	}
-	// TODO(ashankar,ataly): Use the same set of caveats as is used by the HTTP handler.
-	// For example, a third-party revocation caveat?
-	return self.Bless(ctx.RemoteID(), name, b.duration, nil)
+	var revocationCaveat security.ThirdPartyCaveat
+	if b.revocationManager != nil {
+		revocationCaveat, err = b.revocationManager.NewCaveat(b.rt.Identity().PublicID(), b.dischargerLocation)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return revocation.Bless(self, ctx.RemoteID(), name, b.duration, revocationCaveat)
 }

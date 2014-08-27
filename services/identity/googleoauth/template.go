@@ -7,6 +7,7 @@ import (
 	"html/template"
 )
 
+// TODO(suharshs): Add an if statement to only show the revoke buttons for non-revoked ids.
 var tmpl = template.Must(template.New("auditor").Funcs(tmplFuncMap()).Parse(`<!doctype html>
 <html>
 <head>
@@ -37,7 +38,23 @@ $(document).ready(function() {
     $(this).click(function() { setTimeText($(this)); });
     setTimeText($(this));
   });
+
+  // Setup the revoke buttons click events.
+  $(".revoke").click(function() {
+    // TODO(suharshs): Implement "authorization" so that just making this post request with the URL doesn't work.
+    var revokeButton = $(this);
+    $.ajax({
+      url: "/revoke/",
+      type: "POST",
+      data: $(this).val()
+    }).done(function(data) {
+      // TODO(suharshs): Have a fail message, add a strikethrough on the revoked caveats.
+      console.log(data)
+      revokeButton.remove()
+    });
+  });
 });
+
 </script>
 </head>
 <body>
@@ -51,6 +68,7 @@ $(document).ready(function() {
   <th>Issued</th>
   <th>Expires</th>
   <th>PublicKey</th>
+  <th>Revoked</th>
   </tr>
 </thead>
 <tbody>
@@ -61,6 +79,7 @@ $(document).ready(function() {
 <td><div class="unixtime" data-unixtime={{.Start.Unix}}>{{.Start.String}}</div></td>
 <td><div class="unixtime" data-unixtime={{.End.Unix}}>{{.End.String}}</div></td>
 <td>{{publicKeyHash .Blessee.PublicKey}}</td>
+<td><button class="revoke" value="{{.RevocationCaveatID}}" type="button">Revoke</button></td>
 </tr>
 {{else}}
 <tr>

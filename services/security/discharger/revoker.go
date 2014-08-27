@@ -30,14 +30,14 @@ func (dir revocationDir) exists(cav string) (bool, error) {
 
 func (dir revocationDir) put(caveatNonce string, caveatPreimage []byte) error {
 	if len(dir) == 0 {
-		return fmt.Errorf("missing call to NewRecocationCaveat")
+		return fmt.Errorf("missing call to NewRevoker")
 	}
-	return ioutil.WriteFile(filepath.Join(string(dir), caveatNonce), caveatPreimage, 0777)
+	return ioutil.WriteFile(filepath.Join(string(dir), caveatNonce), caveatPreimage, 0600)
 }
 
 func (dir revocationDir) Revoke(ctx ipc.ServerContext, caveatPreimage ssecurity.RevocationToken) error {
 	if len(dir) == 0 {
-		return fmt.Errorf("missing call to NewRecocationCaveat")
+		return fmt.Errorf("missing call to NewRevoker")
 	}
 	caveatNonce := sha256.Sum256(caveatPreimage[:])
 	return revocationService.put(hex.EncodeToString(caveatNonce[:]), caveatPreimage[:])

@@ -8,6 +8,7 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -18,6 +19,9 @@ import (
 	"veyron/services/identity/blesser"
 	"veyron/services/identity/googleoauth"
 	"veyron/services/identity/handlers"
+	"veyron/services/identity/revocation"
+	services "veyron/services/security"
+	"veyron/services/security/discharger"
 
 	"veyron2"
 	"veyron2/ipc"
@@ -44,6 +48,9 @@ var (
 	googleConfigInstalled = flag.String("google_config_installed", "", "Path to the JSON-encoded OAuth client configuration for installed client applications that obtain blessings (via the OAuthBlesser.BlessUsingAuthorizationCode RPC) from this server (like the 'identity' command like tool and its 'seekblessing' command.")
 	googleConfigChrome    = flag.String("google_config_chrome", "", "Path to the JSON-encoded OAuth client configuration for Chrome browser applications that obtain blessings from this server (via the OAuthBlesser.BlessUsingAccessToken RPC) from this server.")
 	googleDomain          = flag.String("google_domain", "", "An optional domain name. When set, only email addresses from this domain are allowed to authenticate via Google OAuth")
+
+	// Revoker/Discharger configuration
+	revocationDir = flag.String("revocation_dir", filepath.Join(os.TempDir(), "revocation_dir"), "Path where the revocation manager will store caveat and revocation information.")
 )
 
 func main() {
@@ -55,15 +62,25 @@ func main() {
 		dumpAuditLog()
 		return
 	}
+
+	// Calling with empty string returns a empty RevocationManager
+	revocationManager, err := revocation.NewRevocationManager(*revocationDir)
+	if err != nil {
+		vlog.Fatalf("Failed to start RevocationManager: %v", err)
+	}
+
 	// Setup handlers
 	http.Handle("/pubkey/", handlers.Object{r.Identity().PublicID().PublicKey()}) // public key of this identity server
 	if enableRandomHandler() {
 		http.Handle("/random/", handlers.Random{r}) // mint identities with a random name
 	}
 	http.HandleFunc("/bless/", handlers.Bless) // use a provided PrivateID to bless a provided PublicID
+	if revocationManager != nil {
+		http.Handle("/revoke/", handlers.Revoke{revocationManager}) // revoke an identity that was provided by the server.
+	}
 
 	// Google OAuth
-	ipcServer, ipcServerEP, err := setupGoogleBlessingServer(r)
+	ipcServer, ipcServerEP, err := setupGoogleBlessingDischargingServer(r, revocationManager)
 	if err != nil {
 		vlog.Fatalf("Failed to setup veyron services for blessing: %v", err)
 	}
@@ -86,17 +103,18 @@ func main() {
 		}
 		if len(servers) == 0 {
 			// No addresses published, publish the endpoint instead (which may not be usable everywhere, but oh-well).
-			servers = append(servers, naming.JoinAddressName(ipcServerEP.String(), ""))
+			servers = append(servers, ipcServerEP.String())
 		}
 		args := struct {
-			Self                 string
-			GoogleWeb, RandomWeb bool
-			GoogleServers        []string
+			Self                            string
+			GoogleWeb, RandomWeb            bool
+			GoogleServers, DischargeServers []string
 		}{
-			Self:          rt.R().Identity().PublicID().Names()[0],
-			GoogleWeb:     len(*googleConfigWeb) > 0,
-			RandomWeb:     enableRandomHandler(),
-			GoogleServers: servers,
+			Self:             rt.R().Identity().PublicID().Names()[0],
+			GoogleWeb:        len(*googleConfigWeb) > 0,
+			RandomWeb:        enableRandomHandler(),
+			GoogleServers:    appendSuffixTo(servers, "google"),
+			DischargeServers: appendSuffixTo(servers, "discharger"),
 		}
 		if err := tmpl.Execute(w, args); err != nil {
 			vlog.Info("Failed to render template:", err)
@@ -107,12 +125,49 @@ func main() {
 	<-signals.ShutdownOnSignals()
 }
 
-func setupGoogleBlessingServer(r veyron2.Runtime) (ipc.Server, naming.Endpoint, error) {
+func appendSuffixTo(objectname []string, suffix string) []string {
+	names := make([]string, len(objectname))
+	for i, o := range objectname {
+		names[i] = naming.JoinAddressName(o, suffix)
+	}
+	return names
+}
+
+// newDispatcher returns a dispatcher for both the blessing and the discharging service.
+// their suffix. ReflectInvoker is used to invoke methods.
+func newDispatcher(params blesser.GoogleParams) ipc.Dispatcher {
+	blessingService := ipc.ReflectInvoker(blesser.NewGoogleOAuthBlesserServer(params))
+	dischargerService := ipc.ReflectInvoker(services.NewServerDischarger(discharger.NewDischarger(params.R.Identity())))
+	allowEveryoneACLAuth := vsecurity.NewACLAuthorizer(vsecurity.NewWhitelistACL(map[security.BlessingPattern]security.LabelSet{
+		security.AllPrincipals: security.AllLabels,
+	}))
+	return &dispatcher{blessingService, dischargerService, allowEveryoneACLAuth}
+}
+
+type dispatcher struct {
+	blessingInvoker, dischargerInvoker ipc.Invoker
+	auth                               security.Authorizer
+}
+
+func (d dispatcher) Lookup(suffix, method string) (ipc.Invoker, security.Authorizer, error) {
+	switch suffix {
+	case "google":
+		return d.blessingInvoker, d.auth, nil
+	case "discharger":
+		return d.dischargerInvoker, d.auth, nil
+	default:
+		return nil, nil, fmt.Errorf("suffix does not exist")
+	}
+}
+
+// Starts the blessing service and the discharging service on the same port.
+func setupGoogleBlessingDischargingServer(r veyron2.Runtime, revocationManager *revocation.RevocationManager) (ipc.Server, naming.Endpoint, error) {
 	var enable bool
 	params := blesser.GoogleParams{
 		R:                 r,
 		BlessingDuration:  time.Duration(*minExpiryDays) * 24 * time.Hour,
 		DomainRestriction: *googleDomain,
+		RevocationManager: revocationManager,
 	}
 	if authcode, clientID, clientSecret := enableGoogleOAuth(*googleConfigInstalled); authcode {
 		enable = true
@@ -134,14 +189,13 @@ func setupGoogleBlessingServer(r veyron2.Runtime) (ipc.Server, naming.Endpoint, 
 	if err != nil {
 		return nil, nil, fmt.Errorf("server.Listen(%q, %q) failed: %v", "tcp", *address, err)
 	}
-	allowEveryoneACL := vsecurity.NewWhitelistACL(map[security.BlessingPattern]security.LabelSet{
-		security.AllPrincipals: security.AllLabels,
-	})
-	objectname := fmt.Sprintf("identity/%s/google", r.Identity().PublicID().Names()[0])
-	if err := server.Serve(objectname, ipc.LeafDispatcher(blesser.NewGoogleOAuthBlesserServer(params), vsecurity.NewACLAuthorizer(allowEveryoneACL))); err != nil {
-		return nil, nil, fmt.Errorf("failed to start Veyron service: %v", err)
+	params.DischargerLocation = naming.JoinAddressName(ep.String(), "discharger")
+	dispatcher := newDispatcher(params)
+	objectname := fmt.Sprintf("identity/%s", r.Identity().PublicID().Names()[0])
+	if err := server.Serve(objectname, dispatcher); err != nil {
+		return nil, nil, fmt.Errorf("failed to start Veyron services: %v", err)
 	}
-	vlog.Infof("Google blessing service enabled at endpoint %v and name %q", ep, objectname)
+	vlog.Infof("Google blessing and discharger services enabled at endpoint %v and name %q", ep, objectname)
 	return server, ep, nil
 }
 
@@ -281,6 +335,12 @@ key of this provider is available in <a class="btn btn-xs btn-primary" href="/pu
 Blessings are provided via Veyron RPCs to: <tt>{{range .GoogleServers}}{{.}}{{end}}</tt>
 </div>
 {{end}}
+{{if .DischargeServers}}
+<div class="well">
+RevocationCaveat Discharges are provided via Veyron RPCs to: <tt>{{range .DischargeServers}}{{.}}{{end}}</tt>
+</div>
+{{end}}
+
 
 {{if .GoogleWeb}}
 <div class="well">
