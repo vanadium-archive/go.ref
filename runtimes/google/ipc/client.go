@@ -168,6 +168,9 @@ func (c *client) startCall(ctx context.T, name, method string, args []interface{
 		return fc, nil
 	}
 	if lastErr != nil {
+		// If there was any problem starting the call, flush the cache entry under the
+		// assumption that it was caused by stale data.
+		c.ns.FlushCacheEntry(name)
 		return nil, lastErr
 	}
 	return nil, errNoServers
