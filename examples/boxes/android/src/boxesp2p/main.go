@@ -235,7 +235,7 @@ func (gs *goState) monitorStore() {
 
 func (gs *goState) registerAsPeer(ctx context.T) {
 	auth := vsecurity.NewACLAuthorizer(vsecurity.NewWhitelistACL(
-		map[security.PrincipalPattern]security.LabelSet{
+		map[security.BlessingPattern]security.LabelSet{
 			security.AllPrincipals: security.LabelSet(security.AdminLabel),
 		}))
 	gs.disp.drawAuth = auth

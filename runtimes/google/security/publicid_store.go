@@ -34,16 +34,16 @@ func saveErr(err error) error {
 	return fmt.Errorf("could not save PublicIDStore: %s", err)
 }
 
-type taggedIDStore map[security.PublicID][]security.PrincipalPattern
+type taggedIDStore map[security.PublicID][]security.BlessingPattern
 
 type persistentState struct {
 	// Store contains a set of PublicIDs mapped to a set of (peer) patterns. The
 	// patterns indicate the set of peers against whom the PublicID can be used.
 	// All PublicIDs in the store must have the same public key.
 	Store taggedIDStore
-	// DefaultPattern is the default PrincipalPattern to be used to select
+	// DefaultPattern is the default BlessingPattern to be used to select
 	// PublicIDs from the store in absence of any other search criterea.
-	DefaultPattern security.PrincipalPattern
+	DefaultPattern security.BlessingPattern
 }
 
 // publicIDStore implements security.PublicIDStore.
@@ -54,7 +54,7 @@ type publicIDStore struct {
 	mu        sync.RWMutex
 }
 
-func (s *publicIDStore) addTaggedID(id security.PublicID, peerPattern security.PrincipalPattern) ([]security.PublicID, error) {
+func (s *publicIDStore) addTaggedID(id security.PublicID, peerPattern security.BlessingPattern) ([]security.PublicID, error) {
 	var updatedIDs []security.PublicID
 	switch p := id.(type) {
 	case *setPublicID:
@@ -85,7 +85,7 @@ func (s *publicIDStore) revert(updatedIDs []security.PublicID) {
 	}
 }
 
-func (s *publicIDStore) Add(id security.PublicID, peerPattern security.PrincipalPattern) error {
+func (s *publicIDStore) Add(id security.PublicID, peerPattern security.BlessingPattern) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -119,7 +119,7 @@ func (s *publicIDStore) ForPeer(peer security.PublicID) (security.PublicID, erro
 	var matchingIDs []security.PublicID
 	for id, peerPatterns := range s.state.Store {
 		for _, peerPattern := range peerPatterns {
-			if peerPattern.MatchedBy(peer) {
+			if peerPattern.MatchedBy(peer.Names()...) {
 				matchingIDs = append(matchingIDs, id)
 				break
 			}
@@ -140,7 +140,7 @@ func (s *publicIDStore) DefaultPublicID() (security.PublicID, error) {
 	defer s.mu.RUnlock()
 	var matchingIDs []security.PublicID
 	for id, _ := range s.state.Store {
-		if s.state.DefaultPattern.MatchedBy(id) {
+		if s.state.DefaultPattern.MatchedBy(id.Names()...) {
 			matchingIDs = append(matchingIDs, id)
 		}
 	}
@@ -154,8 +154,8 @@ func (s *publicIDStore) DefaultPublicID() (security.PublicID, error) {
 	return id, nil
 }
 
-func (s *publicIDStore) SetDefaultPrincipalPattern(pattern security.PrincipalPattern) error {
-	if err := wire.ValidatePrincipalPattern(pattern); err != nil {
+func (s *publicIDStore) SetDefaultBlessingPattern(pattern security.BlessingPattern) error {
+	if err := wire.ValidateBlessingPattern(pattern); err != nil {
 		return err
 	}
 	s.mu.Lock()

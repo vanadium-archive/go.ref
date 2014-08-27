@@ -42,7 +42,7 @@ func bless(blessor security.PrivateID, blessee security.PublicID, name string) s
 	return blessedID
 }
 
-func add(store security.PublicIDStore, id security.PublicID, pattern security.PrincipalPattern) {
+func add(store security.PublicIDStore, id security.PublicID, pattern security.BlessingPattern) {
 	if err := store.Add(id, pattern); err != nil {
 		panic(err)
 	}
@@ -103,7 +103,7 @@ func TestClientServerIDs(t *testing.T) {
 
 	type testcase struct {
 		server, client                   security.PublicID
-		defaultPattern                   security.PrincipalPattern
+		defaultPattern                   security.BlessingPattern
 		wantServerNames, wantClientNames []string
 	}
 	tests := []testcase{
@@ -146,8 +146,8 @@ func TestClientServerIDs(t *testing.T) {
 		return fmt.Sprintf("TestCase{clientPublicIDStore: %v, serverPublicIDStore: %v, client option: %v, server option: %v}", clientR.PublicIDStore(), serverR.PublicIDStore(), t.client, t.server)
 	}
 	for _, test := range tests {
-		if err := serverR.PublicIDStore().SetDefaultPrincipalPattern(test.defaultPattern); err != nil {
-			t.Errorf("serverR.PublicIDStore.SetDefaultPrincipalPattern failed: %s", err)
+		if err := serverR.PublicIDStore().SetDefaultBlessingPattern(test.defaultPattern); err != nil {
+			t.Errorf("serverR.PublicIDStore.SetDefaultBlessingPattern failed: %s", err)
 			continue
 		}
 		server, err := serverR.NewServer(veyron2.LocalID(test.server))
@@ -163,7 +163,7 @@ func TestClientServerIDs(t *testing.T) {
 		defer stopServer(server)
 		if err := server.Serve("", ipc.LeafDispatcher(&testService{},
 			vsecurity.NewACLAuthorizer(vsecurity.NewWhitelistACL(
-				map[security.PrincipalPattern]security.LabelSet{
+				map[security.BlessingPattern]security.LabelSet{
 					security.AllPrincipals: security.AllLabels,
 				})))); err != nil {
 			t.Errorf("error serving service: ", err)

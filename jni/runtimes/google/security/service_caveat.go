@@ -17,8 +17,8 @@ func newServiceCaveatArray(env *C.JNIEnv, jServiceCaveats C.jobjectArray) []secu
 	sCaveats := make([]security.ServiceCaveat, length)
 	for i := 0; i < length; i++ {
 		jServiceCaveat := C.GetObjectArrayElement(env, jServiceCaveats, C.jsize(i))
-		jPrincipalPattern := C.jobject(util.CallObjectMethodOrCatch(env, jServiceCaveat, "getServices", nil, util.ClassSign("com.veyron2.security.PrincipalPattern")))
-		services := util.CallStringMethodOrCatch(env, jPrincipalPattern, "getValue", nil)
+		jBlessingPattern := C.jobject(util.CallObjectMethodOrCatch(env, jServiceCaveat, "getServices", nil, util.ClassSign("com.veyron2.security.BlessingPattern")))
+		services := util.CallStringMethodOrCatch(env, jBlessingPattern, "getValue", nil)
 		jCaveat := C.jobject(util.CallObjectMethodOrCatch(env, jServiceCaveat, "getCaveat", nil, util.ClassSign("com.veyron2.security.Caveat")))
 		// TODO(spetrovic): we get native pointer for PublicID and it works because the plan is for
 		// PublicID to be an interface with only a few implementations in veyron2: folks aren't
@@ -30,7 +30,7 @@ func newServiceCaveatArray(env *C.JNIEnv, jServiceCaveats C.jobjectArray) []secu
 		caveatPtr := util.CallLongMethodOrCatch(env, jCaveat, "getNativePtr", nil)
 		caveat := (*(*security.Caveat)(util.Ptr(caveatPtr)))
 		sCaveats[i] = security.ServiceCaveat{
-			Service: security.PrincipalPattern(services),
+			Service: security.BlessingPattern(services),
 			Caveat:  caveat,
 		}
 	}
@@ -45,8 +45,8 @@ func newJavaServiceCaveatArray(env *C.JNIEnv, sCaveats []security.ServiceCaveat)
 		util.GoRef(&caveat) // Un-refed when the Java Caveat object is finalized.
 		jCaveat := C.jobject(util.NewObjectOrCatch(env, jCaveatImplClass, []util.Sign{util.LongSign}, &caveat))
 		services := string(sCaveat.Service)
-		jPattern := C.jobject(util.NewObjectOrCatch(env, jPrincipalPatternClass, []util.Sign{util.StringSign}, services))
-		patternSign := util.ClassSign("com.veyron2.security.PrincipalPattern")
+		jPattern := C.jobject(util.NewObjectOrCatch(env, jBlessingPatternClass, []util.Sign{util.StringSign}, services))
+		patternSign := util.ClassSign("com.veyron2.security.BlessingPattern")
 		caveatSign := util.ClassSign("com.veyron2.security.Caveat")
 		jServiceCaveat := C.jobject(util.NewObjectOrCatch(env, jServiceCaveatClass, []util.Sign{patternSign, caveatSign}, jPattern, jCaveat))
 		C.SetObjectArrayElement(env, jServiceCaveats, C.jsize(i), jServiceCaveat)

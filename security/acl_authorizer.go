@@ -62,7 +62,7 @@ func (a fileACLAuthorizer) Authorize(ctx security.Context) error {
 // no requests are authorized.
 //
 // The JSON-encoding of a ACL is essentially a JSON object describing a map from
-// PrincipalPatterns to encoded LabelSets (see LabelSet.MarshalJSON).
+// BlessingPatterns to encoded LabelSets (see LabelSet.MarshalJSON).
 // Examples:
 // * `{"*" : "RW"}` encodes an ACL that allows all principals to access all methods with
 //   ReadLabel or WriteLabel.

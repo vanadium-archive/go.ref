@@ -23,7 +23,7 @@ type fixedPublicIDStore struct {
 	id security.PublicID
 }
 
-func (fixedPublicIDStore) Add(id security.PublicID, peerPattern security.PrincipalPattern) error {
+func (fixedPublicIDStore) Add(id security.PublicID, peerPattern security.BlessingPattern) error {
 	return errors.New("adding new PublicIDs is disallowed for this PublicIDStore")
 }
 
@@ -35,8 +35,8 @@ func (s fixedPublicIDStore) DefaultPublicID() (security.PublicID, error) {
 	return s.id, nil
 }
 
-func (fixedPublicIDStore) SetDefaultPrincipalPattern(pattern security.PrincipalPattern) error {
-	return errors.New("SetDefaultPrincipalPattern is disallowed on a fixed PublicIDStore")
+func (fixedPublicIDStore) SetDefaultBlessingPattern(pattern security.BlessingPattern) error {
+	return errors.New("SetDefaultBlessingPattern is disallowed on a fixed PublicIDStore")
 }
 
 // localID is an option for passing a PrivateID and PublicIDStore

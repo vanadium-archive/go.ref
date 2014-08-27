@@ -49,15 +49,15 @@ func (c MethodRestriction) Validate(ctx security.Context) error {
 
 // PeerIdentity is a security.Caveat that restricts the bearer of a credential
 // with this caveat from making or receiving RPCs to a limited set of peers -
-// those whose identities match one of the provided security.PrincipalPatterns.
+// those whose identities match one of the provided security.BlessingPatterns.
 // An empty set indicates that no peers can be communicated with.
-type PeerIdentity []security.PrincipalPattern
+type PeerIdentity []security.BlessingPattern
 
 // Validate checks that the identity of the peer is present on the set of services
-// identified by the PrincipalPatterns on the caveat.
+// identified by the BlessingPatterns on the caveat.
 func (c PeerIdentity) Validate(ctx security.Context) error {
 	for _, p := range c {
-		if ctx.LocalID() != nil && p.MatchedBy(ctx.LocalID()) {
+		if ctx.LocalID() != nil && p.MatchedBy(ctx.LocalID().Names()...) {
 			return nil
 		}
 	}

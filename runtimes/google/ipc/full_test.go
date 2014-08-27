@@ -162,7 +162,7 @@ func (t testServerDisp) Lookup(suffix, method string) (ipc.Invoker, security.Aut
 	case "aclAuth":
 		// Only authorize clients matching patterns "client" or "server/*".
 		authorizer = vsecurity.NewACLAuthorizer(vsecurity.NewWhitelistACL(
-			map[security.PrincipalPattern]security.LabelSet{
+			map[security.BlessingPattern]security.LabelSet{
 				"server/*": security.LabelSet(security.AdminLabel),
 				"client":   security.LabelSet(security.AdminLabel),
 			}))
@@ -471,7 +471,7 @@ func TestStartCall(t *testing.T) {
 
 	tests := []struct {
 		clientID, serverID security.PrivateID
-		pattern            security.PrincipalPattern // pattern on the server identity expected by client.
+		pattern            security.BlessingPattern // pattern on the server identity expected by client.
 		err                string
 	}{
 		// Client accepts talking to server only if server's identity matches the
@@ -745,11 +745,11 @@ func TestRPCAuthorization(t *testing.T) {
 		// a Discharge service as well.
 		dischargerID = serverID.PublicID()
 		cavTPValid   = security.ServiceCaveat{
-			Service: security.PrincipalPattern(serverID.PublicID().Names()[0]),
+			Service: security.BlessingPattern(serverID.PublicID().Names()[0]),
 			Caveat:  mkThirdPartyCaveat(dischargerID, "mountpoint/server/discharger", &caveat.Expiry{ExpiryTime: now.Add(24 * time.Hour)}),
 		}
 		cavTPExpired = security.ServiceCaveat{
-			Service: security.PrincipalPattern(serverID.PublicID().Names()[0]),
+			Service: security.BlessingPattern(serverID.PublicID().Names()[0]),
 			Caveat:  mkThirdPartyCaveat(dischargerID, "mountpoint/server/discharger", &caveat.Expiry{IssueTime: now, ExpiryTime: now}),
 		}
 

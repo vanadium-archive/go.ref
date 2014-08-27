@@ -187,7 +187,7 @@ func TestACLAuthorizer(t *testing.T) {
 
 	// ACL for testing
 	acl := security.ACL{}
-	acl.In.Principals = map[security.PrincipalPattern]security.LabelSet{
+	acl.In.Principals = map[security.BlessingPattern]security.LabelSet{
 		"*": LS(R),
 		"fake/veyron/alice/*": LS(W, R),
 		"fake/veyron/alice":   LS(A, D, M),
@@ -195,7 +195,7 @@ func TestACLAuthorizer(t *testing.T) {
 		"fake/veyron/che/*":   LS(W, R),
 		"fake/veyron/che":     LS(W, R),
 	}
-	acl.NotIn.Principals = map[security.PrincipalPattern]security.LabelSet{
+	acl.NotIn.Principals = map[security.BlessingPattern]security.LabelSet{
 		"fake/veyron/che/friend": LS(W),
 	}
 

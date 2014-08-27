@@ -132,12 +132,12 @@ func (i *IDManager) Identity(origin string) (security.PrivateID, error) {
 }
 
 // AccountsMatching returns a list of accounts that match the given pattern.
-func (i *IDManager) AccountsMatching(trustedRoot security.PrincipalPattern) []string {
+func (i *IDManager) AccountsMatching(trustedRoot security.BlessingPattern) []string {
 	i.mu.Lock()
 	defer i.mu.Unlock()
 	result := []string{}
 	for name, id := range i.state.Accounts {
-		if trustedRoot.MatchedBy(id.PublicID()) {
+		if trustedRoot.MatchedBy(id.PublicID().Names()...) {
 			result = append(result, name)
 		}
 	}

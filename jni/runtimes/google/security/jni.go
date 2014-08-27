@@ -27,15 +27,15 @@ var (
 	jCaveatClass C.jclass
 	// Global reference for com.veyron2.security.ServiceCaveat class.
 	jServiceCaveatClass C.jclass
-	// Global reference for com.veyron2.security.PrincipalPattern class.
-	jPrincipalPatternClass C.jclass
+	// Global reference for com.veyron2.security.BlessingPattern class.
+	jBlessingPatternClass C.jclass
 	// Global reference for org.joda.time.Duration class.
 	jDurationClass C.jclass
 
 	// Signature of the PublicID interface.
 	publicIDSign = util.ClassSign("com.veyron2.security.PublicID")
-	// Signature of the PrincipalPattern class.
-	principalPatternSign = util.ClassSign("com.veyron2.security.PrincipalPattern")
+	// Signature of the BlessingPattern class.
+	principalPatternSign = util.ClassSign("com.veyron2.security.BlessingPattern")
 )
 
 // Init initializes the JNI code with the given Java evironment. This method
@@ -53,7 +53,7 @@ func Init(jEnv interface{}) {
 	jContextImplClass = C.jclass(util.JFindClassPtrOrDie(env, "com/veyron/runtimes/google/security/Context"))
 	jCaveatClass = C.jclass(util.JFindClassPtrOrDie(env, "com/veyron2/security/Caveat"))
 	jServiceCaveatClass = C.jclass(util.JFindClassPtrOrDie(env, "com/veyron2/security/ServiceCaveat"))
-	jPrincipalPatternClass = C.jclass(util.JFindClassPtrOrDie(env, "com/veyron2/security/PrincipalPattern"))
+	jBlessingPatternClass = C.jclass(util.JFindClassPtrOrDie(env, "com/veyron2/security/BlessingPattern"))
 	jDurationClass = C.jclass(util.JFindClassPtrOrDie(env, "org/joda/time/Duration"))
 }
 
@@ -82,7 +82,7 @@ func Java_com_veyron_runtimes_google_security_PublicIDStore_nativeCreate(env *C.
 func Java_com_veyron_runtimes_google_security_PublicIDStore_nativeAdd(env *C.JNIEnv, jPublicIDStore C.jobject, goPublicIDStorePtr C.jlong, jID C.jobject, jPeerPattern C.jstring) {
 	idPtr := util.CallLongMethodOrCatch(env, jID, "getNativePtr", nil)
 	id := (*(*security.PublicID)(util.Ptr(idPtr)))
-	peerPattern := security.PrincipalPattern(util.GoString(env, jPeerPattern))
+	peerPattern := security.BlessingPattern(util.GoString(env, jPeerPattern))
 	if err := (*(*security.PublicIDStore)(util.Ptr(goPublicIDStorePtr))).Add(id, peerPattern); err != nil {
 		util.JThrowV(env, err)
 		return
@@ -113,10 +113,10 @@ func Java_com_veyron_runtimes_google_security_PublicIDStore_nativeDefaultPublicI
 	return C.jlong(util.PtrValue(&id))
 }
 
-//export Java_com_veyron_runtimes_google_security_PublicIDStore_nativeSetDefaultPrincipalPattern
-func Java_com_veyron_runtimes_google_security_PublicIDStore_nativeSetDefaultPrincipalPattern(env *C.JNIEnv, jPublicIDStore C.jobject, goPublicIDStorePtr C.jlong, jPattern C.jstring) {
-	pattern := security.PrincipalPattern(util.GoString(env, jPattern))
-	if err := (*(*security.PublicIDStore)(util.Ptr(goPublicIDStorePtr))).SetDefaultPrincipalPattern(pattern); err != nil {
+//export Java_com_veyron_runtimes_google_security_PublicIDStore_nativeSetDefaultBlessingPattern
+func Java_com_veyron_runtimes_google_security_PublicIDStore_nativeSetDefaultBlessingPattern(env *C.JNIEnv, jPublicIDStore C.jobject, goPublicIDStorePtr C.jlong, jPattern C.jstring) {
+	pattern := security.BlessingPattern(util.GoString(env, jPattern))
+	if err := (*(*security.PublicIDStore)(util.Ptr(goPublicIDStorePtr))).SetDefaultBlessingPattern(pattern); err != nil {
 		util.JThrowV(env, err)
 		return
 	}

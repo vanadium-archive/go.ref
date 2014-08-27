@@ -54,14 +54,14 @@ type publicIDStore struct {
 	jPublicIDStore C.jobject
 }
 
-func (s *publicIDStore) Add(id security.PublicID, peerPattern security.PrincipalPattern) error {
+func (s *publicIDStore) Add(id security.PublicID, peerPattern security.BlessingPattern) error {
 	envPtr, freeFunc := util.GetEnv(s.jVM)
 	env := (*C.JNIEnv)(envPtr)
 	defer freeFunc()
 	util.GoRef(&id) // Un-refed when the Java PublicID object created below is finalized.
 	jPublicID := C.jobject(util.NewObjectOrCatch(env, jPublicIDImplClass, []util.Sign{util.LongSign}, &id))
-	jPrincipalPattern := C.jobject(util.NewObjectOrCatch(env, jPrincipalPatternClass, []util.Sign{util.StringSign}, string(peerPattern)))
-	return util.CallVoidMethod(env, s.jPublicIDStore, "add", []util.Sign{publicIDSign, principalPatternSign}, jPublicID, jPrincipalPattern)
+	jBlessingPattern := C.jobject(util.NewObjectOrCatch(env, jBlessingPatternClass, []util.Sign{util.StringSign}, string(peerPattern)))
+	return util.CallVoidMethod(env, s.jPublicIDStore, "add", []util.Sign{publicIDSign, principalPatternSign}, jPublicID, jBlessingPattern)
 }
 
 func (s *publicIDStore) ForPeer(peer security.PublicID) (security.PublicID, error) {
@@ -90,10 +90,10 @@ func (s *publicIDStore) DefaultPublicID() (security.PublicID, error) {
 	return (*(*security.PublicID)(util.Ptr(publicIDPtr))), nil
 }
 
-func (s *publicIDStore) SetDefaultPrincipalPattern(pattern security.PrincipalPattern) error {
+func (s *publicIDStore) SetDefaultBlessingPattern(pattern security.BlessingPattern) error {
 	envPtr, freeFunc := util.GetEnv(s.jVM)
 	env := (*C.JNIEnv)(envPtr)
 	defer freeFunc()
-	jPattern := C.jobject(util.NewObjectOrCatch(env, jPrincipalPatternClass, []util.Sign{util.StringSign}, string(pattern)))
-	return util.CallVoidMethod(env, s.jPublicIDStore, "setDefaultPrincipalPattern", []util.Sign{principalPatternSign}, jPattern)
+	jPattern := C.jobject(util.NewObjectOrCatch(env, jBlessingPatternClass, []util.Sign{util.StringSign}, string(pattern)))
+	return util.CallVoidMethod(env, s.jPublicIDStore, "setDefaultBlessingPattern", []util.Sign{principalPatternSign}, jPattern)
 }

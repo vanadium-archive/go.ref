@@ -98,7 +98,7 @@ func TestHandleCreateAccount(t *testing.T) {
 	// Verify that idManager has the new account
 	topLevelName := wspr.rt.Identity().PublicID().Names()[0]
 	expectedAccountName := topLevelName + "/mock-blessing-1"
-	gotAccounts := wspr.idManager.AccountsMatching(security.PrincipalPattern(expectedAccountName))
+	gotAccounts := wspr.idManager.AccountsMatching(security.BlessingPattern(expectedAccountName))
 	if len(gotAccounts) != 1 {
 		t.Fatalf("Expected to have 1 account with name %v, but got %v: %v", expectedAccountName, len(gotAccounts), gotAccounts)
 	}
@@ -124,7 +124,7 @@ func TestHandleCreateAccount(t *testing.T) {
 	}
 
 	// Verify that idManager has both accounts
-	gotAccounts = wspr.idManager.AccountsMatching(security.PrincipalPattern(topLevelName + "/*"))
+	gotAccounts = wspr.idManager.AccountsMatching(security.BlessingPattern(topLevelName + "/*"))
 	if len(gotAccounts) != 2 {
 		t.Fatalf("Expected to have 2 accounts, but got %v: %v", len(gotAccounts), gotAccounts)
 	}

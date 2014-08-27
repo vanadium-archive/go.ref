@@ -172,7 +172,7 @@ package main
 // 		fmt.Printf("ID: %d\n", randID)
 
 // 		// Bless the user
-// 		pp := security.PrincipalPattern(context.LocalID().Names()[0])
+// 		pp := security.BlessingPattern(context.LocalID().Names()[0])
 // 		pID, err := b.ID.Bless(
 // 			context.RemoteID(),
 // 			fmt.Sprintf("%d", randID),
@@ -443,7 +443,7 @@ func main() {
 
 	// 	// Setup bank and account authorizers.
 	//  bankAuth := vsecurity.NewACLAuthorizer(security.NewWhitelistACL(
-	// 		map[security.PrincipalPattern]security.LabelSet{
+	// 		map[security.BlessingPattern]security.LabelSet{
 	// 			security.AllPrincipals: security.LabelSet(security.ReadLabel | security.WriteLabel),
 	// 		}))
 	// 	bankAccountAuth := AccountAuthorizer(runtime.Identity().PublicID().Names()[0] + SUFFIX_REGEXP)

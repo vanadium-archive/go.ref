@@ -109,13 +109,13 @@ func verifyAuthorizedID(origID, authID security.PublicID, authNames []string) er
 	return nil
 }
 
-func methodRestrictionCaveat(service security.PrincipalPattern, methods []string) []security.ServiceCaveat {
+func methodRestrictionCaveat(service security.BlessingPattern, methods []string) []security.ServiceCaveat {
 	return []security.ServiceCaveat{
 		{Service: service, Caveat: caveat.MethodRestriction(methods)},
 	}
 }
 
-func peerIdentityCaveat(p security.PrincipalPattern) []security.ServiceCaveat {
+func peerIdentityCaveat(p security.BlessingPattern) []security.ServiceCaveat {
 	return []security.ServiceCaveat{caveat.UniversalCaveat(caveat.PeerIdentity{p})}
 }
 

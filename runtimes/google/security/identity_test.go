@@ -78,7 +78,7 @@ func TestNameAndAuth(t *testing.T) {
 func TestMatch(t *testing.T) {
 	alice := newChain("alice")
 	type matchInstance struct {
-		pattern security.PrincipalPattern
+		pattern security.BlessingPattern
 		want    bool
 	}
 	testdata := []struct {
@@ -137,7 +137,7 @@ func TestMatch(t *testing.T) {
 	}
 	for _, d := range testdata {
 		for _, m := range d.matchData {
-			if got := m.pattern.MatchedBy(d.id); got != m.want {
+			if got := m.pattern.MatchedBy(d.id.Names()...); got != m.want {
 				t.Errorf("%q.Match(%s), Got %t, want %t", d.id, m.pattern, got, m.want)
 			}
 		}

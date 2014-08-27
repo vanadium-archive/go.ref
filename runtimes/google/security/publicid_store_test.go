@@ -62,7 +62,7 @@ func TestSetDefaultPattern(t *testing.T) {
 		t.Fatalf("NewPublicIDStore failed: %s", err)
 	}
 	defaultPatterns := []struct {
-		pattern security.PrincipalPattern
+		pattern security.BlessingPattern
 		success bool
 	}{
 		{"veyron", true},
@@ -77,14 +77,14 @@ func TestSetDefaultPattern(t *testing.T) {
 		{"veyron/*/alice", false},
 	}
 	for _, d := range defaultPatterns {
-		if got := s.SetDefaultPrincipalPattern(d.pattern); d.success != (got == nil) {
+		if got := s.SetDefaultBlessingPattern(d.pattern); d.success != (got == nil) {
 			t.Errorf("%s.SetDefaultPattern(%q) returned: %v, expected it to succeed: %v", s, d.pattern, got, d.success)
 		}
 	}
 }
 
 func TestStoreGetters(t *testing.T) {
-	add := func(s security.PublicIDStore, id security.PublicID, peers security.PrincipalPattern) {
+	add := func(s security.PublicIDStore, id security.PublicID, peers security.BlessingPattern) {
 		if err := s.Add(id, peers); err != nil {
 			t.Fatalf("%s.Add(%q, %q) failed unexpectedly: %s", s, id, peers, err)
 		}
@@ -151,9 +151,9 @@ func TestStoreGetters(t *testing.T) {
 		t.Errorf("%s.DefaultPublicID(): got: %s, want PublicID with the exact set of names: %s", s, got, defaultNames)
 	}
 
-	// Test SetDefaultPrincipalPattern.
-	testDataByPrincipalPattern := []struct {
-		defaultPattern security.PrincipalPattern
+	// Test SetDefaultBlessingPattern.
+	testDataByBlessingPattern := []struct {
+		defaultPattern security.BlessingPattern
 		defaultNames   []string
 	}{
 		{"veyron", nil},
@@ -166,8 +166,8 @@ func TestStoreGetters(t *testing.T) {
 		{"google/service/*", []string{"google/service/user-42"}},
 		{"bob", nil},
 	}
-	for _, d := range testDataByPrincipalPattern {
-		s.SetDefaultPrincipalPattern(d.defaultPattern)
+	for _, d := range testDataByBlessingPattern {
+		s.SetDefaultBlessingPattern(d.defaultPattern)
 		if got, err := s.DefaultPublicID(); !verifyNamesAndPublicKey(got, err, d.defaultNames, pkey) {
 			t.Errorf("%s.DefaultPublicID(): got: %s, want PublicID with the exact set of names: %s", s, got, d.defaultNames)
 		}
@@ -206,8 +206,8 @@ func TestPublicIDStorePersistence(t *testing.T) {
 	if err := s.Add(sAllAlice, "google/*"); err != nil {
 		t.Fatalf("%s.Add(%q, ...) failed unexpectedly: %s", s, sAllAlice, err)
 	}
-	if err := s.SetDefaultPrincipalPattern("veyron/*"); err != nil {
-		t.Fatalf("%s.SetDefaultPrincipalPattern failed: %s", s, err)
+	if err := s.SetDefaultBlessingPattern("veyron/*"); err != nil {
+		t.Fatalf("%s.SetDefaultBlessingPattern failed: %s", s, err)
 	}
 
 	// Test that all mutations are appropriately reflected in a PublicIDStore read from

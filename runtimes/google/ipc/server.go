@@ -382,9 +382,9 @@ func defaultACL(id security.PublicID) security.ACL {
 	if id == nil {
 		return security.ACL{}
 	}
-	in := map[security.PrincipalPattern]security.LabelSet{}
+	in := map[security.BlessingPattern]security.LabelSet{}
 	for _, n := range id.Names() {
-		in[security.PrincipalPattern(n+security.ChainSeparator+security.AllPrincipals)] = security.AllLabels
+		in[security.BlessingPattern(n+security.ChainSeparator+string(security.AllPrincipals))] = security.AllLabels
 	}
 	return vsecurity.NewWhitelistACL(in)
 }

@@ -79,7 +79,7 @@ func TestAccountsMatching(t *testing.T) {
 	manager.AddAccount(googleAccount2, createChain(r, googleAccount2))
 	manager.AddAccount(facebookAccount, createChain(r, facebookAccount))
 
-	result := manager.AccountsMatching(security.PrincipalPattern(topLevelName + "/google/*"))
+	result := manager.AccountsMatching(security.BlessingPattern(topLevelName + "/google/*"))
 	sort.StringSlice(result).Sort()
 	expected := []string{googleAccount1, googleAccount2}
 	if !reflect.DeepEqual(result, expected) {

@@ -24,7 +24,7 @@ func (c *client) prepareDischarges(ctx context.T, blessing, server security.Publ
 
 	var caveats []security.ThirdPartyCaveat
 	for _, cav := range blessing.ThirdPartyCaveats() {
-		if cav.Service.MatchedBy(server) {
+		if cav.Service.MatchedBy(server.Names()...) {
 			caveats = append(caveats, cav.Caveat.(security.ThirdPartyCaveat))
 		}
 	}

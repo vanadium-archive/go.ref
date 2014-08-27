@@ -89,7 +89,7 @@ func (id *publicID) ThirdPartyCaveats() []security.ServiceCaveat {
 	sCaveats := make([]security.ServiceCaveat, len(jServiceCaveats))
 	for i, jcaveat := range jServiceCaveats {
 		sCaveats[i] = security.ServiceCaveat{
-			Service: security.PrincipalPattern(util.JStringField(env, C.jobject(jcaveat), "service")),
+			Service: security.BlessingPattern(util.JStringField(env, C.jobject(jcaveat), "service")),
 			Caveat:  newCaveat(env, C.jobject(jcaveat)),
 		}
 	}
