@@ -45,7 +45,7 @@ main() {
   ./mounttable mount "${EP}/google" /www.google.com:80 5m > /dev/null || shell_test::fail "line ${LINENO}: failed to mount www.google.com"
 
   # <mounttable>.Glob('*')
-  local GOT=$(./mounttable glob "${EP}" '*' | sed -r 's/TTL (.m)?..s/TTL XmXXs/' | sort)
+  local GOT=$(./mounttable glob "${EP}" '*' | sed 's/TTL [^)]*/TTL XmXXs/' | sort)
   local WANT="[${EP}]
 google /www.google.com:80 (TTL XmXXs)
 myself ${EP} (TTL XmXXs)
@@ -55,7 +55,7 @@ nh ${NHEP} (TTL XmXXs)"
   fi
 
   # <neighborhood>.Glob('NHNAME')
-  GOT=$(./mounttable glob "${NHEP}" "${NHNAME}" | sed 's/TTL .m..s/TTL XmXXs/' | sort)
+  GOT=$(./mounttable glob "${NHEP}" "${NHNAME}" | sed 's/TTL [^)]*/TTL XmXXs/' | sort)
   WANT="[${NHEP}]
 ${NHNAME} ${EP} (TTL XmXXs)"
   if [[ "${GOT}" != "${WANT}" ]]; then
