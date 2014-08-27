@@ -18,6 +18,7 @@ import (
 	"veyron2/rt"
 	"veyron2/security"
 	"veyron2/services/mounttable"
+	"veyron2/services/mounttable/types"
 	"veyron2/vlog"
 )
 
@@ -333,7 +334,7 @@ func TestGlob(t *testing.T) {
 	defer server.Stop()
 
 	// set up a mount space
-	fakeServer := naming.JoinAddressName(estr, "quux")
+	fakeServer := naming.JoinAddressName(estr, "//quux")
 	doMount(t, naming.JoinAddressName(estr, "//one/bright/day"), fakeServer, true, rootID)
 	doMount(t, naming.JoinAddressName(estr, "//in/the/middle"), fakeServer, true, rootID)
 	doMount(t, naming.JoinAddressName(estr, "//of/the/night"), fakeServer, true, rootID)
@@ -347,6 +348,7 @@ func TestGlob(t *testing.T) {
 		{"...", []string{"", "one", "in", "of", "one/bright", "in/the", "of/the", "one/bright/day", "in/the/middle", "of/the/night"}},
 		{"*/...", []string{"one", "in", "of", "one/bright", "in/the", "of/the", "one/bright/day", "in/the/middle", "of/the/night"}},
 		{"one/...", []string{"one", "one/bright", "one/bright/day"}},
+		{"of/the/night/two/dead/boys", []string{"of/the/night"}},
 		{"*/the", []string{"in/the", "of/the"}},
 		{"*/the/...", []string{"in/the", "of/the", "in/the/middle", "of/the/night"}},
 		{"o*", []string{"one", "of"}},
@@ -355,6 +357,39 @@ func TestGlob(t *testing.T) {
 	for _, test := range tests {
 		out := doGlob(t, naming.JoinAddressName(estr, "//"), test.in, rootID)
 		checkMatch(t, test.expected, out)
+	}
+
+	// Test Glob on a name that is under a mounted server. The result should the
+	// the address the mounted server with the extra suffix.
+	{
+		name := naming.JoinAddressName(estr, "//of/the/night/two/dead/boys/got/up/to/fight")
+		pattern := "*"
+		m, err := mounttable.BindGlobbable(name, quuxClient(rootID))
+		if err != nil {
+			boom(t, "Failed to BindMountTable: %s", err)
+		}
+		stream, err := m.Glob(rt.R().NewContext(), pattern)
+		if err != nil {
+			boom(t, "Failed call to %s.Glob(%s): %s", name, pattern, err)
+		}
+		var results []types.MountEntry
+		iterator := stream.RecvStream()
+		for iterator.Advance() {
+			results = append(results, iterator.Value())
+		}
+		if err := iterator.Err(); err != nil {
+			boom(t, "Glob %s: %s", name, err)
+		}
+		if len(results) != 1 {
+			boom(t, "Unexpected number of results. Got %v, want 1", len(results))
+		}
+		if results[0].Name != "" {
+			boom(t, "Unexpected name. Got %v, want ''", results[0].Name)
+		}
+		_, suffix := naming.SplitAddressName(results[0].Servers[0].Server)
+		if expected := "//quux/two/dead/boys/got/up/to/fight"; suffix != expected {
+			boom(t, "Unexpected suffix. Got %v, want %v", suffix, expected)
+		}
 	}
 }
 

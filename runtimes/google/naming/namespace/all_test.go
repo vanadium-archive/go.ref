@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"veyron/lib/glob"
 	_ "veyron/lib/testutil"
 	"veyron/runtimes/google/naming/namespace"
 	service "veyron/services/mounttable/lib"
@@ -17,7 +18,9 @@ import (
 	"veyron2/ipc"
 	"veyron2/naming"
 	"veyron2/rt"
+	"veyron2/security"
 	"veyron2/services/mounttable"
+	"veyron2/services/mounttable/types"
 	"veyron2/vlog"
 )
 
@@ -52,10 +55,54 @@ func doGlob(t *testing.T, r veyron2.Runtime, ns naming.Namespace, pattern string
 	return replies
 }
 
-type testServer struct{}
+type testServer struct {
+	suffix string
+}
 
-func (*testServer) KnockKnock(call ipc.ServerCall) string {
+func (testServer) KnockKnock(call ipc.ServerCall) string {
 	return "Who's there?"
+}
+
+// Glob applies pattern to the following tree:
+// "" -> {level1} -> {level2}
+// "".Glob("*") returns "level1"
+// "".Glob("...") returns "level1" and "level1/level2"
+// "level1".Glob("*") returns "level2"
+func (t *testServer) Glob(call ipc.ServerCall, pattern string) error {
+	g, err := glob.Parse(pattern)
+	if err != nil {
+		return err
+	}
+	tree := []string{"", "level1", "level2"}
+	for i, leaf := range tree {
+		if leaf == t.suffix {
+			return t.globLoop(call, "", g, tree[i+1:])
+		}
+	}
+	return nil
+}
+
+func (t *testServer) globLoop(call ipc.ServerCall, prefix string, g *glob.Glob, tree []string) error {
+	if g.Len() == 0 {
+		if err := call.Send(types.MountEntry{Name: prefix}); err != nil {
+			return err
+		}
+	}
+	if g.Finished() || len(tree) == 0 {
+		return nil
+	}
+	if ok, left := g.MatchInitialSegment(tree[0]); ok {
+		if err := t.globLoop(call, naming.Join(prefix, tree[0]), left, tree[1:]); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+type dispatcher struct{}
+
+func (d *dispatcher) Lookup(suffix, method string) (ipc.Invoker, security.Authorizer, error) {
+	return ipc.ReflectInvoker(&testServer{suffix}), nil, nil
 }
 
 func knockKnock(t *testing.T, runtime veyron2.Runtime, name string) {
@@ -167,7 +214,7 @@ func runMountTables(t *testing.T, r veyron2.Runtime) (*serverEntry, map[string]*
 	return root, mps
 }
 
-// createNamespace creates a hiearachy of mounttables and servers
+// createNamespace creates a hierarchy of mounttables and servers
 // as follows:
 // /mt1, /mt2, /mt3, /mt4, /mt5, /joke1, /joke2, /joke3.
 // That is, mt1 is a mount table mounted in the root mount table,
@@ -177,7 +224,7 @@ func createNamespace(t *testing.T, r veyron2.Runtime) (*serverEntry, map[string]
 	jokes := make(map[string]*serverEntry)
 	// Let's run some non-mount table services.
 	for _, j := range []string{j1MP, j2MP, j3MP} {
-		disp := ipc.LeafDispatcher(&testServer{}, nil)
+		disp := &dispatcher{}
 		jokes[j] = runServer(t, r, disp, j)
 	}
 	return root, mts, jokes, func() {
@@ -338,12 +385,12 @@ func TestServers(t *testing.T) {
 	ns := r.Namespace()
 	ns.SetRoots(root.name)
 
-	// Let's run some non-mount table servic
+	// Let's run some non-mount table services
 	for _, j := range []string{j1MP, j2MP, j3MP} {
 		testResolve(t, r, ns, j, jokes[j].name)
 		knockKnock(t, r, j)
 		globalName := naming.JoinAddressName(mts["mt4"].name, j)
-		disp := ipc.LeafDispatcher(&testServer{}, nil)
+		disp := &dispatcher{}
 		gj := "g_" + j
 		jokes[gj] = runServer(t, r, disp, globalName)
 		testResolve(t, r, ns, "mt4/"+j, jokes[gj].name)
@@ -365,7 +412,9 @@ func TestGlob(t *testing.T) {
 
 	tln := []string{"baz", "mt1", "mt2", "mt3", "mt4", "mt5", "joke1", "joke2", "joke3"}
 	barbaz := []string{"mt4/foo/bar", "mt4/foo/baz"}
+	level12 := []string{"joke1/level1", "joke1/level1/level2", "joke2/level1", "joke2/level1/level2", "joke3/level1", "joke3/level1/level2"}
 	foo := append([]string{"mt4/foo"}, barbaz...)
+	foo = append(foo, level12...)
 	// Try various globs.
 	globTests := []struct {
 		pattern  string
@@ -378,22 +427,27 @@ func TestGlob(t *testing.T) {
 		{"m*", []string{"mt1", "mt2", "mt3", "mt4", "mt5"}},
 		{"mt[2,3]", []string{"mt2", "mt3"}},
 		{"*z", []string{"baz"}},
+		{"joke1/*", []string{"joke1/level1"}},
+		{"j?ke1/level1/*", []string{"joke1/level1/level2"}},
+		{"joke1/level1/*", []string{"joke1/level1/level2"}},
+		{"joke1/level1/level2/...", []string{"joke1/level1/level2"}},
 		{"...", append(append(tln, foo...), "")},
 		{"*/...", append(tln, foo...)},
 		{"*/foo/*", barbaz},
 		{"*/*/*z", []string{"mt4/foo/baz"}},
 		{"*/f??/*z", []string{"mt4/foo/baz"}},
+		{"mt4/foo/baz", []string{"mt4/foo/baz"}},
 	}
 	for _, test := range globTests {
 		out := doGlob(t, r, ns, test.pattern, 0)
-		compare(t, "Glob", test.pattern, test.expected, out)
+		compare(t, "Glob", test.pattern, out, test.expected)
 		// Do the same with a full rooted name.
 		out = doGlob(t, r, ns, naming.JoinAddressName(root.name, test.pattern), 0)
 		var expectedWithRoot []string
 		for _, s := range test.expected {
 			expectedWithRoot = append(expectedWithRoot, naming.JoinAddressName(root.name, s))
 		}
-		compare(t, "Glob", test.pattern, expectedWithRoot, out)
+		compare(t, "Glob", test.pattern, out, expectedWithRoot)
 	}
 }
 
