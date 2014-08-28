@@ -346,39 +346,14 @@ func (*appInvoker) Revert(ipc.ServerContext) error {
 	return nil
 }
 
-func generateCommand(envelope *application.Envelope, binPath, instanceDir string) (*exec.Cmd, error) {
-	// TODO(caprita): For the purpose of isolating apps, we should run them
-	// as different users.  We'll need to either use the root process or a
-	// suid script to be able to do it.
-	cmd := exec.Command(binPath)
-	// TODO(caprita): Also pass in configuration info like NAMESPACE_ROOT to
-	// the app (to point to the device mounttable).
-	cmd.Env = envelope.Env
-	rootDir := filepath.Join(instanceDir, "root")
-	if err := mkdir(rootDir); err != nil {
-		return nil, err
-	}
-	cmd.Dir = rootDir
-	logDir := filepath.Join(instanceDir, "logs")
-	if err := mkdir(logDir); err != nil {
-		return nil, err
-	}
-	timestamp := time.Now().UnixNano()
-	var err error
+func openWriteFile(path string) (*os.File, error) {
 	perm := os.FileMode(0600)
-	cmd.Stdout, err = os.OpenFile(filepath.Join(logDir, fmt.Sprintf("STDOUT-%d", timestamp)), os.O_WRONLY|os.O_CREATE, perm)
+	file, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE, perm)
 	if err != nil {
-		return nil, err
+		vlog.Errorf("OpenFile(%v) failed: %v", path, err)
+		return nil, errOperationFailed
 	}
-
-	cmd.Stderr, err = os.OpenFile(filepath.Join(logDir, fmt.Sprintf("STDERR-%d", timestamp)), os.O_WRONLY|os.O_CREATE, perm)
-	if err != nil {
-		return nil, err
-	}
-	// Set up args and env.
-	cmd.Args = append(cmd.Args, "--log_dir=../logs")
-	cmd.Args = append(cmd.Args, envelope.Args...)
-	return cmd, nil
+	return file, nil
 }
 
 // installationDir returns the path to the directory containing the app
@@ -446,12 +421,32 @@ func genCmd(instanceDir string) (*exec.Cmd, error) {
 		vlog.Errorf("Stat(%v) failed: %v", binPath, err)
 		return nil, errOperationFailed
 	}
-	// TODO(caprita): Fold generateCommand inline here.
-	cmd, err := generateCommand(envelope, binPath, instanceDir)
-	if err != nil {
-		vlog.Errorf("generateCommand(%v, %v, %v) failed: %v", envelope, binPath, instanceDir, err)
-		return nil, errOperationFailed
+	// TODO(caprita): For the purpose of isolating apps, we should run them
+	// as different users.  We'll need to either use the root process or a
+	// suid script to be able to do it.
+	cmd := exec.Command(binPath)
+	// TODO(caprita): Also pass in configuration info like NAMESPACE_ROOT to
+	// the app (to point to the device mounttable).
+	cmd.Env = envelope.Env
+	rootDir := filepath.Join(instanceDir, "root")
+	if err := mkdir(rootDir); err != nil {
+		return nil, err
 	}
+	cmd.Dir = rootDir
+	logDir := filepath.Join(instanceDir, "logs")
+	if err := mkdir(logDir); err != nil {
+		return nil, err
+	}
+	timestamp := time.Now().UnixNano()
+	if cmd.Stdout, err = openWriteFile(filepath.Join(logDir, fmt.Sprintf("STDOUT-%d", timestamp))); err != nil {
+		return nil, err
+	}
+	if cmd.Stderr, err = openWriteFile(filepath.Join(logDir, fmt.Sprintf("STDERR-%d", timestamp))); err != nil {
+		return nil, err
+	}
+	// Set up args and env.
+	cmd.Args = append(cmd.Args, "--log_dir=../logs")
+	cmd.Args = append(cmd.Args, envelope.Args...)
 	return cmd, nil
 }
 
