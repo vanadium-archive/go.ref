@@ -12,16 +12,20 @@ import (
 	"strings"
 	"syscall"
 	"testing"
+	"time"
 
 	"veyron/lib/signals"
 	"veyron/lib/testutil/blackbox"
+	tsecurity "veyron/lib/testutil/security"
 	"veyron/services/mgmt/lib/exec"
 	"veyron/services/mgmt/node/config"
 	"veyron/services/mgmt/node/impl"
 
+	"veyron2"
 	"veyron2/ipc"
 	"veyron2/naming"
 	"veyron2/rt"
+	"veyron2/security"
 	"veyron2/services/mgmt/application"
 	"veyron2/services/mgmt/node"
 	"veyron2/verror"
@@ -105,7 +109,7 @@ func nodeManager(args []string) {
 		configState.Root, configState.Origin, configState.CurrentLink = args[0], args[1], args[2]
 	}
 
-	dispatcher, err := impl.NewDispatcher(nil, configState)
+	dispatcher, err := impl.NewDispatcher(configState)
 	if err != nil {
 		vlog.Fatalf("Failed to create node manager dispatcher: %v", err)
 	}
@@ -596,4 +600,106 @@ func TestAppLifeCycle(t *testing.T) {
 	syscall.Kill(nm.Cmd.Process.Pid, syscall.SIGINT)
 	nm.Expect("nm terminating")
 	nm.ExpectEOFAndWait()
+}
+
+type granter struct {
+	ipc.CallOpt
+	self security.PrivateID
+}
+
+func (g granter) Grant(id security.PublicID) (security.PublicID, error) {
+	return g.self.Bless(id, "claimernode", 10*time.Minute, nil)
+}
+
+func newRuntimeClient(t *testing.T, id security.PrivateID) (veyron2.Runtime, ipc.Client) {
+	runtime, err := rt.New(veyron2.RuntimeID(id))
+	if err != nil {
+		t.Fatalf("rt.New() failed: %v", err)
+	}
+	runtime.Namespace().SetRoots(rt.R().Namespace().Roots()[0])
+	nodeClient, err := runtime.NewClient()
+	if err != nil {
+		t.Fatalf("rt.NewClient() failed %v", err)
+	}
+	return runtime, nodeClient
+}
+
+func tryInstall(rt veyron2.Runtime, c ipc.Client) error {
+	appsName := "nm//apps"
+	stub, err := node.BindApplication(appsName, c)
+	if err != nil {
+		return fmt.Errorf("BindApplication(%v) failed: %v", appsName, err)
+	}
+	if _, err = stub.Install(rt.NewContext(), "ar"); err != nil {
+		return fmt.Errorf("Install failed: %v", err)
+	}
+	return nil
+}
+
+// TestNodeManagerClaim claims a nodemanager and tests ACL permissions on its methods.
+func TestNodeManagerClaim(t *testing.T) {
+	// Set up mount table, application, and binary repositories.
+	defer setupLocalNamespace(t)()
+	envelope, cleanup := startApplicationRepository()
+	defer cleanup()
+	defer startBinaryRepository()()
+
+	root, cleanup := setupRootDir()
+	defer cleanup()
+
+	// Set up the node manager.  Since we won't do node manager updates,
+	// don't worry about its application envelope and current link.
+	nm := blackbox.HelperCommand(t, "nodeManager", "nm", root, "unused app repo name", "unused curr link")
+	defer setupChildCommand(nm)()
+	if err := nm.Cmd.Start(); err != nil {
+		t.Fatalf("Start() failed: %v", err)
+	}
+	defer nm.Cleanup()
+	readPID(t, nm)
+
+	// Create an envelope for an app.
+	app := blackbox.HelperCommand(t, "app", "app1")
+	defer setupChildCommand(app)()
+	appTitle := "google naps"
+	*envelope = *envelopeFromCmd(appTitle, app.Cmd)
+
+	nodeStub, err := node.BindNode("nm//nm")
+	if err != nil {
+		t.Fatalf("BindNode failed: %v", err)
+	}
+
+	// Create a new identity and runtime.
+	newIdentity := tsecurity.NewBlessedIdentity(rt.R().Identity(), "claimer")
+	newRT, nodeClient := newRuntimeClient(t, newIdentity)
+	defer newRT.Cleanup()
+
+	// Nodemanager should have open ACLs before we claim it and so an Install
+	// should succeed.
+	if err = tryInstall(newRT, nodeClient); err != nil {
+		t.Fatalf("%v", err)
+	}
+	// Claim the nodemanager with this identity.
+	if err = nodeStub.Claim(rt.R().NewContext(), granter{self: newIdentity}); err != nil {
+		t.Fatalf("Claim failed: %v", err)
+	}
+	if err = tryInstall(newRT, nodeClient); err != nil {
+		t.Fatalf("%v", err)
+	}
+	// Try to install with a new identity. This should fail.
+	newIdentity = tsecurity.NewBlessedIdentity(rt.R().Identity(), "random")
+	newRT, nodeClient = newRuntimeClient(t, newIdentity)
+	defer newRT.Cleanup()
+	if err = tryInstall(newRT, nodeClient); err == nil {
+		t.Fatalf("Install should have failed with random identity")
+	}
+	// Try to install with the original identity. This should still work as the original identity
+	// name is a prefix of the identity used by newRT.
+	nodeClient, err = rt.R().NewClient()
+	if err != nil {
+		t.Fatalf("rt.NewClient() failed %v", err)
+	}
+	if err = tryInstall(rt.R(), nodeClient); err != nil {
+		t.Fatalf("%v", err)
+	}
+	// TODO(gauthamt): Test that ACLs persist across nodemanager restarts
 }

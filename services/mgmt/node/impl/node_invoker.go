@@ -11,6 +11,9 @@ package impl
 //       noded.sh              - a shell script to start the binary
 //     <version 2 timestamp>
 //     ...
+//     node-data/
+//       acl.nodemanager
+//	 acl.signature
 //
 // The node manager is always expected to be started through the symbolic link
 // passed in as config.CurrentLink, which is monitored by an init daemon. This
@@ -81,6 +84,16 @@ type nodeInvoker struct {
 	updating *updatingState
 	callback *callbackState
 	config   *iconfig.State
+	disp     *dispatcher
+}
+
+func (i *nodeInvoker) Claim(call ipc.ServerContext) error {
+	// Get the blessing to be used by the claimant
+	blessing := call.Blessing()
+	if blessing == nil {
+		return errInvalidBlessing
+	}
+	return i.disp.claimNodeManager(blessing)
 }
 
 func (*nodeInvoker) Describe(ipc.ServerContext) (node.Description, error) {

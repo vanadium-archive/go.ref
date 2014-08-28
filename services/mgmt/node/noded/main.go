@@ -4,7 +4,6 @@ import (
 	"flag"
 
 	"veyron/lib/signals"
-	vflag "veyron/security/flag"
 	"veyron/services/mgmt/node/config"
 	"veyron/services/mgmt/node/impl"
 
@@ -46,7 +45,7 @@ func main() {
 	// TODO(caprita): We need a way to set config fields outside of the
 	// update mechanism (since that should ideally be an opaque
 	// implementation detail).
-	dispatcher, err := impl.NewDispatcher(vflag.NewAuthorizerOrDie(), configState)
+	dispatcher, err := impl.NewDispatcher(configState)
 	if err != nil {
 		vlog.Fatalf("Failed to create dispatcher: %v", err)
 	}

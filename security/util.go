@@ -11,6 +11,13 @@ import (
 
 var nullACL security.ACL
 
+// OpenACL creates an ACL that grants access to all principals.
+func OpenACL() security.ACL {
+	acl := security.ACL{}
+	acl.In = map[security.BlessingPattern]security.LabelSet{security.AllPrincipals: security.AllLabels}
+	return acl
+}
+
 // LoadIdentity reads a PrivateID from r, assuming that it was written using
 // SaveIdentity.
 func LoadIdentity(r io.Reader) (security.PrivateID, error) {
