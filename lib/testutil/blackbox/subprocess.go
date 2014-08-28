@@ -53,6 +53,31 @@ func testTimeout() string {
 	return "--test.timeout=1m"
 }
 
+// VeyronEnvironment returns only the environment variables needed for
+// Veyron execution from the provided list.
+func VeyronEnvironment(env []string) []string {
+	veyronEnvironmentPrefixes := []string{
+		"VEYRON_",
+		"NAMESPACE_ROOT",
+		"PAUSE_BEFORE_STOP",
+		"TMPDIR",
+	}
+
+	var ret []string
+	for _, e := range env {
+		if eqIdx := strings.Index(e, "="); eqIdx > 0 {
+			key := e[:eqIdx]
+			for _, prefix := range veyronEnvironmentPrefixes {
+				if strings.HasPrefix(key, prefix) {
+					ret = append(ret, fmt.Sprintf("%s=%s", key, e[eqIdx+1:]))
+					break
+				}
+			}
+		}
+	}
+	return ret
+}
+
 // HelperCommand() takes an argument list and starts a helper subprocess.
 // t maybe nil to allow use from outside of tests.
 func HelperCommand(t *testing.T, command string, args ...string) *Child {
@@ -77,7 +102,8 @@ func HelperCommand(t *testing.T, command string, args ...string) *Child {
 	} else {
 		cmd.Stderr = stderr
 	}
-	cmd.Env = append([]string{"VEYRON_BLACKBOX_TEST=1"}, os.Environ()...)
+
+	cmd.Env = append([]string{"VEYRON_BLACKBOX_TEST=1"}, VeyronEnvironment(os.Environ())...)
 	stdout, _ := cmd.StdoutPipe()
 	stdin, _ := cmd.StdinPipe()
 	return &Child{

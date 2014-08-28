@@ -114,13 +114,13 @@ func resolve(t *testing.T, name string) string {
 
 func updateExpectError(t *testing.T, name string, errID verror.ID) {
 	if err := invokeUpdate(t, name); !verror.Is(err, errID) {
-		t.Fatalf("Unexpected update error %v, expected error ID %v", err, errID)
+		t.Fatalf("Unexpected update on %s error %v, expected error ID %v", name, err, errID)
 	}
 }
 
 func update(t *testing.T, name string) {
 	if err := invokeUpdate(t, name); err != nil {
-		t.Fatalf("Update() failed: %v", err)
+		t.Fatalf("Update() on %s failed: %v", name, err)
 	}
 }
 

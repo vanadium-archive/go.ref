@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"reflect"
 	"strconv"
 	"strings"
 	"syscall"
@@ -250,4 +251,31 @@ func TestSubtimeout(t *testing.T) {
 	c.ExpectEOFAndWaitForExitCode(fmt.Errorf("exit status 2"))
 
 	waitForNonExistence(t, []int{child})
+}
+
+func TestVeyronEnvironmentment(t *testing.T) {
+	in := [][]string{
+		[]string{},
+		[]string{"Hello", "NO=1"},
+		[]string{"VEYRON_X=1", "Hello"},
+		[]string{"NAMESPACE_ROOT=1", "VEYRON_IDENTITY=me"},
+		[]string{"PAUSE_BEFORE_STOP=1", "NAMESPACE_ROOT2=2", "BOB=ALICE", "Hello"},
+	}
+
+	expected := [][]string{
+		[]string{},
+		[]string{},
+		[]string{"VEYRON_X=1"},
+		[]string{"NAMESPACE_ROOT=1", "VEYRON_IDENTITY=me"},
+		[]string{"PAUSE_BEFORE_STOP=1", "NAMESPACE_ROOT2=2"},
+	}
+
+	for i, _ := range in {
+		s := blackbox.VeyronEnvironment(in[i])
+		if len(s) == 0 && len(expected[i]) == 0 {
+			continue
+		} else if !reflect.DeepEqual(expected[i], s) {
+			t.Fatalf("subtest %d: got %v, expected %v", i, s, expected[i])
+		}
+	}
 }

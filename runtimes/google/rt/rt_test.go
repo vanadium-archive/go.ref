@@ -66,7 +66,7 @@ func TestInitArgs(t *testing.T) {
 		os.TempDir())
 
 	if str != expected {
-		t.Fatalf("unexpected output from child: %s", str)
+		t.Fatalf("incorrect child output: got %s, expected %s", str, expected)
 	}
 	c.CloseStdin()
 	c.Expect("done")
