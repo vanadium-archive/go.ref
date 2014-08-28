@@ -13,7 +13,6 @@ import (
 	"veyron/runtimes/google/ipc/version"
 	inaming "veyron/runtimes/google/naming"
 
-	"veyron2"
 	"veyron2/ipc/stream"
 	"veyron2/naming"
 	"veyron2/verror"
@@ -122,17 +121,6 @@ func listen(protocol, address string) (net.Listener, error) {
 }
 
 func (m *manager) Listen(protocol, address string, opts ...stream.ListenerOpt) (stream.Listener, naming.Endpoint, error) {
-	var rewriteEP string
-	var filteredOpts []stream.ListenerOpt
-	for _, o := range opts {
-		if rewriteOpt, ok := o.(veyron2.EndpointRewriteOpt); ok {
-			// Last one 'wins'.
-			rewriteEP = string(rewriteOpt)
-		} else {
-			filteredOpts = append(filteredOpts, o)
-		}
-	}
-	opts = filteredOpts
 	m.muListeners.Lock()
 	if m.shutdown {
 		m.muListeners.Unlock()
@@ -162,19 +150,7 @@ func (m *manager) Listen(protocol, address string, opts ...stream.ListenerOpt) (
 	ln := newNetListener(m, netln, opts)
 	m.listeners[ln] = true
 	m.muListeners.Unlock()
-
-	network, address := netln.Addr().Network(), netln.Addr().String()
-	if network == "tcp" && len(rewriteEP) > 0 {
-		if _, port, err := net.SplitHostPort(address); err != nil {
-			return nil, nil, fmt.Errorf("%q not a valid address: %v", address, err)
-		} else {
-			address = net.JoinHostPort(rewriteEP, port)
-		}
-	}
-	// We use protocol rather than network when creating the endpoint to
-	// honour the original request to Listen even if tcp is used under the
-	// covers.
-	ep := version.Endpoint(protocol, address, m.rid)
+	ep := version.Endpoint(protocol, netln.Addr().String(), m.rid)
 	return ln, ep, nil
 }
 

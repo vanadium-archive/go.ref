@@ -1055,70 +1055,6 @@ func TestConnectWithIncompatibleServers(t *testing.T) {
 	}
 }
 
-// TestPublishOptions verifies that the options that are relevant to how
-// a server publishes its endpoints have the right effect.
-func TestPublishOptions(t *testing.T) {
-	sm := imanager.InternalNew(naming.FixedRoutingID(0x555555555))
-	ns := newNamespace()
-	cases := []struct {
-		opts   []ipc.ServerOpt
-		expect []string
-	}{
-		{[]ipc.ServerOpt{}, []string{"127.0.0.1", "127.0.0.1"}},
-		{[]ipc.ServerOpt{veyron2.PublishAll}, []string{"127.0.0.1", "127.0.0.1"}},
-		{[]ipc.ServerOpt{veyron2.PublishFirst}, []string{"127.0.0.1"}},
-		{[]ipc.ServerOpt{veyron2.EndpointRewriteOpt("example1.com"), veyron2.EndpointRewriteOpt("example2.com")}, []string{"example2.com", "example2.com"}},
-		{[]ipc.ServerOpt{veyron2.PublishFirst, veyron2.EndpointRewriteOpt("example.com")}, []string{"example.com"}},
-	}
-	for i, c := range cases {
-		server, err := InternalNewServer(testContext(), sm, ns, append(c.opts, vc.FixedLocalID(serverID))...)
-		if err != nil {
-			t.Errorf("InternalNewServer failed: %v", err)
-			continue
-		}
-		if _, err := server.Listen("tcp", "127.0.0.1:0"); err != nil {
-			t.Errorf("server.Listen failed: %v", err)
-			server.Stop()
-			continue
-		}
-		if _, err := server.Listen("tcp", "127.0.0.1:0"); err != nil {
-			t.Errorf("server.Listen failed: %v", err)
-			server.Stop()
-			continue
-		}
-		if err := server.Serve("mountpoint", &testServerDisp{}); err != nil {
-			t.Errorf("server.Publish failed: %v", err)
-			server.Stop()
-			continue
-		}
-		servers, err := ns.Resolve(testContext(), "mountpoint")
-		if err != nil {
-			t.Errorf("mountpoint not found in mounttable")
-			server.Stop()
-			continue
-		}
-		var got []string
-		for _, s := range servers {
-			address, _ := naming.SplitAddressName(s)
-			ep, err := inaming.NewEndpoint(address)
-			if err != nil {
-				t.Errorf("case #%d: server with invalid endpoint %q: %v", i, address, err)
-				continue
-			}
-			host, _, err := net.SplitHostPort(ep.Addr().String())
-			if err != nil {
-				t.Errorf("case #%d: server endpoint with invalid address %q: %v", i, ep.Addr(), err)
-				continue
-			}
-			got = append(got, host)
-		}
-		if want := c.expect; !reflect.DeepEqual(want, got) {
-			t.Errorf("case #%d: expected mounted servers with addresses %q, got %q instead", i, want, got)
-		}
-		server.Stop()
-	}
-}
-
 // TestReconnect verifies that the client transparently re-establishes the
 // connection to the server if the server dies and comes back (on the same
 // endpoint).
@@ -1167,6 +1103,64 @@ func TestReconnect(t *testing.T) {
 	}
 	if result, err := makeCall(); err != nil || result != expected {
 		t.Errorf("Got (%q, %v) want (%q, nil)", result, err, expected)
+	}
+}
+
+func TestPreferredAddress(t *testing.T) {
+	sm := imanager.InternalNew(naming.FixedRoutingID(0x555555555))
+	defer sm.Shutdown()
+	ns := newNamespace()
+	pa := func(string) (net.Addr, error) {
+		a := &net.IPAddr{}
+		a.IP = net.ParseIP("1.1.1.1")
+		return a, nil
+	}
+	server, err := InternalNewServer(testContext(), sm, ns, vc.FixedLocalID(serverID), veyron2.PreferredAddressOpt(pa))
+	if err != nil {
+		t.Errorf("InternalNewServer failed: %v", err)
+	}
+	defer server.Stop()
+	ep, err := server.Listen("tcp4", ":0")
+	iep := ep.(*inaming.Endpoint)
+	host, _, err := net.SplitHostPort(iep.Address)
+	if err != nil {
+		t.Errorf("unexpected error: %s", err)
+	}
+	if got, want := host, "1.1.1.1"; got != want {
+		t.Errorf("got %q, want %q", got, want)
+	}
+	// Won't override the specified address.
+	ep, err = server.Listen("tcp4", "127.0.0.1:0")
+	iep = ep.(*inaming.Endpoint)
+	host, _, err = net.SplitHostPort(iep.Address)
+	if err != nil {
+		t.Errorf("unexpected error: %s", err)
+	}
+	if got, want := host, "127.0.0.1"; got != want {
+		t.Errorf("got %q, want %q", got, want)
+	}
+}
+
+func TestPreferredAddressErrors(t *testing.T) {
+	sm := imanager.InternalNew(naming.FixedRoutingID(0x555555555))
+	defer sm.Shutdown()
+	ns := newNamespace()
+	paerr := func(string) (net.Addr, error) {
+		return nil, fmt.Errorf("oops")
+	}
+	server, err := InternalNewServer(testContext(), sm, ns, vc.FixedLocalID(serverID), veyron2.PreferredAddressOpt(paerr))
+	if err != nil {
+		t.Errorf("InternalNewServer failed: %v", err)
+	}
+	defer server.Stop()
+	ep, err := server.Listen("tcp4", ":0")
+	iep := ep.(*inaming.Endpoint)
+	host, _, err := net.SplitHostPort(iep.Address)
+	if err != nil {
+		t.Errorf("unexpected error: %s", err)
+	}
+	if got, want := host, "0.0.0.0"; got != want {
+		t.Errorf("got %q, want %q", got, want)
 	}
 }
 
