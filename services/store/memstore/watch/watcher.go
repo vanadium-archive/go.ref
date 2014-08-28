@@ -86,7 +86,7 @@ func (w *Watcher) WatchQuery(ctx ipc.ServerContext, path storage.PathName,
 type WatchStream interface {
 	// Send places the item onto the output stream, blocking if there is no
 	// buffer space available.
-	Send(item types.ChangeBatch) error
+	Send(item types.Change) error
 }
 
 // Watch handles the specified request, processing records in the store log and
@@ -291,11 +291,12 @@ func processChanges(stream WatchStream, changes []types.Change, timestamp uint64
 }
 
 func sendChanges(stream WatchStream, changes []types.Change) error {
-	if len(changes) == 0 {
-		return nil
+	for _, change := range changes {
+		if err := stream.Send(change); err != nil {
+			return err
+		}
 	}
-	// TODO(tilaks): batch more aggressively.
-	return stream.Send(types.ChangeBatch{Changes: changes})
+	return nil
 }
 
 func addContinued(changes []types.Change) {

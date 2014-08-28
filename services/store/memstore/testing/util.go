@@ -154,10 +154,10 @@ func PutMutationsBatch(t *testing.T, id security.PublicID, putMutationsFn func(i
 type watcherServiceWatchStreamSender struct {
 	mu     *sync.Mutex
 	ctx    ipc.ServerContext
-	output chan<- types.ChangeBatch
+	output chan<- types.Change
 }
 
-func (s *watcherServiceWatchStreamSender) Send(cb types.ChangeBatch) error {
+func (s *watcherServiceWatchStreamSender) Send(cb types.Change) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	select {
@@ -174,7 +174,7 @@ type watcherServiceWatchStream struct {
 }
 
 func (s *watcherServiceWatchStream) SendStream() interface {
-	Send(cb types.ChangeBatch) error
+	Send(cb types.Change) error
 } {
 	return s
 }
@@ -183,8 +183,8 @@ func (*watcherServiceWatchStream) Cancel() {}
 // watcherWatchStream implements watch.WatcherWatchStream.
 type watcherWatchStream struct {
 	ctx   *FakeServerContext
-	value types.ChangeBatch
-	input <-chan types.ChangeBatch
+	value types.Change
+	input <-chan types.Change
 	err   <-chan error
 }
 
@@ -194,7 +194,7 @@ func (s *watcherWatchStream) Advance() bool {
 	return ok
 }
 
-func (s *watcherWatchStream) Value() types.ChangeBatch {
+func (s *watcherWatchStream) Value() types.Change {
 	return s.value
 }
 
@@ -213,7 +213,7 @@ func (s *watcherWatchStream) Cancel() {
 
 func (s *watcherWatchStream) RecvStream() interface {
 	Advance() bool
-	Value() types.ChangeBatch
+	Value() types.Change
 	Err() error
 } {
 	return s
@@ -222,7 +222,7 @@ func (s *watcherWatchStream) RecvStream() interface {
 func watchImpl(id security.PublicID, watchFn func(ipc.ServerContext, *watcherServiceWatchStream) error) *watcherWatchStream {
 	mu := &sync.Mutex{}
 	ctx := NewFakeServerContext(id)
-	c := make(chan types.ChangeBatch, 1)
+	c := make(chan types.Change, 1)
 	errc := make(chan error, 1)
 	go func() {
 		stream := &watcherServiceWatchStream{

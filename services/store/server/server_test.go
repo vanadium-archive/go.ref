@@ -298,12 +298,12 @@ func TestWatch(t *testing.T) {
 	rStream := ws.RecvStream()
 	// Check that watch detects the changes in the first transaction.
 	{
+		changes := []types.Change{}
 		if !rStream.Advance() {
 			t.Error("Advance() failed: %v", rStream.Err())
 		}
-		cb := rStream.Value()
-		changes := cb.Changes
-		change := changes[0]
+		change := rStream.Value()
+		changes = append(changes, change)
 		if change.Continued {
 			t.Error("Expected change to be the last in this transaction")
 		}
@@ -329,16 +329,20 @@ func TestWatch(t *testing.T) {
 
 	// Check that watch detects the changes in the second transaction.
 	{
+		changes := []types.Change{}
 		if !rStream.Advance() {
 			t.Error("Advance() failed: %v", rStream.Err())
 		}
-		cb := rStream.Value()
-		changes := cb.Changes
-		change := changes[0]
+		change := rStream.Value()
+		changes = append(changes, change)
 		if !change.Continued {
 			t.Error("Expected change to continue the transaction")
 		}
-		change = changes[1]
+		if !rStream.Advance() {
+			t.Error("Advance() failed: %v", rStream.Err())
+		}
+		change = rStream.Value()
+		changes = append(changes, change)
 		if change.Continued {
 			t.Error("Expected change to be the last in this transaction")
 		}
@@ -382,12 +386,12 @@ func TestWatchGlob(t *testing.T) {
 	rStream2 := ws2.RecvStream()
 	// The watch on / should send a change on /.
 	{
+		changes := []types.Change{}
 		if !rStream1.Advance() {
 			t.Error("Advance() failed: %v", rStream1.Err())
 		}
-		cb := rStream1.Value()
-		changes := cb.Changes
-		change := changes[0]
+		change := rStream1.Value()
+		changes = append(changes, change)
 		if change.Continued {
 			t.Error("Expected change to be the last in this transaction")
 		}
@@ -414,16 +418,20 @@ func TestWatchGlob(t *testing.T) {
 
 	// The watch on / should send changes on / and /a.
 	{
+		changes := []types.Change{}
 		if !rStream1.Advance() {
 			t.Error("Advance() failed: %v", rStream1.Err())
 		}
-		cb := rStream1.Value()
-		changes := cb.Changes
-		change := changes[0]
+		change := rStream1.Value()
+		changes = append(changes, change)
 		if !change.Continued {
 			t.Error("Expected change to continue the transaction")
 		}
-		change = changes[1]
+		if !rStream1.Advance() {
+			t.Error("Advance() failed: %v", rStream1.Err())
+		}
+		change = rStream1.Value()
+		changes = append(changes, change)
 		if change.Continued {
 			t.Error("Expected change to be the last in this transaction")
 		}
@@ -432,12 +440,12 @@ func TestWatchGlob(t *testing.T) {
 	}
 	// The watch on /a should send a change on /a.
 	{
+		changes := []types.Change{}
 		if !rStream2.Advance() {
 			t.Error("Advance() failed: %v", rStream2.Err())
 		}
-		cb := rStream2.Value()
-		changes := cb.Changes
-		change := changes[0]
+		change := rStream2.Value()
+		changes = append(changes, change)
 		if change.Continued {
 			t.Error("Expected change to be the last in this transaction")
 		}
@@ -476,12 +484,12 @@ func TestGarbageCollectionOnCommit(t *testing.T) {
 	rStream := ws.RecvStream()
 	// Check that watch detects the changes in the first transaction.
 	{
+		changes := []types.Change{}
 		if !rStream.Advance() {
 			t.Error("Advance() failed: %v", rStream.Err())
 		}
-		cb := rStream.Value()
-		changes := cb.Changes
-		change := changes[0]
+		change := rStream.Value()
+		changes = append(changes, change)
 		if change.Continued {
 			t.Error("Expected change to be the last in this transaction")
 		}
@@ -507,16 +515,20 @@ func TestGarbageCollectionOnCommit(t *testing.T) {
 
 	// Check that watch detects the changes in the second transaction.
 	{
+		changes := []types.Change{}
 		if !rStream.Advance() {
 			t.Error("Advance() failed: %v", rStream.Err())
 		}
-		cb := rStream.Value()
-		changes := cb.Changes
-		change := changes[0]
+		change := rStream.Value()
+		changes = append(changes, change)
 		if !change.Continued {
 			t.Error("Expected change to continue the transaction")
 		}
-		change = changes[1]
+		if !rStream.Advance() {
+			t.Error("Advance() failed: %v", rStream.Err())
+		}
+		change = rStream.Value()
+		changes = append(changes, change)
 		if change.Continued {
 			t.Error("Expected change to be the last in this transaction")
 		}
@@ -537,12 +549,12 @@ func TestGarbageCollectionOnCommit(t *testing.T) {
 
 	// Check that watch detects the changes in the third transaction.
 	{
+		changes := []types.Change{}
 		if !rStream.Advance() {
 			t.Error("Advance() failed: %v", rStream.Err())
 		}
-		cb := rStream.Value()
-		changes := cb.Changes
-		change := changes[0]
+		change := rStream.Value()
+		changes = append(changes, change)
 		if change.Continued {
 			t.Error("Expected change to be the last in this transaction")
 		}
@@ -551,12 +563,12 @@ func TestGarbageCollectionOnCommit(t *testing.T) {
 
 	// Check that watch detects the garbage collection of /a.
 	{
+		changes := []types.Change{}
 		if !rStream.Advance() {
 			t.Error("Advance() failed: %v", rStream.Err())
 		}
-		cb := rStream.Value()
-		changes := cb.Changes
-		change := changes[0]
+		change := rStream.Value()
+		changes = append(changes, change)
 		if change.Continued {
 			t.Error("Expected change to be the last in this transaction")
 		}

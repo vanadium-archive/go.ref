@@ -72,19 +72,27 @@ func (*fakeVStore) PutMutations(_ context.T, _ ...ipc.CallOpt) (raw.StorePutMuta
 
 // fakeStream is used to simulate the reply stream of the Watch() API.
 type fakeStream struct {
+	changes  []types.Change
+	i        int
+	resmark  byte
 	canceled chan struct{}
 	err      error
 }
 
 func newFakeStream() *fakeStream {
 	s := &fakeStream{}
+	if info.watchResmark != nil {
+		s.resmark = info.watchResmark[0]
+	}
+	s.changes = getChanges()
+	s.i = -1
 	s.canceled = make(chan struct{})
 	return s
 }
 
 func (s *fakeStream) RecvStream() interface {
 	Advance() bool
-	Value() types.ChangeBatch
+	Value() types.Change
 	Err() error
 } {
 	return s
@@ -96,6 +104,11 @@ func (s *fakeStream) Advance() bool {
 		info.failRecvCount++
 		s.err = fmt.Errorf("fake recv error on fake stream: %d", info.failRecvCount)
 		return false
+	}
+
+	if s.i+1 == len(s.changes) {
+		// Make sure the next Recv() call returns EOF on the stream.
+		info.eofRecv = true
 	}
 
 	// If "eofRecv" is set, simulate a closed stream and make sure the next Recv() call blocks.
@@ -112,30 +125,23 @@ func (s *fakeStream) Advance() bool {
 		s.err = nil
 		return false
 	}
-	// Otherwise return a batch of changes, and make sure the next Recv() call returns EOF on the stream.
+
+	// Otherwise return a change.
 	// Adjust the resume marker of the change records to follow the one given to the Watch request.
-	info.eofRecv = true
+	s.i++
 	return true
 }
 
-func (s *fakeStream) Value() types.ChangeBatch {
-	changes := getChangeBatch()
+func (s *fakeStream) Value() types.Change {
+	ch := s.changes[s.i]
 
-	var lastCount byte
-	if info.watchResmark != nil {
-		lastCount = info.watchResmark[0]
+	if !ch.Continued {
+		s.resmark++
+		resmark := []byte{s.resmark, 0, 0, 0, 0, 0, 0, 0}
+		ch.ResumeMarker = resmark
 	}
 
-	for i := range changes.Changes {
-		ch := &changes.Changes[i]
-		if !ch.Continued {
-			lastCount++
-			resmark := []byte{lastCount, 0, 0, 0, 0, 0, 0, 0}
-			changes.Changes[i].ResumeMarker = resmark
-		}
-	}
-
-	return changes
+	return ch
 }
 
 func (s *fakeStream) Err() error {
@@ -149,13 +155,11 @@ func (s *fakeStream) Cancel() {
 	close(s.canceled)
 }
 
-// getChangeBatch returns a batch of store mutations used to simulate the Watch API.
+// getChanges returns a batch of store mutations used to simulate the Watch API.
 // The batch contains two transactions to verify both new-object creation and the
 // mutation of an existing object.
-func getChangeBatch() types.ChangeBatch {
-	var batch types.ChangeBatch
-
-	batch.Changes = []types.Change{
+func getChanges() []types.Change {
+	return []types.Change{
 		// 1st transaction: create "/" and "/a" and "/a/b" as 3 new objects (prior versions are 0).
 		types.Change{
 			Name:  "",
@@ -289,8 +293,6 @@ func getChangeBatch() types.ChangeBatch {
 			Continued:    false,
 		},
 	}
-
-	return batch
 }
 
 // initTestDir creates a per-test directory to store the Sync DB files and returns it.

@@ -77,8 +77,10 @@ Loop:
 			}
 			return errOperationFailed
 		}
-		if len(changes) > 0 {
-			call.Send(watchtypes.ChangeBatch{Changes: changes})
+		for _, change := range changes {
+			if err := call.Send(change); err != nil {
+				return err
+			}
 		}
 		select {
 		case <-call.Done():

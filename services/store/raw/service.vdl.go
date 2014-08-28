@@ -115,7 +115,7 @@ type StoreWatchCall interface {
 		// Value returns the element that was staged by Advance.
 		// Value may panic if Advance returned false or was not
 		// called at all.  Value does not block.
-		Value() types.ChangeBatch
+		Value() types.Change
 
 		// Err returns a non-nil error iff the stream encountered
 		// any errors.  Err does not block.
@@ -143,17 +143,17 @@ type StoreWatchCall interface {
 
 type implStoreWatchStreamIterator struct {
 	clientCall _gen_ipc.Call
-	val        types.ChangeBatch
+	val        types.Change
 	err        error
 }
 
 func (c *implStoreWatchStreamIterator) Advance() bool {
-	c.val = types.ChangeBatch{}
+	c.val = types.Change{}
 	c.err = c.clientCall.Recv(&c.val)
 	return c.err == nil
 }
 
-func (c *implStoreWatchStreamIterator) Value() types.ChangeBatch {
+func (c *implStoreWatchStreamIterator) Value() types.Change {
 	return c.val
 }
 
@@ -172,7 +172,7 @@ type implStoreWatchCall struct {
 
 func (c *implStoreWatchCall) RecvStream() interface {
 	Advance() bool
-	Value() types.ChangeBatch
+	Value() types.Change
 	Err() error
 } {
 	return &c.readStream
@@ -193,7 +193,7 @@ type implStoreServiceWatchStreamSender struct {
 	serverCall _gen_ipc.ServerCall
 }
 
-func (s *implStoreServiceWatchStreamSender) Send(item types.ChangeBatch) error {
+func (s *implStoreServiceWatchStreamSender) Send(item types.Change) error {
 	return s.serverCall.Send(item)
 }
 
@@ -204,7 +204,7 @@ type StoreServiceWatchStream interface {
 	SendStream() interface {
 		// Send places the item onto the output stream, blocking if there is no buffer
 		// space available.  If the client has canceled, an error is returned.
-		Send(item types.ChangeBatch) error
+		Send(item types.Change) error
 	}
 }
 
@@ -216,7 +216,7 @@ type implStoreServiceWatchStream struct {
 func (s *implStoreServiceWatchStream) SendStream() interface {
 	// Send places the item onto the output stream, blocking if there is no buffer
 	// space available.  If the client has canceled, an error is returned.
-	Send(item types.ChangeBatch) error
+	Send(item types.Change) error
 } {
 	return &s.writer
 }
@@ -497,7 +497,7 @@ func (__gen_s *ServerStubStore) Signature(call _gen_ipc.ServerCall) (_gen_ipc.Se
 		OutArgs: []_gen_ipc.MethodArgument{
 			{Name: "", Type: 68},
 		},
-		InStream: 77,
+		InStream: 75,
 	}
 	result.Methods["Watch"] = _gen_ipc.MethodSignature{
 		InArgs: []_gen_ipc.MethodArgument{
@@ -507,7 +507,7 @@ func (__gen_s *ServerStubStore) Signature(call _gen_ipc.ServerCall) (_gen_ipc.Se
 			{Name: "", Type: 68},
 		},
 
-		OutStream: 72,
+		OutStream: 70,
 	}
 
 	result.TypeDefs = []_gen_vdlutil.Any{
@@ -525,25 +525,20 @@ func (__gen_s *ServerStubStore) Signature(call _gen_ipc.ServerCall) (_gen_ipc.Se
 				_gen_wiretype.FieldType{Type: 0x2, Name: "Continued"},
 			},
 			"veyron2/services/watch/types.Change", []string(nil)},
-		_gen_wiretype.SliceType{Elem: 0x46, Name: "", Tags: []string(nil)}, _gen_wiretype.StructType{
-			[]_gen_wiretype.FieldType{
-				_gen_wiretype.FieldType{Type: 0x47, Name: "Changes"},
-			},
-			"veyron2/services/watch/types.ChangeBatch", []string(nil)},
 		_gen_wiretype.ArrayType{Elem: 0x41, Len: 0x10, Name: "veyron2/storage.ID", Tags: []string(nil)}, _gen_wiretype.NamedPrimitiveType{Type: 0x35, Name: "veyron/services/store/raw.Version", Tags: []string(nil)}, _gen_wiretype.StructType{
 			[]_gen_wiretype.FieldType{
 				_gen_wiretype.FieldType{Type: 0x3, Name: "Name"},
-				_gen_wiretype.FieldType{Type: 0x49, Name: "ID"},
+				_gen_wiretype.FieldType{Type: 0x47, Name: "ID"},
 			},
 			"veyron/services/store/raw.DEntry", []string(nil)},
-		_gen_wiretype.SliceType{Elem: 0x4b, Name: "", Tags: []string(nil)}, _gen_wiretype.StructType{
+		_gen_wiretype.SliceType{Elem: 0x49, Name: "", Tags: []string(nil)}, _gen_wiretype.StructType{
 			[]_gen_wiretype.FieldType{
-				_gen_wiretype.FieldType{Type: 0x49, Name: "ID"},
-				_gen_wiretype.FieldType{Type: 0x4a, Name: "PriorVersion"},
-				_gen_wiretype.FieldType{Type: 0x4a, Name: "Version"},
+				_gen_wiretype.FieldType{Type: 0x47, Name: "ID"},
+				_gen_wiretype.FieldType{Type: 0x48, Name: "PriorVersion"},
+				_gen_wiretype.FieldType{Type: 0x48, Name: "Version"},
 				_gen_wiretype.FieldType{Type: 0x2, Name: "IsRoot"},
 				_gen_wiretype.FieldType{Type: 0x45, Name: "Value"},
-				_gen_wiretype.FieldType{Type: 0x4c, Name: "Dir"},
+				_gen_wiretype.FieldType{Type: 0x4a, Name: "Dir"},
 			},
 			"veyron/services/store/raw.Mutation", []string(nil)},
 	}

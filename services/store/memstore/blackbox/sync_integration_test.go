@@ -8,7 +8,20 @@ import (
 	"veyron/services/store/raw"
 
 	"veyron2/rt"
+	"veyron2/services/watch/types"
 )
+
+func recv(t *testing.T, call raw.StoreWatchCall, n int) []types.Change {
+	rStream := call.RecvStream()
+	changes := make([]types.Change, n)
+	for i := 0; i < n; i++ {
+		if !rStream.Advance() {
+			t.Error("Advance() failed: %v", rStream.Err())
+		}
+		changes[i] = rStream.Value()
+	}
+	return changes
+}
 
 func TestSyncState(t *testing.T) {
 	rt.Init()
@@ -49,13 +62,9 @@ func TestSyncState(t *testing.T) {
 	// Create a sync request
 	stream := watchtesting.WatchRaw(rootPublicID, w.WatchRaw, raw.Request{})
 
-	rStream := stream.RecvStream()
-	if !rStream.Advance() {
-		t.Fatalf("Advance() failed: %v", rStream.Err())
-	}
-	cb := rStream.Value()
 	// Update target
-	PutMutations(t, target, Mutations(cb.Changes))
+	changes := recv(t, stream, 2)
+	PutMutations(t, target, Mutations(changes))
 	GC(t, target)
 
 	// Expect that the target contains id1 and id2 but not id3
@@ -86,13 +95,9 @@ func TestSyncTransaction(t *testing.T) {
 	id3 := Put(t, st, tr, "/a/b", "val3")
 	Commit(t, tr)
 
-	rStream := stream.RecvStream()
-	if !rStream.Advance() {
-		t.Fatalf("Advance() failed: %v", rStream.Err())
-	}
-	cb := rStream.Value()
 	// Update target
-	PutMutations(t, target, Mutations(cb.Changes))
+	changes := recv(t, stream, 3)
+	PutMutations(t, target, Mutations(changes))
 	GC(t, target)
 
 	// Expect that the target contains id1, id2, id3
@@ -105,13 +110,9 @@ func TestSyncTransaction(t *testing.T) {
 	Remove(t, st, tr, "/a/b")
 	Commit(t, tr)
 
-	if !rStream.Advance() {
-		t.Fatalf("Advance() failed: %v", rStream.Err())
-	}
-
-	cb = rStream.Value()
 	// Update target
-	PutMutations(t, target, Mutations(cb.Changes))
+	changes = recv(t, stream, 1)
+	PutMutations(t, target, Mutations(changes))
 	GC(t, target)
 
 	// Expect that the target contains id1, id2, but not id3

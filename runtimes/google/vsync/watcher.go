@@ -131,12 +131,12 @@ func (w *syncWatcher) processWatchStream(call watch.GlobWatcherWatchGlobCall) {
 	w.curTx = NoTxID
 	stream := call.RecvStream()
 	for stream.Advance() {
-		changes := stream.Value()
+		change := stream.Value()
 
-		// Timestamp of these changes arriving at the Sync server.
+		// Timestamp of the change arriving at the Sync server.
 		syncTime := time.Now().UnixNano()
 
-		if err := w.processChanges(changes, syncTime); err != nil {
+		if err := w.processChange(change, syncTime); err != nil {
 			// TODO(rdaoud): don't crash, instead add retry policies to attempt some degree of
 			// self-healing from a data corruption where feasible, otherwise quarantine this device
 			// from the cluster and stop Syncd to avoid propagating data corruptions.
@@ -155,55 +155,47 @@ func (w *syncWatcher) processWatchStream(call watch.GlobWatcherWatchGlobCall) {
 	}
 }
 
-// processChanges applies the batch of changes (object mutations) received from the Watch API.
+// processChange applies a change (object mutation) received from the Watch API.
 // The function grabs the write-lock to access the Log and DAG DBs.
-func (w *syncWatcher) processChanges(changes types.ChangeBatch, syncTime int64) error {
+func (w *syncWatcher) processChange(ch types.Change, syncTime int64) error {
 	w.syncd.lock.Lock()
 	defer w.syncd.lock.Unlock()
 
-	vlog.VI(1).Infof("processChanges:: ready to process changes")
+	vlog.VI(1).Infof("processChange:: ready to process change")
 
-	var lastResmark []byte
-	for i := range changes.Changes {
-		ch := &changes.Changes[i]
-		mu, ok := ch.Value.(*raw.Mutation)
-		if !ok {
-			return fmt.Errorf("invalid change value, not a mutation: %#v", ch)
-		}
+	mu, ok := ch.Value.(*raw.Mutation)
+	if !ok {
+		return fmt.Errorf("invalid change value, not a mutation: %#v", ch)
+	}
 
-		// Begin a new transaction if needed.
-		if w.curTx == NoTxID && ch.Continued {
-			w.curTx = w.syncd.dag.addNodeTxStart()
-			w.curTxSyncTime = syncTime
-		}
+	// Begin a new transaction if needed.
+	if w.curTx == NoTxID && ch.Continued {
+		w.curTx = w.syncd.dag.addNodeTxStart()
+		w.curTxSyncTime = syncTime
+	}
 
-		time := syncTime
-		if w.curTx != NoTxID {
-			// All LogValues belonging to the same transaction get the same timestamp.
-			time = w.curTxSyncTime
-		}
-		val := &LogValue{Mutation: *mu, SyncTime: time, Delete: ch.State == types.DoesNotExist, Continued: ch.Continued}
-		vlog.VI(2).Infof("processChanges:: processing record %v, Tx %v", val, w.curTx)
-		if err := w.syncd.log.processWatchRecord(mu.ID, mu.Version, mu.PriorVersion, val, w.curTx); err != nil {
-			return fmt.Errorf("cannot process mutation: %#v: %s", ch, err)
-		}
+	time := syncTime
+	if w.curTx != NoTxID {
+		// All LogValues belonging to the same transaction get the same timestamp.
+		time = w.curTxSyncTime
+	}
+	val := &LogValue{Mutation: *mu, SyncTime: time, Delete: ch.State == types.DoesNotExist, Continued: ch.Continued}
+	vlog.VI(2).Infof("processChanges:: processing record %v, Tx %v", val, w.curTx)
+	if err := w.syncd.log.processWatchRecord(mu.ID, mu.Version, mu.PriorVersion, val, w.curTx); err != nil {
+		return fmt.Errorf("cannot process mutation: %#v: %s", ch, err)
+	}
 
-		if !ch.Continued {
-			lastResmark = ch.ResumeMarker
+	// End the previous transaction if any.
+	if w.curTx != NoTxID && !ch.Continued {
+		if err := w.syncd.dag.addNodeTxEnd(w.curTx); err != nil {
+			return err
 		}
-
-		// End the previous transaction if any.
-		if w.curTx != NoTxID && !ch.Continued {
-			if err := w.syncd.dag.addNodeTxEnd(w.curTx); err != nil {
-				return err
-			}
-			w.curTx = NoTxID
-		}
+		w.curTx = NoTxID
 	}
 
 	// If the resume marker changed, update the device table.
-	if lastResmark != nil {
-		w.syncd.devtab.head.Resmark = lastResmark
+	if !ch.Continued {
+		w.syncd.devtab.head.Resmark = ch.ResumeMarker
 	}
 
 	return nil

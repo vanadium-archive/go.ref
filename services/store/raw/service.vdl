@@ -70,7 +70,7 @@ type Request struct {
 // via the Watcher interface, and committed via PutMutation.
 type Store interface {
   // Watch returns a stream of all changes.
-  Watch(Req Request) stream<_, types.ChangeBatch> error
+  Watch(Req Request) stream<_, types.Change> error
 
   // PutMutations atomically commits a stream of Mutations when the stream is
   // closed. Mutations are not committed if the request is cancelled before

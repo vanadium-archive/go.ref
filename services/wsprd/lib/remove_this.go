@@ -17,7 +17,6 @@ func init() {
 	vom.Register(store.QueryResult{})
 	vom.Register(watchtypes.GlobRequest{})
 	vom.Register(watchtypes.QueryRequest{})
-	vom.Register(watchtypes.ChangeBatch{})
 	vom.Register(watchtypes.Change{})
 	vom.Register(rps.GameOptions{})
 	vom.Register(rps.GameID{})
