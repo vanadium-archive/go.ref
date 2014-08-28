@@ -1,0 +1,15 @@
+package debug
+
+import (
+	"veyron2/services/mgmt/logreader"
+	"veyron2/services/mgmt/stats"
+)
+
+// This interface exists only for the purpose of generating a valid Signature
+// for all the interfaces that are served by the debug server. It should be
+// removed when https://code.google.com/p/envyor/issues/detail?id=285 is
+// resolved.
+type Debug interface {
+	logreader.LogFile
+	stats.Stats
+}
