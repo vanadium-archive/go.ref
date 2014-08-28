@@ -215,6 +215,10 @@ func (m *manager) Shutdown() {
 	}
 }
 
+func (m *manager) RoutingID() naming.RoutingID {
+	return m.rid
+}
+
 func (m *manager) DebugString() string {
 	vifs := m.vifs.List()
 

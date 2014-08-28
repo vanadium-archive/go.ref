@@ -48,6 +48,7 @@ type server struct {
 	ns               naming.Namespace
 	preferredAddress func(network string) (net.Addr, error)
 	servesMountTable bool
+	stats            *ipcStats // stats for this server.
 }
 
 func InternalNewServer(ctx context.T, streamMgr stream.Manager, ns naming.Namespace, opts ...ipc.ServerOpt) (ipc.Server, error) {
@@ -59,6 +60,7 @@ func InternalNewServer(ctx context.T, streamMgr stream.Manager, ns naming.Namesp
 		stoppedChan:      make(chan struct{}),
 		preferredAddress: preferredIPAddress,
 		ns:               ns,
+		stats:            newIPCStats(naming.Join("ipc", "server", streamMgr.RoutingID().String())),
 	}
 	for _, opt := range opts {
 		switch opt := opt.(type) {
@@ -603,6 +605,7 @@ func (fs *flowServer) processRequest() ([]interface{}, verror.E) {
 		return nil, errNotAuthorized(fmt.Errorf("%q not authorized for method %q: %v", fs.RemoteID(), fs.Method(), err))
 	}
 	results, err := invoker.Invoke(req.Method, fs, argptrs)
+	fs.server.stats.record(req.Method, time.Since(start))
 	return results, verror.Convert(err)
 }
 
