@@ -1,0 +1,5 @@
+package main
+
+type PingPong interface {
+	Ping(message string) (string, error)
+}

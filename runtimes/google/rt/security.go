@@ -5,11 +5,16 @@ import (
 	"os"
 	"os/user"
 
+	"veyron/lib/unixfd"
 	isecurity "veyron/runtimes/google/security"
 	vsecurity "veyron/security"
+	"veyron/security/agent"
 
+	"veyron2"
 	"veyron2/security"
+	"veyron2/verror"
 	"veyron2/vlog"
+	"veyron2/vom"
 )
 
 func (rt *vrt) NewIdentity(name string) (security.PrivateID, error) {
@@ -50,7 +55,20 @@ func (rt *vrt) initIdentity() error {
 		return nil
 	}
 	var err error
-	if file := os.Getenv("VEYRON_IDENTITY"); len(file) > 0 {
+	if file := os.Getenv(agent.BlessingVarName); len(file) > 0 && len(os.Getenv(agent.EndpointVarName)) > 0 {
+		id, err := rt.connectToAgent()
+		if err != nil {
+			return err
+		}
+		blessing, err := loadBlessing(file)
+		if err != nil {
+			return err
+		}
+		if id, err = id.Derive(blessing); err != nil {
+			return err
+		}
+		rt.id = id
+	} else if file := os.Getenv("VEYRON_IDENTITY"); len(file) > 0 {
 		if rt.id, err = loadIdentityFromFile(file); err != nil || rt.id == nil {
 			return fmt.Errorf("Could not load identity from the VEYRON_IDENTITY environment variable (%q): %v", file, err)
 		}
@@ -104,4 +122,39 @@ func loadIdentityFromFile(filePath string) (security.PrivateID, error) {
 	}
 	defer f.Close()
 	return vsecurity.LoadIdentity(f)
+}
+
+func (rt *vrt) connectToAgent() (security.PrivateID, error) {
+	// Verify we're communicating over unix domain sockets so
+	// we know it's safe to use VCSecurityNone.
+	endpoint, err := rt.NewEndpoint(os.Getenv(agent.EndpointVarName))
+	if err != nil {
+		return nil, err
+	}
+	if endpoint.Addr().Network() != unixfd.Network {
+		return nil, verror.BadArgf("invalid agent address %v", endpoint.Addr())
+	}
+
+	client, err := rt.NewClient(veyron2.VCSecurityNone)
+	if err != nil {
+		return nil, err
+	}
+	signer, err := agent.NewAgentSigner(client, endpoint.String(), rt.NewContext())
+	if err != nil {
+		return nil, err
+	}
+	return isecurity.NewPrivateID("temp", signer)
+}
+
+func loadBlessing(path string) (security.PublicID, error) {
+	f, err := os.Open(path)
+	if err != nil {
+		return nil, err
+	}
+	defer f.Close()
+	var pub security.PublicID
+	if err := vom.NewDecoder(f).Decode(&pub); err != nil {
+		return nil, err
+	}
+	return pub, nil
 }

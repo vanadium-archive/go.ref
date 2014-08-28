@@ -1,0 +1,11 @@
+package server
+
+import (
+	"veyron2/security"
+	"veyron2/security/wire"
+)
+
+type Agent interface {
+	Sign(message []byte) (security.Signature, error)
+	PublicKey() (wire.PublicKey, error)
+}
