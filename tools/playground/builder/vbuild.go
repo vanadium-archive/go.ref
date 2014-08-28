@@ -116,8 +116,15 @@ func main() {
 		log.Fatal(err)
 	}
 
-	CreateIdentities(r)
-	if err = StartMount(); err != nil {
+	err = CreateIdentities(r)
+	if err != nil {
+		log.Fatal(err)
+	}
+	mt, err := StartMount()
+	if mt != nil {
+		defer mt.Kill()
+	}
+	if err != nil {
 		log.Fatal(err)
 	}
 	CompileAndRun(r)
@@ -217,10 +224,9 @@ func (f *CodeFile) Write() error {
 func (f *CodeFile) Compile() error {
 	var cmd *exec.Cmd
 	if path.Ext(f.Name) == ".vdl" {
-		cmd = MakeCmd("vdl", "generate", f.pkg)
+		cmd = MakeCmd("vdl", "generate", "--lang=go", f.pkg)
 	} else {
-		cmd = MakeCmd("go", "install", f.pkg)
-		cmd.Dir = "/usr/local/veyron/veyron"
+		cmd = MakeCmd(path.Join(os.Getenv("VEYRON_ROOT"), "veyron/scripts/build/go"), "install", f.pkg)
 	}
 	cmd.Stdout = cmd.Stderr
 	err := cmd.Run()
@@ -241,16 +247,46 @@ func (f *CodeFile) Run(ch chan Exit) {
 }
 
 func (id Identity) Create() error {
-	args := make([]string, 0, 10)
-	args = append(args, "--name", id.Name)
-	if id.Blesser != "" {
-		args = append(args, "--blesser", path.Join("ids", id.Blesser))
+	if err := id.generate(); err != nil {
+		return err
 	}
+	if id.Blesser != "" || id.Duration != "" {
+		return id.bless()
+	}
+	return nil
+}
+
+func (id Identity) generate() error {
+	args := []string{"generate"}
+	if id.Blesser == "" && id.Duration == "" {
+		args = append(args, id.Name)
+	}
+	return runIdentity(args, path.Join("ids", id.Name))
+}
+
+func (id Identity) bless() error {
+	filename := path.Join("ids", id.Name)
+	var blesser string
+	if id.Blesser == "" {
+		blesser = filename
+	} else {
+		blesser = path.Join("ids", id.Blesser)
+	}
+	args := []string{"bless", "--with", blesser}
 	if id.Duration != "" {
-		args = append(args, "--duration", id.Duration)
+		args = append(args, "--for", id.Duration)
 	}
+	args = append(args, filename, id.Name)
+	tempfile := filename + ".tmp"
+	if err := runIdentity(args, tempfile); err != nil {
+		return err
+	}
+	return os.Rename(tempfile, filename)
+}
+
+func runIdentity(args []string, filename string) error {
 	cmd := MakeCmd("identity", args...)
-	out, err := os.Create(path.Join("ids", id.Name))
+	out, err := os.Create(filename)
 	if err != nil {
 		return err
 	}
@@ -259,14 +295,14 @@ func (id Identity) Create() error {
 	return cmd.Run()
 }
 
-func StartMount() (err error) {
+func StartMount() (proc *os.Process, err error) {
 	reader, writer := io.Pipe()
 	cmd := MakeCmd("mounttabled")
 	cmd.Stdout = writer
 	cmd.Stderr = cmd.Stdout
 	err = cmd.Start()
 	if err != nil {
-		return err
+		return nil, err
 	}
 	buf := bufio.NewReader(reader)
 	pat := regexp.MustCompile("Mount table .+ endpoint: (.+)\n")
@@ -291,7 +327,7 @@ func StartMount() (err error) {
 			log.Fatal("mounttable died")
 		}
 		Log("mount at ", endpoint)
-		return os.Setenv("NAMESPACE_ROOT", endpoint)
+		return cmd.Process, os.Setenv("NAMESPACE_ROOT", endpoint)
 	}
-	return err
+	return cmd.Process, err
 }
