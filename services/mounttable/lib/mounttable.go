@@ -382,12 +382,27 @@ func (ms *mountContext) Glob(context ipc.ServerContext, pattern string, reply mo
 	mt.Lock()
 	defer mt.Unlock()
 
-	// If we can't find the node corresponding to the current name then there are no results.
+	// If the current name is not fully resolvable on this nameserver we
+	// don't need to evaluate the glob expression. Send a partially resolved
+	// name back to the client.
 	n := mt.findNode(ms.cleanedElems, false)
 	if n == nil {
+		ms.linkToLeaf(reply)
 		return nil
 	}
 
 	mt.globStep(n, "", g, context, reply)
 	return nil
+}
+
+func (ms *mountContext) linkToLeaf(reply mounttable.GlobbableServiceGlobStream) {
+	n, elems := ms.mt.walk(ms.mt.root, ms.cleanedElems)
+	if n == nil {
+		return
+	}
+	servers := n.mount.servers.copyToSlice()
+	for i, s := range servers {
+		servers[i].Server = naming.Join(s.Server, slashSlashJoin(elems))
+	}
+	reply.SendStream().Send(types.MountEntry{Name: "", Servers: servers})
 }
