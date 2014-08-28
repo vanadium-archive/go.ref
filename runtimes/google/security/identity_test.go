@@ -86,22 +86,22 @@ func TestMatch(t *testing.T) {
 		matchData []matchInstance
 	}{
 		{
-			// self-signed alice chain, not a trusted identity provider so should only match "*"
+			// self-signed alice chain, not a trusted identity provider so should only match "..."
 			id: alice.PublicID(),
 			matchData: []matchInstance{
-				{pattern: "*", want: true},
+				{pattern: "...", want: true},
 				{pattern: "alice", want: false},
-				{pattern: "alice/*", want: false},
+				{pattern: "alice/...", want: false},
 			},
 		},
 		{
 			// veyron/alice: rooted in the trusted "veyron" identity provider
 			id: bless(newChain("immaterial").PublicID(), veyronChain, "alice", nil),
 			matchData: []matchInstance{
-				{pattern: "*", want: true},
-				{pattern: "veyron/*", want: true},
+				{pattern: "...", want: true},
+				{pattern: "veyron/...", want: true},
 				{pattern: "veyron/alice", want: true},
-				{pattern: "veyron/alice/*", want: true},
+				{pattern: "veyron/alice/...", want: true},
 				{pattern: "veyron/alice/TV", want: true},
 				{pattern: "veyron", want: false},
 				{pattern: "veyron/ali", want: false},
@@ -114,15 +114,15 @@ func TestMatch(t *testing.T) {
 			// alice#veyron/alice#google/alice: two trusted identity providers
 			id: newSetPublicID(alice.PublicID(), bless(alice.PublicID(), veyronChain, "alice", nil), bless(alice.PublicID(), googleChain, "alice", nil)),
 			matchData: []matchInstance{
-				{pattern: "*", want: true},
+				{pattern: "...", want: true},
 				// Since alice is not a trusted identity provider, the self-blessed identity
-				// should not match "alice/*"
+				// should not match "alice/..."
 				{pattern: "alice", want: false},
-				{pattern: "alice/*", want: false},
-				{pattern: "veyron/*", want: true},
+				{pattern: "alice/...", want: false},
+				{pattern: "veyron/...", want: true},
 				{pattern: "veyron/alice", want: true},
 				{pattern: "veyron/alice/TV", want: true},
-				{pattern: "veyron/alice/*", want: true},
+				{pattern: "veyron/alice/...", want: true},
 				{pattern: "ali", want: false},
 				{pattern: "aliced", want: false},
 				{pattern: "veyron", want: false},
@@ -131,7 +131,7 @@ func TestMatch(t *testing.T) {
 				{pattern: "veyron/bob", want: false},
 				{pattern: "google/alice", want: true},
 				{pattern: "google/alice/TV", want: true},
-				{pattern: "google/alice/*", want: true},
+				{pattern: "google/alice/...", want: true},
 			},
 		},
 	}
@@ -308,8 +308,8 @@ func TestAuthorizeWithCaveats(t *testing.T) {
 		cavOnlyPlayAtGoogle = methodRestrictionCaveat("google", S{"Play"})
 		// Can only talk to the "Google" service
 		cavOnlyGoogle = peerIdentityCaveat("google")
-		// Can only call the PublicProfile method on veyron/alice/*
-		cavOnlyPublicProfile = methodRestrictionCaveat("veyron/alice/*", S{"PublicProfile"})
+		// Can only call the PublicProfile method on veyron/alice/...
+		cavOnlyPublicProfile = methodRestrictionCaveat("veyron/alice/...", S{"PublicProfile"})
 	)
 
 	type rpc struct {

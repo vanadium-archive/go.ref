@@ -124,7 +124,7 @@ func TestHandleCreateAccount(t *testing.T) {
 	}
 
 	// Verify that idManager has both accounts
-	gotAccounts = wspr.idManager.AccountsMatching(security.BlessingPattern(topLevelName + "/*"))
+	gotAccounts = wspr.idManager.AccountsMatching(security.BlessingPattern(fmt.Sprintf("%s%s%v", topLevelName, security.ChainSeparator, security.AllPrincipals)))
 	if len(gotAccounts) != 2 {
 		t.Fatalf("Expected to have 2 accounts, but got %v: %v", len(gotAccounts), gotAccounts)
 	}

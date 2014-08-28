@@ -1,5 +1,5 @@
 {
-"/": {"In": {"Principals": {"fake/root": "RW", "*": "R"}}},
-"/stuff": {"In": {"Principals": {"fake/root": "RW", "fake/bob": "R"}}},
-"/a": {"In": {"Principals": {"fake/root": "RW", "fake/alice": "R"}}}
+"/": {"In": {"fake/root": "RW", "...": "R"}},
+"/stuff": {"In": {"fake/root": "RW", "fake/bob": "R"}},
+"/a": {"In": {"fake/root": "RW", "fake/alice": "R"}}
 }

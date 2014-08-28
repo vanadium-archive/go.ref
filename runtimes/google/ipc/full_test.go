@@ -160,12 +160,11 @@ func (t testServerDisp) Lookup(suffix, method string) (ipc.Invoker, security.Aut
 	case "nilAuth":
 		authorizer = nil
 	case "aclAuth":
-		// Only authorize clients matching patterns "client" or "server/*".
-		authorizer = vsecurity.NewACLAuthorizer(vsecurity.NewWhitelistACL(
-			map[security.BlessingPattern]security.LabelSet{
-				"server/*": security.LabelSet(security.AdminLabel),
-				"client":   security.LabelSet(security.AdminLabel),
-			}))
+		// Only authorize clients matching patterns "client" or "server/...".
+		authorizer = vsecurity.NewACLAuthorizer(security.ACL{In: map[security.BlessingPattern]security.LabelSet{
+			"server/...": security.LabelSet(security.AdminLabel),
+			"client":     security.LabelSet(security.AdminLabel),
+		}})
 	default:
 		authorizer = testServerAuthorizer{}
 	}

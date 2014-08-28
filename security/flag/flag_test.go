@@ -30,10 +30,10 @@ func TestNewAuthorizerOrDie(t *testing.T) {
 	}
 	var (
 		acl1 = security.ACL{}
-		acl2 = vsecurity.NewWhitelistACL(map[security.BlessingPattern]security.LabelSet{
+		acl2 = security.ACL{In: map[security.BlessingPattern]security.LabelSet{
 			"veyron/alice": security.LabelSet(security.ReadLabel | security.WriteLabel),
 			"veyron/bob":   security.LabelSet(security.ReadLabel),
-		})
+		}}
 	)
 	acl2File := tsecurity.SaveACLToFile(acl2)
 	defer os.Remove(acl2File)
@@ -52,11 +52,11 @@ func TestNewAuthorizerOrDie(t *testing.T) {
 			wantAuth: vsecurity.NewACLAuthorizer(acl1),
 		},
 		{
-			flags:    flagValue{"acl": "{\"In\":{\"Principals\":{\"veyron/alice\":\"RW\", \"veyron/bob\": \"R\"}}}"},
+			flags:    flagValue{"acl": `{"In":{"veyron/alice":"RW", "veyron/bob": "R"}}`},
 			wantAuth: vsecurity.NewACLAuthorizer(acl2),
 		},
 		{
-			flags:    flagValue{"acl": "{\"In\":{\"Principals\":{\"veyron/bob\":\"R\", \"veyron/alice\": \"WR\"}}}"},
+			flags:    flagValue{"acl": `{"In":{"veyron/bob":"R", "veyron/alice": "WR"}}`},
 			wantAuth: vsecurity.NewACLAuthorizer(acl2),
 		},
 		{
@@ -64,7 +64,7 @@ func TestNewAuthorizerOrDie(t *testing.T) {
 			wantAuth: vsecurity.NewFileACLAuthorizer(acl2File),
 		},
 		{
-			flags:     flagValue{"acl_file": acl2File, "acl": "{\"In\":{\"Principals\":{\"veyron/alice\":\"RW\", \"veyron/bob\": \"R\"}}}"},
+			flags:     flagValue{"acl_file": acl2File, "acl": `{"In":{"veyron/alice":"RW", "veyron/bob": "R"}}`},
 			wantPanic: true,
 		},
 	}

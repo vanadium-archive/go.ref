@@ -11,14 +11,6 @@ import (
 
 var nullACL security.ACL
 
-// NewWhitelistACL creates an ACL that grants access to only the provided
-// principals.
-func NewWhitelistACL(principals map[security.BlessingPattern]security.LabelSet) security.ACL {
-	acl := security.ACL{}
-	acl.In.Principals = principals
-	return acl
-}
-
 // LoadIdentity reads a PrivateID from r, assuming that it was written using
 // SaveIdentity.
 func LoadIdentity(r io.Reader) (security.PrivateID, error) {

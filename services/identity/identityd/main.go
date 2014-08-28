@@ -138,9 +138,9 @@ func appendSuffixTo(objectname []string, suffix string) []string {
 func newDispatcher(params blesser.GoogleParams) ipc.Dispatcher {
 	blessingService := ipc.ReflectInvoker(blesser.NewGoogleOAuthBlesserServer(params))
 	dischargerService := ipc.ReflectInvoker(services.NewServerDischarger(discharger.NewDischarger(params.R.Identity())))
-	allowEveryoneACLAuth := vsecurity.NewACLAuthorizer(vsecurity.NewWhitelistACL(map[security.BlessingPattern]security.LabelSet{
+	allowEveryoneACLAuth := vsecurity.NewACLAuthorizer(security.ACL{In: map[security.BlessingPattern]security.LabelSet{
 		security.AllPrincipals: security.AllLabels,
-	}))
+	}})
 	return &dispatcher{blessingService, dischargerService, allowEveryoneACLAuth}
 }
 

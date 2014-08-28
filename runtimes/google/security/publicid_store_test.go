@@ -41,17 +41,17 @@ func TestStoreAdd(t *testing.T) {
 		t.Fatalf("NewPublicIDStore failed: %s", err)
 	}
 	// First Add should succeed for any PublicID (cAlice.PublicID() below)
-	if err := s.Add(cAlice.PublicID(), "alice/*"); err != nil {
+	if err := s.Add(cAlice.PublicID(), "alice/..."); err != nil {
 		t.Fatalf("%s.Add(%q, ...) failed unexpectedly: %s", s, cAlice.PublicID(), err)
 	}
 	// Subsequent Adds must succeed only for PublicIDs with cAlice's public key.
-	if err := s.Add(cVeyronAlice.PublicID(), "*"); err != nil {
+	if err := s.Add(cVeyronAlice.PublicID(), "..."); err != nil {
 		t.Fatalf("%s.Add(%q, ...) failed unexpectedly: %s", s, cVeyronAlice.PublicID(), err)
 	}
-	if err := s.Add(sAlice, "alice/*"); err != nil {
+	if err := s.Add(sAlice, "alice/..."); err != nil {
 		t.Fatalf("%s.Add(%q, ...) failed unexpectedly: %s", s, sAlice, err)
 	}
-	if got, want := s.Add(cBob.PublicID(), "bob/*"), errStoreAddMismatch; got != want {
+	if got, want := s.Add(cBob.PublicID(), "bob/..."), errStoreAddMismatch; got != want {
 		t.Fatalf("%s.Add(%q, ...): got: %s, want: %s", s, cBob, got, want)
 	}
 }
@@ -68,13 +68,13 @@ func TestSetDefaultPattern(t *testing.T) {
 		{"veyron", true},
 		{"veyron/alice@google", true},
 		{"veyron/alice@google/bob", true},
-		{"veyron/alice@google/*", true},
+		{"veyron/alice@google/...", true},
 		{"", false},
-		{"veyron*", false},
-		{"*veyron", false},
+		{"veyron...", false},
+		{"...veyron", false},
 		{"/veyron", false},
 		{"veyron/", false},
-		{"veyron/*/alice", false},
+		{"veyron/.../alice", false},
 	}
 	for _, d := range defaultPatterns {
 		if got := s.SetDefaultBlessingPattern(d.pattern); d.success != (got == nil) {
@@ -115,14 +115,14 @@ func TestStoreGetters(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewPublicIDStore failed: %s", err)
 	}
-	add(s, cGoogleAlice, "google")                  // use cGoogleAlice against all peers matching "google/*"
-	add(s, cGoogleAlice, "veyron")                  // use cGoogleAlice against all peers matching "veyron/*" as well
-	add(s, cVeyronAlice, "veyron/*")                // use cVeyronAlice against peers matching "veyron/*"
-	add(s, cVeyronAlice, "google")                  // use cVeyronAlice against peers matching "veyron/*"
-	add(s, cVeyronServiceAlice, "veyron/service/*") // use cVeyronAlice against peers matching "veyron/service*"
-	add(s, cGoogleServiceAlice, "google/service/*") // use cGoogleServiceAlice against peers matching "google/service/*"
-	add(s, sGoogleAlice, "google/service")          // use any PublicID from sGoogleAlice against peers matching "google/service"
-	add(s, sAllAlice, "veyron")                     // use any PublicID from sAllAlice against peers matching "veyron"
+	add(s, cGoogleAlice, "google")                    // use cGoogleAlice against all peers matching "google/..."
+	add(s, cGoogleAlice, "veyron")                    // use cGoogleAlice against all peers matching "veyron/..." as well
+	add(s, cVeyronAlice, "veyron/...")                // use cVeyronAlice against peers matching "veyron/..."
+	add(s, cVeyronAlice, "google")                    // use cVeyronAlice against peers matching "veyron/..."
+	add(s, cVeyronServiceAlice, "veyron/service/...") // use cVeyronAlice against peers matching "veyron/service/..."
+	add(s, cGoogleServiceAlice, "google/service/...") // use cGoogleServiceAlice against peers matching "google/service/..."
+	add(s, sGoogleAlice, "google/service")            // use any PublicID from sGoogleAlice against peers matching "google/service"
+	add(s, sAllAlice, "veyron")                       // use any PublicID from sAllAlice against peers matching "veyron"
 
 	pkey := cAlice.PublicID().PublicKey()
 
@@ -157,13 +157,13 @@ func TestStoreGetters(t *testing.T) {
 		defaultNames   []string
 	}{
 		{"veyron", nil},
-		{"veyron/*", []string{"veyron/alice", "veyron/service/user-24"}},
+		{"veyron/...", []string{"veyron/alice", "veyron/service/user-24"}},
 		{"veyron/alice", []string{"veyron/alice"}},
-		{"veyron/service/*", []string{"veyron/service/user-24"}},
+		{"veyron/service/...", []string{"veyron/service/user-24"}},
 		{"google", nil},
-		{"google/*", []string{"google/alice", "google/service/user-42"}},
+		{"google/...", []string{"google/alice", "google/service/user-42"}},
 		{"google/alice", []string{"google/alice"}},
-		{"google/service/*", []string{"google/service/user-42"}},
+		{"google/service/...", []string{"google/service/user-42"}},
 		{"bob", nil},
 	}
 	for _, d := range testDataByBlessingPattern {
@@ -203,10 +203,10 @@ func TestPublicIDStorePersistence(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewPublicIDStore failed: %s", err)
 	}
-	if err := s.Add(sAllAlice, "google/*"); err != nil {
+	if err := s.Add(sAllAlice, "google/..."); err != nil {
 		t.Fatalf("%s.Add(%q, ...) failed unexpectedly: %s", s, sAllAlice, err)
 	}
-	if err := s.SetDefaultBlessingPattern("veyron/*"); err != nil {
+	if err := s.SetDefaultBlessingPattern("veyron/..."); err != nil {
 		t.Fatalf("%s.SetDefaultBlessingPattern failed: %s", s, err)
 	}
 

@@ -98,7 +98,7 @@ func TestClientServerIDs(t *testing.T) {
 	add(serverR.PublicIDStore(), googleYoutubeService, "")
 	// Add PublicIDs for communicating the "google/gmail" and "google/youtube" services
 	// to the clientR's PublicIDStore.
-	add(clientR.PublicIDStore(), googleGmailClient, "google/*")
+	add(clientR.PublicIDStore(), googleGmailClient, "google/...")
 	add(clientR.PublicIDStore(), googleYoutubeClient, "google/youtube")
 
 	type testcase struct {
@@ -162,10 +162,9 @@ func TestClientServerIDs(t *testing.T) {
 		}
 		defer stopServer(server)
 		if err := server.Serve("", ipc.LeafDispatcher(&testService{},
-			vsecurity.NewACLAuthorizer(vsecurity.NewWhitelistACL(
-				map[security.BlessingPattern]security.LabelSet{
-					security.AllPrincipals: security.AllLabels,
-				})))); err != nil {
+			vsecurity.NewACLAuthorizer(security.ACL{In: map[security.BlessingPattern]security.LabelSet{
+				security.AllPrincipals: security.AllLabels,
+			}}))); err != nil {
 			t.Errorf("error serving service: ", err)
 			continue
 		}
