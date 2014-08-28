@@ -28,6 +28,9 @@ func NewDispatcher(rt veyron2.Runtime, logsDir string, authorizer security.Autho
 }
 
 func (d *dispatcher) Lookup(suffix, method string) (ipc.Invoker, security.Authorizer, error) {
+	if method == "Signature" {
+		return NewSignatureInvoker(suffix), d.auth, nil
+	}
 	if len(suffix) == 0 {
 		leaves := []string{"logs", "stats"}
 		return ipc.ReflectInvoker(&topLevelGlobInvoker{d.rt, leaves}), d.auth, nil
