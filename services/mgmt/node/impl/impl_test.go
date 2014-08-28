@@ -480,6 +480,32 @@ func stopApp(t *testing.T, appID, instanceID string) {
 	}
 }
 
+func suspendApp(t *testing.T, appID, instanceID string) {
+	appsName := "nm//apps"
+	appName := naming.Join(appsName, appID)
+	instanceName := naming.Join(appName, instanceID)
+	stub, err := node.BindApplication(instanceName)
+	if err != nil {
+		t.Fatalf("BindApplication(%v) failed: %v", instanceName, err)
+	}
+	if err := stub.Suspend(rt.R().NewContext()); err != nil {
+		t.Fatalf("Suspend failed: %v", err)
+	}
+}
+
+func resumeApp(t *testing.T, appID, instanceID string) {
+	appsName := "nm//apps"
+	appName := naming.Join(appsName, appID)
+	instanceName := naming.Join(appName, instanceID)
+	stub, err := node.BindApplication(instanceName)
+	if err != nil {
+		t.Fatalf("BindApplication(%v) failed: %v", instanceName, err)
+	}
+	if err := stub.Resume(rt.R().NewContext()); err != nil {
+		t.Fatalf("Resume failed: %v", err)
+	}
+}
+
 func verifyAppWorkspace(t *testing.T, root, appID, instanceID string) {
 	// HACK ALERT: for now, we peek inside the node manager's directory
 	// structure (which ought to be opaque) to check for what the app has
@@ -495,7 +521,7 @@ func verifyAppWorkspace(t *testing.T, root, appID, instanceID string) {
 	}
 	components := strings.Split(appID, "/")
 	appTitle, installationID := components[0], components[1]
-	instanceDir := filepath.Join(root, applicationDirName(appTitle), "installation-"+installationID, "instances", "stopped-instance-"+instanceID)
+	instanceDir := filepath.Join(root, applicationDirName(appTitle), "installation-"+installationID, "instances", "instance-"+instanceID)
 	rootDir := filepath.Join(instanceDir, "root")
 	testFile := filepath.Join(rootDir, "testfile")
 	if read, err := ioutil.ReadFile(testFile); err != nil {
@@ -548,6 +574,13 @@ func TestAppLifeCycle(t *testing.T) {
 	// Start the app.
 	instanceID := startApp(t, appID)
 	<-pingCh // Wait until the app pings us that it's ready.
+
+	// Suspend the app.
+	suspendApp(t, appID, instanceID)
+	<-pingCh // App should have pinged us before it terminated.
+
+	resumeApp(t, appID, instanceID)
+	<-pingCh
 
 	// TODO(caprita): test Suspend and Resume, and verify various
 	// non-standard combinations (suspend when stopped; resume while still
