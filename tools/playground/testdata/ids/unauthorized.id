@@ -1,0 +1,15 @@
+[
+{
+  "Name": "myorg"
+},
+{
+  "Name": "myserver",
+  "Blesser": "myorg",
+  "Files": ["pong.go"]
+},
+{
+  "Name": "myclient",
+  "Blesser": "myorg",
+  "Files": ["ping.go"]
+}
+]
