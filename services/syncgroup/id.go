@@ -1,6 +1,10 @@
 package syncgroup
 
-import "veyron2/storage"
+import (
+	"encoding/hex"
+	"veyron2/storage"
+	"veyron2/verror"
+)
 
 // The current implementation of SyncGroupID assumes that an ID is a storage.ID.
 // ID is defined in syncgroup.vdl.
@@ -15,8 +19,22 @@ func (id ID) String() string {
 	return storage.ID(id).String()
 }
 
-// TODO(m3b): Add a string-to-ID function here.  Perhaps it should conform to fmt.Scanner,
-// to parallel String() conforming to fmt.Stringer.
+// ParseID returns an ID formed from the string str, which will normally have
+// been created with ID.String().
+func ParseID(str string) (id ID, err error) {
+	var tmp []byte
+	tmp, err = hex.DecodeString(str)
+	if err != nil {
+		return id, err
+	}
+	if len(tmp) == 0 || len(tmp) > len(id) {
+		return id, verror.BadProtocolf("string \"%v\" has wrong length to be a syncgroup.ID", str)
+	}
+	for i := 0; i != len(tmp); i++ {
+		id[i] = tmp[i]
+	}
+	return id, err
+}
 
 // IsValid returns whether id is not the zero id.
 func (id ID) IsValid() bool {
