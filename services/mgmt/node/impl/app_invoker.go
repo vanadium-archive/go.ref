@@ -9,6 +9,7 @@ package impl
 // <config.Root>/
 //   app-<hash 1>/                  - the application dir is named using a hash of the application title
 //     installation-<id 1>/         - installations are labelled with ids
+//       <status>                   - one of the values for installationState enum
 //       <version 1 timestamp>/     - timestamp of when the version was downloaded
 //         bin                      - application binary
 //         previous                 - symbolic link to previous version directory (TODO)
@@ -105,6 +106,43 @@ import (
 	"veyron2/vlog"
 )
 
+// installationState describes the states that an installation can be in at any
+// time.
+type installationState int
+
+const (
+	active installationState = iota
+	uninstalled
+)
+
+// String returns the name that will be used to encode the state as a file name
+// in the installation's dir.
+func (s installationState) String() string {
+	switch s {
+	case active:
+		return "active"
+	case uninstalled:
+		return "uninstalled"
+	default:
+		return "unknown"
+	}
+}
+
+func installationStateIs(installationDir string, state installationState) bool {
+	if _, err := os.Stat(filepath.Join(installationDir, state.String())); err != nil {
+		return false
+	}
+	return true
+}
+
+func transitionInstallation(installationDir string, initial, target installationState) error {
+	return transitionState(installationDir, initial, target)
+}
+
+func initializeInstallation(installationDir string, initial installationState) error {
+	return initializeState(installationDir, initial)
+}
+
 // instanceState describes the states that an instance can be in at any time.
 type instanceState int
 
@@ -138,9 +176,17 @@ func (s instanceState) String() string {
 	}
 }
 
-func transition(instanceDir string, initial, target instanceState) error {
-	initialState := filepath.Join(instanceDir, initial.String())
-	targetState := filepath.Join(instanceDir, target.String())
+func transitionInstance(instanceDir string, initial, target instanceState) error {
+	return transitionState(instanceDir, initial, target)
+}
+
+func initializeInstance(instanceDir string, initial instanceState) error {
+	return initializeState(instanceDir, initial)
+}
+
+func transitionState(dir string, initial, target fmt.Stringer) error {
+	initialState := filepath.Join(dir, initial.String())
+	targetState := filepath.Join(dir, target.String())
 	if err := os.Rename(initialState, targetState); err != nil {
 		if os.IsNotExist(err) {
 			return errInvalidOperation
@@ -151,8 +197,8 @@ func transition(instanceDir string, initial, target instanceState) error {
 	return nil
 }
 
-func initializeState(instanceDir string, initial instanceState) error {
-	initialStatus := filepath.Join(instanceDir, initial.String())
+func initializeState(dir string, initial fmt.Stringer) error {
+	initialStatus := filepath.Join(dir, initial.String())
 	if err := ioutil.WriteFile(initialStatus, []byte("status"), 0600); err != nil {
 		vlog.Errorf("WriteFile(%v) failed: %v", initialStatus, err)
 		return errOperationFailed
@@ -303,7 +349,7 @@ func (i *appInvoker) Install(call ipc.ServerContext, applicationVON string) (str
 		return "", errOperationFailed
 	}
 	deferrer := func() {
-		if err := os.RemoveAll(versionDir); err != nil {
+		if err := os.RemoveAll(installationDir); err != nil {
 			vlog.Errorf("RemoveAll(%v) failed: %v", versionDir, err)
 		}
 	}
@@ -326,6 +372,9 @@ func (i *appInvoker) Install(call ipc.ServerContext, applicationVON string) (str
 	if err := os.Symlink(versionDir, link); err != nil {
 		vlog.Errorf("Symlink(%v, %v) failed: %v", versionDir, link, err)
 		return "", errOperationFailed
+	}
+	if err := initializeInstallation(installationDir, active); err != nil {
+		return "", err
 	}
 	deferrer = nil
 	return naming.Join(envelope.Title, installationID), nil
@@ -383,6 +432,9 @@ func (i *appInvoker) newInstance() (string, string, error) {
 	if err != nil {
 		return "", "", err
 	}
+	if !installationStateIs(installationDir, active) {
+		return "", "", errInvalidOperation
+	}
 	instanceID := generateID()
 	instanceDir := filepath.Join(installationDir, "instances", instanceDirName(instanceID))
 	if mkdir(instanceDir) != nil {
@@ -399,7 +451,7 @@ func (i *appInvoker) newInstance() (string, string, error) {
 		vlog.Errorf("Symlink(%v, %v) failed: %v", versionDir, versionLink, err)
 		return instanceDir, instanceID, errOperationFailed
 	}
-	if err := initializeState(instanceDir, suspended); err != nil {
+	if err := initializeInstance(instanceDir, suspended); err != nil {
 		return instanceDir, instanceID, err
 	}
 	return instanceDir, instanceID, nil
@@ -494,7 +546,7 @@ func (i *appInvoker) startCmd(instanceDir string, cmd *exec.Cmd) error {
 }
 
 func (i *appInvoker) run(instanceDir string) error {
-	if err := transition(instanceDir, suspended, starting); err != nil {
+	if err := transitionInstance(instanceDir, suspended, starting); err != nil {
 		return err
 	}
 	cmd, err := genCmd(instanceDir)
@@ -502,10 +554,10 @@ func (i *appInvoker) run(instanceDir string) error {
 		err = i.startCmd(instanceDir, cmd)
 	}
 	if err != nil {
-		transition(instanceDir, starting, suspended)
+		transitionInstance(instanceDir, starting, suspended)
 		return err
 	}
-	return transition(instanceDir, starting, started)
+	return transitionInstance(instanceDir, starting, started)
 }
 
 func (i *appInvoker) Start(ipc.ServerContext) ([]string, error) {
@@ -589,17 +641,17 @@ func (i *appInvoker) Stop(_ ipc.ServerContext, deadline uint32) error {
 	if err != nil {
 		return err
 	}
-	if err := transition(instanceDir, suspended, stopped); err == errOperationFailed || err == nil {
+	if err := transitionInstance(instanceDir, suspended, stopped); err == errOperationFailed || err == nil {
 		return err
 	}
-	if err := transition(instanceDir, started, stopping); err != nil {
+	if err := transitionInstance(instanceDir, started, stopping); err != nil {
 		return err
 	}
 	if err := stop(instanceDir); err != nil {
-		transition(instanceDir, stopping, started)
+		transitionInstance(instanceDir, stopping, started)
 		return err
 	}
-	return transition(instanceDir, stopping, stopped)
+	return transitionInstance(instanceDir, stopping, stopped)
 }
 
 func (i *appInvoker) Suspend(ipc.ServerContext) error {
@@ -607,27 +659,30 @@ func (i *appInvoker) Suspend(ipc.ServerContext) error {
 	if err != nil {
 		return err
 	}
-	if err := transition(instanceDir, started, suspending); err != nil {
+	if err := transitionInstance(instanceDir, started, suspending); err != nil {
 		return err
 	}
 	if err := stop(instanceDir); err != nil {
-		transition(instanceDir, suspending, started)
+		transitionInstance(instanceDir, suspending, started)
 		return err
 	}
-	return transition(instanceDir, suspending, suspended)
+	return transitionInstance(instanceDir, suspending, suspended)
 }
 
-func (*appInvoker) Uninstall(ipc.ServerContext) error {
+func (i *appInvoker) Uninstall(ipc.ServerContext) error {
+	installationDir, err := i.installationDir()
+	if err != nil {
+		return err
+	}
+	return transitionInstallation(installationDir, active, uninstalled)
+}
+
+func (*appInvoker) Update(ipc.ServerContext) error {
 	// TODO(jsimsa): Implement.
 	return nil
 }
 
-func (i *appInvoker) Update(ipc.ServerContext) error {
-	// TODO(jsimsa): Implement.
-	return nil
-}
-
-func (i *appInvoker) UpdateTo(_ ipc.ServerContext, von string) error {
+func (*appInvoker) UpdateTo(_ ipc.ServerContext, von string) error {
 	// TODO(jsimsa): Implement.
 	return nil
 }
