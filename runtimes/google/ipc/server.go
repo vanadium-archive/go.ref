@@ -173,7 +173,12 @@ func (s *server) Listen(protocol, address string) (naming.Endpoint, error) {
 			addrs, err := netstate.GetAccessibleIPs()
 			if err == nil {
 				if a, err := s.preferredAddress(protocol, addrs); err == nil {
-					iep.Address = net.JoinHostPort(a.String(), port)
+					if ip := netstate.AsIP(a); ip != nil {
+						// a may be an IPNet or an IPAddr under the covers,
+						// but we really want the IP portion without any
+						// netmask so we use AsIP to ensure that.
+						iep.Address = net.JoinHostPort(ip.String(), port)
+					}
 				}
 			}
 		}
