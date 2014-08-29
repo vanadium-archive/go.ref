@@ -62,6 +62,10 @@ func (o *object) Abort(ctx ipc.ServerContext) error {
 	return o.server.abortTransaction(ctx, o.tid)
 }
 
+func (o *object) NewTransaction(ctx ipc.ServerContext, opts []vdlutil.Any) (string, error) {
+	panic("Not implemented")
+}
+
 // Exists returns true iff the Entry has a value.
 func (o *object) Exists(ctx ipc.ServerContext) (bool, error) {
 	t, err := o.server.findTransaction(ctx, o.tid)
