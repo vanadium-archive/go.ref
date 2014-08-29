@@ -13,8 +13,8 @@ import (
 	"veyron2/rt"
 )
 
-func doGlob(root, pattern string, since time.Time) ([]libstats.KeyValue, error) {
-	it := libstats.Glob(root, pattern, since, true)
+func doGlob(root, pattern string, since time.Time, includeValues bool) ([]libstats.KeyValue, error) {
+	it := libstats.Glob(root, pattern, since, includeValues)
 	out := []libstats.KeyValue{}
 	for it.Advance() {
 		v := it.Value()
@@ -87,7 +87,8 @@ func TestStats(t *testing.T) {
 		t.Errorf("unexpected result. Got %v, want %v", got, expected)
 	}
 
-	result, err := doGlob("", "...", now)
+	// Glob showing only nodes with a value.
+	result, err := doGlob("", "...", now, true)
 	if err != nil {
 		t.Errorf("unexpected error: %v", err)
 	}
@@ -110,7 +111,7 @@ func TestStats(t *testing.T) {
 		t.Errorf("unexpected result. Got %#v, want %#v", result, expected)
 	}
 
-	result, err = doGlob("", "ipc/test/*", now)
+	result, err = doGlob("", "ipc/test/*", now, true)
 	if err != nil {
 		t.Errorf("unexpected error: %v", err)
 	}
@@ -124,10 +125,33 @@ func TestStats(t *testing.T) {
 		t.Errorf("unexpected result. Got %#v, want %#v", result, expected)
 	}
 
+	// Glob showing all nodes without values
+	result, err = doGlob("", "ipc/...", time.Time{}, false)
+	if err != nil {
+		t.Errorf("unexpected error: %v", err)
+	}
+	expected = []libstats.KeyValue{
+		libstats.KeyValue{Key: "ipc"},
+		libstats.KeyValue{Key: "ipc/test"},
+		libstats.KeyValue{Key: "ipc/test/aaa"},
+		libstats.KeyValue{Key: "ipc/test/bbb"},
+		libstats.KeyValue{Key: "ipc/test/ccc"},
+		libstats.KeyValue{Key: "ipc/test/ddd"},
+		libstats.KeyValue{Key: "ipc/test/ddd/delta10m"},
+		libstats.KeyValue{Key: "ipc/test/ddd/delta1h"},
+		libstats.KeyValue{Key: "ipc/test/ddd/delta1m"},
+		libstats.KeyValue{Key: "ipc/test/ddd/rate10m"},
+		libstats.KeyValue{Key: "ipc/test/ddd/rate1h"},
+		libstats.KeyValue{Key: "ipc/test/ddd/rate1m"},
+	}
+	if !reflect.DeepEqual(result, expected) {
+		t.Errorf("unexpected result. Got %#v, want %#v", result, expected)
+	}
+
 	// Test the rate counter.
 	now = now.Add(10 * time.Second)
 	d.Incr(100)
-	result, err = doGlob("", "ipc/test/ddd/*", now)
+	result, err = doGlob("", "ipc/test/ddd/*", now, true)
 	if err != nil {
 		t.Errorf("unexpected error: %v", err)
 	}
@@ -144,7 +168,7 @@ func TestStats(t *testing.T) {
 	}
 
 	// Test Glob on non-root object.
-	result, err = doGlob("ipc/test", "*", time.Time{})
+	result, err = doGlob("ipc/test", "*", time.Time{}, true)
 	if err != nil {
 		t.Errorf("unexpected error: %v", err)
 	}
@@ -158,7 +182,7 @@ func TestStats(t *testing.T) {
 		t.Errorf("unexpected result. Got %#v, want %#v", result, expected)
 	}
 
-	result, err = doGlob("ipc/test/aaa", "", time.Time{})
+	result, err = doGlob("ipc/test/aaa", "", time.Time{}, true)
 	if err != nil {
 		t.Errorf("unexpected error: %v", err)
 	}
@@ -170,7 +194,7 @@ func TestStats(t *testing.T) {
 	}
 
 	// Test LastUpdate. The test only works on Counters.
-	result, err = doGlob("ipc/test", "ddd", now)
+	result, err = doGlob("ipc/test", "ddd", now, true)
 	if err != nil {
 		t.Errorf("unexpected error: %v", err)
 	}
@@ -181,7 +205,7 @@ func TestStats(t *testing.T) {
 		t.Errorf("unexpected result. Got %#v, want %#v", result, expected)
 	}
 
-	result, err = doGlob("ipc/test", "ddd", now.Add(time.Second))
+	result, err = doGlob("ipc/test", "ddd", now.Add(time.Second), true)
 	if err != nil {
 		t.Errorf("unexpected error: %v", err)
 	}
@@ -195,7 +219,7 @@ func TestStats(t *testing.T) {
 	h.Add(1)
 	h.Add(2)
 
-	result, err = doGlob("", "ipc/test/hhh", now)
+	result, err = doGlob("", "ipc/test/hhh", now, true)
 	if err != nil {
 		t.Errorf("unexpected error: %v", err)
 	}
@@ -224,7 +248,7 @@ func TestStats(t *testing.T) {
 	now = now.Add(30 * time.Second)
 	h.Add(3)
 
-	result, err = doGlob("", "ipc/test/hhh/delta1m", now)
+	result, err = doGlob("", "ipc/test/hhh/delta1m", now, true)
 	if err != nil {
 		t.Errorf("unexpected error: %v", err)
 	}

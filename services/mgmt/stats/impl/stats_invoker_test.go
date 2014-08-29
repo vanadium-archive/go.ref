@@ -92,6 +92,7 @@ func TestStatsInvoker(t *testing.T) {
 			t.Errorf("gstream.Finish failed: %v", err)
 		}
 		expected := []string{
+			"testing/foo",
 			"testing/foo/bar",
 			"testing/foo/bar/delta10m",
 			"testing/foo/bar/delta1h",

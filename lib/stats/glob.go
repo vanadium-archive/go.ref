@@ -37,12 +37,14 @@ func Glob(root string, pattern string, updatedSince time.Time, includeValues boo
 
 // globStepLocked applies a glob recursively.
 func globStepLocked(prefix string, g *glob.Glob, n *node, updatedSince time.Time, includeValues bool, result *[]KeyValue) {
-	if g.Len() == 0 && n.object != nil && (updatedSince.IsZero() || !n.object.LastUpdate().Before(updatedSince)) {
-		var v interface{}
-		if includeValues {
-			v = n.object.Value()
+	if g.Len() == 0 {
+		if updatedSince.IsZero() || (n.object != nil && !n.object.LastUpdate().Before(updatedSince)) {
+			var v interface{}
+			if includeValues && n.object != nil {
+				v = n.object.Value()
+			}
+			*result = append(*result, KeyValue{prefix, v})
 		}
-		*result = append(*result, KeyValue{prefix, v})
 	}
 	if g.Finished() {
 		return
