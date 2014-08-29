@@ -119,8 +119,9 @@ func TestFlowClientServer(t *testing.T) {
 	}
 
 	ipcServer := &server{
-		ctx:  testContext(),
-		disp: testDisp{newEchoInvoker},
+		ctx:   testContext(),
+		disp:  testDisp{newEchoInvoker},
+		stats: newIPCStats(""),
 	}
 	for _, test := range tests {
 		clientFlow, serverFlow := newTestFlows()
