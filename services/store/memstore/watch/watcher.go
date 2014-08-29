@@ -246,7 +246,7 @@ func newChangeFilter(resumeMarker []byte) (changeFilter, error) {
 		return &onOrAfterFilter{baseFilter{0, false}}, nil
 	}
 	if isNowResumeMarker(resumeMarker) {
-		// TODO(tilaks): Get the current resume marker from the log.g
+		// TODO(tilaks): Get the current resume marker from the log.
 		return &onOrAfterFilter{baseFilter{uint64(time.Now().UnixNano()), false}}, nil
 	}
 	if len(resumeMarker) != 8 {

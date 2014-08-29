@@ -3,7 +3,6 @@ package testing
 import (
 	"io"
 	"runtime"
-	"sync"
 	"testing"
 
 	"veyron/services/store/raw"
@@ -152,14 +151,11 @@ func PutMutationsBatch(t *testing.T, id security.PublicID, putMutationsFn func(i
 
 // watcherServiceWatchStreamSender implements watch.WatcherServiceWatchStreamSender
 type watcherServiceWatchStreamSender struct {
-	mu     *sync.Mutex
 	ctx    ipc.ServerContext
 	output chan<- types.Change
 }
 
 func (s *watcherServiceWatchStreamSender) Send(cb types.Change) error {
-	s.mu.Lock()
-	defer s.mu.Unlock()
 	select {
 	case s.output <- cb:
 		return nil
@@ -220,29 +216,39 @@ func (s *watcherWatchStream) RecvStream() interface {
 }
 
 func watchImpl(id security.PublicID, watchFn func(ipc.ServerContext, *watcherServiceWatchStream) error) *watcherWatchStream {
-	mu := &sync.Mutex{}
 	ctx := NewFakeServerContext(id)
-	c := make(chan types.Change, 1)
+	outputc := make(chan types.Change)
+	inputc := make(chan types.Change)
+	// This goroutine ensures that inputs will eventually stop going through
+	// once the context is done. Send could handle this, but running a separate
+	// goroutine is easier as we do not control invocations of Send.
+	go func() {
+		for {
+			select {
+			case change := <-outputc:
+				inputc <- change
+			case <-ctx.Done():
+				close(inputc)
+				return
+			}
+		}
+	}()
 	errc := make(chan error, 1)
 	go func() {
 		stream := &watcherServiceWatchStream{
 			watcherServiceWatchStreamSender{
-				mu:     mu,
 				ctx:    ctx,
-				output: c,
+				output: outputc,
 			},
 		}
 		err := watchFn(ctx, stream)
-		mu.Lock()
-		defer mu.Unlock()
-		ctx.Cancel()
-		close(c)
 		errc <- err
 		close(errc)
+		ctx.Cancel()
 	}()
 	return &watcherWatchStream{
 		ctx:   ctx,
-		input: c,
+		input: inputc,
 		err:   errc,
 	}
 }
