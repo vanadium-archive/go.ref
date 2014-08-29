@@ -16,9 +16,13 @@ import (
 	"veyron/examples/rockpaperscissors/impl"
 	"veyron/lib/signals"
 	sflag "veyron/security/flag"
+	"veyron/services/mgmt/debug"
+
+	"veyron2"
 	"veyron2/context"
 	"veyron2/ipc"
 	"veyron2/rt"
+	"veyron2/security"
 	"veyron2/vlog"
 )
 
@@ -29,6 +33,29 @@ var (
 	address  = flag.String("address", ":0", "address to listen on")
 )
 
+// The dispatcher returns the RPS invoker unless a suffix is used, or the method
+// called is Glob. This is intended to exercise the DebugServer code.
+type dispatcher struct {
+	rpsInvoker ipc.Invoker
+	auth       security.Authorizer
+	debug      ipc.Dispatcher
+}
+
+func (d *dispatcher) Lookup(suffix, method string) (ipc.Invoker, security.Authorizer, error) {
+	if len(suffix) == 0 && method != "Glob" {
+		return d.rpsInvoker, d.auth, nil
+	}
+	return d.debug.Lookup(suffix, method)
+}
+
+func newDispatcher(runtime veyron2.Runtime, service *impl.RPS, auth security.Authorizer) *dispatcher {
+	return &dispatcher{
+		rpsInvoker: ipc.ReflectInvoker(rps.NewServerRockPaperScissors(service)),
+		auth:       auth,
+		debug:      debug.NewDispatcher(runtime, vlog.Log.LogDir(), auth),
+	}
+}
+
 func main() {
 	r := rt.Init()
 	defer r.Cleanup()
@@ -38,10 +65,10 @@ func main() {
 	}
 	defer server.Stop()
 
-	rand.Seed(time.Now().UTC().UnixNano())
+	rand.Seed(time.Now().UnixNano())
 	rpsService := impl.NewRPS()
 
-	dispatcher := ipc.LeafDispatcher(rps.NewServerRockPaperScissors(rpsService), sflag.NewAuthorizerOrDie())
+	dispatcher := newDispatcher(r, rpsService, sflag.NewAuthorizerOrDie())
 
 	ep, err := server.Listen(*protocol, *address)
 	if err != nil {
