@@ -1,4 +1,4 @@
-package netconfig
+package netstate
 
 import (
 	"net"
@@ -24,7 +24,7 @@ func TestIsGloballyRoutable(t *testing.T) {
 	}
 	for _, test := range tests {
 		ip := net.ParseIP(test.ip)
-		if got := IsGloballyRoutable(ip); got != test.want {
+		if got := IsGloballyRoutableIP(ip); got != test.want {
 			t.Fatalf("%s: want %v got %v", test.ip, test.want, got)
 		}
 	}

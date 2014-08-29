@@ -4,9 +4,11 @@ import (
 	"fmt"
 	"net"
 
-	// TODO(cnicolaou): move this out of the runtimes and into here.
-	"veyron/runtimes/google/lib/netconfig"
+	"veyron/lib/netstate"
 )
+
+// TODO(cnicolaou): this will be removed in a subsequent CL by using the
+// new netstate library.
 
 // ipAndIf is a map of interface name to the set of IP addresses available on
 // that interface.
@@ -112,7 +114,7 @@ func publicIP(ip net.IP) bool {
 	if ip == nil {
 		return false
 	}
-	return netconfig.IsGloballyRoutable(ip)
+	return netstate.IsGloballyRoutableIP(ip)
 }
 
 func diffAB(a, b ipAndIf) ipAndIf {

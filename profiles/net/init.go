@@ -20,10 +20,8 @@ import (
 	"veyron2/config"
 	"veyron2/rt"
 
+	"veyron/lib/netconfig"
 	"veyron/profiles"
-
-	// TODO(cnicolaou): move this to profiles/internal
-	"veyron/runtimes/google/lib/netconfig"
 )
 
 const (

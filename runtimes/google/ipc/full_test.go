@@ -1110,7 +1110,7 @@ func TestPreferredAddress(t *testing.T) {
 	sm := imanager.InternalNew(naming.FixedRoutingID(0x555555555))
 	defer sm.Shutdown()
 	ns := newNamespace()
-	pa := func(string) (net.Addr, error) {
+	pa := func(string, []net.Addr) (net.Addr, error) {
 		a := &net.IPAddr{}
 		a.IP = net.ParseIP("1.1.1.1")
 		return a, nil
@@ -1145,7 +1145,7 @@ func TestPreferredAddressErrors(t *testing.T) {
 	sm := imanager.InternalNew(naming.FixedRoutingID(0x555555555))
 	defer sm.Shutdown()
 	ns := newNamespace()
-	paerr := func(string) (net.Addr, error) {
+	paerr := func(string, []net.Addr) (net.Addr, error) {
 		return nil, fmt.Errorf("oops")
 	}
 	server, err := InternalNewServer(testContext(), sm, ns, vc.FixedLocalID(serverID), veyron2.PreferredAddressOpt(paerr))

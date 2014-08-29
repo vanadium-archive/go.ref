@@ -1,4 +1,4 @@
-package netconfig
+package netstate
 
 import (
 	"net"
@@ -11,7 +11,7 @@ var privateCIDRs = []net.IPNet{
 }
 
 // IsGloballyRoutable returns true if the argument is a globally routable IP address.
-func IsGloballyRoutable(ip net.IP) bool {
+func IsGloballyRoutableIP(ip net.IP) bool {
 	if !ip.IsGlobalUnicast() {
 		return false
 	}

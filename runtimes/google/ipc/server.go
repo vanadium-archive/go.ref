@@ -9,7 +9,8 @@ import (
 	"sync"
 	"time"
 
-	"veyron/runtimes/google/lib/netconfig"
+	"veyron/lib/netstate"
+
 	"veyron/runtimes/google/lib/publisher"
 	inaming "veyron/runtimes/google/naming"
 	isecurity "veyron/runtimes/google/security"
@@ -46,7 +47,7 @@ type server struct {
 	stopped          bool                     // whether the server has been stopped.
 	stoppedChan      chan struct{}            // closed when the server has been stopped.
 	ns               naming.Namespace
-	preferredAddress func(network string) (net.Addr, error)
+	preferredAddress func(network string, addrs []net.Addr) (net.Addr, error)
 	servesMountTable bool
 }
 
@@ -113,57 +114,16 @@ func (s *server) resolveToAddress(address string) (string, error) {
 // preferredIPAddress returns the preferred IP address, which is,
 // a public IPv4 address, then any non-loopback IPv4, then a public
 // IPv6 address and finally any non-loopback/link-local IPv6
-func preferredIPAddress(network string) (net.Addr, error) {
-	interfaces, err := net.Interfaces()
-	if err != nil {
-		return nil, err
+func preferredIPAddress(network string, addrs []net.Addr) (net.Addr, error) {
+	if !netstate.IsIPNetwork(network) {
+		return nil, fmt.Errorf("can't support network %q", network)
 	}
-	var any_ip4, any_ip6, pub_ip4, pub_ip6 net.Addr
-	for _, ifc := range interfaces {
-		addrs, err := ifc.Addrs()
-		if err != nil {
-			continue
+	al := netstate.AddrList(addrs)
+	for _, predicate := range []netstate.Predicate{netstate.IsPublicUnicastIPv4,
+		netstate.IsUnicastIPv4, netstate.IsPublicUnicastIPv6} {
+		if a := al.First(predicate); a != nil {
+			return a, nil
 		}
-		for _, addr := range addrs {
-			ipn, ok := addr.(*net.IPNet)
-			if !ok {
-				continue
-			}
-			ip := ipn.IP
-			if ip == nil || ip.IsUnspecified() || ip.IsLoopback() || ip.IsMulticast() || ip.IsLinkLocalUnicast() || ip.IsLinkLocalMulticast() {
-				continue
-			}
-			if network == "tcp" || network == "tcp4" {
-				if t := ip.To4(); t != nil {
-					if any_ip4 == nil {
-						any_ip4 = addr
-					}
-					if pub_ip4 == nil && netconfig.IsGloballyRoutable(t) {
-						pub_ip4 = addr
-					}
-				}
-			}
-			if network == "tcp" || network == "tcp6" {
-				if t := ip.To16(); t != nil {
-					if any_ip6 == nil {
-						any_ip6 = addr
-					}
-					if pub_ip6 == nil && netconfig.IsGloballyRoutable(t) {
-						pub_ip6 = addr
-					}
-				}
-			}
-		}
-	}
-	switch {
-	case pub_ip4 != nil:
-		return pub_ip4, nil
-	case any_ip4 != nil:
-		return any_ip4, nil
-	case pub_ip6 != nil:
-		return pub_ip6, nil
-	case any_ip6 != nil:
-		return any_ip6, nil
 	}
 	return nil, fmt.Errorf("failed to find any usable address for %q", network)
 }
@@ -208,8 +168,11 @@ func (s *server) Listen(protocol, address string) (naming.Endpoint, error) {
 		}
 		if ip.IsUnspecified() && s.preferredAddress != nil {
 			// Need to find a usable IP address.
-			if a, err := s.preferredAddress(protocol); err == nil {
-				iep.Address = net.JoinHostPort(a.String(), port)
+			addrs, err := netstate.GetAccessibleIPs()
+			if err == nil {
+				if a, err := s.preferredAddress(protocol, addrs); err == nil {
+					iep.Address = net.JoinHostPort(a.String(), port)
+				}
 			}
 		}
 	}
