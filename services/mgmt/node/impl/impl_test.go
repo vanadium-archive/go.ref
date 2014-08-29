@@ -452,23 +452,35 @@ func installApp(t *testing.T) string {
 	return appID
 }
 
-func startApp(t *testing.T, appID string) string {
+func startAppImpl(t *testing.T, appID string) (string, error) {
 	appsName := "nm//apps"
 	appName := naming.Join(appsName, appID)
 	stub, err := node.BindApplication(appName)
 	if err != nil {
 		t.Fatalf("BindApplication(%v) failed: %v", appName, err)
 	}
-	var instanceID string
 	if instanceIDs, err := stub.Start(rt.R().NewContext()); err != nil {
-		t.Fatalf("Start failed: %v", err)
+		return "", err
 	} else {
 		if want, got := 1, len(instanceIDs); want != got {
 			t.Fatalf("Expected %v instance ids, got %v instead", want, got)
 		}
-		instanceID = instanceIDs[0]
+		return instanceIDs[0], nil
+	}
+}
+
+func startApp(t *testing.T, appID string) string {
+	instanceID, err := startAppImpl(t, appID)
+	if err != nil {
+		t.Fatalf("Start failed: %v", err)
 	}
 	return instanceID
+}
+
+func startAppShouldFail(t *testing.T, appID string, expectedError verror.ID) {
+	if _, err := startAppImpl(t, appID); err == nil || !verror.Is(err, expectedError) {
+		t.Fatalf("Start(%v) expected to fail with %v, got %v instead", appID, expectedError, err)
+	}
 }
 
 func stopApp(t *testing.T, appID, instanceID string) {
@@ -507,6 +519,18 @@ func resumeApp(t *testing.T, appID, instanceID string) {
 	}
 	if err := stub.Resume(rt.R().NewContext()); err != nil {
 		t.Fatalf("Resume failed: %v", err)
+	}
+}
+
+func uninstallApp(t *testing.T, appID string) {
+	appsName := "nm//apps"
+	appName := naming.Join(appsName, appID)
+	stub, err := node.BindApplication(appName)
+	if err != nil {
+		t.Fatalf("BindApplication(%v) failed: %v", appName, err)
+	}
+	if err := stub.Uninstall(rt.R().NewContext()); err != nil {
+		t.Fatalf("Uninstall failed: %v", err)
 	}
 }
 
@@ -595,6 +619,12 @@ func TestAppLifeCycle(t *testing.T) {
 	<-pingCh // App should have pinged us before it terminated.
 
 	verifyAppWorkspace(t, root, appID, instanceID)
+
+	// Uninstall the app.
+	uninstallApp(t, appID)
+
+	// Starting new instances should no longer be allowed.
+	startAppShouldFail(t, appID, verror.BadArg)
 
 	// Cleanly shut down the node manager.
 	syscall.Kill(nm.Cmd.Process.Pid, syscall.SIGINT)
