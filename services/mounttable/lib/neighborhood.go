@@ -7,7 +7,7 @@ import (
 	"strings"
 
 	"veyron/lib/glob"
-	"veyron/runtimes/google/lib/netconfig"
+	"veyron/lib/netconfig"
 
 	"veyron2/ipc"
 	"veyron2/naming"

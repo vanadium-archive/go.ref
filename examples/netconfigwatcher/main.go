@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"log"
 
-	"veyron/runtimes/google/lib/netconfig"
+	"veyron/lib/netconfig"
 )
 
 func main() {
