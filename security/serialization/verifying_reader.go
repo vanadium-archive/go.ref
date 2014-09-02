@@ -121,3 +121,7 @@ func (r *verifyingReader) verifySignature(signature io.Reader, key *ecdsa.Public
 	}
 	return nil
 }
+
+func init() {
+	vom.Register([sha256.Size]byte{})
+}
