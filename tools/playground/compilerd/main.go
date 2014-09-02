@@ -2,11 +2,9 @@ package main
 
 import (
 	"bytes"
-	"crypto/sha1"
 	"encoding/json"
 	"flag"
 	"fmt"
-	"io"
 	"math/rand"
 	"net/http"
 	"os"
@@ -14,8 +12,6 @@ import (
 	"os/signal"
 	"syscall"
 	"time"
-
-	"github.com/golang/groupcache/lru"
 )
 
 type Event struct {
@@ -23,14 +19,9 @@ type Event struct {
 	Message string
 }
 
-type ResponseBody struct {
+type Response struct {
 	Errors string
 	Events []Event
-}
-
-type CachedResponse struct {
-	Status int
-	Body   ResponseBody
 }
 
 var (
@@ -42,15 +33,6 @@ var (
 
 	// Note, shutdown triggers on SIGTERM or when the time limit is hit.
 	shutdown = flag.Bool("shutdown", true, "whether to ever shutdown the machine")
-
-	// Maximum request and response size. Same limit imposed by the go-tour.
-	maxSize = 1 << 16
-
-	// In-memory LRU cache of request/response bodies. Keys are sha1 sum of
-	// request bodies (20 bytes each), values are json-encoded response
-	// bodies.
-	// TODO(nlacasse): Figure out the optimal number of entries. Using 10k for now.
-	cache = lru.New(10000)
 )
 
 func healthz(w http.ResponseWriter, r *http.Request) {
@@ -82,35 +64,9 @@ func handler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	requestBody := streamToBytes(r.Body)
-
-	if len(requestBody) > maxSize {
-		responseBody := new(ResponseBody)
-		responseBody.Errors = "Program too large."
-		respondWithBody(w, http.StatusBadRequest, responseBody)
-		return
-	}
-
-	// Hash the body and see if it's been cached. If so, return the cached
-	// response status and body.
-	requestBodyHash := sha1.Sum(requestBody)
-	if cachedResponse, ok := cache.Get(requestBodyHash); ok {
-		if cachedResponseStruct, ok := cachedResponse.(CachedResponse); ok {
-			respondWithBody(w, cachedResponseStruct.Status, cachedResponseStruct.Body)
-			return
-		} else {
-			fmt.Println("Invalid cached response: %v", cachedResponse)
-			cache.Remove(requestBodyHash)
-		}
-	}
-
-	// TODO(nlacasse): It would be cool if we could stream the output
-	// messages while the process is running, rather than waiting for it to
-	// exit and dumping all the output then.
-
 	id := <-uniq
 	cmd := Docker("run", "-i", "--name", id, "playground")
-	cmd.Stdin = bytes.NewReader(requestBody)
+	cmd.Stdin = r.Body
 	buf := new(bytes.Buffer)
 	cmd.Stdout = buf
 	cmd.Stderr = buf
@@ -127,41 +83,12 @@ func handler(w http.ResponseWriter, r *http.Request) {
 	}
 	Docker("rm", "-f", id).Run()
 
-	// If the response is bigger than the limit cache the response and return an error.
-	if buf.Len() > maxSize {
-		status := http.StatusBadRequest
-		responseBody := new(ResponseBody)
-		responseBody.Errors = "Program output too large."
-		responseToCache := CachedResponse{
-			Status: status,
-			Body:   *responseBody,
-		}
-		cache.Add(requestBodyHash, responseToCache)
-		respondWithBody(w, status, responseBody)
-		return
-	}
-
-	responseBody := new(ResponseBody)
-	responseBody.Events = append(responseBody.Events, Event{0, buf.String()})
-
-	cache.Add(requestBodyHash, CachedResponse{
-		Status: http.StatusOK,
-		Body:   *responseBody,
-	})
-	respondWithBody(w, http.StatusOK, responseBody)
-}
-
-func respondWithBody(w http.ResponseWriter, status int, body interface{}) {
-	bodyJson, _ := json.Marshal(body)
+	response := new(Response)
+	response.Events = append(response.Events, Event{0, buf.String()})
+	body, _ := json.Marshal(response)
 	w.Header().Add("Content-Type", "application/json")
-	w.Header().Add("Content-Length", fmt.Sprintf("%d", len(bodyJson)))
-	w.Write(bodyJson)
-}
-
-func streamToBytes(stream io.Reader) []byte {
-	buf := new(bytes.Buffer)
-	buf.ReadFrom(stream)
-	return buf.Bytes()
+	w.Header().Add("Content-Length", fmt.Sprintf("%d", len(body)))
+	w.Write(body)
 }
 
 func Docker(args ...string) *exec.Cmd {
