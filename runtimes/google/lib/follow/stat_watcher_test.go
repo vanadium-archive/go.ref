@@ -1,18 +1,20 @@
 package follow
 
 import (
+	"io/ioutil"
 	"os"
 	"testing"
 	"time"
 )
 
 func TestModificationStat(t *testing.T) {
-	testFileName := os.TempDir() + "/follow.modification.stat"
-	testfile, err := os.Create(testFileName)
+	// Create the test file.
+	testFile, err := ioutil.TempFile(os.TempDir(), "follow.modification.stat")
 	if err != nil {
-		t.Fatalf("os.Create() failed: %v", err)
+		t.Fatalf("ioutil.TempFile() failed: %v", err)
 	}
-	defer testfile.Close()
+	defer testFile.Close()
+	testFileName := testFile.Name()
 	defer os.Remove(testFileName)
 
 	minSleep := 10 * time.Millisecond
@@ -22,7 +24,7 @@ func TestModificationStat(t *testing.T) {
 		t.Fatalf("newCustomFSWatcher() failed : %v", err)
 	}
 	timeout := 100 * time.Millisecond
-	if err := testModification(testfile, watcher, timeout); err != nil {
+	if err := testModification(testFile, watcher, timeout); err != nil {
 		t.Fatalf("testModification() failed: %v", err)
 	}
 }

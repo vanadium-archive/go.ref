@@ -3,6 +3,7 @@
 package follow
 
 import (
+	"io/ioutil"
 	"os"
 	"testing"
 	"time"
@@ -10,14 +11,13 @@ import (
 
 // TestNotifyReadPartial tests partial reads with the fsnotify-based fsReader
 func TestNotifyReadPartial(t *testing.T) {
-	testFileName := os.TempDir() + "/follow.reader.notify.partial"
-
 	// Create the test file.
-	testfile, err := os.Create(testFileName)
+	testFile, err := ioutil.TempFile(os.TempDir(), "follow.reader.notify.partial")
 	if err != nil {
-		t.Fatalf("os.Create() failed: %v", err)
+		t.Fatalf("ioutil.TempFile() failed: %v", err)
 	}
-	testfile.Close()
+	testFile.Close()
+	testFileName := testFile.Name()
 	defer os.Remove(testFileName)
 
 	// Create the fsnotify-based fsWatcher.
@@ -34,14 +34,13 @@ func TestNotifyReadPartial(t *testing.T) {
 
 // TestNotifyReadFull tests full reads with the fsnotify-based fsReader
 func TestNotifyReadFull(t *testing.T) {
-	testFileName := os.TempDir() + "/follow.reader.notify.full"
-
 	// Create the test file.
-	testfile, err := os.Create(testFileName)
+	testFile, err := ioutil.TempFile(os.TempDir(), "follow.reader.notify.full")
 	if err != nil {
-		t.Fatalf("os.Create() failed: %v", err)
+		t.Fatalf("ioutil.TempFile() failed: %v", err)
 	}
-	testfile.Close()
+	testFile.Close()
+	testFileName := testFile.Name()
 	defer os.Remove(testFileName)
 
 	// Create the fsnotify-based fsWatcher.
@@ -58,14 +57,13 @@ func TestNotifyReadFull(t *testing.T) {
 
 // TestNotifyClose tests close with the fsnotify-based fsReader
 func TestNotifyClose(t *testing.T) {
-	testFileName := os.TempDir() + "/follow.reader.notify.close"
-
 	// Create the test file.
-	testfile, err := os.Create(testFileName)
+	testFile, err := ioutil.TempFile(os.TempDir(), "follow.reader.notify.close")
 	if err != nil {
-		t.Fatalf("os.Create() failed: %v", err)
+		t.Fatalf("ioutil.TempFile() failed: %v", err)
 	}
-	testfile.Close()
+	testFile.Close()
+	testFileName := testFile.Name()
 	defer os.Remove(testFileName)
 
 	// Create the fsnotify-based fsWatcher.
