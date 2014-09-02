@@ -690,16 +690,16 @@ func TestDeserializeCaveat(t *testing.T) {
 		expectedValue security.ServiceCaveat
 	}{
 		{
-			json: `{"_type":"MethodCaveat","service":"*","data":["Get","MultiGet"]}`,
+			json: `{"_type":"MethodCaveat","service":"...","data":["Get","MultiGet"]}`,
 			expectedValue: security.ServiceCaveat{
-				Service: "*",
+				Service: security.AllPrincipals,
 				Caveat:  &caveat.MethodRestriction{"Get", "MultiGet"},
 			},
 		},
 		{
-			json: `{"_type":"PeerIdentityCaveat","service":"*","data":["veyron/batman","veyron/brucewayne"]}`,
+			json: `{"_type":"PeerIdentityCaveat","service":"...","data":["veyron/batman","veyron/brucewayne"]}`,
 			expectedValue: security.ServiceCaveat{
-				Service: "*",
+				Service: security.AllPrincipals,
 				Caveat:  &caveat.PeerIdentity{"veyron/batman", "veyron/brucewayne"},
 			},
 		},
@@ -863,7 +863,7 @@ func TestBlessingWithMethodRestrictions(t *testing.T) {
 			"caveats": []map[string]interface{}{
 				map[string]interface{}{
 					"_type":   "MethodCaveat",
-					"service": "*",
+					"service": security.AllPrincipals,
 					"data":    []string{"Foo"},
 				},
 			},
@@ -886,7 +886,7 @@ func TestBlessingWithPeerRestrictions(t *testing.T) {
 			"caveats": []map[string]interface{}{
 				map[string]interface{}{
 					"_type":   "PeerIdentityCaveat",
-					"service": "*",
+					"service": security.AllPrincipals,
 					"data":    []string{securityName("test/alice")},
 				},
 			},
@@ -909,12 +909,12 @@ func TestBlessingWithMethodAndPeerRestrictions(t *testing.T) {
 			"caveats": []map[string]interface{}{
 				map[string]interface{}{
 					"_type":   "PeerIdentityCaveat",
-					"service": "*",
+					"service": security.AllPrincipals,
 					"data":    []string{securityName("test/alice")},
 				},
 				map[string]interface{}{
 					"_type":   "MethodCaveat",
-					"service": "*",
+					"service": security.AllPrincipals,
 					"data":    []string{"Bar"},
 				},
 			},

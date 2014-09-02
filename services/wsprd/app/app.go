@@ -60,7 +60,7 @@ type outstandingStream struct {
 
 type jsonServiceCaveat struct {
 	Type    string `json:"_type"`
-	Service security.PrincipalPattern
+	Service security.BlessingPattern
 	Data    json.RawMessage
 }
 
