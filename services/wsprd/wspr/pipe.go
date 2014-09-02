@@ -56,6 +56,9 @@ const (
 	// A request to unlink an identity.  This request means that
 	// we can remove the given handle from the handle store.
 	websocketUnlinkIdentity = 9
+
+	// A request to create a new random identity
+	websocketCreateIdentity = 10
 )
 
 type websocketMessage struct {
@@ -269,6 +272,8 @@ func (p *pipe) readLoop() {
 			go p.controller.HandleSignatureRequest(ctx, msg.Data, ww)
 		case websocketBlessIdentity:
 			go p.controller.HandleBlessing(msg.Data, ww)
+		case websocketCreateIdentity:
+			go p.controller.HandleCreateIdentity(msg.Data, ww)
 		case websocketUnlinkIdentity:
 			go p.controller.HandleUnlinkJSIdentity(msg.Data, ww)
 		default:
