@@ -34,7 +34,8 @@ type serverRPCRequest struct {
 }
 
 type publicID struct {
-	Names []string
+	Handle int64
+	Names  []string
 }
 
 // call context for a serverRPCRequest
@@ -50,10 +51,20 @@ type serverRPCReply struct {
 	Err     *verror.Standard
 }
 
-type ServerHelper interface {
+type FlowHandler interface {
 	CreateNewFlow(server *Server, sender stream.Sender) *Flow
 
 	CleanupFlow(id int64)
+}
+
+type HandleStore interface {
+	// Adds an identity to the store and returns handle to the identity
+	AddIdentity(identity security.PublicID) int64
+}
+
+type ServerHelper interface {
+	FlowHandler
+	HandleStore
 
 	GetLogger() vlog.Logger
 
@@ -110,11 +121,13 @@ func (s *Server) createRemoteInvokerFunc() remoteInvokeFunc {
 		s.Lock()
 		s.outstandingServerRequests[flow.ID] = replyChan
 		s.Unlock()
+		remoteID := call.RemoteID()
 		context := serverRPCRequestContext{
 			Suffix: call.Suffix(),
 			Name:   call.Name(),
 			RemoteID: publicID{
-				Names: call.RemoteID().Names(),
+				Handle: s.helper.AddIdentity(remoteID),
+				Names:  remoteID.Names(),
 			},
 		}
 		// Send a invocation request to JavaScript

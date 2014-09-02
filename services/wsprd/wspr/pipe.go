@@ -49,6 +49,13 @@ const (
 
 	// A request to associate an identity with an origin
 	websocketAssocIdentity = 7
+
+	// A request to bless an identity
+	websocketBlessIdentity = 8
+
+	// A request to unlink an identity.  This request means that
+	// we can remove the given handle from the handle store.
+	websocketUnlinkIdentity = 9
 )
 
 type websocketMessage struct {
@@ -260,6 +267,10 @@ func (p *pipe) readLoop() {
 			// from javascript.
 			ctx := p.wspr.rt.NewContext()
 			go p.controller.HandleSignatureRequest(ctx, msg.Data, ww)
+		case websocketBlessIdentity:
+			go p.controller.HandleBlessing(msg.Data, ww)
+		case websocketUnlinkIdentity:
+			go p.controller.HandleUnlinkJSIdentity(msg.Data, ww)
 		default:
 			ww.Error(verror.Unknownf("unknown message type: %v", msg.Type))
 		}

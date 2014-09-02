@@ -5,9 +5,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"reflect"
+	"strings"
 	"sync"
 	"testing"
 	"time"
+	"veyron/security/caveat"
 	"veyron/services/wsprd/ipc/client"
 	"veyron/services/wsprd/lib"
 	"veyron/services/wsprd/signature"
@@ -15,6 +17,7 @@ import (
 	"veyron2/ipc"
 	"veyron2/naming"
 	"veyron2/rt"
+	"veyron2/security"
 	"veyron2/vdl/vdlutil"
 	"veyron2/verror"
 	"veyron2/vlog"
@@ -26,6 +29,12 @@ import (
 	mounttable "veyron/services/mounttable/lib"
 )
 
+var (
+	ctxFooAlice = makeMockSecurityContext("Foo", "test/alice")
+	ctxBarAlice = makeMockSecurityContext("Bar", "test/alice")
+	ctxFooBob   = makeMockSecurityContext("Foo", "test/bob")
+	ctxBarBob   = makeMockSecurityContext("Bar", "test/bob")
+)
 var r = rt.Init()
 
 type simpleAdder struct{}
@@ -559,7 +568,8 @@ func runJsServerTestCase(t *testing.T, test jsServerTestCase) {
 					"Name":   "adder",
 					"Suffix": "adder",
 					"RemoteID": map[string]interface{}{
-						"Names": names,
+						"Handle": 1.0,
+						"Names":  names,
 					},
 				},
 			},
@@ -674,4 +684,258 @@ func TestJSServerWihStreamingInputsAndOutputs(t *testing.T) {
 	})
 }
 
-// TODO(bjornick): Make sure that send on stream is nonblocking
+func TestDeserializeCaveat(t *testing.T) {
+	testCases := []struct {
+		json          string
+		expectedValue security.ServiceCaveat
+	}{
+		{
+			json: `{"_type":"MethodCaveat","service":"*","data":["Get","MultiGet"]}`,
+			expectedValue: security.ServiceCaveat{
+				Service: "*",
+				Caveat:  &caveat.MethodRestriction{"Get", "MultiGet"},
+			},
+		},
+		{
+			json: `{"_type":"PeerIdentityCaveat","service":"*","data":["veyron/batman","veyron/brucewayne"]}`,
+			expectedValue: security.ServiceCaveat{
+				Service: "*",
+				Caveat:  &caveat.PeerIdentity{"veyron/batman", "veyron/brucewayne"},
+			},
+		},
+	}
+
+	for _, c := range testCases {
+		var s jsonServiceCaveat
+		if err := json.Unmarshal([]byte(c.json), &s); err != nil {
+			t.Errorf("Failed to deserialize object: %v", err)
+			return
+		}
+
+		caveat, err := decodeCaveat(s)
+		if err != nil {
+			t.Errorf("Failed to convert json caveat to go object: %v")
+			return
+		}
+
+		if !reflect.DeepEqual(caveat, c.expectedValue) {
+			t.Errorf("decoded produced the wrong value: got %v, expected %v", caveat, c.expectedValue)
+		}
+	}
+}
+
+func createChain(r veyron2.Runtime, name string) security.PrivateID {
+	id := r.Identity()
+
+	for _, component := range strings.Split(name, "/") {
+		newID, err := r.NewIdentity(component)
+		if err != nil {
+			panic(err)
+		}
+		if id == nil {
+			id = newID
+			continue
+		}
+		blessedID, err := id.Bless(newID.PublicID(), component, time.Hour, nil)
+		if err != nil {
+			panic(err)
+		}
+		id, err = newID.Derive(blessedID)
+		if err != nil {
+			panic(err)
+		}
+	}
+	return id
+}
+
+type mockSecurityContext struct {
+	method  string
+	localID security.PublicID
+}
+
+func makeMockSecurityContext(method string, name string) *mockSecurityContext {
+	return &mockSecurityContext{
+		method:  method,
+		localID: createChain(r, name).PublicID(),
+	}
+}
+
+func (m *mockSecurityContext) Method() string { return m.method }
+
+func (m *mockSecurityContext) LocalID() security.PublicID { return m.localID }
+
+func (*mockSecurityContext) Name() string { return "" }
+
+func (*mockSecurityContext) Suffix() string { return "" }
+
+func (*mockSecurityContext) Label() security.Label { return 0 }
+
+func (*mockSecurityContext) CaveatDischarges() security.CaveatDischargeMap { return nil }
+
+func (*mockSecurityContext) RemoteID() security.PublicID { return nil }
+
+func (*mockSecurityContext) LocalEndpoint() naming.Endpoint { return nil }
+
+func (*mockSecurityContext) RemoteEndpoint() naming.Endpoint { return nil }
+
+type blessingTestCase struct {
+	requestJSON             map[string]interface{}
+	expectedValidateResults map[*mockSecurityContext]bool
+	expectedErr             error
+}
+
+func runBlessingTest(c blessingTestCase, t *testing.T) {
+	controller, err := NewController(nil, "mockVeyronProxyEP")
+
+	if err != nil {
+		t.Errorf("unable to create controller: %v", err)
+		return
+	}
+	controller.AddIdentity(createChain(rt.R(), "test/bar").PublicID())
+
+	bytes, err := json.Marshal(c.requestJSON)
+
+	if err != nil {
+		t.Errorf("failed to marshal request: %v", err)
+		return
+	}
+
+	var request blessingRequest
+	if err := json.Unmarshal(bytes, &request); err != nil {
+		t.Errorf("failed to unmarshal request: %v", err)
+		return
+	}
+
+	jsId, err := controller.bless(request)
+
+	if !reflect.DeepEqual(err, c.expectedErr) {
+		t.Errorf("error response does not match: expected %v, got %v", c.expectedErr, err)
+		return
+	}
+
+	if err != nil {
+		return
+	}
+
+	id := controller.idStore.Get(jsId.Handle)
+
+	if id == nil {
+		t.Errorf("couldn't get identity from store")
+		return
+	}
+
+	for ctx, value := range c.expectedValidateResults {
+		_, err := id.Authorize(ctx)
+		if (err == nil) != value {
+			t.Errorf("authorize failed to match expected value for %v: expected %v, got %v", ctx, value, err)
+		}
+	}
+}
+
+// The names of the identity in the mock contexts are root off the runtime's
+// identity.  This function takes a name and prepends the runtime's identity's
+// name.
+func securityName(name string) string {
+	return rt.R().Identity().PublicID().Names()[0] + "/" + name
+}
+
+func TestBlessingWithNoCaveats(t *testing.T) {
+	runBlessingTest(blessingTestCase{
+		requestJSON: map[string]interface{}{
+			"handle":     1,
+			"durationMs": 10000,
+			"name":       "foo",
+		},
+		expectedValidateResults: map[*mockSecurityContext]bool{
+			ctxFooAlice: true,
+			ctxFooBob:   true,
+			ctxBarAlice: true,
+			ctxBarBob:   true,
+		},
+	}, t)
+}
+
+func TestBlessingWithMethodRestrictions(t *testing.T) {
+	runBlessingTest(blessingTestCase{
+		requestJSON: map[string]interface{}{
+			"handle":     1,
+			"durationMs": 10000,
+			"caveats": []map[string]interface{}{
+				map[string]interface{}{
+					"_type":   "MethodCaveat",
+					"service": "*",
+					"data":    []string{"Foo"},
+				},
+			},
+			"name": "foo",
+		},
+		expectedValidateResults: map[*mockSecurityContext]bool{
+			ctxFooAlice: true,
+			ctxFooBob:   true,
+			ctxBarAlice: false,
+			ctxBarBob:   false,
+		},
+	}, t)
+}
+
+func TestBlessingWithPeerRestrictions(t *testing.T) {
+	runBlessingTest(blessingTestCase{
+		requestJSON: map[string]interface{}{
+			"handle":     1,
+			"durationMs": 10000,
+			"caveats": []map[string]interface{}{
+				map[string]interface{}{
+					"_type":   "PeerIdentityCaveat",
+					"service": "*",
+					"data":    []string{securityName("test/alice")},
+				},
+			},
+			"name": "foo",
+		},
+		expectedValidateResults: map[*mockSecurityContext]bool{
+			ctxFooAlice: true,
+			ctxFooBob:   false,
+			ctxBarAlice: true,
+			ctxBarBob:   false,
+		},
+	}, t)
+}
+
+func TestBlessingWithMethodAndPeerRestrictions(t *testing.T) {
+	runBlessingTest(blessingTestCase{
+		requestJSON: map[string]interface{}{
+			"handle":     1,
+			"durationMs": 10000,
+			"caveats": []map[string]interface{}{
+				map[string]interface{}{
+					"_type":   "PeerIdentityCaveat",
+					"service": "*",
+					"data":    []string{securityName("test/alice")},
+				},
+				map[string]interface{}{
+					"_type":   "MethodCaveat",
+					"service": "*",
+					"data":    []string{"Bar"},
+				},
+			},
+			"name": "foo",
+		},
+		expectedValidateResults: map[*mockSecurityContext]bool{
+			ctxFooAlice: false,
+			ctxFooBob:   false,
+			ctxBarAlice: true,
+			ctxBarBob:   false,
+		},
+	}, t)
+}
+
+func TestBlessingWhereBlesseeDoesNotExist(t *testing.T) {
+	runBlessingTest(blessingTestCase{
+		requestJSON: map[string]interface{}{
+			"handle":     2,
+			"durationMs": 10000,
+			"name":       "foo",
+		},
+		expectedErr: verror.NotFoundf("invalid PublicID handle"),
+	}, t)
+}

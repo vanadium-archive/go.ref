@@ -8,7 +8,10 @@ import (
 	"fmt"
 	"io"
 	"sync"
+	"time"
 
+	"veyron/security/caveat"
+	"veyron/services/wsprd/identity"
 	"veyron/services/wsprd/ipc/client"
 	"veyron/services/wsprd/ipc/server"
 	"veyron/services/wsprd/ipc/stream"
@@ -18,6 +21,7 @@ import (
 	"veyron2/context"
 	"veyron2/ipc"
 	"veyron2/rt"
+	"veyron2/security"
 	"veyron2/verror"
 	"veyron2/vlog"
 	"veyron2/vom"
@@ -52,6 +56,26 @@ type serveRequest struct {
 type outstandingStream struct {
 	stream stream.Sender
 	inType vom.Type
+}
+
+type jsonServiceCaveat struct {
+	Type    string `json:"_type"`
+	Service security.PrincipalPattern
+	Data    json.RawMessage
+}
+
+type blessingRequest struct {
+	Handle     int64
+	Caveats    []jsonServiceCaveat
+	DurationMs int64
+	Name       string
+}
+
+// PublicIDHandle is a handle given to Javascript that is linked
+// to a PublicID in go.
+type PublicIDHandle struct {
+	Handle int64
+	Names  []string
 }
 
 // Controller represents all the state of a Veyron Web App.  This is the struct
@@ -91,6 +115,9 @@ type Controller struct {
 	client ipc.Client
 
 	veyronProxyEP string
+
+	// Store for all the PublicIDs that javascript has a handle to.
+	idStore *identity.JSPublicIDHandles
 }
 
 // NewController creates a new Controller.  writerCreator will be used to create a new flow for rpcs to
@@ -113,6 +140,7 @@ func NewController(writerCreator func(id int64) lib.ClientWriter,
 		client:        client,
 		writerCreator: writerCreator,
 		veyronProxyEP: veyronProxyEP,
+		idStore:       identity.NewJSPublicIDHandles(),
 	}
 	controller.setup()
 	return controller, nil
@@ -213,6 +241,14 @@ func (c *Controller) GetLogger() vlog.Logger {
 // RT returns the runtime of the app.
 func (c *Controller) RT() veyron2.Runtime {
 	return c.rt
+}
+
+// AddIdentity adds the PublicID to the local id store and returns
+// the handle to it.  This function exists because JS only has
+// a handle to the PublicID to avoid shipping the blessing forest
+// to JS and back.
+func (c *Controller) AddIdentity(id security.PublicID) int64 {
+	return c.idStore.Add(id)
 }
 
 // Cleanup cleans up any outstanding rpcs.
@@ -405,7 +441,6 @@ func (c *Controller) HandleServeRequest(data string, w lib.ClientWriter) {
 
 // HandleStopRequest takes a request to stop a server.
 func (c *Controller) HandleStopRequest(data string, w lib.ClientWriter) {
-
 	var serverId uint64
 	decoder := json.NewDecoder(bytes.NewBufferString(data))
 	if err := decoder.Decode(&serverId); err != nil {
@@ -525,6 +560,90 @@ func (c *Controller) HandleSignatureRequest(ctx context.T, data string, w lib.Cl
 
 	// Send the signature back
 	if err := w.Send(lib.ResponseFinal, jsSig); err != nil {
+		w.Error(verror.Internalf("error marshalling results: %v", err))
+		return
+	}
+}
+
+// HandleUnlinkJSIdentity removes an identity from the JS identity store.
+// data should be JSON encoded number
+func (c *Controller) HandleUnlinkJSIdentity(data string, w lib.ClientWriter) {
+	decoder := json.NewDecoder(bytes.NewBufferString(data))
+	var handle int64
+	if err := decoder.Decode(&handle); err != nil {
+		w.Error(verror.Internalf("can't unmarshal JSONMessage: %v", err))
+		return
+	}
+	c.idStore.Remove(handle)
+}
+
+// Convert the json wire format of a caveat into the right go object
+func decodeCaveat(c jsonServiceCaveat) (security.ServiceCaveat, error) {
+	var ret security.ServiceCaveat
+	ret.Service = c.Service
+	switch c.Type {
+	case "MethodCaveat":
+		ret.Caveat = &caveat.MethodRestriction{}
+	case "PeerIdentityCaveat":
+		ret.Caveat = &caveat.PeerIdentity{}
+	default:
+		return ret, verror.BadArgf("unknown caveat type %s", c.Type)
+	}
+	return ret, json.Unmarshal(c.Data, &ret.Caveat)
+}
+
+func (c *Controller) getPublicIDHandle(handle int64) (*PublicIDHandle, error) {
+	id := c.idStore.Get(handle)
+	if id == nil {
+		return nil, verror.NotFoundf("uknown public id")
+	}
+	return &PublicIDHandle{Handle: handle, Names: id.Names()}, nil
+}
+
+func (c *Controller) bless(request blessingRequest) (*PublicIDHandle, error) {
+	var caveats []security.ServiceCaveat
+	for _, c := range request.Caveats {
+		newCaveat, err := decodeCaveat(c)
+		if err != nil {
+			return nil, verror.BadArgf("failed to parse caveat: %v", err)
+		}
+		caveats = append(caveats, newCaveat)
+	}
+	duration := time.Duration(request.DurationMs) * time.Millisecond
+
+	blessee := c.idStore.Get(request.Handle)
+
+	if blessee == nil {
+		return nil, verror.NotFoundf("invalid PublicID handle")
+	}
+	blessor := c.rt.Identity()
+
+	blessed, err := blessor.Bless(blessee, request.Name, duration, caveats)
+	if err != nil {
+		return nil, err
+	}
+
+	return &PublicIDHandle{Handle: c.idStore.Add(blessed), Names: blessed.Names()}, nil
+}
+
+// HandleBlessing handles a blessing request from JS.
+func (c *Controller) HandleBlessing(data string, w lib.ClientWriter) {
+	var request blessingRequest
+	decoder := json.NewDecoder(bytes.NewBufferString(data))
+	if err := decoder.Decode(&request); err != nil {
+		w.Error(verror.Internalf("can't unmarshall message: %v", err))
+		return
+	}
+
+	handle, err := c.bless(request)
+
+	if err != nil {
+		w.Error(err)
+		return
+	}
+
+	// Send the id back.
+	if err := w.Send(lib.ResponseFinal, handle); err != nil {
 		w.Error(verror.Internalf("error marshalling results: %v", err))
 		return
 	}
