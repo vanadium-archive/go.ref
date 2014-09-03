@@ -20,12 +20,12 @@ func TestCounter(t *testing.T) {
 	now = now.Add(time.Second)
 	c.Incr(1)
 
-	if expected, got := int64(1), c.Delta1m(); got != expected {
+	if expected, got := int64(2), c.Delta1m(); got != expected {
 		t.Errorf("Unexpected value. Got %v, want %v", got, expected)
 	}
 	// One second later.
 	now = now.Add(time.Second)
-	if expected, got := int64(1), c.Delta1m(); got != expected {
+	if expected, got := int64(2), c.Delta1m(); got != expected {
 		t.Errorf("Unexpected value. Got %v, want %v", got, expected)
 	}
 	now = time.Unix(1, 0)
@@ -45,11 +45,11 @@ func TestCounter(t *testing.T) {
 	// Time 5, value=5
 	now = now.Add(time.Second)
 	c.Incr(1)
-	// Expect current value=5 and delta1m=(5-1)=4
+	// Expect current value=5 and delta1m=(5-0)=5
 	if expected, got := int64(5), c.Value(); got != expected {
 		t.Errorf("Unexpected value. Got %v, want %v", got, expected)
 	}
-	if expected, got := int64(4), c.Delta1m(); got != expected {
+	if expected, got := int64(5), c.Delta1m(); got != expected {
 		t.Errorf("Unexpected value. Got %v, want %v", got, expected)
 	}
 	now = time.Unix(0, 0)

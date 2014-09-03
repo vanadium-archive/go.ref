@@ -100,9 +100,9 @@ func TestStats(t *testing.T) {
 		libstats.KeyValue{Key: "ipc/test/bbb", Value: float64(2)},
 		libstats.KeyValue{Key: "ipc/test/ccc", Value: string("Hello")},
 		libstats.KeyValue{Key: "ipc/test/ddd", Value: int64(4)},
-		libstats.KeyValue{Key: "ipc/test/ddd/delta10m", Value: int64(0)},
-		libstats.KeyValue{Key: "ipc/test/ddd/delta1h", Value: int64(0)},
-		libstats.KeyValue{Key: "ipc/test/ddd/delta1m", Value: int64(0)},
+		libstats.KeyValue{Key: "ipc/test/ddd/delta10m", Value: int64(4)},
+		libstats.KeyValue{Key: "ipc/test/ddd/delta1h", Value: int64(4)},
+		libstats.KeyValue{Key: "ipc/test/ddd/delta1m", Value: int64(4)},
 		libstats.KeyValue{Key: "ipc/test/ddd/rate10m", Value: float64(0)},
 		libstats.KeyValue{Key: "ipc/test/ddd/rate1h", Value: float64(0)},
 		libstats.KeyValue{Key: "ipc/test/ddd/rate1m", Value: float64(0)},
@@ -156,12 +156,12 @@ func TestStats(t *testing.T) {
 		t.Errorf("unexpected error: %v", err)
 	}
 	expected = []libstats.KeyValue{
-		libstats.KeyValue{Key: "ipc/test/ddd/delta10m", Value: int64(100)},
-		libstats.KeyValue{Key: "ipc/test/ddd/delta1h", Value: int64(0)},
-		libstats.KeyValue{Key: "ipc/test/ddd/delta1m", Value: int64(100)},
-		libstats.KeyValue{Key: "ipc/test/ddd/rate10m", Value: float64(10)},
+		libstats.KeyValue{Key: "ipc/test/ddd/delta10m", Value: int64(104)},
+		libstats.KeyValue{Key: "ipc/test/ddd/delta1h", Value: int64(104)},
+		libstats.KeyValue{Key: "ipc/test/ddd/delta1m", Value: int64(104)},
+		libstats.KeyValue{Key: "ipc/test/ddd/rate10m", Value: float64(10.4)},
 		libstats.KeyValue{Key: "ipc/test/ddd/rate1h", Value: float64(0)},
-		libstats.KeyValue{Key: "ipc/test/ddd/rate1m", Value: float64(10)},
+		libstats.KeyValue{Key: "ipc/test/ddd/rate1m", Value: float64(10.4)},
 	}
 	if !reflect.DeepEqual(result, expected) {
 		t.Errorf("unexpected result. Got %#v, want %#v", result, expected)

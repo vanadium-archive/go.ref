@@ -33,7 +33,7 @@ func TestTimeSeries(t *testing.T) {
 	if expected, got := int64(345), ts.headValue(); got != expected {
 		t.Errorf("unexpected value. Got %v, want %v", got, expected)
 	}
-	if expected, got := int64(234), ts.tailValue(); got != expected {
+	if expected, got := int64(0), ts.tailValue(); got != expected {
 		t.Errorf("unexpected value. Got %v, want %v", got, expected)
 	}
 	if expected, got := int64(234), ts.min(); got != expected {
@@ -50,7 +50,7 @@ func TestTimeSeries(t *testing.T) {
 	if expected, got := int64(111), ts.headValue(); got != expected {
 		t.Errorf("unexpected value. Got %v, want %v", got, expected)
 	}
-	if expected, got := int64(234), ts.tailValue(); got != expected {
+	if expected, got := int64(0), ts.tailValue(); got != expected {
 		t.Errorf("unexpected value. Got %v, want %v", got, expected)
 	}
 	if expected, got := int64(111), ts.min(); got != expected {

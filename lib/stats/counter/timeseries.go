@@ -77,7 +77,7 @@ func (ts *timeseries) headTime() time.Time {
 // tailValue returns the oldest value from the timeseries.
 func (ts *timeseries) tailValue() int64 {
 	if ts.stepCount < int64(ts.size) {
-		return ts.slots[0]
+		return 0
 	}
 	return ts.slots[(ts.head+1)%ts.size]
 }
