@@ -163,7 +163,6 @@ func app(args []string) {
 	if err := ioutil.WriteFile("testfile", []byte("goodbye world"), 0600); err != nil {
 		vlog.Fatalf("Failed to write testfile: %v", err)
 	}
-	ping()
 }
 
 // generateScript is very similar in behavior to its namesake in invoker.go.
@@ -277,7 +276,7 @@ func TestNodeManagerUpdateAndRevert(t *testing.T) {
 	// attempting an update while another one is ongoing will fail.
 	nm.Cmd.Env = exec.Setenv(nm.Cmd.Env, "PAUSE_BEFORE_STOP", "1")
 
-	resolveExpectError(t, "factoryNM", verror.NotFound) // Ensure a clean slate.
+	resolveExpectNotFound(t, "factoryNM") // Ensure a clean slate.
 
 	// Start the node manager -- we use the blackbox-generated command to
 	// start it.  We could have also used the scriptPathFactory to start it, but
@@ -294,7 +293,7 @@ func TestNodeManagerUpdateAndRevert(t *testing.T) {
 		}
 	}()
 	readPID(t, nm)
-	resolve(t, "factoryNM") // Verify the node manager has published itself.
+	resolve(t, "factoryNM", 1) // Verify the node manager has published itself.
 
 	// Simulate an invalid envelope in the application repository.
 	*envelope = *nodeEnvelopeFromCmd(nm.Cmd)
@@ -341,13 +340,13 @@ func TestNodeManagerUpdateAndRevert(t *testing.T) {
 	// A successful update means the node manager has stopped itself.  We
 	// relaunch it from the current link.
 	runNM := blackbox.HelperCommand(t, "execScript", currLink)
-	resolveExpectError(t, "v2NM", verror.NotFound) // Ensure a clean slate.
+	resolveExpectNotFound(t, "v2NM") // Ensure a clean slate.
 	if err := runNM.Cmd.Start(); err != nil {
 		t.Fatalf("Start() failed: %v", err)
 	}
 	deferrer = runNM.Cleanup
 	readPID(t, runNM)
-	resolve(t, "v2NM") // Current link should have been launching v2.
+	resolve(t, "v2NM", 1) // Current link should have been launching v2.
 
 	// Try issuing an update without changing the envelope in the application
 	// repository: this should fail, and current link should be unchanged.
@@ -383,13 +382,13 @@ func TestNodeManagerUpdateAndRevert(t *testing.T) {
 	// that we can verify that a second revert fails while a revert is in
 	// progress.
 	runNM.Cmd.Env = exec.Setenv(nm.Cmd.Env, "PAUSE_BEFORE_STOP", "1")
-	resolveExpectError(t, "v3NM", verror.NotFound) // Ensure a clean slate.
+	resolveExpectNotFound(t, "v3NM") // Ensure a clean slate.
 	if err := runNM.Cmd.Start(); err != nil {
 		t.Fatalf("Start() failed: %v", err)
 	}
 	deferrer = runNM.Cleanup
 	readPID(t, runNM)
-	resolve(t, "v3NM") // Current link should have been launching v3.
+	resolve(t, "v3NM", 1) // Current link should have been launching v3.
 
 	// Revert the node manager to its previous version (v2).
 	revert(t, "v3NM")
@@ -404,13 +403,13 @@ func TestNodeManagerUpdateAndRevert(t *testing.T) {
 
 	// Re-launch the node manager from current link.
 	runNM = blackbox.HelperCommand(t, "execScript", currLink)
-	resolveExpectError(t, "v2NM", verror.NotFound) // Ensure a clean slate.
+	resolveExpectNotFound(t, "v2NM") // Ensure a clean slate.
 	if err := runNM.Cmd.Start(); err != nil {
 		t.Fatalf("Start() failed: %v", err)
 	}
 	deferrer = runNM.Cleanup
 	readPID(t, runNM)
-	resolve(t, "v2NM") // Current link should have been launching v2.
+	resolve(t, "v2NM", 1) // Current link should have been launching v2.
 
 	// Revert the node manager to its previous version (factory).
 	revert(t, "v2NM")
@@ -423,13 +422,13 @@ func TestNodeManagerUpdateAndRevert(t *testing.T) {
 
 	// Re-launch the node manager from current link.
 	runNM = blackbox.HelperCommand(t, "execScript", currLink)
-	resolveExpectError(t, "factoryNM", verror.NotFound) // Ensure a clean slate.
+	resolveExpectNotFound(t, "factoryNM") // Ensure a clean slate.
 	if err := runNM.Cmd.Start(); err != nil {
 		t.Fatalf("Start() failed: %v", err)
 	}
 	deferrer = runNM.Cleanup
 	pid := readPID(t, runNM)
-	resolve(t, "factoryNM") // Current link should have been launching factory version.
+	resolve(t, "factoryNM", 1) // Current link should have been launching factory version.
 	syscall.Kill(pid, syscall.SIGINT)
 	runNM.Expect("factoryNM terminating")
 	runNM.ExpectEOFAndWait()
@@ -439,13 +438,18 @@ type pingServerDisp chan<- struct{}
 
 func (p pingServerDisp) Ping(ipc.ServerCall) { p <- struct{}{} }
 
-func installApp(t *testing.T) string {
+func appStub(t *testing.T, nameComponents ...string) node.Application {
 	appsName := "nm//apps"
-	stub, err := node.BindApplication(appsName)
+	appName := naming.Join(append([]string{appsName}, nameComponents...)...)
+	stub, err := node.BindApplication(appName)
 	if err != nil {
-		t.Fatalf("BindApplication(%v) failed: %v", appsName, err)
+		t.Fatalf("BindApplication(%v) failed: %v", appName, err)
 	}
-	appID, err := stub.Install(rt.R().NewContext(), "ar")
+	return stub
+}
+
+func installApp(t *testing.T) string {
+	appID, err := appStub(t).Install(rt.R().NewContext(), "ar")
 	if err != nil {
 		t.Fatalf("Install failed: %v", err)
 	}
@@ -453,17 +457,11 @@ func installApp(t *testing.T) string {
 }
 
 func startAppImpl(t *testing.T, appID string) (string, error) {
-	appsName := "nm//apps"
-	appName := naming.Join(appsName, appID)
-	stub, err := node.BindApplication(appName)
-	if err != nil {
-		t.Fatalf("BindApplication(%v) failed: %v", appName, err)
-	}
-	if instanceIDs, err := stub.Start(rt.R().NewContext()); err != nil {
+	if instanceIDs, err := appStub(t, appID).Start(rt.R().NewContext()); err != nil {
 		return "", err
 	} else {
 		if want, got := 1, len(instanceIDs); want != got {
-			t.Fatalf("Expected %v instance ids, got %v instead", want, got)
+			t.Fatalf("Start(%v): expected %v instance ids, got %v instead", appID, want, got)
 		}
 		return instanceIDs[0], nil
 	}
@@ -472,7 +470,7 @@ func startAppImpl(t *testing.T, appID string) (string, error) {
 func startApp(t *testing.T, appID string) string {
 	instanceID, err := startAppImpl(t, appID)
 	if err != nil {
-		t.Fatalf("Start failed: %v", err)
+		t.Fatalf("Start(%v) failed: %v", appID, err)
 	}
 	return instanceID
 }
@@ -484,53 +482,38 @@ func startAppShouldFail(t *testing.T, appID string, expectedError verror.ID) {
 }
 
 func stopApp(t *testing.T, appID, instanceID string) {
-	appsName := "nm//apps"
-	appName := naming.Join(appsName, appID)
-	instanceName := naming.Join(appName, instanceID)
-	stub, err := node.BindApplication(instanceName)
-	if err != nil {
-		t.Fatalf("BindApplication(%v) failed: %v", instanceName, err)
-	}
-	if err := stub.Stop(rt.R().NewContext(), 5); err != nil {
-		t.Fatalf("Stop failed: %v", err)
+	if err := appStub(t, appID, instanceID).Stop(rt.R().NewContext(), 5); err != nil {
+		t.Fatalf("Stop(%v/%v) failed: %v", appID, instanceID, err)
 	}
 }
 
 func suspendApp(t *testing.T, appID, instanceID string) {
-	appsName := "nm//apps"
-	appName := naming.Join(appsName, appID)
-	instanceName := naming.Join(appName, instanceID)
-	stub, err := node.BindApplication(instanceName)
-	if err != nil {
-		t.Fatalf("BindApplication(%v) failed: %v", instanceName, err)
-	}
-	if err := stub.Suspend(rt.R().NewContext()); err != nil {
-		t.Fatalf("Suspend failed: %v", err)
+	if err := appStub(t, appID, instanceID).Suspend(rt.R().NewContext()); err != nil {
+		t.Fatalf("Suspend(%v/%v) failed: %v", appID, instanceID, err)
 	}
 }
 
 func resumeApp(t *testing.T, appID, instanceID string) {
-	appsName := "nm//apps"
-	appName := naming.Join(appsName, appID)
-	instanceName := naming.Join(appName, instanceID)
-	stub, err := node.BindApplication(instanceName)
-	if err != nil {
-		t.Fatalf("BindApplication(%v) failed: %v", instanceName, err)
+	if err := appStub(t, appID, instanceID).Resume(rt.R().NewContext()); err != nil {
+		t.Fatalf("Resume(%v/%v) failed: %v", appID, instanceID, err)
 	}
-	if err := stub.Resume(rt.R().NewContext()); err != nil {
-		t.Fatalf("Resume failed: %v", err)
+}
+
+func updateApp(t *testing.T, appID string) {
+	if err := appStub(t, appID).Update(rt.R().NewContext()); err != nil {
+		t.Fatalf("Update(%v) failed: %v", appID, err)
+	}
+}
+
+func updateAppShouldFail(t *testing.T, appID string, expectedError verror.ID) {
+	if err := appStub(t, appID).Update(rt.R().NewContext()); err == nil || !verror.Is(err, expectedError) {
+		t.Fatalf("Update(%v) expected to fail with %v, got %v instead", appID, expectedError, err)
 	}
 }
 
 func uninstallApp(t *testing.T, appID string) {
-	appsName := "nm//apps"
-	appName := naming.Join(appsName, appID)
-	stub, err := node.BindApplication(appName)
-	if err != nil {
-		t.Fatalf("BindApplication(%v) failed: %v", appName, err)
-	}
-	if err := stub.Uninstall(rt.R().NewContext()); err != nil {
-		t.Fatalf("Uninstall failed: %v", err)
+	if err := appStub(t, appID).Uninstall(rt.R().NewContext()); err != nil {
+		t.Fatalf("Uninstall(%v) failed: %v", appID, err)
 	}
 }
 
@@ -590,8 +573,8 @@ func TestAppLifeCycle(t *testing.T) {
 		t.Fatalf("Serve(%q, <dispatcher>) failed: %v", "pingserver", err)
 	}
 
-	// Create an envelope for an app.
-	app := blackbox.HelperCommand(t, "app", "app1")
+	// Create an envelope for a first version of the app.
+	app := blackbox.HelperCommand(t, "app", "appV1")
 	defer setupChildCommand(app)()
 	appTitle := "google naps"
 	*envelope = *envelopeFromCmd(appTitle, app.Cmd)
@@ -599,29 +582,110 @@ func TestAppLifeCycle(t *testing.T) {
 	// Install the app.
 	appID := installApp(t)
 
-	// Start the app.
-	instanceID := startApp(t, appID)
+	// Start an instance of the app.
+	instance1ID := startApp(t, appID)
+	<-pingCh // Wait until the app pings us that it's ready.
+	v1EP1 := resolve(t, "appV1", 1)[0]
+
+	// Suspend the app instance.
+	suspendApp(t, appID, instance1ID)
+	resolveExpectNotFound(t, "appV1")
+
+	resumeApp(t, appID, instance1ID)
+	<-pingCh
+	oldV1EP1 := v1EP1
+	if v1EP1 = resolve(t, "appV1", 1)[0]; v1EP1 == oldV1EP1 {
+		t.Fatalf("Expected a new endpoint for the app after suspend/resume")
+	}
+
+	// Start a second instance.
+	instance2ID := startApp(t, appID)
 	<-pingCh // Wait until the app pings us that it's ready.
 
-	// Suspend the app.
-	suspendApp(t, appID, instanceID)
-	<-pingCh // App should have pinged us before it terminated.
-
-	resumeApp(t, appID, instanceID)
-	<-pingCh
+	// There should be two endpoints mounted as "appV1", one for each
+	// instance of the app.
+	endpoints := resolve(t, "appV1", 2)
+	v1EP2 := endpoints[0]
+	if endpoints[0] == v1EP1 {
+		v1EP2 = endpoints[1]
+		if v1EP2 == v1EP1 {
+			t.Fatalf("Both endpoints are the same")
+		}
+	} else if endpoints[1] != v1EP1 {
+		t.Fatalf("Second endpoint should have been v1EP1: %v, %v", endpoints, v1EP1)
+	}
 
 	// TODO(caprita): test Suspend and Resume, and verify various
 	// non-standard combinations (suspend when stopped; resume while still
 	// running; stop while suspended).
 
-	// Stop the app.
-	stopApp(t, appID, instanceID)
-	<-pingCh // App should have pinged us before it terminated.
+	// Suspend the first instance.
+	suspendApp(t, appID, instance1ID)
+	// Only the second instance should still be running and mounted.
+	if want, got := v1EP2, resolve(t, "appV1", 1)[0]; want != got {
+		t.Fatalf("Resolve(%v): want: %v, got %v", "appV1", want, got)
+	}
 
-	verifyAppWorkspace(t, root, appID, instanceID)
+	// Updating the installation to itself is a no-op.
+	updateAppShouldFail(t, appID, verror.NotFound)
+
+	// Updating the installation should not work with a mismatched title.
+	*envelope = *envelopeFromCmd("bogus", app.Cmd)
+	updateAppShouldFail(t, appID, verror.BadArg)
+
+	// Create a second version of the app and update the app to it.
+	app = blackbox.HelperCommand(t, "app", "appV2")
+	defer setupChildCommand(app)()
+	*envelope = *envelopeFromCmd(appTitle, app.Cmd)
+	updateApp(t, appID)
+
+	// Second instance should still be running.
+	if want, got := v1EP2, resolve(t, "appV1", 1)[0]; want != got {
+		t.Fatalf("Resolve(%v): want: %v, got %v", "appV1", want, got)
+	}
+
+	// Resume first instance.
+	resumeApp(t, appID, instance1ID)
+	<-pingCh
+	// Both instances should still be running the first version of the app.
+	// Check that the mounttable contains two endpoints, one of which is
+	// v1EP2.
+	endpoints = resolve(t, "appV1", 2)
+	if endpoints[0] == v1EP2 {
+		if endpoints[1] == v1EP2 {
+			t.Fatalf("Both endpoints are the same")
+		}
+	} else if endpoints[1] != v1EP2 {
+		t.Fatalf("Second endpoint should have been v1EP2: %v, %v", endpoints, v1EP2)
+	}
+
+	// Stop first instance.
+	stopApp(t, appID, instance1ID)
+	verifyAppWorkspace(t, root, appID, instance1ID)
+
+	// Only second instance is still running.
+	if want, got := v1EP2, resolve(t, "appV1", 1)[0]; want != got {
+		t.Fatalf("Resolve(%v): want: %v, got %v", "appV1", want, got)
+	}
+
+	// Start a third instance.
+	instance3ID := startApp(t, appID)
+	<-pingCh // Wait until the app pings us that it's ready.
+	resolve(t, "appV2", 1)
+
+	// Stop second instance.
+	stopApp(t, appID, instance2ID)
+	resolveExpectNotFound(t, "appV1")
+
+	// Stop third instance.
+	stopApp(t, appID, instance3ID)
+	resolveExpectNotFound(t, "appV2")
 
 	// Uninstall the app.
 	uninstallApp(t, appID)
+
+	// Updating the installation should no longer be allowed.
+	updateAppShouldFail(t, appID, verror.BadArg)
 
 	// Starting new instances should no longer be allowed.
 	startAppShouldFail(t, appID, verror.BadArg)
@@ -688,7 +752,7 @@ func TestNodeManagerClaim(t *testing.T) {
 	readPID(t, nm)
 
 	// Create an envelope for an app.
-	app := blackbox.HelperCommand(t, "app", "app1")
+	app := blackbox.HelperCommand(t, "app", "")
 	defer setupChildCommand(app)()
 	appTitle := "google naps"
 	*envelope = *envelopeFromCmd(appTitle, app.Cmd)

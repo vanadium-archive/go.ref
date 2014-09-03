@@ -149,8 +149,8 @@ func (i *nodeInvoker) getCurrentFileInfo() (os.FileInfo, string, error) {
 	return link, scriptPath, nil
 }
 
-func (i *nodeInvoker) updateLink(newScript string) error {
-	link := i.config.CurrentLink
+// TODO(caprita): Move updateLink to util.go now that app_invoker also uses it.
+func updateLink(newScript, link string) error {
 	newLink := link + ".new"
 	fi, err := os.Lstat(newLink)
 	if err == nil {
@@ -171,7 +171,7 @@ func (i *nodeInvoker) updateLink(newScript string) error {
 }
 
 func (i *nodeInvoker) revertNodeManager() error {
-	if err := i.updateLink(i.config.Previous); err != nil {
+	if err := updateLink(i.config.Previous, i.config.CurrentLink); err != nil {
 		return err
 	}
 	rt.R().Stop()
@@ -239,7 +239,7 @@ func (i *nodeInvoker) testNodeManager(ctx context.T, workspace string, envelope 
 	}
 	// Ensure that the current symbolic link points to the same script.
 	if pathNew != pathOld {
-		i.updateLink(pathOld)
+		updateLink(pathOld, i.config.CurrentLink)
 		vlog.Errorf("new node manager test failed")
 		return errOperationFailed
 	}
@@ -314,7 +314,7 @@ func (i *nodeInvoker) updateNodeManager(ctx context.T) error {
 		return err
 	}
 	// If the binary has changed, update the node manager symlink.
-	if err := i.updateLink(filepath.Join(workspace, "noded.sh")); err != nil {
+	if err := updateLink(filepath.Join(workspace, "noded.sh"), i.config.CurrentLink); err != nil {
 		return err
 	}
 	rt.R().Stop()

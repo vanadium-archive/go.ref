@@ -10,10 +10,10 @@ package impl
 //   app-<hash 1>/                  - the application dir is named using a hash of the application title
 //     installation-<id 1>/         - installations are labelled with ids
 //       <status>                   - one of the values for installationState enum
+//       origin                     - object name for application envelope
 //       <version 1 timestamp>/     - timestamp of when the version was downloaded
 //         bin                      - application binary
 //         previous                 - symbolic link to previous version directory (TODO)
-//         origin                   - object name for application envelope
 //         envelope                 - application envelope (JSON-encoded)
 //       <version 2 timestamp>
 //       ...
@@ -90,6 +90,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"time"
 
@@ -97,6 +98,7 @@ import (
 	vexec "veyron/services/mgmt/lib/exec"
 	iconfig "veyron/services/mgmt/node/config"
 
+	"veyron2/context"
 	"veyron2/ipc"
 	"veyron2/mgmt"
 	"veyron2/naming"
@@ -155,19 +157,19 @@ func saveEnvelope(dir string, envelope *application.Envelope) error {
 		vlog.Errorf("Marshal(%v) failed: %v", envelope, err)
 		return errOperationFailed
 	}
-	envelopePath := filepath.Join(dir, "envelope")
-	if err := ioutil.WriteFile(envelopePath, jsonEnvelope, 0600); err != nil {
-		vlog.Errorf("WriteFile(%v) failed: %v", envelopePath, err)
+	path := filepath.Join(dir, "envelope")
+	if err := ioutil.WriteFile(path, jsonEnvelope, 0600); err != nil {
+		vlog.Errorf("WriteFile(%v) failed: %v", path, err)
 		return errOperationFailed
 	}
 	return nil
 }
 
 func loadEnvelope(dir string) (*application.Envelope, error) {
-	envelopePath := filepath.Join(dir, "envelope")
+	path := filepath.Join(dir, "envelope")
 	envelope := new(application.Envelope)
-	if envelopeBytes, err := ioutil.ReadFile(envelopePath); err != nil {
-		vlog.Errorf("ReadFile(%v) failed: %v", envelopePath, err)
+	if envelopeBytes, err := ioutil.ReadFile(path); err != nil {
+		vlog.Errorf("ReadFile(%v) failed: %v", path, err)
 		return nil, errOperationFailed
 	} else if err := json.Unmarshal(envelopeBytes, envelope); err != nil {
 		vlog.Errorf("Unmarshal(%v) failed: %v", envelopeBytes, err)
@@ -183,6 +185,16 @@ func saveOrigin(dir, originVON string) error {
 		return errOperationFailed
 	}
 	return nil
+}
+
+func loadOrigin(dir string) (string, error) {
+	path := filepath.Join(dir, "origin")
+	if originBytes, err := ioutil.ReadFile(path); err != nil {
+		vlog.Errorf("ReadFile(%v) failed: %v", path, err)
+		return "", errOperationFailed
+	} else {
+		return string(originBytes), nil
+	}
 }
 
 // generateID returns a new unique id string.  The uniqueness is based on the
@@ -227,30 +239,53 @@ func mkdir(dir string) error {
 	return nil
 }
 
-func (i *appInvoker) Install(call ipc.ServerContext, applicationVON string) (string, error) {
+func fetchAppEnvelope(ctx context.T, origin string) (*application.Envelope, error) {
+	envelope, err := fetchEnvelope(ctx, origin)
+	if err != nil {
+		return nil, err
+	}
+	if envelope.Title == application.NodeManagerTitle {
+		// Disallow node manager apps from being installed like a
+		// regular app.
+		return nil, errInvalidOperation
+	}
+	return envelope, nil
+}
+
+// newVersion sets up the directory for a new application version.
+func newVersion(installationDir string, envelope *application.Envelope) (string, error) {
+	versionDir := filepath.Join(installationDir, generateVersionDirName())
+	if err := mkdir(versionDir); err != nil {
+		return "", errOperationFailed
+	}
+	// TODO(caprita): Share binaries if already existing locally.
+	if err := generateBinary(versionDir, "bin", envelope, true); err != nil {
+		return versionDir, err
+	}
+	if err := saveEnvelope(versionDir, envelope); err != nil {
+		return versionDir, err
+	}
+	// updateLink should be the last thing we do, after we've ensured the
+	// new version is viable (currently, that just means it installs
+	// properly).
+	return versionDir, updateLink(versionDir, filepath.Join(installationDir, "current"))
+}
+
+func (i *appInvoker) Install(_ ipc.ServerContext, applicationVON string) (string, error) {
 	if len(i.suffix) > 0 {
 		return "", errInvalidSuffix
 	}
 	ctx, cancel := rt.R().NewContext().WithTimeout(time.Minute)
 	defer cancel()
-	envelope, err := fetchEnvelope(ctx, applicationVON)
+	envelope, err := fetchAppEnvelope(ctx, applicationVON)
 	if err != nil {
 		return "", err
 	}
-	if envelope.Title == application.NodeManagerTitle {
-		// Disallow node manager apps from being installed like a
-		// regular app.
-		return "", errInvalidOperation
-	}
 	installationID := generateID()
 	installationDir := filepath.Join(i.config.Root, applicationDirName(envelope.Title), installationDirName(installationID))
-	versionDir := filepath.Join(installationDir, generateVersionDirName())
-	if err := mkdir(versionDir); err != nil {
-		return "", errOperationFailed
-	}
 	deferrer := func() {
 		if err := os.RemoveAll(installationDir); err != nil {
-			vlog.Errorf("RemoveAll(%v) failed: %v", versionDir, err)
+			vlog.Errorf("RemoveAll(%v) failed: %v", installationDir, err)
 		}
 	}
 	defer func() {
@@ -258,20 +293,11 @@ func (i *appInvoker) Install(call ipc.ServerContext, applicationVON string) (str
 			deferrer()
 		}
 	}()
-	// TODO(caprita): Share binaries if already existing locally.
-	if err := generateBinary(versionDir, "bin", envelope, true); err != nil {
+	if _, err := newVersion(installationDir, envelope); err != nil {
 		return "", err
 	}
-	if err := saveEnvelope(versionDir, envelope); err != nil {
+	if err := saveOrigin(installationDir, applicationVON); err != nil {
 		return "", err
-	}
-	if err := saveOrigin(versionDir, applicationVON); err != nil {
-		return "", err
-	}
-	link := filepath.Join(installationDir, "current")
-	if err := os.Symlink(versionDir, link); err != nil {
-		vlog.Errorf("Symlink(%v, %v) failed: %v", versionDir, link, err)
-		return "", errOperationFailed
 	}
 	if err := initializeInstallation(installationDir, active); err != nil {
 		return "", err
@@ -466,10 +492,8 @@ func (i *appInvoker) Start(ipc.ServerContext) ([]string, error) {
 		err = i.run(instanceDir)
 	}
 	if err != nil {
-		if instanceDir != "" {
-			if err := os.RemoveAll(instanceDir); err != nil {
-				vlog.Errorf("RemoveAll(%v) failed: %v", instanceDir, err)
-			}
+		if err := os.RemoveAll(instanceDir); err != nil {
+			vlog.Errorf("RemoveAll(%v) failed: %v", instanceDir, err)
 		}
 		return nil, err
 	}
@@ -577,8 +601,50 @@ func (i *appInvoker) Uninstall(ipc.ServerContext) error {
 	return transitionInstallation(installationDir, active, uninstalled)
 }
 
-func (*appInvoker) Update(ipc.ServerContext) error {
-	// TODO(jsimsa): Implement.
+func (i *appInvoker) Update(ipc.ServerContext) error {
+	installationDir, err := i.installationDir()
+	if err != nil {
+		return err
+	}
+	if !installationStateIs(installationDir, active) {
+		return errInvalidOperation
+	}
+	originVON, err := loadOrigin(installationDir)
+	if err != nil {
+		return err
+	}
+	ctx, cancel := rt.R().NewContext().WithTimeout(time.Minute)
+	defer cancel()
+	newEnvelope, err := fetchAppEnvelope(ctx, originVON)
+	if err != nil {
+		return err
+	}
+	currLink := filepath.Join(installationDir, "current")
+	// NOTE(caprita): A race can occur between two competing updates, where
+	// both use the old version as their baseline.  This can result in both
+	// updates succeeding even if they are updating the app installation to
+	// the same new envelope.  This will result in one of the updates
+	// becoming the new 'current'.  Both versions will point their
+	// 'previous' link to the old version.  This doesn't appear to be of
+	// practical concern, so we avoid the complexity of synchronizing
+	// updates.
+	oldEnvelope, err := loadEnvelope(currLink)
+	if err != nil {
+		return err
+	}
+	if oldEnvelope.Title != newEnvelope.Title {
+		return errIncompatibleUpdate
+	}
+	if reflect.DeepEqual(oldEnvelope, newEnvelope) {
+		return errUpdateNoOp
+	}
+	versionDir, err := newVersion(installationDir, newEnvelope)
+	if err != nil {
+		if err := os.RemoveAll(versionDir); err != nil {
+			vlog.Errorf("RemoveAll(%v) failed: %v", versionDir, err)
+		}
+		return err
+	}
 	return nil
 }
 
