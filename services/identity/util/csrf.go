@@ -13,11 +13,13 @@ import (
 	"veyron2/vlog"
 )
 
+const cookieLen = 16
+
 type CSRFCop struct{}
 
 func NewCSRFCop() *CSRFCop { return new(CSRFCop) }
 
-func (*CSRFCop) maybeSetCookie(w http.ResponseWriter, req *http.Request) ([]byte, error) {
+func (*CSRFCop) maybeSetCookie(w http.ResponseWriter, req *http.Request, cookieName string) ([]byte, error) {
 	cookie, err := req.Cookie(cookieName)
 	switch err {
 	case nil:
@@ -30,7 +32,7 @@ func (*CSRFCop) maybeSetCookie(w http.ResponseWriter, req *http.Request) ([]byte
 	default:
 		vlog.Infof("Error decoding cookie %q in request: %v. Regenerating one.", cookieName, err)
 	}
-	cookie, v := newCookie()
+	cookie, v := newCookie(cookieName)
 	if cookie == nil || v == nil {
 		return nil, fmt.Errorf("failed to create cookie")
 	}
@@ -40,8 +42,8 @@ func (*CSRFCop) maybeSetCookie(w http.ResponseWriter, req *http.Request) ([]byte
 
 // NewToken creates an anti-cross-site-request-forgery, aka CSRF aka XSRF token.
 // It returns an error if the token could not be created.
-func (c *CSRFCop) NewToken(w http.ResponseWriter, r *http.Request) (string, error) {
-	cookie, err := c.maybeSetCookie(w, r)
+func (c *CSRFCop) NewToken(w http.ResponseWriter, r *http.Request, cookieName string) (string, error) {
+	cookie, err := c.maybeSetCookie(w, r, cookieName)
 	if err != nil {
 		return "", fmt.Errorf("bad cookie: %v", err)
 	}
@@ -57,7 +59,7 @@ func (c *CSRFCop) newToken(cookie []byte) string {
 // otherwise.
 // The returned error should not be shown to end-users, it is meant for
 // consumption of the server process only.
-func (c *CSRFCop) ValidateToken(token string, req *http.Request) error {
+func (c *CSRFCop) ValidateToken(token string, req *http.Request, cookieName string) error {
 	cookie, err := req.Cookie(cookieName)
 	if err != nil {
 		return err
@@ -83,12 +85,7 @@ type badRequestData struct {
 	Error   error
 }
 
-const (
-	cookieName = "VeyronHTTPIdentityClientID"
-	cookieLen  = 16
-)
-
-func newCookie() (*http.Cookie, []byte) {
+func newCookie(cookieName string) (*http.Cookie, []byte) {
 	b := make([]byte, cookieLen)
 	if n, err := rand.Read(b); n != cookieLen || err != nil {
 		vlog.Errorf("newCookie failed: Read %d random bytes, wanted %d. err: %v", n, cookieLen, err)

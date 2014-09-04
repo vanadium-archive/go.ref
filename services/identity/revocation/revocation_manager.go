@@ -54,8 +54,7 @@ func (r *RevocationManager) Revoke(caveatID security.ThirdPartyCaveatID) error {
 func (r *RevocationManager) IsRevoked(caveatID security.ThirdPartyCaveatID) bool {
 	token, err := r.caveatMap.Get(hex.EncodeToString([]byte(caveatID)))
 	if err == nil {
-		exists, _ := revocationMap.Exists(token)
-		return exists
+		return revocationMap.Exists(token)
 	}
 	return false
 }
@@ -69,11 +68,7 @@ func (cav revocationCaveat) Validate(security.Context) error {
 		return fmt.Errorf("missing call to NewRevocationManager")
 	}
 	revocationLock.RUnlock()
-	exists, err := revocationMap.Exists(hex.EncodeToString(cav[:]))
-	if err != nil {
-		return err
-	}
-	if exists {
+	if revocationMap.Exists(hex.EncodeToString(cav[:])) {
 		return fmt.Errorf("revoked")
 	}
 	return nil

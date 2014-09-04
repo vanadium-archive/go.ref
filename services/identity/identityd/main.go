@@ -75,9 +75,6 @@ func main() {
 		http.Handle("/random/", handlers.Random{r}) // mint identities with a random name
 	}
 	http.HandleFunc("/bless/", handlers.Bless) // use a provided PrivateID to bless a provided PublicID
-	if revocationManager != nil {
-		http.Handle("/revoke/", handlers.Revoke{revocationManager}) // revoke an identity that was provided by the server.
-	}
 
 	// Google OAuth
 	ipcServer, ipcServerEP, err := setupGoogleBlessingDischargingServer(r, revocationManager)
@@ -90,10 +87,11 @@ func main() {
 	if enabled, clientID, clientSecret := enableGoogleOAuth(*googleConfigWeb); enabled && len(*auditprefix) > 0 {
 		n := "/google/"
 		http.Handle(n, googleoauth.NewHandler(googleoauth.HandlerArgs{
-			Addr:         fmt.Sprintf("%s%s", httpaddress(), n),
-			ClientID:     clientID,
-			ClientSecret: clientSecret,
-			Auditor:      *auditprefix,
+			Addr:              fmt.Sprintf("%s%s", httpaddress(), n),
+			ClientID:          clientID,
+			ClientSecret:      clientSecret,
+			Auditor:           *auditprefix,
+			RevocationManager: revocationManager,
 		}))
 	}
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {

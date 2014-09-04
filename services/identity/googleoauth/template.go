@@ -41,16 +41,21 @@ $(document).ready(function() {
 
   // Setup the revoke buttons click events.
   $(".revoke").click(function() {
-    // TODO(suharshs): Implement "authorization" so that just making this post request with the URL doesn't work.
     var revokeButton = $(this);
     $.ajax({
-      url: "/revoke/",
+      url: "/google/revoke",
       type: "POST",
-      data: $(this).val()
+      data: JSON.stringify({
+        "CaveatID": revokeButton.val(),
+        "CSRFToken": "{{.CSRFToken}}"
+      })
     }).done(function(data) {
       // TODO(suharshs): Have a fail message, add a strikethrough on the revoked caveats.
       console.log(data)
       revokeButton.remove()
+    }).fail(function(jqXHR, textStatus){
+      console.log(jqXHR)
+      console.log("The request failed :( :", textStatus)
     });
   });
 });
