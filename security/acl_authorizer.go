@@ -64,12 +64,12 @@ func (a fileACLAuthorizer) Authorize(ctx security.Context) error {
 // The JSON-encoding of a ACL is essentially a JSON object describing a map from
 // BlessingPatterns to encoded LabelSets (see LabelSet.MarshalJSON).
 // Examples:
-// * `{"*" : "RW"}` encodes an ACL that allows all principals to access all methods with
+// * `{"..." : "RW"}` encodes an ACL that allows all principals to access all methods with
 //   ReadLabel or WriteLabel.
-// * `{"veyron/alice": "RW", "veyron/bob/*": "R"} encodes an ACL that allows all principals
-//   matching "veyron/alice" to access methods with ReadLabel or WriteLabel,
-//   and all principals matching "veyron/bob/*" to access methods with ReadLabel.
-//   (Also see PublicID.Match.)
+// * `{"veyron/alice": "RW", "veyron/bob/...": "R"}` encodes an ACL that allows all principals
+// matched by "veyron/alice" to access methods with ReadLabel or WriteLabel, and all
+// principals matched by "veyron/bob/..." to access methods with ReadLabel.
+// (Also see BlessingPattern.MatchedBy)
 //
 // TODO(ataly, ashankar): Instead of reading the file on each call we should use the "inotify"
 // mechanism to watch the file. Eventually we should also support ACLs stored in the Veyron

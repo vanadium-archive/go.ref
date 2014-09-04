@@ -12,13 +12,14 @@ import (
 	"veyron2"
 	"veyron2/naming"
 	"veyron2/rt"
+	"veyron2/security"
 )
 
 var (
 	// TODO(rthellend): Remove the address flag when the config manager is working.
 	address       = flag.String("address", "", "the address/endpoint of the fortune server")
 	newFortune    = flag.String("new_fortune", "", "an optional, new fortune to add to the server's set")
-	serverPattern = flag.String("server_pattern", "*", "server_pattern is an optional pattern for the expected identity of the fortune server. Example: the pattern \"myorg/fortune\" matches identities with names \"myorg/fortune\" or \"myorg\". If the flag is absent then the default pattern \"*\" matches all identities.")
+	serverPattern = flag.String("server_pattern", string(security.AllPrincipals), "server_pattern is an optional pattern for the expected identity of the fortune server. Example: the pattern \"myorg/fortune\" matches identities with names \"myorg/fortune\" or \"myorg\". If the flag is absent then the default pattern \"...\" matches all identities.")
 )
 
 func main() {
@@ -36,7 +37,7 @@ func main() {
 	}
 
 	// Issue a Get() rpc specifying the provided pattern for the server's identity as
-	// an option. If no pattern is provided then the default pattern "*" matches all
+	// an option. If no pattern is provided then the default pattern "..." matches all
 	// identities.
 	ctx, cancel := runtime.NewContext().WithTimeout(time.Minute)
 	defer cancel()

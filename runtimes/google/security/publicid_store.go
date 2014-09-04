@@ -229,11 +229,11 @@ type PublicIDStoreParams struct {
 
 // NewPublicIDStore returns a security.PublicIDStore based on params.
 // * If params is nil, a new store with an empty set of PublicIDs and the default
-//   pattern "*" (matched by all PublicIDs) is returned. The store only lives in
+//   pattern "..." (matched by all PublicIDs) is returned. The store only lives in
 //   memory and is never persisted.
 // * If params is non-nil, then a store obtained from the serialized data present
 //   in params.Dir is returned if the data exists, or else a new store with an
-//   empty set of PublicIDs and the default pattern "*" is returned. Any subsequent
+//   empty set of PublicIDs and the default pattern "..." is returned. Any subsequent
 //   modifications to the returned store are always signed (using params.Signer)
 //   and persisted in params.Dir.
 func NewPublicIDStore(params *PublicIDStoreParams) (security.PublicIDStore, error) {

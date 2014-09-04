@@ -62,7 +62,7 @@ Running the client and server as separate processes.
 In this case, we can see the cost of name resolution, creating the VC, etc. in
 the first RPC.
 
-$ $VEYRON_ROOT/veyron/go/bin/bmserver --address=localhost:8888 --acl='{"*":"A"}'
+$ $VEYRON_ROOT/veyron/go/bin/bmserver --address=localhost:8888 --acl='{"...":"A"}'
 
 (In a different shell)
 $ $VEYRON_ROOT/veyron/go/bin/bmclient --server=/localhost:8888 --count=10 \
@@ -112,7 +112,7 @@ The simple 1 KB RPCs take an average of 24 ms. The streaming equivalent takes
 about 22 ms, and streaming many 1 KB chunks takes about 6.5 ms per chunk.
 
 
-$ ./bmserver --address=localhost:8888 --acl='{"*":"A"}'
+$ ./bmserver --address=localhost:8888 --acl='{"...":"A"}'
 
 $ ./bmclient --server=/localhost:8888 --count=10 --payload_size=1000
 CallEcho 0 2573406000

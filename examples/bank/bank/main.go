@@ -24,7 +24,7 @@ import (
 var (
 	// TODO(rthellend): Remove the address flag when the config manager is working.
 	address               = flag.String("address", "", "the address/endpoint of the bank server")
-	serverPattern         = flag.String("server_pattern", "*", "server_pattern is an optional pattern for the expected identity of the fortune server. Example: the pattern \"myorg/fortune\" matches identities with names \"myorg/fortune\" or \"myorg\". If the flag is absent then the default pattern \"*\" matches all identities.")
+	serverPattern         = flag.String("server_pattern", string(security.AllPrincipals), "server_pattern is an optional pattern for the expected identity of the fortune server. Example: the pattern \"myorg/fortune\" matches identities with names \"myorg/fortune\" or \"myorg\". If the flag is absent then the default pattern \"...\" matches all identities.")
 	accountMountTableName string
 )
 
