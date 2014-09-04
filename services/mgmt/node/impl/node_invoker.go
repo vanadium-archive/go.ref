@@ -150,7 +150,7 @@ func (i *nodeInvoker) getCurrentFileInfo() (os.FileInfo, string, error) {
 }
 
 // TODO(caprita): Move updateLink to util.go now that app_invoker also uses it.
-func updateLink(newScript, link string) error {
+func updateLink(target, link string) error {
 	newLink := link + ".new"
 	fi, err := os.Lstat(newLink)
 	if err == nil {
@@ -159,8 +159,8 @@ func updateLink(newScript, link string) error {
 			return errOperationFailed
 		}
 	}
-	if err := os.Symlink(newScript, newLink); err != nil {
-		vlog.Errorf("Symlink(%v, %v) failed: %v", newScript, newLink, err)
+	if err := os.Symlink(target, newLink); err != nil {
+		vlog.Errorf("Symlink(%v, %v) failed: %v", target, newLink, err)
 		return errOperationFailed
 	}
 	if err := os.Rename(newLink, link); err != nil {
