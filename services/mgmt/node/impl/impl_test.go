@@ -475,6 +475,8 @@ func startApp(t *testing.T, appID string) string {
 	return instanceID
 }
 
+// TODO(caprita): Rename the *ShouldFail methods to *ExpectError (to match the
+// similar methods on node).  Also move to util_test.go.
 func startAppShouldFail(t *testing.T, appID string, expectedError verror.ID) {
 	if _, err := startAppImpl(t, appID); err == nil || !verror.Is(err, expectedError) {
 		t.Fatalf("Start(%v) expected to fail with %v, got %v instead", appID, expectedError, err)
@@ -508,6 +510,18 @@ func updateApp(t *testing.T, appID string) {
 func updateAppShouldFail(t *testing.T, appID string, expectedError verror.ID) {
 	if err := appStub(t, appID).Update(rt.R().NewContext()); err == nil || !verror.Is(err, expectedError) {
 		t.Fatalf("Update(%v) expected to fail with %v, got %v instead", appID, expectedError, err)
+	}
+}
+
+func revertApp(t *testing.T, appID string) {
+	if err := appStub(t, appID).Revert(rt.R().NewContext()); err != nil {
+		t.Fatalf("Revert(%v) failed: %v", appID, err)
+	}
+}
+
+func revertAppShouldFail(t *testing.T, appID string, expectedError verror.ID) {
+	if err := appStub(t, appID).Revert(rt.R().NewContext()); err == nil || !verror.Is(err, expectedError) {
+		t.Fatalf("Revert(%v) expected to fail with %v, got %v instead", appID, expectedError, err)
 	}
 }
 
@@ -681,11 +695,27 @@ func TestAppLifeCycle(t *testing.T) {
 	stopApp(t, appID, instance3ID)
 	resolveExpectNotFound(t, "appV2")
 
+	// Revert the app.
+	revertApp(t, appID)
+
+	// Start a fourth instance.  It should be started from version 1.
+	instance4ID := startApp(t, appID)
+	<-pingCh // Wait until the app pings us that it's ready.
+	resolve(t, "appV1", 1)
+	stopApp(t, appID, instance4ID)
+	resolveExpectNotFound(t, "appV1")
+
+	// We are already on the first version, no further revert possible.
+	revertAppShouldFail(t, appID, verror.NotFound)
+
 	// Uninstall the app.
 	uninstallApp(t, appID)
 
 	// Updating the installation should no longer be allowed.
 	updateAppShouldFail(t, appID, verror.BadArg)
+
+	// Reverting the installation should no longer be allowed.
+	revertAppShouldFail(t, appID, verror.BadArg)
 
 	// Starting new instances should no longer be allowed.
 	startAppShouldFail(t, appID, verror.BadArg)

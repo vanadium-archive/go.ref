@@ -13,7 +13,7 @@ package impl
 //       origin                     - object name for application envelope
 //       <version 1 timestamp>/     - timestamp of when the version was downloaded
 //         bin                      - application binary
-//         previous                 - symbolic link to previous version directory (TODO)
+//         previous                 - symbolic link to previous version directory
 //         envelope                 - application envelope (JSON-encoded)
 //       <version 2 timestamp>
 //       ...
@@ -253,7 +253,7 @@ func fetchAppEnvelope(ctx context.T, origin string) (*application.Envelope, erro
 }
 
 // newVersion sets up the directory for a new application version.
-func newVersion(installationDir string, envelope *application.Envelope) (string, error) {
+func newVersion(installationDir string, envelope *application.Envelope, oldVersionDir string) (string, error) {
 	versionDir := filepath.Join(installationDir, generateVersionDirName())
 	if err := mkdir(versionDir); err != nil {
 		return "", errOperationFailed
@@ -264,6 +264,13 @@ func newVersion(installationDir string, envelope *application.Envelope) (string,
 	}
 	if err := saveEnvelope(versionDir, envelope); err != nil {
 		return versionDir, err
+	}
+	if oldVersionDir != "" {
+		previousLink := filepath.Join(versionDir, "previous")
+		if err := os.Symlink(oldVersionDir, previousLink); err != nil {
+			vlog.Errorf("Symlink(%v, %v) failed: %v", oldVersionDir, previousLink, err)
+			return versionDir, errOperationFailed
+		}
 	}
 	// updateLink should be the last thing we do, after we've ensured the
 	// new version is viable (currently, that just means it installs
@@ -293,7 +300,7 @@ func (i *appInvoker) Install(_ ipc.ServerContext, applicationVON string) (string
 			deferrer()
 		}
 	}()
-	if _, err := newVersion(installationDir, envelope); err != nil {
+	if _, err := newVersion(installationDir, envelope, ""); err != nil {
 		return "", err
 	}
 	if err := saveOrigin(installationDir, applicationVON); err != nil {
@@ -312,11 +319,6 @@ func (*appInvoker) Refresh(ipc.ServerContext) error {
 }
 
 func (*appInvoker) Restart(ipc.ServerContext) error {
-	// TODO(jsimsa): Implement.
-	return nil
-}
-
-func (*appInvoker) Revert(ipc.ServerContext) error {
 	// TODO(jsimsa): Implement.
 	return nil
 }
@@ -370,7 +372,7 @@ func (i *appInvoker) newInstance() (string, string, error) {
 	versionDir, err := filepath.EvalSymlinks(currLink)
 	if err != nil {
 		vlog.Errorf("EvalSymlinks(%v) failed: %v", currLink, err)
-		return instanceDir, instanceID, err
+		return instanceDir, instanceID, errOperationFailed
 	}
 	versionLink := filepath.Join(instanceDir, "version")
 	if err := os.Symlink(versionDir, versionLink); err != nil {
@@ -620,6 +622,11 @@ func (i *appInvoker) Update(ipc.ServerContext) error {
 		return err
 	}
 	currLink := filepath.Join(installationDir, "current")
+	oldVersionDir, err := filepath.EvalSymlinks(currLink)
+	if err != nil {
+		vlog.Errorf("EvalSymlinks(%v) failed: %v", currLink, err)
+		return errOperationFailed
+	}
 	// NOTE(caprita): A race can occur between two competing updates, where
 	// both use the old version as their baseline.  This can result in both
 	// updates succeeding even if they are updating the app installation to
@@ -628,7 +635,7 @@ func (i *appInvoker) Update(ipc.ServerContext) error {
 	// 'previous' link to the old version.  This doesn't appear to be of
 	// practical concern, so we avoid the complexity of synchronizing
 	// updates.
-	oldEnvelope, err := loadEnvelope(currLink)
+	oldEnvelope, err := loadEnvelope(oldVersionDir)
 	if err != nil {
 		return err
 	}
@@ -638,7 +645,7 @@ func (i *appInvoker) Update(ipc.ServerContext) error {
 	if reflect.DeepEqual(oldEnvelope, newEnvelope) {
 		return errUpdateNoOp
 	}
-	versionDir, err := newVersion(installationDir, newEnvelope)
+	versionDir, err := newVersion(installationDir, newEnvelope, oldVersionDir)
 	if err != nil {
 		if err := os.RemoveAll(versionDir); err != nil {
 			vlog.Errorf("RemoveAll(%v) failed: %v", versionDir, err)
@@ -651,4 +658,40 @@ func (i *appInvoker) Update(ipc.ServerContext) error {
 func (*appInvoker) UpdateTo(_ ipc.ServerContext, von string) error {
 	// TODO(jsimsa): Implement.
 	return nil
+}
+
+func (i *appInvoker) Revert(ipc.ServerContext) error {
+	installationDir, err := i.installationDir()
+	if err != nil {
+		return err
+	}
+	if !installationStateIs(installationDir, active) {
+		return errInvalidOperation
+	}
+	// NOTE(caprita): A race can occur between an update and a revert, where
+	// both use the same current version as their starting point.  This will
+	// render the update inconsequential.  This doesn't appear to be of
+	// practical concern, so we avoid the complexity of synchronizing
+	// updates and revert operations.
+	currLink := filepath.Join(installationDir, "current")
+	currVersionDir, err := filepath.EvalSymlinks(currLink)
+	if err != nil {
+		vlog.Errorf("EvalSymlinks(%v) failed: %v", currLink, err)
+		return errOperationFailed
+	}
+	previousLink := filepath.Join(currVersionDir, "previous")
+	if _, err := os.Lstat(previousLink); err != nil {
+		if os.IsNotExist(err) {
+			// No 'previous' link -- must be the first version.
+			return errUpdateNoOp
+		}
+		vlog.Errorf("Lstat(%v) failed: %v", previousLink, err)
+		return errOperationFailed
+	}
+	prevVersionDir, err := filepath.EvalSymlinks(previousLink)
+	if err != nil {
+		vlog.Errorf("EvalSymlinks(%v) failed: %v", previousLink, err)
+		return errOperationFailed
+	}
+	return updateLink(prevVersionDir, currLink)
 }
