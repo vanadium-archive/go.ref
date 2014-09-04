@@ -110,46 +110,131 @@ func resolve(t *testing.T, name string, replicas int) []string {
 }
 
 // The following set of functions are convenience wrappers around Update and
-// Revert.
+// Revert for node manager.
 
-func updateExpectError(t *testing.T, name string, errID verror.ID) {
-	if err := invokeUpdate(t, name); !verror.Is(err, errID) {
-		t.Fatalf("Unexpected update on %s error %v, expected error ID %v", name, err, errID)
-	}
-}
-
-func update(t *testing.T, name string) {
-	if err := invokeUpdate(t, name); err != nil {
-		t.Fatalf("Update() on %s failed: %v", name, err)
-	}
-}
-
-func invokeUpdate(t *testing.T, name string) error {
-	address := naming.Join(name, "nm")
-	stub, err := node.BindNode(address)
+func nodeStub(t *testing.T, name string) node.Node {
+	nodeName := naming.Join(name, "nm")
+	stub, err := node.BindNode(nodeName)
 	if err != nil {
-		t.Fatalf("BindNode(%v) failed: %v", address, err)
+		t.Fatalf("BindNode(%v) failed: %v", nodeName, err)
 	}
-	return stub.Update(rt.R().NewContext())
+	return stub
 }
 
-func revertExpectError(t *testing.T, name string, errID verror.ID) {
-	if err := invokeRevert(t, name); !verror.Is(err, errID) {
-		t.Fatalf("Unexpected revert error %v, expected error ID %v", err, errID)
-	}
-}
-
-func revert(t *testing.T, name string) {
-	if err := invokeRevert(t, name); err != nil {
-		t.Fatalf("Revert() failed: %v", err)
+func updateNodeExpectError(t *testing.T, name string, errID verror.ID) {
+	if err := nodeStub(t, name).Update(rt.R().NewContext()); !verror.Is(err, errID) {
+		t.Fatalf("Update(%v) expected to fail with %v, got %v instead", name, errID, err)
 	}
 }
 
-func invokeRevert(t *testing.T, name string) error {
-	address := naming.Join(name, "nm")
-	stub, err := node.BindNode(address)
+func updateNode(t *testing.T, name string) {
+	if err := nodeStub(t, name).Update(rt.R().NewContext()); err != nil {
+		t.Fatalf("Update(%v) failed: %v", name, err)
+	}
+}
+
+func revertNodeExpectError(t *testing.T, name string, errID verror.ID) {
+	if err := nodeStub(t, name).Revert(rt.R().NewContext()); !verror.Is(err, errID) {
+		t.Fatalf("Revert(%v) expected to fail with %v, got %v instead", name, errID, err)
+	}
+}
+
+func revertNode(t *testing.T, name string) {
+	if err := nodeStub(t, name).Revert(rt.R().NewContext()); err != nil {
+		t.Fatalf("Revert(%v) failed: %v", name, err)
+	}
+}
+
+// The following set of functions are convenience wrappers around various app
+// management methods.
+
+func appStub(t *testing.T, nameComponents ...string) node.Application {
+	appsName := "nm//apps"
+	appName := naming.Join(append([]string{appsName}, nameComponents...)...)
+	stub, err := node.BindApplication(appName)
 	if err != nil {
-		t.Fatalf("BindNode(%v) failed: %v", address, err)
+		t.Fatalf("BindApplication(%v) failed: %v", appName, err)
 	}
-	return stub.Revert(rt.R().NewContext())
+	return stub
+}
+
+func installApp(t *testing.T) string {
+	appID, err := appStub(t).Install(rt.R().NewContext(), "ar")
+	if err != nil {
+		t.Fatalf("Install failed: %v", err)
+	}
+	return appID
+}
+
+func startAppImpl(t *testing.T, appID string) (string, error) {
+	if instanceIDs, err := appStub(t, appID).Start(rt.R().NewContext()); err != nil {
+		return "", err
+	} else {
+		if want, got := 1, len(instanceIDs); want != got {
+			t.Fatalf("Start(%v): expected %v instance ids, got %v instead", appID, want, got)
+		}
+		return instanceIDs[0], nil
+	}
+}
+
+func startApp(t *testing.T, appID string) string {
+	instanceID, err := startAppImpl(t, appID)
+	if err != nil {
+		t.Fatalf("Start(%v) failed: %v", appID, err)
+	}
+	return instanceID
+}
+
+func startAppExpectError(t *testing.T, appID string, expectedError verror.ID) {
+	if _, err := startAppImpl(t, appID); err == nil || !verror.Is(err, expectedError) {
+		t.Fatalf("Start(%v) expected to fail with %v, got %v instead", appID, expectedError, err)
+	}
+}
+
+func stopApp(t *testing.T, appID, instanceID string) {
+	if err := appStub(t, appID, instanceID).Stop(rt.R().NewContext(), 5); err != nil {
+		t.Fatalf("Stop(%v/%v) failed: %v", appID, instanceID, err)
+	}
+}
+
+func suspendApp(t *testing.T, appID, instanceID string) {
+	if err := appStub(t, appID, instanceID).Suspend(rt.R().NewContext()); err != nil {
+		t.Fatalf("Suspend(%v/%v) failed: %v", appID, instanceID, err)
+	}
+}
+
+func resumeApp(t *testing.T, appID, instanceID string) {
+	if err := appStub(t, appID, instanceID).Resume(rt.R().NewContext()); err != nil {
+		t.Fatalf("Resume(%v/%v) failed: %v", appID, instanceID, err)
+	}
+}
+
+func updateApp(t *testing.T, appID string) {
+	if err := appStub(t, appID).Update(rt.R().NewContext()); err != nil {
+		t.Fatalf("Update(%v) failed: %v", appID, err)
+	}
+}
+
+func updateAppExpectError(t *testing.T, appID string, expectedError verror.ID) {
+	if err := appStub(t, appID).Update(rt.R().NewContext()); err == nil || !verror.Is(err, expectedError) {
+		t.Fatalf("Update(%v) expected to fail with %v, got %v instead", appID, expectedError, err)
+	}
+}
+
+func revertApp(t *testing.T, appID string) {
+	if err := appStub(t, appID).Revert(rt.R().NewContext()); err != nil {
+		t.Fatalf("Revert(%v) failed: %v", appID, err)
+	}
+}
+
+func revertAppExpectError(t *testing.T, appID string, expectedError verror.ID) {
+	if err := appStub(t, appID).Revert(rt.R().NewContext()); err == nil || !verror.Is(err, expectedError) {
+		t.Fatalf("Revert(%v) expected to fail with %v, got %v instead", appID, expectedError, err)
+	}
+}
+
+func uninstallApp(t *testing.T, appID string) {
+	if err := appStub(t, appID).Uninstall(rt.R().NewContext()); err != nil {
+		t.Fatalf("Uninstall(%v) failed: %v", appID, err)
+	}
 }

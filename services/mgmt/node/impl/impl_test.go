@@ -298,8 +298,8 @@ func TestNodeManagerUpdateAndRevert(t *testing.T) {
 	// Simulate an invalid envelope in the application repository.
 	*envelope = *nodeEnvelopeFromCmd(nm.Cmd)
 	envelope.Title = "bogus"
-	updateExpectError(t, "factoryNM", verror.BadArg)   // Incorrect title.
-	revertExpectError(t, "factoryNM", verror.NotFound) // No previous version available.
+	updateNodeExpectError(t, "factoryNM", verror.BadArg)   // Incorrect title.
+	revertNodeExpectError(t, "factoryNM", verror.NotFound) // No previous version available.
 
 	// Set up a second version of the node manager.  We use the blackbox
 	// command solely to collect the args and env we need to provide the
@@ -310,7 +310,7 @@ func TestNodeManagerUpdateAndRevert(t *testing.T) {
 	nmV2 := blackbox.HelperCommand(t, "nodeManager", "v2NM")
 	defer setupChildCommand(nmV2)()
 	*envelope = *nodeEnvelopeFromCmd(nmV2.Cmd)
-	update(t, "factoryNM")
+	updateNode(t, "factoryNM")
 
 	// Current link should have been updated to point to v2.
 	evalLink := func() string {
@@ -330,7 +330,7 @@ func TestNodeManagerUpdateAndRevert(t *testing.T) {
 	readPID(t, nm)
 	nm.Expect("v2NM terminating")
 
-	updateExpectError(t, "factoryNM", verror.Exists) // Update already in progress.
+	updateNodeExpectError(t, "factoryNM", verror.Exists) // Update already in progress.
 
 	nm.CloseStdin()
 	nm.Expect("factoryNM terminating")
@@ -350,7 +350,7 @@ func TestNodeManagerUpdateAndRevert(t *testing.T) {
 
 	// Try issuing an update without changing the envelope in the application
 	// repository: this should fail, and current link should be unchanged.
-	updateExpectError(t, "v2NM", verror.NotFound)
+	updateNodeExpectError(t, "v2NM", verror.NotFound)
 	if evalLink() != scriptPathV2 {
 		t.Fatalf("script changed")
 	}
@@ -359,7 +359,7 @@ func TestNodeManagerUpdateAndRevert(t *testing.T) {
 	nmV3 := blackbox.HelperCommand(t, "nodeManager", "v3NM")
 	defer setupChildCommand(nmV3)()
 	*envelope = *nodeEnvelopeFromCmd(nmV3.Cmd)
-	update(t, "v2NM")
+	updateNode(t, "v2NM")
 
 	scriptPathV3 := evalLink()
 	if scriptPathV3 == scriptPathV2 {
@@ -391,8 +391,8 @@ func TestNodeManagerUpdateAndRevert(t *testing.T) {
 	resolve(t, "v3NM", 1) // Current link should have been launching v3.
 
 	// Revert the node manager to its previous version (v2).
-	revert(t, "v3NM")
-	revertExpectError(t, "v3NM", verror.Exists) // Revert already in progress.
+	revertNode(t, "v3NM")
+	revertNodeExpectError(t, "v3NM", verror.Exists) // Revert already in progress.
 	runNM.CloseStdin()
 	runNM.Expect("v3NM terminating")
 	if evalLink() != scriptPathV2 {
@@ -412,7 +412,7 @@ func TestNodeManagerUpdateAndRevert(t *testing.T) {
 	resolve(t, "v2NM", 1) // Current link should have been launching v2.
 
 	// Revert the node manager to its previous version (factory).
-	revert(t, "v2NM")
+	revertNode(t, "v2NM")
 	runNM.Expect("v2NM terminating")
 	if evalLink() != scriptPathFactory {
 		t.Fatalf("current link was not reverted correctly")
@@ -437,99 +437,6 @@ func TestNodeManagerUpdateAndRevert(t *testing.T) {
 type pingServerDisp chan<- struct{}
 
 func (p pingServerDisp) Ping(ipc.ServerCall) { p <- struct{}{} }
-
-func appStub(t *testing.T, nameComponents ...string) node.Application {
-	appsName := "nm//apps"
-	appName := naming.Join(append([]string{appsName}, nameComponents...)...)
-	stub, err := node.BindApplication(appName)
-	if err != nil {
-		t.Fatalf("BindApplication(%v) failed: %v", appName, err)
-	}
-	return stub
-}
-
-func installApp(t *testing.T) string {
-	appID, err := appStub(t).Install(rt.R().NewContext(), "ar")
-	if err != nil {
-		t.Fatalf("Install failed: %v", err)
-	}
-	return appID
-}
-
-func startAppImpl(t *testing.T, appID string) (string, error) {
-	if instanceIDs, err := appStub(t, appID).Start(rt.R().NewContext()); err != nil {
-		return "", err
-	} else {
-		if want, got := 1, len(instanceIDs); want != got {
-			t.Fatalf("Start(%v): expected %v instance ids, got %v instead", appID, want, got)
-		}
-		return instanceIDs[0], nil
-	}
-}
-
-func startApp(t *testing.T, appID string) string {
-	instanceID, err := startAppImpl(t, appID)
-	if err != nil {
-		t.Fatalf("Start(%v) failed: %v", appID, err)
-	}
-	return instanceID
-}
-
-// TODO(caprita): Rename the *ShouldFail methods to *ExpectError (to match the
-// similar methods on node).  Also move to util_test.go.
-func startAppShouldFail(t *testing.T, appID string, expectedError verror.ID) {
-	if _, err := startAppImpl(t, appID); err == nil || !verror.Is(err, expectedError) {
-		t.Fatalf("Start(%v) expected to fail with %v, got %v instead", appID, expectedError, err)
-	}
-}
-
-func stopApp(t *testing.T, appID, instanceID string) {
-	if err := appStub(t, appID, instanceID).Stop(rt.R().NewContext(), 5); err != nil {
-		t.Fatalf("Stop(%v/%v) failed: %v", appID, instanceID, err)
-	}
-}
-
-func suspendApp(t *testing.T, appID, instanceID string) {
-	if err := appStub(t, appID, instanceID).Suspend(rt.R().NewContext()); err != nil {
-		t.Fatalf("Suspend(%v/%v) failed: %v", appID, instanceID, err)
-	}
-}
-
-func resumeApp(t *testing.T, appID, instanceID string) {
-	if err := appStub(t, appID, instanceID).Resume(rt.R().NewContext()); err != nil {
-		t.Fatalf("Resume(%v/%v) failed: %v", appID, instanceID, err)
-	}
-}
-
-func updateApp(t *testing.T, appID string) {
-	if err := appStub(t, appID).Update(rt.R().NewContext()); err != nil {
-		t.Fatalf("Update(%v) failed: %v", appID, err)
-	}
-}
-
-func updateAppShouldFail(t *testing.T, appID string, expectedError verror.ID) {
-	if err := appStub(t, appID).Update(rt.R().NewContext()); err == nil || !verror.Is(err, expectedError) {
-		t.Fatalf("Update(%v) expected to fail with %v, got %v instead", appID, expectedError, err)
-	}
-}
-
-func revertApp(t *testing.T, appID string) {
-	if err := appStub(t, appID).Revert(rt.R().NewContext()); err != nil {
-		t.Fatalf("Revert(%v) failed: %v", appID, err)
-	}
-}
-
-func revertAppShouldFail(t *testing.T, appID string, expectedError verror.ID) {
-	if err := appStub(t, appID).Revert(rt.R().NewContext()); err == nil || !verror.Is(err, expectedError) {
-		t.Fatalf("Revert(%v) expected to fail with %v, got %v instead", appID, expectedError, err)
-	}
-}
-
-func uninstallApp(t *testing.T, appID string) {
-	if err := appStub(t, appID).Uninstall(rt.R().NewContext()); err != nil {
-		t.Fatalf("Uninstall(%v) failed: %v", appID, err)
-	}
-}
 
 func verifyAppWorkspace(t *testing.T, root, appID, instanceID string) {
 	// HACK ALERT: for now, we peek inside the node manager's directory
@@ -641,11 +548,11 @@ func TestAppLifeCycle(t *testing.T) {
 	}
 
 	// Updating the installation to itself is a no-op.
-	updateAppShouldFail(t, appID, verror.NotFound)
+	updateAppExpectError(t, appID, verror.NotFound)
 
 	// Updating the installation should not work with a mismatched title.
 	*envelope = *envelopeFromCmd("bogus", app.Cmd)
-	updateAppShouldFail(t, appID, verror.BadArg)
+	updateAppExpectError(t, appID, verror.BadArg)
 
 	// Create a second version of the app and update the app to it.
 	app = blackbox.HelperCommand(t, "app", "appV2")
@@ -706,19 +613,19 @@ func TestAppLifeCycle(t *testing.T) {
 	resolveExpectNotFound(t, "appV1")
 
 	// We are already on the first version, no further revert possible.
-	revertAppShouldFail(t, appID, verror.NotFound)
+	revertAppExpectError(t, appID, verror.NotFound)
 
 	// Uninstall the app.
 	uninstallApp(t, appID)
 
 	// Updating the installation should no longer be allowed.
-	updateAppShouldFail(t, appID, verror.BadArg)
+	updateAppExpectError(t, appID, verror.BadArg)
 
 	// Reverting the installation should no longer be allowed.
-	revertAppShouldFail(t, appID, verror.BadArg)
+	revertAppExpectError(t, appID, verror.BadArg)
 
 	// Starting new instances should no longer be allowed.
-	startAppShouldFail(t, appID, verror.BadArg)
+	startAppExpectError(t, appID, verror.BadArg)
 
 	// Cleanly shut down the node manager.
 	syscall.Kill(nm.Cmd.Process.Pid, syscall.SIGINT)
