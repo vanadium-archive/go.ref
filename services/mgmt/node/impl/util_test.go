@@ -89,24 +89,24 @@ func newServer() (ipc.Server, string) {
 }
 
 // resolveExpectError verifies that the given name is not in the mounttable.
-func resolveExpectError(t *testing.T, name string, errID verror.ID) {
+func resolveExpectNotFound(t *testing.T, name string) {
 	if results, err := rt.R().Namespace().Resolve(rt.R().NewContext(), name); err == nil {
 		t.Fatalf("Resolve(%v) succeeded with results %v when it was expected to fail", name, results)
-	} else if !verror.Is(err, errID) {
-		t.Fatalf("Resolve(%v) failed with error %v, expected error ID %v", err, errID)
+	} else if expectErr := verror.NotFound; !verror.Is(err, expectErr) {
+		t.Fatalf("Resolve(%v) failed with error %v, expected error ID %v", err, expectErr)
 	}
 }
 
 // resolve looks up the given name in the mounttable.
-func resolve(t *testing.T, name string) string {
+func resolve(t *testing.T, name string, replicas int) []string {
 	results, err := rt.R().Namespace().Resolve(rt.R().NewContext(), name)
 	if err != nil {
 		t.Fatalf("Resolve(%v) failed: %v", name, err)
 	}
-	if want, got := 1, len(results); want != got {
+	if want, got := replicas, len(results); want != got {
 		t.Fatalf("Resolve(%v) expected %d result(s), got %d instead", name, want, got)
 	}
-	return results[0]
+	return results
 }
 
 // The following set of functions are convenience wrappers around Update and
