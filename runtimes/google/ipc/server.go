@@ -157,27 +157,29 @@ func (s *server) Listen(protocol, address string) (naming.Endpoint, error) {
 		return nil, fmt.Errorf("ipc: Listen on %v %v failed translating internal endpoint data types", protocol, address)
 	}
 
-	// We know the endpoint format, so we crack it open...
-	switch iep.Protocol {
-	case "tcp", "tcp4", "tcp6":
-		host, port, err := net.SplitHostPort(iep.Address)
-		if err != nil {
-			return nil, err
-		}
-		ip := net.ParseIP(host)
-		if ip == nil {
-			return nil, fmt.Errorf("ipc: Listen(%q, %q) failed to parse IP address from address", protocol, address)
-		}
-		if ip.IsUnspecified() && s.preferredAddress != nil {
-			// Need to find a usable IP address.
-			addrs, err := netstate.GetAccessibleIPs()
-			if err == nil {
-				if a, err := s.preferredAddress(protocol, addrs); err == nil {
-					if ip := netstate.AsIP(a); ip != nil {
-						// a may be an IPNet or an IPAddr under the covers,
-						// but we really want the IP portion without any
-						// netmask so we use AsIP to ensure that.
-						iep.Address = net.JoinHostPort(ip.String(), port)
+	if protocol != inaming.Network {
+		// We know the endpoint format, so we crack it open...
+		switch iep.Protocol {
+		case "tcp", "tcp4", "tcp6":
+			host, port, err := net.SplitHostPort(iep.Address)
+			if err != nil {
+				return nil, err
+			}
+			ip := net.ParseIP(host)
+			if ip == nil {
+				return nil, fmt.Errorf("ipc: Listen(%q, %q) failed to parse IP address from address", protocol, address)
+			}
+			if ip.IsUnspecified() && s.preferredAddress != nil {
+				// Need to find a usable IP address.
+				addrs, err := netstate.GetAccessibleIPs()
+				if err == nil {
+					if a, err := s.preferredAddress(protocol, addrs); err == nil {
+						if ip := netstate.AsIP(a); ip != nil {
+							// a may be an IPNet or an IPAddr under the covers,
+							// but we really want the IP portion without any
+							// netmask so we use AsIP to ensure that.
+							iep.Address = net.JoinHostPort(ip.String(), port)
+						}
 					}
 				}
 			}
