@@ -7,7 +7,6 @@ import (
 	"html/template"
 )
 
-// TODO(suharshs): Add an if statement to only show the revoke buttons for non-revoked ids.
 var tmpl = template.Must(template.New("auditor").Funcs(tmplFuncMap()).Parse(`<!doctype html>
 <html>
 <head>
@@ -15,9 +14,11 @@ var tmpl = template.Must(template.New("auditor").Funcs(tmplFuncMap()).Parse(`<!d
 <title>Blessings for {{.Email}}</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <link rel="stylesheet" href="//netdna.bootstrapcdn.com/bootstrap/3.2.0/css/bootstrap.min.css">
+<link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/css/toastr.min.css">
 <script src="//cdnjs.cloudflare.com/ajax/libs/moment.js/2.7.0/moment.min.js"></script>
 <script src="//ajax.googleapis.com/ajax/libs/jquery/1.11.1/jquery.min.js"></script>
 <script src="//ajax.googleapis.com/ajax/libs/jqueryui/1.11.0/jquery-ui.min.js"></script>
+<script src="//cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/js/toastr.min.js"></script>
 <script>
 function setTimeText(elem) {
   var timestamp = elem.data("unixtime");
@@ -50,15 +51,25 @@ $(document).ready(function() {
         "CSRFToken": "{{.CSRFToken}}"
       })
     }).done(function(data) {
-      // TODO(suharshs): Have a fail message, add a strikethrough on the revoked caveats.
-      console.log(data)
-      revokeButton.remove()
-    }).fail(function(jqXHR, textStatus){
-      console.log(jqXHR)
-      console.log("The request failed :( :", textStatus)
+      if (!data.success) {
+        failMessage(revokeButton);
+        return;
+      }
+      revokeButton.replaceWith("<div>Just Revoked!</div>");
+    }).fail(function(xhr, textStatus){
+      failMessage(revokeButton);
+      console.error('Bad request: %s', status, xhr)
     });
   });
 });
+
+function failMessage(revokeButton) {
+  revokeButton.parent().parent().fadeIn(function(){
+    $(this).addClass("bg-danger");
+  });
+  toastr.options.closeButton = true;
+  toastr.error('Unable to revoke identity!', 'Error!')
+}
 
 </script>
 </head>
@@ -84,7 +95,15 @@ $(document).ready(function() {
 <td><div class="unixtime" data-unixtime={{.Start.Unix}}>{{.Start.String}}</div></td>
 <td><div class="unixtime" data-unixtime={{.End.Unix}}>{{.End.String}}</div></td>
 <td>{{publicKeyHash .Blessee.PublicKey}}</td>
-<td><button class="revoke" value="{{.RevocationCaveatID}}" type="button">Revoke</button></td>
+<td>
+{{if .RevocationCaveatID}}
+  {{ if .RevocationTime.IsZero }}
+  <button class="revoke" value="{{.RevocationCaveatID}}">Revoke</button>
+  {{ else }}
+    <div class="unixtime" data-unixtime={{.RevocationTime.Unix}}>{{.RevocationTime.String}}</div>
+  {{ end }}
+{{ end }}
+</td>
 </tr>
 {{else}}
 <tr>

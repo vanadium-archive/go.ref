@@ -138,6 +138,7 @@ func (h *handler) callback(w http.ResponseWriter, r *http.Request) {
 		Start, End         time.Time
 		Blessed            security.PublicID
 		RevocationCaveatID string
+		RevocationTime     time.Time
 	}
 	tmplargs := struct {
 		Log              chan tmplentry
@@ -171,13 +172,14 @@ func (h *handler) callback(w http.ResponseWriter, r *http.Request) {
 				}
 				if blessEntry.RevocationCaveat != nil {
 					tmplentry.RevocationCaveatID = base64.URLEncoding.EncodeToString([]byte(blessEntry.RevocationCaveat.ID()))
+					if revocationTime := h.revocationManager.GetRevocationTime(blessEntry.RevocationCaveat.ID()); revocationTime != nil {
+						tmplentry.RevocationTime = *revocationTime
+					}
 					// TODO(suharshs): Add a timeout that removes old entries to reduce storage space.
 					// TODO(suharshs): Make this map from CSRFToken to Email address, have
 					// revocation manager have map from caveatID to Email address in DirectoryStore.
 					h.tokenRevocationCaveatMap[tokenCaveatIDKey{csrf, tmplentry.RevocationCaveatID}] = true
 				}
-				// TODO(suharshs): Make the UI depend on where the caveatID exists and if it hasn't been revoked.
-				// Use the revocation manager IsRevoked function.
 				ch <- tmplentry
 			}
 		}(tmplargs.Log)
