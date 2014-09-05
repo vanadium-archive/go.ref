@@ -13,9 +13,9 @@ type DirectoryStore struct {
 	dir string
 }
 
-func (s DirectoryStore) Exists(key string) (bool, error) {
+func (s DirectoryStore) Exists(key string) bool {
 	_, err := os.Stat(s.pathName(key))
-	return !os.IsNotExist(err), nil
+	return !os.IsNotExist(err)
 }
 
 func (s DirectoryStore) Put(key, value string) error {
