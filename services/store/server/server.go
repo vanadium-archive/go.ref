@@ -1,5 +1,4 @@
 // Package server implements a storage service.
-
 package server
 
 // This file defines Server, which implements the server-side Store API from

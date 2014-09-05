@@ -1,3 +1,6 @@
+// TODO(kash): Rewrite this to use the new dir/object store api.
+// +build ignore
+
 // mdb_init is a tool to initialize the store with an initial database.  This is
 // really for demo purposes; in a real database, the contents would be
 // persistent.

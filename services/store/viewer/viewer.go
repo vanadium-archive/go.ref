@@ -1,3 +1,6 @@
+// TODO(kash): Rewrite this to use the new dir/object store api.
+// +build ignore
+
 // package viewer exports a store through an HTTP server, with the following
 // features.
 //

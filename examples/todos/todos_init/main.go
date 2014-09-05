@@ -1,3 +1,6 @@
+// TODO(kash): Rewrite this to use the new dir/object store api.
+// +build ignore
+
 // todos_init reads data.json and populates the store with initial data.
 package main
 

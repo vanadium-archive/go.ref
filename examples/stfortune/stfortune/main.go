@@ -1,3 +1,6 @@
+// TODO(kash): Rewrite this to use the new dir/object store api.
+// +build ignore
+
 // Binary stfortune is a simple client of Veyron Store.  See
 // http://go/veyron:codelab-store for a thorough explanation.
 package main

@@ -14,17 +14,14 @@ package main
 
 import (
 	"flag"
-	"fmt"
 	"log"
 	"os"
 	"os/user"
 
 	vflag "veyron/security/flag"
 	"veyron/services/store/server"
-	"veyron/services/store/viewer"
 
 	"veyron2/rt"
-	"veyron2/storage/vstore"
 
 	_ "veyron/services/store/typeregistryhack"
 )
@@ -92,7 +89,8 @@ func main() {
 
 	// Run viewer if requested.
 	if *viewerPort > 0 {
-		go viewer.ListenAndServe(r, fmt.Sprintf(":%d", *viewerPort), mountName, vstore.New())
+		// TODO(kash): Port the viewer to the new dir/object store api.
+		//go viewer.ListenAndServe(r, fmt.Sprintf(":%d", *viewerPort), mountName, vstore.New())
 	}
 
 	// Wait forever.
