@@ -1,6 +1,3 @@
-// TODO(kash): Rewrite this to use the new dir/object store api.
-// +build ignore
-
 package main
 
 import (
@@ -10,6 +7,7 @@ import (
 	"veyron/tools/qsh/impl"
 
 	"veyron2/rt"
+	"veyron2/storage/vstore"
 )
 
 var flagQueryRoot = flag.String("queryroot", "",
@@ -36,7 +34,7 @@ func main() {
 		log.Fatalf("qsh: No queryroot specified\n" + usage)
 	}
 
-	err := impl.RunQuery(r.NewContext(), queryRoot, queryStringArgs[0])
+	err := impl.RunQuery(r.NewContext(), vstore.BindDir(queryRoot), queryStringArgs[0])
 	if err != nil {
 		log.Printf("qsh: When attempting query: \"%s\" experienced an error: ", queryStringArgs[0], err.Error())
 	}

@@ -1,6 +1,3 @@
-// TODO(kash): Rewrite this to use the new dir/object store api.
-// +build ignore
-
 package impl
 
 import (
@@ -12,7 +9,6 @@ import (
 	"veyron2/context"
 	"veyron2/query"
 	"veyron2/storage"
-	"veyron2/storage/vstore"
 
 	// TODO(rjkroege@google.com): Replace with the appropriate vom2 functionality
 	// when available.
@@ -72,6 +68,6 @@ func printStream(qs storage.QueryStream, w io.Writer, indent int) error {
 	return nil
 }
 
-func RunQuery(ctx context.T, queryRoot, queryString string) error {
-	return printStream(vstore.New().Bind(queryRoot).Query(ctx, query.Query{queryString}), os.Stdout, 0)
+func RunQuery(ctx context.T, queryRoot storage.Dir, queryString string) error {
+	return printStream(queryRoot.Query(ctx, query.Query{queryString}), os.Stdout, 0)
 }
