@@ -12,12 +12,17 @@ package vsync
 //   * names:   one entry per SyncGroup name pointing to its SyncGroup ID
 //   * members: an inverted index of SyncGroup members to SyncGroup IDs
 //              built from the list of SyncGroup joiners
+//   * peerSGs: an inverted index of SyncGroup RootOIDs to sets of peer
+//              SyncGroup IDs, i.e. SyncGroups defined on the same root
+//              path in the Store (RootOID)
 
 import (
 	"errors"
 	"fmt"
 
 	"veyron/services/syncgroup"
+
+	"veyron2/storage"
 )
 
 var (
@@ -30,6 +35,7 @@ type syncGroupTable struct {
 	sgData  *kvtable               // pointer to "data" table in the kvdb
 	sgNames *kvtable               // pointer to "names" table in the kvdb
 	members map[string]*memberInfo // in-memory tracking of SyncGroup member info
+	peerSGs map[storage.ID]sgSet   // in-memory tracking of peer SyncGroups per RootOID
 }
 
 type syncGroupData struct {
@@ -46,6 +52,8 @@ type memberMetaData struct {
 	identity string                   // joiner security identity
 }
 
+type sgSet map[syncgroup.ID]struct{} // a set of SyncGroups
+
 // openSyncGroupTable opens or creates a syncGroupTable for the given filename.
 func openSyncGroupTable(filename string) (*syncGroupTable, error) {
 	// Open the file and create it if it does not exist.
@@ -61,18 +69,28 @@ func openSyncGroupTable(filename string) (*syncGroupTable, error) {
 		sgData:  tbls[0],
 		sgNames: tbls[1],
 		members: make(map[string]*memberInfo),
+		peerSGs: make(map[storage.ID]sgSet),
 	}
 
-	// Reconstruct the in-memory membership information, if any.
+	// Reconstruct the in-memory tracking maps by iterating over the SyncGroups.
 	// This is needed when an existing SyncGroup Table file is re-opened.
-	// Iterate over the SyncGroups and for each add all its members to the map.
-	// TODO(rdaoud): Switch to iteration over the data table instead of the
-	// names table.  This will allow us to use getSyncGroupByID(), but first
-	// we need to get the String-to-SGID function from SyncGroupServer.
-	s.sgNames.keyIter(func(name string) {
-		if data, err := s.getSyncGroupByName(name); err == nil {
-			s.addAllMembers(data)
+	s.sgData.keyIter(func(gidStr string) {
+		// Get the SyncGroup data given the group ID in string format (as the data table key).
+		gid, err := syncgroup.ParseID(gidStr)
+		if err != nil {
+			return
 		}
+
+		data, err := s.getSyncGroupByID(gid)
+		if err != nil {
+			return
+		}
+
+		// Add all SyncGroup members to the members inverted index.
+		s.addAllMembers(data)
+
+		// Add the SyncGroup ID to its peer SyncGroup set based on the RootOID.
+		s.addPeerSyncGroup(gid, data.SrvInfo.RootOID)
 	})
 
 	return s, nil
@@ -142,6 +160,7 @@ func (s *syncGroupTable) addSyncGroup(sgData *syncGroupData) error {
 	}
 
 	s.addAllMembers(sgData)
+	s.addPeerSyncGroup(gid, sgData.SrvInfo.RootOID)
 	return nil
 }
 
@@ -232,6 +251,7 @@ func (s *syncGroupTable) delSyncGroupByID(gid syncgroup.ID) error {
 	}
 
 	s.delAllMembers(data)
+	s.delPeerSyncGroup(gid, data.SrvInfo.RootOID)
 	return s.delSGDataEntry(gid)
 }
 
@@ -332,6 +352,55 @@ func (s *syncGroupTable) delAllMembers(data *syncGroupData) {
 	for member := range data.SrvInfo.Joiners {
 		s.delMember(member.Name, gid)
 	}
+}
+
+// addPeerSyncGroup inserts the group ID into the in-memory set of peer SyncGroups
+// that use the same RootOID in the Store.
+func (s *syncGroupTable) addPeerSyncGroup(gid syncgroup.ID, rootOID storage.ID) {
+	if s.store == nil {
+		return
+	}
+
+	peers, ok := s.peerSGs[rootOID]
+	if !ok {
+		peers = make(sgSet)
+		s.peerSGs[rootOID] = peers
+	}
+
+	peers[gid] = struct{}{}
+}
+
+// delPeerSyncGroup removes the group ID from the in-memory set of peer SyncGroups
+// that use the same RootOID in the Store.
+func (s *syncGroupTable) delPeerSyncGroup(gid syncgroup.ID, rootOID storage.ID) {
+	if s.store == nil {
+		return
+	}
+
+	peers, ok := s.peerSGs[rootOID]
+	if !ok {
+		return
+	}
+
+	delete(peers, gid)
+	if len(peers) == 0 {
+		delete(s.peerSGs, rootOID)
+	}
+}
+
+// getPeerSyncGroups returns the set of peer SyncGroups for a given SyncGroup.
+// The given SyncGroup ID is included in that set.
+func (s *syncGroupTable) getPeerSyncGroups(gid syncgroup.ID) (sgSet, error) {
+	if s.store == nil {
+		return sgSet{}, errBadSGTable
+	}
+
+	data, err := s.getSyncGroupByID(gid)
+	if err != nil {
+		return sgSet{}, err
+	}
+
+	return s.peerSGs[data.SrvInfo.RootOID], nil
 }
 
 // Low-level functions to access the tables in the K/V DB.

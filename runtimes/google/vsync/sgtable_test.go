@@ -10,17 +10,6 @@ import (
 	"veyron/services/syncgroup"
 )
 
-// strToSGID converts a string to a SyncGroup ID.
-// This is a temporary function until SyncGroupServer provides an equivalent function.
-func strToSGID(s string) (syncgroup.ID, error) {
-	var sgid syncgroup.ID
-	oid, err := strToObjID(s)
-	if err == nil {
-		sgid = syncgroup.ID(oid)
-	}
-	return sgid, err
-}
-
 // TestSyncGroupTableOpen tests the creation of a SyncGroup Table, closing and re-opening it.
 // It also verifies that its backing file is created and that a 2nd close is safe.
 func TestSyncGroupTableOpen(t *testing.T) {
@@ -84,9 +73,13 @@ func TestInvalidSyncGroupTable(t *testing.T) {
 
 	sg.close()
 
-	sgid, err := strToSGID("1234")
+	sgid, err := syncgroup.ParseID("1234")
 	if err != nil {
 		t.Error(err)
+	}
+	rootid, err := strToObjID("5678")
+	if err != nil {
+		t.Fatal(err)
 	}
 
 	validateError := func(t *testing.T, err error, funcName string) {
@@ -128,6 +121,9 @@ func TestInvalidSyncGroupTable(t *testing.T) {
 	_, err = sg.getMemberInfo("foobar")
 	validateError(t, err, "getMemberInfo")
 
+	_, err = sg.getPeerSyncGroups(sgid)
+	validateError(t, err, "getPeerSyncGroups")
+
 	err = sg.setSGDataEntry(sgid, &syncGroupData{})
 	validateError(t, err, "setSGDataEntry")
 
@@ -153,6 +149,8 @@ func TestInvalidSyncGroupTable(t *testing.T) {
 	sg.delMember("foobar", sgid)
 	sg.addAllMembers(&syncGroupData{})
 	sg.delAllMembers(&syncGroupData{})
+	sg.addPeerSyncGroup(sgid, rootid)
+	sg.delPeerSyncGroup(sgid, rootid)
 
 	if sg.hasSGDataEntry(sgid) {
 		t.Errorf("hasSGDataEntry() found an entry on a closed SyncGroup Table")
@@ -173,7 +171,7 @@ func TestAddSyncGroup(t *testing.T) {
 	}
 
 	sgname := "foobar"
-	sgid, err := strToSGID("1234")
+	sgid, err := syncgroup.ParseID("1234")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -260,13 +258,32 @@ func TestAddSyncGroup(t *testing.T) {
 		t.Errorf("found info for invalid SyncGroup member: %v", info)
 	}
 
+	// Verify peer SyncGroup info.
+	peers, err := sg.getPeerSyncGroups(sgid)
+	if err != nil {
+		t.Errorf("cannot get peer SyncGroups for group ID %d: %v", sgid, err)
+	}
+	expPeers := sgSet{sgid: struct{}{}}
+	if !reflect.DeepEqual(peers, expPeers) {
+		t.Errorf("invalid peer SyncGroups: got %v instead of %v", peers, expPeers)
+	}
+
+	// Use a non-existent group ID.
+	xid, err := syncgroup.ParseID("7788998877")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if peers, err := sg.getPeerSyncGroups(xid); err == nil {
+		t.Errorf("found peer SyncGroup for invalid SyncGroup: %v", peers)
+	}
+
 	// Adding a SyncGroup for a pre-existing group ID or name should fail.
 	err = sg.addSyncGroup(sgData)
 	if err == nil {
 		t.Errorf("re-adding SyncGroup %d did not fail", sgid)
 	}
 
-	sgData.SrvInfo.SGOID, err = strToSGID("5555")
+	sgData.SrvInfo.SGOID, err = syncgroup.ParseID("5555")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -289,7 +306,7 @@ func TestInvalidAddSyncGroup(t *testing.T) {
 	}
 
 	sgname := "foobar"
-	sgid, err := strToSGID("1234")
+	sgid, err := syncgroup.ParseID("1234")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -358,7 +375,7 @@ func TestUpdateSyncGroup(t *testing.T) {
 
 	// Create the SyncGroup to update later.
 	sgname := "foobar"
-	sgid, err := strToSGID("1234")
+	sgid, err := syncgroup.ParseID("1234")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -386,7 +403,7 @@ func TestUpdateSyncGroup(t *testing.T) {
 	}
 
 	// Update it using different group or root IDs, which is not allowed.
-	xid, err := strToSGID("9999")
+	xid, err := syncgroup.ParseID("9999")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -492,6 +509,16 @@ func TestUpdateSyncGroup(t *testing.T) {
 		}
 	}
 
+	// Verify peer SyncGroup info.
+	peers, err := sg.getPeerSyncGroups(sgid)
+	if err != nil {
+		t.Errorf("cannot get peer SyncGroups for group ID %d after an update: %v", sgid, err)
+	}
+	expPeers := sgSet{sgid: struct{}{}}
+	if !reflect.DeepEqual(peers, expPeers) {
+		t.Errorf("invalid peer SyncGroups after an update: got %v instead of %v", peers, expPeers)
+	}
+
 	sg.close()
 }
 
@@ -506,7 +533,7 @@ func TestDeleteSyncGroup(t *testing.T) {
 	}
 
 	sgname := "foobar"
-	sgid, err := strToSGID("1234")
+	sgid, err := syncgroup.ParseID("1234")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -563,6 +590,11 @@ func TestDeleteSyncGroup(t *testing.T) {
 		t.Errorf("deleting SyncGroup name %s failed in SyncGroup Table file %s: %v", sgname, sgfile, err)
 	}
 
+	// Verify peer SyncGroup info.
+	if peers, err := sg.getPeerSyncGroups(sgid); err == nil {
+		t.Errorf("got get peer SyncGroups for deleted group ID %d: %v", sgid, peers)
+	}
+
 	sg.close()
 }
 
@@ -577,7 +609,7 @@ func TestSyncGroupTableCompact(t *testing.T) {
 	}
 
 	sgname := "foobar"
-	sgid, err := strToSGID("1234")
+	sgid, err := syncgroup.ParseID("1234")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -672,6 +704,189 @@ func TestSyncGroupTableCompact(t *testing.T) {
 				t.Errorf("invalid joiner Data for SyncGroup member %s (iter %d) in group ID %d: %v instead of %v",
 					mm, i, sgid, joinerMetaData, expJoinerMetaData)
 			}
+		}
+	}
+
+	sg.close()
+}
+
+// TestPeerSyncGroups tests creating peer SyncGroup on the same root OID.
+func TestPeerSyncGroups(t *testing.T) {
+	sgfile := getFileName()
+	defer os.Remove(sgfile)
+
+	sg, err := openSyncGroupTable(sgfile)
+	if err != nil {
+		t.Fatalf("cannot open new SyncGroup Table file %s", sgfile)
+	}
+
+	sgname1, sgname2 := "foo", "bar"
+	sgid1, err := syncgroup.ParseID("1234")
+	if err != nil {
+		t.Fatal(err)
+	}
+	sgid2, err := syncgroup.ParseID("8888")
+	if err != nil {
+		t.Fatal(err)
+	}
+	rootid, err := strToObjID("5678")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Add both SyncGroups using the same root OID.
+	sgData1 := &syncGroupData{
+		SrvInfo: syncgroup.SyncGroupInfo{
+			SGOID:   sgid1,
+			RootOID: rootid,
+			Name:    sgname1,
+			Joiners: map[syncgroup.NameIdentity]syncgroup.JoinerMetaData{
+				syncgroup.NameIdentity{Name: "phone", Identity: "A"}:  syncgroup.JoinerMetaData{SyncPriority: 10},
+				syncgroup.NameIdentity{Name: "tablet", Identity: "B"}: syncgroup.JoinerMetaData{SyncPriority: 25},
+				syncgroup.NameIdentity{Name: "cloud", Identity: "C"}:  syncgroup.JoinerMetaData{SyncPriority: 1},
+			},
+		},
+	}
+
+	sgData2 := &syncGroupData{
+		SrvInfo: syncgroup.SyncGroupInfo{
+			SGOID:   sgid2,
+			RootOID: rootid,
+			Name:    sgname2,
+			Joiners: map[syncgroup.NameIdentity]syncgroup.JoinerMetaData{
+				syncgroup.NameIdentity{Name: "tablet", Identity: "B"}: syncgroup.JoinerMetaData{SyncPriority: 111},
+				syncgroup.NameIdentity{Name: "door", Identity: "X"}:   syncgroup.JoinerMetaData{SyncPriority: 33},
+				syncgroup.NameIdentity{Name: "lamp", Identity: "Z"}:   syncgroup.JoinerMetaData{SyncPriority: 9},
+			},
+		},
+	}
+
+	err = sg.addSyncGroup(sgData1)
+	if err != nil {
+		t.Errorf("creating SyncGroup ID %d failed in SyncGroup Table file %s: %v", sgid1, sgfile, err)
+	}
+	err = sg.addSyncGroup(sgData2)
+	if err != nil {
+		t.Errorf("creating SyncGroup ID %d failed in SyncGroup Table file %s: %v", sgid2, sgfile, err)
+	}
+
+	// Verify peer SyncGroup info.
+	expPeers := sgSet{sgid1: struct{}{}, sgid2: struct{}{}}
+
+	for _, sgid := range []syncgroup.ID{sgid1, sgid2} {
+		peers, err := sg.getPeerSyncGroups(sgid)
+		if err != nil {
+			t.Errorf("cannot get peer SyncGroups for group ID %d: %v", sgid, err)
+		}
+		if !reflect.DeepEqual(peers, expPeers) {
+			t.Errorf("invalid peer SyncGroups got group ID %d: got %v instead of %v", sgid, peers, expPeers)
+		}
+	}
+
+	// Verify SyncGroup membership data.
+	members, err := sg.getMembers()
+	if err != nil {
+		t.Errorf("cannot get all SyncGroup members: %v", err)
+	}
+
+	expMembers := map[string]uint32{"phone": 1, "tablet": 2, "cloud": 1, "door": 1, "lamp": 1}
+	if !reflect.DeepEqual(members, expMembers) {
+		t.Errorf("invalid SyncGroup members: got %v instead of %v", members, expMembers)
+	}
+
+	expMemberInfo := map[string]*memberInfo{
+		"phone": &memberInfo{
+			gids: map[syncgroup.ID]*memberMetaData{
+				sgid1: &memberMetaData{metaData: syncgroup.JoinerMetaData{SyncPriority: 10}, identity: "A"},
+			},
+		},
+		"tablet": &memberInfo{
+			gids: map[syncgroup.ID]*memberMetaData{
+				sgid1: &memberMetaData{metaData: syncgroup.JoinerMetaData{SyncPriority: 25}, identity: "B"},
+				sgid2: &memberMetaData{metaData: syncgroup.JoinerMetaData{SyncPriority: 111}, identity: "B"},
+			},
+		},
+		"cloud": &memberInfo{
+			gids: map[syncgroup.ID]*memberMetaData{
+				sgid1: &memberMetaData{metaData: syncgroup.JoinerMetaData{SyncPriority: 1}, identity: "C"},
+			},
+		},
+		"door": &memberInfo{
+			gids: map[syncgroup.ID]*memberMetaData{
+				sgid2: &memberMetaData{metaData: syncgroup.JoinerMetaData{SyncPriority: 33}, identity: "X"},
+			},
+		},
+		"lamp": &memberInfo{
+			gids: map[syncgroup.ID]*memberMetaData{
+				sgid2: &memberMetaData{metaData: syncgroup.JoinerMetaData{SyncPriority: 9}, identity: "Z"},
+			},
+		},
+	}
+
+	for mm := range members {
+		info, err := sg.getMemberInfo(mm)
+		if err != nil || info == nil {
+			t.Errorf("cannot get info for SyncGroup member %s: info: %v, err: %v", mm, info, err)
+		}
+		expInfo := expMemberInfo[mm]
+		if !reflect.DeepEqual(info, expInfo) {
+			t.Errorf("invalid info for SyncGroup member %s: got %v instead of %v", mm, info, expInfo)
+		}
+	}
+
+	// Delete the 1st SyncGroup.
+	err = sg.delSyncGroupByID(sgid1)
+	if err != nil {
+		t.Errorf("deleting SyncGroup ID %d failed in SyncGroup Table file %s: %v", sgid1, sgfile, err)
+	}
+
+	// Verify peer SyncGroup info.
+	expPeers = sgSet{sgid2: struct{}{}}
+	peers, err := sg.getPeerSyncGroups(sgid2)
+	if err != nil {
+		t.Errorf("cannot get peer SyncGroups for group ID %d: %v", sgid2, err)
+	}
+	if !reflect.DeepEqual(peers, expPeers) {
+		t.Errorf("invalid peer SyncGroups got group ID %d: got %v instead of %v", sgid2, peers, expPeers)
+	}
+
+	// Verify SyncGroup membership data.
+	members, err = sg.getMembers()
+	if err != nil {
+		t.Errorf("cannot get all SyncGroup members: %v", err)
+	}
+
+	expMembers = map[string]uint32{"tablet": 1, "door": 1, "lamp": 1}
+	if !reflect.DeepEqual(members, expMembers) {
+		t.Errorf("invalid SyncGroup members: got %v instead of %v", members, expMembers)
+	}
+
+	expMemberInfo = map[string]*memberInfo{
+		"tablet": &memberInfo{
+			gids: map[syncgroup.ID]*memberMetaData{
+				sgid2: &memberMetaData{metaData: syncgroup.JoinerMetaData{SyncPriority: 111}, identity: "B"},
+			},
+		},
+		"door": &memberInfo{
+			gids: map[syncgroup.ID]*memberMetaData{
+				sgid2: &memberMetaData{metaData: syncgroup.JoinerMetaData{SyncPriority: 33}, identity: "X"},
+			},
+		},
+		"lamp": &memberInfo{
+			gids: map[syncgroup.ID]*memberMetaData{
+				sgid2: &memberMetaData{metaData: syncgroup.JoinerMetaData{SyncPriority: 9}, identity: "Z"},
+			},
+		},
+	}
+
+	for mm := range members {
+		info, err := sg.getMemberInfo(mm)
+		if err != nil || info == nil {
+			t.Errorf("cannot get info for SyncGroup member %s: info: %v, err: %v", mm, info, err)
+		}
+		expInfo := expMemberInfo[mm]
+		if !reflect.DeepEqual(info, expInfo) {
+			t.Errorf("invalid info for SyncGroup member %s: got %v instead of %v", mm, info, expInfo)
 		}
 	}
 
