@@ -1,6 +1,3 @@
-// TODO(kash): Rewrite this to use the new dir/object store api.
-// +build ignore
-
 package impl
 
 import (
