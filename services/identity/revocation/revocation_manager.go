@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"path/filepath"
+	"strconv"
 	"sync"
 	"time"
 
@@ -47,16 +48,26 @@ func (r *RevocationManager) Revoke(caveatID security.ThirdPartyCaveatID) error {
 	if err != nil {
 		return err
 	}
-	return revocationMap.Put(token, string(time.Now().Unix()))
+	return revocationMap.Put(token, strconv.FormatInt(time.Now().Unix(), 10))
 }
 
-// Returns true if the provided caveat has been revoked.
-func (r *RevocationManager) IsRevoked(caveatID security.ThirdPartyCaveatID) bool {
+// GetRevocationTimestamp returns the timestamp at which a caveat was revoked.
+// If the caveat wasn't revoked returns nil
+func (r *RevocationManager) GetRevocationTime(caveatID security.ThirdPartyCaveatID) *time.Time {
 	token, err := r.caveatMap.Get(hex.EncodeToString([]byte(caveatID)))
-	if err == nil {
-		return revocationMap.Exists(token)
+	if err != nil {
+		return nil
 	}
-	return false
+	timestamp, err := revocationMap.Get(token)
+	if err != nil {
+		return nil
+	}
+	unix_int, err := strconv.ParseInt(timestamp, 10, 64)
+	if err != nil {
+		return nil
+	}
+	revocationTime := time.Unix(unix_int, 0)
+	return &revocationTime
 }
 
 type revocationCaveat [16]byte
