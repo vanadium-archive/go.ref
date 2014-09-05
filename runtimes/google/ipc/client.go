@@ -8,7 +8,6 @@ import (
 
 	"veyron/runtimes/google/ipc/version"
 	inaming "veyron/runtimes/google/naming"
-	isecurity "veyron/runtimes/google/security"
 
 	"veyron2"
 	"veyron2/context"
@@ -183,13 +182,17 @@ func authorizeServer(client, server security.PublicID, opts []ipc.CallOpt) (secu
 	if server == nil {
 		return nil, fmt.Errorf("server identity cannot be nil")
 	}
-	// TODO(ataly,andreser): Check the third-party discharges the server presents
-	// TODO(ataly): What should the label be for the context? Typically the label is the security.Label
-	// of the method but we don't have that information here at the client.
-	authID, err := server.Authorize(isecurity.NewContext(isecurity.ContextArgs{
-		LocalID:  client,
-		RemoteID: server,
-	}))
+
+	// TODO(ataly): What should the label be for the context? Typically the label is the
+	// security.Label of the method but we don't have that information here at the client.
+	// TODO(ataly,andreser): Replace this statement with the commented code just below
+	// it once we have a mechanism for servers to send discharges for any third-party caveats
+	// on its PublicID.
+	authID, err := server, error(nil)
+	// authID, err := server.Authorize(isecurity.NewContext(isecurity.ContextArgs{
+	// 	LocalID:  client,
+	//	RemoteID: server,
+	// }))
 	if err != nil {
 		return nil, err
 	}

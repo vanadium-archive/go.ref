@@ -455,17 +455,18 @@ func TestStartCall(t *testing.T) {
 		nameErr      = "does not match the provided pattern"
 	)
 	var (
-		now        = time.Now()
-		cavOnlyV1  = caveat.UniversalCaveat(caveat.PeerIdentity{"client/v1"})
-		cavExpired = security.ServiceCaveat{
-			Service: security.AllPrincipals,
-			Caveat:  &caveat.Expiry{IssueTime: now, ExpiryTime: now},
-		}
-
-		clientV1ID      = derive(clientID, "v1")
-		clientV2ID      = derive(clientID, "v2")
-		serverV1ID      = derive(serverID, "v1", cavOnlyV1)
-		serverExpiredID = derive(serverID, "expired", cavExpired)
+	// TODO(ataly, ashankar): Uncomment the following once server authorization
+	// is enabled.
+	// now        = time.Now()
+	// cavOnlyV1  = caveat.UniversalCaveat(caveat.PeerIdentity{"client/v1"})
+	// cavExpired = security.ServiceCaveat{
+	//	Service: security.AllPrincipals,
+	//	Caveat:  &caveat.Expiry{IssueTime: now, ExpiryTime: now},
+	// }
+	// clientV1ID      = derive(clientID, "v1")
+	// clientV2ID      = derive(clientID, "v2")
+	// serverV1ID      = derive(serverID, "v1", cavOnlyV1)
+	// serverExpiredID = derive(serverID, "expired", cavExpired)
 	)
 
 	tests := []struct {
@@ -480,14 +481,16 @@ func TestStartCall(t *testing.T) {
 		{clientID, serverID, "server/v1", ""},
 		{clientID, serverID, "anotherServer", nameErr},
 
+		// TODO(ataly, ashankar): Uncomment the following once server authorization
+		// is enabled.
 		// All clients reject talking to a server with an expired identity.
-		{clientID, serverExpiredID, security.AllPrincipals, authorizeErr},
-		{clientV1ID, serverExpiredID, security.AllPrincipals, authorizeErr},
-		{clientV2ID, serverExpiredID, security.AllPrincipals, authorizeErr},
+		// {clientID, serverExpiredID, security.AllPrincipals, authorizeErr},
+		// {clientV1ID, serverExpiredID, security.AllPrincipals, authorizeErr},
+		// {clientV2ID, serverExpiredID, security.AllPrincipals, authorizeErr},
 
 		// Only clientV1 accepts talking to serverV1.
-		{clientV1ID, serverV1ID, security.AllPrincipals, ""},
-		{clientV2ID, serverV1ID, security.AllPrincipals, authorizeErr},
+		// {clientV1ID, serverV1ID, security.AllPrincipals, ""},
+		// {clientV2ID, serverV1ID, security.AllPrincipals, authorizeErr},
 	}
 	// Servers and clients will be created per-test, use the same stream manager and mounttable.
 	mgr := imanager.InternalNew(naming.FixedRoutingID(0x1111111))
