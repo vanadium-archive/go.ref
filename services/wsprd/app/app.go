@@ -648,3 +648,24 @@ func (c *Controller) HandleBlessing(data string, w lib.ClientWriter) {
 		return
 	}
 }
+
+func (c *Controller) HandleCreateIdentity(data string, w lib.ClientWriter) {
+	var name string
+	decoder := json.NewDecoder(bytes.NewBufferString(data))
+	if err := decoder.Decode(&name); err != nil {
+		w.Error(verror.Internalf("can't unmarshall message: %v", err))
+		return
+	}
+	id, err := c.rt.NewIdentity(name)
+	if err != nil {
+		w.Error(err)
+		return
+	}
+
+	publicID := id.PublicID()
+	jsID := &PublicIDHandle{Handle: c.idStore.Add(publicID), Names: publicID.Names()}
+	if err := w.Send(lib.ResponseFinal, jsID); err != nil {
+		w.Error(verror.Internalf("error marshalling results: %v", err))
+		return
+	}
+}
