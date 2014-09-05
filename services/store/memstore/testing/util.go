@@ -290,13 +290,24 @@ func ExpectEntryExists(t *testing.T, changes []types.Change, name string, id sto
 	}
 	cv, ok := change.Value.(*storage.Entry)
 	if !ok {
-		t.Fatal("Expected an Entry")
+		t.Fatalf("Expected an Entry")
 	}
 	if cv.Stat.ID != id {
 		t.Fatalf("Expected ID to be %v, but was: %v", id, cv.Stat.ID)
 	}
 	if cv.Value != value {
 		t.Fatalf("Expected Value to be %v, but was: %v", value, cv.Value)
+	}
+}
+
+func ExpectEntryExistsNameOnly(t *testing.T, changes []types.Change, name string) {
+	change := findEntry(t, changes, name)
+	if change.State != types.Exists {
+		t.Fatalf("Expected name to exist: %v", name)
+	}
+	_, ok := change.Value.(*storage.Entry)
+	if !ok {
+		t.Fatalf("Expected an Entry")
 	}
 }
 
@@ -306,34 +317,7 @@ func ExpectEntryDoesNotExist(t *testing.T, changes []types.Change, name string) 
 		t.Fatalf("Expected name to not exist: %v", name)
 	}
 	if change.Value != nil {
-		t.Fatal("Expected entry to be nil")
-	}
-}
-
-func ExpectServiceEntryExists(t *testing.T, changes []types.Change, name string, id storage.ID, value string) {
-	change := findEntry(t, changes, name)
-	if change.State != types.Exists {
-		t.Fatalf("Expected name to exist: %v", name)
-	}
-	cv, ok := change.Value.(*storage.Entry)
-	if !ok {
-		t.Fatal("Expected a service Entry")
-	}
-	if cv.Stat.ID != id {
-		t.Fatalf("Expected ID to be %v, but was: %v", id, cv.Stat.ID)
-	}
-	if cv.Value != value {
-		t.Fatalf("Expected Value to be %v, but was: %v", value, cv.Value)
-	}
-}
-
-func ExpectServiceEntryDoesNotExist(t *testing.T, changes []types.Change, name string) {
-	change := findEntry(t, changes, name)
-	if change.State != types.DoesNotExist {
-		t.Fatalf("Expected name to not exist: %v", name)
-	}
-	if change.Value != nil {
-		t.Fatal("Expected entry to be nil")
+		t.Fatalf("Expected entry to be nil")
 	}
 }
 
@@ -395,10 +379,10 @@ func ExpectMutationDoesNotExist(t *testing.T, changes []types.Change, id storage
 		t.Fatalf("Expected IsRoot to be: %v, but was: %v", isRoot, cv.IsRoot)
 	}
 	if cv.Value != nil {
-		t.Fatal("Expected Value to be nil")
+		t.Fatalf("Expected Value to be nil")
 	}
 	if cv.Dir != nil {
-		t.Fatal("Expected Dir to be nil")
+		t.Fatalf("Expected Dir to be nil")
 	}
 }
 
@@ -424,7 +408,7 @@ func findMutation(t *testing.T, changes []types.Change, id storage.ID) types.Cha
 	for _, change := range changes {
 		cv, ok := change.Value.(*raw.Mutation)
 		if !ok {
-			t.Fatal("Expected a Mutation")
+			t.Fatalf("Expected a Mutation")
 		}
 		if cv.ID == id {
 			return change

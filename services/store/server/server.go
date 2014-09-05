@@ -20,7 +20,6 @@ import (
 
 	"veyron2/ipc"
 	"veyron2/security"
-	"veyron2/services/store"
 	"veyron2/verror"
 )
 
@@ -34,6 +33,9 @@ const (
 
 var (
 	errNestedTransaction = verror.BadArgf("cannot create a nested Transaction")
+	// Triggers if client calls commit/abort on a name that's not part of a
+	// transaction.
+	errNoTransaction = verror.NotFoundf("no transaction")
 	// Note, this can happen e.g. due to expiration.
 	errTransactionDoesNotExist = verror.NotFoundf("transaction does not exist")
 	// Transaction exists, but may not be used by the caller.
@@ -116,6 +118,11 @@ func New(config ServerConfig) (*Server, error) {
 	}
 	s.pending.Add(1)
 	go s.gcLoop()
+	// Start with an empty directory at root.
+	rootDir := &thing{name: "", obj: s.store.Bind(""), tid: nullTransactionID, server: s}
+	if err := rootDir.makeInternal(config.Admin, nil); err != nil {
+		return nil, err
+	}
 	return s, nil
 }
 
@@ -186,6 +193,9 @@ func stripTransactionComponent(oname string) (string, transactionID, error) {
 	return oname[:begin] + oname[end:], transactionID(id), nil
 }
 
+// NOTE(sadovsky): The transaction's scope should be limited to oname's subtree
+// and its parent, but for now we expand it to the entire store (and don't use
+// oname below).
 func (s *Server) createTransaction(ctx transactionContext, oname string) (string, error) {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
@@ -198,12 +208,12 @@ func (s *Server) createTransaction(ctx transactionContext, oname string) (string
 			break
 		}
 	}
-	info := &transaction{
+	tdata := &transaction{
 		trans:      memstore.NewTransaction(),
 		expires:    time.Now().Add(transactionMaxLifetime),
 		creatorCtx: ctx,
 	}
-	s.transactions[id] = info
+	s.transactions[id] = tdata
 	return makeTransactionComponent(id), nil
 }
 
@@ -218,16 +228,16 @@ func (s *Server) findTransactionLocked(ctx transactionContext, id transactionID)
 	if id == nullTransactionID {
 		return nil, nil
 	}
-	info, ok := s.transactions[id]
+	tdata, ok := s.transactions[id]
 	if !ok {
 		return nil, errTransactionDoesNotExist
 	}
 	// A transaction may be used only by the session (and therefore client)
 	// that created it.
-	if !info.matchesContext(ctx) {
+	if !tdata.matchesContext(ctx) {
 		return nil, errPermissionDenied
 	}
-	return info.trans, nil
+	return tdata.trans, nil
 }
 
 // Commit commits the changes in the transaction to the store.  The
@@ -241,7 +251,7 @@ func (s *Server) commitTransaction(ctx transactionContext, id transactionID) err
 		return err
 	}
 	if t == nil {
-		return errTransactionDoesNotExist
+		return errNoTransaction
 	}
 	err = t.Commit()
 	delete(s.transactions, id)
@@ -260,7 +270,7 @@ func (s *Server) abortTransaction(ctx transactionContext, id transactionID) erro
 		return err
 	}
 	if t == nil {
-		return errTransactionDoesNotExist
+		return errNoTransaction
 	}
 	err = t.Abort()
 	delete(s.transactions, id)
@@ -300,9 +310,9 @@ func (s *Server) gcLoop() {
 
 		s.mutex.Lock()
 		now := time.Now()
-		for id, t := range s.transactions {
-			if now.After(t.expires) {
-				t.trans.Abort()
+		for id, tdata := range s.transactions {
+			if now.After(tdata.expires) {
+				tdata.trans.Abort()
 				delete(s.transactions, id)
 			}
 		}
@@ -341,27 +351,24 @@ func (d *storeDispatcher) Lookup(suffix, method string) (ipc.Invoker, security.A
 }
 
 func (d *storeDispatcher) lookupServer(suffix string) (interface{}, error) {
-	// Strip leading "/" if present so that server internals can reliably use
-	// naming.Join(suffix, "foo").
+	// Strip leading "/" if present so that server internals can assume a
+	// particular form.
 	suffix = strings.TrimPrefix(suffix, "/")
 	if strings.HasSuffix(suffix, raw.RawStoreSuffix) {
 		return raw.NewServerStore(d.s), nil
 	} else {
-		// TODO(sadovsky): Create Object, Transaction, and TransactionRoot stubs,
-		// merge them, and return the result. See TODO in
-		// veyron2/services/store/service.vdl.
-		o, err := d.s.lookupObject(suffix)
+		t, err := d.s.lookupThing(suffix)
 		if err != nil {
 			return nil, err
 		}
-		return store.NewServerObject(o), nil
+		return NewServerstoreThing(t), nil
 	}
 }
 
-func (s *Server) lookupObject(name string) (*object, error) {
-	oname, tid, err := stripTransactionComponent(name)
+func (s *Server) lookupThing(name string) (*thing, error) {
+	name, tid, err := stripTransactionComponent(name)
 	if err != nil {
 		return nil, err
 	}
-	return &object{name: oname, obj: s.store.Bind(oname), tid: tid, server: s}, nil
+	return &thing{name: name, obj: s.store.Bind(name), tid: tid, server: s}, nil
 }
