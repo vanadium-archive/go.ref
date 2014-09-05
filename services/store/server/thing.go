@@ -283,6 +283,94 @@ func (t *thing) Abort(ctx ipc.ServerContext) error {
 }
 
 ////////////////////////////////////////
+// SyncGroup methods.
+// See veyron2/services/store/service.vdl for detailed comments.
+// TODO(hpucha): Actually implement these methods.
+
+// GetSyncGroupNames returns the global names of all SyncGroups attached
+// to this directory.
+func (t *thing) GetSyncGroupNames(ctx ipc.ServerContext) (names []string, err error) {
+	return nil, verror.Internalf("GetSyncGroupNames not yet implemented")
+}
+
+// CreateSyncGroup creates a new SyncGroup.
+func (t *thing) CreateSyncGroup(ctx ipc.ServerContext, name string, config store.SyncGroupConfig) error {
+	// One approach is that all syncgroup operations are
+	// serialized with a single lock. This enables easily checking
+	// nesting of syncgroups.
+
+	// sgop.Lock(), defer sgop.Unlock()
+	// acl check
+	// sanity checks
+	//      sgname in the dir does not exist
+	//      syncgroup is not nested
+	// call syncd
+	// if err != nil return err
+	// update dir->sgname mapping
+
+	return verror.Internalf("CreateSyncGroup not yet implemented")
+}
+
+// JoinSyncGroup joins a SyncGroup with the specified global Veyron name.
+func (t *thing) JoinSyncGroup(ctx ipc.ServerContext, name string) error {
+	// sgop.Lock(), defer sgop.Unlock()
+	// acl check (parentdir or dir)
+	// sanity checks
+	//      if dir exists
+	//        sgname in the dir does not exist
+	//      syncgroup is not nested
+	// call syncd
+	// if err != nil return err
+	// if err == nil && rootoid does not exist && dir does not exist
+	//      mkdir(rootoid) and setacl
+	//      update dir->sgname mapping
+	// if err == nil && rootoid exists && dir exists && oid(dir) == rootoid
+	//      update dir->sgname mapping
+	// All other cases are error, call syncd.leave(sg) and return err
+
+	return verror.Internalf("JoinSyncGroup not yet implemented")
+}
+
+// LeaveSyncGroup leaves the SyncGroup.
+func (t *thing) LeaveSyncGroup(ctx ipc.ServerContext, name string) error {
+	// sgop.Lock(), defer sgop.Unlock()
+	// acl check
+	// sanity checks (sgname in the dir exists)
+	// call syncd
+	// if err != nil return err
+	// update dir->sgname mapping
+	// if sglist in dir is empty, rewrite oids.
+
+	return verror.Internalf("LeaveSyncGroup not yet implemented")
+}
+
+// DestroySyncGroup destroys the SyncGroup.
+func (t *thing) DestroySyncGroup(ctx ipc.ServerContext, name string) error {
+	return verror.Internalf("DestroySyncGroup not yet implemented")
+}
+
+// EjectFromSyncGroup ejects a member from the SyncGroup.
+func (t *thing) EjectFromSyncGroup(ctx ipc.ServerContext, name, member string) error {
+	return verror.Internalf("EjectFromSyncGroup not yet implemented")
+}
+
+// GetSyncGroupConfig gets the config info of the SyncGroup.
+func (t *thing) GetSyncGroupConfig(ctx ipc.ServerContext, name string) (config store.SyncGroupConfig, eTag string, err error) {
+	return store.SyncGroupConfig{}, "", verror.Internalf("GetSyncGroupConfig not yet implemented")
+}
+
+// SetSyncGroupConfig sets the config info of the SyncGroup.
+func (t *thing) SetSyncGroupConfig(ctx ipc.ServerContext, name string, config store.SyncGroupConfig, eTag string) error {
+	return verror.Internalf("SetSyncGroupConfig not yet implemented")
+}
+
+// GetMembersOfSyncGroup gets the Veyron names of the Stores that joined
+// this SyncGroup.
+func (t *thing) GetMembersOfSyncGroup(ctx ipc.ServerContext, name string) ([]string, error) {
+	return nil, verror.Internalf("GetMembersOfSyncGroup not yet implemented")
+}
+
+////////////////////////////////////////
 // Internals
 
 type globStreamSenderAdapter struct {
