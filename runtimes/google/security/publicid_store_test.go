@@ -1,7 +1,6 @@
 package security
 
 import (
-	"crypto/ecdsa"
 	"io/ioutil"
 	"os"
 	"reflect"
@@ -13,7 +12,7 @@ import (
 // verifyNamesAndPublicKey checks that the provided id has exactly the provided
 // set of names and the provided public key. If the provided set is empty then
 // the provided error must be errNoMatchingIDs.
-func verifyNamesAndPublicKey(id security.PublicID, err error, names []string, pkey *ecdsa.PublicKey) bool {
+func verifyNamesAndPublicKey(id security.PublicID, err error, names []string, pkey security.PublicKey) bool {
 	if id == nil {
 		return err == errNoMatchingIDs && len(names) == 0
 	}

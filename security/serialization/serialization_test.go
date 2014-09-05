@@ -43,7 +43,7 @@ func signingWrite(d, s io.WriteCloser, signer security.Signer, writeList [][]byt
 	return nil
 }
 
-func verifyingRead(d, s io.Reader, key *ecdsa.PublicKey) ([]byte, error) {
+func verifyingRead(d, s io.Reader, key security.PublicKey) ([]byte, error) {
 	vr, err := NewVerifyingReader(d, s, key)
 	if err != nil {
 		return nil, fmt.Errorf("NewVerifyingReader failed: %s", err)
@@ -123,7 +123,7 @@ func TestIntegrityAndAuthenticity(t *testing.T) {
 	// to the signer causes a verifyingRead to fail.
 	testdata := []struct {
 		dataBytes, sigBytes []byte
-		key                 *ecdsa.PublicKey
+		key                 security.PublicKey
 		wantErr             string
 	}{
 		{dataBytes, sigBytes, signer.PublicKey(), ""},

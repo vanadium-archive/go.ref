@@ -2,7 +2,9 @@ package security
 
 import (
 	"bytes"
+	"crypto/elliptic"
 	"fmt"
+	"math/big"
 	"reflect"
 	"sort"
 	"testing"
@@ -177,12 +179,15 @@ func TestExpiredIdentityInSet(t *testing.T) {
 
 func TestTamperedIdentityChain(t *testing.T) {
 	alice := newChain("alice").PublicID().(*chainPublicID)
-	// Tamper with the alice's public key
 	nCerts := len(alice.certificates)
-	pKey, _ := alice.certificates[nCerts-1].PublicKey.Decode()
-	pKey.Y.SetInt64(1)
-	if err := alice.certificates[nCerts-1].PublicKey.Encode(pKey); err != nil {
-		t.Fatalf("Failed publicKey.Encode:%v", err)
+	// Tamper with alice's public key, in a way that it can be decoded into a valid key,
+	// just different from what was originally encoded.
+	xy := alice.certificates[nCerts-1].PublicKey.XY
+	x, y := elliptic.Unmarshal(elliptic.P256(), xy)
+	y = y.Add(y, big.NewInt(1))
+	alice.certificates[nCerts-1].PublicKey.XY = elliptic.Marshal(elliptic.P256(), x, y)
+	if _, err := alice.certificates[nCerts-1].PublicKey.Decode(); err != nil {
+		t.Fatal(err)
 	}
 	if _, err := roundTrip(alice); err != wire.ErrNoIntegrity {
 		t.Errorf("Got %v want %v from roundTrip(%v)", err, wire.ErrNoIntegrity, alice)

@@ -5,7 +5,6 @@ import (
 	"crypto/elliptic"
 	"crypto/rand"
 	"crypto/sha256"
-	"math/big"
 	"testing"
 )
 
@@ -29,7 +28,7 @@ func TestSigner(t *testing.T) {
 			t.Errorf("Sign(%q) returned err: %q, expected success.", d, err)
 			continue
 		}
-		if !ecdsa.Verify(signer.PublicKey(), hash[:], new(big.Int).SetBytes(sig.R), new(big.Int).SetBytes(sig.S)) {
+		if !sig.Verify(signer.PublicKey(), hash[:]) {
 			t.Errorf("Sign(%q) signature couldn't be verified.", d)
 		}
 	}

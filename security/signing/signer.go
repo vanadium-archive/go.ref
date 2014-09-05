@@ -11,11 +11,12 @@ import (
 // This private key is kept in the clear in the memory of the running process.
 // No hashing is applied prior to signing.
 func NewClearSigner(key *ecdsa.PrivateKey) security.Signer {
-	return &clearSigner{key}
+	return &clearSigner{key, security.NewECDSAPublicKey(&key.PublicKey)}
 }
 
 type clearSigner struct {
-	key *ecdsa.PrivateKey
+	key    *ecdsa.PrivateKey
+	pubkey security.PublicKey
 }
 
 func (c *clearSigner) Sign(message []byte) (sig security.Signature, err error) {
@@ -28,6 +29,6 @@ func (c *clearSigner) Sign(message []byte) (sig security.Signature, err error) {
 	return
 }
 
-func (c *clearSigner) PublicKey() *ecdsa.PublicKey {
-	return &c.key.PublicKey
+func (c *clearSigner) PublicKey() security.PublicKey {
+	return c.pubkey
 }

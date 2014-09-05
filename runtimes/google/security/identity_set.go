@@ -1,7 +1,6 @@
 package security
 
 import (
-	"crypto/ecdsa"
 	"errors"
 	"fmt"
 	"reflect"
@@ -52,7 +51,7 @@ func (s *setPublicID) Names() []string {
 	return names
 }
 
-func (s *setPublicID) PublicKey() *ecdsa.PublicKey {
+func (s *setPublicID) PublicKey() security.PublicKey {
 	return (*s)[0].PublicKey()
 }
 
@@ -158,7 +157,7 @@ func (s setPrivateID) PublicID() security.PublicID {
 
 func (s setPrivateID) Sign(message []byte) (security.Signature, error) { return s[0].Sign(message) }
 
-func (s setPrivateID) PublicKey() *ecdsa.PublicKey { return s[0].PublicKey() }
+func (s setPrivateID) PublicKey() security.PublicKey { return s[0].PublicKey() }
 
 func (s setPrivateID) Bless(blessee security.PublicID, blessingName string, duration time.Duration, caveats []security.ServiceCaveat) (security.PublicID, error) {
 	pubs := make([]security.PublicID, len(s))

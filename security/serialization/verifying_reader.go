@@ -2,7 +2,6 @@ package serialization
 
 import (
 	"bytes"
-	"crypto/ecdsa"
 	"crypto/sha256"
 	"encoding/binary"
 	"errors"
@@ -44,7 +43,7 @@ func (r *verifyingReader) Read(p []byte) (int, error) {
 // by Read calls was written using a NewSigningWriter (by a principal possessing
 // a signer corresponding to the provided public key), and has not been modified
 // since (ensuring integrity and authenticity of data).
-func NewVerifyingReader(data, signature io.Reader, key *ecdsa.PublicKey) (io.Reader, error) {
+func NewVerifyingReader(data, signature io.Reader, key security.PublicKey) (io.Reader, error) {
 	if (data == nil) && (signature == nil) {
 		return nil, nil
 	}
@@ -79,7 +78,7 @@ func (r *verifyingReader) readChunk() error {
 	return nil
 }
 
-func (r *verifyingReader) verifySignature(signature io.Reader, key *ecdsa.PublicKey) error {
+func (r *verifyingReader) verifySignature(signature io.Reader, key security.PublicKey) error {
 	dec := vom.NewDecoder(signature)
 	signatureHash := sha256.New()
 

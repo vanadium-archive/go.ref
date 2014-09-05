@@ -1,13 +1,8 @@
 package googleoauth
 
-import (
-	"crypto/ecdsa"
-	"crypto/md5"
-	"crypto/x509"
-	"html/template"
-)
+import "html/template"
 
-var tmpl = template.Must(template.New("auditor").Funcs(tmplFuncMap()).Parse(`<!doctype html>
+var tmpl = template.Must(template.New("auditor").Parse(`<!doctype html>
 <html>
 <head>
 <meta charset="UTF-8">
@@ -94,7 +89,7 @@ function failMessage(revokeButton) {
 <td>{{.Blessed}}</td>
 <td><div class="unixtime" data-unixtime={{.Start.Unix}}>{{.Start.String}}</div></td>
 <td><div class="unixtime" data-unixtime={{.End.Unix}}>{{.End.String}}</div></td>
-<td>{{publicKeyHash .Blessee.PublicKey}}</td>
+<td>{{.Blessee.PublicKey}}</td>
 <td>
 {{if .RevocationCaveatID}}
   {{ if .RevocationTime.IsZero }}
@@ -116,31 +111,3 @@ function failMessage(revokeButton) {
 </div>
 </body>
 </html>`))
-
-func tmplFuncMap() template.FuncMap {
-	m := make(template.FuncMap)
-	m["publicKeyHash"] = publicKeyHash
-	return m
-}
-
-// publicKeyHash returns a human-readable representation of a public key.
-// The returned representation is similar to what SSH uses when prompting
-// about new hosts (it's the hash of the key).
-//
-// TODO(ashankar): Might be nice for this representation to be used in other
-// places like the "identity" command line tool.
-func publicKeyHash(key *ecdsa.PublicKey) string {
-	const hextable = "0123456789abcdef"
-	bytes, err := x509.MarshalPKIXPublicKey(key)
-	if err != nil {
-		return err.Error()
-	}
-	hash := md5.Sum(bytes)
-	var repr [md5.Size * 3]byte
-	for i, v := range hash {
-		repr[i*3] = hextable[v>>4]
-		repr[i*3+1] = hextable[v&0x0f]
-		repr[i*3+2] = ':'
-	}
-	return string(repr[:len(repr)-1])
-}

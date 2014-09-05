@@ -36,8 +36,8 @@ type chainPublicID struct {
 	certificates []wire.Certificate
 
 	// Fields derived from certificates in VomDecode
-	publicKey *ecdsa.PublicKey
-	rootKey   *ecdsa.PublicKey
+	publicKey security.PublicKey
+	rootKey   security.PublicKey
 	name      string
 }
 
@@ -49,7 +49,7 @@ func (id *chainPublicID) Names() []string {
 	return nil
 }
 
-func (id *chainPublicID) PublicKey() *ecdsa.PublicKey { return id.publicKey }
+func (id *chainPublicID) PublicKey() security.PublicKey { return id.publicKey }
 
 func (id *chainPublicID) String() string {
 	// Add a prefix if the identity provider is not trusted.
@@ -135,7 +135,7 @@ func (id *chainPrivateID) VomDecode(w *wire.ChainPrivateID) error {
 		return err
 	}
 	id.privateKey = &ecdsa.PrivateKey{
-		PublicKey: *id.publicID.publicKey,
+		PublicKey: *id.publicID.publicKey.DO_NOT_USE(),
 		D:         new(big.Int).SetBytes(w.Secret),
 	}
 	id.Signer = signing.NewClearSigner(id.privateKey)

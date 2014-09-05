@@ -1,7 +1,6 @@
 package audit
 
 import (
-	"crypto/ecdsa"
 	"fmt"
 	"time"
 
@@ -30,7 +29,7 @@ func (id *auditingID) Sign(message []byte) (security.Signature, error) {
 	return sig, nil
 }
 
-func (id *auditingID) PublicKey() *ecdsa.PublicKey {
+func (id *auditingID) PublicKey() security.PublicKey {
 	return id.id.PublicKey()
 }
 

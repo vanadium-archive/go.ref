@@ -8,14 +8,16 @@ import (
 	"fmt"
 	"strings"
 	"testing"
+
+	"veyron2/security"
 )
 
-func mkkey() *ecdsa.PublicKey {
+func mkkey() security.PublicKey {
 	s, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	if err != nil {
 		panic(err)
 	}
-	return &s.PublicKey
+	return security.NewECDSAPublicKey(&s.PublicKey)
 }
 
 func TestTrustedKeys(t *testing.T) {

@@ -55,9 +55,7 @@ implies the identity encoded in the environment.
 			}
 			fmt.Println("Name     : ", id.PublicID())
 			fmt.Printf("Go Type  : %T\n", id)
-			fmt.Println("PublicKey: <Cannot print the elliptic curve>")
-			fmt.Println("        X: ", id.PublicID().PublicKey().X)
-			fmt.Println("        Y: ", id.PublicID().PublicKey().Y)
+			fmt.Printf("PublicKey: %v\n", id.PublicID().PublicKey())
 			fmt.Println("Any caveats in the identity are not printed")
 			return nil
 		},

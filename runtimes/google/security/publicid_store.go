@@ -1,7 +1,6 @@
 package security
 
 import (
-	"crypto/ecdsa"
 	"errors"
 	"fmt"
 	"os"
@@ -49,7 +48,7 @@ type persistentState struct {
 // publicIDStore implements security.PublicIDStore.
 type publicIDStore struct {
 	state     persistentState
-	publicKey *ecdsa.PublicKey
+	publicKey security.PublicKey
 	params    *PublicIDStoreParams
 	mu        sync.RWMutex
 }

@@ -120,14 +120,14 @@ func TestUnauditedMethods(t *testing.T) {
 		mockAuditor = new(mockAuditor)
 		id          = audit.NewPrivateID(mockID, mockAuditor)
 		key, err    = ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+		pubkey      = security.NewECDSAPublicKey(&key.PublicKey)
 		emptyEntry  audit.Entry
 	)
 	if err != nil {
 		t.Fatal(err)
 	}
-
-	mockID.NextResult = &key.PublicKey
-	if got, want := id.PublicKey(), &key.PublicKey; got != want {
+	mockID.NextResult = pubkey
+	if got, want := id.PublicKey(), pubkey; got != want {
 		t.Errorf("Got %v want %v", got, want)
 	}
 	if entry := mockAuditor.Release(); !reflect.DeepEqual(entry, emptyEntry) {
@@ -211,7 +211,7 @@ func (id *mockID) reset() {
 	id.NextResult = nil
 }
 
-func (id *mockID) PublicKey() *ecdsa.PublicKey { return id.NextResult.(*ecdsa.PublicKey) }
+func (id *mockID) PublicKey() security.PublicKey { return id.NextResult.(security.PublicKey) }
 
 type mockAuditor struct {
 	LastEntry audit.Entry

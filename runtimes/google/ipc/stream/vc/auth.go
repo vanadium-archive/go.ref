@@ -2,7 +2,6 @@ package vc
 
 import (
 	"bytes"
-	"crypto/ecdsa"
 	"errors"
 	"fmt"
 	"io"
@@ -83,7 +82,10 @@ var (
 
 func writeIdentity(w io.Writer, chEnd string, contextTag []byte, crypter crypto.Crypter, id LocalID, pub security.PublicID, v version.IPCVersion) error {
 	// TODO(ashankar): Remove references to protocol V1 and V2 before release
-	if v == version.IPCVersion1 || v == version.IPCVersion2 {
+	if v != version.UnknownIPCVersion && v < version.IPCVersion2 {
+		return fmt.Errorf("cannot authenticate with deprecated RPC protocol version(%v)", v)
+	}
+	if v == version.IPCVersion2 {
 		// Compute channel id - encrypted chEnd string
 		chid, err := crypter.Encrypt(iobuf.NewSlice([]byte(chEnd)))
 		if err != nil {
@@ -111,30 +113,16 @@ func writeIdentity(w io.Writer, chEnd string, contextTag []byte, crypter crypto.
 			ID:        eid.Contents,
 			ChannelID: chid.Contents,
 		}
-		if v == version.IPCVersion1 {
-			er, err := crypter.Encrypt(iobuf.NewSlice(signature.R))
-			if err != nil {
-				return err
-			}
-			defer er.Release()
-			es, err := crypter.Encrypt(iobuf.NewSlice(signature.S))
-			if err != nil {
-				return err
-			}
-			defer es.Release()
-			msg.SignR, msg.SignS = er.Contents, es.Contents
-		} else { // v == version.IPCVersion2
-			buf = bytes.Buffer{}
-			if err := vom.NewEncoder(&buf).Encode(signature); err != nil {
-				return err
-			}
-			esig, err := crypter.Encrypt(iobuf.NewSlice(buf.Bytes()))
-			if err != nil {
-				return err
-			}
-			defer esig.Release()
-			msg.Signature = esig.Contents
+		buf = bytes.Buffer{}
+		if err := vom.NewEncoder(&buf).Encode(signature); err != nil {
+			return err
 		}
+		esig, err := crypter.Encrypt(iobuf.NewSlice(buf.Bytes()))
+		if err != nil {
+			return err
+		}
+		defer esig.Release()
+		msg.Signature = esig.Contents
 		// Write the message out.
 		return vom.NewEncoder(w).Encode(msg)
 	}
@@ -160,7 +148,10 @@ func writeIdentity(w io.Writer, chEnd string, contextTag []byte, crypter crypto.
 }
 
 func readIdentity(reader io.Reader, expectedChEnd string, contextTag []byte, crypter crypto.Crypter, v version.IPCVersion) (security.PublicID, error) {
-	if v == version.IPCVersion1 || v == version.IPCVersion2 {
+	if v != version.UnknownIPCVersion && v < version.IPCVersion2 {
+		return nil, fmt.Errorf("cannot authenticate with deprecated RPC protocol version(%v)", v)
+	}
+	if v == version.IPCVersion2 {
 		// Read the message.
 		var msg identityMessage
 		if err := vom.NewDecoder(reader).Decode(&msg); err != nil {
@@ -192,34 +183,18 @@ func readIdentity(reader io.Reader, expectedChEnd string, contextTag []byte, cry
 		}
 
 		// Decrypt the signature
-		if v == version.IPCVersion1 {
-			r, err := crypter.Decrypt(iobuf.NewSlice(msg.SignR))
-			if err != nil {
-				return nil, fmt.Errorf("failed to decrypt SignR: %v", err)
-			}
-			defer r.Release()
-			s, err := crypter.Decrypt(iobuf.NewSlice(msg.SignS))
-			if err != nil {
-				return nil, fmt.Errorf("failed to decrypt SignS: %v", err)
-			}
-			defer s.Release()
-			if !ecdsa.Verify(id.PublicKey(), msg.ChannelID, bigInt(r), bigInt(s)) {
-				return nil, errInvalidSignatureInMessage
-			}
-		} else {
-			sigbytes, err := crypter.Decrypt(iobuf.NewSlice(msg.Signature))
-			if err != nil {
-				return nil, fmt.Errorf("failed to decrypt Signature: %v", err)
-			}
-			defer sigbytes.Release()
-			var sig security.Signature
-			if err = vom.NewDecoder(bytes.NewBuffer(sigbytes.Contents)).Decode(&sig); err != nil {
-				return nil, fmt.Errorf("failed to decode security.Signature: %v", err)
-			}
-			// Validate the signature
-			if !sig.Verify(id.PublicKey(), msg.ChannelID) {
-				return nil, errInvalidSignatureInMessage
-			}
+		sigbytes, err := crypter.Decrypt(iobuf.NewSlice(msg.Signature))
+		if err != nil {
+			return nil, fmt.Errorf("failed to decrypt Signature: %v", err)
+		}
+		defer sigbytes.Release()
+		var sig security.Signature
+		if err = vom.NewDecoder(bytes.NewBuffer(sigbytes.Contents)).Decode(&sig); err != nil {
+			return nil, fmt.Errorf("failed to decode security.Signature: %v", err)
+		}
+		// Validate the signature
+		if !sig.Verify(id.PublicKey(), msg.ChannelID) {
+			return nil, errInvalidSignatureInMessage
 		}
 		return id, nil
 	}
