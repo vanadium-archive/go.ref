@@ -1,7 +1,6 @@
 package caveat
 
 import (
-	"crypto/ecdsa"
 	"crypto/rand"
 	"crypto/sha256"
 	"encoding/binary"
@@ -143,7 +142,7 @@ func (d *publicKeyDischarge) contentHash() []byte {
 // discharge from a principal identified by the public key 'key' and present
 // at the object name 'location'. This discharging principal is expected to
 // validate 'caveat' before issuing a discharge.
-func NewPublicKeyCaveat(caveat security.Caveat, key *ecdsa.PublicKey, location string, requirements security.ThirdPartyRequirements) (security.ThirdPartyCaveat, error) {
+func NewPublicKeyCaveat(caveat security.Caveat, key security.PublicKey, location string, requirements security.ThirdPartyRequirements) (security.ThirdPartyCaveat, error) {
 	nonce := make([]uint8, nonceLength)
 	if _, err := rand.Read(nonce); err != nil {
 		return nil, err
