@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"veyron/runtimes/google/security/keys"
+	vsecurity "veyron/security"
 	"veyron/security/caveat"
 	"veyron/security/signing"
 
@@ -30,6 +31,10 @@ const (
 	// not exist in the (non-empty) set of trusted keys for that root.
 	mistrustedIDProviderPrefix = "mistrusted/"
 )
+
+func errAuthorize(err error) error {
+	return fmt.Errorf("not authorized because: %v", err)
+}
 
 // chainPublicID implements security.PublicID.
 type chainPublicID struct {
@@ -92,18 +97,27 @@ func (id *chainPublicID) VomDecode(w *wire.ChainPublicID) error {
 // PublicID and hence has integrity.
 func (id *chainPublicID) Authorize(context security.Context) (security.PublicID, error) {
 	for _, c := range id.certificates {
-		if err := c.ValidateCaveats(context); err != nil {
-			return nil, fmt.Errorf("not authorized because %v", err)
+		for _, cav := range c.Caveats {
+			v, err := vsecurity.CaveatValidators(cav.Bytes)
+			if err != nil {
+				return nil, errAuthorize(err)
+			}
+			if err := v[0].Validate(context); err != nil {
+				return nil, errAuthorize(err)
+			}
 		}
 	}
 	return id, nil
 }
 
-func (id *chainPublicID) ThirdPartyCaveats() (thirdPartyCaveats []security.ServiceCaveat) {
+func (id *chainPublicID) ThirdPartyCaveats() []security.ThirdPartyCaveat {
+	var tpCaveats []security.ThirdPartyCaveat
 	for _, c := range id.certificates {
-		thirdPartyCaveats = append(thirdPartyCaveats, wire.DecodeThirdPartyCaveats(c.Caveats)...)
+		for _, cav := range c.Caveats {
+			tpCaveats = append(tpCaveats, vsecurity.ThirdPartyCaveats(cav.Bytes)...)
+		}
 	}
-	return
+	return tpCaveats
 }
 
 // chainPrivateID implements security.PrivateID
@@ -145,26 +159,35 @@ func (id *chainPrivateID) VomDecode(w *wire.ChainPrivateID) error {
 // Bless returns a new PublicID by extending the ceritificate chain of the PrivateID's
 // PublicID with a new certificate that has the provided blessingName, caveats, and an
 // additional expiry caveat for the given duration.
-func (id *chainPrivateID) Bless(blessee security.PublicID, blessingName string, duration time.Duration, caveats []security.ServiceCaveat) (security.PublicID, error) {
+func (id *chainPrivateID) Bless(blessee security.PublicID, blessingName string, duration time.Duration, caveats []security.Caveat) (security.PublicID, error) {
 	// The integrity of the PublicID blessee is assumed to have been verified
 	// (typically by a Vom decode).
 	if err := wire.ValidateBlessingName(blessingName); err != nil {
 		return nil, err
 	}
+
 	cert := wire.Certificate{Name: blessingName}
 	if err := cert.PublicKey.Encode(blessee.PublicKey()); err != nil {
 		return nil, err
 	}
+
 	now := time.Now()
-	caveats = append(caveats, caveat.UniversalCaveat(&caveat.Expiry{IssueTime: now, ExpiryTime: now.Add(duration)}))
-	var err error
-	if cert.Caveats, err = wire.EncodeCaveats(caveats); err != nil {
+	expiryCaveat, err := security.NewCaveat(&caveat.Expiry{IssueTime: now, ExpiryTime: now.Add(duration)})
+	if err != nil {
 		return nil, err
 	}
+	caveats = append(caveats, expiryCaveat)
+
+	cert.Caveats = make([]wire.Caveat, len(caveats))
+	for i, c := range caveats {
+		cert.Caveats[i] = wire.Caveat{Bytes: vsecurity.CaveatBytes(c)[0]}
+	}
+
 	vomPubID, err := id.publicID.VomEncode()
 	if err != nil {
 		return nil, err
 	}
+
 	if err := cert.Sign(id, vomPubID); err != nil {
 		return nil, err
 	}
@@ -204,7 +227,7 @@ func (id *chainPrivateID) Derive(pub security.PublicID) (security.PrivateID, err
 	}
 }
 
-func (id *chainPrivateID) MintDischarge(cav security.ThirdPartyCaveat, ctx security.Context, duration time.Duration, dischargeCaveats []security.ServiceCaveat) (security.ThirdPartyDischarge, error) {
+func (id *chainPrivateID) MintDischarge(cav security.ThirdPartyCaveat, ctx security.Context, duration time.Duration, dischargeCaveats []security.Caveat) (security.Discharge, error) {
 	return caveat.NewPublicKeyDischarge(id, cav, ctx, duration, dischargeCaveats)
 }
 

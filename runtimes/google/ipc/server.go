@@ -379,7 +379,7 @@ type flowServer struct {
 	blessing           security.PublicID
 	method, suffix     string
 	label              security.Label
-	discharges         security.CaveatDischargeMap
+	discharges         map[string]security.Discharge
 	deadline           time.Time
 	endStreamArgs      bool // are the stream args at EOF?
 }
@@ -395,7 +395,7 @@ func newFlowServer(flow stream.Flow, server *server) *flowServer {
 		dec:        vom.NewDecoder(flow),
 		enc:        vom.NewEncoder(flow),
 		flow:       flow,
-		discharges: make(security.CaveatDischargeMap),
+		discharges: make(map[string]security.Discharge),
 	}
 }
 
@@ -529,11 +529,11 @@ func (fs *flowServer) processRequest() ([]interface{}, verror.E) {
 	}
 	// Receive third party caveat discharges the client sent
 	for i := uint64(0); i < req.NumDischarges; i++ {
-		var d security.ThirdPartyDischarge
+		var d security.Discharge
 		if err := fs.dec.Decode(&d); err != nil {
 			return nil, verror.BadProtocolf("ipc: decoding discharge %d of %d failed: %v", i, req.NumDischarges, err)
 		}
-		fs.discharges[d.CaveatID()] = d
+		fs.discharges[d.ID()] = d
 	}
 	// Lookup the invoker.
 	invoker, auth, suffix, verr := fs.lookup(req.Suffix, req.Method)
@@ -642,7 +642,7 @@ func (fs *flowServer) Recv(itemptr interface{}) error {
 
 // Implementations of ipc.ServerContext methods.
 
-func (fs *flowServer) CaveatDischarges() security.CaveatDischargeMap { return fs.discharges }
+func (fs *flowServer) Discharges() map[string]security.Discharge { return fs.discharges }
 
 func (fs *flowServer) Server() ipc.Server { return fs.server }
 func (fs *flowServer) Method() string     { return fs.method }

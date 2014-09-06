@@ -24,15 +24,15 @@ type context struct {
 	method                        string
 }
 
-func (c *context) Method() string                                { return c.method }
-func (c *context) Name() string                                  { return "some_name" }
-func (c *context) Suffix() string                                { return "some_suffix" }
-func (c *context) Label() security.Label                         { return security.AdminLabel }
-func (c *context) CaveatDischarges() security.CaveatDischargeMap { return nil }
-func (c *context) LocalID() security.PublicID                    { return c.local }
-func (c *context) RemoteID() security.PublicID                   { return c.remote }
-func (c *context) LocalEndpoint() naming.Endpoint                { return &c.localEndpoint }
-func (c *context) RemoteEndpoint() naming.Endpoint               { return &c.remoteEndpoint }
+func (c *context) Method() string                            { return c.method }
+func (c *context) Name() string                              { return "some_name" }
+func (c *context) Suffix() string                            { return "some_suffix" }
+func (c *context) Label() security.Label                     { return security.AdminLabel }
+func (c *context) Discharges() map[string]security.Discharge { return nil }
+func (c *context) LocalID() security.PublicID                { return c.local }
+func (c *context) RemoteID() security.PublicID               { return c.remote }
+func (c *context) LocalEndpoint() naming.Endpoint            { return &c.localEndpoint }
+func (c *context) RemoteEndpoint() naming.Endpoint           { return &c.remoteEndpoint }
 
 func TestCaveats(t *testing.T) {
 	var (
@@ -41,7 +41,7 @@ func TestCaveats(t *testing.T) {
 	)
 	now := time.Now()
 	tests := []struct {
-		c  security.Caveat
+		c  security.CaveatValidator
 		ok bool
 	}{
 		{&caveat.Expiry{IssueTime: now, ExpiryTime: now.Add(time.Hour)}, true},
@@ -51,10 +51,10 @@ func TestCaveats(t *testing.T) {
 		{caveat.NetworkType("tcp"), true},
 		{caveat.MethodRestriction{"Pause", "Play"}, true},
 		{caveat.MethodRestriction{"List"}, false},
-		{caveat.PeerIdentity(nil), false},
-		{caveat.PeerIdentity{"fake/alice"}, true},
-		{caveat.PeerIdentity{"fake/carol"}, false},
-		{caveat.PeerIdentity{"fake/alice", "fake/carol"}, true},
+		{caveat.PeerBlessings(nil), false},
+		{caveat.PeerBlessings{"fake/alice"}, true},
+		{caveat.PeerBlessings{"fake/carol"}, false},
+		{caveat.PeerBlessings{"fake/alice", "fake/carol"}, true},
 	}
 	ctx := &context{local: alice, remote: bob, method: "Play", remoteEndpoint: endpoint{addr: &net.TCPAddr{}}}
 	for _, test := range tests {

@@ -31,8 +31,11 @@ func (r *RevocationManager) NewCaveat(dischargerID security.PublicID, discharger
 	if _, err := rand.Read(revocation[:]); err != nil {
 		return nil, err
 	}
-	restriction := revocationCaveat(revocation)
-	cav, err := caveat.NewPublicKeyCaveat(restriction, dischargerID, dischargerLocation, security.ThirdPartyRequirements{})
+	restriction, err := security.NewCaveat(revocationCaveat(revocation))
+	if err != nil {
+		return nil, err
+	}
+	cav, err := caveat.NewPublicKeyCaveat(restriction, dischargerID.PublicKey(), dischargerLocation, security.ThirdPartyRequirements{})
 	if err != nil {
 		return nil, err
 	}
@@ -43,7 +46,7 @@ func (r *RevocationManager) NewCaveat(dischargerID security.PublicID, discharger
 }
 
 // Revoke disables discharges from being issued for the provided third-party caveat.
-func (r *RevocationManager) Revoke(caveatID security.ThirdPartyCaveatID) error {
+func (r *RevocationManager) Revoke(caveatID string) error {
 	token, err := r.caveatMap.Get(hex.EncodeToString([]byte(caveatID)))
 	if err != nil {
 		return err
@@ -53,7 +56,7 @@ func (r *RevocationManager) Revoke(caveatID security.ThirdPartyCaveatID) error {
 
 // GetRevocationTimestamp returns the timestamp at which a caveat was revoked.
 // If the caveat wasn't revoked returns nil
-func (r *RevocationManager) GetRevocationTime(caveatID security.ThirdPartyCaveatID) *time.Time {
+func (r *RevocationManager) GetRevocationTime(caveatID string) *time.Time {
 	token, err := r.caveatMap.Get(hex.EncodeToString([]byte(caveatID)))
 	if err != nil {
 		return nil

@@ -177,7 +177,7 @@ package main
 // 			context.RemoteID(),
 // 			fmt.Sprintf("%d", randID),
 // 			BLESS_DURATION,
-// 			[]security.ServiceCaveat{security.UniversalCaveat(caveat.PeerIdentity{pp})},
+// 			[]security.ServiceCaveat{security.UniversalCaveat(caveat.PeerBlessings{pp})},
 // 		)
 // 		if err != nil {
 // 			vlog.Fatal(err)

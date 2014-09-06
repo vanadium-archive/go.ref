@@ -231,7 +231,7 @@ func (h *handler) revoke(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	caveatID := security.ThirdPartyCaveatID(string(decodedCaveatID))
+	caveatID := string(decodedCaveatID)
 
 	if err := h.revocationManager.Revoke(caveatID); err != nil {
 		vlog.Infof("Revocation failed: %s", err)

@@ -9,75 +9,72 @@ import (
 	"veyron2/vom"
 )
 
-// UniversalCaveat takes a Caveat and returns a ServiceCaveat bound to all principals.
-func UniversalCaveat(cav security.Caveat) security.ServiceCaveat {
-	return security.ServiceCaveat{Service: security.AllPrincipals, Caveat: cav}
-}
-
-// Expiry is a security.Caveat that restricts the validity period of
-// the credential bearing this caveat.
+// Expiry is a security.CaveatValidator that restricts the validity period of
+// credentials bearing a security.Caveat constructed from this validator.
 type Expiry struct {
+	// TODO(ataly,ashankar): Get rid of IssueTime from this caveat.
 	IssueTime  time.Time
 	ExpiryTime time.Time
 }
 
-func (c *Expiry) Validate(context security.Context) error {
+func (v *Expiry) Validate(context security.Context) error {
 	now := time.Now()
-	if now.Before(c.IssueTime) || now.After(c.ExpiryTime) {
-		return fmt.Errorf("%#v forbids credential from being used at this time(%v)", c, now)
+	if now.Before(v.IssueTime) || now.After(v.ExpiryTime) {
+		return fmt.Errorf("%#v forbids credential from being used at this time(%v)", v, now)
 	}
 	return nil
 }
 
-// MethodRestriction is a security.Caveat that restricts the set of
-// methods that can be invoked by a credential bearing the caveat.
+// MethodRestriction is a security.CaveatValidator that restricts the set of
+// methods that are authorized via credentials bearing a security.Caveat
+// constructed from this validator.
 // An empty set indicates that no methods can be invoked.
 type MethodRestriction []string
 
-func (c MethodRestriction) Validate(ctx security.Context) error {
+func (v MethodRestriction) Validate(ctx security.Context) error {
 	// If the context has an empty Method then the caveat validates.
 	if ctx.Method() == "" {
 		return nil
 	}
-	for _, m := range c {
+	for _, m := range v {
 		if m == ctx.Method() {
 			return nil
 		}
 	}
-	return fmt.Errorf("%#v forbids invocation of method %s", c, ctx.Method())
+	return fmt.Errorf("%#v forbids invocation of method %s", v, ctx.Method())
 }
 
-// PeerIdentity is a security.Caveat that restricts the bearer of a credential
-// with this caveat from making or receiving RPCs to a limited set of peers -
-// those whose identities match one of the provided security.BlessingPatterns.
+// PeerBlessings is a security.CaveatValidator that restricts a credential
+// bearing a security.Caveat constructed from this validator to be used for
+// communicating with a limited set of peers - those who have blessings matching
+// one of the provided security.BlessingPatterns.
 // An empty set indicates that no peers can be communicated with.
-type PeerIdentity []security.BlessingPattern
+type PeerBlessings []security.BlessingPattern
 
-// Validate checks that the identity of the peer is present on the set of services
-// identified by the BlessingPatterns on the caveat.
-func (c PeerIdentity) Validate(ctx security.Context) error {
-	for _, p := range c {
+func (v PeerBlessings) Validate(ctx security.Context) error {
+	for _, p := range v {
 		if ctx.LocalID() != nil && p.MatchedBy(ctx.LocalID().Names()...) {
 			return nil
 		}
 	}
-	return fmt.Errorf("%#v forbids RPCing with peer %s", c, ctx.LocalID())
+	return fmt.Errorf("%#v forbids RPCing with peer %s", v, ctx.LocalID())
 }
 
-// NetworkType is a security.Caveat that restricts communication with the
-// remote process to a particular network ("tcp", "udp", "bluetooth" etc.)
+// NetworkType is a security.CaveatValidator that restricts a credential bearing
+// a security.Caveat constructed from this validator to be used only for communicating over
+// a particular network ("tcp", "udp", "bluetooth" etc.)
 type NetworkType string
 
-func (cav NetworkType) Validate(ctx security.Context) error {
-	if ctx.RemoteEndpoint().Addr().Network() == string(cav) {
+func (v NetworkType) Validate(ctx security.Context) error {
+	if ctx.RemoteEndpoint().Addr().Network() == string(v) {
 		return nil
 	}
-	return fmt.Errorf("required network type %q, got %q", cav, ctx.RemoteEndpoint().Addr().Network())
+	return fmt.Errorf("required network type %q, got %q", v, ctx.RemoteEndpoint().Addr().Network())
 }
 
 func init() {
 	vom.Register(Expiry{})
 	vom.Register(MethodRestriction(nil))
-	vom.Register(PeerIdentity(nil))
+	vom.Register(PeerBlessings(nil))
 	vom.Register(NetworkType(""))
 }

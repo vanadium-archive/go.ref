@@ -22,6 +22,8 @@ var (
 	googleChain = newChain("google").(*chainPrivateID)
 )
 
+type dischargeMap map[string]security.Discharge
+
 func matchesErrorPattern(err error, pattern string) bool {
 	if (len(pattern) == 0) != (err == nil) {
 		return false
@@ -73,7 +75,7 @@ func newSetPrivateID(ids ...security.PrivateID) security.PrivateID {
 	return id
 }
 
-func bless(blessee security.PublicID, blessor security.PrivateID, name string, caveats []security.ServiceCaveat) security.PublicID {
+func bless(blessee security.PublicID, blessor security.PrivateID, name string, caveats []security.Caveat) security.PublicID {
 	blessed, err := blessor.Bless(blessee, name, 5*time.Minute, caveats)
 	if err != nil {
 		panic(err)
@@ -109,14 +111,23 @@ func verifyAuthorizedID(origID, authID security.PublicID, authNames []string) er
 	return nil
 }
 
-func methodRestrictionCaveat(service security.BlessingPattern, methods []string) []security.ServiceCaveat {
-	return []security.ServiceCaveat{
-		{Service: service, Caveat: caveat.MethodRestriction(methods)},
+func newCaveat(validators ...security.CaveatValidator) []security.Caveat {
+	cavs := make([]security.Caveat, len(validators))
+	var err error
+	for i, v := range validators {
+		if cavs[i], err = security.NewCaveat(v); err != nil {
+			panic(err)
+		}
 	}
+	return cavs
 }
 
-func peerIdentityCaveat(p security.BlessingPattern) []security.ServiceCaveat {
-	return []security.ServiceCaveat{caveat.UniversalCaveat(caveat.PeerIdentity{p})}
+func methodRestrictionCaveat(methods []string) []security.Caveat {
+	return newCaveat(caveat.MethodRestriction(methods))
+}
+
+func peerIdentityCaveat(p security.BlessingPattern) []security.Caveat {
+	return newCaveat(caveat.PeerBlessings{p})
 }
 
 func init() {

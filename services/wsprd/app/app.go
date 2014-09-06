@@ -58,15 +58,14 @@ type outstandingStream struct {
 	inType vom.Type
 }
 
-type jsonServiceCaveat struct {
-	Type    string `json:"_type"`
-	Service security.BlessingPattern
-	Data    json.RawMessage
+type jsonCaveatValidator struct {
+	Type string `json:"_type"`
+	Data json.RawMessage
 }
 
 type blessingRequest struct {
 	Handle     int64
-	Caveats    []jsonServiceCaveat
+	Caveats    []jsonCaveatValidator
 	DurationMs int64
 	Name       string
 }
@@ -578,18 +577,17 @@ func (c *Controller) HandleUnlinkJSIdentity(data string, w lib.ClientWriter) {
 }
 
 // Convert the json wire format of a caveat into the right go object
-func decodeCaveat(c jsonServiceCaveat) (security.ServiceCaveat, error) {
-	var ret security.ServiceCaveat
-	ret.Service = c.Service
+func decodeCaveat(c jsonCaveatValidator) (security.CaveatValidator, error) {
+	var ret security.CaveatValidator
 	switch c.Type {
 	case "MethodCaveat":
-		ret.Caveat = &caveat.MethodRestriction{}
-	case "PeerIdentityCaveat":
-		ret.Caveat = &caveat.PeerIdentity{}
+		ret = &caveat.MethodRestriction{}
+	case "PeerBlessingsCaveat":
+		ret = &caveat.PeerBlessings{}
 	default:
 		return ret, verror.BadArgf("unknown caveat type %s", c.Type)
 	}
-	return ret, json.Unmarshal(c.Data, &ret.Caveat)
+	return ret, json.Unmarshal(c.Data, &ret)
 }
 
 func (c *Controller) getPublicIDHandle(handle int64) (*PublicIDHandle, error) {
@@ -601,13 +599,17 @@ func (c *Controller) getPublicIDHandle(handle int64) (*PublicIDHandle, error) {
 }
 
 func (c *Controller) bless(request blessingRequest) (*PublicIDHandle, error) {
-	var caveats []security.ServiceCaveat
+	var caveats []security.Caveat
 	for _, c := range request.Caveats {
-		newCaveat, err := decodeCaveat(c)
+		v, err := decodeCaveat(c)
 		if err != nil {
 			return nil, verror.BadArgf("failed to parse caveat: %v", err)
 		}
-		caveats = append(caveats, newCaveat)
+		c, err := security.NewCaveat(v)
+		if err != nil {
+			return nil, verror.BadArgf("failed to convert caveat to security.Caveat: %v", err)
+		}
+		caveats = append(caveats, c)
 	}
 	duration := time.Duration(request.DurationMs) * time.Millisecond
 

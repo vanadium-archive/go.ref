@@ -1,12 +1,14 @@
 package caveat
 
 import (
-	"bytes"
+	"crypto/ecdsa"
 	"crypto/rand"
 	"crypto/sha256"
 	"encoding/binary"
 	"fmt"
 	"time"
+
+	vsecurity "veyron/security"
 
 	"veyron2/security"
 	"veyron2/security/wire"
@@ -22,30 +24,22 @@ import (
 // Can we use 4bytes instead?.
 const nonceLength = 16
 
-// errPublicKeyCaveat returns an error indicating that the provided caveat has
-// an invalid or missing discharge.
-func errPublicKeyCaveat(c *publicKeyCaveat, err error) error {
-	return fmt.Errorf("%v for publicKeyCaveat{nonce:%v location:%q}", err, c.RandNonce, c.Location())
-}
-
 // publicKeyCaveat implements security.ThirdPartyCaveat. It specifies a restriction,
-// a validation key and the location of the third-party responsible for
-// discharging the caveat. A discharge for this caveat is a signed assertion whose
+// a validation key and the location (object name) of the third-party responsible
+// for discharging the caveat. A discharge for this caveat is a signed assertion whose
 // signature can be verified using the validation key.
 type publicKeyCaveat struct {
 	// RandNonce specifies a cryptographically random nonce (of fixed length) that
 	// uniquely identifies the caveat.
 	RandNonce []uint8
 	// DischargeMintingCaveat specifies the caveat that has to be validated
-	// before minting a discharge for a publicKeyCaveat. A byte slice containing
-	// VOM-encoded security.Caveat is used to enable a publicKeyCaveat to be
-	// validated by devices that cannot decode the discharge minting caveats.
+	// before minting a discharge for a publicKeyCaveat.
 	DischargeMintingCaveat []byte
 	// ValidationKey specifies the public key of the discharging-party.
 	ValidationKey wire.PublicKey
 	// ThirdPartyLocation specifies the object name of the discharging-party.
 	ThirdPartyLocation string
-	// Information wanted in order to issue a discharge.
+	// ThirdPartyRequirements specify the information wanted in order to issue a discharge.
 	ThirdPartyRequirements security.ThirdPartyRequirements
 }
 
@@ -54,11 +48,10 @@ type publicKeyCaveat struct {
 //
 // TODO(ataly, ashankar): A 256bit hash is probably much stronger that what we need
 // here. Can we truncate the hash to 96bits?
-func (c *publicKeyCaveat) ID() security.ThirdPartyCaveatID {
-	return security.ThirdPartyCaveatID(id(c.RandNonce, c.DischargeMintingCaveat))
+func (c *publicKeyCaveat) ID() string {
+	return id(c.RandNonce, c.DischargeMintingCaveat)
 }
 
-// Location returns the third-party location embedded in the caveat.
 func (c *publicKeyCaveat) Location() string {
 	return c.ThirdPartyLocation
 }
@@ -71,67 +64,67 @@ func (c *publicKeyCaveat) Requirements() security.ThirdPartyRequirements {
 	return c.ThirdPartyRequirements
 }
 
-// Validate verifies whether the caveat validates for the provided context.
 func (c *publicKeyCaveat) Validate(ctx security.Context) error {
 	// Check whether the context has a dicharge matching the caveat's ID.
-	dis, ok := ctx.CaveatDischarges()[c.ID()]
+	dis, ok := ctx.Discharges()[c.ID()]
 	if !ok {
-		return errPublicKeyCaveat(c, fmt.Errorf("missing discharge"))
+		return fmt.Errorf("missing discharge")
 	}
 
 	pkDischarge, ok := dis.(*publicKeyDischarge)
 	if !ok {
-		return errPublicKeyCaveat(c, fmt.Errorf("caveat of type %T cannot be validated with discharge of type %T", c, dis))
+		return fmt.Errorf("caveat of type %T cannot be validated with discharge of type %T", c, dis)
 	}
 
 	// Validate all caveats present on the discharge.
-	for _, cav := range pkDischarge.Caveats {
-		if err := cav.Validate(ctx); err != nil {
-			return errPublicKeyCaveat(c, err)
+	validators, err := vsecurity.CaveatValidators(pkDischarge.Caveats...)
+	if err != nil {
+		return err
+	}
+	for _, v := range validators {
+		if err := v.Validate(ctx); err != nil {
+			return err
 		}
 	}
 
 	// Check the discharge signature with the validation key from the caveat.
 	key, err := c.ValidationKey.Decode()
 	if err != nil {
-		return errPublicKeyCaveat(c, err)
+		return err
 	}
 	if !pkDischarge.Signature.Verify(key, pkDischarge.contentHash()) {
-		return errPublicKeyCaveat(c, fmt.Errorf("discharge %v has invalid signature", dis))
+		return fmt.Errorf("discharge %v has invalid signature", dis)
 	}
 	return nil
 }
 
-// publicKeyDischarge implements security.ThirdPartyDischarge. It specifies a
-// discharge for a publicKeyCaveat, and includes a signature that can be verified
-// with the validation key of the caveat. Additionally, the discharge may include
-// service caveats which must all be valid in order for the discharge to be
-// considered valid.
+// publicKeyDischarge implements security.Discharge. It specifies a discharge
+// for a publicKeyCaveat, and includes a signature that can be verified with
+// the validation key of the publicKeyCaveat. Additionally, the discharge may
+// also include caveats which must all validate in order for the discharge to
+// be considered valid.
 type publicKeyDischarge struct {
-	// ThirdPartyCaveatID is used to match a Discharge with the Caveat it is for.
-	ThirdPartyCaveatID security.ThirdPartyCaveatID
+	// CaveatID is used to match this Discharge to the the ThirdPartyCaveat it is for.
+	CaveatID string
 
 	// Caveats under which this Discharge is valid.
-	Caveats []wire.Caveat
+	Caveats [][]byte
 
-	// Signature on the contents of the discharge obtained using the private key
-	// corresponding to the validaton key in the caveat.
+	// Signature on the contents of the discharge that can be verified using the
+	// validaton key in the publicKeycaveat this discharge is for.
 	Signature security.Signature
 }
 
-// CaveatID returns a unique identity for the discharge based on the random nonce and
-// restriction embedded in the discharge.
-func (d *publicKeyDischarge) CaveatID() security.ThirdPartyCaveatID {
-	return d.ThirdPartyCaveatID
+func (d *publicKeyDischarge) ID() string {
+	return d.CaveatID
 }
 
-func (d *publicKeyDischarge) ThirdPartyCaveats() []security.ServiceCaveat {
-	return wire.DecodeThirdPartyCaveats(d.Caveats)
+func (d *publicKeyDischarge) ThirdPartyCaveats() []security.ThirdPartyCaveat {
+	return vsecurity.ThirdPartyCaveats(d.Caveats...)
 }
 
-// sign uses the provided identity to sign the contents of the discharge.
-func (d *publicKeyDischarge) sign(discharger security.PrivateID) (err error) {
-	d.Signature, err = discharger.Sign(d.contentHash())
+func (d *publicKeyDischarge) sign(signer security.Signer) (err error) {
+	d.Signature, err = signer.Sign(d.contentHash())
 	return
 }
 
@@ -139,72 +132,74 @@ func (d *publicKeyDischarge) contentHash() []byte {
 	h := sha256.New()
 	tmp := make([]byte, binary.MaxVarintLen64)
 
-	wire.WriteBytes(h, tmp, []byte(d.ThirdPartyCaveatID))
+	wire.WriteString(h, tmp, d.CaveatID)
 	for _, cav := range d.Caveats {
-		wire.WriteString(h, tmp, string(cav.Service))
-		wire.WriteBytes(h, tmp, cav.Bytes)
+		wire.WriteBytes(h, tmp, cav)
 	}
 	return h.Sum(nil)
 }
 
-// NewPublicKeyCaveat returns a new third-party caveat from the provided restriction,
-// third-party identity, and third-party location.
-func NewPublicKeyCaveat(dischargeMintingCaveat security.Caveat, thirdParty security.PublicID, location string, requirements security.ThirdPartyRequirements) (security.ThirdPartyCaveat, error) {
+// NewPublicKeyCaveat returns a security.ThirdPartyCaveat which requires a
+// discharge from a principal identified by the public key 'key' and present
+// at the object name 'location'. This discharging principal is expected to
+// validate 'caveat' before issuing a discharge.
+func NewPublicKeyCaveat(caveat security.Caveat, key *ecdsa.PublicKey, location string, requirements security.ThirdPartyRequirements) (security.ThirdPartyCaveat, error) {
 	nonce := make([]uint8, nonceLength)
 	if _, err := rand.Read(nonce); err != nil {
 		return nil, err
 	}
 
 	var validationKey wire.PublicKey
-	if err := validationKey.Encode(thirdParty.PublicKey()); err != nil {
+	if err := validationKey.Encode(key); err != nil {
 		return nil, err
 	}
 
-	var mintingCaveatEncoded bytes.Buffer
-	vom.NewEncoder(&mintingCaveatEncoded).Encode(dischargeMintingCaveat)
 	return &publicKeyCaveat{
 		RandNonce:              nonce,
-		DischargeMintingCaveat: mintingCaveatEncoded.Bytes(),
+		DischargeMintingCaveat: caveat.Bytes(),
 		ValidationKey:          validationKey,
 		ThirdPartyLocation:     location,
 		ThirdPartyRequirements: requirements,
 	}, nil
 }
 
-// NewPublicKeyDischarge returns a new discharge for the provided caveat
-// after verifying that the caveats for minting a discharge are met.
+// NewPublicKeyDischarge returns a new discharge for the provided 'tp'
+// after validating any restrictions specified in it under context 'ctx'.
 //
-// The CaveatID of the discharge is the same as the ID of the caveat, and
-// the discharge includes the provided service caveats along with a universal
-// expiry caveat for the provided duration. The discharge also includes a
-// signature over its contents obtained from the provided private key.
-func NewPublicKeyDischarge(discharger security.PrivateID, caveat security.ThirdPartyCaveat, ctx security.Context, duration time.Duration, caveats []security.ServiceCaveat) (security.ThirdPartyDischarge, error) {
-	cav, ok := caveat.(*publicKeyCaveat)
+// The ID of the discharge is the same as the ID of 'caveat', and the discharge
+// will be usable for the provided 'duration' only if:
+// (1) 'caveats' are met when using the discharge.
+// (2) 'tp' was obtained from NewPublicKeyCaveat using a key that is the same as
+// the provided signer's PublicKey.
+func NewPublicKeyDischarge(signer security.Signer, tp security.ThirdPartyCaveat, ctx security.Context, duration time.Duration, caveats []security.Caveat) (security.Discharge, error) {
+	pkCaveat, ok := tp.(*publicKeyCaveat)
 	if !ok {
-		return nil, fmt.Errorf("cannot mint discharges for %T", caveat)
+		return nil, fmt.Errorf("cannot mint discharges for %T", tp)
 	}
-	var mintingCaveat security.Caveat
-	mcBuf := bytes.NewReader(cav.DischargeMintingCaveat)
-	if err := vom.NewDecoder(mcBuf).Decode(&mintingCaveat); err != nil {
-		return nil, fmt.Errorf("failed to decode DischargeMintingCaveat: %s", err)
-	}
-	if err := mintingCaveat.Validate(ctx); err != nil {
-		return nil, fmt.Errorf("failed to validate DischargeMintingCaveat: %s", err)
-	}
-	now := time.Now()
-	expiryCaveat := &Expiry{IssueTime: now, ExpiryTime: now.Add(duration)}
-	caveats = append(caveats, UniversalCaveat(expiryCaveat))
-	encodedCaveats, err := wire.EncodeCaveats(caveats)
+
+	v, err := vsecurity.CaveatValidators(pkCaveat.DischargeMintingCaveat)
 	if err != nil {
-		return nil, fmt.Errorf("failed to encode caveats in discharge: %v", err)
+		return nil, err
 	}
+	if err := v[0].Validate(ctx); err != nil {
+		return nil, err
+	}
+
+	now := time.Now()
+	expiryCaveat, err := security.NewCaveat(&Expiry{IssueTime: now, ExpiryTime: now.Add(duration)})
+	if err != nil {
+		return nil, err
+	}
+
+	caveats = append(caveats, expiryCaveat)
 	discharge := &publicKeyDischarge{
-		ThirdPartyCaveatID: caveat.ID(),
-		Caveats:            encodedCaveats,
+		CaveatID: tp.ID(),
+		Caveats:  vsecurity.CaveatBytes(caveats...),
 	}
-	// TODO(ashankar,ataly): Should discharger necessarily be the same as ctx.LocalID()?
+
+	// TODO(ashankar,ataly): Should signer necessarily be the same as ctx.LocalID()?
 	// If so, need the PrivateID object corresponding to ctx.LocalID.
-	if err := discharge.sign(discharger); err != nil {
+	if err := discharge.sign(signer); err != nil {
 		return nil, err
 	}
 	return discharge, nil

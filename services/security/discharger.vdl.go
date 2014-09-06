@@ -28,7 +28,7 @@ type Discharger_ExcludingUniversal interface {
 	// party caveat and seeks to get a discharge that proves the fulfillment of
 	// this caveat.
 	//
-	// Caveat and Discharge are of type ThirdPartyCaveat and ThirdPartyDischarge
+	// Caveat and Discharge are of type ThirdPartyCaveat and Discharge
 	// respectively. (not enforced here because vdl does not know these types)
 	// TODO(ataly,ashankar): Figure out a VDL representation for ThirdPartyCaveat
 	// and Discharge and use those here?
@@ -46,7 +46,7 @@ type DischargerService interface {
 	// party caveat and seeks to get a discharge that proves the fulfillment of
 	// this caveat.
 	//
-	// Caveat and Discharge are of type ThirdPartyCaveat and ThirdPartyDischarge
+	// Caveat and Discharge are of type ThirdPartyCaveat and Discharge
 	// respectively. (not enforced here because vdl does not know these types)
 	// TODO(ataly,ashankar): Figure out a VDL representation for ThirdPartyCaveat
 	// and Discharge and use those here?

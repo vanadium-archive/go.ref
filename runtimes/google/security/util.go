@@ -34,7 +34,7 @@ type ContextArgs struct {
 	LocalID, RemoteID security.PublicID
 	// Discharges is the set of third-party caveat discharges for the identity at the remote end
 	// of the request.
-	Discharges security.CaveatDischargeMap
+	Discharges map[string]security.Discharge
 	// Debug describes the context for debugging purposes.
 	Debug string
 	// The following fields must be set only for contexts created at the server receiving the IPC.
@@ -86,21 +86,21 @@ func (c *context) String() string {
 		buf.WriteString(fmt.Sprintf(" Label:%v", c.Label()))
 	}
 	if len(c.ContextArgs.Discharges) > 0 {
-		buf.WriteString(fmt.Sprintf(" #Discharges:%d", len(c.Discharges)))
+		buf.WriteString(fmt.Sprintf(" #Discharges:%d", len(c.Discharges())))
 	}
 	buf.WriteString(" }")
 	return buf.String()
 }
 
-func (c *context) Method() string                                { return c.ContextArgs.Method }
-func (c *context) Name() string                                  { return c.ContextArgs.Name }
-func (c *context) Suffix() string                                { return c.ContextArgs.Suffix }
-func (c *context) Label() security.Label                         { return c.ContextArgs.Label }
-func (c *context) CaveatDischarges() security.CaveatDischargeMap { return c.ContextArgs.Discharges }
-func (c *context) LocalID() security.PublicID                    { return c.ContextArgs.LocalID }
-func (c *context) RemoteID() security.PublicID                   { return c.ContextArgs.RemoteID }
-func (c *context) LocalEndpoint() naming.Endpoint                { return c.ContextArgs.LocalEndpoint }
-func (c *context) RemoteEndpoint() naming.Endpoint               { return c.ContextArgs.RemoteEndpoint }
+func (c *context) Method() string                            { return c.ContextArgs.Method }
+func (c *context) Name() string                              { return c.ContextArgs.Name }
+func (c *context) Suffix() string                            { return c.ContextArgs.Suffix }
+func (c *context) Label() security.Label                     { return c.ContextArgs.Label }
+func (c *context) Discharges() map[string]security.Discharge { return c.ContextArgs.Discharges }
+func (c *context) LocalID() security.PublicID                { return c.ContextArgs.LocalID }
+func (c *context) RemoteID() security.PublicID               { return c.ContextArgs.RemoteID }
+func (c *context) LocalEndpoint() naming.Endpoint            { return c.ContextArgs.LocalEndpoint }
+func (c *context) RemoteEndpoint() naming.Endpoint           { return c.ContextArgs.RemoteEndpoint }
 
 // NewContext returns a new security.Context for the provided method, name,
 // suffix, discharges, label and identities of the local and remote principals

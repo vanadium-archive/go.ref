@@ -53,7 +53,7 @@ func InternalNewClient(streamMgr stream.Manager, ns naming.Namespace, opts ...ip
 		streamMgr:      streamMgr,
 		ns:             ns,
 		vcMap:          make(map[string]*vcInfo),
-		dischargeCache: dischargeCache{CaveatDischargeMap: make(security.CaveatDischargeMap)},
+		dischargeCache: dischargeCache{cache: make(map[string]security.Discharge)},
 	}
 	for _, opt := range opts {
 		// Collect all client opts that are also vc opts.
@@ -240,14 +240,14 @@ type flowClient struct {
 	flow     stream.Flow  // the underlying flow
 	response ipc.Response // each decoded response message is kept here
 
-	discharges     []security.ThirdPartyDischarge // discharges used for this request
-	dischargeCache *dischargeCache                // client-global discharge cache reference type
+	discharges     []security.Discharge // discharges used for this request
+	dischargeCache *dischargeCache      // client-global discharge cache reference type
 
 	sendClosedMu sync.Mutex
 	sendClosed   bool // is the send side already closed? GUARDED_BY(sendClosedMu)
 }
 
-func newFlowClient(flow stream.Flow, dischargeCache *dischargeCache, discharges []security.ThirdPartyDischarge) *flowClient {
+func newFlowClient(flow stream.Flow, dischargeCache *dischargeCache, discharges []security.Discharge) *flowClient {
 	return &flowClient{
 		// TODO(toddw): Support different codecs
 		dec:            vom.NewDecoder(flow),
@@ -284,7 +284,7 @@ func (fc *flowClient) start(suffix, method string, args []interface{}, timeout t
 	}
 	for _, d := range fc.discharges {
 		if err := fc.enc.Encode(d); err != nil {
-			return fc.close(verror.BadProtocolf("ipc: failed to encode discharge for %x: %v", d.CaveatID(), err))
+			return fc.close(verror.BadProtocolf("ipc: failed to encode discharge for %x: %v", d.ID(), err))
 		}
 	}
 	for ix, arg := range args {

@@ -49,5 +49,13 @@ func newID(name string) security.PrivateID {
 	return id
 }
 
+func newCaveat(v security.CaveatValidator) []security.Caveat {
+	cav, err := security.NewCaveat(v)
+	if err != nil {
+		panic(err)
+	}
+	return []security.Caveat{cav}
+}
+
 var _ ipc.ClientOpt = vc.FixedLocalID(newID("irrelevant"))
 var _ ipc.ServerOpt = vc.FixedLocalID(newID("irrelevant"))

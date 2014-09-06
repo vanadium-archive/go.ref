@@ -69,8 +69,11 @@ func NewRevocationCaveat(dischargerID security.PublicID, dischargerLocation stri
 	if _, err := rand.Read(revocation[:]); err != nil {
 		return revocation, nil, err
 	}
-	restriction := revocationCaveat(sha256.Sum256(revocation[:]))
-	cav, err := caveat.NewPublicKeyCaveat(restriction, dischargerID, dischargerLocation, security.ThirdPartyRequirements{})
+	restriction, err := security.NewCaveat(revocationCaveat(sha256.Sum256(revocation[:])))
+	if err != nil {
+		return revocation, nil, err
+	}
+	cav, err := caveat.NewPublicKeyCaveat(restriction, dischargerID.PublicKey(), dischargerLocation, security.ThirdPartyRequirements{})
 	return revocation, cav, err
 }
 

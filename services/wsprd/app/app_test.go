@@ -687,26 +687,20 @@ func TestJSServerWihStreamingInputsAndOutputs(t *testing.T) {
 func TestDeserializeCaveat(t *testing.T) {
 	testCases := []struct {
 		json          string
-		expectedValue security.ServiceCaveat
+		expectedValue security.CaveatValidator
 	}{
 		{
-			json: `{"_type":"MethodCaveat","service":"...","data":["Get","MultiGet"]}`,
-			expectedValue: security.ServiceCaveat{
-				Service: security.AllPrincipals,
-				Caveat:  &caveat.MethodRestriction{"Get", "MultiGet"},
-			},
+			json:          `{"_type":"MethodCaveat","service":"...","data":["Get","MultiGet"]}`,
+			expectedValue: &caveat.MethodRestriction{"Get", "MultiGet"},
 		},
 		{
-			json: `{"_type":"PeerIdentityCaveat","service":"...","data":["veyron/batman","veyron/brucewayne"]}`,
-			expectedValue: security.ServiceCaveat{
-				Service: security.AllPrincipals,
-				Caveat:  &caveat.PeerIdentity{"veyron/batman", "veyron/brucewayne"},
-			},
+			json:          `{"_type":"PeerBlessingsCaveat","service":"...","data":["veyron/batman","veyron/brucewayne"]}`,
+			expectedValue: &caveat.PeerBlessings{"veyron/batman", "veyron/brucewayne"},
 		},
 	}
 
 	for _, c := range testCases {
-		var s jsonServiceCaveat
+		var s jsonCaveatValidator
 		if err := json.Unmarshal([]byte(c.json), &s); err != nil {
 			t.Errorf("Failed to deserialize object: %v", err)
 			return
@@ -770,7 +764,7 @@ func (*mockSecurityContext) Suffix() string { return "" }
 
 func (*mockSecurityContext) Label() security.Label { return 0 }
 
-func (*mockSecurityContext) CaveatDischarges() security.CaveatDischargeMap { return nil }
+func (*mockSecurityContext) Discharges() map[string]security.Discharge { return nil }
 
 func (*mockSecurityContext) RemoteID() security.PublicID { return nil }
 
@@ -885,7 +879,7 @@ func TestBlessingWithPeerRestrictions(t *testing.T) {
 			"durationMs": 10000,
 			"caveats": []map[string]interface{}{
 				map[string]interface{}{
-					"_type":   "PeerIdentityCaveat",
+					"_type":   "PeerBlessingsCaveat",
 					"service": security.AllPrincipals,
 					"data":    []string{securityName("test/alice")},
 				},
@@ -908,7 +902,7 @@ func TestBlessingWithMethodAndPeerRestrictions(t *testing.T) {
 			"durationMs": 10000,
 			"caveats": []map[string]interface{}{
 				map[string]interface{}{
-					"_type":   "PeerIdentityCaveat",
+					"_type":   "PeerBlessingsCaveat",
 					"service": security.AllPrincipals,
 					"data":    []string{securityName("test/alice")},
 				},

@@ -71,20 +71,17 @@ func (s *setPublicID) Authorize(context security.Context) (security.PublicID, er
 	return NewSetPublicID(authids...)
 }
 
-func (s *setPublicID) ThirdPartyCaveats() []security.ServiceCaveat {
-	set := make(map[security.ThirdPartyCaveatID]security.ServiceCaveat)
+func (s *setPublicID) ThirdPartyCaveats() []security.ThirdPartyCaveat {
+	set := make(map[string]security.ThirdPartyCaveat)
 	for _, id := range *s {
-		for _, c := range id.ThirdPartyCaveats() {
-			if tp, ok := c.Caveat.(security.ThirdPartyCaveat); ok {
-				set[tp.ID()] = c
-			}
-			// else { This should not be possible! }
+		for _, tp := range id.ThirdPartyCaveats() {
+			set[tp.ID()] = tp
 		}
 	}
 	if len(set) == 0 {
 		return nil
 	}
-	ret := make([]security.ServiceCaveat, 0, len(set))
+	ret := make([]security.ThirdPartyCaveat, 0, len(set))
 	for _, c := range set {
 		ret = append(ret, c)
 	}
@@ -159,7 +156,7 @@ func (s setPrivateID) Sign(message []byte) (security.Signature, error) { return 
 
 func (s setPrivateID) PublicKey() security.PublicKey { return s[0].PublicKey() }
 
-func (s setPrivateID) Bless(blessee security.PublicID, blessingName string, duration time.Duration, caveats []security.ServiceCaveat) (security.PublicID, error) {
+func (s setPrivateID) Bless(blessee security.PublicID, blessingName string, duration time.Duration, caveats []security.Caveat) (security.PublicID, error) {
 	pubs := make([]security.PublicID, len(s))
 	for ix, id := range s {
 		var err error
@@ -188,7 +185,7 @@ func (s setPrivateID) Derive(pub security.PublicID) (security.PrivateID, error) 
 	}
 }
 
-func (s setPrivateID) MintDischarge(cav security.ThirdPartyCaveat, ctx security.Context, duration time.Duration, dischargeCaveats []security.ServiceCaveat) (security.ThirdPartyDischarge, error) {
+func (s setPrivateID) MintDischarge(cav security.ThirdPartyCaveat, ctx security.Context, duration time.Duration, dischargeCaveats []security.Caveat) (security.Discharge, error) {
 	for _, id := range s {
 		if d, err := id.MintDischarge(cav, ctx, duration, dischargeCaveats); err == nil {
 			return d, nil

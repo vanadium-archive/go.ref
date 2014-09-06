@@ -22,7 +22,7 @@ func TestAuditingID(t *testing.T) {
 		publicID         = security.FakePublicID("publicid")
 		str              string
 		duration         time.Duration
-		caveats          []security.ServiceCaveat
+		caveats          []security.Caveat
 		thirdPartyCaveat thirdPartyCaveat
 		context          context
 
@@ -190,7 +190,7 @@ func (id *mockID) PublicID() security.PublicID {
 	}
 	return id.NextResult.(security.PublicID)
 }
-func (id *mockID) Bless(blessee security.PublicID, blessingName string, duration time.Duration, caveats []security.ServiceCaveat) (security.PublicID, error) {
+func (id *mockID) Bless(blessee security.PublicID, blessingName string, duration time.Duration, caveats []security.Caveat) (security.PublicID, error) {
 	defer id.reset()
 	result, _ := id.NextResult.(security.PublicID)
 	return result, id.NextError
@@ -200,9 +200,9 @@ func (id *mockID) Derive(publicID security.PublicID) (security.PrivateID, error)
 	result, _ := id.NextResult.(security.PrivateID)
 	return result, id.NextError
 }
-func (id *mockID) MintDischarge(caveat security.ThirdPartyCaveat, context security.Context, duration time.Duration, caveats []security.ServiceCaveat) (security.ThirdPartyDischarge, error) {
+func (id *mockID) MintDischarge(caveat security.ThirdPartyCaveat, context security.Context, duration time.Duration, caveats []security.Caveat) (security.Discharge, error) {
 	defer id.reset()
-	result, _ := id.NextResult.(security.ThirdPartyDischarge)
+	result, _ := id.NextResult.(security.Discharge)
 	return result, id.NextError
 }
 
@@ -240,7 +240,7 @@ type V []interface{}
 type thirdPartyCaveat struct{}
 
 func (thirdPartyCaveat) Validate(security.Context) error { return nil }
-func (thirdPartyCaveat) ID() security.ThirdPartyCaveatID { return "thirdPartyCaveatID" }
+func (thirdPartyCaveat) ID() string                      { return "thirdPartyCaveatID" }
 func (thirdPartyCaveat) Location() string                { return "thirdPartyCaveatLocation" }
 func (thirdPartyCaveat) Requirements() security.ThirdPartyRequirements {
 	return security.ThirdPartyRequirements{}
@@ -249,21 +249,21 @@ func (thirdPartyCaveat) Requirements() security.ThirdPartyRequirements {
 // context implements security.Context
 type context struct{}
 
-func (context) Method() string                                { return "method" }
-func (context) Name() string                                  { return "name" }
-func (context) Suffix() string                                { return "suffix" }
-func (context) Label() security.Label                         { return security.ReadLabel }
-func (context) CaveatDischarges() security.CaveatDischargeMap { return nil }
-func (context) LocalID() security.PublicID                    { return nil }
-func (context) RemoteID() security.PublicID                   { return nil }
-func (context) LocalEndpoint() naming.Endpoint                { return nil }
-func (context) RemoteEndpoint() naming.Endpoint               { return nil }
+func (context) Method() string                            { return "method" }
+func (context) Name() string                              { return "name" }
+func (context) Suffix() string                            { return "suffix" }
+func (context) Label() security.Label                     { return security.ReadLabel }
+func (context) Discharges() map[string]security.Discharge { return nil }
+func (context) LocalID() security.PublicID                { return nil }
+func (context) RemoteID() security.PublicID               { return nil }
+func (context) LocalEndpoint() naming.Endpoint            { return nil }
+func (context) RemoteEndpoint() naming.Endpoint           { return nil }
 
-// discharge implements the security.ThirdPartyDischarge interface
+// discharge implements the security.Discharge interface
 type discharge struct{}
 
-func (*discharge) CaveatID() security.ThirdPartyCaveatID       { return "thirdPartyCaveatID" }
-func (*discharge) ThirdPartyCaveats() []security.ServiceCaveat { return nil }
+func (*discharge) ID() string                                     { return "thirdPartyCaveatID" }
+func (*discharge) ThirdPartyCaveats() []security.ThirdPartyCaveat { return nil }
 
 func call(receiver interface{}, method string, args V) (results []interface{}, err interface{}) {
 	defer func() {

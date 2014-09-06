@@ -16,20 +16,20 @@ type authMap map[security.PublicID]security.LabelSet
 // context implements Context.
 type context struct {
 	localID, remoteID    security.PublicID
-	discharges           security.CaveatDischargeMap
+	discharges           map[string]security.Discharge
 	method, name, suffix string
 	label                security.Label
 }
 
-func (c *context) Method() string                                { return c.method }
-func (c *context) Name() string                                  { return c.name }
-func (c *context) Suffix() string                                { return c.suffix }
-func (c *context) Label() security.Label                         { return c.label }
-func (c *context) CaveatDischarges() security.CaveatDischargeMap { return c.discharges }
-func (c *context) LocalID() security.PublicID                    { return c.localID }
-func (c *context) RemoteID() security.PublicID                   { return c.remoteID }
-func (c *context) LocalEndpoint() naming.Endpoint                { return nil }
-func (c *context) RemoteEndpoint() naming.Endpoint               { return nil }
+func (c *context) Method() string                            { return c.method }
+func (c *context) Name() string                              { return c.name }
+func (c *context) Suffix() string                            { return c.suffix }
+func (c *context) Label() security.Label                     { return c.label }
+func (c *context) Discharges() map[string]security.Discharge { return c.discharges }
+func (c *context) LocalID() security.PublicID                { return c.localID }
+func (c *context) RemoteID() security.PublicID               { return c.remoteID }
+func (c *context) LocalEndpoint() naming.Endpoint            { return nil }
+func (c *context) RemoteEndpoint() naming.Endpoint           { return nil }
 
 func saveACLToTempFile(acl security.ACL) string {
 	f, err := ioutil.TempFile("", "saved_acl")

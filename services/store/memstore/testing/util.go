@@ -34,18 +34,18 @@ func NewFakeServerContext(id security.PublicID) *FakeServerContext {
 	}
 }
 
-func (*FakeServerContext) Server() ipc.Server                            { return nil }
-func (*FakeServerContext) Method() string                                { return "" }
-func (*FakeServerContext) Name() string                                  { return "" }
-func (*FakeServerContext) Suffix() string                                { return "" }
-func (*FakeServerContext) Label() (l security.Label)                     { return }
-func (*FakeServerContext) CaveatDischarges() security.CaveatDischargeMap { return nil }
-func (ctx *FakeServerContext) LocalID() security.PublicID                { return ctx.id }
-func (ctx *FakeServerContext) RemoteID() security.PublicID               { return ctx.id }
-func (*FakeServerContext) Blessing() security.PublicID                   { return nil }
-func (*FakeServerContext) LocalEndpoint() naming.Endpoint                { return nil }
-func (*FakeServerContext) RemoteEndpoint() naming.Endpoint               { return nil }
-func (ctx *FakeServerContext) Cancel()                                   { ctx.cancel() }
+func (*FakeServerContext) Server() ipc.Server                        { return nil }
+func (*FakeServerContext) Method() string                            { return "" }
+func (*FakeServerContext) Name() string                              { return "" }
+func (*FakeServerContext) Suffix() string                            { return "" }
+func (*FakeServerContext) Label() (l security.Label)                 { return }
+func (*FakeServerContext) Discharges() map[string]security.Discharge { return nil }
+func (ctx *FakeServerContext) LocalID() security.PublicID            { return ctx.id }
+func (ctx *FakeServerContext) RemoteID() security.PublicID           { return ctx.id }
+func (*FakeServerContext) Blessing() security.PublicID               { return nil }
+func (*FakeServerContext) LocalEndpoint() naming.Endpoint            { return nil }
+func (*FakeServerContext) RemoteEndpoint() naming.Endpoint           { return nil }
+func (ctx *FakeServerContext) Cancel()                               { ctx.cancel() }
 
 // Utilities for PutMutations.
 

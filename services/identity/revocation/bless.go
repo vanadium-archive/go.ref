@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"time"
 
+	vsecurity "veyron/security"
 	"veyron/security/audit"
-	"veyron/security/caveat"
 
 	"veyron2/security"
 )
@@ -13,8 +13,12 @@ import (
 // Bless creates a blessing on behalf of the identity server.
 func Bless(server security.PrivateID, blessee security.PublicID, email string, duration time.Duration, revocationCaveat security.ThirdPartyCaveat) (security.PublicID, error) {
 	if revocationCaveat != nil {
+		caveat, err := security.NewCaveat(revocationCaveat)
+		if err != nil {
+			return nil, err
+		}
 		// TODO(suharshs): Extend the duration for blessings with provided revocaionCaveats
-		return server.Bless(blessee, email, duration, []security.ServiceCaveat{caveat.UniversalCaveat(revocationCaveat)})
+		return server.Bless(blessee, email, duration, []security.Caveat{caveat})
 	}
 	// return a blessing with a more limited duration, since there is no revocation caveat
 	return server.Bless(blessee, email, duration, nil)
@@ -40,9 +44,13 @@ func ReadBlessAuditEntry(entry audit.Entry) (BlessingAuditEntry, error) {
 		blessEntry.End = blessEntry.Start.Add(time.Duration(duration))
 	}
 	blessEntry.Blessed, _ = entry.Results[0].(security.PublicID)
-	caveats, _ := entry.Arguments[3].([]security.ServiceCaveat)
+	caveats, _ := entry.Arguments[3].([]security.Caveat)
 	if len(caveats) > 0 {
-		blessEntry.RevocationCaveat, _ = caveats[0].Caveat.(security.ThirdPartyCaveat)
+		revocationCaveat, err := vsecurity.CaveatValidators(caveats[0].Bytes())
+		if err != nil {
+			return blessEntry, err
+		}
+		blessEntry.RevocationCaveat, _ = revocationCaveat[0].(security.ThirdPartyCaveat)
 	}
 	return blessEntry, nil
 }

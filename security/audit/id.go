@@ -37,7 +37,7 @@ func (id *auditingID) PublicID() security.PublicID {
 	return id.id.PublicID()
 }
 
-func (id *auditingID) Bless(blessee security.PublicID, blessingName string, duration time.Duration, caveats []security.ServiceCaveat) (security.PublicID, error) {
+func (id *auditingID) Bless(blessee security.PublicID, blessingName string, duration time.Duration, caveats []security.Caveat) (security.PublicID, error) {
 	blessed, err := id.id.Bless(blessee, blessingName, duration, caveats)
 	if err = id.audit(err, "Bless", args{blessee, blessingName, duration, caveats}, blessed); err != nil {
 		return nil, err
@@ -57,7 +57,7 @@ func (id *auditingID) Derive(publicID security.PublicID) (security.PrivateID, er
 	return NewPrivateID(derived, id.auditor), nil
 }
 
-func (id *auditingID) MintDischarge(caveat security.ThirdPartyCaveat, context security.Context, duration time.Duration, caveats []security.ServiceCaveat) (security.ThirdPartyDischarge, error) {
+func (id *auditingID) MintDischarge(caveat security.ThirdPartyCaveat, context security.Context, duration time.Duration, caveats []security.Caveat) (security.Discharge, error) {
 	d, err := id.id.MintDischarge(caveat, context, duration, caveats)
 	if err = id.audit(err, "MintDischarge", args{caveat, context, duration, caveats}, nil); err != nil {
 		return nil, err

@@ -31,7 +31,7 @@ import (
 type permissions struct {
 	// The account name that is given to an app.
 	Account string
-	Caveats []security.ServiceCaveat
+	Caveats []security.Caveat
 }
 
 // persistentState is the state of the manager that will be persisted to disk.
@@ -161,7 +161,7 @@ func (i *IDManager) AddAccount(name string, id security.PrivateID) error {
 }
 
 // AddOrigin adds an origin to the manager linked to a the given account.
-func (i *IDManager) AddOrigin(origin string, account string, caveats []security.ServiceCaveat) error {
+func (i *IDManager) AddOrigin(origin string, account string, caveats []security.Caveat) error {
 	i.mu.Lock()
 	defer i.mu.Unlock()
 	if _, found := i.state.Accounts[account]; !found {
@@ -184,7 +184,7 @@ func (i *IDManager) AddOrigin(origin string, account string, caveats []security.
 	return nil
 }
 
-func (i *IDManager) generateBlessedID(origin string, account string, caveats []security.ServiceCaveat) (security.PrivateID, error) {
+func (i *IDManager) generateBlessedID(origin string, account string, caveats []security.Caveat) (security.PrivateID, error) {
 	blessor := i.state.Accounts[account]
 	if blessor == nil {
 		return nil, verror.NotFoundf("unknown account %s", account)

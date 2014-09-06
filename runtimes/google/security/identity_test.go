@@ -10,9 +10,11 @@ import (
 	"testing"
 	"time"
 
+	"veyron/lib/testutil/blackbox"
 	"veyron/security/caveat"
 	"veyron2/security"
 	"veyron2/security/wire"
+	"veyron2/vlog"
 	"veyron2/vom"
 )
 
@@ -294,28 +296,72 @@ func TestBless(t *testing.T) {
 	}
 }
 
+type unregisteredCaveat struct {
+	// TODO(ataly, ashankar): The int is embedded in order to
+	// distinguish the signature of this type from other Caveat types
+	// and therefore preventing VOM from decoding values of this type
+	// into another type. This is still not foolproof, we need to figure
+	// out a better way of preventing the accidental decoding into another
+	// type.
+	UniqueField int
+}
+
+func (unregisteredCaveat) Validate(security.Context) error {
+	return nil
+}
+
+func encodeUnregisteredCaveat([]string) {
+	cav, err := security.NewCaveat(unregisteredCaveat{1})
+	if err != nil {
+		vlog.Fatalf("security.NewCaveat failed: %s", err)
+	}
+	var buf bytes.Buffer
+	if err := vom.NewEncoder(&buf).Encode(cav); err != nil {
+		vlog.Fatalf("could not VOM-encode caveat: %s", err)
+	}
+	fmt.Println(string(buf.Bytes()))
+	blackbox.WaitForEOFOnStdin()
+}
+
+func TestHelperProcess(t *testing.T) {
+	blackbox.HelperProcess(t)
+}
+
 func TestAuthorizeWithCaveats(t *testing.T) {
 	var (
 		// alice
 		pcAlice = newChain("alice")
 		cAlice  = pcAlice.PublicID().(*chainPublicID)
 
-		// veyron/alice/tv
-		cVeyronAliceTV = bless(newChain("tv").PublicID(),
-			derive(bless(cAlice, veyronChain, "alice", nil), pcAlice),
-			"tv", nil).(*chainPublicID)
-
 		// Some random server called bob
 		bob = newChain("bob").PublicID()
 
 		// Caveats
 		// Can only call "Play" at the Google service
-		cavOnlyPlayAtGoogle = methodRestrictionCaveat("google", S{"Play"})
+		cavOnlyPlay = methodRestrictionCaveat(S{"Play"})
 		// Can only talk to the "Google" service
 		cavOnlyGoogle = peerIdentityCaveat("google")
-		// Can only call the PublicProfile method on veyron/alice/...
-		cavOnlyPublicProfile = methodRestrictionCaveat("veyron/alice/...", S{"PublicProfile"})
 	)
+
+	// We create a Caveat from the CaveatValidator "unregisteredCaveat".
+	// Since "unregisteredCaveat" is not registered with VOM, decoding
+	// this caveat as part of a PublicID should fail.
+	//
+	// The Caveat is created within a child process as VOM automaitcally
+	// registers all values encoded within the same process.
+	child := blackbox.HelperCommand(t, "encodeUnregisteredCaveat")
+	child.Cmd.Start()
+	defer child.Cleanup()
+	encodedCaveat, err := child.ReadLineFromChild()
+	if err != nil {
+		t.Fatalf("ReadLineFromChild failed: %v", err)
+	}
+	child.CloseStdin()
+
+	var cavUnregistered security.Caveat
+	if err := vom.NewDecoder(bytes.NewReader([]byte(encodedCaveat))).Decode(&cavUnregistered); err != nil {
+		t.Fatalf("Failed to decode bytes obtained from ReadLineFromChild: %v", err)
+	}
 
 	type rpc struct {
 		server security.PublicID
@@ -330,47 +376,55 @@ func TestAuthorizeWithCaveats(t *testing.T) {
 	}{
 		// client has a chain identity
 		{
-			client: bless(cAlice, veyronChain, "alice", cavOnlyPlayAtGoogle),
+			client: bless(cAlice, veyronChain, "alice", cavOnlyPlay),
 			tests: []rpc{
-				{server: bob, method: "Hello", authNames: S{"veyron/alice"}},
-				{server: bob, authNames: S{"veyron/alice"}},
-				{server: googleChain.PublicID(), method: "Hello", authErr: `caveat.MethodRestriction{"Play"} forbids invocation of method Hello`},
+				{server: bob, method: "Play", authNames: S{"veyron/alice"}},
+				{server: bob, method: "Hello", authErr: `caveat.MethodRestriction{"Play"} forbids invocation of method Hello`},
 				{server: googleChain.PublicID(), method: "Play", authNames: S{"veyron/alice"}},
-				{server: googleChain.PublicID(), authNames: S{"veyron/alice"}},
+				{server: googleChain.PublicID(), method: "Hello", authErr: `caveat.MethodRestriction{"Play"} forbids invocation of method Hello`},
 			},
 		},
 		{
 			client: bless(cAlice, veyronChain, "alice", cavOnlyGoogle),
 			tests: []rpc{
-				{server: bob, method: "Hello", authErr: `caveat.PeerIdentity{"google"} forbids RPCing with peer`},
+				{server: bob, method: "Hello", authErr: `caveat.PeerBlessings{"google"} forbids RPCing with peer`},
 				{server: googleChain.PublicID(), method: "Hello", authNames: S{"veyron/alice"}},
 				{server: googleChain.PublicID(), method: "Play", authNames: S{"veyron/alice"}},
 			},
 		},
 		{
-			client: bless(cAlice, veyronChain, "alice", append(cavOnlyGoogle, cavOnlyPlayAtGoogle...)),
+			client: bless(cAlice, veyronChain, "alice", []security.Caveat{cavUnregistered}),
 			tests: []rpc{
-				{server: bob, method: "Hello", authErr: `caveat.PeerIdentity{"google"} forbids RPCing with peer`},
+				{server: bob, method: "Play", authErr: "caveat bytes could not be VOM-decoded"},
+				{server: bob, method: "Hello", authErr: "caveat bytes could not be VOM-decoded"},
+				{server: googleChain.PublicID(), method: "Play", authErr: "caveat bytes could not be VOM-decoded"},
+				{server: googleChain.PublicID(), method: "Hello", authErr: "caveat bytes could not be VOM-decoded"},
+			},
+		},
+		{
+			client: bless(cAlice, veyronChain, "alice", append(cavOnlyGoogle, cavOnlyPlay...)),
+			tests: []rpc{
+				{server: bob, method: "Hello", authErr: `caveat.PeerBlessings{"google"} forbids RPCing with peer`},
+				{server: bob, method: "Play", authErr: `caveat.PeerBlessings{"google"} forbids RPCing with peer`},
 				{server: googleChain.PublicID(), method: "Hello", authErr: `caveat.MethodRestriction{"Play"} forbids invocation of method Hello`},
 				{server: googleChain.PublicID(), method: "Play", authNames: S{"veyron/alice"}},
 			},
 		},
 		{
-			client: bless(cAlice, veyronChain, "alice", cavOnlyPublicProfile),
+			client: bless(cAlice, veyronChain, "alice", append(cavOnlyGoogle, cavUnregistered)),
 			tests: []rpc{
-				{server: cVeyronAliceTV, method: "PrivateProfile", authErr: `caveat.MethodRestriction{"PublicProfile"} forbids invocation of method PrivateProfile`},
-				{server: cVeyronAliceTV, method: "PublicProfile", authNames: S{"veyron/alice"}},
+				{server: googleChain.PublicID(), method: "Play", authErr: "caveat bytes could not be VOM-decoded"},
+				{server: googleChain.PublicID(), method: "Hello", authErr: "caveat bytes could not be VOM-decoded"},
 			},
 		},
 		// client has multiple blessings
 		{
-			client: newSetPublicID(bless(cAlice, veyronChain, "valice", append(cavOnlyPlayAtGoogle, cavOnlyPublicProfile...)), bless(cAlice, googleChain, "galice", cavOnlyGoogle)),
+			client: newSetPublicID(bless(cAlice, veyronChain, "valice", append(cavOnlyPlay, cavUnregistered)), bless(cAlice, googleChain, "galice", cavOnlyGoogle)),
 			tests: []rpc{
-				{server: bob, method: "Hello", authNames: S{"veyron/valice"}},
-				{server: googleChain.PublicID(), method: "Play", authNames: S{"veyron/valice", "google/galice"}},
-				{server: googleChain.PublicID(), method: "Buy", authNames: S{"google/galice"}},
-				{server: cVeyronAliceTV, method: "PublicProfile", authNames: S{"veyron/valice"}},
-				{server: cVeyronAliceTV, method: "PrivateProfile", authErr: "none of the blessings in the set are authorized"},
+				{server: bob, method: "Hello", authErr: "none of the blessings in the set are authorized"},
+				{server: bob, method: "Play", authErr: "none of the blessings in the set are authorized"},
+				{server: googleChain.PublicID(), method: "Hello", authNames: S{"google/galice"}},
+				{server: googleChain.PublicID(), method: "Play", authNames: S{"google/galice"}},
 			},
 		},
 	}
@@ -382,15 +436,18 @@ func TestAuthorizeWithCaveats(t *testing.T) {
 		}
 		for _, test := range d.tests {
 			if (len(test.authNames) == 0) == (len(test.authErr) == 0) {
-				t.Fatalf("Bad testdata. Exactly one of authNames and authErr must be non-empty: %+q/%+v", d.client, test)
+				t.Errorf("Bad testdata. Exactly one of authNames and authErr must be non-empty: %+q/%+v", d.client, test)
+				continue
 			}
 			ctx := NewContext(ContextArgs{LocalID: test.server, RemoteID: d.client, Method: test.method})
 			authID, err := d.client.Authorize(ctx)
 			if !matchesErrorPattern(err, test.authErr) {
 				t.Errorf("%q.Authorize(%v) returned error: %v, want to match: %q", d.client, ctx, err, test.authErr)
+				continue
 			}
 			if err := verifyAuthorizedID(d.client, authID, test.authNames); err != nil {
 				t.Errorf("%q.Authorize(%v) returned identity: %v want identity with names: %q [%v]", d.client, ctx, authID, test.authNames, err)
+				continue
 			}
 		}
 	}
@@ -416,9 +473,9 @@ func (proximityCaveat) Validate(ctx security.Context) error {
 
 func TestThirdPartyCaveatMinting(t *testing.T) {
 	minter := newChain("minter")
-	cav, err := caveat.NewPublicKeyCaveat(proximityCaveat{}, minter.PublicID(), "location", security.ThirdPartyRequirements{})
+	cav, err := caveat.NewPublicKeyCaveat(newCaveat(proximityCaveat{})[0], minter.PublicID().PublicKey(), "location", security.ThirdPartyRequirements{})
 	if err != nil {
-		t.Fatal(err)
+		t.Fatalf("security.NewPublicKeyCaveat failed: %s", err)
 	}
 
 	discharge, err := minter.MintDischarge(cav, NewContext(ContextArgs{}), time.Hour, nil)
@@ -432,7 +489,7 @@ func TestThirdPartyCaveatMinting(t *testing.T) {
 	}
 
 	ctxValidateMinting := NewContext(ContextArgs{
-		Discharges: security.CaveatDischargeMap{discharge.CaveatID(): discharge},
+		Discharges: dischargeMap{discharge.ID(): discharge},
 		Debug:      "ctxValidateMinting",
 	})
 	if err = cav.Validate(ctxValidateMinting); err != nil {
@@ -447,12 +504,12 @@ func TestAuthorizeWithThirdPartyCaveats(t *testing.T) {
 	mkgoogle := func(id security.PrivateID, name string) security.PrivateID {
 		return derive(bless(id.PublicID(), googleChain, name, nil), id)
 	}
-	mkcaveat := func(id security.PrivateID) []security.ServiceCaveat {
-		c, err := caveat.NewPublicKeyCaveat(alwaysValidCaveat{}, id.PublicID(), fmt.Sprintf("%v location", id.PublicID()), security.ThirdPartyRequirements{})
+	mkTPCaveat := func(id security.PrivateID) security.ThirdPartyCaveat {
+		c, err := caveat.NewPublicKeyCaveat(newCaveat(alwaysValidCaveat{})[0], id.PublicID().PublicKey(), fmt.Sprintf("%v location", id.PublicID()), security.ThirdPartyRequirements{})
 		if err != nil {
-			t.Fatal(err)
+			t.Fatalf("NewPublicKeyCaveat with PublicKey of: %v failed: %s", id, err)
 		}
-		return []security.ServiceCaveat{caveat.UniversalCaveat(c)}
+		return c
 	}
 	var (
 		alice = newChain("alice")
@@ -460,12 +517,12 @@ func TestAuthorizeWithThirdPartyCaveats(t *testing.T) {
 		carol = newChain("carol").PublicID()
 
 		// aliceProximityCaveat is a caveat whose discharge can only be minted by alice.
-		aliceProximityCaveat = mkcaveat(alice)
-		bobProximityCaveat   = mkcaveat(bob)
+		aliceProximityCaveat = mkTPCaveat(alice)
+		bobProximityCaveat   = mkTPCaveat(bob)
 	)
 
-	mintDischarge := func(id security.PrivateID, duration time.Duration, caveats []security.ServiceCaveat) security.ThirdPartyDischarge {
-		d, err := id.MintDischarge(aliceProximityCaveat[0].Caveat.(security.ThirdPartyCaveat), nil, duration, caveats)
+	mintDischarge := func(id security.PrivateID, duration time.Duration, caveats []security.Caveat) security.Discharge {
+		d, err := id.MintDischarge(aliceProximityCaveat.(security.ThirdPartyCaveat), nil, duration, caveats)
 		if err != nil {
 			t.Fatalf("%q.MintDischarge failed: %v", id, err)
 		}
@@ -481,27 +538,27 @@ func TestAuthorizeWithThirdPartyCaveats(t *testing.T) {
 		// Contexts
 		ctxEmpty = NewContext(ContextArgs{Debug: "ctxEmpty"})
 		ctxAlice = NewContext(ContextArgs{
-			Discharges: security.CaveatDischargeMap{dAlice.CaveatID(): dAlice},
+			Discharges: dischargeMap{dAlice.ID(): dAlice},
 			Debug:      "ctxAlice",
 		})
 		// Context containing the discharge dGoogle but the server is not a Google server, so
 		// the service caveat is not satisfied
 		ctxGoogleAtOther = NewContext(ContextArgs{
-			Discharges: security.CaveatDischargeMap{dGoogle.CaveatID(): dGoogle},
+			Discharges: dischargeMap{dGoogle.ID(): dGoogle},
 			Debug:      "ctxGoogleAtOther",
 		})
 		// Context containing the discharge dGoogle at a google server.
 		ctxGoogleAtGoogle = NewContext(ContextArgs{
-			Discharges: security.CaveatDischargeMap{dGoogle.CaveatID(): dGoogle},
+			Discharges: dischargeMap{dGoogle.ID(): dGoogle},
 			LocalID:    googleChain.PublicID(),
 			Debug:      "ctxGoogleAtGoogle",
 		})
 		ctxExpired = NewContext(ContextArgs{
-			Discharges: security.CaveatDischargeMap{dExpired.CaveatID(): dExpired},
+			Discharges: dischargeMap{dExpired.ID(): dExpired},
 			Debug:      "ctxExpired",
 		})
 		ctxInvalid = NewContext(ContextArgs{
-			Discharges: security.CaveatDischargeMap{dInvalid.CaveatID(): dInvalid},
+			Discharges: dischargeMap{dInvalid.ID(): dInvalid},
 			Debug:      "ctxInvalid",
 		})
 
@@ -520,20 +577,20 @@ func TestAuthorizeWithThirdPartyCaveats(t *testing.T) {
 	}{
 		// carol blessed by bob with the third-party caveat should be authorized when the context contains a valid discharge
 		{
-			id:        bless(carol, mkveyron(bob, "bob"), "friend", aliceProximityCaveat),
+			id:        bless(carol, mkveyron(bob, "bob"), "friend", newCaveat(aliceProximityCaveat)),
 			authNames: S{"veyron/bob/friend"},
 		},
 		// veyron/vbob/vfriend with bobProximityCaveat and google/gbob/gfriend with aliceProximityCaveat
 		// Only google/gbob/gfriend should be authorized since the discharge for the former is missing
 		{
 			id: newSetPublicID(
-				bless(carol, mkveyron(bob, "vbob"), "vfriend", bobProximityCaveat),
-				bless(carol, mkgoogle(bob, "gbob"), "gfriend", aliceProximityCaveat)),
+				bless(carol, mkveyron(bob, "vbob"), "vfriend", newCaveat(bobProximityCaveat)),
+				bless(carol, mkgoogle(bob, "gbob"), "gfriend", newCaveat(aliceProximityCaveat))),
 			authNames: S{"google/gbob/gfriend"},
 		},
 		// veyron/vbob/friend#google/gbob/friend both have the same caveat and both are satisfied
 		{
-			id:        bless(carol, newSetPrivateID(mkveyron(bob, "vbob"), mkgoogle(bob, "gbob")), "friend", aliceProximityCaveat),
+			id:        bless(carol, newSetPrivateID(mkveyron(bob, "vbob"), mkgoogle(bob, "gbob")), "friend", newCaveat(aliceProximityCaveat)),
 			authNames: S{"veyron/vbob/friend", "google/gbob/friend"},
 		},
 	}
@@ -559,33 +616,39 @@ func TestAuthorizeWithThirdPartyCaveats(t *testing.T) {
 	}
 }
 
-type SortedThirdPartyCaveats []security.ServiceCaveat
+type SortedThirdPartyCaveats []security.ThirdPartyCaveat
 
 func (s SortedThirdPartyCaveats) Len() int { return len(s) }
 func (s SortedThirdPartyCaveats) Less(i, j int) bool {
-	return s[i].Caveat.(security.ThirdPartyCaveat).ID() < s[j].Caveat.(security.ThirdPartyCaveat).ID()
+	return s[i].ID() < s[j].ID()
 }
 func (s SortedThirdPartyCaveats) Swap(i, j int) { s[i], s[j] = s[j], s[i] }
 
 func TestThirdPartyCaveatAccessors(t *testing.T) {
 	mkTPCaveat := func(id security.PublicID) security.ThirdPartyCaveat {
-		tpCav, err := caveat.NewPublicKeyCaveat(alwaysValidCaveat{}, id, "someLocation", security.ThirdPartyRequirements{})
+		tpCav, err := caveat.NewPublicKeyCaveat(newCaveat(alwaysValidCaveat{})[0], id.PublicKey(), "someLocation", security.ThirdPartyRequirements{})
 		if err != nil {
-			t.Fatalf("NewPublicKeyCaveat(%q, ...) failed: %v", id, err)
+			t.Fatalf("NewPublicKeyCaveat with PublicKey of: %v failed: %s", id, err)
 		}
 		return tpCav
 	}
-	mintDischarge := func(caveat security.ThirdPartyCaveat, id security.PrivateID, caveats []security.ServiceCaveat) security.ThirdPartyDischarge {
+	mintDischarge := func(caveat security.ThirdPartyCaveat, id security.PrivateID, caveats []security.Caveat) security.Discharge {
 		d, err := id.MintDischarge(caveat, nil, time.Minute, caveats)
 		if err != nil {
 			t.Fatalf("%q.MintDischarge failed: %v", id, err)
 		}
 		return d
 	}
-
-	sortTPCaveats := func(c []security.ServiceCaveat) []security.ServiceCaveat {
-		sort.Stable(SortedThirdPartyCaveats(c))
-		return c
+	sortTPCaveats := func(caveats []security.ThirdPartyCaveat) []security.ThirdPartyCaveat {
+		sort.Stable(SortedThirdPartyCaveats(caveats))
+		return caveats
+	}
+	validators := func(caveats []security.ThirdPartyCaveat) []security.CaveatValidator {
+		vals := make([]security.CaveatValidator, len(caveats))
+		for i, cav := range caveats {
+			vals[i] = cav.(security.CaveatValidator)
+		}
+		return vals
 	}
 
 	var (
@@ -597,20 +660,20 @@ func TestThirdPartyCaveatAccessors(t *testing.T) {
 		sBob        = newSetPrivateID(cBob, cBobBuilder).(setPrivateID)
 
 		// Caveats
-		tpCavService   = security.ServiceCaveat{Service: "someService", Caveat: mkTPCaveat(alice.PublicID())}
-		tpCavUniversal = caveat.UniversalCaveat(mkTPCaveat(alice.PublicID()))
-		cav            = methodRestrictionCaveat("someService", nil)[0]
+		tpCavAlice = mkTPCaveat(alice.PublicID())
+		tpCavBob   = mkTPCaveat(alice.PublicID())
+		cav        = caveat.MethodRestriction(nil)
 	)
 
 	caveats := []struct {
-		firstparty []security.ServiceCaveat
-		thirdparty []security.ServiceCaveat
+		firstparty []security.CaveatValidator
+		thirdparty []security.ThirdPartyCaveat
 	}{
 		{firstparty: nil, thirdparty: nil},
-		{firstparty: []security.ServiceCaveat{cav}},
-		{thirdparty: []security.ServiceCaveat{tpCavService}},
-		{thirdparty: []security.ServiceCaveat{tpCavService, tpCavUniversal}},
-		{firstparty: []security.ServiceCaveat{cav}, thirdparty: []security.ServiceCaveat{tpCavService, tpCavUniversal}},
+		{firstparty: []security.CaveatValidator{cav}},
+		{thirdparty: []security.ThirdPartyCaveat{tpCavAlice}},
+		{thirdparty: []security.ThirdPartyCaveat{tpCavAlice, tpCavBob}},
+		{firstparty: []security.CaveatValidator{cav}, thirdparty: []security.ThirdPartyCaveat{tpCavAlice, tpCavBob}},
 	}
 	testdata := []struct {
 		privID security.PrivateID
@@ -623,14 +686,14 @@ func TestThirdPartyCaveatAccessors(t *testing.T) {
 	}
 	for _, d := range testdata {
 		for _, c := range caveats {
-			all := append(c.firstparty, c.thirdparty...)
+			all := append(newCaveat(c.firstparty...), newCaveat(validators(c.thirdparty)...)...)
 			// Test ThirdPartyCaveat accessors on security.PublicIDs.
 			id := bless(d.pubID, d.privID, "irrelevant", all)
 			want := sortTPCaveats(c.thirdparty)
 			if got := sortTPCaveats(id.ThirdPartyCaveats()); !reflect.DeepEqual(got, want) {
 				t.Errorf("%q(%T) got ThirdPartyCaveats() = %+v, want %+v", id, id, got, want)
 			}
-			// Test ThirdPartyCaveat accessors on security.ThirdPartyCaveatDischarges.
+			// Test ThirdPartyCaveat accessors on security.ThirdPartyCaveat discharges.
 			dis := mintDischarge(mkTPCaveat(alice.PublicID()), d.privID, all)
 			if got := sortTPCaveats(dis.ThirdPartyCaveats()); !reflect.DeepEqual(got, want) {
 				t.Errorf("%q got ThirdPartyCaveats() = %+v, want %+v", dis, got, want)
@@ -780,6 +843,8 @@ func TestSetIdentityAmplification(t *testing.T) {
 }
 
 func init() {
+	blackbox.CommandTable["encodeUnregisteredCaveat"] = encodeUnregisteredCaveat
+
 	vom.Register(alwaysValidCaveat{})
 	vom.Register(proximityCaveat{})
 }
