@@ -137,7 +137,7 @@ func (p *publisher) WaitForStop() {
 }
 
 func (p *publisher) runLoop(ctx context.T, ns naming.Namespace, period time.Duration) {
-	vlog.VI(1).Info("ipc pub: start runLoop")
+	vlog.VI(2).Info("ipc pub: start runLoop")
 	state := newPubState(ctx, ns, period)
 	for {
 		select {
@@ -146,7 +146,7 @@ func (p *publisher) runLoop(ctx context.T, ns naming.Namespace, period time.Dura
 				// Closing the cmdchan signals us to break out of the loop.  Unmount
 				// everything and signal that we're done by closing the donechan.
 				state.unmountAll()
-				vlog.VI(1).Info("ipc pub: exit runLoop")
+				vlog.VI(2).Info("ipc pub: exit runLoop")
 				close(p.donechan)
 				return
 			}

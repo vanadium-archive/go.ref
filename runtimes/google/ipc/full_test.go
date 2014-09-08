@@ -455,18 +455,18 @@ func TestStartCall(t *testing.T) {
 		nameErr      = "does not match the provided pattern"
 	)
 	var (
-		// TODO(ataly, ashankar): Uncomment the following once server authorization
-		// is enabled.
-		// now        = time.Now()
-		// cavOnlyV1  = caveat.UniversalCaveat(caveat.PeerIdentity{"client/v1"})
-		// cavExpired = security.ServiceCaveat{
-		//	Service: security.AllPrincipals,
-		//	Caveat:  &caveat.Expiry{IssueTime: now, ExpiryTime: now},
-		// }
-		// clientV1ID      = derive(clientID, "v1")
-		// clientV2ID      = derive(clientID, "v2")
-		// serverV1ID      = derive(serverID, "v1", cavOnlyV1)
-		// serverExpiredID = derive(serverID, "expired", cavExpired)
+	// TODO(ataly, ashankar): Uncomment the following once server authorization
+	// is enabled.
+	// now        = time.Now()
+	// cavOnlyV1  = caveat.UniversalCaveat(caveat.PeerIdentity{"client/v1"})
+	// cavExpired = security.ServiceCaveat{
+	//	Service: security.AllPrincipals,
+	//	Caveat:  &caveat.Expiry{IssueTime: now, ExpiryTime: now},
+	// }
+	// clientV1ID      = derive(clientID, "v1")
+	// clientV2ID      = derive(clientID, "v2")
+	// serverV1ID      = derive(serverID, "v1", cavOnlyV1)
+	// serverExpiredID = derive(serverID, "expired", cavExpired)
 	)
 
 	tests := []struct {
@@ -1106,7 +1106,7 @@ func TestPreferredAddress(t *testing.T) {
 		a.IP = net.ParseIP("1.1.1.1")
 		return a, nil
 	}
-	server, err := InternalNewServer(testContext(), sm, ns, vc.FixedLocalID(serverID), veyron2.PreferredAddressOpt(pa))
+	server, err := InternalNewServer(testContext(), sm, ns, vc.FixedLocalID(serverID), &veyron2.AddressChooserOpt{pa})
 	if err != nil {
 		t.Errorf("InternalNewServer failed: %v", err)
 	}
@@ -1139,7 +1139,7 @@ func TestPreferredAddressErrors(t *testing.T) {
 	paerr := func(string, []net.Addr) (net.Addr, error) {
 		return nil, fmt.Errorf("oops")
 	}
-	server, err := InternalNewServer(testContext(), sm, ns, vc.FixedLocalID(serverID), veyron2.PreferredAddressOpt(paerr))
+	server, err := InternalNewServer(testContext(), sm, ns, vc.FixedLocalID(serverID), &veyron2.AddressChooserOpt{paerr})
 	if err != nil {
 		t.Errorf("InternalNewServer failed: %v", err)
 	}
