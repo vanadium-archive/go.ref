@@ -8,16 +8,23 @@ import (
 	"veyron2/config"
 	"veyron2/rt"
 
-	"veyron/profiles/net"
+	"veyron/profiles/roaming"
 )
 
 func main() {
 	r := rt.Init()
 	defer r.Cleanup()
 
+	fmt.Println("Profile: ", r.Profile().Name())
+
+	if addrOpt := r.Profile().PreferredAddressOpt(); addrOpt != nil {
+		if gce, err := addrOpt("", nil); err == nil {
+			fmt.Printf("%s: 1:1 NAT address is %s\n", r.Profile().Name(), gce)
+		}
+	}
+
 	ch := make(chan config.Setting, 10)
-	p := r.Publisher()
-	settings, err := p.ForkStream(net.StreamName, ch)
+	settings, err := r.Publisher().ForkStream(roaming.SettingsStreamName, ch)
 	if err != nil {
 		r.Logger().Infof("failed to fork stream: %s", err)
 	}

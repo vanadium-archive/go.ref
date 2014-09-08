@@ -5,6 +5,7 @@
 package gce
 
 import (
+	"net"
 	"veyron/profiles"
 
 	"veyron2"
@@ -18,7 +19,9 @@ func init() {
 	rt.RegisterProfile(&profile{})
 }
 
-type profile struct{}
+type profile struct {
+	publicAddress net.Addr
+}
 
 func (p *profile) Name() string {
 	return "GCE"
@@ -37,17 +40,23 @@ func (p *profile) String() string {
 	return "net " + p.Platform().String()
 }
 
-func (p *profile) Init(rt veyron2.Runtime, publisher *config.Publisher) {
-	if !gce.RunningOnGCE() {
-		panic("GCE profile used on a non-GCE system")
+func (p *profile) AddressChooser() veyron2.AddressChooser {
+	return func(network string, addrs []net.Addr) (net.Addr, error) {
+		return p.publicAddress, nil
 	}
-	go addressPublisher(rt, publisher)
 }
 
-func addressPublisher(rt veyron2.Runtime, p *config.Publisher) {
-	ch := make(chan config.Setting)
-	p.CreateStream("net", "network configuration", ch)
-	for {
-		// TODO(cnicolaou): publish local and external address..
+func (p *profile) Init(rt veyron2.Runtime, publisher *config.Publisher) {
+	if !gce.RunningOnGCE() {
+		return
+		// TODO(cnicolaou): add error return to init
+		//return fmt.Errorf("GCE profile used on a non-GCE system")
+	}
+	if ip, err := gce.ExternalIPAddress(); err != nil {
+		return
+		// TODO(cnicolaou): add error return to init
+		//		return err
+	} else {
+		p.publicAddress = &net.IPAddr{IP: ip}
 	}
 }

@@ -1106,7 +1106,7 @@ func TestPreferredAddress(t *testing.T) {
 		a.IP = net.ParseIP("1.1.1.1")
 		return a, nil
 	}
-	server, err := InternalNewServer(testContext(), sm, ns, vc.FixedLocalID(serverID), veyron2.PreferredAddressOpt(pa))
+	server, err := InternalNewServer(testContext(), sm, ns, vc.FixedLocalID(serverID), &veyron2.AddressChooserOpt{pa})
 	if err != nil {
 		t.Errorf("InternalNewServer failed: %v", err)
 	}
@@ -1139,7 +1139,7 @@ func TestPreferredAddressErrors(t *testing.T) {
 	paerr := func(string, []net.Addr) (net.Addr, error) {
 		return nil, fmt.Errorf("oops")
 	}
-	server, err := InternalNewServer(testContext(), sm, ns, vc.FixedLocalID(serverID), veyron2.PreferredAddressOpt(paerr))
+	server, err := InternalNewServer(testContext(), sm, ns, vc.FixedLocalID(serverID), &veyron2.AddressChooserOpt{paerr})
 	if err != nil {
 		t.Errorf("InternalNewServer failed: %v", err)
 	}

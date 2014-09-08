@@ -31,37 +31,3 @@
 // networking.
 // TODO(cnicolaou,ashankar): add this
 package profiles
-
-import (
-	"veyron2"
-	"veyron2/config"
-)
-
-type generic struct{}
-
-// New returns a new instance of a very generic Profile. It can be used
-// as a default by Runtime implementations, in unit tests etc.
-func New() veyron2.Profile {
-	return &generic{}
-}
-
-func (g *generic) Name() string {
-	return "generic"
-}
-
-func (g *generic) Runtime() string {
-	return ""
-}
-
-func (g *generic) Platform() *veyron2.Platform {
-	p, _ := Platform()
-	return p
-}
-
-func (g *generic) Init(rt veyron2.Runtime, _ *config.Publisher) {
-	rt.Logger().VI(1).Infof("%s", g)
-}
-
-func (g *generic) String() string {
-	return "generic profile on " + g.Platform().String()
-}
