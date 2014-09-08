@@ -17,14 +17,14 @@ var (
 	protocol = flag.String("protocol", "tcp", "protocol to listen on")
 	address  = flag.String("address", ":0", "address to listen on")
 
-	name      = flag.String("name", "", "name to mount the profile repository as")
-	storeName = flag.String("store", "", "object name of the profile repository store")
+	name  = flag.String("name", "", "name to mount the profile repository as")
+	store = flag.String("store", "", "local directory to store profiles in")
 )
 
 func main() {
 	flag.Parse()
-	if *storeName == "" {
-		vlog.Fatalf("Specify a store using --store=<name>")
+	if *store == "" {
+		vlog.Fatalf("Specify a directory for storing profiles using --store=<name>")
 	}
 	runtime := rt.Init()
 	defer runtime.Cleanup()
@@ -33,7 +33,8 @@ func main() {
 		vlog.Fatalf("NewServer() failed: %v", err)
 	}
 	defer server.Stop()
-	dispatcher, err := impl.NewDispatcher(*storeName, vflag.NewAuthorizerOrDie())
+
+	dispatcher, err := impl.NewDispatcher(*store, vflag.NewAuthorizerOrDie())
 	if err != nil {
 		vlog.Fatalf("NewDispatcher() failed: %v", err)
 	}

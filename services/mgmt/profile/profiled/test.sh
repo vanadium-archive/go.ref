@@ -12,7 +12,6 @@ source "${VEYRON_ROOT}/environment/scripts/lib/shell_test.sh"
 build() {
   local -r GO="${REPO_ROOT}/scripts/build/go"
   "${GO}" build veyron/services/mgmt/profile/profiled || shell_test::fail "line ${LINENO}: failed to build 'profiled'"
-  "${GO}" build veyron.io/store/veyron/services/store/stored || shell_test::fail "line ${LINENO}: failed to build 'stored'"
   "${GO}" build veyron/tools/profile || shell_test::fail "line ${LINENO}: failed to build 'profile'"
 }
 
@@ -22,13 +21,9 @@ main() {
 
   shell_test::setup_server_test
 
-  # Start the store daemon.
-  local -r DB_DIR=$(shell::tmp_dir)
-  local -r STORE="profile-test-store"
-  shell_test::start_server ./stored --name="${STORE}" --address=127.0.0.1:0 --db="${DB_DIR}"
-
   # Start the profile repository daemon.
   local -r REPO="profiled-test-repo"
+  local -r STORE=$(shell:tmp_dir)
   shell_test::start_server ./profiled --name="${REPO}" --address=127.0.0.1:0 --store="${STORE}"
 
   # Create a profile.

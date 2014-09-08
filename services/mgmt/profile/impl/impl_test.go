@@ -1,10 +1,10 @@
 package impl
 
 import (
+	"io/ioutil"
 	"reflect"
 	"testing"
 
-	"veyron.io/store/veyron/services/store/testutil"
 	"veyron/services/mgmt/profile"
 	"veyron/services/mgmt/repository"
 
@@ -40,17 +40,17 @@ func TestInterface(t *testing.T) {
 	}
 	defer server.Stop()
 
-	// Setup and start a store server.
-	mountPoint, cleanup := testutil.NewStore(t, server, runtime.Identity().PublicID())
-	defer cleanup()
-
 	// Setup and start the profile server.
 	server, err = runtime.NewServer()
 	if err != nil {
 		t.Fatalf("NewServer() failed: %v", err)
 	}
-
-	dispatcher, err := NewDispatcher(mountPoint, nil)
+	dir, prefix := "", ""
+	store, err := ioutil.TempDir(dir, prefix)
+	if err != nil {
+		t.Fatalf("TempDir(%q, %q) failed: %v", dir, prefix, err)
+	}
+	dispatcher, err := NewDispatcher(store, nil)
 	if err != nil {
 		t.Fatalf("NewDispatcher() failed: %v", err)
 	}

@@ -4,7 +4,6 @@ import (
 	"errors"
 	"strings"
 
-	_ "veyron.io/store/veyron/services/store/typeregistryhack"
 	"veyron/services/mgmt/lib/fs"
 	"veyron2/ipc"
 	"veyron2/naming"
@@ -18,7 +17,6 @@ type invoker struct {
 	// metadata.
 	// All Invokers share a single dispatcher's Memstore.
 	store *fs.Memstore
-
 	// storeRoot is a name in the Store under which all data will be stored.
 	storeRoot string
 	// suffix is the suffix of the current invocation that is assumed to
