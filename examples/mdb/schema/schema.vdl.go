@@ -4,7 +4,7 @@
 package schema
 
 import (
-	"veyron2/storage"
+	"veyron.io/store/veyron2/storage"
 )
 
 // Dir is used to represent directories.

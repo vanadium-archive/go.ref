@@ -1,6 +1,0 @@
-# Create an object remotely and update it twice (linked-list).
-# The format is: <cmd>|<objid>|<version>|<parent1>|<parent2>|<logrec>|<continued>|<deleted>
-
-addr|12345|1|||VeyronPhone:5:0|false|false
-addr|12345|2|1||VeyronPhone:5:1|false|false
-addr|12345|3|2||VeyronPhone:5:2|false|false

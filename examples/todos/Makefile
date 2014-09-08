@@ -11,7 +11,7 @@ node_modules:
 	(cd todos_appd && npm install)
 
 buildgo:
-	${VEYRON_ROOT}/veyron/scripts/build/go install veyron/examples/todos/... veyron/services/mounttable/mounttabled veyron/services/store/stored veyron/tools/findunusedport veyron/tools/identity
+	${VEYRON_ROOT}/veyron/scripts/build/go install veyron/examples/todos/... veyron/services/mounttable/mounttabled veyron.io/store/veyron/services/store/stored veyron/tools/findunusedport veyron/tools/identity
 
 buildapp: node_modules
 	browserify -d todos_appd/browser/*.js -p [minifyify --map bundle.js.map --output ${BUNDLE_JS}.map] -o ${BUNDLE_JS}

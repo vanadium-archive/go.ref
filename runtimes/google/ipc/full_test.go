@@ -455,18 +455,18 @@ func TestStartCall(t *testing.T) {
 		nameErr      = "does not match the provided pattern"
 	)
 	var (
-		// TODO(ataly, ashankar): Uncomment the following once server authorization
-		// is enabled.
-		// now        = time.Now()
-		// cavOnlyV1  = caveat.UniversalCaveat(caveat.PeerIdentity{"client/v1"})
-		// cavExpired = security.ServiceCaveat{
-		//	Service: security.AllPrincipals,
-		//	Caveat:  &caveat.Expiry{IssueTime: now, ExpiryTime: now},
-		// }
-		// clientV1ID      = derive(clientID, "v1")
-		// clientV2ID      = derive(clientID, "v2")
-		// serverV1ID      = derive(serverID, "v1", cavOnlyV1)
-		// serverExpiredID = derive(serverID, "expired", cavExpired)
+	// TODO(ataly, ashankar): Uncomment the following once server authorization
+	// is enabled.
+	// now        = time.Now()
+	// cavOnlyV1  = caveat.UniversalCaveat(caveat.PeerIdentity{"client/v1"})
+	// cavExpired = security.ServiceCaveat{
+	//	Service: security.AllPrincipals,
+	//	Caveat:  &caveat.Expiry{IssueTime: now, ExpiryTime: now},
+	// }
+	// clientV1ID      = derive(clientID, "v1")
+	// clientV2ID      = derive(clientID, "v2")
+	// serverV1ID      = derive(serverID, "v1", cavOnlyV1)
+	// serverExpiredID = derive(serverID, "expired", cavExpired)
 	)
 
 	tests := []struct {

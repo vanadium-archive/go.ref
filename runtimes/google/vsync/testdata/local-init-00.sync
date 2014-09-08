@@ -1,6 +1,0 @@
-# Create an object locally and update it twice (linked-list).
-# The format is: <cmd>|<objid>|<version>|<parent1>|<parent2>|<logrec>|<continued>|<deleted>
-
-addl|12345|0|||logrec-00|false|false
-addl|12345|1|0||logrec-01|false|false
-addl|12345|2|1||logrec-02|false|false

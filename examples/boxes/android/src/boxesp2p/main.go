@@ -73,7 +73,7 @@ import (
 	inaming "veyron/runtimes/google/naming"
 	vsync "veyron/runtimes/google/vsync"
 	vsecurity "veyron/security"
-	sstore "veyron/services/store/server"
+	sstore "veyron.io/store/veyron/services/store/server"
 
 	"veyron2"
 	"veyron2/context"
@@ -82,8 +82,8 @@ import (
 	"veyron2/rt"
 	"veyron2/security"
 	"veyron2/services/watch/types"
-	"veyron2/storage"
-	"veyron2/storage/vstore"
+	"veyron.io/store/veyron2/storage"
+	"veyron.io/store/veyron2/storage/vstore"
 	"veyron2/vom"
 )
 

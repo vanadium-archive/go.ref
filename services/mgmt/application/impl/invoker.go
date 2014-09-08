@@ -4,8 +4,8 @@ import (
 	"errors"
 	"strings"
 
+	_ "veyron.io/store/veyron/services/store/typeregistryhack"
 	"veyron/services/mgmt/lib/fs"
-	_ "veyron/services/store/typeregistryhack"
 	"veyron2/ipc"
 	"veyron2/naming"
 	"veyron2/services/mgmt/application"

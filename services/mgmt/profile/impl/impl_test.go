@@ -4,9 +4,9 @@ import (
 	"reflect"
 	"testing"
 
+	"veyron.io/store/veyron/services/store/testutil"
 	"veyron/services/mgmt/profile"
 	"veyron/services/mgmt/repository"
-	"veyron/services/store/testutil"
 
 	"veyron2/naming"
 	"veyron2/rt"

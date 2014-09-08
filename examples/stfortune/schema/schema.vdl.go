@@ -4,7 +4,7 @@
 package schema
 
 import (
-	"veyron2/storage"
+	"veyron.io/store/veyron2/storage"
 )
 
 // User contains the information corresponding to a particular UserName in the store.

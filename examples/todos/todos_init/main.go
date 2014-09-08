@@ -16,8 +16,8 @@ import (
 	"veyron/examples/todos/schema"
 	"veyron2/context"
 	"veyron2/rt"
-	"veyron2/storage"
-	"veyron2/storage/vstore"
+	"veyron.io/store/veyron2/storage"
+	"veyron.io/store/veyron2/storage/vstore"
 	"veyron2/vlog"
 )
 

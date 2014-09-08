@@ -39,8 +39,8 @@ package main
 // 	"veyron2/naming"
 // 	"veyron2/rt"
 // 	"veyron2/security"
-// 	"veyron2/storage"
-// 	"veyron2/storage/vstore"
+// 	"veyron.io/store/veyron2/storage"
+// 	"veyron.io/store/veyron2/storage/vstore"
 // 	"veyron2/vlog"
 // )
 

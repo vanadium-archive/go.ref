@@ -16,7 +16,7 @@ import (
 	"os"
 	"strings"
 	"time"
-	"veyron2/query"
+	"veyron.io/store/veyron2/query"
 
 	"veyron/examples/stfortune/schema"
 
@@ -24,8 +24,8 @@ import (
 	"veyron2/naming"
 	"veyron2/rt"
 	"veyron2/services/watch/types"
-	"veyron2/storage"
-	"veyron2/storage/vstore"
+	"veyron.io/store/veyron2/storage"
+	"veyron.io/store/veyron2/storage/vstore"
 	"veyron2/vom"
 )
 

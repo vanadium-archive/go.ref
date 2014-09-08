@@ -5,7 +5,7 @@ import (
 
 	"veyron/services/mgmt/lib/fs"
 	"veyron/services/mgmt/profile"
-	//	_ "veyron/services/store/typeregistryhack"
+	//	_ "veyron.io/store/veyron/services/store/typeregistryhack"
 
 	"veyron2/ipc"
 	"veyron2/naming"

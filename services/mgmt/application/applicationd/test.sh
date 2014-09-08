@@ -11,7 +11,7 @@ source "${VEYRON_ROOT}/environment/scripts/lib/shell_test.sh"
 build() {
   local -r GO="${REPO_ROOT}/scripts/build/go"
   "${GO}" build veyron/services/mgmt/application/applicationd || shell_test::fail "line ${LINENO}: failed to build 'applicationd'"
-  "${GO}" build veyron/services/store/stored || shell_test::fail "line ${LINENO}: failed to build 'stored'"
+  "${GO}" build veyron.io/store/veyron/services/store/stored || shell_test::fail "line ${LINENO}: failed to build 'stored'"
   "${GO}" build veyron/tools/application || shell_test::fail "line ${LINENO}: failed to build 'application'"
 }
 

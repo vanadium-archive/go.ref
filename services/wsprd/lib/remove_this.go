@@ -1,11 +1,11 @@
 package lib
 
 import (
+	"veyron.io/store/veyron2/services/store"
+	"veyron.io/store/veyron2/storage"
 	rps "veyron/examples/rockpaperscissors"
 	mttypes "veyron2/services/mounttable/types"
-	"veyron2/services/store"
 	watchtypes "veyron2/services/watch/types"
-	"veyron2/storage"
 	"veyron2/vom"
 )
 

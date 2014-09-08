@@ -1,6 +1,0 @@
-# Create an object remotely and delete it.
-# The format is: <cmd>|<objid>|<version>|<parent1>|<parent2>|<logrec>|<continued>|<deleted>
-
-addr|12345|1|||VeyronPhone:1:0|false|false
-addr|12345|2|1||VeyronPhone:1:1|false|false
-addr|12345|3|2||VeyronPhone:1:2|false|true
