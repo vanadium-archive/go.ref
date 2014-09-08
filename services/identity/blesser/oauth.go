@@ -21,7 +21,7 @@ import (
 type googleOAuth struct {
 	rt                 veyron2.Runtime
 	authcodeClient     struct{ ID, Secret string }
-	accessTokenClient  struct{ ID string }
+	accessTokenClients []struct{ ID string }
 	duration           time.Duration
 	domain             string
 	dischargerLocation string
@@ -36,8 +36,8 @@ type GoogleParams struct {
 	AuthorizationCodeClient struct {
 		ID, Secret string
 	}
-	// The OAuth client ID for the chrome-extension that will make BlessUsingAccessToken RPCs.
-	AccessTokenClient struct {
+	// The OAuth client IDs for the clients of the BlessUsingAccessToken RPCs.
+	AccessTokenClients []struct {
 		ID string
 	}
 	// The duration for which blessings will be valid.
@@ -68,7 +68,7 @@ func NewGoogleOAuthBlesserServer(p GoogleParams) interface{} {
 	}
 	b.authcodeClient.ID = p.AuthorizationCodeClient.ID
 	b.authcodeClient.Secret = p.AuthorizationCodeClient.Secret
-	b.accessTokenClient.ID = p.AccessTokenClient.ID
+	b.accessTokenClients = p.AccessTokenClients
 	return identity.NewServerOAuthBlesser(b)
 }
 
@@ -85,7 +85,7 @@ func (b *googleOAuth) BlessUsingAuthorizationCode(ctx ipc.ServerContext, authcod
 }
 
 func (b *googleOAuth) BlessUsingAccessToken(ctx ipc.ServerContext, accesstoken string) (vdlutil.Any, error) {
-	if len(b.accessTokenClient.ID) == 0 {
+	if len(b.accessTokenClients) == 0 {
 		return nil, fmt.Errorf("server not configured for blessing based on access tokens")
 	}
 	// URL from: https://developers.google.com/accounts/docs/OAuth2UserAgent#validatetoken
@@ -110,8 +110,15 @@ func (b *googleOAuth) BlessUsingAccessToken(ctx ipc.ServerContext, accesstoken s
 	if err := json.NewDecoder(tokeninfo.Body).Decode(&token); err != nil {
 		return "", fmt.Errorf("invalid JSON response from Google's tokeninfo API: %v", err)
 	}
-	if token.Audience != b.accessTokenClient.ID {
-		vlog.Infof("Got access token [%+v], wanted client id %v", token, b.accessTokenClient.ID)
+	audienceMatch := false
+	for _, c := range b.accessTokenClients {
+		if token.Audience == c.ID {
+			audienceMatch = true
+			break
+		}
+	}
+	if !audienceMatch {
+		vlog.Infof("Got access token [%+v], wanted one of client ids %v", token, b.accessTokenClients)
 		return "", fmt.Errorf("token not meant for this purpose, confused deputy? https://developers.google.com/accounts/docs/OAuth2UserAgent#validatetoken")
 	}
 	if !token.VerifiedEmail {
@@ -122,7 +129,7 @@ func (b *googleOAuth) BlessUsingAccessToken(ctx ipc.ServerContext, accesstoken s
 
 func (b *googleOAuth) bless(ctx ipc.ServerContext, name string) (vdlutil.Any, error) {
 	if len(b.domain) > 0 && !strings.HasSuffix(name, "@"+b.domain) {
-		return nil, fmt.Errorf("blessings for %q are not allowed", name)
+		return nil, fmt.Errorf("blessings for name %q are not allowed due to domain restriction", name)
 	}
 	self := b.rt.Identity()
 	var err error
