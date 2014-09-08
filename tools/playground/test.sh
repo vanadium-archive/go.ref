@@ -38,19 +38,49 @@ main() {
 
   export GOPATH="$(pwd)"
   export PATH="$(pwd):$PATH"
-  test_with_files $DIR/pingpong/wire.vdl $DIR/pong/pong.go $DIR/ping/ping.go || shell_test::fail "line ${LINENO}: basic ping"
-  grep -q ping builder.out || shell_test::fail "line ${LINENO}: no ping"
-  grep -q pong builder.out || shell_test::fail "line ${LINENO}: no pong"
 
-  test_with_files $DIR/pingpong/wire.vdl $DIR/pong/pong.go $DIR/ping/ping.go $DIR/ids/authorized.id || shell_test::fail "line ${LINENO}: authorized id"
-  grep -q ping builder.out || shell_test::fail "line ${LINENO}: no ping"
-  grep -q pong builder.out || shell_test::fail "line ${LINENO}: no pong"
+  # Test without identities
 
-  test_with_files $DIR/pingpong/wire.vdl $DIR/pong/pong.go $DIR/ping/ping.go $DIR/ids/expired.id || shell_test::fail  "line ${LINENO}: failed to build with expired id"
+  test_with_files $DIR/pingpong/wire.vdl $DIR/pong/pong.go $DIR/ping/ping.go || shell_test::fail "line ${LINENO}: basic ping (go -> go)"
+  grep -q PING builder.out || shell_test::fail "line ${LINENO}: no PING"
+  grep -q PONG builder.out || shell_test::fail "line ${LINENO}: no PONG"
+
+  test_with_files $DIR/pong/pong.js $DIR/ping/ping.js || shell_test::fail "line ${LINENO}: basic ping (js -> js)"
+  grep -q PING builder.out || shell_test::fail "line ${LINENO}: no PING"
+  grep -q PONG builder.out || shell_test::fail "line ${LINENO}: no PONG"
+
+  test_with_files $DIR/pong/pong.go $DIR/ping/ping.js $DIR/pingpong/wire.vdl || shell_test::fail "line ${LINENO}: basic ping (js -> go)"
+  grep -q PING builder.out || shell_test::fail "line ${LINENO}: no PING"
+  grep -q PONG builder.out || shell_test::fail "line ${LINENO}: no PONG"
+
+  # Test with authorized identities
+
+  test_with_files $DIR/pong/pong.go $DIR/ping/ping.go $DIR/pingpong/wire.vdl $DIR/ids/authorized.id || shell_test::fail "line ${LINENO}: authorized id (go -> go)"
+  grep -q PING builder.out || shell_test::fail "line ${LINENO}: no PING"
+  grep -q PONG builder.out || shell_test::fail "line ${LINENO}: no PONG"
+
+  test_with_files $DIR/pong/pong.js $DIR/ping/ping.js $DIR/ids/authorized.id || shell_test::fail "line ${LINENO}: authorized id (js -> js)"
+  grep -q PING builder.out || shell_test::fail "line ${LINENO}: no PING"
+  grep -q PONG builder.out || shell_test::fail "line ${LINENO}: no PONG"
+
+  # Test with expired identities
+
+  test_with_files $DIR/pong/pong.go $DIR/ping/ping.go $DIR/pingpong/wire.vdl $DIR/ids/expired.id || shell_test::fail  "line ${LINENO}: failed to build with expired id (go -> go)"
   grep -q "ipc: not authorized" builder.out || shell_test::fail "line ${LINENO}: rpc with expired id succeeded"
 
-  test_with_files $DIR/pingpong/wire.vdl $DIR/pong/pong.go $DIR/ping/ping.go $DIR/ids/unauthorized.id || shell_test::fail  "line ${LINENO}: failed to build with unauthorized id"
+  test_with_files $DIR/pong/pong.js $DIR/ping/ping.js $DIR/ids/expired.id || shell_test::fail  "line ${LINENO}: failed to build with expired id (js -> js)"
+  # TODO(nlacasse): The error message in this case is very bad. Clean up the
+  # veyron.js errors and change this to something reasonable.
+  grep -q "error serving service:" builder.out || shell_test::fail "line ${LINENO}: rpc with expired id succeeded"
+
+  # Test with unauthorized identities
+
+  test_with_files $DIR/pong/pong.go $DIR/ping/ping.go $DIR/pingpong/wire.vdl $DIR/ids/unauthorized.id || shell_test::fail  "line ${LINENO}: failed to build with unauthorized id (go -> go)"
   grep -q "ipc: not authorized" builder.out || shell_test::fail "line ${LINENO}: rpc with unauthorized id succeeded"
+
+  # TODO(nlacasse): Write the javascript version of this test once the
+  # javascript implementation is capable of checking that an identity is
+  # authorized.
 
   shell_test::pass
 }
