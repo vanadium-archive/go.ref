@@ -47,6 +47,7 @@ var (
 	googleConfigWeb       = flag.String("google_config_web", "", "Path to JSON-encoded OAuth client configuration for the web application that renders the audit log for blessings provided by this provider.")
 	googleConfigInstalled = flag.String("google_config_installed", "", "Path to the JSON-encoded OAuth client configuration for installed client applications that obtain blessings (via the OAuthBlesser.BlessUsingAuthorizationCode RPC) from this server (like the 'identity' command like tool and its 'seekblessing' command.")
 	googleConfigChrome    = flag.String("google_config_chrome", "", "Path to the JSON-encoded OAuth client configuration for Chrome browser applications that obtain blessings from this server (via the OAuthBlesser.BlessUsingAccessToken RPC) from this server.")
+	googleConfigAndroid   = flag.String("google_config_android", "", "Path to the JSON-encoded OAuth client configuration for Android applications that obtain blessings from this server (via the OAuthBlesser.BlessUsingAccessToken RPC) from this server.")
 	googleDomain          = flag.String("google_domain", "", "An optional domain name. When set, only email addresses from this domain are allowed to authenticate via Google OAuth")
 
 	// Revoker/Discharger configuration
@@ -84,7 +85,7 @@ func main() {
 	if ipcServer != nil {
 		defer ipcServer.Stop()
 	}
-	if enabled, clientID, clientSecret := enableGoogleOAuth(*googleConfigWeb); enabled && len(*auditprefix) > 0 {
+	if clientID, clientSecret, ok := getOAuthClientIDAndSecret(*googleConfigWeb); ok && len(*auditprefix) > 0 {
 		n := "/google/"
 		http.Handle(n, googleoauth.NewHandler(googleoauth.HandlerArgs{
 			Addr:              fmt.Sprintf("%s%s", httpaddress(), n),
@@ -167,14 +168,18 @@ func setupGoogleBlessingDischargingServer(r veyron2.Runtime, revocationManager *
 		DomainRestriction: *googleDomain,
 		RevocationManager: revocationManager,
 	}
-	if authcode, clientID, clientSecret := enableGoogleOAuth(*googleConfigInstalled); authcode {
+	if clientID, clientSecret, ok := getOAuthClientIDAndSecret(*googleConfigInstalled); ok {
 		enable = true
 		params.AuthorizationCodeClient.ID = clientID
 		params.AuthorizationCodeClient.Secret = clientSecret
 	}
-	if accesstoken, clientID, _ := enableGoogleOAuth(*googleConfigChrome); accesstoken {
+	if clientID, ok := getOAuthClientID(*googleConfigChrome); ok {
 		enable = true
-		params.AccessTokenClient.ID = clientID
+		params.AccessTokenClients = append(params.AccessTokenClients, struct{ ID string }{clientID})
+	}
+	if clientID, ok := getOAuthClientID(*googleConfigAndroid); ok {
+		enable = true
+		params.AccessTokenClients = append(params.AccessTokenClients, struct{ ID string }{clientID})
 	}
 	if !enable {
 		return nil, nil, nil
@@ -199,12 +204,28 @@ func setupGoogleBlessingDischargingServer(r veyron2.Runtime, revocationManager *
 
 func enableTLS() bool { return len(*tlsconfig) > 0 }
 func enableRandomHandler() bool {
-	return len(*googleConfigInstalled)+len(*googleConfigWeb)+len(*googleConfigChrome) == 0
+	return len(*googleConfigInstalled)+len(*googleConfigWeb)+len(*googleConfigChrome)+len(*googleConfigAndroid) == 0
 }
-func enableGoogleOAuth(config string) (enabled bool, clientID, clientSecret string) {
+func getOAuthClientID(config string) (clientID string, ok bool) {
 	fname := config
 	if len(fname) == 0 {
-		return false, "", ""
+		return "", false
+	}
+	f, err := os.Open(fname)
+	if err != nil {
+		vlog.Fatalf("Failed to open %q: %v", fname, err)
+	}
+	defer f.Close()
+	clientID, err = googleoauth.ClientIDFromJSON(f)
+	if err != nil {
+		vlog.Fatalf("Failed to decode JSON in %q: %v", fname, err)
+	}
+	return clientID, true
+}
+func getOAuthClientIDAndSecret(config string) (clientID, clientSecret string, ok bool) {
+	fname := config
+	if len(fname) == 0 {
+		return "", "", false
 	}
 	f, err := os.Open(fname)
 	if err != nil {
@@ -215,9 +236,8 @@ func enableGoogleOAuth(config string) (enabled bool, clientID, clientSecret stri
 	if err != nil {
 		vlog.Fatalf("Failed to decode JSON in %q: %v", fname, err)
 	}
-	return true, clientID, clientSecret
+	return clientID, clientSecret, true
 }
-
 func runHTTPServer(addr string) {
 	if !enableTLS() {
 		if err := http.ListenAndServe(addr, nil); err != nil {
