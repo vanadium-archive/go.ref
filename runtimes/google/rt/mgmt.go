@@ -162,12 +162,12 @@ func (rt *vrt) AdvanceProgress(delta int) {
 }
 
 func (m *mgmtImpl) Stop(_ ipc.ServerContext, stream appcycle.AppCycleServiceStopStream) error {
-	// TODO(caprita): Include identity of Stop issuer in message.
-	m.rt.stop(veyron2.RemoteStop)
 	// The size of the channel should be reasonably sized to expect not to
 	// miss updates while we're waiting for the stream to unblock.
 	ch := make(chan veyron2.Task, 10)
 	m.rt.TrackTask(ch)
+	// TODO(caprita): Include identity of Stop issuer in message.
+	m.rt.stop(veyron2.RemoteStop)
 	for {
 		task, ok := <-ch
 		if !ok {
