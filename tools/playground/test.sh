@@ -36,7 +36,7 @@ main() {
 
   local -r DIR="${REPO_ROOT}/go/src/veyron/tools/playground/testdata"
 
-  export GOPATH="$(pwd)"
+  export GOPATH="$(pwd)":$VEYRON_ROOT/veyron/go
   export PATH="$(pwd):$PATH"
 
   # Test without identities

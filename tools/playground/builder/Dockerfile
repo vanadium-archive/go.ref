@@ -4,7 +4,7 @@ RUN apt-get update
 RUN apt-get install -y curl g++ git golang libc6-i386 make python
 ENV HOME /root
 ENV VEYRON_ROOT /usr/local/veyron
-ENV GOPATH /home/playground
+ENV GOPATH /home/playground:$VEYRON_ROOT/veyron/go
 
 # Setup veyron and veyron profiles.
 # Note: This will be cached! If you want to re-build the docker image using
