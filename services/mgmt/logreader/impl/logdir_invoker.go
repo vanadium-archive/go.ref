@@ -49,7 +49,7 @@ func (i *logDirectoryInvoker) Glob(call ipc.ServerCall, pattern string) error {
 
 // globStep applies a glob recursively.
 func (i *logDirectoryInvoker) globStep(name string, g *glob.Glob, isDir bool, call ipc.ServerCall) error {
-	if g.Len() == 0 && !isDir {
+	if g.Len() == 0 {
 		if err := call.Send(types.MountEntry{Name: name}); err != nil {
 			return err
 		}
