@@ -66,31 +66,32 @@ func (tpCaveat) Location() (loc string)                            { return }
 func (tpCaveat) Requirements() (r security.ThirdPartyRequirements) { return }
 
 func TestCaveatUtil(t *testing.T) {
-	type b [][]byte
-	type v []security.CaveatValidator
-	type tp []security.ThirdPartyCaveat
+	type C []security.Caveat
+	type V []security.CaveatValidator
+	type TP []security.ThirdPartyCaveat
 
-	newCaveatBytes := func(v security.CaveatValidator) []byte {
-		cav, err := security.NewCaveat(v)
+	newCaveat := func(v security.CaveatValidator) security.Caveat {
+		c, err := security.NewCaveat(v)
 		if err != nil {
-			t.Fatalf("NewCaveat failed: %s", err)
+			t.Fatalf("failed to create Caveat from validator %T: %v", v, c)
 		}
-		return cav.Bytes()
+		return c
 	}
+
 	var (
-		fpCavBytes = newCaveatBytes(fpCaveat{})
-		tpCavBytes = newCaveatBytes(tpCaveat{})
-		invalid    = []byte("fake")
+		fp      fpCaveat
+		tp      tpCaveat
+		invalid = security.Caveat{ValidatorVOM: []byte("invalid")}
 	)
 	testdata := []struct {
-		caveats    [][]byte
+		caveats    []security.Caveat
 		validators []security.CaveatValidator
 		tpCaveats  []security.ThirdPartyCaveat
 	}{
 		{nil, nil, nil},
-		{b{fpCavBytes}, v{fpCaveat{}}, nil},
-		{b{tpCavBytes}, v{tpCaveat{}}, tp{tpCaveat{}}},
-		{b{fpCavBytes, tpCavBytes}, v{fpCaveat{}, tpCaveat{}}, tp{tpCaveat{}}},
+		{C{newCaveat(fp)}, V{fp}, nil},
+		{C{newCaveat(tp)}, V{tp}, TP{tp}},
+		{C{newCaveat(fp), newCaveat(tp)}, V{fp, tp}, TP{tp}},
 	}
 	for i, d := range testdata {
 		// Test CaveatValidators.

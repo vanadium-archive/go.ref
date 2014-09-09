@@ -27,13 +27,15 @@ const nonceLength = 16
 // a validation key and the location (object name) of the third-party responsible
 // for discharging the caveat. A discharge for this caveat is a signed assertion whose
 // signature can be verified using the validation key.
+//
+// TODO(ataly): This should be a VDL defined type.
 type publicKeyCaveat struct {
 	// RandNonce specifies a cryptographically random nonce (of fixed length) that
 	// uniquely identifies the caveat.
 	RandNonce []uint8
 	// DischargeMintingCaveat specifies the caveat that has to be validated
 	// before minting a discharge for a publicKeyCaveat.
-	DischargeMintingCaveat []byte
+	DischargeMintingCaveat security.Caveat
 	// ValidationKey specifies the public key of the discharging-party.
 	ValidationKey wire.PublicKey
 	// ThirdPartyLocation specifies the object name of the discharging-party.
@@ -48,7 +50,7 @@ type publicKeyCaveat struct {
 // TODO(ataly, ashankar): A 256bit hash is probably much stronger that what we need
 // here. Can we truncate the hash to 96bits?
 func (c *publicKeyCaveat) ID() string {
-	return id(c.RandNonce, c.DischargeMintingCaveat)
+	return id(c.RandNonce, c.DischargeMintingCaveat.ValidatorVOM)
 }
 
 func (c *publicKeyCaveat) Location() string {
@@ -56,7 +58,7 @@ func (c *publicKeyCaveat) Location() string {
 }
 
 func (c *publicKeyCaveat) String() string {
-	return fmt.Sprintf("publicKeyCaveat{DischargeMintingCaveat: (%v bytes), ThirdPartyLocation: %q}", len(c.DischargeMintingCaveat), c.ThirdPartyLocation)
+	return fmt.Sprintf("publicKeyCaveat{DischargeMintingCaveat: (%v bytes), ThirdPartyLocation: %q}", len(c.DischargeMintingCaveat.ValidatorVOM), c.ThirdPartyLocation)
 }
 
 func (c *publicKeyCaveat) Requirements() security.ThirdPartyRequirements {
@@ -102,12 +104,14 @@ func (c *publicKeyCaveat) Validate(ctx security.Context) error {
 // the validation key of the publicKeyCaveat. Additionally, the discharge may
 // also include caveats which must all validate in order for the discharge to
 // be considered valid.
+//
+// TODO(ataly): This should be a VDL-defined type?
 type publicKeyDischarge struct {
 	// CaveatID is used to match this Discharge to the the ThirdPartyCaveat it is for.
 	CaveatID string
 
 	// Caveats under which this Discharge is valid.
-	Caveats [][]byte
+	Caveats []security.Caveat
 
 	// Signature on the contents of the discharge that can be verified using the
 	// validaton key in the publicKeycaveat this discharge is for.
@@ -133,7 +137,7 @@ func (d *publicKeyDischarge) contentHash() []byte {
 
 	wire.WriteString(h, tmp, d.CaveatID)
 	for _, cav := range d.Caveats {
-		wire.WriteBytes(h, tmp, cav)
+		wire.WriteBytes(h, tmp, cav.ValidatorVOM)
 	}
 	return h.Sum(nil)
 }
@@ -155,7 +159,7 @@ func NewPublicKeyCaveat(caveat security.Caveat, key security.PublicKey, location
 
 	return &publicKeyCaveat{
 		RandNonce:              nonce,
-		DischargeMintingCaveat: caveat.Bytes(),
+		DischargeMintingCaveat: caveat,
 		ValidationKey:          validationKey,
 		ThirdPartyLocation:     location,
 		ThirdPartyRequirements: requirements,
@@ -191,10 +195,7 @@ func NewPublicKeyDischarge(signer security.Signer, tp security.ThirdPartyCaveat,
 	}
 
 	caveats = append(caveats, expiryCaveat)
-	discharge := &publicKeyDischarge{
-		CaveatID: tp.ID(),
-		Caveats:  vsecurity.CaveatBytes(caveats...),
-	}
+	discharge := &publicKeyDischarge{CaveatID: tp.ID(), Caveats: caveats}
 
 	// TODO(ashankar,ataly): Should signer necessarily be the same as ctx.LocalID()?
 	// If so, need the PrivateID object corresponding to ctx.LocalID.

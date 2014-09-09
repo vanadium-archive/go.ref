@@ -46,7 +46,7 @@ func ReadBlessAuditEntry(entry audit.Entry) (BlessingAuditEntry, error) {
 	blessEntry.Blessed, _ = entry.Results[0].(security.PublicID)
 	caveats, _ := entry.Arguments[3].([]security.Caveat)
 	if len(caveats) > 0 {
-		revocationCaveat, err := vsecurity.CaveatValidators(caveats[0].Bytes())
+		revocationCaveat, err := vsecurity.CaveatValidators(caveats[0])
 		if err != nil {
 			return blessEntry, err
 		}

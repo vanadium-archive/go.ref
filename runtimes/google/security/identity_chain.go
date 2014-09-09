@@ -91,18 +91,26 @@ func (id *chainPublicID) VomDecode(w *wire.ChainPublicID) error {
 	return err
 }
 
+func caveatsFromWire(bytes []wire.Caveat) []security.Caveat {
+	caveats := make([]security.Caveat, len(bytes))
+	for idx, b := range bytes {
+		caveats[idx].ValidatorVOM = b.Bytes
+	}
+	return caveats
+}
+
 // Authorize checks if all caveats on the PublicID validate with respect to the
 // provided context and if so returns the original PublicID. This method assumes that
 // the existing PublicID was obtained after successfully decoding a serialized
 // PublicID and hence has integrity.
 func (id *chainPublicID) Authorize(context security.Context) (security.PublicID, error) {
 	for _, c := range id.certificates {
-		for _, cav := range c.Caveats {
-			v, err := vsecurity.CaveatValidators(cav.Bytes)
-			if err != nil {
-				return nil, errAuthorize(err)
-			}
-			if err := v[0].Validate(context); err != nil {
+		validators, err := vsecurity.CaveatValidators(caveatsFromWire(c.Caveats)...)
+		if err != nil {
+			return nil, errAuthorize(err)
+		}
+		for _, v := range validators {
+			if err := v.Validate(context); err != nil {
 				return nil, errAuthorize(err)
 			}
 		}
@@ -113,9 +121,7 @@ func (id *chainPublicID) Authorize(context security.Context) (security.PublicID,
 func (id *chainPublicID) ThirdPartyCaveats() []security.ThirdPartyCaveat {
 	var tpCaveats []security.ThirdPartyCaveat
 	for _, c := range id.certificates {
-		for _, cav := range c.Caveats {
-			tpCaveats = append(tpCaveats, vsecurity.ThirdPartyCaveats(cav.Bytes)...)
-		}
+		tpCaveats = append(tpCaveats, vsecurity.ThirdPartyCaveats(caveatsFromWire(c.Caveats)...)...)
 	}
 	return tpCaveats
 }
@@ -180,7 +186,7 @@ func (id *chainPrivateID) Bless(blessee security.PublicID, blessingName string, 
 
 	cert.Caveats = make([]wire.Caveat, len(caveats))
 	for i, c := range caveats {
-		cert.Caveats[i] = wire.Caveat{Bytes: vsecurity.CaveatBytes(c)[0]}
+		cert.Caveats[i] = wire.Caveat{Bytes: c.ValidatorVOM}
 	}
 
 	vomPubID, err := id.publicID.VomEncode()
