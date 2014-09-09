@@ -84,14 +84,16 @@ func TestLogDirectory(t *testing.T) {
 			t.Errorf("Glob failed: %v", err)
 		}
 		results := []string{}
+		expected := []string{"", "subdir"}
+		expected = append(expected, tests...)
 		iterator := stream.RecvStream()
 		for count := 0; iterator.Advance(); count++ {
 			results = append(results, iterator.Value().Name)
 		}
-		sort.Strings(tests)
+		sort.Strings(expected)
 		sort.Strings(results)
-		if !reflect.DeepEqual(tests, results) {
-			t.Errorf("unexpected result. Got %v, want %v", results, tests)
+		if !reflect.DeepEqual(expected, results) {
+			t.Errorf("unexpected result. Got %v, want %v", results, expected)
 		}
 
 		if err := iterator.Err(); err != nil {
@@ -111,9 +113,10 @@ func TestLogDirectory(t *testing.T) {
 			results = append(results, iterator.Value().Name)
 		}
 		sort.Strings(results)
-		expected := []string{
+		expected = []string{
 			"bar.txt",
 			"foo.txt",
+			"subdir",
 		}
 		if !reflect.DeepEqual(expected, results) {
 			t.Errorf("unexpected result. Got %v, want %v", results, expected)

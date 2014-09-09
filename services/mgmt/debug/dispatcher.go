@@ -13,7 +13,7 @@ import (
 	"veyron2/naming"
 	"veyron2/security"
 	"veyron2/services/mounttable/types"
-	"veyron2/vlog"
+	"veyron2/verror"
 )
 
 // dispatcher holds the state of the debug dispatcher.
@@ -33,7 +33,7 @@ func (d *dispatcher) Lookup(suffix, method string) (ipc.Invoker, security.Author
 	}
 	if len(suffix) == 0 {
 		leaves := []string{"logs", "stats"}
-		return ipc.ReflectInvoker(&topLevelGlobInvoker{d.rt, leaves}), d.auth, nil
+		return ipc.ReflectInvoker(&topLevelGlobInvoker{d, leaves}), d.auth, nil
 	}
 	parts := strings.SplitN(suffix, "/", 2)
 	if len(parts) == 2 {
@@ -54,12 +54,11 @@ func (d *dispatcher) Lookup(suffix, method string) (ipc.Invoker, security.Author
 }
 
 type topLevelGlobInvoker struct {
-	rt     veyron2.Runtime
+	d      *dispatcher
 	leaves []string
 }
 
 func (i *topLevelGlobInvoker) Glob(call ipc.ServerCall, pattern string) error {
-	vlog.VI(1).Infof("Glob(%v)", pattern)
 	g, err := glob.Parse(pattern)
 	if err != nil {
 		return err
@@ -75,18 +74,49 @@ func (i *topLevelGlobInvoker) Glob(call ipc.ServerCall, pattern string) error {
 }
 
 func (i *topLevelGlobInvoker) leafGlob(call ipc.ServerCall, leaf string, pattern string) error {
-	addr := naming.JoinAddressName(call.LocalEndpoint().String(), leaf)
-	pattern = naming.Join(addr, pattern)
-	c, err := i.rt.Namespace().Glob(call, pattern)
+	invoker, _, err := i.d.Lookup(leaf, "Glob")
 	if err != nil {
-		vlog.VI(1).Infof("Glob(%v) failed: %v", pattern, err)
 		return err
 	}
-	for me := range c {
-		_, name := naming.SplitAddressName(me.Name)
-		if err := call.Send(types.MountEntry{Name: name}); err != nil {
-			return err
-		}
+	argptrs := []interface{}{&pattern}
+	leafCall := &localServerCall{call, leaf}
+	results, err := invoker.Invoke("Glob", leafCall, argptrs)
+	if err != nil {
+		return err
 	}
+	if len(results) != 1 {
+		return verror.BadArgf("unexpected number of results. Got %d, want 1", len(results))
+	}
+	res := results[0]
+	if res == nil {
+		return nil
+	}
+	err, ok := res.(error)
+	if !ok {
+		return verror.BadArgf("unexpected result type. Got %T, want error", res)
+	}
+	return err
+}
+
+// An ipc.ServerCall implementation used to Invoke methods on the invokers
+// directly. Everything is the same as the original ServerCall, except the
+// Stream implementation.
+type localServerCall struct {
+	ipc.ServerCall
+	name string
+}
+
+// Re-Implement ipc.Stream
+func (c *localServerCall) Recv(v interface{}) error {
+	panic("Recv not implemented")
 	return nil
+}
+
+func (c *localServerCall) Send(v interface{}) error {
+	me, ok := v.(types.MountEntry)
+	if !ok {
+		return verror.BadArgf("unexpected stream type. Got %T, want MountEntry", v)
+	}
+	me.Name = naming.Join(c.name, me.Name)
+	return c.ServerCall.Send(me)
 }
