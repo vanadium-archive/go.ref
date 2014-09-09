@@ -58,28 +58,19 @@ func SaveACL(w io.Writer, acl security.ACL) error {
 	return json.NewEncoder(w).Encode(acl)
 }
 
-// CaveatBytes returns a slice containing the Bytes of the provided 'caveats'.
-func CaveatBytes(caveats ...security.Caveat) [][]byte {
-	b := make([][]byte, len(caveats))
-	for i, c := range caveats {
-		b[i] = c.Bytes()
-	}
-	return b
-}
-
 // CaveatValidators returns the set of security.CaveatValidators
 // obtained by decoding the provided caveat bytes.
 //
 // It is an error if any of the provided caveat bytes cannot
 // be decoded into a security.CaveatValidator.
-func CaveatValidators(caveats ...[]byte) ([]security.CaveatValidator, error) {
+func CaveatValidators(caveats ...security.Caveat) ([]security.CaveatValidator, error) {
 	if len(caveats) == 0 {
 		return nil, nil
 	}
 	validators := make([]security.CaveatValidator, len(caveats))
 	for i, c := range caveats {
 		var v security.CaveatValidator
-		if err := vom.NewDecoder(bytes.NewReader(c)).Decode(&v); err != nil {
+		if err := vom.NewDecoder(bytes.NewReader(c.ValidatorVOM)).Decode(&v); err != nil {
 			return nil, fmt.Errorf("caveat bytes could not be VOM-decoded: %s", err)
 		}
 		validators[i] = v
@@ -89,11 +80,11 @@ func CaveatValidators(caveats ...[]byte) ([]security.CaveatValidator, error) {
 
 // ThirdPartyCaveats returns the set of security.ThirdPartyCaveats
 // that could be successfully decoded from the provided caveat bytes.
-func ThirdPartyCaveats(caveats ...[]byte) []security.ThirdPartyCaveat {
+func ThirdPartyCaveats(caveats ...security.Caveat) []security.ThirdPartyCaveat {
 	var tpCaveats []security.ThirdPartyCaveat
 	for _, c := range caveats {
 		var t security.ThirdPartyCaveat
-		if err := vom.NewDecoder(bytes.NewReader(c)).Decode(&t); err != nil {
+		if err := vom.NewDecoder(bytes.NewReader(c.ValidatorVOM)).Decode(&t); err != nil {
 			continue
 		}
 		tpCaveats = append(tpCaveats, t)
