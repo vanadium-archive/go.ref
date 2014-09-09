@@ -245,6 +245,8 @@ type flowClient struct {
 
 	sendClosedMu sync.Mutex
 	sendClosed   bool // is the send side already closed? GUARDED_BY(sendClosedMu)
+
+	finished bool // has Finish() already been called?
 }
 
 func newFlowClient(flow stream.Flow, dischargeCache *dischargeCache, discharges []security.Discharge) *flowClient {
@@ -362,6 +364,10 @@ func (fc *flowClient) Finish(resultptrs ...interface{}) error {
 
 // finish ensures Finish always returns verror.E.
 func (fc *flowClient) finish(resultptrs ...interface{}) verror.E {
+	if fc.finished {
+		return fc.close(verror.BadProtocolf("ipc: multiple calls to Finish not allowed"))
+	}
+	fc.finished = true
 	// Call closeSend implicitly, if the user hasn't already called it.  There are
 	// three cases:
 	// 1) Server is blocked on Recv waiting for the final request message.

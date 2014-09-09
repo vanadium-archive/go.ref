@@ -599,6 +599,26 @@ func testRPC(t *testing.T, shouldCloseSend bool) {
 	}
 }
 
+func TestMultipleFinish(t *testing.T) {
+	type v []interface{}
+	b := createBundle(t, clientID, serverID, &testServer{})
+	defer b.cleanup(t)
+	call, err := b.client.StartCall(testContext(), "mountpoint/server/suffix", "Echo", v{"foo"})
+	if err != nil {
+		t.Fatalf(`client.StartCall got error "%v"`, err)
+	}
+	var results string
+	err = call.Finish(&results)
+	if err != nil {
+		t.Fatalf(`call.Finish got error "%v"`, err)
+	}
+	// Calling Finish a second time should result in a useful error.
+	err = call.Finish(&results)
+	if got, want := err, verror.BadProtocolf("ipc: multiple calls to Finish not allowed"); got != want {
+		t.Fatalf(`call.Finish got error "%v", want "%v"`, got, want)
+	}
+}
+
 // granter implements ipc.Granter, returning a fixed (security.PublicID, error) pair.
 type granter struct {
 	ipc.CallOpt
