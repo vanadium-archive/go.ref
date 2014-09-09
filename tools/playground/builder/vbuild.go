@@ -4,7 +4,6 @@
 package main
 
 import (
-	"bufio"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -16,30 +15,37 @@ import (
 	"os"
 	"os/exec"
 	"path"
-	"regexp"
+	"strconv"
 	"strings"
+	"sync"
 	"syscall"
 	"time"
 )
 
 const RUN_TIMEOUT = time.Second
 
-var debug = flag.Bool("v", false, "Verbose mode")
+var (
+	verbose = flag.Bool("v", false, "Verbose mode")
+
+	// Whether we have stopped execution of running files.
+	stopped = false
+
+	mu sync.Mutex
+)
 
 type CodeFile struct {
-	Name       string
-	Body       string
-	identity   string
-	pkg        string
-	executable bool
-	proc       *exec.Cmd
-}
-
-type Identity struct {
 	Name     string
-	Blesser  string
-	Duration string
-	Files    []string
+	Body     string
+	lang     string
+	identity string
+	pkg      string
+	// The executable flag denotes whether the file should be executed as
+	// part of the playground run. This is currently used only for
+	// javascript files, and go files with package "main".
+	executable bool
+	cmd        *exec.Cmd
+	subProcs   []*os.Process
+	index      int
 }
 
 // The input on STDIN should only contain Files.  We look for a file
@@ -56,24 +62,14 @@ type Exit struct {
 	err  error
 }
 
-func Log(args ...interface{}) {
-	if *debug {
+func debug(args ...interface{}) {
+	if *verbose {
 		log.Println(args...)
 	}
 }
 
-func MakeCmd(prog string, args ...string) *exec.Cmd {
-	Log("Running", prog, strings.Join(args, " "))
-	cmd := exec.Command(prog, args...)
-	// TODO(ribrdb): prefix output with the name of the binary
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	cmd.Env = os.Environ()
-	return cmd
-}
-
-func ParseRequest(in io.Reader) (r Request, err error) {
-	Log("Parsing input")
+func parseRequest(in io.Reader) (r Request, err error) {
+	debug("Parsing input")
 	data, err := ioutil.ReadAll(in)
 	if err == nil {
 		err = json.Unmarshal(data, &r)
@@ -81,6 +77,7 @@ func ParseRequest(in io.Reader) (r Request, err error) {
 	m := make(map[string]*CodeFile)
 	for i := 0; i < len(r.Files); {
 		f := r.Files[i]
+		f.index = i
 		if path.Ext(f.Name) == ".id" {
 			err = json.Unmarshal([]byte(f.Body), &r.Identities)
 			if err != nil {
@@ -88,6 +85,22 @@ func ParseRequest(in io.Reader) (r Request, err error) {
 			}
 			r.Files = append(r.Files[:i], r.Files[i+1:]...)
 		} else {
+			switch path.Ext(f.Name) {
+			case ".js":
+				// Javascript files are always executable.
+				f.lang = "js"
+				f.executable = true
+			case ".go":
+				// Go files will be marked as executable if
+				// their package name is "main". This happens
+				// in the "readPackage" function.
+				f.lang = "go"
+			case ".vdl":
+				f.lang = "vdl"
+			default:
+				return r, fmt.Errorf("Unknown file type %s", f.Name)
+			}
+
 			m[f.Name] = f
 			i++
 		}
@@ -101,7 +114,15 @@ func ParseRequest(in io.Reader) (r Request, err error) {
 	} else {
 		for _, identity := range r.Identities {
 			for _, name := range identity.Files {
-				m[name].identity = identity.Name
+				// Check that the file associated with the
+				// identity exists.  We ignore cases where it
+				// doesn't because the test .id files get used
+				// for multiple different code files.  See
+				// testdata/ids/authorized.id, for example.
+				if m[name] != nil {
+					m[name].identity = identity.Name
+
+				}
 			}
 		}
 	}
@@ -111,65 +132,86 @@ func ParseRequest(in io.Reader) (r Request, err error) {
 
 func main() {
 	flag.Parse()
-	r, err := ParseRequest(os.Stdin)
+	r, err := parseRequest(os.Stdin)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	err = CreateIdentities(r)
+	err = createIdentities(r.Identities)
 	if err != nil {
 		log.Fatal(err)
 	}
-	mt, err := StartMount()
-	if mt != nil {
-		defer mt.Kill()
-	}
+
+	mt, err := startMount(RUN_TIMEOUT)
 	if err != nil {
 		log.Fatal(err)
 	}
-	CompileAndRun(r)
+	defer mt.Kill()
+
+	proxy, err := startProxy()
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer proxy.Kill()
+
+	if err := writeFiles(r.Files); err != nil {
+		log.Fatal(err)
+	}
+
+	if err := compileFiles(r.Files); err != nil {
+		log.Fatal(err)
+	}
+
+	runFiles(r.Files)
 }
 
-func CreateIdentities(r Request) error {
-	Log("Generating identities")
-	if err := os.MkdirAll("ids", 0777); err != nil {
-		return err
-	}
-	for _, id := range r.Identities {
-		if err := id.Create(); err != nil {
-			return err
+func writeFiles(files []*CodeFile) error {
+	debug("Writing files")
+	for _, f := range files {
+		if err := f.write(); err != nil {
+			return fmt.Errorf("Error writing %s: %v", f.Name, err)
 		}
 	}
 	return nil
 }
 
-func CompileAndRun(r Request) {
-	Log("Processing files")
+func compileFiles(files []*CodeFile) error {
+	debug("Compiling files")
+	var nonVdlFiles []*CodeFile
+
+	// Compile the vdl files first, since Go files may depend on *.vdl.go
+	// generated files.
+	for _, f := range files {
+		if f.lang != "vdl" {
+			nonVdlFiles = append(nonVdlFiles, f)
+		} else {
+			if err := f.compile(); err != nil {
+				return fmt.Errorf("Error compiling %s: %v", f.Name, err)
+			}
+		}
+	}
+
+	// Compile the non-vdl files
+	for _, f := range nonVdlFiles {
+		if err := f.compile(); err != nil {
+			return fmt.Errorf("Error compiling %s: %v", f.Name, err)
+		}
+	}
+	return nil
+}
+
+func runFiles(files []*CodeFile) {
+	debug("Running files")
 	exit := make(chan Exit)
 	running := 0
-
-	// TODO(ribrdb): Compile first, don't run anything if compilation fails.
-
-	for _, f := range r.Files {
-		var err error
-		if err = f.Write(); err != nil {
-			goto Error
-		}
-		if err = f.Compile(); err != nil {
-			goto Error
-		}
+	for _, f := range files {
 		if f.executable {
-			go f.Run(exit)
+			f.run(exit)
 			running++
-		}
-	Error:
-		if err != nil {
-			log.Printf("%s: %v\n", f.Name, err)
 		}
 	}
 
 	timeout := time.After(RUN_TIMEOUT)
-	killed := false
 
 	for running > 0 {
 		select {
@@ -182,51 +224,63 @@ func CompileAndRun(r Request) {
 				log.Printf("%s exited with error %v", status.name, status.err)
 			}
 			running--
-			if !killed {
-				killed = true
-				for _, f := range r.Files {
-					if f.Name != status.name && f.proc != nil {
-						f.proc.Process.Signal(syscall.SIGTERM)
-					}
-				}
-			}
+			stopAll(files)
 		}
 	}
 }
 
-func (file *CodeFile) readPackage() error {
-	Log("Parsing package from ", file.Name)
-	f, err := parser.ParseFile(token.NewFileSet(), file.Name,
-		strings.NewReader(file.Body), parser.PackageClauseOnly)
+func stopAll(files []*CodeFile) {
+	mu.Lock()
+	defer mu.Unlock()
+	if !stopped {
+		stopped = true
+		for _, f := range files {
+			f.stop()
+		}
+	}
+}
+
+func (f *CodeFile) readPackage() error {
+	debug("Parsing package from ", f.Name)
+	file, err := parser.ParseFile(token.NewFileSet(), f.Name,
+		strings.NewReader(f.Body), parser.PackageClauseOnly)
 	if err != nil {
 		return err
 	}
-	file.pkg = f.Name.String()
-	if "main" == file.pkg {
-		file.executable = true
-		basename := path.Base(file.Name)
-		file.pkg = basename[:len(basename)-len(path.Ext(basename))]
+	f.pkg = file.Name.String()
+	if "main" == f.pkg {
+		f.executable = true
+		basename := path.Base(f.Name)
+		f.pkg = basename[:len(basename)-len(path.Ext(basename))]
 	}
 	return nil
 }
 
-func (f *CodeFile) Write() error {
-	if err := f.readPackage(); err != nil {
-		return err
+func (f *CodeFile) write() error {
+	debug("Writing file ", f.Name)
+	if f.lang == "go" || f.lang == "vdl" {
+		if err := f.readPackage(); err != nil {
+			return err
+		}
 	}
 	if err := os.MkdirAll(path.Join("src", f.pkg), 0777); err != nil {
 		return err
 	}
-	Log("Writing file ", f.Name)
 	return ioutil.WriteFile(path.Join("src", f.pkg, f.Name), []byte(f.Body), 0666)
 }
 
-func (f *CodeFile) Compile() error {
+func (f *CodeFile) compile() error {
+	debug("Compiling file ", f.Name)
 	var cmd *exec.Cmd
-	if path.Ext(f.Name) == ".vdl" {
-		cmd = MakeCmd("vdl", "generate", "--lang=go", f.pkg)
-	} else {
-		cmd = MakeCmd(path.Join(os.Getenv("VEYRON_ROOT"), "veyron/scripts/build/go"), "install", f.pkg)
+	switch f.lang {
+	case "js":
+		return nil
+	case "vdl":
+		cmd = makeCmd("vdl", "generate", "--lang=go", f.pkg)
+	case "go":
+		cmd = makeCmd(path.Join(os.Getenv("VEYRON_ROOT"), "veyron/scripts/build/go"), "install", f.pkg)
+	default:
+		return fmt.Errorf("Can't compile file %s with language %s.", f.Name, f.lang)
 	}
 	cmd.Stdout = cmd.Stderr
 	err := cmd.Run()
@@ -236,98 +290,83 @@ func (f *CodeFile) Compile() error {
 	return err
 }
 
-func (f *CodeFile) Run(ch chan Exit) {
-	cmd := MakeCmd(path.Join("bin", f.pkg))
+func (f *CodeFile) startJs() error {
+	wsprProc, wsprPort, err := startWspr(f.index, f.identity)
+	if err != nil {
+		return fmt.Errorf("Error starting wspr: %v", err)
+	}
+	f.subProcs = append(f.subProcs, wsprProc)
+	os.Setenv("WSPR", "http://localhost:"+strconv.Itoa(wsprPort))
+	node := path.Join(os.Getenv("VEYRON_ROOT"), "/environment/cout/node/bin/node")
+	cmd := makeCmd(node, path.Join("src", f.Name))
+	f.cmd = cmd
+	return cmd.Start()
+}
+
+func (f *CodeFile) startGo() error {
+	cmd := makeCmd(path.Join("bin", f.pkg))
 	if f.identity != "" {
 		cmd.Env = append(cmd.Env, fmt.Sprintf("VEYRON_IDENTITY=%s", path.Join("ids", f.identity)))
 	}
-	f.proc = cmd
-	err := cmd.Run()
-	ch <- Exit{f.pkg, err}
+	f.cmd = cmd
+	return cmd.Start()
 }
 
-func (id Identity) Create() error {
-	if err := id.generate(); err != nil {
-		return err
+func (f *CodeFile) run(ch chan Exit) {
+	debug("Running", f.Name)
+	err := func() error {
+		mu.Lock()
+		defer mu.Unlock()
+		if stopped {
+			return fmt.Errorf("Execution already stopped, not running file %s", f.Name)
+		}
+
+		switch f.lang {
+		case "go":
+			return f.startGo()
+		case "js":
+			return f.startJs()
+		default:
+			return fmt.Errorf("Cannot run file: %v", f.Name)
+		}
+	}()
+	if err != nil {
+		debug("Error starting", f.Name)
+		ch <- Exit{f.Name, err}
+		return
 	}
-	if id.Blesser != "" || id.Duration != "" {
-		return id.bless()
-	}
-	return nil
+
+	// Wait for the process to exit and send result to channel.
+	go func() {
+		debug("Waiting for", f.Name)
+		err := f.cmd.Wait()
+		debug("Done waiting for", f.Name)
+		ch <- Exit{f.Name, err}
+	}()
 }
 
-func (id Identity) generate() error {
-	args := []string{"generate"}
-	if id.Blesser == "" && id.Duration == "" {
-		args = append(args, id.Name)
-	}
-	return runIdentity(args, path.Join("ids", id.Name))
-}
-
-func (id Identity) bless() error {
-	filename := path.Join("ids", id.Name)
-	var blesser string
-	if id.Blesser == "" {
-		blesser = filename
+func (f *CodeFile) stop() {
+	debug("Attempting to stop ", f.Name)
+	if f.cmd == nil {
+		debug("No cmd for", f.Name, "cannot stop.")
+	} else if f.cmd.Process == nil {
+		debug("f.cmd exists for", f.Name, "but f.cmd.Process is nil! Cannot stop!.")
 	} else {
-		blesser = path.Join("ids", id.Blesser)
+		debug("Sending SIGTERM to", f.Name)
+		f.cmd.Process.Signal(syscall.SIGTERM)
 	}
-	args := []string{"bless", "--with", blesser}
-	if id.Duration != "" {
-		args = append(args, "--for", id.Duration)
+
+	for _, subProc := range f.subProcs {
+		debug("Killing sub process for", f.Name)
+		subProc.Kill()
 	}
-	args = append(args, filename, id.Name)
-	tempfile := filename + ".tmp"
-	if err := runIdentity(args, tempfile); err != nil {
-		return err
-	}
-	return os.Rename(tempfile, filename)
 }
 
-func runIdentity(args []string, filename string) error {
-	cmd := MakeCmd("identity", args...)
-	out, err := os.Create(filename)
-	if err != nil {
-		return err
-	}
-	defer out.Close()
-	cmd.Stdout = out
-	return cmd.Run()
-}
-
-func StartMount() (proc *os.Process, err error) {
-	reader, writer := io.Pipe()
-	cmd := MakeCmd("mounttabled")
-	cmd.Stdout = writer
-	cmd.Stderr = cmd.Stdout
-	err = cmd.Start()
-	if err != nil {
-		return nil, err
-	}
-	buf := bufio.NewReader(reader)
-	pat := regexp.MustCompile("Mount table .+ endpoint: (.+)\n")
-
-	timeout := time.After(RUN_TIMEOUT)
-	ch := make(chan string)
-	go (func() {
-		for line, err := buf.ReadString('\n'); err == nil; line, err = buf.ReadString('\n') {
-			if groups := pat.FindStringSubmatch(line); groups != nil {
-				ch <- groups[1]
-			} else {
-				Log("mounttabld: %s", line)
-			}
-		}
-		close(ch)
-	})()
-	select {
-	case <-timeout:
-		log.Fatal("Timeout starting mounttabled")
-	case endpoint := <-ch:
-		if endpoint == "" {
-			log.Fatal("mounttable died")
-		}
-		Log("mount at ", endpoint)
-		return cmd.Process, os.Setenv("NAMESPACE_ROOT", endpoint)
-	}
-	return cmd.Process, err
+func makeCmd(prog string, args ...string) *exec.Cmd {
+	cmd := exec.Command(prog, args...)
+	// TODO(ribrdb): prefix output with the name of the binary
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	cmd.Env = os.Environ()
+	return cmd
 }

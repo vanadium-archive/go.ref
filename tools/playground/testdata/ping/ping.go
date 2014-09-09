@@ -16,7 +16,7 @@ func main() {
 		log.Fatal("error binding to server: ", err)
 	}
 
-	pong, err := s.Ping(runtime.NewContext(), "ping")
+	pong, err := s.Ping(runtime.NewContext(), "PING")
 	if err != nil {
 		log.Fatal("error pinging: ", err)
 	}

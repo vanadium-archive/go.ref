@@ -5,11 +5,11 @@
 {
   "Name": "myserver",
   "Blesser": "myorg",
-  "Files": ["pong.go"]
+  "Files": ["pong.go", "pong.js"]
 },
 {
   "Name": "myclient",
   "Blesser": "myserver",
-  "Files": ["ping.go"]
+  "Files": ["ping.go", "ping.js"]
 }
 ]

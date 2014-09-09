@@ -14,7 +14,7 @@ type pongd struct{}
 
 func (f *pongd) Ping(_ ipc.ServerContext, message string) (result string, err error) {
 	fmt.Println(message)
-	return "pong", nil
+	return "PONG", nil
 }
 
 func main() {

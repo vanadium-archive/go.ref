@@ -2,6 +2,6 @@
 {
   "Name": "expired",
   "Duration": "0s",
-  "Files": ["ping.go", "pong.go"]
+  "Files": ["ping.go", "pong.go", "ping.js", "pong.js"]
 }
 ]
