@@ -4,6 +4,7 @@
 package main
 
 import (
+	"bufio"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -298,13 +299,13 @@ func (f *CodeFile) startJs() error {
 	f.subProcs = append(f.subProcs, wsprProc)
 	os.Setenv("WSPR", "http://localhost:"+strconv.Itoa(wsprPort))
 	node := path.Join(os.Getenv("VEYRON_ROOT"), "/environment/cout/node/bin/node")
-	cmd := makeCmd(node, path.Join("src", f.Name))
+	cmd := makeCmdForFile(f.Name, node, path.Join("src", f.Name))
 	f.cmd = cmd
 	return cmd.Start()
 }
 
 func (f *CodeFile) startGo() error {
-	cmd := makeCmd(path.Join("bin", f.pkg))
+	cmd := makeCmdForFile(f.Name, path.Join("bin", f.pkg))
 	if f.identity != "" {
 		cmd.Env = append(cmd.Env, fmt.Sprintf("VEYRON_IDENTITY=%s", path.Join("ids", f.identity)))
 	}
@@ -364,9 +365,41 @@ func (f *CodeFile) stop() {
 
 func makeCmd(prog string, args ...string) *exec.Cmd {
 	cmd := exec.Command(prog, args...)
-	// TODO(ribrdb): prefix output with the name of the binary
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	cmd.Env = os.Environ()
 	return cmd
+}
+
+// TODO(nlacasse): This should print stdout-stderr as JSON-encoded Event's,
+// which the compile server captures and forwards to the client.
+func makeCmdForFile(fileName, prog string, args ...string) *exec.Cmd {
+	cmd := exec.Command(prog, args...)
+	cmd.Env = os.Environ()
+
+	stdout, err := cmd.StdoutPipe()
+	if err != nil {
+		log.Fatal(err)
+	}
+	go prefixer(fileName+"[stdout]: ", stdout, os.Stdout)
+
+	stderr, err := cmd.StderrPipe()
+	if err != nil {
+		log.Fatal(err)
+	}
+	go prefixer(fileName+"[stderr]: ", stderr, os.Stderr)
+	return cmd
+}
+
+func prefixer(prefix string, in io.Reader, out io.Writer) {
+	prefixBytes := []byte(prefix)
+	scanner := bufio.NewScanner(in)
+	for scanner.Scan() {
+		prefixedLine := append(prefixBytes, scanner.Bytes()...)
+		out.Write(prefixedLine)
+		out.Write([]byte("\n"))
+	}
+	if err := scanner.Err(); err != nil {
+		log.Fatal(err)
+	}
 }
