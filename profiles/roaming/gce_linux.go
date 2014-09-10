@@ -37,8 +37,6 @@ func handleGCE(rt veyron2.Runtime, publisher *config.Publisher) *net.IPAddr {
 		_ = stop
 		// TODO(cnicolaou): stop should be used by the soon to be added
 		// Cleanup method.
-
-		publishInitialSettings(ch, listenProtocolFlag.Protocol, listenSpecFlag.String(), []net.Addr{pub})
 		return pub
 	}
 	return nil

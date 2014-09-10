@@ -22,7 +22,8 @@ func main() {
 		log.Fatalf("unexpected error: %q", err)
 	}
 
-	ep, err := server.RoamingListen(r.Publisher(), roaming.SettingsStreamName)
+	fmt.Printf("listen spec: %v\n", roaming.ListenSpec)
+	ep, err := server.ListenX(roaming.ListenSpec)
 	if err != nil {
 		log.Fatalf("unexpected error: %q", err)
 	}

@@ -20,24 +20,34 @@ import (
 	"veyron2/ipc"
 	"veyron2/rt"
 
+	"veyron/lib/flags"
 	"veyron/lib/netconfig"
 	"veyron/lib/netstate"
 	"veyron/profiles"
 )
 
 const (
-	SettingsStreamName = "dhcp"
+	SettingsStreamName = "roaming"
 )
 
 var (
-	listenProtocolFlag = config.TCPProtocolFlag{"tcp"}
-	listenSpecFlag     = config.IPHostPortFlag{Port: "0"}
+	listenProtocolFlag = flags.TCPProtocolFlag{"tcp"}
+	listenAddressFlag  = flags.IPHostPortFlag{Port: "0"}
+	listenProxyFlag    string
+	ListenSpec         *ipc.ListenSpec
 )
 
 func init() {
 	flag.Var(&listenProtocolFlag, "veyron.tcp.protocol", "protocol to listen with")
-	flag.Var(&listenSpecFlag, "veyron.tcp.address", "address to listen on")
+	flag.Var(&listenAddressFlag, "veyron.tcp.address", "address to listen on")
+	flag.StringVar(&listenProxyFlag, "veyron.proxy", "", "proxy to use")
+
 	rt.RegisterProfile(New())
+	ListenSpec = &ipc.ListenSpec{
+		Protocol: listenProtocolFlag.Protocol,
+		Address:  listenAddressFlag.String(),
+		Proxy:    listenProxyFlag,
+	}
 }
 
 type profile struct {
@@ -122,25 +132,12 @@ func (p *profile) Init(rt veyron2.Runtime, publisher *config.Publisher) {
 	}
 
 	protocol := listenProtocolFlag.Protocol
-	log.VI(2).Infof("Initial Network Settings: %s %s available: %s", protocol, listenSpecFlag, state)
-	publishInitialSettings(ch, protocol, listenSpecFlag.String(), state)
+	log.VI(2).Infof("Initial Network Settings: %s %s available: %s", protocol, listenAddressFlag, state)
 	go monitorNetworkSettings(rt, stop, ch, state, protocol, p.addrChooser)
 }
 
 func (p *profile) AddressChooser() veyron2.AddressChooser {
 	return p.addrChooser
-}
-
-func publishInitialSettings(ch chan<- config.Setting, protocol, listenSpec string, addrs []net.Addr) {
-	// TODO(cnicolaou): consider applying the address chooser here and not in
-	// the server, or better yet not sending the InitialAddrsSetting.
-	for _, setting := range []config.Setting{
-		ipc.NewProtocolSetting(protocol),
-		ipc.NewListenSpecSetting(listenSpecFlag),
-		ipc.NewInitialAddrsSetting(addrs),
-	} {
-		ch <- setting
-	}
 }
 
 // monitorNetworkSettings will monitor network configuration changes and
