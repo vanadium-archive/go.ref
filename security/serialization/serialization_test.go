@@ -14,7 +14,6 @@ import (
 	"testing"
 
 	"veyron/lib/testutil"
-	"veyron/security/signing"
 
 	"veyron2/security"
 )
@@ -56,7 +55,7 @@ func newSigner() security.Signer {
 	if err != nil {
 		panic(err)
 	}
-	return signing.NewClearSigner(key)
+	return security.NewInMemoryECDSASigner(key)
 }
 
 func matchesErrorPattern(err error, pattern string) bool {
