@@ -7,6 +7,7 @@ source "${VEYRON_ROOT}/environment/scripts/lib/shell_test.sh"
 build() {
   local -r GO="${REPO_ROOT}/scripts/build/go"
   "${GO}" build veyron/tools/identity || shell_test::fail "line ${LINENO}: failed to build 'identity'"
+  "${GO}" build veyron/services/proxy/proxyd || shell_test::fail "line ${LINENO}: failed to build 'proxyd'"
   "${GO}" build veyron/services/mounttable/mounttabled || shell_test::fail "line ${LINENO}: failed to build 'mounttabled'"
   "${GO}" build veyron2/vdl/vdl || shell_test::fail "line ${LINENO}: failed to build 'vdl'"
   "${GO}" build veyron/tools/playground/builder || shell_test::fail "line ${LINENO}: failed to build 'builder'"
