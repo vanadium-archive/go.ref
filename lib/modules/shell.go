@@ -39,7 +39,6 @@ import (
 	"bufio"
 	"fmt"
 	"io"
-	"strings"
 	"sync"
 
 	"veyron2/vlog"
@@ -105,10 +104,10 @@ func (sh *Shell) String() string {
 	sh.mu.Lock()
 	defer sh.mu.Unlock()
 	h := ""
-	for n, _ := range sh.cmds {
-		h += n + ", "
+	for _, c := range sh.cmds {
+		h += c.help
 	}
-	return strings.TrimRight(h, ", ")
+	return h
 }
 
 // Help returns the help message for the specified command.
@@ -116,7 +115,7 @@ func (sh *Shell) Help(command string) string {
 	sh.mu.Lock()
 	defer sh.mu.Unlock()
 	if c := sh.cmds[command]; c != nil {
-		return command + ": " + c.help
+		return c.help
 	}
 	return ""
 }
@@ -236,13 +235,4 @@ type Handle interface {
 // commands.
 type command interface {
 	start(sh *Shell, args ...string) (Handle, error)
-}
-
-func WaitForEOF(stdin io.Reader) {
-	buf := [1024]byte{}
-	for {
-		if _, err := stdin.Read(buf[:]); err == io.EOF {
-			return
-		}
-	}
 }
