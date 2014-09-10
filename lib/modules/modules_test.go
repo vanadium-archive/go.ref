@@ -23,7 +23,8 @@ func PrintEnv(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, 
 			fmt.Fprintf(stderr, "missing %s\n", a)
 		}
 	}
-	modules.WaitForEOF(stdin)
+	buf := [1]byte{0x0}
+	stdin.Read(buf[:])
 	fmt.Fprintf(stdout, "done\n")
 	return nil
 }
