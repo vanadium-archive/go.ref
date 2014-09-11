@@ -64,8 +64,13 @@ const verifyURL = "https://www.googleapis.com/oauth2/v1/tokeninfo?"
 // identity and bless it with the Google email address.
 func NewHandler(args HandlerArgs) http.Handler {
 	config := NewOAuthConfig(args.ClientID, args.ClientSecret, args.redirectURL())
-	tokenMap := make(map[tokenCaveatIDKey]bool)
-	return &handler{config, util.NewCSRFCop(), args.Auditor, args.RevocationManager, tokenMap}
+	return &handler{
+		config:            config,
+		csrfCop:           util.NewCSRFCop(),
+		auditor:           args.Auditor,
+		revocationManager: args.RevocationManager,
+		tokenMap:          newTokenRevocationCaveatMap(time.Hour),
+	}
 }
 
 // NewOAuthConfig returns the oauth.Config required for obtaining just the email address from Google using OAuth 2.0.
@@ -80,16 +85,12 @@ func NewOAuthConfig(clientID, clientSecret, redirectURL string) *oauth.Config {
 	}
 }
 
-type tokenCaveatIDKey struct {
-	token, caveatID string
-}
-
 type handler struct {
-	config                   *oauth.Config
-	csrfCop                  *util.CSRFCop
-	auditor                  string
-	revocationManager        *revocation.RevocationManager
-	tokenRevocationCaveatMap map[tokenCaveatIDKey]bool
+	config            *oauth.Config
+	csrfCop           *util.CSRFCop
+	auditor           string
+	revocationManager *revocation.RevocationManager
+	tokenMap          *tokenRevocationCaveatMap
 }
 
 func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -175,10 +176,7 @@ func (h *handler) callback(w http.ResponseWriter, r *http.Request) {
 					if revocationTime := h.revocationManager.GetRevocationTime(blessEntry.RevocationCaveat.ID()); revocationTime != nil {
 						tmplentry.RevocationTime = *revocationTime
 					}
-					// TODO(suharshs): Add a timeout that removes old entries to reduce storage space.
-					// TODO(suharshs): Make this map from CSRFToken to Email address, have
-					// revocation manager have map from caveatID to Email address in DirectoryStore.
-					h.tokenRevocationCaveatMap[tokenCaveatIDKey{csrf, tmplentry.RevocationCaveatID}] = true
+					h.tokenMap.Insert(csrf, tmplentry.RevocationCaveatID)
 				}
 				ch <- tmplentry
 			}
@@ -247,7 +245,7 @@ func (h *handler) validateTokenCaveatID(CSRFToken, revocationCaveatID string, r 
 	if err := h.csrfCop.ValidateToken(CSRFToken, r, "VeyronHTTPIdentityRevocationID"); err != nil {
 		return fmt.Errorf("invalid CSRF token: %v in request: %#v", err, r)
 	}
-	if _, exists := h.tokenRevocationCaveatMap[tokenCaveatIDKey{CSRFToken, revocationCaveatID}]; exists {
+	if h.tokenMap.Exists(CSRFToken, revocationCaveatID) {
 		return nil
 	}
 	return fmt.Errorf("this token has no matching entry for the provided caveat ID")
