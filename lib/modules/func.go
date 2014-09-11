@@ -6,6 +6,7 @@ import (
 	"io"
 	"os"
 	"sync"
+	"syscall"
 )
 
 type pipe struct {
@@ -55,9 +56,10 @@ func (fh *functionHandle) start(sh *Shell, args ...string) (Handle, error) {
 		if err != nil {
 			fmt.Fprintf(fh.stderr.w, "%s\n", err)
 		}
-		fh.stdin.r.Close()
-		fh.stdout.w.Close()
-		fh.stderr.w.Close()
+		// See the comment below in Shutdown.
+		syscall.Close(int(fh.stdin.r.Fd()))
+		syscall.Close(int(fh.stdout.w.Fd()))
+		syscall.Close(int(fh.stderr.w.Fd()))
 	}()
 	return fh, nil
 }
@@ -69,7 +71,10 @@ func (fh *functionHandle) Shutdown(output io.Writer) {
 	for scanner.Scan() {
 		fmt.Fprintf(output, "%s\n", scanner.Text())
 	}
-	fh.stdin.w.Close()
-	fh.stdout.r.Close()
-	fh.stderr.r.Close()
+	// We close these files using the Close system call since there
+	// may be an oustanding read on them that would otherwise trigger
+	// a test failure with go test -race
+	syscall.Close(int(fh.stdin.w.Fd()))
+	syscall.Close(int(fh.stdout.r.Fd()))
+	syscall.Close(int(fh.stderr.r.Fd()))
 }
