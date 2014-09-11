@@ -1,8 +1,0 @@
-{
-	"dependencies": {
-		"incoming": [
-			{"allow": "veyron/examples/..."},
-			{"deny": "..."}
-		]
-	}
-}

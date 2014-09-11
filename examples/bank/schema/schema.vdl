@@ -1,9 +1,0 @@
-package schema
-
-// Dir is used to represent directories.
-type Dir struct{}
-
-// Bank is used to represent the information stored in a bank.
-type Bank struct {
-	Accounts map[string]int64
-}
