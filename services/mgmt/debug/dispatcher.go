@@ -8,7 +8,6 @@ import (
 	logreaderimpl "veyron/services/mgmt/logreader/impl"
 	statsimpl "veyron/services/mgmt/stats/impl"
 
-	"veyron2"
 	"veyron2/ipc"
 	"veyron2/naming"
 	"veyron2/security"
@@ -18,13 +17,12 @@ import (
 
 // dispatcher holds the state of the debug dispatcher.
 type dispatcher struct {
-	rt      veyron2.Runtime
 	logsDir string // The root of the logs directory.
 	auth    security.Authorizer
 }
 
-func NewDispatcher(rt veyron2.Runtime, logsDir string, authorizer security.Authorizer) *dispatcher {
-	return &dispatcher{rt, logsDir, authorizer}
+func NewDispatcher(logsDir string, authorizer security.Authorizer) *dispatcher {
+	return &dispatcher{logsDir, authorizer}
 }
 
 func (d *dispatcher) Lookup(suffix, method string) (ipc.Invoker, security.Authorizer, error) {

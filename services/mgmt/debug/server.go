@@ -15,7 +15,7 @@ func StartDebugServer(rt veyron2.Runtime, address, logsDir string, auth security
 	if len(logsDir) == 0 {
 		return "", nil, fmt.Errorf("logs directory missing")
 	}
-	disp := NewDispatcher(rt, logsDir, auth)
+	disp := NewDispatcher(logsDir, auth)
 	server, err := rt.NewServer()
 	if err != nil {
 		return "", nil, fmt.Errorf("failed to start debug server: %v", err)
