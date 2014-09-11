@@ -101,7 +101,7 @@ func TestMountTableAndGlob(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
-	lsSession := expect.NewSession(t, ls.Stdout(), time.Second)
+	lsSession := expect.NewSession(t, ls.Stdout(), 5*time.Second)
 
 	lsSession.SetVerbosity(testing.Verbose())
 	lsSession.Expect(rootName)
@@ -128,7 +128,7 @@ func TestMountTableAndGlob(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
-	lseSession := expect.NewSession(t, lse.Stdout(), time.Second)
+	lseSession := expect.NewSession(t, lse.Stdout(), 5*time.Second)
 	lseSession.SetVerbosity(testing.Verbose())
 
 	pattern = ""
