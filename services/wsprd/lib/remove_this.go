@@ -1,10 +1,10 @@
 package lib
 
 import (
+	rps "veyron.io/examples/rockpaperscissors"
 	"veyron.io/store/veyron2/services/store"
 	roadmap_watchtypes "veyron.io/store/veyron2/services/watch/types"
 	"veyron.io/store/veyron2/storage"
-	rps "veyron/examples/rockpaperscissors"
 	mttypes "veyron2/services/mounttable/types"
 	watchtypes "veyron2/services/watch/types"
 	"veyron2/vom"
