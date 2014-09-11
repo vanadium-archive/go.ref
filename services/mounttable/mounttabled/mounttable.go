@@ -61,23 +61,23 @@ func main() {
 	mtServer, err := r.NewServer(veyron2.ServesMountTableOpt(true))
 	if err != nil {
 		vlog.Errorf("r.NewServer failed: %v", err)
-		return
+		os.Exit(1)
 	}
 	defer mtServer.Stop()
 	mt, err := mounttable.NewMountTable(*aclFile)
 	if err != nil {
 		vlog.Errorf("r.NewMountTable failed: %v", err)
-		return
+		os.Exit(1)
 	}
 	mtEndpoint, err := mtServer.Listen(*protocol, *address)
 	if err != nil {
 		vlog.Errorf("mtServer.Listen failed: %v", err)
-		return
+		os.Exit(1)
 	}
 	name := *mountName
 	if err := mtServer.Serve(name, mt); err != nil {
 		vlog.Errorf("Serve(%v) failed: %v", name, err)
-		return
+		os.Exit(1)
 	}
 	mtAddr := naming.JoinAddressName(mtEndpoint.String(), "")
 	r.Namespace().SetRoots(mtAddr)
@@ -90,26 +90,26 @@ func main() {
 		nhServer, err := r.NewServer(veyron2.ServesMountTableOpt(true))
 		if err != nil {
 			vlog.Errorf("r.NewServer failed: %v", err)
-			return
+			os.Exit(1)
 		}
 		defer nhServer.Stop()
 		host, _, err := net.SplitHostPort(*address)
 		if err != nil {
 			vlog.Errorf("parsing of address(%q) failed: %v", *address, err)
-			return
+			os.Exit(1)
 		}
 		if _, err = nhServer.Listen(*protocol, net.JoinHostPort(host, "0")); err != nil {
 			vlog.Errorf("nhServer.Listen failed: %v", err)
-			return
+			os.Exit(1)
 		}
 		nh, err := mounttable.NewNeighborhoodServer(*nhName, mtAddr)
 		if err != nil {
 			vlog.Errorf("NewNeighborhoodServer failed: %v", err)
-			return
+			os.Exit(1)
 		}
 		if err := nhServer.Serve("nh", nh); err != nil {
 			vlog.Errorf("nhServer.Serve failed to register neighborhood: %v", err)
-			return
+			os.Exit(1)
 		}
 	}
 
