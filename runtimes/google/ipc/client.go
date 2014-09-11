@@ -3,6 +3,8 @@ package ipc
 import (
 	"fmt"
 	"io"
+	"math/rand"
+	"strings"
 	"sync"
 	"time"
 
@@ -112,7 +114,32 @@ func (c *client) connectFlow(server string) (stream.Flow, string, error) {
 }
 
 func (c *client) StartCall(ctx context.T, name, method string, args []interface{}, opts ...ipc.CallOpt) (ipc.Call, error) {
-	return c.startCall(ctx, name, method, args, opts...)
+	deadline, hasDeadline := ctx.Deadline()
+	if !hasDeadline {
+		// If no deadline is set, use a long but finite one.
+		deadline = time.Now().Add(defaultCallTimeout)
+	}
+	var lastErr verror.E
+	b := time.Duration(1.5 + (rand.Float32() / 2.0))
+	backoff := b
+	for deadline.After(time.Now()) {
+		call, err := c.startCall(ctx, name, method, args, opts...)
+		if err == nil {
+			return call, nil
+		}
+		lastErr = err
+		// TODO(p): replace these checks with m3b's retry bit when it exists.
+		if !strings.Contains(err.Error(), "ipc: Resolve") &&
+			!(strings.Contains(err.Error(), "ipc: couldn't connect") && strings.Contains(err.Error(), "errno")) {
+			break
+		}
+		time.Sleep(backoff)
+		backoff = backoff * b
+		if backoff > maxBackoff {
+			backoff = maxBackoff
+		}
+	}
+	return nil, lastErr
 }
 
 // startCall ensures StartCall always returns verror.E.
