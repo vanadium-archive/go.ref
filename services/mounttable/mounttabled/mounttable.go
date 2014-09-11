@@ -79,8 +79,6 @@ func main() {
 		vlog.Errorf("Serve(%v) failed: %v", name, err)
 		os.Exit(1)
 	}
-	mtAddr := naming.JoinAddressName(mtEndpoint.String(), "")
-	r.Namespace().SetRoots(mtAddr)
 
 	vlog.Infof("Mount table service at: %q endpoint: %s",
 		name,
@@ -102,12 +100,15 @@ func main() {
 			vlog.Errorf("nhServer.Listen failed: %v", err)
 			os.Exit(1)
 		}
-		nh, err := mounttable.NewNeighborhoodServer(*nhName, mtAddr)
+
+		myObjectName := naming.JoinAddressName(mtEndpoint.String(), "")
+
+		nh, err := mounttable.NewNeighborhoodServer(*nhName, myObjectName)
 		if err != nil {
 			vlog.Errorf("NewNeighborhoodServer failed: %v", err)
 			os.Exit(1)
 		}
-		if err := nhServer.Serve("nh", nh); err != nil {
+		if err := nhServer.Serve(naming.JoinAddressName(myObjectName, "//nh"), nh); err != nil {
 			vlog.Errorf("nhServer.Serve failed to register neighborhood: %v", err)
 			os.Exit(1)
 		}
