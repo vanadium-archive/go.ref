@@ -139,6 +139,7 @@ func newPipe(w http.ResponseWriter, req *http.Request, wspr *WSPR, creator func(
 func (p *pipe) cleanup() {
 	p.logger.VI(0).Info("Cleaning up websocket")
 	p.controller.Cleanup()
+	p.ws.Close()
 	p.wspr.CleanUpPipe(p.req)
 }
 
