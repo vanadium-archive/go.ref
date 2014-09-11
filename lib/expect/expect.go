@@ -42,11 +42,14 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"os"
 	"path/filepath"
 	"regexp"
 	"runtime"
 	"strings"
 	"time"
+
+	"veyron2/vlog"
 )
 
 var (
@@ -58,11 +61,13 @@ type Session struct {
 	input   *bufio.Reader
 	timeout time.Duration
 	t       Testing
+	verbose bool
 	err     error
 }
 
 type Testing interface {
 	Error(args ...interface{})
+	Log(args ...interface{})
 }
 
 // NewSession creates a new Session. The parameter t may be safely be nil.
@@ -78,6 +83,28 @@ func (s *Session) Failed() bool {
 // Error returns the error code (possibly nil) currently stored in the Session.
 func (s *Session) Error() error {
 	return s.err
+}
+
+// SetVerbosity enables/disable verbose debugging information, in particular,
+// every line of input read will be logged via Testing.Logf or, if it is nil,
+// to stderr.
+func (s *Session) SetVerbosity(v bool) {
+	s.verbose = v
+}
+
+func (s *Session) log(format string, args ...interface{}) {
+	if !s.verbose {
+		return
+	}
+	_, path, line, _ := runtime.Caller(2)
+	loc := fmt.Sprintf("%s:%d", filepath.Base(path), line)
+	o := strings.TrimRight(fmt.Sprintf(format, args...), "\n\t ")
+	vlog.VI(2).Infof("%s: %s", loc, o)
+	if s.t == nil {
+		fmt.Fprint(os.Stderr, loc, o)
+		return
+	}
+	s.t.Log(loc, o)
 }
 
 // ReportError calls Testing.Error to report any error currently stored
@@ -123,12 +150,12 @@ func (s *Session) read(f reader) (string, error) {
 	ch := make(chan string, 1)
 	ech := make(chan error, 1)
 	go func(fn reader, io *bufio.Reader) {
-		s, err := fn(io)
+		str, err := fn(io)
 		if err != nil {
 			ech <- err
 			return
 		}
-		ch <- s
+		ch <- str
 	}(f, s.input)
 	select {
 	case err := <-ech:
@@ -146,11 +173,13 @@ func (s *Session) Expect(expected string) {
 		return
 	}
 	line, err := s.read(readLine)
+	s.log("Expect: %v: %s", err, line)
 	if err != nil {
 		s.error(err)
 		return
 	}
 	line = strings.TrimRight(line, "\n")
+
 	if line != expected {
 		s.error(fmt.Errorf("got %q, want %q", line, expected))
 	}
@@ -180,6 +209,7 @@ func (s *Session) ExpectRE(pattern string, n int) [][]string {
 		return [][]string{}
 	}
 	l, m, err := s.expectRE(pattern, n)
+	s.log("ExpectRE: %v: %s", err, l)
 	if err != nil {
 		s.error(err)
 		return [][]string{}
@@ -197,6 +227,7 @@ func (s *Session) ExpectVar(name string) string {
 		return ""
 	}
 	l, m, err := s.expectRE(name+"=(.*)", 1)
+	s.log("ExpectVar: %v: %s", err, l)
 	if err != nil {
 		s.error(err)
 		return ""
@@ -215,6 +246,7 @@ func (s *Session) ReadLine() string {
 		return ""
 	}
 	l, err := s.read(readLine)
+	s.log("Readline: %v: %s", err, l)
 	if err != nil {
 		s.error(err)
 	}

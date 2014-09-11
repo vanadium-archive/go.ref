@@ -56,12 +56,10 @@ func runMT(root bool, stdin io.Reader, stdout, stderr io.Writer, env map[string]
 		return fmt.Errorf("root failed: %s", err)
 	}
 	name := naming.JoinAddressName(ep.String(), "")
-	fmt.Fprintf(os.Stderr, "Serving MountTable on %q", name)
-
-	fmt.Printf("MT_NAME=%s\n", name)
-	fmt.Printf("PID=%d\n", os.Getpid())
+	fmt.Fprintf(stdout, "MT_NAME=%s\n", name)
+	fmt.Fprintf(stdout, "PID=%d\n", os.Getpid())
 	modules.WaitForEOF(stdin)
-	fmt.Println("done\n")
+	fmt.Fprintf(stdout, "done\n")
 	return nil
 }
 

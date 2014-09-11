@@ -227,3 +227,13 @@ func (child *childRegistrar) dispatch() error {
 	}
 	return m(os.Stdin, os.Stdout, os.Stderr, osEnvironMap(), flag.Args()...)
 }
+
+// WaitForEof returns when a read on its io.Reader parameter returns io.EOF
+func WaitForEOF(stdin io.Reader) {
+	buf := [1024]byte{}
+	for {
+		if _, err := stdin.Read(buf[:]); err == io.EOF {
+			return
+		}
+	}
+}

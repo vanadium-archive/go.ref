@@ -82,14 +82,19 @@ func TestMountTableAndGlob(t *testing.T) {
 	if t.Failed() {
 		return
 	}
-	mountPoints := []string{"a", "b", "c"}
+	mountPoints := []string{"a", "b", "c", "d", "e"}
 
 	// Start 3 mount tables
 	for _, mp := range mountPoints {
-		_, err := shell.Start(core.MTCommand, mp)
+		h, err := shell.Start(core.MTCommand, mp)
 		if err != nil {
 			t.Fatalf("unexpected error: %s", err)
 		}
+		s := expect.NewSession(t, h.Stdout(), time.Second)
+		// Wait until each mount table has at least called Serve to
+		// mount itself.
+		s.ExpectVar("MT_NAME")
+
 	}
 
 	ls, err := shell.Start(core.LSCommand, rootName+"/...")
@@ -97,6 +102,8 @@ func TestMountTableAndGlob(t *testing.T) {
 		t.Fatalf("unexpected error: %s", err)
 	}
 	lsSession := expect.NewSession(t, ls.Stdout(), time.Second)
+
+	lsSession.SetVerbosity(testing.Verbose())
 	lsSession.Expect(rootName)
 
 	// Look for names that correspond to the mountpoints above (i.e, a, b or c)
@@ -107,9 +114,9 @@ func TestMountTableAndGlob(t *testing.T) {
 	pattern = pattern[:len(pattern)-1]
 
 	found := []string{}
-	found = append(found, getMatchingMountpoint(lsSession.ExpectRE(pattern, 1)))
-	found = append(found, getMatchingMountpoint(lsSession.ExpectRE(pattern, 1)))
-	found = append(found, getMatchingMountpoint(lsSession.ExpectRE(pattern, 1)))
+	for i := 0; i < len(mountPoints); i++ {
+		found = append(found, getMatchingMountpoint(lsSession.ExpectRE(pattern, 1)))
+	}
 	sort.Strings(found)
 	sort.Strings(mountPoints)
 	if got, want := found, mountPoints; !reflect.DeepEqual(got, want) {
@@ -122,19 +129,20 @@ func TestMountTableAndGlob(t *testing.T) {
 		t.Fatalf("unexpected error: %s", err)
 	}
 	lseSession := expect.NewSession(t, lse.Stdout(), time.Second)
+	lseSession.SetVerbosity(testing.Verbose())
 
 	pattern = ""
 	for _, n := range mountPoints {
 		// Since the LSExternalCommand runs in a subprocess with NAMESPACE_ROOT
-		// set to the name of the root mount table it sees the relative name
+		// set to the name of the root mount table it sees to the relative name
 		// format of the mounted mount tables.
 		pattern = pattern + "(^" + n + "$)|"
 	}
 	pattern = pattern[:len(pattern)-1]
 	found = []string{}
-	found = append(found, getMatchingMountpoint(lseSession.ExpectRE(pattern, 1)))
-	found = append(found, getMatchingMountpoint(lseSession.ExpectRE(pattern, 1)))
-	found = append(found, getMatchingMountpoint(lseSession.ExpectRE(pattern, 1)))
+	for i := 0; i < len(mountPoints); i++ {
+		found = append(found, getMatchingMountpoint(lseSession.ExpectRE(pattern, 1)))
+	}
 	sort.Strings(found)
 	sort.Strings(mountPoints)
 	if got, want := found, mountPoints; !reflect.DeepEqual(got, want) {

@@ -99,8 +99,7 @@ func (sh *Shell) AddFunction(name string, main Main, help string) {
 }
 
 // String returns a string representation of the Shell, which is a
-// concatenation of the help messages of each Command currently available
-// to it.
+// list of the commands currently available in the shell.
 func (sh *Shell) String() string {
 	sh.mu.Lock()
 	defer sh.mu.Unlock()
@@ -236,13 +235,4 @@ type Handle interface {
 // commands.
 type command interface {
 	start(sh *Shell, args ...string) (Handle, error)
-}
-
-func WaitForEOF(stdin io.Reader) {
-	buf := [1024]byte{}
-	for {
-		if _, err := stdin.Read(buf[:]); err == io.EOF {
-			return
-		}
-	}
 }
