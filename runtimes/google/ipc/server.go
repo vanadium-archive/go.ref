@@ -250,7 +250,7 @@ func (s *server) externalEndpoint(lep naming.Endpoint) (*inaming.Endpoint, *net.
 	return iep, nil, nil
 }
 
-func (s *server) RoamingListen() (naming.Endpoint, error) {
+func (s *server) ListenX(listenSpec *ipc.ListenSpec) (naming.Endpoint, error) {
 	s.Lock()
 	// Shortcut if the server is stopped, to avoid needlessly creating a
 	// listener.
@@ -260,46 +260,27 @@ func (s *server) RoamingListen() (naming.Endpoint, error) {
 	}
 	s.Unlock()
 
+	protocol := listenSpec.Protocol
+	address := listenSpec.Address
+	if len(listenSpec.Proxy) > 0 {
+		// TODO(cnicolaou): implement support for proxy...
+	}
+
+	h, _, _ := net.SplitHostPort(address)
+	ip := net.ParseIP(h)
+	if ip != nil && ip.IsLoopback() {
+		// All our addresses are loopback addresses
+		// TODO(cnicolaou): use Listen for now, but should refactor more completely.
+		return s.Listen(protocol, address)
+	}
+
 	publisher := s.roamingOpt.Publisher
 	streamName := s.roamingOpt.StreamName
 
 	ch := make(chan config.Setting)
-	configStream, err := publisher.ForkStream(streamName, ch)
+	_, err := publisher.ForkStream(streamName, ch)
 	if err != nil {
 		return nil, fmt.Errorf("failed to fork stream %q: %s", streamName, err)
-	}
-	setting := configStream.Latest[ipc.ProtocolSetting]
-	if setting == nil {
-		return nil, fmt.Errorf("protocol setting has not be sent")
-	}
-	protocol, ok := setting.Value().(string)
-	if !ok {
-		return nil, fmt.Errorf("protocol setting is of the wrong type %T", setting.Value())
-	}
-
-	setting = configStream.Latest[ipc.ListenSpecSetting]
-	if setting == nil {
-		return nil, fmt.Errorf("listen spec setting has not be sent")
-	}
-	listenSpec, ok := setting.Value().(config.IPHostPortFlag)
-	if !ok {
-		return nil, fmt.Errorf("listen spec setting is of the wrong type %T", setting.Value())
-	}
-
-	address := listenSpec.String()
-
-	isNotLoopback := func(a net.Addr) bool {
-		if ip := netstate.AsIP(a); ip != nil {
-			return !ip.IsLoopback()
-		}
-		return true
-	}
-
-	al := netstate.FromIPAddr(listenSpec.IP)
-	if len(al) > 0 && al.First(isNotLoopback) == nil {
-		// All our addresses are loopback addresses
-		// TODO(cnicolaou): use Listen for now, but should refactor more completely.
-		return s.Listen(protocol, listenSpec.String())
 	}
 
 	ln, lep, err := s.streamMgr.Listen(protocol, address, s.listenerOpts...)
@@ -335,7 +316,7 @@ func (s *server) RoamingListen() (naming.Endpoint, error) {
 	go func(ln stream.Listener, ep naming.Endpoint) {
 		s.listenLoop(ln, ep)
 		s.active.Done()
-	}(ln, ep)
+	}(ln, lep)
 
 	// goroutine to listen for address changes.
 	go func(dl *dhcpListener) {
