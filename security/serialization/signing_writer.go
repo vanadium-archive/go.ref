@@ -23,7 +23,7 @@ type header struct {
 type signingWriter struct {
 	data      io.WriteCloser
 	signature io.WriteCloser
-	signer    security.Signer
+	signer    Signer
 
 	chunkSizeBytes int
 	curChunk       bytes.Buffer
@@ -75,6 +75,12 @@ type Options struct {
 	ChunkSizeBytes int
 }
 
+// Signer is the interface for digital signature operations used by NewSigningWriteCloser.
+type Signer interface {
+	Sign(message []byte) (security.Signature, error)
+	PublicKey() security.PublicKey
+}
+
 // NewSigningWriteCloser returns an io.WriteCloser that writes data along
 // with an appropriate signature that establishes the integrity and
 // authenticity of the data. It behaves as follows:
@@ -83,7 +89,7 @@ type Options struct {
 //   signature WriteCloser.
 // * A Close call writes a signature (computed using the provided signer) of
 //   all the hashes written, and then closes the data and signature WriteClosers.
-func NewSigningWriteCloser(data, signature io.WriteCloser, s security.Signer, opts *Options) (io.WriteCloser, error) {
+func NewSigningWriteCloser(data, signature io.WriteCloser, s Signer, opts *Options) (io.WriteCloser, error) {
 	if (data == nil) || (signature == nil) {
 		return nil, errors.New("data or signature WriteCloser is nil")
 	}

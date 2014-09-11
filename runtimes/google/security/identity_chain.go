@@ -127,7 +127,7 @@ func (id *chainPublicID) ThirdPartyCaveats() []security.ThirdPartyCaveat {
 
 // chainPrivateID implements security.PrivateID
 type chainPrivateID struct {
-	security.Signer
+	signer     security.Signer
 	publicID   *chainPublicID
 	privateKey *ecdsa.PrivateKey // can be nil
 }
@@ -157,7 +157,7 @@ func (id *chainPrivateID) VomDecode(w *wire.ChainPrivateID) error {
 		PublicKey: *id.publicID.publicKey.DO_NOT_USE(),
 		D:         new(big.Int).SetBytes(w.Secret),
 	}
-	id.Signer = security.NewInMemoryECDSASigner(id.privateKey)
+	id.signer = security.NewInMemoryECDSASigner(id.privateKey)
 	return nil
 }
 
@@ -214,7 +214,7 @@ func (id *chainPrivateID) Derive(pub security.PublicID) (security.PrivateID, err
 	switch p := pub.(type) {
 	case *chainPublicID:
 		return &chainPrivateID{
-			Signer:     id.Signer,
+			signer:     id.signer,
 			publicID:   p,
 			privateKey: id.privateKey,
 		}, nil
@@ -235,6 +235,12 @@ func (id *chainPrivateID) Derive(pub security.PublicID) (security.PrivateID, err
 func (id *chainPrivateID) MintDischarge(cav security.ThirdPartyCaveat, ctx security.Context, duration time.Duration, dischargeCaveats []security.Caveat) (security.Discharge, error) {
 	return caveat.NewPublicKeyDischarge(id, cav, ctx, duration, dischargeCaveats)
 }
+
+func (id *chainPrivateID) Sign(message []byte) (security.Signature, error) {
+	return id.signer.Sign(nil, message)
+}
+
+func (id *chainPrivateID) PublicKey() security.PublicKey { return id.signer.PublicKey() }
 
 // newChainPrivateID returns a new PrivateID that uses the provided Signer to generate
 // signatures.  The returned PrivateID additionaly contains a single self-signed
@@ -258,7 +264,7 @@ func newChainPrivateID(name string, signer security.Signer) (security.PrivateID,
 	}
 
 	id := &chainPrivateID{
-		Signer: signer,
+		signer: signer,
 		publicID: &chainPublicID{
 			certificates: []wire.Certificate{{Name: name}},
 			name:         name,

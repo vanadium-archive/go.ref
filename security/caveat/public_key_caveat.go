@@ -126,7 +126,7 @@ func (d *publicKeyDischarge) ThirdPartyCaveats() []security.ThirdPartyCaveat {
 	return vsecurity.ThirdPartyCaveats(d.Caveats...)
 }
 
-func (d *publicKeyDischarge) sign(signer security.Signer) (err error) {
+func (d *publicKeyDischarge) sign(signer security.PrivateID) (err error) {
 	d.Signature, err = signer.Sign(d.contentHash())
 	return
 }
@@ -174,7 +174,7 @@ func NewPublicKeyCaveat(caveat security.Caveat, key security.PublicKey, location
 // (1) 'caveats' are met when using the discharge.
 // (2) 'tp' was obtained from NewPublicKeyCaveat using a key that is the same as
 // the provided signer's PublicKey.
-func NewPublicKeyDischarge(signer security.Signer, tp security.ThirdPartyCaveat, ctx security.Context, duration time.Duration, caveats []security.Caveat) (security.Discharge, error) {
+func NewPublicKeyDischarge(signer security.PrivateID, tp security.ThirdPartyCaveat, ctx security.Context, duration time.Duration, caveats []security.Caveat) (security.Discharge, error) {
 	pkCaveat, ok := tp.(*publicKeyCaveat)
 	if !ok {
 		return nil, fmt.Errorf("cannot mint discharges for %T", tp)

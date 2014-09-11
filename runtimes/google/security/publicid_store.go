@@ -223,7 +223,7 @@ type PublicIDStoreParams struct {
 	// can be saved and loaded.
 	Dir string
 	// Signer provides a mechanism to sign and verify the serialized bytes.
-	Signer security.Signer
+	Signer serialization.Signer
 }
 
 // NewPublicIDStore returns a security.PublicIDStore based on params.

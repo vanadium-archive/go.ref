@@ -26,7 +26,7 @@ func (*bufferCloser) Close() error {
 	return nil
 }
 
-func signingWrite(d, s io.WriteCloser, signer security.Signer, writeList [][]byte, opts *Options) error {
+func signingWrite(d, s io.WriteCloser, signer Signer, writeList [][]byte, opts *Options) error {
 	swc, err := NewSigningWriteCloser(d, s, signer, opts)
 	if err != nil {
 		return fmt.Errorf("NewSigningWriteCloser failed: %s", err)
@@ -50,12 +50,19 @@ func verifyingRead(d, s io.Reader, key security.PublicKey) ([]byte, error) {
 	return ioutil.ReadAll(vr)
 }
 
-func newSigner() security.Signer {
+type signerAdapter struct {
+	s security.Signer
+}
+
+func (s signerAdapter) Sign(message []byte) (security.Signature, error) { return s.s.Sign(nil, message) }
+func (s signerAdapter) PublicKey() security.PublicKey                   { return s.s.PublicKey() }
+
+func newSigner() Signer {
 	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	if err != nil {
 		panic(err)
 	}
-	return security.NewInMemoryECDSASigner(key)
+	return signerAdapter{security.NewInMemoryECDSASigner(key)}
 }
 
 func matchesErrorPattern(err error, pattern string) bool {
