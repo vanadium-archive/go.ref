@@ -5,7 +5,7 @@ import (
 	"io"
 	"sync"
 
-	"veyron/examples/tunnel"
+	"veyron.io/examples/tunnel"
 	"veyron2/vlog"
 )
 

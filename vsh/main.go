@@ -10,8 +10,8 @@ import (
 	"strings"
 	"time"
 
-	"veyron/examples/tunnel"
-	"veyron/examples/tunnel/lib"
+	"veyron.io/examples/tunnel"
+	"veyron.io/examples/tunnel/lib"
 	"veyron/lib/signals"
 	"veyron2/context"
 	"veyron2/rt"

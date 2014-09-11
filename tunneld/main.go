@@ -8,8 +8,8 @@ import (
 	"os"
 	"strings"
 
-	"veyron/examples/tunnel"
-	"veyron/examples/tunnel/tunneld/impl"
+	"veyron.io/examples/tunnel"
+	"veyron.io/examples/tunnel/tunneld/impl"
 	"veyron/lib/signals"
 	sflag "veyron/security/flag"
 	"veyron2/ipc"
