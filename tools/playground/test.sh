@@ -33,10 +33,6 @@ test_with_files() {
 }
 
 main() {
-  # TODO(nlacasse): Remove this once the raceyness issues in these tests have
-  # been sorted out.
-  shell_test::pass
-
   cd $(shell::tmp_dir)
   build
 
