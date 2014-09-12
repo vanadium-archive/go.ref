@@ -75,7 +75,7 @@ func TestMountTableAndGlob(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
-	rootSession := expect.NewSession(t, root.Stdout(), time.Second)
+	rootSession := expect.NewSession(t, root.Stdout(), time.Minute)
 	rootName := rootSession.ExpectVar("MT_NAME")
 	shell.SetVar("NAMESPACE_ROOT", rootName)
 
@@ -90,7 +90,7 @@ func TestMountTableAndGlob(t *testing.T) {
 		if err != nil {
 			t.Fatalf("unexpected error: %s", err)
 		}
-		s := expect.NewSession(t, h.Stdout(), time.Second)
+		s := expect.NewSession(t, h.Stdout(), time.Minute)
 		// Wait until each mount table has at least called Serve to
 		// mount itself.
 		s.ExpectVar("MT_NAME")
@@ -101,7 +101,7 @@ func TestMountTableAndGlob(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
-	lsSession := expect.NewSession(t, ls.Stdout(), 5*time.Second)
+	lsSession := expect.NewSession(t, ls.Stdout(), time.Minute)
 
 	lsSession.SetVerbosity(testing.Verbose())
 	lsSession.Expect(rootName)
@@ -128,7 +128,7 @@ func TestMountTableAndGlob(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
-	lseSession := expect.NewSession(t, lse.Stdout(), 5*time.Second)
+	lseSession := expect.NewSession(t, lse.Stdout(), time.Minute)
 	lseSession.SetVerbosity(testing.Verbose())
 
 	pattern = ""
