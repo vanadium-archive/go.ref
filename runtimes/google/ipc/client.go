@@ -10,6 +10,7 @@ import (
 
 	"veyron/runtimes/google/ipc/version"
 	inaming "veyron/runtimes/google/naming"
+	"veyron/runtimes/google/vtrace"
 
 	"veyron2"
 	"veyron2/context"
@@ -147,6 +148,8 @@ func (c *client) startCall(ctx context.T, name, method string, args []interface{
 	if ctx == nil {
 		return nil, verror.BadArgf("ipc: %s.%s called with nil context", name, method)
 	}
+	ctx, _ = vtrace.WithNewSpan(ctx, fmt.Sprintf("Client Call: %s.%s", name, method))
+
 	servers, err := c.ns.Resolve(ctx, name)
 	if err != nil {
 		return nil, verror.NotFoundf("ipc: Resolve(%q) failed: %v", name, err)
@@ -181,7 +184,7 @@ func (c *client) startCall(ctx context.T, name, method string, args []interface{
 		discharges := c.prepareDischarges(ctx, flow.LocalID(), flow.RemoteID(), method, args, opts)
 
 		lastErr = nil
-		fc := newFlowClient(flow, &c.dischargeCache, discharges)
+		fc := newFlowClient(ctx, flow, &c.dischargeCache, discharges)
 
 		go func() {
 			<-ctx.Done()
@@ -262,6 +265,7 @@ var _ ipc.BindOpt = (*client)(nil)
 // flowClient implements the RPC client-side protocol for a single RPC, over a
 // flow that's already connected to the server.
 type flowClient struct {
+	ctx      context.T    // context to annotate with call details
 	dec      *vom.Decoder // to decode responses and results from the server
 	enc      *vom.Encoder // to encode requests and args to the server
 	flow     stream.Flow  // the underlying flow
@@ -276,9 +280,10 @@ type flowClient struct {
 	finished bool // has Finish() already been called?
 }
 
-func newFlowClient(flow stream.Flow, dischargeCache *dischargeCache, discharges []security.Discharge) *flowClient {
+func newFlowClient(ctx context.T, flow stream.Flow, dischargeCache *dischargeCache, discharges []security.Discharge) *flowClient {
 	return &flowClient{
 		// TODO(toddw): Support different codecs
+		ctx:            ctx,
 		dec:            vom.NewDecoder(flow),
 		enc:            vom.NewEncoder(flow),
 		flow:           flow,
@@ -302,6 +307,7 @@ func (fc *flowClient) start(suffix, method string, args []interface{}, timeout t
 		Timeout:       int64(timeout),
 		HasBlessing:   blessing != nil,
 		NumDischarges: uint64(len(fc.discharges)),
+		TraceRequest:  vtrace.Request(fc.ctx),
 	}
 	if err := fc.enc.Encode(req); err != nil {
 		return fc.close(verror.BadProtocolf("ipc: request encoding failed: %v", err))
@@ -386,7 +392,9 @@ func (fc *flowClient) closeSend() verror.E {
 }
 
 func (fc *flowClient) Finish(resultptrs ...interface{}) error {
-	return fc.finish(resultptrs...)
+	err := fc.finish(resultptrs...)
+	vtrace.FromContext(fc.ctx).Annotate("Finished")
+	return err
 }
 
 // finish ensures Finish always returns verror.E.
@@ -421,6 +429,10 @@ func (fc *flowClient) finish(resultptrs ...interface{}) verror.E {
 			return fc.close(errRemainingStreamResults)
 		}
 	}
+
+	// Incorporate any VTrace info that was returned.
+	vtrace.MergeResponse(fc.ctx, &fc.response.TraceResponse)
+
 	if fc.response.Error != nil {
 		if verror.Is(fc.response.Error, verror.NotAuthorized) && fc.dischargeCache != nil {
 			// In case the error was caused by a bad discharge, we do not want to get stuck
@@ -444,5 +456,6 @@ func (fc *flowClient) finish(resultptrs ...interface{}) verror.E {
 }
 
 func (fc *flowClient) Cancel() {
+	vtrace.FromContext(fc.ctx).Annotate("Cancelled")
 	fc.flow.Cancel()
 }

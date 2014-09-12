@@ -13,6 +13,7 @@ import (
 	"veyron/runtimes/google/lib/publisher"
 	inaming "veyron/runtimes/google/naming"
 	isecurity "veyron/runtimes/google/security"
+	ivtrace "veyron/runtimes/google/vtrace"
 	vsecurity "veyron/security"
 
 	"veyron2"
@@ -25,6 +26,7 @@ import (
 	"veyron2/verror"
 	"veyron2/vlog"
 	"veyron2/vom"
+	"veyron2/vtrace"
 )
 
 var (
@@ -546,13 +548,17 @@ type flowServer struct {
 	discharges         map[string]security.Discharge
 	deadline           time.Time
 	endStreamArgs      bool // are the stream args at EOF?
+	allowDebug         bool // true if the caller is permitted to view debug information.
 }
 
 func newFlowServer(flow stream.Flow, server *server) *flowServer {
 	server.Lock()
 	disp := server.disp
+	runtime := veyron2.RuntimeFromContext(server.ctx)
 	server.Unlock()
+
 	return &flowServer{
+		T:      InternalNewContext(runtime),
 		server: server,
 		disp:   disp,
 		// TODO(toddw): Support different codecs
@@ -604,11 +610,18 @@ func defaultACL(id security.PublicID) security.ACL {
 func (fs *flowServer) serve() error {
 	defer fs.flow.Close()
 	results, err := fs.processRequest()
+
+	var traceResponse vtrace.Response
+	if fs.allowDebug {
+		traceResponse = ivtrace.Response(fs)
+	}
+
 	// Respond to the client with the response header and positional results.
 	response := ipc.Response{
 		Error:            err,
 		EndStreamResults: true,
 		NumPosResults:    uint64(len(results)),
+		TraceResponse:    traceResponse,
 	}
 	if err := fs.enc.Encode(response); err != nil {
 		return verror.BadProtocolf("ipc: response encoding failed: %v", err)
@@ -652,6 +665,11 @@ func (fs *flowServer) processRequest() ([]interface{}, verror.E) {
 		return nil, verror.BadProtocolf("ipc: request decoding failed: %v", err)
 	}
 	fs.method = req.Method
+	// TODO(mattr): Currently this allows users to trigger trace collection
+	// on the server even if they will not be allowed to collect the
+	// results later.  This might be consider a DOS vector.
+	spanName := fmt.Sprintf("Server Call: %s.%s", fs.Name(), fs.Method())
+	fs.T, _ = ivtrace.WithContinuedSpan(fs, spanName, req.TraceRequest)
 
 	// Set the appropriate deadline, if specified.
 	if req.Timeout == ipc.NoTimeout {
@@ -663,12 +681,11 @@ func (fs *flowServer) processRequest() ([]interface{}, verror.E) {
 		return nil, verr
 	}
 
-	runtime := veyron2.RuntimeFromContext(fs.server.ctx)
 	var cancel context.CancelFunc
 	if !deadline.IsZero() {
-		fs.T, cancel = InternalNewContext(runtime).WithDeadline(deadline)
+		fs.T, cancel = fs.WithDeadline(deadline)
 	} else {
-		fs.T, cancel = InternalNewContext(runtime).WithCancel()
+		fs.T, cancel = fs.WithCancel()
 	}
 
 	// Notify the context when the channel is closed.
@@ -738,6 +755,9 @@ func (fs *flowServer) processRequest() ([]interface{}, verror.E) {
 		// TODO(ataly, ashankar): For privacy reasons, should we hide the authorizer error (err)?
 		return nil, errNotAuthorized(fmt.Errorf("%q not authorized for method %q: %v", fs.RemoteID(), fs.Method(), err))
 	}
+	// Check if the caller is permitted to view debug information.
+	fs.allowDebug = fs.authorizeForDebug(auth) == nil
+
 	results, err := invoker.Invoke(req.Method, fs, argptrs)
 	fs.server.stats.record(req.Method, time.Since(start))
 	return results, verror.Convert(err)
@@ -770,6 +790,27 @@ func (fs *flowServer) authorize(auth security.Authorizer) error {
 	// remote identities that have either been blessed by the local identity
 	// or have blessed the local identity. (See vsecurity.NewACLAuthorizer)
 	return vsecurity.NewACLAuthorizer(defaultACL(fs.flow.LocalID())).Authorize(fs)
+}
+
+// debugContext is a context which wraps another context but always returns
+// the debug label.
+type debugContext struct {
+	security.Context
+}
+
+func (debugContext) Label() security.Label { return security.DebugLabel }
+
+// TODO(mattr): Is DebugLabel the right thing to check?
+func (fs *flowServer) authorizeForDebug(auth security.Authorizer) error {
+	dc := debugContext{fs}
+	if auth != nil {
+		return auth.Authorize(dc)
+	}
+	// Since the provided authorizer is nil we create a default IDAuthorizer
+	// for the local identity of the flow. This authorizer only authorizes
+	// remote identities that have either been blessed by the local identity
+	// or have blessed the local identity. (See vsecurity.NewACLAuthorizer)
+	return vsecurity.NewACLAuthorizer(defaultACL(dc.LocalID())).Authorize(dc)
 }
 
 // setDeadline sets a deadline on the flow. The flow will be cancelled if it

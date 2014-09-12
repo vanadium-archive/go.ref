@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"veyron/runtimes/google/ipc/stream/manager"
+	tnaming "veyron/runtimes/google/testing/mocks/naming"
 
 	"veyron2/ipc"
 	"veyron2/ipc/stream"
@@ -83,7 +84,7 @@ func makeCanceld(ns naming.Namespace, name, child string) (*canceld, error) {
 // RPC call chain without user intervention.
 func TestCancellationPropagation(t *testing.T) {
 	sm := manager.InternalNew(naming.FixedRoutingID(0x555555555))
-	ns := newNamespace()
+	ns := tnaming.NewSimpleNamespace()
 
 	client, err := InternalNewClient(sm, ns)
 	if err != nil {

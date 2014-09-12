@@ -7,6 +7,7 @@ import (
 	iipc "veyron/runtimes/google/ipc"
 	imanager "veyron/runtimes/google/ipc/stream/manager"
 	"veyron/runtimes/google/ipc/stream/vc"
+	ivtrace "veyron/runtimes/google/vtrace"
 
 	"veyron2"
 	"veyron2/context"
@@ -14,6 +15,7 @@ import (
 	"veyron2/ipc/stream"
 	"veyron2/naming"
 	"veyron2/security"
+	"veyron2/vtrace"
 )
 
 // fixedPublicIDStore implements security.PublicIDStore. It embeds a (fixed) PublicID that
@@ -102,7 +104,16 @@ func (rt *vrt) Client() ipc.Client {
 }
 
 func (rt *vrt) NewContext() context.T {
-	return iipc.InternalNewContext(rt)
+	ctx, _ := ivtrace.WithNewSpan(iipc.InternalNewContext(rt), "Root")
+	return ctx
+}
+
+func (rt *vrt) WithNewSpan(ctx context.T, name string) (context.T, vtrace.Span) {
+	return ivtrace.WithNewSpan(ctx, name)
+}
+
+func (rt *vrt) SpanFromContext(ctx context.T) vtrace.Span {
+	return ivtrace.FromContext(ctx)
 }
 
 func (rt *vrt) NewServer(opts ...ipc.ServerOpt) (ipc.Server, error) {

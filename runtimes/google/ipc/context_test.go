@@ -5,14 +5,10 @@ import (
 	"testing"
 	"time"
 
-	"veyron2"
-	"veyron2/config"
+	"veyron/runtimes/google/testing/mocks/runtime"
+	"veyron/runtimes/google/vtrace"
+
 	"veyron2/context"
-	"veyron2/ipc"
-	"veyron2/ipc/stream"
-	"veyron2/naming"
-	"veyron2/security"
-	"veyron2/vlog"
 )
 
 // We need a special way to create contexts for tests.  We
@@ -20,38 +16,10 @@ import (
 // so we use a fake one that panics if used.  The runtime
 // implementation should not ever use the Runtime from a context.
 func testContext() context.T {
-	return InternalNewContext(&rt{})
+	ctx := InternalNewContext(&runtime.PanicRuntime{})
+	ctx, _ = vtrace.WithNewSpan(ctx, "Root")
+	return ctx
 }
-
-// rt is a dummy implementation of veyron2.Runtime that panics on every
-// operation.  See the comment for testContext.
-type rt struct {
-	unique int // Make non-empty to ensure pointer instances are unique.
-}
-
-const badRuntime = "The runtime implmentation should not call methods on runtime intances."
-
-func (*rt) Profile() veyron2.Profile                                             { panic(badRuntime) }
-func (*rt) Publisher() *config.Publisher                                         { panic(badRuntime) }
-func (*rt) NewIdentity(name string) (security.PrivateID, error)                  { panic(badRuntime) }
-func (*rt) PublicIDStore() security.PublicIDStore                                { panic(badRuntime) }
-func (*rt) Identity() security.PrivateID                                         { panic(badRuntime) }
-func (*rt) NewClient(opts ...ipc.ClientOpt) (ipc.Client, error)                  { panic(badRuntime) }
-func (*rt) NewServer(opts ...ipc.ServerOpt) (ipc.Server, error)                  { panic(badRuntime) }
-func (*rt) Client() ipc.Client                                                   { panic(badRuntime) }
-func (*rt) NewContext() context.T                                                { panic(badRuntime) }
-func (*rt) NewStreamManager(opts ...stream.ManagerOpt) (stream.Manager, error)   { panic(badRuntime) }
-func (*rt) NewEndpoint(ep string) (naming.Endpoint, error)                       { panic(badRuntime) }
-func (*rt) Namespace() naming.Namespace                                          { panic(badRuntime) }
-func (*rt) Logger() vlog.Logger                                                  { panic(badRuntime) }
-func (*rt) NewLogger(name string, opts ...vlog.LoggingOpts) (vlog.Logger, error) { panic(badRuntime) }
-func (*rt) Stop()                                                                { panic(badRuntime) }
-func (*rt) ForceStop()                                                           { panic(badRuntime) }
-func (*rt) WaitForStop(chan<- string)                                            { panic(badRuntime) }
-func (*rt) AdvanceGoal(delta int)                                                { panic(badRuntime) }
-func (*rt) AdvanceProgress(delta int)                                            { panic(badRuntime) }
-func (*rt) TrackTask(chan<- veyron2.Task)                                        { panic(badRuntime) }
-func (*rt) Cleanup()                                                             { panic(badRuntime) }
 
 func testCancel(t *testing.T, ctx context.T, cancel context.CancelFunc) {
 	select {

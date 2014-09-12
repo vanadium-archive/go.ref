@@ -22,11 +22,11 @@ import (
 	"veyron/runtimes/google/lib/publisher"
 	inaming "veyron/runtimes/google/naming"
 	isecurity "veyron/runtimes/google/security"
+	tnaming "veyron/runtimes/google/testing/mocks/naming"
 	vsecurity "veyron/security"
 	"veyron/security/caveat"
 
 	"veyron2"
-	"veyron2/context"
 	"veyron2/ipc"
 	"veyron2/ipc/stream"
 	"veyron2/naming"
@@ -171,99 +171,6 @@ func (t testServerDisp) Lookup(suffix, method string) (ipc.Invoker, security.Aut
 	return ipc.ReflectInvoker(t.server), authorizer, nil
 }
 
-// namespace is a simple partial implementation of naming.Namespace.  In
-// particular, it ignores TTLs and not allow fully overlapping mount names.
-type namespace struct {
-	sync.Mutex
-	mounts map[string][]string
-}
-
-func newNamespace() naming.Namespace {
-	return &namespace{mounts: make(map[string][]string)}
-}
-
-func (ns *namespace) Mount(ctx context.T, name, server string, _ time.Duration) error {
-	ns.Lock()
-	defer ns.Unlock()
-	for n, _ := range ns.mounts {
-		if n != name && (strings.HasPrefix(name, n) || strings.HasPrefix(n, name)) {
-			return fmt.Errorf("simple mount table does not allow names that are a prefix of each other")
-		}
-	}
-	ns.mounts[name] = append(ns.mounts[name], server)
-	return nil
-}
-
-func (ns *namespace) Unmount(ctx context.T, name, server string) error {
-	var servers []string
-	ns.Lock()
-	defer ns.Unlock()
-	for _, s := range ns.mounts[name] {
-		// When server is "", we remove all servers under name.
-		if len(server) > 0 && s != server {
-			servers = append(servers, s)
-		}
-	}
-	if len(servers) > 0 {
-		ns.mounts[name] = servers
-	} else {
-		delete(ns.mounts, name)
-	}
-	return nil
-}
-
-func (ns *namespace) Resolve(ctx context.T, name string) ([]string, error) {
-	if address, _ := naming.SplitAddressName(name); len(address) > 0 {
-		return []string{name}, nil
-	}
-	ns.Lock()
-	defer ns.Unlock()
-	for prefix, servers := range ns.mounts {
-		if strings.HasPrefix(name, prefix) {
-			suffix := strings.TrimLeft(strings.TrimPrefix(name, prefix), "/")
-			var ret []string
-			for _, s := range servers {
-				ret = append(ret, naming.Join(s, suffix))
-			}
-			return ret, nil
-		}
-	}
-	return nil, verror.NotFoundf("Resolve name %q not found in %v", name, ns.mounts)
-}
-
-func (ns *namespace) ResolveToMountTable(ctx context.T, name string) ([]string, error) {
-	panic("ResolveToMountTable not implemented")
-	return nil, nil
-}
-
-func (ns *namespace) Unresolve(ctx context.T, name string) ([]string, error) {
-	panic("Unresolve not implemented")
-	return nil, nil
-}
-
-func (ns *namespace) FlushCacheEntry(name string) bool {
-	return false
-}
-
-func (ns *namespace) CacheCtl(ctls ...naming.CacheCtl) []naming.CacheCtl {
-	return nil
-}
-
-func (ns *namespace) Glob(ctx context.T, pattern string) (chan naming.MountEntry, error) {
-	panic("Glob not implemented")
-	return nil, nil
-}
-
-func (ns *namespace) SetRoots(...string) error {
-	panic("SetRoots not implemented")
-	return nil
-}
-
-func (ns *namespace) Roots() []string {
-	panic("Roots not implemented")
-	return nil
-}
-
 func startServer(t *testing.T, serverID security.PrivateID, sm stream.Manager, ns naming.Namespace, ts interface{}) (naming.Endpoint, ipc.Server) {
 	vlog.VI(1).Info("InternalNewServer")
 	server, err := InternalNewServer(testContext(), sm, ns, vc.FixedLocalID(serverID))
@@ -344,7 +251,7 @@ func (b bundle) cleanup(t *testing.T) {
 
 func createBundle(t *testing.T, clientID, serverID security.PrivateID, ts interface{}) (b bundle) {
 	b.sm = imanager.InternalNew(naming.FixedRoutingID(0x555555555))
-	b.ns = newNamespace()
+	b.ns = tnaming.NewSimpleNamespace()
 	if serverID != nil {
 		b.ep, b.server = startServer(t, serverID, b.sm, b.ns, ts)
 	}
@@ -404,7 +311,7 @@ func matchesErrorPattern(err error, pattern string) bool {
 
 func TestMultipleCallsToServe(t *testing.T) {
 	sm := imanager.InternalNew(naming.FixedRoutingID(0x555555555))
-	ns := newNamespace()
+	ns := tnaming.NewSimpleNamespace()
 	server, err := InternalNewServer(testContext(), sm, ns, vc.FixedLocalID(serverID))
 	if err != nil {
 		t.Errorf("InternalNewServer failed: %v", err)
@@ -494,7 +401,7 @@ func TestStartCall(t *testing.T) {
 	}
 	// Servers and clients will be created per-test, use the same stream manager and mounttable.
 	mgr := imanager.InternalNew(naming.FixedRoutingID(0x1111111))
-	ns := newNamespace()
+	ns := tnaming.NewSimpleNamespace()
 	for _, test := range tests {
 		name := fmt.Sprintf("(clientID:%q serverID:%q)", test.clientID, test.serverID)
 		_, server := startServer(t, test.serverID, mgr, ns, &testServer{})
@@ -700,7 +607,7 @@ func TestDischargeImpetus(t *testing.T) {
 		}
 	)
 	sm := imanager.InternalNew(naming.FixedRoutingID(0x555555555))
-	ns := newNamespace()
+	ns := tnaming.NewSimpleNamespace()
 	server, err := InternalNewServer(testContext(), sm, ns, vc.FixedLocalID(serverID))
 	if err != nil {
 		t.Fatal(err)
@@ -1120,7 +1027,7 @@ func TestReconnect(t *testing.T) {
 func TestPreferredAddress(t *testing.T) {
 	sm := imanager.InternalNew(naming.FixedRoutingID(0x555555555))
 	defer sm.Shutdown()
-	ns := newNamespace()
+	ns := tnaming.NewSimpleNamespace()
 	pa := func(string, []net.Addr) (net.Addr, error) {
 		a := &net.IPAddr{}
 		a.IP = net.ParseIP("1.1.1.1")
@@ -1155,7 +1062,7 @@ func TestPreferredAddress(t *testing.T) {
 func TestPreferredAddressErrors(t *testing.T) {
 	sm := imanager.InternalNew(naming.FixedRoutingID(0x555555555))
 	defer sm.Shutdown()
-	ns := newNamespace()
+	ns := tnaming.NewSimpleNamespace()
 	paerr := func(string, []net.Addr) (net.Addr, error) {
 		return nil, fmt.Errorf("oops")
 	}
@@ -1208,7 +1115,7 @@ func (h *proxyHandle) Stop() error {
 
 func TestProxy(t *testing.T) {
 	sm := imanager.InternalNew(naming.FixedRoutingID(0x555555555))
-	ns := newNamespace()
+	ns := tnaming.NewSimpleNamespace()
 	client, err := InternalNewClient(sm, ns, vc.FixedLocalID(clientID))
 	if err != nil {
 		t.Fatal(err)
@@ -1293,7 +1200,7 @@ func loadIdentityFromFile(file string) security.PrivateID {
 
 func runServer(argv []string) {
 	mgr := imanager.InternalNew(naming.FixedRoutingID(0x1111111))
-	ns := newNamespace()
+	ns := tnaming.NewSimpleNamespace()
 	id := loadIdentityFromFile(argv[1])
 	isecurity.TrustIdentityProviders(id)
 	server, err := InternalNewServer(testContext(), mgr, ns, vc.FixedLocalID(id))

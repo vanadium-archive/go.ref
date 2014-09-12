@@ -125,7 +125,7 @@ func TestFlowClientServer(t *testing.T) {
 	}
 	for _, test := range tests {
 		clientFlow, serverFlow := newTestFlows()
-		client := newFlowClient(clientFlow, nil, nil)
+		client := newFlowClient(testContext(), clientFlow, nil, nil)
 		server := newFlowServer(serverFlow, ipcServer)
 		err := client.start(test.suffix, test.method, test.args, 0, nil)
 		if err != nil {
