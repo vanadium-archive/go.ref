@@ -262,25 +262,13 @@ func (s *server) ListenX(listenSpec *ipc.ListenSpec) (naming.Endpoint, error) {
 
 	protocol := listenSpec.Protocol
 	address := listenSpec.Address
+	proxyAddress := ""
 	if len(listenSpec.Proxy) > 0 {
-		// TODO(cnicolaou): implement support for proxy...
-	}
-
-	h, _, _ := net.SplitHostPort(address)
-	ip := net.ParseIP(h)
-	if ip != nil && ip.IsLoopback() {
-		// All our addresses are loopback addresses
-		// TODO(cnicolaou): use Listen for now, but should refactor more completely.
-		return s.Listen(protocol, address)
-	}
-
-	publisher := s.roamingOpt.Publisher
-	streamName := s.roamingOpt.StreamName
-
-	ch := make(chan config.Setting)
-	_, err := publisher.ForkStream(streamName, ch)
-	if err != nil {
-		return nil, fmt.Errorf("failed to fork stream %q: %s", streamName, err)
+		if address, err := s.resolveToAddress(listenSpec.Proxy); err != nil {
+			return nil, err
+		} else {
+			proxyAddress = address
+		}
 	}
 
 	ln, lep, err := s.streamMgr.Listen(protocol, address, s.listenerOpts...)
@@ -304,13 +292,36 @@ func (s *server) ListenX(listenSpec *ipc.ListenSpec) (naming.Endpoint, error) {
 		ln.Close()
 		return nil, errServerStopped
 	}
-	_, port, _ := net.SplitHostPort(ep.Address)
-	dhcpl := &dhcpListener{ep: ep, port: port, ch: ch, name: streamName, publisher: publisher}
-	s.listeners[ln] = dhcpl
-	// We have a goroutine per listener to accept new flows and
-	// a goroutine to listen for address changes.
+
+	h, _, _ := net.SplitHostPort(address)
+	if ip := net.ParseIP(h); ip != nil && ip.IsLoopback() {
+		publisher := s.roamingOpt.Publisher
+		streamName := s.roamingOpt.StreamName
+
+		ch := make(chan config.Setting)
+		_, err := publisher.ForkStream(streamName, ch)
+		if err != nil {
+			return nil, fmt.Errorf("failed to fork stream %q: %s", streamName, err)
+		}
+
+		_, port, _ := net.SplitHostPort(ep.Address)
+		dhcpl := &dhcpListener{ep: ep, port: port, ch: ch, name: streamName, publisher: publisher}
+
+		// We have a gorouting to listen for dhcp changes.
+		s.active.Add(1)
+		// goroutine to listen for address changes.
+		go func(dl *dhcpListener) {
+			s.dhcpLoop(dl)
+			s.active.Done()
+		}(dhcpl)
+		s.listeners[ln] = dhcpl
+	} else {
+		s.listeners[ln] = nil
+	}
+
+	// We have a goroutine per listener to accept new flows.
 	// Each flow is served from its own goroutine.
-	s.active.Add(2)
+	s.active.Add(1)
 
 	//  goroutine to listen for connections
 	go func(ln stream.Listener, ep naming.Endpoint) {
@@ -318,11 +329,19 @@ func (s *server) ListenX(listenSpec *ipc.ListenSpec) (naming.Endpoint, error) {
 		s.active.Done()
 	}(ln, lep)
 
-	// goroutine to listen for address changes.
-	go func(dl *dhcpListener) {
-		s.dhcpLoop(dl)
-		s.active.Done()
-	}(dhcpl)
+	if len(proxyAddress) > 0 {
+		pln, pep, err := s.streamMgr.Listen(inaming.Network, proxyAddress, s.listenerOpts...)
+		if err != nil {
+			vlog.Errorf("ipc: Listen on %v %v failed: %v", protocol, address, err)
+			return nil, err
+		}
+		// We have a goroutine for listen on proxy connections.
+		s.active.Add(1)
+		go func(ln stream.Listener, ep naming.Endpoint, proxy string) {
+			s.proxyListenLoop(ln, ep, proxy)
+			s.active.Done()
+		}(pln, pep, listenSpec.Proxy)
+	}
 
 	s.Unlock()
 	s.publisher.AddServer(s.publishEP(ep))
