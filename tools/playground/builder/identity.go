@@ -6,14 +6,14 @@ import (
 	"path"
 )
 
-type Identity struct {
+type identity struct {
 	Name     string
 	Blesser  string
 	Duration string
 	Files    []string
 }
 
-func (id Identity) create() error {
+func (id identity) create() error {
 	if err := id.generate(); err != nil {
 		return err
 	}
@@ -23,7 +23,7 @@ func (id Identity) create() error {
 	return nil
 }
 
-func (id Identity) generate() error {
+func (id identity) generate() error {
 	args := []string{"generate"}
 	if id.Blesser == "" && id.Duration == "" {
 		args = append(args, id.Name)
@@ -31,7 +31,7 @@ func (id Identity) generate() error {
 	return runIdentity(args, path.Join("ids", id.Name))
 }
 
-func (id Identity) bless() error {
+func (id identity) bless() error {
 	filename := path.Join("ids", id.Name)
 	var blesser string
 	if id.Blesser == "" {
@@ -51,7 +51,7 @@ func (id Identity) bless() error {
 	return os.Rename(tempfile, filename)
 }
 
-func createIdentities(ids []Identity) error {
+func createIdentities(ids []identity) error {
 	debug("Generating identities")
 	if err := os.MkdirAll("ids", 0777); err != nil {
 		return err
@@ -65,7 +65,7 @@ func createIdentities(ids []Identity) error {
 }
 
 func runIdentity(args []string, filename string) error {
-	cmd := makeCmd("identity", args...)
+	cmd := makeCmdJsonEvent("", "identity", args...)
 	out, err := os.Create(filename)
 	if err != nil {
 		return err

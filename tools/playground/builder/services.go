@@ -24,7 +24,7 @@ var (
 // the entire environment.
 func startMount(timeLimit time.Duration) (proc *os.Process, err error) {
 	reader, writer := io.Pipe()
-	cmd := makeCmd("mounttabled")
+	cmd := makeCmdJsonEvent("", "mounttabled")
 	cmd.Stdout = writer
 	cmd.Stderr = cmd.Stdout
 	err = cmd.Start()
@@ -60,7 +60,7 @@ func startMount(timeLimit time.Duration) (proc *os.Process, err error) {
 // startProxy starts a proxyd process.  We run one proxyd process for the
 // entire environment.
 func startProxy() (proc *os.Process, err error) {
-	cmd := makeCmd("proxyd", "-name="+proxyName, "-address=:"+strconv.Itoa(proxyPort))
+	cmd := makeCmdJsonEvent("", "proxyd", "-name="+proxyName, "-address=:"+strconv.Itoa(proxyPort))
 	err = cmd.Start()
 	if err != nil {
 		return nil, err
@@ -71,17 +71,18 @@ func startProxy() (proc *os.Process, err error) {
 // startWspr starts a wsprd process. We run one wsprd process for each
 // javascript file being run. The 'index' argument is used to pick a distinct
 // port for each wsprd process.
-func startWspr(index int, identity string) (proc *os.Process, port int, err error) {
-	port = wsprBasePort + index
-	cmd := makeCmd("wsprd",
+func startWspr(f *codeFile) (proc *os.Process, port int, err error) {
+	port = wsprBasePort + f.index
+	cmd := makeCmdJsonEvent(f.Name,
+		"wsprd",
 		"-v=-1",
 		"-vproxy="+proxyName,
 		"-port="+strconv.Itoa(port),
 		// The identd server won't be used, so pass a fake name.
 		"-identd=/unused")
 
-	if identity != "" {
-		cmd.Env = append(cmd.Env, fmt.Sprintf("VEYRON_IDENTITY=%s", path.Join("ids", identity)))
+	if f.identity != "" {
+		cmd.Env = append(cmd.Env, fmt.Sprintf("VEYRON_IDENTITY=%s", path.Join("ids", f.identity)))
 	}
 	err = cmd.Start()
 	if err != nil {

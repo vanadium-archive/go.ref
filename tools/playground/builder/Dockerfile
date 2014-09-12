@@ -35,6 +35,8 @@ RUN $VEYRON_ROOT/veyron/scripts/build/go install veyron/... veyron2/...
 # local changes to the builder tool.
 # RUN rm $VEYRON_ROOT/veyron/go/bin/builder
 # ADD vbuild.go /usr/local/veyron/veyron/go/src/veyron/tools/playground/builder/vbuild.go
+# ADD identity.go /usr/local/veyron/veyron/go/src/veyron/tools/playground/builder/identity.go
+# ADD services.go /usr/local/veyron/veyron/go/src/veyron/tools/playground/builder/services.go
 # RUN $VEYRON_ROOT/veyron/scripts/build/go install veyron/tools/playground/builder
 
 USER playground

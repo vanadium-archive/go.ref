@@ -16,16 +16,13 @@ import (
 	"time"
 
 	"github.com/golang/groupcache/lru"
-)
 
-type Event struct {
-	Delay   int
-	Message string
-}
+	"veyron/tools/playground/event"
+)
 
 type ResponseBody struct {
 	Errors string
-	Events []Event
+	Events []event.Event
 }
 
 type CachedResponse struct {
@@ -110,9 +107,14 @@ func handler(w http.ResponseWriter, r *http.Request) {
 	id := <-uniq
 	cmd := Docker("run", "-i", "--name", id, "playground")
 	cmd.Stdin = bytes.NewReader(requestBody)
-	buf := new(bytes.Buffer)
-	cmd.Stdout = buf
-	cmd.Stderr = buf
+
+	// Builder will return all normal output as json Events on stdout.
+	stdoutBuf := new(bytes.Buffer)
+	cmd.Stdout = stdoutBuf
+	// Stderr is for unexpected errors.
+	stderrBuf := new(bytes.Buffer)
+	cmd.Stderr = stderrBuf
+
 	// Arbitrary deadline: 2s to compile/start, 1s to run, .5s to shutdown.
 	timeout := time.After(3500 * time.Millisecond)
 	exit := make(chan error)
@@ -122,12 +124,24 @@ func handler(w http.ResponseWriter, r *http.Request) {
 	select {
 	case <-exit:
 	case <-timeout:
-		buf.Write([]byte("\nTime exceeded, killing...\n"))
+		stderrBuf.Write([]byte("\nTime exceeded, killing...\n"))
 	}
+
+	// TODO(nlacasse): This takes a long time, during which the client is
+	// waiting for a response.  I tried moving it to after the response is
+	// sent, but a subsequent request will trigger a new "docker run",
+	// which somehow has to wait for this "docker rm" to finish.  This
+	// caused some requests to timeout unexpectedly.
+	//
+	// We should figure out a better way to run this, so that we can return
+	// quickly, and not mess up other requests.
+	//
+	// Setting GOMAXPROCS may or may not help.  See
+	// https://github.com/docker/docker/issues/6480
 	Docker("rm", "-f", id).Run()
 
 	// If the response is bigger than the limit, cache the response and return an error.
-	if buf.Len() > maxSize {
+	if stdoutBuf.Len() > maxSize {
 		status := http.StatusBadRequest
 		responseBody := new(ResponseBody)
 		responseBody.Errors = "Program output too large."
@@ -140,7 +154,17 @@ func handler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	responseBody := new(ResponseBody)
-	responseBody.Events = append(responseBody.Events, Event{0, buf.String()})
+	// TODO(nlacasse): Make these errors Events, so that we can send them
+	// back in the Events array.  This will simplify streaming the events to the
+	// client in realtime.
+	responseBody.Errors = stderrBuf.String()
+
+	// Decode the json events on stdout, add them to the responseBody.
+	for line, err := stdoutBuf.ReadBytes('\n'); err == nil; line, err = stdoutBuf.ReadBytes('\n') {
+		var e event.Event
+		json.Unmarshal(line, &e)
+		responseBody.Events = append(responseBody.Events, e)
+	}
 
 	cache.Add(requestBodyHash, CachedResponse{
 		Status: http.StatusOK,
@@ -154,6 +178,15 @@ func respondWithBody(w http.ResponseWriter, status int, body interface{}) {
 	w.Header().Add("Content-Type", "application/json")
 	w.Header().Add("Content-Length", fmt.Sprintf("%d", len(bodyJson)))
 	w.Write(bodyJson)
+
+	// TODO(nlacasse): This flush doesn't really help us right now, but
+	// we'll definitly need something like it when we switch to the
+	// streaming model.
+	if f, ok := w.(http.Flusher); ok {
+		f.Flush()
+	} else {
+		fmt.Println("Cannot flush.")
+	}
 }
 
 func streamToBytes(stream io.Reader) []byte {
