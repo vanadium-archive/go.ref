@@ -123,7 +123,7 @@ func doMount(t *testing.T, name, service string, shouldSucceed bool, id ipc.Clie
 	if err != nil {
 		boom(t, "Failed to BindMountTable: %s", err)
 	}
-	if err := mtpt.Mount(rt.R().NewContext(), service, uint32(ttlSecs)); err != nil {
+	if err := mtpt.Mount(rt.R().NewContext(), service, uint32(ttlSecs), veyron2.RetryTimeoutOpt(0)); err != nil {
 		if shouldSucceed {
 			boom(t, "Failed to Mount %s onto %s: %s", service, name, err)
 		}
@@ -137,7 +137,7 @@ func doUnmount(t *testing.T, name, service string, shouldSucceed bool, id ipc.Cl
 	if err != nil {
 		boom(t, "Failed to BindMountTable: %s", err)
 	}
-	if err := mtpt.Unmount(rt.R().NewContext(), service); err != nil {
+	if err := mtpt.Unmount(rt.R().NewContext(), service, veyron2.RetryTimeoutOpt(0)); err != nil {
 		if shouldSucceed {
 			boom(t, "Failed to Unmount %s onto %s: %s", service, name, err)
 		}
@@ -161,7 +161,7 @@ func checkContents(t *testing.T, name, expected string, shouldSucceed bool, id i
 	if err != nil {
 		boom(t, "Failed to BindCollection: %s", err)
 	}
-	contents, err := objectPtr.Lookup(rt.R().NewContext())
+	contents, err := objectPtr.Lookup(rt.R().NewContext(), veyron2.RetryTimeoutOpt(0))
 	if err != nil {
 		if shouldSucceed {
 			boom(t, "Failed to Lookup %s: %s", name, err)

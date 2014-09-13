@@ -3,6 +3,7 @@ package ipc
 import (
 	"fmt"
 	"io"
+	"math"
 	"math/rand"
 	"strings"
 	"sync"
@@ -114,30 +115,77 @@ func (c *client) connectFlow(server string) (stream.Flow, string, error) {
 	return flow, suffix, nil
 }
 
+// A randomized exponential backoff.  The randomness deters error convoys from forming.
+func backoff(n int, deadline time.Time) bool {
+	b := time.Duration(math.Pow(1.5+(rand.Float64()/2.0), float64(n)) * float64(time.Second))
+	if b > maxBackoff {
+		b = maxBackoff
+	}
+	r := deadline.Sub(time.Now())
+	if b > r {
+		// We need to leave a little time for the call to start or
+		// we'll just timeout in startCall before we actually do
+		// anything.  If we just have a millisecond left, give up.
+		if r <= time.Millisecond {
+			return false
+		}
+		b = r - time.Millisecond
+	}
+	time.Sleep(b)
+	return true
+}
+
+// TODO(p): replace these checks with m3b's retry bit when it exists.  This is currently a colossal hack.
+func retriable(err error) bool {
+	e := err.Error()
+	// Authentication errors are permanent.
+	if strings.Contains(e, "authorized") {
+		return false
+	}
+	// Resolution errors are retriable.
+	if strings.Contains(e, "ipc: Resolve") {
+		return true
+	}
+	// Kernel level errors are retriable.
+	if strings.Contains(e, "errno") {
+		return true
+	}
+	return false
+}
+
 func (c *client) StartCall(ctx context.T, name, method string, args []interface{}, opts ...ipc.CallOpt) (ipc.Call, error) {
+	var retry = true
 	deadline, hasDeadline := ctx.Deadline()
 	if !hasDeadline {
-		// If no deadline is set, use a long but finite one.
+		// If no deadline is set, use the default
 		deadline = time.Now().Add(defaultCallTimeout)
 	}
+	for _, o := range opts {
+		r, ok := o.(veyron2.RetryTimeoutOpt)
+		if !ok {
+			continue
+		}
+		if r == 0 {
+			retry = false
+		} else {
+			deadline = time.Now().Add(time.Duration(r))
+		}
+		break
+	}
 	var lastErr verror.E
-	b := time.Duration(1.5 + (rand.Float32() / 2.0))
-	backoff := b
-	for deadline.After(time.Now()) {
+	for retries := 0; deadline.After(time.Now()); retries++ {
+		if retries != 0 {
+			if !backoff(retries, deadline) {
+				break
+			}
+		}
 		call, err := c.startCall(ctx, name, method, args, opts...)
 		if err == nil {
 			return call, nil
 		}
 		lastErr = err
-		// TODO(p): replace these checks with m3b's retry bit when it exists.
-		if !strings.Contains(err.Error(), "ipc: Resolve") &&
-			!(strings.Contains(err.Error(), "ipc: couldn't connect") && strings.Contains(err.Error(), "errno")) {
+		if !retry || !retriable(err) {
 			break
-		}
-		time.Sleep(backoff)
-		backoff = backoff * b
-		if backoff > maxBackoff {
-			backoff = maxBackoff
 		}
 	}
 	return nil, lastErr
