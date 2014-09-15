@@ -168,20 +168,20 @@ func (__gen_s *ServerStubDischarger) Signature(call _gen_ipc.ServerCall) (_gen_i
 	result.Methods["Discharge"] = _gen_ipc.MethodSignature{
 		InArgs: []_gen_ipc.MethodArgument{
 			{Name: "Caveat", Type: 65},
-			{Name: "Impetus", Type: 67},
+			{Name: "Impetus", Type: 69},
 		},
 		OutArgs: []_gen_ipc.MethodArgument{
 			{Name: "Discharge", Type: 65},
-			{Name: "err", Type: 68},
+			{Name: "err", Type: 70},
 		},
 	}
 
 	result.TypeDefs = []_gen_vdlutil.Any{
-		_gen_wiretype.NamedPrimitiveType{Type: 0x1, Name: "anydata", Tags: []string(nil)}, _gen_wiretype.SliceType{Elem: 0x41, Name: "", Tags: []string(nil)}, _gen_wiretype.StructType{
+		_gen_wiretype.NamedPrimitiveType{Type: 0x1, Name: "anydata", Tags: []string(nil)}, _gen_wiretype.NamedPrimitiveType{Type: 0x3, Name: "veyron2/security.BlessingPattern", Tags: []string(nil)}, _gen_wiretype.SliceType{Elem: 0x42, Name: "", Tags: []string(nil)}, _gen_wiretype.SliceType{Elem: 0x41, Name: "", Tags: []string(nil)}, _gen_wiretype.StructType{
 			[]_gen_wiretype.FieldType{
-				_gen_wiretype.FieldType{Type: 0x41, Name: "Server"},
+				_gen_wiretype.FieldType{Type: 0x43, Name: "Server"},
 				_gen_wiretype.FieldType{Type: 0x3, Name: "Method"},
-				_gen_wiretype.FieldType{Type: 0x42, Name: "Arguments"},
+				_gen_wiretype.FieldType{Type: 0x44, Name: "Arguments"},
 			},
 			"veyron2/security.DischargeImpetus", []string(nil)},
 		_gen_wiretype.NamedPrimitiveType{Type: 0x1, Name: "error", Tags: []string(nil)}}
