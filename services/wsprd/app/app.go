@@ -202,7 +202,10 @@ func (c *Controller) startCall(ctx context.T, w lib.ClientWriter, msg *veyronRPC
 		return nil, verror.BadArgf("no client created")
 	}
 	methodName := lib.UppercaseFirstCharacter(msg.Method)
-	clientCall, err := c.client.StartCall(ctx, msg.Name, methodName, msg.InArgs)
+	// TODO(bjornick): Remove the retry option once we able to pass it in
+	// from javascript.  If we don't have this, then trying to make an
+	// rpc to unknown name will hang.
+	clientCall, err := c.client.StartCall(ctx, msg.Name, methodName, msg.InArgs, veyron2.RetryTimeoutOpt(0))
 	if err != nil {
 		return nil, fmt.Errorf("error starting call (name: %v, method: %v, args: %v): %v", msg.Name, methodName, msg.InArgs, err)
 	}

@@ -4,6 +4,7 @@ import (
 	"sync"
 	"time"
 
+	"veyron2"
 	"veyron2/context"
 	"veyron2/ipc"
 )
@@ -55,7 +56,10 @@ func (sm *signatureManager) Signature(ctx context.T, name string, client ipc.Cli
 	}
 
 	// cache expired or not found, fetch it from the remote server
-	signatureCall, err := client.StartCall(ctx, name, "Signature", []interface{}{})
+	// TODO(bjornick): Remove the retry option once we able to pass it in
+	// from javascript.  If we don't have this, then trying to make an
+	// rpc to unknown name will hang.
+	signatureCall, err := client.StartCall(ctx, name, "Signature", []interface{}{}, veyron2.RetryTimeoutOpt(0))
 	if err != nil {
 		return nil, err
 	}
