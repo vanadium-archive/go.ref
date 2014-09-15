@@ -14,7 +14,8 @@ import (
 	"veyron2/verror"
 )
 
-// TODO(rjkroege@google.com) Switch Memstore to the mid-August 2014 style store API.
+// TODO(rjkroege@google.com) Switch Memstore to the mid-August 2014
+// style store API.
 
 // Memstore contains the state of the memstore. It supports a single
 // transaction at a time. The current state of a Memstore under a
@@ -44,7 +45,8 @@ func init() {
 	gob.Register(application.Envelope{})
 }
 
-// NewMemstore persists the Memstore to /tmp if no file is configured.
+// NewMemstore persists the Memstore to os.TempDir() if no file is
+// configured.
 func NewMemstore(configuredPersistentFile string) (*Memstore, error) {
 	data := make(map[string]interface{}, startingMemstoreSize)
 	if configuredPersistentFile == "" {
