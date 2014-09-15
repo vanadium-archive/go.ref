@@ -44,11 +44,8 @@ func (r *verifyingReader) Read(p []byte) (int, error) {
 // a signer corresponding to the provided public key), and has not been modified
 // since (ensuring integrity and authenticity of data).
 func NewVerifyingReader(data, signature io.Reader, key security.PublicKey) (io.Reader, error) {
-	if (data == nil) && (signature == nil) {
-		return nil, nil
-	}
-	if (data == nil) || (signature == nil) {
-		return nil, errors.New("data or signature Reader is nil")
+	if (data == nil) || (signature == nil) || (key == nil) {
+		return nil, fmt.Errorf("data:%v signature:%v key:%v cannot be nil", data, signature, key)
 	}
 	r := &verifyingReader{data: data}
 	if err := r.verifySignature(signature, key); err != nil {

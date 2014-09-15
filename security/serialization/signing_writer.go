@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"crypto/sha256"
 	"encoding/binary"
-	"errors"
 	"fmt"
 	"hash"
 	"io"
@@ -90,8 +89,8 @@ type Signer interface {
 // * A Close call writes a signature (computed using the provided signer) of
 //   all the hashes written, and then closes the data and signature WriteClosers.
 func NewSigningWriteCloser(data, signature io.WriteCloser, s Signer, opts *Options) (io.WriteCloser, error) {
-	if (data == nil) || (signature == nil) {
-		return nil, errors.New("data or signature WriteCloser is nil")
+	if (data == nil) || (signature == nil) || (s == nil) {
+		return nil, fmt.Errorf("data:%v signature:%v signer:%v cannot be nil", data, signature, s)
 	}
 	w := &signingWriter{data: data, signature: signature, signer: s, signatureHash: sha256.New(), chunkSizeBytes: defaultChunkSizeBytes, sigEnc: vom.NewEncoder(signature)}
 

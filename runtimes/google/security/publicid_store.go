@@ -263,9 +263,6 @@ func NewPublicIDStore(params *PublicIDStoreParams) (security.PublicIDStore, erro
 	if err != nil {
 		return nil, err
 	}
-	if vr == nil {
-		return nil, errors.New("could not construct VerifyingReader for reading params data")
-	}
 	if err := vom.NewDecoder(vr).Decode(&store.state); err != nil {
 		return nil, err
 	}

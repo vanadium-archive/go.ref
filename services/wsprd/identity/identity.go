@@ -85,13 +85,13 @@ func NewIDManager(rt veyron2.Runtime, serializer Serializer) (*IDManager, error)
 	if err != nil {
 		return nil, err
 	}
+	if (data == nil) || (signature == nil) {
+		// No serialized data exists, returning an empty IDManager.
+		return result, nil
+	}
 	vr, err := serialization.NewVerifyingReader(data, signature, rt.Identity().PublicKey())
 	if err != nil {
 		return nil, err
-	}
-	if vr == nil {
-		// No serialized data exists, returning aan empty IDManager.
-		return result, nil
 	}
 	if err := vom.NewDecoder(vr).Decode(&result.state); err != nil {
 		return nil, err

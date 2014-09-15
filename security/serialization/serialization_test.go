@@ -142,3 +142,32 @@ func TestIntegrityAndAuthenticity(t *testing.T) {
 		}
 	}
 }
+
+func TestEdgeCases(t *testing.T) {
+	var d, s io.ReadWriteCloser
+	var signer Signer
+	var key security.PublicKey
+
+	for i := 0; i < 3; i++ {
+		d, s = &bufferCloser{}, &bufferCloser{}
+		signer = newSigner()
+		key = signer.PublicKey()
+
+		switch i {
+		case 0:
+			d = nil
+		case 1:
+			s = nil
+		case 2:
+			signer = nil
+			key = nil
+		}
+		matchErr := "cannot be nil"
+		if _, err := NewSigningWriteCloser(d, s, signer, nil); !matchesErrorPattern(err, matchErr) {
+			t.Errorf("NewSigningWriter(%p, %p, %p, ...) returned: %v, want to match: %v", d, s, signer, err, matchErr)
+		}
+		if _, err := NewVerifyingReader(d, s, key); !matchesErrorPattern(err, matchErr) {
+			t.Errorf("NewVerifyingReader(%p, %p, %p) returned: %v, want to match: %v", d, s, key, err, matchErr)
+		}
+	}
+}
