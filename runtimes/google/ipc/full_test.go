@@ -592,6 +592,14 @@ func (s *dischargeImpetusTester) Discharge(ctx ipc.ServerCall, cav vdlutil.Any, 
 	return nil, fmt.Errorf("discharges not issued")
 }
 
+func names2patterns(names []string) []security.BlessingPattern {
+	ret := make([]security.BlessingPattern, len(names))
+	for idx, n := range names {
+		ret[idx] = security.BlessingPattern(n)
+	}
+	return ret
+}
+
 func TestDischargeImpetus(t *testing.T) {
 	var (
 		// The Discharge service can be run by anyone, but in these tests it is the same as the server.
@@ -632,7 +640,7 @@ func TestDischargeImpetus(t *testing.T) {
 		},
 		{ // Require everything
 			Requirements: security.ThirdPartyRequirements{ReportServer: true, ReportMethod: true, ReportArguments: true},
-			Impetus:      security.DischargeImpetus{Server: vdlutil.Any(serverID.PublicID()), Method: "Method", Arguments: []vdlutil.Any{vdlutil.Any("argument")}},
+			Impetus:      security.DischargeImpetus{Server: names2patterns(serverID.PublicID().Names()), Method: "Method", Arguments: []vdlutil.Any{vdlutil.Any("argument")}},
 		},
 		{ // Require only the method name
 			Requirements: security.ThirdPartyRequirements{ReportMethod: true},

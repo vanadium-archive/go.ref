@@ -162,7 +162,11 @@ func (c *client) fetchDischarges(ctx context.T, caveats []security.ThirdPartyCav
 
 func impetus(r security.ThirdPartyRequirements, server security.PublicID, method string, args []interface{}) (impetus security.DischargeImpetus) {
 	if r.ReportServer {
-		impetus.Server = server
+		names := server.Names()
+		impetus.Server = make([]security.BlessingPattern, len(names))
+		for i, n := range names {
+			impetus.Server[i] = security.BlessingPattern(n)
+		}
 	}
 	if r.ReportMethod {
 		impetus.Method = method
