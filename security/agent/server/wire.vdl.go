@@ -177,6 +177,7 @@ func (__gen_s *ServerStubAgent) Signature(call _gen_ipc.ServerCall) (_gen_ipc.Se
 	result.TypeDefs = []_gen_vdlutil.Any{
 		_gen_wiretype.NamedPrimitiveType{Type: 0x32, Name: "byte", Tags: []string(nil)}, _gen_wiretype.SliceType{Elem: 0x41, Name: "", Tags: []string(nil)}, _gen_wiretype.NamedPrimitiveType{Type: 0x3, Name: "veyron2/security.Hash", Tags: []string(nil)}, _gen_wiretype.StructType{
 			[]_gen_wiretype.FieldType{
+				_gen_wiretype.FieldType{Type: 0x42, Name: "Purpose"},
 				_gen_wiretype.FieldType{Type: 0x43, Name: "Hash"},
 				_gen_wiretype.FieldType{Type: 0x42, Name: "R"},
 				_gen_wiretype.FieldType{Type: 0x42, Name: "S"},
