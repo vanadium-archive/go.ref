@@ -1,8 +1,10 @@
 package impl_test
 
 import (
+	"bytes"
 	"crypto/md5"
 	"encoding/base64"
+	"encoding/hex"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -17,6 +19,7 @@ import (
 	"veyron/lib/signals"
 	"veyron/lib/testutil/blackbox"
 	tsecurity "veyron/lib/testutil/security"
+	vsecurity "veyron/security"
 	"veyron/services/mgmt/lib/exec"
 	"veyron/services/mgmt/node/config"
 	"veyron/services/mgmt/node/impl"
@@ -635,11 +638,14 @@ func TestAppLifeCycle(t *testing.T) {
 
 type granter struct {
 	ipc.CallOpt
-	self security.PrivateID
+	self     security.PrivateID
+	blessing security.PublicID
 }
 
-func (g granter) Grant(id security.PublicID) (security.PublicID, error) {
-	return g.self.Bless(id, "claimernode", 10*time.Minute, nil)
+func (g *granter) Grant(id security.PublicID) (security.PublicID, error) {
+	var err error
+	g.blessing, err = g.self.Bless(id, "claimernode", 10*time.Minute, nil)
+	return g.blessing, err
 }
 
 func newRuntimeClient(t *testing.T, id security.PrivateID) (veyron2.Runtime, ipc.Client) {
@@ -700,8 +706,8 @@ func TestNodeManagerClaim(t *testing.T) {
 	}
 
 	// Create a new identity and runtime.
-	newIdentity := tsecurity.NewBlessedIdentity(rt.R().Identity(), "claimer")
-	newRT, nodeClient := newRuntimeClient(t, newIdentity)
+	claimerIdentity := tsecurity.NewBlessedIdentity(rt.R().Identity(), "claimer")
+	newRT, nodeClient := newRuntimeClient(t, claimerIdentity)
 	defer newRT.Cleanup()
 
 	// Nodemanager should have open ACLs before we claim it and so an Install
@@ -710,15 +716,15 @@ func TestNodeManagerClaim(t *testing.T) {
 		t.Fatalf("%v", err)
 	}
 	// Claim the nodemanager with this identity.
-	if err = nodeStub.Claim(rt.R().NewContext(), granter{self: newIdentity}); err != nil {
+	if err = nodeStub.Claim(rt.R().NewContext(), &granter{self: claimerIdentity}); err != nil {
 		t.Fatalf("Claim failed: %v", err)
 	}
 	if err = tryInstall(newRT, nodeClient); err != nil {
 		t.Fatalf("%v", err)
 	}
 	// Try to install with a new identity. This should fail.
-	newIdentity = tsecurity.NewBlessedIdentity(rt.R().Identity(), "random")
-	newRT, nodeClient = newRuntimeClient(t, newIdentity)
+	randomIdentity := tsecurity.NewBlessedIdentity(rt.R().Identity(), "random")
+	newRT, nodeClient = newRuntimeClient(t, randomIdentity)
 	defer newRT.Cleanup()
 	if err = tryInstall(newRT, nodeClient); err == nil {
 		t.Fatalf("Install should have failed with random identity")
@@ -733,4 +739,95 @@ func TestNodeManagerClaim(t *testing.T) {
 		t.Fatalf("%v", err)
 	}
 	// TODO(gauthamt): Test that ACLs persist across nodemanager restarts
+}
+
+func TestNodeManagerUpdateACL(t *testing.T) {
+	// Set up mount table, application, and binary repositories.
+	defer setupLocalNamespace(t)()
+	envelope, cleanup := startApplicationRepository()
+	defer cleanup()
+	defer startBinaryRepository()()
+
+	root, cleanup := setupRootDir()
+	defer cleanup()
+
+	// Set up the node manager.  Since we won't do node manager updates,
+	// don't worry about its application envelope and current link.
+	nm := blackbox.HelperCommand(t, "nodeManager", "nm", root, "unused app repo name", "unused curr link")
+	defer setupChildCommand(nm)()
+	if err := nm.Cmd.Start(); err != nil {
+		t.Fatalf("Start() failed: %v", err)
+	}
+	defer nm.Cleanup()
+	readPID(t, nm)
+
+	// Create an envelope for an app.
+	app := blackbox.HelperCommand(t, "app", "")
+	defer setupChildCommand(app)()
+	appTitle := "google naps"
+	*envelope = *envelopeFromCmd(appTitle, app.Cmd)
+
+	nodeStub, err := node.BindNode("nm//nm")
+	if err != nil {
+		t.Fatalf("BindNode failed: %v", err)
+	}
+	acl, etag, err := nodeStub.GetACL(rt.R().NewContext())
+	if err != nil {
+		t.Fatalf("GetACL failed:%v", err)
+	}
+	if etag != "default" {
+		t.Fatalf("getACL expected:default, got:%v(%v)", etag, acl)
+	}
+
+	// Create a new identity and claim the node manager
+	claimerIdentity := tsecurity.NewBlessedIdentity(rt.R().Identity(), "claimer")
+	grant := &granter{self: claimerIdentity}
+	if err = nodeStub.Claim(rt.R().NewContext(), grant); err != nil {
+		t.Fatalf("Claim failed: %v", err)
+	}
+	expectedACL := security.ACL{In: make(map[security.BlessingPattern]security.LabelSet)}
+	for _, name := range grant.blessing.Names() {
+		expectedACL.In[security.BlessingPattern(name)] = security.AllLabels
+	}
+	var b bytes.Buffer
+	if err := vsecurity.SaveACL(&b, expectedACL); err != nil {
+		t.Fatalf("Failed to saveACL:%v", err)
+	}
+	md5hash := md5.Sum(b.Bytes())
+	expectedETAG := hex.EncodeToString(md5hash[:])
+	acl, etag, err = nodeStub.GetACL(rt.R().NewContext())
+	if err != nil {
+		t.Fatalf("GetACL failed")
+	}
+	if etag != expectedETAG {
+		t.Fatalf("getACL expected:%v(%v), got:%v(%v)", expectedACL, expectedETAG, acl, etag)
+	}
+	// Try to install with a new identity. This should fail.
+	randomIdentity := tsecurity.NewBlessedIdentity(rt.R().Identity(), "random")
+	newRT, nodeClient := newRuntimeClient(t, randomIdentity)
+	defer newRT.Cleanup()
+	if err = tryInstall(newRT, nodeClient); err == nil {
+		t.Fatalf("Install should have failed with random identity")
+	}
+	newACL := security.ACL{In: make(map[security.BlessingPattern]security.LabelSet)}
+	for _, name := range randomIdentity.PublicID().Names() {
+		newACL.In[security.BlessingPattern(name)] = security.AllLabels
+	}
+	// SetACL with invalid etag
+	if err = nodeStub.SetACL(rt.R().NewContext(), newACL, "invalid"); err == nil {
+		t.Fatalf("SetACL should have failed with invalid etag")
+	}
+	if err = nodeStub.SetACL(rt.R().NewContext(), newACL, etag); err != nil {
+		t.Fatalf("SetACL failed:%v", err)
+	}
+	if err = tryInstall(newRT, nodeClient); err != nil {
+		t.Fatalf("Install failed with new identity:%v", err)
+	}
+	// Try to install with the claimer identity. This should fail as the ACLs
+	// belong to the random identity
+	newRT, nodeClient = newRuntimeClient(t, claimerIdentity)
+	defer newRT.Cleanup()
+	if err = tryInstall(newRT, nodeClient); err == nil {
+		t.Fatalf("Install should have failed with claimer identity")
+	}
 }

@@ -44,6 +44,7 @@ import (
 	"veyron2/mgmt"
 	"veyron2/naming"
 	"veyron2/rt"
+	"veyron2/security"
 	"veyron2/services/mgmt/application"
 	"veyron2/services/mgmt/binary"
 	"veyron2/services/mgmt/node"
@@ -368,4 +369,12 @@ func (i *nodeInvoker) Update(ipc.ServerContext) error {
 func (*nodeInvoker) UpdateTo(ipc.ServerContext, string) error {
 	// TODO(jsimsa): Implement.
 	return nil
+}
+
+func (i *nodeInvoker) SetACL(_ ipc.ServerContext, acl security.ACL, etag string) error {
+	return i.disp.setACL(acl, etag, true /* store ACL on disk */)
+}
+
+func (i *nodeInvoker) GetACL(_ ipc.ServerContext) (acl security.ACL, etag string, err error) {
+	return i.disp.getACL()
 }
