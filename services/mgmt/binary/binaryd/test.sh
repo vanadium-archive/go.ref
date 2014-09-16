@@ -9,7 +9,7 @@
 source "${VEYRON_ROOT}/environment/scripts/lib/shell_test.sh"
 
 build() {
-  local -r GO="${REPO_ROOT}/scripts/build/go"
+  local -r GO="${VEYRON_ROOT}/veyron/scripts/build/go"
   "${GO}" build veyron/services/mgmt/binary/binaryd || shell_test::fail "line ${LINENO}: failed to build 'binaryd'"
   "${GO}" build veyron/tools/binary || shell_test::fail "line ${LINENO}: failed to build 'binary'"
 }

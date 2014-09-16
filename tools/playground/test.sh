@@ -5,7 +5,7 @@
 source "${VEYRON_ROOT}/environment/scripts/lib/shell_test.sh"
 
 build() {
-  local -r GO="${REPO_ROOT}/scripts/build/go"
+  local -r GO="${VEYRON_ROOT}/veyron/scripts/build/go"
   "${GO}" build veyron/tools/identity || shell_test::fail "line ${LINENO}: failed to build 'identity'"
   "${GO}" build veyron/services/proxy/proxyd || shell_test::fail "line ${LINENO}: failed to build 'proxyd'"
   "${GO}" build veyron/services/mounttable/mounttabled || shell_test::fail "line ${LINENO}: failed to build 'mounttabled'"
@@ -36,9 +36,9 @@ main() {
   cd $(shell::tmp_dir)
   build
 
-  local -r DIR="${REPO_ROOT}/go/src/veyron/tools/playground/testdata"
+  local -r DIR="${VEYRON_ROOT}/veyron/go/src/veyron/tools/playground/testdata"
 
-  export GOPATH="$(pwd)":$VEYRON_ROOT/veyron/go
+  export GOPATH="$(pwd)":"${VEYRON_ROOT}/veyron/go"
   export PATH="$(pwd):$PATH"
 
   # Test without identities

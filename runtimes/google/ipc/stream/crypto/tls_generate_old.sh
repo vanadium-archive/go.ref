@@ -25,8 +25,7 @@ EOF
     sed -e 's|// +build go1.4|// +build !go1.4|' |
     sed -e 's|"crypto/tls"|tls "veyron/runtimes/google/ipc/stream/crypto/tlsfork"|' >>$OUTFILE
 
-  local -r REPO_ROOT="$(git rev-parse --show-toplevel)"
-  "${REPO_ROOT}/scripts/build/go" fmt "${OUTFILE}"
+  "${VEYRON_ROOT}/veyron/scripts/build/go" fmt "${OUTFILE}"
 }
 
 main "$@"
