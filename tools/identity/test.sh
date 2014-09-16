@@ -24,7 +24,7 @@ main() {
   local GOT=$(./identity generate ignoreme | ./identity bless - child | ./identity print - | awk '/Name/ {print $3}')
   local WANT="root/child"
   if [ "${GOT}" != "${WANT}" ]; then
-      shell_test::fail "line ${LINENO}: Got ${GOT}, want ${WANT}"
+    shell_test::fail "line ${LINENO}: Got ${GOT}, want ${WANT}"
   fi
 
   # Generate an identity and get it blessed by root using "identity bless --with"
@@ -32,9 +32,25 @@ main() {
   GOT=$(./identity generate ignoreme | ./identity bless --with=other - child | ./identity print - | awk '/Name/ {print $3}')
   WANT="unknown/other/child"
   if [ "${GOT}" != "${WANT}" ]; then
-      shell_test::fail "line ${LINENO}: Got ${GOT}, want ${WANT}"
+    shell_test::fail "line ${LINENO}: Got ${GOT}, want ${WANT}"
   fi
 
+  # Test that previously generated identities can be interpreted
+  # (i.e., any changes to the Certificate or Signature scheme are backward compatible).
+  # To regenerate testdata:
+  # identity generate "root" >testdata/root.id
+  # identity generate "other" | VEYRON_IDENTITY=testdata/root.id identity bless - "blessed" >testdata/blessed.id
+  local -r TESTDATA_DIR="${REPO_ROOT}/go/src/veyron/tools/identity/testdata"
+  GOT=$(VEYRON_IDENTITY="${TESTDATA_DIR}/root.id" ./identity print | awk '/Name/ {print $3}')
+  WANT="root"
+  if [ "${GOT}" != "${WANT}" ]; then
+    shell_test::fail "line ${LINENO}: Got '${GOT}' from previously generated root.id, want '${WANT}'"
+  fi
+  GOT=$(VEYRON_IDENTITY="${TESTDATA_DIR}/root.id" ./identity print "${TESTDATA_DIR}/blessed.id" | awk '/Name/ {print $3}')
+  WANT="root/blessed"
+  if [ "${GOT}" != "${WANT}" ]; then
+    shell_test::fail "line ${LINENO}: Got '${GOT}' from previously generated blessed.id, want '${WANT}'"
+  fi
   shell_test::pass
 }
 
