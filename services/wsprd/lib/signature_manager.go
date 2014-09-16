@@ -4,13 +4,12 @@ import (
 	"sync"
 	"time"
 
-	"veyron2"
 	"veyron2/context"
 	"veyron2/ipc"
 )
 
 type SignatureManager interface {
-	Signature(ctx context.T, name string, client ipc.Client) (*ipc.ServiceSignature, error)
+	Signature(ctx context.T, name string, client ipc.Client, opts ...ipc.CallOpt) (*ipc.ServiceSignature, error)
 }
 
 // signatureManager can be used to discover the signature of a remote service
@@ -46,7 +45,7 @@ func (c cacheEntry) expired() bool {
 
 // signature uses the given client to fetch the signature for the given service name.
 // It locks until it fetches the service signature from the remote server, if not a cache hit.
-func (sm *signatureManager) Signature(ctx context.T, name string, client ipc.Client) (*ipc.ServiceSignature, error) {
+func (sm *signatureManager) Signature(ctx context.T, name string, client ipc.Client, opts ...ipc.CallOpt) (*ipc.ServiceSignature, error) {
 	sm.Lock()
 	defer sm.Unlock()
 
@@ -56,10 +55,7 @@ func (sm *signatureManager) Signature(ctx context.T, name string, client ipc.Cli
 	}
 
 	// cache expired or not found, fetch it from the remote server
-	// TODO(bjornick): Remove the retry option once we able to pass it in
-	// from javascript.  If we don't have this, then trying to make an
-	// rpc to unknown name will hang.
-	signatureCall, err := client.StartCall(ctx, name, "Signature", []interface{}{}, veyron2.RetryTimeoutOpt(0))
+	signatureCall, err := client.StartCall(ctx, name, "Signature", []interface{}{}, opts...)
 	if err != nil {
 		return nil, err
 	}

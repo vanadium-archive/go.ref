@@ -107,6 +107,11 @@ func startWspr(f *codeFile) (proc *os.Process, port int, err error) {
 		"-v=-1",
 		"-vproxy="+proxyName,
 		"-port="+strconv.Itoa(port),
+		// Retry starting RPC calls for 3 seconds.
+		// TODO(nlacasse): Remove this when javascript can tell wspr
+		// how long to retry for.  Right now its a global setting in
+		// wspr.
+		"-retry-timeout=3",
 		// The identd server won't be used, so pass a fake name.
 		"-identd=/unused")
 
