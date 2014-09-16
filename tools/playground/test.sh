@@ -4,6 +4,18 @@
 
 source "${VEYRON_ROOT}/environment/scripts/lib/shell_test.sh"
 
+install_veyron_js() {
+  # This installs the veyron.js library, and makes it accessable to javascript
+  # files in the veyron playground test folder under the module name 'veyron'.
+  #
+  # TODO(nlacasse): Once veyron.js is installed in a public npm registry, this
+  # should be replaced with just "npm install veyron".
+  pushd "${VEYRON_ROOT}/veyron.js"
+  "${VEYRON_ROOT}/environment/cout/node/bin/npm" link
+  popd
+  "${VEYRON_ROOT}/environment/cout/node/bin/npm" link veyron
+}
+
 build() {
   local -r GO="${VEYRON_ROOT}/veyron/scripts/build/go"
   "${GO}" build veyron/tools/identity || shell_test::fail "line ${LINENO}: failed to build 'identity'"
@@ -35,6 +47,7 @@ test_with_files() {
 main() {
   cd $(shell::tmp_dir)
   build
+  install_veyron_js
 
   local -r DIR="${VEYRON_ROOT}/veyron/go/src/veyron/tools/playground/testdata"
 

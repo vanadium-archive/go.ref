@@ -25,7 +25,7 @@ import (
 	"veyron/tools/playground/event"
 )
 
-const RUN_TIMEOUT = time.Second
+const runTimeout = 3 * time.Second
 
 var (
 	verbose = flag.Bool("v", false, "Verbose mode")
@@ -153,7 +153,7 @@ func main() {
 		log.Fatal(err)
 	}
 
-	mt, err := startMount(RUN_TIMEOUT)
+	mt, err := startMount(runTimeout)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -222,12 +222,13 @@ func runFiles(files []*codeFile) {
 		}
 	}
 
-	timeout := time.After(RUN_TIMEOUT)
+	timeout := time.After(runTimeout)
 
 	for running > 0 {
 		select {
 		case <-timeout:
 			writeEvent("", "Playground exceeded deadline.", "stderr")
+			stopAll(files)
 		case status := <-exit:
 			if status.err == nil {
 				writeEvent(status.name, "Exited.", "stdout")
@@ -375,6 +376,17 @@ func (f *codeFile) stop() {
 func makeCmdJsonEvent(fileName, prog string, args ...string) *exec.Cmd {
 	cmd := exec.Command(prog, args...)
 	cmd.Env = os.Environ()
+
+	// TODO(nlacasse): There is a bug in this code which results in
+	//   "read |0: bad file descriptor".
+	// The error seems to be caused by our use of cmd.StdoutPipe/StderrPipe
+	// and cmd.Wait.  In particular, we seem to be calling Wait after the
+	// pipes have been closed.
+	// See: http://stackoverflow.com/questions/20134095/why-do-i-get-bad-file-descriptor-in-this-go-program-using-stderr-and-ioutil-re
+	// and https://code.google.com/p/go/issues/detail?id=2266
+	//
+	// One solution is to wrap cmd.Start/Run, so that wait is never called
+	// before the pipes are closed.
 
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {

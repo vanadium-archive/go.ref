@@ -6,18 +6,41 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"math/rand"
 	"os"
 	"path"
 	"regexp"
 	"strconv"
+	"syscall"
 	"time"
 )
 
 var (
-	proxyPort    = 1234
-	proxyName    = "proxy"
-	wsprBasePort = 1235
+	proxyName = "proxy"
 )
+
+// Note: This was copied from veyron/go/src/veyron/tools/findunusedport.
+// I would like to be able to import that package directly, but it defines a
+// main(), so can't be imported.  An alternative solution would be to call the
+// 'findunusedport' binary, but that would require starting another process and
+// parsing the output.  It seemed simpler to just copy the function here.
+func findUnusedPort() (int, error) {
+	rnd := rand.New(rand.NewSource(time.Now().UnixNano()))
+	for i := 0; i < 1000; i++ {
+		port := 1024 + rnd.Int31n(64512)
+		fd, err := syscall.Socket(syscall.AF_INET, syscall.SOCK_STREAM, syscall.IPPROTO_TCP)
+		if err != nil {
+			continue
+		}
+		sa := &syscall.SockaddrInet4{Port: int(port)}
+		if err := syscall.Bind(fd, sa); err != nil {
+			continue
+		}
+		syscall.Close(fd)
+		return int(port), nil
+	}
+	return 0, fmt.Errorf("Can't find unused port.")
+}
 
 // startMount starts a mounttabled process, and sets the NAMESPACE_ROOT env
 // variable to the mounttable's location.  We run one mounttabled process for
@@ -60,7 +83,11 @@ func startMount(timeLimit time.Duration) (proc *os.Process, err error) {
 // startProxy starts a proxyd process.  We run one proxyd process for the
 // entire environment.
 func startProxy() (proc *os.Process, err error) {
-	cmd := makeCmdJsonEvent("", "proxyd", "-name="+proxyName, "-address=:"+strconv.Itoa(proxyPort))
+	port, err := findUnusedPort()
+	if err != nil {
+		return nil, err
+	}
+	cmd := makeCmdJsonEvent("", "proxyd", "-name="+proxyName, "-address=localhost:"+strconv.Itoa(port))
 	err = cmd.Start()
 	if err != nil {
 		return nil, err
@@ -69,10 +96,12 @@ func startProxy() (proc *os.Process, err error) {
 }
 
 // startWspr starts a wsprd process. We run one wsprd process for each
-// javascript file being run. The 'index' argument is used to pick a distinct
-// port for each wsprd process.
+// javascript file being run.
 func startWspr(f *codeFile) (proc *os.Process, port int, err error) {
-	port = wsprBasePort + f.index
+	port, err = findUnusedPort()
+	if err != nil {
+		return nil, port, err
+	}
 	cmd := makeCmdJsonEvent(f.Name,
 		"wsprd",
 		"-v=-1",
