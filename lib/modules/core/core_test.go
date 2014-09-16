@@ -40,7 +40,7 @@ func TestRoot(t *testing.T) {
 	s := expect.NewSession(t, root.Stdout(), time.Second)
 	s.ExpectVar("MT_NAME")
 	s.ExpectVar("PID")
-	root.Stdin().Close()
+	root.CloseStdin()
 	s.Expect("done")
 }
 

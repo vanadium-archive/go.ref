@@ -24,6 +24,7 @@ type execHandle struct {
 	cmd        *exec.Cmd
 	entryPoint string
 	handle     *vexec.ParentHandle
+	sh         *Shell
 	stderr     *os.File
 	stdout     *bufio.Reader
 	stdin      io.WriteCloser
@@ -79,10 +80,16 @@ func (eh *execHandle) Stderr() io.Reader {
 	return eh.stderr
 }
 
-func (eh *execHandle) Stdin() io.WriteCloser {
+func (eh *execHandle) Stdin() io.Writer {
 	eh.mu.Lock()
 	defer eh.mu.Unlock()
 	return eh.stdin
+}
+
+func (eh *execHandle) CloseStdin() {
+	eh.mu.Lock()
+	eh.stdin.Close()
+	eh.mu.Unlock()
 }
 
 // mergeOSEnv returns a slice contained the merged set of environment
@@ -126,6 +133,7 @@ func (sh *Shell) mergeOSEnv() map[string]string {
 func (eh *execHandle) start(sh *Shell, args ...string) (Handle, error) {
 	eh.mu.Lock()
 	defer eh.mu.Unlock()
+	eh.sh = sh
 	newargs := append(testFlags(), args...)
 	cmd := exec.Command(os.Args[0], newargs...)
 	cmd.Env = append(sh.mergeOSEnvSlice(), eh.entryPoint)
@@ -156,26 +164,28 @@ func (eh *execHandle) start(sh *Shell, args ...string) (Handle, error) {
 	return eh, err
 }
 
-func (eh *execHandle) Shutdown(output io.Writer) {
+func (eh *execHandle) Shutdown(output io.Writer) error {
 	eh.mu.Lock()
 	defer eh.mu.Unlock()
 	eh.stdin.Close()
+	defer eh.sh.forget(eh)
 	if eh.stderr != nil {
 		defer func() {
 			eh.stderr.Close()
 			os.Remove(eh.stderr.Name())
 		}()
 		if output == nil {
-			return
+			return eh.cmd.Wait()
 		}
 		if _, err := eh.stderr.Seek(0, 0); err != nil {
-			return
+			return eh.cmd.Wait()
 		}
 		scanner := bufio.NewScanner(eh.stderr)
 		for scanner.Scan() {
 			fmt.Fprintf(output, "%s\n", scanner.Text())
 		}
 	}
+	return eh.cmd.Wait()
 }
 
 const shellEntryPoint = "VEYRON_SHELL_HELPER_PROCESS_ENTRY_POINT"
