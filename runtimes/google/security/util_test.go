@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"veyron/runtimes/google/security/keys"
-	"veyron/security/caveat"
 
 	"veyron2/security"
 	"veyron2/vom"
@@ -75,7 +74,7 @@ func newSetPrivateID(ids ...security.PrivateID) security.PrivateID {
 	return id
 }
 
-func bless(blessee security.PublicID, blessor security.PrivateID, name string, caveats []security.Caveat) security.PublicID {
+func bless(blessee security.PublicID, blessor security.PrivateID, name string, caveats ...security.Caveat) security.PublicID {
 	blessed, err := blessor.Bless(blessee, name, 5*time.Minute, caveats)
 	if err != nil {
 		panic(err)
@@ -111,23 +110,19 @@ func verifyAuthorizedID(origID, authID security.PublicID, authNames []string) er
 	return nil
 }
 
-func newCaveat(validators ...security.CaveatValidator) []security.Caveat {
-	cavs := make([]security.Caveat, len(validators))
-	var err error
-	for i, v := range validators {
-		if cavs[i], err = security.NewCaveat(v); err != nil {
-			panic(err)
-		}
+func newCaveat(validator security.CaveatValidator) security.Caveat {
+	cav, err := security.NewCaveat(validator)
+	if err != nil {
+		panic(err)
 	}
-	return cavs
+	return cav
 }
 
-func methodRestrictionCaveat(methods []string) []security.Caveat {
-	return newCaveat(caveat.MethodRestriction(methods))
-}
-
-func peerIdentityCaveat(p security.BlessingPattern) []security.Caveat {
-	return newCaveat(caveat.PeerBlessings{p})
+func mkCaveat(cav security.Caveat, err error) security.Caveat {
+	if err != nil {
+		panic(err)
+	}
+	return cav
 }
 
 func init() {
@@ -140,12 +135,12 @@ func TestTrustIdentityProviders(t *testing.T) {
 	var (
 		cSelf     = newChain("chainself")
 		cProvider = newChain("provider")
-		cBlessed  = derive(bless(cSelf.PublicID(), cProvider, "somebody", nil), cSelf)
+		cBlessed  = derive(bless(cSelf.PublicID(), cProvider, "somebody"), cSelf)
 
 		cProvider1 = newChain("provider")
 		cProvider2 = newChain("provider")
-		cSomebody1 = derive(bless(cSelf.PublicID(), cProvider1, "somebody1", nil), cSelf)
-		cSomebody2 = derive(bless(cSelf.PublicID(), cProvider2, "somebody2", nil), cSelf)
+		cSomebody1 = derive(bless(cSelf.PublicID(), cProvider1, "somebody1"), cSelf)
+		cSomebody2 = derive(bless(cSelf.PublicID(), cProvider2, "somebody2"), cSelf)
 		setID      = newSetPrivateID(cSomebody1, cSomebody2)
 
 		fake = security.FakePrivateID("fake")

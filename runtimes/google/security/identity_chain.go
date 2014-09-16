@@ -176,8 +176,7 @@ func (id *chainPrivateID) Bless(blessee security.PublicID, blessingName string, 
 		return nil, err
 	}
 
-	now := time.Now()
-	expiryCaveat, err := security.NewCaveat(&caveat.Expiry{IssueTime: now, ExpiryTime: now.Add(duration)})
+	expiryCaveat, err := security.ExpiryCaveat(time.Now().Add(duration))
 	if err != nil {
 		return nil, err
 	}

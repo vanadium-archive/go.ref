@@ -136,7 +136,7 @@ func (*dischargeServer) Discharge(ctx ipc.ServerCall, cav vdlutil.Any, _ securit
 	}
 	// Add a fakeTimeCaveat to allow the discharge to expire
 	expiry := fakeTimeCaveat(clock.Now())
-	return serverID.MintDischarge(c, ctx, time.Hour, newCaveat(expiry))
+	return serverID.MintDischarge(c, ctx, time.Hour, []security.Caveat{newCaveat(expiry)})
 }
 
 type testServerAuthorizer struct{}
@@ -291,7 +291,7 @@ func derive(blessor security.PrivateID, name string, caveats ...security.Caveat)
 // ignores the first if it is invalid.
 func deriveForThirdPartyCaveats(blessor security.PrivateID, name string, caveats ...security.Caveat) security.PrivateID {
 	id := derive(blessor, name, caveats...)
-	dischargeID, err := id.Derive(bless(blessor, id.PublicID(), name, newCaveat(caveat.MethodRestriction{"Discharge"})...))
+	dischargeID, err := id.Derive(bless(blessor, id.PublicID(), name, mkCaveat(security.MethodCaveat("Discharge"))))
 	if err != nil {
 		panic(err)
 	}
@@ -569,12 +569,12 @@ func TestBlessing(t *testing.T) {
 	}
 }
 
-func mkThirdPartyCaveat(discharger security.PublicID, location string, c security.Caveat) security.ThirdPartyCaveat {
+func mkThirdPartyCaveat(discharger security.PublicID, location string, c security.Caveat) security.Caveat {
 	tpc, err := caveat.NewPublicKeyCaveat(c, discharger.PublicKey(), location, security.ThirdPartyRequirements{})
 	if err != nil {
 		panic(err)
 	}
-	return tpc
+	return newCaveat(tpc)
 }
 
 type dischargeImpetusTester struct {
@@ -606,12 +606,11 @@ func TestDischargeImpetus(t *testing.T) {
 		dischargerID = serverID.PublicID()
 
 		mkClientID = func(req security.ThirdPartyRequirements) security.PrivateID {
-			tpc, err := caveat.NewPublicKeyCaveat(newCaveat(alwaysValidCaveat{})[0], dischargerID.PublicKey(), "mountpoint/discharger", req)
+			tpc, err := caveat.NewPublicKeyCaveat(newCaveat(alwaysValidCaveat{}), dischargerID.PublicKey(), "mountpoint/discharger", req)
 			if err != nil {
 				t.Fatalf("Failed to create ThirdPartyCaveat: %v", err)
 			}
-			caveat := newCaveat(tpc)
-			return deriveForThirdPartyCaveats(serverID, "client", caveat...)
+			return deriveForThirdPartyCaveats(serverID, "client", newCaveat(tpc))
 		}
 	)
 	sm := imanager.InternalNew(naming.FixedRoutingID(0x555555555))
@@ -669,28 +668,28 @@ func TestRPCAuthorization(t *testing.T) {
 	var (
 		now = time.Now()
 		// First-party caveats
-		cavOnlyEcho = newCaveat(caveat.MethodRestriction{"Echo"})
-		cavExpired  = newCaveat(&caveat.Expiry{IssueTime: now, ExpiryTime: now})
+		cavOnlyEcho = mkCaveat(security.MethodCaveat("Echo"))
+		cavExpired  = mkCaveat(security.ExpiryCaveat(now))
 		// Third-party caveats
 		// The Discharge service can be run by any identity, but in our tests the same server runs
 		// a Discharge service as well.
 		dischargerID = serverID.PublicID()
-		cavTPValid   = newCaveat(mkThirdPartyCaveat(dischargerID, "mountpoint/server/discharger", newCaveat(&caveat.Expiry{ExpiryTime: now.Add(24 * time.Hour)})[0]))
-		cavTPExpired = newCaveat(mkThirdPartyCaveat(dischargerID, "mountpoint/server/discharger", newCaveat(&caveat.Expiry{IssueTime: now, ExpiryTime: now})[0]))
+		cavTPValid   = mkThirdPartyCaveat(dischargerID, "mountpoint/server/discharger", mkCaveat(security.ExpiryCaveat(now.Add(24*time.Hour))))
+		cavTPExpired = mkThirdPartyCaveat(dischargerID, "mountpoint/server/discharger", mkCaveat(security.ExpiryCaveat(now)))
 
 		// Client blessings that will be tested
-		blessedByServerOnlyEcho  = derive(serverID, "onlyEcho", cavOnlyEcho...)
-		blessedByServerExpired   = derive(serverID, "expired", cavExpired...)
-		blessedByServerTPValid   = deriveForThirdPartyCaveats(serverID, "tpvalid", cavTPValid...)
-		blessedByServerTPExpired = deriveForThirdPartyCaveats(serverID, "tpexpired", cavTPExpired...)
+		blessedByServerOnlyEcho  = derive(serverID, "onlyEcho", cavOnlyEcho)
+		blessedByServerExpired   = derive(serverID, "expired", cavExpired)
+		blessedByServerTPValid   = deriveForThirdPartyCaveats(serverID, "tpvalid", cavTPValid)
+		blessedByServerTPExpired = deriveForThirdPartyCaveats(serverID, "tpexpired", cavTPExpired)
 		blessedByClient          = derive(clientID, "blessed")
 	)
 	const (
-		expiredIDErr = "forbids credential from being used at this time"
+		expiredIDErr = "security.unixTimeExpiryCaveat"
 		aclAuthErr   = "no matching ACL entry found"
 	)
 	invalidMethodErr := func(method string) string {
-		return fmt.Sprintf(`caveat.MethodRestriction{"Echo"} forbids invocation of method %s`, method)
+		return fmt.Sprintf(`security.methodCaveat=[Echo] fails validation for method %q`, method)
 	}
 
 	type v []interface{}
@@ -770,8 +769,8 @@ func (alwaysValidCaveat) Validate(security.Context) error { return nil }
 func TestDischargePurgeFromCache(t *testing.T) {
 	var (
 		dischargerID = serverID.PublicID()
-		c            = mkThirdPartyCaveat(dischargerID, "mountpoint/server/discharger", newCaveat(alwaysValidCaveat{})[0])
-		clientCID    = deriveForThirdPartyCaveats(serverID, "client", newCaveat(c)...)
+		c            = mkThirdPartyCaveat(dischargerID, "mountpoint/server/discharger", newCaveat(alwaysValidCaveat{}))
+		clientCID    = deriveForThirdPartyCaveats(serverID, "client", c)
 	)
 	b := createBundle(t, clientCID, serverID, &testServer{})
 	defer b.cleanup(t)

@@ -72,7 +72,7 @@ func BenchmarkEncode0BlessingChain(b *testing.B) {
 	benchmarkEncode(b, newChain("alice").PublicID())
 }
 func BenchmarkEncode1BlessingChain(b *testing.B) {
-	benchmarkEncode(b, bless(newChain("immaterial").PublicID(), veyronChain, "alice", nil))
+	benchmarkEncode(b, bless(newChain("immaterial").PublicID(), veyronChain, "alice"))
 }
 
 func BenchmarkDecode0BlessingChain(b *testing.B) {
@@ -84,7 +84,7 @@ func BenchmarkDecode0BlessingChain(b *testing.B) {
 }
 
 func BenchmarkDecode1BlessingChain(b *testing.B) {
-	idBytes, err := encode(bless(newChain("immaterial").PublicID(), veyronChain, "alice", nil))
+	idBytes, err := encode(bless(newChain("immaterial").PublicID(), veyronChain, "alice"))
 	if err != nil {
 		b.Fatal(err)
 	}
@@ -101,6 +101,6 @@ func TestChainWireSize(t *testing.T) {
 			t.Fatalf("Failed to encode %q: %v", pub, err)
 		}
 		t.Logf("Wire size of %T with %d blessings: %d bytes (%q)", pub, i, len(buf), pub)
-		priv = derive(bless(pub, priv, "X", nil), priv)
+		priv = derive(bless(pub, priv, "X"), priv)
 	}
 }

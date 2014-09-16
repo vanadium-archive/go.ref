@@ -9,7 +9,6 @@ import (
 	"sync"
 	"testing"
 	"time"
-	"veyron/security/caveat"
 	"veyron/services/wsprd/ipc/client"
 	"veyron/services/wsprd/lib"
 	"veyron/services/wsprd/signature"
@@ -685,17 +684,23 @@ func TestJSServerWihStreamingInputsAndOutputs(t *testing.T) {
 }
 
 func TestDeserializeCaveat(t *testing.T) {
+	C := func(cav security.Caveat, err error) security.Caveat {
+		if err != nil {
+			t.Fatal(err)
+		}
+		return cav
+	}
 	testCases := []struct {
 		json          string
-		expectedValue security.CaveatValidator
+		expectedValue security.Caveat
 	}{
 		{
 			json:          `{"_type":"MethodCaveat","service":"...","data":["Get","MultiGet"]}`,
-			expectedValue: &caveat.MethodRestriction{"Get", "MultiGet"},
+			expectedValue: C(security.MethodCaveat("Get", "MultiGet")),
 		},
 		{
 			json:          `{"_type":"PeerBlessingsCaveat","service":"...","data":["veyron/batman","veyron/brucewayne"]}`,
-			expectedValue: &caveat.PeerBlessings{"veyron/batman", "veyron/brucewayne"},
+			expectedValue: C(security.PeerBlessingsCaveat("veyron/batman", "veyron/brucewayne")),
 		},
 	}
 

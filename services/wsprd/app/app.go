@@ -10,7 +10,6 @@ import (
 	"sync"
 	"time"
 
-	"veyron/security/caveat"
 	"veyron/services/wsprd/identity"
 	"veyron/services/wsprd/ipc/client"
 	"veyron/services/wsprd/ipc/server"
@@ -580,17 +579,30 @@ func (c *Controller) HandleUnlinkJSIdentity(data string, w lib.ClientWriter) {
 }
 
 // Convert the json wire format of a caveat into the right go object
-func decodeCaveat(c jsonCaveatValidator) (security.CaveatValidator, error) {
-	var ret security.CaveatValidator
+func decodeCaveat(c jsonCaveatValidator) (security.Caveat, error) {
+	var failed security.Caveat
 	switch c.Type {
 	case "MethodCaveat":
-		ret = &caveat.MethodRestriction{}
+		var methods []string
+		if err := json.Unmarshal(c.Data, &methods); err != nil {
+			return failed, err
+		}
+		if len(methods) == 0 {
+			return failed, fmt.Errorf("must provide at least one method")
+		}
+		return security.MethodCaveat(methods[0], methods[1:]...)
 	case "PeerBlessingsCaveat":
-		ret = &caveat.PeerBlessings{}
+		var patterns []security.BlessingPattern
+		if err := json.Unmarshal(c.Data, &patterns); err != nil {
+			return failed, err
+		}
+		if len(patterns) == 0 {
+			return failed, fmt.Errorf("must provide at least one BlessingPattern")
+		}
+		return security.PeerBlessingsCaveat(patterns[0], patterns[1:]...)
 	default:
-		return ret, verror.BadArgf("unknown caveat type %s", c.Type)
+		return failed, verror.BadArgf("unknown caveat type %s", c.Type)
 	}
-	return ret, json.Unmarshal(c.Data, &ret)
 }
 
 func (c *Controller) getPublicIDHandle(handle int64) (*PublicIDHandle, error) {
@@ -604,15 +616,11 @@ func (c *Controller) getPublicIDHandle(handle int64) (*PublicIDHandle, error) {
 func (c *Controller) bless(request blessingRequest) (*PublicIDHandle, error) {
 	var caveats []security.Caveat
 	for _, c := range request.Caveats {
-		v, err := decodeCaveat(c)
+		cav, err := decodeCaveat(c)
 		if err != nil {
-			return nil, verror.BadArgf("failed to parse caveat: %v", err)
+			return nil, verror.BadArgf("failed to create caveat: %v", err)
 		}
-		c, err := security.NewCaveat(v)
-		if err != nil {
-			return nil, verror.BadArgf("failed to convert caveat to security.Caveat: %v", err)
-		}
-		caveats = append(caveats, c)
+		caveats = append(caveats, cav)
 	}
 	duration := time.Duration(request.DurationMs) * time.Millisecond
 

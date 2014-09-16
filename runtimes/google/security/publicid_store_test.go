@@ -32,7 +32,7 @@ func TestStoreAdd(t *testing.T) {
 		// test principals
 		cAlice       = newChain("alice")
 		cBob         = newChain("bob")
-		cVeyronAlice = derive(bless(cAlice.PublicID(), veyronChain, "alice", nil), cAlice)
+		cVeyronAlice = derive(bless(cAlice.PublicID(), veyronChain, "alice"), cAlice)
 		sAlice       = newSetPublicID(cAlice.PublicID(), cVeyronAlice.PublicID())
 	)
 	s, err := NewPublicIDStore(nil)
@@ -95,14 +95,14 @@ func TestStoreGetters(t *testing.T) {
 		cVService         = newChain("vservice")
 		cGService         = newChain("gservice")
 		cApp              = newChain("app")
-		cVeyronService    = derive(bless(cVService.PublicID(), veyronChain, "service", nil), cVService)
-		cGoogleService    = derive(bless(cGService.PublicID(), googleChain, "service", nil), cGService)
-		cGoogleServiceApp = derive(bless(cApp.PublicID(), cGoogleService, "app", nil), cApp)
+		cVeyronService    = derive(bless(cVService.PublicID(), veyronChain, "service"), cVService)
+		cGoogleService    = derive(bless(cGService.PublicID(), googleChain, "service"), cGService)
+		cGoogleServiceApp = derive(bless(cApp.PublicID(), cGoogleService, "app"), cApp)
 		// PublicIDs for Alice's PublicIDStore
-		cGoogleAlice        = bless(cAlice.PublicID(), googleChain, "alice", nil)
-		cVeyronAlice        = bless(cAlice.PublicID(), veyronChain, "alice", nil)
-		cGoogleServiceAlice = bless(cAlice.PublicID(), cGoogleService, "user-42", nil)
-		cVeyronServiceAlice = bless(cAlice.PublicID(), cVeyronService, "user-24", nil)
+		cGoogleAlice        = bless(cAlice.PublicID(), googleChain, "alice")
+		cVeyronAlice        = bless(cAlice.PublicID(), veyronChain, "alice")
+		cGoogleServiceAlice = bless(cAlice.PublicID(), cGoogleService, "user-42")
+		cVeyronServiceAlice = bless(cAlice.PublicID(), cVeyronService, "user-24")
 
 		sGoogleAlice = newSetPublicID(cGoogleServiceAlice, cGoogleAlice)
 		sAllAlice    = newSetPublicID(sGoogleAlice, cVeyronAlice, cVeyronServiceAlice)
@@ -187,8 +187,8 @@ func TestPublicIDStorePersistence(t *testing.T) {
 
 		cAlice       = newChain("alice")
 		cBob         = newChain("bob")
-		cVeyronAlice = bless(cAlice.PublicID(), veyronChain, "alice", nil)
-		cGoogleAlice = bless(cAlice.PublicID(), googleChain, "alice", nil)
+		cVeyronAlice = bless(cAlice.PublicID(), veyronChain, "alice")
+		cGoogleAlice = bless(cAlice.PublicID(), googleChain, "alice")
 		sAllAlice    = newSetPublicID(cGoogleAlice, cVeyronAlice)
 
 		pkey = cAlice.PublicID().PublicKey()

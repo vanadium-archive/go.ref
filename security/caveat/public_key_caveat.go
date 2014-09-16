@@ -1,3 +1,4 @@
+// Package caveat will be removed as the new security API takes shape before November 1, 2014.
 package caveat
 
 import (
@@ -188,8 +189,7 @@ func NewPublicKeyDischarge(signer security.PrivateID, tp security.ThirdPartyCave
 		return nil, err
 	}
 
-	now := time.Now()
-	expiryCaveat, err := security.NewCaveat(&Expiry{IssueTime: now, ExpiryTime: now.Add(duration)})
+	expiryCaveat, err := security.ExpiryCaveat(time.Now().Add(duration))
 	if err != nil {
 		return nil, err
 	}
