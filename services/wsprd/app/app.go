@@ -5,6 +5,7 @@ package app
 import (
 	"bytes"
 	"encoding/json"
+	"flag"
 	"fmt"
 	"io"
 	"sync"
@@ -27,6 +28,19 @@ import (
 	vom_wiretype "veyron2/vom/wiretype"
 	wiretype_build "veyron2/wiretype/build"
 )
+
+// TODO(bjornick,nlacasse): Remove the retryTimeout flag once we able
+// to pass it in from javascript. For now all RPCs have the same
+// retryTimeout, set by command line flag.
+var retryTimeoutOpt ipc.CallOpt
+
+func init() {
+	// TODO(bjornick,nlacasse): Remove the retryTimeout flag once we able
+	// to pass it in from javascript. For now all RPCs have the same
+	// retryTimeout, set by command line flag.
+	retryTimeout := flag.Int("retry-timeout", 0, "Duration in seconds to retry starting an RPC call. 0 means never retry.")
+	retryTimeoutOpt = veyron2.RetryTimeoutOpt(time.Duration(*retryTimeout) * time.Second)
+}
 
 // Temporary holder of RPC so that we can store the unprocessed args.
 type veyronTempRPC struct {
@@ -201,10 +215,7 @@ func (c *Controller) startCall(ctx context.T, w lib.ClientWriter, msg *veyronRPC
 		return nil, verror.BadArgf("no client created")
 	}
 	methodName := lib.UppercaseFirstCharacter(msg.Method)
-	// TODO(bjornick): Remove the retry option once we able to pass it in
-	// from javascript.  If we don't have this, then trying to make an
-	// rpc to unknown name will hang.
-	clientCall, err := c.client.StartCall(ctx, msg.Name, methodName, msg.InArgs, veyron2.RetryTimeoutOpt(0))
+	clientCall, err := c.client.StartCall(ctx, msg.Name, methodName, msg.InArgs, retryTimeoutOpt)
 	if err != nil {
 		return nil, fmt.Errorf("error starting call (name: %v, method: %v, args: %v): %v", msg.Name, methodName, msg.InArgs, err)
 	}
@@ -482,7 +493,7 @@ func (c *Controller) parseVeyronRequest(ctx context.T, r io.Reader) (*veyronRPC,
 	}
 
 	// Fetch and adapt signature from the SignatureManager
-	sig, err := c.signatureManager.Signature(ctx, tempMsg.Name, c.client)
+	sig, err := c.signatureManager.Signature(ctx, tempMsg.Name, c.client, retryTimeoutOpt)
 	if err != nil {
 		return nil, nil, verror.Internalf("error getting service signature for %s: %v", tempMsg.Name, err)
 	}
