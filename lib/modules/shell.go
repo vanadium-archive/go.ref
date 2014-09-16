@@ -27,7 +27,8 @@
 // should wait for their stdin stream to be closed before exiting. The
 // caller can then coordinate with any command by writing to that stdin
 // stream and reading responses from the stdout stream, and it can close
-// stdin when it's ready for the command to exit.
+// stdin when it's ready for the command to exit using the CloseStdin method
+// on the command's handle.
 //
 // The signature of the function that implements the command is the
 // same for both types of command and is defined by the Main function type.
@@ -122,9 +123,7 @@ func (sh *Shell) Help(command string) string {
 
 // Start starts the specified command, it returns a Handle which can be used
 // for interacting with that command. The Shell tracks all of the Handles
-// that it creates so that it can shut them down when asked to. If any
-// application calls Shutdown on a handle directly, it must call the Forget
-// method on the Shell instance hosting that Handle to avoid storage leaks.
+// that it creates so that it can shut them down when asked to.
 func (sh *Shell) Start(command string, args ...string) (Handle, error) {
 	sh.mu.Lock()
 	cmd := sh.cmds[command]
@@ -144,8 +143,8 @@ func (sh *Shell) Start(command string, args ...string) (Handle, error) {
 	return h, nil
 }
 
-// Forget tells the Shell to stop tracking the supplied Handle.
-func (sh *Shell) Forget(h Handle) {
+// forget tells the Shell to stop tracking the supplied Handle.
+func (sh *Shell) forget(h Handle) {
 	sh.mu.Lock()
 	delete(sh.handles, h)
 	sh.mu.Unlock()
@@ -200,11 +199,15 @@ func (sh *Shell) Env() []string {
 // then any such output is lost.
 func (sh *Shell) Cleanup(output io.Writer) {
 	sh.mu.Lock()
-	defer sh.mu.Unlock()
-	for k, _ := range sh.handles {
-		k.Shutdown(output)
+	handles := make(map[Handle]struct{})
+	for k, v := range sh.handles {
+		handles[k] = v
 	}
 	sh.handles = make(map[Handle]struct{})
+	sh.mu.Unlock()
+	for k, _ := range handles {
+		k.Shutdown(output)
+	}
 }
 
 // Handle represents a running command.
@@ -220,15 +223,17 @@ type Handle interface {
 	// convention is for commands to wait for stdin to be closed before
 	// they exit, thus the caller should close stdin when it wants the
 	// command to exit cleanly.
-	Stdin() io.WriteCloser
+	Stdin() io.Writer
 
-	// Shutdown closes the Stdin for the command. It is primarily intended
-	// for being called by the Shell, if other application code calls it
-	// then it should use the Shell's Forget method to have the Shell stop
-	// tracking the handle. Any buffered stderr output from the command will
-	// be written to the supplied io.Writer. If the io.Writer is nil then
-	// any such output is lost.
-	Shutdown(io.Writer)
+	// CloseStdin closes stdin in a manner that avoids a data race
+	// between any current readers on it.
+	CloseStdin()
+
+	// Shutdown closes the Stdin for the command and then reads output
+	// from the command's stdout until it encounters EOF and writes that
+	// output to the supplied io.Writer. It returns any error returned by
+	// the command.
+	Shutdown(io.Writer) error
 }
 
 // command is used to abstract the implementations of inprocess and subprocess
