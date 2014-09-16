@@ -32,14 +32,13 @@ import (
 // TODO(bjornick,nlacasse): Remove the retryTimeout flag once we able
 // to pass it in from javascript. For now all RPCs have the same
 // retryTimeout, set by command line flag.
-var retryTimeoutOpt ipc.CallOpt
+var retryTimeout *int
 
 func init() {
 	// TODO(bjornick,nlacasse): Remove the retryTimeout flag once we able
 	// to pass it in from javascript. For now all RPCs have the same
 	// retryTimeout, set by command line flag.
-	retryTimeout := flag.Int("retry-timeout", 0, "Duration in seconds to retry starting an RPC call. 0 means never retry.")
-	retryTimeoutOpt = veyron2.RetryTimeoutOpt(time.Duration(*retryTimeout) * time.Second)
+	retryTimeout = flag.Int("retry-timeout", 0, "Duration in seconds to retry starting an RPC call. 0 means never retry.")
 }
 
 // Temporary holder of RPC so that we can store the unprocessed args.
@@ -215,6 +214,7 @@ func (c *Controller) startCall(ctx context.T, w lib.ClientWriter, msg *veyronRPC
 		return nil, verror.BadArgf("no client created")
 	}
 	methodName := lib.UppercaseFirstCharacter(msg.Method)
+	retryTimeoutOpt := veyron2.RetryTimeoutOpt(time.Duration(*retryTimeout) * time.Second)
 	clientCall, err := c.client.StartCall(ctx, msg.Name, methodName, msg.InArgs, retryTimeoutOpt)
 	if err != nil {
 		return nil, fmt.Errorf("error starting call (name: %v, method: %v, args: %v): %v", msg.Name, methodName, msg.InArgs, err)
@@ -493,6 +493,7 @@ func (c *Controller) parseVeyronRequest(ctx context.T, r io.Reader) (*veyronRPC,
 	}
 
 	// Fetch and adapt signature from the SignatureManager
+	retryTimeoutOpt := veyron2.RetryTimeoutOpt(time.Duration(*retryTimeout) * time.Second)
 	sig, err := c.signatureManager.Signature(ctx, tempMsg.Name, c.client, retryTimeoutOpt)
 	if err != nil {
 		return nil, nil, verror.Internalf("error getting service signature for %s: %v", tempMsg.Name, err)
@@ -545,7 +546,8 @@ type signatureRequest struct {
 
 func (c *Controller) getSignature(ctx context.T, name string) (signature.JSONServiceSignature, error) {
 	// Fetch and adapt signature from the SignatureManager
-	sig, err := c.signatureManager.Signature(ctx, name, c.client)
+	retryTimeoutOpt := veyron2.RetryTimeoutOpt(time.Duration(*retryTimeout) * time.Second)
+	sig, err := c.signatureManager.Signature(ctx, name, c.client, retryTimeoutOpt)
 	if err != nil {
 		return nil, verror.Internalf("error getting service signature for %s: %v", name, err)
 	}
