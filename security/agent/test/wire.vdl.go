@@ -14,6 +14,7 @@ import (
 	_gen_wiretype "veyron2/wiretype"
 )
 
+// Simple service used in the agent tests.
 // PingPong is the interface the client binds and uses.
 // PingPong_ExcludingUniversal is the interface without internal framework-added methods
 // to enable embedding without method collisions.  Not to be used directly by clients.
