@@ -11,7 +11,6 @@ import (
 	"veyron/security/serialization"
 
 	"veyron2/security"
-	"veyron2/security/wire"
 	"veyron2/vom"
 )
 
@@ -154,8 +153,8 @@ func (s *publicIDStore) DefaultPublicID() (security.PublicID, error) {
 }
 
 func (s *publicIDStore) SetDefaultBlessingPattern(pattern security.BlessingPattern) error {
-	if err := wire.ValidateBlessingPattern(pattern); err != nil {
-		return err
+	if !pattern.IsValid() {
+		return fmt.Errorf("%q is an invalid BlessingPattern", pattern)
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
