@@ -1,10 +1,15 @@
 package impl
 
 import (
+	"bytes"
+	"crypto/md5"
+	"encoding/hex"
 	"fmt"
+	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 
 	vsecurity "veyron/security"
 	vflag "veyron/security/flag"
@@ -16,6 +21,7 @@ import (
 	"veyron2/rt"
 	"veyron2/security"
 	"veyron2/services/mgmt/node"
+	"veyron2/services/security/access"
 	"veyron2/verror"
 	"veyron2/vlog"
 )
@@ -29,11 +35,20 @@ type internalState struct {
 
 // dispatcher holds the state of the node manager dispatcher.
 type dispatcher struct {
+	// acl/auth hold the acl and authorizer used to authorize access to the
+	// node manager methods.
+	acl  security.ACL
 	auth security.Authorizer
+	// etag holds the version string for the ACL. We use this for optimistic
+	// concurrency control when clients update the ACLs for the node manager.
+	etag string
 	// internal holds the state that persists across RPC method invocations.
 	internal *internalState
 	// config holds the node manager's (immutable) configuration state.
 	config *config.State
+	// dispatcherMutex is a lock for coordinating concurrent access to some
+	// dispatcher methods.
+	mu sync.RWMutex
 }
 
 const (
@@ -56,50 +71,55 @@ var (
 // NewDispatcher is the node manager dispatcher factory.
 func NewDispatcher(config *config.State) (*dispatcher, error) {
 	if err := config.Validate(); err != nil {
-		return nil, fmt.Errorf("Invalid config %v: %v", config, err)
+		return nil, fmt.Errorf("invalid config %v: %v", config, err)
 	}
 	d := &dispatcher{
+		etag: "default",
 		internal: &internalState{
 			callback: newCallbackState(config.Name),
 			updating: newUpdatingState(),
 		},
 		config: config,
 	}
-	// Prefer ACLs in the nodemanager data directory if they exist.
-	if data, sig, err := d.getACLFiles(os.O_RDONLY); err != nil {
-		if d.auth = vflag.NewAuthorizerOrDie(); d.auth == nil {
-			// If there are no specified ACLs we grant nodemanager access to all
-			// principal until it is claimed.
-			d.auth = vsecurity.NewACLAuthorizer(vsecurity.OpenACL())
+	// If there exists a signed ACL from a previous instance we prefer that.
+	aclFile, sigFile, _ := d.getACLFilePaths()
+	if _, err := os.Stat(aclFile); err == nil {
+		perm := os.FileMode(0700)
+		data, err := os.OpenFile(aclFile, os.O_RDONLY, perm)
+		if err != nil {
+			return nil, fmt.Errorf("failed to open acl file:%v", err)
 		}
-	} else {
 		defer data.Close()
+		sig, err := os.OpenFile(sigFile, os.O_RDONLY, perm)
+		if err != nil {
+			return nil, fmt.Errorf("failed to open signature file:%v", err)
+		}
 		defer sig.Close()
+		// read and verify the signature of the acl file
 		reader, err := serialization.NewVerifyingReader(data, sig, rt.R().Identity().PublicKey())
 		if err != nil {
-			return nil, fmt.Errorf("Failed to read nodemanager ACL file:%v", err)
+			return nil, fmt.Errorf("failed to read nodemanager ACL file:%v", err)
 		}
 		acl, err := vsecurity.LoadACL(reader)
 		if err != nil {
-			return nil, fmt.Errorf("Failed to load nodemanager ACL:%v", err)
+			return nil, fmt.Errorf("failed to load nodemanager ACL:%v", err)
 		}
-		d.auth = vsecurity.NewACLAuthorizer(acl)
+		if err := d.setACL(acl, d.etag, false /* just update etag */); err != nil {
+			return nil, err
+		}
+	} else {
+		if d.auth = vflag.NewAuthorizerOrDie(); d.auth == nil {
+			// If there are no specified ACLs we grant nodemanager access to all
+			// principals until it is claimed.
+			d.auth = vsecurity.NewACLAuthorizer(vsecurity.OpenACL())
+		}
 	}
 	return d, nil
 }
 
-func (d *dispatcher) getACLFiles(flag int) (aclData *os.File, aclSig *os.File, err error) {
-	nodedata := filepath.Join(d.config.Root, "node-manager", "node-data")
-	perm := os.FileMode(0700)
-	if err = os.MkdirAll(nodedata, perm); err != nil {
-		return
-	}
-	if aclData, err = os.OpenFile(filepath.Join(nodedata, "acl.nodemanager"), flag, perm); err != nil {
-		return
-	}
-	if aclSig, err = os.OpenFile(filepath.Join(nodedata, "acl.signature"), flag, perm); err != nil {
-		return
-	}
+func (d *dispatcher) getACLFilePaths() (acl, signature, nodedata string) {
+	nodedata = filepath.Join(d.config.Root, "node-manager", "node-data")
+	acl, signature = filepath.Join(nodedata, "acl.nodemanager"), filepath.Join(nodedata, "acl.signature")
 	return
 }
 
@@ -115,27 +135,74 @@ func (d *dispatcher) claimNodeManager(id security.PublicID) error {
 	for _, name := range id.Names() {
 		acl.In[security.BlessingPattern(name)] = security.AllLabels
 	}
-	d.auth = vsecurity.NewACLAuthorizer(acl)
-	// Write out the ACLs so that it will persist across restarts.
-	data, sig, err := d.getACLFiles(os.O_CREATE | os.O_RDWR)
+	_, etag, err := d.getACL()
 	if err != nil {
-		vlog.Errorf("Failed to create ACL files:%v", err)
+		vlog.Errorf("Failed to getACL:%v", err)
 		return errOperationFailed
 	}
-	writer, err := serialization.NewSigningWriteCloser(data, sig, rt.R().Identity(), nil)
-	if err != nil {
-		vlog.Errorf("Failed to create NewSigningWriteCloser:%v", err)
+	return d.setACL(acl, etag, true /* store ACL on disk */)
+}
+
+func (d *dispatcher) setACL(acl security.ACL, etag string, writeToFile bool) error {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	if len(etag) > 0 && etag != d.etag {
+		return verror.Make(access.ErrBadEtag, fmt.Sprintf("etag mismatch in:%s vers:%s", etag, d.etag))
+	}
+	if writeToFile {
+		// Create nodedata directory if it does not exist
+		aclFile, sigFile, nodedata := d.getACLFilePaths()
+		os.MkdirAll(nodedata, os.FileMode(0700))
+		// Save the object to temporary data and signature files, and then move
+		// those files to the actual data and signature file.
+		data, err := ioutil.TempFile(nodedata, "data")
+		if err != nil {
+			vlog.Errorf("Failed to open tmpfile data:%v", err)
+			return errOperationFailed
+		}
+		defer os.Remove(data.Name())
+		sig, err := ioutil.TempFile(nodedata, "sig")
+		if err != nil {
+			vlog.Errorf("Failed to open tmpfile sig:%v", err)
+			return errOperationFailed
+		}
+		defer os.Remove(sig.Name())
+		writer, err := serialization.NewSigningWriteCloser(data, sig, rt.R().Identity(), nil)
+		if err != nil {
+			vlog.Errorf("Failed to create NewSigningWriteCloser:%v", err)
+			return errOperationFailed
+		}
+		if err = vsecurity.SaveACL(writer, acl); err != nil {
+			vlog.Errorf("Failed to SaveACL:%v", err)
+			return errOperationFailed
+		}
+		if err = writer.Close(); err != nil {
+			vlog.Errorf("Failed to Close() SigningWriteCloser:%v", err)
+			return errOperationFailed
+		}
+		if err := os.Rename(data.Name(), aclFile); err != nil {
+			return err
+		}
+		if err := os.Rename(sig.Name(), sigFile); err != nil {
+			return err
+		}
+	}
+	// update the etag for the ACL
+	var b bytes.Buffer
+	if err := vsecurity.SaveACL(&b, acl); err != nil {
+		vlog.Errorf("Failed to save ACL:%v", err)
 		return errOperationFailed
 	}
-	if err = vsecurity.SaveACL(writer, acl); err != nil {
-		vlog.Errorf("Failed to SaveACL:%v", err)
-		return errOperationFailed
-	}
-	if err = writer.Close(); err != nil {
-		vlog.Errorf("Failed to Close() SigningWriteCloser:%v", err)
-		return errOperationFailed
-	}
+	// Update the acl/etag/authorizer for this dispatcher
+	md5hash := md5.Sum(b.Bytes())
+	d.acl, d.etag, d.auth = acl, hex.EncodeToString(md5hash[:]), vsecurity.NewACLAuthorizer(acl)
 	return nil
+}
+
+func (d *dispatcher) getACL() (acl security.ACL, etag string, err error) {
+	d.mu.RLock()
+	defer d.mu.RUnlock()
+	return d.acl, d.etag, nil
 }
 
 // DISPATCHER INTERFACE IMPLEMENTATION
