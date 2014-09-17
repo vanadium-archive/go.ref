@@ -33,14 +33,14 @@ func (s *String) Set(value string) {
 }
 
 // LastUpdate returns the time at which the object was last updated.
-func (s String) LastUpdate() time.Time {
+func (s *String) LastUpdate() time.Time {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	return s.lastUpdate
 }
 
 // Value returns the current value of the object.
-func (s String) Value() interface{} {
+func (s *String) Value() interface{} {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	return s.value

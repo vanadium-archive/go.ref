@@ -41,14 +41,14 @@ func (f *Float) Incr(delta float64) {
 }
 
 // LastUpdate returns the time at which the object was last updated.
-func (f Float) LastUpdate() time.Time {
+func (f *Float) LastUpdate() time.Time {
 	f.mu.RLock()
 	defer f.mu.RUnlock()
 	return f.lastUpdate
 }
 
 // Value returns the current value of the object.
-func (f Float) Value() interface{} {
+func (f *Float) Value() interface{} {
 	f.mu.RLock()
 	defer f.mu.RUnlock()
 	return f.value

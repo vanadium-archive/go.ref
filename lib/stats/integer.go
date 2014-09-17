@@ -41,14 +41,14 @@ func (i *Integer) Incr(delta int64) {
 }
 
 // LastUpdate returns the time at which the object was last updated.
-func (i Integer) LastUpdate() time.Time {
+func (i *Integer) LastUpdate() time.Time {
 	i.mu.RLock()
 	defer i.mu.RUnlock()
 	return i.lastUpdate
 }
 
 // Value returns the current value of the object.
-func (i Integer) Value() interface{} {
+func (i *Integer) Value() interface{} {
 	i.mu.RLock()
 	defer i.mu.RUnlock()
 	return i.value
