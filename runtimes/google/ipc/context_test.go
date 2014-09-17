@@ -18,6 +18,7 @@ import (
 func testContext() context.T {
 	ctx := InternalNewContext(&runtime.PanicRuntime{})
 	ctx, _ = vtrace.WithNewSpan(ctx, "Root")
+	ctx, _ = ctx.WithDeadline(time.Now().Add(20 * time.Second))
 	return ctx
 }
 
