@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"reflect"
-	"strings"
 	"sync"
 
 	isecurity "veyron/runtimes/google/security"
@@ -50,8 +49,8 @@ func (s *blessingStore) Add(blessings security.PublicID, forPeers security.Bless
 	if !reflect.DeepEqual(blessings.PublicKey(), s.publicKey) {
 		return errStoreAddMismatch
 	}
-	if err := validateBlessingPattern(forPeers); err != nil {
-		return err
+	if !forPeers.IsValid() {
+		return fmt.Errorf("%q is an invalid BlessingPattern", forPeers)
 	}
 
 	s.mu.Lock()
@@ -146,28 +145,6 @@ func (s *blessingStore) save() error {
 		return nil
 	}
 	return encodeAndStore(s.state, s.dir, blessingStoreDataFile, blessingStoreSigFile, s.signer)
-}
-
-// TODO(ataly): Use ValidateBlessingPattern from "veyron2/security" when available.
-func validateBlessingPattern(pattern security.BlessingPattern) error {
-	errInvalidPattern := func(pattern security.BlessingPattern) error {
-		return fmt.Errorf("invalid blessing pattern:%q", pattern)
-	}
-
-	patternParts := strings.Split(string(pattern), security.ChainSeparator)
-	for i, p := range patternParts {
-		if p == "" {
-			return errInvalidPattern(pattern)
-		}
-		glob := string(security.AllPrincipals)
-		if p != glob && strings.Contains(p, glob) {
-			return errInvalidPattern(pattern)
-		}
-		if p == glob && (i < len(patternParts)-1) {
-			return errInvalidPattern(pattern)
-		}
-	}
-	return nil
 }
 
 // NewInMemoryBlessingStore returns an in-memory security.BlessingStore for a

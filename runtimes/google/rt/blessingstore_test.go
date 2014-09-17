@@ -91,7 +91,7 @@ func TestStoreSetters(t *testing.T) {
 		{
 			blessings: []security.PublicID{cAlicePub, cVeyronAlice, sAlice},
 			patterns:  []security.BlessingPattern{"", "foo...", "...foo", "/bar", "foo/", "foo/.../bar"},
-			wantErr:   "invalid blessing pattern",
+			wantErr:   "invalid BlessingPattern",
 		},
 	}
 	for _, d := range testDataForAdd {
