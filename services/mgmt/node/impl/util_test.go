@@ -92,8 +92,8 @@ func newServer() (ipc.Server, string) {
 func resolveExpectNotFound(t *testing.T, name string) {
 	if results, err := rt.R().Namespace().Resolve(rt.R().NewContext(), name); err == nil {
 		t.Fatalf("Resolve(%v) succeeded with results %v when it was expected to fail", name, results)
-	} else if expectErr := verror.NotFound; !verror.Is(err, expectErr) {
-		t.Fatalf("Resolve(%v) failed with error %v, expected error ID %v", err, expectErr)
+	} else if expectErr := verror.NoExist; !verror.Is(err, expectErr) {
+		t.Fatalf("Resolve(%v) failed with error %v, expected error ID %v", name, err, expectErr)
 	}
 }
 

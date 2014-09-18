@@ -83,7 +83,7 @@ const (
 
 var (
 	errExists          = verror.Existsf("binary already exists")
-	errNotFound        = verror.NotFoundf("binary not found")
+	errNotFound        = verror.NoExistf("binary not found")
 	errInProgress      = verror.Internalf("identical upload already in progress")
 	errInvalidParts    = verror.BadArgf("invalid number of binary parts")
 	errOperationFailed = verror.Internalf("operation failed")

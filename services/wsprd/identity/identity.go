@@ -55,7 +55,7 @@ type Serializer interface {
 	Writers() (data io.WriteCloser, signature io.WriteCloser, err error)
 }
 
-var OriginDoesNotExist = verror.NotFoundf("origin not found")
+var OriginDoesNotExist = verror.NoExistf("origin not found")
 
 // IDManager manages app identities.  We only serialize the accounts associated with
 // this id manager and the mapping of apps to permissions that they were given.
@@ -165,7 +165,7 @@ func (i *IDManager) AddOrigin(origin string, account string, caveats []security.
 	i.mu.Lock()
 	defer i.mu.Unlock()
 	if _, found := i.state.Accounts[account]; !found {
-		return verror.NotFoundf("unknown account %s", account)
+		return verror.NoExistf("unknown account %s", account)
 	}
 
 	old, existed := i.state.Origins[origin]
@@ -187,7 +187,7 @@ func (i *IDManager) AddOrigin(origin string, account string, caveats []security.
 func (i *IDManager) generateBlessedID(origin string, account string, caveats []security.Caveat) (security.PrivateID, error) {
 	blessor := i.state.Accounts[account]
 	if blessor == nil {
-		return nil, verror.NotFoundf("unknown account %s", account)
+		return nil, verror.NoExistf("unknown account %s", account)
 	}
 	// Origins have the form protocol://hostname:port, which is not a valid
 	// blessing name. Hence we must url-encode.
@@ -200,7 +200,7 @@ func (i *IDManager) generateBlessedID(origin string, account string, caveats []s
 	blessed, err := blessor.Bless(blessee.PublicID(), name, 24*time.Hour, caveats)
 
 	if err != nil {
-		return nil, verror.NotAuthorizedf("failed to bless id: %v", err)
+		return nil, verror.NoAccessf("failed to bless id: %v", err)
 	}
 
 	if blessee, err = blessee.Derive(blessed); err != nil {

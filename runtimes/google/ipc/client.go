@@ -25,7 +25,7 @@ import (
 )
 
 var (
-	errNoServers              = verror.NotFoundf("ipc: no servers")
+	errNoServers              = verror.NoExistf("ipc: no servers")
 	errFlowClosed             = verror.Abortedf("ipc: flow closed")
 	errRemainingStreamResults = verror.BadProtocolf("ipc: Finish called with remaining streaming results")
 	errNonRootedName          = verror.BadArgf("ipc: cannot connect to a non-rooted name")
@@ -200,7 +200,7 @@ func (c *client) startCall(ctx context.T, name, method string, args []interface{
 
 	servers, err := c.ns.Resolve(ctx, name)
 	if err != nil {
-		return nil, verror.NotFoundf("ipc: Resolve(%q) failed: %v", name, err)
+		return nil, verror.NoExistf("ipc: Resolve(%q) failed: %v", name, err)
 	}
 	// Try all servers, and if none of them are authorized for the call then return the error of the last server
 	// that was tried.
@@ -208,7 +208,7 @@ func (c *client) startCall(ctx context.T, name, method string, args []interface{
 	for _, server := range servers {
 		flow, suffix, err := c.connectFlow(server)
 		if err != nil {
-			lastErr = verror.NotFoundf("ipc: couldn't connect to server %v: %v", server, err)
+			lastErr = verror.NoExistf("ipc: couldn't connect to server %v: %v", server, err)
 			vlog.VI(2).Infof("ipc: couldn't connect to server %v: %v", server, err)
 			continue // Try the next server.
 		}
@@ -224,7 +224,7 @@ func (c *client) startCall(ctx context.T, name, method string, args []interface{
 		// Validate caveats on the server's identity for the context associated with this call.
 		blessing, err := authorizeServer(flow.LocalID(), flow.RemoteID(), opts)
 		if err != nil {
-			lastErr = verror.NotAuthorizedf("ipc: client unwilling to talk to server %q: %v", flow.RemoteID(), err)
+			lastErr = verror.NoAccessf("ipc: client unwilling to talk to server %q: %v", flow.RemoteID(), err)
 			flow.Close()
 			continue
 		}
@@ -482,7 +482,7 @@ func (fc *flowClient) finish(resultptrs ...interface{}) verror.E {
 	vtrace.MergeResponse(fc.ctx, &fc.response.TraceResponse)
 
 	if fc.response.Error != nil {
-		if verror.Is(fc.response.Error, verror.NotAuthorized) && fc.dischargeCache != nil {
+		if verror.Is(fc.response.Error, verror.NoAccess) && fc.dischargeCache != nil {
 			// In case the error was caused by a bad discharge, we do not want to get stuck
 			// with retrying again and again with this discharge. As there is no direct way
 			// to detect it, we conservatively flush all discharges we used from the cache.

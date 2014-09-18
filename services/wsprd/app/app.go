@@ -621,7 +621,7 @@ func decodeCaveat(c jsonCaveatValidator) (security.Caveat, error) {
 func (c *Controller) getPublicIDHandle(handle int64) (*PublicIDHandle, error) {
 	id := c.idStore.Get(handle)
 	if id == nil {
-		return nil, verror.NotFoundf("uknown public id")
+		return nil, verror.NoExistf("uknown public id")
 	}
 	return &PublicIDHandle{Handle: handle, Names: id.Names()}, nil
 }
@@ -640,7 +640,7 @@ func (c *Controller) bless(request blessingRequest) (*PublicIDHandle, error) {
 	blessee := c.idStore.Get(request.Handle)
 
 	if blessee == nil {
-		return nil, verror.NotFoundf("invalid PublicID handle")
+		return nil, verror.NoExistf("invalid PublicID handle")
 	}
 	blessor := c.rt.Identity()
 

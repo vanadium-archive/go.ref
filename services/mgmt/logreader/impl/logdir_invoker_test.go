@@ -66,7 +66,7 @@ func TestLogDirectory(t *testing.T) {
 			t.Errorf("unexpected error, got %v, want: nil", err)
 		}
 		if err := stream.Finish(); err != nil {
-			if expected := verror.NotFound; !verror.Is(err, expected) {
+			if expected := verror.NoExist; !verror.Is(err, expected) {
 				t.Errorf("unexpected error value, got %v, want: %v", err, expected)
 			}
 		}

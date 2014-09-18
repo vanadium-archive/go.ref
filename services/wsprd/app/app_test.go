@@ -935,6 +935,6 @@ func TestBlessingWhereBlesseeDoesNotExist(t *testing.T) {
 			"durationMs": 10000,
 			"name":       "foo",
 		},
-		expectedErr: verror.NotFoundf("invalid PublicID handle"),
+		expectedErr: verror.NoExistf("invalid PublicID handle"),
 	}, t)
 }

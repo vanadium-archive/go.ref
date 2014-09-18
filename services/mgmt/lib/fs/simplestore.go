@@ -198,12 +198,12 @@ func (o *boundObject) Remove(_ interface{}) error {
 	}
 
 	if _, pendingRemoval := o.ms.removes[o.path]; pendingRemoval {
-		return verror.NotFoundf("path %s not in Memstore", o.path)
+		return verror.NoExistf("path %s not in Memstore", o.path)
 	}
 
 	_, found := o.ms.data[o.path]
 	if !found && !o.ms.removeChildren(o.path) {
-		return verror.NotFoundf("path %s not in Memstore", o.path)
+		return verror.NoExistf("path %s not in Memstore", o.path)
 	}
 	delete(o.ms.puts, o.path)
 	o.ms.removes[o.path] = keyExists
@@ -277,7 +277,7 @@ func (o *boundObject) transactionBoundGet() (*boundObject, error) {
 
 	found := inPuts || (inBase && !inRemoves)
 	if !found {
-		return nil, verror.NotFoundf("path %s not in Memstore", o.path)
+		return nil, verror.NoExistf("path %s not in Memstore", o.path)
 	}
 
 	if inPuts {
@@ -292,7 +292,7 @@ func (o *boundObject) bareGet() (*boundObject, error) {
 	bv, inBase := o.ms.data[o.path]
 
 	if !inBase {
-		return nil, verror.NotFoundf("path %s not in Memstore", o.path)
+		return nil, verror.NoExistf("path %s not in Memstore", o.path)
 	}
 
 	o.Value = bv
