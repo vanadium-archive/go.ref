@@ -12,10 +12,10 @@ import (
 
 	"veyron.io/examples/tunnel"
 	"veyron.io/examples/tunnel/lib"
-	"veyron/lib/signals"
-	"veyron2/context"
-	"veyron2/rt"
-	"veyron2/vlog"
+	"veyron.io/veyron/veyron/lib/signals"
+	"veyron.io/veyron/veyron2/context"
+	"veyron.io/veyron/veyron2/rt"
+	"veyron.io/veyron/veyron2/vlog"
 )
 
 var (
@@ -54,7 +54,7 @@ veyron object name via the VSH_NAME environment variable.
 
   $ VSH_NAME=<object name> rsync -avh -e %s /foo/* veyron:/foo/
 
-In this example, the "veyron" host will be substituted with $VSH_NAME by %s
+In this example, the "veyron.io/veyron/veyron" host will be substituted with $VSH_NAME by %s
 and rsync will work as expected.
 
 Full flags:
@@ -164,8 +164,8 @@ func objectNameAndCommandLine() (string, string, error) {
 	// ssh can't work directly with vsh. This trick makes the following
 	// possible:
 	//   $ VSH_NAME=<object name> rsync -avh -e vsh /foo/* veyron:/foo/
-	// The "veyron" host will be substituted with <object name>.
-	if envName := os.Getenv("VSH_NAME"); len(envName) > 0 && name == "veyron" {
+	// The "veyron.io/veyron/veyron" host will be substituted with <object name>.
+	if envName := os.Getenv("VSH_NAME"); len(envName) > 0 && name == "veyron.io/veyron/veyron" {
 		name = envName
 	}
 	cmd := strings.Join(args, " ")

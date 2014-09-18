@@ -10,7 +10,7 @@ import (
 
 	"veyron.io/examples/tunnel"
 	"veyron.io/examples/tunnel/lib"
-	"veyron2/vlog"
+	"veyron.io/veyron/veyron2/vlog"
 )
 
 func runIOManager(stdin io.Reader, stdout, stderr io.Writer, stream tunnel.TunnelShellCall) error {

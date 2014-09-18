@@ -14,8 +14,8 @@ import (
 
 	"veyron.io/examples/tunnel"
 	"veyron.io/examples/tunnel/lib"
-	"veyron2/ipc"
-	"veyron2/vlog"
+	"veyron.io/veyron/veyron2/ipc"
+	"veyron.io/veyron/veyron2/vlog"
 )
 
 // T implements tunnel.TunnelService

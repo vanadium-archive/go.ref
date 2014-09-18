@@ -1,6 +1,6 @@
 package tunnel
 
-import "veyron2/security"
+import "veyron.io/veyron/veyron2/security"
 
 // Tunnel creates a network tunnel from the client to the server.
 
