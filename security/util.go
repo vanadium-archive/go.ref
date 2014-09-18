@@ -22,8 +22,16 @@ func OpenACL() security.ACL {
 
 // LoadIdentity reads a PrivateID from r, assuming that it was written using
 // SaveIdentity.
-func LoadIdentity(r io.Reader) (security.PrivateID, error) {
+//
+// TODO(ashankar): The extra arguments is a hack that is needed to keep identities
+// generated before the "veyron.io" code move working with binaries built after.
+// This hack should go away when we make the backward-incompatible change to the
+// new security API anyway.
+func LoadIdentity(r io.Reader, hack ...security.PrivateID) (security.PrivateID, error) {
 	var id security.PrivateID
+	if len(hack) > 0 {
+		id = hack[0]
+	}
 	if err := vom.NewDecoder(base64.NewDecoder(base64.URLEncoding, r)).Decode(&id); err != nil {
 		return nil, err
 	}

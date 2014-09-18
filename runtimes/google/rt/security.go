@@ -110,7 +110,12 @@ func loadIdentityFromFile(filePath string) (security.PrivateID, error) {
 		return nil, err
 	}
 	defer f.Close()
-	return vsecurity.LoadIdentity(f)
+	// TODO(ashankar): Hack. See comments in vsecurity.LoadIdentity.
+	hack, err := isecurity.NewPrivateID("hack", nil)
+	if err != nil {
+		return nil, err
+	}
+	return vsecurity.LoadIdentity(f, hack)
 }
 
 func (rt *vrt) connectToAgent() (security.PrivateID, error) {

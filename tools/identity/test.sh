@@ -40,7 +40,7 @@ main() {
   # To regenerate testdata:
   # identity generate "root" >testdata/root.id
   # identity generate "other" | VEYRON_IDENTITY=testdata/root.id identity bless - "blessed" >testdata/blessed.id
-  local -r TESTDATA_DIR="${VEYRON_ROOT}/veyron.io/veyron/veyron/go/src/veyron/tools/identity/testdata"
+  local -r TESTDATA_DIR="${VEYRON_ROOT}/veyron/go/src/veyron.io/veyron/veyron/tools/identity/testdata"
   GOT=$(VEYRON_IDENTITY="${TESTDATA_DIR}/root.id" ./identity print | awk '/Name/ {print $3}')
   WANT="root"
   if [ "${GOT}" != "${WANT}" ]; then
