@@ -9,7 +9,6 @@ import (
 	"sync"
 	"testing"
 	"time"
-	"veyron.io/veyron/veyron/services/wsprd/ipc/client"
 	"veyron.io/veyron/veyron/services/wsprd/lib"
 	"veyron.io/veyron/veyron/services/wsprd/signature"
 	"veyron.io/veyron/veyron2"
@@ -261,7 +260,7 @@ func TestGetGoServerSignature(t *testing.T) {
 
 type goServerTestCase struct {
 	method             string
-	inArgs             []interface{}
+	inArgs             []json.RawMessage
 	numOutArgs         int32
 	streamingInputs    []string
 	streamingInputType vom.Type
@@ -289,13 +288,10 @@ func runGoServerTestCase(t *testing.T, test goServerTestCase) {
 	writer := testWriter{
 		logger: controller.logger,
 	}
-	var signal chan ipc.Stream
+	var stream *outstandingStream
 	if len(test.streamingInputs) > 0 {
-		signal = make(chan ipc.Stream, 1)
-		controller.outstandingStreams[0] = outstandingStream{
-			stream: client.StartQueueingStream(signal),
-			inType: test.streamingInputType,
-		}
+		stream = newStream()
+		controller.outstandingStreams[0] = stream
 		go func() {
 			for _, value := range test.streamingInputs {
 				controller.SendOnStream(0, value, &writer)
@@ -304,14 +300,14 @@ func runGoServerTestCase(t *testing.T, test goServerTestCase) {
 		}()
 	}
 
-	request := veyronRPC{
+	request := veyronTempRPC{
 		Name:        "/" + endpoint.String(),
 		Method:      test.method,
 		InArgs:      test.inArgs,
 		NumOutArgs:  test.numOutArgs,
-		IsStreaming: signal != nil,
+		IsStreaming: stream != nil,
 	}
-	controller.sendVeyronRequest(r.NewContext(), 0, &request, &writer, signal)
+	controller.sendVeyronRequest(r.NewContext(), 0, &request, &writer, stream)
 
 	checkResponses(&writer, test.expectedStream, test.expectedError, t)
 }
@@ -319,7 +315,7 @@ func runGoServerTestCase(t *testing.T, test goServerTestCase) {
 func TestCallingGoServer(t *testing.T) {
 	runGoServerTestCase(t, goServerTestCase{
 		method:     "Add",
-		inArgs:     []interface{}{2, 3},
+		inArgs:     []json.RawMessage{json.RawMessage("2"), json.RawMessage("3")},
 		numOutArgs: 2,
 		expectedStream: []response{
 			response{
@@ -333,7 +329,7 @@ func TestCallingGoServer(t *testing.T) {
 func TestCallingGoServerWithError(t *testing.T) {
 	runGoServerTestCase(t, goServerTestCase{
 		method:        "Divide",
-		inArgs:        []interface{}{1, 0},
+		inArgs:        []json.RawMessage{json.RawMessage("1"), json.RawMessage("0")},
 		numOutArgs:    2,
 		expectedError: verror.BadArgf("can't divide by zero"),
 	})
@@ -342,7 +338,7 @@ func TestCallingGoServerWithError(t *testing.T) {
 func TestCallingGoWithStreaming(t *testing.T) {
 	runGoServerTestCase(t, goServerTestCase{
 		method:             "StreamingAdd",
-		inArgs:             []interface{}{},
+		inArgs:             []json.RawMessage{},
 		streamingInputs:    []string{"1", "2", "3", "4"},
 		streamingInputType: vom_wiretype.Type{ID: 36},
 		numOutArgs:         2,
@@ -484,14 +480,15 @@ type jsServerTestCase struct {
 	// The set of streaming inputs from the client to the server.
 	clientStream []interface{}
 	// The set of streaming outputs from the server to the client.
-	serverStream  []interface{}
-	finalResponse interface{}
-	err           *verror.Standard
+	serverStream         []string
+	expectedServerStream []interface{}
+	finalResponse        interface{}
+	err                  *verror.Standard
 }
 
 func sendServerStream(t *testing.T, controller *Controller, test *jsServerTestCase, w lib.ClientWriter) {
 	for _, msg := range test.serverStream {
-		controller.sendParsedMessageOnStream(0, msg, w)
+		controller.SendOnStream(0, msg, w)
 	}
 
 	serverReply := map[string]interface{}{
@@ -593,7 +590,7 @@ func runJsServerTestCase(t *testing.T, test jsServerTestCase) {
 
 	expectedWebsocketMessage = append(expectedWebsocketMessage, response{Type: lib.ResponseStreamClose})
 
-	expectedStream := test.serverStream
+	expectedStream := test.expectedServerStream
 	go sendServerStream(t, rt.controller, &test, rt.writer)
 	for {
 		var data interface{}
@@ -666,20 +663,22 @@ func TestJSServerWihStreamingInputs(t *testing.T) {
 
 func TestJSServerWihStreamingOutputs(t *testing.T) {
 	runJsServerTestCase(t, jsServerTestCase{
-		method:        "StreamingAdd",
-		inArgs:        []interface{}{},
-		serverStream:  []interface{}{3.0, 4.0},
-		finalResponse: 10.0,
+		method:               "StreamingAdd",
+		inArgs:               []interface{}{},
+		serverStream:         []string{"3", "4"},
+		expectedServerStream: []interface{}{3.0, 4.0},
+		finalResponse:        10.0,
 	})
 }
 
 func TestJSServerWihStreamingInputsAndOutputs(t *testing.T) {
 	runJsServerTestCase(t, jsServerTestCase{
-		method:        "StreamingAdd",
-		inArgs:        []interface{}{},
-		clientStream:  []interface{}{1.0, 2.0},
-		serverStream:  []interface{}{3.0, 4.0},
-		finalResponse: 10.0,
+		method:               "StreamingAdd",
+		inArgs:               []interface{}{},
+		clientStream:         []interface{}{1.0, 2.0},
+		serverStream:         []string{"3", "4"},
+		expectedServerStream: []interface{}{3.0, 4.0},
+		finalResponse:        10.0,
 	})
 }
 

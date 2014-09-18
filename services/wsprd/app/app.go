@@ -12,9 +12,7 @@ import (
 	"time"
 
 	"veyron.io/veyron/veyron/services/wsprd/identity"
-	"veyron.io/veyron/veyron/services/wsprd/ipc/client"
 	"veyron.io/veyron/veyron/services/wsprd/ipc/server"
-	"veyron.io/veyron/veyron/services/wsprd/ipc/stream"
 	"veyron.io/veyron/veyron/services/wsprd/lib"
 	"veyron.io/veyron/veyron/services/wsprd/signature"
 	"veyron.io/veyron/veyron2"
@@ -65,11 +63,6 @@ type serveRequest struct {
 	Service  signature.JSONServiceSignature
 }
 
-type outstandingStream struct {
-	stream stream.Sender
-	inType vom.Type
-}
-
 type jsonCaveatValidator struct {
 	Type string `json:"_type"`
 	Data json.RawMessage
@@ -106,7 +99,7 @@ type Controller struct {
 	lastGeneratedId int64
 
 	// Streams for the outstanding requests.
-	outstandingStreams map[int64]outstandingStream
+	outstandingStreams map[int64]*outstandingStream
 
 	// Maps flowids to the server that owns them.
 	flowMap map[int64]*server.Server
@@ -227,22 +220,29 @@ func (c *Controller) startCall(ctx context.T, w lib.ClientWriter, msg *veyronRPC
 
 // CreateNewFlow creats a new server flow that will be used to write out
 // streaming messages to Javascript.
-func (c *Controller) CreateNewFlow(s *server.Server, stream stream.Sender) *server.Flow {
+func (c *Controller) CreateNewFlow(s *server.Server, stream ipc.Stream) *server.Flow {
 	c.Lock()
 	defer c.Unlock()
 	id := c.lastGeneratedId
 	c.lastGeneratedId += 2
 	c.flowMap[id] = s
-	c.outstandingStreams[id] = outstandingStream{stream, vom_wiretype.Type{ID: 1}}
+	os := newStream()
+	os.init(stream, vom_wiretype.Type{ID: 1})
+	c.outstandingStreams[id] = os
 	return &server.Flow{ID: id, Writer: c.writerCreator(id)}
 }
 
 // CleanupFlow removes the bookkeping for a previously created flow.
 func (c *Controller) CleanupFlow(id int64) {
 	c.Lock()
-	defer c.Unlock()
+	stream := c.outstandingStreams[id]
 	delete(c.outstandingStreams, id)
 	delete(c.flowMap, id)
+	c.Unlock()
+	if stream != nil {
+		stream.end()
+		stream.waitUntilDone()
+	}
 }
 
 // GetLogger returns a Veyron logger to use.
@@ -269,12 +269,7 @@ func (c *Controller) Cleanup() {
 	c.Lock()
 	defer c.Unlock()
 	for _, stream := range c.outstandingStreams {
-		_ = stream
-		// TODO(bjornick): this is impossible type assertion and
-		// will panic at run time.
-		// if call, ok := stream.stream.(ipc.Call); ok {
-		// 	call.Cancel()
-		// }
+		stream.end()
 	}
 
 	for _, server := range c.servers {
@@ -284,58 +279,90 @@ func (c *Controller) Cleanup() {
 
 func (c *Controller) setup() {
 	c.signatureManager = lib.NewSignatureManager()
-	c.outstandingStreams = make(map[int64]outstandingStream)
+	c.outstandingStreams = make(map[int64]*outstandingStream)
 	c.flowMap = make(map[int64]*server.Server)
 	c.servers = make(map[uint64]*server.Server)
 }
 
-func (c *Controller) sendParsedMessageOnStream(id int64, msg interface{}, w lib.ClientWriter) {
-	c.Lock()
-	defer c.Unlock()
-	stream := c.outstandingStreams[id].stream
-	if stream == nil {
-		w.Error(fmt.Errorf("unknown stream"))
-		return
-	}
-
-	stream.Send(msg, w)
-
-}
-
-// SendOnStream writes data on id's stream.  Returns an error if the send failed.
+// SendOnStream writes data on id's stream.  The actual network write will be
+// done asynchronously.  If there is an error, it will be sent to w.
 func (c *Controller) SendOnStream(id int64, data string, w lib.ClientWriter) {
 	c.Lock()
-	typ := c.outstandingStreams[id].inType
+	stream := c.outstandingStreams[id]
 	c.Unlock()
-	if typ == nil {
-		vlog.Errorf("no inType for stream %d (%q)", id, data)
+
+	if stream == nil {
+		vlog.Errorf("unknown stream: %d", id)
 		return
 	}
-	payload, err := vom.JSONToObject(data, typ)
-	if err != nil {
-		vlog.Errorf("error while converting json to InStreamType (%s): %v", data, err)
-		return
-	}
-	c.sendParsedMessageOnStream(id, payload, w)
+	stream.send(data, w)
 }
 
 // SendVeyronRequest makes a veyron request for the given flowId.  If signal is non-nil, it will receive
 // the call object after it has been constructed.
-func (c *Controller) sendVeyronRequest(ctx context.T, id int64, veyronMsg *veyronRPC, w lib.ClientWriter, signal chan ipc.Stream) {
+func (c *Controller) sendVeyronRequest(ctx context.T, id int64, tempMsg *veyronTempRPC, w lib.ClientWriter, stream *outstandingStream) {
+	// Fetch and adapt signature from the SignatureManager
+	retryTimeoutOpt := veyron2.RetryTimeoutOpt(time.Duration(*retryTimeout) * time.Second)
+	sig, err := c.signatureManager.Signature(ctx, tempMsg.Name, c.client, retryTimeoutOpt)
+	if err != nil {
+		w.Error(verror.Internalf("error getting service signature for %s: %v", tempMsg.Name, err))
+		return
+	}
+
+	methName := lib.UppercaseFirstCharacter(tempMsg.Method)
+	methSig, ok := sig.Methods[methName]
+	if !ok {
+		w.Error(fmt.Errorf("method not found in signature: %v (full sig: %v)", methName, sig))
+		return
+	}
+
+	var msg veyronRPC
+	if len(methSig.InArgs) != len(tempMsg.InArgs) {
+		w.Error(fmt.Errorf("invalid number of arguments, expected: %v, got:%v", methSig, tempMsg))
+		return
+	}
+	msg.InArgs = make([]interface{}, len(tempMsg.InArgs))
+	td := wiretype_build.TypeDefs(sig.TypeDefs)
+
+	for i := 0; i < len(tempMsg.InArgs); i++ {
+		argTypeId := methSig.InArgs[i].Type
+		argType := vom_wiretype.Type{
+			ID:   argTypeId,
+			Defs: &td,
+		}
+
+		val, err := vom.JSONToObject(string(tempMsg.InArgs[i]), argType)
+		if err != nil {
+			w.Error(fmt.Errorf("error while converting json to object for arg %d (%s): %v", i, methSig.InArgs[i].Name, err))
+			return
+		}
+		msg.InArgs[i] = val
+	}
+
+	msg.Name = tempMsg.Name
+	msg.Method = tempMsg.Method
+	msg.NumOutArgs = tempMsg.NumOutArgs
+	msg.IsStreaming = tempMsg.IsStreaming
+
+	inStreamType := vom_wiretype.Type{
+		ID:   methSig.InStream,
+		Defs: &td,
+	}
+
 	// We have to make the start call synchronous so we can make sure that we populate
 	// the call map before we can Handle a recieve call.
-	call, err := c.startCall(ctx, w, veyronMsg)
+	call, err := c.startCall(ctx, w, &msg)
 	if err != nil {
 		w.Error(verror.Internalf("can't start Veyron Request: %v", err))
 		return
 	}
 
-	if signal != nil {
-		signal <- call
+	if stream != nil {
+		stream.init(call, inStreamType)
 	}
 
-	c.finishCall(w, call, veyronMsg)
-	if signal != nil {
+	c.finishCall(w, call, &msg)
+	if stream != nil {
 		c.Lock()
 		delete(c.outstandingStreams, id)
 		c.Unlock()
@@ -344,50 +371,38 @@ func (c *Controller) sendVeyronRequest(ctx context.T, id int64, veyronMsg *veyro
 
 // HandleVeyronRequest starts a veyron rpc and returns before the rpc has been completed.
 func (c *Controller) HandleVeyronRequest(ctx context.T, id int64, data string, w lib.ClientWriter) {
-	veyronMsg, inStreamType, err := c.parseVeyronRequest(ctx, bytes.NewBufferString(data))
+	veyronTempMsg, err := c.parseVeyronRequest(ctx, bytes.NewBufferString(data))
 	if err != nil {
 		w.Error(verror.Internalf("can't parse Veyron Request: %v", err))
 		return
 	}
 
-	c.Lock()
-	defer c.Unlock()
 	// If this rpc is streaming, we would expect that the client would try to send
 	// on this stream.  Since the initial handshake is done asynchronously, we have
-	// to basically put a queueing stream in the map before we make the async call
-	// so that the future sends on the stream can see the queuing stream, even if
-	// the client call isn't actually ready yet.
-	var signal chan ipc.Stream
-	if veyronMsg.IsStreaming {
-		signal = make(chan ipc.Stream)
-		c.outstandingStreams[id] = outstandingStream{
-			stream: client.StartQueueingStream(signal),
-			inType: inStreamType,
-		}
+	// to put the outstanding stream in the map before we make the async call so that
+	// the future send know which queue to write to, even if the client call isn't
+	// actually ready yet.
+	var stream *outstandingStream
+	if veyronTempMsg.IsStreaming {
+		stream = newStream()
+		c.Lock()
+		c.outstandingStreams[id] = stream
+		c.Unlock()
 	}
-	go c.sendVeyronRequest(ctx, id, veyronMsg, w, signal)
+	go c.sendVeyronRequest(ctx, id, veyronTempMsg, w, stream)
 }
 
 // CloseStream closes the stream for a given id.
 func (c *Controller) CloseStream(id int64) {
 	c.Lock()
 	defer c.Unlock()
-	stream := c.outstandingStreams[id].stream
+	stream := c.outstandingStreams[id]
 	if stream == nil {
 		c.logger.Errorf("close called on non-existent call: %v", id)
 		return
 	}
 
-	var call client.QueueingStream
-	var ok bool
-	if call, ok = stream.(client.QueueingStream); !ok {
-		c.logger.Errorf("can't close server stream: %v", id)
-		return
-	}
-
-	if err := call.Close(); err != nil {
-		c.logger.Errorf("client call close failed with: %v", err)
-	}
+	stream.end()
 }
 
 func (c *Controller) maybeCreateServer(serverId uint64) (*server.Server, error) {
@@ -485,59 +500,14 @@ func (c *Controller) HandleServerResponse(id int64, data string) {
 }
 
 // parseVeyronRequest parses a json rpc request into a veyronRPC object.
-func (c *Controller) parseVeyronRequest(ctx context.T, r io.Reader) (*veyronRPC, vom.Type, error) {
+func (c *Controller) parseVeyronRequest(ctx context.T, r io.Reader) (*veyronTempRPC, error) {
 	var tempMsg veyronTempRPC
 	decoder := json.NewDecoder(r)
 	if err := decoder.Decode(&tempMsg); err != nil {
-		return nil, nil, fmt.Errorf("can't unmarshall JSONMessage: %v", err)
+		return nil, fmt.Errorf("can't unmarshall JSONMessage: %v", err)
 	}
-
-	// Fetch and adapt signature from the SignatureManager
-	retryTimeoutOpt := veyron2.RetryTimeoutOpt(time.Duration(*retryTimeout) * time.Second)
-	sig, err := c.signatureManager.Signature(ctx, tempMsg.Name, c.client, retryTimeoutOpt)
-	if err != nil {
-		return nil, nil, verror.Internalf("error getting service signature for %s: %v", tempMsg.Name, err)
-	}
-
-	methName := lib.UppercaseFirstCharacter(tempMsg.Method)
-	methSig, ok := sig.Methods[methName]
-	if !ok {
-		return nil, nil, fmt.Errorf("Method not found in signature: %v (full sig: %v)", methName, sig)
-	}
-
-	var msg veyronRPC
-	if len(methSig.InArgs) != len(tempMsg.InArgs) {
-		return nil, nil, fmt.Errorf("invalid number of arguments: %v vs. %v", methSig, tempMsg)
-	}
-	msg.InArgs = make([]interface{}, len(tempMsg.InArgs))
-	td := wiretype_build.TypeDefs(sig.TypeDefs)
-
-	for i := 0; i < len(tempMsg.InArgs); i++ {
-		argTypeId := methSig.InArgs[i].Type
-		argType := vom_wiretype.Type{
-			ID:   argTypeId,
-			Defs: &td,
-		}
-
-		val, err := vom.JSONToObject(string(tempMsg.InArgs[i]), argType)
-		if err != nil {
-			return nil, nil, fmt.Errorf("error while converting json to object for arg %d (%s): %v", i, methSig.InArgs[i].Name, err)
-		}
-		msg.InArgs[i] = val
-	}
-
-	msg.Name = tempMsg.Name
-	msg.Method = tempMsg.Method
-	msg.NumOutArgs = tempMsg.NumOutArgs
-	msg.IsStreaming = tempMsg.IsStreaming
-
-	inStreamType := vom_wiretype.Type{
-		ID:   methSig.InStream,
-		Defs: &td,
-	}
-
-	c.logger.VI(2).Infof("VeyronRPC: %s.%s(id=%v, ..., streaming=%v)", msg.Name, msg.Method, msg.IsStreaming)
-	return &msg, inStreamType, nil
+	c.logger.VI(2).Infof("VeyronRPC: %s.%s(id=%v, ..., streaming=%v)", tempMsg.Name, tempMsg.Method, tempMsg.IsStreaming)
+	return &tempMsg, nil
 }
 
 type signatureRequest struct {

@@ -9,7 +9,6 @@ import (
 	"sync"
 
 	vsecurity "veyron.io/veyron/veyron/security"
-	"veyron.io/veyron/veyron/services/wsprd/ipc/stream"
 	"veyron.io/veyron/veyron/services/wsprd/lib"
 	"veyron.io/veyron/veyron/services/wsprd/signature"
 
@@ -52,7 +51,7 @@ type serverRPCReply struct {
 }
 
 type FlowHandler interface {
-	CreateNewFlow(server *Server, sender stream.Sender) *Flow
+	CreateNewFlow(server *Server, sender ipc.Stream) *Flow
 
 	CleanupFlow(id int64)
 }
@@ -116,7 +115,7 @@ type remoteInvokeFunc func(methodName string, args []interface{}, call ipc.Serve
 
 func (s *Server) createRemoteInvokerFunc() remoteInvokeFunc {
 	return func(methodName string, args []interface{}, call ipc.ServerCall) <-chan *serverRPCReply {
-		flow := s.helper.CreateNewFlow(s, senderWrapper{stream: call})
+		flow := s.helper.CreateNewFlow(s, call)
 		replyChan := make(chan *serverRPCReply, 1)
 		s.Lock()
 		s.outstandingServerRequests[flow.ID] = replyChan

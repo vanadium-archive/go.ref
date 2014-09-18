@@ -251,12 +251,9 @@ func (p *pipe) readLoop() {
 			ctx := p.wspr.rt.NewContext()
 			p.controller.HandleVeyronRequest(ctx, msg.Id, msg.Data, ww)
 		case websocketStreamingValue:
-			// This will asynchronous for a client rpc, but synchronous for a
-			// server rpc.  This could be potentially bad if the server is sending
-			// back large packets.  Making it asynchronous for the server, would make
-			// it difficult to guarantee that all stream messages make it to the client
-			// before the finish call.
-			// TODO(bjornick): Make the server send also asynchronous.
+			// SendOnStream queues up the message to be sent, but doesn't do the send
+			// on this goroutine.  We need to queue the messages synchronously so that
+			// the order is preserved.
 			p.controller.SendOnStream(msg.Id, msg.Data, ww)
 		case websocketStreamClose:
 			p.controller.CloseStream(msg.Id)
