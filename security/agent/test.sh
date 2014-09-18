@@ -5,7 +5,7 @@
 source "${VEYRON_ROOT}/environment/scripts/lib/shell_test.sh"
 
 build() {
-  local GO="${VEYRON_ROOT}/veyron/scripts/build/go"
+  local GO="${VEYRON_ROOT}/scripts/build/go"
   "${GO}" build veyron/security/agent/agentd || shell_test::fail "line ${LINENO}: failed to build agentd"
   "${GO}" build -o pingpong veyron/security/agent/test || shell_test::fail "line ${LINENO}: failed to build pingpong"
 }

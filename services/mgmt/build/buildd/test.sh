@@ -17,7 +17,7 @@ source "${VEYRON_ROOT}/environment/scripts/lib/go.sh"
 source "${VEYRON_ROOT}/environment/scripts/lib/shell_test.sh"
 
 build() {
-  local -r GO="${VEYRON_ROOT}/veyron/scripts/build/go"
+  local -r GO="${VEYRON_ROOT}/scripts/build/go"
   "${GO}" build veyron/services/mgmt/build/buildd || shell_test::fail "line ${LINENO}: failed to build 'buildd'"
   "${GO}" build veyron/tools/build || shell_test::fail "line ${LINENO}: failed to build 'build'"
 }

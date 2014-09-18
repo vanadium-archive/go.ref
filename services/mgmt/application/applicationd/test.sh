@@ -9,7 +9,7 @@
 source "${VEYRON_ROOT}/environment/scripts/lib/shell_test.sh"
 
 build() {
-  local -r GO="${VEYRON_ROOT}/veyron/scripts/build/go"
+  local -r GO="${VEYRON_ROOT}/scripts/build/go"
   "${GO}" build veyron/services/mgmt/application/applicationd || shell_test::fail "line ${LINENO}: failed to build 'applicationd'"
   "${GO}" build veyron/tools/application || shell_test::fail "line ${LINENO}: failed to build 'application'"
 }

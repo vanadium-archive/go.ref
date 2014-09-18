@@ -16,6 +16,7 @@ import (
 	"os"
 	"os/exec"
 	"path"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"sync"
@@ -275,10 +276,10 @@ func (f *codeFile) write() error {
 			return err
 		}
 	}
-	if err := os.MkdirAll(path.Join("src", f.pkg), 0777); err != nil {
+	if err := os.MkdirAll(filepath.Join("src", f.pkg), 0777); err != nil {
 		return err
 	}
-	return ioutil.WriteFile(path.Join("src", f.pkg, f.Name), []byte(f.Body), 0666)
+	return ioutil.WriteFile(filepath.Join("src", f.pkg, f.Name), []byte(f.Body), 0666)
 }
 
 func (f *codeFile) compile() error {
@@ -290,7 +291,7 @@ func (f *codeFile) compile() error {
 	case "vdl":
 		cmd = makeCmdJsonEvent(f.Name, "vdl", "generate", "--lang=go", f.pkg)
 	case "go":
-		cmd = makeCmdJsonEvent(f.Name, path.Join(os.Getenv("VEYRON_ROOT"), "veyron/scripts/build/go"), "install", f.pkg)
+		cmd = makeCmdJsonEvent(f.Name, filepath.Join(os.Getenv("VEYRON_ROOT"), "scripts", "build", "go"), "install", f.pkg)
 	default:
 		return fmt.Errorf("Can't compile file %s with language %s.", f.Name, f.lang)
 	}
@@ -306,16 +307,16 @@ func (f *codeFile) startJs() error {
 	}
 	f.subProcs = append(f.subProcs, wsprProc)
 	os.Setenv("WSPR", "http://localhost:"+strconv.Itoa(wsprPort))
-	node := path.Join(os.Getenv("VEYRON_ROOT"), "/environment/cout/node/bin/node")
-	cmd := makeCmdJsonEvent(f.Name, node, path.Join("src", f.Name))
+	node := filepath.Join(os.Getenv("VEYRON_ROOT"), "environment", "cout", "node", "bin", "node")
+	cmd := makeCmdJsonEvent(f.Name, node, filepath.Join("src", f.Name))
 	f.cmd = cmd
 	return cmd.Start()
 }
 
 func (f *codeFile) startGo() error {
-	cmd := makeCmdJsonEvent(f.Name, path.Join("bin", f.pkg))
+	cmd := makeCmdJsonEvent(f.Name, filepath.Join("bin", f.pkg))
 	if f.identity != "" {
-		cmd.Env = append(cmd.Env, fmt.Sprintf("VEYRON_IDENTITY=%s", path.Join("ids", f.identity)))
+		cmd.Env = append(cmd.Env, fmt.Sprintf("VEYRON_IDENTITY=%s", filepath.Join("ids", f.identity)))
 	}
 	f.cmd = cmd
 	return cmd.Start()

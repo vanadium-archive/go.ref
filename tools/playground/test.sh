@@ -17,7 +17,7 @@ install_veyron_js() {
 }
 
 build() {
-  local -r GO="${VEYRON_ROOT}/veyron/scripts/build/go"
+  local -r GO="${VEYRON_ROOT}/scripts/build/go"
   "${GO}" build veyron/tools/identity || shell_test::fail "line ${LINENO}: failed to build 'identity'"
   "${GO}" build veyron/services/proxy/proxyd || shell_test::fail "line ${LINENO}: failed to build 'proxyd'"
   "${GO}" build veyron/services/mounttable/mounttabled || shell_test::fail "line ${LINENO}: failed to build 'mounttabled'"

@@ -28,7 +28,7 @@ RUN $VEYRON_ROOT/environment/cout/node/bin/npm link veyron
 # Install Veyron Go dependencies.
 WORKDIR /usr/local/veyron/veyron
 ENV PATH /usr/local/veyron/veyron/go/bin:/usr/local/bin:/usr/bin:/bin
-RUN $VEYRON_ROOT/veyron/scripts/build/go install veyron/... veyron2/...
+RUN $VEYRON_ROOT/scripts/build/go install veyron/... veyron2/...
 
 # Uncomment the following lines to install a version of the builder tool using
 # the local copy of vbuild.go.  This is useful when developing and testing
@@ -37,7 +37,7 @@ RUN $VEYRON_ROOT/veyron/scripts/build/go install veyron/... veyron2/...
 # ADD vbuild.go /usr/local/veyron/veyron/go/src/veyron/tools/playground/builder/vbuild.go
 # ADD identity.go /usr/local/veyron/veyron/go/src/veyron/tools/playground/builder/identity.go
 # ADD services.go /usr/local/veyron/veyron/go/src/veyron/tools/playground/builder/services.go
-# RUN $VEYRON_ROOT/veyron/scripts/build/go install veyron/tools/playground/builder
+# RUN $VEYRON_ROOT/scripts/build/go install veyron/tools/playground/builder
 
 USER playground
 WORKDIR /home/playground
