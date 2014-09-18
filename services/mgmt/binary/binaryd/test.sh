@@ -10,8 +10,8 @@ source "${VEYRON_ROOT}/environment/scripts/lib/shell_test.sh"
 
 build() {
   local -r GO="${VEYRON_ROOT}/scripts/build/go"
-  "${GO}" build veyron/services/mgmt/binary/binaryd || shell_test::fail "line ${LINENO}: failed to build 'binaryd'"
-  "${GO}" build veyron/tools/binary || shell_test::fail "line ${LINENO}: failed to build 'binary'"
+  "${GO}" build veyron.io/veyron/veyron/services/mgmt/binary/binaryd || shell_test::fail "line ${LINENO}: failed to build 'binaryd'"
+  "${GO}" build veyron.io/veyron/veyron/tools/binary || shell_test::fail "line ${LINENO}: failed to build 'binary'"
 }
 
 main() {

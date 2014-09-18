@@ -18,13 +18,13 @@ install_veyron_js() {
 
 build() {
   local -r GO="${VEYRON_ROOT}/scripts/build/go"
-  "${GO}" build veyron/tools/identity || shell_test::fail "line ${LINENO}: failed to build 'identity'"
-  "${GO}" build veyron/services/proxy/proxyd || shell_test::fail "line ${LINENO}: failed to build 'proxyd'"
-  "${GO}" build veyron/services/mounttable/mounttabled || shell_test::fail "line ${LINENO}: failed to build 'mounttabled'"
-  "${GO}" build veyron/services/wsprd || shell_test::fail "line ${LINENO}: failed to build 'wsprd'"
-  "${GO}" build veyron2/vdl/vdl || shell_test::fail "line ${LINENO}: failed to build 'vdl'"
-  "${GO}" build veyron/tools/playground/builder || shell_test::fail "line ${LINENO}: failed to build 'builder'"
-  "${GO}" build veyron/tools/playground/testdata/escaper || shell_test::fail "line ${LINENO}: failed to build 'escaper'"
+  "${GO}" build veyron.io/veyron/veyron/tools/identity || shell_test::fail "line ${LINENO}: failed to build 'identity'"
+  "${GO}" build veyron.io/veyron/veyron/services/proxy/proxyd || shell_test::fail "line ${LINENO}: failed to build 'proxyd'"
+  "${GO}" build veyron.io/veyron/veyron/services/mounttable/mounttabled || shell_test::fail "line ${LINENO}: failed to build 'mounttabled'"
+  "${GO}" build veyron.io/veyron/veyron/services/wsprd || shell_test::fail "line ${LINENO}: failed to build 'wsprd'"
+  "${GO}" build veyron.io/veyron/veyron2/vdl/vdl || shell_test::fail "line ${LINENO}: failed to build 'vdl'"
+  "${GO}" build veyron.io/veyron/veyron/tools/playground/builder || shell_test::fail "line ${LINENO}: failed to build 'builder'"
+  "${GO}" build veyron.io/veyron/veyron/tools/playground/testdata/escaper || shell_test::fail "line ${LINENO}: failed to build 'escaper'"
 }
 
 test_with_files() {
