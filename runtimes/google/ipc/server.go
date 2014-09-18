@@ -52,6 +52,7 @@ type server struct {
 	addressChooser   veyron2.AddressChooser
 	servesMountTable bool
 	roamingOpt       veyron2.RoamingPublisherOpt
+	debugAuthorizer  security.Authorizer
 	// TODO(cnicolaou): add roaming stats to ipcStats
 	stats *ipcStats // stats for this server.
 }
@@ -86,6 +87,8 @@ func InternalNewServer(ctx context.T, streamMgr stream.Manager, ns naming.Namesp
 			s.listenerOpts = append(s.listenerOpts, opt)
 		case veyron2.ServesMountTableOpt:
 			s.servesMountTable = bool(opt)
+		case veyron2.DebugAuthorizerOpt:
+			s.debugAuthorizer = security.Authorizer(opt)
 		}
 	}
 	return s, nil
