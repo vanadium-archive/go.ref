@@ -34,22 +34,24 @@ func TestState(t *testing.T) {
 	sh.AddSubprocess("echonotregistered", "[args]*")
 	sh.AddSubprocess("echos", "[args]*")
 	sh.AddFunction("echof", Echo, "[args]*")
-
 	assertNumHandles(t, sh, 0)
+
 	_, _ = sh.Start("echonotregistered") // won't start.
 	hs, _ := sh.Start("echos", "a")
 	hf, _ := sh.Start("echof", "b")
-
 	assertNumHandles(t, sh, 2)
+
 	for i, h := range []Handle{hs, hf} {
 		if got := h.Shutdown(nil); got != nil {
 			t.Errorf("%d: got %q, want %q", i, got, nil)
 		}
 	}
 	assertNumHandles(t, sh, 0)
+
 	hs, _ = sh.Start("echos", "a", "b")
 	hf, _ = sh.Start("echof", "c")
 	assertNumHandles(t, sh, 2)
+
 	sh.Cleanup(nil)
 	assertNumHandles(t, sh, 0)
 }

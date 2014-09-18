@@ -26,7 +26,7 @@ type execHandle struct {
 	handle     *vexec.ParentHandle
 	sh         *Shell
 	stderr     *os.File
-	stdout     *bufio.Reader
+	stdout     io.ReadCloser
 	stdin      io.WriteCloser
 }
 
@@ -68,7 +68,7 @@ func newExecHandle(entryPoint string) command {
 	return &execHandle{entryPoint: entryPoint}
 }
 
-func (eh *execHandle) Stdout() *bufio.Reader {
+func (eh *execHandle) Stdout() io.Reader {
 	eh.mu.Lock()
 	defer eh.mu.Unlock()
 	return eh.stdout
@@ -152,7 +152,7 @@ func (eh *execHandle) start(sh *Shell, args ...string) (Handle, error) {
 	}
 
 	handle := vexec.NewParentHandle(cmd)
-	eh.stdout = bufio.NewReader(stdout)
+	eh.stdout = stdout
 	eh.stderr = stderr
 	eh.stdin = stdin
 	eh.handle = handle

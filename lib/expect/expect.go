@@ -71,8 +71,8 @@ type Testing interface {
 }
 
 // NewSession creates a new Session. The parameter t may be safely be nil.
-func NewSession(t Testing, input *bufio.Reader, timeout time.Duration) *Session {
-	return &Session{t: t, timeout: timeout, input: input}
+func NewSession(t Testing, input io.Reader, timeout time.Duration) *Session {
+	return &Session{t: t, timeout: timeout, input: bufio.NewReader(input)}
 }
 
 // Failed returns true if an error has been encountered by a prior call.
@@ -130,9 +130,8 @@ type reader func(r *bufio.Reader) (string, error)
 func readAll(r *bufio.Reader) (string, error) {
 	all := ""
 	for {
-		buf := make([]byte, 4096*4)
-		n, err := r.Read(buf)
-		all += string(buf[:n])
+		l, err := r.ReadString('\n')
+		all += l
 		if err != nil {
 			if err == io.EOF {
 				return all, nil
@@ -241,6 +240,7 @@ func (s *Session) ExpectVar(name string) string {
 
 // ReadLine reads the next line, if any, from the input stream. It will set
 // the error state to io.EOF if it has read past the end of the stream.
+// ReadLine has no effect if an error has already occurred.
 func (s *Session) ReadLine() string {
 	if s.Failed() {
 		return ""
@@ -255,9 +255,25 @@ func (s *Session) ReadLine() string {
 
 // ReadAll reads all remaining input on the stream. Unlike all of the other
 // methods it does not strip newlines from the input.
+// ReadAll has no effect if an error has already occurred.
 func (s *Session) ReadAll() (string, error) {
 	if s.Failed() {
 		return "", s.err
 	}
 	return s.read(readAll)
+}
+
+// Finish reads all remaining input on the stream regardless of any
+// prior errors and writes it to the supplied io.Writer parameter if non-nil.
+// It returns both the data read and the prior error, if any, otherwise it
+// returns any error that occurred reading the rest of the input.
+func (s *Session) Finish(w io.Writer) (string, error) {
+	a, err := s.read(readAll)
+	if w != nil {
+		fmt.Fprint(w, a)
+	}
+	if s.Failed() {
+		return a, s.err
+	}
+	return a, err
 }

@@ -37,7 +37,6 @@
 package modules
 
 import (
-	"bufio"
 	"fmt"
 	"io"
 	"strings"
@@ -68,6 +67,8 @@ var child = &childRegistrar{mains: make(map[string]Main)}
 
 // NewShell creates a new instance of Shell.
 func NewShell() *Shell {
+	// TODO(cnicolaou): should create a new identity if one doesn't
+	// already exist
 	return &Shell{
 		env:     make(map[string]string),
 		cmds:    make(map[string]*commandDesc),
@@ -212,10 +213,10 @@ func (sh *Shell) Cleanup(output io.Writer) {
 
 // Handle represents a running command.
 type Handle interface {
-	// Stdout returns a buffered reader to the running command's stdout stream.
-	Stdout() *bufio.Reader
+	// Stdout returns a reader to the running command's stdout stream.
+	Stdout() io.Reader
 
-	// Stderr returns an unbuffered reader to the running command's stderr
+	// Stderr returns a reader to the running command's stderr
 	// stream.
 	Stderr() io.Reader
 

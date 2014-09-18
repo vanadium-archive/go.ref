@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"veyron.io/veyron/veyron2"
+	"veyron.io/veyron/veyron2/context"
 	"veyron.io/veyron/veyron2/naming"
 	"veyron.io/veyron/veyron2/rt"
 
@@ -59,7 +60,6 @@ func runMT(root bool, stdin io.Reader, stdout, stderr io.Writer, env map[string]
 	fmt.Fprintf(stdout, "MT_NAME=%s\n", name)
 	fmt.Fprintf(stdout, "PID=%d\n", os.Getpid())
 	modules.WaitForEOF(stdin)
-	fmt.Fprintf(stdout, "done\n")
 	return nil
 }
 
@@ -69,8 +69,9 @@ func ls(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args .
 		details = true
 		args = args[1:]
 	}
-
 	ns := rt.R().Namespace()
+	entry := 0
+	output := ""
 	for _, pattern := range args {
 		ch, err := ns.Glob(rt.R().NewContext(), pattern)
 		if err != nil {
@@ -78,19 +79,55 @@ func ls(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args .
 		}
 		for n := range ch {
 			if details {
-				fmt.Fprintf(stdout, "%s [", n.Name)
+				output += fmt.Sprintf("R%d=%s[", entry, n.Name)
 				t := ""
 				for _, s := range n.Servers {
-					t += fmt.Sprintf("%s:%ss, ", s.Server, s.TTL)
+					output += fmt.Sprintf("%s:%ss, ", s.Server, s.TTL)
 				}
 				t = strings.TrimSuffix(t, ", ")
-				fmt.Fprintf(stdout, "%s]\n", t)
+				output += fmt.Sprintf("%s]\n", t)
+				entry += 1
 			} else {
 				if len(n.Name) > 0 {
-					fmt.Fprintf(stdout, "%s\n", n.Name)
+					output += fmt.Sprintf("R%d=%s\n", entry, n.Name)
+					entry += 1
 				}
 			}
+
 		}
 	}
+	fmt.Fprintf(stdout, "RN=%d\n", entry)
+	fmt.Fprint(stdout, output)
 	return nil
+}
+
+type resolver func(ctx context.T, name string) (names []string, err error)
+
+func resolve(fn resolver, stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
+	if len(args) != 1 {
+		return fmt.Errorf("wrong # args")
+	}
+	name := args[0]
+	servers, err := fn(rt.R().NewContext(), name)
+	if err != nil {
+		return err
+	}
+	fmt.Fprintf(stdout, "RN=%d\n", len(servers))
+	for i, s := range servers {
+		fmt.Fprintf(stdout, "R%d=%s\n", i, s)
+	}
+	return nil
+}
+
+func resolveObject(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
+	return resolve(rt.R().Namespace().Resolve, stdin, stdout, stderr, env, args...)
+}
+
+func resolveMT(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
+	return resolve(rt.R().Namespace().ResolveToMountTable, stdin, stdout, stderr, env, args...)
+}
+
+func setNamespaceRoots(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
+	ns := rt.R().Namespace()
+	return ns.SetRoots(args...)
 }

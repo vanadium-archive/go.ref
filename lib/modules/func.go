@@ -6,7 +6,6 @@ import (
 	"io"
 	"os"
 	"sync"
-	"syscall"
 )
 
 type pipe struct {
@@ -16,7 +15,6 @@ type functionHandle struct {
 	mu                    sync.Mutex
 	main                  Main
 	stdin, stderr, stdout pipe
-	bufferedStdout        *bufio.Reader
 	err                   error
 	sh                    *Shell
 	wg                    sync.WaitGroup
@@ -26,10 +24,10 @@ func newFunctionHandle(main Main) command {
 	return &functionHandle{main: main}
 }
 
-func (fh *functionHandle) Stdout() *bufio.Reader {
+func (fh *functionHandle) Stdout() io.Reader {
 	fh.mu.Lock()
 	defer fh.mu.Unlock()
-	return fh.bufferedStdout
+	return fh.stdout.r
 }
 
 func (fh *functionHandle) Stderr() io.Reader {
@@ -46,9 +44,8 @@ func (fh *functionHandle) Stdin() io.Writer {
 
 func (fh *functionHandle) CloseStdin() {
 	fh.mu.Lock()
-	fd := fh.stdin.w.Fd()
+	fh.stdin.w.Close()
 	fh.mu.Unlock()
-	syscall.Close(int(fd))
 }
 
 func (fh *functionHandle) start(sh *Shell, args ...string) (Handle, error) {
@@ -61,21 +58,25 @@ func (fh *functionHandle) start(sh *Shell, args ...string) (Handle, error) {
 			return nil, err
 		}
 	}
-	fh.bufferedStdout = bufio.NewReader(fh.stdout.r)
 	fh.wg.Add(1)
 
 	go func() {
-		err := fh.main(fh.stdin.r, fh.stdout.w, fh.stderr.w, sh.mergeOSEnv(), args...)
-		if err != nil {
-			fmt.Fprintf(fh.stderr.w, "%s\n", err)
-		}
 		fh.mu.Lock()
-		// We close these files using the Close system call since there
-		// may be an oustanding read on them that would otherwise trigger
-		// a test failure with go test -race
-		syscall.Close(int(fh.stdin.w.Fd()))
-		syscall.Close(int(fh.stdout.r.Fd()))
-		syscall.Close(int(fh.stderr.r.Fd()))
+		stdin := fh.stdin.r
+		stdout := fh.stdout.w
+		stderr := fh.stderr.w
+		main := fh.main
+		fh.mu.Unlock()
+
+		err := main(stdin, stdout, stderr, sh.mergeOSEnv(), args...)
+		if err != nil {
+			fmt.Fprintf(stderr, "%s\n", err)
+		}
+
+		fh.mu.Lock()
+		fh.stdin.r.Close()
+		fh.stdout.w.Close()
+		fh.stderr.w.Close()
 		fh.err = err
 		fh.mu.Unlock()
 		fh.wg.Done()
@@ -85,18 +86,22 @@ func (fh *functionHandle) start(sh *Shell, args ...string) (Handle, error) {
 
 func (fh *functionHandle) Shutdown(output io.Writer) error {
 	fh.mu.Lock()
-	syscall.Close(int(fh.stdin.w.Fd()))
-	if output != nil {
-		scanner := bufio.NewScanner(fh.stderr.r)
-		for scanner.Scan() {
-			fmt.Fprintf(output, "%s\n", scanner.Text())
-		}
-	}
+	fh.stdin.w.Close()
+	stderr := fh.stderr.r
 	fh.mu.Unlock()
 
-	fh.wg.Wait()
+	if output != nil {
+		scanner := bufio.NewScanner(stderr)
+		for scanner.Scan() {
+			l := scanner.Text()
+			fmt.Fprintf(output, "%s\n", l)
+		}
+	}
 
+	fh.wg.Wait()
 	fh.mu.Lock()
+	fh.stdout.r.Close()
+	fh.stderr.r.Close()
 	err := fh.err
 	fh.sh.forget(fh)
 	fh.mu.Unlock()
