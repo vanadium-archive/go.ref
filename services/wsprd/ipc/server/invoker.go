@@ -39,7 +39,7 @@ func (i *invoker) Prepare(methodName string, numArgs int) ([]interface{}, securi
 
 	method, ok := i.sig.Methods[methodName]
 	if !ok {
-		return nil, security.AdminLabel, verror.NotFoundf("method name not found in IDL: %s", methodName)
+		return nil, security.AdminLabel, verror.NoExistf("method name not found in IDL: %s", methodName)
 	}
 
 	argptrs := make([]interface{}, len(method.InArgs))
@@ -62,7 +62,7 @@ func (i *invoker) Invoke(methodName string, call ipc.ServerCall, argptrs []inter
 	}
 
 	if _, ok := i.sig.Methods[methodName]; !ok {
-		return nil, verror.NotFoundf("method name not found in IDL: %s", methodName)
+		return nil, verror.NoExistf("method name not found in IDL: %s", methodName)
 	}
 
 	replychan := i.invokeFunc(methodName, argptrs, call)

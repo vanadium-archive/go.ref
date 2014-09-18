@@ -22,7 +22,7 @@ type statsInvoker struct {
 }
 
 var (
-	errNotFound        = verror.NotFoundf("object not found")
+	errNotFound        = verror.NoExistf("object not found")
 	errNoValue         = verror.Make(types.NoValue, "object has no value")
 	errOperationFailed = verror.Internalf("operation failed")
 )

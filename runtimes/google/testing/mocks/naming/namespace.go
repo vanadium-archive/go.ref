@@ -70,7 +70,7 @@ func (ns *namespace) Resolve(ctx context.T, name string) ([]string, error) {
 			return ret, nil
 		}
 	}
-	return nil, verror.NotFoundf("Resolve name %q not found in %v", name, ns.mounts)
+	return nil, verror.NoExistf("Resolve name %q not found in %v", name, ns.mounts)
 }
 
 func (ns *namespace) ResolveToMountTable(ctx context.T, name string) ([]string, error) {

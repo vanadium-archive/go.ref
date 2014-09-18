@@ -34,7 +34,7 @@ var (
 )
 
 func errNotAuthorized(err error) verror.E {
-	return verror.NotAuthorizedf("ipc: not authorized(%v)", err)
+	return verror.NoAccessf("ipc: not authorized(%v)", err)
 }
 
 type server struct {
@@ -800,7 +800,7 @@ func (fs *flowServer) lookup(name, method string) (ipc.Invoker, security.Authori
 			return invoker, auth, name, nil
 		}
 	}
-	return nil, nil, "", verror.NotFoundf(fmt.Sprintf("ipc: dispatcher not found for %q", name))
+	return nil, nil, "", verror.NoExistf(fmt.Sprintf("ipc: dispatcher not found for %q", name))
 }
 
 func (fs *flowServer) authorize(auth security.Authorizer) error {

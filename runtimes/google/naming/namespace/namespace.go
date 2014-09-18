@@ -110,7 +110,7 @@ func notAnMT(err error) bool {
 	case verror.BadArg:
 		// This should cover "ipc: wrong number of in-args".
 		return true
-	case verror.NotFound:
+	case verror.NoExist:
 		// This should cover "ipc: unknown method", "ipc: dispatcher not
 		// found", and "ipc: LeafDispatcher lookup on non-empty suffix".
 		return true

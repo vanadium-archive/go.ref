@@ -72,7 +72,7 @@ func TestReadLogImplNoFollow(t *testing.T) {
 		t.Errorf("BindLogFile: %v", err)
 	}
 	_, err = lf.Size(runtime.NewContext())
-	if expected := verror.NotFound; !verror.Is(err, expected) {
+	if expected := verror.NoExist; !verror.Is(err, expected) {
 		t.Errorf("unexpected error value, got %v, want: %v", err, expected)
 	}
 

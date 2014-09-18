@@ -147,7 +147,7 @@ func serializeEntry(k, v string) (string, error) {
 
 func readFile(file string) (*config, error) {
 	if len(file) == 0 {
-		return nil, verror.NotFoundf("no file to read")
+		return nil, verror.NoExistf("no file to read")
 	}
 
 	// The config has to be small so just read it all in one go.
@@ -196,7 +196,7 @@ func rrToConfig(rr *dns.RR_TXT) (*config, error) {
 	}
 	// Ignore any config with no version.
 	if _, ok := c.pairs["version"]; !ok {
-		return nil, verror.NotFoundf("missing config version")
+		return nil, verror.NoExistf("missing config version")
 	}
 	return c, nil
 }
@@ -309,10 +309,10 @@ func (cs *configService) Get(key string) (string, error) {
 	cs.rwlock.RLock()
 	defer cs.rwlock.RUnlock()
 	if cs.current == nil {
-		return "", verror.NotFoundf("no config")
+		return "", verror.NoExistf("no config")
 	}
 	if v, ok := cs.current.pairs[key]; !ok {
-		return "", verror.NotFoundf("config has no key %q", key)
+		return "", verror.NoExistf("config has no key %q", key)
 	} else {
 		return v, nil
 	}
@@ -330,7 +330,7 @@ func (cs *configService) GetAll() (map[string]string, error) {
 	cs.rwlock.RLock()
 	defer cs.rwlock.RUnlock()
 	if cs.current == nil {
-		return nil, verror.NotFoundf("no config found")
+		return nil, verror.NoExistf("no config found")
 	}
 	// Copy so caller can't change the map under our feet.
 	reply := make(map[string]string)
@@ -365,7 +365,7 @@ func (cs *configService) Offer() {
 	for _, k := range keys {
 		e, err := serializeEntry(k, cs.current.pairs[k])
 		if err != nil {
-			verror.NotFoundf("offering config: %s", cs.file, err)
+			verror.NoExistf("offering config: %s", cs.file, err)
 			return
 		}
 		txt = append(txt, e)

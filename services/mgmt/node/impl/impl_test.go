@@ -301,8 +301,8 @@ func TestNodeManagerUpdateAndRevert(t *testing.T) {
 	// Simulate an invalid envelope in the application repository.
 	*envelope = *nodeEnvelopeFromCmd(nm.Cmd)
 	envelope.Title = "bogus"
-	updateNodeExpectError(t, "factoryNM", verror.BadArg)   // Incorrect title.
-	revertNodeExpectError(t, "factoryNM", verror.NotFound) // No previous version available.
+	updateNodeExpectError(t, "factoryNM", verror.BadArg)  // Incorrect title.
+	revertNodeExpectError(t, "factoryNM", verror.NoExist) // No previous version available.
 
 	// Set up a second version of the node manager.  We use the blackbox
 	// command solely to collect the args and env we need to provide the
@@ -353,7 +353,7 @@ func TestNodeManagerUpdateAndRevert(t *testing.T) {
 
 	// Try issuing an update without changing the envelope in the application
 	// repository: this should fail, and current link should be unchanged.
-	updateNodeExpectError(t, "v2NM", verror.NotFound)
+	updateNodeExpectError(t, "v2NM", verror.NoExist)
 	if evalLink() != scriptPathV2 {
 		t.Fatalf("script changed")
 	}
@@ -551,7 +551,7 @@ func TestAppLifeCycle(t *testing.T) {
 	}
 
 	// Updating the installation to itself is a no-op.
-	updateAppExpectError(t, appID, verror.NotFound)
+	updateAppExpectError(t, appID, verror.NoExist)
 
 	// Updating the installation should not work with a mismatched title.
 	*envelope = *envelopeFromCmd("bogus", app.Cmd)
@@ -616,7 +616,7 @@ func TestAppLifeCycle(t *testing.T) {
 	resolveExpectNotFound(t, "appV1")
 
 	// We are already on the first version, no further revert possible.
-	revertAppExpectError(t, appID, verror.NotFound)
+	revertAppExpectError(t, appID, verror.NoExist)
 
 	// Uninstall the app.
 	uninstallApp(t, appID)

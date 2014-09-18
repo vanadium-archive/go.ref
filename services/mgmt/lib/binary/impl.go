@@ -23,7 +23,7 @@ import (
 
 var (
 	errOperationFailed = verror.Internalf("operation failed")
-	errNotExist        = verror.NotFoundf("binary does not exist")
+	errNotExist        = verror.NoExistf("binary does not exist")
 )
 
 const (

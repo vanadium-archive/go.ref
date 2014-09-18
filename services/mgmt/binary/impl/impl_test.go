@@ -310,7 +310,7 @@ func TestErrors(t *testing.T) {
 	}
 	if _, _, err := invokeDownload(t, binary, 1); err == nil {
 		t.Fatalf("Download() did not fail when it should have")
-	} else if want := verror.NotFound; !verror.Is(err, want) {
+	} else if want := verror.NoExist; !verror.Is(err, want) {
 		t.Fatalf("Unexpected error: %v, expected error id %v", err, want)
 	}
 	if streamErr, err := invokeUpload(t, binary, data[1], 1); streamErr != nil || err != nil {
@@ -324,7 +324,7 @@ func TestErrors(t *testing.T) {
 	}
 	if err := binary.Delete(rt.R().NewContext()); err == nil {
 		t.Fatalf("Delete() did not fail when it should have")
-	} else if want := verror.NotFound; !verror.Is(err, want) {
+	} else if want := verror.NoExist; !verror.Is(err, want) {
 		t.Fatalf("Unexpected error: %v, expected error id %v", err, want)
 	}
 }

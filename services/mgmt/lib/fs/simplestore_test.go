@@ -244,18 +244,18 @@ func TestSerializeDeserialize(t *testing.T) {
 	}
 
 	// At which point, Get() on the transaction won't find anything.
-	if _, err := memstoreOriginal.BindObject(tP("/test/a")).Get(nil); !verror.Is(err, verror.NotFound) {
-		t.Fatalf("Get() should have failed: got %v, expected %v", err, verror.NotFoundf("path %s not in Memstore", tname+"/test/a"))
+	if _, err := memstoreOriginal.BindObject(tP("/test/a")).Get(nil); !verror.Is(err, verror.NoExist) {
+		t.Fatalf("Get() should have failed: got %v, expected %v", err, verror.NoExistf("path %s not in Memstore", tname+"/test/a"))
 	}
 
 	// Attempting to Remove() it over again will fail.
-	if err := memstoreOriginal.BindObject(tP("/test/a")).Remove(nil); !verror.Is(err, verror.NotFound) {
-		t.Fatalf("Remove() should have failed: got %v, expected %v", err, verror.NotFoundf("path %s not in Memstore", tname+"/test/a"))
+	if err := memstoreOriginal.BindObject(tP("/test/a")).Remove(nil); !verror.Is(err, verror.NoExist) {
+		t.Fatalf("Remove() should have failed: got %v, expected %v", err, verror.NoExistf("path %s not in Memstore", tname+"/test/a"))
 	}
 
 	// Attempting to Remove() a non-existing path will fail.
-	if err := memstoreOriginal.BindObject(tP("/foo")).Remove(nil); !verror.Is(err, verror.NotFound) {
-		t.Fatalf("Remove() should have failed: got %v, expected %v", err, verror.NotFoundf("path %s not in Memstore", tname+"/foo"))
+	if err := memstoreOriginal.BindObject(tP("/foo")).Remove(nil); !verror.Is(err, verror.NoExist) {
+		t.Fatalf("Remove() should have failed: got %v, expected %v", err, verror.NoExistf("path %s not in Memstore", tname+"/foo"))
 	}
 
 	// Exists() a non-existing path will fail.
@@ -279,8 +279,8 @@ func TestSerializeDeserialize(t *testing.T) {
 	}
 
 	// Validate that Get will fail on a non-existent path.
-	if _, err := memstoreOriginal.BindObject("/test/c").Get(nil); !verror.Is(err, verror.NotFound) {
-		t.Fatalf("Get() should have failed: got %v, expected %v", err, verror.NotFoundf("path %s not in Memstore", tname+"/test/c"))
+	if _, err := memstoreOriginal.BindObject("/test/c").Get(nil); !verror.Is(err, verror.NoExist) {
+		t.Fatalf("Get() should have failed: got %v, expected %v", err, verror.NoExistf("path %s not in Memstore", tname+"/test/c"))
 	}
 
 	// Verify that the previous Commit() operations have persisted to

@@ -14,7 +14,7 @@ import (
 
 var (
 	errCanceled        = verror.Abortedf("operation canceled")
-	errNotFound        = verror.NotFoundf("log file not found")
+	errNotFound        = verror.NoExistf("log file not found")
 	errEOF             = verror.Make(types.EOF, "EOF")
 	errOperationFailed = verror.Internalf("operation failed")
 )

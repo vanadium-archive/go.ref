@@ -83,7 +83,7 @@ func TestDebugServer(t *testing.T) {
 		if len(results) != 0 {
 			t.Errorf("unexpected result. Got %v, want ''", results)
 		}
-		if expected, got := verror.NotFound, stream.Finish(); !verror.Is(got, expected) {
+		if expected, got := verror.NoExist, stream.Finish(); !verror.Is(got, expected) {
 			t.Errorf("unexpected error value, got %v, want: %v", got, expected)
 		}
 	}
@@ -110,7 +110,7 @@ func TestDebugServer(t *testing.T) {
 			t.Errorf("BindLogFile: %v", err)
 		}
 		_, err = lf.Size(runtime.NewContext())
-		if expected := verror.NotFound; !verror.Is(err, expected) {
+		if expected := verror.NoExist; !verror.Is(err, expected) {
 			t.Errorf("unexpected error value, got %v, want: %v", err, expected)
 		}
 	}
@@ -140,7 +140,7 @@ func TestDebugServer(t *testing.T) {
 			t.Errorf("BindStats: %v", err)
 		}
 		_, err = st.Value(runtime.NewContext())
-		if expected := verror.NotFound; !verror.Is(err, expected) {
+		if expected := verror.NoExist; !verror.Is(err, expected) {
 			t.Errorf("unexpected error value, got %v, want: %v", err, expected)
 		}
 	}
