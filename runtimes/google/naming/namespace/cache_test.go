@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"testing"
 
-	"veyron2/naming"
+	"veyron.io/veyron/veyron2/naming"
 )
 
 func compatible(server string, servers []mountedServer) bool {

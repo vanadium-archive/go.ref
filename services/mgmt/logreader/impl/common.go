@@ -8,8 +8,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	"veyron2/services/mgmt/logreader/types"
-	"veyron2/verror"
+	"veyron.io/veyron/veyron2/services/mgmt/logreader/types"
+	"veyron.io/veyron/veyron2/verror"
 )
 
 var (

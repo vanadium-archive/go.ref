@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"net/http"
 
-	"veyron2/ipc/stream"
+	"veyron.io/veyron/veyron2/ipc/stream"
 )
 
 // HTTPHandler returns an http.Handler that dumps out debug information from

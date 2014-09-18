@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"encoding/base64"
 
-	"veyron2/vom"
+	"veyron.io/veyron/veyron2/vom"
 )
 
 // Bas64VomEncode returns the base64 encoding of the serialization of i with

@@ -6,12 +6,12 @@ import (
 	"path/filepath"
 	"time"
 
-	"veyron/services/mgmt/lib/binary"
+	"veyron.io/veyron/veyron/services/mgmt/lib/binary"
 
-	"veyron2/context"
-	"veyron2/services/mgmt/application"
-	"veyron2/services/mgmt/repository"
-	"veyron2/vlog"
+	"veyron.io/veyron/veyron2/context"
+	"veyron.io/veyron/veyron2/services/mgmt/application"
+	"veyron.io/veyron/veyron2/services/mgmt/repository"
+	"veyron.io/veyron/veyron2/vlog"
 )
 
 func downloadBinary(workspace, fileName, name string) error {

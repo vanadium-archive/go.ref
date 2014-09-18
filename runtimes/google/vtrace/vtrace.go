@@ -4,10 +4,10 @@
 package vtrace
 
 import (
-	"veyron2/context"
-	"veyron2/uniqueid"
-	"veyron2/vlog"
-	"veyron2/vtrace"
+	"veyron.io/veyron/veyron2/context"
+	"veyron.io/veyron/veyron2/uniqueid"
+	"veyron.io/veyron/veyron2/vlog"
+	"veyron.io/veyron/veyron2/vtrace"
 )
 
 // A span represents an annotated period of time.

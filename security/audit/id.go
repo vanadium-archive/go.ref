@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"time"
 
-	"veyron2/security"
+	"veyron.io/veyron/veyron2/security"
 )
 
 type auditingID struct {

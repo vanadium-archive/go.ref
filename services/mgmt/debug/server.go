@@ -5,9 +5,9 @@ package debug
 import (
 	"fmt"
 
-	"veyron2"
-	"veyron2/security"
-	"veyron2/vlog"
+	"veyron.io/veyron/veyron2"
+	"veyron.io/veyron/veyron2/security"
+	"veyron.io/veyron/veyron2/vlog"
 )
 
 // StartDebugServer starts a debug server.

@@ -4,10 +4,10 @@ import (
 	"fmt"
 	"time"
 
-	services "veyron/services/security"
-	"veyron2/ipc"
-	"veyron2/security"
-	"veyron2/vdl/vdlutil"
+	services "veyron.io/veyron/veyron/services/security"
+	"veyron.io/veyron/veyron2/ipc"
+	"veyron.io/veyron/veyron2/security"
+	"veyron.io/veyron/veyron2/vdl/vdlutil"
 )
 
 // dischargerd issues discharges for all caveats present in the current

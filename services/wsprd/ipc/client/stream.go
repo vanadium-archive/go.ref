@@ -3,8 +3,8 @@
 package client
 
 import (
-	"veyron/services/wsprd/lib"
-	"veyron2/ipc"
+	"veyron.io/veyron/veyron/services/wsprd/lib"
+	"veyron.io/veyron/veyron2/ipc"
 )
 
 // A message that will be passed to the writeLoop function that will

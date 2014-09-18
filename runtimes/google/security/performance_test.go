@@ -23,7 +23,7 @@ import (
 	"testing"
 	"time"
 
-	"veyron2/security"
+	"veyron.io/veyron/veyron2/security"
 )
 
 func benchmarkBless(b *testing.B, blesser security.PrivateID, blessee security.PublicID) {

@@ -4,11 +4,11 @@ import (
 	"fmt"
 	"time"
 
-	"veyron/lib/cmdline"
+	"veyron.io/veyron/veyron/lib/cmdline"
 
-	"veyron2/context"
-	"veyron2/rt"
-	"veyron2/services/mounttable"
+	"veyron.io/veyron/veyron2/context"
+	"veyron.io/veyron/veyron2/rt"
+	"veyron.io/veyron/veyron2/services/mounttable"
 )
 
 func bindMT(ctx context.T, name string) (mounttable.MountTable, error) {

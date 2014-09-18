@@ -14,15 +14,15 @@ import (
 	"sort"
 	"testing"
 
-	"veyron/lib/testutil"
-	"veyron/runtimes/google/ipc/stream/vc"
-	"veyron/runtimes/google/ipc/stream/vif"
-	iversion "veyron/runtimes/google/ipc/version"
-	isecurity "veyron/runtimes/google/security"
+	"veyron.io/veyron/veyron/lib/testutil"
+	"veyron.io/veyron/veyron/runtimes/google/ipc/stream/vc"
+	"veyron.io/veyron/veyron/runtimes/google/ipc/stream/vif"
+	iversion "veyron.io/veyron/veyron/runtimes/google/ipc/version"
+	isecurity "veyron.io/veyron/veyron/runtimes/google/security"
 
-	"veyron2/ipc/stream"
-	"veyron2/ipc/version"
-	"veyron2/naming"
+	"veyron.io/veyron/veyron2/ipc/stream"
+	"veyron.io/veyron/veyron2/ipc/version"
+	"veyron.io/veyron/veyron2/naming"
 )
 
 func newLocalID(name string) vc.LocalID {

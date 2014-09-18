@@ -9,17 +9,17 @@ import (
 	"testing"
 	"time"
 
-	_ "veyron/lib/testutil"
+	_ "veyron.io/veyron/veyron/lib/testutil"
 
-	"veyron2"
-	"veyron2/context"
-	"veyron2/ipc"
-	"veyron2/naming"
-	"veyron2/rt"
-	"veyron2/security"
-	"veyron2/services/mounttable"
-	"veyron2/services/mounttable/types"
-	"veyron2/vlog"
+	"veyron.io/veyron/veyron2"
+	"veyron.io/veyron/veyron2/context"
+	"veyron.io/veyron/veyron2/ipc"
+	"veyron.io/veyron/veyron2/naming"
+	"veyron.io/veyron/veyron2/rt"
+	"veyron.io/veyron/veyron2/security"
+	"veyron.io/veyron/veyron2/services/mounttable"
+	"veyron.io/veyron/veyron2/services/mounttable/types"
+	"veyron.io/veyron/veyron2/vlog"
 )
 
 // stupidNS is a version of naming.Namespace that we can control.  This exists so that we have some

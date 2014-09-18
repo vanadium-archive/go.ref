@@ -11,18 +11,18 @@ import (
 	"strings"
 	"sync"
 
-	"veyron/runtimes/google/ipc/stream/crypto"
-	"veyron/runtimes/google/ipc/stream/id"
-	"veyron/runtimes/google/lib/bqueue"
-	"veyron/runtimes/google/lib/iobuf"
-	vsync "veyron/runtimes/google/lib/sync"
+	"veyron.io/veyron/veyron/runtimes/google/ipc/stream/crypto"
+	"veyron.io/veyron/veyron/runtimes/google/ipc/stream/id"
+	"veyron.io/veyron/veyron/runtimes/google/lib/bqueue"
+	"veyron.io/veyron/veyron/runtimes/google/lib/iobuf"
+	vsync "veyron.io/veyron/veyron/runtimes/google/lib/sync"
 
-	"veyron2"
-	"veyron2/ipc/stream"
-	"veyron2/ipc/version"
-	"veyron2/naming"
-	"veyron2/security"
-	"veyron2/vlog"
+	"veyron.io/veyron/veyron2"
+	"veyron.io/veyron/veyron2/ipc/stream"
+	"veyron.io/veyron/veyron2/ipc/version"
+	"veyron.io/veyron/veyron2/naming"
+	"veyron.io/veyron/veyron2/security"
+	"veyron.io/veyron/veyron2/vlog"
 )
 
 var (

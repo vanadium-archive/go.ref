@@ -13,19 +13,19 @@ import (
 	"sync"
 	"testing"
 
-	"veyron/lib/testutil"
-	"veyron/runtimes/google/ipc/stream/id"
-	"veyron/runtimes/google/ipc/stream/vc"
-	"veyron/runtimes/google/lib/bqueue"
-	"veyron/runtimes/google/lib/bqueue/drrqueue"
-	"veyron/runtimes/google/lib/iobuf"
-	isecurity "veyron/runtimes/google/security"
+	"veyron.io/veyron/veyron/lib/testutil"
+	"veyron.io/veyron/veyron/runtimes/google/ipc/stream/id"
+	"veyron.io/veyron/veyron/runtimes/google/ipc/stream/vc"
+	"veyron.io/veyron/veyron/runtimes/google/lib/bqueue"
+	"veyron.io/veyron/veyron/runtimes/google/lib/bqueue/drrqueue"
+	"veyron.io/veyron/veyron/runtimes/google/lib/iobuf"
+	isecurity "veyron.io/veyron/veyron/runtimes/google/security"
 
-	"veyron2"
-	"veyron2/ipc/stream"
-	"veyron2/ipc/version"
-	"veyron2/naming"
-	"veyron2/security"
+	"veyron.io/veyron/veyron2"
+	"veyron.io/veyron/veyron2/ipc/stream"
+	"veyron.io/veyron/veyron2/ipc/version"
+	"veyron.io/veyron/veyron2/naming"
+	"veyron.io/veyron/veyron2/security"
 )
 
 // Convenience alias to avoid conflicts between the package name "vc" and variables called "vc".

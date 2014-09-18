@@ -10,10 +10,10 @@ import (
 	"sync"
 	"time"
 
-	"veyron/security/caveat"
-	"veyron/services/identity/util"
-	"veyron2/security"
-	"veyron2/vom"
+	"veyron.io/veyron/veyron/security/caveat"
+	"veyron.io/veyron/veyron/services/identity/util"
+	"veyron.io/veyron/veyron2/security"
+	"veyron.io/veyron/veyron2/vom"
 )
 
 // RevocationManager persists information for revocation caveats to provided discharges and allow for future revocations.

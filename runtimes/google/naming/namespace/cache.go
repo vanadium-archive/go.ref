@@ -6,8 +6,8 @@ import (
 	"sync"
 	"time"
 
-	"veyron2/naming"
-	"veyron2/vlog"
+	"veyron.io/veyron/veyron2/naming"
+	"veyron.io/veyron/veyron2/vlog"
 )
 
 // maxCacheEntries is the max number of cache entries to keep.  It exists only so that we

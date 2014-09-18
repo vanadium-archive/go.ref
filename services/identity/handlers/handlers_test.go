@@ -10,10 +10,10 @@ import (
 	"testing"
 	"time"
 
-	"veyron/services/identity/util"
+	"veyron.io/veyron/veyron/services/identity/util"
 
-	"veyron2/rt"
-	"veyron2/security"
+	"veyron.io/veyron/veyron2/rt"
+	"veyron.io/veyron/veyron2/security"
 )
 
 func TestObject(t *testing.T) {

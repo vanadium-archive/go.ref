@@ -8,11 +8,11 @@ import (
 	"strings"
 	"testing"
 
-	_ "veyron/lib/testutil"
+	_ "veyron.io/veyron/veyron/lib/testutil"
 
-	"veyron2/ipc"
-	"veyron2/rt"
-	"veyron2/services/mgmt/build"
+	"veyron.io/veyron/veyron2/ipc"
+	"veyron.io/veyron/veyron2/rt"
+	"veyron.io/veyron/veyron2/services/mgmt/build"
 )
 
 func init() {

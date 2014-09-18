@@ -6,8 +6,8 @@ import (
 	"reflect"
 	"sync"
 
-	"veyron2/context"
-	"veyron2/ipc"
+	"veyron.io/veyron/veyron2/context"
+	"veyron.io/veyron/veyron2/ipc"
 )
 
 // NewSimpleClient creates a new mocked ipc client where the given map of method name

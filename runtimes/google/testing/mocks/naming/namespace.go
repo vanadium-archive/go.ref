@@ -6,9 +6,9 @@ import (
 	"sync"
 	"time"
 
-	"veyron2/context"
-	"veyron2/naming"
-	"veyron2/verror"
+	"veyron.io/veyron/veyron2/context"
+	"veyron.io/veyron/veyron2/naming"
+	"veyron.io/veyron/veyron2/verror"
 )
 
 // NewSimpleNamespace returns a simple implementation of a Namespace

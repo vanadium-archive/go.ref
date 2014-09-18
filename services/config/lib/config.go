@@ -17,8 +17,8 @@ import (
 	"strings"
 	"sync"
 
-	"veyron2/verror"
-	"veyron2/vlog"
+	"veyron.io/veyron/veyron2/verror"
+	"veyron.io/veyron/veyron2/vlog"
 
 	"code.google.com/p/mdns"
 	"code.google.com/p/mdns/go_dns"

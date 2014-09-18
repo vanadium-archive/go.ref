@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"time"
 
-	"veyron/lib/testutil/modules"
+	"veyron.io/veyron/veyron/lib/testutil/modules"
 
-	"veyron2/vlog"
+	"veyron.io/veyron/veyron2/vlog"
 )
 
 type tag int

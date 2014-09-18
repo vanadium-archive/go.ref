@@ -6,12 +6,12 @@ package identity
 
 import (
 	// The non-user imports are prefixed with "_gen_" to prevent collisions.
-	_gen_veyron2 "veyron2"
-	_gen_context "veyron2/context"
-	_gen_ipc "veyron2/ipc"
-	_gen_naming "veyron2/naming"
-	_gen_vdlutil "veyron2/vdl/vdlutil"
-	_gen_wiretype "veyron2/wiretype"
+	_gen_veyron2 "veyron.io/veyron/veyron2"
+	_gen_context "veyron.io/veyron/veyron2/context"
+	_gen_ipc "veyron.io/veyron/veyron2/ipc"
+	_gen_naming "veyron.io/veyron/veyron2/naming"
+	_gen_vdlutil "veyron.io/veyron/veyron2/vdl/vdlutil"
+	_gen_wiretype "veyron.io/veyron/veyron2/wiretype"
 )
 
 // TODO(bprosnitz) Remove this line once signatures are updated to use typevals.
@@ -37,7 +37,7 @@ const _ = _gen_wiretype.TypeIDInvalid
 // then the "any" should be replaced by:
 // OneOf<wire.ChainPublicID, []wire.ChainPublicID>
 // where wire is from:
-// import "veyron2/security/wire"
+// import "veyron.io/veyron/veyron2/security/wire"
 // OAuthBlesser is the interface the client binds and uses.
 // OAuthBlesser_ExcludingUniversal is the interface without internal framework-added methods
 // to enable embedding without method collisions.  Not to be used directly by clients.

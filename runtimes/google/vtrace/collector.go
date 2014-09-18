@@ -4,9 +4,9 @@ import (
 	"sync"
 	"time"
 
-	"veyron2/context"
-	"veyron2/uniqueid"
-	"veyron2/vtrace"
+	"veyron.io/veyron/veyron2/context"
+	"veyron.io/veyron/veyron2/uniqueid"
+	"veyron.io/veyron/veyron2/vtrace"
 )
 
 // collectors collect spans and annotations for output or analysis.

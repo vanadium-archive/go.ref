@@ -5,8 +5,8 @@ import (
 	"strconv"
 	"strings"
 
-	"veyron2/rt"
-	"veyron2/services/mounttable"
+	"veyron.io/veyron/veyron2/rt"
+	"veyron.io/veyron/veyron2/services/mounttable"
 )
 
 type globtag int

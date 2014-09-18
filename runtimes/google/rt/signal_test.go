@@ -5,10 +5,10 @@ import (
 	"syscall"
 	"testing"
 
-	"veyron2"
-	"veyron2/rt"
+	"veyron.io/veyron/veyron2"
+	"veyron.io/veyron/veyron2/rt"
 
-	"veyron/lib/testutil/blackbox"
+	"veyron.io/veyron/veyron/lib/testutil/blackbox"
 )
 
 func init() {

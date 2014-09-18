@@ -12,10 +12,10 @@ import (
 	"sync"
 	"time"
 
-	"veyron2/vlog"
+	"veyron.io/veyron/veyron2/vlog"
 
 	// TODO(cnicolaou): move this to veyron/lib.
-	vexec "veyron/services/mgmt/lib/exec"
+	vexec "veyron.io/veyron/veyron/services/mgmt/lib/exec"
 )
 
 // execHandle implements both the command and Handle interfaces.

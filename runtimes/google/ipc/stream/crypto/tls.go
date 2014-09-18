@@ -11,7 +11,7 @@ import (
 	"sync"
 	"time"
 
-	"veyron/runtimes/google/lib/iobuf"
+	"veyron.io/veyron/veyron/runtimes/google/lib/iobuf"
 )
 
 var errDeadlinesNotSupported = errors.New("deadlines not supported")

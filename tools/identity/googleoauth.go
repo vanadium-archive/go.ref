@@ -10,8 +10,8 @@ import (
 	"os"
 	"os/exec"
 
-	"veyron/services/identity/googleoauth"
-	"veyron2/vlog"
+	"veyron.io/veyron/veyron/services/identity/googleoauth"
+	"veyron.io/veyron/veyron2/vlog"
 )
 
 func getOAuthAuthorizationCodeFromGoogle(clientID string, blessing <-chan string) (<-chan string, error) {

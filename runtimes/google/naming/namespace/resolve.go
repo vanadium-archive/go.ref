@@ -4,11 +4,11 @@ import (
 	"errors"
 	"runtime"
 
-	"veyron2/context"
-	"veyron2/ipc"
-	"veyron2/naming"
-	"veyron2/verror"
-	"veyron2/vlog"
+	"veyron.io/veyron/veyron2/context"
+	"veyron.io/veyron/veyron2/ipc"
+	"veyron.io/veyron/veyron2/naming"
+	"veyron.io/veyron/veyron2/verror"
+	"veyron.io/veyron/veyron2/vlog"
 )
 
 func convertServersToStrings(servers []mountedServer, suffix string) (ret []string) {

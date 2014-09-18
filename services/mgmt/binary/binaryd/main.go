@@ -6,13 +6,13 @@ import (
 	"os"
 	"path/filepath"
 
-	"veyron/lib/signals"
-	vflag "veyron/security/flag"
+	"veyron.io/veyron/veyron/lib/signals"
+	vflag "veyron.io/veyron/veyron/security/flag"
 
-	"veyron/services/mgmt/binary/impl"
+	"veyron.io/veyron/veyron/services/mgmt/binary/impl"
 
-	"veyron2/rt"
-	"veyron2/vlog"
+	"veyron.io/veyron/veyron2/rt"
+	"veyron.io/veyron/veyron2/vlog"
 )
 
 const (

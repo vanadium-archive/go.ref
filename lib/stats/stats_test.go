@@ -5,12 +5,12 @@ import (
 	"testing"
 	"time"
 
-	libstats "veyron/lib/stats"
-	"veyron/lib/stats/counter"
-	"veyron/lib/stats/histogram"
-	istats "veyron/services/mgmt/stats"
+	libstats "veyron.io/veyron/veyron/lib/stats"
+	"veyron.io/veyron/veyron/lib/stats/counter"
+	"veyron.io/veyron/veyron/lib/stats/histogram"
+	istats "veyron.io/veyron/veyron/services/mgmt/stats"
 
-	"veyron2/rt"
+	"veyron.io/veyron/veyron2/rt"
 )
 
 func doGlob(root, pattern string, since time.Time, includeValues bool) ([]libstats.KeyValue, error) {

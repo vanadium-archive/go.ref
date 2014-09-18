@@ -9,13 +9,13 @@ import (
 	"path/filepath"
 	"testing"
 
-	"veyron/lib/testutil"
+	"veyron.io/veyron/veyron/lib/testutil"
 
-	"veyron2/naming"
-	"veyron2/rt"
-	"veyron2/services/mgmt/repository"
-	"veyron2/verror"
-	"veyron2/vlog"
+	"veyron.io/veyron/veyron2/naming"
+	"veyron.io/veyron/veyron2/rt"
+	"veyron.io/veyron/veyron2/services/mgmt/repository"
+	"veyron.io/veyron/veyron2/verror"
+	"veyron.io/veyron/veyron2/vlog"
 )
 
 const (

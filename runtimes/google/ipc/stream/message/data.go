@@ -3,8 +3,8 @@ package message
 import (
 	"fmt"
 
-	"veyron/runtimes/google/ipc/stream/id"
-	"veyron/runtimes/google/lib/iobuf"
+	"veyron.io/veyron/veyron/runtimes/google/ipc/stream/id"
+	"veyron.io/veyron/veyron/runtimes/google/lib/iobuf"
 )
 
 // Data encapsulates an application data message.

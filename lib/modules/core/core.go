@@ -23,7 +23,7 @@
 //
 package core
 
-import "veyron/lib/modules"
+import "veyron.io/veyron/veyron/lib/modules"
 
 const (
 	RootMTCommand     = "root"

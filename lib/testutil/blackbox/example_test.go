@@ -6,7 +6,7 @@ import (
 	"os"
 	"testing"
 
-	"veyron/lib/testutil/blackbox"
+	"veyron.io/veyron/veyron/lib/testutil/blackbox"
 )
 
 func init() {

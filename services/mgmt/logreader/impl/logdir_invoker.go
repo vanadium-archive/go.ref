@@ -5,11 +5,11 @@ import (
 	"path"
 	"path/filepath"
 
-	"veyron/lib/glob"
+	"veyron.io/veyron/veyron/lib/glob"
 
-	"veyron2/ipc"
-	"veyron2/services/mounttable/types"
-	"veyron2/vlog"
+	"veyron.io/veyron/veyron2/ipc"
+	"veyron.io/veyron/veyron2/services/mounttable/types"
+	"veyron.io/veyron/veyron2/vlog"
 )
 
 // logDirectoryInvoker holds the state of an invocation.

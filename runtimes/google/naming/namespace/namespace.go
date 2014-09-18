@@ -4,9 +4,9 @@ import (
 	"sync"
 	"time"
 
-	"veyron2"
-	"veyron2/naming"
-	"veyron2/verror"
+	"veyron.io/veyron/veyron2"
+	"veyron.io/veyron/veyron2/naming"
+	"veyron.io/veyron/veyron2/verror"
 )
 
 const defaultMaxResolveDepth = 32

@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"veyron/lib/flags"
+	"veyron.io/veyron/veyron/lib/flags"
 )
 
 func TestIPFlag(t *testing.T) {

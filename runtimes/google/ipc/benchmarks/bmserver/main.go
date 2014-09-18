@@ -4,11 +4,11 @@ package main
 import (
 	"flag"
 
-	"veyron/lib/signals"
-	"veyron/runtimes/google/ipc/benchmarks"
+	"veyron.io/veyron/veyron/lib/signals"
+	"veyron.io/veyron/veyron/runtimes/google/ipc/benchmarks"
 
-	"veyron2/rt"
-	"veyron2/vlog"
+	"veyron.io/veyron/veyron2/rt"
+	"veyron.io/veyron/veyron2/vlog"
 )
 
 var (

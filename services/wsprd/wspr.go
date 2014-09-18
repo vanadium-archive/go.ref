@@ -3,9 +3,9 @@ package main
 import (
 	"flag"
 
-	"veyron/lib/signals"
-	"veyron/services/wsprd/wspr"
-	"veyron2/rt"
+	"veyron.io/veyron/veyron/lib/signals"
+	"veyron.io/veyron/veyron/services/wsprd/wspr"
+	"veyron.io/veyron/veyron2/rt"
 )
 
 func main() {

@@ -4,10 +4,10 @@ package main
 import (
 	"fmt"
 	"pingpong"
-	"veyron/lib/signals"
-	sflag "veyron/security/flag"
-	"veyron2/ipc"
-	"veyron2/rt"
+	"veyron.io/veyron/veyron/lib/signals"
+	sflag "veyron.io/veyron/veyron/security/flag"
+	"veyron.io/veyron/veyron2/ipc"
+	"veyron.io/veyron/veyron2/rt"
 )
 
 type pongd struct{}

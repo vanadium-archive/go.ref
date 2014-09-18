@@ -5,9 +5,9 @@ import (
 	"errors"
 	"fmt"
 
-	"veyron/runtimes/google/security/keys"
-	"veyron2/naming"
-	"veyron2/security"
+	"veyron.io/veyron/veyron/runtimes/google/security/keys"
+	"veyron.io/veyron/veyron2/naming"
+	"veyron.io/veyron/veyron2/security"
 )
 
 var errDeriveMismatch = errors.New("public key does not match that of deriving identity")

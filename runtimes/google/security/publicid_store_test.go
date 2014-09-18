@@ -6,7 +6,7 @@ import (
 	"reflect"
 	"testing"
 
-	"veyron2/security"
+	"veyron.io/veyron/veyron2/security"
 )
 
 // verifyNamesAndPublicKey checks that the provided id has exactly the provided

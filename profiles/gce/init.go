@@ -6,13 +6,13 @@ package gce
 
 import (
 	"net"
-	"veyron/profiles"
+	"veyron.io/veyron/veyron/profiles"
 
-	"veyron2"
-	"veyron2/config"
-	"veyron2/rt"
+	"veyron.io/veyron/veyron2"
+	"veyron.io/veyron/veyron2/config"
+	"veyron.io/veyron/veyron2/rt"
 
-	"veyron/profiles/internal/gce"
+	"veyron.io/veyron/veyron/profiles/internal/gce"
 )
 
 func init() {

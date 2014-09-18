@@ -15,15 +15,15 @@ import (
 	"fmt"
 	"net"
 
-	"veyron2"
-	"veyron2/config"
-	"veyron2/ipc"
-	"veyron2/rt"
+	"veyron.io/veyron/veyron2"
+	"veyron.io/veyron/veyron2/config"
+	"veyron.io/veyron/veyron2/ipc"
+	"veyron.io/veyron/veyron2/rt"
 
-	"veyron/lib/flags"
-	"veyron/lib/netconfig"
-	"veyron/lib/netstate"
-	"veyron/profiles"
+	"veyron.io/veyron/veyron/lib/flags"
+	"veyron.io/veyron/veyron/lib/netconfig"
+	"veyron.io/veyron/veyron/lib/netstate"
+	"veyron.io/veyron/veyron/profiles"
 )
 
 const (

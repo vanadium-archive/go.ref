@@ -10,9 +10,9 @@ import (
 	"testing"
 	"time"
 
-	"veyron/security/audit"
-	"veyron2/naming"
-	"veyron2/security"
+	"veyron.io/veyron/veyron/security/audit"
+	"veyron.io/veyron/veyron2/naming"
+	"veyron.io/veyron/veyron2/security"
 )
 
 func TestAuditingID(t *testing.T) {

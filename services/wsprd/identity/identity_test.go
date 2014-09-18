@@ -8,9 +8,9 @@ import (
 	"testing"
 	"time"
 
-	"veyron2"
-	"veyron2/rt"
-	"veyron2/security"
+	"veyron.io/veyron/veyron2"
+	"veyron.io/veyron/veyron2/rt"
+	"veyron.io/veyron/veyron2/security"
 )
 
 func createChain(r veyron2.Runtime, name string) security.PrivateID {

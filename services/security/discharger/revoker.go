@@ -9,11 +9,11 @@ import (
 	"os"
 	"path/filepath"
 	"sync"
-	"veyron/security/caveat"
-	ssecurity "veyron/services/security"
-	"veyron2/ipc"
-	"veyron2/security"
-	"veyron2/vom"
+	"veyron.io/veyron/veyron/security/caveat"
+	ssecurity "veyron.io/veyron/veyron/services/security"
+	"veyron.io/veyron/veyron2/ipc"
+	"veyron.io/veyron/veyron2/security"
+	"veyron.io/veyron/veyron2/vom"
 )
 
 // The revocation caveats will be stored in a directory with a file for each.

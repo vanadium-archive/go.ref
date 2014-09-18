@@ -1,6 +1,6 @@
 package security
 
-import "veyron2/security"
+import "veyron.io/veyron/veyron2/security"
 
 // RevocationToken can be presented to a revocation service to revoke a caveat
 type RevocationToken [16]byte

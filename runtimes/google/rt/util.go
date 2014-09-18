@@ -5,10 +5,10 @@ import (
 	"os"
 	"path"
 
-	"veyron/security/serialization"
+	"veyron.io/veyron/veyron/security/serialization"
 
-	"veyron2/security"
-	"veyron2/vom"
+	"veyron.io/veyron/veyron2/security"
+	"veyron.io/veyron/veyron2/vom"
 )
 
 func encodeAndStore(obj interface{}, dir, dataFile, sigFile string, signer serialization.Signer) error {

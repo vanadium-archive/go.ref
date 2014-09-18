@@ -4,10 +4,10 @@ import (
 	"flag"
 	"fmt"
 
-	"veyron/lib/signals"
-	sflag "veyron/security/flag"
-	"veyron2/ipc"
-	"veyron2/rt"
+	"veyron.io/veyron/veyron/lib/signals"
+	sflag "veyron.io/veyron/veyron/security/flag"
+	"veyron.io/veyron/veyron2/ipc"
+	"veyron.io/veyron/veyron2/rt"
 )
 
 var runServer = flag.Bool("server", false, "Whether to run in server mode")

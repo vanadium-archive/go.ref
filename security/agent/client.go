@@ -6,12 +6,12 @@ import (
 	"fmt"
 	"strconv"
 
-	"veyron/lib/unixfd"
-	"veyron2/context"
-	"veyron2/ipc"
-	"veyron2/naming"
-	"veyron2/security"
-	"veyron2/security/wire"
+	"veyron.io/veyron/veyron/lib/unixfd"
+	"veyron.io/veyron/veyron2/context"
+	"veyron.io/veyron/veyron2/ipc"
+	"veyron.io/veyron/veyron2/naming"
+	"veyron.io/veyron/veyron2/security"
+	"veyron.io/veyron/veyron2/security/wire"
 )
 
 // EndpointVarName is the name of the environment variable containing

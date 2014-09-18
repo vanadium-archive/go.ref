@@ -4,15 +4,15 @@ import (
 	"strings"
 	"time"
 
-	"veyron/lib/glob"
-	logreaderimpl "veyron/services/mgmt/logreader/impl"
-	statsimpl "veyron/services/mgmt/stats/impl"
+	"veyron.io/veyron/veyron/lib/glob"
+	logreaderimpl "veyron.io/veyron/veyron/services/mgmt/logreader/impl"
+	statsimpl "veyron.io/veyron/veyron/services/mgmt/stats/impl"
 
-	"veyron2/ipc"
-	"veyron2/naming"
-	"veyron2/security"
-	"veyron2/services/mounttable/types"
-	"veyron2/verror"
+	"veyron.io/veyron/veyron2/ipc"
+	"veyron.io/veyron/veyron2/naming"
+	"veyron.io/veyron/veyron2/security"
+	"veyron.io/veyron/veyron2/services/mounttable/types"
+	"veyron.io/veyron/veyron2/verror"
 )
 
 // dispatcher holds the state of the debug dispatcher.

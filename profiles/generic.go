@@ -1,10 +1,10 @@
 package profiles
 
 import (
-	"veyron2"
-	"veyron2/config"
+	"veyron.io/veyron/veyron2"
+	"veyron.io/veyron/veyron2/config"
 
-	"veyron/profiles/internal"
+	"veyron.io/veyron/veyron/profiles/internal"
 )
 
 type generic struct{}

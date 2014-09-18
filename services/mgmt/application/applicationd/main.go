@@ -3,12 +3,12 @@ package main
 import (
 	"flag"
 
-	"veyron/lib/signals"
-	vflag "veyron/security/flag"
-	"veyron/services/mgmt/application/impl"
+	"veyron.io/veyron/veyron/lib/signals"
+	vflag "veyron.io/veyron/veyron/security/flag"
+	"veyron.io/veyron/veyron/services/mgmt/application/impl"
 
-	"veyron2/rt"
-	"veyron2/vlog"
+	"veyron.io/veyron/veyron2/rt"
+	"veyron.io/veyron/veyron2/vlog"
 )
 
 var (

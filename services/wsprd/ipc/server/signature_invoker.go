@@ -1,8 +1,8 @@
 package server
 
 import (
-	"veyron2/ipc"
-	"veyron2/security"
+	"veyron.io/veyron/veyron2/ipc"
+	"veyron.io/veyron/veyron2/security"
 )
 
 // signatureInvoker acts as the signature() method and is used to handle calls

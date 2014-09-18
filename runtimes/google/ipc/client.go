@@ -9,19 +9,19 @@ import (
 	"sync"
 	"time"
 
-	"veyron/runtimes/google/ipc/version"
-	inaming "veyron/runtimes/google/naming"
-	"veyron/runtimes/google/vtrace"
+	"veyron.io/veyron/veyron/runtimes/google/ipc/version"
+	inaming "veyron.io/veyron/veyron/runtimes/google/naming"
+	"veyron.io/veyron/veyron/runtimes/google/vtrace"
 
-	"veyron2"
-	"veyron2/context"
-	"veyron2/ipc"
-	"veyron2/ipc/stream"
-	"veyron2/naming"
-	"veyron2/security"
-	"veyron2/verror"
-	"veyron2/vlog"
-	"veyron2/vom"
+	"veyron.io/veyron/veyron2"
+	"veyron.io/veyron/veyron2/context"
+	"veyron.io/veyron/veyron2/ipc"
+	"veyron.io/veyron/veyron2/ipc/stream"
+	"veyron.io/veyron/veyron2/naming"
+	"veyron.io/veyron/veyron2/security"
+	"veyron.io/veyron/veyron2/verror"
+	"veyron.io/veyron/veyron2/vlog"
+	"veyron.io/veyron/veyron2/vom"
 )
 
 var (

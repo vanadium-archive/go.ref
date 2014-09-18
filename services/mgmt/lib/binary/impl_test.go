@@ -7,12 +7,12 @@ import (
 	"path/filepath"
 	"testing"
 
-	"veyron/lib/testutil"
-	"veyron/services/mgmt/binary/impl"
+	"veyron.io/veyron/veyron/lib/testutil"
+	"veyron.io/veyron/veyron/services/mgmt/binary/impl"
 
-	"veyron2/naming"
-	"veyron2/rt"
-	"veyron2/vlog"
+	"veyron.io/veyron/veyron2/naming"
+	"veyron.io/veyron/veyron2/rt"
+	"veyron.io/veyron/veyron2/vlog"
 )
 
 const (

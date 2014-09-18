@@ -8,15 +8,15 @@ import (
 	"os/user"
 	"time"
 
-	"veyron/lib/cmdline"
-	"veyron/services/identity"
-	"veyron/services/identity/util"
+	"veyron.io/veyron/veyron/lib/cmdline"
+	"veyron.io/veyron/veyron/services/identity"
+	"veyron.io/veyron/veyron/services/identity/util"
 
-	"veyron2"
-	"veyron2/rt"
-	"veyron2/security"
-	"veyron2/vdl/vdlutil"
-	"veyron2/vlog"
+	"veyron.io/veyron/veyron2"
+	"veyron.io/veyron/veyron2/rt"
+	"veyron.io/veyron/veyron2/security"
+	"veyron.io/veyron/veyron2/vdl/vdlutil"
+	"veyron.io/veyron/veyron2/vlog"
 )
 
 var (
@@ -92,7 +92,7 @@ the user running this command.
 			}
 			id, err := r.NewIdentity(name)
 			if err != nil {
-				return fmt.Errorf("veyron2.Runtime.NewIdentity(%q) failed: %v", name, err)
+				return fmt.Errorf("NewIdentity(%q) failed: %v", name, err)
 			}
 			output, err := util.Base64VomEncode(id)
 			if err != nil {

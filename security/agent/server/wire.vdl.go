@@ -4,17 +4,17 @@
 package server
 
 import (
-	"veyron2/security"
+	"veyron.io/veyron/veyron2/security"
 
-	"veyron2/security/wire"
+	"veyron.io/veyron/veyron2/security/wire"
 
 	// The non-user imports are prefixed with "_gen_" to prevent collisions.
-	_gen_veyron2 "veyron2"
-	_gen_context "veyron2/context"
-	_gen_ipc "veyron2/ipc"
-	_gen_naming "veyron2/naming"
-	_gen_vdlutil "veyron2/vdl/vdlutil"
-	_gen_wiretype "veyron2/wiretype"
+	_gen_veyron2 "veyron.io/veyron/veyron2"
+	_gen_context "veyron.io/veyron/veyron2/context"
+	_gen_ipc "veyron.io/veyron/veyron2/ipc"
+	_gen_naming "veyron.io/veyron/veyron2/naming"
+	_gen_vdlutil "veyron.io/veyron/veyron2/vdl/vdlutil"
+	_gen_wiretype "veyron.io/veyron/veyron2/wiretype"
 )
 
 // TODO(bprosnitz) Remove this line once signatures are updated to use typevals.
@@ -182,20 +182,20 @@ func (__gen_s *ServerStubAgent) Signature(call _gen_ipc.ServerCall) (_gen_ipc.Se
 	}
 
 	result.TypeDefs = []_gen_vdlutil.Any{
-		_gen_wiretype.NamedPrimitiveType{Type: 0x32, Name: "byte", Tags: []string(nil)}, _gen_wiretype.SliceType{Elem: 0x41, Name: "", Tags: []string(nil)}, _gen_wiretype.NamedPrimitiveType{Type: 0x3, Name: "veyron2/security.Hash", Tags: []string(nil)}, _gen_wiretype.StructType{
+		_gen_wiretype.NamedPrimitiveType{Type: 0x32, Name: "byte", Tags: []string(nil)}, _gen_wiretype.SliceType{Elem: 0x41, Name: "", Tags: []string(nil)}, _gen_wiretype.NamedPrimitiveType{Type: 0x3, Name: "veyron.io/veyron/veyron2/security.Hash", Tags: []string(nil)}, _gen_wiretype.StructType{
 			[]_gen_wiretype.FieldType{
 				_gen_wiretype.FieldType{Type: 0x42, Name: "Purpose"},
 				_gen_wiretype.FieldType{Type: 0x43, Name: "Hash"},
 				_gen_wiretype.FieldType{Type: 0x42, Name: "R"},
 				_gen_wiretype.FieldType{Type: 0x42, Name: "S"},
 			},
-			"veyron2/security.Signature", []string(nil)},
-		_gen_wiretype.NamedPrimitiveType{Type: 0x1, Name: "error", Tags: []string(nil)}, _gen_wiretype.NamedPrimitiveType{Type: 0x32, Name: "veyron2/security/wire.KeyCurve", Tags: []string(nil)}, _gen_wiretype.StructType{
+			"veyron.io/veyron/veyron2/security.Signature", []string(nil)},
+		_gen_wiretype.NamedPrimitiveType{Type: 0x1, Name: "error", Tags: []string(nil)}, _gen_wiretype.NamedPrimitiveType{Type: 0x32, Name: "veyron.io/veyron/veyron2/security/wire.KeyCurve", Tags: []string(nil)}, _gen_wiretype.StructType{
 			[]_gen_wiretype.FieldType{
 				_gen_wiretype.FieldType{Type: 0x46, Name: "Curve"},
 				_gen_wiretype.FieldType{Type: 0x42, Name: "XY"},
 			},
-			"veyron2/security/wire.PublicKey", []string(nil)},
+			"veyron.io/veyron/veyron2/security/wire.PublicKey", []string(nil)},
 	}
 
 	return result, nil

@@ -6,11 +6,11 @@ import (
 	"regexp"
 	"testing"
 
-	_ "veyron/lib/testutil"
-	"veyron/lib/testutil/blackbox"
+	_ "veyron.io/veyron/veyron/lib/testutil"
+	"veyron.io/veyron/veyron/lib/testutil/blackbox"
 
-	"veyron2/rt"
-	"veyron2/vlog"
+	"veyron.io/veyron/veyron2/rt"
+	"veyron.io/veyron/veyron2/vlog"
 )
 
 func init() {

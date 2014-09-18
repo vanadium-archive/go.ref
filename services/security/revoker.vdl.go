@@ -4,15 +4,15 @@
 package security
 
 import (
-	"veyron2/security"
+	"veyron.io/veyron/veyron2/security"
 
 	// The non-user imports are prefixed with "_gen_" to prevent collisions.
-	_gen_veyron2 "veyron2"
-	_gen_context "veyron2/context"
-	_gen_ipc "veyron2/ipc"
-	_gen_naming "veyron2/naming"
-	_gen_vdlutil "veyron2/vdl/vdlutil"
-	_gen_wiretype "veyron2/wiretype"
+	_gen_veyron2 "veyron.io/veyron/veyron2"
+	_gen_context "veyron.io/veyron/veyron2/context"
+	_gen_ipc "veyron.io/veyron/veyron2/ipc"
+	_gen_naming "veyron.io/veyron/veyron2/naming"
+	_gen_vdlutil "veyron.io/veyron/veyron2/vdl/vdlutil"
+	_gen_wiretype "veyron.io/veyron/veyron2/wiretype"
 )
 
 // RevocationToken can be presented to a revocation service to revoke a caveat
@@ -180,7 +180,7 @@ func (__gen_s *ServerStubRevoker) Signature(call _gen_ipc.ServerCall) (_gen_ipc.
 	}
 
 	result.TypeDefs = []_gen_vdlutil.Any{
-		_gen_wiretype.NamedPrimitiveType{Type: 0x32, Name: "byte", Tags: []string(nil)}, _gen_wiretype.ArrayType{Elem: 0x41, Len: 0x10, Name: "veyron/services/security.RevocationToken", Tags: []string(nil)}, _gen_wiretype.NamedPrimitiveType{Type: 0x1, Name: "error", Tags: []string(nil)}}
+		_gen_wiretype.NamedPrimitiveType{Type: 0x32, Name: "byte", Tags: []string(nil)}, _gen_wiretype.ArrayType{Elem: 0x41, Len: 0x10, Name: "veyron.io/veyron/veyron/services/security.RevocationToken", Tags: []string(nil)}, _gen_wiretype.NamedPrimitiveType{Type: 0x1, Name: "error", Tags: []string(nil)}}
 
 	return result, nil
 }

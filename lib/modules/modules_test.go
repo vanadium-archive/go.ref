@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"veyron/lib/modules"
+	"veyron.io/veyron/veyron/lib/modules"
 )
 
 func init() {

@@ -5,9 +5,9 @@ import (
 	"reflect"
 	"testing"
 
-	"veyron/runtimes/google/ipc/version"
-	"veyron/runtimes/google/lib/iobuf"
-	"veyron2/naming"
+	"veyron.io/veyron/veyron/runtimes/google/ipc/version"
+	"veyron.io/veyron/veyron/runtimes/google/lib/iobuf"
+	"veyron.io/veyron/veyron2/naming"
 )
 
 func TestControl(t *testing.T) {

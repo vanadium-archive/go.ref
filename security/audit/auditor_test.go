@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	"veyron/security/audit"
+	"veyron.io/veyron/veyron/security/audit"
 )
 
 func TestEntryString(t *testing.T) {

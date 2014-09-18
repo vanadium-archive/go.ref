@@ -1,6 +1,6 @@
 package crypto
 
-import "veyron/runtimes/google/lib/iobuf"
+import "veyron.io/veyron/veyron/runtimes/google/lib/iobuf"
 
 // NewNullCrypter returns a Crypter that does no encryption/decryption.
 func NewNullCrypter() Crypter { return null{} }

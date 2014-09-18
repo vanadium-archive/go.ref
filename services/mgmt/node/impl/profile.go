@@ -7,10 +7,10 @@ import (
 	"runtime"
 	"strings"
 
-	"veyron/services/mgmt/profile"
+	"veyron.io/veyron/veyron/services/mgmt/profile"
 
-	"veyron2/services/mgmt/build"
-	"veyron2/services/mgmt/node"
+	"veyron.io/veyron/veyron2/services/mgmt/build"
+	"veyron.io/veyron/veyron2/services/mgmt/node"
 )
 
 // computeNodeProfile generates a description of the runtime

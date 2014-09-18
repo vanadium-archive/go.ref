@@ -8,8 +8,8 @@
 package appcycle
 
 import (
-	"veyron2"
-	"veyron2/ipc"
+	"veyron.io/veyron/veyron2"
+	"veyron.io/veyron/veyron2/ipc"
 )
 
 // AppCycleService is the interface the server implements.

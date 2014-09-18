@@ -3,7 +3,7 @@ package deque
 import (
 	"testing"
 
-	"veyron/lib/testutil"
+	"veyron.io/veyron/veyron/lib/testutil"
 )
 
 func TestBasic(t *testing.T) {

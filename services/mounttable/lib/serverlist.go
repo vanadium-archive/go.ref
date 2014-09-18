@@ -5,7 +5,7 @@ import (
 	"sync"
 	"time"
 
-	"veyron2/services/mounttable/types"
+	"veyron.io/veyron/veyron2/services/mounttable/types"
 )
 
 type serverListClock interface {

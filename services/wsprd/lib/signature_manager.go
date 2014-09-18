@@ -4,8 +4,8 @@ import (
 	"sync"
 	"time"
 
-	"veyron2/context"
-	"veyron2/ipc"
+	"veyron.io/veyron/veyron2/context"
+	"veyron.io/veyron/veyron2/ipc"
 )
 
 type SignatureManager interface {

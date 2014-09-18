@@ -6,11 +6,11 @@ import (
 	"strings"
 	"time"
 
-	"veyron/lib/glob"
+	"veyron.io/veyron/veyron/lib/glob"
 
-	"veyron2/context"
-	"veyron2/naming"
-	"veyron2/vlog"
+	"veyron.io/veyron/veyron2/context"
+	"veyron.io/veyron/veyron2/naming"
+	"veyron.io/veyron/veyron2/vlog"
 )
 
 const mountTableGlobReplyStreamLength = 100

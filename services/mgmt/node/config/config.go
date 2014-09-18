@@ -23,7 +23,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"veyron2/services/mgmt/application"
+	"veyron.io/veyron/veyron2/services/mgmt/application"
 )
 
 // State specifies how the node manager is configured.  This should encapsulate

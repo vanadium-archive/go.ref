@@ -4,9 +4,9 @@ import (
 	"reflect"
 	"testing"
 
-	"veyron2/ipc"
-	"veyron2/vdl/vdlutil"
-	"veyron2/wiretype"
+	"veyron.io/veyron/veyron2/ipc"
+	"veyron.io/veyron/veyron2/vdl/vdlutil"
+	"veyron.io/veyron/veyron2/wiretype"
 )
 
 func TestNewJSONServiceSignature(t *testing.T) {

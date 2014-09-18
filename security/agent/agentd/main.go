@@ -6,9 +6,9 @@ import (
 	"os"
 	"os/exec"
 	"syscall"
-	"veyron/security/agent"
-	"veyron/security/agent/server"
-	"veyron2/rt"
+	"veyron.io/veyron/veyron/security/agent"
+	"veyron.io/veyron/veyron/security/agent/server"
+	"veyron.io/veyron/veyron2/rt"
 )
 
 func main() {

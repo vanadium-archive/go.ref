@@ -10,10 +10,10 @@ import (
 	// since it installs default HTTP handlers.
 	"net/http/pprof"
 
-	"veyron/runtimes/google/ipc/stream/manager"
-	"veyron2/ipc/stream"
-	"veyron2/naming"
-	"veyron2/vlog"
+	"veyron.io/veyron/veyron/runtimes/google/ipc/stream/manager"
+	"veyron.io/veyron/veyron2/ipc/stream"
+	"veyron.io/veyron/veyron2/naming"
+	"veyron.io/veyron/veyron2/vlog"
 )
 
 type debugServer struct {

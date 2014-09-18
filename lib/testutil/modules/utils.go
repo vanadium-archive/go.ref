@@ -5,7 +5,7 @@ import (
 	"os"
 	"sync"
 
-	"veyron/lib/testutil/blackbox"
+	"veyron.io/veyron/veyron/lib/testutil/blackbox"
 )
 
 type childList struct {

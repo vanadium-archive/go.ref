@@ -6,17 +6,17 @@ import (
 	"testing"
 	"time"
 
-	libstats "veyron/lib/stats"
-	"veyron/lib/stats/histogram"
-	istats "veyron/services/mgmt/stats"
-	"veyron/services/mgmt/stats/impl"
+	libstats "veyron.io/veyron/veyron/lib/stats"
+	"veyron.io/veyron/veyron/lib/stats/histogram"
+	istats "veyron.io/veyron/veyron/services/mgmt/stats"
+	"veyron.io/veyron/veyron/services/mgmt/stats/impl"
 
-	"veyron2/ipc"
-	"veyron2/naming"
-	"veyron2/rt"
-	"veyron2/security"
-	"veyron2/services/mgmt/stats"
-	"veyron2/services/watch/types"
+	"veyron.io/veyron/veyron2/ipc"
+	"veyron.io/veyron/veyron2/naming"
+	"veyron.io/veyron/veyron2/rt"
+	"veyron.io/veyron/veyron2/security"
+	"veyron.io/veyron/veyron2/services/mgmt/stats"
+	"veyron.io/veyron/veyron2/services/watch/types"
 )
 
 type statsDispatcher struct {

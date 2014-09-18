@@ -10,9 +10,9 @@ import (
 	"testing"
 	"time"
 
-	isecurity "veyron/runtimes/google/security"
-	"veyron2/security"
-	"veyron2/vom"
+	isecurity "veyron.io/veyron/veyron/runtimes/google/security"
+	"veyron.io/veyron/veyron2/security"
+	"veyron.io/veyron/veyron2/vom"
 )
 
 var (

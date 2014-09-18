@@ -8,10 +8,10 @@ import (
 	"testing"
 	"time"
 
-	"veyron/runtimes/google/security/keys"
+	"veyron.io/veyron/veyron/runtimes/google/security/keys"
 
-	"veyron2/security"
-	"veyron2/vom"
+	"veyron.io/veyron/veyron2/security"
+	"veyron.io/veyron/veyron2/vom"
 )
 
 var (

@@ -5,7 +5,7 @@ import (
 	"os/signal"
 	"syscall"
 
-	"veyron2/rt"
+	"veyron.io/veyron/veyron2/rt"
 )
 
 type stopSignal string

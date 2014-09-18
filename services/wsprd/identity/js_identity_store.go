@@ -1,6 +1,6 @@
 package identity
 
-import "veyron2/security"
+import "veyron.io/veyron/veyron2/security"
 import "sync"
 
 // JSPublicIDHandles is a store for PublicIDs in use by JS code.

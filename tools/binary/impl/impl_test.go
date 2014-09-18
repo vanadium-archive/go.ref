@@ -11,16 +11,16 @@ import (
 	"strings"
 	"testing"
 
-	"veyron/tools/binary/impl"
+	"veyron.io/veyron/veyron/tools/binary/impl"
 
-	"veyron2"
-	"veyron2/ipc"
-	"veyron2/naming"
-	"veyron2/rt"
-	"veyron2/security"
-	"veyron2/services/mgmt/binary"
-	"veyron2/services/mgmt/repository"
-	"veyron2/vlog"
+	"veyron.io/veyron/veyron2"
+	"veyron.io/veyron/veyron2/ipc"
+	"veyron.io/veyron/veyron2/naming"
+	"veyron.io/veyron/veyron2/rt"
+	"veyron.io/veyron/veyron2/security"
+	"veyron.io/veyron/veyron2/services/mgmt/binary"
+	"veyron.io/veyron/veyron2/services/mgmt/repository"
+	"veyron.io/veyron/veyron2/vlog"
 )
 
 type server struct {

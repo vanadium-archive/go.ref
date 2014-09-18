@@ -1,8 +1,8 @@
 package server
 
 import (
-	"veyron2/ipc"
-	"veyron2/security"
+	"veyron.io/veyron/veyron2/ipc"
+	"veyron.io/veyron/veyron2/security"
 )
 
 // dispatcher holds the invoker and the authorizer to be used for lookup.

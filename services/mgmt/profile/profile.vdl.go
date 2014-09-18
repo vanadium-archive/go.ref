@@ -6,7 +6,7 @@
 package profile
 
 import (
-	"veyron2/services/mgmt/build"
+	"veyron.io/veyron/veyron2/services/mgmt/build"
 )
 
 // Library describes a shared library that applications may use.

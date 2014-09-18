@@ -5,15 +5,15 @@ import (
 	"os"
 	"os/user"
 
-	"veyron/lib/unixfd"
-	isecurity "veyron/runtimes/google/security"
-	vsecurity "veyron/security"
-	"veyron/security/agent"
+	"veyron.io/veyron/veyron/lib/unixfd"
+	isecurity "veyron.io/veyron/veyron/runtimes/google/security"
+	vsecurity "veyron.io/veyron/veyron/security"
+	"veyron.io/veyron/veyron/security/agent"
 
-	"veyron2"
-	"veyron2/security"
-	"veyron2/verror"
-	"veyron2/vlog"
+	"veyron.io/veyron/veyron2"
+	"veyron.io/veyron/veyron2/security"
+	"veyron.io/veyron/veyron2/verror"
+	"veyron.io/veyron/veyron2/vlog"
 )
 
 func (rt *vrt) NewIdentity(name string) (security.PrivateID, error) {

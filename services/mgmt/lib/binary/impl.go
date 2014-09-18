@@ -13,12 +13,12 @@ import (
 	"os"
 	"time"
 
-	"veyron2/context"
-	"veyron2/rt"
-	"veyron2/services/mgmt/binary"
-	"veyron2/services/mgmt/repository"
-	"veyron2/verror"
-	"veyron2/vlog"
+	"veyron.io/veyron/veyron2/context"
+	"veyron.io/veyron/veyron2/rt"
+	"veyron.io/veyron/veyron2/services/mgmt/binary"
+	"veyron.io/veyron/veyron2/services/mgmt/repository"
+	"veyron.io/veyron/veyron2/verror"
+	"veyron.io/veyron/veyron2/vlog"
 )
 
 var (

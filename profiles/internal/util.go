@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"net"
 
-	"veyron/lib/netstate"
+	"veyron.io/veyron/veyron/lib/netstate"
 )
 
 // IPAddressChooser returns the preferred IP address, which is,

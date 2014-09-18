@@ -8,11 +8,11 @@ import (
 	"strconv"
 	"time"
 
-	"veyron/lib/testutil"
-	isecurity "veyron/runtimes/google/security"
-	vsecurity "veyron/security"
+	"veyron.io/veyron/veyron/lib/testutil"
+	isecurity "veyron.io/veyron/veyron/runtimes/google/security"
+	vsecurity "veyron.io/veyron/veyron/security"
 
-	"veyron2/security"
+	"veyron.io/veyron/veyron2/security"
 )
 
 // NewBlessedIdentity creates a new identity and blesses it using the provided blesser

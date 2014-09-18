@@ -3,7 +3,7 @@
 package stream
 
 import (
-	"veyron/services/wsprd/lib"
+	"veyron.io/veyron/veyron/services/wsprd/lib"
 )
 
 // An interface for an asynchronous sender.

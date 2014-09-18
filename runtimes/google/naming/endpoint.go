@@ -7,8 +7,8 @@ import (
 	"strconv"
 	"strings"
 
-	"veyron2/ipc/version"
-	"veyron2/naming"
+	"veyron.io/veyron/veyron2/ipc/version"
+	"veyron.io/veyron/veyron2/naming"
 )
 
 const (

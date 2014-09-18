@@ -8,9 +8,9 @@ import (
 	"path/filepath"
 	"strings"
 
-	"veyron2/ipc"
-	"veyron2/security"
-	"veyron2/services/mgmt/repository"
+	"veyron.io/veyron/veyron2/ipc"
+	"veyron.io/veyron/veyron2/security"
+	"veyron.io/veyron/veyron2/services/mgmt/repository"
 )
 
 const (

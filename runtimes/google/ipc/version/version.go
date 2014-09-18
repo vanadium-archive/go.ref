@@ -3,10 +3,10 @@ package version
 import (
 	"fmt"
 
-	inaming "veyron/runtimes/google/naming"
+	inaming "veyron.io/veyron/veyron/runtimes/google/naming"
 
-	"veyron2/ipc/version"
-	"veyron2/naming"
+	"veyron.io/veyron/veyron2/ipc/version"
+	"veyron.io/veyron/veyron2/naming"
 )
 
 // Range represents a range of IPC versions.

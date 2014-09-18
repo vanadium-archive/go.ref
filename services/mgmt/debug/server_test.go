@@ -10,15 +10,15 @@ import (
 	"testing"
 	"time"
 
-	libstats "veyron/lib/stats"
-	"veyron/services/mgmt/debug"
+	libstats "veyron.io/veyron/veyron/lib/stats"
+	"veyron.io/veyron/veyron/services/mgmt/debug"
 
-	"veyron2/naming"
-	"veyron2/rt"
-	"veyron2/services/mgmt/logreader"
-	"veyron2/services/mgmt/stats"
-	"veyron2/services/mounttable"
-	"veyron2/verror"
+	"veyron.io/veyron/veyron2/naming"
+	"veyron.io/veyron/veyron2/rt"
+	"veyron.io/veyron/veyron2/services/mgmt/logreader"
+	"veyron.io/veyron/veyron2/services/mgmt/stats"
+	"veyron.io/veyron/veyron2/services/mounttable"
+	"veyron.io/veyron/veyron2/verror"
 )
 
 func TestDebugServer(t *testing.T) {

@@ -7,8 +7,8 @@ import (
 	"strings"
 	"time"
 
-	"veyron2/security"
-	"veyron2/vom"
+	"veyron.io/veyron/veyron2/security"
+	"veyron.io/veyron/veyron2/vom"
 )
 
 type setPublicID []security.PublicID

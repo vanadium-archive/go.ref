@@ -9,9 +9,9 @@ import (
 	"testing"
 	"time"
 
-	"veyron/security/audit"
-	"veyron2/rt"
-	"veyron2/security"
+	"veyron.io/veyron/veyron/security/audit"
+	"veyron.io/veyron/veyron2/rt"
+	"veyron.io/veyron/veyron2/security"
 )
 
 func TestFileAuditor(t *testing.T) {

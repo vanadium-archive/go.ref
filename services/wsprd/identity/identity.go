@@ -18,12 +18,12 @@ import (
 	"sync"
 	"time"
 
-	"veyron/security/serialization"
+	"veyron.io/veyron/veyron/security/serialization"
 
-	"veyron2"
-	"veyron2/security"
-	"veyron2/verror"
-	"veyron2/vom"
+	"veyron.io/veyron/veyron2"
+	"veyron.io/veyron/veyron2/security"
+	"veyron.io/veyron/veyron2/verror"
+	"veyron.io/veyron/veyron2/vom"
 )
 
 // permissions is a set of a permissions given to an app, containing the account

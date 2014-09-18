@@ -7,16 +7,16 @@ import (
 	"strings"
 	"sync"
 
-	"veyron/runtimes/google/ipc/stream/proxy"
-	"veyron/runtimes/google/ipc/stream/vif"
-	"veyron/runtimes/google/lib/upcqueue"
-	inaming "veyron/runtimes/google/naming"
+	"veyron.io/veyron/veyron/runtimes/google/ipc/stream/proxy"
+	"veyron.io/veyron/veyron/runtimes/google/ipc/stream/vif"
+	"veyron.io/veyron/veyron/runtimes/google/lib/upcqueue"
+	inaming "veyron.io/veyron/veyron/runtimes/google/naming"
 
-	"veyron2/ipc/stream"
-	"veyron2/naming"
-	"veyron2/verror"
-	"veyron2/vlog"
-	"veyron2/vom"
+	"veyron.io/veyron/veyron2/ipc/stream"
+	"veyron.io/veyron/veyron2/naming"
+	"veyron.io/veyron/veyron2/verror"
+	"veyron.io/veyron/veyron2/vlog"
+	"veyron.io/veyron/veyron2/vom"
 )
 
 var errListenerIsClosed = errors.New("Listener has been Closed")

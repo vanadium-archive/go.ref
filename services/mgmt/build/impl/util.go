@@ -3,7 +3,7 @@ package impl
 import (
 	"runtime"
 
-	"veyron2/services/mgmt/build"
+	"veyron.io/veyron/veyron2/services/mgmt/build"
 )
 
 func getArch() build.Architecture {

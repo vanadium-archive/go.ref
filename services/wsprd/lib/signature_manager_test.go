@@ -4,11 +4,11 @@ import (
 	"reflect"
 	"testing"
 
-	mocks_ipc "veyron/runtimes/google/testing/mocks/ipc"
-	"veyron2/ipc"
-	"veyron2/rt"
-	"veyron2/vdl/vdlutil"
-	"veyron2/wiretype"
+	mocks_ipc "veyron.io/veyron/veyron/runtimes/google/testing/mocks/ipc"
+	"veyron.io/veyron/veyron2/ipc"
+	"veyron.io/veyron/veyron2/rt"
+	"veyron.io/veyron/veyron2/vdl/vdlutil"
+	"veyron.io/veyron/veyron2/wiretype"
 )
 
 const (
@@ -24,7 +24,7 @@ func expectedSignature() ipc.ServiceSignature {
 		Methods: make(map[string]ipc.MethodSignature),
 		TypeDefs: []vdlutil.Any{
 			wiretype.NamedPrimitiveType{
-				Name: "veyron2/vdlutil.AnyData",
+				Name: "veyron.io/veyron/veyron2/vdlutil.AnyData",
 				Type: wiretype.TypeIDInterface,
 			},
 		},

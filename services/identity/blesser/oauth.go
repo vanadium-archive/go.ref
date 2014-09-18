@@ -7,15 +7,15 @@ import (
 	"strings"
 	"time"
 
-	"veyron/services/identity"
-	"veyron/services/identity/googleoauth"
-	"veyron/services/identity/revocation"
+	"veyron.io/veyron/veyron/services/identity"
+	"veyron.io/veyron/veyron/services/identity/googleoauth"
+	"veyron.io/veyron/veyron/services/identity/revocation"
 
-	"veyron2"
-	"veyron2/ipc"
-	"veyron2/security"
-	"veyron2/vdl/vdlutil"
-	"veyron2/vlog"
+	"veyron.io/veyron/veyron2"
+	"veyron.io/veyron/veyron2/ipc"
+	"veyron.io/veyron/veyron2/security"
+	"veyron.io/veyron/veyron2/vdl/vdlutil"
+	"veyron.io/veyron/veyron2/vlog"
 )
 
 type googleOAuth struct {

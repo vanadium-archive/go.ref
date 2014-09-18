@@ -4,18 +4,18 @@ import (
 	"errors"
 	"fmt"
 
-	iipc "veyron/runtimes/google/ipc"
-	imanager "veyron/runtimes/google/ipc/stream/manager"
-	"veyron/runtimes/google/ipc/stream/vc"
-	ivtrace "veyron/runtimes/google/vtrace"
+	iipc "veyron.io/veyron/veyron/runtimes/google/ipc"
+	imanager "veyron.io/veyron/veyron/runtimes/google/ipc/stream/manager"
+	"veyron.io/veyron/veyron/runtimes/google/ipc/stream/vc"
+	ivtrace "veyron.io/veyron/veyron/runtimes/google/vtrace"
 
-	"veyron2"
-	"veyron2/context"
-	"veyron2/ipc"
-	"veyron2/ipc/stream"
-	"veyron2/naming"
-	"veyron2/security"
-	"veyron2/vtrace"
+	"veyron.io/veyron/veyron2"
+	"veyron.io/veyron/veyron2/context"
+	"veyron.io/veyron/veyron2/ipc"
+	"veyron.io/veyron/veyron2/ipc/stream"
+	"veyron.io/veyron/veyron2/naming"
+	"veyron.io/veyron/veyron2/security"
+	"veyron.io/veyron/veyron2/vtrace"
 )
 
 // fixedPublicIDStore implements security.PublicIDStore. It embeds a (fixed) PublicID that

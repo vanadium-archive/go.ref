@@ -7,8 +7,8 @@ import (
 	"testing"
 	"time"
 
-	"veyron2/naming"
-	"veyron2/security"
+	"veyron.io/veyron/veyron2/naming"
+	"veyron.io/veyron/veyron2/security"
 )
 
 type authMap map[security.PublicID]security.LabelSet

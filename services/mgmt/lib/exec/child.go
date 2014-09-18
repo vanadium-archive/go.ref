@@ -7,7 +7,7 @@ import (
 	"os"
 	"sync"
 
-	"veyron/lib/config"
+	"veyron.io/veyron/veyron/lib/config"
 )
 
 var (

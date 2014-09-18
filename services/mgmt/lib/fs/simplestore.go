@@ -9,9 +9,9 @@ import (
 	"strings"
 	"sync"
 
-	"veyron/services/mgmt/profile"
-	"veyron2/services/mgmt/application"
-	"veyron2/verror"
+	"veyron.io/veyron/veyron/services/mgmt/profile"
+	"veyron.io/veyron/veyron2/services/mgmt/application"
+	"veyron.io/veyron/veyron2/verror"
 )
 
 // TODO(rjkroege@google.com) Switch Memstore to the mid-August 2014

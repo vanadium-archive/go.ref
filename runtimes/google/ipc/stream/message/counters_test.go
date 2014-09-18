@@ -4,7 +4,7 @@ import (
 	"testing"
 	"testing/quick"
 
-	"veyron/runtimes/google/ipc/stream/id"
+	"veyron.io/veyron/veyron/runtimes/google/ipc/stream/id"
 )
 
 func TestCounterID(t *testing.T) {

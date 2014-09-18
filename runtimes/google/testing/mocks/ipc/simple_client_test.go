@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	"veyron2/context"
+	"veyron.io/veyron/veyron2/context"
 )
 
 type fakeContext struct{}

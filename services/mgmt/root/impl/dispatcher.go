@@ -1,9 +1,9 @@
 package impl
 
 import (
-	"veyron/services/mgmt/root"
-	"veyron2/ipc"
-	"veyron2/security"
+	"veyron.io/veyron/veyron/services/mgmt/root"
+	"veyron.io/veyron/veyron2/ipc"
+	"veyron.io/veyron/veyron2/security"
 )
 
 // dispatcher holds the state of the root process.

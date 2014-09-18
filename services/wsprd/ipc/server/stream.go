@@ -1,8 +1,8 @@
 package server
 
 import (
-	"veyron/services/wsprd/lib"
-	"veyron2/ipc"
+	"veyron.io/veyron/veyron/services/wsprd/lib"
+	"veyron.io/veyron/veyron2/ipc"
 )
 
 // A simple struct that wraps a stream with the sender api.  It

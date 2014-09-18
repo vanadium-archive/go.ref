@@ -4,10 +4,10 @@ import (
 	"fmt"
 	"time"
 
-	"veyron/lib/cmdline"
+	"veyron.io/veyron/veyron/lib/cmdline"
 
-	"veyron2/rt"
-	"veyron2/vlog"
+	"veyron.io/veyron/veyron2/rt"
+	"veyron.io/veyron/veyron2/vlog"
 )
 
 var cmdGlob = &cmdline.Command{

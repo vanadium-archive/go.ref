@@ -7,9 +7,9 @@ import (
 	"strings"
 	"testing"
 
-	"veyron/services/mgmt/node/config"
+	"veyron.io/veyron/veyron/services/mgmt/node/config"
 
-	"veyron2/services/mgmt/application"
+	"veyron.io/veyron/veyron2/services/mgmt/application"
 )
 
 // TestState checks that encoding/decoding State to child/from parent works

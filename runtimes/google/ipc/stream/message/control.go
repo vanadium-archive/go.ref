@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"io"
 
-	"veyron/runtimes/google/ipc/stream/id"
-	inaming "veyron/runtimes/google/naming"
-	"veyron2/naming"
+	"veyron.io/veyron/veyron/runtimes/google/ipc/stream/id"
+	inaming "veyron.io/veyron/veyron/runtimes/google/naming"
+	"veyron.io/veyron/veyron2/naming"
 )
 
 // Control is the interface implemented by all control messages.

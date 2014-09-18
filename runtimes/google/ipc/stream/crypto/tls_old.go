@@ -16,9 +16,9 @@ import (
 	"net"
 	"sync"
 	"time"
-	tls "veyron/runtimes/google/ipc/stream/crypto/tlsfork"
+	tls "veyron.io/veyron/veyron/runtimes/google/ipc/stream/crypto/tlsfork"
 
-	"veyron/runtimes/google/lib/iobuf"
+	"veyron.io/veyron/veyron/runtimes/google/lib/iobuf"
 )
 
 var errDeadlinesNotSupported = errors.New("deadlines not supported")

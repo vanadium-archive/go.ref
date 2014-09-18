@@ -5,15 +5,15 @@ import (
 	"strings"
 	"testing"
 
-	"veyron/tools/build/impl"
+	"veyron.io/veyron/veyron/tools/build/impl"
 
-	"veyron2/ipc"
-	"veyron2/naming"
-	"veyron2/rt"
-	"veyron2/services/mgmt/binary"
-	"veyron2/services/mgmt/build"
-	"veyron2/verror"
-	"veyron2/vlog"
+	"veyron.io/veyron/veyron2/ipc"
+	"veyron.io/veyron/veyron2/naming"
+	"veyron.io/veyron/veyron2/rt"
+	"veyron.io/veyron/veyron2/services/mgmt/binary"
+	"veyron.io/veyron/veyron2/services/mgmt/build"
+	"veyron.io/veyron/veyron2/verror"
+	"veyron.io/veyron/veyron2/vlog"
 )
 
 var errInternalError = verror.Internalf("internal error")
@@ -72,7 +72,7 @@ func TestBuildClient(t *testing.T) {
 	cmd.Init(nil, &stdout, &stderr)
 
 	// Test the 'Build' command.
-	if err := cmd.Execute([]string{"build", naming.JoinAddressName(endpoint.String(), ""), "veyron/tools/build"}); err != nil {
+	if err := cmd.Execute([]string{"build", naming.JoinAddressName(endpoint.String(), ""), "veyron.io/veyron/veyron/tools/build"}); err != nil {
 		t.Fatalf("%v", err)
 	}
 	if expected, got := "", strings.TrimSpace(stdout.String()); got != expected {

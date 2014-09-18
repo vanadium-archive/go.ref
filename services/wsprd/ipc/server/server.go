@@ -8,16 +8,16 @@ import (
 	"fmt"
 	"sync"
 
-	vsecurity "veyron/security"
-	"veyron/services/wsprd/ipc/stream"
-	"veyron/services/wsprd/lib"
-	"veyron/services/wsprd/signature"
+	vsecurity "veyron.io/veyron/veyron/security"
+	"veyron.io/veyron/veyron/services/wsprd/ipc/stream"
+	"veyron.io/veyron/veyron/services/wsprd/lib"
+	"veyron.io/veyron/veyron/services/wsprd/signature"
 
-	"veyron2"
-	"veyron2/ipc"
-	"veyron2/security"
-	"veyron2/verror"
-	"veyron2/vlog"
+	"veyron.io/veyron/veyron2"
+	"veyron.io/veyron/veyron2/ipc"
+	"veyron.io/veyron/veyron2/security"
+	"veyron.io/veyron/veyron2/verror"
+	"veyron.io/veyron/veyron2/vlog"
 )
 
 type Flow struct {

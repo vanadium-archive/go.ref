@@ -11,19 +11,19 @@ import (
 	"strings"
 	"sync"
 
-	vsecurity "veyron/security"
-	vflag "veyron/security/flag"
-	"veyron/security/serialization"
-	inode "veyron/services/mgmt/node"
-	"veyron/services/mgmt/node/config"
+	vsecurity "veyron.io/veyron/veyron/security"
+	vflag "veyron.io/veyron/veyron/security/flag"
+	"veyron.io/veyron/veyron/security/serialization"
+	inode "veyron.io/veyron/veyron/services/mgmt/node"
+	"veyron.io/veyron/veyron/services/mgmt/node/config"
 
-	"veyron2/ipc"
-	"veyron2/rt"
-	"veyron2/security"
-	"veyron2/services/mgmt/node"
-	"veyron2/services/security/access"
-	"veyron2/verror"
-	"veyron2/vlog"
+	"veyron.io/veyron/veyron2/ipc"
+	"veyron.io/veyron/veyron2/rt"
+	"veyron.io/veyron/veyron2/security"
+	"veyron.io/veyron/veyron2/services/mgmt/node"
+	"veyron.io/veyron/veyron2/services/security/access"
+	"veyron.io/veyron/veyron2/verror"
+	"veyron.io/veyron/veyron2/vlog"
 )
 
 // internalState wraps state shared between different node manager

@@ -14,9 +14,9 @@ import (
 	"strings"
 	"unicode"
 
-	"veyron/lib/testutil/modules"
+	"veyron.io/veyron/veyron/lib/testutil/modules"
 
-	"veyron2/rt"
+	"veyron.io/veyron/veyron2/rt"
 )
 
 type commandFunc func() modules.T

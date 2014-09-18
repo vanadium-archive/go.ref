@@ -10,12 +10,12 @@ import (
 	"testing"
 	"time"
 
-	"veyron/lib/testutil/blackbox"
-	"veyron/security/caveat"
-	"veyron2/security"
-	"veyron2/security/wire"
-	"veyron2/vlog"
-	"veyron2/vom"
+	"veyron.io/veyron/veyron/lib/testutil/blackbox"
+	"veyron.io/veyron/veyron/security/caveat"
+	"veyron.io/veyron/veyron2/security"
+	"veyron.io/veyron/veyron2/security/wire"
+	"veyron.io/veyron/veyron2/vlog"
+	"veyron.io/veyron/veyron2/vom"
 )
 
 type S []string

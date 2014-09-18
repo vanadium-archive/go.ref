@@ -11,7 +11,7 @@ import (
 	"os"
 	"strings"
 
-	"veyron/lib/testutil/blackbox"
+	"veyron.io/veyron/veyron/lib/testutil/blackbox"
 )
 
 func InModule() {

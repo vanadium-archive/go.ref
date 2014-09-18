@@ -7,11 +7,11 @@ import (
 	"testing"
 	"time"
 
-	"veyron/security/audit"
-	"veyron/services/security/discharger"
+	"veyron.io/veyron/veyron/security/audit"
+	"veyron.io/veyron/veyron/services/security/discharger"
 
-	"veyron2/rt"
-	"veyron2/security"
+	"veyron.io/veyron/veyron2/rt"
+	"veyron.io/veyron/veyron2/security"
 )
 
 type auditor struct {

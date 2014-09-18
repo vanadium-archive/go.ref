@@ -9,17 +9,17 @@ import (
 	"sync"
 	"time"
 
-	"veyron/lib/glob"
-	vsecurity "veyron/security"
+	"veyron.io/veyron/veyron/lib/glob"
+	vsecurity "veyron.io/veyron/veyron/security"
 
-	"veyron2/ipc"
-	"veyron2/naming"
-	"veyron2/rt"
-	"veyron2/security"
-	"veyron2/services/mounttable"
-	"veyron2/services/mounttable/types"
-	"veyron2/verror"
-	"veyron2/vlog"
+	"veyron.io/veyron/veyron2/ipc"
+	"veyron.io/veyron/veyron2/naming"
+	"veyron.io/veyron/veyron2/rt"
+	"veyron.io/veyron/veyron2/security"
+	"veyron.io/veyron/veyron2/services/mounttable"
+	"veyron.io/veyron/veyron2/services/mounttable/types"
+	"veyron.io/veyron/veyron2/verror"
+	"veyron.io/veyron/veyron2/vlog"
 )
 
 var (

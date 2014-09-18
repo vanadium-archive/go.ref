@@ -6,9 +6,9 @@ import (
 	"testing"
 	"time"
 
-	_ "veyron/lib/testutil"
-	vsync "veyron/runtimes/google/lib/sync"
-	"veyron2/vlog"
+	_ "veyron.io/veyron/veyron/lib/testutil"
+	vsync "veyron.io/veyron/veyron/runtimes/google/lib/sync"
+	"veyron.io/veyron/veyron2/vlog"
 )
 
 const (

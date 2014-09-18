@@ -6,17 +6,17 @@ import (
 	"strings"
 	"testing"
 
-	"veyron/services/mgmt/profile"
-	"veyron/services/mgmt/repository"
-	"veyron/tools/profile/impl"
+	"veyron.io/veyron/veyron/services/mgmt/profile"
+	"veyron.io/veyron/veyron/services/mgmt/repository"
+	"veyron.io/veyron/veyron/tools/profile/impl"
 
-	"veyron2"
-	"veyron2/ipc"
-	"veyron2/naming"
-	"veyron2/rt"
-	"veyron2/security"
-	"veyron2/services/mgmt/build"
-	"veyron2/vlog"
+	"veyron.io/veyron/veyron2"
+	"veyron.io/veyron/veyron2/ipc"
+	"veyron.io/veyron/veyron2/naming"
+	"veyron.io/veyron/veyron2/rt"
+	"veyron.io/veyron/veyron2/security"
+	"veyron.io/veyron/veyron2/services/mgmt/build"
+	"veyron.io/veyron/veyron2/vlog"
 )
 
 var (

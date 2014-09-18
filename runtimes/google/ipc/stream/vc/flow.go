@@ -4,8 +4,8 @@ import (
 	"net"
 	"time"
 
-	"veyron2/naming"
-	"veyron2/security"
+	"veyron.io/veyron/veyron2/naming"
+	"veyron.io/veyron/veyron2/security"
 )
 
 type flow struct {

@@ -8,13 +8,13 @@ import (
 	"testing"
 	"time"
 
-	_ "veyron/lib/testutil"
-	isecurity "veyron/runtimes/google/security"
+	_ "veyron.io/veyron/veyron/lib/testutil"
+	isecurity "veyron.io/veyron/veyron/runtimes/google/security"
 
-	"veyron2/ipc"
-	"veyron2/naming"
-	"veyron2/security"
-	"veyron2/verror"
+	"veyron.io/veyron/veyron2/ipc"
+	"veyron.io/veyron/veyron2/naming"
+	"veyron.io/veyron/veyron2/security"
+	"veyron.io/veyron/veyron2/verror"
 )
 
 var testID = newID("test")

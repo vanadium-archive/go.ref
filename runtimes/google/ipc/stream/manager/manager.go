@@ -8,15 +8,15 @@ import (
 	"strings"
 	"sync"
 
-	"veyron/runtimes/google/ipc/stream/crypto"
-	"veyron/runtimes/google/ipc/stream/vif"
-	"veyron/runtimes/google/ipc/version"
-	inaming "veyron/runtimes/google/naming"
+	"veyron.io/veyron/veyron/runtimes/google/ipc/stream/crypto"
+	"veyron.io/veyron/veyron/runtimes/google/ipc/stream/vif"
+	"veyron.io/veyron/veyron/runtimes/google/ipc/version"
+	inaming "veyron.io/veyron/veyron/runtimes/google/naming"
 
-	"veyron2/ipc/stream"
-	"veyron2/naming"
-	"veyron2/verror"
-	"veyron2/vlog"
+	"veyron.io/veyron/veyron2/ipc/stream"
+	"veyron.io/veyron/veyron2/naming"
+	"veyron.io/veyron/veyron2/verror"
+	"veyron.io/veyron/veyron2/vlog"
 )
 
 var errShutDown = errors.New("manager has been shut down")

@@ -11,7 +11,7 @@ import (
 	"strconv"
 	"sync"
 	"syscall"
-	"veyron2/ipc/stream"
+	"veyron.io/veyron/veyron2/ipc/stream"
 )
 
 const Network string = "unixfd"

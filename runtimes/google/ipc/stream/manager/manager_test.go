@@ -10,17 +10,17 @@ import (
 	"strings"
 	"testing"
 
-	"veyron2/ipc/stream"
-	"veyron2/naming"
-	"veyron2/security"
-	"veyron2/vlog"
+	"veyron.io/veyron/veyron2/ipc/stream"
+	"veyron.io/veyron/veyron2/naming"
+	"veyron.io/veyron/veyron2/security"
+	"veyron.io/veyron/veyron2/vlog"
 
-	_ "veyron/lib/testutil"
-	"veyron/lib/testutil/blackbox"
-	"veyron/runtimes/google/ipc/stream/vc"
-	"veyron/runtimes/google/ipc/version"
-	inaming "veyron/runtimes/google/naming"
-	isecurity "veyron/runtimes/google/security"
+	_ "veyron.io/veyron/veyron/lib/testutil"
+	"veyron.io/veyron/veyron/lib/testutil/blackbox"
+	"veyron.io/veyron/veyron/runtimes/google/ipc/stream/vc"
+	"veyron.io/veyron/veyron/runtimes/google/ipc/version"
+	inaming "veyron.io/veyron/veyron/runtimes/google/naming"
+	isecurity "veyron.io/veyron/veyron/runtimes/google/security"
 )
 
 func newID(name string) security.PrivateID {

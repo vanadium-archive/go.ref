@@ -6,9 +6,9 @@ import (
 	"io"
 	"time"
 
-	"veyron2/context"
-	"veyron2/rt"
-	"veyron2/vlog"
+	"veyron.io/veyron/veyron2/context"
+	"veyron.io/veyron/veyron2/rt"
+	"veyron.io/veyron/veyron2/vlog"
 )
 
 // CallEcho calls the Echo method 'iterations' times with the given payload

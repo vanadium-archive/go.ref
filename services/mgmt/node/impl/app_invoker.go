@@ -94,18 +94,18 @@ import (
 	"strings"
 	"time"
 
-	"veyron/lib/config"
-	vexec "veyron/services/mgmt/lib/exec"
-	iconfig "veyron/services/mgmt/node/config"
+	"veyron.io/veyron/veyron/lib/config"
+	vexec "veyron.io/veyron/veyron/services/mgmt/lib/exec"
+	iconfig "veyron.io/veyron/veyron/services/mgmt/node/config"
 
-	"veyron2/context"
-	"veyron2/ipc"
-	"veyron2/mgmt"
-	"veyron2/naming"
-	"veyron2/rt"
-	"veyron2/services/mgmt/appcycle"
-	"veyron2/services/mgmt/application"
-	"veyron2/vlog"
+	"veyron.io/veyron/veyron2/context"
+	"veyron.io/veyron/veyron2/ipc"
+	"veyron.io/veyron/veyron2/mgmt"
+	"veyron.io/veyron/veyron2/naming"
+	"veyron.io/veyron/veyron2/rt"
+	"veyron.io/veyron/veyron2/services/mgmt/appcycle"
+	"veyron.io/veyron/veyron2/services/mgmt/application"
+	"veyron.io/veyron/veyron2/vlog"
 )
 
 // instanceInfo holds state about a running instance.

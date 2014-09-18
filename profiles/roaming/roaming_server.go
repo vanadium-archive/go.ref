@@ -5,10 +5,10 @@ package main
 import (
 	"fmt"
 
-	"veyron2/ipc"
-	"veyron2/rt"
+	"veyron.io/veyron/veyron2/ipc"
+	"veyron.io/veyron/veyron2/rt"
 
-	"veyron/profiles/roaming"
+	"veyron.io/veyron/veyron/profiles/roaming"
 )
 
 func main() {

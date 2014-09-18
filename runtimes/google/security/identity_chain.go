@@ -11,13 +11,13 @@ import (
 	"reflect"
 	"time"
 
-	"veyron/runtimes/google/security/keys"
-	vsecurity "veyron/security"
-	"veyron/security/caveat"
+	"veyron.io/veyron/veyron/runtimes/google/security/keys"
+	vsecurity "veyron.io/veyron/veyron/security"
+	"veyron.io/veyron/veyron/security/caveat"
 
-	"veyron2/security"
-	"veyron2/security/wire"
-	"veyron2/vom"
+	"veyron.io/veyron/veyron2/security"
+	"veyron.io/veyron/veyron2/security/wire"
+	"veyron.io/veyron/veyron2/vom"
 )
 
 const (

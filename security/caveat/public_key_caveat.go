@@ -8,11 +8,11 @@ import (
 	"fmt"
 	"time"
 
-	vsecurity "veyron/security"
+	vsecurity "veyron.io/veyron/veyron/security"
 
-	"veyron2/security"
-	"veyron2/security/wire"
-	"veyron2/vom"
+	"veyron.io/veyron/veyron2/security"
+	"veyron.io/veyron/veyron2/security/wire"
+	"veyron.io/veyron/veyron2/vom"
 )
 
 // nonceLength specifies the length in bytes of the random nonce used

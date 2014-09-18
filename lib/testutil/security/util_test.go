@@ -6,11 +6,11 @@ import (
 	"reflect"
 	"testing"
 
-	isecurity "veyron/runtimes/google/security"
-	vsecurity "veyron/security"
+	isecurity "veyron.io/veyron/veyron/runtimes/google/security"
+	vsecurity "veyron.io/veyron/veyron/security"
 
-	"veyron2/rt"
-	"veyron2/security"
+	"veyron.io/veyron/veyron2/rt"
+	"veyron.io/veyron/veyron2/security"
 )
 
 func TestNewBlessedIdentity(t *testing.T) {

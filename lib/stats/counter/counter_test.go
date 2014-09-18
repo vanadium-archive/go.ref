@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"veyron/lib/stats/counter"
+	"veyron.io/veyron/veyron/lib/stats/counter"
 )
 
 func TestCounter(t *testing.T) {

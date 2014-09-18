@@ -9,9 +9,9 @@ import (
 	"testing"
 	"time"
 
-	"veyron/runtimes/google/testing/concurrency"
-	"veyron/runtimes/google/testing/concurrency/sync"
-	"veyron2/vlog"
+	"veyron.io/veyron/veyron/runtimes/google/testing/concurrency"
+	"veyron.io/veyron/veyron/runtimes/google/testing/concurrency/sync"
+	"veyron.io/veyron/veyron2/vlog"
 )
 
 var rw sync.RWMutex

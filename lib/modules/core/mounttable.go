@@ -6,12 +6,12 @@ import (
 	"os"
 	"strings"
 
-	"veyron2"
-	"veyron2/naming"
-	"veyron2/rt"
+	"veyron.io/veyron/veyron2"
+	"veyron.io/veyron/veyron2/naming"
+	"veyron.io/veyron/veyron2/rt"
 
-	"veyron/lib/modules"
-	mounttable "veyron/services/mounttable/lib"
+	"veyron.io/veyron/veyron/lib/modules"
+	mounttable "veyron.io/veyron/veyron/services/mounttable/lib"
 )
 
 func init() {

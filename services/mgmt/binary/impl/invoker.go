@@ -31,11 +31,11 @@ import (
 	"strconv"
 	"syscall"
 
-	"veyron2/ipc"
-	"veyron2/services/mgmt/binary"
-	"veyron2/services/mgmt/repository"
-	"veyron2/verror"
-	"veyron2/vlog"
+	"veyron.io/veyron/veyron2/ipc"
+	"veyron.io/veyron/veyron2/services/mgmt/binary"
+	"veyron.io/veyron/veyron2/services/mgmt/repository"
+	"veyron.io/veyron/veyron2/verror"
+	"veyron.io/veyron/veyron2/vlog"
 )
 
 // state holds the state shared across different binary repository

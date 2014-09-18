@@ -3,9 +3,9 @@ package namespace
 import (
 	"time"
 
-	"veyron2/context"
-	"veyron2/ipc"
-	"veyron2/vlog"
+	"veyron.io/veyron/veyron2/context"
+	"veyron.io/veyron/veyron2/ipc"
+	"veyron.io/veyron/veyron2/vlog"
 )
 
 // mountIntoMountTable mounts a single server into a single mount table.

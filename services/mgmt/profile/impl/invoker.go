@@ -3,12 +3,12 @@ package impl
 import (
 	"errors"
 
-	"veyron/services/mgmt/lib/fs"
-	"veyron/services/mgmt/profile"
+	"veyron.io/veyron/veyron/services/mgmt/lib/fs"
+	"veyron.io/veyron/veyron/services/mgmt/profile"
 
-	"veyron2/ipc"
-	"veyron2/naming"
-	"veyron2/vlog"
+	"veyron.io/veyron/veyron2/ipc"
+	"veyron.io/veyron/veyron2/naming"
+	"veyron.io/veyron/veyron2/vlog"
 )
 
 // invoker holds the profile repository invocation.

@@ -4,10 +4,10 @@ import (
 	"io"
 	"testing"
 
-	"veyron/runtimes/google/ipc/stream/manager"
-	"veyron2"
-	"veyron2/ipc/stream"
-	"veyron2/naming"
+	"veyron.io/veyron/veyron/runtimes/google/ipc/stream/manager"
+	"veyron.io/veyron/veyron2"
+	"veyron.io/veyron/veyron2/ipc/stream"
+	"veyron.io/veyron/veyron2/naming"
 )
 
 const (

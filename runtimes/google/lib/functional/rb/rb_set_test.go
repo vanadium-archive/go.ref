@@ -5,8 +5,8 @@ import (
 	"log"
 	"testing"
 
-	"veyron/lib/testutil"
-	"veyron/runtimes/google/lib/functional"
+	"veyron.io/veyron/veyron/lib/testutil"
+	"veyron.io/veyron/veyron/runtimes/google/lib/functional"
 )
 
 const (

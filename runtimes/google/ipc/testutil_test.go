@@ -4,13 +4,13 @@ import (
 	"reflect"
 	"testing"
 
-	_ "veyron/lib/testutil"
-	"veyron/runtimes/google/ipc/stream/vc"
-	isecurity "veyron/runtimes/google/security"
+	_ "veyron.io/veyron/veyron/lib/testutil"
+	"veyron.io/veyron/veyron/runtimes/google/ipc/stream/vc"
+	isecurity "veyron.io/veyron/veyron/runtimes/google/security"
 
-	"veyron2/ipc"
-	"veyron2/security"
-	"veyron2/verror"
+	"veyron.io/veyron/veyron2/ipc"
+	"veyron.io/veyron/veyron2/security"
+	"veyron.io/veyron/veyron2/verror"
 )
 
 func makeResultPtrs(ins []interface{}) []interface{} {

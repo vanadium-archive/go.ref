@@ -4,7 +4,7 @@ package main
 import (
 	"fmt"
 	"pingpong"
-	"veyron2/rt"
+	"veyron.io/veyron/veyron2/rt"
 )
 
 func main() {

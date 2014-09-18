@@ -3,12 +3,12 @@ package impl
 import (
 	"time"
 
-	"veyron/services/mgmt/lib/exec"
-	"veyron/services/mgmt/node"
+	"veyron.io/veyron/veyron/services/mgmt/lib/exec"
+	"veyron.io/veyron/veyron/services/mgmt/node"
 
-	"veyron2/mgmt"
-	"veyron2/rt"
-	"veyron2/vlog"
+	"veyron.io/veyron/veyron2/mgmt"
+	"veyron.io/veyron/veyron2/rt"
+	"veyron.io/veyron/veyron2/vlog"
 )
 
 // InvokeCallback provides the parent node manager with the given name (which is

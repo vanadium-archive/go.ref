@@ -6,13 +6,13 @@ import (
 	"sync"
 	"time"
 
-	"veyron/runtimes/google/appcycle"
-	"veyron/services/mgmt/lib/exec"
+	"veyron.io/veyron/veyron/runtimes/google/appcycle"
+	"veyron.io/veyron/veyron/services/mgmt/lib/exec"
 
-	"veyron2"
-	"veyron2/ipc"
-	"veyron2/mgmt"
-	"veyron2/naming"
+	"veyron.io/veyron/veyron2"
+	"veyron.io/veyron/veyron2/ipc"
+	"veyron.io/veyron/veyron2/mgmt"
+	"veyron.io/veyron/veyron2/naming"
 )
 
 type mgmtImpl struct {

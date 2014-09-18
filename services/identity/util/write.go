@@ -4,7 +4,7 @@ import (
 	"html/template"
 	"net/http"
 
-	"veyron2/vlog"
+	"veyron.io/veyron/veyron2/vlog"
 )
 
 // HTTPSend encodes obj using VOM and writes it out to the response in base64

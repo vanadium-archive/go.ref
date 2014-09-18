@@ -6,7 +6,7 @@ import (
 	"sync"
 	"time"
 
-	vsync "veyron/runtimes/google/lib/sync"
+	vsync "veyron.io/veyron/veyron/runtimes/google/lib/sync"
 )
 
 const (

@@ -7,12 +7,12 @@ import (
 	"io"
 	"math/big"
 
-	"veyron/runtimes/google/ipc/stream/crypto"
-	"veyron/runtimes/google/lib/iobuf"
+	"veyron.io/veyron/veyron/runtimes/google/ipc/stream/crypto"
+	"veyron.io/veyron/veyron/runtimes/google/lib/iobuf"
 
-	"veyron2/ipc/version"
-	"veyron2/security"
-	"veyron2/vom"
+	"veyron.io/veyron/veyron2/ipc/version"
+	"veyron.io/veyron/veyron2/security"
+	"veyron.io/veyron/veyron2/vom"
 )
 
 const (

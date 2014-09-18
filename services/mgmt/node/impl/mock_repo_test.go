@@ -8,11 +8,11 @@ import (
 	"io/ioutil"
 	"os"
 
-	"veyron2/ipc"
-	"veyron2/services/mgmt/application"
-	"veyron2/services/mgmt/binary"
-	"veyron2/services/mgmt/repository"
-	"veyron2/vlog"
+	"veyron.io/veyron/veyron2/ipc"
+	"veyron.io/veyron/veyron2/services/mgmt/application"
+	"veyron.io/veyron/veyron2/services/mgmt/binary"
+	"veyron.io/veyron/veyron2/services/mgmt/repository"
+	"veyron.io/veyron/veyron2/vlog"
 )
 
 // arInvoker holds the state of an application repository invocation mock.  The

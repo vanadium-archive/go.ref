@@ -5,19 +5,19 @@ import (
 	"os"
 	"testing"
 
-	mtlib "veyron/services/mounttable/lib"
+	mtlib "veyron.io/veyron/veyron/services/mounttable/lib"
 
-	"veyron/lib/testutil/blackbox"
-	"veyron/lib/testutil/security"
-	"veyron/services/mgmt/lib/exec"
+	"veyron.io/veyron/veyron/lib/testutil/blackbox"
+	"veyron.io/veyron/veyron/lib/testutil/security"
+	"veyron.io/veyron/veyron/services/mgmt/lib/exec"
 
-	"veyron2"
-	"veyron2/ipc"
-	"veyron2/naming"
-	"veyron2/rt"
-	"veyron2/services/mgmt/node"
-	"veyron2/verror"
-	"veyron2/vlog"
+	"veyron.io/veyron/veyron2"
+	"veyron.io/veyron/veyron2/ipc"
+	"veyron.io/veyron/veyron2/naming"
+	"veyron.io/veyron/veyron2/rt"
+	"veyron.io/veyron/veyron2/services/mgmt/node"
+	"veyron.io/veyron/veyron2/verror"
+	"veyron.io/veyron/veyron2/vlog"
 )
 
 // TODO(caprita): I've had to write one too many of these, let's move it to some

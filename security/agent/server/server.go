@@ -4,11 +4,11 @@ package server
 
 import (
 	"os"
-	"veyron/lib/unixfd"
-	"veyron2"
-	"veyron2/ipc"
-	"veyron2/security"
-	"veyron2/security/wire"
+	"veyron.io/veyron/veyron/lib/unixfd"
+	"veyron.io/veyron/veyron2"
+	"veyron.io/veyron/veyron2/ipc"
+	"veyron.io/veyron/veyron2/security"
+	"veyron.io/veyron/veyron2/security/wire"
 )
 
 type Signer interface {

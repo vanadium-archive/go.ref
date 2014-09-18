@@ -4,15 +4,15 @@
 package security
 
 import (
-	"veyron2/security"
+	"veyron.io/veyron/veyron2/security"
 
 	// The non-user imports are prefixed with "_gen_" to prevent collisions.
-	_gen_veyron2 "veyron2"
-	_gen_context "veyron2/context"
-	_gen_ipc "veyron2/ipc"
-	_gen_naming "veyron2/naming"
-	_gen_vdlutil "veyron2/vdl/vdlutil"
-	_gen_wiretype "veyron2/wiretype"
+	_gen_veyron2 "veyron.io/veyron/veyron2"
+	_gen_context "veyron.io/veyron/veyron2/context"
+	_gen_ipc "veyron.io/veyron/veyron2/ipc"
+	_gen_naming "veyron.io/veyron/veyron2/naming"
+	_gen_vdlutil "veyron.io/veyron/veyron2/vdl/vdlutil"
+	_gen_wiretype "veyron.io/veyron/veyron2/wiretype"
 )
 
 // TODO(bprosnitz) Remove this line once signatures are updated to use typevals.
@@ -177,13 +177,13 @@ func (__gen_s *ServerStubDischarger) Signature(call _gen_ipc.ServerCall) (_gen_i
 	}
 
 	result.TypeDefs = []_gen_vdlutil.Any{
-		_gen_wiretype.NamedPrimitiveType{Type: 0x1, Name: "anydata", Tags: []string(nil)}, _gen_wiretype.NamedPrimitiveType{Type: 0x3, Name: "veyron2/security.BlessingPattern", Tags: []string(nil)}, _gen_wiretype.SliceType{Elem: 0x42, Name: "", Tags: []string(nil)}, _gen_wiretype.SliceType{Elem: 0x41, Name: "", Tags: []string(nil)}, _gen_wiretype.StructType{
+		_gen_wiretype.NamedPrimitiveType{Type: 0x1, Name: "anydata", Tags: []string(nil)}, _gen_wiretype.NamedPrimitiveType{Type: 0x3, Name: "veyron.io/veyron/veyron2/security.BlessingPattern", Tags: []string(nil)}, _gen_wiretype.SliceType{Elem: 0x42, Name: "", Tags: []string(nil)}, _gen_wiretype.SliceType{Elem: 0x41, Name: "", Tags: []string(nil)}, _gen_wiretype.StructType{
 			[]_gen_wiretype.FieldType{
 				_gen_wiretype.FieldType{Type: 0x43, Name: "Server"},
 				_gen_wiretype.FieldType{Type: 0x3, Name: "Method"},
 				_gen_wiretype.FieldType{Type: 0x44, Name: "Arguments"},
 			},
-			"veyron2/security.DischargeImpetus", []string(nil)},
+			"veyron.io/veyron/veyron2/security.DischargeImpetus", []string(nil)},
 		_gen_wiretype.NamedPrimitiveType{Type: 0x1, Name: "error", Tags: []string(nil)}}
 
 	return result, nil

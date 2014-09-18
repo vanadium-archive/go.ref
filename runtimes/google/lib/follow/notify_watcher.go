@@ -8,7 +8,7 @@ import (
 	"io"
 	"sync"
 
-	vsync "veyron/runtimes/google/lib/sync"
+	vsync "veyron.io/veyron/veyron/runtimes/google/lib/sync"
 )
 
 type fsNotifyWatcher struct {

@@ -3,9 +3,9 @@ package benchmarks_test
 import (
 	"testing"
 
-	"veyron/runtimes/google/ipc/benchmarks"
+	"veyron.io/veyron/veyron/runtimes/google/ipc/benchmarks"
 
-	"veyron2/rt"
+	"veyron.io/veyron/veyron2/rt"
 )
 
 var runtime = rt.Init()

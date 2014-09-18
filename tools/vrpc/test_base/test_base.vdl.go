@@ -6,12 +6,12 @@ package test_base
 import (
 	// The non-user imports are prefixed with "_gen_" to prevent collisions.
 	_gen_io "io"
-	_gen_veyron2 "veyron2"
-	_gen_context "veyron2/context"
-	_gen_ipc "veyron2/ipc"
-	_gen_naming "veyron2/naming"
-	_gen_vdlutil "veyron2/vdl/vdlutil"
-	_gen_wiretype "veyron2/wiretype"
+	_gen_veyron2 "veyron.io/veyron/veyron2"
+	_gen_context "veyron.io/veyron/veyron2/context"
+	_gen_ipc "veyron.io/veyron/veyron2/ipc"
+	_gen_naming "veyron.io/veyron/veyron2/naming"
+	_gen_vdlutil "veyron.io/veyron/veyron2/vdl/vdlutil"
+	_gen_wiretype "veyron.io/veyron/veyron2/wiretype"
 )
 
 type Struct struct {
@@ -739,7 +739,7 @@ func (__gen_s *ServerStubTypeTester) Signature(call _gen_ipc.ServerCall) (_gen_i
 				_gen_wiretype.FieldType{Type: 0x24, Name: "X"},
 				_gen_wiretype.FieldType{Type: 0x24, Name: "Y"},
 			},
-			"veyron/tools/vrpc/test_base.Struct", []string(nil)},
+			"veyron.io/veyron/veyron/tools/vrpc/test_base.Struct", []string(nil)},
 	}
 
 	return result, nil

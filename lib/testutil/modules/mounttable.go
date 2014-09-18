@@ -7,13 +7,13 @@ import (
 	"strconv"
 	"strings"
 
-	"veyron/lib/testutil/blackbox"
-	mounttable "veyron/services/mounttable/lib"
+	"veyron.io/veyron/veyron/lib/testutil/blackbox"
+	mounttable "veyron.io/veyron/veyron/services/mounttable/lib"
 
-	"veyron2"
-	"veyron2/naming"
-	"veyron2/rt"
-	"veyron2/vlog"
+	"veyron.io/veyron/veyron2"
+	"veyron.io/veyron/veyron2/naming"
+	"veyron.io/veyron/veyron2/rt"
+	"veyron.io/veyron/veyron2/vlog"
 )
 
 var (

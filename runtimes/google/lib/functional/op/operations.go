@@ -1,7 +1,7 @@
 package op
 
 import (
-	"veyron/runtimes/google/lib/functional"
+	"veyron.io/veyron/veyron/runtimes/google/lib/functional"
 )
 
 // IterDifference iterates through the difference of two sets, applying function f

@@ -6,11 +6,11 @@ import (
 	"reflect"
 	"sync"
 
-	isecurity "veyron/runtimes/google/security"
-	"veyron/security/serialization"
+	isecurity "veyron.io/veyron/veyron/runtimes/google/security"
+	"veyron.io/veyron/veyron/security/serialization"
 
-	"veyron2/security"
-	"veyron2/vlog"
+	"veyron.io/veyron/veyron2/security"
+	"veyron.io/veyron/veyron2/vlog"
 )
 
 const (

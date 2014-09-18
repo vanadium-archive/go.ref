@@ -2,12 +2,12 @@ package ipc
 
 import (
 	"sync"
-	"veyron2"
-	"veyron2/context"
-	"veyron2/ipc"
-	"veyron2/security"
-	"veyron2/vdl/vdlutil"
-	"veyron2/vlog"
+	"veyron.io/veyron/veyron2"
+	"veyron.io/veyron/veyron2/context"
+	"veyron.io/veyron/veyron2/ipc"
+	"veyron.io/veyron/veyron2/security"
+	"veyron.io/veyron/veyron2/vdl/vdlutil"
+	"veyron.io/veyron/veyron2/vlog"
 )
 
 // prepareDischarges retrieves the caveat discharges required for using blessing

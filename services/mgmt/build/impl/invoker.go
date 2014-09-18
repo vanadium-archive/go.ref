@@ -9,11 +9,11 @@ import (
 	"path/filepath"
 	"runtime"
 
-	"veyron2/ipc"
-	"veyron2/services/mgmt/binary"
-	"veyron2/services/mgmt/build"
-	"veyron2/verror"
-	"veyron2/vlog"
+	"veyron.io/veyron/veyron2/ipc"
+	"veyron.io/veyron/veyron2/services/mgmt/binary"
+	"veyron.io/veyron/veyron2/services/mgmt/build"
+	"veyron.io/veyron/veyron2/verror"
+	"veyron.io/veyron/veyron2/vlog"
 )
 
 var (

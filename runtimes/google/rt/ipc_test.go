@@ -7,15 +7,15 @@ import (
 	"testing"
 	"time"
 
-	_ "veyron/lib/testutil"
-	isecurity "veyron/runtimes/google/security"
-	vsecurity "veyron/security"
+	_ "veyron.io/veyron/veyron/lib/testutil"
+	isecurity "veyron.io/veyron/veyron/runtimes/google/security"
+	vsecurity "veyron.io/veyron/veyron/security"
 
-	"veyron2"
-	"veyron2/ipc"
-	"veyron2/naming"
-	"veyron2/rt"
-	"veyron2/security"
+	"veyron.io/veyron/veyron2"
+	"veyron.io/veyron/veyron2/ipc"
+	"veyron.io/veyron/veyron2/naming"
+	"veyron.io/veyron/veyron2/rt"
+	"veyron.io/veyron/veyron2/security"
 )
 
 type testService struct{}

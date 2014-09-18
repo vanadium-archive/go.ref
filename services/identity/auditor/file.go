@@ -8,10 +8,10 @@ import (
 	"sync"
 	"time"
 
-	"veyron/security/audit"
-	"veyron2/security/wire"
-	"veyron2/vlog"
-	"veyron2/vom"
+	"veyron.io/veyron/veyron/security/audit"
+	"veyron.io/veyron/veyron2/security/wire"
+	"veyron.io/veyron/veyron2/vlog"
+	"veyron.io/veyron/veyron2/vom"
 )
 
 type fileAuditor struct {

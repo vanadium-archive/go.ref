@@ -14,8 +14,8 @@ import (
 	"testing"
 	"time"
 
-	"veyron/lib/testutil"
-	"veyron/lib/testutil/blackbox"
+	"veyron.io/veyron/veyron/lib/testutil"
+	"veyron.io/veyron/veyron/lib/testutil/blackbox"
 )
 
 func isFatalf(t *testing.T, err error, format string, args ...interface{}) {

@@ -2,8 +2,8 @@ package impl_test
 
 import (
 	"testing"
-	"veyron2/ipc"
-	"veyron2/rt"
+	"veyron.io/veyron/veyron2/ipc"
+	"veyron.io/veyron/veyron2/rt"
 )
 
 func startServer(t *testing.T, disp ipc.Dispatcher) (ipc.Server, string, error) {

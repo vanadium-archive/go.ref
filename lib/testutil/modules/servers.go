@@ -6,11 +6,11 @@ import (
 	"strings"
 	"time"
 
-	"veyron/lib/testutil/blackbox"
+	"veyron.io/veyron/veyron/lib/testutil/blackbox"
 
-	"veyron2/ipc"
-	"veyron2/naming"
-	"veyron2/rt"
+	"veyron.io/veyron/veyron2/ipc"
+	"veyron.io/veyron/veyron2/naming"
+	"veyron.io/veyron/veyron2/rt"
 )
 
 func init() {

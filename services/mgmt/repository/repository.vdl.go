@@ -6,21 +6,21 @@
 package repository
 
 import (
-	"veyron/services/mgmt/profile"
+	"veyron.io/veyron/veyron/services/mgmt/profile"
 
-	"veyron2/security"
+	"veyron.io/veyron/veyron2/security"
 
-	"veyron2/services/mgmt/application"
+	"veyron.io/veyron/veyron2/services/mgmt/application"
 
-	"veyron2/services/mgmt/repository"
+	"veyron.io/veyron/veyron2/services/mgmt/repository"
 
 	// The non-user imports are prefixed with "_gen_" to prevent collisions.
-	_gen_veyron2 "veyron2"
-	_gen_context "veyron2/context"
-	_gen_ipc "veyron2/ipc"
-	_gen_naming "veyron2/naming"
-	_gen_vdlutil "veyron2/vdl/vdlutil"
-	_gen_wiretype "veyron2/wiretype"
+	_gen_veyron2 "veyron.io/veyron/veyron2"
+	_gen_context "veyron.io/veyron/veyron2/context"
+	_gen_ipc "veyron.io/veyron/veyron2/ipc"
+	_gen_naming "veyron.io/veyron/veyron2/naming"
+	_gen_vdlutil "veyron.io/veyron/veyron2/vdl/vdlutil"
+	_gen_wiretype "veyron.io/veyron/veyron2/wiretype"
 )
 
 // TODO(bprosnitz) Remove this line once signatures are updated to use typevals.
@@ -251,7 +251,7 @@ func (__gen_s *ServerStubApplication) Signature(call _gen_ipc.ServerCall) (_gen_
 				_gen_wiretype.FieldType{Type: 0x3, Name: "Binary"},
 				_gen_wiretype.FieldType{Type: 0x3d, Name: "Env"},
 			},
-			"veyron2/services/mgmt/application.Envelope", []string(nil)},
+			"veyron.io/veyron/veyron2/services/mgmt/application.Envelope", []string(nil)},
 		_gen_wiretype.NamedPrimitiveType{Type: 0x1, Name: "error", Tags: []string(nil)}}
 	var ss _gen_ipc.ServiceSignature
 	var firstAdded int
@@ -555,14 +555,14 @@ func (__gen_s *ServerStubProfile) Signature(call _gen_ipc.ServerCall) (_gen_ipc.
 	}
 
 	result.TypeDefs = []_gen_vdlutil.Any{
-		_gen_wiretype.NamedPrimitiveType{Type: 0x3, Name: "veyron2/services/mgmt/build.Architecture", Tags: []string(nil)}, _gen_wiretype.NamedPrimitiveType{Type: 0x3, Name: "veyron2/services/mgmt/build.Format", Tags: []string(nil)}, _gen_wiretype.StructType{
+		_gen_wiretype.NamedPrimitiveType{Type: 0x3, Name: "veyron.io/veyron/veyron2/services/mgmt/build.Architecture", Tags: []string(nil)}, _gen_wiretype.NamedPrimitiveType{Type: 0x3, Name: "veyron.io/veyron/veyron2/services/mgmt/build.Format", Tags: []string(nil)}, _gen_wiretype.StructType{
 			[]_gen_wiretype.FieldType{
 				_gen_wiretype.FieldType{Type: 0x3, Name: "Name"},
 				_gen_wiretype.FieldType{Type: 0x3, Name: "MajorVersion"},
 				_gen_wiretype.FieldType{Type: 0x3, Name: "MinorVersion"},
 			},
-			"veyron/services/mgmt/profile.Library", []string(nil)},
-		_gen_wiretype.MapType{Key: 0x43, Elem: 0x2, Name: "", Tags: []string(nil)}, _gen_wiretype.NamedPrimitiveType{Type: 0x3, Name: "veyron2/services/mgmt/build.OperatingSystem", Tags: []string(nil)}, _gen_wiretype.StructType{
+			"veyron.io/veyron/veyron/services/mgmt/profile.Library", []string(nil)},
+		_gen_wiretype.MapType{Key: 0x43, Elem: 0x2, Name: "", Tags: []string(nil)}, _gen_wiretype.NamedPrimitiveType{Type: 0x3, Name: "veyron.io/veyron/veyron2/services/mgmt/build.OperatingSystem", Tags: []string(nil)}, _gen_wiretype.StructType{
 			[]_gen_wiretype.FieldType{
 				_gen_wiretype.FieldType{Type: 0x41, Name: "Arch"},
 				_gen_wiretype.FieldType{Type: 0x3, Name: "Description"},
@@ -571,7 +571,7 @@ func (__gen_s *ServerStubProfile) Signature(call _gen_ipc.ServerCall) (_gen_ipc.
 				_gen_wiretype.FieldType{Type: 0x3, Name: "Label"},
 				_gen_wiretype.FieldType{Type: 0x45, Name: "OS"},
 			},
-			"veyron/services/mgmt/profile.Specification", []string(nil)},
+			"veyron.io/veyron/veyron/services/mgmt/profile.Specification", []string(nil)},
 		_gen_wiretype.NamedPrimitiveType{Type: 0x1, Name: "error", Tags: []string(nil)}}
 	var ss _gen_ipc.ServiceSignature
 	var firstAdded int

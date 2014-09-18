@@ -11,12 +11,12 @@ import (
 	"strings"
 	"time"
 
-	"veyron/services/wsprd/app"
-	"veyron/services/wsprd/lib"
-	"veyron2"
-	"veyron2/verror"
-	"veyron2/vlog"
-	"veyron2/vom"
+	"veyron.io/veyron/veyron/services/wsprd/app"
+	"veyron.io/veyron/veyron/services/wsprd/lib"
+	"veyron.io/veyron/veyron2"
+	"veyron.io/veyron/veyron2/verror"
+	"veyron.io/veyron/veyron2/vlog"
+	"veyron.io/veyron/veyron2/vom"
 
 	"github.com/gorilla/websocket"
 )

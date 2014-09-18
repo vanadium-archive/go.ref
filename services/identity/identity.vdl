@@ -21,7 +21,7 @@ package identity
 // then the "any" should be replaced by:
 // OneOf<wire.ChainPublicID, []wire.ChainPublicID>
 // where wire is from:
-// import "veyron2/security/wire"
+// import "veyron.io/veyron/veyron2/security/wire"
 type OAuthBlesser interface {
   // BlessUsingAuthorizationCode exchanges the provided authorization code
   // for an access token and then uses that access token to obtain an

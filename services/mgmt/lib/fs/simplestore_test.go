@@ -7,10 +7,10 @@ import (
 	"reflect"
 	"testing"
 
-	_ "veyron/services/mgmt/profile"
-	"veyron2/naming"
-	"veyron2/services/mgmt/application"
-	"veyron2/verror"
+	_ "veyron.io/veyron/veyron/services/mgmt/profile"
+	"veyron.io/veyron/veyron2/naming"
+	"veyron.io/veyron/veyron2/services/mgmt/application"
+	"veyron.io/veyron/veyron2/verror"
 )
 
 func TestNewMemstore(t *testing.T) {

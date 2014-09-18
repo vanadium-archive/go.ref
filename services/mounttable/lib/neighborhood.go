@@ -6,16 +6,16 @@ import (
 	"strconv"
 	"strings"
 
-	"veyron/lib/glob"
-	"veyron/lib/netconfig"
+	"veyron.io/veyron/veyron/lib/glob"
+	"veyron.io/veyron/veyron/lib/netconfig"
 
-	"veyron2/ipc"
-	"veyron2/naming"
-	"veyron2/rt"
-	"veyron2/security"
-	"veyron2/services/mounttable"
-	"veyron2/services/mounttable/types"
-	"veyron2/vlog"
+	"veyron.io/veyron/veyron2/ipc"
+	"veyron.io/veyron/veyron2/naming"
+	"veyron.io/veyron/veyron2/rt"
+	"veyron.io/veyron/veyron2/security"
+	"veyron.io/veyron/veyron2/services/mounttable"
+	"veyron.io/veyron/veyron2/services/mounttable/types"
+	"veyron.io/veyron/veyron2/vlog"
 
 	"code.google.com/p/mdns"
 )

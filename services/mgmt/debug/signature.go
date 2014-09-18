@@ -3,7 +3,7 @@ package debug
 import (
 	"strings"
 
-	"veyron2/ipc"
+	"veyron.io/veyron/veyron2/ipc"
 )
 
 type signatureInvoker struct {

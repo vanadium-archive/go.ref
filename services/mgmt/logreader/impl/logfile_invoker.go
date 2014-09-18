@@ -6,9 +6,9 @@ import (
 	"os"
 	"path/filepath"
 
-	"veyron2/ipc"
-	"veyron2/services/mgmt/logreader/types"
-	"veyron2/vlog"
+	"veyron.io/veyron/veyron2/ipc"
+	"veyron.io/veyron/veyron2/services/mgmt/logreader/types"
+	"veyron.io/veyron/veyron2/vlog"
 )
 
 // logFileInvoker holds the state of a logfile invocation.

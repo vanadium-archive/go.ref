@@ -15,7 +15,7 @@ import (
 	"testing"
 	"time"
 
-	"veyron2/vlog"
+	"veyron.io/veyron/veyron2/vlog"
 )
 
 type mainFunc func(argv []string)

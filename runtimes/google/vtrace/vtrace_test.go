@@ -4,19 +4,19 @@ import (
 	"strings"
 	"testing"
 
-	iipc "veyron/runtimes/google/ipc"
-	"veyron/runtimes/google/ipc/stream/manager"
-	tnaming "veyron/runtimes/google/testing/mocks/naming"
-	truntime "veyron/runtimes/google/testing/mocks/runtime"
-	ivtrace "veyron/runtimes/google/vtrace"
+	iipc "veyron.io/veyron/veyron/runtimes/google/ipc"
+	"veyron.io/veyron/veyron/runtimes/google/ipc/stream/manager"
+	tnaming "veyron.io/veyron/veyron/runtimes/google/testing/mocks/naming"
+	truntime "veyron.io/veyron/veyron/runtimes/google/testing/mocks/runtime"
+	ivtrace "veyron.io/veyron/veyron/runtimes/google/vtrace"
 
-	"veyron2/context"
-	"veyron2/ipc"
-	"veyron2/ipc/stream"
-	"veyron2/naming"
-	"veyron2/security"
-	"veyron2/vlog"
-	"veyron2/vtrace"
+	"veyron.io/veyron/veyron2/context"
+	"veyron.io/veyron/veyron2/ipc"
+	"veyron.io/veyron/veyron2/ipc/stream"
+	"veyron.io/veyron/veyron2/naming"
+	"veyron.io/veyron/veyron2/security"
+	"veyron.io/veyron/veyron2/vlog"
+	"veyron.io/veyron/veyron2/vtrace"
 )
 
 // We need a special way to create contexts for tests.  We

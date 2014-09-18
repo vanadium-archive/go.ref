@@ -5,9 +5,9 @@ import (
 	"errors"
 	"sync"
 
-	"veyron/security/serialization"
+	"veyron.io/veyron/veyron/security/serialization"
 
-	"veyron2/security"
+	"veyron.io/veyron/veyron2/security"
 )
 
 const (

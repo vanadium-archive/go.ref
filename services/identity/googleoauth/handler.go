@@ -22,11 +22,11 @@ import (
 
 	"code.google.com/p/goauth2/oauth"
 
-	"veyron/services/identity/auditor"
-	"veyron/services/identity/revocation"
-	"veyron/services/identity/util"
-	"veyron2/security"
-	"veyron2/vlog"
+	"veyron.io/veyron/veyron/services/identity/auditor"
+	"veyron.io/veyron/veyron/services/identity/revocation"
+	"veyron.io/veyron/veyron/services/identity/util"
+	"veyron.io/veyron/veyron2/security"
+	"veyron.io/veyron/veyron2/vlog"
 )
 
 type HandlerArgs struct {

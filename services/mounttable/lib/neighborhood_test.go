@@ -7,13 +7,13 @@ import (
 	"testing"
 	"time"
 
-	_ "veyron/lib/testutil"
+	_ "veyron.io/veyron/veyron/lib/testutil"
 
-	"veyron2"
-	"veyron2/naming"
-	"veyron2/rt"
-	"veyron2/services/mounttable"
-	"veyron2/vlog"
+	"veyron.io/veyron/veyron2"
+	"veyron.io/veyron/veyron2/naming"
+	"veyron.io/veyron/veyron2/rt"
+	"veyron.io/veyron/veyron2/services/mounttable"
+	"veyron.io/veyron/veyron2/vlog"
 )
 
 func protocolAndAddress(e naming.Endpoint) (string, string, error) {

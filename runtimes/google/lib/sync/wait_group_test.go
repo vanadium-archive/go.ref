@@ -2,7 +2,7 @@ package sync
 
 import (
 	"testing"
-	"veyron/lib/testutil"
+	"veyron.io/veyron/veyron/lib/testutil"
 )
 
 // TestRandom tests Wait after a random sequence of TryAdd's and Done's that

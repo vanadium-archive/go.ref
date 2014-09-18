@@ -9,7 +9,7 @@
 //
 //     // File: mytestsubprocess.go
 //     import (
-//         "veyron/lib/testutil/blackbox"
+//         "veyron.io/veyron/veyron/lib/testutil/blackbox"
 //     )
 //
 //     func init() {
@@ -30,7 +30,7 @@
 //     package foo
 //
 //     import (
-//         "veyron/lib/testutil/blackbox"
+//         "veyron.io/veyron/veyron/lib/testutil/blackbox"
 //     )
 //
 //     func TestHelperProcess(t *testing.T) {

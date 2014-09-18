@@ -17,7 +17,7 @@ import (
 
 	"github.com/golang/groupcache/lru"
 
-	"veyron/tools/playground/event"
+	"veyron.io/veyron/veyron/tools/playground/event"
 )
 
 type ResponseBody struct {

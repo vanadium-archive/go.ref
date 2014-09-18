@@ -9,23 +9,23 @@ import (
 	"sync"
 	"testing"
 	"time"
-	"veyron/services/wsprd/ipc/client"
-	"veyron/services/wsprd/lib"
-	"veyron/services/wsprd/signature"
-	"veyron2"
-	"veyron2/ipc"
-	"veyron2/naming"
-	"veyron2/rt"
-	"veyron2/security"
-	"veyron2/vdl/vdlutil"
-	"veyron2/verror"
-	"veyron2/vlog"
-	"veyron2/vom"
-	vom_wiretype "veyron2/vom/wiretype"
-	"veyron2/wiretype"
+	"veyron.io/veyron/veyron/services/wsprd/ipc/client"
+	"veyron.io/veyron/veyron/services/wsprd/lib"
+	"veyron.io/veyron/veyron/services/wsprd/signature"
+	"veyron.io/veyron/veyron2"
+	"veyron.io/veyron/veyron2/ipc"
+	"veyron.io/veyron/veyron2/naming"
+	"veyron.io/veyron/veyron2/rt"
+	"veyron.io/veyron/veyron2/security"
+	"veyron.io/veyron/veyron2/vdl/vdlutil"
+	"veyron.io/veyron/veyron2/verror"
+	"veyron.io/veyron/veyron2/vlog"
+	"veyron.io/veyron/veyron2/vom"
+	vom_wiretype "veyron.io/veyron/veyron2/vom/wiretype"
+	"veyron.io/veyron/veyron2/wiretype"
 
-	"veyron/runtimes/google/ipc/stream/proxy"
-	mounttable "veyron/services/mounttable/lib"
+	"veyron.io/veyron/veyron/runtimes/google/ipc/stream/proxy"
+	mounttable "veyron.io/veyron/veyron/services/mounttable/lib"
 )
 
 var (
@@ -699,8 +699,8 @@ func TestDeserializeCaveat(t *testing.T) {
 			expectedValue: C(security.MethodCaveat("Get", "MultiGet")),
 		},
 		{
-			json:          `{"_type":"PeerBlessingsCaveat","service":"...","data":["veyron/batman","veyron/brucewayne"]}`,
-			expectedValue: C(security.PeerBlessingsCaveat("veyron/batman", "veyron/brucewayne")),
+			json:          `{"_type":"PeerBlessingsCaveat","service":"...","data":["veyron.io/veyron/veyron/batman","veyron.io/veyron/veyron/brucewayne"]}`,
+			expectedValue: C(security.PeerBlessingsCaveat("veyron.io/veyron/veyron/batman", "veyron.io/veyron/veyron/brucewayne")),
 		},
 	}
 

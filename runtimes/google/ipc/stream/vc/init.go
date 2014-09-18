@@ -1,10 +1,10 @@
 package vc
 
 import (
-	isecurity "veyron/runtimes/google/security"
+	isecurity "veyron.io/veyron/veyron/runtimes/google/security"
 
-	"veyron2/security"
-	"veyron2/vlog"
+	"veyron.io/veyron/veyron2/security"
+	"veyron.io/veyron/veyron2/vlog"
 )
 
 var anonymousID security.PrivateID

@@ -9,8 +9,8 @@ import "C"
 import (
 	"fmt"
 
-	"veyron2"
-	"veyron2/security"
+	"veyron.io/veyron/veyron2"
+	"veyron.io/veyron/veyron2/security"
 )
 
 // Platform returns the description of the Platform this process is running on.

@@ -9,10 +9,10 @@ import (
 	"testing"
 	"time"
 
-	"veyron2/context"
-	"veyron2/ipc"
-	"veyron2/security"
-	"veyron2/vdl/vdlutil"
+	"veyron.io/veyron/veyron2/context"
+	"veyron.io/veyron/veyron2/ipc"
+	"veyron.io/veyron/veyron2/security"
+	"veyron.io/veyron/veyron2/vdl/vdlutil"
 )
 
 // BEGIN MOCK BLESSER SERVICE

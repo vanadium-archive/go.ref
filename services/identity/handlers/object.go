@@ -3,7 +3,7 @@ package handlers
 import (
 	"net/http"
 
-	"veyron/services/identity/util"
+	"veyron.io/veyron/veyron/services/identity/util"
 )
 
 // Object implements an http.Handler that writes out the provided object in the

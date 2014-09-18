@@ -5,10 +5,10 @@ import (
 	"testing"
 	"time"
 
-	isecurity "veyron/runtimes/google/security"
+	isecurity "veyron.io/veyron/veyron/runtimes/google/security"
 
-	"veyron2/naming"
-	"veyron2/security"
+	"veyron.io/veyron/veyron2/naming"
+	"veyron.io/veyron/veyron2/security"
 )
 
 var testID = newID("test")

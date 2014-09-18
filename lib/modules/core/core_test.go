@@ -7,12 +7,12 @@ import (
 	"testing"
 	"time"
 
-	"veyron2/rt"
+	"veyron.io/veyron/veyron2/rt"
 
-	"veyron/lib/expect"
-	"veyron/lib/modules"
-	"veyron/lib/modules/core"
-	_ "veyron/lib/testutil"
+	"veyron.io/veyron/veyron/lib/expect"
+	"veyron.io/veyron/veyron/lib/modules"
+	"veyron.io/veyron/veyron/lib/modules/core"
+	_ "veyron.io/veyron/veyron/lib/testutil"
 )
 
 func TestCommands(t *testing.T) {

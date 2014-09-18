@@ -10,9 +10,9 @@ import (
 	"sync"
 	"time"
 
-	"veyron2/ipc"
-	"veyron2/naming"
-	"veyron2/vlog"
+	"veyron.io/veyron/veyron2/ipc"
+	"veyron.io/veyron/veyron2/naming"
+	"veyron.io/veyron/veyron2/vlog"
 )
 
 type callbackState struct {

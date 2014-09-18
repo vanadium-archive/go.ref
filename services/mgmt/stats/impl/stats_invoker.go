@@ -5,15 +5,15 @@ package impl
 import (
 	"time"
 
-	"veyron/lib/stats"
+	"veyron.io/veyron/veyron/lib/stats"
 
-	"veyron2/ipc"
-	"veyron2/services/mgmt/stats/types"
-	mttypes "veyron2/services/mounttable/types"
-	watchtypes "veyron2/services/watch/types"
-	"veyron2/vdl/vdlutil"
-	"veyron2/verror"
-	"veyron2/vlog"
+	"veyron.io/veyron/veyron2/ipc"
+	"veyron.io/veyron/veyron2/services/mgmt/stats/types"
+	mttypes "veyron.io/veyron/veyron2/services/mounttable/types"
+	watchtypes "veyron.io/veyron/veyron2/services/watch/types"
+	"veyron.io/veyron/veyron2/vdl/vdlutil"
+	"veyron.io/veyron/veyron2/verror"
+	"veyron.io/veyron/veyron2/vlog"
 )
 
 type statsInvoker struct {

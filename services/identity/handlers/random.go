@@ -6,8 +6,8 @@ import (
 	"net/http"
 	"time"
 
-	"veyron/services/identity/util"
-	"veyron2"
+	"veyron.io/veyron/veyron/services/identity/util"
+	"veyron.io/veyron/veyron2"
 )
 
 // Random is an http.Handler implementation that mints a new Veyron PrivateID

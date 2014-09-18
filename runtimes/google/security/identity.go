@@ -1,6 +1,6 @@
 package security
 
-import "veyron2/security"
+import "veyron.io/veyron/veyron2/security"
 
 // NewPrivateID returns a new PrivateID that uses the provided Signer to generate
 // signatures.  The returned PrivateID additionaly contains a single self-signed

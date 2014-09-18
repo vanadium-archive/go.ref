@@ -3,8 +3,8 @@ package op
 import (
 	"testing"
 
-	"veyron/runtimes/google/lib/functional"
-	"veyron/runtimes/google/lib/functional/rb"
+	"veyron.io/veyron/veyron/runtimes/google/lib/functional"
+	"veyron.io/veyron/veyron/runtimes/google/lib/functional/rb"
 )
 
 func intCompare(it1, it2 interface{}) bool {

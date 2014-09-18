@@ -5,8 +5,8 @@ import (
 	"net/http"
 	"time"
 
-	"veyron/services/identity/util"
-	"veyron2/security"
+	"veyron.io/veyron/veyron/services/identity/util"
+	"veyron.io/veyron/veyron2/security"
 )
 
 // Bless is an http.HandlerFunc that renders/processes a form that takes as

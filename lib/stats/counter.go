@@ -3,7 +3,7 @@ package stats
 import (
 	"time"
 
-	"veyron/lib/stats/counter"
+	"veyron.io/veyron/veyron/lib/stats/counter"
 )
 
 // NewCounter creates a new Counter StatsObject with the given name and

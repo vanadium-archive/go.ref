@@ -3,7 +3,7 @@ package concurrency
 import (
 	"testing"
 
-	"veyron/lib/testutil"
+	"veyron.io/veyron/veyron/lib/testutil"
 )
 
 // TestClone checks the clone() method of a clock.

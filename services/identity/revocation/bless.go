@@ -4,10 +4,10 @@ import (
 	"fmt"
 	"time"
 
-	vsecurity "veyron/security"
-	"veyron/security/audit"
+	vsecurity "veyron.io/veyron/veyron/security"
+	"veyron.io/veyron/veyron/security/audit"
 
-	"veyron2/security"
+	"veyron.io/veyron/veyron2/security"
 )
 
 // Bless creates a blessing on behalf of the identity server.

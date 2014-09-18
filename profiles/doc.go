@@ -21,7 +21,7 @@
 // itself via its Init function, since the expected use is that it will
 // used automatically as a default by the Runtime. Instead it provides a New
 // function. This avoids the need for every main package to import
-// "veyron/profiles", instead, only more specific Profiles must be so imported.
+// "veyron.io/veyron/veyron/profiles", instead, only more specific Profiles must be so imported.
 //
 // The 'net' Profile adds operating system support for varied network
 // configurations and in particular dhcp. It should be used by any application

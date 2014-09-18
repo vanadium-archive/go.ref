@@ -4,9 +4,9 @@ import (
 	"sort"
 	"sync"
 
-	"veyron/runtimes/google/ipc/stream/id"
-	"veyron/runtimes/google/ipc/stream/vc"
-	"veyron/runtimes/google/lib/pcqueue"
+	"veyron.io/veyron/veyron/runtimes/google/ipc/stream/id"
+	"veyron.io/veyron/veyron/runtimes/google/ipc/stream/vc"
+	"veyron.io/veyron/veyron/runtimes/google/lib/pcqueue"
 )
 
 // vcMap implements a thread-safe map of vc.VC objects (vcInfo) keyed by their VCI.

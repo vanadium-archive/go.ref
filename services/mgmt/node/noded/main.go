@@ -3,13 +3,13 @@ package main
 import (
 	"flag"
 
-	"veyron/lib/signals"
-	"veyron/services/mgmt/node/config"
-	"veyron/services/mgmt/node/impl"
+	"veyron.io/veyron/veyron/lib/signals"
+	"veyron.io/veyron/veyron/services/mgmt/node/config"
+	"veyron.io/veyron/veyron/services/mgmt/node/impl"
 
-	"veyron2/naming"
-	"veyron2/rt"
-	"veyron2/vlog"
+	"veyron.io/veyron/veyron2/naming"
+	"veyron.io/veyron/veyron2/rt"
+	"veyron.io/veyron/veyron2/vlog"
 )
 
 var (

@@ -5,8 +5,8 @@ import (
 	"runtime"
 	"testing"
 
-	"veyron/runtimes/google/lib/bqueue"
-	"veyron/runtimes/google/lib/iobuf"
+	"veyron.io/veyron/veyron/runtimes/google/lib/bqueue"
+	"veyron.io/veyron/veyron/runtimes/google/lib/iobuf"
 )
 
 const (

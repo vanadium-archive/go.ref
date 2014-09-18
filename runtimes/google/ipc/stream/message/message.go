@@ -41,9 +41,9 @@ import (
 	"fmt"
 	"io"
 
-	"veyron/runtimes/google/ipc/stream/id"
-	"veyron/runtimes/google/lib/iobuf"
-	"veyron2/vlog"
+	"veyron.io/veyron/veyron/runtimes/google/ipc/stream/id"
+	"veyron.io/veyron/veyron/runtimes/google/lib/iobuf"
+	"veyron.io/veyron/veyron2/vlog"
 )
 
 const (

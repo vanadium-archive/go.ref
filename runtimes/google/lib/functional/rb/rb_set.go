@@ -33,7 +33,7 @@
 package rb
 
 import (
-	"veyron/runtimes/google/lib/functional"
+	"veyron.io/veyron/veyron/runtimes/google/lib/functional"
 )
 
 // Node colors are RED and BLACK

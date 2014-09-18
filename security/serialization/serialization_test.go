@@ -13,9 +13,9 @@ import (
 	"strings"
 	"testing"
 
-	"veyron/lib/testutil"
+	"veyron.io/veyron/veyron/lib/testutil"
 
-	"veyron2/security"
+	"veyron.io/veyron/veyron2/security"
 )
 
 type bufferCloser struct {

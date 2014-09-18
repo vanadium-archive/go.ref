@@ -9,7 +9,7 @@ import (
 	"strings"
 	"testing"
 
-	"veyron2/security"
+	"veyron.io/veyron/veyron2/security"
 )
 
 func mkkey() security.PublicKey {

@@ -26,12 +26,12 @@ import (
 	"sync"
 	"time"
 
-	veyron_identity "veyron/services/identity"
-	"veyron/services/wsprd/identity"
-	"veyron2"
-	"veyron2/rt"
-	"veyron2/security"
-	"veyron2/vlog"
+	veyron_identity "veyron.io/veyron/veyron/services/identity"
+	"veyron.io/veyron/veyron/services/wsprd/identity"
+	"veyron.io/veyron/veyron2"
+	"veyron.io/veyron/veyron2/rt"
+	"veyron.io/veyron/veyron2/security"
+	"veyron.io/veyron/veyron2/vlog"
 )
 
 const (

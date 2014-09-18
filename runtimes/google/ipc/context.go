@@ -4,8 +4,8 @@ import (
 	"sync"
 	"time"
 
-	"veyron2"
-	"veyron2/context"
+	"veyron.io/veyron/veyron2"
+	"veyron.io/veyron/veyron2/context"
 )
 
 // InternalNewContext creates a new context.T.  This function should only

@@ -5,16 +5,16 @@ import (
 	"strings"
 	"testing"
 
-	"veyron/tools/mounttable/impl"
+	"veyron.io/veyron/veyron/tools/mounttable/impl"
 
-	"veyron2"
-	"veyron2/ipc"
-	"veyron2/naming"
-	"veyron2/rt"
-	"veyron2/security"
-	"veyron2/services/mounttable"
-	"veyron2/services/mounttable/types"
-	"veyron2/vlog"
+	"veyron.io/veyron/veyron2"
+	"veyron.io/veyron/veyron2/ipc"
+	"veyron.io/veyron/veyron2/naming"
+	"veyron.io/veyron/veyron2/rt"
+	"veyron.io/veyron/veyron2/security"
+	"veyron.io/veyron/veyron2/services/mounttable"
+	"veyron.io/veyron/veyron2/services/mounttable/types"
+	"veyron.io/veyron/veyron2/vlog"
 )
 
 type server struct {

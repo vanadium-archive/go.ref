@@ -5,11 +5,11 @@ import (
 	"reflect"
 	"testing"
 
-	"veyron/services/mgmt/repository"
+	"veyron.io/veyron/veyron/services/mgmt/repository"
 
-	"veyron2/naming"
-	"veyron2/rt"
-	"veyron2/services/mgmt/application"
+	"veyron.io/veyron/veyron2/naming"
+	"veyron.io/veyron/veyron2/rt"
+	"veyron.io/veyron/veyron2/services/mgmt/application"
 )
 
 // TestInterface tests that the implementation correctly implements

@@ -8,7 +8,7 @@ import (
 	"fmt"
 	"io"
 	"net"
-	"veyron/runtimes/google/lib/iobuf"
+	"veyron.io/veyron/veyron/runtimes/google/lib/iobuf"
 )
 
 type boxcrypter struct {

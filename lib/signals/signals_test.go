@@ -6,18 +6,18 @@ import (
 	"syscall"
 	"testing"
 
-	"veyron2"
-	"veyron2/ipc"
-	"veyron2/mgmt"
-	"veyron2/naming"
-	"veyron2/rt"
-	"veyron2/services/mgmt/appcycle"
+	"veyron.io/veyron/veyron2"
+	"veyron.io/veyron/veyron2/ipc"
+	"veyron.io/veyron/veyron2/mgmt"
+	"veyron.io/veyron/veyron2/naming"
+	"veyron.io/veyron/veyron2/rt"
+	"veyron.io/veyron/veyron2/services/mgmt/appcycle"
 
-	_ "veyron/lib/testutil"
-	"veyron/lib/testutil/blackbox"
-	"veyron/lib/testutil/security"
-	vflag "veyron/security/flag"
-	"veyron/services/mgmt/node"
+	_ "veyron.io/veyron/veyron/lib/testutil"
+	"veyron.io/veyron/veyron/lib/testutil/blackbox"
+	"veyron.io/veyron/veyron/lib/testutil/security"
+	vflag "veyron.io/veyron/veyron/security/flag"
+	"veyron.io/veyron/veyron/services/mgmt/node"
 )
 
 // TestHelperProcess is boilerplate for the blackbox setup.

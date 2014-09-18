@@ -1,9 +1,9 @@
 package main
 
 import (
-	"veyron/tools/build/impl"
+	"veyron.io/veyron/veyron/tools/build/impl"
 
-	"veyron2/rt"
+	"veyron.io/veyron/veyron2/rt"
 )
 
 func main() {

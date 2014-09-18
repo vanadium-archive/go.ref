@@ -1,8 +1,8 @@
 package debug
 
 import (
-	"veyron2/services/mgmt/logreader"
-	"veyron2/services/mgmt/stats"
+	"veyron.io/veyron/veyron2/services/mgmt/logreader"
+	"veyron.io/veyron/veyron2/services/mgmt/stats"
 )
 
 // This interface exists only for the purpose of generating a valid Signature

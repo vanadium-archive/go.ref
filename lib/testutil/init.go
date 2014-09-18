@@ -1,7 +1,7 @@
 // Package testutil provides initalization and utility routines for unit tests.
 //
 // All tests should import it, even if only for its initialization:
-//   import _ "veyron/lib/testutil"
+//   import _ "veyron.io/veyron/veyron/lib/testutil"
 //
 package testutil
 
@@ -20,9 +20,9 @@ import (
 	"time"
 
 	// Import blackbox to ensure that it gets to define its flags.
-	_ "veyron/lib/testutil/blackbox"
+	_ "veyron.io/veyron/veyron/lib/testutil/blackbox"
 
-	"veyron2/vlog"
+	"veyron.io/veyron/veyron2/vlog"
 )
 
 const (

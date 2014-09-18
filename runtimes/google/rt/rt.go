@@ -7,17 +7,17 @@ import (
 	"strings"
 	"sync"
 
-	"veyron2"
-	"veyron2/config"
-	"veyron2/ipc"
-	"veyron2/ipc/stream"
-	"veyron2/naming"
-	"veyron2/security"
-	"veyron2/vlog"
+	"veyron.io/veyron/veyron2"
+	"veyron.io/veyron/veyron2/config"
+	"veyron.io/veyron/veyron2/ipc"
+	"veyron.io/veyron/veyron2/ipc/stream"
+	"veyron.io/veyron/veyron2/naming"
+	"veyron.io/veyron/veyron2/security"
+	"veyron.io/veyron/veyron2/vlog"
 
-	"veyron/profiles"
-	"veyron/runtimes/google/naming/namespace"
-	"veyron/services/mgmt/lib/exec"
+	"veyron.io/veyron/veyron/profiles"
+	"veyron.io/veyron/veyron/runtimes/google/naming/namespace"
+	"veyron.io/veyron/veyron/services/mgmt/lib/exec"
 )
 
 type vrt struct {

@@ -1,15 +1,15 @@
 package signature
 
 import (
-	"veyron/services/wsprd/lib"
-	"veyron2/ipc"
-	"veyron2/vdl/vdlutil"
-	"veyron2/wiretype"
+	"veyron.io/veyron/veyron/services/wsprd/lib"
+	"veyron.io/veyron/veyron2/ipc"
+	"veyron.io/veyron/veyron2/vdl/vdlutil"
+	"veyron.io/veyron/veyron2/wiretype"
 )
 
 var (
 	anydataType = wiretype.NamedPrimitiveType{
-		Name: "veyron2/vdlutil.AnyData",
+		Name: "veyron.io/veyron/veyron2/vdlutil.AnyData",
 		Type: wiretype.TypeIDInterface,
 	}
 	errType = wiretype.NamedPrimitiveType{

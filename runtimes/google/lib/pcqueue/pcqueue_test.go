@@ -6,8 +6,8 @@ import (
 	"testing"
 	"time"
 
-	_ "veyron/lib/testutil"
-	"veyron2/vlog"
+	_ "veyron.io/veyron/veyron/lib/testutil"
+	"veyron.io/veyron/veyron2/vlog"
 )
 
 const (

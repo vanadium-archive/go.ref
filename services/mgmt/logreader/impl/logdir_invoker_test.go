@@ -8,14 +8,14 @@ import (
 	"sort"
 	"testing"
 
-	"veyron/services/mgmt/logreader/impl"
+	"veyron.io/veyron/veyron/services/mgmt/logreader/impl"
 
-	"veyron2/ipc"
-	"veyron2/naming"
-	"veyron2/rt"
-	"veyron2/security"
-	"veyron2/services/mounttable"
-	"veyron2/verror"
+	"veyron.io/veyron/veyron2/ipc"
+	"veyron.io/veyron/veyron2/naming"
+	"veyron.io/veyron/veyron2/rt"
+	"veyron.io/veyron/veyron2/security"
+	"veyron.io/veyron/veyron2/services/mounttable"
+	"veyron.io/veyron/veyron2/verror"
 )
 
 type logDirectoryDispatcher struct {
