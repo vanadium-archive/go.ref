@@ -49,7 +49,7 @@ main() {
   build
   install_veyron_js
 
-  local -r DIR="${VEYRON_ROOT}/veyron/go/src/veyron/tools/playground/testdata"
+  local -r DIR="${VEYRON_ROOT}/veyron/go/src/veyron.io/veyron/veyron/tools/playground/testdata"
 
   export GOPATH="$(pwd)":"${VEYRON_ROOT}/veyron/go"
   export PATH="$(pwd):$PATH"
