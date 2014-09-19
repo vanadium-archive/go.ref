@@ -16,6 +16,7 @@ import (
 	"veyron.io/veyron/veyron/lib/modules"
 	"veyron.io/veyron/veyron/lib/modules/core"
 	_ "veyron.io/veyron/veyron/lib/testutil"
+	"veyron.io/veyron/veyron/lib/testutil/security"
 )
 
 func TestCommands(t *testing.T) {
@@ -32,10 +33,23 @@ func init() {
 	rt.Init()
 }
 
-func TestRoot(t *testing.T) {
+func newShell() (*modules.Shell, func()) {
 	shell := core.NewShell()
-	defer shell.Cleanup(os.Stderr)
+	idpath := security.SaveIdentityToFile(security.NewBlessedIdentity(rt.R().Identity(), "test"))
+	shell.SetVar("VEYRON_IDENTITY", idpath)
+	return shell, func() {
+		os.Remove(idpath)
+		if testing.Verbose() {
+			shell.Cleanup(os.Stderr)
+		} else {
+			shell.Cleanup(nil)
+		}
+	}
+}
 
+func TestRoot(t *testing.T) {
+	shell, fn := newShell()
+	defer fn()
 	root, err := shell.Start(core.RootMTCommand)
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
@@ -99,12 +113,8 @@ func getMatchingMountpoint(r [][]string) string {
 }
 
 func TestMountTableAndGlob(t *testing.T) {
-	shell := core.NewShell()
-	if testing.Verbose() {
-		defer shell.Cleanup(os.Stderr)
-	} else {
-		defer shell.Cleanup(nil)
-	}
+	shell, fn := newShell()
+	defer fn()
 
 	mountPoints := []string{"a", "b", "c", "d", "e"}
 	mountAddrs, err := startMountTables(t, shell, mountPoints...)
@@ -173,12 +183,9 @@ func TestMountTableAndGlob(t *testing.T) {
 }
 
 func TestEcho(t *testing.T) {
-	shell := core.NewShell()
-	if testing.Verbose() {
-		defer shell.Cleanup(os.Stderr)
-	} else {
-		defer shell.Cleanup(nil)
-	}
+	shell, fn := newShell()
+	defer fn()
+
 	srv, err := shell.Start(core.EchoServerCommand, "test", "")
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
@@ -198,12 +205,9 @@ func TestEcho(t *testing.T) {
 }
 
 func TestResolve(t *testing.T) {
-	shell := core.NewShell()
-	if testing.Verbose() {
-		defer shell.Cleanup(os.Stderr)
-	} else {
-		defer shell.Cleanup(nil)
-	}
+	shell, fn := newShell()
+	defer fn()
+
 	mountPoints := []string{"a", "b"}
 	mountAddrs, err := startMountTables(t, shell, mountPoints...)
 	if err != nil {
