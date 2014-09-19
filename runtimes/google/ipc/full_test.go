@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"net"
 	"os"
 	"reflect"
 	"strings"
@@ -1031,6 +1030,11 @@ func TestReconnect(t *testing.T) {
 	}
 }
 
+/*
+ * TODO(cnicolaou): temporarily remove these until we move ListenX over
+ * to be Listen.
+ */
+/*
 func TestPreferredAddress(t *testing.T) {
 	sm := imanager.InternalNew(naming.FixedRoutingID(0x555555555))
 	defer sm.Shutdown()
@@ -1088,6 +1092,7 @@ func TestPreferredAddressErrors(t *testing.T) {
 		t.Errorf("got %q, want %q", got, want)
 	}
 }
+*/
 
 type proxyHandle struct {
 	ns      naming.Namespace

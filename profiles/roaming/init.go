@@ -51,8 +51,7 @@ func init() {
 }
 
 type profile struct {
-	addrChooser veyron2.AddressChooser
-	gce         string
+	gce string
 }
 
 func preferredIPAddress(network string, addrs []net.Addr) (net.Addr, error) {
@@ -70,7 +69,7 @@ func preferredIPAddress(network string, addrs []net.Addr) (net.Addr, error) {
 }
 
 func New() veyron2.Profile {
-	return &profile{addrChooser: preferredIPAddress}
+	return &profile{}
 }
 
 func (p *profile) Platform() *veyron2.Platform {
@@ -114,7 +113,7 @@ func (p *profile) Init(rt veyron2.Runtime, publisher *config.Publisher) {
 	// if we are indeed running on GCE.
 	if !public {
 		if addr := handleGCE(rt, publisher); addr != nil {
-			p.addrChooser = func(string, []net.Addr) (net.Addr, error) {
+			ListenSpec.AddressChooser = func(string, []net.Addr) (net.Addr, error) {
 				return addr, nil
 			}
 			p.gce = "+gce"
@@ -132,18 +131,17 @@ func (p *profile) Init(rt veyron2.Runtime, publisher *config.Publisher) {
 	}
 
 	protocol := listenProtocolFlag.Protocol
+	ListenSpec.StreamPublisher = publisher
+	ListenSpec.StreamName = "dhcp"
+	ListenSpec.AddressChooser = preferredIPAddress
 	log.VI(2).Infof("Initial Network Settings: %s %s available: %s", protocol, listenAddressFlag, state)
-	go monitorNetworkSettings(rt, stop, ch, state, protocol, p.addrChooser)
-}
-
-func (p *profile) AddressChooser() veyron2.AddressChooser {
-	return p.addrChooser
+	go monitorNetworkSettings(rt, stop, ch, state, ListenSpec)
 }
 
 // monitorNetworkSettings will monitor network configuration changes and
 // publish subsequent Settings to reflect any changes detected.
 func monitorNetworkSettings(rt veyron2.Runtime, stop <-chan struct{},
-	ch chan<- config.Setting, prev netstate.AddrList, protocol string, chooser veyron2.AddressChooser) {
+	ch chan<- config.Setting, prev netstate.AddrList, listenSpec *ipc.ListenSpec) {
 	defer close(ch)
 
 	log := rt.Logger()
@@ -180,7 +178,7 @@ func monitorNetworkSettings(rt veyron2.Runtime, stop <-chan struct{},
 				ch <- ipc.NewRmAddrsSetting(removed)
 			}
 			// We will always send the best currently available address
-			if chosen, err := chooser(protocol, cur); err == nil && chosen != nil {
+			if chosen, err := listenSpec.AddressChooser(listenSpec.Protocol, cur); err == nil && chosen != nil {
 				ch <- ipc.NewAddAddrsSetting([]net.Addr{chosen})
 			}
 			prev = cur
