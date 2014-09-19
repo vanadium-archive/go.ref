@@ -9,6 +9,7 @@
 # Then it verifies that <mounttable>.Glob(*) and <neighborhood>.Glob(nhname)
 # return the correct result.
 
+source "${VEYRON_ROOT}/environment/scripts/lib/shell.sh"
 source "${VEYRON_ROOT}/environment/scripts/lib/shell_test.sh"
 
 build() {
@@ -25,7 +26,7 @@ main() {
   local -r NHNAME=test-$(hostname)-$$
   local -r MTLOG="${TMPDIR}/mt.log"
   ./mounttabled --address=127.0.0.1:0 -vmodule=publisher=2 --neighborhood_name="${NHNAME}" > "${MTLOG}" 2>&1 &
-  shell_test::wait_for "${MTLOG}" "ipc pub: mount"
+  shell::wait_for "${MTLOG}" "ipc pub: mount"
 
   local -r EP=$(grep "Mount table service at:" "${MTLOG}" | sed -e 's/^.*endpoint: //')
   [[ -z "${EP}" ]] && shell_test::fail "line ${LINENO}: no server"
