@@ -160,7 +160,7 @@ func (eh *execHandle) start(sh *Shell, args ...string) (Handle, error) {
 	if err := handle.Start(); err != nil {
 		return nil, err
 	}
-	err = handle.WaitForReady(time.Second)
+	err = handle.WaitForReady(10 * time.Second)
 	return eh, err
 }
 
