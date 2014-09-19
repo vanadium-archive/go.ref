@@ -8,7 +8,6 @@ import (
 	"net"
 	"net/http"
 	"os"
-	"path/filepath"
 	"strings"
 	"time"
 
@@ -51,7 +50,8 @@ var (
 	googleDomain          = flag.String("google_domain", "", "An optional domain name. When set, only email addresses from this domain are allowed to authenticate via Google OAuth")
 
 	// Revoker/Discharger configuration
-	revocationDir = flag.String("revocation_dir", filepath.Join(os.TempDir(), "revocation_dir"), "Path where the revocation manager will store caveat and revocation information.")
+	// TODO(ashankar,ataly,suharshs): Re-enable by default once the move to the new security API is complete?
+	revocationDir = flag.String("revocation_dir", "" /*filepath.Join(os.TempDir(), "revocation_dir")*/, "Path where the revocation manager will store caveat and revocation information.")
 )
 
 func main() {
@@ -71,7 +71,7 @@ func main() {
 	}
 
 	// Setup handlers
-	http.Handle("/pubkey/", handlers.Object{r.Identity().PublicID().PublicKey()}) // public key of this identity server
+	http.Handle("/pubkey/", handlers.PublicKey{r.Identity().PublicID()}) // public key of this server
 	if enableRandomHandler() {
 		http.Handle("/random/", handlers.Random{r}) // mint identities with a random name
 	}
@@ -105,11 +105,11 @@ func main() {
 			servers = append(servers, ipcServerEP.String())
 		}
 		args := struct {
-			Self                            string
+			Self                            security.PublicID
 			GoogleWeb, RandomWeb            bool
 			GoogleServers, DischargeServers []string
 		}{
-			Self:             rt.R().Identity().PublicID().Names()[0],
+			Self:             rt.R().Identity().PublicID(),
 			GoogleWeb:        len(*googleConfigWeb) > 0,
 			RandomWeb:        enableRandomHandler(),
 			GoogleServers:    appendSuffixTo(servers, "google"),
@@ -342,39 +342,31 @@ var tmpl = template.Must(template.New("main").Parse(`<!doctype html>
 </head>
 <body>
 <div class="container">
-<div class="page-header"><h2>{{.Self}}</h2><h4>A Veyron Identity Provider</h4></div>
+<div class="page-header"><h2>{{.Self.Names}}</h2><h4>A Veyron Blessing Provider</h4></div>
 <div class="well">
-This is a Veyron identity provider that provides blessings with the name prefix <mark>{{.Self}}</mark>. The public
-key of this provider is available in <a class="btn btn-xs btn-primary" href="/pubkey/base64vom">base64-encoded-vom-encoded</a> format.
+This is a Veyron identity provider that provides blessings with the name prefix <mark>{{.Self}}</mark>.
+<br/>
+The public key of this provider is {{.Self.PublicKey}}, which is available in <a class="btn btn-xs btn-primary" href="/pubkey/">DER</a> encoded
+<a href="http://en.wikipedia.org/wiki/X.690#DER_encoding">format</a>.
 </div>
 
-{{if .GoogleServers}}
 <div class="well">
-Blessings are provided via Veyron RPCs to: <tt>{{range .GoogleServers}}{{.}}{{end}}</tt>
-</div>
+<ul>
+{{if .GoogleServers}}
+<li>Blessings (using Google OAuth to fetch an email address) are provided via Veyron RPCs to: <tt>{{range .GoogleServers}}{{.}}{{end}}</tt></li>
 {{end}}
 {{if .DischargeServers}}
-<div class="well">
-RevocationCaveat Discharges are provided via Veyron RPCs to: <tt>{{range .DischargeServers}}{{.}}{{end}}</tt>
-</div>
+<li>RevocationCaveat Discharges are provided via Veyron RPCs to: <tt>{{range .DischargeServers}}{{.}}{{end}}</tt></li>
 {{end}}
-
-
 {{if .GoogleWeb}}
-<div class="well">
-This page provides the ability to <a class="btn btn-xs btn-primary" href="/google/auth">enumerate</a> blessings provided with your
-email address as the name.
-</div>
+<li>You can <a class="btn btn-xs btn-primary" href="/google/auth">enumerate</a> blessings provided with your
+email address as the name.</li>
 {{end}}
-
 {{if .RandomWeb}}
-<div class="well">
-You can obtain a randomly assigned PrivateID <a class="btn btn-sm btn-primary" href="/random/">here</a>
-</div>
+<li>You can obtain a randomly assigned PrivateID <a class="btn btn-sm btn-primary" href="/random/">here</a></li>
 {{end}}
-
-<div class="well">
-You can use <a class="btn btn-xs btn-primary" href="/bless/">this form</a> to offload crypto for blessing to this HTTP server
+<li>You can offload cryptographic operations <a class="btn btn-xs btn-primary" href="/bless/">for blessing</a> to this HTTP server</li>
+</ul>
 </div>
 
 </div>

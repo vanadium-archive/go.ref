@@ -16,19 +16,28 @@ import (
 	"veyron.io/veyron/veyron2/security"
 )
 
-func TestObject(t *testing.T) {
-	want := struct {
-		Int    int
-		String string
-	}{1, "foo"}
-	ts := httptest.NewServer(Object{want})
-	defer ts.Close()
-	got, err := parseResponse(http.Get(ts.URL))
+func TestPublicKey(t *testing.T) {
+	r, err := rt.New()
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !reflect.DeepEqual(got, want) {
-		t.Errorf("Got %T=%#v want %T=%#v", got, got, want, want)
+	defer r.Cleanup()
+	ts := httptest.NewServer(PublicKey{r.Identity().PublicID()})
+	defer ts.Close()
+	response, err := http.Get(ts.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	bytes, err := ioutil.ReadAll(response.Body)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got, err := security.UnmarshalPublicKey(bytes)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := r.Identity().PublicKey(); !reflect.DeepEqual(got, want) {
+		t.Errorf("Got %v, want %v", got, want)
 	}
 }
 
