@@ -34,15 +34,26 @@
 // same for both types of command and is defined by the Main function type.
 // In particular stdin, stdout and stderr are provided as parameters, as is
 // a map representation of the shell's environment.
+//
+// If a Shell is created within a unit test then it will automatically
+// generate a security ID, write it to a file and set the appropriate
+// environment variable to refer to it.
 package modules
 
 import (
+	"flag"
 	"fmt"
 	"io"
+	"io/ioutil"
+	"os"
+	"path/filepath"
 	"strings"
 	"sync"
 
 	"veyron.io/veyron/veyron2/vlog"
+
+	isecurity "veyron.io/veyron/veyron/runtimes/google/security"
+	seclib "veyron.io/veyron/veyron/security"
 )
 
 // Shell represents the context within which commands are run.
@@ -51,6 +62,7 @@ type Shell struct {
 	env     map[string]string
 	cmds    map[string]*commandDesc
 	handles map[Handle]struct{}
+	idfile  string
 }
 
 type commandDesc struct {
@@ -65,15 +77,46 @@ type childRegistrar struct {
 
 var child = &childRegistrar{mains: make(map[string]Main)}
 
-// NewShell creates a new instance of Shell.
+// NewShell creates a new instance of Shell. If this new instance is
+// is a test and no identity has been configured in the environment
+// via VEYRON_IDENTITY then CreateAndUseNewID will be used to configure a new
+// ID for the shell and its children.
 func NewShell() *Shell {
 	// TODO(cnicolaou): should create a new identity if one doesn't
 	// already exist
-	return &Shell{
+	sh := &Shell{
 		env:     make(map[string]string),
 		cmds:    make(map[string]*commandDesc),
 		handles: make(map[Handle]struct{}),
 	}
+	if flag.Lookup("test.run") != nil && os.Getenv("VEYRON_IDENTITY") == "" {
+		if err := sh.CreateAndUseNewID(); err != nil {
+			panic(err)
+		}
+	}
+	return sh
+}
+
+// CreateAndUseNewID setups a new ID and then configures the shell and all of its
+// children to use to it.
+func (sh *Shell) CreateAndUseNewID() error {
+	id, err := isecurity.NewPrivateID("test", nil)
+	if err != nil {
+		return err
+	}
+	f, err := ioutil.TempFile("", filepath.Base(os.Args[0]))
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+	filePath := f.Name()
+	if err := seclib.SaveIdentity(f, id); err != nil {
+		os.Remove(filePath)
+		return err
+	}
+	sh.idfile = filePath
+	sh.SetVar("VEYRON_IDENTITY", sh.idfile)
+	return nil
 }
 
 type Main func(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error
@@ -208,6 +251,9 @@ func (sh *Shell) Cleanup(output io.Writer) {
 	sh.mu.Unlock()
 	for k, _ := range handles {
 		k.Shutdown(output)
+	}
+	if len(sh.idfile) > 0 {
+		os.Remove(sh.idfile)
 	}
 }
 

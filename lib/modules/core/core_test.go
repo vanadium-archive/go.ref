@@ -15,8 +15,8 @@ import (
 	"veyron.io/veyron/veyron/lib/expect"
 	"veyron.io/veyron/veyron/lib/modules"
 	"veyron.io/veyron/veyron/lib/modules/core"
+
 	_ "veyron.io/veyron/veyron/lib/testutil"
-	"veyron.io/veyron/veyron/lib/testutil/security"
 )
 
 func TestCommands(t *testing.T) {
@@ -34,15 +34,12 @@ func init() {
 }
 
 func newShell() (*modules.Shell, func()) {
-	shell := core.NewShell()
-	idpath := security.SaveIdentityToFile(security.NewBlessedIdentity(rt.R().Identity(), "test"))
-	shell.SetVar("VEYRON_IDENTITY", idpath)
-	return shell, func() {
-		os.Remove(idpath)
+	sh := core.NewShell()
+	return sh, func() {
 		if testing.Verbose() {
-			shell.Cleanup(os.Stderr)
+			sh.Cleanup(os.Stderr)
 		} else {
-			shell.Cleanup(nil)
+			sh.Cleanup(nil)
 		}
 	}
 }
