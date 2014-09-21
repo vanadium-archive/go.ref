@@ -10,18 +10,22 @@ import (
 
 	"veyron.io/veyron/veyron2"
 	"veyron.io/veyron/veyron2/config"
+	"veyron.io/veyron/veyron2/ipc"
 	"veyron.io/veyron/veyron2/rt"
 
 	"veyron.io/veyron/veyron/profiles/internal/gce"
 )
 
+var ListenSpec = &ipc.ListenSpec{
+	Protocol: "tcp",
+	Address:  "127.0.0.1:0",
+}
+
 func init() {
 	rt.RegisterProfile(&profile{})
 }
 
-type profile struct {
-	publicAddress net.Addr
-}
+type profile struct{}
 
 func (p *profile) Name() string {
 	return "GCE"
@@ -40,12 +44,6 @@ func (p *profile) String() string {
 	return "net " + p.Platform().String()
 }
 
-func (p *profile) AddressChooser() veyron2.AddressChooser {
-	return func(network string, addrs []net.Addr) (net.Addr, error) {
-		return p.publicAddress, nil
-	}
-}
-
 func (p *profile) Init(rt veyron2.Runtime, publisher *config.Publisher) {
 	if !gce.RunningOnGCE() {
 		return
@@ -57,6 +55,8 @@ func (p *profile) Init(rt veyron2.Runtime, publisher *config.Publisher) {
 		// TODO(cnicolaou): add error return to init
 		//		return err
 	} else {
-		p.publicAddress = &net.IPAddr{IP: ip}
+		ListenSpec.AddressChooser = func(network string, addrs []net.Addr) (net.Addr, error) {
+			return &net.IPAddr{IP: ip}, nil
+		}
 	}
 }

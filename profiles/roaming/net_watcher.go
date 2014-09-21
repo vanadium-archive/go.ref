@@ -17,8 +17,8 @@ func main() {
 
 	fmt.Println("Profile: ", r.Profile().Name())
 
-	if addrOpt := r.Profile().PreferredAddressOpt(); addrOpt != nil {
-		if gce, err := addrOpt("", nil); err == nil {
+	if chooser := roaming.ListenSpec.AddressChooser; chooser != nil {
+		if gce, err := chooser("", nil); err == nil {
 			fmt.Printf("%s: 1:1 NAT address is %s\n", r.Profile().Name(), gce)
 		}
 	}

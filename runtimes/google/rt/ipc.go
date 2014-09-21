@@ -138,28 +138,18 @@ func (rt *vrt) NewServer(opts ...ipc.ServerOpt) (ipc.Server, error) {
 	ns := rt.ns
 	var id security.PublicID
 	var otherOpts []ipc.ServerOpt
-	addressChooserOpt := &veyron2.AddressChooserOpt{rt.profile.AddressChooser()}
-	roamingOpt := &veyron2.RoamingPublisherOpt{rt.publisher, "roaming"}
 	for _, opt := range opts {
 		switch topt := opt.(type) {
 		case veyron2.NamespaceOpt:
 			ns = topt
 		case veyron2.LocalIDOpt:
 			id = topt.PublicID
-		case *veyron2.AddressChooserOpt:
-			addressChooserOpt = topt
-		case *veyron2.RoamingPublisherOpt:
-			roamingOpt = topt
 		default:
 			otherOpts = append(otherOpts, opt)
 		}
 	}
 	// Add the option that provides the local identity to the server.
 	otherOpts = append(otherOpts, rt.newLocalID(id))
-	// Add the preferredAddr and roaming opts
-	otherOpts = append(otherOpts, addressChooserOpt)
-	otherOpts = append(otherOpts, roamingOpt)
-
 	ctx := rt.NewContext()
 
 	return iipc.InternalNewServer(ctx, sm, ns, otherOpts...)

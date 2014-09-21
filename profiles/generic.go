@@ -3,9 +3,16 @@ package profiles
 import (
 	"veyron.io/veyron/veyron2"
 	"veyron.io/veyron/veyron2/config"
+	"veyron.io/veyron/veyron2/ipc"
 
 	"veyron.io/veyron/veyron/profiles/internal"
 )
+
+var ListenSpec = &ipc.ListenSpec{
+	Protocol:       "tcp",
+	Address:        "127.0.0.1:0",
+	AddressChooser: internal.IPAddressChooser,
+}
 
 type generic struct{}
 
@@ -26,10 +33,6 @@ func (*generic) Runtime() string {
 func (*generic) Platform() *veyron2.Platform {
 	p, _ := Platform()
 	return p
-}
-
-func (*generic) AddressChooser() veyron2.AddressChooser {
-	return internal.IPAddressChooser
 }
 
 func (g *generic) Init(rt veyron2.Runtime, _ *config.Publisher) {

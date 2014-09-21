@@ -16,6 +16,8 @@ import (
 	ivtrace "veyron.io/veyron/veyron/runtimes/google/vtrace"
 	vsecurity "veyron.io/veyron/veyron/security"
 
+	"veyron.io/veyron/veyron/profiles/internal"
+
 	"veyron.io/veyron/veyron2"
 	"veyron.io/veyron/veyron2/config"
 	"veyron.io/veyron/veyron2/context"
@@ -49,9 +51,7 @@ type server struct {
 	stopped          bool                              // whether the server has been stopped.
 	stoppedChan      chan struct{}                     // closed when the server has been stopped.
 	ns               naming.Namespace
-	addressChooser   veyron2.AddressChooser
 	servesMountTable bool
-	roamingOpt       veyron2.RoamingPublisherOpt
 	debugAuthorizer  security.Authorizer
 	// TODO(cnicolaou): add roaming stats to ipcStats
 	stats *ipcStats // stats for this server.
@@ -78,10 +78,6 @@ func InternalNewServer(ctx context.T, streamMgr stream.Manager, ns naming.Namesp
 	}
 	for _, opt := range opts {
 		switch opt := opt.(type) {
-		case *veyron2.AddressChooserOpt:
-			s.addressChooser = opt.AddressChooser
-		case *veyron2.RoamingPublisherOpt:
-			s.roamingOpt = *opt
 		case stream.ListenerOpt:
 			// Collect all ServerOpts that are also ListenerOpts.
 			s.listenerOpts = append(s.listenerOpts, opt)
@@ -170,20 +166,11 @@ func (s *server) Listen(protocol, address string) (naming.Endpoint, error) {
 				return nil, fmt.Errorf("ipc: Listen(%q, %q) failed to parse IP address from address", protocol, address)
 			}
 			if ip.IsUnspecified() {
-				if s.addressChooser != nil {
-					// Need to find a usable IP address.
-					if addrs, err := netstate.GetAccessibleIPs(); err == nil {
-						if a, err := s.addressChooser(protocol, addrs); err == nil {
-							if ip := netstate.AsIP(a); ip != nil {
-								// a may be an IPNet or an IPAddr under the covers,
-								// but we really want the IP portion without any
-								// netmask so we use AsIP to ensure that.
-								iep.Address = net.JoinHostPort(ip.String(), port)
-							}
-						}
+				addrs, err := netstate.GetAccessibleIPs()
+				if err == nil {
+					if a, err := internal.IPAddressChooser(iep.Protocol, addrs); err == nil {
+						iep.Address = net.JoinHostPort(a.String(), port)
 					}
-				} else {
-					vlog.Errorf("no address chooser specified")
 				}
 			}
 		}
@@ -219,7 +206,7 @@ func (s *server) Listen(protocol, address string) (naming.Endpoint, error) {
 // externalEndpoint examines the endpoint returned by the stream listen call
 // and fills in the address to publish to the mount table. It also returns the
 // IP host address that it selected for publishing to the mount table.
-func (s *server) externalEndpoint(lep naming.Endpoint) (*inaming.Endpoint, *net.IPAddr, error) {
+func (s *server) externalEndpoint(chooser ipc.AddressChooser, lep naming.Endpoint) (*inaming.Endpoint, *net.IPAddr, error) {
 	// We know the endpoint format, so we crack it open...
 	iep, ok := lep.(*inaming.Endpoint)
 	if !ok {
@@ -236,12 +223,12 @@ func (s *server) externalEndpoint(lep naming.Endpoint) (*inaming.Endpoint, *net.
 		if ip == nil {
 			return nil, nil, fmt.Errorf("failed to parse %q as an IP host", host)
 		}
-		if ip.IsUnspecified() && s.addressChooser != nil {
+		if ip.IsUnspecified() && chooser != nil {
 			// Need to find a usable IP address since the call to listen
 			// didn't specify one.
 			addrs, err := netstate.GetAccessibleIPs()
 			if err == nil {
-				if a, err := s.addressChooser(iep.Protocol, addrs); err == nil {
+				if a, err := chooser(iep.Protocol, addrs); err == nil {
 					iep.Address = net.JoinHostPort(a.String(), port)
 					return iep, a.(*net.IPAddr), nil
 				}
@@ -281,7 +268,7 @@ func (s *server) ListenX(listenSpec *ipc.ListenSpec) (naming.Endpoint, error) {
 		vlog.Errorf("ipc: Listen on %v %v failed: %v", protocol, address, err)
 		return nil, err
 	}
-	ep, ipaddr, err := s.externalEndpoint(lep)
+	ep, ipaddr, err := s.externalEndpoint(listenSpec.AddressChooser, lep)
 	if ipaddr == nil || err != nil {
 		ln.Close()
 		if ipaddr == nil {
@@ -299,10 +286,9 @@ func (s *server) ListenX(listenSpec *ipc.ListenSpec) (naming.Endpoint, error) {
 	}
 
 	h, _, _ := net.SplitHostPort(address)
-	if ip := net.ParseIP(h); ip != nil && ip.IsLoopback() {
-		publisher := s.roamingOpt.Publisher
-		streamName := s.roamingOpt.StreamName
-
+	publisher := listenSpec.StreamPublisher
+	if ip := net.ParseIP(h); ip != nil && ip.IsLoopback() && publisher != nil {
+		streamName := listenSpec.StreamName
 		ch := make(chan config.Setting)
 		_, err := publisher.ForkStream(streamName, ch)
 		if err != nil {
