@@ -43,11 +43,6 @@ func init() {
 	flag.StringVar(&listenProxyFlag, "veyron.proxy", "", "proxy to use")
 
 	rt.RegisterProfile(New())
-	ListenSpec = &ipc.ListenSpec{
-		Protocol: listenProtocolFlag.Protocol,
-		Address:  listenAddressFlag.String(),
-		Proxy:    listenProxyFlag,
-	}
 }
 
 type profile struct {
@@ -91,6 +86,12 @@ func (p *profile) String() string {
 
 func (p *profile) Init(rt veyron2.Runtime, publisher *config.Publisher) {
 	log := rt.Logger()
+
+	ListenSpec = &ipc.ListenSpec{
+		Protocol: listenProtocolFlag.Protocol,
+		Address:  listenAddressFlag.String(),
+		Proxy:    listenProxyFlag,
+	}
 
 	state, err := netstate.GetAccessibleIPs()
 	if err != nil {
