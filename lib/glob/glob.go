@@ -75,42 +75,49 @@ func (g *Glob) Split(start int) *Glob {
 }
 
 // MatchInitialSegment tries to match segment against the initial element of g.
-// Returns a boolean indicating whether the match was successful and the
-// Glob representing the unmatched remainder of g.
-func (g *Glob) MatchInitialSegment(segment string) (bool, *Glob) {
+// Returns:
+// matched, a boolean indicating whether the match was successful;
+// exact, a boolean indicating whether segment matched a fixed string pattern;
+// remainder, a Glob representing the unmatched remainder of g.
+func (g *Glob) MatchInitialSegment(segment string) (matched bool, exact bool, remainder *Glob) {
 	if len(g.elems) == 0 {
 		if !g.recursive {
-			return false, nil
+			return false, false, nil
 		}
-		return true, g
+		return true, true, g
 	}
 
 	if matches, err := filepath.Match(g.elems[0], segment); err != nil {
 		panic("Error in glob pattern found.")
 	} else if matches {
-		return true, g.Split(1)
+		_, fixed := isFixed(g.elems[0])
+		return true, fixed, g.Split(1)
 	}
-	return false, nil
+	return false, false, nil
 }
 
 // PartialMatch tries matching elems against part of a glob pattern.
-// The first return value is true if each element e_i of elems matches
-// the (start + i)th element of the glob pattern.  If the first return
-// value is true, the second return value returns the unmatched suffix
-// of the pattern.  It will be empty if the pattern is completely
-// matched.
+// Returns:
+// matched, a boolean indicating whether each element e_i of elems matches the
+// (start + i)th element of the glob pattern;
+// exact, a boolean indicating whether elems matched a fixed string pattern;
+// remainder, a Glob representing the unmatched remainder of g. remainder will
+// be empty if the pattern is completely matched.
 //
 // Note that if the glob is recursive elems can have more elements then
 // the glob pattern and still get a true result.
-func (g *Glob) PartialMatch(start int, elems []string) (bool, *Glob) {
+func (g *Glob) PartialMatch(start int, elems []string) (matched bool, exact bool, remainder *Glob) {
 	g = g.Split(start)
-	for ; len(elems) > 0; elems = elems[1:] {
-		var matched bool
-		if matched, g = g.MatchInitialSegment(elems[0]); !matched {
-			return false, nil
+	allExact := true
+	for i := 0; i < len(elems); i++ {
+		var matched, exact bool
+		if matched, exact, g = g.MatchInitialSegment(elems[i]); !matched {
+			return false, false, nil
+		} else if !exact {
+			allExact = false
 		}
 	}
-	return true, g
+	return true, allExact, g
 }
 
 // isFixed returns the unescaped string and true if 's' is a pattern specifying

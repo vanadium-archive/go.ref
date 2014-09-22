@@ -50,7 +50,7 @@ func globStepLocked(prefix string, g *glob.Glob, n *node, updatedSince time.Time
 		return
 	}
 	for name, child := range n.children {
-		if ok, left := g.MatchInitialSegment(name); ok {
+		if ok, _, left := g.MatchInitialSegment(name); ok {
 			globStepLocked(path.Join(prefix, name), left, child, updatedSince, includeValues, result)
 		}
 	}

@@ -91,7 +91,7 @@ func (t *testServer) globLoop(call ipc.ServerCall, prefix string, g *glob.Glob, 
 	if g.Finished() || len(tree) == 0 {
 		return nil
 	}
-	if ok, left := g.MatchInitialSegment(tree[0]); ok {
+	if ok, _, left := g.MatchInitialSegment(tree[0]); ok {
 		if err := t.globLoop(call, naming.Join(prefix, tree[0]), left, tree[1:]); err != nil {
 			return err
 		}

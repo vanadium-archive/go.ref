@@ -62,7 +62,7 @@ func (i *topLevelGlobInvoker) Glob(call ipc.ServerCall, pattern string) error {
 		return err
 	}
 	for _, leaf := range i.leaves {
-		if ok, left := g.MatchInitialSegment(leaf); ok {
+		if ok, _, left := g.MatchInitialSegment(leaf); ok {
 			if err := i.leafGlob(call, leaf, left.String()); err != nil {
 				return err
 			}

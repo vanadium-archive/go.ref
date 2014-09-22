@@ -244,7 +244,7 @@ func (ns *neighborhoodService) Glob(_ ipc.ServerContext, pattern string, reply m
 	switch len(ns.elems) {
 	case 0:
 		for k, n := range nh.neighbors() {
-			if ok, _ := g.MatchInitialSegment(k); !ok {
+			if ok, _, _ := g.MatchInitialSegment(k); !ok {
 				continue
 			}
 			if err := sender.Send(types.MountEntry{Name: k, Servers: n}); err != nil {

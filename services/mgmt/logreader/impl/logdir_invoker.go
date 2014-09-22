@@ -78,7 +78,7 @@ func (i *logDirectoryInvoker) globStep(name string, g *glob.Glob, isDir bool, ca
 		if fileName == "." || fileName == ".." {
 			continue
 		}
-		if ok, left := g.MatchInitialSegment(fileName); ok {
+		if ok, _, left := g.MatchInitialSegment(fileName); ok {
 			if err := i.globStep(path.Join(name, fileName), left, file.IsDir(), call); err != nil {
 				return err
 			}
