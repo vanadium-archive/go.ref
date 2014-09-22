@@ -1,7 +1,7 @@
 package impl
 
 const (
-	testUserName  = "_uucp"
-	testUidString = "4"
-	testGidString = "4"
+	testUserName = "_uucp"
+	testUid      = 4
+	testGid      = 4
 )
