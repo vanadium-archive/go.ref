@@ -7,6 +7,7 @@ package impl
 // TODO(caprita): Not all is yet implemented.
 //
 // <config.Root>/
+//   helper                         - the setuidhelper binary to invoke an application as a specified user.
 //   app-<hash 1>/                  - the application dir is named using a hash of the application title
 //     installation-<id 1>/         - installations are labelled with ids
 //       <status>                   - one of the values for installationState enum
@@ -89,6 +90,7 @@ import (
 	"io/ioutil"
 	"os"
 	"os/exec"
+	"os/user"
 	"path/filepath"
 	"reflect"
 	"strings"
@@ -385,7 +387,9 @@ func (i *appInvoker) newInstance() (string, string, error) {
 	return instanceDir, instanceID, nil
 }
 
-func genCmd(instanceDir string) (*exec.Cmd, error) {
+// TODO(rjkroege): Turning on the setuid feature of the suidhelper
+// requires an installer with root permissions to install it in <config.Root>/helper
+func genCmd(instanceDir string, helperPath string) (*exec.Cmd, error) {
 	versionLink := filepath.Join(instanceDir, "version")
 	versionDir, err := filepath.EvalSymlinks(versionLink)
 	if err != nil {
@@ -401,10 +405,28 @@ func genCmd(instanceDir string) (*exec.Cmd, error) {
 		vlog.Errorf("Stat(%v) failed: %v", binPath, err)
 		return nil, errOperationFailed
 	}
-	// TODO(caprita): For the purpose of isolating apps, we should run them
-	// as different users.  We'll need to either use the root process or a
-	// suid script to be able to do it.
-	cmd := exec.Command(binPath)
+
+	helperStat, err := os.Stat(helperPath)
+	if err != nil {
+		vlog.Errorf("Stat(%v) failed: %v. helper is required.", helperPath, err)
+		return nil, errOperationFailed
+	}
+	cmd := exec.Command(helperPath)
+
+	cmd.Args = append(cmd.Args, "--username")
+	if helperStat.Mode()&os.ModeSetuid == 0 {
+		vlog.Errorf("helper not setuid. Node manager will invoke app with its own userid")
+		user, err := user.Current()
+		if err != nil {
+			vlog.Errorf("user.Current() failed: %v", err)
+			return nil, errOperationFailed
+		}
+		cmd.Args = append(cmd.Args, user.Username)
+	} else {
+		// TODO(rjkroege): Use the username associated with the veyron identity.
+		return nil, errOperationFailed
+	}
+
 	// TODO(caprita): Also pass in configuration info like NAMESPACE_ROOT to
 	// the app (to point to the device mounttable).
 	cmd.Env = envelope.Env
@@ -413,17 +435,32 @@ func genCmd(instanceDir string) (*exec.Cmd, error) {
 		return nil, err
 	}
 	cmd.Dir = rootDir
+	cmd.Args = append(cmd.Args, "--workspace")
+	cmd.Args = append(cmd.Args, rootDir)
+
 	logDir := filepath.Join(instanceDir, "logs")
 	if err := mkdir(logDir); err != nil {
 		return nil, err
 	}
 	timestamp := time.Now().UnixNano()
-	if cmd.Stdout, err = openWriteFile(filepath.Join(logDir, fmt.Sprintf("STDOUT-%d", timestamp))); err != nil {
+	stdoutLog := filepath.Join(logDir, fmt.Sprintf("STDOUT-%d", timestamp))
+	if cmd.Stdout, err = openWriteFile(stdoutLog); err != nil {
 		return nil, err
 	}
-	if cmd.Stderr, err = openWriteFile(filepath.Join(logDir, fmt.Sprintf("STDERR-%d", timestamp))); err != nil {
+	cmd.Args = append(cmd.Args, "--stdoutlog")
+	cmd.Args = append(cmd.Args, stdoutLog)
+
+	stderrLog := filepath.Join(logDir, fmt.Sprintf("STDERR-%d", timestamp))
+	if cmd.Stderr, err = openWriteFile(stderrLog); err != nil {
 		return nil, err
 	}
+	cmd.Args = append(cmd.Args, "--stderrlog")
+	cmd.Args = append(cmd.Args, stderrLog)
+
+	cmd.Args = append(cmd.Args, "--run")
+	cmd.Args = append(cmd.Args, binPath)
+	cmd.Args = append(cmd.Args, "--")
+
 	// Set up args and env.
 	cmd.Args = append(cmd.Args, "--log_dir=../logs")
 	cmd.Args = append(cmd.Args, envelope.Args...)
@@ -477,7 +514,7 @@ func (i *appInvoker) run(instanceDir string) error {
 	if err := transitionInstance(instanceDir, suspended, starting); err != nil {
 		return err
 	}
-	cmd, err := genCmd(instanceDir)
+	cmd, err := genCmd(instanceDir, filepath.Join(i.config.Root, "helper"))
 	if err == nil {
 		err = i.startCmd(instanceDir, cmd)
 	}

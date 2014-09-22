@@ -23,6 +23,7 @@ import (
 	"veyron.io/veyron/veyron/services/mgmt/lib/exec"
 	"veyron.io/veyron/veyron/services/mgmt/node/config"
 	"veyron.io/veyron/veyron/services/mgmt/node/impl"
+ 	suidhelper "veyron.io/veyron/veyron/services/mgmt/suidhelper/impl"
 
 	"veyron.io/veyron/veyron2"
 	"veyron.io/veyron/veyron2/ipc"
@@ -37,12 +38,7 @@ import (
 
 // TestHelperProcess is blackbox boilerplate.
 func TestHelperProcess(t *testing.T) {
-	blackbox.HelperProcess(t)
-}
-
-func init() {
-	// All the tests and the subprocesses they start require a runtime; so just
-	// create it here.
+	// All TestHelperProcess invocations need a Runtime. Create it here.
 	rt.Init()
 
 	// Disable the cache because we will be manipulating/using the namespace
@@ -53,6 +49,35 @@ func init() {
 	blackbox.CommandTable["execScript"] = execScript
 	blackbox.CommandTable["nodeManager"] = nodeManager
 	blackbox.CommandTable["app"] = app
+
+	blackbox.HelperProcess(t)
+}
+
+func init() {
+	if os.Getenv("VEYRON_BLACKBOX_TEST") == "1" {
+		return
+	}
+
+	// All the tests require a runtime; so just create it here.
+	rt.Init()
+
+	// Disable the cache because we will be manipulating/using the namespace
+	// across multiple processes and want predictable behaviour without
+	// relying on timeouts.
+	rt.R().Namespace().CacheCtl(naming.DisableCache(true))
+}
+
+// TestSuidHelper is testing boilerplate for suidhelper that does not
+// invoke rt.Init() because the suidhelper is not a Veyron application.
+func TestSuidHelper(t *testing.T) {
+	if os.Getenv("VEYRON_SUIDHELPER_TEST") != "1" {
+		return
+	}
+	vlog.VI(1).Infof("TestSuidHelper starting")
+
+	if err := suidhelper.Run(os.Environ()); err != nil {
+		vlog.Fatalf("Failed to Run() setuidhelper: %v", err)
+	}
 }
 
 // execScript launches the script passed as argument.
@@ -149,6 +174,7 @@ func ping() {
 	}
 }
 
+// TODO(rjkroege): Preserve suidhelper and app logs when errors occur.
 func app(args []string) {
 	if expected, got := 1, len(args); expected != got {
 		vlog.Fatalf("Unexpected number of arguments: expected %d, got %d", expected, got)
@@ -168,12 +194,14 @@ func app(args []string) {
 	}
 }
 
-// generateScript is very similar in behavior to its namesake in invoker.go.
+// TODO(rjkroege): generateNodeManagerScript and generateSuidHelperScript have code
+// similarity that might benefit from refactoring.
+// generateNodeManagerScript is very similar in behavior to generateScript in node_invoker.go.
 // However, we chose to re-implement it here for two reasons: (1) avoid making
 // generateScript public; and (2) how the test choses to invoke the node manager
 // subprocess the first time should be independent of how node manager
 // implementation sets up its updated versions.
-func generateScript(t *testing.T, root string, cmd *goexec.Cmd) string {
+func generateNodeManagerScript(t *testing.T, root string, cmd *goexec.Cmd) string {
 	output := "#!/bin/bash\n"
 	output += strings.Join(config.QuoteEnv(cmd.Env), " ") + " "
 	output += cmd.Args[0] + " " + strings.Join(cmd.Args[1:], " ")
@@ -188,6 +216,26 @@ func generateScript(t *testing.T, root string, cmd *goexec.Cmd) string {
 		t.Fatalf("WriteFile(%v) failed: %v", path, err)
 	}
 	return path
+}
+
+// generateSuidHelperScript builds a script to execute the test target as
+// a suidhelper instance and installs it in <root>/helper.
+func generateSuidHelperScript(t *testing.T, root string) {
+	output := "#!/bin/bash\n"
+	output += "VEYRON_SUIDHELPER_TEST=1"
+	output += " "
+	output += "exec" + " " + os.Args[0] + " -test.run=TestSuidHelper $*"
+	output += "\n"
+
+	vlog.VI(1).Infof("script\n%s", output)
+
+	if err := os.MkdirAll(root, 0755); err != nil {
+		t.Fatalf("MkdirAll failed: %v", err)
+	}
+	path := filepath.Join(root, "helper")
+	if err := ioutil.WriteFile(path, []byte(output), 0755); err != nil {
+		t.Fatalf("WriteFile(%v) failed: %v", path, err)
+	}
 }
 
 // nodeEnvelopeFromCmd returns a node manager application envelope that
@@ -269,7 +317,7 @@ func TestNodeManagerUpdateAndRevert(t *testing.T) {
 	defer setupChildCommand(nm)()
 
 	// This is the script that we'll point the current link to initially.
-	scriptPathFactory := generateScript(t, root, nm.Cmd)
+	scriptPathFactory := generateNodeManagerScript(t, root, nm.Cmd)
 
 	if err := os.Symlink(scriptPathFactory, currLink); err != nil {
 		t.Fatalf("Symlink(%q, %q) failed: %v", scriptPathFactory, currLink, err)
@@ -478,6 +526,9 @@ func TestAppLifeCycle(t *testing.T) {
 
 	root, cleanup := setupRootDir()
 	defer cleanup()
+
+	// Create a script wrapping the test target that implements suidhelper.
+	generateSuidHelperScript(t, root)
 
 	// Set up the node manager.  Since we won't do node manager updates,
 	// don't worry about its application envelope and current link.
