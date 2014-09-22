@@ -133,9 +133,12 @@ func TestCloseWhileInDec(t *testing.T) {
 	for i := 0; i < N; i++ {
 		go dec(i)
 	}
-	s.IncN(N)
+	s.IncN(N + 1)
 	s.Close()
 	pending.Wait()
+	if got, want := s.DecN(2, nil), ErrClosed; got != want {
+		t.Errorf("Expected error %v, got %v instead", want, got)
+	}
 }
 
 func TestCancel(t *testing.T) {

@@ -27,15 +27,13 @@ import (
 // "select" operation to determine whether to perform a semaphore operation or
 // abort because the semaphore is close or the operation was canceled.
 //
-// NOTE: when the Semaphore is closed, the Dec operation is unblocked, returning
-// an error (ErrClosed) if the semaphore value is 0.  However, if the semaphore
-// value is non-zero, Dec might perform the decrement and return without an
-// error.  In fact, the behavior may be nondeterministic, after the semaphore is
-// closed, Dec may sometimes return ErrClosed, and sometimes it may complete
-// normally (but only if the semaphore value is non-zero).
-//
-// TODO(jyh): Decide whether the close semantics matters, and revise this
-// implementation if it does.
+// NOTE: when the Semaphore is closed, the Dec (or DecN) operations are
+// unblocked, returning an error (ErrClosed) if the semaphore value is 0 (or
+// less than the DecN value), respectively.  However, even with the Semaphore
+// closed, if the semaphore value is non-zero (or sufficient to satisfy the DecN
+// value), Dec (or DecN) performs the decrement successfully and returns without
+// an error.  Regardless of whether the Semaphore is closed or not, Inc/IncN
+// succeed in incrementing the semaphore value.
 type Semaphore struct {
 	mu    sync.Mutex
 	value uint // GUARDED_BY(mu)
