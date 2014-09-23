@@ -29,6 +29,7 @@ type Publisher interface {
 	// Stop causes the publishing to stop and initiates unmounting of the
 	// mounted names.  Stop performs the unmounting asynchronously, and
 	// WaitForStop should be used to wait until it is done.
+	// Once Stop is called Add/RemoveServer and AddName become noops.
 	Stop()
 	// WaitForStop waits until all unmounting initiated by Stop is finished.
 	WaitForStop()
@@ -65,35 +66,46 @@ type debugCmd chan string // debug string is sent when the cmd is done
 
 type publishedCmd chan []string // published names are sent when cmd is done
 
+type stopCmd struct{} // sent to the runloop when we want it to exit.
+
 // New returns a new publisher that updates mounts on ns every period.
 func New(ctx context.T, ns naming.Namespace, period time.Duration) Publisher {
 	p := &publisher{
-		cmdchan:  make(chan interface{}, 10),
+		cmdchan:  make(chan interface{}),
 		donechan: make(chan struct{}),
 	}
-	go p.runLoop(ctx, ns, period)
+	go runLoop(ctx, p.cmdchan, p.donechan, ns, period)
 	return p
+}
+
+func (p *publisher) sendCmd(cmd interface{}) bool {
+	select {
+	case p.cmdchan <- cmd:
+		return true
+	case <-p.donechan:
+		return false
+	}
 }
 
 func (p *publisher) AddServer(server string) {
 	done := make(chan struct{})
-	defer func() { recover() }()
-	p.cmdchan <- addServerCmd{server, done}
-	<-done
+	if p.sendCmd(addServerCmd{server, done}) {
+		<-done
+	}
 }
 
 func (p *publisher) RemoveServer(server string) {
 	done := make(chan struct{})
-	defer func() { recover() }()
-	p.cmdchan <- removeServerCmd{server, done}
-	<-done
+	if p.sendCmd(removeServerCmd{server, done}) {
+		<-done
+	}
 }
 
 func (p *publisher) AddName(name string) {
 	done := make(chan struct{})
-	defer func() { recover() }()
-	p.cmdchan <- nameCmd{name, done}
-	<-done
+	if p.sendCmd(nameCmd{name, done}) {
+		<-done
+	}
 }
 
 // Published returns the published name(s) for this publisher, where each name
@@ -102,19 +114,19 @@ func (p *publisher) AddName(name string) {
 // corresponding the the mount table replicas are grouped together.
 func (p *publisher) Published() []string {
 	published := make(publishedCmd)
-	defer func() { recover() }()
-	p.cmdchan <- published
-	return <-published
+	if p.sendCmd(published) {
+		return <-published
+	}
+	return []string{}
 }
 
 func (p *publisher) DebugString() (dbg string) {
 	debug := make(debugCmd)
-	defer func() {
-		recover()
+	if p.sendCmd(debug) {
+		dbg = <-debug
+	} else {
 		dbg = "stopped"
-	}()
-	p.cmdchan <- debug
-	dbg = <-debug
+	}
 	return
 }
 
@@ -128,29 +140,26 @@ func (p *publisher) DebugString() (dbg string) {
 // Once the publisher is stopped, any further calls on its public methods
 // (including Stop) are no-ops.
 func (p *publisher) Stop() {
-	defer func() { recover() }()
-	close(p.cmdchan)
+	p.sendCmd(stopCmd{})
 }
 
 func (p *publisher) WaitForStop() {
 	<-p.donechan
 }
 
-func (p *publisher) runLoop(ctx context.T, ns naming.Namespace, period time.Duration) {
+func runLoop(ctx context.T, cmdchan chan interface{}, donechan chan struct{}, ns naming.Namespace, period time.Duration) {
 	vlog.VI(2).Info("ipc pub: start runLoop")
 	state := newPubState(ctx, ns, period)
+
 	for {
 		select {
-		case cmd, ok := <-p.cmdchan:
-			if !ok {
-				// Closing the cmdchan signals us to break out of the loop.  Unmount
-				// everything and signal that we're done by closing the donechan.
+		case cmd := <-cmdchan:
+			switch tcmd := cmd.(type) {
+			case stopCmd:
+				close(donechan)
 				state.unmountAll()
 				vlog.VI(2).Info("ipc pub: exit runLoop")
-				close(p.donechan)
 				return
-			}
-			switch tcmd := cmd.(type) {
 			case addServerCmd:
 				state.addServer(tcmd.server)
 				close(tcmd.done)
