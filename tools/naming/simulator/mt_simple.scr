@@ -1,0 +1,72 @@
+# Simple example showing multiple mount tables, servers and globing
+
+root
+eval $_
+set root=$MT_NAME
+
+set NAMESPACE_ROOT=$root
+mt usa
+eval $_
+set usa_mt=$MT_NAME
+mt uk
+eval $_
+set uk_mt=$MT_NAME
+
+ls $root/...
+set l=$_
+eval $l
+assert $RN 3
+wait $l
+
+set NAMESPACE_ROOT=$usa_mt
+mt "palo alto"
+eval $_
+set pa_mt=$MT_NAME
+
+set NAMESPACE_ROOT=$uk_mt
+mt "cambridge"
+eval $_
+set cam_mt=$MT_NAME
+
+ls $root/...
+set l=$_
+eval $l
+assert $RN 5
+
+ls -l $root/...
+wait $_
+
+resolve $root/usa
+set r=$_
+eval $r
+assert $RN 1
+eval $r
+assert $R0 $usa_mt
+wait $r
+
+resolve  "$root/usa/palo alto"
+set r=$_
+assert $RN 1
+eval $r
+# this resolves to the mount table hosting palo alto, not the mount table
+# that would host any objects mounted on .../palo alto/...
+# but the uk/cambridge example below seems to behave the opposite way?
+assert $R0 $usa_mt
+wait $r
+
+resolve $root/uk
+set r=$_
+eval $r
+assert $RN 1
+eval $r
+assert $R0 $uk_mt
+wait $r
+
+resolve "$root/uk/cambridge"
+set r=$_
+eval $r
+assert $RN 1
+eval $r
+# this behaves differently to the usa/palo alto case?
+assert $R0 $cam_mt
+wait $r

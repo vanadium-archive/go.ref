@@ -31,6 +31,7 @@ func assertNumHandles(t *testing.T, sh *Shell, n int) {
 
 func TestState(t *testing.T) {
 	sh := NewShell()
+
 	sh.AddSubprocess("echonotregistered", "[args]*")
 	sh.AddSubprocess("echos", "[args]*")
 	sh.AddFunction("echof", Echo, "[args]*")

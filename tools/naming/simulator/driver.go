@@ -2,8 +2,8 @@
 // services as subprocesses and testing interactions between them. It is
 // structured as an interpreter, with global variables and variable
 // expansion, but no control flow. The command set that it supports is
-// extendable by adding new 'modules' that implement the API defined
-// by veyron/lib/testutil/modules.
+// extendable by adding new 'commands' that implement the API defined
+// by veyron/lib/modules.
 package main
 
 import (
@@ -11,55 +11,78 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"strconv"
 	"strings"
+	"time"
 	"unicode"
 
-	"veyron.io/veyron/veyron/lib/testutil/modules"
-
 	"veyron.io/veyron/veyron2/rt"
+
+	"veyron.io/veyron/veyron/lib/expect"
+	"veyron.io/veyron/veyron/lib/modules"
+	"veyron.io/veyron/veyron/lib/modules/core"
 )
 
-type commandFunc func() modules.T
+type cmdState struct {
+	modules.Handle
+	*expect.Session
+	line string
+}
 
 var (
-	commands    map[string]commandFunc
-	globals     modules.Variables
-	debug       bool
 	interactive bool
+	handles     map[string]*cmdState
 )
 
 func init() {
 	flag.BoolVar(&interactive, "interactive", true, "set interactive/batch mode")
-	flag.BoolVar(&debug, "debug", false, "set debug mode")
+	handles = make(map[string]*cmdState)
+	flag.Usage = usage
+}
 
-	commands = make(map[string]commandFunc)
+var usage = func() {
+	fmt.Println(
+		`Welcome to this simple shell that lets you run mount tables, a simple server
+and sundry other commands from an interactive command line or as scripts. Type
+'help' at the prompt to see a list of available commands, or 'help command' to
+get specific help about that command. The shell provides environment variables
+with expansion and intrinsic support for managing subprocess, but it does not
+provide any flow control commands.
 
-	// We maintaing a single, global, dictionary for variables.
-	globals = make(modules.Variables)
+All commands, except builtin ones (such as help, set, eval etc) are run
+asynchronously in background. That is, the prompt returns as soon as they are
+started and no output is displayed from them unless an error is encountered
+when they are being started. Each input line is numbered and that number is
+used to refer to the standard output of previous started commands. The variable
+_ always contains the number of the immediately preceeding line. It is
+possible to read the output of a command (using the 'read' builtin) and assign
+it that output to an environment variable. The 'eval' builtin parses output of
+the form <var>=<val>. In this way subproccess may be started, their output
+read and used to configure subsequent subprocesses. For example:
 
-	// 'bultins'
-	commands["help"] = helpF
-	commands["get"] = getF
-	commands["set"] = setF
-	commands["print"] = printF
-	commands["sleep"] = sleepF
+1> time
+2> read 1 t
+3> print $t
 
-	// TODO(cnicolaou): add 'STOP' command to shutdown a running server,
-	// need to return the handle and then call Stop on it.
+will print the first line of output from the time command, as will the
+following:
 
-	// modules
-	commands["rootMT"] = modules.NewRootMT
-	commands["nodeMT"] = modules.NewNodeMT
-	commands["setLocalRoots"] = modules.NewSetRoot
-	commands["ls"] = modules.NewGlob
-	commands["lsat"] = modules.NewGlobAt
-	commands["lsmt"] = modules.NewGlobAtMT
-	commands["resolve"] = modules.NewResolve
-	commands["resolveMT"] = modules.NewResolveMT
-	commands["echoServer"] = modules.NewEchoServer
-	commands["echo"] = modules.NewEchoClient
-	commands["clockServer"] = modules.NewClockServer
-	commands["time"] = modules.NewClockClient
+or:
+time
+read $_ t
+print $t
+
+The eval builtin is used to directly to assign to variables specified
+in the output of the command. For example, if the root command
+prints out MT_NAME=foo then eval will set MT_NAME to foo as follows:
+
+root
+eval $_
+print $MT_NAME
+
+will print the value of MT_NAME that is output by the root command.
+`)
+	flag.PrintDefaults()
 }
 
 func prompt(lineno int) {
@@ -69,8 +92,25 @@ func prompt(lineno int) {
 }
 
 func main() {
-	modules.InModule()
 	rt.Init()
+
+	// Subprocesses commands are run by fork/execing this binary
+	// so we must test to see if this instance is a subprocess or the
+	// the original command line instance.
+	if os.Getenv(modules.ShellEntryPoint) != "" {
+		// Subprocess, run the requested command.
+		if err := modules.Dispatch(); err != nil {
+			fmt.Fprintf(os.Stdout, "failed: %v\n", err)
+			fmt.Fprintf(os.Stderr, "failed: %v\n", err)
+			return
+		}
+		return
+	}
+
+	shell := modules.NewShell()
+	defer shell.Cleanup(os.Stderr)
+
+	core.Install(shell)
 
 	scanner := bufio.NewScanner(os.Stdin)
 	lineno := 1
@@ -81,14 +121,12 @@ func main() {
 			if line == "eof" {
 				break
 			}
-			if err := process(line, lineno); err != nil {
-				if debug {
-					fmt.Printf("%d> %s: %v\n", lineno, line, err)
-				} else {
-					fmt.Printf("%d> %v\n", lineno, err)
-				}
+			if err := process(shell, line, lineno); err != nil {
+				fmt.Printf("ERROR: %d> %q: %v\n", lineno, line, err)
+				os.Exit(1)
 			}
 		}
+		shell.SetVar("_", strconv.Itoa(lineno))
 		lineno++
 		prompt(lineno)
 	}
@@ -96,10 +134,19 @@ func main() {
 		fmt.Printf("error reading input: %v\n", err)
 	}
 
-	modules.Cleanup()
 }
 
-func process(line string, lineno int) error {
+func output(lineno int, line string) {
+	if len(line) > 0 {
+		if !interactive {
+			fmt.Printf("%d> ", lineno)
+		}
+		line = strings.TrimSuffix(line, "\n")
+		fmt.Printf("%s\n", line)
+	}
+}
+
+func process(sh *modules.Shell, line string, lineno int) error {
 	fields, err := splitQuotedFields(line)
 	if err != nil {
 		return err
@@ -115,36 +162,37 @@ func process(line string, lineno int) error {
 	} else {
 		args = []string{}
 	}
-
-	sub, err := subVariables(args, globals)
-	if err != nil {
-		return err
-	}
-
-	factory := commands[name]
-	if factory == nil {
-		return fmt.Errorf("unrecognised command %q", name)
-	}
-	if vars, output, _, err := factory().Run(sub); err != nil {
-		return err
+	sub, err := subVariables(sh, args)
+	if cmd := builtins[name]; cmd != nil {
+		if cmd.nargs >= 0 && len(sub) != cmd.nargs {
+			return fmt.Errorf("wrong (%d) # args for %q: usage %s", len(sub), name, cmd.usage)
+		}
+		l := ""
+		var err error
+		if cmd.needsHandle {
+			l, err = handleWrapper(sh, cmd.fn, sub...)
+		} else {
+			l, err = cmd.fn(sh, nil, sub...)
+		}
+		if err != nil {
+			return err
+		}
+		output(lineno, l)
 	} else {
-		if debug || interactive {
+		handle, err := sh.Start(name, sub...)
+		if err != nil {
+			return err
+		}
+		handles[strconv.Itoa(lineno)] = &cmdState{
+			handle,
+			expect.NewSession(nil, handle.Stdout(), time.Minute),
+			line,
+		}
+		if !interactive {
 			fmt.Printf("%d> %s\n", lineno, line)
 		}
-		if len(output) > 0 {
-			if !interactive {
-				fmt.Printf("%d> ", lineno)
-			}
-			fmt.Printf("%s\n", strings.Join(output, " "))
-		}
-		if debug && len(vars) > 0 {
-			for k, v := range vars {
-				fmt.Printf("\t%s=%q .... \n", k, v)
-			}
-			fmt.Println()
-		}
-		globals.UpdateFromVariables(vars)
 	}
+
 	return nil
 }
 
@@ -187,11 +235,11 @@ func splitQuotedFields(line string) ([]string, error) {
 }
 
 // subVariables substitutes variables that occur in the string slice
-// args with values from vars.
-func subVariables(args []string, vars modules.Variables) ([]string, error) {
+// args with values from the Shell.
+func subVariables(sh *modules.Shell, args []string) ([]string, error) {
 	var results []string
 	for _, a := range args {
-		if r, err := subVariablesInArgument(a, vars); err != nil {
+		if r, err := subVariablesInArgument(sh, a); err != nil {
 			return results, err
 		} else {
 			results = append(results, r)
@@ -206,7 +254,7 @@ func subVariables(args []string, vars modules.Variables) ([]string, error) {
 // A variable, is introduced by $, terminated by \t, space, / , : or !.
 // Variables may also be enclosed by {} (as in ${VAR}) to allow for embedding
 // within strings.
-func subVariablesInArgument(a string, vars modules.Variables) (string, error) {
+func subVariablesInArgument(sh *modules.Shell, a string) (string, error) {
 	first := strings.Index(a, "$")
 	if first < 0 {
 		return a, nil
@@ -226,7 +274,7 @@ func subVariablesInArgument(a string, vars modules.Variables) (string, error) {
 			}
 			rem = end + 1
 		} else {
-			end = strings.IndexAny(p, "\t/,:! ")
+			end = strings.IndexAny(p, "\t/,:!= ")
 			if end < 0 {
 				end = len(p)
 			}
@@ -234,9 +282,9 @@ func subVariablesInArgument(a string, vars modules.Variables) (string, error) {
 		}
 		vn = p[start:end]
 		r := p[rem:]
-		v, present := vars[vn]
+		v, present := sh.GetVar(vn)
 		if !present {
-			return "", fmt.Errorf("unknown variable: %q", vn)
+			return a, nil
 		}
 		result += v
 		result += r

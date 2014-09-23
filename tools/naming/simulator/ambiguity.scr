@@ -1,0 +1,45 @@
+# This is p's 'ambiguity' example
+#
+# mountMT("/s1/a", "/s2/b")
+# mountMT("/s2/b", "/s3/c")
+# mount("/s3/c", "/s4/d")
+#
+# Bogdan points out that: 'we will actually have d == "" in the echo example
+# below (since Serve only mounts endpoints without suffixes)'
+#
+# I'm not using any local names because its easier to not get confused
+# this way.
+#
+# resolve("/s1/a") can now have 4 possible objects, the mount point in server1,
+# the mount point in server2, the mount point in server3, and the object d in
+# server4.  When we make a call, like SetACL, how do we tell which one to
+# modify?   If we glob("/s1/a") we get:
+#
+# "s1/a", ["/s2/b"(mountpoint)]
+# "s1/a", ["/s3/c"(mountpoint)]
+# "s1/a", ["/s4/d"(mountpoint)]
+# "s1/a", []
+
+root
+eval $_
+set s1=$MT_NAME
+
+root
+eval $_
+set s2=$MT_NAME
+
+root
+eval $_
+set s3=$MT_NAME
+
+mount $s1/a $s2/b 1h
+
+mount $s2/b $s3/c 1h
+
+echoServer "Echo" $s3/c
+
+ls $s1/...
+wait $_
+
+ls $s1/a
+wait $_

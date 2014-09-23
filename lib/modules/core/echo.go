@@ -8,6 +8,7 @@ import (
 	"veyron.io/veyron/veyron2/ipc"
 	"veyron.io/veyron/veyron2/naming"
 	"veyron.io/veyron/veyron2/rt"
+	"veyron.io/veyron/veyron2/security"
 
 	"veyron.io/veyron/veyron/lib/modules"
 )
@@ -17,19 +18,29 @@ func init() {
 	modules.RegisterChild(EchoClientCommand, echoClient)
 }
 
+type treeDispatcher struct{ id string }
+
+func (d treeDispatcher) Lookup(suffix, method string) (ipc.Invoker, security.Authorizer, error) {
+	return ipc.ReflectInvoker(&echoServerObject{d.id, suffix}), nil, nil
+}
+
 type echoServerObject struct {
-	id string
+	id, suffix string
 }
 
 func (es *echoServerObject) Echo(call ipc.ServerCall, m string) (string, error) {
-	return es.id + ": " + m + "\n", nil
+	if len(es.suffix) > 0 {
+		return fmt.Sprintf("%s.%s: %s\n", es.id, es.suffix, m), nil
+	}
+	return fmt.Sprintf("%s: %s\n", es.id, m), nil
 }
 
 func echoServer(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
 	if len(args) != 2 {
 		return fmt.Errorf("wrong # args")
 	}
-	id, mountPoint := args[0], args[1]
+	id, mp := args[0], args[1]
+	disp := &treeDispatcher{id: id}
 	server, err := rt.R().NewServer()
 	if err != nil {
 		return err
@@ -39,7 +50,7 @@ func echoServer(stdin io.Reader, stdout, stderr io.Writer, env map[string]string
 	if err != nil {
 		return err
 	}
-	if err := server.Serve(mountPoint, ipc.LeafDispatcher(&echoServerObject{id: id}, nil)); err != nil {
+	if err := server.Serve(mp, disp); err != nil {
 		return err
 	}
 	fmt.Fprintf(stdout, "NAME=%s\n", naming.MakeTerminal(naming.JoinAddressName(ep.String(), "")))
@@ -50,7 +61,6 @@ func echoServer(stdin io.Reader, stdout, stderr io.Writer, env map[string]string
 }
 
 func echoClient(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
-
 	if len(args) < 2 {
 		return fmt.Errorf("wrong # args")
 	}
