@@ -57,6 +57,7 @@ func main() {
 	if err != nil {
 		vlog.Fatalf("Listen(%q, %q) failed: %v", *protocol, *address, err)
 	}
+	vlog.Infof("Listening on endpoint %s", ep)
 	hwaddr, err := firstHardwareAddrInUse()
 	if err != nil {
 		vlog.Fatalf("Couldn't find a good hw address: %v", err)
@@ -85,6 +86,6 @@ func main() {
 	if !published {
 		vlog.Fatalf("Failed to publish with any of %v", names)
 	}
-	vlog.Infof("Listening on endpoint /%s (published as %v)", ep, names)
+	vlog.Infof("Published as %v", names)
 	<-signals.ShutdownOnSignals()
 }

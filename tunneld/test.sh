@@ -8,6 +8,11 @@
 
 source "${VEYRON_ROOT}/environment/scripts/lib/shell_test.sh"
 
+# This imported library in environment/scripts/lib/shell.sh runs set -e, which
+# makes the shell exit immediately when any command fails. This can make
+# troubleshooting problems much harder. Restore the default for this test.
+set +e
+
 build() {
   local -r GO="${VEYRON_ROOT}/scripts/build/go"
   "${GO}" build veyron.io/examples/tunnel/tunneld || shell_test::fail "line ${LINENO}: failed to build tunneld"
@@ -31,13 +36,8 @@ main() {
   # Start mounttabled and find its endpoint.
   local -r MTLOG="${TMPDIR}/mt.log"
   ./mounttabled --address=127.0.0.1:0 > "${MTLOG}" 2>&1 &
-  for i in 1 2 3 4; do
-    local EP=$(grep "Mount table service at:" "${MTLOG}" | sed -e 's/^.*endpoint: //')
-    if [[ -n "${EP}" ]]; then
-      break
-    fi
-    sleep 1
-  done
+  shell::wait_for "${MTLOG}" "Mount table service at:"
+  local EP=$(grep "Mount table service at:" "${MTLOG}" | sed -e 's/^.*endpoint: //')
   [[ -z "${EP}" ]] && shell_test::fail "line ${LINENO}: no mounttable server"
 
   # Generate an identity for the tunnel server and client
@@ -49,19 +49,17 @@ main() {
 
   # Start tunneld and find its endpoint.
   local -r TUNLOG="${TMPDIR}/tunnel.log"
-  ./tunneld --address=127.0.0.1:0 > "${TUNLOG}" 2>&1 &
-  for i in 1 2 3 4; do
-    local EP=$(grep "Listening on endpoint" "${TUNLOG}" | sed -e 's/^.*endpoint //' | awk '{print $1}')
-    if [[ -n "${EP}" ]]; then
-      break
-    fi
-    sleep 1
-  done
-  [[ -z "${EP}" ]] && shell_test::fail "line ${LINENO}: no tunnel server"
+  ./tunneld --address=127.0.0.1:0 -vmodule=publisher=2 > "${TUNLOG}" 2>&1 &
+  shell::wait_for "${TUNLOG}" "ipc pub: mount"
+  local EP=$(grep "Listening on endpoint" "${TUNLOG}" | sed -e 's/^.*endpoint //' | awk '{print $1}')
+  if [[ -z "${EP}" ]]; then
+    dumplogs "${TUNLOG}" "${MTLOG}"
+    shell_test::fail "line ${LINENO}: no tunnel server"
+  fi
 
   # Run remote command with the endpoint.
   local -r VSHLOG="${TMPDIR}/vsh.log"
-  local GOT=$(./vsh --logtostderr --v=1 "${EP}" echo HELLO ENDPOINT 2>"${VSHLOG}")
+  local GOT=$(./vsh --logtostderr --v=1 "/${EP}" echo HELLO ENDPOINT 2>"${VSHLOG}")
   local WANT="HELLO ENDPOINT"
 
   if [[ "${GOT}" != "${WANT}" ]]; then
@@ -79,7 +77,7 @@ main() {
   fi
 
   # Send input to remote command.
-  echo "HELLO SERVER" | ./vsh --logtostderr --v=1 "${EP}" "cat > ${TMPDIR}/hello.txt" > "${VSHLOG}" 2>&1
+  echo "HELLO SERVER" | ./vsh --logtostderr --v=1 "/${EP}" "cat > ${TMPDIR}/hello.txt" > "${VSHLOG}" 2>&1
   GOT=$(cat "${TMPDIR}/hello.txt")
   WANT="HELLO SERVER"
 
@@ -88,7 +86,7 @@ main() {
     shell_test::fail "line ${LINENO}: unexpected output. Got ${GOT}, want ${WANT}"
   fi
 
-  GOT=$(echo "ECHO" | ./vsh --logtostderr --v=1 "${EP}" cat 2>"${VSHLOG}")
+  GOT=$(echo "ECHO" | ./vsh --logtostderr --v=1 "/${EP}" cat 2>"${VSHLOG}")
   WANT="ECHO"
 
   if [[ "${GOT}" != "${WANT}" ]]; then
@@ -102,9 +100,9 @@ main() {
             -e 's!hwaddr/[^ ]*!hwaddr/XX:XX:XX:XX:XX:XX!' | \
         sort)
   WANT="[${NAMESPACE_ROOT}]
-tunnel/hostname/$(hostname) ${EP}// (TTL XmXXs)
-tunnel/hwaddr/XX:XX:XX:XX:XX:XX ${EP}// (TTL XmXXs)
-tunnel/id/test ${EP}// (TTL XmXXs)"
+tunnel/hostname/$(hostname) /${EP}// (TTL XmXXs)
+tunnel/hwaddr/XX:XX:XX:XX:XX:XX /${EP}// (TTL XmXXs)
+tunnel/id/test /${EP}// (TTL XmXXs)"
 
   if [[ "${GOT}" != "${WANT}" ]]; then
     shell_test::fail "line ${LINENO}: unexpected output. Got ${GOT}, want ${WANT}"
