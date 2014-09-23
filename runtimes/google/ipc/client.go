@@ -433,7 +433,20 @@ func (fc *flowClient) closeSend() verror.E {
 		return nil
 	}
 	if err := fc.enc.Encode(ipc.Request{EndStreamArgs: true}); err != nil {
-		return fc.close(verror.BadProtocolf("ipc: end stream args encoding failed: %v", err))
+		// TODO(caprita): Indiscriminately closing the flow below causes
+		// a race as described in:
+		// https://docs.google.com/a/google.com/document/d/1C0kxfYhuOcStdV7tnLZELZpUhfQCZj47B0JrzbE29h8/edit
+		//
+		// There should be a finer grained way to fix this (for example,
+		// encoding errors should probably still result in closing the
+		// flow); on the flip side, there may exist other instances
+		// where we are closing the flow but should not.
+		//
+		// For now, commenting out the line below removes the flakiness
+		// from our existing unit tests, but this needs to be revisited
+		// and fixed correctly.
+		//
+		//   return fc.close(verror.BadProtocolf("ipc: end stream args encoding failed: %v", err))
 	}
 	fc.sendClosed = true
 	return nil
