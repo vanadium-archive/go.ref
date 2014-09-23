@@ -65,7 +65,9 @@ func (w *Writer) streamLength() int {
 // Waits until there is at least n messages in w.Stream. Returns an error if we timeout
 // waiting for the given number of messages.
 func (w *Writer) WaitForMessage(n int) error {
+	fmt.Println("Looking for", n)
 	if w.streamLength() >= n {
+		fmt.Println("Found ", w.Stream)
 		return nil
 	}
 	w.Lock()
