@@ -26,7 +26,7 @@
         "source": "pg-data-20140820"
       }],
       "networkInterfaces": [{
-        "network": "default",
+        "network": "playground",
         "accessConfigs": [{
           "type": "ONE_TO_ONE_NAT",
           "name": "External NAT"
