@@ -1,14 +1,24 @@
 // Package server provides a server which keeps a private key in memory
 // and allows clients to use the key for signing.
+//
+// PROTOCOL
+//
+// The agent starts processes with the VEYRON_AGENT_FD set to one end of a
+// unix domain socket. To connect to the agent, a client should create
+// a unix domain socket pair. Then send one end of the socket to the agent
+// with 1 byte of data. The agent will then serve the Agent service on
+// the recieved socket, using VCSecurityNone.
 package server
 
 import (
+	"io"
 	"os"
 	"veyron.io/veyron/veyron/lib/unixfd"
 	"veyron.io/veyron/veyron2"
 	"veyron.io/veyron/veyron2/ipc"
 	"veyron.io/veyron/veyron2/security"
 	"veyron.io/veyron/veyron2/security/wire"
+	"veyron.io/veyron/veyron2/vlog"
 )
 
 type Signer interface {
@@ -32,27 +42,31 @@ func RunAnonymousAgent(runtime veyron2.Runtime, signer Signer) (client *os.File,
 		return nil, err
 	}
 
-	socks, err := unixfd.Socketpair()
-	server_sock := socks[0]
-	client_sock := make(chan *os.File, 1)
-	client_sock <- socks[1]
-	close(client_sock)
-	defer server_sock.Close()
-	defer func() {
-		if sock, ok := <-client_sock; ok {
-			sock.Close()
-		}
-	}()
+	local, remote, err := unixfd.Socketpair()
+	if err != nil {
+		return nil, err
+	}
 
 	serverAgent := NewServerAgent(agentd{signer})
-	addr := unixfd.Addr(server_sock.Fd())
-	if _, err = s.Listen(addr.Network(), addr.String()); err != nil {
-		return
-	}
+	go func() {
+		buf := make([]byte, 1)
+		for {
+			clientAddr, _, err := unixfd.ReadConnection(local, buf)
+			if err == io.EOF {
+				return
+			}
+			if err == nil {
+				_, err = s.Listen(clientAddr.Network(), clientAddr.String())
+			}
+			if err != nil {
+				vlog.Infof("Error accepting connection: %v", err)
+			}
+		}
+	}()
 	if err = s.Serve("", ipc.LeafDispatcher(serverAgent, nil)); err != nil {
 		return
 	}
-	return <-client_sock, nil
+	return remote, nil
 }
 
 func (a agentd) Sign(_ ipc.ServerContext, message []byte) (security.Signature, error) {

@@ -32,7 +32,7 @@ agent protocol instead of directly reading from disk.
 	}
 
 	var err error
-	if err = os.Setenv(agent.EndpointVarName, agent.CreateAgentEndpoint(3)); err != nil {
+	if err = os.Setenv(agent.FdVarName, "3"); err != nil {
 		log.Fatalf("setenv: %v", err)
 	}
 	if err = os.Setenv("VEYRON_IDENTITY", ""); err != nil {

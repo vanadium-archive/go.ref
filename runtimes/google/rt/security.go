@@ -4,15 +4,14 @@ import (
 	"fmt"
 	"os"
 	"os/user"
+	"strconv"
 
-	"veyron.io/veyron/veyron/lib/unixfd"
 	isecurity "veyron.io/veyron/veyron/runtimes/google/security"
 	vsecurity "veyron.io/veyron/veyron/security"
 	"veyron.io/veyron/veyron/security/agent"
 
 	"veyron.io/veyron/veyron2"
 	"veyron.io/veyron/veyron2/security"
-	"veyron.io/veyron/veyron2/verror"
 	"veyron.io/veyron/veyron2/vlog"
 )
 
@@ -54,7 +53,7 @@ func (rt *vrt) initIdentity() error {
 		return nil
 	}
 	var err error
-	if len(os.Getenv(agent.EndpointVarName)) > 0 {
+	if len(os.Getenv(agent.FdVarName)) > 0 {
 		rt.id, err = rt.connectToAgent()
 		return err
 	} else if file := os.Getenv("VEYRON_IDENTITY"); len(file) > 0 {
@@ -119,21 +118,15 @@ func loadIdentityFromFile(filePath string) (security.PrivateID, error) {
 }
 
 func (rt *vrt) connectToAgent() (security.PrivateID, error) {
-	// Verify we're communicating over unix domain sockets so
-	// we know it's safe to use VCSecurityNone.
-	endpoint, err := rt.NewEndpoint(os.Getenv(agent.EndpointVarName))
-	if err != nil {
-		return nil, err
-	}
-	if endpoint.Addr().Network() != unixfd.Network {
-		return nil, verror.BadArgf("invalid agent address %v", endpoint.Addr())
-	}
-
 	client, err := rt.NewClient(veyron2.VCSecurityNone)
 	if err != nil {
 		return nil, err
 	}
-	signer, err := agent.NewAgentSigner(client, endpoint.String(), rt.NewContext())
+	fd, err := strconv.Atoi(os.Getenv(agent.FdVarName))
+	if err != nil {
+		return nil, err
+	}
+	signer, err := agent.NewAgentSigner(client, fd, rt.NewContext())
 	if err != nil {
 		return nil, err
 	}

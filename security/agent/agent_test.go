@@ -36,7 +36,7 @@ func setup() *testdata {
 	if err != nil {
 		panic(err)
 	}
-	if agent, err := agent.NewAgentSigner(client, agent.CreateAgentEndpoint(int(sock.Fd())), runtime.NewContext()); err == nil {
+	if agent, err := agent.NewAgentSigner(client, int(sock.Fd()), runtime.NewContext()); err == nil {
 		result.agent = agent
 		return result
 	} else {

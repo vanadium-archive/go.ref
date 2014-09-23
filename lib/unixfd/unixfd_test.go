@@ -4,21 +4,22 @@ import (
 	"bytes"
 	"io"
 	"net"
-	"os"
 	"reflect"
 	"testing"
 )
 
 type nothing struct{}
 
-func dial(fd *os.File) (net.Conn, error) {
-	addr := Addr(fd.Fd())
-	return unixFDConn(addr.String())
+func dial(fd *fileDescriptor) (net.Conn, net.Addr, error) {
+	addr := fd.releaseAddr()
+	conn, err := unixFDConn(addr.String())
+	return conn, addr, err
 }
 
-func listen(fd *os.File) (net.Listener, error) {
-	addr := Addr(fd.Fd())
-	return unixFDListen(addr.String())
+func listen(fd *fileDescriptor) (net.Listener, net.Addr, error) {
+	addr := fd.releaseAddr()
+	l, err := unixFDListen(addr.String())
+	return l, addr, err
 }
 
 func testWrite(t *testing.T, c net.Conn, data string) {
@@ -45,15 +46,15 @@ func testRead(t *testing.T, c net.Conn, expected string) {
 }
 
 func TestDial(t *testing.T) {
-	fds, err := Socketpair()
+	local, remote, err := socketpair(true)
 	if err != nil {
 		t.Fatalf("socketpair: %v", err)
 	}
-	a, err := dial(fds[0])
+	a, a_addr, err := dial(local)
 	if err != nil {
 		t.Fatalf("dial: %v", err)
 	}
-	b, err := dial(fds[1])
+	b, b_addr, err := dial(remote)
 	if err != nil {
 		t.Fatalf("dial: %v", err)
 	}
@@ -63,30 +64,30 @@ func TestDial(t *testing.T) {
 	testWrite(t, b, "TEST2")
 	testRead(t, a, "TEST2")
 
-	if !reflect.DeepEqual(a.LocalAddr(), Addr(fds[0].Fd())) {
-		t.Errorf("Invalid address %v, expected %d", a.LocalAddr(), fds[0].Fd())
+	if !reflect.DeepEqual(a.LocalAddr(), a_addr) {
+		t.Errorf("Invalid address %v, expected %v", a.LocalAddr(), a_addr)
 	}
-	if !reflect.DeepEqual(a.RemoteAddr(), Addr(fds[0].Fd())) {
-		t.Errorf("Invalid address %v, expected %d", a.RemoteAddr(), fds[0].Fd())
+	if !reflect.DeepEqual(a.RemoteAddr(), a_addr) {
+		t.Errorf("Invalid address %v, expected %v", a.RemoteAddr(), a_addr)
 	}
-	if !reflect.DeepEqual(b.LocalAddr(), Addr(fds[1].Fd())) {
-		t.Errorf("Invalid address %v, expected %d", a.LocalAddr(), fds[1].Fd())
+	if !reflect.DeepEqual(b.LocalAddr(), b_addr) {
+		t.Errorf("Invalid address %v, expected %v", a.LocalAddr(), b_addr)
 	}
-	if !reflect.DeepEqual(b.RemoteAddr(), Addr(fds[1].Fd())) {
-		t.Errorf("Invalid address %v, expected %d", a.RemoteAddr(), fds[1].Fd())
+	if !reflect.DeepEqual(b.RemoteAddr(), b_addr) {
+		t.Errorf("Invalid address %v, expected %v", a.RemoteAddr(), b_addr)
 	}
 }
 
 func TestListen(t *testing.T) {
-	fds, err := Socketpair()
+	local, remote, err := socketpair(true)
 	if err != nil {
 		t.Fatalf("socketpair: %v", err)
 	}
-	a, err := dial(fds[0])
+	a, _, err := dial(local)
 	if err != nil {
 		t.Fatalf("dial: %v", err)
 	}
-	l, err := listen(fds[1])
+	l, _, err := listen(remote)
 	if err != nil {
 		t.Fatalf("listen: %v", err)
 	}
@@ -124,4 +125,43 @@ func TestListen(t *testing.T) {
 	if err == nil {
 		t.Fatalf("Close succeeded twice")
 	}
+}
+
+func TestSendConnection(t *testing.T) {
+	server, client, err := Socketpair()
+	if err != nil {
+		t.Fatalf("Socketpair: %v", err)
+	}
+	uclient, err := net.FileConn(client)
+	if err != nil {
+		t.Fatalf("FileConn: %v", err)
+	}
+	caddr, err := SendConnection(uclient.(*net.UnixConn), []byte("hello"))
+	if err != nil {
+		t.Fatalf("SendConnection: %v", err)
+	}
+
+	buf := make([]byte, 10)
+	saddr, n, err := ReadConnection(server, buf)
+	if err != nil {
+		t.Fatalf("ReadConnection: %v", err)
+	}
+	data := buf[0:n]
+	if !bytes.Equal([]byte("hello"), data) {
+		t.Fatalf("unexpected data %q", data)
+	}
+
+	a, err := unixFDConn(caddr.String())
+	if err != nil {
+		t.Fatalf("dial %v: %v", caddr, err)
+	}
+	b, err := unixFDConn(saddr.String())
+	if err != nil {
+		t.Fatalf("dial %v: %v", saddr, err)
+	}
+
+	testWrite(t, a, "TEST1")
+	testRead(t, b, "TEST1")
+	testWrite(t, b, "TEST2")
+	testRead(t, a, "TEST2")
 }

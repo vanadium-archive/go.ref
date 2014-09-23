@@ -4,7 +4,8 @@ package agent
 
 import (
 	"fmt"
-	"strconv"
+	"net"
+	"os"
 
 	"veyron.io/veyron/veyron/lib/unixfd"
 	"veyron.io/veyron/veyron2/context"
@@ -14,9 +15,9 @@ import (
 	"veyron.io/veyron/veyron2/security/wire"
 )
 
-// EndpointVarName is the name of the environment variable containing
-// the endpoint for talking to the agent.
-const EndpointVarName = "VEYRON_AGENT_ENDPOINT"
+// FdVarName is the name of the environment variable containing
+// the file descriptor for talking to the agent.
+const FdVarName = "VEYRON_AGENT_FD"
 
 type client struct {
 	client ipc.Client
@@ -36,9 +37,21 @@ func (c *client) call(name string, result interface{}, args ...interface{}) (err
 }
 
 // NewAgentSigner returns a Signer using the PrivateKey held in a remote agent process.
+// 'fd' is the socket for connecting to the agent, typically obtained from
+// os.GetEnv(agent.FdVarName).
 // 'ctx' should not have a deadline, and should never be cancelled.
-func NewAgentSigner(c ipc.Client, endpoint string, ctx context.T) (security.Signer, error) {
-	agent := &client{c, naming.JoinAddressName(endpoint, ""), ctx, nil}
+func NewAgentSigner(c ipc.Client, fd int, ctx context.T) (security.Signer, error) {
+	conn, err := net.FileConn(os.NewFile(uintptr(fd), "agent_client"))
+	if err != nil {
+		return nil, err
+	}
+	// This is just an arbitrary 1 byte string. The value is ignored.
+	data := make([]byte, 1)
+	addr, err := unixfd.SendConnection(conn.(*net.UnixConn), data)
+	if err != nil {
+		return nil, err
+	}
+	agent := &client{c, naming.JoinAddressName(naming.FormatEndpoint(addr.Network(), addr.String()), ""), ctx, nil}
 	if err := agent.fetchPublicKey(); err != nil {
 		return nil, err
 	}
@@ -65,8 +78,4 @@ func (c *client) Sign(purpose, message []byte) (sig security.Signature, err erro
 	}
 	err = c.call("Sign", &sig, message)
 	return
-}
-
-func CreateAgentEndpoint(fd int) string {
-	return naming.FormatEndpoint(unixfd.Network, strconv.Itoa(fd))
 }

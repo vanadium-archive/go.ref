@@ -16,6 +16,8 @@ main() {
   build
 
   shell_test::setup_server_test
+
+  # Test running a single app.
   shell_test::start_server ./pingpong --server
   export VEYRON_PUBLICID_STORE="$(shell::tmp_dir)"
   echo VEYRON_PUBLICID_STORE=$VEYRON_PUBLICID_STORE
@@ -23,10 +25,11 @@ main() {
   ./agentd --v=4 ./pingpong || shell_test::fail "line ${LINENO}: ping"
   local identity=$(./agentd bash -c 'echo $VEYRON_IDENTITY')
   if [[ -n "${identity}" ]]; then
-      shel_test::fail "line ${LINENO}: identity preserved"
+      shell_test::fail "line ${LINENO}: identity preserved"
   fi
 
-  shell_test::pass
+  # Test running multiple apps connecting to the same agent.
+  exec ./agentd bash ${VEYRON_ROOT}/veyron/go/src/veyron.io/veyron/veyron/security/agent/testchild.sh
 }
 
 main "$@"
