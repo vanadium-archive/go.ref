@@ -129,7 +129,7 @@ func (sh *Shell) AddSubprocess(name string, help string) {
 	if !child.hasCommand(name) {
 		vlog.Infof("Warning: %q is not registered with modules.Dispatcher", name)
 	}
-	entryPoint := shellEntryPoint + "=" + name
+	entryPoint := ShellEntryPoint + "=" + name
 	sh.mu.Lock()
 	sh.cmds[name] = &commandDesc{func() command { return newExecHandle(entryPoint) }, help}
 	sh.mu.Unlock()

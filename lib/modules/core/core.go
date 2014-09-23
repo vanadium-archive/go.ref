@@ -53,6 +53,10 @@ const (
 	ResolveMTCommand         = "resolveMT"
 	EchoServerCommand        = "echoServer"
 	EchoClientCommand        = "echoClient"
+	SleepCommand             = "sleep"
+	TimeCommand              = "time"
+	MountCommand             = "mount"
+	NamespaceCacheCommand    = "cache"
 )
 
 // NewShell returns a new Shell instance with the core commands installed.
@@ -77,6 +81,14 @@ func Install(shell *modules.Shell) {
 	resolves name to obtain a mount table address`)
 	shell.AddFunction(SetNamespaceRootsCommand, setNamespaceRoots, `<name>...
 	set the in-process namespace roots to <name>...`)
+	shell.AddFunction(SleepCommand, sleep, `[duration]
+	sleep for a time (in go time.Duration format): defaults to 1s`)
+	shell.AddFunction(TimeCommand, now, `
+	prints the current time`)
+	shell.AddFunction(NamespaceCacheCommand, namespaceCache, `on|off
+	turns the namespace cache on or off`)
+	shell.AddFunction(MountCommand, mountServer, `<mountpoint> <server> <ttl>
+	invokes namespace.Mount(<mountpoint>, <server>, <ttl>)`)
 	shell.AddSubprocess(EchoClientCommand, `<name> <message>...
 	invokes name.Echo(message)`)
 	shell.AddSubprocess(EchoServerCommand, `<name> <text>

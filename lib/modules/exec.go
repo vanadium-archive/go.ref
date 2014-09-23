@@ -54,8 +54,9 @@ func testFlags() []string {
 	return fl
 }
 
-// IsTestSubprocess returns true if it is called in via -run=TestHelperProcess
-// which normally only ever happens for subprocess run from tests.
+// IsTestHelperProces returns true if it is called in via
+// -run=TestHelperProcess which normally only ever happens for subprocesses
+// run from tests.
 func IsTestHelperProcess() bool {
 	runFlag := flag.Lookup("test.run")
 	if runFlag == nil {
@@ -188,7 +189,7 @@ func (eh *execHandle) Shutdown(output io.Writer) error {
 	return eh.cmd.Wait()
 }
 
-const shellEntryPoint = "VEYRON_SHELL_HELPER_PROCESS_ENTRY_POINT"
+const ShellEntryPoint = "VEYRON_SHELL_HELPER_PROCESS_ENTRY_POINT"
 
 func RegisterChild(name string, main Main) {
 	child.Lock()
@@ -208,9 +209,9 @@ func (child *childRegistrar) hasCommand(name string) bool {
 }
 
 func (child *childRegistrar) dispatch() error {
-	command := os.Getenv(shellEntryPoint)
+	command := os.Getenv(ShellEntryPoint)
 	if len(command) == 0 {
-		return fmt.Errorf("Failed to find entrypoint %q", shellEntryPoint)
+		return fmt.Errorf("Failed to find entrypoint %q", ShellEntryPoint)
 	}
 	child.Lock()
 	m := child.mains[command]

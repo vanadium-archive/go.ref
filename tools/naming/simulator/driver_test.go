@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"reflect"
 	"testing"
+
+	"veyron.io/veyron/veyron/lib/modules"
 )
 
 func TestFields(t *testing.T) {
@@ -38,7 +40,8 @@ func TestFields(t *testing.T) {
 }
 
 func TestVariables(t *testing.T) {
-	globals["foo"] = "bar"
+	sh := modules.NewShell()
+	sh.SetVar("foo", "bar")
 	cases := []struct {
 		input  string
 		output []string
@@ -56,7 +59,7 @@ func TestVariables(t *testing.T) {
 		if err != nil {
 			t.Errorf("%d: %q: unexpected error: %v", i, c.input, err)
 		}
-		got, err := subVariables(fields, globals)
+		got, err := subVariables(sh, fields)
 		if err != nil {
 			t.Errorf("%d: %q: unexpected error: %v", i, c.input, err)
 		}
@@ -73,7 +76,7 @@ func TestVariables(t *testing.T) {
 		{"${fo", fmt.Errorf("unterminated variable: %q", "{fo")},
 	}
 	for i, c := range errors {
-		_, got := subVariables([]string{c.input}, globals)
+		_, got := subVariables(sh, []string{c.input})
 		if got.Error() != c.err.Error() {
 			t.Errorf("%d: %q: expected error: got %q, want %q", i, c.input, got, c.err)
 		}

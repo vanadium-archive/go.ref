@@ -58,6 +58,7 @@ func runMT(root bool, stdin io.Reader, stdout, stderr io.Writer, env map[string]
 	}
 	name := naming.JoinAddressName(ep.String(), "")
 	fmt.Fprintf(stdout, "MT_NAME=%s\n", name)
+	fmt.Fprintf(stdout, "MT_ADDR=%s\n", ep.String())
 	fmt.Fprintf(stdout, "PID=%d\n", os.Getpid())
 	modules.WaitForEOF(stdin)
 	return nil
@@ -82,7 +83,7 @@ func ls(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args .
 				output += fmt.Sprintf("R%d=%s[", entry, n.Name)
 				t := ""
 				for _, s := range n.Servers {
-					output += fmt.Sprintf("%s:%ss, ", s.Server, s.TTL)
+					t += fmt.Sprintf("%s:%s, ", s.Server, s.TTL)
 				}
 				t = strings.TrimSuffix(t, ", ")
 				output += fmt.Sprintf("%s]\n", t)
@@ -110,6 +111,7 @@ func resolve(fn resolver, stdin io.Reader, stdout, stderr io.Writer, env map[str
 	name := args[0]
 	servers, err := fn(rt.R().NewContext(), name)
 	if err != nil {
+		fmt.Fprintf(stdout, "RN=0\n")
 		return err
 	}
 	fmt.Fprintf(stdout, "RN=%d\n", len(servers))

@@ -70,6 +70,9 @@ func (fh *functionHandle) start(sh *Shell, args ...string) (Handle, error) {
 
 		err := main(stdin, stdout, stderr, sh.mergeOSEnv(), args...)
 		if err != nil {
+			// Print the error to stdout to ensure that anyone reading
+			// only stdout sees the error.
+			fmt.Fprintf(stdout, "%s\n", err)
 			fmt.Fprintf(stderr, "%s\n", err)
 		}
 

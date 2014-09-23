@@ -1,0 +1,55 @@
+# Simple example to show how names work both without and with a mount table
+# and the difference between resolve and resolveMT.
+
+# A 'stand-alone' server
+echoServer "text" ""
+set es=$_
+eval $es
+eval $es
+read $es
+set esName=$NAME
+set esAddr=$ADDR
+
+echoClient $esName "test"
+set ec=$_
+read $ec line
+assert $line "text: test"
+
+wait $es
+wait $ec
+
+# now use a nameserver.
+root
+eval $_
+set root=$MT_NAME
+
+set NAMESPACE_ROOT=$root
+echoServer "text2" "a/b"
+set es=$_
+eval $es
+set es_name=$NAME
+set es_addr=$ADDR
+read $es
+
+echoClient "a/b" "test 2"
+set ec=$_
+read $ec line
+assert $line "text2: test 2"
+
+# resolve will return the server's address
+setRoots $root
+resolve a/b
+set r=$_
+eval $r
+assert $RN 1
+eval $r
+assert $R0 $es_name//
+
+# resolveMT will return the mount table's address (the part before the //)
+resolveMT a/b
+set r=$_
+eval $r
+assert $RN 1
+eval $r
+assert $R0 $root//a/b
+

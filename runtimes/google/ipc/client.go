@@ -493,7 +493,7 @@ func (fc *flowClient) finish(resultptrs ...interface{}) verror.E {
 		return fc.close(verror.ConvertWithDefault(verror.Internal, fc.response.Error))
 	}
 	if got, want := fc.response.NumPosResults, uint64(len(resultptrs)); got != want {
-		return fc.close(verror.BadProtocolf("ipc: server sent %d results, client expected %d", got, want))
+		return fc.close(verror.BadProtocolf("ipc: server sent %d results, client expected %d (%#v)", got, want, resultptrs))
 	}
 	for ix, r := range resultptrs {
 		if err := fc.dec.Decode(r); err != nil {
