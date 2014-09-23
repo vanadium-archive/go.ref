@@ -12,16 +12,18 @@ import (
 
 // Bless creates a blessing on behalf of the identity server.
 func Bless(server security.PrivateID, blessee security.PublicID, email string, duration time.Duration, revocationCaveat security.ThirdPartyCaveat) (security.PublicID, error) {
+	// TODO(suharshs): Pass caveats to here when macaroon new oauth flow is complete.
+	var caveats []security.Caveat
 	if revocationCaveat != nil {
 		caveat, err := security.NewCaveat(revocationCaveat)
 		if err != nil {
 			return nil, err
 		}
-		// TODO(suharshs): Extend the duration for blessings with provided revocaionCaveats
-		return server.Bless(blessee, email, duration, []security.Caveat{caveat})
+		// revocationCaveat must be prepended because it is assumed to be first by ReadBlessAuditEntry.
+		caveats = append([]security.Caveat{caveat}, caveats...)
 	}
-	// return a blessing with a more limited duration, since there is no revocation caveat
-	return server.Bless(blessee, email, duration, nil)
+	// TODO(suharshs): Extend the duration for blessings with provided revocaionCaveats.
+	return server.Bless(blessee, email, duration, caveats)
 }
 
 type BlessingAuditEntry struct {
