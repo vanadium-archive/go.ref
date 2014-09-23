@@ -284,7 +284,7 @@ func subVariablesInArgument(sh *modules.Shell, a string) (string, error) {
 		r := p[rem:]
 		v, present := sh.GetVar(vn)
 		if !present {
-			return a, nil
+			return a, fmt.Errorf("unknown variable: %q", vn)
 		}
 		result += v
 		result += r

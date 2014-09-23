@@ -76,9 +76,9 @@ func TestVariables(t *testing.T) {
 		{"${fo", fmt.Errorf("unterminated variable: %q", "{fo")},
 	}
 	for i, c := range errors {
-		_, got := subVariables(sh, []string{c.input})
-		if got.Error() != c.err.Error() {
-			t.Errorf("%d: %q: expected error: got %q, want %q", i, c.input, got, c.err)
+		vars, got := subVariables(sh, []string{c.input})
+		if (got == nil && c.err != nil) || got.Error() != c.err.Error() {
+			t.Errorf("%d: %q: expected error: got %v (with results %#v) want %v", i, c.input, got, vars, c.err)
 		}
 	}
 }
