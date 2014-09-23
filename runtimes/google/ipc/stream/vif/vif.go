@@ -514,7 +514,20 @@ func (vif *VIF) vcWriteLoop(vc *vc.VC, messages *pcqueue.T) {
 			err = message.WriteTo(vif.conn, m)
 		}
 		if err != nil {
-			vif.closeVCAndSendMsg(vc, fmt.Sprintf("write failure: %v", err))
+			// TODO(caprita): Calling closeVCAndSendMsg below causes
+			// a race as described in:
+			// https://docs.google.com/a/google.com/document/d/1C0kxfYhuOcStdV7tnLZELZpUhfQCZj47B0JrzbE29h8/edit
+			//
+			// There should be a finer grained way to fix this, and
+			// there are likely other instances where we should not
+			// be closing the VC.
+			//
+			// For now, commenting out the line below removes the
+			// flakiness from our existing unit tests, but this
+			// needs to be revisited and fixed correctly.
+			//
+			//   vif.closeVCAndSendMsg(vc, fmt.Sprintf("write failure: %v", err))
+
 			// Drain the queue and exit.
 			for {
 				qm, err := messages.Get(nil)
