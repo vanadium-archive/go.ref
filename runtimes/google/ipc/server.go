@@ -15,6 +15,7 @@ import (
 	isecurity "veyron.io/veyron/veyron/runtimes/google/security"
 	ivtrace "veyron.io/veyron/veyron/runtimes/google/vtrace"
 	vsecurity "veyron.io/veyron/veyron/security"
+	"veyron.io/veyron/veyron/services/mgmt/debug"
 
 	"veyron.io/veyron/veyron/profiles/internal"
 
@@ -53,6 +54,7 @@ type server struct {
 	ns               naming.Namespace
 	servesMountTable bool
 	debugAuthorizer  security.Authorizer
+	debugDisp        ipc.Dispatcher
 	// TODO(cnicolaou): add roaming stats to ipcStats
 	stats *ipcStats // stats for this server.
 }
@@ -87,6 +89,7 @@ func InternalNewServer(ctx context.T, streamMgr stream.Manager, ns naming.Namesp
 			s.debugAuthorizer = security.Authorizer(opt)
 		}
 	}
+	s.debugDisp = debug.NewDispatcher(vlog.Log.LogDir(), s.debugAuthorizer)
 	return s, nil
 }
 
@@ -540,11 +543,12 @@ func (s *server) Stop() error {
 // flow that's already connected to the client.
 type flowServer struct {
 	context.T
-	server *server        // ipc.Server that this flow server belongs to
-	disp   ipc.Dispatcher // ipc.Dispatcher that will serve RPCs on this flow
-	dec    *vom.Decoder   // to decode requests and args from the client
-	enc    *vom.Encoder   // to encode responses and results to the client
-	flow   stream.Flow    // underlying flow
+	server    *server        // ipc.Server that this flow server belongs to
+	disp      ipc.Dispatcher // ipc.Dispatcher that will serve RPCs on this flow
+	dec       *vom.Decoder   // to decode requests and args from the client
+	enc       *vom.Encoder   // to encode responses and results to the client
+	flow      stream.Flow    // underlying flow
+	debugDisp ipc.Dispatcher // internal debug dispatcher
 	// Fields filled in during the server invocation.
 
 	// authorizedRemoteID is the PublicID obtained after authorizing the remoteID
@@ -573,6 +577,7 @@ func newFlowServer(flow stream.Flow, server *server) *flowServer {
 		dec:        vom.NewDecoder(flow),
 		enc:        vom.NewEncoder(flow),
 		flow:       flow,
+		debugDisp:  server.debugDisp,
 		discharges: make(map[string]security.Discharge),
 	}
 }
@@ -772,13 +777,20 @@ func (fs *flowServer) processRequest() ([]interface{}, verror.E) {
 }
 
 // lookup returns the invoker and authorizer responsible for serving the given
-// name and method.  The name is stripped of any leading slashes, and the
-// invoker is looked up in the server's dispatcher.  The (stripped) name
+// name and method.  The name is stripped of any leading slashes. If it begins
+// with ipc.DebugKeyword, we use the internal debug dispatcher to look up the
+// invoker. Otherwise, and we use the server's dispatcher. The (stripped) name
 // and dispatch suffix are also returned.
 func (fs *flowServer) lookup(name, method string) (ipc.Invoker, security.Authorizer, string, verror.E) {
 	name = strings.TrimLeft(name, "/")
-	if fs.disp != nil {
-		invoker, auth, err := fs.disp.Lookup(name, method)
+	disp := fs.disp
+	if name == ipc.DebugKeyword || strings.HasPrefix(name, ipc.DebugKeyword+"/") {
+		name = strings.TrimPrefix(name, ipc.DebugKeyword)
+		name = strings.TrimLeft(name, "/")
+		disp = fs.debugDisp
+	}
+	if disp != nil {
+		invoker, auth, err := disp.Lookup(name, method)
 		switch {
 		case err != nil:
 			return nil, nil, "", verror.Convert(err)
