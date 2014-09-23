@@ -1,6 +1,7 @@
 package util
 
 import (
+	"bytes"
 	"html/template"
 	"net/http"
 
@@ -71,3 +72,14 @@ Ask the server administrator to check the server logs
 </body>
 </html>`))
 )
+
+func requestString(r *http.Request) string {
+	var buf bytes.Buffer
+	r.Write(&buf)
+	return buf.String()
+}
+
+type badRequestData struct {
+	Request string
+	Error   error
+}
