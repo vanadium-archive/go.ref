@@ -6,6 +6,8 @@ package debug
 import (
 	"veyron.io/veyron/veyron2/services/mgmt/logreader"
 
+	"veyron.io/veyron/veyron2/services/mgmt/pprof"
+
 	"veyron.io/veyron/veyron2/services/mgmt/stats"
 
 	// The non-user imports are prefixed with "_gen_" to prevent collisions.
@@ -39,6 +41,7 @@ type Debug_ExcludingUniversal interface {
 	// primarily numeric in nature, e.g. counters, memory usage, latency metrics,
 	// etc.
 	stats.Stats_ExcludingUniversal
+	pprof.PProf_ExcludingUniversal
 }
 type Debug interface {
 	_gen_ipc.UniversalServiceMethods
@@ -58,6 +61,7 @@ type DebugService interface {
 	// primarily numeric in nature, e.g. counters, memory usage, latency metrics,
 	// etc.
 	stats.StatsService
+	pprof.PProfService
 }
 
 // BindDebug returns the client stub implementing the Debug
@@ -82,6 +86,7 @@ func BindDebug(name string, opts ..._gen_ipc.BindOpt) (Debug, error) {
 	stub := &clientStubDebug{defaultClient: client, name: name}
 	stub.LogFile_ExcludingUniversal, _ = logreader.BindLogFile(name, client)
 	stub.Stats_ExcludingUniversal, _ = stats.BindStats(name, client)
+	stub.PProf_ExcludingUniversal, _ = pprof.BindPProf(name, client)
 
 	return stub, nil
 }
@@ -94,6 +99,7 @@ func NewServerDebug(server DebugService) interface{} {
 	return &ServerStubDebug{
 		ServerStubLogFile: *logreader.NewServerLogFile(server).(*logreader.ServerStubLogFile),
 		ServerStubStats:   *stats.NewServerStats(server).(*stats.ServerStubStats),
+		ServerStubPProf:   *pprof.NewServerPProf(server).(*pprof.ServerStubPProf),
 		service:           server,
 	}
 }
@@ -102,6 +108,7 @@ func NewServerDebug(server DebugService) interface{} {
 type clientStubDebug struct {
 	logreader.LogFile_ExcludingUniversal
 	stats.Stats_ExcludingUniversal
+	pprof.PProf_ExcludingUniversal
 
 	defaultClient _gen_ipc.Client
 	name          string
@@ -153,6 +160,7 @@ func (__gen_c *clientStubDebug) GetMethodTags(ctx _gen_context.T, method string,
 type ServerStubDebug struct {
 	logreader.ServerStubLogFile
 	stats.ServerStubStats
+	pprof.ServerStubPProf
 
 	service DebugService
 }
@@ -165,6 +173,9 @@ func (__gen_s *ServerStubDebug) GetMethodTags(call _gen_ipc.ServerCall, method s
 		return resp, err
 	}
 	if resp, err := __gen_s.ServerStubStats.GetMethodTags(call, method); resp != nil || err != nil {
+		return resp, err
+	}
+	if resp, err := __gen_s.ServerStubPProf.GetMethodTags(call, method); resp != nil || err != nil {
 		return resp, err
 	}
 	return nil, nil
@@ -230,6 +241,59 @@ func (__gen_s *ServerStubDebug) Signature(call _gen_ipc.ServerCall) (_gen_ipc.Se
 		result.TypeDefs = append(result.TypeDefs, d)
 	}
 	ss, _ = __gen_s.ServerStubStats.Signature(call)
+	firstAdded = len(result.TypeDefs)
+	for k, v := range ss.Methods {
+		for i, _ := range v.InArgs {
+			if v.InArgs[i].Type >= _gen_wiretype.TypeIDFirst {
+				v.InArgs[i].Type += _gen_wiretype.TypeID(firstAdded)
+			}
+		}
+		for i, _ := range v.OutArgs {
+			if v.OutArgs[i].Type >= _gen_wiretype.TypeIDFirst {
+				v.OutArgs[i].Type += _gen_wiretype.TypeID(firstAdded)
+			}
+		}
+		if v.InStream >= _gen_wiretype.TypeIDFirst {
+			v.InStream += _gen_wiretype.TypeID(firstAdded)
+		}
+		if v.OutStream >= _gen_wiretype.TypeIDFirst {
+			v.OutStream += _gen_wiretype.TypeID(firstAdded)
+		}
+		result.Methods[k] = v
+	}
+	//TODO(bprosnitz) combine type definitions from embeded interfaces in a way that doesn't cause duplication.
+	for _, d := range ss.TypeDefs {
+		switch wt := d.(type) {
+		case _gen_wiretype.SliceType:
+			if wt.Elem >= _gen_wiretype.TypeIDFirst {
+				wt.Elem += _gen_wiretype.TypeID(firstAdded)
+			}
+			d = wt
+		case _gen_wiretype.ArrayType:
+			if wt.Elem >= _gen_wiretype.TypeIDFirst {
+				wt.Elem += _gen_wiretype.TypeID(firstAdded)
+			}
+			d = wt
+		case _gen_wiretype.MapType:
+			if wt.Key >= _gen_wiretype.TypeIDFirst {
+				wt.Key += _gen_wiretype.TypeID(firstAdded)
+			}
+			if wt.Elem >= _gen_wiretype.TypeIDFirst {
+				wt.Elem += _gen_wiretype.TypeID(firstAdded)
+			}
+			d = wt
+		case _gen_wiretype.StructType:
+			for i, fld := range wt.Fields {
+				if fld.Type >= _gen_wiretype.TypeIDFirst {
+					wt.Fields[i].Type += _gen_wiretype.TypeID(firstAdded)
+				}
+			}
+			d = wt
+			// NOTE: other types are missing, but we are upgrading anyways.
+		}
+		result.TypeDefs = append(result.TypeDefs, d)
+	}
+	ss, _ = __gen_s.ServerStubPProf.Signature(call)
 	firstAdded = len(result.TypeDefs)
 	for k, v := range ss.Methods {
 		for i, _ := range v.InArgs {

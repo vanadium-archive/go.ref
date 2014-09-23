@@ -6,6 +6,7 @@ import (
 
 	"veyron.io/veyron/veyron/lib/glob"
 	logreaderimpl "veyron.io/veyron/veyron/services/mgmt/logreader/impl"
+	pprofimpl "veyron.io/veyron/veyron/services/mgmt/pprof/impl"
 	statsimpl "veyron.io/veyron/veyron/services/mgmt/stats/impl"
 
 	"veyron.io/veyron/veyron2/ipc"
@@ -30,7 +31,7 @@ func (d *dispatcher) Lookup(suffix, method string) (ipc.Invoker, security.Author
 		return NewSignatureInvoker(suffix), d.auth, nil
 	}
 	if len(suffix) == 0 {
-		leaves := []string{"logs", "stats"}
+		leaves := []string{"logs", "pprof", "stats"}
 		return ipc.ReflectInvoker(&topLevelGlobInvoker{d, leaves}), d.auth, nil
 	}
 	parts := strings.SplitN(suffix, "/", 2)
@@ -45,6 +46,8 @@ func (d *dispatcher) Lookup(suffix, method string) (ipc.Invoker, security.Author
 			return logreaderimpl.NewLogDirectoryInvoker(d.logsDir, suffix), d.auth, nil
 		}
 		return logreaderimpl.NewLogFileInvoker(d.logsDir, suffix), d.auth, nil
+	case "pprof":
+		return pprofimpl.NewInvoker(), d.auth, nil
 	case "stats":
 		return statsimpl.NewStatsInvoker(suffix, 10*time.Second), d.auth, nil
 	}

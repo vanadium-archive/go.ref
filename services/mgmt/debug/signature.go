@@ -23,6 +23,8 @@ func (s signatureInvoker) Signature(ipc.ServerCall) (ipc.ServiceSignature, error
 	var show []string
 	if strings.HasPrefix(s.suffix, "logs") {
 		show = []string{"ReadLog", "Size", "Glob"}
+	} else if strings.HasPrefix(s.suffix, "pprof") {
+		show = []string{"Cmdline", "CPUProfile", "Profile", "Profiles", "Symbol"}
 	} else if strings.HasPrefix(s.suffix, "stats") {
 		show = []string{"Value", "Glob", "WatchGlob"}
 	} else {
