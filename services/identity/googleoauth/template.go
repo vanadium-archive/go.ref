@@ -42,11 +42,10 @@ $(document).ready(function() {
       url: "/google/revoke",
       type: "POST",
       data: JSON.stringify({
-        "CaveatID": revokeButton.val(),
-        "CSRFToken": "{{.CSRFToken}}"
+        "Token": revokeButton.val()
       })
     }).done(function(data) {
-      if (!data.success) {
+      if (data.success == "false") {
         failMessage(revokeButton);
         return;
       }
@@ -91,13 +90,11 @@ function failMessage(revokeButton) {
 <td><div class="unixtime" data-unixtime={{.End.Unix}}>{{.End.String}}</div></td>
 <td>{{.Blessee.PublicKey}}</td>
 <td>
-{{if .RevocationCaveatID}}
-  {{ if .RevocationTime.IsZero }}
-  <button class="revoke" value="{{.RevocationCaveatID}}">Revoke</button>
-  {{ else }}
+  {{ if .Token }}
+  <button class="revoke" value="{{.Token}}">Revoke</button>
+  {{ else if not .RevocationTime.IsZero }}
     <div class="unixtime" data-unixtime={{.RevocationTime.Unix}}>{{.RevocationTime.String}}</div>
   {{ end }}
-{{ end }}
 </td>
 </tr>
 {{else}}

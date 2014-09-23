@@ -87,13 +87,17 @@ func main() {
 	}
 	if clientID, clientSecret, ok := getOAuthClientIDAndSecret(*googleConfigWeb); ok && len(*auditprefix) > 0 {
 		n := "/google/"
-		http.Handle(n, googleoauth.NewHandler(googleoauth.HandlerArgs{
+		h, err := googleoauth.NewHandler(googleoauth.HandlerArgs{
 			Addr:              fmt.Sprintf("%s%s", httpaddress(), n),
 			ClientID:          clientID,
 			ClientSecret:      clientSecret,
 			Auditor:           *auditprefix,
 			RevocationManager: revocationManager,
-		}))
+		})
+		if err != nil {
+			vlog.Fatalf("Failed to create googleoauth handler: %v", err)
+		}
+		http.Handle(n, h)
 	}
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		var servers []string

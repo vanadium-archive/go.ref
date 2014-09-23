@@ -29,6 +29,11 @@ import (
 	"veyron.io/veyron/veyron2/vlog"
 )
 
+const (
+	clientIDCookie   = "VeyronHTTPIdentityClientID"
+	revocationCookie = "VeyronHTTPIdentityRevocationID"
+)
+
 type HandlerArgs struct {
 	// URL at which the hander is installed.
 	// e.g. http://host:port/google/
@@ -62,15 +67,18 @@ const verifyURL = "https://www.googleapis.com/oauth2/v1/tokeninfo?"
 // NewHandler returns an http.Handler that expects to be rooted at args.Addr
 // and can be used to use OAuth 2.0 to authenticate with Google, mint a new
 // identity and bless it with the Google email address.
-func NewHandler(args HandlerArgs) http.Handler {
+func NewHandler(args HandlerArgs) (http.Handler, error) {
 	config := NewOAuthConfig(args.ClientID, args.ClientSecret, args.redirectURL())
+	csrfCop, err := util.NewCSRFCop()
+	if err != nil {
+		return nil, err
+	}
 	return &handler{
 		config:            config,
-		csrfCop:           util.NewCSRFCop(),
+		csrfCop:           csrfCop,
 		auditor:           args.Auditor,
 		revocationManager: args.RevocationManager,
-		tokenMap:          newTokenRevocationCaveatMap(time.Hour),
-	}
+	}, nil
 }
 
 // NewOAuthConfig returns the oauth.Config required for obtaining just the email address from Google using OAuth 2.0.
@@ -90,7 +98,6 @@ type handler struct {
 	csrfCop           *util.CSRFCop
 	auditor           string
 	revocationManager *revocation.RevocationManager
-	tokenMap          *tokenRevocationCaveatMap
 }
 
 func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -107,7 +114,7 @@ func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *handler) auth(w http.ResponseWriter, r *http.Request) {
-	csrf, err := h.csrfCop.NewToken(w, r, "VeyronHTTPIdentityClientID")
+	csrf, err := h.csrfCop.NewToken(w, r, clientIDCookie, nil)
 	if err != nil {
 		vlog.Infof("Failed to create CSRF token[%v] for request %#v", err, r)
 		util.HTTPBadRequest(w, r, fmt.Errorf("Suspected automated request: %v", err))
@@ -117,7 +124,7 @@ func (h *handler) auth(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *handler) callback(w http.ResponseWriter, r *http.Request) {
-	if err := h.csrfCop.ValidateToken(r.FormValue("state"), r, "VeyronHTTPIdentityClientID"); err != nil {
+	if err := h.csrfCop.ValidateToken(r.FormValue("state"), r, clientIDCookie, nil); err != nil {
 		vlog.Infof("Invalid CSRF token: %v in request: %#v", err, r)
 		util.HTTPBadRequest(w, r, fmt.Errorf("Suspected request forgery: %v", err))
 		return
@@ -127,27 +134,20 @@ func (h *handler) callback(w http.ResponseWriter, r *http.Request) {
 		util.HTTPBadRequest(w, r, err)
 		return
 	}
-	// Create a new token to protect ensure that the revocation calls are protected.
-	csrf, err := h.csrfCop.NewToken(w, r, "VeyronHTTPIdentityRevocationID")
-	if err != nil {
-		vlog.Infof("Failed to create CSRF token[%v] for request %#v", err, r)
-		util.HTTPBadRequest(w, r, fmt.Errorf("Suspected automated request: %v", err))
-		return
-	}
+
 	type tmplentry struct {
-		Blessee            security.PublicID
-		Start, End         time.Time
-		Blessed            security.PublicID
-		RevocationCaveatID string
-		RevocationTime     time.Time
+		Blessee        security.PublicID
+		Start, End     time.Time
+		Blessed        security.PublicID
+		RevocationTime time.Time
+		Token          string
 	}
 	tmplargs := struct {
-		Log              chan tmplentry
-		Email, CSRFToken string
+		Log          chan tmplentry
+		Email, Token string
 	}{
-		Log:       make(chan tmplentry),
-		Email:     email,
-		CSRFToken: csrf,
+		Log:   make(chan tmplentry),
+		Email: email,
 	}
 	if entrych, err := auditor.ReadAuditLog(h.auditor, email); err != nil {
 		vlog.Errorf("Unable to read audit log: %v", err)
@@ -172,17 +172,29 @@ func (h *handler) callback(w http.ResponseWriter, r *http.Request) {
 					continue
 				}
 				if blessEntry.RevocationCaveat != nil {
-					tmplentry.RevocationCaveatID = base64.URLEncoding.EncodeToString([]byte(blessEntry.RevocationCaveat.ID()))
 					if revocationTime := h.revocationManager.GetRevocationTime(blessEntry.RevocationCaveat.ID()); revocationTime != nil {
 						tmplentry.RevocationTime = *revocationTime
+					} else {
+						caveatID := base64.URLEncoding.EncodeToString([]byte(blessEntry.RevocationCaveat.ID()))
+						if tmplentry.Token, err = h.csrfCop.NewToken(w, r, revocationCookie, caveatID); err != nil {
+							vlog.Infof("Failed to create CSRF token[%v] for request %#v", err, r)
+							util.HTTPBadRequest(w, r, fmt.Errorf("Suspected automated request: %v", err))
+							return
+						}
 					}
-					h.tokenMap.Insert(csrf, tmplentry.RevocationCaveatID)
 				}
 				ch <- tmplentry
 			}
 		}(tmplargs.Log)
 	}
 	w.Header().Set("Context-Type", "text/html")
+	// This MaybeSetCookie call is needed to ensure that a cookie is created. Since the
+	// header cannot be changed once the body is written to, this needs to be called first.
+	if _, err = h.csrfCop.MaybeSetCookie(w, r, revocationCookie); err != nil {
+		vlog.Infof("Failed to set CSRF cookie[%v] for request %#v", err, r)
+		util.HTTPBadRequest(w, r, fmt.Errorf("Suspected automated request: %v", err))
+		return
+	}
 	if err := tmpl.Execute(w, tmplargs); err != nil {
 		vlog.Errorf("Unable to execute audit page template: %v", err)
 		util.HTTPServerError(w, err)
@@ -208,7 +220,7 @@ func (h *handler) revoke(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var requestParams struct {
-		CaveatID, CSRFToken string
+		Token string
 	}
 	if err := json.Unmarshal(content, &requestParams); err != nil {
 		vlog.Infof("json.Unmarshal failed : %s", err)
@@ -216,21 +228,12 @@ func (h *handler) revoke(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := h.validateTokenCaveatID(requestParams.CSRFToken, requestParams.CaveatID, r); err != nil {
+	var caveatID string
+	if caveatID, err = h.validateRevocationToken(requestParams.Token, r); err != nil {
 		vlog.Infof("failed to validate token for caveat: %s", err)
 		w.Write([]byte(failure))
 		return
 	}
-
-	decodedCaveatID, err := base64.URLEncoding.DecodeString(requestParams.CaveatID)
-	if err != nil {
-		vlog.Infof("base64 decoding failed: %s", err)
-		w.Write([]byte(failure))
-		return
-	}
-
-	caveatID := string(decodedCaveatID)
-
 	if err := h.revocationManager.Revoke(caveatID); err != nil {
 		vlog.Infof("Revocation failed: %s", err)
 		w.Write([]byte(failure))
@@ -241,14 +244,16 @@ func (h *handler) revoke(w http.ResponseWriter, r *http.Request) {
 	return
 }
 
-func (h *handler) validateTokenCaveatID(CSRFToken, revocationCaveatID string, r *http.Request) error {
-	if err := h.csrfCop.ValidateToken(CSRFToken, r, "VeyronHTTPIdentityRevocationID"); err != nil {
-		return fmt.Errorf("invalid CSRF token: %v in request: %#v", err, r)
+func (h *handler) validateRevocationToken(Token string, r *http.Request) (string, error) {
+	var encCaveatID string
+	if err := h.csrfCop.ValidateToken(Token, r, revocationCookie, &encCaveatID); err != nil {
+		return "", fmt.Errorf("invalid CSRF token: %v in request: %#v", err, r)
 	}
-	if h.tokenMap.Exists(CSRFToken, revocationCaveatID) {
-		return nil
+	caveatID, err := base64.URLEncoding.DecodeString(encCaveatID)
+	if err != nil {
+		return "", fmt.Errorf("decode caveatID failed: %v", err)
 	}
-	return fmt.Errorf("this token has no matching entry for the provided caveat ID")
+	return string(caveatID), nil
 }
 
 // ExchangeAuthCodeForEmail exchanges the authorization code (which must
