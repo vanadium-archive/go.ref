@@ -65,28 +65,23 @@ func (w *Writer) streamLength() int {
 // Waits until there is at least n messages in w.Stream. Returns an error if we timeout
 // waiting for the given number of messages.
 func (w *Writer) WaitForMessage(n int) error {
-	fmt.Println("Looking for", n)
 	if w.streamLength() >= n {
 		fmt.Println("Found ", w.Stream)
 		return nil
 	}
-	fmt.Println("Createing channel")
 	w.Lock()
 	w.notifier = make(chan bool, 1)
 	w.Unlock()
 	for w.streamLength() < n {
-		fmt.Println("Waiting for notification")
 		select {
 		case <-w.notifier:
 			fmt.Println("got notification")
 			continue
 		case <-time.After(10 * time.Second):
-			fmt.Println("Timed out")
 			return fmt.Errorf("timed out")
 		}
 	}
 	w.Lock()
-	fmt.Printf("Looking for %d, got %d: %v", n, len(w.Stream), w.Stream)
 	w.notifier = nil
 	w.Unlock()
 	return nil
