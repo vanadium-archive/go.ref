@@ -80,7 +80,7 @@ func (w *Writer) WaitForMessage(n int) error {
 		case <-w.notifier:
 			fmt.Println("got notification")
 			continue
-		case <-time.After(time.Second):
+		case <-time.After(10 * time.Second):
 			fmt.Println("Timed out")
 			return fmt.Errorf("timed out")
 		}
