@@ -60,7 +60,6 @@ type veyronRPC struct {
 type serveRequest struct {
 	Name     string
 	ServerId uint64
-	Service  signature.JSONServiceSignature
 }
 
 type jsonCaveatValidator struct {
@@ -85,7 +84,8 @@ type PublicIDHandle struct {
 // Controller represents all the state of a Veyron Web App.  This is the struct
 // that is in charge performing all the veyron options.
 type Controller struct {
-	// Protects outstandingStreams and outstandingServerRequests.
+	// Protects everything.
+	// TODO(bjornick): We need to split this up.
 	sync.Mutex
 
 	logger vlog.Logger
@@ -201,8 +201,6 @@ func (c *Controller) finishCall(w lib.ClientWriter, clientCall ipc.Call, msg *ve
 }
 
 func (c *Controller) startCall(ctx context.T, w lib.ClientWriter, msg *veyronRPC) (ipc.Call, error) {
-	c.Lock()
-	defer c.Unlock()
 	if c.client == nil {
 		return nil, verror.BadArgf("no client created")
 	}
@@ -441,7 +439,7 @@ func (c *Controller) serve(serveRequest serveRequest, w lib.ClientWriter) {
 
 	c.logger.VI(2).Infof("serving under name: %q", serveRequest.Name)
 
-	endpoint, err := server.Serve(serveRequest.Name, serveRequest.Service)
+	endpoint, err := server.Serve(serveRequest.Name)
 	if err != nil {
 		w.Error(verror.Internalf("error serving service: %v", err))
 		return
@@ -464,6 +462,21 @@ func (c *Controller) HandleServeRequest(data string, w lib.ClientWriter) {
 		return
 	}
 	c.serve(serveRequest, w)
+}
+
+// HandleLookupResponse handles the result of a Dispatcher.Lookup call that was
+// run by the Javascript server.
+func (c *Controller) HandleLookupResponse(id int64, data string, w lib.ClientWriter) {
+	c.Lock()
+	server := c.flowMap[id]
+	c.Unlock()
+	if server == nil {
+		c.logger.Errorf("unexpected result from JavaScript. No channel "+
+			"for MessageId: %d exists. Ignoring the results.", id)
+		//Ignore unknown responses that don't belong to any channel
+		return
+	}
+	server.HandleLookupResponse(id, data)
 }
 
 // HandleStopRequest takes a request to stop a server.

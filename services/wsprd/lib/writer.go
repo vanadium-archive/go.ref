@@ -3,11 +3,12 @@ package lib
 type ResponseType int
 
 const (
-	ResponseFinal         ResponseType = 0
-	ResponseStream                     = 1
-	ResponseError                      = 2
-	ResponseServerRequest              = 3
-	ResponseStreamClose                = 4
+	ResponseFinal            ResponseType = 0
+	ResponseStream                        = 1
+	ResponseError                         = 2
+	ResponseServerRequest                 = 3
+	ResponseStreamClose                   = 4
+	ResponseDispatcherLookup              = 5
 )
 
 // This is basically an io.Writer interface, that allows passing error message

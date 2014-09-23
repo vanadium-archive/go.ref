@@ -59,6 +59,8 @@ const (
 
 	// A request to create a new random identity
 	websocketCreateIdentity = 10
+
+	websocketLookupResponse = 11
 )
 
 type websocketMessage struct {
@@ -268,6 +270,8 @@ func (p *pipe) readLoop() {
 			// from javascript.
 			ctx := p.wspr.rt.NewContext()
 			go p.controller.HandleSignatureRequest(ctx, msg.Data, ww)
+		case websocketLookupResponse:
+			go p.controller.HandleLookupResponse(msg.Id, msg.Data, ww)
 		case websocketBlessIdentity:
 			go p.controller.HandleBlessing(msg.Data, ww)
 		case websocketCreateIdentity:

@@ -1,15 +1,12 @@
 package app
 
 import (
-	"bytes"
 	"encoding/json"
 	"fmt"
 	"reflect"
-	"strings"
-	"sync"
 	"testing"
-	"time"
 	"veyron.io/veyron/veyron/services/wsprd/lib"
+	"veyron.io/veyron/veyron/services/wsprd/lib/testwriter"
 	"veyron.io/veyron/veyron/services/wsprd/signature"
 	"veyron.io/veyron/veyron2"
 	"veyron.io/veyron/veyron2/ipc"
@@ -18,7 +15,6 @@ import (
 	"veyron.io/veyron/veyron2/security"
 	"veyron.io/veyron/veyron2/vdl/vdlutil"
 	"veyron.io/veyron/veyron2/verror"
-	"veyron.io/veyron/veyron2/vlog"
 	"veyron.io/veyron/veyron2/vom"
 	vom_wiretype "veyron.io/veyron/veyron2/vom/wiretype"
 	"veyron.io/veyron/veyron2/wiretype"
@@ -27,12 +23,6 @@ import (
 	mounttable "veyron.io/veyron/veyron/services/mounttable/lib"
 )
 
-var (
-	ctxFooAlice = makeMockSecurityContext("Foo", "test/alice")
-	ctxBarAlice = makeMockSecurityContext("Bar", "test/alice")
-	ctxFooBob   = makeMockSecurityContext("Foo", "test/bob")
-	ctxBarBob   = makeMockSecurityContext("Bar", "test/bob")
-)
 var r = rt.Init()
 
 type simpleAdder struct{}
@@ -135,88 +125,6 @@ func startMountTableServer() (ipc.Server, naming.Endpoint, error) {
 	return startAnyServer(true, mt)
 }
 
-type response struct {
-	Type    lib.ResponseType
-	Message interface{}
-}
-
-type testWriter struct {
-	sync.Mutex
-	stream []response
-	err    error
-	logger vlog.Logger
-	// If this channel is set then a message will be sent
-	// to this channel after recieving a call to FinishMessage()
-	notifier chan bool
-}
-
-func (w *testWriter) Send(responseType lib.ResponseType, msg interface{}) error {
-	w.Lock()
-	defer w.Unlock()
-	// We serialize and deserialize the reponse so that we can do deep equal with
-	// messages that contain non-exported structs.
-	var buf bytes.Buffer
-	if err := json.NewEncoder(&buf).Encode(response{Type: responseType, Message: msg}); err != nil {
-		return err
-	}
-
-	var r response
-
-	if err := json.NewDecoder(&buf).Decode(&r); err != nil {
-		return err
-	}
-
-	w.stream = append(w.stream, r)
-	if w.notifier != nil {
-		w.notifier <- true
-	}
-	return nil
-
-}
-
-func (w *testWriter) Error(err error) {
-	w.err = err
-}
-
-func (w *testWriter) streamLength() int {
-	w.Lock()
-	defer w.Unlock()
-	return len(w.stream)
-}
-
-// Waits until there is at least n messages in w.stream. Returns an error if we timeout
-// waiting for the given number of messages.
-func (w *testWriter) waitForMessage(n int) error {
-	if w.streamLength() >= n {
-		return nil
-	}
-	w.Lock()
-	w.notifier = make(chan bool, 1)
-	w.Unlock()
-	for w.streamLength() < n {
-		select {
-		case <-w.notifier:
-			continue
-		case <-time.After(time.Second):
-			return fmt.Errorf("timed out")
-		}
-	}
-	w.Lock()
-	w.notifier = nil
-	w.Unlock()
-	return nil
-}
-
-func checkResponses(w *testWriter, expectedStream []response, err error, t *testing.T) {
-	if !reflect.DeepEqual(expectedStream, w.stream) {
-		t.Errorf("streams don't match: expected %v, got %v", expectedStream, w.stream)
-	}
-
-	if !reflect.DeepEqual(err, w.err) {
-		t.Errorf("unexpected error, got: %v, expected: %v", err, w.err)
-	}
-}
-
 var adderServiceSignature signature.JSONServiceSignature = signature.JSONServiceSignature{
 	"add": signature.JSONMethodSignature{
 		InArgs:      []string{"A", "B"},
@@ -264,7 +172,7 @@ type goServerTestCase struct {
 	numOutArgs         int32
 	streamingInputs    []string
 	streamingInputType vom.Type
-	expectedStream     []response
+	expectedStream     []testwriter.Response
 	expectedError      error
 }
 
@@ -285,9 +193,7 @@ func runGoServerTestCase(t *testing.T, test goServerTestCase) {
 		return
 	}
 
-	writer := testWriter{
-		logger: controller.logger,
-	}
+	writer := testwriter.Writer{}
 	var stream *outstandingStream
 	if len(test.streamingInputs) > 0 {
 		stream = newStream()
@@ -309,7 +215,7 @@ func runGoServerTestCase(t *testing.T, test goServerTestCase) {
 	}
 	controller.sendVeyronRequest(r.NewContext(), 0, &request, &writer, stream)
 
-	checkResponses(&writer, test.expectedStream, test.expectedError, t)
+	testwriter.CheckResponses(&writer, test.expectedStream, test.expectedError, t)
 }
 
 func TestCallingGoServer(t *testing.T) {
@@ -317,8 +223,8 @@ func TestCallingGoServer(t *testing.T) {
 		method:     "Add",
 		inArgs:     []json.RawMessage{json.RawMessage("2"), json.RawMessage("3")},
 		numOutArgs: 2,
-		expectedStream: []response{
-			response{
+		expectedStream: []testwriter.Response{
+			testwriter.Response{
 				Message: []interface{}{5.0},
 				Type:    lib.ResponseFinal,
 			},
@@ -342,28 +248,28 @@ func TestCallingGoWithStreaming(t *testing.T) {
 		streamingInputs:    []string{"1", "2", "3", "4"},
 		streamingInputType: vom_wiretype.Type{ID: 36},
 		numOutArgs:         2,
-		expectedStream: []response{
-			response{
+		expectedStream: []testwriter.Response{
+			testwriter.Response{
 				Message: 1.0,
 				Type:    lib.ResponseStream,
 			},
-			response{
+			testwriter.Response{
 				Message: 3.0,
 				Type:    lib.ResponseStream,
 			},
-			response{
+			testwriter.Response{
 				Message: 6.0,
 				Type:    lib.ResponseStream,
 			},
-			response{
+			testwriter.Response{
 				Message: 10.0,
 				Type:    lib.ResponseStream,
 			},
-			response{
+			testwriter.Response{
 				Message: nil,
 				Type:    lib.ResponseStreamClose,
 			},
-			response{
+			testwriter.Response{
 				Message: []interface{}{10.0},
 				Type:    lib.ResponseFinal,
 			},
@@ -373,7 +279,7 @@ func TestCallingGoWithStreaming(t *testing.T) {
 
 type runningTest struct {
 	controller       *Controller
-	writer           *testWriter
+	writer           *testwriter.Writer
 	mounttableServer ipc.Server
 	proxyServer      *proxy.Proxy
 }
@@ -393,7 +299,7 @@ func serveServer() (*runningTest, error) {
 
 	proxyEndpoint := proxyServer.Endpoint().String()
 
-	writer := testWriter{}
+	writer := testwriter.Writer{}
 
 	writerCreator := func(int64) lib.ClientWriter {
 		return &writer
@@ -404,11 +310,8 @@ func serveServer() (*runningTest, error) {
 		return nil, err
 	}
 
-	writer.logger = controller.logger
-
 	controller.serve(serveRequest{
-		Name:    "adder",
-		Service: adderServiceSignature,
+		Name: "adder",
 	}, &writer)
 
 	return &runningTest{
@@ -425,12 +328,12 @@ func TestJavascriptServeServer(t *testing.T) {
 		t.Fatalf("could not serve server %v", err)
 	}
 
-	if len(rt.writer.stream) != 1 {
-		t.Errorf("expected only one response, got %d", len(rt.writer.stream))
+	if len(rt.writer.Stream) != 1 {
+		t.Errorf("expected only one response, got %d", len(rt.writer.Stream))
 		return
 	}
 
-	resp := rt.writer.stream[0]
+	resp := rt.writer.Stream[0]
 
 	if resp.Type != lib.ResponseFinal {
 		t.Errorf("unknown stream message Got: %v, expected: serve response", resp)
@@ -488,7 +391,7 @@ type jsServerTestCase struct {
 
 func sendServerStream(t *testing.T, controller *Controller, test *jsServerTestCase, w lib.ClientWriter) {
 	for _, msg := range test.serverStream {
-		controller.SendOnStream(0, msg, w)
+		controller.SendOnStream(4, msg, w)
 	}
 
 	serverReply := map[string]interface{}{
@@ -500,7 +403,7 @@ func sendServerStream(t *testing.T, controller *Controller, test *jsServerTestCa
 	if err != nil {
 		t.Fatalf("Failed to serialize the reply: %v", err)
 	}
-	controller.HandleServerResponse(0, string(bytes))
+	controller.HandleServerResponse(4, string(bytes))
 }
 
 func runJsServerTestCase(t *testing.T, test jsServerTestCase) {
@@ -513,12 +416,12 @@ func runJsServerTestCase(t *testing.T, test jsServerTestCase) {
 		t.Errorf("could not serve server %v", err)
 	}
 
-	if len(rt.writer.stream) != 1 {
-		t.Errorf("expected only on response, got %d", len(rt.writer.stream))
+	if len(rt.writer.Stream) != 1 {
+		t.Errorf("expected only on response, got %d", len(rt.writer.Stream))
 		return
 	}
 
-	resp := rt.writer.stream[0]
+	resp := rt.writer.Stream[0]
 
 	if resp.Type != lib.ResponseFinal {
 		t.Errorf("unknown stream message Got: %v, expected: serve response", resp)
@@ -534,7 +437,7 @@ func runJsServerTestCase(t *testing.T, test jsServerTestCase) {
 		t.Errorf("invalid endpdoint returned from serve: %v", resp.Message)
 	}
 
-	rt.writer.stream = nil
+	rt.writer.Stream = nil
 
 	// Create a client using app's runtime so it points to the right mounttable.
 	client, err := rt.controller.rt.NewClient()
@@ -543,52 +446,110 @@ func runJsServerTestCase(t *testing.T, test jsServerTestCase) {
 		t.Errorf("unable to create client: %v", err)
 	}
 
+	expectedWebsocketMessage := []testwriter.Response{
+		testwriter.Response{
+			Type: lib.ResponseDispatcherLookup,
+			Message: map[string]interface{}{
+				"serverId": 0.0,
+				"suffix":   "adder",
+				"method":   "resolveStep",
+			},
+		},
+	}
+
+	// We have to have a go routine handle the resolveStep call because StartCall blocks until the
+	// resolve step is complete.
+	go func() {
+		// Wait until ResolveStep lookup has been called.
+		if err := rt.writer.WaitForMessage(len(expectedWebsocketMessage)); err != nil {
+			t.Errorf("didn't receive expected message: %v", err)
+		}
+		fmt.Printf("writer data is %v", rt.writer)
+
+		// Handle the ResolveStep
+		dispatcherResponse := map[string]interface{}{
+			"Err": map[string]interface{}{
+				"id":      "veyron2/verror.NotFound",
+				"message": "ResolveStep not found",
+			},
+		}
+		bytes, err := json.Marshal(dispatcherResponse)
+		if err != nil {
+			t.Errorf("failed to serailize the response: %v", err)
+			return
+		}
+		rt.controller.HandleLookupResponse(0, string(bytes), rt.writer)
+	}()
+
 	call, err := client.StartCall(rt.controller.rt.NewContext(), "/"+msg+"/adder", test.method, test.inArgs)
 	if err != nil {
 		t.Errorf("failed to start call: %v", err)
 	}
+
+	expectedWebsocketMessage = append(expectedWebsocketMessage, testwriter.Response{
+		Type: lib.ResponseDispatcherLookup,
+		Message: map[string]interface{}{
+			"serverId": 0.0,
+			"suffix":   "adder",
+			"method":   lib.LowercaseFirstCharacter(test.method),
+		},
+	})
+
+	if err := rt.writer.WaitForMessage(len(expectedWebsocketMessage)); err != nil {
+		t.Errorf("didn't receive expected message: %v", err)
+	}
+
+	dispatcherResponse := map[string]interface{}{
+		"handle":    0,
+		"signature": adderServiceSignature,
+	}
+	bytes, err := json.Marshal(dispatcherResponse)
+	if err != nil {
+		t.Errorf("failed to serailize the response: %v", err)
+		return
+	}
+	rt.controller.HandleLookupResponse(2, string(bytes), rt.writer)
 
 	typedNames := rt.controller.rt.Identity().PublicID().Names()
 	names := []interface{}{}
 	for _, n := range typedNames {
 		names = append(names, n)
 	}
-	expectedWebsocketMessage := []response{
-		response{
-			Type: lib.ResponseServerRequest,
-			Message: map[string]interface{}{
-				"ServerId": 0.0,
-				"Method":   lib.LowercaseFirstCharacter(test.method),
-				"Args":     test.inArgs,
-				"Context": map[string]interface{}{
-					"Name":   "adder",
-					"Suffix": "adder",
-					"RemoteID": map[string]interface{}{
-						"Handle": 1.0,
-						"Names":  names,
-					},
+	expectedWebsocketMessage = append(expectedWebsocketMessage, testwriter.Response{
+		Type: lib.ResponseServerRequest,
+		Message: map[string]interface{}{
+			"ServerId": 0.0,
+			"Method":   lib.LowercaseFirstCharacter(test.method),
+			"Handle":   0.0,
+			"Args":     test.inArgs,
+			"Context": map[string]interface{}{
+				"Name":   "adder",
+				"Suffix": "adder",
+				"RemoteID": map[string]interface{}{
+					"Handle": 1.0,
+					"Names":  names,
 				},
 			},
 		},
-	}
+	})
 
 	// Wait until the rpc has started.
-	if err := rt.writer.waitForMessage(len(expectedWebsocketMessage)); err != nil {
-		t.Errorf("didn't recieve expected message: %v", err)
+	if err := rt.writer.WaitForMessage(len(expectedWebsocketMessage)); err != nil {
+		t.Errorf("didn't receive expected message: %v", err)
 	}
 	for _, msg := range test.clientStream {
-		expectedWebsocketMessage = append(expectedWebsocketMessage, response{Type: lib.ResponseStream, Message: msg})
+		expectedWebsocketMessage = append(expectedWebsocketMessage, testwriter.Response{Type: lib.ResponseStream, Message: msg})
 		if err := call.Send(msg); err != nil {
 			t.Errorf("unexpected error while sending %v: %v", msg, err)
 		}
 	}
 
 	// Wait until all the streaming messages have been acknowledged.
-	if err := rt.writer.waitForMessage(len(expectedWebsocketMessage)); err != nil {
-		t.Errorf("didn't recieve expected message: %v", err)
+	if err := rt.writer.WaitForMessage(len(expectedWebsocketMessage)); err != nil {
+		t.Errorf("didn't receive expected message: %v", err)
 	}
 
-	expectedWebsocketMessage = append(expectedWebsocketMessage, response{Type: lib.ResponseStreamClose})
+	expectedWebsocketMessage = append(expectedWebsocketMessage, testwriter.Response{Type: lib.ResponseStreamClose})
 
 	expectedStream := test.expectedServerStream
 	go sendServerStream(t, rt.controller, &test, rt.writer)
@@ -625,11 +586,11 @@ func runJsServerTestCase(t *testing.T, test jsServerTestCase) {
 	}
 
 	// Wait until the close streaming messages have been acknowledged.
-	if err := rt.writer.waitForMessage(len(expectedWebsocketMessage)); err != nil {
-		t.Errorf("didn't recieve expected message: %v", err)
+	if err := rt.writer.WaitForMessage(len(expectedWebsocketMessage)); err != nil {
+		t.Errorf("didn't receive expected message: %v", err)
 	}
 
-	checkResponses(rt.writer, expectedWebsocketMessage, nil, t)
+	testwriter.CheckResponses(rt.writer, expectedWebsocketMessage, nil, t)
 }
 
 func TestSimpleJSServer(t *testing.T) {
@@ -720,220 +681,4 @@ func TestDeserializeCaveat(t *testing.T) {
 			t.Errorf("decoded produced the wrong value: got %v, expected %v", caveat, c.expectedValue)
 		}
 	}
-}
-
-func createChain(r veyron2.Runtime, name string) security.PrivateID {
-	id := r.Identity()
-
-	for _, component := range strings.Split(name, "/") {
-		newID, err := r.NewIdentity(component)
-		if err != nil {
-			panic(err)
-		}
-		if id == nil {
-			id = newID
-			continue
-		}
-		blessedID, err := id.Bless(newID.PublicID(), component, time.Hour, nil)
-		if err != nil {
-			panic(err)
-		}
-		id, err = newID.Derive(blessedID)
-		if err != nil {
-			panic(err)
-		}
-	}
-	return id
-}
-
-type mockSecurityContext struct {
-	method  string
-	localID security.PublicID
-}
-
-func makeMockSecurityContext(method string, name string) *mockSecurityContext {
-	return &mockSecurityContext{
-		method:  method,
-		localID: createChain(r, name).PublicID(),
-	}
-}
-
-func (m *mockSecurityContext) Method() string { return m.method }
-
-func (m *mockSecurityContext) LocalID() security.PublicID { return m.localID }
-
-func (*mockSecurityContext) Name() string { return "" }
-
-func (*mockSecurityContext) Suffix() string { return "" }
-
-func (*mockSecurityContext) Label() security.Label { return 0 }
-
-func (*mockSecurityContext) Discharges() map[string]security.Discharge { return nil }
-
-func (*mockSecurityContext) RemoteID() security.PublicID { return nil }
-
-func (*mockSecurityContext) LocalEndpoint() naming.Endpoint { return nil }
-
-func (*mockSecurityContext) RemoteEndpoint() naming.Endpoint { return nil }
-
-type blessingTestCase struct {
-	requestJSON             map[string]interface{}
-	expectedValidateResults map[*mockSecurityContext]bool
-	expectedErr             error
-}
-
-func runBlessingTest(c blessingTestCase, t *testing.T) {
-	controller, err := NewController(nil, "mockVeyronProxyEP")
-
-	if err != nil {
-		t.Errorf("unable to create controller: %v", err)
-		return
-	}
-	controller.AddIdentity(createChain(rt.R(), "test/bar").PublicID())
-
-	bytes, err := json.Marshal(c.requestJSON)
-
-	if err != nil {
-		t.Errorf("failed to marshal request: %v", err)
-		return
-	}
-
-	var request blessingRequest
-	if err := json.Unmarshal(bytes, &request); err != nil {
-		t.Errorf("failed to unmarshal request: %v", err)
-		return
-	}
-
-	jsId, err := controller.bless(request)
-
-	if !reflect.DeepEqual(err, c.expectedErr) {
-		t.Errorf("error response does not match: expected %v, got %v", c.expectedErr, err)
-		return
-	}
-
-	if err != nil {
-		return
-	}
-
-	id := controller.idStore.Get(jsId.Handle)
-
-	if id == nil {
-		t.Errorf("couldn't get identity from store")
-		return
-	}
-
-	for ctx, value := range c.expectedValidateResults {
-		_, err := id.Authorize(ctx)
-		if (err == nil) != value {
-			t.Errorf("authorize failed to match expected value for %v: expected %v, got %v", ctx, value, err)
-		}
-	}
-}
-
-// The names of the identity in the mock contexts are root off the runtime's
-// identity.  This function takes a name and prepends the runtime's identity's
-// name.
-func securityName(name string) string {
-	return rt.R().Identity().PublicID().Names()[0] + "/" + name
-}
-
-func TestBlessingWithNoCaveats(t *testing.T) {
-	runBlessingTest(blessingTestCase{
-		requestJSON: map[string]interface{}{
-			"handle":     1,
-			"durationMs": 10000,
-			"name":       "foo",
-		},
-		expectedValidateResults: map[*mockSecurityContext]bool{
-			ctxFooAlice: true,
-			ctxFooBob:   true,
-			ctxBarAlice: true,
-			ctxBarBob:   true,
-		},
-	}, t)
-}
-
-func TestBlessingWithMethodRestrictions(t *testing.T) {
-	runBlessingTest(blessingTestCase{
-		requestJSON: map[string]interface{}{
-			"handle":     1,
-			"durationMs": 10000,
-			"caveats": []map[string]interface{}{
-				map[string]interface{}{
-					"_type":   "MethodCaveat",
-					"service": security.AllPrincipals,
-					"data":    []string{"Foo"},
-				},
-			},
-			"name": "foo",
-		},
-		expectedValidateResults: map[*mockSecurityContext]bool{
-			ctxFooAlice: true,
-			ctxFooBob:   true,
-			ctxBarAlice: false,
-			ctxBarBob:   false,
-		},
-	}, t)
-}
-
-func TestBlessingWithPeerRestrictions(t *testing.T) {
-	runBlessingTest(blessingTestCase{
-		requestJSON: map[string]interface{}{
-			"handle":     1,
-			"durationMs": 10000,
-			"caveats": []map[string]interface{}{
-				map[string]interface{}{
-					"_type":   "PeerBlessingsCaveat",
-					"service": security.AllPrincipals,
-					"data":    []string{securityName("test/alice")},
-				},
-			},
-			"name": "foo",
-		},
-		expectedValidateResults: map[*mockSecurityContext]bool{
-			ctxFooAlice: true,
-			ctxFooBob:   false,
-			ctxBarAlice: true,
-			ctxBarBob:   false,
-		},
-	}, t)
-}
-
-func TestBlessingWithMethodAndPeerRestrictions(t *testing.T) {
-	runBlessingTest(blessingTestCase{
-		requestJSON: map[string]interface{}{
-			"handle":     1,
-			"durationMs": 10000,
-			"caveats": []map[string]interface{}{
-				map[string]interface{}{
-					"_type":   "PeerBlessingsCaveat",
-					"service": security.AllPrincipals,
-					"data":    []string{securityName("test/alice")},
-				},
-				map[string]interface{}{
-					"_type":   "MethodCaveat",
-					"service": security.AllPrincipals,
-					"data":    []string{"Bar"},
-				},
-			},
-			"name": "foo",
-		},
-		expectedValidateResults: map[*mockSecurityContext]bool{
-			ctxFooAlice: false,
-			ctxFooBob:   false,
-			ctxBarAlice: true,
-			ctxBarBob:   false,
-		},
-	}, t)
-}
-
-func TestBlessingWhereBlesseeDoesNotExist(t *testing.T) {
-	runBlessingTest(blessingTestCase{
-		requestJSON: map[string]interface{}{
-			"handle":     2,
-			"durationMs": 10000,
-			"name":       "foo",
-		},
-		expectedErr: verror.NoExistf("invalid PublicID handle"),
-	}, t)
 }

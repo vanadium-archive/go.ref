@@ -1,0 +1,119 @@
+package server
+
+import (
+	"reflect"
+	"testing"
+	"veyron.io/veyron/veyron/services/wsprd/lib"
+	"veyron.io/veyron/veyron/services/wsprd/lib/testwriter"
+	"veyron.io/veyron/veyron/services/wsprd/signature"
+	"veyron.io/veyron/veyron2/ipc"
+	"veyron.io/veyron/veyron2/rt"
+	"veyron.io/veyron/veyron2/security"
+)
+
+type mockFlowFactory struct {
+	writer testwriter.Writer
+}
+
+func (m *mockFlowFactory) createFlow() *Flow {
+	return &Flow{ID: 0, Writer: &m.writer}
+}
+
+func (*mockFlowFactory) cleanupFlow(int64) {}
+
+type mockInvoker struct {
+	handle int64
+	sig    signature.JSONServiceSignature
+}
+
+func (mockInvoker) Prepare(string, int) ([]interface{}, security.Label, error) {
+	return nil, 0, nil
+}
+
+func (mockInvoker) Invoke(string, ipc.ServerCall, []interface{}) ([]interface{}, error) {
+	return nil, nil
+}
+
+type mockInvokerFactory struct{}
+
+func (mockInvokerFactory) createInvoker(handle int64, sig signature.JSONServiceSignature) (ipc.Invoker, error) {
+	return &mockInvoker{handle: handle, sig: sig}, nil
+}
+
+func init() {
+	rt.Init()
+}
+
+func TestSuccessfulLookup(t *testing.T) {
+	flowFactory := &mockFlowFactory{}
+	d := newDispatcher(0, flowFactory, mockInvokerFactory{}, rt.R().Logger())
+	go func() {
+		if err := flowFactory.writer.WaitForMessage(1); err != nil {
+			t.Errorf("failed to get dispatch request %v", err)
+			t.Fail()
+		}
+		signature := `{"add":{"inArgs":["foo","bar"],"numOutArgs":1,"isStreaming":false}}`
+		jsonResponse := `{"handle":1,"hasAuthorizer":false,"signature":` + signature + "}"
+		d.handleLookupResponse(0, jsonResponse)
+	}()
+
+	invoker, _, err := d.Lookup("a/b", "Read")
+
+	if err != nil {
+		t.Errorf("Unexpected error: %v", err)
+	}
+
+	expectedSig := signature.JSONServiceSignature{
+		"add": signature.JSONMethodSignature{
+			InArgs:     []string{"foo", "bar"},
+			NumOutArgs: 1,
+		},
+	}
+	expectedInvoker := &mockInvoker{handle: 1, sig: expectedSig}
+	if !reflect.DeepEqual(invoker, expectedInvoker) {
+		t.Errorf("wrong invoker returned, expected: %v, got :%v", expectedInvoker, invoker)
+	}
+
+	expectedResponses := []testwriter.Response{
+		testwriter.Response{
+			Type: lib.ResponseDispatcherLookup,
+			Message: map[string]interface{}{
+				"serverId": 0.0,
+				"suffix":   "a/b",
+				"method":   "read",
+			},
+		},
+	}
+	testwriter.CheckResponses(&flowFactory.writer, expectedResponses, nil, t)
+}
+
+func TestFailedLookup(t *testing.T) {
+	flowFactory := &mockFlowFactory{}
+	d := newDispatcher(0, flowFactory, mockInvokerFactory{}, rt.R().Logger())
+	go func() {
+		if err := flowFactory.writer.WaitForMessage(1); err != nil {
+			t.Errorf("failed to get dispatch request %v", err)
+			t.Fail()
+		}
+		jsonResponse := `{"err":{"id":"veyron2/verror.Exists","msg":"bad stuff"}}`
+		d.handleLookupResponse(0, jsonResponse)
+	}()
+
+	_, _, err := d.Lookup("a/b", "Read")
+
+	if err == nil {
+		t.Errorf("expected error, but got none", err)
+	}
+
+	expectedResponses := []testwriter.Response{
+		testwriter.Response{
+			Type: lib.ResponseDispatcherLookup,
+			Message: map[string]interface{}{
+				"serverId": 0.0,
+				"suffix":   "a/b",
+				"method":   "read",
+			},
+		},
+	}
+	testwriter.CheckResponses(&flowFactory.writer, expectedResponses, nil, t)
+}

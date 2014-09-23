@@ -20,14 +20,14 @@ type invoker struct {
 }
 
 // newInvoker is an invoker factory
-func newInvoker(sig ipc.ServiceSignature, invokeFunc remoteInvokeFunc) (ipc.Invoker, error) {
+func newInvoker(sig ipc.ServiceSignature, invokeFunc remoteInvokeFunc) ipc.Invoker {
 	predefinedInvokers := make(map[string]ipc.Invoker)
 
 	// Special handling for predefined "signature" method
 	predefinedInvokers["Signature"] = newSignatureInvoker(sig)
 
 	i := &invoker{sig, invokeFunc, predefinedInvokers}
-	return i, nil
+	return i
 }
 
 // Prepare implements the Invoker interface.

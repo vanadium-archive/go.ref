@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"sync"
 
-	vsecurity "veyron.io/veyron/veyron/security"
 	"veyron.io/veyron/veyron/services/wsprd/lib"
 	"veyron.io/veyron/veyron/services/wsprd/signature"
 
@@ -27,6 +26,7 @@ type Flow struct {
 // A request from the proxy to javascript to handle an RPC
 type serverRPCRequest struct {
 	ServerId uint64
+	Handle   int64
 	Method   string
 	Args     []interface{}
 	Context  serverRPCRequestContext
@@ -78,7 +78,7 @@ type Server struct {
 	server ipc.Server
 
 	// The saved dispatcher to reuse when serve is called multiple times.
-	dispatcher ipc.Dispatcher
+	dispatcher *dispatcher
 
 	// The endpoint of the server.  This is empty until the server has been
 	// started and listen has been called on it.
@@ -113,7 +113,7 @@ func NewServer(id uint64, veyronProxy string, helper ServerHelper) (*Server, err
 // communicate the result back via a channel to the caller
 type remoteInvokeFunc func(methodName string, args []interface{}, call ipc.ServerCall) <-chan *serverRPCReply
 
-func (s *Server) createRemoteInvokerFunc() remoteInvokeFunc {
+func (s *Server) createRemoteInvokerFunc(handle int64) remoteInvokeFunc {
 	return func(methodName string, args []interface{}, call ipc.ServerCall) <-chan *serverRPCReply {
 		flow := s.helper.CreateNewFlow(s, call)
 		replyChan := make(chan *serverRPCReply, 1)
@@ -132,6 +132,7 @@ func (s *Server) createRemoteInvokerFunc() remoteInvokeFunc {
 		// Send a invocation request to JavaScript
 		message := serverRPCRequest{
 			ServerId: s.id,
+			Handle:   handle,
 			Method:   lib.LowercaseFirstCharacter(methodName),
 			Args:     args,
 			Context:  context,
@@ -171,27 +172,12 @@ func proxyStream(stream ipc.Stream, w lib.ClientWriter, logger vlog.Logger) {
 	}
 }
 
-func (s *Server) Serve(name string, sig signature.JSONServiceSignature) (string, error) {
+func (s *Server) Serve(name string) (string, error) {
 	s.Lock()
 	defer s.Unlock()
 
-	serviceSig, err := sig.ServiceSignature()
-	if err != nil {
-		return "", err
-	}
-
-	remoteInvokeFunc := s.createRemoteInvokerFunc()
-	invoker, err := newInvoker(serviceSig, remoteInvokeFunc)
-
-	if err != nil {
-		return "", err
-	}
-
 	if s.dispatcher == nil {
-		s.dispatcher = newDispatcher(invoker,
-			vsecurity.NewACLAuthorizer(security.ACL{In: map[security.BlessingPattern]security.LabelSet{
-				security.AllPrincipals: security.AllLabels,
-			}}))
+		s.dispatcher = newDispatcher(s.id, s, s, s.helper.GetLogger())
 	}
 
 	if s.endpoint == "" {
@@ -235,6 +221,28 @@ func (s *Server) HandleServerResponse(id int64, data string) {
 		"MessageId %d with result %v", id, serverReply)
 	s.helper.CleanupFlow(id)
 	ch <- &serverReply
+}
+
+func (s *Server) HandleLookupResponse(id int64, data string) {
+	s.dispatcher.handleLookupResponse(id, data)
+}
+
+func (s *Server) createFlow() *Flow {
+	return s.helper.CreateNewFlow(s, nil)
+}
+
+func (s *Server) cleanupFlow(id int64) {
+	s.helper.CleanupFlow(id)
+}
+
+func (s *Server) createInvoker(handle int64, sig signature.JSONServiceSignature) (ipc.Invoker, error) {
+	serviceSig, err := sig.ServiceSignature()
+	if err != nil {
+		return nil, err
+	}
+
+	remoteInvokeFunc := s.createRemoteInvokerFunc(handle)
+	return newInvoker(serviceSig, remoteInvokeFunc), nil
 }
 
 func (s *Server) Stop() {
