@@ -11,7 +11,6 @@ import (
 	"time"
 
 	"veyron.io/veyron/veyron/lib/testutil/blackbox"
-	"veyron.io/veyron/veyron/security/caveat"
 	"veyron.io/veyron/veyron2/security"
 	"veyron.io/veyron/veyron2/security/wire"
 	"veyron.io/veyron/veyron2/vlog"
@@ -473,7 +472,7 @@ func (proximityCaveat) Validate(ctx security.Context) error {
 
 func TestThirdPartyCaveatMinting(t *testing.T) {
 	minter := newChain("minter")
-	cav, err := caveat.NewPublicKeyCaveat(newCaveat(proximityCaveat{}), minter.PublicID().PublicKey(), "location", security.ThirdPartyRequirements{})
+	cav, err := security.NewPublicKeyCaveat(minter.PublicID().PublicKey(), "location", security.ThirdPartyRequirements{}, newCaveat(proximityCaveat{}))
 	if err != nil {
 		t.Fatalf("security.NewPublicKeyCaveat failed: %s", err)
 	}
@@ -505,7 +504,7 @@ func TestAuthorizeWithThirdPartyCaveats(t *testing.T) {
 		return derive(bless(id.PublicID(), googleChain, name), id)
 	}
 	mkTPCaveat := func(id security.PrivateID) security.ThirdPartyCaveat {
-		c, err := caveat.NewPublicKeyCaveat(newCaveat(alwaysValidCaveat{}), id.PublicID().PublicKey(), fmt.Sprintf("%v location", id.PublicID()), security.ThirdPartyRequirements{})
+		c, err := security.NewPublicKeyCaveat(id.PublicID().PublicKey(), fmt.Sprintf("%v location", id.PublicID()), security.ThirdPartyRequirements{}, newCaveat(alwaysValidCaveat{}))
 		if err != nil {
 			t.Fatalf("NewPublicKeyCaveat with PublicKey of: %v failed: %s", id, err)
 		}
@@ -567,7 +566,7 @@ func TestAuthorizeWithThirdPartyCaveats(t *testing.T) {
 			ctxEmpty:         "missing discharge",
 			ctxGoogleAtOther: "security.peerBlessingsCaveat=[google] fails validation",
 			ctxExpired:       "security.unixTimeExpiryCaveat",
-			ctxInvalid:       "invalid signature",
+			ctxInvalid:       "signature verification on discharge",
 		}
 	)
 
@@ -626,7 +625,7 @@ func (s SortedThirdPartyCaveats) Swap(i, j int) { s[i], s[j] = s[j], s[i] }
 
 func TestThirdPartyCaveatAccessors(t *testing.T) {
 	mkTPCaveat := func(id security.PublicID) security.ThirdPartyCaveat {
-		tpCav, err := caveat.NewPublicKeyCaveat(newCaveat(alwaysValidCaveat{}), id.PublicKey(), "someLocation", security.ThirdPartyRequirements{})
+		tpCav, err := security.NewPublicKeyCaveat(id.PublicKey(), "someLocation", security.ThirdPartyRequirements{}, newCaveat(alwaysValidCaveat{}))
 		if err != nil {
 			t.Fatalf("NewPublicKeyCaveat with PublicKey of: %v failed: %s", id, err)
 		}

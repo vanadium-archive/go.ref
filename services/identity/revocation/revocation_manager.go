@@ -10,7 +10,6 @@ import (
 	"sync"
 	"time"
 
-	"veyron.io/veyron/veyron/security/caveat"
 	"veyron.io/veyron/veyron/services/identity/util"
 	"veyron.io/veyron/veyron2/security"
 	"veyron.io/veyron/veyron2/vom"
@@ -35,7 +34,7 @@ func (r *RevocationManager) NewCaveat(dischargerID security.PublicID, discharger
 	if err != nil {
 		return nil, err
 	}
-	cav, err := caveat.NewPublicKeyCaveat(restriction, dischargerID.PublicKey(), dischargerLocation, security.ThirdPartyRequirements{})
+	cav, err := security.NewPublicKeyCaveat(dischargerID.PublicKey(), dischargerLocation, security.ThirdPartyRequirements{}, restriction)
 	if err != nil {
 		return nil, err
 	}

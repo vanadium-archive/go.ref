@@ -23,7 +23,6 @@ import (
 	isecurity "veyron.io/veyron/veyron/runtimes/google/security"
 	tnaming "veyron.io/veyron/veyron/runtimes/google/testing/mocks/naming"
 	vsecurity "veyron.io/veyron/veyron/security"
-	"veyron.io/veyron/veyron/security/caveat"
 
 	"veyron.io/veyron/veyron2"
 	"veyron.io/veyron/veyron2/ipc"
@@ -569,7 +568,7 @@ func TestBlessing(t *testing.T) {
 }
 
 func mkThirdPartyCaveat(discharger security.PublicID, location string, c security.Caveat) security.Caveat {
-	tpc, err := caveat.NewPublicKeyCaveat(c, discharger.PublicKey(), location, security.ThirdPartyRequirements{})
+	tpc, err := security.NewPublicKeyCaveat(discharger.PublicKey(), location, security.ThirdPartyRequirements{}, c)
 	if err != nil {
 		panic(err)
 	}
@@ -605,7 +604,7 @@ func TestDischargeImpetus(t *testing.T) {
 		dischargerID = serverID.PublicID()
 
 		mkClientID = func(req security.ThirdPartyRequirements) security.PrivateID {
-			tpc, err := caveat.NewPublicKeyCaveat(newCaveat(alwaysValidCaveat{}), dischargerID.PublicKey(), "mountpoint/discharger", req)
+			tpc, err := security.NewPublicKeyCaveat(dischargerID.PublicKey(), "mountpoint/discharger", req, newCaveat(alwaysValidCaveat{}))
 			if err != nil {
 				t.Fatalf("Failed to create ThirdPartyCaveat: %v", err)
 			}

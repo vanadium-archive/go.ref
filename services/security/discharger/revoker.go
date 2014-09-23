@@ -9,7 +9,6 @@ import (
 	"os"
 	"path/filepath"
 	"sync"
-	"veyron.io/veyron/veyron/security/caveat"
 	ssecurity "veyron.io/veyron/veyron/services/security"
 	"veyron.io/veyron/veyron2/ipc"
 	"veyron.io/veyron/veyron2/security"
@@ -73,7 +72,7 @@ func NewRevocationCaveat(dischargerID security.PublicID, dischargerLocation stri
 	if err != nil {
 		return revocation, nil, err
 	}
-	cav, err := caveat.NewPublicKeyCaveat(restriction, dischargerID.PublicKey(), dischargerLocation, security.ThirdPartyRequirements{})
+	cav, err := security.NewPublicKeyCaveat(dischargerID.PublicKey(), dischargerLocation, security.ThirdPartyRequirements{}, restriction)
 	return revocation, cav, err
 }
 
