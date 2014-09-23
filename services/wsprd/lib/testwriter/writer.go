@@ -70,14 +70,18 @@ func (w *Writer) WaitForMessage(n int) error {
 		fmt.Println("Found ", w.Stream)
 		return nil
 	}
+	fmt.Println("Createing channel")
 	w.Lock()
 	w.notifier = make(chan bool, 1)
 	w.Unlock()
 	for w.streamLength() < n {
+		fmt.Println("Waiting for notification")
 		select {
 		case <-w.notifier:
+			fmt.Println("got notification")
 			continue
 		case <-time.After(time.Second):
+			fmt.Println("Timed out")
 			return fmt.Errorf("timed out")
 		}
 	}
