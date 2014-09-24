@@ -184,6 +184,24 @@ func TestDebugServer(t *testing.T) {
 			t.Errorf("unexpected result. Got %v, want %v", results, expected)
 		}
 
+		c, err = ns.Glob(ctx, "*")
+		if err != nil {
+			t.Errorf("ns.Glob failed: %v", err)
+		}
+		results = []string{}
+		for res := range c {
+			results = append(results, res.Name)
+		}
+		sort.Strings(results)
+		expected = []string{
+			"logs",
+			"pprof",
+			"stats",
+		}
+		if !reflect.DeepEqual(expected, results) {
+			t.Errorf("unexpected result. Got %v, want %v", results, expected)
+		}
+
 		c, err = ns.Glob(ctx, "...")
 		if err != nil {
 			t.Errorf("ns.Glob failed: %v", err)
@@ -201,6 +219,7 @@ func TestDebugServer(t *testing.T) {
 			"",
 			"logs",
 			"logs/test.INFO",
+			"pprof",
 			"stats",
 			"stats/testing/foo",
 		}

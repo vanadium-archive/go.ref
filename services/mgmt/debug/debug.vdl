@@ -2,6 +2,7 @@ package debug
 
 import (
 	"veyron.io/veyron/veyron2/services/mgmt/logreader"
+	"veyron.io/veyron/veyron2/services/mgmt/pprof"
 	"veyron.io/veyron/veyron2/services/mgmt/stats"
 )
 
@@ -12,4 +13,5 @@ import (
 type Debug interface {
 	logreader.LogFile
 	stats.Stats
+	pprof.PProf
 }
