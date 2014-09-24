@@ -8,6 +8,8 @@
 
 source "${VEYRON_ROOT}/environment/scripts/lib/shell_test.sh"
 
+readonly WORKDIR=$(shell::tmp_dir)
+
 # This imported library in environment/scripts/lib/shell.sh runs set -e, which
 # makes the shell exit immediately when any command fails. This can make
 # troubleshooting problems much harder. Restore the default for this test.
@@ -30,25 +32,27 @@ dumplogs() {
 }
 
 main() {
-  cd "${TMPDIR}"
+  cd "${WORKDIR}"
   build
 
   # Start mounttabled and find its endpoint.
-  local -r MTLOG="${TMPDIR}/mt.log"
+  local -r MTLOG="${WORKDIR}/mt.log"
+  touch "${MTLOG}"
   ./mounttabled --address=127.0.0.1:0 > "${MTLOG}" 2>&1 &
   shell::wait_for "${MTLOG}" "Mount table service at:"
   local EP=$(grep "Mount table service at:" "${MTLOG}" | sed -e 's/^.*endpoint: //')
   [[ -z "${EP}" ]] && shell_test::fail "line ${LINENO}: no mounttable server"
 
   # Generate an identity for the tunnel server and client
-  local -r ID="${TMPDIR}/id"
+  local -r ID="${WORKDIR}/id"
   VEYRON_IDENTITY="" ./identity generate test >"${ID}"
 
   export NAMESPACE_ROOT="${EP}"
   export VEYRON_IDENTITY="${ID}"
 
   # Start tunneld and find its endpoint.
-  local -r TUNLOG="${TMPDIR}/tunnel.log"
+  local -r TUNLOG="${WORKDIR}/tunnel.log"
+  touch "${TUNLOG}"
   ./tunneld --address=127.0.0.1:0 -vmodule=publisher=2 > "${TUNLOG}" 2>&1 &
   shell::wait_for "${TUNLOG}" "ipc pub: mount"
   local EP=$(grep "Listening on endpoint" "${TUNLOG}" | sed -e 's/^.*endpoint //' | awk '{print $1}')
@@ -58,7 +62,7 @@ main() {
   fi
 
   # Run remote command with the endpoint.
-  local -r VSHLOG="${TMPDIR}/vsh.log"
+  local -r VSHLOG="${WORKDIR}/vsh.log"
   local GOT=$(./vsh --logtostderr --v=1 "/${EP}" echo HELLO ENDPOINT 2>"${VSHLOG}")
   local WANT="HELLO ENDPOINT"
 
@@ -77,8 +81,8 @@ main() {
   fi
 
   # Send input to remote command.
-  echo "HELLO SERVER" | ./vsh --logtostderr --v=1 "/${EP}" "cat > ${TMPDIR}/hello.txt" > "${VSHLOG}" 2>&1
-  GOT=$(cat "${TMPDIR}/hello.txt")
+  echo "HELLO SERVER" | ./vsh --logtostderr --v=1 "/${EP}" "cat > ${WORKDIR}/hello.txt" > "${VSHLOG}" 2>&1
+  GOT=$(cat "${WORKDIR}/hello.txt")
   WANT="HELLO SERVER"
 
   if [[ "${GOT}" != "${WANT}" ]]; then
