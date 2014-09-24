@@ -156,8 +156,8 @@ func runLoop(ctx context.T, cmdchan chan interface{}, donechan chan struct{}, ns
 		case cmd := <-cmdchan:
 			switch tcmd := cmd.(type) {
 			case stopCmd:
-				close(donechan)
 				state.unmountAll()
+				close(donechan)
 				vlog.VI(2).Info("ipc pub: exit runLoop")
 				return
 			case addServerCmd:
