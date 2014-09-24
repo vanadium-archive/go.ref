@@ -23,7 +23,7 @@ import (
 	"veyron.io/veyron/veyron/services/mgmt/lib/exec"
 	"veyron.io/veyron/veyron/services/mgmt/node/config"
 	"veyron.io/veyron/veyron/services/mgmt/node/impl"
- 	suidhelper "veyron.io/veyron/veyron/services/mgmt/suidhelper/impl"
+	suidhelper "veyron.io/veyron/veyron/services/mgmt/suidhelper/impl"
 
 	"veyron.io/veyron/veyron2"
 	"veyron.io/veyron/veyron2/ipc"
@@ -174,7 +174,6 @@ func ping() {
 	}
 }
 
-// TODO(rjkroege): Preserve suidhelper and app logs when errors occur.
 func app(args []string) {
 	if expected, got := 1, len(args); expected != got {
 		vlog.Fatalf("Unexpected number of arguments: expected %d, got %d", expected, got)
@@ -256,18 +255,24 @@ func envelopeFromCmd(title string, cmd *goexec.Cmd) *application.Envelope {
 
 // setupRootDir sets up and returns the local filesystem location that the node
 // manager is told to use, as well as a cleanup function.
-func setupRootDir() (string, func()) {
+func setupRootDir(t *testing.T) (string, func()) {
+	rootDir, err := ioutil.TempDir("", "nodemanager")
+	if err != nil {
+		t.Fatalf("Failed to set up temporary dir for test: %v", err)
+	}
 	// On some operating systems (e.g. darwin) os.TempDir() can return a
 	// symlink. To avoid having to account for this eventuality later,
 	// evaluate the symlink.
-	tmpDir, err := filepath.EvalSymlinks(os.TempDir())
+	rootDir, err = filepath.EvalSymlinks(rootDir)
 	if err != nil {
-		vlog.Fatalf("EvalSymlinks(%v) failed: %v", os.TempDir(), err)
+		vlog.Fatalf("EvalSymlinks(%v) failed: %v", rootDir, err)
 	}
-	root := filepath.Join(tmpDir, "nodemanager")
-	os.RemoveAll(root) // Start out with a clean slate.
-	return root, func() {
-		os.RemoveAll(root)
+	return rootDir, func() {
+		if t.Failed() {
+			t.Logf("You can examine the node manager workspace at %v", rootDir)
+		} else {
+			os.RemoveAll(rootDir)
+		}
 	}
 }
 
@@ -303,7 +308,7 @@ func TestNodeManagerUpdateAndRevert(t *testing.T) {
 	defer cleanup()
 	defer startBinaryRepository()()
 
-	root, cleanup := setupRootDir()
+	root, cleanup := setupRootDir(t)
 	defer cleanup()
 
 	// Current link does not have to live in the root dir.
@@ -524,7 +529,7 @@ func TestAppLifeCycle(t *testing.T) {
 	defer cleanup()
 	defer startBinaryRepository()()
 
-	root, cleanup := setupRootDir()
+	root, cleanup := setupRootDir(t)
 	defer cleanup()
 
 	// Create a script wrapping the test target that implements suidhelper.
@@ -732,7 +737,7 @@ func TestNodeManagerClaim(t *testing.T) {
 	defer cleanup()
 	defer startBinaryRepository()()
 
-	root, cleanup := setupRootDir()
+	root, cleanup := setupRootDir(t)
 	defer cleanup()
 
 	// Set up the node manager.  Since we won't do node manager updates,
@@ -799,7 +804,7 @@ func TestNodeManagerUpdateACL(t *testing.T) {
 	defer cleanup()
 	defer startBinaryRepository()()
 
-	root, cleanup := setupRootDir()
+	root, cleanup := setupRootDir(t)
 	defer cleanup()
 
 	// Set up the node manager.  Since we won't do node manager updates,
