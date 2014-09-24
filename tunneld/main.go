@@ -10,8 +10,11 @@ import (
 
 	"veyron.io/examples/tunnel"
 	"veyron.io/examples/tunnel/tunneld/impl"
+
 	"veyron.io/veyron/veyron/lib/signals"
 	sflag "veyron.io/veyron/veyron/security/flag"
+
+	"veyron.io/veyron/veyron2"
 	"veyron.io/veyron/veyron2/ipc"
 	"veyron.io/veyron/veyron2/rt"
 	"veyron.io/veyron/veyron2/vlog"
@@ -47,7 +50,8 @@ func firstHardwareAddrInUse() (string, error) {
 func main() {
 	r := rt.Init()
 	defer r.Cleanup()
-	server, err := r.NewServer()
+	auth := sflag.NewAuthorizerOrDie()
+	server, err := r.NewServer(veyron2.DebugAuthorizerOpt{auth})
 	if err != nil {
 		vlog.Fatalf("NewServer failed: %v", err)
 	}
@@ -74,7 +78,7 @@ func main() {
 		fmt.Sprintf("tunnel/hwaddr/%s", hwaddr),
 		fmt.Sprintf("tunnel/id/%s", rt.R().Identity().PublicID()),
 	}
-	dispatcher := ipc.LeafDispatcher(tunnel.NewServerTunnel(&impl.T{}), sflag.NewAuthorizerOrDie())
+	dispatcher := ipc.LeafDispatcher(tunnel.NewServerTunnel(&impl.T{}), auth)
 	published := false
 	for _, n := range names {
 		if err := server.Serve(n, dispatcher); err != nil {
