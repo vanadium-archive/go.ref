@@ -70,6 +70,7 @@ func TestDebugServer(t *testing.T) {
 		sort.Strings(results)
 		want := []string{
 			"logs",
+			"pprof",
 			"stats",
 		}
 		if !reflect.DeepEqual(want, results) {
