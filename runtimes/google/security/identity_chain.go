@@ -232,15 +232,7 @@ func (id *chainPrivateID) Derive(pub security.PublicID) (security.PrivateID, err
 
 func (id *chainPrivateID) MintDischarge(cav security.ThirdPartyCaveat, ctx security.Context, duration time.Duration, dischargeCaveats []security.Caveat) (security.Discharge, error) {
 	// TODO(ashankar): HACK using new API to fit into old. This will go away anyway when we get rid of PrivateID and PublicID before release.
-	principal, err := security.CreatePrincipal(id.signer)
-	if err != nil {
-		return nil, err
-	}
-	expiry, err := security.ExpiryCaveat(time.Now().Add(duration))
-	if err != nil {
-		return nil, err
-	}
-	return principal.MintDischarge(cav, ctx, expiry, dischargeCaveats...)
+	return security.MintDischargeForPrivateID(id.signer, cav, ctx, duration, dischargeCaveats)
 }
 
 func (id *chainPrivateID) Sign(message []byte) (security.Signature, error) {

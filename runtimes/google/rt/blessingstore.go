@@ -6,7 +6,6 @@ import (
 	"reflect"
 	"sync"
 
-	isecurity "veyron.io/veyron/veyron/runtimes/google/security"
 	"veyron.io/veyron/veyron/security/serialization"
 
 	"veyron.io/veyron/veyron2/security"
@@ -21,7 +20,7 @@ const (
 var errStoreAddMismatch = errors.New("blessing's public key does not match store's public key")
 
 type markedBlessings struct {
-	Blessings security.PublicID
+	Blessings security.Blessings
 	Patterns  []security.BlessingPattern
 }
 
@@ -33,7 +32,7 @@ type persistentState struct {
 	Store []markedBlessings
 	// Default is the default Blessings to be shared with peers for which
 	// no other information is available to select blessings.
-	Default security.PublicID
+	Default security.Blessings
 }
 
 // blessingStore implements security.BlessingStore.
@@ -45,7 +44,7 @@ type blessingStore struct {
 	mu        sync.RWMutex
 }
 
-func (s *blessingStore) Add(blessings security.PublicID, forPeers security.BlessingPattern) error {
+func (s *blessingStore) Add(blessings security.Blessings, forPeers security.BlessingPattern) error {
 	if !reflect.DeepEqual(blessings.PublicKey(), s.publicKey) {
 		return errStoreAddMismatch
 	}
@@ -86,11 +85,11 @@ func (s *blessingStore) Add(blessings security.PublicID, forPeers security.Bless
 	return nil
 }
 
-func (s *blessingStore) ForPeer(peerBlessings ...string) security.PublicID {
+func (s *blessingStore) ForPeer(peerBlessings ...string) security.Blessings {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
-	var matchingBlessings []security.PublicID
+	var matchingBlessings []security.Blessings
 	for _, mb := range s.state.Store {
 		for _, p := range mb.Patterns {
 			if p.MatchedBy(peerBlessings...) {
@@ -100,16 +99,16 @@ func (s *blessingStore) ForPeer(peerBlessings ...string) security.PublicID {
 		}
 	}
 
-	blessings, err := isecurity.NewSetPublicID(matchingBlessings...)
+	blessings, err := security.UnionOfBlessings(matchingBlessings...)
 	if err != nil {
 		// This case should never be hit.
-		vlog.Errorf("BlessingStore: %s is broken, could not combine PublicIDs from it: %s", s, err)
+		vlog.Errorf("BlessingStore: %s is broken, could union Blessings obtained from it: %s", s, err)
 		return nil
 	}
 	return blessings
 }
 
-func (s *blessingStore) Default() security.PublicID {
+func (s *blessingStore) Default() security.Blessings {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	if s.state.Default != nil {
@@ -118,7 +117,7 @@ func (s *blessingStore) Default() security.PublicID {
 	return s.ForPeer()
 }
 
-func (s *blessingStore) SetDefault(blessings security.PublicID) error {
+func (s *blessingStore) SetDefault(blessings security.Blessings) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if !reflect.DeepEqual(blessings.PublicKey(), s.publicKey) {

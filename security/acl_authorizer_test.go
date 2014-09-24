@@ -28,6 +28,8 @@ func (c *context) Label() security.Label                     { return c.label }
 func (c *context) Discharges() map[string]security.Discharge { return c.discharges }
 func (c *context) LocalID() security.PublicID                { return c.localID }
 func (c *context) RemoteID() security.PublicID               { return c.remoteID }
+func (c *context) LocalPrincipal() security.Principal        { return nil }
+func (c *context) RemoteBlessings() security.Blessings       { return nil }
 func (c *context) LocalEndpoint() naming.Endpoint            { return nil }
 func (c *context) RemoteEndpoint() naming.Endpoint           { return nil }
 
