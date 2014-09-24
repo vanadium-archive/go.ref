@@ -150,6 +150,11 @@ func retriable(err error) bool {
 	if strings.Contains(e, "errno") {
 		return true
 	}
+	// Connection refused is retriable.
+	if strings.Contains(e, "connection refused") {
+		return true
+	}
+
 	return false
 }
 
