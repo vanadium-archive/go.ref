@@ -32,20 +32,22 @@ type testFlow struct {
 	errClose      error
 }
 
-func (f *testFlow) Read(b []byte) (int, error)         { return f.r.Read(b) }
-func (f *testFlow) Write(b []byte) (int, error)        { return f.w.Write(b) }
-func (f *testFlow) LocalAddr() net.Addr                { return nil }
-func (f *testFlow) RemoteAddr() net.Addr               { return nil }
-func (f *testFlow) LocalEndpoint() naming.Endpoint     { return nil }
-func (f *testFlow) RemoteEndpoint() naming.Endpoint    { return nil }
-func (f *testFlow) LocalID() security.PublicID         { return testID.PublicID() }
-func (f *testFlow) RemoteID() security.PublicID        { return testID.PublicID() }
-func (f *testFlow) SetReadDeadline(t time.Time) error  { return nil }
-func (f *testFlow) SetWriteDeadline(t time.Time) error { return nil }
-func (f *testFlow) SetDeadline(t time.Time) error      { return nil }
-func (f *testFlow) IsClosed() bool                     { return false }
-func (f *testFlow) Closed() <-chan struct{}            { return nil }
-func (f *testFlow) Cancel()                            {}
+func (f *testFlow) Read(b []byte) (int, error)          { return f.r.Read(b) }
+func (f *testFlow) Write(b []byte) (int, error)         { return f.w.Write(b) }
+func (f *testFlow) LocalAddr() net.Addr                 { return nil }
+func (f *testFlow) RemoteAddr() net.Addr                { return nil }
+func (f *testFlow) LocalEndpoint() naming.Endpoint      { return nil }
+func (f *testFlow) RemoteEndpoint() naming.Endpoint     { return nil }
+func (f *testFlow) LocalID() security.PublicID          { return testID.PublicID() }
+func (f *testFlow) RemoteID() security.PublicID         { return testID.PublicID() }
+func (f *testFlow) LocalPrincipal() security.Principal  { return nil }
+func (f *testFlow) RemoteBlessings() security.Blessings { return nil }
+func (f *testFlow) SetReadDeadline(t time.Time) error   { return nil }
+func (f *testFlow) SetWriteDeadline(t time.Time) error  { return nil }
+func (f *testFlow) SetDeadline(t time.Time) error       { return nil }
+func (f *testFlow) IsClosed() bool                      { return false }
+func (f *testFlow) Closed() <-chan struct{}             { return nil }
+func (f *testFlow) Cancel()                             {}
 
 func (f *testFlow) Close() error {
 	f.numCloseCalls++

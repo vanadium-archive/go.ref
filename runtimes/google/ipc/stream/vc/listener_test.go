@@ -42,6 +42,9 @@ func (*noopFlow) SetWriteDeadline(t time.Time) error { return nil }
 func (*noopFlow) LocalID() security.PublicID  { return testID.PublicID() }
 func (*noopFlow) RemoteID() security.PublicID { return testID.PublicID() }
 
+func (*noopFlow) LocalPrincipal() security.Principal  { return nil }
+func (*noopFlow) RemoteBlessings() security.Blessings { return nil }
+
 func TestListener(t *testing.T) {
 	ln := newListener()
 	f1, f2 := &noopFlow{}, &noopFlow{}

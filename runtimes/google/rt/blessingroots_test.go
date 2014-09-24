@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
-	"strings"
 	"testing"
 
 	"veyron.io/veyron/veyron2/security"
@@ -15,11 +14,11 @@ import (
 
 type s []string
 
-type tester struct {
+type rootsTester struct {
 	k1, k2, k3 security.PublicKey
 }
 
-func (t *tester) testAdd(br security.BlessingRoots) error {
+func (t *rootsTester) testAdd(br security.BlessingRoots) error {
 	testdata := []struct {
 		root    security.PublicKey
 		pattern security.BlessingPattern
@@ -36,7 +35,7 @@ func (t *tester) testAdd(br security.BlessingRoots) error {
 	return nil
 }
 
-func (t *tester) testRecognized(br security.BlessingRoots) error {
+func (t *rootsTester) testRecognized(br security.BlessingRoots) error {
 	testdata := []struct {
 		root          security.PublicKey
 		recognized    []string
@@ -69,27 +68,17 @@ func mkKey() security.PublicKey {
 	return security.NewECDSAPublicKey(&s.PublicKey)
 }
 
-func matchesError(err error, pattern string) error {
-	retErr := fmt.Errorf("got error: %v, want to match: %v", err, pattern)
-	if (len(pattern) == 0) != (err == nil) {
-		return retErr
-	}
-	if (err != nil) && (strings.Index(err.Error(), pattern) < 0) {
-		return retErr
-	}
-	return nil
-}
-
 func TestInMemoryBlessingRoots(t *testing.T) {
 	br := NewInMemoryBlessingRoots()
-	tester := tester{mkKey(), mkKey(), mkKey()}
-	if err := tester.testAdd(br); err != nil {
+	rootsTester := rootsTester{mkKey(), mkKey(), mkKey()}
+	if err := rootsTester.testAdd(br); err != nil {
 		t.Error(err)
 	}
-	if err := tester.testRecognized(br); err != nil {
+	if err := rootsTester.testRecognized(br); err != nil {
 		t.Error(err)
 	}
 }
+
 func TestPersistingBlessingRoots(t *testing.T) {
 	newTempDir := func(name string) string {
 		dir, err := ioutil.TempDir("", name)
@@ -99,22 +88,22 @@ func TestPersistingBlessingRoots(t *testing.T) {
 		return dir
 	}
 
-	tester := tester{mkKey(), mkKey(), mkKey()}
+	rootsTester := rootsTester{mkKey(), mkKey(), mkKey()}
 
 	// Create a new persisting BlessingRoots and add key k1 as an authority over
 	// blessings matching "veyron/...".
 	dir := newTempDir("blessingstore")
 	defer os.RemoveAll(dir)
-	signer := newChain("signer")
+	signer := newPrincipal(t)
 	br, err := NewPersistingBlessingRoots(dir, signer)
 	if err != nil {
 		t.Fatalf("NewPersistingBlessingRoots failed: %s", err)
 	}
 
-	if err := tester.testAdd(br); err != nil {
+	if err := rootsTester.testAdd(br); err != nil {
 		t.Error(err)
 	}
-	if err := tester.testRecognized(br); err != nil {
+	if err := rootsTester.testRecognized(br); err != nil {
 		t.Error(err)
 	}
 
@@ -124,11 +113,7 @@ func TestPersistingBlessingRoots(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewPersistingBlessingRoots failed: %s", err)
 	}
-
-	if err := tester.testAdd(br); err != nil {
-		t.Error(err)
-	}
-	if err := tester.testRecognized(br); err != nil {
+	if err := rootsTester.testRecognized(br); err != nil {
 		t.Error(err)
 	}
 }

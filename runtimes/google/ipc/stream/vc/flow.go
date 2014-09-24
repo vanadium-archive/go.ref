@@ -20,8 +20,10 @@ type idHolder interface {
 	RemoteID() security.PublicID
 }
 
-func (f *flow) LocalEndpoint() naming.Endpoint  { return f.localEndpoint }
-func (f *flow) RemoteEndpoint() naming.Endpoint { return f.remoteEndpoint }
+func (f *flow) LocalPrincipal() security.Principal { return nil }
+func (f *flow) RemoteBlesings() security.Blessings { return nil }
+func (f *flow) LocalEndpoint() naming.Endpoint     { return f.localEndpoint }
+func (f *flow) RemoteEndpoint() naming.Endpoint    { return f.remoteEndpoint }
 
 // implement net.Conn
 func (f *flow) LocalAddr() net.Addr  { return f.localEndpoint }

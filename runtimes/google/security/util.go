@@ -29,6 +29,10 @@ func TrustIdentityProviders(id security.PrivateID) {
 
 // ContextArgs holds the arguments for creating a new security.Context for an IPC.
 type ContextArgs struct {
+	// LocalPrincipal is the principal at the local end of a request.
+	LocalPrincipal security.Principal
+	// RemoteBlessings is the blessings held by the remote end of a request.
+	RemoteBlessings security.Blessings
 	// LocalID, RemoteID are the identities at the local and remote ends of a request
 	// respectively.
 	LocalID, RemoteID security.PublicID
@@ -99,6 +103,8 @@ func (c *context) Label() security.Label                     { return c.ContextA
 func (c *context) Discharges() map[string]security.Discharge { return c.ContextArgs.Discharges }
 func (c *context) LocalID() security.PublicID                { return c.ContextArgs.LocalID }
 func (c *context) RemoteID() security.PublicID               { return c.ContextArgs.RemoteID }
+func (c *context) LocalPrincipal() security.Principal        { return c.ContextArgs.LocalPrincipal }
+func (c *context) RemoteBlessings() security.Blessings       { return c.ContextArgs.RemoteBlessings }
 func (c *context) LocalEndpoint() naming.Endpoint            { return c.ContextArgs.LocalEndpoint }
 func (c *context) RemoteEndpoint() naming.Endpoint           { return c.ContextArgs.RemoteEndpoint }
 
