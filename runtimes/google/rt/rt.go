@@ -130,7 +130,9 @@ func New(opts ...veyron2.ROpt) (veyron2.Runtime, error) {
 	}
 
 	rt.publisher = config.NewPublisher()
-	rt.profile.Init(rt, rt.publisher)
+	if err := rt.profile.Init(rt, rt.publisher); err != nil {
+		return nil, err
+	}
 
 	vlog.VI(2).Infof("rt.Init done")
 	return rt, nil

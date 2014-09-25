@@ -84,7 +84,7 @@ func (p *profile) String() string {
 	return p.Name() + " " + p.Platform().String()
 }
 
-func (p *profile) Init(rt veyron2.Runtime, publisher *config.Publisher) {
+func (p *profile) Init(rt veyron2.Runtime, publisher *config.Publisher) error {
 	log := rt.Logger()
 
 	ListenSpec = &ipc.ListenSpec{
@@ -96,9 +96,7 @@ func (p *profile) Init(rt veyron2.Runtime, publisher *config.Publisher) {
 	state, err := netstate.GetAccessibleIPs()
 	if err != nil {
 		log.Infof("failed to determine network state")
-		// TODO(cnicolaou): in a subsequent CL, change Init to return an error.
-		return
-		//return err
+		return err
 	}
 	first := state.First(netstate.IsUnicastIP)
 	if first == nil {
@@ -118,7 +116,7 @@ func (p *profile) Init(rt veyron2.Runtime, publisher *config.Publisher) {
 				return addr, nil
 			}
 			p.gce = "+gce"
-			return
+			return nil
 		}
 	}
 
@@ -128,7 +126,7 @@ func (p *profile) Init(rt veyron2.Runtime, publisher *config.Publisher) {
 	stop, err := publisher.CreateStream(SettingsStreamName, "dhcp", ch)
 	if err != nil {
 		log.Errorf("failed to create publisher: %s", err)
-		return
+		return err
 	}
 
 	protocol := listenProtocolFlag.Protocol
@@ -137,6 +135,7 @@ func (p *profile) Init(rt veyron2.Runtime, publisher *config.Publisher) {
 	ListenSpec.AddressChooser = preferredIPAddress
 	log.VI(2).Infof("Initial Network Settings: %s %s available: %s", protocol, listenAddressFlag, state)
 	go monitorNetworkSettings(rt, stop, ch, state, ListenSpec)
+	return nil
 }
 
 // monitorNetworkSettings will monitor network configuration changes and

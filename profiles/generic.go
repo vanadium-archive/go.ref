@@ -35,8 +35,9 @@ func (*generic) Platform() *veyron2.Platform {
 	return p
 }
 
-func (g *generic) Init(rt veyron2.Runtime, _ *config.Publisher) {
+func (g *generic) Init(rt veyron2.Runtime, _ *config.Publisher) error {
 	rt.Logger().VI(1).Infof("%s", g)
+	return nil
 }
 
 func (g *generic) String() string {
