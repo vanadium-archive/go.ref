@@ -31,7 +31,9 @@ func TrustIdentityProviders(id security.PrivateID) {
 type ContextArgs struct {
 	// LocalPrincipal is the principal at the local end of a request.
 	LocalPrincipal security.Principal
-	// RemoteBlessings is the blessings held by the remote end of a request.
+	// LocalBlessings is the blessings presented to the remote end of a request.
+	LocalBlessings security.Blessings
+	// RemoteBlessings is the blessings presented by the remote end of a request.
 	RemoteBlessings security.Blessings
 	// LocalID, RemoteID are the identities at the local and remote ends of a request
 	// respectively.
@@ -104,6 +106,7 @@ func (c *context) Discharges() map[string]security.Discharge { return c.ContextA
 func (c *context) LocalID() security.PublicID                { return c.ContextArgs.LocalID }
 func (c *context) RemoteID() security.PublicID               { return c.ContextArgs.RemoteID }
 func (c *context) LocalPrincipal() security.Principal        { return c.ContextArgs.LocalPrincipal }
+func (c *context) LocalBlessings() security.Blessings        { return c.ContextArgs.LocalBlessings }
 func (c *context) RemoteBlessings() security.Blessings       { return c.ContextArgs.RemoteBlessings }
 func (c *context) LocalEndpoint() naming.Endpoint            { return c.ContextArgs.LocalEndpoint }
 func (c *context) RemoteEndpoint() naming.Endpoint           { return c.ContextArgs.RemoteEndpoint }

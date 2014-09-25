@@ -257,6 +257,7 @@ func (context) Discharges() map[string]security.Discharge { return nil }
 func (context) LocalID() security.PublicID                { return nil }
 func (context) RemoteID() security.PublicID               { return nil }
 func (context) LocalPrincipal() security.Principal        { return nil }
+func (context) LocalBlessings() security.Blessings        { return nil }
 func (context) RemoteBlessings() security.Blessings       { return nil }
 func (context) LocalEndpoint() naming.Endpoint            { return nil }
 func (context) RemoteEndpoint() naming.Endpoint           { return nil }

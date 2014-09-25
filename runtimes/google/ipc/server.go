@@ -881,6 +881,7 @@ func (fs *flowServer) Label() security.Label { return fs.label }
 func (fs *flowServer) LocalID() security.PublicID          { return fs.flow.LocalID() }
 func (fs *flowServer) RemoteID() security.PublicID         { return fs.authorizedRemoteID }
 func (fs *flowServer) LocalPrincipal() security.Principal  { return nil }
+func (fs *flowServer) LocalBlessings() security.Blessings  { return nil }
 func (fs *flowServer) RemoteBlessings() security.Blessings { return nil }
 func (fs *flowServer) Blessing() security.PublicID         { return fs.blessing }
 func (fs *flowServer) LocalEndpoint() naming.Endpoint      { return fs.flow.LocalEndpoint() }
