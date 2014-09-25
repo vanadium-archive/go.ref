@@ -2,7 +2,7 @@
 
 # Ensure that tls_old.go is in sync with tls.go
 
-source "${VEYRON_ROOT}/environment/scripts/lib/shell_test.sh"
+source "${VEYRON_ROOT}/scripts/lib/shell_test.sh"
 
 main() {
   local -r DIR="$(dirname $0)"

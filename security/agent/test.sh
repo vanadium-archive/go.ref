@@ -2,7 +2,7 @@
 
 # Test running an application using the agent.
 
-source "${VEYRON_ROOT}/environment/scripts/lib/shell_test.sh"
+source "${VEYRON_ROOT}/scripts/lib/shell_test.sh"
 
 build() {
   local GO="${VEYRON_ROOT}/scripts/build/go"

@@ -9,8 +9,7 @@
 # Then it verifies that <mounttable>.Glob(*) and <neighborhood>.Glob(nhname)
 # return the correct result.
 
-source "${VEYRON_ROOT}/environment/scripts/lib/shell.sh"
-source "${VEYRON_ROOT}/environment/scripts/lib/shell_test.sh"
+source "${VEYRON_ROOT}/scripts/lib/shell_test.sh"
 
 build() {
   local -r GO="${VEYRON_ROOT}/scripts/build/go"

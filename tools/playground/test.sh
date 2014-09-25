@@ -2,7 +2,7 @@
 
 # Test the playground builder tool.
 
-source "${VEYRON_ROOT}/environment/scripts/lib/shell_test.sh"
+source "${VEYRON_ROOT}/scripts/lib/shell_test.sh"
 
 install_veyron_js() {
   # This installs the veyron.js library, and makes it accessable to javascript

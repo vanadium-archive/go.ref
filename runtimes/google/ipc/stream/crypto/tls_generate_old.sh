@@ -3,7 +3,7 @@
 # This script generates a version of tls.go that can be built with Go compilers
 # prior to version 1.4.
 
-source "${VEYRON_ROOT}/environment/scripts/lib/shell.sh"
+source "${VEYRON_ROOT}/scripts/lib/shell.sh"
 
 main() {
   local -r DIR="$(dirname "$0")"

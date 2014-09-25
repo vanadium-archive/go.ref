@@ -2,8 +2,7 @@
 
 # Helper script for testing two binaries under the same agent.
 
-source "${VEYRON_ROOT}/environment/scripts/lib/shell_test.sh"
-
+source "${VEYRON_ROOT}/scripts/lib/shell_test.sh"
 
 main() {
   if [[ -n "${VEYRON_IDENTITY}" ]]; then
