@@ -6,7 +6,7 @@
 # Not the "seekblessing" command yet, since that requires
 # starting a separate server.
 
-source "${VEYRON_ROOT}/environment/scripts/lib/shell_test.sh"
+source "${VEYRON_ROOT}/scripts/lib/shell_test.sh"
 
 main() {
   # Build binaries.

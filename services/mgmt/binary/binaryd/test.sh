@@ -6,7 +6,7 @@
 # repository client to verify that <binary>.Upload(),
 # <binary>.Download(), and <binary>.Delete() work as expected.
 
-source "${VEYRON_ROOT}/environment/scripts/lib/shell_test.sh"
+source "${VEYRON_ROOT}/scripts/lib/shell_test.sh"
 
 build() {
   local -r GO="${VEYRON_ROOT}/scripts/build/go"

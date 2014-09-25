@@ -13,8 +13,9 @@
 # TODO(jsimsa,ashankar): Figure out a way to execute all trap handlers instead
 # of having to worry about ordering the imports and/or skipping some trap
 # handlers.
-source "${VEYRON_ROOT}/environment/scripts/lib/go.sh"
-source "${VEYRON_ROOT}/environment/scripts/lib/shell_test.sh"
+
+source "${VEYRON_ROOT}/scripts/lib/go.sh"
+source "${VEYRON_ROOT}/scripts/lib/shell_test.sh"
 
 build() {
   local -r GO="${VEYRON_ROOT}/scripts/build/go"
