@@ -7,6 +7,8 @@ import (
 
 	"veyron.io/veyron/veyron2/naming"
 	"veyron.io/veyron/veyron2/rt"
+
+	"veyron.io/veyron/veyron/lib/modules"
 )
 
 func sleep(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
@@ -17,10 +19,20 @@ func sleep(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, arg
 			return err
 		}
 	}
-	fmt.Fprintf(stdout, "Sleeping for %s", d)
-	// TODO(cnicolaou): we should probably also listen for stdin closing
-	// and return before the sleep completes.
-	time.Sleep(d)
+	fmt.Fprintf(stdout, "Sleeping for %s\n", d)
+	eof := make(chan struct{})
+	go func() {
+		modules.WaitForEOF(stdin)
+		close(eof)
+	}()
+
+	then := time.Now()
+	select {
+	case <-time.After(d):
+		fmt.Fprintf(stdout, "Slept for %s\n", time.Now().Sub(then))
+	case <-eof:
+		fmt.Fprintf(stdout, "Aborted after %s\n", time.Now().Sub(then))
+	}
 	return nil
 }
 

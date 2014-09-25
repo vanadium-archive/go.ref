@@ -37,9 +37,12 @@ mount $s1/a $s2/b 1h
 mount $s2/b $s3/c 1h
 
 echoServer "Echo" $s3/c
+set es_h=$_
 
 ls $s1/...
 wait $_
 
 ls $s1/a
 wait $_
+
+stop $es_h

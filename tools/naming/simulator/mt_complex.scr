@@ -5,12 +5,14 @@
 cache off
 
 root
-eval $_
+set root_h=$_
+eval $root_h
 set root=$MT_NAME
 
 set NAMESPACE_ROOT=$root
 mt tl/a
 set m=$_
+set mt_a_h=$m
 eval $m
 eval $m
 set mt_a_name=$MT_NAME
@@ -18,6 +20,7 @@ set mt_a_addr=$MT_ADDR
 
 mt tl/b
 set m=$_
+set mt_b_h=$m
 eval $m
 eval $m
 set mt_b_name=$MT_NAME
@@ -98,7 +101,7 @@ eval $r
 assert $R0 /$es_E1_addr//
 
 # let's have the echo server shut down
-wait $es_E1
+stop $es_E1
 
 # and now, we can see the mount tables again.
 ls ...
@@ -244,6 +247,8 @@ set r=$_
 eval $r
 # returns nothing since symlink is an 'interior' node.
 assert $RN 0
+# don't close or wait for this command since it'll error out.
+
 
 # resolveMT will return the original mount point
 resolveMT tl/b/symlink
@@ -252,4 +257,10 @@ eval $r
 assert $RN 1
 eval $r
 assert $R0 /$mt_b_addr//$symlink_target
+
+stop $es_E3
+stop $es_E2
+
+quit
+
 

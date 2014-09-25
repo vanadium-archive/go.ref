@@ -58,11 +58,11 @@ var (
 
 // Session represents the state of an expect session.
 type Session struct {
-	input   *bufio.Reader
-	timeout time.Duration
-	t       Testing
-	verbose bool
-	err     error
+	input     *bufio.Reader
+	timeout   time.Duration
+	t         Testing
+	verbose   bool
+	oerr, err error
 }
 
 type Testing interface {
@@ -81,8 +81,16 @@ func (s *Session) Failed() bool {
 }
 
 // Error returns the error code (possibly nil) currently stored in the Session.
+// This will include the file and line of the calling function that experienced
+// the error. Use OriginalError to obtain the original error code.
 func (s *Session) Error() error {
 	return s.err
+}
+
+// OriginalError returns any error code (possibly nil) returned by the
+// underlying library routines called.
+func (s *Session) OriginalError() error {
+	return s.oerr
 }
 
 // SetVerbosity enables/disable verbose debugging information, in particular,
@@ -120,6 +128,7 @@ func (s *Session) ReportError() {
 // be incorrect.
 func (s *Session) error(err error) error {
 	_, file, line, _ := runtime.Caller(2)
+	s.oerr = err
 	s.err = fmt.Errorf("%s:%d: %s", filepath.Base(file), line, err)
 	s.ReportError()
 	return s.err

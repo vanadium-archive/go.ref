@@ -1,7 +1,9 @@
 package main
 
 import (
+	"bytes"
 	"fmt"
+	"io"
 	"os"
 	"regexp"
 	"strings"
@@ -26,6 +28,7 @@ var builtins = map[string]*struct {
 	"read":   {-1, "read <handle> [var]", true, read},
 	"eval":   {1, "eval <handle>", true, eval},
 	"wait":   {1, "wait <handle>", true, wait},
+	"stop":   {1, "stop <handle>", true, stop},
 	"list":   {0, "list", false, list},
 	"quit":   {0, "quit", false, quit},
 }
@@ -100,6 +103,14 @@ func assert(sh *modules.Shell, _ *cmdState, args ...string) (string, error) {
 	return "", nil
 }
 
+func readStderr(state *cmdState) (string, error) {
+	var b bytes.Buffer
+	if err := state.Handle.Shutdown(&b); err != nil && err != io.EOF {
+		return b.String(), err
+	}
+	return b.String(), nil
+}
+
 func handleWrapper(sh *modules.Shell, fn builtinCmd, args ...string) (string, error) {
 	if len(args) < 1 {
 		return "", fmt.Errorf("missing handle argument")
@@ -108,7 +119,16 @@ func handleWrapper(sh *modules.Shell, fn builtinCmd, args ...string) (string, er
 	if state == nil {
 		return "", fmt.Errorf("invalid handle")
 	}
-	return fn(sh, state, args...)
+	errstr := ""
+	r, err := fn(sh, state, args...)
+	if err != nil {
+		errstr, _ = readStderr(state)
+		errstr = strings.TrimSuffix(errstr, "\n")
+		if len(errstr) > 0 {
+			err = fmt.Errorf("%s: %v", errstr, err)
+		}
+	}
+	return r, err
 }
 
 func read(sh *modules.Shell, state *cmdState, args ...string) (string, error) {
@@ -116,15 +136,14 @@ func read(sh *modules.Shell, state *cmdState, args ...string) (string, error) {
 	for _, a := range args[1:] {
 		sh.SetVar(a, l)
 	}
-	err := state.Session.Error()
-	if err != nil && strings.HasSuffix(err.Error(), "EOF") {
-		return l, fmt.Errorf("EOF")
-	}
-	return l, state.Session.Error()
+	return l, state.Session.OriginalError()
 }
 
 func eval(sh *modules.Shell, state *cmdState, args ...string) (string, error) {
 	l := state.Session.ReadLine()
+	if err := state.Session.OriginalError(); err != nil {
+		return l, err
+	}
 	k, v, err := parseVar(l)
 	if err != nil {
 		return "", err
@@ -133,11 +152,23 @@ func eval(sh *modules.Shell, state *cmdState, args ...string) (string, error) {
 	return l, nil
 }
 
-func wait(sh *modules.Shell, state *cmdState, args ...string) (string, error) {
+func stop(sh *modules.Shell, state *cmdState, args ...string) (string, error) {
 	state.Handle.CloseStdin()
+	return wait(sh, state, args...)
+}
+
+func wait(sh *modules.Shell, state *cmdState, args ...string) (string, error) {
+	// Read and return stdout
 	r, err := state.Session.Finish(nil)
 	delete(handles, args[0])
-	return r, err
+	if err != nil {
+		return r, err
+	}
+	// Now read and return the contents of stderr as e
+	if str, err := readStderr(state); err != nil && err != io.EOF {
+		return str, err
+	}
+	return r, nil
 }
 
 func list(sh *modules.Shell, _ *cmdState, args ...string) (string, error) {
