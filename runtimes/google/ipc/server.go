@@ -272,12 +272,12 @@ func (s *server) ListenX(listenSpec *ipc.ListenSpec) (naming.Endpoint, error) {
 		return nil, err
 	}
 	ep, ipaddr, err := s.externalEndpoint(listenSpec.AddressChooser, lep)
-	if ipaddr == nil || err != nil {
+	if err != nil {
 		ln.Close()
-		if ipaddr == nil {
-			return nil, fmt.Errorf("the address %q requested for listening contained a fixed IP address which disables roaming, use :0 instead", address)
-		}
 		return nil, err
+	}
+	if ipaddr == nil {
+		vlog.VI(2).Infof("the address %q requested for listening contained a fixed IP address which disables roaming, use :0 instead", address)
 	}
 
 	s.Lock()

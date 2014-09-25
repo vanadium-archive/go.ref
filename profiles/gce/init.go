@@ -5,25 +5,32 @@
 package gce
 
 import (
+	"flag"
 	"fmt"
 	"net"
-
-	"veyron.io/veyron/veyron/profiles"
 
 	"veyron.io/veyron/veyron2"
 	"veyron.io/veyron/veyron2/config"
 	"veyron.io/veyron/veyron2/ipc"
 	"veyron.io/veyron/veyron2/rt"
 
+	"veyron.io/veyron/veyron/lib/flags"
+	"veyron.io/veyron/veyron/profiles"
 	"veyron.io/veyron/veyron/profiles/internal/gce"
 )
 
-var ListenSpec = &ipc.ListenSpec{
-	Protocol: "tcp",
-	Address:  "127.0.0.1:0",
-}
+var (
+	listenAddressFlag = flags.IPHostPortFlag{Port: "0"}
+
+	ListenSpec = &ipc.ListenSpec{
+		Protocol: "tcp",
+		Address:  "127.0.0.1:0",
+	}
+)
 
 func init() {
+	flag.Var(&listenAddressFlag, "veyron.tcp.address", "address to listen on")
+
 	rt.RegisterProfile(&profile{})
 }
 
@@ -50,6 +57,7 @@ func (p *profile) Init(rt veyron2.Runtime, publisher *config.Publisher) error {
 	if !gce.RunningOnGCE() {
 		return fmt.Errorf("GCE profile used on a non-GCE system")
 	}
+	ListenSpec.Address = listenAddressFlag.String()
 	if ip, err := gce.ExternalIPAddress(); err != nil {
 		return err
 	} else {

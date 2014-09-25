@@ -73,7 +73,7 @@ func (p *profile) Platform() *veyron2.Platform {
 }
 
 func (p *profile) Name() string {
-	return "dhcp" + p.gce
+	return "roaming" + p.gce
 }
 
 func (p *profile) Runtime() string {
