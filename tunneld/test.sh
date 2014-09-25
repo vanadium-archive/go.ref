@@ -6,13 +6,14 @@
 # that vsh can run commands through it and that all the expected names are
 # in the mounttable.
 
-source "${VEYRON_ROOT}/environment/scripts/lib/shell_test.sh"
+source "${VEYRON_ROOT}/scripts/lib/shell_test.sh"
 
 readonly WORKDIR=$(shell::tmp_dir)
 
-# This imported library in environment/scripts/lib/shell.sh runs set -e, which
-# makes the shell exit immediately when any command fails. This can make
-# troubleshooting problems much harder. Restore the default for this test.
+# This imported library in scripts/lib/shell.sh runs set -e, which
+# makes the shell exit immediately when any command fails. This can
+# make troubleshooting problems much harder. Restore the default for
+# this test.
 set +e
 
 build() {
