@@ -240,10 +240,12 @@ func (c *client) startCall(ctx context.T, name, method string, args []interface{
 		lastErr = nil
 		fc := newFlowClient(ctx, flow, &c.dischargeCache, discharges)
 
-		go func() {
-			<-ctx.Done()
-			fc.Cancel()
-		}()
+		if doneChan := ctx.Done(); doneChan != nil {
+			go func() {
+				<-ctx.Done()
+				fc.Cancel()
+			}()
+		}
 
 		if verr := fc.start(suffix, method, args, timeout, blessing); verr != nil {
 			return nil, verr
