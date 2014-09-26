@@ -21,12 +21,13 @@ type readHandler interface {
 // reader implements the io.Reader and SetReadDeadline interfaces for a Flow,
 // backed by iobuf.Slice objects read from a upcqueue.
 type reader struct {
-	handler    readHandler
-	src        *upcqueue.T
-	mu         sync.Mutex
-	buf        *iobuf.Slice  // GUARDED_BY(mu)
-	deadline   chan struct{} // GUARDED_BY(mu)
-	totalBytes uint32
+	handler        readHandler
+	src            *upcqueue.T
+	mu             sync.Mutex
+	buf            *iobuf.Slice  // GUARDED_BY(mu)
+	deadline       chan struct{} // GUARDED_BY(mu)
+	cancelDeadline chan struct{} // GUARDED_BY(mu)
+	totalBytes     uint32
 }
 
 func newReader(h readHandler) *reader {
@@ -91,9 +92,13 @@ func (r *reader) readLocked(b []byte) (int, error) {
 // does not complete by the specified deadline.
 // A zero deadline (time.Time.IsZero) implies that no cancellation is desired.
 func (r *reader) SetReadDeadline(t time.Time) error {
-	c := cancelChannel(t)
+	c, q := cancelChannel(t)
 	r.mu.Lock()
+	if r.cancelDeadline != nil {
+		close(r.cancelDeadline)
+	}
 	r.deadline = c
+	r.cancelDeadline = q
 	r.mu.Unlock()
 	return nil
 }
