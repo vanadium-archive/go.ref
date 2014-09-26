@@ -2,6 +2,9 @@ package security
 
 import (
 	"bytes"
+	"crypto/ecdsa"
+	"crypto/elliptic"
+	"crypto/rand"
 	"fmt"
 	"reflect"
 	"testing"
@@ -9,6 +12,26 @@ import (
 	"veyron.io/veyron/veyron2/security"
 	"veyron.io/veyron/veyron2/vom"
 )
+
+func TestLoadSavePEMKey(t *testing.T) {
+	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	if err != nil {
+		t.Fatalf("Failed ecdsa.GenerateKey: %v", err)
+	}
+
+	var buf bytes.Buffer
+	if err := SavePEMKey(&buf, key); err != nil {
+		t.Fatalf("Failed to save ECDSA private key: %v", err)
+	}
+
+	loadedKey, err := LoadPEMKey(&buf)
+	if err != nil {
+		t.Fatalf("Failed to load ECDSA private key: %v", err)
+	}
+	if !reflect.DeepEqual(loadedKey, key) {
+		t.Fatalf("Got key %v, but want %v", loadedKey, key)
+	}
+}
 
 func TestLoadSaveIdentity(t *testing.T) {
 	id := security.FakePrivateID("test")
