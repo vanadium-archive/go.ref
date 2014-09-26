@@ -207,10 +207,12 @@ func ServerTLSConfig() *tls.Config {
 		SessionTicketsDisabled: true,
 		Certificates:           []tls.Certificate{c},
 		InsecureSkipVerify:     true,
-		// RC4_128_SHA is 4-5X faster compared to the other cipher suites
-		// and is what google.com seems to use.
-		// Allowing ECDHE_RSA for the key exchange since some older binaries
-		// have an RSA certificate hardcoded in them.
+		// RC4_128_SHA is 4-5X faster compared to the other cipher suites.
+		// There are concerns with its security (see http://en.wikipedia.org/wiki/RC4 and
+		// https://www.usenix.org/conference/usenixsecurity13/technical-sessions/paper/alFardan),
+		// so this decision will be revisted.
+		// TODO(ashankar,ataly): Figure out what cipher to use and how to
+		// have a speedy Go implementation of it.
 		CipherSuites: []uint16{tls.TLS_ECDHE_ECDSA_WITH_RC4_128_SHA},
 	}
 }
