@@ -2,6 +2,7 @@ package ipc
 
 import (
 	"sync"
+
 	"veyron.io/veyron/veyron2"
 	"veyron.io/veyron/veyron2/context"
 	"veyron.io/veyron/veyron2/ipc"
@@ -185,7 +186,10 @@ func impetus(r security.ThirdPartyRequirements, server security.PublicID, method
 // Discharges in the cache and in the call options are still used.
 type dontFetchDischarges struct{}
 
-func (dontFetchDischarges) IPCCallOpt() {}
+func (dontFetchDischarges) IPCCallOpt() {
+	//nologcall
+}
+
 func shouldFetchDischarges(opts []ipc.CallOpt) bool {
 	for _, opt := range opts {
 		if _, ok := opt.(dontFetchDischarges); ok {

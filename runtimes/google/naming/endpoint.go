@@ -129,9 +129,16 @@ func (ep *Endpoint) parseV2(parts []string) error {
 	return nil
 }
 
-func (ep *Endpoint) RoutingID() naming.RoutingID { return ep.RID }
-func (ep *Endpoint) Network() string             { return Network }
+func (ep *Endpoint) RoutingID() naming.RoutingID {
+	//nologcall
+	return ep.RID
+}
+func (ep *Endpoint) Network() string {
+	//nologcall
+	return Network
+}
 func (ep *Endpoint) String() string {
+	//nologcall
 	return fmt.Sprintf("%s2@%s@%s@%s@%s@%s@@",
 		separator, ep.Protocol, ep.Address, ep.RID,
 		printIPCVersion(ep.MinIPCVersion), printIPCVersion(ep.MaxIPCVersion))
@@ -139,6 +146,7 @@ func (ep *Endpoint) String() string {
 func (ep *Endpoint) version() int { return 2 }
 
 func (ep *Endpoint) Addr() net.Addr {
+	//nologcall
 	return &addr{network: ep.Protocol, address: ep.Address}
 }
 

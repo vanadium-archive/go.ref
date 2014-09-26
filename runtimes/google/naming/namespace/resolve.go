@@ -81,6 +81,7 @@ func makeTerminal(names []string) (ret []string) {
 
 // Resolve implements veyron2/naming.Namespace.
 func (ns *namespace) Resolve(ctx context.T, name string) ([]string, error) {
+	defer vlog.LogCall()()
 	names := ns.rootName(name)
 	if vlog.V(2) {
 		_, file, line, _ := runtime.Caller(1)
@@ -121,6 +122,7 @@ func (ns *namespace) Resolve(ctx context.T, name string) ([]string, error) {
 
 // ResolveToMountTable implements veyron2/naming.Namespace.
 func (ns *namespace) ResolveToMountTable(ctx context.T, name string) ([]string, error) {
+	defer vlog.LogCall()()
 	names := ns.rootName(name)
 	if vlog.V(2) {
 		_, file, line, _ := runtime.Caller(1)
@@ -214,6 +216,7 @@ func unresolveAgainstServer(ctx context.T, client ipc.Client, names []string) ([
 
 // Unesolve implements veyron2/naming.Namespace.
 func (ns *namespace) Unresolve(ctx context.T, name string) ([]string, error) {
+	defer vlog.LogCall()()
 	vlog.VI(2).Infof("Unresolve %s", name)
 	names, err := ns.Resolve(ctx, name)
 	if err != nil {
@@ -235,6 +238,7 @@ func (ns *namespace) Unresolve(ctx context.T, name string) ([]string, error) {
 // FlushCache flushes the most specific entry found for name.  It returns true if anything was
 // actually flushed.
 func (ns *namespace) FlushCacheEntry(name string) bool {
+	defer vlog.LogCall()()
 	flushed := false
 	for _, n := range ns.rootName(name) {
 		// Walk the cache as we would in a resolution.  Unlike a resolution, we have to follow

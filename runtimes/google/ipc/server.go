@@ -94,6 +94,7 @@ func InternalNewServer(ctx context.T, streamMgr stream.Manager, ns naming.Namesp
 }
 
 func (s *server) Published() ([]string, error) {
+	defer vlog.LogCall()()
 	s.Lock()
 	defer s.Unlock()
 	if s.stopped {
@@ -130,6 +131,7 @@ func (s *server) resolveToAddress(address string) (string, error) {
 }
 
 func (s *server) Listen(protocol, address string) (naming.Endpoint, error) {
+	defer vlog.LogCall()()
 	s.Lock()
 	// Shortcut if the server is stopped, to avoid needlessly creating a
 	// listener.
@@ -246,6 +248,7 @@ func (s *server) externalEndpoint(chooser ipc.AddressChooser, lep naming.Endpoin
 }
 
 func (s *server) ListenX(listenSpec *ipc.ListenSpec) (naming.Endpoint, error) {
+	defer vlog.LogCall()()
 	s.Lock()
 	// Shortcut if the server is stopped, to avoid needlessly creating a
 	// listener.
@@ -464,6 +467,7 @@ func (s *server) dhcpLoop(dhcpl *dhcpListener) {
 }
 
 func (s *server) Serve(name string, disp ipc.Dispatcher) error {
+	defer vlog.LogCall()()
 	s.Lock()
 	defer s.Unlock()
 	if s.stopped {
@@ -482,6 +486,7 @@ func (s *server) Serve(name string, disp ipc.Dispatcher) error {
 }
 
 func (s *server) Stop() error {
+	defer vlog.LogCall()()
 	s.Lock()
 	if s.stopped {
 		s.Unlock()
@@ -845,6 +850,7 @@ func (fs *flowServer) setDeadline(deadline time.Time) verror.E {
 
 // Send implements the ipc.Stream method.
 func (fs *flowServer) Send(item interface{}) error {
+	defer vlog.LogCall()()
 	// The empty response header indicates what follows is a streaming result.
 	if err := fs.enc.Encode(ipc.Response{}); err != nil {
 		return err
@@ -854,6 +860,7 @@ func (fs *flowServer) Send(item interface{}) error {
 
 // Recv implements the ipc.Stream method.
 func (fs *flowServer) Recv(itemptr interface{}) error {
+	defer vlog.LogCall()()
 	var req ipc.Request
 	if err := fs.dec.Decode(&req); err != nil {
 		return err
@@ -867,22 +874,64 @@ func (fs *flowServer) Recv(itemptr interface{}) error {
 
 // Implementations of ipc.ServerContext methods.
 
-func (fs *flowServer) Discharges() map[string]security.Discharge { return fs.discharges }
+func (fs *flowServer) Discharges() map[string]security.Discharge {
+	//nologcall
+	return fs.discharges
+}
 
-func (fs *flowServer) Server() ipc.Server { return fs.server }
-func (fs *flowServer) Method() string     { return fs.method }
+func (fs *flowServer) Server() ipc.Server {
+	//nologcall
+	return fs.server
+}
+func (fs *flowServer) Method() string {
+	//nologcall
+	return fs.method
+}
 
 // TODO(cnicolaou): remove Name from ipc.ServerContext and all of
 // its implementations
-func (fs *flowServer) Name() string          { return fs.suffix }
-func (fs *flowServer) Suffix() string        { return fs.suffix }
-func (fs *flowServer) Label() security.Label { return fs.label }
+func (fs *flowServer) Name() string {
+	//nologcall
+	return fs.suffix
+}
+func (fs *flowServer) Suffix() string {
+	//nologcall
+	return fs.suffix
+}
+func (fs *flowServer) Label() security.Label {
+	//nologcall
+	return fs.label
+}
 
-func (fs *flowServer) LocalID() security.PublicID          { return fs.flow.LocalID() }
-func (fs *flowServer) RemoteID() security.PublicID         { return fs.authorizedRemoteID }
-func (fs *flowServer) LocalPrincipal() security.Principal  { return nil }
-func (fs *flowServer) LocalBlessings() security.Blessings  { return nil }
-func (fs *flowServer) RemoteBlessings() security.Blessings { return nil }
-func (fs *flowServer) Blessing() security.PublicID         { return fs.blessing }
-func (fs *flowServer) LocalEndpoint() naming.Endpoint      { return fs.flow.LocalEndpoint() }
-func (fs *flowServer) RemoteEndpoint() naming.Endpoint     { return fs.flow.RemoteEndpoint() }
+func (fs *flowServer) LocalID() security.PublicID {
+	//nologcall
+	return fs.flow.LocalID()
+}
+func (fs *flowServer) RemoteID() security.PublicID {
+	//nologcall
+	return fs.authorizedRemoteID
+}
+func (fs *flowServer) LocalPrincipal() security.Principal {
+	//nologcall
+	return nil
+}
+func (fs *flowServer) LocalBlessings() security.Blessings {
+	//nologcall
+	return nil
+}
+func (fs *flowServer) RemoteBlessings() security.Blessings {
+	//nologcall
+	return nil
+}
+func (fs *flowServer) Blessing() security.PublicID {
+	//nologcall
+	return fs.blessing
+}
+func (fs *flowServer) LocalEndpoint() naming.Endpoint {
+	//nologcall
+	return fs.flow.LocalEndpoint()
+}
+func (fs *flowServer) RemoteEndpoint() naming.Endpoint {
+	//nologcall
+	return fs.flow.RemoteEndpoint()
+}

@@ -60,9 +60,13 @@ func (lID *localID) AsServer() (security.PublicID, error) {
 	return lID.store.DefaultPublicID()
 }
 
-func (*localID) IPCClientOpt()         {}
-func (*localID) IPCStreamVCOpt()       {}
-func (*localID) IPCServerOpt()         {}
+func (*localID) IPCClientOpt() {
+	//nologcall
+}
+func (*localID) IPCStreamVCOpt() {}
+func (*localID) IPCServerOpt() {
+	//nologcall
+}
 func (*localID) IPCStreamListenerOpt() {}
 
 // newLocalID returns a localID embedding the runtime's PrivateID and a fixed

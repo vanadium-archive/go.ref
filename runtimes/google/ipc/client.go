@@ -159,6 +159,7 @@ func retriable(err error) bool {
 }
 
 func (c *client) StartCall(ctx context.T, name, method string, args []interface{}, opts ...ipc.CallOpt) (ipc.Call, error) {
+	defer vlog.LogCall()()
 	var retry = true
 	deadline, hasDeadline := ctx.Deadline()
 	if !hasDeadline {
@@ -302,6 +303,7 @@ func authorizeServer(client, server security.PublicID, opts []ipc.CallOpt) (secu
 }
 
 func (c *client) Close() {
+	defer vlog.LogCall()()
 	c.vcMapMu.Lock()
 	for _, v := range c.vcMap {
 		c.streamMgr.ShutdownEndpoint(v.remoteEP)
@@ -311,7 +313,9 @@ func (c *client) Close() {
 }
 
 // IPCBindOpt makes client implement BindOpt.
-func (c *client) IPCBindOpt() {}
+func (c *client) IPCBindOpt() {
+	//nologcall
+}
 
 var _ ipc.BindOpt = (*client)(nil)
 
@@ -384,6 +388,7 @@ func (fc *flowClient) start(suffix, method string, args []interface{}, timeout t
 }
 
 func (fc *flowClient) Send(item interface{}) error {
+	defer vlog.LogCall()()
 	if fc.sendClosed {
 		return errFlowClosed
 	}
@@ -399,6 +404,7 @@ func (fc *flowClient) Send(item interface{}) error {
 }
 
 func (fc *flowClient) Recv(itemptr interface{}) error {
+	defer vlog.LogCall()()
 	switch {
 	case fc.response.Error != nil:
 		return fc.response.Error
@@ -427,6 +433,7 @@ func (fc *flowClient) Recv(itemptr interface{}) error {
 }
 
 func (fc *flowClient) CloseSend() error {
+	defer vlog.LogCall()()
 	return fc.closeSend()
 }
 
@@ -458,6 +465,7 @@ func (fc *flowClient) closeSend() verror.E {
 }
 
 func (fc *flowClient) Finish(resultptrs ...interface{}) error {
+	defer vlog.LogCall()()
 	err := fc.finish(resultptrs...)
 	vtrace.FromContext(fc.ctx).Annotate("Finished")
 	return err
@@ -522,6 +530,7 @@ func (fc *flowClient) finish(resultptrs ...interface{}) verror.E {
 }
 
 func (fc *flowClient) Cancel() {
+	defer vlog.LogCall()()
 	vtrace.FromContext(fc.ctx).Annotate("Cancelled")
 	fc.flow.Cancel()
 }

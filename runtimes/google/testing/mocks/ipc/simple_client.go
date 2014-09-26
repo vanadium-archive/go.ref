@@ -8,6 +8,7 @@ import (
 
 	"veyron.io/veyron/veyron2/context"
 	"veyron.io/veyron/veyron2/ipc"
+	"veyron.io/veyron/veyron2/vlog"
 )
 
 // NewSimpleClient creates a new mocked ipc client where the given map of method name
@@ -37,10 +38,13 @@ func (c *SimpleMockClient) TimesCalled(method string) int {
 }
 
 // IPCBindOpt Implements ipc.Client
-func (c *SimpleMockClient) IPCBindOpt() {}
+func (c *SimpleMockClient) IPCBindOpt() {
+	//nologcall
+}
 
 // StartCall Implements ipc.Client
 func (c *SimpleMockClient) StartCall(ctx context.T, name, method string, args []interface{}, opts ...ipc.CallOpt) (ipc.Call, error) {
+	defer vlog.LogCall()()
 	results, ok := c.results[method]
 	if !ok {
 		return nil, errors.New(fmt.Sprintf("method %s not found", method))
@@ -59,6 +63,7 @@ func (c *SimpleMockClient) StartCall(ctx context.T, name, method string, args []
 
 // Close Implements ipc.Client
 func (*SimpleMockClient) Close() {
+	defer vlog.LogCall()()
 }
 
 // mockCall implements ipc.Call
@@ -69,15 +74,18 @@ type mockCall struct {
 
 // Cancel implements ipc.Call
 func (*mockCall) Cancel() {
+	defer vlog.LogCall()()
 }
 
 // CloseSend implements ipc.Call
 func (*mockCall) CloseSend() error {
+	defer vlog.LogCall()()
 	return nil
 }
 
 // Finish implements ipc.Call
 func (mc *mockCall) Finish(resultptrs ...interface{}) error {
+	defer vlog.LogCall()()
 	if got, want := len(resultptrs), len(mc.results); got != want {
 		return errors.New(fmt.Sprintf("wrong number of output results; expected resultptrs of size %d but got %d", want, got))
 	}
@@ -95,10 +103,12 @@ type mockStream struct{}
 
 //Send implements ipc.Stream
 func (*mockStream) Send(interface{}) error {
+	defer vlog.LogCall()()
 	return nil
 }
 
 //Recv implements ipc.Stream
 func (*mockStream) Recv(interface{}) error {
+	defer vlog.LogCall()()
 	return nil
 }

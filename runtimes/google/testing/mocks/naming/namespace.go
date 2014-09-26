@@ -9,6 +9,7 @@ import (
 	"veyron.io/veyron/veyron2/context"
 	"veyron.io/veyron/veyron2/naming"
 	"veyron.io/veyron/veyron2/verror"
+	"veyron.io/veyron/veyron2/vlog"
 )
 
 // NewSimpleNamespace returns a simple implementation of a Namespace
@@ -25,6 +26,7 @@ type namespace struct {
 }
 
 func (ns *namespace) Mount(ctx context.T, name, server string, _ time.Duration) error {
+	defer vlog.LogCall()()
 	ns.Lock()
 	defer ns.Unlock()
 	for n, _ := range ns.mounts {
@@ -37,6 +39,7 @@ func (ns *namespace) Mount(ctx context.T, name, server string, _ time.Duration) 
 }
 
 func (ns *namespace) Unmount(ctx context.T, name, server string) error {
+	defer vlog.LogCall()()
 	var servers []string
 	ns.Lock()
 	defer ns.Unlock()
@@ -55,6 +58,7 @@ func (ns *namespace) Unmount(ctx context.T, name, server string) error {
 }
 
 func (ns *namespace) Resolve(ctx context.T, name string) ([]string, error) {
+	defer vlog.LogCall()()
 	if address, _ := naming.SplitAddressName(name); len(address) > 0 {
 		return []string{name}, nil
 	}
@@ -74,37 +78,44 @@ func (ns *namespace) Resolve(ctx context.T, name string) ([]string, error) {
 }
 
 func (ns *namespace) ResolveToMountTable(ctx context.T, name string) ([]string, error) {
+	defer vlog.LogCall()()
 	// TODO(mattr): Implement this method for tests that might need it.
 	panic("ResolveToMountTable not implemented")
 	return nil, nil
 }
 
 func (ns *namespace) Unresolve(ctx context.T, name string) ([]string, error) {
+	defer vlog.LogCall()()
 	// TODO(mattr): Implement this method for tests that might need it.
 	panic("Unresolve not implemented")
 	return nil, nil
 }
 
 func (ns *namespace) FlushCacheEntry(name string) bool {
+	defer vlog.LogCall()()
 	return false
 }
 
 func (ns *namespace) CacheCtl(ctls ...naming.CacheCtl) []naming.CacheCtl {
+	defer vlog.LogCall()()
 	return nil
 }
 
 func (ns *namespace) Glob(ctx context.T, pattern string) (chan naming.MountEntry, error) {
+	defer vlog.LogCall()()
 	// TODO(mattr): Implement this method for tests that might need it.
 	panic("Glob not implemented")
 	return nil, nil
 }
 
 func (ns *namespace) SetRoots(...string) error {
+	defer vlog.LogCall()()
 	panic("Calling SetRoots on a mock namespace.  This is not supported.")
 	return nil
 }
 
 func (ns *namespace) Roots() []string {
+	defer vlog.LogCall()()
 	panic("Calling Roots on a mock namespace.  This is not supported.")
 	return nil
 }

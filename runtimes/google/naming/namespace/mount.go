@@ -35,6 +35,7 @@ func unmountFromMountTable(ctx context.T, client ipc.Client, name, server string
 }
 
 func (ns *namespace) Mount(ctx context.T, name, server string, ttl time.Duration) error {
+	defer vlog.LogCall()()
 	// Resolve to all the mount tables implementing name.
 	mtServers, err := ns.ResolveToMountTable(ctx, name)
 	if err != nil {
@@ -62,6 +63,7 @@ func (ns *namespace) Mount(ctx context.T, name, server string, ttl time.Duration
 }
 
 func (ns *namespace) Unmount(ctx context.T, name, server string) error {
+	defer vlog.LogCall()()
 	mts, err := ns.ResolveToMountTable(ctx, name)
 	if err != nil {
 		return err

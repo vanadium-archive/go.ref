@@ -7,6 +7,7 @@ import (
 	"veyron.io/veyron/veyron2"
 	"veyron.io/veyron/veyron2/naming"
 	"veyron.io/veyron/veyron2/verror"
+	"veyron.io/veyron/veyron2/vlog"
 )
 
 const defaultMaxResolveDepth = 32
@@ -58,6 +59,7 @@ func New(rt veyron2.Runtime, roots ...string) (*namespace, error) {
 
 // SetRoots implements naming.Namespace.SetRoots
 func (ns *namespace) SetRoots(roots ...string) error {
+	defer vlog.LogCall()()
 	if !rooted(roots) {
 		return badRoots(roots)
 	}
@@ -80,6 +82,7 @@ func (ns *namespace) SetDepthLimits(resolve, glob int) {
 
 // Roots implements naming.Namespace.Roots
 func (ns *namespace) Roots() []string {
+	//nologcall
 	ns.RLock()
 	defer ns.RUnlock()
 	roots := make([]string, len(ns.roots))
@@ -127,6 +130,7 @@ const callTimeout = 10 * time.Second
 
 // CacheCtl implements naming.Namespace.CacheCtl
 func (ns *namespace) CacheCtl(ctls ...naming.CacheCtl) []naming.CacheCtl {
+	defer vlog.LogCall()()
 	for _, c := range ctls {
 		switch v := c.(type) {
 		case naming.DisableCache:

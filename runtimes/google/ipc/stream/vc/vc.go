@@ -127,8 +127,12 @@ func (f fixedLocalID) AsServer() (security.PublicID, error) {
 
 func (fixedLocalID) IPCStreamListenerOpt() {}
 func (fixedLocalID) IPCStreamVCOpt()       {}
-func (fixedLocalID) IPCClientOpt()         {}
-func (fixedLocalID) IPCServerOpt()         {}
+func (fixedLocalID) IPCClientOpt() {
+	//nologcall
+}
+func (fixedLocalID) IPCServerOpt() {
+	//nologcall
+}
 
 // FixedLocalID creates a LocalID using the provided PrivateID. The
 // provided PrivateID must always be non-nil.

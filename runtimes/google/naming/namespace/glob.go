@@ -109,6 +109,7 @@ func (ns *namespace) globAtServer(ctx context.T, qe *queuedEntry, pattern *glob.
 
 // Glob implements naming.MountTable.Glob.
 func (ns *namespace) Glob(ctx context.T, pattern string) (chan naming.MountEntry, error) {
+	defer vlog.LogCall()()
 	root, globPattern := naming.SplitAddressName(pattern)
 	g, err := glob.Parse(globPattern)
 	if err != nil {
