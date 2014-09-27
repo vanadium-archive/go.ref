@@ -1,8 +1,10 @@
 {
 	"dependencies": {
 		"incoming": [
-			{"allow": "veyron/runtimes/..."},
-			{"allow": "veyron2/rt/..."},
+			{"allow": "veyron.io/veyron/veyron/runtimes/..."},
+			{"allow": "veyron.io/veyron/veyron/services/...", "comment": "temporarily allowing dependency from services"},
+			{"allow": "veyron.io/veyron/veyron2/rt/..."},
+			{"allow": "veyron.io/veyron/veyron/lib/...", "comment":"temporarily allowing dependency from lib"},
 			{"deny": "..."}
 		]
 	}

@@ -1,7 +1,7 @@
 {
 	"dependencies": {
 		"incoming": [
-			{"allow": "veyron/tools/..."},
+			{"allow": "veyron.io/veyron/veyron/tools/..."},
 			{"deny": "..."}
 		]
 	}
