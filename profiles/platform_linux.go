@@ -3,11 +3,9 @@
 package profiles
 
 import (
-	"fmt"
 	"syscall"
 
 	"veyron.io/veyron/veyron2"
-	"veyron.io/veyron/veyron2/security"
 )
 
 // Platform returns the description of the Platform this process is running on.
@@ -27,6 +25,5 @@ func Platform() (*veyron2.Platform, error) {
 		Machine: utsStr(uts.Machine[:]),
 		Node:    utsStr(uts.Nodename[:]),
 	}
-	d.Identity = security.FakePublicID(fmt.Sprintf("%s/%s/%s", d.Vendor, d.Model, d.Node))
 	return d, nil
 }
