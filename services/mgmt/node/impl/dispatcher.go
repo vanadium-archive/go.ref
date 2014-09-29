@@ -49,7 +49,8 @@ type dispatcher struct {
 	config *config.State
 	// dispatcherMutex is a lock for coordinating concurrent access to some
 	// dispatcher methods.
-	mu sync.RWMutex
+	mu  sync.RWMutex
+	uat systemNameIdentityAssociation
 }
 
 var _ ipc.Dispatcher = (*dispatcher)(nil)
@@ -83,6 +84,7 @@ func NewDispatcher(config *config.State) (*dispatcher, error) {
 			updating: newUpdatingState(),
 		},
 		config: config,
+		uat:    newSystemNameIdentityAssociation(),
 	}
 	// If there exists a signed ACL from a previous instance we prefer that.
 	aclFile, sigFile, _ := d.getACLFilePaths()
@@ -235,6 +237,7 @@ func (d *dispatcher) Lookup(suffix, method string) (ipc.Invoker, security.Author
 			updating: d.internal.updating,
 			config:   d.config,
 			disp:     d,
+			uat:      d.uat,
 		})
 		return ipc.ReflectInvoker(receiver), d.auth, nil
 	case appsSuffix:
@@ -242,6 +245,7 @@ func (d *dispatcher) Lookup(suffix, method string) (ipc.Invoker, security.Author
 			callback: d.internal.callback,
 			config:   d.config,
 			suffix:   components[1:],
+			uat:      d.uat,
 		})
 		// TODO(caprita,rjkroege): Once we implement per-object ACLs
 		// (i.e. each installation and instance), replace d.auth with

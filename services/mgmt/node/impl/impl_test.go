@@ -47,7 +47,7 @@ import (
 // TestHelperProcess is blackbox boilerplate.
 func TestHelperProcess(t *testing.T) {
 	// All TestHelperProcess invocations need a Runtime. Create it here.
-	rt.Init()
+	rt.Init(veyron2.ForceNewSecurityModel{})
 
 	// Disable the cache because we will be manipulating/using the namespace
 	// across multiple processes and want predictable behaviour without
@@ -232,7 +232,7 @@ func generateSuidHelperScript(t *testing.T, root string) {
 	output := "#!/bin/bash\n"
 	output += "VEYRON_SUIDHELPER_TEST=1"
 	output += " "
-	output += "exec" + " " + os.Args[0] + " -test.run=TestSuidHelper $*"
+	output += "exec" + " " + os.Args[0] + " " + "-minuid=1" + " " + "-test.run=TestSuidHelper $*"
 	output += "\n"
 
 	vlog.VI(1).Infof("script\n%s", output)
@@ -594,11 +594,7 @@ func TestAppLifeCycle(t *testing.T) {
 	// Start an instance of the app.
 	instance1ID := startApp(t, appID)
 
-	u, err := user.Current()
-	if err != nil {
-		t.Fatalf("user.Current() failed: %v", err)
-	}
-	verifyHelperArgs(t, <-pingCh, u.Username) // Wait until the app pings us that it's ready.
+	verifyHelperArgs(t, <-pingCh, userName(t)) // Wait until the app pings us that it's ready.
 
 	v1EP1 := resolve(t, "appV1", 1)[0]
 
@@ -607,7 +603,7 @@ func TestAppLifeCycle(t *testing.T) {
 	resolveExpectNotFound(t, "appV1")
 
 	resumeApp(t, appID, instance1ID)
-	verifyHelperArgs(t, <-pingCh, u.Username) // Wait until the app pings us that it's ready.
+	verifyHelperArgs(t, <-pingCh, userName(t)) // Wait until the app pings us that it's ready.
 	oldV1EP1 := v1EP1
 	if v1EP1 = resolve(t, "appV1", 1)[0]; v1EP1 == oldV1EP1 {
 		t.Fatalf("Expected a new endpoint for the app after suspend/resume")
@@ -615,7 +611,7 @@ func TestAppLifeCycle(t *testing.T) {
 
 	// Start a second instance.
 	instance2ID := startApp(t, appID)
-	verifyHelperArgs(t, <-pingCh, u.Username) // Wait until the app pings us that it's ready.
+	verifyHelperArgs(t, <-pingCh, userName(t)) // Wait until the app pings us that it's ready.
 
 	// There should be two endpoints mounted as "appV1", one for each
 	// instance of the app.
@@ -661,7 +657,7 @@ func TestAppLifeCycle(t *testing.T) {
 
 	// Resume first instance.
 	resumeApp(t, appID, instance1ID)
-	verifyHelperArgs(t, <-pingCh, u.Username) // Wait until the app pings us that it's ready.
+	verifyHelperArgs(t, <-pingCh, userName(t)) // Wait until the app pings us that it's ready.
 	// Both instances should still be running the first version of the app.
 	// Check that the mounttable contains two endpoints, one of which is
 	// v1EP2.
@@ -685,7 +681,7 @@ func TestAppLifeCycle(t *testing.T) {
 
 	// Start a third instance.
 	instance3ID := startApp(t, appID)
-	verifyHelperArgs(t, <-pingCh, u.Username) // Wait until the app pings us that it's ready.
+	verifyHelperArgs(t, <-pingCh, userName(t)) // Wait until the app pings us that it's ready.
 	resolve(t, "appV2", 1)
 
 	// Stop second instance.
@@ -701,7 +697,7 @@ func TestAppLifeCycle(t *testing.T) {
 
 	// Start a fourth instance.  It should be started from version 1.
 	instance4ID := startApp(t, appID)
-	verifyHelperArgs(t, <-pingCh, u.Username) // Wait until the app pings us that it's ready.
+	verifyHelperArgs(t, <-pingCh, userName(t)) // Wait until the app pings us that it's ready.
 	resolve(t, "appV1", 1)
 	stopApp(t, appID, instance4ID)
 	resolveExpectNotFound(t, "appV1")
@@ -1102,4 +1098,234 @@ func setDefaultBlessings(p security.Principal, root *rootPrincipal, name string)
 	}
 	tsecurity.SetDefaultBlessings(p, b)
 	return nil
+}
+
+// Code to make Association lists sortable.
+type byIdentity []node.Association
+
+func (a byIdentity) Len() int           { return len(a) }
+func (a byIdentity) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
+func (a byIdentity) Less(i, j int) bool { return a[i].IdentityName < a[j].IdentityName }
+
+func listAndVerifyAssociations(t *testing.T, stub node.Node, run veyron2.Runtime, expected []node.Association) {
+	assocs, err := stub.ListAssociations(run.NewContext())
+	if err != nil {
+		t.Fatalf("ListAssociations failed %v", err)
+	}
+	sort.Sort(byIdentity(assocs))
+	sort.Sort(byIdentity(expected))
+	if !reflect.DeepEqual(assocs, expected) {
+		t.Fatalf("ListAssociations() got %v, expected  %v", assocs, expected)
+	}
+}
+
+// TODO(rjkroege): Verify that associations persist across restarts
+// once permanent storage is added.
+func TestAccountAssociation(t *testing.T) {
+	defer setupLocalNamespace(t)()
+
+	root, cleanup := setupRootDir(t)
+	defer cleanup()
+
+	var (
+		proot = newRootPrincipal("root")
+		// The two "processes"/runtimes which will act as IPC clients to
+		// the nodemanager process.
+		selfRT  = rt.R()
+		otherRT = newRuntime(t)
+	)
+	defer otherRT.Cleanup()
+	// By default, selfRT and otherRT will have blessings generated based
+	// on the username/machine name running this process. Since these
+	// blessings will appear in test expecations, give them readable
+	// names.
+	if err := setDefaultBlessings(selfRT.Principal(), proot, "self"); err != nil {
+		t.Fatal(err)
+	}
+	if err := setDefaultBlessings(otherRT.Principal(), proot, "other"); err != nil {
+		t.Fatal(err)
+	}
+
+	// Set up the node manager.
+	nm := blackbox.HelperCommand(t, "nodeManager", "nm", root, "unused app repo name", "unused curr link")
+	defer setupChildCommand(nm)()
+	if err := nm.Cmd.Start(); err != nil {
+		t.Fatalf("Start() failed: %v", err)
+	}
+	defer nm.Cleanup()
+	readPID(t, nm)
+
+	nodeStub, err := node.BindNode("nm//nm")
+	if err != nil {
+		t.Fatalf("BindNode failed %v", err)
+	}
+
+	// Attempt to list associations on the node manager without having
+	// claimed it.
+	if list, err := nodeStub.ListAssociations(otherRT.NewContext()); err != nil || list != nil {
+		t.Fatalf("ListAssociations should fail on unclaimed node manager but did not: %v", err)
+	}
+	// self claims the node manager.
+	if err = nodeStub.Claim(selfRT.NewContext(), &granter{p: selfRT.Principal(), extension: "alice"}); err != nil {
+		t.Fatalf("Claim failed: %v", err)
+	}
+
+	vlog.VI(2).Info("Verify that associations start out empty.")
+	listAndVerifyAssociations(t, nodeStub, selfRT, []node.Association(nil))
+
+	if err = nodeStub.AssociateAccount(selfRT.NewContext(), []string{"root/self", "root/other"}, "alice_system_account"); err != nil {
+		t.Fatalf("ListAssociations failed %v", err)
+	}
+	vlog.VI(2).Info("Added association should appear.")
+	listAndVerifyAssociations(t, nodeStub, selfRT, []node.Association{
+		{
+			"root/self",
+			"alice_system_account",
+		},
+		{
+			"root/other",
+			"alice_system_account",
+		},
+	})
+
+	if err = nodeStub.AssociateAccount(selfRT.NewContext(), []string{"root/self", "root/other"}, "alice_other_account"); err != nil {
+		t.Fatalf("AssociateAccount failed %v", err)
+	}
+	vlog.VI(2).Info("Change the associations and the change should appear.")
+	listAndVerifyAssociations(t, nodeStub, selfRT, []node.Association{
+		{
+			"root/self",
+			"alice_other_account",
+		},
+		{
+			"root/other",
+			"alice_other_account",
+		},
+	})
+
+	err = nodeStub.AssociateAccount(selfRT.NewContext(), []string{"root/other"}, "")
+	if err != nil {
+		t.Fatalf("AssociateAccount failed %v", err)
+	}
+	vlog.VI(2).Info("Verify that we can remove an association.")
+	listAndVerifyAssociations(t, nodeStub, selfRT, []node.Association{
+		{
+			"root/self",
+			"alice_other_account",
+		},
+	})
+}
+
+// userName is a helper function to determine the system name that the
+// test is running under.
+func userName(t *testing.T) string {
+	u, err := user.Current()
+	if err != nil {
+		t.Fatalf("user.Current() failed: %v", err)
+	}
+	return u.Username
+}
+
+func TestAppWithSuidHelper(t *testing.T) {
+	// Set up mount table, application, and binary repositories.
+	defer setupLocalNamespace(t)()
+	envelope, cleanup := startApplicationRepository()
+	defer cleanup()
+	defer startBinaryRepository()()
+
+	root, cleanup := setupRootDir(t)
+	defer cleanup()
+
+	var (
+		proot = newRootPrincipal("root")
+		// The two "processes"/runtimes which will act as IPC clients to
+		// the nodemanager process.
+		selfRT  = rt.R()
+		otherRT = newRuntime(t)
+	)
+	defer otherRT.Cleanup()
+
+	// By default, selfRT and otherRT will have blessings generated
+	// based on the username/machine name running this process. Since
+	// these blessings can appear in debugging output, give them
+	// recognizable names.
+	if err := setDefaultBlessings(selfRT.Principal(), proot, "self"); err != nil {
+		t.Fatal(err)
+	}
+	if err := setDefaultBlessings(otherRT.Principal(), proot, "other"); err != nil {
+		t.Fatal(err)
+	}
+
+	// Create a script wrapping the test target that implements
+	// suidhelper.
+	generateSuidHelperScript(t, root)
+
+	// Set up the node manager.  Since we won't do node manager updates,
+	// don't worry about its application envelope and current link.
+	nm := blackbox.HelperCommand(t, "nodeManager", "-mocksetuid", "nm", root, "unused app repo name", "unused curr link")
+	defer setupChildCommand(nm)()
+	if err := nm.Cmd.Start(); err != nil {
+		t.Fatalf("Start() failed: %v", err)
+	}
+	defer nm.Cleanup()
+	readPID(t, nm)
+
+	nodeStub, err := node.BindNode("nm//nm")
+	if err != nil {
+		t.Fatalf("BindNode failed %v", err)
+	}
+
+	// Create the local server that the app uses to tell us which system name
+	// the node manager wished to run it as.
+	server, _ := newServer()
+	defer server.Stop()
+	pingCh := make(chan string, 1)
+	if err := server.Serve("pingserver", ipc.LeafDispatcher(pingServerDisp(pingCh), nil)); err != nil {
+		t.Fatalf("Serve(%q, <dispatcher>) failed: %v", "pingserver", err)
+	}
+
+	// Create an envelope for the app.
+	app := blackbox.HelperCommand(t, "app", "appV1")
+	defer setupChildCommandWithBlessing(app, "alice/child")()
+	appTitle := "google naps"
+	*envelope = *envelopeFromCmd(appTitle, app.Cmd)
+
+	// Install and start the app as root/self.
+	appID := installApp(t, selfRT)
+
+	// Claim the nodemanager with selfRT as root/self/alice
+	if err = nodeStub.Claim(selfRT.NewContext(), &granter{p: selfRT.Principal(), extension: "alice"}); err != nil {
+		t.Fatal(err)
+	}
+
+	// Start an instance of the app but this time it should fail: we do
+	// not have an associated uname for the invoking identity.
+	startAppExpectError(t, appID, verror.NoAccess, selfRT)
+
+	// Create an association for selfRT
+	if err = nodeStub.AssociateAccount(selfRT.NewContext(), []string{"root/self"}, testUserName); err != nil {
+		t.Fatalf("AssociateAccount failed %v", err)
+	}
+
+	startApp(t, appID, selfRT)
+	verifyHelperArgs(t, <-pingCh, testUserName) // Wait until the app pings us that it's ready.
+
+	vlog.VI(2).Infof("other attempting to run an app without access. Should fail.")
+	startAppExpectError(t, appID, verror.NoAccess, otherRT)
+
+	// Self will now let other also run apps.
+	if err = nodeStub.AssociateAccount(selfRT.NewContext(), []string{"root/other"}, testUserName); err != nil {
+		t.Fatalf("AssociateAccount failed %v", err)
+	}
+	// Add Start to the ACL list for root/other.
+	newACL := security.ACL{In: map[security.BlessingPattern]security.LabelSet{"root/other/...": security.AllLabels}}
+	if err = nodeStub.SetACL(selfRT.NewContext(), newACL, ""); err != nil {
+		t.Fatalf("SetACL failed %v", err)
+	}
+
+	vlog.VI(2).Infof("other attempting to run an app with access. Should succeed.")
+	startApp(t, appID, otherRT)
+	verifyHelperArgs(t, <-pingCh, testUserName) // Wait until the app pings us that it's ready.
+
+	// TODO(rjkroege): Make sure that all apps have been terminated.
 }
