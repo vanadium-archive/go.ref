@@ -33,7 +33,6 @@ type config struct {
 
 type configService struct {
 	rwlock  sync.RWMutex // protects elements of this structure.
-	atomic  sync.RWMutex // ties together setting config below and writing the file.
 	mdns    *mdns.MDNS
 	service string
 	file    string     // file containing config
@@ -289,14 +288,11 @@ func (cs *configService) watcher() {
 				cs.rwlock.Unlock()
 				continue
 			}
-			// This lock is to tie setting the data structure and writing the file into an atomic operation.
-			cs.atomic.Lock()
 			cs.current = config
 			cs.gen++
 			cs.change.Broadcast()
-			cs.rwlock.Unlock()
 			writeFile(cs.file, cs.current)
-			cs.atomic.Unlock()
+			cs.rwlock.Unlock()
 			cs.Offer()
 		case <-cs.done:
 			return
@@ -377,17 +373,17 @@ func (cs *configService) Offer() {
 
 // Reread the config file and remember it if the version is newer than current.
 func (cs *configService) Reread() error {
-	cs.rwlock.RLock()
+	cs.rwlock.Lock()
 	file := cs.file
-	cs.rwlock.RUnlock()
 	if len(file) == 0 {
+		cs.rwlock.Unlock()
 		return nil
 	}
 	c, err := readFile(file)
 	if err != nil {
+		cs.rwlock.Unlock()
 		return err
 	}
-	cs.rwlock.Lock()
 	if cs.current != nil && c.version <= cs.current.version {
 		cs.rwlock.Unlock()
 		return nil
