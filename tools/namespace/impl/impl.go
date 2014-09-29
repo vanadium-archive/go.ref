@@ -24,7 +24,7 @@ specified mount name.
 
 func runGlob(cmd *cmdline.Command, args []string) error {
 	if expected, got := 1, len(args); expected != got {
-		return cmd.Errorf("glob: incorrect number of arguments, expected %d, got %d", expected, got)
+		return cmd.UsageErrorf("glob: incorrect number of arguments, expected %d, got %d", expected, got)
 	}
 	pattern := args[0]
 	ns := rt.R().Namespace()
@@ -61,7 +61,7 @@ suffix (s, m, h). A value of 0s represents an infinite duration.
 
 func runMount(cmd *cmdline.Command, args []string) error {
 	if expected, got := 3, len(args); expected != got {
-		return cmd.Errorf("mount: incorrect number of arguments, expected %d, got %d", expected, got)
+		return cmd.UsageErrorf("mount: incorrect number of arguments, expected %d, got %d", expected, got)
 	}
 	name := args[0]
 	server := args[1]
@@ -96,7 +96,7 @@ var cmdUnmount = &cmdline.Command{
 
 func runUnmount(cmd *cmdline.Command, args []string) error {
 	if expected, got := 2, len(args); expected != got {
-		return cmd.Errorf("unmount: incorrect number of arguments, expected %d, got %d", expected, got)
+		return cmd.UsageErrorf("unmount: incorrect number of arguments, expected %d, got %d", expected, got)
 	}
 	name := args[0]
 	server := args[1]
@@ -122,7 +122,7 @@ var cmdResolve = &cmdline.Command{
 
 func runResolve(cmd *cmdline.Command, args []string) error {
 	if expected, got := 1, len(args); expected != got {
-		return cmd.Errorf("resolve: incorrect number of arguments, expected %d, got %d", expected, got)
+		return cmd.UsageErrorf("resolve: incorrect number of arguments, expected %d, got %d", expected, got)
 	}
 	name := args[0]
 	ns := rt.R().Namespace()
@@ -150,7 +150,7 @@ var cmdResolveToMT = &cmdline.Command{
 
 func runResolveToMT(cmd *cmdline.Command, args []string) error {
 	if expected, got := 1, len(args); expected != got {
-		return cmd.Errorf("resolvetomt: incorrect number of arguments, expected %d, got %d", expected, got)
+		return cmd.UsageErrorf("resolvetomt: incorrect number of arguments, expected %d, got %d", expected, got)
 	}
 	name := args[0]
 	ns := rt.R().Namespace()
@@ -178,7 +178,7 @@ var cmdUnresolve = &cmdline.Command{
 
 func runUnresolve(cmd *cmdline.Command, args []string) error {
 	if expected, got := 1, len(args); expected != got {
-		return cmd.Errorf("unresolve: incorrect number of arguments, expected %d, got %d", expected, got)
+		return cmd.UsageErrorf("unresolve: incorrect number of arguments, expected %d, got %d", expected, got)
 	}
 	name := args[0]
 	ns := rt.R().Namespace()

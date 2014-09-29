@@ -50,7 +50,7 @@ its API is, and outputs a succint summary of this API to the standard output.
 
 func runDescribe(cmd *cmdline.Command, args []string) error {
 	if len(args) != 1 {
-		return cmd.Errorf("describe: incorrect number of arguments, expected 1, got %d", len(args))
+		return cmd.UsageErrorf("describe: incorrect number of arguments, expected 1, got %d", len(args))
 	}
 
 	runtime := rt.R()
@@ -89,7 +89,7 @@ the results of the invocation to the standard output.
 
 func runInvoke(cmd *cmdline.Command, args []string) error {
 	if len(args) < 2 {
-		return cmd.Errorf("invoke: incorrect number of arguments, expected at least 2, got %d", len(args))
+		return cmd.UsageErrorf("invoke: incorrect number of arguments, expected at least 2, got %d", len(args))
 	}
 	server, method, args := args[0], args[1], args[2:]
 
@@ -117,7 +117,7 @@ func runInvoke(cmd *cmdline.Command, args []string) error {
 	}
 
 	if len(args) != len(methodSignature.InArgs) {
-		return cmd.Errorf("invoke: incorrect number of arguments, expected %d, got %d", len(methodSignature.InArgs), len(args))
+		return cmd.UsageErrorf("invoke: incorrect number of arguments, expected %d, got %d", len(methodSignature.InArgs), len(args))
 	}
 
 	// Register all user-defined types you would like to use.

@@ -275,8 +275,8 @@ func TestVRPC(t *testing.T) {
 	}
 
 	testErrors := [][]string{
-		[]string{"EchoBool", "usage error"},
-		[]string{"DoesNotExit", "invoke: method DoesNotExit not found"},
+		[]string{"EchoBool", "exit code 1"},
+		[]string{"DoesNotExist", "invoke: method DoesNotExist not found"},
 	}
 	for _, test := range testErrors {
 		testError(t, cmd, append([]string{"invoke", name, test[0]}, test[2:]...), test[1])

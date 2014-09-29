@@ -18,7 +18,7 @@ var cmdDelete = &cmdline.Command{
 
 func runDelete(cmd *cmdline.Command, args []string) error {
 	if expected, got := 1, len(args); expected != got {
-		return cmd.Errorf("delete: incorrect number of arguments, expected %d, got %d", expected, got)
+		return cmd.UsageErrorf("delete: incorrect number of arguments, expected %d, got %d", expected, got)
 	}
 	von := args[0]
 	if err := binary.Delete(von); err != nil {
@@ -45,7 +45,7 @@ writes it to a file.
 
 func runDownload(cmd *cmdline.Command, args []string) error {
 	if expected, got := 2, len(args); expected != got {
-		return cmd.Errorf("download: incorrect number of arguments, expected %d, got %d", expected, got)
+		return cmd.UsageErrorf("download: incorrect number of arguments, expected %d, got %d", expected, got)
 	}
 	von, filename := args[0], args[1]
 	if err := binary.DownloadToFile(von, filename); err != nil {
@@ -72,7 +72,7 @@ file. When successful, it writes the name of the new binary to stdout.
 
 func runUpload(cmd *cmdline.Command, args []string) error {
 	if expected, got := 2, len(args); expected != got {
-		return cmd.Errorf("upload: incorrect number of arguments, expected %d, got %d", expected, got)
+		return cmd.UsageErrorf("upload: incorrect number of arguments, expected %d, got %d", expected, got)
 	}
 	von, filename := args[0], args[1]
 	if err := binary.UploadFromFile(von, filename); err != nil {

@@ -23,7 +23,7 @@ var cmdLabel = &cmdline.Command{
 
 func runLabel(cmd *cmdline.Command, args []string) error {
 	if expected, got := 1, len(args); expected != got {
-		return cmd.Errorf("label: incorrect number of arguments, expected %d, got %d", expected, got)
+		return cmd.UsageErrorf("label: incorrect number of arguments, expected %d, got %d", expected, got)
 	}
 	name := args[0]
 	p, err := repository.BindProfile(name)
@@ -51,7 +51,7 @@ var cmdDescription = &cmdline.Command{
 
 func runDescription(cmd *cmdline.Command, args []string) error {
 	if expected, got := 1, len(args); expected != got {
-		return cmd.Errorf("description: incorrect number of arguments, expected %d, got %d", expected, got)
+		return cmd.UsageErrorf("description: incorrect number of arguments, expected %d, got %d", expected, got)
 	}
 	name := args[0]
 	p, err := repository.BindProfile(name)
@@ -79,7 +79,7 @@ var cmdSpecification = &cmdline.Command{
 
 func runSpecification(cmd *cmdline.Command, args []string) error {
 	if expected, got := 1, len(args); expected != got {
-		return cmd.Errorf("spec: incorrect number of arguments, expected %d, got %d", expected, got)
+		return cmd.UsageErrorf("spec: incorrect number of arguments, expected %d, got %d", expected, got)
 	}
 	name := args[0]
 	p, err := repository.BindProfile(name)
@@ -107,7 +107,7 @@ var cmdPut = &cmdline.Command{
 
 func runPut(cmd *cmdline.Command, args []string) error {
 	if expected, got := 1, len(args); expected != got {
-		return cmd.Errorf("put: incorrect number of arguments, expected %d, got %d", expected, got)
+		return cmd.UsageErrorf("put: incorrect number of arguments, expected %d, got %d", expected, got)
 	}
 	name := args[0]
 	p, err := repository.BindProfile(name)
@@ -144,7 +144,7 @@ var cmdRemove = &cmdline.Command{
 
 func runRemove(cmd *cmdline.Command, args []string) error {
 	if expected, got := 1, len(args); expected != got {
-		return cmd.Errorf("remove: incorrect number of arguments, expected %d, got %d", expected, got)
+		return cmd.UsageErrorf("remove: incorrect number of arguments, expected %d, got %d", expected, got)
 	}
 	name := args[0]
 	p, err := repository.BindProfile(name)
