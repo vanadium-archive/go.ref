@@ -54,7 +54,7 @@ veyron object name via the VSH_NAME environment variable.
 
   $ VSH_NAME=<object name> rsync -avh -e %s /foo/* veyron:/foo/
 
-In this example, the "veyron.io/veyron/veyron" host will be substituted with $VSH_NAME by %s
+In this example, the "veyron" host will be substituted with $VSH_NAME by %s
 and rsync will work as expected.
 
 Full flags:
@@ -164,7 +164,7 @@ func objectNameAndCommandLine() (string, string, error) {
 	// ssh can't work directly with vsh. This trick makes the following
 	// possible:
 	//   $ VSH_NAME=<object name> rsync -avh -e vsh /foo/* veyron:/foo/
-	// The "veyron.io/veyron/veyron" host will be substituted with <object name>.
+	// The "veyron" host will be substituted with <object name>.
 	if envName := os.Getenv("VSH_NAME"); len(envName) > 0 && name == "veyron" {
 		name = envName
 	}
