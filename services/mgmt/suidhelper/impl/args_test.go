@@ -23,12 +23,12 @@ func TestParseArguments(t *testing.T) {
 		},
 
 		{
-			[]string{"setuidhelper", "--username", testUserName},
+			[]string{"setuidhelper", "--minuid", "1", "--username", testUserName},
 			[]string{"A=B"},
 			nil,
 			WorkParameters{
-				uid:       testUidString,
-				gid:       testGidString,
+				uid:       testUid,
+				gid:       testGid,
 				workspace: "",
 				stderrLog: "",
 				stdoutLog: "",
@@ -39,13 +39,13 @@ func TestParseArguments(t *testing.T) {
 		},
 
 		{
-			[]string{"setuidhelper", "--username", testUserName, "--workspace", "/hello",
+			[]string{"setuidhelper", "--minuid", "1", "--username", testUserName, "--workspace", "/hello",
 				"--stdoutlog", "/stdout", "--stderrlog", "/stderr", "--run", "/bin/veyron", "--", "one", "two"},
 			[]string{"A=B"},
 			nil,
 			WorkParameters{
-				uid:       testUidString,
-				gid:       testGidString,
+				uid:       testUid,
+				gid:       testGid,
 				workspace: "/hello",
 				stderrLog: "/stderr",
 				stdoutLog: "/stdout",
@@ -53,6 +53,13 @@ func TestParseArguments(t *testing.T) {
 				argv:      []string{"one", "two"},
 				envv:      []string{"A=B"},
 			},
+		},
+		{
+			[]string{"setuidhelper", "--username", testUserName},
+			[]string{"A=B"},
+			// 501 comes from the default value of --minuid.
+			fmt.Errorf("suidhelper does not permit uids less than 501"),
+			WorkParameters{},
 		},
 	}
 
