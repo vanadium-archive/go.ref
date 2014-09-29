@@ -85,7 +85,7 @@ func compareFileToReference(file string, ref map[string]string) error {
 
 func waitForConsistency(cs ConfigService, ref map[string]string) error {
 	finalerr := errors.New("inconsistent")
-	for loops := 0; loops < 20; loops++ {
+	for loops := 0; loops < 30; loops++ {
 		actual, err := cs.GetAll()
 		if err == nil {
 			err := compare(actual, ref)
@@ -96,7 +96,7 @@ func waitForConsistency(cs ConfigService, ref map[string]string) error {
 		}
 		time.Sleep(500 * time.Millisecond)
 	}
-	return finalerr
+	return errors.New("timeout waiting for consistency: " + finalerr.Error())
 }
 
 func testConfig(fileA, fileB, fileD string) error {
