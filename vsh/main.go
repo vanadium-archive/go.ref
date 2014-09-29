@@ -165,7 +165,7 @@ func objectNameAndCommandLine() (string, string, error) {
 	// possible:
 	//   $ VSH_NAME=<object name> rsync -avh -e vsh /foo/* veyron:/foo/
 	// The "veyron.io/veyron/veyron" host will be substituted with <object name>.
-	if envName := os.Getenv("VSH_NAME"); len(envName) > 0 && name == "veyron.io/veyron/veyron" {
+	if envName := os.Getenv("VSH_NAME"); len(envName) > 0 && name == "veyron" {
 		name = envName
 	}
 	cmd := strings.Join(args, " ")
