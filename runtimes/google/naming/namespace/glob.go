@@ -26,11 +26,9 @@ type queuedEntry struct {
 //   pelems    the pattern to match relative to the mounted subtree.
 //   l         the list to add results to.
 //   recursive true to continue below the matched pattern
-// We return a bool foundRoot which indicates whether the empty name "" was found on a target server.
-func (ns *namespace) globAtServer(ctx context.T, qe *queuedEntry, pattern *glob.Glob, l *list.List) (bool, error) {
+func (ns *namespace) globAtServer(ctx context.T, qe *queuedEntry, pattern *glob.Glob, l *list.List) error {
 	server := qe.me
 	pstr := pattern.String()
-	foundRoot := false
 	vlog.VI(2).Infof("globAtServer(%v, %v)", *server, pstr)
 
 	var lastErr error
@@ -43,68 +41,60 @@ func (ns *namespace) globAtServer(ctx context.T, qe *queuedEntry, pattern *glob.
 		if pattern.Finished() {
 			_, n := naming.SplitAddressName(s.Server)
 			if strings.HasPrefix(n, "//") {
-				return false, nil
+				return nil
 			}
 		}
 
-		mtServers, err := ns.ResolveToMountTable(ctx, s.Server)
+		// Don't further resolve s.Server.
+		s := naming.MakeTerminal(s.Server)
+		callCtx, _ := ctx.WithTimeout(callTimeout)
+		client := ns.rt.Client()
+		call, err := client.StartCall(callCtx, s, "Glob", []interface{}{pstr})
 		if err != nil {
 			lastErr = err
-			continue
+			continue // try another instance
 		}
 
-		for _, s := range mtServers {
-			callCtx, _ := ctx.WithTimeout(callTimeout)
-			client := ns.rt.Client()
-			call, err := client.StartCall(callCtx, s, "Glob", []interface{}{pstr})
+		// At this point we're commited to a server since it answered tha call.
+		for {
+			var e mountEntry
+			err := call.Recv(&e)
+			if err == io.EOF {
+				return nil
+			}
 			if err != nil {
-				lastErr = err
-				continue // try another instance
-			}
-			// At this point we have a server that can handle the RPC.
-			for {
-				var e mountEntry
-				err := call.Recv(&e)
-				if err == io.EOF {
-					return foundRoot, nil
-				}
-				if err != nil {
-					return foundRoot, err
-				}
-				if e.Name == "" {
-					foundRoot = true
-				}
-
-				// Prefix the results with the path of the mount point.
-				e.Name = naming.Join(server.Name, e.Name)
-
-				// Convert to the ever so slightly different name.MountTable version of a MountEntry
-				// and add it to the list.
-				x := &queuedEntry{
-					me: &naming.MountEntry{
-						Name:    e.Name,
-						Servers: convertServers(e.Servers),
-					},
-					depth: qe.depth,
-				}
-				// x.depth is the number of severs we've walked through since we've gone
-				// recursive (i.e. with pattern length of 0).
-				if pattern.Len() == 0 {
-					if x.depth++; x.depth > ns.maxRecursiveGlobDepth {
-						continue
-					}
-				}
-				l.PushBack(x)
+				return err
 			}
 
-			if err := call.Finish(); err != nil {
-				return foundRoot, err
+			// Prefix the results with the path of the mount point.
+			e.Name = naming.Join(server.Name, e.Name)
+
+			// Convert to the ever so slightly different name.MountTable version of a MountEntry
+			// and add it to the list.
+			x := &queuedEntry{
+				me: &naming.MountEntry{
+					Name:    e.Name,
+					Servers: convertServers(e.Servers),
+				},
+				depth: qe.depth,
 			}
-			return foundRoot, nil
+			// x.depth is the number of severs we've walked through since we've gone
+			// recursive (i.e. with pattern length of 0).
+			if pattern.Len() == 0 {
+				if x.depth++; x.depth > ns.maxRecursiveGlobDepth {
+					continue
+				}
+			}
+			l.PushBack(x)
 		}
+
+		if err := call.Finish(); err != nil {
+			return err
+		}
+		return nil
 	}
 
-	return foundRoot, lastErr
+	return lastErr
 }
 
 // Glob implements naming.MountTable.Glob.
@@ -118,9 +108,10 @@ func (ns *namespace) Glob(ctx context.T, pattern string) (chan naming.MountEntry
 
 	// Add constant components of pattern to the servers' addresses and
 	// to the prefix.
-	var prefixElements []string
-	prefixElements, g = g.SplitFixedPrefix()
-	prefix := strings.Join(prefixElements, "/")
+	//var prefixElements []string
+	//prefixElements, g = g.SplitFixedPrefix()
+	//prefix := strings.Join(prefixElements, "/")
+	prefix := ""
 	if len(root) != 0 {
 		prefix = naming.JoinAddressName(root, prefix)
 	}
@@ -171,6 +162,7 @@ func (ns *namespace) globLoop(ctx context.T, servers []string, prefix string, pa
 	// tables to be traversed to the list 'l'.
 	l := list.New()
 	l.PushBack(&queuedEntry{me: &naming.MountEntry{Name: "", Servers: convertStringsToServers(servers)}})
+	atRoot := true
 
 	// Perform a breadth first search of the name graph.
 	for le := l.Front(); le != nil; le = l.Front() {
@@ -181,7 +173,7 @@ func (ns *namespace) globLoop(ctx context.T, servers []string, prefix string, pa
 		suffix := pattern.Split(depth(e.me.Name))
 
 		// Perform a glob at the server.
-		foundRoot, err := ns.globAtServer(ctx, e, suffix, l)
+		err := ns.globAtServer(ctx, e, suffix, l)
 
 		// We want to output this entry if:
 		// 1. There was a real error, we return whatever name gave us the error.
@@ -194,10 +186,11 @@ func (ns *namespace) globLoop(ctx context.T, servers []string, prefix string, pa
 
 		// 2. The current name fullfills the pattern and further servers did not respond
 		//    with "".  That is, we want to prefer foo/ over foo.
-		if suffix.Len() == 0 && !foundRoot {
+		if suffix.Len() == 0 && !atRoot {
 			x := *e.me
 			x.Name = naming.Join(prefix, x.Name)
 			reply <- x
 		}
+		atRoot = false
 	}
 }

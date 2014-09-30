@@ -2,7 +2,7 @@
 #
 # mountMT("/s1/a", "/s2/b")
 # mountMT("/s2/b", "/s3/c")
-# mount("/s3/c", "/s4/d")
+# mount("/s3/c", "/s4")
 #
 # Bogdan points out that: 'we will actually have d == "" in the echo example
 # below (since Serve only mounts endpoints without suffixes)'
@@ -17,8 +17,7 @@
 #
 # "s1/a", ["/s2/b"(mountpoint)]
 # "s1/a", ["/s3/c"(mountpoint)]
-# "s1/a", ["/s4/d"(mountpoint)]
-# "s1/a", []
+# "s1/a", ["/s4//"(mountpoint)]
 
 root
 eval $_
@@ -33,16 +32,26 @@ eval $_
 set s3=$MT_NAME
 
 mount $s1/a $s2/b 1h
+wait $_
 
 mount $s2/b $s3/c 1h
+wait $_
 
 echoServer "Echo" $s3/c
 set es_h=$_
 
+# Returns the root and three mounts at s1/a.
 ls $s1/...
-wait $_
+set l=$_
+eval $l
+assert $RN 4
+wait $l
 
+# Returns three mounts at s1/a.
 ls $s1/a
-wait $_
+set l=$_
+eval $l
+assert $RN 3
+wait $l
 
 stop $es_h
