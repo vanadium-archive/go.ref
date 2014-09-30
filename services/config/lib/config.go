@@ -20,8 +20,8 @@ import (
 	"veyron.io/veyron/veyron2/verror"
 	"veyron.io/veyron/veyron2/vlog"
 
-	"code.google.com/p/mdns"
-	"code.google.com/p/mdns/go_dns"
+	"github.com/presotto/go-mdns-sd"
+	"github.com/presotto/go-mdns-sd/go_dns"
 )
 
 const maxDNSStringLength = 254

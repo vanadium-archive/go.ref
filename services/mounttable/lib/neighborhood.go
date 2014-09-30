@@ -17,7 +17,7 @@ import (
 	"veyron.io/veyron/veyron2/services/mounttable/types"
 	"veyron.io/veyron/veyron2/vlog"
 
-	"code.google.com/p/mdns"
+	"github.com/presotto/go-mdns-sd"
 )
 
 const addressPrefix = "address:"
