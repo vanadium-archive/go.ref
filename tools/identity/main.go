@@ -122,7 +122,7 @@ will generate a blessing with the name veyron/user/device/batman
 The identity of the tool can be specified with the --with flag:
 bless --with /tmp/id /tmp/blessee batman
 `,
-		ArgsName: "<file> <name> [--with=<file>]",
+		ArgsName: "<file> <name>",
 		ArgsLong: `
 <file> is the name of the file containing a base64-vom encoded security.PublicID
 or security.PrivateID
