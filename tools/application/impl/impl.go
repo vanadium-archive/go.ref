@@ -64,7 +64,7 @@ var cmdMatch = &cmdline.Command{
 
 func runMatch(cmd *cmdline.Command, args []string) error {
 	if expected, got := 2, len(args); expected != got {
-		return cmd.Errorf("match: incorrect number of arguments, expected %d, got %d", expected, got)
+		return cmd.UsageErrorf("match: incorrect number of arguments, expected %d, got %d", expected, got)
 	}
 	name, profiles := args[0], args[1]
 	app, err := repository.BindApplication(name)
@@ -95,7 +95,7 @@ var cmdPut = &cmdline.Command{
 
 func runPut(cmd *cmdline.Command, args []string) error {
 	if expected, got := 3, len(args); expected != got {
-		return cmd.Errorf("put: incorrect number of arguments, expected %d, got %d", expected, got)
+		return cmd.UsageErrorf("put: incorrect number of arguments, expected %d, got %d", expected, got)
 	}
 	name, profiles, envelope := args[0], args[1], args[2]
 	app, err := repository.BindApplication(name)
@@ -128,7 +128,7 @@ var cmdRemove = &cmdline.Command{
 
 func runRemove(cmd *cmdline.Command, args []string) error {
 	if expected, got := 2, len(args); expected != got {
-		return cmd.Errorf("remove: incorrect number of arguments, expected %d, got %d", expected, got)
+		return cmd.UsageErrorf("remove: incorrect number of arguments, expected %d, got %d", expected, got)
 	}
 	name, profile := args[0], args[1]
 	app, err := repository.BindApplication(name)
@@ -157,7 +157,7 @@ var cmdEdit = &cmdline.Command{
 
 func runEdit(cmd *cmdline.Command, args []string) error {
 	if expected, got := 2, len(args); expected != got {
-		return cmd.Errorf("edit: incorrect number of arguments, expected %d, got %d", expected, got)
+		return cmd.UsageErrorf("edit: incorrect number of arguments, expected %d, got %d", expected, got)
 	}
 	name, profile := args[0], args[1]
 	app, err := repository.BindApplication(name)

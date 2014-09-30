@@ -38,7 +38,7 @@ specified mount name.
 
 func runGlob(cmd *cmdline.Command, args []string) error {
 	if expected, got := 2, len(args); expected != got {
-		return cmd.Errorf("glob: incorrect number of arguments, expected %d, got %d", expected, got)
+		return cmd.UsageErrorf("glob: incorrect number of arguments, expected %d, got %d", expected, got)
 	}
 	ctx, cancel := rt.R().NewContext().WithTimeout(time.Minute)
 	defer cancel()
@@ -87,7 +87,7 @@ suffix (s, m, h). A value of 0s represents an infinite duration.
 
 func runMount(cmd *cmdline.Command, args []string) error {
 	if expected, got := 3, len(args); expected != got {
-		return cmd.Errorf("mount: incorrect number of arguments, expected %d, got %d", expected, got)
+		return cmd.UsageErrorf("mount: incorrect number of arguments, expected %d, got %d", expected, got)
 	}
 	ctx, cancel := rt.R().NewContext().WithTimeout(time.Minute)
 	defer cancel()
@@ -122,7 +122,7 @@ var cmdUnmount = &cmdline.Command{
 
 func runUnmount(cmd *cmdline.Command, args []string) error {
 	if expected, got := 2, len(args); expected != got {
-		return cmd.Errorf("unmount: incorrect number of arguments, expected %d, got %d", expected, got)
+		return cmd.UsageErrorf("unmount: incorrect number of arguments, expected %d, got %d", expected, got)
 	}
 	ctx, cancel := rt.R().NewContext().WithTimeout(time.Minute)
 	defer cancel()
@@ -152,7 +152,7 @@ var cmdResolveStep = &cmdline.Command{
 
 func runResolveStep(cmd *cmdline.Command, args []string) error {
 	if expected, got := 1, len(args); expected != got {
-		return cmd.Errorf("mount: incorrect number of arguments, expected %d, got %d", expected, got)
+		return cmd.UsageErrorf("mount: incorrect number of arguments, expected %d, got %d", expected, got)
 	}
 	ctx, cancel := rt.R().NewContext().WithTimeout(time.Minute)
 	defer cancel()
