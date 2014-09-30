@@ -12,8 +12,6 @@ type auditingID struct {
 	auditor Auditor
 }
 
-type args []interface{}
-
 // NewPrivateID returns a security.PrivateID implementation that wraps over 'wrapped' but
 // logs all operations that use the private key of wrapped to the auditor.
 func NewPrivateID(wrapped security.PrivateID, auditor Auditor) security.PrivateID {
