@@ -3,7 +3,6 @@
 package server
 
 import (
-	"bytes"
 	"encoding/json"
 	"fmt"
 	"sync"
@@ -11,6 +10,7 @@ import (
 	"veyron.io/veyron/veyron/services/wsprd/lib"
 	"veyron.io/veyron/veyron/services/wsprd/signature"
 
+	vsecurity "veyron.io/veyron/veyron/security"
 	"veyron.io/veyron/veyron2"
 	"veyron.io/veyron/veyron2/ipc"
 	"veyron.io/veyron/veyron2/security"
@@ -70,8 +70,28 @@ type ServerHelper interface {
 	RT() veyron2.Runtime
 }
 
+type authReply struct {
+	Err *verror.Standard
+}
+
+type context struct {
+	Method         string         `json:"method"`
+	Name           string         `json:"name"`
+	Suffix         string         `json:"suffix"`
+	Label          security.Label `json:"label"`
+	LocalID        publicID       `json:"localId"`
+	RemoteID       publicID       `json:"remoteId"`
+	LocalEndpoint  string         `json:"localEndpoint"`
+	RemoteEndpoint string         `json:"remoteEndpoint"`
+}
+
+type authRequest struct {
+	Handle  int64   `json:"handle"`
+	Context context `json:"context"`
+}
+
 type Server struct {
-	sync.Mutex
+	mu sync.Mutex
 
 	// The server that handles the ipc layer.  Listen on this server is
 	// lazily started.
@@ -93,6 +113,8 @@ type Server struct {
 
 	// The set of outstanding server requests.
 	outstandingServerRequests map[int64]chan *serverRPCReply
+
+	outstandingAuthRequests map[int64]chan error
 }
 
 func NewServer(id uint64, veyronProxy string, helper ServerHelper) (*Server, error) {
@@ -101,6 +123,7 @@ func NewServer(id uint64, veyronProxy string, helper ServerHelper) (*Server, err
 		helper:                    helper,
 		veyronProxy:               veyronProxy,
 		outstandingServerRequests: make(map[int64]chan *serverRPCReply),
+		outstandingAuthRequests:   make(map[int64]chan error),
 	}
 	var err error
 	if server.server, err = helper.RT().NewServer(); err != nil {
@@ -117,9 +140,9 @@ func (s *Server) createRemoteInvokerFunc(handle int64) remoteInvokeFunc {
 	return func(methodName string, args []interface{}, call ipc.ServerCall) <-chan *serverRPCReply {
 		flow := s.helper.CreateNewFlow(s, call)
 		replyChan := make(chan *serverRPCReply, 1)
-		s.Lock()
+		s.mu.Lock()
 		s.outstandingServerRequests[flow.ID] = replyChan
-		s.Unlock()
+		s.mu.Unlock()
 		remoteID := call.RemoteID()
 		context := serverRPCRequestContext{
 			Suffix: call.Suffix(),
@@ -172,12 +195,58 @@ func proxyStream(stream ipc.Stream, w lib.ClientWriter, logger vlog.Logger) {
 	}
 }
 
+func (s *Server) convertPublicID(id security.PublicID) publicID {
+	return publicID{
+		Handle: s.helper.AddIdentity(id),
+		Names:  id.Names(),
+	}
+
+}
+
+type remoteAuthFunc func(security.Context) error
+
+func (s *Server) createRemoteAuthFunc(handle int64) remoteAuthFunc {
+	return func(ctx security.Context) error {
+		flow := s.helper.CreateNewFlow(s, nil)
+		replyChan := make(chan error, 1)
+		s.mu.Lock()
+		s.outstandingAuthRequests[flow.ID] = replyChan
+		s.mu.Unlock()
+		message := authRequest{
+			Handle: handle,
+			Context: context{
+				Method:         lib.LowercaseFirstCharacter(ctx.Method()),
+				Name:           ctx.Name(),
+				Suffix:         ctx.Suffix(),
+				Label:          ctx.Label(),
+				LocalID:        s.convertPublicID(ctx.LocalID()),
+				RemoteID:       s.convertPublicID(ctx.RemoteID()),
+				LocalEndpoint:  ctx.LocalEndpoint().String(),
+				RemoteEndpoint: ctx.RemoteEndpoint().String(),
+			},
+		}
+		s.helper.GetLogger().VI(0).Infof("Sending out auth request for %v, %v", flow.ID, message)
+
+		if err := flow.Writer.Send(lib.ResponseAuthRequest, message); err != nil {
+			replyChan <- verror.Internalf("failed to find authorizer %v", err)
+		}
+
+		err := <-replyChan
+		s.helper.GetLogger().VI(0).Infof("going to respond with %v", err)
+		s.mu.Lock()
+		delete(s.outstandingAuthRequests, flow.ID)
+		s.mu.Unlock()
+		s.helper.CleanupFlow(flow.ID)
+		return err
+	}
+}
+
 func (s *Server) Serve(name string) (string, error) {
-	s.Lock()
-	defer s.Unlock()
+	s.mu.Lock()
+	defer s.mu.Unlock()
 
 	if s.dispatcher == nil {
-		s.dispatcher = newDispatcher(s.id, s, s, s.helper.GetLogger())
+		s.dispatcher = newDispatcher(s.id, s, s, s, s.helper.GetLogger())
 	}
 
 	if s.endpoint == "" {
@@ -196,10 +265,10 @@ func (s *Server) Serve(name string) (string, error) {
 }
 
 func (s *Server) HandleServerResponse(id int64, data string) {
-	s.Lock()
+	s.mu.Lock()
 	ch := s.outstandingServerRequests[id]
 	delete(s.outstandingServerRequests, id)
-	s.Unlock()
+	s.mu.Unlock()
 	if ch == nil {
 		s.helper.GetLogger().Errorf("unexpected result from JavaScript. No channel "+
 			"for MessageId: %d exists. Ignoring the results.", id)
@@ -208,8 +277,7 @@ func (s *Server) HandleServerResponse(id int64, data string) {
 	}
 	// Decode the result and send it through the channel
 	var serverReply serverRPCReply
-	decoder := json.NewDecoder(bytes.NewBufferString(data))
-	if decoderErr := decoder.Decode(&serverReply); decoderErr != nil {
+	if decoderErr := json.Unmarshal([]byte(data), &serverReply); decoderErr != nil {
 		err := verror.Standard{
 			ID:  verror.Internal,
 			Msg: fmt.Sprintf("could not unmarshal the result from the server: %v", decoderErr),
@@ -225,6 +293,38 @@ func (s *Server) HandleServerResponse(id int64, data string) {
 
 func (s *Server) HandleLookupResponse(id int64, data string) {
 	s.dispatcher.handleLookupResponse(id, data)
+}
+
+func (s *Server) HandleAuthResponse(id int64, data string) {
+	s.mu.Lock()
+	ch := s.outstandingAuthRequests[id]
+	s.mu.Unlock()
+	if ch == nil {
+		s.helper.GetLogger().Errorf("unexpected result from JavaScript. No channel "+
+			"for MessageId: %d exists. Ignoring the results.", id)
+		//Ignore unknown responses that don't belong to any channel
+		return
+	}
+	// Decode the result and send it through the channel
+	var reply authReply
+	if decoderErr := json.Unmarshal([]byte(data), &reply); decoderErr != nil {
+		reply = authReply{Err: &verror.Standard{
+			ID:  verror.Internal,
+			Msg: fmt.Sprintf("could not unmarshal the result from the server: %v", decoderErr),
+		}}
+	}
+
+	s.helper.GetLogger().VI(0).Infof("response received from JavaScript server for "+
+		"MessageId %d with result %v", id, reply)
+	s.helper.CleanupFlow(id)
+	// A nil verror.Standard does not result in an nil error.  Instead, we have create
+	// a variable for the error interface and only set it's value if the struct is non-
+	// nil.
+	var err error
+	if reply.Err != nil {
+		err = reply.Err
+	}
+	ch <- err
 }
 
 func (s *Server) createFlow() *Flow {
@@ -245,6 +345,15 @@ func (s *Server) createInvoker(handle int64, sig signature.JSONServiceSignature)
 	return newInvoker(serviceSig, remoteInvokeFunc), nil
 }
 
+func (s *Server) createAuthorizer(handle int64, hasAuthorizer bool) (security.Authorizer, error) {
+	if hasAuthorizer {
+		return &authorizer{authFunc: s.createRemoteAuthFunc(handle)}, nil
+	}
+	return vsecurity.NewACLAuthorizer(security.ACL{In: map[security.BlessingPattern]security.LabelSet{
+		security.AllPrincipals: security.AllLabels,
+	}}), nil
+}
+
 func (s *Server) Stop() {
 	result := serverRPCReply{
 		Results: []interface{}{nil},
@@ -253,8 +362,8 @@ func (s *Server) Stop() {
 			Msg: "timeout",
 		},
 	}
-	s.Lock()
-	defer s.Unlock()
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	for _, ch := range s.outstandingServerRequests {
 		select {
 		case ch <- &result:

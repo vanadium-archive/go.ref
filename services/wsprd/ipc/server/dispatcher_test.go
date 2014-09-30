@@ -40,13 +40,26 @@ func (mockInvokerFactory) createInvoker(handle int64, sig signature.JSONServiceS
 	return &mockInvoker{handle: handle, sig: sig}, nil
 }
 
+type mockAuthorizer struct {
+	handle        int64
+	hasAuthorizer bool
+}
+
+func (mockAuthorizer) Authorize(security.Context) error { return nil }
+
+type mockAuthorizerFactory struct{}
+
+func (mockAuthorizerFactory) createAuthorizer(handle int64, hasAuthorizer bool) (security.Authorizer, error) {
+	return mockAuthorizer{handle: handle, hasAuthorizer: hasAuthorizer}, nil
+}
+
 func init() {
 	rt.Init()
 }
 
 func TestSuccessfulLookup(t *testing.T) {
 	flowFactory := &mockFlowFactory{}
-	d := newDispatcher(0, flowFactory, mockInvokerFactory{}, rt.R().Logger())
+	d := newDispatcher(0, flowFactory, mockInvokerFactory{}, mockAuthorizerFactory{}, rt.R().Logger())
 	go func() {
 		if err := flowFactory.writer.WaitForMessage(1); err != nil {
 			t.Errorf("failed to get dispatch request %v", err)
@@ -57,7 +70,7 @@ func TestSuccessfulLookup(t *testing.T) {
 		d.handleLookupResponse(0, jsonResponse)
 	}()
 
-	invoker, _, err := d.Lookup("a/b", "Read")
+	invoker, auth, err := d.Lookup("a/b", "Read")
 
 	if err != nil {
 		t.Errorf("Unexpected error: %v", err)
@@ -72,6 +85,59 @@ func TestSuccessfulLookup(t *testing.T) {
 	expectedInvoker := &mockInvoker{handle: 1, sig: expectedSig}
 	if !reflect.DeepEqual(invoker, expectedInvoker) {
 		t.Errorf("wrong invoker returned, expected: %v, got :%v", expectedInvoker, invoker)
+	}
+
+	expectedAuth := mockAuthorizer{handle: 1, hasAuthorizer: false}
+	if !reflect.DeepEqual(auth, expectedAuth) {
+		t.Errorf("wrong authorizer returned, expected: %v, got :%v", expectedAuth, auth)
+	}
+
+	expectedResponses := []testwriter.Response{
+		testwriter.Response{
+			Type: lib.ResponseDispatcherLookup,
+			Message: map[string]interface{}{
+				"serverId": 0.0,
+				"suffix":   "a/b",
+				"method":   "read",
+			},
+		},
+	}
+	testwriter.CheckResponses(&flowFactory.writer, expectedResponses, nil, t)
+}
+
+func TestSuccessfulLookupWithAuthorizer(t *testing.T) {
+	flowFactory := &mockFlowFactory{}
+	d := newDispatcher(0, flowFactory, mockInvokerFactory{}, mockAuthorizerFactory{}, rt.R().Logger())
+	go func() {
+		if err := flowFactory.writer.WaitForMessage(1); err != nil {
+			t.Errorf("failed to get dispatch request %v", err)
+			t.Fail()
+		}
+		signature := `{"add":{"inArgs":["foo","bar"],"numOutArgs":1,"isStreaming":false}}`
+		jsonResponse := `{"handle":1,"hasAuthorizer":true,"signature":` + signature + "}"
+		d.handleLookupResponse(0, jsonResponse)
+	}()
+
+	invoker, auth, err := d.Lookup("a/b", "Read")
+
+	if err != nil {
+		t.Errorf("Unexpected error: %v", err)
+	}
+
+	expectedSig := signature.JSONServiceSignature{
+		"add": signature.JSONMethodSignature{
+			InArgs:     []string{"foo", "bar"},
+			NumOutArgs: 1,
+		},
+	}
+	expectedInvoker := &mockInvoker{handle: 1, sig: expectedSig}
+	if !reflect.DeepEqual(invoker, expectedInvoker) {
+		t.Errorf("wrong invoker returned, expected: %v, got :%v", expectedInvoker, invoker)
+	}
+
+	expectedAuth := mockAuthorizer{handle: 1, hasAuthorizer: true}
+	if !reflect.DeepEqual(auth, expectedAuth) {
+		t.Errorf("wrong authorizer returned, expected: %v, got :%v", expectedAuth, auth)
 	}
 
 	expectedResponses := []testwriter.Response{
@@ -89,7 +155,7 @@ func TestSuccessfulLookup(t *testing.T) {
 
 func TestFailedLookup(t *testing.T) {
 	flowFactory := &mockFlowFactory{}
-	d := newDispatcher(0, flowFactory, mockInvokerFactory{}, rt.R().Logger())
+	d := newDispatcher(0, flowFactory, mockInvokerFactory{}, mockAuthorizerFactory{}, rt.R().Logger())
 	go func() {
 		if err := flowFactory.writer.WaitForMessage(1); err != nil {
 			t.Errorf("failed to get dispatch request %v", err)

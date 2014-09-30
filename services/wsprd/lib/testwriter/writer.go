@@ -66,7 +66,6 @@ func (w *Writer) streamLength() int {
 // waiting for the given number of messages.
 func (w *Writer) WaitForMessage(n int) error {
 	if w.streamLength() >= n {
-		fmt.Println("Found ", w.Stream)
 		return nil
 	}
 	w.Lock()
@@ -75,7 +74,6 @@ func (w *Writer) WaitForMessage(n int) error {
 	for w.streamLength() < n {
 		select {
 		case <-w.notifier:
-			fmt.Println("got notification")
 			continue
 		case <-time.After(10 * time.Second):
 			return fmt.Errorf("timed out")

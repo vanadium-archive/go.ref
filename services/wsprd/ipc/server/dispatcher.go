@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"sync"
 
-	vsecurity "veyron.io/veyron/veyron/security"
 	"veyron.io/veyron/veyron/services/wsprd/lib"
 	"veyron.io/veyron/veyron/services/wsprd/signature"
 
@@ -23,6 +22,10 @@ type flowFactory interface {
 
 type invokerFactory interface {
 	createInvoker(handle int64, signature signature.JSONServiceSignature) (ipc.Invoker, error)
+}
+
+type authFactory interface {
+	createAuthorizer(handle int64, hasAuthorizer bool) (security.Authorizer, error)
 }
 
 type lookupReply struct {
@@ -44,16 +47,18 @@ type dispatcher struct {
 	serverID           uint64
 	flowFactory        flowFactory
 	invokerFactory     invokerFactory
+	authFactory        authFactory
 	logger             vlog.Logger
 	outstandingLookups map[int64]chan lookupReply
 }
 
 // newDispatcher is a dispatcher factory.
-func newDispatcher(serverID uint64, flowFactory flowFactory, invokerFactory invokerFactory, logger vlog.Logger) *dispatcher {
+func newDispatcher(serverID uint64, flowFactory flowFactory, invokerFactory invokerFactory, authFactory authFactory, logger vlog.Logger) *dispatcher {
 	return &dispatcher{
 		serverID:           serverID,
 		flowFactory:        flowFactory,
 		invokerFactory:     invokerFactory,
+		authFactory:        authFactory,
 		logger:             logger,
 		outstandingLookups: make(map[int64]chan lookupReply),
 	}
@@ -96,16 +101,14 @@ func (d *dispatcher) Lookup(suffix, method string) (ipc.Invoker, security.Author
 		return nil, nil, verror.NoExistf("ipc: dispatcher for %s not found", suffix)
 	}
 
-	auth := vsecurity.NewACLAuthorizer(security.ACL{In: map[security.BlessingPattern]security.LabelSet{
-		security.AllPrincipals: security.AllLabels,
-	}})
-
 	invoker, err := d.invokerFactory.createInvoker(request.Handle, request.Signature)
 	if err != nil {
 		return nil, nil, err
 	}
 
-	return invoker, auth, nil
+	auth, err := d.authFactory.createAuthorizer(request.Handle, request.HasAuthorizer)
+
+	return invoker, auth, err
 }
 
 func (d *dispatcher) handleLookupResponse(id int64, data string) {

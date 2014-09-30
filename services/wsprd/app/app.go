@@ -456,8 +456,7 @@ func (c *Controller) serve(serveRequest serveRequest, w lib.ClientWriter) {
 func (c *Controller) HandleServeRequest(data string, w lib.ClientWriter) {
 	// Decode the serve request which includes IDL, registered services and name
 	var serveRequest serveRequest
-	decoder := json.NewDecoder(bytes.NewBufferString(data))
-	if err := decoder.Decode(&serveRequest); err != nil {
+	if err := json.Unmarshal([]byte(data), &serveRequest); err != nil {
 		w.Error(verror.Internalf("can't unmarshal JSONMessage: %v", err))
 		return
 	}
@@ -466,7 +465,7 @@ func (c *Controller) HandleServeRequest(data string, w lib.ClientWriter) {
 
 // HandleLookupResponse handles the result of a Dispatcher.Lookup call that was
 // run by the Javascript server.
-func (c *Controller) HandleLookupResponse(id int64, data string, w lib.ClientWriter) {
+func (c *Controller) HandleLookupResponse(id int64, data string) {
 	c.Lock()
 	server := c.flowMap[id]
 	c.Unlock()
@@ -479,11 +478,25 @@ func (c *Controller) HandleLookupResponse(id int64, data string, w lib.ClientWri
 	server.HandleLookupResponse(id, data)
 }
 
+// HandleAuthResponse handles the result of a Authorizer.Authorize call that was
+// run by the Javascript server.
+func (c *Controller) HandleAuthResponse(id int64, data string) {
+	c.Lock()
+	server := c.flowMap[id]
+	c.Unlock()
+	if server == nil {
+		c.logger.Errorf("unexpected result from JavaScript. No channel "+
+			"for MessageId: %d exists. Ignoring the results.", id)
+		//Ignore unknown responses that don't belong to any channel
+		return
+	}
+	server.HandleAuthResponse(id, data)
+}
+
 // HandleStopRequest takes a request to stop a server.
 func (c *Controller) HandleStopRequest(data string, w lib.ClientWriter) {
 	var serverId uint64
-	decoder := json.NewDecoder(bytes.NewBufferString(data))
-	if err := decoder.Decode(&serverId); err != nil {
+	if err := json.Unmarshal([]byte(data), &serverId); err != nil {
 		w.Error(verror.Internalf("can't unmarshal JSONMessage: %v", err))
 		return
 	}
@@ -542,8 +555,7 @@ func (c *Controller) getSignature(ctx context.T, name string) (signature.JSONSer
 func (c *Controller) HandleSignatureRequest(ctx context.T, data string, w lib.ClientWriter) {
 	// Decode the request
 	var request signatureRequest
-	decoder := json.NewDecoder(bytes.NewBufferString(data))
-	if err := decoder.Decode(&request); err != nil {
+	if err := json.Unmarshal([]byte(data), &request); err != nil {
 		w.Error(verror.Internalf("can't unmarshal JSONMessage: %v", err))
 		return
 	}
@@ -565,9 +577,8 @@ func (c *Controller) HandleSignatureRequest(ctx context.T, data string, w lib.Cl
 // HandleUnlinkJSIdentity removes an identity from the JS identity store.
 // data should be JSON encoded number
 func (c *Controller) HandleUnlinkJSIdentity(data string, w lib.ClientWriter) {
-	decoder := json.NewDecoder(bytes.NewBufferString(data))
 	var handle int64
-	if err := decoder.Decode(&handle); err != nil {
+	if err := json.Unmarshal([]byte(data), &handle); err != nil {
 		w.Error(verror.Internalf("can't unmarshal JSONMessage: %v", err))
 		return
 	}
@@ -638,8 +649,7 @@ func (c *Controller) bless(request blessingRequest) (*PublicIDHandle, error) {
 // HandleBlessing handles a blessing request from JS.
 func (c *Controller) HandleBlessing(data string, w lib.ClientWriter) {
 	var request blessingRequest
-	decoder := json.NewDecoder(bytes.NewBufferString(data))
-	if err := decoder.Decode(&request); err != nil {
+	if err := json.Unmarshal([]byte(data), &request); err != nil {
 		w.Error(verror.Internalf("can't unmarshall message: %v", err))
 		return
 	}
@@ -660,8 +670,7 @@ func (c *Controller) HandleBlessing(data string, w lib.ClientWriter) {
 
 func (c *Controller) HandleCreateIdentity(data string, w lib.ClientWriter) {
 	var name string
-	decoder := json.NewDecoder(bytes.NewBufferString(data))
-	if err := decoder.Decode(&name); err != nil {
+	if err := json.Unmarshal([]byte(data), &name); err != nil {
 		w.Error(verror.Internalf("can't unmarshall message: %v", err))
 		return
 	}
