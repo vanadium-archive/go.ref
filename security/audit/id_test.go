@@ -99,7 +99,7 @@ func TestAuditingID(t *testing.T) {
 		if want := (audit.Entry{
 			Method:    test.Method,
 			Arguments: []interface{}(test.Args),
-			Results:   sliceOrNil(test.AuditedResult),
+			Results:   sliceOrNil(true, test.AuditedResult),
 			Timestamp: audited.Timestamp, // Hard to come up with the expected timestamp, relying on sanity check above.
 		}); !reflect.DeepEqual(audited, want) {
 			t.Errorf("id.%v(%#v) resulted in [%#v] being audited, wanted [%#v]", test.Method, test.Args, audited, want)
@@ -107,14 +107,7 @@ func TestAuditingID(t *testing.T) {
 	}
 }
 
-func sliceOrNil(item interface{}) []interface{} {
-	if item == nil {
-		return nil
-	}
-	return []interface{}{item}
-}
-
-func TestUnauditedMethods(t *testing.T) {
+func TestUnauditedMethodsOnPrivateID(t *testing.T) {
 	var (
 		mockID      = new(mockID)
 		mockAuditor = new(mockAuditor)
@@ -213,29 +206,6 @@ func (id *mockID) reset() {
 
 func (id *mockID) PublicKey() security.PublicKey { return id.NextResult.(security.PublicKey) }
 
-type mockAuditor struct {
-	LastEntry audit.Entry
-	NextError error
-}
-
-func (a *mockAuditor) Audit(entry audit.Entry) error {
-	if a.NextError != nil {
-		err := a.NextError
-		a.NextError = nil
-		return err
-	}
-	a.LastEntry = entry
-	return nil
-}
-
-func (a *mockAuditor) Release() audit.Entry {
-	entry := a.LastEntry
-	a.LastEntry = audit.Entry{}
-	return entry
-}
-
-type V []interface{}
-
 // thirdPartyCaveat implements security.ThirdPartyCaveat
 type thirdPartyCaveat struct{}
 
@@ -247,6 +217,12 @@ func (thirdPartyCaveat) Requirements() security.ThirdPartyRequirements {
 }
 func (thirdPartyCaveat) Dischargeable(security.Context) error { return nil }
 
+// discharge implements the security.Discharge interface
+type discharge struct{}
+
+func (*discharge) ID() string                                     { return "thirdPartyCaveatID" }
+func (*discharge) ThirdPartyCaveats() []security.ThirdPartyCaveat { return nil }
+
 // context implements security.Context
 type context struct{}
 
@@ -255,32 +231,10 @@ func (context) Name() string                              { return "name" }
 func (context) Suffix() string                            { return "suffix" }
 func (context) Label() security.Label                     { return security.ReadLabel }
 func (context) Discharges() map[string]security.Discharge { return nil }
-func (context) LocalID() security.PublicID                { return nil }
-func (context) RemoteID() security.PublicID               { return nil }
 func (context) LocalPrincipal() security.Principal        { return nil }
 func (context) LocalBlessings() security.Blessings        { return nil }
 func (context) RemoteBlessings() security.Blessings       { return nil }
+func (context) LocalID() security.PublicID                { return nil }
+func (context) RemoteID() security.PublicID               { return nil }
 func (context) LocalEndpoint() naming.Endpoint            { return nil }
 func (context) RemoteEndpoint() naming.Endpoint           { return nil }
-
-// discharge implements the security.Discharge interface
-type discharge struct{}
-
-func (*discharge) ID() string                                     { return "thirdPartyCaveatID" }
-func (*discharge) ThirdPartyCaveats() []security.ThirdPartyCaveat { return nil }
-
-func call(receiver interface{}, method string, args V) (results []interface{}, err interface{}) {
-	defer func() {
-		err = recover()
-	}()
-	callargs := make([]reflect.Value, len(args))
-	for idx, arg := range args {
-		callargs[idx] = reflect.ValueOf(arg)
-	}
-	callresults := reflect.ValueOf(receiver).MethodByName(method).Call(callargs)
-	results = make([]interface{}, len(callresults))
-	for idx, res := range callresults {
-		results[idx] = res.Interface()
-	}
-	return
-}
