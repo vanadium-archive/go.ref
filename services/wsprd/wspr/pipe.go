@@ -60,7 +60,11 @@ const (
 	// A request to create a new random identity
 	websocketCreateIdentity = 10
 
+	// A request to run the lookup function on a dispatcher.
 	websocketLookupResponse = 11
+
+	// A request to run the authorizer for an rpc.
+	websocketAuthResponse = 12
 )
 
 type websocketMessage struct {
@@ -271,13 +275,15 @@ func (p *pipe) readLoop() {
 			ctx := p.wspr.rt.NewContext()
 			go p.controller.HandleSignatureRequest(ctx, msg.Data, ww)
 		case websocketLookupResponse:
-			go p.controller.HandleLookupResponse(msg.Id, msg.Data, ww)
+			go p.controller.HandleLookupResponse(msg.Id, msg.Data)
 		case websocketBlessIdentity:
 			go p.controller.HandleBlessing(msg.Data, ww)
 		case websocketCreateIdentity:
 			go p.controller.HandleCreateIdentity(msg.Data, ww)
 		case websocketUnlinkIdentity:
 			go p.controller.HandleUnlinkJSIdentity(msg.Data, ww)
+		case websocketAuthResponse:
+			go p.controller.HandleAuthResponse(msg.Id, msg.Data)
 		default:
 			ww.Error(verror.Unknownf("unknown message type: %v", msg.Type))
 		}

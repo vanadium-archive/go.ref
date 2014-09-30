@@ -94,6 +94,5 @@ func (i *invoker) Invoke(methodName string, call ipc.ServerCall, argptrs []inter
 // methodSecurityLabel returns the security label for a given method.
 func methodSecurityLabel(methodSig ipc.MethodSignature) security.Label {
 	// TODO(bprosnitz) Get the security label and return it here.
-
 	return security.AdminLabel
 }

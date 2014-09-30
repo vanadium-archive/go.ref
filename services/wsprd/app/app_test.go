@@ -377,19 +377,34 @@ func TestJavascriptStopServer(t *testing.T) {
 	return
 }
 
+// A test case to simulate a Javascript server talking to the App.  All the
+// responses from Javascript are mocked and sent back through the method calls.
+// All messages from the client are sent using a go client.
 type jsServerTestCase struct {
 	method string
 	inArgs []interface{}
 	// The set of streaming inputs from the client to the server.
+	// This is passed to the client, which then passes it to the app.
 	clientStream []interface{}
-	// The set of streaming outputs from the server to the client.
-	serverStream         []string
+	// The set of JSON streaming messages sent from Javascript to the
+	// app.
+	serverStream []string
+	// The stream that we expect the client to see.
 	expectedServerStream []interface{}
-	finalResponse        interface{}
-	err                  *verror.Standard
+	// The final response sent by the Javascript server to the
+	// app.
+	finalResponse interface{}
+	// The final error sent by the Javascript server to the app.
+	err *verror.Standard
+
+	// Whether or not the Javascript server has an authorizer or not.
+	// If it does have an authorizer, then authError is sent back from the server
+	// to the app.
+	hasAuthorizer bool
+	authError     *verror.Standard
 }
 
-func sendServerStream(t *testing.T, controller *Controller, test *jsServerTestCase, w lib.ClientWriter) {
+func sendServerStream(t *testing.T, controller *Controller, test *jsServerTestCase, w lib.ClientWriter, expectedFlow int64) {
 	for _, msg := range test.serverStream {
 		controller.SendOnStream(4, msg, w)
 	}
@@ -403,7 +418,24 @@ func sendServerStream(t *testing.T, controller *Controller, test *jsServerTestCa
 	if err != nil {
 		t.Fatalf("Failed to serialize the reply: %v", err)
 	}
-	controller.HandleServerResponse(4, string(bytes))
+	controller.HandleServerResponse(expectedFlow, string(bytes))
+}
+
+// Replaces the "remoteEndpoint" in security context of the message
+// passed in with a constant string "remoteEndpoint" since there is
+// no way to get the endpoint of the client.
+func cleanUpAuthRequest(message *testwriter.Response, t *testing.T) {
+	// We should make sure that remoteEndpoint exists in the last message and
+	// change it to a fixed string.
+	if message.Type != lib.ResponseAuthRequest {
+		t.Errorf("Unexpected auth message %v", message)
+		return
+	}
+	context := message.Message.(map[string]interface{})["context"].(map[string]interface{})
+	if context["remoteEndpoint"] == nil || context["remoteEndpoint"] == "" {
+		t.Errorf("Unexpected auth message %v", message)
+	}
+	context["remoteEndpoint"] = "remoteEndpoint"
 }
 
 func runJsServerTestCase(t *testing.T, test jsServerTestCase) {
@@ -432,8 +464,8 @@ func runJsServerTestCase(t *testing.T, test jsServerTestCase) {
 	if !ok {
 		t.Errorf("invalid endpdoint returned from serve: %v", resp.Message)
 	}
-
-	if _, err := r.NewEndpoint(msg); err != nil {
+	endpoint, err := r.NewEndpoint(msg)
+	if err != nil {
 		t.Errorf("invalid endpdoint returned from serve: %v", resp.Message)
 	}
 
@@ -464,7 +496,6 @@ func runJsServerTestCase(t *testing.T, test jsServerTestCase) {
 		if err := rt.writer.WaitForMessage(len(expectedWebsocketMessage)); err != nil {
 			t.Errorf("didn't receive expected message: %v", err)
 		}
-		fmt.Printf("writer data is %v", rt.writer)
 
 		// Handle the ResolveStep
 		dispatcherResponse := map[string]interface{}{
@@ -478,7 +509,7 @@ func runJsServerTestCase(t *testing.T, test jsServerTestCase) {
 			t.Errorf("failed to serailize the response: %v", err)
 			return
 		}
-		rt.controller.HandleLookupResponse(0, string(bytes), rt.writer)
+		rt.controller.HandleLookupResponse(0, string(bytes))
 	}()
 
 	call, err := client.StartCall(rt.controller.rt.NewContext(), "/"+msg+"/adder", test.method, test.inArgs)
@@ -486,6 +517,7 @@ func runJsServerTestCase(t *testing.T, test jsServerTestCase) {
 		t.Errorf("failed to start call: %v", err)
 	}
 
+	// This is lookup call for dispatcher.
 	expectedWebsocketMessage = append(expectedWebsocketMessage, testwriter.Response{
 		Type: lib.ResponseDispatcherLookup,
 		Message: map[string]interface{}{
@@ -500,21 +532,129 @@ func runJsServerTestCase(t *testing.T, test jsServerTestCase) {
 	}
 
 	dispatcherResponse := map[string]interface{}{
-		"handle":    0,
-		"signature": adderServiceSignature,
+		"handle":        0,
+		"signature":     adderServiceSignature,
+		"hasAuthorizer": test.hasAuthorizer,
 	}
+
 	bytes, err := json.Marshal(dispatcherResponse)
 	if err != nil {
 		t.Errorf("failed to serailize the response: %v", err)
 		return
 	}
-	rt.controller.HandleLookupResponse(2, string(bytes), rt.writer)
+	rt.controller.HandleLookupResponse(2, string(bytes))
 
 	typedNames := rt.controller.rt.Identity().PublicID().Names()
 	names := []interface{}{}
 	for _, n := range typedNames {
 		names = append(names, n)
 	}
+
+	// The expectedHandle for the javascript ID.  Since we don't always call the authorizer
+	// this handle could be different by the time we make the start rpc call.
+	expectedIDHandle := 1.0
+	expectedFlowCount := int64(4)
+	if test.hasAuthorizer {
+		// If an authorizer exists, it gets called twice.  The first time to see if the
+		// client is actually able to make this rpc and a second time to see if the server
+		// is ok with the client getting trace information for the rpc.
+		expectedWebsocketMessage = append(expectedWebsocketMessage, testwriter.Response{
+			Type: lib.ResponseAuthRequest,
+			Message: map[string]interface{}{
+				"handle": 0.0,
+				"context": map[string]interface{}{
+					"method": lib.LowercaseFirstCharacter(test.method),
+					"name":   "adder",
+					"suffix": "adder",
+					"label":  8.0, // This is a read label.
+					"localId": map[string]interface{}{
+						"Handle": 1.0,
+						"Names":  names,
+					},
+					"remoteId": map[string]interface{}{
+						"Handle": 2.0,
+						"Names":  names,
+					},
+					"localEndpoint":  endpoint.String(),
+					"remoteEndpoint": "remoteEndpoint",
+				},
+			},
+		})
+		if err := rt.writer.WaitForMessage(len(expectedWebsocketMessage)); err != nil {
+			t.Errorf("didn't receive expected message: %v", err)
+		}
+
+		cleanUpAuthRequest(&rt.writer.Stream[len(expectedWebsocketMessage)-1], t)
+		authResponse := map[string]interface{}{
+			"err": test.authError,
+		}
+
+		bytes, err := json.Marshal(authResponse)
+		if err != nil {
+			t.Errorf("failed to serailize the response: %v", err)
+			return
+		}
+		rt.controller.HandleAuthResponse(4, string(bytes))
+
+		// If we expected an auth error, we should go ahead and finish this rpc to get back
+		// the auth error.
+		if test.authError != nil {
+			var result interface{}
+			var err2 error
+			err := call.Finish(&result, &err2)
+			testwriter.CheckResponses(rt.writer, expectedWebsocketMessage, nil, t)
+			// We can't do a deep equal with authError because the error returned by the
+			// authorizer is wrapped into another error by the ipc framework.
+			if err == nil {
+				t.Errorf("unexpected auth error, expected %v, got %v", test.authError, err)
+			}
+			return
+		}
+
+		// The debug authorize call is identical to the regular auth call with a different
+		// label.
+		expectedWebsocketMessage = append(expectedWebsocketMessage, testwriter.Response{
+			Type: lib.ResponseAuthRequest,
+			Message: map[string]interface{}{
+				"handle": 0.0,
+				"context": map[string]interface{}{
+					"method": lib.LowercaseFirstCharacter(test.method),
+					"name":   "adder",
+					"suffix": "adder",
+					"label":  16.0,
+					"localId": map[string]interface{}{
+						"Handle": 3.0,
+						"Names":  names,
+					},
+					"remoteId": map[string]interface{}{
+						"Handle": 4.0,
+						"Names":  names,
+					},
+					"localEndpoint":  endpoint.String(),
+					"remoteEndpoint": "remoteEndpoint",
+				},
+			},
+		})
+
+		if err := rt.writer.WaitForMessage(len(expectedWebsocketMessage)); err != nil {
+			t.Errorf("didn't receive expected message: %v", err)
+		}
+
+		cleanUpAuthRequest(&rt.writer.Stream[len(expectedWebsocketMessage)-1], t)
+		authResponse = map[string]interface{}{}
+
+		bytes, err = json.Marshal(authResponse)
+		if err != nil {
+			t.Errorf("failed to serailize the response: %v", err)
+			return
+		}
+		rt.controller.HandleAuthResponse(6, string(bytes))
+
+		expectedIDHandle += 4
+		expectedFlowCount += 4
+	}
+
+	// Now we expect the rpc to be invoked on the Javascript server.
 	expectedWebsocketMessage = append(expectedWebsocketMessage, testwriter.Response{
 		Type: lib.ResponseServerRequest,
 		Message: map[string]interface{}{
@@ -526,7 +666,7 @@ func runJsServerTestCase(t *testing.T, test jsServerTestCase) {
 				"Name":   "adder",
 				"Suffix": "adder",
 				"RemoteID": map[string]interface{}{
-					"Handle": 1.0,
+					"Handle": expectedIDHandle,
 					"Names":  names,
 				},
 			},
@@ -552,7 +692,7 @@ func runJsServerTestCase(t *testing.T, test jsServerTestCase) {
 	expectedWebsocketMessage = append(expectedWebsocketMessage, testwriter.Response{Type: lib.ResponseStreamClose})
 
 	expectedStream := test.expectedServerStream
-	go sendServerStream(t, rt.controller, &test, rt.writer)
+	go sendServerStream(t, rt.controller, &test, rt.writer, expectedFlowCount)
 	for {
 		var data interface{}
 		if err := call.Recv(&data); err != nil {
@@ -601,6 +741,15 @@ func TestSimpleJSServer(t *testing.T) {
 	})
 }
 
+func TestJSServerWithAuthorizer(t *testing.T) {
+	runJsServerTestCase(t, jsServerTestCase{
+		method:        "Add",
+		inArgs:        []interface{}{1.0, 2.0},
+		finalResponse: 3.0,
+		hasAuthorizer: true,
+	})
+}
+
 func TestJSServerWithError(t *testing.T) {
 	runJsServerTestCase(t, jsServerTestCase{
 		method:        "Add",
@@ -613,6 +762,18 @@ func TestJSServerWithError(t *testing.T) {
 	})
 }
 
+func TestJSServerWithAuthorizerAndAuthError(t *testing.T) {
+	runJsServerTestCase(t, jsServerTestCase{
+		method:        "Add",
+		inArgs:        []interface{}{1.0, 2.0},
+		finalResponse: 3.0,
+		hasAuthorizer: true,
+		authError: &verror.Standard{
+			ID:  verror.Internal,
+			Msg: "JS Server failed",
+		},
+	})
+}
 func TestJSServerWihStreamingInputs(t *testing.T) {
 	runJsServerTestCase(t, jsServerTestCase{
 		method:        "StreamingAdd",

@@ -9,6 +9,7 @@ const (
 	ResponseServerRequest                 = 3
 	ResponseStreamClose                   = 4
 	ResponseDispatcherLookup              = 5
+	ResponseAuthRequest                   = 6
 )
 
 // This is basically an io.Writer interface, that allows passing error message
