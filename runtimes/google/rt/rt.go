@@ -20,20 +20,24 @@ import (
 	"veyron.io/veyron/veyron/services/mgmt/lib/exec"
 )
 
-type vrt struct {
-	profile   veyron2.Profile
-	publisher *config.Publisher
-	sm        stream.Manager
-	ns        naming.Namespace
-	signals   chan os.Signal
-	id        security.PrivateID
-	store     security.PublicIDStore
-	client    ipc.Client
-	mgmt      *mgmtImpl
-	debug     debugServer
+// TODO(caprita): Verrorize this, and maybe move it in the API.
+var errCleaningUp = fmt.Errorf("operation rejected: runtime is being cleaned up")
 
-	mu       sync.Mutex
-	nServers int // GUARDED_BY(mu)
+type vrt struct {
+	mu sync.Mutex
+
+	profile    veyron2.Profile
+	publisher  *config.Publisher
+	sm         []stream.Manager // GUARDED_BY(mu)
+	ns         naming.Namespace
+	signals    chan os.Signal
+	id         security.PrivateID
+	store      security.PublicIDStore
+	client     ipc.Client
+	mgmt       *mgmtImpl
+	debug      debugServer
+	nServers   int  // GUARDED_BY(mu)
+	cleaningUp bool // GUARDED_BY(mu)
 }
 
 // Implements veyron2/rt.New
@@ -99,15 +103,16 @@ func New(opts ...veyron2.ROpt) (veyron2.Runtime, error) {
 	}
 	vlog.VI(2).Infof("Namespace Roots: %s", nsRoots)
 
+	// Create the default stream manager.
+	if _, err := rt.NewStreamManager(); err != nil {
+		return nil, err
+	}
+
+	if err := rt.initSecurity(); err != nil {
+		return nil, err
+	}
+
 	var err error
-	if rt.sm, err = rt.NewStreamManager(); err != nil {
-		return nil, err
-	}
-
-	if err = rt.initSecurity(); err != nil {
-		return nil, err
-	}
-
 	if rt.client, err = rt.NewClient(); err != nil {
 		return nil, err
 	}
@@ -147,11 +152,36 @@ func (r *vrt) Profile() veyron2.Profile {
 }
 
 func (rt *vrt) Cleanup() {
+	rt.mu.Lock()
+	if rt.cleaningUp {
+		rt.mu.Unlock()
+		// TODO(caprita): Should we actually treat extra Cleanups as
+		// silent no-ops?  For now, it's better not to, in order to
+		// expose programming errors.
+		vlog.Errorf("rt.Cleanup done")
+		return
+	}
+	rt.cleaningUp = true
+	rt.mu.Unlock()
+
 	// TODO(caprita): Consider shutting down mgmt later in the runtime's
 	// shutdown sequence, to capture some of the runtime internal shutdown
 	// tasks in the task tracker.
 	rt.mgmt.shutdown()
-	rt.sm.Shutdown()
+	// It's ok to access rt.sm out of lock below, since a Mutex acts as a
+	// barrier in Go and hence we're guaranteed that cleaningUp is true at
+	// this point.  The only code that mutates rt.sm is NewStreamManager in
+	// ipc.go, which respects the value of cleaningUp.
+	//
+	// TODO(caprita): It would be cleaner if we do something like this
+	// inside the lock (and then iterate over smgrs below):
+	//   smgrs := rt.sm
+	//   rt.sm = nil
+	// However, to make that work we need to prevent NewClient and NewServer
+	// from using rt.sm after cleaningUp has been set.  Hence the TODO.
+	for _, sm := range rt.sm {
+		sm.Shutdown()
+	}
 	rt.shutdownSignalHandling()
 	rt.shutdownLogging()
 }

@@ -81,7 +81,9 @@ func (rt *vrt) newLocalID(id security.PublicID) vc.LocalID {
 }
 
 func (rt *vrt) NewClient(opts ...ipc.ClientOpt) (ipc.Client, error) {
-	sm := rt.sm
+	rt.mu.Lock()
+	sm := rt.sm[0]
+	rt.mu.Unlock()
 	ns := rt.ns
 	var id security.PublicID
 	var otherOpts []ipc.ClientOpt
@@ -121,21 +123,26 @@ func (rt *vrt) SpanFromContext(ctx context.T) vtrace.Span {
 }
 
 func (rt *vrt) NewServer(opts ...ipc.ServerOpt) (ipc.Server, error) {
-	var err error
-
-	// Create a new RoutingID (and StreamManager) for each server.
-	// Except, in the common case of a process having a single Server,
-	// use the same RoutingID (and StreamManager) that is used for Clients.
 	rt.mu.Lock()
-	sm := rt.sm
+	// Create a new RoutingID (and StreamManager) for each server, except
+	// the first one.  The reasoning is for the first server to share the
+	// RoutingID (and StreamManager) with Clients.
+	//
+	// TODO(ashankar/caprita): special-casing the first server is ugly, and
+	// has diminished practical benefits since the first server in practice
+	// is the app cycle manager server.  If the goal of sharing connections
+	// between Clients and Servers in the same Runtime is still important,
+	// we need to think of other ways to achieve it.
+	sm := rt.sm[0]
 	rt.nServers++
-	if rt.nServers > 1 {
-		sm, err = rt.NewStreamManager()
-	}
+	nServers := rt.nServers
 	rt.mu.Unlock()
-
-	if err != nil {
-		return nil, fmt.Errorf("failed to create ipc/stream/Manager: %v", err)
+	if nServers > 1 {
+		var err error
+		sm, err = rt.NewStreamManager()
+		if err != nil {
+			return nil, fmt.Errorf("failed to create ipc/stream/Manager: %v", err)
+		}
 	}
 	// Start the http debug server exactly once for this runtime.
 	rt.startHTTPDebugServerOnce()
@@ -166,5 +173,13 @@ func (rt *vrt) NewStreamManager(opts ...stream.ManagerOpt) (stream.Manager, erro
 	}
 	sm := imanager.InternalNew(rid)
 	rt.debug.RegisterStreamManager(rid, sm)
+	rt.mu.Lock()
+	defer rt.mu.Unlock()
+	if rt.cleaningUp {
+		sm.Shutdown() // For whatever it's worth.
+		// TODO(caprita): Should we also unregister sm from debug?
+		return nil, errCleaningUp
+	}
+	rt.sm = append(rt.sm, sm)
 	return sm, nil
 }
