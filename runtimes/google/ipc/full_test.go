@@ -412,8 +412,13 @@ func TestStartCall(t *testing.T) {
 			stopServer(t, server, ns)
 			continue
 		}
-		if _, err := client.StartCall(testContext(), "mountpoint/server/suffix", "irrelevant", nil, veyron2.RemoteID(test.pattern)); !matchesErrorPattern(err, test.err) {
+		if call, err := client.StartCall(testContext(), "mountpoint/server/suffix", "irrelevant", nil, veyron2.RemoteID(test.pattern)); !matchesErrorPattern(err, test.err) {
 			t.Errorf(`%s: client.StartCall: got error "%v", want to match "%v"`, name, err, test.err)
+		} else if call != nil {
+			serverBlessings, _ := call.RemoteBlessings()
+			if !reflect.DeepEqual(serverBlessings, serverID.PublicID().Names()) {
+				t.Errorf("%s: Server authenticated as %v, wanted %v", name, serverBlessings, serverID.PublicID().Names())
+			}
 		}
 		client.Close()
 		stopServer(t, server, ns)

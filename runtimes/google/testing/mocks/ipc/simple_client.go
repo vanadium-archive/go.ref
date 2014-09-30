@@ -8,6 +8,7 @@ import (
 
 	"veyron.io/veyron/veyron2/context"
 	"veyron.io/veyron/veyron2/ipc"
+	"veyron.io/veyron/veyron2/security"
 	"veyron.io/veyron/veyron2/vlog"
 )
 
@@ -61,7 +62,7 @@ func (c *SimpleMockClient) StartCall(ctx context.T, name, method string, args []
 	return &clientCall, nil
 }
 
-// Close Implements ipc.Client
+// Close implements ipc.Client
 func (*SimpleMockClient) Close() {
 	defer vlog.LogCall()()
 }
@@ -96,6 +97,11 @@ func (mc *mockCall) Finish(resultptrs ...interface{}) error {
 	}
 
 	return nil
+}
+
+// RemoteBlessings implements ipc.Call
+func (*mockCall) RemoteBlessings() ([]string, security.Blessings) {
+	return []string{}, nil
 }
 
 //mockStream implements ipc.Stream

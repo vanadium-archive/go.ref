@@ -536,3 +536,8 @@ func (fc *flowClient) Cancel() {
 	vtrace.FromContext(fc.ctx).Annotate("Cancelled")
 	fc.flow.Cancel()
 }
+
+func (fc *flowClient) RemoteBlessings() ([]string, security.Blessings) {
+	// TODO(ashankar): Fill in the second result once the switch to the new API is complete.
+	return fc.flow.RemoteID().Names(), nil
+}
