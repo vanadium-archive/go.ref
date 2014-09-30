@@ -245,6 +245,7 @@ func (thirdPartyCaveat) Location() string                { return "thirdPartyCav
 func (thirdPartyCaveat) Requirements() security.ThirdPartyRequirements {
 	return security.ThirdPartyRequirements{}
 }
+func (thirdPartyCaveat) Dischargeable(security.Context) error { return nil }
 
 // context implements security.Context
 type context struct{}

@@ -23,6 +23,9 @@ func (d dischargerd) Discharge(ctx ipc.ServerContext, caveatAny vdlutil.Any, _ s
 	if !ok {
 		return nil, fmt.Errorf("type %T does not implement security.ThirdPartyCaveat", caveatAny)
 	}
+	if err := caveat.Dischargeable(ctx); err != nil {
+		return nil, fmt.Errorf("third-party caveat %v cannot be discharged for this context: %v", caveat, err)
+	}
 	return d.id.MintDischarge(caveat, ctx, time.Minute, nil)
 }
 

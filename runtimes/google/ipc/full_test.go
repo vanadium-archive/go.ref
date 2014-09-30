@@ -134,6 +134,9 @@ func (*dischargeServer) Discharge(ctx ipc.ServerCall, cav vdlutil.Any, _ securit
 	}
 	// Add a fakeTimeCaveat to allow the discharge to expire
 	expiry := fakeTimeCaveat(clock.Now())
+	if err := c.Dischargeable(ctx); err != nil {
+		return nil, fmt.Errorf("third-party caveat %v cannot be discharged for this context: %v", c, err)
+	}
 	return serverID.MintDischarge(c, ctx, time.Hour, []security.Caveat{newCaveat(expiry)})
 }
 

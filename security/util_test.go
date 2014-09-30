@@ -87,6 +87,7 @@ func (tpCaveat) Validate(security.Context) (err error)             { return }
 func (tpCaveat) ID() (id string)                                   { return }
 func (tpCaveat) Location() (loc string)                            { return }
 func (tpCaveat) Requirements() (r security.ThirdPartyRequirements) { return }
+func (tpCaveat) Dischargeable(security.Context) (err error)        { return }
 
 func TestCaveatUtil(t *testing.T) {
 	type C []security.Caveat
