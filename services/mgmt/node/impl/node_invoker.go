@@ -266,9 +266,7 @@ func (i *nodeInvoker) updateNodeManager(ctx context.T) error {
 		return errOperationFailed
 	}
 	deferrer := func() {
-		if err := os.RemoveAll(workspace); err != nil {
-			vlog.Errorf("RemoveAll(%v) failed: %v", workspace, err)
-		}
+		cleanupDir(workspace)
 	}
 	defer func() {
 		if deferrer != nil {

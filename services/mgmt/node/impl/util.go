@@ -82,3 +82,11 @@ func updateLink(target, link string) error {
 	}
 	return nil
 }
+
+// cleanupDir is defined like this so we can override its implementation for
+// tests.
+var cleanupDir = func(dir string) {
+	if err := os.RemoveAll(dir); err != nil {
+		vlog.Errorf("RemoveAll(%v) failed: %v", dir, err)
+	}
+}
