@@ -6,11 +6,12 @@ import (
 	"strings"
 	"time"
 
-	"veyron.io/veyron/veyron/lib/testutil/blackbox"
-
 	"veyron.io/veyron/veyron2/ipc"
 	"veyron.io/veyron/veyron2/naming"
 	"veyron.io/veyron/veyron2/rt"
+
+	"veyron.io/veyron/veyron/lib/testutil/blackbox"
+	"veyron.io/veyron/veyron/profiles"
 )
 
 func init() {
@@ -38,7 +39,7 @@ func serve(msg string, dispatcher ipc.Dispatcher, args []string) {
 	if err != nil {
 		bbExitWithError(fmt.Sprintf("%s failed: %v", msg, err))
 	}
-	ep, err := server.Listen("tcp", "127.0.0.1:0")
+	ep, err := server.ListenX(profiles.LocalListenSpec)
 	if err != nil {
 		bbExitWithError(fmt.Sprintf("%s failed: %v", msg, err))
 	}

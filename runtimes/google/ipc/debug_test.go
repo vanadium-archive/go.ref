@@ -5,13 +5,14 @@ import (
 	"sort"
 	"testing"
 
-	"veyron.io/veyron/veyron/lib/stats"
-	"veyron.io/veyron/veyron/runtimes/google/ipc/stream/manager"
-	tnaming "veyron.io/veyron/veyron/runtimes/google/testing/mocks/naming"
-
 	"veyron.io/veyron/veyron2/ipc"
 	"veyron.io/veyron/veyron2/naming"
 	"veyron.io/veyron/veyron2/services/mounttable/types"
+
+	"veyron.io/veyron/veyron/lib/stats"
+	"veyron.io/veyron/veyron/profiles"
+	"veyron.io/veyron/veyron/runtimes/google/ipc/stream/manager"
+	tnaming "veyron.io/veyron/veyron/runtimes/google/testing/mocks/naming"
 )
 
 func TestDebugServer(t *testing.T) {
@@ -24,7 +25,7 @@ func TestDebugServer(t *testing.T) {
 	}
 	defer server.Stop()
 	server.Serve("", ipc.LeafDispatcher(&testObject{}, nil))
-	ep, err := server.Listen("tcp4", "127.0.0.1:0")
+	ep, err := server.ListenX(profiles.LocalListenSpec)
 	if err != nil {
 		t.Fatalf("server.Listen failed: %v", err)
 	}

@@ -11,8 +11,6 @@ import (
 	"strings"
 	"testing"
 
-	"veyron.io/veyron/veyron/tools/binary/impl"
-
 	"veyron.io/veyron/veyron2"
 	"veyron.io/veyron/veyron2/ipc"
 	"veyron.io/veyron/veyron2/naming"
@@ -21,6 +19,9 @@ import (
 	"veyron.io/veyron/veyron2/services/mgmt/binary"
 	"veyron.io/veyron/veyron2/services/mgmt/repository"
 	"veyron.io/veyron/veyron2/vlog"
+
+	"veyron.io/veyron/veyron/profiles"
+	"veyron.io/veyron/veyron/tools/binary/impl"
 )
 
 type server struct {
@@ -89,7 +90,7 @@ func startServer(t *testing.T, r veyron2.Runtime) (ipc.Server, naming.Endpoint, 
 		t.Errorf("NewServer failed: %v", err)
 		return nil, nil, err
 	}
-	endpoint, err := server.Listen("tcp", "127.0.0.1:0")
+	endpoint, err := server.ListenX(profiles.LocalListenSpec)
 	if err != nil {
 		t.Errorf("Listen failed: %v", err)
 		return nil, nil, err

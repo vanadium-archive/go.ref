@@ -6,13 +6,14 @@ import (
 	"sync"
 	"time"
 
-	"veyron.io/veyron/veyron/runtimes/google/appcycle"
-	"veyron.io/veyron/veyron/services/mgmt/lib/exec"
-
 	"veyron.io/veyron/veyron2"
 	"veyron.io/veyron/veyron2/ipc"
 	"veyron.io/veyron/veyron2/mgmt"
 	"veyron.io/veyron/veyron2/naming"
+
+	"veyron.io/veyron/veyron/profiles"
+	"veyron.io/veyron/veyron/runtimes/google/appcycle"
+	"veyron.io/veyron/veyron/services/mgmt/lib/exec"
 )
 
 type mgmtImpl struct {
@@ -53,7 +54,7 @@ func (m *mgmtImpl) init(rt *vrt) error {
 	}
 	// TODO(caprita): We should pick the address to listen on from config.
 	var ep naming.Endpoint
-	if ep, err = m.server.Listen("tcp", "127.0.0.1:0"); err != nil {
+	if ep, err = m.server.ListenX(profiles.LocalListenSpec); err != nil {
 		return err
 	}
 	if err := m.server.Serve("", ipc.LeafDispatcher(appcycle.NewServerAppCycle(m), nil)); err != nil {

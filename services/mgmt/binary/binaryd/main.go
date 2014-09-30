@@ -6,13 +6,13 @@ import (
 	"os"
 	"path/filepath"
 
-	"veyron.io/veyron/veyron/lib/signals"
-	vflag "veyron.io/veyron/veyron/security/flag"
-
-	"veyron.io/veyron/veyron/services/mgmt/binary/impl"
-
 	"veyron.io/veyron/veyron2/rt"
 	"veyron.io/veyron/veyron2/vlog"
+
+	"veyron.io/veyron/veyron/lib/signals"
+	"veyron.io/veyron/veyron/profiles/roaming"
+	vflag "veyron.io/veyron/veyron/security/flag"
+	"veyron.io/veyron/veyron/services/mgmt/binary/impl"
 )
 
 const (
@@ -21,11 +21,6 @@ const (
 )
 
 var (
-	// TODO(rthellend): Remove the protocol and address flags when the config
-	// manager is working.
-	protocol = flag.String("protocol", "tcp", "protocol to listen on")
-	address  = flag.String("address", ":0", "address to listen on")
-
 	name = flag.String("name", "", "name to mount the binary repository as")
 	root = flag.String("root", "", "root directory for the binary repository")
 )
@@ -78,9 +73,9 @@ func main() {
 		vlog.Errorf("NewDispatcher(%v, %v, %v) failed: %v", *root, defaultDepth, auth, err)
 		return
 	}
-	endpoint, err := server.Listen(*protocol, *address)
+	endpoint, err := server.ListenX(roaming.ListenSpec)
 	if err != nil {
-		vlog.Errorf("Listen(%v, %v) failed: %v", *protocol, *address, err)
+		vlog.Errorf("Listen(%s) failed: %v", roaming.ListenSpec, err)
 		return
 	}
 	if err := server.Serve(*name, dispatcher); err != nil {

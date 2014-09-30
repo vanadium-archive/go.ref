@@ -7,12 +7,13 @@ import (
 	"path/filepath"
 	"testing"
 
-	"veyron.io/veyron/veyron/lib/testutil"
-	"veyron.io/veyron/veyron/services/mgmt/binary/impl"
-
 	"veyron.io/veyron/veyron2/naming"
 	"veyron.io/veyron/veyron2/rt"
 	"veyron.io/veyron/veyron2/vlog"
+
+	"veyron.io/veyron/veyron/lib/testutil"
+	"veyron.io/veyron/veyron/profiles"
+	"veyron.io/veyron/veyron/services/mgmt/binary/impl"
 )
 
 const (
@@ -43,10 +44,9 @@ func setupRepository(t *testing.T) (string, func()) {
 	if err != nil {
 		t.Fatalf("NewDispatcher(%v, %v, %v) failed: %v", root, depth, nil, err)
 	}
-	protocol, hostname := "tcp", "127.0.0.1:0"
-	endpoint, err := server.Listen(protocol, hostname)
+	endpoint, err := server.ListenX(profiles.LocalListenSpec)
 	if err != nil {
-		t.Fatalf("Listen(%v, %v) failed: %v", protocol, hostname, err)
+		t.Fatalf("Listen(%s) failed: %v", profiles.LocalListenSpec, err)
 	}
 	suffix := ""
 	if err := server.Serve(suffix, dispatcher); err != nil {

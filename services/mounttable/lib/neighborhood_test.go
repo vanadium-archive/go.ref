@@ -7,13 +7,14 @@ import (
 	"testing"
 	"time"
 
-	_ "veyron.io/veyron/veyron/lib/testutil"
-
 	"veyron.io/veyron/veyron2"
 	"veyron.io/veyron/veyron2/naming"
 	"veyron.io/veyron/veyron2/rt"
 	"veyron.io/veyron/veyron2/services/mounttable"
 	"veyron.io/veyron/veyron2/vlog"
+
+	_ "veyron.io/veyron/veyron/lib/testutil"
+	"veyron.io/veyron/veyron/profiles"
 )
 
 func protocolAndAddress(e naming.Endpoint) (string, string, error) {
@@ -35,7 +36,7 @@ func TestNeighborhood(t *testing.T) {
 	defer server.Stop()
 
 	// Start serving on a loopback address.
-	e, err := server.Listen("tcp", "127.0.0.1:0")
+	e, err := server.ListenX(profiles.LocalListenSpec)
 	if err != nil {
 		boom(t, "Failed to Listen mount table: %s", err)
 	}

@@ -5,12 +5,13 @@ import (
 	"reflect"
 	"testing"
 
-	"veyron.io/veyron/veyron/services/mgmt/profile"
-	"veyron.io/veyron/veyron/services/mgmt/repository"
-
 	"veyron.io/veyron/veyron2/naming"
 	"veyron.io/veyron/veyron2/rt"
 	"veyron.io/veyron/veyron2/services/mgmt/build"
+
+	"veyron.io/veyron/veyron/profiles"
+	"veyron.io/veyron/veyron/services/mgmt/profile"
+	"veyron.io/veyron/veyron/services/mgmt/repository"
 )
 
 var (
@@ -54,10 +55,9 @@ func TestInterface(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewDispatcher() failed: %v", err)
 	}
-	protocol, hostname := "tcp", "127.0.0.1:0"
-	endpoint, err := server.Listen(protocol, hostname)
+	endpoint, err := server.ListenX(profiles.LocalListenSpec)
 	if err != nil {
-		t.Fatalf("Listen(%v, %v) failed: %v", protocol, hostname, err)
+		t.Fatalf("Listen(%s) failed: %v", profiles.LocalListenSpec, err)
 	}
 	if err := server.Serve("", dispatcher); err != nil {
 		t.Fatalf("Serve failed: %v", err)

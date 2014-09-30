@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net"
 	"os"
 	"reflect"
 	"strings"
@@ -14,6 +15,7 @@ import (
 	_ "veyron.io/veyron/veyron/lib/testutil"
 	"veyron.io/veyron/veyron/lib/testutil/blackbox"
 	tsecurity "veyron.io/veyron/veyron/lib/testutil/security"
+	"veyron.io/veyron/veyron/profiles"
 	imanager "veyron.io/veyron/veyron/runtimes/google/ipc/stream/manager"
 	"veyron.io/veyron/veyron/runtimes/google/ipc/stream/proxy"
 	"veyron.io/veyron/veyron/runtimes/google/ipc/stream/vc"
@@ -179,7 +181,7 @@ func startServer(t *testing.T, serverID security.PrivateID, sm stream.Manager, n
 		t.Errorf("InternalNewServer failed: %v", err)
 	}
 	vlog.VI(1).Info("server.Listen")
-	ep, err := server.Listen("tcp", "127.0.0.1:0")
+	ep, err := server.ListenX(profiles.LocalListenSpec)
 	if err != nil {
 		t.Errorf("server.Listen failed: %v", err)
 	}
@@ -317,7 +319,7 @@ func TestMultipleCallsToServe(t *testing.T) {
 	if err != nil {
 		t.Errorf("InternalNewServer failed: %v", err)
 	}
-	_, err = server.Listen("tcp", "127.0.0.1:0")
+	_, err = server.ListenX(profiles.LocalListenSpec)
 	if err != nil {
 		t.Errorf("server.Listen failed: %v", err)
 	}
@@ -626,7 +628,7 @@ func TestDischargeImpetus(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer server.Stop()
-	if _, err := server.Listen("tcp", "127.0.0.1:0"); err != nil {
+	if _, err := server.ListenX(profiles.LocalListenSpec); err != nil {
 		t.Fatal(err)
 	}
 
@@ -1037,11 +1039,6 @@ func TestReconnect(t *testing.T) {
 	}
 }
 
-/*
- * TODO(cnicolaou): temporarily remove these until we move ListenX over
- * to be Listen.
- */
-/*
 func TestPreferredAddress(t *testing.T) {
 	sm := imanager.InternalNew(naming.FixedRoutingID(0x555555555))
 	defer sm.Shutdown()
@@ -1051,12 +1048,15 @@ func TestPreferredAddress(t *testing.T) {
 		a.IP = net.ParseIP("1.1.1.1")
 		return a, nil
 	}
-	server, err := InternalNewServer(testContext(), sm, ns, vc.FixedLocalID(serverID), &veyron2.AddressChooserOpt{pa})
+	server, err := InternalNewServer(testContext(), sm, ns, vc.FixedLocalID(serverID))
 	if err != nil {
 		t.Errorf("InternalNewServer failed: %v", err)
 	}
 	defer server.Stop()
-	ep, err := server.Listen("tcp4", ":0")
+	spec := *profiles.LocalListenSpec
+	spec.Address = ":0"
+	spec.AddressChooser = pa
+	ep, err := server.ListenX(&spec)
 	iep := ep.(*inaming.Endpoint)
 	host, _, err := net.SplitHostPort(iep.Address)
 	if err != nil {
@@ -1066,7 +1066,7 @@ func TestPreferredAddress(t *testing.T) {
 		t.Errorf("got %q, want %q", got, want)
 	}
 	// Won't override the specified address.
-	ep, err = server.Listen("tcp4", "127.0.0.1:0")
+	ep, err = server.ListenX(profiles.LocalListenSpec)
 	iep = ep.(*inaming.Endpoint)
 	host, _, err = net.SplitHostPort(iep.Address)
 	if err != nil {
@@ -1081,25 +1081,31 @@ func TestPreferredAddressErrors(t *testing.T) {
 	sm := imanager.InternalNew(naming.FixedRoutingID(0x555555555))
 	defer sm.Shutdown()
 	ns := tnaming.NewSimpleNamespace()
-	paerr := func(string, []net.Addr) (net.Addr, error) {
+	paerr := func(_ string, a []net.Addr) (net.Addr, error) {
 		return nil, fmt.Errorf("oops")
 	}
-	server, err := InternalNewServer(testContext(), sm, ns, vc.FixedLocalID(serverID), &veyron2.AddressChooserOpt{paerr})
+	server, err := InternalNewServer(testContext(), sm, ns, vc.FixedLocalID(serverID))
 	if err != nil {
 		t.Errorf("InternalNewServer failed: %v", err)
 	}
 	defer server.Stop()
-	ep, err := server.Listen("tcp4", ":0")
+	spec := *profiles.LocalListenSpec
+	spec.Address = ":0"
+	spec.AddressChooser = paerr
+	ep, err := server.ListenX(&spec)
 	iep := ep.(*inaming.Endpoint)
 	host, _, err := net.SplitHostPort(iep.Address)
 	if err != nil {
 		t.Errorf("unexpected error: %s", err)
 	}
-	if got, want := host, "0.0.0.0"; got != want {
-		t.Errorf("got %q, want %q", got, want)
+	ip := net.ParseIP(host)
+	if ip == nil {
+		t.Fatalf("failed to parse IP address: %q", host)
+	}
+	if !ip.IsUnspecified() {
+		t.Errorf("IP: %q is not unspecified", ip)
 	}
 }
-*/
 
 type proxyHandle struct {
 	ns      naming.Namespace
@@ -1163,7 +1169,9 @@ func TestProxy(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer proxy.Stop()
-	if _, err := server.Listen(inaming.Network, "proxy"); err != nil {
+	spec := *profiles.LocalListenSpec
+	spec.Proxy = "proxy"
+	if _, err := server.ListenX(&spec); err != nil {
 		t.Fatal(err)
 	}
 	if err := server.Serve("mountpoint/server", testServerDisp{&testServer{}}); err != nil {
@@ -1230,7 +1238,9 @@ func runServer(argv []string) {
 	if err := server.Serve("server", disp); err != nil {
 		vlog.Fatalf("server.Register failed: %v", err)
 	}
-	ep, err := server.Listen("tcp", argv[0])
+	spec := *profiles.LocalListenSpec
+	spec.Address = argv[0]
+	ep, err := server.ListenX(&spec)
 	if err != nil {
 		vlog.Fatalf("server.Listen failed: %v", err)
 	}

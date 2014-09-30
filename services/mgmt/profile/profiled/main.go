@@ -3,20 +3,16 @@ package main
 import (
 	"flag"
 
-	"veyron.io/veyron/veyron/lib/signals"
-	vflag "veyron.io/veyron/veyron/security/flag"
-	"veyron.io/veyron/veyron/services/mgmt/profile/impl"
-
 	"veyron.io/veyron/veyron2/rt"
 	"veyron.io/veyron/veyron2/vlog"
+
+	"veyron.io/veyron/veyron/lib/signals"
+	"veyron.io/veyron/veyron/profiles/roaming"
+	vflag "veyron.io/veyron/veyron/security/flag"
+	"veyron.io/veyron/veyron/services/mgmt/profile/impl"
 )
 
 var (
-	// TODO(rthellend): Remove the protocol and address flags when the config
-	// manager is working.
-	protocol = flag.String("protocol", "tcp", "protocol to listen on")
-	address  = flag.String("address", ":0", "address to listen on")
-
 	name  = flag.String("name", "", "name to mount the profile repository as")
 	store = flag.String("store", "", "local directory to store profiles in")
 )
@@ -39,9 +35,9 @@ func main() {
 		vlog.Fatalf("NewDispatcher() failed: %v", err)
 	}
 
-	endpoint, err := server.Listen(*protocol, *address)
+	endpoint, err := server.ListenX(roaming.ListenSpec)
 	if err != nil {
-		vlog.Fatalf("Listen(%v, %v) failed: %v", *protocol, *address, err)
+		vlog.Fatalf("Listen(%s) failed: %v", roaming.ListenSpec, err)
 	}
 	if err := server.Serve(*name, dispatcher); err != nil {
 		vlog.Fatalf("Serve(%v) failed: %v", *name, err)

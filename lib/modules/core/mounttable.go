@@ -12,6 +12,7 @@ import (
 	"veyron.io/veyron/veyron2/rt"
 
 	"veyron.io/veyron/veyron/lib/modules"
+	"veyron.io/veyron/veyron/profiles"
 	mounttable "veyron.io/veyron/veyron/services/mounttable/lib"
 )
 
@@ -49,7 +50,7 @@ func runMT(root bool, stdin io.Reader, stdout, stderr io.Writer, env map[string]
 	if err != nil {
 		return fmt.Errorf("mounttable.NewMountTable failed: %s", err)
 	}
-	ep, err := server.Listen("tcp", "127.0.0.1:0")
+	ep, err := server.ListenX(profiles.LocalListenSpec)
 	if err != nil {
 		return fmt.Errorf("server.Listen failed: %s", err)
 	}

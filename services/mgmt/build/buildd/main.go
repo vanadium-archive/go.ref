@@ -4,22 +4,18 @@ import (
 	"flag"
 	"os"
 
-	"veyron.io/veyron/veyron/lib/signals"
-	vflag "veyron.io/veyron/veyron/security/flag"
-	"veyron.io/veyron/veyron/services/mgmt/build/impl"
-
 	"veyron.io/veyron/veyron2/ipc"
 	"veyron.io/veyron/veyron2/rt"
 	"veyron.io/veyron/veyron2/services/mgmt/build"
 	"veyron.io/veyron/veyron2/vlog"
+
+	"veyron.io/veyron/veyron/lib/signals"
+	"veyron.io/veyron/veyron/profiles/roaming"
+	vflag "veyron.io/veyron/veyron/security/flag"
+	"veyron.io/veyron/veyron/services/mgmt/build/impl"
 )
 
 var (
-	// TODO(rthellend): Remove the protocol and address flags when the config
-	// manager is working.
-	protocol = flag.String("protocol", "tcp", "protocol to listen on")
-	address  = flag.String("address", ":0", "address to listen on")
-
 	gobin  = flag.String("gobin", "go", "path to the Go compiler")
 	goroot = flag.String("goroot", os.Getenv("GOROOT"), "GOROOT to use with the Go compiler")
 	name   = flag.String("name", "", "name to mount the build server as")
@@ -35,9 +31,9 @@ func main() {
 		return
 	}
 	defer server.Stop()
-	endpoint, err := server.Listen(*protocol, *address)
+	endpoint, err := server.ListenX(roaming.ListenSpec)
 	if err != nil {
-		vlog.Errorf("Listen(%v, %v) failed: %v", *protocol, *address, err)
+		vlog.Errorf("Listen(%s) failed: %v", roaming.ListenSpec, err)
 		return
 	}
 	if err := server.Serve(*name, ipc.LeafDispatcher(build.NewServerBuilder(impl.NewInvoker(*gobin, *goroot)), vflag.NewAuthorizerOrDie())); err != nil {
