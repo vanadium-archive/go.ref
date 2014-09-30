@@ -17,12 +17,11 @@ readonly WORKDIR=$(shell::tmp_dir)
 set +e
 
 build() {
-  local -r GO="${VEYRON_ROOT}/scripts/build/go"
-  "${GO}" build veyron.io/examples/tunnel/tunneld || shell_test::fail "line ${LINENO}: failed to build tunneld"
-  "${GO}" build veyron.io/examples/tunnel/vsh || shell_test::fail "line ${LINENO}: failed to build vsh"
-  "${GO}" build veyron.io/veyron/veyron/services/mounttable/mounttabled || shell_test::fail "line ${LINENO}: failed to build mounttabled"
-  "${GO}" build veyron.io/veyron/veyron/tools/mounttable || shell_test::fail "line ${LINENO}: failed to build mounttable"
-  "${GO}" build veyron.io/veyron/veyron/tools/identity || shell_test::fail "line ${LINENO}: failed to build identity"
+  veyron go build veyron.io/examples/tunnel/tunneld || shell_test::fail "line ${LINENO}: failed to build tunneld"
+  veyron go build veyron.io/examples/tunnel/vsh || shell_test::fail "line ${LINENO}: failed to build vsh"
+  veyron go build veyron.io/veyron/veyron/services/mounttable/mounttabled || shell_test::fail "line ${LINENO}: failed to build mounttabled"
+  veyron go build veyron.io/veyron/veyron/tools/mounttable || shell_test::fail "line ${LINENO}: failed to build mounttable"
+  veyron go build veyron.io/veyron/veyron/tools/identity || shell_test::fail "line ${LINENO}: failed to build identity"
 }
 
 dumplogs() {
