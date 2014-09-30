@@ -50,19 +50,16 @@ func verifyingRead(d, s io.Reader, key security.PublicKey) ([]byte, error) {
 	return ioutil.ReadAll(vr)
 }
 
-type signerAdapter struct {
-	s security.Signer
-}
-
-func (s signerAdapter) Sign(message []byte) (security.Signature, error) { return s.s.Sign(nil, message) }
-func (s signerAdapter) PublicKey() security.PublicKey                   { return s.s.PublicKey() }
-
 func newSigner() Signer {
 	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	if err != nil {
 		panic(err)
 	}
-	return signerAdapter{security.NewInMemoryECDSASigner(key)}
+	p, err := security.CreatePrincipal(security.NewInMemoryECDSASigner(key), nil, nil)
+	if err != nil {
+		panic(err)
+	}
+	return p
 }
 
 func matchesErrorPattern(err error, pattern string) bool {
