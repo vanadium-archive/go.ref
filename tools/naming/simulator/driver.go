@@ -109,6 +109,9 @@ func main() {
 
 	shell := modules.NewShell()
 	defer shell.Cleanup(os.Stderr)
+	if os.Getenv("VEYRON_IDENTITY") == "" {
+		shell.CreateAndUseNewID()
+	}
 
 	core.Install(shell)
 
