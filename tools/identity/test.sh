@@ -11,8 +11,7 @@ source "${VEYRON_ROOT}/scripts/lib/shell_test.sh"
 main() {
   # Build binaries.
   cd "${TMPDIR}"
-  local -r GO="${VEYRON_ROOT}/scripts/build/go"
-  "${GO}" build veyron.io/veyron/veyron/tools/identity || shell_test::fail "line ${LINENO}: failed to build identity"
+  veyron go build veyron.io/veyron/veyron/tools/identity || shell_test::fail "line ${LINENO}: failed to build identity"
 
   ./identity print >/dev/null || shell_test::fail "line ${LINENO}: print failed"
   ./identity generate >/dev/null || shell_test::fail "line ${LINENO}: generate failed"

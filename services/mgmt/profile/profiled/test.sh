@@ -10,9 +10,8 @@
 source "${VEYRON_ROOT}/scripts/lib/shell_test.sh"
 
 build() {
-  local -r GO="${VEYRON_ROOT}/scripts/build/go"
-  "${GO}" build veyron.io/veyron/veyron/services/mgmt/profile/profiled || shell_test::fail "line ${LINENO}: failed to build 'profiled'"
-  "${GO}" build veyron.io/veyron/veyron/tools/profile || shell_test::fail "line ${LINENO}: failed to build 'profile'"
+  veyron go build veyron.io/veyron/veyron/services/mgmt/profile/profiled || shell_test::fail "line ${LINENO}: failed to build 'profiled'"
+  veyron go build veyron.io/veyron/veyron/tools/profile || shell_test::fail "line ${LINENO}: failed to build 'profile'"
 }
 
 main() {

@@ -5,22 +5,11 @@
 # This test starts a build server daemon and uses the build client to
 # verify that <build>.Build() works as expected.
 
-# shell_test.sh must be sourced *last* Because it has a "trap" statement that
-# cleans up processes on exit and we want to avoid this trap statement being
-# overridden by other scripts.  For example, go.sh sources a script which sets
-# up a different trap handler and thus, if go.sh is sourced second, then it
-# overrides the trap handler setup in shell_test.sh.
-# TODO(jsimsa,ashankar): Figure out a way to execute all trap handlers instead
-# of having to worry about ordering the imports and/or skipping some trap
-# handlers.
-
-source "${VEYRON_ROOT}/scripts/lib/go.sh"
 source "${VEYRON_ROOT}/scripts/lib/shell_test.sh"
 
 build() {
-  local -r GO="${VEYRON_ROOT}/scripts/build/go"
-  "${GO}" build veyron.io/veyron/veyron/services/mgmt/build/buildd || shell_test::fail "line ${LINENO}: failed to build 'buildd'"
-  "${GO}" build veyron.io/veyron/veyron/tools/build || shell_test::fail "line ${LINENO}: failed to build 'build'"
+  veyron go build veyron.io/veyron/veyron/services/mgmt/build/buildd || shell_test::fail "line ${LINENO}: failed to build 'buildd'"
+  veyron go build veyron.io/veyron/veyron/tools/build || shell_test::fail "line ${LINENO}: failed to build 'build'"
 }
 
 main() {
@@ -32,12 +21,7 @@ main() {
   # Start the binary repository daemon.
   local -r SERVER="buildd-test-server"
   local GO_BIN=$(which go)
-  if [[ -n "${GO_BIN}" ]] && go::usable_release "${GO_BIN}"; then
-    local -r GO_ROOT=$(go env GOROOT)
-  else
-    local -r GO_ROOT="${VEYRON_ROOT}/environment/go/$(go::os)/$(go::architecture)/go"
-    GO_BIN="${GO_ROOT}/bin/go"
-  fi
+  local -r GO_ROOT=$("${GO_BIN}" env GOROOT)
   shell_test::start_server ./buildd --name="${SERVER}" --gobin="${GO_BIN}" --goroot="${GO_ROOT}" --address=127.0.0.1:0
 
   # Create and build a test source file.

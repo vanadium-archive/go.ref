@@ -5,9 +5,8 @@
 source "${VEYRON_ROOT}/scripts/lib/shell_test.sh"
 
 build() {
-  local GO="${VEYRON_ROOT}/scripts/build/go"
-  "${GO}" build veyron.io/veyron/veyron/security/agent/agentd || shell_test::fail "line ${LINENO}: failed to build agentd"
-  "${GO}" build -o pingpong veyron.io/veyron/veyron/security/agent/test || shell_test::fail "line ${LINENO}: failed to build pingpong"
+  veyron go build veyron.io/veyron/veyron/security/agent/agentd || shell_test::fail "line ${LINENO}: failed to build agentd"
+  veyron go build -o pingpong veyron.io/veyron/veyron/security/agent/test || shell_test::fail "line ${LINENO}: failed to build pingpong"
 }
 
 main() {

@@ -291,7 +291,7 @@ func (f *codeFile) compile() error {
 	case "vdl":
 		cmd = makeCmdJsonEvent(f.Name, "vdl", "generate", "--lang=go", f.pkg)
 	case "go":
-		cmd = makeCmdJsonEvent(f.Name, filepath.Join(os.Getenv("VEYRON_ROOT"), "scripts", "build", "go"), "install", f.pkg)
+		cmd = makeCmdJsonEvent(f.Name, "veyron", "go", "install", f.pkg)
 	default:
 		return fmt.Errorf("Can't compile file %s with language %s.", f.Name, f.lang)
 	}

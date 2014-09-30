@@ -21,7 +21,7 @@ overhead is excluded.
 
 On a ThinkPad X1 Carbon (2 × Intel(R) Core(TM) i7-3667U CPU @ 2.00GHz), we get:
 
-$ $VEYRON_ROOT/scripts/build/go test -test.bench=. -test.cpu=1 \
+$ veyron go test -test.bench=. -test.cpu=1 \
 	-test.benchtime=5s veyron/runtimes/google/ipc/benchmarks 2> /dev/null
 PASS
 Benchmark____1B	   10000	    545077 ns/op
