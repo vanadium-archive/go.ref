@@ -1,8 +1,11 @@
 package impl
 
 import (
+	"bytes"
+	"encoding/json"
 	"flag"
 	"fmt"
+	"os"
 	"os/user"
 	"strconv"
 )
@@ -17,6 +20,16 @@ type WorkParameters struct {
 	argv      []string
 	envv      []string
 }
+
+type ArgsSavedForTest struct {
+	Uname     string
+	Workpace  string
+	Run       string
+	StdoutLog string
+	StderrLog string
+}
+
+const SavedArgs = "VEYRON_SAVED_ARGS"
 
 var flagUsername, flagWorkspace, flagStdoutLog, flagStderrLog, flagRun *string
 var flagMinimumUid *int64
@@ -62,6 +75,21 @@ func (wp *WorkParameters) ProcessArguments(fs *flag.FlagSet, env []string) error
 		return fmt.Errorf("suidhelper does not permit uids less than %d", uint32(*flagMinimumUid))
 	}
 
+	// Preserve the arguments for examination by the test harness if executed
+	// in the course of a test.
+	if os.Getenv("VEYRON_SUIDHELPER_TEST") != "" {
+		b := new(bytes.Buffer)
+		enc := json.NewEncoder(b)
+		enc.Encode(ArgsSavedForTest{
+			Uname:     *flagUsername,
+			Workpace:  *flagWorkspace,
+			Run:       *flagRun,
+			StdoutLog: *flagStdoutLog,
+			StderrLog: *flagStderrLog,
+		})
+		env = append(env, SavedArgs+"="+b.String())
+	}
+
 	wp.uid = uint32(uid)
 	wp.gid = uint32(gid)
 	wp.workspace = *flagWorkspace
@@ -69,6 +97,7 @@ func (wp *WorkParameters) ProcessArguments(fs *flag.FlagSet, env []string) error
 	wp.stdoutLog = *flagStdoutLog
 	wp.stderrLog = *flagStderrLog
 	wp.argv = fs.Args()
+	// TODO(rjkroege): Reduce the environment to the absolute minimum needed.
 	wp.envv = env
 
 	return nil
