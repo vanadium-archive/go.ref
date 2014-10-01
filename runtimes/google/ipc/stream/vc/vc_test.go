@@ -15,11 +15,11 @@ import (
 
 	"veyron.io/veyron/veyron/lib/testutil"
 	"veyron.io/veyron/veyron/runtimes/google/ipc/stream/id"
+	"veyron.io/veyron/veyron/runtimes/google/ipc/stream/sectest"
 	"veyron.io/veyron/veyron/runtimes/google/ipc/stream/vc"
 	"veyron.io/veyron/veyron/runtimes/google/lib/bqueue"
 	"veyron.io/veyron/veyron/runtimes/google/lib/bqueue/drrqueue"
 	"veyron.io/veyron/veyron/runtimes/google/lib/iobuf"
-	isecurity "veyron.io/veyron/veyron/runtimes/google/security"
 
 	"veyron.io/veyron/veyron2"
 	"veyron.io/veyron/veyron2/ipc/stream"
@@ -28,27 +28,15 @@ import (
 	"veyron.io/veyron/veyron2/security"
 )
 
-// Convenience alias to avoid conflicts between the package name "vc" and variables called "vc".
-const DefaultBytesBufferedPerFlow = vc.DefaultBytesBufferedPerFlow
-
 const (
+	// Convenience alias to avoid conflicts between the package name "vc" and variables called "vc".
+	DefaultBytesBufferedPerFlow = vc.DefaultBytesBufferedPerFlow
 	// Shorthands
 	SecurityNone = veyron2.VCSecurityNone
 	SecurityTLS  = veyron2.VCSecurityConfidential
-)
 
-var (
-	clientID = newID("client")
-	serverID = newID("server")
+	LatestVersion = version.IPCVersion3
 )
-
-func newID(name string) security.PrivateID {
-	id, err := isecurity.NewPrivateID(name, nil)
-	if err != nil {
-		panic(err)
-	}
-	return id
-}
 
 // testFlowEcho writes a random string of 'size' bytes on the flow and then
 // ensures that the same string is read back.
@@ -100,34 +88,69 @@ func matchID(got, want security.PublicID) error {
 	return nil
 }
 
-func testHandshake(t *testing.T, security veyron2.VCSecurityLevel, localID, remoteID security.PublicID) {
-	h, vc := New(security, version.IPCVersion2)
-	flow, err := vc.Connect()
+func TestHandshake(t *testing.T) {
+	// When SecurityNone is used, the blessings should not be sent over the wire.
+	var (
+		client    = sectest.NewPrincipal("client")
+		server    = sectest.NewPrincipal("server")
+		h, vc     = New(SecurityNone, LatestVersion, client, server)
+		flow, err = vc.Connect()
+	)
+	defer h.Close()
 	if err != nil {
 		t.Fatal(err)
 	}
-	lID, rID := flow.LocalID(), flow.RemoteID()
-	if (lID == nil) || (rID == nil) {
-		t.Error("Either the LocalID or the RemoteID of the flow is nil")
+	// TODO(ashankar): This should not be nil, but rather a dummy object (whose public
+	// key does not match that of the principal)
+	if flow.RemoteBlessings() != nil {
+		t.Errorf("Server sent blessing %v over insecure transport", flow.RemoteBlessings())
 	}
-	if err := matchID(lID, localID); err != nil {
-		t.Errorf("Client identity mismatch: %s", err)
+	if flow.LocalBlessings() != nil {
+		t.Errorf("Client sent blessing %v over insecure transport", flow.LocalBlessings())
 	}
-	if err := matchID(rID, remoteID); err != nil {
-		t.Errorf("Server identity mismatch: %s", err)
-	}
-	h.Close()
 }
 
-func TestHandshake(t *testing.T) {
-	testHandshake(t, SecurityNone, nil, nil)
-}
 func TestHandshakeTLS(t *testing.T) {
-	testHandshake(t, SecurityTLS, clientID.PublicID(), serverID.PublicID())
+	var (
+		client  = sectest.NewPrincipal("client")
+		server1 = sectest.NewPrincipal("server1")
+		server2 = sectest.NewPrincipal("server2")
+
+		testBlessings = func(server security.Principal, wantClient security.Blessings) error {
+			h, vc := New(SecurityTLS, LatestVersion, client, server)
+			defer h.Close()
+			flow, err := vc.Connect()
+			if err != nil {
+				return fmt.Errorf("unable to create flow: %v", err)
+			}
+			if got, want := flow.RemoteBlessings(), server.BlessingStore().Default(); !reflect.DeepEqual(got, want) {
+				return fmt.Errorf("Got blessings %v from server, want %v", got, want)
+			}
+			if got, want := flow.LocalBlessings(), wantClient; !reflect.DeepEqual(got, want) {
+				return fmt.Errorf("Client shared %v, wanted %v", got, want)
+			}
+			return nil
+		}
+	)
+	// Setup client so that is has a specific blessing for S2.
+	forServer1 := client.BlessingStore().Default()
+	forServer2, err := client.BlessSelf("forS2")
+	if err != nil {
+		t.Fatal(err)
+	}
+	client.BlessingStore().Add(forServer1, security.BlessingPattern("server1"))
+	client.BlessingStore().Add(forServer2, security.BlessingPattern("server2"))
+
+	if err := testBlessings(server1, forServer1); err != nil {
+		t.Error(err)
+	}
+	if err := testBlessings(server2, forServer2); err != nil {
+		t.Error(err)
+	}
 }
 
 func testConnect_Small(t *testing.T, security veyron2.VCSecurityLevel) {
-	h, vc := New(security, version.IPCVersion2)
+	h, vc := New(security, LatestVersion, sectest.NewPrincipal("client"), sectest.NewPrincipal("server"))
 	defer h.Close()
 	flow, err := vc.Connect()
 	if err != nil {
@@ -139,7 +162,7 @@ func TestConnect_Small(t *testing.T)    { testConnect_Small(t, SecurityNone) }
 func TestConnect_SmallTLS(t *testing.T) { testConnect_Small(t, SecurityTLS) }
 
 func testConnect(t *testing.T, security veyron2.VCSecurityLevel) {
-	h, vc := New(security, version.IPCVersion2)
+	h, vc := New(security, LatestVersion, sectest.NewPrincipal("client"), sectest.NewPrincipal("server"))
 	defer h.Close()
 	flow, err := vc.Connect()
 	if err != nil {
@@ -151,7 +174,7 @@ func TestConnect(t *testing.T)    { testConnect(t, SecurityNone) }
 func TestConnectTLS(t *testing.T) { testConnect(t, SecurityTLS) }
 
 func testConnect_Version2(t *testing.T, security veyron2.VCSecurityLevel) {
-	h, vc := New(security, version.IPCVersion2)
+	h, vc := New(security, version.IPCVersion2, sectest.NewPrincipal("client"), sectest.NewPrincipal("server"))
 	defer h.Close()
 	flow, err := vc.Connect()
 	if err != nil {
@@ -168,7 +191,7 @@ func TestConnect_Version2TLS(t *testing.T) { testConnect_Version2(t, SecurityTLS
 func testConcurrentFlows(t *testing.T, security veyron2.VCSecurityLevel, flows, gomaxprocs int) {
 	mp := runtime.GOMAXPROCS(gomaxprocs)
 	defer runtime.GOMAXPROCS(mp)
-	h, vc := New(security, version.IPCVersion2)
+	h, vc := New(security, LatestVersion, sectest.NewPrincipal("client"), sectest.NewPrincipal("server"))
 	defer h.Close()
 
 	var wg sync.WaitGroup
@@ -195,7 +218,7 @@ func TestConcurrentFlows_10TLS(t *testing.T) { testConcurrentFlows(t, SecurityTL
 
 func testListen(t *testing.T, security veyron2.VCSecurityLevel) {
 	data := "the dark knight"
-	h, vc := New(security, version.IPCVersion2)
+	h, vc := New(security, LatestVersion, sectest.NewPrincipal("client"), sectest.NewPrincipal("server"))
 	defer h.Close()
 	if err := h.VC.AcceptFlow(id.Flow(21)); err == nil {
 		t.Errorf("Expected AcceptFlow on a new flow to fail as Listen was not called")
@@ -242,7 +265,7 @@ func TestListen(t *testing.T)    { testListen(t, SecurityNone) }
 func TestListenTLS(t *testing.T) { testListen(t, SecurityTLS) }
 
 func testNewFlowAfterClose(t *testing.T, security veyron2.VCSecurityLevel) {
-	h, _ := New(security, version.IPCVersion2)
+	h, _ := New(security, LatestVersion, sectest.NewPrincipal("client"), sectest.NewPrincipal("server"))
 	defer h.Close()
 	h.VC.Close("reason")
 	if err := h.VC.AcceptFlow(id.Flow(10)); err == nil {
@@ -253,7 +276,7 @@ func TestNewFlowAfterClose(t *testing.T)    { testNewFlowAfterClose(t, SecurityN
 func TestNewFlowAfterCloseTLS(t *testing.T) { testNewFlowAfterClose(t, SecurityTLS) }
 
 func testConnectAfterClose(t *testing.T, security veyron2.VCSecurityLevel) {
-	h, vc := New(security, version.IPCVersion2)
+	h, vc := New(security, LatestVersion, sectest.NewPrincipal("client"), sectest.NewPrincipal("server"))
 	defer h.Close()
 	h.VC.Close("myerr")
 	if f, err := vc.Connect(); f != nil || err == nil || !strings.Contains(err.Error(), "myerr") {
@@ -275,7 +298,7 @@ type helper struct {
 // New creates both ends of a VC but returns only the "client" end (i.e., the
 // one that initiated the VC). The "server" end (the one that "accepted" the VC)
 // listens for flows and simply echoes data read.
-func New(security veyron2.VCSecurityLevel, v version.IPCVersion) (*helper, stream.VC) {
+func New(security veyron2.VCSecurityLevel, v version.IPCVersion, client, server security.Principal) (*helper, stream.VC) {
 	clientH := &helper{bq: drrqueue.New(vc.MaxPayloadSizeBytes)}
 	serverH := &helper{bq: drrqueue.New(vc.MaxPayloadSizeBytes)}
 	clientH.otherEnd = serverH
@@ -311,8 +334,8 @@ func New(security veyron2.VCSecurityLevel, v version.IPCVersion) (*helper, strea
 	go clientH.pipeLoop(serverH.VC)
 	go serverH.pipeLoop(clientH.VC)
 
-	c := serverH.VC.HandshakeAcceptedVC(security, vc.FixedLocalID(serverID))
-	if err := clientH.VC.HandshakeDialedVC(security, vc.FixedLocalID(clientID)); err != nil {
+	c := serverH.VC.HandshakeAcceptedVC(security, vc.LocalPrincipal{server})
+	if err := clientH.VC.HandshakeDialedVC(security, vc.LocalPrincipal{client}); err != nil {
 		panic(err)
 	}
 	hr := <-c

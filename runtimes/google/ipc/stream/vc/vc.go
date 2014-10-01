@@ -38,9 +38,11 @@ var (
 // queue (veyron/runtimes/google/lib/bqueue) to provide flow control on Write
 // operations.
 type VC struct {
-	vci               id.VC
-	localEP, remoteEP naming.Endpoint
-	localID, remoteID security.PublicID
+	vci                             id.VC
+	localEP, remoteEP               naming.Endpoint
+	localID, remoteID               security.PublicID
+	localPrincipal                  security.Principal
+	localBlessings, remoteBlessings security.Blessings
 
 	pool           *iobuf.Pool
 	reserveBytes   uint
@@ -92,27 +94,18 @@ type Params struct {
 	Version      version.IPCVersion
 }
 
-// LocalID is the interface for providing a PrivateID and a PublicIDStore to
-// be used at the local end of VCs.
+// DEPRECATED: TODO(ashankar,ataly): Remove when switch to LocalPrincipal is complete.
 type LocalID interface {
 	stream.ListenerOpt
 	stream.VCOpt
-	// Sign signs an arbitrary length message (often the hash of a larger message)
-	// using a private key.
 	Sign(message []byte) (security.Signature, error)
-
-	// AsClient returns a PublicID to be used while authenticating as a client to the
-	// provided server as a client. An error is returned if no such PublicID can be returned.
 	AsClient(server security.PublicID) (security.PublicID, error)
-
-	// AsServer returns a PublicID to be used while authenticating as a server to other
-	// clients. An error is returned if no such PublicID can be returned.
 	AsServer() (security.PublicID, error)
 	IPCClientOpt()
 	IPCServerOpt()
 }
 
-// fixedLocalID implements vc.LocalID.
+// DEPRECATED: TODO(ashankar,ataly): Remove when LocalID is removed.
 type fixedLocalID struct {
 	security.PrivateID
 }
@@ -134,11 +127,20 @@ func (fixedLocalID) IPCServerOpt() {
 	//nologcall
 }
 
-// FixedLocalID creates a LocalID using the provided PrivateID. The
-// provided PrivateID must always be non-nil.
+// DEPRECATED: TODO(ashankar,ataly): Remove when LocalID is removed.
 func FixedLocalID(id security.PrivateID) LocalID {
 	return fixedLocalID{id}
 }
+
+// LocalPrincipal wraps a security.Principal so that it can be provided
+// as an option to various methods in order to provide authentication information
+// when establishing virtual circuits.
+type LocalPrincipal struct{ security.Principal }
+
+func (LocalPrincipal) IPCStreamListenerOpt() {}
+func (LocalPrincipal) IPCStreamVCOpt()       {}
+func (LocalPrincipal) IPCClientOpt()         {}
+func (LocalPrincipal) IPCServerOpt()         {}
 
 // InternalNew creates a new VC, which implements the stream.VC interface.
 //
@@ -376,12 +378,15 @@ func (vc *VC) err(err error) error {
 // local process (i.e., the local process "Dial"ed to create the VC).
 func (vc *VC) HandshakeDialedVC(opts ...stream.VCOpt) error {
 	var localID LocalID
+	var principal security.Principal
 	var tlsSessionCache crypto.TLSClientSessionCache
 	var securityLevel veyron2.VCSecurityLevel
 	for _, o := range opts {
 		switch v := o.(type) {
 		case LocalID:
 			localID = v
+		case LocalPrincipal:
+			principal = v.Principal
 		case veyron2.VCSecurityLevel:
 			securityLevel = v
 		case crypto.TLSClientSessionCache:
@@ -390,7 +395,9 @@ func (vc *VC) HandshakeDialedVC(opts ...stream.VCOpt) error {
 	}
 	switch securityLevel {
 	case veyron2.VCSecurityConfidential:
-		if localID == nil {
+		// TODO(ashankar): This should change to:
+		// if principal == nil {  either return error or principal = newAnonymousPrincipal }
+		if localID == nil && principal == nil {
 			localID = FixedLocalID(anonymousID)
 		}
 	case veyron2.VCSecurityNone:
@@ -424,9 +431,18 @@ func (vc *VC) HandshakeDialedVC(opts ...stream.VCOpt) error {
 	if err != nil {
 		return vc.err(fmt.Errorf("failed to create a Flow for authentication: %v", err))
 	}
-	rID, lID, err := authenticateAsClient(authConn, localID, crypter, vc.version)
-	if err != nil {
-		return vc.err(fmt.Errorf("authentication failed: %v", err))
+	var (
+		rID, lID               security.PublicID
+		rBlessings, lBlessings security.Blessings
+	)
+	if principal == nil {
+		if rID, lID, err = authenticateAsClientOld(authConn, localID, crypter, vc.version); err != nil {
+			return vc.err(fmt.Errorf("authentication (using the deprecated PublicID objects) failed: %v", err))
+		}
+	} else {
+		if rBlessings, lBlessings, err = authenticateAsClient(authConn, principal, crypter, vc.version); err != nil {
+			return vc.err(fmt.Errorf("authentication failed: %v", err))
+		}
 	}
 
 	vc.mu.Lock()
@@ -435,9 +451,16 @@ func (vc *VC) HandshakeDialedVC(opts ...stream.VCOpt) error {
 	vc.crypter = crypter
 	vc.localID = lID
 	vc.remoteID = rID
+	vc.localPrincipal = principal
+	vc.remoteBlessings = rBlessings
+	vc.localBlessings = lBlessings
 	vc.mu.Unlock()
 
-	vlog.VI(1).Infof("Client VC %v authenticated. RemoteID:%v LocalID:%v", vc, rID, lID)
+	if principal != nil {
+		vlog.VI(1).Infof("Client VC %v authenticated. RemoteBlessings:%v, LocalBlessings:%v", vc, rBlessings, lBlessings)
+	} else {
+		vlog.VI(1).Infof("Client VC %v authenticated using about-to-be-deleted protocol. RemoteID:%v LocalID:%v", vc, rID, lID)
+	}
 	return nil
 }
 
@@ -461,11 +484,14 @@ func (vc *VC) HandshakeAcceptedVC(opts ...stream.ListenerOpt) <-chan HandshakeRe
 		return result
 	}
 	var localID LocalID
+	var principal security.Principal
 	var securityLevel veyron2.VCSecurityLevel
 	for _, o := range opts {
 		switch v := o.(type) {
 		case LocalID:
 			localID = v
+		case LocalPrincipal:
+			principal = v.Principal
 		case veyron2.VCSecurityLevel:
 			securityLevel = v
 		}
@@ -525,20 +551,37 @@ func (vc *VC) HandshakeAcceptedVC(opts ...stream.ListenerOpt) <-chan HandshakeRe
 		vc.mu.Lock()
 		vc.authFID = vc.findFlowLocked(authConn)
 		vc.mu.Unlock()
-		rID, lID, err := authenticateAsServer(authConn, localID, crypter, vc.version)
-		if err != nil {
-			sendErr(fmt.Errorf("Authentication failed: %v", err))
-			return
+		var (
+			rID, lID               security.PublicID
+			rBlessings, lBlessings security.Blessings
+		)
+		if principal == nil {
+			if rID, lID, err = authenticateAsServerOld(authConn, localID, crypter, vc.version); err != nil {
+				sendErr(fmt.Errorf("Authentication failed (with soon-to-be-removed protocol): %v", err))
+				return
+			}
+		} else {
+			if rBlessings, lBlessings, err = authenticateAsServer(authConn, principal, crypter, vc.version); err != nil {
+				sendErr(fmt.Errorf("authentication failed %v", err))
+				return
+			}
 		}
 
 		vc.mu.Lock()
 		vc.crypter = crypter
 		vc.localID = lID
 		vc.remoteID = rID
+		vc.localPrincipal = principal
+		vc.localBlessings = lBlessings
+		vc.remoteBlessings = rBlessings
 		close(vc.acceptHandshakeDone)
 		vc.acceptHandshakeDone = nil
 		vc.mu.Unlock()
-		vlog.VI(1).Infof("Server VC %v authenticated. RemoteID:%v LocalID:%v", vc, rID, lID)
+		if principal == nil {
+			vlog.VI(1).Infof("Server VC %v authenticated using about-to-be-deleted protocol. RemoteID:%v LocalID:%v", vc, rID, lID)
+		} else {
+			vlog.VI(1).Infof("Server VC %v authenticated. RemoteBlessings:%v, LocalBlessings:%v", vc, rBlessings, lBlessings)
+		}
 		result <- HandshakeResult{ln, nil}
 	}()
 	return result
@@ -599,6 +642,32 @@ func (vc *VC) findFlowLocked(flow interface{}) id.Flow {
 
 // VCI returns the identifier of this VC.
 func (vc *VC) VCI() id.VC { return vc.vci }
+
+// LocalPrincipal returns the principal that authenticated with the remote end of the VC.
+func (vc *VC) LocalPrincipal() security.Principal {
+	vc.mu.Lock()
+	defer vc.mu.Unlock()
+	vc.waitForHandshakeLocked()
+	return vc.localPrincipal
+}
+
+// LocalBlessings returns the blessings (bound to LocalPrincipal) presented to the
+// remote end of the VC during authentication.
+func (vc *VC) LocalBlessings() security.Blessings {
+	vc.mu.Lock()
+	defer vc.mu.Unlock()
+	vc.waitForHandshakeLocked()
+	return vc.localBlessings
+}
+
+// RemoteBlessings returns the blessings presented by the remote end of the VC during
+// authentication.
+func (vc *VC) RemoteBlessings() security.Blessings {
+	vc.mu.Lock()
+	defer vc.mu.Unlock()
+	vc.waitForHandshakeLocked()
+	return vc.remoteBlessings
+}
 
 // LocalID returns the identity of the local end of the VC.
 func (vc *VC) LocalID() security.PublicID {

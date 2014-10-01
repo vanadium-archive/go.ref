@@ -15,22 +15,18 @@ import (
 	"testing"
 
 	"veyron.io/veyron/veyron/lib/testutil"
+	"veyron.io/veyron/veyron/runtimes/google/ipc/stream/sectest"
 	"veyron.io/veyron/veyron/runtimes/google/ipc/stream/vc"
 	"veyron.io/veyron/veyron/runtimes/google/ipc/stream/vif"
 	iversion "veyron.io/veyron/veyron/runtimes/google/ipc/version"
-	isecurity "veyron.io/veyron/veyron/runtimes/google/security"
 
 	"veyron.io/veyron/veyron2/ipc/stream"
 	"veyron.io/veyron/veyron2/ipc/version"
 	"veyron.io/veyron/veyron2/naming"
 )
 
-func newLocalID(name string) vc.LocalID {
-	id, err := isecurity.NewPrivateID(name, nil)
-	if err != nil {
-		panic(err)
-	}
-	return vc.FixedLocalID(id)
+func newPrincipal(defaultBlessing string) vc.LocalPrincipal {
+	return vc.LocalPrincipal{sectest.NewPrincipal("defaultBlessing")}
 }
 
 func TestSingleFlowCreatedAtClient(t *testing.T) {
@@ -422,7 +418,7 @@ func NewVersionedClientServer(clientVersions, serverVersions *iversion.Range) (c
 	if client, err = vif.InternalNewDialedVIF(c1, naming.FixedRoutingID(0xc), clientVersions); err != nil {
 		panic(err)
 	}
-	if server, err = vif.InternalNewAcceptedVIF(c2, naming.FixedRoutingID(0x5), serverVersions, newLocalID("server")); err != nil {
+	if server, err = vif.InternalNewAcceptedVIF(c2, naming.FixedRoutingID(0x5), serverVersions, newPrincipal("server")); err != nil {
 		panic(err)
 	}
 	return
@@ -462,7 +458,7 @@ func createVC(client, server *vif.VIF, ep naming.Endpoint) (clientVC stream.VC, 
 	scChan := make(chan stream.Connector)
 	errChan := make(chan error)
 	go func() {
-		vc, err := client.Dial(ep, newLocalID("client"))
+		vc, err := client.Dial(ep, newPrincipal("client"))
 		errChan <- err
 		vcChan <- vc
 	}()

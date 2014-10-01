@@ -5,23 +5,11 @@ import (
 	"testing"
 	"time"
 
-	isecurity "veyron.io/veyron/veyron/runtimes/google/security"
-
 	"veyron.io/veyron/veyron2/naming"
 	"veyron.io/veyron/veyron2/security"
 )
 
-var testID = newID("test")
-
 type noopFlow struct{}
-
-func newID(name string) security.PrivateID {
-	id, err := isecurity.NewPrivateID(name, nil)
-	if err != nil {
-		panic(err)
-	}
-	return id
-}
 
 // net.Conn methods
 func (*noopFlow) Read([]byte) (int, error)           { return 0, nil }
@@ -39,11 +27,11 @@ func (*noopFlow) SetReadDeadline(t time.Time) error  { return nil }
 func (*noopFlow) SetWriteDeadline(t time.Time) error { return nil }
 
 // Other stream.Flow methods
-func (*noopFlow) LocalID() security.PublicID  { return testID.PublicID() }
-func (*noopFlow) RemoteID() security.PublicID { return testID.PublicID() }
-
 func (*noopFlow) LocalPrincipal() security.Principal  { return nil }
+func (*noopFlow) LocalBlessings() security.Blessings  { return nil }
 func (*noopFlow) RemoteBlessings() security.Blessings { return nil }
+func (*noopFlow) LocalID() security.PublicID          { return nil }
+func (*noopFlow) RemoteID() security.PublicID         { return nil }
 
 func TestListener(t *testing.T) {
 	ln := newListener()

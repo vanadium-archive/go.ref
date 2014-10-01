@@ -18,12 +18,13 @@ type flow struct {
 type idHolder interface {
 	LocalID() security.PublicID
 	RemoteID() security.PublicID
+	LocalPrincipal() security.Principal
+	LocalBlessings() security.Blessings
+	RemoteBlessings() security.Blessings
 }
 
-func (f *flow) LocalPrincipal() security.Principal  { return nil }
-func (f *flow) RemoteBlessings() security.Blessings { return nil }
-func (f *flow) LocalEndpoint() naming.Endpoint      { return f.localEndpoint }
-func (f *flow) RemoteEndpoint() naming.Endpoint     { return f.remoteEndpoint }
+func (f *flow) LocalEndpoint() naming.Endpoint  { return f.localEndpoint }
+func (f *flow) RemoteEndpoint() naming.Endpoint { return f.remoteEndpoint }
 
 // implement net.Conn
 func (f *flow) LocalAddr() net.Addr  { return f.localEndpoint }

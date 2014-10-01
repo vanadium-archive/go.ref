@@ -17,18 +17,14 @@ import (
 
 	_ "veyron.io/veyron/veyron/lib/testutil"
 	"veyron.io/veyron/veyron/lib/testutil/blackbox"
+	"veyron.io/veyron/veyron/runtimes/google/ipc/stream/sectest"
 	"veyron.io/veyron/veyron/runtimes/google/ipc/stream/vc"
 	"veyron.io/veyron/veyron/runtimes/google/ipc/version"
 	inaming "veyron.io/veyron/veyron/runtimes/google/naming"
-	isecurity "veyron.io/veyron/veyron/runtimes/google/security"
 )
 
-func newID(name string) security.PrivateID {
-	id, err := isecurity.NewPrivateID(name, nil)
-	if err != nil {
-		panic(err)
-	}
-	return id
+func newPrincipal(defaultBlessing string) vc.LocalPrincipal {
+	return vc.LocalPrincipal{sectest.NewPrincipal(defaultBlessing)}
 }
 
 func init() {
@@ -126,25 +122,29 @@ func TestSimpleFlow(t *testing.T) {
 }
 
 func TestAuthenticatedByDefault(t *testing.T) {
-	server := InternalNew(naming.FixedRoutingID(0x55555555))
-	client := InternalNew(naming.FixedRoutingID(0xcccccccc))
+	var (
+		server = InternalNew(naming.FixedRoutingID(0x55555555))
+		client = InternalNew(naming.FixedRoutingID(0xcccccccc))
 
-	clientID := newID("client")
-	serverID := newID("server")
+		clientPrincipal = newPrincipal("client")
+		serverPrincipal = newPrincipal("server")
+		clientBlessings = clientPrincipal.Principal.BlessingStore().Default()
+		serverBlessings = serverPrincipal.Principal.BlessingStore().Default()
+	)
 	// VCSecurityLevel is intentionally not provided to Listen - to test
 	// default behavior.
-	ln, ep, err := server.Listen("tcp", "127.0.0.1:0", vc.FixedLocalID(serverID))
+	ln, ep, err := server.Listen("tcp", "127.0.0.1:0", serverPrincipal)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	errs := make(chan error)
 
-	testIDs := func(tag string, flow stream.Flow, local, remote security.PrivateID) {
-		lID := flow.LocalID()
-		rID := flow.RemoteID()
-		if !reflect.DeepEqual(lID.Names(), local.PublicID().Names()) || !reflect.DeepEqual(rID.Names(), remote.PublicID().Names()) {
-			errs <- fmt.Errorf("%s: LocalID: Got %q want %q. RemoteID: Got %q, want %q", tag, lID, local, rID, remote)
+	testAuth := func(tag string, flow stream.Flow, local, remote security.Blessings) {
+		l := flow.LocalBlessings()
+		r := flow.RemoteBlessings()
+		if !reflect.DeepEqual(l, local) || !reflect.DeepEqual(r, remote) {
+			errs <- fmt.Errorf("%s: LocalBlessings: Got %q, want %q. RemoteBlessings: Got %q, want %q", tag, l, local, r, remote)
 			return
 		}
 		errs <- nil
@@ -157,13 +157,13 @@ func TestAuthenticatedByDefault(t *testing.T) {
 			return
 		}
 		defer flow.Close()
-		testIDs("server", flow, serverID, clientID)
+		testAuth("server", flow, serverBlessings, clientBlessings)
 	}()
 
 	go func() {
 		// VCSecurityLevel is intentionally not provided to Dial - to
 		// test default behavior.
-		vc, err := client.Dial(ep, vc.FixedLocalID(clientID))
+		vc, err := client.Dial(ep, clientPrincipal)
 		if err != nil {
 			errs <- err
 			return
@@ -174,7 +174,7 @@ func TestAuthenticatedByDefault(t *testing.T) {
 			return
 		}
 		defer flow.Close()
-		testIDs("client", flow, clientID, serverID)
+		testAuth("client", flow, clientBlessings, serverBlessings)
 	}()
 
 	if err := <-errs; err != nil {
@@ -295,13 +295,13 @@ func TestShutdownEndpoint(t *testing.T) {
 /* TLS + resumption + channel bindings is broken: <https://secure-resumption.com/#channelbindings>.
 func TestSessionTicketCache(t *testing.T) {
 	server := InternalNew(naming.FixedRoutingID(0x55555555))
-	_, ep, err := server.Listen("tcp", "127.0.0.1:0", vc.FixedLocalID(newID("server")))
+	_, ep, err := server.Listen("tcp", "127.0.0.1:0", newPrincipal("server"))
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	client := InternalNew(naming.FixedRoutingID(0xcccccccc))
-	if _, err = client.Dial(ep, vc.FixedLocalID(newID("TestSessionTicketCacheClient"))); err != nil {
+	if _, err = client.Dial(ep, newPrincipal("TestSessionTicketCacheClient")); err != nil {
 		t.Fatalf("Dial(%q) failed: %v", ep, err)
 	}
 
@@ -320,7 +320,7 @@ func TestMultipleVCs(t *testing.T) {
 
 	// Have the server read from each flow and write to rchan.
 	rchan := make(chan string)
-	ln, ep, err := server.Listen("tcp", "127.0.0.1:0", vc.FixedLocalID(newID("server")))
+	ln, ep, err := server.Listen("tcp", "127.0.0.1:0", newPrincipal("server"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -356,7 +356,7 @@ func TestMultipleVCs(t *testing.T) {
 	var vcs [nVCs]stream.VC
 	for i := 0; i < nVCs; i++ {
 		var err error
-		vcs[i], err = client.Dial(ep, vc.FixedLocalID(newID("client")))
+		vcs[i], err = client.Dial(ep, newPrincipal("client"))
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -433,6 +433,7 @@ func TestAddressResolution(t *testing.T) {
 
 func TestServerRestartDuringClientLifetime(t *testing.T) {
 	client := InternalNew(naming.FixedRoutingID(0xcccccccc))
+	clientP := newPrincipal("client") // TODO(ashankar): Remove. Once the PublicID code is gone anonymous principals should be generated within vc.go if one is not provided.
 	server := blackbox.HelperCommand(t, "runServer", "127.0.0.1:0")
 	server.Cmd.Start()
 	addr, err := server.ReadLineFromChild()
@@ -443,12 +444,12 @@ func TestServerRestartDuringClientLifetime(t *testing.T) {
 	if err != nil {
 		t.Fatalf("inaming.NewEndpoint(%q): %v", addr, err)
 	}
-	if _, err := client.Dial(ep); err != nil {
+	if _, err := client.Dial(ep, clientP); err != nil {
 		t.Fatal(err)
 	}
 	server.Cleanup()
 	// A new VC cannot be created since the server is dead
-	if _, err := client.Dial(ep); err == nil {
+	if _, err := client.Dial(ep, clientP); err == nil {
 		t.Fatal("Expected client.Dial to fail since server is dead")
 	}
 	// Restarting the server, listening on the same address as before
@@ -458,7 +459,7 @@ func TestServerRestartDuringClientLifetime(t *testing.T) {
 	if addr2, err := server.ReadLineFromChild(); addr2 != addr || err != nil {
 		t.Fatalf("Got (%q, %v) want (%q, nil)", addr2, err, addr)
 	}
-	if _, err := client.Dial(ep); err != nil {
+	if _, err := client.Dial(ep, clientP); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -470,7 +471,7 @@ func TestHelperProcess(t *testing.T) {
 
 func runServer(argv []string) {
 	server := InternalNew(naming.FixedRoutingID(0x55555555))
-	_, ep, err := server.Listen("tcp", argv[0], vc.FixedLocalID(newID("server")))
+	_, ep, err := server.Listen("tcp", argv[0], newPrincipal("server"))
 	if err != nil {
 		fmt.Println(err)
 		return

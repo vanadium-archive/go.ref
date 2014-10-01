@@ -41,6 +41,7 @@ func (f *testFlow) RemoteEndpoint() naming.Endpoint     { return nil }
 func (f *testFlow) LocalID() security.PublicID          { return testID.PublicID() }
 func (f *testFlow) RemoteID() security.PublicID         { return testID.PublicID() }
 func (f *testFlow) LocalPrincipal() security.Principal  { return nil }
+func (f *testFlow) LocalBlessings() security.Blessings  { return nil }
 func (f *testFlow) RemoteBlessings() security.Blessings { return nil }
 func (f *testFlow) SetReadDeadline(t time.Time) error   { return nil }
 func (f *testFlow) SetWriteDeadline(t time.Time) error  { return nil }
