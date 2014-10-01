@@ -1,33 +1,25 @@
 // Package sectest provides test utility functions for security-related operations for tests within veyron.io/veyron/veyron/runtimes/google/ipc/stream.
 //
-// TODO(ashankar,ataly): Figure out what to do with BlessingRoots and BlessingStore
-// implementations and where this package should live. Should it be in veyron.io/veyron/veyron2/security, OR
-// veyron.io/veyron/veyron/security OR should the blessingstore and blessingroots implementations be
-// moved to veyron.io/veyron/veyron/runtimes/google/security and those implementations be used? This needs to be
-// figured out, but in the mean time this package provides just enough hacky functionality to work for unittests in
-// veyron.io/veyron/veyron/runtimes/google/ipc/stream.
+// TODO(ashankar,ataly): Figure out what to do with the BlessingStore implementation and move it to
+// veyron.io/veyron/veyron2/security/sectest. In the mean time this package provides just enough hacky
+// functionality to work for unittests in veyron.io/veyron/veyron/runtimes/google/ipc/....
 package sectest
 
 import (
-	"crypto/ecdsa"
-	"crypto/elliptic"
-	"crypto/rand"
-
 	"veyron.io/veyron/veyron2/security"
+	"veyron.io/veyron/veyron2/security/sectest"
 )
 
-// NewPrincipal creates a new security.Principal which:
-//  (1) Recognizes ALL public keys as valid roots for ALL blessings
-//      (which may be fine for unittests)
-//  (2) The BlessingStore will provide defaultBlessing in its Default method.
+// NewPrincipal creates a new security.Principal which provides
+// defaultBlessing in BlessingStore().Default().
 func NewPrincipal(defaultBlessing string) security.Principal {
-	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	_, key, err := sectest.NewKey()
 	if err != nil {
 		panic(err)
 	}
 	signer := security.NewInMemoryECDSASigner(key)
 	store := &blessingStore{m: make(map[string]security.Blessings), k: signer.PublicKey()}
-	p, err := security.CreatePrincipal(signer, store, blessingRoots{})
+	p, err := security.CreatePrincipal(signer, store, sectest.NewBlessingRoots())
 	if err != nil {
 		panic(err)
 	}
@@ -36,6 +28,7 @@ func NewPrincipal(defaultBlessing string) security.Principal {
 		panic(err)
 	}
 	p.BlessingStore().SetDefault(def)
+	p.AddToRoots(def)
 	return p
 }
 
@@ -80,10 +73,3 @@ func (bs *blessingStore) SetDefault(b security.Blessings) error {
 
 func (bs *blessingStore) Default() security.Blessings   { return bs.d }
 func (bs *blessingStore) PublicKey() security.PublicKey { return bs.k }
-
-// security.BlessingRoots implementation that trusts ALL keys.
-// Useless implementation generally speaking, but suffices for the tests here!
-type blessingRoots struct{}
-
-func (r blessingRoots) Add(security.PublicKey, security.BlessingPattern) error { return nil }
-func (r blessingRoots) Recognized(security.PublicKey, string) error            { return nil }

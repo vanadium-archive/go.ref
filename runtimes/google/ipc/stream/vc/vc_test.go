@@ -141,6 +141,15 @@ func TestHandshakeTLS(t *testing.T) {
 	client.BlessingStore().Add(forServer1, security.BlessingPattern("server1"))
 	client.BlessingStore().Add(forServer2, security.BlessingPattern("server2"))
 
+	// Make the clients and servers recognize each other as valid root certificate providers.
+	for _, p := range []security.Principal{client, server1, server2} {
+		for _, b := range []security.Blessings{server1.BlessingStore().Default(), server2.BlessingStore().Default(), client.BlessingStore().Default()} {
+			if err := p.AddToRoots(b); err != nil {
+				t.Fatalf("%v.AddToRoots(%v): %v", p, b, err)
+			}
+		}
+	}
+
 	if err := testBlessings(server1, forServer1); err != nil {
 		t.Error(err)
 	}
