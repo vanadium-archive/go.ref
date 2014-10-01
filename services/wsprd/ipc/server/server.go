@@ -86,8 +86,9 @@ type context struct {
 }
 
 type authRequest struct {
-	Handle  int64   `json:"handle"`
-	Context context `json:"context"`
+	ServerID uint64  `json:"serverID"`
+	Handle   int64   `json:"handle"`
+	Context  context `json:"context"`
 }
 
 type Server struct {
@@ -213,7 +214,8 @@ func (s *Server) createRemoteAuthFunc(handle int64) remoteAuthFunc {
 		s.outstandingAuthRequests[flow.ID] = replyChan
 		s.mu.Unlock()
 		message := authRequest{
-			Handle: handle,
+			ServerID: s.id,
+			Handle:   handle,
 			Context: context{
 				Method:         lib.LowercaseFirstCharacter(ctx.Method()),
 				Name:           ctx.Name(),
