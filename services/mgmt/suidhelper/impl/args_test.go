@@ -57,8 +57,7 @@ func TestParseArguments(t *testing.T) {
 		{
 			[]string{"setuidhelper", "--username", testUserName},
 			[]string{"A=B"},
-			// 501 comes from the default value of --minuid.
-			fmt.Errorf("suidhelper does not permit uids less than 501"),
+			fmt.Errorf("suidhelper does not permit uids less than %d", uidThreshold),
 			WorkParameters{},
 		},
 	}

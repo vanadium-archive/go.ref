@@ -32,7 +32,7 @@ func setupFlags(fs *flag.FlagSet) {
 	flagStdoutLog = fs.String("stdoutlog", "", "Path to the stdout log file.")
 	flagStderrLog = fs.String("stderrlog", "", "Path to the stdin log file.")
 	flagRun = fs.String("run", "", "Path to the application to exec.")
-	flagMinimumUid = fs.Int64("minuid", 501, "UIDs cannot be less than this number.")
+	flagMinimumUid = fs.Int64("minuid", uidThreshold, "UIDs cannot be less than this number.")
 }
 
 // ParseArguments populates the WorkParameter object from the provided args
