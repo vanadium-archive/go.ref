@@ -31,7 +31,7 @@ set cam_mt=$MT_NAME
 ls $root/...
 set l=$_
 eval $l
-assert $RN 5
+assert $RN 7
 
 ls -l $root/...
 wait $_

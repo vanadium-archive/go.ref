@@ -1,10 +1,8 @@
 package namespace_test
 
 import (
-	"reflect"
 	"runtime"
 	"runtime/debug"
-	"sort"
 	"sync"
 	"testing"
 	"time"
@@ -29,13 +27,24 @@ func boom(t *testing.T, f string, v ...interface{}) {
 	t.Fatal(string(debug.Stack()))
 }
 
-func compare(t *testing.T, caller, name string, got, want []string) {
-	if len(got) != len(want) {
-		boom(t, "%s: %q returned wrong # servers: got %v, want %v, servers: got %v, want %v", caller, name, len(got), len(want), got, want)
+// N squared but who cares, this is a little test.
+// Ignores dups.
+func contains(container, contained []string) bool {
+L:
+	for _, d := range contained {
+		for _, r := range container {
+			if r == d {
+				continue L
+			}
+		}
+		return false
 	}
-	sort.Strings(got)
-	sort.Strings(want)
-	if !reflect.DeepEqual(got, want) {
+	return true
+}
+
+func compare(t *testing.T, caller, name string, got, want []string) {
+	// Compare ignoring dups.
+	if !contains(got, want) || !contains(want, got) {
 		boom(t, "%s: %q: got %v, want %v", caller, name, got, want)
 	}
 }
@@ -421,9 +430,7 @@ func TestGlob(t *testing.T) {
 		expected []string
 	}{
 		{"*", tln},
-		// TODO(cnicolaou): the glob that doesn't match a name should fail.
-		//
-		{"x", []string{"x"}},
+		{"x", []string{}},
 		{"m*", []string{"mt1", "mt2", "mt3", "mt4", "mt5"}},
 		{"mt[2,3]", []string{"mt2", "mt3"}},
 		{"*z", []string{"baz"}},

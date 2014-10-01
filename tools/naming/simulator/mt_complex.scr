@@ -40,11 +40,11 @@ eval $l
 assert $RN 3
 wait $l
 
-# ls /... does not.. - it just finds itself... seems a little weird.
+# ls /... is meaningless, finds nothing
 ls /...
 set l=$_
 eval $l
-assert $RN 1
+assert $RN 0
 wait $l
 
 # a rooted glob finds all of the mount points, include an entry for the root
