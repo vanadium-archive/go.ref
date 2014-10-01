@@ -5,8 +5,6 @@ import (
 	"strings"
 	"testing"
 
-	"veyron.io/veyron/veyron/tools/build/impl"
-
 	"veyron.io/veyron/veyron2/ipc"
 	"veyron.io/veyron/veyron2/naming"
 	"veyron.io/veyron/veyron2/rt"
@@ -14,6 +12,9 @@ import (
 	"veyron.io/veyron/veyron2/services/mgmt/build"
 	"veyron.io/veyron/veyron2/verror"
 	"veyron.io/veyron/veyron2/vlog"
+
+	"veyron.io/veyron/veyron/profiles"
+	"veyron.io/veyron/veyron/tools/build/impl"
 )
 
 var errInternalError = verror.Internalf("internal error")
@@ -44,10 +45,9 @@ func startServer(t *testing.T) (ipc.Server, naming.Endpoint) {
 	if err != nil {
 		t.Fatalf("NewServer failed: %v", err)
 	}
-	protocol, address := "tcp", "127.0.0.1:0"
-	endpoint, err := server.Listen(protocol, address)
+	endpoint, err := server.ListenX(profiles.LocalListenSpec)
 	if err != nil {
-		t.Fatalf("Listen(%v, %v) failed: %v", protocol, address, err)
+		t.Fatalf("Listen(%s) failed: %v", profiles.LocalListenSpec, err)
 	}
 	unpublished := ""
 	if err := server.Serve(unpublished, ipc.LeafDispatcher(build.NewServerBuilder(&mock{}), nil)); err != nil {

@@ -7,15 +7,16 @@ import (
 	"testing"
 	"time"
 
-	_ "veyron.io/veyron/veyron/lib/testutil"
-	isecurity "veyron.io/veyron/veyron/runtimes/google/security"
-	vsecurity "veyron.io/veyron/veyron/security"
-
 	"veyron.io/veyron/veyron2"
 	"veyron.io/veyron/veyron2/ipc"
 	"veyron.io/veyron/veyron2/naming"
 	"veyron.io/veyron/veyron2/rt"
 	"veyron.io/veyron/veyron2/security"
+
+	_ "veyron.io/veyron/veyron/lib/testutil"
+	"veyron.io/veyron/veyron/profiles"
+	isecurity "veyron.io/veyron/veyron/runtimes/google/security"
+	vsecurity "veyron.io/veyron/veyron/security"
 )
 
 type testService struct{}
@@ -155,7 +156,7 @@ func TestClientServerIDs(t *testing.T) {
 			t.Errorf("serverR.NewServer(...) failed: %s", err)
 			continue
 		}
-		endpoint, err := server.Listen("tcp", "127.0.0.1:0")
+		endpoint, err := server.ListenX(profiles.LocalListenSpec)
 		if err != nil {
 			t.Errorf("error listening to service: ", err)
 			continue

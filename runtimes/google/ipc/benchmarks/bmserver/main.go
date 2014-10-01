@@ -2,25 +2,17 @@
 package main
 
 import (
-	"flag"
-
-	"veyron.io/veyron/veyron/lib/signals"
-	"veyron.io/veyron/veyron/runtimes/google/ipc/benchmarks"
-
 	"veyron.io/veyron/veyron2/rt"
 	"veyron.io/veyron/veyron2/vlog"
-)
 
-var (
-	// TODO(rthellend): Remove the protocol and address flags when the config
-	// manager is working.
-	protocol = flag.String("protocol", "tcp", "protocol to listen on")
-	address  = flag.String("address", ":0", "address to listen on")
+	"veyron.io/veyron/veyron/lib/signals"
+	"veyron.io/veyron/veyron/profiles/roaming"
+	"veyron.io/veyron/veyron/runtimes/google/ipc/benchmarks"
 )
 
 func main() {
 	r := rt.Init()
-	addr, stop := benchmarks.StartServer(r, *protocol, *address)
+	addr, stop := benchmarks.StartServer(r, roaming.ListenSpec)
 	vlog.Infof("Listening on %s", addr)
 	defer stop()
 	<-signals.ShutdownOnSignals()

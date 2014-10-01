@@ -3,21 +3,17 @@ package main
 import (
 	"flag"
 
-	"veyron.io/veyron/veyron/lib/signals"
-	"veyron.io/veyron/veyron/services/mgmt/node/config"
-	"veyron.io/veyron/veyron/services/mgmt/node/impl"
-
 	"veyron.io/veyron/veyron2/naming"
 	"veyron.io/veyron/veyron2/rt"
 	"veyron.io/veyron/veyron2/vlog"
+
+	"veyron.io/veyron/veyron/lib/signals"
+	"veyron.io/veyron/veyron/profiles/roaming"
+	"veyron.io/veyron/veyron/services/mgmt/node/config"
+	"veyron.io/veyron/veyron/services/mgmt/node/impl"
 )
 
 var (
-	// TODO(rthellend): Remove the protocol and address flags when the config
-	// manager is working.
-	protocol = flag.String("protocol", "tcp", "protocol to listen on")
-	address  = flag.String("address", ":0", "address to listen on")
-
 	publishAs = flag.String("name", "", "name to publish the node manager at")
 )
 
@@ -30,9 +26,9 @@ func main() {
 		vlog.Fatalf("NewServer() failed: %v", err)
 	}
 	defer server.Stop()
-	endpoint, err := server.Listen(*protocol, *address)
+	endpoint, err := server.ListenX(roaming.ListenSpec)
 	if err != nil {
-		vlog.Fatalf("Listen(%v, %v) failed: %v", *protocol, *address, err)
+		vlog.Fatalf("Listen(%s) failed: %v", roaming.ListenSpec, err)
 	}
 	name := naming.MakeTerminal(naming.JoinAddressName(endpoint.String(), ""))
 	vlog.VI(0).Infof("Node manager object name: %v", name)

@@ -6,17 +6,18 @@ import (
 	"testing"
 	"time"
 
-	libstats "veyron.io/veyron/veyron/lib/stats"
-	"veyron.io/veyron/veyron/lib/stats/histogram"
-	istats "veyron.io/veyron/veyron/services/mgmt/stats"
-	"veyron.io/veyron/veyron/services/mgmt/stats/impl"
-
 	"veyron.io/veyron/veyron2/ipc"
 	"veyron.io/veyron/veyron2/naming"
 	"veyron.io/veyron/veyron2/rt"
 	"veyron.io/veyron/veyron2/security"
 	"veyron.io/veyron/veyron2/services/mgmt/stats"
 	"veyron.io/veyron/veyron2/services/watch/types"
+
+	libstats "veyron.io/veyron/veyron/lib/stats"
+	"veyron.io/veyron/veyron/lib/stats/histogram"
+	"veyron.io/veyron/veyron/profiles"
+	istats "veyron.io/veyron/veyron/services/mgmt/stats"
+	"veyron.io/veyron/veyron/services/mgmt/stats/impl"
 )
 
 type statsDispatcher struct {
@@ -33,7 +34,7 @@ func startServer(t *testing.T) (string, func()) {
 		t.Fatalf("NewServer failed: %v", err)
 		return "", nil
 	}
-	endpoint, err := server.Listen("tcp", "localhost:0")
+	endpoint, err := server.ListenX(profiles.LocalListenSpec)
 	if err != nil {
 		t.Fatalf("Listen failed: %v", err)
 		return "", nil

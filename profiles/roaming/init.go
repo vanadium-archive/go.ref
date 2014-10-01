@@ -123,7 +123,7 @@ func (p *profile) Init(rt veyron2.Runtime, publisher *config.Publisher) error {
 	// Create stream in Init function to avoid a race between any
 	// goroutines started here and consumers started after Init returns.
 	ch := make(chan config.Setting)
-	stop, err := publisher.CreateStream(SettingsStreamName, "dhcp", ch)
+	stop, err := publisher.CreateStream(SettingsStreamName, SettingsStreamName, ch)
 	if err != nil {
 		log.Errorf("failed to create publisher: %s", err)
 		return err
@@ -131,7 +131,7 @@ func (p *profile) Init(rt veyron2.Runtime, publisher *config.Publisher) error {
 
 	protocol := listenProtocolFlag.Protocol
 	ListenSpec.StreamPublisher = publisher
-	ListenSpec.StreamName = "dhcp"
+	ListenSpec.StreamName = SettingsStreamName
 	ListenSpec.AddressChooser = preferredIPAddress
 	log.VI(2).Infof("Initial Network Settings: %s %s available: %s", protocol, listenAddressFlag, state)
 	go monitorNetworkSettings(rt, stop, ch, state, ListenSpec)

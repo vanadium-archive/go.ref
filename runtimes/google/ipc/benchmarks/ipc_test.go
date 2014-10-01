@@ -3,15 +3,16 @@ package benchmarks_test
 import (
 	"testing"
 
-	"veyron.io/veyron/veyron/runtimes/google/ipc/benchmarks"
-
 	"veyron.io/veyron/veyron2/rt"
+
+	"veyron.io/veyron/veyron/profiles"
+	"veyron.io/veyron/veyron/runtimes/google/ipc/benchmarks"
 )
 
 var runtime = rt.Init()
 
 func RunBenchmark(b *testing.B, payloadSize int) {
-	address, stop := benchmarks.StartServer(runtime, "tcp", "127.0.0.1:0")
+	address, stop := benchmarks.StartServer(runtime, profiles.LocalListenSpec)
 	ctx := runtime.NewContext()
 	defer stop()
 	benchmarks.CallEcho(ctx, address, 1, 1, nil) // Create VC
@@ -20,7 +21,7 @@ func RunBenchmark(b *testing.B, payloadSize int) {
 }
 
 func RunStreamBenchmark(b *testing.B, rpcCount, messageCount, payloadSize int) {
-	address, stop := benchmarks.StartServer(runtime, "tcp", "127.0.0.1:0")
+	address, stop := benchmarks.StartServer(runtime, profiles.LocalListenSpec)
 	defer stop()
 	benchmarks.CallEchoStream(address, 1, 1, 1, nil) // Create VC
 	b.ResetTimer()

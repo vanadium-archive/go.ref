@@ -8,11 +8,12 @@ import (
 	"strings"
 	"testing"
 
-	_ "veyron.io/veyron/veyron/lib/testutil"
-
 	"veyron.io/veyron/veyron2/ipc"
 	"veyron.io/veyron/veyron2/rt"
 	"veyron.io/veyron/veyron2/services/mgmt/build"
+
+	_ "veyron.io/veyron/veyron/lib/testutil"
+	"veyron.io/veyron/veyron/profiles"
 )
 
 func init() {
@@ -51,10 +52,9 @@ func startServer(t *testing.T) (build.Builder, func()) {
 	if err != nil {
 		t.Fatalf("NewServer() failed: %v", err)
 	}
-	protocol, hostname := "tcp", "127.0.0.1:0"
-	endpoint, err := server.Listen(protocol, hostname)
+	endpoint, err := server.ListenX(profiles.LocalListenSpec)
 	if err != nil {
-		t.Fatalf("Listen(%v, %v) failed: %v", protocol, hostname, err)
+		t.Fatalf("Listen(%s) failed: %v", profiles.LocalListenSpec, err)
 	}
 	unpublished := ""
 	if err := server.Serve(unpublished, ipc.LeafDispatcher(build.NewServerBuilder(NewInvoker(gobin, goroot)), nil)); err != nil {

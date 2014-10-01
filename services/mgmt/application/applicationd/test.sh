@@ -22,7 +22,7 @@ main() {
   # Start the application repository daemon.
   local -r REPO="applicationd-test-repo"
   local -r STORE=$(shell::tmp_dir)
-  shell_test::start_server ./applicationd --name="${REPO}" --store="${STORE}" --address=127.0.0.1:0 -logtostderr
+  shell_test::start_server ./applicationd --name="${REPO}" --store="${STORE}" --veyron.tcp.address=127.0.0.1:0
 
   # Create an application envelope.
   local -r APPLICATION="${REPO}/test-application/v1"

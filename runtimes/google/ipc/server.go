@@ -300,11 +300,10 @@ func (s *server) ListenX(listenSpec *ipc.ListenSpec) (naming.Endpoint, error) {
 		if err != nil {
 			return nil, fmt.Errorf("failed to fork stream %q: %s", streamName, err)
 		}
-
 		_, port, _ := net.SplitHostPort(ep.Address)
 		dhcpl := &dhcpListener{ep: ep, port: port, ch: ch, name: streamName, publisher: publisher}
 
-		// We have a gorouting to listen for dhcp changes.
+		// We have a goroutine to listen for dhcp changes.
 		s.active.Add(1)
 		// goroutine to listen for address changes.
 		go func(dl *dhcpListener) {
@@ -332,16 +331,17 @@ func (s *server) ListenX(listenSpec *ipc.ListenSpec) (naming.Endpoint, error) {
 			vlog.Errorf("ipc: Listen on %v %v failed: %v", protocol, address, err)
 			return nil, err
 		}
-		// We have a goroutine for listen on proxy connections.
+		// We have a goroutine for listening on proxy connections.
 		s.active.Add(1)
 		go func(ln stream.Listener, ep naming.Endpoint, proxy string) {
 			s.proxyListenLoop(ln, ep, proxy)
 			s.active.Done()
 		}(pln, pep, listenSpec.Proxy)
+		s.publisher.AddServer(s.publishEP(pep))
+	} else {
+		s.publisher.AddServer(s.publishEP(ep))
 	}
-
 	s.Unlock()
-	s.publisher.AddServer(s.publishEP(ep))
 	return ep, nil
 }
 

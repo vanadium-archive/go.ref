@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net"
 	"sync"
+
 	"veyron.io/veyron/veyron/runtimes/google/ipc/stream/id"
 	"veyron.io/veyron/veyron/runtimes/google/ipc/stream/message"
 	"veyron.io/veyron/veyron/runtimes/google/ipc/stream/vc"
@@ -13,6 +14,7 @@ import (
 	"veyron.io/veyron/veyron/runtimes/google/lib/bqueue/drrqueue"
 	"veyron.io/veyron/veyron/runtimes/google/lib/iobuf"
 	"veyron.io/veyron/veyron/runtimes/google/lib/upcqueue"
+
 	"veyron.io/veyron/veyron2/naming"
 	"veyron.io/veyron/veyron2/security"
 	"veyron.io/veyron/veyron2/verror"

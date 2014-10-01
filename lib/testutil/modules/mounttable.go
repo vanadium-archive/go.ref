@@ -7,13 +7,14 @@ import (
 	"strconv"
 	"strings"
 
-	"veyron.io/veyron/veyron/lib/testutil/blackbox"
-	mounttable "veyron.io/veyron/veyron/services/mounttable/lib"
-
 	"veyron.io/veyron/veyron2"
 	"veyron.io/veyron/veyron2/naming"
 	"veyron.io/veyron/veyron2/rt"
 	"veyron.io/veyron/veyron2/vlog"
+
+	"veyron.io/veyron/veyron/lib/testutil/blackbox"
+	"veyron.io/veyron/veyron/profiles"
+	mounttable "veyron.io/veyron/veyron/services/mounttable/lib"
 )
 
 var (
@@ -99,7 +100,7 @@ func serveMountTable(root bool, args []string) {
 	if err != nil {
 		bbExitWithError(fmt.Sprintf("mounttable.NewMountTable failed with %v", err))
 	}
-	ep, err := server.Listen("tcp", "127.0.0.1:0")
+	ep, err := server.ListenX(profiles.LocalListenSpec)
 	if err != nil {
 		bbExitWithError(fmt.Sprintf("server.Listen failed with %v", err))
 	}

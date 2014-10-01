@@ -9,8 +9,6 @@ import (
 	"testing"
 	"time"
 
-	_ "veyron.io/veyron/veyron/lib/testutil"
-
 	"veyron.io/veyron/veyron2"
 	"veyron.io/veyron/veyron2/context"
 	"veyron.io/veyron/veyron2/ipc"
@@ -20,6 +18,9 @@ import (
 	"veyron.io/veyron/veyron2/services/mounttable"
 	"veyron.io/veyron/veyron2/services/mounttable/types"
 	"veyron.io/veyron/veyron2/vlog"
+
+	_ "veyron.io/veyron/veyron/lib/testutil"
+	"veyron.io/veyron/veyron/profiles"
 )
 
 // stupidNS is a version of naming.Namespace that we can control.  This exists so that we have some
@@ -193,7 +194,7 @@ func newMT(t *testing.T, acl string) (ipc.Server, string) {
 		boom(t, "NewMountTable: %v", err)
 	}
 	// Start serving on a loopback address.
-	e, err := server.Listen("tcp", "127.0.0.1:0")
+	e, err := server.ListenX(profiles.LocalListenSpec)
 	if err != nil {
 		boom(t, "Failed to Listen mount table: %s", err)
 	}
@@ -212,7 +213,7 @@ func newCollection(t *testing.T, acl string) (ipc.Server, string) {
 		boom(t, "r.NewServer: %s", err)
 	}
 	// Start serving on a loopback address.
-	e, err := server.Listen("tcp", "127.0.0.1:0")
+	e, err := server.ListenX(profiles.LocalListenSpec)
 	if err != nil {
 		boom(t, "Failed to Listen mount table: %s", err)
 	}

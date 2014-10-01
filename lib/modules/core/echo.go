@@ -11,6 +11,7 @@ import (
 	"veyron.io/veyron/veyron2/security"
 
 	"veyron.io/veyron/veyron/lib/modules"
+	"veyron.io/veyron/veyron/profiles"
 )
 
 func init() {
@@ -46,7 +47,7 @@ func echoServer(stdin io.Reader, stdout, stderr io.Writer, env map[string]string
 		return err
 	}
 	defer server.Stop()
-	ep, err := server.Listen("tcp", "127.0.0.1:0")
+	ep, err := server.ListenX(profiles.LocalListenSpec)
 	if err != nil {
 		return err
 	}

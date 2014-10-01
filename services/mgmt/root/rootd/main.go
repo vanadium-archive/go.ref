@@ -1,20 +1,12 @@
 package main
 
 import (
-	"flag"
-
-	"veyron.io/veyron/veyron/lib/signals"
-	"veyron.io/veyron/veyron/services/mgmt/root/impl"
-
 	"veyron.io/veyron/veyron2/rt"
 	"veyron.io/veyron/veyron2/vlog"
-)
 
-var (
-	// TODO(rthellend): Remove the protocol and address flags when the config
-	// manager is working.
-	protocol = flag.String("protocol", "tcp", "protocol to listen on")
-	address  = flag.String("address", ":0", "address to listen on")
+	"veyron.io/veyron/veyron/lib/signals"
+	"veyron.io/veyron/veyron/profiles/roaming"
+	"veyron.io/veyron/veyron/services/mgmt/root/impl"
 )
 
 func main() {
@@ -27,9 +19,9 @@ func main() {
 	}
 	defer server.Stop()
 	dispatcher := impl.NewDispatcher()
-	ep, err := server.Listen(*protocol, *address)
+	ep, err := server.ListenX(roaming.ListenSpec)
 	if err != nil {
-		vlog.Errorf("Listen(%v, %v) failed: %v", *protocol, *address, err)
+		vlog.Errorf("Listen(%s) failed: %v", roaming.ListenSpec, err)
 		return
 	}
 	vlog.VI(0).Infof("Listening on %v", ep)

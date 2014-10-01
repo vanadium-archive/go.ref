@@ -5,12 +5,6 @@ import (
 	"os"
 	"testing"
 
-	mtlib "veyron.io/veyron/veyron/services/mounttable/lib"
-
-	"veyron.io/veyron/veyron/lib/testutil/blackbox"
-	"veyron.io/veyron/veyron/lib/testutil/security"
-	"veyron.io/veyron/veyron/services/mgmt/lib/exec"
-
 	"veyron.io/veyron/veyron2"
 	"veyron.io/veyron/veyron2/ipc"
 	"veyron.io/veyron/veyron2/naming"
@@ -18,6 +12,12 @@ import (
 	"veyron.io/veyron/veyron2/services/mgmt/node"
 	"veyron.io/veyron/veyron2/verror"
 	"veyron.io/veyron/veyron2/vlog"
+
+	"veyron.io/veyron/veyron/lib/testutil/blackbox"
+	"veyron.io/veyron/veyron/lib/testutil/security"
+	"veyron.io/veyron/veyron/profiles"
+	"veyron.io/veyron/veyron/services/mgmt/lib/exec"
+	mtlib "veyron.io/veyron/veyron/services/mounttable/lib"
 )
 
 // TODO(caprita): I've had to write one too many of these, let's move it to some
@@ -34,10 +34,9 @@ func setupLocalNamespace(t *testing.T) func() {
 	if err != nil {
 		t.Fatalf("NewMountTable() failed: %v", err)
 	}
-	protocol, hostname := "tcp", "127.0.0.1:0"
-	endpoint, err := server.Listen(protocol, hostname)
+	endpoint, err := server.ListenX(profiles.LocalListenSpec)
 	if err != nil {
-		t.Fatalf("Listen(%v, %v) failed: %v", protocol, hostname, err)
+		t.Fatalf("Listen(%s) failed: %v", profiles.LocalListenSpec, err)
 	}
 	if err := server.Serve("", dispatcher); err != nil {
 		t.Fatalf("Serve(%v) failed: %v", dispatcher, err)
