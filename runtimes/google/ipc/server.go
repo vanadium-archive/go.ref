@@ -173,8 +173,8 @@ func (s *server) Listen(protocol, address string) (naming.Endpoint, error) {
 			if ip.IsUnspecified() {
 				addrs, err := netstate.GetAccessibleIPs()
 				if err == nil {
-					if a, err := internal.IPAddressChooser(iep.Protocol, addrs); err == nil {
-						iep.Address = net.JoinHostPort(a.String(), port)
+					if a, err := internal.IPAddressChooser(iep.Protocol, addrs); err == nil && len(a) > 0 {
+						iep.Address = net.JoinHostPort(a[0].Address().String(), port)
 					}
 				}
 			}
@@ -233,9 +233,12 @@ func (s *server) externalEndpoint(chooser ipc.AddressChooser, lep naming.Endpoin
 			// didn't specify one.
 			addrs, err := netstate.GetAccessibleIPs()
 			if err == nil {
-				if a, err := chooser(iep.Protocol, addrs); err == nil {
-					iep.Address = net.JoinHostPort(a.String(), port)
-					return iep, a.(*net.IPAddr), nil
+				// TODO(cnicolaou): we could return multiple addresses here,
+				// all of which can be exported to the mount table. Look at
+				// this after we transition fully to ListenX.
+				if a, err := chooser(iep.Protocol, addrs); err == nil && len(a) > 0 {
+					iep.Address = net.JoinHostPort(a[0].Address().String(), port)
+					return iep, a[0].Address().(*net.IPAddr), nil
 				}
 			}
 		} else {

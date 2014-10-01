@@ -15,6 +15,7 @@ import (
 	"veyron.io/veyron/veyron2/rt"
 
 	"veyron.io/veyron/veyron/lib/flags"
+	"veyron.io/veyron/veyron/lib/netstate"
 	"veyron.io/veyron/veyron/profiles"
 	"veyron.io/veyron/veyron/profiles/internal/gce"
 )
@@ -61,8 +62,8 @@ func (p *profile) Init(rt veyron2.Runtime, publisher *config.Publisher) error {
 	if ip, err := gce.ExternalIPAddress(); err != nil {
 		return err
 	} else {
-		ListenSpec.AddressChooser = func(network string, addrs []net.Addr) (net.Addr, error) {
-			return &net.IPAddr{IP: ip}, nil
+		ListenSpec.AddressChooser = func(network string, addrs []ipc.Address) ([]ipc.Address, error) {
+			return []ipc.Address{&netstate.AddrIfc{&net.IPAddr{IP: ip}, "gce-nat", nil}}, nil
 		}
 	}
 	return nil

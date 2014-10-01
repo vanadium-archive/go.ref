@@ -4,10 +4,13 @@ package main
 
 import (
 	"fmt"
+	"os"
+	"strings"
 
 	"veyron.io/veyron/veyron2/config"
 	"veyron.io/veyron/veyron2/rt"
 
+	"veyron.io/veyron/veyron/lib/netstate"
 	"veyron.io/veyron/veyron/profiles/roaming"
 )
 
@@ -17,12 +20,25 @@ func main() {
 
 	fmt.Println("Profile: ", r.Profile().Name())
 
-	if chooser := roaming.ListenSpec.AddressChooser; chooser != nil {
+	accessible, err := netstate.GetAccessibleIPs()
+	routes := netstate.GetRoutes()
+	fmt.Printf("Routes:\n%s\n", strings.Replace(routes.String(), ")", ")\n", -1))
+
+	chooser := roaming.ListenSpec.AddressChooser
+	if chooser != nil {
 		if gce, err := chooser("", nil); err == nil {
 			fmt.Printf("%s: 1:1 NAT address is %s\n", r.Profile().Name(), gce)
 		}
 	}
 
+	if chosen, err := roaming.ListenSpec.AddressChooser("tcp", accessible); err != nil {
+		fmt.Printf("Failed to chosen address %s\n", err)
+	} else {
+		al := netstate.AddrList(chosen)
+		fmt.Printf("Chosen:\n%s\n", strings.Replace(al.String(), ") ", ")\n", -1))
+	}
+
+	os.Exit(0)
 	ch := make(chan config.Setting, 10)
 	settings, err := r.Publisher().ForkStream(roaming.SettingsStreamName, ch)
 	if err != nil {

@@ -12,8 +12,6 @@ package roaming
 
 import (
 	"flag"
-	"fmt"
-	"net"
 
 	"veyron.io/veyron/veyron2"
 	"veyron.io/veyron/veyron2/config"
@@ -24,6 +22,7 @@ import (
 	"veyron.io/veyron/veyron/lib/netconfig"
 	"veyron.io/veyron/veyron/lib/netstate"
 	"veyron.io/veyron/veyron/profiles"
+	"veyron.io/veyron/veyron/profiles/internal"
 )
 
 const (
@@ -47,20 +46,6 @@ func init() {
 
 type profile struct {
 	gce string
-}
-
-func preferredIPAddress(network string, addrs []net.Addr) (net.Addr, error) {
-	if !netstate.IsIPProtocol(network) {
-		return nil, fmt.Errorf("can't support network protocol %q", network)
-	}
-	al := netstate.AddrList(addrs).Map(netstate.ConvertToIPHost)
-	for _, predicate := range []netstate.Predicate{netstate.IsPublicUnicastIPv4,
-		netstate.IsUnicastIPv4, netstate.IsPublicUnicastIPv6} {
-		if a := al.First(predicate); a != nil {
-			return a, nil
-		}
-	}
-	return nil, fmt.Errorf("failed to find any usable address for %q", network)
 }
 
 func New() veyron2.Profile {
@@ -98,11 +83,11 @@ func (p *profile) Init(rt veyron2.Runtime, publisher *config.Publisher) error {
 		log.Infof("failed to determine network state")
 		return err
 	}
-	first := state.First(netstate.IsUnicastIP)
-	if first == nil {
+	any := state.Filter(netstate.IsUnicastIP)
+	if len(any) == 0 {
 		log.Infof("failed to find any usable IP addresses at startup")
 	}
-	public := netstate.IsPublicUnicastIPv4(first)
+	public := netstate.IsPublicUnicastIPv4(any[0])
 
 	// We now know that there is an IP address to listen on, and whether
 	// it's public or private.
@@ -112,8 +97,8 @@ func (p *profile) Init(rt veyron2.Runtime, publisher *config.Publisher) error {
 	// if we are indeed running on GCE.
 	if !public {
 		if addr := handleGCE(rt, publisher); addr != nil {
-			ListenSpec.AddressChooser = func(string, []net.Addr) (net.Addr, error) {
-				return addr, nil
+			ListenSpec.AddressChooser = func(string, []ipc.Address) ([]ipc.Address, error) {
+				return []ipc.Address{&netstate.AddrIfc{addr, "nat", nil}}, nil
 			}
 			p.gce = "+gce"
 			return nil
@@ -132,7 +117,7 @@ func (p *profile) Init(rt veyron2.Runtime, publisher *config.Publisher) error {
 	protocol := listenProtocolFlag.Protocol
 	ListenSpec.StreamPublisher = publisher
 	ListenSpec.StreamName = SettingsStreamName
-	ListenSpec.AddressChooser = preferredIPAddress
+	ListenSpec.AddressChooser = internal.IPAddressChooser
 	log.VI(2).Infof("Initial Network Settings: %s %s available: %s", protocol, listenAddressFlag, state)
 	go monitorNetworkSettings(rt, stop, ch, state, ListenSpec)
 	return nil
@@ -179,7 +164,7 @@ func monitorNetworkSettings(rt veyron2.Runtime, stop <-chan struct{},
 			}
 			// We will always send the best currently available address
 			if chosen, err := listenSpec.AddressChooser(listenSpec.Protocol, cur); err == nil && chosen != nil {
-				ch <- ipc.NewAddAddrsSetting([]net.Addr{chosen})
+				ch <- ipc.NewAddAddrsSetting(chosen)
 			}
 			prev = cur
 			// TODO(cnicolaou): add support for shutting down profiles.
