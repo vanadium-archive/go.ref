@@ -17,7 +17,6 @@ import (
 var (
 	errACL          = errors.New("no matching ACL entry found")
 	errInvalidLabel = errors.New("label is invalid")
-	errNilID        = errors.New("identity being matched is nil")
 )
 
 // aclAuthorizer implements Authorizer.
@@ -27,11 +26,20 @@ type aclAuthorizer security.ACL
 // the aclAuthorizer's ACL for the request's label, or the request corresponds to a self-RPC.
 func (a aclAuthorizer) Authorize(ctx security.Context) error {
 	// Test if the request corresponds to a self-RPC.
+	if ctx.LocalBlessings() != nil && ctx.RemoteBlessings() != nil && reflect.DeepEqual(ctx.LocalBlessings().PublicKey(), ctx.RemoteBlessings().PublicKey()) {
+		return nil
+	}
 	if ctx.LocalID() != nil && ctx.RemoteID() != nil && reflect.DeepEqual(ctx.LocalID(), ctx.RemoteID()) {
 		return nil
 	}
+	var blessings []string
+	if ctx.RemoteBlessings() != nil {
+		blessings = ctx.RemoteBlessings().ForContext(ctx)
+	} else if ctx.RemoteID() != nil {
+		blessings = ctx.RemoteID().Names()
+	}
 	// Match the aclAuthorizer's ACL.
-	return matchesACL(ctx.RemoteID(), ctx.Label(), security.ACL(a))
+	return matchesACL(blessings, ctx.Label(), security.ACL(a))
 }
 
 // NewACLAuthorizer creates an authorizer from the provided ACL. The
@@ -79,19 +87,13 @@ func (a fileACLAuthorizer) Authorize(ctx security.Context) error {
 // store.
 func NewFileACLAuthorizer(filePath string) security.Authorizer { return fileACLAuthorizer(filePath) }
 
-func matchesACL(id security.PublicID, label security.Label, acl security.ACL) error {
-	if id == nil {
-		return errNilID
+func matchesACL(blessings []string, label security.Label, acl security.ACL) error {
+	if len(blessings) == 0 && acl.CanAccess("", label) {
+		// No blessings, check if that satisfies the ACL (it will be if AllPrincipals appears in the ACL).
+		return nil
 	}
-	names := id.Names()
-	if len(names) == 0 {
-		// If id.Names() is empty, create a list of one empty name to force a
-		// call to CanAccess. Otherwise, ids with no names will not have access
-		// on an AllPrincipals ACL.
-		names = make([]string, 1)
-	}
-	for _, name := range names {
-		if acl.CanAccess(name, label) {
+	for _, b := range blessings {
+		if acl.CanAccess(b, label) {
 			return nil
 		}
 	}
