@@ -1,4 +1,4 @@
-package config
+package exec
 
 import (
 	"testing"
@@ -20,7 +20,7 @@ func checkAbsent(t *testing.T, c Config, k string) {
 
 // TestConfig checks that Set and Get work as expected.
 func TestConfig(t *testing.T) {
-	c := New()
+	c := NewConfig()
 	c.Set("foo", "bar")
 	checkPresent(t, c, "foo", "bar")
 	checkAbsent(t, c, "food")
@@ -31,14 +31,14 @@ func TestConfig(t *testing.T) {
 // TestSerialize checks that serializing the config and merging from a
 // serialized config work as expected.
 func TestSerialize(t *testing.T) {
-	c := New()
+	c := NewConfig()
 	c.Set("k1", "v1")
 	c.Set("k2", "v2")
 	s, err := c.Serialize()
 	if err != nil {
 		t.Fatalf("Failed to serialize: %v", err)
 	}
-	readC := New()
+	readC := NewConfig()
 	if err := readC.MergeFrom(s); err != nil {
 		t.Fatalf("Failed to deserialize: %v", err)
 	}

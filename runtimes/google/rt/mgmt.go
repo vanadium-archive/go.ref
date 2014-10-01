@@ -11,9 +11,9 @@ import (
 	"veyron.io/veyron/veyron2/mgmt"
 	"veyron.io/veyron/veyron2/naming"
 
+	"veyron.io/veyron/veyron/lib/exec"
 	"veyron.io/veyron/veyron/profiles"
 	"veyron.io/veyron/veyron/runtimes/google/appcycle"
-	"veyron.io/veyron/veyron/services/mgmt/lib/exec"
 )
 
 type mgmtImpl struct {

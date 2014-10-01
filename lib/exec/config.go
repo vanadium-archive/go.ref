@@ -1,4 +1,4 @@
-package config
+package exec
 
 import (
 	"bytes"
@@ -10,9 +10,6 @@ import (
 )
 
 var ErrKeyNotFound = verror.NoExistf("config key not found")
-
-// TODO(caprita): Move the interface to veyron2 and integrate with
-// veyron/services/config.
 
 // Config defines a simple key-value configuration.  Keys and values are
 // strings, and a key can have exactly one value.  The client is responsible for
@@ -49,7 +46,7 @@ type cfg struct {
 }
 
 // New creates a new empty config.
-func New() Config {
+func NewConfig() Config {
 	return &cfg{m: make(map[string]string)}
 }
 

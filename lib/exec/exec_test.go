@@ -10,10 +10,9 @@ import (
 	"testing"
 	"time"
 
-	"veyron.io/veyron/veyron/lib/config"
+	vexec "veyron.io/veyron/veyron/lib/exec"
 	// Use mock timekeeper to avoid actually sleeping during the test.
 	"veyron.io/veyron/veyron/runtimes/google/testing/timekeeper"
-	vexec "veyron.io/veyron/veyron/services/mgmt/lib/exec"
 )
 
 // We always expect there to be exactly three open file descriptors
@@ -103,7 +102,7 @@ func expectMessage(r io.Reader, m string) bool {
 func TestConfigExchange(t *testing.T) {
 	cmd := helperCommand("testConfig")
 	stderr, _ := cmd.StderrPipe()
-	cfg := config.New()
+	cfg := vexec.NewConfig()
 	cfg.Set("foo", "bar")
 	ph := vexec.NewParentHandle(cmd, vexec.ConfigOpt{cfg})
 	err := ph.Start()

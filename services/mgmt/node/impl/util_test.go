@@ -13,10 +13,10 @@ import (
 	"veyron.io/veyron/veyron2/verror"
 	"veyron.io/veyron/veyron2/vlog"
 
+	"veyron.io/veyron/veyron/lib/exec"
 	"veyron.io/veyron/veyron/lib/testutil/blackbox"
 	"veyron.io/veyron/veyron/lib/testutil/security"
 	"veyron.io/veyron/veyron/profiles"
-	"veyron.io/veyron/veyron/services/mgmt/lib/exec"
 	mtlib "veyron.io/veyron/veyron/services/mounttable/lib"
 )
 

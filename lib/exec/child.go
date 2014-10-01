@@ -6,8 +6,6 @@ import (
 	"io"
 	"os"
 	"sync"
-
-	"veyron.io/veyron/veyron/lib/config"
 )
 
 var (
@@ -17,7 +15,7 @@ var (
 
 type ChildHandle struct {
 	// Config is passed down from the parent.
-	Config config.Config
+	Config Config
 	// Secret is a secret passed to the child by its parent via a
 	// trusted channel.
 	Secret string
@@ -86,7 +84,7 @@ func createChildHandle() (*ChildHandle, error) {
 	if err != nil {
 		return nil, err
 	}
-	cfg := config.New()
+	cfg := NewConfig()
 	if err := cfg.MergeFrom(serializedConfig); err != nil {
 		return nil, err
 	}

@@ -16,11 +16,11 @@ import (
 	"testing"
 	"time"
 
+	"veyron.io/veyron/veyron/lib/exec"
 	"veyron.io/veyron/veyron/lib/signals"
 	"veyron.io/veyron/veyron/lib/testutil/blackbox"
 	tsecurity "veyron.io/veyron/veyron/lib/testutil/security"
 	vsecurity "veyron.io/veyron/veyron/security"
-	"veyron.io/veyron/veyron/services/mgmt/lib/exec"
 	"veyron.io/veyron/veyron/services/mgmt/node/config"
 	"veyron.io/veyron/veyron/services/mgmt/node/impl"
 	suidhelper "veyron.io/veyron/veyron/services/mgmt/suidhelper/impl"

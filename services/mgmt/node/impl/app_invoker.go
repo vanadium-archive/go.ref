@@ -96,10 +96,6 @@ import (
 	"strings"
 	"time"
 
-	"veyron.io/veyron/veyron/lib/config"
-	vexec "veyron.io/veyron/veyron/services/mgmt/lib/exec"
-	iconfig "veyron.io/veyron/veyron/services/mgmt/node/config"
-
 	"veyron.io/veyron/veyron2/context"
 	"veyron.io/veyron/veyron2/ipc"
 	"veyron.io/veyron/veyron2/mgmt"
@@ -108,6 +104,9 @@ import (
 	"veyron.io/veyron/veyron2/services/mgmt/appcycle"
 	"veyron.io/veyron/veyron2/services/mgmt/application"
 	"veyron.io/veyron/veyron2/vlog"
+
+	vexec "veyron.io/veyron/veyron/lib/exec"
+	iconfig "veyron.io/veyron/veyron/services/mgmt/node/config"
 )
 
 // instanceInfo holds state about a running instance.
@@ -470,7 +469,7 @@ func (i *appInvoker) startCmd(instanceDir string, cmd *exec.Cmd) error {
 	callbackState := i.callback
 	listener := callbackState.listenFor(mgmt.AppCycleManagerConfigKey)
 	defer listener.cleanup()
-	cfg := config.New()
+	cfg := vexec.NewConfig()
 	cfg.Set(mgmt.ParentNodeManagerConfigKey, listener.name())
 	handle := vexec.NewParentHandle(cmd, vexec.ConfigOpt{cfg})
 	defer func() {

@@ -15,9 +15,9 @@ import (
 	"veyron.io/veyron/veyron2/security"
 	"veyron.io/veyron/veyron2/vlog"
 
+	"veyron.io/veyron/veyron/lib/exec"
 	"veyron.io/veyron/veyron/profiles"
 	"veyron.io/veyron/veyron/runtimes/google/naming/namespace"
-	"veyron.io/veyron/veyron/services/mgmt/lib/exec"
 )
 
 type vrt struct {

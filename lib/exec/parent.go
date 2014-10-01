@@ -9,7 +9,6 @@ import (
 	"syscall"
 	"time"
 
-	"veyron.io/veyron/veyron/lib/config"
 	// TODO(cnicolaou): move timekeeper out of runtimes
 	"veyron.io/veyron/veyron/runtimes/google/lib/timekeeper"
 
@@ -25,7 +24,7 @@ var (
 // A ParentHandle is the Parent process' means of managing a single child.
 type ParentHandle struct {
 	c           *exec.Cmd
-	config      config.Config
+	config      Config
 	secret      string
 	statusRead  *os.File
 	statusWrite *os.File
@@ -42,7 +41,7 @@ type ParentHandleOpt interface {
 // ConfigOpt can be used to seed the parent handle with a
 // config to be passed to the child.
 type ConfigOpt struct {
-	config.Config
+	Config
 }
 
 // ExecParentHandleOpt makes ConfigOpt an instance of
@@ -67,7 +66,7 @@ func (TimeKeeperOpt) ExecParentHandleOpt() {}
 // an instance of exec.Cmd.
 func NewParentHandle(c *exec.Cmd, opts ...ParentHandleOpt) *ParentHandle {
 	c.Env = append(c.Env, versionVariable+"="+version1)
-	cfg, secret := config.New(), ""
+	cfg, secret := NewConfig(), ""
 	tk := timekeeper.RealTime()
 	for _, opt := range opts {
 		switch v := opt.(type) {
