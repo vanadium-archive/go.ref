@@ -293,9 +293,7 @@ func (i *appInvoker) Install(_ ipc.ServerContext, applicationVON string) (string
 	installationID := generateID()
 	installationDir := filepath.Join(i.config.Root, applicationDirName(envelope.Title), installationDirName(installationID))
 	deferrer := func() {
-		if err := os.RemoveAll(installationDir); err != nil {
-			vlog.Errorf("RemoveAll(%v) failed: %v", installationDir, err)
-		}
+		cleanupDir(installationDir)
 	}
 	defer func() {
 		if deferrer != nil {
@@ -531,9 +529,7 @@ func (i *appInvoker) Start(ipc.ServerContext) ([]string, error) {
 		err = i.run(instanceDir)
 	}
 	if err != nil {
-		if err := os.RemoveAll(instanceDir); err != nil {
-			vlog.Errorf("RemoveAll(%v) failed: %v", instanceDir, err)
-		}
+		cleanupDir(instanceDir)
 		return nil, err
 	}
 	return []string{instanceID}, nil
@@ -684,9 +680,7 @@ func (i *appInvoker) Update(ipc.ServerContext) error {
 	}
 	versionDir, err := newVersion(installationDir, newEnvelope, oldVersionDir)
 	if err != nil {
-		if err := os.RemoveAll(versionDir); err != nil {
-			vlog.Errorf("RemoveAll(%v) failed: %v", versionDir, err)
-		}
+		cleanupDir(versionDir)
 		return err
 	}
 	return nil
