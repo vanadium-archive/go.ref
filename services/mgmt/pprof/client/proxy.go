@@ -204,13 +204,9 @@ func (p *proxy) symbol(w http.ResponseWriter, r *http.Request) {
 		replyUnavailable(w, fmt.Errorf("received the wrong number of results. Got %d, want %d", len(pcMap), len(pcList)))
 		return
 	}
-	count := 0
-	for _, v := range pcMap {
-		if len(v) > 0 {
-			count++
-		}
-	}
-	fmt.Fprintf(w, "num_symbols: %d\n", count)
+	// The pprof tool always wants num_symbols to be non-zero, even if no
+	// symbols are returned.. The actual value doesn't matter.
+	fmt.Fprintf(w, "num_symbols: 1\n")
 	for i, v := range pcMap {
 		if len(v) > 0 {
 			fmt.Fprintf(w, "%#x %s\n", pcList[i], v)
