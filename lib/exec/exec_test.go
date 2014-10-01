@@ -12,7 +12,7 @@ import (
 
 	vexec "veyron.io/veyron/veyron/lib/exec"
 	// Use mock timekeeper to avoid actually sleeping during the test.
-	"veyron.io/veyron/veyron/runtimes/google/testing/timekeeper"
+	"veyron.io/veyron/veyron/lib/testutil/timekeeper"
 )
 
 // We always expect there to be exactly three open file descriptors

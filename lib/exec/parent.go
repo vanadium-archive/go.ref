@@ -9,10 +9,9 @@ import (
 	"syscall"
 	"time"
 
-	// TODO(cnicolaou): move timekeeper out of runtimes
-	"veyron.io/veyron/veyron/runtimes/google/lib/timekeeper"
-
 	"veyron.io/veyron/veyron2/vlog"
+
+	"veyron.io/veyron/veyron/lib/timekeeper"
 )
 
 var (
