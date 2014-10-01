@@ -216,7 +216,6 @@ func TestDebugServer(t *testing.T) {
 		}
 		sort.Strings(results)
 		expected = []string{
-			"",
 			"logs",
 			"logs/test.INFO",
 			"pprof",
