@@ -197,7 +197,7 @@ func Root() *cmdline.Command {
 		Name:  "vrpc",
 		Short: "Tool for interacting with Veyron RPC servers.",
 		Long: `
-The vrpc tool enables interacting with Veyron RPC servers. In particular,
+The vrpc tool facilitates interaction with Veyron RPC servers. In particular,
 it can be used to 1) find out what API a Veyron RPC server exports and
 2) send requests to a Veyron RPC server.
 `,
