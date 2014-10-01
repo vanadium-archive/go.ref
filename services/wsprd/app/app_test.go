@@ -561,7 +561,8 @@ func runJsServerTestCase(t *testing.T, test jsServerTestCase) {
 		expectedWebsocketMessage = append(expectedWebsocketMessage, testwriter.Response{
 			Type: lib.ResponseAuthRequest,
 			Message: map[string]interface{}{
-				"handle": 0.0,
+				"serverID": 0.0,
+				"handle":   0.0,
 				"context": map[string]interface{}{
 					"method": lib.LowercaseFirstCharacter(test.method),
 					"name":   "adder",
@@ -616,7 +617,8 @@ func runJsServerTestCase(t *testing.T, test jsServerTestCase) {
 		expectedWebsocketMessage = append(expectedWebsocketMessage, testwriter.Response{
 			Type: lib.ResponseAuthRequest,
 			Message: map[string]interface{}{
-				"handle": 0.0,
+				"serverID": 0.0,
+				"handle":   0.0,
 				"context": map[string]interface{}{
 					"method": lib.LowercaseFirstCharacter(test.method),
 					"name":   "adder",
