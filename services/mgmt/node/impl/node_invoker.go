@@ -43,9 +43,12 @@ import (
 	"veyron.io/veyron/veyron2/services/mgmt/application"
 	"veyron.io/veyron/veyron2/services/mgmt/binary"
 	"veyron.io/veyron/veyron2/services/mgmt/node"
+	"veyron.io/veyron/veyron2/services/mounttable"
+	"veyron.io/veyron/veyron2/services/mounttable/types"
 	"veyron.io/veyron/veyron2/vlog"
 
 	vexec "veyron.io/veyron/veyron/lib/exec"
+	"veyron.io/veyron/veyron/lib/glob"
 	iconfig "veyron.io/veyron/veyron/services/mgmt/node/config"
 	"veyron.io/veyron/veyron/services/mgmt/profile"
 )
@@ -374,4 +377,16 @@ func (i *nodeInvoker) SetACL(_ ipc.ServerContext, acl security.ACL, etag string)
 
 func (i *nodeInvoker) GetACL(_ ipc.ServerContext) (acl security.ACL, etag string, err error) {
 	return i.disp.getACL()
+}
+
+func (i *nodeInvoker) Glob(ctx ipc.ServerContext, pattern string, stream mounttable.GlobbableServiceGlobStream) error {
+	// TODO(rthellend): Finish implementing Glob
+	g, err := glob.Parse(pattern)
+	if err != nil {
+		return err
+	}
+	if g.Len() == 0 {
+		return stream.SendStream().Send(types.MountEntry{Name: ""})
+	}
+	return nil
 }

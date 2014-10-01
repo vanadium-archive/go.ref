@@ -103,9 +103,12 @@ import (
 	"veyron.io/veyron/veyron2/rt"
 	"veyron.io/veyron/veyron2/services/mgmt/appcycle"
 	"veyron.io/veyron/veyron2/services/mgmt/application"
+	"veyron.io/veyron/veyron2/services/mounttable"
+	"veyron.io/veyron/veyron2/services/mounttable/types"
 	"veyron.io/veyron/veyron2/vlog"
 
 	vexec "veyron.io/veyron/veyron/lib/exec"
+	"veyron.io/veyron/veyron/lib/glob"
 	iconfig "veyron.io/veyron/veyron/services/mgmt/node/config"
 )
 
@@ -724,4 +727,16 @@ func (i *appInvoker) Revert(ipc.ServerContext) error {
 		return errOperationFailed
 	}
 	return updateLink(prevVersionDir, currLink)
+}
+
+func (i *appInvoker) Glob(ctx ipc.ServerContext, pattern string, stream mounttable.GlobbableServiceGlobStream) error {
+	// TODO(rthellend): Finish implementing Glob
+	g, err := glob.Parse(pattern)
+	if err != nil {
+		return err
+	}
+	if g.Len() == 0 {
+		return stream.SendStream().Send(types.MountEntry{Name: ""})
+	}
+	return nil
 }

@@ -10,6 +10,8 @@ import (
 	"os"
 	goexec "os/exec"
 	"path/filepath"
+	"reflect"
+	"sort"
 	"strconv"
 	"strings"
 	"syscall"
@@ -32,6 +34,7 @@ import (
 	"veyron.io/veyron/veyron2/security"
 	"veyron.io/veyron/veyron2/services/mgmt/application"
 	"veyron.io/veyron/veyron2/services/mgmt/node"
+	"veyron.io/veyron/veyron2/services/mounttable"
 	"veyron.io/veyron/veyron2/verror"
 	"veyron.io/veyron/veyron2/vlog"
 )
@@ -885,5 +888,51 @@ func TestNodeManagerUpdateACL(t *testing.T) {
 	defer newRT.Cleanup()
 	if err = tryInstall(newRT, nodeClient); err == nil {
 		t.Fatalf("Install should have failed with claimer identity")
+	}
+}
+
+func TestNodeManagerGlob(t *testing.T) {
+	// Set up mount table.
+	defer setupLocalNamespace(t)()
+	root, cleanup := setupRootDir(t)
+	defer cleanup()
+
+	// Set up the node manager.  Since we won't do node manager updates,
+	// don't worry about its application envelope and current link.
+	nm := blackbox.HelperCommand(t, "nodeManager", "nm", root, "unused app repo name", "unused curr link")
+	defer setupChildCommand(nm)()
+	if err := nm.Cmd.Start(); err != nil {
+		t.Fatalf("Start() failed: %v", err)
+	}
+	defer nm.Cleanup()
+	readPID(t, nm)
+
+	c, err := mounttable.BindGlobbable("nm")
+	if err != nil {
+		t.Fatalf("BindGlobbable failed: %v", err)
+	}
+
+	stream, err := c.Glob(rt.R().NewContext(), "...")
+	if err != nil {
+		t.Errorf("Glob failed: %v", err)
+	}
+	results := []string{}
+	iterator := stream.RecvStream()
+	for iterator.Advance() {
+		results = append(results, iterator.Value().Name)
+	}
+	sort.Strings(results)
+	expected := []string{
+		"apps",
+		"nm",
+	}
+	if !reflect.DeepEqual(results, expected) {
+		t.Errorf("unexpected result. Got %v, want %v", results, expected)
+	}
+	if err := iterator.Err(); err != nil {
+		t.Errorf("unexpected stream error: %v", err)
+	}
+	if err := stream.Finish(); err != nil {
+		t.Errorf("Finish failed: %v", err)
 	}
 }

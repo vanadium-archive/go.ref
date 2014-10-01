@@ -14,6 +14,7 @@ import (
 	vsecurity "veyron.io/veyron/veyron/security"
 	vflag "veyron.io/veyron/veyron/security/flag"
 	"veyron.io/veyron/veyron/security/serialization"
+	"veyron.io/veyron/veyron/services/mgmt/lib/toplevelglob"
 	inode "veyron.io/veyron/veyron/services/mgmt/node"
 	"veyron.io/veyron/veyron/services/mgmt/node/config"
 
@@ -216,6 +217,9 @@ func (d *dispatcher) Lookup(suffix, method string) (ipc.Invoker, security.Author
 		}
 	}
 	if len(components) == 0 {
+		if method == "Glob" {
+			return toplevelglob.New(d, []string{nodeSuffix, appsSuffix}), d.auth, nil
+		}
 		return nil, nil, errInvalidSuffix
 	}
 	// The implementation of the node manager is split up into several

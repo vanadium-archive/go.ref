@@ -4,16 +4,13 @@ import (
 	"strings"
 	"time"
 
-	"veyron.io/veyron/veyron/lib/glob"
+	"veyron.io/veyron/veyron/services/mgmt/lib/toplevelglob"
 	logreaderimpl "veyron.io/veyron/veyron/services/mgmt/logreader/impl"
 	pprofimpl "veyron.io/veyron/veyron/services/mgmt/pprof/impl"
 	statsimpl "veyron.io/veyron/veyron/services/mgmt/stats/impl"
 
 	"veyron.io/veyron/veyron2/ipc"
-	"veyron.io/veyron/veyron2/naming"
 	"veyron.io/veyron/veyron2/security"
-	"veyron.io/veyron/veyron2/services/mounttable/types"
-	"veyron.io/veyron/veyron2/verror"
 )
 
 // dispatcher holds the state of the debug dispatcher.
@@ -32,7 +29,7 @@ func (d *dispatcher) Lookup(suffix, method string) (ipc.Invoker, security.Author
 	}
 	if len(suffix) == 0 {
 		leaves := []string{"logs", "pprof", "stats"}
-		return ipc.ReflectInvoker(&topLevelGlobInvoker{d, leaves}), d.auth, nil
+		return toplevelglob.New(d, leaves), d.auth, nil
 	}
 	parts := strings.SplitN(suffix, "/", 2)
 	if len(parts) == 2 {
@@ -52,72 +49,4 @@ func (d *dispatcher) Lookup(suffix, method string) (ipc.Invoker, security.Author
 		return statsimpl.NewStatsInvoker(suffix, 10*time.Second), d.auth, nil
 	}
 	return nil, d.auth, nil
-}
-
-type topLevelGlobInvoker struct {
-	d      *dispatcher
-	leaves []string
-}
-
-func (i *topLevelGlobInvoker) Glob(call ipc.ServerCall, pattern string) error {
-	g, err := glob.Parse(pattern)
-	if err != nil {
-		return err
-	}
-	for _, leaf := range i.leaves {
-		if ok, _, left := g.MatchInitialSegment(leaf); ok {
-			if err := i.leafGlob(call, leaf, left.String()); err != nil {
-				return err
-			}
-		}
-	}
-	return nil
-}
-
-func (i *topLevelGlobInvoker) leafGlob(call ipc.ServerCall, leaf string, pattern string) error {
-	invoker, _, err := i.d.Lookup(leaf, "Glob")
-	if err != nil {
-		return err
-	}
-	argptrs := []interface{}{&pattern}
-	leafCall := &localServerCall{call, leaf}
-	results, err := invoker.Invoke("Glob", leafCall, argptrs)
-	if err != nil {
-		return err
-	}
-	if len(results) != 1 {
-		return verror.BadArgf("unexpected number of results. Got %d, want 1", len(results))
-	}
-	res := results[0]
-	if res == nil {
-		return nil
-	}
-	err, ok := res.(error)
-	if !ok {
-		return verror.BadArgf("unexpected result type. Got %T, want error", res)
-	}
-	return err
-}
-
-// An ipc.ServerCall implementation used to Invoke methods on the invokers
-// directly. Everything is the same as the original ServerCall, except the
-// Stream implementation.
-type localServerCall struct {
-	ipc.ServerCall
-	name string
-}
-
-// Re-Implement ipc.Stream
-func (c *localServerCall) Recv(v interface{}) error {
-	panic("Recv not implemented")
-	return nil
-}
-
-func (c *localServerCall) Send(v interface{}) error {
-	me, ok := v.(types.MountEntry)
-	if !ok {
-		return verror.BadArgf("unexpected stream type. Got %T, want MountEntry", v)
-	}
-	me.Name = naming.Join(c.name, me.Name)
-	return c.ServerCall.Send(me)
 }
