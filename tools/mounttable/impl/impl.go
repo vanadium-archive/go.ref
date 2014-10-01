@@ -171,9 +171,11 @@ func runResolveStep(cmd *cmdline.Command, args []string) error {
 
 func Root() *cmdline.Command {
 	return &cmdline.Command{
-		Name:     "mounttable",
-		Short:    "Command-line tool for interacting with a Veyron mount table",
-		Long:     "Command-line tool for interacting with a Veyron mount table",
+		Name:  "mounttable",
+		Short: "Tool for interacting with a Veyron mount table",
+		Long: `
+The mounttable tool facilitates interaction with a Veyron mount table.
+`,
 		Children: []*cmdline.Command{cmdGlob, cmdMount, cmdUnmount, cmdResolveStep},
 	}
 }

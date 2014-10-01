@@ -220,9 +220,12 @@ func runEdit(cmd *cmdline.Command, args []string) error {
 
 func Root() *cmdline.Command {
 	return &cmdline.Command{
-		Name:     "application",
-		Short:    "Command-line tool for interacting with the veyron application repository",
-		Long:     "Command-line tool for interacting with the veyron application repository",
+		Name:  "application",
+		Short: "Tool for interacting with the veyron application repository",
+		Long: `
+The application tool facilitates interaction with the veyron application
+repository.
+`,
 		Children: []*cmdline.Command{cmdMatch, cmdPut, cmdRemove, cmdEdit},
 	}
 }

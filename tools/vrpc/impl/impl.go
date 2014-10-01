@@ -195,7 +195,7 @@ forloop:
 func Root() *cmdline.Command {
 	return &cmdline.Command{
 		Name:  "vrpc",
-		Short: "Command-line tool for interacting with Veyron RPC servers.",
+		Short: "Tool for interacting with Veyron RPC servers.",
 		Long: `
 The vrpc tool enables interacting with Veyron RPC servers. In particular,
 it can be used to 1) find out what API a Veyron RPC server exports and

@@ -162,9 +162,11 @@ func runRemove(cmd *cmdline.Command, args []string) error {
 
 func Root() *cmdline.Command {
 	return &cmdline.Command{
-		Name:     "profile",
-		Short:    "Command-line tool for interacting with the veyron profile repository",
-		Long:     "Command-line tool for interacting with the veyron profile repository",
+		Name:  "profile",
+		Short: "Tool for interacting with the veyron profile repository",
+		Long: `
+The profile tool facilitates interaction with the veyron profile repository.
+`,
 		Children: []*cmdline.Command{cmdLabel, cmdDescription, cmdSpecification, cmdPut, cmdRemove},
 	}
 }

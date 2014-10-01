@@ -198,9 +198,9 @@ func runUnresolve(cmd *cmdline.Command, args []string) error {
 func Root() *cmdline.Command {
 	return &cmdline.Command{
 		Name:  "namespace",
-		Short: "Command-line tool for interacting with the Veyron namespace",
+		Short: "Tool for interacting with the Veyron namespace",
 		Long: `
-Command-line tool for interacting with the Veyron namespace.
+The namespace tool facilitates interaction with the Veyron namespace.
 
 The namespace roots are set from environment variables that have a name
 starting with NAMESPACE_ROOT, e.g. NAMESPACE_ROOT, NAMESPACE_ROOT_2,

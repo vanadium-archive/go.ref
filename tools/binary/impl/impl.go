@@ -84,9 +84,11 @@ func runUpload(cmd *cmdline.Command, args []string) error {
 
 func Root() *cmdline.Command {
 	return &cmdline.Command{
-		Name:     "binary",
-		Short:    "Command-line tool for interacting with the veyron binary repository",
-		Long:     "Command-line tool for interacting with the veyron binary repository",
+		Name:  "binary",
+		Short: "Tool for interacting with the veyron binary repository",
+		Long: `
+The binary tool facilitates interaction with the veyron binary repository.
+`,
 		Children: []*cmdline.Command{cmdDelete, cmdDownload, cmdUpload},
 	}
 }

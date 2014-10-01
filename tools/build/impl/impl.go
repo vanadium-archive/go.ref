@@ -28,9 +28,11 @@ func init() {
 }
 
 var cmdRoot = &cmdline.Command{
-	Name:     "build",
-	Short:    "Command-line tool for interacting with the veyron build server",
-	Long:     "Command-line tool for interacting with the veyron build server.",
+	Name:  "build",
+	Short: "Tool for interacting with the veyron build server",
+	Long: `
+The build tool tool facilitates interaction with the veyron build server.
+`,
 	Children: []*cmdline.Command{cmdBuild},
 }
 
