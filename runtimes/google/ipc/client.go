@@ -11,6 +11,7 @@ import (
 
 	"veyron.io/veyron/veyron/runtimes/google/ipc/version"
 	inaming "veyron.io/veyron/veyron/runtimes/google/naming"
+	isecurity "veyron.io/veyron/veyron/runtimes/google/security"
 	"veyron.io/veyron/veyron/runtimes/google/vtrace"
 
 	"veyron.io/veyron/veyron2"
@@ -271,14 +272,10 @@ func authorizeServer(client, server security.PublicID, opts []ipc.CallOpt) (secu
 
 	// TODO(ataly): What should the label be for the context? Typically the label is the
 	// security.Label of the method but we don't have that information here at the client.
-	// TODO(ataly,andreser): Replace this statement with the commented code just below
-	// it once we have a mechanism for servers to send discharges for any third-party caveats
-	// on its PublicID.
-	authID, err := server, error(nil)
-	// authID, err := server.Authorize(isecurity.NewContext(isecurity.ContextArgs{
-	// 	LocalID:  client,
-	//	RemoteID: server,
-	// }))
+	authID, err := server.Authorize(isecurity.NewContext(isecurity.ContextArgs{
+		LocalID:  client,
+		RemoteID: server,
+	}))
 	if err != nil {
 		return nil, err
 	}

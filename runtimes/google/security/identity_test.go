@@ -535,28 +535,33 @@ func TestAuthorizeWithThirdPartyCaveats(t *testing.T) {
 		dInvalid = mintDischarge(bob, time.Minute) // Invalid because bob cannot mint valid discharges for aliceProximityCaveat
 
 		// Contexts
-		ctxEmpty = NewContext(ContextArgs{Debug: "ctxEmpty"})
+		ctxEmpty = NewContext(ContextArgs{Method: "Play", Debug: "ctxEmpty"})
 		ctxAlice = NewContext(ContextArgs{
+			Method:     "Play",
 			Discharges: dischargeMap{dAlice.ID(): dAlice},
 			Debug:      "ctxAlice",
 		})
 		// Context containing the discharge dGoogle but the server is not a Google server, so
 		// the service caveat is not satisfied
 		ctxGoogleAtOther = NewContext(ContextArgs{
+			Method:     "Play",
 			Discharges: dischargeMap{dGoogle.ID(): dGoogle},
 			Debug:      "ctxGoogleAtOther",
 		})
 		// Context containing the discharge dGoogle at a google server.
 		ctxGoogleAtGoogle = NewContext(ContextArgs{
+			Method:     "Play",
 			Discharges: dischargeMap{dGoogle.ID(): dGoogle},
 			LocalID:    googleChain.PublicID(),
 			Debug:      "ctxGoogleAtGoogle",
 		})
 		ctxExpired = NewContext(ContextArgs{
+			Method:     "Play",
 			Discharges: dischargeMap{dExpired.ID(): dExpired},
 			Debug:      "ctxExpired",
 		})
 		ctxInvalid = NewContext(ContextArgs{
+			Method:     "Play",
 			Discharges: dischargeMap{dInvalid.ID(): dInvalid},
 			Debug:      "ctxInvalid",
 		})

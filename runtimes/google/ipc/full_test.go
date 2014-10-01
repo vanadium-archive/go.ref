@@ -365,19 +365,14 @@ func TestStartCall(t *testing.T) {
 		authorizeErr = "not authorized because"
 		nameErr      = "does not match the provided pattern"
 	)
+
 	var (
-	// TODO(ataly, ashankar): Uncomment the following once server authorization
-	// is enabled.
-	// now        = time.Now()
-	// cavOnlyV1  = caveat.UniversalCaveat(caveat.PeerIdentity{"client/v1"})
-	// cavExpired = security.ServiceCaveat{
-	//	Service: security.AllPrincipals,
-	//	Caveat:  &caveat.Expiry{IssueTime: now, ExpiryTime: now},
-	// }
-	// clientV1ID      = derive(clientID, "v1")
-	// clientV2ID      = derive(clientID, "v2")
-	// serverV1ID      = derive(serverID, "v1", cavOnlyV1)
-	// serverExpiredID = derive(serverID, "expired", cavExpired)
+		cavOnlyV1, _    = security.PeerBlessingsCaveat("client/v1")
+		cavExpired, _   = security.ExpiryCaveat(time.Now().Add(-1 * time.Second))
+		clientV1ID      = derive(clientID, "v1")
+		clientV2ID      = derive(clientID, "v2")
+		serverV1ID      = derive(serverID, "v1", cavOnlyV1)
+		serverExpiredID = derive(serverID, "expired", cavExpired)
 	)
 
 	tests := []struct {
@@ -392,16 +387,14 @@ func TestStartCall(t *testing.T) {
 		{clientID, serverID, "server/v1", ""},
 		{clientID, serverID, "anotherServer", nameErr},
 
-		// TODO(ataly, ashankar): Uncomment the following once server authorization
-		// is enabled.
 		// All clients reject talking to a server with an expired identity.
-		// {clientID, serverExpiredID, security.AllPrincipals, authorizeErr},
-		// {clientV1ID, serverExpiredID, security.AllPrincipals, authorizeErr},
-		// {clientV2ID, serverExpiredID, security.AllPrincipals, authorizeErr},
+		{clientID, serverExpiredID, security.AllPrincipals, authorizeErr},
+		{clientV1ID, serverExpiredID, security.AllPrincipals, authorizeErr},
+		{clientV2ID, serverExpiredID, security.AllPrincipals, authorizeErr},
 
 		// Only clientV1 accepts talking to serverV1.
-		// {clientV1ID, serverV1ID, security.AllPrincipals, ""},
-		// {clientV2ID, serverV1ID, security.AllPrincipals, authorizeErr},
+		{clientV1ID, serverV1ID, security.AllPrincipals, ""},
+		{clientV2ID, serverV1ID, security.AllPrincipals, authorizeErr},
 	}
 	// Servers and clients will be created per-test, use the same stream manager and mounttable.
 	mgr := imanager.InternalNew(naming.FixedRoutingID(0x1111111))
@@ -419,8 +412,8 @@ func TestStartCall(t *testing.T) {
 			t.Errorf(`%s: client.StartCall: got error "%v", want to match "%v"`, name, err, test.err)
 		} else if call != nil {
 			serverBlessings, _ := call.RemoteBlessings()
-			if !reflect.DeepEqual(serverBlessings, serverID.PublicID().Names()) {
-				t.Errorf("%s: Server authenticated as %v, wanted %v", name, serverBlessings, serverID.PublicID().Names())
+			if !reflect.DeepEqual(serverBlessings, test.serverID.PublicID().Names()) {
+				t.Errorf("%s: Server authenticated as %v, wanted %v", name, serverBlessings, test.serverID.PublicID().Names())
 			}
 		}
 		client.Close()
