@@ -2,16 +2,39 @@ package rt_test
 
 import (
 	"fmt"
+	"io/ioutil"
 	"os"
+	"reflect"
 	"regexp"
 	"testing"
 
 	_ "veyron.io/veyron/veyron/lib/testutil"
 	"veyron.io/veyron/veyron/lib/testutil/blackbox"
+	irt "veyron.io/veyron/veyron/runtimes/google/rt"
 
+	"veyron.io/veyron/veyron2"
+	"veyron.io/veyron/veyron2/naming"
 	"veyron.io/veyron/veyron2/rt"
+	"veyron.io/veyron/veyron2/security"
 	"veyron.io/veyron/veyron2/vlog"
 )
+
+type context struct {
+	local security.Principal
+}
+
+func (*context) Method() string                            { return "" }
+func (*context) Name() string                              { return "" }
+func (*context) Suffix() string                            { return "" }
+func (*context) Label() (l security.Label)                 { return }
+func (*context) Discharges() map[string]security.Discharge { return nil }
+func (*context) LocalID() security.PublicID                { return nil }
+func (*context) RemoteID() security.PublicID               { return nil }
+func (c *context) LocalPrincipal() security.Principal      { return c.local }
+func (*context) LocalBlessings() security.Blessings        { return nil }
+func (*context) RemoteBlessings() security.Blessings       { return nil }
+func (*context) LocalEndpoint() naming.Endpoint            { return nil }
+func (*context) RemoteEndpoint() naming.Endpoint           { return nil }
 
 func init() {
 	blackbox.CommandTable["child"] = child
@@ -71,4 +94,68 @@ func TestInitArgs(t *testing.T) {
 	c.CloseStdin()
 	c.Expect("done")
 	c.ExpectEOFAndWait()
+}
+
+func TestInitPrincipal(t *testing.T) {
+	newRT := func() veyron2.Runtime {
+		r, err := rt.New()
+		if err != nil {
+			t.Fatalf("rt.New failed: %v", err)
+		}
+		return r
+	}
+	testPrincipal := func(r veyron2.Runtime) security.Principal {
+		p := r.Principal()
+		if p == nil {
+			t.Fatalf("rt.Principal() returned nil")
+		}
+		blessings := p.BlessingStore().Default()
+		if blessings == nil {
+			t.Fatalf("rt.Principal().BlessingStore().Default() returned nil")
+
+		}
+		if n := len(blessings.ForContext(&context{local: p})); n != 1 {
+			t.Fatalf("rt.Principal().BlessingStore().Default() returned Blessing %v with %d recognized blessings, want exactly one recognized blessing", blessings, n)
+		}
+		return p
+	}
+	origCredentialsDir := os.Getenv(irt.VeyronCredentialsEnvVar)
+	defer os.Setenv(irt.VeyronCredentialsEnvVar, origCredentialsDir)
+
+	// Test that even with VEYRON_CREDENTIALS unset the runtime's Principal
+	// is correctly initialized.
+	if err := os.Setenv(irt.VeyronCredentialsEnvVar, ""); err != nil {
+		t.Fatal(err)
+	}
+	testPrincipal(newRT())
+
+	// Test that with VEYRON_CREDENTIALS set the runtime's Principal is correctly
+	// initialized.
+	credentials, err := ioutil.TempDir("", "credentials")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(credentials)
+	if err := os.Setenv(irt.VeyronCredentialsEnvVar, credentials); err != nil {
+		t.Fatal(err)
+	}
+	p := testPrincipal(newRT())
+
+	// Mutate the roots and store of this principal.
+	blessing, err := p.BlessSelf("irrelevant")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := p.BlessingStore().Add(blessing, security.AllPrincipals); err != nil {
+		t.Fatal(err)
+	}
+	if err := p.AddToRoots(blessing); err != nil {
+		t.Fatal(err)
+	}
+
+	// Test that the same principal gets initialized on creating a new runtime
+	// from the same credentials directory.
+	if got := newRT().Principal(); !reflect.DeepEqual(got, p) {
+		t.Fatalf("Initialized Principal: %v, expected: %v", got, p)
+	}
 }

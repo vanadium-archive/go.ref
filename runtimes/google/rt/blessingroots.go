@@ -78,16 +78,16 @@ func (br *blessingRoots) save() error {
 	return encodeAndStore(br.store, br.dir, blessingRootsDataFile, blessingRootsSigFile, br.signer)
 }
 
-// NewInMemoryBlessingRoots returns an in-memory security.BlessingRoots.
+// newInMemoryBlessingRoots returns an in-memory security.BlessingRoots.
 //
 // The returned BlessingRoots is initialized with an empty set of keys.
-func NewInMemoryBlessingRoots() security.BlessingRoots {
+func newInMemoryBlessingRoots() security.BlessingRoots {
 	return &blessingRoots{
 		store: make(map[string][]security.BlessingPattern),
 	}
 }
 
-// NewPersistingBlessingRoots returns a security.BlessingRoots that signs
+// newPersistingBlessingRoots returns a security.BlessingRoots that signs
 // and persists all updates to the provided directory. Signing is carried
 // out using the provided signer.
 //
@@ -96,7 +96,7 @@ func NewInMemoryBlessingRoots() security.BlessingRoots {
 // BlessingRoots object constructed from the same signer.
 //
 // Any errors obtained in reading or verifying the data are returned.
-func NewPersistingBlessingRoots(directory string, signer serialization.Signer) (security.BlessingRoots, error) {
+func newPersistingBlessingRoots(directory string, signer serialization.Signer) (security.BlessingRoots, error) {
 	if directory == "" || signer == nil {
 		return nil, errors.New("directory or signer is not specified")
 	}

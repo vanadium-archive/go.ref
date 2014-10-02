@@ -113,7 +113,7 @@ func newStoreTester(t *testing.T) (*storeTester, security.PublicKey) {
 
 func TestInMemoryBlessingStore(t *testing.T) {
 	tester, pkey := newStoreTester(t)
-	s := NewInMemoryBlessingStore(pkey)
+	s := newInMemoryBlessingStore(pkey)
 	if err := tester.testAdd(s); err != nil {
 		t.Error(err)
 	}
@@ -140,9 +140,9 @@ func TestPersistingBlessingStore(t *testing.T) {
 	dir := newTempDir("blessingstore")
 	defer os.RemoveAll(dir)
 	signer := newPrincipal(t)
-	s, err := NewPersistingBlessingStore(pkey, dir, signer)
+	s, err := newPersistingBlessingStore(pkey, dir, signer)
 	if err != nil {
-		t.Fatalf("NewPersistingBlessingStore failed: %v", err)
+		t.Fatalf("newPersistingBlessingStore failed: %v", err)
 	}
 
 	if err := tester.testAdd(s); err != nil {
@@ -156,9 +156,9 @@ func TestPersistingBlessingStore(t *testing.T) {
 	}
 	// Test that all mutations are appropriately reflected in a BlessingStore constructed
 	// from same public key, directory and signer.
-	s, err = NewPersistingBlessingStore(pkey, dir, signer)
+	s, err = newPersistingBlessingStore(pkey, dir, signer)
 	if err != nil {
-		t.Fatalf("NewPersistingBlessingStore failed: %v", err)
+		t.Fatalf("newPersistingBlessingStore failed: %v", err)
 	}
 	if err := tester.testForPeer(s); err != nil {
 		t.Error(err)
@@ -193,7 +193,7 @@ func TestBlessingStoreDuplicates(t *testing.T) {
 
 		pkey = p.PublicKey()
 	)
-	s := NewInMemoryBlessingStore(pkey)
+	s := newInMemoryBlessingStore(pkey)
 	add(s, alice, "...")
 	add(s, roundTrip(alice), "...")
 

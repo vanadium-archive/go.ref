@@ -1,9 +1,13 @@
 package rt
 
 import (
+	"crypto/ecdsa"
+	"crypto/elliptic"
+	"crypto/rand"
 	"fmt"
 	"os"
 	"os/user"
+	"path"
 	"strconv"
 
 	isecurity "veyron.io/veyron/veyron/runtimes/google/security"
@@ -14,6 +18,15 @@ import (
 	"veyron.io/veyron/veyron2/security"
 	"veyron.io/veyron/veyron2/vlog"
 )
+
+const (
+	privateKeyFile          = "privatekey.pem"
+	VeyronCredentialsEnvVar = "VEYRON_CREDENTIALS"
+)
+
+func (rt *vrt) Principal() security.Principal {
+	return rt.principal
+}
 
 func (rt *vrt) NewIdentity(name string) (security.PrivateID, error) {
 	return isecurity.NewPrivateID(name, nil)
@@ -28,6 +41,81 @@ func (rt *vrt) PublicIDStore() security.PublicIDStore {
 }
 
 func (rt *vrt) initSecurity() error {
+	if err := rt.initOldSecurity(); err != nil {
+		return err
+	}
+	if err := rt.initPrincipal(); err != nil {
+		return fmt.Errorf("principal initialization failed: %v", err)
+	}
+	if err := rt.initDefaultBlessings(); err != nil {
+		return fmt.Errorf("default blessing initialization failed: %v", err)
+	}
+	return nil
+}
+
+func (rt *vrt) initPrincipal() error {
+	// TODO(ataly, ashankar): Check if agent environment variables are
+	// specified and if so initialize principal from agent.
+
+	if dir := os.Getenv(VeyronCredentialsEnvVar); len(dir) > 0 {
+		// TODO(ataly, ashankar): If multiple runtimes are getting
+		// initialized at the same time from the same VEYRON_CREDENTIALS
+		// we will need some kind of locking for the credential files.
+		return rt.initPrincipalFromCredentials(dir)
+	}
+	return rt.initTemporaryPrincipal()
+}
+
+func (rt *vrt) initDefaultBlessings() error {
+	if rt.principal.BlessingStore().Default() != nil {
+		return nil
+	}
+	blessing, err := rt.principal.BlessSelf(defaultBlessingName())
+	if err != nil {
+		return err
+	}
+	if err := rt.principal.BlessingStore().SetDefault(blessing); err != nil {
+		return err
+	}
+	if err := rt.principal.AddToRoots(blessing); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (rt *vrt) initPrincipalFromCredentials(dir string) error {
+	key, err := initKey(dir)
+	if err != nil {
+		return fmt.Errorf("could not initialize ECDSA private key from credentials directory %v: %v", dir, err)
+	}
+
+	signer := security.NewInMemoryECDSASigner(key)
+	store, roots, err := initStoreAndRootsFromCredentials(dir, signer)
+	if err != nil {
+		return fmt.Errorf("could not initialize BlessingStore and BlessingRoots from credentials directory %v: %v", dir, err)
+	}
+
+	if rt.principal, err = security.CreatePrincipal(signer, store, roots); err != nil {
+		return fmt.Errorf("could not create Principal object: %v", err)
+	}
+	return nil
+}
+
+func (rt *vrt) initTemporaryPrincipal() error {
+	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	if err != nil {
+		return err
+	}
+	signer := security.NewInMemoryECDSASigner(key)
+	if rt.principal, err = security.CreatePrincipal(signer, newInMemoryBlessingStore(signer.PublicKey()), newInMemoryBlessingRoots()); err != nil {
+		return fmt.Errorf("could not create Principal object: %v", err)
+	}
+	return nil
+}
+
+// TODO(ataly, ashankar): Get rid of this method once we get rid of
+// PrivateID and PublicIDStore.
+func (rt *vrt) initOldSecurity() error {
 	if err := rt.initIdentity(); err != nil {
 		return err
 	}
@@ -61,7 +149,7 @@ func (rt *vrt) initIdentity() error {
 			return fmt.Errorf("Could not load identity from the VEYRON_IDENTITY environment variable (%q): %v", file, err)
 		}
 	} else {
-		name := defaultIdentityName()
+		name := defaultBlessingName()
 		vlog.VI(2).Infof("No identity provided to the runtime, minting one for %q", name)
 		if rt.id, err = rt.NewIdentity(name); err != nil || rt.id == nil {
 			return fmt.Errorf("Could not create new identity: %v", err)
@@ -88,7 +176,7 @@ func (rt *vrt) initPublicIDStore() error {
 	return nil
 }
 
-func defaultIdentityName() string {
+func defaultBlessingName() string {
 	var name string
 	if user, _ := user.Current(); user != nil && len(user.Username) > 0 {
 		name = user.Username
@@ -131,4 +219,50 @@ func (rt *vrt) connectToAgent() (security.PrivateID, error) {
 		return nil, err
 	}
 	return isecurity.NewPrivateID("selfSigned", signer)
+}
+
+func initKey(dir string) (*ecdsa.PrivateKey, error) {
+	keyPath := path.Join(dir, privateKeyFile)
+	if f, err := os.Open(keyPath); err == nil {
+		defer f.Close()
+		v, err := vsecurity.LoadPEMKey(f)
+		if err != nil {
+			return nil, err
+		}
+		key, ok := v.(*ecdsa.PrivateKey)
+		if !ok {
+			return nil, fmt.Errorf("could not read ECDSA private key from data of type %T", v)
+		}
+		return key, nil
+	} else if !os.IsNotExist(err) {
+		return nil, err
+	}
+
+	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	if err != nil {
+		return nil, err
+	}
+
+	f, err := os.OpenFile(keyPath, os.O_WRONLY|os.O_CREATE, 0600)
+	if err != nil {
+		return nil, err
+	}
+	defer f.Close()
+	return key, vsecurity.SavePEMKey(f, key)
+}
+
+func initStoreAndRootsFromCredentials(dir string, secsigner security.Signer) (security.BlessingStore, security.BlessingRoots, error) {
+	signer, err := security.CreatePrincipal(secsigner, nil, nil)
+	if err != nil {
+		return nil, nil, err
+	}
+	store, err := newPersistingBlessingStore(signer.PublicKey(), dir, signer)
+	if err != nil {
+		return nil, nil, err
+	}
+	roots, err := newPersistingBlessingRoots(dir, signer)
+	if err != nil {
+		return nil, nil, err
+	}
+	return store, roots, nil
 }

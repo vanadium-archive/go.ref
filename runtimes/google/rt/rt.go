@@ -32,6 +32,7 @@ type vrt struct {
 	ns         naming.Namespace
 	signals    chan os.Signal
 	id         security.PrivateID
+	principal  security.Principal
 	store      security.PublicIDStore
 	client     ipc.Client
 	mgmt       *mgmtImpl

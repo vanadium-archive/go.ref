@@ -102,7 +102,7 @@ func (s *blessingStore) ForPeer(peerBlessings ...string) security.Blessings {
 	blessings, err := security.UnionOfBlessings(matchingBlessings...)
 	if err != nil {
 		// This case should never be hit.
-		vlog.Errorf("BlessingStore: %s is broken, could union Blessings obtained from it: %s", s, err)
+		vlog.Errorf("BlessingStore: %s is broken, could not union Blessings obtained from it: %s", s, err)
 		return nil
 	}
 	return blessings
@@ -146,17 +146,17 @@ func (s *blessingStore) save() error {
 	return encodeAndStore(s.state, s.dir, blessingStoreDataFile, blessingStoreSigFile, s.signer)
 }
 
-// NewInMemoryBlessingStore returns an in-memory security.BlessingStore for a
+// newInMemoryBlessingStore returns an in-memory security.BlessingStore for a
 // principal with the provided PublicKey.
 //
 // The returned BlessingStore is initialized with an empty set of blessings.
-func NewInMemoryBlessingStore(publicKey security.PublicKey) security.BlessingStore {
+func newInMemoryBlessingStore(publicKey security.PublicKey) security.BlessingStore {
 	return &blessingStore{
 		publicKey: publicKey,
 	}
 }
 
-// NewPersistingBlessingStore returns a security.BlessingStore for a principal
+// newPersistingBlessingStore returns a security.BlessingStore for a principal
 // with the provided PublicKey that signs and persists all updates to the
 // specified directory. Signing is carried out using the provided signer.
 //
@@ -165,7 +165,7 @@ func NewInMemoryBlessingStore(publicKey security.PublicKey) security.BlessingSto
 // BlessingStore object constructed from the same PublicKey and signer.
 //
 // Any errors obtained in reading or verifying the data are returned.
-func NewPersistingBlessingStore(publicKey security.PublicKey, directory string, signer serialization.Signer) (security.BlessingStore, error) {
+func newPersistingBlessingStore(publicKey security.PublicKey, directory string, signer serialization.Signer) (security.BlessingStore, error) {
 	if directory == "" || signer == nil {
 		return nil, errors.New("directory or signer is not specified")
 	}

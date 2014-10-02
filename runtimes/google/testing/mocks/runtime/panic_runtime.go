@@ -26,6 +26,7 @@ func (*PanicRuntime) Publisher() *config.Publisher                           { p
 func (*PanicRuntime) NewIdentity(name string) (security.PrivateID, error)    { panic(badRuntime) }
 func (*PanicRuntime) PublicIDStore() security.PublicIDStore                  { panic(badRuntime) }
 func (*PanicRuntime) Identity() security.PrivateID                           { panic(badRuntime) }
+func (*PanicRuntime) Principal() security.Principal                          { panic(badRuntime) }
 func (*PanicRuntime) NewClient(opts ...ipc.ClientOpt) (ipc.Client, error)    { panic(badRuntime) }
 func (*PanicRuntime) NewServer(opts ...ipc.ServerOpt) (ipc.Server, error)    { panic(badRuntime) }
 func (*PanicRuntime) Client() ipc.Client                                     { panic(badRuntime) }

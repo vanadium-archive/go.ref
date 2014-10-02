@@ -69,7 +69,7 @@ func mkKey() security.PublicKey {
 }
 
 func TestInMemoryBlessingRoots(t *testing.T) {
-	br := NewInMemoryBlessingRoots()
+	br := newInMemoryBlessingRoots()
 	rootsTester := rootsTester{mkKey(), mkKey(), mkKey()}
 	if err := rootsTester.testAdd(br); err != nil {
 		t.Error(err)
@@ -95,9 +95,9 @@ func TestPersistingBlessingRoots(t *testing.T) {
 	dir := newTempDir("blessingstore")
 	defer os.RemoveAll(dir)
 	signer := newPrincipal(t)
-	br, err := NewPersistingBlessingRoots(dir, signer)
+	br, err := newPersistingBlessingRoots(dir, signer)
 	if err != nil {
-		t.Fatalf("NewPersistingBlessingRoots failed: %s", err)
+		t.Fatalf("newPersistingBlessingRoots failed: %s", err)
 	}
 
 	if err := rootsTester.testAdd(br); err != nil {
@@ -109,9 +109,9 @@ func TestPersistingBlessingRoots(t *testing.T) {
 
 	// Test that all mutations are appropriately reflected in a BlessingRoots
 	// constructed from same directory and signer.
-	br, err = NewPersistingBlessingRoots(dir, signer)
+	br, err = newPersistingBlessingRoots(dir, signer)
 	if err != nil {
-		t.Fatalf("NewPersistingBlessingRoots failed: %s", err)
+		t.Fatalf("newPersistingBlessingRoots failed: %s", err)
 	}
 	if err := rootsTester.testRecognized(br); err != nil {
 		t.Error(err)

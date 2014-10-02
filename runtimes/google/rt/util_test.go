@@ -30,7 +30,7 @@ func newPrincipal(t *testing.T) security.Principal {
 		t.Fatalf("Failed to create private key for principal: %v", err)
 	}
 	signer := security.NewInMemoryECDSASigner(key)
-	p, err := security.CreatePrincipal(signer, NewInMemoryBlessingStore(signer.PublicKey()), NewInMemoryBlessingRoots())
+	p, err := security.CreatePrincipal(signer, newInMemoryBlessingStore(signer.PublicKey()), newInMemoryBlessingRoots())
 	if err != nil {
 		t.Fatalf("security.CreatePrincipal failed: %v", err)
 	}
