@@ -3,6 +3,7 @@ package security
 import (
 	"bytes"
 	"crypto/ecdsa"
+	"crypto/rand"
 	"crypto/x509"
 	"encoding/base64"
 	"encoding/json"
@@ -27,9 +28,11 @@ func OpenACL() security.ACL {
 	return acl
 }
 
-// LoadPEMKey loads a key from 'r', assuming that it was
-// saved using SavePEMKey.
-func LoadPEMKey(r io.Reader) (interface{}, error) {
+// LoadPEMKey loads a key from 'r', assuming that it was saved using SavePEMKey
+// and the specified passphrase 'passphrase'.
+// If passphrase is nil, the key will still be encrypted with a random salt, but
+// this will offer no protection as the salt is stored with the PEMKey.
+func LoadPEMKey(r io.Reader, passphrase []byte) (interface{}, error) {
 	pemKeyBytes, err := ioutil.ReadAll(r)
 	if err != nil {
 		return nil, err
@@ -40,31 +43,39 @@ func LoadPEMKey(r io.Reader) (interface{}, error) {
 		return nil, errors.New("no PEM key block read")
 	}
 
+	data, err := x509.DecryptPEMBlock(pemKey, passphrase)
+	if err != nil {
+		return nil, err
+	}
+
 	switch pemKey.Type {
 	case ecPrivateKeyPEMType:
-		return x509.ParseECPrivateKey(pemKey.Bytes)
+		return x509.ParseECPrivateKey(data)
 	}
 	return nil, fmt.Errorf("PEM key block has an unrecognized type: %v", pemKey.Type)
 }
 
-// SavePEMKey marshals 'key' and saves the bytes to 'w' in PEM format.
+// SavePEMKey marshals 'key', encrypts it using 'passphrase', and saves the bytes to 'w' in PEM format.
 //
 // For example, if key is an ECDSA private key, it will be marshaled
-// in ASN.1, DER format and then written in a PEM block.
-func SavePEMKey(w io.Writer, key interface{}) error {
-	pemKey := &pem.Block{
-		Type: ecPrivateKeyPEMType,
-	}
-
+// in ASN.1, DER format, encrypted, and then written in a PEM block.
+func SavePEMKey(w io.Writer, key interface{}, passphrase []byte) error {
+	var data []byte
 	switch k := key.(type) {
 	case *ecdsa.PrivateKey:
 		var err error
-		if pemKey.Bytes, err = x509.MarshalECPrivateKey(k); err != nil {
+		if data, err = x509.MarshalECPrivateKey(k); err != nil {
 			return err
 		}
 	default:
 		return fmt.Errorf("key of type %T cannot be saved", k)
 	}
+
+	pemKey, err := x509.EncryptPEMBlock(rand.Reader, ecPrivateKeyPEMType, data, passphrase, x509.PEMCipherAES256)
+	if err != nil {
+		return fmt.Errorf("failed to encrypt pem block: %v", err)
+	}
+
 	return pem.Encode(w, pemKey)
 }
 
