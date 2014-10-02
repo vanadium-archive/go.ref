@@ -17,16 +17,18 @@ type invoker struct {
 	invokeFunc remoteInvokeFunc
 	// map of special methods like "Signature" which invoker handles on behalf of the actual service
 	predefinedInvokers map[string]ipc.Invoker
+
+	label security.Label
 }
 
 // newInvoker is an invoker factory
-func newInvoker(sig ipc.ServiceSignature, invokeFunc remoteInvokeFunc) ipc.Invoker {
+func newInvoker(sig ipc.ServiceSignature, label security.Label, invokeFunc remoteInvokeFunc) ipc.Invoker {
 	predefinedInvokers := make(map[string]ipc.Invoker)
 
 	// Special handling for predefined "signature" method
 	predefinedInvokers["Signature"] = newSignatureInvoker(sig)
 
-	i := &invoker{sig, invokeFunc, predefinedInvokers}
+	i := &invoker{sig, invokeFunc, predefinedInvokers, label}
 	return i
 }
 
@@ -49,7 +51,11 @@ func (i *invoker) Prepare(methodName string, numArgs int) ([]interface{}, securi
 		argptrs[ix] = &x // Accept AnyData
 	}
 
-	securityLabel := methodSecurityLabel(method)
+	securityLabel := i.label
+
+	if !security.IsValidLabel(securityLabel) {
+		securityLabel = security.AdminLabel
+	}
 
 	return argptrs, securityLabel, nil
 }
@@ -89,10 +95,4 @@ func (i *invoker) Invoke(methodName string, call ipc.ServerCall, argptrs []inter
 	results = append(reply.Results, err)
 
 	return results, nil
-}
-
-// methodSecurityLabel returns the security label for a given method.
-func methodSecurityLabel(methodSig ipc.MethodSignature) security.Label {
-	// TODO(bprosnitz) Get the security label and return it here.
-	return security.AdminLabel
 }

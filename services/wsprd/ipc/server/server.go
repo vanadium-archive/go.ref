@@ -337,14 +337,14 @@ func (s *Server) cleanupFlow(id int64) {
 	s.helper.CleanupFlow(id)
 }
 
-func (s *Server) createInvoker(handle int64, sig signature.JSONServiceSignature) (ipc.Invoker, error) {
+func (s *Server) createInvoker(handle int64, sig signature.JSONServiceSignature, label security.Label) (ipc.Invoker, error) {
 	serviceSig, err := sig.ServiceSignature()
 	if err != nil {
 		return nil, err
 	}
 
 	remoteInvokeFunc := s.createRemoteInvokerFunc(handle)
-	return newInvoker(serviceSig, remoteInvokeFunc), nil
+	return newInvoker(serviceSig, label, remoteInvokeFunc), nil
 }
 
 func (s *Server) createAuthorizer(handle int64, hasAuthorizer bool) (security.Authorizer, error) {

@@ -21,7 +21,7 @@ type flowFactory interface {
 }
 
 type invokerFactory interface {
-	createInvoker(handle int64, signature signature.JSONServiceSignature) (ipc.Invoker, error)
+	createInvoker(handle int64, signature signature.JSONServiceSignature, label security.Label) (ipc.Invoker, error)
 }
 
 type authFactory interface {
@@ -31,6 +31,7 @@ type authFactory interface {
 type lookupReply struct {
 	Handle        int64
 	HasAuthorizer bool
+	Label         security.Label
 	Signature     signature.JSONServiceSignature
 	Err           *verror.Standard
 }
@@ -101,7 +102,7 @@ func (d *dispatcher) Lookup(suffix, method string) (ipc.Invoker, security.Author
 		return nil, nil, verror.NoExistf("ipc: dispatcher for %s not found", suffix)
 	}
 
-	invoker, err := d.invokerFactory.createInvoker(request.Handle, request.Signature)
+	invoker, err := d.invokerFactory.createInvoker(request.Handle, request.Signature, request.Label)
 	if err != nil {
 		return nil, nil, err
 	}

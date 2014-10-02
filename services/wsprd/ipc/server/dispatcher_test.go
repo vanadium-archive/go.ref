@@ -1,6 +1,7 @@
 package server
 
 import (
+	"fmt"
 	"reflect"
 	"testing"
 	"veyron.io/veyron/veyron/services/wsprd/lib"
@@ -24,10 +25,11 @@ func (*mockFlowFactory) cleanupFlow(int64) {}
 type mockInvoker struct {
 	handle int64
 	sig    signature.JSONServiceSignature
+	label  security.Label
 }
 
-func (mockInvoker) Prepare(string, int) ([]interface{}, security.Label, error) {
-	return nil, 0, nil
+func (m mockInvoker) Prepare(string, int) ([]interface{}, security.Label, error) {
+	return nil, m.label, nil
 }
 
 func (mockInvoker) Invoke(string, ipc.ServerCall, []interface{}) ([]interface{}, error) {
@@ -36,8 +38,8 @@ func (mockInvoker) Invoke(string, ipc.ServerCall, []interface{}) ([]interface{},
 
 type mockInvokerFactory struct{}
 
-func (mockInvokerFactory) createInvoker(handle int64, sig signature.JSONServiceSignature) (ipc.Invoker, error) {
-	return &mockInvoker{handle: handle, sig: sig}, nil
+func (mockInvokerFactory) createInvoker(handle int64, sig signature.JSONServiceSignature, label security.Label) (ipc.Invoker, error) {
+	return &mockInvoker{handle: handle, sig: sig, label: label}, nil
 }
 
 type mockAuthorizer struct {
@@ -66,7 +68,7 @@ func TestSuccessfulLookup(t *testing.T) {
 			t.Fail()
 		}
 		signature := `{"add":{"inArgs":["foo","bar"],"numOutArgs":1,"isStreaming":false}}`
-		jsonResponse := `{"handle":1,"hasAuthorizer":false,"signature":` + signature + "}"
+		jsonResponse := fmt.Sprintf(`{"handle":1,"hasAuthorizer":false,"label":%d,"signature":%s}`, security.WriteLabel, signature)
 		d.handleLookupResponse(0, jsonResponse)
 	}()
 
@@ -82,7 +84,7 @@ func TestSuccessfulLookup(t *testing.T) {
 			NumOutArgs: 1,
 		},
 	}
-	expectedInvoker := &mockInvoker{handle: 1, sig: expectedSig}
+	expectedInvoker := &mockInvoker{handle: 1, sig: expectedSig, label: security.WriteLabel}
 	if !reflect.DeepEqual(invoker, expectedInvoker) {
 		t.Errorf("wrong invoker returned, expected: %v, got :%v", expectedInvoker, invoker)
 	}
@@ -114,7 +116,7 @@ func TestSuccessfulLookupWithAuthorizer(t *testing.T) {
 			t.Fail()
 		}
 		signature := `{"add":{"inArgs":["foo","bar"],"numOutArgs":1,"isStreaming":false}}`
-		jsonResponse := `{"handle":1,"hasAuthorizer":true,"signature":` + signature + "}"
+		jsonResponse := fmt.Sprintf(`{"handle":1,"hasAuthorizer":true,"label":%d,"signature":%s}`, security.ReadLabel, signature)
 		d.handleLookupResponse(0, jsonResponse)
 	}()
 
@@ -130,7 +132,7 @@ func TestSuccessfulLookupWithAuthorizer(t *testing.T) {
 			NumOutArgs: 1,
 		},
 	}
-	expectedInvoker := &mockInvoker{handle: 1, sig: expectedSig}
+	expectedInvoker := &mockInvoker{handle: 1, sig: expectedSig, label: security.ReadLabel}
 	if !reflect.DeepEqual(invoker, expectedInvoker) {
 		t.Errorf("wrong invoker returned, expected: %v, got :%v", expectedInvoker, invoker)
 	}
