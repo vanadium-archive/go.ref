@@ -76,7 +76,6 @@ func New(opts ...veyron2.ROpt) (veyron2.Runtime, error) {
 	vlog.VI(1).Infof("Using profile %q", rt.profile.Name())
 
 	if len(nsRoots) == 0 {
-		found := false
 		for _, ev := range os.Environ() {
 			p := strings.SplitN(ev, "=", 2)
 			if len(p) != 2 {
@@ -85,13 +84,6 @@ func New(opts ...veyron2.ROpt) (veyron2.Runtime, error) {
 			k, v := p[0], p[1]
 			if strings.HasPrefix(k, "NAMESPACE_ROOT") {
 				nsRoots = append(nsRoots, v)
-				found = true
-			}
-		}
-		if !found {
-			// TODO(cnicolaou,caprita): remove this when NAMESPACE_ROOT is in use.
-			if nsRoot := os.Getenv("MOUNTTABLE_ROOT"); nsRoot != "" {
-				nsRoots = append(nsRoots, nsRoot)
 			}
 		}
 	}
