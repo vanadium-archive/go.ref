@@ -6,7 +6,6 @@ import (
 	"reflect"
 	"testing"
 	"testing/quick"
-	"time"
 
 	"veyron.io/veyron/veyron/runtimes/google/lib/iobuf"
 )
@@ -91,8 +90,12 @@ func TestReadRandom(t *testing.T) {
 func TestReadDeadline(t *testing.T) {
 	l := &testReadHandler{}
 	r := newReader(l)
-	r.SetReadDeadline(time.Now().Add(1 * time.Millisecond))
 	defer r.Close()
+
+	deadline := make(chan struct{}, 0)
+	r.SetDeadline(deadline)
+	close(deadline)
+
 	var buf [1]byte
 	n, err := r.Read(buf[:])
 	neterr, ok := err.(net.Error)

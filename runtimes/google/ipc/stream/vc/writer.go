@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"sync"
 	"sync/atomic"
-	"time"
 
 	"veyron.io/veyron/veyron/runtimes/google/lib/bqueue"
 	"veyron.io/veyron/veyron/runtimes/google/lib/iobuf"
@@ -21,12 +20,11 @@ type writer struct {
 	Alloc          *iobuf.Allocator // Allocator for iobuf.Slice objects. GUARDED_BY(mu)
 	SharedCounters *vsync.Semaphore // Semaphore hosting counters shared by all flows over a VC.
 
-	mu             sync.Mutex    // Guards call to Writes
-	wroteOnce      bool          // GUARDED_BY(mu)
-	deadline       chan struct{} // GUARDED_BY(mu)
-	cancelDeadline chan struct{} // GUARDED_BY(mu)
-	isClosed       bool          // GUARDED_BY(mu)
-	closed         chan struct{} // GUARDED_BY(mu)
+	mu        sync.Mutex      // Guards call to Writes
+	wroteOnce bool            // GUARDED_BY(mu)
+	isClosed  bool            // GUARDED_BY(mu)
+	closed    chan struct{}   // GUARDED_BY(mu)
+	deadline  <-chan struct{} // GUARDED_BY(mu)
 
 	// Total number of bytes filled in by all Write calls on this writer.
 	// Atomic operations are used to manipulate it.
@@ -35,6 +33,16 @@ type writer struct {
 	// Accounting for counters borrowed from the shared pool.
 	muSharedCountersBorrowed sync.Mutex
 	sharedCountersBorrowed   int // GUARDED_BY(muSharedCountersBorrowed)
+}
+
+func newWriter(mtu int, sink bqueue.Writer, alloc *iobuf.Allocator, counters *vsync.Semaphore) *writer {
+	return &writer{
+		MTU:            mtu,
+		Sink:           sink,
+		Alloc:          alloc,
+		SharedCounters: counters,
+		closed:         make(chan struct{}),
+	}
 }
 
 // Shutdown closes the writer and discards any queued up write buffers, i.e.,
@@ -138,19 +146,10 @@ func (w *writer) Write(b []byte) (int, error) {
 	return written, nil
 }
 
-// SetWriteDeadline sets a deadline on write. The write will be cancelled if it
-// does not complete by the specified deadline.
-// A zero deadline (time.Time.IsZero) implies that no cancellation is desired.
-func (w *writer) SetWriteDeadline(t time.Time) error {
-	c, q := cancelChannel(t)
+func (w *writer) SetDeadline(deadline <-chan struct{}) {
 	w.mu.Lock()
-	if w.cancelDeadline != nil {
-		close(w.cancelDeadline)
-	}
-	w.deadline = c
-	w.cancelDeadline = q
-	w.mu.Unlock()
-	return nil
+	defer w.mu.Unlock()
+	w.deadline = deadline
 }
 
 // Release allows the next 'bytes' of data to be removed from the buffer queue

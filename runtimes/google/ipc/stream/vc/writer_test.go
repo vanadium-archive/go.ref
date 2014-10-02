@@ -5,7 +5,6 @@ import (
 	"net"
 	"reflect"
 	"testing"
-	"time"
 
 	"veyron.io/veyron/veyron/runtimes/google/lib/bqueue"
 	"veyron.io/veyron/veyron/runtimes/google/lib/bqueue/drrqueue"
@@ -28,7 +27,7 @@ func TestWrite(t *testing.T) {
 	shared := sync.NewSemaphore()
 	shared.IncN(4)
 
-	w := newWriter(bw, shared)
+	w := newTestWriter(bw, shared)
 
 	if n, err := w.Write([]byte("abcd")); n != 4 || err != nil {
 		t.Errorf("Got (%d, %v) want (4, nil)", n, err)
@@ -51,9 +50,11 @@ func TestWrite(t *testing.T) {
 
 	// Further writes will block since all 10 bytes (provided to NewWriter)
 	// have been exhausted and Get hasn't been called on bq yet.
-	if err := w.SetWriteDeadline(time.Now()); err != nil {
-		t.Errorf("Got %v want nil", err)
-	}
+	deadline := make(chan struct{}, 0)
+	w.SetDeadline(deadline)
+	close(deadline)
+
+	w.SetDeadline(deadline)
 	if n, err := w.Write([]byte("k")); n != 0 || !isTimeoutError(err) {
 		t.Errorf("Got (%d, %v) want (0, timeout error)", n, err)
 	}
@@ -86,7 +87,7 @@ func TestCloseBeforeWrite(t *testing.T) {
 	shared := sync.NewSemaphore()
 	shared.IncN(4)
 
-	w := newWriter(bw, shared)
+	w := newTestWriter(bw, shared)
 	w.Close()
 
 	if n, err := w.Write([]byte{1, 2}); n != 0 || err != errWriterClosed {
@@ -106,7 +107,7 @@ func TestCloseDoesNotDiscardPendingWrites(t *testing.T) {
 	shared := sync.NewSemaphore()
 	shared.IncN(2)
 
-	w := newWriter(bw, shared)
+	w := newTestWriter(bw, shared)
 	data := []byte{1, 2}
 	if n, err := w.Write(data); n != len(data) || err != nil {
 		t.Fatalf("Got (%d, %v) want (%d, nil)", n, err, len(data))
@@ -142,7 +143,7 @@ func TestWriterCloseIsIdempotent(t *testing.T) {
 
 	shared := sync.NewSemaphore()
 	shared.IncN(1)
-	w := newWriter(bw, shared)
+	w := newTestWriter(bw, shared)
 	if n, err := w.Write([]byte{1}); n != 1 || err != nil {
 		t.Fatalf("Got (%d, %v) want (1, nil)", n, err)
 	}
@@ -174,7 +175,7 @@ func TestClosedChannel(t *testing.T) {
 	shared := sync.NewSemaphore()
 	shared.IncN(4)
 
-	w := newWriter(bw, shared)
+	w := newTestWriter(bw, shared)
 	go w.Close()
 	<-w.Closed()
 
@@ -183,14 +184,9 @@ func TestClosedChannel(t *testing.T) {
 	}
 }
 
-func newWriter(bqw bqueue.Writer, shared *sync.Semaphore) *writer {
-	return &writer{
-		MTU:            16,
-		Sink:           bqw,
-		Alloc:          iobuf.NewAllocator(iobuf.NewPool(0), 0),
-		SharedCounters: shared,
-		closed:         make(chan struct{}),
-	}
+func newTestWriter(bqw bqueue.Writer, shared *sync.Semaphore) *writer {
+	alloc := iobuf.NewAllocator(iobuf.NewPool(0), 0)
+	return newWriter(16, bqw, alloc, shared)
 }
 
 func isTimeoutError(err error) bool {

@@ -145,7 +145,7 @@ type factory func(t testing.TB, server, client net.Conn) (Crypter, Crypter)
 func tlsCrypters(t testing.TB, serverConn, clientConn net.Conn) (Crypter, Crypter) {
 	crypters := make(chan Crypter)
 	go func() {
-		server, err := NewTLSServer(serverConn, iobuf.NewPool(0))
+		server, err := NewTLSServer(serverConn, serverConn.LocalAddr(), serverConn.RemoteAddr(), iobuf.NewPool(0))
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -153,7 +153,7 @@ func tlsCrypters(t testing.TB, serverConn, clientConn net.Conn) (Crypter, Crypte
 	}()
 
 	go func() {
-		client, err := NewTLSClient(clientConn, TLSClientSessionCache{}, iobuf.NewPool(0))
+		client, err := NewTLSClient(clientConn, clientConn.LocalAddr(), clientConn.RemoteAddr(), TLSClientSessionCache{}, iobuf.NewPool(0))
 		if err != nil {
 			t.Fatal(err)
 		}

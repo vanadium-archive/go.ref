@@ -13,6 +13,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"io"
 	"net"
 	"sync"
 	"time"
@@ -38,23 +39,23 @@ func NewTLSClientSessionCache() TLSClientSessionCache {
 
 // NewTLSClient returns a Crypter implementation that uses TLS, assuming
 // handshaker was initiated by a client.
-func NewTLSClient(handshaker net.Conn, sessionCache TLSClientSessionCache, pool *iobuf.Pool) (Crypter, error) {
+func NewTLSClient(handshaker io.ReadWriteCloser, local, remote net.Addr, sessionCache TLSClientSessionCache, pool *iobuf.Pool) (Crypter, error) {
 	var config tls.Config
 	// TLS + resumption + channel bindings is broken: <https://secure-resumption.com/#channelbindings>.
 	config.SessionTicketsDisabled = true
 	config.InsecureSkipVerify = true
 	config.ClientSessionCache = sessionCache.ClientSessionCache
-	return newTLSCrypter(handshaker, &config, pool, false)
+	return newTLSCrypter(handshaker, local, remote, &config, pool, false)
 }
 
 // NewTLSServer returns a Crypter implementation that uses TLS, assuming
 // handshaker was accepted by a server.
-func NewTLSServer(handshaker net.Conn, pool *iobuf.Pool) (Crypter, error) {
-	return newTLSCrypter(handshaker, ServerTLSConfig(), pool, true)
+func NewTLSServer(handshaker io.ReadWriteCloser, local, remote net.Addr, pool *iobuf.Pool) (Crypter, error) {
+	return newTLSCrypter(handshaker, local, remote, ServerTLSConfig(), pool, true)
 }
 
 type fakeConn struct {
-	handshakeConn net.Conn
+	handshakeConn io.ReadWriteCloser
 	out           bytes.Buffer
 	in            []byte
 	laddr, raddr  net.Addr
@@ -117,8 +118,8 @@ type tlsCrypter struct {
 	fc    *fakeConn
 }
 
-func newTLSCrypter(handshaker net.Conn, config *tls.Config, pool *iobuf.Pool, server bool) (Crypter, error) {
-	fc := &fakeConn{handshakeConn: handshaker, laddr: handshaker.LocalAddr(), raddr: handshaker.RemoteAddr()}
+func newTLSCrypter(handshaker io.ReadWriteCloser, local, remote net.Addr, config *tls.Config, pool *iobuf.Pool, server bool) (Crypter, error) {
+	fc := &fakeConn{handshakeConn: handshaker, laddr: local, raddr: remote}
 	var t *tls.Conn
 	if server {
 		t = tls.Server(fc, config)

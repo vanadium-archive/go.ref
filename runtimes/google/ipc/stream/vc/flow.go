@@ -2,7 +2,6 @@ package vc
 
 import (
 	"net"
-	"time"
 
 	"veyron.io/veyron/veyron2/naming"
 	"veyron.io/veyron/veyron2/security"
@@ -35,17 +34,11 @@ func (f *flow) Close() error {
 	return nil
 }
 
-// SetDeadline sets a deadline on the flow. The flow will be cancelled if it
-// is not closed by the specified deadline.
-// A zero deadline (time.Time.IsZero) implies that no cancellation is desired.
-func (f *flow) SetDeadline(t time.Time) error {
-	if err := f.SetReadDeadline(t); err != nil {
-		return err
-	}
-	if err := f.SetWriteDeadline(t); err != nil {
-		return err
-	}
-	return nil
+// SetDeadline sets a deadline channel on the flow.  Reads and writes
+// will be cancelled if the channel is closed.
+func (f *flow) SetDeadline(deadline <-chan struct{}) {
+	f.reader.SetDeadline(deadline)
+	f.writer.SetDeadline(deadline)
 }
 
 // Shutdown closes the flow and discards any queued up write buffers.

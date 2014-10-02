@@ -5,7 +5,6 @@ import (
 	"io"
 	"sync"
 	"sync/atomic"
-	"time"
 
 	"veyron.io/veyron/veyron/runtimes/google/lib/iobuf"
 	vsync "veyron.io/veyron/veyron/runtimes/google/lib/sync"
@@ -21,13 +20,12 @@ type readHandler interface {
 // reader implements the io.Reader and SetReadDeadline interfaces for a Flow,
 // backed by iobuf.Slice objects read from a upcqueue.
 type reader struct {
-	handler        readHandler
-	src            *upcqueue.T
-	mu             sync.Mutex
-	buf            *iobuf.Slice  // GUARDED_BY(mu)
-	deadline       chan struct{} // GUARDED_BY(mu)
-	cancelDeadline chan struct{} // GUARDED_BY(mu)
-	totalBytes     uint32
+	handler    readHandler
+	src        *upcqueue.T
+	mu         sync.Mutex
+	buf        *iobuf.Slice    // GUARDED_BY(mu)
+	deadline   <-chan struct{} // GUARDED_BY(mu)
+	totalBytes uint32
 }
 
 func newReader(h readHandler) *reader {
@@ -88,19 +86,10 @@ func (r *reader) readLocked(b []byte) (int, error) {
 	return copied, nil
 }
 
-// SetReadDeadline sets a deadline on read. The read will be cancelled if it
-// does not complete by the specified deadline.
-// A zero deadline (time.Time.IsZero) implies that no cancellation is desired.
-func (r *reader) SetReadDeadline(t time.Time) error {
-	c, q := cancelChannel(t)
+func (r *reader) SetDeadline(deadline <-chan struct{}) {
 	r.mu.Lock()
-	if r.cancelDeadline != nil {
-		close(r.cancelDeadline)
-	}
-	r.deadline = c
-	r.cancelDeadline = q
-	r.mu.Unlock()
-	return nil
+	defer r.mu.Unlock()
+	r.deadline = deadline
 }
 
 func (r *reader) BytesRead() uint32 {
@@ -110,3 +99,10 @@ func (r *reader) BytesRead() uint32 {
 func (r *reader) Put(slice *iobuf.Slice) error {
 	return r.src.Put(slice)
 }
+
+// timeoutError implements net.Error with Timeout returning true.
+type timeoutError struct{}
+
+func (t timeoutError) Error() string   { return "deadline exceeded" }
+func (t timeoutError) Timeout() bool   { return true }
+func (t timeoutError) Temporary() bool { return false }

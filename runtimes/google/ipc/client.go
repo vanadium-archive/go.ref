@@ -219,14 +219,7 @@ func (c *client) startCall(ctx context.T, name, method string, args []interface{
 			vlog.VI(2).Infof("ipc: couldn't connect to server %v: %v", server, err)
 			continue // Try the next server.
 		}
-		timeout := time.Duration(ipc.NoTimeout)
-		if deadline, hasDeadline := ctx.Deadline(); hasDeadline {
-			timeout = deadline.Sub(time.Now())
-			if err := flow.SetDeadline(deadline); err != nil {
-				lastErr = verror.Internalf("ipc: flow.SetDeadline failed: %v", err)
-				continue
-			}
-		}
+		flow.SetDeadline(ctx.Done())
 
 		// Validate caveats on the server's identity for the context associated with this call.
 		blessing, err := authorizeServer(flow.LocalID(), flow.RemoteID(), opts)
@@ -243,11 +236,18 @@ func (c *client) startCall(ctx context.T, name, method string, args []interface{
 
 		if doneChan := ctx.Done(); doneChan != nil {
 			go func() {
-				<-ctx.Done()
-				fc.Cancel()
+				select {
+				case <-ctx.Done():
+					fc.Cancel()
+				case <-fc.flow.Closed():
+				}
 			}()
 		}
 
+		timeout := time.Duration(ipc.NoTimeout)
+		if deadline, hasDeadline := ctx.Deadline(); hasDeadline {
+			timeout = deadline.Sub(time.Now())
+		}
 		if verr := fc.start(suffix, method, args, timeout, blessing); verr != nil {
 			return nil, verr
 		}
@@ -356,6 +356,7 @@ func (fc *flowClient) close(verr verror.E) verror.E {
 }
 
 func (fc *flowClient) start(suffix, method string, args []interface{}, timeout time.Duration, blessing security.PublicID) verror.E {
+
 	req := ipc.Request{
 		Suffix:        suffix,
 		Method:        method,

@@ -412,7 +412,7 @@ func (vc *VC) HandshakeDialedVC(opts ...stream.VCOpt) error {
 	if err != nil {
 		return vc.err(fmt.Errorf("failed to create a Flow for setting up TLS: %v", err))
 	}
-	crypter, err := crypto.NewTLSClient(handshakeConn, tlsSessionCache, vc.pool)
+	crypter, err := crypto.NewTLSClient(handshakeConn, handshakeConn.LocalEndpoint(), handshakeConn.RemoteEndpoint(), tlsSessionCache, vc.pool)
 	if err != nil {
 		return vc.err(fmt.Errorf("failed to setup TLS: %v", err))
 	}
@@ -536,7 +536,7 @@ func (vc *VC) HandshakeAcceptedVC(opts ...stream.ListenerOpt) <-chan HandshakeRe
 		vc.mu.Unlock()
 
 		// Establish TLS
-		crypter, err := crypto.NewTLSServer(handshakeConn, vc.pool)
+		crypter, err := crypto.NewTLSServer(handshakeConn, handshakeConn.LocalEndpoint(), handshakeConn.RemoteEndpoint(), vc.pool)
 		if err != nil {
 			sendErr(fmt.Errorf("failed to setup TLS: %v", err))
 			return
@@ -616,13 +616,8 @@ func (vc *VC) newWriter(fid id.Flow) (*writer, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &writer{
-		MTU:            MaxPayloadSizeBytes,
-		Sink:           bq,
-		Alloc:          iobuf.NewAllocator(vc.pool, vc.reserveBytes),
-		SharedCounters: vc.sharedCounters,
-		closed:         make(chan struct{}),
-	}, nil
+	alloc := iobuf.NewAllocator(vc.pool, vc.reserveBytes)
+	return newWriter(MaxPayloadSizeBytes, bq, alloc, vc.sharedCounters), nil
 }
 
 // findFlowLocked finds the flow id for the provided flow.
