@@ -5,10 +5,12 @@ import (
 	"crypto/md5"
 	"encoding/base64"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"os"
 	goexec "os/exec"
+	"os/user"
 	"path/filepath"
 	"reflect"
 	"sort"
@@ -170,7 +172,7 @@ func (appService) Echo(_ ipc.ServerCall, message string) (string, error) {
 }
 
 func ping() {
-	if call, err := rt.R().Client().StartCall(rt.R().NewContext(), "pingserver", "Ping", nil); err != nil {
+	if call, err := rt.R().Client().StartCall(rt.R().NewContext(), "pingserver", "Ping", []interface{}{os.Getenv(suidhelper.SavedArgs)}); err != nil {
 		vlog.Fatalf("StartCall failed: %v", err)
 	} else if err = call.Finish(); err != nil {
 		vlog.Fatalf("Finish failed: %v", err)
@@ -493,9 +495,11 @@ func TestNodeManagerUpdateAndRevert(t *testing.T) {
 	runNM.ExpectEOFAndWait()
 }
 
-type pingServerDisp chan<- struct{}
+type pingServerDisp chan<- string
 
-func (p pingServerDisp) Ping(ipc.ServerCall) { p <- struct{}{} }
+func (p pingServerDisp) Ping(_ ipc.ServerCall, arg string) {
+	p <- arg
+}
 
 func verifyAppWorkspace(t *testing.T, root, appID, instanceID string) {
 	// HACK ALERT: for now, we peek inside the node manager's directory
@@ -521,6 +525,20 @@ func verifyAppWorkspace(t *testing.T, root, appID, instanceID string) {
 		t.Fatalf("Expected to read %v, got %v instead", want, got)
 	}
 	// END HACK
+}
+
+// TODO(rjkroege): Consider validating additional parameters.
+func verifyHelperArgs(t *testing.T, env, username string) {
+	d := json.NewDecoder(strings.NewReader(env))
+	var savedArgs suidhelper.ArgsSavedForTest
+
+	if err := d.Decode(&savedArgs); err != nil {
+		t.Fatalf("failed to decode preserved argument %v: %v", env, err)
+	}
+
+	if savedArgs.Uname != username {
+		t.Fatalf("got username %v, expected username %v", savedArgs.Uname, username)
+	}
 }
 
 // TestAppLifeCycle installs an app, starts it, suspends it, resumes it, and
@@ -551,7 +569,7 @@ func TestAppLifeCycle(t *testing.T) {
 	// Create the local server that the app uses to let us know it's ready.
 	server, _ := newServer()
 	defer server.Stop()
-	pingCh := make(chan struct{}, 1)
+	pingCh := make(chan string, 1)
 	if err := server.Serve("pingserver", ipc.LeafDispatcher(pingServerDisp(pingCh), nil)); err != nil {
 		t.Fatalf("Serve(%q, <dispatcher>) failed: %v", "pingserver", err)
 	}
@@ -567,7 +585,13 @@ func TestAppLifeCycle(t *testing.T) {
 
 	// Start an instance of the app.
 	instance1ID := startApp(t, appID)
-	<-pingCh // Wait until the app pings us that it's ready.
+
+	u, err := user.Current()
+	if err != nil {
+		t.Fatalf("user.Current() failed: %v", err)
+	}
+	verifyHelperArgs(t, <-pingCh, u.Username) // Wait until the app pings us that it's ready.
+
 	v1EP1 := resolve(t, "appV1", 1)[0]
 
 	// Suspend the app instance.
@@ -575,7 +599,7 @@ func TestAppLifeCycle(t *testing.T) {
 	resolveExpectNotFound(t, "appV1")
 
 	resumeApp(t, appID, instance1ID)
-	<-pingCh
+	verifyHelperArgs(t, <-pingCh, u.Username) // Wait until the app pings us that it's ready.
 	oldV1EP1 := v1EP1
 	if v1EP1 = resolve(t, "appV1", 1)[0]; v1EP1 == oldV1EP1 {
 		t.Fatalf("Expected a new endpoint for the app after suspend/resume")
@@ -583,7 +607,7 @@ func TestAppLifeCycle(t *testing.T) {
 
 	// Start a second instance.
 	instance2ID := startApp(t, appID)
-	<-pingCh // Wait until the app pings us that it's ready.
+	verifyHelperArgs(t, <-pingCh, u.Username) // Wait until the app pings us that it's ready.
 
 	// There should be two endpoints mounted as "appV1", one for each
 	// instance of the app.
@@ -629,7 +653,7 @@ func TestAppLifeCycle(t *testing.T) {
 
 	// Resume first instance.
 	resumeApp(t, appID, instance1ID)
-	<-pingCh
+	verifyHelperArgs(t, <-pingCh, u.Username) // Wait until the app pings us that it's ready.
 	// Both instances should still be running the first version of the app.
 	// Check that the mounttable contains two endpoints, one of which is
 	// v1EP2.
@@ -653,7 +677,7 @@ func TestAppLifeCycle(t *testing.T) {
 
 	// Start a third instance.
 	instance3ID := startApp(t, appID)
-	<-pingCh // Wait until the app pings us that it's ready.
+	verifyHelperArgs(t, <-pingCh, u.Username) // Wait until the app pings us that it's ready.
 	resolve(t, "appV2", 1)
 
 	// Stop second instance.
@@ -669,7 +693,7 @@ func TestAppLifeCycle(t *testing.T) {
 
 	// Start a fourth instance.  It should be started from version 1.
 	instance4ID := startApp(t, appID)
-	<-pingCh // Wait until the app pings us that it's ready.
+	verifyHelperArgs(t, <-pingCh, u.Username) // Wait until the app pings us that it's ready.
 	resolve(t, "appV1", 1)
 	stopApp(t, appID, instance4ID)
 	resolveExpectNotFound(t, "appV1")
