@@ -19,17 +19,12 @@ const (
 
 var errStoreAddMismatch = errors.New("blessing's public key does not match store's public key")
 
-type markedBlessings struct {
-	Blessings security.Blessings
-	Patterns  []security.BlessingPattern
-}
-
 type persistentState struct {
-	// Store contains a set of Blessings marked with a set of BlessingsPatterns.
-	// These blessings are intended to be shared with peers whose blessings
-	// match the corresponding pattern. All Blessings in the store must have
-	// the same public key.
-	Store []markedBlessings
+	// Store maps BlessingPatterns to the Blessings object that is to be shared
+	// with peers which present blessings of their own that match the pattern.
+	//
+	// All blessings bind to the same public key.
+	Store map[security.BlessingPattern]security.Blessings
 	// Default is the default Blessings to be shared with peers for which
 	// no other information is available to select blessings.
 	Default security.Blessings
@@ -44,68 +39,47 @@ type blessingStore struct {
 	mu        sync.RWMutex
 }
 
-func (s *blessingStore) Add(blessings security.Blessings, forPeers security.BlessingPattern) error {
-	if !reflect.DeepEqual(blessings.PublicKey(), s.publicKey) {
-		return errStoreAddMismatch
-	}
+func (s *blessingStore) Set(blessings security.Blessings, forPeers security.BlessingPattern) (security.Blessings, error) {
 	if !forPeers.IsValid() {
-		return fmt.Errorf("%q is an invalid BlessingPattern", forPeers)
+		return nil, fmt.Errorf("%q is an invalid BlessingPattern", forPeers)
 	}
-
+	if blessings != nil && !reflect.DeepEqual(blessings.PublicKey(), s.publicKey) {
+		return nil, errStoreAddMismatch
+	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
-
-	var entry *markedBlessings
-	for i, mb := range s.state.Store {
-		if !reflect.DeepEqual(mb.Blessings, blessings) {
-			continue
-		}
-		entry = &s.state.Store[i]
-		for _, p := range mb.Patterns {
-			if p == forPeers {
-				return nil
-			}
-		}
-		break
-	}
-	if entry == nil {
-		s.state.Store = append(s.state.Store, markedBlessings{blessings, []security.BlessingPattern{forPeers}})
+	old, hadold := s.state.Store[forPeers]
+	if blessings != nil {
+		s.state.Store[forPeers] = blessings
 	} else {
-		entry.Patterns = append(entry.Patterns, forPeers)
+		delete(s.state.Store, forPeers)
 	}
-
 	if err := s.save(); err != nil {
-		if entry == nil {
-			s.state.Store = s.state.Store[:len(s.state.Store)-1]
+		if hadold {
+			s.state.Store[forPeers] = old
 		} else {
-			entry.Patterns = entry.Patterns[:len(entry.Patterns)-1]
+			delete(s.state.Store, forPeers)
 		}
-		return err
+		return nil, err
 	}
-	return nil
+	return old, nil
 }
 
 func (s *blessingStore) ForPeer(peerBlessings ...string) security.Blessings {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
-	var matchingBlessings []security.Blessings
-	for _, mb := range s.state.Store {
-		for _, p := range mb.Patterns {
-			if p.MatchedBy(peerBlessings...) {
-				matchingBlessings = append(matchingBlessings, mb.Blessings)
-				break
+	var ret security.Blessings
+	for pattern, blessings := range s.state.Store {
+		if pattern.MatchedBy(peerBlessings...) {
+			if union, err := security.UnionOfBlessings(ret, blessings); err != nil {
+				vlog.Errorf("UnionOfBlessings(%v, %v) failed: %v, dropping the latter from BlessingStore.ForPeers(%v)", ret, blessings, err, peerBlessings)
+			} else {
+				ret = union
 			}
 		}
 	}
-
-	blessings, err := security.UnionOfBlessings(matchingBlessings...)
-	if err != nil {
-		// This case should never be hit.
-		vlog.Errorf("BlessingStore: %s is broken, could not union Blessings obtained from it: %s", s, err)
-		return nil
-	}
-	return blessings
+	return ret
 }
 
 func (s *blessingStore) Default() security.Blessings {
@@ -153,6 +127,7 @@ func (s *blessingStore) save() error {
 func newInMemoryBlessingStore(publicKey security.PublicKey) security.BlessingStore {
 	return &blessingStore{
 		publicKey: publicKey,
+		state:     persistentState{Store: make(map[security.BlessingPattern]security.Blessings)},
 	}
 }
 
@@ -171,6 +146,7 @@ func newPersistingBlessingStore(publicKey security.PublicKey, directory string, 
 	}
 	s := &blessingStore{
 		publicKey: publicKey,
+		state:     persistentState{Store: make(map[security.BlessingPattern]security.Blessings)},
 		dir:       directory,
 		signer:    signer,
 	}
@@ -179,9 +155,9 @@ func newPersistingBlessingStore(publicKey security.PublicKey, directory string, 
 		return nil, err
 	}
 
-	for _, mb := range s.state.Store {
-		if !reflect.DeepEqual(mb.Blessings.PublicKey(), publicKey) {
-			return nil, fmt.Errorf("directory contains Blessings: %v that are not for the provided PublicKey: %v", mb.Blessings, publicKey)
+	for _, b := range s.state.Store {
+		if !reflect.DeepEqual(b.PublicKey(), publicKey) {
+			return nil, fmt.Errorf("directory contains Blessings: %v that are not for the provided PublicKey: %v", b, publicKey)
 		}
 	}
 	return s, nil

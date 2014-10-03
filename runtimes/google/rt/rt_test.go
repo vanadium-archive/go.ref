@@ -146,7 +146,7 @@ func TestInitPrincipal(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := p.BlessingStore().Add(blessing, security.AllPrincipals); err != nil {
+	if _, err := p.BlessingStore().Set(blessing, security.AllPrincipals); err != nil {
 		t.Fatal(err)
 	}
 	if err := p.AddToRoots(blessing); err != nil {

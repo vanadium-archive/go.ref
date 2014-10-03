@@ -219,7 +219,7 @@ func newPrincipal(t *testing.T) security.Principal {
 		t.Fatal(err)
 	}
 	signer := security.NewInMemoryECDSASigner(key)
-	p, err := security.CreatePrincipal(signer, &store{signer.PublicKey()}, &roots{})
+	p, err := security.CreatePrincipal(signer, nil, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -253,20 +253,3 @@ func newThirdPartyCaveatAndDischarge(t *testing.T) (security.ThirdPartyCaveat, s
 	}
 	return c, d
 }
-
-// TODO(ashankar,ataly): Consider moving these implementations to veyron2/security/test so that various
-// test libraries do not need to implement this.
-type store struct {
-	key security.PublicKey
-}
-
-func (*store) Add(blessings security.Blessings, forPeers security.BlessingPattern) error { return nil }
-func (*store) ForPeer(peerBlesssings ...string) security.Blessings                       { return nil }
-func (*store) SetDefault(blessings security.Blessings) error                             { return nil }
-func (*store) Default() security.Blessings                                               { return nil }
-func (s *store) PublicKey() security.PublicKey                                           { return s.key }
-
-type roots struct{}
-
-func (*roots) Add(security.PublicKey, security.BlessingPattern) error { return nil }
-func (*roots) Recognized(security.PublicKey, string) error            { return nil }

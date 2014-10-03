@@ -1,7 +1,6 @@
 package rt
 
 import (
-	"bytes"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -9,7 +8,6 @@ import (
 	"testing"
 
 	"veyron.io/veyron/veyron2/security"
-	"veyron.io/veyron/veyron2/vom"
 )
 
 type storeTester struct {
@@ -17,7 +15,7 @@ type storeTester struct {
 	bForAll, bForGoogle, bForVeyron, bDefault security.Blessings
 }
 
-func (t *storeTester) testAdd(s security.BlessingStore) error {
+func (t *storeTester) testSet(s security.BlessingStore) error {
 	var (
 		p      = newPrincipal(t.t)
 		bOther = blessSelf(t.t, p, "irrelevant")
@@ -37,8 +35,9 @@ func (t *storeTester) testAdd(s security.BlessingStore) error {
 		{t.bForAll, "foo/.../bar", "invalid BlessingPattern"},
 	}
 	for _, d := range testdata {
-		if err := matchesError(s.Add(d.blessings, d.pattern), d.wantErr); err != nil {
-			return fmt.Errorf("Add(%v, %q): %v", d.blessings, p, err)
+		_, err := s.Set(d.blessings, d.pattern)
+		if merr := matchesError(err, d.wantErr); merr != nil {
+			return fmt.Errorf("Set(%v, %q): %v", d.blessings, p, merr)
 		}
 	}
 	return nil
@@ -114,7 +113,7 @@ func newStoreTester(t *testing.T) (*storeTester, security.PublicKey) {
 func TestInMemoryBlessingStore(t *testing.T) {
 	tester, pkey := newStoreTester(t)
 	s := newInMemoryBlessingStore(pkey)
-	if err := tester.testAdd(s); err != nil {
+	if err := tester.testSet(s); err != nil {
 		t.Error(err)
 	}
 	if err := tester.testForPeer(s); err != nil {
@@ -145,7 +144,7 @@ func TestPersistingBlessingStore(t *testing.T) {
 		t.Fatalf("newPersistingBlessingStore failed: %v", err)
 	}
 
-	if err := tester.testAdd(s); err != nil {
+	if err := tester.testSet(s); err != nil {
 		t.Error(err)
 	}
 	if err := tester.testForPeer(s); err != nil {
@@ -168,36 +167,81 @@ func TestPersistingBlessingStore(t *testing.T) {
 	}
 }
 
-func TestBlessingStoreDuplicates(t *testing.T) {
-	roundTrip := func(blessings security.Blessings) security.Blessings {
-		var b bytes.Buffer
-		if err := vom.NewEncoder(&b).Encode(blessings); err != nil {
-			t.Fatalf("could not VOM-Encode Blessings: %v", err)
-		}
-		var decodedBlessings security.Blessings
-		if err := vom.NewDecoder(&b).Decode(&decodedBlessings); err != nil {
-			t.Fatalf("could not VOM-Decode Blessings: %v", err)
-		}
-		return decodedBlessings
-	}
-	add := func(s security.BlessingStore, blessings security.Blessings, forPeers security.BlessingPattern) {
-		if err := s.Add(blessings, forPeers); err != nil {
-			t.Fatalf("Add(%v, %q) failed unexpectedly: %v", blessings, forPeers, err)
-		}
-	}
+func TestBlessingStoreSetOverridesOldSetting(t *testing.T) {
 	var (
-		// root principal
-		// test blessings
 		p     = newPrincipal(t)
 		alice = blessSelf(t, p, "alice")
-
-		pkey = p.PublicKey()
+		bob   = blessSelf(t, p, "bob")
+		s     = newInMemoryBlessingStore(p.PublicKey())
 	)
-	s := newInMemoryBlessingStore(pkey)
-	add(s, alice, "...")
-	add(s, roundTrip(alice), "...")
+	// Set(alice, "alice")
+	// Set(bob, "alice/...")
+	// So, {alice, bob} is shared with "alice", whilst {bob} is shared with "alice/tv"
+	if _, err := s.Set(alice, "alice"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.Set(bob, "alice/..."); err != nil {
+		t.Fatal(err)
+	}
+	if got, want := s.ForPeer("alice"), unionOfBlessings(t, alice, bob); !reflect.DeepEqual(got, want) {
+		t.Errorf("Got %v, want %v", got, want)
+	}
+	if got, want := s.ForPeer("alice/friend"), bob; !reflect.DeepEqual(got, want) {
+		t.Errorf("Got %v, want %v", got, want)
+	}
 
-	if got, want := s.ForPeer(), alice; !reflect.DeepEqual(got, want) {
-		t.Fatalf("ForPeer(): got: %v, want: %v", got, want)
+	// Clear out the blessing associated with "alice".
+	// Now, bob should be shared with both alice and alice/friend.
+	if _, err := s.Set(nil, "alice"); err != nil {
+		t.Fatal(err)
+	}
+	if got, want := s.ForPeer("alice"), bob; !reflect.DeepEqual(got, want) {
+		t.Errorf("Got %v, want %v", got, want)
+	}
+	if got, want := s.ForPeer("alice/friend"), bob; !reflect.DeepEqual(got, want) {
+		t.Errorf("Got %v, want %v", got, want)
+	}
+
+	// Clearing out an association that doesn't exist should have no effect.
+	if _, err := s.Set(nil, "alice/enemy"); err != nil {
+		t.Fatal(err)
+	}
+	if got, want := s.ForPeer("alice"), bob; !reflect.DeepEqual(got, want) {
+		t.Errorf("Got %v, want %v", got, want)
+	}
+	if got, want := s.ForPeer("alice/friend"), bob; !reflect.DeepEqual(got, want) {
+		t.Errorf("Got %v, want %v", got, want)
+	}
+
+	// Clear everything
+	if _, err := s.Set(nil, "alice/..."); err != nil {
+		t.Fatal(err)
+	}
+	if got := s.ForPeer("alice"); got != nil {
+		t.Errorf("Got %v, want nil", got)
+	}
+	if got := s.ForPeer("alice/friend"); got != nil {
+		t.Errorf("Got %v, want nil", got)
+	}
+}
+
+func TestBlessingStoreSetReturnsOldValue(t *testing.T) {
+	var (
+		p     = newPrincipal(t)
+		alice = blessSelf(t, p, "alice")
+		bob   = blessSelf(t, p, "bob")
+		s     = newInMemoryBlessingStore(p.PublicKey())
+	)
+	if old, err := s.Set(alice, "..."); old != nil || err != nil {
+		t.Errorf("Got (%v, %v)", old, err)
+	}
+	if old, err := s.Set(alice, "..."); !reflect.DeepEqual(old, alice) || err != nil {
+		t.Errorf("Got (%v, %v) want (%v, nil)", old, err, alice)
+	}
+	if old, err := s.Set(bob, "..."); !reflect.DeepEqual(old, alice) || err != nil {
+		t.Errorf("Got (%v, %v) want (%v, nil)", old, err, alice)
+	}
+	if old, err := s.Set(nil, "..."); !reflect.DeepEqual(old, bob) || err != nil {
+		t.Errorf("Got (%v, %v) want (%v, nil)", old, err, bob)
 	}
 }

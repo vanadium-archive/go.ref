@@ -43,9 +43,10 @@ type blessingStore struct {
 	k security.PublicKey
 }
 
-func (bs *blessingStore) Add(blessings security.Blessings, peer security.BlessingPattern) error {
+func (bs *blessingStore) Set(blessings security.Blessings, peer security.BlessingPattern) (security.Blessings, error) {
+	old := bs.m[string(peer)]
 	bs.m[string(peer)] = blessings
-	return nil
+	return old, nil
 }
 
 func (bs *blessingStore) ForPeer(peers ...string) security.Blessings {
