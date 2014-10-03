@@ -33,14 +33,16 @@ var (
 	listenProtocolFlag = flags.TCPProtocolFlag{"tcp"}
 	listenAddressFlag  = flags.IPHostPortFlag{Port: "0"}
 	listenProxyFlag    string
-	ListenSpec         *ipc.ListenSpec
+
+	// ListenSpec is an initialized instance of ipc.ListenSpec that can
+	// be used with ipc.Listen.
+	ListenSpec *ipc.ListenSpec
 )
 
 func init() {
 	flag.Var(&listenProtocolFlag, "veyron.tcp.protocol", "protocol to listen with")
 	flag.Var(&listenAddressFlag, "veyron.tcp.address", "address to listen on")
 	flag.StringVar(&listenProxyFlag, "veyron.proxy", "", "proxy to use")
-
 	rt.RegisterProfile(New())
 }
 

@@ -6,13 +6,14 @@ import (
 	"net/http"
 	"testing"
 
-	"veyron.io/veyron/veyron/services/mgmt/pprof/client"
-	"veyron.io/veyron/veyron/services/mgmt/pprof/impl"
-
 	"veyron.io/veyron/veyron2/ipc"
 	"veyron.io/veyron/veyron2/naming"
 	"veyron.io/veyron/veyron2/rt"
 	"veyron.io/veyron/veyron2/security"
+
+	"veyron.io/veyron/veyron/profiles"
+	"veyron.io/veyron/veyron/services/mgmt/pprof/client"
+	"veyron.io/veyron/veyron/services/mgmt/pprof/impl"
 )
 
 type dispatcher struct {
@@ -32,7 +33,7 @@ func TestPProfProxy(t *testing.T) {
 		t.Fatalf("failed to start server: %v", err)
 	}
 	defer s.Stop()
-	endpoint, err := s.Listen("tcp", "127.0.0.1:0")
+	endpoint, err := s.ListenX(profiles.LocalListenSpec)
 	if err != nil {
 		t.Fatalf("failed to listen: %v", err)
 	}

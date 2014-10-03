@@ -79,10 +79,9 @@ func newServer() (ipc.Server, string) {
 	if err != nil {
 		vlog.Fatalf("NewServer() failed: %v", err)
 	}
-	protocol, hostname := "tcp", "127.0.0.1:0"
-	endpoint, err := server.Listen(protocol, hostname)
+	endpoint, err := server.ListenX(profiles.LocalListenSpec)
 	if err != nil {
-		vlog.Fatalf("Listen(%v, %v) failed: %v", protocol, hostname, err)
+		vlog.Fatalf("Listen(%s) failed: %v", profiles.LocalListenSpec, err)
 	}
 	return server, endpoint.String()
 }

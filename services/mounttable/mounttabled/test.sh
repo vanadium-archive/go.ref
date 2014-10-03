@@ -23,7 +23,7 @@ main() {
   # Start mounttabled and find its endpoint.
   local -r NHNAME=test-$(hostname)-$$
   local -r MTLOG="${TMPDIR}/mt.log"
-  ./mounttabled --address=127.0.0.1:0 -vmodule=publisher=2 --neighborhood_name="${NHNAME}" > "${MTLOG}" 2>&1 &
+  ./mounttabled --veyron.tcp.address=127.0.0.1:0 -vmodule=publisher=2 --neighborhood_name="${NHNAME}" > "${MTLOG}" 2>&1 &
   shell::wait_for "${MTLOG}" "ipc pub: mount"
 
   local -r EP=$(grep "Mount table service at:" "${MTLOG}" | sed -e 's/^.*endpoint: //')
