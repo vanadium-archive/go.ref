@@ -20,11 +20,41 @@ func TestLoadSavePEMKey(t *testing.T) {
 	}
 
 	var buf bytes.Buffer
-	if err := SavePEMKey(&buf, key); err != nil {
+	if err := SavePEMKey(&buf, key, nil); err != nil {
 		t.Fatalf("Failed to save ECDSA private key: %v", err)
 	}
 
-	loadedKey, err := LoadPEMKey(&buf)
+	loadedKey, err := LoadPEMKey(&buf, nil)
+	if err != nil {
+		t.Fatalf("Failed to load ECDSA private key: %v", err)
+	}
+	if !reflect.DeepEqual(loadedKey, key) {
+		t.Fatalf("Got key %v, but want %v", loadedKey, key)
+	}
+}
+
+func TestLoadSavePEMKeyWithPassword(t *testing.T) {
+	pass := []byte("openSesame")
+	incorrect_pass := []byte("wrongPassword")
+	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	if err != nil {
+		t.Fatalf("Failed ecdsa.GenerateKey: %v", err)
+	}
+	var buf bytes.Buffer
+	// Test incorrect password.
+	if err := SavePEMKey(&buf, key, pass); err != nil {
+		t.Fatalf("Failed to save ECDSA private key: %v", err)
+	}
+	loadedKey, err := LoadPEMKey(&buf, incorrect_pass)
+	if err == nil {
+		t.Errorf("loaded ECDSA private key with incorrect password")
+	}
+
+	// Test correct password.
+	if err := SavePEMKey(&buf, key, pass); err != nil {
+		t.Fatalf("Failed to save ECDSA private key: %v", err)
+	}
+	loadedKey, err = LoadPEMKey(&buf, pass)
 	if err != nil {
 		t.Fatalf("Failed to load ECDSA private key: %v", err)
 	}
