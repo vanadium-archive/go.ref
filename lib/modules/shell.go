@@ -175,7 +175,7 @@ func (sh *Shell) Start(command string, args ...string) (Handle, error) {
 		sh.mu.Unlock()
 		return nil, fmt.Errorf("command %q is not available", command)
 	}
-	expanded := sh.expand(args...)
+	expanded := append([]string{command}, sh.expand(args...)...)
 	sh.mu.Unlock()
 	h, err := cmd.factory().start(sh, expanded...)
 	if err != nil {
@@ -238,10 +238,9 @@ func (sh *Shell) Env() []string {
 }
 
 // Cleanup calls Shutdown on all of the Handles currently being tracked
-// by the Shell. Any buffered output from the command's stderr stream
-// will be written to the supplied io.Writer. If the io.Writer is nil
-// then any such output is lost.
-func (sh *Shell) Cleanup(output io.Writer) {
+// by the Shell and writes to stdout and stderr as per the Shutdown
+// method in the Handle interface.
+func (sh *Shell) Cleanup(stdout, stderr io.Writer) {
 	sh.mu.Lock()
 	handles := make(map[Handle]struct{})
 	for k, v := range sh.handles {
@@ -250,7 +249,7 @@ func (sh *Shell) Cleanup(output io.Writer) {
 	sh.handles = make(map[Handle]struct{})
 	sh.mu.Unlock()
 	for k, _ := range handles {
-		k.Shutdown(output)
+		k.Shutdown(stdout, stderr)
 	}
 	if len(sh.idfile) > 0 {
 		os.Remove(sh.idfile)
@@ -277,10 +276,11 @@ type Handle interface {
 	CloseStdin()
 
 	// Shutdown closes the Stdin for the command and then reads output
-	// from the command's stdout until it encounters EOF and writes that
-	// output to the supplied io.Writer. It returns any error returned by
-	// the command.
-	Shutdown(io.Writer) error
+	// from the command's stdout until it encounters EOF, waits for
+	// the command to complete and then reads all of its stderr output.
+	// The stdout and stderr contents are written to the corresponding
+	// io.Writers if they are non-nil, otherwise the content is discarded.
+	Shutdown(stdout, stderr io.Writer) error
 }
 
 // command is used to abstract the implementations of inprocess and subprocess

@@ -100,16 +100,20 @@ func (s *Session) SetVerbosity(v bool) {
 	s.verbose = v
 }
 
-func (s *Session) log(format string, args ...interface{}) {
+func (s *Session) log(err error, format string, args ...interface{}) {
 	if !s.verbose {
 		return
 	}
 	_, path, line, _ := runtime.Caller(2)
+	errstr := ""
+	if err != nil {
+		errstr = err.Error() + ": "
+	}
 	loc := fmt.Sprintf("%s:%d", filepath.Base(path), line)
 	o := strings.TrimRight(fmt.Sprintf(format, args...), "\n\t ")
-	vlog.VI(2).Infof("%s: %s", loc, o)
+	vlog.VI(2).Infof("%s: %s%s", loc, errstr, o)
 	if s.t == nil {
-		fmt.Fprint(os.Stderr, loc, o)
+		fmt.Fprintf(os.Stderr, "%s: %s%s\n", loc, errstr, o)
 		return
 	}
 	s.t.Log(loc, o)
@@ -181,7 +185,7 @@ func (s *Session) Expect(expected string) {
 		return
 	}
 	line, err := s.read(readLine)
-	s.log("Expect: %v: %s", err, line)
+	s.log(err, "Expect: %s", line)
 	if err != nil {
 		s.error(err)
 		return
@@ -217,7 +221,7 @@ func (s *Session) ExpectRE(pattern string, n int) [][]string {
 		return [][]string{}
 	}
 	l, m, err := s.expectRE(pattern, n)
-	s.log("ExpectRE: %v: %s", err, l)
+	s.log(err, "ExpectVar: %s", l)
 	if err != nil {
 		s.error(err)
 		return [][]string{}
@@ -235,7 +239,7 @@ func (s *Session) ExpectVar(name string) string {
 		return ""
 	}
 	l, m, err := s.expectRE(name+"=(.*)", 1)
-	s.log("ExpectVar: %v: %s", err, l)
+	s.log(err, "ExpectVar: %s", l)
 	if err != nil {
 		s.error(err)
 		return ""
@@ -255,7 +259,7 @@ func (s *Session) ReadLine() string {
 		return ""
 	}
 	l, err := s.read(readLine)
-	s.log("Readline: %v: %s", err, l)
+	s.log(err, "Readline: %s", l)
 	if err != nil {
 		s.error(err)
 	}

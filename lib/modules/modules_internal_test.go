@@ -43,7 +43,7 @@ func TestState(t *testing.T) {
 	assertNumHandles(t, sh, 2)
 
 	for i, h := range []Handle{hs, hf} {
-		if got := h.Shutdown(nil); got != nil {
+		if got := h.Shutdown(nil, nil); got != nil {
 			t.Errorf("%d: got %q, want %q", i, got, nil)
 		}
 	}
@@ -53,6 +53,6 @@ func TestState(t *testing.T) {
 	hf, _ = sh.Start("echof", "c")
 	assertNumHandles(t, sh, 2)
 
-	sh.Cleanup(nil)
+	sh.Cleanup(nil, nil)
 	assertNumHandles(t, sh, 0)
 }

@@ -105,7 +105,7 @@ func assert(sh *modules.Shell, _ *cmdState, args ...string) (string, error) {
 
 func readStderr(state *cmdState) (string, error) {
 	var b bytes.Buffer
-	if err := state.Handle.Shutdown(&b); err != nil && err != io.EOF {
+	if err := state.Handle.Shutdown(nil, &b); err != nil && err != io.EOF {
 		return b.String(), err
 	}
 	return b.String(), nil
@@ -182,7 +182,7 @@ func list(sh *modules.Shell, _ *cmdState, args ...string) (string, error) {
 func quit(sh *modules.Shell, _ *cmdState, args ...string) (string, error) {
 	r := ""
 	for k, h := range handles {
-		if err := h.Handle.Shutdown(os.Stdout); err != nil {
+		if err := h.Handle.Shutdown(os.Stdout, os.Stdout); err != nil {
 			r += fmt.Sprintf("%s: %v\n", k, err)
 		} else {
 			r += fmt.Sprintf("%s: ok\n", k)

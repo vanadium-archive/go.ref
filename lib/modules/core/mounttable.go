@@ -23,14 +23,14 @@ func init() {
 }
 
 func mountTable(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
-	if len(args) != 1 {
+	if len(args) != 2 {
 		return fmt.Errorf("expected exactly one argument: <mount point>")
 	}
 	return runMT(false, stdin, stdout, stderr, env, args...)
 }
 
 func rootMountTable(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
-	if len(args) != 0 {
+	if len(args) != 1 {
 		return fmt.Errorf("expected no arguments")
 	}
 	return runMT(true, stdin, stdout, stderr, env, args...)
@@ -44,7 +44,7 @@ func runMT(root bool, stdin io.Reader, stdout, stderr io.Writer, env map[string]
 	}
 	mp := ""
 	if !root {
-		mp = args[0]
+		mp = args[1]
 	}
 	mt, err := mounttable.NewMountTable("")
 	if err != nil {
@@ -67,6 +67,7 @@ func runMT(root bool, stdin io.Reader, stdout, stderr io.Writer, env map[string]
 
 func ls(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
 	details := false
+	args = args[1:] // skip over comamnd name
 	if len(args) > 0 && args[0] == "-l" {
 		details = true
 		args = args[1:]
@@ -106,10 +107,10 @@ func ls(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args .
 type resolver func(ctx context.T, name string) (names []string, err error)
 
 func resolve(fn resolver, stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
-	if len(args) != 1 {
+	if len(args) != 2 {
 		return fmt.Errorf("wrong # args")
 	}
-	name := args[0]
+	name := args[1]
 	servers, err := fn(rt.R().NewContext(), name)
 	if err != nil {
 		fmt.Fprintf(stdout, "RN=0\n")
@@ -132,5 +133,8 @@ func resolveMT(stdin io.Reader, stdout, stderr io.Writer, env map[string]string,
 
 func setNamespaceRoots(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
 	ns := rt.R().Namespace()
-	return ns.SetRoots(args...)
+	if len(args) < 2 {
+		return fmt.Errorf("wrong # args")
+	}
+	return ns.SetRoots(args[1:]...)
 }

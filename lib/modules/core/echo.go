@@ -37,10 +37,10 @@ func (es *echoServerObject) Echo(call ipc.ServerCall, m string) (string, error) 
 }
 
 func echoServer(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
-	if len(args) != 2 {
+	if len(args) != 3 {
 		return fmt.Errorf("wrong # args")
 	}
-	id, mp := args[0], args[1]
+	id, mp := args[1], args[2]
 	disp := &treeDispatcher{id: id}
 	server, err := rt.R().NewServer()
 	if err != nil {
@@ -62,11 +62,11 @@ func echoServer(stdin io.Reader, stdout, stderr io.Writer, env map[string]string
 }
 
 func echoClient(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
-	if len(args) < 2 {
+	if len(args) < 3 {
 		return fmt.Errorf("wrong # args")
 	}
-	name := args[0]
-	args = args[1:]
+	name := args[1]
+	args = args[2:]
 	client := rt.R().Client()
 	for _, a := range args {
 		ctxt := rt.R().NewContext()

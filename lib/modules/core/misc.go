@@ -13,9 +13,9 @@ import (
 
 func sleep(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
 	d := time.Second
-	if len(args) > 0 {
+	if len(args) > 1 {
 		var err error
-		if d, err = time.ParseDuration(args[0]); err != nil {
+		if d, err = time.ParseDuration(args[1]); err != nil {
 			return err
 		}
 	}
@@ -42,10 +42,10 @@ func now(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args 
 }
 
 func mountServer(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
-	if len(args) != 3 {
+	if len(args) != 4 {
 		return fmt.Errorf("wrong # args")
 	}
-	mp, server, ttlstr := args[0], args[1], args[2]
+	mp, server, ttlstr := args[1], args[2], args[3]
 	ttl, err := time.ParseDuration(ttlstr)
 	if err != nil {
 		return fmt.Errorf("failed to parse time from %q", ttlstr)
@@ -59,11 +59,11 @@ func mountServer(stdin io.Reader, stdout, stderr io.Writer, env map[string]strin
 }
 
 func namespaceCache(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
-	if len(args) != 1 {
+	if len(args) != 2 {
 		return fmt.Errorf("wrong # args")
 	}
 	disable := true
-	switch args[0] {
+	switch args[1] {
 	case "on":
 		disable = false
 	case "off":

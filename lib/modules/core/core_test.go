@@ -21,7 +21,7 @@ import (
 
 func TestCommands(t *testing.T) {
 	shell := core.NewShell()
-	defer shell.Cleanup(os.Stderr)
+	defer shell.Cleanup(nil, os.Stderr)
 	for _, c := range []string{core.RootMTCommand, core.MTCommand} {
 		if len(shell.Help(c)) == 0 {
 			t.Fatalf("missing command %q", c)
@@ -37,9 +37,9 @@ func newShell() (*modules.Shell, func()) {
 	sh := core.NewShell()
 	return sh, func() {
 		if testing.Verbose() {
-			sh.Cleanup(os.Stderr)
+			sh.Cleanup(os.Stderr, os.Stderr)
 		} else {
-			sh.Cleanup(nil)
+			sh.Cleanup(nil, nil)
 		}
 	}
 }
@@ -56,7 +56,6 @@ func TestRoot(t *testing.T) {
 	s.ExpectVar("MT_ADDR")
 	s.ExpectVar("PID")
 	root.CloseStdin()
-	s.Expect("PASS")
 }
 
 func startMountTables(t *testing.T, sh *modules.Shell, mountPoints ...string) (map[string]string, error) {
@@ -235,7 +234,7 @@ func TestResolve(t *testing.T) {
 	if got, want := resolverSession.ExpectVar("R0"), addr; got != want {
 		t.Errorf("got %v, want %v", got, want)
 	}
-	if err = resolver.Shutdown(nil); err != nil {
+	if err = resolver.Shutdown(nil, os.Stderr); err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
 
@@ -252,7 +251,7 @@ func TestResolve(t *testing.T) {
 	if got, want := resolverSession.ExpectVar("R0"), addr; got != want {
 		t.Fatalf("got %v, want %v", got, want)
 	}
-	if err := resolver.Shutdown(nil); err != nil {
+	if err := resolver.Shutdown(nil, os.Stderr); err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
 
@@ -261,7 +260,7 @@ func TestResolve(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
-	if err := nsroots.Shutdown(nil); err != nil {
+	if err := nsroots.Shutdown(nil, os.Stderr); err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
 
@@ -276,16 +275,11 @@ func TestResolve(t *testing.T) {
 	if got, want := resolverSession.ExpectVar("R0"), addr; got != want {
 		t.Fatalf("got %v, want %v", got, want)
 	}
-	if err := resolver.Shutdown(nil); err != nil {
+	if err := resolver.Shutdown(nil, os.Stderr); err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
 }
 
 func TestHelperProcess(t *testing.T) {
-	if !modules.IsTestHelperProcess() {
-		return
-	}
-	if err := modules.Dispatch(); err != nil {
-		t.Fatalf("failed: %v", err)
-	}
+	modules.DispatchInTest()
 }

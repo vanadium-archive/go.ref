@@ -1,11 +1,9 @@
 package modules
 
 import (
-	"bufio"
 	"flag"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"strings"
@@ -137,7 +135,8 @@ func (eh *execHandle) start(sh *Shell, args ...string) (Handle, error) {
 	newargs := append(testFlags(), args...)
 	cmd := exec.Command(os.Args[0], newargs...)
 	cmd.Env = append(sh.mergeOSEnvSlice(), eh.entryPoint)
-	stderr, err := ioutil.TempFile("", "__modules__"+strings.TrimLeft(eh.entryPoint, "-\n\t "))
+	fname := strings.TrimPrefix(eh.entryPoint, ShellEntryPoint+"=")
+	stderr, err := newLogfile(strings.TrimLeft(fname, "-\n\t "))
 	if err != nil {
 		return nil, err
 	}
@@ -164,28 +163,37 @@ func (eh *execHandle) start(sh *Shell, args ...string) (Handle, error) {
 	return eh, err
 }
 
-func (eh *execHandle) Shutdown(output io.Writer) error {
+func (eh *execHandle) Shutdown(stdout, stderr io.Writer) error {
 	eh.mu.Lock()
 	defer eh.mu.Unlock()
 	eh.stdin.Close()
+	logFile := eh.stderr.Name()
 	defer eh.sh.forget(eh)
-	if eh.stderr != nil {
-		defer func() {
-			eh.stderr.Close()
-			os.Remove(eh.stderr.Name())
-		}()
-		if output == nil {
-			return eh.cmd.Wait()
-		}
-		if _, err := eh.stderr.Seek(0, 0); err != nil {
-			return eh.cmd.Wait()
-		}
-		scanner := bufio.NewScanner(eh.stderr)
-		for scanner.Scan() {
-			fmt.Fprintf(output, "%s\n", scanner.Text())
-		}
+
+	defer func() {
+		os.Remove(logFile)
+	}()
+
+	if stdout == nil && stderr == nil {
+		return eh.cmd.Wait()
 	}
-	return eh.cmd.Wait()
+	// Read from stdin before waiting for the child process to ensure
+	// that we get to read all of its output.
+	readTo(eh.stdout, stdout)
+
+	procErr := eh.cmd.Wait()
+
+	// Stderr is buffered to a file, so we can safely read it after we
+	// wait for the process.
+	eh.stderr.Close()
+	stderrFile, err := os.Open(logFile)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "failed to open %q: %s", logFile, err)
+		return procErr
+	}
+	readTo(stderrFile, stderr)
+	stderrFile.Close()
+	return procErr
 }
 
 const ShellEntryPoint = "VEYRON_SHELL_HELPER_PROCESS_ENTRY_POINT"
@@ -196,7 +204,25 @@ func RegisterChild(name string, main Main) {
 	child.mains[name] = main
 }
 
+// DispatchInTest will execute the requested subproccess command from within
+// a unit test run as a subprocess.
+func DispatchInTest() {
+	if !IsTestHelperProcess() {
+		return
+	}
+	if err := child.dispatch(); err != nil {
+		fmt.Fprintf(os.Stderr, "Failed: %s\n", err)
+		os.Exit(1)
+	}
+	os.Exit(0)
+}
+
+// Dispatch will execute the request subprocess command from a within a
+// a subprocess that is not a unit test.
 func Dispatch() error {
+	if IsTestHelperProcess() {
+		return fmt.Errorf("use DispatchInTest in unittests")
+	}
 	return child.dispatch()
 }
 

@@ -100,7 +100,6 @@ func main() {
 	if os.Getenv(modules.ShellEntryPoint) != "" {
 		// Subprocess, run the requested command.
 		if err := modules.Dispatch(); err != nil {
-			fmt.Fprintf(os.Stdout, "failed: %v\n", err)
 			fmt.Fprintf(os.Stderr, "failed: %v\n", err)
 			return
 		}
@@ -108,7 +107,7 @@ func main() {
 	}
 
 	shell := modules.NewShell()
-	defer shell.Cleanup(os.Stderr)
+	defer shell.Cleanup(os.Stderr, os.Stderr)
 	if os.Getenv("VEYRON_IDENTITY") == "" {
 		shell.CreateAndUseNewID()
 	}

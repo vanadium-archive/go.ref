@@ -1,5 +1,0 @@
-mount a b
-set w=$_
-read $w
-read $w
-wait $w
