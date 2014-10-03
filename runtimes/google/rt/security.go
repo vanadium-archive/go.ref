@@ -225,7 +225,7 @@ func initKey(dir string) (*ecdsa.PrivateKey, error) {
 	keyPath := path.Join(dir, privateKeyFile)
 	if f, err := os.Open(keyPath); err == nil {
 		defer f.Close()
-		v, err := vsecurity.LoadPEMKey(f)
+		v, err := vsecurity.LoadPEMKey(f, nil)
 		if err != nil {
 			return nil, err
 		}
@@ -248,7 +248,7 @@ func initKey(dir string) (*ecdsa.PrivateKey, error) {
 		return nil, err
 	}
 	defer f.Close()
-	return key, vsecurity.SavePEMKey(f, key)
+	return key, vsecurity.SavePEMKey(f, key, nil)
 }
 
 func initStoreAndRootsFromCredentials(dir string, secsigner security.Signer) (security.BlessingStore, security.BlessingRoots, error) {
