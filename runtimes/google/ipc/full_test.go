@@ -810,29 +810,26 @@ func TestDischargePurgeFromCache(t *testing.T) {
 type cancelTestServer struct {
 	started   chan struct{}
 	cancelled chan struct{}
+	t         *testing.T
 }
 
-func newCancelTestServer() *cancelTestServer {
+func newCancelTestServer(t *testing.T) *cancelTestServer {
 	return &cancelTestServer{
 		started:   make(chan struct{}),
 		cancelled: make(chan struct{}),
+		t:         t,
 	}
 }
 
 func (s *cancelTestServer) CancelStreamReader(call ipc.ServerCall) error {
 	close(s.started)
-	for {
-		var b []byte
-		if err := call.Recv(&b); err != nil && err != io.EOF {
-			return err
-		}
-		select {
-		case <-call.Done():
-			close(s.cancelled)
-			return nil
-		default:
-		}
+	var b []byte
+	if err := call.Recv(&b); err != io.EOF {
+		s.t.Errorf("Got error %v, want io.EOF", err)
 	}
+	<-call.Done()
+	close(s.cancelled)
+	return nil
 }
 
 // CancelStreamIgnorer doesn't read from it's input stream so all it's
@@ -840,15 +837,9 @@ func (s *cancelTestServer) CancelStreamReader(call ipc.ServerCall) error {
 // even when the stream is stalled.
 func (s *cancelTestServer) CancelStreamIgnorer(call ipc.ServerCall) error {
 	close(s.started)
-	for {
-		time.Sleep(time.Millisecond)
-		select {
-		case <-call.Done():
-			close(s.cancelled)
-			return nil
-		default:
-		}
-	}
+	<-call.Done()
+	close(s.cancelled)
+	return nil
 }
 
 func waitForCancel(t *testing.T, ts *cancelTestServer, call ipc.Call) {
@@ -859,7 +850,7 @@ func waitForCancel(t *testing.T, ts *cancelTestServer, call ipc.Call) {
 
 // TestCancel tests cancellation while the server is reading from a stream.
 func TestCancel(t *testing.T) {
-	ts := newCancelTestServer()
+	ts := newCancelTestServer(t)
 	b := createBundle(t, clientID, serverID, ts)
 	defer b.cleanup(t)
 
@@ -867,19 +858,13 @@ func TestCancel(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Start call failed: %v", err)
 	}
-	for i := 0; i <= 10; i++ {
-		b := []byte{1, 2, 3}
-		if err := call.Send(b); err != nil {
-			t.Errorf("clientCall.Send error %q", err)
-		}
-	}
 	waitForCancel(t, ts, call)
 }
 
 // TestCancelWithFullBuffers tests that even if the writer has filled the buffers and
 // the server is not reading that the cancel message gets through.
 func TestCancelWithFullBuffers(t *testing.T) {
-	ts := newCancelTestServer()
+	ts := newCancelTestServer(t)
 	b := createBundle(t, clientID, serverID, ts)
 	defer b.cleanup(t)
 

@@ -630,11 +630,6 @@ func defaultACL(id security.PublicID) security.ACL {
 
 func (fs *flowServer) serve() error {
 	defer fs.flow.Close()
-	// Here we remove the contexts channel as a deadline to the flow.
-	// We do this to ensure clients get a consistent error when they read/write
-	// after the flow is closed.  Otherwise there is a race between the
-	// context cancellation and the flow being closed.
-	defer fs.flow.SetDeadline(nil)
 
 	results, err := fs.processRequest()
 
@@ -719,8 +714,16 @@ func (fs *flowServer) processRequest() ([]interface{}, verror.E) {
 	// Ensure that the context gets cancelled if the flow is closed
 	// due to a network error, or client cancellation.
 	go func() {
-		<-fs.flow.Closed()
-		cancel()
+		select {
+		case <-fs.flow.Closed():
+			// Here we remove the contexts channel as a deadline to the flow.
+			// We do this to ensure clients get a consistent error when they read/write
+			// after the flow is closed.  Since the flow is already closed, it doesn't
+			// matter that the context is also cancelled.
+			fs.flow.SetDeadline(nil)
+			cancel()
+		case <-fs.Done():
+		}
 	}()
 
 	// If additional credentials are provided, make them available in the context
