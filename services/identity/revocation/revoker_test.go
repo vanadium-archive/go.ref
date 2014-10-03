@@ -4,13 +4,16 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
-	services "veyron.io/veyron/veyron/services/security"
-	"veyron.io/veyron/veyron/services/security/discharger"
+
 	"veyron.io/veyron/veyron2"
 	"veyron.io/veyron/veyron2/ipc"
 	"veyron.io/veyron/veyron2/naming"
 	"veyron.io/veyron/veyron2/rt"
 	"veyron.io/veyron/veyron2/security"
+
+	"veyron.io/veyron/veyron/profiles"
+	services "veyron.io/veyron/veyron/services/security"
+	"veyron.io/veyron/veyron/services/security/discharger"
 )
 
 func revokerSetup(t *testing.T) (dischargerID security.PublicID, dischargerEndpoint string, revoker *RevocationManager, closeFunc func(), runtime veyron2.Runtime) {
@@ -25,7 +28,7 @@ func revokerSetup(t *testing.T) (dischargerID security.PublicID, dischargerEndpo
 	if err != nil {
 		t.Fatalf("rt.R().NewServer: %s", err)
 	}
-	dischargerEP, err := dischargerServer.Listen("tcp", "127.0.0.1:0")
+	dischargerEP, err := dischargerServer.ListenX(profiles.LocalListenSpec)
 	if err != nil {
 		t.Fatalf("dischargerServer.Listen failed: %v", err)
 	}
