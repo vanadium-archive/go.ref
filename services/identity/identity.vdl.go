@@ -26,18 +26,14 @@ const _ = _gen_wiretype.TypeIDInvalid
 // though the Google implementation also has informative documentation at
 // https://developers.google.com/accounts/docs/OAuth2
 //
-// WARNING: There is no binding between the channel over which the
-// authorization code or access token was obtained (typically https)
-// and the channel used to make the RPC (a veyron virtual circuit).
-// Thus, if Mallory possesses the authorization code or access token
-// associated with Alice's account, she may be able to obtain a blessing
-// with Alice's name on it.
+// WARNING: There is no binding between the channel over which the access token
+// was obtained (typically https) and the channel used to make the RPC (a
+// veyron virtual circuit).
+// Thus, if Mallory possesses the access token associated with Alice's account,
+// she may be able to obtain a blessing with Alice's name on it.
 //
-// TODO(ashankar,toddw): Once the "OneOf" type becomes available in VDL,
-// then the "any" should be replaced by:
-// OneOf<wire.ChainPublicID, []wire.ChainPublicID>
-// where wire is from:
-// import "veyron.io/veyron/veyron2/security/wire"
+// TODO(ashankar): Update this to use the new security model:
+// (blessing security.WireBlessing, error)
 // OAuthBlesser is the interface the client binds and uses.
 // OAuthBlesser_ExcludingUniversal is the interface without internal framework-added methods
 // to enable embedding without method collisions.  Not to be used directly by clients.
