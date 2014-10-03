@@ -192,7 +192,7 @@ func (c *client) StartCall(ctx context.T, name, method string, args []interface{
 			return call, nil
 		}
 		lastErr = err
-		if deadline.After(time.Now()) || !retriable(err) {
+		if time.Now().After(deadline) || !retriable(err) {
 			break
 		}
 	}
