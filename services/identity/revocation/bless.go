@@ -11,9 +11,7 @@ import (
 )
 
 // Bless creates a blessing on behalf of the identity server.
-func Bless(server security.PrivateID, blessee security.PublicID, email string, duration time.Duration, revocationCaveat security.ThirdPartyCaveat) (security.PublicID, error) {
-	// TODO(suharshs): Pass caveats to here when macaroon new oauth flow is complete.
-	var caveats []security.Caveat
+func Bless(server security.PrivateID, blessee security.PublicID, email string, duration time.Duration, caveats []security.Caveat, revocationCaveat security.ThirdPartyCaveat) (security.PublicID, error) {
 	if revocationCaveat != nil {
 		caveat, err := security.NewCaveat(revocationCaveat)
 		if err != nil {

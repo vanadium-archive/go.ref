@@ -1,6 +1,20 @@
-// Package googleoauth implements an http.Handler that uses OAuth 2.0 to
-// authenticate with Google and then renders a page that displays all the
-// blessings that were provided for that Google user.
+// Package googleoauth implements an http.Handler that has two main purposes
+// listed below:
+
+// (1) Uses OAuth 2.0 to authenticate with Google and then renders a page that
+//     displays all the blessings that were provided for that Google user.
+//     The client calls the /listblessings route which redirects to listblessingscallback which
+//     renders the list.
+// (2) Performs the oauth flow for seeking a blessing using the identity tool
+//     located at veyron/tools/identity.
+//     The seek blessing flow works as follows:
+//     (a) Client (identity tool) hits the /seekblessings route.
+//     (b) /seekblessings performs google oauth with a redirect to /seekblessingscallback.
+//     (c) Client specifies desired caveats in the form that /seekblessingscallback displays.
+//     (d) Submission of the form sends caveat information to /sendmacaroon.
+//     (e) /sendmacaroon sends a macaroon with blessing information to client
+//         (via a redirect to an HTTP server run by the tool).
+//     (f) Client invokes bless rpc with macaroon.
 //
 // The GoogleIDToken is currently validated by sending an HTTP request to
 // googleapis.com.  This adds a round-trip and service may be denied by
@@ -11,11 +25,14 @@
 package googleoauth
 
 import (
+	"bytes"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"net"
 	"net/http"
+	"net/url"
 	"path"
 	"strings"
 	"time"
@@ -23,18 +40,33 @@ import (
 	"code.google.com/p/goauth2/oauth"
 
 	"veyron.io/veyron/veyron/services/identity/auditor"
+	"veyron.io/veyron/veyron/services/identity/blesser"
 	"veyron.io/veyron/veyron/services/identity/revocation"
 	"veyron.io/veyron/veyron/services/identity/util"
+	"veyron.io/veyron/veyron2"
 	"veyron.io/veyron/veyron2/security"
 	"veyron.io/veyron/veyron2/vlog"
+	"veyron.io/veyron/veyron2/vom"
 )
 
 const (
 	clientIDCookie   = "VeyronHTTPIdentityClientID"
 	revocationCookie = "VeyronHTTPIdentityRevocationID"
+
+	ListBlessingsRoute         = "listblessings"
+	listBlessingsCallbackRoute = "listblessingscallback"
+	revokeRoute                = "revoke"
+	SeekBlessingsRoute         = "seekblessings"
+	addCaveatsRoute            = "addcaveat"
+	sendMacaroonRoute          = "sendmacaroon"
 )
 
 type HandlerArgs struct {
+	// The Veyron runtime to use
+	R veyron2.Runtime
+	// The Key that is used for creating and verifying macaroons.
+	// This needs to be common between the handler and the MacaroonBlesser service.
+	MacaroonKey []byte
 	// URL at which the hander is installed.
 	// e.g. http://host:port/google/
 	// This is where the handler is installed and where redirect requests
@@ -47,16 +79,37 @@ type HandlerArgs struct {
 	// (auditor.ReadAuditLog).
 	Auditor string
 	// The RevocationManager is used to revoke blessings granted with a revocation caveat.
+	// If this is empty then revocation caveats will not be added to blessings, and instead
+	// Expiry Caveats of duration BlessingDuration will be added.
 	RevocationManager *revocation.RevocationManager
+	// The object name of the discharger service.
+	DischargerLocation string
+	// MacaroonBlessingService is the object name to which macaroons create by this HTTP
+	// handler can be exchanged for a blessing.
+	MacaroonBlessingService string
+	// If non-empty, only email addressses from this domain will be blessed.
+	DomainRestriction string
+	// BlessingDuration is the duration that blessings granted will be valid for
+	// if RevocationManager is nil.
+	BlessingDuration time.Duration
 }
 
-func (a *HandlerArgs) redirectURL() string {
-	ret := a.Addr
-	if !strings.HasSuffix(ret, "/") {
-		ret += "/"
+func (a *HandlerArgs) oauthConfig(redirectSuffix string) *oauth.Config {
+	return &oauth.Config{
+		ClientId:     a.ClientID,
+		ClientSecret: a.ClientSecret,
+		RedirectURL:  redirectURL(a.Addr, redirectSuffix),
+		Scope:        "email",
+		AuthURL:      "https://accounts.google.com/o/oauth2/auth",
+		TokenURL:     "https://accounts.google.com/o/oauth2/token",
 	}
-	ret += "oauth2callback"
-	return ret
+}
+
+func redirectURL(baseURL, suffix string) string {
+	if !strings.HasSuffix(baseURL, "/") {
+		baseURL += "/"
+	}
+	return baseURL + suffix
 }
 
 // URL used to verify google tokens.
@@ -68,68 +121,57 @@ const verifyURL = "https://www.googleapis.com/oauth2/v1/tokeninfo?"
 // and can be used to use OAuth 2.0 to authenticate with Google, mint a new
 // identity and bless it with the Google email address.
 func NewHandler(args HandlerArgs) (http.Handler, error) {
-	config := NewOAuthConfig(args.ClientID, args.ClientSecret, args.redirectURL())
 	csrfCop, err := util.NewCSRFCop()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("NewHandler failed to create csrfCop: %v", err)
 	}
 	return &handler{
-		config:            config,
-		csrfCop:           csrfCop,
-		auditor:           args.Auditor,
-		revocationManager: args.RevocationManager,
+		args:    args,
+		csrfCop: csrfCop,
 	}, nil
 }
 
-// NewOAuthConfig returns the oauth.Config required for obtaining just the email address from Google using OAuth 2.0.
-func NewOAuthConfig(clientID, clientSecret, redirectURL string) *oauth.Config {
-	return &oauth.Config{
-		ClientId:     clientID,
-		ClientSecret: clientSecret,
-		RedirectURL:  redirectURL,
-		Scope:        "email",
-		AuthURL:      "https://accounts.google.com/o/oauth2/auth",
-		TokenURL:     "https://accounts.google.com/o/oauth2/token",
-	}
-}
-
 type handler struct {
-	config            *oauth.Config
-	csrfCop           *util.CSRFCop
-	auditor           string
-	revocationManager *revocation.RevocationManager
+	args    HandlerArgs
+	csrfCop *util.CSRFCop
 }
 
 func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	switch path.Base(r.URL.Path) {
-	case "auth":
-		h.auth(w, r)
-	case "oauth2callback":
-		h.callback(w, r)
-	case "revoke":
+	case ListBlessingsRoute:
+		h.listBlessings(w, r)
+	case listBlessingsCallbackRoute:
+		h.listBlessingsCallback(w, r)
+	case revokeRoute:
 		h.revoke(w, r)
+	case SeekBlessingsRoute:
+		h.seekBlessings(w, r)
+	case addCaveatsRoute:
+		h.addCaveats(w, r)
+	case sendMacaroonRoute:
+		h.sendMacaroon(w, r)
 	default:
 		util.HTTPBadRequest(w, r, nil)
 	}
 }
 
-func (h *handler) auth(w http.ResponseWriter, r *http.Request) {
+func (h *handler) listBlessings(w http.ResponseWriter, r *http.Request) {
 	csrf, err := h.csrfCop.NewToken(w, r, clientIDCookie, nil)
 	if err != nil {
 		vlog.Infof("Failed to create CSRF token[%v] for request %#v", err, r)
-		util.HTTPBadRequest(w, r, fmt.Errorf("Suspected automated request: %v", err))
+		util.HTTPServerError(w, fmt.Errorf("failed to create new token: %v", err))
 		return
 	}
-	http.Redirect(w, r, h.config.AuthCodeURL(csrf), http.StatusFound)
+	http.Redirect(w, r, h.args.oauthConfig(listBlessingsCallbackRoute).AuthCodeURL(csrf), http.StatusFound)
 }
 
-func (h *handler) callback(w http.ResponseWriter, r *http.Request) {
+func (h *handler) listBlessingsCallback(w http.ResponseWriter, r *http.Request) {
 	if err := h.csrfCop.ValidateToken(r.FormValue("state"), r, clientIDCookie, nil); err != nil {
 		vlog.Infof("Invalid CSRF token: %v in request: %#v", err, r)
 		util.HTTPBadRequest(w, r, fmt.Errorf("Suspected request forgery: %v", err))
 		return
 	}
-	email, err := ExchangeAuthCodeForEmail(h.config, r.FormValue("code"))
+	email, err := exchangeAuthCodeForEmail(h.args.oauthConfig(listBlessingsCallbackRoute), r.FormValue("code"))
 	if err != nil {
 		util.HTTPBadRequest(w, r, err)
 		return
@@ -143,13 +185,14 @@ func (h *handler) callback(w http.ResponseWriter, r *http.Request) {
 		Token          string
 	}
 	tmplargs := struct {
-		Log          chan tmplentry
-		Email, Token string
+		Log                chan tmplentry
+		Email, RevokeRoute string
 	}{
-		Log:   make(chan tmplentry),
-		Email: email,
+		Log:         make(chan tmplentry),
+		Email:       email,
+		RevokeRoute: revokeRoute,
 	}
-	if entrych, err := auditor.ReadAuditLog(h.auditor, email); err != nil {
+	if entrych, err := auditor.ReadAuditLog(h.args.Auditor, email); err != nil {
 		vlog.Errorf("Unable to read audit log: %v", err)
 		util.HTTPServerError(w, fmt.Errorf("unable to read audit log"))
 		return
@@ -172,13 +215,13 @@ func (h *handler) callback(w http.ResponseWriter, r *http.Request) {
 					continue
 				}
 				if blessEntry.RevocationCaveat != nil {
-					if revocationTime := h.revocationManager.GetRevocationTime(blessEntry.RevocationCaveat.ID()); revocationTime != nil {
+					if revocationTime := h.args.RevocationManager.GetRevocationTime(blessEntry.RevocationCaveat.ID()); revocationTime != nil {
 						tmplentry.RevocationTime = *revocationTime
 					} else {
 						caveatID := base64.URLEncoding.EncodeToString([]byte(blessEntry.RevocationCaveat.ID()))
 						if tmplentry.Token, err = h.csrfCop.NewToken(w, r, revocationCookie, caveatID); err != nil {
 							vlog.Infof("Failed to create CSRF token[%v] for request %#v", err, r)
-							util.HTTPBadRequest(w, r, fmt.Errorf("Suspected automated request: %v", err))
+							util.HTTPServerError(w, fmt.Errorf("failed to create new token: %v", err))
 							return
 						}
 					}
@@ -192,10 +235,10 @@ func (h *handler) callback(w http.ResponseWriter, r *http.Request) {
 	// header cannot be changed once the body is written to, this needs to be called first.
 	if _, err = h.csrfCop.MaybeSetCookie(w, r, revocationCookie); err != nil {
 		vlog.Infof("Failed to set CSRF cookie[%v] for request %#v", err, r)
-		util.HTTPBadRequest(w, r, fmt.Errorf("Suspected automated request: %v", err))
+		util.HTTPServerError(w, err)
 		return
 	}
-	if err := tmpl.Execute(w, tmplargs); err != nil {
+	if err := tmplViewBlessings.Execute(w, tmplargs); err != nil {
 		vlog.Errorf("Unable to execute audit page template: %v", err)
 		util.HTTPServerError(w, err)
 	}
@@ -207,7 +250,7 @@ func (h *handler) revoke(w http.ResponseWriter, r *http.Request) {
 		success = `{"success": "true"}`
 		failure = `{"success": "false"}`
 	)
-	if h.revocationManager == nil {
+	if h.args.RevocationManager == nil {
 		vlog.Infof("no provided revocation manager")
 		w.Write([]byte(failure))
 		return
@@ -234,7 +277,7 @@ func (h *handler) revoke(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte(failure))
 		return
 	}
-	if err := h.revocationManager.Revoke(caveatID); err != nil {
+	if err := h.args.RevocationManager.Revoke(caveatID); err != nil {
 		vlog.Infof("Revocation failed: %s", err)
 		w.Write([]byte(failure))
 		return
@@ -256,10 +299,221 @@ func (h *handler) validateRevocationToken(Token string, r *http.Request) (string
 	return string(caveatID), nil
 }
 
-// ExchangeAuthCodeForEmail exchanges the authorization code (which must
+type seekBlessingsMacaroon struct {
+	RedirectURL, State string
+}
+
+func validLoopbackURL(u string) (*url.URL, error) {
+	netURL, err := url.Parse(u)
+	if err != nil {
+		return nil, fmt.Errorf("invalid url: %v", err)
+	}
+	// Remove the port from the netURL.Host.
+	host, _, err := net.SplitHostPort(netURL.Host)
+	// Check if its localhost or loopback ip
+	if host == "localhost" {
+		return netURL, nil
+	}
+	urlIP := net.ParseIP(host)
+	if urlIP.IsLoopback() {
+		return netURL, nil
+	}
+	return nil, fmt.Errorf("invalid loopback url")
+}
+
+func (h *handler) seekBlessings(w http.ResponseWriter, r *http.Request) {
+	if _, err := validLoopbackURL(r.FormValue("redirect_url")); err != nil {
+		vlog.Infof("seekBlessings failed: invalid redirect_url: %v", err)
+		util.HTTPBadRequest(w, r, fmt.Errorf("invalid redirect_url: %v", err))
+		return
+	}
+	outputMacaroon, err := h.csrfCop.NewToken(w, r, clientIDCookie, seekBlessingsMacaroon{
+		RedirectURL: r.FormValue("redirect_url"),
+		State:       r.FormValue("state"),
+	})
+	if err != nil {
+		vlog.Infof("Failed to create CSRF token[%v] for request %#v", err, r)
+		util.HTTPServerError(w, fmt.Errorf("failed to create new token: %v", err))
+		return
+	}
+	http.Redirect(w, r, h.args.oauthConfig(addCaveatsRoute).AuthCodeURL(outputMacaroon), http.StatusFound)
+}
+
+type addCaveatsMacaroon struct {
+	ToolRedirectURL, ToolState, Email string
+}
+
+func (h *handler) addCaveats(w http.ResponseWriter, r *http.Request) {
+	var inputMacaroon seekBlessingsMacaroon
+	if err := h.csrfCop.ValidateToken(r.FormValue("state"), r, clientIDCookie, &inputMacaroon); err != nil {
+		util.HTTPBadRequest(w, r, fmt.Errorf("Suspected request forgery: %v", err))
+		return
+	}
+	email, err := exchangeAuthCodeForEmail(h.args.oauthConfig(addCaveatsRoute), r.FormValue("code"))
+	if err != nil {
+		util.HTTPBadRequest(w, r, err)
+		return
+	}
+	if len(h.args.DomainRestriction) > 0 && !strings.HasSuffix(email, "@"+h.args.DomainRestriction) {
+		util.HTTPBadRequest(w, r, fmt.Errorf("blessings for name %q are not allowed due to domain restriction", email))
+		return
+	}
+	outputMacaroon, err := h.csrfCop.NewToken(w, r, clientIDCookie, addCaveatsMacaroon{
+		ToolRedirectURL: inputMacaroon.RedirectURL,
+		ToolState:       inputMacaroon.State,
+		Email:           email,
+	})
+	if err != nil {
+		vlog.Infof("Failed to create caveatForm token[%v] for request %#v", err, r)
+		util.HTTPServerError(w, fmt.Errorf("failed to create new token: %v", err))
+		return
+	}
+	tmplargs := struct {
+		CaveatMap               map[string]caveatInfo
+		Macaroon, MacaroonRoute string
+	}{caveatMap, outputMacaroon, sendMacaroonRoute}
+	w.Header().Set("Context-Type", "text/html")
+	if err := tmplSelectCaveats.Execute(w, tmplargs); err != nil {
+		vlog.Errorf("Unable to execute bless page template: %v", err)
+		util.HTTPServerError(w, err)
+	}
+}
+
+func (h *handler) sendMacaroon(w http.ResponseWriter, r *http.Request) {
+	var inputMacaroon addCaveatsMacaroon
+	if err := h.csrfCop.ValidateToken(r.FormValue("macaroon"), r, clientIDCookie, &inputMacaroon); err != nil {
+		util.HTTPBadRequest(w, r, fmt.Errorf("Suspected request forgery: %v", err))
+		return
+	}
+	caveats, err := h.caveats(r)
+	if err != nil {
+		util.HTTPBadRequest(w, r, fmt.Errorf("failed to extract caveats: ", err))
+		return
+	}
+	buf := &bytes.Buffer{}
+	m := blesser.BlessingMacaroon{
+		Creation: time.Now(),
+		Caveats:  caveats,
+		Name:     inputMacaroon.Email,
+	}
+	if err := vom.NewEncoder(buf).Encode(m); err != nil {
+		util.HTTPServerError(w, fmt.Errorf("failed to encode BlessingsMacaroon: ", err))
+		return
+	}
+	// Construct the url to send back to the tool.
+	baseURL, err := validLoopbackURL(inputMacaroon.ToolRedirectURL)
+	if err != nil {
+		util.HTTPBadRequest(w, r, fmt.Errorf("invalid ToolRedirectURL: ", err))
+		return
+	}
+	params := url.Values{}
+	params.Add("macaroon", string(util.NewMacaroon(h.args.MacaroonKey, buf.Bytes())))
+	params.Add("state", inputMacaroon.ToolState)
+	params.Add("object_name", h.args.MacaroonBlessingService)
+	baseURL.RawQuery = params.Encode()
+	http.Redirect(w, r, baseURL.String(), http.StatusFound)
+}
+
+func (h *handler) caveats(r *http.Request) ([]security.Caveat, error) {
+	if err := r.ParseForm(); err != nil {
+		return nil, err
+	}
+	var caveats []security.Caveat
+	var caveat security.Caveat
+	var err error
+
+	userProvidedExpiryCaveat := false
+
+	for i, cavName := range r.Form["caveat"] {
+		if cavName == "none" {
+			continue
+		}
+		if cavName == "ExpiryCaveat" {
+			userProvidedExpiryCaveat = true
+		}
+		args := strings.Split(r.Form[cavName][i], ",")
+		cavInfo, ok := caveatMap[cavName]
+		if !ok {
+			return nil, fmt.Errorf("unable to create caveat %s: caveat does not exist", cavName)
+		}
+		caveat, err := cavInfo.New(args...)
+		if err != nil {
+			return nil, fmt.Errorf("unable to create caveat %s(%v): cavInfo.New failed: %v", cavName, args, err)
+		}
+		caveats = append(caveats, caveat)
+	}
+
+	// TODO(suharshs): have a checkbox in the form that says "include revocation caveat".
+	if h.args.RevocationManager != nil {
+		revocationCaveat, err := h.args.RevocationManager.NewCaveat(h.args.R.Identity().PublicID(), h.args.DischargerLocation)
+		if err != nil {
+			return nil, err
+		}
+		caveat, err = security.NewCaveat(revocationCaveat)
+	} else if !userProvidedExpiryCaveat {
+		caveat, err = security.ExpiryCaveat(time.Now().Add(h.args.BlessingDuration))
+	}
+	if err != nil {
+		return nil, err
+	}
+	// revocationCaveat need to be prepended for extraction in ReadBlessAuditEntry.
+	caveats = append([]security.Caveat{caveat}, caveats...)
+
+	return caveats, nil
+}
+
+type caveatInfo struct {
+	New         func(args ...string) (security.Caveat, error)
+	Placeholder string
+}
+
+// caveatMap is a map from Caveat name to caveat information.
+// To add to this map append
+// key = "CaveatName"
+// New = func that returns instantiation of specific caveat wrapped in security.Caveat.
+// Placeholder = the placeholder text for the html input element.
+var caveatMap = map[string]caveatInfo{
+	"ExpiryCaveat": {
+		New: func(args ...string) (security.Caveat, error) {
+			if len(args) != 1 {
+				return security.Caveat{}, fmt.Errorf("must pass exactly one duration string.")
+			}
+			dur, err := time.ParseDuration(args[0])
+			if err != nil {
+				return security.Caveat{}, fmt.Errorf("parse duration failed: %v", err)
+			}
+			return security.ExpiryCaveat(time.Now().Add(dur))
+		},
+		Placeholder: "i.e. 2h45m. Valid time units are ns, us (or µs), ms, s, m, h.",
+	},
+	"MethodCaveat": {
+		New: func(args ...string) (security.Caveat, error) {
+			if len(args) < 1 {
+				return security.Caveat{}, fmt.Errorf("must pass at least one method")
+			}
+			return security.MethodCaveat(args[0], args[1:]...)
+		},
+		Placeholder: "Comma-separated method names.",
+	},
+	"PeerBlessingsCaveat": {
+		New: func(args ...string) (security.Caveat, error) {
+			if len(args) < 1 {
+				return security.Caveat{}, fmt.Errorf("must pass at least one blessing pattern")
+			}
+			var patterns []security.BlessingPattern
+			for _, arg := range args {
+				patterns = append(patterns, security.BlessingPattern(arg))
+			}
+			return security.PeerBlessingsCaveat(patterns[0], patterns[1:]...)
+		},
+		Placeholder: "Comma-separated blessing patterns.",
+	},
+}
+
+// exchangeAuthCodeForEmail exchanges the authorization code (which must
 // have been obtained with scope=email) for an OAuth token and then uses Google's
 // tokeninfo API to extract the email address from that token.
-func ExchangeAuthCodeForEmail(config *oauth.Config, authcode string) (string, error) {
+func exchangeAuthCodeForEmail(config *oauth.Config, authcode string) (string, error) {
 	t, err := (&oauth.Transport{Config: config}).Exchange(authcode)
 	if err != nil {
 		return "", fmt.Errorf("failed to exchange authorization code for token: %v", err)

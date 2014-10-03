@@ -55,7 +55,7 @@ func TestReadBlessAudit(t *testing.T) {
 		t.Fatalf("discharger.NewRevocationCaveat failed: %v", err)
 	}
 
-	correct_blessed, err := Bless(self, self.PublicID(), "test", time.Second, cav)
+	correct_blessed, err := Bless(self, self.PublicID(), "test", time.Second, nil, cav)
 	if err != nil {
 		t.Fatalf("Bless: failed with caveats: %v", err)
 	}
@@ -76,7 +76,7 @@ func TestReadBlessAudit(t *testing.T) {
 	}
 
 	// Test no caveat
-	correct_blessed, err = Bless(self, self.PublicID(), "test", time.Second, nil)
+	correct_blessed, err = Bless(self, self.PublicID(), "test", time.Second, nil, nil)
 	if err != nil {
 		t.Fatalf("Bless: failed with no caveats: %v", err)
 	}

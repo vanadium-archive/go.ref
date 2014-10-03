@@ -1,8 +1,7 @@
 // Package identity defines services for identity providers in the veyron ecosystem.
 package identity
 
-
-// OAuthBlesser exchanges OAuth authorization codes OR access tokens for
+// OAuthBlesser exchanges OAuth access tokens for
 // an email address from an OAuth-based identity provider and uses the email
 // address obtained to bless the client.
 //
@@ -10,28 +9,23 @@ package identity
 // though the Google implementation also has informative documentation at
 // https://developers.google.com/accounts/docs/OAuth2
 //
-// WARNING: There is no binding between the channel over which the
-// authorization code or access token was obtained (typically https)
-// and the channel used to make the RPC (a veyron virtual circuit).
-// Thus, if Mallory possesses the authorization code or access token
-// associated with Alice's account, she may be able to obtain a blessing
-// with Alice's name on it.
+// WARNING: There is no binding between the channel over which the access token
+// was obtained (typically https) and the channel used to make the RPC (a
+// veyron virtual circuit).
+// Thus, if Mallory possesses the access token associated with Alice's account,
+// she may be able to obtain a blessing with Alice's name on it.
 //
-// TODO(ashankar,toddw): Once the "OneOf" type becomes available in VDL,
-// then the "any" should be replaced by:
-// OneOf<wire.ChainPublicID, []wire.ChainPublicID>
-// where wire is from:
-// import "veyron.io/veyron/veyron2/security/wire"
+// TODO(ashankar): Update this to use the new security model:
+// (blessing security.WireBlessing, error)
 type OAuthBlesser interface {
-  // BlessUsingAuthorizationCode exchanges the provided authorization code
-  // for an access token and then uses that access token to obtain an
-  // email address.
-  //
-  // The redirect URL used to obtain the authorization code must also
-  // be provided.
-  BlessUsingAuthorizationCode(authcode, redirecturl string) (blessing any, err error)
-
   // BlessUsingAccessToken uses the provided access token to obtain the email
   // address and returns a blessing.
   BlessUsingAccessToken(token string) (blessing any, err error)
+}
+
+// MacaroonBlesser returns a blessing given the provided macaroon string.
+type MacaroonBlesser interface {
+  // Bless uses the provided macaroon (which contains email and caveats)
+  // to return a blessing for the client.
+  Bless(macaroon string) (blessing any, err error)
 }

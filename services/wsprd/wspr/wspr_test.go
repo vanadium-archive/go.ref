@@ -36,11 +36,6 @@ func (m *mockBlesserService) BlessUsingAccessToken(c context.T, accessToken stri
 }
 
 // This is never used.  Only needed for mock.
-func (m *mockBlesserService) BlessUsingAuthorizationCode(c context.T, authCode, redirect string, co ...ipc.CallOpt) (vdlutil.Any, error) {
-	return m.id.PublicID(), nil
-}
-
-// This is never used.  Only needed for mock.
 func (m *mockBlesserService) GetMethodTags(c context.T, s string, co ...ipc.CallOpt) ([]interface{}, error) {
 	return nil, nil
 }

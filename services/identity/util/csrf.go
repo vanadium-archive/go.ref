@@ -23,6 +23,12 @@ type CSRFCop struct {
 	key []byte
 }
 
+func (c *CSRFCop) keyForCookie(cookie []byte) []byte {
+	hm := hmac.New(sha256.New, c.key)
+	hm.Write(cookie)
+	return hm.Sum(nil)
+}
+
 func NewCSRFCop() (*CSRFCop, error) {
 	key := make([]byte, keyLength)
 	if _, err := rand.Read(key); err != nil {
@@ -45,11 +51,7 @@ func (c *CSRFCop) NewToken(w http.ResponseWriter, r *http.Request, cookieName st
 			return "", err
 		}
 	}
-	m, err := c.createMacaroon(buf.Bytes(), cookieValue)
-	if err != nil {
-		return "", err
-	}
-	return b64encode(append(m.Data, m.HMAC...)), nil
+	return string(NewMacaroon(c.keyForCookie(cookieValue), buf.Bytes())), nil
 }
 
 // ValidateToken checks the validity of the provided CSRF token for the
@@ -65,65 +67,16 @@ func (c *CSRFCop) ValidateToken(token string, req *http.Request, cookieName stri
 	if err != nil {
 		return fmt.Errorf("invalid cookie")
 	}
-	decToken, err := b64decode(token)
+	encodedInput, err := Macaroon(token).Decode(c.keyForCookie(cookieValue))
 	if err != nil {
-		return fmt.Errorf("invalid token: %v", err)
-	}
-	m := macaroon{
-		Data: decToken[:len(decToken)-sha256.Size],
-		HMAC: decToken[len(decToken)-sha256.Size:],
+		return err
 	}
 	if decoded != nil {
-		if err := vom.NewDecoder(bytes.NewBuffer(m.Data)).Decode(decoded); err != nil {
+		if err := vom.NewDecoder(bytes.NewBuffer(encodedInput)).Decode(decoded); err != nil {
 			return fmt.Errorf("invalid token data: %v", err)
 		}
 	}
-	return c.verifyMacaroon(m, cookieValue)
-}
-
-// macaroon encapsulates an arbitrary slice of data with an HMAC for integrity protection.
-// Term borrowed from http://research.google.com/pubs/pub41892.html.
-type macaroon struct {
-	Data, HMAC []byte
-}
-
-func (c *CSRFCop) createMacaroon(input, hiddenInput []byte) (*macaroon, error) {
-	m := &macaroon{Data: input}
-	var err error
-	if m.HMAC, err = c.hmac(m.Data, hiddenInput); err != nil {
-		return nil, err
-	}
-	return m, nil
-}
-
-func (c *CSRFCop) verifyMacaroon(m macaroon, hiddenInput []byte) error {
-	hm, err := c.hmac(m.Data, hiddenInput)
-	if err != nil {
-		return fmt.Errorf("invalid macaroon: %v", err)
-	}
-	if !hmac.Equal(m.HMAC, hm) {
-		return fmt.Errorf("invalid macaroon, HMAC does not match")
-	}
 	return nil
-}
-
-func (c *CSRFCop) hmac(input, hiddenInput []byte) ([]byte, error) {
-	hm := hmac.New(sha256.New, c.key)
-	var err error
-	// We hash inputs and hiddenInputs to make each a fixed length to avoid
-	// ambiguity with simple concatenation of bytes.
-	w := func(data []byte) error {
-		tmp := sha256.Sum256(data)
-		_, err = hm.Write(tmp[:])
-		return err
-	}
-	if err := w(input); err != nil {
-		return nil, err
-	}
-	if err := w(hiddenInput); err != nil {
-		return nil, err
-	}
-	return hm.Sum(nil), nil
 }
 
 func (*CSRFCop) MaybeSetCookie(w http.ResponseWriter, req *http.Request, cookieName string) ([]byte, error) {

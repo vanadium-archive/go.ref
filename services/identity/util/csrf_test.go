@@ -16,7 +16,7 @@ func TestCSRFTokenWithoutCookie(t *testing.T) {
 	r := newRequest()
 	c, err := NewCSRFCop()
 	if err != nil {
-		t.Fatalf("NewCSRFCop() failed: %v", err)
+		t.Fatalf("NewCSRFCop failed: %v", err)
 	}
 	w := httptest.NewRecorder()
 	tok, err := c.NewToken(w, r, cookieName, nil)
@@ -51,7 +51,7 @@ func TestCSRFTokenWithCookie(t *testing.T) {
 	r := newRequest()
 	c, err := NewCSRFCop()
 	if err != nil {
-		t.Fatalf("NewCSRFCop() failed: %v", err)
+		t.Fatalf("NewCSRFCop failed: %v", err)
 	}
 	w := httptest.NewRecorder()
 	r.AddCookie(&http.Cookie{Name: cookieName, Value: "u776AC7hf794pTtGVlO50w=="})
@@ -76,7 +76,7 @@ func TestCSRFTokenWithData(t *testing.T) {
 	r := newRequest()
 	c, err := NewCSRFCop()
 	if err != nil {
-		t.Fatalf("NewCSRFCop() failed: %v", err)
+		t.Fatalf("NewCSRFCop failed: %v", err)
 	}
 	w := httptest.NewRecorder()
 	r.AddCookie(&http.Cookie{Name: cookieName, Value: "u776AC7hf794pTtGVlO50w=="})

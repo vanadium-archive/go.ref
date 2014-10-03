@@ -7,24 +7,25 @@ import (
 	"html/template"
 	"net"
 	"net/http"
+	"net/url"
 	"os"
 	"os/exec"
+	"strings"
 
 	"veyron.io/veyron/veyron/services/identity/googleoauth"
 	"veyron.io/veyron/veyron2/vlog"
 )
 
-func getOAuthAuthorizationCodeFromGoogle(clientID string, blessing <-chan string) (<-chan string, error) {
-	// Setup an HTTP server so that OAuth authorization codes can be intercepted.
+func getMacaroonForBlessRPC(blessServerURL string, blessedChan <-chan string) (<-chan string, error) {
+	// Setup a HTTP server to recieve a blessing macaroon from the identity server.
 	// Steps:
 	// 1. Generate a state token to be included in the HTTP request
-	//    (though, arguably, the random port assignment for the HTTP server is
-	//    enough for XSRF protecetion)
-	// 2. Setup an HTTP server which will intercept redirect links from the OAuth
-	//    flow.
-	// 3. Print out the link for the user to click
-	// 4. Return the authorization code obtained from the redirect to the "result"
-	//    channel.
+	//    (though, arguably, the random port assigment for the HTTP server is enough
+	//    for XSRF protection)
+	// 2. Setup a HTTP server which will receive the final blessing macaroon from the id server.
+	// 3. Print out the link (to start the auth flow) for the user to click.
+	// 4. Return the macaroon and the rpc object name(where to make the MacaroonBlesser.Bless RPC call)
+	//    in the "result" channel.
 	var stateBuf [32]byte
 	if _, err := rand.Read(stateBuf[:]); err != nil {
 		return nil, fmt.Errorf("failed to generate state token for OAuth: %v", err)
@@ -33,12 +34,12 @@ func getOAuthAuthorizationCodeFromGoogle(clientID string, blessing <-chan string
 
 	ln, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
-		return nil, fmt.Errorf("failed to setup OAuth authorization code interception: %v", err)
+		return nil, fmt.Errorf("failed to setup authorization code interception server: %v", err)
 	}
-	redirectURL := fmt.Sprintf("http://%s", ln.Addr())
-	result := make(chan string, 1)
-	result <- redirectURL
-	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+	result := make(chan string)
+
+	redirectURL := fmt.Sprintf("http://%s/macaroon", ln.Addr())
+	http.HandleFunc("/macaroon", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/html")
 		tmplArgs := struct {
 			Blessing, ErrShort, ErrLong string
@@ -51,38 +52,33 @@ func getOAuthAuthorizationCodeFromGoogle(clientID string, blessing <-chan string
 				vlog.Info("Failed to render template:", err)
 			}
 		}()
-		if urlstate := r.FormValue("state"); urlstate != state {
+
+		toolState := r.FormValue("state")
+		if toolState != state {
 			tmplArgs.ErrShort = "Unexpected request"
 			tmplArgs.ErrLong = "Mismatched state parameter. Possible cross-site-request-forging?"
 			return
 		}
-		code := r.FormValue("code")
-		if len(code) == 0 {
-			tmplArgs.ErrShort = "No authorization code received"
-			tmplArgs.ErrLong = "Expected Google to issue an authorization code using 'code' as a URL parameter in the redirect"
-			return
-		}
-		ln.Close() // No need for the HTTP server anymore
-		result <- code
-		blessed, ok := <-blessing
+		result <- r.FormValue("macaroon")
+		result <- r.FormValue("object_name")
 		defer close(result)
+		blessed, ok := <-blessedChan
 		if !ok {
 			tmplArgs.ErrShort = "No blessing received"
 			tmplArgs.ErrLong = "Unable to obtain blessing from the Veyron service"
 			return
 		}
 		tmplArgs.Blessing = blessed
-		return
+		ln.Close()
 	})
 	go http.Serve(ln, nil)
 
-	// Print out the link to start the OAuth flow (to STDERR so that STDOUT output contains
-	// only the final blessing) and try to open it in the browser as well.
-	//
-	// TODO(ashankar): Detect devices with limited I/O and then decide to use the device flow
-	// instead? See: https://developers.google.com/accounts/docs/OAuth2#device
-	url := googleoauth.NewOAuthConfig(clientID, "", redirectURL).AuthCodeURL(state)
-	fmt.Fprintln(os.Stderr, "Please visit the following URL to authenticate with Google:")
+	// Print the link to start the flow.
+	url, err := seekBlessingURL(blessServerURL, redirectURL, state)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create seekBlessingURL: %s", err)
+	}
+	fmt.Fprintln(os.Stderr, "Please visit the following URL to complete the blessing creation:")
 	fmt.Fprintln(os.Stderr, url)
 	// Make an attempt to start the browser as a convenience.
 	// If it fails, doesn't matter - the client can see the URL printed above.
@@ -91,6 +87,25 @@ func getOAuthAuthorizationCodeFromGoogle(clientID string, blessing <-chan string
 	// the command will not exit until the browser is closed).
 	exec.Command(openCommand, url).Start()
 	return result, nil
+}
+
+func seekBlessingURL(blessServerURL, redirectURL, state string) (string, error) {
+	baseURL, err := url.Parse(joinURL(blessServerURL, googleoauth.SeekBlessingsRoute))
+	if err != nil {
+		return "", fmt.Errorf("failed to parse url: %v", err)
+	}
+	params := url.Values{}
+	params.Add("redirect_url", redirectURL)
+	params.Add("state", state)
+	baseURL.RawQuery = params.Encode()
+	return baseURL.String(), nil
+}
+
+func joinURL(baseURL, suffix string) string {
+	if !strings.HasSuffix(baseURL, "/") {
+		baseURL += "/"
+	}
+	return baseURL + suffix
 }
 
 var tmpl = template.Must(template.New("name").Parse(`<!doctype html>

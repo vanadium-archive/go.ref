@@ -18,7 +18,7 @@ import (
 // It corrects a bug where _gen_wiretype is unused in VDL pacakges where only bootstrap types are used on interfaces.
 const _ = _gen_wiretype.TypeIDInvalid
 
-// OAuthBlesser exchanges OAuth authorization codes OR access tokens for
+// OAuthBlesser exchanges OAuth access tokens for
 // an email address from an OAuth-based identity provider and uses the email
 // address obtained to bless the client.
 //
@@ -42,13 +42,6 @@ const _ = _gen_wiretype.TypeIDInvalid
 // OAuthBlesser_ExcludingUniversal is the interface without internal framework-added methods
 // to enable embedding without method collisions.  Not to be used directly by clients.
 type OAuthBlesser_ExcludingUniversal interface {
-	// BlessUsingAuthorizationCode exchanges the provided authorization code
-	// for an access token and then uses that access token to obtain an
-	// email address.
-	//
-	// The redirect URL used to obtain the authorization code must also
-	// be provided.
-	BlessUsingAuthorizationCode(ctx _gen_context.T, authcode string, redirecturl string, opts ..._gen_ipc.CallOpt) (reply _gen_vdlutil.Any, err error)
 	// BlessUsingAccessToken uses the provided access token to obtain the email
 	// address and returns a blessing.
 	BlessUsingAccessToken(ctx _gen_context.T, token string, opts ..._gen_ipc.CallOpt) (reply _gen_vdlutil.Any, err error)
@@ -61,13 +54,6 @@ type OAuthBlesser interface {
 // OAuthBlesserService is the interface the server implements.
 type OAuthBlesserService interface {
 
-	// BlessUsingAuthorizationCode exchanges the provided authorization code
-	// for an access token and then uses that access token to obtain an
-	// email address.
-	//
-	// The redirect URL used to obtain the authorization code must also
-	// be provided.
-	BlessUsingAuthorizationCode(context _gen_ipc.ServerContext, authcode string, redirecturl string) (reply _gen_vdlutil.Any, err error)
 	// BlessUsingAccessToken uses the provided access token to obtain the email
 	// address and returns a blessing.
 	BlessUsingAccessToken(context _gen_ipc.ServerContext, token string) (reply _gen_vdlutil.Any, err error)
@@ -118,17 +104,6 @@ func (__gen_c *clientStubOAuthBlesser) client(ctx _gen_context.T) _gen_ipc.Clien
 		return __gen_c.defaultClient
 	}
 	return _gen_veyron2.RuntimeFromContext(ctx).Client()
-}
-
-func (__gen_c *clientStubOAuthBlesser) BlessUsingAuthorizationCode(ctx _gen_context.T, authcode string, redirecturl string, opts ..._gen_ipc.CallOpt) (reply _gen_vdlutil.Any, err error) {
-	var call _gen_ipc.Call
-	if call, err = __gen_c.client(ctx).StartCall(ctx, __gen_c.name, "BlessUsingAuthorizationCode", []interface{}{authcode, redirecturl}, opts...); err != nil {
-		return
-	}
-	if ierr := call.Finish(&reply, &err); ierr != nil {
-		err = ierr
-	}
-	return
 }
 
 func (__gen_c *clientStubOAuthBlesser) BlessUsingAccessToken(ctx _gen_context.T, token string, opts ..._gen_ipc.CallOpt) (reply _gen_vdlutil.Any, err error) {
@@ -187,8 +162,6 @@ func (__gen_s *ServerStubOAuthBlesser) GetMethodTags(call _gen_ipc.ServerCall, m
 	// Note: This exhibits some weird behavior like returning a nil error if the method isn't found.
 	// This will change when it is replaced with Signature().
 	switch method {
-	case "BlessUsingAuthorizationCode":
-		return []interface{}{}, nil
 	case "BlessUsingAccessToken":
 		return []interface{}{}, nil
 	default:
@@ -201,16 +174,6 @@ func (__gen_s *ServerStubOAuthBlesser) Signature(call _gen_ipc.ServerCall) (_gen
 	result.Methods["BlessUsingAccessToken"] = _gen_ipc.MethodSignature{
 		InArgs: []_gen_ipc.MethodArgument{
 			{Name: "token", Type: 3},
-		},
-		OutArgs: []_gen_ipc.MethodArgument{
-			{Name: "blessing", Type: 65},
-			{Name: "err", Type: 66},
-		},
-	}
-	result.Methods["BlessUsingAuthorizationCode"] = _gen_ipc.MethodSignature{
-		InArgs: []_gen_ipc.MethodArgument{
-			{Name: "authcode", Type: 3},
-			{Name: "redirecturl", Type: 3},
 		},
 		OutArgs: []_gen_ipc.MethodArgument{
 			{Name: "blessing", Type: 65},
@@ -242,12 +205,180 @@ func (__gen_s *ServerStubOAuthBlesser) UnresolveStep(call _gen_ipc.ServerCall) (
 	return
 }
 
-func (__gen_s *ServerStubOAuthBlesser) BlessUsingAuthorizationCode(call _gen_ipc.ServerCall, authcode string, redirecturl string) (reply _gen_vdlutil.Any, err error) {
-	reply, err = __gen_s.service.BlessUsingAuthorizationCode(call, authcode, redirecturl)
+func (__gen_s *ServerStubOAuthBlesser) BlessUsingAccessToken(call _gen_ipc.ServerCall, token string) (reply _gen_vdlutil.Any, err error) {
+	reply, err = __gen_s.service.BlessUsingAccessToken(call, token)
 	return
 }
 
-func (__gen_s *ServerStubOAuthBlesser) BlessUsingAccessToken(call _gen_ipc.ServerCall, token string) (reply _gen_vdlutil.Any, err error) {
-	reply, err = __gen_s.service.BlessUsingAccessToken(call, token)
+// MacaroonBlesser returns a blessing given the provided macaroon string.
+// MacaroonBlesser is the interface the client binds and uses.
+// MacaroonBlesser_ExcludingUniversal is the interface without internal framework-added methods
+// to enable embedding without method collisions.  Not to be used directly by clients.
+type MacaroonBlesser_ExcludingUniversal interface {
+	// Bless uses the provided macaroon (which contains email and caveats)
+	// to return a blessing for the client.
+	Bless(ctx _gen_context.T, macaroon string, opts ..._gen_ipc.CallOpt) (reply _gen_vdlutil.Any, err error)
+}
+type MacaroonBlesser interface {
+	_gen_ipc.UniversalServiceMethods
+	MacaroonBlesser_ExcludingUniversal
+}
+
+// MacaroonBlesserService is the interface the server implements.
+type MacaroonBlesserService interface {
+
+	// Bless uses the provided macaroon (which contains email and caveats)
+	// to return a blessing for the client.
+	Bless(context _gen_ipc.ServerContext, macaroon string) (reply _gen_vdlutil.Any, err error)
+}
+
+// BindMacaroonBlesser returns the client stub implementing the MacaroonBlesser
+// interface.
+//
+// If no _gen_ipc.Client is specified, the default _gen_ipc.Client in the
+// global Runtime is used.
+func BindMacaroonBlesser(name string, opts ..._gen_ipc.BindOpt) (MacaroonBlesser, error) {
+	var client _gen_ipc.Client
+	switch len(opts) {
+	case 0:
+		// Do nothing.
+	case 1:
+		if clientOpt, ok := opts[0].(_gen_ipc.Client); opts[0] == nil || ok {
+			client = clientOpt
+		} else {
+			return nil, _gen_vdlutil.ErrUnrecognizedOption
+		}
+	default:
+		return nil, _gen_vdlutil.ErrTooManyOptionsToBind
+	}
+	stub := &clientStubMacaroonBlesser{defaultClient: client, name: name}
+
+	return stub, nil
+}
+
+// NewServerMacaroonBlesser creates a new server stub.
+//
+// It takes a regular server implementing the MacaroonBlesserService
+// interface, and returns a new server stub.
+func NewServerMacaroonBlesser(server MacaroonBlesserService) interface{} {
+	return &ServerStubMacaroonBlesser{
+		service: server,
+	}
+}
+
+// clientStubMacaroonBlesser implements MacaroonBlesser.
+type clientStubMacaroonBlesser struct {
+	defaultClient _gen_ipc.Client
+	name          string
+}
+
+func (__gen_c *clientStubMacaroonBlesser) client(ctx _gen_context.T) _gen_ipc.Client {
+	if __gen_c.defaultClient != nil {
+		return __gen_c.defaultClient
+	}
+	return _gen_veyron2.RuntimeFromContext(ctx).Client()
+}
+
+func (__gen_c *clientStubMacaroonBlesser) Bless(ctx _gen_context.T, macaroon string, opts ..._gen_ipc.CallOpt) (reply _gen_vdlutil.Any, err error) {
+	var call _gen_ipc.Call
+	if call, err = __gen_c.client(ctx).StartCall(ctx, __gen_c.name, "Bless", []interface{}{macaroon}, opts...); err != nil {
+		return
+	}
+	if ierr := call.Finish(&reply, &err); ierr != nil {
+		err = ierr
+	}
+	return
+}
+
+func (__gen_c *clientStubMacaroonBlesser) UnresolveStep(ctx _gen_context.T, opts ..._gen_ipc.CallOpt) (reply []string, err error) {
+	var call _gen_ipc.Call
+	if call, err = __gen_c.client(ctx).StartCall(ctx, __gen_c.name, "UnresolveStep", nil, opts...); err != nil {
+		return
+	}
+	if ierr := call.Finish(&reply, &err); ierr != nil {
+		err = ierr
+	}
+	return
+}
+
+func (__gen_c *clientStubMacaroonBlesser) Signature(ctx _gen_context.T, opts ..._gen_ipc.CallOpt) (reply _gen_ipc.ServiceSignature, err error) {
+	var call _gen_ipc.Call
+	if call, err = __gen_c.client(ctx).StartCall(ctx, __gen_c.name, "Signature", nil, opts...); err != nil {
+		return
+	}
+	if ierr := call.Finish(&reply, &err); ierr != nil {
+		err = ierr
+	}
+	return
+}
+
+func (__gen_c *clientStubMacaroonBlesser) GetMethodTags(ctx _gen_context.T, method string, opts ..._gen_ipc.CallOpt) (reply []interface{}, err error) {
+	var call _gen_ipc.Call
+	if call, err = __gen_c.client(ctx).StartCall(ctx, __gen_c.name, "GetMethodTags", []interface{}{method}, opts...); err != nil {
+		return
+	}
+	if ierr := call.Finish(&reply, &err); ierr != nil {
+		err = ierr
+	}
+	return
+}
+
+// ServerStubMacaroonBlesser wraps a server that implements
+// MacaroonBlesserService and provides an object that satisfies
+// the requirements of veyron2/ipc.ReflectInvoker.
+type ServerStubMacaroonBlesser struct {
+	service MacaroonBlesserService
+}
+
+func (__gen_s *ServerStubMacaroonBlesser) GetMethodTags(call _gen_ipc.ServerCall, method string) ([]interface{}, error) {
+	// TODO(bprosnitz) GetMethodTags() will be replaces with Signature().
+	// Note: This exhibits some weird behavior like returning a nil error if the method isn't found.
+	// This will change when it is replaced with Signature().
+	switch method {
+	case "Bless":
+		return []interface{}{}, nil
+	default:
+		return nil, nil
+	}
+}
+
+func (__gen_s *ServerStubMacaroonBlesser) Signature(call _gen_ipc.ServerCall) (_gen_ipc.ServiceSignature, error) {
+	result := _gen_ipc.ServiceSignature{Methods: make(map[string]_gen_ipc.MethodSignature)}
+	result.Methods["Bless"] = _gen_ipc.MethodSignature{
+		InArgs: []_gen_ipc.MethodArgument{
+			{Name: "macaroon", Type: 3},
+		},
+		OutArgs: []_gen_ipc.MethodArgument{
+			{Name: "blessing", Type: 65},
+			{Name: "err", Type: 66},
+		},
+	}
+
+	result.TypeDefs = []_gen_vdlutil.Any{
+		_gen_wiretype.NamedPrimitiveType{Type: 0x1, Name: "anydata", Tags: []string(nil)}, _gen_wiretype.NamedPrimitiveType{Type: 0x1, Name: "error", Tags: []string(nil)}}
+
+	return result, nil
+}
+
+func (__gen_s *ServerStubMacaroonBlesser) UnresolveStep(call _gen_ipc.ServerCall) (reply []string, err error) {
+	if unresolver, ok := __gen_s.service.(_gen_ipc.Unresolver); ok {
+		return unresolver.UnresolveStep(call)
+	}
+	if call.Server() == nil {
+		return
+	}
+	var published []string
+	if published, err = call.Server().Published(); err != nil || published == nil {
+		return
+	}
+	reply = make([]string, len(published))
+	for i, p := range published {
+		reply[i] = _gen_naming.Join(p, call.Name())
+	}
+	return
+}
+
+func (__gen_s *ServerStubMacaroonBlesser) Bless(call _gen_ipc.ServerCall, macaroon string) (reply _gen_vdlutil.Any, err error) {
+	reply, err = __gen_s.service.Bless(call, macaroon)
 	return
 }

@@ -2,6 +2,7 @@
 package main
 
 import (
+	"crypto/rand"
 	"flag"
 	"fmt"
 	"html/template"
@@ -28,6 +29,7 @@ import (
 	"veyron.io/veyron/veyron/services/identity/revocation"
 	services "veyron.io/veyron/veyron/services/security"
 	"veyron.io/veyron/veyron/services/security/discharger"
+	"veyron.io/veyron/veyron2/verror"
 )
 
 var (
@@ -43,15 +45,20 @@ var (
 	auditfilter = flag.String("audit_filter", "", "If non-empty, instead of starting the server the audit log will be dumped to STDOUT (with the filter set to the value of this flag. '/' can be used to dump all events).")
 
 	// Configuration for various Google OAuth-based clients.
-	googleConfigWeb       = flag.String("google_config_web", "", "Path to JSON-encoded OAuth client configuration for the web application that renders the audit log for blessings provided by this provider.")
-	googleConfigInstalled = flag.String("google_config_installed", "", "Path to the JSON-encoded OAuth client configuration for installed client applications that obtain blessings (via the OAuthBlesser.BlessUsingAuthorizationCode RPC) from this server (like the 'identity' command like tool and its 'seekblessing' command.")
-	googleConfigChrome    = flag.String("google_config_chrome", "", "Path to the JSON-encoded OAuth client configuration for Chrome browser applications that obtain blessings from this server (via the OAuthBlesser.BlessUsingAccessToken RPC) from this server.")
-	googleConfigAndroid   = flag.String("google_config_android", "", "Path to the JSON-encoded OAuth client configuration for Android applications that obtain blessings from this server (via the OAuthBlesser.BlessUsingAccessToken RPC) from this server.")
-	googleDomain          = flag.String("google_domain", "", "An optional domain name. When set, only email addresses from this domain are allowed to authenticate via Google OAuth")
+	googleConfigWeb     = flag.String("google_config_web", "", "Path to JSON-encoded OAuth client configuration for the web application that renders the audit log for blessings provided by this provider.")
+	googleConfigChrome  = flag.String("google_config_chrome", "", "Path to the JSON-encoded OAuth client configuration for Chrome browser applications that obtain blessings from this server (via the OAuthBlesser.BlessUsingAccessToken RPC) from this server.")
+	googleConfigAndroid = flag.String("google_config_android", "", "Path to the JSON-encoded OAuth client configuration for Android applications that obtain blessings from this server (via the OAuthBlesser.BlessUsingAccessToken RPC) from this server.")
+	googleDomain        = flag.String("google_domain", "", "An optional domain name. When set, only email addresses from this domain are allowed to authenticate via Google OAuth")
 
 	// Revoker/Discharger configuration
 	// TODO(ashankar,ataly,suharshs): Re-enable by default once the move to the new security API is complete?
 	revocationDir = flag.String("revocation_dir", "" /*filepath.Join(os.TempDir(), "revocation_dir")*/, "Path where the revocation manager will store caveat and revocation information.")
+)
+
+const (
+	googleService     = "google"
+	macaroonService   = "macaroon"
+	dischargerService = "discharger"
 )
 
 func main() {
@@ -75,24 +82,30 @@ func main() {
 	if enableRandomHandler() {
 		http.Handle("/random/", handlers.Random{r}) // mint identities with a random name
 	}
-	http.HandleFunc("/bless/", handlers.Bless) // use a provided PrivateID to bless a provided PublicID
-
+	macaroonKey := make([]byte, 32)
+	if _, err := rand.Read(macaroonKey); err != nil {
+		vlog.Fatalf("macaroonKey generation failed: %v", err)
+	}
 	// Google OAuth
-	ipcServer, ipcServerEP, err := setupGoogleBlessingDischargingServer(r, revocationManager)
+	ipcServer, published, err := setupServices(r, revocationManager, macaroonKey)
 	if err != nil {
 		vlog.Fatalf("Failed to setup veyron services for blessing: %v", err)
 	}
 	if ipcServer != nil {
 		defer ipcServer.Stop()
 	}
-	if clientID, clientSecret, ok := getOAuthClientIDAndSecret(*googleConfigWeb); ok && len(*auditprefix) > 0 {
+	if clientID, clientSecret, ok := getOAuthClientIDAndSecret(*googleConfigWeb); ok {
 		n := "/google/"
 		h, err := googleoauth.NewHandler(googleoauth.HandlerArgs{
-			Addr:              fmt.Sprintf("%s%s", httpaddress(), n),
-			ClientID:          clientID,
-			ClientSecret:      clientSecret,
-			Auditor:           *auditprefix,
-			RevocationManager: revocationManager,
+			R:                       r,
+			MacaroonKey:             macaroonKey,
+			Addr:                    fmt.Sprintf("%s%s", httpaddress(), n),
+			ClientID:                clientID,
+			ClientSecret:            clientSecret,
+			Auditor:                 *auditprefix,
+			RevocationManager:       revocationManager,
+			BlessingDuration:        time.Duration(*minExpiryDays) * 24 * time.Hour,
+			MacaroonBlessingService: naming.JoinAddressName(published[0], macaroonService),
 		})
 		if err != nil {
 			vlog.Fatalf("Failed to create googleoauth handler: %v", err)
@@ -100,24 +113,21 @@ func main() {
 		http.Handle(n, h)
 	}
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		var servers []string
-		if ipcServer != nil {
-			servers, _ = ipcServer.Published()
-		}
-		if len(servers) == 0 {
-			// No addresses published, publish the endpoint instead (which may not be usable everywhere, but oh-well).
-			servers = append(servers, ipcServerEP.String())
-		}
 		args := struct {
 			Self                            security.PublicID
-			GoogleWeb, RandomWeb            bool
+			RandomWeb                       bool
 			GoogleServers, DischargeServers []string
+			ListBlessingsRoute              string
 		}{
 			Self:             rt.R().Identity().PublicID(),
-			GoogleWeb:        len(*googleConfigWeb) > 0,
 			RandomWeb:        enableRandomHandler(),
-			GoogleServers:    appendSuffixTo(servers, "google"),
-			DischargeServers: appendSuffixTo(servers, "discharger"),
+			DischargeServers: appendSuffixTo(published, dischargerService),
+		}
+		if len(*googleConfigChrome) > 0 || len(*googleConfigAndroid) > 0 {
+			args.GoogleServers = appendSuffixTo(published, googleService)
+		}
+		if len(*auditprefix) > 0 && len(*googleConfigWeb) > 0 {
+			args.ListBlessingsRoute = googleoauth.ListBlessingsRoute
 		}
 		if err := tmpl.Execute(w, args); err != nil {
 			vlog.Info("Failed to render template:", err)
@@ -138,52 +148,50 @@ func appendSuffixTo(objectname []string, suffix string) []string {
 
 // newDispatcher returns a dispatcher for both the blessing and the discharging service.
 // their suffix. ReflectInvoker is used to invoke methods.
-func newDispatcher(params blesser.GoogleParams) ipc.Dispatcher {
-	blessingService := ipc.ReflectInvoker(blesser.NewGoogleOAuthBlesserServer(params))
-	dischargerService := ipc.ReflectInvoker(services.NewServerDischarger(discharger.NewDischarger(params.R.Identity())))
-	allowEveryoneACLAuth := vsecurity.NewACLAuthorizer(security.ACL{In: map[security.BlessingPattern]security.LabelSet{
-		security.AllPrincipals: security.AllLabels,
-	}})
-	return &dispatcher{blessingService, dischargerService, allowEveryoneACLAuth}
+func newDispatcher(googleParams blesser.GoogleParams, macaroonKey []byte) ipc.Dispatcher {
+	d := &dispatcher{
+		invokers: map[string]ipc.Invoker{
+			macaroonService:   ipc.ReflectInvoker(blesser.NewMacaroonBlesserServer(googleParams.R, macaroonKey)),
+			dischargerService: ipc.ReflectInvoker(services.NewServerDischarger(discharger.NewDischarger(googleParams.R.Identity()))),
+		},
+		auth: vsecurity.NewACLAuthorizer(security.ACL{In: map[security.BlessingPattern]security.LabelSet{
+			security.AllPrincipals: security.AllLabels,
+		}}),
+	}
+	if len(*googleConfigChrome) > 0 || len(*googleConfigAndroid) > 0 {
+		d.invokers[googleService] = ipc.ReflectInvoker(blesser.NewGoogleOAuthBlesserServer(googleParams))
+	}
+	return d
 }
 
 type dispatcher struct {
-	blessingInvoker, dischargerInvoker ipc.Invoker
-	auth                               security.Authorizer
+	invokers map[string]ipc.Invoker
+	auth     security.Authorizer
 }
 
 func (d dispatcher) Lookup(suffix, method string) (ipc.Invoker, security.Authorizer, error) {
-	switch suffix {
-	case "google":
-		return d.blessingInvoker, d.auth, nil
-	case "discharger":
-		return d.dischargerInvoker, d.auth, nil
-	default:
-		return nil, nil, fmt.Errorf("suffix does not exist")
+	if invoker := d.invokers[suffix]; invoker != nil {
+		return invoker, d.auth, nil
 	}
+	return nil, nil, verror.NoExistf("%q is not a valid suffix at this server", suffix)
 }
 
-// Starts the blessing service and the discharging service on the same port.
-func setupGoogleBlessingDischargingServer(r veyron2.Runtime, revocationManager *revocation.RevocationManager) (ipc.Server, naming.Endpoint, error) {
+// Starts the blessing services and the discharging service on the same port.
+func setupServices(r veyron2.Runtime, revocationManager *revocation.RevocationManager, macaroonKey []byte) (ipc.Server, []string, error) {
 	var enable bool
-	params := blesser.GoogleParams{
+	googleParams := blesser.GoogleParams{
 		R:                 r,
 		BlessingDuration:  time.Duration(*minExpiryDays) * 24 * time.Hour,
 		DomainRestriction: *googleDomain,
 		RevocationManager: revocationManager,
 	}
-	if clientID, clientSecret, ok := getOAuthClientIDAndSecret(*googleConfigInstalled); ok {
-		enable = true
-		params.AuthorizationCodeClient.ID = clientID
-		params.AuthorizationCodeClient.Secret = clientSecret
-	}
 	if clientID, ok := getOAuthClientID(*googleConfigChrome); ok {
 		enable = true
-		params.AccessTokenClients = append(params.AccessTokenClients, struct{ ID string }{clientID})
+		googleParams.AccessTokenClients = append(googleParams.AccessTokenClients, struct{ ID string }{clientID})
 	}
 	if clientID, ok := getOAuthClientID(*googleConfigAndroid); ok {
 		enable = true
-		params.AccessTokenClients = append(params.AccessTokenClients, struct{ ID string }{clientID})
+		googleParams.AccessTokenClients = append(googleParams.AccessTokenClients, struct{ ID string }{clientID})
 	}
 	if !enable {
 		return nil, nil, nil
@@ -196,19 +204,26 @@ func setupGoogleBlessingDischargingServer(r veyron2.Runtime, revocationManager *
 	if err != nil {
 		return nil, nil, fmt.Errorf("server.Listen(%q, %q) failed: %v", "tcp", *address, err)
 	}
-	params.DischargerLocation = naming.JoinAddressName(ep.String(), "discharger")
-	dispatcher := newDispatcher(params)
+	googleParams.DischargerLocation = naming.JoinAddressName(ep.String(), dischargerService)
+
+	dispatcher := newDispatcher(googleParams, macaroonKey)
 	objectname := fmt.Sprintf("identity/%s", r.Identity().PublicID().Names()[0])
 	if err := server.Serve(objectname, dispatcher); err != nil {
 		return nil, nil, fmt.Errorf("failed to start Veyron services: %v", err)
 	}
 	vlog.Infof("Google blessing and discharger services enabled at endpoint %v and name %q", ep, objectname)
-	return server, ep, nil
+
+	published, _ := server.Published()
+	if len(published) == 0 {
+		// No addresses published, publish the endpoint instead (which may not be usable everywhere, but oh-well).
+		published = append(published, ep.String())
+	}
+	return server, published, nil
 }
 
 func enableTLS() bool { return len(*tlsconfig) > 0 }
 func enableRandomHandler() bool {
-	return len(*googleConfigInstalled)+len(*googleConfigWeb)+len(*googleConfigChrome)+len(*googleConfigAndroid) == 0
+	return len(*googleConfigWeb)+len(*googleConfigChrome)+len(*googleConfigAndroid) == 0
 }
 func getOAuthClientID(config string) (clientID string, ok bool) {
 	fname := config
@@ -362,14 +377,13 @@ The public key of this provider is {{.Self.PublicKey}}, which is available in <a
 {{if .DischargeServers}}
 <li>RevocationCaveat Discharges are provided via Veyron RPCs to: <tt>{{range .DischargeServers}}{{.}}{{end}}</tt></li>
 {{end}}
-{{if .GoogleWeb}}
-<li>You can <a class="btn btn-xs btn-primary" href="/google/auth">enumerate</a> blessings provided with your
+{{if .ListBlessingsRoute}}
+<li>You can <a class="btn btn-xs btn-primary" href="/google/{{.ListBlessingsRoute}}">enumerate</a> blessings provided with your
 email address as the name.</li>
 {{end}}
 {{if .RandomWeb}}
 <li>You can obtain a randomly assigned PrivateID <a class="btn btn-sm btn-primary" href="/random/">here</a></li>
 {{end}}
-<li>You can offload cryptographic operations <a class="btn btn-xs btn-primary" href="/bless/">for blessing</a> to this HTTP server</li>
 </ul>
 </div>
 

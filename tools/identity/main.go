@@ -316,12 +316,12 @@ can be provided with the --for flag.
 
 			blessedChan := make(chan string)
 			defer close(blessedChan)
-			authcodeChan, err := getOAuthAuthorizationCodeFromGoogle(flagSeekBlessingOAuthClientID, blessedChan)
+			macaroonChan, err := getMacaroonForBlessRPC(flagSeekBlessingFrom, blessedChan)
 			if err != nil {
 				return fmt.Errorf("failed to get authorization code from Google: %v", err)
 			}
-			redirectURL := <-authcodeChan
-			authcode := <-authcodeChan
+			macaroon := <-macaroonChan
+			service := <-macaroonChan
 
 			ctx, cancel := r.NewContext().WithTimeout(time.Minute)
 			defer cancel()
@@ -330,13 +330,12 @@ can be provided with the --for flag.
 			const maxWait = 20 * time.Second
 			var reply vdlutil.Any
 			for {
-				blesser, err := identity.BindOAuthBlesser(flagSeekBlessingFrom, r.Client())
+				blesser, err := identity.BindMacaroonBlesser(service, r.Client())
 				if err == nil {
-
-					reply, err = blesser.BlessUsingAuthorizationCode(ctx, authcode, redirectURL)
+					reply, err = blesser.Bless(ctx, macaroon)
 				}
 				if err != nil {
-					vlog.Infof("Failed to get blessing from %q: %v, will try again in %v", flagSeekBlessingFrom, err, wait)
+					vlog.Infof("Failed to get blessing from %q: %v, will try again in %v", service, err, wait)
 					time.Sleep(wait)
 					if wait = wait + 2*time.Second; wait > maxWait {
 						wait = maxWait
@@ -348,7 +347,7 @@ can be provided with the --for flag.
 					return fmt.Errorf("received %T, want security.PublicID", reply)
 				}
 				if id, err = id.Derive(blessed); err != nil {
-					return fmt.Errorf("received incompatible blessing from %q: %v", flagSeekBlessingFrom, err)
+					return fmt.Errorf("received incompatible blessing from %q: %v", service, err)
 				}
 				output, err := util.Base64VomEncode(id)
 				if err != nil {
@@ -356,8 +355,8 @@ can be provided with the --for flag.
 				}
 				fmt.Println(output)
 				blessedChan <- fmt.Sprint(blessed)
-				// Wait for getOAuthAuthenticationCodeFromGoogle to clean up:
-				<-authcodeChan
+				// Wait for getTokenForBlessRPC to clean up:
+				<-macaroonChan
 				return nil
 			}
 		},
@@ -369,8 +368,7 @@ func main() {
 	cmdBless.Flags.StringVar(&flagBlessWith, "with", "", "Path to file containing identity to bless with (or - for STDIN)")
 	cmdBless.Flags.DurationVar(&flagBlessFor, "for", 365*24*time.Hour, "Expiry time of blessing (defaults to 1 year)")
 	cmdSeekBlessing.Flags.StringVar(&flagSeekBlessingFor, "for", "", "Path to file containing identity to bless (or - for STDIN)")
-	cmdSeekBlessing.Flags.StringVar(&flagSeekBlessingOAuthClientID, "clientid", "761523829214-4ms7bae18ef47j6590u9ncs19ffuo7b3.apps.googleusercontent.com", "OAuth client ID used to make OAuth request for an authorization code")
-	cmdSeekBlessing.Flags.StringVar(&flagSeekBlessingFrom, "from", "/proxy.envyor.com:8101/identity/veyron-test/google", "Object name of Veyron service running the identity.OAuthBlesser service to seek blessings from")
+	cmdSeekBlessing.Flags.StringVar(&flagSeekBlessingFrom, "from", "http://proxy.envyor.com:8125/google", "URL to use to begin the seek blessings process")
 
 	(&cmdline.Command{
 		Name:  "identity",
