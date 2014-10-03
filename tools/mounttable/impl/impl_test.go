@@ -25,12 +25,12 @@ type server struct {
 func (s *server) Glob(_ ipc.ServerContext, pattern string, stream mounttable.GlobbableServiceGlobStream) error {
 	vlog.VI(2).Infof("Glob() was called. suffix=%v pattern=%q", s.suffix, pattern)
 	sender := stream.SendStream()
-	sender.Send(types.MountEntry{"name1", []types.MountedServer{{"server1", 123}}})
-	sender.Send(types.MountEntry{"name2", []types.MountedServer{{"server2", 456}, {"server3", 789}}})
+	sender.Send(types.MountEntry{"name1", []types.MountedServer{{"server1", 123}}, false})
+	sender.Send(types.MountEntry{"name2", []types.MountedServer{{"server2", 456}, {"server3", 789}}, false})
 	return nil
 }
 
-func (s *server) Mount(_ ipc.ServerContext, server string, ttl uint32) error {
+func (s *server) Mount(_ ipc.ServerContext, server string, ttl uint32, flags types.MountFlag) error {
 	vlog.VI(2).Infof("Mount() was called. suffix=%v server=%q ttl=%d", s.suffix, server, ttl)
 	return nil
 }

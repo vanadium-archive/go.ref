@@ -53,7 +53,7 @@ func quuxClient(id ipc.ClientOpt) ipc.Client {
 	return c
 }
 
-func (stupidNS) Mount(context.T, string, string, time.Duration) error {
+func (stupidNS) Mount(context.T, string, string, time.Duration, ...naming.MountOpt) error {
 	return errors.New("unimplemented")
 }
 
@@ -124,7 +124,7 @@ func doMount(t *testing.T, name, service string, shouldSucceed bool, id ipc.Clie
 	if err != nil {
 		boom(t, "Failed to BindMountTable: %s", err)
 	}
-	if err := mtpt.Mount(rt.R().NewContext(), service, uint32(ttlSecs), veyron2.RetryTimeoutOpt(0)); err != nil {
+	if err := mtpt.Mount(rt.R().NewContext(), service, uint32(ttlSecs), 0, veyron2.RetryTimeoutOpt(0)); err != nil {
 		if shouldSucceed {
 			boom(t, "Failed to Mount %s onto %s: %s", service, name, err)
 		}

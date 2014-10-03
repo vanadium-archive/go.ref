@@ -42,8 +42,19 @@ func now(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args 
 }
 
 func mountServer(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
-	if len(args) != 4 {
+	if len(args) < 4 {
 		return fmt.Errorf("wrong # args")
+	}
+	var opts []naming.MountOpt
+	for _, arg := range args[4:] {
+		for _, c := range arg {
+			switch c {
+			case 'R':
+				opts = append(opts, naming.ReplaceMountOpt(true))
+			case 'M':
+				opts = append(opts, naming.ServesMountTableOpt(true))
+			}
+		}
 	}
 	mp, server, ttlstr := args[1], args[2], args[3]
 	ttl, err := time.ParseDuration(ttlstr)
@@ -51,10 +62,10 @@ func mountServer(stdin io.Reader, stdout, stderr io.Writer, env map[string]strin
 		return fmt.Errorf("failed to parse time from %q", ttlstr)
 	}
 	ns := rt.R().Namespace()
-	if err := ns.Mount(rt.R().NewContext(), mp, server, ttl); err != nil {
+	if err := ns.Mount(rt.R().NewContext(), mp, server, ttl, opts...); err != nil {
 		return err
 	}
-	fmt.Fprintf(stdout, "Mount(%s, %s, %s)\n", mp, server, ttl)
+	fmt.Fprintf(stdout, "Mount(%s, %s, %s, %v)\n", mp, server, ttl, opts)
 	return nil
 }
 

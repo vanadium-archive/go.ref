@@ -5,13 +5,15 @@ import (
 
 	"veyron.io/veyron/veyron2/context"
 	"veyron.io/veyron/veyron2/ipc"
+	"veyron.io/veyron/veyron2/naming"
+	"veyron.io/veyron/veyron2/services/mounttable/types"
 	"veyron.io/veyron/veyron2/vlog"
 )
 
 // mountIntoMountTable mounts a single server into a single mount table.
-func mountIntoMountTable(ctx context.T, client ipc.Client, name, server string, ttl time.Duration) error {
+func mountIntoMountTable(ctx context.T, client ipc.Client, name, server string, ttl time.Duration, flags types.MountFlag) error {
 	ctx, _ = ctx.WithTimeout(callTimeout)
-	call, err := client.StartCall(ctx, name, "Mount", []interface{}{server, uint32(ttl.Seconds())})
+	call, err := client.StartCall(ctx, name, "Mount", []interface{}{server, uint32(ttl.Seconds()), flags})
 	if err != nil {
 		return err
 	}
@@ -34,8 +36,24 @@ func unmountFromMountTable(ctx context.T, client ipc.Client, name, server string
 	return err
 }
 
-func (ns *namespace) Mount(ctx context.T, name, server string, ttl time.Duration) error {
+func (ns *namespace) Mount(ctx context.T, name, server string, ttl time.Duration, opts ...naming.MountOpt) error {
 	defer vlog.LogCall()()
+
+	var flags types.MountFlag
+	for _, o := range opts {
+		// NB: used a switch since we'll be adding more options.
+		switch v := o.(type) {
+		case naming.ReplaceMountOpt:
+			if v {
+				flags |= types.MountFlag(types.Replace)
+			}
+		case naming.ServesMountTableOpt:
+			if v {
+				flags |= types.MountFlag(types.MT)
+			}
+		}
+	}
+
 	// Resolve to all the mount tables implementing name.
 	mtServers, err := ns.ResolveToMountTable(ctx, name)
 	if err != nil {
@@ -45,7 +63,7 @@ func (ns *namespace) Mount(ctx context.T, name, server string, ttl time.Duration
 	c := make(chan error, len(mtServers))
 	for _, mt := range mtServers {
 		go func() {
-			c <- mountIntoMountTable(ctx, ns.rt.Client(), mt, server, ttl)
+			c <- mountIntoMountTable(ctx, ns.rt.Client(), mt, server, ttl, flags)
 		}()
 	}
 	// Return error if any mounts failed, since otherwise we'll get

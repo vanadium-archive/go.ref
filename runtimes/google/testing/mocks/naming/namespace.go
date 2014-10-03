@@ -25,7 +25,7 @@ type namespace struct {
 	mounts map[string][]string
 }
 
-func (ns *namespace) Mount(ctx context.T, name, server string, _ time.Duration) error {
+func (ns *namespace) Mount(ctx context.T, name, server string, _ time.Duration, _ ...naming.MountOpt) error {
 	defer vlog.LogCall()()
 	ns.Lock()
 	defer ns.Unlock()

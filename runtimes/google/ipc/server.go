@@ -204,7 +204,7 @@ func (s *server) Listen(protocol, address string) (naming.Endpoint, error) {
 		}(ln, ep)
 	}
 	s.Unlock()
-	s.publisher.AddServer(s.publishEP(ep))
+	s.publisher.AddServer(s.publishEP(ep), s.servesMountTable)
 	return ep, nil
 }
 
@@ -340,9 +340,9 @@ func (s *server) ListenX(listenSpec *ipc.ListenSpec) (naming.Endpoint, error) {
 			s.proxyListenLoop(ln, ep, proxy)
 			s.active.Done()
 		}(pln, pep, listenSpec.Proxy)
-		s.publisher.AddServer(s.publishEP(pep))
+		s.publisher.AddServer(s.publishEP(pep), s.servesMountTable)
 	} else {
-		s.publisher.AddServer(s.publishEP(ep))
+		s.publisher.AddServer(s.publishEP(ep), s.servesMountTable)
 	}
 	s.Unlock()
 	return ep, nil
@@ -393,7 +393,7 @@ func (s *server) proxyListenLoop(ln stream.Listener, ep naming.Endpoint, proxy s
 			}
 		}
 		// (3) reconnected, publish new address
-		s.publisher.AddServer(s.publishEP(ep))
+		s.publisher.AddServer(s.publishEP(ep), s.servesMountTable)
 		s.Lock()
 		s.listeners[ln] = nil
 		s.Unlock()
@@ -459,7 +459,7 @@ func (s *server) dhcpLoop(dhcpl *dhcpListener) {
 			switch setting.Name() {
 			case ipc.NewAddrsSetting:
 				vlog.Infof("Added some addresses: %q", v)
-				s.applyChange(dhcpl, v, publisher.AddServer)
+				s.applyChange(dhcpl, v, func(name string) { publisher.AddServer(name, s.servesMountTable) })
 			case ipc.RmAddrsSetting:
 				vlog.Infof("Removed some addresses: %q", v)
 				s.applyChange(dhcpl, v, publisher.RemoveServer)

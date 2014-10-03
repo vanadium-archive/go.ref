@@ -16,7 +16,7 @@ import (
 // Publisher manages the publishing of servers in mounttable.
 type Publisher interface {
 	// AddServer adds a new server to be mounted.
-	AddServer(server string)
+	AddServer(server string, ServesMountTable bool)
 	// RemoveServer removes a server from the list of mounts.
 	RemoveServer(server string)
 	// AddName adds a new name for all servers to be mounted as.
@@ -49,6 +49,7 @@ type publisher struct {
 
 type addServerCmd struct {
 	server string        // server to add
+	mt     bool          // true if server serves a mount table
 	done   chan struct{} // closed when the cmd is done
 }
 
@@ -87,9 +88,9 @@ func (p *publisher) sendCmd(cmd interface{}) bool {
 	}
 }
 
-func (p *publisher) AddServer(server string) {
+func (p *publisher) AddServer(server string, mt bool) {
 	done := make(chan struct{})
-	if p.sendCmd(addServerCmd{server, done}) {
+	if p.sendCmd(addServerCmd{server, mt, done}) {
 		<-done
 	}
 }
@@ -161,7 +162,7 @@ func runLoop(ctx context.T, cmdchan chan interface{}, donechan chan struct{}, ns
 				vlog.VI(2).Info("ipc pub: exit runLoop")
 				return
 			case addServerCmd:
-				state.addServer(tcmd.server)
+				state.addServer(tcmd.server, tcmd.mt)
 				close(tcmd.done)
 			case removeServerCmd:
 				state.removeServer(tcmd.server)
@@ -192,6 +193,7 @@ type pubState struct {
 	deadline time.Time                 // deadline for the next sync call
 	names    []string                  // names that have been added
 	servers  map[string]bool           // servers that have been added
+	servesMT map[string]bool           // true if server is a mount table server
 	mounts   map[mountKey]*mountStatus // map each (name,server) to its status
 }
 
@@ -214,6 +216,7 @@ func newPubState(ctx context.T, ns naming.Namespace, period time.Duration) *pubS
 		period:   period,
 		deadline: time.Now().Add(period),
 		servers:  make(map[string]bool),
+		servesMT: make(map[string]bool),
 		mounts:   make(map[mountKey]*mountStatus),
 	}
 }
@@ -234,19 +237,20 @@ func (ps *pubState) addName(name string) {
 	for server, _ := range ps.servers {
 		status := new(mountStatus)
 		ps.mounts[mountKey{name, server}] = status
-		ps.mount(name, server, status)
+		ps.mount(name, server, status, ps.servesMT[server])
 	}
 }
 
-func (ps *pubState) addServer(server string) {
+func (ps *pubState) addServer(server string, servesMT bool) {
 	// Each non-dup server that is added causes new mounts to be created for all
 	// existing names.
 	if !ps.servers[server] {
 		ps.servers[server] = true
+		ps.servers[server] = servesMT
 		for _, name := range ps.names {
 			status := new(mountStatus)
 			ps.mounts[mountKey{name, server}] = status
-			ps.mount(name, server, status)
+			ps.mount(name, server, status, servesMT)
 		}
 	}
 }
@@ -263,13 +267,13 @@ func (ps *pubState) removeServer(server string) {
 	}
 }
 
-func (ps *pubState) mount(name, server string, status *mountStatus) {
+func (ps *pubState) mount(name, server string, status *mountStatus, servesMT bool) {
 	// Always mount with ttl = period + slack, regardless of whether this is
 	// triggered by a newly added server or name, or by sync.  The next call
 	// to sync will occur within the next period, and refresh all mounts.
 	ttl := ps.period + mountTTLSlack
 	status.lastMount = time.Now()
-	status.lastMountErr = ps.ns.Mount(ps.ctx, name, server, ttl)
+	status.lastMountErr = ps.ns.Mount(ps.ctx, name, server, ttl, naming.ServesMountTableOpt(servesMT))
 	if status.lastMountErr != nil {
 		vlog.Errorf("ipc pub: couldn't mount(%v, %v, %v): %v", name, server, ttl, status.lastMountErr)
 	} else {
@@ -284,7 +288,7 @@ func (ps *pubState) sync() {
 			// Desired state is "unmounted", failed at previous attempt. Retry.
 			ps.unmount(key.name, key.server, status)
 		} else {
-			ps.mount(key.name, key.server, status)
+			ps.mount(key.name, key.server, status, ps.servesMT[key.server])
 		}
 	}
 }

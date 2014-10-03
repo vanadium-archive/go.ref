@@ -159,28 +159,29 @@ func retriable(err error) bool {
 	return false
 }
 
+func getRetryTimeoutOpt(opts []ipc.CallOpt) (time.Duration, bool) {
+	for _, o := range opts {
+		if r, ok := o.(veyron2.RetryTimeoutOpt); ok {
+			return time.Duration(r), true
+		}
+	}
+	return 0, false
+}
+
 func (c *client) StartCall(ctx context.T, name, method string, args []interface{}, opts ...ipc.CallOpt) (ipc.Call, error) {
 	defer vlog.LogCall()()
-	var retry = true
+	// Context specified deadline.
 	deadline, hasDeadline := ctx.Deadline()
 	if !hasDeadline {
-		// If no deadline is set, use the default
+		// Default deadline.
 		deadline = time.Now().Add(defaultCallTimeout)
 	}
-	for _, o := range opts {
-		r, ok := o.(veyron2.RetryTimeoutOpt)
-		if !ok {
-			continue
-		}
-		if r == 0 {
-			retry = false
-		} else {
-			deadline = time.Now().Add(time.Duration(r))
-		}
-		break
+	if r, ok := getRetryTimeoutOpt(opts); ok {
+		// Caller specified deadline.
+		deadline = time.Now().Add(time.Duration(r))
 	}
 	var lastErr verror.E
-	for retries := 0; deadline.After(time.Now()); retries++ {
+	for retries := 0; ; retries++ {
 		if retries != 0 {
 			if !backoff(retries, deadline) {
 				break
@@ -191,11 +192,20 @@ func (c *client) StartCall(ctx context.T, name, method string, args []interface{
 			return call, nil
 		}
 		lastErr = err
-		if !retry || !retriable(err) {
+		if deadline.After(time.Now()) || !retriable(err) {
 			break
 		}
 	}
 	return nil, lastErr
+}
+
+func getNoResolveOpt(opts []ipc.CallOpt) bool {
+	for _, o := range opts {
+		if r, ok := o.(veyron2.NoResolveOpt); ok {
+			return bool(r)
+		}
+	}
+	return false
 }
 
 // startCall ensures StartCall always returns verror.E.
@@ -204,10 +214,15 @@ func (c *client) startCall(ctx context.T, name, method string, args []interface{
 		return nil, verror.BadArgf("ipc: %s.%s called with nil context", name, method)
 	}
 	ctx, _ = vtrace.WithNewSpan(ctx, fmt.Sprintf("Client Call: %s.%s", name, method))
-
-	servers, err := c.ns.Resolve(ctx, name)
-	if err != nil {
-		return nil, verror.NoExistf("ipc: Resolve(%q) failed: %v", name, err)
+	// Resolve name unless told not to.
+	var servers []string
+	if getNoResolveOpt(opts) {
+		servers = []string{name}
+	} else {
+		var err error
+		if servers, err = c.ns.Resolve(ctx, name); err != nil {
+			return nil, verror.NoExistf("ipc: Resolve(%q) failed: %v", name, err)
+		}
 	}
 	// Try all servers, and if none of them are authorized for the call then return the error of the last server
 	// that was tried.

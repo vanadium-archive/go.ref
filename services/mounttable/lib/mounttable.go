@@ -47,6 +47,7 @@ type mountContext struct {
 // point can be sent to any of these servers.
 type mount struct {
 	servers *serverList
+	mt      bool
 }
 
 // node is a single point in the tree representing the mount table.
@@ -225,8 +226,16 @@ func (ms *mountContext) ResolveStep(context ipc.ServerContext) (servers []types.
 	return n.mount.servers.copyToSlice(), slashSlashJoin(elems), nil
 }
 
+func hasMTFlag(flags types.MountFlag) bool {
+	return (flags & types.MT) == types.MT
+}
+
+func hasReplaceFlag(flags types.MountFlag) bool {
+	return (flags & types.Replace) == types.Replace
+}
+
 // Mount a server onto the name in the receiver.
-func (ms *mountContext) Mount(context ipc.ServerContext, server string, ttlsecs uint32) error {
+func (ms *mountContext) Mount(context ipc.ServerContext, server string, ttlsecs uint32, flags types.MountFlag) error {
 	mt := ms.mt
 	if ttlsecs == 0 {
 		ttlsecs = 10 * 365 * 24 * 60 * 60 // a really long time
@@ -246,13 +255,17 @@ func (ms *mountContext) Mount(context ipc.ServerContext, server string, ttlsecs 
 	if n == nil {
 		return naming.ErrNoSuchName
 	}
+	if hasReplaceFlag(flags) {
+		n.mount = nil
+	}
 	if n.mount == nil {
-		n.mount = &mount{
-			servers: NewServerList(),
+		n.mount = &mount{servers: NewServerList(), mt: hasMTFlag(flags)}
+	} else {
+		if hasMTFlag(flags) != n.mount.mt {
+			return fmt.Errorf("MT doesn't match")
 		}
 	}
-	m := n.mount
-	m.servers.add(server, time.Duration(ttlsecs)*time.Second)
+	n.mount.servers.add(server, time.Duration(ttlsecs)*time.Second)
 	return nil
 }
 

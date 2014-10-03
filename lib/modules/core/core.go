@@ -87,7 +87,7 @@ func Install(shell *modules.Shell) {
 	prints the current time`)
 	shell.AddFunction(NamespaceCacheCommand, namespaceCache, `on|off
 	turns the namespace cache on or off`)
-	shell.AddFunction(MountCommand, mountServer, `<mountpoint> <server> <ttl>
+	shell.AddFunction(MountCommand, mountServer, `<mountpoint> <server> <ttl> [M][R]
 	invokes namespace.Mount(<mountpoint>, <server>, <ttl>)`)
 	shell.AddSubprocess(EchoClientCommand, `<name> <message>...
 	invokes name.Echo(message)`)

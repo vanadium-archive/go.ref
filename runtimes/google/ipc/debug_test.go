@@ -5,6 +5,7 @@ import (
 	"sort"
 	"testing"
 
+	"veyron.io/veyron/veyron2"
 	"veyron.io/veyron/veyron2/ipc"
 	"veyron.io/veyron/veyron2/naming"
 	"veyron.io/veyron/veyron2/services/mounttable/types"
@@ -37,7 +38,7 @@ func TestDebugServer(t *testing.T) {
 	ctx := testContext()
 	// Call the Foo method on ""
 	{
-		addr := naming.JoinAddressName(ep.String(), "//")
+		addr := naming.JoinAddressName(ep.String(), "")
 		call, err := client.StartCall(ctx, addr, "Foo", nil)
 		if err != nil {
 			t.Fatalf("client.StartCall failed: %v", err)
@@ -52,8 +53,8 @@ func TestDebugServer(t *testing.T) {
 	}
 	// Call Glob on __debug
 	{
-		addr := naming.JoinAddressName(ep.String(), "//__debug")
-		call, err := client.StartCall(ctx, addr, "Glob", []interface{}{"*"})
+		addr := naming.JoinAddressName(ep.String(), "__debug")
+		call, err := client.StartCall(ctx, addr, "Glob", []interface{}{"*"}, veyron2.NoResolveOpt(true))
 		if err != nil {
 			t.Fatalf("client.StartCall failed: %v", err)
 		}
@@ -82,8 +83,8 @@ func TestDebugServer(t *testing.T) {
 	{
 		foo := stats.NewString("testing/foo")
 		foo.Set("The quick brown fox jumps over the lazy dog")
-		addr := naming.JoinAddressName(ep.String(), "//__debug/stats/testing/foo")
-		call, err := client.StartCall(ctx, addr, "Value", nil)
+		addr := naming.JoinAddressName(ep.String(), "__debug/stats/testing/foo")
+		call, err := client.StartCall(ctx, addr, "Value", nil, veyron2.NoResolveOpt(true))
 		if err != nil {
 			t.Fatalf("client.StartCall failed: %v", err)
 		}

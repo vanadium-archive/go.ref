@@ -46,7 +46,7 @@ func main() {
 		publisher := publisher.New(r.NewContext(), r.Namespace(), time.Minute)
 		defer publisher.WaitForStop()
 		defer publisher.Stop()
-		publisher.AddServer(naming.JoinAddressName(proxy.Endpoint().String(), "//"))
+		publisher.AddServer(naming.JoinAddressName(proxy.Endpoint().String(), "//"), false)
 		publisher.AddName(*name)
 	}
 

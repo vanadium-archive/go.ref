@@ -956,8 +956,8 @@ func TestConnectWithIncompatibleServers(t *testing.T) {
 	defer publisher.WaitForStop()
 	defer publisher.Stop()
 	publisher.AddName("incompatible")
-	publisher.AddServer("/@2@tcp@localhost:10000@@1000000@2000000@@")
-	publisher.AddServer("/@2@tcp@localhost:10001@@2000000@3000000@@")
+	publisher.AddServer("/@2@tcp@localhost:10000@@1000000@2000000@@", false)
+	publisher.AddServer("/@2@tcp@localhost:10001@@2000000@3000000@@", false)
 
 	_, err := b.client.StartCall(testContext(), "incompatible/suffix", "Echo", []interface{}{"foo"})
 	if !strings.Contains(err.Error(), version.NoCompatibleVersionErr.Error()) {
@@ -965,7 +965,7 @@ func TestConnectWithIncompatibleServers(t *testing.T) {
 	}
 
 	// Now add a server with a compatible endpoint and try again.
-	publisher.AddServer("/" + b.ep.String())
+	publisher.AddServer("/"+b.ep.String(), false)
 	publisher.AddName("incompatible")
 
 	call, err := b.client.StartCall(testContext(), "incompatible/suffix", "Echo", []interface{}{"foo"})

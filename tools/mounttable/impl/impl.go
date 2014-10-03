@@ -99,7 +99,7 @@ func runMount(cmd *cmdline.Command, args []string) error {
 	if err != nil {
 		return fmt.Errorf("TTL parse error: %v", err)
 	}
-	err = c.Mount(ctx, args[1], uint32(ttl.Seconds()))
+	err = c.Mount(ctx, args[1], uint32(ttl.Seconds()), 0)
 	if err != nil {
 		return err
 	}

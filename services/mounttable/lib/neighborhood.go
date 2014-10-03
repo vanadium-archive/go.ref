@@ -221,7 +221,7 @@ func (ns *neighborhoodService) ResolveStep(_ ipc.ServerContext) (servers []types
 }
 
 // Mount not implemented.
-func (*neighborhoodService) Mount(_ ipc.ServerContext, server string, ttlsecs uint32) error {
+func (*neighborhoodService) Mount(_ ipc.ServerContext, server string, ttlsecs uint32, opts types.MountFlag) error {
 	return errors.New("this server does not implement Mount")
 }
 
@@ -247,7 +247,7 @@ func (ns *neighborhoodService) Glob(_ ipc.ServerContext, pattern string, reply m
 			if ok, _, _ := g.MatchInitialSegment(k); !ok {
 				continue
 			}
-			if err := sender.Send(types.MountEntry{Name: k, Servers: n}); err != nil {
+			if err := sender.Send(types.MountEntry{Name: k, Servers: n, MT: true}); err != nil {
 				return err
 			}
 		}
@@ -257,7 +257,7 @@ func (ns *neighborhoodService) Glob(_ ipc.ServerContext, pattern string, reply m
 		if neighbor == nil {
 			return naming.ErrNoSuchName
 		}
-		return sender.Send(types.MountEntry{Name: "", Servers: neighbor})
+		return sender.Send(types.MountEntry{Name: "", Servers: neighbor, MT: true})
 	default:
 		return naming.ErrNoSuchName
 	}
