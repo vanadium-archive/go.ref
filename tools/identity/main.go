@@ -368,7 +368,7 @@ func main() {
 	cmdBless.Flags.StringVar(&flagBlessWith, "with", "", "Path to file containing identity to bless with (or - for STDIN)")
 	cmdBless.Flags.DurationVar(&flagBlessFor, "for", 365*24*time.Hour, "Expiry time of blessing (defaults to 1 year)")
 	cmdSeekBlessing.Flags.StringVar(&flagSeekBlessingFor, "for", "", "Path to file containing identity to bless (or - for STDIN)")
-	cmdSeekBlessing.Flags.StringVar(&flagSeekBlessingFrom, "from", "http://proxy.envyor.com:8125/google", "URL to use to begin the seek blessings process")
+	cmdSeekBlessing.Flags.StringVar(&flagSeekBlessingFrom, "from", "https://proxy.envyor.com:8125/google", "URL to use to begin the seek blessings process")
 
 	(&cmdline.Command{
 		Name:  "identity",
