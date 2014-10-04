@@ -67,6 +67,10 @@ main() {
   grep -q PING builder.out || shell_test::fail "line ${LINENO}: no PING"
   grep -q PONG builder.out || shell_test::fail "line ${LINENO}: no PONG"
 
+  test_with_files $DIR/pong/pong.js $DIR/ping/ping.go $DIR/pingpong/wire.vdl || shell_test::fail "line ${LINENO}: basic ping (go -> js)"
+  grep -q PING builder.out || shell_test::fail "line ${LINENO}: no PING"
+  grep -q PONG builder.out || shell_test::fail "line ${LINENO}: no PONG"
+
   # Test with authorized identities
 
   test_with_files $DIR/pong/pong.go $DIR/ping/ping.go $DIR/pingpong/wire.vdl $DIR/ids/authorized.id || shell_test::fail "line ${LINENO}: authorized id (go -> go)"
