@@ -119,9 +119,11 @@ func main() {
 			GoogleServers, DischargeServers []string
 			ListBlessingsRoute              string
 		}{
-			Self:             rt.R().Identity().PublicID(),
-			RandomWeb:        enableRandomHandler(),
-			DischargeServers: appendSuffixTo(published, dischargerService),
+			Self:      rt.R().Identity().PublicID(),
+			RandomWeb: enableRandomHandler(),
+		}
+		if revocationManager != nil {
+			args.DischargeServers = appendSuffixTo(published, dischargerService)
 		}
 		if len(*googleConfigChrome) > 0 || len(*googleConfigAndroid) > 0 {
 			args.GoogleServers = appendSuffixTo(published, googleService)

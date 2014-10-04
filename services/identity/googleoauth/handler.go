@@ -57,7 +57,7 @@ const (
 	listBlessingsCallbackRoute = "listblessingscallback"
 	revokeRoute                = "revoke"
 	SeekBlessingsRoute         = "seekblessings"
-	addCaveatsRoute            = "addcaveat"
+	addCaveatsRoute            = "addcaveats"
 	sendMacaroonRoute          = "sendmacaroon"
 )
 
@@ -322,13 +322,14 @@ func validLoopbackURL(u string) (*url.URL, error) {
 }
 
 func (h *handler) seekBlessings(w http.ResponseWriter, r *http.Request) {
-	if _, err := validLoopbackURL(r.FormValue("redirect_url")); err != nil {
+	redirect := r.FormValue("redirect_url")
+	if _, err := validLoopbackURL(redirect); err != nil {
 		vlog.Infof("seekBlessings failed: invalid redirect_url: %v", err)
 		util.HTTPBadRequest(w, r, fmt.Errorf("invalid redirect_url: %v", err))
 		return
 	}
 	outputMacaroon, err := h.csrfCop.NewToken(w, r, clientIDCookie, seekBlessingsMacaroon{
-		RedirectURL: r.FormValue("redirect_url"),
+		RedirectURL: redirect,
 		State:       r.FormValue("state"),
 	})
 	if err != nil {
@@ -369,9 +370,10 @@ func (h *handler) addCaveats(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	tmplargs := struct {
+		Extension               string
 		CaveatMap               map[string]caveatInfo
 		Macaroon, MacaroonRoute string
-	}{caveatMap, outputMacaroon, sendMacaroonRoute}
+	}{email, caveatMap, outputMacaroon, sendMacaroonRoute}
 	w.Header().Set("Context-Type", "text/html")
 	if err := tmplSelectCaveats.Execute(w, tmplargs); err != nil {
 		vlog.Errorf("Unable to execute bless page template: %v", err)

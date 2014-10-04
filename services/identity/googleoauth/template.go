@@ -113,7 +113,7 @@ var tmplSelectCaveats = template.Must(template.New("bless").Parse(`<!doctype htm
 <html>
 <head>
 <meta charset="UTF-8">
-<title>Veyron Identity Derivation</title>
+<title>Blessings: Select caveats</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <link rel="stylesheet" href="//netdna.bootstrapcdn.com/bootstrap/3.0.0/css/bootstrap.min.css">
 <script src="//ajax.googleapis.com/ajax/libs/jquery/1.11.1/jquery.min.js"></script>
@@ -151,7 +151,7 @@ var tmplSelectCaveats = template.Must(template.New("bless").Parse(`<!doctype htm
 </head>
 <body class="container">
 <form class="form-signin" method="POST" name="input" action="/google/{{.MacaroonRoute}}">
-<h2 class="form-signin-heading">Select Caveats</h2>
+<h2 class="form-signin-heading">Select Caveats on {{.Extension}}</h2>
 <input type="text" class="hidden" name="macaroon" value="{{.Macaroon}}">
 <div class="caveatRow row">
 <br/>
