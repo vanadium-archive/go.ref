@@ -38,7 +38,7 @@ main() {
   # Start mounttabled and find its endpoint.
   local -r MTLOG="${WORKDIR}/mt.log"
   touch "${MTLOG}"
-  ./mounttabled --address=127.0.0.1:0 > "${MTLOG}" 2>&1 &
+  ./mounttabled --veyron.tcp.address=127.0.0.1:0 > "${MTLOG}" 2>&1 &
   shell::wait_for "${MTLOG}" "Mount table service at:"
   local EP=$(grep "Mount table service at:" "${MTLOG}" | sed -e 's/^.*endpoint: //')
   [[ -z "${EP}" ]] && shell_test::fail "line ${LINENO}: no mounttable server"
