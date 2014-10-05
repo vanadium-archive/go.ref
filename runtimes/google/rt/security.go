@@ -20,7 +20,9 @@ import (
 )
 
 const (
-	privateKeyFile          = "privatekey.pem"
+	privateKeyFile = "privatekey.pem"
+	// Environment variable pointing to a directory where information about a principal
+	// (private key, blessing store, blessing roots etc.) is stored.
 	VeyronCredentialsEnvVar = "VEYRON_CREDENTIALS"
 )
 
@@ -56,7 +58,6 @@ func (rt *vrt) initSecurity() error {
 func (rt *vrt) initPrincipal() error {
 	// TODO(ataly, ashankar): Check if agent environment variables are
 	// specified and if so initialize principal from agent.
-
 	if dir := os.Getenv(VeyronCredentialsEnvVar); len(dir) > 0 {
 		// TODO(ataly, ashankar): If multiple runtimes are getting
 		// initialized at the same time from the same VEYRON_CREDENTIALS
@@ -77,6 +78,9 @@ func (rt *vrt) initDefaultBlessings() error {
 	if err := rt.principal.BlessingStore().SetDefault(blessing); err != nil {
 		return err
 	}
+	if _, err := rt.principal.BlessingStore().Set(blessing, security.AllPrincipals); err != nil {
+		return err
+	}
 	if err := rt.principal.AddToRoots(blessing); err != nil {
 		return err
 	}
@@ -84,9 +88,16 @@ func (rt *vrt) initDefaultBlessings() error {
 }
 
 func (rt *vrt) initPrincipalFromCredentials(dir string) error {
+	if finfo, err := os.Stat(dir); err == nil {
+		if !finfo.IsDir() {
+			return fmt.Errorf("%q is not a directory", dir)
+		}
+	} else if err := os.MkdirAll(dir, 0700); err != nil {
+		return fmt.Errorf("failed to create %q: %v", dir, err)
+	}
 	key, err := initKey(dir)
 	if err != nil {
-		return fmt.Errorf("could not initialize ECDSA private key from credentials directory %v: %v", dir, err)
+		return fmt.Errorf("could not initialize private key from credentials directory %v: %v", dir, err)
 	}
 
 	signer := security.NewInMemoryECDSASigner(key)
@@ -227,25 +238,25 @@ func initKey(dir string) (*ecdsa.PrivateKey, error) {
 		defer f.Close()
 		v, err := vsecurity.LoadPEMKey(f, nil)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("failed to load PEM data from %q: %v", keyPath, v)
 		}
 		key, ok := v.(*ecdsa.PrivateKey)
 		if !ok {
-			return nil, fmt.Errorf("could not read ECDSA private key from data of type %T", v)
+			return nil, fmt.Errorf("%q contains a %T, not an ECDSA private key", keyPath, v)
 		}
 		return key, nil
 	} else if !os.IsNotExist(err) {
-		return nil, err
+		return nil, fmt.Errorf("failed to read %q: %v", keyPath, err)
 	}
 
 	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to generate a private key: %v", err)
 	}
 
 	f, err := os.OpenFile(keyPath, os.O_WRONLY|os.O_CREATE, 0600)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to open %q for writing: %v", keyPath, err)
 	}
 	defer f.Close()
 	return key, vsecurity.SavePEMKey(f, key, nil)

@@ -712,6 +712,7 @@ func (vc *VC) DebugString() string {
 		l = append(l, "Handshake not completed yet")
 	} else {
 		l = append(l, "Encryption: "+vc.crypter.String())
+		l = append(l, fmt.Sprintf("LocalPrincipal:%v LocalBlessings:%v RemoteBlessings:%v", vc.localPrincipal.PublicKey(), vc.localBlessings, vc.remoteBlessings))
 		l = append(l, fmt.Sprintf("LocalID:%q RemoteID:%q", anonymousIfNilPublicID(vc.localID), anonymousIfNilPublicID(vc.remoteID)))
 	}
 	for fid, f := range vc.flowMap {
