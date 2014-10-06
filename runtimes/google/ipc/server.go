@@ -499,6 +499,9 @@ func (s *server) Stop() error {
 	close(s.stoppedChan)
 	s.Unlock()
 
+	// Delete the stats object.
+	s.stats.stop()
+
 	// Note, It's safe to Stop/WaitForStop on the publisher outside of the
 	// server lock, since publisher is safe for concurrent access.
 

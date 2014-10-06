@@ -24,6 +24,10 @@ type perMethodStats struct {
 	latency *histogram.Histogram
 }
 
+func (s *ipcStats) stop() {
+	stats.Delete(s.prefix)
+}
+
 func (s *ipcStats) record(method string, latency time.Duration) {
 	// Try first with a read lock. This will succeed in the most common
 	// case. If it fails, try again with a write lock and create the stats

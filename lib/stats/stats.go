@@ -67,6 +67,24 @@ func Value(name string) (interface{}, error) {
 	return obj.Value(), nil
 }
 
+// Delete deletes a StatsObject and all its children, if any.
+func Delete(name string) error {
+	if name == "" {
+		return ErrNotFound
+	}
+	elems := strings.Split(name, "/")
+	last := len(elems) - 1
+	dirname, basename := strings.Join(elems[:last], "/"), elems[last]
+	lock.Lock()
+	defer lock.Unlock()
+	parent := findNodeLocked(dirname, false)
+	if parent == nil {
+		return ErrNotFound
+	}
+	delete(parent.children, basename)
+	return nil
+}
+
 func newNode() *node {
 	return &node{children: make(map[string]*node)}
 }

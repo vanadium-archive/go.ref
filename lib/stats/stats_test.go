@@ -272,3 +272,25 @@ func TestStats(t *testing.T) {
 		t.Errorf("unexpected result. Got %#v, want %#v", result, expected)
 	}
 }
+
+func TestDelete(t *testing.T) {
+	_ = libstats.NewInteger("a/b/c/d")
+	if _, err := libstats.GetStatsObject("a/b/c/d"); err != nil {
+		t.Errorf("unexpected error value: %v", err)
+	}
+	if err := libstats.Delete("a/b/c/d"); err != nil {
+		t.Errorf("unexpected error value: %v", err)
+	}
+	if _, err := libstats.GetStatsObject("a/b/c/d"); err != libstats.ErrNotFound {
+		t.Errorf("unexpected error value: Got %v, want %v", err, libstats.ErrNotFound)
+	}
+	if err := libstats.Delete("a/b"); err != nil {
+		t.Errorf("unexpected error value: %v", err)
+	}
+	if _, err := libstats.GetStatsObject("a/b"); err != libstats.ErrNotFound {
+		t.Errorf("unexpected error value: Got %v, want %v", err, libstats.ErrNotFound)
+	}
+	if _, err := libstats.GetStatsObject("a/b/c"); err != libstats.ErrNotFound {
+		t.Errorf("unexpected error value: Got %v, want %v", err, libstats.ErrNotFound)
+	}
+}
