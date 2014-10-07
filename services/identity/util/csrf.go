@@ -114,6 +114,7 @@ func newCookie(cookieName string) (*http.Cookie, []byte) {
 		Value:    b64encode(b),
 		Expires:  time.Now().Add(time.Hour * 24),
 		HttpOnly: true,
+		Path:     "/",
 	}, b
 }
 
