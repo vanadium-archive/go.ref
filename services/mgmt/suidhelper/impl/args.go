@@ -8,6 +8,8 @@ import (
 	"os"
 	"os/user"
 	"strconv"
+
+	sflag "veyron.io/veyron/veyron/services/mgmt/suidhelper/impl/flag"
 )
 
 type WorkParameters struct {
@@ -31,21 +33,25 @@ type ArgsSavedForTest struct {
 
 const SavedArgs = "VEYRON_SAVED_ARGS"
 
-var flagUsername, flagWorkspace, flagStdoutLog, flagStderrLog, flagRun *string
-var flagMinimumUid *int64
+var (
+	flagUsername, flagWorkspace, flagStdoutLog, flagStderrLog, flagRun *string
+	flagMinimumUid                                                     *int64
+)
 
 func init() {
-	// Add flags to global set.
-	setupFlags(flag.CommandLine)
+	setupFlags(nil)
 }
 
 func setupFlags(fs *flag.FlagSet) {
-	flagUsername = fs.String("username", "", "The UNIX user name used for the other functions of this tool.")
-	flagWorkspace = fs.String("workspace", "", "Path to the application's workspace directory.")
-	flagStdoutLog = fs.String("stdoutlog", "", "Path to the stdout log file.")
-	flagStderrLog = fs.String("stderrlog", "", "Path to the stdin log file.")
-	flagRun = fs.String("run", "", "Path to the application to exec.")
-	flagMinimumUid = fs.Int64("minuid", uidThreshold, "UIDs cannot be less than this number.")
+	if fs != nil {
+		sflag.SetupFlags(fs)
+	}
+	flagUsername = sflag.Username
+	flagWorkspace = sflag.Workspace
+	flagStdoutLog = sflag.StdoutLog
+	flagStderrLog = sflag.StderrLog
+	flagRun = sflag.Run
+	flagMinimumUid = sflag.MinimumUid
 }
 
 // ParseArguments populates the WorkParameter object from the provided args
