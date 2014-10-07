@@ -16,8 +16,11 @@ import (
 	// define flags that we care about. In practice, this is the
 	// flags defined by the testing package, the logging library
 	// and any flags defined by the blackbox package below.
+	// TODO(cnicolau,ashankar): This is painful to ensure. Not calling
+	// flag.Parse in init() is the right solution?
 	_ "testing"
 	"time"
+	_ "veyron.io/veyron/veyron/services/mgmt/suidhelper/impl/flag"
 
 	// Import blackbox to ensure that it gets to define its flags.
 	_ "veyron.io/veyron/veyron/lib/testutil/blackbox"
