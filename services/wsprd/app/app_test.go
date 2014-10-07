@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"reflect"
 	"testing"
+
 	"veyron.io/veyron/veyron/services/wsprd/lib"
 	"veyron.io/veyron/veyron/services/wsprd/lib/testwriter"
 	"veyron.io/veyron/veyron/services/wsprd/signature"
@@ -19,6 +20,7 @@ import (
 	vom_wiretype "veyron.io/veyron/veyron2/vom/wiretype"
 	"veyron.io/veyron/veyron2/wiretype"
 
+	"veyron.io/veyron/veyron/profiles"
 	"veyron.io/veyron/veyron/runtimes/google/ipc/stream/proxy"
 	mounttable "veyron.io/veyron/veyron/services/mounttable/lib"
 )
@@ -151,7 +153,9 @@ func TestGetGoServerSignature(t *testing.T) {
 		return
 	}
 	defer s.Stop()
-	controller, err := NewController(nil, "mockVeyronProxyEP")
+	spec := *profiles.LocalListenSpec
+	spec.Proxy = "mockVeyronProxyEP"
+	controller, err := NewController(nil, &spec)
 
 	if err != nil {
 		t.Errorf("Failed to create controller: %v", err)
@@ -185,7 +189,9 @@ func runGoServerTestCase(t *testing.T, test goServerTestCase) {
 	}
 	defer s.Stop()
 
-	controller, err := NewController(nil, "mockVeyronProxyEP")
+	spec := *profiles.LocalListenSpec
+	spec.Proxy = "mockVeyronProxyEP"
+	controller, err := NewController(nil, &spec)
 
 	if err != nil {
 		t.Errorf("unable to create controller: %v", err)
@@ -304,8 +310,10 @@ func serveServer() (*runningTest, error) {
 	writerCreator := func(int64) lib.ClientWriter {
 		return &writer
 	}
-	controller, err := NewController(writerCreator, "/"+proxyEndpoint,
-		veyron2.NamespaceRoots{"/" + endpoint.String()})
+	spec := *profiles.LocalListenSpec
+	spec.Proxy = "/" + proxyEndpoint
+	controller, err := NewController(writerCreator, &spec, veyron2.NamespaceRoots{"/" + endpoint.String()})
+
 	if err != nil {
 		return nil, err
 	}

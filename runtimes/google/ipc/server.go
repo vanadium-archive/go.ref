@@ -340,6 +340,7 @@ func (s *server) ListenX(listenSpec *ipc.ListenSpec) (naming.Endpoint, error) {
 			s.proxyListenLoop(ln, ep, proxy)
 			s.active.Done()
 		}(pln, pep, listenSpec.Proxy)
+		s.listeners[pln] = nil
 		s.publisher.AddServer(s.publishEP(pep), s.servesMountTable)
 	} else {
 		s.publisher.AddServer(s.publishEP(ep), s.servesMountTable)
@@ -521,6 +522,7 @@ func (s *server) Stop() error {
 	// flows will continue until they terminate naturally.
 	nListeners := len(s.listeners)
 	errCh := make(chan error, nListeners)
+
 	for ln, dhcpl := range s.listeners {
 		go func(ln stream.Listener) {
 			errCh <- ln.Close()

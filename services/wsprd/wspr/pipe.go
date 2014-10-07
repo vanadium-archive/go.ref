@@ -129,7 +129,7 @@ func newPipe(w http.ResponseWriter, req *http.Request, wspr *WSPR, creator func(
 		// TODO(bjornick): Send an error to the client when all of the identity stuff is set up.
 	}
 
-	pipe.controller, err = app.NewController(creator, wspr.veyronProxyEP, veyron2.RuntimeID(id))
+	pipe.controller, err = app.NewController(creator, &wspr.listenSpec, veyron2.RuntimeID(id))
 
 	if err != nil {
 		wspr.rt.Logger().Errorf("Could not create controller: %v", err)
