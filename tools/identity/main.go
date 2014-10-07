@@ -1,120 +1,14 @@
-// Below is the output from $(identity help -style=godoc ...)
+// The following enables go generate to generate the doc.go file.
+// Things to look out for:
+// 1) go:generate evaluates double-quoted strings into a single argument.
+// 2) go:generate performs $NAME expansion, so the bash cmd can't contain '$'.
+// 3) We generate into a *.tmp file first, otherwise "go run" will pick up the
+//    initially empty *.go file, and fail.
+// 4) Since "go run" ignores build directives, we must manually filter out
+//    main_*.go for different platforms.
+//
+//go:generate bash -c "{ echo -e '// This file was auto-generated via go generate.\n// DO NOT UPDATE MANUALLY\n\n/*' && veyron go run `echo *.go | tr ' ' '\n' | grep -v main_darwin.go` help -style=godoc ... && echo -e '*/\npackage main'; } > ./doc.go.tmp && mv ./doc.go.tmp ./doc.go"
 
-/*
-The identity tool helps create and manage keys and blessings that are used for
-identification in veyron.
-
-Usage:
-   identity <command>
-
-The identity commands are:
-   print       Print out information about the provided identity
-   generate    Generate an identity with a newly minted private key
-   bless       Bless another identity with your own
-   seekblessing Seek a blessing from the default veyron identity provider
-   help        Display help for commands
-
-The global flags are:
-   -alsologtostderr=true: log to standard error as well as files
-   -log_backtrace_at=:0: when logging hits line file:N, emit a stack trace
-   -log_dir=: if non-empty, write log files to this directory
-   -logtostderr=false: log to standard error instead of files
-   -max_stack_buf_size=4292608: max size in bytes of the buffer to use for logging stack traces
-   -stderrthreshold=2: logs at or above this threshold go to stderr
-   -v=0: log level for V logs
-   -vmodule=: comma-separated list of pattern=N settings for file-filtered logging
-   -vv=0: log level for V logs
-
-Identity Print
-
-Print dumps out information about the identity encoded in the provided file,
-or if no filename is provided, then the identity that would be used by binaries
-started in the same environment.
-
-Usage:
-   identity print [<file>]
-
-<file> is the path to a file containing a base64-encoded, VOM encoded identity,
-typically obtained from this tool. - is used for STDIN and an empty string
-implies the identity encoded in the environment.
-
-Identity Generate
-
-Generate a new private key and create an identity that binds <name> to
-this key.
-
-Since the generated identity has a newly minted key, it will be typically
-unusable at other veyron services as those services have placed no trust
-in this key. In such cases, you likely want to seek a blessing for this
-generated identity using the 'bless' command.
-
-Usage:
-   identity generate [<name>]
-
-<name> is the name to bind the newly minted private key to. If not specified,
-a name will be generated based on the hostname of the machine and the name of
-the user running this command.
-
-Identity Bless
-
-Bless uses the identity of the tool (either from an environment variable or
-explicitly specified using --with) to bless another identity encoded in a
-file (or STDIN). No caveats are applied to this blessing other than expiration,
-which is specified with --for.
-
-The output consists of a base64-vom encoded security.PrivateID or security.PublicID,
-depending on what was provided as input.
-
-For example, if the tool has an identity veyron/user/device, then
-bless /tmp/blessee batman
-will generate a blessing with the name veyron/user/device/batman
-
-The identity of the tool can be specified with the --with flag:
-bless --with /tmp/id /tmp/blessee batman
-
-Usage:
-   identity bless [flags] <file> <name>
-
-<file> is the name of the file containing a base64-vom encoded security.PublicID
-or security.PrivateID
-
-<name> is the name to use for the blessing.
-
-The bless flags are:
-   -for=8760h0m0s: Expiry time of blessing (defaults to 1 year)
-   -with=: Path to file containing identity to bless with (or - for STDIN)
-
-Identity Seekblessing
-
-Seeks a blessing from a default, hardcoded Veyron identity provider which
-requires the caller to first authenticate with Google using OAuth. Simply
-run the command to see what happens.
-
-The blessing is sought for the identity that this tool is using. An alternative
-can be provided with the --for flag.
-
-Usage:
-   identity seekblessing [flags]
-
-The seekblessing flags are:
-   -clientid=761523829214-4ms7bae18ef47j6590u9ncs19ffuo7b3.apps.googleusercontent.com: OAuth client ID used to make OAuth request for an authorization code
-   -for=: Path to file containing identity to bless (or - for STDIN)
-   -from=/proxy.envyor.com:8101/identity/veyron-test/google: Object name of Veyron service running the identity.OAuthBlesser service to seek blessings from
-
-Identity Help
-
-Help displays usage descriptions for this command, or usage descriptions for
-sub-commands.
-
-Usage:
-   identity help [flags] [command ...]
-
-[command ...] is an optional sequence of commands to display detailed usage.
-The special-case "help ..." recursively displays help for all commands.
-
-The help flags are:
-   -style=text: The formatting style for help output, either "text" or "godoc".
-*/
 package main
 
 import (
