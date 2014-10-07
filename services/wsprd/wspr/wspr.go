@@ -93,7 +93,7 @@ func (ctx WSPR) Run() {
 	// registered patterns, not just the URL with Path == "/".'
 	// (http://golang.org/pkg/net/http/#ServeMux)
 	http.Handle("/", http.NotFoundHandler())
-	ctx.logger.VI(1).Infof("Listening at port %s.", ctx.httpPort)
+	ctx.logger.VI(1).Infof("Listening at port %d.", ctx.httpPort)
 	httpErr := http.ListenAndServe(fmt.Sprintf("127.0.0.1:%d", ctx.httpPort), nil)
 	if httpErr != nil {
 		log.Fatalf("Failed to HTTP serve: %s", httpErr)
