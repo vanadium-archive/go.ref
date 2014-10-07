@@ -163,6 +163,10 @@ func (eh *execHandle) start(sh *Shell, args ...string) (Handle, error) {
 	return eh, err
 }
 
+func (eh *execHandle) Pid() int {
+	return eh.cmd.Process.Pid
+}
+
 func (eh *execHandle) Shutdown(stdout, stderr io.Writer) error {
 	eh.mu.Lock()
 	defer eh.mu.Unlock()
@@ -217,7 +221,7 @@ func DispatchInTest() {
 	os.Exit(0)
 }
 
-// Dispatch will execute the request subprocess command from a within a
+// Dispatch will execute the requested subprocess command from a within a
 // a subprocess that is not a unit test.
 func Dispatch() error {
 	if IsTestHelperProcess() {

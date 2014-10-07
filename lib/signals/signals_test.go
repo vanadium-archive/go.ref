@@ -1,10 +1,15 @@
 package signals
 
 import (
+	"bufio"
 	"fmt"
+	"io"
 	"os"
+	"path/filepath"
+	"runtime"
 	"syscall"
 	"testing"
+	"time"
 
 	"veyron.io/veyron/veyron2"
 	"veyron.io/veyron/veyron2/ipc"
@@ -13,29 +18,31 @@ import (
 	"veyron.io/veyron/veyron2/rt"
 	"veyron.io/veyron/veyron2/services/mgmt/appcycle"
 
+	"veyron.io/veyron/veyron/lib/expect"
+	"veyron.io/veyron/veyron/lib/modules"
 	_ "veyron.io/veyron/veyron/lib/testutil"
-	"veyron.io/veyron/veyron/lib/testutil/blackbox"
 	"veyron.io/veyron/veyron/lib/testutil/security"
 	"veyron.io/veyron/veyron/profiles"
 	vflag "veyron.io/veyron/veyron/security/flag"
 	"veyron.io/veyron/veyron/services/mgmt/node"
 )
 
-// TestHelperProcess is boilerplate for the blackbox setup.
+// TestHelperProcess is boilerplate for the modules setup.
 func TestHelperProcess(t *testing.T) {
-	blackbox.HelperProcess(t)
+	modules.DispatchInTest()
 }
 
 func init() {
-	blackbox.CommandTable["handleDefaults"] = handleDefaults
-	blackbox.CommandTable["handleCustom"] = handleCustom
-	blackbox.CommandTable["handleCustomWithStop"] = handleCustomWithStop
-	blackbox.CommandTable["handleDefaultsIgnoreChan"] = handleDefaultsIgnoreChan
+	modules.RegisterChild("handleDefaults", handleDefaults)
+	modules.RegisterChild("handleCustom", handleCustom)
+	modules.RegisterChild("handleCustomWithStop", handleCustomWithStop)
+	modules.RegisterChild("handleDefaultsIgnoreChan", handleDefaultsIgnoreChan)
 }
 
-func stopLoop(ch chan<- struct{}) {
-	for {
-		switch blackbox.ReadLineFromStdin() {
+func stopLoop(stdin io.Reader, ch chan<- struct{}) {
+	scanner := bufio.NewScanner(stdin)
+	for scanner.Scan() {
+		switch scanner.Text() {
 		case "close":
 			close(ch)
 			return
@@ -45,36 +52,40 @@ func stopLoop(ch chan<- struct{}) {
 	}
 }
 
-func program(signals ...os.Signal) {
+func program(stdin io.Reader, stdout io.Writer, signals ...os.Signal) {
 	r := rt.Init()
 	closeStopLoop := make(chan struct{})
-	go stopLoop(closeStopLoop)
+	go stopLoop(stdin, closeStopLoop)
 	wait := ShutdownOnSignals(signals...)
-	fmt.Println("ready")
-	fmt.Println("received signal", <-wait)
+	fmt.Fprintf(stdout, "ready\n")
+	fmt.Fprintf(stdout, "received signal %s\n", <-wait)
 	r.Cleanup()
 	<-closeStopLoop
 }
 
-func handleDefaults([]string) {
-	program()
+func handleDefaults(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
+	program(stdin, stdout)
+	return nil
 }
 
-func handleCustom([]string) {
-	program(syscall.SIGABRT)
+func handleCustom(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
+	program(stdin, stdout, syscall.SIGABRT)
+	return nil
 }
 
-func handleCustomWithStop([]string) {
-	program(STOP, syscall.SIGABRT, syscall.SIGHUP)
+func handleCustomWithStop(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
+	program(stdin, stdout, STOP, syscall.SIGABRT, syscall.SIGHUP)
+	return nil
 }
 
-func handleDefaultsIgnoreChan([]string) {
+func handleDefaultsIgnoreChan(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
 	defer rt.Init().Cleanup()
 	closeStopLoop := make(chan struct{})
-	go stopLoop(closeStopLoop)
+	go stopLoop(stdin, closeStopLoop)
 	ShutdownOnSignals()
-	fmt.Println("ready")
+	fmt.Fprintf(stdout, "ready\n")
 	<-closeStopLoop
+	return nil
 }
 
 func isSignalInSet(sig os.Signal, set []os.Signal) bool {
@@ -98,113 +109,128 @@ func checkSignalIsNotDefault(t *testing.T, sig os.Signal) {
 	}
 }
 
+func newShell(t *testing.T, command string) (*modules.Shell, modules.Handle, *expect.Session) {
+	sh := modules.NewShell()
+	sh.AddSubprocess(command, "")
+	handle, err := sh.Start(command)
+	if err != nil {
+		sh.Cleanup(os.Stderr, os.Stderr)
+		t.Fatalf("unexpected error: %s", err)
+		return nil, nil, nil
+	}
+	session := expect.NewSession(t, handle.Stdout(), time.Minute)
+	return sh, handle, session
+}
+
 // TestCleanShutdownSignal verifies that sending a signal to a child that
 // handles it by default causes the child to shut down cleanly.
 func TestCleanShutdownSignal(t *testing.T) {
-	c := blackbox.HelperCommand(t, "handleDefaults")
-	defer c.Cleanup()
-	c.Cmd.Start()
-	c.Expect("ready")
+	sh, h, s := newShell(t, "handleDefaults")
+	defer sh.Cleanup(os.Stderr, os.Stderr)
+	s.Expect("ready")
 	checkSignalIsDefault(t, syscall.SIGINT)
-	syscall.Kill(c.Cmd.Process.Pid, syscall.SIGINT)
-	c.Expect(fmt.Sprintf("received signal %s", syscall.SIGINT))
-	c.WriteLine("close")
-	c.ExpectEOFAndWait()
+	syscall.Kill(h.Pid(), syscall.SIGINT)
+	s.Expectf("received signal %s", syscall.SIGINT)
+	fmt.Fprintf(h.Stdin(), "close\n")
+	s.ExpectEOF()
 }
 
 // TestCleanShutdownStop verifies that sending a stop comamnd to a child that
 // handles stop commands by default causes the child to shut down cleanly.
 func TestCleanShutdownStop(t *testing.T) {
-	c := blackbox.HelperCommand(t, "handleDefaults")
-	defer c.Cleanup()
-	c.Cmd.Start()
-	c.Expect("ready")
-	c.WriteLine("stop")
-	c.Expect(fmt.Sprintf("received signal %s", veyron2.LocalStop))
-	c.WriteLine("close")
-	c.ExpectEOFAndWait()
+	sh, h, s := newShell(t, "handleDefaults")
+	defer sh.Cleanup(os.Stderr, os.Stderr)
+	s.Expect("ready")
+	fmt.Fprintf(h.Stdin(), "stop\n")
+	s.Expectf("received signal %s", veyron2.LocalStop)
+	fmt.Fprintf(h.Stdin(), "close\n")
+	s.ExpectEOF()
+
 }
 
 // TestCleanShutdownStopCustom verifies that sending a stop comamnd to a child
 // that handles stop command as part of a custom set of signals handled, causes
 // the child to shut down cleanly.
 func TestCleanShutdownStopCustom(t *testing.T) {
-	c := blackbox.HelperCommand(t, "handleCustomWithStop")
-	defer c.Cleanup()
-	c.Cmd.Start()
-	c.Expect("ready")
-	c.WriteLine("stop")
-	c.Expect(fmt.Sprintf("received signal %s", veyron2.LocalStop))
-	c.WriteLine("close")
-	c.ExpectEOFAndWait()
+	sh, h, s := newShell(t, "handleCustomWithStop")
+	defer sh.Cleanup(os.Stderr, os.Stderr)
+	s.Expect("ready")
+	fmt.Fprintf(h.Stdin(), "stop\n")
+	s.Expectf("received signal %s", veyron2.LocalStop)
+	fmt.Fprintf(h.Stdin(), "close\n")
+	s.ExpectEOF()
+}
+
+func testExitStatus(t *testing.T, h modules.Handle, s *expect.Session, code int) {
+	s.ExpectEOF()
+	_, file, line, _ := runtime.Caller(1)
+	file = filepath.Base(file)
+	if got, want := h.Shutdown(os.Stdout, os.Stderr), fmt.Errorf("exit status %d", code); got.Error() != want.Error() {
+		t.Errorf("%s:%d: got %q, want %q", file, line, got, want)
+	}
 }
 
 // TestStopNoHandler verifies that sending a stop command to a child that does
 // not handle stop commands causes the child to exit immediately.
 func TestStopNoHandler(t *testing.T) {
-	c := blackbox.HelperCommand(t, "handleCustom")
-	defer c.Cleanup()
-	c.Cmd.Start()
-	c.Expect("ready")
-	c.WriteLine("stop")
-	c.ExpectEOFAndWaitForExitCode(fmt.Errorf("exit status %d", veyron2.UnhandledStopExitCode))
+	sh, h, s := newShell(t, "handleCustom")
+	defer sh.Cleanup(os.Stderr, os.Stderr)
+	s.Expect("ready")
+	fmt.Fprintf(h.Stdin(), "stop\n")
+	testExitStatus(t, h, s, veyron2.UnhandledStopExitCode)
 }
 
 // TestDoubleSignal verifies that sending a succession of two signals to a child
 // that handles these signals by default causes the child to exit immediately
 // upon receiving the second signal.
 func TestDoubleSignal(t *testing.T) {
-	c := blackbox.HelperCommand(t, "handleDefaults")
-	defer c.Cleanup()
-	c.Cmd.Start()
-	c.Expect("ready")
+	sh, h, s := newShell(t, "handleDefaults")
+	defer sh.Cleanup(os.Stderr, os.Stderr)
+	s.Expect("ready")
 	checkSignalIsDefault(t, syscall.SIGTERM)
-	syscall.Kill(c.Cmd.Process.Pid, syscall.SIGTERM)
-	c.Expect(fmt.Sprintf("received signal %s", syscall.SIGTERM))
+	syscall.Kill(h.Pid(), syscall.SIGTERM)
+	s.Expectf("received signal %s", syscall.SIGTERM)
 	checkSignalIsDefault(t, syscall.SIGINT)
-	syscall.Kill(c.Cmd.Process.Pid, syscall.SIGINT)
-	c.ExpectEOFAndWaitForExitCode(fmt.Errorf("exit status %d", DoubleStopExitCode))
+	syscall.Kill(h.Pid(), syscall.SIGINT)
+	testExitStatus(t, h, s, DoubleStopExitCode)
 }
 
 // TestSignalAndStop verifies that sending a signal followed by a stop command
 // to a child that handles these by default causes the child to exit immediately
 // upon receiving the stop command.
 func TestSignalAndStop(t *testing.T) {
-	c := blackbox.HelperCommand(t, "handleDefaults")
-	defer c.Cleanup()
-	c.Cmd.Start()
-	c.Expect("ready")
+	sh, h, s := newShell(t, "handleDefaults")
+	defer sh.Cleanup(os.Stderr, os.Stderr)
+	s.Expect("ready")
 	checkSignalIsDefault(t, syscall.SIGTERM)
-	syscall.Kill(c.Cmd.Process.Pid, syscall.SIGTERM)
-	c.Expect(fmt.Sprintf("received signal %s", syscall.SIGTERM))
-	c.WriteLine("stop")
-	c.ExpectEOFAndWaitForExitCode(fmt.Errorf("exit status %d", DoubleStopExitCode))
+	syscall.Kill(h.Pid(), syscall.SIGTERM)
+	s.Expectf("received signal %s", syscall.SIGTERM)
+	fmt.Fprintf(h.Stdin(), "stop\n")
+	testExitStatus(t, h, s, DoubleStopExitCode)
 }
 
 // TestDoubleStop verifies that sending a succession of stop commands to a child
 // that handles stop commands by default causes the child to exit immediately
 // upon receiving the second stop command.
 func TestDoubleStop(t *testing.T) {
-	c := blackbox.HelperCommand(t, "handleDefaults")
-	defer c.Cleanup()
-	c.Cmd.Start()
-	c.Expect("ready")
-	c.WriteLine("stop")
-	c.Expect(fmt.Sprintf("received signal %s", veyron2.LocalStop))
-	c.WriteLine("stop")
-	c.ExpectEOFAndWaitForExitCode(fmt.Errorf("exit status %d", DoubleStopExitCode))
+	sh, h, s := newShell(t, "handleDefaults")
+	defer sh.Cleanup(os.Stderr, os.Stderr)
+	s.Expect("ready")
+	fmt.Fprintf(h.Stdin(), "stop\n")
+	s.Expectf("received signal %s", veyron2.LocalStop)
+	fmt.Fprintf(h.Stdin(), "stop\n")
+	testExitStatus(t, h, s, DoubleStopExitCode)
 }
 
 // TestSendUnhandledSignal verifies that sending a signal that the child does
 // not handle causes the child to exit as per the signal being sent.
 func TestSendUnhandledSignal(t *testing.T) {
-	c := blackbox.HelperCommand(t, "handleDefaults")
-	defer c.Cleanup()
-	c.Cmd.Start()
-	c.Expect("ready")
+	sh, h, s := newShell(t, "handleDefaults")
+	defer sh.Cleanup(os.Stderr, os.Stderr)
+	s.Expect("ready")
 	checkSignalIsNotDefault(t, syscall.SIGABRT)
-	syscall.Kill(c.Cmd.Process.Pid, syscall.SIGABRT)
-	c.ExpectEOFAndWaitForExitCode(fmt.Errorf("exit status 2"))
+	syscall.Kill(h.Pid(), syscall.SIGABRT)
+	testExitStatus(t, h, s, 2)
 }
 
 // TestDoubleSignalIgnoreChan verifies that, even if we ignore the channel that
@@ -212,31 +238,29 @@ func TestSendUnhandledSignal(t *testing.T) {
 // process to exit (ensures that there is no dependency in ShutdownOnSignals
 // on having a goroutine read from the returned channel).
 func TestDoubleSignalIgnoreChan(t *testing.T) {
-	c := blackbox.HelperCommand(t, "handleDefaultsIgnoreChan")
-	defer c.Cleanup()
-	c.Cmd.Start()
-	c.Expect("ready")
+	sh, h, s := newShell(t, "handleDefaultsIgnoreChan")
+	defer sh.Cleanup(os.Stderr, os.Stderr)
+	s.Expect("ready")
 	// Even if we ignore the channel that ShutdownOnSignals returns,
 	// sending two signals should still cause the process to exit.
 	checkSignalIsDefault(t, syscall.SIGTERM)
-	syscall.Kill(c.Cmd.Process.Pid, syscall.SIGTERM)
+	syscall.Kill(h.Pid(), syscall.SIGTERM)
 	checkSignalIsDefault(t, syscall.SIGINT)
-	syscall.Kill(c.Cmd.Process.Pid, syscall.SIGINT)
-	c.ExpectEOFAndWaitForExitCode(fmt.Errorf("exit status %d", DoubleStopExitCode))
+	syscall.Kill(h.Pid(), syscall.SIGINT)
+	testExitStatus(t, h, s, DoubleStopExitCode)
 }
 
 // TestHandlerCustomSignal verifies that sending a non-default signal to a
 // server that listens for that signal causes the server to shut down cleanly.
 func TestHandlerCustomSignal(t *testing.T) {
-	c := blackbox.HelperCommand(t, "handleCustom")
-	defer c.Cleanup()
-	c.Cmd.Start()
-	c.Expect("ready")
+	sh, h, s := newShell(t, "handleCustom")
+	defer sh.Cleanup(os.Stderr, os.Stderr)
+	s.Expect("ready")
 	checkSignalIsNotDefault(t, syscall.SIGABRT)
-	syscall.Kill(c.Cmd.Process.Pid, syscall.SIGABRT)
-	c.Expect(fmt.Sprintf("received signal %s", syscall.SIGABRT))
-	c.WriteLine("close")
-	c.ExpectEOFAndWait()
+	syscall.Kill(h.Pid(), syscall.SIGABRT)
+	s.Expectf("received signal %s", syscall.SIGABRT)
+	fmt.Fprintf(h.Stdin(), "stop\n")
+	s.ExpectEOF()
 }
 
 // TestHandlerCustomSignalWithStop verifies that sending a custom stop signal
@@ -244,15 +268,14 @@ func TestHandlerCustomSignal(t *testing.T) {
 // cleanly, even when a STOP signal is also among the handled signals.
 func TestHandlerCustomSignalWithStop(t *testing.T) {
 	for _, signal := range []syscall.Signal{syscall.SIGABRT, syscall.SIGHUP} {
-		c := blackbox.HelperCommand(t, "handleCustomWithStop")
-		c.Cmd.Start()
-		c.Expect("ready")
+		sh, h, s := newShell(t, "handleCustomWithStop")
+		s.Expect("ready")
 		checkSignalIsNotDefault(t, signal)
-		syscall.Kill(c.Cmd.Process.Pid, signal)
-		c.Expect(fmt.Sprintf("received signal %s", signal))
-		c.WriteLine("close")
-		c.ExpectEOFAndWait()
-		c.Cleanup()
+		syscall.Kill(h.Pid(), signal)
+		s.Expectf("received signal %s", signal)
+		fmt.Fprintf(h.Stdin(), "close\n")
+		s.ExpectEOF()
+		sh.Cleanup(os.Stderr, os.Stderr)
 	}
 }
 
@@ -303,8 +326,11 @@ func createConfigServer(t *testing.T) (ipc.Server, string, <-chan string) {
 func TestCleanRemoteShutdown(t *testing.T) {
 	r := rt.Init()
 	defer r.Cleanup()
-	c := blackbox.HelperCommand(t, "handleDefaults")
-	defer c.Cleanup()
+
+	sh := modules.NewShell()
+	sh.AddSubprocess("handleDefaults", "")
+	defer sh.Cleanup(os.Stderr, os.Stderr)
+
 	// This sets up the child's identity to be derived from the parent's (so
 	// that default authorization works for RPCs between the two).
 	// TODO(caprita): Consider making this boilerplate part of blackbox.
@@ -313,11 +339,15 @@ func TestCleanRemoteShutdown(t *testing.T) {
 	defer os.Remove(idFile)
 	configServer, configServiceName, ch := createConfigServer(t)
 	defer configServer.Stop()
-	c.Cmd.Env = append(c.Cmd.Env, fmt.Sprintf("VEYRON_IDENTITY=%v", idFile),
-		fmt.Sprintf("%v=%v", mgmt.ParentNodeManagerConfigKey, configServiceName))
-	c.Cmd.Start()
+	sh.SetVar("VEYRON_IDENTITY", idFile)
+	sh.SetVar(mgmt.ParentNodeManagerConfigKey, configServiceName)
+	h, err := sh.Start("handleDefaults")
+	if err != nil {
+		t.Fatalf("unexpected error: %s", err)
+	}
+	s := expect.NewSession(t, h.Stdout(), time.Minute)
 	appCycleName := <-ch
-	c.Expect("ready")
+	s.Expect("ready")
 	appCycle, err := appcycle.BindAppCycle(appCycleName)
 	if err != nil {
 		t.Fatalf("Got error: %v", err)
@@ -333,7 +363,7 @@ func TestCleanRemoteShutdown(t *testing.T) {
 	if err := stream.Finish(); err != nil {
 		t.Fatalf("Got error: %v", err)
 	}
-	c.Expect(fmt.Sprintf("received signal %s", veyron2.RemoteStop))
-	c.WriteLine("close")
-	c.ExpectEOFAndWait()
+	s.Expectf("received signal %s", veyron2.RemoteStop)
+	fmt.Fprintf(h.Stdin(), "close\n")
+	s.ExpectEOF()
 }

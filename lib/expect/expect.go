@@ -198,6 +198,27 @@ func (s *Session) Expect(expected string) {
 	return
 }
 
+// Expectf asserts that the next line in the input matches the result of
+// formatting the supplied arguments. It's equivalent to
+// Expect(fmt.Sprintf(args))
+func (s *Session) Expectf(format string, args ...interface{}) {
+	if s.Failed() {
+		return
+	}
+	line, err := s.read(readLine)
+	s.log(err, "Expect: %s", line)
+	if err != nil {
+		s.error(err)
+		return
+	}
+	line = strings.TrimRight(line, "\n")
+	expected := fmt.Sprintf(format, args...)
+	if line != expected {
+		s.error(fmt.Errorf("got %q, want %q", line, expected))
+	}
+	return
+}
+
 func (s *Session) expectRE(pattern string, n int) (string, [][]string, error) {
 	if s.Failed() {
 		return "", nil, s.err
@@ -274,6 +295,23 @@ func (s *Session) ReadAll() (string, error) {
 		return "", s.err
 	}
 	return s.read(readAll)
+}
+
+func (s *Session) ExpectEOF() error {
+	if s.Failed() {
+		return s.err
+	}
+	buf := [1024]byte{}
+	n, err := s.input.Read(buf[:])
+	if n != 0 || err == nil {
+		s.error(fmt.Errorf("unexpected input %d bytes: %q", n, string(buf[:n])))
+		return s.err
+	}
+	if err != io.EOF {
+		s.error(err)
+		return s.err
+	}
+	return nil
 }
 
 // Finish reads all remaining input on the stream regardless of any

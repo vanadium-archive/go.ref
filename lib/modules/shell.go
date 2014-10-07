@@ -281,6 +281,9 @@ type Handle interface {
 	// The stdout and stderr contents are written to the corresponding
 	// io.Writers if they are non-nil, otherwise the content is discarded.
 	Shutdown(stdout, stderr io.Writer) error
+
+	// Pid returns the pid of the process running the command
+	Pid() int
 }
 
 // command is used to abstract the implementations of inprocess and subprocess
