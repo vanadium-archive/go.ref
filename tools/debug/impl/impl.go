@@ -9,6 +9,7 @@ import (
 	"regexp"
 	"sort"
 	"strings"
+	"time"
 
 	"veyron.io/veyron/veyron/lib/cmdline"
 	"veyron.io/veyron/veyron/lib/glob"
@@ -23,8 +24,6 @@ import (
 	logtypes "veyron.io/veyron/veyron2/services/mgmt/logreader/types"
 	"veyron.io/veyron/veyron2/services/mgmt/pprof"
 	"veyron.io/veyron/veyron2/services/mgmt/stats"
-	"veyron.io/veyron/veyron2/services/mounttable"
-	mttypes "veyron.io/veyron/veyron2/services/mounttable/types"
 	"veyron.io/veyron/veyron2/services/watch"
 	watchtypes "veyron.io/veyron/veyron2/services/watch/types"
 	"veyron.io/veyron/veyron2/vom"
@@ -76,7 +75,7 @@ func runGlob(cmd *cmdline.Command, args []string) error {
 	if want, got := 1, len(args); got < want {
 		return cmd.UsageErrorf("glob: incorrect number of arguments, got %d, want >=%d", got, want)
 	}
-	results := make(chan mttypes.MountEntry)
+	results := make(chan naming.MountEntry)
 	errors := make(chan error)
 	ctx := rt.R().NewContext()
 	for _, a := range args {
@@ -107,43 +106,17 @@ L:
 	return lastErr
 }
 
-func doGlob(ctx context.T, pattern string, results chan<- mttypes.MountEntry, errors chan<- error) {
-	// TODO(rthellend): Consider using the namespace library.
-	root, globPattern := naming.SplitAddressName(pattern)
-	g, err := glob.Parse(globPattern)
-	if err != nil {
-		errors <- fmt.Errorf("glob.Parse(%s): %v", globPattern, err)
-		return
-	}
-	var prefixElems []string
-	prefixElems, g = g.SplitFixedPrefix()
-	name := naming.Join(prefixElems...)
-	if len(root) != 0 {
-		name = naming.JoinAddressName(root, name)
-	}
-	c, err := mounttable.BindGlobbable(name)
+func doGlob(ctx context.T, pattern string, results chan<- naming.MountEntry, errors chan<- error) {
+	ns := rt.R().Namespace()
+	ctx, cancel := rt.R().NewContext().WithTimeout(time.Minute)
+	defer cancel()
+	c, err := ns.Glob(ctx, pattern)
 	if err != nil {
 		errors <- err
 		return
 	}
-	stream, err := c.Glob(ctx, g.String())
-	if err != nil {
-		errors <- err
-		return
-	}
-	iterator := stream.RecvStream()
-	for iterator.Advance() {
-		me := iterator.Value()
-		me.Name = naming.Join(name, me.Name)
-		results <- me
-	}
-	if err := iterator.Err(); err != nil {
-		errors <- err
-		return
-	}
-	if err = stream.Finish(); err != nil {
-		errors <- err
-		return
+	for res := range c {
+		results <- res
 	}
 	errors <- nil
 }
