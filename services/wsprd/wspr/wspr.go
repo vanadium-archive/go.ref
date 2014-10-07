@@ -21,7 +21,6 @@ import (
 	"fmt"
 	"io"
 	"log"
-	"net"
 	"net/http"
 	_ "net/http/pprof"
 	"sync"
@@ -51,6 +50,7 @@ type WSPR struct {
 	tlsCert        *tls.Certificate
 	rt             veyron2.Runtime
 	logger         vlog.Logger
+	httpPort       int // HTTP port for WSPR to serve on. Port rather than address to discourage serving in a way that isn't local.
 	listenSpec     ipc.ListenSpec
 	identdEP       string
 	idManager      *identity.IDManager
@@ -93,12 +93,8 @@ func (ctx WSPR) Run() {
 	// registered patterns, not just the URL with Path == "/".'
 	// (http://golang.org/pkg/net/http/#ServeMux)
 	http.Handle("/", http.NotFoundHandler())
-	_, port, err := net.SplitHostPort(ctx.listenSpec.Address)
-	if err != nil {
-		log.Fatal("Failed to extra port from %q", ctx.listenSpec.Address)
-	}
-	ctx.logger.VI(1).Infof("Listening on port %d.", port)
-	httpErr := http.ListenAndServe(fmt.Sprintf("127.0.0.1:%d", port), nil)
+	ctx.logger.VI(1).Infof("Listening at port %s.", ctx.httpPort)
+	httpErr := http.ListenAndServe(fmt.Sprintf("127.0.0.1:%d", ctx.httpPort), nil)
 	if httpErr != nil {
 		log.Fatalf("Failed to HTTP serve: %s", httpErr)
 	}
@@ -115,7 +111,7 @@ func (ctx WSPR) CleanUpPipe(req *http.Request) {
 }
 
 // Creates a new WebSocket Proxy object.
-func NewWSPR(listenSpec ipc.ListenSpec, identdEP string, opts ...veyron2.ROpt) *WSPR {
+func NewWSPR(httpPort int, listenSpec ipc.ListenSpec, identdEP string, opts ...veyron2.ROpt) *WSPR {
 	if listenSpec.Proxy == "" {
 		log.Fatalf("a veyron proxy must be set")
 	}
@@ -134,12 +130,14 @@ func NewWSPR(listenSpec ipc.ListenSpec, identdEP string, opts ...veyron2.ROpt) *
 		log.Fatalf("identity.NewIDManager failed: %s", err)
 	}
 
-	return &WSPR{listenSpec: listenSpec,
-		identdEP:  identdEP,
-		rt:        newrt,
-		logger:    newrt.Logger(),
-		idManager: idManager,
-		pipes:     map[*http.Request]*pipe{},
+	return &WSPR{
+		httpPort:   httpPort,
+		listenSpec: listenSpec,
+		identdEP:   identdEP,
+		rt:         newrt,
+		logger:     newrt.Logger(),
+		idManager:  idManager,
+		pipes:      map[*http.Request]*pipe{},
 	}
 }
 

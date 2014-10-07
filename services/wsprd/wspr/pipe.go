@@ -193,9 +193,13 @@ func (p *pipe) start(w http.ResponseWriter, req *http.Request) {
 
 // Upon first connect, we send a message with the wsprConfig.
 func (p *pipe) sendInitialMessage() {
+	// TODO(bprosnitz) Use the same root lookup as the rest of veyron so that this is consistent.
 	mounttableRoots := strings.Split(os.Getenv("NAMESPACE_ROOT"), ",")
 	if len(mounttableRoots) == 1 && mounttableRoots[0] == "" {
 		mounttableRoots = []string{}
+	}
+	if mtRoot := os.Getenv("MOUNTTABLE_ROOT"); mtRoot != "" {
+		mounttableRoots = append(mounttableRoots, mtRoot)
 	}
 	msg := wsprConfig{
 		MounttableRoot: mounttableRoots,
