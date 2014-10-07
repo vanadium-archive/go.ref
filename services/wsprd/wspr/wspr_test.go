@@ -13,6 +13,8 @@ import (
 	"veyron.io/veyron/veyron2/ipc"
 	"veyron.io/veyron/veyron2/security"
 	"veyron.io/veyron/veyron2/vdl/vdlutil"
+
+	"veyron.io/veyron/veyron/profiles"
 )
 
 // BEGIN MOCK BLESSER SERVICE
@@ -53,7 +55,9 @@ func (m *mockBlesserService) UnresolveStep(c context.T, co ...ipc.CallOpt) ([]st
 // END MOCK BLESSER SERVICE
 
 func setup(t *testing.T) (*WSPR, func()) {
-	wspr := NewWSPR(0, "/mock/proxy", "/mock/identd")
+	spec := *profiles.LocalListenSpec
+	spec.Proxy = "/mock/proxy"
+	wspr := NewWSPR(spec, "/mock/identd")
 	providerId := wspr.rt.Identity()
 
 	wspr.blesserService = newMockBlesserService(providerId)

@@ -21,17 +21,20 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"net"
 	"net/http"
 	_ "net/http/pprof"
 	"sync"
 	"time"
 
-	veyron_identity "veyron.io/veyron/veyron/services/identity"
-	"veyron.io/veyron/veyron/services/wsprd/identity"
 	"veyron.io/veyron/veyron2"
+	"veyron.io/veyron/veyron2/ipc"
 	"veyron.io/veyron/veyron2/rt"
 	"veyron.io/veyron/veyron2/security"
 	"veyron.io/veyron/veyron2/vlog"
+
+	veyron_identity "veyron.io/veyron/veyron/services/identity"
+	"veyron.io/veyron/veyron/services/wsprd/identity"
 )
 
 const (
@@ -48,9 +51,8 @@ type WSPR struct {
 	tlsCert        *tls.Certificate
 	rt             veyron2.Runtime
 	logger         vlog.Logger
-	port           int
+	listenSpec     ipc.ListenSpec
 	identdEP       string
-	veyronProxyEP  string
 	idManager      *identity.IDManager
 	blesserService veyron_identity.OAuthBlesser
 	pipes          map[*http.Request]*pipe
@@ -91,8 +93,12 @@ func (ctx WSPR) Run() {
 	// registered patterns, not just the URL with Path == "/".'
 	// (http://golang.org/pkg/net/http/#ServeMux)
 	http.Handle("/", http.NotFoundHandler())
-	ctx.logger.VI(1).Infof("Listening on port %d.", ctx.port)
-	httpErr := http.ListenAndServe(fmt.Sprintf("127.0.0.1:%d", ctx.port), nil)
+	_, port, err := net.SplitHostPort(ctx.listenSpec.Address)
+	if err != nil {
+		log.Fatal("Failed to extra port from %q", ctx.listenSpec.Address)
+	}
+	ctx.logger.VI(1).Infof("Listening on port %d.", port)
+	httpErr := http.ListenAndServe(fmt.Sprintf("127.0.0.1:%d", port), nil)
 	if httpErr != nil {
 		log.Fatalf("Failed to HTTP serve: %s", httpErr)
 	}
@@ -109,8 +115,8 @@ func (ctx WSPR) CleanUpPipe(req *http.Request) {
 }
 
 // Creates a new WebSocket Proxy object.
-func NewWSPR(port int, veyronProxyEP, identdEP string, opts ...veyron2.ROpt) *WSPR {
-	if veyronProxyEP == "" {
+func NewWSPR(listenSpec ipc.ListenSpec, identdEP string, opts ...veyron2.ROpt) *WSPR {
+	if listenSpec.Proxy == "" {
 		log.Fatalf("a veyron proxy must be set")
 	}
 	if identdEP == "" {
@@ -128,13 +134,12 @@ func NewWSPR(port int, veyronProxyEP, identdEP string, opts ...veyron2.ROpt) *WS
 		log.Fatalf("identity.NewIDManager failed: %s", err)
 	}
 
-	return &WSPR{port: port,
-		veyronProxyEP: veyronProxyEP,
-		identdEP:      identdEP,
-		rt:            newrt,
-		logger:        newrt.Logger(),
-		idManager:     idManager,
-		pipes:         map[*http.Request]*pipe{},
+	return &WSPR{listenSpec: listenSpec,
+		identdEP:  identdEP,
+		rt:        newrt,
+		logger:    newrt.Logger(),
+		idManager: idManager,
+		pipes:     map[*http.Request]*pipe{},
 	}
 }
 

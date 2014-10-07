@@ -7,15 +7,15 @@ import (
 	"fmt"
 	"sync"
 
+	vsecurity "veyron.io/veyron/veyron/security"
+	"veyron.io/veyron/veyron/services/wsprd/lib"
+	"veyron.io/veyron/veyron/services/wsprd/signature"
+
 	"veyron.io/veyron/veyron2"
 	"veyron.io/veyron/veyron2/ipc"
 	"veyron.io/veyron/veyron2/security"
 	"veyron.io/veyron/veyron2/verror"
 	"veyron.io/veyron/veyron2/vlog"
-
-	vsecurity "veyron.io/veyron/veyron/security"
-	"veyron.io/veyron/veyron/services/wsprd/lib"
-	"veyron.io/veyron/veyron/services/wsprd/signature"
 )
 
 type Flow struct {
@@ -94,6 +94,9 @@ type authRequest struct {
 type Server struct {
 	mu sync.Mutex
 
+	// The ipc.ListenSpec to use with server.Listen
+	listenSpec *ipc.ListenSpec
+
 	// The server that handles the ipc layer.  Listen on this server is
 	// lazily started.
 	server ipc.Server
@@ -109,20 +112,17 @@ type Server struct {
 	id     uint64
 	helper ServerHelper
 
-	// The proxy to listen through.
-	veyronProxy string
-
 	// The set of outstanding server requests.
 	outstandingServerRequests map[int64]chan *serverRPCReply
 
 	outstandingAuthRequests map[int64]chan error
 }
 
-func NewServer(id uint64, veyronProxy string, helper ServerHelper) (*Server, error) {
+func NewServer(id uint64, listenSpec *ipc.ListenSpec, helper ServerHelper) (*Server, error) {
 	server := &Server{
 		id:                        id,
 		helper:                    helper,
-		veyronProxy:               veyronProxy,
+		listenSpec:                listenSpec,
 		outstandingServerRequests: make(map[int64]chan *serverRPCReply),
 		outstandingAuthRequests:   make(map[int64]chan error),
 	}
@@ -252,8 +252,7 @@ func (s *Server) Serve(name string) (string, error) {
 	}
 
 	if s.endpoint == "" {
-		endpoint, err := s.server.Listen("veyron", s.veyronProxy)
-
+		endpoint, err := s.server.ListenX(s.listenSpec)
 		if err != nil {
 			return "", err
 		}

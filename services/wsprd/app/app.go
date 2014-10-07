@@ -93,6 +93,9 @@ type Controller struct {
 	// The runtime to use to create new clients.
 	rt veyron2.Runtime
 
+	// The ipc.ListenSpec to use with server.Listen
+	listenSpec *ipc.ListenSpec
+
 	// Used to generate unique ids for requests initiated by the proxy.
 	// These ids will be even so they don't collide with the ids generated
 	// by the client.
@@ -128,7 +131,7 @@ type Controller struct {
 // javascript server. veyronProxyEP is an endpoint for the veyron proxy to serve through.  It can't be empty.
 // opts are any options that should be passed to the rt.New(), such as the mounttable root.
 func NewController(writerCreator func(id int64) lib.ClientWriter,
-	veyronProxyEP string, opts ...veyron2.ROpt) (*Controller, error) {
+	listenSpec *ipc.ListenSpec, opts ...veyron2.ROpt) (*Controller, error) {
 	r, err := rt.New(opts...)
 	if err != nil {
 		return nil, err
@@ -143,7 +146,7 @@ func NewController(writerCreator func(id int64) lib.ClientWriter,
 		logger:        r.Logger(),
 		client:        client,
 		writerCreator: writerCreator,
-		veyronProxyEP: veyronProxyEP,
+		listenSpec:    listenSpec,
 		idStore:       identity.NewJSPublicIDHandles(),
 	}
 	controller.setup()
@@ -266,6 +269,7 @@ func (c *Controller) Cleanup() {
 	c.logger.VI(0).Info("Cleaning up websocket")
 	c.Lock()
 	defer c.Unlock()
+
 	for _, stream := range c.outstandingStreams {
 		stream.end()
 	}
@@ -409,7 +413,7 @@ func (c *Controller) maybeCreateServer(serverId uint64) (*server.Server, error) 
 	if server, ok := c.servers[serverId]; ok {
 		return server, nil
 	}
-	server, err := server.NewServer(serverId, c.veyronProxyEP, c)
+	server, err := server.NewServer(serverId, c.listenSpec, c)
 	if err != nil {
 		return nil, err
 	}
