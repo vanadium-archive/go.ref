@@ -63,34 +63,6 @@ func TestDebugServer(t *testing.T) {
 			t.Errorf("unexpected value: Got %v, want %v", value, want)
 		}
 	}
-	// Call Glob on __debug
-	{
-		addr := naming.JoinAddressName(ep.String(), "__debug")
-		call, err := client.StartCall(ctx, addr, "Glob", []interface{}{"*"}, veyron2.NoResolveOpt(true))
-		if err != nil {
-			t.Fatalf("client.StartCall failed: %v", err)
-		}
-		results := []string{}
-		for {
-			var me types.MountEntry
-			if err := call.Recv(&me); err != nil {
-				break
-			}
-			results = append(results, me.Name)
-		}
-		if ferr := call.Finish(&err); ferr != nil {
-			t.Fatalf("call.Finish failed: %v", ferr)
-		}
-		sort.Strings(results)
-		want := []string{
-			"logs",
-			"pprof",
-			"stats",
-		}
-		if !reflect.DeepEqual(want, results) {
-			t.Errorf("unexpected results. Got %v, want %v", results, want)
-		}
-	}
 	// Call Value on __debug/stats/testing/foo
 	{
 		foo := stats.NewString("testing/foo")
@@ -109,6 +81,39 @@ func TestDebugServer(t *testing.T) {
 		}
 		if want := foo.Value(); value != want {
 			t.Errorf("unexpected result: Got %v, want %v", value, want)
+		}
+	}
+
+	// Call Glob
+	testcases := []struct {
+		name, pattern string
+		expected      []string
+	}{
+		{"", "*", []string{}},
+		{"", "__*", []string{"__debug"}},
+		{"", "__*/*", []string{"__debug/logs", "__debug/pprof", "__debug/stats"}},
+		{"__debug", "*", []string{"logs", "pprof", "stats"}},
+	}
+	for _, tc := range testcases {
+		addr := naming.JoinAddressName(ep.String(), "//"+tc.name)
+		call, err := client.StartCall(ctx, addr, "Glob", []interface{}{tc.pattern})
+		if err != nil {
+			t.Fatalf("client.StartCall failed: %v", err)
+		}
+		results := []string{}
+		for {
+			var me types.MountEntry
+			if err := call.Recv(&me); err != nil {
+				break
+			}
+			results = append(results, me.Name)
+		}
+		if ferr := call.Finish(&err); ferr != nil {
+			t.Fatalf("call.Finish failed: %v", ferr)
+		}
+		sort.Strings(results)
+		if !reflect.DeepEqual(tc.expected, results) {
+			t.Errorf("unexpected results. Got %v, want %v", results, tc.expected)
 		}
 	}
 }
