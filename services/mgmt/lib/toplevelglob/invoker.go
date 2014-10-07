@@ -28,6 +28,9 @@ func (i *invoker) Glob(call ipc.ServerCall, pattern string) error {
 	if err != nil {
 		return err
 	}
+	if g.Len() == 0 {
+		call.Send(types.MountEntry{Name: ""})
+	}
 	for _, leaf := range i.leaves {
 		if ok, _, left := g.MatchInitialSegment(leaf); ok {
 			if err := i.leafGlob(call, leaf, left.String()); err != nil {

@@ -9,6 +9,7 @@ import (
 	"sync"
 	"time"
 
+	"veyron.io/veyron/veyron/lib/glob"
 	"veyron.io/veyron/veyron/lib/netstate"
 	"veyron.io/veyron/veyron/runtimes/google/lib/publisher"
 	inaming "veyron.io/veyron/veyron/runtimes/google/naming"
@@ -26,6 +27,7 @@ import (
 	"veyron.io/veyron/veyron2/ipc/stream"
 	"veyron.io/veyron/veyron2/naming"
 	"veyron.io/veyron/veyron2/security"
+	mttypes "veyron.io/veyron/veyron2/services/mounttable/types"
 	"veyron.io/veyron/veyron2/verror"
 	"veyron.io/veyron/veyron2/vlog"
 	"veyron.io/veyron/veyron2/vom"
@@ -805,6 +807,9 @@ func (fs *flowServer) processRequest() ([]interface{}, verror.E) {
 // and dispatch suffix are also returned.
 func (fs *flowServer) lookup(name, method string) (ipc.Invoker, security.Authorizer, string, verror.E) {
 	name = strings.TrimLeft(name, "/")
+	if method == "Glob" && len(name) == 0 {
+		return ipc.ReflectInvoker(&globInvoker{fs}), &acceptAllAuthorizer{}, name, nil
+	}
 	disp := fs.disp
 	if name == ipc.DebugKeyword || strings.HasPrefix(name, ipc.DebugKeyword+"/") {
 		name = strings.TrimPrefix(name, ipc.DebugKeyword)
@@ -820,7 +825,98 @@ func (fs *flowServer) lookup(name, method string) (ipc.Invoker, security.Authori
 			return invoker, auth, name, nil
 		}
 	}
-	return nil, nil, "", verror.NoExistf(fmt.Sprintf("ipc: dispatcher not found for %q", name))
+	return nil, nil, "", verror.NoExistf("ipc: invoker not found for %q", name)
+}
+
+type acceptAllAuthorizer struct{}
+
+func (acceptAllAuthorizer) Authorize(security.Context) error {
+	return nil
+}
+
+type globInvoker struct {
+	fs *flowServer
+}
+
+// Glob matches the pattern against internal object names if the double-
+// underscore prefix is explicitly part of the pattern. Otherwise, it invokes
+// the service's Glob method.
+func (i *globInvoker) Glob(call ipc.ServerCall, pattern string) error {
+	g, err := glob.Parse(pattern)
+	if err != nil {
+		return err
+	}
+	if strings.HasPrefix(pattern, "__") {
+		var err error
+		// Match against internal object names.
+		internalLeaves := []string{ipc.DebugKeyword}
+		for _, leaf := range internalLeaves {
+			if ok, _, left := g.MatchInitialSegment(leaf); ok {
+				if ierr := i.invokeGlob(call, i.fs.debugDisp, leaf, left.String()); ierr != nil {
+					err = ierr
+				}
+			}
+		}
+		return err
+	}
+	// Invoke the service's method.
+	return i.invokeGlob(call, i.fs.disp, "", pattern)
+}
+
+func (i *globInvoker) invokeGlob(call ipc.ServerCall, d ipc.Dispatcher, prefix, pattern string) error {
+	if d == nil {
+		return nil
+	}
+	invoker, auth, err := d.Lookup("", "Glob")
+	if err != nil {
+		return err
+	}
+	if invoker == nil {
+		return verror.NoExistf("ipc: invoker not found for Glob")
+	}
+
+	argptrs, label, err := invoker.Prepare("Glob", 1)
+	i.fs.label = label
+	if err != nil {
+		return verror.Makef(verror.ErrorID(err), "%s", err)
+	}
+	if err := i.fs.authorize(auth); err != nil {
+		return errNotAuthorized(fmt.Errorf("%q not authorized for method %q: %v", i.fs.RemoteID(), i.fs.Method(), err))
+	}
+	leafCall := &localServerCall{call, prefix}
+	argptrs[0] = &pattern
+	results, err := invoker.Invoke("Glob", leafCall, argptrs)
+	if err != nil {
+		return err
+	}
+	if len(results) != 1 {
+		return verror.BadArgf("unexpected number of results. Got %d, want 1", len(results))
+	}
+	res := results[0]
+	if res == nil {
+		return nil
+	}
+	err, ok := res.(error)
+	if !ok {
+		return verror.BadArgf("unexpected result type. Got %T, want error", res)
+	}
+	return err
+}
+
+// An ipc.ServerCall that prepends a prefix to all the names in the streamed
+// MountEntry objects.
+type localServerCall struct {
+	ipc.ServerCall
+	prefix string
+}
+
+func (c *localServerCall) Send(v interface{}) error {
+	me, ok := v.(mttypes.MountEntry)
+	if !ok {
+		return verror.BadArgf("unexpected stream type. Got %T, want MountEntry", v)
+	}
+	me.Name = naming.Join(c.prefix, me.Name)
+	return c.ServerCall.Send(me)
 }
 
 func (fs *flowServer) authorize(auth security.Authorizer) error {
