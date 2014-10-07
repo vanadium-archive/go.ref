@@ -13,14 +13,26 @@ import (
 	"veyron.io/veyron/veyron/lib/stats"
 	"veyron.io/veyron/veyron/profiles"
 	"veyron.io/veyron/veyron/runtimes/google/ipc/stream/manager"
+	"veyron.io/veyron/veyron/runtimes/google/ipc/stream/sectest"
+	"veyron.io/veyron/veyron/runtimes/google/ipc/stream/vc"
 	tnaming "veyron.io/veyron/veyron/runtimes/google/testing/mocks/naming"
 )
 
 func TestDebugServer(t *testing.T) {
+	// Setup the client and server principals, with the client willing to share its
+	// blessing with the server.
+	var (
+		pclient = sectest.NewPrincipal("client")
+		pserver = sectest.NewPrincipal("server")
+		bclient = bless(pserver, pclient, "client") // server/client blessing.
+	)
+	pclient.AddToRoots(bclient)                    // Client recognizes "server" as a root of blessings.
+	pclient.BlessingStore().Set(bclient, "server") // Client presents bclient to server
+
 	sm := manager.InternalNew(naming.FixedRoutingID(0x555555555))
 	defer sm.Shutdown()
 	ns := tnaming.NewSimpleNamespace()
-	server, err := InternalNewServer(testContext(), sm, ns)
+	server, err := InternalNewServer(testContext(), sm, ns, vc.LocalPrincipal{pserver})
 	if err != nil {
 		t.Fatalf("InternalNewServer failed: %v", err)
 	}
@@ -30,7 +42,7 @@ func TestDebugServer(t *testing.T) {
 	if err != nil {
 		t.Fatalf("server.Listen failed: %v", err)
 	}
-	client, err := InternalNewClient(sm, ns)
+	client, err := InternalNewClient(sm, ns, vc.LocalPrincipal{pclient})
 	if err != nil {
 		t.Fatalf("InternalNewClient failed: %v", err)
 	}

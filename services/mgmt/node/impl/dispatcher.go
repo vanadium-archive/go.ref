@@ -124,16 +124,17 @@ func (d *dispatcher) getACLFilePaths() (acl, signature, nodedata string) {
 	return
 }
 
-func (d *dispatcher) claimNodeManager(id security.PublicID) error {
+func (d *dispatcher) claimNodeManager(names []string, proof security.Blessings) error {
 	// TODO(gauthamt): Should we start trusting these identity providers?
-	if id.Names() == nil {
-		vlog.Errorf("Identity provider for device claimer is not trusted")
+	if len(names) == 0 {
+		vlog.Errorf("No names for claimer(%v) are trusted", proof)
 		return errOperationFailed
 	}
-	rt.R().PublicIDStore().Add(id, security.AllPrincipals)
+	rt.R().Principal().BlessingStore().Set(proof, security.AllPrincipals)
+	rt.R().Principal().BlessingStore().SetDefault(proof)
 	// Create ACLs to transfer nodemanager permissions to the provided identity.
 	acl := security.ACL{In: make(map[security.BlessingPattern]security.LabelSet)}
-	for _, name := range id.Names() {
+	for _, name := range names {
 		acl.In[security.BlessingPattern(name)] = security.AllLabels
 	}
 	_, etag, err := d.getACL()

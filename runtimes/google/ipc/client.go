@@ -41,8 +41,8 @@ type client struct {
 	// vcMap.  Everything else is initialized upon client construction, and safe
 	// to use concurrently.
 	vcMapMu sync.Mutex
-	// TODO(ashankar): Additionally, should vcMap be keyed with other options also?
-	vcMap map[string]*vcInfo // map from endpoint.String() to vc info
+	// TODO(ashankar): The key should be a function of the blessings shared with the server?
+	vcMap map[string]*vcInfo // map key is endpoint.String
 
 	dischargeCache dischargeCache
 }
@@ -50,7 +50,6 @@ type client struct {
 type vcInfo struct {
 	vc       stream.VC
 	remoteEP naming.Endpoint
-	// TODO(toddw): Add type and cancel flows.
 }
 
 func InternalNewClient(streamMgr stream.Manager, ns naming.Namespace, opts ...ipc.ClientOpt) (ipc.Client, error) {
@@ -88,7 +87,6 @@ func (c *client) createFlow(ep naming.Endpoint) (stream.Flow, error) {
 	if err != nil {
 		return nil, err
 	}
-	// TODO(toddw): Add connections for the type and cancel flows.
 	c.vcMap[ep.String()] = &vcInfo{vc: vc, remoteEP: ep}
 	return vc.Connect()
 }
@@ -237,17 +235,22 @@ func (c *client) startCall(ctx context.T, name, method string, args []interface{
 		flow.SetDeadline(ctx.Done())
 
 		// Validate caveats on the server's identity for the context associated with this call.
-		blessing, err := authorizeServer(flow.LocalID(), flow.RemoteID(), opts)
+		serverB, grantedB, err := c.authorizeServer(flow, name, suffix, method, opts)
 		if err != nil {
-			lastErr = verror.NoAccessf("ipc: client unwilling to talk to server %q: %v", flow.RemoteID(), err)
+			lastErr = verror.NoAccessf("ipc: client unwilling to invoke %q.%q on server %v: %v", name, method, flow.RemoteBlessings(), err)
 			flow.Close()
 			continue
 		}
-
-		discharges := c.prepareDischarges(ctx, flow.LocalID(), flow.RemoteID(), method, args, opts)
+		// Fetch any discharges for third-party caveats on the client's blessings.
+		var discharges []security.Discharge
+		if self := flow.LocalBlessings(); self != nil {
+			if tpcavs := self.ThirdPartyCaveats(); len(tpcavs) > 0 {
+				discharges = c.prepareDischarges(ctx, tpcavs, mkDischargeImpetus(serverB, method, args), opts)
+			}
+		}
 
 		lastErr = nil
-		fc := newFlowClient(ctx, flow, &c.dischargeCache, discharges)
+		fc := newFlowClient(ctx, serverB, flow, &c.dischargeCache, discharges)
 
 		if doneChan := ctx.Done(); doneChan != nil {
 			go func() {
@@ -263,7 +266,7 @@ func (c *client) startCall(ctx context.T, name, method string, args []interface{
 		if deadline, hasDeadline := ctx.Deadline(); hasDeadline {
 			timeout = deadline.Sub(time.Now())
 		}
-		if verr := fc.start(suffix, method, args, timeout, blessing); verr != nil {
+		if verr := fc.start(suffix, method, args, timeout, grantedB); verr != nil {
 			return nil, verr
 		}
 		return fc, nil
@@ -277,43 +280,55 @@ func (c *client) startCall(ctx context.T, name, method string, args []interface{
 	return nil, errNoServers
 }
 
-// authorizeServer validates that server has an identity that the client is willing to converse
-// with, and if so returns a blessing to be provided to the server. This blessing can be nil,
-// which indicates that the client does wish to talk to the server but not provide any blessings.
-func authorizeServer(client, server security.PublicID, opts []ipc.CallOpt) (security.PublicID, error) {
-	if server == nil {
-		return nil, fmt.Errorf("server identity cannot be nil")
+// authorizeServer validates that the server (remote end of flow) has the credentials to serve
+// the RPC name.method for the client (local end of the flow). It returns the blessings at the
+// server that are authorized for this purpose and any blessings that are to be granted to
+// the server (via ipc.Granter implementations in opts.)
+func (c *client) authorizeServer(flow stream.Flow, name, suffix, method string, opts []ipc.CallOpt) (serverBlessings []string, grantedBlessings security.Blessings, err error) {
+	if flow.RemoteID() == nil && flow.RemoteBlessings() == nil {
+		return nil, nil, fmt.Errorf("server has not presented any blessings")
 	}
-
-	// TODO(ataly): What should the label be for the context? Typically the label is the
-	// security.Label of the method but we don't have that information here at the client.
-	authID, err := server.Authorize(isecurity.NewContext(isecurity.ContextArgs{
-		LocalID:  client,
-		RemoteID: server,
-	}))
-	if err != nil {
-		return nil, err
+	authctx := isecurity.NewContext(isecurity.ContextArgs{
+		LocalID:         flow.LocalID(),
+		RemoteID:        flow.RemoteID(),
+		Debug:           "ClientAuthorizingServer",
+		LocalPrincipal:  flow.LocalPrincipal(),
+		LocalBlessings:  flow.LocalBlessings(),
+		RemoteBlessings: flow.RemoteBlessings(),
+		/* TODO(ashankar,ataly): Uncomment this! This is disabled till the hack to skip third-party caveat
+		validation on a server's blessings are disabled. Commenting out the next three lines affects more
+		than third-party caveats, so yeah, have to remove this soon!
+		Method:          method,
+		Name:            name,
+		Suffix:          suffix, */
+		LocalEndpoint:  flow.LocalEndpoint(),
+		RemoteEndpoint: flow.RemoteEndpoint(),
+	})
+	if serverID := flow.RemoteID(); flow.RemoteBlessings() == nil && serverID != nil {
+		serverID, err = serverID.Authorize(authctx)
+		if err != nil {
+			return nil, nil, err
+		}
+		serverBlessings = serverID.Names()
 	}
-	var granter ipc.Granter
+	if server := flow.RemoteBlessings(); server != nil {
+		serverBlessings = server.ForContext(authctx)
+	}
 	for _, o := range opts {
 		switch v := o.(type) {
 		case veyron2.RemoteID:
-			if !security.BlessingPattern(v).MatchedBy(authID.Names()...) {
-				return nil, fmt.Errorf("server %q does not match the provided pattern %q", authID, v)
+			if !security.BlessingPattern(v).MatchedBy(serverBlessings...) {
+				return nil, nil, fmt.Errorf("server %v does not match the provided pattern %q", serverBlessings, v)
 			}
 		case ipc.Granter:
-			// Later Granters take precedence over earlier ones.
-			// Or should fail if there are multiple provided?
-			granter = v
+			if b, err := v.Grant(flow.RemoteBlessings()); err != nil {
+				return nil, nil, fmt.Errorf("failed to grant blessing to server %v: %v", serverBlessings, err)
+			} else if grantedBlessings, err = security.UnionOfBlessings(grantedBlessings, b); err != nil {
+				return nil, nil, fmt.Errorf("failed to add blessing granted to server %v: %v", serverBlessings, err)
+			}
 		}
 	}
-	var blessing security.PublicID
-	if granter != nil {
-		if blessing, err = granter.Grant(authID); err != nil {
-			return nil, fmt.Errorf("failed to grant credentials to server %q: %v", authID, err)
-		}
-	}
-	return blessing, nil
+	return serverBlessings, grantedBlessings, nil
 }
 
 func (c *client) Close() {
@@ -339,6 +354,7 @@ type flowClient struct {
 	ctx      context.T    // context to annotate with call details
 	dec      *vom.Decoder // to decode responses and results from the server
 	enc      *vom.Encoder // to encode requests and args to the server
+	server   []string     // Blessings bound to the server that authorize it to receive the IPC request from the client.
 	flow     stream.Flow  // the underlying flow
 	response ipc.Response // each decoded response message is kept here
 
@@ -351,12 +367,12 @@ type flowClient struct {
 	finished bool // has Finish() already been called?
 }
 
-func newFlowClient(ctx context.T, flow stream.Flow, dischargeCache *dischargeCache, discharges []security.Discharge) *flowClient {
+func newFlowClient(ctx context.T, server []string, flow stream.Flow, dischargeCache *dischargeCache, discharges []security.Discharge) *flowClient {
 	return &flowClient{
-		// TODO(toddw): Support different codecs
 		ctx:            ctx,
 		dec:            vom.NewDecoder(flow),
 		enc:            vom.NewEncoder(flow),
+		server:         server,
 		flow:           flow,
 		discharges:     discharges,
 		dischargeCache: dischargeCache,
@@ -370,24 +386,18 @@ func (fc *flowClient) close(verr verror.E) verror.E {
 	return verr
 }
 
-func (fc *flowClient) start(suffix, method string, args []interface{}, timeout time.Duration, blessing security.PublicID) verror.E {
-
+func (fc *flowClient) start(suffix, method string, args []interface{}, timeout time.Duration, blessings security.Blessings) verror.E {
 	req := ipc.Request{
-		Suffix:        suffix,
-		Method:        method,
-		NumPosArgs:    uint64(len(args)),
-		Timeout:       int64(timeout),
-		HasBlessing:   blessing != nil,
-		NumDischarges: uint64(len(fc.discharges)),
-		TraceRequest:  vtrace.Request(fc.ctx),
+		Suffix:           suffix,
+		Method:           method,
+		NumPosArgs:       uint64(len(args)),
+		Timeout:          int64(timeout),
+		GrantedBlessings: security.MarshalBlessings(blessings),
+		NumDischarges:    uint64(len(fc.discharges)),
+		TraceRequest:     vtrace.Request(fc.ctx),
 	}
 	if err := fc.enc.Encode(req); err != nil {
 		return fc.close(verror.BadProtocolf("ipc: request encoding failed: %v", err))
-	}
-	if blessing != nil {
-		if err := fc.enc.Encode(blessing); err != nil {
-			return fc.close(verror.BadProtocolf("ipc: blessing encoding failed: %v", err))
-		}
 	}
 	for _, d := range fc.discharges {
 		if err := fc.enc.Encode(d); err != nil {
@@ -551,6 +561,5 @@ func (fc *flowClient) Cancel() {
 }
 
 func (fc *flowClient) RemoteBlessings() ([]string, security.Blessings) {
-	// TODO(ashankar): Fill in the second result once the switch to the new API is complete.
-	return fc.flow.RemoteID().Names(), nil
+	return fc.server, fc.flow.RemoteBlessings()
 }

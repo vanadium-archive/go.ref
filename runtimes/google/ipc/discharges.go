@@ -11,31 +11,40 @@ import (
 	"veyron.io/veyron/veyron2/vlog"
 )
 
-// prepareDischarges retrieves the caveat discharges required for using blessing
+func mkDischargeImpetus(serverBlessings []string, method string, args []interface{}) security.DischargeImpetus {
+	var impetus security.DischargeImpetus
+	if len(serverBlessings) > 0 {
+		impetus.Server = make([]security.BlessingPattern, len(serverBlessings))
+		for i, b := range serverBlessings {
+			impetus.Server[i] = security.BlessingPattern(b)
+		}
+	}
+	impetus.Method = method
+	if len(args) > 0 {
+		impetus.Arguments = make([]vdlutil.Any, len(args))
+		for i, a := range args {
+			impetus.Arguments[i] = vdlutil.Any(a)
+		}
+	}
+	return impetus
+}
+
+// prepareDischarges retrieves the caveat discharges required for using blessings
 // at server. The discharges are either found in the client cache, in the call
 // options, or requested from the discharge issuer indicated on the caveat.
 // Note that requesting a discharge is an ipc call, so one copy of this
 // function must be able to successfully terminate while another is blocked.
-func (c *client) prepareDischarges(ctx context.T, blessing, server security.PublicID, method string, args []interface{}, opts []ipc.CallOpt) (ret []security.Discharge) {
-	// TODO(andreser,ataly): figure out whether this should return an error and how that should be handled
-	// Missing discharges do not necessarily mean the blessing is invalid (e.g., SetID)
-	if blessing == nil {
-		return
-	}
-
+func (c *client) prepareDischarges(ctx context.T, forcaveats []security.ThirdPartyCaveat, impetus security.DischargeImpetus, opts []ipc.CallOpt) (ret []security.Discharge) {
+	// Make a copy since this copy will be mutated.
 	var caveats []security.ThirdPartyCaveat
-	for _, cav := range blessing.ThirdPartyCaveats() {
+	for _, cav := range forcaveats {
 		caveats = append(caveats, cav)
 	}
-	if len(caveats) == 0 {
-		return
-	}
-
 	discharges := make([]security.Discharge, len(caveats))
 	dischargesFromOpts(caveats, opts, discharges)
 	c.dischargeCache.Discharges(caveats, discharges)
 	if shouldFetchDischarges(opts) {
-		c.fetchDischarges(ctx, caveats, server, method, args, opts, discharges)
+		c.fetchDischarges(ctx, caveats, impetus, opts, discharges)
 	}
 	for _, d := range discharges {
 		if d != nil {
@@ -110,7 +119,7 @@ func dischargesFromOpts(caveats []security.ThirdPartyCaveat, opts []ipc.CallOpt,
 // caveats, fetchDischarges keeps retrying until either all discharges can be
 // fetched or no new discharges are fetched.
 // REQUIRES: len(caveats) == len(out)
-func (c *client) fetchDischarges(ctx context.T, caveats []security.ThirdPartyCaveat, server security.PublicID, method string, args []interface{}, opts []ipc.CallOpt, out []security.Discharge) {
+func (c *client) fetchDischarges(ctx context.T, caveats []security.ThirdPartyCaveat, impetus security.DischargeImpetus, opts []ipc.CallOpt, out []security.Discharge) {
 	opts = append([]ipc.CallOpt{dontFetchDischarges{}}, opts...)
 	var wg sync.WaitGroup
 	for {
@@ -127,7 +136,7 @@ func (c *client) fetchDischarges(ctx context.T, caveats []security.ThirdPartyCav
 			go func(i int, cav security.ThirdPartyCaveat) {
 				defer wg.Done()
 				vlog.VI(3).Infof("Fetching discharge for %T from %v (%+v)", cav, cav.Location(), cav.Requirements())
-				call, err := c.StartCall(ctx, cav.Location(), "Discharge", []interface{}{cav, impetus(cav.Requirements(), server, method, args)}, opts...)
+				call, err := c.StartCall(ctx, cav.Location(), "Discharge", []interface{}{cav, filteredImpetus(cav.Requirements(), impetus)}, opts...)
 				if err != nil {
 					vlog.VI(3).Infof("Discharge fetch for caveat %T from %v failed: %v", cav, cav.Location(), err)
 					return
@@ -161,21 +170,21 @@ func (c *client) fetchDischarges(ctx context.T, caveats []security.ThirdPartyCav
 	}
 }
 
-func impetus(r security.ThirdPartyRequirements, server security.PublicID, method string, args []interface{}) (impetus security.DischargeImpetus) {
-	if r.ReportServer {
-		names := server.Names()
-		impetus.Server = make([]security.BlessingPattern, len(names))
-		for i, n := range names {
-			impetus.Server[i] = security.BlessingPattern(n)
+// filteredImpetus returns a copy of 'before' after removing any values that are not required as per 'r'.
+func filteredImpetus(r security.ThirdPartyRequirements, before security.DischargeImpetus) (after security.DischargeImpetus) {
+	if r.ReportServer && len(before.Server) > 0 {
+		after.Server = make([]security.BlessingPattern, len(before.Server))
+		for i := range before.Server {
+			after.Server[i] = before.Server[i]
 		}
 	}
 	if r.ReportMethod {
-		impetus.Method = method
+		after.Method = before.Method
 	}
-	if r.ReportArguments {
-		impetus.Arguments = make([]vdlutil.Any, len(args))
-		for i, a := range args {
-			impetus.Arguments[i] = vdlutil.Any(a)
+	if r.ReportArguments && len(before.Arguments) > 0 {
+		after.Arguments = make([]vdlutil.Any, len(before.Arguments))
+		for i := range before.Arguments {
+			after.Arguments[i] = before.Arguments[i]
 		}
 	}
 	return

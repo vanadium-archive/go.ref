@@ -91,12 +91,12 @@ type nodeInvoker struct {
 }
 
 func (i *nodeInvoker) Claim(call ipc.ServerContext) error {
-	// Get the blessing to be used by the claimant
-	blessing := call.Blessing()
-	if blessing == nil {
+	// Get the blessing to be used by the claimant.
+	blessings := call.Blessings()
+	if blessings == nil {
 		return errInvalidBlessing
 	}
-	return i.disp.claimNodeManager(blessing)
+	return i.disp.claimNodeManager(blessings.ForContext(call), blessings)
 }
 
 func (*nodeInvoker) Describe(ipc.ServerContext) (node.Description, error) {

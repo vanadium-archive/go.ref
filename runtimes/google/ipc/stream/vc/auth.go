@@ -264,7 +264,7 @@ func authenticateAsClient(conn io.ReadWriteCloser, principal security.Principal,
 	})
 	client = principal.BlessingStore().ForPeer(serverB...)
 	if client == nil {
-		return nil, nil, fmt.Errorf("No blessing tagged for peer %v in the BlessingStore", serverB)
+		return nil, nil, fmt.Errorf("no blessing tagged for peer %v in the BlessingStore", serverB)
 	}
 	if err = writeBlessings(conn, authClientContextTag, crypter, principal, client, v); err != nil {
 		return nil, nil, err

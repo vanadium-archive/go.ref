@@ -10,9 +10,11 @@ import (
 	"veyron.io/veyron/veyron2/security/sectest"
 )
 
-// NewPrincipal creates a new security.Principal which provides
-// defaultBlessing in BlessingStore().Default().
-func NewPrincipal(defaultBlessing string) security.Principal {
+// NewPrincipal creates a new security.Principal.
+//
+// It also creates self-certified blessings for defaultBlessings and
+// sets them up as BlessingStore().Default() (if any are provided).
+func NewPrincipal(defaultBlessings ...string) security.Principal {
 	_, key, err := sectest.NewKey()
 	if err != nil {
 		panic(err)
@@ -23,12 +25,25 @@ func NewPrincipal(defaultBlessing string) security.Principal {
 	if err != nil {
 		panic(err)
 	}
-	def, err := p.BlessSelf(defaultBlessing)
-	if err != nil {
-		panic(err)
+
+	var def security.Blessings
+	for _, blessing := range defaultBlessings {
+		b, err := p.BlessSelf(blessing)
+		if err != nil {
+			panic(err)
+		}
+		if def, err = security.UnionOfBlessings(def, b); err != nil {
+			panic(err)
+		}
 	}
-	p.BlessingStore().SetDefault(def)
-	p.AddToRoots(def)
+	if def != nil {
+		if err := p.BlessingStore().SetDefault(def); err != nil {
+			panic(err)
+		}
+		if err := p.AddToRoots(def); err != nil {
+			panic(err)
+		}
+	}
 	return p
 }
 

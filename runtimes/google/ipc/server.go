@@ -565,7 +565,7 @@ type flowServer struct {
 	// authorizedRemoteID is the PublicID obtained after authorizing the remoteID
 	// of the underlying flow for the current request context.
 	authorizedRemoteID security.PublicID
-	blessing           security.PublicID
+	blessings          security.Blessings
 	method, suffix     string
 	label              security.Label
 	discharges         map[string]security.Discharge
@@ -620,15 +620,18 @@ func result2vom(res interface{}) vom.Value {
 	return v
 }
 
-func defaultACL(id security.PublicID) security.ACL {
-	if id == nil {
-		return security.ACL{}
+func defaultAuthorizer(ctx security.Context) security.Authorizer {
+	var blessings []string
+	if ctx.LocalBlessings() == nil { // TODO(ashankar): This will go away once the old security model is removed
+		blessings = ctx.LocalID().Names()
+	} else {
+		blessings = ctx.LocalBlessings().ForContext(ctx)
 	}
-	in := map[security.BlessingPattern]security.LabelSet{}
-	for _, n := range id.Names() {
-		in[security.BlessingPattern(n+security.ChainSeparator+string(security.AllPrincipals))] = security.AllLabels
+	acl := security.ACL{In: make(map[security.BlessingPattern]security.LabelSet)}
+	for _, b := range blessings {
+		acl.In[security.BlessingPattern(b).MakeGlob()] = security.AllLabels
 	}
-	return security.ACL{In: in}
+	return vsecurity.NewACLAuthorizer(acl)
 }
 
 func (fs *flowServer) serve() error {
@@ -730,18 +733,17 @@ func (fs *flowServer) processRequest() ([]interface{}, verror.E) {
 	}()
 
 	// If additional credentials are provided, make them available in the context
-	if req.HasBlessing {
-		if err := fs.dec.Decode(&fs.blessing); err != nil {
-			return nil, verror.BadProtocolf("ipc: blessing decoding failed: %v", err)
-		}
-		// Detect unusable blessings now, rather then discovering they are unusable on first use.
-		if !reflect.DeepEqual(fs.blessing.PublicKey(), fs.flow.LocalID().PublicKey()) {
-			return nil, verror.BadProtocolf("ipc: blessing provided not bound to this server")
-		}
-		// TODO(ashankar,ataly): Potential confused deputy attack: The client provides the
-		// server's identity as the blessing. Figure out what we want to do about this -
-		// should servers be able to assume that a blessing is something that does not
-		// have the authorizations that the server's own identity has?
+	var err error
+	if fs.blessings, err = security.NewBlessings(req.GrantedBlessings); err != nil {
+		return nil, verror.BadProtocolf("ipc: failed to decode granted blessings: %v", err)
+	}
+	// Detect unusable blessings now, rather then discovering they are unusable on first use.
+	// TODO(ashankar,ataly): Potential confused deputy attack: The client provides the
+	// server's identity as the blessing. Figure out what we want to do about this -
+	// should servers be able to assume that a blessing is something that does not
+	// have the authorizations that the server's own identity has?
+	if fs.blessings != nil && !reflect.DeepEqual(fs.blessings.PublicKey(), fs.flow.LocalPrincipal().PublicKey()) {
+		return nil, verror.BadProtocolf("ipc: blessing granted not bound to this server(%v vs %v)", fs.blessings.PublicKey(), fs.flow.LocalPrincipal().PublicKey())
 	}
 	// Receive third party caveat discharges the client sent
 	for i := uint64(0); i < req.NumDischarges; i++ {
@@ -772,8 +774,8 @@ func (fs *flowServer) processRequest() ([]interface{}, verror.E) {
 			return nil, verror.BadProtocolf("ipc: arg %d decoding failed: %v", ix, err)
 		}
 	}
-	// Authorize the PublicID at the remote end of the flow for the request context.
 	if remoteID := fs.flow.RemoteID(); remoteID != nil {
+		// TODO(ashankar): This whole check goes away once the old security model is ripped out.
 		if fs.authorizedRemoteID, err = remoteID.Authorize(isecurity.NewContext(
 			isecurity.ContextArgs{
 				LocalID:    fs.flow.LocalID(),
@@ -788,7 +790,7 @@ func (fs *flowServer) processRequest() ([]interface{}, verror.E) {
 	// Check application's authorization policy and invoke the method.
 	if err := fs.authorize(auth); err != nil {
 		// TODO(ataly, ashankar): For privacy reasons, should we hide the authorizer error (err)?
-		return nil, errNotAuthorized(fmt.Errorf("%q not authorized for method %q: %v", fs.RemoteID(), fs.Method(), err))
+		return nil, errNotAuthorized(fmt.Errorf("%v (PublicID:%v) not authorized for  %q.%q: %v", fs.RemoteBlessings(), fs.RemoteID(), fs.Name(), fs.Method(), err))
 	}
 	// Check if the caller is permitted to view debug information.
 	fs.allowDebug = fs.authorizeForDebug(auth) == nil
@@ -824,14 +826,10 @@ func (fs *flowServer) lookup(name, method string) (ipc.Invoker, security.Authori
 }
 
 func (fs *flowServer) authorize(auth security.Authorizer) error {
-	if auth != nil {
-		return auth.Authorize(fs)
+	if auth == nil {
+		auth = defaultAuthorizer(fs)
 	}
-	// Since the provided authorizer is nil we create a default IDAuthorizer
-	// for the local identity of the flow. This authorizer only authorizes
-	// remote identities that have either been blessed by the local identity
-	// or have blessed the local identity. (See vsecurity.NewACLAuthorizer)
-	return vsecurity.NewACLAuthorizer(defaultACL(fs.flow.LocalID())).Authorize(fs)
+	return auth.Authorize(fs)
 }
 
 // debugContext is a context which wraps another context but always returns
@@ -845,14 +843,10 @@ func (debugContext) Label() security.Label { return security.DebugLabel }
 // TODO(mattr): Is DebugLabel the right thing to check?
 func (fs *flowServer) authorizeForDebug(auth security.Authorizer) error {
 	dc := debugContext{fs}
-	if auth != nil {
-		return auth.Authorize(dc)
+	if auth == nil {
+		auth = defaultAuthorizer(dc)
 	}
-	// Since the provided authorizer is nil we create a default IDAuthorizer
-	// for the local identity of the flow. This authorizer only authorizes
-	// remote identities that have either been blessed by the local identity
-	// or have blessed the local identity. (See vsecurity.NewACLAuthorizer)
-	return vsecurity.NewACLAuthorizer(defaultACL(dc.LocalID())).Authorize(dc)
+	return auth.Authorize(dc)
 }
 
 // Send implements the ipc.Stream method.
@@ -920,19 +914,19 @@ func (fs *flowServer) RemoteID() security.PublicID {
 }
 func (fs *flowServer) LocalPrincipal() security.Principal {
 	//nologcall
-	return nil
+	return fs.flow.LocalPrincipal()
 }
 func (fs *flowServer) LocalBlessings() security.Blessings {
 	//nologcall
-	return nil
+	return fs.flow.LocalBlessings()
 }
 func (fs *flowServer) RemoteBlessings() security.Blessings {
 	//nologcall
-	return nil
+	return fs.flow.RemoteBlessings()
 }
-func (fs *flowServer) Blessing() security.PublicID {
+func (fs *flowServer) Blessings() security.Blessings {
 	//nologcall
-	return fs.blessing
+	return fs.blessings
 }
 func (fs *flowServer) LocalEndpoint() naming.Endpoint {
 	//nologcall

@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io"
 	"net"
-	"os"
 	"reflect"
 	"strings"
 	"sync"
@@ -15,15 +14,14 @@ import (
 	"veyron.io/veyron/veyron/lib/netstate"
 	_ "veyron.io/veyron/veyron/lib/testutil"
 	"veyron.io/veyron/veyron/lib/testutil/blackbox"
-	tsecurity "veyron.io/veyron/veyron/lib/testutil/security"
 	"veyron.io/veyron/veyron/profiles"
 	imanager "veyron.io/veyron/veyron/runtimes/google/ipc/stream/manager"
 	"veyron.io/veyron/veyron/runtimes/google/ipc/stream/proxy"
+	"veyron.io/veyron/veyron/runtimes/google/ipc/stream/sectest"
 	"veyron.io/veyron/veyron/runtimes/google/ipc/stream/vc"
 	"veyron.io/veyron/veyron/runtimes/google/ipc/version"
 	"veyron.io/veyron/veyron/runtimes/google/lib/publisher"
 	inaming "veyron.io/veyron/veyron/runtimes/google/naming"
-	isecurity "veyron.io/veyron/veyron/runtimes/google/security"
 	tnaming "veyron.io/veyron/veyron/runtimes/google/testing/mocks/naming"
 	vsecurity "veyron.io/veyron/veyron/security"
 
@@ -39,11 +37,8 @@ import (
 )
 
 var (
-	errAuthorizer = errors.New("ipc: application Authorizer denied access")
-	errMethod     = verror.Abortedf("server returned an error")
-	clientID      = newID("client")
-	serverID      = newID("server")
-	clock         = new(fakeClock)
+	errMethod = verror.Abortedf("server returned an error")
+	clock     = new(fakeClock)
 )
 
 type fakeClock struct {
@@ -92,12 +87,12 @@ func (*testServer) EchoUser(call ipc.ServerCall, arg string, u userType) (string
 	return fmt.Sprintf("method:%q,suffix:%q,arg:%q", call.Method(), call.Suffix(), arg), u
 }
 
-func (*testServer) EchoIDs(call ipc.ServerCall) (server, client string) {
-	return fmt.Sprintf("%v", call.LocalID()), fmt.Sprintf("%v", call.RemoteID())
+func (*testServer) EchoBlessings(call ipc.ServerCall) (server, client string) {
+	return fmt.Sprintf("%v", call.LocalBlessings().ForContext(call)), fmt.Sprintf("%v", call.RemoteBlessings().ForContext(call))
 }
 
-func (*testServer) EchoBlessing(call ipc.ServerCall, arg string) (result, blessing string) {
-	return arg, fmt.Sprintf("%v", call.Blessing())
+func (*testServer) EchoGrantedBlessings(call ipc.ServerCall, arg string) (result, blessing string) {
+	return arg, fmt.Sprintf("%v", call.Blessings())
 }
 
 func (*testServer) EchoAndError(call ipc.ServerCall, arg string) (string, error) {
@@ -135,12 +130,11 @@ func (*dischargeServer) Discharge(ctx ipc.ServerCall, cav vdlutil.Any, _ securit
 	if !ok {
 		return nil, fmt.Errorf("discharger: unknown caveat(%T)", cav)
 	}
-	// Add a fakeTimeCaveat to allow the discharge to expire
-	expiry := fakeTimeCaveat(clock.Now())
 	if err := c.Dischargeable(ctx); err != nil {
 		return nil, fmt.Errorf("third-party caveat %v cannot be discharged for this context: %v", c, err)
 	}
-	return serverID.MintDischarge(c, ctx, time.Hour, []security.Caveat{newCaveat(expiry)})
+	// Add a fakeTimeCaveat to be able to control discharge expiration via 'clock'.
+	return ctx.LocalPrincipal().MintDischarge(c, newCaveat(fakeTimeCaveat(clock.Now())))
 }
 
 type testServerAuthorizer struct{}
@@ -149,7 +143,7 @@ func (testServerAuthorizer) Authorize(c security.Context) error {
 	if c.Method() != "Unauthorized" {
 		return nil
 	}
-	return errAuthorizer
+	return fmt.Errorf("testServerAuthorizer denied access")
 }
 
 type testServerDisp struct{ server interface{} }
@@ -175,9 +169,9 @@ func (t testServerDisp) Lookup(suffix, method string) (ipc.Invoker, security.Aut
 	return ipc.ReflectInvoker(t.server), authorizer, nil
 }
 
-func startServer(t *testing.T, serverID security.PrivateID, sm stream.Manager, ns naming.Namespace, ts interface{}) (naming.Endpoint, ipc.Server) {
+func startServer(t *testing.T, principal security.Principal, sm stream.Manager, ns naming.Namespace, ts interface{}) (naming.Endpoint, ipc.Server) {
 	vlog.VI(1).Info("InternalNewServer")
-	server, err := InternalNewServer(testContext(), sm, ns, vc.FixedLocalID(serverID))
+	server, err := InternalNewServer(testContext(), sm, ns, vc.LocalPrincipal{principal})
 	if err != nil {
 		t.Errorf("InternalNewServer failed: %v", err)
 	}
@@ -253,57 +247,19 @@ func (b bundle) cleanup(t *testing.T) {
 	}
 }
 
-func createBundle(t *testing.T, clientID, serverID security.PrivateID, ts interface{}) (b bundle) {
+func createBundle(t *testing.T, client, server security.Principal, ts interface{}) (b bundle) {
 	b.sm = imanager.InternalNew(naming.FixedRoutingID(0x555555555))
 	b.ns = tnaming.NewSimpleNamespace()
-	if serverID != nil {
-		b.ep, b.server = startServer(t, serverID, b.sm, b.ns, ts)
+	if server != nil {
+		b.ep, b.server = startServer(t, server, b.sm, b.ns, ts)
 	}
-	if clientID != nil {
+	if client != nil {
 		var err error
-		if b.client, err = InternalNewClient(b.sm, b.ns, vc.FixedLocalID(clientID)); err != nil {
+		if b.client, err = InternalNewClient(b.sm, b.ns, vc.LocalPrincipal{client}); err != nil {
 			t.Fatalf("InternalNewClient failed: %v", err)
 		}
 	}
 	return
-}
-
-func bless(blessor security.PrivateID, blessee security.PublicID, name string, caveats ...security.Caveat) security.PublicID {
-	blessed, err := blessor.Bless(blessee, name, 24*time.Hour, caveats)
-	if err != nil {
-		panic(err)
-	}
-	return blessed
-}
-
-func derive(blessor security.PrivateID, name string, caveats ...security.Caveat) security.PrivateID {
-	id := newID("irrelevant")
-	derivedID, err := id.Derive(bless(blessor, id.PublicID(), name, caveats...))
-	if err != nil {
-		panic(err)
-	}
-	return derivedID
-}
-
-// deriveForThirdPartyCaveats creates a SetPrivateID that can be used for
-//  1. talking to the server, if the caveats are fulfilled
-//  2. getting discharges, even if the caveats are not fulfilled
-// As an identity with an unfulfilled caveat is invalid (even for asking for  a
-// discharge), this function creates a set of two identities. The first will
-// have the caveats, the second will always be valid, but only for getting
-// discharges. The client presents both blessings in both cases, the discharger
-// ignores the first if it is invalid.
-func deriveForThirdPartyCaveats(blessor security.PrivateID, name string, caveats ...security.Caveat) security.PrivateID {
-	id := derive(blessor, name, caveats...)
-	dischargeID, err := id.Derive(bless(blessor, id.PublicID(), name, mkCaveat(security.MethodCaveat("Discharge"))))
-	if err != nil {
-		panic(err)
-	}
-	id, err = isecurity.NewSetPrivateID(id, dischargeID)
-	if err != nil {
-		panic(err)
-	}
-	return id
 }
 
 func matchesErrorPattern(err error, pattern string) bool {
@@ -316,7 +272,7 @@ func matchesErrorPattern(err error, pattern string) bool {
 func TestMultipleCallsToServe(t *testing.T) {
 	sm := imanager.InternalNew(naming.FixedRoutingID(0x555555555))
 	ns := tnaming.NewSimpleNamespace()
-	server, err := InternalNewServer(testContext(), sm, ns, vc.FixedLocalID(serverID))
+	server, err := InternalNewServer(testContext(), sm, ns, vc.LocalPrincipal{sectest.NewPrincipal()})
 	if err != nil {
 		t.Errorf("InternalNewServer failed: %v", err)
 	}
@@ -360,64 +316,62 @@ func TestMultipleCallsToServe(t *testing.T) {
 	verifyMountMissing(t, ns, n3)
 }
 
-func TestStartCall(t *testing.T) {
+func TestRemoteIDCallOpt(t *testing.T) {
 	const (
-		authorizeErr = "not authorized because"
-		nameErr      = "does not match the provided pattern"
+		vcErr   = "VC handshake failed"
+		nameErr = "does not match the provided pattern"
 	)
 
 	var (
-		cavOnlyV1, _    = security.PeerBlessingsCaveat("client/v1")
-		cavExpired, _   = security.ExpiryCaveat(time.Now().Add(-1 * time.Second))
-		clientV1ID      = derive(clientID, "v1")
-		clientV2ID      = derive(clientID, "v2")
-		serverV1ID      = derive(serverID, "v1", cavOnlyV1)
-		serverExpiredID = derive(serverID, "expired", cavExpired)
+		pprovider, pclient, pserver = sectest.NewPrincipal("root"), sectest.NewPrincipal(), sectest.NewPrincipal()
+		bserver                     = bless(pprovider, pserver, "server")
+		bexpiredserver              = bless(pprovider, pserver, "server", mkCaveat(security.ExpiryCaveat(time.Now().Add(-1*time.Second))))
+
+		mgr   = imanager.InternalNew(naming.FixedRoutingID(0x1111111))
+		ns    = tnaming.NewSimpleNamespace()
+		tests = []struct {
+			server  security.Blessings       // blessings presented by the server to the client.
+			pattern security.BlessingPattern // pattern on the server identity expected by the client.
+			err     string
+		}{
+			// Client accepts talking to the server only if the server's identity matches the provided pattern
+			{bserver, security.AllPrincipals, ""},
+			{bserver, "root/server", ""},
+			{bserver, "root/otherserver", nameErr},
+			{bserver, "otherroot/server", nameErr},
+
+			// Client does not talk to a server that presents an expired identity.
+			{bexpiredserver, security.AllPrincipals, vcErr},
+		}
+		_, server = startServer(t, pserver, mgr, ns, &testServer{})
 	)
-
-	tests := []struct {
-		clientID, serverID security.PrivateID
-		pattern            security.BlessingPattern // pattern on the server identity expected by client.
-		err                string
-	}{
-		// Client accepts talking to server only if server's identity matches the
-		// provided pattern.
-		{clientID, serverID, security.AllPrincipals, ""},
-		{clientID, serverID, "server", ""},
-		{clientID, serverID, "server/v1", ""},
-		{clientID, serverID, "anotherServer", nameErr},
-
-		// All clients reject talking to a server with an expired identity.
-		{clientID, serverExpiredID, security.AllPrincipals, authorizeErr},
-		{clientV1ID, serverExpiredID, security.AllPrincipals, authorizeErr},
-		{clientV2ID, serverExpiredID, security.AllPrincipals, authorizeErr},
-
-		// Only clientV1 accepts talking to serverV1.
-		{clientV1ID, serverV1ID, security.AllPrincipals, ""},
-		{clientV2ID, serverV1ID, security.AllPrincipals, authorizeErr},
-	}
-	// Servers and clients will be created per-test, use the same stream manager and mounttable.
-	mgr := imanager.InternalNew(naming.FixedRoutingID(0x1111111))
-	ns := tnaming.NewSimpleNamespace()
+	defer stopServer(t, server, ns)
+	// Make the client and server principals trust root certificates from pprovider
+	pclient.AddToRoots(pprovider.BlessingStore().Default())
+	pserver.AddToRoots(pprovider.BlessingStore().Default())
+	// Create a blessing that the client is willing to share with server.
+	pclient.BlessingStore().Set(bless(pprovider, pclient, "client"), "root/server")
 	for _, test := range tests {
-		name := fmt.Sprintf("(clientID:%q serverID:%q)", test.clientID, test.serverID)
-		_, server := startServer(t, test.serverID, mgr, ns, &testServer{})
-		client, err := InternalNewClient(mgr, ns, vc.FixedLocalID(test.clientID))
+		name := fmt.Sprintf("(%q@%q)", test.pattern, test.server)
+		pserver.BlessingStore().SetDefault(test.server)
+		// Recreate client in each test (so as to not re-use VCs to the server).
+		client, err := InternalNewClient(mgr, ns, vc.LocalPrincipal{pclient})
 		if err != nil {
-			t.Errorf("%s: Client creation failed: %v", name, err)
-			stopServer(t, server, ns)
+			t.Errorf("%s: failed ot create client: %v", name, err)
 			continue
 		}
-		if call, err := client.StartCall(testContext(), "mountpoint/server/suffix", "irrelevant", nil, veyron2.RemoteID(test.pattern)); !matchesErrorPattern(err, test.err) {
+		if call, err := client.StartCall(testContext(), "mountpoint/server/suffix", "Method", nil, veyron2.RemoteID(test.pattern)); !matchesErrorPattern(err, test.err) {
 			t.Errorf(`%s: client.StartCall: got error "%v", want to match "%v"`, name, err, test.err)
 		} else if call != nil {
-			serverBlessings, _ := call.RemoteBlessings()
-			if !reflect.DeepEqual(serverBlessings, test.serverID.PublicID().Names()) {
-				t.Errorf("%s: Server authenticated as %v, wanted %v", name, serverBlessings, test.serverID.PublicID().Names())
+			blessings, proof := call.RemoteBlessings()
+			if proof == nil {
+				t.Errorf("%s: Returned nil for remote blessings", name)
+			}
+			if !test.pattern.MatchedBy(blessings...) {
+				t.Errorf("%s: %q.MatchedBy(%v) failed", name, test.pattern, blessings)
 			}
 		}
 		client.Close()
-		stopServer(t, server, ns)
 	}
 }
 
@@ -442,26 +396,34 @@ func testRPC(t *testing.T, shouldCloseSend bool) {
 		results    v
 		finishErr  error
 	}
-	tests := []testcase{
-		{"mountpoint/server/suffix", "Closure", nil, nil, nil, nil, nil},
-		{"mountpoint/server/suffix", "Error", nil, nil, nil, v{errMethod}, nil},
+	var (
+		tests = []testcase{
+			{"mountpoint/server/suffix", "Closure", nil, nil, nil, nil, nil},
+			{"mountpoint/server/suffix", "Error", nil, nil, nil, v{errMethod}, nil},
 
-		{"mountpoint/server/suffix", "Echo", v{"foo"}, nil, nil, v{`method:"Echo",suffix:"suffix",arg:"foo"`}, nil},
-		{"mountpoint/server/suffix/abc", "Echo", v{"bar"}, nil, nil, v{`method:"Echo",suffix:"suffix/abc",arg:"bar"`}, nil},
+			{"mountpoint/server/suffix", "Echo", v{"foo"}, nil, nil, v{`method:"Echo",suffix:"suffix",arg:"foo"`}, nil},
+			{"mountpoint/server/suffix/abc", "Echo", v{"bar"}, nil, nil, v{`method:"Echo",suffix:"suffix/abc",arg:"bar"`}, nil},
 
-		{"mountpoint/server/suffix", "EchoUser", v{"foo", userType("bar")}, nil, nil, v{`method:"EchoUser",suffix:"suffix",arg:"foo"`, userType("bar")}, nil},
-		{"mountpoint/server/suffix/abc", "EchoUser", v{"baz", userType("bla")}, nil, nil, v{`method:"EchoUser",suffix:"suffix/abc",arg:"baz"`, userType("bla")}, nil},
-		{"mountpoint/server/suffix", "Stream", v{"foo"}, v{userType("bar"), userType("baz")}, nil, v{`method:"Stream",suffix:"suffix",arg:"foo" bar baz`, nil}, nil},
-		{"mountpoint/server/suffix/abc", "Stream", v{"123"}, v{userType("456"), userType("789")}, nil, v{`method:"Stream",suffix:"suffix/abc",arg:"123" 456 789`, nil}, nil},
-		{"mountpoint/server/suffix", "EchoIDs", nil, nil, nil, v{"server", "client"}, nil},
-		{"mountpoint/server/suffix", "EchoAndError", v{"bugs bunny"}, nil, nil, v{`method:"EchoAndError",suffix:"suffix",arg:"bugs bunny"`, nil}, nil},
-		{"mountpoint/server/suffix", "EchoAndError", v{"error"}, nil, nil, v{`method:"EchoAndError",suffix:"suffix",arg:"error"`, errMethod}, nil},
-	}
-	name := func(t testcase) string {
-		return fmt.Sprintf("%s.%s(%v)", t.name, t.method, t.args)
-	}
-	b := createBundle(t, clientID, serverID, &testServer{})
+			{"mountpoint/server/suffix", "EchoUser", v{"foo", userType("bar")}, nil, nil, v{`method:"EchoUser",suffix:"suffix",arg:"foo"`, userType("bar")}, nil},
+			{"mountpoint/server/suffix/abc", "EchoUser", v{"baz", userType("bla")}, nil, nil, v{`method:"EchoUser",suffix:"suffix/abc",arg:"baz"`, userType("bla")}, nil},
+			{"mountpoint/server/suffix", "Stream", v{"foo"}, v{userType("bar"), userType("baz")}, nil, v{`method:"Stream",suffix:"suffix",arg:"foo" bar baz`, nil}, nil},
+			{"mountpoint/server/suffix/abc", "Stream", v{"123"}, v{userType("456"), userType("789")}, nil, v{`method:"Stream",suffix:"suffix/abc",arg:"123" 456 789`, nil}, nil},
+			{"mountpoint/server/suffix", "EchoBlessings", nil, nil, nil, v{"[server]", "[client]"}, nil},
+			{"mountpoint/server/suffix", "EchoAndError", v{"bugs bunny"}, nil, nil, v{`method:"EchoAndError",suffix:"suffix",arg:"bugs bunny"`, nil}, nil},
+			{"mountpoint/server/suffix", "EchoAndError", v{"error"}, nil, nil, v{`method:"EchoAndError",suffix:"suffix",arg:"error"`, errMethod}, nil},
+		}
+		name = func(t testcase) string {
+			return fmt.Sprintf("%s.%s(%v)", t.name, t.method, t.args)
+		}
+
+		pserver = sectest.NewPrincipal("server")
+		pclient = sectest.NewPrincipal("client")
+
+		b = createBundle(t, pclient, pserver, &testServer{})
+	)
 	defer b.cleanup(t)
+	// The server needs to recognize the client's root certificate.
+	pserver.AddToRoots(pclient.BlessingStore().Default())
 	for _, test := range tests {
 		vlog.VI(1).Infof("%s client.StartCall", name(test))
 		call, err := b.client.StartCall(testContext(), test.name, test.method, test.args)
@@ -510,7 +472,7 @@ func testRPC(t *testing.T, shouldCloseSend bool) {
 
 func TestMultipleFinish(t *testing.T) {
 	type v []interface{}
-	b := createBundle(t, clientID, serverID, &testServer{})
+	b := createBundle(t, sectest.NewPrincipal("client"), sectest.NewPrincipal("server"), &testServer{})
 	defer b.cleanup(t)
 	call, err := b.client.StartCall(testContext(), "mountpoint/server/suffix", "Echo", v{"foo"})
 	if err != nil {
@@ -528,30 +490,34 @@ func TestMultipleFinish(t *testing.T) {
 	}
 }
 
-// granter implements ipc.Granter, returning a fixed (security.PublicID, error) pair.
+// granter implements ipc.Granter, returning a fixed (security.Blessings, error) pair.
 type granter struct {
 	ipc.CallOpt
-	id  security.PublicID
+	b   security.Blessings
 	err error
 }
 
-func (g granter) Grant(id security.PublicID) (security.PublicID, error) { return g.id, g.err }
+func (g granter) Grant(id security.Blessings) (security.Blessings, error) { return g.b, g.err }
 
-func TestBlessing(t *testing.T) {
-	b := createBundle(t, clientID, serverID, &testServer{})
+func TestGranter(t *testing.T) {
+	var (
+		pclient = sectest.NewPrincipal("client")
+		pserver = sectest.NewPrincipal("server")
+		b       = createBundle(t, pclient, pserver, &testServer{})
+	)
 	defer b.cleanup(t)
 
 	tests := []struct {
-		granter                       ipc.CallOpt
+		granter                       ipc.Granter
 		blessing, starterr, finisherr string
 	}{
 		{blessing: "<nil>"},
-		{granter: granter{id: bless(clientID, serverID.PublicID(), "blessed")}, blessing: "client/blessed"},
+		{granter: granter{b: bless(pclient, pserver, "blessed")}, blessing: "client/blessed(0 caveats)"},
 		{granter: granter{err: errors.New("hell no")}, starterr: "hell no"},
-		{granter: granter{id: clientID.PublicID()}, finisherr: "blessing provided not bound to this server"},
+		{granter: granter{b: pclient.BlessingStore().Default()}, finisherr: "blessing granted not bound to this server"},
 	}
 	for _, test := range tests {
-		call, err := b.client.StartCall(testContext(), "mountpoint/server/suffix", "EchoBlessing", []interface{}{"argument"}, test.granter)
+		call, err := b.client.StartCall(testContext(), "mountpoint/server/suffix", "EchoGrantedBlessings", []interface{}{"argument"}, test.granter)
 		if !matchesErrorPattern(err, test.starterr) {
 			t.Errorf("%+v: StartCall returned error %v", test, err)
 		}
@@ -571,8 +537,8 @@ func TestBlessing(t *testing.T) {
 	}
 }
 
-func mkThirdPartyCaveat(discharger security.PublicID, location string, c security.Caveat) security.Caveat {
-	tpc, err := security.NewPublicKeyCaveat(discharger.PublicKey(), location, security.ThirdPartyRequirements{}, c)
+func mkThirdPartyCaveat(discharger security.PublicKey, location string, c security.Caveat) security.Caveat {
+	tpc, err := security.NewPublicKeyCaveat(discharger, location, security.ThirdPartyRequirements{}, c)
 	if err != nil {
 		panic(err)
 	}
@@ -585,7 +551,7 @@ type dischargeImpetusTester struct {
 
 // Implements ipc.Dispatcher
 func (s *dischargeImpetusTester) Lookup(_, _ string) (ipc.Invoker, security.Authorizer, error) {
-	return ipc.ReflectInvoker(s), nil, nil
+	return ipc.ReflectInvoker(s), testServerAuthorizer{}, nil
 }
 
 // Implements the discharge service: Always fails to issue a discharge, but records the impetus
@@ -604,20 +570,31 @@ func names2patterns(names []string) []security.BlessingPattern {
 
 func TestDischargeImpetus(t *testing.T) {
 	var (
-		// The Discharge service can be run by anyone, but in these tests it is the same as the server.
-		dischargerID = serverID.PublicID()
+		pserver     = sectest.NewPrincipal("server")
+		pdischarger = pserver // In general, the discharger can be a separate principal. In this test, it happens to be the server.
+		sm          = imanager.InternalNew(naming.FixedRoutingID(0x555555555))
+		ns          = tnaming.NewSimpleNamespace()
 
-		mkClientID = func(req security.ThirdPartyRequirements) security.PrivateID {
-			tpc, err := security.NewPublicKeyCaveat(dischargerID.PublicKey(), "mountpoint/discharger", req, newCaveat(alwaysValidCaveat{}))
+		mkClient = func(req security.ThirdPartyRequirements) vc.LocalPrincipal {
+			pclient := sectest.NewPrincipal()
+			tpc, err := security.NewPublicKeyCaveat(pdischarger.PublicKey(), "mountpoint/discharger", req, security.UnconstrainedUse())
 			if err != nil {
-				t.Fatalf("Failed to create ThirdPartyCaveat: %v", err)
+				t.Fatalf("Failed to create ThirdPartyCaveat(%+v): %v", req, err)
 			}
-			return deriveForThirdPartyCaveats(serverID, "client", newCaveat(tpc))
+			cav, err := security.NewCaveat(tpc)
+			if err != nil {
+				t.Fatal(err)
+			}
+			b, err := pclient.BlessSelf("client", cav)
+			if err != nil {
+				t.Fatalf("BlessSelf failed: %v", err)
+			}
+			pclient.AddToRoots(pserver.BlessingStore().Default()) // make the client recognize the server.
+			pclient.BlessingStore().Set(b, "server")
+			return vc.LocalPrincipal{pclient}
 		}
 	)
-	sm := imanager.InternalNew(naming.FixedRoutingID(0x555555555))
-	ns := tnaming.NewSimpleNamespace()
-	server, err := InternalNewServer(testContext(), sm, ns, vc.FixedLocalID(serverID))
+	server, err := InternalNewServer(testContext(), sm, ns, vc.LocalPrincipal{pserver})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -641,7 +618,7 @@ func TestDischargeImpetus(t *testing.T) {
 		},
 		{ // Require everything
 			Requirements: security.ThirdPartyRequirements{ReportServer: true, ReportMethod: true, ReportArguments: true},
-			Impetus:      security.DischargeImpetus{Server: names2patterns(serverID.PublicID().Names()), Method: "Method", Arguments: []vdlutil.Any{vdlutil.Any("argument")}},
+			Impetus:      security.DischargeImpetus{Server: []security.BlessingPattern{"server"}, Method: "Method", Arguments: []vdlutil.Any{vdlutil.Any("argument")}},
 		},
 		{ // Require only the method name
 			Requirements: security.ThirdPartyRequirements{ReportMethod: true},
@@ -650,7 +627,7 @@ func TestDischargeImpetus(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		client, err := InternalNewClient(sm, ns, vc.FixedLocalID(mkClientID(test.Requirements)))
+		client, err := InternalNewClient(sm, ns, mkClient(test.Requirements))
 		if err != nil {
 			t.Fatalf("InternalNewClient(%+v) failed: %v", test.Requirements, err)
 		}
@@ -668,31 +645,33 @@ func TestDischargeImpetus(t *testing.T) {
 
 func TestRPCAuthorization(t *testing.T) {
 	var (
-		now = time.Now()
-		// First-party caveats
-		cavOnlyEcho = mkCaveat(security.MethodCaveat("Echo"))
-		cavExpired  = mkCaveat(security.ExpiryCaveat(now))
-		// Third-party caveats
-		// The Discharge service can be run by any identity, but in our tests the same server runs
-		// a Discharge service as well.
-		dischargerID = serverID.PublicID()
-		cavTPValid   = mkThirdPartyCaveat(dischargerID, "mountpoint/server/discharger", mkCaveat(security.ExpiryCaveat(now.Add(24*time.Hour))))
-		cavTPExpired = mkThirdPartyCaveat(dischargerID, "mountpoint/server/discharger", mkCaveat(security.ExpiryCaveat(now)))
+		// Principals
+		pclient     = sectest.NewPrincipal("client")
+		pserver     = sectest.NewPrincipal("server")
+		pdischarger = pserver
 
-		// Client blessings that will be tested
-		blessedByServerOnlyEcho  = derive(serverID, "onlyEcho", cavOnlyEcho)
-		blessedByServerExpired   = derive(serverID, "expired", cavExpired)
-		blessedByServerTPValid   = deriveForThirdPartyCaveats(serverID, "tpvalid", cavTPValid)
-		blessedByServerTPExpired = deriveForThirdPartyCaveats(serverID, "tpexpired", cavTPExpired)
-		blessedByClient          = derive(clientID, "blessed")
+		now = time.Now()
+
+		// Caveats on blessings to the client: First-party caveats
+		cavOnlyEcho = mkCaveat(security.MethodCaveat("Echo"))
+		cavExpired  = mkCaveat(security.ExpiryCaveat(now.Add(-1 * time.Second)))
+		// Caveats on blessings to the client: Third-party caveats
+		cavTPValid   = mkThirdPartyCaveat(pdischarger.PublicKey(), "mountpoint/server/discharger", mkCaveat(security.ExpiryCaveat(now.Add(24*time.Hour))))
+		cavTPExpired = mkThirdPartyCaveat(pdischarger.PublicKey(), "mountpoint/server/discharger", mkCaveat(security.ExpiryCaveat(now.Add(-1*time.Second))))
+
+		// Client blessings that will be tested.
+		bServerClientOnlyEcho  = bless(pserver, pclient, "onlyecho", cavOnlyEcho)
+		bServerClientExpired   = bless(pserver, pclient, "expired", cavExpired)
+		bServerClientTPValid   = bless(pserver, pclient, "dischargeable_third_party_caveat", cavTPValid)
+		bServerClientTPExpired = bless(pserver, pclient, "expired_third_party_caveat", cavTPExpired)
+		bClient                = pclient.BlessingStore().Default()
+		bRandom, _             = pclient.BlessSelf("random")
 	)
-	const (
-		expiredIDErr = "security.unixTimeExpiryCaveat"
-		aclAuthErr   = "no matching ACL entry found"
-	)
-	invalidMethodErr := func(method string) string {
-		return fmt.Sprintf(`security.methodCaveat=[Echo] fails validation for method %q`, method)
-	}
+	// The server should recognize the client principal as an authority on "client/..." and "random/..." blessings.
+	pserver.AddToRoots(bClient)
+	pserver.AddToRoots(bRandom)
+	// And the client needs to recognize the server's blessing to decide which of its own blessings to share.
+	pclient.AddToRoots(pserver.BlessingStore().Default())
 
 	type v []interface{}
 	type testcase struct {
@@ -703,82 +682,112 @@ func TestRPCAuthorization(t *testing.T) {
 		results   v
 		finishErr string
 	}
-	tests := []testcase{
-		// Clients whose identities have invalid caveats are not by authorized by any authorizer.
-		{blessedByServerExpired, "mountpoint/server/nilAuth", "Echo", v{"foo"}, v{""}, expiredIDErr},
-		{blessedByServerExpired, "mountpoint/server/suffix", "Echo", v{"foo"}, v{""}, expiredIDErr},
-		{blessedByServerOnlyEcho, "mountpoint/server/nilAuth", "Closure", nil, nil, invalidMethodErr("Closure")},
-		{blessedByServerOnlyEcho, "mountpoint/server/suffix", "Closure", nil, nil, invalidMethodErr("Closure")},
-		// Only clients with a trusted name that matches either the server's identity or an identity blessed
-		// by the server are authorized by the (default) nilAuth authorizer.
-		{clientID, "mountpoint/server/nilAuth", "Echo", v{"foo"}, v{""}, aclAuthErr},
-		{blessedByClient, "mountpoint/server/nilAuth", "Echo", v{"foo"}, v{""}, aclAuthErr},
-		{serverID, "mountpoint/server/nilAuth", "Echo", v{"foo"}, v{`method:"Echo",suffix:"nilAuth",arg:"foo"`}, ""},
-		{serverID, "mountpoint/server/nilAuth", "Closure", nil, nil, ""},
-		{blessedByServerOnlyEcho, "mountpoint/server/nilAuth", "Echo", v{"foo"}, v{`method:"Echo",suffix:"nilAuth",arg:"foo"`}, ""},
-		// Only clients matching the server's ACL are authorized.
-		{clientID, "mountpoint/server/aclAuth", "Echo", v{"foo"}, v{`method:"Echo",suffix:"aclAuth",arg:"foo"`}, ""},
-		{blessedByClient, "mountpoint/server/aclAuth", "Echo", v{"foo"}, v{""}, aclAuthErr},
-		{serverID, "mountpoint/server/aclAuth", "Echo", v{"foo"}, v{`method:"Echo",suffix:"aclAuth",arg:"foo"`}, ""},
-		{blessedByServerOnlyEcho, "mountpoint/server/aclAuth", "Echo", v{"foo"}, v{`method:"Echo",suffix:"aclAuth",arg:"foo"`}, ""},
-		{clientID, "mountpoint/server/aclAuth", "Closure", nil, nil, ""},
-		{blessedByClient, "mountpoint/server/aclAuth", "Closure", nil, nil, aclAuthErr},
-		{serverID, "mountpoint/server/aclAuth", "Closure", nil, nil, ""},
-		// All methods except "Unauthorized" are authorized by the custom authorizer.
-		{clientID, "mountpoint/server/suffix", "Echo", v{"foo"}, v{`method:"Echo",suffix:"suffix",arg:"foo"`}, ""},
-		{blessedByClient, "mountpoint/server/suffix", "Echo", v{"foo"}, v{`method:"Echo",suffix:"suffix",arg:"foo"`}, ""},
-		{serverID, "mountpoint/server/suffix", "Echo", v{"foo"}, v{`method:"Echo",suffix:"suffix",arg:"foo"`}, ""},
-		{blessedByServerOnlyEcho, "mountpoint/server/suffix", "Echo", v{"foo"}, v{`method:"Echo",suffix:"suffix",arg:"foo"`}, ""},
-		{clientID, "mountpoint/server/suffix", "Closure", nil, nil, ""},
-		{blessedByClient, "mountpoint/server/suffix", "Closure", nil, nil, ""},
-		{serverID, "mountpoint/server/suffix", "Closure", nil, nil, ""},
-		{clientID, "mountpoint/server/suffix", "Unauthorized", nil, v{""}, "application Authorizer denied access"},
-		{blessedByClient, "mountpoint/server/suffix", "Unauthorized", nil, v{""}, "application Authorizer denied access"},
-		{serverID, "mountpoint/server/suffix", "Unauthorized", nil, v{""}, "application Authorizer denied access"},
-		// Third-party caveat discharges should be fetched and forwarded
-		{blessedByServerTPValid, "mountpoint/server/suffix", "Echo", v{"foo"}, v{`method:"Echo",suffix:"suffix",arg:"foo"`}, ""},
-		{blessedByServerTPExpired, "mountpoint/server/suffix", "Echo", v{"foo"}, v{""}, "missing discharge"},
-	}
-	name := func(t testcase) string {
-		return fmt.Sprintf("%q RPCing %s.%s(%v)", t.clientID.PublicID(), t.name, t.method, t.args)
-	}
+	tests := []struct {
+		blessings  security.Blessings // Blessings used by the client
+		name       string             // object name on which the method is invoked
+		method     string
+		args       v
+		results    v
+		authorized bool // Whether or not the RPC should be authorized by the server.
+	}{
+		// There are three different authorization policies (security.Authorizer implementations)
+		// used by the server, depending on the suffix (see testServerDisp.Lookup):
+		// - nilAuth suffix: the default authorization policy (only delegates of or delegators of the server can call RPCs)
+		// - aclAuth suffix: the ACL only allows "server/..." or "client"
+		// - other suffixes: testServerAuthorizer allows any principal to call any method except "Unauthorized"
 
-	b := createBundle(t, nil, serverID, &testServer{}) // we only create the server, a separate client will be created for each test.
+		// Expired blessings should fail nilAuth and aclAuth (which care about names), but should succeed on
+		// other suffixes (which allow all blessings), unless calling the Unauthorized method.
+		{bServerClientExpired, "mountpoint/server/nilAuth", "Echo", v{"foo"}, v{""}, false},
+		{bServerClientExpired, "mountpoint/server/aclAuth", "Echo", v{"foo"}, v{""}, false},
+		{bServerClientExpired, "mountpoint/server/suffix", "Echo", v{"foo"}, v{""}, true},
+		{bServerClientExpired, "mountpoint/server/suffix", "Unauthorized", nil, v{""}, false},
+
+		// Same for blessings that should fail to obtain a discharge for the third party caveat.
+		{bServerClientTPExpired, "mountpoint/server/nilAuth", "Echo", v{"foo"}, v{""}, false},
+		{bServerClientTPExpired, "mountpoint/server/aclAuth", "Echo", v{"foo"}, v{""}, false},
+		{bServerClientTPExpired, "mountpoint/server/suffix", "Echo", v{"foo"}, v{""}, true},
+		{bServerClientTPExpired, "mountpoint/server/suffix", "Unauthorized", nil, v{""}, false},
+
+		// The "server/client" blessing (with MethodCaveat("Echo")) should satisfy all authorization policies
+		// when "Echo" is called.
+		{bServerClientOnlyEcho, "mountpoint/server/nilAuth", "Echo", v{"foo"}, v{""}, true},
+		{bServerClientOnlyEcho, "mountpoint/server/aclAuth", "Echo", v{"foo"}, v{""}, true},
+		{bServerClientOnlyEcho, "mountpoint/server/suffix", "Echo", v{"foo"}, v{""}, true},
+
+		// The "server/client" blessing (with MethodCaveat("Echo")) should satisfy no authorization policy
+		// when any other method is invoked, except for the testServerAuthorizer policy (which will
+		// not recognize the blessing "server/onlyecho", but it would authorize anyone anyway).
+		{bServerClientOnlyEcho, "mountpoint/server/nilAuth", "Closure", nil, nil, false},
+		{bServerClientOnlyEcho, "mountpoint/server/aclAuth", "Closure", nil, nil, false},
+		{bServerClientOnlyEcho, "mountpoint/server/suffix", "Closure", nil, nil, true},
+
+		// The "client" blessing doesn't satisfy the default authorization policy, but does satisfy
+		// the ACL and the testServerAuthorizer policy.
+		{bClient, "mountpoint/server/nilAuth", "Echo", v{"foo"}, v{""}, false},
+		{bClient, "mountpoint/server/aclAuth", "Echo", v{"foo"}, v{""}, true},
+		{bClient, "mountpoint/server/suffix", "Echo", v{"foo"}, v{""}, true},
+		{bClient, "mountpoint/server/suffix", "Unauthorized", nil, v{""}, false},
+
+		// The "random" blessing does not satisfy either the default policy or the ACL, but does
+		// satisfy testServerAuthorizer.
+		{bRandom, "mountpoint/server/nilAuth", "Echo", v{"foo"}, v{""}, false},
+		{bRandom, "mountpoint/server/aclAuth", "Echo", v{"foo"}, v{""}, false},
+		{bRandom, "mountpoint/server/suffix", "Echo", v{"foo"}, v{""}, true},
+		{bRandom, "mountpoint/server/suffix", "Unauthorized", nil, v{""}, false},
+
+		// The "server/dischargeable_third_party_caveat" blessing satisfies all policies.
+		// (the discharges should be fetched).
+		{bServerClientTPValid, "mountpoint/server/nilAuth", "Echo", v{"foo"}, v{""}, true},
+		{bServerClientTPValid, "mountpoint/server/aclAuth", "Echo", v{"foo"}, v{""}, true},
+		{bServerClientTPValid, "mountpoint/server/suffix", "Echo", v{"foo"}, v{""}, true},
+		{bServerClientTPValid, "mountpoint/server/suffix", "Unauthorized", nil, v{""}, false},
+	}
+	b := createBundle(t, nil, pserver, &testServer{}) // we only create the server, a separate client will be created for each test.
 	defer b.cleanup(t)
 	for _, test := range tests {
-		client, err := InternalNewClient(b.sm, b.ns, vc.FixedLocalID(test.clientID))
+		name := fmt.Sprintf("%q.%s(%v) by %v", test.name, test.method, test.args, test.blessings)
+		client, err := InternalNewClient(b.sm, b.ns, vc.LocalPrincipal{pclient})
 		if err != nil {
 			t.Fatalf("InternalNewClient failed: %v", err)
 		}
 		defer client.Close()
+		pclient.BlessingStore().Set(test.blessings, "server")
 		call, err := client.StartCall(testContext(), test.name, test.method, test.args)
 		if err != nil {
-			t.Errorf(`%s client.StartCall got unexpected error: "%v"`, name(test), err)
+			t.Errorf(`%s client.StartCall got unexpected error: "%v"`, name, err)
 			continue
 		}
 		results := makeResultPtrs(test.results)
 		err = call.Finish(results...)
-		if !matchesErrorPattern(err, test.finishErr) {
-			t.Errorf(`%s call.Finish got error: "%v", want to match: "%v"`, name(test), err, test.finishErr)
+		if err != nil && test.authorized {
+			t.Errorf(`%s call.Finish got error: "%v", wanted the RPC to succeed`, name, err)
+		} else if err == nil && !test.authorized {
+			t.Errorf("%s call.Finish succeeded, expected authorization failure", name)
+		} else if !test.authorized && !verror.Is(err, verror.NoAccess) {
+			t.Errorf("%s. call.Finish returned error %v(%v), wanted %v", name, verror.Convert(err).ErrorID(), err, verror.NoAccess)
 		}
 	}
 }
 
-type alwaysValidCaveat struct{}
-
-func (alwaysValidCaveat) Validate(security.Context) error { return nil }
-
 func TestDischargePurgeFromCache(t *testing.T) {
 	var (
-		dischargerID = serverID.PublicID()
-		c            = mkThirdPartyCaveat(dischargerID, "mountpoint/server/discharger", newCaveat(alwaysValidCaveat{}))
-		clientCID    = deriveForThirdPartyCaveats(serverID, "client", c)
+		pserver     = sectest.NewPrincipal("server")
+		pdischarger = pserver // In general, the discharger can be a separate principal. In this test, it happens to be the server.
+		pclient     = sectest.NewPrincipal("client")
+		// Client is blessed with a third-party caveat. The discharger service issues discharges with a fakeTimeCaveat.
+		// This blessing is presented to "server".
+		bclient = bless(pserver, pclient, "client", mkThirdPartyCaveat(pdischarger.PublicKey(), "mountpoint/server/discharger", security.UnconstrainedUse()))
 	)
-	b := createBundle(t, clientCID, serverID, &testServer{})
+	// Setup the client to recognize the server's blessing and present bclient to it.
+	pclient.AddToRoots(pserver.BlessingStore().Default())
+	pclient.BlessingStore().Set(bclient, "server")
+
+	b := createBundle(t, pclient, pserver, &testServer{})
 	defer b.cleanup(t)
 
 	call := func() error {
-		call, err := b.client.StartCall(testContext(), "mountpoint/server/suffix", "Echo", []interface{}{"batman"})
+		call, err := b.client.StartCall(testContext(), "mountpoint/server/aclAuth", "Echo", []interface{}{"batman"})
 		if err != nil {
 			return fmt.Errorf("client.StartCall failed: %v", err)
 		}
@@ -786,7 +795,7 @@ func TestDischargePurgeFromCache(t *testing.T) {
 		if err := call.Finish(&got); err != nil {
 			return fmt.Errorf("client.Finish failed: %v", err)
 		}
-		if want := `method:"Echo",suffix:"suffix",arg:"batman"`; got != want {
+		if want := `method:"Echo",suffix:"aclAuth",arg:"batman"`; got != want {
 			return fmt.Errorf("Got [%v] want [%v]", got, want)
 		}
 		return nil
@@ -798,8 +807,8 @@ func TestDischargePurgeFromCache(t *testing.T) {
 	}
 	// Advance virtual clock, which will invalidate the discharge
 	clock.Advance(1)
-	if err := call(); !matchesErrorPattern(err, "fakeTimeCaveat expired") {
-		t.Errorf("Got error [%v] wanted to match pattern 'fakeTimeCaveat expired'", err)
+	if err, want := call(), "not authorized"; !matchesErrorPattern(err, want) {
+		t.Errorf("Got error [%v] wanted to match pattern %q", err, want)
 	}
 	// But retrying will succeed since the discharge should be purged from cache and refreshed
 	if err := call(); err != nil {
@@ -851,7 +860,7 @@ func waitForCancel(t *testing.T, ts *cancelTestServer, call ipc.Call) {
 // TestCancel tests cancellation while the server is reading from a stream.
 func TestCancel(t *testing.T) {
 	ts := newCancelTestServer(t)
-	b := createBundle(t, clientID, serverID, ts)
+	b := createBundle(t, sectest.NewPrincipal("client"), sectest.NewPrincipal("server"), ts)
 	defer b.cleanup(t)
 
 	call, err := b.client.StartCall(testContext(), "mountpoint/server/suffix", "CancelStreamReader", []interface{}{})
@@ -865,7 +874,7 @@ func TestCancel(t *testing.T) {
 // the server is not reading that the cancel message gets through.
 func TestCancelWithFullBuffers(t *testing.T) {
 	ts := newCancelTestServer(t)
-	b := createBundle(t, clientID, serverID, ts)
+	b := createBundle(t, sectest.NewPrincipal("client"), sectest.NewPrincipal("server"), ts)
 	defer b.cleanup(t)
 
 	call, err := b.client.StartCall(testContext(), "mountpoint/server/suffix", "CancelStreamIgnorer", []interface{}{})
@@ -901,7 +910,7 @@ func (s *streamRecvInGoroutineServer) RecvInGoroutine(call ipc.ServerCall) error
 
 func TestStreamReadTerminatedByServer(t *testing.T) {
 	s := &streamRecvInGoroutineServer{c: make(chan error, 1)}
-	b := createBundle(t, clientID, serverID, s)
+	b := createBundle(t, sectest.NewPrincipal("client"), sectest.NewPrincipal("server"), s)
 	defer b.cleanup(t)
 
 	call, err := b.client.StartCall(testContext(), "mountpoint/server/suffix", "RecvInGoroutine", []interface{}{})
@@ -933,7 +942,7 @@ func TestStreamReadTerminatedByServer(t *testing.T) {
 
 // TestConnectWithIncompatibleServers tests that clients ignore incompatible endpoints.
 func TestConnectWithIncompatibleServers(t *testing.T) {
-	b := createBundle(t, clientID, serverID, &testServer{})
+	b := createBundle(t, sectest.NewPrincipal("client"), sectest.NewPrincipal("server"), &testServer{})
 	defer b.cleanup(t)
 
 	// Publish some incompatible endpoints.
@@ -971,10 +980,9 @@ func TestConnectWithIncompatibleServers(t *testing.T) {
 // connection to the server if the server dies and comes back (on the same
 // endpoint).
 func TestReconnect(t *testing.T) {
-	b := createBundle(t, clientID, nil, nil) // We only need the client from the bundle.
+	b := createBundle(t, sectest.NewPrincipal("client"), nil, nil) // We only need the client from the bundle.
 	defer b.cleanup(t)
-	idFile := tsecurity.SaveIdentityToFile(derive(clientID, "server"))
-	server := blackbox.HelperCommand(t, "runServer", "127.0.0.1:0", idFile)
+	server := blackbox.HelperCommand(t, "runServer", "127.0.0.1:0")
 	server.Cmd.Start()
 	addr, err := server.ReadLineFromChild()
 	if err != nil {
@@ -1007,7 +1015,7 @@ func TestReconnect(t *testing.T) {
 	}
 	// Resurrect the server with the same address, verify client
 	// re-establishes the connection.
-	server = blackbox.HelperCommand(t, "runServer", addr, idFile)
+	server = blackbox.HelperCommand(t, "runServer", addr)
 	defer server.Cleanup()
 	server.Cmd.Start()
 	if addr2, err := server.ReadLineFromChild(); addr2 != addr || err != nil {
@@ -1027,7 +1035,7 @@ func TestPreferredAddress(t *testing.T) {
 		a.IP = net.ParseIP("1.1.1.1")
 		return []ipc.Address{&netstate.AddrIfc{Addr: a}}, nil
 	}
-	server, err := InternalNewServer(testContext(), sm, ns, vc.FixedLocalID(serverID))
+	server, err := InternalNewServer(testContext(), sm, ns, vc.LocalPrincipal{sectest.NewPrincipal("server")})
 	if err != nil {
 		t.Errorf("InternalNewServer failed: %v", err)
 	}
@@ -1063,7 +1071,7 @@ func TestPreferredAddressErrors(t *testing.T) {
 	paerr := func(_ string, a []ipc.Address) ([]ipc.Address, error) {
 		return nil, fmt.Errorf("oops")
 	}
-	server, err := InternalNewServer(testContext(), sm, ns, vc.FixedLocalID(serverID))
+	server, err := InternalNewServer(testContext(), sm, ns, vc.LocalPrincipal{sectest.NewPrincipal("server")})
 	if err != nil {
 		t.Errorf("InternalNewServer failed: %v", err)
 	}
@@ -1120,12 +1128,12 @@ func (h *proxyHandle) Stop() error {
 func TestProxy(t *testing.T) {
 	sm := imanager.InternalNew(naming.FixedRoutingID(0x555555555))
 	ns := tnaming.NewSimpleNamespace()
-	client, err := InternalNewClient(sm, ns, vc.FixedLocalID(clientID))
+	client, err := InternalNewClient(sm, ns, vc.LocalPrincipal{sectest.NewPrincipal("client")})
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer client.Close()
-	server, err := InternalNewServer(testContext(), sm, ns, vc.FixedLocalID(serverID))
+	server, err := InternalNewServer(testContext(), sm, ns, vc.LocalPrincipal{sectest.NewPrincipal("server")})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1191,25 +1199,10 @@ func TestProxy(t *testing.T) {
 	}
 }
 
-func loadIdentityFromFile(file string) security.PrivateID {
-	f, err := os.Open(file)
-	if err != nil {
-		vlog.Fatalf("failed to open %v: %v", file, err)
-	}
-	id, err := vsecurity.LoadIdentity(f)
-	f.Close()
-	if err != nil {
-		vlog.Fatalf("Failed to load identity from %v: %v", file, err)
-	}
-	return id
-}
-
 func runServer(argv []string) {
 	mgr := imanager.InternalNew(naming.FixedRoutingID(0x1111111))
 	ns := tnaming.NewSimpleNamespace()
-	id := loadIdentityFromFile(argv[1])
-	isecurity.TrustIdentityProviders(id)
-	server, err := InternalNewServer(testContext(), mgr, ns, vc.FixedLocalID(id))
+	server, err := InternalNewServer(testContext(), mgr, ns, vc.LocalPrincipal{sectest.NewPrincipal("server")})
 	if err != nil {
 		vlog.Fatalf("InternalNewServer failed: %v", err)
 	}
@@ -1233,7 +1226,7 @@ func runProxy([]string) {
 	if err != nil {
 		vlog.Fatal(err)
 	}
-	proxy, err := proxy.New(rid, nil, "tcp", "127.0.0.1:0", "")
+	proxy, err := proxy.New(rid, sectest.NewPrincipal("proxy"), "tcp", "127.0.0.1:0", "")
 	if err != nil {
 		vlog.Fatal(err)
 	}
@@ -1247,12 +1240,8 @@ func TestHelperProcess(t *testing.T) {
 }
 
 func init() {
-	isecurity.TrustIdentityProviders(clientID)
-	isecurity.TrustIdentityProviders(serverID)
-
 	blackbox.CommandTable["runServer"] = runServer
 	blackbox.CommandTable["runProxy"] = runProxy
 
 	vom.Register(fakeTimeCaveat(0))
-	vom.Register(alwaysValidCaveat{})
 }

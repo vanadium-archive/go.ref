@@ -7,7 +7,7 @@ import (
 	"testing"
 
 	_ "veyron.io/veyron/veyron/lib/testutil"
-	isecurity "veyron.io/veyron/veyron/runtimes/google/security"
+	"veyron.io/veyron/veyron/runtimes/google/ipc/stream/sectest"
 
 	"veyron.io/veyron/veyron2/ipc"
 	"veyron.io/veyron/veyron2/naming"
@@ -15,17 +15,21 @@ import (
 	"veyron.io/veyron/veyron2/verror"
 )
 
-var testID = newID("test")
-
 // newTestFlows returns the two ends of a bidirectional flow.  Each end has its
 // own bookkeeping, to allow testing of method calls.
 func newTestFlows() (*testFlow, *testFlow) {
-	b0, b1 := new(bytes.Buffer), new(bytes.Buffer)
-	return &testFlow{r: b0, w: b1}, &testFlow{r: b1, w: b0}
+	var (
+		p0, p1               = sectest.NewPrincipal("p0"), sectest.NewPrincipal("p1")
+		blessing0, blessing1 = p0.BlessingStore().Default(), p1.BlessingStore().Default()
+		b0, b1               = new(bytes.Buffer), new(bytes.Buffer)
+	)
+	return &testFlow{r: b0, w: b1, p: p0, lb: blessing0, rb: blessing1}, &testFlow{r: b1, w: b0, p: p1, lb: blessing1, rb: blessing0}
 }
 
 type testFlow struct {
 	r, w          *bytes.Buffer
+	p             security.Principal
+	lb, rb        security.Blessings
 	numCloseCalls int
 	errClose      error
 }
@@ -34,11 +38,11 @@ func (f *testFlow) Read(b []byte) (int, error)          { return f.r.Read(b) }
 func (f *testFlow) Write(b []byte) (int, error)         { return f.w.Write(b) }
 func (f *testFlow) LocalEndpoint() naming.Endpoint      { return nil }
 func (f *testFlow) RemoteEndpoint() naming.Endpoint     { return nil }
-func (f *testFlow) LocalID() security.PublicID          { return testID.PublicID() }
-func (f *testFlow) RemoteID() security.PublicID         { return testID.PublicID() }
-func (f *testFlow) LocalPrincipal() security.Principal  { return nil }
-func (f *testFlow) LocalBlessings() security.Blessings  { return nil }
-func (f *testFlow) RemoteBlessings() security.Blessings { return nil }
+func (f *testFlow) LocalID() security.PublicID          { return nil }
+func (f *testFlow) RemoteID() security.PublicID         { return nil }
+func (f *testFlow) LocalPrincipal() security.Principal  { return f.p }
+func (f *testFlow) LocalBlessings() security.Blessings  { return f.lb }
+func (f *testFlow) RemoteBlessings() security.Blessings { return f.rb }
 func (f *testFlow) SetDeadline(<-chan struct{})         {}
 func (f *testFlow) IsClosed() bool                      { return false }
 func (f *testFlow) Closed() <-chan struct{}             { return nil }
@@ -56,7 +60,7 @@ type testDisp struct {
 }
 
 func (td testDisp) Lookup(suffix, method string) (ipc.Invoker, security.Authorizer, error) {
-	return td.newInvoker(suffix), nil, nil
+	return td.newInvoker(suffix), testServerAuthorizer{}, nil
 }
 
 // closureInvoker serves a method with no user args or results:
@@ -122,7 +126,7 @@ func TestFlowClientServer(t *testing.T) {
 	}
 	for _, test := range tests {
 		clientFlow, serverFlow := newTestFlows()
-		client := newFlowClient(testContext(), clientFlow, nil, nil)
+		client := newFlowClient(testContext(), []string{"p0"}, clientFlow, nil, nil)
 		server := newFlowServer(serverFlow, ipcServer)
 		err := client.start(test.suffix, test.method, test.args, 0, nil)
 		if err != nil {
@@ -143,8 +147,4 @@ func TestFlowClientServer(t *testing.T) {
 			t.Errorf("%s got %d server close calls, want 1", name(test), serverFlow.numCloseCalls)
 		}
 	}
-}
-
-func init() {
-	isecurity.TrustIdentityProviders(testID)
 }

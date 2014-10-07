@@ -5,10 +5,7 @@ import (
 	"testing"
 
 	_ "veyron.io/veyron/veyron/lib/testutil"
-	"veyron.io/veyron/veyron/runtimes/google/ipc/stream/vc"
-	isecurity "veyron.io/veyron/veyron/runtimes/google/security"
 
-	"veyron.io/veyron/veyron2/ipc"
 	"veyron.io/veyron/veyron2/security"
 	"veyron.io/veyron/veyron2/verror"
 )
@@ -41,14 +38,6 @@ func checkResultPtrs(t *testing.T, name string, gotptrs, want []interface{}) {
 	}
 }
 
-func newID(name string) security.PrivateID {
-	id, err := isecurity.NewPrivateID(name, nil)
-	if err != nil {
-		panic(err)
-	}
-	return id
-}
-
 func newCaveat(v security.CaveatValidator) security.Caveat {
 	cav, err := security.NewCaveat(v)
 	if err != nil {
@@ -64,5 +53,13 @@ func mkCaveat(cav security.Caveat, err error) security.Caveat {
 	return cav
 }
 
-var _ ipc.ClientOpt = vc.FixedLocalID(newID("irrelevant"))
-var _ ipc.ServerOpt = vc.FixedLocalID(newID("irrelevant"))
+func bless(blesser, blessed security.Principal, extension string, caveats ...security.Caveat) security.Blessings {
+	if len(caveats) == 0 {
+		caveats = append(caveats, security.UnconstrainedUse())
+	}
+	b, err := blesser.Bless(blessed.PublicKey(), blesser.BlessingStore().Default(), extension, caveats[0], caveats[1:]...)
+	if err != nil {
+		panic(err)
+	}
+	return b
+}
