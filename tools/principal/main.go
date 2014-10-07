@@ -63,7 +63,6 @@ specified, a name will be generated based on the hostname of the
 machine and the name of the user running this command.
 `,
 		Run: func(cmd *cmdline.Command, args []string) error {
-			r := rt.R()
 			var name string
 			switch len(args) {
 			case 0:
@@ -78,11 +77,11 @@ machine and the name of the user running this command.
 			if flagBlessFor != 0 {
 				cav, err := security.ExpiryCaveat(time.Now().Add(flagBlessFor))
 				if err != nil {
-					return fmt.Errorf("failed to create expiration caveat: %v", err)
+					return fmt.Errorf("failed to create expiration Caveat: %v", err)
 				}
 				caveats = append(caveats, cav)
 			}
-			blessing, err := r.Principal().BlessSelf(name, caveats...)
+			blessing, err := rt.R().Principal().BlessSelf(name, caveats...)
 			if err != nil {
 				return fmt.Errorf("failed to create self-signed blessing for name %q: %v", name, err)
 			}
@@ -124,6 +123,78 @@ is running in.
 			return dumpBlessings(rt.R().Principal().BlessingStore().Default())
 		},
 	}
+
+	cmdSet = &cmdline.Command{
+		Name:  "store.set",
+		Short: "Set provided blessings for peer",
+		Long: `
+Marks the provided blessings to be shared with the provided
+peers on the BlessingStore specified by the environment
+(VEYRON_CREDENTIALS) that this tool is running in.
+
+'set b pattern' marks the intention to reveal b to peers who
+present blessings of their own matching 'pattern'.
+
+'set nil pattern' can be used to remove the blessings previously
+associated with the pattern (by a prior 'set' command).
+
+It is an error to call 'store.set' with blessings whose public
+key does not match the public key of this principal specified
+by the environment.
+`,
+		ArgsName: "<file> <pattern>",
+		ArgsLong: `
+<file> is the path to a file containing a blessing typically obtained
+from this tool. - is used for STDIN.
+
+<pattern> is the BlessingPattern used to identify peers with whom this
+blessing can be shared with.
+`,
+		Run: func(cmd *cmdline.Command, args []string) error {
+			if len(args) != 2 {
+				return fmt.Errorf("requires exactly two arguments <file>, <pattern>, provided %d", cmd.Name, len(args))
+			}
+			blessings, err := decodeBlessings(args[0])
+			if err != nil {
+				return fmt.Errorf("failed to decode provided blessings: %v", err)
+			}
+			pattern := security.BlessingPattern(args[1])
+			if _, err := rt.R().Principal().BlessingStore().Set(blessings, pattern); err != nil {
+				return fmt.Errorf("failed to set blessings %v for peers %v: %v", blessings, pattern, err)
+			}
+			return nil
+		},
+	}
+
+	cmdSetDefault = &cmdline.Command{
+		Name:  "store.setdefault",
+		Short: "Set provided blessings as default",
+		Long: `
+Sets the provided blessings as default in the BlessingStore specified
+by the environment (VEYRON_CREDENTIALS) that this tool is running in.
+
+It is an error to call 'store.setdefault' with blessings whose public key
+does not match the public key of the principal specified by the environment.
+`,
+		ArgsName: "<file>",
+		ArgsLong: `
+<file> is the path to a file containing a blessing typically obtained from
+this tool. - is used for STDIN.
+`,
+		Run: func(cmd *cmdline.Command, args []string) error {
+			if len(args) != 1 {
+				return fmt.Errorf("requires exactly one argument, <file>, provided %d", cmd.Name, len(args))
+			}
+			blessings, err := decodeBlessings(args[0])
+			if err != nil {
+				return fmt.Errorf("failed to decode provided blessings: %v", err)
+			}
+			if err := rt.R().Principal().BlessingStore().SetDefault(blessings); err != nil {
+				return fmt.Errorf("failed to set blessings %v as default: %v", blessings, err)
+			}
+			return nil
+		},
+	}
 )
 
 func main() {
@@ -144,7 +215,7 @@ roots bound to a principal.
 
 All objects are printed using base64-VOM-encoding.
 `,
-		Children: []*cmdline.Command{cmdPrint, cmdBlessSelf, cmdDefault, cmdForPeer},
+		Children: []*cmdline.Command{cmdPrint, cmdBlessSelf, cmdDefault, cmdForPeer, cmdSetDefault, cmdSet},
 	}).Main()
 }
 
