@@ -31,6 +31,34 @@ func TestSimple(t *testing.T) {
 	} else {
 		t.Log(s.Error())
 	}
+	s.ExpectEOF()
+}
+
+func TestExpectf(t *testing.T) {
+	buf := []byte{}
+	buffer := bytes.NewBuffer(buf)
+	buffer.WriteString("bar 22\n")
+	s := expect.NewSession(nil, bufio.NewReader(buffer), time.Minute)
+	s.Expectf("bar %d", 22)
+	if err := s.Error(); err != nil {
+		t.Error(err)
+	}
+	s.ExpectEOF()
+}
+
+func TestEOF(t *testing.T) {
+	buf := []byte{}
+	buffer := bytes.NewBuffer(buf)
+	buffer.WriteString("bar 22\n")
+	buffer.WriteString("baz 22\n")
+	s := expect.NewSession(nil, bufio.NewReader(buffer), time.Minute)
+	s.Expectf("bar %d", 22)
+	s.ExpectEOF()
+	if err := s.Error(); err == nil {
+		t.Error("unexpected success")
+	} else {
+		t.Log(s.Error())
+	}
 }
 
 func TestExpectRE(t *testing.T) {
@@ -56,6 +84,7 @@ func TestExpectRE(t *testing.T) {
 			t.Errorf("missing or wrong error: %v", s.Error())
 		}
 	}
+	s.ExpectEOF()
 }
 
 func TestRead(t *testing.T) {
@@ -87,4 +116,5 @@ func TestRead(t *testing.T) {
 	if got != want {
 		t.Errorf("got %q, want %q", got, want)
 	}
+	s.ExpectEOF()
 }
