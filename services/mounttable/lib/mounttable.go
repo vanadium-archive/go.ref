@@ -33,6 +33,8 @@ type mountTable struct {
 	acls map[string]security.Authorizer
 }
 
+var _ ipc.Dispatcher = (*mountTable)(nil)
+
 // mountContext represents a client bind.  The name is the name that was bound to.
 type mountContext struct {
 	name         string
@@ -92,7 +94,7 @@ func parseACLs(path string) (map[string]security.Authorizer, error) {
 	return result, nil
 }
 
-// LookupServer implements ipc.Dispatcher.Lookup.
+// Lookup implements ipc.Dispatcher.Lookup.
 func (mt *mountTable) Lookup(name, method string) (ipc.Invoker, security.Authorizer, error) {
 	vlog.VI(2).Infof("*********************Lookup %s", name)
 	mt.RLock()

@@ -19,6 +19,8 @@ type dispatcher struct {
 	auth    security.Authorizer
 }
 
+var _ ipc.Dispatcher = (*dispatcher)(nil)
+
 func NewDispatcher(logsDir string, authorizer security.Authorizer) *dispatcher {
 	return &dispatcher{logsDir, authorizer}
 }

@@ -171,6 +171,8 @@ type dispatcher struct {
 	auth     security.Authorizer
 }
 
+var _ ipc.Dispatcher = (*dispatcher)(nil)
+
 func (d dispatcher) Lookup(suffix, method string) (ipc.Invoker, security.Authorizer, error) {
 	if invoker := d.invokers[suffix]; invoker != nil {
 		return invoker, d.auth, nil

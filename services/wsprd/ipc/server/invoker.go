@@ -21,6 +21,8 @@ type invoker struct {
 	label security.Label
 }
 
+var _ ipc.Invoker = (*invoker)(nil)
+
 // newInvoker is an invoker factory
 func newInvoker(sig ipc.ServiceSignature, label security.Label, invokeFunc remoteInvokeFunc) ipc.Invoker {
 	predefinedInvokers := make(map[string]ipc.Invoker)

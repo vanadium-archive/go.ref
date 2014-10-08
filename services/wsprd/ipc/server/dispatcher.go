@@ -53,6 +53,8 @@ type dispatcher struct {
 	outstandingLookups map[int64]chan lookupReply
 }
 
+var _ ipc.Dispatcher = (*dispatcher)(nil)
+
 // newDispatcher is a dispatcher factory.
 func newDispatcher(serverID uint64, flowFactory flowFactory, invokerFactory invokerFactory, authFactory authFactory, logger vlog.Logger) *dispatcher {
 	return &dispatcher{

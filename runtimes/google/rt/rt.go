@@ -41,6 +41,8 @@ type vrt struct {
 	cleaningUp bool // GUARDED_BY(mu)
 }
 
+var _ veyron2.Runtime = (*vrt)(nil)
+
 // Implements veyron2/rt.New
 func New(opts ...veyron2.ROpt) (veyron2.Runtime, error) {
 	rt := &vrt{mgmt: new(mgmtImpl)}

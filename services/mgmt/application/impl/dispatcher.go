@@ -15,6 +15,8 @@ type dispatcher struct {
 	storeRoot string
 }
 
+var _ ipc.Dispatcher = (*dispatcher)(nil)
+
 // NewDispatcher is the dispatcher factory.
 func NewDispatcher(name string, authorizer security.Authorizer) (*dispatcher, error) {
 	// TODO(rjkroege@google.com): Use the config service.

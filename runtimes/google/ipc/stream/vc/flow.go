@@ -3,6 +3,7 @@ package vc
 import (
 	"net"
 
+	"veyron.io/veyron/veyron2/ipc/stream"
 	"veyron.io/veyron/veyron2/naming"
 	"veyron.io/veyron/veyron2/security"
 )
@@ -13,6 +14,8 @@ type flow struct {
 	*writer
 	localEndpoint, remoteEndpoint naming.Endpoint
 }
+
+var _ stream.Flow = (*flow)(nil)
 
 type idHolder interface {
 	LocalID() security.PublicID

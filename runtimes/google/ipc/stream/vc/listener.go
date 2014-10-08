@@ -13,6 +13,8 @@ type listener struct {
 	q *upcqueue.T
 }
 
+var _ stream.Listener = (*listener)(nil)
+
 func newListener() *listener { return &listener{q: upcqueue.New()} }
 
 func (l *listener) Enqueue(f stream.Flow) error {

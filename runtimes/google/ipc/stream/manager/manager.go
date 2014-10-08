@@ -46,6 +46,8 @@ type manager struct {
 	shutdown    bool              // GUARDED_BY(muListeners)
 }
 
+var _ stream.Manager = (*manager)(nil)
+
 func dial(network, address string) (net.Conn, error) {
 	if d, _ := stream.RegisteredProtocol(network); d != nil {
 		return d(address)

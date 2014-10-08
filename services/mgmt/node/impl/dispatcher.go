@@ -52,6 +52,8 @@ type dispatcher struct {
 	mu sync.RWMutex
 }
 
+var _ ipc.Dispatcher = (*dispatcher)(nil)
+
 const (
 	appsSuffix   = "apps"
 	nodeSuffix   = "nm"

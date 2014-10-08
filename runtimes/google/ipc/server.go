@@ -61,6 +61,8 @@ type server struct {
 	stats *ipcStats // stats for this server.
 }
 
+var _ ipc.Server = (*server)(nil)
+
 type dhcpListener struct {
 	sync.Mutex
 	publisher *config.Publisher // publisher used to fork the stream
@@ -578,6 +580,8 @@ type flowServer struct {
 	allowDebug         bool // true if the caller is permitted to view debug information.
 }
 
+var _ ipc.Stream = (*flowServer)(nil)
+
 func newFlowServer(flow stream.Flow, server *server) *flowServer {
 	server.Lock()
 	disp := server.disp
@@ -913,6 +917,10 @@ type localServerCall struct {
 	ipc.ServerCall
 	prefix string
 }
+
+var _ ipc.ServerCall = (*localServerCall)(nil)
+var _ ipc.Stream = (*localServerCall)(nil)
+var _ ipc.ServerContext = (*localServerCall)(nil)
 
 func (c *localServerCall) Send(v interface{}) error {
 	me, ok := v.(mttypes.MountEntry)

@@ -39,6 +39,8 @@ type netListener struct {
 	vifLoops sync.WaitGroup
 }
 
+var _ stream.Listener = (*netListener)(nil)
+
 // proxyListener implements the listener interface by connecting to a remote
 // proxy (typically used to "listen" across network domains).
 type proxyListener struct {
@@ -47,6 +49,8 @@ type proxyListener struct {
 	manager *manager
 	opts    []stream.ListenerOpt
 }
+
+var _ stream.Listener = (*proxyListener)(nil)
 
 func newNetListener(m *manager, netLn net.Listener, opts []stream.ListenerOpt) listener {
 	ln := &netListener{

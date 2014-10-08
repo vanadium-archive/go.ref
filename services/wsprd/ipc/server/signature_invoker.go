@@ -12,6 +12,8 @@ type signatureInvoker struct {
 	sig ipc.ServiceSignature
 }
 
+var _ ipc.Invoker = (*signatureInvoker)(nil)
+
 func (i *signatureInvoker) signature() ipc.ServiceSignature {
 	return i.sig
 }

@@ -62,6 +62,8 @@ type VC struct {
 	version version.IPCVersion
 }
 
+var _ stream.VC = (*VC)(nil)
+
 // Helper is the interface for functionality required by the stream.VC
 // implementation in this package.
 type Helper interface {

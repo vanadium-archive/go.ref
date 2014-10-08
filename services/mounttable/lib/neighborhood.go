@@ -29,6 +29,8 @@ type neighborhood struct {
 	nw     netconfig.NetConfigWatcher
 }
 
+var _ ipc.Dispatcher = (*neighborhood)(nil)
+
 type neighborhoodService struct {
 	name  string
 	elems []string

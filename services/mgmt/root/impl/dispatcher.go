@@ -11,6 +11,8 @@ type dispatcher struct {
 	state *invoker
 }
 
+var _ ipc.Dispatcher = (*dispatcher)(nil)
+
 // NewDispatcher is the dispatcher factory.
 func NewDispatcher() *dispatcher {
 	return &dispatcher{NewInvoker()}

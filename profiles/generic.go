@@ -17,6 +17,8 @@ var LocalListenSpec = &ipc.ListenSpec{
 
 type generic struct{}
 
+var _ veyron2.Profile = (*generic)(nil)
+
 // New returns a new instance of a very generic Profile. It can be used
 // as a default by Runtime implementations, in unit tests etc.
 func New() veyron2.Profile {

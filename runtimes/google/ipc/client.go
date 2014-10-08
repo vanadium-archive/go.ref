@@ -47,6 +47,9 @@ type client struct {
 	dischargeCache dischargeCache
 }
 
+var _ ipc.Client = (*client)(nil)
+var _ ipc.BindOpt = (*client)(nil)
+
 type vcInfo struct {
 	vc       stream.VC
 	remoteEP naming.Endpoint
@@ -346,8 +349,6 @@ func (c *client) IPCBindOpt() {
 	//nologcall
 }
 
-var _ ipc.BindOpt = (*client)(nil)
-
 // flowClient implements the RPC client-side protocol for a single RPC, over a
 // flow that's already connected to the server.
 type flowClient struct {
@@ -366,6 +367,9 @@ type flowClient struct {
 
 	finished bool // has Finish() already been called?
 }
+
+var _ ipc.Call = (*flowClient)(nil)
+var _ ipc.Stream = (*flowClient)(nil)
 
 func newFlowClient(ctx context.T, server []string, flow stream.Flow, dischargeCache *dischargeCache, discharges []security.Discharge) *flowClient {
 	return &flowClient{

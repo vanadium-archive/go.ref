@@ -21,6 +21,8 @@ func init() {
 
 type treeDispatcher struct{ id string }
 
+var _ ipc.Dispatcher = (*treeDispatcher)(nil)
+
 func (d treeDispatcher) Lookup(suffix, method string) (ipc.Invoker, security.Authorizer, error) {
 	return ipc.ReflectInvoker(&echoServerObject{d.id, suffix}), nil, nil
 }
