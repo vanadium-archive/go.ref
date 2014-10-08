@@ -84,10 +84,14 @@ func startWspr(f *codeFile) (proc *os.Process, port int, err error) {
 	}
 	cmd := makeCmdJsonEvent(f.Name,
 		"wsprd",
+		// Verbose logging so we can watch the output for "Listening"
+		// log line.
 		"-v=3",
 		"-veyron.proxy="+proxyName,
 		"-port="+strconv.Itoa(port),
-		// Retry starting RPC calls for 3 seconds.
+		// Retry RPC calls for 3 seconds.  If a client makes an RPC
+		// call before the server is running, it won't immediately
+		// fail, but will retry while the server is starting.
 		// TODO(nlacasse): Remove this when javascript can tell wspr
 		// how long to retry for.  Right now it's a global setting in
 		// wspr.
