@@ -729,14 +729,117 @@ func (i *appInvoker) Revert(ipc.ServerContext) error {
 	return updateLink(prevVersionDir, currLink)
 }
 
+type treeNode struct {
+	children map[string]*treeNode
+}
+
+func newTreeNode() *treeNode {
+	return &treeNode{make(map[string]*treeNode)}
+}
+
+func (n *treeNode) find(names []string, create bool) *treeNode {
+	for {
+		if len(names) == 0 {
+			return n
+		}
+		if next, ok := n.children[names[0]]; ok {
+			n = next
+			names = names[1:]
+			continue
+		}
+		if create {
+			nn := newTreeNode()
+			n.children[names[0]] = nn
+			n = nn
+			names = names[1:]
+			continue
+		}
+		return nil
+	}
+}
+
+// scanConfigDir scans the config directory to build tree representation of all
+// the valid object names.
+func (i *appInvoker) scanConfigDir() *treeNode {
+	tree := newTreeNode()
+
+	// appIDMap[appID]title
+	appIDMap := make(map[string]string)
+
+	// Find all envelopes, extract appID and installID.
+	envGlob := []string{i.config.Root, "app-*", "installation-*", "*", "envelope"}
+	envelopes, err := filepath.Glob(filepath.Join(envGlob...))
+	if err != nil {
+		vlog.Errorf("unexpected error: %v", err)
+		return nil
+	}
+	for _, path := range envelopes {
+		env, err := loadEnvelope(filepath.Dir(path))
+		if err != nil {
+			continue
+		}
+		relpath, _ := filepath.Rel(i.config.Root, path)
+		elems := strings.Split(relpath, string(filepath.Separator))
+		if len(elems) != len(envGlob)-1 {
+			vlog.Errorf("unexpected number of path components: %q (%q)", elems, path)
+			continue
+		}
+		appID := strings.TrimPrefix(elems[0], "app-")
+		installID := strings.TrimPrefix(elems[1], "installation-")
+		appIDMap[appID] = env.Title
+		tree.find([]string{env.Title, installID}, true)
+	}
+
+	// Find all instances.
+	infoGlob := []string{i.config.Root, "app-*", "installation-*", "instances", "instance-*", "info"}
+	instances, err := filepath.Glob(filepath.Join(infoGlob...))
+	if err != nil {
+		vlog.Errorf("unexpected error: %v", err)
+		return nil
+	}
+	for _, path := range instances {
+		if _, err := loadInstanceInfo(filepath.Dir(path)); err != nil {
+			continue
+		}
+		relpath, _ := filepath.Rel(i.config.Root, path)
+		elems := strings.Split(relpath, string(filepath.Separator))
+		if len(elems) != len(infoGlob)-1 {
+			vlog.Errorf("unexpected number of path components: %q (%q)", elems, path)
+			continue
+		}
+		appID := strings.TrimPrefix(elems[0], "app-")
+		installID := strings.TrimPrefix(elems[1], "installation-")
+		instanceID := strings.TrimPrefix(elems[3], "instance-")
+		if title, ok := appIDMap[appID]; ok {
+			tree.find([]string{title, installID, instanceID}, true)
+		}
+	}
+	return tree
+}
+
 func (i *appInvoker) Glob(ctx ipc.ServerContext, pattern string, stream mounttable.GlobbableServiceGlobStream) error {
-	// TODO(rthellend): Finish implementing Glob
 	g, err := glob.Parse(pattern)
 	if err != nil {
 		return err
 	}
-	if g.Len() == 0 {
-		return stream.SendStream().Send(types.MountEntry{Name: ""})
+	n := i.scanConfigDir().find(i.suffix, false)
+	if n == nil {
+		return errInvalidSuffix
 	}
+	i.globStep("", g, n, stream)
 	return nil
+}
+
+func (i *appInvoker) globStep(prefix string, g *glob.Glob, n *treeNode, stream mounttable.GlobbableServiceGlobStream) {
+	if g.Len() == 0 {
+		stream.SendStream().Send(types.MountEntry{Name: prefix})
+	}
+	if g.Finished() {
+		return
+	}
+	for name, child := range n.children {
+		if ok, _, left := g.MatchInitialSegment(name); ok {
+			i.globStep(naming.Join(prefix, name), left, child, stream)
+		}
+	}
 }

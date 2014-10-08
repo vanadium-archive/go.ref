@@ -11,6 +11,7 @@ import (
 	"os"
 	goexec "os/exec"
 	"os/user"
+	"path"
 	"path/filepath"
 	"reflect"
 	"sort"
@@ -920,8 +921,12 @@ func TestNodeManagerUpdateACL(t *testing.T) {
 */
 
 func TestNodeManagerGlob(t *testing.T) {
-	// Set up mount table.
+	// Set up mount table, application, and binary repositories.
 	defer setupLocalNamespace(t)()
+	envelope, cleanup := startApplicationRepository()
+	defer cleanup()
+	defer startBinaryRepository()()
+
 	root, cleanup := setupRootDir(t)
 	defer cleanup()
 
@@ -935,33 +940,70 @@ func TestNodeManagerGlob(t *testing.T) {
 	defer nm.Cleanup()
 	readPID(t, nm)
 
-	c, err := mounttable.BindGlobbable("nm")
-	if err != nil {
-		t.Fatalf("BindGlobbable failed: %v", err)
+	// Create a script wrapping the test target that implements suidhelper.
+	generateSuidHelperScript(t, root)
+
+	// Create the local server that the app uses to let us know it's ready.
+	server, _ := newServer()
+	defer server.Stop()
+	pingCh := make(chan string, 1)
+	if err := server.Serve("pingserver", ipc.LeafDispatcher(pingServerDisp(pingCh), nil)); err != nil {
+		t.Fatalf("Serve(%q, <dispatcher>) failed: %v", "pingserver", err)
 	}
 
-	stream, err := c.Glob(rt.R().NewContext(), "...")
-	if err != nil {
-		t.Errorf("Glob failed: %v", err)
+	// Create the envelope for the first version of the app.
+	app := blackbox.HelperCommand(t, "app", "appV1")
+	defer setupChildCommand(app)()
+	appTitle := "google naps"
+	*envelope = *envelopeFromCmd(appTitle, app.Cmd)
+
+	// Install the app.
+	appID := installApp(t)
+	installID := path.Base(appID)
+
+	// Start an instance of the app.
+	instance1ID := startApp(t, appID)
+	<-pingCh // Wait until the app pings us that it's ready.
+
+	testcases := []struct {
+		name, pattern string
+		expected      []string
+	}{
+		{"nm", "...", []string{
+			"",
+			"apps",
+			"apps/google naps",
+			"apps/google naps/" + installID,
+			"apps/google naps/" + installID + "/" + instance1ID,
+			"nm",
+		}},
+		{"nm/apps", "*", []string{"google naps"}},
+		{"nm/apps/google naps", "*", []string{installID}},
 	}
-	results := []string{}
-	iterator := stream.RecvStream()
-	for iterator.Advance() {
-		results = append(results, iterator.Value().Name)
-	}
-	sort.Strings(results)
-	expected := []string{
-		"",
-		"apps",
-		"nm",
-	}
-	if !reflect.DeepEqual(results, expected) {
-		t.Errorf("unexpected result. Got %v, want %v", results, expected)
-	}
-	if err := iterator.Err(); err != nil {
-		t.Errorf("unexpected stream error: %v", err)
-	}
-	if err := stream.Finish(); err != nil {
-		t.Errorf("Finish failed: %v", err)
+	for _, tc := range testcases {
+		c, err := mounttable.BindGlobbable(tc.name)
+		if err != nil {
+			t.Fatalf("BindGlobbable failed: %v", err)
+		}
+
+		stream, err := c.Glob(rt.R().NewContext(), tc.pattern)
+		if err != nil {
+			t.Errorf("Glob failed: %v", err)
+		}
+		results := []string{}
+		iterator := stream.RecvStream()
+		for iterator.Advance() {
+			results = append(results, iterator.Value().Name)
+		}
+		sort.Strings(results)
+		if !reflect.DeepEqual(results, tc.expected) {
+			t.Errorf("unexpected result. Got %q, want %q", results, tc.expected)
+		}
+		if err := iterator.Err(); err != nil {
+			t.Errorf("unexpected stream error: %v", err)
+		}
+		if err := stream.Finish(); err != nil {
+			t.Errorf("Finish failed: %v", err)
+		}
 	}
 }
