@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"reflect"
+	"strings"
 	"testing"
 
 	"veyron.io/veyron/veyron2"
@@ -584,7 +585,7 @@ func runJsServerTestCase(t *testing.T, test jsServerTestCase) {
 						"Handle": 2.0,
 						"Names":  names,
 					},
-					"localEndpoint":  endpoint.String(),
+					"localEndpoint":  hackEndpointStringForOldSecurityModel(endpoint.String()),
 					"remoteEndpoint": "remoteEndpoint",
 				},
 			},
@@ -640,7 +641,7 @@ func runJsServerTestCase(t *testing.T, test jsServerTestCase) {
 						"Handle": 4.0,
 						"Names":  names,
 					},
-					"localEndpoint":  endpoint.String(),
+					"localEndpoint":  hackEndpointStringForOldSecurityModel(endpoint.String()),
 					"remoteEndpoint": "remoteEndpoint",
 				},
 			},
@@ -848,4 +849,13 @@ func TestDeserializeCaveat(t *testing.T) {
 			t.Errorf("decoded produced the wrong value: got %v, expected %v", caveat, c.expectedValue)
 		}
 	}
+}
+
+// TODO(ashankar): Remove this when WSPRD is switched to using the new security API.
+func hackEndpointStringForOldSecurityModel(str string) string {
+	suffix := "@4@@"
+	if strings.HasSuffix(str, suffix) {
+		return strings.TrimSuffix(str, suffix) + "@2@@"
+	}
+	return str
 }
