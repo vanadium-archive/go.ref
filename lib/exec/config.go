@@ -5,11 +5,9 @@ import (
 	"strings"
 	"sync"
 
-	"veyron.io/veyron/veyron2/verror"
+	"veyron.io/veyron/veyron2/verror2"
 	"veyron.io/veyron/veyron2/vom"
 )
-
-var ErrKeyNotFound = verror.NoExistf("config key not found")
 
 // Config defines a simple key-value configuration.  Keys and values are
 // strings, and a key can have exactly one value.  The client is responsible for
@@ -61,7 +59,7 @@ func (c cfg) Get(key string) (string, error) {
 	defer c.RUnlock()
 	v, ok := c.m[key]
 	if !ok {
-		return "", ErrKeyNotFound
+		return "", verror2.Make(verror2.NoExist, nil, "config.Get", key)
 	}
 	return v, nil
 }

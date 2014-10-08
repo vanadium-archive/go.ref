@@ -2,6 +2,7 @@ package exec
 
 import (
 	"testing"
+	"veyron.io/veyron/veyron2/verror2"
 )
 
 func checkPresent(t *testing.T, c Config, k, wantV string) {
@@ -13,8 +14,8 @@ func checkPresent(t *testing.T, c Config, k, wantV string) {
 }
 
 func checkAbsent(t *testing.T, c Config, k string) {
-	if v, err := c.Get(k); err != ErrKeyNotFound {
-		t.Errorf("Expected (\"\", %v) for key %q, got (%q, %v) instead", ErrKeyNotFound, k, v, err)
+	if v, err := c.Get(k); !verror2.Is(err, verror2.NoExist.ID) {
+		t.Errorf("Expected (\"\", %v) for key %q, got (%q, %v) instead", verror2.NoExist, k, v, err)
 	}
 }
 
