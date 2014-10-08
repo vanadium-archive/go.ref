@@ -57,7 +57,7 @@ func (m *mockBlesserService) UnresolveStep(c context.T, co ...ipc.CallOpt) ([]st
 func setup(t *testing.T) (*WSPR, func()) {
 	spec := *profiles.LocalListenSpec
 	spec.Proxy = "/mock/proxy"
-	wspr := NewWSPR(spec, "/mock/identd")
+	wspr := NewWSPR(0, spec, "/mock/identd")
 	providerId := wspr.rt.Identity()
 
 	wspr.blesserService = newMockBlesserService(providerId)
