@@ -8,6 +8,7 @@ import (
 	"log"
 	"math/rand"
 	"os"
+	"os/exec"
 	"path"
 	"regexp"
 	"strconv"
@@ -46,38 +47,17 @@ func findUnusedPort() (int, error) {
 // variable to the mounttable's location.  We run one mounttabled process for
 // the entire environment.
 func startMount(timeLimit time.Duration) (proc *os.Process, err error) {
-	reader, writer := io.Pipe()
-	cmd := makeCmdJsonEvent("", "mounttabled")
-	cmd.Stdout = writer
-	cmd.Stderr = cmd.Stdout
-	err = cmd.Start()
-	if err != nil {
-		return nil, err
-	}
-	buf := bufio.NewReader(reader)
-	// TODO(nlacasse): Find a better way to get the mounttable endpoint.
-	pat := regexp.MustCompile("Mount table .+ endpoint: (.+)\n")
+	cmd := makeCmdJsonEvent("", "mounttabled", "--veyron.tcp.address=localhost:0")
 
-	timeout := time.After(timeLimit)
-	ch := make(chan string)
-	go (func() {
-		for line, err := buf.ReadString('\n'); err == nil; line, err = buf.ReadString('\n') {
-			if groups := pat.FindStringSubmatch(line); groups != nil {
-				ch <- groups[1]
-			}
-		}
-		close(ch)
-	})()
-	select {
-	case <-timeout:
-		log.Fatal("Timeout starting mounttabled")
-	case endpoint := <-ch:
-		if endpoint == "" {
-			log.Fatal("mounttable died")
-		}
-		return cmd.Process, os.Setenv("NAMESPACE_ROOT", endpoint)
+	matches, err := startAndWaitFor(cmd, timeLimit, regexp.MustCompile("Mount table .+ endpoint: (.+)\n"))
+	if err != nil {
+		return nil, fmt.Errorf("Error starting mounttabled: %v", err)
 	}
-	return cmd.Process, err
+	endpoint := matches[1]
+	if endpoint == "" {
+		log.Fatal("mounttable died")
+	}
+	return cmd.Process, os.Setenv("NAMESPACE_ROOT", endpoint)
 }
 
 // startProxy starts a proxyd process.  We run one proxyd process for the
@@ -104,23 +84,55 @@ func startWspr(f *codeFile) (proc *os.Process, port int, err error) {
 	}
 	cmd := makeCmdJsonEvent(f.Name,
 		"wsprd",
-		"-v=-1",
-		"-vproxy="+proxyName,
+		"-v=3",
+		"-veyron.proxy="+proxyName,
 		"-port="+strconv.Itoa(port),
 		// Retry starting RPC calls for 3 seconds.
 		// TODO(nlacasse): Remove this when javascript can tell wspr
-		// how long to retry for.  Right now its a global setting in
+		// how long to retry for.  Right now it's a global setting in
 		// wspr.
 		"-retry-timeout=3",
 		// The identd server won't be used, so pass a fake name.
 		"-identd=/unused")
-
 	if f.identity != "" {
 		cmd.Env = append(cmd.Env, fmt.Sprintf("VEYRON_IDENTITY=%s", path.Join("ids", f.identity)))
 	}
-	err = cmd.Start()
-	if err != nil {
-		return nil, 0, err
+	if _, err := startAndWaitFor(cmd, 3*time.Second, regexp.MustCompile("Listening")); err != nil {
+		return nil, 0, fmt.Errorf("Error starting wspr: %v", err)
 	}
-	return cmd.Process, port, err
+	return cmd.Process, port, nil
+}
+
+// Helper function to start a command and wait for output.  Arguments are a cmd
+// to run, a timeout, and a regexp.  The slice of strings matched by the regexp
+// is returned.
+// TODO(nlacasse): Consider standardizing how services log when they start
+// listening, and their endpoints (if any).  Then this could become a common
+// util function.
+func startAndWaitFor(cmd *exec.Cmd, timeout time.Duration, outputRegexp *regexp.Regexp) ([]string, error) {
+	reader, writer := io.Pipe()
+	cmd.Stdout = writer
+	cmd.Stderr = cmd.Stdout
+	err := cmd.Start()
+	if err != nil {
+		return nil, err
+	}
+
+	buf := bufio.NewReader(reader)
+	t := time.After(timeout)
+	ch := make(chan []string)
+	go (func() {
+		for line, err := buf.ReadString('\n'); err == nil; line, err = buf.ReadString('\n') {
+			if matches := outputRegexp.FindStringSubmatch(line); matches != nil {
+				ch <- matches
+			}
+		}
+		close(ch)
+	})()
+	select {
+	case <-t:
+		return nil, fmt.Errorf("Timeout starting service.")
+	case matches := <-ch:
+		return matches, nil
+	}
 }
