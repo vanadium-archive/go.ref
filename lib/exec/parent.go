@@ -3,9 +3,11 @@ package exec
 import (
 	"encoding/binary"
 	"errors"
+	"fmt"
 	"io"
 	"os"
 	"os/exec"
+	"strings"
 	"syscall"
 	"time"
 
@@ -15,7 +17,7 @@ import (
 )
 
 var (
-	ErrAuthTimeout    = errors.New("timout in auth handshake")
+	ErrAuthTimeout    = errors.New("timeout in auth handshake")
 	ErrTimeout        = errors.New("timeout waiting for child")
 	ErrSecretTooLarge = errors.New("secret is too large")
 )
@@ -159,10 +161,20 @@ func (p *ParentHandle) WaitForReady(timeout time.Duration) error {
 	for {
 		select {
 		case err := <-e:
-			return err
+			if err != nil {
+				return err
+			}
+			// waitForStatus has closed the channel, but we may not
+			// have read the message from it yet.
 		case st := <-c:
 			if st == readyStatus {
 				return nil
+			}
+			if strings.HasPrefix(st, failedStatus) {
+				return fmt.Errorf("%s", strings.TrimPrefix(st, failedStatus))
+			}
+			if len(st) > 0 {
+				return fmt.Errorf("unrecognised status from subprocess: %q", st)
 			}
 		case <-p.tk.After(timeout):
 			// Make sure that the read in waitForStatus

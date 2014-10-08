@@ -6,6 +6,7 @@ import (
 	"log"
 	"os"
 	"os/exec"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -245,6 +246,16 @@ func TestToReady(t *testing.T) {
 	clean(t, ph)
 }
 
+func TestToFail(t *testing.T) {
+	name := "testFail"
+	cmd := helperCommand(name, "failed", "to", "start")
+	ph := vexec.NewParentHandle(cmd)
+	err := waitForReady(t, cmd, name, 4, ph)
+	if err == nil || err.Error() != "failed to start" {
+		t.Errorf("unexpected error: %v", err)
+	}
+}
+
 func TestNeverReady(t *testing.T) {
 	name := "testNeverReady"
 	result := "never ready"
@@ -442,6 +453,15 @@ func TestHelperProcess(*testing.T) {
 			fmt.Fprintf(os.Stderr, "didn't get the expected error")
 		}
 		os.Exit(0)
+	case "testFail":
+		ch, err := vexec.GetChildHandle()
+		if err != nil {
+			log.Fatal(os.Stderr, "%s", err)
+		}
+		if err := ch.SetFailed(fmt.Errorf("%s", strings.Join(args, " "))); err != nil {
+
+			fmt.Fprintf(os.Stderr, "%s\n", err)
+		}
 	case "testReady":
 		ch, err := vexec.GetChildHandle()
 		if err != nil {

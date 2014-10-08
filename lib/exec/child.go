@@ -62,6 +62,13 @@ func (c *ChildHandle) SetReady() error {
 	return err
 }
 
+// SetFailed writes a 'failed' status to its parent.
+func (c *ChildHandle) SetFailed(oerr error) error {
+	_, err := c.statusPipe.Write([]byte(failedStatus + oerr.Error()))
+	c.statusPipe.Close()
+	return err
+}
+
 // NewExtraFile creates a new file handle for the i-th file descriptor after
 // discounting stdout, stderr, stdin and the files reserved by the framework for
 // its own purposes.
