@@ -13,7 +13,7 @@ ENV PATH /usr/local/go/bin:$PATH
 ENV HOME /root
 ENV VEYRON_ROOT /usr/local/veyron
 ENV GOPATH /home/playground:$VEYRON_ROOT/veyron/go
-ENV VDLPATH /home/playground:$VEYRON_ROOT/veyron/go
+ENV VDLPATH $GOPATH
 
 # Setup veyron and veyron profiles.
 # Note: This will be cached! If you want to re-build the docker image using
@@ -41,10 +41,10 @@ ENV PATH $VEYRON_ROOT/veyron/go/bin:$VEYRON_ROOT/bin:$PATH
 RUN veyron go install veyron.io/veyron/...
 
 # Uncomment the following lines to install a version of the builder tool using
-# the local copy of vbuild.go. This is useful when developing and testing local
-# changes to the builder tool.
+# your local version of the code. This is useful when developing and testing
+# local changes to the builder tool.
 # RUN rm $VEYRON_ROOT/veyron/go/bin/builder
-# ADD vbuild.go /usr/local/veyron/veyron/go/src/veyron/tools/playground/builder/vbuild.go
+# ADD builder.go /usr/local/veyron/veyron/go/src/veyron/tools/playground/builder/builder.go
 # ADD identity.go /usr/local/veyron/veyron/go/src/veyron/tools/playground/builder/identity.go
 # ADD services.go /usr/local/veyron/veyron/go/src/veyron/tools/playground/builder/services.go
 # RUN veyron go install veyron/tools/playground/builder
