@@ -156,6 +156,6 @@ func TestInitPrincipal(t *testing.T) {
 	// Test that the same principal gets initialized on creating a new runtime
 	// from the same credentials directory.
 	if got := newRT().Principal(); !reflect.DeepEqual(got, p) {
-		t.Fatalf("Initialized Principal: %v, expected: %v", got, p)
+		t.Fatalf("Initialized Principal: %v, expected: %v", got.PublicKey(), p.PublicKey())
 	}
 }

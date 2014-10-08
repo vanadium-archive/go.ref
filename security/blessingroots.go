@@ -1,4 +1,4 @@
-package rt
+package security
 
 import (
 	"crypto/sha256"
@@ -17,10 +17,10 @@ const (
 
 // blessingRoots implements security.BlessingRoots.
 type blessingRoots struct {
-	store  map[string][]security.BlessingPattern // GUARDED_BY(mu)
 	dir    string
 	signer serialization.Signer
 	mu     sync.RWMutex
+	store  map[string][]security.BlessingPattern // GUARDED_BY(mu)
 }
 
 func storeMapKey(root security.PublicKey) (string, error) {

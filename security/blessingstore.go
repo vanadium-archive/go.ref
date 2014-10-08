@@ -1,4 +1,4 @@
-package rt
+package security
 
 import (
 	"errors"
@@ -32,11 +32,11 @@ type persistentState struct {
 
 // blessingStore implements security.BlessingStore.
 type blessingStore struct {
-	state     persistentState // GUARDED_BY(mu)
 	publicKey security.PublicKey
 	dir       string
 	signer    serialization.Signer
 	mu        sync.RWMutex
+	state     persistentState // GUARDED_BY(mu)
 }
 
 func (s *blessingStore) Set(blessings security.Blessings, forPeers security.BlessingPattern) (security.Blessings, error) {
@@ -132,20 +132,20 @@ func newInMemoryBlessingStore(publicKey security.PublicKey) security.BlessingSto
 }
 
 // newPersistingBlessingStore returns a security.BlessingStore for a principal
-// with the provided PublicKey that signs and persists all updates to the
-// specified directory. Signing is carried out using the provided signer.
+// that persists all updates to the specified directory and uses the provided
+// signer to ensure integrity of data read from the filesystem.
 //
 // The returned BlessingStore is initialized from the existing data present in
 // the directory. The data is verified to have been written by a persisting
-// BlessingStore object constructed from the same PublicKey and signer.
+// BlessingStore object constructed from the same signer.
 //
 // Any errors obtained in reading or verifying the data are returned.
-func newPersistingBlessingStore(publicKey security.PublicKey, directory string, signer serialization.Signer) (security.BlessingStore, error) {
+func newPersistingBlessingStore(directory string, signer serialization.Signer) (security.BlessingStore, error) {
 	if directory == "" || signer == nil {
 		return nil, errors.New("directory or signer is not specified")
 	}
 	s := &blessingStore{
-		publicKey: publicKey,
+		publicKey: signer.PublicKey(),
 		state:     persistentState{Store: make(map[security.BlessingPattern]security.Blessings)},
 		dir:       directory,
 		signer:    signer,
@@ -156,8 +156,8 @@ func newPersistingBlessingStore(publicKey security.PublicKey, directory string, 
 	}
 
 	for _, b := range s.state.Store {
-		if !reflect.DeepEqual(b.PublicKey(), publicKey) {
-			return nil, fmt.Errorf("directory contains Blessings: %v that are not for the provided PublicKey: %v", b, publicKey)
+		if !reflect.DeepEqual(b.PublicKey(), s.publicKey) {
+			return nil, fmt.Errorf("directory contains Blessings: %v that are not for the provided PublicKey: %v", b, s.publicKey)
 		}
 	}
 	return s, nil

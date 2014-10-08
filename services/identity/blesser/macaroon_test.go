@@ -7,12 +7,12 @@ import (
 	"testing"
 	"time"
 
+	vsecurity "veyron.io/veyron/veyron/security"
 	"veyron.io/veyron/veyron/services/identity"
 	"veyron.io/veyron/veyron/services/identity/util"
 
 	"veyron.io/veyron/veyron2/ipc"
 	"veyron.io/veyron/veyron2/security"
-	"veyron.io/veyron/veyron2/security/sectest"
 	"veyron.io/veyron/veyron2/vom"
 )
 
@@ -88,13 +88,9 @@ func (c *serverCall) LocalBlessings() security.Blessings  { return c.local }
 func (c *serverCall) RemoteBlessings() security.Blessings { return c.remote }
 
 func newPrincipal(t *testing.T) security.Principal {
-	_, key, err := sectest.NewKey()
+	p, err := vsecurity.NewPrincipal()
 	if err != nil {
-		t.Fatal(err)
-	}
-	p, err := security.CreatePrincipal(security.NewInMemoryECDSASigner(key), nil, sectest.NewBlessingRoots())
-	if err != nil {
-		t.Fatal(err)
+		panic(err)
 	}
 	return p
 }
