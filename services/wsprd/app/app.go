@@ -16,7 +16,7 @@ import (
 	"veyron.io/veyron/veyron2/ipc"
 	"veyron.io/veyron/veyron2/rt"
 	"veyron.io/veyron/veyron2/security"
-	"veyron.io/veyron/veyron2/verror"
+	"veyron.io/veyron/veyron2/verror2"
 	"veyron.io/veyron/veyron2/vlog"
 	"veyron.io/veyron/veyron2/vom"
 	vom_wiretype "veyron.io/veyron/veyron2/vom/wiretype"
@@ -26,6 +26,17 @@ import (
 	"veyron.io/wspr/veyron/services/wsprd/lib"
 	"veyron.io/wspr/veyron/services/wsprd/signature"
 )
+
+// pkgPath is the prefix os errors in this package.
+const pkgPath = "veyron.io/veyron/veyron/services/wsprd/app"
+
+// Errors
+var marshallingError = verror2.Register(pkgPath+".marshallingError", verror2.NoRetry, "{1} {2} marshalling error {_}")
+var noResults = verror2.Register(pkgPath+".noResults", verror2.NoRetry, "{1} {2} no results from call {_}")
+var signatureError = verror2.Register(pkgPath+".signatureError", verror2.NoRetry, "{1} {2} signature error {_}")
+var badCaveatType = verror2.Register(pkgPath+".badCaveatType", verror2.NoRetry, "{1} {2} bad caveat type {_}")
+var unknownPublicID = verror2.Register(pkgPath+".unknownPublicID", verror2.NoRetry, "{1} {2} unknown public id {_}")
+var invalidPublicHandle = verror2.Register(pkgPath+".invalidPublicHandle", verror2.NoRetry, "{1} {2} invalid public handle {_}")
 
 // TODO(bjornick,nlacasse): Remove the retryTimeout flag once we able
 // to pass it in from javascript. For now all RPCs have the same
@@ -154,7 +165,7 @@ func NewController(writerCreator func(id int64) lib.ClientWriter,
 }
 
 // finishCall waits for the call to finish and write out the response to w.
-func (c *Controller) finishCall(w lib.ClientWriter, clientCall ipc.Call, msg *veyronRPC) {
+func (c *Controller) finishCall(ctx context.T, w lib.ClientWriter, clientCall ipc.Call, msg *veyronRPC) {
 	if msg.IsStreaming {
 		for {
 			var item interface{}
@@ -166,12 +177,12 @@ func (c *Controller) finishCall(w lib.ClientWriter, clientCall ipc.Call, msg *ve
 				return
 			}
 			if err := w.Send(lib.ResponseStream, item); err != nil {
-				w.Error(verror.Internalf("unable to marshal: %v", item))
+				w.Error(verror2.Make(marshallingError, ctx, item))
 			}
 		}
 
 		if err := w.Send(lib.ResponseStreamClose, nil); err != nil {
-			w.Error(verror.Internalf("unable to marshal close stream message"))
+			w.Error(verror2.Make(marshallingError, ctx, "ResponseStreamClose"))
 		}
 	}
 
@@ -188,7 +199,7 @@ func (c *Controller) finishCall(w lib.ClientWriter, clientCall ipc.Call, msg *ve
 	}
 	// for now we assume last out argument is always error
 	if len(results) < 1 {
-		w.Error(verror.Internalf("client call did not return any results"))
+		w.Error(verror2.Make(noResults, ctx))
 		return
 	}
 
@@ -199,13 +210,13 @@ func (c *Controller) finishCall(w lib.ClientWriter, clientCall ipc.Call, msg *ve
 	}
 
 	if err := w.Send(lib.ResponseFinal, results[0:len(results)-1]); err != nil {
-		w.Error(verror.Internalf("error marshalling results: %v", err))
+		w.Error(verror2.Convert(marshallingError, ctx, err))
 	}
 }
 
 func (c *Controller) startCall(ctx context.T, w lib.ClientWriter, msg *veyronRPC) (ipc.Call, error) {
 	if c.client == nil {
-		return nil, verror.BadArgf("no client created")
+		return nil, verror2.Make(verror2.BadArg, ctx, "app.Controller.client")
 	}
 	methodName := lib.UppercaseFirstCharacter(msg.Method)
 	retryTimeoutOpt := veyron2.RetryTimeoutOpt(time.Duration(*retryTimeout) * time.Second)
@@ -307,7 +318,7 @@ func (c *Controller) sendVeyronRequest(ctx context.T, id int64, tempMsg *veyronT
 	retryTimeoutOpt := veyron2.RetryTimeoutOpt(time.Duration(*retryTimeout) * time.Second)
 	sig, err := c.signatureManager.Signature(ctx, tempMsg.Name, c.client, retryTimeoutOpt)
 	if err != nil {
-		w.Error(verror.Internalf("error getting service signature for %s: %v", tempMsg.Name, err))
+		w.Error(verror2.Make(signatureError, ctx, tempMsg.Name, err))
 		return
 	}
 
@@ -355,7 +366,7 @@ func (c *Controller) sendVeyronRequest(ctx context.T, id int64, tempMsg *veyronT
 	// the call map before we can Handle a recieve call.
 	call, err := c.startCall(ctx, w, &msg)
 	if err != nil {
-		w.Error(verror.Internalf("can't start Veyron Request: %v", err))
+		w.Error(verror2.Convert(verror2.Internal, ctx, err))
 		return
 	}
 
@@ -363,7 +374,7 @@ func (c *Controller) sendVeyronRequest(ctx context.T, id int64, tempMsg *veyronT
 		stream.init(call, inStreamType)
 	}
 
-	c.finishCall(w, call, &msg)
+	c.finishCall(ctx, w, call, &msg)
 	if stream != nil {
 		c.Lock()
 		delete(c.outstandingStreams, id)
@@ -375,7 +386,7 @@ func (c *Controller) sendVeyronRequest(ctx context.T, id int64, tempMsg *veyronT
 func (c *Controller) HandleVeyronRequest(ctx context.T, id int64, data string, w lib.ClientWriter) {
 	veyronTempMsg, err := c.parseVeyronRequest(ctx, bytes.NewBufferString(data))
 	if err != nil {
-		w.Error(verror.Internalf("can't parse Veyron Request: %v", err))
+		w.Error(verror2.Convert(verror2.Internal, ctx, err))
 		return
 	}
 
@@ -438,19 +449,19 @@ func (c *Controller) serve(serveRequest serveRequest, w lib.ClientWriter) {
 	// Create a server for the websocket pipe, if it does not exist already
 	server, err := c.maybeCreateServer(serveRequest.ServerId)
 	if err != nil {
-		w.Error(verror.Internalf("error creating server: %v", err))
+		w.Error(verror2.Convert(verror2.Internal, nil, err))
 	}
 
 	c.logger.VI(2).Infof("serving under name: %q", serveRequest.Name)
 
 	endpoint, err := server.Serve(serveRequest.Name)
 	if err != nil {
-		w.Error(verror.Internalf("error serving service: %v", err))
+		w.Error(verror2.Convert(verror2.Internal, nil, err))
 		return
 	}
 	// Send the endpoint back
 	if err := w.Send(lib.ResponseFinal, endpoint); err != nil {
-		w.Error(verror.Internalf("error marshalling results: %v", err))
+		w.Error(verror2.Convert(verror2.Internal, nil, err))
 		return
 	}
 }
@@ -461,7 +472,7 @@ func (c *Controller) HandleServeRequest(data string, w lib.ClientWriter) {
 	// Decode the serve request which includes IDL, registered services and name
 	var serveRequest serveRequest
 	if err := json.Unmarshal([]byte(data), &serveRequest); err != nil {
-		w.Error(verror.Internalf("can't unmarshal JSONMessage: %v", err))
+		w.Error(verror2.Convert(verror2.Internal, nil, err))
 		return
 	}
 	c.serve(serveRequest, w)
@@ -501,7 +512,7 @@ func (c *Controller) HandleAuthResponse(id int64, data string) {
 func (c *Controller) HandleStopRequest(data string, w lib.ClientWriter) {
 	var serverId uint64
 	if err := json.Unmarshal([]byte(data), &serverId); err != nil {
-		w.Error(verror.Internalf("can't unmarshal JSONMessage: %v", err))
+		w.Error(verror2.Convert(verror2.Internal, nil, err))
 		return
 	}
 
@@ -509,7 +520,7 @@ func (c *Controller) HandleStopRequest(data string, w lib.ClientWriter) {
 
 	// Send true to indicate stop has finished
 	if err := w.Send(lib.ResponseFinal, true); err != nil {
-		w.Error(verror.Internalf("error marshalling results: %v", err))
+		w.Error(verror2.Convert(verror2.Internal, nil, err))
 		return
 	}
 }
@@ -549,7 +560,7 @@ func (c *Controller) getSignature(ctx context.T, name string) (signature.JSONSer
 	retryTimeoutOpt := veyron2.RetryTimeoutOpt(time.Duration(*retryTimeout) * time.Second)
 	sig, err := c.signatureManager.Signature(ctx, name, c.client, retryTimeoutOpt)
 	if err != nil {
-		return nil, verror.Internalf("error getting service signature for %s: %v", name, err)
+		return nil, verror2.Convert(verror2.Internal, ctx, err)
 	}
 
 	return signature.NewJSONServiceSignature(*sig), nil
@@ -560,20 +571,20 @@ func (c *Controller) HandleSignatureRequest(ctx context.T, data string, w lib.Cl
 	// Decode the request
 	var request signatureRequest
 	if err := json.Unmarshal([]byte(data), &request); err != nil {
-		w.Error(verror.Internalf("can't unmarshal JSONMessage: %v", err))
+		w.Error(verror2.Convert(verror2.Internal, ctx, err))
 		return
 	}
 
 	c.logger.VI(2).Infof("requesting Signature for %q", request.Name)
 	jsSig, err := c.getSignature(ctx, request.Name)
 	if err != nil {
-		w.Error(err)
+		w.Error(verror2.Convert(verror2.Internal, ctx, err))
 		return
 	}
 
 	// Send the signature back
 	if err := w.Send(lib.ResponseFinal, jsSig); err != nil {
-		w.Error(verror.Internalf("error marshalling results: %v", err))
+		w.Error(verror2.Convert(verror2.Internal, ctx, err))
 		return
 	}
 }
@@ -583,7 +594,7 @@ func (c *Controller) HandleSignatureRequest(ctx context.T, data string, w lib.Cl
 func (c *Controller) HandleUnlinkJSIdentity(data string, w lib.ClientWriter) {
 	var handle int64
 	if err := json.Unmarshal([]byte(data), &handle); err != nil {
-		w.Error(verror.Internalf("can't unmarshal JSONMessage: %v", err))
+		w.Error(verror2.Convert(verror2.Internal, nil, err))
 		return
 	}
 	c.idStore.Remove(handle)
@@ -612,14 +623,14 @@ func decodeCaveat(c jsonCaveatValidator) (security.Caveat, error) {
 		}
 		return security.PeerBlessingsCaveat(patterns[0], patterns[1:]...)
 	default:
-		return failed, verror.BadArgf("unknown caveat type %s", c.Type)
+		return failed, verror2.Make(badCaveatType, nil, c.Type)
 	}
 }
 
 func (c *Controller) getPublicIDHandle(handle int64) (*PublicIDHandle, error) {
 	id := c.idStore.Get(handle)
 	if id == nil {
-		return nil, verror.NoExistf("uknown public id")
+		return nil, verror2.Make(unknownPublicID, nil)
 	}
 	return &PublicIDHandle{Handle: handle, Names: id.Names()}, nil
 }
@@ -629,7 +640,7 @@ func (c *Controller) bless(request blessingRequest) (*PublicIDHandle, error) {
 	for _, c := range request.Caveats {
 		cav, err := decodeCaveat(c)
 		if err != nil {
-			return nil, verror.BadArgf("failed to create caveat: %v", err)
+			return nil, verror2.Convert(verror2.BadArg, nil, err)
 		}
 		caveats = append(caveats, cav)
 	}
@@ -638,7 +649,7 @@ func (c *Controller) bless(request blessingRequest) (*PublicIDHandle, error) {
 	blessee := c.idStore.Get(request.Handle)
 
 	if blessee == nil {
-		return nil, verror.NoExistf("invalid PublicID handle")
+		return nil, verror2.Make(invalidPublicHandle, nil)
 	}
 	blessor := c.rt.Identity()
 
@@ -654,20 +665,20 @@ func (c *Controller) bless(request blessingRequest) (*PublicIDHandle, error) {
 func (c *Controller) HandleBlessing(data string, w lib.ClientWriter) {
 	var request blessingRequest
 	if err := json.Unmarshal([]byte(data), &request); err != nil {
-		w.Error(verror.Internalf("can't unmarshall message: %v", err))
+		w.Error(verror2.Convert(verror2.Internal, nil, err))
 		return
 	}
 
 	handle, err := c.bless(request)
 
 	if err != nil {
-		w.Error(err)
+		w.Error(verror2.Convert(verror2.Internal, nil, err))
 		return
 	}
 
 	// Send the id back.
 	if err := w.Send(lib.ResponseFinal, handle); err != nil {
-		w.Error(verror.Internalf("error marshalling results: %v", err))
+		w.Error(verror2.Convert(verror2.Internal, nil, err))
 		return
 	}
 }
@@ -675,19 +686,19 @@ func (c *Controller) HandleBlessing(data string, w lib.ClientWriter) {
 func (c *Controller) HandleCreateIdentity(data string, w lib.ClientWriter) {
 	var name string
 	if err := json.Unmarshal([]byte(data), &name); err != nil {
-		w.Error(verror.Internalf("can't unmarshall message: %v", err))
+		w.Error(verror2.Convert(verror2.Internal, nil, err))
 		return
 	}
 	id, err := c.rt.NewIdentity(name)
 	if err != nil {
-		w.Error(err)
+		w.Error(verror2.Convert(verror2.Internal, nil, err))
 		return
 	}
 
 	publicID := id.PublicID()
 	jsID := &PublicIDHandle{Handle: c.idStore.Add(publicID), Names: publicID.Names()}
 	if err := w.Send(lib.ResponseFinal, jsID); err != nil {
-		w.Error(verror.Internalf("error marshalling results: %v", err))
+		w.Error(verror2.Convert(verror2.Internal, nil, err))
 		return
 	}
 }

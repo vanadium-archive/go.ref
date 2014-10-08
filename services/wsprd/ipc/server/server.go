@@ -4,7 +4,6 @@ package server
 
 import (
 	"encoding/json"
-	"fmt"
 	"sync"
 
 	vsecurity "veyron.io/veyron/veyron/security"
@@ -14,7 +13,7 @@ import (
 	"veyron.io/veyron/veyron2"
 	"veyron.io/veyron/veyron2/ipc"
 	"veyron.io/veyron/veyron2/security"
-	"veyron.io/veyron/veyron2/verror"
+	"veyron.io/veyron/veyron2/verror2"
 	"veyron.io/veyron/veyron2/vlog"
 )
 
@@ -47,7 +46,7 @@ type serverRPCRequestContext struct {
 // The response from the javascript server to the proxy.
 type serverRPCReply struct {
 	Results []interface{}
-	Err     *verror.Standard
+	Err     *verror2.Standard
 }
 
 type FlowHandler interface {
@@ -71,7 +70,7 @@ type ServerHelper interface {
 }
 
 type authReply struct {
-	Err *verror.Standard
+	Err *verror2.Standard
 }
 
 type context struct {
@@ -164,10 +163,9 @@ func (s *Server) createRemoteInvokerFunc(handle int64) remoteInvokeFunc {
 
 		if err := flow.Writer.Send(lib.ResponseServerRequest, message); err != nil {
 			// Error in marshaling, pass the error through the channel immediately
+			stdErr := verror2.Convert(verror2.Internal, nil, err).(verror2.Standard)
 			replyChan <- &serverRPCReply{nil,
-				&verror.Standard{
-					ID:  verror.Internal,
-					Msg: fmt.Sprintf("could not marshal the method call data: %v", err)},
+				&stdErr,
 			}
 			return replyChan
 		}
@@ -185,13 +183,13 @@ func proxyStream(stream ipc.Stream, w lib.ClientWriter, logger vlog.Logger) {
 	var item interface{}
 	for err := stream.Recv(&item); err == nil; err = stream.Recv(&item) {
 		if err := w.Send(lib.ResponseStream, item); err != nil {
-			w.Error(verror.Internalf("error marshalling stream: %v:", err))
+			w.Error(verror2.Convert(verror2.Internal, nil, err))
 			return
 		}
 	}
 
 	if err := w.Send(lib.ResponseStreamClose, nil); err != nil {
-		w.Error(verror.Internalf("error closing stream: %v:", err))
+		w.Error(verror2.Convert(verror2.Internal, nil, err))
 		return
 	}
 }
@@ -230,7 +228,7 @@ func (s *Server) createRemoteAuthFunc(handle int64) remoteAuthFunc {
 		s.helper.GetLogger().VI(0).Infof("Sending out auth request for %v, %v", flow.ID, message)
 
 		if err := flow.Writer.Send(lib.ResponseAuthRequest, message); err != nil {
-			replyChan <- verror.Internalf("failed to find authorizer %v", err)
+			replyChan <- verror2.Convert(verror2.Internal, nil, err)
 		}
 
 		err := <-replyChan
@@ -279,10 +277,7 @@ func (s *Server) HandleServerResponse(id int64, data string) {
 	// Decode the result and send it through the channel
 	var serverReply serverRPCReply
 	if decoderErr := json.Unmarshal([]byte(data), &serverReply); decoderErr != nil {
-		err := verror.Standard{
-			ID:  verror.Internal,
-			Msg: fmt.Sprintf("could not unmarshal the result from the server: %v", decoderErr),
-		}
+		err := verror2.Convert(verror2.Internal, nil, decoderErr).(verror2.Standard)
 		serverReply = serverRPCReply{nil, &err}
 	}
 
@@ -309,10 +304,8 @@ func (s *Server) HandleAuthResponse(id int64, data string) {
 	// Decode the result and send it through the channel
 	var reply authReply
 	if decoderErr := json.Unmarshal([]byte(data), &reply); decoderErr != nil {
-		reply = authReply{Err: &verror.Standard{
-			ID:  verror.Internal,
-			Msg: fmt.Sprintf("could not unmarshal the result from the server: %v", decoderErr),
-		}}
+		err := verror2.Convert(verror2.Internal, nil, decoderErr).(verror2.Standard)
+		reply = authReply{Err: &err}
 	}
 
 	s.helper.GetLogger().VI(0).Infof("response received from JavaScript server for "+
@@ -356,12 +349,10 @@ func (s *Server) createAuthorizer(handle int64, hasAuthorizer bool) (security.Au
 }
 
 func (s *Server) Stop() {
+	stdErr := verror2.Make(verror2.Timeout, nil).(verror2.Standard)
 	result := serverRPCReply{
 		Results: []interface{}{nil},
-		Err: &verror.Standard{
-			ID:  verror.Aborted,
-			Msg: "timeout",
-		},
+		Err:     &stdErr,
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()

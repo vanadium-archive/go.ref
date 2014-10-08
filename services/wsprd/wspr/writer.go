@@ -8,7 +8,7 @@ import (
 
 	"veyron.io/wspr/veyron/services/wsprd/lib"
 
-	"veyron.io/veyron/veyron2/verror"
+	"veyron.io/veyron/veyron2/verror2"
 	"veyron.io/veyron/veyron2/vlog"
 	"veyron.io/veyron/veyron2/vom"
 
@@ -48,25 +48,32 @@ func (w *websocketWriter) Send(messageType lib.ResponseType, data interface{}) e
 }
 
 func (w *websocketWriter) Error(err error) {
-	verr := verror.ToStandard(err)
+	verr := verror2.Convert(verror2.Unknown, nil, err)
 
 	// Also log the error but write internal errors at a more severe log level
 	var logLevel vlog.Level = 2
 	logErr := fmt.Sprintf("%v", verr)
+
+	// Prefix the message with the code locations associated with verr,
+	// except the last, which is the Convert() above.  This does nothing if
+	// err was not a verror2 error.
+	verrStack := verror2.Stack(verr)
+	for i := 0; i < len(verrStack)-1; i++ {
+		pc := verrStack[i]
+		fnc := runtime.FuncForPC(pc)
+		file, line := fnc.FileLine(pc)
+		logErr = fmt.Sprintf("%s:%d: %s", file, line)
+	}
+
 	// We want to look at the stack three frames up to find where the error actually
 	// occurred.  (caller -> websocketErrorResponse/sendError -> generateErrorMessage).
 	if _, file, line, ok := runtime.Caller(3); ok {
 		logErr = fmt.Sprintf("%s:%d: %s", filepath.Base(file), line, logErr)
 	}
-	if verror.Is(verr, verror.Internal) {
+	if verror2.Is(verr, verror2.Internal.ID) {
 		logLevel = 2
 	}
 	w.logger.VI(logLevel).Info(logErr)
 
-	var errMsg = verror.Standard{
-		ID:  verr.ErrorID(),
-		Msg: verr.Error(),
-	}
-
-	w.Send(lib.ResponseError, errMsg)
+	w.Send(lib.ResponseError, verr)
 }

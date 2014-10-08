@@ -7,6 +7,7 @@ import (
 	"reflect"
 	"sync"
 	"time"
+	"veyron.io/veyron/veyron2/verror2"
 	"veyron.io/wspr/veyron/services/wsprd/lib"
 )
 
@@ -90,7 +91,7 @@ func CheckResponses(w *Writer, expectedStream []Response, err error, t TestHarne
 		t.Errorf("streams don't match: expected %v, got %v", expectedStream, w.Stream)
 	}
 
-	if !reflect.DeepEqual(err, w.err) {
-		t.Errorf("unexpected error, got: %v, expected: %v", w.err, err)
+	if !verror2.Equal(err, w.err) {
+		t.Errorf("unexpected error, got: %#v, expected: %#v", w.err, err)
 	}
 }

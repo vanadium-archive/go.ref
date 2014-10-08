@@ -12,7 +12,7 @@ import (
 	"veyron.io/veyron/veyron2/rt"
 	"veyron.io/veyron/veyron2/security"
 	"veyron.io/veyron/veyron2/vdl/vdlutil"
-	"veyron.io/veyron/veyron2/verror"
+	"veyron.io/veyron/veyron2/verror2"
 	"veyron.io/veyron/veyron2/vom"
 	vom_wiretype "veyron.io/veyron/veyron2/vom/wiretype"
 	"veyron.io/veyron/veyron2/wiretype"
@@ -35,7 +35,7 @@ func (s simpleAdder) Add(_ ipc.ServerCall, a, b int32) (int32, error) {
 
 func (s simpleAdder) Divide(_ ipc.ServerCall, a, b int32) (int32, error) {
 	if b == 0 {
-		return 0, verror.BadArgf("can't divide by zero")
+		return 0, verror2.Make(verror2.BadArg, nil, "div 0")
 	}
 	return a / b, nil
 }
@@ -243,7 +243,7 @@ func TestCallingGoServerWithError(t *testing.T) {
 		method:        "Divide",
 		inArgs:        []json.RawMessage{json.RawMessage("1"), json.RawMessage("0")},
 		numOutArgs:    2,
-		expectedError: verror.BadArgf("can't divide by zero"),
+		expectedError: verror2.Make(verror2.BadArg, nil, "div 0"),
 	})
 }
 
@@ -403,13 +403,13 @@ type jsServerTestCase struct {
 	// app.
 	finalResponse interface{}
 	// The final error sent by the Javascript server to the app.
-	err *verror.Standard
+	err verror2.E
 
 	// Whether or not the Javascript server has an authorizer or not.
 	// If it does have an authorizer, then authError is sent back from the server
 	// to the app.
 	hasAuthorizer bool
-	authError     *verror.Standard
+	authError     verror2.E
 }
 
 func sendServerStream(t *testing.T, controller *Controller, test *jsServerTestCase, w lib.ClientWriter, expectedFlow int64) {
@@ -731,8 +731,8 @@ func runJsServerTestCase(t *testing.T, test jsServerTestCase) {
 	// If err2 is nil and test.err is nil reflect.DeepEqual will return false because the
 	// types are different.  Because of this, we only use reflect.DeepEqual if one of
 	// the values is non-nil.  If both values are nil, then we consider them equal.
-	if (err2 != nil || test.err != nil) && !reflect.DeepEqual(err2, test.err) {
-		t.Errorf("unexected error: got %v, expected %v", err2, test.err)
+	if (err2 != nil || test.err != nil) && !verror2.Equal(err2, test.err) {
+		t.Errorf("unexpected error: got %#v, expected %#v", err2, test.err)
 	}
 
 	// Wait until the close streaming messages have been acknowledged.
@@ -761,27 +761,23 @@ func TestJSServerWithAuthorizer(t *testing.T) {
 }
 
 func TestJSServerWithError(t *testing.T) {
+	err := verror2.Make(verror2.Internal, nil)
 	runJsServerTestCase(t, jsServerTestCase{
 		method:        "Add",
 		inArgs:        []interface{}{1.0, 2.0},
 		finalResponse: 3.0,
-		err: &verror.Standard{
-			ID:  verror.Internal,
-			Msg: "JS Server failed",
-		},
+		err:           err,
 	})
 }
 
 func TestJSServerWithAuthorizerAndAuthError(t *testing.T) {
+	err := verror2.Make(verror2.Internal, nil)
 	runJsServerTestCase(t, jsServerTestCase{
 		method:        "Add",
 		inArgs:        []interface{}{1.0, 2.0},
 		finalResponse: 3.0,
 		hasAuthorizer: true,
-		authError: &verror.Standard{
-			ID:  verror.Internal,
-			Msg: "JS Server failed",
-		},
+		authError:     err,
 	})
 }
 func TestJSServerWihStreamingInputs(t *testing.T) {
