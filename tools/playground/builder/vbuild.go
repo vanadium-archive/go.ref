@@ -282,6 +282,10 @@ func (f *codeFile) write() error {
 	return ioutil.WriteFile(filepath.Join("src", f.pkg, f.Name), []byte(f.Body), 0666)
 }
 
+// TODO(sadovsky): "veyron go install" runs "vdl generate" before running the Go
+// compiler, so it shouldn't be necessary to run "vdl" separately. Also, why do
+// we compile files individually, rather than compiling everything in one go
+// (pun intended), something like "veyron go install ..."?
 func (f *codeFile) compile() error {
 	debug("Compiling file ", f.Name)
 	var cmd *exec.Cmd
@@ -289,7 +293,7 @@ func (f *codeFile) compile() error {
 	case "js":
 		return nil
 	case "vdl":
-		cmd = makeCmdJsonEvent(f.Name, "vdl", "generate", "--lang=go", f.pkg)
+		cmd = makeCmdJsonEvent(f.Name, "veyron", "run", "vdl", "generate", "--lang=go", f.pkg)
 	case "go":
 		cmd = makeCmdJsonEvent(f.Name, "veyron", "go", "install", f.pkg)
 	default:

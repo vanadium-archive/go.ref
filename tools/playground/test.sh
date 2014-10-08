@@ -27,20 +27,20 @@ build() {
 }
 
 test_with_files() {
-    echo '{"Files":[' > request.json
-    while [[ $# > 0 ]]; do
-	echo '{"Name":"'"$(basename $1)"'","Body":' >>request.json
-	grep -v OMIT $1 | ./escaper >>request.json
-	shift
-	if [[ $# > 0 ]]; then
-	    echo '},' >>request.json
-	else
-	    echo '}' >>request.json
-	fi
-    done
-    echo ']}' >>request.json
-    rm -f builder.out
-    ./builder <request.json 2>&1 | tee builder.out
+  echo '{"Files":[' > request.json
+  while [[ $# > 0 ]]; do
+    echo '{"Name":"'"$(basename $1)"'","Body":' >>request.json
+    grep -v OMIT $1 | ./escaper >>request.json
+    shift
+    if [[ $# > 0 ]]; then
+      echo '},' >>request.json
+    else
+      echo '}' >>request.json
+    fi
+  done
+  echo ']}' >>request.json
+  rm -f builder.out
+  ./builder <request.json 2>&1 | tee builder.out
 }
 
 main() {
