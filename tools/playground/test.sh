@@ -20,10 +20,10 @@ build() {
   veyron go build veyron.io/veyron/veyron/tools/identity || shell_test::fail "line ${LINENO}: failed to build 'identity'"
   veyron go build veyron.io/veyron/veyron/services/proxy/proxyd || shell_test::fail "line ${LINENO}: failed to build 'proxyd'"
   veyron go build veyron.io/veyron/veyron/services/mounttable/mounttabled || shell_test::fail "line ${LINENO}: failed to build 'mounttabled'"
-  veyron go build veyron.io/veyron/veyron/services/wsprd || shell_test::fail "line ${LINENO}: failed to build 'wsprd'"
   veyron go build veyron.io/veyron/veyron2/vdl/vdl || shell_test::fail "line ${LINENO}: failed to build 'vdl'"
   veyron go build veyron.io/veyron/veyron/tools/playground/builder || shell_test::fail "line ${LINENO}: failed to build 'builder'"
   veyron go build veyron.io/veyron/veyron/tools/playground/testdata/escaper || shell_test::fail "line ${LINENO}: failed to build 'escaper'"
+  veyron go build veyron.io/wspr/veyron/services/wsprd || shell_test::fail "line ${LINENO}: failed to build 'wsprd'"
 }
 
 test_with_files() {
