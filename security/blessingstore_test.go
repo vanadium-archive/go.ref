@@ -1,4 +1,4 @@
-package rt
+package security
 
 import (
 	"fmt"
@@ -11,33 +11,29 @@ import (
 )
 
 type storeTester struct {
-	t                                         *testing.T
-	bForAll, bForGoogle, bForVeyron, bDefault security.Blessings
+	forAll, forFoo, forBar, def security.Blessings
+	other                       security.Blessings // Blessings bound to a different principal.
 }
 
 func (t *storeTester) testSet(s security.BlessingStore) error {
-	var (
-		p      = newPrincipal(t.t)
-		bOther = blessSelf(t.t, p, "irrelevant")
-	)
 	testdata := []struct {
 		blessings security.Blessings
 		pattern   security.BlessingPattern
 		wantErr   string
 	}{
-		{t.bForAll, "...", ""},
-		{t.bForGoogle, "google/...", ""},
-		{t.bForVeyron, "veyron", ""},
-		{bOther, "...", "public key does not match"},
-		{t.bForAll, "", "invalid BlessingPattern"},
-		{t.bForAll, "foo...", "invalid BlessingPattern"},
-		{t.bForAll, "...foo", "invalid BlessingPattern"},
-		{t.bForAll, "foo/.../bar", "invalid BlessingPattern"},
+		{t.forAll, "...", ""},
+		{t.forFoo, "foo/...", ""},
+		{t.forBar, "bar", ""},
+		{t.other, "...", "public key does not match"},
+		{t.forAll, "", "invalid BlessingPattern"},
+		{t.forAll, "foo...", "invalid BlessingPattern"},
+		{t.forAll, "...foo", "invalid BlessingPattern"},
+		{t.forAll, "foo/.../bar", "invalid BlessingPattern"},
 	}
 	for _, d := range testdata {
 		_, err := s.Set(d.blessings, d.pattern)
 		if merr := matchesError(err, d.wantErr); merr != nil {
-			return fmt.Errorf("Set(%v, %q): %v", d.blessings, p, merr)
+			return fmt.Errorf("Set(%v, %q): %v", d.blessings, d.pattern, merr)
 		}
 	}
 	return nil
@@ -47,20 +43,18 @@ func (t *storeTester) testSetDefault(s security.BlessingStore, currentDefault se
 	if got := s.Default(); !reflect.DeepEqual(got, currentDefault) {
 		return fmt.Errorf("Default(): got: %v, want: %v", got, currentDefault)
 	}
-	testdata := []struct {
-		blessings security.Blessings
-		wantErr   string
-	}{
-		{t.bDefault, ""},
-		{blessSelf(t.t, newPrincipal(t.t), "irrelevant"), "public key does not match"},
+	if err := s.SetDefault(t.def); err != nil {
+		return fmt.Errorf("SetDefault(%v): %v", t.def, err)
 	}
-	for _, d := range testdata {
-		if err := matchesError(s.SetDefault(d.blessings), d.wantErr); err != nil {
-			return fmt.Errorf("SetDefault(%v): %v", d.blessings, err)
-		}
-		if got, want := s.Default(), t.bDefault; !reflect.DeepEqual(got, want) {
-			return fmt.Errorf("Default(): got: %v, want: %v", got, want)
-		}
+	if got, want := s.Default(), t.def; !reflect.DeepEqual(got, want) {
+		return fmt.Errorf("Default returned %v, want %v", got, want)
+	}
+	// Changing default to an invalid blessing should not affect the existing default.
+	if err := matchesError(s.SetDefault(t.other), "public key does not match"); err != nil {
+		return err
+	}
+	if got, want := s.Default(), t.def; !reflect.DeepEqual(got, want) {
+		return fmt.Errorf("Default returned %v, want %v", got, want)
 	}
 	return nil
 }
@@ -70,15 +64,15 @@ func (t *storeTester) testForPeer(s security.BlessingStore) error {
 		peers     []string
 		blessings security.Blessings
 	}{
-		{nil, t.bForAll},
-		{[]string{"foo"}, t.bForAll},
-		{[]string{"google"}, unionOfBlessings(t.t, t.bForAll, t.bForGoogle)},
-		{[]string{"veyron"}, unionOfBlessings(t.t, t.bForAll, t.bForVeyron)},
-		{[]string{"google/foo"}, unionOfBlessings(t.t, t.bForAll, t.bForGoogle)},
-		{[]string{"veyron/baz"}, t.bForAll},
-		{[]string{"google/foo/bar"}, unionOfBlessings(t.t, t.bForAll, t.bForGoogle)},
-		{[]string{"veyron/foo", "google"}, unionOfBlessings(t.t, t.bForAll, t.bForGoogle)},
-		{[]string{"veyron", "google"}, unionOfBlessings(t.t, t.bForAll, t.bForGoogle, t.bForVeyron)},
+		{nil, t.forAll},
+		{[]string{"baz"}, t.forAll},
+		{[]string{"foo"}, unionOfBlessings(t.forAll, t.forFoo)},
+		{[]string{"bar"}, unionOfBlessings(t.forAll, t.forBar)},
+		{[]string{"foo/foo"}, unionOfBlessings(t.forAll, t.forFoo)},
+		{[]string{"bar/baz"}, t.forAll},
+		{[]string{"foo/foo/bar"}, unionOfBlessings(t.forAll, t.forFoo)},
+		{[]string{"bar/foo", "foo"}, unionOfBlessings(t.forAll, t.forFoo)},
+		{[]string{"bar", "foo"}, unionOfBlessings(t.forAll, t.forFoo, t.forBar)},
 	}
 	for _, d := range testdata {
 		if got, want := s.ForPeer(d.peers...), d.blessings; !reflect.DeepEqual(got, want) {
@@ -88,61 +82,67 @@ func (t *storeTester) testForPeer(s security.BlessingStore) error {
 	return nil
 }
 
-func newStoreTester(t *testing.T) (*storeTester, security.PublicKey) {
+func newStoreTester(blessed security.Principal) *storeTester {
 	var (
-		// root principals
-		v      = newPrincipal(t)
-		g      = newPrincipal(t)
-		veyron = blessSelf(t, v, "veyron")
-		google = blessSelf(t, g, "google")
-
-		// test principal
-		p    = newPrincipal(t)
-		pkey = p.PublicKey()
-	)
-	s := &storeTester{
-		t:          t,
-		bForAll:    bless(t, v, pkey, veyron, "alice"),
-		bForGoogle: bless(t, g, pkey, google, "alice"),
-		bDefault:   bless(t, g, pkey, google, "aliceDefault"),
-	}
-	s.bForVeyron = unionOfBlessings(t, s.bForAll, s.bForGoogle)
-	return s, pkey
-}
-
-func TestInMemoryBlessingStore(t *testing.T) {
-	tester, pkey := newStoreTester(t)
-	s := newInMemoryBlessingStore(pkey)
-	if err := tester.testSet(s); err != nil {
-		t.Error(err)
-	}
-	if err := tester.testForPeer(s); err != nil {
-		t.Error(err)
-	}
-	if err := tester.testSetDefault(s, tester.bForAll); err != nil {
-		t.Error(err)
-	}
-}
-
-func TestPersistingBlessingStore(t *testing.T) {
-	newTempDir := func(name string) string {
-		dir, err := ioutil.TempDir("", name)
-		if err != nil {
-			t.Fatal(err)
+		blessing = func(root, extension string) security.Blessings {
+			blesser, err := NewPrincipal()
+			if err != nil {
+				panic(err)
+			}
+			blessing, err := blesser.Bless(blessed.PublicKey(), blessSelf(blesser, root), extension, security.UnconstrainedUse())
+			if err != nil {
+				panic(err)
+			}
+			return blessing
 		}
-		return dir
-	}
-
-	tester, pkey := newStoreTester(t)
-
-	// Create a new persisting BlessingStore.
-	dir := newTempDir("blessingstore")
-	defer os.RemoveAll(dir)
-	signer := newPrincipal(t)
-	s, err := newPersistingBlessingStore(pkey, dir, signer)
+	)
+	pother, err := NewPrincipal()
 	if err != nil {
-		t.Fatalf("newPersistingBlessingStore failed: %v", err)
+		panic(err)
 	}
+
+	s := &storeTester{}
+	s.forAll = blessing("bar", "alice")
+	s.forFoo = blessing("foo", "alice")
+	s.forBar = unionOfBlessings(s.forAll, s.forFoo)
+	s.def = blessing("default", "alice")
+	s.other = blessSelf(pother, "other")
+	return s
+}
+
+func TestBlessingStore(t *testing.T) {
+	p, err := NewPrincipal()
+	if err != nil {
+		t.Fatal(err)
+	}
+	tester := newStoreTester(p)
+	s := p.BlessingStore()
+	if err := tester.testSet(s); err != nil {
+		t.Error(err)
+	}
+	if err := tester.testForPeer(s); err != nil {
+		t.Error(err)
+	}
+	if err := tester.testSetDefault(s, tester.forAll); err != nil {
+		t.Error(err)
+	}
+}
+
+func TestBlessingStorePersistence(t *testing.T) {
+	dir, err := ioutil.TempDir("", "TestPersistingBlessingStore")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(dir)
+	p, existed, err := NewPersistentPrincipal(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if existed {
+		t.Errorf("%q already has a principal in it", dir)
+	}
+	tester := newStoreTester(p)
+	s := p.BlessingStore()
 
 	if err := tester.testSet(s); err != nil {
 		t.Error(err)
@@ -150,29 +150,33 @@ func TestPersistingBlessingStore(t *testing.T) {
 	if err := tester.testForPeer(s); err != nil {
 		t.Error(err)
 	}
-	if err := tester.testSetDefault(s, tester.bForAll); err != nil {
+	if err := tester.testSetDefault(s, tester.forAll); err != nil {
 		t.Error(err)
 	}
-	// Test that all mutations are appropriately reflected in a BlessingStore constructed
-	// from same public key, directory and signer.
-	s, err = newPersistingBlessingStore(pkey, dir, signer)
+
+	// Recreate the BlessingStore from the directory.
+	p2, _, err := NewPersistentPrincipal(dir)
 	if err != nil {
-		t.Fatalf("newPersistingBlessingStore failed: %v", err)
+		t.Fatal(err)
 	}
+	s = p2.BlessingStore()
 	if err := tester.testForPeer(s); err != nil {
 		t.Error(err)
 	}
-	if got, want := s.Default(), tester.bDefault; !reflect.DeepEqual(got, want) {
+	if got, want := s.Default(), tester.def; !reflect.DeepEqual(got, want) {
 		t.Fatalf("Default(): got: %v, want: %v", got, want)
 	}
 }
 
 func TestBlessingStoreSetOverridesOldSetting(t *testing.T) {
+	p, err := NewPrincipal()
+	if err != nil {
+		t.Fatal(err)
+	}
 	var (
-		p     = newPrincipal(t)
-		alice = blessSelf(t, p, "alice")
-		bob   = blessSelf(t, p, "bob")
-		s     = newInMemoryBlessingStore(p.PublicKey())
+		alice = blessSelf(p, "alice")
+		bob   = blessSelf(p, "bob")
+		s     = p.BlessingStore()
 	)
 	// Set(alice, "alice")
 	// Set(bob, "alice/...")
@@ -183,7 +187,7 @@ func TestBlessingStoreSetOverridesOldSetting(t *testing.T) {
 	if _, err := s.Set(bob, "alice/..."); err != nil {
 		t.Fatal(err)
 	}
-	if got, want := s.ForPeer("alice"), unionOfBlessings(t, alice, bob); !reflect.DeepEqual(got, want) {
+	if got, want := s.ForPeer("alice"), unionOfBlessings(alice, bob); !reflect.DeepEqual(got, want) {
 		t.Errorf("Got %v, want %v", got, want)
 	}
 	if got, want := s.ForPeer("alice/friend"), bob; !reflect.DeepEqual(got, want) {
@@ -226,12 +230,16 @@ func TestBlessingStoreSetOverridesOldSetting(t *testing.T) {
 }
 
 func TestBlessingStoreSetReturnsOldValue(t *testing.T) {
+	p, err := NewPrincipal()
+	if err != nil {
+		t.Fatal(err)
+	}
 	var (
-		p     = newPrincipal(t)
-		alice = blessSelf(t, p, "alice")
-		bob   = blessSelf(t, p, "bob")
-		s     = newInMemoryBlessingStore(p.PublicKey())
+		alice = blessSelf(p, "alice")
+		bob   = blessSelf(p, "bob")
+		s     = p.BlessingStore()
 	)
+
 	if old, err := s.Set(alice, "..."); old != nil || err != nil {
 		t.Errorf("Got (%v, %v)", old, err)
 	}

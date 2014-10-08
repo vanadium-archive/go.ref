@@ -1,13 +1,9 @@
 package rt
 
 import (
-	"crypto/ecdsa"
-	"crypto/elliptic"
-	"crypto/rand"
 	"fmt"
 	"os"
 	"os/user"
-	"path"
 	"strconv"
 
 	isecurity "veyron.io/veyron/veyron/runtimes/google/security"
@@ -19,12 +15,9 @@ import (
 	"veyron.io/veyron/veyron2/vlog"
 )
 
-const (
-	privateKeyFile = "privatekey.pem"
-	// Environment variable pointing to a directory where information about a principal
-	// (private key, blessing store, blessing roots etc.) is stored.
-	VeyronCredentialsEnvVar = "VEYRON_CREDENTIALS"
-)
+// Environment variable pointing to a directory where information about a principal
+// (private key, blessing store, blessing roots etc.) is stored.
+const VeyronCredentialsEnvVar = "VEYRON_CREDENTIALS"
 
 func (rt *vrt) Principal() security.Principal {
 	return rt.principal
@@ -49,77 +42,45 @@ func (rt *vrt) initSecurity() error {
 	if err := rt.initPrincipal(); err != nil {
 		return fmt.Errorf("principal initialization failed: %v", err)
 	}
-	if err := rt.initDefaultBlessings(); err != nil {
-		return fmt.Errorf("default blessing initialization failed: %v", err)
-	}
 	return nil
 }
 
 func (rt *vrt) initPrincipal() error {
 	// TODO(ataly, ashankar): Check if agent environment variables are
 	// specified and if so initialize principal from agent.
+	var err error
 	if dir := os.Getenv(VeyronCredentialsEnvVar); len(dir) > 0 {
 		// TODO(ataly, ashankar): If multiple runtimes are getting
 		// initialized at the same time from the same VEYRON_CREDENTIALS
 		// we will need some kind of locking for the credential files.
-		return rt.initPrincipalFromCredentials(dir)
-	}
-	return rt.initTemporaryPrincipal()
-}
-
-func (rt *vrt) initDefaultBlessings() error {
-	if rt.principal.BlessingStore().Default() != nil {
+		var existed bool
+		if rt.principal, existed, err = vsecurity.NewPersistentPrincipal(dir); err != nil {
+			return err
+		}
+		if !existed {
+			return initDefaultBlessings(rt.principal)
+		}
 		return nil
 	}
-	blessing, err := rt.principal.BlessSelf(defaultBlessingName())
-	if err != nil {
+	if rt.principal, err = vsecurity.NewPrincipal(); err != nil {
 		return err
 	}
-	if err := rt.principal.BlessingStore().SetDefault(blessing); err != nil {
-		return err
-	}
-	if _, err := rt.principal.BlessingStore().Set(blessing, security.AllPrincipals); err != nil {
-		return err
-	}
-	if err := rt.principal.AddToRoots(blessing); err != nil {
-		return err
-	}
-	return nil
+	return initDefaultBlessings(rt.principal)
 }
 
-func (rt *vrt) initPrincipalFromCredentials(dir string) error {
-	if finfo, err := os.Stat(dir); err == nil {
-		if !finfo.IsDir() {
-			return fmt.Errorf("%q is not a directory", dir)
-		}
-	} else if err := os.MkdirAll(dir, 0700); err != nil {
-		return fmt.Errorf("failed to create %q: %v", dir, err)
-	}
-	key, err := initKey(dir)
-	if err != nil {
-		return fmt.Errorf("could not initialize private key from credentials directory %v: %v", dir, err)
-	}
-
-	signer := security.NewInMemoryECDSASigner(key)
-	store, roots, err := initStoreAndRootsFromCredentials(dir, signer)
-	if err != nil {
-		return fmt.Errorf("could not initialize BlessingStore and BlessingRoots from credentials directory %v: %v", dir, err)
-	}
-
-	if rt.principal, err = security.CreatePrincipal(signer, store, roots); err != nil {
-		return fmt.Errorf("could not create Principal object: %v", err)
-	}
-	return nil
-}
-
-func (rt *vrt) initTemporaryPrincipal() error {
-	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+func initDefaultBlessings(p security.Principal) error {
+	blessing, err := p.BlessSelf(defaultBlessingName())
 	if err != nil {
 		return err
 	}
-	signer := security.NewInMemoryECDSASigner(key)
-	if rt.principal, err = security.CreatePrincipal(signer, newInMemoryBlessingStore(signer.PublicKey()), newInMemoryBlessingRoots()); err != nil {
-		return fmt.Errorf("could not create Principal object: %v", err)
+	if err := p.BlessingStore().SetDefault(blessing); err != nil {
+		return err
+	}
+	if _, err := p.BlessingStore().Set(blessing, security.AllPrincipals); err != nil {
+		return err
+	}
+	if err := p.AddToRoots(blessing); err != nil {
+		return err
 	}
 	return nil
 }
@@ -230,50 +191,4 @@ func (rt *vrt) connectToAgent() (security.PrivateID, error) {
 		return nil, err
 	}
 	return isecurity.NewPrivateID("selfSigned", signer)
-}
-
-func initKey(dir string) (*ecdsa.PrivateKey, error) {
-	keyPath := path.Join(dir, privateKeyFile)
-	if f, err := os.Open(keyPath); err == nil {
-		defer f.Close()
-		v, err := vsecurity.LoadPEMKey(f, nil)
-		if err != nil {
-			return nil, fmt.Errorf("failed to load PEM data from %q: %v", keyPath, v)
-		}
-		key, ok := v.(*ecdsa.PrivateKey)
-		if !ok {
-			return nil, fmt.Errorf("%q contains a %T, not an ECDSA private key", keyPath, v)
-		}
-		return key, nil
-	} else if !os.IsNotExist(err) {
-		return nil, fmt.Errorf("failed to read %q: %v", keyPath, err)
-	}
-
-	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
-	if err != nil {
-		return nil, fmt.Errorf("failed to generate a private key: %v", err)
-	}
-
-	f, err := os.OpenFile(keyPath, os.O_WRONLY|os.O_CREATE, 0600)
-	if err != nil {
-		return nil, fmt.Errorf("failed to open %q for writing: %v", keyPath, err)
-	}
-	defer f.Close()
-	return key, vsecurity.SavePEMKey(f, key, nil)
-}
-
-func initStoreAndRootsFromCredentials(dir string, secsigner security.Signer) (security.BlessingStore, security.BlessingRoots, error) {
-	signer, err := security.CreatePrincipal(secsigner, nil, nil)
-	if err != nil {
-		return nil, nil, err
-	}
-	store, err := newPersistingBlessingStore(signer.PublicKey(), dir, signer)
-	if err != nil {
-		return nil, nil, err
-	}
-	roots, err := newPersistingBlessingRoots(dir, signer)
-	if err != nil {
-		return nil, nil, err
-	}
-	return store, roots, nil
 }

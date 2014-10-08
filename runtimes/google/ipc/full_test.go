@@ -672,6 +672,8 @@ func TestRPCAuthorization(t *testing.T) {
 	pserver.AddToRoots(bRandom)
 	// And the client needs to recognize the server's blessing to decide which of its own blessings to share.
 	pclient.AddToRoots(pserver.BlessingStore().Default())
+	// sectest.NewPrincipal sets up a principal that shares blessings with all servers, undo that.
+	pclient.BlessingStore().Set(nil, security.AllPrincipals)
 
 	type v []interface{}
 	type testcase struct {

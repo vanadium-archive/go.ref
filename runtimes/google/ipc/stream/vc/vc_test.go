@@ -138,6 +138,7 @@ func TestHandshakeTLS(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	client.BlessingStore().Set(nil, security.AllPrincipals)
 	client.BlessingStore().Set(forServer1, security.BlessingPattern("server1"))
 	client.BlessingStore().Set(forServer2, security.BlessingPattern("server2"))
 

@@ -8,7 +8,6 @@ import (
 
 	"veyron.io/veyron/veyron2/naming"
 	"veyron.io/veyron/veyron2/security"
-	"veyron.io/veyron/veyron2/security/sectest"
 )
 
 // context implements security.Context.
@@ -54,14 +53,6 @@ func updateACLInFile(fileName string, acl security.ACL) {
 	if err := SaveACL(f, acl); err != nil {
 		panic(err)
 	}
-}
-
-func bless(blesser, blessed security.Principal, with security.Blessings, extension string) security.Blessings {
-	b, err := blesser.Bless(blessed.PublicKey(), with, extension, security.UnconstrainedUse())
-	if err != nil {
-		panic(err)
-	}
-	return b
 }
 
 func testSelfRPCs(t *testing.T, authorizer security.Authorizer) {
@@ -257,19 +248,4 @@ func TestNilACLAuthorizer(t *testing.T) {
 	authorizer := NewACLAuthorizer(nullACL)
 	testNothingPermitted(t, authorizer)
 	testSelfRPCs(t, authorizer)
-}
-
-func newPrincipal(selfblessing string) (security.Principal, security.Blessings) {
-	p, err := sectest.NewPrincipal()
-	if err != nil {
-		panic(err)
-	}
-	b, err := p.BlessSelf(selfblessing)
-	if err != nil {
-		panic(err)
-	}
-	if err := p.AddToRoots(b); err != nil {
-		panic(err)
-	}
-	return p, b
 }
