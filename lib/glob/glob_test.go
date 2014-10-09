@@ -46,6 +46,11 @@ func TestExactMatch(t *testing.T) {
 		matched bool
 		exact   bool
 	}{
+		// Test recursive.
+		{"...", []string{}, true, true},
+		{"...", []string{"a"}, true, false},
+		{"a/...", []string{"a"}, true, true},
+		{"a/...", []string{"a", "b"}, true, false},
 		// Test one element, fixed.
 		{"a", []string{"a"}, true, true},
 		{"a", []string{"b"}, false, false},
@@ -93,7 +98,7 @@ func TestExactMatch(t *testing.T) {
 		}
 		matched, exact, _ := g.PartialMatch(0, test.elems)
 		if matched != test.matched || exact != test.exact {
-			t.Fatalf("%v.PartialMatch(0, %v) got (%v, %v), expected (%v, %v)",
+			t.Fatalf("'%v'.PartialMatch(0, '%v') got (%v, %v), expected (%v, %v)",
 				test.pattern, test.elems, matched, exact, test.matched, test.exact)
 		}
 	}
