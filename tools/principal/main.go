@@ -21,6 +21,26 @@ var (
 	flagBlessFor   time.Duration
 	flagAddForPeer string
 
+	cmdDump = &cmdline.Command{
+		Name:  "dump",
+		Short: "Dump out information about the principal",
+		Long: `
+Dumps out information about the principal specified by the environment
+(VEYRON_CREDENTIALS) that this tool is running in.
+`,
+		Run: func(cmd *cmdline.Command, args []string) error {
+			p := rt.R().Principal()
+			fmt.Printf("Public key : %v\n", p.PublicKey())
+			fmt.Println("")
+			fmt.Println("---------------- BlessingStore ----------------")
+			fmt.Printf("%v", p.BlessingStore().DebugString())
+			fmt.Println("")
+			fmt.Println("---------------- BlessingRoots ----------------")
+			fmt.Printf("%v", p.Roots().DebugString())
+			return nil
+		},
+	}
+
 	cmdPrint = &cmdline.Command{
 		Name:  "print",
 		Short: "Print out information about the provided blessing",
@@ -215,7 +235,7 @@ roots bound to a principal.
 
 All objects are printed using base64-VOM-encoding.
 `,
-		Children: []*cmdline.Command{cmdPrint, cmdBlessSelf, cmdDefault, cmdForPeer, cmdSetDefault, cmdSet},
+		Children: []*cmdline.Command{cmdDump, cmdPrint, cmdBlessSelf, cmdDefault, cmdForPeer, cmdSetDefault, cmdSet},
 	}).Main()
 }
 

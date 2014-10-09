@@ -23,10 +23,11 @@ main() {
   # Set VEYRON_CREDENTIALS.
   export VEYRON_CREDENTIALS="${WORKDIR}"
 
-  ./principal store.default >/dev/null || shell_test::fail "line ${LINENO}: store.default failed"
-  ./principal store.forpeer >/dev/null || shell_test::fail "line ${LINENO}: store.forpeer failed"
+  ./principal dump >/dev/null || shell_test::fail "line ${LINENO}: dump failed"
   ./principal blessself >/dev/null || shell_test::fail "line ${LINENO}: blessself failed"
   ./principal blessself alice >alice || shell_test::fail "line ${LINENO}: blessself alice failed"
+  ./principal store.default >/dev/null || shell_test::fail "line ${LINENO}: store.default failed"
+  ./principal store.forpeer >/dev/null || shell_test::fail "line ${LINENO}: store.forpeer failed"
 
   # Test print
   local GOT=$(./principal print alice | extractBlessings)

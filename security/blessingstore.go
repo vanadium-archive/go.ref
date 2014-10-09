@@ -1,6 +1,7 @@
 package security
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"reflect"
@@ -111,6 +112,25 @@ func (s *blessingStore) PublicKey() security.PublicKey {
 
 func (s *blessingStore) String() string {
 	return fmt.Sprintf("{state: %v, publicKey: %v, dir: %v}", s.state, s.publicKey, s.dir)
+}
+
+// DebugString return a human-readable string encoding of the store
+// in the following format
+// Default blessing : <Default blessing of the store>
+//
+// Peer pattern : Blessings
+// <pattern>    : <blessings>
+// ...
+// <pattern>    : <blessings>
+func (br *blessingStore) DebugString() string {
+	const format = "%-30s : %s\n"
+	b := bytes.NewBufferString(fmt.Sprintf("Default blessings: %v\n", br.state.Default))
+
+	b.WriteString(fmt.Sprintf(format, "Peer pattern", "Blessings"))
+	for pattern, blessings := range br.state.Store {
+		b.WriteString(fmt.Sprintf(format, pattern, blessings))
+	}
+	return b.String()
 }
 
 func (s *blessingStore) save() error {

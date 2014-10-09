@@ -1,8 +1,9 @@
 package security
 
 import (
-	"crypto/sha256"
+	"bytes"
 	"errors"
+	"fmt"
 	"sync"
 
 	"veyron.io/veyron/veyron/security/serialization"
@@ -28,8 +29,7 @@ func storeMapKey(root security.PublicKey) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	rootBytesHash := sha256.Sum256(rootBytes)
-	return string(rootBytesHash[:]), nil
+	return string(rootBytes), nil
 }
 
 func (br *blessingRoots) Add(root security.PublicKey, pattern security.BlessingPattern) error {
@@ -69,6 +69,27 @@ func (br *blessingRoots) Recognized(root security.PublicKey, blessing string) er
 		}
 	}
 	return errors.New("PublicKey is not a recognized root for this blessing")
+}
+
+// DebugString return a human-readable string encoding of the roots
+// DebugString encodes all roots into a string in the following
+// format
+//
+// Public key   : Pattern
+// <public key> : <pattern>
+// ...
+// <public key> : <pattern>
+func (br *blessingRoots) DebugString() string {
+	const format = "%-47s : %s\n"
+	b := bytes.NewBufferString(fmt.Sprintf(format, "Public key", "Pattern"))
+	for keyBytes, pattern := range br.store {
+		key, err := security.UnmarshalPublicKey([]byte(keyBytes))
+		if err != nil {
+			return fmt.Sprintf("failed to decode public key: %v", err)
+		}
+		b.WriteString(fmt.Sprintf(format, key, pattern))
+	}
+	return b.String()
 }
 
 func (br *blessingRoots) save() error {
