@@ -325,7 +325,7 @@ func (tc *versionTestCase) Run(t *testing.T) {
 	ep := tc.ep.Endpoint("test", "addr", naming.FixedRoutingID(0x5))
 	clientVC, _, err := createVC(client, server, ep)
 	if (err != nil) != tc.expectError {
-		t.Errorf("Error mismatch.  Wanted error: %v, got %v", tc.expectError, err)
+		t.Errorf("Error mismatch.  Wanted error: %v, got %v (client:%v, server:%v ep:%v)", tc.expectError, err, tc.client, tc.server, tc.ep)
 
 	}
 	if err != nil {

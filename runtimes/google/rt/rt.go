@@ -39,6 +39,10 @@ type vrt struct {
 	debug      debugServer
 	nServers   int  // GUARDED_BY(mu)
 	cleaningUp bool // GUARDED_BY(mu)
+
+	// TODO(ashankar,ataly): Variables to help with the transition between the
+	// old and new security model. Will be removed once the transition is complete.
+	useNewSecurityModelInIPCClients bool
 }
 
 var _ veyron2.Runtime = (*vrt)(nil)
@@ -65,6 +69,8 @@ func New(opts ...veyron2.ROpt) (veyron2.Runtime, error) {
 			if v.Name != "google" && v.Name != "" {
 				return nil, fmt.Errorf("%q is the wrong name for this runtime", v.Name)
 			}
+		case veyron2.ForceNewSecurityModel:
+			rt.useNewSecurityModelInIPCClients = true
 		default:
 			return nil, fmt.Errorf("option has wrong type %T", o)
 		}

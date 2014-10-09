@@ -35,7 +35,7 @@ const (
 	SecurityNone = veyron2.VCSecurityNone
 	SecurityTLS  = veyron2.VCSecurityConfidential
 
-	LatestVersion = version.IPCVersion3
+	LatestVersion = version.IPCVersion4
 )
 
 // testFlowEcho writes a random string of 'size' bytes on the flow and then
@@ -100,8 +100,6 @@ func TestHandshake(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	// TODO(ashankar): This should not be nil, but rather a dummy object (whose public
-	// key does not match that of the principal)
 	if flow.RemoteBlessings() != nil {
 		t.Errorf("Server sent blessing %v over insecure transport", flow.RemoteBlessings())
 	}
@@ -183,8 +181,8 @@ func testConnect(t *testing.T, security veyron2.VCSecurityLevel) {
 func TestConnect(t *testing.T)    { testConnect(t, SecurityNone) }
 func TestConnectTLS(t *testing.T) { testConnect(t, SecurityTLS) }
 
-func testConnect_Version2(t *testing.T, security veyron2.VCSecurityLevel) {
-	h, vc := New(security, version.IPCVersion2, sectest.NewPrincipal("client"), sectest.NewPrincipal("server"))
+func testConnect_Version3(t *testing.T, security veyron2.VCSecurityLevel) {
+	h, vc := New(security, version.IPCVersion3, sectest.NewPrincipal("client"), sectest.NewPrincipal("server"))
 	defer h.Close()
 	flow, err := vc.Connect()
 	if err != nil {
@@ -192,8 +190,8 @@ func testConnect_Version2(t *testing.T, security veyron2.VCSecurityLevel) {
 	}
 	testFlowEcho(t, flow, 10)
 }
-func TestConnect_Version2(t *testing.T)    { testConnect_Version2(t, SecurityNone) }
-func TestConnect_Version2TLS(t *testing.T) { testConnect_Version2(t, SecurityTLS) }
+func TestConnect_Version3(t *testing.T)    { testConnect_Version3(t, SecurityNone) }
+func TestConnect_Version3TLS(t *testing.T) { testConnect_Version3(t, SecurityTLS) }
 
 // helper function for testing concurrent operations on multiple flows over the
 // same VC.  Such tests are most useful when running the race detector.

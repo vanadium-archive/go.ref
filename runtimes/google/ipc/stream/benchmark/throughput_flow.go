@@ -5,8 +5,6 @@ import (
 	"testing"
 
 	"veyron.io/veyron/veyron/runtimes/google/ipc/stream/manager"
-	"veyron.io/veyron/veyron/runtimes/google/ipc/stream/sectest"
-	"veyron.io/veyron/veyron/runtimes/google/ipc/stream/vc"
 	"veyron.io/veyron/veyron2"
 	"veyron.io/veyron/veyron2/ipc/stream"
 	"veyron.io/veyron/veyron2/naming"
@@ -27,11 +25,9 @@ type listener struct {
 // that calling stream.Manager.Dial to each of the endpoints will end up
 // creating a new VIF.
 func createListeners(mode veyron2.VCSecurityLevel, m stream.Manager, N int) (servers []listener, err error) {
-	// TODO(ashankar): Remove once PublicIDs are gone since at that point, if no Principal is provided, an anonymous one should be gereated within vc.go
-	serverP := vc.LocalPrincipal{sectest.NewPrincipal("server")}
 	for i := 0; i < N; i++ {
 		var l listener
-		if l.ln, l.ep, err = m.Listen("tcp", "127.0.0.1:0", mode, serverP); err != nil {
+		if l.ln, l.ep, err = m.Listen("tcp", "127.0.0.1:0", mode); err != nil {
 			return
 		}
 		servers = append(servers, l)
@@ -52,14 +48,12 @@ func benchmarkFlow(b *testing.B, mode veyron2.VCSecurityLevel, nVIFs, nVCsPerVIF
 	rchan := make(chan io.ReadCloser, nFlows)
 	wchan := make(chan io.WriteCloser, nFlows)
 
-	// TODO(ashankar): Remove once PublicIDs are gone since at that point, if no Principal is provided, an anonymous one should be gereated within vc.go
-	clientP := vc.LocalPrincipal{sectest.NewPrincipal("client")}
 	go func() {
 		defer close(wchan)
 		for i := 0; i < nVIFs; i++ {
 			ep := lns[i].ep
 			for j := 0; j < nVCsPerVIF; j++ {
-				vc, err := client.Dial(ep, mode, clientP)
+				vc, err := client.Dial(ep, mode)
 				if err != nil {
 					b.Error(err)
 					return

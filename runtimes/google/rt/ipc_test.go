@@ -1,11 +1,8 @@
 package rt_test
 
 import (
-	"fmt"
 	"reflect"
-	"sort"
 	"testing"
-	"time"
 
 	"veyron.io/veyron/veyron2"
 	"veyron.io/veyron/veyron2/ipc"
@@ -15,182 +12,149 @@ import (
 
 	_ "veyron.io/veyron/veyron/lib/testutil"
 	"veyron.io/veyron/veyron/profiles"
-	isecurity "veyron.io/veyron/veyron/runtimes/google/security"
 	vsecurity "veyron.io/veyron/veyron/security"
 )
 
 type testService struct{}
 
-func (*testService) EchoIDs(call ipc.ServerCall) (server, client []string) {
-	return call.LocalID().Names(), call.RemoteID().Names()
+func (testService) EchoBlessings(call ipc.ServerCall) []string {
+	return call.RemoteBlessings().ForContext(call)
 }
 
-type S []string
-
-func newID(name string) security.PrivateID {
-	id, err := isecurity.NewPrivateID(name, nil)
+func newRT() veyron2.Runtime {
+	r, err := rt.New(veyron2.ForceNewSecurityModel{})
 	if err != nil {
 		panic(err)
 	}
-	return id
+	return r
 }
 
-func bless(blessor security.PrivateID, blessee security.PublicID, name string) security.PublicID {
-	blessedID, err := blessor.Bless(blessee, name, 5*time.Minute, nil)
+type rootPrincipal struct {
+	p security.Principal
+	b security.Blessings
+}
+
+func newRootPrincipal(name string) *rootPrincipal {
+	p, err := vsecurity.NewPrincipal()
 	if err != nil {
 		panic(err)
 	}
-	return blessedID
-}
-
-func add(store security.PublicIDStore, id security.PublicID, pattern security.BlessingPattern) {
-	if err := store.Add(id, pattern); err != nil {
+	b, err := p.BlessSelf(name)
+	if err != nil {
 		panic(err)
 	}
+	return &rootPrincipal{p, b}
 }
 
-func call(r veyron2.Runtime, client ipc.Client, name string) (clientNames, serverNames []string, err error) {
-	c, err := client.StartCall(r.NewContext(), name, "EchoIDs", nil)
+func (r *rootPrincipal) Bless(p security.Principal, extension string) security.Blessings {
+	b, err := r.p.Bless(p.PublicKey(), r.b, extension, security.UnconstrainedUse())
 	if err != nil {
-		return nil, nil, err
+		panic(err)
 	}
-	if err := c.Finish(&serverNames, &clientNames); err != nil {
-		return nil, nil, err
-	}
-	sort.Strings(clientNames)
-	sort.Strings(serverNames)
-	return
+	return b
 }
 
-func TestClientServerIDs(t *testing.T) {
-	stopServer := func(server ipc.Server) {
-		if err := server.Stop(); err != nil {
-			t.Fatalf("server.Stop failed: %s", err)
+func union(blessings ...security.Blessings) security.Blessings {
+	var ret security.Blessings
+	var err error
+	for _, b := range blessings {
+		if ret, err = security.UnionOfBlessings(ret, b); err != nil {
+			panic(err)
 		}
 	}
+	return ret
+}
+
+func TestClientServerBlessings(t *testing.T) {
 	var (
-		self   = newID("self")
-		google = newID("google")
-		veyron = newID("veyron")
+		rootAlpha, rootBeta, rootUnrecognized = newRootPrincipal("alpha"), newRootPrincipal("beta"), newRootPrincipal("unrecognized")
+		clientRT, serverRT                    = newRT(), newRT()
+		pclient, pserver                      = clientRT.Principal(), serverRT.Principal()
 
-		googleGmailService   = bless(google, self.PublicID(), "gmail")
-		googleYoutubeService = bless(google, self.PublicID(), "youtube")
-		veyronService        = bless(veyron, self.PublicID(), "service")
-		googleGmailClient    = bless(google, self.PublicID(), "gmailClient")
-		googleYoutubeClient  = bless(google, self.PublicID(), "youtubeClient")
-		veyronClient         = bless(veyron, self.PublicID(), "client")
+		// A bunch of blessings
+		alphaClient        = rootAlpha.Bless(pclient, "client")
+		betaClient         = rootBeta.Bless(pclient, "client")
+		unrecognizedClient = rootUnrecognized.Bless(pclient, "client")
+
+		alphaServer        = rootAlpha.Bless(pserver, "server")
+		betaServer         = rootBeta.Bless(pserver, "server")
+		unrecognizedServer = rootUnrecognized.Bless(pserver, "server")
 	)
-	isecurity.TrustIdentityProviders(google)
-	isecurity.TrustIdentityProviders(veyron)
+	// Setup the client's blessing store
+	pclient.BlessingStore().Set(alphaClient, "alpha/server")
+	pclient.BlessingStore().Set(betaClient, "beta/...")
+	pclient.BlessingStore().Set(unrecognizedClient, security.AllPrincipals)
 
-	serverR, err := rt.New(veyron2.RuntimeID(self))
+	tests := []struct {
+		server security.Blessings // Blessings presented by the server.
+
+		// Expected output
+		wantServer []string // Client's view of the server's blessings
+		wantClient []string // Server's view fo the client's blessings
+	}{
+		{
+			server:     unrecognizedServer,
+			wantServer: nil,
+			wantClient: nil,
+		},
+		{
+			server:     alphaServer,
+			wantServer: []string{"alpha/server"},
+			wantClient: []string{"alpha/client"},
+		},
+		{
+			server:     union(alphaServer, betaServer),
+			wantServer: []string{"alpha/server", "beta/server"},
+			wantClient: []string{"alpha/client", "beta/client"},
+		},
+	}
+
+	// Have the client and server both trust both the root principals.
+	for _, rt := range []veyron2.Runtime{clientRT, serverRT} {
+		for _, root := range []*rootPrincipal{rootAlpha, rootBeta} {
+			if err := rt.Principal().AddToRoots(root.b); err != nil {
+				t.Fatal(err)
+			}
+		}
+	}
+	// Start the server process.
+	server, err := serverRT.NewServer()
 	if err != nil {
-		t.Fatalf("rt.New() failed: %s", err)
+		t.Fatal(err)
 	}
-	clientR, err := rt.New(veyron2.RuntimeID(self))
-	if err != nil {
-		t.Fatalf("rt.New() failed: %s", err)
+	defer server.Stop()
+	var serverObjectName string
+	if endpoint, err := server.ListenX(profiles.LocalListenSpec); err != nil {
+		t.Fatal(err)
+	} else {
+		serverObjectName = naming.JoinAddressName(endpoint.String(), "")
 	}
-
-	// Add PublicIDs for running "google/gmail" and "google/youtube" services to
-	// serverR's PublicIDStore. Since these PublicIDs are meant to be by
-	// servers only they are tagged with "".
-	add(serverR.PublicIDStore(), googleGmailService, "")
-	add(serverR.PublicIDStore(), googleYoutubeService, "")
-	// Add PublicIDs for communicating the "google/gmail" and "google/youtube" services
-	// to the clientR's PublicIDStore.
-	add(clientR.PublicIDStore(), googleGmailClient, "google/...")
-	add(clientR.PublicIDStore(), googleYoutubeClient, "google/youtube")
-
-	type testcase struct {
-		server, client                   security.PublicID
-		defaultPattern                   security.BlessingPattern
-		wantServerNames, wantClientNames []string
+	if err := server.Serve("", ipc.LeafDispatcher(testService{}, vsecurity.NewACLAuthorizer(vsecurity.OpenACL()))); err != nil {
+		t.Fatal(err)
 	}
-	tests := []testcase{
-		{
-			defaultPattern:  security.AllPrincipals,
-			wantServerNames: S{"self", "google/gmail", "google/youtube"},
-			wantClientNames: S{"self", "google/gmailClient", "google/youtubeClient"},
-		},
-		{
-			defaultPattern:  "google/gmail",
-			wantServerNames: S{"google/gmail"},
-			wantClientNames: S{"self", "google/gmailClient"},
-		},
-		{
-			defaultPattern:  "google/youtube",
-			wantServerNames: S{"google/youtube"},
-			wantClientNames: S{"self", "google/gmailClient", "google/youtubeClient"},
-		},
-		{
-			server:          veyronService,
-			defaultPattern:  security.AllPrincipals,
-			wantServerNames: S{"veyron/service"},
-			wantClientNames: S{"self"},
-		},
-		{
-			client:          veyronClient,
-			defaultPattern:  security.AllPrincipals,
-			wantServerNames: S{"self", "google/gmail", "google/youtube"},
-			wantClientNames: S{"veyron/client"},
-		},
-		{
-			server:          veyronService,
-			client:          veyronClient,
-			defaultPattern:  security.AllPrincipals,
-			wantServerNames: S{"veyron/service"},
-			wantClientNames: S{"veyron/client"},
-		},
-	}
-	name := func(t testcase) string {
-		return fmt.Sprintf("TestCase{clientPublicIDStore: %v, serverPublicIDStore: %v, client option: %v, server option: %v}", clientR.PublicIDStore(), serverR.PublicIDStore(), t.client, t.server)
-	}
+	// Let it rip!
 	for _, test := range tests {
-		if err := serverR.PublicIDStore().SetDefaultBlessingPattern(test.defaultPattern); err != nil {
-			t.Errorf("serverR.PublicIDStore.SetDefaultBlessingPattern failed: %s", err)
-			continue
-		}
-		server, err := serverR.NewServer(veyron2.LocalID(test.server))
+		// Create a new client per test so as to not re-use established authenticated VCs.
+		// TODO(ashankar,suharshs): Once blessings are exchanged "per-RPC", one client for all cases will suffice.
+		client, err := clientRT.NewClient()
 		if err != nil {
-			t.Errorf("serverR.NewServer(...) failed: %s", err)
+			t.Errorf("clientRT.NewClient failed: %v", err)
 			continue
 		}
-		endpoint, err := server.ListenX(profiles.LocalListenSpec)
-		if err != nil {
-			t.Errorf("error listening to service: ", err)
+		if err := pserver.BlessingStore().SetDefault(test.server); err != nil {
+			t.Errorf("pserver.SetDefault(%v) failed: %v", test.server, err)
 			continue
 		}
-		defer stopServer(server)
-		if err := server.Serve("", ipc.LeafDispatcher(&testService{},
-			vsecurity.NewACLAuthorizer(security.ACL{In: map[security.BlessingPattern]security.LabelSet{
-				security.AllPrincipals: security.AllLabels,
-			}}))); err != nil {
-			t.Errorf("error serving service: ", err)
-			continue
+		var gotClient []string
+		if call, err := client.StartCall(clientRT.NewContext(), serverObjectName, "EchoBlessings", nil); err != nil {
+			t.Errorf("client.StartCall failed: %v", err)
+		} else if err = call.Finish(&gotClient); err != nil {
+			t.Errorf("call.Finish failed: %v", err)
+		} else if !reflect.DeepEqual(gotClient, test.wantClient) {
+			t.Errorf("%v: Got %v, want %v for client blessings", test.server, gotClient, test.wantServer)
+		} else if gotServer, _ := call.RemoteBlessings(); !reflect.DeepEqual(gotServer, test.wantServer) {
+			t.Errorf("%v: Got %v, want %v for server blessings", test.server, gotServer, test.wantClient)
 		}
-
-		client, err := clientR.NewClient(veyron2.LocalID(test.client))
-		if err != nil {
-			t.Errorf("clientR.NewClient(...) failed: %s", err)
-			continue
-		}
-		defer client.Close()
-
-		clientNames, serverNames, err := call(clientR, client, naming.JoinAddressName(fmt.Sprintf("%v", endpoint), ""))
-		if err != nil {
-			t.Errorf("IPC failed: %s", err)
-			continue
-		}
-		sort.Strings(test.wantClientNames)
-		sort.Strings(test.wantServerNames)
-		if !reflect.DeepEqual(clientNames, test.wantClientNames) {
-			t.Errorf("TestCase: %s, Got clientNames: %v, want: %v", name(test), clientNames, test.wantClientNames)
-			continue
-		}
-		if !reflect.DeepEqual(serverNames, test.wantServerNames) {
-			t.Errorf("TestCase: %s, Got serverNames: %v, want: %v", name(test), serverNames, test.wantServerNames)
-			continue
-		}
+		client.Close()
 	}
 }

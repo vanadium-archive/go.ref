@@ -177,10 +177,22 @@ func internalNew(conn net.Conn, rid naming.RoutingID, initialVCI id.VC, versions
 	return vif, nil
 }
 
+func adjustIPCVersionForOldSecurityModel(in naming.Endpoint, opts []stream.VCOpt) naming.Endpoint {
+	out := in
+	for _, o := range opts {
+		if r, ok := o.(*version.Range); ok {
+			out = r.Endpoint(out.Addr().Network(), out.Addr().String(), out.RoutingID())
+			vlog.Infof("Adjusted Dialer endpoint from %v to %v for OpenVC message because the old security model is being used", in, out)
+		}
+	}
+	return out
+}
+
 // Dial creates a new VC to the provided remote identity, authenticating the VC
 // with the provided local identity.
 func (vif *VIF) Dial(remoteEP naming.Endpoint, opts ...stream.VCOpt) (stream.VC, error) {
-	vc, err := vif.newVC(vif.allocVCI(), vif.localEP, remoteEP, true)
+	localEP := adjustIPCVersionForOldSecurityModel(vif.localEP, opts)
+	vc, err := vif.newVC(vif.allocVCI(), localEP, remoteEP, true)
 	if err != nil {
 		return nil, err
 	}
@@ -189,7 +201,7 @@ func (vif *VIF) Dial(remoteEP naming.Endpoint, opts ...stream.VCOpt) (stream.VC,
 	err = vif.sendOnExpressQ(&message.OpenVC{
 		VCI:         vc.VCI(),
 		DstEndpoint: remoteEP,
-		SrcEndpoint: vif.localEP,
+		SrcEndpoint: localEP,
 		Counters:    counters})
 	if err != nil {
 		err = fmt.Errorf("vif.sendOnExpressQ(OpenVC) failed: %v", err)
@@ -667,11 +679,10 @@ func (vif *VIF) shutdownFlow(vc *vc.VC, fid id.Flow) {
 // ShutdownVCs closes all VCs established to the provided remote endpoint.
 // Returns the number of VCs that were closed.
 func (vif *VIF) ShutdownVCs(remote naming.Endpoint) int {
-	remoteStr := remote.String()
 	vcs := vif.vcMap.List()
 	n := 0
 	for _, vc := range vcs {
-		if vc.RemoteAddr().String() == remoteStr {
+		if naming.Compare(vc.RemoteAddr().RoutingID(), remote.RoutingID()) {
 			vlog.VI(1).Infof("VCI %d on VIF %s being closed because of ShutdownVCs call", vc.VCI(), vif)
 			vif.closeVCAndSendMsg(vc, "")
 			n++

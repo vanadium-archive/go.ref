@@ -29,10 +29,8 @@ func (a aclAuthorizer) Authorize(ctx security.Context) error {
 	if ctx.LocalBlessings() != nil && ctx.RemoteBlessings() != nil && reflect.DeepEqual(ctx.LocalBlessings().PublicKey(), ctx.RemoteBlessings().PublicKey()) {
 		return nil
 	}
-	if newAPI := (ctx.LocalBlessings() != nil && ctx.RemoteBlessings() != nil); !newAPI {
-		if ctx.LocalID() != nil && ctx.RemoteID() != nil && reflect.DeepEqual(ctx.LocalID(), ctx.RemoteID()) {
-			return nil
-		}
+	if ctx.LocalID() != nil && ctx.RemoteID() != nil && reflect.DeepEqual(ctx.LocalID(), ctx.RemoteID()) {
+		return nil
 	}
 	var blessings []string
 	if ctx.RemoteBlessings() != nil {
