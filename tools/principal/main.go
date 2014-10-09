@@ -10,16 +10,23 @@ import (
 	"time"
 
 	"veyron.io/veyron/veyron/lib/cmdline"
+	"veyron.io/veyron/veyron/services/identity"
 	"veyron.io/veyron/veyron/services/identity/util"
 
 	"veyron.io/veyron/veyron2/rt"
 	"veyron.io/veyron/veyron2/security"
+	"veyron.io/veyron/veyron2/vdl/vdlutil"
 )
 
 var (
 	// Flags for the "blessself" command
 	flagBlessFor   time.Duration
 	flagAddForPeer string
+
+	// Flags for the "seekblessing" command
+	flagSeekBlessingFrom string
+	flagSkipSetDefault   bool
+	flagForPeer          string
 
 	cmdDump = &cmdline.Command{
 		Name:  "dump",
@@ -215,6 +222,67 @@ this tool. - is used for STDIN.
 			return nil
 		},
 	}
+
+	cmdSeekBlessings = &cmdline.Command{
+		Name:  "seekblessings",
+		Short: "Seek blessings from a web-based Veyron blesser",
+		Long: `
+Seeks blessings from a web-based Veyron blesser which
+requires the caller to first authenticate with Google using OAuth. Simply
+run the command to see what happens.
+
+The blessings are sought for the principal specified by the environment
+(VEYRON_CREDENTIALS) that this tool is running in.
+
+The blessings obtained are set as default, unless a --skip_set_default flag
+is provided, and are also set for sharing with all peers, unless a more
+specific peer pattern is provided using the --for_peer flag.
+`,
+		Run: func(cmd *cmdline.Command, args []string) error {
+			blessedChan := make(chan string)
+			defer close(blessedChan)
+			macaroonChan, err := getMacaroonForBlessRPC(flagSeekBlessingFrom, blessedChan)
+			if err != nil {
+				return fmt.Errorf("failed to get macaroon from Veyron blesser: %v", err)
+			}
+			macaroon := <-macaroonChan
+			service := <-macaroonChan
+
+			ctx, cancel := rt.R().NewContext().WithTimeout(time.Minute)
+			defer cancel()
+
+			var reply vdlutil.Any
+			blesser, err := identity.BindMacaroonBlesser(service)
+			if err == nil {
+				reply, err = blesser.Bless(ctx, macaroon)
+			}
+			if err != nil {
+				return fmt.Errorf("failed to get blessing from %q: %v", service, err)
+			}
+			wire, ok := reply.(security.WireBlessings)
+			if !ok {
+				return fmt.Errorf("received %T, want security.WireBlessings", reply)
+			}
+			blessings, err := security.NewBlessings(wire)
+			if err != nil {
+				return fmt.Errorf("failed to construct Blessings object from wire data: %v", err)
+			}
+			blessedChan <- fmt.Sprint(blessings)
+			// Wait for getTokenForBlessRPC to clean up:
+			<-macaroonChan
+
+			if !flagSkipSetDefault {
+				if err := rt.R().Principal().BlessingStore().SetDefault(blessings); err != nil {
+					return fmt.Errorf("failed to set blessings %v as default: %v", blessings, err)
+				}
+			}
+			pattern := security.BlessingPattern(flagForPeer)
+			if _, err := rt.R().Principal().BlessingStore().Set(blessings, pattern); err != nil {
+				return fmt.Errorf("failed to set blessings %v for peers %v: %v", blessings, pattern, err)
+			}
+			return dumpBlessings(blessings)
+		},
+	}
 )
 
 func main() {
@@ -225,6 +293,9 @@ func main() {
 	}
 	rt.Init()
 	cmdBlessSelf.Flags.DurationVar(&flagBlessFor, "for", 0*time.Hour, "Expiry time of Blessing (optional)")
+	cmdSeekBlessings.Flags.StringVar(&flagSeekBlessingFrom, "from", "https://proxy.envyor.com:8125/google", "URL to use to begin the seek blessings process")
+	cmdSeekBlessings.Flags.BoolVar(&flagSkipSetDefault, "skip_set_default", false, "flag to indicate that the blessings obtained from the Veyron blesser must not be set as default on the principals's blessing store")
+	cmdSeekBlessings.Flags.StringVar(&flagForPeer, "for_peer", "...", "pattern to be used while setting the blessings obtained from the Veyron blesser on the principal's blessing store")
 
 	(&cmdline.Command{
 		Name:  "principal",
@@ -235,7 +306,7 @@ roots bound to a principal.
 
 All objects are printed using base64-VOM-encoding.
 `,
-		Children: []*cmdline.Command{cmdDump, cmdPrint, cmdBlessSelf, cmdDefault, cmdForPeer, cmdSetDefault, cmdSet},
+		Children: []*cmdline.Command{cmdDump, cmdPrint, cmdBlessSelf, cmdDefault, cmdForPeer, cmdSetDefault, cmdSet, cmdSeekBlessings},
 	}).Main()
 }
 

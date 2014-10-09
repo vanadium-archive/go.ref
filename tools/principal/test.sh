@@ -3,6 +3,8 @@
 # Test the principal command-line tool.
 #
 # This tests most operations of the principal command-line tool.
+# Not the "seekblessing" command yet, since that requires
+# starting a separate server.
 
 source "${VEYRON_ROOT}/scripts/lib/shell_test.sh"
 

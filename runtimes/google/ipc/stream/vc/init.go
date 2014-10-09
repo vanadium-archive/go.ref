@@ -59,3 +59,7 @@ func (s *anonymousBlessingStore) Default() security.Blessings {
 func (s *anonymousBlessingStore) PublicKey() security.PublicKey {
 	return s.k
 }
+
+func (anonymousBlessingStore) DebugString() string {
+	return "anonymous BlessingStore"
+}
