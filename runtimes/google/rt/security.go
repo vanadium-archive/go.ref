@@ -36,6 +36,9 @@ func (rt *vrt) PublicIDStore() security.PublicIDStore {
 }
 
 func (rt *vrt) initSecurity() error {
+	// Use the new security model in ipc.Client only if it was expicitly specified.
+	// At a later date, we will switch to using the new model always.
+	rt.useNewSecurityModelInIPCClients = rt.useNewSecurityModelInIPCClients || len(os.Getenv(VeyronCredentialsEnvVar)) > 0
 	if err := rt.initOldSecurity(); err != nil {
 		return err
 	}

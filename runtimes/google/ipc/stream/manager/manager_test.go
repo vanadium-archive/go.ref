@@ -320,7 +320,7 @@ func TestMultipleVCs(t *testing.T) {
 
 	// Have the server read from each flow and write to rchan.
 	rchan := make(chan string)
-	ln, ep, err := server.Listen("tcp", "127.0.0.1:0", newPrincipal("server"))
+	ln, ep, err := server.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -356,7 +356,7 @@ func TestMultipleVCs(t *testing.T) {
 	var vcs [nVCs]stream.VC
 	for i := 0; i < nVCs; i++ {
 		var err error
-		vcs[i], err = client.Dial(ep, newPrincipal("client"))
+		vcs[i], err = client.Dial(ep)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -433,7 +433,6 @@ func TestAddressResolution(t *testing.T) {
 
 func TestServerRestartDuringClientLifetime(t *testing.T) {
 	client := InternalNew(naming.FixedRoutingID(0xcccccccc))
-	clientP := newPrincipal("client") // TODO(ashankar): Remove. Once the PublicID code is gone anonymous principals should be generated within vc.go if one is not provided.
 	server := blackbox.HelperCommand(t, "runServer", "127.0.0.1:0")
 	server.Cmd.Start()
 	addr, err := server.ReadLineFromChild()
@@ -444,12 +443,12 @@ func TestServerRestartDuringClientLifetime(t *testing.T) {
 	if err != nil {
 		t.Fatalf("inaming.NewEndpoint(%q): %v", addr, err)
 	}
-	if _, err := client.Dial(ep, clientP); err != nil {
+	if _, err := client.Dial(ep); err != nil {
 		t.Fatal(err)
 	}
 	server.Cleanup()
 	// A new VC cannot be created since the server is dead
-	if _, err := client.Dial(ep, clientP); err == nil {
+	if _, err := client.Dial(ep); err == nil {
 		t.Fatal("Expected client.Dial to fail since server is dead")
 	}
 	// Restarting the server, listening on the same address as before
@@ -459,7 +458,7 @@ func TestServerRestartDuringClientLifetime(t *testing.T) {
 	if addr2, err := server.ReadLineFromChild(); addr2 != addr || err != nil {
 		t.Fatalf("Got (%q, %v) want (%q, nil)", addr2, err, addr)
 	}
-	if _, err := client.Dial(ep, clientP); err != nil {
+	if _, err := client.Dial(ep); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -471,7 +470,7 @@ func TestHelperProcess(t *testing.T) {
 
 func runServer(argv []string) {
 	server := InternalNew(naming.FixedRoutingID(0x55555555))
-	_, ep, err := server.Listen("tcp", argv[0], newPrincipal("server"))
+	_, ep, err := server.Listen("tcp", argv[0])
 	if err != nil {
 		fmt.Println(err)
 		return

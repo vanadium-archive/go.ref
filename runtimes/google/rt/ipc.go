@@ -7,12 +7,14 @@ import (
 	iipc "veyron.io/veyron/veyron/runtimes/google/ipc"
 	imanager "veyron.io/veyron/veyron/runtimes/google/ipc/stream/manager"
 	"veyron.io/veyron/veyron/runtimes/google/ipc/stream/vc"
+	iversion "veyron.io/veyron/veyron/runtimes/google/ipc/version"
 	ivtrace "veyron.io/veyron/veyron/runtimes/google/vtrace"
 
 	"veyron.io/veyron/veyron2"
 	"veyron.io/veyron/veyron2/context"
 	"veyron.io/veyron/veyron2/ipc"
 	"veyron.io/veyron/veyron2/ipc/stream"
+	"veyron.io/veyron/veyron2/ipc/version"
 	"veyron.io/veyron/veyron2/naming"
 	"veyron.io/veyron/veyron2/security"
 	"veyron.io/veyron/veyron2/vtrace"
@@ -100,8 +102,10 @@ func (rt *vrt) NewClient(opts ...ipc.ClientOpt) (ipc.Client, error) {
 		}
 	}
 	// Add the option that provides the local identity to the client.
-	otherOpts = append(otherOpts, rt.newLocalID(id))
-
+	otherOpts = append(otherOpts, rt.newLocalID(id), vc.LocalPrincipal{rt.principal})
+	if !rt.useNewSecurityModelInIPCClients {
+		otherOpts = append(otherOpts, &iversion.Range{Min: version.IPCVersion2, Max: version.IPCVersion3})
+	}
 	return iipc.InternalNewClient(sm, ns, otherOpts...)
 }
 
@@ -160,7 +164,7 @@ func (rt *vrt) NewServer(opts ...ipc.ServerOpt) (ipc.Server, error) {
 		}
 	}
 	// Add the option that provides the local identity to the server.
-	otherOpts = append(otherOpts, rt.newLocalID(id))
+	otherOpts = append(otherOpts, rt.newLocalID(id), vc.LocalPrincipal{rt.principal})
 	ctx := rt.NewContext()
 
 	return iipc.InternalNewServer(ctx, sm, ns, otherOpts...)

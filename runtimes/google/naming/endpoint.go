@@ -32,7 +32,7 @@ type Endpoint struct {
 }
 
 // NewEndpoint creates a new endpoint from a string as per naming.NewEndpoint
-func NewEndpoint(input string) (naming.Endpoint, error) {
+func NewEndpoint(input string) (*Endpoint, error) {
 	var ep Endpoint
 
 	// The prefix and suffix are optional.

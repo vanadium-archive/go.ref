@@ -75,6 +75,7 @@ var (
 	errChannelIDMismatch         = errors.New("channel id does not match expectation")
 	errInvalidIdentityInMessage  = errors.New("invalid identity in authentication message")
 	errInvalidSignatureInMessage = errors.New("signature does not verify in authentication handshake message")
+	errNoCertificatesReceived    = errors.New("no certificates received")
 	errSingleCertificateRequired = errors.New("exactly one X.509 certificate chain with exactly one certificate is required")
 )
 
@@ -315,6 +316,9 @@ func readBlessings(r io.Reader, tag []byte, crypter crypto.Crypter, v version.IP
 	b, err := security.NewBlessings(wireb)
 	if err != nil {
 		return nil, err
+	}
+	if b == nil {
+		return nil, errNoCertificatesReceived
 	}
 	if !sig.Verify(b.PublicKey(), append(tag, crypter.ChannelBinding()...)) {
 		return nil, errInvalidSignatureInMessage

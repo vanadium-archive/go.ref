@@ -10,22 +10,13 @@ import (
 
 	"veyron.io/veyron/veyron2/ipc/stream"
 	"veyron.io/veyron/veyron2/naming"
-	"veyron.io/veyron/veyron2/security"
 
 	_ "veyron.io/veyron/veyron/lib/testutil"
 	"veyron.io/veyron/veyron/runtimes/google/ipc/stream/manager"
 	"veyron.io/veyron/veyron/runtimes/google/ipc/stream/proxy"
+	"veyron.io/veyron/veyron/runtimes/google/ipc/stream/sectest"
 	"veyron.io/veyron/veyron/runtimes/google/ipc/stream/vc"
-	isecurity "veyron.io/veyron/veyron/runtimes/google/security"
 )
-
-func newID(name string) security.PrivateID {
-	id, err := isecurity.NewPrivateID(name, nil)
-	if err != nil {
-		panic(err)
-	}
-	return id
-}
 
 func TestProxy(t *testing.T) {
 	proxy, err := proxy.New(naming.FixedRoutingID(0xbbbbbbbbbbbbbbbb), nil, "tcp", "127.0.0.1:0", "")
@@ -114,9 +105,9 @@ func TestDuplicateRoutingID(t *testing.T) {
 	}
 }
 
-func TestProxyIdentity(t *testing.T) {
-	proxyID := newID("proxy")
-	proxy, err := proxy.New(naming.FixedRoutingID(0xbbbbbbbbbbbbbbbb), proxyID, "tcp", "127.0.0.1:0", "")
+func TestProxyAuthentication(t *testing.T) {
+	pproxy := sectest.NewPrincipal("proxy")
+	proxy, err := proxy.New(naming.FixedRoutingID(0xbbbbbbbbbbbbbbbb), pproxy, "tcp", "127.0.0.1:0", "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -134,12 +125,12 @@ func TestProxyIdentity(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got, want := fmt.Sprintf("%v", flow.RemoteID()), fmt.Sprintf("%v", proxyID.PublicID()); got != want {
-		t.Errorf("Proxy has identity %q want %q", flow.RemoteID(), want)
+	if got, want := flow.RemoteBlessings(), pproxy.BlessingStore().Default(); !reflect.DeepEqual(got, want) {
+		t.Errorf("Proxy authenticated as [%v], want [%v]", got, want)
 	}
 }
 
-func TestServerIdentity(t *testing.T) {
+func TestServerBlessings(t *testing.T) {
 	proxy, err := proxy.New(naming.FixedRoutingID(0xbbbbbbbbbbbbbbbb), nil, "tcp", "127.0.0.1:0", "")
 	if err != nil {
 		t.Fatal(err)
@@ -147,11 +138,8 @@ func TestServerIdentity(t *testing.T) {
 
 	server := manager.InternalNew(naming.FixedRoutingID(0x5555555555555555))
 	defer server.Shutdown()
-	serverID := newID("server")
-	if err != nil {
-		t.Fatal(err)
-	}
-	ln, ep, err := server.Listen(proxy.Endpoint().Network(), proxy.Endpoint().String(), vc.FixedLocalID(serverID))
+	pserver := sectest.NewPrincipal("server")
+	ln, ep, err := server.Listen(proxy.Endpoint().Network(), proxy.Endpoint().String(), vc.LocalPrincipal{pserver})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -174,8 +162,8 @@ func TestServerIdentity(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got, want := flow.RemoteID(), serverID.PublicID(); !reflect.DeepEqual(got, want) {
-		t.Errorf("Got %q want %q", got, want)
+	if got, want := flow.RemoteBlessings(), pserver.BlessingStore().Default(); !reflect.DeepEqual(got, want) {
+		t.Errorf("Got [%v] want [%v]", got, want)
 	}
 }
 

@@ -127,14 +127,7 @@ func (m *servermap) List() []string {
 
 // New creates a new Proxy that listens for network connections on the provided
 // (network, address) pair and routes VC traffic between accepted connections.
-//
-// TODO(ashankar): Change principal to security.Principal once the old security model is ripped out.
-func New(rid naming.RoutingID, principal interface{}, network, address, pubAddress string) (*Proxy, error) {
-	if _, ok := principal.(security.Principal); principal != nil && !ok {
-		if _, ok := principal.(security.PrivateID); !ok {
-			return nil, fmt.Errorf("principal argument must be either a security.Principal or a security.PrivateID, not a %T", principal)
-		}
-	}
+func New(rid naming.RoutingID, principal security.Principal, network, address, pubAddress string) (*Proxy, error) {
 	ln, err := net.Listen(network, address)
 	if err != nil {
 		return nil, fmt.Errorf("net.Listen(%q, %q) failed: %v", network, address, err)
@@ -148,11 +141,7 @@ func New(rid naming.RoutingID, principal interface{}, network, address, pubAddre
 		servers:    &servermap{m: make(map[naming.RoutingID]*server)},
 		processes:  make(map[*process]struct{}),
 		pubAddress: pubAddress,
-	}
-	if p, ok := principal.(security.Principal); ok {
-		proxy.principal = vc.LocalPrincipal{p}
-	} else if principal != nil {
-		proxy.principal = vc.FixedLocalID(principal.(security.PrivateID))
+		principal:  vc.LocalPrincipal{principal},
 	}
 	go proxy.listenLoop()
 	return proxy, nil
@@ -518,6 +507,11 @@ func (p *process) NewServerVC(m *message.OpenVC) *vc.VC {
 		vc.Close("duplicate OpenVC request")
 		return nil
 	}
+	version, err := version.CommonVersion(m.DstEndpoint, m.SrcEndpoint)
+	if err != nil {
+		p.SendCloseVC(m.VCI, fmt.Errorf("incompatible IPC protocol versions: %v", err))
+		return nil
+	}
 	vc := vc.InternalNew(vc.Params{
 		VCI:          m.VCI,
 		LocalEP:      m.DstEndpoint,
@@ -525,6 +519,7 @@ func (p *process) NewServerVC(m *message.OpenVC) *vc.VC {
 		Pool:         iobuf.NewPool(0),
 		ReserveBytes: message.HeaderSizeBytes,
 		Helper:       p,
+		Version:      version,
 	})
 	p.servers[m.VCI] = vc
 	proxyLog().Infof("Registered VC %v from server on process %v", vc, p)
