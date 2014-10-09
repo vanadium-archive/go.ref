@@ -435,3 +435,22 @@ func TestOperationsNeedValidBinding(t *testing.T) {
 		t.Fatalf("Remove() failed: got %v, expected %v", err, verror.Internalf("Remove() without a transactional binding"))
 	}
 }
+
+func TestOpenEmptyMemstore(t *testing.T) {
+	path := filepath.Join(os.TempDir(), "namedms")
+	defer os.Remove(path)
+
+	// Create a brand new memstore persisted to namedms. This will
+	// have the side-effect of creating an empty backing file.
+	_, err := NewMemstore(path)
+	if err != nil {
+		t.Fatalf("NewMemstore() failed: %v", err)
+	}
+
+	// Create another memstore that will attempt to deserialize the empty
+	// backing file. 
+	_, err = NewMemstore(path)
+	if err != nil {
+		t.Fatalf("NewMemstore() failed: %v", err)
+	}
+}
