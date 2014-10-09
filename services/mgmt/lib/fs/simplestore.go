@@ -67,13 +67,22 @@ func NewMemstore(configuredPersistentFile string) (*Memstore, error) {
 		// The file doesn't exist. Attempt to create it instead.
 		file, cerr := os.Create(configuredPersistentFile)
 		if cerr != nil {
-			return nil, fmt.Errorf("File (%q) could neither be opened (%v) or created (%v)", configuredPersistentFile, err, cerr)
+			return nil, fmt.Errorf("File (%q) could neither be opened (%v) nor created (%v)", configuredPersistentFile, err, cerr)
 		}
 		defer file.Close()
 	} else {
 		decoder := gob.NewDecoder(file)
-		if err := decoder.Decode(&data); err != nil {
-			return nil, fmt.Errorf("Decode() failed: %v", err)
+		if err := decoder.Decode(&data); err != nil  {
+			// Two situations. One is not an error.
+			fi, err := os.Stat(configuredPersistentFile)
+			if err != nil {
+				// Someone probably deleted the file out from underneath us. Give up.
+				return nil, fmt.Errorf("Decode() failed, file went missing: %v", err)
+			}
+			if fi.Size() != 0 {
+				return nil, fmt.Errorf("Decode() failed, backing file truncated: %v", err)
+			}
+			// An empty backing file deserializes to an empty memstore.
 		}
 	}
 	return &Memstore{
