@@ -209,7 +209,7 @@ func (ctx WSPR) handleCreateAccount(w http.ResponseWriter, r *http.Request) {
 	// Get a blessing for the access token from identity server.
 	rctx, cancel := ctx.rt.NewContext().WithTimeout(time.Minute)
 	defer cancel()
-	blessingAny, err := ctx.blesserService.BlessUsingAccessToken(rctx, data.AccessToken)
+	blessingAny, _, err := ctx.blesserService.BlessUsingAccessToken(rctx, data.AccessToken)
 	if err != nil {
 		msg := fmt.Sprintf("Error getting blessing for access token: %v", err)
 		ctx.logger.Error(msg)

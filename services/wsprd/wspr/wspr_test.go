@@ -31,10 +31,14 @@ func newMockBlesserService(id security.PrivateID) *mockBlesserService {
 	}
 }
 
-func (m *mockBlesserService) BlessUsingAccessToken(c context.T, accessToken string, co ...ipc.CallOpt) (vdlutil.Any, error) {
+func (m *mockBlesserService) BlessUsingAccessToken(c context.T, accessToken string, co ...ipc.CallOpt) (vdlutil.Any, string, error) {
 	m.count = m.count + 1
 	name := fmt.Sprintf("mock-blessing-%v", m.count)
-	return m.id.Bless(m.id.PublicID(), name, 5*time.Minute, nil)
+	blessing, err := m.id.Bless(m.id.PublicID(), name, 5*time.Minute, nil)
+	if err != nil {
+		return nil, "", err
+	}
+	return blessing, name, nil
 }
 
 // This is never used.  Only needed for mock.
