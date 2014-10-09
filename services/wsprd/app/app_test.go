@@ -841,10 +841,6 @@ func TestDeserializeCaveat(t *testing.T) {
 			json:          `{"_type":"MethodCaveat","service":"...","data":["Get","MultiGet"]}`,
 			expectedValue: C(security.MethodCaveat("Get", "MultiGet")),
 		},
-		{
-			json:          `{"_type":"PeerBlessingsCaveat","service":"...","data":["veyron.io/veyron/veyron/batman","veyron.io/veyron/veyron/brucewayne"]}`,
-			expectedValue: C(security.PeerBlessingsCaveat("veyron.io/veyron/veyron/batman", "veyron.io/veyron/veyron/brucewayne")),
-		},
 	}
 
 	for _, c := range testCases {
