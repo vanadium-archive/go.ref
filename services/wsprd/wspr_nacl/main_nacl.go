@@ -8,9 +8,9 @@ import (
 	"syscall"
 
 	_ "veyron.io/veyron/veyron/runtimes/google/security"
-	"veyron.io/veyron/veyron/services/wsprd/wspr"
 	"veyron.io/veyron/veyron2/ipc"
 	"veyron.io/veyron/veyron2/rt"
+	"veyron.io/wspr/veyron/services/wsprd/wspr"
 )
 
 func main() {
