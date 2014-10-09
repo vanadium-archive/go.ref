@@ -33,10 +33,10 @@ func TestHelperProcess(t *testing.T) {
 }
 
 func init() {
-	modules.RegisterChild("handleDefaults", handleDefaults)
-	modules.RegisterChild("handleCustom", handleCustom)
-	modules.RegisterChild("handleCustomWithStop", handleCustomWithStop)
-	modules.RegisterChild("handleDefaultsIgnoreChan", handleDefaultsIgnoreChan)
+	modules.RegisterChild("handleDefaults", "", handleDefaults)
+	modules.RegisterChild("handleCustom", "", handleCustom)
+	modules.RegisterChild("handleCustomWithStop", "", handleCustomWithStop)
+	modules.RegisterChild("handleDefaultsIgnoreChan", "", handleDefaultsIgnoreChan)
 }
 
 func stopLoop(stdin io.Reader, ch chan<- struct{}) {

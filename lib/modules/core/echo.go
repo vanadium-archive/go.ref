@@ -15,13 +15,13 @@ import (
 )
 
 func init() {
-	modules.RegisterChild(EchoServerCommand, echoServer)
-	modules.RegisterChild(EchoClientCommand, echoClient)
+	modules.RegisterChild(EchoServerCommand, `<name> <message>...
+	invokes name.Echo(message)`, echoServer)
+	modules.RegisterChild(EchoClientCommand, `<name> <text>
+	runs an Echo server mounted at <name> and configured to return <text>: as a prefix in its response`, echoClient)
 }
 
 type treeDispatcher struct{ id string }
-
-var _ ipc.Dispatcher = (*treeDispatcher)(nil)
 
 func (d treeDispatcher) Lookup(suffix, method string) (ipc.Invoker, security.Authorizer, error) {
 	return ipc.ReflectInvoker(&echoServerObject{d.id, suffix}), nil, nil

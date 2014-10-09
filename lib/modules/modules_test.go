@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"fmt"
 	"io"
+	"os"
 	"testing"
 	"time"
 
@@ -12,9 +13,9 @@ import (
 )
 
 func init() {
-	modules.RegisterChild("envtest", PrintEnv)
-	modules.RegisterChild("echo", Echo)
-	modules.RegisterChild("errortest", ErrorMain)
+	modules.RegisterChild("envtest", "envtest: <variables to print>...", PrintEnv)
+	modules.RegisterChild("echo", "[args]*", Echo)
+	modules.RegisterChild("errortest", "", ErrorMain)
 }
 
 func Echo(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
@@ -106,27 +107,37 @@ func testCommand(t *testing.T, sh *modules.Shell, name, key, val string) {
 }
 
 func TestChild(t *testing.T) {
-	sh := modules.NewShell()
+	sh := modules.NewShell("envtest")
 	defer sh.Cleanup(nil, nil)
 	key, val := "simpleVar", "foo & bar"
 	sh.SetVar(key, val)
-	sh.AddSubprocess("envtest", "envtest: <variables to print>...")
 	testCommand(t, sh, "envtest", key, val)
+}
+
+func TestChildNoRegistration(t *testing.T) {
+	sh := modules.NewShell()
+	defer sh.Cleanup(os.Stderr, os.Stderr)
+	key, val := "simpleVar", "foo & bar"
+	sh.SetVar(key, val)
+	testCommand(t, sh, "envtest", key, val)
+	_, err := sh.Start("non-existent-command", "random", "args")
+	if err == nil || err.Error() != `Shell command "non-existent-command" not registered` {
+		t.Fatalf("unexpected error %v", err)
+	}
 }
 
 func TestFunction(t *testing.T) {
-	sh := modules.NewShell()
+	sh := modules.NewShell(".*")
 	defer sh.Cleanup(nil, nil)
 	key, val := "simpleVar", "foo & bar & baz"
 	sh.SetVar(key, val)
-	sh.AddFunction("envtest", PrintEnv, "envtest: <variables to print>...")
-	testCommand(t, sh, "envtest", key, val)
+	sh.AddFunction("envtestf", PrintEnv, "envtest: <variables to print>...")
+	testCommand(t, sh, "envtestf", key, val)
 }
 
 func TestErrorChild(t *testing.T) {
-	sh := modules.NewShell()
+	sh := modules.NewShell("errortest")
 	defer sh.Cleanup(nil, nil)
-	sh.AddSubprocess("errortest", "")
 	h, err := sh.Start("errortest")
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
@@ -160,8 +171,7 @@ func testShutdown(t *testing.T, sh *modules.Shell) {
 }
 
 func TestShutdownSubprocess(t *testing.T) {
-	sh := modules.NewShell()
-	sh.AddSubprocess("echo", "[args]*")
+	sh := modules.NewShell("echo")
 	testShutdown(t, sh)
 }
 

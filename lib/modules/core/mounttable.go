@@ -17,9 +17,12 @@ import (
 )
 
 func init() {
-	modules.RegisterChild(RootMTCommand, rootMountTable)
-	modules.RegisterChild(MTCommand, mountTable)
-	modules.RegisterChild(LSExternalCommand, ls)
+	modules.RegisterChild(RootMTCommand, "", rootMountTable)
+	modules.RegisterChild(MTCommand, `<mount point>
+	reads NAMESPACE_ROOT from its environment and mounts a new mount table at <mount point>`, mountTable)
+	modules.RegisterChild(LSExternalCommand, `<glob>...
+	issues glob requests using the current processes namespace library`,
+		ls)
 }
 
 func mountTable(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {

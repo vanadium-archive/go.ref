@@ -9,7 +9,7 @@ import (
 )
 
 func init() {
-	RegisterChild("echos", Echo)
+	RegisterChild("echos", "[args]*", Echo)
 }
 
 func Echo(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
@@ -24,16 +24,14 @@ func Echo(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args
 
 func assertNumHandles(t *testing.T, sh *Shell, n int) {
 	if got, want := len(sh.handles), n; got != want {
-		_, file, line, _ := runtime.Caller(2)
+		_, file, line, _ := runtime.Caller(1)
 		t.Errorf("%s:%d: got %d, want %d", filepath.Base(file), line, got, want)
 	}
 }
 
 func TestState(t *testing.T) {
-	sh := NewShell()
-
+	sh := NewShell("echos")
 	sh.AddSubprocess("echonotregistered", "[args]*")
-	sh.AddSubprocess("echos", "[args]*")
 	sh.AddFunction("echof", Echo, "[args]*")
 	assertNumHandles(t, sh, 0)
 

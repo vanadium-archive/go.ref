@@ -6,6 +6,7 @@ import (
 	"io"
 	"os"
 	"os/exec"
+	"regexp"
 	"strings"
 	"sync"
 	"time"
@@ -202,10 +203,10 @@ func (eh *execHandle) Shutdown(stdout, stderr io.Writer) error {
 
 const ShellEntryPoint = "VEYRON_SHELL_HELPER_PROCESS_ENTRY_POINT"
 
-func RegisterChild(name string, main Main) {
+func RegisterChild(name, help string, main Main) {
 	child.Lock()
 	defer child.Unlock()
-	child.mains[name] = main
+	child.mains[name] = &childEntryPoint{main, help}
 }
 
 // DispatchInTest will execute the requested subproccess command from within
@@ -238,16 +239,36 @@ func (child *childRegistrar) hasCommand(name string) bool {
 }
 
 func (child *childRegistrar) dispatch() error {
+	ch, _ := vexec.GetChildHandle()
+	// Only signal that the child is ready or failed if we successfully get
+	// a child handle. We most likely failed to get a child handle
+	// because the subprocess was run directly from the command line.
+
 	command := os.Getenv(ShellEntryPoint)
 	if len(command) == 0 {
-		return fmt.Errorf("Failed to find entrypoint %q", ShellEntryPoint)
+		err := fmt.Errorf("Failed to find entrypoint %q", ShellEntryPoint)
+		if ch != nil {
+			ch.SetFailed(err)
+		}
+		return err
 	}
+
 	child.Lock()
 	m := child.mains[command]
 	child.Unlock()
+
 	if m == nil {
-		return fmt.Errorf("Shell command %q not registered", command)
+		err := fmt.Errorf("Shell command %q not registered", command)
+		if ch != nil {
+			ch.SetFailed(err)
+		}
+		return err
 	}
+
+	if ch != nil {
+		ch.SetReady()
+	}
+
 	go func(pid int) {
 		for {
 			_, err := os.FindProcess(pid)
@@ -258,14 +279,34 @@ func (child *childRegistrar) dispatch() error {
 			time.Sleep(time.Second)
 		}
 	}(os.Getppid())
-	ch, err := vexec.GetChildHandle()
-	if err == nil {
-		// Only signal that the child is ready if we successfully get
-		// a child handle. We most likely failed to get a child handle
-		// because the subprocess was run directly from the command line.
-		ch.SetReady()
+
+	return m.fn(os.Stdin, os.Stdout, os.Stderr, osEnvironMap(), flag.Args()...)
+}
+
+func (child *childRegistrar) addSubprocesses(sh *Shell, pattern string) error {
+	re, err := regexp.Compile(pattern)
+	if err != nil {
+		return err
 	}
-	return m(os.Stdin, os.Stdout, os.Stderr, osEnvironMap(), flag.Args()...)
+	child.Lock()
+	defer child.Unlock()
+	found := false
+	for name, subproc := range child.mains {
+		if re.MatchString(name) {
+			sh.addSubprocess(name, subproc.help)
+			found = true
+		}
+	}
+	if !found {
+		return fmt.Errorf("patterh %q failed to match any registered commands", pattern)
+	}
+	return nil
+}
+
+// AddRegisteredSubprocesses adds any commands that match the regexp pattern
+// to the supplied shell.
+func AddRegisteredSubprocesses(sh *Shell, pattern string) error {
+	return child.addSubprocesses(sh, pattern)
 }
 
 // WaitForEof returns when a read on its io.Reader parameter returns io.EOF

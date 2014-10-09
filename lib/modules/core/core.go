@@ -61,20 +61,15 @@ const (
 
 // NewShell returns a new Shell instance with the core commands installed.
 func NewShell() *modules.Shell {
-	shell := modules.NewShell()
+	shell := modules.NewShell(".*")
 	Install(shell)
 	return shell
 }
 
 // Install installs the core commands into the supplied Shell.
 func Install(shell *modules.Shell) {
-	shell.AddSubprocess(RootMTCommand, "")
-	shell.AddSubprocess(MTCommand, `<mount point>
-	reads NAMESPACE_ROOT from its environment and mounts a new mount table at <mount point>`)
 	shell.AddFunction(LSCommand, ls, `<glob>...
 	issues glob requests using the current processes namespace library`)
-	shell.AddSubprocess(LSExternalCommand, `<glob>...
-	runs a subprocess to issue glob requests using the subprocesses namespace library`)
 	shell.AddFunction(ResolveCommand, resolveObject, `<name>
 	resolves name to obtain an object server address`)
 	shell.AddFunction(ResolveMTCommand, resolveMT, `<name>
@@ -89,8 +84,4 @@ func Install(shell *modules.Shell) {
 	turns the namespace cache on or off`)
 	shell.AddFunction(MountCommand, mountServer, `<mountpoint> <server> <ttl> [M][R]
 	invokes namespace.Mount(<mountpoint>, <server>, <ttl>)`)
-	shell.AddSubprocess(EchoClientCommand, `<name> <message>...
-	invokes name.Echo(message)`)
-	shell.AddSubprocess(EchoServerCommand, `<name> <text>
-	runs an Echo server mounted at <name> and configured to return <text>: as a prefix in its response`)
 }
