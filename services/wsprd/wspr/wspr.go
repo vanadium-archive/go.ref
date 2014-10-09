@@ -70,10 +70,6 @@ func readFromRequest(r *http.Request) (*bytes.Buffer, error) {
 	return &buf, nil
 }
 
-func setAccessControl(w http.ResponseWriter) {
-	w.Header().Set("Access-Control-Allow-Origin", "*")
-}
-
 // Starts the proxy and listens for requests. This method is blocking.
 func (ctx WSPR) Run() {
 	// Bind to the OAuth Blesser service
