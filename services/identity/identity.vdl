@@ -14,13 +14,10 @@ package identity
 // veyron virtual circuit).
 // Thus, if Mallory possesses the access token associated with Alice's account,
 // she may be able to obtain a blessing with Alice's name on it.
-//
-// TODO(ashankar): Update this to use the new security model:
-// (blessing security.WireBlessing, error)
 type OAuthBlesser interface {
   // BlessUsingAccessToken uses the provided access token to obtain the email
-  // address and returns a blessing.
-  BlessUsingAccessToken(token string) (blessing any, err error)
+  // address and returns a blessing along with the email address.
+  BlessUsingAccessToken(token string) (blessing any, email string, err error)
 }
 
 // MacaroonBlesser returns a blessing given the provided macaroon string.

@@ -31,16 +31,13 @@ const _ = _gen_wiretype.TypeIDInvalid
 // veyron virtual circuit).
 // Thus, if Mallory possesses the access token associated with Alice's account,
 // she may be able to obtain a blessing with Alice's name on it.
-//
-// TODO(ashankar): Update this to use the new security model:
-// (blessing security.WireBlessing, error)
 // OAuthBlesser is the interface the client binds and uses.
 // OAuthBlesser_ExcludingUniversal is the interface without internal framework-added methods
 // to enable embedding without method collisions.  Not to be used directly by clients.
 type OAuthBlesser_ExcludingUniversal interface {
 	// BlessUsingAccessToken uses the provided access token to obtain the email
-	// address and returns a blessing.
-	BlessUsingAccessToken(ctx _gen_context.T, token string, opts ..._gen_ipc.CallOpt) (reply _gen_vdlutil.Any, err error)
+	// address and returns a blessing along with the email address.
+	BlessUsingAccessToken(ctx _gen_context.T, token string, opts ..._gen_ipc.CallOpt) (blessing _gen_vdlutil.Any, email string, err error)
 }
 type OAuthBlesser interface {
 	_gen_ipc.UniversalServiceMethods
@@ -51,8 +48,8 @@ type OAuthBlesser interface {
 type OAuthBlesserService interface {
 
 	// BlessUsingAccessToken uses the provided access token to obtain the email
-	// address and returns a blessing.
-	BlessUsingAccessToken(context _gen_ipc.ServerContext, token string) (reply _gen_vdlutil.Any, err error)
+	// address and returns a blessing along with the email address.
+	BlessUsingAccessToken(context _gen_ipc.ServerContext, token string) (blessing _gen_vdlutil.Any, email string, err error)
 }
 
 // BindOAuthBlesser returns the client stub implementing the OAuthBlesser
@@ -102,12 +99,12 @@ func (__gen_c *clientStubOAuthBlesser) client(ctx _gen_context.T) _gen_ipc.Clien
 	return _gen_veyron2.RuntimeFromContext(ctx).Client()
 }
 
-func (__gen_c *clientStubOAuthBlesser) BlessUsingAccessToken(ctx _gen_context.T, token string, opts ..._gen_ipc.CallOpt) (reply _gen_vdlutil.Any, err error) {
+func (__gen_c *clientStubOAuthBlesser) BlessUsingAccessToken(ctx _gen_context.T, token string, opts ..._gen_ipc.CallOpt) (blessing _gen_vdlutil.Any, email string, err error) {
 	var call _gen_ipc.Call
 	if call, err = __gen_c.client(ctx).StartCall(ctx, __gen_c.name, "BlessUsingAccessToken", []interface{}{token}, opts...); err != nil {
 		return
 	}
-	if ierr := call.Finish(&reply, &err); ierr != nil {
+	if ierr := call.Finish(&blessing, &email, &err); ierr != nil {
 		err = ierr
 	}
 	return
@@ -173,6 +170,7 @@ func (__gen_s *ServerStubOAuthBlesser) Signature(call _gen_ipc.ServerCall) (_gen
 		},
 		OutArgs: []_gen_ipc.MethodArgument{
 			{Name: "blessing", Type: 65},
+			{Name: "email", Type: 3},
 			{Name: "err", Type: 66},
 		},
 	}
@@ -201,8 +199,8 @@ func (__gen_s *ServerStubOAuthBlesser) UnresolveStep(call _gen_ipc.ServerCall) (
 	return
 }
 
-func (__gen_s *ServerStubOAuthBlesser) BlessUsingAccessToken(call _gen_ipc.ServerCall, token string) (reply _gen_vdlutil.Any, err error) {
-	reply, err = __gen_s.service.BlessUsingAccessToken(call, token)
+func (__gen_s *ServerStubOAuthBlesser) BlessUsingAccessToken(call _gen_ipc.ServerCall, token string) (blessing _gen_vdlutil.Any, email string, err error) {
+	blessing, email, err = __gen_s.service.BlessUsingAccessToken(call, token)
 	return
 }
 

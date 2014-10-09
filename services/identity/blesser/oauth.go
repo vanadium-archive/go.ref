@@ -64,17 +64,17 @@ func NewGoogleOAuthBlesserServer(p GoogleParams) interface{} {
 	})
 }
 
-func (b *googleOAuth) BlessUsingAccessToken(ctx ipc.ServerContext, accesstoken string) (vdlutil.Any, error) {
+func (b *googleOAuth) BlessUsingAccessToken(ctx ipc.ServerContext, accesstoken string) (vdlutil.Any, string, error) {
 	if len(b.accessTokenClients) == 0 {
-		return nil, fmt.Errorf("server not configured for blessing based on access tokens")
+		return nil, "", fmt.Errorf("server not configured for blessing based on access tokens")
 	}
 	// URL from: https://developers.google.com/accounts/docs/OAuth2UserAgent#validatetoken
 	tokeninfo, err := http.Get("https://www.googleapis.com/oauth2/v1/tokeninfo?access_token=" + accesstoken)
 	if err != nil {
-		return nil, fmt.Errorf("unable to use token: %v", err)
+		return nil, "", fmt.Errorf("unable to use token: %v", err)
 	}
 	if tokeninfo.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("unable to verify access token: %v", tokeninfo.StatusCode)
+		return nil, "", fmt.Errorf("unable to verify access token: %v", tokeninfo.StatusCode)
 	}
 	// tokeninfo contains a JSON-encoded struct
 	var token struct {
@@ -88,7 +88,7 @@ func (b *googleOAuth) BlessUsingAccessToken(ctx ipc.ServerContext, accesstoken s
 		AccessType    string `json:"access_type"`
 	}
 	if err := json.NewDecoder(tokeninfo.Body).Decode(&token); err != nil {
-		return "", fmt.Errorf("invalid JSON response from Google's tokeninfo API: %v", err)
+		return nil, "", fmt.Errorf("invalid JSON response from Google's tokeninfo API: %v", err)
 	}
 	audienceMatch := false
 	for _, c := range b.accessTokenClients {
@@ -99,31 +99,64 @@ func (b *googleOAuth) BlessUsingAccessToken(ctx ipc.ServerContext, accesstoken s
 	}
 	if !audienceMatch {
 		vlog.Infof("Got access token [%+v], wanted one of client ids %v", token, b.accessTokenClients)
-		return "", fmt.Errorf("token not meant for this purpose, confused deputy? https://developers.google.com/accounts/docs/OAuth2UserAgent#validatetoken")
+		return nil, "", fmt.Errorf("token not meant for this purpose, confused deputy? https://developers.google.com/accounts/docs/OAuth2UserAgent#validatetoken")
 	}
 	if !token.VerifiedEmail {
-		return nil, fmt.Errorf("email not verified")
+		return nil, "", fmt.Errorf("email not verified")
+	}
+	if ctx.LocalPrincipal() == nil || ctx.RemoteBlessings() == nil {
+		// TODO(ataly, ashankar): Old security model, remove this block.
+		return b.blessOldModel(ctx, token.Email)
 	}
 	return b.bless(ctx, token.Email)
 }
 
-func (b *googleOAuth) bless(ctx ipc.ServerContext, name string) (vdlutil.Any, error) {
+func (b *googleOAuth) bless(ctx ipc.ServerContext, email string) (vdlutil.Any, string, error) {
+	var caveat security.Caveat
+	var err error
+	if b.revocationManager != nil {
+		// TODO(ataly, ashankar): Update the RevocationManager so that it uses the
+		// new security model.
+		revocationCaveat, err := b.revocationManager.NewCaveat(b.rt.Identity().PublicID(), b.dischargerLocation)
+		if err != nil {
+			return nil, "", err
+		}
+		caveat, err = security.NewCaveat(revocationCaveat)
+	} else {
+		caveat, err = security.ExpiryCaveat(time.Now().Add(b.duration))
+	}
+	if err != nil {
+		return nil, "", err
+	}
+	blessing, err := ctx.LocalPrincipal().Bless(ctx.RemoteBlessings().PublicKey(), ctx.LocalBlessings(), email, caveat)
+	if err != nil {
+		return nil, "", err
+	}
+	return blessing, email, nil
+}
+
+// DEPRECATED
+// TODO(ataly, ashankar): Remove this method once we get rid of the old security model.
+func (b *googleOAuth) blessOldModel(ctx ipc.ServerContext, name string) (vdlutil.Any, string, error) {
 	if len(b.domain) > 0 && !strings.HasSuffix(name, "@"+b.domain) {
-		return nil, fmt.Errorf("blessings for name %q are not allowed due to domain restriction", name)
+		return nil, "", fmt.Errorf("blessings for name %q are not allowed due to domain restriction", name)
 	}
 	self := b.rt.Identity()
 	var err error
 	// Use the blessing that was used to authenticate with the client to bless it.
 	if self, err = self.Derive(ctx.LocalID()); err != nil {
-		return nil, err
+		return nil, "", err
 	}
 	var revocationCaveat security.ThirdPartyCaveat
 	if b.revocationManager != nil {
 		revocationCaveat, err = b.revocationManager.NewCaveat(b.rt.Identity().PublicID(), b.dischargerLocation)
 		if err != nil {
-			return nil, err
+			return nil, "", err
 		}
 	}
-
-	return revocation.Bless(self, ctx.RemoteID(), name, b.duration, nil, revocationCaveat)
+	blessing, err := revocation.Bless(self, ctx.RemoteID(), name, b.duration, nil, revocationCaveat)
+	if err != nil {
+		return nil, "", err
+	}
+	return blessing, name, nil
 }
