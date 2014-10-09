@@ -7,6 +7,7 @@ import (
 	"sync"
 
 	vsecurity "veyron.io/veyron/veyron/security"
+	"veyron.io/wspr/veyron/services/wsprd/identity"
 	"veyron.io/wspr/veyron/services/wsprd/lib"
 	"veyron.io/wspr/veyron/services/wsprd/signature"
 
@@ -31,16 +32,11 @@ type serverRPCRequest struct {
 	Context  serverRPCRequestContext
 }
 
-type publicID struct {
-	Handle int64
-	Names  []string
-}
-
 // call context for a serverRPCRequest
 type serverRPCRequestContext struct {
 	Suffix   string
 	Name     string
-	RemoteID publicID
+	RemoteID identity.PublicIDHandle
 }
 
 // The response from the javascript server to the proxy.
@@ -74,14 +70,14 @@ type authReply struct {
 }
 
 type context struct {
-	Method         string         `json:"method"`
-	Name           string         `json:"name"`
-	Suffix         string         `json:"suffix"`
-	Label          security.Label `json:"label"`
-	LocalID        publicID       `json:"localId"`
-	RemoteID       publicID       `json:"remoteId"`
-	LocalEndpoint  string         `json:"localEndpoint"`
-	RemoteEndpoint string         `json:"remoteEndpoint"`
+	Method         string                  `json:"method"`
+	Name           string                  `json:"name"`
+	Suffix         string                  `json:"suffix"`
+	Label          security.Label          `json:"label"`
+	LocalID        identity.PublicIDHandle `json:"localId"`
+	RemoteID       identity.PublicIDHandle `json:"remoteId"`
+	LocalEndpoint  string                  `json:"localEndpoint"`
+	RemoteEndpoint string                  `json:"remoteEndpoint"`
 }
 
 type authRequest struct {
@@ -145,12 +141,9 @@ func (s *Server) createRemoteInvokerFunc(handle int64) remoteInvokeFunc {
 		s.mu.Unlock()
 		remoteID := call.RemoteID()
 		context := serverRPCRequestContext{
-			Suffix: call.Suffix(),
-			Name:   call.Name(),
-			RemoteID: publicID{
-				Handle: s.helper.AddIdentity(remoteID),
-				Names:  remoteID.Names(),
-			},
+			Suffix:   call.Suffix(),
+			Name:     call.Name(),
+			RemoteID: s.convertPublicIDToHandle(remoteID),
 		}
 		// Send a invocation request to JavaScript
 		message := serverRPCRequest{
@@ -194,12 +187,8 @@ func proxyStream(stream ipc.Stream, w lib.ClientWriter, logger vlog.Logger) {
 	}
 }
 
-func (s *Server) convertPublicID(id security.PublicID) publicID {
-	return publicID{
-		Handle: s.helper.AddIdentity(id),
-		Names:  id.Names(),
-	}
-
+func (s *Server) convertPublicIDToHandle(id security.PublicID) identity.PublicIDHandle {
+	return *identity.ConvertPublicIDToHandle(id, s.helper.AddIdentity(id))
 }
 
 type remoteAuthFunc func(security.Context) error
@@ -219,8 +208,8 @@ func (s *Server) createRemoteAuthFunc(handle int64) remoteAuthFunc {
 				Name:           ctx.Name(),
 				Suffix:         ctx.Suffix(),
 				Label:          ctx.Label(),
-				LocalID:        s.convertPublicID(ctx.LocalID()),
-				RemoteID:       s.convertPublicID(ctx.RemoteID()),
+				LocalID:        s.convertPublicIDToHandle(ctx.LocalID()),
+				RemoteID:       s.convertPublicIDToHandle(ctx.RemoteID()),
 				LocalEndpoint:  ctx.LocalEndpoint().String(),
 				RemoteEndpoint: ctx.RemoteEndpoint().String(),
 			},

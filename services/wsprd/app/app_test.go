@@ -1,6 +1,7 @@
 package app
 
 import (
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"reflect"
@@ -552,11 +553,21 @@ func runJsServerTestCase(t *testing.T, test jsServerTestCase) {
 	}
 	rt.controller.HandleLookupResponse(2, string(bytes))
 
+	id := rt.controller.rt.Identity().PublicID()
 	typedNames := rt.controller.rt.Identity().PublicID().Names()
 	names := []interface{}{}
 	for _, n := range typedNames {
 		names = append(names, n)
 	}
+	k := id.PublicKey()
+	keyBytes, err := k.MarshalBinary()
+
+	if err != nil {
+		t.Errorf("Failed to marshal key, %v", err)
+		return
+	}
+
+	publicKey := base64.StdEncoding.EncodeToString(keyBytes)
 
 	// The expectedHandle for the javascript ID.  Since we don't always call the authorizer
 	// this handle could be different by the time we make the start rpc call.
@@ -577,12 +588,14 @@ func runJsServerTestCase(t *testing.T, test jsServerTestCase) {
 					"suffix": "adder",
 					"label":  8.0, // This is a read label.
 					"localId": map[string]interface{}{
-						"Handle": 1.0,
-						"Names":  names,
+						"Handle":    1.0,
+						"Names":     names,
+						"PublicKey": publicKey,
 					},
 					"remoteId": map[string]interface{}{
-						"Handle": 2.0,
-						"Names":  names,
+						"Handle":    2.0,
+						"Names":     names,
+						"PublicKey": publicKey,
 					},
 					"localEndpoint":  endpoint.String(),
 					"remoteEndpoint": "remoteEndpoint",
@@ -633,12 +646,14 @@ func runJsServerTestCase(t *testing.T, test jsServerTestCase) {
 					"suffix": "adder",
 					"label":  16.0,
 					"localId": map[string]interface{}{
-						"Handle": 3.0,
-						"Names":  names,
+						"Handle":    3.0,
+						"Names":     names,
+						"PublicKey": publicKey,
 					},
 					"remoteId": map[string]interface{}{
-						"Handle": 4.0,
-						"Names":  names,
+						"Handle":    4.0,
+						"Names":     names,
+						"PublicKey": publicKey,
 					},
 					"localEndpoint":  endpoint.String(),
 					"remoteEndpoint": "remoteEndpoint",
@@ -676,8 +691,9 @@ func runJsServerTestCase(t *testing.T, test jsServerTestCase) {
 				"Name":   "adder",
 				"Suffix": "adder",
 				"RemoteID": map[string]interface{}{
-					"Handle": expectedIDHandle,
-					"Names":  names,
+					"Handle":    expectedIDHandle,
+					"Names":     names,
+					"PublicKey": publicKey,
 				},
 			},
 		},

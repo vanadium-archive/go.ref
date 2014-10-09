@@ -85,13 +85,6 @@ type blessingRequest struct {
 	Name       string
 }
 
-// PublicIDHandle is a handle given to Javascript that is linked
-// to a PublicID in go.
-type PublicIDHandle struct {
-	Handle int64
-	Names  []string
-}
-
 // Controller represents all the state of a Veyron Web App.  This is the struct
 // that is in charge performing all the veyron options.
 type Controller struct {
@@ -627,15 +620,15 @@ func decodeCaveat(c jsonCaveatValidator) (security.Caveat, error) {
 	}
 }
 
-func (c *Controller) getPublicIDHandle(handle int64) (*PublicIDHandle, error) {
+func (c *Controller) getPublicIDHandle(handle int64) (*identity.PublicIDHandle, error) {
 	id := c.idStore.Get(handle)
 	if id == nil {
 		return nil, verror2.Make(unknownPublicID, nil)
 	}
-	return &PublicIDHandle{Handle: handle, Names: id.Names()}, nil
+	return identity.ConvertPublicIDToHandle(id, handle), nil
 }
 
-func (c *Controller) bless(request blessingRequest) (*PublicIDHandle, error) {
+func (c *Controller) bless(request blessingRequest) (*identity.PublicIDHandle, error) {
 	var caveats []security.Caveat
 	for _, c := range request.Caveats {
 		cav, err := decodeCaveat(c)
@@ -658,7 +651,7 @@ func (c *Controller) bless(request blessingRequest) (*PublicIDHandle, error) {
 		return nil, err
 	}
 
-	return &PublicIDHandle{Handle: c.idStore.Add(blessed), Names: blessed.Names()}, nil
+	return identity.ConvertPublicIDToHandle(blessed, c.idStore.Add(blessed)), nil
 }
 
 // HandleBlessing handles a blessing request from JS.
@@ -696,7 +689,7 @@ func (c *Controller) HandleCreateIdentity(data string, w lib.ClientWriter) {
 	}
 
 	publicID := id.PublicID()
-	jsID := &PublicIDHandle{Handle: c.idStore.Add(publicID), Names: publicID.Names()}
+	jsID := identity.ConvertPublicIDToHandle(publicID, c.idStore.Add(publicID))
 	if err := w.Send(lib.ResponseFinal, jsID); err != nil {
 		w.Error(verror2.Convert(verror2.Internal, nil, err))
 		return
