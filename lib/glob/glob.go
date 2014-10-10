@@ -84,7 +84,8 @@ func (g *Glob) MatchInitialSegment(segment string) (matched bool, exact bool, re
 		if !g.recursive {
 			return false, false, nil
 		}
-		return true, true, g
+		// The segment matches "...". This is not an exact match.
+		return true, false, g
 	}
 
 	if matches, err := filepath.Match(g.elems[0], segment); err != nil {
@@ -100,7 +101,8 @@ func (g *Glob) MatchInitialSegment(segment string) (matched bool, exact bool, re
 // Returns:
 // matched, a boolean indicating whether each element e_i of elems matches the
 // (start + i)th element of the glob pattern;
-// exact, a boolean indicating whether elems matched a fixed string pattern;
+// exact, a boolean indicating whether elems matched a fixed string pattern.
+// <path> is considered an exact match for pattern <path>/...;
 // remainder, a Glob representing the unmatched remainder of g. remainder will
 // be empty if the pattern is completely matched.
 //
