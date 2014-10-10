@@ -21,7 +21,6 @@ build() {
   veyron go build veyron.io/examples/tunnel/vsh || shell_test::fail "line ${LINENO}: failed to build vsh"
   veyron go build veyron.io/veyron/veyron/services/mounttable/mounttabled || shell_test::fail "line ${LINENO}: failed to build mounttabled"
   veyron go build veyron.io/veyron/veyron/tools/mounttable || shell_test::fail "line ${LINENO}: failed to build mounttable"
-  veyron go build veyron.io/veyron/veyron/tools/identity || shell_test::fail "line ${LINENO}: failed to build identity"
 }
 
 dumplogs() {
@@ -34,6 +33,9 @@ dumplogs() {
 main() {
   cd "${WORKDIR}"
   build
+  # Directory where all credentials will be stored (private key etc.)
+  # All binaries will use the same credentials in this test.
+  export VEYRON_CREDENTIALS="${WORKDIR}/credentials"
 
   # Start mounttabled and find its endpoint.
   local -r MTLOG="${WORKDIR}/mt.log"
@@ -43,14 +45,8 @@ main() {
   local EP=$(grep "Mount table service at:" "${MTLOG}" | sed -e 's/^.*endpoint: //')
   [[ -z "${EP}" ]] && shell_test::fail "line ${LINENO}: no mounttable server"
 
-  # Generate an identity for the tunnel server and client
-  local -r ID="${WORKDIR}/id"
-  VEYRON_IDENTITY="" ./identity generate test >"${ID}"
-
-  export NAMESPACE_ROOT="${EP}"
-  export VEYRON_IDENTITY="${ID}"
-
   # Start tunneld and find its endpoint.
+  export NAMESPACE_ROOT="${EP}"
   local -r TUNLOG="${WORKDIR}/tunnel.log"
   touch "${TUNLOG}"
   ./tunneld --address=127.0.0.1:0 -vmodule=publisher=2 > "${TUNLOG}" 2>&1 &
@@ -72,7 +68,7 @@ main() {
   fi
 
   # Run remote command with the object name.
-  GOT=$(./vsh --logtostderr --v=1 tunnel/id/test echo HELLO NAME 2>"${VSHLOG}")
+  GOT=$(./vsh --logtostderr --v=1 tunnel/hostname/$(hostname) echo HELLO NAME 2>"${VSHLOG}")
   WANT="HELLO NAME"
 
   if [[ "${GOT}" != "${WANT}" ]]; then
@@ -105,8 +101,7 @@ main() {
         sort)
   WANT="[${NAMESPACE_ROOT}]
 tunnel/hostname/$(hostname) /${EP}// (TTL XmXXs)
-tunnel/hwaddr/XX:XX:XX:XX:XX:XX /${EP}// (TTL XmXXs)
-tunnel/id/test /${EP}// (TTL XmXXs)"
+tunnel/hwaddr/XX:XX:XX:XX:XX:XX /${EP}// (TTL XmXXs)"
 
   if [[ "${GOT}" != "${WANT}" ]]; then
     shell_test::fail "line ${LINENO}: unexpected output. Got ${GOT}, want ${WANT}"

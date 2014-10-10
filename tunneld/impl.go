@@ -37,7 +37,7 @@ func (t *T) Forward(ctx ipc.ServerContext, network, address string, stream tunne
 }
 
 func (t *T) Shell(ctx ipc.ServerContext, command string, shellOpts tunnel.ShellOpts, stream tunnel.TunnelServiceShellStream) (int32, error) {
-	vlog.Infof("SHELL START for %v: %q", ctx.RemoteID(), command)
+	vlog.Infof("SHELL START for %v: %q", ctx.RemoteBlessings(), command)
 	shell, err := findShell()
 	if err != nil {
 		return nonShellErrorCode, err
@@ -53,8 +53,6 @@ func (t *T) Shell(ctx ipc.ServerContext, command string, shellOpts tunnel.ShellO
 
 	c.Env = []string{
 		fmt.Sprintf("HOME=%s", os.Getenv("HOME")),
-		fmt.Sprintf("VEYRON_LOCAL_IDENTITY=%s", ctx.LocalID()),
-		fmt.Sprintf("VEYRON_REMOTE_IDENTITY=%s", ctx.RemoteID()),
 	}
 	c.Env = append(c.Env, shellOpts.Environment...)
 	vlog.Infof("Shell environment: %v", c.Env)
@@ -108,7 +106,7 @@ func (t *T) Shell(ctx ipc.ServerContext, command string, shellOpts tunnel.ShellO
 
 	select {
 	case runErr := <-runIOManager(stdin, stdout, stderr, ptyFd, stream):
-		vlog.Infof("SHELL END for %v: %q (%v)", ctx.RemoteID(), command, runErr)
+		vlog.Infof("SHELL END for %v: %q (%v)", ctx.RemoteBlessings(), command, runErr)
 		return harvestExitcode(c.Process, runErr)
 	case <-ctx.Done():
 		return nonShellErrorCode, fmt.Errorf("remote end exited")

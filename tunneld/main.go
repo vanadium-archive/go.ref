@@ -70,13 +70,9 @@ func main() {
 	if err != nil {
 		vlog.Fatalf("os.Hostname failed: %v", err)
 	}
-	// TODO(rthellend): This is not secure. We should use
-	// rt.R().Product().ID() and the associated verification, when it is
-	// ready.
 	names := []string{
 		fmt.Sprintf("tunnel/hostname/%s", hostname),
 		fmt.Sprintf("tunnel/hwaddr/%s", hwaddr),
-		fmt.Sprintf("tunnel/id/%s", rt.R().Identity().PublicID()),
 	}
 	dispatcher := ipc.LeafDispatcher(tunnel.NewServerTunnel(&T{}), auth)
 	published := false
