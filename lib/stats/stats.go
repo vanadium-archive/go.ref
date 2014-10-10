@@ -33,7 +33,7 @@ type node struct {
 
 var (
 	lock        sync.RWMutex
-	repository  *node
+	repository  *node // GUARDED_BY(lock)
 	ErrNotFound = errors.New("name not found")
 	ErrNoValue  = errors.New("object has no value")
 )

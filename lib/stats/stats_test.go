@@ -9,16 +9,13 @@ import (
 	"veyron.io/veyron/veyron/lib/stats/counter"
 	"veyron.io/veyron/veyron/lib/stats/histogram"
 	istats "veyron.io/veyron/veyron/services/mgmt/stats"
-
-	"veyron.io/veyron/veyron2/rt"
 )
 
 func doGlob(root, pattern string, since time.Time, includeValues bool) ([]libstats.KeyValue, error) {
 	it := libstats.Glob(root, pattern, since, includeValues)
 	out := []libstats.KeyValue{}
 	for it.Advance() {
-		v := it.Value()
-		out = append(out, v)
+		out = append(out, it.Value())
 	}
 	if err := it.Err(); err != nil {
 		return nil, err
@@ -27,8 +24,6 @@ func doGlob(root, pattern string, since time.Time, includeValues bool) ([]libsta
 }
 
 func TestStats(t *testing.T) {
-	rt.Init()
-
 	now := time.Unix(1, 0)
 	counter.Now = func() time.Time { return now }
 
@@ -270,6 +265,54 @@ func TestStats(t *testing.T) {
 	}
 	if !reflect.DeepEqual(result, expected) {
 		t.Errorf("unexpected result. Got %#v, want %#v", result, expected)
+	}
+}
+
+func TestMap(t *testing.T) {
+	m := libstats.NewMap("testing/foo")
+	m.Set([]libstats.KeyValue{{"a", 1}, {"b", 2}})
+
+	// Test the Value of the map.
+	{
+		got, err := libstats.Value("testing/foo")
+		if err != nil {
+			t.Errorf("unexpected error: %v", err)
+		}
+		if expected := interface{}(nil); got != expected {
+			t.Errorf("unexpected result. Got %v, want %v", got, expected)
+		}
+	}
+	// Test Glob on the map object.
+	{
+		got, err := doGlob("testing", "foo/...", time.Time{}, true)
+		if err != nil {
+			t.Errorf("unexpected error: %v", err)
+		}
+		expected := []libstats.KeyValue{
+			libstats.KeyValue{Key: "foo", Value: nil},
+			libstats.KeyValue{Key: "foo/a", Value: int64(1)},
+			libstats.KeyValue{Key: "foo/b", Value: int64(2)},
+		}
+		if !reflect.DeepEqual(got, expected) {
+			t.Errorf("unexpected result. Got %#v, want %#v", got, expected)
+		}
+	}
+
+	m.Delete([]string{"a"})
+
+	// Test Glob on the map object.
+	{
+		got, err := doGlob("testing", "foo/...", time.Time{}, true)
+		if err != nil {
+			t.Errorf("unexpected error: %v", err)
+		}
+		expected := []libstats.KeyValue{
+			libstats.KeyValue{Key: "foo", Value: nil},
+			libstats.KeyValue{Key: "foo/b", Value: int64(2)},
+		}
+		if !reflect.DeepEqual(got, expected) {
+			t.Errorf("unexpected result. Got %#v, want %#v", got, expected)
+		}
 	}
 }
 
