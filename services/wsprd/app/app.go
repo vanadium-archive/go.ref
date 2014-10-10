@@ -606,15 +606,6 @@ func decodeCaveat(c jsonCaveatValidator) (security.Caveat, error) {
 			return failed, fmt.Errorf("must provide at least one method")
 		}
 		return security.MethodCaveat(methods[0], methods[1:]...)
-	case "PeerBlessingsCaveat":
-		var patterns []security.BlessingPattern
-		if err := json.Unmarshal(c.Data, &patterns); err != nil {
-			return failed, err
-		}
-		if len(patterns) == 0 {
-			return failed, fmt.Errorf("must provide at least one BlessingPattern")
-		}
-		return security.PeerBlessingsCaveat(patterns[0], patterns[1:]...)
 	default:
 		return failed, verror2.Make(badCaveatType, nil, c.Type)
 	}
