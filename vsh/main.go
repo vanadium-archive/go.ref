@@ -1,3 +1,5 @@
+// Command vsh is a tunnel service client that can be used to start a
+// shell on the server.
 package main
 
 import (
@@ -11,7 +13,7 @@ import (
 	"time"
 
 	"veyron.io/examples/tunnel"
-	"veyron.io/examples/tunnel/lib"
+	"veyron.io/examples/tunnel/tunnelutil"
 	"veyron.io/veyron/veyron/lib/signals"
 	"veyron.io/veyron/veyron2/context"
 	"veyron.io/veyron/veyron2/rt"
@@ -103,8 +105,8 @@ func realMain() int {
 		return 1
 	}
 	if opts.UsePty {
-		saved := lib.EnterRawTerminalMode()
-		defer lib.RestoreTerminalSettings(saved)
+		saved := tunnelutil.EnterRawTerminalMode()
+		defer tunnelutil.RestoreTerminalSettings(saved)
 	}
 	runIOManager(os.Stdin, os.Stdout, os.Stderr, stream)
 
@@ -128,7 +130,7 @@ func realMain() int {
 func shellOptions(cmd string) (opts tunnel.ShellOpts) {
 	opts.UsePty = (len(cmd) == 0 || *forcePty) && !*disablePty
 	opts.Environment = environment()
-	ws, err := lib.GetWindowSize()
+	ws, err := tunnelutil.GetWindowSize()
 	if err != nil {
 		vlog.VI(1).Infof("GetWindowSize failed: %v", err)
 	} else {
@@ -203,7 +205,7 @@ func runPortForwarding(ctx context.T, t tunnel.Tunnel, oname string) {
 		name := fmt.Sprintf("%v-->%v-->(%v)-->%v", conn.RemoteAddr(), conn.LocalAddr(), oname, raddr)
 		go func() {
 			vlog.VI(1).Infof("TUNNEL START: %v", name)
-			errf := lib.Forward(conn, stream.SendStream(), stream.RecvStream())
+			errf := tunnelutil.Forward(conn, stream.SendStream(), stream.RecvStream())
 			err := stream.Finish()
 			vlog.VI(1).Infof("TUNNEL END  : %v (%v, %v)", name, errf, err)
 		}()

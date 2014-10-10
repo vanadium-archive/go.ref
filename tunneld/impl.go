@@ -1,4 +1,4 @@
-package impl
+package main
 
 import (
 	"github.com/kr/pty"
@@ -13,7 +13,7 @@ import (
 	"syscall"
 
 	"veyron.io/examples/tunnel"
-	"veyron.io/examples/tunnel/lib"
+	"veyron.io/examples/tunnel/tunnelutil"
 	"veyron.io/veyron/veyron2/ipc"
 	"veyron.io/veyron/veyron2/vlog"
 )
@@ -31,7 +31,7 @@ func (t *T) Forward(ctx ipc.ServerContext, network, address string, stream tunne
 	}
 	name := fmt.Sprintf("RemoteID:%v LocalAddr:%v RemoteAddr:%v", ctx.RemoteID(), conn.LocalAddr(), conn.RemoteAddr())
 	vlog.Infof("TUNNEL START: %v", name)
-	err = lib.Forward(conn, stream.SendStream(), stream.RecvStream())
+	err = tunnelutil.Forward(conn, stream.SendStream(), stream.RecvStream())
 	vlog.Infof("TUNNEL END  : %v (%v)", name, err)
 	return err
 }
@@ -161,8 +161,8 @@ func sendMotd(s tunnel.TunnelServiceShellStream) {
 }
 
 func setWindowSize(fd uintptr, row, col uint32) {
-	ws := lib.Winsize{Row: uint16(row), Col: uint16(col)}
-	if err := lib.SetWindowSize(fd, ws); err != nil {
+	ws := tunnelutil.Winsize{Row: uint16(row), Col: uint16(col)}
+	if err := tunnelutil.SetWindowSize(fd, ws); err != nil {
 		vlog.Infof("Failed to set window size: %v", err)
 	}
 }

@@ -1,8 +1,8 @@
+// Package tunnel describes a service that can be used to create a
+// network tunnel from the client to the server.
 package tunnel
 
 import "veyron.io/veyron/veyron2/security"
-
-// Tunnel creates a network tunnel from the client to the server.
 
 type Tunnel interface {
   // The Forward method is used for network forwarding. All the data sent over

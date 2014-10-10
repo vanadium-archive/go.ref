@@ -1,3 +1,4 @@
+// Command tunneld is an implementation of the tunnel service.
 package main
 
 import (
@@ -9,7 +10,6 @@ import (
 	"strings"
 
 	"veyron.io/examples/tunnel"
-	"veyron.io/examples/tunnel/tunneld/impl"
 
 	"veyron.io/veyron/veyron/lib/signals"
 	sflag "veyron.io/veyron/veyron/security/flag"
@@ -78,7 +78,7 @@ func main() {
 		fmt.Sprintf("tunnel/hwaddr/%s", hwaddr),
 		fmt.Sprintf("tunnel/id/%s", rt.R().Identity().PublicID()),
 	}
-	dispatcher := ipc.LeafDispatcher(tunnel.NewServerTunnel(&impl.T{}), auth)
+	dispatcher := ipc.LeafDispatcher(tunnel.NewServerTunnel(&T{}), auth)
 	published := false
 	for _, n := range names {
 		if err := server.Serve(n, dispatcher); err != nil {

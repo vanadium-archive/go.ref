@@ -1,4 +1,6 @@
-package lib
+// Package tunnelutil contains a set of common types and functions
+// used by both tunnel service clients and servers.
+package tunnelutil
 
 import (
 	"errors"

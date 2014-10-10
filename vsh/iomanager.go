@@ -9,7 +9,7 @@ import (
 	"syscall"
 
 	"veyron.io/examples/tunnel"
-	"veyron.io/examples/tunnel/lib"
+	"veyron.io/examples/tunnel/tunnelutil"
 	"veyron.io/veyron/veyron2/vlog"
 )
 
@@ -121,7 +121,7 @@ func (m *ioManager) chan2stream(outchan <-chan tunnel.ClientShellPacket, wg *syn
 func (m *ioManager) handleWindowResize(winch <-chan os.Signal, outchan chan<- tunnel.ClientShellPacket, wg *sync.WaitGroup) {
 	defer wg.Done()
 	for _ = range winch {
-		ws, err := lib.GetWindowSize()
+		ws, err := tunnelutil.GetWindowSize()
 		if err != nil {
 			vlog.Infof("GetWindowSize failed: %v", err)
 			continue
