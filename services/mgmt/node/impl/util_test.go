@@ -63,11 +63,15 @@ func setupLocalNamespace(t *testing.T) func() {
 // setupChildCommand configures the child to use the right mounttable root
 // and blessings.  It returns a cleanup function.
 func setupChildCommand(child *blackbox.Child) func() {
+	return setupChildCommandWithBlessing(child, "child")
+}
+
+func setupChildCommandWithBlessing(child *blackbox.Child, blessing string) func() {
 	cmd := child.Cmd
 	for i, root := range rt.R().Namespace().Roots() {
 		cmd.Env = exec.Setenv(cmd.Env, fmt.Sprintf("NAMESPACE_ROOT%d", i), root)
 	}
-	childcreds := security.NewVeyronCredentials(rt.R().Principal(), "child")
+	childcreds := security.NewVeyronCredentials(rt.R().Principal(), blessing)
 	cmd.Env = exec.Setenv(cmd.Env, "VEYRON_CREDENTIALS", childcreds)
 	return func() {
 		os.RemoveAll(childcreds)
