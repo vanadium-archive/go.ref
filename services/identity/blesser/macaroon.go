@@ -66,5 +66,12 @@ func (b *macaroonBlesser) Bless(ctx ipc.ServerContext, macaroon string) (vdlutil
 	if len(m.Caveats) == 0 {
 		m.Caveats = []security.Caveat{security.UnconstrainedUse()}
 	}
-	return ctx.LocalPrincipal().Bless(ctx.RemoteBlessings().PublicKey(), ctx.LocalBlessings(), m.Name, m.Caveats[0], m.Caveats[1:]...)
+	// TODO(ashankar,toddw): After the old security model is ripped out and the VDL configuration
+	// files have the scheme to translate between "wire" types and "in-memory" types, this should just
+	// become return ctx.LocalPrincipal().....
+	blessings, err := ctx.LocalPrincipal().Bless(ctx.RemoteBlessings().PublicKey(), ctx.LocalBlessings(), m.Name, m.Caveats[0], m.Caveats[1:]...)
+	if err != nil {
+		return nil, err
+	}
+	return security.MarshalBlessings(blessings), nil
 }

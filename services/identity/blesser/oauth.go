@@ -132,7 +132,7 @@ func (b *googleOAuth) bless(ctx ipc.ServerContext, email string) (vdlutil.Any, s
 	if err != nil {
 		return nil, "", err
 	}
-	return blessing, email, nil
+	return security.MarshalBlessings(blessing), email, nil
 }
 
 // DEPRECATED
