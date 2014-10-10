@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"math/rand"
+	"os"
 	"time"
 
 	"veyron.io/examples/rps"
@@ -15,6 +16,15 @@ import (
 	"veyron.io/veyron/veyron2/rt"
 	"veyron.io/veyron/veyron2/vlog"
 )
+
+// CreateName creates a name using the username and hostname.
+func CreateName() string {
+	hostname, err := os.Hostname()
+	if err != nil {
+		vlog.Fatalf("os.Hostname failed: %v", err)
+	}
+	return os.Getenv("USER") + "@" + hostname
+}
 
 // FindJudge returns a random rock-paper-scissors judge from the mount table.
 func FindJudge(ctx context.T) (string, error) {

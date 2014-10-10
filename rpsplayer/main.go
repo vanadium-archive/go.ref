@@ -6,7 +6,6 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"os"
 	"sort"
 	"strings"
 	"sync"
@@ -27,6 +26,7 @@ var (
 	// manager is working.
 	protocol = flag.String("protocol", "tcp", "protocol to listen on. For example, set to 'veyron' and set --address to the endpoint/name of a proxy to have this tunnel service proxied.")
 	address  = flag.String("address", ":0", "address to listen on")
+	name     = flag.String("name", "", "identifier to publish itself as (defaults to user@hostname)")
 )
 
 func main() {
@@ -114,11 +114,10 @@ func recvChallenge(rt veyron2.Runtime) gameChallenge {
 	if err != nil {
 		vlog.Fatalf("Listen(%q, %q) failed: %v", "tcp", *address, err)
 	}
-	hostname, err := os.Hostname()
-	if err != nil {
-		vlog.Fatalf("os.Hostname failed: %v", err)
+	if *name == "" {
+		*name = common.CreateName()
 	}
-	if err := server.Serve(fmt.Sprintf("rps/player/%s@%s", os.Getenv("USER"), hostname), dispatcher); err != nil {
+	if err := server.Serve(fmt.Sprintf("rps/player/%s", *name), dispatcher); err != nil {
 		vlog.Fatalf("Serve failed: %v", err)
 	}
 	vlog.Infof("Listening on endpoint /%s", ep)
@@ -300,6 +299,11 @@ func findAll(ctx context.T, t string, out chan []string) {
 	for e := range c {
 		fmt.Print(".")
 		result = append(result, e.Name)
+	}
+	if len(result) == 0 {
+		vlog.Infof("found no %ss", t)
+		out <- result
+		return
 	}
 	sort.Strings(result)
 	out <- result

@@ -10,10 +10,10 @@ import (
 	"flag"
 	"fmt"
 	"math/rand"
-	"os"
 	"time"
 
 	"veyron.io/examples/rps"
+	"veyron.io/examples/rps/common"
 	"veyron.io/veyron/veyron/lib/signals"
 	sflag "veyron.io/veyron/veyron/security/flag"
 	"veyron.io/veyron/veyron2"
@@ -28,6 +28,8 @@ var (
 	// manager is working.
 	protocol = flag.String("protocol", "tcp", "protocol to listen on. For example, set to 'veyron' and set --address to the endpoint/name of a proxy to have this tunnel service proxied.")
 	address  = flag.String("address", ":0", "address to listen on")
+	name     = flag.String("name", "", "identifier to publish itself as (defaults to user@hostname)")
+	numGames = flag.Int("num-games", -1, "number of games to play (-1 means unlimited)")
 )
 
 func main() {
@@ -49,14 +51,13 @@ func main() {
 	if err != nil {
 		vlog.Fatalf("Listen(%q, %q) failed: %v", "tcp", *address, err)
 	}
-	hostname, err := os.Hostname()
-	if err != nil {
-		vlog.Fatalf("os.Hostname failed: %v", err)
+	if *name == "" {
+		*name = common.CreateName()
 	}
 	names := []string{
-		fmt.Sprintf("rps/judge/%s", hostname),
-		fmt.Sprintf("rps/player/%s", hostname),
-		fmt.Sprintf("rps/scorekeeper/%s", hostname),
+		fmt.Sprintf("rps/judge/%s", *name),
+		fmt.Sprintf("rps/player/%s", *name),
+		fmt.Sprintf("rps/scorekeeper/%s", *name),
 	}
 	for _, n := range names {
 		if err := server.Serve(n, dispatcher); err != nil {
@@ -71,7 +72,7 @@ func main() {
 }
 
 func initiateGames(ctx context.T, rpsService *RPS) {
-	for {
+	for i := 0; i < *numGames || *numGames == -1; i++ {
 		if err := rpsService.Player().InitiateGame(ctx); err != nil {
 			vlog.Infof("Failed to initiate game: %v", err)
 		}
