@@ -45,14 +45,10 @@ import (
 	"io"
 	"io/ioutil"
 	"os"
-	"path/filepath"
 	"strings"
 	"sync"
 
 	"veyron.io/veyron/veyron2/vlog"
-
-	isecurity "veyron.io/veyron/veyron/runtimes/google/security"
-	seclib "veyron.io/veyron/veyron/security"
 )
 
 // Shell represents the context within which commands are run.
@@ -61,7 +57,7 @@ type Shell struct {
 	env     map[string]string
 	cmds    map[string]*commandDesc
 	handles map[Handle]struct{}
-	idfile  string
+	credDir string
 }
 
 type commandDesc struct {
@@ -82,9 +78,9 @@ type childRegistrar struct {
 var child = &childRegistrar{mains: make(map[string]*childEntryPoint)}
 
 // NewShell creates a new instance of Shell. If this new instance is
-// is a test and no identity has been configured in the environment
-// via VEYRON_IDENTITY then CreateAndUseNewID will be used to configure a new
-// ID for the shell and its children.
+// is a test and no credentials have been configured in the environment
+// via VEYRON_CREDENTIALS then CreateAndUseNewCredentials will be used to
+// configure a new ID for the shell and its children.
 // NewShell takes optional regexp patterns that can be used to specify
 // subprocess commands that are implemented in the same binary as this shell
 // (i.e. have been registered using modules.RegisterChild) to be
@@ -98,8 +94,9 @@ func NewShell(patterns ...string) *Shell {
 		cmds:    make(map[string]*commandDesc),
 		handles: make(map[Handle]struct{}),
 	}
-	if flag.Lookup("test.run") != nil && os.Getenv("VEYRON_IDENTITY") == "" {
-		if err := sh.CreateAndUseNewID(); err != nil {
+	if flag.Lookup("test.run") != nil && os.Getenv("VEYRON_CREDENTIALS") == "" {
+		if err := sh.CreateAndUseNewCredentials(); err != nil {
+			// TODO(cnicolaou): return an error rather than panic.
 			panic(err)
 		}
 	}
@@ -109,25 +106,15 @@ func NewShell(patterns ...string) *Shell {
 	return sh
 }
 
-// CreateAndUseNewID setups a new ID and then configures the shell and all of its
-// children to use to it.
-func (sh *Shell) CreateAndUseNewID() error {
-	id, err := isecurity.NewPrivateID("test", nil)
+// CreateAndUseNewCredentials setups a new credentials directory and then
+// configures the shell and all of its children to use to it.
+func (sh *Shell) CreateAndUseNewCredentials() error {
+	dir, err := ioutil.TempDir("", "veyron_credentials")
 	if err != nil {
 		return err
 	}
-	f, err := ioutil.TempFile("", filepath.Base(os.Args[0]))
-	if err != nil {
-		return err
-	}
-	defer f.Close()
-	filePath := f.Name()
-	if err := seclib.SaveIdentity(f, id); err != nil {
-		os.Remove(filePath)
-		return err
-	}
-	sh.idfile = filePath
-	sh.SetVar("VEYRON_IDENTITY", sh.idfile)
+	sh.credDir = dir
+	sh.SetVar("VEYRON_CREDENTIALS", sh.credDir)
 	return nil
 }
 
@@ -274,8 +261,8 @@ func (sh *Shell) Cleanup(stdout, stderr io.Writer) {
 	for k, _ := range handles {
 		k.Shutdown(stdout, stderr)
 	}
-	if len(sh.idfile) > 0 {
-		os.Remove(sh.idfile)
+	if len(sh.credDir) > 0 {
+		os.RemoveAll(sh.credDir)
 	}
 }
 

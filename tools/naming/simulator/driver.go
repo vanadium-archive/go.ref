@@ -108,8 +108,8 @@ func main() {
 
 	shell := modules.NewShell()
 	defer shell.Cleanup(os.Stderr, os.Stderr)
-	if os.Getenv("VEYRON_IDENTITY") == "" {
-		shell.CreateAndUseNewID()
+	if os.Getenv("VEYRON_CREDENTIALS") == "" {
+		shell.CreateAndUseNewCredentials()
 	}
 
 	core.Install(shell)
