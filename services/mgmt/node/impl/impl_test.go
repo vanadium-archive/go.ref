@@ -1,3 +1,6 @@
+// TODO(caprita): This file is becoming unmanageable; split into several test
+// files.
+
 package impl_test
 
 import (
@@ -54,6 +57,7 @@ func TestHelperProcess(t *testing.T) {
 	blackbox.CommandTable["execScript"] = execScript
 	blackbox.CommandTable["nodeManager"] = nodeManager
 	blackbox.CommandTable["app"] = app
+	blackbox.CommandTable["installer"] = install
 
 	blackbox.HelperProcess(t)
 }
@@ -258,6 +262,9 @@ func envelopeFromCmd(title string, cmd *goexec.Cmd) *application.Envelope {
 	}
 }
 
+// TODO(caprita): Move this to util_test.go, and add a flag to allow persisting
+// the root dir even when the test succeeds (helpful while developing tests).
+
 // setupRootDir sets up and returns the local filesystem location that the node
 // manager is told to use, as well as a cleanup function.
 func setupRootDir(t *testing.T) (string, func()) {
@@ -317,6 +324,7 @@ func TestNodeManagerUpdateAndRevert(t *testing.T) {
 	defer cleanup()
 
 	// Current link does not have to live in the root dir.
+	// TODO(caprita): This should be in a unique test tempdir.
 	currLink := filepath.Join(os.TempDir(), "testcurrent")
 	os.Remove(currLink) // Start out with a clean slate.
 	defer os.Remove(currLink)
@@ -920,6 +928,61 @@ func TestNodeManagerUpdateACL(t *testing.T) {
 	if err = tryInstall(otherRT); err != nil {
 		t.Error(err)
 	}
+}
+
+// install installs the node manager.
+func install(args []string) {
+	if err := impl.SelfInstall(args); err != nil {
+		vlog.Fatalf("SelfInstall failed: %v", err)
+	}
+}
+
+// TestNodeManagerInstall verifies the 'self install' functionality of the node
+// manager: it runs SelfInstall in a child process, then runs the executable
+// from the soft link that the installation created.  This should bring up a
+// functioning node manager.
+func TestNodeManagerInstall(t *testing.T) {
+	defer setupLocalNamespace(t)()
+	root, cleanup := setupRootDir(t)
+	defer cleanup()
+
+	currLink := filepath.Join(os.TempDir(), "testcurrent")
+	os.Remove(currLink) // Start out with a clean slate.
+
+	// We create this command not to run it, but to harvest the flags and
+	// env vars from it.  We need these to pass to the installer, to ensure
+	// that the node manager that the installer configures can run.
+	nm := blackbox.HelperCommand(t, "nodeManager", "nm")
+	defer setupChildCommand(nm)()
+
+	argsForNodeManager := append([]string{"--"}, nm.Cmd.Args[1:]...)
+	installer := blackbox.HelperCommand(t, "installer", argsForNodeManager...)
+	installer.Cmd.Env = exec.Mergeenv(installer.Cmd.Env, nm.Cmd.Env)
+
+	// Add vars to instruct the installer how to configure the node manager.
+	installer.Cmd.Env = exec.Setenv(installer.Cmd.Env, config.RootEnv, root)
+	installer.Cmd.Env = exec.Setenv(installer.Cmd.Env, config.CurrentLinkEnv, currLink)
+
+	if err := installer.Cmd.Start(); err != nil {
+		t.Fatalf("Start() failed: %v", err)
+	}
+	installer.ExpectEOFAndWait()
+	installer.Cleanup()
+
+	// CurrLink should now be pointing to a node manager script that
+	// can start up a node manager.
+
+	runNM := blackbox.HelperCommand(t, "execScript", currLink)
+	if err := runNM.Cmd.Start(); err != nil {
+		t.Fatalf("Start() failed: %v", err)
+	}
+	pid := readPID(t, runNM)
+	resolve(t, "nm", 1)
+	revertNodeExpectError(t, "nm", verror.NoExist) // No previous version available.
+	syscall.Kill(pid, syscall.SIGINT)
+	runNM.Expect("nm terminating")
+	runNM.ExpectEOFAndWait()
+	runNM.Cleanup()
 }
 
 func TestNodeManagerGlob(t *testing.T) {

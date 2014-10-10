@@ -263,7 +263,7 @@ func newVersion(installationDir string, envelope *application.Envelope, oldVersi
 		return "", errOperationFailed
 	}
 	// TODO(caprita): Share binaries if already existing locally.
-	if err := generateBinary(versionDir, "bin", envelope, true); err != nil {
+	if err := downloadBinary(versionDir, "bin", envelope.Binary); err != nil {
 		return versionDir, err
 	}
 	if err := saveEnvelope(versionDir, envelope); err != nil {

@@ -45,15 +45,12 @@ func fetchEnvelope(ctx context.T, origin string) (*application.Envelope, error) 
 	return &envelope, nil
 }
 
-func generateBinary(workspace, fileName string, envelope *application.Envelope, newBinary bool) error {
-	if newBinary {
-		// Download the new binary.
-		return downloadBinary(workspace, fileName, envelope.Binary)
-	}
-	// Link the current binary.
+// linkSelf creates a link to the current binary.
+func linkSelf(workspace, fileName string) error {
 	path := filepath.Join(workspace, fileName)
-	if err := os.Link(os.Args[0], path); err != nil {
-		vlog.Errorf("Link(%v, %v) failed: %v", os.Args[0], path, err)
+	self := os.Args[0]
+	if err := os.Link(self, path); err != nil {
+		vlog.Errorf("Link(%v, %v) failed: %v", self, path, err)
 		return errOperationFailed
 	}
 	return nil

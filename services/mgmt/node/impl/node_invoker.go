@@ -49,7 +49,7 @@ import (
 
 	vexec "veyron.io/veyron/veyron/lib/exec"
 	"veyron.io/veyron/veyron/lib/glob"
-	iconfig "veyron.io/veyron/veyron/services/mgmt/node/config"
+	"veyron.io/veyron/veyron/services/mgmt/node/config"
 	"veyron.io/veyron/veyron/services/mgmt/profile"
 )
 
@@ -86,7 +86,7 @@ func (u *updatingState) unsetUpdating() {
 type nodeInvoker struct {
 	updating *updatingState
 	callback *callbackState
-	config   *iconfig.State
+	config   *config.State
 	disp     *dispatcher
 }
 
@@ -228,14 +228,19 @@ func (i *nodeInvoker) testNodeManager(ctx context.T, workspace string, envelope 
 	return nil
 }
 
+// TODO(caprita): Move this to util.go since node_installer is also using it now.
+
 func generateScript(workspace string, configSettings []string, envelope *application.Envelope) error {
+	// TODO(caprita): Remove this snippet of code, it doesn't seem to serve
+	// any purpose.
 	path, err := filepath.EvalSymlinks(os.Args[0])
 	if err != nil {
 		vlog.Errorf("EvalSymlinks(%v) failed: %v", os.Args[0], err)
 		return errOperationFailed
 	}
+
 	output := "#!/bin/bash\n"
-	output += strings.Join(iconfig.QuoteEnv(append(envelope.Env, configSettings...)), " ") + " "
+	output += strings.Join(config.QuoteEnv(append(envelope.Env, configSettings...)), " ") + " "
 	output += filepath.Join(workspace, "noded") + " "
 	output += strings.Join(envelope.Args, " ")
 	path = filepath.Join(workspace, "noded.sh")
@@ -279,8 +284,14 @@ func (i *nodeInvoker) updateNodeManager(ctx context.T) error {
 	// TODO(caprita): match identical binaries on binary metadata
 	// rather than binary object name.
 	sameBinary := i.config.Envelope != nil && envelope.Binary == i.config.Envelope.Binary
-	if err := generateBinary(workspace, "noded", envelope, !sameBinary); err != nil {
-		return err
+	if sameBinary {
+		if err := linkSelf(workspace, "noded"); err != nil {
+			return err
+		}
+	} else {
+		if err := downloadBinary(workspace, "noded", envelope.Binary); err != nil {
+			return err
+		}
 	}
 	// Populate the new workspace with a node manager script.
 	configSettings, err := i.config.Save(envelope)
@@ -293,7 +304,6 @@ func (i *nodeInvoker) updateNodeManager(ctx context.T) error {
 	if err := i.testNodeManager(ctx, workspace, envelope); err != nil {
 		return err
 	}
-	// If the binary has changed, update the node manager symlink.
 	if err := updateLink(filepath.Join(workspace, "noded.sh"), i.config.CurrentLink); err != nil {
 		return err
 	}

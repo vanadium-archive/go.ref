@@ -28,3 +28,30 @@ func Setenv(env []string, name, value string) []string {
 	}
 	return append(env, newValue)
 }
+
+// Mergeenv merges the values for the variables contained in 'other' with the
+// values contained in 'base'.  If a variable exists in both, the value in
+// 'other' takes precedence.
+func Mergeenv(base, other []string) []string {
+	otherValues := make(map[string]string)
+	otherUsed := make(map[string]bool)
+	for _, v := range other {
+		if parts := strings.SplitN(v, "=", 2); len(parts) == 2 {
+			otherValues[parts[0]] = parts[1]
+		}
+	}
+	for i, v := range base {
+		if parts := strings.SplitN(v, "=", 2); len(parts) == 2 {
+			if otherValue, ok := otherValues[parts[0]]; ok {
+				base[i] = parts[0] + "=" + otherValue
+				otherUsed[parts[0]] = true
+			}
+		}
+	}
+	for k, v := range otherValues {
+		if !otherUsed[k] {
+			base = append(base, k+"="+v)
+		}
+	}
+	return base
+}
