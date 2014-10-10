@@ -228,31 +228,42 @@ func (d *dispatcher) Lookup(suffix, method string) (ipc.Invoker, security.Author
 	// The implementation of the node manager is split up into several
 	// invokers, which are instantiated depending on the receiver name
 	// prefix.
-	var receiver interface{}
 	switch components[0] {
 	case nodeSuffix:
-		receiver = node.NewServerNode(&nodeInvoker{
+		receiver := node.NewServerNode(&nodeInvoker{
 			callback: d.internal.callback,
 			updating: d.internal.updating,
 			config:   d.config,
 			disp:     d,
 		})
+		return ipc.ReflectInvoker(receiver), d.auth, nil
 	case appsSuffix:
-		receiver = node.NewServerApplication(&appInvoker{
+		receiver := node.NewServerApplication(&appInvoker{
 			callback: d.internal.callback,
 			config:   d.config,
 			suffix:   components[1:],
 		})
+		// TODO(caprita,rjkroege): Once we implement per-object ACLs
+		// (i.e. each installation and instance), replace d.auth with
+		// per-object authorizer.
+		return ipc.ReflectInvoker(receiver), d.auth, nil
 	case configSuffix:
 		if len(components) != 2 {
 			return nil, nil, errInvalidSuffix
 		}
-		receiver = inode.NewServerConfig(&configInvoker{
+		receiver := inode.NewServerConfig(&configInvoker{
 			callback: d.internal.callback,
 			suffix:   components[1],
 		})
+		// The nil authorizer ensures that only principals blessed by
+		// the node manager can talk back to it.  All apps started by
+		// the node manager should fall in that category.
+		//
+		// TODO(caprita,rjkroege): We should further refine this, by
+		// only allowing the app to update state referring to itself
+		// (and not other apps).
+		return ipc.ReflectInvoker(receiver), nil, nil
 	default:
 		return nil, nil, errInvalidSuffix
 	}
-	return ipc.ReflectInvoker(receiver), d.auth, nil
 }

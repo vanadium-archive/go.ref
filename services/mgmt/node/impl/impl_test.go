@@ -772,8 +772,13 @@ func TestNodeManagerClaim(t *testing.T) {
 	readPID(t, nm)
 
 	// Create an envelope for an app.
-	app := blackbox.HelperCommand(t, "app", "")
-	defer setupChildCommand(app)()
+	app := blackbox.HelperCommand(t, "app", "trapp")
+	// Ensure the child has a blessing that (a) allows it talk back to the
+	// node manager config service and (b) allows the node manager to talk
+	// to the app.  We achieve this by making the app's blessing derived
+	// from the node manager's blessing post claiming (which will be
+	// "mydevice").
+	defer setupChildCommandWithBlessing(app, "mydevice/child")()
 	appTitle := "google naps"
 	*envelope = *envelopeFromCmd(appTitle, app.Cmd)
 
@@ -794,14 +799,33 @@ func TestNodeManagerClaim(t *testing.T) {
 	if err = nodeStub.Claim(selfRT.NewContext(), &granter{p: selfRT.Principal(), extension: "mydevice"}); err != nil {
 		t.Fatal(err)
 	}
-	// Installation should succeed since selfRT is now the "owner" of the nodemanager.
-	if err = tryInstall(selfRT); err != nil {
-		t.Fatal(err)
-	}
+	// Installation should succeed since rt.R() (a.k.a. selfRT) is now the
+	// "owner" of the nodemanager.
+	appID := installApp(t)
+
 	// otherRT should be unable to install though, since the ACLs have changed now.
 	if err = tryInstall(otherRT); err == nil {
 		t.Fatalf("Install should have failed from otherRT")
 	}
+
+	// Create a script wrapping the test target that implements suidhelper.
+	generateSuidHelperScript(t, root)
+
+	// Create the local server that the app uses to let us know it's ready.
+	// TODO(caprita): Factor this code snippet out, it's pretty common.
+	server, _ := newServer()
+	defer server.Stop()
+	pingCh := make(chan string, 1)
+	if err := server.Serve("pingserver", ipc.LeafDispatcher(pingServerDisp(pingCh), nil)); err != nil {
+		t.Fatalf("Serve(%q, <dispatcher>) failed: %v", "pingserver", err)
+	}
+
+	// Start an instance of the app.
+	instanceID := startApp(t, appID)
+	<-pingCh
+	resolve(t, "trapp", 1)
+	suspendApp(t, appID, instanceID)
+
 	// TODO(gauthamt): Test that ACLs persist across nodemanager restarts
 }
 

@@ -488,7 +488,7 @@ func (i *appInvoker) startCmd(instanceDir string, cmd *exec.Cmd) error {
 		return errOperationFailed
 	}
 	// Wait for the child process to start.
-	timeout := 20 * time.Second
+	timeout := 10 * time.Second
 	if err := handle.WaitForReady(timeout); err != nil {
 		vlog.Errorf("WaitForReady(%v) failed: %v", timeout, err)
 		return errOperationFailed
