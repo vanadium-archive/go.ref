@@ -12,11 +12,13 @@ import (
 
 	"veyron.io/veyron/veyron2"
 	"veyron.io/veyron/veyron2/context"
+	"veyron.io/veyron/veyron2/i18n"
 	"veyron.io/veyron/veyron2/ipc"
 	"veyron.io/veyron/veyron2/ipc/stream"
 	"veyron.io/veyron/veyron2/ipc/version"
 	"veyron.io/veyron/veyron2/naming"
 	"veyron.io/veyron/veyron2/security"
+	"veyron.io/veyron/veyron2/verror2"
 	"veyron.io/veyron/veyron2/vtrace"
 )
 
@@ -114,7 +116,10 @@ func (rt *vrt) Client() ipc.Client {
 }
 
 func (rt *vrt) NewContext() context.T {
-	ctx, _ := ivtrace.WithNewSpan(iipc.InternalNewContext(rt), "Root")
+	ctx := iipc.InternalNewContext(rt)
+	ctx = i18n.ContextWithLangID(ctx, rt.lang)
+	ctx = verror2.ContextWithComponentName(ctx, rt.program)
+	ctx, _ = ivtrace.WithNewSpan(ctx, "Root")
 	return ctx
 }
 

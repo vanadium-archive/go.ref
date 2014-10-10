@@ -4,11 +4,13 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 	"sync"
 
 	"veyron.io/veyron/veyron2"
 	"veyron.io/veyron/veyron2/config"
+	"veyron.io/veyron/veyron2/i18n"
 	"veyron.io/veyron/veyron2/ipc"
 	"veyron.io/veyron/veyron2/ipc/stream"
 	"veyron.io/veyron/veyron2/naming"
@@ -43,13 +45,16 @@ type vrt struct {
 	// TODO(ashankar,ataly): Variables to help with the transition between the
 	// old and new security model. Will be removed once the transition is complete.
 	useNewSecurityModelInIPCClients bool
+
+	lang    i18n.LangID // Language, from environment variables.
+	program string      // Program name, from os.Args[0].
 }
 
 var _ veyron2.Runtime = (*vrt)(nil)
 
 // Implements veyron2/rt.New
 func New(opts ...veyron2.ROpt) (veyron2.Runtime, error) {
-	rt := &vrt{mgmt: new(mgmtImpl)}
+	rt := &vrt{mgmt: new(mgmtImpl), lang: i18n.LangIDFromEnv(), program: filepath.Base(os.Args[0])}
 	flag.Parse()
 	rt.initHTTPDebugServer()
 	nsRoots := []string{}
