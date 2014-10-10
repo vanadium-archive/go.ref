@@ -39,10 +39,13 @@ func TestMacaroonBlesser(t *testing.T) {
 	m = BlessingMacaroon{Creation: time.Now(), Name: "user", Caveats: []security.Caveat{cOnlyMethodFoo}}
 	if result, err := blesser.Bless(context, newMacaroon(t, key, m)); err != nil || result == nil {
 		t.Errorf("Got (%v, %v)", result, err)
-	} else if _, ok := result.(security.Blessings); !ok {
+	} else if _, ok := result.(security.WireBlessings); !ok {
 		t.Errorf("Got %T, want security.Blessings", result)
 	} else {
-		b := result.(security.Blessings)
+		b, err := security.NewBlessings(result.(security.WireBlessings))
+		if err != nil {
+			t.Fatalf("Unable to decode response into a security.Blessings object: %v", err)
+		}
 		if !reflect.DeepEqual(b.PublicKey(), user.PublicKey()) {
 			t.Errorf("Received blessing for public key %v. Client:%v, Blesser:%v", b.PublicKey(), user.PublicKey(), provider.PublicKey())
 		}
