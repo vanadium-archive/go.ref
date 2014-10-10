@@ -263,12 +263,11 @@ func setupRemoteAppCycleMgr(t *testing.T) (veyron2.Runtime, *blackbox.Child, app
 	// refer to the global rt.R() function), but we take care to make sure
 	// that the "google" runtime we are trying to test in this package is
 	// the one being used.
-	r, _ := rt.New(veyron2.RuntimeOpt{veyron2.GoogleRuntimeName})
+	r, _ := rt.New(veyron2.RuntimeOpt{veyron2.GoogleRuntimeName}, veyron2.ForceNewSecurityModel{})
 	c := blackbox.HelperCommand(t, "app")
-	id := r.Identity()
-	idFile := security.SaveIdentityToFile(security.NewBlessedIdentity(id, "test"))
+	childcreds := security.NewVeyronCredentials(r.Principal(), "app")
 	configServer, configServiceName, ch := createConfigServer(t, r)
-	c.Cmd.Env = append(c.Cmd.Env, fmt.Sprintf("VEYRON_IDENTITY=%v", idFile),
+	c.Cmd.Env = append(c.Cmd.Env, fmt.Sprintf("VEYRON_CREDENTIALS=%v", childcreds),
 		fmt.Sprintf("%v=%v", mgmt.ParentNodeManagerConfigKey, configServiceName))
 	c.Cmd.Start()
 	appCycleName := <-ch
@@ -279,7 +278,7 @@ func setupRemoteAppCycleMgr(t *testing.T) (veyron2.Runtime, *blackbox.Child, app
 	return r, c, appCycle, func() {
 		configServer.Stop()
 		c.Cleanup()
-		os.Remove(idFile)
+		os.RemoveAll(childcreds)
 		// Don't do r.Cleanup() since the runtime needs to be used by
 		// more than one test case.
 	}

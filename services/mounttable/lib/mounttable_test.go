@@ -2,6 +2,7 @@ package mounttable
 
 import (
 	"errors"
+	"fmt"
 	"reflect"
 	"runtime/debug"
 	"sort"
@@ -26,14 +27,12 @@ import (
 // stupidNS is a version of naming.Namespace that we can control.  This exists so that we have some
 // firm ground to stand on vis a vis the stub interface.
 type stupidNS struct {
-	id ipc.ClientOpt
+	r veyron2.Runtime
 }
 
-var (
-	rootID  = veyron2.LocalID(security.FakePublicID("root"))
-	bobID   = veyron2.LocalID(security.FakePublicID("bob"))
-	aliceID = veyron2.LocalID(security.FakePublicID("alice"))
-)
+// Simulate different processes with different runtimes.
+// rootRT is the one running the mounttable service.
+var rootRT, aliceRT, bobRT veyron2.Runtime
 
 const ttlSecs = 60 * 60
 
@@ -42,11 +41,10 @@ func boom(t *testing.T, f string, v ...interface{}) {
 	t.Fatal(string(debug.Stack()))
 }
 
-// quuxClient returns an ipc.Client that uses the simple namespace for name
-// resolution.
-func quuxClient(id ipc.ClientOpt) ipc.Client {
-	ns := stupidNS{id}
-	c, err := rt.R().NewClient(id, veyron2.Namespace(ns))
+// quuxClient returns an ipc.Client that would be used by the provided runtime
+// and uses the simple namespace for name resolution.
+func quuxClient(r veyron2.Runtime) ipc.Client {
+	c, err := r.NewClient(veyron2.Namespace(stupidNS{r}))
 	if err != nil {
 		panic(err)
 	}
@@ -74,11 +72,11 @@ func (ns stupidNS) Resolve(ctx context.T, name string) ([]string, error) {
 	}
 
 	// Resolve via another
-	objectPtr, err := mounttable.BindMountTable("/"+address+"//"+suffix, quuxClient(ns.id))
+	objectPtr, err := mounttable.BindMountTable("/"+address+"//"+suffix, quuxClient(ns.r))
 	if err != nil {
 		return nil, err
 	}
-	ss, suffix, err := objectPtr.ResolveStep(rt.R().NewContext())
+	ss, suffix, err := objectPtr.ResolveStep(ns.r.NewContext())
 	if err != nil {
 		return nil, err
 	}
@@ -119,12 +117,12 @@ func (s stupidNS) Roots() []string {
 	return []string{}
 }
 
-func doMount(t *testing.T, name, service string, shouldSucceed bool, id ipc.ClientOpt) {
-	mtpt, err := mounttable.BindMountTable(name, quuxClient(id))
+func doMount(t *testing.T, name, service string, shouldSucceed bool, as veyron2.Runtime) {
+	mtpt, err := mounttable.BindMountTable(name, quuxClient(as))
 	if err != nil {
 		boom(t, "Failed to BindMountTable: %s", err)
 	}
-	if err := mtpt.Mount(rt.R().NewContext(), service, uint32(ttlSecs), 0, veyron2.RetryTimeoutOpt(0)); err != nil {
+	if err := mtpt.Mount(as.NewContext(), service, uint32(ttlSecs), 0, veyron2.RetryTimeoutOpt(0)); err != nil {
 		if shouldSucceed {
 			boom(t, "Failed to Mount %s onto %s: %s", service, name, err)
 		}
@@ -133,12 +131,12 @@ func doMount(t *testing.T, name, service string, shouldSucceed bool, id ipc.Clie
 	}
 }
 
-func doUnmount(t *testing.T, name, service string, shouldSucceed bool, id ipc.ClientOpt) {
-	mtpt, err := mounttable.BindMountTable(name, quuxClient(id))
+func doUnmount(t *testing.T, name, service string, shouldSucceed bool, as veyron2.Runtime) {
+	mtpt, err := mounttable.BindMountTable(name, quuxClient(as))
 	if err != nil {
 		boom(t, "Failed to BindMountTable: %s", err)
 	}
-	if err := mtpt.Unmount(rt.R().NewContext(), service, veyron2.RetryTimeoutOpt(0)); err != nil {
+	if err := mtpt.Unmount(as.NewContext(), service, veyron2.RetryTimeoutOpt(0)); err != nil {
 		if shouldSucceed {
 			boom(t, "Failed to Unmount %s onto %s: %s", service, name, err)
 		}
@@ -147,22 +145,22 @@ func doUnmount(t *testing.T, name, service string, shouldSucceed bool, id ipc.Cl
 	}
 }
 
-func create(t *testing.T, name, contents string) {
-	objectPtr, err := BindCollection(name, quuxClient(rootID))
+func export(t *testing.T, name, contents string, as veyron2.Runtime) {
+	objectPtr, err := BindCollection(name, quuxClient(as))
 	if err != nil {
 		boom(t, "Failed to BindCollection: %s", err)
 	}
-	if err := objectPtr.Export(rt.R().NewContext(), contents, true); err != nil {
+	if err := objectPtr.Export(as.NewContext(), contents, true); err != nil {
 		boom(t, "Failed to Export %s to %s: %s", name, contents, err)
 	}
 }
 
-func checkContents(t *testing.T, name, expected string, shouldSucceed bool, id ipc.ClientOpt) {
-	objectPtr, err := BindCollection(name, quuxClient(id))
+func checkContents(t *testing.T, name, expected string, shouldSucceed bool, as veyron2.Runtime) {
+	objectPtr, err := BindCollection(name, quuxClient(as))
 	if err != nil {
 		boom(t, "Failed to BindCollection: %s", err)
 	}
-	contents, err := objectPtr.Lookup(rt.R().NewContext(), veyron2.RetryTimeoutOpt(0))
+	contents, err := objectPtr.Lookup(as.NewContext(), veyron2.RetryTimeoutOpt(0))
 	if err != nil {
 		if shouldSucceed {
 			boom(t, "Failed to Lookup %s: %s", name, err)
@@ -178,13 +176,7 @@ func checkContents(t *testing.T, name, expected string, shouldSucceed bool, id i
 }
 
 func newMT(t *testing.T, acl string) (ipc.Server, string) {
-	// It is necessary for the private key of runtime's identity and
-	// the public key of the LocalIDOpts passed to clients to correspond.
-	// Since the LocalIDOpts are FakePublicIDs, we initialize the runtime
-	// below with a FakePrivateID. (Note all FakePublicIDs and FakePrivateIDs
-	// always have corresponding public and private keys respectively.)
-	r := rt.Init(veyron2.RuntimeID(security.FakePrivateID("irrelevant")))
-	server, err := r.NewServer(veyron2.ServesMountTableOpt(true))
+	server, err := rootRT.NewServer(veyron2.ServesMountTableOpt(true))
 	if err != nil {
 		boom(t, "r.NewServer: %s", err)
 	}
@@ -207,8 +199,7 @@ func newMT(t *testing.T, acl string) (ipc.Server, string) {
 }
 
 func newCollection(t *testing.T, acl string) (ipc.Server, string) {
-	r := rt.Init()
-	server, err := r.NewServer()
+	server, err := rootRT.NewServer()
 	if err != nil {
 		boom(t, "r.NewServer: %s", err)
 	}
@@ -238,69 +229,69 @@ func TestMountTable(t *testing.T) {
 
 	// Mount the collection server into the mount table.
 	vlog.Infof("Mount the collection server into the mount table.")
-	doMount(t, naming.JoinAddressName(mtAddr, "//mounttable/stuff"), collectionName, true, rootID)
+	doMount(t, naming.JoinAddressName(mtAddr, "//mounttable/stuff"), collectionName, true, rootRT)
 
 	// Create a few objects and make sure we can read them.
 	vlog.Infof("Create a few objects.")
-	create(t, naming.JoinAddressName(mtAddr, "mounttable/stuff/the/rain"), "the rain")
-	create(t, naming.JoinAddressName(mtAddr, "mounttable/stuff/in/spain"), "in spain")
-	create(t, naming.JoinAddressName(mtAddr, "mounttable/stuff/falls"), "falls mainly on the plain")
+	export(t, naming.JoinAddressName(mtAddr, "mounttable/stuff/the/rain"), "the rain", rootRT)
+	export(t, naming.JoinAddressName(mtAddr, "mounttable/stuff/in/spain"), "in spain", rootRT)
+	export(t, naming.JoinAddressName(mtAddr, "mounttable/stuff/falls"), "falls mainly on the plain", rootRT)
 	vlog.Infof("Make sure we can read them.")
-	checkContents(t, naming.JoinAddressName(mtAddr, "mounttable/stuff/the/rain"), "the rain", true, rootID)
-	checkContents(t, naming.JoinAddressName(mtAddr, "mounttable/stuff/in/spain"), "in spain", true, rootID)
-	checkContents(t, naming.JoinAddressName(mtAddr, "mounttable/stuff/falls"), "falls mainly on the plain", true, rootID)
-	checkContents(t, naming.JoinAddressName(mtAddr, "mounttable//stuff/falls"), "falls mainly on the plain", false, rootID)
-	checkContents(t, naming.JoinAddressName(mtAddr, "mounttable/stuff/nonexistant"), "falls mainly on the plain", false, rootID)
-	checkContents(t, naming.JoinAddressName(mtAddr, "mounttable/stuff/the/rain"), "the rain", true, bobID)
-	checkContents(t, naming.JoinAddressName(mtAddr, "mounttable/stuff/the/rain"), "the rain", false, aliceID)
+	checkContents(t, naming.JoinAddressName(mtAddr, "mounttable/stuff/the/rain"), "the rain", true, rootRT)
+	checkContents(t, naming.JoinAddressName(mtAddr, "mounttable/stuff/in/spain"), "in spain", true, rootRT)
+	checkContents(t, naming.JoinAddressName(mtAddr, "mounttable/stuff/falls"), "falls mainly on the plain", true, rootRT)
+	checkContents(t, naming.JoinAddressName(mtAddr, "mounttable//stuff/falls"), "falls mainly on the plain", false, rootRT)
+	checkContents(t, naming.JoinAddressName(mtAddr, "mounttable/stuff/nonexistant"), "falls mainly on the plain", false, rootRT)
+	checkContents(t, naming.JoinAddressName(mtAddr, "mounttable/stuff/the/rain"), "the rain", true, bobRT)
+	checkContents(t, naming.JoinAddressName(mtAddr, "mounttable/stuff/the/rain"), "the rain", false, aliceRT)
 
 	// Test multiple mounts.
 	vlog.Infof("Multiple mounts.")
-	doMount(t, naming.JoinAddressName(mtAddr, "//mounttable//a/b"), collectionName, true, rootID)
-	doMount(t, naming.JoinAddressName(mtAddr, "//mounttable/x/y"), collectionName, true, rootID)
-	doMount(t, naming.JoinAddressName(mtAddr, "//mounttable/alpha//beta"), collectionName, true, rootID)
+	doMount(t, naming.JoinAddressName(mtAddr, "//mounttable//a/b"), collectionName, true, rootRT)
+	doMount(t, naming.JoinAddressName(mtAddr, "//mounttable/x/y"), collectionName, true, rootRT)
+	doMount(t, naming.JoinAddressName(mtAddr, "//mounttable/alpha//beta"), collectionName, true, rootRT)
 	vlog.Infof("Make sure we can read them.")
-	checkContents(t, naming.JoinAddressName(mtAddr, "mounttable/stuff/falls"), "falls mainly on the plain", true, rootID)
-	checkContents(t, naming.JoinAddressName(mtAddr, "mounttable/a/b/falls"), "falls mainly on the plain", true, rootID)
-	checkContents(t, naming.JoinAddressName(mtAddr, "mounttable/x/y/falls"), "falls mainly on the plain", true, rootID)
-	checkContents(t, naming.JoinAddressName(mtAddr, "mounttable/alpha/beta/falls"), "falls mainly on the plain", true, rootID)
-	checkContents(t, naming.JoinAddressName(mtAddr, "mounttable/a/b/falls"), "falls mainly on the plain", true, aliceID)
-	checkContents(t, naming.JoinAddressName(mtAddr, "mounttable/a/b/falls"), "falls mainly on the plain", false, bobID)
+	checkContents(t, naming.JoinAddressName(mtAddr, "mounttable/stuff/falls"), "falls mainly on the plain", true, rootRT)
+	checkContents(t, naming.JoinAddressName(mtAddr, "mounttable/a/b/falls"), "falls mainly on the plain", true, rootRT)
+	checkContents(t, naming.JoinAddressName(mtAddr, "mounttable/x/y/falls"), "falls mainly on the plain", true, rootRT)
+	checkContents(t, naming.JoinAddressName(mtAddr, "mounttable/alpha/beta/falls"), "falls mainly on the plain", true, rootRT)
+	checkContents(t, naming.JoinAddressName(mtAddr, "mounttable/a/b/falls"), "falls mainly on the plain", true, aliceRT)
+	checkContents(t, naming.JoinAddressName(mtAddr, "mounttable/a/b/falls"), "falls mainly on the plain", false, bobRT)
 
 	// Test generic unmount.
 	vlog.Info("Test generic unmount.")
-	doUnmount(t, naming.JoinAddressName(mtAddr, "//mounttable/a/b"), "", true, rootID)
-	checkContents(t, naming.JoinAddressName(mtAddr, "mounttable/a/b/falls"), "falls mainly on the plain", false, rootID)
+	doUnmount(t, naming.JoinAddressName(mtAddr, "//mounttable/a/b"), "", true, rootRT)
+	checkContents(t, naming.JoinAddressName(mtAddr, "mounttable/a/b/falls"), "falls mainly on the plain", false, rootRT)
 
 	// Test specific unmount.
 	vlog.Info("Test specific unmount.")
-	doMount(t, naming.JoinAddressName(mtAddr, "//mounttable/a/b"), collectionName, true, rootID)
-	doUnmount(t, naming.JoinAddressName(mtAddr, "//mounttable/a/b"), collectionName, true, rootID)
-	checkContents(t, naming.JoinAddressName(mtAddr, "mounttable/a/b/falls"), "falls mainly on the plain", false, rootID)
+	doMount(t, naming.JoinAddressName(mtAddr, "//mounttable/a/b"), collectionName, true, rootRT)
+	doUnmount(t, naming.JoinAddressName(mtAddr, "//mounttable/a/b"), collectionName, true, rootRT)
+	checkContents(t, naming.JoinAddressName(mtAddr, "mounttable/a/b/falls"), "falls mainly on the plain", false, rootRT)
 
 	// Try timing out a mount.
 	vlog.Info("Try timing out a mount.")
 	ft := NewFakeTimeClock()
 	setServerListClock(ft)
-	doMount(t, naming.JoinAddressName(mtAddr, "//mounttable/stuffWithTTL"), collectionName, true, rootID)
-	checkContents(t, naming.JoinAddressName(mtAddr, "mounttable/stuffWithTTL/the/rain"), "the rain", true, rootID)
+	doMount(t, naming.JoinAddressName(mtAddr, "//mounttable/stuffWithTTL"), collectionName, true, rootRT)
+	checkContents(t, naming.JoinAddressName(mtAddr, "mounttable/stuffWithTTL/the/rain"), "the rain", true, rootRT)
 	ft.advance(time.Duration(ttlSecs+4) * time.Second)
-	checkContents(t, naming.JoinAddressName(mtAddr, "mounttable/stuffWithTTL/the/rain"), "the rain", false, rootID)
+	checkContents(t, naming.JoinAddressName(mtAddr, "mounttable/stuffWithTTL/the/rain"), "the rain", false, rootRT)
 
 	// Test unauthorized mount.
 	vlog.Info("Test unauthorized mount.")
-	doMount(t, naming.JoinAddressName(mtAddr, "//mounttable//a/b"), collectionName, false, bobID)
-	doMount(t, naming.JoinAddressName(mtAddr, "//mounttable//a/b"), collectionName, false, aliceID)
+	doMount(t, naming.JoinAddressName(mtAddr, "//mounttable//a/b"), collectionName, false, bobRT)
+	doMount(t, naming.JoinAddressName(mtAddr, "//mounttable//a/b"), collectionName, false, aliceRT)
 
-	doUnmount(t, naming.JoinAddressName(mtAddr, "//mounttable/x/y"), collectionName, false, bobID)
+	doUnmount(t, naming.JoinAddressName(mtAddr, "//mounttable/x/y"), collectionName, false, bobRT)
 }
 
-func doGlob(t *testing.T, name, pattern string, id ipc.ClientOpt) []string {
-	mtpt, err := mounttable.BindMountTable(name, quuxClient(id))
+func doGlob(t *testing.T, name, pattern string, as veyron2.Runtime) []string {
+	mtpt, err := mounttable.BindMountTable(name, quuxClient(as))
 	if err != nil {
 		boom(t, "Failed to BindMountTable: %s", err)
 	}
-	stream, err := mtpt.Glob(rt.R().NewContext(), pattern)
+	stream, err := mtpt.Glob(as.NewContext(), pattern)
 	if err != nil {
 		boom(t, "Failed call to %s.Glob(%s): %s", name, pattern, err)
 	}
@@ -336,9 +327,9 @@ func TestGlob(t *testing.T) {
 
 	// set up a mount space
 	fakeServer := naming.JoinAddressName(estr, "//quux")
-	doMount(t, naming.JoinAddressName(estr, "//one/bright/day"), fakeServer, true, rootID)
-	doMount(t, naming.JoinAddressName(estr, "//in/the/middle"), fakeServer, true, rootID)
-	doMount(t, naming.JoinAddressName(estr, "//of/the/night"), fakeServer, true, rootID)
+	doMount(t, naming.JoinAddressName(estr, "//one/bright/day"), fakeServer, true, rootRT)
+	doMount(t, naming.JoinAddressName(estr, "//in/the/middle"), fakeServer, true, rootRT)
+	doMount(t, naming.JoinAddressName(estr, "//of/the/night"), fakeServer, true, rootRT)
 
 	// Try various globs.
 	tests := []struct {
@@ -356,7 +347,7 @@ func TestGlob(t *testing.T) {
 		{"", []string{""}},
 	}
 	for _, test := range tests {
-		out := doGlob(t, naming.JoinAddressName(estr, "//"), test.in, rootID)
+		out := doGlob(t, naming.JoinAddressName(estr, "//"), test.in, rootRT)
 		checkMatch(t, test.expected, out)
 	}
 
@@ -365,11 +356,11 @@ func TestGlob(t *testing.T) {
 	{
 		name := naming.JoinAddressName(estr, "//of/the/night/two/dead/boys/got/up/to/fight")
 		pattern := "*"
-		m, err := mounttable.BindGlobbable(name, quuxClient(rootID))
+		m, err := mounttable.BindGlobbable(name, quuxClient(rootRT))
 		if err != nil {
 			boom(t, "Failed to BindMountTable: %s", err)
 		}
-		stream, err := m.Glob(rt.R().NewContext(), pattern)
+		stream, err := m.Glob(rootRT.NewContext(), pattern)
 		if err != nil {
 			boom(t, "Failed call to %s.Glob(%s): %s", name, pattern, err)
 		}
@@ -400,24 +391,24 @@ func TestGlobACLs(t *testing.T) {
 
 	// set up a mount space
 	fakeServer := naming.JoinAddressName(estr, "quux")
-	doMount(t, naming.JoinAddressName(estr, "//one/bright/day"), fakeServer, true, rootID)
-	doMount(t, naming.JoinAddressName(estr, "//a/b/c"), fakeServer, true, rootID)
+	doMount(t, naming.JoinAddressName(estr, "//one/bright/day"), fakeServer, true, rootRT)
+	doMount(t, naming.JoinAddressName(estr, "//a/b/c"), fakeServer, true, rootRT)
 
 	// Try various globs.
 	tests := []struct {
-		id       ipc.ClientOpt
+		as       veyron2.Runtime
 		in       string
 		expected []string
 	}{
-		{rootID, "*", []string{"one", "a"}},
-		{aliceID, "*", []string{"one", "a"}},
-		{bobID, "*", []string{"one"}},
-		{rootID, "*/...", []string{"one", "a", "one/bright", "a/b", "one/bright/day", "a/b/c"}},
-		{aliceID, "*/...", []string{"one", "a", "one/bright", "a/b", "one/bright/day", "a/b/c"}},
-		{bobID, "*/...", []string{"one", "one/bright", "one/bright/day"}},
+		{rootRT, "*", []string{"one", "a"}},
+		{aliceRT, "*", []string{"one", "a"}},
+		{bobRT, "*", []string{"one"}},
+		{rootRT, "*/...", []string{"one", "a", "one/bright", "a/b", "one/bright/day", "a/b/c"}},
+		{aliceRT, "*/...", []string{"one", "a", "one/bright", "a/b", "one/bright/day", "a/b/c"}},
+		{bobRT, "*/...", []string{"one", "one/bright", "one/bright/day"}},
 	}
 	for _, test := range tests {
-		out := doGlob(t, naming.JoinAddressName(estr, "//"), test.in, test.id)
+		out := doGlob(t, naming.JoinAddressName(estr, "//"), test.in, test.as)
 		checkMatch(t, test.expected, out)
 	}
 }
@@ -426,12 +417,12 @@ func TestServerFormat(t *testing.T) {
 	server, estr := newMT(t, "")
 	defer server.Stop()
 
-	doMount(t, naming.JoinAddressName(estr, "//mounttable/endpoint"), naming.JoinAddressName(estr, "life/on/the/mississippi"), true, rootID)
-	doMount(t, naming.JoinAddressName(estr, "//mounttable/hostport"), "/atrampabroad:8000", true, rootID)
-	doMount(t, naming.JoinAddressName(estr, "//mounttable/hostport-endpoint-platypus"), "/@atrampabroad:8000@@", true, rootID)
-	doMount(t, naming.JoinAddressName(estr, "//mounttable/invalid/not/rooted"), "atrampabroad:8000", false, rootID)
-	doMount(t, naming.JoinAddressName(estr, "//mounttable/invalid/no/port"), "/atrampabroad", false, rootID)
-	doMount(t, naming.JoinAddressName(estr, "//mounttable/invalid/endpoint"), "/@following the equator:8000@@@", false, rootID)
+	doMount(t, naming.JoinAddressName(estr, "//mounttable/endpoint"), naming.JoinAddressName(estr, "life/on/the/mississippi"), true, rootRT)
+	doMount(t, naming.JoinAddressName(estr, "//mounttable/hostport"), "/atrampabroad:8000", true, rootRT)
+	doMount(t, naming.JoinAddressName(estr, "//mounttable/hostport-endpoint-platypus"), "/@atrampabroad:8000@@", true, rootRT)
+	doMount(t, naming.JoinAddressName(estr, "//mounttable/invalid/not/rooted"), "atrampabroad:8000", false, rootRT)
+	doMount(t, naming.JoinAddressName(estr, "//mounttable/invalid/no/port"), "/atrampabroad", false, rootRT)
+	doMount(t, naming.JoinAddressName(estr, "//mounttable/invalid/endpoint"), "/@following the equator:8000@@@", false, rootRT)
 }
 
 func TestExpiry(t *testing.T) {
@@ -444,21 +435,21 @@ func TestExpiry(t *testing.T) {
 
 	ft := NewFakeTimeClock()
 	setServerListClock(ft)
-	doMount(t, naming.JoinAddressName(estr, "//mounttable/a1/b1"), collectionName, true, rootID)
-	doMount(t, naming.JoinAddressName(estr, "//mounttable/a1/b2"), collectionName, true, rootID)
-	doMount(t, naming.JoinAddressName(estr, "//mounttable/a2/b1"), collectionName, true, rootID)
-	doMount(t, naming.JoinAddressName(estr, "//mounttable/a2/b2/c"), collectionName, true, rootID)
+	doMount(t, naming.JoinAddressName(estr, "//mounttable/a1/b1"), collectionName, true, rootRT)
+	doMount(t, naming.JoinAddressName(estr, "//mounttable/a1/b2"), collectionName, true, rootRT)
+	doMount(t, naming.JoinAddressName(estr, "//mounttable/a2/b1"), collectionName, true, rootRT)
+	doMount(t, naming.JoinAddressName(estr, "//mounttable/a2/b2/c"), collectionName, true, rootRT)
 
-	checkMatch(t, []string{"a1/b1", "a2/b1"}, doGlob(t, naming.JoinAddressName(estr, "//mounttable"), "*/b1/...", rootID))
+	checkMatch(t, []string{"a1/b1", "a2/b1"}, doGlob(t, naming.JoinAddressName(estr, "//mounttable"), "*/b1/...", rootRT))
 	ft.advance(time.Duration(ttlSecs/2) * time.Second)
-	checkMatch(t, []string{"a1/b1", "a2/b1"}, doGlob(t, naming.JoinAddressName(estr, "//mounttable"), "*/b1/...", rootID))
-	checkMatch(t, []string{"c"}, doGlob(t, naming.JoinAddressName(estr, "//mounttable/a2/b2"), "*", rootID))
+	checkMatch(t, []string{"a1/b1", "a2/b1"}, doGlob(t, naming.JoinAddressName(estr, "//mounttable"), "*/b1/...", rootRT))
+	checkMatch(t, []string{"c"}, doGlob(t, naming.JoinAddressName(estr, "//mounttable/a2/b2"), "*", rootRT))
 	// Refresh only a1/b1.  All the other mounts will expire upon the next
 	// ft advance.
-	doMount(t, naming.JoinAddressName(estr, "//mounttable/a1/b1"), collectionName, true, rootID)
+	doMount(t, naming.JoinAddressName(estr, "//mounttable/a1/b1"), collectionName, true, rootRT)
 	ft.advance(time.Duration(ttlSecs/2+4) * time.Second)
-	checkMatch(t, []string{"a1"}, doGlob(t, naming.JoinAddressName(estr, "//mounttable"), "*", rootID))
-	checkMatch(t, []string{"a1/b1"}, doGlob(t, naming.JoinAddressName(estr, "//mounttable"), "*/b1/...", rootID))
+	checkMatch(t, []string{"a1"}, doGlob(t, naming.JoinAddressName(estr, "//mounttable"), "*", rootRT))
+	checkMatch(t, []string{"a1/b1"}, doGlob(t, naming.JoinAddressName(estr, "//mounttable"), "*/b1/...", rootRT))
 }
 
 func TestBadACLs(t *testing.T) {
@@ -473,5 +464,44 @@ func TestBadACLs(t *testing.T) {
 	_, err = NewMountTable("testdata/noroot.acl")
 	if err == nil {
 		boom(t, "Expected error for missing '/' acl")
+	}
+}
+
+func init() {
+	// Create the runtime for each of the three "processes"
+	rootRT = rt.Init(veyron2.ForceNewSecurityModel{})
+	var err error
+	if aliceRT, err = rt.New(veyron2.ForceNewSecurityModel{}); err != nil {
+		panic(err)
+	}
+	if bobRT, err = rt.New(veyron2.ForceNewSecurityModel{}); err != nil {
+		panic(err)
+	}
+
+	// And setup their blessings so that they present "root", "alice" and "bob"
+	// and these blessings are recognized by the others.
+	principals := map[string]security.Principal{
+		"root":  rootRT.Principal(),
+		"alice": aliceRT.Principal(),
+		"bob":   bobRT.Principal(),
+	}
+	for name, p := range principals {
+		blessing, err := p.BlessSelf(name)
+		if err != nil {
+			panic(fmt.Sprintf("BlessSelf(%q) failed: %v", name, err))
+		}
+		// Share this blessing with all servers and use it when serving clients.
+		if err = p.BlessingStore().SetDefault(blessing); err != nil {
+			panic(fmt.Sprintf("%v: %v", blessing, err))
+		}
+		if _, err = p.BlessingStore().Set(blessing, security.AllPrincipals); err != nil {
+			panic(fmt.Sprintf("%v: %v", blessing, err))
+		}
+		// Have all principals trust the root of this blessing.
+		for _, other := range principals {
+			if err := other.AddToRoots(blessing); err != nil {
+				panic(err)
+			}
+		}
 	}
 }

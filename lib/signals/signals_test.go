@@ -324,22 +324,20 @@ func createConfigServer(t *testing.T) (ipc.Server, string, <-chan string) {
 
 // TestCleanRemoteShutdown verifies that remote shutdown works correctly.
 func TestCleanRemoteShutdown(t *testing.T) {
-	r := rt.Init()
+	r := rt.Init(veyron2.ForceNewSecurityModel{})
 	defer r.Cleanup()
 
 	sh := modules.NewShell()
 	sh.AddSubprocess("handleDefaults", "")
 	defer sh.Cleanup(os.Stderr, os.Stderr)
 
-	// This sets up the child's identity to be derived from the parent's (so
-	// that default authorization works for RPCs between the two).
-	// TODO(caprita): Consider making this boilerplate part of blackbox.
-	id := r.Identity()
-	idFile := security.SaveIdentityToFile(security.NewBlessedIdentity(id, "test"))
-	defer os.Remove(idFile)
+	// Set the child process up with a blessing from the parent so that
+	// the default authorization works for RPCs between the two.
+	childcreds := security.NewVeyronCredentials(r.Principal(), "child")
+	defer os.RemoveAll(childcreds)
 	configServer, configServiceName, ch := createConfigServer(t)
 	defer configServer.Stop()
-	sh.SetVar("VEYRON_IDENTITY", idFile)
+	sh.SetVar("VEYRON_CREDENTIALS", childcreds)
 	sh.SetVar(mgmt.ParentNodeManagerConfigKey, configServiceName)
 	h, err := sh.Start("handleDefaults")
 	if err != nil {

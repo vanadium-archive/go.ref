@@ -61,16 +61,16 @@ func setupLocalNamespace(t *testing.T) func() {
 // TODO(caprita): Move this setup into the blackbox lib.
 
 // setupChildCommand configures the child to use the right mounttable root
-// and identity.  It returns a cleanup function.
+// and blessings.  It returns a cleanup function.
 func setupChildCommand(child *blackbox.Child) func() {
 	cmd := child.Cmd
 	for i, root := range rt.R().Namespace().Roots() {
 		cmd.Env = exec.Setenv(cmd.Env, fmt.Sprintf("NAMESPACE_ROOT%d", i), root)
 	}
-	idFile := security.SaveIdentityToFile(security.NewBlessedIdentity(rt.R().Identity(), "test"))
-	cmd.Env = exec.Setenv(cmd.Env, "VEYRON_IDENTITY", idFile)
+	childcreds := security.NewVeyronCredentials(rt.R().Principal(), "child")
+	cmd.Env = exec.Setenv(cmd.Env, "VEYRON_CREDENTIALS", childcreds)
 	return func() {
-		os.Remove(idFile)
+		os.RemoveAll(childcreds)
 	}
 }
 

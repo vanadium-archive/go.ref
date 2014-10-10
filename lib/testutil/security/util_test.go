@@ -1,47 +1,37 @@
 package security
 
 import (
-	"fmt"
 	"os"
 	"reflect"
 	"testing"
 
-	isecurity "veyron.io/veyron/veyron/runtimes/google/security"
 	vsecurity "veyron.io/veyron/veyron/security"
 
 	"veyron.io/veyron/veyron2/rt"
 	"veyron.io/veyron/veyron2/security"
 )
 
-func TestNewBlessedIdentity(t *testing.T) {
+func TestNewVeyronCredentials(t *testing.T) {
 	r, err := rt.New()
 	if err != nil {
-		t.Fatalf("rt.New failed: %v", err)
+		t.Fatal(err)
 	}
 	defer r.Cleanup()
-	newID := func(name string) security.PrivateID {
-		id, err := r.NewIdentity(name)
-		if err != nil {
-			t.Fatalf("r.NewIdentity failed: %v", err)
-		}
-		isecurity.TrustIdentityProviders(id)
-		return id
+
+	parent := r.Principal()
+	childdir := NewVeyronCredentials(parent, "child")
+	_, existed, err := vsecurity.NewPersistentPrincipal(childdir)
+	if err != nil {
+		t.Fatal(err)
 	}
-	testdata := []struct {
-		blesser            security.PrivateID
-		blessingName, name string
-	}{
-		{blesser: newID("google"), blessingName: "alice", name: "PrivateID:google/alice"},
-		{blesser: newID("google"), blessingName: "bob", name: "PrivateID:google/bob"},
-		{blesser: newID("veyron"), blessingName: "alice", name: "PrivateID:veyron/alice"},
-		{blesser: newID("veyron"), blessingName: "bob", name: "PrivateID:veyron/bob"},
-		{blesser: NewBlessedIdentity(newID("google"), "alice"), blessingName: "tv", name: "PrivateID:google/alice/tv"},
+	if !existed {
+		t.Fatalf("Expected NewVeyronCredentials to have populated the directory %q", childdir)
 	}
-	for _, d := range testdata {
-		if got, want := fmt.Sprintf("%s", NewBlessedIdentity(d.blesser, d.blessingName)), d.name; got != want {
-			t.Errorf("NewBlessedIdentity(%q, %q): Got %q, want %q", d.blesser, d.blessingName, got, want)
-		}
-	}
+	// TODO(ashankar,ataly): Figure out what APIs should we use for more detailed testing
+	// of the child principal, for example:
+	// - Parent should recognize the child's default blessing
+	// - Child should recognize the parent's default blessing
+	// - Child's blessing name should be that of the parent with "/child" appended.
 }
 
 func TestSaveACLToFile(t *testing.T) {
@@ -74,33 +64,5 @@ func TestSaveACLToFile(t *testing.T) {
 	}
 	if !reflect.DeepEqual(loadedACL, acl) {
 		t.Fatalf("Got ACL %v, but want %v", loadedACL, acl)
-	}
-}
-
-func TestSaveIdentityToFile(t *testing.T) {
-	r, err := rt.New()
-	if err != nil {
-		t.Fatalf("rt.New failed: %v", err)
-	}
-	defer r.Cleanup()
-	id, err := r.NewIdentity("test")
-	if err != nil {
-		t.Fatalf("r.NewIdentity failed: %v", err)
-	}
-
-	filePath := SaveIdentityToFile(id)
-	defer os.Remove(filePath)
-
-	f, err := os.Open(filePath)
-	if err != nil {
-		t.Fatalf("os.Open(%v) failed: %v", filePath, err)
-	}
-	defer f.Close()
-	loadedID, err := vsecurity.LoadIdentity(f)
-	if err != nil {
-		t.Fatalf("LoadIdentity failed: %v", err)
-	}
-	if !reflect.DeepEqual(loadedID, id) {
-		t.Fatalf("Got Identity %v, but want %v", loadedID, id)
 	}
 }

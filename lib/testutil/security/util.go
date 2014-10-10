@@ -5,34 +5,55 @@ package security
 import (
 	"io/ioutil"
 	"os"
-	"strconv"
-	"time"
 
-	"veyron.io/veyron/veyron/lib/testutil"
-	isecurity "veyron.io/veyron/veyron/runtimes/google/security"
 	vsecurity "veyron.io/veyron/veyron/security"
 
 	"veyron.io/veyron/veyron2/security"
 )
 
-// NewBlessedIdentity creates a new identity and blesses it using the provided blesser
-// under the provided name. This function is meant to be used for testing purposes only,
-// it panics if there is an error.
-func NewBlessedIdentity(blesser security.PrivateID, name string) security.PrivateID {
-	id, err := isecurity.NewPrivateID("test", nil)
+// NewVeyronCredentials generates a directory with a new principal
+// that can be used as a value for the VEYRON_CREDENTIALS environment
+// variable to initialize a Runtime.
+//
+// The principal created uses a blessing from 'parent', with the extension
+// 'name' as its default blessing.
+//
+// It returns the path to the directory created.
+func NewVeyronCredentials(parent security.Principal, name string) string {
+	dir, err := ioutil.TempDir("", "veyron_credentials")
 	if err != nil {
 		panic(err)
 	}
+	p, _, err := vsecurity.NewPersistentPrincipal(dir)
+	if err != nil {
+		panic(err)
+	}
+	blessings, err := parent.Bless(p.PublicKey(), parent.BlessingStore().Default(), name, security.UnconstrainedUse())
+	if err != nil {
+		panic(err)
+	}
+	SetDefaultBlessings(p, blessings)
+	return dir
+}
 
-	blessedID, err := blesser.Bless(id.PublicID(), name, 5*time.Minute, nil)
-	if err != nil {
+// SetDefaultBlessings updates the BlessingStore and BlessingRoots of p
+// so that:
+// (1) b is revealed to all clients that connect to Servers operated
+// by 'p' (BlessingStore.Default)
+// (2) b is revealed  to all servers that clients connect to on behalf
+// of p (BlessingStore.Set(..., security.AllPrincipals))
+// (3) p recognizes all blessings that have the same root certificate as b.
+// (AddToRoots)
+func SetDefaultBlessings(p security.Principal, b security.Blessings) {
+	if err := p.BlessingStore().SetDefault(b); err != nil {
 		panic(err)
 	}
-	derivedID, err := id.Derive(blessedID)
-	if err != nil {
+	if _, err := p.BlessingStore().Set(b, security.AllPrincipals); err != nil {
 		panic(err)
 	}
-	return derivedID
+	if err := p.AddToRoots(b); err != nil {
+		panic(err)
+	}
 }
 
 // SaveACLToFile saves the provided ACL in JSON format to a randomly created
@@ -50,24 +71,4 @@ func SaveACLToFile(acl security.ACL) string {
 		panic(err)
 	}
 	return f.Name()
-}
-
-// SaveIdentityToFile saves the provided identity in Base64VOM format
-// to a randomly created temporary file, and returns the path to the file.
-// This function is meant to be used for testing purposes only, it panics
-// if there is an error. The caller must ensure that the created file
-// is removed once it is no longer needed.
-func SaveIdentityToFile(id security.PrivateID) string {
-	f, err := ioutil.TempFile("", strconv.Itoa(testutil.Rand.Int()))
-	if err != nil {
-		panic(err)
-	}
-	defer f.Close()
-	filePath := f.Name()
-
-	if err := vsecurity.SaveIdentity(f, id); err != nil {
-		os.Remove(filePath)
-		panic(err)
-	}
-	return filePath
 }

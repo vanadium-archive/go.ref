@@ -1,10 +1,10 @@
 package impl_test
 
 import (
-	//	"bytes"
+	"bytes"
 	"crypto/md5"
 	"encoding/base64"
-	//	"encoding/hex"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -19,13 +19,12 @@ import (
 	"strings"
 	"syscall"
 	"testing"
-	"time"
 
 	"veyron.io/veyron/veyron/lib/exec"
 	"veyron.io/veyron/veyron/lib/signals"
 	"veyron.io/veyron/veyron/lib/testutil/blackbox"
-	// tsecurity "veyron.io/veyron/veyron/lib/testutil/security"
-	// vsecurity "veyron.io/veyron/veyron/security"
+	tsecurity "veyron.io/veyron/veyron/lib/testutil/security"
+	vsecurity "veyron.io/veyron/veyron/security"
 	"veyron.io/veyron/veyron/services/mgmt/node/config"
 	"veyron.io/veyron/veyron/services/mgmt/node/impl"
 	suidhelper "veyron.io/veyron/veyron/services/mgmt/suidhelper/impl"
@@ -65,7 +64,7 @@ func init() {
 	}
 
 	// All the tests require a runtime; so just create it here.
-	rt.Init()
+	rt.Init(veyron2.ForceNewSecurityModel{})
 
 	// Disable the cache because we will be manipulating/using the namespace
 	// across multiple processes and want predictable behaviour without
@@ -722,32 +721,26 @@ func TestAppLifeCycle(t *testing.T) {
 
 type granter struct {
 	ipc.CallOpt
-	self     security.PrivateID
-	blessing security.PublicID
+	p         security.Principal
+	extension string
 }
 
-func (g *granter) Grant(id security.PublicID) (security.PublicID, error) {
-	var err error
-	g.blessing, err = g.self.Bless(id, "claimernode", 10*time.Minute, nil)
-	return g.blessing, err
+func (g *granter) Grant(other security.Blessings) (security.Blessings, error) {
+	return g.p.Bless(other.PublicKey(), g.p.BlessingStore().Default(), g.extension, security.UnconstrainedUse())
 }
 
-func newRuntimeClient(t *testing.T, id security.PrivateID) (veyron2.Runtime, ipc.Client) {
-	runtime, err := rt.New(veyron2.RuntimeID(id))
+func newRuntime(t *testing.T) veyron2.Runtime {
+	runtime, err := rt.New(veyron2.ForceNewSecurityModel{})
 	if err != nil {
 		t.Fatalf("rt.New() failed: %v", err)
 	}
 	runtime.Namespace().SetRoots(rt.R().Namespace().Roots()[0])
-	nodeClient, err := runtime.NewClient()
-	if err != nil {
-		t.Fatalf("rt.NewClient() failed %v", err)
-	}
-	return runtime, nodeClient
+	return runtime
 }
 
-func tryInstall(rt veyron2.Runtime, c ipc.Client) error {
+func tryInstall(rt veyron2.Runtime) error {
 	appsName := "nm//apps"
-	stub, err := node.BindApplication(appsName, c)
+	stub, err := node.BindApplication(appsName, rt.Client())
 	if err != nil {
 		return fmt.Errorf("BindApplication(%v) failed: %v", appsName, err)
 	}
@@ -757,9 +750,6 @@ func tryInstall(rt veyron2.Runtime, c ipc.Client) error {
 	return nil
 }
 
-// TODO(ashankar): Temporarily disabled during security model transition.
-// Fix up and restore!
-/*
 // TestNodeManagerClaim claims a nodemanager and tests ACL permissions on its methods.
 func TestNodeManagerClaim(t *testing.T) {
 	// Set up mount table, application, and binary repositories.
@@ -792,38 +782,25 @@ func TestNodeManagerClaim(t *testing.T) {
 		t.Fatalf("BindNode failed: %v", err)
 	}
 
-	// Create a new identity and runtime.
-	claimerIdentity := tsecurity.NewBlessedIdentity(rt.R().Identity(), "claimer")
-	newRT, nodeClient := newRuntimeClient(t, claimerIdentity)
-	defer newRT.Cleanup()
+	selfRT := rt.R()
+	otherRT := newRuntime(t)
+	defer otherRT.Cleanup()
 
-	// Nodemanager should have open ACLs before we claim it and so an Install
-	// should succeed.
-	if err = tryInstall(newRT, nodeClient); err != nil {
-		t.Fatalf("%v", err)
+	// Nodemanager should have open ACLs before we claim it and so an Install from otherRT should succeed.
+	if err = tryInstall(otherRT); err != nil {
+		t.Fatal(err)
 	}
-	// Claim the nodemanager with this identity.
-	if err = nodeStub.Claim(rt.R().NewContext(), &granter{self: claimerIdentity}); err != nil {
-		t.Fatalf("Claim failed: %v", err)
+	// Claim the nodemanager with selfRT as <defaultblessing>/mydevice
+	if err = nodeStub.Claim(selfRT.NewContext(), &granter{p: selfRT.Principal(), extension: "mydevice"}); err != nil {
+		t.Fatal(err)
 	}
-	if err = tryInstall(newRT, nodeClient); err != nil {
-		t.Fatalf("%v", err)
+	// Installation should succeed since selfRT is now the "owner" of the nodemanager.
+	if err = tryInstall(selfRT); err != nil {
+		t.Fatal(err)
 	}
-	// Try to install with a new identity. This should fail.
-	randomIdentity := tsecurity.NewBlessedIdentity(rt.R().Identity(), "random")
-	newRT, nodeClient = newRuntimeClient(t, randomIdentity)
-	defer newRT.Cleanup()
-	if err = tryInstall(newRT, nodeClient); err == nil {
-		t.Fatalf("Install should have failed with random identity")
-	}
-	// Try to install with the original identity. This should still work as the original identity
-	// name is a prefix of the identity used by newRT.
-	nodeClient, err = rt.R().NewClient()
-	if err != nil {
-		t.Fatalf("rt.NewClient() failed %v", err)
-	}
-	if err = tryInstall(rt.R(), nodeClient); err != nil {
-		t.Fatalf("%v", err)
+	// otherRT should be unable to install though, since the ACLs have changed now.
+	if err = tryInstall(otherRT); err == nil {
+		t.Fatalf("Install should have failed from otherRT")
 	}
 	// TODO(gauthamt): Test that ACLs persist across nodemanager restarts
 }
@@ -837,6 +814,24 @@ func TestNodeManagerUpdateACL(t *testing.T) {
 
 	root, cleanup := setupRootDir(t)
 	defer cleanup()
+
+	var (
+		proot = newRootPrincipal("root")
+		// The two "processes"/runtimes which will act as IPC clients to the
+		// nodemanager process.
+		selfRT  = rt.R()
+		otherRT = newRuntime(t)
+	)
+	defer otherRT.Cleanup()
+	// By default, selfRT and otherRT will have blessings generated based on the
+	// username/machine name running this process. Since these blessings will appear
+	// in ACLs, give them recognizable names.
+	if err := setDefaultBlessings(selfRT.Principal(), proot, "self"); err != nil {
+		t.Fatal(err)
+	}
+	if err := setDefaultBlessings(otherRT.Principal(), proot, "other"); err != nil {
+		t.Fatal(err)
+	}
 
 	// Set up the node manager.  Since we won't do node manager updates,
 	// don't worry about its application envelope and current link.
@@ -858,7 +853,7 @@ func TestNodeManagerUpdateACL(t *testing.T) {
 	if err != nil {
 		t.Fatalf("BindNode failed: %v", err)
 	}
-	acl, etag, err := nodeStub.GetACL(rt.R().NewContext())
+	acl, etag, err := nodeStub.GetACL(selfRT.NewContext())
 	if err != nil {
 		t.Fatalf("GetACL failed:%v", err)
 	}
@@ -866,59 +861,42 @@ func TestNodeManagerUpdateACL(t *testing.T) {
 		t.Fatalf("getACL expected:default, got:%v(%v)", etag, acl)
 	}
 
-	// Create a new identity and claim the node manager
-	claimerIdentity := tsecurity.NewBlessedIdentity(rt.R().Identity(), "claimer")
-	grant := &granter{self: claimerIdentity}
-	if err = nodeStub.Claim(rt.R().NewContext(), grant); err != nil {
-		t.Fatalf("Claim failed: %v", err)
+	// Claim the nodemanager as "root/self/mydevice"
+	if err = nodeStub.Claim(selfRT.NewContext(), &granter{p: selfRT.Principal(), extension: "mydevice"}); err != nil {
+		t.Fatal(err)
 	}
-	expectedACL := security.ACL{In: make(map[security.BlessingPattern]security.LabelSet)}
-	for _, name := range grant.blessing.Names() {
-		expectedACL.In[security.BlessingPattern(name)] = security.AllLabels
-	}
+	expectedACL := security.ACL{In: map[security.BlessingPattern]security.LabelSet{"root/self/mydevice": security.AllLabels}}
 	var b bytes.Buffer
 	if err := vsecurity.SaveACL(&b, expectedACL); err != nil {
 		t.Fatalf("Failed to saveACL:%v", err)
 	}
 	md5hash := md5.Sum(b.Bytes())
 	expectedETAG := hex.EncodeToString(md5hash[:])
-	acl, etag, err = nodeStub.GetACL(rt.R().NewContext())
-	if err != nil {
-		t.Fatalf("GetACL failed")
+	if acl, etag, err = nodeStub.GetACL(selfRT.NewContext()); err != nil {
+		t.Fatal(err)
 	}
 	if etag != expectedETAG {
 		t.Fatalf("getACL expected:%v(%v), got:%v(%v)", expectedACL, expectedETAG, acl, etag)
 	}
-	// Try to install with a new identity. This should fail.
-	randomIdentity := tsecurity.NewBlessedIdentity(rt.R().Identity(), "random")
-	newRT, nodeClient := newRuntimeClient(t, randomIdentity)
-	defer newRT.Cleanup()
-	if err = tryInstall(newRT, nodeClient); err == nil {
+	// Install from otherRT should fail, since it does not match the ACL.
+	if err = tryInstall(otherRT); err == nil {
 		t.Fatalf("Install should have failed with random identity")
 	}
-	newACL := security.ACL{In: make(map[security.BlessingPattern]security.LabelSet)}
-	for _, name := range randomIdentity.PublicID().Names() {
-		newACL.In[security.BlessingPattern(name)] = security.AllLabels
-	}
-	// SetACL with invalid etag
-	if err = nodeStub.SetACL(rt.R().NewContext(), newACL, "invalid"); err == nil {
+	newACL := security.ACL{In: map[security.BlessingPattern]security.LabelSet{"root/other": security.AllLabels}}
+	if err = nodeStub.SetACL(selfRT.NewContext(), newACL, "invalid"); err == nil {
 		t.Fatalf("SetACL should have failed with invalid etag")
 	}
-	if err = nodeStub.SetACL(rt.R().NewContext(), newACL, etag); err != nil {
-		t.Fatalf("SetACL failed:%v", err)
+	if err = nodeStub.SetACL(selfRT.NewContext(), newACL, etag); err != nil {
+		t.Fatal(err)
 	}
-	if err = tryInstall(newRT, nodeClient); err != nil {
-		t.Fatalf("Install failed with new identity:%v", err)
+	// Install should now fail with selfRT, which no longer matches the ACLs but succeed with otherRT, which does.
+	if err = tryInstall(selfRT); err == nil {
+		t.Errorf("Install should have failed with selfRT since it should no longer match the ACL")
 	}
-	// Try to install with the claimer identity. This should fail as the ACLs
-	// belong to the random identity
-	newRT, nodeClient = newRuntimeClient(t, claimerIdentity)
-	defer newRT.Cleanup()
-	if err = tryInstall(newRT, nodeClient); err == nil {
-		t.Fatalf("Install should have failed with claimer identity")
+	if err = tryInstall(otherRT); err != nil {
+		t.Error(err)
 	}
 }
-*/
 
 func TestNodeManagerGlob(t *testing.T) {
 	// Set up mount table, application, and binary repositories.
@@ -1006,4 +984,35 @@ func TestNodeManagerGlob(t *testing.T) {
 			t.Errorf("Finish failed: %v", err)
 		}
 	}
+}
+
+// rootPrincipal encapsulates a principal that acts as an "identity provider".
+type rootPrincipal struct {
+	p security.Principal
+	b security.Blessings
+}
+
+func (r *rootPrincipal) Bless(key security.PublicKey, as string) (security.Blessings, error) {
+	return r.p.Bless(key, r.b, as, security.UnconstrainedUse())
+}
+
+func newRootPrincipal(name string) *rootPrincipal {
+	p, err := vsecurity.NewPrincipal()
+	if err != nil {
+		panic(err)
+	}
+	b, err := p.BlessSelf(name)
+	if err != nil {
+		panic(err)
+	}
+	return &rootPrincipal{p, b}
+}
+
+func setDefaultBlessings(p security.Principal, root *rootPrincipal, name string) error {
+	b, err := root.Bless(p.PublicKey(), name)
+	if err != nil {
+		return err
+	}
+	tsecurity.SetDefaultBlessings(p, b)
+	return nil
 }
