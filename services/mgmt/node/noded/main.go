@@ -2,6 +2,7 @@ package main
 
 import (
 	"flag"
+	"os"
 
 	"veyron.io/veyron/veyron2/naming"
 	"veyron.io/veyron/veyron2/rt"
@@ -14,13 +15,32 @@ import (
 )
 
 var (
-	publishAs = flag.String("name", "", "name to publish the node manager at")
+	publishAs   = flag.String("name", "", "name to publish the node manager at")
+	installSelf = flag.Bool("install_self", false, "perform installation using environment and command-line flags")
+	installFrom = flag.String("install_from", "", "if not-empty, perform installation from the provided application envelope object name")
 )
 
 func main() {
 	flag.Parse()
 	runtime := rt.Init()
 	defer runtime.Cleanup()
+
+	if len(*installFrom) > 0 {
+		if err := impl.InstallFrom(*installFrom); err != nil {
+			vlog.Errorf("InstallFrom failed: %v", err)
+			os.Exit(1)
+		}
+		return
+	}
+
+	if *installSelf {
+		if err := impl.SelfInstall(flag.Args()); err != nil {
+			vlog.Errorf("SelfInstall failed: %v", err)
+			os.Exit(1)
+		}
+		return
+	}
+
 	server, err := runtime.NewServer()
 	if err != nil {
 		vlog.Fatalf("NewServer() failed: %v", err)

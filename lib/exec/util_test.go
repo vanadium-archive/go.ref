@@ -32,3 +32,22 @@ func TestEnv(t *testing.T) {
 		t.Fatalf("Expected error when looking up environment variable value, got none", value)
 	}
 }
+
+func TestMerge(t *testing.T) {
+	env := []string{"ANIMAL=GOPHER", "METAL=CHROMIUM"}
+	env = Mergeenv(env, []string{"CAR=VEYRON", "METAL=VANADIUM"})
+	if want, got := 3, len(env); want != got {
+		t.Fatalf("Expected %d env vars, got %d instead", want, got)
+	}
+	for n, want := range map[string]string{
+		"ANIMAL": "GOPHER",
+		"CAR":    "VEYRON",
+		"METAL":  "VANADIUM",
+	} {
+		if got, err := Getenv(env, n); err != nil {
+			t.Fatalf("Expected a value when looking up %q, got none", n)
+		} else if got != want {
+			t.Fatalf("Unexpected value of environment variable %q: expected %q, got %q", n, want, got)
+		}
+	}
+}
