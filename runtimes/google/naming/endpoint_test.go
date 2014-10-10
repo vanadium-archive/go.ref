@@ -29,6 +29,14 @@ func TestEndpoint(t *testing.T) {
 		MinIPCVersion: 2,
 		MaxIPCVersion: 3,
 	}
+	v3 := &Endpoint{
+		Protocol:      "tcp",
+		Address:       "batman.com:2345",
+		RID:           naming.FixedRoutingID(0x0),
+		MinIPCVersion: 2,
+		MaxIPCVersion: 3,
+		IsMountTable:  true,
+	}
 
 	testcasesA := []struct {
 		endpoint naming.Endpoint
@@ -53,10 +61,13 @@ func TestEndpoint(t *testing.T) {
 		String   string
 		Input    string
 		min, max version.IPCVersion
+		servesMT bool
 	}{
-		{v1, "@2@tcp@batman.com:1234@000000000000000000000000dabbad00@@@@", "", version.UnknownIPCVersion, version.UnknownIPCVersion},
-		{v2, "@2@tcp@batman.com:2345@000000000000000000000000dabbad00@1@10@@", "", 1, 10},
-		{v2hp, "@2@tcp@batman.com:2345@00000000000000000000000000000000@2@3@@", "batman.com:2345", 2, 3},
+		{v1, "@2@tcp@batman.com:1234@000000000000000000000000dabbad00@@@@", "", version.UnknownIPCVersion, version.UnknownIPCVersion, false},
+		{v2, "@2@tcp@batman.com:2345@000000000000000000000000dabbad00@1@10@@", "", 1, 10, false},
+		{v2hp, "@2@tcp@batman.com:2345@00000000000000000000000000000000@2@3@@", "batman.com:2345", 2, 3, false},
+		// the v3 format is ignored unless explicitly enabled.
+		{v3, "@2@tcp@batman.com:2345@00000000000000000000000000000000@2@3@@", "batman.com:2345", 2, 3, true},
 	}
 
 	for _, test := range testcasesB {
@@ -71,7 +82,8 @@ func TestEndpoint(t *testing.T) {
 			ep, err = NewEndpoint(str)
 		} else {
 			ep, err = NewEndpoint(naming.FormatEndpoint("tcp", str,
-				version.IPCVersionRange{test.min, test.max}))
+				version.IPCVersionRange{test.min, test.max},
+				naming.ServesMountTableOpt(test.servesMT)))
 		}
 		if err != nil {
 			t.Errorf("Endpoint(%q) failed with %v", str, err)
@@ -81,6 +93,25 @@ func TestEndpoint(t *testing.T) {
 			t.Errorf("Got endpoint %T = %#v, want %T = %#v for string %q", ep, ep, test.Endpoint, test.Endpoint, str)
 		}
 	}
+
+	// Enable V3 endpoints.
+	defaultVersion = 3
+	for _, c := range []struct {
+		servesMT bool
+		str      string
+	}{
+		{true, "@3@tcp@a:10@00000000000000000000000000000000@1@3@m@@"},
+		{false, "@3@tcp@a:10@00000000000000000000000000000000@1@3@s@@"},
+	} {
+		ep, _ := NewEndpoint(naming.FormatEndpoint("tcp", "a:10",
+			version.IPCVersionRange{1, 3},
+			naming.ServesMountTableOpt(c.servesMT)))
+		if got, want := ep.String(), c.str; got != want {
+			t.Errorf("got: %s, want: %s", got, want)
+		}
+	}
+	// Disable V3 endpoints.
+	defaultVersion = 2
 }
 
 type endpointTest struct {

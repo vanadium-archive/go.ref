@@ -29,6 +29,7 @@ type Endpoint struct {
 	RID           naming.RoutingID
 	MinIPCVersion version.IPCVersion
 	MaxIPCVersion version.IPCVersion
+	IsMountTable  bool
 }
 
 // NewEndpoint creates a new endpoint from a string as per naming.NewEndpoint
@@ -54,6 +55,8 @@ func NewEndpoint(input string) (*Endpoint, error) {
 		err = ep.parseV1(parts)
 	case 2:
 		err = ep.parseV2(parts)
+	case 3:
+		err = ep.parseV3(parts)
 	default:
 		err = errInvalidEndpointString
 	}
@@ -112,6 +115,20 @@ func printIPCVersion(v version.IPCVersion) string {
 	return strconv.FormatUint(uint64(v), 10)
 }
 
+func parseMountTableFlag(input string) (bool, error) {
+	if len(input) == 1 {
+		switch f := input[0]; f {
+		case 'm':
+			return true, nil
+		case 's':
+			return false, nil
+		default:
+			return false, fmt.Errorf("%c is not one of 'm' or 's'", f)
+		}
+	}
+	return false, fmt.Errorf("flag is either missing or too long")
+}
+
 func (ep *Endpoint) parseV2(parts []string) error {
 	var err error
 	if len(parts) != 6 {
@@ -129,6 +146,20 @@ func (ep *Endpoint) parseV2(parts []string) error {
 	return nil
 }
 
+func (ep *Endpoint) parseV3(parts []string) error {
+	var err error
+	if len(parts) != 7 {
+		return errInvalidEndpointString
+	}
+	if err = ep.parseV2(parts[:6]); err != nil {
+		return err
+	}
+	if ep.IsMountTable, err = parseMountTableFlag(parts[6]); err != nil {
+		return fmt.Errorf("invalid mount table flag: %v", err)
+	}
+	return nil
+}
+
 func (ep *Endpoint) RoutingID() naming.RoutingID {
 	//nologcall
 	return ep.RID
@@ -137,17 +168,44 @@ func (ep *Endpoint) Network() string {
 	//nologcall
 	return Network
 }
+
+var defaultVersion = 2
+
+func (ep *Endpoint) VersionedString(version int) string {
+	switch version {
+	default:
+		return ep.VersionedString(defaultVersion)
+	case 1:
+		return fmt.Sprintf("@1@%s@%s@@", ep.Protocol, ep.Address)
+	case 2:
+		return fmt.Sprintf("@2@%s@%s@%s@%s@%s@@",
+			ep.Protocol, ep.Address, ep.RID,
+			printIPCVersion(ep.MinIPCVersion), printIPCVersion(ep.MaxIPCVersion))
+	case 3:
+		mt := "s"
+		if ep.IsMountTable {
+			mt = "m"
+		}
+		return fmt.Sprintf("@3@%s@%s@%s@%s@%s@%s@@",
+			ep.Protocol, ep.Address, ep.RID,
+			printIPCVersion(ep.MinIPCVersion), printIPCVersion(ep.MaxIPCVersion),
+			mt)
+	}
+}
+
 func (ep *Endpoint) String() string {
 	//nologcall
-	return fmt.Sprintf("%s2@%s@%s@%s@%s@%s@@",
-		separator, ep.Protocol, ep.Address, ep.RID,
-		printIPCVersion(ep.MinIPCVersion), printIPCVersion(ep.MaxIPCVersion))
+	return ep.VersionedString(defaultVersion)
 }
-func (ep *Endpoint) version() int { return 2 }
 
 func (ep *Endpoint) Addr() net.Addr {
 	//nologcall
 	return &addr{network: ep.Protocol, address: ep.Address}
+}
+
+func (ep *Endpoint) ServesMountTable() bool {
+	//nologcall
+	return true
 }
 
 type addr struct {

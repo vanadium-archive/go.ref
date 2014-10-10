@@ -152,6 +152,8 @@ func (s *server) Listen(protocol, address string) (naming.Endpoint, error) {
 			return nil, err
 		}
 	}
+	// TODO(cnicolaou): pass ServesMountTableOpt to streamMgr.Listen so that
+	// it can more cleanly set the IsMountTable bit in the endpoint.
 	ln, ep, err := s.streamMgr.Listen(protocol, address, s.listenerOpts...)
 	if err != nil {
 		vlog.Errorf("ipc: Listen on %v %v failed: %v", protocol, address, err)
@@ -197,18 +199,18 @@ func (s *server) Listen(protocol, address string) (naming.Endpoint, error) {
 	// Each flow is served from its own goroutine.
 	s.active.Add(1)
 	if protocol == inaming.Network {
-		go func(ln stream.Listener, ep naming.Endpoint, proxy string) {
+		go func(ln stream.Listener, ep *inaming.Endpoint, proxy string) {
 			s.proxyListenLoop(ln, ep, proxy)
 			s.active.Done()
-		}(ln, ep, proxyName)
+		}(ln, iep, proxyName)
 	} else {
 		go func(ln stream.Listener, ep naming.Endpoint) {
 			s.listenLoop(ln, ep)
 			s.active.Done()
-		}(ln, ep)
+		}(ln, iep)
 	}
 	s.Unlock()
-	s.publisher.AddServer(s.publishEP(ep), s.servesMountTable)
+	s.publisher.AddServer(s.publishEP(iep, s.servesMountTable), s.servesMountTable)
 	return ep, nil
 }
 
@@ -221,7 +223,6 @@ func (s *server) externalEndpoint(chooser ipc.AddressChooser, lep naming.Endpoin
 	if !ok {
 		return nil, nil, fmt.Errorf("failed translating internal endpoint data types")
 	}
-
 	switch iep.Protocol {
 	case "tcp", "tcp4", "tcp6":
 		host, port, err := net.SplitHostPort(iep.Address)
@@ -338,41 +339,48 @@ func (s *server) ListenX(listenSpec *ipc.ListenSpec) (naming.Endpoint, error) {
 			vlog.Errorf("ipc: Listen on %v %v failed: %v", protocol, address, err)
 			return nil, err
 		}
+		ipep, ok := pep.(*inaming.Endpoint)
+		if !ok {
+			return nil, fmt.Errorf("failed translating internal endpoint data types")
+		}
 		// We have a goroutine for listening on proxy connections.
 		s.active.Add(1)
-		go func(ln stream.Listener, ep naming.Endpoint, proxy string) {
+		go func(ln stream.Listener, ep *inaming.Endpoint, proxy string) {
 			s.proxyListenLoop(ln, ep, proxy)
 			s.active.Done()
-		}(pln, pep, listenSpec.Proxy)
+		}(pln, ipep, listenSpec.Proxy)
 		s.listeners[pln] = nil
-		s.publisher.AddServer(s.publishEP(pep), s.servesMountTable)
+		// TODO(cnicolaou,p): AddServer no longer needs to take the
+		// servesMountTable bool since it can be extracted from the endpoint.
+		s.publisher.AddServer(s.publishEP(ipep, s.servesMountTable), s.servesMountTable)
 	} else {
-		s.publisher.AddServer(s.publishEP(ep), s.servesMountTable)
+		s.publisher.AddServer(s.publishEP(ep, s.servesMountTable), s.servesMountTable)
 	}
 	s.Unlock()
 	return ep, nil
 }
 
-func (s *server) publishEP(ep naming.Endpoint) string {
+func (s *server) publishEP(ep *inaming.Endpoint, servesMountTable bool) string {
 	var name string
 	if !s.servesMountTable {
 		// Make sure that client MountTable code doesn't try and
 		// ResolveStep past this final address.
 		name = "//"
 	}
+	ep.IsMountTable = servesMountTable
 	return naming.JoinAddressName(ep.String(), name)
 }
 
-func (s *server) proxyListenLoop(ln stream.Listener, ep naming.Endpoint, proxy string) {
+func (s *server) proxyListenLoop(ln stream.Listener, iep *inaming.Endpoint, proxy string) {
 	const (
 		min = 5 * time.Millisecond
 		max = 5 * time.Minute
 	)
 	for {
-		s.listenLoop(ln, ep)
+		s.listenLoop(ln, iep)
 		// The listener is done, so:
 		// (1) Unpublish its name
-		s.publisher.RemoveServer(s.publishEP(ep))
+		s.publisher.RemoveServer(s.publishEP(iep, s.servesMountTable))
 		// (2) Reconnect to the proxy unless the server has been stopped
 		backoff := min
 		ln = nil
@@ -384,9 +392,17 @@ func (s *server) proxyListenLoop(ln stream.Listener, ep naming.Endpoint, proxy s
 					vlog.VI(1).Infof("Failed to resolve proxy %q (%v), will retry in %v", proxy, err, backoff)
 					break
 				}
+				var ep naming.Endpoint
 				ln, ep, err = s.streamMgr.Listen(inaming.Network, resolved, s.listenerOpts...)
 				if err == nil {
-					vlog.VI(1).Infof("Reconnected to proxy at %q listener: (%v, %v)", proxy, ln, ep)
+					var ok bool
+					iep, ok = ep.(*inaming.Endpoint)
+					if !ok {
+						vlog.Errorf("failed translating internal endpoint data types")
+						ln = nil
+						continue
+					}
+					vlog.VI(1).Infof("Reconnected to proxy at %q listener: (%v, %v)", proxy, ln, iep)
 					break
 				}
 				if backoff = backoff * 2; backoff > max {
@@ -397,8 +413,13 @@ func (s *server) proxyListenLoop(ln stream.Listener, ep naming.Endpoint, proxy s
 				return
 			}
 		}
+		// TODO(cnicolaou,ashankar): this won't work when we are both
+		// proxying and publishing locally, which is the common case.
+		// listenLoop, dhcpLoop and the original publish are all publishing
+		// addresses to the same name, but the client is not smart enough
+		// to choose sensibly between them.
 		// (3) reconnected, publish new address
-		s.publisher.AddServer(s.publishEP(ep), s.servesMountTable)
+		s.publisher.AddServer(s.publishEP(iep, s.servesMountTable), s.servesMountTable)
 		s.Lock()
 		s.listeners[ln] = nil
 		s.Unlock()
@@ -438,7 +459,7 @@ func (s *server) applyChange(dhcpl *dhcpListener, addrs []net.Addr, fn func(stri
 	for _, a := range addrs {
 		if ip := netstate.AsIP(a); ip != nil {
 			dhcpl.ep.Address = net.JoinHostPort(ip.String(), dhcpl.port)
-			fn(s.publishEP(dhcpl.ep))
+			fn(s.publishEP(dhcpl.ep, s.servesMountTable))
 		}
 	}
 }
@@ -459,6 +480,11 @@ func (s *server) dhcpLoop(dhcpl *dhcpListener) {
 				s.Unlock()
 				return
 			}
+			// TODO(cnicolaou,ashankar): this won't work when we are both
+			// proxying and publishing locally, which is the common case.
+			// listenLoop, dhcpLoop and the original publish are all publishing
+			// addresses to the same name, but the client is not smart enough
+			// to choose sensibly between them.
 			publisher := s.publisher
 			s.Unlock()
 			switch setting.Name() {

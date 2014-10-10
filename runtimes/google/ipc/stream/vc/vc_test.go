@@ -446,6 +446,8 @@ func (h *helper) Close() {
 type endpoint naming.RoutingID
 
 func (e endpoint) Network() string             { return "test" }
+func (e endpoint) VersionedString(int) string  { return e.String() }
 func (e endpoint) String() string              { return naming.RoutingID(e).String() }
 func (e endpoint) RoutingID() naming.RoutingID { return naming.RoutingID(e) }
 func (e endpoint) Addr() net.Addr              { return nil }
+func (e endpoint) ServesMountTable() bool      { return false }
