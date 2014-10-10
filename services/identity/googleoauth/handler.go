@@ -497,19 +497,6 @@ var caveatMap = map[string]caveatInfo{
 		},
 		Placeholder: "Comma-separated method names.",
 	},
-	"PeerBlessingsCaveat": {
-		New: func(args ...string) (security.Caveat, error) {
-			if len(args) < 1 {
-				return security.Caveat{}, fmt.Errorf("must pass at least one blessing pattern")
-			}
-			var patterns []security.BlessingPattern
-			for _, arg := range args {
-				patterns = append(patterns, security.BlessingPattern(arg))
-			}
-			return security.PeerBlessingsCaveat(patterns[0], patterns[1:]...)
-		},
-		Placeholder: "Comma-separated blessing patterns.",
-	},
 }
 
 // exchangeAuthCodeForEmail exchanges the authorization code (which must

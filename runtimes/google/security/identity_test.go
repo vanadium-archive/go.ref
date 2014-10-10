@@ -338,8 +338,6 @@ func TestAuthorizeWithCaveats(t *testing.T) {
 		// Caveats
 		// Can only call "Play" at the Google service
 		cavOnlyPlay = mkCaveat(security.MethodCaveat("Play"))
-		// Can only talk to the "Google" service
-		cavOnlyGoogle = mkCaveat(security.PeerBlessingsCaveat("google"))
 	)
 
 	// We create a Caveat from the CaveatValidator "unregisteredCaveat".
@@ -383,6 +381,7 @@ func TestAuthorizeWithCaveats(t *testing.T) {
 				{server: googleChain.PublicID(), method: "Hello", authErr: `security.methodCaveat=[Play] fails validation for method "Hello"`},
 			},
 		},
+		/* TODO(ashankar): Test case disabled since PeerBlessingsCaveat is disabled.
 		{
 			client: bless(cAlice, veyronChain, "alice", cavOnlyGoogle),
 			tests: []rpc{
@@ -391,6 +390,7 @@ func TestAuthorizeWithCaveats(t *testing.T) {
 				{server: googleChain.PublicID(), method: "Play", authNames: S{"veyron/alice"}},
 			},
 		},
+		*/
 		{
 			client: bless(cAlice, veyronChain, "alice", cavUnregistered),
 			tests: []rpc{
@@ -400,6 +400,7 @@ func TestAuthorizeWithCaveats(t *testing.T) {
 				{server: googleChain.PublicID(), method: "Hello", authErr: "caveat bytes could not be VOM-decoded"},
 			},
 		},
+		/* TODO(ashankar): Test case disabled since PeerBlessingsCaveat is disabled.
 		{
 			client: bless(cAlice, veyronChain, "alice", cavOnlyGoogle, cavOnlyPlay),
 			tests: []rpc{
@@ -409,13 +410,15 @@ func TestAuthorizeWithCaveats(t *testing.T) {
 				{server: googleChain.PublicID(), method: "Play", authNames: S{"veyron/alice"}},
 			},
 		},
+		*/
 		{
-			client: bless(cAlice, veyronChain, "alice", cavOnlyGoogle, cavUnregistered),
+			client: bless(cAlice, veyronChain, "alice", cavUnregistered),
 			tests: []rpc{
 				{server: googleChain.PublicID(), method: "Play", authErr: "caveat bytes could not be VOM-decoded"},
 				{server: googleChain.PublicID(), method: "Hello", authErr: "caveat bytes could not be VOM-decoded"},
 			},
 		},
+		/* TODO(ashankar): Test case disabled since PeerBlessingsCaveat is disabled.
 		// client has multiple blessings
 		{
 			client: newSetPublicID(bless(cAlice, veyronChain, "valice", cavOnlyPlay, cavUnregistered), bless(cAlice, googleChain, "galice", cavOnlyGoogle)),
@@ -426,6 +429,7 @@ func TestAuthorizeWithCaveats(t *testing.T) {
 				{server: googleChain.PublicID(), method: "Play", authNames: S{"google/galice"}},
 			},
 		},
+		*/
 	}
 	for _, d := range testdata {
 		// Validate that the client identity (with all its blessings) is valid for wire transmission.
@@ -495,6 +499,11 @@ func TestThirdPartyCaveatMinting(t *testing.T) {
 		t.Errorf("Failed %q.Validate(%q): %s", cav, ctxValidateMinting, err)
 	}
 }
+
+/*
+TODO(ashankar): Test disabled because PeerBlessingCaveat has been disabled.
+In any case, we expect this whole package to be deleted (it is the "old" security
+model), so won't bother with trying to fix up the tests
 
 func TestAuthorizeWithThirdPartyCaveats(t *testing.T) {
 	mkveyron := func(id security.PrivateID, name string) security.PrivateID {
@@ -619,7 +628,7 @@ func TestAuthorizeWithThirdPartyCaveats(t *testing.T) {
 		}
 	}
 }
-
+*/
 type SortedThirdPartyCaveats []security.ThirdPartyCaveat
 
 func (s SortedThirdPartyCaveats) Len() int { return len(s) }
