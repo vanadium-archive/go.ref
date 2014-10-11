@@ -2,7 +2,9 @@ package impl_test
 
 import (
 	"fmt"
+	"io/ioutil"
 	"os"
+	"path/filepath"
 	"testing"
 
 	"veyron.io/veyron/veyron2"
@@ -19,6 +21,11 @@ import (
 	"veyron.io/veyron/veyron/profiles"
 	mtlib "veyron.io/veyron/veyron/services/mounttable/lib"
 )
+
+// Setting this environment variable to any non-empty value avoids removing the
+// node manager's workspace for successful test runs (for failed test runs, this
+// is already the case).  This is useful when developing test cases.
+const preserveNMWorkspaceEnv = "VEYRON_TEST_PRESERVE_NM_WORKSPACE"
 
 // TODO(caprita): I've had to write one too many of these, let's move it to some
 // central utility library.
@@ -75,6 +82,29 @@ func setupChildCommandWithBlessing(child *blackbox.Child, blessing string) func(
 	cmd.Env = exec.Setenv(cmd.Env, "VEYRON_CREDENTIALS", childcreds)
 	return func() {
 		os.RemoveAll(childcreds)
+	}
+}
+
+// setupRootDir sets up and returns the local filesystem location that the node
+// manager is told to use, as well as a cleanup function.
+func setupRootDir(t *testing.T) (string, func()) {
+	rootDir, err := ioutil.TempDir("", "nodemanager")
+	if err != nil {
+		t.Fatalf("Failed to set up temporary dir for test: %v", err)
+	}
+	// On some operating systems (e.g. darwin) os.TempDir() can return a
+	// symlink. To avoid having to account for this eventuality later,
+	// evaluate the symlink.
+	rootDir, err = filepath.EvalSymlinks(rootDir)
+	if err != nil {
+		vlog.Fatalf("EvalSymlinks(%v) failed: %v", rootDir, err)
+	}
+	return rootDir, func() {
+		if t.Failed() || os.Getenv(preserveNMWorkspaceEnv) != "" {
+			t.Logf("You can examine the node manager workspace at %v", rootDir)
+		} else {
+			os.RemoveAll(rootDir)
+		}
 	}
 }
 

@@ -262,32 +262,6 @@ func envelopeFromCmd(title string, cmd *goexec.Cmd) *application.Envelope {
 	}
 }
 
-// TODO(caprita): Move this to util_test.go, and add a flag to allow persisting
-// the root dir even when the test succeeds (helpful while developing tests).
-
-// setupRootDir sets up and returns the local filesystem location that the node
-// manager is told to use, as well as a cleanup function.
-func setupRootDir(t *testing.T) (string, func()) {
-	rootDir, err := ioutil.TempDir("", "nodemanager")
-	if err != nil {
-		t.Fatalf("Failed to set up temporary dir for test: %v", err)
-	}
-	// On some operating systems (e.g. darwin) os.TempDir() can return a
-	// symlink. To avoid having to account for this eventuality later,
-	// evaluate the symlink.
-	rootDir, err = filepath.EvalSymlinks(rootDir)
-	if err != nil {
-		vlog.Fatalf("EvalSymlinks(%v) failed: %v", rootDir, err)
-	}
-	return rootDir, func() {
-		if t.Failed() {
-			t.Logf("You can examine the node manager workspace at %v", rootDir)
-		} else {
-			os.RemoveAll(rootDir)
-		}
-	}
-}
-
 // readPID waits for the "ready:<PID>" line from the child and parses out the
 // PID of the child.
 func readPID(t *testing.T, c *blackbox.Child) int {
@@ -323,11 +297,9 @@ func TestNodeManagerUpdateAndRevert(t *testing.T) {
 	root, cleanup := setupRootDir(t)
 	defer cleanup()
 
-	// Current link does not have to live in the root dir.
-	// TODO(caprita): This should be in a unique test tempdir.
-	currLink := filepath.Join(os.TempDir(), "testcurrent")
-	os.Remove(currLink) // Start out with a clean slate.
-	defer os.Remove(currLink)
+	// Current link does not have to live in the root dir, but it's
+	// convenient to put it there so we have everything in one place.
+	currLink := filepath.Join(root, "current_link")
 
 	// Set up the initial version of the node manager, the so-called
 	// "factory" version.
@@ -509,6 +481,22 @@ func (p pingServerDisp) Ping(_ ipc.ServerCall, arg string) {
 	p <- arg
 }
 
+// setupPingServer creates a server listening for a ping from a child app; it
+// returns a channel on which the app's ping message is returned, and a cleanup
+// function.
+func setupPingServer(t *testing.T) (<-chan string, func()) {
+	server, _ := newServer()
+	pingCh := make(chan string, 1)
+	if err := server.Serve("pingserver", ipc.LeafDispatcher(pingServerDisp(pingCh), nil)); err != nil {
+		t.Fatalf("Serve(%q, <dispatcher>) failed: %v", "pingserver", err)
+	}
+	return pingCh, func() {
+		if err := server.Stop(); err != nil {
+			t.Fatalf("Stop() failed: %v", err)
+		}
+	}
+}
+
 func verifyAppWorkspace(t *testing.T, root, appID, instanceID string) {
 	// HACK ALERT: for now, we peek inside the node manager's directory
 	// structure (which ought to be opaque) to check for what the app has
@@ -575,12 +563,8 @@ func TestAppLifeCycle(t *testing.T) {
 	readPID(t, nm)
 
 	// Create the local server that the app uses to let us know it's ready.
-	server, _ := newServer()
-	defer server.Stop()
-	pingCh := make(chan string, 1)
-	if err := server.Serve("pingserver", ipc.LeafDispatcher(pingServerDisp(pingCh), nil)); err != nil {
-		t.Fatalf("Serve(%q, <dispatcher>) failed: %v", "pingserver", err)
-	}
+	pingCh, cleanup := setupPingServer(t)
+	defer cleanup()
 
 	// Create an envelope for a first version of the app.
 	app := blackbox.HelperCommand(t, "app", "appV1")
@@ -820,13 +804,8 @@ func TestNodeManagerClaim(t *testing.T) {
 	generateSuidHelperScript(t, root)
 
 	// Create the local server that the app uses to let us know it's ready.
-	// TODO(caprita): Factor this code snippet out, it's pretty common.
-	server, _ := newServer()
-	defer server.Stop()
-	pingCh := make(chan string, 1)
-	if err := server.Serve("pingserver", ipc.LeafDispatcher(pingServerDisp(pingCh), nil)); err != nil {
-		t.Fatalf("Serve(%q, <dispatcher>) failed: %v", "pingserver", err)
-	}
+	pingCh, cleanup := setupPingServer(t)
+	defer cleanup()
 
 	// Start an instance of the app.
 	instanceID := startApp(t, appID)
@@ -946,8 +925,9 @@ func TestNodeManagerInstall(t *testing.T) {
 	root, cleanup := setupRootDir(t)
 	defer cleanup()
 
-	currLink := filepath.Join(os.TempDir(), "testcurrent")
-	os.Remove(currLink) // Start out with a clean slate.
+	// Current link does not have to live in the root dir, but it's
+	// convenient to put it there so we have everything in one place.
+	currLink := filepath.Join(root, "current_link")
 
 	// We create this command not to run it, but to harvest the flags and
 	// env vars from it.  We need these to pass to the installer, to ensure
@@ -1009,12 +989,8 @@ func TestNodeManagerGlob(t *testing.T) {
 	generateSuidHelperScript(t, root)
 
 	// Create the local server that the app uses to let us know it's ready.
-	server, _ := newServer()
-	defer server.Stop()
-	pingCh := make(chan string, 1)
-	if err := server.Serve("pingserver", ipc.LeafDispatcher(pingServerDisp(pingCh), nil)); err != nil {
-		t.Fatalf("Serve(%q, <dispatcher>) failed: %v", "pingserver", err)
-	}
+	pingCh, cleanup := setupPingServer(t)
+	defer cleanup()
 
 	// Create the envelope for the first version of the app.
 	app := blackbox.HelperCommand(t, "app", "appV1")
