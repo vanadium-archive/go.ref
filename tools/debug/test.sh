@@ -13,7 +13,6 @@ set +e
 build() {
   veyron go build veyron.io/veyron/veyron/services/mounttable/mounttabled || shell_test::fail "line ${LINENO}: failed to build mounttabled"
   veyron go build veyron.io/veyron/veyron/tools/debug || shell_test::fail "line ${LINENO}: failed to build debug"
-  veyron go build veyron.io/veyron/veyron/tools/identity || shell_test::fail "line ${LINENO}: failed to build identity"
 }
 
 dumplogs() {
@@ -27,10 +26,8 @@ main() {
   cd "${WORKDIR}"
   build
 
-  # Generate an identity that is shared by the client and the server.
-  local -r ID="${WORKDIR}/id"
-  VEYRON_IDENTITY="" ./identity generate test > "${ID}"
-  export VEYRON_IDENTITY="${ID}"
+  # Share credentials between the client and server (mounttabled).
+  export VEYRON_CREDENTIALS=$(shell::tmp_dir)
 
   # Start mounttabled and find its endpoint.
   local -r MTLOG="${WORKDIR}/mt.log"

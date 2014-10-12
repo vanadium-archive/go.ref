@@ -7,6 +7,7 @@ source "${VEYRON_ROOT}/scripts/lib/shell_test.sh"
 build() {
   veyron go build veyron.io/veyron/veyron/security/agent/agentd || shell_test::fail "line ${LINENO}: failed to build agentd"
   veyron go build -o pingpong veyron.io/veyron/veyron/security/agent/test || shell_test::fail "line ${LINENO}: failed to build pingpong"
+  veyron go build veyron.io/veyron/veyron/tools/identity || shell_test::fail "line ${LINENO}: failed to build identity"
 }
 
 main() {
@@ -14,7 +15,14 @@ main() {
   cd "${workdir}"
   build
 
+  # TODO(ashankar): Remove this block (and remove the compilation of the identity tool)
+  # once the agent has been updated to comply with the new security model.
+  local -r ID=$(shell::tmp_file)
+  ./identity generate agenttest >"${ID}"
+  export VEYRON_IDENTITY="${ID}"
+
   shell_test::setup_server_test
+  unset VEYRON_CREDENTIALS
 
   # Test running a single app.
   shell_test::start_server ./pingpong --server
