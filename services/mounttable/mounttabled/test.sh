@@ -23,8 +23,9 @@ main() {
   # Start mounttabled and find its endpoint.
   local -r NHNAME=test-$(hostname)-$$
   local -r MTLOG="${TMPDIR}/mt.log"
-  ./mounttabled --veyron.tcp.address=127.0.0.1:0 -vmodule=publisher=2 --neighborhood_name="${NHNAME}" > "${MTLOG}" 2>&1 &
-  shell::wait_for "${MTLOG}" "ipc pub: mount"
+
+  shell::run_server "${shell_test_DEFAULT_SERVER_TIMEOUT}" "${MTLOG}" "${MTLOG}" ./mounttabled --veyron.tcp.address=127.0.0.1:0 -vmodule=publisher=2 --neighborhood_name="${NHNAME}" > "${MTLOG}" &> /dev/null || shell_test::fail "line ${LINENO}: failed to start mounttabled"
+  shell::timed_wait_for "${shell_test_DEFAULT_MESSAGE_TIMEOUT}" "${MTLOG}" "ipc pub: mount" || shell_test::fail "line ${LINENO}: failed to read output"
 
   local -r EP=$(grep "Mount table service at:" "${MTLOG}" | sed -e 's/^.*endpoint: //')
   [[ -z "${EP}" ]] && shell_test::fail "line ${LINENO}: no server"

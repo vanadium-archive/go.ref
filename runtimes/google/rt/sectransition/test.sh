@@ -6,7 +6,6 @@
 . "${VEYRON_ROOT}/scripts/lib/shell_test.sh"
 
 readonly WORKDIR=$(shell::tmp_dir)
-set +e
 
 build() {
   veyron go build veyron.io/veyron/veyron/runtimes/google/rt/sectransition || shell_test::fail "line ${LINENO}: failed to build sectransition binary"
@@ -18,8 +17,8 @@ startserver() {
   # The server has access to both the old and new security model.
   export VEYRON_IDENTITY="${WORKDIR}/old"
   export VEYRON_CREDENTIALS="${WORKDIR}/new"
-  ./sectransition --server --logtostderr >"${SERVERLOG}" 2>&1 &
-  shell::wait_for "${SERVERLOG}" "SERVER"
+  shell::run_server "${shell_test_DEFAULT_SERVER_TIMEOUT}" "${SERVERLOG}" /dev/null ./sectransition --server --logtostderr &> /dev/null
+  shell::timed_wait_for "${shell_test_DEFAULT_MESSAGE_TIMEOUT}" "${SERVERLOG}" "SERVER" || shell_test::fail "line ${LINENO}: failed to read expected output from log file"
   local EP=$(grep "SERVER: " "${SERVERLOG}" | sed -e 's/SERVER: //')
   echo "${EP}"
 }

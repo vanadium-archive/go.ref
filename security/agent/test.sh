@@ -21,7 +21,7 @@ main() {
   ./identity generate agenttest >"${ID}"
   export VEYRON_IDENTITY="${ID}"
 
-  shell_test::setup_server_test
+  shell_test::setup_server_test || shell_test::fail "line ${LINENO} failed to start server"
   unset VEYRON_CREDENTIALS
 
   # Test running a single app.

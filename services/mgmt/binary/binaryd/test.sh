@@ -21,7 +21,7 @@ main() {
 
   # Start the binary repository daemon.
   local -r REPO="binaryd-test-repo"
-  shell_test::start_server ./binaryd --name="${REPO}" --veyron.tcp.address=127.0.0.1:0
+  shell_test::start_server ./binaryd --name="${REPO}" --veyron.tcp.address=127.0.0.1:0 || shell_test::fail "line ${LINENO} failed to start server"
   echo "Is it running?"
   ps
 

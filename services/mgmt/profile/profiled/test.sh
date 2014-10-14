@@ -23,7 +23,7 @@ main() {
   # Start the profile repository daemon.
   local -r REPO="profiled-test-repo"
   local -r STORE=$(shell::tmp_dir)
-  shell_test::start_server ./profiled --name="${REPO}" --veyron.tcp.address=127.0.0.1:0 --store="${STORE}"
+  shell_test::start_server ./profiled --name="${REPO}" --veyron.tcp.address=127.0.0.1:0 --store="${STORE}" || shell_test::fail "line ${LINENO} failed to start server"
 
   # Create a profile.
   local -r PROFILE="${REPO}/test-profile"
