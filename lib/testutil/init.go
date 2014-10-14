@@ -20,6 +20,7 @@ import (
 	// flag.Parse in init() is the right solution?
 	_ "testing"
 	"time"
+
 	_ "veyron.io/veyron/veyron/services/mgmt/suidhelper/impl/flag"
 
 	// Import blackbox to ensure that it gets to define its flags.

@@ -2,21 +2,24 @@ package rt_test
 
 import (
 	"fmt"
+	"io"
 	"io/ioutil"
 	"os"
 	"reflect"
 	"regexp"
 	"testing"
-
-	_ "veyron.io/veyron/veyron/lib/testutil"
-	"veyron.io/veyron/veyron/lib/testutil/blackbox"
-	irt "veyron.io/veyron/veyron/runtimes/google/rt"
+	"time"
 
 	"veyron.io/veyron/veyron2"
 	"veyron.io/veyron/veyron2/naming"
 	"veyron.io/veyron/veyron2/rt"
 	"veyron.io/veyron/veyron2/security"
 	"veyron.io/veyron/veyron2/vlog"
+
+	"veyron.io/veyron/veyron/lib/expect"
+	"veyron.io/veyron/veyron/lib/modules"
+	_ "veyron.io/veyron/veyron/lib/testutil"
+	irt "veyron.io/veyron/veyron/runtimes/google/rt"
 )
 
 type context struct {
@@ -37,11 +40,11 @@ func (*context) LocalEndpoint() naming.Endpoint            { return nil }
 func (*context) RemoteEndpoint() naming.Endpoint           { return nil }
 
 func init() {
-	blackbox.CommandTable["child"] = child
+	modules.RegisterChild("child", "", child)
 }
 
 func TestHelperProcess(t *testing.T) {
-	blackbox.HelperProcess(t)
+	modules.DispatchInTest()
 }
 
 func TestInit(t *testing.T) {
@@ -60,24 +63,24 @@ func TestInit(t *testing.T) {
 	}
 }
 
-func child(argv []string) {
+func child(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
 	r := rt.Init()
 	vlog.Infof("%s\n", r.Logger())
-	fmt.Printf("%s\n", r.Logger())
-	_ = r
-	blackbox.WaitForEOFOnStdin()
+	fmt.Fprintf(stdout, "%s\n", r.Logger())
+	modules.WaitForEOF(stdin)
 	fmt.Printf("done\n")
+	return nil
 }
 
 func TestInitArgs(t *testing.T) {
-	c := blackbox.HelperCommand(t, "child", "--logtostderr=true", "--vv=3", "--", "foobar")
-	defer c.Cleanup()
-	c.Cmd.Start()
-	str, err := c.ReadLineFromChild()
+	sh := modules.NewShell("child")
+	defer sh.Cleanup(os.Stderr, os.Stderr)
+	h, err := sh.Start("child", "--logtostderr=true", "--vv=3", "--", "foobar")
 	if err != nil {
-		t.Fatalf("failed to read from child: %v", err)
+		t.Fatalf("unexpected error: %s", err)
 	}
-	expected := fmt.Sprintf("name=veyron "+
+	s := expect.NewSession(t, h.Stdout(), time.Minute)
+	s.Expect(fmt.Sprintf("name=veyron "+
 		"logdirs=[%s] "+
 		"logtostderr=true "+
 		"alsologtostderr=true "+
@@ -86,14 +89,11 @@ func TestInitArgs(t *testing.T) {
 		"stderrthreshold=2 "+
 		"vmodule= "+
 		"log_backtrace_at=:0",
-		os.TempDir())
-
-	if str != expected {
-		t.Fatalf("incorrect child output: got %s, expected %s", str, expected)
-	}
-	c.CloseStdin()
-	c.Expect("done")
-	c.ExpectEOFAndWait()
+		os.TempDir()))
+	h.CloseStdin()
+	s.Expect("done")
+	s.ExpectEOF()
+	h.Shutdown(os.Stderr, os.Stderr)
 }
 
 func TestInitPrincipal(t *testing.T) {

@@ -2,10 +2,12 @@ package rt_test
 
 import (
 	"fmt"
+	"io"
 	"os"
 	"reflect"
 	"strings"
 	"testing"
+	"time"
 
 	"veyron.io/veyron/veyron2"
 	"veyron.io/veyron/veyron2/ipc"
@@ -13,14 +15,27 @@ import (
 	"veyron.io/veyron/veyron2/naming"
 	"veyron.io/veyron/veyron2/services/mgmt/appcycle"
 
+	"veyron.io/veyron/veyron/lib/expect"
+	"veyron.io/veyron/veyron/lib/modules"
 	_ "veyron.io/veyron/veyron/lib/testutil"
-	"veyron.io/veyron/veyron/lib/testutil/blackbox"
 	"veyron.io/veyron/veyron/lib/testutil/security"
 	"veyron.io/veyron/veyron/profiles"
 	"veyron.io/veyron/veyron/runtimes/google/rt"
 	vflag "veyron.io/veyron/veyron/security/flag"
 	"veyron.io/veyron/veyron/services/mgmt/node"
 )
+
+const (
+	noWaitersCmd = "noWaiters"
+	forceStopCmd = "forceStop"
+	appCmd       = "app"
+)
+
+func init() {
+	modules.RegisterChild(noWaitersCmd, "", noWaiters)
+	modules.RegisterChild(forceStopCmd, "", forceStop)
+	modules.RegisterChild(appCmd, "", app)
+}
 
 // TestBasic verifies that the basic plumbing works: LocalStop calls result in
 // stop messages being sent on the channel passed to WaitForStop.
@@ -80,51 +95,57 @@ func TestMultipleStops(t *testing.T) {
 	}
 }
 
-func init() {
-	blackbox.CommandTable["noWaiters"] = noWaiters
-}
-
-func noWaiters([]string) {
+func noWaiters(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
 	m, _ := rt.New()
-	fmt.Println("ready")
-	blackbox.WaitForEOFOnStdin()
+	fmt.Fprintf(stdout, "ready\n")
+	modules.WaitForEOF(stdin)
 	m.Stop()
 	os.Exit(42) // This should not be reached.
+	return nil
 }
 
 // TestNoWaiters verifies that the child process exits in the absence of any
 // wait channel being registered with its runtime.
 func TestNoWaiters(t *testing.T) {
-	c := blackbox.HelperCommand(t, "noWaiters")
-	defer c.Cleanup()
-	c.Cmd.Start()
-	c.Expect("ready")
-	c.CloseStdin()
-	c.ExpectEOFAndWaitForExitCode(fmt.Errorf("exit status %d", veyron2.UnhandledStopExitCode))
+	sh := modules.NewShell(noWaitersCmd)
+	defer sh.Cleanup(os.Stderr, os.Stderr)
+	h, err := sh.Start(noWaitersCmd)
+	if err != nil {
+		t.Fatalf("unexpected error: %s", err)
+	}
+	expect.NewSession(t, h.Stdout(), time.Minute).Expect("ready")
+	want := fmt.Sprintf("exit status %d", veyron2.UnhandledStopExitCode)
+	if err = h.Shutdown(os.Stderr, os.Stderr); err == nil || err.Error() != want {
+		t.Errorf("got %v, want %s", err, want)
+	}
 }
 
-func init() {
-	blackbox.CommandTable["forceStop"] = forceStop
-}
-
-func forceStop([]string) {
+func forceStop(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
 	m, _ := rt.New()
-	fmt.Println("ready")
-	blackbox.WaitForEOFOnStdin()
+	fmt.Fprintf(stdout, "ready\n")
+	modules.WaitForEOF(stdin)
 	m.WaitForStop(make(chan string, 1))
 	m.ForceStop()
 	os.Exit(42) // This should not be reached.
+	return nil
 }
 
 // TestForceStop verifies that ForceStop causes the child process to exit
 // immediately.
 func TestForceStop(t *testing.T) {
-	c := blackbox.HelperCommand(t, "forceStop")
-	defer c.Cleanup()
-	c.Cmd.Start()
-	c.Expect("ready")
-	c.CloseStdin()
-	c.ExpectEOFAndWaitForExitCode(fmt.Errorf("exit status %d", veyron2.ForceStopExitCode))
+	sh := modules.NewShell(forceStopCmd)
+	defer sh.Cleanup(os.Stderr, os.Stderr)
+	h, err := sh.Start(forceStopCmd)
+	if err != nil {
+		t.Fatalf("unexpected error: %s", err)
+	}
+	s := expect.NewSession(t, h.Stdout(), time.Minute)
+	s.Expect("ready")
+	err = h.Shutdown(os.Stderr, os.Stderr)
+	want := fmt.Sprintf("exit status %d", veyron2.UnhandledStopExitCode)
+	if err == nil || err.Error() != want {
+		t.Errorf("got %v, want %s", err, want)
+	}
 }
 
 func checkProgress(t *testing.T, ch <-chan veyron2.Task, progress, goal int) {
@@ -206,25 +227,21 @@ func TestProgressMultipleTrackers(t *testing.T) {
 	}
 }
 
-func init() {
-	blackbox.CommandTable["app"] = app
-}
-
-func app([]string) {
+func app(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
 	r, err := rt.New()
 	if err != nil {
-		fmt.Printf("Error creating runtime: %v\n", err)
-		return
+		return err
 	}
 	defer r.Cleanup()
 	ch := make(chan string, 1)
 	r.WaitForStop(ch)
-	fmt.Printf("Got %s\n", <-ch)
+	fmt.Fprintf(stdout, "Got %s\n", <-ch)
 	r.AdvanceGoal(10)
-	fmt.Println("Doing some work")
+	fmt.Fprintf(stdout, "Doing some work\n")
 	r.AdvanceProgress(2)
-	fmt.Println("Doing some more work")
+	fmt.Fprintf(stdout, "Doing some more work\n")
 	r.AdvanceProgress(5)
+	return nil
 }
 
 type configServer struct {
@@ -258,27 +275,30 @@ func createConfigServer(t *testing.T, r veyron2.Runtime) (ipc.Server, string, <-
 
 }
 
-func setupRemoteAppCycleMgr(t *testing.T) (veyron2.Runtime, *blackbox.Child, appcycle.AppCycle, func()) {
+func setupRemoteAppCycleMgr(t *testing.T) (veyron2.Runtime, modules.Handle, appcycle.AppCycle, func()) {
 	// We need to use the public API since stubs are used below (and they
 	// refer to the global rt.R() function), but we take care to make sure
 	// that the "google" runtime we are trying to test in this package is
 	// the one being used.
 	r, _ := rt.New(veyron2.RuntimeOpt{veyron2.GoogleRuntimeName}, veyron2.ForceNewSecurityModel{})
-	c := blackbox.HelperCommand(t, "app")
-	childcreds := security.NewVeyronCredentials(r.Principal(), "app")
+
 	configServer, configServiceName, ch := createConfigServer(t, r)
-	c.Cmd.Env = append(c.Cmd.Env, fmt.Sprintf("VEYRON_CREDENTIALS=%v", childcreds),
-		fmt.Sprintf("%v=%v", mgmt.ParentNodeManagerConfigKey, configServiceName))
-	c.Cmd.Start()
+	sh := modules.NewShell(appCmd)
+	sh.SetVar("VEYRON_CREDENTIALS", security.NewVeyronCredentials(r.Principal(), appCmd))
+	sh.SetVar(mgmt.ParentNodeManagerConfigKey, configServiceName)
+	h, err := sh.Start("app")
+	if err != nil {
+		t.Fatalf("unexpected error: %s", err)
+	}
+
 	appCycleName := <-ch
 	appCycle, err := appcycle.BindAppCycle(appCycleName)
 	if err != nil {
 		t.Fatalf("Got error: %v", err)
 	}
-	return r, c, appCycle, func() {
+	return r, h, appCycle, func() {
 		configServer.Stop()
-		c.Cleanup()
-		os.RemoveAll(childcreds)
+		sh.Cleanup(os.Stderr, os.Stderr)
 		// Don't do r.Cleanup() since the runtime needs to be used by
 		// more than one test case.
 	}
@@ -287,18 +307,25 @@ func setupRemoteAppCycleMgr(t *testing.T) (veyron2.Runtime, *blackbox.Child, app
 // TestRemoteForceStop verifies that the child process exits when sending it
 // a remote ForceStop rpc.
 func TestRemoteForceStop(t *testing.T) {
-	r, c, appCycle, cleanup := setupRemoteAppCycleMgr(t)
+	r, h, appCycle, cleanup := setupRemoteAppCycleMgr(t)
 	defer cleanup()
 	if err := appCycle.ForceStop(r.NewContext()); err == nil || !strings.Contains(err.Error(), "EOF") {
 		t.Fatalf("Expected EOF error, got %v instead", err)
 	}
-	c.ExpectEOFAndWaitForExitCode(fmt.Errorf("exit status %d", veyron2.ForceStopExitCode))
+	s := expect.NewSession(t, h.Stdout(), time.Minute)
+	s.ExpectEOF()
+	err := h.Shutdown(os.Stderr, os.Stderr)
+	want := fmt.Sprintf("exit status %d", veyron2.ForceStopExitCode)
+	if err == nil || err.Error() != want {
+		t.Errorf("got %v, want %s", err, want)
+	}
+
 }
 
 // TestRemoteStop verifies that the child shuts down cleanly when sending it
 // a remote Stop rpc.
 func TestRemoteStop(t *testing.T) {
-	r, c, appCycle, cleanup := setupRemoteAppCycleMgr(t)
+	r, h, appCycle, cleanup := setupRemoteAppCycleMgr(t)
 	defer cleanup()
 	stream, err := appCycle.Stop(r.NewContext())
 	if err != nil {
@@ -323,8 +350,12 @@ func TestRemoteStop(t *testing.T) {
 	if err := stream.Finish(); err != nil {
 		t.Errorf("Got error %v", err)
 	}
-	c.Expect(fmt.Sprintf("Got %s", veyron2.RemoteStop))
-	c.Expect("Doing some work")
-	c.Expect("Doing some more work")
-	c.ExpectEOFAndWait()
+	s := expect.NewSession(t, h.Stdout(), time.Minute)
+	s.Expect(fmt.Sprintf("Got %s", veyron2.RemoteStop))
+	s.Expect("Doing some work")
+	s.Expect("Doing some more work")
+	s.ExpectEOF()
+	if err := h.Shutdown(os.Stderr, os.Stderr); err != nil {
+		t.Fatalf("unexpected error: %s", err)
+	}
 }
