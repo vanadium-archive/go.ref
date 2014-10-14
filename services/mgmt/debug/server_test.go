@@ -10,15 +10,16 @@ import (
 	"testing"
 	"time"
 
-	libstats "veyron.io/veyron/veyron/lib/stats"
-	"veyron.io/veyron/veyron/services/mgmt/debug"
-
 	"veyron.io/veyron/veyron2/naming"
 	"veyron.io/veyron/veyron2/rt"
 	"veyron.io/veyron/veyron2/services/mgmt/logreader"
 	"veyron.io/veyron/veyron2/services/mgmt/stats"
 	"veyron.io/veyron/veyron2/services/mounttable"
 	"veyron.io/veyron/veyron2/verror"
+
+	libstats "veyron.io/veyron/veyron/lib/stats"
+	"veyron.io/veyron/veyron/profiles"
+	"veyron.io/veyron/veyron/services/mgmt/debug"
 )
 
 func TestDebugServer(t *testing.T) {
@@ -33,7 +34,7 @@ func TestDebugServer(t *testing.T) {
 		t.Fatalf("ioutil.WriteFile failed: %v", err)
 	}
 
-	endpoint, stop, err := debug.StartDebugServer(runtime, "localhost:0", workdir, nil)
+	endpoint, stop, err := debug.StartDebugServer(runtime, profiles.LocalListenSpec, workdir, nil)
 	if err != nil {
 		t.Fatalf("StartDebugServer failed: %v", err)
 	}

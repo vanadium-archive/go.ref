@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"veyron.io/veyron/veyron2/ipc"
+	"veyron.io/veyron/veyron2/vlog"
 
 	"veyron.io/veyron/veyron/lib/netstate"
 )
@@ -38,4 +39,24 @@ func IPAddressChooser(network string, addrs []ipc.Address) ([]ipc.Address, error
 	}
 
 	return nil, fmt.Errorf("failed to find any usable address for %q", network)
+}
+
+// HasPublicIP returns true if the host has at least one public IP address.
+func HasPublicIP(log vlog.Logger) bool {
+	state, err := netstate.GetAccessibleIPs()
+	if err != nil {
+		log.Infof("failed to determine network state: %s", err)
+		return false
+	}
+	any := state.Filter(netstate.IsUnicastIP)
+	if len(any) == 0 {
+		log.Infof("failed to find any usable IP addresses at startup")
+		return false
+	}
+	for _, a := range any {
+		if netstate.IsPublicUnicastIPv4(a) {
+			return true
+		}
+	}
+	return false
 }

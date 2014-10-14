@@ -4,7 +4,6 @@ package main
 
 import (
 	"fmt"
-	"os"
 	"strings"
 
 	"veyron.io/veyron/veyron2/config"
@@ -38,7 +37,6 @@ func main() {
 		fmt.Printf("Chosen:\n%s\n", strings.Replace(al.String(), ") ", ")\n", -1))
 	}
 
-	os.Exit(0)
 	ch := make(chan config.Setting, 10)
 	settings, err := r.Publisher().ForkStream(roaming.SettingsStreamName, ch)
 	if err != nil {
