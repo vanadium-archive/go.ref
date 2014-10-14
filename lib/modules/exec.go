@@ -196,7 +196,7 @@ func (eh *execHandle) Shutdown(stdout, stderr io.Writer) error {
 	eh.stderr.Close()
 	stderrFile, err := os.Open(logFile)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "failed to open %q: %s", logFile, err)
+		fmt.Fprintf(os.Stderr, "failed to open %q: %s\n", logFile, err)
 		return procErr
 	}
 	readTo(stderrFile, stderr)

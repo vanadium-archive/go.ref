@@ -114,7 +114,7 @@ func (fh *functionHandle) Shutdown(stdout_w, stderr_w io.Writer) error {
 		readTo(stderr, stderr_w)
 		stderr.Close()
 	} else {
-		fmt.Fprintf(os.Stderr, "failed to open %q: %s", stderr.Name(), err)
+		fmt.Fprintf(os.Stderr, "failed to open %q: %s\n", stderr.Name(), err)
 	}
 
 	fh.mu.Lock()
