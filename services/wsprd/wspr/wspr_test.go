@@ -84,10 +84,9 @@ func TestHandleCreateAccount(t *testing.T) {
 	}
 
 	// Verify that principalManager has the new account
-	expectedAccountName := fmt.Sprintf("%s%s%d", topLevelName, security.ChainSeparator, 1)
-	gotAccounts := wspr.principalManager.AccountsMatching(security.BlessingPattern(expectedAccountName))
-	if len(gotAccounts) != 1 {
-		t.Fatalf("Expected to have 1 account with name %v, but got %v: %v", expectedAccountName, len(gotAccounts), gotAccounts)
+	account1 := fmt.Sprintf("%s%s%d", topLevelName, security.ChainSeparator, 1)
+	if b, err := wspr.principalManager.BlessingsForAccount(account1); err != nil || b == nil {
+		t.Fatalf("Failed to get Blessings for account %v: got %v, %v", account1, b, err)
 	}
 
 	// Add another account
@@ -111,9 +110,12 @@ func TestHandleCreateAccount(t *testing.T) {
 	}
 
 	// Verify that principalManager has both accounts
-	gotAccounts = wspr.principalManager.AccountsMatching(security.BlessingPattern(fmt.Sprintf("%s%s%v", topLevelName, security.ChainSeparator, security.AllPrincipals)))
-	if len(gotAccounts) != 2 {
-		t.Fatalf("Expected to have 2 accounts, but got %v: %v", len(gotAccounts), gotAccounts)
+	if b, err := wspr.principalManager.BlessingsForAccount(account1); err != nil || b == nil {
+		t.Fatalf("Failed to get Blessings for account %v: got %v, %v", account1, b, err)
+	}
+	account2 := fmt.Sprintf("%s%s%d", topLevelName, security.ChainSeparator, 2)
+	if b, err := wspr.principalManager.BlessingsForAccount(account2); err != nil || b == nil {
+		t.Fatalf("Failed to get Blessings for account %v: got %v, %v", account2, b, err)
 	}
 }
 
