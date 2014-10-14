@@ -80,25 +80,10 @@ func (p *profile) Init(rt veyron2.Runtime, publisher *config.Publisher) error {
 		Proxy:    listenProxyFlag,
 	}
 
-	state, err := netstate.GetAccessibleIPs()
-	if err != nil {
-		log.Infof("failed to determine network state")
-		return err
-	}
-	any := state.Filter(netstate.IsUnicastIP)
-	if len(any) == 0 {
-		log.Infof("failed to find any usable IP addresses at startup")
-	}
-	public := netstate.IsPublicUnicastIPv4(any[0])
-
-	// We now know that there is an IP address to listen on, and whether
-	// it's public or private.
-
 	// Our address is private, so we test for running on GCE and for its
-	// 1:1 NAT configuration. handleGCE returns a non-nil addr
-	// if we are indeed running on GCE.
-	if !public {
-		if addr := handleGCE(rt, publisher); addr != nil {
+	// 1:1 NAT configuration.
+	if !internal.HasPublicIP(log) {
+		if addr := internal.GCEPublicAddress(log); addr != nil {
 			ListenSpec.AddressChooser = func(string, []ipc.Address) ([]ipc.Address, error) {
 				return []ipc.Address{&netstate.AddrIfc{addr, "nat", nil}}, nil
 			}
@@ -116,22 +101,27 @@ func (p *profile) Init(rt veyron2.Runtime, publisher *config.Publisher) error {
 		return err
 	}
 
-	protocol := listenProtocolFlag.Protocol
 	ListenSpec.StreamPublisher = publisher
 	ListenSpec.StreamName = SettingsStreamName
 	ListenSpec.AddressChooser = internal.IPAddressChooser
-	log.VI(2).Infof("Initial Network Settings: %s %s available: %s", protocol, listenAddressFlag, state)
-	go monitorNetworkSettings(rt, stop, ch, state, ListenSpec)
+	go monitorNetworkSettings(rt, stop, ch, ListenSpec)
 	return nil
 }
 
 // monitorNetworkSettings will monitor network configuration changes and
 // publish subsequent Settings to reflect any changes detected.
 func monitorNetworkSettings(rt veyron2.Runtime, stop <-chan struct{},
-	ch chan<- config.Setting, prev netstate.AddrList, listenSpec *ipc.ListenSpec) {
+	ch chan<- config.Setting, listenSpec *ipc.ListenSpec) {
 	defer close(ch)
 
 	log := rt.Logger()
+	prev, err := netstate.GetAccessibleIPs()
+	if err != nil {
+		// TODO(cnicolaou): add support for shutting down profiles
+		//<-stop
+		log.VI(2).Infof("failed to determine network state")
+		return
+	}
 
 	// Start the dhcp watcher.
 	watcher, err := netconfig.NewNetConfigWatcher()

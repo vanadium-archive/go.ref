@@ -17,6 +17,7 @@ import (
 	"veyron.io/veyron/veyron2/naming"
 	"veyron.io/veyron/veyron2/rt"
 	"veyron.io/veyron/veyron2/security"
+	"veyron.io/veyron/veyron2/verror"
 	"veyron.io/veyron/veyron2/vlog"
 
 	"veyron.io/veyron/veyron/lib/signals"
@@ -29,7 +30,6 @@ import (
 	"veyron.io/veyron/veyron/services/identity/revocation"
 	services "veyron.io/veyron/veyron/services/security"
 	"veyron.io/veyron/veyron/services/security/discharger"
-	"veyron.io/veyron/veyron2/verror"
 )
 
 var (

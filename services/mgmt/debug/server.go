@@ -6,12 +6,13 @@ import (
 	"fmt"
 
 	"veyron.io/veyron/veyron2"
+	"veyron.io/veyron/veyron2/ipc"
 	"veyron.io/veyron/veyron2/security"
 	"veyron.io/veyron/veyron2/vlog"
 )
 
 // StartDebugServer starts a debug server.
-func StartDebugServer(rt veyron2.Runtime, address, logsDir string, auth security.Authorizer) (string, func(), error) {
+func StartDebugServer(rt veyron2.Runtime, listenSpec *ipc.ListenSpec, logsDir string, auth security.Authorizer) (string, func(), error) {
 	if len(logsDir) == 0 {
 		return "", nil, fmt.Errorf("logs directory missing")
 	}
@@ -20,9 +21,9 @@ func StartDebugServer(rt veyron2.Runtime, address, logsDir string, auth security
 	if err != nil {
 		return "", nil, fmt.Errorf("failed to start debug server: %v", err)
 	}
-	endpoint, err := server.Listen("tcp", address)
+	endpoint, err := server.ListenX(listenSpec)
 	if err != nil {
-		return "", nil, fmt.Errorf("failed to listen on %v: %v", address, err)
+		return "", nil, fmt.Errorf("failed to listen on %s: %v", listenSpec, err)
 	}
 	if err := server.Serve("", disp); err != nil {
 		return "", nil, err
