@@ -133,7 +133,10 @@ func (eh *execHandle) start(sh *Shell, args ...string) (Handle, error) {
 	eh.mu.Lock()
 	defer eh.mu.Unlock()
 	eh.sh = sh
-	newargs := append(testFlags(), args...)
+	// Take care to not pass the command line as an arg to the child
+	// process since that'll prevent parsing any subsequent args by
+	// the flag package.
+	newargs := append(testFlags(), args[1:]...)
 	cmd := exec.Command(os.Args[0], newargs...)
 	cmd.Env = append(sh.mergeOSEnvSlice(), eh.entryPoint)
 	fname := strings.TrimPrefix(eh.entryPoint, ShellEntryPoint+"=")
@@ -280,7 +283,8 @@ func (child *childRegistrar) dispatch() error {
 		}
 	}(os.Getppid())
 
-	return m.fn(os.Stdin, os.Stdout, os.Stderr, osEnvironMap(), flag.Args()...)
+	args := append([]string{command}, flag.Args()...)
+	return m.fn(os.Stdin, os.Stdout, os.Stderr, osEnvironMap(), args...)
 }
 
 func (child *childRegistrar) addSubprocesses(sh *Shell, pattern string) error {
