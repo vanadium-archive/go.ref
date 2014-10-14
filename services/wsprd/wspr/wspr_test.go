@@ -7,8 +7,8 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
-	"time"
 
+	"veyron.io/veyron/veyron2"
 	"veyron.io/veyron/veyron2/context"
 	"veyron.io/veyron/veyron2/ipc"
 	"veyron.io/veyron/veyron2/security"
@@ -17,43 +17,30 @@ import (
 	"veyron.io/veyron/veyron/profiles"
 )
 
+const topLevelName = "mock-blesser"
+
 // BEGIN MOCK BLESSER SERVICE
 // TODO(nlacasse): Is there a better way to mock this?!
 type mockBlesserService struct {
-	id    security.PrivateID
+	p     security.Principal
 	count int
 }
 
-func newMockBlesserService(id security.PrivateID) *mockBlesserService {
+func newMockBlesserService(p security.Principal) *mockBlesserService {
 	return &mockBlesserService{
-		id:    id,
+		p:     p,
 		count: 0,
 	}
 }
 
-func (m *mockBlesserService) BlessUsingAccessToken(c context.T, accessToken string, co ...ipc.CallOpt) (vdlutil.Any, string, error) {
+func (m *mockBlesserService) BlessUsingAccessToken(c context.T, accessToken string, co ...ipc.CallOpt) (vdlutil.Any, []string, error) {
 	m.count = m.count + 1
-	name := fmt.Sprintf("mock-blessing-%v", m.count)
-	blessing, err := m.id.Bless(m.id.PublicID(), name, 5*time.Minute, nil)
+	name := fmt.Sprintf("%s%s%d", topLevelName, security.ChainSeparator, m.count)
+	blessing, err := m.p.BlessSelf(name)
 	if err != nil {
-		return nil, "", err
+		return nil, nil, err
 	}
-	return blessing, name, nil
-}
-
-// This is never used.  Only needed for mock.
-func (m *mockBlesserService) GetMethodTags(c context.T, s string, co ...ipc.CallOpt) ([]interface{}, error) {
-	return nil, nil
-}
-
-// This is never used.  Only needed for mock.
-func (m *mockBlesserService) Signature(c context.T, co ...ipc.CallOpt) (ipc.ServiceSignature, error) {
-	return ipc.ServiceSignature{}, nil
-}
-
-// This is never used.  Only needed for mock.
-func (m *mockBlesserService) UnresolveStep(c context.T, co ...ipc.CallOpt) ([]string, error) {
-	return []string{}, nil
+	return security.MarshalBlessings(blessing), []string{name}, nil
 }
 
 // END MOCK BLESSER SERVICE
@@ -61,10 +48,8 @@ func (m *mockBlesserService) UnresolveStep(c context.T, co ...ipc.CallOpt) ([]st
 func setup(t *testing.T) (*WSPR, func()) {
 	spec := *profiles.LocalListenSpec
 	spec.Proxy = "/mock/proxy"
-	wspr := NewWSPR(0, spec, "/mock/identd")
-	providerId := wspr.rt.Identity()
-
-	wspr.blesserService = newMockBlesserService(providerId)
+	wspr := NewWSPR(0, spec, "/mock/identd", veyron2.ForceNewSecurityModel{})
+	wspr.blesser = newMockBlesserService(wspr.rt.Principal())
 	return wspr, func() {
 		wspr.Shutdown()
 	}
@@ -98,10 +83,9 @@ func TestHandleCreateAccount(t *testing.T) {
 		t.Fatalf("Expected handleCreateAccount to return 200 OK, instead got %v", resp1)
 	}
 
-	// Verify that idManager has the new account
-	topLevelName := wspr.rt.Identity().PublicID().Names()[0]
-	expectedAccountName := topLevelName + "/mock-blessing-1"
-	gotAccounts := wspr.idManager.AccountsMatching(security.BlessingPattern(expectedAccountName))
+	// Verify that principalManager has the new account
+	expectedAccountName := fmt.Sprintf("%s%s%d", topLevelName, security.ChainSeparator, 1)
+	gotAccounts := wspr.principalManager.AccountsMatching(security.BlessingPattern(expectedAccountName))
 	if len(gotAccounts) != 1 {
 		t.Fatalf("Expected to have 1 account with name %v, but got %v: %v", expectedAccountName, len(gotAccounts), gotAccounts)
 	}
@@ -126,8 +110,8 @@ func TestHandleCreateAccount(t *testing.T) {
 		t.Fatalf("Expected handleCreateAccount to return 200 OK, instead got %v", resp2)
 	}
 
-	// Verify that idManager has both accounts
-	gotAccounts = wspr.idManager.AccountsMatching(security.BlessingPattern(fmt.Sprintf("%s%s%v", topLevelName, security.ChainSeparator, security.AllPrincipals)))
+	// Verify that principalManager has both accounts
+	gotAccounts = wspr.principalManager.AccountsMatching(security.BlessingPattern(fmt.Sprintf("%s%s%v", topLevelName, security.ChainSeparator, security.AllPrincipals)))
 	if len(gotAccounts) != 2 {
 		t.Fatalf("Expected to have 2 accounts, but got %v: %v", len(gotAccounts), gotAccounts)
 	}
@@ -137,15 +121,14 @@ func TestHandleAssocAccount(t *testing.T) {
 	wspr, teardown := setup(t)
 	defer teardown()
 
-	// First create an accounts.
+	// First create an account.
 	accountName := "mock-account"
-	identityName := "mock-id"
-	privateID, err := wspr.rt.NewIdentity(identityName)
+	blessing, err := wspr.rt.Principal().BlessSelf(accountName)
 	if err != nil {
-		t.Fatalf("wspr.rt.NewIdentity(%v) failed: %v", identityName, err)
+		t.Fatalf("wspr.rt.Principal.BlessSelf(%v) failed: %v", accountName, err)
 	}
-	if err := wspr.idManager.AddAccount(accountName, privateID); err != nil {
-		t.Fatalf("wspr.idManager.AddAccount(%v, %v) failed; %v", accountName, privateID, err)
+	if err := wspr.principalManager.AddAccount(accountName, blessing); err != nil {
+		t.Fatalf("wspr.principalManager.AddAccount(%v, %v) failed; %v", accountName, blessing, err)
 	}
 
 	// Associate with that account
@@ -175,14 +158,14 @@ func TestHandleAssocAccount(t *testing.T) {
 		t.Fatalf("Expected handleAssocAccount to return 200 OK, instead got %v", resp)
 	}
 
-	// Verify that idManager has the correct identity for the origin
-	gotID, err := wspr.idManager.Identity(origin)
+	// Verify that principalManager has the correct principal for the origin
+	got, err := wspr.principalManager.Principal(origin)
 	if err != nil {
-		t.Fatalf("wspr.idManager.Identity(%v) failed: %v", origin, err)
+		t.Fatalf("wspr.principalManager.Principal(%v) failed: %v", origin, err)
 	}
 
-	if gotID == nil {
-		t.Fatalf("Expected wspr.idManager.Identity(%v) to return an valid identity, but got %v", origin, gotID)
+	if got == nil {
+		t.Fatalf("Expected wspr.principalManager.Principal(%v) to return a valid principal, but got %v", origin, got)
 	}
 }
 
@@ -218,13 +201,13 @@ func TestHandleAssocAccountWithMissingAccount(t *testing.T) {
 		t.Fatalf("Expected handleAssocAccount to return 400 error, but got %v", resp)
 	}
 
-	// Verify that idManager has no identities for the origin
-	gotID, err := wspr.idManager.Identity(origin)
+	// Verify that principalManager creates no principal for the origin
+	got, err := wspr.principalManager.Principal(origin)
 	if err == nil {
-		t.Fatalf("Expected wspr.idManager.Identity(%v) to fail, but got: %v", origin, gotID)
+		t.Fatalf("Expected wspr.principalManager.Principal(%v) to fail, but got: %v", origin, got)
 	}
 
-	if gotID != nil {
-		t.Fatalf("Expected wspr.idManager.Identity(%v) not to return an identity, but got %v", origin, gotID)
+	if got != nil {
+		t.Fatalf("Expected wspr.principalManager.Principal(%v) not to return a principal, but got %v", origin, got)
 	}
 }

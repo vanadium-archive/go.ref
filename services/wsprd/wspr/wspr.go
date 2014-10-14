@@ -27,13 +27,15 @@ import (
 	"time"
 
 	"veyron.io/veyron/veyron2"
+	"veyron.io/veyron/veyron2/context"
 	"veyron.io/veyron/veyron2/ipc"
 	"veyron.io/veyron/veyron2/rt"
 	"veyron.io/veyron/veyron2/security"
+	"veyron.io/veyron/veyron2/vdl/vdlutil"
 	"veyron.io/veyron/veyron2/vlog"
 
-	veyron_identity "veyron.io/veyron/veyron/services/identity"
 	"veyron.io/wspr/veyron/services/wsprd/identity"
+	"veyron.io/wspr/veyron/services/wsprd/principal"
 )
 
 const (
@@ -41,21 +43,51 @@ const (
 	pongTimeout  = pingInterval + 10*time.Second // maximum wait for pong.
 )
 
+type blesserService interface {
+	BlessUsingAccessToken(ctx context.T, token string, opts ...ipc.CallOpt) (blessingObj vdlutil.Any, blessings []string, err error)
+}
+
+type bs struct {
+	client ipc.Client
+	name   string
+}
+
+func (s *bs) BlessUsingAccessToken(ctx context.T, token string, opts ...ipc.CallOpt) (blessingObj vdlutil.Any, blessings []string, err error) {
+	var call ipc.Call
+	if call, err = s.client.StartCall(ctx, s.name, "BlessUsingAccessToken", []interface{}{token}, opts...); err != nil {
+		return
+	}
+	var email string
+	if ierr := call.Finish(&blessingObj, &email, &err); ierr != nil {
+		err = ierr
+	}
+	serverBlessings, _ := call.RemoteBlessings()
+	for _, b := range serverBlessings {
+		blessings = append(blessings, b+security.ChainSeparator+email)
+	}
+	return
+}
+
 type wsprConfig struct {
 	MounttableRoot []string
 }
 
 type WSPR struct {
-	mu             sync.Mutex
-	tlsCert        *tls.Certificate
-	rt             veyron2.Runtime
-	httpPort       int // HTTP port for WSPR to serve on. Port rather than address to discourage serving in a way that isn't local.
-	logger         vlog.Logger
-	listenSpec     ipc.ListenSpec
-	identdEP       string
-	idManager      *identity.IDManager
-	blesserService veyron_identity.OAuthBlesser
-	pipes          map[*http.Request]*pipe
+	mu               sync.Mutex
+	tlsCert          *tls.Certificate
+	rt               veyron2.Runtime
+	httpPort         int // HTTP port for WSPR to serve on. Port rather than address to discourage serving in a way that isn't local.
+	logger           vlog.Logger
+	listenSpec       ipc.ListenSpec
+	identdEP         string
+	principalManager *principal.PrincipalManager
+	blesser          blesserService
+	pipes            map[*http.Request]*pipe
+
+	// TODO(ataly, ashankar): Get rid of the fields below once the old
+	// security model is killed.
+	useOldModel bool
+	idManager   *identity.IDManager
 }
 
 var logger vlog.Logger
@@ -72,12 +104,8 @@ func readFromRequest(r *http.Request) (*bytes.Buffer, error) {
 
 // Starts the proxy and listens for requests. This method is blocking.
 func (ctx WSPR) Run() {
-	// Bind to the OAuth Blesser service
-	blesserService, err := veyron_identity.BindOAuthBlesser(ctx.identdEP)
-	if err != nil {
-		log.Fatalf("Failed to bind to identity service at %v: %v", ctx.identdEP, err)
-	}
-	ctx.blesserService = blesserService
+	// Initialize the Blesser service
+	ctx.blesser = &bs{client: ctx.rt.Client(), name: ctx.identdEP}
 
 	// HTTP routes
 	http.HandleFunc("/debug", ctx.handleDebug)
@@ -120,21 +148,42 @@ func NewWSPR(httpPort int, listenSpec ipc.ListenSpec, identdEP string, opts ...v
 		log.Fatalf("rt.New failed: %s", err)
 	}
 
-	// TODO(nlacasse, bjornick) use a serializer that can actually persist.
-	idManager, err := identity.NewIDManager(newrt, &identity.InMemorySerializer{})
-	if err != nil {
-		log.Fatalf("identity.NewIDManager failed: %s", err)
+	wspr := &WSPR{
+		httpPort:    httpPort,
+		listenSpec:  listenSpec,
+		identdEP:    identdEP,
+		rt:          newrt,
+		logger:      newrt.Logger(),
+		pipes:       map[*http.Request]*pipe{},
+		useOldModel: true,
 	}
 
-	return &WSPR{
-		httpPort:   httpPort,
-		listenSpec: listenSpec,
-		identdEP:   identdEP,
-		rt:         newrt,
-		logger:     newrt.Logger(),
-		idManager:  idManager,
-		pipes:      map[*http.Request]*pipe{},
+	for _, o := range opts {
+		if _, ok := o.(veyron2.ForceNewSecurityModel); ok {
+			wspr.useOldModel = false
+			break
+		}
 	}
+
+	if wspr.useOldModel {
+		if wspr.idManager, err = identity.NewIDManager(newrt, &identity.InMemorySerializer{}); err != nil {
+			log.Fatalf("identity.NewIDManager failed: %s", err)
+		}
+		return wspr
+	}
+
+	// TODO(nlacasse, bjornick) use a serializer that can actually persist.
+	if wspr.principalManager, err = principal.NewPrincipalManager(newrt.Principal(), &principal.InMemorySerializer{}); err != nil {
+		log.Fatalf("principal.NewPrincipalManager failed: %s", err)
+	}
+
+	return wspr
+}
+
+func (ctx WSPR) logAndSendBadReqErr(w http.ResponseWriter, msg string) {
+	ctx.logger.Error(msg)
+	http.Error(w, msg, http.StatusBadRequest)
+	return
 }
 
 // HTTP Handlers
@@ -182,12 +231,11 @@ type createAccountOutput struct {
 	Names []string `json:"names"`
 }
 
-// Handler for creating an account in the identity manager.
-// A valid OAuth2 access token must be supplied in the request body. That
-// access token is exchanged for a blessing from the identd server.  A new
-// privateID is then derived from WSPR's privateID and the blessing. That
-// privateID is stored in the identity manager. The name of the new privateID
-// is returned to the client.
+// Handler for creating an account in the principal manager.
+// A valid OAuth2 access token must be supplied in the request body,
+// which is exchanged for blessings from the veyron blessing server.
+// An account based on the blessings is then added to WSPR's principal
+// manager, and the set of blessing strings are returned to the client.
 func (ctx WSPR) handleCreateAccount(w http.ResponseWriter, r *http.Request) {
 	if r.Method != "POST" {
 		http.Error(w, "Method not allowed.", http.StatusMethodNotAllowed)
@@ -197,51 +245,48 @@ func (ctx WSPR) handleCreateAccount(w http.ResponseWriter, r *http.Request) {
 	// Parse request body.
 	var data createAccountInput
 	if err := json.NewDecoder(r.Body).Decode(&data); err != nil {
-		msg := fmt.Sprintf("Error parsing body: %v", err)
-		ctx.logger.Error(msg)
-		http.Error(w, msg, http.StatusBadRequest)
+		ctx.logAndSendBadReqErr(w, fmt.Sprintf("Error parsing body: %v", err))
 	}
 
 	// Get a blessing for the access token from identity server.
 	rctx, cancel := ctx.rt.NewContext().WithTimeout(time.Minute)
 	defer cancel()
-	blessingAny, _, err := ctx.blesserService.BlessUsingAccessToken(rctx, data.AccessToken)
+	blessingsAny, blessings, err := ctx.blesser.BlessUsingAccessToken(rctx, data.AccessToken)
 	if err != nil {
-		msg := fmt.Sprintf("Error getting blessing for access token: %v", err)
-		ctx.logger.Error(msg)
-		http.Error(w, msg, http.StatusBadRequest)
-		return
-	}
-	blessing := blessingAny.(security.PublicID)
-
-	// Derive a new identity from the runtime's identity and the blessing.
-	identity, err := ctx.rt.Identity().Derive(blessing)
-	if err != nil {
-		msg := fmt.Sprintf("Error deriving identity: %v", err)
-		ctx.logger.Error(msg)
-		http.Error(w, msg, http.StatusBadRequest)
+		ctx.logAndSendBadReqErr(w, fmt.Sprintf("Error getting blessing for access token: %v", err))
 		return
 	}
 
-	for _, name := range blessing.Names() {
-		// Store identity in identity manager.
-		if err := ctx.idManager.AddAccount(name, identity); err != nil {
-			msg := fmt.Sprintf("Error storing identity: %v", err)
-			ctx.logger.Error(msg)
-			http.Error(w, msg, http.StatusBadRequest)
+	// Shortcut for old security model.
+	if ctx.useOldModel {
+		ctx.handleCreateAccountOldModel(blessingsAny, w)
+		return
+	}
+
+	accountBlessings, err := security.NewBlessings(blessingsAny.(security.WireBlessings))
+	if err != nil {
+		ctx.logAndSendBadReqErr(w, fmt.Sprintf("Error creating blessings from wire data: %v", err))
+		return
+	}
+	// Add accountBlessings to principalManager under each of the
+	// returned blessing strings.
+	// TODO(ataly, ashankar): Adding the same account under different
+	// different names seems a little weird. Figure out a cleaner way
+	// of adding the account.
+	for _, b := range blessings {
+		if err := ctx.principalManager.AddAccount(b, accountBlessings); err != nil {
+			ctx.logAndSendBadReqErr(w, fmt.Sprintf("Error adding account: %v", err))
 			return
 		}
 	}
 
-	// Return the names to the client.
+	// Return blessings to the client.
 	out := createAccountOutput{
-		Names: blessing.Names(),
+		Names: blessings,
 	}
 	outJson, err := json.Marshal(out)
 	if err != nil {
-		msg := fmt.Sprintf("Error mashalling names: %v", err)
-		ctx.logger.Error(msg)
-		http.Error(w, msg, http.StatusInternalServerError)
+		ctx.logAndSendBadReqErr(w, fmt.Sprintf("Error mashalling names: %v", err))
 		return
 	}
 
@@ -256,7 +301,7 @@ type assocAccountInput struct {
 	Origin string `json:"origin"`
 }
 
-// Handler for associating an existing privateID with an origin.
+// Handler for associating an existing principal with an origin.
 func (ctx WSPR) handleAssocAccount(w http.ResponseWriter, r *http.Request) {
 	if r.Method != "POST" {
 		http.Error(w, "Method not allowed.", http.StatusMethodNotAllowed)
@@ -269,8 +314,63 @@ func (ctx WSPR) handleAssocAccount(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, fmt.Sprintf("Error parsing body: %v", err), http.StatusBadRequest)
 	}
 
+	// Shortcup for old security model.
+	if ctx.useOldModel {
+		ctx.handleAssocAccountOldModel(data, w)
+		return
+	}
+
 	// Store the origin.
 	// TODO(nlacasse, bjornick): determine what the caveats should be.
+	if err := ctx.principalManager.AddOrigin(data.Origin, data.Name, nil); err != nil {
+		http.Error(w, fmt.Sprintf("Error associating account: %v", err), http.StatusBadRequest)
+		return
+	}
+
+	// Success.
+	fmt.Fprintf(w, "")
+}
+
+// TODO(ataly, ashankar): Remove this method once the old security model is killed.
+func (ctx WSPR) handleCreateAccountOldModel(blessingsAny vdlutil.Any, w http.ResponseWriter) {
+	blessing, ok := blessingsAny.(security.PublicID)
+	if ok {
+		ctx.logAndSendBadReqErr(w, "Error creating PublicID from wire data")
+		return
+	}
+
+	// Derive a new identity from the runtime's identity and the blessing.
+	identity, err := ctx.rt.Identity().Derive(blessing)
+	if err != nil {
+		ctx.logAndSendBadReqErr(w, fmt.Sprintf("Error deriving identity: %v", err))
+		return
+	}
+
+	for _, name := range blessing.Names() {
+		// Store identity in identity manager.
+		if err := ctx.idManager.AddAccount(name, identity); err != nil {
+			ctx.logAndSendBadReqErr(w, fmt.Sprintf("Error storing identity: %v", err))
+			return
+		}
+	}
+
+	// Return the names to the client.
+	out := createAccountOutput{
+		Names: blessing.Names(),
+	}
+	outJson, err := json.Marshal(out)
+	if err != nil {
+		ctx.logAndSendBadReqErr(w, fmt.Sprintf("Error mashalling names: %v", err))
+		return
+	}
+
+	// Success.
+	w.Header().Set("Content-Type", "application/json")
+	fmt.Fprintf(w, string(outJson))
+}
+
+// TODO(ataly, ashankar): Remove this method once the old security model is killed.
+func (ctx WSPR) handleAssocAccountOldModel(data assocAccountInput, w http.ResponseWriter) {
 	if err := ctx.idManager.AddOrigin(data.Origin, data.Name, nil); err != nil {
 		http.Error(w, fmt.Sprintf("Error associating account: %v", err), http.StatusBadRequest)
 		return
