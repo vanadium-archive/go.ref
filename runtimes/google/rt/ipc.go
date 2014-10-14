@@ -119,7 +119,7 @@ func (rt *vrt) NewContext() context.T {
 	ctx := iipc.InternalNewContext(rt)
 	ctx = i18n.ContextWithLangID(ctx, rt.lang)
 	ctx = verror2.ContextWithComponentName(ctx, rt.program)
-	ctx, _ = ivtrace.WithNewSpan(ctx, "Root")
+	ctx, _ = ivtrace.WithNewSpan(ctx, "") // Initial span has empty name.
 	return ctx
 }
 

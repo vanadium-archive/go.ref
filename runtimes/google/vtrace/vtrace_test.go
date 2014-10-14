@@ -198,7 +198,7 @@ func runCallChain(t *testing.T, ctx context.T, force1, force2 bool) {
 // TestCancellationPropagation tests that cancellation propogates along an
 // RPC call chain without user intervention.
 func TestTraceAcrossRPCs(t *testing.T) {
-	ctx, span := ivtrace.WithNewSpan(testContext(), "Root")
+	ctx, span := ivtrace.WithNewSpan(testContext(), "")
 	span.Trace().ForceCollect()
 	span.Annotate("c0-begin")
 
@@ -207,7 +207,7 @@ func TestTraceAcrossRPCs(t *testing.T) {
 	span.Annotate("c0-end")
 
 	expectedSpans := []string{
-		"Root: c0-begin,c0-end",
+		": c0-begin,c0-end",
 		"Client Call: c1.Run: Started,Finished",
 		"Server Call: .Run: c1-begin,c1-end",
 		"Client Call: c2.Run: Started,Finished",
@@ -219,7 +219,7 @@ func TestTraceAcrossRPCs(t *testing.T) {
 // TestCancellationPropagationLateForce tests that cancellation propogates along an
 // RPC call chain when tracing is initiated by someone deep in the call chain.
 func TestTraceAcrossRPCsLateForce(t *testing.T) {
-	ctx, span := ivtrace.WithNewSpan(testContext(), "Root")
+	ctx, span := ivtrace.WithNewSpan(testContext(), "")
 	span.Annotate("c0-begin")
 
 	runCallChain(t, ctx, false, true)
@@ -227,7 +227,7 @@ func TestTraceAcrossRPCsLateForce(t *testing.T) {
 	span.Annotate("c0-end")
 
 	expectedSpans := []string{
-		"Root: c0-end",
+		": c0-end",
 		"Client Call: c1.Run: Finished",
 		"Server Call: .Run: c1-end",
 		"Client Call: c2.Run: Finished",
