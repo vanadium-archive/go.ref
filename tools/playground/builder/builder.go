@@ -1,6 +1,17 @@
 // Compiles and runs code for the Veyron playground.
 // Code is passed via os.Stdin as a JSON encoded
 // request struct.
+
+// NOTE(nlacasse): We use log.Panic() instead of log.Fatal() everywhere in this
+// file.  We do this because log.Panic calls panic(), which allows any deferred
+// function to run.  In particular, this will cause the mounttable and proxy
+// processes to be killed in the event of a compilation error.  log.Fatal, on
+// the other hand, calls os.Exit(1), which does not call deferred functions,
+// and will leave proxy and mounttable processes running.  This is not a big
+// deal for production environment, because the Docker instance gets cleaned up
+// after each run, but during development and testing these extra processes can
+// cause issues.
+
 package main
 
 import (
@@ -146,32 +157,32 @@ func main() {
 	flag.Parse()
 	r, err := parseRequest(os.Stdin)
 	if err != nil {
-		log.Fatal(err)
+		log.Panic(err)
 	}
 
 	err = createIdentities(r.Identities)
 	if err != nil {
-		log.Fatal(err)
+		log.Panic(err)
 	}
 
 	mt, err := startMount(runTimeout)
 	if err != nil {
-		log.Fatal(err)
+		log.Panic(err)
 	}
 	defer mt.Kill()
 
 	proxy, err := startProxy()
 	if err != nil {
-		log.Fatal(err)
+		log.Panic(err)
 	}
 	defer proxy.Kill()
 
 	if err := writeFiles(r.Files); err != nil {
-		log.Fatal(err)
+		log.Panic(err)
 	}
 
 	if err := compileFiles(r.Files); err != nil {
-		log.Fatal(err)
+		log.Panic(err)
 	}
 
 	runFiles(r.Files)
@@ -395,13 +406,13 @@ func makeCmdJsonEvent(fileName, prog string, args ...string) *exec.Cmd {
 
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
-		log.Fatal(err)
+		log.Panic(err)
 	}
 	go streamEvents(fileName, "stdout", stdout)
 
 	stderr, err := cmd.StderrPipe()
 	if err != nil {
-		log.Fatal(err)
+		log.Panic(err)
 	}
 	go streamEvents(fileName, "stderr", stderr)
 	return cmd
@@ -413,7 +424,7 @@ func streamEvents(fileName, stream string, in io.Reader) {
 		writeEvent(fileName, scanner.Text(), stream)
 	}
 	if err := scanner.Err(); err != nil {
-		log.Fatal(err)
+		log.Panic(err)
 	}
 }
 
@@ -427,7 +438,7 @@ func writeEvent(fileName, message, stream string) {
 
 	jsonEvent, err := json.Marshal(e)
 	if err != nil {
-		log.Fatal(err)
+		log.Panic(err)
 	}
 
 	// TODO(nlacasse): when we switch to streaming, we'll probably need to

@@ -1,4 +1,15 @@
 // Functions to start services needed by the Veyron playground.
+
+// NOTE(nlacasse): We use log.Panic() instead of log.Fatal() everywhere in this
+// file.  We do this because log.Panic calls panic(), which allows any deferred
+// function to run.  In particular, this will cause the mounttable and proxy
+// processes to be killed in the event of a compilation error.  log.Fatal, on
+// the other hand, calls os.Exit(1), which does not call deferred functions,
+// and will leave proxy and mounttable processes running.  This is not a big
+// deal for production environment, because the Docker instance gets cleaned up
+// after each run, but during development and testing these extra processes can
+// cause issues.
+
 package main
 
 import (
@@ -55,7 +66,7 @@ func startMount(timeLimit time.Duration) (proc *os.Process, err error) {
 	}
 	endpoint := matches[1]
 	if endpoint == "" {
-		log.Fatal("mounttable died")
+		log.Panic("mounttable died")
 	}
 	return cmd.Process, os.Setenv("NAMESPACE_ROOT", endpoint)
 }
