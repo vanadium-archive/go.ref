@@ -44,10 +44,6 @@ test_with_files() {
 }
 
 main() {
-  # TODO(nlacasse): get this all working again when the crypto changes
-  # are done.
-  shell_test::pass
-  return 0
   cd $(shell::tmp_dir)
   build
   install_veyron_js
@@ -55,7 +51,7 @@ main() {
   local -r DIR="${VEYRON_ROOT}/veyron/go/src/veyron.io/veyron/veyron/tools/playground/testdata"
 
   export GOPATH="$(pwd)":"$(veyron env GOPATH)"
-  export VDLPATH="$(veyron env VDLPATH)"
+  export VDLPATH="$(pwd)":"$(veyron env VDLPATH)"
   export PATH="$(pwd):$PATH"
 
   # Test without identities
@@ -94,7 +90,7 @@ main() {
   test_with_files $DIR/pong/pong.js $DIR/ping/ping.js $DIR/ids/expired.id || shell_test::fail  "line ${LINENO}: failed to build with expired id (js -> js)"
   # TODO(nlacasse): The error message in this case is very bad. Clean up the
   # veyron.js errors and change this to something reasonable.
-  grep -q "verror.Internal" builder.out || shell_test::fail "line ${LINENO}: rpc with expired id succeeded"
+  grep -q "vError.InternalError" builder.out || shell_test::fail "line ${LINENO}: rpc with expired id succeeded"
 
   # Test with unauthorized identities
 
