@@ -153,6 +153,11 @@ func (i *PrincipalManager) Principal(origin string) (security.Principal, error) 
 
 // BlessingsForAccount returns the Blessing associated with the provided
 // account.  It returns an error if account does not exist.
+//
+// TODO(ataly, ashankar, bjornick): Modify this method to allow searching
+// for accounts from a specific root blessing provider. One option is
+// that the method could take a set of root blessing providers as argument
+// and then return accounts whose blessings are from one of these providers.
 func (i *PrincipalManager) BlessingsForAccount(account string) (security.Blessings, error) {
 	i.mu.Lock()
 	defer i.mu.Unlock()
