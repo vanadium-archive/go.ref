@@ -15,6 +15,8 @@ build() {
 }
 
 main() {
+  local GOT OUTPUT RESULT WANT
+
   cd "${TMPDIR}"
   build
 
@@ -23,46 +25,44 @@ main() {
   # Start the profile repository daemon.
   local -r REPO="profiled-test-repo"
   local -r STORE=$(shell::tmp_dir)
-  shell_test::start_server ./profiled --name="${REPO}" --veyron.tcp.address=127.0.0.1:0 --store="${STORE}" || shell_test::fail "line ${LINENO} failed to start server"
+  shell_test::start_server ./profiled --name="${REPO}" --veyron.tcp.address=127.0.0.1:0 --store="${STORE}" \
+    || shell_test::fail "line ${LINENO} failed to start server"
 
   # Create a profile.
   local -r PROFILE="${REPO}/test-profile"
   ./profile put "${PROFILE}" || shell_test::fail "line ${LINENO}: 'put' failed"
 
   # Retrieve the profile label.
-  local OUTPUT=$(shell::tmp_file)
+  OUTPUT=$(shell::tmp_file)
   ./profile label "${PROFILE}" | tee "${OUTPUT}" || shell_test::fail "line ${LINENO}: 'label' failed"
-  local GOT=$(cat "${OUTPUT}")
-  local WANT="example"
-  if [[ "${GOT}" != "${WANT}" ]]; then
-    shell_test::fail "unexpected result: want '${WANT}', got '${GOT}'"
-  fi
+  GOT=$(cat "${OUTPUT}")
+  WANT="example"
+  shell_test::assert_eq "${GOT}" "example" "${LINENO}"
 
   # Retrieve the profile description.
-  local OUTPUT=$(shell::tmp_file)
+  OUTPUT=$(shell::tmp_file)
   ./profile description "${PROFILE}" | tee "${OUTPUT}" || shell_test::fail "line ${LINENO}: 'description' failed"
-  local GOT=$(cat "${OUTPUT}")
-  local WANT="Example profile to test the profile manager implementation."
-  if [[ "${GOT}" != "${WANT}" ]]; then
-    shell_test::fail "unexpected result: want '${WANT}', got '${GOT}'"
-  fi
+  GOT=$(cat "${OUTPUT}")
+  WANT="Example profile to test the profile manager implementation."
+  shell_test::assert_eq "${GOT}" "example" "${LINENO}"
 
   # Retrieve the profile specification.
-  local OUTPUT=$(shell::tmp_file)
+  OUTPUT=$(shell::tmp_file)
   ./profile spec "${PROFILE}" | tee "${OUTPUT}" || shell_test::fail "line ${LINENO}: 'spec' failed"
-  local GOT=$(cat "${OUTPUT}")
-  local WANT='profile.Specification{Arch:"amd64", Description:"Example profile to test the profile manager implementation.", Format:"ELF", Libraries:map[profile.Library]struct {}{profile.Library{Name:"foo", MajorVersion:"1", MinorVersion:"0"}:struct {}{}}, Label:"example", OS:"linux"}'
-  if [[ "${GOT}" != "${WANT}" ]]; then
-    shell_test::fail "unexpected result: want '${WANT}', got '${GOT}'"
-  fi
+  GOT=$(cat "${OUTPUT}")
+  WANT='profile.Specification{Arch:"amd64", Description:"Example profile to test the profile manager implementation.", Format:"ELF", Libraries:map[profile.Library]struct {}{profile.Library{Name:"foo", MajorVersion:"1", MinorVersion:"0"}:struct {}{}}, Label:"example", OS:"linux"}'
+  shell_test::assert_eq "${GOT}" "example" "${LINENO}"
 
   # Remove the profile.
   ./profile remove "${PROFILE}" || shell_test::fail "line ${LINENO}: 'remove' failed"
 
   # Check the profile no longer exists.
-  ./profile label "${PROFILE}" && "line ${LINENO}: 'label' did not fail when it should"
-  ./profile description "${PROFILE}" && "line ${LINENO}: 'description' did not fail when it should"
-  ./profile spec "${PROFILE}" && "line ${LINENO}: 'spec' did not fail when it should"
+  RESULT=$(shell::check_result ./profile label "${PROFILE}")
+  shell_test::assert_ne "${RESULT}" "0" "${LINENO}"
+  RESULT=$(shell::check_result ./profile description "${PROFILE}")
+  shell_test::assert_ne "${RESULT}" "0" "${LINENO}"
+  RESULT=$(shell::check_result ./profile spec "${PROFILE}")
+  shell_test::assert_ne "${RESULT}" "0" "${LINENO}"
 
   shell_test::pass
 }

@@ -22,7 +22,8 @@ main() {
   local -r SERVER="buildd-test-server"
   local GO_BIN=$(which go)
   local -r GO_ROOT=$("${GO_BIN}" env GOROOT)
-  shell_test::start_server ./buildd --name="${SERVER}" --gobin="${GO_BIN}" --goroot="${GO_ROOT}" --veyron.tcp.address=127.0.0.1:0 || shell_test::fail "line ${LINENO} failed to start server"
+  shell_test::start_server ./buildd --name="${SERVER}" --gobin="${GO_BIN}" --goroot="${GO_ROOT}" --veyron.tcp.address=127.0.0.1:0 \
+    || shell_test::fail "line ${LINENO} failed to start server"
 
   # Create and build a test source file.
   local -r GO_PATH=$(shell::tmp_dir)
@@ -46,9 +47,7 @@ EOF
   fi
   local -r GOT=$("${BIN_DIR}/test")
   local -r WANT="Hello World!"
-  if [[ "${GOT}" != "${WANT}" ]]; then
-    shell_test::fail "unexpected result: want '${WANT}', got '${GOT}'"
-  fi
+  shell_test::assert_eq "${GOT}" "${WANT}" "${LINENO}"
 
   shell_test::pass
 }

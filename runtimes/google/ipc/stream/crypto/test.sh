@@ -7,7 +7,7 @@ source "${VEYRON_ROOT}/scripts/lib/shell_test.sh"
 main() {
   local -r DIR="$(dirname $0)"
   local -r OUTFILE="${TMPDIR}/latest.go"
-  "${DIR}/tls_generate_old.sh" "${OUTFILE}"
+  "${DIR}/tls_generate_old.sh" "${OUTFILE}" || shell_test::fail "failed to generate tls_old.go"
   if diff "${OUTFILE}" "${DIR}/tls_old.go"; then
     shell_test::pass
   fi

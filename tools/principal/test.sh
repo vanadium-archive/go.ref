@@ -19,7 +19,10 @@ extractBlessings() {
 }
 
 main() {
+  local GOT WANT
+
   # Build binaries.
+  cd "${WORKDIR}"
   build
 
   # Set VEYRON_CREDENTIALS.
@@ -32,69 +35,65 @@ main() {
   ./principal store.forpeer >/dev/null || shell_test::fail "line ${LINENO}: store.forpeer failed"
 
   # Test print
-  local GOT=$(./principal print alice | extractBlessings)
-  local WANT="alice(0 caveats)"
-  if [ "${GOT}" != "${WANT}" ]; then
-    shell_test::fail "line ${LINENO}: Got ${GOT}, want ${WANT}"
-  fi
-  local GOT=$(./principal blessself bob | ./principal print - | extractBlessings)
-  local WANT="bob(0 caveats)"
-  if [ "${GOT}" != "${WANT}" ]; then
-    shell_test::fail "line ${LINENO}: Got ${GOT}, want ${WANT}"
-  fi
-  local GOT=$(./principal blessself --for=1h bob| ./principal print - | extractBlessings)
-  local WANT="bob(1 caveats)"
-  if [ "${GOT}" != "${WANT}" ]; then
-    shell_test::fail "line ${LINENO}: Got ${GOT}, want ${WANT}"
-  fi
+  GOT=$(./principal print alice | extractBlessings) \
+    || shell_test::fail "line ${LINENO}: failed to run principal"
+  WANT="alice(0 caveats)"
+  shell_test::assert_eq "${GOT}" "${WANT}" "${LINENO}"
+
+  GOT=$(./principal blessself bob | ./principal print - | extractBlessings) \
+    || shell_test::fail "line ${LINENO}: failed to run principal"
+  WANT="bob(0 caveats)"
+  shell_test::assert_eq "${GOT}" "${WANT}" "${LINENO}"
+
+  GOT=$(./principal blessself --for=1h bob| ./principal print - | extractBlessings) \
+    || shell_test::fail "line ${LINENO}: failed to run principal"
+  WANT="bob(1 caveats)"
+  shell_test::assert_eq "${GOT}" "${WANT}" "${LINENO}"
 
   # Test store.default, store.setdefault
   ./principal blessself testFile >f || shell_test::fail "line ${LINENO}: blessself testFile failed"
   ./principal store.setdefault f || shell_test::fail "line ${LINENO}: store.setdefault failed"
-  local GOT=$(./principal store.default | ./principal print - | extractBlessings)
-  local WANT="testFile(0 caveats)"
-  if [ "${GOT}" != "${WANT}" ]; then
-    shell_test::fail "line ${LINENO}: Got ${GOT}, want ${WANT}"
-  fi
+  GOT=$(./principal store.default | ./principal print - | extractBlessings) \
+    || shell_test::fail "line ${LINENO}: failed to run principal"
+  WANT="testFile(0 caveats)"
+  shell_test::assert_eq "${GOT}" "${WANT}" "${LINENO}"
 
   ./principal blessself testStdin | ./principal store.setdefault - || shell_test::fail "line ${LINENO}: blessself testStdin | store.setdefault - failed"
-  local GOT=$(./principal store.default | ./principal print - | extractBlessings)
-  local WANT="testStdin(0 caveats)"
-  if [ "${GOT}" != "${WANT}" ]; then
-    shell_test::fail "line ${LINENO}: Got ${GOT}, want ${WANT}"
-  fi
+  GOT=$(./principal store.default | ./principal print - | extractBlessings) \
+    || shell_test::fail "line ${LINENO}: failed to run principal"
+  WANT="testStdin(0 caveats)"
+  shell_test::assert_eq "${GOT}" "${WANT}" "${LINENO}"
 
   # Test store.forpeer, store.set
   ./principal blessself forAlice >f || shell_test::fail "line ${LINENO}: blessself forAlice failed"
   ./principal store.set f alice/... || shell_test::fail "line ${LINENO}: store.set failed"
-
   ./principal blessself forAll | ./principal store.set - ... || shell_test::fail "line ${LINENO}: blessself forAll | store.set - ... failed"
 
-  local GOT=$(./principal store.forpeer | ./principal print - | extractBlessings)
-  local WANT="forAll(0 caveats)"
-  if [ "${GOT}" != "${WANT}" ]; then
-    shell_test::fail "line ${LINENO}: Got ${GOT}, want ${WANT}"
-  fi
-  local GOT=$(./principal store.forpeer bob | ./principal print - | extractBlessings)
-  local WANT="forAll(0 caveats)"
-  if [ "${GOT}" != "${WANT}" ]; then
-    shell_test::fail "line ${LINENO}: Got ${GOT}, want ${WANT}"
-  fi
-  local GOT=$(./principal store.forpeer alice | ./principal print - | extractBlessings)
-  local WANT="forAlice(0 caveats)#forAll(0 caveats)"
-  if [ "${GOT}" != "${WANT}" ]; then
-    shell_test::fail "line ${LINENO}: Got ${GOT}, want ${WANT}"
-  fi
-  local GOT=$(./principal store.forpeer alice/friend | ./principal print - | extractBlessings)
-  local WANT="forAlice(0 caveats)#forAll(0 caveats)"
-  if [ "${GOT}" != "${WANT}" ]; then
-    shell_test::fail "line ${LINENO}: Got ${GOT}, want ${WANT}"
-  fi
-  local GOT=$(./principal store.forpeer alice/friend bob/spouse | ./principal print - | extractBlessings)
-  local WANT="forAlice(0 caveats)#forAll(0 caveats)"
-  if [ "${GOT}" != "${WANT}" ]; then
-    shell_test::fail "line ${LINENO}: Got ${GOT}, want ${WANT}"
-  fi
+  GOT=$(./principal store.forpeer | ./principal print - | extractBlessings) \
+    || shell_test::fail "line ${LINENO}: failed to run principal"
+  WANT="forAll(0 caveats)"
+  shell_test::assert_eq "${GOT}" "${WANT}" "${LINENO}"
+
+  GOT=$(./principal store.forpeer bob | ./principal print - | extractBlessings) \
+    || shell_test::fail "line ${LINENO}: failed to run principal"
+  WANT="forAll(0 caveats)"
+  shell_test::assert_eq "${GOT}" "${WANT}" "${LINENO}"
+
+  GOT=$(./principal store.forpeer alice | ./principal print - | extractBlessings) \
+    || shell_test::fail "line ${LINENO}: failed to run principal"
+  WANT="forAlice(0 caveats)#forAll(0 caveats)"
+  shell_test::assert_eq "${GOT}" "${WANT}" "${LINENO}"
+
+  GOT=$(./principal store.forpeer alice/friend | ./principal print - | extractBlessings) \
+    || shell_test::fail "line ${LINENO}: failed to run principal"
+  WANT="forAlice(0 caveats)#forAll(0 caveats)"
+  shell_test::assert_eq "${GOT}" "${WANT}" "${LINENO}"
+
+  GOT=$(./principal store.forpeer alice/friend bob/spouse | ./principal print - | extractBlessings) \
+    || shell_test::fail "line ${LINENO}: failed to run principal"
+  WANT="forAlice(0 caveats)#forAll(0 caveats)"
+  shell_test::assert_eq "${GOT}" "${WANT}" "${LINENO}"
+
   shell_test::pass
 }
 

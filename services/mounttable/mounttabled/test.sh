@@ -17,6 +17,8 @@ build() {
 }
 
 main() {
+  local EP GOT NHEP WANT
+
   cd "${TMPDIR}"
   build
 
@@ -24,37 +26,39 @@ main() {
   local -r NHNAME=test-$(hostname)-$$
   local -r MTLOG="${TMPDIR}/mt.log"
 
-  shell::run_server "${shell_test_DEFAULT_SERVER_TIMEOUT}" "${MTLOG}" "${MTLOG}" ./mounttabled --veyron.tcp.address=127.0.0.1:0 -vmodule=publisher=2 --neighborhood_name="${NHNAME}" > "${MTLOG}" &> /dev/null || shell_test::fail "line ${LINENO}: failed to start mounttabled"
-  shell::timed_wait_for "${shell_test_DEFAULT_MESSAGE_TIMEOUT}" "${MTLOG}" "ipc pub: mount" || shell_test::fail "line ${LINENO}: failed to read output"
-
-  local -r EP=$(grep "Mount table service at:" "${MTLOG}" | sed -e 's/^.*endpoint: //')
-  [[ -z "${EP}" ]] && shell_test::fail "line ${LINENO}: no server"
+  shell::run_server "${shell_test_DEFAULT_SERVER_TIMEOUT}" "${MTLOG}" "${MTLOG}" \
+    ./mounttabled --veyron.tcp.address=127.0.0.1:0 -vmodule=publisher=2 --neighborhood_name="${NHNAME}" &> /dev/null \
+    || shell_test::fail "line ${LINENO}: failed to start mounttabled"
+  shell::timed_wait_for "${shell_test_DEFAULT_MESSAGE_TIMEOUT}" "${MTLOG}" "ipc pub: mount" \
+    || shell_test::fail "line ${LINENO}: failed to mount mounttabled"
+  EP=$(grep "Mount table service at:" "${MTLOG}" | sed -e 's/^.*endpoint: //') \
+    || (cat "${MTLOG}"; shell_test::fail "line ${LINENO}: failed to identify endpoint")
 
   # Get the neighborhood endpoint from the mounttable.
-  local -r NHEP=$(./mounttable glob ${EP} nh | grep ^nh | cut -d' ' -f2)
-  [[ -z "${NHEP}" ]] && shell_test::fail "line ${LINENO}: no neighborhood server"
+  NHEP=$(./mounttable glob "${EP}" nh | grep ^nh | cut -d' ' -f2) \
+    || (cat "${MTLOG}"; shell_test::fail "line ${LINENO}: failed to identify neighborhood endpoint")
 
   # Mount objects and verify the result.
-  ./mounttable mount "${EP}/myself" "${EP}" 5m > /dev/null || shell_test::fail "line ${LINENO}: failed to mount the mounttable on itself"
-  ./mounttable mount "${EP}/google" /www.google.com:80 5m > /dev/null || shell_test::fail "line ${LINENO}: failed to mount www.google.com"
+  ./mounttable mount "${EP}/myself" "${EP}" 5m > /dev/null \
+    || shell_test::fail "line ${LINENO}: failed to mount the mounttable on itself"
+  ./mounttable mount "${EP}/google" /www.google.com:80 5m > /dev/null \
+    || shell_test::fail "line ${LINENO}: failed to mount www.google.com"
 
   # <mounttable>.Glob('*')
-  local GOT=$(./mounttable glob "${EP}" '*' | sed 's/TTL [^)]*/TTL XmXXs/' | sort)
-  local WANT="[${EP}]
+  GOT=$(./mounttable glob "${EP}" '*' | sed 's/TTL [^)]*/TTL XmXXs/' | sort) \
+    || shell_test::fail "line ${LINENO}: failed to run mounttable"
+  WANT="[${EP}]
 google /www.google.com:80 (TTL XmXXs)
 myself ${EP} (TTL XmXXs)
 nh ${NHEP} (TTL XmXXs)"
-  if [[ "${GOT}" != "${WANT}" ]]; then
-    shell_test::fail "line ${LINENO}: unexpected output. Got ${GOT}, want ${WANT}"
-  fi
+  shell_test::assert_eq "${GOT}" "${WANT}" "${LINENO}"
 
   # <neighborhood>.Glob('NHNAME')
-  GOT=$(./mounttable glob "${NHEP}" "${NHNAME}" | sed 's/TTL [^)]*/TTL XmXXs/' | sort)
+  GOT=$(./mounttable glob "${NHEP}" "${NHNAME}" | sed 's/TTL [^)]*/TTL XmXXs/' | sort) \
+    || shell_test::fail "line ${LINENO}: failed to run mounttable"
   WANT="[${NHEP}]
 ${NHNAME} ${EP} (TTL XmXXs)"
-  if [[ "${GOT}" != "${WANT}" ]]; then
-    shell_test::fail "line ${LINENO}: unexpected output. Got ${GOT}, want ${WANT}"
-  fi
+  shell_test::assert_eq "${GOT}" "${WANT}" "${LINENO}"
 
   shell_test::pass
 }

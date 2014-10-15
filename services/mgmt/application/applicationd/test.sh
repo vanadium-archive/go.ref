@@ -22,7 +22,8 @@ main() {
   # Start the application repository daemon.
   local -r REPO="applicationd-test-repo"
   local -r STORE=$(shell::tmp_dir)
-  shell_test::start_server ./applicationd --name="${REPO}" --store="${STORE}" --veyron.tcp.address=127.0.0.1:0 || shell_test::fail "line ${LINENO} failed to start server"
+  shell_test::start_server ./applicationd --name="${REPO}" --store="${STORE}" --veyron.tcp.address=127.0.0.1:0 \
+    || shell_test::fail "line ${LINENO} failed to start applicationd"
 
   # Create an application envelope.
   local -r APPLICATION="${REPO}/test-application/v1"
@@ -44,7 +45,8 @@ EOF
   ./application remove "${APPLICATION}" "${PROFILE}" || shell_test::fail "line ${LINENO}: 'remove' failed"
 
   # Check the application envelope no longer exists.
-  ./application match "${APPLICATION}" "${PROFILE}" && "line ${LINENO}: 'match' did not fail when it should"
+  local -r RESULT=$(shell::check_result ./application match "${APPLICATION}" "${PROFILE}")
+  shell_test::assert_ne "${RESULT}" "0" "${LINENO}"
 
   shell_test::pass
 }

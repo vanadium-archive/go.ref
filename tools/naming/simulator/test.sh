@@ -13,9 +13,9 @@ main() {
 
   local -r DIR=$(shell::go_package_dir "${PKG}")
   local file
-  for file in ${DIR}/*.scr; do
-    echo $file
-    ./simulator < $file > /dev/null 2>&1 || shell_test::fail "failed for $file"
+  for file in "${DIR}"/*.scr; do
+    echo "${file}"
+    ./simulator < "${file}" &> /dev/null || shell_test::fail "line ${LINENO}: failed for ${file}"
   done
   shell_test::pass
 }

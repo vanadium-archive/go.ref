@@ -5,7 +5,7 @@
 # This test starts a mounttable server and then runs the debug command against
 # it.
 
-. "${VEYRON_ROOT}/scripts/lib/shell_test.sh"
+source "${VEYRON_ROOT}/scripts/lib/shell_test.sh"
 
 readonly WORKDIR=$(shell::tmp_dir)
 
@@ -21,6 +21,8 @@ dumplogs() {
 }
 
 main() {
+  local GOT WANT
+
   cd "${WORKDIR}"
   build
 
@@ -29,56 +31,44 @@ main() {
   local -r EP="${NAMESPACE_ROOT}"
   unset NAMESPACE_ROOT
 
-  # Test top level glob
+  # Test top level glob.
   local -r DBGLOG="${WORKDIR}/debug.log"
-  local GOT=$(./debug -v=2 glob "${EP}/__debug/*" 2> "${DBGLOG}")
-  local WANT="${EP}/__debug/logs
+  GOT=$(./debug -v=2 glob "${EP}/__debug/*" 2> "${DBGLOG}") \
+    || (dumplogs "${DBGLOG}"; shell_test::fail "line ${LINENO}: failed to run debug")
+  WANT="${EP}/__debug/logs
 ${EP}/__debug/pprof
 ${EP}/__debug/stats"
+  shell_test::assert_eq "${GOT}" "${WANT}" "${LINENO}"
 
-  if [[ "${GOT}" != "${WANT}" ]]; then
-    dumplogs "${DBGLOG}"
-    shell_test::fail "line ${LINENO}: unexpected output. Got ${GOT}, want ${WANT}"
-  fi
+  # Test logs glob.
+  GOT=$(./debug glob "${EP}/__debug/logs/*" 2> "${DBGLOG}" | wc -l) \
+    || (dumplogs "${DBGLOG}"; shell_test::fail "line ${LINENO}: failed to run debug")
+  shell_test::assert_gt "${GOT}" "0" "${LINENO}"
 
-  # Test logs glob
-  local GOT=$(./debug glob "${EP}/__debug/logs/*" 2> "${DBGLOG}" | wc -l)
-  if [[ "${GOT}" == 0 ]]; then
-    dumplogs "${DBGLOG}"
-    shell_test::fail "line ${LINENO}: unexpected output. Got ${GOT}, want >=0"
-  fi
-
-  # Test logs size
+  # Test logs size.
   echo "This is a log file" > "${TMPDIR}/my-test-log-file"
-  local GOT=$(./debug logs size "${EP}/__debug/logs/my-test-log-file" 2> "${DBGLOG}")
+  GOT=$(./debug logs size "${EP}/__debug/logs/my-test-log-file" 2> "${DBGLOG}") \
+    || (dumplogs "${DBGLOG}"; shell_test::fail "line ${LINENO}: failed to run debug")
   WANT=$(echo "This is a log file" | wc -c | tr -d ' ')
-  if [[ "${GOT}" != "${WANT}" ]]; then
-    dumplogs "${DBGLOG}"
-    shell_test::fail "line ${LINENO}: unexpected output. Got ${GOT}, want ${WANT}"
-  fi
+  shell_test::assert_eq "${GOT}" "${WANT}" "${LINENO}"
 
-  # Test logs read
-  local GOT=$(./debug logs read "${EP}/__debug/logs/my-test-log-file" 2> "${DBGLOG}")
+  # Test logs read.
+  GOT=$(./debug logs read "${EP}/__debug/logs/my-test-log-file" 2> "${DBGLOG}") \
+    || (dumplogs "${DBGLOG}"; shell_test::fail "line ${LINENO}: failed to run debug")
   WANT="This is a log file"
-  if [[ "${GOT}" != "${WANT}" ]]; then
-    dumplogs "${DBGLOG}"
-    shell_test::fail "line ${LINENO}: unexpected output. Got ${GOT}, want ${WANT}"
-  fi
+  shell_test::assert_eq "${GOT}" "${WANT}" "${LINENO}"
 
-  # Test stats watchglob
+  # Test stats watchglob.
   local TMP=$(shell::tmp_file)
   touch "${TMP}"
-  local -r DEBUG_PID=$(shell::run_server "${shell_test_DEFAULT_SERVER_TIMEOUT}" "${TMP}" "${DBGLOG}" ./debug stats watchglob -raw "${EP}/__debug/stats/ipc/server/*/ReadLog/latency-ms")
+  local -r DEBUG_PID=$(shell::run_server "${shell_test_DEFAULT_SERVER_TIMEOUT}" "${TMP}" "${DBGLOG}" \
+    ./debug stats watchglob -raw "${EP}/__debug/stats/ipc/server/*/ReadLog/latency-ms")
   shell::timed_wait_for "${shell_test_DEFAULT_MESSAGE_TIMEOUT}" "${TMP}" "ReadLog/latency-ms"
   kill "${DEBUG_PID}"
-  local GOT=$(grep "Count:1 " "${TMP}")
-  if [[ -z "${GOT}" ]]; then
-    dumplogs "${DBGLOG}"
-    shell_test::fail "line ${LINENO}: unexpected empty output."
-  fi
+  grep "Count:1 " "${TMP}" || (dumplogs "${TMP}"; shell_test::fail "line ${LINENO}: failed to find expected output")
 
-  # Test pprof
-  if ! ./debug pprof run "${EP}/__debug/pprof" heap --text > "${DBGLOG}" 2>&1; then
+  # Test pprof.
+  if ! ./debug pprof run "${EP}/__debug/pprof" heap --text &> "${DBGLOG}"; then
     dumplogs "${DBGLOG}"
     shell_test::fail "line ${LINENO}: unexpected failure."
   fi

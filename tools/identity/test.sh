@@ -9,6 +9,9 @@
 source "${VEYRON_ROOT}/scripts/lib/shell_test.sh"
 
 main() {
+  local GOT
+  local WANT
+
   # Build binaries.
   cd "${TMPDIR}"
   veyron go build veyron.io/veyron/veyron/tools/identity || shell_test::fail "line ${LINENO}: failed to build identity"
@@ -20,19 +23,17 @@ main() {
   export VEYRON_IDENTITY="root"
 
   # Generate an identity and get it blessed by root using "identity bless"
-  local GOT=$(./identity generate ignoreme | ./identity bless - child | ./identity print - | awk '/Name/ {print $3}')
-  local WANT="root/child"
-  if [ "${GOT}" != "${WANT}" ]; then
-    shell_test::fail "line ${LINENO}: Got ${GOT}, want ${WANT}"
-  fi
+  GOT=$(./identity generate ignoreme | ./identity bless - child | ./identity print - | awk '/Name/ {print $3}') \
+    || shell_test::fail "line ${LINENO}: failed to run identity"
+  WANT="root/child"
+  shell_test::assert_eq "${GOT}" "${WANT}" "${LINENO}"
 
   # Generate an identity and get it blessed by root using "identity bless --with"
   ./identity generate other >other || shell_test::fail
-  GOT=$(./identity generate ignoreme | ./identity bless --with=other - child | ./identity print - | awk '/Name/ {print $3}')
+  GOT=$(./identity generate ignoreme | ./identity bless --with=other - child | ./identity print - | awk '/Name/ {print $3}') \
+    || shell_test::fail "line ${LINENO}: failed to run identity"
   WANT="unknown/other/child"
-  if [ "${GOT}" != "${WANT}" ]; then
-    shell_test::fail "line ${LINENO}: Got ${GOT}, want ${WANT}"
-  fi
+  shell_test::assert_eq "${GOT}" "${WANT}" "${LINENO}"
 
   # Test that previously generated identities can be interpreted
   # (i.e., any changes to the Certificate or Signature scheme are backward compatible).
@@ -40,16 +41,16 @@ main() {
   # identity generate "root" >testdata/root.id
   # identity generate "other" | VEYRON_IDENTITY=testdata/root.id identity bless - "blessed" >testdata/blessed.id
   local -r TESTDATA_DIR="${VEYRON_ROOT}/veyron/go/src/veyron.io/veyron/veyron/tools/identity/testdata"
-  GOT=$(VEYRON_IDENTITY="${TESTDATA_DIR}/root.id" ./identity print | awk '/Name/ {print $3}')
+  GOT=$(VEYRON_IDENTITY="${TESTDATA_DIR}/root.id" ./identity print | awk '/Name/ {print $3}') \
+    || shell_test::fail "line ${LINENO}: failed to run identity"
   WANT="root"
-  if [ "${GOT}" != "${WANT}" ]; then
-    shell_test::fail "line ${LINENO}: Got '${GOT}' from previously generated root.id, want '${WANT}'"
-  fi
-  GOT=$(VEYRON_IDENTITY="${TESTDATA_DIR}/root.id" ./identity print "${TESTDATA_DIR}/blessed.id" | awk '/Name/ {print $3}')
+  shell_test::assert_eq "${GOT}" "${WANT}" "${LINENO}"
+
+  GOT=$(VEYRON_IDENTITY="${TESTDATA_DIR}/root.id" ./identity print "${TESTDATA_DIR}/blessed.id" | awk '/Name/ {print $3}') \
+    || shell_test::fail "line ${LINENO}: failed to run identity"
   WANT="root/blessed"
-  if [ "${GOT}" != "${WANT}" ]; then
-    shell_test::fail "line ${LINENO}: Got '${GOT}' from previously generated blessed.id, want '${WANT}'"
-  fi
+  shell_test::assert_eq "${GOT}" "${WANT}" "${LINENO}"
+
   shell_test::pass
 }
 
