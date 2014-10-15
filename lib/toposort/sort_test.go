@@ -72,7 +72,7 @@ func TestSortDag(t *testing.T) {
 	// |    \
 	// |     `-->E--.
 	// `-------------`-->F
-	var sorter topoSort
+	var sorter Sorter
 	sorter.AddEdge("A", "B")
 	sorter.AddEdge("A", "C")
 	sorter.AddEdge("A", "F")
@@ -99,7 +99,7 @@ func TestSortSelfCycle(t *testing.T) {
 	// ,---.
 	// |   |
 	// A<--'
-	var sorter topoSort
+	var sorter Sorter
 	sorter.AddEdge("A", "A")
 	sorted, cycles := sorter.Sort()
 	oc := makeOrderChecker(t, sorted)
@@ -112,7 +112,7 @@ func TestSortCycle(t *testing.T) {
 	// ,-->B-->C
 	// |       |
 	// A<------'
-	var sorter topoSort
+	var sorter Sorter
 	sorter.AddEdge("A", "B")
 	sorter.AddEdge("B", "C")
 	sorter.AddEdge("C", "A")
@@ -131,7 +131,7 @@ func TestSortContainsCycle1(t *testing.T) {
 	// |    \
 	// |     `-->E--.
 	// `-------------`-->F
-	var sorter topoSort
+	var sorter Sorter
 	sorter.AddEdge("A", "B")
 	sorter.AddEdge("A", "C")
 	sorter.AddEdge("A", "F")
@@ -163,7 +163,7 @@ func TestSortContainsCycle2(t *testing.T) {
 	// |    \            |
 	// |     `-->E--.    |
 	// `-------------`-->F
-	var sorter topoSort
+	var sorter Sorter
 	sorter.AddEdge("A", "B")
 	sorter.AddEdge("A", "C")
 	sorter.AddEdge("A", "F")
@@ -195,7 +195,7 @@ func TestSortMultiCycles(t *testing.T) {
 	// |  |         |  |   |
 	// |  `---------'  |   |
 	// `---------------`-->F
-	var sorter topoSort
+	var sorter Sorter
 	sorter.AddEdge("A", "B")
 	sorter.AddEdge("A", "C")
 	sorter.AddEdge("A", "F")
