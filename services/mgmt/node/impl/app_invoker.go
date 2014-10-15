@@ -105,6 +105,7 @@ import (
 	"veyron.io/veyron/veyron2/services/mgmt/application"
 	"veyron.io/veyron/veyron2/services/mounttable"
 	"veyron.io/veyron/veyron2/services/mounttable/types"
+	"veyron.io/veyron/veyron2/verror"
 	"veyron.io/veyron/veyron2/vlog"
 
 	vexec "veyron.io/veyron/veyron/lib/exec"
@@ -153,6 +154,7 @@ type appInvoker struct {
 	// suffix.  It is used to identify an application, installation, or
 	// instance.
 	suffix []string
+	uat    systemNameIdentityAssociation
 }
 
 func saveEnvelope(dir string, envelope *application.Envelope) error {
@@ -387,9 +389,52 @@ func (i *appInvoker) newInstance() (string, string, error) {
 	return instanceDir, instanceID, nil
 }
 
+// isSetuid is defined like this so we can override its
+// implementation for tests.
+var isSetuid = func(fileStat os.FileInfo) bool {
+	vlog.VI(2).Infof("running the original isSetuid")
+	return fileStat.Mode()&os.ModeSetuid == os.ModeSetuid
+}
+
+// systemAccountForHelper returns the uname that the helper uses to invoke the
+// application. If the helper exists and is setuid, the node manager
+// requires that there is a uname associated with the Veyron
+// identity that requested starting an application.
+// TODO(rjkroege): This function assumes a desktop installation target
+// and is probably not a good fit in other contexts. Revisit the design
+// as appropriate. This function also internalizes a decision as to when
+// it is possible to start an application that needs to be made explicit.
+func systemAccountForHelper(helperStat os.FileInfo, identityNames []string, uat systemNameIdentityAssociation) (systemName string, err error) {
+	haveHelper := isSetuid(helperStat)
+	systemName, present := uat.associatedSystemAccount(identityNames)
+
+	switch {
+	case haveHelper && present:
+		return systemName, nil
+	case haveHelper && !present:
+		// The helper is owned by the node manager and installed as setuid root.
+		// Therefore, the node manager must never run an app as itself to
+		// prevent an app trivially granting itself root permissions.
+		// There must be an associated uname for the account in this case.
+		return "", verror.NoAccessf("use of setuid helper requires an associated uname.")
+	case !haveHelper:
+		// When the helper is not setuid, the helper can't change the
+		// app's uid so just run the app as the node manager's uname
+		// whether or not there is an association.
+		vlog.VI(1).Infof("helper not setuid. Node manager will invoke app with its own userid")
+		user, err := user.Current()
+		if err != nil {
+			vlog.Errorf("user.Current() failed: %v", err)
+			return "", errOperationFailed
+		}
+		return user.Username, nil
+	}
+	return "", errOperationFailed
+}
+
 // TODO(rjkroege): Turning on the setuid feature of the suidhelper
 // requires an installer with root permissions to install it in <config.Root>/helper
-func genCmd(instanceDir string, helperPath string) (*exec.Cmd, error) {
+func genCmd(instanceDir string, helperPath string, uat systemNameIdentityAssociation, identityNames []string) (*exec.Cmd, error) {
 	versionLink := filepath.Join(instanceDir, "version")
 	versionDir, err := filepath.EvalSymlinks(versionLink)
 	if err != nil {
@@ -414,18 +459,11 @@ func genCmd(instanceDir string, helperPath string) (*exec.Cmd, error) {
 	cmd := exec.Command(helperPath)
 
 	cmd.Args = append(cmd.Args, "--username")
-	if helperStat.Mode()&os.ModeSetuid == 0 {
-		vlog.Errorf("helper not setuid. Node manager will invoke app with its own userid")
-		user, err := user.Current()
-		if err != nil {
-			vlog.Errorf("user.Current() failed: %v", err)
-			return nil, errOperationFailed
-		}
-		cmd.Args = append(cmd.Args, user.Username)
-	} else {
-		// TODO(rjkroege): Use the username associated with the veyron identity.
-		return nil, errOperationFailed
+	uname, err := systemAccountForHelper(helperStat, identityNames, uat)
+	if err != nil {
+		return nil, err
 	}
+	cmd.Args = append(cmd.Args, uname)
 
 	// TODO(caprita): Also pass in configuration info like NAMESPACE_ROOT to
 	// the app (to point to the device mounttable).
@@ -510,11 +548,11 @@ func (i *appInvoker) startCmd(instanceDir string, cmd *exec.Cmd) error {
 	return nil
 }
 
-func (i *appInvoker) run(instanceDir string) error {
+func (i *appInvoker) run(instanceDir string, blessings []string) error {
 	if err := transitionInstance(instanceDir, suspended, starting); err != nil {
 		return err
 	}
-	cmd, err := genCmd(instanceDir, filepath.Join(i.config.Root, "helper"))
+	cmd, err := genCmd(instanceDir, filepath.Join(i.config.Root, "helper"), i.uat, blessings)
 	if err == nil {
 		err = i.startCmd(instanceDir, cmd)
 	}
@@ -525,10 +563,10 @@ func (i *appInvoker) run(instanceDir string) error {
 	return transitionInstance(instanceDir, starting, started)
 }
 
-func (i *appInvoker) Start(ipc.ServerContext) ([]string, error) {
+func (i *appInvoker) Start(call ipc.ServerContext) ([]string, error) {
 	instanceDir, instanceID, err := i.newInstance()
 	if err == nil {
-		err = i.run(instanceDir)
+		err = i.run(instanceDir, call.RemoteBlessings().ForContext(call))
 	}
 	if err != nil {
 		cleanupDir(instanceDir)
@@ -551,12 +589,13 @@ func (i *appInvoker) instanceDir() (string, error) {
 	return instanceDir, nil
 }
 
-func (i *appInvoker) Resume(ipc.ServerContext) error {
+// TODO(rjkroege): Only the original invoking identity may resume an application.
+func (i *appInvoker) Resume(call ipc.ServerContext) error {
 	instanceDir, err := i.instanceDir()
 	if err != nil {
 		return err
 	}
-	return i.run(instanceDir)
+	return i.run(instanceDir, call.RemoteBlessings().ForContext(call))
 }
 
 func stopAppRemotely(appVON string) error {

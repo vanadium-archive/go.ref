@@ -49,6 +49,7 @@ import (
 
 	vexec "veyron.io/veyron/veyron/lib/exec"
 	"veyron.io/veyron/veyron/lib/glob"
+	"veyron.io/veyron/veyron/lib/netstate"
 	"veyron.io/veyron/veyron/services/mgmt/node/config"
 	"veyron.io/veyron/veyron/services/mgmt/profile"
 )
@@ -88,6 +89,7 @@ type nodeInvoker struct {
 	callback *callbackState
 	config   *config.State
 	disp     *dispatcher
+	uat      systemNameIdentityAssociation
 }
 
 func (i *nodeInvoker) Claim(call ipc.ServerContext) error {
@@ -399,4 +401,40 @@ func (i *nodeInvoker) Glob(ctx ipc.ServerContext, pattern string, stream mountta
 		return stream.SendStream().Send(types.MountEntry{Name: ""})
 	}
 	return nil
+}
+
+func sameMachineCheck(call ipc.ServerContext) error {
+	switch local, err := netstate.SameMachine(call.RemoteEndpoint().Addr()); {
+	case err != nil:
+		return err
+	case local == false:
+		vlog.Errorf("SameMachine() indicates that endpoint is not on the same node")
+		return errOperationFailed
+	}
+	return nil
+}
+
+// TODO(rjkroege): Make it possible for users on the same system to also
+// associate their accounts with their identities.
+func (i *nodeInvoker) AssociateAccount(call ipc.ServerContext, identityNames []string, accountName string) error {
+	if err := sameMachineCheck(call); err != nil {
+		return err
+	}
+
+	if accountName == "" {
+		return i.uat.deleteAssociations(identityNames)
+	} else {
+		// TODO(rjkroege): Optionally verify here that the required uname is a valid.
+		return i.uat.addAssociations(identityNames, accountName)
+	}
+}
+
+func (i *nodeInvoker) ListAssociations(call ipc.ServerContext) (associations []node.Association, err error) {
+	// Temporary code. Dump this.
+	vlog.VI(2).Infof("ListAssociations given blessings: %v\n", call.RemoteBlessings().ForContext(call))
+
+	if err := sameMachineCheck(call); err != nil {
+		return nil, err
+	}
+	return i.uat.getAssociations()
 }

@@ -180,6 +180,14 @@ func revertNode(t *testing.T, name string) {
 // The following set of functions are convenience wrappers around various app
 // management methods.
 
+func ort(opt []veyron2.Runtime) veyron2.Runtime {
+	if len(opt) > 0 {
+		return opt[0]
+	} else {
+		return rt.R()
+	}
+}
+
 func appStub(t *testing.T, nameComponents ...string) node.Application {
 	appsName := "nm//apps"
 	appName := naming.Join(append([]string{appsName}, nameComponents...)...)
@@ -190,16 +198,16 @@ func appStub(t *testing.T, nameComponents ...string) node.Application {
 	return stub
 }
 
-func installApp(t *testing.T) string {
-	appID, err := appStub(t).Install(rt.R().NewContext(), "ar")
+func installApp(t *testing.T, opt ...veyron2.Runtime) string {
+	appID, err := appStub(t).Install(ort(opt).NewContext(), "ar")
 	if err != nil {
 		t.Fatalf("Install failed: %v", err)
 	}
 	return appID
 }
 
-func startAppImpl(t *testing.T, appID string) (string, error) {
-	if instanceIDs, err := appStub(t, appID).Start(rt.R().NewContext()); err != nil {
+func startAppImpl(t *testing.T, appID string, opt []veyron2.Runtime) (string, error) {
+	if instanceIDs, err := appStub(t, appID).Start(ort(opt).NewContext()); err != nil {
 		return "", err
 	} else {
 		if want, got := 1, len(instanceIDs); want != got {
@@ -209,40 +217,40 @@ func startAppImpl(t *testing.T, appID string) (string, error) {
 	}
 }
 
-func startApp(t *testing.T, appID string) string {
-	instanceID, err := startAppImpl(t, appID)
+func startApp(t *testing.T, appID string, opt ...veyron2.Runtime) string {
+	instanceID, err := startAppImpl(t, appID, opt)
 	if err != nil {
 		t.Fatalf("Start(%v) failed: %v", appID, err)
 	}
 	return instanceID
 }
 
-func startAppExpectError(t *testing.T, appID string, expectedError verror.ID) {
-	if _, err := startAppImpl(t, appID); err == nil || !verror.Is(err, expectedError) {
+func startAppExpectError(t *testing.T, appID string, expectedError verror.ID, opt ...veyron2.Runtime) {
+	if _, err := startAppImpl(t, appID, opt); err == nil || !verror.Is(err, expectedError) {
 		t.Fatalf("Start(%v) expected to fail with %v, got %v instead", appID, expectedError, err)
 	}
 }
 
-func stopApp(t *testing.T, appID, instanceID string) {
-	if err := appStub(t, appID, instanceID).Stop(rt.R().NewContext(), 5); err != nil {
+func stopApp(t *testing.T, appID, instanceID string, opt ...veyron2.Runtime) {
+	if err := appStub(t, appID, instanceID).Stop(ort(opt).NewContext(), 5); err != nil {
 		t.Fatalf("Stop(%v/%v) failed: %v", appID, instanceID, err)
 	}
 }
 
-func suspendApp(t *testing.T, appID, instanceID string) {
-	if err := appStub(t, appID, instanceID).Suspend(rt.R().NewContext()); err != nil {
+func suspendApp(t *testing.T, appID, instanceID string, opt ...veyron2.Runtime) {
+	if err := appStub(t, appID, instanceID).Suspend(ort(opt).NewContext()); err != nil {
 		t.Fatalf("Suspend(%v/%v) failed: %v", appID, instanceID, err)
 	}
 }
 
-func resumeApp(t *testing.T, appID, instanceID string) {
-	if err := appStub(t, appID, instanceID).Resume(rt.R().NewContext()); err != nil {
+func resumeApp(t *testing.T, appID, instanceID string, opt ...veyron2.Runtime) {
+	if err := appStub(t, appID, instanceID).Resume(ort(opt).NewContext()); err != nil {
 		t.Fatalf("Resume(%v/%v) failed: %v", appID, instanceID, err)
 	}
 }
 
-func updateApp(t *testing.T, appID string) {
-	if err := appStub(t, appID).Update(rt.R().NewContext()); err != nil {
+func updateApp(t *testing.T, appID string, opt ...veyron2.Runtime) {
+	if err := appStub(t, appID).Update(ort(opt).NewContext()); err != nil {
 		t.Fatalf("Update(%v) failed: %v", appID, err)
 	}
 }
