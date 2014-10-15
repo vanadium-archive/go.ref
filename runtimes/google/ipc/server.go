@@ -384,12 +384,17 @@ func (s *server) proxyListenLoop(ln stream.Listener, iep *inaming.Endpoint, prox
 		// (2) Reconnect to the proxy unless the server has been stopped
 		backoff := min
 		ln = nil
+		// TODO(ashankar,cnicolaou): this code is way too confusing and should
+		// be cleaned up.
 		for ln == nil {
 			select {
 			case <-time.After(backoff):
 				resolved, err := s.resolveToAddress(proxy)
 				if err != nil {
 					vlog.VI(1).Infof("Failed to resolve proxy %q (%v), will retry in %v", proxy, err, backoff)
+					if backoff = backoff * 2; backoff > max {
+						backoff = max
+					}
 					break
 				}
 				var ep naming.Endpoint
