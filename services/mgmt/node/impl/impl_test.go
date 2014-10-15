@@ -1284,8 +1284,9 @@ func TestAppWithSuidHelper(t *testing.T) {
 		t.Fatalf("AssociateAccount failed %v", err)
 	}
 
-	startApp(t, appID, selfRT)
+	instance1ID := startApp(t, appID, selfRT)
 	verifyHelperArgs(t, <-pingCh, testUserName) // Wait until the app pings us that it's ready.
+	stopApp(t, appID, instance1ID, selfRT)
 
 	vlog.VI(2).Infof("other attempting to run an app without access. Should fail.")
 	startAppExpectError(t, appID, verror.NoAccess, otherRT)
@@ -1301,8 +1302,7 @@ func TestAppWithSuidHelper(t *testing.T) {
 	}
 
 	vlog.VI(2).Infof("other attempting to run an app with access. Should succeed.")
-	startApp(t, appID, otherRT)
+	instance2ID := startApp(t, appID, otherRT)
 	verifyHelperArgs(t, <-pingCh, testUserName) // Wait until the app pings us that it's ready.
-
-	// TODO(rjkroege): Make sure that all apps have been terminated.
+	stopApp(t, appID, instance2ID, otherRT)
 }
