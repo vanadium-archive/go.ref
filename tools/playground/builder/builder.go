@@ -51,6 +51,9 @@ var (
 // Type of data sent to the builder on stdin.  Input should contain Files.  We
 // look for a file whose Name ends with .id, and parse that into Identities.
 //
+// TODO(nlacasse): Update the identity parsing and usage to the new identity
+// APIs.
+//
 // TODO(ribrdb): Consider moving identity parsing into the http server.
 type request struct {
 	Files      []*codeFile
