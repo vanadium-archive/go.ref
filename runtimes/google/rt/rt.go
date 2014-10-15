@@ -61,6 +61,8 @@ func New(opts ...veyron2.ROpt) (veyron2.Runtime, error) {
 	nsRoots := []string{}
 	for _, o := range opts {
 		switch v := o.(type) {
+		case veyron2.RuntimePrincipal:
+			rt.principal = v.Principal
 		case veyron2.RuntimeIDOpt:
 			rt.id = v.PrivateID
 		case veyron2.RuntimePublicIDStoreOpt:

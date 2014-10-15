@@ -20,6 +20,7 @@ import (
 	"veyron.io/veyron/veyron/lib/modules"
 	_ "veyron.io/veyron/veyron/lib/testutil"
 	irt "veyron.io/veyron/veyron/runtimes/google/rt"
+	vsecurity "veyron.io/veyron/veyron/security"
 )
 
 type context struct {
@@ -157,5 +158,21 @@ func TestInitPrincipal(t *testing.T) {
 	// from the same credentials directory.
 	if got := newRT().Principal(); !reflect.DeepEqual(got, p) {
 		t.Fatalf("Initialized Principal: %v, expected: %v", got.PublicKey(), p.PublicKey())
+	}
+}
+
+func TestInitPrincipalFromOption(t *testing.T) {
+	p, err := vsecurity.NewPrincipal()
+	if err != nil {
+		t.Fatalf("NewPrincipal() failed: %v", err)
+	}
+
+	r, err := rt.New(veyron2.RuntimePrincipal{p})
+	if err != nil {
+		t.Fatalf("rt.New failed: %v", err)
+	}
+
+	if got := r.Principal(); !reflect.DeepEqual(got, p) {
+		t.Fatalf("r.Principal(): got %v, want %v", got, p)
 	}
 }

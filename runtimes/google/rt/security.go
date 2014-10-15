@@ -49,6 +49,9 @@ func (rt *vrt) initSecurity() error {
 }
 
 func (rt *vrt) initPrincipal() error {
+	if rt.principal != nil {
+		return nil
+	}
 	// TODO(ataly, ashankar): Check if agent environment variables are
 	// specified and if so initialize principal from agent.
 	var err error
