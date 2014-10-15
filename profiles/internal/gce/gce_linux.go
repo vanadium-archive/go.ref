@@ -1,4 +1,4 @@
-// +build linux
+// +build linux,!android
 
 // Package gce functions to test whether the current process is running on
 // Google Compute Engine, and to extract settings from this environment.
