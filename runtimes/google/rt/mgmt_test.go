@@ -282,9 +282,10 @@ func setupRemoteAppCycleMgr(t *testing.T) (veyron2.Runtime, modules.Handle, appc
 	// the one being used.
 	r, _ := rt.New(veyron2.RuntimeOpt{veyron2.GoogleRuntimeName}, veyron2.ForceNewSecurityModel{})
 
+	childcreds := security.NewVeyronCredentials(r.Principal(), appCmd)
 	configServer, configServiceName, ch := createConfigServer(t, r)
 	sh := modules.NewShell(appCmd)
-	sh.SetVar("VEYRON_CREDENTIALS", security.NewVeyronCredentials(r.Principal(), appCmd))
+	sh.SetVar("VEYRON_CREDENTIALS", childcreds)
 	sh.SetVar(mgmt.ParentNodeManagerConfigKey, configServiceName)
 	h, err := sh.Start("app")
 	if err != nil {
@@ -299,6 +300,7 @@ func setupRemoteAppCycleMgr(t *testing.T) (veyron2.Runtime, modules.Handle, appc
 	return r, h, appCycle, func() {
 		configServer.Stop()
 		sh.Cleanup(os.Stderr, os.Stderr)
+		os.RemoveAll(childcreds)
 		// Don't do r.Cleanup() since the runtime needs to be used by
 		// more than one test case.
 	}
