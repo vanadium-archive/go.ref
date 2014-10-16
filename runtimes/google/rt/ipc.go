@@ -153,8 +153,6 @@ func (rt *vrt) NewServer(opts ...ipc.ServerOpt) (ipc.Server, error) {
 			return nil, fmt.Errorf("failed to create ipc/stream/Manager: %v", err)
 		}
 	}
-	// Start the http debug server exactly once for this runtime.
-	rt.startHTTPDebugServerOnce()
 	ns := rt.ns
 	var id security.PublicID
 	var otherOpts []ipc.ServerOpt
@@ -181,12 +179,10 @@ func (rt *vrt) NewStreamManager(opts ...stream.ManagerOpt) (stream.Manager, erro
 		return nil, err
 	}
 	sm := imanager.InternalNew(rid)
-	rt.debug.RegisterStreamManager(rid, sm)
 	rt.mu.Lock()
 	defer rt.mu.Unlock()
 	if rt.cleaningUp {
 		sm.Shutdown() // For whatever it's worth.
-		// TODO(caprita): Should we also unregister sm from debug?
 		return nil, errCleaningUp
 	}
 	rt.sm = append(rt.sm, sm)

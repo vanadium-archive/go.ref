@@ -316,6 +316,50 @@ func TestMap(t *testing.T) {
 	}
 }
 
+func TestFunc(t *testing.T) {
+	libstats.NewIntegerFunc("testing/integer", func() int64 { return 123 })
+	libstats.NewFloatFunc("testing/float", func() float64 { return 456.789 })
+	libstats.NewStringFunc("testing/string", func() string { return "Hello World" })
+	ch := make(chan int64, 5)
+	libstats.NewIntegerFunc("testing/slowint", func() int64 {
+		return <-ch
+	})
+
+	testcases := []struct {
+		name     string
+		expected interface{}
+	}{
+		{"testing/integer", int64(123)},
+		{"testing/float", float64(456.789)},
+		{"testing/string", "Hello World"},
+		{"testing/slowint", nil}, // Times out
+	}
+	for _, tc := range testcases {
+		checkVariable(t, tc.name, tc.expected)
+	}
+	checkVariable(t, "testing/slowint", nil) // Times out
+	checkVariable(t, "testing/slowint", nil) // Times out
+	ch <- int64(0)
+	checkVariable(t, "testing/slowint", int64(0)) // New value
+	checkVariable(t, "testing/slowint", int64(0)) // Times out
+	for i := 1; i <= 5; i++ {
+		ch <- int64(i)
+	}
+	for i := 1; i <= 5; i++ {
+		checkVariable(t, "testing/slowint", int64(i)) // New value each time
+	}
+}
+
+func checkVariable(t *testing.T, name string, expected interface{}) {
+	got, err := libstats.Value(name)
+	if err != nil {
+		t.Errorf("unexpected error for %q: %v", name, err)
+	}
+	if got != expected {
+		t.Errorf("unexpected result for %q. Got %v, want %v", name, got, expected)
+	}
+}
+
 func TestDelete(t *testing.T) {
 	_ = libstats.NewInteger("a/b/c/d")
 	if _, err := libstats.GetStatsObject("a/b/c/d"); err != nil {

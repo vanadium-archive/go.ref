@@ -40,7 +40,6 @@ type vrt struct {
 	store      security.PublicIDStore
 	client     ipc.Client
 	mgmt       *mgmtImpl
-	debug      debugServer
 	nServers   int  // GUARDED_BY(mu)
 	cleaningUp bool // GUARDED_BY(mu)
 
@@ -58,7 +57,6 @@ var _ veyron2.Runtime = (*vrt)(nil)
 func New(opts ...veyron2.ROpt) (veyron2.Runtime, error) {
 	rt := &vrt{mgmt: new(mgmtImpl), lang: i18n.LangIDFromEnv(), program: filepath.Base(os.Args[0])}
 	flag.Parse()
-	rt.initHTTPDebugServer()
 	nsRoots := []string{}
 	for _, o := range opts {
 		switch v := o.(type) {
@@ -70,8 +68,6 @@ func New(opts ...veyron2.ROpt) (veyron2.Runtime, error) {
 			rt.profile = v.Profile
 		case options.NamespaceRoots:
 			nsRoots = v
-		case options.HTTPDebug:
-			rt.debug.addr = string(v)
 		case options.RuntimeName:
 			if v != "google" && v != "" {
 				return nil, fmt.Errorf("%q is the wrong name for this runtime", v)

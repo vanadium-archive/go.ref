@@ -8,6 +8,7 @@ import (
 	"strings"
 	"sync"
 
+	"veyron.io/veyron/veyron/lib/stats"
 	"veyron.io/veyron/veyron/runtimes/google/ipc/stream/crypto"
 	"veyron.io/veyron/veyron/runtimes/google/ipc/stream/vif"
 	"veyron.io/veyron/veyron/runtimes/google/ipc/version"
@@ -28,12 +29,15 @@ var errShutDown = errors.New("manager has been shut down")
 // placed inside veyron/runtimes/google. Code outside the
 // veyron/runtimes/google/* packages should never call this method.
 func InternalNew(rid naming.RoutingID) stream.Manager {
-	return &manager{
+	m := &manager{
 		rid:          rid,
 		vifs:         vif.NewSet(),
 		sessionCache: crypto.NewTLSClientSessionCache(),
 		listeners:    make(map[listener]bool),
+		statsName:    naming.Join("ipc", "stream", "routing-id", rid.String(), "debug"),
 	}
+	stats.NewStringFunc(m.statsName, m.DebugString)
+	return m
 }
 
 type manager struct {
@@ -44,6 +48,8 @@ type manager struct {
 	muListeners sync.Mutex
 	listeners   map[listener]bool // GUARDED_BY(muListeners)
 	shutdown    bool              // GUARDED_BY(muListeners)
+
+	statsName string
 }
 
 var _ stream.Manager = (*manager)(nil)
@@ -193,6 +199,7 @@ func (m *manager) removeListener(ln listener) {
 }
 
 func (m *manager) Shutdown() {
+	stats.Delete(m.statsName)
 	m.muListeners.Lock()
 	if m.shutdown {
 		m.muListeners.Unlock()
