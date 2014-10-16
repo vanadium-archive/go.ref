@@ -37,21 +37,21 @@ main() {
   ./profile label "${PROFILE}" | tee "${OUTPUT}" || shell_test::fail "line ${LINENO}: 'label' failed"
   GOT=$(cat "${OUTPUT}")
   WANT="example"
-  shell_test::assert_eq "${GOT}" "example" "${LINENO}"
+  shell_test::assert_eq "${GOT}" "${WANT}" "${LINENO}"
 
   # Retrieve the profile description.
   OUTPUT=$(shell::tmp_file)
   ./profile description "${PROFILE}" | tee "${OUTPUT}" || shell_test::fail "line ${LINENO}: 'description' failed"
   GOT=$(cat "${OUTPUT}")
   WANT="Example profile to test the profile manager implementation."
-  shell_test::assert_eq "${GOT}" "example" "${LINENO}"
+  shell_test::assert_eq "${GOT}" "${WANT}" "${LINENO}"
 
   # Retrieve the profile specification.
   OUTPUT=$(shell::tmp_file)
   ./profile spec "${PROFILE}" | tee "${OUTPUT}" || shell_test::fail "line ${LINENO}: 'spec' failed"
   GOT=$(cat "${OUTPUT}")
   WANT='profile.Specification{Arch:"amd64", Description:"Example profile to test the profile manager implementation.", Format:"ELF", Libraries:map[profile.Library]struct {}{profile.Library{Name:"foo", MajorVersion:"1", MinorVersion:"0"}:struct {}{}}, Label:"example", OS:"linux"}'
-  shell_test::assert_eq "${GOT}" "example" "${LINENO}"
+  shell_test::assert_eq "${GOT}" "${WANT}" "${LINENO}"
 
   # Remove the profile.
   ./profile remove "${PROFILE}" || shell_test::fail "line ${LINENO}: 'remove' failed"
