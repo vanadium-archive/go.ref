@@ -7,9 +7,9 @@ import (
 	"reflect"
 	"testing"
 
-	"veyron.io/veyron/veyron2"
 	"veyron.io/veyron/veyron2/ipc"
 	"veyron.io/veyron/veyron2/naming"
+	"veyron.io/veyron/veyron2/options"
 	"veyron.io/veyron/veyron2/rt"
 	"veyron.io/veyron/veyron2/security"
 	"veyron.io/veyron/veyron2/vdl/vdlutil"
@@ -92,7 +92,7 @@ func (s simpleAdder) Signature(call ipc.ServerCall) (ipc.ServiceSignature, error
 
 func startAnyServer(servesMT bool, dispatcher ipc.Dispatcher) (ipc.Server, naming.Endpoint, error) {
 	// Create a new server instance.
-	s, err := r.NewServer(veyron2.ServesMountTableOpt(servesMT))
+	s, err := r.NewServer(options.ServesMountTable(servesMT))
 	if err != nil {
 		return nil, nil, err
 	}
@@ -313,7 +313,7 @@ func serveServer() (*runningTest, error) {
 	}
 	spec := *profiles.LocalListenSpec
 	spec.Proxy = "/" + proxyEndpoint
-	controller, err := NewController(writerCreator, &spec, veyron2.NamespaceRoots{"/" + endpoint.String()})
+	controller, err := NewController(writerCreator, &spec, options.NamespaceRoots{"/" + endpoint.String()})
 
 	if err != nil {
 		return nil, err

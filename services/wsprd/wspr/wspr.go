@@ -29,6 +29,7 @@ import (
 	"veyron.io/veyron/veyron2"
 	"veyron.io/veyron/veyron2/context"
 	"veyron.io/veyron/veyron2/ipc"
+	"veyron.io/veyron/veyron2/options"
 	"veyron.io/veyron/veyron2/rt"
 	"veyron.io/veyron/veyron2/security"
 	"veyron.io/veyron/veyron2/vdl/vdlutil"
@@ -159,7 +160,7 @@ func NewWSPR(httpPort int, listenSpec ipc.ListenSpec, identdEP string, opts ...v
 	}
 
 	for _, o := range opts {
-		if _, ok := o.(veyron2.ForceNewSecurityModel); ok {
+		if _, ok := o.(options.ForceNewSecurityModel); ok {
 			wspr.useOldModel = false
 			break
 		}

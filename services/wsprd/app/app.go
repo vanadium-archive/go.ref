@@ -14,6 +14,7 @@ import (
 	"veyron.io/veyron/veyron2"
 	"veyron.io/veyron/veyron2/context"
 	"veyron.io/veyron/veyron2/ipc"
+	"veyron.io/veyron/veyron2/options"
 	"veyron.io/veyron/veyron2/rt"
 	"veyron.io/veyron/veyron2/security"
 	"veyron.io/veyron/veyron2/verror2"
@@ -212,7 +213,7 @@ func (c *Controller) startCall(ctx context.T, w lib.ClientWriter, msg *veyronRPC
 		return nil, verror2.Make(verror2.BadArg, ctx, "app.Controller.client")
 	}
 	methodName := lib.UppercaseFirstCharacter(msg.Method)
-	retryTimeoutOpt := veyron2.RetryTimeoutOpt(time.Duration(*retryTimeout) * time.Second)
+	retryTimeoutOpt := options.RetryTimeout(time.Duration(*retryTimeout) * time.Second)
 	clientCall, err := c.client.StartCall(ctx, msg.Name, methodName, msg.InArgs, retryTimeoutOpt)
 	if err != nil {
 		return nil, fmt.Errorf("error starting call (name: %v, method: %v, args: %v): %v", msg.Name, methodName, msg.InArgs, err)
@@ -308,7 +309,7 @@ func (c *Controller) SendOnStream(id int64, data string, w lib.ClientWriter) {
 // the call object after it has been constructed.
 func (c *Controller) sendVeyronRequest(ctx context.T, id int64, tempMsg *veyronTempRPC, w lib.ClientWriter, stream *outstandingStream) {
 	// Fetch and adapt signature from the SignatureManager
-	retryTimeoutOpt := veyron2.RetryTimeoutOpt(time.Duration(*retryTimeout) * time.Second)
+	retryTimeoutOpt := options.RetryTimeout(time.Duration(*retryTimeout) * time.Second)
 	sig, err := c.signatureManager.Signature(ctx, tempMsg.Name, c.client, retryTimeoutOpt)
 	if err != nil {
 		w.Error(verror2.Make(signatureError, ctx, tempMsg.Name, err))
@@ -550,7 +551,7 @@ type signatureRequest struct {
 
 func (c *Controller) getSignature(ctx context.T, name string) (signature.JSONServiceSignature, error) {
 	// Fetch and adapt signature from the SignatureManager
-	retryTimeoutOpt := veyron2.RetryTimeoutOpt(time.Duration(*retryTimeout) * time.Second)
+	retryTimeoutOpt := options.RetryTimeout(time.Duration(*retryTimeout) * time.Second)
 	sig, err := c.signatureManager.Signature(ctx, name, c.client, retryTimeoutOpt)
 	if err != nil {
 		return nil, verror2.Convert(verror2.Internal, ctx, err)

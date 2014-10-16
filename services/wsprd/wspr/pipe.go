@@ -11,7 +11,7 @@ import (
 	"strings"
 	"time"
 
-	"veyron.io/veyron/veyron2"
+	"veyron.io/veyron/veyron2/options"
 	"veyron.io/veyron/veyron2/verror"
 	"veyron.io/veyron/veyron2/vlog"
 	"veyron.io/veyron/veyron2/vom"
@@ -129,7 +129,7 @@ func newPipe(w http.ResponseWriter, req *http.Request, wspr *WSPR, creator func(
 		// TODO(bjornick): Send an error to the client when all of the identity stuff is set up.
 	}
 
-	pipe.controller, err = app.NewController(creator, &wspr.listenSpec, veyron2.RuntimeID(id))
+	pipe.controller, err = app.NewController(creator, &wspr.listenSpec, options.RuntimeID{id})
 
 	if err != nil {
 		wspr.rt.Logger().Errorf("Could not create controller: %v", err)
