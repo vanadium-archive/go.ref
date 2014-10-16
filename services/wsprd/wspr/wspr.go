@@ -335,7 +335,7 @@ func (ctx WSPR) handleAssocAccount(w http.ResponseWriter, r *http.Request) {
 // TODO(ataly, ashankar): Remove this method once the old security model is killed.
 func (ctx WSPR) handleCreateAccountOldModel(blessingsAny vdlutil.Any, w http.ResponseWriter) {
 	blessing, ok := blessingsAny.(security.PublicID)
-	if ok {
+	if !ok {
 		ctx.logAndSendBadReqErr(w, "Error creating PublicID from wire data")
 		return
 	}
