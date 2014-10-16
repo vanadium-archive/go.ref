@@ -10,54 +10,65 @@ import (
 	"time"
 
 	"veyron.io/veyron/veyron/lib/cmdline"
+	vsecurity "veyron.io/veyron/veyron/security"
 	"veyron.io/veyron/veyron/services/identity"
 	"veyron.io/veyron/veyron/services/identity/util"
 
+	"veyron.io/veyron/veyron2"
 	"veyron.io/veyron/veyron2/rt"
 	"veyron.io/veyron/veyron2/security"
 	"veyron.io/veyron/veyron2/vdl/vdlutil"
 )
 
+const VEYRON_CREDENTIALS = "VEYRON_CREDENTIALS"
+
 var (
 	// Flags for the "blessself" command
-	flagBlessFor   time.Duration
-	flagAddForPeer string
+	flagBlessSelfFor time.Duration
 
-	// Flags for the "seekblessing" command
-	flagSeekBlessingFrom string
-	flagSkipSetDefault   bool
-	flagForPeer          string
+	// Flags for the "bless" command
+	flagBlessFor  time.Duration
+	flagBlessWith string
+
+	// Flags for the "seekblessings" command
+	flagSeekBlessingsFrom       string
+	flagSeekBlessingsSetDefault bool
+	flagSeekBlessingsForPeer    string
+
+	// Flags common to many commands
+	flagAddToRoots bool
 
 	cmdDump = &cmdline.Command{
 		Name:  "dump",
 		Short: "Dump out information about the principal",
 		Long: `
-Dumps out information about the principal specified by the environment
+Prints out information about the principal specified by the environment
 (VEYRON_CREDENTIALS) that this tool is running in.
 `,
 		Run: func(cmd *cmdline.Command, args []string) error {
-			p := rt.R().Principal()
+			p, err := principal()
+			if err != nil {
+				return err
+			}
 			fmt.Printf("Public key : %v\n", p.PublicKey())
-			fmt.Println("")
 			fmt.Println("---------------- BlessingStore ----------------")
 			fmt.Printf("%v", p.BlessingStore().DebugString())
-			fmt.Println("")
 			fmt.Println("---------------- BlessingRoots ----------------")
 			fmt.Printf("%v", p.Roots().DebugString())
 			return nil
 		},
 	}
 
-	cmdPrint = &cmdline.Command{
-		Name:  "print",
-		Short: "Print out information about the provided blessing",
+	cmdDumpBlessings = &cmdline.Command{
+		Name:  "dumpblessings",
+		Short: "Dump out information about the provided blessings",
 		Long: `
-Prints out information about the blessing (typically obtained from this tool)
+Prints out information about the blessings (typically obtained from this tool)
 encoded in the provided file.
 `,
 		ArgsName: "<file>",
 		ArgsLong: `
-<file> is the path to a file containing a blessing typically obtained from
+<file> is the path to a file containing blessings typically obtained from
 this tool. - is used for STDIN.
 `,
 		Run: func(cmd *cmdline.Command, args []string) error {
@@ -68,8 +79,21 @@ this tool. - is used for STDIN.
 			if err != nil {
 				return fmt.Errorf("failed to decode provided blessings: %v", err)
 			}
-			fmt.Printf("Blessings: %v\n", blessings)
-			fmt.Printf("PublicKey: %v\n", blessings.PublicKey())
+			wire := security.MarshalBlessings(blessings)
+			fmt.Printf("Blessings          : %v\n", blessings)
+			fmt.Printf("PublicKey          : %v\n", blessings.PublicKey())
+			fmt.Printf("Certificates       : %d chains with (#certificates, #caveats) = ", len(wire.CertificateChains))
+			for idx, chain := range wire.CertificateChains {
+				ncaveats := 0
+				for _, cert := range chain {
+					ncaveats += len(cert.Caveats)
+				}
+				if idx > 0 {
+					fmt.Printf(" + ")
+				}
+				fmt.Printf("(%d, %d)", len(chain), ncaveats)
+			}
+			fmt.Println("")
 			return nil
 		},
 	}
@@ -101,14 +125,18 @@ machine and the name of the user running this command.
 			}
 
 			var caveats []security.Caveat
-			if flagBlessFor != 0 {
-				cav, err := security.ExpiryCaveat(time.Now().Add(flagBlessFor))
+			if flagBlessSelfFor != 0 {
+				cav, err := security.ExpiryCaveat(time.Now().Add(flagBlessSelfFor))
 				if err != nil {
 					return fmt.Errorf("failed to create expiration Caveat: %v", err)
 				}
 				caveats = append(caveats, cav)
 			}
-			blessing, err := rt.R().Principal().BlessSelf(name, caveats...)
+			p, err := principal()
+			if err != nil {
+				return err
+			}
+			blessing, err := p.BlessSelf(name, caveats...)
 			if err != nil {
 				return fmt.Errorf("failed to create self-signed blessing for name %q: %v", name, err)
 			}
@@ -117,8 +145,75 @@ machine and the name of the user running this command.
 		},
 	}
 
-	cmdForPeer = &cmdline.Command{
-		Name:  "store.forpeer",
+	cmdBless = &cmdline.Command{
+		Name:  "bless",
+		Short: "Bless another principal",
+		Long: `
+	Returns a set of blessings obtained when one principal blesses another.
+
+	The blesser is obtained from the VEYRON_CREDENTIALS environment variable.
+	The principal to be blessed is specified as either a path to the VEYRON_CREDENTIALS directory of the other principal, or the filename (or - for STDIN) of any other blessing of that principal.
+	The blessing that the blesser uses (i.e., which is extended to create the blessing) is the default one from the blessers store, or specified via the --with flag.
+	The blessing is valid only for the duration specified in --for.
+
+	For example, let's say a principal with the default blessing "alice" wants to bless another principal as "alice/bob", the invocation would be:
+	VEYRON_CREDENTIALS=<path to alice> principal bless <path to bob> friend
+	`,
+		ArgsName: "<principal to bless> <extension>",
+		ArgsLong: `
+	<principal to bless> represents the principal to be blessed (i.e., whose public key will be provided with a name).
+	This can either be a path to a file containing any other set of blessings of that principal (or - for STDIN) or the
+	path to the VEYRON_CREDENTIALS directory of that principal.
+
+	<extension> is the string extension that will be applied to create the blessing.
+	`,
+		Run: func(cmd *cmdline.Command, args []string) error {
+			if len(args) != 2 {
+				return fmt.Errorf("require exactly two arguments, provided %d", len(args))
+			}
+			p, err := principal()
+			if err != nil {
+				return err
+			}
+
+			var with security.Blessings
+			if len(flagBlessWith) > 0 {
+				if with, err = decodeBlessings(flagBlessWith); err != nil {
+					return fmt.Errorf("failed to read blessings from --with=%q: %v", flagBlessWith, err)
+				}
+			} else {
+				with = p.BlessingStore().Default()
+			}
+
+			var key security.PublicKey
+			tobless, extension := args[0], args[1]
+			if finfo, err := os.Stat(tobless); err == nil && finfo.IsDir() {
+				other, _, err := vsecurity.NewPersistentPrincipal(tobless)
+				if err != nil {
+					return fmt.Errorf("failed to read principal in directory %q: %v", tobless, err)
+				}
+				key = other.PublicKey()
+			} else if other, err := decodeBlessings(tobless); err != nil {
+				return fmt.Errorf("failed to decode blessings in %q: %v", tobless, err)
+			} else {
+				key = other.PublicKey()
+			}
+
+			caveat, err := security.ExpiryCaveat(time.Now().Add(flagBlessFor))
+			if err != nil {
+				return fmt.Errorf("failed to create ExpirtyCaveat: %v", err)
+			}
+
+			blessings, err := p.Bless(key, with, extension, caveat)
+			if err != nil {
+				return fmt.Errorf("Bless(%v, %v, %q, ExpiryCaveat(%v)) failed: %v", key, with, extension, flagBlessFor, err)
+			}
+			return dumpBlessings(blessings)
+		},
+	}
+
+	cmdStoreForPeer = &cmdline.Command{
+		Name:  "forpeer",
 		Short: "Return blessings marked for the provided peer",
 		Long: `
 Returns blessings that are marked for the provided peer in the
@@ -134,12 +229,16 @@ store.forpeer returns the blessings that are marked for all peers (i.e.,
 blessings set on the store with the "..." pattern).
 `,
 		Run: func(cmd *cmdline.Command, args []string) error {
-			return dumpBlessings(rt.R().Principal().BlessingStore().ForPeer(args...))
+			p, err := principal()
+			if err != nil {
+				return err
+			}
+			return dumpBlessings(p.BlessingStore().ForPeer(args...))
 		},
 	}
 
-	cmdDefault = &cmdline.Command{
-		Name:  "store.default",
+	cmdStoreDefault = &cmdline.Command{
+		Name:  "default",
 		Short: "Return blessings marked as default",
 		Long: `
 Returns blessings that are marked as default in the BlessingStore
@@ -147,12 +246,16 @@ specified by the environment (VEYRON_CREDENTIALS) that this tool
 is running in.
 `,
 		Run: func(cmd *cmdline.Command, args []string) error {
-			return dumpBlessings(rt.R().Principal().BlessingStore().Default())
+			p, err := principal()
+			if err != nil {
+				return err
+			}
+			return dumpBlessings(p.BlessingStore().Default())
 		},
 	}
 
-	cmdSet = &cmdline.Command{
-		Name:  "store.set",
+	cmdStoreSet = &cmdline.Command{
+		Name:  "set",
 		Short: "Set provided blessings for peer",
 		Long: `
 Marks the provided blessings to be shared with the provided
@@ -179,22 +282,31 @@ blessing can be shared with.
 `,
 		Run: func(cmd *cmdline.Command, args []string) error {
 			if len(args) != 2 {
-				return fmt.Errorf("requires exactly two arguments <file>, <pattern>, provided %d", cmd.Name, len(args))
+				return fmt.Errorf("requires exactly two arguments <file>, <pattern>, provided %d", len(args))
 			}
 			blessings, err := decodeBlessings(args[0])
 			if err != nil {
 				return fmt.Errorf("failed to decode provided blessings: %v", err)
 			}
 			pattern := security.BlessingPattern(args[1])
-			if _, err := rt.R().Principal().BlessingStore().Set(blessings, pattern); err != nil {
+			p, err := principal()
+			if err != nil {
+				return err
+			}
+			if _, err := p.BlessingStore().Set(blessings, pattern); err != nil {
 				return fmt.Errorf("failed to set blessings %v for peers %v: %v", blessings, pattern, err)
+			}
+			if flagAddToRoots {
+				if err := p.AddToRoots(blessings); err != nil {
+					return fmt.Errorf("AddToRoots failed: %v", err)
+				}
 			}
 			return nil
 		},
 	}
 
-	cmdSetDefault = &cmdline.Command{
-		Name:  "store.setdefault",
+	cmdStoreSetDefault = &cmdline.Command{
+		Name:  "setdefault",
 		Short: "Set provided blessings as default",
 		Long: `
 Sets the provided blessings as default in the BlessingStore specified
@@ -210,15 +322,64 @@ this tool. - is used for STDIN.
 `,
 		Run: func(cmd *cmdline.Command, args []string) error {
 			if len(args) != 1 {
-				return fmt.Errorf("requires exactly one argument, <file>, provided %d", cmd.Name, len(args))
+				return fmt.Errorf("requires exactly one argument, <file>, provided %d", len(args))
 			}
 			blessings, err := decodeBlessings(args[0])
 			if err != nil {
 				return fmt.Errorf("failed to decode provided blessings: %v", err)
 			}
-			if err := rt.R().Principal().BlessingStore().SetDefault(blessings); err != nil {
+			p, err := principal()
+			if err != nil {
+				return err
+			}
+			if err = p.BlessingStore().SetDefault(blessings); err != nil {
 				return fmt.Errorf("failed to set blessings %v as default: %v", blessings, err)
 			}
+			if flagAddToRoots {
+				if err := p.AddToRoots(blessings); err != nil {
+					return fmt.Errorf("AddToRoots failed: %v", err)
+				}
+			}
+			return nil
+		},
+	}
+
+	cmdCreate = &cmdline.Command{
+		Name:  "create",
+		Short: "Create a new principal and persist it into a directory",
+		Long: `
+	Creates a new principal with a single self-blessed blessing and writes it out
+	to the provided directory. The same directory can be used to set the VEYRON_CREDENTIALS
+	environment variables for other veyron applications.
+	`,
+		ArgsName: "<directory> <blessing>",
+		ArgsLong: `
+	<directory> is the directory to which the principal will be persisted.
+	<blessing> is the self-blessed blessing that the principal will be setup to use by default.
+	`,
+		Run: func(cmd *cmdline.Command, args []string) error {
+			if len(args) != 2 {
+				return fmt.Errorf("requires exactly two arguments: <directory> and <blessing>, provided %d", len(args))
+			}
+			dir, name := args[0], args[1]
+			p, existed, err := vsecurity.NewPersistentPrincipal(dir)
+			if existed {
+				return fmt.Errorf("principal already exists in %q", dir)
+			}
+			blessings, err := p.BlessSelf(name)
+			if err != nil {
+				return fmt.Errorf("BlessSelf(%q) failed: %v", name, err)
+			}
+			if err := p.BlessingStore().SetDefault(blessings); err != nil {
+				return fmt.Errorf("BlessingStore.SetDefault(%v) failed: %v", blessings, err)
+			}
+			if _, err := p.BlessingStore().Set(blessings, security.AllPrincipals); err != nil {
+				return fmt.Errorf("BlessingStore.Set(%v, %q) failed: %v", blessings, security.AllPrincipals, err)
+			}
+			if err := p.AddToRoots(blessings); err != nil {
+				return fmt.Errorf("AddToRoots(%v) failed: %v", blessings, err)
+			}
+			fmt.Printf("%s=%q\n", VEYRON_CREDENTIALS, dir)
 			return nil
 		},
 	}
@@ -241,14 +402,18 @@ specific peer pattern is provided using the --for_peer flag.
 		Run: func(cmd *cmdline.Command, args []string) error {
 			blessedChan := make(chan string)
 			defer close(blessedChan)
-			macaroonChan, err := getMacaroonForBlessRPC(flagSeekBlessingFrom, blessedChan)
+			macaroonChan, err := getMacaroonForBlessRPC(flagSeekBlessingsFrom, blessedChan)
 			if err != nil {
 				return fmt.Errorf("failed to get macaroon from Veyron blesser: %v", err)
 			}
 			macaroon := <-macaroonChan
 			service := <-macaroonChan
 
-			ctx, cancel := rt.R().NewContext().WithTimeout(time.Minute)
+			r, err := runtime()
+			if err != nil {
+				return err
+			}
+			ctx, cancel := r.NewContext().WithTimeout(time.Minute)
 			defer cancel()
 
 			var reply vdlutil.Any
@@ -271,14 +436,20 @@ specific peer pattern is provided using the --for_peer flag.
 			// Wait for getTokenForBlessRPC to clean up:
 			<-macaroonChan
 
-			if !flagSkipSetDefault {
-				if err := rt.R().Principal().BlessingStore().SetDefault(blessings); err != nil {
+			if flagSeekBlessingsSetDefault {
+				if err := r.Principal().BlessingStore().SetDefault(blessings); err != nil {
 					return fmt.Errorf("failed to set blessings %v as default: %v", blessings, err)
 				}
 			}
-			pattern := security.BlessingPattern(flagForPeer)
-			if _, err := rt.R().Principal().BlessingStore().Set(blessings, pattern); err != nil {
-				return fmt.Errorf("failed to set blessings %v for peers %v: %v", blessings, pattern, err)
+			if pattern := security.BlessingPattern(flagSeekBlessingsForPeer); len(pattern) > 0 {
+				if _, err := r.Principal().BlessingStore().Set(blessings, pattern); err != nil {
+					return fmt.Errorf("failed to set blessings %v for peers %v: %v", blessings, pattern, err)
+				}
+			}
+			if flagAddToRoots {
+				if err := r.Principal().AddToRoots(blessings); err != nil {
+					return fmt.Errorf("AddToRoots failed: %v", err)
+				}
 			}
 			return dumpBlessings(blessings)
 		},
@@ -286,16 +457,26 @@ specific peer pattern is provided using the --for_peer flag.
 )
 
 func main() {
-	if len(os.Getenv("VEYRON_CREDENTIALS")) == 0 {
-		// TODO(ataly, ashankar): Handle this case
-		fmt.Fprintf(os.Stderr, "ERROR: Please set the VEYRON_CREDENTIALS environment variable\n")
-		os.Exit(2)
+	cmdBlessSelf.Flags.DurationVar(&flagBlessSelfFor, "for", 0, "Duration of blessing validity (zero means no that the blessing is always valid)")
+	cmdBless.Flags.DurationVar(&flagBlessFor, "for", time.Minute, "Duration of blessing validity")
+	cmdBless.Flags.StringVar(&flagBlessWith, "with", "", "Path to file containing blessing to extend. ")
+	cmdSeekBlessings.Flags.StringVar(&flagSeekBlessingsFrom, "from", "https://proxy.envyor.com:8125/google", "URL to use to begin the seek blessings process")
+	cmdSeekBlessings.Flags.BoolVar(&flagSeekBlessingsSetDefault, "set_default", true, "If true, the blessings obtained will be set as the default blessing in the store")
+	cmdSeekBlessings.Flags.StringVar(&flagSeekBlessingsForPeer, "for_peer", string(security.AllPrincipals), "If non-empty, the blessings obtained will be marked for peers matching this pattern in the store")
+	cmdSeekBlessings.Flags.BoolVar(&flagAddToRoots, "add_to_roots", true, "If true, the root certificate of the blessing will be added to the principal's set of recognized root certificates")
+	cmdStoreSet.Flags.BoolVar(&flagAddToRoots, "add_to_roots", true, "If true, the root certificate of the blessing will be added to the principal's set of recognized root certificates")
+	cmdStoreSetDefault.Flags.BoolVar(&flagAddToRoots, "add_to_roots", true, "If true, the root certificate of the blessing will be added to the principal's set of recognized root certificates")
+
+	cmdStore := &cmdline.Command{
+		Name:  "store",
+		Short: "Manipulate and inspect the principal's blessing store",
+		Long: `
+Commands to manipulate and inspect the blessing store of the principal.
+
+All blessings are printed to stdout using base64-VOM-encoding
+`,
+		Children: []*cmdline.Command{cmdStoreDefault, cmdStoreSetDefault, cmdStoreForPeer, cmdStoreSet},
 	}
-	rt.Init()
-	cmdBlessSelf.Flags.DurationVar(&flagBlessFor, "for", 0*time.Hour, "Expiry time of Blessing (optional)")
-	cmdSeekBlessings.Flags.StringVar(&flagSeekBlessingFrom, "from", "https://proxy.envyor.com:8125/google", "URL to use to begin the seek blessings process")
-	cmdSeekBlessings.Flags.BoolVar(&flagSkipSetDefault, "skip_set_default", false, "flag to indicate that the blessings obtained from the Veyron blesser must not be set as default on the principals's blessing store")
-	cmdSeekBlessings.Flags.StringVar(&flagForPeer, "for_peer", "...", "pattern to be used while setting the blessings obtained from the Veyron blesser on the principal's blessing store")
 
 	(&cmdline.Command{
 		Name:  "principal",
@@ -306,8 +487,23 @@ roots bound to a principal.
 
 All objects are printed using base64-VOM-encoding.
 `,
-		Children: []*cmdline.Command{cmdDump, cmdPrint, cmdBlessSelf, cmdDefault, cmdForPeer, cmdSetDefault, cmdSet, cmdSeekBlessings},
+		Children: []*cmdline.Command{cmdCreate, cmdSeekBlessings, cmdDump, cmdDumpBlessings, cmdBlessSelf, cmdBless, cmdStore},
 	}).Main()
+}
+
+func runtime() (veyron2.Runtime, error) {
+	if len(os.Getenv(VEYRON_CREDENTIALS)) == 0 {
+		return nil, fmt.Errorf("VEYRON_CREDENTIALS environment variable must be set")
+	}
+	return rt.Init(), nil
+}
+
+func principal() (security.Principal, error) {
+	r, err := runtime()
+	if err != nil {
+		return nil, err
+	}
+	return r.Principal(), nil
 }
 
 func decodeBlessings(fname string) (security.Blessings, error) {

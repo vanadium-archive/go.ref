@@ -14,85 +14,85 @@ build() {
   veyron go build veyron.io/veyron/veyron/tools/principal || shell_test::fail "line ${LINENO}: failed to build principal"
 }
 
-extractBlessings() {
-    awk '/Blessings/ { st = index($0," "); print substr($0,st+1)}'
+# rmpublickey replaces public keys (16 hex bytes, :-separated) with XX:....
+# This substitution enables comparison with golden output even when keys are freshly
+# minted by the "principal create" command.
+rmpublickey() {
+    sed -e "s/\([0-9a-f]\{2\}:\)\{15\}[0-9a-f]\{2\}/XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX/g"
+}
+
+dumpblessings() {
+    ./principal dumpblessings "$1" | rmpublickey
 }
 
 main() {
-  local GOT WANT
-
-  # Build binaries.
   cd "${WORKDIR}"
   build
 
-  # Set VEYRON_CREDENTIALS.
-  export VEYRON_CREDENTIALS="${WORKDIR}"
+  # Prevent any VEYRON_CREDENTIALS in the environment from interfering with this test.
+  unset VEYRON_CREDENTIALS
+  # Create two principals, one called "alice" one called "bob"
+  ./principal create ./alice alice >/dev/null || shell_test::fail "line ${LINENO}: create failed"
+  ./principal create ./bob bob >/dev/null || shell_test::fail "line ${LINENO}: create failed"
+  # Run dump, bless, blessself on alice
+  export VEYRON_CREDENTIALS=./alice
+  ./principal blessself alicereborn >alice.blessself || shell_test::fail "line ${LINENO}: blessself failed"
+  ./principal bless ./bob friend >alice.bless || shell_test::fail "line ${LINENO}: bless failed"
+  ./principal dump >alice.dump || shell_test::fail "line ${LINENO}: dump failed"
+  # Run store setdefault, store default, store set, store forpeer on bob
+  export VEYRON_CREDENTIALS=./bob
+  ./principal store setdefault alice.bless || shell_test::fail "line ${LINENO}: store setdefault failed"
+  ./principal store default >bob.store.default || shell_test::fail "line ${LINENO}: store default failed"
+  ./principal store set alice.bless alice/... || shell_test::fail "line ${LINENO}: store set failed"
+  ./principal store forpeer alice/server >bob.store.forpeer || shell_test::fail "line ${LINENO}: store forpeer failed" 
+  # Any other commands to be run without VEYRON_CREDENTIALS set.
+  unset VEYRON_CREDENTIALS
 
-  ./principal dump >/dev/null || shell_test::fail "line ${LINENO}: dump failed"
-  ./principal blessself >/dev/null || shell_test::fail "line ${LINENO}: blessself failed"
-  ./principal blessself alice >alice || shell_test::fail "line ${LINENO}: blessself alice failed"
-  ./principal store.default >/dev/null || shell_test::fail "line ${LINENO}: store.default failed"
-  ./principal store.forpeer >/dev/null || shell_test::fail "line ${LINENO}: store.forpeer failed"
+  # Validate the output of various commands (mostly using "principal dumpblessings")
+  cat alice.dump | rmpublickey >got || shell_test::fail "line ${LINENO}: cat alice.dump | rmpublickey failed"
+  cat >want <<EOF
+Public key : XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX
+---------------- BlessingStore ----------------
+Default blessings: alice(0 caveats)
+Peer pattern                   : Blessings
+...                            : alice(0 caveats)
+---------------- BlessingRoots ----------------
+Public key                                      : Pattern
+XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX : [alice/...]
+EOF
+  if ! diff got want; then
+  	shell_test::fail "line ${LINENO}"
+  fi
 
-  # Test print
-  GOT=$(./principal print alice | extractBlessings) \
-    || shell_test::fail "line ${LINENO}: failed to run principal"
-  WANT="alice(0 caveats)"
-  shell_test::assert_eq "${GOT}" "${WANT}" "${LINENO}"
+  dumpblessings alice.blessself >got || shell_test::fail "line ${LINENO}: dumpblessings failed"
+  cat >want <<EOF
+Blessings          : alicereborn(0 caveats)
+PublicKey          : XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX
+Certificates       : 1 chains with (#certificates, #caveats) = (1, 0)
+EOF
+  if ! diff got want; then
+  	shell_test::fail "line ${LINENO}"
+  fi
 
-  GOT=$(./principal blessself bob | ./principal print - | extractBlessings) \
-    || shell_test::fail "line ${LINENO}: failed to run principal"
-  WANT="bob(0 caveats)"
-  shell_test::assert_eq "${GOT}" "${WANT}" "${LINENO}"
+  dumpblessings bob.store.default >got || shell_test::fail "line ${LINENO}: dumpblessings failed"
+  cat >want <<EOF
+Blessings          : alice/friend(1 caveats)
+PublicKey          : XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX
+Certificates       : 1 chains with (#certificates, #caveats) = (2, 1)
+EOF
+  if ! diff got want; then
+	shell_test::fail "line ${LINENO}"
+  fi
 
-  GOT=$(./principal blessself --for=1h bob| ./principal print - | extractBlessings) \
-    || shell_test::fail "line ${LINENO}: failed to run principal"
-  WANT="bob(1 caveats)"
-  shell_test::assert_eq "${GOT}" "${WANT}" "${LINENO}"
-
-  # Test store.default, store.setdefault
-  ./principal blessself testFile >f || shell_test::fail "line ${LINENO}: blessself testFile failed"
-  ./principal store.setdefault f || shell_test::fail "line ${LINENO}: store.setdefault failed"
-  GOT=$(./principal store.default | ./principal print - | extractBlessings) \
-    || shell_test::fail "line ${LINENO}: failed to run principal"
-  WANT="testFile(0 caveats)"
-  shell_test::assert_eq "${GOT}" "${WANT}" "${LINENO}"
-
-  ./principal blessself testStdin | ./principal store.setdefault - || shell_test::fail "line ${LINENO}: blessself testStdin | store.setdefault - failed"
-  GOT=$(./principal store.default | ./principal print - | extractBlessings) \
-    || shell_test::fail "line ${LINENO}: failed to run principal"
-  WANT="testStdin(0 caveats)"
-  shell_test::assert_eq "${GOT}" "${WANT}" "${LINENO}"
-
-  # Test store.forpeer, store.set
-  ./principal blessself forAlice >f || shell_test::fail "line ${LINENO}: blessself forAlice failed"
-  ./principal store.set f alice/... || shell_test::fail "line ${LINENO}: store.set failed"
-  ./principal blessself forAll | ./principal store.set - ... || shell_test::fail "line ${LINENO}: blessself forAll | store.set - ... failed"
-
-  GOT=$(./principal store.forpeer | ./principal print - | extractBlessings) \
-    || shell_test::fail "line ${LINENO}: failed to run principal"
-  WANT="forAll(0 caveats)"
-  shell_test::assert_eq "${GOT}" "${WANT}" "${LINENO}"
-
-  GOT=$(./principal store.forpeer bob | ./principal print - | extractBlessings) \
-    || shell_test::fail "line ${LINENO}: failed to run principal"
-  WANT="forAll(0 caveats)"
-  shell_test::assert_eq "${GOT}" "${WANT}" "${LINENO}"
-
-  GOT=$(./principal store.forpeer alice | ./principal print - | extractBlessings) \
-    || shell_test::fail "line ${LINENO}: failed to run principal"
-  WANT="forAlice(0 caveats)#forAll(0 caveats)"
-  shell_test::assert_eq "${GOT}" "${WANT}" "${LINENO}"
-
-  GOT=$(./principal store.forpeer alice/friend | ./principal print - | extractBlessings) \
-    || shell_test::fail "line ${LINENO}: failed to run principal"
-  WANT="forAlice(0 caveats)#forAll(0 caveats)"
-  shell_test::assert_eq "${GOT}" "${WANT}" "${LINENO}"
-
-  GOT=$(./principal store.forpeer alice/friend bob/spouse | ./principal print - | extractBlessings) \
-    || shell_test::fail "line ${LINENO}: failed to run principal"
-  WANT="forAlice(0 caveats)#forAll(0 caveats)"
-  shell_test::assert_eq "${GOT}" "${WANT}" "${LINENO}"
+  dumpblessings bob.store.forpeer >got || shell_test::fail "line ${LINENO}: dumpblessings failed"
+  cat >want <<EOF
+Blessings          : bob(0 caveats)#alice/friend(1 caveats)
+PublicKey          : XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX
+Certificates       : 2 chains with (#certificates, #caveats) = (1, 0) + (2, 1)
+EOF
+  if ! diff got want; then
+	shell_test::fail "line ${LINENO}"
+  fi
 
   shell_test::pass
 }
