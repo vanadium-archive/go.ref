@@ -10,13 +10,13 @@ import (
 	iversion "veyron.io/veyron/veyron/runtimes/google/ipc/version"
 	ivtrace "veyron.io/veyron/veyron/runtimes/google/vtrace"
 
-	"veyron.io/veyron/veyron2"
 	"veyron.io/veyron/veyron2/context"
 	"veyron.io/veyron/veyron2/i18n"
 	"veyron.io/veyron/veyron2/ipc"
 	"veyron.io/veyron/veyron2/ipc/stream"
 	"veyron.io/veyron/veyron2/ipc/version"
 	"veyron.io/veyron/veyron2/naming"
+	"veyron.io/veyron/veyron2/options"
 	"veyron.io/veyron/veyron2/security"
 	"veyron.io/veyron/veyron2/verror2"
 	"veyron.io/veyron/veyron2/vtrace"
@@ -93,11 +93,11 @@ func (rt *vrt) NewClient(opts ...ipc.ClientOpt) (ipc.Client, error) {
 	var otherOpts []ipc.ClientOpt
 	for _, opt := range opts {
 		switch topt := opt.(type) {
-		case veyron2.StreamManagerOpt:
+		case options.StreamManager:
 			sm = topt.Manager
-		case veyron2.NamespaceOpt:
+		case options.Namespace:
 			ns = topt.Namespace
-		case veyron2.LocalIDOpt:
+		case options.LocalID:
 			id = topt.PublicID
 		default:
 			otherOpts = append(otherOpts, opt)
@@ -160,9 +160,9 @@ func (rt *vrt) NewServer(opts ...ipc.ServerOpt) (ipc.Server, error) {
 	var otherOpts []ipc.ServerOpt
 	for _, opt := range opts {
 		switch topt := opt.(type) {
-		case veyron2.NamespaceOpt:
+		case options.Namespace:
 			ns = topt
-		case veyron2.LocalIDOpt:
+		case options.LocalID:
 			id = topt.PublicID
 		default:
 			otherOpts = append(otherOpts, opt)

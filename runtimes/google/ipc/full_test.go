@@ -23,10 +23,10 @@ import (
 	tnaming "veyron.io/veyron/veyron/runtimes/google/testing/mocks/naming"
 	vsecurity "veyron.io/veyron/veyron/security"
 
-	"veyron.io/veyron/veyron2"
 	"veyron.io/veyron/veyron2/ipc"
 	"veyron.io/veyron/veyron2/ipc/stream"
 	"veyron.io/veyron/veyron2/naming"
+	"veyron.io/veyron/veyron2/options"
 	"veyron.io/veyron/veyron2/security"
 	"veyron.io/veyron/veyron2/vdl/vdlutil"
 	"veyron.io/veyron/veyron2/verror"
@@ -358,7 +358,7 @@ func TestRemoteIDCallOpt(t *testing.T) {
 			t.Errorf("%s: failed ot create client: %v", name, err)
 			continue
 		}
-		if call, err := client.StartCall(testContext(), "mountpoint/server/suffix", "Method", nil, veyron2.RemoteID(test.pattern)); !matchesErrorPattern(err, test.err) {
+		if call, err := client.StartCall(testContext(), "mountpoint/server/suffix", "Method", nil, options.RemoteID(test.pattern)); !matchesErrorPattern(err, test.err) {
 			t.Errorf(`%s: client.StartCall: got error "%v", want to match "%v"`, name, err, test.err)
 		} else if call != nil {
 			blessings, proof := call.RemoteBlessings()

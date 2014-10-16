@@ -23,7 +23,7 @@ import (
 	"veyron.io/veyron/veyron/services/identity"
 	"veyron.io/veyron/veyron/services/identity/util"
 
-	"veyron.io/veyron/veyron2"
+	"veyron.io/veyron/veyron2/options"
 	"veyron.io/veyron/veyron2/rt"
 	"veyron.io/veyron/veyron2/security"
 	"veyron.io/veyron/veyron2/vdl/vdlutil"
@@ -203,7 +203,7 @@ can be provided with the --for flag.
 					return err
 				}
 				var err error
-				if r, err = rt.New(veyron2.RuntimeID(id)); err != nil {
+				if r, err = rt.New(options.RuntimeID{id}); err != nil {
 					return err
 				}
 			}

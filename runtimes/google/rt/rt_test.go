@@ -12,6 +12,7 @@ import (
 
 	"veyron.io/veyron/veyron2"
 	"veyron.io/veyron/veyron2/naming"
+	"veyron.io/veyron/veyron2/options"
 	"veyron.io/veyron/veyron2/rt"
 	"veyron.io/veyron/veyron2/security"
 	"veyron.io/veyron/veyron2/vlog"
@@ -167,7 +168,7 @@ func TestInitPrincipalFromOption(t *testing.T) {
 		t.Fatalf("NewPrincipal() failed: %v", err)
 	}
 
-	r, err := rt.New(veyron2.RuntimePrincipal{p})
+	r, err := rt.New(options.RuntimePrincipal{p})
 	if err != nil {
 		t.Fatalf("rt.New failed: %v", err)
 	}

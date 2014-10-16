@@ -7,8 +7,8 @@ import (
 	"strconv"
 	"strings"
 
-	"veyron.io/veyron/veyron2"
 	"veyron.io/veyron/veyron2/naming"
+	"veyron.io/veyron/veyron2/options"
 	"veyron.io/veyron/veyron2/rt"
 	"veyron.io/veyron/veyron2/vlog"
 
@@ -88,7 +88,7 @@ func leafMTChild(args []string) {
 func serveMountTable(root bool, args []string) {
 	rt.Init()
 	fmt.Println("ready")
-	server, err := rt.R().NewServer(veyron2.ServesMountTableOpt(true))
+	server, err := rt.R().NewServer(options.ServesMountTable(true))
 	if err != nil {
 		bbExitWithError(fmt.Sprintf("root failed: %v", err))
 	}

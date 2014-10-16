@@ -5,9 +5,9 @@ import (
 	"sort"
 	"testing"
 
-	"veyron.io/veyron/veyron2"
 	"veyron.io/veyron/veyron2/ipc"
 	"veyron.io/veyron/veyron2/naming"
+	"veyron.io/veyron/veyron2/options"
 	"veyron.io/veyron/veyron2/services/mounttable/types"
 
 	"veyron.io/veyron/veyron/lib/stats"
@@ -68,7 +68,7 @@ func TestDebugServer(t *testing.T) {
 		foo := stats.NewString("testing/foo")
 		foo.Set("The quick brown fox jumps over the lazy dog")
 		addr := naming.JoinAddressName(ep.String(), "__debug/stats/testing/foo")
-		call, err := client.StartCall(ctx, addr, "Value", nil, veyron2.NoResolveOpt(true))
+		call, err := client.StartCall(ctx, addr, "Value", nil, options.NoResolve(true))
 		if err != nil {
 			t.Fatalf("client.StartCall failed: %v", err)
 		}

@@ -15,6 +15,7 @@ import (
 	"veyron.io/veyron/veyron2"
 	"veyron.io/veyron/veyron2/ipc"
 	"veyron.io/veyron/veyron2/naming"
+	"veyron.io/veyron/veyron2/options"
 	"veyron.io/veyron/veyron2/rt"
 	"veyron.io/veyron/veyron2/security"
 	"veyron.io/veyron/veyron2/services/mounttable"
@@ -174,7 +175,7 @@ func runMT(t *testing.T, sr veyron2.Runtime, mountPoint string) *serverEntry {
 }
 
 func run(t *testing.T, sr veyron2.Runtime, disp ipc.Dispatcher, mountPoint string, mt bool) *serverEntry {
-	s, err := sr.NewServer(veyron2.ServesMountTableOpt(mt))
+	s, err := sr.NewServer(options.ServesMountTable(mt))
 	if err != nil {
 		boom(t, "r.NewServer: %s", err)
 	}

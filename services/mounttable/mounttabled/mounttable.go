@@ -6,8 +6,8 @@ import (
 	"net"
 	"os"
 
-	"veyron.io/veyron/veyron2"
 	"veyron.io/veyron/veyron2/naming"
+	"veyron.io/veyron/veyron2/options"
 	"veyron.io/veyron/veyron2/rt"
 	"veyron.io/veyron/veyron2/vlog"
 
@@ -27,7 +27,7 @@ func main() {
 	r := rt.Init()
 	defer r.Cleanup()
 
-	mtServer, err := r.NewServer(veyron2.ServesMountTableOpt(true))
+	mtServer, err := r.NewServer(options.ServesMountTable(true))
 	if err != nil {
 		vlog.Errorf("r.NewServer failed: %v", err)
 		os.Exit(1)
@@ -60,7 +60,7 @@ func main() {
 		if port != "" {
 			neighborhoodListenSpec.Address = net.JoinHostPort(host, "0")
 		}
-		nhServer, err := r.NewServer(veyron2.ServesMountTableOpt(true))
+		nhServer, err := r.NewServer(options.ServesMountTable(true))
 		if err != nil {
 			vlog.Errorf("r.NewServer failed: %v", err)
 			os.Exit(1)

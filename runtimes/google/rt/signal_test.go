@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"veyron.io/veyron/veyron2"
+	"veyron.io/veyron/veyron2/options"
 	"veyron.io/veyron/veyron2/rt"
 
 	"veyron.io/veyron/veyron/lib/expect"
@@ -34,7 +34,7 @@ func withRuntime(stdin io.Reader, stdout, stderr io.Writer, env map[string]strin
 	// Make sure that we use "google" runtime implementation in this
 	// package even though we have to use the public API which supports
 	// arbitrary runtime implementations.
-	rt.Init(veyron2.RuntimeOpt{veyron2.GoogleRuntimeName})
+	rt.Init(options.GoogleRuntime)
 	simpleEchoProgram(stdin, stdout)
 	return nil
 }

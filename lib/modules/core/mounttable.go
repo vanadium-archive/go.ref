@@ -6,9 +6,9 @@ import (
 	"os"
 	"strings"
 
-	"veyron.io/veyron/veyron2"
 	"veyron.io/veyron/veyron2/context"
 	"veyron.io/veyron/veyron2/naming"
+	"veyron.io/veyron/veyron2/options"
 	"veyron.io/veyron/veyron2/rt"
 
 	"veyron.io/veyron/veyron/lib/modules"
@@ -41,7 +41,7 @@ func rootMountTable(stdin io.Reader, stdout, stderr io.Writer, env map[string]st
 
 func runMT(root bool, stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
 	r := rt.Init()
-	server, err := r.NewServer(veyron2.ServesMountTableOpt(true))
+	server, err := r.NewServer(options.ServesMountTable(true))
 	if err != nil {
 		return fmt.Errorf("root failed: %v", err)
 	}

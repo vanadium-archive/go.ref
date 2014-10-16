@@ -14,6 +14,7 @@ import (
 	"veyron.io/veyron/veyron2/context"
 	"veyron.io/veyron/veyron2/ipc"
 	"veyron.io/veyron/veyron2/naming"
+	"veyron.io/veyron/veyron2/options"
 	"veyron.io/veyron/veyron2/rt"
 	"veyron.io/veyron/veyron2/security"
 	"veyron.io/veyron/veyron2/services/mounttable"
@@ -44,7 +45,7 @@ func boom(t *testing.T, f string, v ...interface{}) {
 // quuxClient returns an ipc.Client that would be used by the provided runtime
 // and uses the simple namespace for name resolution.
 func quuxClient(r veyron2.Runtime) ipc.Client {
-	c, err := r.NewClient(veyron2.Namespace(stupidNS{r}))
+	c, err := r.NewClient(options.Namespace{stupidNS{r}})
 	if err != nil {
 		panic(err)
 	}
@@ -122,7 +123,7 @@ func doMount(t *testing.T, name, service string, shouldSucceed bool, as veyron2.
 	if err != nil {
 		boom(t, "Failed to BindMountTable: %s", err)
 	}
-	if err := mtpt.Mount(as.NewContext(), service, uint32(ttlSecs), 0, veyron2.RetryTimeoutOpt(0)); err != nil {
+	if err := mtpt.Mount(as.NewContext(), service, uint32(ttlSecs), 0, options.RetryTimeout(0)); err != nil {
 		if shouldSucceed {
 			boom(t, "Failed to Mount %s onto %s: %s", service, name, err)
 		}
@@ -136,7 +137,7 @@ func doUnmount(t *testing.T, name, service string, shouldSucceed bool, as veyron
 	if err != nil {
 		boom(t, "Failed to BindMountTable: %s", err)
 	}
-	if err := mtpt.Unmount(as.NewContext(), service, veyron2.RetryTimeoutOpt(0)); err != nil {
+	if err := mtpt.Unmount(as.NewContext(), service, options.RetryTimeout(0)); err != nil {
 		if shouldSucceed {
 			boom(t, "Failed to Unmount %s onto %s: %s", service, name, err)
 		}
@@ -160,7 +161,7 @@ func checkContents(t *testing.T, name, expected string, shouldSucceed bool, as v
 	if err != nil {
 		boom(t, "Failed to BindCollection: %s", err)
 	}
-	contents, err := objectPtr.Lookup(as.NewContext(), veyron2.RetryTimeoutOpt(0))
+	contents, err := objectPtr.Lookup(as.NewContext(), options.RetryTimeout(0))
 	if err != nil {
 		if shouldSucceed {
 			boom(t, "Failed to Lookup %s: %s", name, err)
@@ -176,7 +177,7 @@ func checkContents(t *testing.T, name, expected string, shouldSucceed bool, as v
 }
 
 func newMT(t *testing.T, acl string) (ipc.Server, string) {
-	server, err := rootRT.NewServer(veyron2.ServesMountTableOpt(true))
+	server, err := rootRT.NewServer(options.ServesMountTable(true))
 	if err != nil {
 		boom(t, "r.NewServer: %s", err)
 	}
@@ -469,12 +470,12 @@ func TestBadACLs(t *testing.T) {
 
 func init() {
 	// Create the runtime for each of the three "processes"
-	rootRT = rt.Init(veyron2.ForceNewSecurityModel{})
+	rootRT = rt.Init(options.ForceNewSecurityModel{})
 	var err error
-	if aliceRT, err = rt.New(veyron2.ForceNewSecurityModel{}); err != nil {
+	if aliceRT, err = rt.New(options.ForceNewSecurityModel{}); err != nil {
 		panic(err)
 	}
-	if bobRT, err = rt.New(veyron2.ForceNewSecurityModel{}); err != nil {
+	if bobRT, err = rt.New(options.ForceNewSecurityModel{}); err != nil {
 		panic(err)
 	}
 

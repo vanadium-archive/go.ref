@@ -14,11 +14,11 @@ import (
 	isecurity "veyron.io/veyron/veyron/runtimes/google/security"
 	"veyron.io/veyron/veyron/runtimes/google/vtrace"
 
-	"veyron.io/veyron/veyron2"
 	"veyron.io/veyron/veyron2/context"
 	"veyron.io/veyron/veyron2/ipc"
 	"veyron.io/veyron/veyron2/ipc/stream"
 	"veyron.io/veyron/veyron2/naming"
+	"veyron.io/veyron/veyron2/options"
 	"veyron.io/veyron/veyron2/security"
 	"veyron.io/veyron/veyron2/verror"
 	"veyron.io/veyron/veyron2/vlog"
@@ -162,7 +162,7 @@ func retriable(err error) bool {
 
 func getRetryTimeoutOpt(opts []ipc.CallOpt) (time.Duration, bool) {
 	for _, o := range opts {
-		if r, ok := o.(veyron2.RetryTimeoutOpt); ok {
+		if r, ok := o.(options.RetryTimeout); ok {
 			return time.Duration(r), true
 		}
 	}
@@ -202,7 +202,7 @@ func (c *client) StartCall(ctx context.T, name, method string, args []interface{
 
 func getNoResolveOpt(opts []ipc.CallOpt) bool {
 	for _, o := range opts {
-		if r, ok := o.(veyron2.NoResolveOpt); ok {
+		if r, ok := o.(options.NoResolve); ok {
 			return bool(r)
 		}
 	}
@@ -319,7 +319,7 @@ func (c *client) authorizeServer(flow stream.Flow, name, suffix, method string, 
 	}
 	for _, o := range opts {
 		switch v := o.(type) {
-		case veyron2.RemoteID:
+		case options.RemoteID:
 			if !security.BlessingPattern(v).MatchedBy(serverBlessings...) {
 				return nil, nil, fmt.Errorf("server %v does not match the provided pattern %q", serverBlessings, v)
 			}

@@ -13,6 +13,7 @@ import (
 	"veyron.io/veyron/veyron2/ipc"
 	"veyron.io/veyron/veyron2/mgmt"
 	"veyron.io/veyron/veyron2/naming"
+	"veyron.io/veyron/veyron2/options"
 	"veyron.io/veyron/veyron2/services/mgmt/appcycle"
 
 	"veyron.io/veyron/veyron/lib/expect"
@@ -280,7 +281,7 @@ func setupRemoteAppCycleMgr(t *testing.T) (veyron2.Runtime, modules.Handle, appc
 	// refer to the global rt.R() function), but we take care to make sure
 	// that the "google" runtime we are trying to test in this package is
 	// the one being used.
-	r, _ := rt.New(veyron2.RuntimeOpt{veyron2.GoogleRuntimeName}, veyron2.ForceNewSecurityModel{})
+	r, _ := rt.New(options.GoogleRuntime, options.ForceNewSecurityModel{})
 
 	childcreds := security.NewVeyronCredentials(r.Principal(), appCmd)
 	configServer, configServiceName, ch := createConfigServer(t, r)

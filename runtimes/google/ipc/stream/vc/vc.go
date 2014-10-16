@@ -17,10 +17,10 @@ import (
 	"veyron.io/veyron/veyron/runtimes/google/lib/iobuf"
 	vsync "veyron.io/veyron/veyron/runtimes/google/lib/sync"
 
-	"veyron.io/veyron/veyron2"
 	"veyron.io/veyron/veyron2/ipc/stream"
 	"veyron.io/veyron/veyron2/ipc/version"
 	"veyron.io/veyron/veyron2/naming"
+	"veyron.io/veyron/veyron2/options"
 	"veyron.io/veyron/veyron2/security"
 	"veyron.io/veyron/veyron2/vlog"
 )
@@ -382,28 +382,28 @@ func (vc *VC) HandshakeDialedVC(opts ...stream.VCOpt) error {
 	var localID LocalID
 	var principal security.Principal
 	var tlsSessionCache crypto.TLSClientSessionCache
-	var securityLevel veyron2.VCSecurityLevel
+	var securityLevel options.VCSecurityLevel
 	for _, o := range opts {
 		switch v := o.(type) {
 		case LocalID:
 			localID = v
 		case LocalPrincipal:
 			principal = v.Principal
-		case veyron2.VCSecurityLevel:
+		case options.VCSecurityLevel:
 			securityLevel = v
 		case crypto.TLSClientSessionCache:
 			tlsSessionCache = v
 		}
 	}
 	switch securityLevel {
-	case veyron2.VCSecurityConfidential:
+	case options.VCSecurityConfidential:
 		if localID == nil {
 			localID = FixedLocalID(anonymousID)
 		}
 		if principal == nil {
 			principal = anonymousPrincipal
 		}
-	case veyron2.VCSecurityNone:
+	case options.VCSecurityNone:
 		return nil
 	default:
 		return fmt.Errorf("unrecognized VC security level: %v", securityLevel)
@@ -491,14 +491,14 @@ func (vc *VC) HandshakeAcceptedVC(opts ...stream.ListenerOpt) <-chan HandshakeRe
 	}
 	var localID LocalID
 	var principal security.Principal
-	var securityLevel veyron2.VCSecurityLevel
+	var securityLevel options.VCSecurityLevel
 	for _, o := range opts {
 		switch v := o.(type) {
 		case LocalID:
 			localID = v
 		case LocalPrincipal:
 			principal = v.Principal
-		case veyron2.VCSecurityLevel:
+		case options.VCSecurityLevel:
 			securityLevel = v
 		}
 	}
@@ -511,14 +511,14 @@ func (vc *VC) HandshakeAcceptedVC(opts ...stream.ListenerOpt) <-chan HandshakeRe
 	}
 	vc.helper.AddReceiveBuffers(vc.VCI(), SharedFlowID, DefaultBytesBufferedPerFlow)
 	switch securityLevel {
-	case veyron2.VCSecurityConfidential:
+	case options.VCSecurityConfidential:
 		if localID == nil {
 			localID = FixedLocalID(anonymousID)
 		}
 		if principal == nil {
 			principal = anonymousPrincipal
 		}
-	case veyron2.VCSecurityNone:
+	case options.VCSecurityNone:
 		return finish(ln, nil)
 	default:
 		ln.Close()

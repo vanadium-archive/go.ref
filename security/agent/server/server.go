@@ -16,6 +16,7 @@ import (
 	"veyron.io/veyron/veyron/lib/unixfd"
 	"veyron.io/veyron/veyron2"
 	"veyron.io/veyron/veyron2/ipc"
+	"veyron.io/veyron/veyron2/options"
 	"veyron.io/veyron/veyron2/security"
 	"veyron.io/veyron/veyron2/security/wire"
 	"veyron.io/veyron/veyron2/vlog"
@@ -37,7 +38,7 @@ type agentd struct {
 func RunAnonymousAgent(runtime veyron2.Runtime, signer Signer) (client *os.File, err error) {
 	// VCSecurityNone is safe since we're using anonymous unix sockets.
 	// Only our child process can possibly communicate on the socket.
-	s, err := runtime.NewServer(veyron2.VCSecurityNone)
+	s, err := runtime.NewServer(options.VCSecurityNone)
 	if err != nil {
 		return nil, err
 	}

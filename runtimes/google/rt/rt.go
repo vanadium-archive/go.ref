@@ -14,6 +14,7 @@ import (
 	"veyron.io/veyron/veyron2/ipc"
 	"veyron.io/veyron/veyron2/ipc/stream"
 	"veyron.io/veyron/veyron2/naming"
+	"veyron.io/veyron/veyron2/options"
 	"veyron.io/veyron/veyron2/security"
 	"veyron.io/veyron/veyron2/vlog"
 
@@ -61,23 +62,21 @@ func New(opts ...veyron2.ROpt) (veyron2.Runtime, error) {
 	nsRoots := []string{}
 	for _, o := range opts {
 		switch v := o.(type) {
-		case veyron2.RuntimePrincipal:
+		case options.RuntimePrincipal:
 			rt.principal = v.Principal
-		case veyron2.RuntimeIDOpt:
+		case options.RuntimeID:
 			rt.id = v.PrivateID
-		case veyron2.RuntimePublicIDStoreOpt:
-			rt.store = v
-		case veyron2.ProfileOpt:
+		case options.Profile:
 			rt.profile = v.Profile
-		case veyron2.NamespaceRoots:
+		case options.NamespaceRoots:
 			nsRoots = v
-		case veyron2.HTTPDebugOpt:
+		case options.HTTPDebug:
 			rt.debug.addr = string(v)
-		case veyron2.RuntimeOpt:
-			if v.Name != "google" && v.Name != "" {
-				return nil, fmt.Errorf("%q is the wrong name for this runtime", v.Name)
+		case options.RuntimeName:
+			if v != "google" && v != "" {
+				return nil, fmt.Errorf("%q is the wrong name for this runtime", v)
 			}
-		case veyron2.ForceNewSecurityModel:
+		case options.ForceNewSecurityModel:
 			rt.useNewSecurityModelInIPCClients = true
 		default:
 			return nil, fmt.Errorf("option has wrong type %T", o)

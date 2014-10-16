@@ -21,10 +21,10 @@ import (
 	"veyron.io/veyron/veyron/runtimes/google/lib/bqueue/drrqueue"
 	"veyron.io/veyron/veyron/runtimes/google/lib/iobuf"
 
-	"veyron.io/veyron/veyron2"
 	"veyron.io/veyron/veyron2/ipc/stream"
 	"veyron.io/veyron/veyron2/ipc/version"
 	"veyron.io/veyron/veyron2/naming"
+	"veyron.io/veyron/veyron2/options"
 	"veyron.io/veyron/veyron2/security"
 )
 
@@ -32,8 +32,8 @@ const (
 	// Convenience alias to avoid conflicts between the package name "vc" and variables called "vc".
 	DefaultBytesBufferedPerFlow = vc.DefaultBytesBufferedPerFlow
 	// Shorthands
-	SecurityNone = veyron2.VCSecurityNone
-	SecurityTLS  = veyron2.VCSecurityConfidential
+	SecurityNone = options.VCSecurityNone
+	SecurityTLS  = options.VCSecurityConfidential
 
 	LatestVersion = version.IPCVersion4
 )
@@ -157,7 +157,7 @@ func TestHandshakeTLS(t *testing.T) {
 	}
 }
 
-func testConnect_Small(t *testing.T, security veyron2.VCSecurityLevel) {
+func testConnect_Small(t *testing.T, security options.VCSecurityLevel) {
 	h, vc := New(security, LatestVersion, sectest.NewPrincipal("client"), sectest.NewPrincipal("server"))
 	defer h.Close()
 	flow, err := vc.Connect()
@@ -169,7 +169,7 @@ func testConnect_Small(t *testing.T, security veyron2.VCSecurityLevel) {
 func TestConnect_Small(t *testing.T)    { testConnect_Small(t, SecurityNone) }
 func TestConnect_SmallTLS(t *testing.T) { testConnect_Small(t, SecurityTLS) }
 
-func testConnect(t *testing.T, security veyron2.VCSecurityLevel) {
+func testConnect(t *testing.T, security options.VCSecurityLevel) {
 	h, vc := New(security, LatestVersion, sectest.NewPrincipal("client"), sectest.NewPrincipal("server"))
 	defer h.Close()
 	flow, err := vc.Connect()
@@ -181,7 +181,7 @@ func testConnect(t *testing.T, security veyron2.VCSecurityLevel) {
 func TestConnect(t *testing.T)    { testConnect(t, SecurityNone) }
 func TestConnectTLS(t *testing.T) { testConnect(t, SecurityTLS) }
 
-func testConnect_Version3(t *testing.T, security veyron2.VCSecurityLevel) {
+func testConnect_Version3(t *testing.T, security options.VCSecurityLevel) {
 	h, vc := New(security, version.IPCVersion3, sectest.NewPrincipal("client"), sectest.NewPrincipal("server"))
 	defer h.Close()
 	flow, err := vc.Connect()
@@ -196,7 +196,7 @@ func TestConnect_Version3TLS(t *testing.T) { testConnect_Version3(t, SecurityTLS
 // helper function for testing concurrent operations on multiple flows over the
 // same VC.  Such tests are most useful when running the race detector.
 // (go test -race ...)
-func testConcurrentFlows(t *testing.T, security veyron2.VCSecurityLevel, flows, gomaxprocs int) {
+func testConcurrentFlows(t *testing.T, security options.VCSecurityLevel, flows, gomaxprocs int) {
 	mp := runtime.GOMAXPROCS(gomaxprocs)
 	defer runtime.GOMAXPROCS(mp)
 	h, vc := New(security, LatestVersion, sectest.NewPrincipal("client"), sectest.NewPrincipal("server"))
@@ -224,7 +224,7 @@ func TestConcurrentFlows_1TLS(t *testing.T) { testConcurrentFlows(t, SecurityTLS
 func TestConcurrentFlows_10(t *testing.T)    { testConcurrentFlows(t, SecurityNone, 10, 10) }
 func TestConcurrentFlows_10TLS(t *testing.T) { testConcurrentFlows(t, SecurityTLS, 10, 10) }
 
-func testListen(t *testing.T, security veyron2.VCSecurityLevel) {
+func testListen(t *testing.T, security options.VCSecurityLevel) {
 	data := "the dark knight"
 	h, vc := New(security, LatestVersion, sectest.NewPrincipal("client"), sectest.NewPrincipal("server"))
 	defer h.Close()
@@ -272,7 +272,7 @@ func testListen(t *testing.T, security veyron2.VCSecurityLevel) {
 func TestListen(t *testing.T)    { testListen(t, SecurityNone) }
 func TestListenTLS(t *testing.T) { testListen(t, SecurityTLS) }
 
-func testNewFlowAfterClose(t *testing.T, security veyron2.VCSecurityLevel) {
+func testNewFlowAfterClose(t *testing.T, security options.VCSecurityLevel) {
 	h, _ := New(security, LatestVersion, sectest.NewPrincipal("client"), sectest.NewPrincipal("server"))
 	defer h.Close()
 	h.VC.Close("reason")
@@ -283,7 +283,7 @@ func testNewFlowAfterClose(t *testing.T, security veyron2.VCSecurityLevel) {
 func TestNewFlowAfterClose(t *testing.T)    { testNewFlowAfterClose(t, SecurityNone) }
 func TestNewFlowAfterCloseTLS(t *testing.T) { testNewFlowAfterClose(t, SecurityTLS) }
 
-func testConnectAfterClose(t *testing.T, security veyron2.VCSecurityLevel) {
+func testConnectAfterClose(t *testing.T, security options.VCSecurityLevel) {
 	h, vc := New(security, LatestVersion, sectest.NewPrincipal("client"), sectest.NewPrincipal("server"))
 	defer h.Close()
 	h.VC.Close("myerr")
@@ -306,7 +306,7 @@ type helper struct {
 // New creates both ends of a VC but returns only the "client" end (i.e., the
 // one that initiated the VC). The "server" end (the one that "accepted" the VC)
 // listens for flows and simply echoes data read.
-func New(security veyron2.VCSecurityLevel, v version.IPCVersion, client, server security.Principal) (*helper, stream.VC) {
+func New(security options.VCSecurityLevel, v version.IPCVersion, client, server security.Principal) (*helper, stream.VC) {
 	clientH := &helper{bq: drrqueue.New(vc.MaxPayloadSizeBytes)}
 	serverH := &helper{bq: drrqueue.New(vc.MaxPayloadSizeBytes)}
 	clientH.otherEnd = serverH

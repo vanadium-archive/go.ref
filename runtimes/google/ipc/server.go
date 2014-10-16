@@ -26,6 +26,7 @@ import (
 	"veyron.io/veyron/veyron2/ipc"
 	"veyron.io/veyron/veyron2/ipc/stream"
 	"veyron.io/veyron/veyron2/naming"
+	"veyron.io/veyron/veyron2/options"
 	"veyron.io/veyron/veyron2/security"
 	mttypes "veyron.io/veyron/veyron2/services/mounttable/types"
 	"veyron.io/veyron/veyron2/verror"
@@ -87,10 +88,10 @@ func InternalNewServer(ctx context.T, streamMgr stream.Manager, ns naming.Namesp
 		case stream.ListenerOpt:
 			// Collect all ServerOpts that are also ListenerOpts.
 			s.listenerOpts = append(s.listenerOpts, opt)
-		case veyron2.ServesMountTableOpt:
+		case options.ServesMountTable:
 			s.servesMountTable = bool(opt)
-		case veyron2.DebugAuthorizerOpt:
-			s.debugAuthorizer = security.Authorizer(opt)
+		case options.DebugAuthorizer:
+			s.debugAuthorizer = opt.Authorizer
 		}
 	}
 	s.debugDisp = debug.NewDispatcher(vlog.Log.LogDir(), s.debugAuthorizer)
@@ -152,7 +153,7 @@ func (s *server) Listen(protocol, address string) (naming.Endpoint, error) {
 			return nil, err
 		}
 	}
-	// TODO(cnicolaou): pass ServesMountTableOpt to streamMgr.Listen so that
+	// TODO(cnicolaou): pass options.ServesMountTable to streamMgr.Listen so that
 	// it can more cleanly set the IsMountTable bit in the endpoint.
 	ln, ep, err := s.streamMgr.Listen(protocol, address, s.listenerOpts...)
 	if err != nil {

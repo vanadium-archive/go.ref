@@ -35,6 +35,7 @@ import (
 	"veyron.io/veyron/veyron2"
 	"veyron.io/veyron/veyron2/ipc"
 	"veyron.io/veyron/veyron2/naming"
+	"veyron.io/veyron/veyron2/options"
 	"veyron.io/veyron/veyron2/rt"
 	"veyron.io/veyron/veyron2/security"
 	"veyron.io/veyron/veyron2/services/mgmt/application"
@@ -47,7 +48,7 @@ import (
 // TestHelperProcess is blackbox boilerplate.
 func TestHelperProcess(t *testing.T) {
 	// All TestHelperProcess invocations need a Runtime. Create it here.
-	rt.Init(veyron2.ForceNewSecurityModel{})
+	rt.Init(options.ForceNewSecurityModel{})
 
 	// Disable the cache because we will be manipulating/using the namespace
 	// across multiple processes and want predictable behaviour without
@@ -68,7 +69,7 @@ func init() {
 	}
 
 	// All the tests require a runtime; so just create it here.
-	rt.Init(veyron2.ForceNewSecurityModel{})
+	rt.Init(options.ForceNewSecurityModel{})
 
 	// Disable the cache because we will be manipulating/using the namespace
 	// across multiple processes and want predictable behaviour without
@@ -718,7 +719,7 @@ func (g *granter) Grant(other security.Blessings) (security.Blessings, error) {
 }
 
 func newRuntime(t *testing.T) veyron2.Runtime {
-	runtime, err := rt.New(veyron2.ForceNewSecurityModel{})
+	runtime, err := rt.New(options.ForceNewSecurityModel{})
 	if err != nil {
 		t.Fatalf("rt.New() failed: %v", err)
 	}

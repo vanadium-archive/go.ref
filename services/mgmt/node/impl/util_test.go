@@ -10,6 +10,7 @@ import (
 	"veyron.io/veyron/veyron2"
 	"veyron.io/veyron/veyron2/ipc"
 	"veyron.io/veyron/veyron2/naming"
+	"veyron.io/veyron/veyron2/options"
 	"veyron.io/veyron/veyron2/rt"
 	"veyron.io/veyron/veyron2/services/mgmt/node"
 	"veyron.io/veyron/veyron2/verror"
@@ -33,7 +34,7 @@ const preserveNMWorkspaceEnv = "VEYRON_TEST_PRESERVE_NM_WORKSPACE"
 // setupLocalNamespace sets up a mounttable and sets the local namespace root
 // to point to it.  Returns a cleanup function.
 func setupLocalNamespace(t *testing.T) func() {
-	server, err := rt.R().NewServer(veyron2.ServesMountTableOpt(true))
+	server, err := rt.R().NewServer(options.ServesMountTable(true))
 	if err != nil {
 		t.Fatalf("NewServer() failed: %v", err)
 	}

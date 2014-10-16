@@ -3,9 +3,9 @@ package ipc
 import (
 	"sync"
 
-	"veyron.io/veyron/veyron2"
 	"veyron.io/veyron/veyron2/context"
 	"veyron.io/veyron/veyron2/ipc"
+	"veyron.io/veyron/veyron2/options"
 	"veyron.io/veyron/veyron2/security"
 	"veyron.io/veyron/veyron2/vdl/vdlutil"
 	"veyron.io/veyron/veyron2/vlog"
@@ -99,10 +99,9 @@ func (dcc *dischargeCache) Discharges(caveats []security.ThirdPartyCaveat, out [
 // dischargesFromOpts fills in the nils in the out argument with discharges in
 // opts that match the caveat at the same index in caveats.
 // REQUIRES: len(caveats) == len(out)
-func dischargesFromOpts(caveats []security.ThirdPartyCaveat, opts []ipc.CallOpt,
-	out []security.Discharge) {
+func dischargesFromOpts(caveats []security.ThirdPartyCaveat, opts []ipc.CallOpt, out []security.Discharge) {
 	for _, opt := range opts {
-		d, ok := opt.(veyron2.DischargeOpt)
+		d, ok := opt.(options.Discharge)
 		if !ok {
 			continue
 		}

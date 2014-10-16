@@ -5,15 +5,15 @@ import (
 	"testing"
 
 	"veyron.io/veyron/veyron/runtimes/google/ipc/stream/manager"
-	"veyron.io/veyron/veyron2"
 	"veyron.io/veyron/veyron2/ipc/stream"
 	"veyron.io/veyron/veyron2/naming"
+	"veyron.io/veyron/veyron2/options"
 )
 
 const (
 	// Shorthands
-	securityNone = veyron2.VCSecurityNone
-	securityTLS  = veyron2.VCSecurityConfidential
+	securityNone = options.VCSecurityNone
+	securityTLS  = options.VCSecurityConfidential
 )
 
 type listener struct {
@@ -24,7 +24,7 @@ type listener struct {
 // createListeners returns N (stream.Listener, naming.Endpoint) pairs, such
 // that calling stream.Manager.Dial to each of the endpoints will end up
 // creating a new VIF.
-func createListeners(mode veyron2.VCSecurityLevel, m stream.Manager, N int) (servers []listener, err error) {
+func createListeners(mode options.VCSecurityLevel, m stream.Manager, N int) (servers []listener, err error) {
 	for i := 0; i < N; i++ {
 		var l listener
 		if l.ln, l.ep, err = m.Listen("tcp", "127.0.0.1:0", mode); err != nil {
@@ -35,7 +35,7 @@ func createListeners(mode veyron2.VCSecurityLevel, m stream.Manager, N int) (ser
 	return
 }
 
-func benchmarkFlow(b *testing.B, mode veyron2.VCSecurityLevel, nVIFs, nVCsPerVIF, nFlowsPerVC int) {
+func benchmarkFlow(b *testing.B, mode options.VCSecurityLevel, nVIFs, nVCsPerVIF, nFlowsPerVC int) {
 	client := manager.InternalNew(naming.FixedRoutingID(0xcccccccc))
 	server := manager.InternalNew(naming.FixedRoutingID(0x55555555))
 

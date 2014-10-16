@@ -10,7 +10,7 @@ import (
 	vsecurity "veyron.io/veyron/veyron/security"
 	"veyron.io/veyron/veyron/security/agent"
 
-	"veyron.io/veyron/veyron2"
+	"veyron.io/veyron/veyron2/options"
 	"veyron.io/veyron/veyron2/security"
 	"veyron.io/veyron/veyron2/vlog"
 )
@@ -184,7 +184,7 @@ func loadIdentityFromFile(filePath string) (security.PrivateID, error) {
 }
 
 func (rt *vrt) connectToAgent() (security.PrivateID, error) {
-	client, err := rt.NewClient(veyron2.VCSecurityNone)
+	client, err := rt.NewClient(options.VCSecurityNone)
 	if err != nil {
 		return nil, err
 	}

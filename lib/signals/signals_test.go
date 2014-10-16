@@ -15,6 +15,7 @@ import (
 	"veyron.io/veyron/veyron2/ipc"
 	"veyron.io/veyron/veyron2/mgmt"
 	"veyron.io/veyron/veyron2/naming"
+	"veyron.io/veyron/veyron2/options"
 	"veyron.io/veyron/veyron2/rt"
 	"veyron.io/veyron/veyron2/services/mgmt/appcycle"
 
@@ -324,7 +325,7 @@ func createConfigServer(t *testing.T) (ipc.Server, string, <-chan string) {
 
 // TestCleanRemoteShutdown verifies that remote shutdown works correctly.
 func TestCleanRemoteShutdown(t *testing.T) {
-	r := rt.Init(veyron2.ForceNewSecurityModel{})
+	r := rt.Init(options.ForceNewSecurityModel{})
 	defer r.Cleanup()
 
 	sh := modules.NewShell()

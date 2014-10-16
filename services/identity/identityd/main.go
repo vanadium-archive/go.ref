@@ -15,6 +15,7 @@ import (
 	"veyron.io/veyron/veyron2"
 	"veyron.io/veyron/veyron2/ipc"
 	"veyron.io/veyron/veyron2/naming"
+	"veyron.io/veyron/veyron2/options"
 	"veyron.io/veyron/veyron2/rt"
 	"veyron.io/veyron/veyron2/security"
 	"veyron.io/veyron/veyron2/verror"
@@ -325,7 +326,7 @@ func providerIdentity() veyron2.ROpt {
 		}
 		id = audit.NewPrivateID(id, auditor)
 	}
-	return veyron2.RuntimeID(id)
+	return options.RuntimeID{id}
 }
 
 func httpaddress() string {

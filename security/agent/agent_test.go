@@ -9,7 +9,7 @@ import (
 	"testing"
 	"veyron.io/veyron/veyron/security/agent"
 	"veyron.io/veyron/veyron/security/agent/server"
-	"veyron.io/veyron/veyron2"
+	"veyron.io/veyron/veyron2/options"
 	"veyron.io/veyron/veyron2/rt"
 	"veyron.io/veyron/veyron2/security"
 )
@@ -32,7 +32,7 @@ func setup() *testdata {
 		panic(err)
 	}
 	defer sock.Close()
-	client, err := runtime.NewClient(veyron2.VCSecurityNone)
+	client, err := runtime.NewClient(options.VCSecurityNone)
 	if err != nil {
 		panic(err)
 	}
