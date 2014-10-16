@@ -282,6 +282,8 @@ func (c *Controller) Cleanup() {
 	for _, server := range c.servers {
 		server.Stop()
 	}
+
+	c.RT().Cleanup()
 }
 
 func (c *Controller) setup() {

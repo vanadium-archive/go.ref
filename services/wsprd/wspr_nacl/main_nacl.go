@@ -86,7 +86,7 @@ func (wsprInstance) StartWSPR(message ppapi.Var) {
 
 	rt.Init()
 
-	veyronProxy, err := message.LookupStringValuedKey("proxy")
+	veyronProxy, err := message.LookupStringValuedKey("proxyName")
 	if err != nil {
 		panic(err.Error())
 	}
@@ -94,7 +94,7 @@ func (wsprInstance) StartWSPR(message ppapi.Var) {
 		panic("Empty proxy")
 	}
 
-	mounttable, err := message.LookupStringValuedKey("mounttable")
+	mounttable, err := message.LookupStringValuedKey("namespaceRoot")
 	if err != nil {
 		panic(err.Error())
 	}
@@ -130,11 +130,11 @@ func (wsprInstance) StartWSPR(message ppapi.Var) {
 // A message is of the form {"type": "typeName", "body": { stuff here }},
 // where the body is passed to the message handler.
 func (inst wsprInstance) HandleMessage(message ppapi.Var) {
+	fmt.Printf("Entered HandleMessage")
 	type handlerType func(ppapi.Var)
 	handlerMap := map[string]handlerType{
 		"start": inst.StartWSPR,
 	}
-	fmt.Printf("Got to HandleMessage(%v)", message)
 	ty, err := message.LookupStringValuedKey("type")
 	if err != nil {
 		panic(err.Error())

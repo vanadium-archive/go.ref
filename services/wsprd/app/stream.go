@@ -46,11 +46,16 @@ func newStream() *outstandingStream {
 }
 
 func (os *outstandingStream) send(data string, w lib.ClientWriter) {
-	os.messages <- &message{data, w}
+	if os.messages != nil {
+		os.messages <- &message{data, w}
+	}
 }
 
 func (os *outstandingStream) end() {
-	close(os.messages)
+	if os.messages != nil {
+		close(os.messages)
+	}
+	os.messages = nil
 }
 
 // Waits until the stream has been closed and all the messages
