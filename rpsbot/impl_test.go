@@ -17,12 +17,13 @@ import (
 	"veyron.io/veyron/veyron2"
 	"veyron.io/veyron/veyron2/ipc"
 	"veyron.io/veyron/veyron2/naming"
+	"veyron.io/veyron/veyron2/options"
 	"veyron.io/veyron/veyron2/rt"
 	"veyron.io/veyron/veyron2/vlog"
 )
 
 func startMountTable(t *testing.T, runtime veyron2.Runtime) (string, func()) {
-	server, err := runtime.NewServer(veyron2.ServesMountTableOpt(true))
+	server, err := runtime.NewServer(options.ServesMountTable(true))
 	if err != nil {
 		t.Fatalf("NewServer() failed: %v", err)
 	}

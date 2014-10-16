@@ -16,9 +16,9 @@ import (
 	"veyron.io/examples/rps/common"
 	"veyron.io/veyron/veyron/lib/signals"
 	sflag "veyron.io/veyron/veyron/security/flag"
-	"veyron.io/veyron/veyron2"
 	"veyron.io/veyron/veyron2/context"
 	"veyron.io/veyron/veyron2/ipc"
+	"veyron.io/veyron/veyron2/options"
 	"veyron.io/veyron/veyron2/rt"
 	"veyron.io/veyron/veyron2/vlog"
 )
@@ -36,7 +36,7 @@ func main() {
 	r := rt.Init()
 	defer r.Cleanup()
 	auth := sflag.NewAuthorizerOrDie()
-	server, err := r.NewServer(veyron2.DebugAuthorizerOpt{auth})
+	server, err := r.NewServer(options.DebugAuthorizer{auth})
 	if err != nil {
 		vlog.Fatalf("NewServer failed: %v", err)
 	}
