@@ -400,6 +400,12 @@ is provided, and are also set for sharing with all peers, unless a more
 specific peer pattern is provided using the --for_peer flag.
 `,
 		Run: func(cmd *cmdline.Command, args []string) error {
+			// Initialize the runtime first so that any local errors are reported
+			// before the HTTP roundtrips for obtaining the macaroon begin.
+			r, err := runtime()
+			if err != nil {
+				return err
+			}
 			blessedChan := make(chan string)
 			defer close(blessedChan)
 			macaroonChan, err := getMacaroonForBlessRPC(flagSeekBlessingsFrom, blessedChan)
@@ -408,11 +414,6 @@ specific peer pattern is provided using the --for_peer flag.
 			}
 			macaroon := <-macaroonChan
 			service := <-macaroonChan
-
-			r, err := runtime()
-			if err != nil {
-				return err
-			}
 			ctx, cancel := r.NewContext().WithTimeout(time.Minute)
 			defer cancel()
 
