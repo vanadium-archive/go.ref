@@ -11,6 +11,8 @@ import (
 	"veyron.io/veyron/veyron2"
 	"veyron.io/veyron/veyron2/rt"
 	"veyron.io/veyron/veyron2/security"
+
+	_ "veyron.io/veyron/veyron/profiles"
 )
 
 func createChain(r veyron2.Runtime, name string) security.PrivateID {

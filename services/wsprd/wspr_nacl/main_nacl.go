@@ -7,10 +7,13 @@ import (
 	"runtime/ppapi"
 	"syscall"
 
-	_ "veyron.io/veyron/veyron/runtimes/google/security"
 	"veyron.io/veyron/veyron2/ipc"
 	"veyron.io/veyron/veyron2/rt"
 	"veyron.io/wspr/veyron/services/wsprd/wspr"
+
+	// TODO(cnicolaou): shouldn't be depending on the runtime here.
+	_ "veyron.io/veyron/veyrom/profiles"
+	_ "veyron.io/veyron/veyron/runtimes/google/security"
 )
 
 func main() {
