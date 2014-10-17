@@ -44,7 +44,7 @@ RUN veyron go install veyron.io/veyron/...
 # your local version of the code. This is useful when developing and testing
 # local changes to the builder tool.
 # RUN rm $VEYRON_ROOT/veyron/go/bin/builder
-# ADD builder.go /usr/local/veyron/veyron/go/src/veyron/tools/playground/builder/builder.go
+# ADD main.go /usr/local/veyron/veyron/go/src/veyron/tools/playground/builder/main.go
 # ADD identity.go /usr/local/veyron/veyron/go/src/veyron/tools/playground/builder/identity.go
 # ADD services.go /usr/local/veyron/veyron/go/src/veyron/tools/playground/builder/services.go
 # RUN veyron go install veyron/tools/playground/builder

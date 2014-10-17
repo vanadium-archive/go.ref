@@ -4,54 +4,55 @@
 
 source "${VEYRON_ROOT}/scripts/lib/shell_test.sh"
 
+# Installs the veyron.js library and makes it accessible to javascript files in
+# the veyron playground test folder under the module name 'veyron'.
 install_veyron_js() {
-  # This installs the veyron.js library, and makes it accessable to javascript
-  # files in the veyron playground test folder under the module name 'veyron'.
-  #
-  # TODO(nlacasse): Once veyron.js is installed in a public npm registry, this
-  # should be replaced with just "npm install veyron".
+  # TODO(nlacasse): Once veyron.js is publicly available in npm, replace this
+  # with "npm install veyron".
   pushd "${VEYRON_ROOT}/veyron.js"
   "${VEYRON_ROOT}/environment/cout/node/bin/npm" link
   popd
   "${VEYRON_ROOT}/environment/cout/node/bin/npm" link veyron
 }
 
+# Installs the pgbundle tool.
+install_pgbundle() {
+  pushd "${VEYRON_ROOT}/veyron/go/src/veyron.io/veyron/veyron/tools/playground/pgbundle"
+  "${VEYRON_ROOT}/environment/cout/node/bin/npm" link
+  popd
+  "${VEYRON_ROOT}/environment/cout/node/bin/npm" link pgbundle
+}
+
 build() {
-  veyron go build veyron.io/veyron/veyron/tools/identity || shell_test::fail "line ${LINENO}: failed to build 'identity'"
-  veyron go build veyron.io/veyron/veyron/services/proxy/proxyd || shell_test::fail "line ${LINENO}: failed to build 'proxyd'"
-  veyron go build veyron.io/veyron/veyron/services/mounttable/mounttabled || shell_test::fail "line ${LINENO}: failed to build 'mounttabled'"
+  # Note that "go build" puts built binaries in $(pwd), but only if they are
+  # built one at a time. So much for the principle of least surprise...
+  local -r V="veyron.io/veyron/veyron"
+  veyron go build $V/tools/identity || shell_test::fail "line ${LINENO}: failed to build 'identity'"
+  veyron go build $V/services/proxy/proxyd || shell_test::fail "line ${LINENO}: failed to build 'proxyd'"
+  veyron go build $V/services/mounttable/mounttabled || shell_test::fail "line ${LINENO}: failed to build 'mounttabled'"
+  veyron go build $V/tools/playground/builder || shell_test::fail "line ${LINENO}: failed to build 'builder'"
   veyron go build veyron.io/veyron/veyron2/vdl/vdl || shell_test::fail "line ${LINENO}: failed to build 'vdl'"
-  veyron go build veyron.io/veyron/veyron/tools/playground/builder || shell_test::fail "line ${LINENO}: failed to build 'builder'"
-  veyron go build veyron.io/veyron/veyron/tools/playground/testdata/escaper || shell_test::fail "line ${LINENO}: failed to build 'escaper'"
   veyron go build veyron.io/wspr/veyron/services/wsprd || shell_test::fail "line ${LINENO}: failed to build 'wsprd'"
 }
 
 test_with_files() {
-  echo '{"Files":[' > request.json
-  while [[ "$#" > 0 ]]; do
-    echo '{"Name":"'"$(basename $1)"'","Body":' >>request.json
-    grep -v OMIT "$1" | ./escaper >>request.json
-    shift
-    if [[ "$#" > 0 ]]; then
-      echo '},' >>request.json
-    else
-      echo '}' >>request.json
-    fi
-  done
-  echo ']}' >>request.json
+  local -r TESTDIR=$(shell::tmp_dir)
+  cp "$@" ${TESTDIR}
+  ./node_modules/.bin/pgbundle ${TESTDIR}
   rm -f builder.out
-  ./builder <request.json 2>&1 | tee builder.out
+  ./builder < "${TESTDIR}/bundle.json" 2>&1 | tee builder.out
 }
 
 main() {
   cd $(shell::tmp_dir)
   build
   install_veyron_js
+  install_pgbundle
 
   local -r DIR="${VEYRON_ROOT}/veyron/go/src/veyron.io/veyron/veyron/tools/playground/testdata"
 
-  export GOPATH="$(pwd)":"$(veyron env GOPATH)"
-  export VDLPATH="$(pwd)":"$(veyron env VDLPATH)"
+  export GOPATH="$(pwd):$(veyron env GOPATH)"
+  export VDLPATH="$(pwd):$(veyron env VDLPATH)"
   export PATH="$(pwd):${PATH}"
 
   # Test without identities
@@ -88,9 +89,7 @@ main() {
   grep -q "ipc: not authorized" builder.out || shell_test::fail "line ${LINENO}: rpc with expired id succeeded"
 
   test_with_files "${DIR}/pong/pong.js" "${DIR}/ping/ping.js" "${DIR}/ids/expired.id" || shell_test::fail  "line ${LINENO}: failed to build with expired id (js -> js)"
-  # TODO(nlacasse): The error message in this case is very bad. Clean up the
-  # veyron.js errors and change this to something reasonable.
-  grep -q "vError.InternalError" builder.out || shell_test::fail "line ${LINENO}: rpc with expired id succeeded"
+  grep -q "ipc: not authorized" builder.out || shell_test::fail "line ${LINENO}: rpc with expired id succeeded"
 
   # Test with unauthorized identities
 
