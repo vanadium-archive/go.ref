@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Test the playground builder tool.
+# Tests the playground builder tool.
 
 source "${VEYRON_ROOT}/scripts/lib/shell_test.sh"
 
@@ -10,20 +10,20 @@ install_veyron_js() {
   # TODO(nlacasse): Once veyron.js is publicly available in npm, replace this
   # with "npm install veyron".
   pushd "${VEYRON_ROOT}/veyron.js"
-  "${VEYRON_ROOT}/environment/cout/node/bin/npm" link
+  npm link
   popd
-  "${VEYRON_ROOT}/environment/cout/node/bin/npm" link veyron
+  npm link veyron
 }
 
 # Installs the pgbundle tool.
 install_pgbundle() {
   pushd "${VEYRON_ROOT}/veyron/go/src/veyron.io/veyron/veyron/tools/playground/pgbundle"
-  "${VEYRON_ROOT}/environment/cout/node/bin/npm" link
+  npm link
   popd
-  "${VEYRON_ROOT}/environment/cout/node/bin/npm" link pgbundle
+  npm link pgbundle
 }
 
-build() {
+build_go_binaries() {
   # Note that "go build" puts built binaries in $(pwd), but only if they are
   # built one at a time. So much for the principle of least surprise...
   local -r V="veyron.io/veyron/veyron"
@@ -46,15 +46,15 @@ test_with_files() {
 main() {
   cd $(shell::tmp_dir)
 
-  build
+  export GOPATH="$(pwd):$(veyron env GOPATH)"
+  export VDLPATH="$(pwd):$(veyron env VDLPATH)"
+  export PATH="$(pwd):${VEYRON_ROOT}/environment/cout/node/bin:${PATH}"
+
+  build_go_binaries
   install_veyron_js
   install_pgbundle
 
   local -r DIR="$(shell::go_package_dir veyron.io/veyron/veyron/tools/playground/testdata)"
-
-  export GOPATH="$(pwd):$(veyron env GOPATH)"
-  export VDLPATH="$(pwd):$(veyron env VDLPATH)"
-  export PATH="$(pwd):${PATH}"
 
   # Test without identities
 
