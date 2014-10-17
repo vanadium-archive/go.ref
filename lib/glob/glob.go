@@ -47,8 +47,9 @@ func Parse(pattern string) (*Glob, error) {
 	// The only error we can get from the filepath library is badpattern.
 	// A future implementation would most likely recognize that here, so for now
 	// I'll just check every part to make sure it's error free.
+	// Note: Match never returns an error when matching against an empty string.
 	for _, elem := range g.elems {
-		if _, err := filepath.Match(elem, ""); err != nil {
+		if _, err := filepath.Match(elem, "test"); err != nil {
 			return nil, err
 		}
 	}
