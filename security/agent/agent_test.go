@@ -7,11 +7,14 @@ import (
 	"os"
 	"reflect"
 	"testing"
-	"veyron.io/veyron/veyron/security/agent"
-	"veyron.io/veyron/veyron/security/agent/server"
+
 	"veyron.io/veyron/veyron2/options"
 	"veyron.io/veyron/veyron2/rt"
 	"veyron.io/veyron/veyron2/security"
+
+	_ "veyron.io/veyron/veyron/profiles"
+	"veyron.io/veyron/veyron/security/agent"
+	"veyron.io/veyron/veyron/security/agent/server"
 )
 
 type fakesigner struct {

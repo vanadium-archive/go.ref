@@ -14,7 +14,6 @@ import (
 	"veyron.io/veyron/veyron/runtimes/google/ipc/stream/vc"
 
 	"veyron.io/veyron/veyron/lib/modules"
-	"veyron.io/veyron/veyron/profiles"
 	imanager "veyron.io/veyron/veyron/runtimes/google/ipc/stream/manager"
 	"veyron.io/veyron/veyron/runtimes/google/ipc/stream/proxy"
 	"veyron.io/veyron/veyron/runtimes/google/ipc/stream/sectest"
@@ -149,7 +148,7 @@ func TestProxy(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer proxy.Stop()
-	spec := *profiles.LocalListenSpec
+	spec := listenSpec
 	spec.Proxy = "proxy"
 	if _, err := server.ListenX(&spec); err != nil {
 		t.Fatal(err)
@@ -203,7 +202,7 @@ func runServer(stdin io.Reader, stdout, stderr io.Writer, env map[string]string,
 	if err := server.Serve("server", disp); err != nil {
 		return fmt.Errorf("server.Register failed: %v", err)
 	}
-	spec := *profiles.LocalListenSpec
+	spec := listenSpec
 	spec.Address = args[1]
 	ep, err := server.ListenX(&spec)
 	if err != nil {

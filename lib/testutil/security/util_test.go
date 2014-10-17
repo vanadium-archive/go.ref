@@ -5,10 +5,11 @@ import (
 	"reflect"
 	"testing"
 
-	vsecurity "veyron.io/veyron/veyron/security"
-
 	"veyron.io/veyron/veyron2/rt"
 	"veyron.io/veyron/veyron2/security"
+
+	_ "veyron.io/veyron/veyron/profiles"
+	vsecurity "veyron.io/veyron/veyron/security"
 )
 
 func TestNewVeyronCredentials(t *testing.T) {

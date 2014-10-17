@@ -64,7 +64,7 @@ func (p *profile) Name() string {
 }
 
 func (p *profile) Runtime() string {
-	return ""
+	return veyron2.GoogleRuntimeName
 }
 
 func (p *profile) String() string {

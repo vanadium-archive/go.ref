@@ -7,10 +7,11 @@ import (
 	"reflect"
 	"testing"
 
-	"veyron.io/veyron/veyron/services/identity/util"
-
 	"veyron.io/veyron/veyron2/rt"
 	"veyron.io/veyron/veyron2/security"
+
+	_ "veyron.io/veyron/veyron/profiles"
+	"veyron.io/veyron/veyron/services/identity/util"
 )
 
 func TestPublicKey(t *testing.T) {

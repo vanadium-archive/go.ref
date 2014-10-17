@@ -4,12 +4,15 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
-	services "veyron.io/veyron/veyron/services/security"
+
 	"veyron.io/veyron/veyron2"
 	"veyron.io/veyron/veyron2/ipc"
 	"veyron.io/veyron/veyron2/naming"
 	"veyron.io/veyron/veyron2/rt"
 	"veyron.io/veyron/veyron2/security"
+
+	_ "veyron.io/veyron/veyron/profiles"
+	services "veyron.io/veyron/veyron/services/security"
 )
 
 func revokerSetup(t *testing.T) (dischargerID security.PublicID, dischargerEndpoint, revokerEndpoint string, closeFunc func(), runtime veyron2.Runtime) {

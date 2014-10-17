@@ -4,8 +4,10 @@ import (
 	"veyron.io/veyron/veyron2"
 	"veyron.io/veyron/veyron2/config"
 	"veyron.io/veyron/veyron2/ipc"
+	"veyron.io/veyron/veyron2/rt"
 
 	"veyron.io/veyron/veyron/profiles/internal"
+	_ "veyron.io/veyron/veyron/runtimes/google/rt"
 )
 
 // LocalListenSpec is a ListenSpec for 127.0.0.1.
@@ -19,6 +21,10 @@ type generic struct{}
 
 var _ veyron2.Profile = (*generic)(nil)
 
+func init() {
+	rt.RegisterProfile(New())
+}
+
 // New returns a new instance of a very generic Profile. It can be used
 // as a default by Runtime implementations, in unit tests etc.
 func New() veyron2.Profile {
@@ -30,7 +36,7 @@ func (*generic) Name() string {
 }
 
 func (*generic) Runtime() string {
-	return ""
+	return veyron2.GoogleRuntimeName
 }
 
 func (*generic) Platform() *veyron2.Platform {

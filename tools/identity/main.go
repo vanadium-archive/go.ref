@@ -19,15 +19,16 @@ import (
 	"os/user"
 	"time"
 
-	"veyron.io/veyron/veyron/lib/cmdline"
-	"veyron.io/veyron/veyron/services/identity"
-	"veyron.io/veyron/veyron/services/identity/util"
-
 	"veyron.io/veyron/veyron2/options"
 	"veyron.io/veyron/veyron2/rt"
 	"veyron.io/veyron/veyron2/security"
 	"veyron.io/veyron/veyron2/vdl/vdlutil"
 	"veyron.io/veyron/veyron2/vlog"
+
+	"veyron.io/veyron/veyron/lib/cmdline"
+	_ "veyron.io/veyron/veyron/profiles"
+	"veyron.io/veyron/veyron/services/identity"
+	"veyron.io/veyron/veyron/services/identity/util"
 )
 
 var (

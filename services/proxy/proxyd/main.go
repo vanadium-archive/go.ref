@@ -8,11 +8,13 @@ import (
 	_ "net/http/pprof"
 	"time"
 
-	"veyron.io/veyron/veyron/runtimes/google/ipc/stream/proxy"
-	"veyron.io/veyron/veyron/runtimes/google/lib/publisher"
 	"veyron.io/veyron/veyron2/naming"
 	"veyron.io/veyron/veyron2/rt"
 	"veyron.io/veyron/veyron2/vlog"
+
+	_ "veyron.io/veyron/veyron/profiles"
+	"veyron.io/veyron/veyron/runtimes/google/ipc/stream/proxy"
+	"veyron.io/veyron/veyron/runtimes/google/lib/publisher"
 )
 
 var (

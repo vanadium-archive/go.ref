@@ -51,7 +51,7 @@ func TestHelperProcess(t *testing.T) {
 }
 
 func TestInit(t *testing.T) {
-	r, err := rt.New()
+	r, err := rt.New(profileOpt)
 	if err != nil {
 		t.Fatalf("error: %s", err)
 	}
@@ -101,7 +101,7 @@ func TestInitArgs(t *testing.T) {
 
 func TestInitPrincipal(t *testing.T) {
 	newRT := func() veyron2.Runtime {
-		r, err := rt.New()
+		r, err := rt.New(profileOpt)
 		if err != nil {
 			t.Fatalf("rt.New failed: %v", err)
 		}
@@ -168,8 +168,7 @@ func TestInitPrincipalFromOption(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewPrincipal() failed: %v", err)
 	}
-
-	r, err := rt.New(options.RuntimePrincipal{p})
+	r, err := rt.New(profileOpt, options.RuntimePrincipal{p})
 	if err != nil {
 		t.Fatalf("rt.New failed: %v", err)
 	}

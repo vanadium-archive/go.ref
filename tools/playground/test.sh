@@ -45,11 +45,12 @@ test_with_files() {
 
 main() {
   cd $(shell::tmp_dir)
+
   build
   install_veyron_js
   install_pgbundle
 
-  local -r DIR="${VEYRON_ROOT}/veyron/go/src/veyron.io/veyron/veyron/tools/playground/testdata"
+  local -r DIR="$(shell::go_package_dir veyron.io/veyron/veyron/tools/playground/testdata)"
 
   export GOPATH="$(pwd):$(veyron env GOPATH)"
   export VDLPATH="$(pwd):$(veyron env VDLPATH)"

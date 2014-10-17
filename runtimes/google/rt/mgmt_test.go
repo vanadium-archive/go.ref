@@ -26,6 +26,8 @@ import (
 	"veyron.io/veyron/veyron/services/mgmt/node"
 )
 
+var profileOpt = options.Profile{profiles.New()}
+
 const (
 	noWaitersCmd = "noWaiters"
 	forceStopCmd = "forceStop"
@@ -42,7 +44,7 @@ func init() {
 // TestBasic verifies that the basic plumbing works: LocalStop calls result in
 // stop messages being sent on the channel passed to WaitForStop.
 func TestBasic(t *testing.T) {
-	m, _ := rt.New()
+	m, _ := rt.New(profileOpt)
 	ch := make(chan string, 1)
 	m.WaitForStop(ch)
 	for i := 0; i < 10; i++ {
@@ -61,7 +63,7 @@ func TestBasic(t *testing.T) {
 // TestMultipleWaiters verifies that the plumbing works with more than one
 // registered wait channel.
 func TestMultipleWaiters(t *testing.T) {
-	m, _ := rt.New()
+	m, _ := rt.New(profileOpt)
 	ch1 := make(chan string, 1)
 	m.WaitForStop(ch1)
 	ch2 := make(chan string, 1)
@@ -81,7 +83,7 @@ func TestMultipleWaiters(t *testing.T) {
 // channel is not being drained: once the channel's buffer fills up, future
 // Stops become no-ops.
 func TestMultipleStops(t *testing.T) {
-	m, _ := rt.New()
+	m, _ := rt.New(profileOpt)
 	ch := make(chan string, 1)
 	m.WaitForStop(ch)
 	for i := 0; i < 10; i++ {
@@ -98,7 +100,7 @@ func TestMultipleStops(t *testing.T) {
 }
 
 func noWaiters(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
-	m, _ := rt.New()
+	m, _ := rt.New(profileOpt)
 	fmt.Fprintf(stdout, "ready\n")
 	modules.WaitForEOF(stdin)
 	m.Stop()
@@ -123,7 +125,7 @@ func TestNoWaiters(t *testing.T) {
 }
 
 func forceStop(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
-	m, _ := rt.New()
+	m, _ := rt.New(profileOpt)
 	fmt.Fprintf(stdout, "ready\n")
 	modules.WaitForEOF(stdin)
 	m.WaitForStop(make(chan string, 1))
@@ -167,7 +169,7 @@ func checkNoProgress(t *testing.T, ch <-chan veyron2.Task) {
 // TestProgress verifies that the ticker update/track logic works for a single
 // tracker.
 func TestProgress(t *testing.T) {
-	m, _ := rt.New()
+	m, _ := rt.New(profileOpt)
 	m.AdvanceGoal(50)
 	ch := make(chan veyron2.Task, 1)
 	m.TrackTask(ch)
@@ -197,7 +199,7 @@ func TestProgress(t *testing.T) {
 // works for more than one tracker.  It also ensures that the runtime doesn't
 // block when the tracker channels are full.
 func TestProgressMultipleTrackers(t *testing.T) {
-	m, _ := rt.New()
+	m, _ := rt.New(profileOpt)
 	// ch1 is 1-buffered, ch2 is 2-buffered.
 	ch1, ch2 := make(chan veyron2.Task, 1), make(chan veyron2.Task, 2)
 	m.TrackTask(ch1)
@@ -230,7 +232,7 @@ func TestProgressMultipleTrackers(t *testing.T) {
 }
 
 func app(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
-	r, err := rt.New()
+	r, err := rt.New(profileOpt)
 	if err != nil {
 		return err
 	}
@@ -282,7 +284,7 @@ func setupRemoteAppCycleMgr(t *testing.T) (veyron2.Runtime, modules.Handle, appc
 	// refer to the global rt.R() function), but we take care to make sure
 	// that the "google" runtime we are trying to test in this package is
 	// the one being used.
-	r, _ := rt.New(options.GoogleRuntime, options.ForceNewSecurityModel{})
+	r, _ := rt.New(profileOpt, options.GoogleRuntime, options.ForceNewSecurityModel{})
 
 	childcreds := security.NewVeyronCredentials(r.Principal(), appCmd)
 	configServer, configServiceName, ch := createConfigServer(t, r)

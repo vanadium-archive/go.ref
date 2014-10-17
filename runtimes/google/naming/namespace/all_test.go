@@ -7,11 +7,6 @@ import (
 	"testing"
 	"time"
 
-	"veyron.io/veyron/veyron/lib/glob"
-	"veyron.io/veyron/veyron/lib/testutil"
-	"veyron.io/veyron/veyron/runtimes/google/naming/namespace"
-	service "veyron.io/veyron/veyron/services/mounttable/lib"
-
 	"veyron.io/veyron/veyron2"
 	"veyron.io/veyron/veyron2/ipc"
 	"veyron.io/veyron/veyron2/naming"
@@ -21,6 +16,12 @@ import (
 	"veyron.io/veyron/veyron2/services/mounttable"
 	"veyron.io/veyron/veyron2/services/mounttable/types"
 	"veyron.io/veyron/veyron2/vlog"
+
+	"veyron.io/veyron/veyron/lib/glob"
+	"veyron.io/veyron/veyron/lib/testutil"
+	_ "veyron.io/veyron/veyron/profiles"
+	"veyron.io/veyron/veyron/runtimes/google/naming/namespace"
+	service "veyron.io/veyron/veyron/services/mounttable/lib"
 )
 
 func init() { testutil.Init() }

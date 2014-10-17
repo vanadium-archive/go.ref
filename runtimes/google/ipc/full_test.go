@@ -11,18 +11,6 @@ import (
 	"testing"
 	"time"
 
-	"veyron.io/veyron/veyron/lib/netstate"
-	"veyron.io/veyron/veyron/lib/testutil"
-	"veyron.io/veyron/veyron/profiles"
-	imanager "veyron.io/veyron/veyron/runtimes/google/ipc/stream/manager"
-	"veyron.io/veyron/veyron/runtimes/google/ipc/stream/sectest"
-	"veyron.io/veyron/veyron/runtimes/google/ipc/stream/vc"
-	"veyron.io/veyron/veyron/runtimes/google/ipc/version"
-	"veyron.io/veyron/veyron/runtimes/google/lib/publisher"
-	inaming "veyron.io/veyron/veyron/runtimes/google/naming"
-	tnaming "veyron.io/veyron/veyron/runtimes/google/testing/mocks/naming"
-	vsecurity "veyron.io/veyron/veyron/security"
-
 	"veyron.io/veyron/veyron2/ipc"
 	"veyron.io/veyron/veyron2/ipc/stream"
 	"veyron.io/veyron/veyron2/naming"
@@ -32,11 +20,23 @@ import (
 	"veyron.io/veyron/veyron2/verror"
 	"veyron.io/veyron/veyron2/vlog"
 	"veyron.io/veyron/veyron2/vom"
+
+	"veyron.io/veyron/veyron/lib/netstate"
+	"veyron.io/veyron/veyron/lib/testutil"
+	imanager "veyron.io/veyron/veyron/runtimes/google/ipc/stream/manager"
+	"veyron.io/veyron/veyron/runtimes/google/ipc/stream/sectest"
+	"veyron.io/veyron/veyron/runtimes/google/ipc/stream/vc"
+	"veyron.io/veyron/veyron/runtimes/google/ipc/version"
+	"veyron.io/veyron/veyron/runtimes/google/lib/publisher"
+	inaming "veyron.io/veyron/veyron/runtimes/google/naming"
+	tnaming "veyron.io/veyron/veyron/runtimes/google/testing/mocks/naming"
+	vsecurity "veyron.io/veyron/veyron/security"
 )
 
 var (
-	errMethod = verror.Abortedf("server returned an error")
-	clock     = new(fakeClock)
+	errMethod  = verror.Abortedf("server returned an error")
+	clock      = new(fakeClock)
+	listenSpec = ipc.ListenSpec{Protocol: "tcp", Address: "127.0.0.1:0"}
 )
 
 type fakeClock struct {
@@ -174,7 +174,7 @@ func startServer(t *testing.T, principal security.Principal, sm stream.Manager, 
 		t.Errorf("InternalNewServer failed: %v", err)
 	}
 	vlog.VI(1).Info("server.Listen")
-	ep, err := server.ListenX(profiles.LocalListenSpec)
+	ep, err := server.ListenX(&listenSpec)
 	if err != nil {
 		t.Errorf("server.Listen failed: %v", err)
 	}
@@ -274,7 +274,7 @@ func TestMultipleCallsToServe(t *testing.T) {
 	if err != nil {
 		t.Errorf("InternalNewServer failed: %v", err)
 	}
-	_, err = server.ListenX(profiles.LocalListenSpec)
+	_, err = server.ListenX(&listenSpec)
 	if err != nil {
 		t.Errorf("server.Listen failed: %v", err)
 	}
@@ -597,7 +597,7 @@ func TestDischargeImpetus(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer server.Stop()
-	if _, err := server.ListenX(profiles.LocalListenSpec); err != nil {
+	if _, err := server.ListenX(&listenSpec); err != nil {
 		t.Fatal(err)
 	}
 
@@ -990,7 +990,7 @@ func TestPreferredAddress(t *testing.T) {
 		t.Errorf("InternalNewServer failed: %v", err)
 	}
 	defer server.Stop()
-	spec := *profiles.LocalListenSpec
+	spec := listenSpec
 	spec.Address = ":0"
 	spec.AddressChooser = pa
 	ep, err := server.ListenX(&spec)
@@ -1003,7 +1003,7 @@ func TestPreferredAddress(t *testing.T) {
 		t.Errorf("got %q, want %q", got, want)
 	}
 	// Won't override the specified address.
-	ep, err = server.ListenX(profiles.LocalListenSpec)
+	ep, err = server.ListenX(&listenSpec)
 	iep = ep.(*inaming.Endpoint)
 	host, _, err = net.SplitHostPort(iep.Address)
 	if err != nil {
@@ -1026,7 +1026,7 @@ func TestPreferredAddressErrors(t *testing.T) {
 		t.Errorf("InternalNewServer failed: %v", err)
 	}
 	defer server.Stop()
-	spec := *profiles.LocalListenSpec
+	spec := listenSpec
 	spec.Address = ":0"
 	spec.AddressChooser = paerr
 	ep, err := server.ListenX(&spec)

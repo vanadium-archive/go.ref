@@ -3,8 +3,11 @@ package main
 
 import (
 	"fmt"
-	"pingpong"
+
 	"veyron.io/veyron/veyron2/rt"
+
+	_ "veyron.io/veyron/veyron/profiles"
+	"veyron.io/veyron/veyron/tools/playground/testdata/pingpong"
 )
 
 func main() {

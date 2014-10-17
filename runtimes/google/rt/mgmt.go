@@ -12,7 +12,6 @@ import (
 	"veyron.io/veyron/veyron2/naming"
 
 	"veyron.io/veyron/veyron/lib/exec"
-	"veyron.io/veyron/veyron/profiles"
 	"veyron.io/veyron/veyron/runtimes/google/appcycle"
 )
 
@@ -42,7 +41,7 @@ func parentName() (name string) {
 	return
 }
 
-func (m *mgmtImpl) init(rt *vrt) error {
+func (m *mgmtImpl) initMgmt(rt *vrt, listenSpec *ipc.ListenSpec) error {
 	m.rt = rt
 	parentName := parentName()
 	if len(parentName) == 0 {
@@ -54,7 +53,7 @@ func (m *mgmtImpl) init(rt *vrt) error {
 	}
 	// TODO(caprita): We should pick the address to listen on from config.
 	var ep naming.Endpoint
-	if ep, err = m.server.ListenX(profiles.LocalListenSpec); err != nil {
+	if ep, err = m.server.ListenX(listenSpec); err != nil {
 		return err
 	}
 	if err := m.server.Serve("", ipc.LeafDispatcher(appcycle.NewServerAppCycle(m), nil)); err != nil {

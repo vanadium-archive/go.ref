@@ -58,7 +58,7 @@ func findUnusedPort() (int, error) {
 // variable to the mounttable's location.  We run one mounttabled process for
 // the entire environment.
 func startMount(timeLimit time.Duration) (proc *os.Process, err error) {
-	cmd := makeCmdJsonEvent("", "mounttabled", "--veyron.tcp.address=localhost:0")
+	cmd := makeCmdJsonEvent("", "mounttabled", "--veyron.tcp.address=127.0.0.1:0")
 
 	matches, err := startAndWaitFor(cmd, timeLimit, regexp.MustCompile("Mount table .+ endpoint: (.+)\n"))
 	if err != nil {
@@ -78,7 +78,7 @@ func startProxy() (proc *os.Process, err error) {
 	if err != nil {
 		return nil, err
 	}
-	cmd := makeCmdJsonEvent("", "proxyd", "-name="+proxyName, "-address=localhost:"+strconv.Itoa(port))
+	cmd := makeCmdJsonEvent("", "proxyd", "-name="+proxyName, "-address=127.0.0.1:"+strconv.Itoa(port))
 	err = cmd.Start()
 	if err != nil {
 		return nil, err

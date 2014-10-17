@@ -14,14 +14,14 @@ import (
 	"veyron.io/veyron/veyron2/ipc"
 	"veyron.io/veyron/veyron2/ipc/stream"
 	"veyron.io/veyron/veyron2/naming"
-	"veyron.io/veyron/veyron2/options"
-	"veyron.io/veyron/veyron2/security"
-	"veyron.io/veyron/veyron2/vlog"
+	"veyron.io/veyron/veyron2/rt"
 
 	"veyron.io/veyron/veyron/lib/exec"
 	_ "veyron.io/veyron/veyron/lib/stats/sysstats"
-	"veyron.io/veyron/veyron/profiles"
 	"veyron.io/veyron/veyron/runtimes/google/naming/namespace"
+	"veyron.io/veyron/veyron2/options"
+	"veyron.io/veyron/veyron2/security"
+	"veyron.io/veyron/veyron2/vlog"
 )
 
 // TODO(caprita): Verrorize this, and maybe move it in the API.
@@ -53,6 +53,10 @@ type vrt struct {
 
 var _ veyron2.Runtime = (*vrt)(nil)
 
+func init() {
+	rt.RegisterRuntime(veyron2.GoogleRuntimeName, New)
+}
+
 // Implements veyron2/rt.New
 func New(opts ...veyron2.ROpt) (veyron2.Runtime, error) {
 	rt := &vrt{mgmt: new(mgmtImpl), lang: i18n.LangIDFromEnv(), program: filepath.Base(os.Args[0])}
@@ -83,9 +87,10 @@ func New(opts ...veyron2.ROpt) (veyron2.Runtime, error) {
 	rt.initSignalHandling()
 
 	if rt.profile == nil {
-		rt.profile = profiles.New()
+		return nil, fmt.Errorf("No profile configured!")
+	} else {
+		vlog.VI(1).Infof("Using profile %q", rt.profile.Name())
 	}
-	vlog.VI(1).Infof("Using profile %q", rt.profile.Name())
 
 	if len(nsRoots) == 0 {
 		for _, ev := range os.Environ() {
@@ -134,7 +139,10 @@ func New(opts ...veyron2.ROpt) (veyron2.Runtime, error) {
 		return nil, err
 	}
 
-	if err := rt.mgmt.init(rt); err != nil {
+	// TODO(caprita, cnicolaou): how is this to be configured?
+	// Can it ever be anything other than a localhost/loopback address?
+	listenSpec := &ipc.ListenSpec{Protocol: "tcp", Address: "127.0.0.1:0"}
+	if err := rt.mgmt.initMgmt(rt, listenSpec); err != nil {
 		return nil, err
 	}
 

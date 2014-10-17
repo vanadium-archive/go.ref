@@ -9,15 +9,16 @@ import (
 	"os/user"
 	"time"
 
-	"veyron.io/veyron/veyron/lib/cmdline"
-	vsecurity "veyron.io/veyron/veyron/security"
-	"veyron.io/veyron/veyron/services/identity"
-	"veyron.io/veyron/veyron/services/identity/util"
-
 	"veyron.io/veyron/veyron2"
 	"veyron.io/veyron/veyron2/rt"
 	"veyron.io/veyron/veyron2/security"
 	"veyron.io/veyron/veyron2/vdl/vdlutil"
+
+	"veyron.io/veyron/veyron/lib/cmdline"
+	_ "veyron.io/veyron/veyron/profiles"
+	vsecurity "veyron.io/veyron/veyron/security"
+	"veyron.io/veyron/veyron/services/identity"
+	"veyron.io/veyron/veyron/services/identity/util"
 )
 
 const VEYRON_CREDENTIALS = "VEYRON_CREDENTIALS"

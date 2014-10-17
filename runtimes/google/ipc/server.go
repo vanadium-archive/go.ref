@@ -9,17 +9,6 @@ import (
 	"sync"
 	"time"
 
-	"veyron.io/veyron/veyron/lib/glob"
-	"veyron.io/veyron/veyron/lib/netstate"
-	"veyron.io/veyron/veyron/runtimes/google/lib/publisher"
-	inaming "veyron.io/veyron/veyron/runtimes/google/naming"
-	isecurity "veyron.io/veyron/veyron/runtimes/google/security"
-	ivtrace "veyron.io/veyron/veyron/runtimes/google/vtrace"
-	vsecurity "veyron.io/veyron/veyron/security"
-	"veyron.io/veyron/veyron/services/mgmt/debug"
-
-	"veyron.io/veyron/veyron/profiles/internal"
-
 	"veyron.io/veyron/veyron2"
 	"veyron.io/veyron/veyron2/config"
 	"veyron.io/veyron/veyron2/context"
@@ -33,6 +22,15 @@ import (
 	"veyron.io/veyron/veyron2/vlog"
 	"veyron.io/veyron/veyron2/vom"
 	"veyron.io/veyron/veyron2/vtrace"
+
+	"veyron.io/veyron/veyron/lib/glob"
+	"veyron.io/veyron/veyron/lib/netstate"
+	"veyron.io/veyron/veyron/runtimes/google/lib/publisher"
+	inaming "veyron.io/veyron/veyron/runtimes/google/naming"
+	isecurity "veyron.io/veyron/veyron/runtimes/google/security"
+	ivtrace "veyron.io/veyron/veyron/runtimes/google/vtrace"
+	vsecurity "veyron.io/veyron/veyron/security"
+	"veyron.io/veyron/veyron/services/mgmt/debug"
 )
 
 var (
@@ -135,6 +133,40 @@ func (s *server) resolveToAddress(address string) (string, error) {
 	return "", fmt.Errorf("unable to resolve %q to an endpoint", address)
 }
 
+// ipAddressChooser returns the preferred IP address, which is,
+// a public IPv4 address, then any non-loopback IPv4, then a public
+// IPv6 address and finally any non-loopback/link-local IPv6
+// It is replicated here to avoid a circular dependency and will, in any case,
+// go away when we transition away from Listen to the ListenX API.
+func ipAddressChooser(network string, addrs []ipc.Address) ([]ipc.Address, error) {
+	if !netstate.IsIPProtocol(network) {
+		return nil, fmt.Errorf("can't support network protocol %q", network)
+	}
+	accessible := netstate.AddrList(addrs)
+
+	// Try and find an address on a interface with a default route.
+	predicates := []netstate.AddressPredicate{netstate.IsPublicUnicastIPv4,
+		netstate.IsUnicastIPv4, netstate.IsPublicUnicastIPv6}
+	for _, predicate := range predicates {
+		if addrs := accessible.Filter(predicate); len(addrs) > 0 {
+			onDefaultRoutes := addrs.Filter(netstate.IsOnDefaultRoute)
+			if len(onDefaultRoutes) > 0 {
+				return onDefaultRoutes, nil
+			}
+		}
+	}
+
+	// We failed to find any addresses with default routes, try again
+	// but without the default route requirement.
+	for _, predicate := range predicates {
+		if addrs := accessible.Filter(predicate); len(addrs) > 0 {
+			return addrs, nil
+		}
+	}
+
+	return nil, fmt.Errorf("failed to find any usable address for %q", network)
+}
+
 func (s *server) Listen(protocol, address string) (naming.Endpoint, error) {
 	defer vlog.LogCall()()
 	s.Lock()
@@ -180,7 +212,7 @@ func (s *server) Listen(protocol, address string) (naming.Endpoint, error) {
 			if ip.IsUnspecified() {
 				addrs, err := netstate.GetAccessibleIPs()
 				if err == nil {
-					if a, err := internal.IPAddressChooser(iep.Protocol, addrs); err == nil && len(a) > 0 {
+					if a, err := ipAddressChooser(iep.Protocol, addrs); err == nil && len(a) > 0 {
 						iep.Address = net.JoinHostPort(a[0].Address().String(), port)
 					}
 				}

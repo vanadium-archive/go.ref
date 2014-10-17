@@ -10,8 +10,10 @@
 package main
 
 import (
-	"veyron.io/veyron/veyron/tools/debug/impl"
 	"veyron.io/veyron/veyron2/rt"
+
+	_ "veyron.io/veyron/veyron/profiles"
+	"veyron.io/veyron/veyron/tools/debug/impl"
 )
 
 func main() {

@@ -11,7 +11,6 @@ import (
 	"veyron.io/veyron/veyron2/services/mounttable/types"
 
 	"veyron.io/veyron/veyron/lib/stats"
-	"veyron.io/veyron/veyron/profiles"
 	"veyron.io/veyron/veyron/runtimes/google/ipc/stream/manager"
 	"veyron.io/veyron/veyron/runtimes/google/ipc/stream/sectest"
 	"veyron.io/veyron/veyron/runtimes/google/ipc/stream/vc"
@@ -38,7 +37,7 @@ func TestDebugServer(t *testing.T) {
 	}
 	defer server.Stop()
 	server.Serve("", ipc.LeafDispatcher(&testObject{}, nil))
-	ep, err := server.ListenX(profiles.LocalListenSpec)
+	ep, err := server.ListenX(&listenSpec)
 	if err != nil {
 		t.Fatalf("server.Listen failed: %v", err)
 	}

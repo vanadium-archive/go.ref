@@ -23,7 +23,6 @@ var (
 )
 
 func main() {
-	//flag.Usage = Usage
 	r := rt.Init()
 	defer r.Cleanup()
 
