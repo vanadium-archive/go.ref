@@ -42,7 +42,7 @@ var (
 func init() {
 	flag.Var(&listenProtocolFlag, "veyron.tcp.protocol", "protocol to listen with")
 	flag.Var(&listenAddressFlag, "veyron.tcp.address", "address to listen on")
-	flag.StringVar(&listenProxyFlag, "veyron.proxy", "", "proxy to use")
+	flag.StringVar(&listenProxyFlag, "veyron.proxy", "", "object name of proxy service to use to export services across network boundaries")
 	rt.RegisterProfile(New())
 }
 
