@@ -33,29 +33,29 @@ func (r *RPS) ScoreKeeper() *ScoreKeeper {
 }
 
 func (r *RPS) CreateGame(ctx ipc.ServerContext, opts rps.GameOptions) (rps.GameID, error) {
-	vlog.VI(1).Infof("CreateGame %+v from %s", opts, ctx.RemoteID())
-	names := ctx.LocalID().Names()
+	vlog.VI(1).Infof("CreateGame %+v from %v", opts, ctx.RemoteBlessings().ForContext(ctx))
+	names := ctx.LocalBlessings().ForContext(ctx)
 	if len(names) == 0 {
-		return rps.GameID{}, errors.New("no names provided with local ID")
+		return rps.GameID{}, errors.New("no names provided for context")
 	}
 	return r.judge.createGame(names[0], opts)
 }
 
 func (r *RPS) Play(ctx ipc.ServerContext, id rps.GameID, stream rps.JudgeServicePlayStream) (rps.PlayResult, error) {
-	vlog.VI(1).Infof("Play %+v from %s", id, ctx.RemoteID())
-	names := ctx.RemoteID().Names()
+	vlog.VI(1).Infof("Play %+v from %v", id, ctx.RemoteBlessings().ForContext(ctx))
+	names := ctx.RemoteBlessings().ForContext(ctx)
 	if len(names) == 0 {
-		return rps.PlayResult{}, errors.New("no names provided with remote ID")
+		return rps.PlayResult{}, errors.New("no names provided for context")
 	}
 	return r.judge.play(ctx, names[0], id, stream)
 }
 
 func (r *RPS) Challenge(ctx ipc.ServerContext, address string, id rps.GameID, opts rps.GameOptions) error {
-	vlog.VI(1).Infof("Challenge (%q, %+v, %+v) from %s", address, id, opts, ctx.RemoteID())
+	vlog.VI(1).Infof("Challenge (%q, %+v, %+v) from %v", address, id, opts, ctx.RemoteBlessings().ForContext(ctx))
 	return r.player.challenge(veyron2.RuntimeFromContext(ctx), address, id, opts)
 }
 
 func (r *RPS) Record(ctx ipc.ServerContext, score rps.ScoreCard) error {
-	vlog.VI(1).Infof("Record (%+v) from %s", score, ctx.RemoteID())
+	vlog.VI(1).Infof("Record (%+v) from %v", score, ctx.RemoteBlessings().ForContext(ctx))
 	return r.scoreKeeper.Record(ctx, score)
 }

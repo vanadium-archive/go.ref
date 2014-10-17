@@ -75,7 +75,8 @@ func (i *impl) setDecline(v bool) bool {
 }
 
 func (i *impl) Challenge(ctx ipc.ServerContext, address string, id rps.GameID, opts rps.GameOptions) error {
-	vlog.VI(1).Infof("Challenge (%q, %+v) from %s", address, id, ctx.RemoteID())
+	remote := ctx.RemoteBlessings().ForContext(ctx)
+	vlog.VI(1).Infof("Challenge (%q, %+v) from %v", address, id, remote)
 	// When setDecline(true) returns, future challenges will be declined.
 	// Whether the current challenge should be considered depends on the
 	// previous state. If 'decline' was already true, we need to decline
@@ -85,7 +86,7 @@ func (i *impl) Challenge(ctx ipc.ServerContext, address string, id rps.GameID, o
 		return errors.New("player is busy")
 	}
 	fmt.Println()
-	fmt.Printf("Challenge received from %s for a %d-round ", ctx.RemoteID(), opts.NumRounds)
+	fmt.Printf("Challenge received from %v for a %d-round ", remote, opts.NumRounds)
 	switch opts.GameType {
 	case rps.Classic:
 		fmt.Print("Classic ")

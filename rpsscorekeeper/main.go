@@ -32,7 +32,7 @@ type impl struct {
 }
 
 func (i *impl) Record(ctx ipc.ServerContext, score rps.ScoreCard) error {
-	vlog.VI(1).Infof("Record (%+v) from %s", score, ctx.RemoteID())
+	vlog.VI(1).Infof("Record (%+v) from %v", score, ctx.RemoteBlessings().ForContext(ctx))
 	i.ch <- score
 	return nil
 }
