@@ -4,6 +4,7 @@ import (
 	"reflect"
 	"testing"
 
+	_ "veyron.io/veyron/veyron/profiles"
 	mocks_ipc "veyron.io/veyron/veyron/runtimes/google/testing/mocks/ipc"
 	"veyron.io/veyron/veyron2/ipc"
 	"veyron.io/veyron/veyron2/rt"
