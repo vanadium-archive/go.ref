@@ -31,6 +31,9 @@ import (
 	"veyron.io/veyron/veyron/services/identity/revocation"
 	services "veyron.io/veyron/veyron/services/security"
 	"veyron.io/veyron/veyron/services/security/discharger"
+
+	_ "veyron.io/veyron/veyron/profiles"
+	_ "veyron.io/veyron/veyron/runtimes/google/security"
 )
 
 var (
