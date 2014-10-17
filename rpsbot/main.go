@@ -12,15 +12,18 @@ import (
 	"math/rand"
 	"time"
 
-	"veyron.io/examples/rps"
-	"veyron.io/examples/rps/common"
-	"veyron.io/veyron/veyron/lib/signals"
-	sflag "veyron.io/veyron/veyron/security/flag"
 	"veyron.io/veyron/veyron2/context"
 	"veyron.io/veyron/veyron2/ipc"
 	"veyron.io/veyron/veyron2/options"
 	"veyron.io/veyron/veyron2/rt"
 	"veyron.io/veyron/veyron2/vlog"
+
+	"veyron.io/veyron/veyron/lib/signals"
+	_ "veyron.io/veyron/veyron/profiles"
+	sflag "veyron.io/veyron/veyron/security/flag"
+
+	"veyron.io/examples/rps"
+	"veyron.io/examples/rps/common"
 )
 
 var (

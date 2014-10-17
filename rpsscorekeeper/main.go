@@ -9,12 +9,15 @@ import (
 	"fmt"
 	"os"
 
-	"veyron.io/examples/rps"
-	"veyron.io/examples/rps/common"
-	sflag "veyron.io/veyron/veyron/security/flag"
 	"veyron.io/veyron/veyron2/ipc"
 	"veyron.io/veyron/veyron2/rt"
 	"veyron.io/veyron/veyron2/vlog"
+
+	_ "veyron.io/veyron/veyron/profiles"
+	sflag "veyron.io/veyron/veyron/security/flag"
+
+	"veyron.io/examples/rps"
+	"veyron.io/examples/rps/common"
 )
 
 var (
