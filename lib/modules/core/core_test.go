@@ -16,7 +16,7 @@ import (
 	"veyron.io/veyron/veyron/lib/modules"
 	"veyron.io/veyron/veyron/lib/modules/core"
 
-	_ "veyron.io/veyron/veyron/lib/testutil"
+	"veyron.io/veyron/veyron/lib/testutil"
 )
 
 func TestCommands(t *testing.T) {
@@ -30,6 +30,7 @@ func TestCommands(t *testing.T) {
 }
 
 func init() {
+	testutil.Init()
 	rt.Init()
 }
 

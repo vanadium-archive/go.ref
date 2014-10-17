@@ -4,11 +4,13 @@ import (
 	"reflect"
 	"testing"
 
-	_ "veyron.io/veyron/veyron/lib/testutil"
+	"veyron.io/veyron/veyron/lib/testutil"
 
 	"veyron.io/veyron/veyron2/security"
 	"veyron.io/veyron/veyron2/verror"
 )
+
+func init() { testutil.Init() }
 
 func makeResultPtrs(ins []interface{}) []interface{} {
 	outs := make([]interface{}, len(ins))

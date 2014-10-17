@@ -5,8 +5,10 @@ import (
 	"sync/atomic"
 	"testing"
 
-	_ "veyron.io/veyron/veyron/lib/testutil"
+	"veyron.io/veyron/veyron/lib/testutil"
 )
+
+func init() { testutil.Init() }
 
 func TestSemaphore(t *testing.T) {
 	s1 := NewSemaphore()

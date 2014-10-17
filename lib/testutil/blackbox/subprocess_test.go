@@ -137,6 +137,7 @@ func TestWait(t *testing.T) {
 }
 
 func init() {
+	testutil.Init()
 	blackbox.CommandTable["sleepChild"] = sleepChild
 	blackbox.CommandTable["sleepParent"] = sleepParent
 }

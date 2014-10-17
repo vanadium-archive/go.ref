@@ -6,6 +6,8 @@ import (
 	"veyron.io/veyron/veyron/lib/testutil"
 )
 
+func init() { testutil.Init() }
+
 func TestBasic(t *testing.T) {
 	var q T
 	if q.Size() != 0 {

@@ -11,9 +11,11 @@ import (
 	"veyron.io/veyron/veyron2/services/mounttable"
 	"veyron.io/veyron/veyron2/vlog"
 
-	_ "veyron.io/veyron/veyron/lib/testutil"
+	"veyron.io/veyron/veyron/lib/testutil"
 	"veyron.io/veyron/veyron/profiles"
 )
+
+func init() { testutil.Init() }
 
 func protocolAndAddress(e naming.Endpoint) (string, string, error) {
 	addr := e.Addr()

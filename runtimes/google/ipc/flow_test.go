@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"testing"
 
-	_ "veyron.io/veyron/veyron/lib/testutil"
+	"veyron.io/veyron/veyron/lib/testutil"
 	"veyron.io/veyron/veyron/runtimes/google/ipc/stream/sectest"
 
 	"veyron.io/veyron/veyron2/ipc"
@@ -14,6 +14,8 @@ import (
 	"veyron.io/veyron/veyron2/security"
 	"veyron.io/veyron/veyron2/verror"
 )
+
+func init() { testutil.Init() }
 
 // newTestFlows returns the two ends of a bidirectional flow.  Each end has its
 // own bookkeeping, to allow testing of method calls.

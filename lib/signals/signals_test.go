@@ -21,7 +21,7 @@ import (
 
 	"veyron.io/veyron/veyron/lib/expect"
 	"veyron.io/veyron/veyron/lib/modules"
-	_ "veyron.io/veyron/veyron/lib/testutil"
+	"veyron.io/veyron/veyron/lib/testutil"
 	"veyron.io/veyron/veyron/lib/testutil/security"
 	"veyron.io/veyron/veyron/profiles"
 	vflag "veyron.io/veyron/veyron/security/flag"
@@ -34,6 +34,7 @@ func TestHelperProcess(t *testing.T) {
 }
 
 func init() {
+	testutil.Init()
 	modules.RegisterChild("handleDefaults", "", handleDefaults)
 	modules.RegisterChild("handleCustom", "", handleCustom)
 	modules.RegisterChild("handleCustomWithStop", "", handleCustomWithStop)

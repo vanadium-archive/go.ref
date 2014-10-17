@@ -25,6 +25,8 @@ import (
 	"veyron.io/veyron/veyron2/naming"
 )
 
+func init() { testutil.Init() }
+
 func newPrincipal(defaultBlessing string) vc.LocalPrincipal {
 	return vc.LocalPrincipal{sectest.NewPrincipal("defaultBlessing")}
 }

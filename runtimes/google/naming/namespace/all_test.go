@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"veyron.io/veyron/veyron/lib/glob"
-	_ "veyron.io/veyron/veyron/lib/testutil"
+	"veyron.io/veyron/veyron/lib/testutil"
 	"veyron.io/veyron/veyron/runtimes/google/naming/namespace"
 	service "veyron.io/veyron/veyron/services/mounttable/lib"
 
@@ -22,6 +22,8 @@ import (
 	"veyron.io/veyron/veyron2/services/mounttable/types"
 	"veyron.io/veyron/veyron2/vlog"
 )
+
+func init() { testutil.Init() }
 
 func boom(t *testing.T, f string, v ...interface{}) {
 	t.Logf(f, v...)

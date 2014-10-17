@@ -19,7 +19,7 @@ import (
 
 	"veyron.io/veyron/veyron/lib/expect"
 	"veyron.io/veyron/veyron/lib/modules"
-	_ "veyron.io/veyron/veyron/lib/testutil"
+	"veyron.io/veyron/veyron/lib/testutil"
 	irt "veyron.io/veyron/veyron/runtimes/google/rt"
 	vsecurity "veyron.io/veyron/veyron/security"
 )
@@ -42,6 +42,7 @@ func (*context) LocalEndpoint() naming.Endpoint            { return nil }
 func (*context) RemoteEndpoint() naming.Endpoint           { return nil }
 
 func init() {
+	testutil.Init()
 	modules.RegisterChild("child", "", child)
 }
 

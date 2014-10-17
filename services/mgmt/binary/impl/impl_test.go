@@ -24,6 +24,7 @@ const (
 )
 
 func init() {
+	testutil.Init()
 	rt.Init()
 }
 

@@ -8,6 +8,8 @@ import (
 	"veyron.io/veyron/veyron/lib/testutil"
 )
 
+func init() { testutil.Init() }
+
 func randomKeys() []uint64 {
 	n := (testutil.Rand.Intn(256*10) / 10) + 256
 	k := make([]uint64, n)

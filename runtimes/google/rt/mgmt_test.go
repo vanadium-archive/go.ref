@@ -18,7 +18,7 @@ import (
 
 	"veyron.io/veyron/veyron/lib/expect"
 	"veyron.io/veyron/veyron/lib/modules"
-	_ "veyron.io/veyron/veyron/lib/testutil"
+	"veyron.io/veyron/veyron/lib/testutil"
 	"veyron.io/veyron/veyron/lib/testutil/security"
 	"veyron.io/veyron/veyron/profiles"
 	"veyron.io/veyron/veyron/runtimes/google/rt"
@@ -33,6 +33,7 @@ const (
 )
 
 func init() {
+	testutil.Init()
 	modules.RegisterChild(noWaitersCmd, "", noWaiters)
 	modules.RegisterChild(forceStopCmd, "", forceStop)
 	modules.RegisterChild(appCmd, "", app)

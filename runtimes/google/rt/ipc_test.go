@@ -11,10 +11,12 @@ import (
 	"veyron.io/veyron/veyron2/rt"
 	"veyron.io/veyron/veyron2/security"
 
-	_ "veyron.io/veyron/veyron/lib/testutil"
+	"veyron.io/veyron/veyron/lib/testutil"
 	"veyron.io/veyron/veyron/profiles"
 	vsecurity "veyron.io/veyron/veyron/security"
 )
+
+func init() { testutil.Init() }
 
 type testService struct{}
 

@@ -448,7 +448,7 @@ func TestOpenEmptyMemstore(t *testing.T) {
 	}
 
 	// Create another memstore that will attempt to deserialize the empty
-	// backing file. 
+	// backing file.
 	_, err = NewMemstore(path)
 	if err != nil {
 		t.Fatalf("NewMemstore() failed: %v", err)

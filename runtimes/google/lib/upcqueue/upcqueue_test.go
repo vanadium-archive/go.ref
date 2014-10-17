@@ -6,10 +6,12 @@ import (
 	"testing"
 	"time"
 
-	_ "veyron.io/veyron/veyron/lib/testutil"
+	"veyron.io/veyron/veyron/lib/testutil"
 	vsync "veyron.io/veyron/veyron/runtimes/google/lib/sync"
 	"veyron.io/veyron/veyron2/vlog"
 )
+
+func init() { testutil.Init() }
 
 const (
 	elementCount = 100

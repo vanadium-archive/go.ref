@@ -18,6 +18,8 @@ import (
 	"veyron.io/veyron/veyron2/security"
 )
 
+func init() { testutil.Init() }
+
 type bufferCloser struct {
 	bytes.Buffer
 }

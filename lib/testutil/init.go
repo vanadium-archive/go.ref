@@ -1,8 +1,9 @@
 // Package testutil provides initalization and utility routines for unit tests.
 //
-// All tests should import it, even if only for its initialization:
-//   import _ "veyron.io/veyron/veyron/lib/testutil"
-//
+// Configures logging, random number generators and other global state.
+// Typical usage in _test.go files:
+//   import "veyron.io/veyron/veyron/lib/testutil"
+//   func init() { testutil.Init() }
 package testutil
 
 import (
@@ -12,26 +13,11 @@ import (
 	"runtime"
 	"strconv"
 	"sync"
-	// Need to import all of the packages that could possibly
-	// define flags that we care about. In practice, this is the
-	// flags defined by the testing package, the logging library
-	// and any flags defined by the blackbox package below.
-	// TODO(cnicolau,ashankar): This is painful to ensure. Not calling
-	// flag.Parse in init() is the right solution?
-	_ "testing"
 	"time"
-
-	_ "veyron.io/veyron/veyron/services/mgmt/suidhelper/impl/flag"
-
-	// Import blackbox to ensure that it gets to define its flags.
-	_ "veyron.io/veyron/veyron/lib/testutil/blackbox"
-
 	"veyron.io/veyron/veyron2/vlog"
 )
 
-const (
-	SeedEnv = "VEYRON_RNG_SEED"
-)
+const SeedEnv = "VEYRON_RNG_SEED"
 
 // Random is a concurrent-access friendly source of randomness.
 type Random struct {
@@ -60,11 +46,16 @@ func (r *Random) Int63() int64 {
 	return r.rand.Int63()
 }
 
-var (
-	Rand *Random
-)
+var Rand *Random
 
-func init() {
+// Init sets up state for running tests: Adjusting GOMAXPROCS,
+// configuring the vlog logging library, setting up the random number generator
+// etc.
+//
+// Doing so requires flags to be parse, so this function explicitly parses
+// flags. Thus, it is NOT a good idea to call this from the init() function
+// of any module except "main" or _test.go files.
+func Init() {
 	if os.Getenv("GOMAXPROCS") == "" {
 		// Set the number of logical processors to the number of CPUs,
 		// if GOMAXPROCS is not set in the environment.
@@ -72,6 +63,8 @@ func init() {
 	}
 	// At this point all of the flags that we're going to use for
 	// tests must be defined.
+	// This will be the case if this is called from the init()
+	// function of a _test.go file.
 	flag.Parse()
 	vlog.ConfigureLibraryLoggerFromFlags()
 	// Initialize pseudo-random number generator.

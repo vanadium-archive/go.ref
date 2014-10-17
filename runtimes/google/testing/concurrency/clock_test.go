@@ -6,6 +6,8 @@ import (
 	"veyron.io/veyron/veyron/lib/testutil"
 )
 
+func init() { testutil.Init() }
+
 // TestClone checks the clone() method of a clock.
 func TestClone(t *testing.T) {
 	c1 := newClock()

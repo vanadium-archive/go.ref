@@ -12,7 +12,7 @@ import (
 	"time"
 
 	"veyron.io/veyron/veyron/lib/netstate"
-	_ "veyron.io/veyron/veyron/lib/testutil"
+	"veyron.io/veyron/veyron/lib/testutil"
 	"veyron.io/veyron/veyron/profiles"
 	imanager "veyron.io/veyron/veyron/runtimes/google/ipc/stream/manager"
 	"veyron.io/veyron/veyron/runtimes/google/ipc/stream/sectest"
@@ -1045,5 +1045,6 @@ func TestPreferredAddressErrors(t *testing.T) {
 }
 
 func init() {
+	testutil.Init()
 	vom.Register(fakeTimeCaveat(0))
 }

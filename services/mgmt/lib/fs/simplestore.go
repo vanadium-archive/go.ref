@@ -72,7 +72,7 @@ func NewMemstore(configuredPersistentFile string) (*Memstore, error) {
 		defer file.Close()
 	} else {
 		decoder := gob.NewDecoder(file)
-		if err := decoder.Decode(&data); err != nil  {
+		if err := decoder.Decode(&data); err != nil {
 			// Two situations. One is not an error.
 			fi, err := os.Stat(configuredPersistentFile)
 			if err != nil {

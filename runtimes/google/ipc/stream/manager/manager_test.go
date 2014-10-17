@@ -15,7 +15,7 @@ import (
 	"veyron.io/veyron/veyron2/security"
 	"veyron.io/veyron/veyron2/vlog"
 
-	_ "veyron.io/veyron/veyron/lib/testutil"
+	"veyron.io/veyron/veyron/lib/testutil"
 	"veyron.io/veyron/veyron/lib/testutil/blackbox"
 	"veyron.io/veyron/veyron/runtimes/google/ipc/stream/sectest"
 	"veyron.io/veyron/veyron/runtimes/google/ipc/stream/vc"
@@ -28,9 +28,10 @@ func newPrincipal(defaultBlessing string) vc.LocalPrincipal {
 }
 
 func init() {
-	// The testutil package's init sets GOMAXPROCS to NumCPU.  We want to
-	// force GOMAXPROCS to remain at 1, in order to trigger a particular
-	// race condition tht occurs when closing the server; also, using 1 cpu
+	testutil.Init()
+	// testutil.Init sets GOMAXPROCS to NumCPU.  We want to force
+	// GOMAXPROCS to remain at 1, in order to trigger a particular race
+	// condition tht occurs when closing the server; also, using 1 cpu
 	// introduces less variance in the behavior of the test.
 	runtime.GOMAXPROCS(1)
 

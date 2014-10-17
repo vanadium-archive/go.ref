@@ -21,7 +21,7 @@ import (
 	"veyron.io/veyron/veyron2/services/mounttable/types"
 	"veyron.io/veyron/veyron2/vlog"
 
-	_ "veyron.io/veyron/veyron/lib/testutil"
+	"veyron.io/veyron/veyron/lib/testutil"
 	"veyron.io/veyron/veyron/profiles"
 )
 
@@ -469,6 +469,7 @@ func TestBadACLs(t *testing.T) {
 }
 
 func init() {
+	testutil.Init()
 	// Create the runtime for each of the three "processes"
 	rootRT = rt.Init(options.ForceNewSecurityModel{})
 	var err error

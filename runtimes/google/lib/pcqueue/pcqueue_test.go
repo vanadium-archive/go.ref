@@ -6,9 +6,11 @@ import (
 	"testing"
 	"time"
 
-	_ "veyron.io/veyron/veyron/lib/testutil"
+	"veyron.io/veyron/veyron/lib/testutil"
 	"veyron.io/veyron/veyron2/vlog"
 )
+
+func init() { testutil.Init() }
 
 const (
 	queueSize    = 10

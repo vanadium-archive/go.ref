@@ -9,6 +9,8 @@ import (
 	"veyron.io/veyron/veyron/runtimes/google/lib/functional"
 )
 
+func init() { testutil.Init() }
+
 const (
 	// Number of elements to check
 	kMaxElement = 100

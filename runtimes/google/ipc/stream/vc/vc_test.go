@@ -28,6 +28,8 @@ import (
 	"veyron.io/veyron/veyron2/security"
 )
 
+func init() { testutil.Init() }
+
 const (
 	// Convenience alias to avoid conflicts between the package name "vc" and variables called "vc".
 	DefaultBytesBufferedPerFlow = vc.DefaultBytesBufferedPerFlow
