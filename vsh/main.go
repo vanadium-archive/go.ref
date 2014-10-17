@@ -12,12 +12,15 @@ import (
 	"strings"
 	"time"
 
-	"veyron.io/examples/tunnel"
-	"veyron.io/examples/tunnel/tunnelutil"
-	"veyron.io/veyron/veyron/lib/signals"
 	"veyron.io/veyron/veyron2/context"
 	"veyron.io/veyron/veyron2/rt"
 	"veyron.io/veyron/veyron2/vlog"
+
+	_ "veyron.io/veyron/veyron/profiles/roaming"
+
+	"veyron.io/examples/tunnel"
+	"veyron.io/examples/tunnel/tunnelutil"
+	"veyron.io/veyron/veyron/lib/signals"
 )
 
 var (

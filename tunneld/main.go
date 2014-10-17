@@ -9,15 +9,16 @@ import (
 	"os"
 	"strings"
 
-	"veyron.io/examples/tunnel"
-
-	"veyron.io/veyron/veyron/lib/signals"
-	sflag "veyron.io/veyron/veyron/security/flag"
-
 	"veyron.io/veyron/veyron2/ipc"
 	"veyron.io/veyron/veyron2/options"
 	"veyron.io/veyron/veyron2/rt"
 	"veyron.io/veyron/veyron2/vlog"
+
+	"veyron.io/veyron/veyron/lib/signals"
+	_ "veyron.io/veyron/veyron/profiles/roaming"
+	sflag "veyron.io/veyron/veyron/security/flag"
+
+	"veyron.io/examples/tunnel"
 )
 
 var (
