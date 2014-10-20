@@ -154,7 +154,7 @@ type appInvoker struct {
 	// suffix.  It is used to identify an application, installation, or
 	// instance.
 	suffix []string
-	uat    systemNameIdentityAssociation
+	uat    BlessingSystemAssociationStore
 }
 
 func saveEnvelope(dir string, envelope *application.Envelope) error {
@@ -404,9 +404,9 @@ var isSetuid = func(fileStat os.FileInfo) bool {
 // and is probably not a good fit in other contexts. Revisit the design
 // as appropriate. This function also internalizes a decision as to when
 // it is possible to start an application that needs to be made explicit.
-func systemAccountForHelper(helperStat os.FileInfo, identityNames []string, uat systemNameIdentityAssociation) (systemName string, err error) {
+func systemAccountForHelper(helperStat os.FileInfo, identityNames []string, uat BlessingSystemAssociationStore) (systemName string, err error) {
 	haveHelper := isSetuid(helperStat)
-	systemName, present := uat.associatedSystemAccount(identityNames)
+	systemName, present := uat.SystemAccountForBlessings(identityNames)
 
 	switch {
 	case haveHelper && present:
@@ -434,7 +434,7 @@ func systemAccountForHelper(helperStat os.FileInfo, identityNames []string, uat 
 
 // TODO(rjkroege): Turning on the setuid feature of the suidhelper
 // requires an installer with root permissions to install it in <config.Root>/helper
-func genCmd(instanceDir string, helperPath string, uat systemNameIdentityAssociation, identityNames []string) (*exec.Cmd, error) {
+func genCmd(instanceDir string, helperPath string, uat BlessingSystemAssociationStore, identityNames []string) (*exec.Cmd, error) {
 	versionLink := filepath.Join(instanceDir, "version")
 	versionDir, err := filepath.EvalSymlinks(versionLink)
 	if err != nil {

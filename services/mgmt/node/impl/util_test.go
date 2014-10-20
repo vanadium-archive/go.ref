@@ -5,6 +5,8 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"reflect"
+	"sort"
 	"testing"
 
 	"veyron.io/veyron/veyron2"
@@ -277,5 +279,20 @@ func revertAppExpectError(t *testing.T, appID string, expectedError verror.ID) {
 func uninstallApp(t *testing.T, appID string) {
 	if err := appStub(t, appID).Uninstall(rt.R().NewContext()); err != nil {
 		t.Fatalf("Uninstall(%v) failed: %v", appID, err)
+	}
+}
+
+// Code to make Association lists sortable.
+type byIdentity []node.Association
+
+func (a byIdentity) Len() int           { return len(a) }
+func (a byIdentity) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
+func (a byIdentity) Less(i, j int) bool { return a[i].IdentityName < a[j].IdentityName }
+
+func compareAssociations(t *testing.T, got, expected []node.Association) {
+	sort.Sort(byIdentity(got))
+	sort.Sort(byIdentity(expected))
+	if !reflect.DeepEqual(got, expected) {
+		t.Fatalf("ListAssociations() got %v, expected %v", got, expected)
 	}
 }

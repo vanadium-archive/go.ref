@@ -50,7 +50,7 @@ type dispatcher struct {
 	// dispatcherMutex is a lock for coordinating concurrent access to some
 	// dispatcher methods.
 	mu  sync.RWMutex
-	uat systemNameIdentityAssociation
+	uat BlessingSystemAssociationStore
 }
 
 var _ ipc.Dispatcher = (*dispatcher)(nil)
@@ -77,6 +77,10 @@ func NewDispatcher(config *config.State) (*dispatcher, error) {
 	if err := config.Validate(); err != nil {
 		return nil, fmt.Errorf("invalid config %v: %v", config, err)
 	}
+	uat, err := NewBlessingSystemAssociationStore(config.Root)
+	if err != nil {
+		return nil, fmt.Errorf("cannot create persistent store for identity to system account associations: %v", err)
+	}
 	d := &dispatcher{
 		etag: "default",
 		internal: &internalState{
@@ -84,7 +88,7 @@ func NewDispatcher(config *config.State) (*dispatcher, error) {
 			updating: newUpdatingState(),
 		},
 		config: config,
-		uat:    newSystemNameIdentityAssociation(),
+		uat:    uat,
 	}
 	// If there exists a signed ACL from a previous instance we prefer that.
 	aclFile, sigFile, _ := d.getACLFilePaths()

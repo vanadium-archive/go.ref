@@ -14,6 +14,7 @@ package impl
 //     node-data/
 //       acl.nodemanager
 //	 acl.signature
+//	 associated.accounts
 //
 // The node manager is always expected to be started through the symbolic link
 // passed in as config.CurrentLink, which is monitored by an init daemon. This
@@ -89,7 +90,7 @@ type nodeInvoker struct {
 	callback *callbackState
 	config   *config.State
 	disp     *dispatcher
-	uat      systemNameIdentityAssociation
+	uat      BlessingSystemAssociationStore
 }
 
 func (i *nodeInvoker) Claim(call ipc.ServerContext) error {
@@ -422,10 +423,10 @@ func (i *nodeInvoker) AssociateAccount(call ipc.ServerContext, identityNames []s
 	}
 
 	if accountName == "" {
-		return i.uat.deleteAssociations(identityNames)
+		return i.uat.DisassociateSystemAccountForBlessings(identityNames)
 	} else {
 		// TODO(rjkroege): Optionally verify here that the required uname is a valid.
-		return i.uat.addAssociations(identityNames, accountName)
+		return i.uat.AssociateSystemAccountForBlessings(identityNames, accountName)
 	}
 }
 
@@ -436,5 +437,5 @@ func (i *nodeInvoker) ListAssociations(call ipc.ServerContext) (associations []n
 	if err := sameMachineCheck(call); err != nil {
 		return nil, err
 	}
-	return i.uat.getAssociations()
+	return i.uat.AllBlessingSystemAssociations()
 }

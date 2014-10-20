@@ -1077,23 +1077,12 @@ func setDefaultBlessings(p security.Principal, root *rootPrincipal, name string)
 	return nil
 }
 
-// Code to make Association lists sortable.
-type byIdentity []node.Association
-
-func (a byIdentity) Len() int           { return len(a) }
-func (a byIdentity) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
-func (a byIdentity) Less(i, j int) bool { return a[i].IdentityName < a[j].IdentityName }
-
 func listAndVerifyAssociations(t *testing.T, stub node.Node, run veyron2.Runtime, expected []node.Association) {
 	assocs, err := stub.ListAssociations(run.NewContext())
 	if err != nil {
 		t.Fatalf("ListAssociations failed %v", err)
 	}
-	sort.Sort(byIdentity(assocs))
-	sort.Sort(byIdentity(expected))
-	if !reflect.DeepEqual(assocs, expected) {
-		t.Fatalf("ListAssociations() got %v, expected  %v", assocs, expected)
-	}
+	compareAssociations(t, assocs, expected)
 }
 
 // TODO(rjkroege): Verify that associations persist across restarts
