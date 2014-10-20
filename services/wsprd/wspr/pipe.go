@@ -65,6 +65,9 @@ const (
 
 	// A request to run the authorizer for an rpc.
 	websocketAuthResponse = 12
+
+	// A request to run a namespace client method
+	websocketNamespaceRequest = 13
 )
 
 type websocketMessage struct {
@@ -254,11 +257,12 @@ func (p *pipe) readLoop() {
 
 		ww := p.writerCreator(msg.Id)
 
+		// TODO(mattr): Get the proper context information
+		// from javascript.
+		ctx := p.wspr.rt.NewContext()
+
 		switch msg.Type {
 		case websocketVeyronRequest:
-			// TODO(mattr): Get the proper context information
-			// from javascript.
-			ctx := p.wspr.rt.NewContext()
 			p.controller.HandleVeyronRequest(ctx, msg.Id, msg.Data, ww)
 		case websocketStreamingValue:
 			// SendOnStream queues up the message to be sent, but doesn't do the send
@@ -274,9 +278,6 @@ func (p *pipe) readLoop() {
 		case websocketServerResponse:
 			go p.controller.HandleServerResponse(msg.Id, msg.Data)
 		case websocketSignatureRequest:
-			// TODO(mattr): Get the proper context information
-			// from javascript.
-			ctx := p.wspr.rt.NewContext()
 			go p.controller.HandleSignatureRequest(ctx, msg.Data, ww)
 		case websocketLookupResponse:
 			go p.controller.HandleLookupResponse(msg.Id, msg.Data)
@@ -288,6 +289,8 @@ func (p *pipe) readLoop() {
 			go p.controller.HandleUnlinkJSIdentity(msg.Data, ww)
 		case websocketAuthResponse:
 			go p.controller.HandleAuthResponse(msg.Id, msg.Data)
+		case websocketNamespaceRequest:
+			go p.controller.HandleNamespaceRequest(ctx, msg.Data, ww)
 		default:
 			ww.Error(verror.Unknownf("unknown message type: %v", msg.Type))
 		}

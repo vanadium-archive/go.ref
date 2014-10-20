@@ -25,6 +25,7 @@ import (
 	"veyron.io/wspr/veyron/services/wsprd/identity"
 	"veyron.io/wspr/veyron/services/wsprd/ipc/server"
 	"veyron.io/wspr/veyron/services/wsprd/lib"
+	"veyron.io/wspr/veyron/services/wsprd/namespace"
 	"veyron.io/wspr/veyron/services/wsprd/signature"
 )
 
@@ -688,4 +689,9 @@ func (c *Controller) HandleCreateIdentity(data string, w lib.ClientWriter) {
 		w.Error(verror2.Convert(verror2.Internal, nil, err))
 		return
 	}
+}
+
+// HandleNamespaceRequest uses the namespace client to respond to namespace specific requests such as glob
+func (c *Controller) HandleNamespaceRequest(ctx context.T, data string, w lib.ClientWriter) {
+	namespace.HandleRequest(ctx, c.rt, data, w)
 }
