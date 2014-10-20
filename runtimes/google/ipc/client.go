@@ -86,11 +86,19 @@ func (c *client) createFlow(ep naming.Endpoint) (stream.Flow, error) {
 		// before removing the vc from the map?
 		delete(c.vcMap, ep.String())
 	}
+	c.vcMapMu.Unlock()
 	vc, err := c.streamMgr.Dial(ep, c.vcOpts...)
+	c.vcMapMu.Lock()
 	if err != nil {
 		return nil, err
 	}
-	c.vcMap[ep.String()] = &vcInfo{vc: vc, remoteEP: ep}
+	if othervc, exists := c.vcMap[ep.String()]; exists {
+		vc = othervc.vc
+		// TODO(ashankar,toddw): Figure out how to close up the VC that
+		// is discarded. vc.Close?
+	} else {
+		c.vcMap[ep.String()] = &vcInfo{vc: vc, remoteEP: ep}
+	}
 	return vc.Connect()
 }
 
