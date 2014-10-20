@@ -222,6 +222,29 @@ func (ns *neighborhoodService) ResolveStep(_ ipc.ServerContext) (servers []types
 	return neighbor, naming.Join(ns.elems[1:]...), nil
 }
 
+// ResolveStepX implements ResolveStepX
+func (ns *neighborhoodService) ResolveStepX(_ ipc.ServerContext) (entry types.MountEntry, err error) {
+	nh := ns.nh
+	vlog.VI(2).Infof("ResolveStep %v\n", ns.elems)
+	if len(ns.elems) == 0 {
+		//nothing can be mounted at the root
+		err = naming.ErrNoSuchNameRoot
+		return
+	}
+
+	// We can only resolve the first element and it always refers to a mount table (for now).
+	neighbor := nh.neighbor(ns.elems[0])
+	if neighbor == nil {
+		err = naming.ErrNoSuchName
+		entry.Name = ns.name
+		return
+	}
+	entry.MT = true
+	entry.Name = naming.Join(ns.elems[1:]...)
+	entry.Servers = neighbor
+	return
+}
+
 // Mount not implemented.
 func (*neighborhoodService) Mount(_ ipc.ServerContext, server string, ttlsecs uint32, opts types.MountFlag) error {
 	return errors.New("this server does not implement Mount")

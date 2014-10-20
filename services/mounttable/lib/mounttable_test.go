@@ -77,13 +77,13 @@ func (ns stupidNS) Resolve(ctx context.T, name string) ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
-	ss, suffix, err := objectPtr.ResolveStep(ns.r.NewContext())
+	entry, err := objectPtr.ResolveStepX(ns.r.NewContext())
 	if err != nil {
 		return nil, err
 	}
 	var servers []string
-	for _, s := range ss {
-		servers = append(servers, naming.Join(s.Server, suffix))
+	for _, s := range entry.Servers {
+		servers = append(servers, naming.Join(s.Server, entry.Name))
 	}
 	vlog.VI(1).Infof("-> %v", servers)
 	return servers, nil

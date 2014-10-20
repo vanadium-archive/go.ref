@@ -228,6 +228,33 @@ func (ms *mountContext) ResolveStep(context ipc.ServerContext) (servers []types.
 	return n.mount.servers.copyToSlice(), slashSlashJoin(elems), nil
 }
 
+// ResolveStepX returns the next server in a resolution in the form of a MountEntry.  The name
+// in the mount entry is the name relative to the server's root.
+func (ms *mountContext) ResolveStepX(context ipc.ServerContext) (entry types.MountEntry, err error) {
+	vlog.VI(2).Infof("ResolveStep %q", ms.name)
+	mt := ms.mt
+	// TODO(caprita): we need to grab a write lock because walk may
+	// garbage-collect expired servers.  Rework this to avoid this potential
+	// bottleneck.
+	mt.Lock()
+	defer mt.Unlock()
+	// Find the next mount point for the name.
+	n, elems := mt.walk(mt.root, ms.elems)
+	if n == nil {
+		entry.Name = ms.name
+		if len(ms.elems) == 0 {
+			err = naming.ErrNoSuchNameRoot
+		} else {
+			err = naming.ErrNoSuchName
+		}
+		return
+	}
+	entry.Servers = n.mount.servers.copyToSlice()
+	entry.Name = slashSlashJoin(elems)
+	entry.MT = n.mount.mt
+	return
+}
+
 func hasMTFlag(flags types.MountFlag) bool {
 	return (flags & types.MT) == types.MT
 }

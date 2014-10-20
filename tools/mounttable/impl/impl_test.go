@@ -47,6 +47,13 @@ func (s *server) ResolveStep(ipc.ServerContext) (servers []types.MountedServer, 
 	return
 }
 
+func (s *server) ResolveStepX(ipc.ServerContext) (entry types.MountEntry, err error) {
+	vlog.VI(2).Infof("ResolveStepX() was called. suffix=%v", s.suffix)
+	entry.Servers = []types.MountedServer{{"server1", 123}}
+	entry.Name = s.suffix
+	return
+}
+
 type dispatcher struct {
 }
 
@@ -123,7 +130,7 @@ func TestMountTableClient(t *testing.T) {
 	if err := cmd.Execute([]string{"resolvestep", naming.JoinAddressName(endpoint.String(), "//name")}); err != nil {
 		t.Fatalf("%v", err)
 	}
-	if expected, got := `Servers: [{server1 123}] Suffix: "name"`, strings.TrimSpace(stdout.String()); got != expected {
+	if expected, got := `Servers: [{server1 123}] Suffix: "name" MT: false`, strings.TrimSpace(stdout.String()); got != expected {
 		t.Errorf("Got %q, expected %q", got, expected)
 	}
 	stdout.Reset()

@@ -160,12 +160,12 @@ func runResolveStep(cmd *cmdline.Command, args []string) error {
 	if err != nil {
 		return fmt.Errorf("bind error: %v", err)
 	}
-	servers, suffix, err := c.ResolveStep(ctx)
+	entry, err := c.ResolveStepX(ctx)
 	if err != nil {
 		return err
 	}
 
-	fmt.Fprintf(cmd.Stdout(), "Servers: %v Suffix: %q\n", servers, suffix)
+	fmt.Fprintf(cmd.Stdout(), "Servers: %v Suffix: %q MT: %v\n", entry.Servers, entry.Name, entry.MT)
 	return nil
 }
 

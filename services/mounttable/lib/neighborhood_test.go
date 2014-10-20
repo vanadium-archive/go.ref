@@ -83,20 +83,20 @@ L:
 	if err != nil {
 		boom(t, "BindMountTable: %s", err)
 	}
-	servers, suffix, err := objectPtr.ResolveStep(rootRT.NewContext())
+	entry, err := objectPtr.ResolveStepX(rootRT.NewContext())
 	if err != nil {
 		boom(t, "resolveStep: %s", err)
 	}
 
 	// Resolution returned something.  Make sure its correct.
-	if suffix != expectedSuffix {
-		boom(t, "resolveStep suffix: expected %s, got %s", expectedSuffix, suffix)
+	if entry.Name != expectedSuffix {
+		boom(t, "resolveStep suffix: expected %s, got %s", expectedSuffix, entry.Name)
 	}
-	if len(servers) == 0 {
+	if len(entry.Servers) == 0 {
 		boom(t, "resolveStep returns no severs")
 	}
 L2:
-	for _, s := range servers {
+	for _, s := range entry.Servers {
 		for _, a := range addresses {
 			if a == s.Server {
 				continue L2
@@ -106,7 +106,7 @@ L2:
 	}
 L3:
 	for _, a := range addresses {
-		for _, s := range servers {
+		for _, s := range entry.Servers {
 			if a == s.Server {
 				continue L3
 			}
