@@ -151,8 +151,14 @@ var tmplSelectCaveats = template.Must(template.New("bless").Parse(`<!doctype htm
 </head>
 <body class="container">
 <form class="form-signin" method="POST" name="input" action="/google/{{.MacaroonRoute}}">
-<h2 class="form-signin-heading">Select Caveats on {{.Extension}}</h2>
+<h2 class="form-signin-heading">{{.Extension}}</h2>
 <input type="text" class="hidden" name="macaroon" value="{{.Macaroon}}">
+<div class="form-group">
+  <label for="blessing-extension">Extension</label>
+  <input name="blessingExtension" type="text" class="form-control" id="blessing-extension" placeholder="(optional) If set to foo, then blessings will be of the form {{.Extension}}/foo">
+</div>
+<br/>
+<h3 class="form-signin-heading">Select Caveats</h3>
 <div class="caveatRow row">
 <br/>
   <div class="col-md-4">

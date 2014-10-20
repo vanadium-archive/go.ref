@@ -387,6 +387,11 @@ func (h *handler) sendMacaroon(w http.ResponseWriter, r *http.Request) {
 		util.HTTPBadRequest(w, r, fmt.Errorf("Suspected request forgery: %v", err))
 		return
 	}
+	blessingExtension := r.FormValue("blessingExtension")
+	name := inputMacaroon.Email
+	if len(blessingExtension) > 0 {
+		name = name + security.ChainSeparator + blessingExtension
+	}
 	caveats, err := h.caveats(r)
 	if err != nil {
 		util.HTTPBadRequest(w, r, fmt.Errorf("failed to extract caveats: ", err))
@@ -396,7 +401,7 @@ func (h *handler) sendMacaroon(w http.ResponseWriter, r *http.Request) {
 	m := blesser.BlessingMacaroon{
 		Creation: time.Now(),
 		Caveats:  caveats,
-		Name:     inputMacaroon.Email,
+		Name:     name,
 	}
 	if err := vom.NewEncoder(buf).Encode(m); err != nil {
 		util.HTTPServerError(w, fmt.Errorf("failed to encode BlessingsMacaroon: ", err))
