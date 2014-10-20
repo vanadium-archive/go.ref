@@ -1,4 +1,4 @@
-package fs
+package fs_test
 
 import (
 	"fmt"
@@ -7,6 +7,7 @@ import (
 	"reflect"
 	"testing"
 
+	"veyron.io/veyron/veyron/services/mgmt/lib/fs"
 	_ "veyron.io/veyron/veyron/services/mgmt/profile"
 	"veyron.io/veyron/veyron2/naming"
 	"veyron.io/veyron/veyron2/services/mgmt/application"
@@ -14,27 +15,27 @@ import (
 )
 
 func TestNewMemstore(t *testing.T) {
-	memstore, err := NewMemstore("")
+	memstore, err := fs.NewMemstore("")
 
 	if err != nil {
-		t.Fatalf("NewMemstore() failed: %v", err)
+		t.Fatalf("fs.NewMemstore() failed: %v", err)
 	}
 
-	_, err = os.Stat(memstore.persistedFile)
+	_, err = os.Stat(memstore.PersistedFile())
 	if err != nil {
-		t.Fatalf("Stat(%v) failed: %v", memstore.persistedFile, err)
+		t.Fatalf("Stat(%v) failed: %v", memstore.PersistedFile(), err)
 	}
 }
 
 func TestNewNamedMemstore(t *testing.T) {
 	path := filepath.Join(os.TempDir(), "namedms")
-	memstore, err := NewMemstore(path)
+	memstore, err := fs.NewMemstore(path)
 	if err != nil {
-		t.Fatalf("NewMemstore() failed: %v", err)
+		t.Fatalf("fs.NewMemstore() failed: %v", err)
 	}
 	defer os.Remove(path)
 
-	_, err = os.Stat(memstore.persistedFile)
+	_, err = os.Stat(memstore.PersistedFile())
 	if err != nil {
 		t.Fatalf("Stat(%v) failed: %v", path, err)
 	}
@@ -42,7 +43,7 @@ func TestNewNamedMemstore(t *testing.T) {
 
 // Verify that all of the listed paths Exists().
 // Caller is responsible for setting up any transaction state necessary.
-func allPathsExist(ts *Memstore, paths []string) error {
+func allPathsExist(ts *fs.Memstore, paths []string) error {
 	for _, p := range paths {
 		exists, err := ts.BindObject(p).Exists(nil)
 		if err != nil {
@@ -57,7 +58,7 @@ func allPathsExist(ts *Memstore, paths []string) error {
 
 // Verify that all of the listed paths !Exists().
 // Caller is responsible for setting up any transaction state necessary.
-func allPathsDontExist(ts *Memstore, paths []string) error {
+func allPathsDontExist(ts *fs.Memstore, paths []string) error {
 	for _, p := range paths {
 		exists, err := ts.BindObject(p).Exists(nil)
 		if err != nil {
@@ -76,7 +77,7 @@ type PathValue struct {
 }
 
 // getEquals tests that every provided path is equal to the specified value.
-func allPathsEqual(ts *Memstore, pvs []PathValue) error {
+func allPathsEqual(ts *fs.Memstore, pvs []PathValue) error {
 	for _, p := range pvs {
 		v, err := ts.BindObject(p.Path).Get(nil)
 		if err != nil {
@@ -89,17 +90,11 @@ func allPathsEqual(ts *Memstore, pvs []PathValue) error {
 	return nil
 }
 
-// tP is a convenience function. It prepends the transactionNamePrefix
-// to the given path.
-func tP(path string) string {
-	return naming.Join(transactionNamePrefix, path)
-}
-
 func TestSerializeDeserialize(t *testing.T) {
 	path := filepath.Join(os.TempDir(), "namedms")
-	memstoreOriginal, err := NewMemstore(path)
+	memstoreOriginal, err := fs.NewMemstore(path)
 	if err != nil {
-		t.Fatalf("NewMemstore() failed: %v", err)
+		t.Fatalf("fs.NewMemstore() failed: %v", err)
 	}
 	defer os.Remove(path)
 
@@ -116,20 +111,20 @@ func TestSerializeDeserialize(t *testing.T) {
 	}
 
 	// TRANSACTION BEGIN
-	// Insert a value into the Memstore at /test/a
+	// Insert a value into the fs.Memstore at /test/a
 	memstoreOriginal.Lock()
 	tname, err := memstoreOriginal.BindTransactionRoot("ignored").CreateTransaction(nil)
 	if err != nil {
 		t.Fatalf("CreateTransaction() failed: %v", err)
 	}
-	if _, err := memstoreOriginal.BindObject(tP("/test/a")).Put(nil, envelope); err != nil {
+	if _, err := memstoreOriginal.BindObject(fs.TP("/test/a")).Put(nil, envelope); err != nil {
 		t.Fatalf("Put() failed: %v", err)
 	}
 
-	if err := allPathsExist(memstoreOriginal, []string{tP("/test/a"), tP("/test")}); err != nil {
+	if err := allPathsExist(memstoreOriginal, []string{fs.TP("/test/a"), fs.TP("/test")}); err != nil {
 		t.Fatalf("%v", err)
 	}
-	if err := allPathsEqual(memstoreOriginal, []PathValue{{tP("/test/a"), envelope}}); err != nil {
+	if err := allPathsEqual(memstoreOriginal, []PathValue{{fs.TP("/test/a"), envelope}}); err != nil {
 		t.Fatalf("%v", err)
 	}
 
@@ -150,7 +145,7 @@ func TestSerializeDeserialize(t *testing.T) {
 	// TRANSACTION BEGIN Write a value to /test/b as well.
 	memstoreOriginal.Lock()
 	tname, err = memstoreOriginal.BindTransactionRoot("also ignored").CreateTransaction(nil)
-	bindingTnameTestB := memstoreOriginal.BindObject(tP("/test/b"))
+	bindingTnameTestB := memstoreOriginal.BindObject(fs.TP("/test/b"))
 	if _, err := bindingTnameTestB.Put(nil, envelope); err != nil {
 		t.Fatalf("Put() failed: %v", err)
 	}
@@ -163,12 +158,12 @@ func TestSerializeDeserialize(t *testing.T) {
 		t.Fatalf("%v", err)
 	}
 	// Validate pending state during transaction
-	if err := allPathsExist(memstoreOriginal, []string{tP("/test/a"), tP("/test"), tP("/test/b")}); err != nil {
+	if err := allPathsExist(memstoreOriginal, []string{fs.TP("/test/a"), fs.TP("/test"), fs.TP("/test/b")}); err != nil {
 		t.Fatalf("%v", err)
 	}
 	if err := allPathsEqual(memstoreOriginal, []PathValue{
-		{tP("/test/a"), envelope},
-		{tP("/test/b"), envelope}}); err != nil {
+		{fs.TP("/test/a"), envelope},
+		{fs.TP("/test/b"), envelope}}); err != nil {
 		t.Fatalf("%v", err)
 	}
 
@@ -195,11 +190,11 @@ func TestSerializeDeserialize(t *testing.T) {
 	tname, err = memstoreOriginal.BindTransactionRoot("").CreateTransaction(nil)
 
 	// Exists is true before doing anything.
-	if err := allPathsExist(memstoreOriginal, []string{tP("/test")}); err != nil {
+	if err := allPathsExist(memstoreOriginal, []string{fs.TP("/test")}); err != nil {
 		t.Fatalf("%v", err)
 	}
 
-	if _, err := memstoreOriginal.BindObject(tP("/test/b")).Put(nil, secondEnvelope); err != nil {
+	if _, err := memstoreOriginal.BindObject(fs.TP("/test/b")).Put(nil, secondEnvelope); err != nil {
 		t.Fatalf("Put() failed: %v", err)
 	}
 
@@ -208,28 +203,28 @@ func TestSerializeDeserialize(t *testing.T) {
 		"/test/a",
 		"/test/b",
 		"/test",
-		tP("/test"),
-		tP("/test/a"),
-		tP("/test/b"),
+		fs.TP("/test"),
+		fs.TP("/test/a"),
+		fs.TP("/test/b"),
 	}); err != nil {
 		t.Fatalf("%v", err)
 	}
 	if err := allPathsEqual(memstoreOriginal, []PathValue{
 		{"/test/a", envelope},
 		{"/test/b", envelope},
-		{tP("/test/b"), secondEnvelope},
-		{tP("/test/a"), envelope},
+		{fs.TP("/test/b"), secondEnvelope},
+		{fs.TP("/test/a"), envelope},
 	}); err != nil {
 		t.Fatalf("%v", err)
 	}
 
 	// Pending Remove() of /test
-	if err := memstoreOriginal.BindObject(tP("/test")).Remove(nil); err != nil {
+	if err := memstoreOriginal.BindObject(fs.TP("/test")).Remove(nil); err != nil {
 		t.Fatalf("Remove() failed: %v", err)
 	}
 
 	// Verify that all paths are successfully removed from the in-progress transaction.
-	if err := allPathsDontExist(memstoreOriginal, []string{tP("/test/a"), tP("/test"), tP("/test/b")}); err != nil {
+	if err := allPathsDontExist(memstoreOriginal, []string{fs.TP("/test/a"), fs.TP("/test"), fs.TP("/test/b")}); err != nil {
 		t.Fatalf("%v", err)
 	}
 	// But all paths remain in the persisted version.
@@ -244,22 +239,22 @@ func TestSerializeDeserialize(t *testing.T) {
 	}
 
 	// At which point, Get() on the transaction won't find anything.
-	if _, err := memstoreOriginal.BindObject(tP("/test/a")).Get(nil); !verror.Is(err, verror.NoExist) {
+	if _, err := memstoreOriginal.BindObject(fs.TP("/test/a")).Get(nil); !verror.Is(err, verror.NoExist) {
 		t.Fatalf("Get() should have failed: got %v, expected %v", err, verror.NoExistf("path %s not in Memstore", tname+"/test/a"))
 	}
 
 	// Attempting to Remove() it over again will fail.
-	if err := memstoreOriginal.BindObject(tP("/test/a")).Remove(nil); !verror.Is(err, verror.NoExist) {
+	if err := memstoreOriginal.BindObject(fs.TP("/test/a")).Remove(nil); !verror.Is(err, verror.NoExist) {
 		t.Fatalf("Remove() should have failed: got %v, expected %v", err, verror.NoExistf("path %s not in Memstore", tname+"/test/a"))
 	}
 
 	// Attempting to Remove() a non-existing path will fail.
-	if err := memstoreOriginal.BindObject(tP("/foo")).Remove(nil); !verror.Is(err, verror.NoExist) {
+	if err := memstoreOriginal.BindObject(fs.TP("/foo")).Remove(nil); !verror.Is(err, verror.NoExist) {
 		t.Fatalf("Remove() should have failed: got %v, expected %v", err, verror.NoExistf("path %s not in Memstore", tname+"/foo"))
 	}
 
 	// Exists() a non-existing path will fail.
-	if present, _ := memstoreOriginal.BindObject(tP("/foo")).Exists(nil); present {
+	if present, _ := memstoreOriginal.BindObject(fs.TP("/foo")).Exists(nil); present {
 		t.Fatalf("Exists() should have failed for non-existing path %s", tname+"/foo")
 	}
 
@@ -285,9 +280,9 @@ func TestSerializeDeserialize(t *testing.T) {
 
 	// Verify that the previous Commit() operations have persisted to
 	// disk by creating a new Memstore from the contents on disk.
-	memstoreCopy, err := NewMemstore(path)
+	memstoreCopy, err := fs.NewMemstore(path)
 	if err != nil {
-		t.Fatalf("NewMemstore() failed: %v", err)
+		t.Fatalf("fs.NewMemstore() failed: %v", err)
 	}
 	// Verify that memstoreCopy is an exact copy of memstoreOriginal.
 	if err := allPathsExist(memstoreCopy, []string{"/test/a", "/test", "/test/b"}); err != nil {
@@ -304,24 +299,24 @@ func TestSerializeDeserialize(t *testing.T) {
 	tname, err = memstoreCopy.BindTransactionRoot("also ignored").CreateTransaction(nil)
 
 	// Add a pending object c to test that pending objects are deleted.
-	if _, err := memstoreCopy.BindObject(tP("/test/c")).Put(nil, secondEnvelope); err != nil {
+	if _, err := memstoreCopy.BindObject(fs.TP("/test/c")).Put(nil, secondEnvelope); err != nil {
 		t.Fatalf("Put() failed: %v", err)
 	}
 	if err := allPathsExist(memstoreCopy, []string{
-		tP("/test/a"),
+		fs.TP("/test/a"),
 		"/test/a",
-		tP("/test"),
+		fs.TP("/test"),
 		"/test",
-		tP("/test/b"),
+		fs.TP("/test/b"),
 		"/test/b",
-		tP("/test/c"),
+		fs.TP("/test/c"),
 	}); err != nil {
 		t.Fatalf("%v", err)
 	}
 	if err := allPathsEqual(memstoreCopy, []PathValue{
-		{tP("/test/a"), envelope},
-		{tP("/test/b"), envelope},
-		{tP("/test/c"), secondEnvelope},
+		{fs.TP("/test/a"), envelope},
+		{fs.TP("/test/b"), envelope},
+		{fs.TP("/test/c"), secondEnvelope},
 		{"/test/a", envelope},
 		{"/test/b", envelope},
 	}); err != nil {
@@ -329,15 +324,15 @@ func TestSerializeDeserialize(t *testing.T) {
 	}
 
 	// Remove /test/a /test/b /test/c /test
-	if err := memstoreCopy.BindObject(tP("/test")).Remove(nil); err != nil {
+	if err := memstoreCopy.BindObject(fs.TP("/test")).Remove(nil); err != nil {
 		t.Fatalf("Remove() failed: %v", err)
 	}
 	// Verify that all paths are successfully removed from the in-progress transaction.
 	if err := allPathsDontExist(memstoreCopy, []string{
-		tP("/test/a"),
-		tP("/test"),
-		tP("/test/b"),
-		tP("/test/c"),
+		fs.TP("/test/a"),
+		fs.TP("/test"),
+		fs.TP("/test/b"),
+		fs.TP("/test/c"),
 	}); err != nil {
 		t.Fatalf("%v", err)
 	}
@@ -357,9 +352,9 @@ func TestSerializeDeserialize(t *testing.T) {
 
 	// Create a new Memstore from file to see if Remove operates are
 	// persisted.
-	memstoreRemovedCopy, err := NewMemstore(path)
+	memstoreRemovedCopy, err := fs.NewMemstore(path)
 	if err != nil {
-		t.Fatalf("NewMemstore() failed for removed copy: %v", err)
+		t.Fatalf("fs.NewMemstore() failed for removed copy: %v", err)
 	}
 	if err := allPathsDontExist(memstoreRemovedCopy, []string{
 		"/test/a",
@@ -373,9 +368,9 @@ func TestSerializeDeserialize(t *testing.T) {
 
 func TestOperationsNeedValidBinding(t *testing.T) {
 	path := filepath.Join(os.TempDir(), "namedms")
-	memstoreOriginal, err := NewMemstore(path)
+	memstoreOriginal, err := fs.NewMemstore(path)
 	if err != nil {
-		t.Fatalf("NewMemstore() failed: %v", err)
+		t.Fatalf("fs.NewMemstore() failed: %v", err)
 	}
 	defer os.Remove(path)
 
@@ -423,7 +418,7 @@ func TestOperationsNeedValidBinding(t *testing.T) {
 		t.Fatalf("CreateTransaction() failed: %v", err)
 	}
 
-	bindingTnameTestB := memstoreOriginal.BindObject(tP("/test/b"))
+	bindingTnameTestB := memstoreOriginal.BindObject(fs.TP("/test/b"))
 	if _, err := bindingTnameTestB.Put(nil, envelope); err != nil {
 		t.Fatalf("Put() failed: %v", err)
 	}
@@ -442,15 +437,15 @@ func TestOpenEmptyMemstore(t *testing.T) {
 
 	// Create a brand new memstore persisted to namedms. This will
 	// have the side-effect of creating an empty backing file.
-	_, err := NewMemstore(path)
+	_, err := fs.NewMemstore(path)
 	if err != nil {
-		t.Fatalf("NewMemstore() failed: %v", err)
+		t.Fatalf("fs.NewMemstore() failed: %v", err)
 	}
 
 	// Create another memstore that will attempt to deserialize the empty
 	// backing file.
-	_, err = NewMemstore(path)
+	_, err = fs.NewMemstore(path)
 	if err != nil {
-		t.Fatalf("NewMemstore() failed: %v", err)
+		t.Fatalf("fs.NewMemstore() failed: %v", err)
 	}
 }
