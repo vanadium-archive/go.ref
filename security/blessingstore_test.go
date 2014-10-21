@@ -134,12 +134,9 @@ func TestBlessingStorePersistence(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer os.RemoveAll(dir)
-	p, existed, err := NewPersistentPrincipal(dir)
+	p, err := CreatePersistentPrincipal(dir, nil)
 	if err != nil {
 		t.Fatal(err)
-	}
-	if existed {
-		t.Errorf("%q already has a principal in it", dir)
 	}
 	tester := newStoreTester(p)
 	s := p.BlessingStore()
@@ -155,7 +152,7 @@ func TestBlessingStorePersistence(t *testing.T) {
 	}
 
 	// Recreate the BlessingStore from the directory.
-	p2, _, err := NewPersistentPrincipal(dir)
+	p2, err := LoadPersistentPrincipal(dir, nil)
 	if err != nil {
 		t.Fatal(err)
 	}

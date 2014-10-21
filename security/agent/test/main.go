@@ -4,12 +4,13 @@ import (
 	"flag"
 	"fmt"
 
-	"veyron.io/veyron/veyron2/ipc"
-	"veyron.io/veyron/veyron2/rt"
-
 	"veyron.io/veyron/veyron/lib/signals"
 	_ "veyron.io/veyron/veyron/profiles"
-	sflag "veyron.io/veyron/veyron/security/flag"
+	vsecurity "veyron.io/veyron/veyron/security"
+
+	"veyron.io/veyron/veyron2/ipc"
+	"veyron.io/veyron/veyron2/rt"
+	"veyron.io/veyron/veyron2/security"
 )
 
 var runServer = flag.Bool("server", false, "Whether to run in server mode")
@@ -54,7 +55,10 @@ func serverMain() {
 		log.Fatal("error listening to service: ", err)
 	}
 
-	if err := s.Serve("pingpong", ipc.LeafDispatcher(serverPong, sflag.NewAuthorizerOrDie())); err != nil {
+	auth := vsecurity.NewACLAuthorizer(security.ACL{In: map[security.BlessingPattern]security.LabelSet{
+		security.AllPrincipals: security.AllLabels,
+	}})
+	if err := s.Serve("pingpong", ipc.LeafDispatcher(serverPong, auth)); err != nil {
 		log.Fatal("error serving service: ", err)
 	}
 

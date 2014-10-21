@@ -59,9 +59,12 @@ func (rt *vrt) initPrincipal() error {
 		// TODO(ataly, ashankar): If multiple runtimes are getting
 		// initialized at the same time from the same VEYRON_CREDENTIALS
 		// we will need some kind of locking for the credential files.
-		var existed bool
-		if rt.principal, existed, err = vsecurity.NewPersistentPrincipal(dir); err != nil {
-			return err
+		existed := true
+		if rt.principal, err = vsecurity.LoadPersistentPrincipal(dir, nil); err != nil {
+			existed = false
+			if rt.principal, err = vsecurity.CreatePersistentPrincipal(dir, nil); err != nil {
+				return err
+			}
 		}
 		if !existed {
 			return initDefaultBlessings(rt.principal)

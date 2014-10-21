@@ -4,7 +4,7 @@
 
 source "${VEYRON_ROOT}/scripts/lib/shell_test.sh"
 
-readonly  WORKDIR="$(shell::tmp_dir)"
+readonly WORKDIR="$(shell::tmp_dir)"
 
 build() {
   veyron go build veyron.io/veyron/veyron/security/agent/agentd || shell_test::fail "line ${LINENO}: failed to build agentd"
@@ -23,6 +23,14 @@ main() {
   cd "${WORKDIR}"
   build
 
+  # TODO(suharshs): After switching to new security model this shoudl be VEYRON_CREDENTIALS.
+  export VEYRON_AGENT="$(shell::tmp_dir)"
+  echo "-----BEGIN EC PRIVATE KEY-----
+MHcCAQEEIGxO3M/KmUac35mffZAVZf0PcXj2qLj4AtTIxdSrAH1AoAoGCCqGSM49
+AwEHoUQDQgAEoZ4cgHtkSzP/PeUBLIOoSJWjx7t2cAWKxj+dd3AgDct2nJujM2+c
+dwwYdDyKjhBc2nacEDlvA3AqtCMU0c97hA==
+-----END EC PRIVATE KEY-----" > "${VEYRON_AGENT}/privatekey.pem"
+
   # TODO(ashankar): Remove this block (and remove the compilation of the identity tool)
   # once the agent has been updated to comply with the new security model.
   local -r ID=$(shell::tmp_file)
@@ -34,7 +42,6 @@ main() {
 
   # Test running a single app.
   shell_test::start_server ./pingpong --server
-  export VEYRON_PUBLICID_STORE="$(shell::tmp_dir)"
   ./agentd --v=4 ./pingpong || shell_test::fail "line ${LINENO}: failed to run pingpong"
   local -r OUTPUT=$(shell::tmp_file)
   RESULT=$(shell::check_result echo_identity "${OUTPUT}")

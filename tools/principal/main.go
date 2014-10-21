@@ -189,9 +189,12 @@ machine and the name of the user running this command.
 			var key security.PublicKey
 			tobless, extension := args[0], args[1]
 			if finfo, err := os.Stat(tobless); err == nil && finfo.IsDir() {
-				other, _, err := vsecurity.NewPersistentPrincipal(tobless)
+				// TODO(suharshs,ashankar,ataly): How should we make an ecrypted pk... or is that up to the agent?
+				other, err := vsecurity.LoadPersistentPrincipal(tobless, nil)
 				if err != nil {
-					return fmt.Errorf("failed to read principal in directory %q: %v", tobless, err)
+					if other, err = vsecurity.CreatePersistentPrincipal(tobless, nil); err != nil {
+						return fmt.Errorf("failed to read principal in directory %q: %v", tobless, err)
+					}
 				}
 				key = other.PublicKey()
 			} else if other, err := decodeBlessings(tobless); err != nil {
@@ -363,9 +366,10 @@ this tool. - is used for STDIN.
 				return fmt.Errorf("requires exactly two arguments: <directory> and <blessing>, provided %d", len(args))
 			}
 			dir, name := args[0], args[1]
-			p, existed, err := vsecurity.NewPersistentPrincipal(dir)
-			if existed {
-				return fmt.Errorf("principal already exists in %q", dir)
+			// TODO(suharshs,ashankar,ataly): How should we make an ecrypted pk... or is that up to the agent?
+			p, err := vsecurity.CreatePersistentPrincipal(dir, nil)
+			if err != nil {
+				return err
 			}
 			blessings, err := p.BlessSelf(name)
 			if err != nil {

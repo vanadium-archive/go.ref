@@ -21,12 +21,8 @@ func TestNewVeyronCredentials(t *testing.T) {
 
 	parent := r.Principal()
 	childdir := NewVeyronCredentials(parent, "child")
-	_, existed, err := vsecurity.NewPersistentPrincipal(childdir)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !existed {
-		t.Fatalf("Expected NewVeyronCredentials to have populated the directory %q", childdir)
+	if _, err = vsecurity.LoadPersistentPrincipal(childdir, nil); err != nil {
+		t.Fatalf("Expected NewVeyronCredentials to have populated the directory %q: %v", childdir, err)
 	}
 	// TODO(ashankar,ataly): Figure out what APIs should we use for more detailed testing
 	// of the child principal, for example:

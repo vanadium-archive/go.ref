@@ -22,6 +22,8 @@ import (
 	"veyron.io/veyron/veyron2/vlog"
 )
 
+// TODO(suharshs): Remove this when replaced with principal. This is just temporary to
+// avoid having to implement a bunch of principal methods that aren't being used yet.
 type Signer interface {
 	Sign(message []byte) (security.Signature, error)
 	PublicKey() security.PublicKey

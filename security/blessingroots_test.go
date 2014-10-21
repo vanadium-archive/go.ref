@@ -97,12 +97,9 @@ func TestBlessingRootsPersistence(t *testing.T) {
 	}
 	defer os.RemoveAll(dir)
 	tester := newRootsTester()
-	p, existed, err := NewPersistentPrincipal(dir)
+	p, err := CreatePersistentPrincipal(dir, nil)
 	if err != nil {
 		t.Fatal(err)
-	}
-	if existed {
-		t.Fatalf("%q already has a principal", dir)
 	}
 	if err := tester.add(p.Roots()); err != nil {
 		t.Error(err)
@@ -111,7 +108,7 @@ func TestBlessingRootsPersistence(t *testing.T) {
 		t.Error(err)
 	}
 	// Recreate the principal (and thus BlessingRoots)
-	p2, _, err := NewPersistentPrincipal(dir)
+	p2, err := LoadPersistentPrincipal(dir, nil)
 	if err != nil {
 		t.Fatal(err)
 	}

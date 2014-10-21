@@ -24,9 +24,11 @@ func NewVeyronCredentials(parent security.Principal, name string) string {
 	if err != nil {
 		panic(err)
 	}
-	p, _, err := vsecurity.NewPersistentPrincipal(dir)
+	p, err := vsecurity.LoadPersistentPrincipal(dir, nil)
 	if err != nil {
-		panic(err)
+		if p, err = vsecurity.CreatePersistentPrincipal(dir, nil); err != nil {
+			panic(err)
+		}
 	}
 	blessings, err := parent.Bless(p.PublicKey(), parent.BlessingStore().Default(), name, security.UnconstrainedUse())
 	if err != nil {
