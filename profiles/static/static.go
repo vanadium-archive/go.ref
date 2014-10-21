@@ -49,7 +49,7 @@ func (p *static) Name() string {
 }
 
 func (p *static) Runtime() string {
-	return ""
+	return "google"
 }
 
 func (*static) Platform() *veyron2.Platform {
