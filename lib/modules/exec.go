@@ -91,18 +91,6 @@ func (eh *execHandle) CloseStdin() {
 	eh.mu.Unlock()
 }
 
-// mergeOSEnv returns a slice contained the merged set of environment
-// variables from the OS environment and those in this Shell, preferring
-// values in the Shell environment over those found in the OS environment.
-func (sh *Shell) mergeOSEnvSlice() []string {
-	merged := sh.mergeOSEnv()
-	env := []string{}
-	for k, v := range merged {
-		env = append(env, k+"="+v)
-	}
-	return env
-}
-
 func osEnvironMap() map[string]string {
 	m := make(map[string]string)
 	for _, osv := range os.Environ() {
@@ -129,6 +117,13 @@ func (sh *Shell) mergeOSEnv() map[string]string {
 	return merged
 }
 
+func (eh *execHandle) envelope(sh *Shell, args ...string) ([]string, []string) {
+	newargs := []string{os.Args[0]}
+	newargs = append(newargs, testFlags()...)
+	newargs = append(newargs, args...)
+	return newargs, append(sh.MergedEnv(), eh.entryPoint)
+}
+
 func (eh *execHandle) start(sh *Shell, args ...string) (Handle, error) {
 	eh.mu.Lock()
 	defer eh.mu.Unlock()
@@ -138,7 +133,7 @@ func (eh *execHandle) start(sh *Shell, args ...string) (Handle, error) {
 	// the flag package.
 	newargs := append(testFlags(), args[1:]...)
 	cmd := exec.Command(os.Args[0], newargs...)
-	cmd.Env = append(sh.mergeOSEnvSlice(), eh.entryPoint)
+	cmd.Env = append(sh.MergedEnv(), eh.entryPoint)
 	fname := strings.TrimPrefix(eh.entryPoint, ShellEntryPoint+"=")
 	stderr, err := newLogfile(strings.TrimLeft(fname, "-\n\t "))
 	if err != nil {
@@ -176,7 +171,7 @@ func (eh *execHandle) Shutdown(stdout, stderr io.Writer) error {
 	defer eh.mu.Unlock()
 	eh.stdin.Close()
 	logFile := eh.stderr.Name()
-	defer eh.sh.forget(eh)
+	defer eh.sh.Forget(eh)
 
 	defer func() {
 		os.Remove(logFile)
@@ -194,13 +189,15 @@ func (eh *execHandle) Shutdown(stdout, stderr io.Writer) error {
 	// Stderr is buffered to a file, so we can safely read it after we
 	// wait for the process.
 	eh.stderr.Close()
-	stderrFile, err := os.Open(logFile)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "failed to open %q: %s\n", logFile, err)
-		return procErr
+	if stderr != nil {
+		stderrFile, err := os.Open(logFile)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "failed to open %q: %s\n", logFile, err)
+			return procErr
+		}
+		readTo(stderrFile, stderr)
+		stderrFile.Close()
 	}
-	readTo(stderrFile, stderr)
-	stderrFile.Close()
 	return procErr
 }
 

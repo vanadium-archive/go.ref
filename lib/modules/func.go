@@ -48,6 +48,10 @@ func (fh *functionHandle) CloseStdin() {
 	fh.mu.Unlock()
 }
 
+func (fh *functionHandle) envelope(sh *Shell, args ...string) ([]string, []string) {
+	return args, sh.MergedEnv()
+}
+
 func (fh *functionHandle) start(sh *Shell, args ...string) (Handle, error) {
 	fh.mu.Lock()
 	defer fh.mu.Unlock()
@@ -119,7 +123,7 @@ func (fh *functionHandle) Shutdown(stdout_w, stderr_w io.Writer) error {
 
 	fh.mu.Lock()
 	fh.stdout.r.Close()
-	fh.sh.forget(fh)
+	fh.sh.Forget(fh)
 	fh.mu.Unlock()
 	return funcErr
 }
