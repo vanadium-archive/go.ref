@@ -166,13 +166,13 @@ func TestProxy(t *testing.T) {
 	if err := proxy.Stop(); err != nil {
 		t.Fatal(err)
 	}
-	if result, err := makeCall(); err == nil || !strings.HasPrefix(err.Error(), "RESOLVE") {
-		t.Fatalf(`Got (%v, %v) want ("", "RESOLVE: <err>") as proxy is down`, result, err)
-	}
 	for {
 		if _, err := ns.Resolve(testContext(), name); err != nil {
 			break
 		}
+	}
+	if result, err := makeCall(); err == nil || !strings.HasPrefix(err.Error(), "RESOLVE") {
+		t.Fatalf(`Got (%v, %v) want ("", "RESOLVE: <err>") as proxy is down`, result, err)
 	}
 	verifyMountMissing(t, ns, name)
 
