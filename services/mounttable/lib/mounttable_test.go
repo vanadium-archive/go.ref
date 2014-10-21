@@ -3,33 +3,25 @@ package mounttable
 import (
 	"errors"
 	"fmt"
+	"io"
 	"reflect"
 	"runtime/debug"
 	"sort"
-	"strings"
 	"testing"
 	"time"
 
 	"veyron.io/veyron/veyron2"
-	"veyron.io/veyron/veyron2/context"
 	"veyron.io/veyron/veyron2/ipc"
 	"veyron.io/veyron/veyron2/naming"
 	"veyron.io/veyron/veyron2/options"
 	"veyron.io/veyron/veyron2/rt"
 	"veyron.io/veyron/veyron2/security"
-	"veyron.io/veyron/veyron2/services/mounttable"
 	"veyron.io/veyron/veyron2/services/mounttable/types"
 	"veyron.io/veyron/veyron2/vlog"
 
 	"veyron.io/veyron/veyron/lib/testutil"
 	"veyron.io/veyron/veyron/profiles"
 )
-
-// stupidNS is a version of naming.Namespace that we can control.  This exists so that we have some
-// firm ground to stand on vis a vis the stub interface.
-type stupidNS struct {
-	r veyron2.Runtime
-}
 
 // Simulate different processes with different runtimes.
 // rootRT is the one running the mounttable service.
@@ -42,126 +34,119 @@ func boom(t *testing.T, f string, v ...interface{}) {
 	t.Fatal(string(debug.Stack()))
 }
 
-// quuxClient returns an ipc.Client that would be used by the provided runtime
-// and uses the simple namespace for name resolution.
-func quuxClient(r veyron2.Runtime) ipc.Client {
-	c, err := r.NewClient(options.Namespace{stupidNS{r}})
+func doMount(t *testing.T, ep, suffix, service string, shouldSucceed bool, as veyron2.Runtime) {
+	name := naming.JoinAddressName(ep, suffix)
+	ctx := as.NewContext()
+	client := as.Client()
+	call, err := client.StartCall(ctx, name, "Mount", []interface{}{service, uint32(ttlSecs), 0}, options.NoResolve(true))
 	if err != nil {
-		panic(err)
-	}
-	return c
-}
-
-func (stupidNS) Mount(context.T, string, string, time.Duration, ...naming.MountOpt) error {
-	return errors.New("unimplemented")
-}
-
-func (stupidNS) Unmount(context.T, string, string) error {
-	return errors.New("unimplemented")
-}
-
-// Resolve will only go one level deep, i.e., it doesn't walk past the first mount point.
-func (ns stupidNS) Resolve(ctx context.T, name string) ([]string, error) {
-	vlog.VI(1).Infof("MyResolve %q", name)
-	address, suffix := naming.SplitAddressName(name)
-	if len(address) == 0 {
-		return nil, naming.ErrNoSuchName
-	}
-	if strings.HasPrefix(suffix, "//") {
-		// We're done, the server at address will handle the name.
-		return []string{naming.JoinAddressName(address, suffix)}, nil
-	}
-
-	// Resolve via another
-	objectPtr, err := mounttable.BindMountTable("/"+address+"//"+suffix, quuxClient(ns.r))
-	if err != nil {
-		return nil, err
-	}
-	entry, err := objectPtr.ResolveStepX(ns.r.NewContext())
-	if err != nil {
-		return nil, err
-	}
-	var servers []string
-	for _, s := range entry.Servers {
-		servers = append(servers, naming.Join(s.Server, entry.Name))
-	}
-	vlog.VI(1).Infof("-> %v", servers)
-	return servers, nil
-}
-
-func (s stupidNS) Unresolve(ctx context.T, name string) ([]string, error) {
-	return s.Resolve(ctx, name)
-}
-
-func (stupidNS) ResolveToMountTable(ctx context.T, name string) ([]string, error) {
-	return nil, errors.New("ResolveToMountTable is not implemented in this MountTable")
-}
-
-func (stupidNS) FlushCacheEntry(name string) bool {
-	return false
-}
-
-func (stupidNS) CacheCtl(ctls ...naming.CacheCtl) []naming.CacheCtl {
-	return nil
-}
-
-// Glob implements naming.MountTable.Glob.
-func (stupidNS) Glob(ctx context.T, pattern string) (chan naming.MountEntry, error) {
-	return nil, errors.New("Glob is not implemented in this MountTable")
-}
-
-func (s stupidNS) SetRoots(...string) error {
-	return nil
-}
-
-func (s stupidNS) Roots() []string {
-	return []string{}
-}
-
-func doMount(t *testing.T, name, service string, shouldSucceed bool, as veyron2.Runtime) {
-	mtpt, err := mounttable.BindMountTable(name, quuxClient(as))
-	if err != nil {
-		boom(t, "Failed to BindMountTable: %s", err)
-	}
-	if err := mtpt.Mount(as.NewContext(), service, uint32(ttlSecs), 0, options.RetryTimeout(0)); err != nil {
-		if shouldSucceed {
-			boom(t, "Failed to Mount %s onto %s: %s", service, name, err)
+		if !shouldSucceed {
+			return
 		}
-	} else if !shouldSucceed {
-		boom(t, "doMount %s onto %s, expected failure but succeeded", service, name)
+		boom(t, "Failed to Mount %s onto %s: %s", service, name, err)
+	}
+	if ierr := call.Finish(&err); ierr != nil {
+		if !shouldSucceed {
+			return
+		}
+		boom(t, "Failed to Mount %s onto %s: %s", service, name, ierr)
+	}
+	if err != nil {
+		if !shouldSucceed {
+			return
+		}
+		boom(t, "Failed to Mount %s onto %s: %s", service, name, err)
 	}
 }
 
-func doUnmount(t *testing.T, name, service string, shouldSucceed bool, as veyron2.Runtime) {
-	mtpt, err := mounttable.BindMountTable(name, quuxClient(as))
+func doUnmount(t *testing.T, ep, suffix, service string, shouldSucceed bool, as veyron2.Runtime) {
+	name := naming.JoinAddressName(ep, suffix)
+	ctx := as.NewContext()
+	client := as.Client()
+	call, err := client.StartCall(ctx, name, "Unmount", []interface{}{service}, options.NoResolve(true))
 	if err != nil {
-		boom(t, "Failed to BindMountTable: %s", err)
-	}
-	if err := mtpt.Unmount(as.NewContext(), service, options.RetryTimeout(0)); err != nil {
-		if shouldSucceed {
-			boom(t, "Failed to Unmount %s onto %s: %s", service, name, err)
+		if !shouldSucceed {
+			return
 		}
-	} else if !shouldSucceed {
-		boom(t, "doUnmount %s onto %s, expected failure but succeeded", service, name)
+		boom(t, "Failed to Mount %s onto %s: %s", service, name, err)
 	}
+	if ierr := call.Finish(&err); ierr != nil {
+		if !shouldSucceed {
+			return
+		}
+		boom(t, "Failed to Mount %s onto %s: %s", service, name, ierr)
+	}
+	if err != nil {
+		if !shouldSucceed {
+			return
+		}
+		boom(t, "Failed to Mount %s onto %s: %s", service, name, err)
+	}
+}
+
+// resolve assumes that the mount contains 0 or 1 servers.
+func resolve(name string, as veyron2.Runtime) (string, error) {
+	// Resolve the name one level.
+	ctx := as.NewContext()
+	client := as.Client()
+	call, err := client.StartCall(ctx, name, "ResolveStepX", nil, options.NoResolve(true))
+	if err != nil {
+		return "", err
+	}
+	var entry types.MountEntry
+	if ierr := call.Finish(&entry, &err); ierr != nil {
+		return "", ierr
+	}
+	if len(entry.Servers) < 1 {
+		return "", errors.New("resolve returned no servers")
+	}
+	return naming.JoinAddressName(entry.Servers[0].Server, entry.Name), nil
 }
 
 func export(t *testing.T, name, contents string, as veyron2.Runtime) {
-	objectPtr, err := BindCollection(name, quuxClient(as))
+	// Resolve the name.
+	resolved, err := resolve(name, as)
 	if err != nil {
-		boom(t, "Failed to BindCollection: %s", err)
+		boom(t, "Failed to Export.Resolve %s: %s", name, err)
 	}
-	if err := objectPtr.Export(as.NewContext(), contents, true); err != nil {
-		boom(t, "Failed to Export %s to %s: %s", name, contents, err)
+	// Export the value.
+	ctx := as.NewContext()
+	client := as.Client()
+	call, err := client.StartCall(ctx, resolved, "Export", []interface{}{contents, true}, options.NoResolve(true))
+	if err != nil {
+		boom(t, "Failed to Export.StartCall %s to %s: %s", name, contents, err)
+	}
+	if ierr := call.Finish(&err); ierr != nil {
+		err = ierr
+	}
+	if err != nil {
+		boom(t, "Failed to Export.StartCall %s to %s: %s", name, contents, err)
 	}
 }
 
 func checkContents(t *testing.T, name, expected string, shouldSucceed bool, as veyron2.Runtime) {
-	objectPtr, err := BindCollection(name, quuxClient(as))
+	// Resolve the name.
+	resolved, err := resolve(name, as)
 	if err != nil {
-		boom(t, "Failed to BindCollection: %s", err)
+		if !shouldSucceed {
+			return
+		}
+		boom(t, "Failed to Resolve %s: %s", name, err)
 	}
-	contents, err := objectPtr.Lookup(as.NewContext(), options.RetryTimeout(0))
+	// Look up the value.
+	ctx := as.NewContext()
+	client := as.Client()
+	call, err := client.StartCall(ctx, resolved, "Lookup", nil, options.NoResolve(true))
+	if err != nil {
+		if shouldSucceed {
+			boom(t, "Failed Lookup.StartCall %s: %s", name, err)
+		}
+		return
+	}
+	var contents []byte
+	if ierr := call.Finish(&contents, &err); ierr != nil {
+		err = ierr
+	}
 	if err != nil {
 		if shouldSucceed {
 			boom(t, "Failed to Lookup %s: %s", name, err)
@@ -230,7 +215,7 @@ func TestMountTable(t *testing.T) {
 
 	// Mount the collection server into the mount table.
 	vlog.Infof("Mount the collection server into the mount table.")
-	doMount(t, naming.JoinAddressName(mtAddr, "//mounttable/stuff"), collectionName, true, rootRT)
+	doMount(t, mtAddr, "mounttable/stuff", collectionName, true, rootRT)
 
 	// Create a few objects and make sure we can read them.
 	vlog.Infof("Create a few objects.")
@@ -248,9 +233,9 @@ func TestMountTable(t *testing.T) {
 
 	// Test multiple mounts.
 	vlog.Infof("Multiple mounts.")
-	doMount(t, naming.JoinAddressName(mtAddr, "//mounttable//a/b"), collectionName, true, rootRT)
-	doMount(t, naming.JoinAddressName(mtAddr, "//mounttable/x/y"), collectionName, true, rootRT)
-	doMount(t, naming.JoinAddressName(mtAddr, "//mounttable/alpha//beta"), collectionName, true, rootRT)
+	doMount(t, mtAddr, "mounttable/a/b", collectionName, true, rootRT)
+	doMount(t, mtAddr, "mounttable/x/y", collectionName, true, rootRT)
+	doMount(t, mtAddr, "mounttable/alpha//beta", collectionName, true, rootRT)
 	vlog.Infof("Make sure we can read them.")
 	checkContents(t, naming.JoinAddressName(mtAddr, "mounttable/stuff/falls"), "falls mainly on the plain", true, rootRT)
 	checkContents(t, naming.JoinAddressName(mtAddr, "mounttable/a/b/falls"), "falls mainly on the plain", true, rootRT)
@@ -261,52 +246,67 @@ func TestMountTable(t *testing.T) {
 
 	// Test generic unmount.
 	vlog.Info("Test generic unmount.")
-	doUnmount(t, naming.JoinAddressName(mtAddr, "//mounttable/a/b"), "", true, rootRT)
+	doUnmount(t, mtAddr, "mounttable/a/b", "", true, rootRT)
 	checkContents(t, naming.JoinAddressName(mtAddr, "mounttable/a/b/falls"), "falls mainly on the plain", false, rootRT)
 
 	// Test specific unmount.
 	vlog.Info("Test specific unmount.")
-	doMount(t, naming.JoinAddressName(mtAddr, "//mounttable/a/b"), collectionName, true, rootRT)
-	doUnmount(t, naming.JoinAddressName(mtAddr, "//mounttable/a/b"), collectionName, true, rootRT)
+	doMount(t, mtAddr, "mounttable/a/b", collectionName, true, rootRT)
+	doUnmount(t, mtAddr, "mounttable/a/b", collectionName, true, rootRT)
 	checkContents(t, naming.JoinAddressName(mtAddr, "mounttable/a/b/falls"), "falls mainly on the plain", false, rootRT)
 
 	// Try timing out a mount.
 	vlog.Info("Try timing out a mount.")
 	ft := NewFakeTimeClock()
 	setServerListClock(ft)
-	doMount(t, naming.JoinAddressName(mtAddr, "//mounttable/stuffWithTTL"), collectionName, true, rootRT)
+	doMount(t, mtAddr, "mounttable/stuffWithTTL", collectionName, true, rootRT)
 	checkContents(t, naming.JoinAddressName(mtAddr, "mounttable/stuffWithTTL/the/rain"), "the rain", true, rootRT)
 	ft.advance(time.Duration(ttlSecs+4) * time.Second)
 	checkContents(t, naming.JoinAddressName(mtAddr, "mounttable/stuffWithTTL/the/rain"), "the rain", false, rootRT)
 
 	// Test unauthorized mount.
 	vlog.Info("Test unauthorized mount.")
-	doMount(t, naming.JoinAddressName(mtAddr, "//mounttable//a/b"), collectionName, false, bobRT)
-	doMount(t, naming.JoinAddressName(mtAddr, "//mounttable//a/b"), collectionName, false, aliceRT)
+	doMount(t, mtAddr, "mounttable//a/b", collectionName, false, bobRT)
+	doMount(t, mtAddr, "mounttable//a/b", collectionName, false, aliceRT)
 
-	doUnmount(t, naming.JoinAddressName(mtAddr, "//mounttable/x/y"), collectionName, false, bobRT)
+	doUnmount(t, mtAddr, "mounttable/x/y", collectionName, false, bobRT)
 }
 
-func doGlob(t *testing.T, name, pattern string, as veyron2.Runtime) []string {
-	mtpt, err := mounttable.BindMountTable(name, quuxClient(as))
+func doGlobX(t *testing.T, ep, suffix, pattern string, as veyron2.Runtime, joinServer bool) []string {
+	name := naming.JoinAddressName(ep, suffix)
+	ctx := as.NewContext()
+	client := as.Client()
+	call, err := client.StartCall(ctx, name, "Glob", []interface{}{pattern}, options.NoResolve(true))
 	if err != nil {
-		boom(t, "Failed to BindMountTable: %s", err)
-	}
-	stream, err := mtpt.Glob(as.NewContext(), pattern)
-	if err != nil {
-		boom(t, "Failed call to %s.Glob(%s): %s", name, pattern, err)
+		boom(t, "Glob.StartCall %s %s: %s", name, pattern, err)
 	}
 	var reply []string
-	rStream := stream.RecvStream()
-	for rStream.Advance() {
-		e := rStream.Value()
-		reply = append(reply, e.Name)
+	for {
+		var e types.MountEntry
+		err := call.Recv(&e)
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			boom(t, "Glob.StartCall %s: %s", name, pattern, err)
+		}
+		if joinServer && len(e.Servers) > 0 {
+			reply = append(reply, naming.JoinAddressName(e.Servers[0].Server, e.Name))
+		} else {
+			reply = append(reply, e.Name)
+		}
 	}
-
-	if err := rStream.Err(); err != nil {
-		boom(t, "Glob %s: %s", name, err)
+	if ierr := call.Finish(&err); ierr != nil {
+		err = ierr
+	}
+	if err != nil {
+		boom(t, "Glob.Finish %s: %s", name, pattern, err)
 	}
 	return reply
+}
+
+func doGlob(t *testing.T, ep, suffix, pattern string, as veyron2.Runtime) []string {
+	return doGlobX(t, ep, suffix, pattern, as, false)
 }
 
 // checkMatch verified that the two slices contain the same string items, albeit
@@ -327,10 +327,10 @@ func TestGlob(t *testing.T) {
 	defer server.Stop()
 
 	// set up a mount space
-	fakeServer := naming.JoinAddressName(estr, "//quux")
-	doMount(t, naming.JoinAddressName(estr, "//one/bright/day"), fakeServer, true, rootRT)
-	doMount(t, naming.JoinAddressName(estr, "//in/the/middle"), fakeServer, true, rootRT)
-	doMount(t, naming.JoinAddressName(estr, "//of/the/night"), fakeServer, true, rootRT)
+	fakeServer := naming.JoinAddressName(estr, "quux")
+	doMount(t, estr, "one/bright/day", fakeServer, true, rootRT)
+	doMount(t, estr, "in/the/middle", fakeServer, true, rootRT)
+	doMount(t, estr, "of/the/night", fakeServer, true, rootRT)
 
 	// Try various globs.
 	tests := []struct {
@@ -348,39 +348,19 @@ func TestGlob(t *testing.T) {
 		{"", []string{""}},
 	}
 	for _, test := range tests {
-		out := doGlob(t, naming.JoinAddressName(estr, "//"), test.in, rootRT)
+		out := doGlob(t, estr, "", test.in, rootRT)
 		checkMatch(t, test.expected, out)
 	}
 
 	// Test Glob on a name that is under a mounted server. The result should the
 	// the address the mounted server with the extra suffix.
 	{
-		name := naming.JoinAddressName(estr, "//of/the/night/two/dead/boys/got/up/to/fight")
-		pattern := "*"
-		m, err := mounttable.BindGlobbable(name, quuxClient(rootRT))
-		if err != nil {
-			boom(t, "Failed to BindMountTable: %s", err)
-		}
-		stream, err := m.Glob(rootRT.NewContext(), pattern)
-		if err != nil {
-			boom(t, "Failed call to %s.Glob(%s): %s", name, pattern, err)
-		}
-		var results []types.MountEntry
-		iterator := stream.RecvStream()
-		for iterator.Advance() {
-			results = append(results, iterator.Value())
-		}
-		if err := iterator.Err(); err != nil {
-			boom(t, "Glob %s: %s", name, err)
-		}
+		results := doGlobX(t, estr, "of/the/night/two/dead/boys/got/up/to/fight", "*", rootRT, true)
 		if len(results) != 1 {
 			boom(t, "Unexpected number of results. Got %v, want 1", len(results))
 		}
-		if results[0].Name != "" {
-			boom(t, "Unexpected name. Got %v, want ''", results[0].Name)
-		}
-		_, suffix := naming.SplitAddressName(results[0].Servers[0].Server)
-		if expected := "//quux/two/dead/boys/got/up/to/fight"; suffix != expected {
+		_, suffix := naming.SplitAddressName(results[0])
+		if expected := "quux/two/dead/boys/got/up/to/fight"; suffix != expected {
 			boom(t, "Unexpected suffix. Got %v, want %v", suffix, expected)
 		}
 	}
@@ -394,8 +374,8 @@ func TestGlobACLs(t *testing.T) {
 
 	// set up a mount space
 	fakeServer := naming.JoinAddressName(estr, "quux")
-	doMount(t, naming.JoinAddressName(estr, "//one/bright/day"), fakeServer, true, rootRT)
-	doMount(t, naming.JoinAddressName(estr, "//a/b/c"), fakeServer, true, rootRT)
+	doMount(t, estr, "one/bright/day", fakeServer, true, rootRT)
+	doMount(t, estr, "a/b/c", fakeServer, true, rootRT)
 
 	// Try various globs.
 	tests := []struct {
@@ -411,7 +391,7 @@ func TestGlobACLs(t *testing.T) {
 		{bobRT, "*/...", []string{"one", "one/bright", "one/bright/day"}},
 	}
 	for _, test := range tests {
-		out := doGlob(t, naming.JoinAddressName(estr, "//"), test.in, test.as)
+		out := doGlob(t, estr, "", test.in, test.as)
 		checkMatch(t, test.expected, out)
 	}
 }
@@ -420,12 +400,12 @@ func TestServerFormat(t *testing.T) {
 	server, estr := newMT(t, "")
 	defer server.Stop()
 
-	doMount(t, naming.JoinAddressName(estr, "//mounttable/endpoint"), naming.JoinAddressName(estr, "life/on/the/mississippi"), true, rootRT)
-	doMount(t, naming.JoinAddressName(estr, "//mounttable/hostport"), "/atrampabroad:8000", true, rootRT)
-	doMount(t, naming.JoinAddressName(estr, "//mounttable/hostport-endpoint-platypus"), "/@atrampabroad:8000@@", true, rootRT)
-	doMount(t, naming.JoinAddressName(estr, "//mounttable/invalid/not/rooted"), "atrampabroad:8000", false, rootRT)
-	doMount(t, naming.JoinAddressName(estr, "//mounttable/invalid/no/port"), "/atrampabroad", false, rootRT)
-	doMount(t, naming.JoinAddressName(estr, "//mounttable/invalid/endpoint"), "/@following the equator:8000@@@", false, rootRT)
+	doMount(t, estr, "mounttable/endpoint", naming.JoinAddressName(estr, "life/on/the/mississippi"), true, rootRT)
+	doMount(t, estr, "mounttable/hostport", "/atrampabroad:8000", true, rootRT)
+	doMount(t, estr, "mounttable/hostport-endpoint-platypus", "/@atrampabroad:8000@@", true, rootRT)
+	doMount(t, estr, "mounttable/invalid/not/rooted", "atrampabroad:8000", false, rootRT)
+	doMount(t, estr, "mounttable/invalid/no/port", "/atrampabroad", false, rootRT)
+	doMount(t, estr, "mounttable/invalid/endpoint", "/@following the equator:8000@@@", false, rootRT)
 }
 
 func TestExpiry(t *testing.T) {
@@ -438,21 +418,21 @@ func TestExpiry(t *testing.T) {
 
 	ft := NewFakeTimeClock()
 	setServerListClock(ft)
-	doMount(t, naming.JoinAddressName(estr, "//mounttable/a1/b1"), collectionName, true, rootRT)
-	doMount(t, naming.JoinAddressName(estr, "//mounttable/a1/b2"), collectionName, true, rootRT)
-	doMount(t, naming.JoinAddressName(estr, "//mounttable/a2/b1"), collectionName, true, rootRT)
-	doMount(t, naming.JoinAddressName(estr, "//mounttable/a2/b2/c"), collectionName, true, rootRT)
+	doMount(t, estr, "mounttable/a1/b1", collectionName, true, rootRT)
+	doMount(t, estr, "mounttable/a1/b2", collectionName, true, rootRT)
+	doMount(t, estr, "mounttable/a2/b1", collectionName, true, rootRT)
+	doMount(t, estr, "mounttable/a2/b2/c", collectionName, true, rootRT)
 
-	checkMatch(t, []string{"a1/b1", "a2/b1"}, doGlob(t, naming.JoinAddressName(estr, "//mounttable"), "*/b1/...", rootRT))
+	checkMatch(t, []string{"a1/b1", "a2/b1"}, doGlob(t, estr, "mounttable", "*/b1/...", rootRT))
 	ft.advance(time.Duration(ttlSecs/2) * time.Second)
-	checkMatch(t, []string{"a1/b1", "a2/b1"}, doGlob(t, naming.JoinAddressName(estr, "//mounttable"), "*/b1/...", rootRT))
-	checkMatch(t, []string{"c"}, doGlob(t, naming.JoinAddressName(estr, "//mounttable/a2/b2"), "*", rootRT))
+	checkMatch(t, []string{"a1/b1", "a2/b1"}, doGlob(t, estr, "mounttable", "*/b1/...", rootRT))
+	checkMatch(t, []string{"c"}, doGlob(t, estr, "mounttable/a2/b2", "*", rootRT))
 	// Refresh only a1/b1.  All the other mounts will expire upon the next
 	// ft advance.
-	doMount(t, naming.JoinAddressName(estr, "//mounttable/a1/b1"), collectionName, true, rootRT)
+	doMount(t, estr, "mounttable/a1/b1", collectionName, true, rootRT)
 	ft.advance(time.Duration(ttlSecs/2+4) * time.Second)
-	checkMatch(t, []string{"a1"}, doGlob(t, naming.JoinAddressName(estr, "//mounttable"), "*", rootRT))
-	checkMatch(t, []string{"a1/b1"}, doGlob(t, naming.JoinAddressName(estr, "//mounttable"), "*/b1/...", rootRT))
+	checkMatch(t, []string{"a1"}, doGlob(t, estr, "mounttable", "*", rootRT))
+	checkMatch(t, []string{"a1/b1"}, doGlob(t, estr, "mounttable", "*/b1/...", rootRT))
 }
 
 func TestBadACLs(t *testing.T) {

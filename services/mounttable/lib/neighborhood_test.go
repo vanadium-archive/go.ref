@@ -8,7 +8,8 @@ import (
 	"time"
 
 	"veyron.io/veyron/veyron2/naming"
-	"veyron.io/veyron/veyron2/services/mounttable"
+	"veyron.io/veyron/veyron2/options"
+	"veyron.io/veyron/veyron2/services/mounttable/types"
 	"veyron.io/veyron/veyron2/vlog"
 
 	"veyron.io/veyron/veyron/lib/testutil"
@@ -61,7 +62,7 @@ func TestNeighborhood(t *testing.T) {
 	// Wait for the mounttable to appear in mdns
 L:
 	for tries := 1; tries < 2; tries++ {
-		names := doGlob(t, naming.JoinAddressName(estr, "//"), "*", rootRT)
+		names := doGlob(t, estr, "", "*", rootRT)
 		t.Logf("names %v", names)
 		for _, n := range names {
 			if n == serverName {
@@ -72,20 +73,23 @@ L:
 	}
 
 	// Make sure we get back a root for the server.
-	want, got := []string{""}, doGlob(t, naming.JoinAddressName(estr, "//"+serverName), "", rootRT)
+	want, got := []string{""}, doGlob(t, estr, serverName, "", rootRT)
 	if !reflect.DeepEqual(want, got) {
 		t.Errorf("Unexpected Glob result want: %q, got: %q", want, got)
 	}
 
 	// Make sure we can resolve through the neighborhood.
 	expectedSuffix := "a/b"
-	objectPtr, err := mounttable.BindMountTable(naming.JoinAddressName(estr, "//"+serverName+"/"+expectedSuffix), quuxClient(rootRT))
-	if err != nil {
-		boom(t, "BindMountTable: %s", err)
+	ctx := rootRT.NewContext()
+	client := rootRT.Client()
+	name := naming.JoinAddressName(estr, serverName+"/"+expectedSuffix)
+	call, cerr := client.StartCall(ctx, name, "ResolveStepX", nil, options.NoResolve(true))
+	if cerr != nil {
+		boom(t, "ResolveStepX.StartCall: %s", cerr)
 	}
-	entry, err := objectPtr.ResolveStepX(rootRT.NewContext())
-	if err != nil {
-		boom(t, "resolveStep: %s", err)
+	var entry types.MountEntry
+	if cerr = call.Finish(&entry, &err); cerr != nil {
+		boom(t, "ResolveStepX: %s", cerr)
 	}
 
 	// Resolution returned something.  Make sure its correct.

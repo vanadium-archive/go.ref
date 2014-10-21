@@ -182,6 +182,8 @@ func (mt *mountTable) authorizeStep(name string, c security.Context) error {
 }
 
 func slashSlashJoin(elems []string) string {
+	// TODO(p): once doubleslash is gone, revisit this.  It is just preserving the
+	// original double slash.
 	if len(elems) == 2 && len(elems[0]) == 0 && len(elems[1]) == 0 {
 		return "//"
 	}
