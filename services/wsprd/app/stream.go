@@ -31,6 +31,8 @@ type outstandingStream struct {
 	messages chan *message
 	// done will be notified when the stream has been closed.
 	done chan bool
+	// true if the stream has been closed.
+	closed bool
 }
 
 func newStream() *outstandingStream {
@@ -46,16 +48,16 @@ func newStream() *outstandingStream {
 }
 
 func (os *outstandingStream) send(data string, w lib.ClientWriter) {
-	if os.messages != nil {
+	if !os.closed {
 		os.messages <- &message{data, w}
 	}
 }
 
 func (os *outstandingStream) end() {
-	if os.messages != nil {
+	if !os.closed {
 		close(os.messages)
+		os.closed = true
 	}
-	os.messages = nil
 }
 
 // Waits until the stream has been closed and all the messages
