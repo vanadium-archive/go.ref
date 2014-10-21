@@ -170,7 +170,6 @@ func NewWSPR(httpPort int, listenSpec ipc.ListenSpec, identdEP string, opts ...v
 		if wspr.idManager, err = identity.NewIDManager(newrt, &identity.InMemorySerializer{}); err != nil {
 			log.Fatalf("identity.NewIDManager failed: %s", err)
 		}
-		return wspr
 	}
 
 	// TODO(nlacasse, bjornick) use a serializer that can actually persist.

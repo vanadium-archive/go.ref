@@ -11,6 +11,7 @@ import (
 	"sync"
 	"time"
 
+	vsecurity "veyron.io/veyron/veyron/security"
 	"veyron.io/veyron/veyron2"
 	"veyron.io/veyron/veyron2/context"
 	"veyron.io/veyron/veyron2/ipc"
@@ -26,6 +27,7 @@ import (
 	"veyron.io/wspr/veyron/services/wsprd/ipc/server"
 	"veyron.io/wspr/veyron/services/wsprd/lib"
 	"veyron.io/wspr/veyron/services/wsprd/namespace"
+	"veyron.io/wspr/veyron/services/wsprd/principal"
 	"veyron.io/wspr/veyron/services/wsprd/signature"
 )
 
@@ -33,12 +35,18 @@ import (
 const pkgPath = "veyron.io/veyron/veyron/services/wsprd/app"
 
 // Errors
-var marshallingError = verror2.Register(pkgPath+".marshallingError", verror2.NoRetry, "{1} {2} marshalling error {_}")
-var noResults = verror2.Register(pkgPath+".noResults", verror2.NoRetry, "{1} {2} no results from call {_}")
-var signatureError = verror2.Register(pkgPath+".signatureError", verror2.NoRetry, "{1} {2} signature error {_}")
-var badCaveatType = verror2.Register(pkgPath+".badCaveatType", verror2.NoRetry, "{1} {2} bad caveat type {_}")
-var unknownPublicID = verror2.Register(pkgPath+".unknownPublicID", verror2.NoRetry, "{1} {2} unknown public id {_}")
-var invalidPublicHandle = verror2.Register(pkgPath+".invalidPublicHandle", verror2.NoRetry, "{1} {2} invalid public handle {_}")
+var (
+	marshallingError       = verror2.Register(pkgPath+".marshallingError", verror2.NoRetry, "{1} {2} marshalling error {_}")
+	noResults              = verror2.Register(pkgPath+".noResults", verror2.NoRetry, "{1} {2} no results from call {_}")
+	signatureError         = verror2.Register(pkgPath+".signatureError", verror2.NoRetry, "{1} {2} signature error {_}")
+	badCaveatType          = verror2.Register(pkgPath+".badCaveatType", verror2.NoRetry, "{1} {2} bad caveat type {_}")
+	unknownBlessings       = verror2.Register(pkgPath+".unknownPublicID", verror2.NoRetry, "{1} {2} unknown public id {_}")
+	invalidBlessingsHandle = verror2.Register(pkgPath+".invalidBlessingsHandle", verror2.NoRetry, "{1} {2} invalid blessings handle {_}")
+
+	// TODO(ataly, ashankar, bjornick): Remove this field once the old security model is killed.
+	unknownPublicID     = verror2.Register(pkgPath+".unknownPublicID", verror2.NoRetry, "{1} {2} unknown public id {_}")
+	invalidPublicHandle = verror2.Register(pkgPath+".invalidPublicHandle", verror2.NoRetry, "{1} {2} invalid public handle {_}")
+)
 
 // TODO(bjornick,nlacasse): Remove the retryTimeout flag once we able
 // to pass it in from javascript. For now all RPCs have the same
@@ -84,7 +92,10 @@ type blessingRequest struct {
 	Handle     int64
 	Caveats    []jsonCaveatValidator
 	DurationMs int64
-	Name       string
+
+	// TODO(ataly, ashankar, bjornick): Rename this field to Extension
+	// once the old security model is killed.
+	Name string
 }
 
 // Controller represents all the state of a Veyron Web App.  This is the struct
@@ -129,8 +140,12 @@ type Controller struct {
 
 	veyronProxyEP string
 
-	// Store for all the PublicIDs that javascript has a handle to.
-	idStore *identity.JSPublicIDHandles
+	// Store for all the Blessings that javascript has a handle to.
+	blessingsStore *principal.JSBlessingsHandles
+
+	// TODO(ataly, ashankar, bjornick): Remove the fields below once the old security model is killed.
+	idStore     *identity.JSPublicIDHandles
+	useOldModel bool
 }
 
 // NewController creates a new Controller.  writerCreator will be used to create a new flow for rpcs to
@@ -148,13 +163,23 @@ func NewController(writerCreator func(id int64) lib.ClientWriter,
 	}
 
 	controller := &Controller{
-		rt:            r,
-		logger:        r.Logger(),
-		client:        client,
-		writerCreator: writerCreator,
-		listenSpec:    listenSpec,
-		idStore:       identity.NewJSPublicIDHandles(),
+		rt:             r,
+		logger:         r.Logger(),
+		client:         client,
+		writerCreator:  writerCreator,
+		listenSpec:     listenSpec,
+		idStore:        identity.NewJSPublicIDHandles(),
+		blessingsStore: principal.NewJSBlessingsHandles(),
+		useOldModel:    true,
 	}
+
+	for _, o := range opts {
+		if _, ok := o.(options.ForceNewSecurityModel); ok {
+			controller.useOldModel = false
+			break
+		}
+	}
+
 	controller.setup()
 	return controller, nil
 }
@@ -262,12 +287,12 @@ func (c *Controller) RT() veyron2.Runtime {
 	return c.rt
 }
 
-// AddIdentity adds the PublicID to the local id store and returns
+// AddBlessings adds the Blessings to the local blessings store and returns
 // the handle to it.  This function exists because JS only has
-// a handle to the PublicID to avoid shipping the blessing forest
+// a handle to the blessings to avoid shipping the certificate forest
 // to JS and back.
-func (c *Controller) AddIdentity(id security.PublicID) int64 {
-	return c.idStore.Add(id)
+func (c *Controller) AddBlessings(blessings security.Blessings) int64 {
+	return c.blessingsStore.Add(blessings)
 }
 
 // Cleanup cleans up any outstanding rpcs.
@@ -318,7 +343,6 @@ func (c *Controller) sendVeyronRequest(ctx context.T, id int64, tempMsg *veyronT
 		w.Error(verror2.Make(signatureError, ctx, tempMsg.Name, err))
 		return
 	}
-
 	methName := lib.UppercaseFirstCharacter(tempMsg.Method)
 	methSig, ok := sig.Methods[methName]
 	if !ok {
@@ -586,15 +610,15 @@ func (c *Controller) HandleSignatureRequest(ctx context.T, data string, w lib.Cl
 	}
 }
 
-// HandleUnlinkJSIdentity removes an identity from the JS identity store.
-// data should be JSON encoded number
-func (c *Controller) HandleUnlinkJSIdentity(data string, w lib.ClientWriter) {
+// HandleUnlinkJSBlessings removes the specified blessings from the JS blessings
+// store.  'data' should be a JSON encoded number (representing the blessings handle).
+func (c *Controller) HandleUnlinkJSBlessings(data string, w lib.ClientWriter) {
 	var handle int64
 	if err := json.Unmarshal([]byte(data), &handle); err != nil {
 		w.Error(verror2.Convert(verror2.Internal, nil, err))
 		return
 	}
-	c.idStore.Remove(handle)
+	c.blessingsStore.Remove(handle)
 }
 
 // Convert the json wire format of a caveat into the right go object
@@ -615,6 +639,115 @@ func decodeCaveat(c jsonCaveatValidator) (security.Caveat, error) {
 	}
 }
 
+func (c *Controller) getBlessingsHandle(handle int64) (*principal.BlessingsHandle, error) {
+	id := c.blessingsStore.Get(handle)
+	if id == nil {
+		return nil, verror2.Make(unknownBlessings, nil)
+	}
+	return principal.ConvertBlessingsToHandle(id, handle), nil
+}
+
+func (c *Controller) blessPublicKey(request blessingRequest) (*principal.BlessingsHandle, error) {
+	var blessee security.Blessings
+	if blessee := c.blessingsStore.Get(request.Handle); blessee == nil {
+		return nil, verror2.Make(invalidPublicHandle, nil)
+	}
+
+	expiryCav, err := security.ExpiryCaveat(time.Now().Add(time.Duration(request.DurationMs) * time.Millisecond))
+	if err != nil {
+		return nil, err
+	}
+	caveats := []security.Caveat{expiryCav}
+	for _, c := range request.Caveats {
+		cav, err := decodeCaveat(c)
+		if err != nil {
+			return nil, verror2.Convert(verror2.BadArg, nil, err)
+		}
+		caveats = append(caveats, cav)
+	}
+
+	// TODO(ataly, ashankar, bjornick): Currently the Bless operation is carried
+	// out using the Default blessing in this principal's blessings store. We
+	// should change this so that the JS blessing request can also specify the
+	// blessing to be used for the Bless operation.
+	blessings, err := c.rt.Principal().Bless(blessee.PublicKey(), c.rt.Principal().BlessingStore().Default(), request.Name, caveats[0], caveats[1:]...)
+	if err != nil {
+		return nil, err
+	}
+
+	return principal.ConvertBlessingsToHandle(blessings, c.blessingsStore.Add(blessings)), nil
+}
+
+// HandleBlessPublicKey handles a blessing request from JS.
+func (c *Controller) HandleBlessPublicKey(data string, w lib.ClientWriter) {
+	var request blessingRequest
+	if err := json.Unmarshal([]byte(data), &request); err != nil {
+		w.Error(verror2.Convert(verror2.Internal, nil, err))
+		return
+	}
+
+	handle, err := c.blessPublicKey(request)
+	if err != nil {
+		w.Error(verror2.Convert(verror2.Internal, nil, err))
+		return
+	}
+
+	// Send the id back.
+	if err := w.Send(lib.ResponseFinal, handle); err != nil {
+		w.Error(verror2.Convert(verror2.Internal, nil, err))
+		return
+	}
+}
+
+func (c *Controller) HandleCreateBlessings(data string, w lib.ClientWriter) {
+	var extension string
+	if err := json.Unmarshal([]byte(data), &extension); err != nil {
+		w.Error(verror2.Convert(verror2.Internal, nil, err))
+		return
+	}
+	p, err := vsecurity.NewPrincipal()
+	if err != nil {
+		w.Error(verror2.Convert(verror2.Internal, nil, err))
+		return
+	}
+
+	blessings, err := p.BlessSelf(extension)
+	if err != nil {
+		w.Error(verror2.Convert(verror2.Internal, nil, err))
+		return
+	}
+	handle := principal.ConvertBlessingsToHandle(blessings, c.blessingsStore.Add(blessings))
+	if err := w.Send(lib.ResponseFinal, handle); err != nil {
+		w.Error(verror2.Convert(verror2.Internal, nil, err))
+		return
+	}
+}
+
+// TODO(ataly, ashankar, bjornick): Remove this method
+// once the old security model is killed.
+func (c *Controller) UseOldModel() bool {
+	return c.useOldModel
+}
+
+// DEPRECATED: TODO(ataly, ashankar, bjornick): Remove this method
+// once the old security model is killed.
+func (c *Controller) AddIdentity(id security.PublicID) int64 {
+	return c.idStore.Add(id)
+}
+
+// DEPRECATED: TODO(ataly, ashankar, bjornick): Remove this method
+// once the old security model is killed.
+func (c *Controller) HandleUnlinkJSIdentity(data string, w lib.ClientWriter) {
+	var handle int64
+	if err := json.Unmarshal([]byte(data), &handle); err != nil {
+		w.Error(verror2.Convert(verror2.Internal, nil, err))
+		return
+	}
+	c.idStore.Remove(handle)
+}
+
+// DEPRECATED: TODO(ataly, ashankar, bjornick): Remove this method
+// once the old security model is killed.
 func (c *Controller) getPublicIDHandle(handle int64) (*identity.PublicIDHandle, error) {
 	id := c.idStore.Get(handle)
 	if id == nil {
@@ -623,6 +756,8 @@ func (c *Controller) getPublicIDHandle(handle int64) (*identity.PublicIDHandle, 
 	return identity.ConvertPublicIDToHandle(id, handle), nil
 }
 
+// DEPRECATED: TODO(ataly, ashankar, bjornick): Remove this method once
+// the old security model is killed.
 func (c *Controller) bless(request blessingRequest) (*identity.PublicIDHandle, error) {
 	var caveats []security.Caveat
 	for _, c := range request.Caveats {
@@ -649,7 +784,8 @@ func (c *Controller) bless(request blessingRequest) (*identity.PublicIDHandle, e
 	return identity.ConvertPublicIDToHandle(blessed, c.idStore.Add(blessed)), nil
 }
 
-// HandleBlessing handles a blessing request from JS.
+// DEPRECATED: TODO(ataly, ashankar, bjornick): Remove this method once
+// the old security model is killed.
 func (c *Controller) HandleBlessing(data string, w lib.ClientWriter) {
 	var request blessingRequest
 	if err := json.Unmarshal([]byte(data), &request); err != nil {
@@ -671,6 +807,8 @@ func (c *Controller) HandleBlessing(data string, w lib.ClientWriter) {
 	}
 }
 
+// DEPRECATED: TODO(ataly, ashankar, bjornick): Remove this method once
+// the old security model is killed.
 func (c *Controller) HandleCreateIdentity(data string, w lib.ClientWriter) {
 	var name string
 	if err := json.Unmarshal([]byte(data), &name); err != nil {

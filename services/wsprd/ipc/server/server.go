@@ -9,6 +9,7 @@ import (
 	vsecurity "veyron.io/veyron/veyron/security"
 	"veyron.io/wspr/veyron/services/wsprd/identity"
 	"veyron.io/wspr/veyron/services/wsprd/lib"
+	"veyron.io/wspr/veyron/services/wsprd/principal"
 	"veyron.io/wspr/veyron/services/wsprd/signature"
 
 	"veyron.io/veyron/veyron2"
@@ -34,8 +35,11 @@ type serverRPCRequest struct {
 
 // call context for a serverRPCRequest
 type serverRPCRequestContext struct {
-	Suffix   string
-	Name     string
+	Suffix          string
+	Name            string
+	RemoteBlessings principal.BlessingsHandle
+
+	// TODO(ataly, ashankar, bjornick): Remove this field once the old security model is killed.
 	RemoteID identity.PublicIDHandle
 }
 
@@ -52,6 +56,10 @@ type FlowHandler interface {
 }
 
 type HandleStore interface {
+	// Adds blessings to the store and returns handle to the blessings
+	AddBlessings(blessings security.Blessings) int64
+
+	// TODO(ataly, ashankar, bjornick): Remove this method once the old security model is killed.
 	// Adds an identity to the store and returns handle to the identity
 	AddIdentity(identity security.PublicID) int64
 }
@@ -63,6 +71,9 @@ type ServerHelper interface {
 	GetLogger() vlog.Logger
 
 	RT() veyron2.Runtime
+
+	// TODO(ataly, ashankar, bjornick): Remove this once the old security model is killed.
+	UseOldModel() bool
 }
 
 type authReply struct {
@@ -70,14 +81,21 @@ type authReply struct {
 }
 
 type context struct {
-	Method         string                  `json:"method"`
-	Name           string                  `json:"name"`
-	Suffix         string                  `json:"suffix"`
-	Label          security.Label          `json:"label"`
-	LocalID        identity.PublicIDHandle `json:"localId"`
-	RemoteID       identity.PublicIDHandle `json:"remoteId"`
-	LocalEndpoint  string                  `json:"localEndpoint"`
-	RemoteEndpoint string                  `json:"remoteEndpoint"`
+	Method                string                    `json:"method"`
+	Name                  string                    `json:"name"`
+	Suffix                string                    `json:"suffix"`
+	Label                 security.Label            `json:"label"`
+	LocalBlessings        principal.BlessingsHandle `json:"localBlessings"`
+	LocalBlessingStrings  []string                  `json:"localBlessingStrings"`
+	RemoteBlessings       principal.BlessingsHandle `json:"remoteBlessings"`
+	RemoteBlessingStrings []string                  `json:"remoteBlessingStrings"`
+	LocalEndpoint         string                    `json:"localEndpoint"`
+	RemoteEndpoint        string                    `json:"remoteEndpoint"`
+
+	// TODO(ataly, ashankar, bjornick): Remove the fields below once the old security
+	// model is killed.
+	LocalID  identity.PublicIDHandle `json:"localId"`
+	RemoteID identity.PublicIDHandle `json:"remoteId"`
 }
 
 type authRequest struct {
@@ -139,11 +157,14 @@ func (s *Server) createRemoteInvokerFunc(handle int64) remoteInvokeFunc {
 		s.mu.Lock()
 		s.outstandingServerRequests[flow.ID] = replyChan
 		s.mu.Unlock()
-		remoteID := call.RemoteID()
 		context := serverRPCRequestContext{
-			Suffix:   call.Suffix(),
-			Name:     call.Name(),
-			RemoteID: s.convertPublicIDToHandle(remoteID),
+			Suffix: call.Suffix(),
+			Name:   call.Name(),
+		}
+		if s.helper.UseOldModel() {
+			context.RemoteID = s.convertPublicIDToHandle(call.RemoteID())
+		} else {
+			context.RemoteBlessings = s.convertBlessingsToHandle(call.RemoteBlessings())
 		}
 		// Send a invocation request to JavaScript
 		message := serverRPCRequest{
@@ -187,8 +208,8 @@ func proxyStream(stream ipc.Stream, w lib.ClientWriter, logger vlog.Logger) {
 	}
 }
 
-func (s *Server) convertPublicIDToHandle(id security.PublicID) identity.PublicIDHandle {
-	return *identity.ConvertPublicIDToHandle(id, s.helper.AddIdentity(id))
+func (s *Server) convertBlessingsToHandle(blessings security.Blessings) principal.BlessingsHandle {
+	return *principal.ConvertBlessingsToHandle(blessings, s.helper.AddBlessings(blessings))
 }
 
 type remoteAuthFunc func(security.Context) error
@@ -208,11 +229,18 @@ func (s *Server) createRemoteAuthFunc(handle int64) remoteAuthFunc {
 				Name:           ctx.Name(),
 				Suffix:         ctx.Suffix(),
 				Label:          ctx.Label(),
-				LocalID:        s.convertPublicIDToHandle(ctx.LocalID()),
-				RemoteID:       s.convertPublicIDToHandle(ctx.RemoteID()),
 				LocalEndpoint:  ctx.LocalEndpoint().String(),
 				RemoteEndpoint: ctx.RemoteEndpoint().String(),
 			},
+		}
+		if s.helper.UseOldModel() {
+			message.Context.LocalID = s.convertPublicIDToHandle(ctx.LocalID())
+			message.Context.RemoteID = s.convertPublicIDToHandle(ctx.RemoteID())
+		} else {
+			message.Context.LocalBlessings = s.convertBlessingsToHandle(ctx.LocalBlessings())
+			message.Context.LocalBlessingStrings = ctx.LocalBlessings().ForContext(ctx)
+			message.Context.RemoteBlessings = s.convertBlessingsToHandle(ctx.RemoteBlessings())
+			message.Context.RemoteBlessingStrings = ctx.RemoteBlessings().ForContext(ctx)
 		}
 		s.helper.GetLogger().VI(0).Infof("Sending out auth request for %v, %v", flow.ID, message)
 
@@ -353,4 +381,10 @@ func (s *Server) Stop() {
 	}
 	s.outstandingServerRequests = make(map[int64]chan *serverRPCReply)
 	s.server.Stop()
+}
+
+// DEPRECATED: TODO(ataly, ashankar, bjornick): Remove this method once
+// the old security model is killed.
+func (s *Server) convertPublicIDToHandle(id security.PublicID) identity.PublicIDHandle {
+	return *identity.ConvertPublicIDToHandle(id, s.helper.AddIdentity(id))
 }

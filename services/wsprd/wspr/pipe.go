@@ -50,6 +50,8 @@ const (
 	// A request to associate an identity with an origin
 	websocketAssocIdentity = 7
 
+	// TODO(ataly, ashankar, bjornick): Get rid of the constants below
+	// once the old security model is killed.
 	// A request to bless an identity
 	websocketBlessIdentity = 8
 
@@ -68,6 +70,16 @@ const (
 
 	// A request to run a namespace client method
 	websocketNamespaceRequest = 13
+
+	// A request to bless a public key.
+	websocketBlessPublicKey = 14
+
+	// A request to unlink blessings.  This request means that
+	// we can remove the given handle from the handle store.
+	websocketUnlinkBlessings = 15
+
+	// A request to create a new random blessings
+	websocketCreateBlessings = 16
 )
 
 type websocketMessage struct {
@@ -124,8 +136,33 @@ func newPipe(w http.ResponseWriter, req *http.Request, wspr *WSPR, creator func(
 		return nil
 	}
 
-	id, err := wspr.idManager.Identity(origin)
+	// Shortcut for old security model.
+	if wspr.useOldModel {
+		return newPipeOldModel(pipe, origin, w, req, wspr, creator)
+	}
 
+	p, err := wspr.principalManager.Principal(origin)
+	if err != nil {
+		p = wspr.rt.Principal()
+		wspr.rt.Logger().Errorf("no principal associated with origin %s: %v", origin, err)
+		// TODO(bjornick): Send an error to the client when all of the principal stuff is set up.
+	}
+
+	pipe.controller, err = app.NewController(creator, &wspr.listenSpec, options.RuntimePrincipal{p})
+	if err != nil {
+		wspr.rt.Logger().Errorf("Could not create controller: %v", err)
+		http.Error(w, fmt.Sprintf("Failed to create controller: %v", err), http.StatusInternalServerError)
+		return nil
+	}
+
+	pipe.start(w, req)
+	return pipe
+}
+
+// TODO(ataly, ashankar, bjornick): Get rid of this method once the old security model
+// is killed.
+func newPipeOldModel(pipe *pipe, origin string, w http.ResponseWriter, req *http.Request, wspr *WSPR, creator func(id int64) lib.ClientWriter) *pipe {
+	id, err := wspr.idManager.Identity(origin)
 	if err != nil {
 		id = wspr.rt.Identity()
 		wspr.rt.Logger().Errorf("no identity associated with origin %s: %v", origin, err)
@@ -133,7 +170,6 @@ func newPipe(w http.ResponseWriter, req *http.Request, wspr *WSPR, creator func(
 	}
 
 	pipe.controller, err = app.NewController(creator, &wspr.listenSpec, options.RuntimeID{id})
-
 	if err != nil {
 		wspr.rt.Logger().Errorf("Could not create controller: %v", err)
 		http.Error(w, fmt.Sprintf("Failed to create controller: %v", err), http.StatusInternalServerError)
@@ -287,6 +323,12 @@ func (p *pipe) readLoop() {
 			go p.controller.HandleCreateIdentity(msg.Data, ww)
 		case websocketUnlinkIdentity:
 			go p.controller.HandleUnlinkJSIdentity(msg.Data, ww)
+		case websocketBlessPublicKey:
+			go p.controller.HandleBlessPublicKey(msg.Data, ww)
+		case websocketCreateBlessings:
+			go p.controller.HandleCreateBlessings(msg.Data, ww)
+		case websocketUnlinkBlessings:
+			go p.controller.HandleUnlinkJSBlessings(msg.Data, ww)
 		case websocketAuthResponse:
 			go p.controller.HandleAuthResponse(msg.Id, msg.Data)
 		case websocketNamespaceRequest:

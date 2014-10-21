@@ -7,6 +7,7 @@ import (
 	"reflect"
 	"testing"
 
+	"veyron.io/veyron/veyron2"
 	"veyron.io/veyron/veyron2/ipc"
 	"veyron.io/veyron/veyron2/naming"
 	"veyron.io/veyron/veyron2/options"
@@ -21,12 +22,58 @@ import (
 	"veyron.io/wspr/veyron/services/wsprd/lib/testwriter"
 	"veyron.io/wspr/veyron/services/wsprd/signature"
 
+	tsecurity "veyron.io/veyron/veyron/lib/testutil/security"
 	"veyron.io/veyron/veyron/profiles"
 	"veyron.io/veyron/veyron/runtimes/google/ipc/stream/proxy"
+	vsecurity "veyron.io/veyron/veyron/security"
 	mounttable "veyron.io/veyron/veyron/services/mounttable/lib"
 )
 
-var r = rt.Init()
+var (
+	testPrincipalBlessing = "test"
+	testPrincipal         = newPrincipal(testPrincipalBlessing)
+	r                     = rt.Init(options.ForceNewSecurityModel{})
+
+	// TODO(ataly, ashankar, bjornick): Remove the variable below once the old
+	// security model is killed.
+	emptyPublicIDHandleMsg = map[string]interface{}{
+		"Handle":    0.0,
+		"PublicKey": "",
+		"Names":     nil,
+	}
+)
+
+// newBlessedPrincipal returns a new principal that has a blessing from the
+// provided runtime's principal which is set on its BlessingStore such
+// that it is revealed to all clients and servers.
+func newBlessedPrincipal(r veyron2.Runtime) security.Principal {
+	p, err := vsecurity.NewPrincipal()
+	if err != nil {
+		panic(err)
+	}
+	b, err := r.Principal().Bless(p.PublicKey(), r.Principal().BlessingStore().Default(), "delegate", security.UnconstrainedUse())
+	if err != nil {
+		panic(err)
+	}
+	tsecurity.SetDefaultBlessings(p, b)
+	return p
+}
+
+// newPrincipal returns a new principal that has a self-blessing with
+// the provided extension 'selfBlessing' which is set on its BlessingStore
+// such that it is revealed to all clients and servers.
+func newPrincipal(selfBlessing string) security.Principal {
+	p, err := vsecurity.NewPrincipal()
+	if err != nil {
+		panic(err)
+	}
+	b, err := p.BlessSelf(selfBlessing)
+	if err != nil {
+		panic(err)
+	}
+	tsecurity.SetDefaultBlessings(p, b)
+	return p
+}
 
 type simpleAdder struct{}
 
@@ -156,18 +203,18 @@ func TestGetGoServerSignature(t *testing.T) {
 	defer s.Stop()
 	spec := *profiles.LocalListenSpec
 	spec.Proxy = "mockVeyronProxyEP"
-	controller, err := NewController(nil, &spec)
+	controller, err := NewController(nil, &spec, options.ForceNewSecurityModel{}, options.RuntimePrincipal{newBlessedPrincipal(r)})
 
 	if err != nil {
-		t.Errorf("Failed to create controller: %v", err)
+		t.Fatalf("Failed to create controller: %v", err)
 	}
 	jsSig, err := controller.getSignature(r.NewContext(), "/"+endpoint.String())
 	if err != nil {
-		t.Errorf("Failed to get signature: %v", err)
+		t.Fatalf("Failed to get signature: %v", err)
 	}
 
 	if !reflect.DeepEqual(jsSig, adderServiceSignature) {
-		t.Errorf("Unexpected signature, got :%v, expected: %v", jsSig, adderServiceSignature)
+		t.Fatalf("Unexpected signature, got :%v, expected: %v", jsSig, adderServiceSignature)
 	}
 }
 
@@ -189,17 +236,15 @@ func runGoServerTestCase(t *testing.T, test goServerTestCase) {
 		return
 	}
 	defer s.Stop()
-
 	spec := *profiles.LocalListenSpec
 	spec.Proxy = "mockVeyronProxyEP"
-	controller, err := NewController(nil, &spec)
+	controller, err := NewController(nil, &spec, options.ForceNewSecurityModel{}, options.RuntimePrincipal{newBlessedPrincipal(r)})
 
 	if err != nil {
 		t.Errorf("unable to create controller: %v", err)
 		t.Fail()
 		return
 	}
-
 	writer := testwriter.Writer{}
 	var stream *outstandingStream
 	if len(test.streamingInputs) > 0 {
@@ -313,7 +358,7 @@ func serveServer() (*runningTest, error) {
 	}
 	spec := *profiles.LocalListenSpec
 	spec.Proxy = "/" + proxyEndpoint
-	controller, err := NewController(writerCreator, &spec, options.NamespaceRoots{"/" + endpoint.String()})
+	controller, err := NewController(writerCreator, &spec, options.NamespaceRoots{"/" + endpoint.String()}, options.ForceNewSecurityModel{}, options.RuntimePrincipal{testPrincipal})
 
 	if err != nil {
 		return nil, err
@@ -553,13 +598,8 @@ func runJsServerTestCase(t *testing.T, test jsServerTestCase) {
 	}
 	rt.controller.HandleLookupResponse(2, string(bytes))
 
-	id := rt.controller.rt.Identity().PublicID()
-	typedNames := rt.controller.rt.Identity().PublicID().Names()
-	names := []interface{}{}
-	for _, n := range typedNames {
-		names = append(names, n)
-	}
-	k := id.PublicKey()
+	blessings := rt.controller.rt.Principal().BlessingStore().Default()
+	k := blessings.PublicKey()
 	keyBytes, err := k.MarshalBinary()
 
 	if err != nil {
@@ -569,9 +609,9 @@ func runJsServerTestCase(t *testing.T, test jsServerTestCase) {
 
 	publicKey := base64.StdEncoding.EncodeToString(keyBytes)
 
-	// The expectedHandle for the javascript ID.  Since we don't always call the authorizer
+	// The expectedBlessingsHandle for the javascript Blessings.  Since we don't always call the authorizer
 	// this handle could be different by the time we make the start rpc call.
-	expectedIDHandle := 1.0
+	expectedBlessingsHandle := 1.0
 	expectedFlowCount := int64(4)
 	if test.hasAuthorizer {
 		// If an authorizer exists, it gets called twice.  The first time to see if the
@@ -587,18 +627,20 @@ func runJsServerTestCase(t *testing.T, test jsServerTestCase) {
 					"name":   "adder",
 					"suffix": "adder",
 					"label":  8.0, // This is a read label.
-					"localId": map[string]interface{}{
+					"localBlessings": map[string]interface{}{
 						"Handle":    1.0,
-						"Names":     names,
 						"PublicKey": publicKey,
 					},
-					"remoteId": map[string]interface{}{
+					"localBlessingStrings": []interface{}{testPrincipalBlessing},
+					"remoteBlessings": map[string]interface{}{
 						"Handle":    2.0,
-						"Names":     names,
 						"PublicKey": publicKey,
 					},
-					"localEndpoint":  endpoint.String(),
-					"remoteEndpoint": "remoteEndpoint",
+					"remoteBlessingStrings": []interface{}{testPrincipalBlessing},
+					"localEndpoint":         endpoint.String(),
+					"remoteEndpoint":        "remoteEndpoint",
+					"localId":               emptyPublicIDHandleMsg,
+					"remoteId":              emptyPublicIDHandleMsg,
 				},
 			},
 		})
@@ -645,18 +687,20 @@ func runJsServerTestCase(t *testing.T, test jsServerTestCase) {
 					"name":   "adder",
 					"suffix": "adder",
 					"label":  16.0,
-					"localId": map[string]interface{}{
+					"localBlessings": map[string]interface{}{
 						"Handle":    3.0,
-						"Names":     names,
 						"PublicKey": publicKey,
 					},
-					"remoteId": map[string]interface{}{
+					"localBlessingStrings": []interface{}{testPrincipalBlessing},
+					"remoteBlessings": map[string]interface{}{
 						"Handle":    4.0,
-						"Names":     names,
 						"PublicKey": publicKey,
 					},
-					"localEndpoint":  endpoint.String(),
-					"remoteEndpoint": "remoteEndpoint",
+					"remoteBlessingStrings": []interface{}{testPrincipalBlessing},
+					"localEndpoint":         endpoint.String(),
+					"remoteEndpoint":        "remoteEndpoint",
+					"localId":               emptyPublicIDHandleMsg,
+					"remoteId":              emptyPublicIDHandleMsg,
 				},
 			},
 		})
@@ -675,7 +719,7 @@ func runJsServerTestCase(t *testing.T, test jsServerTestCase) {
 		}
 		rt.controller.HandleAuthResponse(6, string(bytes))
 
-		expectedIDHandle += 4
+		expectedBlessingsHandle += 4
 		expectedFlowCount += 4
 	}
 
@@ -690,11 +734,11 @@ func runJsServerTestCase(t *testing.T, test jsServerTestCase) {
 			"Context": map[string]interface{}{
 				"Name":   "adder",
 				"Suffix": "adder",
-				"RemoteID": map[string]interface{}{
-					"Handle":    expectedIDHandle,
-					"Names":     names,
+				"RemoteBlessings": map[string]interface{}{
+					"Handle":    expectedBlessingsHandle,
 					"PublicKey": publicKey,
 				},
+				"RemoteID": emptyPublicIDHandleMsg,
 			},
 		},
 	})
