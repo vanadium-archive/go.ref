@@ -1,4 +1,4 @@
-package impl
+package main
 
 import (
 	"fmt"
@@ -160,7 +160,7 @@ func runRemove(cmd *cmdline.Command, args []string) error {
 	return nil
 }
 
-func Root() *cmdline.Command {
+func root() *cmdline.Command {
 	return &cmdline.Command{
 		Name:  "profile",
 		Short: "Tool for interacting with the veyron profile repository",

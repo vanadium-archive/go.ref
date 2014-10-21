@@ -1,4 +1,4 @@
-package impl_test
+package main
 
 import (
 	"bytes"
@@ -14,7 +14,6 @@ import (
 
 	"veyron.io/veyron/veyron/lib/cmdline"
 	"veyron.io/veyron/veyron/profiles"
-	"veyron.io/veyron/veyron/tools/vrpc/impl"
 	"veyron.io/veyron/veyron/tools/vrpc/test_base"
 )
 
@@ -181,7 +180,7 @@ func TestVRPC(t *testing.T) {
 	defer stopServer(t, server)
 
 	// Setup the command-line.
-	cmd := impl.Root()
+	cmd := root()
 	var stdout, stderr bytes.Buffer
 	cmd.Init(nil, &stdout, &stderr)
 

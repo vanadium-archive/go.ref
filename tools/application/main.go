@@ -13,10 +13,9 @@ import (
 	"veyron.io/veyron/veyron2/rt"
 
 	_ "veyron.io/veyron/veyron/profiles"
-	"veyron.io/veyron/veyron/tools/application/impl"
 )
 
 func main() {
 	defer rt.Init().Cleanup()
-	impl.Root().Main()
+	root().Main()
 }

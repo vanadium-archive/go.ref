@@ -1,4 +1,4 @@
-package impl_test
+package main
 
 import (
 	"bytes"
@@ -17,7 +17,6 @@ import (
 
 	"veyron.io/veyron/veyron/profiles"
 	"veyron.io/veyron/veyron/services/mgmt/repository"
-	"veyron.io/veyron/veyron/tools/application/impl"
 )
 
 var (
@@ -107,7 +106,7 @@ func TestApplicationClient(t *testing.T) {
 	}
 	defer stopServer(t, server)
 	// Setup the command-line.
-	cmd := impl.Root()
+	cmd := root()
 	var stdout, stderr bytes.Buffer
 	cmd.Init(nil, &stdout, &stderr)
 	appName := naming.JoinAddressName(endpoint.String(), "//myapp/1")

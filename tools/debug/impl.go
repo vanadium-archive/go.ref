@@ -1,4 +1,4 @@
-package impl
+package main
 
 import (
 	"bytes"
@@ -481,6 +481,6 @@ var cmdRoot = cmdline.Command{
 	},
 }
 
-func Root() *cmdline.Command {
+func root() *cmdline.Command {
 	return &cmdRoot
 }

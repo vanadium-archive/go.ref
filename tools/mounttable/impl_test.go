@@ -1,4 +1,4 @@
-package impl_test
+package main
 
 import (
 	"bytes"
@@ -15,7 +15,6 @@ import (
 	"veyron.io/veyron/veyron2/vlog"
 
 	"veyron.io/veyron/veyron/profiles"
-	"veyron.io/veyron/veyron/tools/mounttable/impl"
 )
 
 type server struct {
@@ -95,7 +94,7 @@ func TestMountTableClient(t *testing.T) {
 	}
 	defer stopServer(t, server)
 	// Setup the command-line.
-	cmd := impl.Root()
+	cmd := root()
 	var stdout, stderr bytes.Buffer
 	cmd.Init(nil, &stdout, &stderr)
 

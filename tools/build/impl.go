@@ -1,4 +1,4 @@
-package impl
+package main
 
 import (
 	"fmt"
@@ -36,8 +36,8 @@ The build tool tool facilitates interaction with the veyron build server.
 	Children: []*cmdline.Command{cmdBuild},
 }
 
-// Root returns a command that represents the root of the veyron tool.
-func Root() *cmdline.Command {
+// root returns a command that represents the root of the veyron tool.
+func root() *cmdline.Command {
 	return cmdRoot
 }
 

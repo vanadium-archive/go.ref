@@ -1,4 +1,4 @@
-package impl_test
+package main
 
 import (
 	"bytes"
@@ -17,7 +17,6 @@ import (
 	"veyron.io/veyron/veyron/profiles"
 	"veyron.io/veyron/veyron/services/mgmt/profile"
 	"veyron.io/veyron/veyron/services/mgmt/repository"
-	"veyron.io/veyron/veyron/tools/profile/impl"
 )
 
 var (
@@ -118,7 +117,7 @@ func TestProfileClient(t *testing.T) {
 	}
 	defer stopServer(t, server)
 	// Setup the command-line.
-	cmd := impl.Root()
+	cmd := root()
 	var stdout, stderr bytes.Buffer
 	cmd.Init(nil, &stdout, &stderr)
 	exists := naming.JoinAddressName(endpoint.String(), "//exists")

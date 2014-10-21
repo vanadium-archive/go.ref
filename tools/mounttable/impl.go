@@ -1,4 +1,4 @@
-package impl
+package main
 
 import (
 	"fmt"
@@ -169,7 +169,7 @@ func runResolveStep(cmd *cmdline.Command, args []string) error {
 	return nil
 }
 
-func Root() *cmdline.Command {
+func root() *cmdline.Command {
 	return &cmdline.Command{
 		Name:  "mounttable",
 		Short: "Tool for interacting with a Veyron mount table",

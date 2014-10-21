@@ -1,4 +1,4 @@
-package impl_test
+package main
 
 import (
 	"bytes"
@@ -14,7 +14,6 @@ import (
 	"veyron.io/veyron/veyron2/vlog"
 
 	"veyron.io/veyron/veyron/profiles"
-	"veyron.io/veyron/veyron/tools/build/impl"
 )
 
 var errInternalError = verror.Internalf("internal error")
@@ -67,7 +66,7 @@ func TestBuildClient(t *testing.T) {
 	server, endpoint := startServer(t)
 	defer stopServer(t, server)
 
-	cmd := impl.Root()
+	cmd := root()
 	var stdout, stderr bytes.Buffer
 	cmd.Init(nil, &stdout, &stderr)
 

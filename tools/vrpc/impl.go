@@ -1,4 +1,4 @@
-package impl
+package main
 
 import (
 	"bytes"
@@ -191,8 +191,8 @@ forloop:
 	return nil
 }
 
-// Root returns the root command for the vrpc tool.
-func Root() *cmdline.Command {
+// root returns the root command for the vrpc tool.
+func root() *cmdline.Command {
 	return &cmdline.Command{
 		Name:  "vrpc",
 		Short: "Tool for interacting with Veyron RPC servers.",

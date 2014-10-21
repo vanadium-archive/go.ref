@@ -1,4 +1,4 @@
-package impl
+package main
 
 import (
 	"bytes"
@@ -218,7 +218,7 @@ func runEdit(cmd *cmdline.Command, args []string) error {
 	return nil
 }
 
-func Root() *cmdline.Command {
+func root() *cmdline.Command {
 	return &cmdline.Command{
 		Name:  "application",
 		Short: "Tool for interacting with the veyron application repository",
