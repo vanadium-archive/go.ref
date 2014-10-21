@@ -49,7 +49,7 @@ func PrintEnv(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, 
 		fmt.Fprintf(stdout, "%s%s\n", printEnvArgPrefix, a)
 	}
 	for k, v := range env {
-		fmt.Fprintf(stdout, k+"="+v+"\n")
+		fmt.Fprintln(stdout, k+"="+v)
 	}
 	return nil
 }
