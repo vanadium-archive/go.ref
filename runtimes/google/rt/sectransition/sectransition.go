@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"veyron.io/veyron/veyron/lib/signals"
-	_ "veyron.io/veyron/veyron/profiles"
+	"veyron.io/veyron/veyron/profiles"
 
 	"veyron.io/veyron/veyron2/ipc"
 	"veyron.io/veyron/veyron2/naming"
@@ -48,7 +48,7 @@ func startServer(server ipc.Server, err error) {
 	}
 	defer server.Stop()
 
-	ep, err := server.Listen("tcp", "127.0.0.1:0")
+	ep, err := server.ListenX(profiles.LocalListenSpec)
 	if err != nil {
 		vlog.Fatal(err)
 	}
