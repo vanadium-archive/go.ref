@@ -8,11 +8,12 @@ import (
 	"time"
 
 	"veyron.io/veyron/veyron/security/audit"
-	"veyron.io/veyron/veyron/services/security/discharger"
 
 	"veyron.io/veyron/veyron2/rt"
 	"veyron.io/veyron/veyron2/security"
 )
+
+//TODO(suharshs,ashankar,ataly): switch this to the new security model.
 
 type auditor struct {
 	LastEntry audit.Entry
@@ -50,9 +51,9 @@ func TestReadBlessAudit(t *testing.T) {
 	// Test caveat
 	correct_blessee := self.PublicID()
 
-	_, cav, err := discharger.NewRevocationCaveat(self.PublicID(), "")
+	cav, err := security.NewPublicKeyCaveat(self.PublicKey(), "location", security.ThirdPartyRequirements{}, newCaveat(security.MethodCaveat("method")))
 	if err != nil {
-		t.Fatalf("discharger.NewRevocationCaveat failed: %v", err)
+		t.Fatal(err)
 	}
 
 	correct_blessed, err := Bless(self, self.PublicID(), "test", time.Second, nil, cav)
@@ -94,4 +95,11 @@ func TestReadBlessAudit(t *testing.T) {
 	if blessEntry.RevocationCaveat != nil {
 		t.Errorf("caveat ID incorrect: expected %s got %s", cav.ID(), blessEntry.RevocationCaveat.ID())
 	}
+}
+
+func newCaveat(c security.Caveat, err error) security.Caveat {
+	if err != nil {
+		panic(err)
+	}
+	return c
 }
