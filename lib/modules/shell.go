@@ -179,13 +179,7 @@ func (sh *Shell) Help(command string) string {
 // the Cleanup method. If the non-registered subprocess command does not
 // exist then the Start command will return an error.
 func (sh *Shell) Start(name string, args ...string) (Handle, error) {
-	sh.mu.Lock()
-	cmd := sh.cmds[name]
-	sh.mu.Unlock()
-	if cmd == nil {
-		entryPoint := ShellEntryPoint + "=" + name
-		cmd = &commandDesc{func() command { return newExecHandle(entryPoint) }, ""}
-	}
+	cmd := sh.getCommand(name)
 	expanded := append([]string{name}, sh.expand(args...)...)
 	h, err := cmd.factory().start(sh, expanded...)
 	if err != nil {
@@ -197,8 +191,28 @@ func (sh *Shell) Start(name string, args ...string) (Handle, error) {
 	return h, nil
 }
 
-// forget tells the Shell to stop tracking the supplied Handle.
-func (sh *Shell) forget(h Handle) {
+func (sh *Shell) getCommand(name string) *commandDesc {
+	sh.mu.Lock()
+	cmd := sh.cmds[name]
+	sh.mu.Unlock()
+	if cmd == nil {
+		entryPoint := ShellEntryPoint + "=" + name
+		cmd = &commandDesc{func() command { return newExecHandle(entryPoint) }, ""}
+	}
+	return cmd
+}
+
+// CommandEnvelope returns the command line and environment that would be
+// used for running the subprocess or function if it were started with the
+// specifed arguments.
+func (sh *Shell) CommandEnvelope(name string, args ...string) ([]string, []string) {
+	return sh.getCommand(name).factory().envelope(sh, args...)
+}
+
+// Forget tells the Shell to stop tracking the supplied Handle. This is
+// generally used when the application wants to control the order that
+// commands are shutdown in.
+func (sh *Shell) Forget(h Handle) {
 	sh.mu.Lock()
 	delete(sh.handles, h)
 	sh.mu.Unlock()
@@ -266,6 +280,18 @@ func (sh *Shell) Cleanup(stdout, stderr io.Writer) {
 	}
 }
 
+// MergedEnv returns a slice that contains the merged set of environment
+// variables from the OS environment and those in this Shell, preferring
+// values in the Shell environment over those found in the OS environment.
+func (sh *Shell) MergedEnv() []string {
+	merged := sh.mergeOSEnv()
+	env := []string{}
+	for k, v := range merged {
+		env = append(env, k+"="+v)
+	}
+	return env
+}
+
 // Handle represents a running command.
 type Handle interface {
 	// Stdout returns a reader to the running command's stdout stream.
@@ -299,5 +325,6 @@ type Handle interface {
 // command is used to abstract the implementations of inprocess and subprocess
 // commands.
 type command interface {
+	envelope(sh *Shell, args ...string) ([]string, []string)
 	start(sh *Shell, args ...string) (Handle, error)
 }

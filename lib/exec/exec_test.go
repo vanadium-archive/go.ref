@@ -394,6 +394,13 @@ func TestExtraFiles(t *testing.T) {
 	clean(t, ph)
 }
 
+func verifyNoExecVariable() {
+	version := os.Getenv(vexec.VersionVariable)
+	if len(version) != 0 {
+		log.Fatal(os.Stderr, "Version variable %q has a value: %s", vexec.VersionVariable, version)
+	}
+}
+
 // TestHelperProcess isn't a real test; it's used as a helper process
 // for the other tests.
 func TestHelperProcess(*testing.T) {
@@ -403,6 +410,11 @@ func TestHelperProcess(*testing.T) {
 		return
 	}
 	defer os.Exit(0)
+
+	version := os.Getenv(vexec.VersionVariable)
+	if len(version) == 0 {
+		log.Fatal(os.Stderr, "Version variable %q has no value", vexec.VersionVariable)
+	}
 
 	// Write errors to stderr or using log. since the parent
 	// process is reading stderr.
@@ -427,12 +439,14 @@ func TestHelperProcess(*testing.T) {
 		if err != nil {
 			log.Fatal(os.Stderr, "%s\n", err)
 		}
+		verifyNoExecVariable()
 		fmt.Fprintf(os.Stderr, "never ready")
 	case "testTooSlowToReady":
 		ch, err := vexec.GetChildHandle()
 		if err != nil {
 			log.Fatal(os.Stderr, "%s\n", err)
 		}
+		verifyNoExecVariable()
 		// Wait for the parent to tell us when it's ok to proceed.
 		controlPipe := ch.NewExtraFile(0, "control_rd")
 		for {
@@ -458,6 +472,7 @@ func TestHelperProcess(*testing.T) {
 		if err != nil {
 			log.Fatal(os.Stderr, "%s", err)
 		}
+		verifyNoExecVariable()
 		if err := ch.SetFailed(fmt.Errorf("%s", strings.Join(args, " "))); err != nil {
 
 			fmt.Fprintf(os.Stderr, "%s\n", err)
@@ -467,6 +482,7 @@ func TestHelperProcess(*testing.T) {
 		if err != nil {
 			log.Fatal(os.Stderr, "%s", err)
 		}
+		verifyNoExecVariable()
 		ch.SetReady()
 		fmt.Fprintf(os.Stderr, ".")
 	case "testReadySlow":
@@ -474,6 +490,7 @@ func TestHelperProcess(*testing.T) {
 		if err != nil {
 			log.Fatal(os.Stderr, "%s", err)
 		}
+		verifyNoExecVariable()
 		// Wait for the parent to tell us when it's ok to proceed.
 		controlPipe := ch.NewExtraFile(0, "control_rd")
 		for {
@@ -493,6 +510,7 @@ func TestHelperProcess(*testing.T) {
 		if err != nil {
 			log.Fatal(os.Stderr, "%s\n", err)
 		}
+		verifyNoExecVariable()
 		ch.SetReady()
 		rc := make(chan int)
 		go func() {
@@ -511,6 +529,7 @@ func TestHelperProcess(*testing.T) {
 		if err != nil {
 			log.Fatalf("%v", err)
 		} else {
+			verifyNoExecVariable()
 			serialized, err := ch.Config.Serialize()
 			if err != nil {
 				log.Fatalf("%v", err)
@@ -522,6 +541,7 @@ func TestHelperProcess(*testing.T) {
 		if err != nil {
 			log.Fatalf("%s", err)
 		} else {
+			verifyNoExecVariable()
 			fmt.Fprintf(os.Stderr, "%s", ch.Secret)
 		}
 	case "testExtraFiles":
@@ -529,6 +549,7 @@ func TestHelperProcess(*testing.T) {
 		if err != nil {
 			log.Fatal("error.... %s\n", err)
 		}
+		verifyNoExecVariable()
 		err = ch.SetReady()
 		rd := ch.NewExtraFile(0, "read")
 		buf := make([]byte, 1024)

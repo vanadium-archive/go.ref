@@ -6,14 +6,17 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strings"
 	"testing"
 	"time"
 
+	"veyron.io/veyron/veyron/lib/exec"
 	"veyron.io/veyron/veyron/lib/modules"
 )
 
 func init() {
-	modules.RegisterChild("envtest", "envtest: <variables to print>...", PrintEnv)
+	modules.RegisterChild("envtest", "envtest: <variables to print>...", PrintFromEnv)
+	modules.RegisterChild("printenv", "printenv", PrintEnv)
 	modules.RegisterChild("echo", "[args]*", Echo)
 	modules.RegisterChild("errortest", "", ErrorMain)
 }
@@ -26,8 +29,8 @@ func Echo(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args
 	return nil
 }
 
-func Print(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
-	for _, a := range args {
+func PrintFromEnv(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
+	for _, a := range args[1:] {
 		if v := env[a]; len(v) > 0 {
 			fmt.Fprintf(stdout, a+"="+v+"\n")
 		} else {
@@ -39,16 +42,15 @@ func Print(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, arg
 	return nil
 }
 
+const printEnvArgPrefix = "PRINTENV_ARG="
+
 func PrintEnv(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
 	for _, a := range args {
-		if v := env[a]; len(v) > 0 {
-			fmt.Fprintf(stdout, a+"="+v+"\n")
-		} else {
-			fmt.Fprintf(stderr, "missing %s\n", a)
-		}
+		fmt.Fprintf(stdout, "%s%s\n", printEnvArgPrefix, a)
 	}
-	modules.WaitForEOF(stdin)
-	fmt.Fprintf(stdout, "done\n")
+	for k, v := range env {
+		fmt.Fprintf(stdout, k+"="+v+"\n")
+	}
 	return nil
 }
 
@@ -131,7 +133,7 @@ func TestFunction(t *testing.T) {
 	defer sh.Cleanup(nil, nil)
 	key, val := "simpleVar", "foo & bar & baz"
 	sh.SetVar(key, val)
-	sh.AddFunction("envtestf", PrintEnv, "envtest: <variables to print>...")
+	sh.AddFunction("envtestf", PrintFromEnv, "envtest: <variables to print>...")
 	testCommand(t, sh, "envtestf", key, val)
 }
 
@@ -167,7 +169,6 @@ func testShutdown(t *testing.T, sh *modules.Shell) {
 	if got, want := stderrBuf.String(), stderrOutput; got != want {
 		t.Errorf("got %q want %q", got, want)
 	}
-
 }
 
 func TestShutdownSubprocess(t *testing.T) {
@@ -194,9 +195,88 @@ func TestErrorFunc(t *testing.T) {
 	}
 }
 
+func find(want string, in []string) bool {
+	for _, a := range in {
+		if a == want {
+			return true
+		}
+	}
+	return false
+}
+
+func TestEnvelope(t *testing.T) {
+	sh := modules.NewShell("printenv")
+	defer sh.Cleanup(nil, nil)
+	sh.SetVar("a", "1")
+	sh.SetVar("b", "2")
+	args := []string{"oh", "ah"}
+	h, err := sh.Start("printenv", args...)
+	if err != nil {
+		t.Fatalf("unexpected error: %s", err)
+	}
+	scanner := bufio.NewScanner(h.Stdout())
+	childArgs, childEnv := []string{}, []string{}
+	for scanner.Scan() {
+		o := scanner.Text()
+		if strings.HasPrefix(o, printEnvArgPrefix) {
+			childArgs = append(childArgs, strings.TrimPrefix(o, printEnvArgPrefix))
+		} else {
+			childEnv = append(childEnv, o)
+		}
+	}
+	shArgs, shEnv := sh.CommandEnvelope("printenv", args...)
+	for _, want := range args {
+		if !find(want, childArgs) {
+			t.Errorf("failed to find %q in %s", want, childArgs)
+		}
+		if !find(want, shArgs) {
+			t.Errorf("failed to find %q in %s", want, shArgs)
+		}
+	}
+
+	for _, want := range shEnv {
+		if !find(want, childEnv) {
+			t.Errorf("failed to find %q in %s", want, shEnv)
+		}
+	}
+	for _, want := range childEnv {
+		if want == exec.VersionVariable+"=" {
+			continue
+		}
+		if !find(want, shEnv) {
+			t.Errorf("failed to find %q in %s", want, childEnv)
+		}
+	}
+}
+
+func TestEnvMerge(t *testing.T) {
+	sh := modules.NewShell("printenv")
+	defer sh.Cleanup(nil, nil)
+	sh.SetVar("a", "1")
+	os.Setenv("a", "wrong, should be 1")
+	h, err := sh.Start("printenv")
+	if err != nil {
+		t.Fatalf("unexpected error: %s", err)
+	}
+	scanner := bufio.NewScanner(h.Stdout())
+	for scanner.Scan() {
+		o := scanner.Text()
+		if strings.HasPrefix(o, "a=") {
+			if got, want := o, "a=1"; got != want {
+				t.Errorf("got: %s, want %s", got, want)
+			}
+		}
+	}
+}
+
 func TestHelperProcess(t *testing.T) {
 	modules.DispatchInTest()
 }
 
 // TODO(cnicolaou): more complete tests for environment variables,
 // OS being overridden by Shell for example.
+//
+// TODO(cnicolaou): test for one or either of the io.Writers being nil
+// on calls to Shutdown
+//
+// TODO(cnicolaou): test for error return from cleanup

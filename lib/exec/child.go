@@ -9,8 +9,8 @@ import (
 )
 
 var (
-	ErrNoVersion          = errors.New(versionVariable + " environment variable missing")
-	ErrUnsupportedVersion = errors.New("Unsupported version of veyron/lib/exec request by " + versionVariable + " environment variable")
+	ErrNoVersion          = errors.New(VersionVariable + " environment variable missing")
+	ErrUnsupportedVersion = errors.New("Unsupported version of veyron/lib/exec request by " + VersionVariable + " environment variable")
 )
 
 type ChildHandle struct {
@@ -77,10 +77,11 @@ func (c *ChildHandle) NewExtraFile(i uintptr, name string) *os.File {
 }
 
 func createChildHandle() (*ChildHandle, error) {
-	switch os.Getenv(versionVariable) {
+	switch os.Getenv(VersionVariable) {
 	case "":
 		return nil, ErrNoVersion
 	case version1:
+		os.Setenv(VersionVariable, "")
 		// TODO(cnicolaou): need to use major.minor.build format for
 		// version #s.
 	default:
