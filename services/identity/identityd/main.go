@@ -32,16 +32,13 @@ import (
 	services "veyron.io/veyron/veyron/services/security"
 	"veyron.io/veyron/veyron/services/security/discharger"
 
-	_ "veyron.io/veyron/veyron/profiles"
+	"veyron.io/veyron/veyron/profiles/static"
 	_ "veyron.io/veyron/veyron/runtimes/google/security"
 )
 
 var (
-	httpaddr  = flag.String("httpaddr", "localhost:8125", "Address on which the HTTP server listens on.")
-	tlsconfig = flag.String("tlsconfig", "", "Comma-separated list of TLS certificate and private key files. If empty, will not use HTTPS.")
-	// TODO(ashankar): Revisit the choices for -vaddr and -vprotocol once the proxy design in relation to mounttables has been finalized.
-	address       = flag.String("vaddr", "proxy.envyor.com:8100", "Address on which the Veyron blessing server listens on. Enabled iff --google_config is set")
-	protocol      = flag.String("vprotocol", "veyron", "Protocol used to interpret --vaddr")
+	httpaddr      = flag.String("httpaddr", "localhost:8125", "Address on which the HTTP server listens on.")
+	tlsconfig     = flag.String("tlsconfig", "", "Comma-separated list of TLS certificate and private key files. If empty, will not use HTTPS.")
 	host          = flag.String("host", defaultHost(), "Hostname the HTTP server listens on. This can be the name of the host running the webserver, but if running behind a NAT or load balancer, this should be the host name that clients will connect to. For example, if set to 'x.com', Veyron identities will have the IssuerName set to 'x.com' and clients can expect to find the public key of the signer at 'x.com/pubkey/'.")
 	minExpiryDays = flag.Int("min_expiry_days", 365, "Minimum expiry time (in days) of identities issued by this server")
 
@@ -208,9 +205,9 @@ func setupServices(r veyron2.Runtime, revocationManager *revocation.RevocationMa
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to create new ipc.Server: %v", err)
 	}
-	ep, err := server.Listen(*protocol, *address)
+	ep, err := server.ListenX(static.ListenSpec)
 	if err != nil {
-		return nil, nil, fmt.Errorf("server.Listen(%q, %q) failed: %v", "tcp", *address, err)
+		return nil, nil, fmt.Errorf("server.Listen(%s) failed: %v", static.ListenSpec, err)
 	}
 	googleParams.DischargerLocation = naming.JoinAddressName(ep.String(), dischargerService)
 

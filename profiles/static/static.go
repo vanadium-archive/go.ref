@@ -1,7 +1,7 @@
 // Package static provides a network-aware Profile that provides appropriate
 // options and configuration for a variety of network configurations, including
 // being behind 1-1 NATs, but without the ability to respond to dhcp changes.
-package profiles
+package static
 
 import (
 	"flag"
