@@ -80,6 +80,9 @@ const (
 
 	// A request to create a new random blessings
 	websocketCreateBlessings = 16
+
+	// A request to cancel an rpc initiated by the JS.
+	websocketCancel = 17
 )
 
 type websocketMessage struct {
@@ -300,6 +303,8 @@ func (p *pipe) readLoop() {
 		switch msg.Type {
 		case websocketVeyronRequest:
 			p.controller.HandleVeyronRequest(ctx, msg.Id, msg.Data, ww)
+		case websocketCancel:
+			go p.controller.HandleVeyronCancellation(msg.Id)
 		case websocketStreamingValue:
 			// SendOnStream queues up the message to be sent, but doesn't do the send
 			// on this goroutine.  We need to queue the messages synchronously so that

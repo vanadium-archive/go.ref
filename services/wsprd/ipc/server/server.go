@@ -5,6 +5,7 @@ package server
 import (
 	"encoding/json"
 	"sync"
+	"time"
 
 	vsecurity "veyron.io/veyron/veyron/security"
 	"veyron.io/wspr/veyron/services/wsprd/identity"
@@ -41,6 +42,7 @@ type serverRPCRequestContext struct {
 
 	// TODO(ataly, ashankar, bjornick): Remove this field once the old security model is killed.
 	RemoteID identity.PublicIDHandle
+	Timeout  int64 // The time period (in ns) between now and the deadline.
 }
 
 // The response from the javascript server to the proxy.
@@ -157,15 +159,23 @@ func (s *Server) createRemoteInvokerFunc(handle int64) remoteInvokeFunc {
 		s.mu.Lock()
 		s.outstandingServerRequests[flow.ID] = replyChan
 		s.mu.Unlock()
+
+		timeout := lib.JSIPCNoTimeout
+		if deadline, ok := call.Deadline(); ok {
+			timeout = lib.GoToJSDuration(deadline.Sub(time.Now()))
+		}
+
 		context := serverRPCRequestContext{
-			Suffix: call.Suffix(),
-			Name:   call.Name(),
+			Suffix:  call.Suffix(),
+			Name:    call.Name(),
+			Timeout: timeout,
 		}
 		if s.helper.UseOldModel() {
 			context.RemoteID = s.convertPublicIDToHandle(call.RemoteID())
 		} else {
 			context.RemoteBlessings = s.convertBlessingsToHandle(call.RemoteBlessings())
 		}
+
 		// Send a invocation request to JavaScript
 		message := serverRPCRequest{
 			ServerId: s.id,
@@ -177,9 +187,10 @@ func (s *Server) createRemoteInvokerFunc(handle int64) remoteInvokeFunc {
 
 		if err := flow.Writer.Send(lib.ResponseServerRequest, message); err != nil {
 			// Error in marshaling, pass the error through the channel immediately
-			stdErr := verror2.Convert(verror2.Internal, nil, err).(verror2.Standard)
-			replyChan <- &serverRPCReply{nil,
-				&stdErr,
+			if ch := s.popServerRequest(flow.ID); ch != nil {
+				stdErr := verror2.Convert(verror2.Internal, call, err).(verror2.Standard)
+				ch <- &serverRPCReply{nil, &stdErr}
+				s.helper.CleanupFlow(flow.ID)
 			}
 			return replyChan
 		}
@@ -188,7 +199,24 @@ func (s *Server) createRemoteInvokerFunc(handle int64) remoteInvokeFunc {
 			"JavaScript server with args %v, MessageId %d was assigned.",
 			methodName, args, flow.ID)
 
+		// Watch for cancellation.
+		go func() {
+			<-call.Done()
+			ch := s.popServerRequest(flow.ID)
+			if ch == nil {
+				return
+			}
+
+			// Send a cancel message to the JS server.
+			flow.Writer.Send(lib.ResponseCancel, nil)
+			s.helper.CleanupFlow(flow.ID)
+
+			err := verror2.Convert(verror2.Aborted, call, call.Err()).(verror2.Standard)
+			ch <- &serverRPCReply{nil, &err}
+		}()
+
 		go proxyStream(call, flow.Writer, s.helper.GetLogger())
+
 		return replyChan
 	}
 }
@@ -280,17 +308,24 @@ func (s *Server) Serve(name string) (string, error) {
 	return s.endpoint, nil
 }
 
-func (s *Server) HandleServerResponse(id int64, data string) {
+func (s *Server) popServerRequest(id int64) chan *serverRPCReply {
 	s.mu.Lock()
+	defer s.mu.Unlock()
 	ch := s.outstandingServerRequests[id]
 	delete(s.outstandingServerRequests, id)
-	s.mu.Unlock()
+
+	return ch
+}
+
+func (s *Server) HandleServerResponse(id int64, data string) {
+	ch := s.popServerRequest(id)
 	if ch == nil {
 		s.helper.GetLogger().Errorf("unexpected result from JavaScript. No channel "+
 			"for MessageId: %d exists. Ignoring the results.", id)
 		//Ignore unknown responses that don't belong to any channel
 		return
 	}
+
 	// Decode the result and send it through the channel
 	var serverReply serverRPCReply
 	if decoderErr := json.Unmarshal([]byte(data), &serverReply); decoderErr != nil {

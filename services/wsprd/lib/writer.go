@@ -10,6 +10,7 @@ const (
 	ResponseStreamClose                   = 4
 	ResponseDispatcherLookup              = 5
 	ResponseAuthRequest                   = 6
+	ResponseCancel                        = 7
 )
 
 // This is basically an io.Writer interface, that allows passing error message

@@ -107,7 +107,9 @@ func TestSuccessfulLookup(t *testing.T) {
 			},
 		},
 	}
-	testwriter.CheckResponses(&flowFactory.writer, expectedResponses, nil, t)
+	if err := testwriter.CheckResponses(&flowFactory.writer, expectedResponses, nil); err != nil {
+		t.Error(err)
+	}
 }
 
 func TestSuccessfulLookupWithAuthorizer(t *testing.T) {
@@ -155,7 +157,9 @@ func TestSuccessfulLookupWithAuthorizer(t *testing.T) {
 			},
 		},
 	}
-	testwriter.CheckResponses(&flowFactory.writer, expectedResponses, nil, t)
+	if err := testwriter.CheckResponses(&flowFactory.writer, expectedResponses, nil); err != nil {
+		t.Error(err)
+	}
 }
 
 func TestFailedLookup(t *testing.T) {
@@ -186,5 +190,7 @@ func TestFailedLookup(t *testing.T) {
 			},
 		},
 	}
-	testwriter.CheckResponses(&flowFactory.writer, expectedResponses, nil, t)
+	if err := testwriter.CheckResponses(&flowFactory.writer, expectedResponses, nil); err != nil {
+		t.Error(err)
+	}
 }

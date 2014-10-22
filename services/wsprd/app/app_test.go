@@ -249,7 +249,9 @@ func runGoServerTestCase(t *testing.T, test goServerTestCase) {
 	var stream *outstandingStream
 	if len(test.streamingInputs) > 0 {
 		stream = newStream()
-		controller.outstandingStreams[0] = stream
+		controller.outstandingRequests[0] = &outstandingRequest{
+			stream: stream,
+		}
 		go func() {
 			for _, value := range test.streamingInputs {
 				controller.SendOnStream(0, value, &writer)
@@ -267,7 +269,9 @@ func runGoServerTestCase(t *testing.T, test goServerTestCase) {
 	}
 	controller.sendVeyronRequest(r.NewContext(), 0, &request, &writer, stream)
 
-	testwriter.CheckResponses(&writer, test.expectedStream, test.expectedError, t)
+	if err := testwriter.CheckResponses(&writer, test.expectedStream, test.expectedError); err != nil {
+		t.Error(err)
+	}
 }
 
 func TestCallingGoServer(t *testing.T) {
@@ -666,7 +670,9 @@ func runJsServerTestCase(t *testing.T, test jsServerTestCase) {
 			var result interface{}
 			var err2 error
 			err := call.Finish(&result, &err2)
-			testwriter.CheckResponses(rt.writer, expectedWebsocketMessage, nil, t)
+			if err := testwriter.CheckResponses(rt.writer, expectedWebsocketMessage, nil); err != nil {
+				t.Error(err)
+			}
 			// We can't do a deep equal with authError because the error returned by the
 			// authorizer is wrapped into another error by the ipc framework.
 			if err == nil {
@@ -732,8 +738,9 @@ func runJsServerTestCase(t *testing.T, test jsServerTestCase) {
 			"Handle":   0.0,
 			"Args":     test.inArgs,
 			"Context": map[string]interface{}{
-				"Name":   "adder",
-				"Suffix": "adder",
+				"Name":    "adder",
+				"Suffix":  "adder",
+				"Timeout": float64(lib.JSIPCNoTimeout),
 				"RemoteBlessings": map[string]interface{}{
 					"Handle":    expectedBlessingsHandle,
 					"PublicKey": publicKey,
@@ -800,7 +807,9 @@ func runJsServerTestCase(t *testing.T, test jsServerTestCase) {
 		t.Errorf("didn't receive expected message: %v", err)
 	}
 
-	testwriter.CheckResponses(rt.writer, expectedWebsocketMessage, nil, t)
+	if err := testwriter.CheckResponses(rt.writer, expectedWebsocketMessage, nil); err != nil {
+		t.Error(err)
+	}
 }
 
 func TestSimpleJSServer(t *testing.T) {

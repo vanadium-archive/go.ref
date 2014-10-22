@@ -86,11 +86,12 @@ func (w *Writer) WaitForMessage(n int) error {
 	return nil
 }
 
-func CheckResponses(w *Writer, wantStream []Response, wantErr error, t TestHarness) {
+func CheckResponses(w *Writer, wantStream []Response, wantErr error) error {
 	if got, want := w.Stream, wantStream; !reflect.DeepEqual(got, want) {
-		t.Errorf("streams don't match: got %v, want %v", got, want)
+		return fmt.Errorf("streams don't match: got %v, want %v", got, want)
 	}
 	if got, want := w.err, wantErr; !verror2.Equal(got, want) {
-		t.Errorf("unexpected error, got: %#v, expected: %#v", got, want)
+		return fmt.Errorf("unexpected error, got: %#v, expected: %#v", got, want)
 	}
+	return nil
 }
