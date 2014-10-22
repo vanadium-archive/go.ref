@@ -338,13 +338,13 @@ func (c *Controller) setup() {
 func (c *Controller) SendOnStream(id int64, data string, w lib.ClientWriter) {
 	c.Lock()
 	request := c.outstandingRequests[id]
-	c.Unlock()
-
 	if request == nil || request.stream == nil {
 		vlog.Errorf("unknown stream: %d", id)
 		return
 	}
-	request.stream.send(data, w)
+	stream := request.stream
+	c.Unlock()
+	stream.send(data, w)
 }
 
 // SendVeyronRequest makes a veyron request for the given flowId.  If signal is non-nil, it will receive
@@ -439,7 +439,6 @@ func (c *Controller) HandleVeyronRequest(ctx context.T, id int64, data string, w
 	} else {
 		cctx, cancel = ctx.WithTimeout(lib.JSToGoDuration(veyronTempMsg.Timeout))
 	}
-	var stream *outstandingStream
 
 	request := &outstandingRequest{
 		cancel: cancel,
@@ -454,9 +453,8 @@ func (c *Controller) HandleVeyronRequest(ctx context.T, id int64, data string, w
 	}
 	c.Lock()
 	c.outstandingRequests[id] = request
+	go c.sendVeyronRequest(cctx, id, veyronTempMsg, w, request.stream)
 	c.Unlock()
-
-	go c.sendVeyronRequest(cctx, id, veyronTempMsg, w, stream)
 }
 
 // HandleVeyronCancellation cancels the request corresponding to the
@@ -609,7 +607,7 @@ func (c *Controller) parseVeyronRequest(ctx context.T, r io.Reader) (*veyronTemp
 	if err := decoder.Decode(&tempMsg); err != nil {
 		return nil, fmt.Errorf("can't unmarshall JSONMessage: %v", err)
 	}
-	c.logger.VI(2).Infof("VeyronRPC: %s.%s(id=%v, ..., streaming=%v)", tempMsg.Name, tempMsg.Method, tempMsg.IsStreaming)
+	c.logger.VI(2).Infof("VeyronRPC: %s.%s(..., streaming=%v)", tempMsg.Name, tempMsg.Method, tempMsg.IsStreaming)
 	return &tempMsg, nil
 }
 
