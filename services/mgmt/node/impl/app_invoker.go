@@ -26,6 +26,7 @@ package impl
 //           info                   - app manager name and process id for the instance (if running)
 //           version                - symbolic link to installation version for the instance
 //           <status>               - one of the values for instanceState enum
+//           systemname             - the system name used to execute this instance
 //         instance-<id b>
 //         ...
 //     installation-<id 2>
@@ -404,7 +405,12 @@ var isSetuid = func(fileStat os.FileInfo) bool {
 // and is probably not a good fit in other contexts. Revisit the design
 // as appropriate. This function also internalizes a decision as to when
 // it is possible to start an application that needs to be made explicit.
-func systemAccountForHelper(helperStat os.FileInfo, identityNames []string, uat BlessingSystemAssociationStore) (systemName string, err error) {
+func systemAccountForHelper(helperPath string, identityNames []string, uat BlessingSystemAssociationStore) (systemName string, err error) {
+	helperStat, err := os.Stat(helperPath)
+	if err != nil {
+		vlog.Errorf("Stat(%v) failed: %v. helper is required.", helperPath, err)
+		return "", errOperationFailed
+	}
 	haveHelper := isSetuid(helperStat)
 	systemName, present := uat.SystemAccountForBlessings(identityNames)
 
@@ -434,7 +440,7 @@ func systemAccountForHelper(helperStat os.FileInfo, identityNames []string, uat 
 
 // TODO(rjkroege): Turning on the setuid feature of the suidhelper
 // requires an installer with root permissions to install it in <config.Root>/helper
-func genCmd(instanceDir string, helperPath string, uat BlessingSystemAssociationStore, identityNames []string) (*exec.Cmd, error) {
+func genCmd(instanceDir, helperPath, systemName string) (*exec.Cmd, error) {
 	versionLink := filepath.Join(instanceDir, "version")
 	versionDir, err := filepath.EvalSymlinks(versionLink)
 	if err != nil {
@@ -451,19 +457,8 @@ func genCmd(instanceDir string, helperPath string, uat BlessingSystemAssociation
 		return nil, errOperationFailed
 	}
 
-	helperStat, err := os.Stat(helperPath)
-	if err != nil {
-		vlog.Errorf("Stat(%v) failed: %v. helper is required.", helperPath, err)
-		return nil, errOperationFailed
-	}
 	cmd := exec.Command(helperPath)
-
-	cmd.Args = append(cmd.Args, "--username")
-	uname, err := systemAccountForHelper(helperStat, identityNames, uat)
-	if err != nil {
-		return nil, err
-	}
-	cmd.Args = append(cmd.Args, uname)
+	cmd.Args = append(cmd.Args, "--username", systemName)
 
 	// TODO(caprita): Also pass in configuration info like NAMESPACE_ROOT to
 	// the app (to point to the device mounttable).
@@ -473,8 +468,7 @@ func genCmd(instanceDir string, helperPath string, uat BlessingSystemAssociation
 		return nil, err
 	}
 	cmd.Dir = rootDir
-	cmd.Args = append(cmd.Args, "--workspace")
-	cmd.Args = append(cmd.Args, rootDir)
+	cmd.Args = append(cmd.Args, "--workspace", rootDir)
 
 	logDir := filepath.Join(instanceDir, "logs")
 	if err := mkdir(logDir); err != nil {
@@ -485,18 +479,14 @@ func genCmd(instanceDir string, helperPath string, uat BlessingSystemAssociation
 	if cmd.Stdout, err = openWriteFile(stdoutLog); err != nil {
 		return nil, err
 	}
-	cmd.Args = append(cmd.Args, "--stdoutlog")
-	cmd.Args = append(cmd.Args, stdoutLog)
+	cmd.Args = append(cmd.Args, "--stdoutlog", stdoutLog)
 
 	stderrLog := filepath.Join(logDir, fmt.Sprintf("STDERR-%d", timestamp))
 	if cmd.Stderr, err = openWriteFile(stderrLog); err != nil {
 		return nil, err
 	}
-	cmd.Args = append(cmd.Args, "--stderrlog")
-	cmd.Args = append(cmd.Args, stderrLog)
-
-	cmd.Args = append(cmd.Args, "--run")
-	cmd.Args = append(cmd.Args, binPath)
+	cmd.Args = append(cmd.Args, "--stderrlog", stderrLog)
+	cmd.Args = append(cmd.Args, "--run", binPath)
 	cmd.Args = append(cmd.Args, "--")
 
 	// Set up args and env.
@@ -548,11 +538,12 @@ func (i *appInvoker) startCmd(instanceDir string, cmd *exec.Cmd) error {
 	return nil
 }
 
-func (i *appInvoker) run(instanceDir string, blessings []string) error {
+func (i *appInvoker) run(instanceDir, systemName, helper string) error {
 	if err := transitionInstance(instanceDir, suspended, starting); err != nil {
 		return err
 	}
-	cmd, err := genCmd(instanceDir, filepath.Join(i.config.Root, "helper"), i.uat, blessings)
+
+	cmd, err := genCmd(instanceDir, helper, systemName)
 	if err == nil {
 		err = i.startCmd(instanceDir, cmd)
 	}
@@ -565,10 +556,24 @@ func (i *appInvoker) run(instanceDir string, blessings []string) error {
 
 func (i *appInvoker) Start(call ipc.ServerContext) ([]string, error) {
 	instanceDir, instanceID, err := i.newInstance()
-	if err == nil {
-		err = i.run(instanceDir, call.RemoteBlessings().ForContext(call))
-	}
 	if err != nil {
+		cleanupDir(instanceDir)
+		return nil, err
+	}
+
+	helper := filepath.Join(i.config.Root, "helper")
+	systemName, err := systemAccountForHelper(helper, call.RemoteBlessings().ForContext(call), i.uat)
+	if err != nil {
+		cleanupDir(instanceDir)
+		return nil, err
+	}
+
+	if err := saveSystemNameForInstance(instanceDir, systemName); err != nil {
+		cleanupDir(instanceDir)
+		return nil, err
+	}
+
+	if err = i.run(instanceDir, systemName, helper); err != nil {
 		cleanupDir(instanceDir)
 		return nil, err
 	}
@@ -589,13 +594,27 @@ func (i *appInvoker) instanceDir() (string, error) {
 	return instanceDir, nil
 }
 
-// TODO(rjkroege): Only the original invoking identity may resume an application.
 func (i *appInvoker) Resume(call ipc.ServerContext) error {
 	instanceDir, err := i.instanceDir()
 	if err != nil {
 		return err
 	}
-	return i.run(instanceDir, call.RemoteBlessings().ForContext(call))
+
+	helper := filepath.Join(i.config.Root, "helper")
+	systemName, err := systemAccountForHelper(helper, call.RemoteBlessings().ForContext(call), i.uat)
+	if err != nil {
+		return err
+	}
+
+	startSystemName, err := readSystemNameForInstance(instanceDir)
+	if err != nil {
+		return err
+	}
+
+	if startSystemName != systemName {
+		return verror.NoAccessf("Not allowed to resume an application under a different system name.")
+	}
+	return i.run(instanceDir, systemName, helper)
 }
 
 func stopAppRemotely(appVON string) error {
