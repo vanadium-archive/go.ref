@@ -9,6 +9,7 @@ import (
 	"regexp"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 
 	"veyron.io/veyron/veyron/lib/cmdline"
@@ -43,18 +44,18 @@ func init() {
 	vom.Register(istats.HistogramValue{})
 
 	// logs read flags
-	cmdRead.Flags.BoolVar(&follow, "f", false, "When true, read will wait for new log entries when it reaches the end of the file.")
-	cmdRead.Flags.BoolVar(&verbose, "v", false, "When true, read will be more verbose.")
-	cmdRead.Flags.IntVar(&numEntries, "n", int(logtypes.AllEntries), "The number of log entries to read.")
-	cmdRead.Flags.Int64Var(&startPos, "o", 0, "The position, in bytes, from which to start reading the log file.")
+	cmdLogsRead.Flags.BoolVar(&follow, "f", false, "When true, read will wait for new log entries when it reaches the end of the file.")
+	cmdLogsRead.Flags.BoolVar(&verbose, "v", false, "When true, read will be more verbose.")
+	cmdLogsRead.Flags.IntVar(&numEntries, "n", int(logtypes.AllEntries), "The number of log entries to read.")
+	cmdLogsRead.Flags.Int64Var(&startPos, "o", 0, "The position, in bytes, from which to start reading the log file.")
 
-	// stats value flags
-	cmdValue.Flags.BoolVar(&raw, "raw", false, "When true, the command will display the raw value of the object.")
-	cmdValue.Flags.BoolVar(&showType, "type", false, "When true, the type of the values will be displayed.")
+	// stats read flags
+	cmdStatsRead.Flags.BoolVar(&raw, "raw", false, "When true, the command will display the raw value of the object.")
+	cmdStatsRead.Flags.BoolVar(&showType, "type", false, "When true, the type of the values will be displayed.")
 
-	// stats watchglob flags
-	cmdWatchGlob.Flags.BoolVar(&raw, "raw", false, "When true, the command will display the raw value of the object.")
-	cmdWatchGlob.Flags.BoolVar(&showType, "type", false, "When true, the type of the values will be displayed.")
+	// stats watch flags
+	cmdStatsWatch.Flags.BoolVar(&raw, "raw", false, "When true, the command will display the raw value of the object.")
+	cmdStatsWatch.Flags.BoolVar(&showType, "type", false, "When true, the type of the values will be displayed.")
 
 	// pprof flags
 	cmdPProfRun.Flags.StringVar(&pprofCmd, "pprofcmd", "veyron go tool pprof", "The pprof command to use.")
@@ -63,7 +64,7 @@ func init() {
 var cmdGlob = &cmdline.Command{
 	Run:      runGlob,
 	Name:     "glob",
-	Short:    "Returns all matching entries from the namespace",
+	Short:    "Returns all matching entries from the namespace.",
 	Long:     "Returns all matching entries from the namespace.",
 	ArgsName: "<pattern> ...",
 	ArgsLong: `
@@ -72,57 +73,62 @@ var cmdGlob = &cmdline.Command{
 }
 
 func runGlob(cmd *cmdline.Command, args []string) error {
-	if want, got := 1, len(args); got < want {
-		return cmd.UsageErrorf("glob: incorrect number of arguments, got %d, want >=%d", got, want)
+	if min, got := 1, len(args); got < min {
+		return cmd.UsageErrorf("glob: incorrect number of arguments, got %d, want >=%d", got, min)
 	}
 	results := make(chan naming.MountEntry)
 	errors := make(chan error)
-	ctx := rt.R().NewContext()
-	for _, a := range args {
-		go doGlob(ctx, a, results, errors)
-	}
+	doGlobs(rt.R().NewContext(), args, results, errors)
 	var lastErr error
-	count := 0
-L:
 	for {
 		select {
-		case r := <-results:
-			fmt.Fprint(cmd.Stdout(), r.Name)
-			for _, s := range r.Servers {
+		case err := <-errors:
+			lastErr = err
+			fmt.Fprintln(cmd.Stderr(), "Error:", err)
+		case me, ok := <-results:
+			if !ok {
+				return lastErr
+			}
+			fmt.Fprint(cmd.Stdout(), me.Name)
+			for _, s := range me.Servers {
 				fmt.Fprintf(cmd.Stdout(), " %s (TTL %s)", s.Server, s.TTL)
 			}
 			fmt.Fprintln(cmd.Stdout())
-		case e := <-errors:
-			if e != nil {
-				lastErr = e
-				fmt.Fprintln(cmd.Stderr(), e)
-			}
-			count++
-			if count == len(args) {
-				break L
-			}
 		}
 	}
-	return lastErr
 }
 
-func doGlob(ctx context.T, pattern string, results chan<- naming.MountEntry, errors chan<- error) {
-	ns := rt.R().Namespace()
-	ctx, cancel := rt.R().NewContext().WithTimeout(time.Minute)
+// doGlobs calls Glob on multiple patterns in parallel and sends all the results
+// on the results channel and all the errors on the errors channel. It closes
+// the results channel when all the results have been sent.
+func doGlobs(ctx context.T, patterns []string, results chan<- naming.MountEntry, errors chan<- error) {
+	var wg sync.WaitGroup
+	wg.Add(len(patterns))
+	for _, p := range patterns {
+		go doGlob(ctx, p, results, errors, &wg)
+	}
+	go func() {
+		wg.Wait()
+		close(results)
+	}()
+}
+
+func doGlob(ctx context.T, pattern string, results chan<- naming.MountEntry, errors chan<- error, wg *sync.WaitGroup) {
+	defer wg.Done()
+	ctx, cancel := ctx.WithTimeout(time.Minute)
 	defer cancel()
-	c, err := ns.Glob(ctx, pattern)
+	c, err := rt.R().Namespace().Glob(ctx, pattern)
 	if err != nil {
-		errors <- err
+		errors <- fmt.Errorf("%s: %v", pattern, err)
 		return
 	}
-	for res := range c {
-		results <- res
+	for me := range c {
+		results <- me
 	}
-	errors <- nil
 }
 
-var cmdRead = &cmdline.Command{
-	Run:      runRead,
+var cmdLogsRead = &cmdline.Command{
+	Run:      runLogsRead,
 	Name:     "read",
 	Short:    "Reads the content of a log file object.",
 	Long:     "Reads the content of a log file object.",
@@ -132,7 +138,7 @@ var cmdRead = &cmdline.Command{
 `,
 }
 
-func runRead(cmd *cmdline.Command, args []string) error {
+func runLogsRead(cmd *cmdline.Command, args []string) error {
 	if want, got := 1, len(args); want != got {
 		return cmd.UsageErrorf("read: incorrect number of arguments, got %d, want %d", got, want)
 	}
@@ -167,18 +173,18 @@ func runRead(cmd *cmdline.Command, args []string) error {
 	return nil
 }
 
-var cmdSize = &cmdline.Command{
-	Run:      runSize,
+var cmdLogsSize = &cmdline.Command{
+	Run:      runLogsSize,
 	Name:     "size",
-	Short:    "Returns the size of the a log file object",
-	Long:     "Returns the size of the a log file object.",
+	Short:    "Returns the size of a log file object.",
+	Long:     "Returns the size of a log file object.",
 	ArgsName: "<name>",
 	ArgsLong: `
 <name> is the name of the log file object.
 `,
 }
 
-func runSize(cmd *cmdline.Command, args []string) error {
+func runLogsSize(cmd *cmdline.Command, args []string) error {
 	if want, got := 1, len(args); want != got {
 		return cmd.UsageErrorf("size: incorrect number of arguments, got %d, want %d", got, want)
 	}
@@ -195,82 +201,119 @@ func runSize(cmd *cmdline.Command, args []string) error {
 	return nil
 }
 
-var cmdValue = &cmdline.Command{
-	Run:      runValue,
-	Name:     "value",
-	Short:    "Returns the value of the a stats object",
-	Long:     "Returns the value of the a stats object.",
-	ArgsName: "<name>",
+var cmdStatsRead = &cmdline.Command{
+	Run:      runStatsRead,
+	Name:     "read",
+	Short:    "Returns the value of stats objects.",
+	Long:     "Returns the value of stats objects.",
+	ArgsName: "<name> ...",
 	ArgsLong: `
-<name> is the name of the stats object.
+<name> is the name of a stats object, or a glob pattern to match against stats
+object names.
 `,
 }
 
-func runValue(cmd *cmdline.Command, args []string) error {
-	if want, got := 1, len(args); want != got {
-		return cmd.UsageErrorf("value: incorrect number of arguments, got %d, want %d", got, want)
+func runStatsRead(cmd *cmdline.Command, args []string) error {
+	if min, got := 1, len(args); got < min {
+		return cmd.UsageErrorf("read: incorrect number of arguments, got %d, want >=%d", got, min)
 	}
-	name := args[0]
-	lf, err := stats.BindStats(name)
-	if err != nil {
-		return err
+	ctx := rt.R().NewContext()
+	globResults := make(chan naming.MountEntry)
+	errors := make(chan error)
+	doGlobs(ctx, args, globResults, errors)
+
+	output := make(chan string)
+	go func() {
+		var wg sync.WaitGroup
+		for me := range globResults {
+			wg.Add(1)
+			go doValue(ctx, me.Name, output, errors, &wg)
+		}
+		wg.Wait()
+		close(output)
+	}()
+
+	var lastErr error
+	for {
+		select {
+		case err := <-errors:
+			lastErr = err
+			fmt.Fprintln(cmd.Stderr(), err)
+		case out, ok := <-output:
+			if !ok {
+				return lastErr
+			}
+			fmt.Fprintln(cmd.Stdout(), out)
+		}
 	}
-	v, err := lf.Value(rt.R().NewContext())
-	if err != nil {
-		return err
-	}
-	fmt.Fprintln(cmd.Stdout(), formatValue(v))
-	return nil
 }
 
-var cmdWatchGlob = &cmdline.Command{
-	Run:      runWatchGlob,
-	Name:     "watchglob",
-	Short:    "Returns a stream of all matching entries and their values",
-	Long:     "Returns a stream of all matching entries and their values",
+func doValue(ctx context.T, name string, output chan<- string, errors chan<- error, wg *sync.WaitGroup) {
+	defer wg.Done()
+	s, err := stats.BindStats(name)
+	if err != nil {
+		errors <- fmt.Errorf("%s: %v", name, err)
+		return
+	}
+	ctx, cancel := ctx.WithTimeout(time.Minute)
+	defer cancel()
+	v, err := s.Value(ctx)
+	if err != nil {
+		errors <- fmt.Errorf("%s: %v", name, err)
+		return
+	}
+	output <- fmt.Sprintf("%s: %v", name, formatValue(v))
+}
+
+var cmdStatsWatch = &cmdline.Command{
+	Run:      runStatsWatch,
+	Name:     "watch",
+	Short:    "Returns a stream of all matching entries and their values as they change.",
+	Long:     "Returns a stream of all matching entries and their values as they change.",
 	ArgsName: "<pattern> ...",
 	ArgsLong: `
 <pattern> is a glob pattern to match.
 `,
 }
 
-func runWatchGlob(cmd *cmdline.Command, args []string) error {
+func runStatsWatch(cmd *cmdline.Command, args []string) error {
 	if want, got := 1, len(args); got < want {
-		return cmd.UsageErrorf("watchglob: incorrect number of arguments, got %d, want >=%d", got, want)
+		return cmd.UsageErrorf("watch: incorrect number of arguments, got %d, want >=%d", got, want)
 	}
 
 	results := make(chan string)
 	errors := make(chan error)
 	ctx := rt.R().NewContext()
-	for _, a := range args {
-		go doWatchGlob(ctx, a, results, errors)
+	var wg sync.WaitGroup
+	wg.Add(len(args))
+	for _, arg := range args {
+		go doWatch(ctx, arg, results, errors, &wg)
 	}
+	go func() {
+		wg.Wait()
+		close(results)
+	}()
 	var lastErr error
-	count := 0
-L:
 	for {
 		select {
-		case r := <-results:
+		case err := <-errors:
+			lastErr = err
+			fmt.Fprintln(cmd.Stderr(), "Error:", err)
+		case r, ok := <-results:
+			if !ok {
+				return lastErr
+			}
 			fmt.Fprintln(cmd.Stdout(), r)
-		case e := <-errors:
-			if e != nil {
-				lastErr = e
-				fmt.Fprintln(cmd.Stderr(), e)
-			}
-			count++
-			if count == len(args) {
-				break L
-			}
 		}
 	}
-	return lastErr
 }
 
-func doWatchGlob(ctx context.T, pattern string, results chan<- string, errors chan<- error) {
+func doWatch(ctx context.T, pattern string, results chan<- string, errors chan<- error, wg *sync.WaitGroup) {
+	defer wg.Done()
 	root, globPattern := naming.SplitAddressName(pattern)
 	g, err := glob.Parse(globPattern)
 	if err != nil {
-		errors <- fmt.Errorf("glob.Parse(%s): %v", globPattern, err)
+		errors <- fmt.Errorf("%s: %v", globPattern, err)
 		return
 	}
 	var prefixElems []string
@@ -281,27 +324,31 @@ func doWatchGlob(ctx context.T, pattern string, results chan<- string, errors ch
 	}
 	c, err := watch.BindGlobWatcher(name)
 	if err != nil {
-		errors <- err
+		errors <- fmt.Errorf("%s: %v", name, err)
 		return
 	}
-	stream, err := c.WatchGlob(ctx, watchtypes.GlobRequest{Pattern: g.String()})
-	if err != nil {
-		errors <- err
-		return
+	for retry := false; ; retry = true {
+		if retry {
+			time.Sleep(10 * time.Second)
+		}
+		stream, err := c.WatchGlob(ctx, watchtypes.GlobRequest{Pattern: g.String()})
+		if err != nil {
+			errors <- fmt.Errorf("%s: %v", name, err)
+			continue
+		}
+		iterator := stream.RecvStream()
+		for iterator.Advance() {
+			v := iterator.Value()
+			results <- fmt.Sprintf("%s: %s", naming.Join(name, v.Name), formatValue(v.Value))
+		}
+		if err = iterator.Err(); err != nil {
+			errors <- fmt.Errorf("%s: %v", name, err)
+			continue
+		}
+		if err = stream.Finish(); err != nil {
+			errors <- fmt.Errorf("%s: %v", name, err)
+		}
 	}
-	iterator := stream.RecvStream()
-	for iterator.Advance() {
-		v := iterator.Value()
-		results <- fmt.Sprintf("%s: %s", naming.Join(name, v.Name), formatValue(v.Value))
-	}
-	if err = iterator.Err(); err != nil {
-		errors <- err
-		return
-	}
-	if err = stream.Finish(); err != nil {
-		errors <- err
-	}
-	errors <- nil
 }
 
 func formatValue(value interface{}) string {
@@ -352,8 +399,8 @@ func writeASCIIHistogram(w io.Writer, h istats.HistogramValue) {
 var cmdPProfRun = &cmdline.Command{
 	Run:      runPProf,
 	Name:     "run",
-	Short:    "Runs the pprof tool",
-	Long:     "Runs the pprof tool",
+	Short:    "Runs the pprof tool.",
+	Long:     "Runs the pprof tool.",
 	ArgsName: "<name> <profile> [passthru args] ...",
 	ArgsLong: `
 <name> is the name of the pprof object.
@@ -361,7 +408,7 @@ var cmdPProfRun = &cmdline.Command{
 
 All the [passthru args] are passed to the pprof tool directly, e.g.
 
-$ debug pprof run a/b/c heap --text --lines
+$ debug pprof run a/b/c heap --text
 $ debug pprof run a/b/c profile -gv
 `,
 }
@@ -426,8 +473,8 @@ func shellEscape(s string) string {
 var cmdPProfRunProxy = &cmdline.Command{
 	Run:      runPProfProxy,
 	Name:     "proxy",
-	Short:    "Runs an http proxy to a pprof object",
-	Long:     "Runs an http proxy to a pprof object",
+	Short:    "Runs an http proxy to a pprof object.",
+	Long:     "Runs an http proxy to a pprof object.",
 	ArgsName: "<name>",
 	ArgsLong: `
 <name> is the name of the pprof object.
@@ -456,7 +503,7 @@ func runPProfProxy(cmd *cmdline.Command, args []string) error {
 
 var cmdRoot = cmdline.Command{
 	Name:  "debug",
-	Short: "Command-line tool for interacting with the debug server",
+	Short: "Command-line tool for interacting with the debug server.",
 	Long:  "Command-line tool for interacting with the debug server.",
 	Children: []*cmdline.Command{
 		cmdGlob,
@@ -464,13 +511,13 @@ var cmdRoot = cmdline.Command{
 			Name:     "logs",
 			Short:    "Accesses log files",
 			Long:     "Accesses log files",
-			Children: []*cmdline.Command{cmdRead, cmdSize},
+			Children: []*cmdline.Command{cmdLogsRead, cmdLogsSize},
 		},
 		&cmdline.Command{
 			Name:     "stats",
 			Short:    "Accesses stats",
 			Long:     "Accesses stats",
-			Children: []*cmdline.Command{cmdValue, cmdWatchGlob},
+			Children: []*cmdline.Command{cmdStatsRead, cmdStatsWatch},
 		},
 		&cmdline.Command{
 			Name:     "pprof",

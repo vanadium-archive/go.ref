@@ -24,6 +24,8 @@ main() {
   local GOT WANT
 
   cd "${WORKDIR}"
+  mkdir "tmp"
+  export TMPDIR="${WORKDIR}/tmp"
   build
 
   export VEYRON_CREDENTIALS=$(shell::tmp_dir)
@@ -33,7 +35,7 @@ main() {
 
   # Test top level glob.
   local -r DBGLOG="${WORKDIR}/debug.log"
-  GOT=$(./debug -v=2 glob "${EP}/__debug/*" 2> "${DBGLOG}") \
+  GOT=$(./debug glob "${EP}/__debug/*" 2> "${DBGLOG}") \
     || (dumplogs "${DBGLOG}"; shell_test::fail "line ${LINENO}: failed to run debug")
   WANT="${EP}/__debug/logs
 ${EP}/__debug/pprof
@@ -58,14 +60,19 @@ ${EP}/__debug/stats"
   WANT="This is a log file"
   shell_test::assert_eq "${GOT}" "${WANT}" "${LINENO}"
 
-  # Test stats watchglob.
+  # Test stats read.
+  GOT=$(./debug stats read "${EP}/__debug/stats/ipc/server/*/ReadLog/latency-ms" 2> "${DBGLOG}" | wc -l) \
+    || (dumplogs "${DBGLOG}"; shell_test::fail "line ${LINENO}: failed to run debug")
+  shell_test::assert_gt "${GOT}" "0" "${LINENO}"
+
+  # Test stats watch.
   local TMP=$(shell::tmp_file)
   touch "${TMP}"
   local -r DEBUG_PID=$(shell::run_server "${shell_test_DEFAULT_SERVER_TIMEOUT}" "${TMP}" "${DBGLOG}" \
-    ./debug stats watchglob -raw "${EP}/__debug/stats/ipc/server/*/ReadLog/latency-ms")
+    ./debug stats watch -raw "${EP}/__debug/stats/ipc/server/*/ReadLog/latency-ms")
   shell::timed_wait_for "${shell_test_DEFAULT_MESSAGE_TIMEOUT}" "${TMP}" "ReadLog/latency-ms"
   kill "${DEBUG_PID}"
-  grep "Count:1 " "${TMP}" || (dumplogs "${TMP}"; shell_test::fail "line ${LINENO}: failed to find expected output")
+  grep -q "Count:1 " "${TMP}" || (dumplogs "${TMP}"; shell_test::fail "line ${LINENO}: failed to find expected output")
 
   # Test pprof.
   if ! ./debug pprof run "${EP}/__debug/pprof" heap --text &> "${DBGLOG}"; then
