@@ -690,7 +690,7 @@ func (c *Controller) getBlessingsHandle(handle int64) (*principal.BlessingsHandl
 
 func (c *Controller) blessPublicKey(request blessingRequest) (*principal.BlessingsHandle, error) {
 	var blessee security.Blessings
-	if blessee := c.blessingsStore.Get(request.Handle); blessee == nil {
+	if blessee = c.blessingsStore.Get(request.Handle); blessee == nil {
 		return nil, verror2.Make(invalidPublicHandle, nil)
 	}
 
