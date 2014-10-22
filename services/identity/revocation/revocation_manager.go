@@ -25,7 +25,7 @@ var revocationLock sync.RWMutex
 
 // NewCaveat returns a security.ThirdPartyCaveat for which discharges will be
 // issued iff Revoke has not been called for the returned caveat.
-func (r *RevocationManager) NewCaveat(dischargerID security.PublicID, dischargerLocation string) (security.ThirdPartyCaveat, error) {
+func (r *RevocationManager) NewCaveat(discharger security.PublicKey, dischargerLocation string) (security.ThirdPartyCaveat, error) {
 	var revocation [16]byte
 	if _, err := rand.Read(revocation[:]); err != nil {
 		return nil, err
@@ -34,7 +34,7 @@ func (r *RevocationManager) NewCaveat(dischargerID security.PublicID, discharger
 	if err != nil {
 		return nil, err
 	}
-	cav, err := security.NewPublicKeyCaveat(dischargerID.PublicKey(), dischargerLocation, security.ThirdPartyRequirements{}, restriction)
+	cav, err := security.NewPublicKeyCaveat(discharger, dischargerLocation, security.ThirdPartyRequirements{}, restriction)
 	if err != nil {
 		return nil, err
 	}

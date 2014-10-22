@@ -57,9 +57,9 @@ main() {
   cat >want <<EOF
 Public key : XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX
 ---------------- BlessingStore ----------------
-Default blessings: alice(0 caveats)
+Default blessings: alice
 Peer pattern                   : Blessings
-...                            : alice(0 caveats)
+...                            : alice
 ---------------- BlessingRoots ----------------
 Public key                                      : Pattern
 XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX : [alice/...]
@@ -70,7 +70,7 @@ EOF
 
   dumpblessings alice.blessself >got || shell_test::fail "line ${LINENO}: dumpblessings failed"
   cat >want <<EOF
-Blessings          : alicereborn(0 caveats)
+Blessings          : alicereborn
 PublicKey          : XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX
 Certificate chains : 1
 Chain #0 (1 certificates). Root certificate public key: XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX
@@ -82,7 +82,7 @@ EOF
 
   dumpblessings bob.store.default >got || shell_test::fail "line ${LINENO}: dumpblessings failed"
   cat >want <<EOF
-Blessings          : alice/friend(1 caveats)
+Blessings          : alice/friend
 PublicKey          : XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX
 Certificate chains : 1
 Chain #0 (2 certificates). Root certificate public key: XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX
@@ -96,7 +96,7 @@ EOF
 
   dumpblessings bob.store.forpeer >got || shell_test::fail "line ${LINENO}: dumpblessings failed"
   cat >want <<EOF
-Blessings          : bob(0 caveats)#alice/friend(1 caveats)
+Blessings          : bob#alice/friend
 PublicKey          : XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX
 Certificate chains : 2
 Chain #0 (1 certificates). Root certificate public key: XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX

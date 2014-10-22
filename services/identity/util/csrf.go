@@ -19,6 +19,8 @@ const (
 	keyLength = 16
 )
 
+// CSRFCop implements utilities for generating and validating tokens for
+// cross-site-request-forgery prevention (also called XSRF).
 type CSRFCop struct {
 	key []byte
 }

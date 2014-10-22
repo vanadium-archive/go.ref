@@ -510,7 +510,7 @@ func TestGranter(t *testing.T) {
 		blessing, starterr, finisherr string
 	}{
 		{blessing: "<nil>"},
-		{granter: granter{b: bless(pclient, pserver, "blessed")}, blessing: "client/blessed(0 caveats)"},
+		{granter: granter{b: bless(pclient, pserver, "blessed")}, blessing: "client/blessed"},
 		{granter: granter{err: errors.New("hell no")}, starterr: "hell no"},
 		{granter: granter{b: pclient.BlessingStore().Default()}, finisherr: "blessing granted not bound to this server"},
 	}

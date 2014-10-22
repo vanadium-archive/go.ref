@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	"fmt"
 	"net/http"
 
 	"veyron.io/veyron/veyron/services/identity/util"
@@ -10,15 +9,15 @@ import (
 
 // PublicKey is an http.Handler implementation that renders a public key in
 // DER format.
-type PublicKey struct{ P security.PublicID }
+type PublicKey struct{ K security.PublicKey }
 
 func (h PublicKey) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	der, err := h.P.PublicKey().MarshalBinary()
+	der, err := h.K.MarshalBinary()
 	if err != nil {
 		util.HTTPServerError(w, err)
 		return
 	}
 	w.Header().Set("Content-Type", "application/octet-stream")
-	w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=%v.der", h.P))
+	w.Header().Set("Content-Disposition", "attachment; filename=publickey.der")
 	w.Write(der)
 }

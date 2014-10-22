@@ -7,6 +7,10 @@ import (
 	"veyron.io/veyron/veyron2/vom"
 )
 
+// TODO(ashankar): Once the old security model is ripped out, the only use of
+// these functions will be in the "principal" command-line tool. So, move these
+// helper functions there instead of having them here.
+
 // Bas64VomEncode returns the base64 encoding of the serialization of i with
 // vom.
 func Base64VomEncode(i interface{}) (string, error) {

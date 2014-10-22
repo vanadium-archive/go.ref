@@ -8,20 +8,6 @@ import (
 	"veyron.io/veyron/veyron2/vlog"
 )
 
-// HTTPSend encodes obj using VOM and writes it out to the response in base64
-// encoding.
-func HTTPSend(w http.ResponseWriter, obj interface{}) {
-	b64, err := Base64VomEncode(obj)
-	if err != nil {
-		HTTPServerError(w, err)
-		return
-	}
-	w.Header().Set("Content-Type", "text/plain")
-	w.Header().Set("Access-Control-Allow-Origin", "*")
-	w.Write([]byte(b64))
-	vlog.Infof("Sending %T=%v", obj, obj)
-}
-
 // HTTPBadRequest sends an HTTP 400 error on 'w' and renders a pretty page.
 // If err is not nil, it also renders the string representation of err in the response page.
 func HTTPBadRequest(w http.ResponseWriter, req *http.Request, err error) {

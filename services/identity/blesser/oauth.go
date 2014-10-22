@@ -20,7 +20,7 @@ import (
 type googleOAuth struct {
 	rt                 veyron2.Runtime
 	authcodeClient     struct{ ID, Secret string }
-	accessTokenClients []struct{ ID string }
+	accessTokenClients []string
 	duration           time.Duration
 	domain             string
 	dischargerLocation string
@@ -29,20 +29,18 @@ type googleOAuth struct {
 
 // GoogleParams represents all the parameters provided to NewGoogleOAuthBlesserServer
 type GoogleParams struct {
-	// The Veyron runtime to use
+	// The Veyron runtime to use. // TODO(ashankar): Remove once the old security model is ripped out.
 	R veyron2.Runtime
 	// The OAuth client IDs for the clients of the BlessUsingAccessToken RPCs.
-	AccessTokenClients []struct {
-		ID string
-	}
-	// The duration for which blessings will be valid.
-	BlessingDuration time.Duration
+	AccessTokenClients []string
 	// If non-empty, only email addresses from this domain will be blessed.
 	DomainRestriction string
 	// The object name of the discharger service. If this is empty then revocation caveats will not be granted.
 	DischargerLocation string
 	// The revocation manager that generates caveats and manages revocation.
 	RevocationManager *revocation.RevocationManager
+	// The duration for which blessings will be valid. (Used iff RevocationManager is nil).
+	BlessingDuration time.Duration
 }
 
 // NewGoogleOAuthBlesserServer provides an identity.OAuthBlesserService that uses authorization
@@ -92,7 +90,7 @@ func (b *googleOAuth) BlessUsingAccessToken(ctx ipc.ServerContext, accesstoken s
 	}
 	audienceMatch := false
 	for _, c := range b.accessTokenClients {
-		if token.Audience == c.ID {
+		if token.Audience == c {
 			audienceMatch = true
 			break
 		}
@@ -104,35 +102,40 @@ func (b *googleOAuth) BlessUsingAccessToken(ctx ipc.ServerContext, accesstoken s
 	if !token.VerifiedEmail {
 		return nil, "", fmt.Errorf("email not verified")
 	}
+
 	if ctx.LocalPrincipal() == nil || ctx.RemoteBlessings() == nil {
 		// TODO(ataly, ashankar): Old security model, remove this block.
 		return b.blessOldModel(ctx, token.Email)
 	}
-	return b.bless(ctx, token.Email)
+	// Append "/webapp" to the blessing. Since blessings issued by this process do not have
+	// many caveats on them and typically have a large expiry duration, use the "/webapp" suffix
+	// so that at least any logs call out the fact that this is a webapp (and ACLs can be used
+	// to kill authorization for them).
+	return b.bless(ctx, token.Email+security.ChainSeparator+"webapp")
 }
 
-func (b *googleOAuth) bless(ctx ipc.ServerContext, email string) (vdlutil.Any, string, error) {
+func (b *googleOAuth) bless(ctx ipc.ServerContext, extension string) (security.WireBlessings, string, error) {
+	var noblessings security.WireBlessings
+	self := ctx.LocalPrincipal()
 	var caveat security.Caveat
 	var err error
 	if b.revocationManager != nil {
-		// TODO(ataly, ashankar): Update the RevocationManager so that it uses the
-		// new security model.
-		revocationCaveat, err := b.revocationManager.NewCaveat(b.rt.Identity().PublicID(), b.dischargerLocation)
+		revocationCaveat, err := b.revocationManager.NewCaveat(self.PublicKey(), b.dischargerLocation)
 		if err != nil {
-			return nil, "", err
+			return noblessings, "", err
 		}
 		caveat, err = security.NewCaveat(revocationCaveat)
 	} else {
 		caveat, err = security.ExpiryCaveat(time.Now().Add(b.duration))
 	}
 	if err != nil {
-		return nil, "", err
+		return noblessings, "", err
 	}
-	blessing, err := ctx.LocalPrincipal().Bless(ctx.RemoteBlessings().PublicKey(), ctx.LocalBlessings(), email, caveat)
+	blessing, err := self.Bless(ctx.RemoteBlessings().PublicKey(), ctx.LocalBlessings(), extension, caveat)
 	if err != nil {
-		return nil, "", err
+		return noblessings, "", err
 	}
-	return security.MarshalBlessings(blessing), email, nil
+	return security.MarshalBlessings(blessing), extension, nil
 }
 
 // DEPRECATED
@@ -147,14 +150,7 @@ func (b *googleOAuth) blessOldModel(ctx ipc.ServerContext, name string) (vdlutil
 	if self, err = self.Derive(ctx.LocalID()); err != nil {
 		return nil, "", err
 	}
-	var revocationCaveat security.ThirdPartyCaveat
-	if b.revocationManager != nil {
-		revocationCaveat, err = b.revocationManager.NewCaveat(b.rt.Identity().PublicID(), b.dischargerLocation)
-		if err != nil {
-			return nil, "", err
-		}
-	}
-	blessing, err := revocation.Bless(self, ctx.RemoteID(), name, b.duration, nil, revocationCaveat)
+	blessing, err := self.Bless(ctx.RemoteID(), name, b.duration, nil)
 	if err != nil {
 		return nil, "", err
 	}

@@ -1,6 +1,6 @@
 // Package googleoauth implements an http.Handler that has two main purposes
 // listed below:
-
+//
 // (1) Uses OAuth 2.0 to authenticate with Google and then renders a page that
 //     displays all the blessings that were provided for that Google user.
 //     The client calls the /listblessings route which redirects to listblessingscallback which
@@ -39,7 +39,6 @@ import (
 
 	"code.google.com/p/goauth2/oauth"
 
-	"veyron.io/veyron/veyron/services/identity/auditor"
 	"veyron.io/veyron/veyron/services/identity/blesser"
 	"veyron.io/veyron/veyron/services/identity/revocation"
 	"veyron.io/veyron/veyron/services/identity/util"
@@ -50,8 +49,7 @@ import (
 )
 
 const (
-	clientIDCookie   = "VeyronHTTPIdentityClientID"
-	revocationCookie = "VeyronHTTPIdentityRevocationID"
+	clientIDCookie = "VeyronHTTPIdentityClientID"
 
 	ListBlessingsRoute         = "listblessings"
 	listBlessingsCallbackRoute = "listblessingscallback"
@@ -79,8 +77,8 @@ type HandlerArgs struct {
 	// (auditor.ReadAuditLog).
 	Auditor string
 	// The RevocationManager is used to revoke blessings granted with a revocation caveat.
-	// If this is empty then revocation caveats will not be added to blessings, and instead
-	// Expiry Caveats of duration BlessingDuration will be added.
+	// If nil, then revocation caveats cannot be added to blessings and an expiration caveat
+	// will be used instead.
 	RevocationManager *revocation.RevocationManager
 	// The object name of the discharger service.
 	DischargerLocation string
@@ -89,9 +87,6 @@ type HandlerArgs struct {
 	MacaroonBlessingService string
 	// If non-empty, only email addressses from this domain will be blessed.
 	DomainRestriction string
-	// BlessingDuration is the duration that blessings granted will be valid for
-	// if RevocationManager is nil.
-	BlessingDuration time.Duration
 }
 
 func (a *HandlerArgs) oauthConfig(redirectSuffix string) *oauth.Config {
@@ -176,72 +171,24 @@ func (h *handler) listBlessingsCallback(w http.ResponseWriter, r *http.Request) 
 		util.HTTPBadRequest(w, r, err)
 		return
 	}
-
-	type tmplentry struct {
-		Blessee        security.PublicID
-		Start, End     time.Time
-		Blessed        security.PublicID
-		RevocationTime time.Time
-		Token          string
-	}
-	tmplargs := struct {
-		Log                chan tmplentry
-		Email, RevokeRoute string
-	}{
-		Log:         make(chan tmplentry),
-		Email:       email,
-		RevokeRoute: revokeRoute,
-	}
-	if entrych, err := auditor.ReadAuditLog(h.args.Auditor, email); err != nil {
-		vlog.Errorf("Unable to read audit log: %v", err)
-		util.HTTPServerError(w, fmt.Errorf("unable to read audit log"))
-		return
-	} else {
-		go func(ch chan tmplentry) {
-			defer close(ch)
-			for entry := range entrych {
-				if entry.Method != "Bless" || len(entry.Arguments) < 2 {
-					continue
-				}
-				var tmplentry tmplentry
-				var blessEntry revocation.BlessingAuditEntry
-				blessEntry, err = revocation.ReadBlessAuditEntry(entry)
-				tmplentry.Blessee = blessEntry.Blessee
-				tmplentry.Blessed = blessEntry.Blessed
-				tmplentry.Start = blessEntry.Start
-				tmplentry.End = blessEntry.End
-				if err != nil {
-					vlog.Errorf("Unable to read bless audit entry: %v", err)
-					continue
-				}
-				if blessEntry.RevocationCaveat != nil {
-					if revocationTime := h.args.RevocationManager.GetRevocationTime(blessEntry.RevocationCaveat.ID()); revocationTime != nil {
-						tmplentry.RevocationTime = *revocationTime
-					} else {
-						caveatID := base64.URLEncoding.EncodeToString([]byte(blessEntry.RevocationCaveat.ID()))
-						if tmplentry.Token, err = h.csrfCop.NewToken(w, r, revocationCookie, caveatID); err != nil {
-							vlog.Infof("Failed to create CSRF token[%v] for request %#v", err, r)
-							util.HTTPServerError(w, fmt.Errorf("failed to create new token: %v", err))
-							return
-						}
-					}
-				}
-				ch <- tmplentry
-			}
-		}(tmplargs.Log)
-	}
 	w.Header().Set("Context-Type", "text/html")
 	// This MaybeSetCookie call is needed to ensure that a cookie is created. Since the
 	// header cannot be changed once the body is written to, this needs to be called first.
-	if _, err = h.csrfCop.MaybeSetCookie(w, r, revocationCookie); err != nil {
+	if _, err = h.csrfCop.MaybeSetCookie(w, r, clientIDCookie); err != nil {
 		vlog.Infof("Failed to set CSRF cookie[%v] for request %#v", err, r)
 		util.HTTPServerError(w, err)
 		return
 	}
-	if err := tmplViewBlessings.Execute(w, tmplargs); err != nil {
-		vlog.Errorf("Unable to execute audit page template: %v", err)
-		util.HTTPServerError(w, err)
-	}
+	w.Write([]byte(fmt.Sprintf(`
+<html>
+<head>
+  <title>DISABLED FUNCTIONALITY</title>
+ </head>
+ <body>
+ <h1>Attention %s</h1>
+ <h2>This functionality has been temporarily disabled. ashankar@ and suharshs@ will know more</h2>
+ </body>
+ </html>`, email)))
 }
 
 func (h *handler) revoke(w http.ResponseWriter, r *http.Request) {
@@ -289,7 +236,7 @@ func (h *handler) revoke(w http.ResponseWriter, r *http.Request) {
 
 func (h *handler) validateRevocationToken(Token string, r *http.Request) (string, error) {
 	var encCaveatID string
-	if err := h.csrfCop.ValidateToken(Token, r, revocationCookie, &encCaveatID); err != nil {
+	if err := h.csrfCop.ValidateToken(Token, r, clientIDCookie, &encCaveatID); err != nil {
 		return "", fmt.Errorf("invalid CSRF token: %v in request: %#v", err, r)
 	}
 	caveatID, err := base64.URLEncoding.DecodeString(encCaveatID)
@@ -397,6 +344,10 @@ func (h *handler) sendMacaroon(w http.ResponseWriter, r *http.Request) {
 		util.HTTPBadRequest(w, r, fmt.Errorf("failed to extract caveats: ", err))
 		return
 	}
+	if len(caveats) == 0 {
+		util.HTTPBadRequest(w, r, fmt.Errorf("server disallows attempts to bless with no caveats"))
+		return
+	}
 	buf := &bytes.Buffer{}
 	m := blesser.BlessingMacaroon{
 		Creation: time.Now(),
@@ -426,17 +377,43 @@ func (h *handler) caveats(r *http.Request) ([]security.Caveat, error) {
 		return nil, err
 	}
 	var caveats []security.Caveat
-	var caveat security.Caveat
-	var err error
+	// Fill in the required caveat.
+	switch required := r.FormValue("requiredCaveat"); required {
+	case "Expiry":
+		str := r.FormValue("expiry")
+		d, err := time.ParseDuration(str)
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse expiration duration(%q): %v", str, err)
+		}
+		expiry, err := security.ExpiryCaveat(time.Now().Add(d))
+		if err != nil {
+			return nil, fmt.Errorf("failed to create ExpiryCaveat: %v", err)
+		}
+		caveats = append(caveats, expiry)
+	case "Revocation":
+		if h.args.RevocationManager == nil {
+			return nil, fmt.Errorf("server not configured to support revocation")
+		}
+		tpc, err := h.args.RevocationManager.NewCaveat(h.args.R.Principal().PublicKey(), h.args.DischargerLocation)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create revocation caveat: %v", err)
+		}
+		revocation, err := security.NewCaveat(tpc)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create revocation caveat: %v", err)
+		}
+		caveats = append(caveats, revocation)
+	default:
+		return nil, fmt.Errorf("%q is not a valid required caveat", required)
+	}
+	if len(caveats) != 1 {
+		return nil, fmt.Errorf("server does not allow for un-restricted blessings")
+	}
 
-	userProvidedExpiryCaveat := false
-
+	// And find any additional ones
 	for i, cavName := range r.Form["caveat"] {
 		if cavName == "none" {
 			continue
-		}
-		if cavName == "ExpiryCaveat" {
-			userProvidedExpiryCaveat = true
 		}
 		args := strings.Split(r.Form[cavName][i], ",")
 		cavInfo, ok := caveatMap[cavName]
@@ -449,23 +426,6 @@ func (h *handler) caveats(r *http.Request) ([]security.Caveat, error) {
 		}
 		caveats = append(caveats, caveat)
 	}
-
-	// TODO(suharshs): have a checkbox in the form that says "include revocation caveat".
-	if h.args.RevocationManager != nil {
-		revocationCaveat, err := h.args.RevocationManager.NewCaveat(h.args.R.Identity().PublicID(), h.args.DischargerLocation)
-		if err != nil {
-			return nil, err
-		}
-		caveat, err = security.NewCaveat(revocationCaveat)
-	} else if !userProvidedExpiryCaveat {
-		caveat, err = security.ExpiryCaveat(time.Now().Add(h.args.BlessingDuration))
-	}
-	if err != nil {
-		return nil, err
-	}
-	// revocationCaveat need to be prepended for extraction in ReadBlessAuditEntry.
-	caveats = append([]security.Caveat{caveat}, caveats...)
-
 	return caveats, nil
 }
 

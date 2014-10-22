@@ -12,13 +12,11 @@ import (
 
 // dischargerd issues discharges for all caveats present in the current
 // namespace with no additional caveats iff the caveat is valid.
-type dischargerd struct {
-	id security.PrivateID
-}
+type dischargerd struct{}
 
 // TODO(andreser,ataly): make it easier for third party public key caveats to specify the caveats on their discharges
 
-func (d dischargerd) Discharge(ctx ipc.ServerContext, caveatAny vdlutil.Any, _ security.DischargeImpetus) (vdlutil.Any, error) {
+func (dischargerd) Discharge(ctx ipc.ServerContext, caveatAny vdlutil.Any, _ security.DischargeImpetus) (vdlutil.Any, error) {
 	caveat, ok := caveatAny.(security.ThirdPartyCaveat)
 	if !ok {
 		return nil, fmt.Errorf("type %T does not implement security.ThirdPartyCaveat", caveatAny)
@@ -26,10 +24,15 @@ func (d dischargerd) Discharge(ctx ipc.ServerContext, caveatAny vdlutil.Any, _ s
 	if err := caveat.Dischargeable(ctx); err != nil {
 		return nil, fmt.Errorf("third-party caveat %v cannot be discharged for this context: %v", caveat, err)
 	}
-	return d.id.MintDischarge(caveat, ctx, time.Minute, nil)
+	expiry, err := security.ExpiryCaveat(time.Now().Add(time.Minute))
+	if err != nil {
+		return nil, fmt.Errorf("unable to create expiration caveat on the discharge: %v", err)
+	}
+	return ctx.LocalPrincipal().MintDischarge(caveat, expiry)
 }
 
-// NewDischarger returns a discharger service implementation that grants discharges using id.MintDischarge.
-func NewDischarger(id security.PrivateID) services.DischargerService {
-	return dischargerd{id}
+// NewDischarger returns a discharger service implementation that grants discharges using the MintDischarge
+// on the principal receiving the RPC.
+func NewDischarger() services.DischargerService {
+	return dischargerd{}
 }
