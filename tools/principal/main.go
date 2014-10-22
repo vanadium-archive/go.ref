@@ -83,18 +83,23 @@ this tool. - is used for STDIN.
 			wire := security.MarshalBlessings(blessings)
 			fmt.Printf("Blessings          : %v\n", blessings)
 			fmt.Printf("PublicKey          : %v\n", blessings.PublicKey())
-			fmt.Printf("Certificates       : %d chains with (#certificates, #caveats) = ", len(wire.CertificateChains))
+			fmt.Printf("Certificate chains : %d\n", len(wire.CertificateChains))
 			for idx, chain := range wire.CertificateChains {
-				ncaveats := 0
-				for _, cert := range chain {
-					ncaveats += len(cert.Caveats)
+				fmt.Printf("Chain #%d (%d certificates). Root certificate public key: %v\n", idx, len(chain), rootkey(chain))
+				for certidx, cert := range chain {
+					fmt.Printf("  Certificate #%d: %v with ", certidx, cert.Extension)
+					switch n := len(cert.Caveats); n {
+					case 1:
+						fmt.Printf("1 caveat")
+					default:
+						fmt.Printf("%d caveats", n)
+					}
+					fmt.Println("")
+					for cavidx, cav := range cert.Caveats {
+						fmt.Printf("    (%d) %v\n", cavidx, &cav)
+					}
 				}
-				if idx > 0 {
-					fmt.Printf(" + ")
-				}
-				fmt.Printf("(%d, %d)", len(chain), ncaveats)
 			}
-			fmt.Println("")
 			return nil
 		},
 	}
@@ -573,4 +578,15 @@ func defaultBlessingName() string {
 		name = name + "@" + host
 	}
 	return name
+}
+
+func rootkey(chain []security.Certificate) string {
+	if len(chain) == 0 {
+		return "<empty certificate chain>"
+	}
+	key, err := security.UnmarshalPublicKey(chain[0].PublicKey)
+	if err != nil {
+		return fmt.Sprintf("<invalid PublicKey: %v>", err)
+	}
+	return fmt.Sprintf("%v", key)
 }

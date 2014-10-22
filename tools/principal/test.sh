@@ -21,8 +21,12 @@ rmpublickey() {
     sed -e "s/\([0-9a-f]\{2\}:\)\{15\}[0-9a-f]\{2\}/XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX/g"
 }
 
+rmcaveats() {
+    sed -e "s/security.unixTimeExpiryCaveat([^)]*)/security.unixTimeExpiryCaveat/"
+}
+
 dumpblessings() {
-    ./principal dumpblessings "$1" | rmpublickey
+    ./principal dumpblessings "$1" | rmpublickey | rmcaveats
 }
 
 main() {
@@ -68,7 +72,9 @@ EOF
   cat >want <<EOF
 Blessings          : alicereborn(0 caveats)
 PublicKey          : XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX
-Certificates       : 1 chains with (#certificates, #caveats) = (1, 0)
+Certificate chains : 1
+Chain #0 (1 certificates). Root certificate public key: XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX
+  Certificate #0: alicereborn with 0 caveats
 EOF
   if ! diff got want; then
   	shell_test::fail "line ${LINENO}"
@@ -78,7 +84,11 @@ EOF
   cat >want <<EOF
 Blessings          : alice/friend(1 caveats)
 PublicKey          : XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX
-Certificates       : 1 chains with (#certificates, #caveats) = (2, 1)
+Certificate chains : 1
+Chain #0 (2 certificates). Root certificate public key: XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX
+  Certificate #0: alice with 0 caveats
+  Certificate #1: friend with 1 caveat
+    (0) security.unixTimeExpiryCaveat
 EOF
   if ! diff got want; then
 	shell_test::fail "line ${LINENO}"
@@ -88,7 +98,13 @@ EOF
   cat >want <<EOF
 Blessings          : bob(0 caveats)#alice/friend(1 caveats)
 PublicKey          : XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX
-Certificates       : 2 chains with (#certificates, #caveats) = (1, 0) + (2, 1)
+Certificate chains : 2
+Chain #0 (1 certificates). Root certificate public key: XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX
+  Certificate #0: bob with 0 caveats
+Chain #1 (2 certificates). Root certificate public key: XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX
+  Certificate #0: alice with 0 caveats
+  Certificate #1: friend with 1 caveat
+    (0) security.unixTimeExpiryCaveat
 EOF
   if ! diff got want; then
 	shell_test::fail "line ${LINENO}"
