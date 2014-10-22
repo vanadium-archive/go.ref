@@ -8,8 +8,8 @@ import (
 	"sync"
 	"syscall"
 
-	"veyron.io/examples/tunnel"
-	"veyron.io/examples/tunnel/tunnelutil"
+	"veyron.io/apps/tunnel"
+	"veyron.io/apps/tunnel/tunnelutil"
 	"veyron.io/veyron/veyron2/vlog"
 )
 

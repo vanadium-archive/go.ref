@@ -17,8 +17,8 @@ readonly WORKDIR=$(shell::tmp_dir)
 set +e
 
 build() {
-  veyron go build veyron.io/examples/tunnel/tunneld || shell_test::fail "line ${LINENO}: failed to build tunneld"
-  veyron go build veyron.io/examples/tunnel/vsh || shell_test::fail "line ${LINENO}: failed to build vsh"
+  veyron go build veyron.io/apps/tunnel/tunneld || shell_test::fail "line ${LINENO}: failed to build tunneld"
+  veyron go build veyron.io/apps/tunnel/vsh || shell_test::fail "line ${LINENO}: failed to build vsh"
   veyron go build veyron.io/veyron/veyron/services/mounttable/mounttabled || shell_test::fail "line ${LINENO}: failed to build mounttabled"
   veyron go build veyron.io/veyron/veyron/tools/mounttable || shell_test::fail "line ${LINENO}: failed to build mounttable"
 }

@@ -12,8 +12,8 @@ import (
 	"os/exec"
 	"syscall"
 
-	"veyron.io/examples/tunnel"
-	"veyron.io/examples/tunnel/tunnelutil"
+	"veyron.io/apps/tunnel"
+	"veyron.io/apps/tunnel/tunnelutil"
 	"veyron.io/veyron/veyron2/ipc"
 	"veyron.io/veyron/veyron2/vlog"
 )

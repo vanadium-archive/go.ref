@@ -18,7 +18,7 @@ import (
 	_ "veyron.io/veyron/veyron/profiles/roaming"
 	sflag "veyron.io/veyron/veyron/security/flag"
 
-	"veyron.io/examples/tunnel"
+	"veyron.io/apps/tunnel"
 )
 
 var (

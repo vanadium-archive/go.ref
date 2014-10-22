@@ -10,7 +10,7 @@ import (
 	"os"
 	"time"
 
-	"veyron.io/examples/rps"
+	"veyron.io/apps/rps"
 
 	"veyron.io/veyron/veyron2/context"
 	"veyron.io/veyron/veyron2/rt"

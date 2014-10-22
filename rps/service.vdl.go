@@ -489,29 +489,29 @@ func (__gen_s *ServerStubJudge) Signature(call _gen_ipc.ServerCall) (_gen_ipc.Se
 	}
 
 	result.TypeDefs = []_gen_vdlutil.Any{
-		_gen_wiretype.NamedPrimitiveType{Type: 0x32, Name: "veyron.io/examples/rps.GameTypeTag", Tags: []string(nil)}, _gen_wiretype.StructType{
+		_gen_wiretype.NamedPrimitiveType{Type: 0x32, Name: "veyron.io/apps/rps.GameTypeTag", Tags: []string(nil)}, _gen_wiretype.StructType{
 			[]_gen_wiretype.FieldType{
 				_gen_wiretype.FieldType{Type: 0x24, Name: "NumRounds"},
 				_gen_wiretype.FieldType{Type: 0x41, Name: "GameType"},
 			},
-			"veyron.io/examples/rps.GameOptions", []string(nil)},
+			"veyron.io/apps/rps.GameOptions", []string(nil)},
 		_gen_wiretype.StructType{
 			[]_gen_wiretype.FieldType{
 				_gen_wiretype.FieldType{Type: 0x3, Name: "ID"},
 			},
-			"veyron.io/examples/rps.GameID", []string(nil)},
+			"veyron.io/apps/rps.GameID", []string(nil)},
 		_gen_wiretype.NamedPrimitiveType{Type: 0x1, Name: "error", Tags: []string(nil)}, _gen_wiretype.StructType{
 			[]_gen_wiretype.FieldType{
 				_gen_wiretype.FieldType{Type: 0x2, Name: "YouWon"},
 			},
-			"veyron.io/examples/rps.PlayResult", []string(nil)},
+			"veyron.io/apps/rps.PlayResult", []string(nil)},
 		_gen_wiretype.StructType{
 			[]_gen_wiretype.FieldType{
 				_gen_wiretype.FieldType{Type: 0x3, Name: "Move"},
 				_gen_wiretype.FieldType{Type: 0x2, Name: "Quit"},
 			},
-			"veyron.io/examples/rps.PlayerAction", []string(nil)},
-		_gen_wiretype.ArrayType{Elem: 0x3, Len: 0x2, Name: "", Tags: []string(nil)}, _gen_wiretype.NamedPrimitiveType{Type: 0x32, Name: "veyron.io/examples/rps.WinnerTag", Tags: []string(nil)}, _gen_wiretype.StructType{
+			"veyron.io/apps/rps.PlayerAction", []string(nil)},
+		_gen_wiretype.ArrayType{Elem: 0x3, Len: 0x2, Name: "", Tags: []string(nil)}, _gen_wiretype.NamedPrimitiveType{Type: 0x32, Name: "veyron.io/apps/rps.WinnerTag", Tags: []string(nil)}, _gen_wiretype.StructType{
 			[]_gen_wiretype.FieldType{
 				_gen_wiretype.FieldType{Type: 0x47, Name: "Moves"},
 				_gen_wiretype.FieldType{Type: 0x3, Name: "Comment"},
@@ -519,7 +519,7 @@ func (__gen_s *ServerStubJudge) Signature(call _gen_ipc.ServerCall) (_gen_ipc.Se
 				_gen_wiretype.FieldType{Type: 0x25, Name: "StartTimeNS"},
 				_gen_wiretype.FieldType{Type: 0x25, Name: "EndTimeNS"},
 			},
-			"veyron.io/examples/rps.Round", []string(nil)},
+			"veyron.io/apps/rps.Round", []string(nil)},
 		_gen_wiretype.SliceType{Elem: 0x49, Name: "", Tags: []string(nil)}, _gen_wiretype.StructType{
 			[]_gen_wiretype.FieldType{
 				_gen_wiretype.FieldType{Type: 0x42, Name: "Opts"},
@@ -530,7 +530,7 @@ func (__gen_s *ServerStubJudge) Signature(call _gen_ipc.ServerCall) (_gen_ipc.Se
 				_gen_wiretype.FieldType{Type: 0x25, Name: "EndTimeNS"},
 				_gen_wiretype.FieldType{Type: 0x48, Name: "Winner"},
 			},
-			"veyron.io/examples/rps.ScoreCard", []string(nil)},
+			"veyron.io/apps/rps.ScoreCard", []string(nil)},
 		_gen_wiretype.StructType{
 			[]_gen_wiretype.FieldType{
 				_gen_wiretype.FieldType{Type: 0x24, Name: "PlayerNum"},
@@ -539,7 +539,7 @@ func (__gen_s *ServerStubJudge) Signature(call _gen_ipc.ServerCall) (_gen_ipc.Se
 				_gen_wiretype.FieldType{Type: 0x49, Name: "RoundResult"},
 				_gen_wiretype.FieldType{Type: 0x4b, Name: "Score"},
 			},
-			"veyron.io/examples/rps.JudgeAction", []string(nil)},
+			"veyron.io/apps/rps.JudgeAction", []string(nil)},
 	}
 
 	return result, nil
@@ -724,13 +724,13 @@ func (__gen_s *ServerStubPlayer) Signature(call _gen_ipc.ServerCall) (_gen_ipc.S
 			[]_gen_wiretype.FieldType{
 				_gen_wiretype.FieldType{Type: 0x3, Name: "ID"},
 			},
-			"veyron.io/examples/rps.GameID", []string(nil)},
-		_gen_wiretype.NamedPrimitiveType{Type: 0x32, Name: "veyron.io/examples/rps.GameTypeTag", Tags: []string(nil)}, _gen_wiretype.StructType{
+			"veyron.io/apps/rps.GameID", []string(nil)},
+		_gen_wiretype.NamedPrimitiveType{Type: 0x32, Name: "veyron.io/apps/rps.GameTypeTag", Tags: []string(nil)}, _gen_wiretype.StructType{
 			[]_gen_wiretype.FieldType{
 				_gen_wiretype.FieldType{Type: 0x24, Name: "NumRounds"},
 				_gen_wiretype.FieldType{Type: 0x42, Name: "GameType"},
 			},
-			"veyron.io/examples/rps.GameOptions", []string(nil)},
+			"veyron.io/apps/rps.GameOptions", []string(nil)},
 		_gen_wiretype.NamedPrimitiveType{Type: 0x1, Name: "error", Tags: []string(nil)}}
 
 	return result, nil
@@ -898,13 +898,13 @@ func (__gen_s *ServerStubScoreKeeper) Signature(call _gen_ipc.ServerCall) (_gen_
 	}
 
 	result.TypeDefs = []_gen_vdlutil.Any{
-		_gen_wiretype.NamedPrimitiveType{Type: 0x32, Name: "veyron.io/examples/rps.GameTypeTag", Tags: []string(nil)}, _gen_wiretype.StructType{
+		_gen_wiretype.NamedPrimitiveType{Type: 0x32, Name: "veyron.io/apps/rps.GameTypeTag", Tags: []string(nil)}, _gen_wiretype.StructType{
 			[]_gen_wiretype.FieldType{
 				_gen_wiretype.FieldType{Type: 0x24, Name: "NumRounds"},
 				_gen_wiretype.FieldType{Type: 0x41, Name: "GameType"},
 			},
-			"veyron.io/examples/rps.GameOptions", []string(nil)},
-		_gen_wiretype.ArrayType{Elem: 0x3, Len: 0x2, Name: "", Tags: []string(nil)}, _gen_wiretype.NamedPrimitiveType{Type: 0x32, Name: "veyron.io/examples/rps.WinnerTag", Tags: []string(nil)}, _gen_wiretype.StructType{
+			"veyron.io/apps/rps.GameOptions", []string(nil)},
+		_gen_wiretype.ArrayType{Elem: 0x3, Len: 0x2, Name: "", Tags: []string(nil)}, _gen_wiretype.NamedPrimitiveType{Type: 0x32, Name: "veyron.io/apps/rps.WinnerTag", Tags: []string(nil)}, _gen_wiretype.StructType{
 			[]_gen_wiretype.FieldType{
 				_gen_wiretype.FieldType{Type: 0x43, Name: "Moves"},
 				_gen_wiretype.FieldType{Type: 0x3, Name: "Comment"},
@@ -912,7 +912,7 @@ func (__gen_s *ServerStubScoreKeeper) Signature(call _gen_ipc.ServerCall) (_gen_
 				_gen_wiretype.FieldType{Type: 0x25, Name: "StartTimeNS"},
 				_gen_wiretype.FieldType{Type: 0x25, Name: "EndTimeNS"},
 			},
-			"veyron.io/examples/rps.Round", []string(nil)},
+			"veyron.io/apps/rps.Round", []string(nil)},
 		_gen_wiretype.SliceType{Elem: 0x45, Name: "", Tags: []string(nil)}, _gen_wiretype.StructType{
 			[]_gen_wiretype.FieldType{
 				_gen_wiretype.FieldType{Type: 0x42, Name: "Opts"},
@@ -923,7 +923,7 @@ func (__gen_s *ServerStubScoreKeeper) Signature(call _gen_ipc.ServerCall) (_gen_
 				_gen_wiretype.FieldType{Type: 0x25, Name: "EndTimeNS"},
 				_gen_wiretype.FieldType{Type: 0x44, Name: "Winner"},
 			},
-			"veyron.io/examples/rps.ScoreCard", []string(nil)},
+			"veyron.io/apps/rps.ScoreCard", []string(nil)},
 		_gen_wiretype.NamedPrimitiveType{Type: 0x1, Name: "error", Tags: []string(nil)}}
 
 	return result, nil

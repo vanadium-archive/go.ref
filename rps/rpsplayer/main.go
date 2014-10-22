@@ -20,8 +20,8 @@ import (
 	_ "veyron.io/veyron/veyron/profiles"
 	sflag "veyron.io/veyron/veyron/security/flag"
 
-	"veyron.io/examples/rps"
-	"veyron.io/examples/rps/common"
+	"veyron.io/apps/rps"
+	"veyron.io/apps/rps/common"
 )
 
 var (

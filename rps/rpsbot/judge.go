@@ -7,8 +7,8 @@ import (
 	"sync"
 	"time"
 
-	"veyron.io/examples/rps"
-	"veyron.io/examples/rps/common"
+	"veyron.io/apps/rps"
+	"veyron.io/apps/rps/common"
 	"veyron.io/veyron/veyron/lib/stats"
 	"veyron.io/veyron/veyron/lib/stats/counter"
 	"veyron.io/veyron/veyron2/context"

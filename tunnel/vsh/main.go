@@ -10,7 +10,6 @@ import (
 	"os"
 	"path"
 	"strings"
-	"time"
 
 	"veyron.io/veyron/veyron2/context"
 	"veyron.io/veyron/veyron2/rt"
@@ -18,8 +17,8 @@ import (
 
 	_ "veyron.io/veyron/veyron/profiles/roaming"
 
-	"veyron.io/examples/tunnel"
-	"veyron.io/examples/tunnel/tunnelutil"
+	"veyron.io/apps/tunnel"
+	"veyron.io/apps/tunnel/tunnelutil"
 	"veyron.io/veyron/veyron/lib/signals"
 )
 
@@ -89,7 +88,7 @@ func realMain() int {
 		vlog.Fatalf("BindTunnel(%q) failed: %v", oname, err)
 	}
 
-	ctx, _ := rt.R().NewContext().WithTimeout(24 * time.Hour)
+	ctx := rt.R().NewContext()
 
 	if len(*portforward) > 0 {
 		go runPortForwarding(ctx, t, oname)

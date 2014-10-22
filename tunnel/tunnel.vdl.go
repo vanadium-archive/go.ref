@@ -680,7 +680,7 @@ func (__gen_s *ServerStubTunnel) Signature(call _gen_ipc.ServerCall) (_gen_ipc.S
 				_gen_wiretype.FieldType{Type: 0x34, Name: "Rows"},
 				_gen_wiretype.FieldType{Type: 0x34, Name: "Cols"},
 			},
-			"veyron.io/examples/tunnel.ShellOpts", []string(nil)},
+			"veyron.io/apps/tunnel.ShellOpts", []string(nil)},
 		_gen_wiretype.StructType{
 			[]_gen_wiretype.FieldType{
 				_gen_wiretype.FieldType{Type: 0x43, Name: "Stdin"},
@@ -688,13 +688,13 @@ func (__gen_s *ServerStubTunnel) Signature(call _gen_ipc.ServerCall) (_gen_ipc.S
 				_gen_wiretype.FieldType{Type: 0x34, Name: "Rows"},
 				_gen_wiretype.FieldType{Type: 0x34, Name: "Cols"},
 			},
-			"veyron.io/examples/tunnel.ClientShellPacket", []string(nil)},
+			"veyron.io/apps/tunnel.ClientShellPacket", []string(nil)},
 		_gen_wiretype.StructType{
 			[]_gen_wiretype.FieldType{
 				_gen_wiretype.FieldType{Type: 0x43, Name: "Stdout"},
 				_gen_wiretype.FieldType{Type: 0x43, Name: "Stderr"},
 			},
-			"veyron.io/examples/tunnel.ServerShellPacket", []string(nil)},
+			"veyron.io/apps/tunnel.ServerShellPacket", []string(nil)},
 	}
 
 	return result, nil

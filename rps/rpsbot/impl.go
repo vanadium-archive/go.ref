@@ -3,7 +3,7 @@ package main
 import (
 	"errors"
 
-	"veyron.io/examples/rps"
+	"veyron.io/apps/rps"
 	"veyron.io/veyron/veyron2"
 	"veyron.io/veyron/veyron2/ipc"
 	"veyron.io/veyron/veyron2/vlog"
