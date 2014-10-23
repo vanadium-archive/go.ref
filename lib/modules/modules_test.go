@@ -5,7 +5,6 @@ import (
 	"bytes"
 	"fmt"
 	"io"
-	"net/url"
 	"os"
 	"strings"
 	"testing"
@@ -35,7 +34,7 @@ func Echo(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args
 func PrintFromEnv(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
 	for _, a := range args[1:] {
 		if v := env[a]; len(v) > 0 {
-			fmt.Fprintf(stdout, a+"="+v+"\n")
+			fmt.Fprintf(stdout, "%s\n", a+"="+v)
 		} else {
 			fmt.Fprintf(stderr, "missing %s\n", a)
 		}
@@ -52,7 +51,7 @@ func PrintEnv(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, 
 		fmt.Fprintf(stdout, "%s%s\n", printEnvArgPrefix, a)
 	}
 	for k, v := range env {
-		fmt.Fprintf(stdout, "%s\n", url.QueryEscape(k+"="+v))
+		fmt.Fprintf(stdout, "%q\n", k+"="+v)
 	}
 	return nil
 }
@@ -227,14 +226,13 @@ func TestEnvelope(t *testing.T) {
 		if strings.HasPrefix(o, printEnvArgPrefix) {
 			childArgs = append(childArgs, strings.TrimPrefix(o, printEnvArgPrefix))
 		} else {
-			o, err := url.QueryUnescape(o)
-			if err != nil {
-				t.Fatalf("unexpected error: %s", err)
-			}
 			childEnv = append(childEnv, o)
 		}
 	}
 	shArgs, shEnv := sh.CommandEnvelope("printenv", nil, args...)
+	for i, ev := range shEnv {
+		shEnv[i] = fmt.Sprintf("%q", ev)
+	}
 	for _, want := range args {
 		if !find(want, childArgs) {
 			t.Errorf("failed to find %q in %s", want, childArgs)
@@ -246,15 +244,15 @@ func TestEnvelope(t *testing.T) {
 
 	for _, want := range shEnv {
 		if !find(want, childEnv) {
-			t.Errorf("failed to find %q in %#v", want, childEnv)
+			t.Errorf("failed to find %s in %#v", want, childEnv)
 		}
 	}
 	for _, want := range childEnv {
-		if want == exec.VersionVariable+"=" {
+		if want == "\""+exec.VersionVariable+"=\"" {
 			continue
 		}
 		if !find(want, shEnv) {
-			t.Errorf("failed to find %q in %#v", want, shEnv)
+			t.Errorf("failed to find %s in %#v", want, shEnv)
 		}
 	}
 }
