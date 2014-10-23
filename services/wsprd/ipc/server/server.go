@@ -36,9 +36,10 @@ type serverRPCRequest struct {
 
 // call context for a serverRPCRequest
 type serverRPCRequestContext struct {
-	Suffix          string
-	Name            string
-	RemoteBlessings principal.BlessingsHandle
+	Suffix                string
+	Name                  string
+	RemoteBlessings       principal.BlessingsHandle
+	RemoteBlessingStrings []string
 
 	// TODO(ataly, ashankar, bjornick): Remove this field once the old security model is killed.
 	RemoteID identity.PublicIDHandle
@@ -174,6 +175,7 @@ func (s *Server) createRemoteInvokerFunc(handle int64) remoteInvokeFunc {
 			context.RemoteID = s.convertPublicIDToHandle(call.RemoteID())
 		} else {
 			context.RemoteBlessings = s.convertBlessingsToHandle(call.RemoteBlessings())
+			context.RemoteBlessingStrings = call.RemoteBlessings().ForContext(call)
 		}
 
 		// Send a invocation request to JavaScript

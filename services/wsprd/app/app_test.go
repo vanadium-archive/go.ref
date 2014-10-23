@@ -745,7 +745,8 @@ func runJsServerTestCase(t *testing.T, test jsServerTestCase) {
 					"Handle":    expectedBlessingsHandle,
 					"PublicKey": publicKey,
 				},
-				"RemoteID": emptyPublicIDHandleMsg,
+				"RemoteBlessingStrings": []interface{}{testPrincipalBlessing},
+				"RemoteID":              emptyPublicIDHandleMsg,
 			},
 		},
 	})
