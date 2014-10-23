@@ -58,9 +58,13 @@ func main() {
 		go startHealthzServer(*healthzAddr)
 	}
 
-	http.Handle("/", proxy)
-	if err = http.ListenAndServe(*httpAddr, nil); err != nil {
-		vlog.Fatal(err)
+	if len(*httpAddr) == 0 {
+		select {}
+	} else {
+		http.Handle("/", proxy)
+		if err = http.ListenAndServe(*httpAddr, nil); err != nil {
+			vlog.Fatal(err)
+		}
 	}
 }
 

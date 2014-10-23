@@ -1,4 +1,6 @@
-# Running the playground compile server locally
+# Building a Docker image and running the playground server locally
+
+## Docker setup
 
 Install Docker:
 
@@ -22,6 +24,12 @@ Build the playground Docker image (this will take a while...):
 
 Note: If you want to ensure an up-to-date version of veyron is installed in the
 Docker image, run the above command with the "--no-cache" flag.
+
+Test your image (without running compilerd):
+
+    $ sudo docker run -i playground < /usr/local/google/home/sadovsky/dev/veyron-www/content/playgrounds/code/fortune/ex0-go/bundle.json
+
+## Running the playground server (compilerd)
 
 Install the playground binaries:
 

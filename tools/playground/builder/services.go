@@ -1,14 +1,5 @@
 // Functions to start services needed by the Veyron playground.
-
-// NOTE(nlacasse): We use log.Panic() instead of log.Fatal() everywhere in this
-// file.  We do this because log.Panic calls panic(), which allows any deferred
-// function to run.  In particular, this will cause the mounttable and proxy
-// processes to be killed in the event of a compilation error.  log.Fatal, on
-// the other hand, calls os.Exit(1), which does not call deferred functions,
-// and will leave proxy and mounttable processes running.  This is not a big
-// deal for production environment, because the Docker instance gets cleaned up
-// after each run, but during development and testing these extra processes can
-// cause issues.
+// These should never trigger program exit.
 
 package main
 
@@ -16,7 +7,6 @@ import (
 	"bufio"
 	"fmt"
 	"io"
-	"log"
 	"math/rand"
 	"os"
 	"os/exec"
@@ -58,7 +48,7 @@ func findUnusedPort() (int, error) {
 // variable to the mounttable's location.  We run one mounttabled process for
 // the entire environment.
 func startMount(timeLimit time.Duration) (proc *os.Process, err error) {
-	cmd := makeCmdJsonEvent("", "mounttabled", "--veyron.tcp.address=127.0.0.1:0")
+	cmd := makeCmd("", true, "mounttabled", "--veyron.tcp.address=127.0.0.1:0")
 
 	matches, err := startAndWaitFor(cmd, timeLimit, regexp.MustCompile("Mount table .+ endpoint: (.+)\n"))
 	if err != nil {
@@ -66,7 +56,7 @@ func startMount(timeLimit time.Duration) (proc *os.Process, err error) {
 	}
 	endpoint := matches[1]
 	if endpoint == "" {
-		log.Panic("mounttable died")
+		return nil, fmt.Errorf("Failed to get mounttable endpoint")
 	}
 	return cmd.Process, os.Setenv("NAMESPACE_ROOT", endpoint)
 }
@@ -78,7 +68,7 @@ func startProxy() (proc *os.Process, err error) {
 	if err != nil {
 		return nil, err
 	}
-	cmd := makeCmdJsonEvent("", "proxyd", "-name="+proxyName, "-address=127.0.0.1:"+strconv.Itoa(port))
+	cmd := makeCmd("", true, "proxyd", "-name="+proxyName, "-address=127.0.0.1:"+strconv.Itoa(port), "-http=")
 	err = cmd.Start()
 	if err != nil {
 		return nil, err
@@ -88,29 +78,27 @@ func startProxy() (proc *os.Process, err error) {
 
 // startWspr starts a wsprd process. We run one wsprd process for each
 // javascript file being run.
-func startWspr(f *codeFile) (proc *os.Process, port int, err error) {
+func startWspr(fileName, identity string) (proc *os.Process, port int, err error) {
 	port, err = findUnusedPort()
 	if err != nil {
 		return nil, port, err
 	}
-	cmd := makeCmdJsonEvent(f.Name,
+	cmd := makeCmd(fileName, true,
 		"wsprd",
-		// Verbose logging so we can watch the output for "Listening"
-		// log line.
+		// Verbose logging so we can watch the output for "Listening" log line.
 		"-v=3",
 		"-veyron.proxy="+proxyName,
 		"-port="+strconv.Itoa(port),
-		// Retry RPC calls for 3 seconds.  If a client makes an RPC
-		// call before the server is running, it won't immediately
-		// fail, but will retry while the server is starting.
-		// TODO(nlacasse): Remove this when javascript can tell wspr
-		// how long to retry for.  Right now it's a global setting in
-		// wspr.
+		// Retry RPC calls for 3 seconds. If a client makes an RPC call before the
+		// server is running, it won't immediately fail, but will retry while the
+		// server is starting.
+		// TODO(nlacasse): Remove this when javascript can tell wspr how long to
+		// retry for. Right now it's a global setting in wspr.
 		"-retry-timeout=3",
 		// The identd server won't be used, so pass a fake name.
 		"-identd=/unused")
-	if f.identity != "" {
-		cmd.Env = append(cmd.Env, fmt.Sprintf("VEYRON_IDENTITY=%s", path.Join("ids", f.identity)))
+	if identity != "" {
+		cmd.Env = append(cmd.Env, fmt.Sprintf("VEYRON_IDENTITY=%s", path.Join("ids", identity)))
 	}
 	if _, err := startAndWaitFor(cmd, 3*time.Second, regexp.MustCompile("Listening")); err != nil {
 		return nil, 0, fmt.Errorf("Error starting wspr: %v", err)
@@ -126,8 +114,10 @@ func startWspr(f *codeFile) (proc *os.Process, port int, err error) {
 // util function.
 func startAndWaitFor(cmd *exec.Cmd, timeout time.Duration, outputRegexp *regexp.Regexp) ([]string, error) {
 	reader, writer := io.Pipe()
-	cmd.Stdout = writer
-	cmd.Stderr = cmd.Stdout
+	// TODO(sadovsky): Why must we listen to both stdout and stderr? We should
+	// know which one produces the "Listening" log line...
+	cmd.Stdout.(*multiWriter).Add(writer)
+	cmd.Stderr.(*multiWriter).Add(writer)
 	err := cmd.Start()
 	if err != nil {
 		return nil, err

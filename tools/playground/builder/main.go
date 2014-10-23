@@ -1,6 +1,5 @@
-// Compiles and runs code for the Veyron playground.
-// Code is passed via os.Stdin as a JSON encoded
-// request struct.
+// Compiles and runs code for the Veyron playground. Code is passed via os.Stdin
+// as a JSON encoded request struct.
 
 // NOTE(nlacasse): We use log.Panic() instead of log.Fatal() everywhere in this
 // file.  We do this because log.Panic calls panic(), which allows any deferred
@@ -15,7 +14,6 @@
 package main
 
 import (
-	"bufio"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -40,7 +38,10 @@ import (
 const runTimeout = 3 * time.Second
 
 var (
-	verbose = flag.Bool("v", false, "Verbose mode")
+	verbose = flag.Bool("v", false, "Whether to output debug messages")
+
+	includeServiceOutput = flag.Bool("includeServiceOutput", false,
+		"Whether to stream service (mounttable, wspr, proxy) output to clients")
 
 	// Whether we have stopped execution of running files.
 	stopped = false
@@ -73,12 +74,12 @@ type codeFile struct {
 	// part of the playground run. This is currently used only for
 	// javascript files, and go files with package "main".
 	executable bool
-	// Package name of the file (for go and vdl files).
-	pkg string
+	// Name of the binary (for go files).
+	binaryName string
 	// Running cmd process for the file.
 	cmd *exec.Cmd
 	// Any subprocesses that are needed to support running the file (e.g. wspr).
-	subProcs []*os.Process
+	subprocs []*os.Process
 	// The index of the file in the request.
 	index int
 }
@@ -94,6 +95,12 @@ func debug(args ...interface{}) {
 	}
 }
 
+func panicOnError(err error) {
+	if err != nil {
+		log.Panic(err)
+	}
+}
+
 func parseRequest(in io.Reader) (r request, err error) {
 	debug("Parsing input")
 	data, err := ioutil.ReadAll(in)
@@ -101,7 +108,7 @@ func parseRequest(in io.Reader) (r request, err error) {
 		err = json.Unmarshal(data, &r)
 	}
 	m := make(map[string]*codeFile)
-	for i := 0; i < len(r.Files); {
+	for i := 0; i < len(r.Files); i++ {
 		f := r.Files[i]
 		f.index = i
 		if path.Ext(f.Name) == ".id" {
@@ -110,25 +117,29 @@ func parseRequest(in io.Reader) (r request, err error) {
 				return
 			}
 			r.Files = append(r.Files[:i], r.Files[i+1:]...)
+			i--
 		} else {
 			switch path.Ext(f.Name) {
 			case ".js":
-				// Javascript files are always executable.
+				// JavaScript files are always executable.
 				f.executable = true
 				f.lang = "js"
 			case ".go":
-				// Go files will be marked as executable if
-				// their package name is "main". This happens
-				// in the "readPackage" function.
+				// Go files will be marked as executable if their package name is
+				// "main". This happens in the "maybeSetExecutableAndBinaryName"
+				// function.
 				f.lang = "go"
 			case ".vdl":
 				f.lang = "vdl"
 			default:
-				return r, fmt.Errorf("Unknown file type %s", f.Name)
+				return r, fmt.Errorf("Unknown file type: %q", f.Name)
 			}
 
-			m[f.Name] = f
-			i++
+			basename := path.Base(f.Name)
+			if _, ok := m[basename]; ok {
+				return r, fmt.Errorf("Two files with same basename: %q", basename)
+			}
+			m[basename] = f
 		}
 	}
 	if len(r.Identities) == 0 {
@@ -139,56 +150,18 @@ func parseRequest(in io.Reader) (r request, err error) {
 		}
 	} else {
 		for _, identity := range r.Identities {
-			for _, name := range identity.Files {
-				// Check that the file associated with the
-				// identity exists.  We ignore cases where it
-				// doesn't because the test .id files get used
-				// for multiple different code files.  See
-				// testdata/ids/authorized.id, for example.
-				if m[name] != nil {
-					m[name].identity = identity.Name
-
+			for _, basename := range identity.Files {
+				// Check that the file associated with the identity exists.  We ignore
+				// cases where it doesn't because the test .id files get used for
+				// multiple different code files.  See testdata/ids/authorized.id, for
+				// example.
+				if m[basename] != nil {
+					m[basename].identity = identity.Name
 				}
 			}
 		}
 	}
-
 	return
-}
-
-func main() {
-	flag.Parse()
-	r, err := parseRequest(os.Stdin)
-	if err != nil {
-		log.Panic(err)
-	}
-
-	err = createIdentities(r.Identities)
-	if err != nil {
-		log.Panic(err)
-	}
-
-	mt, err := startMount(runTimeout)
-	if err != nil {
-		log.Panic(err)
-	}
-	defer mt.Kill()
-
-	proxy, err := startProxy()
-	if err != nil {
-		log.Panic(err)
-	}
-	defer proxy.Kill()
-
-	if err := writeFiles(r.Files); err != nil {
-		log.Panic(err)
-	}
-
-	if err := compileFiles(r.Files); err != nil {
-		log.Panic(err)
-	}
-
-	runFiles(r.Files)
 }
 
 func writeFiles(files []*codeFile) error {
@@ -202,28 +175,27 @@ func writeFiles(files []*codeFile) error {
 }
 
 func compileFiles(files []*codeFile) error {
-	debug("Compiling files")
-	var nonVdlFiles []*codeFile
-
-	// Compile the vdl files first, since Go files may depend on *.vdl.go
-	// generated files.
+	needToCompile := false
 	for _, f := range files {
-		if f.lang != "vdl" {
-			nonVdlFiles = append(nonVdlFiles, f)
-		} else {
-			if err := f.compile(); err != nil {
-				return fmt.Errorf("Error compiling %s: %v", f.Name, err)
-			}
+		if f.lang == "vdl" || f.lang == "go" {
+			needToCompile = true
+			break
 		}
+	}
+	if !needToCompile {
+		return nil
 	}
 
-	// Compile the non-vdl files
-	for _, f := range nonVdlFiles {
-		if err := f.compile(); err != nil {
-			return fmt.Errorf("Error compiling %s: %v", f.Name, err)
-		}
+	debug("Compiling files")
+	pwd, err := os.Getwd()
+	if err != nil {
+		return err
 	}
-	return nil
+	os.Setenv("GOPATH", pwd+":"+os.Getenv("GOPATH"))
+	os.Setenv("VDLPATH", pwd+":"+os.Getenv("VDLPATH"))
+	// We set isService=false for compilation because "go install" only produces
+	// output on error, and we always want clients to see such errors.
+	return makeCmd("", false, "veyron", "go", "install", "./...").Run()
 }
 
 func runFiles(files []*codeFile) {
@@ -242,13 +214,13 @@ func runFiles(files []*codeFile) {
 	for running > 0 {
 		select {
 		case <-timeout:
-			writeEvent("", "Playground exceeded deadline.", "stderr")
+			panicOnError(writeEvent("", "stderr", "Playground exceeded deadline."))
 			stopAll(files)
 		case status := <-exit:
 			if status.err == nil {
-				writeEvent(status.name, "Exited.", "stdout")
+				panicOnError(writeEvent(status.name, "stdout", "Exited cleanly."))
 			} else {
-				writeEvent(status.name, fmt.Sprintf("Error: %v", status.err), "stderr")
+				panicOnError(writeEvent(status.name, "stderr", fmt.Sprintf("Exited with error: %v", status.err)))
 			}
 			running--
 			stopAll(files)
@@ -267,77 +239,54 @@ func stopAll(files []*codeFile) {
 	}
 }
 
-func (f *codeFile) readPackage() error {
-	debug("Parsing package from ", f.Name)
+func (f *codeFile) maybeSetExecutableAndBinaryName() error {
+	debug("Parsing package from", f.Name)
 	file, err := parser.ParseFile(token.NewFileSet(), f.Name,
 		strings.NewReader(f.Body), parser.PackageClauseOnly)
 	if err != nil {
 		return err
 	}
-	f.pkg = file.Name.String()
-	if "main" == f.pkg {
+	pkg := file.Name.String()
+	if pkg == "main" {
 		f.executable = true
 		basename := path.Base(f.Name)
-		f.pkg = basename[:len(basename)-len(path.Ext(basename))]
+		f.binaryName = basename[:len(basename)-len(path.Ext(basename))]
 	}
 	return nil
 }
 
 func (f *codeFile) write() error {
-	debug("Writing file ", f.Name)
+	debug("Writing file", f.Name)
 	if f.lang == "go" || f.lang == "vdl" {
-		if err := f.readPackage(); err != nil {
+		if err := f.maybeSetExecutableAndBinaryName(); err != nil {
 			return err
 		}
 	}
-	if err := os.MkdirAll(filepath.Join("src", f.pkg), 0777); err != nil {
+	// Retain the original file tree structure.
+	if err := os.MkdirAll(path.Dir(f.Name), 0755); err != nil {
 		return err
 	}
-	return ioutil.WriteFile(filepath.Join("src", f.pkg, f.Name), []byte(f.Body), 0666)
-}
-
-// TODO(sadovsky): "veyron go install" runs "vdl generate" before running the Go
-// compiler, so it shouldn't be necessary to run "vdl" separately. Also, why do
-// we compile files individually, rather than compiling everything in one go
-// (pun intended), something like "veyron go install ..."?
-func (f *codeFile) compile() error {
-	debug("Compiling file ", f.Name)
-	var cmd *exec.Cmd
-	switch f.lang {
-	case "js":
-		return nil
-	case "vdl":
-		cmd = makeCmdJsonEvent(f.Name, "veyron", "run", "vdl", "generate", "--lang=go", f.pkg)
-	case "go":
-		cmd = makeCmdJsonEvent(f.Name, "veyron", "go", "install", f.pkg)
-	default:
-		return fmt.Errorf("Can't compile file %s with language %s.", f.Name, f.lang)
-	}
-	cmd.Stdout = cmd.Stderr
-	err := cmd.Run()
-	return err
+	return ioutil.WriteFile(f.Name, []byte(f.Body), 0644)
 }
 
 func (f *codeFile) startJs() error {
-	wsprProc, wsprPort, err := startWspr(f)
+	wsprProc, wsprPort, err := startWspr(f.Name, f.identity)
 	if err != nil {
 		return fmt.Errorf("Error starting wspr: %v", err)
 	}
-	f.subProcs = append(f.subProcs, wsprProc)
+	f.subprocs = append(f.subprocs, wsprProc)
 	os.Setenv("WSPR", "http://localhost:"+strconv.Itoa(wsprPort))
 	node := filepath.Join(os.Getenv("VEYRON_ROOT"), "environment", "cout", "node", "bin", "node")
-	cmd := makeCmdJsonEvent(f.Name, node, filepath.Join("src", f.Name))
-	f.cmd = cmd
-	return cmd.Start()
+	f.cmd = makeCmd(f.Name, false, node, f.Name)
+	return f.cmd.Start()
 }
 
 func (f *codeFile) startGo() error {
-	cmd := makeCmdJsonEvent(f.Name, filepath.Join("bin", f.pkg))
+	f.cmd = makeCmd(f.Name, false, filepath.Join("bin", f.binaryName))
 	if f.identity != "" {
-		cmd.Env = append(cmd.Env, fmt.Sprintf("VEYRON_IDENTITY=%s", filepath.Join("ids", f.identity)))
+		f.cmd.Env = append(f.cmd.Env, fmt.Sprintf("VEYRON_IDENTITY=%s", filepath.Join("ids", f.identity)))
 	}
-	f.cmd = cmd
-	return cmd.Start()
+	return f.cmd.Start()
 }
 
 func (f *codeFile) run(ch chan exit) {
@@ -346,7 +295,7 @@ func (f *codeFile) run(ch chan exit) {
 		mu.Lock()
 		defer mu.Unlock()
 		if stopped {
-			return fmt.Errorf("Execution already stopped, not running file %s", f.Name)
+			return fmt.Errorf("Execution has stopped; not running %s", f.Name)
 		}
 
 		switch f.lang {
@@ -359,7 +308,7 @@ func (f *codeFile) run(ch chan exit) {
 		}
 	}()
 	if err != nil {
-		debug("Error starting", f.Name)
+		debug("Failed to start", f.Name)
 		ch <- exit{f.Name, err}
 		return
 	}
@@ -374,77 +323,89 @@ func (f *codeFile) run(ch chan exit) {
 }
 
 func (f *codeFile) stop() {
-	debug("Attempting to stop ", f.Name)
+	debug("Attempting to stop", f.Name)
 	if f.cmd == nil {
-		debug("No cmd for", f.Name, "cannot stop.")
+		debug("Cannot stop:", f.Name, "cmd is nil")
 	} else if f.cmd.Process == nil {
-		debug("f.cmd exists for", f.Name, "but f.cmd.Process is nil! Cannot stop!.")
+		debug("Cannot stop:", f.Name, "cmd is not nil, but cmd.Process is nil")
 	} else {
 		debug("Sending SIGTERM to", f.Name)
 		f.cmd.Process.Signal(syscall.SIGTERM)
 	}
-
-	for _, subProc := range f.subProcs {
-		debug("Killing sub process for", f.Name)
-		subProc.Kill()
+	for i, subproc := range f.subprocs {
+		debug("Killing subprocess", i, "for", f.Name)
+		subproc.Kill()
 	}
 }
 
-// Creates a cmd who's output (stdout and stderr) are streamed to stdout as
-// json-encoded Event objects.
-func makeCmdJsonEvent(fileName, prog string, args ...string) *exec.Cmd {
-	cmd := exec.Command(prog, args...)
+// Creates a cmd whose outputs (stdout and stderr) are streamed to stdout as
+// json-encoded Event objects. If you want to watch the output streams yourself,
+// add your own writer(s) to the multiWriter before starting the command.
+func makeCmd(fileName string, isService bool, progName string, args ...string) *exec.Cmd {
+	cmd := exec.Command(progName, args...)
 	cmd.Env = os.Environ()
-
-	// TODO(nlacasse): There is a bug in this code which results in
-	//   "read |0: bad file descriptor".
-	// The error seems to be caused by our use of cmd.StdoutPipe/StderrPipe
-	// and cmd.Wait.  In particular, we seem to be calling Wait after the
-	// pipes have been closed.
-	// See: http://stackoverflow.com/questions/20134095/why-do-i-get-bad-file-descriptor-in-this-go-program-using-stderr-and-ioutil-re
-	// and https://code.google.com/p/go/issues/detail?id=2266
-	//
-	// One solution is to wrap cmd.Start/Run, so that wait is never called
-	// before the pipes are closed.
-
-	stdout, err := cmd.StdoutPipe()
-	if err != nil {
-		log.Panic(err)
+	stdout, stderr := newMultiWriter(), newMultiWriter()
+	// TODO(sadovsky): Maybe annotate service output in the event stream.
+	if !isService || *includeServiceOutput {
+		stdout.Add(newEventStreamer(fileName, "stdout"))
+		stderr.Add(newEventStreamer(fileName, "stderr"))
 	}
-	go streamEvents(fileName, "stdout", stdout)
-
-	stderr, err := cmd.StderrPipe()
-	if err != nil {
-		log.Panic(err)
-	}
-	go streamEvents(fileName, "stderr", stderr)
+	cmd.Stdout, cmd.Stderr = stdout, stderr
 	return cmd
 }
 
-func streamEvents(fileName, stream string, in io.Reader) {
-	scanner := bufio.NewScanner(in)
-	for scanner.Scan() {
-		writeEvent(fileName, scanner.Text(), stream)
-	}
-	if err := scanner.Err(); err != nil {
-		log.Panic(err)
-	}
+// Initialize using newEventStreamer.
+type eventStreamer struct {
+	fileName   string
+	streamName string
 }
 
-func writeEvent(fileName, message, stream string) {
+var _ io.Writer = (*eventStreamer)(nil)
+
+func newEventStreamer(fileName, streamName string) *eventStreamer {
+	return &eventStreamer{fileName: fileName, streamName: streamName}
+}
+
+func (es *eventStreamer) Write(p []byte) (n int, err error) {
+	if err := writeEvent(es.fileName, es.streamName, string(p)); err != nil {
+		return 0, err
+	}
+	return len(p), nil
+}
+
+func writeEvent(fileName, streamName, message string) error {
 	e := event.Event{
 		File:      fileName,
 		Message:   message,
-		Stream:    stream,
-		Timestamp: time.Now().Unix(),
+		Stream:    streamName,
+		Timestamp: time.Now().UnixNano(),
 	}
-
 	jsonEvent, err := json.Marshal(e)
 	if err != nil {
-		log.Panic(err)
+		return err
 	}
-
-	// TODO(nlacasse): when we switch to streaming, we'll probably need to
-	// trigger a flush here.
+	// TODO(nlacasse): When we switch over to actually streaming events, we'll
+	// probably need to trigger a flush here.
 	os.Stdout.Write(append(jsonEvent, '\n'))
+	return nil
+}
+
+func main() {
+	flag.Parse()
+	r, err := parseRequest(os.Stdin)
+	panicOnError(err)
+
+	panicOnError(createIdentities(r.Identities))
+
+	mt, err := startMount(runTimeout)
+	panicOnError(err)
+	defer mt.Kill()
+
+	proxy, err := startProxy()
+	panicOnError(err)
+	defer proxy.Kill()
+
+	panicOnError(writeFiles(r.Files))
+	panicOnError(compileFiles(r.Files))
+	runFiles(r.Files)
 }
