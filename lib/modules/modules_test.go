@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"fmt"
 	"io"
+	"net/url"
 	"os"
 	"strings"
 	"testing"
@@ -51,7 +52,7 @@ func PrintEnv(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, 
 		fmt.Fprintf(stdout, "%s%s\n", printEnvArgPrefix, a)
 	}
 	for k, v := range env {
-		fmt.Fprintf(stdout, k+"="+v+"\n")
+		fmt.Fprintf(stdout, "%s\n", url.QueryEscape(k+"="+v))
 	}
 	return nil
 }
@@ -226,6 +227,10 @@ func TestEnvelope(t *testing.T) {
 		if strings.HasPrefix(o, printEnvArgPrefix) {
 			childArgs = append(childArgs, strings.TrimPrefix(o, printEnvArgPrefix))
 		} else {
+			o, err := url.QueryUnescape(o)
+			if err != nil {
+				t.Fatalf("unexpected error: %s", err)
+			}
 			childEnv = append(childEnv, o)
 		}
 	}
@@ -241,7 +246,7 @@ func TestEnvelope(t *testing.T) {
 
 	for _, want := range shEnv {
 		if !find(want, childEnv) {
-			t.Errorf("failed to find %q in %s", want, shEnv)
+			t.Errorf("failed to find %q in %#v", want, childEnv)
 		}
 	}
 	for _, want := range childEnv {
@@ -249,7 +254,7 @@ func TestEnvelope(t *testing.T) {
 			continue
 		}
 		if !find(want, shEnv) {
-			t.Errorf("failed to find %q in %s", want, childEnv)
+			t.Errorf("failed to find %q in %#v", want, shEnv)
 		}
 	}
 }
