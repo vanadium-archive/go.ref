@@ -32,7 +32,7 @@ type lookupReply struct {
 	HasAuthorizer bool
 	Label         security.Label
 	Signature     signature.JSONServiceSignature
-	Err           verror2.E
+	Err           *verror2.Standard
 }
 
 type dispatcherRequest struct {
@@ -80,7 +80,7 @@ func (d *dispatcher) Lookup(suffix, method string) (ipc.Invoker, security.Author
 		Method:   lib.LowercaseFirstCharacter(method),
 	}
 	if err := flow.Writer.Send(lib.ResponseDispatcherLookup, message); err != nil {
-		ch <- lookupReply{Err: verror2.Convert(verror2.Internal, nil, err)}
+		ch <- lookupReply{Err: verror2.Convert(verror2.Internal, nil, err).(*verror2.Standard)}
 	}
 	request := <-ch
 
@@ -122,8 +122,8 @@ func (d *dispatcher) handleLookupResponse(id int64, data string) {
 	var request lookupReply
 	decoder := json.NewDecoder(bytes.NewBufferString(data))
 	if err := decoder.Decode(&request); err != nil {
-		request = lookupReply{Err: verror2.Convert(verror2.Internal, nil, err)}
-		d.logger.Errorf("unmarshaling invoke request failed: %v", err)
+		request = lookupReply{Err: verror2.Convert(verror2.Internal, nil, err).(*verror2.Standard)}
+		d.logger.Errorf("unmarshaling invoke request failed: %v, %s", err, data)
 	}
 	ch <- request
 }
