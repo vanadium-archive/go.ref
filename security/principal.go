@@ -57,19 +57,47 @@ func LoadPersistentPrincipal(dir string, passphrase []byte) (security.Principal,
 	return newPersistentPrincipalFromSigner(security.NewInMemoryECDSASigner(key), dir)
 }
 
-// CreatePersistentPrincipal creates a new principal (private key, BlessingRoots, BlessingStore) and commits all state changes to the provided directory.
-// The generated private key is serialized and saved encrypted if the 'passphrase' is non-nil, and unencrypted otherwise.
-// If the directory has any preexisting key, CreatePersistentPrincipal will return an error.
-// The specified directory may not exist, in which case it gets created by this function.
-func CreatePersistentPrincipal(dir string, passphrase []byte) (security.Principal, error) {
+// CreatePersistentPrincipal creates a new principal (private key, BlessingRoots,
+// BlessingStore) and commits all state changes to the provided directory.
+//
+// The generated private key is serialized and saved encrypted if the 'passphrase'
+// is non-nil, and unencrypted otherwise.
+//
+// If the directory has any preexisting principal data, CreatePersistentPrincipal
+// will return an error.
+//
+// The specified directory may not exist, in which case it gets created by this
+// function.
+func CreatePersistentPrincipal(dir string, passphrase []byte) (principal security.Principal, err error) {
 	if err := mkDir(dir); err != nil {
 		return nil, err
 	}
 	key, err := initKey(dir, nil)
 	if err != nil {
-		return nil, fmt.Errorf("could not initialize private key from credentials directory %v: %v", dir, err)
+		return nil, fmt.Errorf("failed to initialize private key: %v", err)
 	}
 	return newPersistentPrincipalFromSigner(security.NewInMemoryECDSASigner(key), dir)
+}
+
+// CreateOrOverwritePersistentPrincipal behaves like CreatePersistentPrincipal except that
+// if the provided directory holds any preexisting principal data then the data gets
+// overwritten.  Any prexising private key, BlessingRoots and BlessingStore would get lost
+// as a result of calling this function.
+func CreateOrOverwritePersistentPrincipal(dir string, passphrase []byte) (principal security.Principal, err error) {
+	if err := removePersistentPrincipal(dir); err != nil {
+		return nil, err
+	}
+	return CreatePersistentPrincipal(dir, passphrase)
+}
+
+func removePersistentPrincipal(dir string) error {
+	files := []string{privateKeyFile, blessingRootsDataFile, blessingRootsSigFile, blessingStoreDataFile, blessingStoreSigFile}
+	for _, f := range files {
+		if err := os.Remove(path.Join(dir, f)); err != nil && !os.IsNotExist(err) {
+			return err
+		}
+	}
+	return nil
 }
 
 func newPersistentPrincipalFromSigner(signer security.Signer, dir string) (security.Principal, error) {
@@ -124,7 +152,6 @@ func newKey() (security.PublicKey, *ecdsa.PrivateKey, error) {
 
 func initKey(dir string, passphrase []byte) (*ecdsa.PrivateKey, error) {
 	keyFile := path.Join(dir, privateKeyFile)
-	// O_EXCL returns an error if file exists.
 	f, err := os.OpenFile(keyFile, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0600)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open %q for writing: %v", keyFile, err)

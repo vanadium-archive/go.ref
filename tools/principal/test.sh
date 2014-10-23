@@ -36,8 +36,9 @@ main() {
   # Prevent any VEYRON_CREDENTIALS in the environment from interfering with this test.
   unset VEYRON_CREDENTIALS
   # Create two principals, one called "alice" one called "bob"
-  ./principal create ./alice alice >/dev/null || shell_test::fail "line ${LINENO}: create failed"
+  ./principal create --overwrite=true ./alice alice >/dev/null || shell_test::fail "line ${LINENO}: create failed"
   ./principal create ./bob bob >/dev/null || shell_test::fail "line ${LINENO}: create failed"
+  ./principal create --overwrite=true ./bob bob >/dev/null || shell_test::fail "line ${LINENO}: create failed"
   # Run dump, bless, blessself on alice
   export VEYRON_CREDENTIALS=./alice
   ./principal blessself alicereborn >alice.blessself || shell_test::fail "line ${LINENO}: blessself failed"

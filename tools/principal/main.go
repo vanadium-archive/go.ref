@@ -36,6 +36,9 @@ var (
 	flagSeekBlessingsSetDefault bool
 	flagSeekBlessingsForPeer    string
 
+	// Flag for the create command
+	flagCreateOverwrite bool
+
 	// Flags common to many commands
 	flagAddToRoots bool
 
@@ -357,10 +360,14 @@ this tool. - is used for STDIN.
 		Name:  "create",
 		Short: "Create a new principal and persist it into a directory",
 		Long: `
-	Creates a new principal with a single self-blessed blessing and writes it out
-	to the provided directory. The same directory can be used to set the VEYRON_CREDENTIALS
-	environment variables for other veyron applications.
-	`,
+Creates a new principal with a single self-blessed blessing and writes it out
+to the provided directory. The same directory can be used to set the VEYRON_CREDENTIALS
+environment variables for other veyron applications.
+
+The operation fails if the directory already contains a principal. In this case
+the --overwrite flag can be provided to overwrite the existing principal data in
+the directory.
+`,
 		ArgsName: "<directory> <blessing>",
 		ArgsLong: `
 	<directory> is the directory to which the principal will be persisted.
@@ -372,7 +379,15 @@ this tool. - is used for STDIN.
 			}
 			dir, name := args[0], args[1]
 			// TODO(suharshs,ashankar,ataly): How should we make an ecrypted pk... or is that up to the agent?
-			p, err := vsecurity.CreatePersistentPrincipal(dir, nil)
+			var (
+				p   security.Principal
+				err error
+			)
+			if flagCreateOverwrite {
+				p, err = vsecurity.CreateOrOverwritePersistentPrincipal(dir, nil)
+			} else {
+				p, err = vsecurity.CreatePersistentPrincipal(dir, nil)
+			}
 			if err != nil {
 				return err
 			}
@@ -477,6 +492,7 @@ func main() {
 	cmdSeekBlessings.Flags.BoolVar(&flagAddToRoots, "add_to_roots", true, "If true, the root certificate of the blessing will be added to the principal's set of recognized root certificates")
 	cmdStoreSet.Flags.BoolVar(&flagAddToRoots, "add_to_roots", true, "If true, the root certificate of the blessing will be added to the principal's set of recognized root certificates")
 	cmdStoreSetDefault.Flags.BoolVar(&flagAddToRoots, "add_to_roots", true, "If true, the root certificate of the blessing will be added to the principal's set of recognized root certificates")
+	cmdCreate.Flags.BoolVar(&flagCreateOverwrite, "overwrite", false, "If true, any existing principal data in the directory will be overwritten")
 
 	cmdStore := &cmdline.Command{
 		Name:  "store",
