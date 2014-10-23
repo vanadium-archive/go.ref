@@ -1,5 +1,6 @@
 package impl_test
 
 const (
-	testUserName = "uucp"
+	testUserName        = "uucp"
+	anotherTestUserName = "lp"
 )

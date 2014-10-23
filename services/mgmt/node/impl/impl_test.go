@@ -1285,7 +1285,11 @@ func TestAppWithSuidHelper(t *testing.T) {
 		t.Fatalf("AssociateAccount failed %v", err)
 	}
 	// Add Start to the ACL list for root/other.
-	newACL := security.ACL{In: map[security.BlessingPattern]security.LabelSet{"root/other/...": security.AllLabels}}
+	newACL, _, err := nodeStub.GetACL(selfRT.NewContext())
+	if err != nil {
+		t.Fatalf("GetACL failed %v", err)
+	}
+	newACL.In["root/other/..."] = security.AllLabels
 	if err = nodeStub.SetACL(selfRT.NewContext(), newACL, ""); err != nil {
 		t.Fatalf("SetACL failed %v", err)
 	}
@@ -1293,5 +1297,28 @@ func TestAppWithSuidHelper(t *testing.T) {
 	vlog.VI(2).Infof("other attempting to run an app with access. Should succeed.")
 	instance2ID := startApp(t, appID, otherRT)
 	verifyHelperArgs(t, <-pingCh, testUserName) // Wait until the app pings us that it's ready.
+	suspendApp(t, appID, instance2ID, otherRT)
+
+	vlog.VI(2).Infof("Verify that Resume with the same systemName works.")
+	resumeApp(t, appID, instance2ID, otherRT)
+	verifyHelperArgs(t, <-pingCh, testUserName) // Wait until the app pings us that it's ready.
+	suspendApp(t, appID, instance2ID, otherRT)
+
+	// Change the associated system name.
+	if err = nodeStub.AssociateAccount(selfRT.NewContext(), []string{"root/other"}, anotherTestUserName); err != nil {
+		t.Fatalf("AssociateAccount failed %v", err)
+	}
+
+	vlog.VI(2).Infof("Show that Resume with a different systemName fails.")
+	resumeAppExpectError(t, appID, instance2ID, verror.NoAccess, otherRT)
+
+	// Clean up.
 	stopApp(t, appID, instance2ID, otherRT)
+
+	vlog.VI(2).Infof("Show that Start with different systemName works.")
+	instance3ID := startApp(t, appID, otherRT)
+	verifyHelperArgs(t, <-pingCh, anotherTestUserName) // Wait until the app pings us that it's ready.
+
+	// Clean up.
+	stopApp(t, appID, instance3ID, otherRT)
 }

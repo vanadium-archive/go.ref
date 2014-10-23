@@ -252,6 +252,12 @@ func resumeApp(t *testing.T, appID, instanceID string, opt ...veyron2.Runtime) {
 	}
 }
 
+func resumeAppExpectError(t *testing.T, appID, instanceID string, expectedError verror.ID, opt ...veyron2.Runtime) {
+	if err := appStub(t, appID, instanceID).Resume(ort(opt).NewContext()); err == nil || !verror.Is(err, expectedError) {
+		t.Fatalf("Resume(%v/%v) expected to fail with %v, got %v instead", appID, instanceID, expectedError, err)
+	}
+}
+
 func updateApp(t *testing.T, appID string, opt ...veyron2.Runtime) {
 	if err := appStub(t, appID).Update(ort(opt).NewContext()); err != nil {
 		t.Fatalf("Update(%v) failed: %v", appID, err)
