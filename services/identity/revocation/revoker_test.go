@@ -8,6 +8,7 @@ import (
 	"veyron.io/veyron/veyron2"
 	"veyron.io/veyron/veyron2/ipc"
 	"veyron.io/veyron/veyron2/naming"
+	"veyron.io/veyron/veyron2/options"
 	"veyron.io/veyron/veyron2/rt"
 	"veyron.io/veyron/veyron2/security"
 
@@ -16,9 +17,9 @@ import (
 	"veyron.io/veyron/veyron/services/security/discharger"
 )
 
-func revokerSetup(t *testing.T) (dischargerID security.PublicID, dischargerEndpoint string, revoker *RevocationManager, closeFunc func(), runtime veyron2.Runtime) {
+func revokerSetup(t *testing.T) (dischargerKey security.PublicKey, dischargerEndpoint string, revoker *RevocationManager, closeFunc func(), runtime veyron2.Runtime) {
 	var dir = filepath.Join(os.TempDir(), "revoker_test_dir")
-	r := rt.Init()
+	r := rt.Init(options.ForceNewSecurityModel{})
 	revokerService, err := NewRevocationManager(dir)
 	if err != nil {
 		t.Fatalf("NewRevocationManager failed: %v", err)
@@ -32,11 +33,11 @@ func revokerSetup(t *testing.T) (dischargerID security.PublicID, dischargerEndpo
 	if err != nil {
 		t.Fatalf("dischargerServer.Listen failed: %v", err)
 	}
-	dischargerServiceStub := services.NewServerDischarger(discharger.NewDischarger(r.Identity()))
+	dischargerServiceStub := services.NewServerDischarger(discharger.NewDischarger())
 	if err := dischargerServer.Serve("", ipc.LeafDispatcher(dischargerServiceStub, nil)); err != nil {
 		t.Fatalf("dischargerServer.Serve revoker: %s", err)
 	}
-	return r.Identity().PublicID(),
+	return r.Principal().PublicKey(),
 		naming.JoinAddressName(dischargerEP.String(), ""),
 		revokerService,
 		func() {
@@ -47,7 +48,7 @@ func revokerSetup(t *testing.T) (dischargerID security.PublicID, dischargerEndpo
 }
 
 func TestDischargeRevokeDischargeRevokeDischarge(t *testing.T) {
-	dcID, dc, revoker, closeFunc, r := revokerSetup(t)
+	dcKey, dc, revoker, closeFunc, r := revokerSetup(t)
 	defer closeFunc()
 
 	discharger, err := services.BindDischarger(dc)
@@ -55,7 +56,7 @@ func TestDischargeRevokeDischargeRevokeDischarge(t *testing.T) {
 		t.Fatalf("error binding to server: ", err)
 	}
 
-	cav, err := revoker.NewCaveat(dcID, dc)
+	cav, err := revoker.NewCaveat(dcKey, dc)
 	if err != nil {
 		t.Fatalf("failed to create public key caveat: %s", err)
 	}

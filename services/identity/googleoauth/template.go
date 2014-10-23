@@ -150,17 +150,36 @@ var tmplSelectCaveats = template.Must(template.New("bless").Parse(`<!doctype htm
 </script>
 </head>
 <body class="container">
-<form class="form-signin" method="POST" name="input" action="/google/{{.MacaroonRoute}}">
+<form class="form-horizontal" method="POST" name="input" action="/google/{{.MacaroonRoute}}" role="form">
 <h2 class="form-signin-heading">{{.Extension}}</h2>
 <input type="text" class="hidden" name="macaroon" value="{{.Macaroon}}">
-<div class="form-group">
-  <label for="blessing-extension">Extension</label>
-  <input name="blessingExtension" type="text" class="form-control" id="blessing-extension" placeholder="(optional) If set to foo, then blessings will be of the form {{.Extension}}/foo">
+<div class="form-group form-group-lg">
+  <label class="col-sm-2" for="blessing-extension">Extension</label>
+  <div class="col-sm-10">
+  <input name="blessingExtension" type="text" class="form-control" id="blessing-extension" placeholder="(optional) name of the device/application for which the blessing is being sought, e.g. homelaptop">
+  </div>
 </div>
-<br/>
-<h3 class="form-signin-heading">Select Caveats</h3>
+<div class="form-group form-group-lg">
+  <label class="col-sm-2" for="required-caveat">Expiration</label>
+  <div class="col-sm-10" class="input-group" name="required-caveat">
+    <div class="radio">
+      <div class="input-group">
+        <input type="radio" name="requiredCaveat" id="requiredCaveat" value="Expiry" checked>
+        <input type="text" name="expiry" id="expiry" value="1h" placeholder="time after which the blessing will expire">
+      </div>
+    </div>
+    <div class="radio">
+      <label>
+      <!-- TODO(suharshs): Re-enable -->
+      <input type="radio" name="requiredCaveat" id="requiredCaveat" value="Revocation" disabled>
+      When explicitly revoked
+      </label>
+    </div>
+  </div>
+</div>
+<h4 class="form-signin-heading">Additional caveats</h4>
+<span class="help-text">Optional additional restrictions on the use of the blessing</span>
 <div class="caveatRow row">
-<br/>
   <div class="col-md-4">
     <select name="caveat" class="form-control caveats">
       <option value="none" selected="selected">Select a caveat.</option>

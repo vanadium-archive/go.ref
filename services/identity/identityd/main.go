@@ -22,8 +22,6 @@ import (
 	"veyron.io/veyron/veyron2/vlog"
 
 	"veyron.io/veyron/veyron/lib/signals"
-	vsecurity "veyron.io/veyron/veyron/security"
-	"veyron.io/veyron/veyron/security/audit"
 	"veyron.io/veyron/veyron/services/identity/auditor"
 	"veyron.io/veyron/veyron/services/identity/blesser"
 	"veyron.io/veyron/veyron/services/identity/googleoauth"
@@ -33,15 +31,15 @@ import (
 	"veyron.io/veyron/veyron/services/security/discharger"
 
 	"veyron.io/veyron/veyron/profiles/static"
-	_ "veyron.io/veyron/veyron/runtimes/google/security"
 )
 
 var (
-	httpaddr      = flag.String("httpaddr", "localhost:8125", "Address on which the HTTP server listens on.")
-	tlsconfig     = flag.String("tlsconfig", "", "Comma-separated list of TLS certificate and private key files. If empty, will not use HTTPS.")
-	host          = flag.String("host", defaultHost(), "Hostname the HTTP server listens on. This can be the name of the host running the webserver, but if running behind a NAT or load balancer, this should be the host name that clients will connect to. For example, if set to 'x.com', Veyron identities will have the IssuerName set to 'x.com' and clients can expect to find the public key of the signer at 'x.com/pubkey/'.")
-	minExpiryDays = flag.Int("min_expiry_days", 365, "Minimum expiry time (in days) of identities issued by this server")
+	// Flags controlling the HTTP server
+	httpaddr  = flag.String("httpaddr", "localhost:8125", "Address on which the HTTP server listens on.")
+	tlsconfig = flag.String("tlsconfig", "", "Comma-separated list of TLS certificate and private key files. If empty, will not use HTTPS.")
+	host      = flag.String("host", defaultHost(), "Hostname the HTTP server listens on. This can be the name of the host running the webserver, but if running behind a NAT or load balancer, this should be the host name that clients will connect to. For example, if set to 'x.com', Veyron identities will have the IssuerName set to 'x.com' and clients can expect to find the public key of the signer at 'x.com/pubkey/'.")
 
+	// Flags controlling auditing of Blessing operations.
 	auditprefix = flag.String("audit", "", "File prefix to files where auditing information will be written.")
 	auditfilter = flag.String("audit_filter", "", "If non-empty, instead of starting the server the audit log will be dumped to STDOUT (with the filter set to the value of this flag. '/' can be used to dump all events).")
 
@@ -51,7 +49,7 @@ var (
 	googleConfigAndroid = flag.String("google_config_android", "", "Path to the JSON-encoded OAuth client configuration for Android applications that obtain blessings from this server (via the OAuthBlesser.BlessUsingAccessToken RPC) from this server.")
 	googleDomain        = flag.String("google_domain", "", "An optional domain name. When set, only email addresses from this domain are allowed to authenticate via Google OAuth")
 
-	// Revoker/Discharger configuration
+	// Revocation/expiry configuration.
 	// TODO(ashankar,ataly,suharshs): Re-enable by default once the move to the new security API is complete?
 	revocationDir = flag.String("revocation_dir", "" /*filepath.Join(os.TempDir(), "revocation_dir")*/, "Path where the revocation manager will store caveat and revocation information.")
 )
@@ -64,7 +62,7 @@ const (
 
 func main() {
 	flag.Usage = usage
-	r := rt.Init(providerIdentity())
+	r := rt.Init(providerIdentityOld(), providerPrincipal())
 	defer r.Cleanup()
 
 	if len(*auditfilter) > 0 {
@@ -79,10 +77,7 @@ func main() {
 	}
 
 	// Setup handlers
-	http.Handle("/pubkey/", handlers.PublicKey{r.Identity().PublicID()}) // public key of this server
-	if enableRandomHandler() {
-		http.Handle("/random/", handlers.Random{r}) // mint identities with a random name
-	}
+	http.Handle("/pubkey/", handlers.PublicKey{r.Principal().PublicKey()}) // public key of this server
 	macaroonKey := make([]byte, 32)
 	if _, err := rand.Read(macaroonKey); err != nil {
 		vlog.Fatalf("macaroonKey generation failed: %v", err)
@@ -92,9 +87,7 @@ func main() {
 	if err != nil {
 		vlog.Fatalf("Failed to setup veyron services for blessing: %v", err)
 	}
-	if ipcServer != nil {
-		defer ipcServer.Stop()
-	}
+	defer ipcServer.Stop()
 	if clientID, clientSecret, ok := getOAuthClientIDAndSecret(*googleConfigWeb); ok {
 		n := "/google/"
 		h, err := googleoauth.NewHandler(googleoauth.HandlerArgs{
@@ -105,22 +98,21 @@ func main() {
 			ClientSecret:            clientSecret,
 			Auditor:                 *auditprefix,
 			RevocationManager:       revocationManager,
-			BlessingDuration:        time.Duration(*minExpiryDays) * 24 * time.Hour,
 			MacaroonBlessingService: naming.JoinAddressName(published[0], macaroonService),
 		})
 		if err != nil {
-			vlog.Fatalf("Failed to create googleoauth handler: %v", err)
+			vlog.Fatalf("Failed to create HTTP handler for google-based authentication: %v", err)
 		}
 		http.Handle(n, h)
 	}
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		args := struct {
-			Self                            security.PublicID
+			Self                            security.Blessings
 			RandomWeb                       bool
 			GoogleServers, DischargeServers []string
 			ListBlessingsRoute              string
 		}{
-			Self:      rt.R().Identity().PublicID(),
+			Self:      rt.R().Principal().BlessingStore().Default(),
 			RandomWeb: enableRandomHandler(),
 		}
 		if revocationManager != nil {
@@ -152,54 +144,44 @@ func appendSuffixTo(objectname []string, suffix string) []string {
 // newDispatcher returns a dispatcher for both the blessing and the discharging service.
 // their suffix. ReflectInvoker is used to invoke methods.
 func newDispatcher(googleParams blesser.GoogleParams, macaroonKey []byte) ipc.Dispatcher {
-	d := &dispatcher{
-		invokers: map[string]ipc.Invoker{
-			macaroonService:   ipc.ReflectInvoker(blesser.NewMacaroonBlesserServer(googleParams.R, macaroonKey)),
-			dischargerService: ipc.ReflectInvoker(services.NewServerDischarger(discharger.NewDischarger(googleParams.R.Identity()))),
-		},
-		auth: vsecurity.NewACLAuthorizer(security.ACL{In: map[security.BlessingPattern]security.LabelSet{
-			security.AllPrincipals: security.AllLabels,
-		}}),
-	}
+	d := dispatcher(map[string]ipc.Invoker{
+		macaroonService:   ipc.ReflectInvoker(blesser.NewMacaroonBlesserServer(googleParams.R, macaroonKey)),
+		dischargerService: ipc.ReflectInvoker(services.NewServerDischarger(discharger.NewDischarger())),
+	})
 	if len(*googleConfigChrome) > 0 || len(*googleConfigAndroid) > 0 {
-		d.invokers[googleService] = ipc.ReflectInvoker(blesser.NewGoogleOAuthBlesserServer(googleParams))
+		d[googleService] = ipc.ReflectInvoker(blesser.NewGoogleOAuthBlesserServer(googleParams))
 	}
 	return d
 }
 
-type dispatcher struct {
-	invokers map[string]ipc.Invoker
-	auth     security.Authorizer
-}
+type allowEveryoneAuthorizer struct{}
 
-var _ ipc.Dispatcher = (*dispatcher)(nil)
+func (allowEveryoneAuthorizer) Authorize(security.Context) error { return nil }
+
+type dispatcher map[string]ipc.Invoker
 
 func (d dispatcher) Lookup(suffix, method string) (ipc.Invoker, security.Authorizer, error) {
-	if invoker := d.invokers[suffix]; invoker != nil {
-		return invoker, d.auth, nil
+	if invoker := d[suffix]; invoker != nil {
+		return invoker, allowEveryoneAuthorizer{}, nil
 	}
 	return nil, nil, verror.NoExistf("%q is not a valid suffix at this server", suffix)
 }
 
 // Starts the blessing services and the discharging service on the same port.
 func setupServices(r veyron2.Runtime, revocationManager *revocation.RevocationManager, macaroonKey []byte) (ipc.Server, []string, error) {
-	var enable bool
 	googleParams := blesser.GoogleParams{
-		R:                 r,
-		BlessingDuration:  time.Duration(*minExpiryDays) * 24 * time.Hour,
+		R: r,
+		// TODO(ashankar,nlacasse): Figure out how to have web-appications use the "caveats" form and
+		// always select an expiry instead of forcing a ridiculously large value here.
+		BlessingDuration:  365 * 24 * time.Hour,
 		DomainRestriction: *googleDomain,
 		RevocationManager: revocationManager,
 	}
 	if clientID, ok := getOAuthClientID(*googleConfigChrome); ok {
-		enable = true
-		googleParams.AccessTokenClients = append(googleParams.AccessTokenClients, struct{ ID string }{clientID})
+		googleParams.AccessTokenClients = append(googleParams.AccessTokenClients, clientID)
 	}
 	if clientID, ok := getOAuthClientID(*googleConfigAndroid); ok {
-		enable = true
-		googleParams.AccessTokenClients = append(googleParams.AccessTokenClients, struct{ ID string }{clientID})
-	}
-	if !enable {
-		return nil, nil, nil
+		googleParams.AccessTokenClients = append(googleParams.AccessTokenClients, clientID)
 	}
 	server, err := r.NewServer()
 	if err != nil {
@@ -207,17 +189,16 @@ func setupServices(r veyron2.Runtime, revocationManager *revocation.RevocationMa
 	}
 	ep, err := server.ListenX(static.ListenSpec)
 	if err != nil {
-		return nil, nil, fmt.Errorf("server.Listen(%s) failed: %v", static.ListenSpec, err)
+		return nil, nil, fmt.Errorf("server.Listen(%v) failed: %v", static.ListenSpec, err)
 	}
 	googleParams.DischargerLocation = naming.JoinAddressName(ep.String(), dischargerService)
 
 	dispatcher := newDispatcher(googleParams, macaroonKey)
-	objectname := fmt.Sprintf("identity/%s", r.Identity().PublicID().Names()[0])
+	objectname := naming.Join("identity", fmt.Sprintf("%v", r.Principal().BlessingStore().Default()))
 	if err := server.Serve(objectname, dispatcher); err != nil {
 		return nil, nil, fmt.Errorf("failed to start Veyron services: %v", err)
 	}
-	vlog.Infof("Google blessing and discharger services enabled at endpoint %v and name %q", ep, objectname)
-
+	vlog.Infof("Google blessing and discharger services enabled at %v", naming.JoinAddressName(ep.String(), objectname))
 	published, _ := server.Published()
 	if len(published) == 0 {
 		// No addresses published, publish the endpoint instead (which may not be usable everywhere, but oh-well).
@@ -280,19 +261,15 @@ func runHTTPServer(addr string) {
 }
 
 func usage() {
-	fmt.Fprintf(os.Stderr, `%s starts an HTTP server that mints veyron identities in response to GET requests.
+	fmt.Fprintf(os.Stderr, `%s starts an HTTP server that brokers blessings after authenticating through OAuth.
 
 To generate TLS certificates so the HTTP server can use SSL:
 go run $GOROOT/src/pkg/crypto/tls/generate_cert.go --host <IP address>
 
-To generate an identity for this service itself, use:
-go install veyron/tools/identity && ./bin/identity generate <name> ><filename>
-and set the VEYRON_IDENTITY environment variable when running this application.
+To use Google as an OAuth provider the --google_config_* flags must be set to point to
+the a JSON file obtained after registering the application with the Google Developer Console
+at https://cloud.google.com/console
 
-To enable use of Google APIs to use Google OAuth for authorization, set --google_config,
-which must point to the contents of a JSON file obtained after registering your application
-with the Google Developer Console at:
-https://code.google.com/apis/console
 More details on Google OAuth at:
 https://developers.google.com/accounts/docs/OAuth2Login
 
@@ -309,10 +286,27 @@ func defaultHost() string {
 	return host
 }
 
-// providerIdentity returns the identity of the identity provider (i.e., this program) itself.
-func providerIdentity() veyron2.ROpt {
-	// TODO(ashankar): This scheme of initializing a runtime just to share the "load identity" code is ridiculous.
-	// Figure out a way to update the runtime's identity with a wrapper and avoid this spurios "New" call.
+// providerPrincipal returns the Principal to use for the identity provider (i.e., this program).
+func providerPrincipal() veyron2.ROpt {
+	// TODO(ashankar): Somewhat silly to have to create a runtime, but oh-well.
+	r, err := rt.New()
+	if err != nil {
+		vlog.Fatal(err)
+	}
+	defer r.Cleanup()
+	p := r.Principal()
+	// TODO(ashankar): Hook this up with Suharsh's new auditor implementation.
+	// DO NOT SUBMIT
+	if len(*auditprefix) == 0 {
+		return options.RuntimePrincipal{p}
+	}
+	vlog.Fatalf("--auditprefix is not supported just yet!")
+	return nil
+}
+
+// TOOD(ashankar): Remove
+// providerIdentityOld returns the PrivateID of the identity provider (i.e., this program) itself.
+func providerIdentityOld() veyron2.ROpt {
 	r, err := rt.New()
 	if err != nil {
 		vlog.Fatal(err)
@@ -320,11 +314,8 @@ func providerIdentity() veyron2.ROpt {
 	defer r.Cleanup()
 	id := r.Identity()
 	if len(*auditprefix) > 0 {
-		auditor, err := auditor.NewFileAuditor(*auditprefix)
-		if err != nil {
-			vlog.Fatal(err)
-		}
-		id = audit.NewPrivateID(id, auditor)
+		vlog.Errorf("Auditing is temporarily disabled. Ask suharshs@ for details")
+		*auditprefix = ""
 	}
 	return options.RuntimeID{id}
 }
@@ -366,7 +357,7 @@ var tmpl = template.Must(template.New("main").Parse(`<!doctype html>
 </head>
 <body>
 <div class="container">
-<div class="page-header"><h2>{{.Self.Names}}</h2><h4>A Veyron Blessing Provider</h4></div>
+<div class="page-header"><h2>{{.Self}}</h2><h4>A Veyron Blessing Provider</h4></div>
 <div class="well">
 This is a Veyron identity provider that provides blessings with the name prefix <mark>{{.Self}}</mark>.
 <br/>
@@ -384,10 +375,7 @@ The public key of this provider is {{.Self.PublicKey}}, which is available in <a
 {{end}}
 {{if .ListBlessingsRoute}}
 <li>You can <a class="btn btn-xs btn-primary" href="/google/{{.ListBlessingsRoute}}">enumerate</a> blessings provided with your
-email address as the name.</li>
-{{end}}
-{{if .RandomWeb}}
-<li>You can obtain a randomly assigned PrivateID <a class="btn btn-sm btn-primary" href="/random/">here</a></li>
+email address.</li>
 {{end}}
 </ul>
 </div>
