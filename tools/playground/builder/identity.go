@@ -1,4 +1,5 @@
-// Functions to start services needed in the Veyron environment.
+// Functions to create and bless identities.
+
 package main
 
 import (
@@ -65,12 +66,14 @@ func createIdentities(ids []identity) error {
 }
 
 func runIdentity(args []string, filename string) error {
-	cmd := makeCmdJsonEvent("", "identity", args...)
+	cmd := makeCmd("", false, "identity", args...)
 	out, err := os.Create(filename)
 	if err != nil {
 		return err
 	}
 	defer out.Close()
+	// Note, here we actually overwrite cmd.Stdout (rather than adding a writer to
+	// the multiWriter), so only stderr will be streamed back to the client.
 	cmd.Stdout = out
 	return cmd.Run()
 }

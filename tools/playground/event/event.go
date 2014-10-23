@@ -13,6 +13,6 @@ type Event struct {
 	Message string
 	// Stream that the message was sent to, either "stdout" or "stderr".
 	Stream string
-	// Unix time, seconds since Jan 1 1970 UTC.
+	// Unix time, the number of nanoseconds elapsed since January 1, 1970 UTC.
 	Timestamp int64
 }

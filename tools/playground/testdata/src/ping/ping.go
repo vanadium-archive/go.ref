@@ -4,10 +4,10 @@ package main
 import (
 	"fmt"
 
+	_ "veyron.io/veyron/veyron/profiles"
 	"veyron.io/veyron/veyron2/rt"
 
-	_ "veyron.io/veyron/veyron/profiles"
-	"veyron.io/veyron/veyron/tools/playground/testdata/pingpong"
+	"pingpong"
 )
 
 func main() {

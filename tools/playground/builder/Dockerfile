@@ -42,12 +42,21 @@ RUN veyron go install veyron.io/veyron/...
 
 # Uncomment the following lines to install a version of the builder tool using
 # your local version of the code. This is useful when developing and testing
-# local changes to the builder tool.
-# RUN rm $VEYRON_ROOT/veyron/go/bin/builder
-# ADD main.go /usr/local/veyron/veyron/go/src/veyron/tools/playground/builder/main.go
-# ADD identity.go /usr/local/veyron/veyron/go/src/veyron/tools/playground/builder/identity.go
-# ADD services.go /usr/local/veyron/veyron/go/src/veyron/tools/playground/builder/services.go
-# RUN veyron go install veyron/tools/playground/builder
+# local changes.
+#RUN rm $VEYRON_ROOT/veyron/go/bin/builder
+#ADD main.go $VEYRON_ROOT/veyron/go/src/veyron.io/veyron/veyron/tools/playground/builder/main.go
+#ADD identity.go $VEYRON_ROOT/veyron/go/src/veyron.io/veyron/veyron/tools/playground/builder/identity.go
+#ADD services.go $VEYRON_ROOT/veyron/go/src/veyron.io/veyron/veyron/tools/playground/builder/services.go
+#ADD multi_writer.go $VEYRON_ROOT/veyron/go/src/veyron.io/veyron/veyron/tools/playground/builder/multi_writer.go
+#RUN veyron go install veyron.io/veyron/veyron/tools/playground/builder
+
+# Copy proxyd's main.go to builder/proxyd_main.go, then uncomment the following
+# lines to install a version of proxyd (used by the builder tool) using your
+# local version of the code. This is useful when developing and testing local
+# changes.
+#RUN rm $VEYRON_ROOT/veyron/go/bin/proxyd
+#ADD proxyd_main.go $VEYRON_ROOT/veyron/go/src/veyron.io/veyron/veyron/services/proxy/proxyd/main.go
+#RUN veyron go install veyron.io/veyron/veyron/services/proxy/proxyd
 
 USER playground
 WORKDIR /home/playground

@@ -68,25 +68,25 @@ function run() {
 
   // Loop over each path.
   _.each(dirs, function(dir) {
-    var subFiles = glob.sync('**', {
+    var relpaths = glob.sync('**', {
       cwd: dir,
       mark: true  // Add a '/' char to directory matches.
     });
 
-    if (subFiles.length === 0) {
+    if (relpaths.length === 0) {
       return usage();
     }
 
     var out = {files: []};
 
-    // Loop over each subfile in the path.
-    _.each(subFiles, function(fileName) {
-      if (shouldIgnore(fileName)) {
+    // Loop over each file.
+    _.each(relpaths, function(relpath) {
+      if (shouldIgnore(relpath)) {
         return;
       }
 
-      var fullFilePath = path.resolve(dir, fileName);
-      var text = fs.readFileSync(fullFilePath, {encoding: 'utf8'});
+      var abspath = path.resolve(dir, relpath);
+      var text = fs.readFileSync(abspath, {encoding: 'utf8'});
 
       var lines = text.split('\n');
       lines = stripBuildOmit(lines);
@@ -94,17 +94,19 @@ function run() {
       var index = indexAndLines.index;
       lines = indexAndLines.lines;
 
-      // TODO(sadovsky): Should we put the index in the bundle? Note that we
-      // already order files by index below. The playground client currently
-      // does not use the index.
       out.files.push({
-        name: path.basename(fileName),
+        name: relpath,
         body: lines.join('\n'),
         index: index
       });
     });
 
     out.files = _.sortBy(out.files, 'index');
+
+    // Drop the index fields -- we don't need them anymore.
+    out.files = _.map(out.files, function(f) {
+      return _.omit(f, 'index');
+    })
 
     // Write the bundle.json.
     var outFile = path.resolve(dir, BUNDLE_NAME);
