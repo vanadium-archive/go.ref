@@ -108,6 +108,14 @@ func NewShell(patterns ...string) *Shell {
 
 // CreateAndUseNewCredentials setups a new credentials directory and then
 // configures the shell and all of its children to use to it.
+//
+// TODO(cnicolaou): this should use the principal already setup
+// with the runtime if the runtime has been initialized, if not,
+// it should create a new principal. As of now, this approach only works
+// for child processes that talk to each other, but not to the parent
+// process that started them since it's running with a different set of
+// credentials setup elsewhere. When this change is made it should
+// be possible to remove creating credentials in many unit tests.
 func (sh *Shell) CreateAndUseNewCredentials() error {
 	dir, err := ioutil.TempDir("", "veyron_credentials")
 	if err != nil {
@@ -132,9 +140,8 @@ func (sh *Shell) AddSubprocess(name, help string) {
 }
 
 func (sh *Shell) addSubprocess(name string, help string) {
-	entryPoint := ShellEntryPoint + "=" + name
 	sh.mu.Lock()
-	sh.cmds[name] = &commandDesc{func() command { return newExecHandle(entryPoint) }, help}
+	sh.cmds[name] = &commandDesc{func() command { return newExecHandle(name) }, help}
 	sh.mu.Unlock()
 }
 
@@ -142,7 +149,7 @@ func (sh *Shell) addSubprocess(name string, help string) {
 // within the current process.
 func (sh *Shell) AddFunction(name string, main Main, help string) {
 	sh.mu.Lock()
-	sh.cmds[name] = &commandDesc{func() command { return newFunctionHandle(main) }, help}
+	sh.cmds[name] = &commandDesc{func() command { return newFunctionHandle(name, main) }, help}
 	sh.mu.Unlock()
 }
 
@@ -179,9 +186,16 @@ func (sh *Shell) Help(command string) string {
 // the Cleanup method. If the non-registered subprocess command does not
 // exist then the Start command will return an error.
 func (sh *Shell) Start(name string, args ...string) (Handle, error) {
+	return sh.StartWithEnv(name, nil, args...)
+}
+
+// StartWithEnv is like Start except with a set of environment variables
+// that override those in the Shell and the OS' environment.
+func (sh *Shell) StartWithEnv(name string, env []string, args ...string) (Handle, error) {
+	cenv := sh.MergedEnv(env)
 	cmd := sh.getCommand(name)
 	expanded := append([]string{name}, sh.expand(args...)...)
-	h, err := cmd.factory().start(sh, expanded...)
+	h, err := cmd.factory().start(sh, cenv, expanded...)
 	if err != nil {
 		return nil, err
 	}
@@ -196,8 +210,7 @@ func (sh *Shell) getCommand(name string) *commandDesc {
 	cmd := sh.cmds[name]
 	sh.mu.Unlock()
 	if cmd == nil {
-		entryPoint := ShellEntryPoint + "=" + name
-		cmd = &commandDesc{func() command { return newExecHandle(entryPoint) }, ""}
+		cmd = &commandDesc{func() command { return newExecHandle(name) }, ""}
 	}
 	return cmd
 }
@@ -205,8 +218,8 @@ func (sh *Shell) getCommand(name string) *commandDesc {
 // CommandEnvelope returns the command line and environment that would be
 // used for running the subprocess or function if it were started with the
 // specifed arguments.
-func (sh *Shell) CommandEnvelope(name string, args ...string) ([]string, []string) {
-	return sh.getCommand(name).factory().envelope(sh, args...)
+func (sh *Shell) CommandEnvelope(name string, env []string, args ...string) ([]string, []string) {
+	return sh.getCommand(name).factory().envelope(sh, sh.MergedEnv(env), args...)
 }
 
 // Forget tells the Shell to stop tracking the supplied Handle. This is
@@ -249,6 +262,13 @@ func (sh *Shell) SetVar(key, value string) {
 	sh.env[key] = value
 }
 
+// ClearVar removes the speficied variable from the Shell's environment
+func (sh *Shell) ClearVar(key string) {
+	sh.mu.Lock()
+	defer sh.mu.Unlock()
+	delete(sh.env, key)
+}
+
 // Env returns the entire set of environment variables associated with this
 // Shell as a string slice.
 func (sh *Shell) Env() []string {
@@ -263,8 +283,10 @@ func (sh *Shell) Env() []string {
 
 // Cleanup calls Shutdown on all of the Handles currently being tracked
 // by the Shell and writes to stdout and stderr as per the Shutdown
-// method in the Handle interface.
-func (sh *Shell) Cleanup(stdout, stderr io.Writer) {
+// method in the Handle interface. Cleanup returns the error from the
+// last Shutdown that returned a non-nil error. The order that the
+// Shutdown routines are executed is not defined.
+func (sh *Shell) Cleanup(stdout, stderr io.Writer) error {
 	sh.mu.Lock()
 	handles := make(map[Handle]struct{})
 	for k, v := range sh.handles {
@@ -272,24 +294,35 @@ func (sh *Shell) Cleanup(stdout, stderr io.Writer) {
 	}
 	sh.handles = make(map[Handle]struct{})
 	sh.mu.Unlock()
+	var err error
 	for k, _ := range handles {
-		k.Shutdown(stdout, stderr)
+		cerr := k.Shutdown(stdout, stderr)
+		if cerr != nil {
+			err = cerr
+		}
 	}
 	if len(sh.credDir) > 0 {
 		os.RemoveAll(sh.credDir)
 	}
+	return err
 }
 
 // MergedEnv returns a slice that contains the merged set of environment
-// variables from the OS environment and those in this Shell, preferring
-// values in the Shell environment over those found in the OS environment.
-func (sh *Shell) MergedEnv() []string {
-	merged := sh.mergeOSEnv()
-	env := []string{}
-	for k, v := range merged {
-		env = append(env, k+"="+v)
+// variables from the OS environment, those in this Shell and those provided
+// as a parameter to it. It prefers values from its parameter over those
+// from the Shell, over those from the OS.
+func (sh *Shell) MergedEnv(env []string) []string {
+	osmap := envSliceToMap(os.Environ())
+	evmap := envSliceToMap(env)
+	sh.mu.Lock()
+	m1 := mergeMaps(osmap, sh.env)
+	defer sh.mu.Unlock()
+	m2 := mergeMaps(m1, evmap)
+	r := []string{}
+	for k, v := range m2 {
+		r = append(r, k+"="+v)
 	}
-	return env
+	return r
 }
 
 // Handle represents a running command.
@@ -325,6 +358,6 @@ type Handle interface {
 // command is used to abstract the implementations of inprocess and subprocess
 // commands.
 type command interface {
-	envelope(sh *Shell, args ...string) ([]string, []string)
-	start(sh *Shell, args ...string) (Handle, error)
+	envelope(sh *Shell, env []string, args ...string) ([]string, []string)
+	start(sh *Shell, env []string, args ...string) (Handle, error)
 }

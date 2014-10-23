@@ -5,6 +5,8 @@ import (
 	"io"
 	"os"
 	"sync"
+
+	"veyron.io/veyron/veyron2/vlog"
 )
 
 type pipe struct {
@@ -12,6 +14,7 @@ type pipe struct {
 }
 type functionHandle struct {
 	mu            sync.Mutex
+	name          string
 	main          Main
 	stdin, stdout pipe
 	stderr        *os.File
@@ -20,8 +23,8 @@ type functionHandle struct {
 	wg            sync.WaitGroup
 }
 
-func newFunctionHandle(main Main) command {
-	return &functionHandle{main: main}
+func newFunctionHandle(name string, main Main) command {
+	return &functionHandle{name: name, main: main}
 }
 
 func (fh *functionHandle) Stdout() io.Reader {
@@ -48,11 +51,11 @@ func (fh *functionHandle) CloseStdin() {
 	fh.mu.Unlock()
 }
 
-func (fh *functionHandle) envelope(sh *Shell, args ...string) ([]string, []string) {
-	return args, sh.MergedEnv()
+func (fh *functionHandle) envelope(sh *Shell, env []string, args ...string) ([]string, []string) {
+	return args, env
 }
 
-func (fh *functionHandle) start(sh *Shell, args ...string) (Handle, error) {
+func (fh *functionHandle) start(sh *Shell, env []string, args ...string) (Handle, error) {
 	fh.mu.Lock()
 	defer fh.mu.Unlock()
 	fh.sh = sh
@@ -69,7 +72,7 @@ func (fh *functionHandle) start(sh *Shell, args ...string) (Handle, error) {
 	fh.stderr = stderr
 	fh.wg.Add(1)
 
-	go func() {
+	go func(env []string) {
 		fh.mu.Lock()
 		stdin := fh.stdin.r
 		stdout := fh.stdout.w
@@ -77,7 +80,10 @@ func (fh *functionHandle) start(sh *Shell, args ...string) (Handle, error) {
 		main := fh.main
 		fh.mu.Unlock()
 
-		err := main(stdin, stdout, stderr, sh.mergeOSEnv(), args...)
+		cenv := envSliceToMap(env)
+		vlog.VI(1).Infof("Start: %q args: %v", fh.name, args)
+		vlog.VI(2).Infof("Start: %q env: %v", fh.name, cenv)
+		err := main(stdin, stdout, stderr, cenv, args...)
 		if err != nil {
 			fmt.Fprintf(stderr, "%s\n", err)
 		}
@@ -88,7 +94,7 @@ func (fh *functionHandle) start(sh *Shell, args ...string) (Handle, error) {
 		fh.err = err
 		fh.mu.Unlock()
 		fh.wg.Done()
-	}()
+	}(env)
 	return fh, nil
 }
 
@@ -98,6 +104,7 @@ func (eh *functionHandle) Pid() int {
 
 func (fh *functionHandle) Shutdown(stdout_w, stderr_w io.Writer) error {
 	fh.mu.Lock()
+	vlog.VI(1).Infof("Shutdown: %q", fh.name)
 	fh.stdin.w.Close()
 	stdout := fh.stdout.r
 	stderr := fh.stderr

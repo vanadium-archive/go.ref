@@ -12,9 +12,11 @@ import (
 
 	"veyron.io/veyron/veyron/lib/exec"
 	"veyron.io/veyron/veyron/lib/modules"
+	"veyron.io/veyron/veyron/lib/testutil"
 )
 
 func init() {
+	testutil.Init()
 	modules.RegisterChild("envtest", "envtest: <variables to print>...", PrintFromEnv)
 	modules.RegisterChild("printenv", "printenv", PrintEnv)
 	modules.RegisterChild("echo", "[args]*", Echo)
@@ -49,7 +51,7 @@ func PrintEnv(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, 
 		fmt.Fprintf(stdout, "%s%s\n", printEnvArgPrefix, a)
 	}
 	for k, v := range env {
-		fmt.Fprintln(stdout, k+"="+v)
+		fmt.Fprintf(stdout, k+"="+v+"\n")
 	}
 	return nil
 }
@@ -97,7 +99,7 @@ func testCommand(t *testing.T, sh *modules.Shell, name, key, val string) {
 	}
 	h.CloseStdin()
 	if !waitForInput(scanner) {
-		t.Errorf("timeout")
+		t.Fatalf("timeout")
 		return
 	}
 	if got, want := scanner.Text(), "done"; got != want {
@@ -144,12 +146,12 @@ func TestErrorChild(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
-	if got, want := h.Shutdown(nil, nil), "exit status 1"; got == nil || got.Error() != want {
+	if got, want := h.Shutdown(nil, nil), "exit status 255"; got == nil || got.Error() != want {
 		t.Errorf("got %q, want %q", got, want)
 	}
 }
 
-func testShutdown(t *testing.T, sh *modules.Shell) {
+func testShutdown(t *testing.T, sh *modules.Shell, isfunc bool) {
 	result := ""
 	args := []string{"a", "b c", "ddd"}
 	if _, err := sh.Start("echo", args...); err != nil {
@@ -166,6 +168,9 @@ func testShutdown(t *testing.T, sh *modules.Shell) {
 	if got, want := stdoutBuf.String(), stdoutOutput+result; got != want {
 		t.Errorf("got %q want %q", got, want)
 	}
+	if !isfunc {
+		stderrBuf.ReadString('\n') // Skip past the random # generator output
+	}
 	if got, want := stderrBuf.String(), stderrOutput; got != want {
 		t.Errorf("got %q want %q", got, want)
 	}
@@ -173,13 +178,13 @@ func testShutdown(t *testing.T, sh *modules.Shell) {
 
 func TestShutdownSubprocess(t *testing.T) {
 	sh := modules.NewShell("echo")
-	testShutdown(t, sh)
+	testShutdown(t, sh, false)
 }
 
 func TestShutdownFunction(t *testing.T) {
 	sh := modules.NewShell()
 	sh.AddFunction("echo", Echo, "[args]*")
-	testShutdown(t, sh)
+	testShutdown(t, sh, true)
 }
 
 func TestErrorFunc(t *testing.T) {
@@ -224,7 +229,7 @@ func TestEnvelope(t *testing.T) {
 			childEnv = append(childEnv, o)
 		}
 	}
-	shArgs, shEnv := sh.CommandEnvelope("printenv", args...)
+	shArgs, shEnv := sh.CommandEnvelope("printenv", nil, args...)
 	for _, want := range args {
 		if !find(want, childArgs) {
 			t.Errorf("failed to find %q in %s", want, childArgs)
@@ -254,7 +259,10 @@ func TestEnvMerge(t *testing.T) {
 	defer sh.Cleanup(nil, nil)
 	sh.SetVar("a", "1")
 	os.Setenv("a", "wrong, should be 1")
-	h, err := sh.Start("printenv")
+	sh.SetVar("b", "2 also wrong")
+	os.Setenv("b", "wrong, should be 2")
+
+	h, err := sh.StartWithEnv("printenv", []string{"b=2"})
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
@@ -263,7 +271,12 @@ func TestEnvMerge(t *testing.T) {
 		o := scanner.Text()
 		if strings.HasPrefix(o, "a=") {
 			if got, want := o, "a=1"; got != want {
-				t.Errorf("got: %s, want %s", got, want)
+				t.Errorf("got: %q, want %q", got, want)
+			}
+		}
+		if strings.HasPrefix(o, "b=") {
+			if got, want := o, "b=2"; got != want {
+				t.Errorf("got: %q, want %q", got, want)
 			}
 		}
 	}

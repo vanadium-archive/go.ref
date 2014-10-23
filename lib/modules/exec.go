@@ -11,15 +11,15 @@ import (
 	"sync"
 	"time"
 
-	"veyron.io/veyron/veyron2/vlog"
-
 	vexec "veyron.io/veyron/veyron/lib/exec"
+	"veyron.io/veyron/veyron2/vlog"
 )
 
 // execHandle implements both the command and Handle interfaces.
 type execHandle struct {
 	mu         sync.Mutex
 	cmd        *exec.Cmd
+	name       string
 	entryPoint string
 	handle     *vexec.ParentHandle
 	sh         *Shell
@@ -63,8 +63,8 @@ func IsTestHelperProcess() bool {
 	return runFlag.Value.String() == "TestHelperProcess"
 }
 
-func newExecHandle(entryPoint string) command {
-	return &execHandle{entryPoint: entryPoint}
+func newExecHandle(name string) command {
+	return &execHandle{name: name, entryPoint: ShellEntryPoint + "=" + name}
 }
 
 func (eh *execHandle) Stdout() io.Reader {
@@ -91,40 +91,14 @@ func (eh *execHandle) CloseStdin() {
 	eh.mu.Unlock()
 }
 
-func osEnvironMap() map[string]string {
-	m := make(map[string]string)
-	for _, osv := range os.Environ() {
-		if len(osv) == 0 {
-			continue
-		}
-		parts := strings.SplitN(osv, "=", 2)
-		key := parts[0]
-		if len(parts) == 2 {
-			m[key] = parts[1]
-		} else {
-			m[key] = ""
-		}
-	}
-	return m
-}
-func (sh *Shell) mergeOSEnv() map[string]string {
-	merged := osEnvironMap()
-	sh.mu.Lock()
-	for k, v := range sh.env {
-		merged[k] = v
-	}
-	sh.mu.Unlock()
-	return merged
-}
-
-func (eh *execHandle) envelope(sh *Shell, args ...string) ([]string, []string) {
+func (eh *execHandle) envelope(sh *Shell, env []string, args ...string) ([]string, []string) {
 	newargs := []string{os.Args[0]}
 	newargs = append(newargs, testFlags()...)
 	newargs = append(newargs, args...)
-	return newargs, append(sh.MergedEnv(), eh.entryPoint)
+	return newargs, append(env, eh.entryPoint)
 }
 
-func (eh *execHandle) start(sh *Shell, args ...string) (Handle, error) {
+func (eh *execHandle) start(sh *Shell, env []string, args ...string) (Handle, error) {
 	eh.mu.Lock()
 	defer eh.mu.Unlock()
 	eh.sh = sh
@@ -133,7 +107,7 @@ func (eh *execHandle) start(sh *Shell, args ...string) (Handle, error) {
 	// the flag package.
 	newargs := append(testFlags(), args[1:]...)
 	cmd := exec.Command(os.Args[0], newargs...)
-	cmd.Env = append(sh.MergedEnv(), eh.entryPoint)
+	cmd.Env = append(env, eh.entryPoint)
 	fname := strings.TrimPrefix(eh.entryPoint, ShellEntryPoint+"=")
 	stderr, err := newLogfile(strings.TrimLeft(fname, "-\n\t "))
 	if err != nil {
@@ -155,10 +129,13 @@ func (eh *execHandle) start(sh *Shell, args ...string) (Handle, error) {
 	eh.stdin = stdin
 	eh.handle = handle
 	eh.cmd = cmd
+	vlog.VI(1).Infof("Start: %q args: %v", eh.name, cmd.Args)
+	vlog.VI(2).Infof("Start: %q env: %v", eh.name, cmd.Env)
 	if err := handle.Start(); err != nil {
 		return nil, err
 	}
-	err = handle.WaitForReady(10 * time.Second)
+	// TODO(cnicolaou): make this timeout configurable
+	err = handle.WaitForReady(time.Minute)
 	return eh, err
 }
 
@@ -169,6 +146,7 @@ func (eh *execHandle) Pid() int {
 func (eh *execHandle) Shutdown(stdout, stderr io.Writer) error {
 	eh.mu.Lock()
 	defer eh.mu.Unlock()
+	vlog.VI(1).Infof("Shutdown: %q", eh.name)
 	eh.stdin.Close()
 	logFile := eh.stderr.Name()
 	defer eh.sh.Forget(eh)
@@ -177,14 +155,19 @@ func (eh *execHandle) Shutdown(stdout, stderr io.Writer) error {
 		os.Remove(logFile)
 	}()
 
+	// TODO(cnicolaou): make this configurable
+	timeout := 10 * time.Second
 	if stdout == nil && stderr == nil {
-		return eh.cmd.Wait()
+		return eh.handle.Wait(timeout)
 	}
-	// Read from stdin before waiting for the child process to ensure
-	// that we get to read all of its output.
-	readTo(eh.stdout, stdout)
 
-	procErr := eh.cmd.Wait()
+	if stdout != nil {
+		// Read from stdin before waiting for the child process to ensure
+		// that we get to read all of its output.
+		readTo(eh.stdout, stdout)
+	}
+
+	procErr := eh.handle.Wait(timeout)
 
 	// Stderr is buffered to a file, so we can safely read it after we
 	// wait for the process.
@@ -192,7 +175,7 @@ func (eh *execHandle) Shutdown(stdout, stderr io.Writer) error {
 	if stderr != nil {
 		stderrFile, err := os.Open(logFile)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "failed to open %q: %s\n", logFile, err)
+			vlog.VI(1).Infof("failed to open %q: %s\n", logFile, err)
 			return procErr
 		}
 		readTo(stderrFile, stderr)
@@ -216,8 +199,7 @@ func DispatchInTest() {
 		return
 	}
 	if err := child.dispatch(); err != nil {
-		fmt.Fprintf(os.Stderr, "Failed: %s\n", err)
-		os.Exit(1)
+		vlog.Fatalf("Failed: %s", err)
 	}
 	os.Exit(0)
 }
@@ -273,15 +255,14 @@ func (child *childRegistrar) dispatch() error {
 		for {
 			_, err := os.FindProcess(pid)
 			if err != nil {
-				fmt.Fprintf(os.Stderr, "Looks like our parent exited: %v", err)
-				os.Exit(1)
+				vlog.Fatalf("Looks like our parent exited: %v", err)
 			}
 			time.Sleep(time.Second)
 		}
 	}(os.Getppid())
 
 	args := append([]string{command}, flag.Args()...)
-	return m.fn(os.Stdin, os.Stdout, os.Stderr, osEnvironMap(), args...)
+	return m.fn(os.Stdin, os.Stdout, os.Stderr, envSliceToMap(os.Environ()), args...)
 }
 
 func (child *childRegistrar) addSubprocesses(sh *Shell, pattern string) error {
