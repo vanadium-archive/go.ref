@@ -4,17 +4,20 @@ import (
 	"bytes"
 	"crypto/elliptic"
 	"fmt"
+	"io"
 	"math/big"
 	"reflect"
 	"sort"
 	"testing"
 	"time"
 
-	"veyron.io/veyron/veyron/lib/testutil/blackbox"
 	"veyron.io/veyron/veyron2/security"
 	"veyron.io/veyron/veyron2/security/wire"
 	"veyron.io/veyron/veyron2/vlog"
 	"veyron.io/veyron/veyron2/vom"
+
+	"veyron.io/veyron/veyron/lib/expect"
+	"veyron.io/veyron/veyron/lib/modules"
 )
 
 type S []string
@@ -309,7 +312,7 @@ func (unregisteredCaveat) Validate(security.Context) error {
 	return nil
 }
 
-func encodeUnregisteredCaveat([]string) {
+func encodeUnregisteredCaveat(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
 	cav, err := security.NewCaveat(unregisteredCaveat{1})
 	if err != nil {
 		vlog.Fatalf("security.NewCaveat failed: %s", err)
@@ -318,12 +321,13 @@ func encodeUnregisteredCaveat([]string) {
 	if err := vom.NewEncoder(&buf).Encode(cav); err != nil {
 		vlog.Fatalf("could not VOM-encode caveat: %s", err)
 	}
-	fmt.Println(string(buf.Bytes()))
-	blackbox.WaitForEOFOnStdin()
+	fmt.Fprintln(stdout, string(buf.Bytes()))
+	modules.WaitForEOF(stdin)
+	return nil
 }
 
 func TestHelperProcess(t *testing.T) {
-	blackbox.HelperProcess(t)
+	modules.DispatchInTest()
 }
 
 func TestAuthorizeWithCaveats(t *testing.T) {
@@ -346,14 +350,19 @@ func TestAuthorizeWithCaveats(t *testing.T) {
 	//
 	// The Caveat is created within a child process as VOM automaitcally
 	// registers all values encoded within the same process.
-	child := blackbox.HelperCommand(t, "encodeUnregisteredCaveat")
-	child.Cmd.Start()
-	defer child.Cleanup()
-	encodedCaveat, err := child.ReadLineFromChild()
+	sh := modules.NewShell(".*")
+	defer sh.Cleanup(nil, nil)
+	h, err := sh.Start("encodeUnregisteredCaveat")
 	if err != nil {
-		t.Fatalf("ReadLineFromChild failed: %v", err)
+		t.Fatalf("unexpected error: %s", err)
 	}
-	child.CloseStdin()
+	s := expect.NewSession(t, h.Stdout(), time.Minute)
+
+	encodedCaveat := s.ReadLine()
+	if s.Failed() {
+		t.Fatalf("ReadLineFromChild failed: %v", s.Error())
+	}
+	h.CloseStdin()
 
 	var cavUnregistered security.Caveat
 	if err := vom.NewDecoder(bytes.NewReader([]byte(encodedCaveat))).Decode(&cavUnregistered); err != nil {
@@ -855,7 +864,7 @@ func TestSetIdentityAmplification(t *testing.T) {
 }
 
 func init() {
-	blackbox.CommandTable["encodeUnregisteredCaveat"] = encodeUnregisteredCaveat
+	modules.RegisterChild("encodeUnregisteredCaveat", "", encodeUnregisteredCaveat)
 
 	vom.Register(alwaysValidCaveat{})
 	vom.Register(proximityCaveat{})

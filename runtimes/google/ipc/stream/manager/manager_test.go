@@ -5,18 +5,21 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"os"
 	"reflect"
 	"runtime"
 	"strings"
 	"testing"
+	"time"
 
 	"veyron.io/veyron/veyron2/ipc/stream"
 	"veyron.io/veyron/veyron2/naming"
 	"veyron.io/veyron/veyron2/security"
 	"veyron.io/veyron/veyron2/vlog"
 
+	"veyron.io/veyron/veyron/lib/expect"
+	"veyron.io/veyron/veyron/lib/modules"
 	"veyron.io/veyron/veyron/lib/testutil"
-	"veyron.io/veyron/veyron/lib/testutil/blackbox"
 	"veyron.io/veyron/veyron/runtimes/google/ipc/stream/sectest"
 	"veyron.io/veyron/veyron/runtimes/google/ipc/stream/vc"
 	"veyron.io/veyron/veyron/runtimes/google/ipc/version"
@@ -34,8 +37,7 @@ func init() {
 	// condition tht occurs when closing the server; also, using 1 cpu
 	// introduces less variance in the behavior of the test.
 	runtime.GOMAXPROCS(1)
-
-	blackbox.CommandTable["runServer"] = runServer
+	modules.RegisterChild("runServer", "", runServer)
 }
 
 func TestSimpleFlow(t *testing.T) {
@@ -434,12 +436,15 @@ func TestAddressResolution(t *testing.T) {
 
 func TestServerRestartDuringClientLifetime(t *testing.T) {
 	client := InternalNew(naming.FixedRoutingID(0xcccccccc))
-	server := blackbox.HelperCommand(t, "runServer", "127.0.0.1:0")
-	server.Cmd.Start()
-	addr, err := server.ReadLineFromChild()
+	sh := modules.NewShell(".*")
+	defer sh.Cleanup(nil, nil)
+	h, err := sh.Start("runServer", "127.0.0.1:0")
 	if err != nil {
-		t.Fatalf("Failed to read server address from process: %v", err)
+		t.Fatalf("unexpected error: %s", err)
 	}
+	s := expect.NewSession(t, h.Stdout(), time.Minute)
+	addr := s.ReadLine()
+
 	ep, err := inaming.NewEndpoint(addr)
 	if err != nil {
 		t.Fatalf("inaming.NewEndpoint(%q): %v", addr, err)
@@ -447,16 +452,20 @@ func TestServerRestartDuringClientLifetime(t *testing.T) {
 	if _, err := client.Dial(ep); err != nil {
 		t.Fatal(err)
 	}
-	server.Cleanup()
+	h.Shutdown(nil, os.Stderr)
+
 	// A new VC cannot be created since the server is dead
 	if _, err := client.Dial(ep); err == nil {
 		t.Fatal("Expected client.Dial to fail since server is dead")
 	}
+
+	h, err = sh.Start("runServer", addr)
+	if err != nil {
+		t.Fatalf("unexpected error: %s", err)
+	}
+	s = expect.NewSession(t, h.Stdout(), time.Minute)
 	// Restarting the server, listening on the same address as before
-	server = blackbox.HelperCommand(t, "runServer", addr)
-	defer server.Cleanup()
-	server.Cmd.Start()
-	if addr2, err := server.ReadLineFromChild(); addr2 != addr || err != nil {
+	if addr2 := s.ReadLine(); addr2 != addr || err != nil {
 		t.Fatalf("Got (%q, %v) want (%q, nil)", addr2, err, addr)
 	}
 	if _, err := client.Dial(ep); err != nil {
@@ -466,19 +475,20 @@ func TestServerRestartDuringClientLifetime(t *testing.T) {
 
 // Required by blackbox framework
 func TestHelperProcess(t *testing.T) {
-	blackbox.HelperProcess(t)
+	modules.DispatchInTest()
 }
 
-func runServer(argv []string) {
+func runServer(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
 	server := InternalNew(naming.FixedRoutingID(0x55555555))
-	_, ep, err := server.Listen("tcp", argv[0])
+	_, ep, err := server.Listen("tcp", args[1])
 	if err != nil {
-		fmt.Println(err)
-		return
+		fmt.Fprintln(stderr, err)
+		return err
 	}
-	fmt.Println(ep.Addr())
+	fmt.Fprintln(stdout, ep.Addr())
 	// Live forever (till the process is explicitly killed)
-	<-make(chan struct{})
+	modules.WaitForEOF(stdin)
+	return nil
 }
 
 func readLine(f stream.Flow) (string, error) {
