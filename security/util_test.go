@@ -5,7 +5,6 @@ import (
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/rand"
-	"crypto/x509"
 	"fmt"
 	"reflect"
 	"testing"
@@ -45,8 +44,8 @@ func TestLoadSavePEMKeyWithPassphrase(t *testing.T) {
 		t.Fatalf("Failed to save ECDSA private key: %v", err)
 	}
 	loadedKey, err := loadPEMKey(&buf, incorrect_pass)
-	if loadedKey != nil && err != x509.IncorrectPasswordError {
-		t.Errorf("expected (nil, x509.IncorrectPasswordError) received (%v,%v)", loadedKey, err)
+	if loadedKey != nil && err != nil {
+		t.Errorf("expected (nil, err != nil) received (%v,%v)", loadedKey, err)
 	}
 
 	// Test correct password.
