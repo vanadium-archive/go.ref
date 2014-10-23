@@ -58,8 +58,8 @@ func TestReconnect(t *testing.T) {
 	}
 	// Kill the server, verify client can't talk to it anymore.
 	server.Shutdown(nil, nil)
-	if _, err := makeCall(); err == nil || !strings.HasPrefix(err.Error(), "START") {
-		t.Fatalf(`Got (%v) want ("START: <err>") as server is down`, err)
+	if _, err := makeCall(); err == nil || (!strings.HasPrefix(err.Error(), "START") && !strings.Contains(err.Error(), "EOF")) {
+		t.Fatalf(`Got (%v) want ("START: <err>" or "EOF") as server is down`, err)
 	}
 
 	// Resurrect the server with the same address, verify client
@@ -166,13 +166,14 @@ func TestProxy(t *testing.T) {
 	if err := proxy.Stop(); err != nil {
 		t.Fatal(err)
 	}
+	if result, err := makeCall(); err == nil || (!strings.HasPrefix(err.Error(), "RESOLVE") && !strings.Contains(err.Error(), "EOF")) {
+		t.Fatalf(`Got (%v, %v) want ("", "RESOLVE: <err>" or "EOF") as proxy is down`, result, err)
+	}
 	for {
 		if _, err := ns.Resolve(testContext(), name); err != nil {
 			break
 		}
-	}
-	if result, err := makeCall(); err == nil || !strings.HasPrefix(err.Error(), "RESOLVE") {
-		t.Fatalf(`Got (%v, %v) want ("", "RESOLVE: <err>") as proxy is down`, result, err)
+		time.Sleep(10 * time.Millisecond)
 	}
 	verifyMountMissing(t, ns, name)
 
