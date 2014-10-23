@@ -106,7 +106,7 @@ function run() {
     // Drop the index fields -- we don't need them anymore.
     out.files = _.map(out.files, function(f) {
       return _.omit(f, 'index');
-    })
+    });
 
     // Write the bundle.json.
     var outFile = path.resolve(dir, BUNDLE_NAME);
