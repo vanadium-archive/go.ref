@@ -28,10 +28,9 @@ func OpenACL() security.ACL {
 	return acl
 }
 
-var MissingPassphraseErr = errors.New("passphrase required for decrypting private key")
+var PassphraseErr = errors.New("passphrase incorrect for decrypting private key")
 
-// loadPEMKey loads a key from 'r'. passphrase should be non-nil if the key held in 'r' is
-// encrypted, otherwise a MissingPassphraseErr will be returned.
+// loadPEMKey loads a key from 'r'. returns PassphraseErr for incorrect Passphrase.
 // If the key held in 'r' is unencrypted, 'passphrase' will be ignored.
 func loadPEMKey(r io.Reader, passphrase []byte) (interface{}, error) {
 	pemBlockBytes, err := ioutil.ReadAll(r)
@@ -44,12 +43,9 @@ func loadPEMKey(r io.Reader, passphrase []byte) (interface{}, error) {
 	}
 	var data []byte
 	if x509.IsEncryptedPEMBlock(pemBlock) {
-		if passphrase == nil {
-			return nil, MissingPassphraseErr
-		}
 		data, err = x509.DecryptPEMBlock(pemBlock, passphrase)
 		if err != nil {
-			return nil, err
+			return nil, PassphraseErr
 		}
 	} else {
 		data = pemBlock.Bytes
@@ -57,7 +53,11 @@ func loadPEMKey(r io.Reader, passphrase []byte) (interface{}, error) {
 
 	switch pemBlock.Type {
 	case ecPrivateKeyPEMType:
-		return x509.ParseECPrivateKey(data)
+		key, err := x509.ParseECPrivateKey(data)
+		if err != nil {
+			return nil, PassphraseErr
+		}
+		return key, nil
 	}
 	return nil, fmt.Errorf("PEM key block has an unrecognized type: %v", pemBlock.Type)
 }

@@ -47,8 +47,7 @@ func NewPersistentPrincipalFromSigner(signer security.Signer, dir string) (secur
 // LoadPersistentPrincipal reads state for a principal (private key, BlessingRoots, BlessingStore)
 // from the provided directory 'dir' and commits all state changes to the same directory.
 // If private key file does not exist then an error 'err' is returned such that os.IsNotExist(err) is true.
-// If private key file exists then 'passphrase' must be non-nil if the contents of the file are encrypted,
-// otherwise a MissingPassphraseErr is returned.
+// If private key file exists then 'passphrase' must be correct, otherwise PassphraseErr will be returned.
 func LoadPersistentPrincipal(dir string, passphrase []byte) (security.Principal, error) {
 	key, err := loadKeyFromDir(dir, passphrase)
 	if err != nil {
