@@ -8,10 +8,10 @@
 
 source "${VEYRON_ROOT}/scripts/lib/shell_test.sh"
 
-readonly WORKDIR=$(shell::tmp_dir)
+readonly WORKDIR=${shell_test_WORK_DIR}
 
 build() {
-  veyron go build veyron.io/veyron/veyron/tools/principal || shell_test::fail "line ${LINENO}: failed to build principal"
+  PRINCIPAL_BIN="$(shell_test::build_go_binary 'veyron.io/veyron/veyron/tools/principal')"
 }
 
 # rmpublickey replaces public keys (16 hex bytes, :-separated) with XX:....
@@ -26,7 +26,7 @@ rmcaveats() {
 }
 
 dumpblessings() {
-    ./principal dumpblessings "$1" | rmpublickey | rmcaveats
+    "${PRINCIPAL_BIN}" dumpblessings "$1" | rmpublickey | rmcaveats
 }
 
 main() {
@@ -36,20 +36,20 @@ main() {
   # Prevent any VEYRON_CREDENTIALS in the environment from interfering with this test.
   unset VEYRON_CREDENTIALS
   # Create two principals, one called "alice" one called "bob"
-  ./principal create --overwrite=true ./alice alice >/dev/null || shell_test::fail "line ${LINENO}: create failed"
-  ./principal create ./bob bob >/dev/null || shell_test::fail "line ${LINENO}: create failed"
-  ./principal create --overwrite=true ./bob bob >/dev/null || shell_test::fail "line ${LINENO}: create failed"
+  "${PRINCIPAL_BIN}" create --overwrite=true ./alice alice >/dev/null || shell_test::fail "line ${LINENO}: create failed"
+  "${PRINCIPAL_BIN}" create ./bob bob >/dev/null || shell_test::fail "line ${LINENO}: create failed"
+  "${PRINCIPAL_BIN}" create --overwrite=true ./bob bob >/dev/null || shell_test::fail "line ${LINENO}: create failed"
   # Run dump, bless, blessself on alice
   export VEYRON_CREDENTIALS=./alice
-  ./principal blessself alicereborn >alice.blessself || shell_test::fail "line ${LINENO}: blessself failed"
-  ./principal bless ./bob friend >alice.bless || shell_test::fail "line ${LINENO}: bless failed"
-  ./principal dump >alice.dump || shell_test::fail "line ${LINENO}: dump failed"
+  "${PRINCIPAL_BIN}" blessself alicereborn >alice.blessself || shell_test::fail "line ${LINENO}: blessself failed"
+  "${PRINCIPAL_BIN}" bless ./bob friend >alice.bless || shell_test::fail "line ${LINENO}: bless failed"
+  "${PRINCIPAL_BIN}" dump >alice.dump || shell_test::fail "line ${LINENO}: dump failed"
   # Run store setdefault, store default, store set, store forpeer on bob
   export VEYRON_CREDENTIALS=./bob
-  ./principal store setdefault alice.bless || shell_test::fail "line ${LINENO}: store setdefault failed"
-  ./principal store default >bob.store.default || shell_test::fail "line ${LINENO}: store default failed"
-  ./principal store set alice.bless alice/... || shell_test::fail "line ${LINENO}: store set failed"
-  ./principal store forpeer alice/server >bob.store.forpeer || shell_test::fail "line ${LINENO}: store forpeer failed" 
+  "${PRINCIPAL_BIN}" store setdefault alice.bless || shell_test::fail "line ${LINENO}: store setdefault failed"
+  "${PRINCIPAL_BIN}" store default >bob.store.default || shell_test::fail "line ${LINENO}: store default failed"
+  "${PRINCIPAL_BIN}" store set alice.bless alice/... || shell_test::fail "line ${LINENO}: store set failed"
+  "${PRINCIPAL_BIN}" store forpeer alice/server >bob.store.forpeer || shell_test::fail "line ${LINENO}: store forpeer failed" 
   # Any other commands to be run without VEYRON_CREDENTIALS set.
   unset VEYRON_CREDENTIALS
 
