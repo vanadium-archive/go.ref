@@ -297,7 +297,7 @@ func (s *Server) Serve(name string) (string, error) {
 	}
 
 	if s.endpoint == "" {
-		endpoint, err := s.server.ListenX(s.listenSpec)
+		endpoint, err := s.server.Listen(*s.listenSpec)
 		if err != nil {
 			return "", err
 		}

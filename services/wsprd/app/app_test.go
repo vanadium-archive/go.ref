@@ -144,7 +144,7 @@ func startAnyServer(servesMT bool, dispatcher ipc.Dispatcher) (ipc.Server, namin
 		return nil, nil, err
 	}
 
-	endpoint, err := s.Listen("tcp", "127.0.0.1:0")
+	endpoint, err := s.Listen(profiles.LocalListenSpec)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -201,7 +201,7 @@ func TestGetGoServerSignature(t *testing.T) {
 		return
 	}
 	defer s.Stop()
-	spec := *profiles.LocalListenSpec
+	spec := profiles.LocalListenSpec
 	spec.Proxy = "mockVeyronProxyEP"
 	controller, err := NewController(nil, &spec, options.ForceNewSecurityModel{}, options.RuntimePrincipal{newBlessedPrincipal(r)})
 
@@ -236,7 +236,8 @@ func runGoServerTestCase(t *testing.T, test goServerTestCase) {
 		return
 	}
 	defer s.Stop()
-	spec := *profiles.LocalListenSpec
+
+	spec := profiles.LocalListenSpec
 	spec.Proxy = "mockVeyronProxyEP"
 	controller, err := NewController(nil, &spec, options.ForceNewSecurityModel{}, options.RuntimePrincipal{newBlessedPrincipal(r)})
 
@@ -360,7 +361,7 @@ func serveServer() (*runningTest, error) {
 	writerCreator := func(int64) lib.ClientWriter {
 		return &writer
 	}
-	spec := *profiles.LocalListenSpec
+	spec := profiles.LocalListenSpec
 	spec.Proxy = "/" + proxyEndpoint
 	controller, err := NewController(writerCreator, &spec, options.NamespaceRoots{"/" + endpoint.String()}, options.ForceNewSecurityModel{}, options.RuntimePrincipal{testPrincipal})
 

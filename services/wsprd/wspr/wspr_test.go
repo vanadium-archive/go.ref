@@ -46,7 +46,7 @@ func (m *mockBlesserService) BlessUsingAccessToken(c context.T, accessToken stri
 // END MOCK BLESSER SERVICE
 
 func setup(t *testing.T) (*WSPR, func()) {
-	spec := *profiles.LocalListenSpec
+	spec := profiles.LocalListenSpec
 	spec.Proxy = "/mock/proxy"
 	wspr := NewWSPR(0, spec, "/mock/identd", options.ForceNewSecurityModel{})
 	wspr.blesser = newMockBlesserService(wspr.rt.Principal())

@@ -27,7 +27,7 @@ func main() {
 		opts = append(opts, options.ForceNewSecurityModel{})
 	}
 
-	proxy := wspr.NewWSPR(*port, *roaming.ListenSpec, *identd, opts...)
+	proxy := wspr.NewWSPR(*port, roaming.ListenSpec, *identd)
 	defer proxy.Shutdown()
 	go func() {
 		proxy.Run()
