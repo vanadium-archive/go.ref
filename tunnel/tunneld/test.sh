@@ -8,7 +8,7 @@
 
 source "${VEYRON_ROOT}/scripts/lib/shell_test.sh"
 
-readonly WORKDIR=$(shell::tmp_dir)
+readonly WORKDIR="${shell_test_WORK_DIR}"
 
 # This imported library in scripts/lib/shell.sh runs set -e, which
 # makes the shell exit immediately when any command fails. This can
@@ -17,10 +17,10 @@ readonly WORKDIR=$(shell::tmp_dir)
 set +e
 
 build() {
-  veyron go build veyron.io/apps/tunnel/tunneld || shell_test::fail "line ${LINENO}: failed to build tunneld"
-  veyron go build veyron.io/apps/tunnel/vsh || shell_test::fail "line ${LINENO}: failed to build vsh"
-  veyron go build veyron.io/veyron/veyron/services/mounttable/mounttabled || shell_test::fail "line ${LINENO}: failed to build mounttabled"
-  veyron go build veyron.io/veyron/veyron/tools/mounttable || shell_test::fail "line ${LINENO}: failed to build mounttable"
+  TUNNELD_BIN="$(shell_test::build_go_binary 'veyron.io/apps/tunnel/tunneld')"
+  VSH_BIN="$(shell_test::build_go_binary 'veyron.io/apps/tunnel/vsh')"
+  MOUNTTABLED_BIN="$(shell_test::build_go_binary 'veyron.io/veyron/veyron/services/mounttable/mounttabled')"
+  MOUNTTABLE_BIN="$(shell_test::build_go_binary 'veyron.io/veyron/veyron/tools/mounttable')"
 }
 
 dumplogs() {
@@ -46,7 +46,7 @@ main() {
   touch "${MTLOG}"
 
   shell::run_server "${shell_test_DEFAULT_SERVER_TIMEOUT}" "${MTLOG}" "${MTLOG}" \
-    ./mounttabled --veyron.tcp.address=127.0.0.1:0 -vmodule=publisher=2 &> /dev/null \
+    "${MOUNTTABLED_BIN}" --veyron.tcp.address=127.0.0.1:0 -vmodule=publisher=2 &> /dev/null \
     || (dumplogs "${MTLOG}"; shell_test::fail "line ${LINENO}: failed to start mounttabled")
   shell::timed_wait_for "${shell_test_DEFAULT_MESSAGE_TIMEOUT}" "${MTLOG}" "Mount table service at:" \
     || (dumplogs "${MTLOG}"; shell_test::fail "line ${LINENO}: failed to start mount table service")
@@ -58,7 +58,7 @@ main() {
   local -r TUNLOG="${WORKDIR}/tunnel.log"
   touch "${TUNLOG}"
   shell::run_server "${shell_test_DEFAULT_SERVER_TIMEOUT}" "${TUNLOG}" "${TUNLOG}" \
-    ./tunneld --veyron.tcp.address=127.0.0.1:0 -vmodule=publisher=2 &> /dev/null \
+    "${TUNNELD_BIN}" --veyron.tcp.address=127.0.0.1:0 -vmodule=publisher=2 &> /dev/null \
     || (dumplogs "${TUNLOG}"; shell_test::fail "line ${LINENO}: failed to start tunneld")
   shell::timed_wait_for "${shell_test_DEFAULT_MESSAGE_TIMEOUT}" "${TUNLOG}" "ipc pub: mount" \
     || (dumplogs "${TUNLOG}"; shell_test::fail "line ${LINENO}: failed to mount tunneld")
@@ -67,7 +67,7 @@ main() {
 
   # Run remote command with the endpoint.
   local -r VSHLOG="${WORKDIR}/vsh.log"
-  GOT=$(./vsh --logtostderr --v=1 "/${EP}" echo HELLO ENDPOINT 2>"${VSHLOG}") \
+  GOT=$("${VSH_BIN}" --logtostderr --v=1 "/${EP}" echo HELLO ENDPOINT 2>"${VSHLOG}") \
     || (dumplogs "${VSHLOG}"; shell_test::fail "line ${LINENO}: failed to run vsh")
   WANT="HELLO ENDPOINT"
 
@@ -76,7 +76,7 @@ main() {
   fi
 
   # Run remote command with the object name.
-  GOT=$(./vsh --logtostderr --v=1 tunnel/hostname/$(hostname) echo HELLO NAME 2>"${VSHLOG}") \
+  GOT=$("${VSH_BIN}" --logtostderr --v=1 tunnel/hostname/$(hostname) echo HELLO NAME 2>"${VSHLOG}") \
     || (dumplogs "${VSHLOG}"; shell_test::fail "line ${LINENO}: failed to run vsh")
   WANT="HELLO NAME"
 
@@ -85,7 +85,7 @@ main() {
   fi
 
   # Send input to remote command.
-  echo "HELLO SERVER" | ./vsh --logtostderr --v=1 "/${EP}" "cat > ${WORKDIR}/hello.txt" 2>"${VSHLOG}" \
+  echo "HELLO SERVER" | "${VSH_BIN}" --logtostderr --v=1 "/${EP}" "cat > ${WORKDIR}/hello.txt" 2>"${VSHLOG}" \
     || (dumplogs "${VSHLOG}"; shell_test::fail "line ${LINENO}: failed to run vsh")
   GOT=$(cat "${WORKDIR}/hello.txt")
   WANT="HELLO SERVER"
@@ -94,7 +94,7 @@ main() {
     shell_test::fail "line ${LINENO}: unexpected output. Got ${GOT}, want ${WANT}"
   fi
 
-  GOT=$(echo "ECHO" | ./vsh --logtostderr --v=1 "/${EP}" cat 2>"${VSHLOG}") \
+  GOT=$(echo "ECHO" | "${VSH_BIN}" --logtostderr --v=1 "/${EP}" cat 2>"${VSHLOG}") \
     || (dumplogs "${VSHLOG}"; shell_test::fail "line ${LINENO}: failed to run vsh")
   WANT="ECHO"
 
@@ -103,7 +103,7 @@ main() {
   fi
 
   # Verify that all the published names are there.
-  GOT=$(./mounttable glob "${NAMESPACE_ROOT}" 'tunnel/*/*' | \
+  GOT=$("${MOUNTTABLE_BIN}" glob "${NAMESPACE_ROOT}" 'tunnel/*/*' | \
         sed -e 's/TTL .m..s/TTL XmXXs/' -e 's!hwaddr/[^ ]*!hwaddr/XX:XX:XX:XX:XX:XX!' | \
         sort) \
     || shell_test::fail "line ${LINENO}: failed to run mounttable"
