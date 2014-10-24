@@ -4,9 +4,11 @@
 
 source "${VEYRON_ROOT}/scripts/lib/shell_test.sh"
 
+readonly WORKDIR="${shell_test_WORK_DIR}"
+
 main() {
   local -r DIR="$(dirname $0)"
-  local -r OUTFILE="${TMPDIR}/latest.go"
+  local -r OUTFILE="${WORKDIR}/latest.go"
   "${DIR}/tls_generate_old.sh" "${OUTFILE}" || shell_test::fail "failed to generate tls_old.go"
   if diff "${OUTFILE}" "${DIR}/tls_old.go"; then
     shell_test::pass

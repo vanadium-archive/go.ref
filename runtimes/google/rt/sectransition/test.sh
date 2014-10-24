@@ -5,20 +5,19 @@
 
 . "${VEYRON_ROOT}/scripts/lib/shell_test.sh"
 
-readonly WORKDIR=$(shell::tmp_dir)
+readonly WORKDIR="${shell_test_WORK_DIR}"
 
 build() {
-  veyron go build veyron.io/veyron/veyron/runtimes/google/rt/sectransition || shell_test::fail "line ${LINENO}: failed to build sectransition binary"
-  veyron go build veyron.io/veyron/veyron/tools/identity || shell_test::fail "line ${LINENO}: failed to build identity"
+  SECTRANSITION_BIN="$(shell_test::build_go_binary 'veyron.io/veyron/veyron/runtimes/google/rt/sectransition')"
+  IDENTITY_BIN="$(shell_test::build_go_binary 'veyron.io/veyron/veyron/tools/identity')"
 }
-
 
 startserver() {
   # The server has access to both the old and new security model.
   export VEYRON_IDENTITY="${WORKDIR}/old"
   export VEYRON_CREDENTIALS="${WORKDIR}/new"
   shell::run_server "${shell_test_DEFAULT_SERVER_TIMEOUT}" "${SERVERLOG}" /dev/null \
-    ./sectransition --server --logtostderr &> /dev/null \
+    "${SECTRANSITION_BIN}" --server --logtostderr &> /dev/null \
     || shell_test::fail "line ${LINENO}: failed to start sectransaction"
   shell::timed_wait_for "${shell_test_DEFAULT_MESSAGE_TIMEOUT}" "${SERVERLOG}" "SERVER" \
     || shell_test::fail "line ${LINENO}: failed to read expected output from log file"
@@ -28,7 +27,7 @@ startserver() {
 }
 
 runclient() {
-  ./sectransition "${EP}" &>"${CLIENTLOG}"
+  "${SECTRANSITION_BIN}" "${EP}" &>"${CLIENTLOG}"
 }
 
 oldmodel() {
@@ -45,7 +44,7 @@ main() {
 
   # Generate an identity (old security model) that may be used by the client.
   local -r OLD="${WORKDIR}/old"
-  ./identity generate "old" > "${OLD}"
+  "${IDENTITY_BIN}" generate "old" > "${OLD}"
 
   local -r SERVERLOG="${WORKDIR}/server.log"
   local -r CLIENTLOG="${WORKDIR}/client.log"

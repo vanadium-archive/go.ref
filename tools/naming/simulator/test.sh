@@ -5,17 +5,19 @@
 
 source "${VEYRON_ROOT}/scripts/lib/shell_test.sh"
 
+readonly WORKDIR="${shell_test_WORK_DIR}"
+
 main() {
   # Build binaries.
-  cd "${TMPDIR}"
-  local -r PKG=veyron.io/veyron/veyron/tools/naming/simulator
-  veyron go build "${PKG}" || shell_test::fail "line ${LINENO}: failed to build simulator"
+  cd "${WORKDIR}"
+  PKG="veyron.io/veyron/veyron/tools/naming/simulator"
+  SIMULATOR_BIN="$(shell_test::build_go_binary ${PKG})"
 
   local -r DIR=$(shell::go_package_dir "${PKG}")
   local file
   for file in "${DIR}"/*.scr; do
     echo "${file}"
-    ./simulator < "${file}" &> /dev/null || shell_test::fail "line ${LINENO}: failed for ${file}"
+    "${SIMULATOR_BIN}" < "${file}" &> /dev/null || shell_test::fail "line ${LINENO}: failed for ${file}"
   done
   shell_test::pass
 }
