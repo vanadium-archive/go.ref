@@ -30,19 +30,14 @@ const (
 )
 
 var (
-	listenProtocolFlag = flags.TCPProtocolFlag{"tcp"}
-	listenAddressFlag  = flags.IPHostPortFlag{Port: "0"}
-	listenProxyFlag    string
-
+	commonFlags *flags.Flags
 	// ListenSpec is an initialized instance of ipc.ListenSpec that can
 	// be used with ipc.Listen.
 	ListenSpec ipc.ListenSpec
 )
 
 func init() {
-	flag.Var(&listenProtocolFlag, "veyron.tcp.protocol", "protocol to listen with")
-	flag.Var(&listenAddressFlag, "veyron.tcp.address", "address to listen on")
-	flag.StringVar(&listenProxyFlag, "veyron.proxy", "", "object name of proxy service to use to export services across network boundaries")
+	commonFlags = flags.New(flag.CommandLine)
 	rt.RegisterProfile(New())
 }
 
@@ -75,9 +70,9 @@ func (p *profile) Init(rt veyron2.Runtime, publisher *config.Publisher) error {
 	log := rt.Logger()
 
 	ListenSpec = ipc.ListenSpec{
-		Protocol: listenProtocolFlag.Protocol,
-		Address:  listenAddressFlag.String(),
-		Proxy:    listenProxyFlag,
+		Protocol: commonFlags.ListenProtocolFlag.Protocol,
+		Address:  commonFlags.ListenAddressFlag.String(),
+		Proxy:    commonFlags.ListenProxyFlag,
 	}
 
 	// Our address is private, so we test for running on GCE and for its
