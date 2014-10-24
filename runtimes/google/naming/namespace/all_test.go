@@ -112,10 +112,14 @@ func (t *testServer) globLoop(call ipc.ServerCall, prefix string, g *glob.Glob, 
 	return nil
 }
 
+type allowEveryoneAuthorizer struct{}
+
+func (allowEveryoneAuthorizer) Authorize(security.Context) error { return nil }
+
 type dispatcher struct{}
 
 func (d *dispatcher) Lookup(suffix, method string) (ipc.Invoker, security.Authorizer, error) {
-	return ipc.ReflectInvoker(&testServer{suffix}), nil, nil
+	return ipc.ReflectInvoker(&testServer{suffix}), allowEveryoneAuthorizer{}, nil
 }
 
 func knockKnock(t *testing.T, runtime veyron2.Runtime, name string) {
