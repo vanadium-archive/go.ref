@@ -150,7 +150,7 @@ func TestProxy(t *testing.T) {
 	defer proxy.Stop()
 	spec := listenSpec
 	spec.Proxy = "proxy"
-	if _, err := server.ListenX(&spec); err != nil {
+	if _, err := server.Listen(spec); err != nil {
 		t.Fatal(err)
 	}
 	if err := server.Serve("mountpoint/server", testServerDisp{&testServer{}}); err != nil {
@@ -205,7 +205,7 @@ func runServer(stdin io.Reader, stdout, stderr io.Writer, env map[string]string,
 	}
 	spec := listenSpec
 	spec.Address = args[1]
-	ep, err := server.ListenX(&spec)
+	ep, err := server.Listen(spec)
 	if err != nil {
 		return fmt.Errorf("server.Listen failed: %v", err)
 	}

@@ -59,7 +59,7 @@ func makeCanceld(ns naming.Namespace, name, child string) (*canceld, error) {
 	if err != nil {
 		return nil, err
 	}
-	if _, err := s.Listen("tcp", "127.0.0.1:0"); err != nil {
+	if _, err := s.Listen(ipc.ListenSpec{Protocol: "tcp", Address: "127.0.0.1:0"}); err != nil {
 		return nil, err
 	}
 

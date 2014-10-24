@@ -41,7 +41,7 @@ func parentName() (name string) {
 	return
 }
 
-func (m *mgmtImpl) initMgmt(rt *vrt, listenSpec *ipc.ListenSpec) error {
+func (m *mgmtImpl) initMgmt(rt *vrt, listenSpec ipc.ListenSpec) error {
 	m.rt = rt
 	parentName := parentName()
 	if len(parentName) == 0 {
@@ -53,7 +53,7 @@ func (m *mgmtImpl) initMgmt(rt *vrt, listenSpec *ipc.ListenSpec) error {
 	}
 	// TODO(caprita): We should pick the address to listen on from config.
 	var ep naming.Endpoint
-	if ep, err = m.server.ListenX(listenSpec); err != nil {
+	if ep, err = m.server.Listen(listenSpec); err != nil {
 		return err
 	}
 	if err := m.server.Serve("", ipc.LeafDispatcher(appcycle.NewServerAppCycle(m), nil)); err != nil {

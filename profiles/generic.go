@@ -11,7 +11,7 @@ import (
 )
 
 // LocalListenSpec is a ListenSpec for 127.0.0.1.
-var LocalListenSpec = &ipc.ListenSpec{
+var LocalListenSpec = ipc.ListenSpec{
 	Protocol:       "tcp",
 	Address:        "127.0.0.1:0",
 	AddressChooser: internal.IPAddressChooser,

@@ -187,7 +187,7 @@ func setupServices(r veyron2.Runtime, revocationManager *revocation.RevocationMa
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to create new ipc.Server: %v", err)
 	}
-	ep, err := server.ListenX(static.ListenSpec)
+	ep, err := server.Listen(static.ListenSpec)
 	if err != nil {
 		return nil, nil, fmt.Errorf("server.Listen(%v) failed: %v", static.ListenSpec, err)
 	}

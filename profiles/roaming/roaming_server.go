@@ -23,7 +23,7 @@ func main() {
 	}
 
 	fmt.Printf("listen spec: %v\n", roaming.ListenSpec)
-	ep, err := server.ListenX(roaming.ListenSpec)
+	ep, err := server.Listen(roaming.ListenSpec)
 	if err != nil {
 		log.Fatalf("unexpected error: %q", err)
 	}

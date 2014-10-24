@@ -36,7 +36,7 @@ var (
 
 	// ListenSpec is an initialized instance of ipc.ListenSpec that can
 	// be used with ipc.Listen.
-	ListenSpec *ipc.ListenSpec
+	ListenSpec ipc.ListenSpec
 )
 
 func init() {
@@ -74,7 +74,7 @@ func (p *profile) String() string {
 func (p *profile) Init(rt veyron2.Runtime, publisher *config.Publisher) error {
 	log := rt.Logger()
 
-	ListenSpec = &ipc.ListenSpec{
+	ListenSpec = ipc.ListenSpec{
 		Protocol: listenProtocolFlag.Protocol,
 		Address:  listenAddressFlag.String(),
 		Proxy:    listenProxyFlag,
@@ -111,7 +111,7 @@ func (p *profile) Init(rt veyron2.Runtime, publisher *config.Publisher) error {
 // monitorNetworkSettings will monitor network configuration changes and
 // publish subsequent Settings to reflect any changes detected.
 func monitorNetworkSettings(rt veyron2.Runtime, stop <-chan struct{},
-	ch chan<- config.Setting, listenSpec *ipc.ListenSpec) {
+	ch chan<- config.Setting, listenSpec ipc.ListenSpec) {
 	defer close(ch)
 
 	log := rt.Logger()

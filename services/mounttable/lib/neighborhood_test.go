@@ -35,7 +35,7 @@ func TestNeighborhood(t *testing.T) {
 	defer server.Stop()
 
 	// Start serving on a loopback address.
-	e, err := server.ListenX(profiles.LocalListenSpec)
+	e, err := server.Listen(profiles.LocalListenSpec)
 	if err != nil {
 		boom(t, "Failed to Listen mount table: %s", err)
 	}

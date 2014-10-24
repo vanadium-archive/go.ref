@@ -13,6 +13,7 @@ package server
 import (
 	"io"
 	"os"
+
 	"veyron.io/veyron/veyron/lib/unixfd"
 	"veyron.io/veyron/veyron2"
 	"veyron.io/veyron/veyron2/ipc"
@@ -59,7 +60,8 @@ func RunAnonymousAgent(runtime veyron2.Runtime, signer Signer) (client *os.File,
 				return
 			}
 			if err == nil {
-				_, err = s.Listen(clientAddr.Network(), clientAddr.String())
+				spec := ipc.ListenSpec{Protocol: clientAddr.Network(), Address: clientAddr.String()}
+				_, err = s.Listen(spec)
 			}
 			if err != nil {
 				vlog.Infof("Error accepting connection: %v", err)

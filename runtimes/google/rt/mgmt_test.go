@@ -269,7 +269,7 @@ func createConfigServer(t *testing.T, r veyron2.Runtime) (ipc.Server, string, <-
 	ch := make(chan string)
 
 	var ep naming.Endpoint
-	if ep, err = server.ListenX(profiles.LocalListenSpec); err != nil {
+	if ep, err = server.Listen(profiles.LocalListenSpec); err != nil {
 		t.Fatalf("Got error: %v", err)
 	}
 	if err := server.Serve("", ipc.LeafDispatcher(node.NewServerConfig(&configServer{ch}), vflag.NewAuthorizerOrDie())); err != nil {

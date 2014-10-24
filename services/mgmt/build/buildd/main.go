@@ -31,7 +31,7 @@ func main() {
 		return
 	}
 	defer server.Stop()
-	endpoint, err := server.ListenX(roaming.ListenSpec)
+	endpoint, err := server.Listen(roaming.ListenSpec)
 	if err != nil {
 		vlog.Errorf("Listen(%s) failed: %v", roaming.ListenSpec, err)
 		return

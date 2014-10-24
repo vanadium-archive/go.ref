@@ -44,7 +44,7 @@ func setupLocalNamespace(t *testing.T) func() {
 	if err != nil {
 		t.Fatalf("NewMountTable() failed: %v", err)
 	}
-	endpoint, err := server.ListenX(profiles.LocalListenSpec)
+	endpoint, err := server.Listen(profiles.LocalListenSpec)
 	if err != nil {
 		t.Fatalf("Listen(%s) failed: %v", profiles.LocalListenSpec, err)
 	}
@@ -116,7 +116,7 @@ func newServer() (ipc.Server, string) {
 	if err != nil {
 		vlog.Fatalf("NewServer() failed: %v", err)
 	}
-	endpoint, err := server.ListenX(profiles.LocalListenSpec)
+	endpoint, err := server.Listen(profiles.LocalListenSpec)
 	if err != nil {
 		vlog.Fatalf("Listen(%s) failed: %v", profiles.LocalListenSpec, err)
 	}

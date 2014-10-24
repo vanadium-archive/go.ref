@@ -24,7 +24,7 @@ var (
 
 	// ListenSpec is an initialized instance of ipc.ListenSpec that can
 	// be used with ipc.Listen.
-	ListenSpec *ipc.ListenSpec
+	ListenSpec ipc.ListenSpec
 )
 
 func init() {
@@ -60,7 +60,7 @@ func (*static) Platform() *veyron2.Platform {
 func (p *static) Init(rt veyron2.Runtime, _ *config.Publisher) error {
 	log := rt.Logger()
 
-	ListenSpec = &ipc.ListenSpec{
+	ListenSpec = ipc.ListenSpec{
 		Protocol: listenProtocolFlag.Protocol,
 		Address:  listenAddressFlag.String(),
 		Proxy:    listenProxyFlag,

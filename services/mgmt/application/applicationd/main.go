@@ -35,7 +35,7 @@ func main() {
 		vlog.Fatalf("NewDispatcher() failed: %v", err)
 	}
 
-	endpoint, err := server.ListenX(roaming.ListenSpec)
+	endpoint, err := server.Listen(roaming.ListenSpec)
 	if err != nil {
 		vlog.Fatalf("Listen(%s) failed: %v", roaming.ListenSpec, err)
 	}

@@ -37,7 +37,7 @@ func main() {
 		vlog.Errorf("r.NewMountTable failed: %v", err)
 		os.Exit(1)
 	}
-	mtEndpoint, err := mtServer.ListenX(roaming.ListenSpec)
+	mtEndpoint, err := mtServer.Listen(roaming.ListenSpec)
 	if err != nil {
 		vlog.Errorf("mtServer.Listen failed: %v", err)
 		os.Exit(1)
@@ -53,7 +53,7 @@ func main() {
 		naming.JoinAddressName(mtEndpoint.String(), ""))
 
 	if len(*nhName) > 0 {
-		neighborhoodListenSpec := *roaming.ListenSpec
+		neighborhoodListenSpec := roaming.ListenSpec
 		// The ListenSpec code ensures that we have a valid address here.
 		host, port, _ := net.SplitHostPort(roaming.ListenSpec.Address)
 		if port != "" {
@@ -65,7 +65,7 @@ func main() {
 			os.Exit(1)
 		}
 		defer nhServer.Stop()
-		if _, err := nhServer.ListenX(&neighborhoodListenSpec); err != nil {
+		if _, err := nhServer.Listen(neighborhoodListenSpec); err != nil {
 			vlog.Errorf("nhServer.Listen failed: %v", err)
 			os.Exit(1)
 		}

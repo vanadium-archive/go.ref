@@ -33,7 +33,7 @@ func TestPProfProxy(t *testing.T) {
 		t.Fatalf("failed to start server: %v", err)
 	}
 	defer s.Stop()
-	endpoint, err := s.ListenX(profiles.LocalListenSpec)
+	endpoint, err := s.Listen(profiles.LocalListenSpec)
 	if err != nil {
 		t.Fatalf("failed to listen: %v", err)
 	}

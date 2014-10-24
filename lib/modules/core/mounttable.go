@@ -53,7 +53,7 @@ func runMT(root bool, stdin io.Reader, stdout, stderr io.Writer, env map[string]
 	if err != nil {
 		return fmt.Errorf("mounttable.NewMountTable failed: %s", err)
 	}
-	ep, err := server.ListenX(profiles.LocalListenSpec)
+	ep, err := server.Listen(profiles.LocalListenSpec)
 	if err != nil {
 		return fmt.Errorf("server.Listen failed: %s", err)
 	}

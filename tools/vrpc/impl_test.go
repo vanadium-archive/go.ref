@@ -133,7 +133,7 @@ func startServer(t *testing.T, r veyron2.Runtime) (ipc.Server, naming.Endpoint, 
 		return nil, nil, err
 	}
 
-	endpoint, err := server.ListenX(profiles.LocalListenSpec)
+	endpoint, err := server.Listen(profiles.LocalListenSpec)
 	if err != nil {
 		t.Errorf("Listen failed: %v", err)
 		return nil, nil, err

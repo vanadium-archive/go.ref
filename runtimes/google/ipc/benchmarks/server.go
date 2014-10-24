@@ -32,12 +32,12 @@ func (i *impl) EchoStream(ctx ipc.ServerContext, stream BenchmarkServiceEchoStre
 // StartServer starts a server that implements the Benchmark service. The
 // server listens to the given protocol and address, and returns the veyron
 // address of the server and a callback function to stop the server.
-func StartServer(runtime veyron2.Runtime, listenSpec *ipc.ListenSpec) (string, func()) {
+func StartServer(runtime veyron2.Runtime, listenSpec ipc.ListenSpec) (string, func()) {
 	server, err := runtime.NewServer()
 	if err != nil {
 		vlog.Fatalf("NewServer failed: %v", err)
 	}
-	ep, err := server.ListenX(listenSpec)
+	ep, err := server.Listen(listenSpec)
 	if err != nil {
 		vlog.Fatalf("Listen failed: %v", err)
 	}

@@ -49,7 +49,7 @@ func echoServer(stdin io.Reader, stdout, stderr io.Writer, env map[string]string
 		return err
 	}
 	defer server.Stop()
-	ep, err := server.ListenX(profiles.LocalListenSpec)
+	ep, err := server.Listen(profiles.LocalListenSpec)
 	if err != nil {
 		return err
 	}

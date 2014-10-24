@@ -49,7 +49,7 @@ func serverMain() {
 
 	serverPong := NewServerPingPong(&pongd{})
 
-	if endpoint, err := s.Listen("tcp", "127.0.0.1:0"); err == nil {
+	if endpoint, err := s.Listen(ipc.ListenSpec{Protocol: "tcp", Address: "127.0.0.1:0"}); err == nil {
 		fmt.Printf("Listening at: %v\n", endpoint)
 	} else {
 		log.Fatal("error listening to service: ", err)

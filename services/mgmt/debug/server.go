@@ -12,7 +12,7 @@ import (
 )
 
 // StartDebugServer starts a debug server.
-func StartDebugServer(rt veyron2.Runtime, listenSpec *ipc.ListenSpec, logsDir string, auth security.Authorizer) (string, func(), error) {
+func StartDebugServer(rt veyron2.Runtime, listenSpec ipc.ListenSpec, logsDir string, auth security.Authorizer) (string, func(), error) {
 	if len(logsDir) == 0 {
 		return "", nil, fmt.Errorf("logs directory missing")
 	}
@@ -21,7 +21,7 @@ func StartDebugServer(rt veyron2.Runtime, listenSpec *ipc.ListenSpec, logsDir st
 	if err != nil {
 		return "", nil, fmt.Errorf("failed to start debug server: %v", err)
 	}
-	endpoint, err := server.ListenX(listenSpec)
+	endpoint, err := server.Listen(listenSpec)
 	if err != nil {
 		return "", nil, fmt.Errorf("failed to listen on %s: %v", listenSpec, err)
 	}

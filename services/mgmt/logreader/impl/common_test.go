@@ -15,7 +15,7 @@ func startServer(t *testing.T, disp ipc.Dispatcher) (ipc.Server, string, error) 
 		t.Fatalf("NewServer failed: %v", err)
 		return nil, "", err
 	}
-	endpoint, err := server.ListenX(profiles.LocalListenSpec)
+	endpoint, err := server.Listen(profiles.LocalListenSpec)
 	if err != nil {
 		t.Fatalf("Listen failed: %v", err)
 		return nil, "", err

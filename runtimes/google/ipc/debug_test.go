@@ -37,7 +37,7 @@ func TestDebugServer(t *testing.T) {
 	}
 	defer server.Stop()
 	server.Serve("", ipc.LeafDispatcher(&testObject{}, nil))
-	ep, err := server.ListenX(&listenSpec)
+	ep, err := server.Listen(listenSpec)
 	if err != nil {
 		t.Fatalf("server.Listen failed: %v", err)
 	}

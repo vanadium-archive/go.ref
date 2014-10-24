@@ -53,7 +53,7 @@ func startServer(t *testing.T) (build.Builder, func()) {
 	if err != nil {
 		t.Fatalf("NewServer() failed: %v", err)
 	}
-	endpoint, err := server.ListenX(profiles.LocalListenSpec)
+	endpoint, err := server.Listen(profiles.LocalListenSpec)
 	if err != nil {
 		t.Fatalf("Listen(%s) failed: %v", profiles.LocalListenSpec, err)
 	}

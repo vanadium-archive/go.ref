@@ -73,7 +73,7 @@ func main() {
 		vlog.Errorf("NewDispatcher(%v, %v, %v) failed: %v", *root, defaultDepth, auth, err)
 		return
 	}
-	endpoint, err := server.ListenX(roaming.ListenSpec)
+	endpoint, err := server.Listen(roaming.ListenSpec)
 	if err != nil {
 		vlog.Errorf("Listen(%s) failed: %v", roaming.ListenSpec, err)
 		return

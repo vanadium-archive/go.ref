@@ -45,7 +45,7 @@ func setupRepository(t *testing.T) (string, func()) {
 	if err != nil {
 		t.Fatalf("NewDispatcher(%v, %v, %v) failed: %v", root, depth, nil, err)
 	}
-	endpoint, err := server.ListenX(profiles.LocalListenSpec)
+	endpoint, err := server.Listen(profiles.LocalListenSpec)
 	if err != nil {
 		t.Fatalf("Listen(%s) failed: %v", profiles.LocalListenSpec, err)
 	}

@@ -127,7 +127,7 @@ func TestClientServerBlessings(t *testing.T) {
 	}
 	defer server.Stop()
 	var serverObjectName string
-	if endpoint, err := server.ListenX(profiles.LocalListenSpec); err != nil {
+	if endpoint, err := server.Listen(profiles.LocalListenSpec); err != nil {
 		t.Fatal(err)
 	} else {
 		serverObjectName = naming.JoinAddressName(endpoint.String(), "")

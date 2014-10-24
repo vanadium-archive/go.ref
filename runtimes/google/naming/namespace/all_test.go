@@ -184,7 +184,7 @@ func run(t *testing.T, sr veyron2.Runtime, disp ipc.Dispatcher, mountPoint strin
 	}
 	// Add a mount table server.
 	// Start serving on a loopback address.
-	ep, err := s.Listen("tcp", "127.0.0.1:0")
+	ep, err := s.Listen(ipc.ListenSpec{Protocol: "tcp", Address: "127.0.0.1:0"})
 	if err != nil {
 		boom(t, "Failed to Listen: %s", err)
 	}

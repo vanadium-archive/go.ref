@@ -29,7 +29,7 @@ func revokerSetup(t *testing.T) (dischargerKey security.PublicKey, dischargerEnd
 	if err != nil {
 		t.Fatalf("rt.R().NewServer: %s", err)
 	}
-	dischargerEP, err := dischargerServer.ListenX(profiles.LocalListenSpec)
+	dischargerEP, err := dischargerServer.Listen(profiles.LocalListenSpec)
 	if err != nil {
 		t.Fatalf("dischargerServer.Listen failed: %v", err)
 	}

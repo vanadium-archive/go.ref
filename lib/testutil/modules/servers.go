@@ -39,7 +39,7 @@ func serve(msg string, dispatcher ipc.Dispatcher, args []string) {
 	if err != nil {
 		bbExitWithError(fmt.Sprintf("%s failed: %v", msg, err))
 	}
-	ep, err := server.ListenX(profiles.LocalListenSpec)
+	ep, err := server.Listen(profiles.LocalListenSpec)
 	if err != nil {
 		bbExitWithError(fmt.Sprintf("%s failed: %v", msg, err))
 	}

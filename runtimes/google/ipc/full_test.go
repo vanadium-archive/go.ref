@@ -174,7 +174,7 @@ func startServer(t *testing.T, principal security.Principal, sm stream.Manager, 
 		t.Errorf("InternalNewServer failed: %v", err)
 	}
 	vlog.VI(1).Info("server.Listen")
-	ep, err := server.ListenX(&listenSpec)
+	ep, err := server.Listen(listenSpec)
 	if err != nil {
 		t.Errorf("server.Listen failed: %v", err)
 	}
@@ -274,7 +274,7 @@ func TestMultipleCallsToServe(t *testing.T) {
 	if err != nil {
 		t.Errorf("InternalNewServer failed: %v", err)
 	}
-	_, err = server.ListenX(&listenSpec)
+	_, err = server.Listen(listenSpec)
 	if err != nil {
 		t.Errorf("server.Listen failed: %v", err)
 	}
@@ -597,7 +597,7 @@ func TestDischargeImpetus(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer server.Stop()
-	if _, err := server.ListenX(&listenSpec); err != nil {
+	if _, err := server.Listen(listenSpec); err != nil {
 		t.Fatal(err)
 	}
 
@@ -993,7 +993,7 @@ func TestPreferredAddress(t *testing.T) {
 	spec := listenSpec
 	spec.Address = ":0"
 	spec.AddressChooser = pa
-	ep, err := server.ListenX(&spec)
+	ep, err := server.Listen(spec)
 	iep := ep.(*inaming.Endpoint)
 	host, _, err := net.SplitHostPort(iep.Address)
 	if err != nil {
@@ -1003,7 +1003,7 @@ func TestPreferredAddress(t *testing.T) {
 		t.Errorf("got %q, want %q", got, want)
 	}
 	// Won't override the specified address.
-	ep, err = server.ListenX(&listenSpec)
+	ep, err = server.Listen(listenSpec)
 	iep = ep.(*inaming.Endpoint)
 	host, _, err = net.SplitHostPort(iep.Address)
 	if err != nil {
@@ -1029,7 +1029,7 @@ func TestPreferredAddressErrors(t *testing.T) {
 	spec := listenSpec
 	spec.Address = ":0"
 	spec.AddressChooser = paerr
-	ep, err := server.ListenX(&spec)
+	ep, err := server.Listen(spec)
 	iep := ep.(*inaming.Endpoint)
 	host, _, err := net.SplitHostPort(iep.Address)
 	if err != nil {

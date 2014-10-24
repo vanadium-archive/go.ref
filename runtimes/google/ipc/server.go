@@ -133,6 +133,7 @@ func (s *server) resolveToAddress(address string) (string, error) {
 	return "", fmt.Errorf("unable to resolve %q to an endpoint", address)
 }
 
+/*
 // ipAddressChooser returns the preferred IP address, which is,
 // a public IPv4 address, then any non-loopback IPv4, then a public
 // IPv6 address and finally any non-loopback/link-local IPv6
@@ -246,6 +247,7 @@ func (s *server) Listen(protocol, address string) (naming.Endpoint, error) {
 	s.publisher.AddServer(s.publishEP(iep, s.servesMountTable), s.servesMountTable)
 	return ep, nil
 }
+*/
 
 // externalEndpoint examines the endpoint returned by the stream listen call
 // and fills in the address to publish to the mount table. It also returns the
@@ -288,7 +290,7 @@ func (s *server) externalEndpoint(chooser ipc.AddressChooser, lep naming.Endpoin
 	return iep, nil, nil
 }
 
-func (s *server) ListenX(listenSpec *ipc.ListenSpec) (naming.Endpoint, error) {
+func (s *server) Listen(listenSpec ipc.ListenSpec) (naming.Endpoint, error) {
 	defer vlog.LogCall()()
 	s.Lock()
 	// Shortcut if the server is stopped, to avoid needlessly creating a

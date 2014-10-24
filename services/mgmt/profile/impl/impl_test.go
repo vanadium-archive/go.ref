@@ -55,7 +55,7 @@ func TestInterface(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewDispatcher() failed: %v", err)
 	}
-	endpoint, err := server.ListenX(profiles.LocalListenSpec)
+	endpoint, err := server.Listen(profiles.LocalListenSpec)
 	if err != nil {
 		t.Fatalf("Listen(%s) failed: %v", profiles.LocalListenSpec, err)
 	}

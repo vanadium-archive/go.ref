@@ -48,7 +48,7 @@ func startServer(server ipc.Server, err error) {
 	}
 	defer server.Stop()
 
-	ep, err := server.ListenX(profiles.LocalListenSpec)
+	ep, err := server.Listen(profiles.LocalListenSpec)
 	if err != nil {
 		vlog.Fatal(err)
 	}

@@ -19,7 +19,7 @@ func main() {
 	}
 	defer server.Stop()
 	dispatcher := impl.NewDispatcher()
-	ep, err := server.ListenX(roaming.ListenSpec)
+	ep, err := server.Listen(roaming.ListenSpec)
 	if err != nil {
 		vlog.Errorf("Listen(%s) failed: %v", roaming.ListenSpec, err)
 		return

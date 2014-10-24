@@ -100,7 +100,7 @@ func serveMountTable(root bool, args []string) {
 	if err != nil {
 		bbExitWithError(fmt.Sprintf("mounttable.NewMountTable failed with %v", err))
 	}
-	ep, err := server.ListenX(profiles.LocalListenSpec)
+	ep, err := server.Listen(profiles.LocalListenSpec)
 	if err != nil {
 		bbExitWithError(fmt.Sprintf("server.Listen failed with %v", err))
 	}
