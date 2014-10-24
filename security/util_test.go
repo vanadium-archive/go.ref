@@ -61,8 +61,8 @@ func TestLoadSavePEMKeyWithPassphrase(t *testing.T) {
 	if err := savePEMKey(&buf, key, pass); err != nil {
 		t.Fatalf("Failed to save ECDSA private key: %v", err)
 	}
-	if loadedKey, err = loadPEMKey(&buf, nil); loadedKey != nil || err != MissingPassphraseErr {
-		t.Fatalf("expected(nil, MissingPassphraseError), instead got (%v, %v)", loadedKey, err)
+	if loadedKey, err = loadPEMKey(&buf, nil); loadedKey != nil || err != PassphraseErr {
+		t.Fatalf("expected(nil, PassphraseError), instead got (%v, %v)", loadedKey, err)
 	}
 }
 

@@ -83,8 +83,8 @@ func newPrincipalFromDir(dir string) (security.Principal, error) {
 	if os.IsNotExist(err) {
 		return handleDoesNotExist(dir)
 	}
-	if err == vsecurity.MissingPassphraseErr {
-		return handleMissingPassphrase(dir)
+	if err == vsecurity.PassphraseErr {
+		return handlePassphrase(dir)
 	}
 	return p, err
 }
@@ -99,7 +99,7 @@ func handleDoesNotExist(dir string) (security.Principal, error) {
 	return p, err
 }
 
-func handleMissingPassphrase(dir string) (security.Principal, error) {
+func handlePassphrase(dir string) (security.Principal, error) {
 	fmt.Println("Private key file is encrypted. Please enter passphrase.")
 	pass, err := gopass.GetPass("Enter passphrase: ")
 	if err != nil {
