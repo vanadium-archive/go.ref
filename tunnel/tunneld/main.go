@@ -3,7 +3,6 @@ package main
 
 import (
 	"errors"
-	"flag"
 	"fmt"
 	"net"
 	"os"
@@ -15,17 +14,10 @@ import (
 	"veyron.io/veyron/veyron2/vlog"
 
 	"veyron.io/veyron/veyron/lib/signals"
-	_ "veyron.io/veyron/veyron/profiles/roaming"
+	"veyron.io/veyron/veyron/profiles/roaming"
 	sflag "veyron.io/veyron/veyron/security/flag"
 
 	"veyron.io/apps/tunnel"
-)
-
-var (
-	// TODO(rthellend): Remove the protocol and address flags when the config
-	// manager is working.
-	protocol = flag.String("protocol", "tcp", "protocol to listen on. For example, set to 'veyron' and set --address to the endpoint/name of a proxy to have this tunnel service proxied.")
-	address  = flag.String("address", ":0", "address to listen on")
 )
 
 // firstHardwareAddrInUse returns the hwaddr of the first network interface
@@ -58,9 +50,9 @@ func main() {
 	}
 	defer server.Stop()
 
-	ep, err := server.Listen(*protocol, *address)
+	ep, err := server.Listen(roaming.ListenSpec)
 	if err != nil {
-		vlog.Fatalf("Listen(%q, %q) failed: %v", *protocol, *address, err)
+		vlog.Fatalf("Listen(%v) failed: %v", roaming.ListenSpec, err)
 	}
 	vlog.Infof("Listening on endpoint %s", ep)
 	hwaddr, err := firstHardwareAddrInUse()

@@ -5,7 +5,6 @@
 package main
 
 import (
-	"flag"
 	"fmt"
 	"os"
 
@@ -13,18 +12,11 @@ import (
 	"veyron.io/veyron/veyron2/rt"
 	"veyron.io/veyron/veyron2/vlog"
 
-	_ "veyron.io/veyron/veyron/profiles"
+	"veyron.io/veyron/veyron/profiles/roaming"
 	sflag "veyron.io/veyron/veyron/security/flag"
 
 	"veyron.io/apps/rps"
 	"veyron.io/apps/rps/common"
-)
-
-var (
-	// TODO(rthellend): Remove the protocol and address flags when the config
-	// manager is working.
-	protocol = flag.String("protocol", "tcp", "protocol to listen on. For example, set to 'veyron' and set --address to the endpoint/name of a proxy to have this tunnel service proxied.")
-	address  = flag.String("address", ":0", "address to listen on")
 )
 
 type impl struct {
@@ -50,9 +42,9 @@ func main() {
 	rpsService := &impl{ch}
 
 	dispatcher := ipc.LeafDispatcher(rps.NewServerScoreKeeper(rpsService), sflag.NewAuthorizerOrDie())
-	ep, err := server.Listen(*protocol, *address)
+	ep, err := server.Listen(roaming.ListenSpec)
 	if err != nil {
-		vlog.Fatalf("Listen(%q, %q) failed: %v", "tcp", *address, err)
+		vlog.Fatalf("Listen(%v) failed: %v", roaming.ListenSpec, err)
 	}
 	hostname, err := os.Hostname()
 	if err != nil {

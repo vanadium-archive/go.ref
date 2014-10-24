@@ -13,7 +13,10 @@ import (
 	"testing"
 
 	"veyron.io/apps/rps"
+
+	"veyron.io/veyron/veyron/profiles"
 	mtlib "veyron.io/veyron/veyron/services/mounttable/lib"
+
 	"veyron.io/veyron/veyron2"
 	"veyron.io/veyron/veyron2/ipc"
 	"veyron.io/veyron/veyron2/naming"
@@ -29,10 +32,9 @@ func startMountTable(t *testing.T, runtime veyron2.Runtime) (string, func()) {
 	}
 	dispatcher, err := mtlib.NewMountTable("")
 
-	protocol, hostname := "tcp", "127.0.0.1:0"
-	endpoint, err := server.Listen(protocol, hostname)
+	endpoint, err := server.Listen(profiles.LocalListenSpec)
 	if err != nil {
-		t.Fatalf("Listen(%v, %v) failed: %v", protocol, hostname, err)
+		t.Fatalf("Listen(%v) failed: %v", profiles.LocalListenSpec, err)
 	}
 	if err := server.Serve("", dispatcher); err != nil {
 		t.Fatalf("Serve(%v) failed: %v", dispatcher, err)
@@ -55,7 +57,7 @@ func startRockPaperScissors(t *testing.T, rt veyron2.Runtime, mtAddress string) 
 	}
 	rpsService := NewRPS()
 
-	if _, err = server.Listen("tcp", "127.0.0.1:0"); err != nil {
+	if _, err = server.Listen(profiles.LocalListenSpec); err != nil {
 		t.Fatalf("Listen failed: %v", err)
 	}
 	disp := ipc.LeafDispatcher(rps.NewServerRockPaperScissors(rpsService), nil)

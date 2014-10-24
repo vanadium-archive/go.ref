@@ -58,7 +58,7 @@ main() {
   local -r TUNLOG="${WORKDIR}/tunnel.log"
   touch "${TUNLOG}"
   shell::run_server "${shell_test_DEFAULT_SERVER_TIMEOUT}" "${TUNLOG}" "${TUNLOG}" \
-    ./tunneld --address=127.0.0.1:0 -vmodule=publisher=2 &> /dev/null \
+    ./tunneld --veyron.tcp.address=127.0.0.1:0 -vmodule=publisher=2 &> /dev/null \
     || (dumplogs "${TUNLOG}"; shell_test::fail "line ${LINENO}: failed to start tunneld")
   shell::timed_wait_for "${shell_test_DEFAULT_MESSAGE_TIMEOUT}" "${TUNLOG}" "ipc pub: mount" \
     || (dumplogs "${TUNLOG}"; shell_test::fail "line ${LINENO}: failed to mount tunneld")

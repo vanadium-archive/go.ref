@@ -15,7 +15,7 @@ import (
 	"veyron.io/veyron/veyron2/rt"
 	"veyron.io/veyron/veyron2/vlog"
 
-	_ "veyron.io/veyron/veyron/profiles/roaming"
+	_ "veyron.io/veyron/veyron/profiles"
 
 	"veyron.io/apps/tunnel"
 	"veyron.io/apps/tunnel/tunnelutil"
