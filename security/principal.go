@@ -133,7 +133,7 @@ func loadKeyFromDir(dir string, passphrase []byte) (*ecdsa.PrivateKey, error) {
 		return nil, err
 	}
 	defer f.Close()
-	key, err := loadPEMKey(f, passphrase)
+	key, err := LoadPEMKey(f, passphrase)
 	if err != nil {
 		return nil, err
 	}
@@ -160,7 +160,7 @@ func initKey(dir string, passphrase []byte) (*ecdsa.PrivateKey, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate private key: %v", err)
 	}
-	if err := savePEMKey(f, key, passphrase); err != nil {
+	if err := SavePEMKey(f, key, passphrase); err != nil {
 		return nil, fmt.Errorf("failed to save private key to %q: %v", keyFile, err)
 	}
 	return key, nil

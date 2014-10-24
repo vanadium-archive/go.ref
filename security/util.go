@@ -30,9 +30,9 @@ func OpenACL() security.ACL {
 
 var PassphraseErr = errors.New("passphrase incorrect for decrypting private key")
 
-// loadPEMKey loads a key from 'r'. returns PassphraseErr for incorrect Passphrase.
+// LoadPEMKey loads a key from 'r'. returns PassphraseErr for incorrect Passphrase.
 // If the key held in 'r' is unencrypted, 'passphrase' will be ignored.
-func loadPEMKey(r io.Reader, passphrase []byte) (interface{}, error) {
+func LoadPEMKey(r io.Reader, passphrase []byte) (interface{}, error) {
 	pemBlockBytes, err := ioutil.ReadAll(r)
 	if err != nil {
 		return nil, err
@@ -62,12 +62,12 @@ func loadPEMKey(r io.Reader, passphrase []byte) (interface{}, error) {
 	return nil, fmt.Errorf("PEM key block has an unrecognized type: %v", pemBlock.Type)
 }
 
-// savePEMKey marshals 'key', encrypts it using 'passphrase', and saves the bytes to 'w' in PEM format.
+// SavePEMKey marshals 'key', encrypts it using 'passphrase', and saves the bytes to 'w' in PEM format.
 // If passphrase is nil, the key will not be encrypted.
 //
 // For example, if key is an ECDSA private key, it will be marshaled
 // in ASN.1, DER format, encrypted, and then written in a PEM block.
-func savePEMKey(w io.Writer, key interface{}, passphrase []byte) error {
+func SavePEMKey(w io.Writer, key interface{}, passphrase []byte) error {
 	var data []byte
 	var err error
 	switch k := key.(type) {

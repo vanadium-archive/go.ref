@@ -103,7 +103,7 @@ func generatePEMFile(passphrase []byte) (dir string) {
 		panic(err)
 	}
 	defer f.Close()
-	if err = savePEMKey(f, key, passphrase); err != nil {
+	if err = SavePEMKey(f, key, passphrase); err != nil {
 		panic(err)
 	}
 	return dir

@@ -20,11 +20,11 @@ func TestLoadSavePEMKey(t *testing.T) {
 	}
 
 	var buf bytes.Buffer
-	if err := savePEMKey(&buf, key, nil); err != nil {
+	if err := SavePEMKey(&buf, key, nil); err != nil {
 		t.Fatalf("Failed to save ECDSA private key: %v", err)
 	}
 
-	loadedKey, err := loadPEMKey(&buf, nil)
+	loadedKey, err := LoadPEMKey(&buf, nil)
 	if !reflect.DeepEqual(loadedKey, key) {
 		t.Fatalf("Got key %v, but want %v", loadedKey, key)
 	}
@@ -40,28 +40,28 @@ func TestLoadSavePEMKeyWithPassphrase(t *testing.T) {
 	var buf bytes.Buffer
 
 	// Test incorrect passphrase.
-	if err := savePEMKey(&buf, key, pass); err != nil {
+	if err := SavePEMKey(&buf, key, pass); err != nil {
 		t.Fatalf("Failed to save ECDSA private key: %v", err)
 	}
-	loadedKey, err := loadPEMKey(&buf, incorrect_pass)
+	loadedKey, err := LoadPEMKey(&buf, incorrect_pass)
 	if loadedKey != nil && err != nil {
 		t.Errorf("expected (nil, err != nil) received (%v,%v)", loadedKey, err)
 	}
 
 	// Test correct password.
-	if err := savePEMKey(&buf, key, pass); err != nil {
+	if err := SavePEMKey(&buf, key, pass); err != nil {
 		t.Fatalf("Failed to save ECDSA private key: %v", err)
 	}
-	loadedKey, err = loadPEMKey(&buf, pass)
+	loadedKey, err = LoadPEMKey(&buf, pass)
 	if !reflect.DeepEqual(loadedKey, key) {
 		t.Fatalf("Got key %v, but want %v", loadedKey, key)
 	}
 
 	// Test nil passphrase.
-	if err := savePEMKey(&buf, key, pass); err != nil {
+	if err := SavePEMKey(&buf, key, pass); err != nil {
 		t.Fatalf("Failed to save ECDSA private key: %v", err)
 	}
-	if loadedKey, err = loadPEMKey(&buf, nil); loadedKey != nil || err != PassphraseErr {
+	if loadedKey, err = LoadPEMKey(&buf, nil); loadedKey != nil || err != PassphraseErr {
 		t.Fatalf("expected(nil, PassphraseError), instead got (%v, %v)", loadedKey, err)
 	}
 }
