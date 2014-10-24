@@ -69,10 +69,6 @@ func (s *bs) BlessUsingAccessToken(ctx context.T, token string, opts ...ipc.Call
 	return
 }
 
-type wsprConfig struct {
-	MounttableRoot []string
-}
-
 type WSPR struct {
 	mu               sync.Mutex
 	tlsCert          *tls.Certificate

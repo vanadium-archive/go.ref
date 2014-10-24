@@ -1,20 +1,16 @@
 package wspr
 
 import (
-	"bytes"
 	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
 	_ "net/http/pprof"
-	"os"
-	"strings"
 	"time"
 
 	"veyron.io/veyron/veyron2/options"
 	"veyron.io/veyron/veyron2/verror"
 	"veyron.io/veyron/veyron2/vlog"
-	"veyron.io/veyron/veyron2/vom"
 	"veyron.io/wspr/veyron/services/wsprd/app"
 	"veyron.io/wspr/veyron/services/wsprd/lib"
 
@@ -227,32 +223,9 @@ func (p *pipe) start(w http.ResponseWriter, req *http.Request) {
 	p.ws = ws
 	p.ws.SetPongHandler(p.pongHandler)
 	p.setup()
-	p.sendInitialMessage()
 
 	go p.readLoop()
 	go p.pingLoop()
-}
-
-// Upon first connect, we send a message with the wsprConfig.
-func (p *pipe) sendInitialMessage() {
-	// TODO(bprosnitz) Use the same root lookup as the rest of veyron so that this is consistent.
-	mounttableRoots := strings.Split(os.Getenv("NAMESPACE_ROOT"), ",")
-	if len(mounttableRoots) == 1 && mounttableRoots[0] == "" {
-		mounttableRoots = []string{}
-	}
-	if mtRoot := os.Getenv("MOUNTTABLE_ROOT"); mtRoot != "" {
-		mounttableRoots = append(mounttableRoots, mtRoot)
-	}
-	msg := wsprConfig{
-		MounttableRoot: mounttableRoots,
-	}
-
-	var buf bytes.Buffer
-	if err := vom.ObjToJSON(&buf, vom.ValueOf(msg)); err != nil {
-		p.logger.Errorf("failed to convert wspr config to json: %s", err)
-		return
-	}
-	p.writeQueue <- wsMessage{messageType: websocket.TextMessage, buf: buf.Bytes()}
 }
 
 func (p *pipe) pingLoop() {
