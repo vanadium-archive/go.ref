@@ -60,7 +60,7 @@ func (ns *namespace) globAtServer(ctx context.T, qe *queuedEntry, pattern *glob.
 			var e mountEntry
 			err := call.Recv(&e)
 			if err == io.EOF {
-				return nil
+				break
 			}
 			if err != nil {
 				return err
@@ -88,10 +88,11 @@ func (ns *namespace) globAtServer(ctx context.T, qe *queuedEntry, pattern *glob.
 			l.PushBack(x)
 		}
 
-		if err := call.Finish(); err != nil {
+		var globerr error
+		if err := call.Finish(&globerr); err != nil {
 			return err
 		}
-		return nil
+		return globerr
 	}
 
 	return lastErr
