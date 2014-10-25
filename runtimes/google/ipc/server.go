@@ -37,10 +37,6 @@ var (
 	errServerStopped = verror.Abortedf("ipc: server is stopped")
 )
 
-func errNotAuthorized(err error) verror.E {
-	return verror.NoAccessf("ipc: not authorized(%v)", err)
-}
-
 type server struct {
 	sync.Mutex
 	ctx              context.T                         // context used by the server to make internal RPCs.
@@ -850,21 +846,20 @@ func (fs *flowServer) processRequest() ([]interface{}, verror.E) {
 	}
 	if remoteID := fs.flow.RemoteID(); remoteID != nil {
 		// TODO(ashankar): This whole check goes away once the old security model is ripped out.
-		if fs.authorizedRemoteID, err = remoteID.Authorize(isecurity.NewContext(
-			isecurity.ContextArgs{
-				LocalID:    fs.flow.LocalID(),
-				RemoteID:   fs.flow.RemoteID(),
-				Method:     fs.method,
-				Suffix:     fs.suffix,
-				Discharges: fs.discharges,
-				Label:      fs.label})); err != nil {
-			return nil, errNotAuthorized(err)
+		if fs.authorizedRemoteID, err = remoteID.Authorize(isecurity.NewContext(isecurity.ContextArgs{
+			LocalID:    fs.flow.LocalID(),
+			RemoteID:   fs.flow.RemoteID(),
+			Method:     fs.method,
+			Suffix:     fs.suffix,
+			Discharges: fs.discharges,
+			Label:      fs.label,
+		})); err != nil {
+			return nil, verror.NoAccessf("%v is not authorized to call %q.%q (%v)", fs.RemoteID(), fs.Name(), fs.Method(), err)
 		}
 	}
 	// Check application's authorization policy and invoke the method.
 	if err := fs.authorize(auth); err != nil {
-		// TODO(ataly, ashankar): For privacy reasons, should we hide the authorizer error (err)?
-		return nil, errNotAuthorized(fmt.Errorf("%v (PublicID:%v) not authorized for  %q.%q: %v", fs.RemoteBlessings(), fs.RemoteID(), fs.Name(), fs.Method(), err))
+		return nil, err
 	}
 	// Check if the caller is permitted to view debug information.
 	fs.allowDebug = fs.authorizeForDebug(auth) == nil
@@ -955,7 +950,7 @@ func (i *globInvoker) invokeGlob(call ipc.ServerCall, d ipc.Dispatcher, prefix, 
 		return verror.Makef(verror.ErrorID(err), "%s", err)
 	}
 	if err := i.fs.authorize(auth); err != nil {
-		return errNotAuthorized(fmt.Errorf("%q not authorized for method %q: %v", i.fs.RemoteID(), i.fs.Method(), err))
+		return err
 	}
 	leafCall := &localServerCall{call, prefix}
 	argptrs[0] = &pattern
@@ -997,11 +992,18 @@ func (c *localServerCall) Send(v interface{}) error {
 	return c.ServerCall.Send(me)
 }
 
-func (fs *flowServer) authorize(auth security.Authorizer) error {
+func (fs *flowServer) authorize(auth security.Authorizer) verror.E {
 	if auth == nil {
 		auth = defaultAuthorizer(fs)
 	}
-	return auth.Authorize(fs)
+	if err := auth.Authorize(fs); err != nil {
+		// TODO(ataly, ashankar): For privacy reasons, should we hide the authorizer error?
+		if fs.RemoteBlessings() != nil {
+			return verror.NoAccessf("ipc: %v not authorized to call %q.%q (%v)", fs.RemoteBlessings(), fs.Name(), fs.Method(), err)
+		}
+		return verror.NoAccessf("ipc: %v (deprecated security model) is not authorized to call %q.%q (%v)", fs.RemoteID(), fs.Name(), fs.Method(), err)
+	}
+	return nil
 }
 
 // debugContext is a context which wraps another context but always returns
