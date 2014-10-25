@@ -142,8 +142,6 @@ func TestTrustIdentityProviders(t *testing.T) {
 		cSomebody1 = derive(bless(cSelf.PublicID(), cProvider1, "somebody1"), cSelf)
 		cSomebody2 = derive(bless(cSelf.PublicID(), cProvider2, "somebody2"), cSelf)
 		setID      = newSetPrivateID(cSomebody1, cSomebody2)
-
-		fake = security.FakePrivateID("fake")
 	)
 	// Initially nobody is trusted
 	m := map[security.PrivateID]bool{
@@ -182,7 +180,5 @@ func TestTrustIdentityProviders(t *testing.T) {
 	TrustIdentityProviders(setID)
 	m[cProvider1] = true
 	m[cProvider2] = true
-	// Trusting a fake identity should be a no-op
-	TrustIdentityProviders(fake)
 	test()
 }
