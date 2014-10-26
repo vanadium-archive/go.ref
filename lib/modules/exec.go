@@ -102,14 +102,10 @@ func (eh *execHandle) start(sh *Shell, env []string, args ...string) (Handle, er
 	eh.mu.Lock()
 	defer eh.mu.Unlock()
 	eh.sh = sh
-	// Take care to not pass the command line as an arg to the child
-	// process since that'll prevent parsing any subsequent args by
-	// the flag package.
-	newargs := append(testFlags(), args[1:]...)
-	cmd := exec.Command(os.Args[0], newargs...)
-	cmd.Env = append(env, eh.entryPoint)
-	fname := strings.TrimPrefix(eh.entryPoint, ShellEntryPoint+"=")
-	stderr, err := newLogfile(strings.TrimLeft(fname, "-\n\t "))
+	newargs, newenv := eh.envelope(sh, env, args[1:]...)
+	cmd := exec.Command(os.Args[0], newargs[1:]...)
+	cmd.Env = newenv
+	stderr, err := newLogfile(strings.TrimLeft(eh.name, "-\n\t "))
 	if err != nil {
 		return nil, err
 	}
