@@ -42,8 +42,8 @@ func now(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args 
 }
 
 func mountServer(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
-	if len(args) < 4 {
-		return fmt.Errorf("wrong # args")
+	if err := checkArgs(args[1:], -3, "<mount point> <server> <ttl> [M][R]"); err != nil {
+		return err
 	}
 	var opts []naming.MountOpt
 	for _, arg := range args[4:] {
@@ -70,8 +70,8 @@ func mountServer(stdin io.Reader, stdout, stderr io.Writer, env map[string]strin
 }
 
 func namespaceCache(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
-	if len(args) != 2 {
-		return fmt.Errorf("wrong # args")
+	if err := checkArgs(args[1:], 1, "on|off"); err != nil {
+		return err
 	}
 	disable := true
 	switch args[1] {

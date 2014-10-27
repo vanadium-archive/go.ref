@@ -2,15 +2,17 @@
 #
 # TODO - list the examples and any issues.
 
+set localaddr="--veyron.tcp.address=127.0.0.1:0"
+
 cache off
 
-root
+root -- $localaddr
 set root_h=$_
 eval $root_h
 set root=$MT_NAME
 
 set NAMESPACE_ROOT=$root
-mt tl/a
+mt -- $localaddr tl/a
 set m=$_
 set mt_a_h=$m
 eval $m
@@ -18,7 +20,7 @@ eval $m
 set mt_a_name=$MT_NAME
 set mt_a_addr=$MT_ADDR
 
-mt tl/b
+mt  -- $localaddr tl/b
 set m=$_
 set mt_b_h=$m
 eval $m
@@ -69,7 +71,7 @@ wait $r
 #
 
 # run an echo server on tl.
-echoServer "E1" tl
+echoServer  -- $localaddr "E1" tl
 set es_E1=$_
 read $es_E1
 eval $es_E1
@@ -118,7 +120,7 @@ eval $r
 assert $R0 $mt_a_name
 
 # run an echo server on tl/a
-echoServer "E2" tl/a
+echoServer  -- $localaddr "E2" tl/a
 set es_E2=$_
 read $es_E2
 eval $es_E2
@@ -198,7 +200,7 @@ assert $o E2.${long_name}": short baz"
 
 # Create a mount table with a 'long' name
 set long_name=tl/b/some/deep/name/that/is/a/mount/table
-mt $long_name
+mt -- $localaddr $long_name
 set m=$_
 eval $m
 eval $m
@@ -208,7 +210,7 @@ set mt_l_addr=$MT_ADDR
 
 # Create a second mount table with a 'long' name
 set second_long_name=tl/a/some/deep/name/that/is/a/mount/table
-mt $second_long_name
+mt -- $localaddr $second_long_name
 set m=$_
 eval $m
 eval $m
@@ -216,7 +218,7 @@ set mt_l2_name=$MT_NAME
 set mt_l2_addr=$MT_ADDR
 
 # Run an echo server that uses that mount table
-echoServer "E3" $long_name/echo
+echoServer -- $localaddr "E3" $long_name/echo
 set es_E3=$_
 read $es_E3
 eval $es_E3

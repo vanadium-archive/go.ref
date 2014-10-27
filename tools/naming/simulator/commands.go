@@ -13,24 +13,26 @@ import (
 
 type builtinCmd func(sh *modules.Shell, state *cmdState, args ...string) (string, error)
 
-var varRE = regexp.MustCompile("(.*)=(.*)")
+var varRE = regexp.MustCompile("(.*?)=(.*)")
 
 var builtins = map[string]*struct {
-	nargs       int
+	nargs       int // -1 means a variable # of args.
 	usage       string
 	needsHandle bool
 	fn          builtinCmd
 }{
-	"print":  {-1, "print <args>...", false, print},
-	"help":   {-1, "help", false, nil},
-	"set":    {-1, "set <var>=<val>...", false, set},
-	"assert": {2, "val1 val2", false, assert},
-	"read":   {-1, "read <handle> [var]", true, read},
-	"eval":   {1, "eval <handle>", true, eval},
-	"wait":   {1, "wait <handle>", true, wait},
-	"stop":   {1, "stop <handle>", true, stop},
-	"list":   {0, "list", false, list},
-	"quit":   {0, "quit", false, quit},
+	"print":   {-1, "print <args>...", false, print},
+	"help":    {-1, "help", false, nil},
+	"set":     {-1, "set <var>=<val>...", false, set},
+	"splitEP": {-1, "splitEP", false, splitEP},
+	"assert":  {2, "val1 val2", false, assert},
+	"read":    {-1, "read <handle> [var]", true, read},
+	"eval":    {1, "eval <handle>", true, eval},
+	"wait":    {1, "wait <handle>", true, wait},
+	"stop":    {1, "stop <handle>", true, stop},
+	"stderr":  {1, "stderr <handle>", true, stderr},
+	"list":    {0, "list", false, list},
+	"quit":    {0, "quit", false, quit},
 }
 
 func init() {
@@ -40,6 +42,19 @@ func init() {
 func print(_ *modules.Shell, _ *cmdState, args ...string) (string, error) {
 	r := strings.Join(args, " ")
 	return r, nil
+}
+
+func splitEP(sh *modules.Shell, _ *cmdState, args ...string) (string, error) {
+	ep := strings.TrimLeft(args[0], "/")
+	ep = strings.TrimRight(ep, "/")
+	ep = strings.TrimLeft(ep, "@")
+	ep = strings.TrimRight(ep, "@")
+	parts := strings.Split(ep, "@")
+	sh.SetVar("PN", fmt.Sprintf("%d", len(parts)))
+	for i, p := range parts {
+		sh.SetVar(fmt.Sprintf("P%d", i), p)
+	}
+	return "", nil
 }
 
 func help(sh *modules.Shell, _ *cmdState, args ...string) (string, error) {
@@ -103,6 +118,12 @@ func assert(sh *modules.Shell, _ *cmdState, args ...string) (string, error) {
 	return "", nil
 }
 
+func stderr(sh *modules.Shell, state *cmdState, args ...string) (string, error) {
+	state.Session.Finish(nil)
+	delete(handles, args[0])
+	return readStderr(state)
+}
+
 func readStderr(state *cmdState) (string, error) {
 	var b bytes.Buffer
 	if err := state.Handle.Shutdown(nil, &b); err != nil && err != io.EOF {
@@ -164,7 +185,7 @@ func wait(sh *modules.Shell, state *cmdState, args ...string) (string, error) {
 	if err != nil {
 		return r, err
 	}
-	// Now read and return the contents of stderr as e
+	// Now read and return the contents of stderr as a string
 	if str, err := readStderr(state); err != nil && err != io.EOF {
 		return str, err
 	}
@@ -188,7 +209,7 @@ func quit(sh *modules.Shell, _ *cmdState, args ...string) (string, error) {
 			r += fmt.Sprintf("%s: ok\n", k)
 		}
 	}
-	fmt.Fprintf(os.Stdout, r)
+	fmt.Fprintf(os.Stdout, "%s\n", r)
 	os.Exit(0)
 	panic("unreachable")
 }

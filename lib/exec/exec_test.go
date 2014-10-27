@@ -394,6 +394,22 @@ func TestExtraFiles(t *testing.T) {
 	clean(t, ph)
 }
 
+func TestExitEarly(t *testing.T) {
+	name := "exitEarly"
+	cmd := helperCommand(name)
+	tk := timekeeper.NewManualTime()
+	ph := vexec.NewParentHandle(cmd, vexec.TimeKeeperOpt{tk})
+	err := ph.Start()
+	if err != nil {
+		t.Fatalf("%s: start: %v", name, err)
+	}
+	e := ph.Wait(time.Second)
+	if e == nil || e.Error() != "exit status 1" {
+		t.Errorf("Unexpected value for error: %v\n", e)
+	}
+	clean(t, ph)
+}
+
 func verifyNoExecVariable() {
 	version := os.Getenv(vexec.VersionVariable)
 	if len(version) != 0 {
@@ -434,6 +450,12 @@ func TestHelperProcess(*testing.T) {
 	cmd, args := args[0], args[1:]
 
 	switch cmd {
+	case "exitEarly":
+		_, err := vexec.GetChildHandle()
+		if err != nil {
+			log.Fatal(os.Stderr, "%s\n", err)
+		}
+		os.Exit(1)
 	case "testNeverReady":
 		_, err := vexec.GetChildHandle()
 		if err != nil {

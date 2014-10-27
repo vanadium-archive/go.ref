@@ -19,15 +19,17 @@
 # "s1/a", ["/s3/c"(mountpoint)]
 # "s1/a", ["/s4//"(mountpoint)]
 
-root
+set localaddr="--veyron.tcp.address=127.0.0.1:0"
+
+root -- $localaddr
 eval $_
 set s1=$MT_NAME
 
-root
+root  -- $localaddr
 eval $_
 set s2=$MT_NAME
 
-root
+root -- $localaddr
 eval $_
 set s3=$MT_NAME
 
@@ -37,7 +39,7 @@ wait $_
 mount $s2/b $s3/c 1h
 wait $_
 
-echoServer "Echo" $s3/c
+echoServer  -- $localaddr "Echo" $s3/c
 set es_h=$_
 
 # Returns the root and three mounts at s1/a.

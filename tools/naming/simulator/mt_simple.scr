@@ -1,14 +1,16 @@
 # Simple example showing multiple mount tables, servers and globing
 
-root
+set localaddr="--veyron.tcp.address=127.0.0.1:0"
+
+root -- $localaddr
 eval $_
 set root=$MT_NAME
 
 set NAMESPACE_ROOT=$root
-mt usa
+mt -- $localaddr usa
 eval $_
 set usa_mt=$MT_NAME
-mt uk
+mt -- $localaddr uk
 eval $_
 set uk_mt=$MT_NAME
 
@@ -19,12 +21,12 @@ assert $RN 3
 wait $l
 
 set NAMESPACE_ROOT=$usa_mt
-mt "palo alto"
+mt -- $localaddr "palo alto"
 eval $_
 set pa_mt=$MT_NAME
 
 set NAMESPACE_ROOT=$uk_mt
-mt "cambridge"
+mt -- $localaddr "cambridge"
 eval $_
 set cam_mt=$MT_NAME
 
@@ -32,6 +34,7 @@ ls $root/...
 set l=$_
 eval $l
 assert $RN 7
+wait $l
 
 ls -l $root/...
 wait $_

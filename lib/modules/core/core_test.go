@@ -11,12 +11,13 @@ import (
 
 	"veyron.io/veyron/veyron2/naming"
 	"veyron.io/veyron/veyron2/rt"
+	"veyron.io/veyron/veyron2/vlog"
 
 	"veyron.io/veyron/veyron/lib/expect"
 	"veyron.io/veyron/veyron/lib/modules"
 	"veyron.io/veyron/veyron/lib/modules/core"
-
 	"veyron.io/veyron/veyron/lib/testutil"
+	_ "veyron.io/veyron/veyron/profiles"
 )
 
 func TestCommands(t *testing.T) {
@@ -38,6 +39,7 @@ func newShell() (*modules.Shell, func()) {
 	sh := core.NewShell()
 	return sh, func() {
 		if testing.Verbose() {
+			vlog.Infof("------ cleanup ------")
 			sh.Cleanup(os.Stderr, os.Stderr)
 		} else {
 			sh.Cleanup(nil, nil)
@@ -45,10 +47,15 @@ func newShell() (*modules.Shell, func()) {
 	}
 }
 
+func testArgs(args ...string) []string {
+	var targs = []string{"--", "--veyron.tcp.address=127.0.0.1:0"}
+	return append(targs, args...)
+}
+
 func TestRoot(t *testing.T) {
 	shell, fn := newShell()
 	defer fn()
-	root, err := shell.Start(core.RootMTCommand)
+	root, err := shell.Start(core.RootMTCommand, testArgs()...)
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
@@ -59,16 +66,17 @@ func TestRoot(t *testing.T) {
 	root.CloseStdin()
 }
 
-func startMountTables(t *testing.T, sh *modules.Shell, mountPoints ...string) (map[string]string, error) {
+func startMountTables(t *testing.T, sh *modules.Shell, mountPoints ...string) (map[string]string, func(), error) {
 	// Start root mount table
-	root, err := sh.Start(core.RootMTCommand)
+	root, err := sh.Start(core.RootMTCommand, testArgs()...)
 	if err != nil {
 		t.Fatalf("unexpected error for root mt: %s", err)
 	}
+	sh.Forget(root)
 	rootSession := expect.NewSession(t, root.Stdout(), time.Minute)
 	rootName := rootSession.ExpectVar("MT_NAME")
 	if t.Failed() {
-		return nil, rootSession.Error()
+		return nil, nil, rootSession.Error()
 	}
 	sh.SetVar("NAMESPACE_ROOT", rootName)
 	mountAddrs := make(map[string]string)
@@ -76,20 +84,27 @@ func startMountTables(t *testing.T, sh *modules.Shell, mountPoints ...string) (m
 
 	// Start the mount tables
 	for _, mp := range mountPoints {
-		h, err := sh.Start(core.MTCommand, mp)
+		h, err := sh.Start(core.MTCommand, testArgs(mp)...)
 		if err != nil {
-			return nil, fmt.Errorf("unexpected error for mt %q: %s", mp, err)
+			return nil, nil, fmt.Errorf("unexpected error for mt %q: %s", mp, err)
 		}
 		s := expect.NewSession(t, h.Stdout(), time.Minute)
 		// Wait until each mount table has at least called Serve to
 		// mount itself.
 		mountAddrs[mp] = s.ExpectVar("MT_NAME")
 		if s.Failed() {
-			return nil, s.Error()
+			return nil, nil, s.Error()
 		}
 	}
-	return mountAddrs, nil
-
+	deferFn := func() {
+		if testing.Verbose() {
+			vlog.Infof("------ root shutdown ------")
+			root.Shutdown(os.Stderr, os.Stderr)
+		} else {
+			root.Shutdown(nil, nil)
+		}
+	}
+	return mountAddrs, deferFn, nil
 }
 
 func getMatchingMountpoint(r [][]string) string {
@@ -115,10 +130,12 @@ func TestMountTableAndGlob(t *testing.T) {
 	defer fn()
 
 	mountPoints := []string{"a", "b", "c", "d", "e"}
-	mountAddrs, err := startMountTables(t, shell, mountPoints...)
+	mountAddrs, fn, err := startMountTables(t, shell, mountPoints...)
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
+	defer fn()
+
 	rootName := mountAddrs["root"]
 	ls, err := shell.Start(core.LSCommand, rootName+"/...")
 	if err != nil {
@@ -184,7 +201,7 @@ func TestEcho(t *testing.T) {
 	shell, fn := newShell()
 	defer fn()
 
-	srv, err := shell.Start(core.EchoServerCommand, "test", "")
+	srv, err := shell.Start(core.EchoServerCommand, testArgs("test", "")...)
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
@@ -193,13 +210,13 @@ func TestEcho(t *testing.T) {
 	if len(name) == 0 {
 		t.Fatalf("failed to get name")
 	}
-
 	clt, err := shell.Start(core.EchoClientCommand, name, "a message")
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
 	cltSession := expect.NewSession(t, clt.Stdout(), time.Minute)
 	cltSession.Expect("test: a message")
+	srv.Shutdown(nil, nil)
 }
 
 func TestResolve(t *testing.T) {
@@ -207,14 +224,15 @@ func TestResolve(t *testing.T) {
 	defer fn()
 
 	mountPoints := []string{"a", "b"}
-	mountAddrs, err := startMountTables(t, shell, mountPoints...)
+	mountAddrs, fn, err := startMountTables(t, shell, mountPoints...)
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
+	defer fn()
 	rootName := mountAddrs["root"]
 	mtName := "b"
 	echoName := naming.Join(mtName, "echo")
-	srv, err := shell.Start(core.EchoServerCommand, "test", echoName)
+	srv, err := shell.Start(core.EchoServerCommand, testArgs("test", echoName)...)
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
@@ -279,6 +297,8 @@ func TestResolve(t *testing.T) {
 	if err := resolver.Shutdown(nil, os.Stderr); err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
+	srv.Shutdown(nil, nil)
+	nsroots.Shutdown(nil, nil)
 }
 
 func TestHelperProcess(t *testing.T) {
