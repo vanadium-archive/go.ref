@@ -393,7 +393,6 @@ func (i *nodeInvoker) GetACL(_ ipc.ServerContext) (acl security.ACL, etag string
 }
 
 func (i *nodeInvoker) Glob(ctx ipc.ServerContext, pattern string, stream mounttable.GlobbableServiceGlobStream) error {
-	// TODO(rthellend): Finish implementing Glob
 	g, err := glob.Parse(pattern)
 	if err != nil {
 		return err

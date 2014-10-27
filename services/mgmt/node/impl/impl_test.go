@@ -17,6 +17,7 @@ import (
 	"path"
 	"path/filepath"
 	"reflect"
+	"regexp"
 	"sort"
 	"strconv"
 	"strings"
@@ -39,6 +40,7 @@ import (
 	"veyron.io/veyron/veyron2/rt"
 	"veyron.io/veyron/veyron2/security"
 	"veyron.io/veyron/veyron2/services/mgmt/application"
+	"veyron.io/veyron/veyron2/services/mgmt/logreader"
 	"veyron.io/veyron/veyron2/services/mgmt/node"
 	"veyron.io/veyron/veyron2/services/mounttable"
 	"veyron.io/veyron/veyron2/verror"
@@ -962,7 +964,7 @@ func TestNodeManagerInstall(t *testing.T) {
 	runNM.Cleanup()
 }
 
-func TestNodeManagerGlob(t *testing.T) {
+func TestNodeManagerGlobAndLogs(t *testing.T) {
 	// Set up mount table, application, and binary repositories.
 	defer setupLocalNamespace(t)()
 	envelope, cleanup := startApplicationRepository()
@@ -1013,37 +1015,64 @@ func TestNodeManagerGlob(t *testing.T) {
 			"apps/google naps",
 			"apps/google naps/" + installID,
 			"apps/google naps/" + installID + "/" + instance1ID,
+			"apps/google naps/" + installID + "/" + instance1ID + "/logs",
+			"apps/google naps/" + installID + "/" + instance1ID + "/logs/STDERR-<timestamp>",
+			"apps/google naps/" + installID + "/" + instance1ID + "/logs/STDOUT-<timestamp>",
 			"nm",
 		}},
 		{"nm/apps", "*", []string{"google naps"}},
 		{"nm/apps/google naps", "*", []string{installID}},
+		{"nm/apps/google naps/" + installID, "*", []string{instance1ID}},
+		{"nm/apps/google naps/" + installID + "/" + instance1ID, "*", []string{"logs"}},
+		{"nm/apps/google naps/" + installID + "/" + instance1ID + "/logs", "*", []string{"STDERR-<timestamp>", "STDOUT-<timestamp>"}},
 	}
+	re := regexp.MustCompile("(STDOUT|STDERR)-[0-9]+$")
 	for _, tc := range testcases {
-		c, err := mounttable.BindGlobbable(tc.name)
-		if err != nil {
-			t.Fatalf("BindGlobbable failed: %v", err)
+		results := doGlob(t, tc.name, tc.pattern)
+		for i, name := range results {
+			results[i] = re.ReplaceAllString(name, "$1-<timestamp>")
 		}
-
-		stream, err := c.Glob(rt.R().NewContext(), tc.pattern)
-		if err != nil {
-			t.Errorf("Glob failed: %v", err)
-		}
-		results := []string{}
-		iterator := stream.RecvStream()
-		for iterator.Advance() {
-			results = append(results, iterator.Value().Name)
-		}
-		sort.Strings(results)
 		if !reflect.DeepEqual(results, tc.expected) {
-			t.Errorf("unexpected result. Got %q, want %q", results, tc.expected)
-		}
-		if err := iterator.Err(); err != nil {
-			t.Errorf("unexpected stream error: %v", err)
-		}
-		if err := stream.Finish(); err != nil {
-			t.Errorf("Finish failed: %v", err)
+			t.Errorf("unexpected result for (%q, %q). Got %q, want %q", tc.name, tc.pattern, results, tc.expected)
 		}
 	}
+
+	// Call Size() on the log file objects
+	files := doGlob(t, "nm", "apps/google naps/"+installID+"/"+instance1ID+"/logs/*")
+	for _, file := range files {
+		name := naming.Join("nm", file)
+		c, err := logreader.BindLogFile(name)
+		if err != nil {
+			t.Fatalf("BindLogFile failed: %v", err)
+		}
+		if _, err := c.Size(rt.R().NewContext()); err != nil {
+			t.Errorf("Size(%q) failed: %v", name, err)
+		}
+	}
+}
+
+func doGlob(t *testing.T, name, pattern string) []string {
+	c, err := mounttable.BindGlobbable(name)
+	if err != nil {
+		t.Fatalf("BindGlobbable failed: %v", err)
+	}
+	stream, err := c.Glob(rt.R().NewContext(), pattern)
+	if err != nil {
+		t.Errorf("Glob failed: %v", err)
+	}
+	results := []string{}
+	iterator := stream.RecvStream()
+	for iterator.Advance() {
+		results = append(results, iterator.Value().Name)
+	}
+	if err := iterator.Err(); err != nil {
+		t.Errorf("unexpected stream error: %v", err)
+	}
+	if err := stream.Finish(); err != nil {
+		t.Errorf("Finish failed: %v", err)
+	}
+	sort.Strings(results)
+	return results
 }
 
 func listAndVerifyAssociations(t *testing.T, stub node.Node, run veyron2.Runtime, expected []node.Association) {

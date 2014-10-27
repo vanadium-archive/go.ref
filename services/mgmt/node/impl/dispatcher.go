@@ -15,10 +15,12 @@ import (
 	vflag "veyron.io/veyron/veyron/security/flag"
 	"veyron.io/veyron/veyron/security/serialization"
 	"veyron.io/veyron/veyron/services/mgmt/lib/toplevelglob"
+	logsimpl "veyron.io/veyron/veyron/services/mgmt/logreader/impl"
 	inode "veyron.io/veyron/veyron/services/mgmt/node"
 	"veyron.io/veyron/veyron/services/mgmt/node/config"
 
 	"veyron.io/veyron/veyron2/ipc"
+	"veyron.io/veyron/veyron2/naming"
 	"veyron.io/veyron/veyron2/rt"
 	"veyron.io/veyron/veyron2/security"
 	"veyron.io/veyron/veyron2/services/mgmt/node"
@@ -245,6 +247,15 @@ func (d *dispatcher) Lookup(suffix, method string) (ipc.Invoker, security.Author
 		})
 		return ipc.ReflectInvoker(receiver), d.auth, nil
 	case appsSuffix:
+		if method != "Glob" && len(components) >= 5 && components[4] == "logs" {
+			appInstanceDir, err := instanceDir(d.config.Root, components[1:4])
+			if err != nil {
+				return nil, nil, err
+			}
+			logsDir := filepath.Join(appInstanceDir, "logs")
+			suffix := naming.Join(components[5:]...)
+			return logsimpl.NewLogFileInvoker(logsDir, suffix), d.auth, nil
+		}
 		receiver := node.NewServerApplication(&appInvoker{
 			callback: d.internal.callback,
 			config:   d.config,

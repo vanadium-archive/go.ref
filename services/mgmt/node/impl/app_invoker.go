@@ -581,17 +581,22 @@ func (i *appInvoker) Start(call ipc.ServerContext) ([]string, error) {
 }
 
 // instanceDir returns the path to the directory containing the app instance
+// referred to by the given suffix relative to the given root directory.
+func instanceDir(root string, suffix []string) (string, error) {
+	if nComponents := len(suffix); nComponents != 3 {
+		return "", errInvalidSuffix
+	}
+	app, installation, instance := suffix[0], suffix[1], suffix[2]
+	instancesDir := filepath.Join(root, applicationDirName(app), installationDirName(installation), "instances")
+	instanceDir := filepath.Join(instancesDir, instanceDirName(instance))
+	return instanceDir, nil
+}
+
+// instanceDir returns the path to the directory containing the app instance
 // referred to by the invoker's suffix, as well as the corresponding stopped
 // instance dir.  Returns an error if the suffix does not name an instance.
 func (i *appInvoker) instanceDir() (string, error) {
-	components := i.suffix
-	if nComponents := len(components); nComponents != 3 {
-		return "", errInvalidSuffix
-	}
-	app, installation, instance := components[0], components[1], components[2]
-	instancesDir := filepath.Join(i.config.Root, applicationDirName(app), installationDirName(installation), "instances")
-	instanceDir := filepath.Join(instancesDir, instanceDirName(instance))
-	return instanceDir, nil
+	return instanceDir(i.config.Root, i.suffix)
 }
 
 func (i *appInvoker) Resume(call ipc.ServerContext) error {
@@ -856,7 +861,8 @@ func (i *appInvoker) scanConfigDir() *treeNode {
 		return nil
 	}
 	for _, path := range instances {
-		if _, err := loadInstanceInfo(filepath.Dir(path)); err != nil {
+		instanceDir := filepath.Dir(path)
+		if _, err := loadInstanceInfo(instanceDir); err != nil {
 			continue
 		}
 		relpath, _ := filepath.Rel(i.config.Root, path)
@@ -869,10 +875,23 @@ func (i *appInvoker) scanConfigDir() *treeNode {
 		installID := strings.TrimPrefix(elems[1], "installation-")
 		instanceID := strings.TrimPrefix(elems[3], "instance-")
 		if title, ok := appIDMap[appID]; ok {
-			tree.find([]string{title, installID, instanceID}, true)
+			n := tree.find([]string{title, installID, instanceID, "logs"}, true)
+			i.addLogFiles(n, filepath.Join(instanceDir, "logs"))
 		}
 	}
 	return tree
+}
+
+func (i *appInvoker) addLogFiles(n *treeNode, dir string) {
+	filepath.Walk(dir, func(path string, _ os.FileInfo, _ error) error {
+		if path == dir {
+			// Skip the logs directory itself.
+			return nil
+		}
+		relpath, _ := filepath.Rel(dir, path)
+		n.find(strings.Split(relpath, string(filepath.Separator)), true)
+		return nil
+	})
 }
 
 func (i *appInvoker) Glob(ctx ipc.ServerContext, pattern string, stream mounttable.GlobbableServiceGlobStream) error {
