@@ -12,7 +12,8 @@ import (
 	"veyron.io/veyron/veyron2/ipc"
 	"veyron.io/veyron/veyron2/naming"
 	"veyron.io/veyron/veyron2/security"
-	"veyron.io/veyron/veyron2/security/wire"
+	"veyron.io/veyron/veyron2/vdl/vdlutil"
+	"veyron.io/veyron/veyron2/vlog"
 )
 
 // FdVarName is the name of the environment variable containing
@@ -20,27 +21,39 @@ import (
 const FdVarName = "VEYRON_AGENT_FD"
 
 type client struct {
-	client ipc.Client
-	name   string
-	ctx    context.T
+	caller caller
 	key    security.PublicKey
 }
 
-func (c *client) call(name string, result interface{}, args ...interface{}) (err error) {
+type caller struct {
+	client ipc.Client
+	name   string
+	ctx    context.T
+}
+
+func (c *caller) call(name string, results []interface{}, args ...interface{}) (err error) {
 	var call ipc.Call
+	results = append(results, &err)
 	if call, err = c.client.StartCall(c.ctx, c.name, name, args); err == nil {
-		if ierr := call.Finish(result, &err); ierr != nil {
+		if ierr := call.Finish(results...); ierr != nil {
 			err = ierr
 		}
 	}
 	return
 }
 
-// NewAgentSigner returns a Signer using the PrivateKey held in a remote agent process.
+func results(inputs ...interface{}) []interface{} {
+	if len(inputs) > 0 {
+		return inputs
+	}
+	return make([]interface{}, 0)
+}
+
+// NewAgentPrincipal returns a security.Pricipal using the PrivateKey held in a remote agent process.
 // 'fd' is the socket for connecting to the agent, typically obtained from
 // os.GetEnv(agent.FdVarName).
 // 'ctx' should not have a deadline, and should never be cancelled.
-func NewAgentSigner(c ipc.Client, fd int, ctx context.T) (security.Signer, error) {
+func NewAgentPrincipal(c ipc.Client, fd int, ctx context.T) (security.Principal, error) {
 	conn, err := net.FileConn(os.NewFile(uintptr(fd), "agent_client"))
 	if err != nil {
 		return nil, err
@@ -51,7 +64,13 @@ func NewAgentSigner(c ipc.Client, fd int, ctx context.T) (security.Signer, error
 	if err != nil {
 		return nil, err
 	}
-	agent := &client{c, naming.JoinAddressName(naming.FormatEndpoint(addr.Network(), addr.String()), ""), ctx, nil}
+	caller := caller{
+		client: c,
+		name:   naming.JoinAddressName(naming.FormatEndpoint(addr.Network(), addr.String()), ""),
+		ctx:    ctx,
+	}
+
+	agent := &client{caller: caller}
 	if err := agent.fetchPublicKey(); err != nil {
 		return nil, err
 	}
@@ -59,23 +78,152 @@ func NewAgentSigner(c ipc.Client, fd int, ctx context.T) (security.Signer, error
 }
 
 func (c *client) fetchPublicKey() (err error) {
-	var key wire.PublicKey
-	if err = c.call("PublicKey", &key); err != nil {
+	var b []byte
+	if err = c.caller.call("PublicKey", results(&b)); err != nil {
 		return
 	}
-	c.key, err = key.Decode()
+	c.key, err = security.UnmarshalPublicKey(b)
 	return
+}
+
+func (c *client) Bless(key security.PublicKey, with security.Blessings, extension string, caveat security.Caveat, additionalCaveats ...security.Caveat) (security.Blessings, error) {
+	var blessings security.WireBlessings
+	marshalledKey, err := key.MarshalBinary()
+	if err != nil {
+		return nil, err
+	}
+	err = c.caller.call("Bless", results(&blessings), marshalledKey, security.MarshalBlessings(with), extension, caveat, additionalCaveats)
+	if err != nil {
+		return nil, err
+	}
+	return security.NewBlessings(blessings)
+}
+
+func (c *client) BlessSelf(name string, caveats ...security.Caveat) (security.Blessings, error) {
+	var blessings security.WireBlessings
+	err := c.caller.call("BlessSelf", results(&blessings), name, caveats)
+	if err != nil {
+		return nil, err
+	}
+	return security.NewBlessings(blessings)
+}
+
+func (c *client) Sign(message []byte) (sig security.Signature, err error) {
+	err = c.caller.call("Sign", results(&sig), message)
+	return
+}
+
+func (c *client) MintDischarge(tp security.ThirdPartyCaveat, caveat security.Caveat, additionalCaveats ...security.Caveat) (security.Discharge, error) {
+	var discharge security.Discharge
+	err := c.caller.call("MintDischarge", results(&discharge), vdlutil.Any(tp), caveat, additionalCaveats)
+	if err != nil {
+		return nil, err
+	}
+	return discharge, nil
 }
 
 func (c *client) PublicKey() security.PublicKey {
 	return c.key
 }
 
-func (c *client) Sign(purpose, message []byte) (sig security.Signature, err error) {
-	if purpose != nil {
-		err = fmt.Errorf("purpose not supported")
-		return
+func (c *client) BlessingStore() security.BlessingStore {
+	return &blessingStore{c.caller, c.key}
+}
+
+func (c *client) Roots() security.BlessingRoots {
+	return &blessingRoots{c.caller}
+}
+
+func (c *client) AddToRoots(blessings security.Blessings) error {
+	return c.caller.call("AddToRoots", results(), security.MarshalBlessings(blessings))
+}
+
+type blessingStore struct {
+	caller caller
+	key    security.PublicKey
+}
+
+func (b *blessingStore) Set(blessings security.Blessings, forPeers security.BlessingPattern) (security.Blessings, error) {
+	var resultBlessings security.WireBlessings
+	err := b.caller.call("BlessingStoreSet", results(&resultBlessings), security.MarshalBlessings(blessings), forPeers)
+	if err != nil {
+		return nil, err
 	}
-	err = c.call("Sign", &sig, message)
+	return security.NewBlessings(resultBlessings)
+}
+
+func (b *blessingStore) ForPeer(peerBlessings ...string) security.Blessings {
+	var resultBlessings security.WireBlessings
+	err := b.caller.call("BlessingStoreForPeer", results(&resultBlessings), peerBlessings)
+	if err != nil {
+		vlog.Errorf("error calling BlessingStoreForPeer: %v", err)
+		return nil
+	}
+	blessings, err := security.NewBlessings(resultBlessings)
+	if err != nil {
+		vlog.Errorf("error creating Blessings from WireBlessings: %v", err)
+		return nil
+	}
+	return blessings
+}
+
+func (b *blessingStore) SetDefault(blessings security.Blessings) error {
+	return b.caller.call("BlessingStoreSetDefault", results(), security.MarshalBlessings(blessings))
+}
+
+func (b *blessingStore) Default() security.Blessings {
+	var resultBlessings security.WireBlessings
+	err := b.caller.call("BlessingStoreDefault", results(&resultBlessings))
+	if err != nil {
+		vlog.Errorf("error calling BlessingStoreDefault: %v", err)
+		return nil
+	}
+	blessings, err := security.NewBlessings(resultBlessings)
+	if err != nil {
+		vlog.Errorf("error creating Blessing from WireBlessings: %v", err)
+		return nil
+	}
+	return blessings
+}
+
+func (b *blessingStore) PublicKey() security.PublicKey {
+	return b.key
+}
+
+func (b *blessingStore) DebugString() (s string) {
+	err := b.caller.call("BlessingStoreDebugString", results(&s))
+	if err != nil {
+		s = fmt.Sprintf("error calling BlessingStoreDebugString: %v", err)
+		vlog.Errorf(s)
+	}
+	return
+}
+
+type blessingRoots struct {
+	caller caller
+}
+
+func (b *blessingRoots) Add(root security.PublicKey, pattern security.BlessingPattern) error {
+	marshalledKey, err := root.MarshalBinary()
+	if err != nil {
+		return err
+	}
+	return b.caller.call("BlessingRootsAdd", results(), marshalledKey, pattern)
+}
+
+func (b *blessingRoots) Recognized(root security.PublicKey, blessing string) error {
+	marshalledKey, err := root.MarshalBinary()
+	if err != nil {
+		return err
+	}
+	return b.caller.call("BlessingRootsAdd", results(), marshalledKey, blessing)
+}
+
+func (b *blessingRoots) DebugString() (s string) {
+	err := b.caller.call("BlessingRootsDebugString", results(&s))
+	if err != nil {
+		s = fmt.Sprintf("error calling BlessingRootsDebugString: %v", err)
+		vlog.Errorf(s)
+	}
 	return
 }

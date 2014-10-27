@@ -11,6 +11,7 @@
 package server
 
 import (
+	"fmt"
 	"io"
 	"os"
 
@@ -19,26 +20,19 @@ import (
 	"veyron.io/veyron/veyron2/ipc"
 	"veyron.io/veyron/veyron2/options"
 	"veyron.io/veyron/veyron2/security"
-	"veyron.io/veyron/veyron2/security/wire"
+	"veyron.io/veyron/veyron2/vdl/vdlutil"
 	"veyron.io/veyron/veyron2/vlog"
 )
 
-// TODO(suharshs): Remove this when replaced with principal. This is just temporary to
-// avoid having to implement a bunch of principal methods that aren't being used yet.
-type Signer interface {
-	Sign(message []byte) (security.Signature, error)
-	PublicKey() security.PublicKey
-}
-
 type agentd struct {
-	signer Signer
+	principal security.Principal
 }
 
 // RunAnonymousAgent starts the agent server listening on an
 // anonymous unix domain socket. It will respond to SignatureRequests
-// using 'signer'.
+// using 'principal'.
 // The returned 'client' is typically passed via cmd.ExtraFiles to a child process.
-func RunAnonymousAgent(runtime veyron2.Runtime, signer Signer) (client *os.File, err error) {
+func RunAnonymousAgent(runtime veyron2.Runtime, principal security.Principal) (client *os.File, err error) {
 	// VCSecurityNone is safe since we're using anonymous unix sockets.
 	// Only our child process can possibly communicate on the socket.
 	s, err := runtime.NewServer(options.VCSecurityNone)
@@ -51,7 +45,7 @@ func RunAnonymousAgent(runtime veyron2.Runtime, signer Signer) (client *os.File,
 		return nil, err
 	}
 
-	serverAgent := NewServerAgent(agentd{signer})
+	serverAgent := NewServerAgent(agentd{principal})
 	go func() {
 		buf := make([]byte, 1)
 		for {
@@ -74,11 +68,102 @@ func RunAnonymousAgent(runtime veyron2.Runtime, signer Signer) (client *os.File,
 	return remote, nil
 }
 
-func (a agentd) Sign(_ ipc.ServerContext, message []byte) (security.Signature, error) {
-	return a.signer.Sign(message)
+func (a agentd) Bless(_ ipc.ServerContext, key []byte, with security.WireBlessings, extension string, caveat security.Caveat, additionalCaveats []security.Caveat) (security.WireBlessings, error) {
+	pkey, err := security.UnmarshalPublicKey(key)
+	if err != nil {
+		return security.WireBlessings{}, err
+	}
+	withBlessings, err := security.NewBlessings(with)
+	if err != nil {
+		return security.WireBlessings{}, err
+	}
+	blessings, err := a.principal.Bless(pkey, withBlessings, extension, caveat, additionalCaveats...)
+	if err != nil {
+		return security.WireBlessings{}, err
+	}
+	return security.MarshalBlessings(blessings), nil
 }
 
-func (a agentd) PublicKey(ipc.ServerContext) (key wire.PublicKey, err error) {
-	err = key.Encode(a.signer.PublicKey())
-	return
+func (a agentd) BlessSelf(_ ipc.ServerContext, name string, caveats []security.Caveat) (security.WireBlessings, error) {
+	blessings, err := a.principal.BlessSelf(name, caveats...)
+	if err != nil {
+		return security.WireBlessings{}, err
+	}
+	return security.MarshalBlessings(blessings), nil
+}
+
+func (a agentd) Sign(_ ipc.ServerContext, message []byte) (security.Signature, error) {
+	return a.principal.Sign(message)
+}
+
+func (a agentd) MintDischarge(_ ipc.ServerContext, tp vdlutil.Any, caveat security.Caveat, additionalCaveats []security.Caveat) (vdlutil.Any, error) {
+	tpCaveat, ok := tp.(security.ThirdPartyCaveat)
+	if !ok {
+		return nil, fmt.Errorf("provided caveat of type %T does not implement security.ThirdPartyCaveat", tp)
+	}
+	return a.principal.MintDischarge(tpCaveat, caveat, additionalCaveats...)
+}
+
+func (a agentd) PublicKey(_ ipc.ServerContext) ([]byte, error) {
+	return a.principal.PublicKey().MarshalBinary()
+}
+
+func (a agentd) AddToRoots(_ ipc.ServerContext, wireBlessings security.WireBlessings) error {
+	blessings, err := security.NewBlessings(wireBlessings)
+	if err != nil {
+		return err
+	}
+	return a.principal.AddToRoots(blessings)
+}
+
+func (a agentd) BlessingStoreSet(_ ipc.ServerContext, wireBlessings security.WireBlessings, forPeers security.BlessingPattern) (security.WireBlessings, error) {
+	blessings, err := security.NewBlessings(wireBlessings)
+	if err != nil {
+		return security.WireBlessings{}, err
+	}
+	resultBlessings, err := a.principal.BlessingStore().Set(blessings, forPeers)
+	if err != nil {
+		return security.WireBlessings{}, err
+	}
+	return security.MarshalBlessings(resultBlessings), nil
+}
+
+func (a agentd) BlessingStoreForPeer(_ ipc.ServerContext, peerBlessings []string) (security.WireBlessings, error) {
+	return security.MarshalBlessings(a.principal.BlessingStore().ForPeer(peerBlessings...)), nil
+}
+
+func (a agentd) BlessingStoreSetDefault(_ ipc.ServerContext, wireBlessings security.WireBlessings) error {
+	blessings, err := security.NewBlessings(wireBlessings)
+	if err != nil {
+		return err
+	}
+	return a.principal.BlessingStore().SetDefault(blessings)
+}
+
+func (a agentd) BlessingStoreDebugString(_ ipc.ServerContext) (string, error) {
+	return a.principal.BlessingStore().DebugString(), nil
+}
+
+func (a agentd) BlessingStoreDefault(_ ipc.ServerContext) (security.WireBlessings, error) {
+	return security.MarshalBlessings(a.principal.BlessingStore().Default()), nil
+}
+
+func (a agentd) BlessingRootsAdd(_ ipc.ServerContext, root []byte, pattern security.BlessingPattern) error {
+	pkey, err := security.UnmarshalPublicKey(root)
+	if err != nil {
+		return err
+	}
+	return a.principal.Roots().Add(pkey, pattern)
+}
+
+func (a agentd) BlessingRootsRecognized(_ ipc.ServerContext, root []byte, blessing string) error {
+	pkey, err := security.UnmarshalPublicKey(root)
+	if err != nil {
+		return err
+	}
+	return a.principal.Roots().Recognized(pkey, blessing)
+}
+
+func (a agentd) BlessingRootsDebugString(_ ipc.ServerContext) (string, error) {
+	return a.principal.Roots().DebugString(), nil
 }

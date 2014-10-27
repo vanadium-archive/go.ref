@@ -21,18 +21,16 @@ func main() {
 	flag.Usage = func() {
 		fmt.Fprintf(os.Stderr, `Usage: %s [agent options] command command_args...
 
-Loads the private key specified in under privatekey.pem in VEYRON_AGENT into memory, then
+Loads the private key specified in under privatekey.pem in VEYRON_CREDENTIALS into memory, then
 starts the specified command with access to the private key via the
 agent protocol instead of directly reading from disk.
 
 `, os.Args[0])
 		flag.PrintDefaults()
 	}
-	// TODO(suharshs): Switch to "VEYRON_CREDENTIALS" after agent is a principal.
-	// This will be the end of the old sec model here. Also change the comment above.
-	dir := os.Getenv("VEYRON_AGENT")
+	dir := os.Getenv("VEYRON_CREDENTIALS")
 	if len(dir) == 0 {
-		vlog.Fatal("VEYRON_AGENT must be set to directory")
+		vlog.Fatal("VEYRON_CREDENTIALS must be set to directory")
 	}
 
 	p, err := newPrincipalFromDir(dir)
@@ -96,7 +94,11 @@ func handleDoesNotExist(dir string) (security.Principal, error) {
 		return nil, fmt.Errorf("failed to read passphrase: %v", err)
 	}
 	p, err := vsecurity.CreatePersistentPrincipal(dir, []byte(pass))
-	return p, err
+	if err != nil {
+		return nil, err
+	}
+	vsecurity.InitDefaultBlessings(p, "agent_principal")
+	return p, nil
 }
 
 func handlePassphrase(dir string) (security.Principal, error) {

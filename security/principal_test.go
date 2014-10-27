@@ -82,7 +82,7 @@ func testCreatePersistentPrincipal(t *testing.T, message, passphrase []byte) {
 
 	p2, err := LoadPersistentPrincipal(dir, passphrase)
 	if err != nil {
-		t.Fatal(err)
+		t.Fatalf("%s failed: %v", message, err)
 	}
 	if !sig.Verify(p2.PublicKey(), message) {
 		t.Errorf("%s failed: p.PublicKey=%v, p2.PublicKey=%v", message, p.PublicKey(), p2.PublicKey())

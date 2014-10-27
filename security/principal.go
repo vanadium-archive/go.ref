@@ -89,6 +89,25 @@ func CreateOrOverwritePersistentPrincipal(dir string, passphrase []byte) (princi
 	return CreatePersistentPrincipal(dir, passphrase)
 }
 
+// InitDefaultBlessings uses the provided principal to create a self blessing for name 'name',
+// sets it as default on the principal's BlessingStore and adds it as root to the principal's BlessingRoots.
+func InitDefaultBlessings(p security.Principal, name string) error {
+	blessing, err := p.BlessSelf(name)
+	if err != nil {
+		return err
+	}
+	if err := p.BlessingStore().SetDefault(blessing); err != nil {
+		return err
+	}
+	if _, err := p.BlessingStore().Set(blessing, security.AllPrincipals); err != nil {
+		return err
+	}
+	if err := p.AddToRoots(blessing); err != nil {
+		return err
+	}
+	return nil
+}
+
 func removePersistentPrincipal(dir string) error {
 	files := []string{privateKeyFile, blessingRootsDataFile, blessingRootsSigFile, blessingStoreDataFile, blessingStoreSigFile}
 	for _, f := range files {

@@ -1,11 +1,24 @@
 package server
 
 import (
-	"veyron.io/veyron/veyron2/security"
-	"veyron.io/veyron/veyron2/security/wire"
+  "veyron.io/veyron/veyron2/security"
 )
 
 type Agent interface {
-	Sign(message []byte) (security.Signature, error)
-	PublicKey() (wire.PublicKey, error)
+  Bless(key []byte, wit security.WireBlessings, extension string, caveat security.Caveat, additionalCaveats []security.Caveat) (security.WireBlessings, error)
+  BlessSelf(name string, caveats []security.Caveat) (security.WireBlessings, error)
+  Sign(message []byte) (security.Signature, error)
+  MintDischarge(tp any, caveat security.Caveat, additionalCaveats []security.Caveat) (any, error)
+  PublicKey() ([]byte, error)
+  AddToRoots(blessing security.WireBlessings) error
+
+  BlessingStoreSet(blessings security.WireBlessings, forPeers security.BlessingPattern) (security.WireBlessings, error)
+  BlessingStoreForPeer(peerBlessings []string) (security.WireBlessings, error)
+  BlessingStoreSetDefault(blessings security.WireBlessings) error
+  BlessingStoreDefault() (security.WireBlessings, error)
+  BlessingStoreDebugString() (string, error)
+
+  BlessingRootsAdd(root []byte, pattern security.BlessingPattern) error
+  BlessingRootsRecognized(root []byte, blessing string) error
+  BlessingRootsDebugString() (string, error)
 }
