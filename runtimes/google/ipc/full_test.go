@@ -1044,6 +1044,41 @@ func TestPreferredAddressErrors(t *testing.T) {
 	}
 }
 
+func TestSecurityNone(t *testing.T) {
+	sm := imanager.InternalNew(naming.FixedRoutingID(0x66666666))
+	defer sm.Shutdown()
+	ns := tnaming.NewSimpleNamespace()
+	server, err := InternalNewServer(testContext(), sm, ns, options.VCSecurityNone)
+	if err != nil {
+		t.Fatalf("InternalNewServer failed: %v", err)
+	}
+	if _, err = server.Listen(listenSpec); err != nil {
+		t.Fatalf("server.Listen failed: %v", err)
+	}
+	disp := &testServerDisp{&testServer{}}
+	if err := server.Serve("mp/server", disp); err != nil {
+		t.Fatalf("server.Serve failed: %v", err)
+	}
+	client, err := InternalNewClient(sm, ns, options.VCSecurityNone)
+	if err != nil {
+		t.Fatalf("InternalNewClient failed: %v", err)
+	}
+	// When using VCSecurityNone, all authorization checks should be skipped, so
+	// unauthorized methods shoudl be callable.
+	call, err := client.StartCall(testContext(), "mp/server", "Unauthorized", nil)
+	if err != nil {
+		t.Fatalf("client.StartCall failed: %v", err)
+	}
+	var got string
+	var ierr error
+	if err := call.Finish(&got, &ierr); err != nil {
+		t.Errorf("call.Finish failed: %v", err)
+	}
+	if want := "UnauthorizedResult"; got != want {
+		t.Errorf("got (%v), want (%v)", got, want)
+	}
+}
+
 func init() {
 	testutil.Init()
 	vom.Register(fakeTimeCaveat(0))

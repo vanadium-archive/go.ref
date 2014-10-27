@@ -857,12 +857,18 @@ func (fs *flowServer) processRequest() ([]interface{}, verror.E) {
 			return nil, verror.NoAccessf("%v is not authorized to call %q.%q (%v)", fs.RemoteID(), fs.Name(), fs.Method(), err)
 		}
 	}
+
+	fs.allowDebug = fs.LocalPrincipal() == nil
 	// Check application's authorization policy and invoke the method.
-	if err := fs.authorize(auth); err != nil {
-		return nil, err
+	// LocalPrincipal is nil means that the server wanted to avoid authentication,
+	// and thus wanted to skip authorization as well.
+	if fs.LocalPrincipal() != nil {
+		// Check if the caller is permitted to view debug information.
+		if err := fs.authorize(auth); err != nil {
+			return nil, err
+		}
+		fs.allowDebug = fs.authorizeForDebug(auth) == nil
 	}
-	// Check if the caller is permitted to view debug information.
-	fs.allowDebug = fs.authorizeForDebug(auth) == nil
 
 	results, err := invoker.Invoke(req.Method, fs, argptrs)
 	fs.server.stats.record(req.Method, time.Since(start))

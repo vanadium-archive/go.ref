@@ -245,18 +245,24 @@ func (c *client) startCall(ctx context.T, name, method string, args []interface{
 		}
 		flow.SetDeadline(ctx.Done())
 
-		// Validate caveats on the server's identity for the context associated with this call.
-		serverB, grantedB, err := c.authorizeServer(flow, name, suffix, method, opts)
-		if err != nil {
-			lastErr = verror.NoAccessf("ipc: client unwilling to invoke %q.%q on server %v: %v", name, method, flow.RemoteBlessings(), err)
-			flow.Close()
-			continue
-		}
-		// Fetch any discharges for third-party caveats on the client's blessings.
+		var serverB []string
+		var grantedB security.Blessings
 		var discharges []security.Discharge
-		if self := flow.LocalBlessings(); self != nil {
-			if tpcavs := self.ThirdPartyCaveats(); len(tpcavs) > 0 {
-				discharges = c.prepareDischarges(ctx, tpcavs, mkDischargeImpetus(serverB, method, args), opts)
+
+		// LocalPrincipal is nil means that the client wanted to avoid authentication,
+		// and thus wanted to skip authorization as well.
+		if flow.LocalPrincipal() != nil {
+			// Validate caveats on the server's identity for the context associated with this call.
+			if serverB, grantedB, err = c.authorizeServer(flow, name, suffix, method, opts); err != nil {
+				lastErr = verror.NoAccessf("ipc: client unwilling to invoke %q.%q on server %v: %v", name, method, flow.RemoteBlessings(), err)
+				flow.Close()
+				continue
+			}
+			// Fetch any discharges for third-party caveats on the client's blessings.
+			if self := flow.LocalBlessings(); self != nil {
+				if tpcavs := self.ThirdPartyCaveats(); len(tpcavs) > 0 {
+					discharges = c.prepareDischarges(ctx, tpcavs, mkDischargeImpetus(serverB, method, args), opts)
+				}
 			}
 		}
 
