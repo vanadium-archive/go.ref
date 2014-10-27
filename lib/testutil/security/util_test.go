@@ -63,3 +63,30 @@ func TestSaveACLToFile(t *testing.T) {
 		t.Fatalf("Got ACL %v, but want %v", loadedACL, acl)
 	}
 }
+
+func TestIDProvider(t *testing.T) {
+	idp := NewIDProvider("foo")
+	p, err := vsecurity.NewPrincipal()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := idp.Bless(p, "bar"); err != nil {
+		t.Fatal(err)
+	}
+	if err := p.Roots().Recognized(idp.PublicKey(), "foo"); err != nil {
+		t.Error(err)
+	}
+	if err := p.Roots().Recognized(idp.PublicKey(), "foo/bar"); err != nil {
+		t.Error(err)
+	}
+	def := p.BlessingStore().Default()
+	peers := p.BlessingStore().ForPeer("anyone_else")
+	if def == nil {
+		t.Errorf("BlessingStore should have a default blessing")
+	}
+	if peers != def {
+		t.Errorf("ForPeer(...) returned %v, want %v", peers, def)
+	}
+	// TODO(ashankar): Implement a security.Context and test the string
+	// values as well.
+}

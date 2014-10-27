@@ -74,3 +74,42 @@ func SaveACLToFile(acl security.ACL) string {
 	}
 	return f.Name()
 }
+
+// IDProvider is a convenience wrapper over security.Principal that
+// makes a Principal act as an "identity provider" (i.e., provides
+// other principals with a blessing from it).
+type IDProvider struct {
+	p security.Principal
+	b security.Blessings
+}
+
+func NewIDProvider(name string) *IDProvider {
+	p, err := vsecurity.NewPrincipal()
+	if err != nil {
+		panic(err)
+	}
+	b, err := p.BlessSelf(name)
+	if err != nil {
+		panic(err)
+	}
+	return &IDProvider{p, b}
+}
+
+// Bless sets up the provided principal to use blessings from idp as its
+// default.
+func (idp *IDProvider) Bless(who security.Principal, extension string, caveats ...security.Caveat) error {
+	if len(caveats) == 0 {
+		caveats = append(caveats, security.UnconstrainedUse())
+	}
+	blessings, err := idp.p.Bless(who.PublicKey(), idp.b, extension, caveats[0], caveats[1:]...)
+	if err != nil {
+		return err
+	}
+	SetDefaultBlessings(who, blessings)
+	return nil
+}
+
+// PublicKey is the public key of the identity provider.
+func (idp *IDProvider) PublicKey() security.PublicKey {
+	return idp.p.PublicKey()
+}

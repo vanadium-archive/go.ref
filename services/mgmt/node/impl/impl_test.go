@@ -824,7 +824,7 @@ func TestNodeManagerUpdateACL(t *testing.T) {
 	defer cleanup()
 
 	var (
-		proot = newRootPrincipal("root")
+		idp = tsecurity.NewIDProvider("root")
 		// The two "processes"/runtimes which will act as IPC clients to the
 		// nodemanager process.
 		selfRT  = rt.R()
@@ -834,10 +834,10 @@ func TestNodeManagerUpdateACL(t *testing.T) {
 	// By default, selfRT and otherRT will have blessings generated based on the
 	// username/machine name running this process. Since these blessings will appear
 	// in ACLs, give them recognizable names.
-	if err := setDefaultBlessings(selfRT.Principal(), proot, "self"); err != nil {
+	if err := idp.Bless(selfRT.Principal(), "self"); err != nil {
 		t.Fatal(err)
 	}
-	if err := setDefaultBlessings(otherRT.Principal(), proot, "other"); err != nil {
+	if err := idp.Bless(otherRT.Principal(), "other"); err != nil {
 		t.Fatal(err)
 	}
 
@@ -1046,37 +1046,6 @@ func TestNodeManagerGlob(t *testing.T) {
 	}
 }
 
-// rootPrincipal encapsulates a principal that acts as an "identity provider".
-type rootPrincipal struct {
-	p security.Principal
-	b security.Blessings
-}
-
-func (r *rootPrincipal) Bless(key security.PublicKey, as string) (security.Blessings, error) {
-	return r.p.Bless(key, r.b, as, security.UnconstrainedUse())
-}
-
-func newRootPrincipal(name string) *rootPrincipal {
-	p, err := vsecurity.NewPrincipal()
-	if err != nil {
-		panic(err)
-	}
-	b, err := p.BlessSelf(name)
-	if err != nil {
-		panic(err)
-	}
-	return &rootPrincipal{p, b}
-}
-
-func setDefaultBlessings(p security.Principal, root *rootPrincipal, name string) error {
-	b, err := root.Bless(p.PublicKey(), name)
-	if err != nil {
-		return err
-	}
-	tsecurity.SetDefaultBlessings(p, b)
-	return nil
-}
-
 func listAndVerifyAssociations(t *testing.T, stub node.Node, run veyron2.Runtime, expected []node.Association) {
 	assocs, err := stub.ListAssociations(run.NewContext())
 	if err != nil {
@@ -1094,7 +1063,7 @@ func TestAccountAssociation(t *testing.T) {
 	defer cleanup()
 
 	var (
-		proot = newRootPrincipal("root")
+		idp = tsecurity.NewIDProvider("root")
 		// The two "processes"/runtimes which will act as IPC clients to
 		// the nodemanager process.
 		selfRT  = rt.R()
@@ -1105,10 +1074,10 @@ func TestAccountAssociation(t *testing.T) {
 	// on the username/machine name running this process. Since these
 	// blessings will appear in test expecations, give them readable
 	// names.
-	if err := setDefaultBlessings(selfRT.Principal(), proot, "self"); err != nil {
+	if err := idp.Bless(selfRT.Principal(), "self"); err != nil {
 		t.Fatal(err)
 	}
-	if err := setDefaultBlessings(otherRT.Principal(), proot, "other"); err != nil {
+	if err := idp.Bless(otherRT.Principal(), "other"); err != nil {
 		t.Fatal(err)
 	}
 
@@ -1203,7 +1172,7 @@ func TestAppWithSuidHelper(t *testing.T) {
 	defer cleanup()
 
 	var (
-		proot = newRootPrincipal("root")
+		idp = tsecurity.NewIDProvider("root")
 		// The two "processes"/runtimes which will act as IPC clients to
 		// the nodemanager process.
 		selfRT  = rt.R()
@@ -1215,10 +1184,10 @@ func TestAppWithSuidHelper(t *testing.T) {
 	// based on the username/machine name running this process. Since
 	// these blessings can appear in debugging output, give them
 	// recognizable names.
-	if err := setDefaultBlessings(selfRT.Principal(), proot, "self"); err != nil {
+	if err := idp.Bless(selfRT.Principal(), "self"); err != nil {
 		t.Fatal(err)
 	}
-	if err := setDefaultBlessings(otherRT.Principal(), proot, "other"); err != nil {
+	if err := idp.Bless(otherRT.Principal(), "other"); err != nil {
 		t.Fatal(err)
 	}
 
