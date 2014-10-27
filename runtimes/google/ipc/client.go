@@ -251,7 +251,8 @@ func (c *client) startCall(ctx context.T, name, method string, args []interface{
 
 		// LocalPrincipal is nil means that the client wanted to avoid authentication,
 		// and thus wanted to skip authorization as well.
-		if flow.LocalPrincipal() != nil {
+		// TODO(suharshs,ataly,ashankar): Remove flow.LocalID() after the old security model is dead.
+		if flow.LocalPrincipal() != nil || flow.LocalID() != nil {
 			// Validate caveats on the server's identity for the context associated with this call.
 			if serverB, grantedB, err = c.authorizeServer(flow, name, suffix, method, opts); err != nil {
 				lastErr = verror.NoAccessf("ipc: client unwilling to invoke %q.%q on server %v: %v", name, method, flow.RemoteBlessings(), err)

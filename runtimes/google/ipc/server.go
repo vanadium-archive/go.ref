@@ -862,7 +862,8 @@ func (fs *flowServer) processRequest() ([]interface{}, verror.E) {
 	// Check application's authorization policy and invoke the method.
 	// LocalPrincipal is nil means that the server wanted to avoid authentication,
 	// and thus wanted to skip authorization as well.
-	if fs.LocalPrincipal() != nil {
+	// TODO(suharshs,ataly,ashankar): Remove fs.LocalID() after the old security model is dead.
+	if fs.LocalPrincipal() != nil || fs.LocalID() != nil {
 		// Check if the caller is permitted to view debug information.
 		if err := fs.authorize(auth); err != nil {
 			return nil, err
