@@ -22,7 +22,6 @@ import (
 	"veyron.io/veyron/veyron2/vlog"
 
 	"veyron.io/veyron/veyron/lib/signals"
-	"veyron.io/veyron/veyron/services/identity/auditor"
 	"veyron.io/veyron/veyron/services/identity/blesser"
 	"veyron.io/veyron/veyron/services/identity/googleoauth"
 	"veyron.io/veyron/veyron/services/identity/handlers"
@@ -296,7 +295,6 @@ func providerPrincipal() veyron2.ROpt {
 	defer r.Cleanup()
 	p := r.Principal()
 	// TODO(ashankar): Hook this up with Suharsh's new auditor implementation.
-	// DO NOT SUBMIT
 	if len(*auditprefix) == 0 {
 		return options.RuntimePrincipal{p}
 	}
@@ -336,15 +334,7 @@ func dumpAuditLog() {
 	if len(*auditprefix) == 0 {
 		vlog.Fatalf("Must set --audit")
 	}
-	ch, err := auditor.ReadAuditLog(*auditprefix, *auditfilter)
-	if err != nil {
-		vlog.Fatal(err)
-	}
-	idx := 0
-	for entry := range ch {
-		fmt.Printf("%6d) %v\n", idx, entry)
-		idx++
-	}
+	vlog.Fatalf("Auditing support disabled. Please contact ashankar@ or suharshs@ for restoration timeline")
 }
 
 var tmpl = template.Must(template.New("main").Parse(`<!doctype html>

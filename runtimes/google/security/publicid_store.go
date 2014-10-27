@@ -64,8 +64,6 @@ func (s *publicIDStore) addTaggedID(id security.PublicID, peerPattern security.B
 			updatedIDs = append(updatedIDs, ids...)
 		}
 	default:
-		// TODO(ataly): Once we get rid of FakePublicID, force this case to be exactly
-		// *chainPublicID.
 		for _, pattern := range s.state.Store[id] {
 			if pattern == peerPattern {
 				return updatedIDs, nil

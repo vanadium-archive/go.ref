@@ -66,23 +66,6 @@ func TestLoadSavePEMKeyWithPassphrase(t *testing.T) {
 	}
 }
 
-func TestLoadSaveIdentity(t *testing.T) {
-	id := security.FakePrivateID("test")
-
-	var buf bytes.Buffer
-	if err := SaveIdentity(&buf, id); err != nil {
-		t.Fatalf("Failed to save PrivateID %q: %v", id, err)
-	}
-
-	loadedID, err := LoadIdentity(&buf)
-	if err != nil {
-		t.Fatalf("Failed to load PrivateID: %v", err)
-	}
-	if !reflect.DeepEqual(loadedID, id) {
-		t.Fatalf("Got Identity %v, but want %v", loadedID, id)
-	}
-}
-
 func TestLoadSaveACL(t *testing.T) {
 	acl := security.ACL{}
 	acl.In = map[security.BlessingPattern]security.LabelSet{
