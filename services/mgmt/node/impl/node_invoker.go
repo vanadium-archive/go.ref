@@ -26,6 +26,9 @@ package impl
 // symlink to point to the previous noded.sh script.
 
 import (
+	"bufio"
+	"fmt"
+	"io"
 	"io/ioutil"
 	"os"
 	"os/exec"
@@ -163,16 +166,60 @@ func (i *nodeInvoker) revertNodeManager() error {
 	return nil
 }
 
+func (i *nodeInvoker) newLogfile(prefix string) (*os.File, error) {
+	d := filepath.Join(i.config.Root, "node_test_logs")
+	if _, err := os.Stat(d); err != nil {
+		if err := os.MkdirAll(d, 0700); err != nil {
+			return nil, err
+		}
+	}
+	f, err := ioutil.TempFile(d, "__node_impl_test__"+prefix)
+	if err != nil {
+		return nil, err
+	}
+	return f, nil
+}
+
+// TODO(cnicolaou): would this be better implemented using the modules
+// framework now that it exists?
 func (i *nodeInvoker) testNodeManager(ctx context.T, workspace string, envelope *application.Envelope) error {
 	path := filepath.Join(workspace, "noded.sh")
 	cmd := exec.Command(path)
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
+
+	// We use a combination of a pipe and file to capture output from
+	// the child node manager more reliably than merging their
+	// stdout, stderr file descriptors.
+
+	// Using a pipe reduces the likelihood of the two processes corrupting
+	// each other's output.
+	stdout, err := cmd.StdoutPipe()
+	if err != nil {
+		vlog.Errorf("StdoutPipe() failed: %v", err)
+		return errOperationFailed
+	}
+	go func(r io.Reader) {
+		scanner := bufio.NewScanner(r)
+		for scanner.Scan() {
+			fmt.Fprintf(os.Stdout, "%s\n", scanner.Text())
+		}
+	}(stdout)
+
+	// Using a log file for stderr makes it less likely that error output
+	// will be lost if the child crashes.
+	stderr, err := i.newLogfile("noded-test-stderr")
+	if err != nil {
+		return err
+	}
+	defer os.Remove(stderr.Name())
+
+	cmd.Stderr = stderr
+
 	// Setup up the child process callback.
 	callbackState := i.callback
 	listener := callbackState.listenFor(mgmt.ChildNodeManagerConfigKey)
 	defer listener.cleanup()
 	cfg := vexec.NewConfig()
+
 	cfg.Set(mgmt.ParentNodeManagerConfigKey, listener.name())
 	handle := vexec.NewParentHandle(cmd, vexec.ConfigOpt{cfg})
 	// Start the child process.
@@ -181,8 +228,19 @@ func (i *nodeInvoker) testNodeManager(ctx context.T, workspace string, envelope 
 		return errOperationFailed
 	}
 	defer func() {
-		if err := handle.Clean(); err != nil {
-			vlog.Errorf("Clean() failed: %v", err)
+		// Ensure that any stdout output gets flushed.
+		if err := handle.Wait(10 * time.Second); err != nil {
+			vlog.Errorf("Wait() failed: %v", err)
+			if err := handle.Clean(); err != nil {
+				vlog.Errorf("Clean() failed: %v", err)
+			}
+		}
+		logFile := stderr.Name()
+		if f, err := os.Open(logFile); err == nil {
+			scanner := bufio.NewScanner(f)
+			for scanner.Scan() {
+				vlog.Infof("%s", scanner.Text())
+			}
 		}
 	}()
 	// Wait for the child process to start.
@@ -275,6 +333,7 @@ func (i *nodeInvoker) updateNodeManager(ctx context.T) error {
 		vlog.Errorf("MkdirAll(%v, %v) failed: %v", workspace, perm, err)
 		return errOperationFailed
 	}
+
 	deferrer := func() {
 		cleanupDir(workspace)
 	}
@@ -283,6 +342,7 @@ func (i *nodeInvoker) updateNodeManager(ctx context.T) error {
 			deferrer()
 		}
 	}()
+
 	// Populate the new workspace with a node manager binary.
 	// TODO(caprita): match identical binaries on binary metadata
 	// rather than binary object name.
@@ -296,20 +356,25 @@ func (i *nodeInvoker) updateNodeManager(ctx context.T) error {
 			return err
 		}
 	}
+
 	// Populate the new workspace with a node manager script.
 	configSettings, err := i.config.Save(envelope)
 	if err != nil {
 		return errOperationFailed
 	}
+
 	if err := generateScript(workspace, configSettings, envelope); err != nil {
 		return err
 	}
+
 	if err := i.testNodeManager(ctx, workspace, envelope); err != nil {
 		return err
 	}
+
 	if err := updateLink(filepath.Join(workspace, "noded.sh"), i.config.CurrentLink); err != nil {
 		return err
 	}
+
 	rt.R().Stop()
 	deferrer = nil
 	return nil
@@ -368,10 +433,12 @@ func (*nodeInvoker) Uninstall(ipc.ServerContext) error {
 func (i *nodeInvoker) Update(ipc.ServerContext) error {
 	ctx, cancel := rt.R().NewContext().WithTimeout(time.Minute)
 	defer cancel()
+
 	updatingState := i.updating
 	if updatingState.testAndSetUpdating() {
 		return errInProgress
 	}
+
 	err := i.updateNodeManager(ctx)
 	if err != nil {
 		updatingState.unsetUpdating()

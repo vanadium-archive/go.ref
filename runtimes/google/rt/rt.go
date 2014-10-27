@@ -114,16 +114,16 @@ func New(opts ...veyron2.ROpt) (veyron2.Runtime, error) {
 
 	// Create the default stream manager.
 	if _, err := rt.NewStreamManager(); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to create stream manager: %s", err)
 	}
 
 	if err := rt.initSecurity(); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to init sercurity: %s", err)
 	}
 
 	var err error
 	if rt.client, err = rt.NewClient(); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to create new client: %s", err)
 	}
 
 	handle, err := exec.GetChildHandle()
@@ -136,7 +136,7 @@ func New(opts ...veyron2.ROpt) (veyron2.Runtime, error) {
 		// library. Signal the parent the the child is ready.
 		handle.SetReady()
 	default:
-		return nil, err
+		return nil, fmt.Errorf("failed to get child handle: %s", err)
 	}
 
 	// TODO(caprita, cnicolaou): how is this to be configured?

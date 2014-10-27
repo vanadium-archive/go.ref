@@ -34,7 +34,7 @@ func main() {
 	}
 
 	if *installSelf {
-		if err := impl.SelfInstall(flag.Args()); err != nil {
+		if err := impl.SelfInstall(flag.Args(), os.Environ()); err != nil {
 			vlog.Errorf("SelfInstall failed: %v", err)
 			os.Exit(1)
 		}

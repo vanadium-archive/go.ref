@@ -63,6 +63,12 @@ func IsTestHelperProcess() bool {
 	return runFlag.Value.String() == "TestHelperProcess"
 }
 
+// IsModulesProcess returns true if this process is run using
+// the modules package.
+func IsModulesProcess() bool {
+	return os.Getenv(ShellEntryPoint) != ""
+}
+
 func newExecHandle(name string) command {
 	return &execHandle{name: name, entryPoint: ShellEntryPoint + "=" + name}
 }

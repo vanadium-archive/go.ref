@@ -322,7 +322,6 @@ func (s *Session) ExpectSetRE(expected ...string) {
 			return
 		}
 	}
-
 }
 
 // ReadLine reads the next line, if any, from the input stream. It will set

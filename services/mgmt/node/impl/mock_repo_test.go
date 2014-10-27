@@ -7,6 +7,7 @@ import (
 	"io"
 	"io/ioutil"
 	"os"
+	"testing"
 
 	"veyron.io/veyron/veyron2/ipc"
 	"veyron.io/veyron/veyron2/services/mgmt/application"
@@ -15,11 +16,17 @@ import (
 	"veyron.io/veyron/veyron2/vlog"
 )
 
-// arInvoker holds the state of an application repository invocation mock.  The
-// mock returns the value of the wrapped envelope, which can be subsequently be
-// changed at any time.  Client is responsible for synchronization if desired.
-type arInvoker struct {
-	envelope application.Envelope
+const mockBinaryRepoName = "br"
+const mockApplicationRepoName = "ar"
+
+func startMockRepos(t *testing.T) (*application.Envelope, func()) {
+	envelope, appCleanup := startApplicationRepository()
+	binaryCleanup := startBinaryRepository()
+
+	return envelope, func() {
+		binaryCleanup()
+		appCleanup()
+	}
 }
 
 // startApplicationRepository sets up a server running the application
@@ -29,7 +36,7 @@ func startApplicationRepository() (*application.Envelope, func()) {
 	server, _ := newServer()
 	invoker := new(arInvoker)
 	dispatcher := ipc.LeafDispatcher(repository.NewServerApplication(invoker), nil)
-	name := "ar"
+	name := mockApplicationRepoName
 	if err := server.Serve(name, dispatcher); err != nil {
 		vlog.Fatalf("Serve(%v) failed: %v", name, err)
 	}
@@ -38,6 +45,13 @@ func startApplicationRepository() (*application.Envelope, func()) {
 			vlog.Fatalf("Stop() failed: %v", err)
 		}
 	}
+}
+
+// arInvoker holds the state of an application repository invocation mock.  The
+// mock returns the value of the wrapped envelope, which can be subsequently be
+// changed at any time.  Client is responsible for synchronization if desired.
+type arInvoker struct {
+	envelope application.Envelope
 }
 
 // APPLICATION REPOSITORY INTERFACE IMPLEMENTATION
@@ -55,7 +69,7 @@ type brInvoker struct{}
 func startBinaryRepository() func() {
 	server, _ := newServer()
 	dispatcher := ipc.LeafDispatcher(repository.NewServerBinary(new(brInvoker)), nil)
-	name := "br"
+	name := mockBinaryRepoName
 	if err := server.Serve(name, dispatcher); err != nil {
 		vlog.Fatalf("Serve(%q) failed: %v", name, err)
 	}

@@ -10,6 +10,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"os"
 	goexec "os/exec"
@@ -23,15 +24,7 @@ import (
 	"strings"
 	"syscall"
 	"testing"
-
-	"veyron.io/veyron/veyron/lib/exec"
-	"veyron.io/veyron/veyron/lib/signals"
-	"veyron.io/veyron/veyron/lib/testutil/blackbox"
-	tsecurity "veyron.io/veyron/veyron/lib/testutil/security"
-	vsecurity "veyron.io/veyron/veyron/security"
-	"veyron.io/veyron/veyron/services/mgmt/node/config"
-	"veyron.io/veyron/veyron/services/mgmt/node/impl"
-	suidhelper "veyron.io/veyron/veyron/services/mgmt/suidhelper/impl"
+	"time"
 
 	"veyron.io/veyron/veyron2"
 	"veyron.io/veyron/veyron2/ipc"
@@ -45,38 +38,53 @@ import (
 	"veyron.io/veyron/veyron2/services/mounttable"
 	"veyron.io/veyron/veyron2/verror"
 	"veyron.io/veyron/veyron2/vlog"
+
+	"veyron.io/veyron/veyron/lib/expect"
+	"veyron.io/veyron/veyron/lib/modules"
+	"veyron.io/veyron/veyron/lib/signals"
+	"veyron.io/veyron/veyron/lib/testutil"
+	tsecurity "veyron.io/veyron/veyron/lib/testutil/security"
+	vsecurity "veyron.io/veyron/veyron/security"
+	"veyron.io/veyron/veyron/services/mgmt/node/config"
+	"veyron.io/veyron/veyron/services/mgmt/node/impl"
+	suidhelper "veyron.io/veyron/veyron/services/mgmt/suidhelper/impl"
 )
 
-// TestHelperProcess is blackbox boilerplate.
-func TestHelperProcess(t *testing.T) {
-	// All TestHelperProcess invocations need a Runtime. Create it here.
-	rt.Init(options.ForceNewSecurityModel{})
-
-	// Disable the cache because we will be manipulating/using the namespace
-	// across multiple processes and want predictable behaviour without
-	// relying on timeouts.
-	rt.R().Namespace().CacheCtl(naming.DisableCache(true))
-
-	blackbox.CommandTable["execScript"] = execScript
-	blackbox.CommandTable["nodeManager"] = nodeManager
-	blackbox.CommandTable["app"] = app
-	blackbox.CommandTable["installer"] = install
-
-	blackbox.HelperProcess(t)
-}
+const (
+	execScriptCmd  = "execScriptCmd"
+	nodeManagerCmd = "nodeManager"
+	appCmd         = "app"
+	installerCmd   = "installer"
+)
 
 func init() {
-	if os.Getenv("VEYRON_BLACKBOX_TEST") == "1" {
+	modules.RegisterChild(execScriptCmd, "", execScript)
+	modules.RegisterChild(nodeManagerCmd, "", nodeManager)
+	modules.RegisterChild(appCmd, "", app)
+	modules.RegisterChild(installerCmd, "", install)
+	testutil.Init()
+
+	if modules.IsModulesProcess() {
 		return
 	}
+	initRT()
+}
 
-	// All the tests require a runtime; so just create it here.
+func initRT() {
 	rt.Init(options.ForceNewSecurityModel{})
 
 	// Disable the cache because we will be manipulating/using the namespace
 	// across multiple processes and want predictable behaviour without
 	// relying on timeouts.
 	rt.R().Namespace().CacheCtl(naming.DisableCache(true))
+
+}
+
+// TestHelperProcess is the entrypoint for the modules commands in a
+// a test subprocess.
+func TestHelperProcess(t *testing.T) {
+	initRT()
+	modules.DispatchInTest()
 }
 
 // TestSuidHelper is testing boilerplate for suidhelper that does not
@@ -93,38 +101,41 @@ func TestSuidHelper(t *testing.T) {
 }
 
 // execScript launches the script passed as argument.
-func execScript(args []string) {
+func execScript(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
+	args = args[1:]
 	if want, got := 1, len(args); want != got {
 		vlog.Fatalf("execScript expected %d arguments, got %d instead", want, got)
 	}
 	script := args[0]
-	env := []string{}
-	if os.Getenv("PAUSE_BEFORE_STOP") == "1" {
-		env = append(env, "PAUSE_BEFORE_STOP=1")
+	osenv := []string{}
+	if env["PAUSE_BEFORE_STOP"] == "1" {
+		osenv = append(osenv, "PAUSE_BEFORE_STOP=1")
 	}
+
 	cmd := goexec.Cmd{
 		Path:   script,
-		Env:    env,
-		Stdin:  os.Stdin,
-		Stderr: os.Stderr,
-		Stdout: os.Stdout,
+		Env:    osenv,
+		Stdin:  stdin,
+		Stderr: stderr,
+		Stdout: stdout,
 	}
-	if err := cmd.Run(); err != nil {
-		vlog.Fatalf("Run cmd %v failed: %v", cmd, err)
-	}
+
+	return cmd.Run()
 }
 
 // nodeManager sets up a node manager server.  It accepts the name to publish
 // the server under as an argument.  Additional arguments can optionally specify
 // node manager config settings.
-func nodeManager(args []string) {
+func nodeManager(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
+	args = args[1:]
 	if len(args) == 0 {
 		vlog.Fatalf("nodeManager expected at least an argument")
 	}
 	publishName := args[0]
 	args = args[1:]
 
-	defer fmt.Printf("%v terminating\n", publishName)
+	defer fmt.Fprintf(stdout, "%v terminating\n", publishName)
+	defer vlog.VI(1).Infof("%v terminating", publishName)
 	defer rt.R().Cleanup()
 	server, endpoint := newServer()
 	defer server.Stop()
@@ -148,7 +159,6 @@ func nodeManager(args []string) {
 		}
 		configState.Root, configState.Origin, configState.CurrentLink = args[0], args[1], args[2]
 	}
-
 	dispatcher, err := impl.NewDispatcher(configState)
 	if err != nil {
 		vlog.Fatalf("Failed to create node manager dispatcher: %v", err)
@@ -156,17 +166,46 @@ func nodeManager(args []string) {
 	if err := server.Serve(publishName, dispatcher); err != nil {
 		vlog.Fatalf("Serve(%v) failed: %v", publishName, err)
 	}
-
 	impl.InvokeCallback(name)
-	fmt.Printf("ready:%d\n", os.Getpid())
+
+	fmt.Fprintf(stdout, "ready:%d\n", os.Getpid())
 
 	<-signals.ShutdownOnSignals()
-	if os.Getenv("PAUSE_BEFORE_STOP") == "1" {
-		blackbox.WaitForEOFOnStdin()
+
+	if val, present := env["PAUSE_BEFORE_STOP"]; present && val == "1" {
+		modules.WaitForEOF(stdin)
 	}
 	if dispatcher.Leaking() {
 		vlog.Fatalf("node manager leaking resources")
 	}
+	return nil
+}
+
+// install installs the node manager.
+func install(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
+	args = args[1:]
+	// args[0] is the entrypoint for the binary to be run from the shell script
+	// that SelfInstall will write out.
+	entrypoint := args[0]
+	osenv := make([]string, 0, len(env))
+	for k, v := range env {
+		if k == modules.ShellEntryPoint {
+			// Overwrite the entrypoint in our environment (i.e. the one
+			// that got us here), with the one we want written out in the shell
+			// script.
+			v = entrypoint
+		}
+		osenv = append(osenv, k+"="+v)
+	}
+	if args[1] != "--" {
+		vlog.Fatalf("expected '--' immediately following command name")
+	}
+	args = append([]string{""}, args[2:]...) // skip the cmd and '--'
+	if err := impl.SelfInstall(args, osenv); err != nil {
+		vlog.Fatalf("SelfInstall failed: %v", err)
+		return err
+	}
+	return nil
 }
 
 // appService defines a test service that the test app should be running.
@@ -186,7 +225,8 @@ func ping() {
 	}
 }
 
-func app(args []string) {
+func app(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
+	args = args[1:]
 	if expected, got := 1, len(args); expected != got {
 		vlog.Fatalf("Unexpected number of arguments: expected %d, got %d", expected, got)
 	}
@@ -199,10 +239,12 @@ func app(args []string) {
 		vlog.Fatalf("Serve(%v) failed: %v", publishName, err)
 	}
 	ping()
+
 	<-signals.ShutdownOnSignals()
 	if err := ioutil.WriteFile("testfile", []byte("goodbye world"), 0600); err != nil {
 		vlog.Fatalf("Failed to write testfile: %v", err)
 	}
+	return nil
 }
 
 // TODO(rjkroege): generateNodeManagerScript and generateSuidHelperScript have code
@@ -212,10 +254,11 @@ func app(args []string) {
 // generateScript public; and (2) how the test choses to invoke the node manager
 // subprocess the first time should be independent of how node manager
 // implementation sets up its updated versions.
-func generateNodeManagerScript(t *testing.T, root string, cmd *goexec.Cmd) string {
+func generateNodeManagerScript(t *testing.T, root string, args, env []string) string {
+	env = impl.VeyronEnvironment(env)
 	output := "#!/bin/bash\n"
-	output += strings.Join(config.QuoteEnv(cmd.Env), " ") + " "
-	output += cmd.Args[0] + " " + strings.Join(cmd.Args[1:], " ")
+	output += strings.Join(config.QuoteEnv(env), " ") + " "
+	output += strings.Join(args, " ")
 	if err := os.MkdirAll(filepath.Join(root, "factory"), 0755); err != nil {
 		t.Fatalf("MkdirAll failed: %v", err)
 	}
@@ -249,53 +292,34 @@ func generateSuidHelperScript(t *testing.T, root string) {
 	}
 }
 
-// nodeEnvelopeFromCmd returns a node manager application envelope that
-// describes the given command object.
-func nodeEnvelopeFromCmd(cmd *goexec.Cmd) *application.Envelope {
-	return envelopeFromCmd(application.NodeManagerTitle, cmd)
-}
-
-// envelopeFromCmd returns an envelope that describes the given command object.
-func envelopeFromCmd(title string, cmd *goexec.Cmd) *application.Envelope {
-	return &application.Envelope{
-		Title:  title,
-		Args:   cmd.Args[1:],
-		Env:    cmd.Env,
-		Binary: "br",
-	}
-}
-
 // readPID waits for the "ready:<PID>" line from the child and parses out the
 // PID of the child.
-func readPID(t *testing.T, c *blackbox.Child) int {
-	line, err := c.ReadLineFromChild()
-	if err != nil {
-		t.Fatalf("ReadLineFromChild() failed: %v", err)
-		return 0
+func readPID(t *testing.T, s *expect.Session) int {
+	m := s.ExpectRE("ready:([0-9]+)", -1)
+	if len(m) == 1 && len(m[0]) == 2 {
+		pid, err := strconv.Atoi(m[0][1])
+		if err != nil {
+			t.Fatalf("%s: Atoi(%q) failed: %v", loc(1), m[0][1], err)
+		}
+		return pid
 	}
-	colon := strings.LastIndex(line, ":")
-	if colon == -1 {
-		t.Fatalf("LastIndex(%q, %q) returned -1", line, ":")
-		return 0
-	}
-	pid, err := strconv.Atoi(line[colon+1:])
-	if err != nil {
-		t.Fatalf("Atoi(%q) failed: %v", line[colon+1:], err)
-	}
-	return pid
+	t.Fatalf("%s: failed to extract pid: %v", loc(1), m)
+	return 0
 }
 
-// TestNodeManagerUpdateAndRevert makes the node manager go through the motions of updating
-// itself to newer versions (twice), and reverting itself back (twice).  It also
-// checks that update and revert fail when they're supposed to.  The initial
-// node manager is started 'by hand' via a blackbox command.  Further versions
-// are started through the soft link that the node manager itself updates.
+// TestNodeManagerUpdateAndRevert makes the node manager go through the
+// motions of updating itself to newer versions (twice), and reverting itself
+// back (twice). It also checks that update and revert fail when they're
+// supposed to. The initial node manager is started 'by hand' via a module
+// command. Further versions are started through the soft link that the node
+// manager itself updates.
 func TestNodeManagerUpdateAndRevert(t *testing.T) {
-	// Set up mount table, application, and binary repositories.
-	defer setupLocalNamespace(t)()
-	envelope, cleanup := startApplicationRepository()
+	sh, deferFn := createShellAndMountTable(t)
+	defer deferFn()
+
+	// Set up mock application and binary repositories.
+	envelope, cleanup := startMockRepos(t)
 	defer cleanup()
-	defer startBinaryRepository()()
 
 	root, cleanup := setupRootDir(t)
 	defer cleanup()
@@ -304,56 +328,47 @@ func TestNodeManagerUpdateAndRevert(t *testing.T) {
 	// convenient to put it there so we have everything in one place.
 	currLink := filepath.Join(root, "current_link")
 
-	// Set up the initial version of the node manager, the so-called
-	// "factory" version.
-	nm := blackbox.HelperCommand(t, "nodeManager", "factoryNM", root, "ar", currLink)
-	defer setupChildCommand(nm)()
+	crDir, crEnv := credentialsForChild("anyvalue")
+	defer os.RemoveAll(crDir)
+	nmArgs := []string{"factoryNM", root, mockApplicationRepoName, currLink}
+	args, env := sh.CommandEnvelope(nodeManagerCmd, crEnv, nmArgs...)
 
-	// This is the script that we'll point the current link to initially.
-	scriptPathFactory := generateNodeManagerScript(t, root, nm.Cmd)
+	scriptPathFactory := generateNodeManagerScript(t, root, args, env)
 
 	if err := os.Symlink(scriptPathFactory, currLink); err != nil {
 		t.Fatalf("Symlink(%q, %q) failed: %v", scriptPathFactory, currLink, err)
 	}
+
 	// We instruct the initial node manager that we run to pause before
 	// stopping its service, so that we get a chance to verify that
 	// attempting an update while another one is ongoing will fail.
-	nm.Cmd.Env = exec.Setenv(nm.Cmd.Env, "PAUSE_BEFORE_STOP", "1")
+	nmPauseBeforeStopEnv := append(crEnv, "PAUSE_BEFORE_STOP=1")
 
-	resolveExpectNotFound(t, "factoryNM") // Ensure a clean slate.
-
-	// Start the node manager -- we use the blackbox-generated command to
-	// start it.  We could have also used the scriptPathFactory to start it, but
+	// Start the initial version of the node manager, the so-called
+	// "factory" version. We use the modules-generated command to start it.
+	// We could have also used the scriptPathFactory to start it, but
 	// this demonstrates that the initial node manager could be started by
 	// hand as long as the right initial configuration is passed into the
 	// node manager implementation.
-	if err := nm.Cmd.Start(); err != nil {
-		t.Fatalf("Start() failed: %v", err)
-	}
-	deferrer := nm.Cleanup
+	nmh, nms := runShellCommand(t, sh, nmPauseBeforeStopEnv, nodeManagerCmd, nmArgs...)
 	defer func() {
-		if deferrer != nil {
-			deferrer()
-		}
+		syscall.Kill(nmh.Pid(), syscall.SIGINT)
 	}()
-	readPID(t, nm)
+
+	readPID(t, nms)
 	resolve(t, "factoryNM", 1) // Verify the node manager has published itself.
 
 	// Simulate an invalid envelope in the application repository.
-	*envelope = *nodeEnvelopeFromCmd(nm.Cmd)
-	envelope.Title = "bogus"
+	*envelope = envelopeFromShell(sh, nmPauseBeforeStopEnv, nodeManagerCmd, "bogus", nmArgs...)
+
 	updateNodeExpectError(t, "factoryNM", verror.BadArg)  // Incorrect title.
 	revertNodeExpectError(t, "factoryNM", verror.NoExist) // No previous version available.
 
-	// Set up a second version of the node manager.  We use the blackbox
-	// command solely to collect the args and env we need to provide the
-	// application repository with an envelope that will actually run the
-	// node manager subcommand.  The blackbox command is never started by
-	// hand -- instead, the information in the envelope will be used by the
-	// node manager to stage the next version.
-	nmV2 := blackbox.HelperCommand(t, "nodeManager", "v2NM")
-	defer setupChildCommand(nmV2)()
-	*envelope = *nodeEnvelopeFromCmd(nmV2.Cmd)
+	// Set up a second version of the node manager. The information in the
+	// envelope will be used by the node manager to stage the next version.
+	crDir, crEnv = credentialsForChild("anyvalue")
+	defer os.RemoveAll(crDir)
+	*envelope = envelopeFromShell(sh, crEnv, nodeManagerCmd, application.NodeManagerTitle, "v2NM")
 	updateNode(t, "factoryNM")
 
 	// Current link should have been updated to point to v2.
@@ -371,25 +386,24 @@ func TestNodeManagerUpdateAndRevert(t *testing.T) {
 
 	// This is from the child node manager started by the node manager
 	// as an update test.
-	readPID(t, nm)
-	nm.Expect("v2NM terminating")
+	readPID(t, nms)
+
+	nms.Expect("v2NM terminating")
 
 	updateNodeExpectError(t, "factoryNM", verror.Exists) // Update already in progress.
 
-	nm.CloseStdin()
-	nm.Expect("factoryNM terminating")
-	deferrer = nil
-	nm.Cleanup()
+	nmh.CloseStdin()
+
+	nms.Expect("factoryNM terminating")
+	nmh.Shutdown(os.Stderr, os.Stderr)
 
 	// A successful update means the node manager has stopped itself.  We
 	// relaunch it from the current link.
-	runNM := blackbox.HelperCommand(t, "execScript", currLink)
 	resolveExpectNotFound(t, "v2NM") // Ensure a clean slate.
-	if err := runNM.Cmd.Start(); err != nil {
-		t.Fatalf("Start() failed: %v", err)
-	}
-	deferrer = runNM.Cleanup
-	readPID(t, runNM)
+
+	nmh, nms = runShellCommand(t, sh, nil, execScriptCmd, currLink)
+
+	readPID(t, nms)
 	resolve(t, "v2NM", 1) // Current link should have been launching v2.
 
 	// Try issuing an update without changing the envelope in the application
@@ -400,9 +414,10 @@ func TestNodeManagerUpdateAndRevert(t *testing.T) {
 	}
 
 	// Create a third version of the node manager and issue an update.
-	nmV3 := blackbox.HelperCommand(t, "nodeManager", "v3NM")
-	defer setupChildCommand(nmV3)()
-	*envelope = *nodeEnvelopeFromCmd(nmV3.Cmd)
+	crDir, crEnv = credentialsForChild("anyvalue")
+	defer os.RemoveAll(crDir)
+	*envelope = envelopeFromShell(sh, crEnv, nodeManagerCmd, application.NodeManagerTitle,
+		"v3NM")
 	updateNode(t, "v2NM")
 
 	scriptPathV3 := evalLink()
@@ -412,70 +427,55 @@ func TestNodeManagerUpdateAndRevert(t *testing.T) {
 
 	// This is from the child node manager started by the node manager
 	// as an update test.
-	readPID(t, runNM)
+	readPID(t, nms)
 	// Both the parent and child node manager should terminate upon successful
 	// update.
-	runNM.ExpectSet([]string{"v3NM terminating", "v2NM terminating"})
+	nms.ExpectSetRE("v3NM terminating", "v2NM terminating")
 
-	deferrer = nil
-	runNM.Cleanup()
+	nmh.Shutdown(os.Stderr, os.Stderr)
+
+	resolveExpectNotFound(t, "v3NM") // Ensure a clean slate.
 
 	// Re-lanuch the node manager from current link.
-	runNM = blackbox.HelperCommand(t, "execScript", currLink)
 	// We instruct the node manager to pause before stopping its server, so
 	// that we can verify that a second revert fails while a revert is in
 	// progress.
-	runNM.Cmd.Env = exec.Setenv(nm.Cmd.Env, "PAUSE_BEFORE_STOP", "1")
-	resolveExpectNotFound(t, "v3NM") // Ensure a clean slate.
-	if err := runNM.Cmd.Start(); err != nil {
-		t.Fatalf("Start() failed: %v", err)
-	}
-	deferrer = runNM.Cleanup
-	readPID(t, runNM)
+	nmh, nms = runShellCommand(t, sh, nmPauseBeforeStopEnv, execScriptCmd, currLink)
+
+	readPID(t, nms)
 	resolve(t, "v3NM", 1) // Current link should have been launching v3.
 
 	// Revert the node manager to its previous version (v2).
 	revertNode(t, "v3NM")
 	revertNodeExpectError(t, "v3NM", verror.Exists) // Revert already in progress.
-	runNM.CloseStdin()
-	runNM.Expect("v3NM terminating")
+	nmh.CloseStdin()
+	nms.Expect("v3NM terminating")
 	if evalLink() != scriptPathV2 {
 		t.Fatalf("current link was not reverted correctly")
 	}
-	deferrer = nil
-	runNM.Cleanup()
+	nmh.Shutdown(os.Stderr, os.Stderr)
 
-	// Re-launch the node manager from current link.
-	runNM = blackbox.HelperCommand(t, "execScript", currLink)
 	resolveExpectNotFound(t, "v2NM") // Ensure a clean slate.
-	if err := runNM.Cmd.Start(); err != nil {
-		t.Fatalf("Start() failed: %v", err)
-	}
-	deferrer = runNM.Cleanup
-	readPID(t, runNM)
+
+	nmh, nms = runShellCommand(t, sh, nil, execScriptCmd, currLink)
+	readPID(t, nms)
 	resolve(t, "v2NM", 1) // Current link should have been launching v2.
 
 	// Revert the node manager to its previous version (factory).
 	revertNode(t, "v2NM")
-	runNM.Expect("v2NM terminating")
+	nms.Expect("v2NM terminating")
 	if evalLink() != scriptPathFactory {
 		t.Fatalf("current link was not reverted correctly")
 	}
-	deferrer = nil
-	runNM.Cleanup()
+	nmh.Shutdown(os.Stderr, os.Stderr)
 
-	// Re-launch the node manager from current link.
-	runNM = blackbox.HelperCommand(t, "execScript", currLink)
 	resolveExpectNotFound(t, "factoryNM") // Ensure a clean slate.
-	if err := runNM.Cmd.Start(); err != nil {
-		t.Fatalf("Start() failed: %v", err)
-	}
-	deferrer = runNM.Cleanup
-	pid := readPID(t, runNM)
-	resolve(t, "factoryNM", 1) // Current link should have been launching factory version.
+	nmh, nms = runShellCommand(t, sh, nil, execScriptCmd, currLink)
+	pid := readPID(t, nms)
+	resolve(t, "factoryNM", 1) // Current link should have been launching
 	syscall.Kill(pid, syscall.SIGINT)
-	runNM.Expect("factoryNM terminating")
-	runNM.ExpectEOFAndWait()
+	nms.Expect("factoryNM terminating")
+	nms.ExpectEOF()
 }
 
 type pingServerDisp chan<- string
@@ -527,7 +527,13 @@ func verifyAppWorkspace(t *testing.T, root, appID, instanceID string) {
 }
 
 // TODO(rjkroege): Consider validating additional parameters.
-func verifyHelperArgs(t *testing.T, env, username string) {
+func verifyHelperArgs(t *testing.T, pingCh <-chan string, username string) {
+	var env string
+	select {
+	case env = <-pingCh:
+	case <-time.After(time.Minute):
+		t.Fatalf("%s: failed to get ping", loc(1))
+	}
 	d := json.NewDecoder(strings.NewReader(env))
 	var savedArgs suidhelper.ArgsSavedForTest
 
@@ -543,11 +549,12 @@ func verifyHelperArgs(t *testing.T, env, username string) {
 // TestAppLifeCycle installs an app, starts it, suspends it, resumes it, and
 // then stops it.
 func TestAppLifeCycle(t *testing.T) {
-	// Set up mount table, application, and binary repositories.
-	defer setupLocalNamespace(t)()
-	envelope, cleanup := startApplicationRepository()
+	sh, deferFn := createShellAndMountTable(t)
+	defer deferFn()
+
+	// Set up mock application and binary repositories.
+	envelope, cleanup := startMockRepos(t)
 	defer cleanup()
-	defer startBinaryRepository()()
 
 	root, cleanup := setupRootDir(t)
 	defer cleanup()
@@ -555,33 +562,32 @@ func TestAppLifeCycle(t *testing.T) {
 	// Create a script wrapping the test target that implements suidhelper.
 	generateSuidHelperScript(t, root)
 
+	crDir, crEnv := credentialsForChild("anyvalue")
+	defer os.RemoveAll(crDir)
+
 	// Set up the node manager.  Since we won't do node manager updates,
 	// don't worry about its application envelope and current link.
-	nm := blackbox.HelperCommand(t, "nodeManager", "nm", root, "unused app repo name", "unused curr link")
-	defer setupChildCommand(nm)()
-	if err := nm.Cmd.Start(); err != nil {
-		t.Fatalf("Start() failed: %v", err)
-	}
-	defer nm.Cleanup()
-	readPID(t, nm)
+	nmh, nms := runShellCommand(t, sh, crEnv, nodeManagerCmd, "nm", root, "unused app repo name", "unused curr link")
+	readPID(t, nms)
 
 	// Create the local server that the app uses to let us know it's ready.
 	pingCh, cleanup := setupPingServer(t)
 	defer cleanup()
 
+	resolve(t, "pingserver", 1)
+
+	crDir, crEnv = credentialsForChild("anyvalue")
+	defer os.RemoveAll(crDir)
 	// Create an envelope for a first version of the app.
-	app := blackbox.HelperCommand(t, "app", "appV1")
-	defer setupChildCommand(app)()
-	appTitle := "google naps"
-	*envelope = *envelopeFromCmd(appTitle, app.Cmd)
+	*envelope = envelopeFromShell(sh, crEnv, appCmd, "google naps", "appV1")
 
 	// Install the app.
 	appID := installApp(t)
-
 	// Start an instance of the app.
 	instance1ID := startApp(t, appID)
 
-	verifyHelperArgs(t, <-pingCh, userName(t)) // Wait until the app pings us that it's ready.
+	// Wait until the app pings us that it's ready.
+	verifyHelperArgs(t, pingCh, userName(t))
 
 	v1EP1 := resolve(t, "appV1", 1)[0]
 
@@ -590,7 +596,7 @@ func TestAppLifeCycle(t *testing.T) {
 	resolveExpectNotFound(t, "appV1")
 
 	resumeApp(t, appID, instance1ID)
-	verifyHelperArgs(t, <-pingCh, userName(t)) // Wait until the app pings us that it's ready.
+	verifyHelperArgs(t, pingCh, userName(t)) // Wait until the app pings us that it's ready.
 	oldV1EP1 := v1EP1
 	if v1EP1 = resolve(t, "appV1", 1)[0]; v1EP1 == oldV1EP1 {
 		t.Fatalf("Expected a new endpoint for the app after suspend/resume")
@@ -598,7 +604,7 @@ func TestAppLifeCycle(t *testing.T) {
 
 	// Start a second instance.
 	instance2ID := startApp(t, appID)
-	verifyHelperArgs(t, <-pingCh, userName(t)) // Wait until the app pings us that it's ready.
+	verifyHelperArgs(t, pingCh, userName(t)) // Wait until the app pings us that it's ready.
 
 	// There should be two endpoints mounted as "appV1", one for each
 	// instance of the app.
@@ -628,13 +634,15 @@ func TestAppLifeCycle(t *testing.T) {
 	updateAppExpectError(t, appID, verror.NoExist)
 
 	// Updating the installation should not work with a mismatched title.
-	*envelope = *envelopeFromCmd("bogus", app.Cmd)
+	*envelope = envelopeFromShell(sh, nil, appCmd, "bogus")
+
 	updateAppExpectError(t, appID, verror.BadArg)
 
 	// Create a second version of the app and update the app to it.
-	app = blackbox.HelperCommand(t, "app", "appV2")
-	defer setupChildCommand(app)()
-	*envelope = *envelopeFromCmd(appTitle, app.Cmd)
+	crDir, crEnv = credentialsForChild("anyvalue")
+	defer os.RemoveAll(crDir)
+	*envelope = envelopeFromShell(sh, crEnv, appCmd, "google naps", "appV2")
+
 	updateApp(t, appID)
 
 	// Second instance should still be running.
@@ -644,7 +652,7 @@ func TestAppLifeCycle(t *testing.T) {
 
 	// Resume first instance.
 	resumeApp(t, appID, instance1ID)
-	verifyHelperArgs(t, <-pingCh, userName(t)) // Wait until the app pings us that it's ready.
+	verifyHelperArgs(t, pingCh, userName(t)) // Wait until the app pings us that it's ready.
 	// Both instances should still be running the first version of the app.
 	// Check that the mounttable contains two endpoints, one of which is
 	// v1EP2.
@@ -668,7 +676,9 @@ func TestAppLifeCycle(t *testing.T) {
 
 	// Start a third instance.
 	instance3ID := startApp(t, appID)
-	verifyHelperArgs(t, <-pingCh, userName(t)) // Wait until the app pings us that it's ready.
+	// Wait until the app pings us that it's ready.
+	verifyHelperArgs(t, pingCh, userName(t))
+
 	resolve(t, "appV2", 1)
 
 	// Stop second instance.
@@ -684,7 +694,7 @@ func TestAppLifeCycle(t *testing.T) {
 
 	// Start a fourth instance.  It should be started from version 1.
 	instance4ID := startApp(t, appID)
-	verifyHelperArgs(t, <-pingCh, userName(t)) // Wait until the app pings us that it's ready.
+	verifyHelperArgs(t, pingCh, userName(t)) // Wait until the app pings us that it's ready.
 	resolve(t, "appV1", 1)
 	stopApp(t, appID, instance4ID)
 	resolveExpectNotFound(t, "appV1")
@@ -705,9 +715,9 @@ func TestAppLifeCycle(t *testing.T) {
 	startAppExpectError(t, appID, verror.BadArg)
 
 	// Cleanly shut down the node manager.
-	syscall.Kill(nm.Cmd.Process.Pid, syscall.SIGINT)
-	nm.Expect("nm terminating")
-	nm.ExpectEOFAndWait()
+	syscall.Kill(nmh.Pid(), syscall.SIGINT)
+	nms.Expect("nm terminating")
+	nms.ExpectEOF()
 }
 
 type granter struct {
@@ -735,7 +745,7 @@ func tryInstall(rt veyron2.Runtime) error {
 	if err != nil {
 		return fmt.Errorf("BindApplication(%v) failed: %v", appsName, err)
 	}
-	if _, err = stub.Install(rt.NewContext(), "ar"); err != nil {
+	if _, err = stub.Install(rt.NewContext(), mockApplicationRepoName); err != nil {
 		return fmt.Errorf("Install failed: %v", err)
 	}
 	return nil
@@ -743,35 +753,28 @@ func tryInstall(rt veyron2.Runtime) error {
 
 // TestNodeManagerClaim claims a nodemanager and tests ACL permissions on its methods.
 func TestNodeManagerClaim(t *testing.T) {
-	// Set up mount table, application, and binary repositories.
-	defer setupLocalNamespace(t)()
-	envelope, cleanup := startApplicationRepository()
+	sh, deferFn := createShellAndMountTable(t)
+	defer deferFn()
+
+	// Set up mock application and binary repositories.
+	envelope, cleanup := startMockRepos(t)
 	defer cleanup()
-	defer startBinaryRepository()()
 
 	root, cleanup := setupRootDir(t)
 	defer cleanup()
 
+	crDir, crEnv := credentialsForChild("anyvalue")
+	defer os.RemoveAll(crDir)
+
 	// Set up the node manager.  Since we won't do node manager updates,
 	// don't worry about its application envelope and current link.
-	nm := blackbox.HelperCommand(t, "nodeManager", "nm", root, "unused app repo name", "unused curr link")
-	defer setupChildCommand(nm)()
-	if err := nm.Cmd.Start(); err != nil {
-		t.Fatalf("Start() failed: %v", err)
-	}
-	defer nm.Cleanup()
-	readPID(t, nm)
+	_, nms := runShellCommand(t, sh, crEnv, nodeManagerCmd, "nm", root, "unused app repo name", "unused curr link")
+	pid := readPID(t, nms)
+	defer syscall.Kill(pid, syscall.SIGINT)
 
-	// Create an envelope for an app.
-	app := blackbox.HelperCommand(t, "app", "trapp")
-	// Ensure the child has a blessing that (a) allows it talk back to the
-	// node manager config service and (b) allows the node manager to talk
-	// to the app.  We achieve this by making the app's blessing derived
-	// from the node manager's blessing post claiming (which will be
-	// "mydevice").
-	defer setupChildCommandWithBlessing(app, "mydevice/child")()
-	appTitle := "google naps"
-	*envelope = *envelopeFromCmd(appTitle, app.Cmd)
+	crDir, crEnv = credentialsForChild("mydevice/anyvalue")
+	defer os.RemoveAll(crDir)
+	*envelope = envelopeFromShell(sh, crEnv, appCmd, "google naps", "trapp")
 
 	nodeStub, err := node.BindNode("nm//nm")
 	if err != nil {
@@ -790,6 +793,7 @@ func TestNodeManagerClaim(t *testing.T) {
 	if err = nodeStub.Claim(selfRT.NewContext(), &granter{p: selfRT.Principal(), extension: "mydevice"}); err != nil {
 		t.Fatal(err)
 	}
+
 	// Installation should succeed since rt.R() (a.k.a. selfRT) is now the
 	// "owner" of the nodemanager.
 	appID := installApp(t)
@@ -808,7 +812,13 @@ func TestNodeManagerClaim(t *testing.T) {
 
 	// Start an instance of the app.
 	instanceID := startApp(t, appID)
-	<-pingCh
+
+	// Wait until the app pings us that it's ready.
+	select {
+	case <-pingCh:
+	case <-time.After(5 * time.Second):
+		t.Fatalf("failed to get ping")
+	}
 	resolve(t, "trapp", 1)
 	suspendApp(t, appID, instanceID)
 
@@ -816,11 +826,12 @@ func TestNodeManagerClaim(t *testing.T) {
 }
 
 func TestNodeManagerUpdateACL(t *testing.T) {
-	// Set up mount table, application, and binary repositories.
-	defer setupLocalNamespace(t)()
-	envelope, cleanup := startApplicationRepository()
+	sh, deferFn := createShellAndMountTable(t)
+	defer deferFn()
+
+	// Set up mock application and binary repositories.
+	envelope, cleanup := startMockRepos(t)
 	defer cleanup()
-	defer startBinaryRepository()()
 
 	root, cleanup := setupRootDir(t)
 	defer cleanup()
@@ -843,21 +854,19 @@ func TestNodeManagerUpdateACL(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	crDir, crEnv := credentialsForChild("anyvalue")
+	defer os.RemoveAll(crDir)
+
 	// Set up the node manager.  Since we won't do node manager updates,
 	// don't worry about its application envelope and current link.
-	nm := blackbox.HelperCommand(t, "nodeManager", "nm", root, "unused app repo name", "unused curr link")
-	defer setupChildCommand(nm)()
-	if err := nm.Cmd.Start(); err != nil {
-		t.Fatalf("Start() failed: %v", err)
-	}
-	defer nm.Cleanup()
-	readPID(t, nm)
+	_, nms := runShellCommand(t, sh, crEnv, nodeManagerCmd, "nm", root, "unused app repo name", "unused curr link")
+	pid := readPID(t, nms)
+	defer syscall.Kill(pid, syscall.SIGINT)
 
 	// Create an envelope for an app.
-	app := blackbox.HelperCommand(t, "app", "")
-	defer setupChildCommand(app)()
-	appTitle := "google naps"
-	*envelope = *envelopeFromCmd(appTitle, app.Cmd)
+	crDir, crEnv = credentialsForChild("anyvalue")
+	defer os.RemoveAll(crDir)
+	*envelope = envelopeFromShell(sh, crEnv, appCmd, "google naps")
 
 	nodeStub, err := node.BindNode("nm//nm")
 	if err != nil {
@@ -908,19 +917,14 @@ func TestNodeManagerUpdateACL(t *testing.T) {
 	}
 }
 
-// install installs the node manager.
-func install(args []string) {
-	if err := impl.SelfInstall(args); err != nil {
-		vlog.Fatalf("SelfInstall failed: %v", err)
-	}
-}
-
 // TestNodeManagerInstall verifies the 'self install' functionality of the node
 // manager: it runs SelfInstall in a child process, then runs the executable
 // from the soft link that the installation created.  This should bring up a
 // functioning node manager.
 func TestNodeManagerInstall(t *testing.T) {
-	defer setupLocalNamespace(t)()
+	sh, deferFn := createShellAndMountTable(t)
+	defer deferFn()
+
 	root, cleanup := setupRootDir(t)
 	defer cleanup()
 
@@ -928,61 +932,67 @@ func TestNodeManagerInstall(t *testing.T) {
 	// convenient to put it there so we have everything in one place.
 	currLink := filepath.Join(root, "current_link")
 
-	// We create this command not to run it, but to harvest the flags and
-	// env vars from it.  We need these to pass to the installer, to ensure
-	// that the node manager that the installer configures can run.
-	nm := blackbox.HelperCommand(t, "nodeManager", "nm")
-	defer setupChildCommand(nm)()
-
-	argsForNodeManager := append([]string{"--"}, nm.Cmd.Args[1:]...)
-	installer := blackbox.HelperCommand(t, "installer", argsForNodeManager...)
-	installer.Cmd.Env = exec.Mergeenv(installer.Cmd.Env, nm.Cmd.Env)
+	// Create an 'envelope' for the node manager that we can pass to the
+	// installer, to ensure that the node manager that the installer
+	// configures can run. The installer uses a shell script, so we need
+	// to get a set of arguments that will work from within the shell
+	// script in order for it to start a node manager.
+	// We don't need the environment here since that can only
+	// be correctly setup in the actual 'installer' command implementation
+	// (in this case the shell script) which will inherit its environment
+	// when we run it.
+	// TODO(caprita): figure out if this is really necessary, hopefully not.
+	nmargs, _ := sh.CommandEnvelope(nodeManagerCmd, nil)
+	argsForNodeManager := append([]string{nodeManagerCmd, "--"}, nmargs[1:]...)
+	argsForNodeManager = append(argsForNodeManager, "nm")
 
 	// Add vars to instruct the installer how to configure the node manager.
-	installer.Cmd.Env = exec.Setenv(installer.Cmd.Env, config.RootEnv, root)
-	installer.Cmd.Env = exec.Setenv(installer.Cmd.Env, config.CurrentLinkEnv, currLink)
-
-	if err := installer.Cmd.Start(); err != nil {
-		t.Fatalf("Start() failed: %v", err)
-	}
-	installer.ExpectEOFAndWait()
-	installer.Cleanup()
+	installerEnv := []string{config.RootEnv + "=" + root, config.CurrentLinkEnv + "=" + currLink}
+	installerh, installers := runShellCommand(t, sh, installerEnv, installerCmd, argsForNodeManager...)
+	installers.ExpectEOF()
+	installerh.Shutdown(os.Stderr, os.Stderr)
 
 	// CurrLink should now be pointing to a node manager script that
 	// can start up a node manager.
+	nmh, nms := runShellCommand(t, sh, nil, execScriptCmd, currLink)
 
-	runNM := blackbox.HelperCommand(t, "execScript", currLink)
-	if err := runNM.Cmd.Start(); err != nil {
-		t.Fatalf("Start() failed: %v", err)
-	}
-	pid := readPID(t, runNM)
+	// We need the pid of the child process started by the node manager
+	// script above to signal it, not the pid of the script itself.
+	// TODO(caprita): the scripts that the node manager generates
+	// should progagate signals so you don't have to obtain the pid of the
+	// child by reading it from stdout as we do here. The node manager should
+	// be able to retain a list of the processes it spawns and be confident
+	// that sending a signal to them will also result in that signal being
+	// sent to their children and so on.
+	pid := readPID(t, nms)
 	resolve(t, "nm", 1)
 	revertNodeExpectError(t, "nm", verror.NoExist) // No previous version available.
 	syscall.Kill(pid, syscall.SIGINT)
-	runNM.Expect("nm terminating")
-	runNM.ExpectEOFAndWait()
-	runNM.Cleanup()
+
+	nms.Expect("nm terminating")
+	nms.ExpectEOF()
+	nmh.Shutdown(os.Stderr, os.Stderr)
 }
 
 func TestNodeManagerGlobAndLogs(t *testing.T) {
-	// Set up mount table, application, and binary repositories.
-	defer setupLocalNamespace(t)()
-	envelope, cleanup := startApplicationRepository()
+	sh, deferFn := createShellAndMountTable(t)
+	defer deferFn()
+
+	// Set up mock application and binary repositories.
+	envelope, cleanup := startMockRepos(t)
 	defer cleanup()
-	defer startBinaryRepository()()
 
 	root, cleanup := setupRootDir(t)
 	defer cleanup()
 
+	crDir, crEnv := credentialsForChild("anyvalue")
+	defer os.RemoveAll(crDir)
+
 	// Set up the node manager.  Since we won't do node manager updates,
 	// don't worry about its application envelope and current link.
-	nm := blackbox.HelperCommand(t, "nodeManager", "nm", root, "unused app repo name", "unused curr link")
-	defer setupChildCommand(nm)()
-	if err := nm.Cmd.Start(); err != nil {
-		t.Fatalf("Start() failed: %v", err)
-	}
-	defer nm.Cleanup()
-	readPID(t, nm)
+	_, nms := runShellCommand(t, sh, crEnv, nodeManagerCmd, "nm", root, "unused app repo name", "unused curr link")
+	pid := readPID(t, nms)
+	defer syscall.Kill(pid, syscall.SIGINT)
 
 	// Create a script wrapping the test target that implements suidhelper.
 	generateSuidHelperScript(t, root)
@@ -992,10 +1002,7 @@ func TestNodeManagerGlobAndLogs(t *testing.T) {
 	defer cleanup()
 
 	// Create the envelope for the first version of the app.
-	app := blackbox.HelperCommand(t, "app", "appV1")
-	defer setupChildCommand(app)()
-	appTitle := "google naps"
-	*envelope = *envelopeFromCmd(appTitle, app.Cmd)
+	*envelope = envelopeFromShell(sh, crEnv, appCmd, "google naps", "appV1")
 
 	// Install the app.
 	appID := installApp(t)
@@ -1003,7 +1010,13 @@ func TestNodeManagerGlobAndLogs(t *testing.T) {
 
 	// Start an instance of the app.
 	instance1ID := startApp(t, appID)
-	<-pingCh // Wait until the app pings us that it's ready.
+
+	// Wait until the app pings us that it's ready.
+	select {
+	case <-pingCh:
+	case <-time.After(5 * time.Second):
+		t.Fatalf("failed to get ping")
+	}
 
 	testcases := []struct {
 		name, pattern string
@@ -1086,7 +1099,8 @@ func listAndVerifyAssociations(t *testing.T, stub node.Node, run veyron2.Runtime
 // TODO(rjkroege): Verify that associations persist across restarts
 // once permanent storage is added.
 func TestAccountAssociation(t *testing.T) {
-	defer setupLocalNamespace(t)()
+	sh, deferFn := createShellAndMountTable(t)
+	defer deferFn()
 
 	root, cleanup := setupRootDir(t)
 	defer cleanup()
@@ -1109,15 +1123,12 @@ func TestAccountAssociation(t *testing.T) {
 	if err := idp.Bless(otherRT.Principal(), "other"); err != nil {
 		t.Fatal(err)
 	}
+	crFile, crEnv := credentialsForChild("anyvalue")
+	defer os.RemoveAll(crFile)
 
-	// Set up the node manager.
-	nm := blackbox.HelperCommand(t, "nodeManager", "nm", root, "unused app repo name", "unused curr link")
-	defer setupChildCommand(nm)()
-	if err := nm.Cmd.Start(); err != nil {
-		t.Fatalf("Start() failed: %v", err)
-	}
-	defer nm.Cleanup()
-	readPID(t, nm)
+	_, nms := runShellCommand(t, sh, crEnv, nodeManagerCmd, "nm", root, "unused app repo name", "unused curr link")
+	pid := readPID(t, nms)
+	defer syscall.Kill(pid, syscall.SIGINT)
 
 	nodeStub, err := node.BindNode("nm//nm")
 	if err != nil {
@@ -1129,6 +1140,7 @@ func TestAccountAssociation(t *testing.T) {
 	if list, err := nodeStub.ListAssociations(otherRT.NewContext()); err != nil || list != nil {
 		t.Fatalf("ListAssociations should fail on unclaimed node manager but did not: %v", err)
 	}
+
 	// self claims the node manager.
 	if err = nodeStub.Claim(selfRT.NewContext(), &granter{p: selfRT.Principal(), extension: "alice"}); err != nil {
 		t.Fatalf("Claim failed: %v", err)
@@ -1191,11 +1203,12 @@ func userName(t *testing.T) string {
 }
 
 func TestAppWithSuidHelper(t *testing.T) {
-	// Set up mount table, application, and binary repositories.
-	defer setupLocalNamespace(t)()
-	envelope, cleanup := startApplicationRepository()
+	sh, deferFn := createShellAndMountTable(t)
+	defer deferFn()
+
+	// Set up mock application and binary repositories.
+	envelope, cleanup := startMockRepos(t)
 	defer cleanup()
-	defer startBinaryRepository()()
 
 	root, cleanup := setupRootDir(t)
 	defer cleanup()
@@ -1220,19 +1233,16 @@ func TestAppWithSuidHelper(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	crDir, crEnv := credentialsForChild("anyvalue")
+	defer os.RemoveAll(crDir)
+
 	// Create a script wrapping the test target that implements
 	// suidhelper.
 	generateSuidHelperScript(t, root)
 
-	// Set up the node manager.  Since we won't do node manager updates,
-	// don't worry about its application envelope and current link.
-	nm := blackbox.HelperCommand(t, "nodeManager", "-mocksetuid", "nm", root, "unused app repo name", "unused curr link")
-	defer setupChildCommand(nm)()
-	if err := nm.Cmd.Start(); err != nil {
-		t.Fatalf("Start() failed: %v", err)
-	}
-	defer nm.Cleanup()
-	readPID(t, nm)
+	_, nms := runShellCommand(t, sh, crEnv, nodeManagerCmd, "-mocksetuid", "nm", root, "unused app repo name", "unused curr link")
+	pid := readPID(t, nms)
+	defer syscall.Kill(pid, syscall.SIGINT)
 
 	nodeStub, err := node.BindNode("nm//nm")
 	if err != nil {
@@ -1248,11 +1258,11 @@ func TestAppWithSuidHelper(t *testing.T) {
 		t.Fatalf("Serve(%q, <dispatcher>) failed: %v", "pingserver", err)
 	}
 
-	// Create an envelope for the app.
-	app := blackbox.HelperCommand(t, "app", "appV1")
-	defer setupChildCommandWithBlessing(app, "alice/child")()
-	appTitle := "google naps"
-	*envelope = *envelopeFromCmd(appTitle, app.Cmd)
+	// Create an envelope for a first version of the app with an
+	// appropriate blessing.
+	crDir, crEnv = credentialsForChild("alice/child")
+	defer os.RemoveAll(crDir)
+	*envelope = envelopeFromShell(sh, crEnv, appCmd, "google naps", "appV1")
 
 	// Install and start the app as root/self.
 	appID := installApp(t, selfRT)
@@ -1272,7 +1282,7 @@ func TestAppWithSuidHelper(t *testing.T) {
 	}
 
 	instance1ID := startApp(t, appID, selfRT)
-	verifyHelperArgs(t, <-pingCh, testUserName) // Wait until the app pings us that it's ready.
+	verifyHelperArgs(t, pingCh, testUserName) // Wait until the app pings us that it's ready.
 	stopApp(t, appID, instance1ID, selfRT)
 
 	vlog.VI(2).Infof("other attempting to run an app without access. Should fail.")
@@ -1294,12 +1304,12 @@ func TestAppWithSuidHelper(t *testing.T) {
 
 	vlog.VI(2).Infof("other attempting to run an app with access. Should succeed.")
 	instance2ID := startApp(t, appID, otherRT)
-	verifyHelperArgs(t, <-pingCh, testUserName) // Wait until the app pings us that it's ready.
+	verifyHelperArgs(t, pingCh, testUserName) // Wait until the app pings us that it's ready.
 	suspendApp(t, appID, instance2ID, otherRT)
 
 	vlog.VI(2).Infof("Verify that Resume with the same systemName works.")
 	resumeApp(t, appID, instance2ID, otherRT)
-	verifyHelperArgs(t, <-pingCh, testUserName) // Wait until the app pings us that it's ready.
+	verifyHelperArgs(t, pingCh, testUserName) // Wait until the app pings us that it's ready.
 	suspendApp(t, appID, instance2ID, otherRT)
 
 	// Change the associated system name.
@@ -1315,7 +1325,7 @@ func TestAppWithSuidHelper(t *testing.T) {
 
 	vlog.VI(2).Infof("Show that Start with different systemName works.")
 	instance3ID := startApp(t, appID, otherRT)
-	verifyHelperArgs(t, <-pingCh, anotherTestUserName) // Wait until the app pings us that it's ready.
+	verifyHelperArgs(t, pingCh, anotherTestUserName) // Wait until the app pings us that it's ready.
 
 	// Clean up.
 	stopApp(t, appID, instance3ID, otherRT)
