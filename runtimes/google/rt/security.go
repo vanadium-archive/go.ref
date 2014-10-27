@@ -52,46 +52,29 @@ func (rt *vrt) initPrincipal() error {
 	if rt.principal != nil {
 		return nil
 	}
-	// TODO(ataly, ashankar): Check if agent environment variables are
-	// specified and if so initialize principal from agent.
 	var err error
-	if dir := os.Getenv(VeyronCredentialsEnvVar); len(dir) > 0 {
+	if len(os.Getenv(agent.FdVarName)) > 0 {
+		rt.principal, err = rt.connectToAgent()
+		return err
+	} else if dir := os.Getenv(VeyronCredentialsEnvVar); len(dir) > 0 {
 		// TODO(ataly, ashankar): If multiple runtimes are getting
 		// initialized at the same time from the same VEYRON_CREDENTIALS
 		// we will need some kind of locking for the credential files.
-		existed := true
 		if rt.principal, err = vsecurity.LoadPersistentPrincipal(dir, nil); err != nil {
-			existed = false
-			if rt.principal, err = vsecurity.CreatePersistentPrincipal(dir, nil); err != nil {
-				return err
+			if os.IsNotExist(err) {
+				if rt.principal, err = vsecurity.CreatePersistentPrincipal(dir, nil); err != nil {
+					return err
+				}
+				return vsecurity.InitDefaultBlessings(rt.principal, defaultBlessingName())
 			}
-		}
-		if !existed {
-			return initDefaultBlessings(rt.principal)
+			return err
 		}
 		return nil
 	}
 	if rt.principal, err = vsecurity.NewPrincipal(); err != nil {
 		return err
 	}
-	return initDefaultBlessings(rt.principal)
-}
-
-func initDefaultBlessings(p security.Principal) error {
-	blessing, err := p.BlessSelf(defaultBlessingName())
-	if err != nil {
-		return err
-	}
-	if err := p.BlessingStore().SetDefault(blessing); err != nil {
-		return err
-	}
-	if _, err := p.BlessingStore().Set(blessing, security.AllPrincipals); err != nil {
-		return err
-	}
-	if err := p.AddToRoots(blessing); err != nil {
-		return err
-	}
-	return nil
+	return vsecurity.InitDefaultBlessings(rt.principal, defaultBlessingName())
 }
 
 // TODO(ataly, ashankar): Get rid of this method once we get rid of
@@ -122,10 +105,7 @@ func (rt *vrt) initIdentity() error {
 		return nil
 	}
 	var err error
-	if len(os.Getenv(agent.FdVarName)) > 0 {
-		rt.id, err = rt.connectToAgent()
-		return err
-	} else if file := os.Getenv("VEYRON_IDENTITY"); len(file) > 0 {
+	if file := os.Getenv("VEYRON_IDENTITY"); len(file) > 0 {
 		if rt.id, err = loadIdentityFromFile(file); err != nil || rt.id == nil {
 			return fmt.Errorf("Could not load identity from the VEYRON_IDENTITY environment variable (%q): %v", file, err)
 		}
@@ -186,7 +166,7 @@ func loadIdentityFromFile(filePath string) (security.PrivateID, error) {
 	return vsecurity.LoadIdentity(f, hack)
 }
 
-func (rt *vrt) connectToAgent() (security.PrivateID, error) {
+func (rt *vrt) connectToAgent() (security.Principal, error) {
 	client, err := rt.NewClient(options.VCSecurityNone)
 	if err != nil {
 		return nil, err
@@ -195,9 +175,5 @@ func (rt *vrt) connectToAgent() (security.PrivateID, error) {
 	if err != nil {
 		return nil, err
 	}
-	signer, err := agent.NewAgentSigner(client, fd, rt.NewContext())
-	if err != nil {
-		return nil, err
-	}
-	return isecurity.NewPrivateID("selfSigned", signer)
+	return agent.NewAgentPrincipal(client, fd, rt.NewContext())
 }
