@@ -87,6 +87,27 @@ func TestExpectRE(t *testing.T) {
 	s.ExpectEOF()
 }
 
+func TestExpectSetRE(t *testing.T) {
+	buf := []byte{}
+	buffer := bytes.NewBuffer(buf)
+	buffer.WriteString("bar=baz\n")
+	buffer.WriteString("abc\n")
+	buffer.WriteString("def\n")
+	buffer.WriteString("abc\n")
+	s := expect.NewSession(nil, bufio.NewReader(buffer), time.Minute)
+	s.ExpectSetRE("^bar=.*$", "def$", "^abc$", "^a..$")
+	if s.Error() != nil {
+		t.Errorf("unexpected error: %s", s.Error())
+	}
+	buffer.WriteString("ooh\n")
+	buffer.WriteString("aah\n")
+	s.ExpectSetRE("bar=.*", "def")
+	if got, want := s.Error(), "expect_test.go:104: found no match for \"ooh\""; got == nil || got.Error() != want {
+		t.Errorf("got %v, want %q", got, want)
+	}
+	s.ExpectEOF()
+}
+
 func TestRead(t *testing.T) {
 	buf := []byte{}
 	buffer := bytes.NewBuffer(buf)

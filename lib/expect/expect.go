@@ -272,6 +272,59 @@ func (s *Session) ExpectVar(name string) string {
 	return m[0][1]
 }
 
+// ExpectSetRE verifies whether the supplied set of regular expression
+// parameters matches the next n (where n is the number of parameters)
+// lines of input. Each line is read and matched against the supplied
+// patterns in the order that they are supplied as parameters. Consequently
+// the set may contain repetitions if the same pattern is expected multiple
+// times.
+func (s *Session) ExpectSetRE(expected ...string) {
+	if s.Failed() {
+		return
+	}
+	regexps := make([]*regexp.Regexp, len(expected))
+	for i, expRE := range expected {
+		re, err := regexp.Compile(expRE)
+		if err != nil {
+			s.error(err)
+			return
+		}
+		regexps[i] = re
+	}
+	actual := make([]string, len(expected))
+	for i := 0; i < len(expected); i++ {
+		line, err := s.read(readLine)
+		line = strings.TrimRight(line, "\n")
+		s.log(err, "ExpectSetRE: %s", line)
+		if err != nil {
+			s.error(err)
+			return
+		}
+		actual[i] = line
+	}
+	// Match each line against all regexp's and remove each regexp
+	// that matches.
+	for _, l := range actual {
+		found := false
+		for i, re := range regexps {
+			if re == nil {
+				continue
+			}
+			if re.MatchString(l) {
+				// We remove each RE that matches.
+				found = true
+				regexps[i] = nil
+				break
+			}
+		}
+		if !found {
+			s.error(fmt.Errorf("found no match for %q", l))
+			return
+		}
+	}
+
+}
+
 // ReadLine reads the next line, if any, from the input stream. It will set
 // the error state to io.EOF if it has read past the end of the stream.
 // ReadLine has no effect if an error has already occurred.
