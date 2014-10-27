@@ -4,7 +4,7 @@ import (
 	"flag"
 
 	"veyron.io/veyron/veyron/lib/signals"
-	// TODO(cnicolaou,benj): figure out how to support roaming as a chrome plugi
+	// TODO(cnicolaou,benj): figure out how to support roaming as a chrome plugin
 	"veyron.io/veyron/veyron/profiles/roaming"
 	"veyron.io/veyron/veyron2"
 	"veyron.io/veyron/veyron2/options"
@@ -14,10 +14,10 @@ import (
 
 func main() {
 	port := flag.Int("port", 8124, "Port to listen on.")
-	identd := flag.String("identd", "", "The endpoint for the identd server.  This must be set.")
+	identd := flag.String("identd", "", "identd server name. Must be set.")
 	// TODO(ataly, ashankar, bjornick): Remove this flag once the old security
 	// model is killed.
-	newSecurityModel := flag.Bool("new_security_model", false, "Enable the new security model")
+	newSecurityModel := flag.Bool("new_security_model", false, "Use the new security model.")
 	flag.Parse()
 
 	rt.Init()
@@ -29,8 +29,10 @@ func main() {
 
 	proxy := wspr.NewWSPR(*port, roaming.ListenSpec, *identd, opts...)
 	defer proxy.Shutdown()
+
+	proxy.Listen()
 	go func() {
-		proxy.Run()
+		proxy.Serve()
 	}()
 
 	<-signals.ShutdownOnSignals()
