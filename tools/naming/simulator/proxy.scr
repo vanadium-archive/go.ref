@@ -1,0 +1,88 @@
+
+cache off
+
+set localaddr=--veyron.tcp.address=127.0.0.1:0
+
+root -- $localaddr
+eval $_
+set root=$MT_NAME
+set NAMESPACE_ROOT=$root
+setRoots $NAMESPACE_ROOT
+
+# run a non-proxied echo server
+echoServer -- $localaddr noproxy echo/noproxy
+set esnp=$_
+eval $esnp
+set NP_ECHOS_NAME=$NAME
+eval $esnp
+set NP_ECHOS_ADDR=$ADDR
+
+
+# run a proxy server
+proxyd -- $localaddr p1
+set proxy=$_
+# PROXY_ADDR=<address of proxy>
+eval $proxy
+# PROXY_NAME=<name of proxy>
+eval $proxy
+read $proxy
+splitEP $PROXY_ADDR
+assert $PN 6
+set PROXY_ADDRESS=$P2
+set PROXY_RID=$P3
+
+
+# TODO(cnicolaou): figure out why ls appears to run slowly when a proxy is
+# running, maybe a problem with the mount table.
+#ls ...
+#set l=$_
+#eval $l
+#assert $RN 3
+#wait $l
+
+echoServer -- $localaddr --veyron.proxy=p1 withproxy echo/withproxy
+set eswp=$_
+eval $eswp
+set ECHOS_NAME=$NAME
+eval $eswp
+set ECHOS_ADDR=$ADDR
+splitEP $ADDR
+set ECHOS_RID=$P3
+
+#ls ...
+#set l=$_
+#eval $l
+#assert $RN 4
+#wait $l
+
+print "root mt:" $NAMESPACE_ROOT
+print "no proxy: " $NP_ECHOS_ADDR
+print "with proxy: " $ECHOS_ADDR
+# The ipc.Server implementation publishes the proxy supplied address
+# in the mount table
+# TODO(cnicolaou): we also need a way of publishing the local address, right
+# only the proxy's address appears.
+resolve echo/withproxy
+set rs=$_
+eval $rs
+assert $RN 1
+eval $rs
+splitEP $R0
+assert $PN 6
+assert $P2 $PROXY_ADDRESS
+assert $P3 $ECHOS_RID
+
+ls -l echo/withproxy
+wait $_
+ls -l echo/noproxy
+wait $_
+
+echoClient echo/withproxy "ohh"
+set ec=$_
+read $ec l
+assert $l "withproxy: ohh"
+
+stop $eswp
+stop $esnp
+stop $proxy
+

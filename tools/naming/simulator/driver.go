@@ -21,6 +21,7 @@ import (
 	"veyron.io/veyron/veyron/lib/expect"
 	"veyron.io/veyron/veyron/lib/modules"
 	"veyron.io/veyron/veyron/lib/modules/core"
+	_ "veyron.io/veyron/veyron/profiles"
 )
 
 type cmdState struct {
@@ -101,7 +102,7 @@ func main() {
 		// Subprocess, run the requested command.
 		if err := modules.Dispatch(); err != nil {
 			fmt.Fprintf(os.Stderr, "failed: %v\n", err)
-			return
+			os.Exit(1)
 		}
 		return
 	}
@@ -165,6 +166,9 @@ func process(sh *modules.Shell, line string, lineno int) error {
 		args = []string{}
 	}
 	sub, err := subVariables(sh, args)
+	if err != nil {
+		return err
+	}
 	if cmd := builtins[name]; cmd != nil {
 		if cmd.nargs >= 0 && len(sub) != cmd.nargs {
 			return fmt.Errorf("wrong (%d) # args for %q: usage %s", len(sub), name, cmd.usage)
@@ -177,7 +181,7 @@ func process(sh *modules.Shell, line string, lineno int) error {
 			l, err = cmd.fn(sh, nil, sub...)
 		}
 		if err != nil {
-			return err
+			return fmt.Errorf("%s : %s", err, l)
 		}
 		output(lineno, l)
 	} else {

@@ -11,7 +11,6 @@ import (
 	"veyron.io/veyron/veyron2/security"
 
 	"veyron.io/veyron/veyron/lib/modules"
-	"veyron.io/veyron/veyron/profiles"
 )
 
 func init() {
@@ -39,17 +38,22 @@ func (es *echoServerObject) Echo(call ipc.ServerCall, m string) (string, error) 
 }
 
 func echoServer(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
-	if len(args) != 3 {
-		return fmt.Errorf("wrong # args")
+	fl, err := ParseCommonFlags(args)
+	if err != nil {
+		return fmt.Errorf("failed parsing args: %s", err)
 	}
-	id, mp := args[1], args[2]
+	args = fl.Args()
+	if err := checkArgs(args, 2, "<message> <name>"); err != nil {
+		return err
+	}
+	id, mp := args[0], args[1]
 	disp := &treeDispatcher{id: id}
 	server, err := rt.R().NewServer()
 	if err != nil {
 		return err
 	}
 	defer server.Stop()
-	ep, err := server.Listen(profiles.LocalListenSpec)
+	ep, err := server.Listen(initListenSpec(fl))
 	if err != nil {
 		return err
 	}
@@ -64,11 +68,16 @@ func echoServer(stdin io.Reader, stdout, stderr io.Writer, env map[string]string
 }
 
 func echoClient(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
-	if len(args) < 3 {
-		return fmt.Errorf("wrong # args")
+	fl, err := ParseCommonFlags(args)
+	if err != nil {
+		return fmt.Errorf("failed parsing args: %s", err)
 	}
-	name := args[1]
-	args = args[2:]
+	args = fl.Args()
+	if err := checkArgs(args, 2, "<name> <message>"); err != nil {
+		return err
+	}
+	name := args[0]
+	args = args[1:]
 	client := rt.R().Client()
 	for _, a := range args {
 		ctxt := rt.R().NewContext()

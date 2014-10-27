@@ -12,7 +12,6 @@ import (
 	"veyron.io/veyron/veyron2/rt"
 
 	"veyron.io/veyron/veyron/lib/modules"
-	"veyron.io/veyron/veyron/profiles"
 	mounttable "veyron.io/veyron/veyron/services/mounttable/lib"
 )
 
@@ -26,34 +25,37 @@ func init() {
 }
 
 func mountTable(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
-	if len(args) != 2 {
-		return fmt.Errorf("expected exactly one argument: <mount point>")
-	}
 	return runMT(false, stdin, stdout, stderr, env, args...)
 }
 
 func rootMountTable(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
-	if len(args) != 1 {
-		return fmt.Errorf("expected no arguments")
-	}
 	return runMT(true, stdin, stdout, stderr, env, args...)
 }
 
 func runMT(root bool, stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
-	r := rt.Init()
+	r := rt.R()
+	fl, err := ParseCommonFlags(args)
+	if err != nil {
+		return fmt.Errorf("failed parsing args: %s", err)
+	}
+	args = fl.Args()
+	lspec := initListenSpec(fl)
 	server, err := r.NewServer(options.ServesMountTable(true))
 	if err != nil {
 		return fmt.Errorf("root failed: %v", err)
 	}
 	mp := ""
 	if !root {
-		mp = args[1]
+		if err := checkArgs(args, 1, "<mount point>"); err != nil {
+			return err
+		}
+		mp = args[0]
 	}
 	mt, err := mounttable.NewMountTable("")
 	if err != nil {
 		return fmt.Errorf("mounttable.NewMountTable failed: %s", err)
 	}
-	ep, err := server.Listen(profiles.LocalListenSpec)
+	ep, err := server.Listen(lspec)
 	if err != nil {
 		return fmt.Errorf("server.Listen failed: %s", err)
 	}
@@ -110,8 +112,8 @@ func ls(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args .
 type resolver func(ctx context.T, name string) (names []string, err error)
 
 func resolve(fn resolver, stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
-	if len(args) != 2 {
-		return fmt.Errorf("wrong # args")
+	if err := checkArgs(args[1:], 1, "<name>"); err != nil {
+		return err
 	}
 	name := args[1]
 	servers, err := fn(rt.R().NewContext(), name)
@@ -136,8 +138,8 @@ func resolveMT(stdin io.Reader, stdout, stderr io.Writer, env map[string]string,
 
 func setNamespaceRoots(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
 	ns := rt.R().Namespace()
-	if len(args) < 2 {
-		return fmt.Errorf("wrong # args")
+	if err := checkArgs(args, -1, "<name>..."); err != nil {
+		return err
 	}
 	return ns.SetRoots(args[1:]...)
 }
