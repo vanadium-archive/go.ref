@@ -1,16 +1,19 @@
 package main
 
 import (
+	"bytes"
+	"crypto/ecdsa"
 	"fmt"
-	"io/ioutil"
-	"os"
 	"runtime/ppapi"
 	"syscall"
 
 	"veyron.io/veyron/veyron2/ipc"
+	"veyron.io/veyron/veyron2/options"
 	"veyron.io/veyron/veyron2/rt"
+	"veyron.io/veyron/veyron2/security"
 	"veyron.io/wspr/veyron/services/wsprd/wspr"
 
+	vsecurity "veyron.io/veyron/veyron/security"
 	// TODO(cnicolaou): shouldn't be depending on the runtime here.
 	_ "veyron.io/veyron/veyron/profiles"
 	_ "veyron.io/veyron/veyron/runtimes/google/security"
@@ -60,34 +63,42 @@ func (wsprInstance) Graphics3DContextLost() {
 
 // StartWSPR handles starting WSPR.
 func (wsprInstance) StartWSPR(message ppapi.Var) {
-	identityContents, err := message.LookupStringValuedKey("identityContents")
+	// HACK!!
+	// TODO(ataly, ashankar, bprosnitz): The private key should be
+	// generated/retrieved by directly talking to some secure storage
+	// in Chrome, e.g. LocalStorage (and not from the config as below).
+	pemKey, err := message.LookupStringValuedKey("pemPrivateKey")
 	if err != nil {
 		panic(err.Error())
 	}
-	file, err := ioutil.TempFile(os.TempDir(), "veyron_id")
-	if err != nil {
-		panic(err.Error())
-	}
-	_, err = file.WriteString(identityContents)
-	if err != nil {
-		panic(err.Error())
-	}
-	if err := file.Close(); err != nil {
-		panic(err.Error())
-	}
-	f, err := os.Open(file.Name())
-	if err != nil {
-		panic(err.Error())
-	}
-	b, err := ioutil.ReadAll(f)
-	if err != nil {
-		panic(err.Error())
-	}
-	fmt.Printf("IDENTITY: %s", string(b))
-	f.Close()
-	syscall.Setenv("VEYRON_IDENTITY", file.Name())
 
-	rt.Init()
+	// TODO(ataly, ashankr, bprosnitz): Figure out whether we need
+	// passphrase protection here (most likely we do but how do we
+	// request the passphrase from the user?)
+	key, err := vsecurity.LoadPEMKey(bytes.NewBufferString(pemKey), nil)
+	if err != nil {
+		panic(err.Error())
+	}
+	ecdsaKey, ok := key.(*ecdsa.PrivateKey)
+	if !ok {
+		panic(fmt.Errorf("got key of type %T, want *ecdsa.PrivateKey", key))
+	}
+
+	principal, err := vsecurity.NewPrincipalFromSigner(security.NewInMemoryECDSASigner(ecdsaKey))
+	if err != nil {
+		panic(err.Error())
+	}
+
+	defaultBlessingName, err := message.LookupStringValuedKey("defaultBlessingName")
+	if err != nil {
+		panic(err.Error())
+	}
+
+	if err := vsecurity.InitDefaultBlessings(principal, defaultBlessingName); err != nil {
+		panic(err.Error())
+	}
+
+	rt.Init(options.RuntimePrincipal{principal})
 
 	veyronProxy, err := message.LookupStringValuedKey("proxyName")
 	if err != nil {
@@ -123,7 +134,7 @@ func (wsprInstance) StartWSPR(message ppapi.Var) {
 	}
 
 	fmt.Printf("Starting WSPR with config: proxy=%q mounttable=%q identityd=%q port=%d", veyronProxy, mounttable, identd, wsprHttpPort)
-	proxy := wspr.NewWSPR(wsprHttpPort, listenSpec, identd)
+	proxy := wspr.NewWSPR(wsprHttpPort, listenSpec, identd, options.ForceNewSecurityModel{}, options.RuntimePrincipal{principal})
 
 	proxy.Listen()
 	go func() {
