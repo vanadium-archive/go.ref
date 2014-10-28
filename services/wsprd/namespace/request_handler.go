@@ -2,6 +2,7 @@ package namespace
 
 import (
 	"encoding/json"
+	"time"
 
 	"veyron.io/veyron/veyron2"
 	"veyron.io/veyron/veyron2/context"
@@ -22,12 +23,34 @@ type namespaceMethod int
 
 // enumerates the methods available to be called on the namespace client
 const (
-	methodGlob namespaceMethod = 0
+	methodGlob    namespaceMethod = 0
+	methodMount                   = 1
+	methodUnmount                 = 2
+	methodResolve                 = 3
 )
 
 // globArgs defines the args for the glob method
 type globArgs struct {
 	Pattern string
+}
+
+// mountArgs defines the args for the mount method
+type mountArgs struct {
+	Name         string
+	Server       string
+	Ttl          time.Duration
+	replaceMount bool
+}
+
+// unmountArgs defines the args for the unmount method
+type unmountArgs struct {
+	Name   string
+	Server string
+}
+
+// resolveArgs defines the args for the resolve method
+type resolveArgs struct {
+	Name string
 }
 
 // handleRequest uses the namespace client to respond to namespace specific requests such as glob
@@ -48,6 +71,12 @@ func HandleRequest(ctx context.T, rt veyron2.Runtime, data string, w lib.ClientW
 	switch req.Method {
 	case methodGlob:
 		glob(ctx, ns, w, req.Args)
+	case methodMount:
+		mount(ctx, ns, w, req.Args)
+	case methodUnmount:
+		unmount(ctx, ns, w, req.Args)
+	case methodResolve:
+		resolve(ctx, ns, w, req.Args)
 	default:
 		w.Error(verror2.Make(verror2.NoExist, ctx, req.Method))
 	}
@@ -60,7 +89,7 @@ func glob(ctx context.T, ns naming.Namespace, w lib.ClientWriter, rawArgs json.R
 		return
 	}
 
-	// Call glob on the namespace client instance
+	// Call Glob on the namespace client instance
 	ch, err := ns.Glob(ctx, args.Pattern)
 
 	if err != nil {
@@ -78,5 +107,66 @@ func glob(ctx context.T, ns naming.Namespace, w lib.ClientWriter, rawArgs json.R
 
 	if err := w.Send(lib.ResponseStreamClose, nil); err != nil {
 		w.Error(verror2.Make(verror2.Internal, ctx, "ResponseStreamClose"))
+	}
+}
+
+func mount(ctx context.T, ns naming.Namespace, w lib.ClientWriter, rawArgs json.RawMessage) {
+	var args mountArgs
+	if err := json.Unmarshal([]byte(rawArgs), &args); err != nil {
+		w.Error(verror2.Convert(verror2.Internal, ctx, err))
+		return
+	}
+
+	// Call Mount on the namespace client instance
+	rmOpt := naming.ReplaceMountOpt(args.replaceMount)
+	err := ns.Mount(ctx, args.Name, args.Server, args.Ttl, rmOpt)
+
+	if err != nil {
+		w.Error(verror2.Convert(verror2.Internal, ctx, err))
+		return
+	}
+
+	if err := w.Send(lib.ResponseFinal, nil); err != nil {
+		w.Error(verror2.Make(verror2.Internal, ctx, "ResponseFinal"))
+	}
+}
+
+func unmount(ctx context.T, ns naming.Namespace, w lib.ClientWriter, rawArgs json.RawMessage) {
+	var args unmountArgs
+	if err := json.Unmarshal([]byte(rawArgs), &args); err != nil {
+		w.Error(verror2.Convert(verror2.Internal, ctx, err))
+		return
+	}
+
+	// Call Unmount on the namespace client instance
+	err := ns.Unmount(ctx, args.Name, args.Server)
+
+	if err != nil {
+		w.Error(verror2.Convert(verror2.Internal, ctx, err))
+		return
+	}
+
+	if err := w.Send(lib.ResponseFinal, nil); err != nil {
+		w.Error(verror2.Make(verror2.Internal, ctx, "ResponseFinal"))
+	}
+}
+
+func resolve(ctx context.T, ns naming.Namespace, w lib.ClientWriter, rawArgs json.RawMessage) {
+	var args resolveArgs
+	if err := json.Unmarshal([]byte(rawArgs), &args); err != nil {
+		w.Error(verror2.Convert(verror2.Internal, ctx, err))
+		return
+	}
+
+	// Call Resolve on the namespace client instance
+	addresses, err := ns.Resolve(ctx, args.Name)
+
+	if err != nil {
+		w.Error(verror2.Convert(verror2.Internal, ctx, err))
+		return
+	}
+
+	if err := w.Send(lib.ResponseFinal, addresses); err != nil {
+		w.Error(verror2.Make(verror2.Internal, ctx, "ResponseFinal"))
 	}
 }
