@@ -240,6 +240,7 @@ func TestClose(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	serverFlow := acceptFlowAtServer(server)
 
 	var message = []byte("bugs bunny")
 	go func() {
@@ -249,7 +250,6 @@ func TestClose(t *testing.T) {
 		client.Close()
 	}()
 
-	serverFlow := acceptFlowAtServer(server)
 	buf := make([]byte, 1024)
 	// client.Close should drain all pending writes first.
 	if n, err := serverFlow.Read(buf); n != len(message) || err != nil {
