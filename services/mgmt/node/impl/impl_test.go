@@ -1031,26 +1031,41 @@ func TestNodeManagerGlobAndLogs(t *testing.T) {
 			"apps/google naps/" + installID + "/" + instance1ID + "/logs",
 			"apps/google naps/" + installID + "/" + instance1ID + "/logs/STDERR-<timestamp>",
 			"apps/google naps/" + installID + "/" + instance1ID + "/logs/STDOUT-<timestamp>",
+			"apps/google naps/" + installID + "/" + instance1ID + "/logs/bin.INFO",
+			"apps/google naps/" + installID + "/" + instance1ID + "/logs/bin.<*>.INFO.<timestamp>",
 			"nm",
 		}},
 		{"nm/apps", "*", []string{"google naps"}},
 		{"nm/apps/google naps", "*", []string{installID}},
 		{"nm/apps/google naps/" + installID, "*", []string{instance1ID}},
 		{"nm/apps/google naps/" + installID + "/" + instance1ID, "*", []string{"logs"}},
-		{"nm/apps/google naps/" + installID + "/" + instance1ID + "/logs", "*", []string{"STDERR-<timestamp>", "STDOUT-<timestamp>"}},
+		{"nm/apps/google naps/" + installID + "/" + instance1ID + "/logs", "*", []string{
+			"STDERR-<timestamp>",
+			"STDOUT-<timestamp>",
+			"bin.INFO",
+			"bin.<*>.INFO.<timestamp>",
+		}},
 	}
-	re := regexp.MustCompile("(STDOUT|STDERR)-[0-9]+$")
+	logFileTimeStampRE := regexp.MustCompile("(STDOUT|STDERR)-[0-9]+$")
+	logFileTrimINFORE := regexp.MustCompile(`bin\..*\.INFO\.[0-9.-]+$`)
+	logFileRemoveErrorFatalWarningRE := regexp.MustCompile("(ERROR|FATAL|WARNING)")
 	for _, tc := range testcases {
 		results := doGlob(t, tc.name, tc.pattern)
-		for i, name := range results {
-			results[i] = re.ReplaceAllString(name, "$1-<timestamp>")
+		filteredResults := []string{}
+		for _, name := range results {
+			if logFileRemoveErrorFatalWarningRE.MatchString(name) {
+				continue
+			}
+			name = logFileTimeStampRE.ReplaceAllString(name, "$1-<timestamp>")
+			name = logFileTrimINFORE.ReplaceAllString(name, "bin.<*>.INFO.<timestamp>")
+			filteredResults = append(filteredResults, name)
 		}
-		if !reflect.DeepEqual(results, tc.expected) {
-			t.Errorf("unexpected result for (%q, %q). Got %q, want %q", tc.name, tc.pattern, results, tc.expected)
+		if !reflect.DeepEqual(filteredResults, tc.expected) {
+			t.Errorf("unexpected result for (%q, %q). Got %q, want %q", tc.name, tc.pattern, filteredResults, tc.expected)
 		}
 	}
 
-	// Call Size() on the log file objects
+	// Call Size() on the log file objects.
 	files := doGlob(t, "nm", "apps/google naps/"+installID+"/"+instance1ID+"/logs/*")
 	for _, file := range files {
 		name := naming.Join("nm", file)

@@ -102,7 +102,7 @@ func (wp *WorkParameters) ProcessArguments(fs *flag.FlagSet, env []string) error
 	wp.argv0 = *flagRun
 	wp.stdoutLog = *flagStdoutLog
 	wp.stderrLog = *flagStderrLog
-	wp.argv = fs.Args()
+	wp.argv = append([]string{wp.argv0}, fs.Args()...)
 	// TODO(rjkroege): Reduce the environment to the absolute minimum needed.
 	wp.envv = env
 
