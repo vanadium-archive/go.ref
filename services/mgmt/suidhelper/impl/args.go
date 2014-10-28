@@ -13,14 +13,15 @@ import (
 )
 
 type WorkParameters struct {
-	uid       uint32
-	gid       uint32
+	uid       int
+	gid       int
 	workspace string
 	stderrLog string
 	stdoutLog string
 	argv0     string
 	argv      []string
 	envv      []string
+	dryrun    bool
 }
 
 type ArgsSavedForTest struct {
@@ -67,18 +68,18 @@ func (wp *WorkParameters) ProcessArguments(fs *flag.FlagSet, env []string) error
 		return fmt.Errorf("--username %s: unknown user", username)
 	}
 
-	uid, err := strconv.ParseUint(usr.Uid, 0, 32)
+	uid, err := strconv.ParseInt(usr.Uid, 0, 32)
 	if err != nil {
 		return fmt.Errorf("user.Lookup() returned an invalid uid %v", usr.Uid)
 	}
-	gid, err := strconv.ParseUint(usr.Gid, 0, 32)
+	gid, err := strconv.ParseInt(usr.Gid, 0, 32)
 	if err != nil {
 		return fmt.Errorf("user.Lookup() returned an invalid gid %v", usr.Gid)
 	}
 
 	// Uids less than 501 can be special so we forbid running as them.
-	if uint32(uid) < uint32(*flagMinimumUid) {
-		return fmt.Errorf("suidhelper does not permit uids less than %d", uint32(*flagMinimumUid))
+	if uid < *flagMinimumUid {
+		return fmt.Errorf("suidhelper does not permit uids less than %d", *flagMinimumUid)
 	}
 
 	// Preserve the arguments for examination by the test harness if executed
@@ -94,10 +95,11 @@ func (wp *WorkParameters) ProcessArguments(fs *flag.FlagSet, env []string) error
 			StderrLog: *flagStderrLog,
 		})
 		env = append(env, SavedArgs+"="+b.String())
+		wp.dryrun = true
 	}
 
-	wp.uid = uint32(uid)
-	wp.gid = uint32(gid)
+	wp.uid = int(uid)
+	wp.gid = int(gid)
 	wp.workspace = *flagWorkspace
 	wp.argv0 = *flagRun
 	wp.stdoutLog = *flagStdoutLog
