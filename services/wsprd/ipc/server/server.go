@@ -7,7 +7,6 @@ import (
 	"sync"
 	"time"
 
-	vsecurity "veyron.io/veyron/veyron/security"
 	"veyron.io/wspr/veyron/services/wsprd/identity"
 	"veyron.io/wspr/veyron/services/wsprd/lib"
 	"veyron.io/wspr/veyron/services/wsprd/principal"
@@ -397,9 +396,7 @@ func (s *Server) createAuthorizer(handle int64, hasAuthorizer bool) (security.Au
 	if hasAuthorizer {
 		return &authorizer{authFunc: s.createRemoteAuthFunc(handle)}, nil
 	}
-	return vsecurity.NewACLAuthorizer(security.ACL{In: map[security.BlessingPattern]security.LabelSet{
-		security.AllPrincipals: security.AllLabels,
-	}}), nil
+	return nil, nil
 }
 
 func (s *Server) Stop() {
