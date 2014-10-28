@@ -8,7 +8,7 @@ main() {
   if [[ -n "${VEYRON_IDENTITY}" ]]; then
       shell_test::fail "line ${LINENO}: identity preserved"
   fi
-  PINGPONG_BIN="$(shell_test::build_go_binary 'veyron.io/veyron/veyron/security/agent/test' 'pinpong')"
+  PINGPONG_BIN="$(shell_test::build_go_binary 'veyron.io/veyron/veyron/security/agent/pingpong')"
   shell_test::start_server "${PINGPONG_BIN}" --server
   "${PINGPONG_BIN}" || shell_test::fail "line ${LINENO}: ping"
 
