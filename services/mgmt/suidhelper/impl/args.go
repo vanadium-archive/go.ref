@@ -22,6 +22,7 @@ type WorkParameters struct {
 	argv      []string
 	envv      []string
 	dryrun    bool
+	remove    bool
 }
 
 type ArgsSavedForTest struct {
@@ -37,6 +38,7 @@ const SavedArgs = "VEYRON_SAVED_ARGS"
 var (
 	flagUsername, flagWorkspace, flagStdoutLog, flagStderrLog, flagRun *string
 	flagMinimumUid                                                     *int64
+	flagRemove                                                         *bool
 )
 
 func init() {
@@ -53,11 +55,18 @@ func setupFlags(fs *flag.FlagSet) {
 	flagStderrLog = sflag.StderrLog
 	flagRun = sflag.Run
 	flagMinimumUid = sflag.MinimumUid
+	flagRemove = sflag.Remove
 }
 
 // ParseArguments populates the WorkParameter object from the provided args
 // and env strings.
 func (wp *WorkParameters) ProcessArguments(fs *flag.FlagSet, env []string) error {
+	if *flagRemove {
+		wp.remove = true
+		wp.argv = fs.Args()
+		return nil
+	}
+
 	username := *flagUsername
 	if username == "" {
 		return fmt.Errorf("--username missing")
