@@ -9,6 +9,17 @@ import (
 	"veyron.io/veyron/veyron2/vtrace"
 )
 
+func copySpanRecord(in *vtrace.SpanRecord) *vtrace.SpanRecord {
+	return &vtrace.SpanRecord{
+		ID:          in.ID,
+		Parent:      in.Parent,
+		Name:        in.Name,
+		Start:       in.Start,
+		End:         in.End,
+		Annotations: append([]vtrace.Annotation{}, in.Annotations...),
+	}
+}
+
 // collectors collect spans and annotations for output or analysis.
 // collectors are safe to use from multiple goroutines simultaneously.
 // TODO(mattr): collector should support log-based collection
@@ -44,18 +55,53 @@ func (c *collector) ForceCollect() {
 	}
 }
 
-// annotate adds a span annotation to the collection.
-func (c *collector) annotate(s vtrace.Span, msg string) {
+func (c *collector) spanRecordLocked(s *span) *vtrace.SpanRecord {
+	sid := s.ID()
+	record, ok := c.spans[sid]
+	if !ok {
+		record = &vtrace.SpanRecord{
+			ID:     sid,
+			Parent: s.parent,
+			Name:   s.name,
+			Start:  s.start.UnixNano(),
+		}
+		c.spans[sid] = record
+	}
+	return record
+}
+
+// start records the fact that a given span has begun.
+func (c *collector) start(s *span) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
 	if c.method == vtrace.InMemory {
-		sid := s.ID()
-		record, ok := c.spans[sid]
-		if !ok {
-			record = &vtrace.SpanRecord{ID: sid, Parent: s.Parent(), Name: s.Name()}
-			c.spans[sid] = record
-		}
+		// Note that simply fetching the record is enough since
+		// if the record does not exist we will created it according
+		// to the start time in s.
+		c.spanRecordLocked(s)
+	}
+}
+
+// finish records the time that a span finished.
+func (c *collector) finish(s *span) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	if c.method == vtrace.InMemory {
+		record := c.spanRecordLocked(s)
+		// TODO(mattr): Perhaps we should log an error if we have already been finished?
+		record.End = time.Now().UnixNano()
+	}
+}
+
+// annotate adds a span annotation to the collection.
+func (c *collector) annotate(s *span, msg string) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	if c.method == vtrace.InMemory {
+		record := c.spanRecordLocked(s)
 		record.Annotations = append(record.Annotations, vtrace.Annotation{
 			When:    time.Now().UnixNano(),
 			Message: msg,
@@ -69,7 +115,7 @@ func (c *collector) response() vtrace.Response {
 	defer c.mu.Unlock()
 	return vtrace.Response{
 		Method: c.method,
-		Trace:  c.recordLocked(),
+		Trace:  c.traceRecordLocked(),
 	}
 }
 
@@ -78,18 +124,13 @@ func (c *collector) response() vtrace.Response {
 func (c *collector) Record() vtrace.TraceRecord {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	return c.recordLocked()
+	return c.traceRecordLocked()
 }
 
-func (c *collector) recordLocked() vtrace.TraceRecord {
+func (c *collector) traceRecordLocked() vtrace.TraceRecord {
 	spans := make([]vtrace.SpanRecord, 0, len(c.spans))
 	for _, span := range c.spans {
-		spans = append(spans, vtrace.SpanRecord{
-			ID:          span.ID,
-			Parent:      span.Parent,
-			Name:        span.Name,
-			Annotations: append([]vtrace.Annotation{}, span.Annotations...),
-		})
+		spans = append(spans, *copySpanRecord(span))
 	}
 	return vtrace.TraceRecord{
 		ID:    c.traceID,
@@ -110,12 +151,7 @@ func (c *collector) merge(parent vtrace.Span, t *vtrace.Response) {
 	// by assuming that children of parent need to start after parent
 	// and end before now.
 	for _, span := range t.Trace.Spans {
-		c.spans[span.ID] = &vtrace.SpanRecord{
-			ID:          span.ID,
-			Parent:      span.Parent,
-			Name:        span.Name,
-			Annotations: append([]vtrace.Annotation{}, span.Annotations...),
-		}
+		c.spans[span.ID] = copySpanRecord(&span)
 	}
 }
 

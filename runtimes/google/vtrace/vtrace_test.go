@@ -122,11 +122,15 @@ func makeTestServer(ns naming.Namespace, name, child string, forceCollect bool) 
 }
 
 func summary(span *vtrace.SpanRecord) string {
-	msgs := []string{}
-	for _, annotation := range span.Annotations {
-		msgs = append(msgs, annotation.Message)
+	summary := span.Name
+	if len(span.Annotations) > 0 {
+		msgs := []string{}
+		for _, annotation := range span.Annotations {
+			msgs = append(msgs, annotation.Message)
+		}
+		summary += ": " + strings.Join(msgs, ", ")
 	}
-	return span.Name + ": " + strings.Join(msgs, ",")
+	return summary
 }
 
 func expectSequence(t *testing.T, trace vtrace.TraceRecord, expectedSpans []string) {
@@ -135,16 +139,31 @@ func expectSequence(t *testing.T, trace vtrace.TraceRecord, expectedSpans []stri
 	}
 
 	spans := map[string]*vtrace.SpanRecord{}
+	summaries := []string{}
 	for i := range trace.Spans {
 		span := &trace.Spans[i]
+
+		// All spans should have a start.
+		if span.Start == 0 {
+			t.Errorf("span missing start: %#v", span)
+		}
+		// All spans except the root should have an end.
+		if span.Name != "" && span.End == 0 {
+			t.Errorf("span missing end: %#v", span)
+			if span.Start >= span.End {
+				t.Errorf("span end should be after start: %#v", span)
+			}
+		}
+
 		summary := summary(span)
+		summaries = append(summaries, summary)
 		spans[summary] = span
 	}
 
 	for i := range expectedSpans {
 		child, ok := spans[expectedSpans[i]]
 		if !ok {
-			t.Errorf("expected span not found: %s", expectedSpans[i])
+			t.Errorf("expected span %s not found in %#v", expectedSpans[i], summaries)
 			continue
 		}
 		if i == 0 {
@@ -152,7 +171,7 @@ func expectSequence(t *testing.T, trace vtrace.TraceRecord, expectedSpans []stri
 		}
 		parent, ok := spans[expectedSpans[i-1]]
 		if !ok {
-			t.Errorf("expected span not found: %s", expectedSpans[i-1])
+			t.Errorf("expected span %s not found in %#v", expectedSpans[i-1], summaries)
 			continue
 		}
 		if child.Parent != parent.ID {
@@ -207,11 +226,11 @@ func TestTraceAcrossRPCs(t *testing.T) {
 	span.Annotate("c0-end")
 
 	expectedSpans := []string{
-		": c0-begin,c0-end",
-		"Client Call: c1.Run: Started,Finished",
-		"Server Call: .Run: c1-begin,c1-end",
-		"Client Call: c2.Run: Started,Finished",
-		"Server Call: .Run: c2-begin,c2-end",
+		": c0-begin, c0-end",
+		"Client Call: c1.Run",
+		"Server Call: .Run: c1-begin, c1-end",
+		"Client Call: c2.Run",
+		"Server Call: .Run: c2-begin, c2-end",
 	}
 	expectSequence(t, span.Trace().Record(), expectedSpans)
 }
@@ -228,10 +247,10 @@ func TestTraceAcrossRPCsLateForce(t *testing.T) {
 
 	expectedSpans := []string{
 		": c0-end",
-		"Client Call: c1.Run: Finished",
+		"Client Call: c1.Run",
 		"Server Call: .Run: c1-end",
-		"Client Call: c2.Run: Finished",
-		"Server Call: .Run: c2-begin,c2-end",
+		"Client Call: c2.Run",
+		"Server Call: .Run: c2-begin, c2-end",
 	}
 	expectSequence(t, span.Trace().Record(), expectedSpans)
 }

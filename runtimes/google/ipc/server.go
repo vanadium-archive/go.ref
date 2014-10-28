@@ -709,6 +709,8 @@ func (fs *flowServer) serve() error {
 
 	results, err := fs.processRequest()
 
+	ivtrace.FromContext(fs).Finish()
+
 	var traceResponse vtrace.Response
 	if fs.allowDebug {
 		traceResponse = ivtrace.Response(fs)
@@ -769,6 +771,9 @@ func (fs *flowServer) processRequest() ([]interface{}, verror.E) {
 
 	req, verr := fs.readIPCRequest()
 	if verr != nil {
+		// We don't know what the ipc call was supposed to be, but we'll create
+		// a placeholder span so we can capture annotations.
+		fs.T, _ = ivtrace.WithNewSpan(fs, "Failed IPC Call")
 		return nil, verr
 	}
 	fs.method = req.Method
