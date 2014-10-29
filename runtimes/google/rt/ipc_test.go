@@ -7,7 +7,6 @@ import (
 	"veyron.io/veyron/veyron2"
 	"veyron.io/veyron/veyron2/ipc"
 	"veyron.io/veyron/veyron2/naming"
-	"veyron.io/veyron/veyron2/options"
 	"veyron.io/veyron/veyron2/rt"
 	"veyron.io/veyron/veyron2/security"
 
@@ -25,7 +24,7 @@ func (testService) EchoBlessings(call ipc.ServerCall) []string {
 }
 
 func newRT() veyron2.Runtime {
-	r, err := rt.New(options.ForceNewSecurityModel{})
+	r, err := rt.New()
 	if err != nil {
 		panic(err)
 	}

@@ -177,22 +177,10 @@ func internalNew(conn net.Conn, rid naming.RoutingID, initialVCI id.VC, versions
 	return vif, nil
 }
 
-func adjustIPCVersionForOldSecurityModel(in naming.Endpoint, opts []stream.VCOpt) naming.Endpoint {
-	out := in
-	for _, o := range opts {
-		if r, ok := o.(*version.Range); ok {
-			out = r.Endpoint(out.Addr().Network(), out.Addr().String(), out.RoutingID())
-			vlog.Infof("Adjusted Dialer endpoint from %v to %v for OpenVC message because the old security model is being used", in, out)
-		}
-	}
-	return out
-}
-
 // Dial creates a new VC to the provided remote identity, authenticating the VC
 // with the provided local identity.
 func (vif *VIF) Dial(remoteEP naming.Endpoint, opts ...stream.VCOpt) (stream.VC, error) {
-	localEP := adjustIPCVersionForOldSecurityModel(vif.localEP, opts)
-	vc, err := vif.newVC(vif.allocVCI(), localEP, remoteEP, true)
+	vc, err := vif.newVC(vif.allocVCI(), vif.localEP, remoteEP, true)
 	if err != nil {
 		return nil, err
 	}
@@ -201,7 +189,7 @@ func (vif *VIF) Dial(remoteEP naming.Endpoint, opts ...stream.VCOpt) (stream.VC,
 	err = vif.sendOnExpressQ(&message.OpenVC{
 		VCI:         vc.VCI(),
 		DstEndpoint: remoteEP,
-		SrcEndpoint: localEP,
+		SrcEndpoint: vif.localEP,
 		Counters:    counters})
 	if err != nil {
 		err = fmt.Errorf("vif.sendOnExpressQ(OpenVC) failed: %v", err)

@@ -453,12 +453,12 @@ func TestBadACLs(t *testing.T) {
 func init() {
 	testutil.Init()
 	// Create the runtime for each of the three "processes"
-	rootRT = rt.Init(options.ForceNewSecurityModel{})
+	rootRT = rt.Init()
 	var err error
-	if aliceRT, err = rt.New(options.ForceNewSecurityModel{}); err != nil {
+	if aliceRT, err = rt.New(); err != nil {
 		panic(err)
 	}
-	if bobRT, err = rt.New(options.ForceNewSecurityModel{}); err != nil {
+	if bobRT, err = rt.New(); err != nil {
 		panic(err)
 	}
 

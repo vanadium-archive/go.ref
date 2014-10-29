@@ -14,10 +14,6 @@ type Range struct {
 	Min, Max version.IPCVersion
 }
 
-// TODO(ashankar): Remove when the transition to the new security API is complete.
-func (*Range) IPCClientOpt()   {}
-func (*Range) IPCStreamVCOpt() {}
-
 var (
 	// supportedRange represents the range of protocol verions supported by this
 	// implementation.
