@@ -40,7 +40,7 @@ func (es *echoServerObject) Echo(call ipc.ServerCall, m string) (string, error) 
 func echoServer(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
 	fl, args, err := parseListenFlags(args)
 	if err != nil {
-		return fmt.Errorf("failed parsing args: %s", err)
+		return fmt.Errorf("failed to parse args: %s", err)
 	}
 	if err := checkArgs(args, 2, "<message> <name>"); err != nil {
 		return err

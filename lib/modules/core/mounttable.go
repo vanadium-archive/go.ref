@@ -36,9 +36,8 @@ func runMT(root bool, stdin io.Reader, stdout, stderr io.Writer, env map[string]
 	r := rt.R()
 	fl, args, err := parseListenFlags(args)
 	if err != nil {
-		return fmt.Errorf("failed parsing args: %s", err)
+		return fmt.Errorf("failed to parse args: %s", err)
 	}
-	//	args = fl.Args()
 	lspec := initListenSpec(fl)
 	server, err := r.NewServer(options.ServesMountTable(true))
 	if err != nil {
@@ -72,7 +71,7 @@ func runMT(root bool, stdin io.Reader, stdout, stderr io.Writer, env map[string]
 
 func ls(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
 	details := false
-	args = args[1:] // skip over comamnd name
+	args = args[1:] // skip over command name
 	if len(args) > 0 && args[0] == "-l" {
 		details = true
 		args = args[1:]

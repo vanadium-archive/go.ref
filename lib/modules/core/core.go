@@ -67,6 +67,7 @@ const (
 	MTCommand          = "mt"
 	LSExternalCommand  = "lse"
 	ProxyServerCommand = "proxyd"
+	WSPRCommand        = "wsprd"
 	ShellCommand       = "sh"
 )
 
@@ -93,7 +94,11 @@ func Install(shell *modules.Shell) {
 		run a glob command as an external subprocess`)
 	shell.AddSubprocess(ProxyServerCommand, `<name>...
 		run a proxy server mounted at the specified names`)
-	//	shell.AddSubprocess(ShellCommand, subshell, "")
+	// TODO(sadovsky): It's unfortunate that we must duplicate help strings
+	// between RegisterChild and AddSubprocess. Will be fixed by my proposed
+	// refactoring.
+	shell.AddSubprocess(WSPRCommand, usageWSPR())
+	//shell.AddSubprocess(ShellCommand, subshell, "")
 
 	shell.AddFunction(LSCommand, ls, `<glob>...
 	issues glob requests using the current processes namespace library`)

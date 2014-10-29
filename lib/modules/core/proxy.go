@@ -20,8 +20,10 @@ func init() {
 func proxyServer(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
 	fl, args, err := parseListenFlags(args)
 	if err != nil {
-		return fmt.Errorf("failed parsing args: %s", err)
-	} //	args = fl.Args()
+		return fmt.Errorf("failed to parse args: %s", err)
+	}
+	// TODO(sadovsky): Why does this require >=1 arg? Seems 0 should be fine.
+	// Also note, we have no way to specify ">=0".
 	if err := checkArgs(args, -1, ""); err != nil {
 		return err
 	}
@@ -63,7 +65,6 @@ func proxyServer(stdin io.Reader, stdout, stderr io.Writer, env map[string]strin
 	for _, p := range pub.Published() {
 		fmt.Fprintf(stdout, "PUBLISHED_PROXY_NAME=%s\n", p)
 	}
-	fmt.Fprintf(stdout, "READY")
 	modules.WaitForEOF(stdin)
 	return nil
 }
