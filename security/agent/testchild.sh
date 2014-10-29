@@ -5,7 +5,7 @@
 source "${VEYRON_ROOT}/scripts/lib/shell_test.sh"
 
 main() {
-  if [[ -n "${VEYRON_IDENTITY}" ]]; then
+  if [[ -n "${VEYRON_CREDENTIALS}" ]]; then
       shell_test::fail "line ${LINENO}: identity preserved"
   fi
   PINGPONG_BIN="$(shell_test::build_go_binary 'veyron.io/veyron/veyron/security/agent/pingpong')"

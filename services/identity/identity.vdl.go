@@ -5,6 +5,8 @@
 package identity
 
 import (
+	"veyron.io/veyron/veyron2/security"
+
 	// The non-user imports are prefixed with "_gen_" to prevent collisions.
 	_gen_veyron2 "veyron.io/veyron/veyron2"
 	_gen_context "veyron.io/veyron/veyron2/context"
@@ -37,7 +39,7 @@ const _ = _gen_wiretype.TypeIDInvalid
 type OAuthBlesser_ExcludingUniversal interface {
 	// BlessUsingAccessToken uses the provided access token to obtain the email
 	// address and returns a blessing along with the email address.
-	BlessUsingAccessToken(ctx _gen_context.T, token string, opts ..._gen_ipc.CallOpt) (blessing _gen_vdlutil.Any, email string, err error)
+	BlessUsingAccessToken(ctx _gen_context.T, token string, opts ..._gen_ipc.CallOpt) (blessing security.WireBlessings, email string, err error)
 }
 type OAuthBlesser interface {
 	_gen_ipc.UniversalServiceMethods
@@ -49,7 +51,7 @@ type OAuthBlesserService interface {
 
 	// BlessUsingAccessToken uses the provided access token to obtain the email
 	// address and returns a blessing along with the email address.
-	BlessUsingAccessToken(context _gen_ipc.ServerContext, token string) (blessing _gen_vdlutil.Any, email string, err error)
+	BlessUsingAccessToken(context _gen_ipc.ServerContext, token string) (blessing security.WireBlessings, email string, err error)
 }
 
 // BindOAuthBlesser returns the client stub implementing the OAuthBlesser
@@ -99,7 +101,7 @@ func (__gen_c *clientStubOAuthBlesser) client(ctx _gen_context.T) _gen_ipc.Clien
 	return _gen_veyron2.RuntimeFromContext(ctx).Client()
 }
 
-func (__gen_c *clientStubOAuthBlesser) BlessUsingAccessToken(ctx _gen_context.T, token string, opts ..._gen_ipc.CallOpt) (blessing _gen_vdlutil.Any, email string, err error) {
+func (__gen_c *clientStubOAuthBlesser) BlessUsingAccessToken(ctx _gen_context.T, token string, opts ..._gen_ipc.CallOpt) (blessing security.WireBlessings, email string, err error) {
 	var call _gen_ipc.Call
 	if call, err = __gen_c.client(ctx).StartCall(ctx, __gen_c.name, "BlessUsingAccessToken", []interface{}{token}, opts...); err != nil {
 		return
@@ -169,14 +171,40 @@ func (__gen_s *ServerStubOAuthBlesser) Signature(call _gen_ipc.ServerCall) (_gen
 			{Name: "token", Type: 3},
 		},
 		OutArgs: []_gen_ipc.MethodArgument{
-			{Name: "blessing", Type: 65},
+			{Name: "blessing", Type: 74},
 			{Name: "email", Type: 3},
-			{Name: "err", Type: 66},
+			{Name: "err", Type: 75},
 		},
 	}
 
 	result.TypeDefs = []_gen_vdlutil.Any{
-		_gen_wiretype.NamedPrimitiveType{Type: 0x1, Name: "anydata", Tags: []string(nil)}, _gen_wiretype.NamedPrimitiveType{Type: 0x1, Name: "error", Tags: []string(nil)}}
+		_gen_wiretype.NamedPrimitiveType{Type: 0x32, Name: "byte", Tags: []string(nil)}, _gen_wiretype.SliceType{Elem: 0x41, Name: "", Tags: []string(nil)}, _gen_wiretype.StructType{
+			[]_gen_wiretype.FieldType{
+				_gen_wiretype.FieldType{Type: 0x42, Name: "ValidatorVOM"},
+			},
+			"veyron.io/veyron/veyron2/security.Caveat", []string(nil)},
+		_gen_wiretype.SliceType{Elem: 0x43, Name: "", Tags: []string(nil)}, _gen_wiretype.NamedPrimitiveType{Type: 0x3, Name: "veyron.io/veyron/veyron2/security.Hash", Tags: []string(nil)}, _gen_wiretype.StructType{
+			[]_gen_wiretype.FieldType{
+				_gen_wiretype.FieldType{Type: 0x42, Name: "Purpose"},
+				_gen_wiretype.FieldType{Type: 0x45, Name: "Hash"},
+				_gen_wiretype.FieldType{Type: 0x42, Name: "R"},
+				_gen_wiretype.FieldType{Type: 0x42, Name: "S"},
+			},
+			"veyron.io/veyron/veyron2/security.Signature", []string(nil)},
+		_gen_wiretype.StructType{
+			[]_gen_wiretype.FieldType{
+				_gen_wiretype.FieldType{Type: 0x3, Name: "Extension"},
+				_gen_wiretype.FieldType{Type: 0x42, Name: "PublicKey"},
+				_gen_wiretype.FieldType{Type: 0x44, Name: "Caveats"},
+				_gen_wiretype.FieldType{Type: 0x46, Name: "Signature"},
+			},
+			"veyron.io/veyron/veyron2/security.Certificate", []string(nil)},
+		_gen_wiretype.SliceType{Elem: 0x47, Name: "", Tags: []string(nil)}, _gen_wiretype.SliceType{Elem: 0x48, Name: "", Tags: []string(nil)}, _gen_wiretype.StructType{
+			[]_gen_wiretype.FieldType{
+				_gen_wiretype.FieldType{Type: 0x49, Name: "CertificateChains"},
+			},
+			"veyron.io/veyron/veyron2/security.WireBlessings", []string(nil)},
+		_gen_wiretype.NamedPrimitiveType{Type: 0x1, Name: "error", Tags: []string(nil)}}
 
 	return result, nil
 }
@@ -199,7 +227,7 @@ func (__gen_s *ServerStubOAuthBlesser) UnresolveStep(call _gen_ipc.ServerCall) (
 	return
 }
 
-func (__gen_s *ServerStubOAuthBlesser) BlessUsingAccessToken(call _gen_ipc.ServerCall, token string) (blessing _gen_vdlutil.Any, email string, err error) {
+func (__gen_s *ServerStubOAuthBlesser) BlessUsingAccessToken(call _gen_ipc.ServerCall, token string) (blessing security.WireBlessings, email string, err error) {
 	blessing, email, err = __gen_s.service.BlessUsingAccessToken(call, token)
 	return
 }
@@ -211,7 +239,7 @@ func (__gen_s *ServerStubOAuthBlesser) BlessUsingAccessToken(call _gen_ipc.Serve
 type MacaroonBlesser_ExcludingUniversal interface {
 	// Bless uses the provided macaroon (which contains email and caveats)
 	// to return a blessing for the client.
-	Bless(ctx _gen_context.T, macaroon string, opts ..._gen_ipc.CallOpt) (reply _gen_vdlutil.Any, err error)
+	Bless(ctx _gen_context.T, macaroon string, opts ..._gen_ipc.CallOpt) (reply security.WireBlessings, err error)
 }
 type MacaroonBlesser interface {
 	_gen_ipc.UniversalServiceMethods
@@ -223,7 +251,7 @@ type MacaroonBlesserService interface {
 
 	// Bless uses the provided macaroon (which contains email and caveats)
 	// to return a blessing for the client.
-	Bless(context _gen_ipc.ServerContext, macaroon string) (reply _gen_vdlutil.Any, err error)
+	Bless(context _gen_ipc.ServerContext, macaroon string) (reply security.WireBlessings, err error)
 }
 
 // BindMacaroonBlesser returns the client stub implementing the MacaroonBlesser
@@ -273,7 +301,7 @@ func (__gen_c *clientStubMacaroonBlesser) client(ctx _gen_context.T) _gen_ipc.Cl
 	return _gen_veyron2.RuntimeFromContext(ctx).Client()
 }
 
-func (__gen_c *clientStubMacaroonBlesser) Bless(ctx _gen_context.T, macaroon string, opts ..._gen_ipc.CallOpt) (reply _gen_vdlutil.Any, err error) {
+func (__gen_c *clientStubMacaroonBlesser) Bless(ctx _gen_context.T, macaroon string, opts ..._gen_ipc.CallOpt) (reply security.WireBlessings, err error) {
 	var call _gen_ipc.Call
 	if call, err = __gen_c.client(ctx).StartCall(ctx, __gen_c.name, "Bless", []interface{}{macaroon}, opts...); err != nil {
 		return
@@ -343,13 +371,39 @@ func (__gen_s *ServerStubMacaroonBlesser) Signature(call _gen_ipc.ServerCall) (_
 			{Name: "macaroon", Type: 3},
 		},
 		OutArgs: []_gen_ipc.MethodArgument{
-			{Name: "blessing", Type: 65},
-			{Name: "err", Type: 66},
+			{Name: "blessing", Type: 74},
+			{Name: "err", Type: 75},
 		},
 	}
 
 	result.TypeDefs = []_gen_vdlutil.Any{
-		_gen_wiretype.NamedPrimitiveType{Type: 0x1, Name: "anydata", Tags: []string(nil)}, _gen_wiretype.NamedPrimitiveType{Type: 0x1, Name: "error", Tags: []string(nil)}}
+		_gen_wiretype.NamedPrimitiveType{Type: 0x32, Name: "byte", Tags: []string(nil)}, _gen_wiretype.SliceType{Elem: 0x41, Name: "", Tags: []string(nil)}, _gen_wiretype.StructType{
+			[]_gen_wiretype.FieldType{
+				_gen_wiretype.FieldType{Type: 0x42, Name: "ValidatorVOM"},
+			},
+			"veyron.io/veyron/veyron2/security.Caveat", []string(nil)},
+		_gen_wiretype.SliceType{Elem: 0x43, Name: "", Tags: []string(nil)}, _gen_wiretype.NamedPrimitiveType{Type: 0x3, Name: "veyron.io/veyron/veyron2/security.Hash", Tags: []string(nil)}, _gen_wiretype.StructType{
+			[]_gen_wiretype.FieldType{
+				_gen_wiretype.FieldType{Type: 0x42, Name: "Purpose"},
+				_gen_wiretype.FieldType{Type: 0x45, Name: "Hash"},
+				_gen_wiretype.FieldType{Type: 0x42, Name: "R"},
+				_gen_wiretype.FieldType{Type: 0x42, Name: "S"},
+			},
+			"veyron.io/veyron/veyron2/security.Signature", []string(nil)},
+		_gen_wiretype.StructType{
+			[]_gen_wiretype.FieldType{
+				_gen_wiretype.FieldType{Type: 0x3, Name: "Extension"},
+				_gen_wiretype.FieldType{Type: 0x42, Name: "PublicKey"},
+				_gen_wiretype.FieldType{Type: 0x44, Name: "Caveats"},
+				_gen_wiretype.FieldType{Type: 0x46, Name: "Signature"},
+			},
+			"veyron.io/veyron/veyron2/security.Certificate", []string(nil)},
+		_gen_wiretype.SliceType{Elem: 0x47, Name: "", Tags: []string(nil)}, _gen_wiretype.SliceType{Elem: 0x48, Name: "", Tags: []string(nil)}, _gen_wiretype.StructType{
+			[]_gen_wiretype.FieldType{
+				_gen_wiretype.FieldType{Type: 0x49, Name: "CertificateChains"},
+			},
+			"veyron.io/veyron/veyron2/security.WireBlessings", []string(nil)},
+		_gen_wiretype.NamedPrimitiveType{Type: 0x1, Name: "error", Tags: []string(nil)}}
 
 	return result, nil
 }
@@ -372,7 +426,7 @@ func (__gen_s *ServerStubMacaroonBlesser) UnresolveStep(call _gen_ipc.ServerCall
 	return
 }
 
-func (__gen_s *ServerStubMacaroonBlesser) Bless(call _gen_ipc.ServerCall, macaroon string) (reply _gen_vdlutil.Any, err error) {
+func (__gen_s *ServerStubMacaroonBlesser) Bless(call _gen_ipc.ServerCall, macaroon string) (reply security.WireBlessings, err error) {
 	reply, err = __gen_s.service.Bless(call, macaroon)
 	return
 }

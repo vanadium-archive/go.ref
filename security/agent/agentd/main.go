@@ -49,7 +49,7 @@ agent protocol instead of directly reading from disk.
 	if err = os.Setenv(agent.FdVarName, "3"); err != nil {
 		log.Fatalf("setenv: %v", err)
 	}
-	if err = os.Setenv("VEYRON_IDENTITY", ""); err != nil {
+	if err = os.Setenv("VEYRON_CREDENTIALS", ""); err != nil {
 		log.Fatalf("setenv: %v", err)
 	}
 

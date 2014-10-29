@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"encoding/base64"
 	"errors"
 	"fmt"
 	"io"
@@ -12,13 +13,12 @@ import (
 	"veyron.io/veyron/veyron2"
 	"veyron.io/veyron/veyron2/rt"
 	"veyron.io/veyron/veyron2/security"
-	"veyron.io/veyron/veyron2/vdl/vdlutil"
+	"veyron.io/veyron/veyron2/vom"
 
 	"veyron.io/veyron/veyron/lib/cmdline"
 	_ "veyron.io/veyron/veyron/profiles"
 	vsecurity "veyron.io/veyron/veyron/security"
 	"veyron.io/veyron/veyron/services/identity"
-	"veyron.io/veyron/veyron/services/identity/util"
 )
 
 const VEYRON_CREDENTIALS = "VEYRON_CREDENTIALS"
@@ -442,7 +442,7 @@ specific peer pattern is provided using the --for_peer flag.
 			ctx, cancel := r.NewContext().WithTimeout(time.Minute)
 			defer cancel()
 
-			var reply vdlutil.Any
+			var reply security.WireBlessings
 			blesser, err := identity.BindMacaroonBlesser(service)
 			if err == nil {
 				reply, err = blesser.Bless(ctx, macaroon)
@@ -450,13 +450,9 @@ specific peer pattern is provided using the --for_peer flag.
 			if err != nil {
 				return fmt.Errorf("failed to get blessing from %q: %v", service, err)
 			}
-			wire, ok := reply.(security.WireBlessings)
-			if !ok {
-				return fmt.Errorf("received %T, want security.WireBlessings", reply)
-			}
-			blessings, err := security.NewBlessings(wire)
+			blessings, err := security.NewBlessings(reply)
 			if err != nil {
-				return fmt.Errorf("failed to construct Blessings object from wire data: %v", err)
+				return fmt.Errorf("failed to construct Blessings object from response: %v", err)
 			}
 			blessedChan <- fmt.Sprint(blessings)
 			// Wait for getTokenForBlessRPC to clean up:
@@ -545,7 +541,7 @@ func dumpBlessings(blessings security.Blessings) error {
 	if blessings == nil {
 		return errors.New("no blessings found")
 	}
-	str, err := util.Base64VomEncode(blessings)
+	str, err := base64VomEncode(blessings)
 	if err != nil {
 		return fmt.Errorf("base64-VOM encoding failed: %v", err)
 	}
@@ -577,7 +573,7 @@ func decode(fname string, val interface{}) error {
 	if err != nil {
 		return err
 	}
-	if err := util.Base64VomDecode(str, val); err != nil || val == nil {
+	if err := base64VomDecode(str, val); err != nil || val == nil {
 		return fmt.Errorf("failed to decode %q: %v", fname, err)
 	}
 	return nil
@@ -605,4 +601,26 @@ func rootkey(chain []security.Certificate) string {
 		return fmt.Sprintf("<invalid PublicKey: %v>", err)
 	}
 	return fmt.Sprintf("%v", key)
+}
+
+func base64VomEncode(i interface{}) (string, error) {
+	buf := &bytes.Buffer{}
+	closer := base64.NewEncoder(base64.URLEncoding, buf)
+	if err := vom.NewEncoder(closer).Encode(i); err != nil {
+		return "", err
+	}
+	// Must close the base64 encoder to flush out any partially written
+	// blocks.
+	if err := closer.Close(); err != nil {
+		return "", err
+	}
+	return buf.String(), nil
+}
+
+func base64VomDecode(s string, i interface{}) error {
+	b, err := base64.URLEncoding.DecodeString(s)
+	if err != nil {
+		return err
+	}
+	return vom.NewDecoder(bytes.NewBuffer(b)).Decode(i)
 }

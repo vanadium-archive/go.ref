@@ -9,12 +9,6 @@ readonly WORKDIR="${shell_test_WORK_DIR}"
 build() {
   AGENTD_BIN="$(shell_test::build_go_binary 'veyron.io/veyron/veyron/security/agent/agentd')"
   PINGPONG_BIN="$(shell_test::build_go_binary 'veyron.io/veyron/veyron/security/agent/pingpong')"
-  IDENTITY_BIN="$(shell_test::build_go_binary 'veyron.io/veyron/veyron/tools/identity')"
-}
-
-echo_identity() {
-  local -r OUTPUT="$1"
-  "${AGENTD_BIN}" bash -c 'echo ${VEYRON_IDENTITY}' > "${OUTPUT}"
 }
 
 main() {
@@ -30,11 +24,9 @@ main() {
   # Test running a single app.
   shell_test::start_server "${PINGPONG_BIN}" --server
   "${AGENTD_BIN}" --v=4 "${PINGPONG_BIN}" || shell_test::fail "line ${LINENO}: failed to run pingpong"
-  local -r OUTPUT=$(shell::tmp_file)
-  RESULT=$(shell::check_result echo_identity "${OUTPUT}")
-  shell_test::assert_eq "${RESULT}" "0" "${LINENO}"
-  if [[ ! -s "${OUTPUT}" ]]; then
-      shell_test::fail "line ${LINENO}: credentials preserved"
+  local -r CREDENTIALS_UNDER_AGENT=$("${AGENTD_BIN}" bash -c 'echo ${VEYRON_CREDENTIALS}')
+  if [[ "${CREDENTIALS_UNDER_AGENT}" != "" ]]; then
+      shell_test::fail "line ${LINENO}: VEYRON_CREDENTIALS should not be set when running under the agent(${CREDENTIALS_UNDER_AGENT})"
   fi
 
   # Test running multiple apps connecting to the same agent.

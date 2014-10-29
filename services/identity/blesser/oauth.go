@@ -4,21 +4,17 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"strings"
 	"time"
 
 	"veyron.io/veyron/veyron/services/identity"
 	"veyron.io/veyron/veyron/services/identity/revocation"
 
-	"veyron.io/veyron/veyron2"
 	"veyron.io/veyron/veyron2/ipc"
 	"veyron.io/veyron/veyron2/security"
-	"veyron.io/veyron/veyron2/vdl/vdlutil"
 	"veyron.io/veyron/veyron2/vlog"
 )
 
 type googleOAuth struct {
-	rt                 veyron2.Runtime
 	authcodeClient     struct{ ID, Secret string }
 	accessTokenClients []string
 	duration           time.Duration
@@ -29,8 +25,6 @@ type googleOAuth struct {
 
 // GoogleParams represents all the parameters provided to NewGoogleOAuthBlesserServer
 type GoogleParams struct {
-	// The Veyron runtime to use. // TODO(ashankar): Remove once the old security model is ripped out.
-	R veyron2.Runtime
 	// The OAuth client IDs for the clients of the BlessUsingAccessToken RPCs.
 	AccessTokenClients []string
 	// If non-empty, only email addresses from this domain will be blessed.
@@ -53,7 +47,6 @@ type GoogleParams struct {
 // are generated only for email addresses from that domain.
 func NewGoogleOAuthBlesserServer(p GoogleParams) interface{} {
 	return identity.NewServerOAuthBlesser(&googleOAuth{
-		rt:                 p.R,
 		duration:           p.BlessingDuration,
 		domain:             p.DomainRestriction,
 		dischargerLocation: p.DischargerLocation,
@@ -62,17 +55,18 @@ func NewGoogleOAuthBlesserServer(p GoogleParams) interface{} {
 	})
 }
 
-func (b *googleOAuth) BlessUsingAccessToken(ctx ipc.ServerContext, accesstoken string) (vdlutil.Any, string, error) {
+func (b *googleOAuth) BlessUsingAccessToken(ctx ipc.ServerContext, accesstoken string) (security.WireBlessings, string, error) {
+	var noblessings security.WireBlessings
 	if len(b.accessTokenClients) == 0 {
-		return nil, "", fmt.Errorf("server not configured for blessing based on access tokens")
+		return noblessings, "", fmt.Errorf("server not configured for blessing based on access tokens")
 	}
 	// URL from: https://developers.google.com/accounts/docs/OAuth2UserAgent#validatetoken
 	tokeninfo, err := http.Get("https://www.googleapis.com/oauth2/v1/tokeninfo?access_token=" + accesstoken)
 	if err != nil {
-		return nil, "", fmt.Errorf("unable to use token: %v", err)
+		return noblessings, "", fmt.Errorf("unable to use token: %v", err)
 	}
 	if tokeninfo.StatusCode != http.StatusOK {
-		return nil, "", fmt.Errorf("unable to verify access token: %v", tokeninfo.StatusCode)
+		return noblessings, "", fmt.Errorf("unable to verify access token: %v", tokeninfo.StatusCode)
 	}
 	// tokeninfo contains a JSON-encoded struct
 	var token struct {
@@ -86,7 +80,7 @@ func (b *googleOAuth) BlessUsingAccessToken(ctx ipc.ServerContext, accesstoken s
 		AccessType    string `json:"access_type"`
 	}
 	if err := json.NewDecoder(tokeninfo.Body).Decode(&token); err != nil {
-		return nil, "", fmt.Errorf("invalid JSON response from Google's tokeninfo API: %v", err)
+		return noblessings, "", fmt.Errorf("invalid JSON response from Google's tokeninfo API: %v", err)
 	}
 	audienceMatch := false
 	for _, c := range b.accessTokenClients {
@@ -97,15 +91,10 @@ func (b *googleOAuth) BlessUsingAccessToken(ctx ipc.ServerContext, accesstoken s
 	}
 	if !audienceMatch {
 		vlog.Infof("Got access token [%+v], wanted one of client ids %v", token, b.accessTokenClients)
-		return nil, "", fmt.Errorf("token not meant for this purpose, confused deputy? https://developers.google.com/accounts/docs/OAuth2UserAgent#validatetoken")
+		return noblessings, "", fmt.Errorf("token not meant for this purpose, confused deputy? https://developers.google.com/accounts/docs/OAuth2UserAgent#validatetoken")
 	}
 	if !token.VerifiedEmail {
-		return nil, "", fmt.Errorf("email not verified")
-	}
-
-	if ctx.LocalPrincipal() == nil || ctx.RemoteBlessings() == nil {
-		// TODO(ataly, ashankar): Old security model, remove this block.
-		return b.blessOldModel(ctx, token.Email)
+		return noblessings, "", fmt.Errorf("email not verified")
 	}
 	// Append "/webapp" to the blessing. Since blessings issued by this process do not have
 	// many caveats on them and typically have a large expiry duration, use the "/webapp" suffix
@@ -117,6 +106,9 @@ func (b *googleOAuth) BlessUsingAccessToken(ctx ipc.ServerContext, accesstoken s
 func (b *googleOAuth) bless(ctx ipc.ServerContext, extension string) (security.WireBlessings, string, error) {
 	var noblessings security.WireBlessings
 	self := ctx.LocalPrincipal()
+	if self == nil {
+		return noblessings, "", fmt.Errorf("server error: no authentication happened")
+	}
 	var caveat security.Caveat
 	var err error
 	if b.revocationManager != nil {
@@ -136,23 +128,4 @@ func (b *googleOAuth) bless(ctx ipc.ServerContext, extension string) (security.W
 		return noblessings, "", err
 	}
 	return security.MarshalBlessings(blessing), extension, nil
-}
-
-// DEPRECATED
-// TODO(ataly, ashankar): Remove this method once we get rid of the old security model.
-func (b *googleOAuth) blessOldModel(ctx ipc.ServerContext, name string) (vdlutil.Any, string, error) {
-	if len(b.domain) > 0 && !strings.HasSuffix(name, "@"+b.domain) {
-		return nil, "", fmt.Errorf("blessings for name %q are not allowed due to domain restriction", name)
-	}
-	self := b.rt.Identity()
-	var err error
-	// Use the blessing that was used to authenticate with the client to bless it.
-	if self, err = self.Derive(ctx.LocalID()); err != nil {
-		return nil, "", err
-	}
-	blessing, err := self.Bless(ctx.RemoteID(), name, b.duration, nil)
-	if err != nil {
-		return nil, "", err
-	}
-	return blessing, name, nil
 }

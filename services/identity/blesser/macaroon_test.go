@@ -30,19 +30,17 @@ func TestMacaroonBlesser(t *testing.T) {
 	if _, err := rand.Read(key); err != nil {
 		t.Fatal(err)
 	}
-	blesser := NewMacaroonBlesserServer(nil, key).(*identity.ServerStubMacaroonBlesser)
+	blesser := NewMacaroonBlesserServer(key).(*identity.ServerStubMacaroonBlesser)
 
 	m := BlessingMacaroon{Creation: time.Now().Add(-1 * time.Hour), Name: "foo"}
-	if got, err := blesser.Bless(context, newMacaroon(t, key, m)); got != nil || err == nil || err.Error() != "macaroon has expired" {
+	if got, err := blesser.Bless(context, newMacaroon(t, key, m)); err == nil || err.Error() != "macaroon has expired" {
 		t.Errorf("Got (%v, %v)", got, err)
 	}
 	m = BlessingMacaroon{Creation: time.Now(), Name: "user", Caveats: []security.Caveat{cOnlyMethodFoo}}
-	if result, err := blesser.Bless(context, newMacaroon(t, key, m)); err != nil || result == nil {
+	if result, err := blesser.Bless(context, newMacaroon(t, key, m)); err != nil {
 		t.Errorf("Got (%v, %v)", result, err)
-	} else if _, ok := result.(security.WireBlessings); !ok {
-		t.Errorf("Got %T, want security.Blessings", result)
 	} else {
-		b, err := security.NewBlessings(result.(security.WireBlessings))
+		b, err := security.NewBlessings(result)
 		if err != nil {
 			t.Fatalf("Unable to decode response into a security.Blessings object: %v", err)
 		}

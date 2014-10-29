@@ -61,7 +61,7 @@ const (
 
 func main() {
 	flag.Usage = usage
-	r := rt.Init(providerIdentityOld(), providerPrincipal())
+	r := rt.Init(providerPrincipal())
 	defer r.Cleanup()
 
 	if len(*auditfilter) > 0 {
@@ -144,7 +144,7 @@ func appendSuffixTo(objectname []string, suffix string) []string {
 // their suffix. ReflectInvoker is used to invoke methods.
 func newDispatcher(googleParams blesser.GoogleParams, macaroonKey []byte) ipc.Dispatcher {
 	d := dispatcher(map[string]ipc.Invoker{
-		macaroonService:   ipc.ReflectInvoker(blesser.NewMacaroonBlesserServer(googleParams.R, macaroonKey)),
+		macaroonService:   ipc.ReflectInvoker(blesser.NewMacaroonBlesserServer(macaroonKey)),
 		dischargerService: ipc.ReflectInvoker(services.NewServerDischarger(discharger.NewDischarger())),
 	})
 	if len(*googleConfigChrome) > 0 || len(*googleConfigAndroid) > 0 {
@@ -169,7 +169,6 @@ func (d dispatcher) Lookup(suffix, method string) (ipc.Invoker, security.Authori
 // Starts the blessing services and the discharging service on the same port.
 func setupServices(r veyron2.Runtime, revocationManager *revocation.RevocationManager, macaroonKey []byte) (ipc.Server, []string, error) {
 	googleParams := blesser.GoogleParams{
-		R: r,
 		// TODO(ashankar,nlacasse): Figure out how to have web-appications use the "caveats" form and
 		// always select an expiry instead of forcing a ridiculously large value here.
 		BlessingDuration:  365 * 24 * time.Hour,
@@ -300,22 +299,6 @@ func providerPrincipal() veyron2.ROpt {
 	}
 	vlog.Fatalf("--auditprefix is not supported just yet!")
 	return nil
-}
-
-// TOOD(ashankar): Remove
-// providerIdentityOld returns the PrivateID of the identity provider (i.e., this program) itself.
-func providerIdentityOld() veyron2.ROpt {
-	r, err := rt.New()
-	if err != nil {
-		vlog.Fatal(err)
-	}
-	defer r.Cleanup()
-	id := r.Identity()
-	if len(*auditprefix) > 0 {
-		vlog.Errorf("Auditing is temporarily disabled. Ask suharshs@ for details")
-		*auditprefix = ""
-	}
-	return options.RuntimeID{id}
 }
 
 func httpaddress() string {
