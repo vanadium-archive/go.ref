@@ -33,11 +33,13 @@ type cmdState struct {
 var (
 	interactive bool
 	handles     map[string]*cmdState
+	jsonDict    map[string]string
 )
 
 func init() {
 	flag.BoolVar(&interactive, "interactive", true, "set interactive/batch mode")
 	handles = make(map[string]*cmdState)
+	jsonDict = make(map[string]string)
 	flag.Usage = usage
 }
 
@@ -126,7 +128,9 @@ func main() {
 			}
 			if err := process(shell, line, lineno); err != nil {
 				fmt.Printf("ERROR: %d> %q: %v\n", lineno, line, err)
-				os.Exit(1)
+				if !interactive {
+					os.Exit(1)
+				}
 			}
 		}
 		shell.SetVar("_", strconv.Itoa(lineno))
@@ -194,11 +198,8 @@ func process(sh *modules.Shell, line string, lineno int) error {
 			expect.NewSession(nil, handle.Stdout(), time.Minute),
 			line,
 		}
-		if !interactive {
-			fmt.Printf("%d> %s\n", lineno, line)
-		}
+		output(lineno, line)
 	}
-
 	return nil
 }
 
