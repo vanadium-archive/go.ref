@@ -23,10 +23,14 @@ type namespaceMethod int
 
 // enumerates the methods available to be called on the namespace client
 const (
-	methodGlob    namespaceMethod = 0
-	methodMount                   = 1
-	methodUnmount                 = 2
-	methodResolve                 = 3
+	methodGlob            namespaceMethod = 0
+	methodMount                           = 1
+	methodUnmount                         = 2
+	methodResolve                         = 3
+	methodResolveToMt                     = 4
+	methodFlushCacheEntry                 = 5
+	methodDisableCache                    = 6
+	methodRoots                           = 7
 )
 
 // globArgs defines the args for the glob method
@@ -53,6 +57,21 @@ type resolveArgs struct {
 	Name string
 }
 
+// resolveToMtArgs defines the args for the resolveToMt method
+type resolveToMtArgs struct {
+	Name string
+}
+
+// flushCacheEntryArgs defines the args for the flushCacheEntry method
+type flushCacheEntryArgs struct {
+	Name string
+}
+
+// disableCacheArgs defines the args for the disableCache method
+type disableCacheArgs struct {
+	Disable bool
+}
+
 // handleRequest uses the namespace client to respond to namespace specific requests such as glob
 func HandleRequest(ctx context.T, rt veyron2.Runtime, data string, w lib.ClientWriter) {
 	// Decode the request
@@ -77,6 +96,14 @@ func HandleRequest(ctx context.T, rt veyron2.Runtime, data string, w lib.ClientW
 		unmount(ctx, ns, w, req.Args)
 	case methodResolve:
 		resolve(ctx, ns, w, req.Args)
+	case methodResolveToMt:
+		resolveToMt(ctx, ns, w, req.Args)
+	case methodFlushCacheEntry:
+		flushCacheEntry(ctx, ns, w, req.Args)
+	case methodDisableCache:
+		disableCache(ctx, ns, w, req.Args)
+	case methodRoots:
+		roots(ctx, ns, w)
 	default:
 		w.Error(verror2.Make(verror2.NoExist, ctx, req.Method))
 	}
@@ -97,7 +124,6 @@ func glob(ctx context.T, ns naming.Namespace, w lib.ClientWriter, rawArgs json.R
 		return
 	}
 
-	// Send the results as streams
 	for name := range ch {
 		if err := w.Send(lib.ResponseStream, name); err != nil {
 			w.Error(verror2.Make(verror2.Internal, ctx, name))
@@ -117,7 +143,6 @@ func mount(ctx context.T, ns naming.Namespace, w lib.ClientWriter, rawArgs json.
 		return
 	}
 
-	// Call Mount on the namespace client instance
 	rmOpt := naming.ReplaceMountOpt(args.replaceMount)
 	err := ns.Mount(ctx, args.Name, args.Server, args.Ttl, rmOpt)
 
@@ -138,7 +163,6 @@ func unmount(ctx context.T, ns naming.Namespace, w lib.ClientWriter, rawArgs jso
 		return
 	}
 
-	// Call Unmount on the namespace client instance
 	err := ns.Unmount(ctx, args.Name, args.Server)
 
 	if err != nil {
@@ -158,7 +182,6 @@ func resolve(ctx context.T, ns naming.Namespace, w lib.ClientWriter, rawArgs jso
 		return
 	}
 
-	// Call Resolve on the namespace client instance
 	addresses, err := ns.Resolve(ctx, args.Name)
 
 	if err != nil {
@@ -167,6 +190,62 @@ func resolve(ctx context.T, ns naming.Namespace, w lib.ClientWriter, rawArgs jso
 	}
 
 	if err := w.Send(lib.ResponseFinal, addresses); err != nil {
+		w.Error(verror2.Make(verror2.Internal, ctx, "ResponseFinal"))
+	}
+}
+
+func resolveToMt(ctx context.T, ns naming.Namespace, w lib.ClientWriter, rawArgs json.RawMessage) {
+	var args resolveToMtArgs
+	if err := json.Unmarshal([]byte(rawArgs), &args); err != nil {
+		w.Error(verror2.Convert(verror2.Internal, ctx, err))
+		return
+	}
+
+	addresses, err := ns.ResolveToMountTable(ctx, args.Name)
+
+	if err != nil {
+		w.Error(verror2.Convert(verror2.Internal, ctx, err))
+		return
+	}
+
+	if err := w.Send(lib.ResponseFinal, addresses); err != nil {
+		w.Error(verror2.Make(verror2.Internal, ctx, "ResponseFinal"))
+	}
+}
+
+func flushCacheEntry(ctx context.T, ns naming.Namespace, w lib.ClientWriter, rawArgs json.RawMessage) {
+	var args flushCacheEntryArgs
+	if err := json.Unmarshal([]byte(rawArgs), &args); err != nil {
+		w.Error(verror2.Convert(verror2.Internal, ctx, err))
+		return
+	}
+
+	flushed := ns.FlushCacheEntry(args.Name)
+
+	if err := w.Send(lib.ResponseFinal, flushed); err != nil {
+		w.Error(verror2.Make(verror2.Internal, ctx, "ResponseFinal"))
+	}
+}
+
+func disableCache(ctx context.T, ns naming.Namespace, w lib.ClientWriter, rawArgs json.RawMessage) {
+	var args disableCacheArgs
+	if err := json.Unmarshal([]byte(rawArgs), &args); err != nil {
+		w.Error(verror2.Convert(verror2.Internal, ctx, err))
+		return
+	}
+
+	disableCacheCtl := naming.DisableCache(args.Disable)
+	_ = ns.CacheCtl(disableCacheCtl)
+
+	if err := w.Send(lib.ResponseFinal, nil); err != nil {
+		w.Error(verror2.Make(verror2.Internal, ctx, "ResponseFinal"))
+	}
+}
+
+func roots(ctx context.T, ns naming.Namespace, w lib.ClientWriter) {
+	roots := ns.Roots()
+
+	if err := w.Send(lib.ResponseFinal, roots); err != nil {
 		w.Error(verror2.Make(verror2.Internal, ctx, "ResponseFinal"))
 	}
 }
