@@ -794,10 +794,11 @@ func (i *appInvoker) Revert(ipc.ServerContext) error {
 
 type treeNode struct {
 	children map[string]*treeNode
+	remote   string // Used to implement Glob for remote objects.
 }
 
 func newTreeNode() *treeNode {
-	return &treeNode{make(map[string]*treeNode)}
+	return &treeNode{children: make(map[string]*treeNode)}
 }
 
 func (n *treeNode) find(names []string, create bool) *treeNode {
@@ -862,7 +863,8 @@ func (i *appInvoker) scanConfigDir() *treeNode {
 	}
 	for _, path := range instances {
 		instanceDir := filepath.Dir(path)
-		if _, err := loadInstanceInfo(instanceDir); err != nil {
+		info, err := loadInstanceInfo(instanceDir)
+		if err != nil {
 			continue
 		}
 		relpath, _ := filepath.Rel(i.config.Root, path)
@@ -877,6 +879,14 @@ func (i *appInvoker) scanConfigDir() *treeNode {
 		if title, ok := appIDMap[appID]; ok {
 			n := tree.find([]string{title, installID, instanceID, "logs"}, true)
 			i.addLogFiles(n, filepath.Join(instanceDir, "logs"))
+
+			if instanceStateIs(instanceDir, started) {
+				// Set the name of the remote objects that should handle Glob.
+				for _, obj := range []string{"pprof", "stats"} {
+					n = tree.find([]string{title, installID, instanceID, obj}, true)
+					n.remote = naming.JoinAddressName(info.AppCycleMgrName, naming.Join("__debug", obj))
+				}
+			}
 		}
 	}
 	return tree
@@ -903,11 +913,15 @@ func (i *appInvoker) Glob(ctx ipc.ServerContext, pattern string, stream mounttab
 	if n == nil {
 		return errInvalidSuffix
 	}
-	i.globStep("", g, n, stream)
+	i.globStep(ctx, "", g, n, stream)
 	return nil
 }
 
-func (i *appInvoker) globStep(prefix string, g *glob.Glob, n *treeNode, stream mounttable.GlobbableServiceGlobStream) {
+func (i *appInvoker) globStep(ctx ipc.ServerContext, prefix string, g *glob.Glob, n *treeNode, stream mounttable.GlobbableServiceGlobStream) {
+	if n.remote != "" {
+		remoteGlob(ctx, n.remote, prefix, g.String(), stream)
+		return
+	}
 	if g.Len() == 0 {
 		stream.SendStream().Send(types.MountEntry{Name: prefix})
 	}
@@ -916,7 +930,35 @@ func (i *appInvoker) globStep(prefix string, g *glob.Glob, n *treeNode, stream m
 	}
 	for name, child := range n.children {
 		if ok, _, left := g.MatchInitialSegment(name); ok {
-			i.globStep(naming.Join(prefix, name), left, child, stream)
+			i.globStep(ctx, naming.Join(prefix, name), left, child, stream)
 		}
+	}
+}
+
+func remoteGlob(ctx ipc.ServerContext, remote, prefix, pattern string, stream mounttable.GlobbableServiceGlobStream) {
+	c, err := mounttable.BindGlobbable(remote)
+	if err != nil {
+		vlog.VI(1).Infof("BindGlobbable(%q): %v", remote, err)
+		return
+	}
+	call, err := c.Glob(ctx, pattern)
+	if err != nil {
+		vlog.VI(1).Infof("%q.Glob(%q): %v", remote, pattern, err)
+		return
+	}
+	it := call.RecvStream()
+	sender := stream.SendStream()
+	for it.Advance() {
+		me := it.Value()
+		me.Name = naming.Join(prefix, me.Name)
+		sender.Send(me)
+	}
+	if err := it.Err(); err != nil {
+		vlog.VI(1).Infof("%q.Glob(%q): %v", remote, pattern, err)
+		return
+	}
+	if err := call.Finish(); err != nil {
+		vlog.VI(1).Infof("%q.Glob(%q): %v", remote, pattern, err)
+		return
 	}
 }

@@ -24,6 +24,8 @@ import (
 	"veyron.io/veyron/veyron2/rt"
 	"veyron.io/veyron/veyron2/security"
 	"veyron.io/veyron/veyron2/services/mgmt/node"
+	"veyron.io/veyron/veyron2/services/mgmt/pprof"
+	"veyron.io/veyron/veyron2/services/mgmt/stats"
 	"veyron.io/veyron/veyron2/services/security/access"
 	"veyron.io/veyron/veyron2/verror"
 	"veyron.io/veyron/veyron2/vlog"
@@ -247,14 +249,43 @@ func (d *dispatcher) Lookup(suffix, method string) (ipc.Invoker, security.Author
 		})
 		return ipc.ReflectInvoker(receiver), d.auth, nil
 	case appsSuffix:
-		if method != "Glob" && len(components) >= 5 && components[4] == "logs" {
+		// Glob requests are handled by appInvoker, except for pprof and
+		// stats objects which handle Glob themselves.
+		// Requests to apps/*/*/*/logs are handled locally by LogFileInvoker.
+		// Requests to apps/*/*/*/pprof are proxied to the apps' __debug/pprof object.
+		// Requests to apps/*/*/*/stats are proxied to the apps' __debug/stats object.
+		// Everything else is handled by appInvoker.
+		if len(components) >= 5 && (method != "Glob" || components[4] != "logs") {
 			appInstanceDir, err := instanceDir(d.config.Root, components[1:4])
 			if err != nil {
 				return nil, nil, err
 			}
-			logsDir := filepath.Join(appInstanceDir, "logs")
-			suffix := naming.Join(components[5:]...)
-			return logsimpl.NewLogFileInvoker(logsDir, suffix), d.auth, nil
+			switch kind := components[4]; kind {
+			case "logs":
+				logsDir := filepath.Join(appInstanceDir, "logs")
+				suffix := naming.Join(components[5:]...)
+				return logsimpl.NewLogFileInvoker(logsDir, suffix), d.auth, nil
+			case "pprof", "stats":
+				info, err := loadInstanceInfo(appInstanceDir)
+				if err != nil {
+					return nil, nil, err
+				}
+				if !instanceStateIs(appInstanceDir, started) {
+					return nil, nil, errInvalidSuffix
+				}
+				var label security.Label
+				var sigStub signatureStub
+				if kind == "pprof" {
+					label = security.DebugLabel
+					sigStub = &pprof.ServerStubPProf{}
+				} else {
+					label = security.DebugLabel | security.MonitoringLabel
+					sigStub = &stats.ServerStubStats{}
+				}
+				suffix := naming.Join("__debug", naming.Join(components[4:]...))
+				remote := naming.JoinAddressName(info.AppCycleMgrName, suffix)
+				return &proxyInvoker{remote, label, sigStub}, d.auth, nil
+			}
 		}
 		receiver := node.NewServerApplication(&appInvoker{
 			callback: d.internal.callback,

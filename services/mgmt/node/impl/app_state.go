@@ -79,6 +79,12 @@ func (s instanceState) String() string {
 	}
 }
 
+func instanceStateIs(instanceDir string, state instanceState) bool {
+	if _, err := os.Stat(filepath.Join(instanceDir, state.String())); err != nil {
+		return false
+	}
+	return true
+}
 func transitionInstance(instanceDir string, initial, target instanceState) error {
 	return transitionState(instanceDir, initial, target)
 }

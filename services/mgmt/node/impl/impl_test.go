@@ -34,9 +34,13 @@ import (
 	"veyron.io/veyron/veyron2/services/mgmt/application"
 	"veyron.io/veyron/veyron2/services/mgmt/logreader"
 	"veyron.io/veyron/veyron2/services/mgmt/node"
+	"veyron.io/veyron/veyron2/services/mgmt/pprof"
+	"veyron.io/veyron/veyron2/services/mgmt/stats"
 	"veyron.io/veyron/veyron2/services/mounttable"
+	"veyron.io/veyron/veyron2/services/mounttable/types"
 	"veyron.io/veyron/veyron2/verror"
 	"veyron.io/veyron/veyron2/vlog"
+	"veyron.io/veyron/veyron2/vom"
 
 	"veyron.io/veyron/veyron/lib/expect"
 	"veyron.io/veyron/veyron/lib/modules"
@@ -57,6 +61,9 @@ const (
 )
 
 func init() {
+	// TODO(rthellend): Remove when vom2 is ready.
+	vom.Register(&types.MountedServer{})
+
 	modules.RegisterChild(execScriptCmd, "", execScript)
 	modules.RegisterChild(nodeManagerCmd, "", nodeManager)
 	modules.RegisterChild(appCmd, "", app)
@@ -974,7 +981,7 @@ func TestNodeManagerInstall(t *testing.T) {
 	nmh.Shutdown(os.Stderr, os.Stderr)
 }
 
-func TestNodeManagerGlobAndLogs(t *testing.T) {
+func TestNodeManagerGlobAndDebug(t *testing.T) {
 	sh, deferFn := createShellAndMountTable(t)
 	defer deferFn()
 
@@ -1033,31 +1040,45 @@ func TestNodeManagerGlobAndLogs(t *testing.T) {
 			"apps/google naps/" + installID + "/" + instance1ID + "/logs/STDOUT-<timestamp>",
 			"apps/google naps/" + installID + "/" + instance1ID + "/logs/bin.INFO",
 			"apps/google naps/" + installID + "/" + instance1ID + "/logs/bin.<*>.INFO.<timestamp>",
+			"apps/google naps/" + installID + "/" + instance1ID + "/pprof",
+			"apps/google naps/" + installID + "/" + instance1ID + "/stats",
+			"apps/google naps/" + installID + "/" + instance1ID + "/stats/ipc",
+			"apps/google naps/" + installID + "/" + instance1ID + "/stats/system",
+			"apps/google naps/" + installID + "/" + instance1ID + "/stats/system/start-time-rfc1123",
+			"apps/google naps/" + installID + "/" + instance1ID + "/stats/system/start-time-unix",
 			"nm",
 		}},
 		{"nm/apps", "*", []string{"google naps"}},
 		{"nm/apps/google naps", "*", []string{installID}},
 		{"nm/apps/google naps/" + installID, "*", []string{instance1ID}},
-		{"nm/apps/google naps/" + installID + "/" + instance1ID, "*", []string{"logs"}},
+		{"nm/apps/google naps/" + installID + "/" + instance1ID, "*", []string{"logs", "pprof", "stats"}},
 		{"nm/apps/google naps/" + installID + "/" + instance1ID + "/logs", "*", []string{
 			"STDERR-<timestamp>",
 			"STDOUT-<timestamp>",
 			"bin.INFO",
 			"bin.<*>.INFO.<timestamp>",
 		}},
+		{"nm/apps/google naps/" + installID + "/" + instance1ID + "/stats/system", "start-time*", []string{"start-time-rfc1123", "start-time-unix"}},
 	}
 	logFileTimeStampRE := regexp.MustCompile("(STDOUT|STDERR)-[0-9]+$")
-	logFileTrimINFORE := regexp.MustCompile(`bin\..*\.INFO\.[0-9.-]+$`)
+	logFileTrimInfoRE := regexp.MustCompile(`bin\..*\.INFO\.[0-9.-]+$`)
 	logFileRemoveErrorFatalWarningRE := regexp.MustCompile("(ERROR|FATAL|WARNING)")
+	statsTrimRE := regexp.MustCompile("/stats/(ipc|system(/start-time.*)?)$")
 	for _, tc := range testcases {
 		results := doGlob(t, tc.name, tc.pattern)
 		filteredResults := []string{}
 		for _, name := range results {
+			// Keep only the stats object names that match this RE.
+			if strings.Contains(name, "/stats/") && !statsTrimRE.MatchString(name) {
+				continue
+			}
+			// Remove ERROR, WARNING, FATAL log files because
+			// they're not consistently there.
 			if logFileRemoveErrorFatalWarningRE.MatchString(name) {
 				continue
 			}
 			name = logFileTimeStampRE.ReplaceAllString(name, "$1-<timestamp>")
-			name = logFileTrimINFORE.ReplaceAllString(name, "bin.<*>.INFO.<timestamp>")
+			name = logFileTrimInfoRE.ReplaceAllString(name, "bin.<*>.INFO.<timestamp>")
 			filteredResults = append(filteredResults, name)
 		}
 		if !reflect.DeepEqual(filteredResults, tc.expected) {
@@ -1075,6 +1096,41 @@ func TestNodeManagerGlobAndLogs(t *testing.T) {
 		}
 		if _, err := c.Size(rt.R().NewContext()); err != nil {
 			t.Errorf("Size(%q) failed: %v", name, err)
+		}
+	}
+
+	// Call Value() on some of the stats objects.
+	objects := doGlob(t, "nm", "apps/google naps/"+installID+"/"+instance1ID+"/stats/system/start-time*")
+	if want, got := 2, len(objects); got != want {
+		t.Errorf("Unexpected number of matches. Got %d, want %d", got, want)
+	}
+	for _, obj := range objects {
+		name := naming.Join("nm", obj)
+		c, err := stats.BindStats(name)
+		if err != nil {
+			t.Fatalf("BindStats failed: %v", err)
+		}
+		if _, err := c.Value(rt.R().NewContext()); err != nil {
+			t.Errorf("Value(%q) failed: %v", name, err)
+		}
+	}
+
+	// Call CmdLine() on the pprof object.
+	{
+		name := "nm/apps/google naps/" + installID + "/" + instance1ID + "/pprof"
+		c, err := pprof.BindPProf(name)
+		if err != nil {
+			t.Fatalf("BindPProf failed: %v", err)
+		}
+		v, err := c.CmdLine(rt.R().NewContext())
+		if err != nil {
+			t.Errorf("CmdLine(%q) failed: %v", name, err)
+		}
+		if len(v) == 0 {
+			t.Fatalf("Unexpected empty cmdline: %v", v)
+		}
+		if got, want := filepath.Base(v[0]), "bin"; got != want {
+			t.Errorf("Unexpected value for argv[0]. Got %v, want %v", got, want)
 		}
 	}
 }
