@@ -93,10 +93,7 @@ type blessingRequest struct {
 	Handle     int64
 	Caveats    []jsonCaveatValidator
 	DurationMs int64
-
-	// TODO(ataly, ashankar, bjornick): Rename this field to Extension
-	// once the old security model is killed.
-	Name string
+	Extension  string
 }
 
 type outstandingRequest struct {
@@ -709,7 +706,7 @@ func (c *Controller) blessPublicKey(request blessingRequest) (*principal.Blessin
 	// out using the Default blessing in this principal's blessings store. We
 	// should change this so that the JS blessing request can also specify the
 	// blessing to be used for the Bless operation.
-	blessings, err := c.rt.Principal().Bless(blessee.PublicKey(), c.rt.Principal().BlessingStore().Default(), request.Name, caveats[0], caveats[1:]...)
+	blessings, err := c.rt.Principal().Bless(blessee.PublicKey(), c.rt.Principal().BlessingStore().Default(), request.Extension, caveats[0], caveats[1:]...)
 	if err != nil {
 		return nil, err
 	}
@@ -815,7 +812,7 @@ func (c *Controller) bless(request blessingRequest) (*identity.PublicIDHandle, e
 	}
 	blessor := c.rt.Identity()
 
-	blessed, err := blessor.Bless(blessee, request.Name, duration, caveats)
+	blessed, err := blessor.Bless(blessee, request.Extension, duration, caveats)
 	if err != nil {
 		return nil, err
 	}
