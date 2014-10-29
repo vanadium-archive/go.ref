@@ -302,8 +302,14 @@ func generateScript(workspace string, configSettings []string, envelope *applica
 
 	output := "#!/bin/bash\n"
 	output += strings.Join(config.QuoteEnv(append(envelope.Env, configSettings...)), " ") + " "
-	output += filepath.Join(workspace, "noded") + " "
+	// Escape the path to the binary; %q uses Go-syntax escaping, but it's
+	// close enough to Bash that we're using it as an approximation.
+	//
+	// TODO(caprita/rthellend): expose and use shellEscape (from
+	// veyron/tools/debug/impl.go) instead.
+	output += fmt.Sprintf("%q", filepath.Join(workspace, "noded")) + " "
 	output += strings.Join(envelope.Args, " ")
+	output += "\n"
 	path = filepath.Join(workspace, "noded.sh")
 	if err := ioutil.WriteFile(path, []byte(output), 0700); err != nil {
 		vlog.Errorf("WriteFile(%v) failed: %v", path, err)
