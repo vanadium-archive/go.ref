@@ -43,21 +43,6 @@ const (
 	// A request to stop a server
 	websocketStopServer = 6
 
-	// A request to associate an identity with an origin
-	websocketAssocIdentity = 7
-
-	// TODO(ataly, ashankar, bjornick): Get rid of the constants below
-	// once the old security model is killed.
-	// A request to bless an identity
-	websocketBlessIdentity = 8
-
-	// A request to unlink an identity.  This request means that
-	// we can remove the given handle from the handle store.
-	websocketUnlinkIdentity = 9
-
-	// A request to create a new random identity
-	websocketCreateIdentity = 10
-
 	// A request to run the lookup function on a dispatcher.
 	websocketLookupResponse = 11
 
@@ -135,11 +120,6 @@ func newPipe(w http.ResponseWriter, req *http.Request, wspr *WSPR, creator func(
 		return nil
 	}
 
-	// Shortcut for old security model.
-	if wspr.useOldModel {
-		return newPipeOldModel(pipe, origin, w, req, wspr, creator)
-	}
-
 	p, err := wspr.principalManager.Principal(origin)
 	if err != nil {
 		p = wspr.rt.Principal()
@@ -147,28 +127,7 @@ func newPipe(w http.ResponseWriter, req *http.Request, wspr *WSPR, creator func(
 		// TODO(bjornick): Send an error to the client when all of the principal stuff is set up.
 	}
 
-	pipe.controller, err = app.NewController(creator, &wspr.listenSpec, options.ForceNewSecurityModel{}, options.RuntimePrincipal{p})
-	if err != nil {
-		wspr.rt.Logger().Errorf("Could not create controller: %v", err)
-		http.Error(w, fmt.Sprintf("Failed to create controller: %v", err), http.StatusInternalServerError)
-		return nil
-	}
-
-	pipe.start(w, req)
-	return pipe
-}
-
-// TODO(ataly, ashankar, bjornick): Get rid of this method once the old security model
-// is killed.
-func newPipeOldModel(pipe *pipe, origin string, w http.ResponseWriter, req *http.Request, wspr *WSPR, creator func(id int64) lib.ClientWriter) *pipe {
-	id, err := wspr.idManager.Identity(origin)
-	if err != nil {
-		id = wspr.rt.Identity()
-		wspr.rt.Logger().Errorf("no identity associated with origin %s: %v", origin, err)
-		// TODO(bjornick): Send an error to the client when all of the identity stuff is set up.
-	}
-
-	pipe.controller, err = app.NewController(creator, &wspr.listenSpec, options.RuntimeID{id})
+	pipe.controller, err = app.NewController(creator, &wspr.listenSpec, options.RuntimePrincipal{p})
 	if err != nil {
 		wspr.rt.Logger().Errorf("Could not create controller: %v", err)
 		http.Error(w, fmt.Sprintf("Failed to create controller: %v", err), http.StatusInternalServerError)
@@ -295,12 +254,6 @@ func (p *pipe) readLoop() {
 			go p.controller.HandleSignatureRequest(ctx, msg.Data, ww)
 		case websocketLookupResponse:
 			go p.controller.HandleLookupResponse(msg.Id, msg.Data)
-		case websocketBlessIdentity:
-			go p.controller.HandleBlessing(msg.Data, ww)
-		case websocketCreateIdentity:
-			go p.controller.HandleCreateIdentity(msg.Data, ww)
-		case websocketUnlinkIdentity:
-			go p.controller.HandleUnlinkJSIdentity(msg.Data, ww)
 		case websocketBlessPublicKey:
 			go p.controller.HandleBlessPublicKey(msg.Data, ww)
 		case websocketCreateBlessings:

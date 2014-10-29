@@ -10,7 +10,6 @@ import (
 
 	"veyron.io/veyron/veyron2/context"
 	"veyron.io/veyron/veyron2/ipc"
-	"veyron.io/veyron/veyron2/options"
 	"veyron.io/veyron/veyron2/security"
 	"veyron.io/veyron/veyron2/vdl/vdlutil"
 
@@ -48,7 +47,7 @@ func (m *mockBlesserService) BlessUsingAccessToken(c context.T, accessToken stri
 func setup(t *testing.T) (*WSPR, func()) {
 	spec := profiles.LocalListenSpec
 	spec.Proxy = "/mock/proxy"
-	wspr := NewWSPR(0, spec, "/mock/identd", options.ForceNewSecurityModel{})
+	wspr := NewWSPR(0, spec, "/mock/identd")
 	wspr.blesser = newMockBlesserService(wspr.rt.Principal())
 	return wspr, func() {
 		wspr.Shutdown()

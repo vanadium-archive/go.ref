@@ -29,13 +29,11 @@ import (
 	"veyron.io/veyron/veyron2"
 	"veyron.io/veyron/veyron2/context"
 	"veyron.io/veyron/veyron2/ipc"
-	"veyron.io/veyron/veyron2/options"
 	"veyron.io/veyron/veyron2/rt"
 	"veyron.io/veyron/veyron2/security"
 	"veyron.io/veyron/veyron2/vdl/vdlutil"
 	"veyron.io/veyron/veyron2/vlog"
 
-	"veyron.io/wspr/veyron/services/wsprd/identity"
 	"veyron.io/wspr/veyron/services/wsprd/principal"
 )
 
@@ -82,11 +80,6 @@ type WSPR struct {
 	principalManager *principal.PrincipalManager
 	blesser          blesserService
 	pipes            map[*http.Request]*pipe
-
-	// TODO(ataly, ashankar): Get rid of the fields below once the old
-	// security model is killed.
-	useOldModel bool
-	idManager   *identity.IDManager
 }
 
 var logger vlog.Logger
@@ -177,26 +170,12 @@ func NewWSPR(httpPort int, listenSpec ipc.ListenSpec, identdEP string, opts ...v
 	}
 
 	wspr := &WSPR{
-		httpPort:    httpPort,
-		listenSpec:  listenSpec,
-		identdEP:    identdEP,
-		rt:          newrt,
-		logger:      newrt.Logger(),
-		pipes:       map[*http.Request]*pipe{},
-		useOldModel: true,
-	}
-
-	for _, o := range opts {
-		if _, ok := o.(options.ForceNewSecurityModel); ok {
-			wspr.useOldModel = false
-			break
-		}
-	}
-
-	if wspr.useOldModel {
-		if wspr.idManager, err = identity.NewIDManager(newrt, &identity.InMemorySerializer{}); err != nil {
-			vlog.Fatalf("identity.NewIDManager failed: %s", err)
-		}
+		httpPort:   httpPort,
+		listenSpec: listenSpec,
+		identdEP:   identdEP,
+		rt:         newrt,
+		logger:     newrt.Logger(),
+		pipes:      map[*http.Request]*pipe{},
 	}
 
 	// TODO(nlacasse, bjornick) use a serializer that can actually persist.
@@ -275,18 +254,12 @@ func (ctx *WSPR) handleCreateAccount(w http.ResponseWriter, r *http.Request) {
 		ctx.logAndSendBadReqErr(w, fmt.Sprintf("Error parsing body: %v", err))
 	}
 
-	// Get a blessing for the access token from identity server.
+	// Get a blessing for the access token from blessing server.
 	rctx, cancel := ctx.rt.NewContext().WithTimeout(time.Minute)
 	defer cancel()
 	blessingsAny, blessings, err := ctx.blesser.BlessUsingAccessToken(rctx, data.AccessToken)
 	if err != nil {
 		ctx.logAndSendBadReqErr(w, fmt.Sprintf("Error getting blessing for access token: %v", err))
-		return
-	}
-
-	// Shortcut for old security model.
-	if ctx.useOldModel {
-		ctx.handleCreateAccountOldModel(blessingsAny, w)
 		return
 	}
 
@@ -341,64 +314,9 @@ func (ctx *WSPR) handleAssocAccount(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, fmt.Sprintf("Error parsing body: %v", err), http.StatusBadRequest)
 	}
 
-	// Shortcup for old security model.
-	if ctx.useOldModel {
-		ctx.handleAssocAccountOldModel(data, w)
-		return
-	}
-
 	// Store the origin.
 	// TODO(nlacasse, bjornick): determine what the caveats should be.
 	if err := ctx.principalManager.AddOrigin(data.Origin, data.Name, nil); err != nil {
-		http.Error(w, fmt.Sprintf("Error associating account: %v", err), http.StatusBadRequest)
-		return
-	}
-
-	// Success.
-	fmt.Fprintf(w, "")
-}
-
-// TODO(ataly, ashankar): Remove this method once the old security model is killed.
-func (ctx *WSPR) handleCreateAccountOldModel(blessingsAny vdlutil.Any, w http.ResponseWriter) {
-	blessing, ok := blessingsAny.(security.PublicID)
-	if !ok {
-		ctx.logAndSendBadReqErr(w, "Error creating PublicID from wire data")
-		return
-	}
-
-	// Derive a new identity from the runtime's identity and the blessing.
-	identity, err := ctx.rt.Identity().Derive(blessing)
-	if err != nil {
-		ctx.logAndSendBadReqErr(w, fmt.Sprintf("Error deriving identity: %v", err))
-		return
-	}
-
-	for _, name := range blessing.Names() {
-		// Store identity in identity manager.
-		if err := ctx.idManager.AddAccount(name, identity); err != nil {
-			ctx.logAndSendBadReqErr(w, fmt.Sprintf("Error storing identity: %v", err))
-			return
-		}
-	}
-
-	// Return the names to the client.
-	out := createAccountOutput{
-		Names: blessing.Names(),
-	}
-	outJson, err := json.Marshal(out)
-	if err != nil {
-		ctx.logAndSendBadReqErr(w, fmt.Sprintf("Error mashalling names: %v", err))
-		return
-	}
-
-	// Success.
-	w.Header().Set("Content-Type", "application/json")
-	fmt.Fprintf(w, string(outJson))
-}
-
-// TODO(ataly, ashankar): Remove this method once the old security model is killed.
-func (ctx *WSPR) handleAssocAccountOldModel(data assocAccountInput, w http.ResponseWriter) {
-	if err := ctx.idManager.AddOrigin(data.Origin, data.Name, nil); err != nil {
 		http.Error(w, fmt.Sprintf("Error associating account: %v", err), http.StatusBadRequest)
 		return
 	}

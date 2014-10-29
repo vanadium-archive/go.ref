@@ -134,7 +134,7 @@ func (wsprInstance) StartWSPR(message ppapi.Var) {
 	}
 
 	fmt.Printf("Starting WSPR with config: proxy=%q mounttable=%q identityd=%q port=%d", veyronProxy, mounttable, identd, wsprHttpPort)
-	proxy := wspr.NewWSPR(wsprHttpPort, listenSpec, identd, options.ForceNewSecurityModel{}, options.RuntimePrincipal{principal})
+	proxy := wspr.NewWSPR(wsprHttpPort, listenSpec, identd, options.RuntimePrincipal{principal})
 
 	proxy.Listen()
 	go func() {

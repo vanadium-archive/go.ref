@@ -23,7 +23,6 @@ import (
 	"veyron.io/veyron/veyron2/vom"
 	vom_wiretype "veyron.io/veyron/veyron2/vom/wiretype"
 	wiretype_build "veyron.io/veyron/veyron2/wiretype/build"
-	"veyron.io/wspr/veyron/services/wsprd/identity"
 	"veyron.io/wspr/veyron/services/wsprd/ipc/server"
 	"veyron.io/wspr/veyron/services/wsprd/lib"
 	"veyron.io/wspr/veyron/services/wsprd/namespace"
@@ -40,12 +39,8 @@ var (
 	noResults              = verror2.Register(pkgPath+".noResults", verror2.NoRetry, "{1} {2} no results from call {_}")
 	signatureError         = verror2.Register(pkgPath+".signatureError", verror2.NoRetry, "{1} {2} signature error {_}")
 	badCaveatType          = verror2.Register(pkgPath+".badCaveatType", verror2.NoRetry, "{1} {2} bad caveat type {_}")
-	unknownBlessings       = verror2.Register(pkgPath+".unknownPublicID", verror2.NoRetry, "{1} {2} unknown public id {_}")
+	unknownBlessings       = verror2.Register(pkgPath+".unknownBlessings", verror2.NoRetry, "{1} {2} unknown public id {_}")
 	invalidBlessingsHandle = verror2.Register(pkgPath+".invalidBlessingsHandle", verror2.NoRetry, "{1} {2} invalid blessings handle {_}")
-
-	// TODO(ataly, ashankar, bjornick): Remove this field once the old security model is killed.
-	unknownPublicID     = verror2.Register(pkgPath+".unknownPublicID", verror2.NoRetry, "{1} {2} unknown public id {_}")
-	invalidPublicHandle = verror2.Register(pkgPath+".invalidPublicHandle", verror2.NoRetry, "{1} {2} invalid public handle {_}")
 )
 
 // TODO(bjornick,nlacasse): Remove the retryTimeout flag once we able
@@ -139,17 +134,13 @@ type Controller struct {
 	// the default implementation.
 	writerCreator func(id int64) lib.ClientWriter
 
-	// There is only one client per Controller since there is only one identity per app.
+	// There is only one client per Controller since there is a single principal per app.
 	client ipc.Client
 
 	veyronProxyEP string
 
 	// Store for all the Blessings that javascript has a handle to.
 	blessingsStore *principal.JSBlessingsHandles
-
-	// TODO(ataly, ashankar, bjornick): Remove the fields below once the old security model is killed.
-	idStore     *identity.JSPublicIDHandles
-	useOldModel bool
 }
 
 // NewController creates a new Controller.  writerCreator will be used to create a new flow for rpcs to
@@ -172,16 +163,7 @@ func NewController(writerCreator func(id int64) lib.ClientWriter,
 		client:         client,
 		writerCreator:  writerCreator,
 		listenSpec:     listenSpec,
-		idStore:        identity.NewJSPublicIDHandles(),
 		blessingsStore: principal.NewJSBlessingsHandles(),
-		useOldModel:    true,
-	}
-
-	for _, o := range opts {
-		if _, ok := o.(options.ForceNewSecurityModel); ok {
-			controller.useOldModel = false
-			break
-		}
 	}
 
 	controller.setup()
@@ -686,7 +668,7 @@ func (c *Controller) getBlessingsHandle(handle int64) (*principal.BlessingsHandl
 func (c *Controller) blessPublicKey(request blessingRequest) (*principal.BlessingsHandle, error) {
 	var blessee security.Blessings
 	if blessee = c.blessingsStore.Get(request.Handle); blessee == nil {
-		return nil, verror2.Make(invalidPublicHandle, nil)
+		return nil, verror2.Make(invalidBlessingsHandle, nil)
 	}
 
 	expiryCav, err := security.ExpiryCaveat(time.Now().Add(time.Duration(request.DurationMs) * time.Millisecond))
@@ -754,112 +736,6 @@ func (c *Controller) HandleCreateBlessings(data string, w lib.ClientWriter) {
 	}
 	handle := principal.ConvertBlessingsToHandle(blessings, c.blessingsStore.Add(blessings))
 	if err := w.Send(lib.ResponseFinal, handle); err != nil {
-		w.Error(verror2.Convert(verror2.Internal, nil, err))
-		return
-	}
-}
-
-// TODO(ataly, ashankar, bjornick): Remove this method
-// once the old security model is killed.
-func (c *Controller) UseOldModel() bool {
-	return c.useOldModel
-}
-
-// DEPRECATED: TODO(ataly, ashankar, bjornick): Remove this method
-// once the old security model is killed.
-func (c *Controller) AddIdentity(id security.PublicID) int64 {
-	return c.idStore.Add(id)
-}
-
-// DEPRECATED: TODO(ataly, ashankar, bjornick): Remove this method
-// once the old security model is killed.
-func (c *Controller) HandleUnlinkJSIdentity(data string, w lib.ClientWriter) {
-	var handle int64
-	if err := json.Unmarshal([]byte(data), &handle); err != nil {
-		w.Error(verror2.Convert(verror2.Internal, nil, err))
-		return
-	}
-	c.idStore.Remove(handle)
-}
-
-// DEPRECATED: TODO(ataly, ashankar, bjornick): Remove this method
-// once the old security model is killed.
-func (c *Controller) getPublicIDHandle(handle int64) (*identity.PublicIDHandle, error) {
-	id := c.idStore.Get(handle)
-	if id == nil {
-		return nil, verror2.Make(unknownPublicID, nil)
-	}
-	return identity.ConvertPublicIDToHandle(id, handle), nil
-}
-
-// DEPRECATED: TODO(ataly, ashankar, bjornick): Remove this method once
-// the old security model is killed.
-func (c *Controller) bless(request blessingRequest) (*identity.PublicIDHandle, error) {
-	var caveats []security.Caveat
-	for _, c := range request.Caveats {
-		cav, err := decodeCaveat(c)
-		if err != nil {
-			return nil, verror2.Convert(verror2.BadArg, nil, err)
-		}
-		caveats = append(caveats, cav)
-	}
-	duration := time.Duration(request.DurationMs) * time.Millisecond
-
-	blessee := c.idStore.Get(request.Handle)
-
-	if blessee == nil {
-		return nil, verror2.Make(invalidPublicHandle, nil)
-	}
-	blessor := c.rt.Identity()
-
-	blessed, err := blessor.Bless(blessee, request.Extension, duration, caveats)
-	if err != nil {
-		return nil, err
-	}
-
-	return identity.ConvertPublicIDToHandle(blessed, c.idStore.Add(blessed)), nil
-}
-
-// DEPRECATED: TODO(ataly, ashankar, bjornick): Remove this method once
-// the old security model is killed.
-func (c *Controller) HandleBlessing(data string, w lib.ClientWriter) {
-	var request blessingRequest
-	if err := json.Unmarshal([]byte(data), &request); err != nil {
-		w.Error(verror2.Convert(verror2.Internal, nil, err))
-		return
-	}
-
-	handle, err := c.bless(request)
-
-	if err != nil {
-		w.Error(verror2.Convert(verror2.Internal, nil, err))
-		return
-	}
-
-	// Send the id back.
-	if err := w.Send(lib.ResponseFinal, handle); err != nil {
-		w.Error(verror2.Convert(verror2.Internal, nil, err))
-		return
-	}
-}
-
-// DEPRECATED: TODO(ataly, ashankar, bjornick): Remove this method once
-// the old security model is killed.
-func (c *Controller) HandleCreateIdentity(data string, w lib.ClientWriter) {
-	var name string
-	if err := json.Unmarshal([]byte(data), &name); err != nil {
-		w.Error(verror2.Convert(verror2.Internal, nil, err))
-		return
-	}
-	id, err := c.rt.NewIdentity(name)
-	if err != nil {
-		w.Error(verror2.Convert(verror2.Internal, nil, err))
-		return
-	}
-
-	publicID := id.PublicID()
-	jsID := identity.ConvertPublicIDToHandle(publicID, c.idStore.Add(publicID))
-	if err := w.Send(lib.ResponseFinal, jsID); err != nil {
 		w.Error(verror2.Convert(verror2.Internal, nil, err))
 		return
 	}

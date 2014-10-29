@@ -7,7 +7,6 @@ import (
 	"sync"
 	"time"
 
-	"veyron.io/wspr/veyron/services/wsprd/identity"
 	"veyron.io/wspr/veyron/services/wsprd/lib"
 	"veyron.io/wspr/veyron/services/wsprd/principal"
 	"veyron.io/wspr/veyron/services/wsprd/signature"
@@ -39,10 +38,7 @@ type serverRPCRequestContext struct {
 	Name                  string
 	RemoteBlessings       principal.BlessingsHandle
 	RemoteBlessingStrings []string
-
-	// TODO(ataly, ashankar, bjornick): Remove this field once the old security model is killed.
-	RemoteID identity.PublicIDHandle
-	Timeout  int64 // The time period (in ns) between now and the deadline.
+	Timeout               int64 // The time period (in ns) between now and the deadline.
 }
 
 // The response from the javascript server to the proxy.
@@ -60,10 +56,6 @@ type FlowHandler interface {
 type HandleStore interface {
 	// Adds blessings to the store and returns handle to the blessings
 	AddBlessings(blessings security.Blessings) int64
-
-	// TODO(ataly, ashankar, bjornick): Remove this method once the old security model is killed.
-	// Adds an identity to the store and returns handle to the identity
-	AddIdentity(identity security.PublicID) int64
 }
 
 type ServerHelper interface {
@@ -73,9 +65,6 @@ type ServerHelper interface {
 	GetLogger() vlog.Logger
 
 	RT() veyron2.Runtime
-
-	// TODO(ataly, ashankar, bjornick): Remove this once the old security model is killed.
-	UseOldModel() bool
 }
 
 type authReply struct {
@@ -93,11 +82,6 @@ type context struct {
 	RemoteBlessingStrings []string                  `json:"remoteBlessingStrings"`
 	LocalEndpoint         string                    `json:"localEndpoint"`
 	RemoteEndpoint        string                    `json:"remoteEndpoint"`
-
-	// TODO(ataly, ashankar, bjornick): Remove the fields below once the old security
-	// model is killed.
-	LocalID  identity.PublicIDHandle `json:"localId"`
-	RemoteID identity.PublicIDHandle `json:"remoteId"`
 }
 
 type authRequest struct {
@@ -166,15 +150,11 @@ func (s *Server) createRemoteInvokerFunc(handle int64) remoteInvokeFunc {
 		}
 
 		context := serverRPCRequestContext{
-			Suffix:  call.Suffix(),
-			Name:    call.Name(),
-			Timeout: timeout,
-		}
-		if s.helper.UseOldModel() {
-			context.RemoteID = s.convertPublicIDToHandle(call.RemoteID())
-		} else {
-			context.RemoteBlessings = s.convertBlessingsToHandle(call.RemoteBlessings())
-			context.RemoteBlessingStrings = call.RemoteBlessings().ForContext(call)
+			Suffix:                call.Suffix(),
+			Name:                  call.Name(),
+			Timeout:               timeout,
+			RemoteBlessings:       s.convertBlessingsToHandle(call.RemoteBlessings()),
+			RemoteBlessingStrings: call.RemoteBlessings().ForContext(call),
 		}
 
 		// Send a invocation request to JavaScript
@@ -254,22 +234,17 @@ func (s *Server) createRemoteAuthFunc(handle int64) remoteAuthFunc {
 			ServerID: s.id,
 			Handle:   handle,
 			Context: context{
-				Method:         lib.LowercaseFirstCharacter(ctx.Method()),
-				Name:           ctx.Name(),
-				Suffix:         ctx.Suffix(),
-				Label:          ctx.Label(),
-				LocalEndpoint:  ctx.LocalEndpoint().String(),
-				RemoteEndpoint: ctx.RemoteEndpoint().String(),
+				Method:                lib.LowercaseFirstCharacter(ctx.Method()),
+				Name:                  ctx.Name(),
+				Suffix:                ctx.Suffix(),
+				Label:                 ctx.Label(),
+				LocalEndpoint:         ctx.LocalEndpoint().String(),
+				RemoteEndpoint:        ctx.RemoteEndpoint().String(),
+				LocalBlessings:        s.convertBlessingsToHandle(ctx.LocalBlessings()),
+				LocalBlessingStrings:  ctx.LocalBlessings().ForContext(ctx),
+				RemoteBlessings:       s.convertBlessingsToHandle(ctx.RemoteBlessings()),
+				RemoteBlessingStrings: ctx.RemoteBlessings().ForContext(ctx),
 			},
-		}
-		if s.helper.UseOldModel() {
-			message.Context.LocalID = s.convertPublicIDToHandle(ctx.LocalID())
-			message.Context.RemoteID = s.convertPublicIDToHandle(ctx.RemoteID())
-		} else {
-			message.Context.LocalBlessings = s.convertBlessingsToHandle(ctx.LocalBlessings())
-			message.Context.LocalBlessingStrings = ctx.LocalBlessings().ForContext(ctx)
-			message.Context.RemoteBlessings = s.convertBlessingsToHandle(ctx.RemoteBlessings())
-			message.Context.RemoteBlessingStrings = ctx.RemoteBlessings().ForContext(ctx)
 		}
 		s.helper.GetLogger().VI(0).Infof("Sending out auth request for %v, %v", flow.ID, message)
 
@@ -415,10 +390,4 @@ func (s *Server) Stop() {
 	}
 	s.outstandingServerRequests = make(map[int64]chan *serverRPCReply)
 	s.server.Stop()
-}
-
-// DEPRECATED: TODO(ataly, ashankar, bjornick): Remove this method once
-// the old security model is killed.
-func (s *Server) convertPublicIDToHandle(id security.PublicID) identity.PublicIDHandle {
-	return *identity.ConvertPublicIDToHandle(id, s.helper.AddIdentity(id))
 }

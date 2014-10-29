@@ -32,15 +32,7 @@ import (
 var (
 	testPrincipalBlessing = "test"
 	testPrincipal         = newPrincipal(testPrincipalBlessing)
-	r                     = rt.Init(options.ForceNewSecurityModel{})
-
-	// TODO(ataly, ashankar, bjornick): Remove the variable below once the old
-	// security model is killed.
-	emptyPublicIDHandleMsg = map[string]interface{}{
-		"Handle":    0.0,
-		"PublicKey": "",
-		"Names":     nil,
-	}
+	r                     = rt.Init()
 )
 
 // newBlessedPrincipal returns a new principal that has a blessing from the
@@ -203,7 +195,7 @@ func TestGetGoServerSignature(t *testing.T) {
 	defer s.Stop()
 	spec := profiles.LocalListenSpec
 	spec.Proxy = "mockVeyronProxyEP"
-	controller, err := NewController(nil, &spec, options.ForceNewSecurityModel{}, options.RuntimePrincipal{newBlessedPrincipal(r)})
+	controller, err := NewController(nil, &spec, options.RuntimePrincipal{newBlessedPrincipal(r)})
 
 	if err != nil {
 		t.Fatalf("Failed to create controller: %v", err)
@@ -239,7 +231,7 @@ func runGoServerTestCase(t *testing.T, test goServerTestCase) {
 
 	spec := profiles.LocalListenSpec
 	spec.Proxy = "mockVeyronProxyEP"
-	controller, err := NewController(nil, &spec, options.ForceNewSecurityModel{}, options.RuntimePrincipal{newBlessedPrincipal(r)})
+	controller, err := NewController(nil, &spec, options.RuntimePrincipal{newBlessedPrincipal(r)})
 
 	if err != nil {
 		t.Errorf("unable to create controller: %v", err)
@@ -363,7 +355,7 @@ func serveServer() (*runningTest, error) {
 	}
 	spec := profiles.LocalListenSpec
 	spec.Proxy = "/" + proxyEndpoint
-	controller, err := NewController(writerCreator, &spec, options.NamespaceRoots{"/" + endpoint.String()}, options.ForceNewSecurityModel{}, options.RuntimePrincipal{testPrincipal})
+	controller, err := NewController(writerCreator, &spec, options.NamespaceRoots{"/" + endpoint.String()}, options.RuntimePrincipal{testPrincipal})
 
 	if err != nil {
 		return nil, err
@@ -644,8 +636,6 @@ func runJsServerTestCase(t *testing.T, test jsServerTestCase) {
 					"remoteBlessingStrings": []interface{}{testPrincipalBlessing},
 					"localEndpoint":         endpoint.String(),
 					"remoteEndpoint":        "remoteEndpoint",
-					"localId":               emptyPublicIDHandleMsg,
-					"remoteId":              emptyPublicIDHandleMsg,
 				},
 			},
 		})
@@ -706,8 +696,6 @@ func runJsServerTestCase(t *testing.T, test jsServerTestCase) {
 					"remoteBlessingStrings": []interface{}{testPrincipalBlessing},
 					"localEndpoint":         endpoint.String(),
 					"remoteEndpoint":        "remoteEndpoint",
-					"localId":               emptyPublicIDHandleMsg,
-					"remoteId":              emptyPublicIDHandleMsg,
 				},
 			},
 		})
@@ -747,7 +735,6 @@ func runJsServerTestCase(t *testing.T, test jsServerTestCase) {
 					"PublicKey": publicKey,
 				},
 				"RemoteBlessingStrings": []interface{}{testPrincipalBlessing},
-				"RemoteID":              emptyPublicIDHandleMsg,
 			},
 		},
 	})
