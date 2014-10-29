@@ -1,0 +1,112 @@
+package channel
+
+import (
+	"fmt"
+	"sync"
+)
+
+type RequestHandler func(interface{}) (interface{}, error)
+
+type MessageSender func(Message)
+
+type Channel struct {
+	messageHandler MessageSender
+
+	lastSeq          uint64
+	handlers         map[string]RequestHandler
+	pendingResponses map[uint64]chan Response
+	lock             sync.Mutex
+}
+
+func NewChannel(messageHandler MessageSender) *Channel {
+	return &Channel{
+		messageHandler:   messageHandler,
+		handlers:         map[string]RequestHandler{},
+		pendingResponses: map[uint64]chan Response{},
+	}
+}
+
+func (c *Channel) PerformRpc(typ string, body interface{}) (interface{}, error) {
+	c.lock.Lock()
+	c.lastSeq++
+	lastSeq := c.lastSeq
+	req := Request{
+		Type: typ,
+		Seq:  lastSeq,
+		Body: body,
+	}
+	pending := make(chan Response, 1)
+	c.pendingResponses[lastSeq] = pending
+	c.lock.Unlock()
+
+	m, ok := MakeMessage(req)
+	if !ok {
+		return nil, fmt.Errorf("Failed to make message")
+	}
+	go c.messageHandler(m)
+	response := <-pending
+
+	c.lock.Lock()
+	delete(c.pendingResponses, lastSeq)
+	c.lock.Unlock()
+
+	if response.Err == "" {
+		return response.Body, nil
+	}
+	return response.Body, fmt.Errorf(response.Err)
+}
+
+func (c *Channel) RegisterRequestHandler(typ string, handler RequestHandler) {
+	c.lock.Lock()
+	c.handlers[typ] = handler
+	c.lock.Unlock()
+}
+
+func (c *Channel) handleRequest(req Request) {
+	// Call handler.
+	c.lock.Lock()
+	handler, ok := c.handlers[req.Type]
+	c.lock.Unlock()
+	if !ok {
+		panic(fmt.Errorf("Unknown handler: %s", req.Type))
+	}
+
+	result, err := handler(req.Body)
+	errMsg := ""
+	if err != nil {
+		errMsg = err.Error()
+	}
+	resp := Response{
+		ReqSeq: req.Seq,
+		Err:    errMsg,
+		Body:   result,
+	}
+	m, ok := MakeMessage(resp)
+	if !ok {
+		panic("Failed to make message")
+	}
+	c.messageHandler(m)
+}
+
+func (c *Channel) handleResponse(resp Response) {
+	seq := resp.ReqSeq
+	c.lock.Lock()
+	pendingResponse, ok := c.pendingResponses[seq]
+	c.lock.Unlock()
+	if !ok {
+		panic("Received invalid response code")
+	}
+
+	pendingResponse <- resp
+}
+
+func (c *Channel) HandleMessage(in Message) {
+	switch m := in.OneOf().(type) {
+	case Request:
+		c.handleRequest(m)
+	case Response:
+		c.handleResponse(m)
+	default:
+		panic(fmt.Sprintf("Unknown message type: %T", in))
+	}
+}
