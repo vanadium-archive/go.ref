@@ -511,7 +511,7 @@ func (fc *flowClient) closeSend() verror.E {
 func (fc *flowClient) Finish(resultptrs ...interface{}) error {
 	defer vlog.LogCall()()
 	err := fc.finish(resultptrs...)
-	vtrace.FromContext(fc.ctx).Annotate("Finished")
+	vtrace.FromContext(fc.ctx).Finish()
 	return err
 }
 

@@ -4,6 +4,8 @@
 package vtrace
 
 import (
+	"time"
+
 	"veyron.io/veyron/veyron2/context"
 	"veyron.io/veyron/veyron2/uniqueid"
 	"veyron.io/veyron/veyron2/vlog"
@@ -16,6 +18,7 @@ type span struct {
 	parent    uniqueid.ID
 	name      string
 	collector *collector
+	start     time.Time
 }
 
 func newSpan(parent uniqueid.ID, name string, collector *collector) *span {
@@ -28,8 +31,9 @@ func newSpan(parent uniqueid.ID, name string, collector *collector) *span {
 		parent:    parent,
 		name:      name,
 		collector: collector,
+		start:     time.Now(),
 	}
-	s.Annotate("Started")
+	collector.start(s)
 	return s
 }
 
@@ -38,6 +42,7 @@ func (c *span) Parent() uniqueid.ID { return c.parent }
 func (c *span) Name() string        { return c.name }
 func (c *span) Trace() vtrace.Trace { return c.collector }
 func (c *span) Annotate(msg string) { c.collector.annotate(c, msg) }
+func (c *span) Finish()             { c.collector.finish(c) }
 
 // Request generates a vtrace.Request from the active Span.
 func Request(ctx context.T) vtrace.Request {
