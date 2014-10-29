@@ -11,8 +11,6 @@ import (
 	"veyron.io/veyron/veyron2/options"
 	"veyron.io/veyron/veyron2/rt"
 	"veyron.io/veyron/veyron2/security"
-	"veyron.io/veyron/veyron2/vdl"
-	"veyron.io/wspr/veyron/services/wsprd/channel/channel_nacl"
 	"veyron.io/wspr/veyron/services/wsprd/wspr"
 
 	vsecurity "veyron.io/veyron/veyron/security"
@@ -28,10 +26,9 @@ func main() {
 // WSPR instance represents an instance on a PPAPI client and receives callbacks from PPAPI to handle events.
 type wsprInstance struct {
 	ppapi.Instance
-	channel *channel_nacl.Channel
 }
 
-var _ ppapi.InstanceHandlers = (*wsprInstance)(nil)
+var _ ppapi.InstanceHandlers = wsprInstance{}
 
 func (inst wsprInstance) DidCreate(args map[string]string) bool {
 	fmt.Printf("Got to DidCreate")
@@ -64,8 +61,8 @@ func (wsprInstance) Graphics3DContextLost() {
 	fmt.Printf("Got to Graphics3DContextLost()")
 }
 
-// startWSPR handles starting WSPR.
-func (wsprInstance) startWSPR(message ppapi.Var) {
+// StartWSPR handles starting WSPR.
+func (wsprInstance) StartWSPR(message ppapi.Var) {
 	// HACK!!
 	// TODO(ataly, ashankar, bprosnitz): The private key should be
 	// generated/retrieved by directly talking to some secure storage
@@ -137,51 +134,12 @@ func (wsprInstance) startWSPR(message ppapi.Var) {
 	}
 
 	fmt.Printf("Starting WSPR with config: proxy=%q mounttable=%q identityd=%q port=%d", veyronProxy, mounttable, identd, wsprHttpPort)
-	proxy := wspr.NewWSPR(wsprHttpPort, listenSpec, identd)
+	proxy := wspr.NewWSPR(wsprHttpPort, listenSpec, identd, options.RuntimePrincipal{principal})
+
+	proxy.Listen()
 	go func() {
 		proxy.Serve()
 	}()
-}
-
-func (inst wsprInstance) handleRpcMessage(message ppapi.Var) {
-	fmt.Printf("Handle RPC message")
-	inst.channel.HandleMessage(message)
-}
-
-func TestFuncA(val *vdl.Value) (interface{}, error) {
-	if val.RawString() != "ArgA" {
-		panic(fmt.Sprintf("vdl val: %v expected: %v", val, "ArgA"))
-	}
-	return "ResponseA", nil
-}
-
-func TestFuncB(val *vdl.Value) (interface{}, error) {
-	if val.RawString() != "ArgB" {
-		panic(fmt.Sprintf("vdl val: %v expected: %v", val, "ArgB"))
-	}
-	return "ResponseB", nil
-}
-
-func TestFuncC(val *vdl.Value) (interface{}, error) {
-	if val.RawString() != "ArgC" {
-		panic(fmt.Sprintf("vdl val: %v expected: %v", val, "ArgC"))
-	}
-	return "", fmt.Errorf("An error")
-}
-
-func (inst wsprInstance) startRpcTest(message ppapi.Var) {
-	inst.channel.RegisterRpcHandler("TypeA", TestFuncA)
-	inst.channel.RegisterRpcHandler("TypeB", TestFuncB)
-	inst.channel.RegisterRpcHandler("TypeC", TestFuncC)
-	if response, err := inst.channel.PerformRpc("ToJSTypeA", "ToJSValA"); err != nil {
-		panic(fmt.Sprintf("Got unexpected error %v %T", err, err))
-	} else if response.RawString() != "ToJSRespA" {
-		panic(fmt.Sprintf("Got unexpected response %v", response))
-	}
-	if _, err := inst.channel.PerformRpc("ToJSTypeB", "ToJSValB"); err == nil || err.Error() != "Got an error here" {
-		panic(fmt.Sprintf("Didn't get right error: %v", err))
-	}
-	fmt.Printf("Done with RPCs")
 }
 
 // HandleMessage receives messages from Javascript and uses them to perform actions.
@@ -191,9 +149,7 @@ func (inst wsprInstance) HandleMessage(message ppapi.Var) {
 	fmt.Printf("Entered HandleMessage")
 	type handlerType func(ppapi.Var)
 	handlerMap := map[string]handlerType{
-		"start":      inst.startWSPR,
-		"rpcMessage": inst.handleRpcMessage,
-		"testRpc":    inst.startRpcTest,
+		"start": inst.StartWSPR,
 	}
 	ty, err := message.LookupStringValuedKey("type")
 	if err != nil {
@@ -216,8 +172,5 @@ func (wsprInstance) MouseLockLost() {
 }
 
 func newWsprInstance(inst ppapi.Instance) ppapi.InstanceHandlers {
-	return wsprInstance{
-		Instance: inst,
-		channel:  channel_nacl.NewChannel(inst),
-	}
+	return wsprInstance{Instance: inst}
 }
