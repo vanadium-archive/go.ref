@@ -50,6 +50,9 @@ type State struct {
 	// manager is started.  Node manager is expected to mutate this during
 	// a self-update.  Must be non-empty.
 	CurrentLink string
+	// Helper is the path to the setuid helper for running applications as
+	// specific users.
+	Helper string
 }
 
 // Validate checks the config state.
@@ -62,6 +65,9 @@ func (c *State) Validate() error {
 	}
 	if c.CurrentLink == "" {
 		return fmt.Errorf("CurrentLink cannot be empty")
+	}
+	if c.Helper == "" {
+		return fmt.Errorf("Helper must be specified")
 	}
 	return nil
 }
@@ -83,6 +89,7 @@ func Load() (*State, error) {
 		Root:        os.Getenv(RootEnv),
 		Origin:      os.Getenv(OriginEnv),
 		CurrentLink: os.Getenv(CurrentLinkEnv),
+		Helper:      os.Getenv(HelperEnv),
 	}, nil
 }
 
@@ -104,6 +111,7 @@ func (c *State) Save(envelope *application.Envelope) ([]string, error) {
 		RootEnv:        c.Root,
 		OriginEnv:      c.Origin,
 		CurrentLinkEnv: c.CurrentLink,
+		HelperEnv:      c.Helper,
 	}
 	// We need to manually pass the namespace roots to the child, since we
 	// currently don't have a way for the child to obtain this information

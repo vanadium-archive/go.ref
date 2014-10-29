@@ -44,6 +44,7 @@ func TestState(t *testing.T) {
 		Root:        "fidos/doghouse",
 		Origin:      "pet/store",
 		CurrentLink: currLink,
+		Helper:      "santas/little/helper",
 	}
 	if err := state.Validate(); err != nil {
 		t.Errorf("Config state %v failed to validate: %v", state, err)
@@ -83,6 +84,7 @@ func TestValidate(t *testing.T) {
 		Root:        "b",
 		Origin:      "c",
 		CurrentLink: "d",
+		Helper:      "e",
 	}
 	if err := state.Validate(); err != nil {
 		t.Errorf("Config state %v failed to validate: %v", state, err)
@@ -96,6 +98,10 @@ func TestValidate(t *testing.T) {
 		t.Errorf("Confi stateg %v should have failed to validate.", state)
 	}
 	state.CurrentLink, state.Name = "d", ""
+	if err := state.Validate(); err == nil {
+		t.Errorf("Config state %v should have failed to validate.", state)
+	}
+	state.Name, state.Helper = "anything", ""
 	if err := state.Validate(); err == nil {
 		t.Errorf("Config state %v should have failed to validate.", state)
 	}

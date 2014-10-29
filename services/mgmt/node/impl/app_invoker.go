@@ -7,7 +7,6 @@ package impl
 // TODO(caprita): Not all is yet implemented.
 //
 // <config.Root>/
-//   helper                         - the setuidhelper binary to invoke an application as a specified user.
 //   app-<hash 1>/                  - the application dir is named using a hash of the application title
 //     installation-<id 1>/         - installations are labelled with ids
 //       <status>                   - one of the values for installationState enum
@@ -34,6 +33,9 @@ package impl
 //   app-<hash 2>
 //   ...
 //
+// The node manager uses the suid helper binary to invoke an application as a
+// specified user.  The path to the helper is specified as config.Helper.
+
 // When node manager starts up, it goes through all instances and resumes the
 // ones that are not suspended.  If the application was still running, it
 // suspends it first.  If an application fails to resume, it stays suspended.
@@ -538,12 +540,12 @@ func (i *appInvoker) startCmd(instanceDir string, cmd *exec.Cmd) error {
 	return nil
 }
 
-func (i *appInvoker) run(instanceDir, systemName, helper string) error {
+func (i *appInvoker) run(instanceDir, systemName string) error {
 	if err := transitionInstance(instanceDir, suspended, starting); err != nil {
 		return err
 	}
 
-	cmd, err := genCmd(instanceDir, helper, systemName)
+	cmd, err := genCmd(instanceDir, i.config.Helper, systemName)
 	if err == nil {
 		err = i.startCmd(instanceDir, cmd)
 	}
@@ -561,8 +563,7 @@ func (i *appInvoker) Start(call ipc.ServerContext) ([]string, error) {
 		return nil, err
 	}
 
-	helper := filepath.Join(i.config.Root, "helper")
-	systemName, err := systemAccountForHelper(helper, call.RemoteBlessings().ForContext(call), i.uat)
+	systemName, err := systemAccountForHelper(i.config.Helper, call.RemoteBlessings().ForContext(call), i.uat)
 	if err != nil {
 		cleanupDir(instanceDir)
 		return nil, err
@@ -573,7 +574,7 @@ func (i *appInvoker) Start(call ipc.ServerContext) ([]string, error) {
 		return nil, err
 	}
 
-	if err = i.run(instanceDir, systemName, helper); err != nil {
+	if err = i.run(instanceDir, systemName); err != nil {
 		cleanupDir(instanceDir)
 		return nil, err
 	}
@@ -605,8 +606,7 @@ func (i *appInvoker) Resume(call ipc.ServerContext) error {
 		return err
 	}
 
-	helper := filepath.Join(i.config.Root, "helper")
-	systemName, err := systemAccountForHelper(helper, call.RemoteBlessings().ForContext(call), i.uat)
+	systemName, err := systemAccountForHelper(i.config.Helper, call.RemoteBlessings().ForContext(call), i.uat)
 	if err != nil {
 		return err
 	}
@@ -619,7 +619,7 @@ func (i *appInvoker) Resume(call ipc.ServerContext) error {
 	if startSystemName != systemName {
 		return verror.NoAccessf("Not allowed to resume an application under a different system name.")
 	}
-	return i.run(instanceDir, systemName, helper)
+	return i.run(instanceDir, systemName)
 }
 
 func stopAppRemotely(appVON string) error {

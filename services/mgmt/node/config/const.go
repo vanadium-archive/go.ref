@@ -18,4 +18,7 @@ const (
 	// CurrentLinkEnv is the name of the environment variable that holds
 	// the path to the soft link that points to the current node manager.
 	CurrentLinkEnv = "VEYRON_NM_CURRENT"
+	// HelperEnv is the name of the environment variable that holds the path
+	// to the suid helper used to start apps as specific system users.
+	HelperEnv = "VEYRON_NM_HELPER"
 )

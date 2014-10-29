@@ -154,10 +154,10 @@ func nodeManager(stdin io.Reader, stdout, stderr io.Writer, env map[string]strin
 	// for example, the node manager is invoked 'by hand' instead of via a
 	// script prepared by a previous version of the node manager.
 	if len(args) > 0 {
-		if want, got := 3, len(args); want != got {
+		if want, got := 4, len(args); want != got {
 			vlog.Fatalf("expected %d additional arguments, got %d instead", want, got)
 		}
-		configState.Root, configState.Origin, configState.CurrentLink = args[0], args[1], args[2]
+		configState.Root, configState.Helper, configState.Origin, configState.CurrentLink = args[0], args[1], args[2], args[3]
 	}
 	dispatcher, err := impl.NewDispatcher(configState)
 	if err != nil {
@@ -274,7 +274,7 @@ func generateNodeManagerScript(t *testing.T, root string, args, env []string) st
 
 // generateSuidHelperScript builds a script to execute the test target as
 // a suidhelper instance and installs it in <root>/helper.
-func generateSuidHelperScript(t *testing.T, root string) {
+func generateSuidHelperScript(t *testing.T, root string) string {
 	output := "#!/bin/bash\n"
 	output += "VEYRON_SUIDHELPER_TEST=1"
 	output += " "
@@ -286,10 +286,13 @@ func generateSuidHelperScript(t *testing.T, root string) {
 	if err := os.MkdirAll(root, 0755); err != nil {
 		t.Fatalf("MkdirAll failed: %v", err)
 	}
-	path := filepath.Join(root, "helper")
+	// Helper does not need to live under the node manager's root dir, but
+	// we put it there for convenience.
+	path := filepath.Join(root, "helper.sh")
 	if err := ioutil.WriteFile(path, []byte(output), 0755); err != nil {
 		t.Fatalf("WriteFile(%v) failed: %v", path, err)
 	}
+	return path
 }
 
 // readPID waits for the "ready:<PID>" line from the child and parses out the
@@ -330,7 +333,7 @@ func TestNodeManagerUpdateAndRevert(t *testing.T) {
 
 	crDir, crEnv := credentialsForChild("anyvalue")
 	defer os.RemoveAll(crDir)
-	nmArgs := []string{"factoryNM", root, mockApplicationRepoName, currLink}
+	nmArgs := []string{"factoryNM", root, "unused_helper", mockApplicationRepoName, currLink}
 	args, env := sh.CommandEnvelope(nodeManagerCmd, crEnv, nmArgs...)
 
 	scriptPathFactory := generateNodeManagerScript(t, root, args, env)
@@ -560,14 +563,14 @@ func TestAppLifeCycle(t *testing.T) {
 	defer cleanup()
 
 	// Create a script wrapping the test target that implements suidhelper.
-	generateSuidHelperScript(t, root)
+	helperPath := generateSuidHelperScript(t, root)
 
 	crDir, crEnv := credentialsForChild("anyvalue")
 	defer os.RemoveAll(crDir)
 
 	// Set up the node manager.  Since we won't do node manager updates,
 	// don't worry about its application envelope and current link.
-	nmh, nms := runShellCommand(t, sh, crEnv, nodeManagerCmd, "nm", root, "unused app repo name", "unused curr link")
+	nmh, nms := runShellCommand(t, sh, crEnv, nodeManagerCmd, "nm", root, helperPath, "unused_app_rep_ name", "unused_curr_link")
 	readPID(t, nms)
 
 	// Create the local server that the app uses to let us know it's ready.
@@ -766,9 +769,12 @@ func TestNodeManagerClaim(t *testing.T) {
 	crDir, crEnv := credentialsForChild("anyvalue")
 	defer os.RemoveAll(crDir)
 
+	// Create a script wrapping the test target that implements suidhelper.
+	helperPath := generateSuidHelperScript(t, root)
+
 	// Set up the node manager.  Since we won't do node manager updates,
 	// don't worry about its application envelope and current link.
-	_, nms := runShellCommand(t, sh, crEnv, nodeManagerCmd, "nm", root, "unused app repo name", "unused curr link")
+	_, nms := runShellCommand(t, sh, crEnv, nodeManagerCmd, "nm", root, helperPath, "unused_app_repo_name", "unused_curr_link")
 	pid := readPID(t, nms)
 	defer syscall.Kill(pid, syscall.SIGINT)
 
@@ -802,9 +808,6 @@ func TestNodeManagerClaim(t *testing.T) {
 	if err = tryInstall(otherRT); err == nil {
 		t.Fatalf("Install should have failed from otherRT")
 	}
-
-	// Create a script wrapping the test target that implements suidhelper.
-	generateSuidHelperScript(t, root)
 
 	// Create the local server that the app uses to let us know it's ready.
 	pingCh, cleanup := setupPingServer(t)
@@ -859,7 +862,7 @@ func TestNodeManagerUpdateACL(t *testing.T) {
 
 	// Set up the node manager.  Since we won't do node manager updates,
 	// don't worry about its application envelope and current link.
-	_, nms := runShellCommand(t, sh, crEnv, nodeManagerCmd, "nm", root, "unused app repo name", "unused curr link")
+	_, nms := runShellCommand(t, sh, crEnv, nodeManagerCmd, "nm", root, "unused_helper", "unused_app_repo_name", "unused_curr_link")
 	pid := readPID(t, nms)
 	defer syscall.Kill(pid, syscall.SIGINT)
 
@@ -947,7 +950,7 @@ func TestNodeManagerInstall(t *testing.T) {
 	argsForNodeManager = append(argsForNodeManager, "nm")
 
 	// Add vars to instruct the installer how to configure the node manager.
-	installerEnv := []string{config.RootEnv + "=" + root, config.CurrentLinkEnv + "=" + currLink}
+	installerEnv := []string{config.RootEnv + "=" + root, config.CurrentLinkEnv + "=" + currLink, config.HelperEnv + "=" + "unused"}
 	installerh, installers := runShellCommand(t, sh, installerEnv, installerCmd, argsForNodeManager...)
 	installers.ExpectEOF()
 	installerh.Shutdown(os.Stderr, os.Stderr)
@@ -988,14 +991,14 @@ func TestNodeManagerGlobAndLogs(t *testing.T) {
 	crDir, crEnv := credentialsForChild("anyvalue")
 	defer os.RemoveAll(crDir)
 
+	// Create a script wrapping the test target that implements suidhelper.
+	helperPath := generateSuidHelperScript(t, root)
+
 	// Set up the node manager.  Since we won't do node manager updates,
 	// don't worry about its application envelope and current link.
-	_, nms := runShellCommand(t, sh, crEnv, nodeManagerCmd, "nm", root, "unused app repo name", "unused curr link")
+	_, nms := runShellCommand(t, sh, crEnv, nodeManagerCmd, "nm", root, helperPath, "unused_app_repo_name", "unused_curr_link")
 	pid := readPID(t, nms)
 	defer syscall.Kill(pid, syscall.SIGINT)
-
-	// Create a script wrapping the test target that implements suidhelper.
-	generateSuidHelperScript(t, root)
 
 	// Create the local server that the app uses to let us know it's ready.
 	pingCh, cleanup := setupPingServer(t)
@@ -1141,7 +1144,7 @@ func TestAccountAssociation(t *testing.T) {
 	crFile, crEnv := credentialsForChild("anyvalue")
 	defer os.RemoveAll(crFile)
 
-	_, nms := runShellCommand(t, sh, crEnv, nodeManagerCmd, "nm", root, "unused app repo name", "unused curr link")
+	_, nms := runShellCommand(t, sh, crEnv, nodeManagerCmd, "nm", root, "unused_helper", "unused_app_repo_name", "unused_curr_link")
 	pid := readPID(t, nms)
 	defer syscall.Kill(pid, syscall.SIGINT)
 
@@ -1253,9 +1256,9 @@ func TestAppWithSuidHelper(t *testing.T) {
 
 	// Create a script wrapping the test target that implements
 	// suidhelper.
-	generateSuidHelperScript(t, root)
+	helperPath := generateSuidHelperScript(t, root)
 
-	_, nms := runShellCommand(t, sh, crEnv, nodeManagerCmd, "-mocksetuid", "nm", root, "unused app repo name", "unused curr link")
+	_, nms := runShellCommand(t, sh, crEnv, nodeManagerCmd, "-mocksetuid", "nm", root, helperPath, "unused_app_repo_name", "unused_curr_link")
 	pid := readPID(t, nms)
 	defer syscall.Kill(pid, syscall.SIGINT)
 
