@@ -25,7 +25,7 @@ var (
 )
 
 func init() {
-	commonFlags = flags.New(flag.CommandLine)
+	commonFlags = flags.CreateAndRegister(flag.CommandLine, flags.Listen)
 	rt.RegisterProfile(New())
 }
 
@@ -55,10 +55,11 @@ func (*static) Platform() *veyron2.Platform {
 func (p *static) Init(rt veyron2.Runtime, _ *config.Publisher) error {
 	log := rt.Logger()
 
+	lf := commonFlags.ListenFlags()
 	ListenSpec = ipc.ListenSpec{
-		Protocol: commonFlags.ListenProtocolFlag.Protocol,
-		Address:  commonFlags.ListenAddressFlag.String(),
-		Proxy:    commonFlags.ListenProxyFlag,
+		Protocol: lf.ListenProtocol.Protocol,
+		Address:  lf.ListenAddress.String(),
+		Proxy:    lf.ListenProxy,
 	}
 
 	// Our address is private, so we test for running on GCE and for its

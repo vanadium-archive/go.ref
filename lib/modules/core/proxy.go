@@ -18,11 +18,10 @@ func init() {
 }
 
 func proxyServer(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
-	fl, err := ParseCommonFlags(args)
+	fl, args, err := parseListenFlags(args)
 	if err != nil {
 		return fmt.Errorf("failed parsing args: %s", err)
-	}
-	args = fl.Args()
+	} //	args = fl.Args()
 	if err := checkArgs(args, -1, ""); err != nil {
 		return err
 	}
@@ -31,10 +30,10 @@ func proxyServer(stdin io.Reader, stdout, stderr io.Writer, env map[string]strin
 	if err != nil {
 		return err
 	}
-
+	lf := fl.ListenFlags()
 	// TODO(ashankar): Set the second argument to r.Principal() once the
 	// old security model is no longer operational.
-	proxy, err := proxy.New(rid, nil, fl.ListenProtocolFlag.String(), fl.ListenAddressFlag.String(), "")
+	proxy, err := proxy.New(rid, nil, lf.ListenProtocol.String(), lf.ListenAddress.String(), "")
 	if err != nil {
 		return err
 	}

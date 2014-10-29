@@ -38,11 +38,10 @@ func (es *echoServerObject) Echo(call ipc.ServerCall, m string) (string, error) 
 }
 
 func echoServer(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
-	fl, err := ParseCommonFlags(args)
+	fl, args, err := parseListenFlags(args)
 	if err != nil {
 		return fmt.Errorf("failed parsing args: %s", err)
 	}
-	args = fl.Args()
 	if err := checkArgs(args, 2, "<message> <name>"); err != nil {
 		return err
 	}
@@ -68,14 +67,7 @@ func echoServer(stdin io.Reader, stdout, stderr io.Writer, env map[string]string
 }
 
 func echoClient(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
-	fl, err := ParseCommonFlags(args)
-	if err != nil {
-		return fmt.Errorf("failed parsing args: %s", err)
-	}
-	args = fl.Args()
-	if err := checkArgs(args, 2, "<name> <message>"); err != nil {
-		return err
-	}
+	args = args[1:]
 	name := args[0]
 	args = args[1:]
 	client := rt.R().Client()

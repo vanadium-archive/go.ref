@@ -34,11 +34,11 @@ func rootMountTable(stdin io.Reader, stdout, stderr io.Writer, env map[string]st
 
 func runMT(root bool, stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
 	r := rt.R()
-	fl, err := ParseCommonFlags(args)
+	fl, args, err := parseListenFlags(args)
 	if err != nil {
 		return fmt.Errorf("failed parsing args: %s", err)
 	}
-	args = fl.Args()
+	//	args = fl.Args()
 	lspec := initListenSpec(fl)
 	server, err := r.NewServer(options.ServesMountTable(true))
 	if err != nil {

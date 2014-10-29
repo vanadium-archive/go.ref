@@ -9,23 +9,22 @@ import (
 	"veyron.io/veyron/veyron/lib/flags"
 )
 
-// ParseCommonFlags parses the supplied args for the common set of flags
-// and environment variables defined in in the veyron/lib/flags package.
-func ParseCommonFlags(args []string) (*flags.Flags, error) {
+func parseListenFlags(args []string) (*flags.Flags, []string, error) {
 	fs := flag.NewFlagSet("modules/core", flag.ContinueOnError)
-	fl := flags.New(fs)
+	fl := flags.CreateAndRegister(fs, flags.Listen)
 	if len(args) == 0 {
-		return fl, fmt.Errorf("no args supplied")
+		return fl, []string{}, nil
 	}
 	err := fl.Parse(args[1:])
-	return fl, err
+	return fl, fl.Args(), err
 }
 
 func initListenSpec(fl *flags.Flags) ipc.ListenSpec {
+	lf := fl.ListenFlags()
 	return ipc.ListenSpec{
-		Protocol: fl.ListenProtocolFlag.String(),
-		Address:  fl.ListenAddressFlag.String(),
-		Proxy:    fl.ListenProxyFlag,
+		Protocol: lf.ListenProtocol.String(),
+		Address:  lf.ListenAddress.String(),
+		Proxy:    lf.ListenProxy,
 	}
 }
 
