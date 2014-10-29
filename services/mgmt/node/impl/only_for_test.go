@@ -24,9 +24,14 @@ func (d *dispatcher) Leaking() bool {
 }
 
 func init() {
-	cleanupDir = func(dir string) {
+	cleanupDir = func(dir, helper string) {
 		parentDir, base := filepath.Dir(dir), filepath.Base(dir)
-		renamed := filepath.Join(parentDir, "deleted_"+base)
+		var renamed string
+		if helper != "" {
+			renamed = filepath.Join(parentDir, "helper_deleted_"+base)
+		} else {
+			renamed = filepath.Join(parentDir, "deleted_"+base)
+		}
 		if err := os.Rename(dir, renamed); err != nil {
 			vlog.Errorf("Rename(%v, %v) failed: %v", dir, renamed, err)
 		}
@@ -37,4 +42,8 @@ func init() {
 func possiblyMockIsSetuid(fileStat os.FileInfo) bool {
 	vlog.VI(2).Infof("Mock isSetuid is reporting: %v", *mockIsSetuid)
 	return *mockIsSetuid
+}
+
+func WrapBaseCleanupDir(path, helper string) {
+	baseCleanupDir(path, helper)
 }

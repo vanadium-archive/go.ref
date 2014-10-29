@@ -276,30 +276,7 @@ func generateNodeManagerScript(t *testing.T, root string, args, env []string) st
 	return path
 }
 
-// generateSuidHelperScript builds a script to execute the test target as
-// a suidhelper instance and installs it in <root>/helper.
-func generateSuidHelperScript(t *testing.T, root string) string {
-	output := "#!/bin/bash\n"
-	output += "VEYRON_SUIDHELPER_TEST=1"
-	output += " "
-	output += "exec" + " " + os.Args[0] + " " + "-minuid=1" + " " + "-test.run=TestSuidHelper $*"
-	output += "\n"
-
-	vlog.VI(1).Infof("script\n%s", output)
-
-	if err := os.MkdirAll(root, 0755); err != nil {
-		t.Fatalf("MkdirAll failed: %v", err)
-	}
-	// Helper does not need to live under the node manager's root dir, but
-	// we put it there for convenience.
-	path := filepath.Join(root, "helper.sh")
-	if err := ioutil.WriteFile(path, []byte(output), 0755); err != nil {
-		t.Fatalf("WriteFile(%v) failed: %v", path, err)
-	}
-	return path
-}
-
-// readPID waits for the "ready:<PID>" line from the child and parses out the
+/// readPID waits for the "ready:<PID>" line from the child and parses out the
 // PID of the child.
 func readPID(t *testing.T, s *expect.Session) int {
 	m := s.ExpectRE("ready:([0-9]+)", -1)

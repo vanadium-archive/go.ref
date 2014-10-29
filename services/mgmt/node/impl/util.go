@@ -3,6 +3,7 @@ package impl
 import (
 	"io/ioutil"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"time"
 
@@ -80,10 +81,24 @@ func updateLink(target, link string) error {
 	return nil
 }
 
-// cleanupDir is defined like this so we can override its implementation for
-// tests.
-var cleanupDir = func(dir string) {
-	if err := os.RemoveAll(dir); err != nil {
-		vlog.Errorf("RemoveAll(%v) failed: %v", dir, err)
+func baseCleanupDir(path, helper string) {
+	if helper != "" {
+		out, err := exec.Command(helper, "--rm", path).CombinedOutput()
+		if err != nil {
+			vlog.Errorf("exec.Command(%s %s %s).CombinedOutput() failed: %v", helper, "--rm", path, err)
+			return
+		}
+		if len(out) != 0 {
+			vlog.Errorf("exec.Command(%s %s %s).CombinedOutput() generated output: %v", helper, "--rm", path, string(out))
+		}
+	} else {
+		if err := os.RemoveAll(path); err != nil {
+			vlog.Errorf("RemoveAll(%v) failed: %v", path, err)
+		}
 	}
 }
+
+// cleanupDir is defined like this so we can override its implementation for
+// tests. cleanupDir will use the helper to delete application state possibly
+// owned by different accounts if helper is provided.
+var cleanupDir = baseCleanupDir

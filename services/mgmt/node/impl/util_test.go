@@ -338,3 +338,26 @@ func compareAssociations(t *testing.T, got, expected []node.Association) {
 		t.Fatalf("ListAssociations() got %v, expected %v", got, expected)
 	}
 }
+
+// generateSuidHelperScript builds a script to execute the test target as
+// a suidhelper instance and returns the path to the script.
+func generateSuidHelperScript(t *testing.T, root string) string {
+	output := "#!/bin/bash\n"
+	output += "VEYRON_SUIDHELPER_TEST=1"
+	output += " "
+	output += "exec" + " " + os.Args[0] + " " + "-minuid=1" + " " + "-test.run=TestSuidHelper $*"
+	output += "\n"
+
+	vlog.VI(1).Infof("script\n%s", output)
+
+	if err := os.MkdirAll(root, 0755); err != nil {
+		t.Fatalf("MkdirAll failed: %v", err)
+	}
+	// Helper does not need to live under the node manager's root dir, but
+	// we put it there for convenience.
+	path := filepath.Join(root, "helper.sh")
+	if err := ioutil.WriteFile(path, []byte(output), 0755); err != nil {
+		t.Fatalf("WriteFile(%v) failed: %v", path, err)
+	}
+	return path
+}

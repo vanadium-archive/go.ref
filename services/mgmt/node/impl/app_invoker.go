@@ -300,7 +300,7 @@ func (i *appInvoker) Install(_ ipc.ServerContext, applicationVON string) (string
 	installationID := generateID()
 	installationDir := filepath.Join(i.config.Root, applicationDirName(envelope.Title), installationDirName(installationID))
 	deferrer := func() {
-		cleanupDir(installationDir)
+		cleanupDir(installationDir, "")
 	}
 	defer func() {
 		if deferrer != nil {
@@ -559,25 +559,26 @@ func (i *appInvoker) run(instanceDir, systemName string) error {
 }
 
 func (i *appInvoker) Start(call ipc.ServerContext) ([]string, error) {
+	helper := i.config.Helper
 	instanceDir, instanceID, err := i.newInstance()
 	if err != nil {
-		cleanupDir(instanceDir)
+		cleanupDir(instanceDir, helper)
 		return nil, err
 	}
 
-	systemName, err := systemAccountForHelper(i.config.Helper, call.RemoteBlessings().ForContext(call), i.uat)
+	systemName, err := systemAccountForHelper(helper, call.RemoteBlessings().ForContext(call), i.uat)
 	if err != nil {
-		cleanupDir(instanceDir)
+		cleanupDir(instanceDir, helper)
 		return nil, err
 	}
 
 	if err := saveSystemNameForInstance(instanceDir, systemName); err != nil {
-		cleanupDir(instanceDir)
+		cleanupDir(instanceDir, helper)
 		return nil, err
 	}
 
 	if err = i.run(instanceDir, systemName); err != nil {
-		cleanupDir(instanceDir)
+		cleanupDir(instanceDir, helper)
 		return nil, err
 	}
 	return []string{instanceID}, nil
@@ -747,7 +748,7 @@ func (i *appInvoker) Update(ipc.ServerContext) error {
 	}
 	versionDir, err := newVersion(installationDir, newEnvelope, oldVersionDir)
 	if err != nil {
-		cleanupDir(versionDir)
+		cleanupDir(versionDir, "")
 		return err
 	}
 	return nil

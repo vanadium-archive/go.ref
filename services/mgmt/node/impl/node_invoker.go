@@ -343,7 +343,7 @@ func (i *nodeInvoker) updateNodeManager(ctx context.T) error {
 	}
 
 	deferrer := func() {
-		cleanupDir(workspace)
+		cleanupDir(workspace, "")
 	}
 	defer func() {
 		if deferrer != nil {
