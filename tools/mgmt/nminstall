@@ -1,0 +1,124 @@
+#!/bin/bash
+#
+# Installs node manager on the local machine.
+#
+# Specifically:
+#
+# 1. Fetches the binaries required for a node manager installation from a few
+# possible sources.
+#
+# 2. Sets up the helper with setuid.  The helper binary needs to be owned by
+# root and have the suid bit set, to enable the node manager to run binaries
+# under different system accounts than itself.
+#
+# 3. Runs the self-install command on the node manager.
+#
+# Usage:
+#
+# # Gets binaries from local repository (TODO(caprita): implement)
+# ./nminstall <install parent dir>
+#
+# # Gets binaries from local filesystem
+# ./nminstall <install parent dir> /path/to/binaries
+#
+# # Gets binaries from HTTP server (TODO(caprita): implement)
+# ./nminstall <install parent dir> http://host/path
+
+set -e
+
+usage() {
+  echo "usage:"
+  echo "./nminstall <install parent dir> [<binary source>]"
+}
+
+# TODO(caprita): Also agent.
+readonly BIN_NAMES=(noded suidhelper)
+
+#######################################################
+# Fetches binaries needed by node manager installation.
+# Globals:
+#   BIN_NAMES
+#   VEYRON_ROOT
+# Arguments:
+#   destination for binaries
+#   source of binaries
+# Returns:
+#   None
+#######################################
+get_binaries() {
+  local -r BIN_INSTALL="$1"
+  local -r BIN_SOURCE="$2"
+
+  local bin_names_str=""
+  for bin_name in ${BIN_NAMES[@]}; do
+    bin_names_str+=" ${bin_name}"
+  done
+  # If source is not specified, try to look for it in the repository.
+  if [[ -z "${BIN_SOURCE}" ]]; then
+    if [[ -z "${VEYRON_ROOT}" ]]; then
+      echo 'ERROR: binary source not specified and no local repository available'
+      exit 1
+    fi
+    local -r REPO_BIN_DIR="${VEYRON_ROOT}/veyron/go/bin"
+    echo "Fetching binaries:${bin_names_str} from: ${REPO_BIN_DIR} ..."
+    for bin_name in ${BIN_NAMES[@]}; do
+      local repo_source="${REPO_BIN_DIR}/${bin_name}"
+      if [[ -x "${repo_source}" ]]; then
+        local file_destination="${BIN_INSTALL}/${bin_name}"
+	cp "${repo_source}" "${file_destination}"
+        chmod 700 "${file_destination}"
+      else
+	echo "couldn't find ${repo_source}"
+	exit 1
+      fi
+    done
+    echo "Binaries are in ${BIN_INSTALL}."
+    return
+  fi
+
+  echo 'ERROR: couldn'"'"'t fetch binaries.'
+  exit 1
+}
+
+main() {
+  local -r INSTALL_PARENT_DIR="$1"
+  if [[ -z "${INSTALL_PARENT_DIR}" ]]; then
+    echo 'No local install destination specified!'
+    usage
+    exit 1
+  fi
+
+  if [[ ! -d "${INSTALL_PARENT_DIR}" ]]; then
+    echo "${INSTALL_PARENT_DIR} is not a directory!"
+    exit 1
+  fi
+
+  local -r INSTALL_DIR="${INSTALL_PARENT_DIR}/node_manager"
+
+  # TODO(caprita): Check that the node manager is not already installed before
+  # proceeding.  We should require an explicit uninstall to avoid wiping away
+  # the node manager accidentally.
+  sudo rm -rf "${INSTALL_DIR}"
+  mkdir -m 700 "${INSTALL_DIR}"
+
+  local -r BIN_INSTALL="${INSTALL_DIR}/bin"
+  mkdir -m 700 "${BIN_INSTALL}"
+
+  # Fetch the binaries.
+  local -r BIN_SOURCE="$2"
+  get_binaries "${BIN_INSTALL}" "${BIN_SOURCE}"
+
+  # Set up the suidhelper.
+  echo "Configuring suidhelper ..."
+  local -r SETUID_SCRIPT="${BIN_INSTALL}/suidhelper"
+  sudo bash -c "chown root:root \"${SETUID_SCRIPT}\"; chmod 4551 \"${SETUID_SCRIPT}\""
+  echo "Suidhelper configured."
+
+  # Tell the node manager to install itself.
+  local -r NM_ROOT="${INSTALL_DIR}/nmroot"
+  echo "Installing node manager under ${NM_ROOT} ..."
+  VEYRON_NM_CURRENT="${INSTALL_DIR}/curr" VEYRON_NM_ROOT="${NM_ROOT}" VEYRON_NM_HELPER="${SETUID_SCRIPT}" "${BIN_INSTALL}/noded" --install_self
+  echo "Node manager installed."
+}
+
+main "$@"
