@@ -36,9 +36,6 @@ func (rt *vrt) PublicIDStore() security.PublicIDStore {
 }
 
 func (rt *vrt) initSecurity() error {
-	// Use the new security model in ipc.Client only if it was expicitly specified.
-	// At a later date, we will switch to using the new model always.
-	rt.useNewSecurityModelInIPCClients = rt.useNewSecurityModelInIPCClients || len(os.Getenv(VeyronCredentialsEnvVar)) > 0
 	if err := rt.initOldSecurity(); err != nil {
 		return err
 	}
@@ -86,16 +83,9 @@ func (rt *vrt) initOldSecurity() error {
 	if err := rt.initPublicIDStore(); err != nil {
 		return err
 	}
-	// Initialize the runtime's PublicIDStore with the runtime's PublicID.
-	// TODO(ashankar,ataly): What should be the tag for the PublicID? Below we use
-	// security.AllPrincipals but this means that the PublicID *always* gets used
-	// for any peer. This may not be desirable.
 	if err := rt.store.Add(rt.id.PublicID(), security.AllPrincipals); err != nil {
 		return fmt.Errorf("could not initialize a PublicIDStore for the runtime: %s", err)
 	}
-
-	// Always trust our own identity providers.
-	// TODO(ataly, ashankar): We should trust the identity providers of all PublicIDs in the store.
 	trustIdentityProviders(rt.id)
 	return nil
 }

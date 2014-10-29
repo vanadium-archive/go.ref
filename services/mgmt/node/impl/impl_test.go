@@ -29,7 +29,6 @@ import (
 	"veyron.io/veyron/veyron2"
 	"veyron.io/veyron/veyron2/ipc"
 	"veyron.io/veyron/veyron2/naming"
-	"veyron.io/veyron/veyron2/options"
 	"veyron.io/veyron/veyron2/rt"
 	"veyron.io/veyron/veyron2/security"
 	"veyron.io/veyron/veyron2/services/mgmt/application"
@@ -71,13 +70,11 @@ func init() {
 }
 
 func initRT() {
-	rt.Init(options.ForceNewSecurityModel{})
-
+	rt.Init()
 	// Disable the cache because we will be manipulating/using the namespace
 	// across multiple processes and want predictable behaviour without
 	// relying on timeouts.
 	rt.R().Namespace().CacheCtl(naming.DisableCache(true))
-
 }
 
 // TestHelperProcess is the entrypoint for the modules commands in a
@@ -734,7 +731,7 @@ func (g *granter) Grant(other security.Blessings) (security.Blessings, error) {
 }
 
 func newRuntime(t *testing.T) veyron2.Runtime {
-	runtime, err := rt.New(options.ForceNewSecurityModel{})
+	runtime, err := rt.New()
 	if err != nil {
 		t.Fatalf("rt.New() failed: %v", err)
 	}

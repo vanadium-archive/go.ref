@@ -8,7 +8,6 @@ import (
 	"veyron.io/veyron/veyron2"
 	"veyron.io/veyron/veyron2/ipc"
 	"veyron.io/veyron/veyron2/naming"
-	"veyron.io/veyron/veyron2/options"
 	"veyron.io/veyron/veyron2/rt"
 	"veyron.io/veyron/veyron2/security"
 
@@ -19,7 +18,7 @@ import (
 
 func revokerSetup(t *testing.T) (dischargerKey security.PublicKey, dischargerEndpoint string, revoker *RevocationManager, closeFunc func(), runtime veyron2.Runtime) {
 	var dir = filepath.Join(os.TempDir(), "revoker_test_dir")
-	r := rt.Init(options.ForceNewSecurityModel{})
+	r := rt.Init()
 	revokerService, err := NewRevocationManager(dir)
 	if err != nil {
 		t.Fatalf("NewRevocationManager failed: %v", err)
