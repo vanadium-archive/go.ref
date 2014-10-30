@@ -42,8 +42,9 @@ type ServerShellPacket struct {
 	Stderr []byte
 }
 
-// TODO(bprosnitz) Remove this line once signatures are updated to use typevals.
-// It corrects a bug where _gen_wiretype is unused in VDL pacakges where only bootstrap types are used on interfaces.
+// TODO(toddw): Remove this line once the new signature support is done.
+// It corrects a bug where _gen_wiretype is unused in VDL pacakges where only
+// bootstrap types are used on interfaces.
 const _ = _gen_wiretype.TypeIDInvalid
 
 // Tunnel is the interface the client binds and uses.
