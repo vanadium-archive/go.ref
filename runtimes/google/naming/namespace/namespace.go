@@ -107,6 +107,32 @@ func (ns *namespace) rootName(name string) []string {
 	return []string{name}
 }
 
+// rootMountEntry 'roots' a name creating a mount entry for the name.
+func (ns *namespace) rootMountEntry(name string) *naming.MountEntry {
+	e := new(naming.MountEntry)
+	expiration := time.Now().Add(time.Hour) // plenty of time for a call
+	address, suffix := naming.SplitAddressName(name)
+	if len(address) == 0 {
+		e.MT = true
+		e.Name = name
+		ns.RLock()
+		defer ns.RUnlock()
+		for _, r := range ns.roots {
+			e.Servers = append(e.Servers, naming.MountedServer{Server: r, Expires: expiration})
+		}
+		return e
+	}
+	// TODO(p): right now I assume any address handed to me to be resolved is a mount table.
+	// Eventually we should do something like the following:
+	// if ep, err := ns.rt.NewEndpoint(address); err == nil && ep.ServesMountTable() {
+	//	e.MT = true
+	// }
+	e.MT = true
+	e.Name = suffix
+	e.Servers = append(e.Servers, naming.MountedServer{Server: address, Expires: expiration})
+	return e
+}
+
 // notAnMT returns true if the error indicates this isn't a mounttable server.
 func notAnMT(err error) bool {
 	switch verror.ErrorID(err) {

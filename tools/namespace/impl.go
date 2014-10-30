@@ -5,7 +5,7 @@ import (
 	"time"
 
 	"veyron.io/veyron/veyron/lib/cmdline"
-
+	"veyron.io/veyron/veyron2/naming"
 	"veyron.io/veyron/veyron2/rt"
 	"veyron.io/veyron/veyron2/vlog"
 )
@@ -38,7 +38,7 @@ func runGlob(cmd *cmdline.Command, args []string) error {
 	for res := range c {
 		fmt.Fprint(cmd.Stdout(), res.Name)
 		for _, s := range res.Servers {
-			fmt.Fprintf(cmd.Stdout(), " %s (TTL %s)", s.Server, s.TTL)
+			fmt.Fprintf(cmd.Stdout(), " %s (Expires %s)", s.Server, s.Expires)
 		}
 		fmt.Fprintln(cmd.Stdout())
 	}
@@ -156,13 +156,13 @@ func runResolveToMT(cmd *cmdline.Command, args []string) error {
 	ns := rt.R().Namespace()
 	ctx, cancel := rt.R().NewContext().WithTimeout(time.Minute)
 	defer cancel()
-	servers, err := ns.ResolveToMountTable(ctx, name)
+	e, err := ns.ResolveToMountTableX(ctx, name)
 	if err != nil {
-		vlog.Infof("ns.ResolveToMountTable(%q) failed: %v", name, err)
+		vlog.Infof("ns.ResolveToMountTableX(%q) failed: %v", name, err)
 		return err
 	}
-	for _, s := range servers {
-		fmt.Fprintln(cmd.Stdout(), s)
+	for _, s := range e.Servers {
+		fmt.Fprintln(cmd.Stdout(), naming.JoinAddressName(s.Server, e.Name))
 	}
 	return nil
 }

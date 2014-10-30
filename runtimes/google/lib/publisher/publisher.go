@@ -313,17 +313,17 @@ func (ps *pubState) unmountAll() {
 func (ps *pubState) published() []string {
 	var ret []string
 	for _, name := range ps.names {
-		mtServers, err := ps.ns.ResolveToMountTable(ps.ctx, name)
+		e, err := ps.ns.ResolveToMountTableX(ps.ctx, name)
 		if err != nil {
 			vlog.Errorf("ipc pub: couldn't resolve %v to mount table: %v", name, err)
 			continue
 		}
-		if len(mtServers) == 0 {
+		if len(e.Servers) == 0 {
 			vlog.Errorf("ipc pub: no mount table found for %v", name)
 			continue
 		}
-		for _, s := range mtServers {
-			ret = append(ret, naming.MakeResolvable(s))
+		for _, s := range e.Servers {
+			ret = append(ret, naming.JoinAddressName(s.Server, e.Name))
 		}
 	}
 	return ret

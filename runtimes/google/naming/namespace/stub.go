@@ -1,21 +1,38 @@
 package namespace
 
-// This file defines data types that are also defined in the idl for the
-// mounttable. We live with the duplication here to avoid having to depend
-// on stubs which in turn depend on the runtime etc.
+import (
+	"time"
 
-// mountedServer mirrors mounttable.MountedServer
-type mountedServer struct {
-	// Server is the OA that's mounted.
-	Server string
-	// TTL is the remaining time (in seconds) before the mount entry expires.
-	TTL uint32
+	"veyron.io/veyron/veyron2/naming"
+	"veyron.io/veyron/veyron2/services/mounttable/types"
+)
+
+func convertServersToStrings(servers []naming.MountedServer, suffix string) (ret []string) {
+	for _, s := range servers {
+		ret = append(ret, naming.Join(s.Server, suffix))
+	}
+	return
 }
 
-// mountEntry mirrors mounttable.MountEntry
-type mountEntry struct {
-	// Name is the mounted name.
-	Name string
-	// Servers (if present) specifies the mounted names (Link is empty).
-	Servers []mountedServer
+func convertStringsToServers(servers []string) (ret []naming.MountedServer) {
+	for _, s := range servers {
+		ret = append(ret, naming.MountedServer{Server: s})
+	}
+	return
+}
+
+func convertServers(servers []types.MountedServer) []naming.MountedServer {
+	var reply []naming.MountedServer
+	for _, s := range servers {
+		if s.TTL == 0 {
+			s.TTL = 32000000 // > 1 year
+		}
+		expires := time.Now().Add(time.Duration(s.TTL) * time.Second)
+		reply = append(reply, naming.MountedServer{Server: s.Server, Expires: expires})
+	}
+	return reply
+}
+
+func convertMountEntry(e *types.MountEntry) *naming.MountEntry {
+	return &naming.MountEntry{Name: e.Name, MT: e.MT, Servers: convertServers(e.Servers)}
 }

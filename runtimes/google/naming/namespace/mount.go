@@ -6,6 +6,7 @@ import (
 	"veyron.io/veyron/veyron2/context"
 	"veyron.io/veyron/veyron2/ipc"
 	"veyron.io/veyron/veyron2/naming"
+	"veyron.io/veyron/veyron2/options"
 	"veyron.io/veyron/veyron2/services/mounttable/types"
 	"veyron.io/veyron/veyron2/vlog"
 )
@@ -13,7 +14,7 @@ import (
 // mountIntoMountTable mounts a single server into a single mount table.
 func mountIntoMountTable(ctx context.T, client ipc.Client, name, server string, ttl time.Duration, flags types.MountFlag) error {
 	ctx, _ = ctx.WithTimeout(callTimeout)
-	call, err := client.StartCall(ctx, name, "Mount", []interface{}{server, uint32(ttl.Seconds()), flags})
+	call, err := client.StartCall(ctx, name, "Mount", []interface{}{server, uint32(ttl.Seconds()), flags}, options.NoResolve(true))
 	if err != nil {
 		return err
 	}
@@ -26,7 +27,7 @@ func mountIntoMountTable(ctx context.T, client ipc.Client, name, server string, 
 // unmountFromMountTable removes a single mounted server from a single mount table.
 func unmountFromMountTable(ctx context.T, client ipc.Client, name, server string) error {
 	ctx, _ = ctx.WithTimeout(callTimeout)
-	call, err := client.StartCall(ctx, name, "Unmount", []interface{}{server})
+	call, err := client.StartCall(ctx, name, "Unmount", []interface{}{server}, options.NoResolve(true))
 	if err != nil {
 		return err
 	}

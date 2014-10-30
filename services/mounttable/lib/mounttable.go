@@ -275,7 +275,8 @@ func (ms *mountContext) Mount(context ipc.ServerContext, server string, ttlsecs 
 
 	// Make sure the server name is reasonable.
 	epString, _ := naming.SplitAddressName(server)
-	if _, err := rt.R().NewEndpoint(epString); err != nil {
+	ep, err := rt.R().NewEndpoint(epString)
+	if err != nil {
 		return fmt.Errorf("malformed address %q for mounted server %q", epString, server)
 	}
 
@@ -289,10 +290,11 @@ func (ms *mountContext) Mount(context ipc.ServerContext, server string, ttlsecs 
 	if hasReplaceFlag(flags) {
 		n.mount = nil
 	}
+	wantMT := hasMTFlag(flags) || ep.ServesMountTable()
 	if n.mount == nil {
-		n.mount = &mount{servers: NewServerList(), mt: hasMTFlag(flags)}
+		n.mount = &mount{servers: NewServerList(), mt: wantMT}
 	} else {
-		if hasMTFlag(flags) != n.mount.mt {
+		if wantMT != n.mount.mt {
 			return fmt.Errorf("MT doesn't match")
 		}
 	}

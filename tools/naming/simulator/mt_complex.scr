@@ -238,7 +238,7 @@ assert $R0 /$mt_l_addr//echo
 
 # Now, use mount directly to create a 'symlink'
 set symlink_target=some/deep/name/that/is/a/mount
-mount tl/b/symlink /$mt_b_addr/$symlink_target 1h
+mount tl/b/symlink /$mt_b_addr/$symlink_target 1h M
 wait $_
 
 ls -l tl/b/symlink
