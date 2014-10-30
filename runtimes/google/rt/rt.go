@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strings"
 	"sync"
 
 	"veyron.io/veyron/veyron2"
@@ -17,6 +16,7 @@ import (
 	"veyron.io/veyron/veyron2/rt"
 
 	"veyron.io/veyron/veyron/lib/exec"
+	"veyron.io/veyron/veyron/lib/flags"
 	_ "veyron.io/veyron/veyron/lib/stats/sysstats"
 	"veyron.io/veyron/veyron/runtimes/google/naming/namespace"
 	"veyron.io/veyron/veyron2/options"
@@ -40,6 +40,7 @@ type vrt struct {
 	store      security.PublicIDStore
 	client     ipc.Client
 	mgmt       *mgmtImpl
+	flags      flags.RuntimeFlags
 	nServers   int  // GUARDED_BY(mu)
 	cleaningUp bool // GUARDED_BY(mu)
 
@@ -49,14 +50,21 @@ type vrt struct {
 
 var _ veyron2.Runtime = (*vrt)(nil)
 
+var flagsOnce sync.Once
+var runtimeFlags *flags.Flags
+
 func init() {
 	rt.RegisterRuntime(veyron2.GoogleRuntimeName, New)
+	runtimeFlags = flags.CreateAndRegister(flag.CommandLine, flags.Runtime)
 }
 
 // Implements veyron2/rt.New
 func New(opts ...veyron2.ROpt) (veyron2.Runtime, error) {
 	rt := &vrt{mgmt: new(mgmtImpl), lang: i18n.LangIDFromEnv(), program: filepath.Base(os.Args[0])}
-	flag.Parse()
+	flagsOnce.Do(func() {
+		runtimeFlags.Parse(os.Args[1:])
+	})
+	rt.flags = runtimeFlags.RuntimeFlags()
 	nsRoots := []string{}
 	for _, o := range opts {
 		switch v := o.(type) {
@@ -66,8 +74,6 @@ func New(opts ...veyron2.ROpt) (veyron2.Runtime, error) {
 			rt.id = v.PrivateID
 		case options.Profile:
 			rt.profile = v.Profile
-		case options.NamespaceRoots:
-			nsRoots = v
 		case options.RuntimeName:
 			if v != "google" && v != "" {
 				return nil, fmt.Errorf("%q is the wrong name for this runtime", v)
@@ -88,20 +94,7 @@ func New(opts ...veyron2.ROpt) (veyron2.Runtime, error) {
 		vlog.VI(1).Infof("Using profile %q", rt.profile.Name())
 	}
 
-	if len(nsRoots) == 0 {
-		for _, ev := range os.Environ() {
-			p := strings.SplitN(ev, "=", 2)
-			if len(p) != 2 {
-				continue
-			}
-			k, v := p[0], p[1]
-			if strings.HasPrefix(k, "NAMESPACE_ROOT") {
-				nsRoots = append(nsRoots, v)
-			}
-		}
-	}
-
-	if ns, err := namespace.New(rt, nsRoots...); err != nil {
+	if ns, err := namespace.New(rt, rt.flags.NamespaceRoots...); err != nil {
 		return nil, fmt.Errorf("Couldn't create mount table: %v", err)
 	} else {
 		rt.ns = ns
@@ -113,7 +106,7 @@ func New(opts ...veyron2.ROpt) (veyron2.Runtime, error) {
 		return nil, fmt.Errorf("failed to create stream manager: %s", err)
 	}
 
-	if err := rt.initSecurity(); err != nil {
+	if err := rt.initSecurity(rt.flags.Credentials); err != nil {
 		return nil, fmt.Errorf("failed to init sercurity: %s", err)
 	}
 

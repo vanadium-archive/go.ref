@@ -101,7 +101,16 @@ func (eh *execHandle) envelope(sh *Shell, env []string, args ...string) ([]strin
 	newargs := []string{os.Args[0]}
 	newargs = append(newargs, testFlags()...)
 	newargs = append(newargs, args...)
-	return newargs, append(env, eh.entryPoint)
+	// Be careful to remove any existing ShellEntryPoint env vars. This
+	// can happen when subprocesses run other subprocesses etc.
+	cleaned := make([]string, 0, len(env)+1)
+	for _, e := range env {
+		if strings.HasPrefix(e, ShellEntryPoint+"=") {
+			continue
+		}
+		cleaned = append(cleaned, e)
+	}
+	return newargs, append(cleaned, eh.entryPoint)
 }
 
 func (eh *execHandle) start(sh *Shell, env []string, args ...string) (Handle, error) {
@@ -136,8 +145,8 @@ func (eh *execHandle) start(sh *Shell, env []string, args ...string) (Handle, er
 	if err := handle.Start(); err != nil {
 		return nil, err
 	}
-	// TODO(cnicolaou): make this timeout configurable
-	err = handle.WaitForReady(time.Minute)
+	vlog.VI(1).Infof("Started: %q, pid %d", eh.name, cmd.Process.Pid)
+	err = handle.WaitForReady(sh.startTimeout)
 	return eh, err
 }
 
@@ -223,11 +232,17 @@ func (child *childRegistrar) hasCommand(name string) bool {
 }
 
 func (child *childRegistrar) dispatch() error {
-	ch, _ := vexec.GetChildHandle()
+	ch, err := vexec.GetChildHandle()
+	if err != nil {
+		// This is for debugging only. It's perfectly reasonable for this
+		// error to occur if the process is started by a means other
+		// than the exec library.
+		vlog.VI(1).Infof("failed to get child handle: %s", err)
+	}
+
 	// Only signal that the child is ready or failed if we successfully get
 	// a child handle. We most likely failed to get a child handle
 	// because the subprocess was run directly from the command line.
-
 	command := os.Getenv(ShellEntryPoint)
 	if len(command) == 0 {
 		err := fmt.Errorf("Failed to find entrypoint %q", ShellEntryPoint)

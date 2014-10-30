@@ -11,11 +11,11 @@ import (
 type FlagGroup int
 
 const (
-	// Essential identifies the flags and associated environment variables
-	// required by all Vanadium processes. Namely:
+	// Runtime identifies the flags and associated environment variables
+	// used by the Vanadium process runtime. Namely:
 	// --veyron.namespace.root (which may be repeated to supply multiple values)
 	// --veyron.credentials
-	Essential FlagGroup = iota
+	Runtime FlagGroup = iota
 	// Listen identifies the flags typically required to configure
 	// ipc.ListenSpec. Namely:
 	// --veyron.tcp.protocol
@@ -44,8 +44,8 @@ func (nsr *namespaceRootFlagVar) Set(v string) error {
 	return nil
 }
 
-// EssentialFlags contains the values of the Essential flag group.
-type EssentialFlags struct {
+// RuntimeFlags contains the values of the Runtime flag group.
+type RuntimeFlags struct {
 	// NamespaceRoots may be initialized by NAMESPACE_ROOT* enivornment
 	// variables as well as --veyron.namespace.root. The command line
 	// will override the environment.
@@ -65,10 +65,10 @@ type ListenFlags struct {
 	ListenProxy    string
 }
 
-// createAndRegisterEssentialFlags creates and registers the EssentialFlags
+// createAndRegisterRuntimeFlags creates and registers the RuntimeFlags
 // group with the supplied flag.FlagSet.
-func createAndRegisterEssentialFlags(fs *flag.FlagSet) *EssentialFlags {
-	f := &EssentialFlags{}
+func createAndRegisterRuntimeFlags(fs *flag.FlagSet) *RuntimeFlags {
+	f := &RuntimeFlags{}
 	fs.Var(&f.namespaceRootsFlag, "veyron.namespace.root", "local namespace root; can be repeated to provided multiple roots")
 	fs.StringVar(&f.Credentials, "veyron.credentials", "", "directory to use for storing security credentials")
 	return f
@@ -88,14 +88,16 @@ func createAndRegisterListenFlags(fs *flag.FlagSet) *ListenFlags {
 
 // CreateAndRegister creates a new set of flag groups as specified by the
 // supplied flag group parameters and registers them with the supplied
-// flag.Flagset. The Essential flag group is always included.
+// flag.Flagset.
 func CreateAndRegister(fs *flag.FlagSet, groups ...FlagGroup) *Flags {
+	if len(groups) == 0 {
+		return nil
+	}
 	f := &Flags{FlagSet: fs, groups: make(map[FlagGroup]interface{})}
-	f.groups[Essential] = createAndRegisterEssentialFlags(fs)
-	for _, s := range groups {
-		switch s {
-		case Essential:
-			// do nothing, always included
+	for _, g := range groups {
+		switch g {
+		case Runtime:
+			f.groups[Runtime] = createAndRegisterRuntimeFlags(fs)
 		case Listen:
 			f.groups[Listen] = createAndRegisterListenFlags(fs)
 		}
@@ -103,10 +105,13 @@ func CreateAndRegister(fs *flag.FlagSet, groups ...FlagGroup) *Flags {
 	return f
 }
 
-// EssentialFlags returns the Essential flag subset stored in its Flags
+// RuntimeFlags returns the Runtime flag subset stored in its Flags
 // instance.
-func (f *Flags) EssentialFlags() EssentialFlags {
-	from := f.groups[Essential].(*EssentialFlags)
+func (f *Flags) RuntimeFlags() RuntimeFlags {
+	if p := f.groups[Runtime]; p == nil {
+		return RuntimeFlags{}
+	}
+	from := f.groups[Runtime].(*RuntimeFlags)
 	to := *from
 	to.NamespaceRoots = make([]string, len(from.NamespaceRoots))
 	copy(to.NamespaceRoots, from.NamespaceRoots)
@@ -138,7 +143,7 @@ func (f *Flags) Args() []string {
 
 // legacyEnvInit provides support for the legacy NAMESPACE_ROOT? and
 // VEYRON_CREDENTIALS env vars.
-func (es *EssentialFlags) legacyEnvInit() {
+func (es *RuntimeFlags) legacyEnvInit() {
 	for _, ev := range os.Environ() {
 		p := strings.SplitN(ev, "=", 2)
 		if len(p) != 2 {
@@ -156,15 +161,22 @@ func (es *EssentialFlags) legacyEnvInit() {
 
 // Parse parses the supplied args, as per flag.Parse
 func (f *Flags) Parse(args []string) error {
-	f.groups[Essential].(*EssentialFlags).legacyEnvInit()
+	hasrt := f.groups[Runtime] != nil
+	if hasrt {
+		f.groups[Runtime].(*RuntimeFlags).legacyEnvInit()
+	}
+
 	// TODO(cnicolaou): implement a single env var 'VANADIUM_OPTS'
 	// that can be used to specify any command line.
 	if err := f.FlagSet.Parse(args); err != nil {
 		return err
 	}
-	essential := f.groups[Essential].(*EssentialFlags)
-	if len(essential.namespaceRootsFlag.roots) > 0 {
-		essential.NamespaceRoots = essential.namespaceRootsFlag.roots
+
+	if hasrt {
+		runtime := f.groups[Runtime].(*RuntimeFlags)
+		if len(runtime.namespaceRootsFlag.roots) > 0 {
+			runtime.NamespaceRoots = runtime.namespaceRootsFlag.roots
+		}
 	}
 	return nil
 }

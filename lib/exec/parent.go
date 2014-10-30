@@ -66,7 +66,6 @@ func (TimeKeeperOpt) ExecParentHandleOpt() {}
 // NewParentHandle creates a ParentHandle for the child process represented by
 // an instance of exec.Cmd.
 func NewParentHandle(c *exec.Cmd, opts ...ParentHandleOpt) *ParentHandle {
-
 	cfg, secret := NewConfig(), ""
 	tk := timekeeper.RealTime()
 	for _, opt := range opts {
@@ -92,7 +91,18 @@ func NewParentHandle(c *exec.Cmd, opts ...ParentHandleOpt) *ParentHandle {
 // Start starts the child process, sharing a secret with it and
 // setting up a communication channel over which to read its status.
 func (p *ParentHandle) Start() error {
-	p.c.Env = append(p.c.Env, VersionVariable+"="+version1)
+	// Make sure that there are no instances of the VersionVariable
+	// already in the environment (which can happen when a subprocess
+	// creates a subprocess etc)
+	nenv := make([]string, 0, len(p.c.Env)+1)
+	for _, e := range p.c.Env {
+		if strings.HasPrefix(e, VersionVariable+"=") {
+			continue
+		}
+		nenv = append(nenv, e)
+	}
+	p.c.Env = append(nenv, VersionVariable+"="+version1)
+
 	// Create anonymous pipe for communicating data between the child
 	// and the parent.
 	dataRead, dataWrite, err := os.Pipe()

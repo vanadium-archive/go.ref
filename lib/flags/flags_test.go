@@ -11,25 +11,32 @@ import (
 )
 
 func TestFlags(t *testing.T) {
-	fl := flags.CreateAndRegister(flag.NewFlagSet("test", flag.ContinueOnError))
+	fs := flag.NewFlagSet("test", flag.ContinueOnError)
+	if flags.CreateAndRegister(fs) != nil {
+		t.Errorf("should have failed")
+	}
+	fl := flags.CreateAndRegister(fs, flags.Runtime)
+	if fl == nil {
+		t.Fatalf("should have returned a non-nil value")
+	}
 	creds := "creddir"
 	roots := []string{"ab:cd:ef"}
 	args := []string{"--veyron.credentials=" + creds, "--veyron.namespace.root=" + roots[0]}
 	fl.Parse(args)
-	es := fl.EssentialFlags()
-	if got, want := es.NamespaceRoots, roots; !reflect.DeepEqual(got, want) {
+	rtf := fl.RuntimeFlags()
+	if got, want := rtf.NamespaceRoots, roots; !reflect.DeepEqual(got, want) {
 		t.Errorf("got %v, want %v", got, want)
 	}
-	if got, want := es.Credentials, creds; !reflect.DeepEqual(got, want) {
+	if got, want := rtf.Credentials, creds; !reflect.DeepEqual(got, want) {
 		t.Errorf("got %v, want %v", got, want)
 	}
 	if got, want := fl.HasGroup(flags.Listen), false; got != want {
 		t.Errorf("got %t, want %t", got, want)
 	}
 	// Make sure we have a deep copy.
-	es.NamespaceRoots[0] = "oooh"
-	es = fl.EssentialFlags()
-	if got, want := es.NamespaceRoots, roots; !reflect.DeepEqual(got, want) {
+	rtf.NamespaceRoots[0] = "oooh"
+	rtf = fl.RuntimeFlags()
+	if got, want := rtf.NamespaceRoots, roots; !reflect.DeepEqual(got, want) {
 		t.Errorf("got %v, want %v", got, want)
 	}
 }
@@ -37,7 +44,7 @@ func TestFlags(t *testing.T) {
 func TestFlagError(t *testing.T) {
 	fs := flag.NewFlagSet("test", flag.ContinueOnError)
 	fs.SetOutput(ioutil.Discard)
-	fl := flags.CreateAndRegister(fs)
+	fl := flags.CreateAndRegister(fs, flags.Runtime)
 	addr := "192.168.10.1:0"
 	args := []string{"--xxxveyron.tcp.address=" + addr, "not an arg"}
 	err := fl.Parse(args)
@@ -50,7 +57,7 @@ func TestFlagError(t *testing.T) {
 }
 
 func TestFlagsGroups(t *testing.T) {
-	fl := flags.CreateAndRegister(flag.NewFlagSet("test", flag.ContinueOnError), flags.Listen)
+	fl := flags.CreateAndRegister(flag.NewFlagSet("test", flag.ContinueOnError), flags.Runtime, flags.Listen)
 	if got, want := fl.HasGroup(flags.Listen), true; got != want {
 		t.Errorf("got %t, want %t", got, want)
 	}
@@ -59,7 +66,7 @@ func TestFlagsGroups(t *testing.T) {
 	args := []string{"--veyron.tcp.address=" + addr, "--veyron.namespace.root=" + roots[0]}
 	fl.Parse(args)
 	lf := fl.ListenFlags()
-	if got, want := fl.EssentialFlags().NamespaceRoots, roots; !reflect.DeepEqual(got, want) {
+	if got, want := fl.RuntimeFlags().NamespaceRoots, roots; !reflect.DeepEqual(got, want) {
 		t.Errorf("got %v, want %v", got, want)
 	}
 	if got, want := lf.ListenAddress.String(), addr; got != want {
@@ -81,39 +88,41 @@ func TestEnvVars(t *testing.T) {
 	defer os.Setenv(rootEnvVar0, oldroot0)
 
 	os.Setenv(credEnvVar, "bar")
-	fl := flags.CreateAndRegister(flag.NewFlagSet("test", flag.ContinueOnError))
+	fl := flags.CreateAndRegister(flag.NewFlagSet("test", flag.ContinueOnError), flags.Runtime)
 	if err := fl.Parse([]string{}); err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
-	es := fl.EssentialFlags()
-	if got, want := es.Credentials, "bar"; got != want {
+	rtf := fl.RuntimeFlags()
+	if got, want := rtf.Credentials, "bar"; got != want {
 		t.Errorf("got %q, want %q", got, want)
 	}
 
 	if err := fl.Parse([]string{"--veyron.credentials=baz"}); err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
-	es = fl.EssentialFlags()
-	if got, want := es.Credentials, "baz"; got != want {
+	rtf = fl.RuntimeFlags()
+	if got, want := rtf.Credentials, "baz"; got != want {
 		t.Errorf("got %q, want %q", got, want)
 	}
 
 	os.Setenv(rootEnvVar, "a:1")
 	os.Setenv(rootEnvVar0, "a:2")
-	fl = flags.CreateAndRegister(flag.NewFlagSet("test", flag.ContinueOnError))
+	fl = flags.CreateAndRegister(flag.NewFlagSet("test", flag.ContinueOnError), flags.Runtime)
 	if err := fl.Parse([]string{}); err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
-	es = fl.EssentialFlags()
-	if got, want := es.NamespaceRoots, []string{"a:1", "a:2"}; !reflect.DeepEqual(got, want) {
+	rtf = fl.RuntimeFlags()
+	if got, want := rtf.NamespaceRoots, []string{"a:1", "a:2"}; !reflect.DeepEqual(got, want) {
 		t.Errorf("got %q, want %q", got, want)
 	}
-	if err := fl.Parse([]string{"--veyron.namespace.root=b:1", "--veyron.namespace.root=b:2", "--veyron.namespace.root=b:3"}); err != nil {
+	if err := fl.Parse([]string{"--veyron.namespace.root=b:1", "--veyron.namespace.root=b:2", "--veyron.namespace.root=b:3", "--veyron.credentials=b:4"}); err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
-	es = fl.EssentialFlags()
-	if got, want := es.NamespaceRoots, []string{"b:1", "b:2", "b:3"}; !reflect.DeepEqual(got, want) {
+	rtf = fl.RuntimeFlags()
+	if got, want := rtf.NamespaceRoots, []string{"b:1", "b:2", "b:3"}; !reflect.DeepEqual(got, want) {
 		t.Errorf("got %q, want %q", got, want)
 	}
-
+	if got, want := rtf.Credentials, "b:4"; got != want {
+		t.Errorf("got %q, want %q", got, want)
+	}
 }

@@ -15,10 +15,6 @@ import (
 	"veyron.io/veyron/veyron2/vlog"
 )
 
-// Environment variable pointing to a directory where information about a principal
-// (private key, blessing store, blessing roots etc.) is stored.
-const VeyronCredentialsEnvVar = "VEYRON_CREDENTIALS"
-
 func (rt *vrt) Principal() security.Principal {
 	return rt.principal
 }
@@ -35,31 +31,33 @@ func (rt *vrt) PublicIDStore() security.PublicIDStore {
 	return rt.store
 }
 
-func (rt *vrt) initSecurity() error {
+func (rt *vrt) initSecurity(credentials string) error {
 	if err := rt.initOldSecurity(); err != nil {
 		return err
 	}
-	if err := rt.initPrincipal(); err != nil {
+	if err := rt.initPrincipal(credentials); err != nil {
 		return fmt.Errorf("principal initialization failed: %v", err)
 	}
 	return nil
 }
 
-func (rt *vrt) initPrincipal() error {
+func (rt *vrt) initPrincipal(credentials string) error {
 	if rt.principal != nil {
 		return nil
 	}
 	var err error
+	// TODO(cnicolaou,ashankar,ribrdb): this should be supplied via
+	// the exec.GetChildHandle call.
 	if len(os.Getenv(agent.FdVarName)) > 0 {
 		rt.principal, err = rt.connectToAgent()
 		return err
-	} else if dir := os.Getenv(VeyronCredentialsEnvVar); len(dir) > 0 {
+	} else if len(credentials) > 0 {
 		// TODO(ataly, ashankar): If multiple runtimes are getting
 		// initialized at the same time from the same VEYRON_CREDENTIALS
 		// we will need some kind of locking for the credential files.
-		if rt.principal, err = vsecurity.LoadPersistentPrincipal(dir, nil); err != nil {
+		if rt.principal, err = vsecurity.LoadPersistentPrincipal(credentials, nil); err != nil {
 			if os.IsNotExist(err) {
-				if rt.principal, err = vsecurity.CreatePersistentPrincipal(dir, nil); err != nil {
+				if rt.principal, err = vsecurity.CreatePersistentPrincipal(credentials, nil); err != nil {
 					return err
 				}
 				return vsecurity.InitDefaultBlessings(rt.principal, defaultBlessingName())

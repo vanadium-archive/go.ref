@@ -47,17 +47,19 @@ import (
 	"os"
 	"strings"
 	"sync"
+	"time"
 
 	"veyron.io/veyron/veyron2/vlog"
 )
 
 // Shell represents the context within which commands are run.
 type Shell struct {
-	mu      sync.Mutex
-	env     map[string]string
-	cmds    map[string]*commandDesc
-	handles map[Handle]struct{}
-	credDir string
+	mu           sync.Mutex
+	env          map[string]string
+	cmds         map[string]*commandDesc
+	handles      map[Handle]struct{}
+	credDir      string
+	startTimeout time.Duration
 }
 
 type commandDesc struct {
@@ -90,9 +92,10 @@ func NewShell(patterns ...string) *Shell {
 	// TODO(cnicolaou): should create a new identity if one doesn't
 	// already exist
 	sh := &Shell{
-		env:     make(map[string]string),
-		cmds:    make(map[string]*commandDesc),
-		handles: make(map[Handle]struct{}),
+		env:          make(map[string]string),
+		cmds:         make(map[string]*commandDesc),
+		handles:      make(map[Handle]struct{}),
+		startTimeout: time.Minute,
 	}
 	if flag.Lookup("test.run") != nil && os.Getenv("VEYRON_CREDENTIALS") == "" {
 		if err := sh.CreateAndUseNewCredentials(); err != nil {
@@ -181,7 +184,9 @@ func (sh *Shell) Help(command string) string {
 // ones override the Shell and the Shell ones override the OS ones.
 //
 // The Shell tracks all of the Handles that it creates so that it can shut
-// them down when asked to.
+// them down when asked to. The returned Handle may be non-nil even when an
+// error is returned, in which case it may be used to retrieve any output
+// from the failed command.
 //
 // Commands may have already been registered with the Shell using AddFunction
 // or AddSubprocess, but if not, they will treated as subprocess commands
@@ -196,7 +201,9 @@ func (sh *Shell) Start(name string, env []string, args ...string) (Handle, error
 	expanded := append([]string{name}, sh.expand(args...)...)
 	h, err := cmd.factory().start(sh, cenv, expanded...)
 	if err != nil {
-		return nil, err
+		// If the error is a timeout, then h can be used to recover
+		// any output from the process.
+		return h, err
 	}
 	sh.mu.Lock()
 	sh.handles[h] = struct{}{}
@@ -212,6 +219,11 @@ func (sh *Shell) getCommand(name string) *commandDesc {
 		cmd = &commandDesc{func() command { return newExecHandle(name) }, ""}
 	}
 	return cmd
+}
+
+// SetStartTimeout sets the timeout for starting subcommands.
+func (sh *Shell) SetStartTimeout(d time.Duration) {
+	sh.startTimeout = d
 }
 
 // CommandEnvelope returns the command line and environment that would be
