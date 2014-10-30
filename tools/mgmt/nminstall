@@ -15,7 +15,7 @@
 #
 # Usage:
 #
-# # Gets binaries from local repository (TODO(caprita): implement)
+# # Gets binaries from local repository
 # ./nminstall <install parent dir>
 #
 # # Gets binaries from local filesystem
@@ -34,7 +34,31 @@ usage() {
 # TODO(caprita): Also agent.
 readonly BIN_NAMES=(noded suidhelper)
 
-#######################################################
+###############################################################################
+# Copies one binary from source to destination.
+# Arguments:
+#   name of the binary
+#   source dir of binary
+#   destination dir of binary
+# Returns:
+#   None
+###############################################################################
+copy_binary() {
+  local -r BIN_NAME="$1"
+  local -r BIN_SRC_DIR="$2"
+  local -r BIN_DEST_DIR="$3"
+  local -r SOURCE="${BIN_SRC_DIR}/${BIN_NAME}"
+  if [[ -x "${SOURCE}" ]]; then
+    local -r DESTINATION="${BIN_DEST_DIR}/${BIN_NAME}"
+    cp "${SOURCE}" "${DESTINATION}"
+    chmod 700 "${DESTINATION}"
+  else
+    echo "couldn't find ${SOURCE}"
+    exit 1
+  fi
+}
+
+###############################################################################
 # Fetches binaries needed by node manager installation.
 # Globals:
 #   BIN_NAMES
@@ -44,7 +68,7 @@ readonly BIN_NAMES=(noded suidhelper)
 #   source of binaries
 # Returns:
 #   None
-#######################################
+###############################################################################
 get_binaries() {
   local -r BIN_INSTALL="$1"
   local -r BIN_SOURCE="$2"
@@ -60,20 +84,21 @@ get_binaries() {
       exit 1
     fi
     local -r REPO_BIN_DIR="${VEYRON_ROOT}/veyron/go/bin"
-    echo "Fetching binaries:${bin_names_str} from: ${REPO_BIN_DIR} ..."
+    echo "Fetching binaries:${bin_names_str} from build repository: ${REPO_BIN_DIR} ..."
     for bin_name in ${BIN_NAMES[@]}; do
-      local repo_source="${REPO_BIN_DIR}/${bin_name}"
-      if [[ -x "${repo_source}" ]]; then
-        local file_destination="${BIN_INSTALL}/${bin_name}"
-	cp "${repo_source}" "${file_destination}"
-        chmod 700 "${file_destination}"
-      else
-	echo "couldn't find ${repo_source}"
-	exit 1
-      fi
+      copy_binary "${bin_name}" "${REPO_BIN_DIR}" "${BIN_INSTALL}"
     done
-    echo "Binaries are in ${BIN_INSTALL}."
     return
+  fi
+
+  # If the source is specified as an existing local filesystem path,
+  # look for the binaries there.
+  if [[ -d "${BIN_SOURCE}" ]]; then
+      echo "Fetching binaries:${bin_names_str} locally from: ${BIN_SOURCE} ..."
+      for bin_name in ${BIN_NAMES[@]}; do
+        copy_binary "${bin_name}" "${BIN_SOURCE}" "${BIN_INSTALL}"
+      done
+      return
   fi
 
   echo 'ERROR: couldn'"'"'t fetch binaries.'
@@ -107,6 +132,7 @@ main() {
   # Fetch the binaries.
   local -r BIN_SOURCE="$2"
   get_binaries "${BIN_INSTALL}" "${BIN_SOURCE}"
+  echo "Binaries are in ${BIN_INSTALL}."
 
   # Set up the suidhelper.
   echo "Configuring suidhelper ..."
