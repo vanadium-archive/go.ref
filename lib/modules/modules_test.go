@@ -75,7 +75,7 @@ func waitForInput(scanner *bufio.Scanner) bool {
 }
 
 func testCommand(t *testing.T, sh *modules.Shell, name, key, val string) {
-	h, err := sh.Start(name, key)
+	h, err := sh.Start(name, nil, key)
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
@@ -124,7 +124,7 @@ func TestChildNoRegistration(t *testing.T) {
 	key, val := "simpleVar", "foo & bar"
 	sh.SetVar(key, val)
 	testCommand(t, sh, "envtest", key, val)
-	_, err := sh.Start("non-existent-command", "random", "args")
+	_, err := sh.Start("non-existent-command", nil, "random", "args")
 	if err == nil || err.Error() != `Shell command "non-existent-command" not registered` {
 		t.Fatalf("unexpected error %v", err)
 	}
@@ -142,7 +142,7 @@ func TestFunction(t *testing.T) {
 func TestErrorChild(t *testing.T) {
 	sh := modules.NewShell("errortest")
 	defer sh.Cleanup(nil, nil)
-	h, err := sh.Start("errortest")
+	h, err := sh.Start("errortest", nil)
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
@@ -154,7 +154,7 @@ func TestErrorChild(t *testing.T) {
 func testShutdown(t *testing.T, sh *modules.Shell, isfunc bool) {
 	result := ""
 	args := []string{"a", "b c", "ddd"}
-	if _, err := sh.Start("echo", args...); err != nil {
+	if _, err := sh.Start("echo", nil, args...); err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
 	var stdoutBuf bytes.Buffer
@@ -191,7 +191,7 @@ func TestErrorFunc(t *testing.T) {
 	sh := modules.NewShell()
 	defer sh.Cleanup(nil, nil)
 	sh.AddFunction("errortest", ErrorMain, "")
-	h, err := sh.Start("errortest")
+	h, err := sh.Start("errortest", nil)
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
@@ -215,7 +215,7 @@ func TestEnvelope(t *testing.T) {
 	sh.SetVar("a", "1")
 	sh.SetVar("b", "2")
 	args := []string{"oh", "ah"}
-	h, err := sh.Start("printenv", args...)
+	h, err := sh.Start("printenv", nil, args...)
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
@@ -265,7 +265,7 @@ func TestEnvMerge(t *testing.T) {
 	sh.SetVar("b", "2 also wrong")
 	os.Setenv("b", "wrong, should be 2")
 
-	h, err := sh.StartWithEnv("printenv", []string{"b=2"})
+	h, err := sh.Start("printenv", []string{"b=2"})
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}

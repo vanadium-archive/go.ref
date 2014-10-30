@@ -113,7 +113,7 @@ func noWaiters(stdin io.Reader, stdout, stderr io.Writer, env map[string]string,
 func TestNoWaiters(t *testing.T) {
 	sh := modules.NewShell(noWaitersCmd)
 	defer sh.Cleanup(os.Stderr, os.Stderr)
-	h, err := sh.Start(noWaitersCmd)
+	h, err := sh.Start(noWaitersCmd, nil)
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
@@ -139,7 +139,7 @@ func forceStop(stdin io.Reader, stdout, stderr io.Writer, env map[string]string,
 func TestForceStop(t *testing.T) {
 	sh := modules.NewShell(forceStopCmd)
 	defer sh.Cleanup(os.Stderr, os.Stderr)
-	h, err := sh.Start(forceStopCmd)
+	h, err := sh.Start(forceStopCmd, nil)
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
@@ -291,7 +291,7 @@ func setupRemoteAppCycleMgr(t *testing.T) (veyron2.Runtime, modules.Handle, appc
 	sh := modules.NewShell(appCmd)
 	sh.SetVar("VEYRON_CREDENTIALS", childcreds)
 	sh.SetVar(mgmt.ParentNodeManagerConfigKey, configServiceName)
-	h, err := sh.Start("app")
+	h, err := sh.Start("app", nil)
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}

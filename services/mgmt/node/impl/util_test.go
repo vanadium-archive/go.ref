@@ -39,7 +39,7 @@ func loc(d int) string {
 }
 
 func startRootMT(t *testing.T, sh *modules.Shell) (string, modules.Handle, *expect.Session) {
-	h, err := sh.Start(core.RootMTCommand, "--", "--veyron.tcp.address=127.0.0.1:0")
+	h, err := sh.Start(core.RootMTCommand, nil, "--", "--veyron.tcp.address=127.0.0.1:0")
 	if err != nil {
 		t.Fatalf("failed to start root mount table: %s", err)
 	}
@@ -72,10 +72,10 @@ func createShellAndMountTable(t *testing.T) (*modules.Shell, func()) {
 		vlog.VI(1).Info("---------------------------------")
 		sh.Cleanup(nil, os.Stderr)
 		mtHandle.Shutdown(nil, os.Stderr)
-		sh.Start(core.SetNamespaceRootsCommand, "")
+		sh.Start(core.SetNamespaceRootsCommand, nil, "")
 	}
 
-	if _, err := sh.Start(core.SetNamespaceRootsCommand, mtName); err != nil {
+	if _, err := sh.Start(core.SetNamespaceRootsCommand, nil, mtName); err != nil {
 		t.Fatalf("%s: unexpected error: %s", loc(1), err)
 	}
 	sh.SetVar("NAMESPACE_ROOT", mtName)
@@ -83,7 +83,7 @@ func createShellAndMountTable(t *testing.T) (*modules.Shell, func()) {
 }
 
 func runShellCommand(t *testing.T, sh *modules.Shell, env []string, cmd string, args ...string) (modules.Handle, *expect.Session) {
-	h, err := sh.StartWithEnv(cmd, env, args...)
+	h, err := sh.Start(cmd, env, args...)
 	if err != nil {
 		t.Fatalf("%s: failed to start %q: %s", loc(1), cmd, err)
 		return nil, nil

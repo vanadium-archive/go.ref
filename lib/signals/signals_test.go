@@ -113,7 +113,7 @@ func checkSignalIsNotDefault(t *testing.T, sig os.Signal) {
 func newShell(t *testing.T, command string) (*modules.Shell, modules.Handle, *expect.Session) {
 	sh := modules.NewShell()
 	sh.AddSubprocess(command, "")
-	handle, err := sh.Start(command)
+	handle, err := sh.Start(command, nil)
 	if err != nil {
 		sh.Cleanup(os.Stderr, os.Stderr)
 		t.Fatalf("unexpected error: %s", err)
@@ -340,7 +340,7 @@ func TestCleanRemoteShutdown(t *testing.T) {
 	defer configServer.Stop()
 	sh.SetVar("VEYRON_CREDENTIALS", childcreds)
 	sh.SetVar(mgmt.ParentNodeManagerConfigKey, configServiceName)
-	h, err := sh.Start("handleDefaults")
+	h, err := sh.Start("handleDefaults", nil)
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}

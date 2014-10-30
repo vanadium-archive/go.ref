@@ -189,7 +189,7 @@ func process(sh *modules.Shell, line string, lineno int) error {
 		}
 		output(lineno, l)
 	} else {
-		handle, err := sh.Start(name, sub...)
+		handle, err := sh.Start(name, nil, sub...)
 		if err != nil {
 			return err
 		}

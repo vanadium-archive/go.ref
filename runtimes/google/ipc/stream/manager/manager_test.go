@@ -438,7 +438,7 @@ func TestServerRestartDuringClientLifetime(t *testing.T) {
 	client := InternalNew(naming.FixedRoutingID(0xcccccccc))
 	sh := modules.NewShell(".*")
 	defer sh.Cleanup(nil, nil)
-	h, err := sh.Start("runServer", "127.0.0.1:0")
+	h, err := sh.Start("runServer", nil, "127.0.0.1:0")
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
@@ -459,7 +459,7 @@ func TestServerRestartDuringClientLifetime(t *testing.T) {
 		t.Fatal("Expected client.Dial to fail since server is dead")
 	}
 
-	h, err = sh.Start("runServer", addr)
+	h, err = sh.Start("runServer", nil, addr)
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}

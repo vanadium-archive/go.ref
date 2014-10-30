@@ -352,7 +352,7 @@ func TestAuthorizeWithCaveats(t *testing.T) {
 	// registers all values encoded within the same process.
 	sh := modules.NewShell(".*")
 	defer sh.Cleanup(nil, nil)
-	h, err := sh.Start("encodeUnregisteredCaveat")
+	h, err := sh.Start("encodeUnregisteredCaveat", nil)
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}

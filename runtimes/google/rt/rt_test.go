@@ -78,7 +78,7 @@ func child(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, arg
 func TestInitArgs(t *testing.T) {
 	sh := modules.NewShell("child")
 	defer sh.Cleanup(os.Stderr, os.Stderr)
-	h, err := sh.Start("child", "--logtostderr=true", "--vv=3", "--", "foobar")
+	h, err := sh.Start("child", nil, "--logtostderr=true", "--vv=3", "--", "foobar")
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}

@@ -176,8 +176,13 @@ func (sh *Shell) Help(command string) string {
 }
 
 // Start starts the specified command, it returns a Handle which can be used
-// for interacting with that command. The Shell tracks all of the Handles
-// that it creates so that it can shut them down when asked to.
+// for interacting with that command. The OS and shell environment variables
+// are merged with the ones supplied as a parameter; the parameter specified
+// ones override the Shell and the Shell ones override the OS ones.
+//
+// The Shell tracks all of the Handles that it creates so that it can shut
+// them down when asked to.
+//
 // Commands may have already been registered with the Shell using AddFunction
 // or AddSubprocess, but if not, they will treated as subprocess commands
 // and an attempt made to run them. Such 'dynamically' started subprocess
@@ -185,13 +190,7 @@ func (sh *Shell) Help(command string) string {
 // message etc; their handles are remembered and will be acted on by
 // the Cleanup method. If the non-registered subprocess command does not
 // exist then the Start command will return an error.
-func (sh *Shell) Start(name string, args ...string) (Handle, error) {
-	return sh.StartWithEnv(name, nil, args...)
-}
-
-// StartWithEnv is like Start except with a set of environment variables
-// that override those in the Shell and the OS' environment.
-func (sh *Shell) StartWithEnv(name string, env []string, args ...string) (Handle, error) {
+func (sh *Shell) Start(name string, env []string, args ...string) (Handle, error) {
 	cenv := sh.MergedEnv(env)
 	cmd := sh.getCommand(name)
 	expanded := append([]string{name}, sh.expand(args...)...)

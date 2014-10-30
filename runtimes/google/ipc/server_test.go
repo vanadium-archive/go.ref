@@ -29,7 +29,7 @@ func TestReconnect(t *testing.T) {
 	defer b.cleanup(t)
 	sh := modules.NewShell()
 	defer sh.Cleanup(os.Stderr, os.Stderr)
-	server, err := sh.Start("runServer", "127.0.0.1:0")
+	server, err := sh.Start("runServer", nil, "127.0.0.1:0")
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
@@ -64,7 +64,7 @@ func TestReconnect(t *testing.T) {
 
 	// Resurrect the server with the same address, verify client
 	// re-establishes the connection.
-	server, err = sh.Start("runServer", addr)
+	server, err = sh.Start("runServer", nil, addr)
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
@@ -85,7 +85,7 @@ type proxyHandle struct {
 
 func (h *proxyHandle) Start(t *testing.T) error {
 	sh := modules.NewShell()
-	server, err := sh.Start("runProxy")
+	server, err := sh.Start("runProxy", nil)
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}

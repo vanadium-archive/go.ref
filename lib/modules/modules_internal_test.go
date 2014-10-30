@@ -35,9 +35,9 @@ func TestState(t *testing.T) {
 	sh.AddFunction("echof", Echo, "[args]*")
 	assertNumHandles(t, sh, 0)
 
-	_, _ = sh.Start("echonotregistered") // won't start.
-	hs, _ := sh.Start("echos", "a")
-	hf, _ := sh.Start("echof", "b")
+	_, _ = sh.Start("echonotregistered", nil) // won't start.
+	hs, _ := sh.Start("echos", nil, "a")
+	hf, _ := sh.Start("echof", nil, "b")
 	assertNumHandles(t, sh, 2)
 
 	for i, h := range []Handle{hs, hf} {
@@ -47,8 +47,8 @@ func TestState(t *testing.T) {
 	}
 	assertNumHandles(t, sh, 0)
 
-	hs, _ = sh.Start("echos", "a", "b")
-	hf, _ = sh.Start("echof", "c")
+	hs, _ = sh.Start("echos", nil, "a", "b")
+	hf, _ = sh.Start("echof", nil, "c")
 	assertNumHandles(t, sh, 2)
 
 	sh.Cleanup(nil, nil)
