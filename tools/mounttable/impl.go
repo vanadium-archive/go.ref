@@ -7,20 +7,27 @@ import (
 	"veyron.io/veyron/veyron/lib/cmdline"
 
 	"veyron.io/veyron/veyron2/context"
+	"veyron.io/veyron/veyron2/naming"
+	"veyron.io/veyron/veyron2/options"
 	"veyron.io/veyron/veyron2/rt"
 	"veyron.io/veyron/veyron2/services/mounttable"
+	"veyron.io/veyron/veyron2/services/mounttable/types"
 )
 
 func bindMT(ctx context.T, name string) (mounttable.MountTable, error) {
-	mts, err := rt.R().Namespace().ResolveToMountTable(ctx, name)
+	e, err := rt.R().Namespace().ResolveToMountTableX(ctx, name)
 	if err != nil {
 		return nil, err
 	}
-	if len(mts) == 0 {
+	if len(e.Servers) == 0 {
 		return nil, fmt.Errorf("Failed to find any mount tables at %q", name)
 	}
-	fmt.Println(mts)
-	return mounttable.BindMountTable(mts[0])
+	var servers []string
+	for _, s := range e.Servers {
+		servers = append(servers, naming.JoinAddressName(s.Server, e.Name))
+	}
+	fmt.Println(servers)
+	return mounttable.BindMountTable(servers[0])
 }
 
 var cmdGlob = &cmdline.Command{
@@ -86,22 +93,37 @@ suffix (s, m, h). A value of 0s represents an infinite duration.
 }
 
 func runMount(cmd *cmdline.Command, args []string) error {
-	if expected, got := 3, len(args); expected != got {
-		return cmd.UsageErrorf("mount: incorrect number of arguments, expected %d, got %d", expected, got)
+	got := len(args)
+	if got < 2 || got > 4 {
+		return cmd.UsageErrorf("mount: incorrect number of arguments, expected 2, 3, or 4, got %d", got)
+	}
+	var flags types.MountFlag
+	var seconds uint32
+	if got >= 3 {
+		ttl, err := time.ParseDuration(args[2])
+		if err != nil {
+			return fmt.Errorf("TTL parse error: %v", err)
+		}
+		seconds = uint32(ttl.Seconds())
+	}
+	if got >= 4 {
+		for _, c := range args[3] {
+			switch c {
+			case 'M':
+				flags |= types.MountFlag(types.MT)
+			case 'R':
+				flags |= types.MountFlag(types.Replace)
+			}
+		}
 	}
 	ctx, cancel := rt.R().NewContext().WithTimeout(time.Minute)
 	defer cancel()
-	c, err := bindMT(ctx, args[0])
-	if err != nil {
-		return fmt.Errorf("bind error: %v", err)
-	}
-	ttl, err := time.ParseDuration(args[2])
-	if err != nil {
-		return fmt.Errorf("TTL parse error: %v", err)
-	}
-	err = c.Mount(ctx, args[1], uint32(ttl.Seconds()), 0)
+	call, err := rt.R().Client().StartCall(ctx, args[0], "Mount", []interface{}{args[1], seconds, 0}, options.NoResolve(true))
 	if err != nil {
 		return err
+	}
+	if ierr := call.Finish(&err); ierr != nil {
+		return ierr
 	}
 
 	fmt.Fprintln(cmd.Stdout(), "Name mounted successfully.")
@@ -126,13 +148,12 @@ func runUnmount(cmd *cmdline.Command, args []string) error {
 	}
 	ctx, cancel := rt.R().NewContext().WithTimeout(time.Minute)
 	defer cancel()
-	c, err := bindMT(ctx, args[0])
-	if err != nil {
-		return fmt.Errorf("bind error: %v", err)
-	}
-	err = c.Unmount(ctx, args[1])
+	call, err := rt.R().Client().StartCall(ctx, args[0], "Unmount", []interface{}{args[1]}, options.NoResolve(true))
 	if err != nil {
 		return err
+	}
+	if ierr := call.Finish(&err); ierr != nil {
+		return ierr
 	}
 
 	fmt.Fprintln(cmd.Stdout(), "Name unmounted successfully.")

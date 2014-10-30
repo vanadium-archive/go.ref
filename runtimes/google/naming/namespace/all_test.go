@@ -143,7 +143,7 @@ func testResolveToMountTable(t *testing.T, r veyron2.Runtime, ns naming.Namespac
 	if err != nil {
 		boom(t, "Failed to ResolveToMountTable %q: %s", name, err)
 	}
-	compare(t, "ResolveToMoutTable", name, servers, want)
+	compare(t, "ResolveToMountTable", name, servers, want)
 }
 
 func testResolve(t *testing.T, r veyron2.Runtime, ns naming.Namespace, name string, want ...string) {

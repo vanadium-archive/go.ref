@@ -77,6 +77,34 @@ func (ns *namespace) Resolve(ctx context.T, name string) ([]string, error) {
 	return nil, verror.NoExistf("Resolve name %q not found in %v", name, ns.mounts)
 }
 
+func (ns *namespace) ResolveX(ctx context.T, name string) (*naming.MountEntry, error) {
+	defer vlog.LogCall()()
+	e := new(naming.MountEntry)
+	if address, _ := naming.SplitAddressName(name); len(address) > 0 {
+		e.Servers = []naming.MountedServer{naming.MountedServer{Server: name, Expires: time.Now().Add(1000 * time.Hour)}}
+		return e, nil
+	}
+	ns.Lock()
+	defer ns.Unlock()
+	for prefix, servers := range ns.mounts {
+		if strings.HasPrefix(name, prefix) {
+			e.Name = strings.TrimLeft(strings.TrimPrefix(name, prefix), "/")
+			for _, s := range servers {
+				e.Servers = append(e.Servers, naming.MountedServer{Server: s, Expires: time.Now().Add(1000 * time.Hour)})
+			}
+			return e, nil
+		}
+	}
+	return nil, verror.NoExistf("Resolve name %q not found in %v", name, ns.mounts)
+}
+
+func (ns *namespace) ResolveToMountTableX(ctx context.T, name string) (*naming.MountEntry, error) {
+	defer vlog.LogCall()()
+	// TODO(mattr): Implement this method for tests that might need it.
+	panic("ResolveToMountTable not implemented")
+	return nil, nil
+}
+
 func (ns *namespace) ResolveToMountTable(ctx context.T, name string) ([]string, error) {
 	defer vlog.LogCall()()
 	// TODO(mattr): Implement this method for tests that might need it.

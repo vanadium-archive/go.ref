@@ -4,12 +4,12 @@ import (
 	"container/list"
 	"io"
 	"strings"
-	"time"
 
 	"veyron.io/veyron/veyron/lib/glob"
 
 	"veyron.io/veyron/veyron2/context"
 	"veyron.io/veyron/veyron2/naming"
+	"veyron.io/veyron/veyron2/services/mounttable/types"
 	"veyron.io/veyron/veyron2/vlog"
 )
 
@@ -57,7 +57,7 @@ func (ns *namespace) globAtServer(ctx context.T, qe *queuedEntry, pattern *glob.
 
 		// At this point we're commited to a server since it answered tha call.
 		for {
-			var e mountEntry
+			var e types.MountEntry
 			err := call.Recv(&e)
 			if err == io.EOF {
 				break
@@ -125,24 +125,6 @@ func (ns *namespace) Glob(ctx context.T, pattern string) (chan naming.MountEntry
 	reply := make(chan naming.MountEntry, 100)
 	go ns.globLoop(ctx, servers, prefix, g, reply)
 	return reply, nil
-}
-
-func convertStringsToServers(servers []string) (ret []naming.MountedServer) {
-	for _, s := range servers {
-		ret = append(ret, naming.MountedServer{Server: s})
-	}
-	return
-}
-
-// TODO(p):  I may just give up and assume that these two will always be the same.  For
-// now this lets me make the RPC interface and the model's MountTable structs be arbitrarily
-// different.
-func convertServers(servers []mountedServer) []naming.MountedServer {
-	var reply []naming.MountedServer
-	for _, s := range servers {
-		reply = append(reply, naming.MountedServer{Server: s.Server, TTL: time.Duration(s.TTL) * time.Second})
-	}
-	return reply
 }
 
 // depth returns the directory depth of a given name.

@@ -91,7 +91,7 @@ func runGlob(cmd *cmdline.Command, args []string) error {
 			}
 			fmt.Fprint(cmd.Stdout(), me.Name)
 			for _, s := range me.Servers {
-				fmt.Fprintf(cmd.Stdout(), " %s (TTL %s)", s.Server, s.TTL)
+				fmt.Fprintf(cmd.Stdout(), " %s (Expires %s)", s.Server, s.Expires)
 			}
 			fmt.Fprintln(cmd.Stdout())
 		}

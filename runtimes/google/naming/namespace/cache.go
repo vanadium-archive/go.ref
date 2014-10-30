@@ -19,26 +19,25 @@ const cacheHisteresisSize = (3 * maxCacheEntries) / 4
 
 // cache is a generic interface to the resolution cache.
 type cache interface {
-	remember(prefix string, servers []mountedServer)
+	remember(prefix string, entry *naming.MountEntry)
 	forget(names []string)
-	lookup(name string) ([]mountedServer, string)
+	lookup(name string) (naming.MountEntry, error)
 }
 
 // ttlCache is an instance of cache that obeys ttl from the mount points.
 type ttlCache struct {
 	sync.Mutex
-	epochStart time.Time
-	entries    map[string][]mountedServer
+	entries map[string]naming.MountEntry
 }
 
 // newTTLCache creates an empty ttlCache.
 func newTTLCache() cache {
-	return &ttlCache{epochStart: time.Now(), entries: make(map[string][]mountedServer)}
+	return &ttlCache{entries: make(map[string]naming.MountEntry)}
 }
 
-func isStale(now uint32, servers []mountedServer) bool {
-	for _, s := range servers {
-		if s.TTL <= now {
+func isStale(now time.Time, e naming.MountEntry) bool {
+	for _, s := range e.Servers {
+		if s.Expires.Before(now) {
 			return true
 		}
 	}
@@ -52,11 +51,6 @@ func normalize(name string) string {
 		return name
 	}
 	return strings.TrimSuffix(name, "/")
-}
-
-// esecs returns seconds since start of this cache's epoch.
-func (c *ttlCache) esecs() uint32 {
-	return uint32(time.Since(c.epochStart).Seconds())
 }
 
 // randomDrop randomly removes one cache entry.  Assumes we've already locked the cache.
@@ -74,7 +68,7 @@ func (c *ttlCache) randomDrop() {
 // cleaner reduces the number of entries.  Assumes we've already locked the cache.
 func (c *ttlCache) cleaner() {
 	// First dump any stale entries.
-	now := c.esecs()
+	now := time.Now()
 	for k, v := range c.entries {
 		if len(c.entries) < cacheHisteresisSize {
 			return
@@ -91,12 +85,19 @@ func (c *ttlCache) cleaner() {
 }
 
 // remember the servers associated with name with suffix removed.
-func (c *ttlCache) remember(prefix string, servers []mountedServer) {
+func (c *ttlCache) remember(prefix string, entry *naming.MountEntry) {
+	// Remove suffix.  We only care about the name that gets us
+	// to the mounttable from the last mounttable.
 	prefix = normalize(prefix)
-	for i := range servers {
-		// Remember when this cached entry times out relative to our epoch.
-		servers[i].TTL += c.esecs()
+	prefix = naming.TrimSuffix(prefix, entry.Name)
+	// Copy the entry.
+	var ce naming.MountEntry
+	for _, s := range entry.Servers {
+		ce.Servers = append(ce.Servers, s)
 	}
+	ce.MT = entry.MT
+	// All keys must be terminal.
+	prefix = naming.MakeTerminal(prefix)
 	c.Lock()
 	// Enforce an upper limit on the cache size.
 	if len(c.entries) >= maxCacheEntries {
@@ -104,7 +105,7 @@ func (c *ttlCache) remember(prefix string, servers []mountedServer) {
 			c.cleaner()
 		}
 	}
-	c.entries[prefix] = servers
+	c.entries[prefix] = ce
 	c.Unlock()
 }
 
@@ -125,25 +126,26 @@ func (c *ttlCache) forget(names []string) {
 }
 
 // lookup searches the cache for a maximal prefix of name and returns the associated servers,
-// prefix, and suffix.  If any of the associated servers is past its TTL, don't return anything
+// prefix, and suffix.  If any of the associated servers is expired, don't return anything
 // since that would reduce availability.
-func (c *ttlCache) lookup(name string) ([]mountedServer, string) {
+func (c *ttlCache) lookup(name string) (naming.MountEntry, error) {
 	name = normalize(name)
 	c.Lock()
 	defer c.Unlock()
-	now := c.esecs()
+	now := time.Now()
 	for prefix, suffix := name, ""; len(prefix) > 0; prefix, suffix = backup(prefix, suffix) {
-		servers, ok := c.entries[prefix]
+		e, ok := c.entries[prefix]
 		if !ok {
 			continue
 		}
-		if isStale(now, servers) {
-			return nil, ""
+		if isStale(now, e) {
+			return e, naming.ErrNoSuchName
 		}
-		vlog.VI(2).Infof("namespace cache %s -> %v %s", name, servers, suffix)
-		return servers, suffix
+		vlog.VI(2).Infof("namespace cache %s -> %v %s", name, e.Servers, e.Name)
+		e.Name = suffix
+		return e, nil
 	}
-	return nil, ""
+	return naming.MountEntry{}, naming.ErrNoSuchName
 }
 
 // backup moves the last element of the prefix to the suffix.  "//" is preserved.  Thus
@@ -170,7 +172,7 @@ func backup(prefix, suffix string) (string, string) {
 // nullCache is an instance of cache that does nothing.
 type nullCache int
 
-func newNullCache() cache                                         { return nullCache(1) }
-func (nullCache) remember(prefix string, servers []mountedServer) {}
-func (nullCache) forget(names []string)                           {}
-func (nullCache) lookup(name string) ([]mountedServer, string)    { return nil, "" }
+func newNullCache() cache                                             { return nullCache(1) }
+func (nullCache) remember(prefix string, entry *naming.MountEntry)    {}
+func (nullCache) forget(names []string)                               {}
+func (nullCache) lookup(name string) (e naming.MountEntry, err error) { return e, naming.ErrNoSuchName }
