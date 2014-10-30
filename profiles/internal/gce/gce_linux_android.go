@@ -9,7 +9,7 @@ import (
 )
 
 func RunningOnGCE() bool {
-	panic("The GCE profile was unexpectedly used with android.")
+	return false
 }
 
 func ExternalIPAddress() (net.IP, error) {
