@@ -1,71 +1,206 @@
-// Package server provides a server which keeps a private key in memory
-// and allows clients to use the key for signing.
-//
-// PROTOCOL
-//
-// The agent starts processes with the VEYRON_AGENT_FD set to one end of a
-// unix domain socket. To connect to the agent, a client should create
-// a unix domain socket pair. Then send one end of the socket to the agent
-// with 1 byte of data. The agent will then serve the Agent service on
-// the recieved socket, using VCSecurityNone.
 package server
 
 import (
+	"crypto/ecdsa"
+	"crypto/elliptic"
+	"crypto/rand"
+	"crypto/sha512"
+	"crypto/x509"
+	"encoding/base64"
 	"fmt"
 	"io"
+	"net"
 	"os"
+	"path/filepath"
+	"strconv"
+	"sync"
 
 	"veyron.io/veyron/veyron/lib/unixfd"
+	vsecurity "veyron.io/veyron/veyron/security"
 	"veyron.io/veyron/veyron2"
 	"veyron.io/veyron/veyron2/ipc"
 	"veyron.io/veyron/veyron2/options"
 	"veyron.io/veyron/veyron2/security"
 	"veyron.io/veyron/veyron2/vdl/vdlutil"
+	"veyron.io/veyron/veyron2/verror"
 	"veyron.io/veyron/veyron2/vlog"
 )
+
+const PrincipalHandleByteSize = sha512.Size
+
+type keyHandle [PrincipalHandleByteSize]byte
 
 type agentd struct {
 	principal security.Principal
 }
 
+type keymgr struct {
+	path       string
+	principals map[keyHandle]security.Principal // GUARDED_BY(Mutex)
+	passphrase []byte
+	runtime    veyron2.Runtime
+	mu         sync.Mutex
+}
+
 // RunAnonymousAgent starts the agent server listening on an
-// anonymous unix domain socket. It will respond to SignatureRequests
+// anonymous unix domain socket. It will respond to requests
 // using 'principal'.
 // The returned 'client' is typically passed via cmd.ExtraFiles to a child process.
 func RunAnonymousAgent(runtime veyron2.Runtime, principal security.Principal) (client *os.File, err error) {
-	// VCSecurityNone is safe since we're using anonymous unix sockets.
-	// Only our child process can possibly communicate on the socket.
-	s, err := runtime.NewServer(options.VCSecurityNone)
-	if err != nil {
-		return nil, err
-	}
-
 	local, remote, err := unixfd.Socketpair()
 	if err != nil {
 		return nil, err
 	}
+	if err = startAgent(local, runtime, principal); err != nil {
+		return nil, err
+	}
+	return remote, err
+}
 
-	serverAgent := NewServerAgent(agentd{principal})
+// RunKeyManager starts the key manager server listening on an
+// anonymous unix domain socket. It will persist principals in 'path' using 'passphrase'.
+// Typically only used by the node manager.
+// The returned 'client' is typically passed via cmd.ExtraFiles to a child process.
+func RunKeyManager(runtime veyron2.Runtime, path string, passphrase []byte) (client *os.File, err error) {
+	if path == "" {
+		return nil, verror.BadArgf("storage path is required")
+	}
+
+	mgr := &keymgr{path: path, passphrase: passphrase, principals: make(map[keyHandle]security.Principal), runtime: runtime}
+
+	if err := os.MkdirAll(filepath.Join(mgr.path, "keys"), 0700); err != nil {
+		return nil, err
+	}
+	if err := os.MkdirAll(filepath.Join(mgr.path, "creds"), 0700); err != nil {
+		return nil, err
+	}
+
+	local, client, err := unixfd.Socketpair()
+	if err != nil {
+		return nil, err
+	}
+
+	go mgr.readNMConns(local)
+
+	return client, nil
+}
+
+func (a keymgr) readNMConns(conn *net.UnixConn) {
+	defer conn.Close()
+	var buf keyHandle
+	for {
+		addr, n, err := unixfd.ReadConnection(conn, buf[:])
+		if err == io.EOF {
+			return
+		} else if err != nil {
+			vlog.Infof("Error accepting connection: %v", err)
+			continue
+		}
+		var principal security.Principal
+		if n == len(buf) {
+			principal = a.readKey(buf)
+		} else if n == 1 {
+			var handle []byte
+			if handle, principal, err = a.newKey(buf[0] == 1); err != nil {
+				vlog.Infof("Error creating key: %v", err)
+				unixfd.CloseUnixAddr(addr)
+				continue
+			}
+			if _, err = conn.Write(handle); err != nil {
+				vlog.Infof("Error sending key handle: %v", err)
+				unixfd.CloseUnixAddr(addr)
+				continue
+			}
+		} else {
+			vlog.Infof("invalid key: %d bytes, expected %d or 1", n, len(buf))
+			unixfd.CloseUnixAddr(addr)
+			continue
+		}
+		conn := dial(addr)
+		if principal != nil && conn != nil {
+			if err := startAgent(conn, a.runtime, principal); err != nil {
+				vlog.Infof("error starting agent: %v", err)
+			}
+		}
+	}
+}
+
+func (a *keymgr) readKey(handle keyHandle) security.Principal {
+	a.mu.Lock()
+	cachedKey, ok := a.principals[handle]
+	a.mu.Unlock()
+	if ok {
+		return cachedKey
+	}
+	filename := base64.URLEncoding.EncodeToString(handle[:])
+	in, err := os.Open(filepath.Join(a.path, "keys", filename))
+	if err != nil {
+		vlog.Errorf("unable to open key file: %v", err)
+		return nil
+	}
+	defer in.Close()
+	key, err := vsecurity.LoadPEMKey(in, a.passphrase)
+	if err != nil {
+		vlog.Errorf("unable to load key: %v", err)
+		return nil
+	}
+
+	principal, err := vsecurity.NewPersistentPrincipalFromSigner(security.NewInMemoryECDSASigner(key.(*ecdsa.PrivateKey)), filepath.Join(a.path, "creds", filename))
+	if err != nil {
+		vlog.Errorf("unable to load principal: %v", err)
+		return nil
+	}
+	return principal
+}
+
+func dial(addr net.Addr) *net.UnixConn {
+	fd, err := strconv.ParseInt(addr.String(), 10, 32)
+	if err != nil {
+		vlog.Errorf("Invalid address %v", addr)
+		return nil
+	}
+	file := os.NewFile(uintptr(fd), "client")
+	defer file.Close()
+	conn, err := net.FileConn(file)
+	if err != nil {
+		vlog.Infof("unable to create conn: %v", err)
+	}
+	return conn.(*net.UnixConn)
+}
+
+func startAgent(conn *net.UnixConn, runtime veyron2.Runtime, principal security.Principal) error {
+	agent := &agentd{principal: principal}
+	serverAgent := NewServerAgent(agent)
 	go func() {
 		buf := make([]byte, 1)
 		for {
-			clientAddr, _, err := unixfd.ReadConnection(local, buf)
+			clientAddr, _, err := unixfd.ReadConnection(conn, buf)
 			if err == io.EOF {
 				return
 			}
 			if err == nil {
+				// VCSecurityNone is safe since we're using anonymous unix sockets.
+				// Only our child process can possibly communicate on the socket.
+				//
+				// Also, VCSecurityNone implies that s (ipc.Server) created below does not
+				// authenticate to clients, so runtime.Principal is irrelevant for the agent.
+				// TODO(ribrdb): Shutdown these servers when the connection is closed.
+				s, err := runtime.NewServer(options.VCSecurityNone)
+				if err != nil {
+					vlog.Infof("Error creating server: %v", err)
+					continue
+				}
 				spec := ipc.ListenSpec{Protocol: clientAddr.Network(), Address: clientAddr.String()}
-				_, err = s.Listen(spec)
+				if _, err = s.Listen(spec); err == nil {
+					err = s.Serve("", ipc.LeafDispatcher(serverAgent, nil))
+				}
 			}
 			if err != nil {
 				vlog.Infof("Error accepting connection: %v", err)
 			}
 		}
 	}()
-	if err = s.Serve("", ipc.LeafDispatcher(serverAgent, nil)); err != nil {
-		return
-	}
-	return remote, nil
+	return nil
 }
 
 func (a agentd) Bless(_ ipc.ServerContext, key []byte, with security.WireBlessings, extension string, caveat security.Caveat, additionalCaveats []security.Caveat) (security.WireBlessings, error) {
@@ -102,6 +237,49 @@ func (a agentd) MintDischarge(_ ipc.ServerContext, tp vdlutil.Any, caveat securi
 		return nil, fmt.Errorf("provided caveat of type %T does not implement security.ThirdPartyCaveat", tp)
 	}
 	return a.principal.MintDischarge(tpCaveat, caveat, additionalCaveats...)
+}
+
+func (a keymgr) newKey(in_memory bool) (id []byte, p security.Principal, err error) {
+	if a.path == "" {
+		return nil, nil, verror.NoAccessf("not running in multi-key mode")
+	}
+	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	keyHandle, err := keyid(key)
+	if err != nil {
+		return nil, nil, err
+	}
+	signer := security.NewInMemoryECDSASigner(key)
+	if in_memory {
+		p, err = vsecurity.NewPrincipalFromSigner(signer)
+		if err != nil {
+			return nil, nil, err
+		}
+		a.principals[keyHandle] = p
+	} else {
+		filename := base64.URLEncoding.EncodeToString(keyHandle[:])
+		out, err := os.OpenFile(filepath.Join(a.path, "keys", filename), os.O_WRONLY|os.O_CREATE, 0600)
+		if err != nil {
+			return nil, nil, err
+		}
+		defer out.Close()
+		err = vsecurity.SavePEMKey(out, key, a.passphrase)
+		if err != nil {
+			return nil, nil, err
+		}
+		p, err = vsecurity.NewPersistentPrincipalFromSigner(signer, filepath.Join(a.path, "creds", filename))
+		if err != nil {
+			return nil, nil, err
+		}
+	}
+	return keyHandle[:], p, nil
+}
+
+func keyid(key *ecdsa.PrivateKey) (handle keyHandle, err error) {
+	slice, err := x509.MarshalPKIXPublicKey(&key.PublicKey)
+	if err != nil {
+		return
+	}
+	return sha512.Sum512(slice), nil
 }
 
 func (a agentd) PublicKey(_ ipc.ServerContext) ([]byte, error) {

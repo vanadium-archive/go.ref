@@ -190,13 +190,13 @@ func socketpair(closeRemoteOnExec bool) (local, remote *fileDescriptor, err erro
 // SendConnection creates a new connected socket and sends
 // one end over 'conn', along with 'data'. It returns the address for
 // the local end of the socketpair.
-// Note that the returned address refers to an open file descriptor,
+// Note that the returned address is an open file descriptor,
 // which you must close if you do not Dial or Listen to the address.
-func SendConnection(conn *net.UnixConn, data []byte) (addr net.Addr, err error) {
+func SendConnection(conn *net.UnixConn, data []byte, closeOnExec bool) (addr net.Addr, err error) {
 	if len(data) < 1 {
 		return nil, errors.New("cannot send a socket without data.")
 	}
-	local, remote, err := socketpair(true)
+	remote, local, err := socketpair(closeOnExec)
 	if err != nil {
 		return nil, err
 	}
@@ -248,6 +248,17 @@ func ReadConnection(conn *net.UnixConn, buf []byte) (net.Addr, int, error) {
 		return nil, n, nil
 	}
 	return Addr(uintptr(fd)), n, nil
+}
+
+func CloseUnixAddr(addr net.Addr) error {
+	if addr.Network() != Network {
+		return errors.New("invalid network")
+	}
+	fd, err := strconv.ParseInt(addr.String(), 10, 32)
+	if err != nil {
+		return err
+	}
+	return syscall.Close(int(fd))
 }
 
 func init() {

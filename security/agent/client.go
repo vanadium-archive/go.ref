@@ -54,13 +54,15 @@ func results(inputs ...interface{}) []interface{} {
 // os.GetEnv(agent.FdVarName).
 // 'ctx' should not have a deadline, and should never be cancelled.
 func NewAgentPrincipal(c ipc.Client, fd int, ctx context.T) (security.Principal, error) {
-	conn, err := net.FileConn(os.NewFile(uintptr(fd), "agent_client"))
+	f := os.NewFile(uintptr(fd), "agent_client")
+	defer f.Close()
+	conn, err := net.FileConn(f)
 	if err != nil {
 		return nil, err
 	}
 	// This is just an arbitrary 1 byte string. The value is ignored.
 	data := make([]byte, 1)
-	addr, err := unixfd.SendConnection(conn.(*net.UnixConn), data)
+	addr, err := unixfd.SendConnection(conn.(*net.UnixConn), data, true)
 	if err != nil {
 		return nil, err
 	}

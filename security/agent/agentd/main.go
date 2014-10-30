@@ -18,6 +18,8 @@ import (
 	"veyron.io/veyron/veyron2/vlog"
 )
 
+var keypath = flag.String("additional_principals", "", "If non-empty, allow for the creation of new principals and save them in this directory.")
+
 func main() {
 	flag.Usage = func() {
 		fmt.Fprintf(os.Stderr, `Usage: %s [agent options] command command_args...
@@ -34,7 +36,7 @@ agent protocol instead of directly reading from disk.
 		vlog.Fatal("VEYRON_CREDENTIALS must be set to directory")
 	}
 
-	p, err := newPrincipalFromDir(dir)
+	p, passphrase, err := newPrincipalFromDir(dir)
 	if err != nil {
 		vlog.Fatalf("failed to create new principal from dir(%s): %v", dir, err)
 	}
@@ -54,10 +56,23 @@ agent protocol instead of directly reading from disk.
 		log.Fatalf("setenv: %v", err)
 	}
 
+	if *keypath == "" && passphrase != nil {
+		// If we're done with the passphrase, zero it out so it doesn't stay in memory
+		for i := range passphrase {
+			passphrase[i] = 0
+		}
+		passphrase = nil
+	}
+
 	// Start running our server.
-	var sock *os.File
+	var sock, mgrSock *os.File
 	if sock, err = server.RunAnonymousAgent(runtime, p); err != nil {
-		log.Fatalf("RunAgent: %v", err)
+		log.Fatalf("RunAnonymousAgent: %v", err)
+	}
+	if *keypath != "" {
+		if mgrSock, err = server.RunKeyManager(runtime, *keypath, passphrase); err != nil {
+			log.Fatalf("RunKeyManager: %v", err)
+		}
 	}
 
 	// Now run the client and wait for it to finish.
@@ -66,6 +81,10 @@ agent protocol instead of directly reading from disk.
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	cmd.ExtraFiles = []*os.File{sock}
+
+	if mgrSock != nil {
+		cmd.ExtraFiles = append(cmd.ExtraFiles, mgrSock)
+	}
 
 	err = cmd.Start()
 	if err != nil {
@@ -77,7 +96,7 @@ agent protocol instead of directly reading from disk.
 	os.Exit(status.ExitStatus())
 }
 
-func newPrincipalFromDir(dir string) (security.Principal, error) {
+func newPrincipalFromDir(dir string) (security.Principal, []byte, error) {
 	p, err := vsecurity.LoadPersistentPrincipal(dir, nil)
 	if os.IsNotExist(err) {
 		return handleDoesNotExist(dir)
@@ -85,30 +104,31 @@ func newPrincipalFromDir(dir string) (security.Principal, error) {
 	if err == vsecurity.PassphraseErr {
 		return handlePassphrase(dir)
 	}
-	return p, err
+	return p, nil, err
 }
 
-func handleDoesNotExist(dir string) (security.Principal, error) {
+func handleDoesNotExist(dir string) (security.Principal, []byte, error) {
 	fmt.Println("Private key file does not exist. Creating new private key...")
-	pass, err := getPassword("Enter passphrase (entering nothing will store unecrypted): ")
+	pass, err := getPassword("Enter passphrase (entering nothing will store unencrypted): ")
 	if err != nil {
-		return nil, fmt.Errorf("failed to read passphrase: %v", err)
+		return nil, nil, fmt.Errorf("failed to read passphrase: %v", err)
 	}
 	p, err := vsecurity.CreatePersistentPrincipal(dir, pass)
 	if err != nil {
-		return nil, err
+		return nil, pass, err
 	}
 	vsecurity.InitDefaultBlessings(p, "agent_principal")
-	return p, nil
+	return p, pass, nil
 }
 
-func handlePassphrase(dir string) (security.Principal, error) {
+func handlePassphrase(dir string) (security.Principal, []byte, error) {
 	fmt.Println("Private key file is encrypted. Please enter passphrase.")
 	pass, err := getPassword("Enter passphrase: ")
 	if err != nil {
-		return nil, fmt.Errorf("failed to read passphrase: %v", err)
+		return nil, nil, fmt.Errorf("failed to read passphrase: %v", err)
 	}
-	return vsecurity.LoadPersistentPrincipal(dir, pass)
+	p, err := vsecurity.LoadPersistentPrincipal(dir, pass)
+	return p, pass, err
 }
 
 func getPassword(prompt string) ([]byte, error) {
