@@ -76,7 +76,7 @@ func main() {
 
 	vars := map[string]string{}
 
-	h, err := sh.Start("root", "--", "--veyron.tcp.address=127.0.0.1:0")
+	h, err := sh.Start("root", nil, "--", "--veyron.tcp.address=127.0.0.1:0")
 	panicOnError(err)
 	updateVars(h, vars, "MT_NAME")
 
@@ -87,12 +87,12 @@ func main() {
 
 	// NOTE(sadovsky): The proxyd binary requires --protocol and --address flags
 	// while the proxyd command instead uses ListenSpec flags.
-	h, err = sh.Start("proxyd", "--", "--veyron.tcp.address=127.0.0.1:0", "p")
+	h, err = sh.Start("proxyd", nil, "--", "--veyron.tcp.address=127.0.0.1:0", "p")
 	panicOnError(err)
 	updateVars(h, vars, "PROXY_ADDR")
 
 	// TODO(sadovsky): Which identd should we be using?
-	h, err = sh.Start("wsprd", "--", "--veyron.proxy="+vars["PROXY_ADDR"], "--identd=/proxy.envyor.com:8101/identity/veyron-test/google")
+	h, err = sh.Start("wsprd", nil, "--", "--veyron.proxy="+vars["PROXY_ADDR"], "--identd=/proxy.envyor.com:8101/identity/veyron-test/google")
 	panicOnError(err)
 	updateVars(h, vars, "WSPR_ADDR")
 
