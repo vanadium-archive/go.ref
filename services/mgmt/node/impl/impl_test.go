@@ -1081,6 +1081,8 @@ func TestNodeManagerGlobAndDebug(t *testing.T) {
 			name = logFileTrimInfoRE.ReplaceAllString(name, "bin.<*>.INFO.<timestamp>")
 			filteredResults = append(filteredResults, name)
 		}
+		sort.Strings(filteredResults)
+		sort.Strings(tc.expected)
 		if !reflect.DeepEqual(filteredResults, tc.expected) {
 			t.Errorf("unexpected result for (%q, %q). Got %q, want %q", tc.name, tc.pattern, filteredResults, tc.expected)
 		}
@@ -1088,6 +1090,9 @@ func TestNodeManagerGlobAndDebug(t *testing.T) {
 
 	// Call Size() on the log file objects.
 	files := doGlob(t, "nm", "apps/google naps/"+installID+"/"+instance1ID+"/logs/*")
+	if want, got := 4, len(files); got < want {
+		t.Errorf("Unexpected number of matches. Got %d, want at least %d", got, want)
+	}
 	for _, file := range files {
 		name := naming.Join("nm", file)
 		c, err := logreader.BindLogFile(name)
@@ -1155,7 +1160,6 @@ func doGlob(t *testing.T, name, pattern string) []string {
 	if err := stream.Finish(); err != nil {
 		t.Errorf("Finish failed: %v", err)
 	}
-	sort.Strings(results)
 	return results
 }
 
