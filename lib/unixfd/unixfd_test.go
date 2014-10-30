@@ -136,7 +136,7 @@ func TestSendConnection(t *testing.T) {
 	if err != nil {
 		t.Fatalf("FileConn: %v", err)
 	}
-	caddr, err := SendConnection(uclient.(*net.UnixConn), []byte("hello"))
+	caddr, err := SendConnection(uclient.(*net.UnixConn), []byte("hello"), true)
 	if err != nil {
 		t.Fatalf("SendConnection: %v", err)
 	}

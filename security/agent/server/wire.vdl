@@ -1,24 +1,49 @@
+// Package server provides a server which keeps a principal in memory
+// and allows clients to use that principal.
+//
+// PROTOCOL
+//
+// The agent starts processes with the VEYRON_AGENT_FD set to one end of a
+// unix domain socket. To connect to the agent, a client should create
+// a unix domain socket pair. Then send one end of the socket to the agent
+// with 1 byte of data. The agent will then serve the Agent service on
+// the recieved socket, using VCSecurityNone.
+//
+// The agent also supports an optional mode where it can manage multiple principals.
+// Typically this is only used by NodeManager. In this mode, VEYRON_AGENT_FD
+// will be 3, and there will be another socket at fd 4.
+// Creating a new principal is similar to connecting to to agent: create a socket
+// pair and send one end on fd 4 with 1 byte of data.
+// Set the data to 1 to request the principal only be stored in memory.
+// The agent will create a new principal and respond with a principal handle on fd 4.
+// To connect using a previously created principal, create a socket pair and send
+// one end with they principal handle as data on fd 4. The agent will not send a
+// response on fd 4.
+// In either, you can use the normal process to connect to an agent over the
+// other end of the pair. Typically you would pass the other end to a child
+// process and set VEYRON_AGENT_FD so it knows to connect.
+
 package server
 
 import (
-  "veyron.io/veyron/veyron2/security"
+	"veyron.io/veyron/veyron2/security"
 )
 
 type Agent interface {
-  Bless(key []byte, wit security.WireBlessings, extension string, caveat security.Caveat, additionalCaveats []security.Caveat) (security.WireBlessings, error)
-  BlessSelf(name string, caveats []security.Caveat) (security.WireBlessings, error)
-  Sign(message []byte) (security.Signature, error)
-  MintDischarge(tp any, caveat security.Caveat, additionalCaveats []security.Caveat) (any, error)
-  PublicKey() ([]byte, error)
-  AddToRoots(blessing security.WireBlessings) error
+	Bless(key []byte, wit security.WireBlessings, extension string, caveat security.Caveat, additionalCaveats []security.Caveat) (security.WireBlessings, error)
+	BlessSelf(name string, caveats []security.Caveat) (security.WireBlessings, error)
+	Sign(message []byte) (security.Signature, error)
+	MintDischarge(tp any, caveat security.Caveat, additionalCaveats []security.Caveat) (any, error)
+	PublicKey() ([]byte, error)
+	AddToRoots(blessing security.WireBlessings) error
 
-  BlessingStoreSet(blessings security.WireBlessings, forPeers security.BlessingPattern) (security.WireBlessings, error)
-  BlessingStoreForPeer(peerBlessings []string) (security.WireBlessings, error)
-  BlessingStoreSetDefault(blessings security.WireBlessings) error
-  BlessingStoreDefault() (security.WireBlessings, error)
-  BlessingStoreDebugString() (string, error)
+	BlessingStoreSet(blessings security.WireBlessings, forPeers security.BlessingPattern) (security.WireBlessings, error)
+	BlessingStoreForPeer(peerBlessings []string) (security.WireBlessings, error)
+	BlessingStoreSetDefault(blessings security.WireBlessings) error
+	BlessingStoreDefault() (security.WireBlessings, error)
+	BlessingStoreDebugString() (string, error)
 
-  BlessingRootsAdd(root []byte, pattern security.BlessingPattern) error
-  BlessingRootsRecognized(root []byte, blessing string) error
-  BlessingRootsDebugString() (string, error)
+	BlessingRootsAdd(root []byte, pattern security.BlessingPattern) error
+	BlessingRootsRecognized(root []byte, blessing string) error
+	BlessingRootsDebugString() (string, error)
 }
