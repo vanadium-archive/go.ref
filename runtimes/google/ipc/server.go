@@ -318,9 +318,6 @@ func (s *server) Listen(listenSpec ipc.ListenSpec) (naming.Endpoint, error) {
 		ln.Close()
 		return nil, err
 	}
-	if ipaddr == nil {
-		vlog.VI(2).Infof("the address %q requested for listening contained a fixed IP address which disables roaming, use :0 instead", address)
-	}
 
 	s.Lock()
 	if s.stopped {
@@ -330,9 +327,14 @@ func (s *server) Listen(listenSpec ipc.ListenSpec) (naming.Endpoint, error) {
 		return nil, errServerStopped
 	}
 
-	h, _, _ := net.SplitHostPort(address)
+	var ip net.IP
+	if ipaddr != nil {
+		ip = net.ParseIP(ipaddr.String())
+	} else {
+		vlog.VI(2).Infof("the address %q requested for listening contained a fixed IP address which disables roaming, use :0 instead", address)
+	}
 	publisher := listenSpec.StreamPublisher
-	if ip := net.ParseIP(h); ip != nil && ip.IsLoopback() && publisher != nil {
+	if ip != nil && !ip.IsLoopback() && publisher != nil {
 		streamName := listenSpec.StreamName
 		ch := make(chan config.Setting)
 		_, err := publisher.ForkStream(streamName, ch)
