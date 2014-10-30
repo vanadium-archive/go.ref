@@ -355,11 +355,12 @@ func serveServer() (*runningTest, error) {
 	}
 	spec := profiles.LocalListenSpec
 	spec.Proxy = "/" + proxyEndpoint
-	controller, err := NewController(writerCreator, &spec, options.NamespaceRoots{"/" + endpoint.String()}, options.RuntimePrincipal{testPrincipal})
+	controller, err := NewController(writerCreator, &spec, options.RuntimePrincipal{testPrincipal})
 
 	if err != nil {
 		return nil, err
 	}
+	controller.rt.Namespace().SetRoots("/" + endpoint.String())
 
 	controller.serve(serveRequest{
 		Name: "adder",

@@ -145,7 +145,7 @@ type Controller struct {
 
 // NewController creates a new Controller.  writerCreator will be used to create a new flow for rpcs to
 // javascript server. veyronProxyEP is an endpoint for the veyron proxy to serve through.  It can't be empty.
-// opts are any options that should be passed to the rt.New(), such as the mounttable root.
+// opts are any options that should be passed to the rt.New().
 func NewController(writerCreator func(id int64) lib.ClientWriter,
 	listenSpec *ipc.ListenSpec, opts ...veyron2.ROpt) (*Controller, error) {
 	r, err := rt.New(opts...)
