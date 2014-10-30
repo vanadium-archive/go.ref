@@ -1,11 +1,12 @@
 package main
 
 import (
-	"code.google.com/p/gopass"
+	"code.google.com/p/go.crypto/ssh/terminal"
 	"flag"
 	"fmt"
 	"os"
 	"os/exec"
+	"os/signal"
 	"syscall"
 	_ "veyron.io/veyron/veyron/profiles"
 	vsecurity "veyron.io/veyron/veyron/security"
@@ -89,11 +90,11 @@ func newPrincipalFromDir(dir string) (security.Principal, error) {
 
 func handleDoesNotExist(dir string) (security.Principal, error) {
 	fmt.Println("Private key file does not exist. Creating new private key...")
-	pass, err := gopass.GetPass("Enter passphrase (entering nothing will store unecrypted): ")
+	pass, err := getPassword("Enter passphrase (entering nothing will store unecrypted): ")
 	if err != nil {
 		return nil, fmt.Errorf("failed to read passphrase: %v", err)
 	}
-	p, err := vsecurity.CreatePersistentPrincipal(dir, []byte(pass))
+	p, err := vsecurity.CreatePersistentPrincipal(dir, pass)
 	if err != nil {
 		return nil, err
 	}
@@ -103,9 +104,40 @@ func handleDoesNotExist(dir string) (security.Principal, error) {
 
 func handlePassphrase(dir string) (security.Principal, error) {
 	fmt.Println("Private key file is encrypted. Please enter passphrase.")
-	pass, err := gopass.GetPass("Enter passphrase: ")
+	pass, err := getPassword("Enter passphrase: ")
 	if err != nil {
 		return nil, fmt.Errorf("failed to read passphrase: %v", err)
 	}
-	return vsecurity.LoadPersistentPrincipal(dir, []byte(pass))
+	return vsecurity.LoadPersistentPrincipal(dir, pass)
+}
+
+func getPassword(prompt string) ([]byte, error) {
+	fmt.Printf(prompt)
+	stop := make(chan bool)
+	defer close(stop)
+	state, err := terminal.GetState(int(os.Stdin.Fd()))
+	if err != nil {
+		return nil, err
+	}
+	go catchTerminationSignals(stop, state)
+	return terminal.ReadPassword(int(os.Stdin.Fd()))
+}
+
+// catchTerminationSignals catches signals to allow us to turn terminal echo back on.
+func catchTerminationSignals(stop <-chan bool, state *terminal.State) {
+	var successErrno syscall.Errno
+	sig := make(chan os.Signal, 4)
+	// Catch the blockable termination signals.
+	signal.Notify(sig, syscall.SIGTERM, syscall.SIGINT, syscall.SIGQUIT, syscall.SIGHUP)
+	select {
+	case <-sig:
+		// Start on new line in terminal.
+		fmt.Printf("\n")
+		if err := terminal.Restore(int(os.Stdin.Fd()), state); err != successErrno {
+			vlog.Errorf("Failed to restore terminal state (%v), you words may not show up when you type, enter 'stty echo' to fix this.", err)
+		}
+		os.Exit(-1)
+	case <-stop:
+		signal.Stop(sig)
+	}
 }
