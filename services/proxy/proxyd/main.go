@@ -37,10 +37,7 @@ func main() {
 	if err != nil {
 		vlog.Fatal(err)
 	}
-
-	// TODO(ashankar): Set the second argument to r.Principal() once the
-	// old security model is no longer operational.
-	proxy, err := proxy.New(rid, nil, *protocol, *address, *pubAddress)
+	proxy, err := proxy.New(rid, r.Principal(), *protocol, *address, *pubAddress)
 	if err != nil {
 		vlog.Fatal(err)
 	}
