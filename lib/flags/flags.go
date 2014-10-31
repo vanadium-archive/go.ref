@@ -150,7 +150,7 @@ func (es *RuntimeFlags) legacyEnvInit() {
 			continue
 		}
 		k, v := p[0], p[1]
-		if strings.HasPrefix(k, "NAMESPACE_ROOT") {
+		if strings.HasPrefix(k, "NAMESPACE_ROOT") && len(v) > 0 {
 			es.NamespaceRoots = append(es.NamespaceRoots, v)
 		}
 	}
@@ -158,6 +158,8 @@ func (es *RuntimeFlags) legacyEnvInit() {
 		es.Credentials = creds
 	}
 }
+
+const defaultNamespaceRoot = "/proxy.envyor.com:8101"
 
 // Parse parses the supplied args, as per flag.Parse
 func (f *Flags) Parse(args []string) error {
@@ -176,6 +178,9 @@ func (f *Flags) Parse(args []string) error {
 		runtime := f.groups[Runtime].(*RuntimeFlags)
 		if len(runtime.namespaceRootsFlag.roots) > 0 {
 			runtime.NamespaceRoots = runtime.namespaceRootsFlag.roots
+		}
+		if len(runtime.NamespaceRoots) == 0 {
+			runtime.NamespaceRoots = []string{defaultNamespaceRoot}
 		}
 	}
 	return nil

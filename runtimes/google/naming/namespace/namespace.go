@@ -60,7 +60,8 @@ func New(rt veyron2.Runtime, roots ...string) (*namespace, error) {
 // SetRoots implements naming.Namespace.SetRoots
 func (ns *namespace) SetRoots(roots ...string) error {
 	defer vlog.LogCall()()
-	if !rooted(roots) {
+	// Allow roots to be cleared with a call of SetRoots()
+	if len(roots) > 0 && !rooted(roots) {
 		return badRoots(roots)
 	}
 	ns.Lock()

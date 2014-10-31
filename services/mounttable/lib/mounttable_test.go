@@ -462,6 +462,11 @@ func init() {
 		panic(err)
 	}
 
+	// A hack to set the namespace roots to a value that won't work.
+	for _, r := range []veyron2.Runtime{rootRT, aliceRT, bobRT} {
+		r.Namespace().SetRoots()
+	}
+
 	// And setup their blessings so that they present "root", "alice" and "bob"
 	// and these blessings are recognized by the others.
 	principals := map[string]security.Principal{

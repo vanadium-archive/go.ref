@@ -126,3 +126,22 @@ func TestEnvVars(t *testing.T) {
 		t.Errorf("got %q, want %q", got, want)
 	}
 }
+
+func TestDefaults(t *testing.T) {
+	oldroot := os.Getenv(rootEnvVar)
+	oldroot0 := os.Getenv(rootEnvVar0)
+	defer os.Setenv(rootEnvVar, oldroot)
+	defer os.Setenv(rootEnvVar0, oldroot0)
+
+	os.Setenv(rootEnvVar, "")
+	os.Setenv(rootEnvVar0, "")
+
+	fl := flags.CreateAndRegister(flag.NewFlagSet("test", flag.ContinueOnError), flags.Runtime)
+	if err := fl.Parse([]string{}); err != nil {
+		t.Fatalf("unexpected error: %s", err)
+	}
+	rtf := fl.RuntimeFlags()
+	if got, want := rtf.NamespaceRoots, []string{"/proxy.envyor.com:8101"}; !reflect.DeepEqual(got, want) {
+		t.Errorf("got %q, want %q", got, want)
+	}
+}
