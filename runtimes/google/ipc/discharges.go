@@ -141,9 +141,7 @@ func (c *client) fetchDischarges(ctx context.T, caveats []security.ThirdPartyCav
 					return
 				}
 				var dAny vdlutil.Any
-				// TODO(ashankar): Retry on errors like no-route-to-service, name resolution failures etc.
-				ierr := call.Finish(&dAny, &err)
-				if ierr != nil || err != nil {
+				if ierr := call.Finish(&dAny, &err); ierr != nil || err != nil {
 					vlog.VI(3).Infof("Discharge fetch for caveat %T from %v failed: (%v, %v)", cav, cav.Location(), err, ierr)
 					return
 				}
