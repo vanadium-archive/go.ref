@@ -28,7 +28,6 @@ import (
 	"veyron.io/veyron/veyron/runtimes/google/lib/publisher"
 	inaming "veyron.io/veyron/veyron/runtimes/google/naming"
 	ivtrace "veyron.io/veyron/veyron/runtimes/google/vtrace"
-	vsecurity "veyron.io/veyron/veyron/security"
 	"veyron.io/veyron/veyron/services/mgmt/debug"
 )
 
@@ -688,15 +687,6 @@ func result2vom(res interface{}) vom.Value {
 	return v
 }
 
-func defaultAuthorizer(ctx security.Context) security.Authorizer {
-	blessings := ctx.LocalBlessings().ForContext(ctx)
-	acl := security.ACL{In: make(map[security.BlessingPattern]security.LabelSet)}
-	for _, b := range blessings {
-		acl.In[security.BlessingPattern(b).MakeGlob()] = security.AllLabels
-	}
-	return vsecurity.NewACLAuthorizer(acl)
-}
-
 func (fs *flowServer) serve() error {
 	defer fs.flow.Close()
 
@@ -984,11 +974,11 @@ func (c *localServerCall) Send(v interface{}) error {
 
 func (fs *flowServer) authorize(auth security.Authorizer) verror.E {
 	if auth == nil {
-		auth = defaultAuthorizer(fs)
+		auth = defaultAuthorizer{}
 	}
 	if err := auth.Authorize(fs); err != nil {
 		// TODO(ataly, ashankar): For privacy reasons, should we hide the authorizer error?
-		return verror.NoAccessf("ipc: %v not authorized to call %q.%q (%v)", fs.RemoteBlessings(), fs.Name(), fs.Method(), err)
+		return verror.NoAccessf("ipc: not authorized to call %q.%q (%v)", fs.Name(), fs.Method(), err)
 	}
 	return nil
 }
@@ -1005,7 +995,7 @@ func (debugContext) Label() security.Label { return security.DebugLabel }
 func (fs *flowServer) authorizeForDebug(auth security.Authorizer) error {
 	dc := debugContext{fs}
 	if auth == nil {
-		auth = defaultAuthorizer(dc)
+		auth = defaultAuthorizer{}
 	}
 	return auth.Authorize(dc)
 }
