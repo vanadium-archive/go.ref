@@ -16,8 +16,7 @@ type WorkParameters struct {
 	uid       int
 	gid       int
 	workspace string
-	stderrLog string
-	stdoutLog string
+	logDir    string
 	argv0     string
 	argv      []string
 	envv      []string
@@ -26,17 +25,16 @@ type WorkParameters struct {
 }
 
 type ArgsSavedForTest struct {
-	Uname     string
-	Workpace  string
-	Run       string
-	StdoutLog string
-	StderrLog string
+	Uname    string
+	Workpace string
+	Run      string
+	LogDir   string
 }
 
 const SavedArgs = "VEYRON_SAVED_ARGS"
 
 var (
-	flagUsername, flagWorkspace, flagStdoutLog, flagStderrLog, flagRun *string
+	flagUsername, flagWorkspace, flagLogDir, flagRun *string
 	flagMinimumUid                                                     *int64
 	flagRemove                                                         *bool
 )
@@ -51,8 +49,7 @@ func setupFlags(fs *flag.FlagSet) {
 	}
 	flagUsername = sflag.Username
 	flagWorkspace = sflag.Workspace
-	flagStdoutLog = sflag.StdoutLog
-	flagStderrLog = sflag.StderrLog
+	flagLogDir = sflag.LogDir
 	flagRun = sflag.Run
 	flagMinimumUid = sflag.MinimumUid
 	flagRemove = sflag.Remove
@@ -97,11 +94,10 @@ func (wp *WorkParameters) ProcessArguments(fs *flag.FlagSet, env []string) error
 		b := new(bytes.Buffer)
 		enc := json.NewEncoder(b)
 		enc.Encode(ArgsSavedForTest{
-			Uname:     *flagUsername,
-			Workpace:  *flagWorkspace,
-			Run:       *flagRun,
-			StdoutLog: *flagStdoutLog,
-			StderrLog: *flagStderrLog,
+			Uname:    *flagUsername,
+			Workpace: *flagWorkspace,
+			Run:      *flagRun,
+			LogDir:   *flagLogDir,
 		})
 		env = append(env, SavedArgs+"="+b.String())
 		wp.dryrun = true
@@ -111,8 +107,7 @@ func (wp *WorkParameters) ProcessArguments(fs *flag.FlagSet, env []string) error
 	wp.gid = int(gid)
 	wp.workspace = *flagWorkspace
 	wp.argv0 = *flagRun
-	wp.stdoutLog = *flagStdoutLog
-	wp.stderrLog = *flagStderrLog
+	wp.logDir = *flagLogDir
 	wp.argv = append([]string{wp.argv0}, fs.Args()...)
 	// TODO(rjkroege): Reduce the environment to the absolute minimum needed.
 	wp.envv = env

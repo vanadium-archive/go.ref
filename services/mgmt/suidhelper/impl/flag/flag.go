@@ -13,7 +13,7 @@ package flag
 import "flag"
 
 var (
-	Username, Workspace, StdoutLog, StderrLog, Run *string
+	Username, Workspace, LogDir, Run *string
 	MinimumUid                                     *int64
 	Remove                                         *bool
 )
@@ -25,8 +25,7 @@ func init() {
 func SetupFlags(fs *flag.FlagSet) {
 	Username = fs.String("username", "", "The UNIX user name used for the other functions of this tool.")
 	Workspace = fs.String("workspace", "", "Path to the application's workspace directory.")
-	StdoutLog = fs.String("stdoutlog", "", "Path to the stdout log file.")
-	StderrLog = fs.String("stderrlog", "", "Path to the stdin log file.")
+	LogDir = fs.String("logdir", "", "Path to the log directory.")
 	Run = fs.String("run", "", "Path to the application to exec.")
 	MinimumUid = fs.Int64("minuid", uidThreshold, "UIDs cannot be less than this number.")
 	Remove = fs.Bool("rm", false, "Remove the file trees given as command-line arguments.")

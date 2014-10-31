@@ -6,13 +6,17 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"path/filepath"
 	"syscall"
 )
 
 // Chown is only availabe on UNIX platforms so this file has a build
 // restriction.
 func (hw *WorkParameters) Chown() error {
-	chown := func(path string) error {
+	chown := func(path string, _ os.FileInfo, inerr error) error {
+		if inerr != nil {
+			return inerr
+		}
 		if hw.dryrun {
 			log.Printf("[dryrun] os.Chown(%s, %d, %d)", path, hw.uid, hw.gid)
 			return nil
@@ -20,9 +24,9 @@ func (hw *WorkParameters) Chown() error {
 		return os.Chown(path, hw.uid, hw.gid)
 	}
 
-	for _, p := range []string{hw.workspace, hw.stdoutLog, hw.stderrLog} {
+	for _, p := range []string{hw.workspace, hw.logDir} {
 		// TODO(rjkroege): Ensure that the nodemanager can read log entries.
-		if err := chown(p); err != nil {
+		if err := filepath.Walk(p, chown); err != nil {
 			return fmt.Errorf("os.Chown(%s, %d, %d) failed: %v", p, hw.uid, hw.gid, err)
 		}
 	}

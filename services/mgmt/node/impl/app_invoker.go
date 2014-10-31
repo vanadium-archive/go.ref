@@ -476,18 +476,17 @@ func genCmd(instanceDir, helperPath, systemName string) (*exec.Cmd, error) {
 	if err := mkdir(logDir); err != nil {
 		return nil, err
 	}
+	cmd.Args = append(cmd.Args, "--logdir", logDir)
 	timestamp := time.Now().UnixNano()
+
 	stdoutLog := filepath.Join(logDir, fmt.Sprintf("STDOUT-%d", timestamp))
 	if cmd.Stdout, err = openWriteFile(stdoutLog); err != nil {
 		return nil, err
 	}
-	cmd.Args = append(cmd.Args, "--stdoutlog", stdoutLog)
-
 	stderrLog := filepath.Join(logDir, fmt.Sprintf("STDERR-%d", timestamp))
 	if cmd.Stderr, err = openWriteFile(stderrLog); err != nil {
 		return nil, err
 	}
-	cmd.Args = append(cmd.Args, "--stderrlog", stderrLog)
 	cmd.Args = append(cmd.Args, "--run", binPath)
 	cmd.Args = append(cmd.Args, "--")
 
