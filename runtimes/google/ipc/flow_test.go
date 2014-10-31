@@ -40,8 +40,6 @@ func (f *testFlow) Read(b []byte) (int, error)          { return f.r.Read(b) }
 func (f *testFlow) Write(b []byte) (int, error)         { return f.w.Write(b) }
 func (f *testFlow) LocalEndpoint() naming.Endpoint      { return nil }
 func (f *testFlow) RemoteEndpoint() naming.Endpoint     { return nil }
-func (f *testFlow) LocalID() security.PublicID          { return nil }
-func (f *testFlow) RemoteID() security.PublicID         { return nil }
 func (f *testFlow) LocalPrincipal() security.Principal  { return f.p }
 func (f *testFlow) LocalBlessings() security.Blessings  { return f.lb }
 func (f *testFlow) RemoteBlessings() security.Blessings { return f.rb }

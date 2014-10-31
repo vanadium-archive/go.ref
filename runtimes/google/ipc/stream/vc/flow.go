@@ -1,25 +1,18 @@
 package vc
 
 import (
-	"net"
-
-	"veyron.io/veyron/veyron2/ipc/stream"
 	"veyron.io/veyron/veyron2/naming"
 	"veyron.io/veyron/veyron2/security"
 )
 
 type flow struct {
-	idHolder
+	authN // authentication information.
 	*reader
 	*writer
 	localEndpoint, remoteEndpoint naming.Endpoint
 }
 
-var _ stream.Flow = (*flow)(nil)
-
-type idHolder interface {
-	LocalID() security.PublicID
-	RemoteID() security.PublicID
+type authN interface {
 	LocalPrincipal() security.Principal
 	LocalBlessings() security.Blessings
 	RemoteBlessings() security.Blessings
@@ -28,9 +21,6 @@ type idHolder interface {
 func (f *flow) LocalEndpoint() naming.Endpoint  { return f.localEndpoint }
 func (f *flow) RemoteEndpoint() naming.Endpoint { return f.remoteEndpoint }
 
-// implement net.Conn
-func (f *flow) LocalAddr() net.Addr  { return f.localEndpoint }
-func (f *flow) RemoteAddr() net.Addr { return f.remoteEndpoint }
 func (f *flow) Close() error {
 	f.reader.Close()
 	f.writer.Close()

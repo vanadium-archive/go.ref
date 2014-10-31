@@ -6,13 +6,10 @@ import (
 	"crypto/rand"
 	"fmt"
 
-	isecurity "veyron.io/veyron/veyron/runtimes/google/security"
-
 	"veyron.io/veyron/veyron2/security"
 	"veyron.io/veyron/veyron2/vlog"
 )
 
-var anonymousID security.PrivateID
 var anonymousPrincipal security.Principal
 
 func init() {
@@ -26,9 +23,6 @@ func init() {
 	}
 	if store.b, err = anonymousPrincipal.BlessSelf("anonymous"); err != nil {
 		vlog.Fatalf("failed to generate the one blessing to be used by the anonymous principal: %v", err)
-	}
-	if anonymousID, err = isecurity.NewPrivateID("anonymous", nil); err != nil {
-		vlog.Fatalf("could not create anonymousID for IPCs: %v", err)
 	}
 }
 

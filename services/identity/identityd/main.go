@@ -1,4 +1,4 @@
-// HTTP server that uses OAuth to create security.PrivateID objects.
+// HTTP server that uses OAuth to create security.Blessings objects.
 package main
 
 import (

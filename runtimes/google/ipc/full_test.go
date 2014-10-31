@@ -674,14 +674,6 @@ func TestRPCAuthorization(t *testing.T) {
 	pclient.BlessingStore().Set(nil, security.AllPrincipals)
 
 	type v []interface{}
-	type testcase struct {
-		clientID  security.PrivateID
-		name      string
-		method    string
-		args      v
-		results   v
-		finishErr string
-	}
 	tests := []struct {
 		blessings  security.Blessings // Blessings used by the client
 		name       string             // object name on which the method is invoked

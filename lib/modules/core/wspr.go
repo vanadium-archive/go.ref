@@ -6,9 +6,6 @@ import (
 	"io"
 	"strings"
 
-	"veyron.io/veyron/veyron2"
-	"veyron.io/veyron/veyron2/options"
-
 	"veyron.io/veyron/veyron/lib/flags"
 	"veyron.io/veyron/veyron/lib/modules"
 	"veyron.io/wspr/veyron/services/wsprd/wspr"
@@ -21,9 +18,6 @@ var (
 
 	port   *int    = fs.Int("port", 0, "Port to listen on.")
 	identd *string = fs.String("identd", "", "identd server name. Must be set.")
-	// TODO(ataly, ashankar, bjornick): Remove this flag once the old security
-	// model is killed.
-	newSecurityModel *bool = fs.Bool("new_security_model", false, "Use the new security model.")
 
 	fl *flags.Flags = flags.CreateAndRegister(fs, flags.Listen)
 )
@@ -52,11 +46,6 @@ func startWSPR(stdin io.Reader, stdout, stderr io.Writer, env map[string]string,
 		return fmt.Errorf("failed to parse args: %s", err)
 	}
 	args = fl.Args()
-
-	var opts []veyron2.ROpt
-	if *newSecurityModel {
-		opts = append(opts, options.ForceNewSecurityModel{})
-	}
 
 	proxy := wspr.NewWSPR(*port, initListenSpec(fl), *identd)
 	defer proxy.Shutdown()

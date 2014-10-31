@@ -77,7 +77,7 @@ func (s *server) Close(err error) {
 	}
 }
 func (s *server) String() string {
-	return fmt.Sprintf("RoutingID %v on process %v (VCI:%v ID:%v)", s.RoutingID(), s.Process, s.VC.VCI(), s.VC.RemoteID())
+	return fmt.Sprintf("RoutingID %v on process %v (VCI:%v Blessings:%v)", s.RoutingID(), s.Process, s.VC.VCI(), s.VC.RemoteBlessings())
 }
 
 // servermap is a concurrent-access safe map from the RoutingID of a server exporting itself

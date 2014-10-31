@@ -109,7 +109,7 @@ func NewDispatcher(config *config.State) (*dispatcher, error) {
 		}
 		defer sig.Close()
 		// read and verify the signature of the acl file
-		reader, err := serialization.NewVerifyingReader(data, sig, rt.R().Identity().PublicKey())
+		reader, err := serialization.NewVerifyingReader(data, sig, rt.R().Principal().PublicKey())
 		if err != nil {
 			return nil, fmt.Errorf("failed to read nodemanager ACL file:%v", err)
 		}
@@ -181,7 +181,7 @@ func (d *dispatcher) setACL(acl security.ACL, etag string, writeToFile bool) err
 			return errOperationFailed
 		}
 		defer os.Remove(sig.Name())
-		writer, err := serialization.NewSigningWriteCloser(data, sig, rt.R().Identity(), nil)
+		writer, err := serialization.NewSigningWriteCloser(data, sig, rt.R().Principal(), nil)
 		if err != nil {
 			vlog.Errorf("Failed to create NewSigningWriteCloser:%v", err)
 			return errOperationFailed

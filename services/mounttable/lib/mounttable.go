@@ -174,7 +174,7 @@ func (mt *mountTable) authorizeStep(name string, c security.Context) error {
 	mt.Lock()
 	acl := mt.acls[name]
 	mt.Unlock()
-	vlog.VI(2).Infof("authorizeStep(%s) %s %s %s", name, c.RemoteID(), c.Label(), acl)
+	vlog.VI(2).Infof("authorizeStep(%s) %s %s %s", name, c.RemoteBlessings(), c.Label(), acl)
 	if acl != nil {
 		return acl.Authorize(c)
 	}

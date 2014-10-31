@@ -5,7 +5,6 @@ import (
 	"crypto/ecdsa"
 	"crypto/rand"
 	"crypto/x509"
-	"encoding/base64"
 	"encoding/json"
 	"encoding/pem"
 	"errors"
@@ -93,38 +92,6 @@ func SavePEMKey(w io.Writer, key interface{}, passphrase []byte) error {
 	}
 
 	return pem.Encode(w, pemKey)
-}
-
-// LoadIdentity reads a PrivateID from r, assuming that it was written using
-// SaveIdentity.
-//
-// TODO(ashankar): The extra arguments is a hack that is needed to keep identities
-// generated before the "veyron.io" code move working with binaries built after.
-// This hack should go away when we make the backward-incompatible change to the
-// new security API anyway.
-func LoadIdentity(r io.Reader, hack ...security.PrivateID) (security.PrivateID, error) {
-	var id security.PrivateID
-	if len(hack) > 0 {
-		id = hack[0]
-	}
-	if err := vom.NewDecoder(base64.NewDecoder(base64.URLEncoding, r)).Decode(&id); err != nil {
-		return nil, err
-	}
-	return id, nil
-}
-
-// SaveIdentity writes a serialized form of a PrivateID to w, which can be
-// recovered using LoadIdentity.
-func SaveIdentity(w io.Writer, id security.PrivateID) error {
-	closer := base64.NewEncoder(base64.URLEncoding, w)
-	if err := vom.NewEncoder(closer).Encode(id); err != nil {
-		return err
-	}
-	// Must close the base64 encoder to flush out any partially written blocks.
-	if err := closer.Close(); err != nil {
-		return err
-	}
-	return nil
 }
 
 // LoadACL reads an ACL from the provided Reader containing a JSON encoded ACL.

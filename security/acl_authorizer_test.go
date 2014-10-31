@@ -23,8 +23,6 @@ func (c *context) Name() string                              { return "" }
 func (c *context) Suffix() string                            { return "" }
 func (c *context) Label() security.Label                     { return c.label }
 func (c *context) Discharges() map[string]security.Discharge { return nil }
-func (c *context) LocalID() security.PublicID                { return nil }
-func (c *context) RemoteID() security.PublicID               { return nil }
 func (c *context) LocalPrincipal() security.Principal        { return c.localPrincipal }
 func (c *context) LocalBlessings() security.Blessings        { return c.localBlessings }
 func (c *context) RemoteBlessings() security.Blessings       { return c.remoteBlessings }

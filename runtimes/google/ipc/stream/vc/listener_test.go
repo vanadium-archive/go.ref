@@ -24,8 +24,6 @@ func (*noopFlow) LocalPrincipal() security.Principal  { return nil }
 func (*noopFlow) LocalBlessings() security.Blessings  { return nil }
 func (*noopFlow) RemoteBlessings() security.Blessings { return nil }
 func (*noopFlow) SetDeadline(<-chan struct{})         {}
-func (*noopFlow) LocalID() security.PublicID          { return nil }
-func (*noopFlow) RemoteID() security.PublicID         { return nil }
 
 func TestListener(t *testing.T) {
 	ln := newListener()

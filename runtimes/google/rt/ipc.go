@@ -1,7 +1,6 @@
 package rt
 
 import (
-	"errors"
 	"fmt"
 
 	iipc "veyron.io/veyron/veyron/runtimes/google/ipc"
@@ -15,79 +14,15 @@ import (
 	"veyron.io/veyron/veyron2/ipc/stream"
 	"veyron.io/veyron/veyron2/naming"
 	"veyron.io/veyron/veyron2/options"
-	"veyron.io/veyron/veyron2/security"
 	"veyron.io/veyron/veyron2/verror2"
 	"veyron.io/veyron/veyron2/vtrace"
 )
-
-// fixedPublicIDStore implements security.PublicIDStore. It embeds a (fixed) PublicID that
-// is both the default and the PublicID to be used for any peer. Adding a new PublicID
-// to the store is disallowed, and setting the default principal-pattern is a no-op.
-type fixedPublicIDStore struct {
-	id security.PublicID
-}
-
-func (fixedPublicIDStore) Add(id security.PublicID, peerPattern security.BlessingPattern) error {
-	return errors.New("adding new PublicIDs is disallowed for this PublicIDStore")
-}
-
-func (s fixedPublicIDStore) ForPeer(peer security.PublicID) (security.PublicID, error) {
-	return s.id, nil
-}
-
-func (s fixedPublicIDStore) DefaultPublicID() (security.PublicID, error) {
-	return s.id, nil
-}
-
-func (fixedPublicIDStore) SetDefaultBlessingPattern(pattern security.BlessingPattern) error {
-	return errors.New("SetDefaultBlessingPattern is disallowed on a fixed PublicIDStore")
-}
-
-// localID is an option for passing a PrivateID and PublicIDStore
-// to a server or client.
-type localID struct {
-	id    security.PrivateID
-	store security.PublicIDStore
-}
-
-func (lID *localID) Sign(message []byte) (security.Signature, error) {
-	return lID.id.Sign(message)
-}
-
-func (lID *localID) AsClient(server security.PublicID) (security.PublicID, error) {
-	return lID.store.ForPeer(server)
-}
-
-func (lID *localID) AsServer() (security.PublicID, error) {
-	return lID.store.DefaultPublicID()
-}
-
-func (*localID) IPCClientOpt() {
-	//nologcall
-}
-func (*localID) IPCStreamVCOpt() {}
-func (*localID) IPCServerOpt() {
-	//nologcall
-}
-func (*localID) IPCStreamListenerOpt() {}
-
-// newLocalID returns a localID embedding the runtime's PrivateID and a fixed
-// PublicIDStore constructed from the provided PublicID or the runtiume's PublicIDStore
-// if the provided PublicID is nil.
-func (rt *vrt) newLocalID(id security.PublicID) vc.LocalID {
-	lID := &localID{id: rt.id, store: rt.store}
-	if id != nil {
-		lID.store = fixedPublicIDStore{id}
-	}
-	return lID
-}
 
 func (rt *vrt) NewClient(opts ...ipc.ClientOpt) (ipc.Client, error) {
 	rt.mu.Lock()
 	sm := rt.sm[0]
 	rt.mu.Unlock()
 	ns := rt.ns
-	var id security.PublicID
 	var otherOpts []ipc.ClientOpt
 	for _, opt := range opts {
 		switch topt := opt.(type) {
@@ -95,14 +30,12 @@ func (rt *vrt) NewClient(opts ...ipc.ClientOpt) (ipc.Client, error) {
 			sm = topt.Manager
 		case options.Namespace:
 			ns = topt.Namespace
-		case options.LocalID:
-			id = topt.PublicID
 		default:
 			otherOpts = append(otherOpts, opt)
 		}
 	}
-	// Add the option that provides the local identity to the client.
-	otherOpts = append(otherOpts, rt.newLocalID(id), vc.LocalPrincipal{rt.principal})
+	// Add the option that provides the runtime's principal to the client.
+	otherOpts = append(otherOpts, vc.LocalPrincipal{rt.principal})
 	return iipc.InternalNewClient(sm, ns, otherOpts...)
 }
 
@@ -149,22 +82,18 @@ func (rt *vrt) NewServer(opts ...ipc.ServerOpt) (ipc.Server, error) {
 		}
 	}
 	ns := rt.ns
-	var id security.PublicID
 	var otherOpts []ipc.ServerOpt
 	for _, opt := range opts {
 		switch topt := opt.(type) {
 		case options.Namespace:
 			ns = topt
-		case options.LocalID:
-			id = topt.PublicID
 		default:
 			otherOpts = append(otherOpts, opt)
 		}
 	}
-	// Add the option that provides the local identity to the server.
-	otherOpts = append(otherOpts, rt.newLocalID(id), vc.LocalPrincipal{rt.principal})
+	// Add the option that provides the principal to the server.
+	otherOpts = append(otherOpts, vc.LocalPrincipal{rt.principal})
 	ctx := rt.NewContext()
-
 	return iipc.InternalNewServer(ctx, sm, ns, otherOpts...)
 }
 

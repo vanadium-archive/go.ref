@@ -35,9 +35,7 @@ type vrt struct {
 	sm         []stream.Manager // GUARDED_BY(mu)
 	ns         naming.Namespace
 	signals    chan os.Signal
-	id         security.PrivateID
 	principal  security.Principal
-	store      security.PublicIDStore
 	client     ipc.Client
 	mgmt       *mgmtImpl
 	flags      flags.RuntimeFlags
@@ -70,16 +68,12 @@ func New(opts ...veyron2.ROpt) (veyron2.Runtime, error) {
 		switch v := o.(type) {
 		case options.RuntimePrincipal:
 			rt.principal = v.Principal
-		case options.RuntimeID:
-			rt.id = v.PrivateID
 		case options.Profile:
 			rt.profile = v.Profile
 		case options.RuntimeName:
 			if v != "google" && v != "" {
 				return nil, fmt.Errorf("%q is the wrong name for this runtime", v)
 			}
-		case options.ForceNewSecurityModel:
-			// noop
 		default:
 			return nil, fmt.Errorf("option has wrong type %T", o)
 		}

@@ -11,7 +11,6 @@ import (
 
 	"veyron.io/veyron/veyron/runtimes/google/ipc/version"
 	inaming "veyron.io/veyron/veyron/runtimes/google/naming"
-	isecurity "veyron.io/veyron/veyron/runtimes/google/security"
 	"veyron.io/veyron/veyron/runtimes/google/vtrace"
 
 	"veyron.io/veyron/veyron2/context"
@@ -251,8 +250,7 @@ func (c *client) startCall(ctx context.T, name, method string, args []interface{
 
 		// LocalPrincipal is nil means that the client wanted to avoid authentication,
 		// and thus wanted to skip authorization as well.
-		// TODO(suharshs,ataly,ashankar): Remove flow.LocalID() after the old security model is dead.
-		if flow.LocalPrincipal() != nil || flow.LocalID() != nil {
+		if flow.LocalPrincipal() != nil {
 			// Validate caveats on the server's identity for the context associated with this call.
 			if serverB, grantedB, err = c.authorizeServer(flow, name, suffix, method, opts); err != nil {
 				lastErr = verror.NoAccessf("ipc: client unwilling to invoke %q.%q on server %v: %v", name, method, flow.RemoteBlessings(), err)
@@ -303,35 +301,10 @@ func (c *client) startCall(ctx context.T, name, method string, args []interface{
 // server that are authorized for this purpose and any blessings that are to be granted to
 // the server (via ipc.Granter implementations in opts.)
 func (c *client) authorizeServer(flow stream.Flow, name, suffix, method string, opts []ipc.CallOpt) (serverBlessings []string, grantedBlessings security.Blessings, err error) {
-	if flow.RemoteID() == nil && flow.RemoteBlessings() == nil {
+	if flow.RemoteBlessings() == nil {
 		return nil, nil, fmt.Errorf("server has not presented any blessings")
 	}
-	authctx := isecurity.NewContext(isecurity.ContextArgs{
-		LocalID:         flow.LocalID(),
-		RemoteID:        flow.RemoteID(),
-		Debug:           "ClientAuthorizingServer",
-		LocalPrincipal:  flow.LocalPrincipal(),
-		LocalBlessings:  flow.LocalBlessings(),
-		RemoteBlessings: flow.RemoteBlessings(),
-		/* TODO(ashankar,ataly): Uncomment this! This is disabled till the hack to skip third-party caveat
-		validation on a server's blessings are disabled. Commenting out the next three lines affects more
-		than third-party caveats, so yeah, have to remove this soon!
-		Method:          method,
-		Name:            name,
-		Suffix:          suffix, */
-		LocalEndpoint:  flow.LocalEndpoint(),
-		RemoteEndpoint: flow.RemoteEndpoint(),
-	})
-	if serverID := flow.RemoteID(); flow.RemoteBlessings() == nil && serverID != nil {
-		serverID, err = serverID.Authorize(authctx)
-		if err != nil {
-			return nil, nil, err
-		}
-		serverBlessings = serverID.Names()
-	}
-	if server := flow.RemoteBlessings(); server != nil {
-		serverBlessings = server.ForContext(authctx)
-	}
+	serverBlessings = flow.RemoteBlessings().ForContext(serverAuthContext{flow})
 	for _, o := range opts {
 		switch v := o.(type) {
 		case options.RemoteID:
@@ -582,3 +555,19 @@ func (fc *flowClient) Cancel() {
 func (fc *flowClient) RemoteBlessings() ([]string, security.Blessings) {
 	return fc.server, fc.flow.RemoteBlessings()
 }
+
+// serverAuthContext is the security.Context implementation used by a client to
+// authorize a server.
+type serverAuthContext struct {
+	stream.Flow
+}
+
+// TODO(ashankar,ataly): Set Method, Name, Suffix etc. once third-party caveat
+// validation for a server's blessings are eanbled.
+// Returning zero values affects more than third-party caveats, so yeah, have
+// to remove them soon!
+func (serverAuthContext) Method() string                            { return "" }
+func (serverAuthContext) Name() string                              { return "" }
+func (serverAuthContext) Suffix() string                            { return "" }
+func (serverAuthContext) Label() (l security.Label)                 { return l }
+func (serverAuthContext) Discharges() map[string]security.Discharge { return nil }

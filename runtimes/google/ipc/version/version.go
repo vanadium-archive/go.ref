@@ -21,7 +21,7 @@ var (
 	// change that's not both forward and backward compatible.
 	// Min should be incremented whenever we want to remove
 	// support for old protocol versions.
-	supportedRange = &Range{Min: version.IPCVersion2, Max: version.IPCVersion4}
+	supportedRange = &Range{Min: version.IPCVersion4, Max: version.IPCVersion4}
 
 	// Export the methods on supportedRange.
 	Endpoint           = supportedRange.Endpoint

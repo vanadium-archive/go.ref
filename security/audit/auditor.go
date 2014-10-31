@@ -1,6 +1,6 @@
 // Package audit provides mechanisms to write method invocations to an audit log.
 //
-// Typical use would be for tracking sensitive operations like private key usage (NewPrivateID),
+// Typical use would be for tracking sensitive operations like private key usage (NewPrincipal),
 // or sensitive RPC method invocations.
 package audit
 

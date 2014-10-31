@@ -40,7 +40,6 @@ var (
 type VC struct {
 	vci                             id.VC
 	localEP, remoteEP               naming.Endpoint
-	localID, remoteID               security.PublicID
 	localPrincipal                  security.Principal
 	localBlessings, remoteBlessings security.Blessings
 
@@ -96,44 +95,6 @@ type Params struct {
 	Version      version.IPCVersion
 }
 
-// DEPRECATED: TODO(ashankar,ataly): Remove when switch to LocalPrincipal is complete.
-type LocalID interface {
-	stream.ListenerOpt
-	stream.VCOpt
-	Sign(message []byte) (security.Signature, error)
-	AsClient(server security.PublicID) (security.PublicID, error)
-	AsServer() (security.PublicID, error)
-	IPCClientOpt()
-	IPCServerOpt()
-}
-
-// DEPRECATED: TODO(ashankar,ataly): Remove when LocalID is removed.
-type fixedLocalID struct {
-	security.PrivateID
-}
-
-func (f fixedLocalID) AsClient(security.PublicID) (security.PublicID, error) {
-	return f.PrivateID.PublicID(), nil
-}
-
-func (f fixedLocalID) AsServer() (security.PublicID, error) {
-	return f.PrivateID.PublicID(), nil
-}
-
-func (fixedLocalID) IPCStreamListenerOpt() {}
-func (fixedLocalID) IPCStreamVCOpt()       {}
-func (fixedLocalID) IPCClientOpt() {
-	//nologcall
-}
-func (fixedLocalID) IPCServerOpt() {
-	//nologcall
-}
-
-// DEPRECATED: TODO(ashankar,ataly): Remove when LocalID is removed.
-func FixedLocalID(id security.PrivateID) LocalID {
-	return fixedLocalID{id}
-}
-
 // LocalPrincipal wraps a security.Principal so that it can be provided
 // as an option to various methods in order to provide authentication information
 // when establishing virtual circuits.
@@ -186,7 +147,7 @@ func (vc *VC) connectFID(fid id.Flow, opts ...stream.FlowOpt) (stream.Flow, erro
 		return nil, fmt.Errorf("failed to create writer for Flow: %v", err)
 	}
 	f := &flow{
-		idHolder:       vc,
+		authN:          vc,
 		reader:         newReader(readHandlerImpl{vc, fid}),
 		writer:         writer,
 		localEndpoint:  vc.localEP,
@@ -289,7 +250,7 @@ func (vc *VC) AcceptFlow(fid id.Flow) error {
 		return fmt.Errorf("failed to create writer for new flow(%d): %v", fid, err)
 	}
 	f := &flow{
-		idHolder:       vc,
+		authN:          vc,
 		reader:         newReader(readHandlerImpl{vc, fid}),
 		writer:         writer,
 		localEndpoint:  vc.localEP,
@@ -379,14 +340,11 @@ func (vc *VC) err(err error) error {
 // authentication etc.) under the assumption that the VC was initiated by the
 // local process (i.e., the local process "Dial"ed to create the VC).
 func (vc *VC) HandshakeDialedVC(opts ...stream.VCOpt) error {
-	var localID LocalID
 	var principal security.Principal
 	var tlsSessionCache crypto.TLSClientSessionCache
 	var securityLevel options.VCSecurityLevel
 	for _, o := range opts {
 		switch v := o.(type) {
-		case LocalID:
-			localID = v
 		case LocalPrincipal:
 			principal = v.Principal
 		case options.VCSecurityLevel:
@@ -397,9 +355,6 @@ func (vc *VC) HandshakeDialedVC(opts ...stream.VCOpt) error {
 	}
 	switch securityLevel {
 	case options.VCSecurityConfidential:
-		if localID == nil {
-			localID = FixedLocalID(anonymousID)
-		}
 		if principal == nil {
 			principal = anonymousPrincipal
 		}
@@ -434,39 +389,21 @@ func (vc *VC) HandshakeDialedVC(opts ...stream.VCOpt) error {
 	if err != nil {
 		return vc.err(fmt.Errorf("failed to create a Flow for authentication: %v", err))
 	}
-	var (
-		rID, lID               security.PublicID
-		rBlessings, lBlessings security.Blessings
-	)
-	if vc.useOldSecurityModel() {
-		if rID, lID, err = authenticateAsClientOld(authConn, localID, crypter, vc.version); err != nil {
-			return vc.err(fmt.Errorf("authentication (using the deprecated PublicID objects) failed: %v", err))
-		}
-	} else {
-		if rBlessings, lBlessings, err = authenticateAsClient(authConn, principal, crypter, vc.version); err != nil {
-			return vc.err(fmt.Errorf("authentication failed: %v", err))
-		}
+	rBlessings, lBlessings, err := authenticateAsClient(authConn, principal, crypter, vc.version)
+	if err != nil {
+		return vc.err(fmt.Errorf("authentication failed: %v", err))
 	}
 
 	vc.mu.Lock()
 	vc.handshakeFID = handshakeFID
 	vc.authFID = authFID
 	vc.crypter = crypter
-	if vc.useOldSecurityModel() {
-		vc.localID = lID
-		vc.remoteID = rID
-	} else {
-		vc.localPrincipal = principal
-		vc.remoteBlessings = rBlessings
-		vc.localBlessings = lBlessings
-	}
+	vc.localPrincipal = principal
+	vc.remoteBlessings = rBlessings
+	vc.localBlessings = lBlessings
 	vc.mu.Unlock()
 
-	if !vc.useOldSecurityModel() {
-		vlog.VI(1).Infof("Client VC %v authenticated. RemoteBlessings:%v, LocalBlessings:%v", vc, rBlessings, lBlessings)
-	} else {
-		vlog.VI(1).Infof("Client VC %v authenticated using about-to-be-deleted protocol. RemoteID:%v LocalID:%v", vc, rID, lID)
-	}
+	vlog.VI(1).Infof("Client VC %v authenticated. RemoteBlessings:%v, LocalBlessings:%v", vc, rBlessings, lBlessings)
 	return nil
 }
 
@@ -489,13 +426,10 @@ func (vc *VC) HandshakeAcceptedVC(opts ...stream.ListenerOpt) <-chan HandshakeRe
 		result <- HandshakeResult{ln, err}
 		return result
 	}
-	var localID LocalID
 	var principal security.Principal
 	var securityLevel options.VCSecurityLevel
 	for _, o := range opts {
 		switch v := o.(type) {
-		case LocalID:
-			localID = v
 		case LocalPrincipal:
 			principal = v.Principal
 		case options.VCSecurityLevel:
@@ -512,9 +446,6 @@ func (vc *VC) HandshakeAcceptedVC(opts ...stream.ListenerOpt) <-chan HandshakeRe
 	vc.helper.AddReceiveBuffers(vc.VCI(), SharedFlowID, DefaultBytesBufferedPerFlow)
 	switch securityLevel {
 	case options.VCSecurityConfidential:
-		if localID == nil {
-			localID = FixedLocalID(anonymousID)
-		}
 		if principal == nil {
 			principal = anonymousPrincipal
 		}
@@ -560,40 +491,21 @@ func (vc *VC) HandshakeAcceptedVC(opts ...stream.ListenerOpt) <-chan HandshakeRe
 		vc.mu.Lock()
 		vc.authFID = vc.findFlowLocked(authConn)
 		vc.mu.Unlock()
-		var (
-			rID, lID               security.PublicID
-			rBlessings, lBlessings security.Blessings
-		)
-		if vc.useOldSecurityModel() {
-			if rID, lID, err = authenticateAsServerOld(authConn, localID, crypter, vc.version); err != nil {
-				sendErr(fmt.Errorf("Authentication failed (with soon-to-be-removed protocol): %v", err))
-				return
-			}
-		} else {
-			if rBlessings, lBlessings, err = authenticateAsServer(authConn, principal, crypter, vc.version); err != nil {
-				sendErr(fmt.Errorf("authentication failed %v", err))
-				return
-			}
+		rBlessings, lBlessings, err := authenticateAsServer(authConn, principal, crypter, vc.version)
+		if err != nil {
+			sendErr(fmt.Errorf("authentication failed %v", err))
+			return
 		}
 
 		vc.mu.Lock()
 		vc.crypter = crypter
-		if vc.useOldSecurityModel() {
-			vc.localID = lID
-			vc.remoteID = rID
-		} else {
-			vc.localPrincipal = principal
-			vc.localBlessings = lBlessings
-			vc.remoteBlessings = rBlessings
-		}
+		vc.localPrincipal = principal
+		vc.localBlessings = lBlessings
+		vc.remoteBlessings = rBlessings
 		close(vc.acceptHandshakeDone)
 		vc.acceptHandshakeDone = nil
 		vc.mu.Unlock()
-		if !vc.useOldSecurityModel() {
-			vlog.VI(1).Infof("Server VC %v authenticated. RemoteBlessings:%v, LocalBlessings:%v", vc, rBlessings, lBlessings)
-		} else {
-			vlog.VI(1).Infof("Server VC %v authenticated using about-to-be-deleted protocol. RemoteID:%v LocalID:%v", vc, rID, lID)
-		}
+		vlog.VI(1).Infof("Server VC %v authenticated. RemoteBlessings:%v, LocalBlessings:%v", vc, rBlessings, lBlessings)
 		result <- HandshakeResult{ln, nil}
 	}()
 	return result
@@ -676,28 +588,6 @@ func (vc *VC) RemoteBlessings() security.Blessings {
 	return vc.remoteBlessings
 }
 
-// LocalID returns the identity of the local end of the VC.
-func (vc *VC) LocalID() security.PublicID {
-	vc.mu.Lock()
-	defer vc.mu.Unlock()
-	vc.waitForHandshakeLocked()
-	if vc.useOldSecurityModel() {
-		return anonymousIfNilPublicID(vc.localID)
-	}
-	return nil
-}
-
-// RemoteID returns the identity of the remote end of the VC.
-func (vc *VC) RemoteID() security.PublicID {
-	vc.mu.Lock()
-	defer vc.mu.Unlock()
-	vc.waitForHandshakeLocked()
-	if vc.useOldSecurityModel() {
-		return anonymousIfNilPublicID(vc.remoteID)
-	}
-	return nil
-}
-
 // waitForHandshakeLocked blocks until an in-progress handshake (encryption
 // setup and authentication) completes.
 // REQUIRES: vc.mu is held.
@@ -733,7 +623,6 @@ func (vc *VC) DebugString() string {
 		if vc.localPrincipal != nil {
 			l = append(l, fmt.Sprintf("LocalPrincipal:%v LocalBlessings:%v RemoteBlessings:%v", vc.localPrincipal.PublicKey(), vc.localBlessings, vc.remoteBlessings))
 		}
-		l = append(l, fmt.Sprintf("LocalID:%q RemoteID:%q", anonymousIfNilPublicID(vc.localID), anonymousIfNilPublicID(vc.remoteID)))
 	}
 	for fid, f := range vc.flowMap {
 		l = append(l, fmt.Sprintf("  Flow:%3d BytesRead:%7d BytesWritten:%7d", fid, f.BytesRead(), f.BytesWritten()))
@@ -742,9 +631,6 @@ func (vc *VC) DebugString() string {
 	sort.Strings(l[1:])
 	return strings.Join(l, "\n")
 }
-
-// TODO(ashankar,ataly): Remove once the old security model is ripped out.
-func (vc *VC) useOldSecurityModel() bool { return vc.version < version.IPCVersion4 }
 
 // readHandlerImpl is an adapter for the readHandler interface required by
 // the reader type.
@@ -755,11 +641,4 @@ type readHandlerImpl struct {
 
 func (r readHandlerImpl) HandleRead(bytes uint) {
 	r.vc.helper.AddReceiveBuffers(r.vc.vci, r.fid, bytes)
-}
-
-func anonymousIfNilPublicID(id security.PublicID) security.PublicID {
-	if id != nil {
-		return id
-	}
-	return anonymousID.PublicID()
 }

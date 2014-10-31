@@ -27,7 +27,6 @@ import (
 	"veyron.io/veyron/veyron/lib/netstate"
 	"veyron.io/veyron/veyron/runtimes/google/lib/publisher"
 	inaming "veyron.io/veyron/veyron/runtimes/google/naming"
-	isecurity "veyron.io/veyron/veyron/runtimes/google/security"
 	ivtrace "veyron.io/veyron/veyron/runtimes/google/vtrace"
 	vsecurity "veyron.io/veyron/veyron/security"
 	"veyron.io/veyron/veyron/services/mgmt/debug"
@@ -630,18 +629,15 @@ type flowServer struct {
 	enc       *vom.Encoder   // to encode responses and results to the client
 	flow      stream.Flow    // underlying flow
 	debugDisp ipc.Dispatcher // internal debug dispatcher
-	// Fields filled in during the server invocation.
 
-	// authorizedRemoteID is the PublicID obtained after authorizing the remoteID
-	// of the underlying flow for the current request context.
-	authorizedRemoteID security.PublicID
-	blessings          security.Blessings
-	method, suffix     string
-	label              security.Label
-	discharges         map[string]security.Discharge
-	deadline           time.Time
-	endStreamArgs      bool // are the stream args at EOF?
-	allowDebug         bool // true if the caller is permitted to view debug information.
+	// Fields filled in during the server invocation.
+	blessings      security.Blessings
+	method, suffix string
+	label          security.Label
+	discharges     map[string]security.Discharge
+	deadline       time.Time
+	endStreamArgs  bool // are the stream args at EOF?
+	allowDebug     bool // true if the caller is permitted to view debug information.
 }
 
 var _ ipc.Stream = (*flowServer)(nil)
@@ -693,12 +689,7 @@ func result2vom(res interface{}) vom.Value {
 }
 
 func defaultAuthorizer(ctx security.Context) security.Authorizer {
-	var blessings []string
-	if ctx.LocalBlessings() == nil { // TODO(ashankar): This will go away once the old security model is removed
-		blessings = ctx.LocalID().Names()
-	} else {
-		blessings = ctx.LocalBlessings().ForContext(ctx)
-	}
+	blessings := ctx.LocalBlessings().ForContext(ctx)
 	acl := security.ACL{In: make(map[security.BlessingPattern]security.LabelSet)}
 	for _, b := range blessings {
 		acl.In[security.BlessingPattern(b).MakeGlob()] = security.AllLabels
@@ -851,26 +842,11 @@ func (fs *flowServer) processRequest() ([]interface{}, verror.E) {
 			return nil, verror.BadProtocolf("ipc: arg %d decoding failed: %v", ix, err)
 		}
 	}
-	if remoteID := fs.flow.RemoteID(); remoteID != nil {
-		// TODO(ashankar): This whole check goes away once the old security model is ripped out.
-		if fs.authorizedRemoteID, err = remoteID.Authorize(isecurity.NewContext(isecurity.ContextArgs{
-			LocalID:    fs.flow.LocalID(),
-			RemoteID:   fs.flow.RemoteID(),
-			Method:     fs.method,
-			Suffix:     fs.suffix,
-			Discharges: fs.discharges,
-			Label:      fs.label,
-		})); err != nil {
-			return nil, verror.NoAccessf("%v is not authorized to call %q.%q (%v)", fs.RemoteID(), fs.Name(), fs.Method(), err)
-		}
-	}
-
 	fs.allowDebug = fs.LocalPrincipal() == nil
 	// Check application's authorization policy and invoke the method.
 	// LocalPrincipal is nil means that the server wanted to avoid authentication,
 	// and thus wanted to skip authorization as well.
-	// TODO(suharshs,ataly,ashankar): Remove fs.LocalID() after the old security model is dead.
-	if fs.LocalPrincipal() != nil || fs.LocalID() != nil {
+	if fs.LocalPrincipal() != nil {
 		// Check if the caller is permitted to view debug information.
 		if err := fs.authorize(auth); err != nil {
 			return nil, err
@@ -1012,10 +988,7 @@ func (fs *flowServer) authorize(auth security.Authorizer) verror.E {
 	}
 	if err := auth.Authorize(fs); err != nil {
 		// TODO(ataly, ashankar): For privacy reasons, should we hide the authorizer error?
-		if fs.RemoteBlessings() != nil {
-			return verror.NoAccessf("ipc: %v not authorized to call %q.%q (%v)", fs.RemoteBlessings(), fs.Name(), fs.Method(), err)
-		}
-		return verror.NoAccessf("ipc: %v (deprecated security model) is not authorized to call %q.%q (%v)", fs.RemoteID(), fs.Name(), fs.Method(), err)
+		return verror.NoAccessf("ipc: %v not authorized to call %q.%q (%v)", fs.RemoteBlessings(), fs.Name(), fs.Method(), err)
 	}
 	return nil
 }
@@ -1090,15 +1063,6 @@ func (fs *flowServer) Suffix() string {
 func (fs *flowServer) Label() security.Label {
 	//nologcall
 	return fs.label
-}
-
-func (fs *flowServer) LocalID() security.PublicID {
-	//nologcall
-	return fs.flow.LocalID()
-}
-func (fs *flowServer) RemoteID() security.PublicID {
-	//nologcall
-	return fs.authorizedRemoteID
 }
 func (fs *flowServer) LocalPrincipal() security.Principal {
 	//nologcall

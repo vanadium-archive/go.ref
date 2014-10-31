@@ -35,8 +35,6 @@ func (*context) Name() string                              { return "" }
 func (*context) Suffix() string                            { return "" }
 func (*context) Label() (l security.Label)                 { return }
 func (*context) Discharges() map[string]security.Discharge { return nil }
-func (*context) LocalID() security.PublicID                { return nil }
-func (*context) RemoteID() security.PublicID               { return nil }
 func (c *context) LocalPrincipal() security.Principal      { return c.local }
 func (*context) LocalBlessings() security.Blessings        { return nil }
 func (*context) RemoteBlessings() security.Blessings       { return nil }
@@ -66,8 +64,18 @@ func TestInit(t *testing.T) {
 	if !expected.MatchString(args) {
 		t.Errorf("unexpected default args: %q", args)
 	}
-	if id := r.Identity().PublicID(); id == nil || len(id.Names()) == 0 || len(id.Names()[0]) == 0 {
-		t.Errorf("New should have created an identity. Created %v", id)
+	p := r.Principal()
+	if p == nil {
+		t.Fatalf("A new principal should have been created")
+	}
+	if p.BlessingStore() == nil {
+		t.Fatalf("The principal must have a BlessingStore")
+	}
+	if p.BlessingStore().Default() == nil {
+		t.Errorf("Principal().BlessingStore().Default() should not be nil")
+	}
+	if p.BlessingStore().ForPeer() == nil {
+		t.Errorf("Principal().BlessingStore().ForPeer() should not be nil")
 	}
 }
 

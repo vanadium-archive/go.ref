@@ -74,22 +74,6 @@ func testFlowEcho(t *testing.T, flow stream.Flow, size int) {
 	}
 }
 
-func matchID(got, want security.PublicID) error {
-	if want == nil {
-		if got.Names() != nil {
-			return fmt.Errorf("got identity with names: %v, want one with names: nil", got.Names())
-		}
-		return nil
-	}
-	if g, w := got.Names(), want.Names(); !reflect.DeepEqual(got.Names(), want.Names()) {
-		return fmt.Errorf("got identity with names: %v, want one with names: %v", g, w)
-	}
-	if g, w := got.PublicKey(), want.PublicKey(); !reflect.DeepEqual(got.PublicKey(), want.PublicKey()) {
-		return fmt.Errorf("got identity with public key: %v, want one with public key: %v", g, w)
-	}
-	return nil
-}
-
 func TestHandshake(t *testing.T) {
 	// When SecurityNone is used, the blessings should not be sent over the wire.
 	var (
@@ -183,8 +167,8 @@ func testConnect(t *testing.T, security options.VCSecurityLevel) {
 func TestConnect(t *testing.T)    { testConnect(t, SecurityNone) }
 func TestConnectTLS(t *testing.T) { testConnect(t, SecurityTLS) }
 
-func testConnect_Version3(t *testing.T, security options.VCSecurityLevel) {
-	h, vc := New(security, version.IPCVersion3, sectest.NewPrincipal("client"), sectest.NewPrincipal("server"))
+func testConnect_Version4(t *testing.T, security options.VCSecurityLevel) {
+	h, vc := New(security, version.IPCVersion4, sectest.NewPrincipal("client"), sectest.NewPrincipal("server"))
 	defer h.Close()
 	flow, err := vc.Connect()
 	if err != nil {
@@ -192,8 +176,8 @@ func testConnect_Version3(t *testing.T, security options.VCSecurityLevel) {
 	}
 	testFlowEcho(t, flow, 10)
 }
-func TestConnect_Version3(t *testing.T)    { testConnect_Version3(t, SecurityNone) }
-func TestConnect_Version3TLS(t *testing.T) { testConnect_Version3(t, SecurityTLS) }
+func TestConnect_Version4(t *testing.T)    { testConnect_Version4(t, SecurityNone) }
+func TestConnect_Version4TLS(t *testing.T) { testConnect_Version4(t, SecurityTLS) }
 
 // helper function for testing concurrent operations on multiple flows over the
 // same VC.  Such tests are most useful when running the race detector.
