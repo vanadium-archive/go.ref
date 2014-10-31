@@ -31,14 +31,14 @@ func (hw *WorkParameters) Chown() error {
 
 func (hw *WorkParameters) Exec() error {
 	if hw.dryrun {
-		log.Printf("[dryrun] syscall.Setuid(%d)", hw.uid)
 		log.Printf("[dryrun] syscall.Setgid(%d)", hw.gid)
+		log.Printf("[dryrun] syscall.Setuid(%d)", hw.uid)
 	} else {
-		if err := syscall.Setuid(hw.uid); err != nil {
-			return fmt.Errorf("syscall.Setuid(%d) failed: %v", hw.uid, err)
-		}
 		if err := syscall.Setgid(hw.gid); err != nil {
 			return fmt.Errorf("syscall.Setgid(%d) failed: %v", hw.gid, err)
+		}
+		if err := syscall.Setuid(hw.uid); err != nil {
+			return fmt.Errorf("syscall.Setuid(%d) failed: %v", hw.uid, err)
 		}
 	}
 	return syscall.Exec(hw.argv0, hw.argv, hw.envv)
