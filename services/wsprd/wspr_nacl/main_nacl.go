@@ -13,10 +13,8 @@ import (
 	"veyron.io/veyron/veyron2/security"
 	"veyron.io/wspr/veyron/services/wsprd/wspr"
 
-	vsecurity "veyron.io/veyron/veyron/security"
-	// TODO(cnicolaou): shouldn't be depending on the runtime here.
 	_ "veyron.io/veyron/veyron/profiles"
-	_ "veyron.io/veyron/veyron/runtimes/google/security"
+	vsecurity "veyron.io/veyron/veyron/security"
 )
 
 func main() {
