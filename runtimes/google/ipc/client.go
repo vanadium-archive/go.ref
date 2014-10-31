@@ -178,6 +178,24 @@ func getRetryTimeoutOpt(opts []ipc.CallOpt) (time.Duration, bool) {
 
 func (c *client) StartCall(ctx context.T, name, method string, args []interface{}, opts ...ipc.CallOpt) (ipc.Call, error) {
 	defer vlog.LogCall()()
+	return c.startCall(ctx, name, method, args, opts)
+}
+
+func getNoResolveOpt(opts []ipc.CallOpt) bool {
+	for _, o := range opts {
+		if r, ok := o.(options.NoResolve); ok {
+			return bool(r)
+		}
+	}
+	return false
+}
+
+// startCall ensures StartCall always returns verror.E.
+func (c *client) startCall(ctx context.T, name, method string, args []interface{}, opts []ipc.CallOpt) (ipc.Call, verror.E) {
+	if ctx == nil {
+		return nil, verror.BadArgf("ipc: %s.%s called with nil context", name, method)
+	}
+
 	// Context specified deadline.
 	deadline, hasDeadline := ctx.Deadline()
 	if !hasDeadline {
@@ -195,7 +213,7 @@ func (c *client) StartCall(ctx context.T, name, method string, args []interface{
 				break
 			}
 		}
-		call, err := c.startCall(ctx, name, method, args, opts...)
+		call, err := c.tryCall(ctx, name, method, args, opts)
 		if err == nil {
 			return call, nil
 		}
@@ -207,20 +225,8 @@ func (c *client) StartCall(ctx context.T, name, method string, args []interface{
 	return nil, lastErr
 }
 
-func getNoResolveOpt(opts []ipc.CallOpt) bool {
-	for _, o := range opts {
-		if r, ok := o.(options.NoResolve); ok {
-			return bool(r)
-		}
-	}
-	return false
-}
-
-// startCall ensures StartCall always returns verror.E.
-func (c *client) startCall(ctx context.T, name, method string, args []interface{}, opts ...ipc.CallOpt) (ipc.Call, verror.E) {
-	if ctx == nil {
-		return nil, verror.BadArgf("ipc: %s.%s called with nil context", name, method)
-	}
+// tryCall makes a single attempt at a call.
+func (c *client) tryCall(ctx context.T, name, method string, args []interface{}, opts []ipc.CallOpt) (ipc.Call, verror.E) {
 	ctx, _ = vtrace.WithNewSpan(ctx, fmt.Sprintf("Client Call: %s.%s", name, method))
 	// Resolve name unless told not to.
 	var servers []string

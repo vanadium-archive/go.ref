@@ -1071,6 +1071,23 @@ func TestSecurityNone(t *testing.T) {
 	}
 }
 
+func TestCallWithNilContext(t *testing.T) {
+	sm := imanager.InternalNew(naming.FixedRoutingID(0x66666666))
+	defer sm.Shutdown()
+	ns := tnaming.NewSimpleNamespace()
+	client, err := InternalNewClient(sm, ns, options.VCSecurityNone)
+	if err != nil {
+		t.Fatalf("InternalNewClient failed: %v", err)
+	}
+	call, err := client.StartCall(nil, "foo", "bar", []interface{}{})
+	if call != nil {
+		t.Errorf("Expected nil interface got: %#v", call)
+	}
+	if !verror.Is(err, verror.BadArg) {
+		t.Errorf("Expected a BadArg error, got: %s", err.Error())
+	}
+}
+
 func init() {
 	testutil.Init()
 	vom.Register(fakeTimeCaveat(0))
