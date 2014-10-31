@@ -24,6 +24,8 @@ const (
 	Listen
 )
 
+const defaultNamespaceRoot = "/proxy.envyor.com:8101"
+
 // Flags represents the set of flag groups created by a call to
 // CreateAndRegister.
 type Flags struct {
@@ -32,6 +34,7 @@ type Flags struct {
 }
 
 type namespaceRootFlagVar struct {
+	isSet bool // is true when a flag have has been explicitly set.
 	roots []string
 }
 
@@ -40,6 +43,11 @@ func (nsr *namespaceRootFlagVar) String() string {
 }
 
 func (nsr *namespaceRootFlagVar) Set(v string) error {
+	if !nsr.isSet {
+		// override the default value and
+		nsr.isSet = true
+		nsr.roots = []string{}
+	}
 	nsr.roots = append(nsr.roots, v)
 	return nil
 }
@@ -69,8 +77,14 @@ type ListenFlags struct {
 // group with the supplied flag.FlagSet.
 func createAndRegisterRuntimeFlags(fs *flag.FlagSet) *RuntimeFlags {
 	f := &RuntimeFlags{}
+	roots, creds := readEnv()
+	if len(roots) == 0 {
+		f.namespaceRootsFlag.roots = []string{defaultNamespaceRoot}
+	} else {
+		f.namespaceRootsFlag.roots = roots
+	}
 	fs.Var(&f.namespaceRootsFlag, "veyron.namespace.root", "local namespace root; can be repeated to provided multiple roots")
-	fs.StringVar(&f.Credentials, "veyron.credentials", "", "directory to use for storing security credentials")
+	fs.StringVar(&f.Credentials, "veyron.credentials", creds, "directory to use for storing security credentials")
 	return f
 }
 
@@ -141,9 +155,9 @@ func (f *Flags) Args() []string {
 	return f.FlagSet.Args()
 }
 
-// legacyEnvInit provides support for the legacy NAMESPACE_ROOT? and
-// VEYRON_CREDENTIALS env vars.
-func (es *RuntimeFlags) legacyEnvInit() {
+// readEnv reads the legacy NAMESPACE_ROOT? and VEYRON_CREDENTIALS env vars.
+func readEnv() ([]string, string) {
+	roots := []string{}
 	for _, ev := range os.Environ() {
 		p := strings.SplitN(ev, "=", 2)
 		if len(p) != 2 {
@@ -151,36 +165,34 @@ func (es *RuntimeFlags) legacyEnvInit() {
 		}
 		k, v := p[0], p[1]
 		if strings.HasPrefix(k, "NAMESPACE_ROOT") && len(v) > 0 {
-			es.NamespaceRoots = append(es.NamespaceRoots, v)
+			roots = append(roots, v)
 		}
 	}
-	if creds := os.Getenv("VEYRON_CREDENTIALS"); creds != "" {
-		es.Credentials = creds
-	}
+	creds := os.Getenv("VEYRON_CREDENTIALS")
+	return roots, creds
 }
-
-const defaultNamespaceRoot = "/proxy.envyor.com:8101"
 
 // Parse parses the supplied args, as per flag.Parse
 func (f *Flags) Parse(args []string) error {
-	hasrt := f.groups[Runtime] != nil
-	if hasrt {
-		f.groups[Runtime].(*RuntimeFlags).legacyEnvInit()
-	}
-
 	// TODO(cnicolaou): implement a single env var 'VANADIUM_OPTS'
 	// that can be used to specify any command line.
 	if err := f.FlagSet.Parse(args); err != nil {
 		return err
 	}
 
+	hasrt := f.groups[Runtime] != nil
 	if hasrt {
 		runtime := f.groups[Runtime].(*RuntimeFlags)
-		if len(runtime.namespaceRootsFlag.roots) > 0 {
+		if runtime.namespaceRootsFlag.isSet {
+			// command line overrides the environment.
 			runtime.NamespaceRoots = runtime.namespaceRootsFlag.roots
-		}
-		if len(runtime.NamespaceRoots) == 0 {
-			runtime.NamespaceRoots = []string{defaultNamespaceRoot}
+		} else {
+			// we have a default value for the command line, which
+			// is only used if the environment variables have not been
+			// supplied.
+			if len(runtime.NamespaceRoots) == 0 {
+				runtime.NamespaceRoots = runtime.namespaceRootsFlag.roots
+			}
 		}
 	}
 	return nil

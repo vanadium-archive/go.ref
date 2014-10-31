@@ -202,9 +202,9 @@ func root() *cmdline.Command {
 		Long: `
 The namespace tool facilitates interaction with the Veyron namespace.
 
-The namespace roots are set from environment variables that have a name
+The namespace roots are set from the command line via veyron.namespace.root options or from environment variables that have a name
 starting with NAMESPACE_ROOT, e.g. NAMESPACE_ROOT, NAMESPACE_ROOT_2,
-NAMESPACE_ROOT_GOOGLE, etc.
+NAMESPACE_ROOT_GOOGLE, etc. The command line options override the environment.
 `,
 		Children: []*cmdline.Command{cmdGlob, cmdMount, cmdUnmount, cmdResolve, cmdResolveToMT, cmdUnresolve},
 	}
