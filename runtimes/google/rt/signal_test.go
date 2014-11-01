@@ -9,6 +9,8 @@ import (
 	"testing"
 	"time"
 
+	"veyron.io/veyron/veyron2"
+	"veyron.io/veyron/veyron2/config"
 	"veyron.io/veyron/veyron2/options"
 	"veyron.io/veyron/veyron2/rt"
 
@@ -19,6 +21,29 @@ import (
 func init() {
 	modules.RegisterChild("withRuntime", "", withRuntime)
 	modules.RegisterChild("withoutRuntime", "", withoutRuntime)
+}
+
+// A fack profile to explicitly request the Google runtime.
+type myprofile struct{}
+
+func (mp *myprofile) Name() string {
+	return "test"
+}
+
+func (mp *myprofile) Runtime() string {
+	return "google"
+}
+
+func (mp *myprofile) Platform() *veyron2.Platform {
+	return &veyron2.Platform{"google", nil, "v1", "any", "rel1", ".2", "who knows", "this host"}
+}
+
+func (mp *myprofile) String() string {
+	return "myprofile on " + mp.Platform().String()
+}
+
+func (mp *myprofile) Init(veyron2.Runtime, *config.Publisher) error {
+	return nil
 }
 
 func simpleEchoProgram(stdin io.Reader, stdout io.Writer) {
@@ -34,7 +59,7 @@ func withRuntime(stdin io.Reader, stdout, stderr io.Writer, env map[string]strin
 	// Make sure that we use "google" runtime implementation in this
 	// package even though we have to use the public API which supports
 	// arbitrary runtime implementations.
-	rt.Init(options.GoogleRuntime)
+	rt.Init(options.Profile{&myprofile{}})
 	simpleEchoProgram(stdin, stdout)
 	return nil
 }

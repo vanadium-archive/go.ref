@@ -284,7 +284,7 @@ func setupRemoteAppCycleMgr(t *testing.T) (veyron2.Runtime, modules.Handle, appc
 	// refer to the global rt.R() function), but we take care to make sure
 	// that the "google" runtime we are trying to test in this package is
 	// the one being used.
-	r, _ := rt.New(profileOpt, options.GoogleRuntime)
+	r, _ := rt.New(profileOpt)
 
 	childcreds := security.NewVeyronCredentials(r.Principal(), appCmd)
 	configServer, configServiceName, ch := createConfigServer(t, r)

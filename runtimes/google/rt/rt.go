@@ -70,10 +70,6 @@ func New(opts ...veyron2.ROpt) (veyron2.Runtime, error) {
 			rt.principal = v.Principal
 		case options.Profile:
 			rt.profile = v.Profile
-		case options.RuntimeName:
-			if v != "google" && v != "" {
-				return nil, fmt.Errorf("%q is the wrong name for this runtime", v)
-			}
 		default:
 			return nil, fmt.Errorf("option has wrong type %T", o)
 		}
