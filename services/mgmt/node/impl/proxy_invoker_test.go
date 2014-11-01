@@ -11,8 +11,6 @@ import (
 	"veyron.io/veyron/veyron2/security"
 	"veyron.io/veyron/veyron2/services/mgmt/stats"
 	"veyron.io/veyron/veyron2/services/mounttable"
-
-	"veyron.io/veyron/veyron/profiles"
 )
 
 func TestProxyInvoker(t *testing.T) {
@@ -24,7 +22,8 @@ func TestProxyInvoker(t *testing.T) {
 		t.Fatalf("NewServer: %v", err)
 	}
 	defer server1.Stop()
-	ep1, err := server1.Listen(profiles.LocalListenSpec)
+	localSpec := ipc.ListenSpec{Protocol: "tcp", Address: "127.0.0.1:0"}
+	ep1, err := server1.Listen(localSpec)
 	if err != nil {
 		t.Fatalf("Listen: %v", err)
 	}
@@ -38,7 +37,7 @@ func TestProxyInvoker(t *testing.T) {
 		t.Fatalf("NewServer: %v", err)
 	}
 	defer server2.Stop()
-	ep2, err := server2.Listen(profiles.LocalListenSpec)
+	ep2, err := server2.Listen(localSpec)
 	if err != nil {
 		t.Fatalf("Listen: %v", err)
 	}
@@ -79,7 +78,7 @@ func doGlob(t *testing.T, name, pattern string) []string {
 	}
 	stream, err := c.Glob(rt.R().NewContext(), pattern)
 	if err != nil {
-		t.Errorf("Glob failed: %v", err)
+		t.Fatalf("Glob failed: %v", err)
 	}
 	results := []string{}
 	iterator := stream.RecvStream()

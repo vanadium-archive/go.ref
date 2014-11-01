@@ -28,7 +28,6 @@ import (
 	"veyron.io/veyron/veyron/runtimes/google/lib/publisher"
 	inaming "veyron.io/veyron/veyron/runtimes/google/naming"
 	ivtrace "veyron.io/veyron/veyron/runtimes/google/vtrace"
-	"veyron.io/veyron/veyron/services/mgmt/debug"
 )
 
 var (
@@ -48,8 +47,7 @@ type server struct {
 	stoppedChan      chan struct{}                     // closed when the server has been stopped.
 	ns               naming.Namespace
 	servesMountTable bool
-	debugAuthorizer  security.Authorizer
-	debugDisp        ipc.Dispatcher
+	reservedOpt      options.ReservedNameDispatcher
 	// TODO(cnicolaou): add roaming stats to ipcStats
 	stats *ipcStats // stats for this server.
 }
@@ -82,11 +80,10 @@ func InternalNewServer(ctx context.T, streamMgr stream.Manager, ns naming.Namesp
 			s.listenerOpts = append(s.listenerOpts, opt)
 		case options.ServesMountTable:
 			s.servesMountTable = bool(opt)
-		case options.DebugAuthorizer:
-			s.debugAuthorizer = opt.Authorizer
+		case options.ReservedNameDispatcher:
+			s.reservedOpt = opt
 		}
 	}
-	s.debugDisp = debug.NewDispatcher(vlog.Log.LogDir(), s.debugAuthorizer)
 	return s, nil
 }
 
@@ -622,12 +619,12 @@ func (s *server) Stop() error {
 // flow that's already connected to the client.
 type flowServer struct {
 	context.T
-	server    *server        // ipc.Server that this flow server belongs to
-	disp      ipc.Dispatcher // ipc.Dispatcher that will serve RPCs on this flow
-	dec       *vom.Decoder   // to decode requests and args from the client
-	enc       *vom.Encoder   // to encode responses and results to the client
-	flow      stream.Flow    // underlying flow
-	debugDisp ipc.Dispatcher // internal debug dispatcher
+	server      *server        // ipc.Server that this flow server belongs to
+	disp        ipc.Dispatcher // ipc.Dispatcher that will serve RPCs on this flow
+	dec         *vom.Decoder   // to decode requests and args from the client
+	enc         *vom.Encoder   // to encode responses and results to the client
+	flow        stream.Flow    // underlying flow
+	reservedOpt options.ReservedNameDispatcher
 
 	// Fields filled in during the server invocation.
 	blessings      security.Blessings
@@ -652,11 +649,11 @@ func newFlowServer(flow stream.Flow, server *server) *flowServer {
 		server: server,
 		disp:   disp,
 		// TODO(toddw): Support different codecs
-		dec:        vom.NewDecoder(flow),
-		enc:        vom.NewEncoder(flow),
-		flow:       flow,
-		debugDisp:  server.debugDisp,
-		discharges: make(map[string]security.Discharge),
+		dec:         vom.NewDecoder(flow),
+		enc:         vom.NewEncoder(flow),
+		flow:        flow,
+		reservedOpt: server.reservedOpt,
+		discharges:  make(map[string]security.Discharge),
 	}
 }
 
@@ -857,14 +854,16 @@ func (fs *flowServer) processRequest() ([]interface{}, verror.E) {
 func (fs *flowServer) lookup(name, method string) (ipc.Invoker, security.Authorizer, string, verror.E) {
 	name = strings.TrimLeft(name, "/")
 	if method == "Glob" && len(name) == 0 {
-		return ipc.ReflectInvoker(&globInvoker{fs}), &acceptAllAuthorizer{}, name, nil
+		return ipc.ReflectInvoker(&globInvoker{fs.reservedOpt.Prefix, fs}), &acceptAllAuthorizer{}, name, nil
 	}
 	disp := fs.disp
-	if name == ipc.DebugKeyword || strings.HasPrefix(name, ipc.DebugKeyword+"/") {
-		name = strings.TrimPrefix(name, ipc.DebugKeyword)
+	prefix := fs.reservedOpt.Prefix
+	if len(prefix) > 0 && (name == prefix || strings.HasPrefix(name, prefix+"/")) {
+		name = strings.TrimPrefix(name, prefix)
 		name = strings.TrimLeft(name, "/")
-		disp = fs.debugDisp
+		disp = fs.reservedOpt.Dispatcher
 	}
+
 	if disp != nil {
 		invoker, auth, err := disp.Lookup(name, method)
 		switch {
@@ -884,7 +883,8 @@ func (acceptAllAuthorizer) Authorize(security.Context) error {
 }
 
 type globInvoker struct {
-	fs *flowServer
+	prefix string
+	fs     *flowServer
 }
 
 // Glob matches the pattern against internal object names if the double-
@@ -895,15 +895,12 @@ func (i *globInvoker) Glob(call ipc.ServerCall, pattern string) error {
 	if err != nil {
 		return err
 	}
-	if strings.HasPrefix(pattern, "__") {
+	if strings.HasPrefix(pattern, naming.ReservedNamePrefix) {
 		var err error
 		// Match against internal object names.
-		internalLeaves := []string{ipc.DebugKeyword}
-		for _, leaf := range internalLeaves {
-			if ok, _, left := g.MatchInitialSegment(leaf); ok {
-				if ierr := i.invokeGlob(call, i.fs.debugDisp, leaf, left.String()); ierr != nil {
-					err = ierr
-				}
+		if ok, _, left := g.MatchInitialSegment(i.prefix); ok {
+			if ierr := i.invokeGlob(call, i.fs.reservedOpt.Dispatcher, i.prefix, left.String()); ierr != nil {
+				err = ierr
 			}
 		}
 		return err
@@ -938,6 +935,7 @@ func (i *globInvoker) invokeGlob(call ipc.ServerCall, d ipc.Dispatcher, prefix, 
 	if err != nil {
 		return err
 	}
+
 	if len(results) != 1 {
 		return verror.BadArgf("unexpected number of results. Got %d, want 1", len(results))
 	}

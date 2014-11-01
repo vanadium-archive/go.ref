@@ -46,6 +46,9 @@ func (i *invoker) leafGlob(call ipc.ServerCall, leaf string, pattern string) err
 	if err != nil {
 		return err
 	}
+	if invoker == nil {
+		return verror.BadArgf("failed to find invoker for %q", leaf)
+	}
 	argptrs := []interface{}{&pattern}
 	leafCall := &localServerCall{call, leaf}
 	results, err := invoker.Invoke("Glob", leafCall, argptrs)
