@@ -45,11 +45,11 @@ main() {
   "${PRINCIPAL_BIN}" bless ./bob friend >alice.bless || shell_test::fail "line ${LINENO}: bless failed"
   "${PRINCIPAL_BIN}" dump >alice.dump || shell_test::fail "line ${LINENO}: dump failed"
   # Run store setdefault, store default, store set, store forpeer on bob
-  export VEYRON_CREDENTIALS=./bob
-  "${PRINCIPAL_BIN}" store setdefault alice.bless || shell_test::fail "line ${LINENO}: store setdefault failed"
-  "${PRINCIPAL_BIN}" store default >bob.store.default || shell_test::fail "line ${LINENO}: store default failed"
-  "${PRINCIPAL_BIN}" store set alice.bless alice/... || shell_test::fail "line ${LINENO}: store set failed"
-  "${PRINCIPAL_BIN}" store forpeer alice/server >bob.store.forpeer || shell_test::fail "line ${LINENO}: store forpeer failed" 
+  # This time use the --veyron.credentials flag to set the principal.
+  "${PRINCIPAL_BIN}" --veyron.credentials=./bob store setdefault alice.bless || shell_test::fail "line ${LINENO}: store setdefault failed"
+  "${PRINCIPAL_BIN}" --veyron.credentials=./bob store default >bob.store.default || shell_test::fail "line ${LINENO}: store default failed"
+  "${PRINCIPAL_BIN}" --veyron.credentials=./bob store set alice.bless alice/... || shell_test::fail "line ${LINENO}: store set failed"
+  "${PRINCIPAL_BIN}" --veyron.credentials=./bob store forpeer alice/server >bob.store.forpeer || shell_test::fail "line ${LINENO}: store forpeer failed" 
   # Any other commands to be run without VEYRON_CREDENTIALS set.
   unset VEYRON_CREDENTIALS
 
