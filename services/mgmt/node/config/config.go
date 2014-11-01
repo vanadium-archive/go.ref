@@ -23,6 +23,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"veyron.io/veyron/veyron/lib/flags/consts"
 	"veyron.io/veyron/veyron2/services/mgmt/application"
 )
 
@@ -122,7 +123,7 @@ func (c *State) Save(envelope *application.Envelope) ([]string, error) {
 			continue
 		}
 		k, v := p[0], p[1]
-		if strings.HasPrefix(k, "NAMESPACE_ROOT") {
+		if strings.HasPrefix(k, consts.NamespaceRootPrefix) {
 			settings[k] = v
 		}
 	}

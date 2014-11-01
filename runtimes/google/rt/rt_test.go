@@ -17,6 +17,7 @@ import (
 	"veyron.io/veyron/veyron2/vlog"
 
 	"veyron.io/veyron/veyron/lib/expect"
+	"veyron.io/veyron/veyron/lib/flags/consts"
 	"veyron.io/veyron/veyron/lib/modules"
 	"veyron.io/veyron/veyron/lib/testutil"
 	vsecurity "veyron.io/veyron/veyron/security"
@@ -25,10 +26,6 @@ import (
 type context struct {
 	local security.Principal
 }
-
-// Environment variable pointing to a directory where information about a
-// principal (private key, blessing store, blessing roots etc.) is stored.
-const veyronCredentialsEnvVar = "VEYRON_CREDENTIALS"
 
 func (*context) Method() string                            { return "" }
 func (*context) Name() string                              { return "" }
@@ -223,7 +220,7 @@ func TestPrincipalInheritance(t *testing.T) {
 	principal := createCredentialsInDir(t, cdir)
 
 	// directory supplied by the environment.
-	credEnv := []string{veyronCredentialsEnvVar + "=" + cdir}
+	credEnv := []string{consts.VeyronCredentials + "=" + cdir}
 
 	h, err := sh.Start("runner", credEnv)
 	if err != nil {
@@ -268,12 +265,12 @@ func TestPrincipalInit(t *testing.T) {
 
 	// A credentials directory may, or may, not have been already specified.
 	// Either way, we want to use our own, so we set it aside and use our own.
-	origCredentialsDir := os.Getenv(veyronCredentialsEnvVar)
-	defer os.Setenv(veyronCredentialsEnvVar, origCredentialsDir)
+	origCredentialsDir := os.Getenv(consts.VeyronCredentials)
+	defer os.Setenv(consts.VeyronCredentials, origCredentialsDir)
 
 	// Test that with VEYRON_CREDENTIALS unset the runtime's Principal
 	// is correctly initialized.
-	if err := os.Setenv(veyronCredentialsEnvVar, ""); err != nil {
+	if err := os.Setenv(consts.VeyronCredentials, ""); err != nil {
 		t.Fatal(err)
 	}
 
@@ -293,7 +290,7 @@ func TestPrincipalInit(t *testing.T) {
 	defer os.RemoveAll(cdir1)
 	principal := createCredentialsInDir(t, cdir1)
 	// directory supplied by the environment.
-	credEnv := []string{veyronCredentialsEnvVar + "=" + cdir1}
+	credEnv := []string{consts.VeyronCredentials + "=" + cdir1}
 
 	pubkey, err = collect(sh, "principal", credEnv)
 	if err != nil {

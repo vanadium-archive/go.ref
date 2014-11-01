@@ -19,6 +19,7 @@ import (
 	"veyron.io/veyron/veyron2/services/mgmt/appcycle"
 
 	"veyron.io/veyron/veyron/lib/expect"
+	"veyron.io/veyron/veyron/lib/flags/consts"
 	"veyron.io/veyron/veyron/lib/modules"
 	"veyron.io/veyron/veyron/lib/testutil"
 	"veyron.io/veyron/veyron/lib/testutil/security"
@@ -338,7 +339,7 @@ func TestCleanRemoteShutdown(t *testing.T) {
 	defer os.RemoveAll(childcreds)
 	configServer, configServiceName, ch := createConfigServer(t)
 	defer configServer.Stop()
-	sh.SetVar("VEYRON_CREDENTIALS", childcreds)
+	sh.SetVar(consts.VeyronCredentials, childcreds)
 	sh.SetVar(mgmt.ParentNodeManagerConfigKey, configServiceName)
 	h, err := sh.Start("handleDefaults", nil)
 	if err != nil {

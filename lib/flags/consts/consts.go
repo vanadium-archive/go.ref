@@ -1,0 +1,12 @@
+// Package consts defines named constants whose values are interpreted by the flags package.
+package consts
+
+const (
+	// Environment variable whose value points to a directory containing
+	// the state of a Principal.  (Private key, blessings, recognized root
+	// certificates etc.)
+	VeyronCredentials = "VEYRON_CREDENTIALS"
+	// Prefix of all environment variables that point to roots of the
+	// veyron namespace, used to resolve non-rooted object names.
+	NamespaceRootPrefix = "NAMESPACE_ROOT"
+)

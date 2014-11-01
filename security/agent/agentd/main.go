@@ -8,6 +8,7 @@ import (
 	"os/exec"
 	"os/signal"
 	"syscall"
+	"veyron.io/veyron/veyron/lib/flags/consts"
 	_ "veyron.io/veyron/veyron/profiles"
 	vsecurity "veyron.io/veyron/veyron/security"
 	"veyron.io/veyron/veyron/security/agent"
@@ -24,16 +25,18 @@ func main() {
 	flag.Usage = func() {
 		fmt.Fprintf(os.Stderr, `Usage: %s [agent options] command command_args...
 
-Loads the private key specified in under privatekey.pem in VEYRON_CREDENTIALS into memory, then
+Loads the private key specified in under privatekey.pem in %v into memory, then
 starts the specified command with access to the private key via the
 agent protocol instead of directly reading from disk.
 
-`, os.Args[0])
+`, os.Args[0], consts.VeyronCredentials)
 		flag.PrintDefaults()
 	}
-	dir := os.Getenv("VEYRON_CREDENTIALS")
+	// TODO(ashankar,cnicolaou): Should flags.Parse be used instead? But that adds unnecessary
+	// flags like "--veyron.namespace.root", which has no meaning for this binary.
+	dir := os.Getenv(consts.VeyronCredentials)
 	if len(dir) == 0 {
-		vlog.Fatal("VEYRON_CREDENTIALS must be set to directory")
+		vlog.Fatalf("The %v environment variable must be set to a directory", consts.VeyronCredentials)
 	}
 
 	p, passphrase, err := newPrincipalFromDir(dir)
@@ -52,7 +55,7 @@ agent protocol instead of directly reading from disk.
 	if err = os.Setenv(agent.FdVarName, "3"); err != nil {
 		log.Fatalf("setenv: %v", err)
 	}
-	if err = os.Setenv("VEYRON_CREDENTIALS", ""); err != nil {
+	if err = os.Setenv(consts.VeyronCredentials, ""); err != nil {
 		log.Fatalf("setenv: %v", err)
 	}
 

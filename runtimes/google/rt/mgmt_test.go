@@ -17,6 +17,7 @@ import (
 	"veyron.io/veyron/veyron2/services/mgmt/appcycle"
 
 	"veyron.io/veyron/veyron/lib/expect"
+	"veyron.io/veyron/veyron/lib/flags/consts"
 	"veyron.io/veyron/veyron/lib/modules"
 	"veyron.io/veyron/veyron/lib/testutil"
 	"veyron.io/veyron/veyron/lib/testutil/security"
@@ -289,7 +290,7 @@ func setupRemoteAppCycleMgr(t *testing.T) (veyron2.Runtime, modules.Handle, appc
 	childcreds := security.NewVeyronCredentials(r.Principal(), appCmd)
 	configServer, configServiceName, ch := createConfigServer(t, r)
 	sh := modules.NewShell(appCmd)
-	sh.SetVar("VEYRON_CREDENTIALS", childcreds)
+	sh.SetVar(consts.VeyronCredentials, childcreds)
 	sh.SetVar(mgmt.ParentNodeManagerConfigKey, configServiceName)
 	h, err := sh.Start("app", nil)
 	if err != nil {

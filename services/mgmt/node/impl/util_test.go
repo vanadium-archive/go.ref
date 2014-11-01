@@ -20,6 +20,7 @@ import (
 	"veyron.io/veyron/veyron2/vlog"
 
 	"veyron.io/veyron/veyron/lib/expect"
+	"veyron.io/veyron/veyron/lib/flags/consts"
 	"veyron.io/veyron/veyron/lib/modules"
 	"veyron.io/veyron/veyron/lib/modules/core"
 	"veyron.io/veyron/veyron/lib/testutil/security"
@@ -53,13 +54,13 @@ func startRootMT(t *testing.T, sh *modules.Shell) (string, modules.Handle, *expe
 
 func credentialsForChild(blessing string) (string, []string) {
 	creds := security.NewVeyronCredentials(rt.R().Principal(), blessing)
-	return creds, []string{"VEYRON_CREDENTIALS=" + creds}
+	return creds, []string{consts.VeyronCredentials + "=" + creds}
 }
 
 func createShellAndMountTable(t *testing.T) (*modules.Shell, func()) {
 	sh := core.NewShell()
 	// The shell, will, by default share credentials with its children.
-	sh.ClearVar("VEYRON_CREDENTIALS")
+	sh.ClearVar(consts.VeyronCredentials)
 
 	mtName, mtHandle, _ := startRootMT(t, sh)
 	// Make sure the root mount table is the last process to be shutdown
@@ -78,7 +79,7 @@ func createShellAndMountTable(t *testing.T) (*modules.Shell, func()) {
 	if _, err := sh.Start(core.SetNamespaceRootsCommand, nil, mtName); err != nil {
 		t.Fatalf("%s: unexpected error: %s", loc(1), err)
 	}
-	sh.SetVar("NAMESPACE_ROOT", mtName)
+	sh.SetVar(consts.NamespaceRootPrefix, mtName)
 	return sh, fn
 }
 

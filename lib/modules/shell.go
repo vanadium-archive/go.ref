@@ -49,6 +49,7 @@ import (
 	"sync"
 	"time"
 
+	"veyron.io/veyron/veyron/lib/flags/consts"
 	"veyron.io/veyron/veyron2/vlog"
 )
 
@@ -79,15 +80,14 @@ type childRegistrar struct {
 
 var child = &childRegistrar{mains: make(map[string]*childEntryPoint)}
 
-// NewShell creates a new instance of Shell. If this new instance is
-// is a test and no credentials have been configured in the environment
-// via VEYRON_CREDENTIALS then CreateAndUseNewCredentials will be used to
-// configure a new ID for the shell and its children.
-// NewShell takes optional regexp patterns that can be used to specify
-// subprocess commands that are implemented in the same binary as this shell
-// (i.e. have been registered using modules.RegisterChild) to be
-// automatically added to it. If the patterns fail to match any such command
-// then they have no effect.
+// NewShell creates a new instance of Shell. If this new instance is is a test
+// and no credentials have been configured in the environment via
+// consts.VeyronCredentials then CreateAndUseNewCredentials will be used to
+// configure a new ID for the shell and its children.  NewShell takes optional
+// regexp patterns that can be used to specify subprocess commands that are
+// implemented in the same binary as this shell (i.e. have been registered
+// using modules.RegisterChild) to be automatically added to it. If the
+// patterns fail to match any such command then they have no effect.
 func NewShell(patterns ...string) *Shell {
 	// TODO(cnicolaou): should create a new identity if one doesn't
 	// already exist
@@ -97,7 +97,7 @@ func NewShell(patterns ...string) *Shell {
 		handles:      make(map[Handle]struct{}),
 		startTimeout: time.Minute,
 	}
-	if flag.Lookup("test.run") != nil && os.Getenv("VEYRON_CREDENTIALS") == "" {
+	if flag.Lookup("test.run") != nil && os.Getenv(consts.VeyronCredentials) == "" {
 		if err := sh.CreateAndUseNewCredentials(); err != nil {
 			// TODO(cnicolaou): return an error rather than panic.
 			panic(err)
@@ -125,7 +125,7 @@ func (sh *Shell) CreateAndUseNewCredentials() error {
 		return err
 	}
 	sh.credDir = dir
-	sh.SetVar("VEYRON_CREDENTIALS", sh.credDir)
+	sh.SetVar(consts.VeyronCredentials, sh.credDir)
 	return nil
 }
 

@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"veyron.io/veyron/veyron/lib/flags"
+	"veyron.io/veyron/veyron/lib/flags/consts"
 )
 
 func TestFlags(t *testing.T) {
@@ -74,20 +75,21 @@ func TestFlagsGroups(t *testing.T) {
 	}
 }
 
-const credEnvVar = "VEYRON_CREDENTIALS"
-const rootEnvVar = "NAMESPACE_ROOT"
-const rootEnvVar0 = "NAMESPACE_ROOT0"
+const (
+	rootEnvVar  = consts.NamespaceRootPrefix
+	rootEnvVar0 = consts.NamespaceRootPrefix + "0"
+)
 
 func TestEnvVars(t *testing.T) {
-	oldcreds := os.Getenv(credEnvVar)
-	defer os.Setenv(credEnvVar, oldcreds)
+	oldcreds := os.Getenv(consts.VeyronCredentials)
+	defer os.Setenv(consts.VeyronCredentials, oldcreds)
 
 	oldroot := os.Getenv(rootEnvVar)
 	oldroot0 := os.Getenv(rootEnvVar0)
 	defer os.Setenv(rootEnvVar, oldroot)
 	defer os.Setenv(rootEnvVar0, oldroot0)
 
-	os.Setenv(credEnvVar, "bar")
+	os.Setenv(consts.VeyronCredentials, "bar")
 	fl := flags.CreateAndRegister(flag.NewFlagSet("test", flag.ContinueOnError), flags.Runtime)
 	if err := fl.Parse([]string{}); err != nil {
 		t.Fatalf("unexpected error: %s", err)

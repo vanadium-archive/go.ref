@@ -12,6 +12,7 @@ import (
 	"veyron.io/veyron/veyron2/rt"
 
 	"veyron.io/veyron/veyron/lib/expect"
+	"veyron.io/veyron/veyron/lib/flags/consts"
 	"veyron.io/veyron/veyron/lib/modules"
 	"veyron.io/veyron/veyron/lib/modules/core"
 	_ "veyron.io/veyron/veyron/profiles"
@@ -67,7 +68,7 @@ func main() {
 	defer sh.Cleanup(os.Stderr, os.Stderr)
 	// TODO(sadovsky): Shell only does this for tests. It would be better if it
 	// either always did it or never did it.
-	if os.Getenv("VEYRON_CREDENTIALS") == "" {
+	if os.Getenv(consts.VeyronCredentials) == "" {
 		panicOnError(sh.CreateAndUseNewCredentials())
 	}
 	// TODO(sadovsky): The following line will not be needed if the modules
@@ -80,10 +81,11 @@ func main() {
 	panicOnError(err)
 	updateVars(h, vars, "MT_NAME")
 
-	// Set NAMESPACE_ROOT env var, consumed downstream by proxyd among others.
-	// NOTE(sadovsky): If this is not set, proxyd takes several seconds to start;
-	// if it is set, proxyd starts instantly. Fun!
-	sh.SetVar("NAMESPACE_ROOT", vars["MT_NAME"])
+	// Set consts.NamespaceRootPrefix env var, consumed downstream by proxyd
+	// among others.
+	// NOTE(sadovsky): If this is not set, proxyd takes several seconds to
+	// start; if it is set, proxyd starts instantly. Fun!
+	sh.SetVar(consts.NamespaceRootPrefix, vars["MT_NAME"])
 
 	// NOTE(sadovsky): The proxyd binary requires --protocol and --address flags
 	// while the proxyd command instead uses ListenSpec flags.

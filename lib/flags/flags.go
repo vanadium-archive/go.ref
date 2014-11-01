@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"os"
 	"strings"
+
+	"veyron.io/veyron/veyron/lib/flags/consts"
 )
 
 // FlagGroup is the type for identifying groups of related flags.
@@ -164,12 +166,11 @@ func readEnv() ([]string, string) {
 			continue
 		}
 		k, v := p[0], p[1]
-		if strings.HasPrefix(k, "NAMESPACE_ROOT") && len(v) > 0 {
+		if strings.HasPrefix(k, consts.NamespaceRootPrefix) && len(v) > 0 {
 			roots = append(roots, v)
 		}
 	}
-	creds := os.Getenv("VEYRON_CREDENTIALS")
-	return roots, creds
+	return roots, os.Getenv(consts.VeyronCredentials)
 }
 
 // Parse parses the supplied args, as per flag.Parse

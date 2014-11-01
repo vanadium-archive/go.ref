@@ -14,6 +14,7 @@ import (
 	"veyron.io/veyron/veyron2/vlog"
 
 	"veyron.io/veyron/veyron/lib/expect"
+	"veyron.io/veyron/veyron/lib/flags/consts"
 	"veyron.io/veyron/veyron/lib/modules"
 	"veyron.io/veyron/veyron/lib/modules/core"
 	"veyron.io/veyron/veyron/lib/testutil"
@@ -78,7 +79,7 @@ func startMountTables(t *testing.T, sh *modules.Shell, mountPoints ...string) (m
 	if t.Failed() {
 		return nil, nil, rootSession.Error()
 	}
-	sh.SetVar("NAMESPACE_ROOT", rootName)
+	sh.SetVar(consts.NamespaceRootPrefix, rootName)
 	mountAddrs := make(map[string]string)
 	mountAddrs["root"] = rootName
 
@@ -166,7 +167,7 @@ func TestMountTableAndGlob(t *testing.T) {
 		t.Errorf("got %v, want %v", got, want)
 	}
 
-	// Run the ls command in a subprocess, with NAMESPACE_ROOT as set above.
+	// Run the ls command in a subprocess, with consts.NamespaceRootPrefix as set above.
 	lse, err := sh.Start(core.LSExternalCommand, nil, "...")
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
@@ -180,9 +181,10 @@ func TestMountTableAndGlob(t *testing.T) {
 
 	pattern = ""
 	for _, n := range mountPoints {
-		// Since the LSExternalCommand runs in a subprocess with NAMESPACE_ROOT
-		// set to the name of the root mount table it sees to the relative name
-		// format of the mounted mount tables.
+		// Since the LSExternalCommand runs in a subprocess with
+		// consts.NamespaceRootPrefix set to the name of the root mount
+		// table it sees to the relative name format of the mounted
+		// mount tables.
 		pattern = pattern + "^R[\\d]+=(" + n + "$)|"
 	}
 	pattern = pattern[:len(pattern)-1]
