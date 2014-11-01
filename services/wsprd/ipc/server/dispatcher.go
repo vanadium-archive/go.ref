@@ -67,7 +67,7 @@ func newDispatcher(serverID uint64, flowFactory flowFactory, invokerFactory invo
 }
 
 // Lookup implements dispatcher interface Lookup.
-func (d *dispatcher) Lookup(suffix, method string) (ipc.Invoker, security.Authorizer, error) {
+func (d *dispatcher) Lookup(suffix, method string) (interface{}, security.Authorizer, error) {
 	flow := d.flowFactory.createFlow()
 	d.mu.Lock()
 	ch := make(chan lookupReply, 1)
