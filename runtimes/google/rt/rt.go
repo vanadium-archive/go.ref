@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 
 	"veyron.io/veyron/veyron2"
@@ -30,17 +31,20 @@ var errCleaningUp = fmt.Errorf("operation rejected: runtime is being cleaned up"
 type vrt struct {
 	mu sync.Mutex
 
-	profile    veyron2.Profile
-	publisher  *config.Publisher
-	sm         []stream.Manager // GUARDED_BY(mu)
-	ns         naming.Namespace
-	signals    chan os.Signal
-	principal  security.Principal
-	client     ipc.Client
-	mgmt       *mgmtImpl
-	flags      flags.RuntimeFlags
-	nServers   int  // GUARDED_BY(mu)
-	cleaningUp bool // GUARDED_BY(mu)
+	profile        veyron2.Profile
+	publisher      *config.Publisher
+	sm             []stream.Manager // GUARDED_BY(mu)
+	ns             naming.Namespace
+	signals        chan os.Signal
+	principal      security.Principal
+	client         ipc.Client
+	mgmt           *mgmtImpl
+	flags          flags.RuntimeFlags
+	reservedDisp   ipc.Dispatcher
+	reservedPrefix string
+	reservedOpts   []ipc.ServerOpt
+	nServers       int  // GUARDED_BY(mu)
+	cleaningUp     bool // GUARDED_BY(mu)
 
 	lang    i18n.LangID // Language, from environment variables.
 	program string      // Program name, from os.Args[0].
@@ -118,15 +122,15 @@ func New(opts ...veyron2.ROpt) (veyron2.Runtime, error) {
 		return nil, fmt.Errorf("failed to get child handle: %s", err)
 	}
 
+	rt.publisher = config.NewPublisher()
+	if err := rt.profile.Init(rt, rt.publisher); err != nil {
+		return nil, err
+	}
+
 	// TODO(caprita, cnicolaou): how is this to be configured?
 	// Can it ever be anything other than a localhost/loopback address?
 	listenSpec := ipc.ListenSpec{Protocol: "tcp", Address: "127.0.0.1:0"}
 	if err := rt.mgmt.initMgmt(rt, listenSpec); err != nil {
-		return nil, err
-	}
-
-	rt.publisher = config.NewPublisher()
-	if err := rt.profile.Init(rt, rt.publisher); err != nil {
 		return nil, err
 	}
 
@@ -138,8 +142,18 @@ func (rt *vrt) Publisher() *config.Publisher {
 	return rt.publisher
 }
 
-func (r *vrt) Profile() veyron2.Profile {
-	return r.profile
+func (rt *vrt) Profile() veyron2.Profile {
+	return rt.profile
+}
+
+func (rt *vrt) ConfigureReservedName(prefix string, server ipc.Dispatcher, opts ...ipc.ServerOpt) {
+	rt.mu.Lock()
+	defer rt.mu.Unlock()
+	rt.reservedDisp = server
+	prefix = strings.TrimLeft(prefix, "_")
+	rt.reservedPrefix = naming.ReservedNamePrefix + prefix
+	rt.reservedOpts = make([]ipc.ServerOpt, 0, len(opts))
+	copy(rt.reservedOpts, opts)
 }
 
 func (rt *vrt) Cleanup() {

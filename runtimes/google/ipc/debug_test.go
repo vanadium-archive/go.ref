@@ -9,12 +9,14 @@ import (
 	"veyron.io/veyron/veyron2/naming"
 	"veyron.io/veyron/veyron2/options"
 	"veyron.io/veyron/veyron2/services/mounttable/types"
+	"veyron.io/veyron/veyron2/vlog"
 
 	"veyron.io/veyron/veyron/lib/stats"
 	"veyron.io/veyron/veyron/runtimes/google/ipc/stream/manager"
 	"veyron.io/veyron/veyron/runtimes/google/ipc/stream/sectest"
 	"veyron.io/veyron/veyron/runtimes/google/ipc/stream/vc"
 	tnaming "veyron.io/veyron/veyron/runtimes/google/testing/mocks/naming"
+	"veyron.io/veyron/veyron/services/mgmt/debug"
 )
 
 func TestDebugServer(t *testing.T) {
@@ -28,10 +30,13 @@ func TestDebugServer(t *testing.T) {
 	pclient.AddToRoots(bclient)                    // Client recognizes "server" as a root of blessings.
 	pclient.BlessingStore().Set(bclient, "server") // Client presents bclient to server
 
+	debugDisp := debug.NewDispatcher(vlog.Log.LogDir(), nil)
+
 	sm := manager.InternalNew(naming.FixedRoutingID(0x555555555))
 	defer sm.Shutdown()
 	ns := tnaming.NewSimpleNamespace()
-	server, err := InternalNewServer(testContext(), sm, ns, vc.LocalPrincipal{pserver})
+
+	server, err := InternalNewServer(testContext(), sm, ns, options.ReservedNameDispatcher{"__debug", debugDisp}, vc.LocalPrincipal{pserver})
 	if err != nil {
 		t.Fatalf("InternalNewServer failed: %v", err)
 	}

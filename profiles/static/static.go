@@ -15,6 +15,9 @@ import (
 	"veyron.io/veyron/veyron/lib/netstate"
 	"veyron.io/veyron/veyron/profiles"
 	"veyron.io/veyron/veyron/profiles/internal"
+	"veyron.io/veyron/veyron/services/mgmt/debug"
+	// TODO(cnicolaou,ashankar): move this into flags.
+	sflag "veyron.io/veyron/veyron/security/flag"
 )
 
 var (
@@ -54,6 +57,8 @@ func (*static) Platform() *veyron2.Platform {
 
 func (p *static) Init(rt veyron2.Runtime, _ *config.Publisher) error {
 	log := rt.Logger()
+
+	rt.ConfigureReservedName("debug", debug.NewDispatcher(log.LogDir(), sflag.NewAuthorizerOrDie()))
 
 	lf := commonFlags.ListenFlags()
 	ListenSpec = ipc.ListenSpec{
