@@ -20,6 +20,6 @@ func NewDispatcher() *dispatcher {
 
 // DISPATCHER INTERFACE IMPLEMENTATION
 
-func (d *dispatcher) Lookup(suffix, method string) (ipc.Invoker, security.Authorizer, error) {
+func (d *dispatcher) Lookup(suffix, method string) (interface{}, security.Authorizer, error) {
 	return ipc.ReflectInvoker(root.NewServerRoot(d.state)), nil, nil
 }

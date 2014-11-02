@@ -62,18 +62,18 @@ func (*mockNodeInvoker) Describe(ipc.ServerContext) (node.Description, error) {
 func (*mockNodeInvoker) IsRunnable(_ ipc.ServerContext, description binary.Description) (bool, error) {
 	return false, nil
 }
-func (*mockNodeInvoker) Reset(call ipc.ServerContext, deadline uint64) error               { return nil }
-func (*mockNodeInvoker) Install(ipc.ServerContext, string) (string, error)                 { return "", nil }
-func (*mockNodeInvoker) Refresh(ipc.ServerContext) error                                   { return nil }
-func (*mockNodeInvoker) Restart(ipc.ServerContext) error                                   { return nil }
-func (*mockNodeInvoker) Resume(ipc.ServerContext) error                                    { return nil }
-func (i *mockNodeInvoker) Revert(call ipc.ServerContext) error                             { return nil }
-func (*mockNodeInvoker) Start(ipc.ServerContext) ([]string, error)                         { return []string{}, nil }
-func (*mockNodeInvoker) Stop(ipc.ServerContext, uint32) error                              { return nil }
-func (*mockNodeInvoker) Suspend(ipc.ServerContext) error                                   { return nil }
-func (*mockNodeInvoker) Uninstall(ipc.ServerContext) error                                 { return nil }
-func (i *mockNodeInvoker) Update(ipc.ServerContext) error                                  { return nil }
-func (*mockNodeInvoker) UpdateTo(ipc.ServerContext, string) error                          { return nil }
+func (*mockNodeInvoker) Reset(call ipc.ServerContext, deadline uint64) error    { return nil }
+func (*mockNodeInvoker) Install(ipc.ServerContext, string) (string, error)      { return "", nil }
+func (*mockNodeInvoker) Refresh(ipc.ServerContext) error                        { return nil }
+func (*mockNodeInvoker) Restart(ipc.ServerContext) error                        { return nil }
+func (*mockNodeInvoker) Resume(ipc.ServerContext) error                         { return nil }
+func (i *mockNodeInvoker) Revert(call ipc.ServerContext) error                  { return nil }
+func (*mockNodeInvoker) Start(ipc.ServerContext) ([]string, error)              { return []string{}, nil }
+func (*mockNodeInvoker) Stop(ipc.ServerContext, uint32) error                   { return nil }
+func (*mockNodeInvoker) Suspend(ipc.ServerContext) error                        { return nil }
+func (*mockNodeInvoker) Uninstall(ipc.ServerContext) error                      { return nil }
+func (i *mockNodeInvoker) Update(ipc.ServerContext) error                       { return nil }
+func (*mockNodeInvoker) UpdateTo(ipc.ServerContext, string) error               { return nil }
 func (i *mockNodeInvoker) SetACL(ipc.ServerContext, security.ACL, string) error { return nil }
 func (i *mockNodeInvoker) GetACL(ipc.ServerContext) (security.ACL, string, error) {
 	return security.ACL{}, "", nil
@@ -91,7 +91,7 @@ func NewDispatcher(t *testing.T, tape *Tape) *dispatcher {
 	return &dispatcher{tape: tape, t: t}
 }
 
-func (d *dispatcher) Lookup(suffix, method string) (ipc.Invoker, security.Authorizer, error) {
+func (d *dispatcher) Lookup(suffix, method string) (interface{}, security.Authorizer, error) {
 	invoker := ipc.ReflectInvoker(node.NewServerNode(&mockNodeInvoker{tape: d.tape, t: d.t}))
 	return invoker, nil, nil
 }

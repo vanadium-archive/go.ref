@@ -8,7 +8,6 @@ import (
 
 	"veyron.io/veyron/veyron/services/mgmt/logreader/impl"
 
-	"veyron.io/veyron/veyron2/ipc"
 	"veyron.io/veyron/veyron2/naming"
 	"veyron.io/veyron/veyron2/rt"
 	"veyron.io/veyron/veyron2/security"
@@ -21,7 +20,7 @@ type logFileDispatcher struct {
 	root string
 }
 
-func (d *logFileDispatcher) Lookup(suffix, _ string) (ipc.Invoker, security.Authorizer, error) {
+func (d *logFileDispatcher) Lookup(suffix, _ string) (interface{}, security.Authorizer, error) {
 	return impl.NewLogFileInvoker(d.root, suffix), nil, nil
 }
 

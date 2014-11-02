@@ -146,7 +146,7 @@ func (testServerAuthorizer) Authorize(c security.Context) error {
 
 type testServerDisp struct{ server interface{} }
 
-func (t testServerDisp) Lookup(suffix, method string) (ipc.Invoker, security.Authorizer, error) {
+func (t testServerDisp) Lookup(suffix, method string) (interface{}, security.Authorizer, error) {
 	// If suffix is "nilAuth" we use default authorization, if it is "aclAuth" we
 	// use an ACL based authorizer, and otherwise we use the custom testServerAuthorizer.
 	var authorizer security.Authorizer
@@ -548,7 +548,7 @@ type dischargeImpetusTester struct {
 }
 
 // Implements ipc.Dispatcher
-func (s *dischargeImpetusTester) Lookup(_, _ string) (ipc.Invoker, security.Authorizer, error) {
+func (s *dischargeImpetusTester) Lookup(_, _ string) (interface{}, security.Authorizer, error) {
 	return ipc.ReflectInvoker(s), testServerAuthorizer{}, nil
 }
 

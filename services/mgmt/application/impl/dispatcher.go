@@ -29,7 +29,7 @@ func NewDispatcher(name string, authorizer security.Authorizer) (*dispatcher, er
 
 // DISPATCHER INTERFACE IMPLEMENTATION
 
-func (d *dispatcher) Lookup(suffix, method string) (ipc.Invoker, security.Authorizer, error) {
+func (d *dispatcher) Lookup(suffix, method string) (interface{}, security.Authorizer, error) {
 	invoker := ipc.ReflectInvoker(repository.NewServerApplication(NewInvoker(d.store, d.storeRoot, suffix)))
 	return invoker, d.auth, nil
 }

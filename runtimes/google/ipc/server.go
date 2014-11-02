@@ -812,11 +812,17 @@ func (fs *flowServer) processRequest() ([]interface{}, verror.E) {
 		fs.discharges[d.ID()] = d
 	}
 	// Lookup the invoker.
-	invoker, auth, suffix, verr := fs.lookup(req.Suffix, req.Method)
+	obj, auth, suffix, verr := fs.lookup(req.Suffix, req.Method)
 	fs.suffix = suffix // with leading /'s stripped
 	if verr != nil {
 		return nil, verr
 	}
+	// TODO(cnicolaou): ipc.Serve TRANSITION
+	invoker, ok := obj.(ipc.Invoker)
+	if !ok {
+		panic("Lookup should have returned an ipc.Invoker")
+	}
+
 	// Prepare invoker and decode args.
 	numArgs := int(req.NumPosArgs)
 	argptrs, label, err := invoker.Prepare(req.Method, numArgs)
@@ -854,7 +860,8 @@ func (fs *flowServer) processRequest() ([]interface{}, verror.E) {
 // with ipc.DebugKeyword, we use the internal debug dispatcher to look up the
 // invoker. Otherwise, and we use the server's dispatcher. The (stripped) name
 // and dispatch suffix are also returned.
-func (fs *flowServer) lookup(name, method string) (ipc.Invoker, security.Authorizer, string, verror.E) {
+// TODO(cnicolaou): change this back returning in ipc.Invoker in the pt2 CL.
+func (fs *flowServer) lookup(name, method string) (interface{}, security.Authorizer, string, verror.E) {
 	name = strings.TrimLeft(name, "/")
 	if method == "Glob" && len(name) == 0 {
 		return ipc.ReflectInvoker(&globInvoker{fs}), &acceptAllAuthorizer{}, name, nil
@@ -916,11 +923,16 @@ func (i *globInvoker) invokeGlob(call ipc.ServerCall, d ipc.Dispatcher, prefix, 
 	if d == nil {
 		return nil
 	}
-	invoker, auth, err := d.Lookup("", "Glob")
+	obj, auth, err := d.Lookup("", "Glob")
 	if err != nil {
 		return err
 	}
-	if invoker == nil {
+	// TODO(cnicolaou): ipc.Serve TRANSITION
+	invoker, ok := obj.(ipc.Invoker)
+	if !ok {
+		panic("Lookup should have returned an ipc.Invoker")
+	}
+	if obj == nil || !ok {
 		return verror.NoExistf("ipc: invoker not found for Glob")
 	}
 
@@ -945,7 +957,7 @@ func (i *globInvoker) invokeGlob(call ipc.ServerCall, d ipc.Dispatcher, prefix, 
 	if res == nil {
 		return nil
 	}
-	err, ok := res.(error)
+	err, ok = res.(error)
 	if !ok {
 		return verror.BadArgf("unexpected result type. Got %T, want error", res)
 	}

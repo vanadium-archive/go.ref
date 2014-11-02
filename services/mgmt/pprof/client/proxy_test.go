@@ -20,7 +20,7 @@ type dispatcher struct {
 	invoker ipc.Invoker
 }
 
-func (d *dispatcher) Lookup(suffix, method string) (ipc.Invoker, security.Authorizer, error) {
+func (d *dispatcher) Lookup(suffix, method string) (interface{}, security.Authorizer, error) {
 	return d.invoker, nil, nil
 }
 

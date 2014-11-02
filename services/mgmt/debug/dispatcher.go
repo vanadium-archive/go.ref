@@ -25,7 +25,7 @@ func NewDispatcher(logsDir string, authorizer security.Authorizer) *dispatcher {
 	return &dispatcher{logsDir, authorizer}
 }
 
-func (d *dispatcher) Lookup(suffix, method string) (ipc.Invoker, security.Authorizer, error) {
+func (d *dispatcher) Lookup(suffix, method string) (interface{}, security.Authorizer, error) {
 	if method == "Signature" {
 		return NewSignatureInvoker(suffix), d.auth, nil
 	}

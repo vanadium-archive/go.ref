@@ -42,9 +42,14 @@ func (i *invoker) Glob(call ipc.ServerCall, pattern string) error {
 }
 
 func (i *invoker) leafGlob(call ipc.ServerCall, leaf string, pattern string) error {
-	invoker, _, err := i.d.Lookup(leaf, "Glob")
+	obj, _, err := i.d.Lookup(leaf, "Glob")
 	if err != nil {
 		return err
+	}
+	// TODO(cnicolaou): ipc.Serve TRANSITION
+	invoker, ok := obj.(ipc.Invoker)
+	if !ok {
+		panic("Lookup should have returned an ipc.Invoker")
 	}
 	argptrs := []interface{}{&pattern}
 	leafCall := &localServerCall{call, leaf}
@@ -59,7 +64,7 @@ func (i *invoker) leafGlob(call ipc.ServerCall, leaf string, pattern string) err
 	if res == nil {
 		return nil
 	}
-	err, ok := res.(error)
+	err, ok = res.(error)
 	if !ok {
 		return verror.BadArgf("unexpected result type. Got %T, want error", res)
 	}

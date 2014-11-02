@@ -221,7 +221,7 @@ func (d *dispatcher) getACL() (acl security.ACL, etag string, err error) {
 
 // DISPATCHER INTERFACE IMPLEMENTATION
 
-func (d *dispatcher) Lookup(suffix, method string) (ipc.Invoker, security.Authorizer, error) {
+func (d *dispatcher) Lookup(suffix, method string) (interface{}, security.Authorizer, error) {
 	components := strings.Split(suffix, "/")
 	for i := 0; i < len(components); i++ {
 		if len(components[i]) == 0 {

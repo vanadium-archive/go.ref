@@ -5,7 +5,6 @@ import (
 	"sort"
 	"testing"
 
-	"veyron.io/veyron/veyron2/ipc"
 	"veyron.io/veyron/veyron2/naming"
 	"veyron.io/veyron/veyron2/rt"
 	"veyron.io/veyron/veyron2/security"
@@ -102,6 +101,6 @@ type proxyDispatcher struct {
 	sigStub signatureStub
 }
 
-func (d *proxyDispatcher) Lookup(suffix, method string) (ipc.Invoker, security.Authorizer, error) {
+func (d *proxyDispatcher) Lookup(suffix, method string) (interface{}, security.Authorizer, error) {
 	return &proxyInvoker{naming.Join(d.remote, suffix), d.label, d.sigStub}, nil, nil
 }

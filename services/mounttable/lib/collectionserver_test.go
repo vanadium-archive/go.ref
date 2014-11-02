@@ -29,7 +29,7 @@ func newCollectionServer() *collectionDispatcher {
 }
 
 // Lookup implements ipc.Dispatcher.Lookup.
-func (d *collectionDispatcher) Lookup(name, method string) (ipc.Invoker, security.Authorizer, error) {
+func (d *collectionDispatcher) Lookup(name, method string) (interface{}, security.Authorizer, error) {
 	rpcc := &rpcContext{name: name, collectionServer: d.collectionServer}
 	return ipc.ReflectInvoker(rpcc), d, nil
 }

@@ -118,7 +118,7 @@ func (allowEveryoneAuthorizer) Authorize(security.Context) error { return nil }
 
 type dispatcher struct{}
 
-func (d *dispatcher) Lookup(suffix, method string) (ipc.Invoker, security.Authorizer, error) {
+func (d *dispatcher) Lookup(suffix, method string) (interface{}, security.Authorizer, error) {
 	return ipc.ReflectInvoker(&testServer{suffix}), allowEveryoneAuthorizer{}, nil
 }
 

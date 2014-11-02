@@ -6,7 +6,6 @@ import (
 	"testing"
 	"time"
 
-	"veyron.io/veyron/veyron2/ipc"
 	"veyron.io/veyron/veyron2/naming"
 	"veyron.io/veyron/veyron2/rt"
 	"veyron.io/veyron/veyron2/security"
@@ -23,7 +22,7 @@ import (
 type statsDispatcher struct {
 }
 
-func (d *statsDispatcher) Lookup(suffix, method string) (ipc.Invoker, security.Authorizer, error) {
+func (d *statsDispatcher) Lookup(suffix, method string) (interface{}, security.Authorizer, error) {
 	return impl.NewStatsInvoker(suffix, 100*time.Millisecond), nil, nil
 }
 
