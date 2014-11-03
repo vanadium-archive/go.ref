@@ -30,8 +30,8 @@ type mockInvoker struct {
 	label  security.Label
 }
 
-func (m mockInvoker) Prepare(string, int) ([]interface{}, security.Label, error) {
-	return nil, m.label, nil
+func (m mockInvoker) Prepare(string, int) ([]interface{}, []interface{}, error) {
+	return nil, []interface{}{m.label}, nil
 }
 
 func (mockInvoker) Invoke(string, ipc.ServerCall, []interface{}) ([]interface{}, error) {

@@ -24,8 +24,8 @@ func newSignatureInvoker(sig ipc.ServiceSignature) ipc.Invoker {
 }
 
 // Prepare implements the Invoker interface.
-func (i *signatureInvoker) Prepare(methodName string, _ int) ([]interface{}, security.Label, error) {
-	return []interface{}{}, security.ReadLabel, nil
+func (i *signatureInvoker) Prepare(methodName string, _ int) (argptrs, tags []interface{}, err error) {
+	return []interface{}{}, []interface{}{security.ReadLabel}, nil
 }
 
 // Invoke implements the Invoker interface.
