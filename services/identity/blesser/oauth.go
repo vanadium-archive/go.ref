@@ -16,17 +16,25 @@ import (
 
 type googleOAuth struct {
 	authcodeClient     struct{ ID, Secret string }
-	accessTokenClients []string
+	accessTokenClients []AccessTokenClient
 	duration           time.Duration
 	domain             string
 	dischargerLocation string
 	revocationManager  *revocation.RevocationManager
 }
 
+// AccessTokenClient represents a client of the BlessUsingAccessToken RPCs.
+type AccessTokenClient struct {
+	// Descriptive name of the client.
+	Name string
+	// OAuth Client ID.
+	ClientID string
+}
+
 // GoogleParams represents all the parameters provided to NewGoogleOAuthBlesserServer
 type GoogleParams struct {
-	// The OAuth client IDs for the clients of the BlessUsingAccessToken RPCs.
-	AccessTokenClients []string
+	// The OAuth client IDs and names for the clients of the BlessUsingAccessToken RPCs.
+	AccessTokenClients []AccessTokenClient
 	// If non-empty, only email addresses from this domain will be blessed.
 	DomainRestriction string
 	// The object name of the discharger service. If this is empty then revocation caveats will not be granted.
@@ -82,9 +90,11 @@ func (b *googleOAuth) BlessUsingAccessToken(ctx ipc.ServerContext, accesstoken s
 	if err := json.NewDecoder(tokeninfo.Body).Decode(&token); err != nil {
 		return noblessings, "", fmt.Errorf("invalid JSON response from Google's tokeninfo API: %v", err)
 	}
+	var client AccessTokenClient
 	audienceMatch := false
 	for _, c := range b.accessTokenClients {
-		if token.Audience == c {
+		if token.Audience == c.ClientID {
+			client = c
 			audienceMatch = true
 			break
 		}
@@ -96,11 +106,11 @@ func (b *googleOAuth) BlessUsingAccessToken(ctx ipc.ServerContext, accesstoken s
 	if !token.VerifiedEmail {
 		return noblessings, "", fmt.Errorf("email not verified")
 	}
-	// Append "/webapp" to the blessing. Since blessings issued by this process do not have
-	// many caveats on them and typically have a large expiry duration, use the "/webapp" suffix
-	// so that at least any logs call out the fact that this is a webapp (and ACLs can be used
-	// to kill authorization for them).
-	return b.bless(ctx, token.Email+security.ChainSeparator+"webapp")
+	// Append client.Name to the blessing (e.g., "android", "chrome"). Since blessings issued by
+	// this process do not have many caveats on them and typically have a large expiry duration,
+	// we append this suffix so that servers can explicitly distinguish these clients while
+	// specifying authorization policies (say, via ACLs).
+	return b.bless(ctx, token.Email+security.ChainSeparator+client.Name)
 }
 
 func (b *googleOAuth) bless(ctx ipc.ServerContext, extension string) (security.WireBlessings, string, error) {

@@ -176,10 +176,10 @@ func setupServices(r veyron2.Runtime, revocationManager *revocation.RevocationMa
 		RevocationManager: revocationManager,
 	}
 	if clientID, ok := getOAuthClientID(*googleConfigChrome); ok {
-		googleParams.AccessTokenClients = append(googleParams.AccessTokenClients, clientID)
+		googleParams.AccessTokenClients = append(googleParams.AccessTokenClients, blesser.AccessTokenClient{Name: "chrome", ClientID: clientID})
 	}
 	if clientID, ok := getOAuthClientID(*googleConfigAndroid); ok {
-		googleParams.AccessTokenClients = append(googleParams.AccessTokenClients, clientID)
+		googleParams.AccessTokenClients = append(googleParams.AccessTokenClients, blesser.AccessTokenClient{Name: "android", ClientID: clientID})
 	}
 	server, err := r.NewServer()
 	if err != nil {
