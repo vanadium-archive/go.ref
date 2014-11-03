@@ -43,6 +43,16 @@ const (
 	// A request to stop a server
 	websocketStopServer = 6
 
+	// A request to bless a public key.
+	websocketBlessPublicKey = 7
+
+	// A request to unlink blessings.  This request means that
+	// we can remove the given handle from the handle store.
+	websocketUnlinkBlessings = 8
+
+	// A request to create a new random blessings
+	websocketCreateBlessings = 9
+
 	// A request to run the lookup function on a dispatcher.
 	websocketLookupResponse = 11
 
@@ -51,16 +61,6 @@ const (
 
 	// A request to run a namespace client method
 	websocketNamespaceRequest = 13
-
-	// A request to bless a public key.
-	websocketBlessPublicKey = 14
-
-	// A request to unlink blessings.  This request means that
-	// we can remove the given handle from the handle store.
-	websocketUnlinkBlessings = 15
-
-	// A request to create a new random blessings
-	websocketCreateBlessings = 16
 
 	// A request to cancel an rpc initiated by the JS.
 	websocketCancel = 17

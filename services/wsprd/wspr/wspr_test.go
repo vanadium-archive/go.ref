@@ -32,14 +32,14 @@ func newMockBlesserService(p security.Principal) *mockBlesserService {
 	}
 }
 
-func (m *mockBlesserService) BlessUsingAccessToken(c context.T, accessToken string, co ...ipc.CallOpt) (vdlutil.Any, []string, error) {
+func (m *mockBlesserService) BlessUsingAccessToken(c context.T, accessToken string, co ...ipc.CallOpt) (vdlutil.Any, string, error) {
 	m.count = m.count + 1
 	name := fmt.Sprintf("%s%s%d", topLevelName, security.ChainSeparator, m.count)
 	blessing, err := m.p.BlessSelf(name)
 	if err != nil {
-		return nil, nil, err
+		return nil, "", err
 	}
-	return security.MarshalBlessings(blessing), []string{name}, nil
+	return security.MarshalBlessings(blessing), name, nil
 }
 
 // END MOCK BLESSER SERVICE
@@ -123,13 +123,13 @@ func TestHandleAssocAccount(t *testing.T) {
 	defer teardown()
 
 	// First create an account.
-	accountName := "mock-account"
-	blessing, err := wspr.rt.Principal().BlessSelf(accountName)
+	account := "mock-account"
+	blessing, err := wspr.rt.Principal().BlessSelf(account)
 	if err != nil {
-		t.Fatalf("wspr.rt.Principal.BlessSelf(%v) failed: %v", accountName, err)
+		t.Fatalf("wspr.rt.Principal.BlessSelf(%v) failed: %v", account, err)
 	}
-	if err := wspr.principalManager.AddAccount(accountName, blessing); err != nil {
-		t.Fatalf("wspr.principalManager.AddAccount(%v, %v) failed; %v", accountName, blessing, err)
+	if err := wspr.principalManager.AddAccount(account, blessing); err != nil {
+		t.Fatalf("wspr.principalManager.AddAccount(%v, %v) failed; %v", account, blessing, err)
 	}
 
 	// Associate with that account
@@ -138,8 +138,8 @@ func TestHandleAssocAccount(t *testing.T) {
 
 	origin := "https://my.webapp.com:443"
 	data := assocAccountInput{
-		Name:   accountName,
-		Origin: origin,
+		Account: account,
+		Origin:  origin,
 	}
 
 	dataJson, err := json.Marshal(data)
@@ -177,11 +177,11 @@ func TestHandleAssocAccountWithMissingAccount(t *testing.T) {
 	method := "POST"
 	path := "/assoc-account"
 
-	accountName := "mock-account"
+	account := "mock-account"
 	origin := "https://my.webapp.com:443"
 	data := assocAccountInput{
-		Name:   accountName,
-		Origin: origin,
+		Account: account,
+		Origin:  origin,
 	}
 
 	dataJson, err := json.Marshal(data)

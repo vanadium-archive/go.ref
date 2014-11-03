@@ -23,6 +23,7 @@ import (
 	"net"
 	"net/http"
 	_ "net/http/pprof"
+	"strings"
 	"sync"
 	"time"
 
@@ -43,7 +44,7 @@ const (
 )
 
 type blesserService interface {
-	BlessUsingAccessToken(ctx context.T, token string, opts ...ipc.CallOpt) (blessingObj vdlutil.Any, blessings []string, err error)
+	BlessUsingAccessToken(ctx context.T, token string, opts ...ipc.CallOpt) (blessingObj vdlutil.Any, account string, err error)
 }
 
 type bs struct {
@@ -51,7 +52,7 @@ type bs struct {
 	name   string
 }
 
-func (s *bs) BlessUsingAccessToken(ctx context.T, token string, opts ...ipc.CallOpt) (blessingObj vdlutil.Any, blessings []string, err error) {
+func (s *bs) BlessUsingAccessToken(ctx context.T, token string, opts ...ipc.CallOpt) (blessingObj vdlutil.Any, account string, err error) {
 	var call ipc.Call
 	if call, err = s.client.StartCall(ctx, s.name, "BlessUsingAccessToken", []interface{}{token}, opts...); err != nil {
 		return
@@ -61,10 +62,11 @@ func (s *bs) BlessUsingAccessToken(ctx context.T, token string, opts ...ipc.Call
 		err = ierr
 	}
 	serverBlessings, _ := call.RemoteBlessings()
-	for _, b := range serverBlessings {
-		blessings = append(blessings, b+security.ChainSeparator+email)
-	}
-	return
+	return blessingObj, accountName(serverBlessings, email), nil
+}
+
+func accountName(serverBlessings []string, email string) string {
+	return strings.Join(serverBlessings, "#") + security.ChainSeparator + email
 }
 
 type WSPR struct {
@@ -234,7 +236,7 @@ type createAccountInput struct {
 }
 
 type createAccountOutput struct {
-	Names []string `json:"names"`
+	Account string `json:"account"`
 }
 
 // Handler for creating an account in the principal manager.
@@ -257,7 +259,7 @@ func (ctx *WSPR) handleCreateAccount(w http.ResponseWriter, r *http.Request) {
 	// Get a blessing for the access token from blessing server.
 	rctx, cancel := ctx.rt.NewContext().WithTimeout(time.Minute)
 	defer cancel()
-	blessingsAny, blessings, err := ctx.blesser.BlessUsingAccessToken(rctx, data.AccessToken)
+	blessingsAny, account, err := ctx.blesser.BlessUsingAccessToken(rctx, data.AccessToken)
 	if err != nil {
 		ctx.logAndSendBadReqErr(w, fmt.Sprintf("Error getting blessing for access token: %v", err))
 		return
@@ -268,21 +270,16 @@ func (ctx *WSPR) handleCreateAccount(w http.ResponseWriter, r *http.Request) {
 		ctx.logAndSendBadReqErr(w, fmt.Sprintf("Error creating blessings from wire data: %v", err))
 		return
 	}
-	// Add accountBlessings to principalManager under each of the
-	// returned blessing strings.
-	// TODO(ataly, ashankar): Adding the same account under different
-	// different names seems a little weird. Figure out a cleaner way
-	// of adding the account.
-	for _, b := range blessings {
-		if err := ctx.principalManager.AddAccount(b, accountBlessings); err != nil {
-			ctx.logAndSendBadReqErr(w, fmt.Sprintf("Error adding account: %v", err))
-			return
-		}
+	// Add accountBlessings to principalManager under the provided
+	// account.
+	if err := ctx.principalManager.AddAccount(account, accountBlessings); err != nil {
+		ctx.logAndSendBadReqErr(w, fmt.Sprintf("Error adding account: %v", err))
+		return
 	}
 
 	// Return blessings to the client.
 	out := createAccountOutput{
-		Names: blessings,
+		Account: account,
 	}
 	outJson, err := json.Marshal(out)
 	if err != nil {
@@ -297,8 +294,8 @@ func (ctx *WSPR) handleCreateAccount(w http.ResponseWriter, r *http.Request) {
 
 // Struct for marshalling input to assoc-account route.
 type assocAccountInput struct {
-	Name   string `json:"name"`
-	Origin string `json:"origin"`
+	Account string `json:"account"`
+	Origin  string `json:"origin"`
 }
 
 // Handler for associating an existing principal with an origin.
@@ -316,7 +313,7 @@ func (ctx *WSPR) handleAssocAccount(w http.ResponseWriter, r *http.Request) {
 
 	// Store the origin.
 	// TODO(nlacasse, bjornick): determine what the caveats should be.
-	if err := ctx.principalManager.AddOrigin(data.Origin, data.Name, nil); err != nil {
+	if err := ctx.principalManager.AddOrigin(data.Origin, data.Account, nil); err != nil {
 		http.Error(w, fmt.Sprintf("Error associating account: %v", err), http.StatusBadRequest)
 		return
 	}

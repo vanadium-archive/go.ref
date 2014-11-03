@@ -13,9 +13,6 @@ import (
 func main() {
 	port := flag.Int("port", 8124, "Port to listen on.")
 	identd := flag.String("identd", "", "identd server name. Must be set.")
-	// TODO(ataly, ashankar, bjornick): Remove this flag once it is killed from the
-	// JavaScript code.
-	_ = flag.Bool("new_security_model", false, "Enable the new security model")
 
 	flag.Parse()
 
