@@ -277,7 +277,7 @@ func (s *Server) Serve(name string) (string, error) {
 		}
 		s.endpoint = endpoint.String()
 	}
-	if err := s.server.Serve(name, s.dispatcher); err != nil {
+	if err := s.server.ServeDispatcher(name, s.dispatcher); err != nil {
 		return "", err
 	}
 	s.helper.GetLogger().VI(1).Infof("endpoint is %s", s.endpoint)
