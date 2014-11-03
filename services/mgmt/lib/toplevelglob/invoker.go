@@ -46,10 +46,10 @@ func (i *invoker) leafGlob(call ipc.ServerCall, leaf string, pattern string) err
 	if err != nil {
 		return err
 	}
-	// TODO(cnicolaou): ipc.Serve TRANSITION
+	// Lookup must return an invoker if it implements its own glob
 	invoker, ok := obj.(ipc.Invoker)
 	if !ok {
-		panic("Lookup should have returned an ipc.Invoker")
+		return nil
 	}
 	if invoker == nil {
 		return verror.BadArgf("failed to find invoker for %q", leaf)

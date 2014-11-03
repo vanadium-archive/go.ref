@@ -533,7 +533,33 @@ func (s *server) dhcpLoop(dhcpl *dhcpListener) {
 	}
 }
 
-func (s *server) Serve(name string, disp ipc.Dispatcher) error {
+func (s *server) Serve(name string, obj interface{}) error {
+	if obj == nil {
+		// nil is an allowed value for obj.
+		return s.ServeDispatcher(name, ipc.Dispatcher(nil))
+	}
+	// TRANSITION: this will be disallowed when the transition is complete.
+	if disp, ok := obj.(ipc.Dispatcher); ok {
+		return s.ServeDispatcher(name, disp)
+	}
+	// TRANSITION: We may fail the dispatcher type test, but still be a
+	// dispatcher becase our Lookup method returns ipc.Invoker and not a
+	// raw object. This code here will detect that case and panic as an aid
+	// to catching these cases early.
+	typ := reflect.TypeOf(obj)
+	if lookup, found := typ.MethodByName("Lookup"); found {
+		if lookup.Type.NumIn() == 3 && lookup.Type.NumOut() == 3 {
+			inv := lookup.Type.Out(0)
+			if inv.Name() == "Invoker" {
+				panic(fmt.Sprintf("%q has a Lookup that returns an Invoker", lookup.Name))
+			}
+		}
+	}
+	// TRANSITION: this will go away in the transition.
+	panic("should never get here")
+}
+
+func (s *server) ServeDispatcher(name string, disp ipc.Dispatcher) error {
 	defer vlog.LogCall()()
 	s.Lock()
 	defer s.Unlock()
@@ -746,6 +772,20 @@ func (fs *flowServer) readIPCRequest() (*ipc.Request, verror.E) {
 	return &req, nil
 }
 
+func lookupInvoker(d ipc.Dispatcher, name, method string) (ipc.Invoker, security.Authorizer, error) {
+	obj, auth, err := d.Lookup(name, method)
+	switch {
+	case err != nil:
+		return nil, nil, err
+	case obj == nil:
+		return nil, auth, nil
+	}
+	if invoker, ok := obj.(ipc.Invoker); ok {
+		return invoker, auth, nil
+	}
+	return ipc.ReflectInvoker(obj), auth, nil
+}
+
 func (fs *flowServer) processRequest() ([]interface{}, verror.E) {
 	start := time.Now()
 
@@ -809,17 +849,11 @@ func (fs *flowServer) processRequest() ([]interface{}, verror.E) {
 		fs.discharges[d.ID()] = d
 	}
 	// Lookup the invoker.
-	obj, auth, suffix, verr := fs.lookup(req.Suffix, req.Method)
+	invoker, auth, suffix, verr := fs.lookup(req.Suffix, req.Method)
 	fs.suffix = suffix // with leading /'s stripped
 	if verr != nil {
 		return nil, verr
 	}
-	// TODO(cnicolaou): ipc.Serve TRANSITION
-	invoker, ok := obj.(ipc.Invoker)
-	if !ok {
-		panic("Lookup should have returned an ipc.Invoker")
-	}
-
 	// Prepare invoker and decode args.
 	numArgs := int(req.NumPosArgs)
 	argptrs, label, err := invoker.Prepare(req.Method, numArgs)
@@ -858,7 +892,7 @@ func (fs *flowServer) processRequest() ([]interface{}, verror.E) {
 // invoker. Otherwise, and we use the server's dispatcher. The (stripped) name
 // and dispatch suffix are also returned.
 // TODO(cnicolaou): change this back returning in ipc.Invoker in the pt2 CL.
-func (fs *flowServer) lookup(name, method string) (interface{}, security.Authorizer, string, verror.E) {
+func (fs *flowServer) lookup(name, method string) (ipc.Invoker, security.Authorizer, string, verror.E) {
 	name = strings.TrimLeft(name, "/")
 	if method == "Glob" && len(name) == 0 {
 		return ipc.ReflectInvoker(&globInvoker{fs.reservedOpt.Prefix, fs}), &acceptAllAuthorizer{}, name, nil
@@ -872,7 +906,7 @@ func (fs *flowServer) lookup(name, method string) (interface{}, security.Authori
 	}
 
 	if disp != nil {
-		invoker, auth, err := disp.Lookup(name, method)
+		invoker, auth, err := lookupInvoker(disp, name, method)
 		switch {
 		case err != nil:
 			return nil, nil, "", verror.Convert(err)
