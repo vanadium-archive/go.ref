@@ -15,6 +15,7 @@ import (
 	"veyron.io/veyron/veyron2/security"
 	"veyron.io/veyron/veyron2/services/mounttable"
 	"veyron.io/veyron/veyron2/services/mounttable/types"
+	verror "veyron.io/veyron/veyron2/verror2"
 	"veyron.io/veyron/veyron2/vlog"
 
 	"github.com/presotto/go-mdns-sd"
@@ -206,36 +207,36 @@ func (nh *neighborhood) neighbors() map[string][]types.MountedServer {
 }
 
 // ResolveStep implements ResolveStep
-func (ns *neighborhoodService) ResolveStep(_ ipc.ServerContext) (servers []types.MountedServer, suffix string, err error) {
+func (ns *neighborhoodService) ResolveStep(ctx ipc.ServerContext) (servers []types.MountedServer, suffix string, err error) {
 	nh := ns.nh
 	vlog.VI(2).Infof("ResolveStep %v\n", ns.elems)
 	if len(ns.elems) == 0 {
 		//nothing can be mounted at the root
-		return nil, "", naming.ErrNoSuchNameRoot
+		return nil, "", verror.Make(naming.ErrNoSuchNameRoot, ctx, ns.elems)
 	}
 
 	// We can only resolve the first element and it always refers to a mount table (for now).
 	neighbor := nh.neighbor(ns.elems[0])
 	if neighbor == nil {
-		return nil, "", naming.ErrNoSuchName
+		return nil, "", verror.Make(naming.ErrNoSuchName, ctx, ns.elems)
 	}
 	return neighbor, naming.Join(ns.elems[1:]...), nil
 }
 
 // ResolveStepX implements ResolveStepX
-func (ns *neighborhoodService) ResolveStepX(_ ipc.ServerContext) (entry types.MountEntry, err error) {
+func (ns *neighborhoodService) ResolveStepX(ctx ipc.ServerContext) (entry types.MountEntry, err error) {
 	nh := ns.nh
 	vlog.VI(2).Infof("ResolveStep %v\n", ns.elems)
 	if len(ns.elems) == 0 {
 		//nothing can be mounted at the root
-		err = naming.ErrNoSuchNameRoot
+		err = verror.Make(naming.ErrNoSuchNameRoot, ctx, ns.elems)
 		return
 	}
 
 	// We can only resolve the first element and it always refers to a mount table (for now).
 	neighbor := nh.neighbor(ns.elems[0])
 	if neighbor == nil {
-		err = naming.ErrNoSuchName
+		err = verror.Make(naming.ErrNoSuchName, ctx, ns.elems)
 		entry.Name = ns.name
 		return
 	}
@@ -256,7 +257,7 @@ func (*neighborhoodService) Unmount(_ ipc.ServerContext, _ string) error {
 }
 
 // Glob implements Glob
-func (ns *neighborhoodService) Glob(_ ipc.ServerContext, pattern string, reply mounttable.GlobbableServiceGlobStream) error {
+func (ns *neighborhoodService) Glob(ctx ipc.ServerContext, pattern string, reply mounttable.GlobbableServiceGlobStream) error {
 	g, err := glob.Parse(pattern)
 	if err != nil {
 		return err
@@ -280,10 +281,10 @@ func (ns *neighborhoodService) Glob(_ ipc.ServerContext, pattern string, reply m
 	case 1:
 		neighbor := nh.neighbor(ns.elems[0])
 		if neighbor == nil {
-			return naming.ErrNoSuchName
+			return verror.Make(naming.ErrNoSuchName, ctx, ns.elems[0])
 		}
 		return sender.Send(types.MountEntry{Name: "", Servers: neighbor, MT: true})
 	default:
-		return naming.ErrNoSuchName
+		return verror.Make(naming.ErrNoSuchName, ctx, ns.elems)
 	}
 }

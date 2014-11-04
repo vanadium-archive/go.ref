@@ -70,10 +70,11 @@ var (
 	errOperationFailed    = verror.Internalf("operation failed")
 	errInProgress         = verror.Existsf("operation in progress")
 	errIncompatibleUpdate = verror.BadArgf("update failed: mismatching app title")
-	errUpdateNoOp         = verror.NoExistf("no different version available")
-	errNotExist           = verror.NoExistf("object does not exist")
-	errInvalidOperation   = verror.BadArgf("invalid operation")
-	errInvalidBlessing    = verror.BadArgf("invalid claim blessing")
+	// TODO(bprosnitz) Remove the TODO blocks in util_test when these are upgraded to verror2
+	errUpdateNoOp       = verror.NoExistf("no different version available")
+	errNotExist         = verror.NoExistf("object does not exist")
+	errInvalidOperation = verror.BadArgf("invalid operation")
+	errInvalidBlessing  = verror.BadArgf("invalid claim blessing")
 )
 
 // NewDispatcher is the node manager dispatcher factory.

@@ -9,7 +9,7 @@ import (
 	"veyron.io/veyron/veyron2/naming"
 	"veyron.io/veyron/veyron2/options"
 	"veyron.io/veyron/veyron2/services/mounttable/types"
-	"veyron.io/veyron/veyron2/verror"
+	verror "veyron.io/veyron/veyron2/verror2"
 	"veyron.io/veyron/veyron2/vlog"
 )
 
@@ -41,7 +41,7 @@ func (ns *namespace) resolveAgainstMountTable(ctx context.T, client ipc.Client, 
 		}
 		// If any replica says the name doesn't exist, return that fact.
 		if err != nil {
-			if verror.Equal(naming.ErrNoSuchName, err) || verror.Equal(naming.ErrNoSuchNameRoot, err) {
+			if verror.Is(err, naming.ErrNoSuchName.ID) || verror.Is(err, naming.ErrNoSuchNameRoot.ID) {
 				return nil, err
 			}
 			finalErr = err
@@ -83,7 +83,7 @@ func (ns *namespace) ResolveX(ctx context.T, name string) (*naming.MountEntry, e
 		vlog.Infof("ResolveX(%s) -> rootMountEntry %v", name, *e)
 	}
 	if len(e.Servers) == 0 {
-		return nil, naming.ErrNoMountTable
+		return nil, verror.Make(naming.ErrNoSuchName, ctx, name)
 	}
 	// Iterate walking through mount table servers.
 	for remaining := ns.maxResolveDepth; remaining > 0; remaining-- {
@@ -96,10 +96,10 @@ func (ns *namespace) ResolveX(ctx context.T, name string) (*naming.MountEntry, e
 		curr := e
 		if e, err = ns.resolveAgainstMountTable(ctx, ns.rt.Client(), curr); err != nil {
 			// If the name could not be found in the mount table, return an error.
-			if verror.Equal(naming.ErrNoSuchNameRoot, err) {
-				err = naming.ErrNoSuchName
+			if verror.Is(err, naming.ErrNoSuchNameRoot.ID) {
+				err = verror.Make(naming.ErrNoSuchName, ctx, name)
 			}
-			if verror.Equal(naming.ErrNoSuchName, err) {
+			if verror.Is(err, naming.ErrNoSuchName.ID) {
 				vlog.VI(1).Infof("ResolveX(%s) -> (NoSuchName: %v)", name, curr)
 				return nil, err
 			}
@@ -110,7 +110,7 @@ func (ns *namespace) ResolveX(ctx context.T, name string) (*naming.MountEntry, e
 			return curr, nil
 		}
 	}
-	return nil, naming.ErrResolutionDepthExceeded
+	return nil, verror.Make(naming.ErrResolutionDepthExceeded, ctx)
 }
 
 // Resolve implements veyron2/naming.Namespace.
@@ -133,7 +133,7 @@ func (ns *namespace) ResolveToMountTableX(ctx context.T, name string) (*naming.M
 		vlog.Infof("ResolveToMountTableX(%s) -> rootNames %v", name, e)
 	}
 	if len(e.Servers) == 0 {
-		return nil, naming.ErrNoMountTable
+		return nil, verror.Make(naming.ErrNoMountTable, ctx)
 	}
 	last := e
 	for remaining := ns.maxResolveDepth; remaining > 0; remaining-- {
@@ -146,11 +146,11 @@ func (ns *namespace) ResolveToMountTableX(ctx context.T, name string) (*naming.M
 			return last, nil
 		}
 		if e, err = ns.resolveAgainstMountTable(ctx, ns.rt.Client(), e); err != nil {
-			if verror.Equal(naming.ErrNoSuchNameRoot, err) {
+			if verror.Is(err, naming.ErrNoSuchNameRoot.ID) {
 				vlog.VI(1).Infof("ResolveToMountTableX(%s) -> %v (NoSuchRoot: %v)", name, last, curr)
 				return last, nil
 			}
-			if verror.Equal(naming.ErrNoSuchName, err) {
+			if verror.Is(err, naming.ErrNoSuchName.ID) {
 				vlog.VI(1).Infof("ResolveToMountTableX(%s) -> %v (NoSuchName: %v)", name, curr, curr)
 				return curr, nil
 			}
@@ -171,7 +171,7 @@ func (ns *namespace) ResolveToMountTableX(ctx context.T, name string) (*naming.M
 		}
 		last = curr
 	}
-	return nil, naming.ErrResolutionDepthExceeded
+	return nil, verror.Make(naming.ErrResolutionDepthExceeded, ctx)
 }
 
 // ResolveToMountTable implements veyron2/naming.Namespace.
@@ -241,7 +241,7 @@ func (ns *namespace) Unresolve(ctx context.T, name string) ([]string, error) {
 			return curr, nil
 		}
 	}
-	return nil, naming.ErrResolutionDepthExceeded
+	return nil, verror.Make(naming.ErrResolutionDepthExceeded, ctx)
 }
 
 // FlushCache flushes the most specific entry found for name.  It returns true if anything was

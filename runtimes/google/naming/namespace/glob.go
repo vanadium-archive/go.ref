@@ -10,6 +10,7 @@ import (
 	"veyron.io/veyron/veyron2/context"
 	"veyron.io/veyron/veyron2/naming"
 	"veyron.io/veyron/veyron2/services/mounttable/types"
+	verror "veyron.io/veyron/veyron2/verror2"
 	"veyron.io/veyron/veyron2/vlog"
 )
 
@@ -120,7 +121,7 @@ func (ns *namespace) Glob(ctx context.T, pattern string) (chan naming.MountEntry
 	// Start a thread to get the results and return the reply channel to the caller.
 	servers := ns.rootName(prefix)
 	if len(servers) == 0 {
-		return nil, naming.ErrNoMountTable
+		return nil, verror.Make(naming.ErrNoMountTable, ctx)
 	}
 	reply := make(chan naming.MountEntry, 100)
 	go ns.globLoop(ctx, servers, prefix, g, reply)
