@@ -79,6 +79,7 @@ type WSPR struct {
 	logger           vlog.Logger
 	listenSpec       ipc.ListenSpec
 	identdEP         string
+	namespaceRoots   []string
 	principalManager *principal.PrincipalManager
 	blesser          blesserService
 	pipes            map[*http.Request]*pipe
@@ -158,7 +159,7 @@ func (ctx *WSPR) CleanUpPipe(req *http.Request) {
 }
 
 // Creates a new WebSocket Proxy object.
-func NewWSPR(httpPort int, listenSpec ipc.ListenSpec, identdEP string, opts ...veyron2.ROpt) *WSPR {
+func NewWSPR(httpPort int, listenSpec ipc.ListenSpec, identdEP string, namespaceRoots []string, opts ...veyron2.ROpt) *WSPR {
 	if listenSpec.Proxy == "" {
 		vlog.Fatalf("a veyron proxy must be set")
 	}
@@ -170,14 +171,18 @@ func NewWSPR(httpPort int, listenSpec ipc.ListenSpec, identdEP string, opts ...v
 	if err != nil {
 		vlog.Fatalf("rt.New failed: %s", err)
 	}
+	if namespaceRoots != nil {
+		newrt.Namespace().SetRoots(namespaceRoots...)
+	}
 
 	wspr := &WSPR{
-		httpPort:   httpPort,
-		listenSpec: listenSpec,
-		identdEP:   identdEP,
-		rt:         newrt,
-		logger:     newrt.Logger(),
-		pipes:      map[*http.Request]*pipe{},
+		httpPort:       httpPort,
+		listenSpec:     listenSpec,
+		identdEP:       identdEP,
+		namespaceRoots: namespaceRoots,
+		rt:             newrt,
+		logger:         newrt.Logger(),
+		pipes:          map[*http.Request]*pipe{},
 	}
 
 	// TODO(nlacasse, bjornick) use a serializer that can actually persist.

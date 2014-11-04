@@ -5,7 +5,6 @@ import (
 	"crypto/ecdsa"
 	"fmt"
 	"runtime/ppapi"
-	"syscall"
 
 	"veyron.io/veyron/veyron2/ipc"
 	"veyron.io/veyron/veyron2/options"
@@ -13,7 +12,6 @@ import (
 	"veyron.io/veyron/veyron2/security"
 	"veyron.io/wspr/veyron/services/wsprd/wspr"
 
-	"veyron.io/veyron/veyron/lib/flags"
 	_ "veyron.io/veyron/veyron/profiles"
 	vsecurity "veyron.io/veyron/veyron/security"
 )
@@ -96,8 +94,7 @@ func (wsprInstance) StartWSPR(message ppapi.Var) {
 	if err := vsecurity.InitDefaultBlessings(principal, defaultBlessingName); err != nil {
 		panic(err.Error())
 	}
-
-	rt.Init(options.RuntimePrincipal{principal})
+	runtime := rt.Init(options.RuntimePrincipal{principal})
 
 	veyronProxy, err := message.LookupStringValuedKey("proxyName")
 	if err != nil {
@@ -111,8 +108,7 @@ func (wsprInstance) StartWSPR(message ppapi.Var) {
 	if err != nil {
 		panic(err.Error())
 	}
-	syscall.Setenv("MOUNTTABLE_ROOT", mounttable)
-	syscall.Setenv(flags.NamespaceRootPrefix, mounttable)
+	runtime.Namespace().SetRoots(mounttable)
 
 	identd, err := message.LookupStringValuedKey("identityd")
 	if err != nil {
@@ -133,7 +129,7 @@ func (wsprInstance) StartWSPR(message ppapi.Var) {
 	}
 
 	fmt.Printf("Starting WSPR with config: proxy=%q mounttable=%q identityd=%q port=%d", veyronProxy, mounttable, identd, wsprHttpPort)
-	proxy := wspr.NewWSPR(wsprHttpPort, listenSpec, identd, options.RuntimePrincipal{principal})
+	proxy := wspr.NewWSPR(wsprHttpPort, listenSpec, identd, []string{mounttable}, options.RuntimePrincipal{principal})
 
 	proxy.Listen()
 	go func() {

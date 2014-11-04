@@ -195,7 +195,7 @@ func TestGetGoServerSignature(t *testing.T) {
 	defer s.Stop()
 	spec := profiles.LocalListenSpec
 	spec.Proxy = "mockVeyronProxyEP"
-	controller, err := NewController(nil, &spec, options.RuntimePrincipal{newBlessedPrincipal(r)})
+	controller, err := NewController(nil, &spec, nil, options.RuntimePrincipal{newBlessedPrincipal(r)})
 
 	if err != nil {
 		t.Fatalf("Failed to create controller: %v", err)
@@ -231,7 +231,7 @@ func runGoServerTestCase(t *testing.T, test goServerTestCase) {
 
 	spec := profiles.LocalListenSpec
 	spec.Proxy = "mockVeyronProxyEP"
-	controller, err := NewController(nil, &spec, options.RuntimePrincipal{newBlessedPrincipal(r)})
+	controller, err := NewController(nil, &spec, nil, options.RuntimePrincipal{newBlessedPrincipal(r)})
 
 	if err != nil {
 		t.Errorf("unable to create controller: %v", err)
@@ -355,7 +355,7 @@ func serveServer() (*runningTest, error) {
 	}
 	spec := profiles.LocalListenSpec
 	spec.Proxy = "/" + proxyEndpoint
-	controller, err := NewController(writerCreator, &spec, options.RuntimePrincipal{testPrincipal})
+	controller, err := NewController(writerCreator, &spec, nil, options.RuntimePrincipal{testPrincipal})
 
 	if err != nil {
 		return nil, err

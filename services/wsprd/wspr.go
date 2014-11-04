@@ -18,7 +18,7 @@ func main() {
 
 	rt.Init()
 
-	proxy := wspr.NewWSPR(*port, roaming.ListenSpec, *identd)
+	proxy := wspr.NewWSPR(*port, roaming.ListenSpec, *identd, nil)
 	defer proxy.Shutdown()
 
 	proxy.Listen()
