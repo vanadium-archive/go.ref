@@ -1,5 +1,6 @@
 // TODO(caprita): This file is becoming unmanageable; split into several test
 // files.
+// TODO(rjkroege): Add a more extensive unit test case to exercise ACL logic.
 
 package impl_test
 
@@ -1296,7 +1297,7 @@ func TestAppWithSuidHelper(t *testing.T) {
 	vlog.VI(2).Infof("other attempting to run an app without access. Should fail.")
 	startAppExpectError(t, appID, verror.NoAccess, otherRT)
 
-	// Self will now let other also run apps.
+	// Self will now let other also install apps.
 	if err := nodeStub.AssociateAccount(selfRT.NewContext(), []string{"root/other"}, testUserName); err != nil {
 		t.Fatalf("AssociateAccount failed %v", err)
 	}
@@ -1305,9 +1306,26 @@ func TestAppWithSuidHelper(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GetACL failed %v", err)
 	}
-	newACL.In["root/other/..."] = security.AllLabels
+	newACL.In["root/other/..."] = security.LabelSet(security.WriteLabel)
 	if err := nodeStub.SetACL(selfRT.NewContext(), newACL, ""); err != nil {
 		t.Fatalf("SetACL failed %v", err)
+	}
+
+	// With the introduction of per installation and per instance ACLs, while other now
+	// has administrator permissions on the node manager, other doesn't have execution
+	// permissions for the app. So this will fail.
+	vlog.VI(2).Infof("other attempting to run an app still without access. Should fail.")
+	startAppExpectError(t, appID, verror.NoAccess, otherRT)
+
+	// But self can give other permissions  to start applications.
+	vlog.VI(2).Infof("self attempting to give other permission to start %s", appID)
+	newACL, _, err = appStub(appID).GetACL(selfRT.NewContext())
+	if err != nil {
+		t.Fatalf("GetACL on appID: %v failed %v", appID, err)
+	}
+	newACL.In["root/other/..."] = security.LabelSet(security.ReadLabel)
+	if err = appStub(appID).SetACL(selfRT.NewContext(), newACL, ""); err != nil {
+		t.Fatalf("SetACL on appID: %v failed: %v", appID, err)
 	}
 
 	vlog.VI(2).Infof("other attempting to run an app with access. Should succeed.")
@@ -1319,6 +1337,16 @@ func TestAppWithSuidHelper(t *testing.T) {
 	resumeApp(t, appID, instance2ID, otherRT)
 	verifyHelperArgs(t, pingCh, testUserName) // Wait until the app pings us that it's ready.
 	suspendApp(t, appID, instance2ID, otherRT)
+
+	vlog.VI(2).Infof("Verify that other can install and run applications.")
+	otherAppID := installApp(t, otherRT)
+
+	vlog.VI(2).Infof("other attempting to run an app that other installed. Should succeed.")
+	instance4ID := startApp(t, otherAppID, otherRT)
+	verifyHelperArgs(t, pingCh, testUserName) // Wait until the app pings us that it's ready.
+
+	// Clean up.
+	stopApp(t, otherAppID, instance4ID, otherRT)
 
 	// Change the associated system name.
 	if err := nodeStub.AssociateAccount(selfRT.NewContext(), []string{"root/other"}, anotherTestUserName); err != nil {

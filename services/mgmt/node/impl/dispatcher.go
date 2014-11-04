@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"path"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -37,6 +38,9 @@ type internalState struct {
 	updating *updatingState
 }
 
+// aclLocks provides a mutex lock for each acl file path.
+type aclLocks map[string]*sync.Mutex
+
 // dispatcher holds the state of the node manager dispatcher.
 type dispatcher struct {
 	// acl/auth hold the acl and authorizer used to authorize access to the
@@ -54,6 +58,8 @@ type dispatcher struct {
 	// dispatcher methods.
 	mu  sync.RWMutex
 	uat BlessingSystemAssociationStore
+	// TODO(rjkroege): Eliminate need for locks.
+	locks aclLocks
 }
 
 var _ ipc.Dispatcher = (*dispatcher)(nil)
@@ -93,6 +99,7 @@ func NewDispatcher(config *config.State) (*dispatcher, error) {
 		},
 		config: config,
 		uat:    uat,
+		locks:  make(aclLocks),
 	}
 	// If there exists a signed ACL from a previous instance we prefer that.
 	aclFile, sigFile, _ := d.getACLFilePaths()
@@ -138,6 +145,7 @@ func (d *dispatcher) getACLFilePaths() (acl, signature, nodedata string) {
 
 func (d *dispatcher) claimNodeManager(names []string, proof security.Blessings) error {
 	// TODO(gauthamt): Should we start trusting these identity providers?
+	// TODO(rjkroege): Scrub the state tree of installation and instance ACL files.
 	if len(names) == 0 {
 		vlog.Errorf("No names for claimer(%v) are trusted", proof)
 		return errOperationFailed
@@ -154,62 +162,158 @@ func (d *dispatcher) claimNodeManager(names []string, proof security.Blessings) 
 		vlog.Errorf("Failed to getACL:%v", err)
 		return errOperationFailed
 	}
-	return d.setACL(acl, etag, true /* store ACL on disk */)
+	if err := d.setACL(acl, etag, true /* store ACL on disk */); err != nil {
+		vlog.Errorf("Failed to setACL:%v", err)
+		return errOperationFailed
+	}
+	return nil
+}
+
+// TODO(rjkroege): Further refactor ACL-setting code.
+func setAppACL(locks aclLocks, key, dir string, acl security.ACL, etag string) error {
+	aclpath := path.Join(dir, "acls", "data")
+	sigpath := path.Join(dir, "acls", "signature")
+
+	// Acquire lock. Locks are per path to an acls file.
+	lck, contains := locks[key]
+	if !contains {
+		lck = new(sync.Mutex)
+		locks[key] = lck
+	}
+	lck.Lock()
+	defer lck.Unlock()
+
+	f, err := os.Open(aclpath)
+	if err != nil {
+		vlog.Errorf("LoadACL(%s) failed: %v", aclpath, err)
+		return err
+	}
+	defer f.Close()
+
+	curACL, err := vsecurity.LoadACL(f)
+	if err != nil {
+		vlog.Errorf("LoadACL(%s) failed: %v", aclpath, err)
+		return err
+	}
+	curEtag, err := computeEtag(curACL)
+	if err != nil {
+		vlog.Errorf("computeEtag failed: %v", err)
+		return err
+	}
+
+	if len(etag) > 0 && etag != curEtag {
+		return verror.Make(access.ErrBadEtag, fmt.Sprintf("etag mismatch in:%s vers:%s", etag, curEtag))
+	}
+
+	return writeACLs(aclpath, sigpath, dir, acl)
+}
+
+// TODO(rjkroege): Use the dir as the key.
+func getAppACL(locks aclLocks, key, dir string) (security.ACL, string, error) {
+	aclpath := path.Join(dir, "acls", "data")
+
+	// Acquire lock. Locks are per path to an acls file.
+	lck, contains := locks[key]
+	if !contains {
+		lck = new(sync.Mutex)
+		locks[key] = lck
+	}
+	lck.Lock()
+	defer lck.Unlock()
+
+	f, err := os.Open(aclpath)
+	if err != nil {
+		vlog.Errorf("LoadACL(%s) failed: %v", aclpath, err)
+		return security.ACL{}, "", err
+	}
+	defer f.Close()
+
+	acl, err := vsecurity.LoadACL(f)
+	if err != nil {
+		vlog.Errorf("LoadACL(%s) failed: %v", aclpath, err)
+		return security.ACL{}, "", err
+	}
+	curEtag, err := computeEtag(acl)
+	if err != nil {
+		return security.ACL{}, "", err
+	}
+
+	if err != nil {
+		return security.ACL{}, "", err
+	}
+	return acl, curEtag, nil
+}
+
+func computeEtag(acl security.ACL) (string, error) {
+	b := new(bytes.Buffer)
+	if err := vsecurity.SaveACL(b, acl); err != nil {
+		vlog.Errorf("Failed to save ACL:%v", err)
+		return "", err
+	}
+	// Update the acl/etag/authorizer for this dispatcher
+	md5hash := md5.Sum(b.Bytes())
+	etag := hex.EncodeToString(md5hash[:])
+	return etag, nil
+}
+
+func writeACLs(aclFile, sigFile, dir string, acl security.ACL) error {
+	// Create dir directory if it does not exist
+	os.MkdirAll(dir, os.FileMode(0700))
+	// Save the object to temporary data and signature files, and then move
+	// those files to the actual data and signature file.
+	data, err := ioutil.TempFile(dir, "data")
+	if err != nil {
+		vlog.Errorf("Failed to open tmpfile data:%v", err)
+		return errOperationFailed
+	}
+	defer os.Remove(data.Name())
+	sig, err := ioutil.TempFile(dir, "sig")
+	if err != nil {
+		vlog.Errorf("Failed to open tmpfile sig:%v", err)
+		return errOperationFailed
+	}
+	defer os.Remove(sig.Name())
+	writer, err := serialization.NewSigningWriteCloser(data, sig, rt.R().Principal(), nil)
+	if err != nil {
+		vlog.Errorf("Failed to create NewSigningWriteCloser:%v", err)
+		return errOperationFailed
+	}
+	if err = vsecurity.SaveACL(writer, acl); err != nil {
+		vlog.Errorf("Failed to SaveACL:%v", err)
+		return errOperationFailed
+	}
+	if err = writer.Close(); err != nil {
+		vlog.Errorf("Failed to Close() SigningWriteCloser:%v", err)
+		return errOperationFailed
+	}
+	if err := os.Rename(data.Name(), aclFile); err != nil {
+		return err
+	}
+	if err := os.Rename(sig.Name(), sigFile); err != nil {
+		return err
+	}
+	return nil
 }
 
 func (d *dispatcher) setACL(acl security.ACL, etag string, writeToFile bool) error {
 	d.mu.Lock()
 	defer d.mu.Unlock()
+	aclFile, sigFile, nodedata := d.getACLFilePaths()
+
 	if len(etag) > 0 && etag != d.etag {
 		return verror.Make(access.ErrBadEtag, fmt.Sprintf("etag mismatch in:%s vers:%s", etag, d.etag))
 	}
 	if writeToFile {
-		// Create nodedata directory if it does not exist
-		aclFile, sigFile, nodedata := d.getACLFilePaths()
-		os.MkdirAll(nodedata, os.FileMode(0700))
-		// Save the object to temporary data and signature files, and then move
-		// those files to the actual data and signature file.
-		data, err := ioutil.TempFile(nodedata, "data")
-		if err != nil {
-			vlog.Errorf("Failed to open tmpfile data:%v", err)
-			return errOperationFailed
-		}
-		defer os.Remove(data.Name())
-		sig, err := ioutil.TempFile(nodedata, "sig")
-		if err != nil {
-			vlog.Errorf("Failed to open tmpfile sig:%v", err)
-			return errOperationFailed
-		}
-		defer os.Remove(sig.Name())
-		writer, err := serialization.NewSigningWriteCloser(data, sig, rt.R().Principal(), nil)
-		if err != nil {
-			vlog.Errorf("Failed to create NewSigningWriteCloser:%v", err)
-			return errOperationFailed
-		}
-		if err = vsecurity.SaveACL(writer, acl); err != nil {
-			vlog.Errorf("Failed to SaveACL:%v", err)
-			return errOperationFailed
-		}
-		if err = writer.Close(); err != nil {
-			vlog.Errorf("Failed to Close() SigningWriteCloser:%v", err)
-			return errOperationFailed
-		}
-		if err := os.Rename(data.Name(), aclFile); err != nil {
-			return err
-		}
-		if err := os.Rename(sig.Name(), sigFile); err != nil {
+		if err := writeACLs(aclFile, sigFile, nodedata, acl); err != nil {
 			return err
 		}
 	}
-	// update the etag for the ACL
-	var b bytes.Buffer
-	if err := vsecurity.SaveACL(&b, acl); err != nil {
-		vlog.Errorf("Failed to save ACL:%v", err)
-		return errOperationFailed
+
+	etag, err := computeEtag(acl)
+	if err != nil {
+		return err
 	}
-	// Update the acl/etag/authorizer for this dispatcher
-	md5hash := md5.Sum(b.Bytes())
-	d.acl, d.etag, d.auth = acl, hex.EncodeToString(md5hash[:]), vsecurity.NewACLAuthorizer(acl)
+	d.acl, d.etag, d.auth = acl, etag, vsecurity.NewACLAuthorizer(acl)
 	return nil
 }
 
@@ -220,7 +324,6 @@ func (d *dispatcher) getACL() (acl security.ACL, etag string, err error) {
 }
 
 // DISPATCHER INTERFACE IMPLEMENTATION
-
 func (d *dispatcher) Lookup(suffix, method string) (interface{}, security.Authorizer, error) {
 	components := strings.Split(suffix, "/")
 	for i := 0; i < len(components); i++ {
@@ -287,16 +390,23 @@ func (d *dispatcher) Lookup(suffix, method string) (interface{}, security.Author
 				return &proxyInvoker{remote, label, sigStub}, d.auth, nil
 			}
 		}
+		nodeACLs, _, err := d.getACL()
+		if err != nil {
+			return nil, nil, err
+		}
 		receiver := node.ApplicationServer(&appInvoker{
 			callback: d.internal.callback,
 			config:   d.config,
 			suffix:   components[1:],
 			uat:      d.uat,
+			locks:    d.locks,
+			nodeACL:  nodeACLs,
 		})
-		// TODO(caprita,rjkroege): Once we implement per-object ACLs
-		// (i.e. each installation and instance), replace d.auth with
-		// per-object authorizer.
-		return ipc.ReflectInvoker(receiver), d.auth, nil
+		appSpecificAuthorizer, err := newAppSpecificAuthorizer(d.auth, d.config, components[1:])
+		if err != nil {
+			return nil, nil, err
+		}
+		return ipc.ReflectInvoker(receiver), appSpecificAuthorizer, nil
 	case configSuffix:
 		if len(components) != 2 {
 			return nil, nil, errInvalidSuffix
@@ -316,4 +426,33 @@ func (d *dispatcher) Lookup(suffix, method string) (interface{}, security.Author
 	default:
 		return nil, nil, errInvalidSuffix
 	}
+}
+
+func newAppSpecificAuthorizer(sec security.Authorizer, config *config.State, suffix []string) (security.Authorizer, error) {
+	// TODO(rjkroege): This does not support <appname>.Start() to start all instances. Correct this.
+
+	// If we are attempting a method invocation against "apps/", we use the node-manager wide ACL.
+	if len(suffix) == 0 || len(suffix) == 1 {
+		return sec, nil
+	}
+	// Otherwise, we require a per-installation and per-instance ACL file.
+
+	if len(suffix) == 2 {
+		p, err := installationDirCore(suffix, config.Root)
+		if err != nil {
+			vlog.Errorf("newAppSpecificAuthorizer failed: %v", err)
+			return nil, err
+		}
+		p = path.Join(p, "acls", "data")
+		return vsecurity.NewFileACLAuthorizer(p), nil
+	} else if len(suffix) > 2 {
+		p, err := instanceDir(config.Root, suffix[0:3])
+		if err != nil {
+			vlog.Errorf("newAppSpecificAuthorizer failed: %v", err)
+			return nil, err
+		}
+		p = path.Join(p, "acls", "data")
+		return vsecurity.NewFileACLAuthorizer(p), nil
+	}
+	return nil, errInvalidSuffix
 }
