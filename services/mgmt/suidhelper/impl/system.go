@@ -43,3 +43,12 @@ func (hw *WorkParameters) Exec() error {
 	}
 	return syscall.Exec(hw.argv0, hw.argv, hw.envv)
 }
+
+func (hw *WorkParameters) Remove() error {
+	for _, p := range hw.argv {
+		if err := os.RemoveAll(p); err != nil {
+			return fmt.Errorf("os.RemoveAll(%s) failed: %v", p, err)
+		}
+	}
+	return nil
+}

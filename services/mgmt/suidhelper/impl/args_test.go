@@ -35,6 +35,8 @@ func TestParseArguments(t *testing.T) {
 				argv0:     "",
 				argv:      []string{""},
 				envv:      []string{"A=B"},
+				dryrun:    false,
+				remove:    false,
 			},
 		},
 
@@ -52,6 +54,32 @@ func TestParseArguments(t *testing.T) {
 				argv0:     "/bin/veyron",
 				argv:      []string{"/bin/veyron", "one", "two"},
 				envv:      []string{"A=B"},
+				dryrun:    false,
+				remove:    false,
+			},
+		},
+		{
+			[]string{"setuidhelper", "--username", testUserName},
+			[]string{"A=B"},
+			fmt.Errorf("suidhelper does not permit uids less than 501"),
+			WorkParameters{},
+		},
+
+		{
+			[]string{"setuidhelper", "--rm", "hello", "vanadium"},
+			[]string{"A=B"},
+			nil,
+			WorkParameters{
+				uid:       0,
+				gid:       0,
+				workspace: "",
+				stderrLog: "",
+				stdoutLog: "",
+				argv0:     "",
+				argv:      []string{"hello", "vanadium"},
+				envv:      nil,
+				dryrun:    false,
+				remove:    true,
 			},
 		},
 		{

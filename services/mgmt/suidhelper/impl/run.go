@@ -10,11 +10,13 @@ func Run(environ []string) error {
 		return err
 	}
 
-	// 1. For each chown directory, chown.
+	if work.remove {
+		return work.Remove()
+	}
+
 	if err := work.Chown(); err != nil {
 		return err
 	}
 
-	// 2. Run the command if it exists.
 	return work.Exec()
 }
