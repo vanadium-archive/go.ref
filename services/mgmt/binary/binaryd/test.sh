@@ -27,7 +27,8 @@ main() {
     || shell_test::fail "line ${LINENO} failed to start binaryd"
 
   # Create a binary file.
-  local -r BINARY="${REPO}/test-binary"
+  local -r BINARY_SUFFIX="test-binary"
+  local -r BINARY="${REPO}/${BINARY_SUFFIX}"
   local -r BINARY_FILE=$(shell::tmp_file)
   dd if=/dev/urandom of="${BINARY_FILE}" bs=1000000 count=16 \
     || shell_test::fail "line ${LINENO}: faile to create a random binary file"
@@ -35,9 +36,15 @@ main() {
 
   # Download the binary file.
   local -r BINARY_FILE2=$(shell::tmp_file)
-  "${BINARY_BIN}" download "${BINARY}" "${BINARY_FILE2}" || shell_test::fail "line ${LINENO}: 'download' failed"
+  "${BINARY_BIN}" download "${BINARY}" "${BINARY_FILE2}" || shell_test::fail "line ${LINENO}: 'RPC download' failed"
   if [[ $(cmp "${BINARY_FILE}" "${BINARY_FILE2}" &> /dev/null) ]]; then
-    shell_test::fail "mismatching binary files"
+    shell_test::fail "mismatching binary file downloaded via RPC"
+  fi
+
+  local -r BINARY_FILE3=$(shell::tmp_file)
+  curl -f -o "${BINARY_FILE3}" http://localhost:8080/"${BINARY_SUFFIX}" || shell_test::fail "line ${LINENO}: 'HTTP download' failed"
+  if [[ $(cmp "${BINARY_FILE}" "${BINARY_FILE3}" &> /dev/null) ]]; then
+    shell_test::fail "mismatching binary file downloaded via HTTP"
   fi
 
   # Remove the binary file.

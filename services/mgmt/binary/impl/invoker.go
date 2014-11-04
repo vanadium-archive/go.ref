@@ -4,11 +4,9 @@
 // MD5 hash of the suffix and generates the following path in the
 // local filesystem: /<root>/<dir_1>/.../<dir_n>/<hash>. The root and
 // the directory depth are parameters of the implementation. The
-// contents of the directory include the checksum and data for the
-// object and each of its individual parts:
+// contents of the directory include the checksum and data for each of
+// the individual parts of the binary:
 //
-// checksum
-// data
 // <part_1>/checksum
 // <part_1>/data
 // ...
@@ -86,6 +84,7 @@ var (
 	errNotFound        = verror.NoExistf("binary not found")
 	errInProgress      = verror.Internalf("identical upload already in progress")
 	errInvalidParts    = verror.BadArgf("invalid number of binary parts")
+	errInvalidPart     = verror.BadArgf("invalid binary part number")
 	errOperationFailed = verror.Internalf("operation failed")
 )
 
@@ -96,10 +95,8 @@ var MissingPart = binary.PartInfo{
 	Size:     binary.MissingSize,
 }
 
-// newInvoker is the invoker factory.
-func newInvoker(state *state, suffix string) *invoker {
-	// Generate the local filesystem path for the object identified by
-	// the object name suffix.
+// dir generates the local filesystem path for the binary identified by suffix.
+func dir(suffix string, state *state) string {
 	h := md5.New()
 	h.Write([]byte(suffix))
 	hash := hex.EncodeToString(h.Sum(nil))
@@ -107,9 +104,13 @@ func newInvoker(state *state, suffix string) *invoker {
 	for j := 0; j < state.depth; j++ {
 		dir = filepath.Join(dir, hash[j*2:(j+1)*2])
 	}
-	path := filepath.Join(state.root, dir, hash)
+	return filepath.Join(state.root, dir, hash)
+}
+
+// newInvoker is the invoker factory.
+func newInvoker(state *state, suffix string) *invoker {
 	return &invoker{
-		path:   path,
+		path:   dir(suffix, state),
 		state:  state,
 		suffix: suffix,
 	}
@@ -119,18 +120,26 @@ func newInvoker(state *state, suffix string) *invoker {
 
 const bufferLength = 4096
 
-// checksumExists checks whether the given path contains a
-// checksum. The implementation uses the existence of checksum to
-// determine whether the binary (part) identified by the given path
+// checksumExists checks whether the given part path is valid and
+// contains a checksum. The implementation uses the existence of
+// the path dir to determine whether the part is valid, and the
+// existence of checksum to determine whether the binary part
 // exists.
-func (i *invoker) checksumExists(path string) error {
+func checksumExists(path string) error {
+	switch _, err := os.Stat(path); {
+	case os.IsNotExist(err):
+		return errInvalidPart
+	case err != nil:
+		vlog.Errorf("Stat(%v) failed: %v", path, err)
+		return errOperationFailed
+	}
 	checksumFile := filepath.Join(path, checksum)
 	_, err := os.Stat(checksumFile)
 	switch {
 	case os.IsNotExist(err):
 		return errNotFound
 	case err != nil:
-		vlog.Errorf("Stat(%v) failed: %v", path, err)
+		vlog.Errorf("Stat(%v) failed: %v", checksumFile, err)
 		return errOperationFailed
 	default:
 		return nil
@@ -139,30 +148,38 @@ func (i *invoker) checksumExists(path string) error {
 
 // generatePartPath generates a path for the given binary part.
 func (i *invoker) generatePartPath(part int) string {
-	return filepath.Join(i.path, fmt.Sprintf("%d", part))
+	return generatePartPath(i.path, part)
+}
+
+func generatePartPath(dir string, part int) string {
+	return filepath.Join(dir, fmt.Sprintf("%d", part))
 }
 
 // getParts returns a collection of paths to the parts of the binary.
-func (i *invoker) getParts() ([]string, error) {
-	infos, err := ioutil.ReadDir(i.path)
+func getParts(path string) ([]string, error) {
+	infos, err := ioutil.ReadDir(path)
 	if err != nil {
-		vlog.Errorf("ReadDir(%v) failed: %v", i.path, err)
+		vlog.Errorf("ReadDir(%v) failed: %v", path, err)
 		return []string{}, errOperationFailed
 	}
-	n := 0
 	result := make([]string, len(infos))
 	for _, info := range infos {
 		if info.IsDir() {
-			idx, err := strconv.Atoi(info.Name())
+			partName := info.Name()
+			idx, err := strconv.Atoi(partName)
 			if err != nil {
-				vlog.Errorf("Atoi(%v) failed: %v", info.Name(), err)
+				vlog.Errorf("Atoi(%v) failed: %v", partName, err)
 				return []string{}, errOperationFailed
 			}
-			result[idx] = filepath.Join(i.path, info.Name())
-			n++
+			if idx < 0 || idx >= len(infos) || result[idx] != "" {
+				return []string{}, errOperationFailed
+			}
+			result[idx] = filepath.Join(path, partName)
+		} else {
+			// The only entries should correspond to the part dirs.
+			return []string{}, errOperationFailed
 		}
 	}
-	result = result[:n]
 	return result, nil
 }
 
@@ -183,7 +200,7 @@ func (i *invoker) Create(_ ipc.ServerContext, nparts int32) error {
 		return errOperationFailed
 	}
 	for j := 0; j < int(nparts); j++ {
-		partPath, partPerm := filepath.Join(tmpDir, fmt.Sprintf("%d", j)), os.FileMode(0700)
+		partPath, partPerm := generatePartPath(tmpDir, j), os.FileMode(0700)
 		if err := os.MkdirAll(partPath, partPerm); err != nil {
 			vlog.Errorf("MkdirAll(%v, %v) failed: %v", partPath, partPerm, err)
 			if err := os.RemoveAll(tmpDir); err != nil {
@@ -250,13 +267,13 @@ func (i *invoker) Delete(context ipc.ServerContext) error {
 func (i *invoker) Download(context ipc.ServerContext, part int32, stream repository.BinaryServiceDownloadStream) error {
 	vlog.Infof("%v.Download(%v)", i.suffix, part)
 	path := i.generatePartPath(int(part))
-	if err := i.checksumExists(path); err != nil {
+	if err := checksumExists(path); err != nil {
 		return err
 	}
 	dataPath := filepath.Join(path, data)
 	file, err := os.Open(dataPath)
 	if err != nil {
-		vlog.Errorf("Open(%v) failed: %v", path, err)
+		vlog.Errorf("Open(%v) failed: %v", dataPath, err)
 		return errOperationFailed
 	}
 	defer file.Close()
@@ -288,7 +305,7 @@ func (i *invoker) DownloadURL(ipc.ServerContext) (string, int64, error) {
 func (i *invoker) Stat(ipc.ServerContext) ([]binary.PartInfo, error) {
 	vlog.Infof("%v.Stat()", i.suffix)
 	result := make([]binary.PartInfo, 0)
-	parts, err := i.getParts()
+	parts, err := getParts(i.path)
 	if err != nil {
 		return []binary.PartInfo{}, err
 	}
@@ -321,7 +338,7 @@ func (i *invoker) Stat(ipc.ServerContext) ([]binary.PartInfo, error) {
 func (i *invoker) Upload(context ipc.ServerContext, part int32, stream repository.BinaryServiceUploadStream) error {
 	vlog.Infof("%v.Upload(%v)", i.suffix, part)
 	path, suffix := i.generatePartPath(int(part)), ""
-	err := i.checksumExists(path)
+	err := checksumExists(path)
 	switch err {
 	case nil:
 		return errExists

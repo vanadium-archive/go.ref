@@ -3,6 +3,7 @@ package main
 import (
 	"flag"
 	"io/ioutil"
+	"net/http"
 	"os"
 	"path/filepath"
 
@@ -59,6 +60,21 @@ func main() {
 		}
 	}
 	vlog.Infof("Binary repository rooted at %v", *root)
+
+	state, err := impl.NewState(*root, defaultDepth)
+	if err != nil {
+		vlog.Errorf("NewState(%v, %v) failed: %v", *root, defaultDepth, err)
+		return
+	}
+
+	// TODO(caprita): Flagify port.
+	go func() {
+		if err := http.ListenAndServe(":8080", http.FileServer(impl.NewHTTPRoot(state))); err != nil {
+			vlog.Errorf("ListenAndServe() failed: %v", err)
+			os.Exit(1)
+		}
+	}()
+
 	runtime := rt.Init()
 	defer runtime.Cleanup()
 	server, err := runtime.NewServer()
@@ -68,17 +84,12 @@ func main() {
 	}
 	defer server.Stop()
 	auth := vflag.NewAuthorizerOrDie()
-	dispatcher, err := impl.NewDispatcher(*root, defaultDepth, auth)
-	if err != nil {
-		vlog.Errorf("NewDispatcher(%v, %v, %v) failed: %v", *root, defaultDepth, auth, err)
-		return
-	}
 	endpoint, err := server.Listen(roaming.ListenSpec)
 	if err != nil {
 		vlog.Errorf("Listen(%s) failed: %v", roaming.ListenSpec, err)
 		return
 	}
-	if err := server.Serve(*name, dispatcher); err != nil {
+	if err := server.Serve(*name, impl.NewDispatcher(state, auth)); err != nil {
 		vlog.Errorf("Serve(%v) failed: %v", *name, err)
 		return
 	}
