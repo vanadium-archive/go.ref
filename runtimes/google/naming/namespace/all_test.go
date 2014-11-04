@@ -15,6 +15,7 @@ import (
 	"veyron.io/veyron/veyron2/security"
 	"veyron.io/veyron/veyron2/services/mounttable"
 	"veyron.io/veyron/veyron2/services/mounttable/types"
+	verror "veyron.io/veyron/veyron2/verror2"
 	"veyron.io/veyron/veyron2/vlog"
 
 	"veyron.io/veyron/veyron/lib/glob"
@@ -329,7 +330,7 @@ func TestNamespaceDetails(t *testing.T) {
 	// below will fail.
 	mt3Server := mts[mt3MP].name
 	mt2a := "//mt2/a"
-	if err := ns.Mount(r.NewContext(), mt2a, mt3Server, ttl); err != naming.ErrNoSuchName {
+	if err := ns.Mount(r.NewContext(), mt2a, mt3Server, ttl); verror.Is(err, naming.ErrNoSuchName.ID) {
 		boom(t, "Successfully mounted %s - expected an err %v, not %v", mt2a, naming.ErrNoSuchName, err)
 	}
 
@@ -561,7 +562,7 @@ func TestCycles(t *testing.T) {
 	for i := 0; i < 40; i++ {
 		cycle += "/c3/c4"
 	}
-	if _, err := ns.Resolve(r.NewContext(), "c1/"+cycle); err.Error() != "Resolution depth exceeded" {
+	if _, err := ns.Resolve(r.NewContext(), "c1/"+cycle); !verror.Is(err, naming.ErrResolutionDepthExceeded.ID) {
 		boom(t, "Failed to detect cycle")
 	}
 

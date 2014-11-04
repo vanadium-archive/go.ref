@@ -415,7 +415,7 @@ func TestNodeManagerUpdateAndRevert(t *testing.T) {
 
 	// Try issuing an update without changing the envelope in the application
 	// repository: this should fail, and current link should be unchanged.
-	updateNodeExpectError(t, "v2NM", verror.NoExist)
+	updateNodeExpectError(t, "v2NM", naming.ErrNoSuchName.ID)
 	if evalLink() != scriptPathV2 {
 		t.Fatalf("script changed")
 	}
@@ -638,7 +638,7 @@ func TestAppLifeCycle(t *testing.T) {
 	}
 
 	// Updating the installation to itself is a no-op.
-	updateAppExpectError(t, appID, verror.NoExist)
+	updateAppExpectError(t, appID, naming.ErrNoSuchName.ID)
 
 	// Updating the installation should not work with a mismatched title.
 	*envelope = envelopeFromShell(sh, nil, appCmd, "bogus")
@@ -707,7 +707,7 @@ func TestAppLifeCycle(t *testing.T) {
 	resolveExpectNotFound(t, "appV1")
 
 	// We are already on the first version, no further revert possible.
-	revertAppExpectError(t, appID, verror.NoExist)
+	revertAppExpectError(t, appID, naming.ErrNoSuchName.ID)
 
 	// Uninstall the app.
 	uninstallApp(t, appID)
@@ -973,7 +973,7 @@ func TestNodeManagerInstall(t *testing.T) {
 	// sent to their children and so on.
 	pid := readPID(t, nms)
 	resolve(t, "nm", 1)
-	revertNodeExpectError(t, "nm", verror.NoExist) // No previous version available.
+	revertNodeExpectError(t, "nm", naming.ErrNoSuchName.ID) // No previous version available.
 	syscall.Kill(pid, syscall.SIGINT)
 
 	nms.Expect("nm terminating")

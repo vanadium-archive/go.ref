@@ -18,12 +18,12 @@ import (
 	"veyron.io/veyron/veyron2/security"
 	"veyron.io/veyron/veyron2/services/mounttable"
 	"veyron.io/veyron/veyron2/services/mounttable/types"
-	"veyron.io/veyron/veyron2/verror"
+	verror "veyron.io/veyron/veyron2/verror2"
 	"veyron.io/veyron/veyron2/vlog"
 )
 
 var (
-	errNamingLoop = verror.Make(verror.BadArg, "Loop in namespace")
+	errNamingLoop = verror.Register("veyron.io/veyron/veyron/services/mountable/lib", verror.NoRetry, "Loop in namespace")
 )
 
 // mountTable represents a namespace.  One exists per server instance.
@@ -223,9 +223,9 @@ func (ms *mountContext) ResolveStep(context ipc.ServerContext) (servers []types.
 	n, elems := mt.walk(mt.root, ms.elems)
 	if n == nil {
 		if len(ms.elems) == 0 {
-			return nil, ms.name, naming.ErrNoSuchNameRoot
+			return nil, ms.name, verror.Make(naming.ErrNoSuchNameRoot, context, ms.name)
 		}
-		return nil, ms.name, naming.ErrNoSuchName
+		return nil, ms.name, verror.Make(naming.ErrNoSuchName, context, ms.name)
 	}
 	return n.mount.servers.copyToSlice(), slashSlashJoin(elems), nil
 }
@@ -245,9 +245,9 @@ func (ms *mountContext) ResolveStepX(context ipc.ServerContext) (entry types.Mou
 	if n == nil {
 		entry.Name = ms.name
 		if len(ms.elems) == 0 {
-			err = naming.ErrNoSuchNameRoot
+			err = verror.Make(naming.ErrNoSuchNameRoot, context, ms.name)
 		} else {
-			err = naming.ErrNoSuchName
+			err = verror.Make(naming.ErrNoSuchName, context, ms.name)
 		}
 		return
 	}
@@ -285,7 +285,7 @@ func (ms *mountContext) Mount(context ipc.ServerContext, server string, ttlsecs 
 	defer mt.Unlock()
 	n := mt.findNode(ms.cleanedElems, true)
 	if n == nil {
-		return naming.ErrNoSuchName
+		return verror.Make(naming.ErrNoSuchNameRoot, context, ms.name)
 	}
 	if hasReplaceFlag(flags) {
 		n.mount = nil

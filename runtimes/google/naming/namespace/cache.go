@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"veyron.io/veyron/veyron2/naming"
+	verror "veyron.io/veyron/veyron2/verror2"
 	"veyron.io/veyron/veyron2/vlog"
 )
 
@@ -139,13 +140,13 @@ func (c *ttlCache) lookup(name string) (naming.MountEntry, error) {
 			continue
 		}
 		if isStale(now, e) {
-			return e, naming.ErrNoSuchName
+			return e, verror.Make(naming.ErrNoSuchName, nil, name)
 		}
 		vlog.VI(2).Infof("namespace cache %s -> %v %s", name, e.Servers, e.Name)
 		e.Name = suffix
 		return e, nil
 	}
-	return naming.MountEntry{}, naming.ErrNoSuchName
+	return naming.MountEntry{}, verror.Make(naming.ErrNoSuchName, nil, name)
 }
 
 // backup moves the last element of the prefix to the suffix.  "//" is preserved.  Thus
@@ -172,7 +173,9 @@ func backup(prefix, suffix string) (string, string) {
 // nullCache is an instance of cache that does nothing.
 type nullCache int
 
-func newNullCache() cache                                             { return nullCache(1) }
-func (nullCache) remember(prefix string, entry *naming.MountEntry)    {}
-func (nullCache) forget(names []string)                               {}
-func (nullCache) lookup(name string) (e naming.MountEntry, err error) { return e, naming.ErrNoSuchName }
+func newNullCache() cache                                          { return nullCache(1) }
+func (nullCache) remember(prefix string, entry *naming.MountEntry) {}
+func (nullCache) forget(names []string)                            {}
+func (nullCache) lookup(name string) (e naming.MountEntry, err error) {
+	return e, verror.Make(naming.ErrNoSuchName, nil, name)
+}
