@@ -71,8 +71,8 @@ func newClosureInvoker(suffix string) ipc.Invoker {
 	return closureInvoker{suffix}
 }
 
-func (closureInvoker) Prepare(method string, numArgs int) (argptrs []interface{}, label security.Label, err error) {
-	return nil, security.AdminLabel, nil
+func (closureInvoker) Prepare(method string, numArgs int) (argptrs, tags []interface{}, err error) {
+	return nil, []interface{}{security.AdminLabel}, nil
 }
 
 func (inv closureInvoker) Invoke(method string, call ipc.ServerCall, argptrs []interface{}) (results []interface{}, err error) {
@@ -90,9 +90,9 @@ func newEchoInvoker(suffix string) ipc.Invoker {
 	return echoInvoker{suffix}
 }
 
-func (echoInvoker) Prepare(method string, numArgs int) (argptrs []interface{}, label security.Label, err error) {
+func (echoInvoker) Prepare(method string, numArgs int) (argptrs, tags []interface{}, err error) {
 	var arg string
-	return []interface{}{&arg}, security.AdminLabel, nil
+	return []interface{}{&arg}, []interface{}{security.AdminLabel}, nil
 }
 
 func (inv echoInvoker) Invoke(method string, call ipc.ServerCall, argptrs []interface{}) (results []interface{}, err error) {

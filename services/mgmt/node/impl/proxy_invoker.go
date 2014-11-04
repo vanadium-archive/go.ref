@@ -26,13 +26,13 @@ type signatureStub interface {
 	Signature(ipc.ServerCall) (ipc.ServiceSignature, error)
 }
 
-func (p *proxyInvoker) Prepare(method string, numArgs int) (argptrs []interface{}, label security.Label, err error) {
+func (p *proxyInvoker) Prepare(method string, numArgs int) (argptrs, tags []interface{}, err error) {
 	argptrs = make([]interface{}, numArgs)
 	for i, _ := range argptrs {
 		var x interface{}
 		argptrs[i] = &x
 	}
-	label = p.label
+	tags = []interface{}{p.label}
 	return
 }
 

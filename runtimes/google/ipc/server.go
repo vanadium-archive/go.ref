@@ -856,8 +856,8 @@ func (fs *flowServer) processRequest() ([]interface{}, verror.E) {
 	}
 	// Prepare invoker and decode args.
 	numArgs := int(req.NumPosArgs)
-	argptrs, label, err := invoker.Prepare(req.Method, numArgs)
-	fs.label = label
+	argptrs, tags, err := invoker.Prepare(req.Method, numArgs)
+	fs.label = labelFromTags(tags)
 	if err != nil {
 		return nil, verror.Makef(verror.ErrorID(err), "%s: name: %q", err, req.Suffix)
 	}
@@ -961,14 +961,14 @@ func (i *globInvoker) invokeGlob(call ipc.ServerCall, d ipc.Dispatcher, prefix, 
 	// TODO(cnicolaou): ipc.Serve TRANSITION
 	invoker, ok := obj.(ipc.Invoker)
 	if !ok {
-		panic("Lookup should have returned an ipc.Invoker")
+		panic(fmt.Errorf("Lookup should have returned an ipc.Invoker, returned %T", obj))
 	}
 	if obj == nil || !ok {
 		return verror.NoExistf("ipc: invoker not found for Glob")
 	}
 
-	argptrs, label, err := invoker.Prepare("Glob", 1)
-	i.fs.label = label
+	argptrs, tags, err := invoker.Prepare("Glob", 1)
+	i.fs.label = labelFromTags(tags)
 	if err != nil {
 		return verror.Makef(verror.ErrorID(err), "%s", err)
 	}
@@ -1121,4 +1121,13 @@ func (fs *flowServer) LocalEndpoint() naming.Endpoint {
 func (fs *flowServer) RemoteEndpoint() naming.Endpoint {
 	//nologcall
 	return fs.flow.RemoteEndpoint()
+}
+
+func labelFromTags(tags []interface{}) security.Label {
+	for _, t := range tags {
+		if l, ok := t.(security.Label); ok {
+			return l
+		}
+	}
+	return security.AdminLabel
 }
