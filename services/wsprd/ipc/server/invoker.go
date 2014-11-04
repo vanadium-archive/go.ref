@@ -35,7 +35,7 @@ func newInvoker(sig ipc.ServiceSignature, label security.Label, invokeFunc remot
 }
 
 // Prepare implements the Invoker interface.
-func (i *invoker) Prepare(methodName string, numArgs int) ([]interface{}, security.Label, error) {
+func (i *invoker) Prepare(methodName string, numArgs int) ([]interface{}, []interface{}, error) {
 
 	if pi := i.predefinedInvokers[methodName]; pi != nil {
 		return pi.Prepare(methodName, numArgs)
@@ -43,7 +43,7 @@ func (i *invoker) Prepare(methodName string, numArgs int) ([]interface{}, securi
 
 	method, ok := i.sig.Methods[methodName]
 	if !ok {
-		return nil, security.AdminLabel, verror.NoExistf("method name not found in IDL: %s", methodName)
+		return nil, []interface{}{security.AdminLabel}, verror.NoExistf("method name not found in IDL: %s", methodName)
 	}
 
 	argptrs := make([]interface{}, len(method.InArgs))
@@ -59,7 +59,7 @@ func (i *invoker) Prepare(methodName string, numArgs int) ([]interface{}, securi
 		securityLabel = security.AdminLabel
 	}
 
-	return argptrs, securityLabel, nil
+	return argptrs, []interface{}{securityLabel}, nil
 }
 
 // Invoke implements the Invoker interface.

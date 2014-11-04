@@ -13,6 +13,7 @@ import (
 	"veyron.io/veyron/veyron2/security"
 	"veyron.io/wspr/veyron/services/wsprd/wspr"
 
+	"veyron.io/veyron/veyron/lib/flags"
 	_ "veyron.io/veyron/veyron/profiles"
 	vsecurity "veyron.io/veyron/veyron/security"
 )
@@ -111,7 +112,7 @@ func (wsprInstance) StartWSPR(message ppapi.Var) {
 		panic(err.Error())
 	}
 	syscall.Setenv("MOUNTTABLE_ROOT", mounttable)
-	syscall.Setenv("NAMESPACE_ROOT", mounttable)
+	syscall.Setenv(flags.NamespaceRootPrefix, mounttable)
 
 	identd, err := message.LookupStringValuedKey("identityd")
 	if err != nil {
