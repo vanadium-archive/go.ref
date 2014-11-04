@@ -27,7 +27,9 @@ type context struct {
 	local security.Principal
 }
 
+func (*context) Timestamp() (t time.Time)                  { return t }
 func (*context) Method() string                            { return "" }
+func (*context) MethodTags() []interface{}                 { return nil }
 func (*context) Name() string                              { return "" }
 func (*context) Suffix() string                            { return "" }
 func (*context) Label() (l security.Label)                 { return }

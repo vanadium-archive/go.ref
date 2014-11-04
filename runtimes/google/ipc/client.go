@@ -310,7 +310,7 @@ func (c *client) authorizeServer(flow stream.Flow, name, suffix, method string, 
 	if flow.RemoteBlessings() == nil {
 		return nil, nil, fmt.Errorf("server has not presented any blessings")
 	}
-	serverBlessings = flow.RemoteBlessings().ForContext(serverAuthContext{flow})
+	serverBlessings = flow.RemoteBlessings().ForContext(serverAuthContext{flow, time.Now()})
 	for _, o := range opts {
 		switch v := o.(type) {
 		case options.RemoteID:
@@ -566,13 +566,16 @@ func (fc *flowClient) RemoteBlessings() ([]string, security.Blessings) {
 // authorize a server.
 type serverAuthContext struct {
 	stream.Flow
+	timestamp time.Time
 }
 
 // TODO(ashankar,ataly): Set Method, Name, Suffix etc. once third-party caveat
 // validation for a server's blessings are eanbled.
 // Returning zero values affects more than third-party caveats, so yeah, have
 // to remove them soon!
+func (c serverAuthContext) Timestamp() time.Time                    { return c.timestamp }
 func (serverAuthContext) Method() string                            { return "" }
+func (serverAuthContext) MethodTags() []interface{}                 { return nil }
 func (serverAuthContext) Name() string                              { return "" }
 func (serverAuthContext) Suffix() string                            { return "" }
 func (serverAuthContext) Label() (l security.Label)                 { return l }

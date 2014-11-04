@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"time"
 
 	"veyron.io/veyron/veyron/runtimes/google/ipc/stream/crypto"
 	"veyron.io/veyron/veyron/runtimes/google/lib/iobuf"
@@ -59,8 +60,9 @@ func authenticateAsClient(conn io.ReadWriteCloser, principal security.Principal,
 		return nil, nil, err
 	}
 	serverB := server.ForContext(&serverAuthContext{
-		self:   principal,
-		remote: server,
+		self:      principal,
+		remote:    server,
+		timestamp: time.Now(),
 		// TODO(ashankar): Get the local and remote endpoint here?
 		// There is also a bootstrapping problem here. For example, let's say
 		// (1) server has the blessing "provider/server" with a PeerIdentity caveat of "provider/client"
@@ -135,11 +137,14 @@ func readBlessings(r io.Reader, tag []byte, crypter crypto.Crypter, v version.IP
 // security.Context implementation used when extracting blessings from what the
 // server presents during authentication.
 type serverAuthContext struct {
-	self   security.Principal
-	remote security.Blessings
+	self      security.Principal
+	remote    security.Blessings
+	timestamp time.Time
 }
 
+func (c *serverAuthContext) Timestamp() time.Time                      { return c.timestamp }
 func (*serverAuthContext) Method() string                              { return "" }
+func (*serverAuthContext) MethodTags() []interface{}                   { return nil }
 func (*serverAuthContext) Name() string                                { return "" }
 func (*serverAuthContext) Suffix() string                              { return "" }
 func (*serverAuthContext) Label() (l security.Label)                   { return l }

@@ -655,9 +655,9 @@ type flowServer struct {
 	// Fields filled in during the server invocation.
 	blessings      security.Blessings
 	method, suffix string
-	label          security.Label
+	tags           []interface{}
 	discharges     map[string]security.Discharge
-	deadline       time.Time
+	starttime      time.Time
 	endStreamArgs  bool // are the stream args at EOF?
 	allowDebug     bool // true if the caller is permitted to view debug information.
 }
@@ -787,8 +787,7 @@ func lookupInvoker(d ipc.Dispatcher, name, method string) (ipc.Invoker, security
 }
 
 func (fs *flowServer) processRequest() ([]interface{}, verror.E) {
-	start := time.Now()
-
+	fs.starttime = time.Now()
 	req, verr := fs.readIPCRequest()
 	if verr != nil {
 		// We don't know what the ipc call was supposed to be, but we'll create
@@ -806,7 +805,7 @@ func (fs *flowServer) processRequest() ([]interface{}, verror.E) {
 
 	var cancel context.CancelFunc
 	if req.Timeout != ipc.NoTimeout {
-		fs.T, cancel = fs.WithDeadline(start.Add(time.Duration(req.Timeout)))
+		fs.T, cancel = fs.WithDeadline(fs.starttime.Add(time.Duration(req.Timeout)))
 	} else {
 		fs.T, cancel = fs.WithCancel()
 	}
@@ -857,7 +856,7 @@ func (fs *flowServer) processRequest() ([]interface{}, verror.E) {
 	// Prepare invoker and decode args.
 	numArgs := int(req.NumPosArgs)
 	argptrs, tags, err := invoker.Prepare(req.Method, numArgs)
-	fs.label = labelFromTags(tags)
+	fs.tags = tags
 	if err != nil {
 		return nil, verror.Makef(verror.ErrorID(err), "%s: name: %q", err, req.Suffix)
 	}
@@ -882,7 +881,7 @@ func (fs *flowServer) processRequest() ([]interface{}, verror.E) {
 	}
 
 	results, err := invoker.Invoke(req.Method, fs, argptrs)
-	fs.server.stats.record(req.Method, time.Since(start))
+	fs.server.stats.record(req.Method, time.Since(fs.starttime))
 	return results, verror.Convert(err)
 }
 
@@ -968,7 +967,7 @@ func (i *globInvoker) invokeGlob(call ipc.ServerCall, d ipc.Dispatcher, prefix, 
 	}
 
 	argptrs, tags, err := invoker.Prepare("Glob", 1)
-	i.fs.label = labelFromTags(tags)
+	i.fs.tags = tags
 	if err != nil {
 		return verror.Makef(verror.ErrorID(err), "%s", err)
 	}
@@ -1079,9 +1078,17 @@ func (fs *flowServer) Server() ipc.Server {
 	//nologcall
 	return fs.server
 }
+func (fs *flowServer) Timestamp() time.Time {
+	//nologcall
+	return fs.starttime
+}
 func (fs *flowServer) Method() string {
 	//nologcall
 	return fs.method
+}
+func (fs *flowServer) MethodTags() []interface{} {
+	//nologcall
+	return fs.tags
 }
 
 // TODO(cnicolaou): remove Name from ipc.ServerContext and all of
@@ -1096,7 +1103,12 @@ func (fs *flowServer) Suffix() string {
 }
 func (fs *flowServer) Label() security.Label {
 	//nologcall
-	return fs.label
+	for _, t := range fs.tags {
+		if l, ok := t.(security.Label); ok {
+			return l
+		}
+	}
+	return security.AdminLabel
 }
 func (fs *flowServer) LocalPrincipal() security.Principal {
 	//nologcall
@@ -1121,13 +1133,4 @@ func (fs *flowServer) LocalEndpoint() naming.Endpoint {
 func (fs *flowServer) RemoteEndpoint() naming.Endpoint {
 	//nologcall
 	return fs.flow.RemoteEndpoint()
-}
-
-func labelFromTags(tags []interface{}) security.Label {
-	for _, t := range tags {
-		if l, ok := t.(security.Label); ok {
-			return l
-		}
-	}
-	return security.AdminLabel
 }

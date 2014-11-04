@@ -5,6 +5,7 @@ import (
 	"os"
 	"runtime"
 	"testing"
+	"time"
 
 	"veyron.io/veyron/veyron2/naming"
 	"veyron.io/veyron/veyron2/security"
@@ -18,7 +19,9 @@ type context struct {
 	label                           security.Label
 }
 
+func (c *context) Timestamp() (t time.Time)                  { return t }
 func (c *context) Method() string                            { return c.method }
+func (c *context) MethodTags() []interface{}                 { return nil }
 func (c *context) Name() string                              { return "" }
 func (c *context) Suffix() string                            { return "" }
 func (c *context) Label() security.Label                     { return c.label }
