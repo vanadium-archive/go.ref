@@ -1,6 +1,7 @@
 package util
 
 import (
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -23,7 +24,10 @@ func TestCSRFTokenWithoutCookie(t *testing.T) {
 	if err != nil {
 		t.Errorf("NewToken failed: %v", err)
 	}
-	cookie := cookieSet(w, cookieName)
+	cookie, err := cookieVal(w, cookieName)
+	if err != nil {
+		t.Error(err)
+	}
 	if len(cookie) == 0 {
 		t.Errorf("Cookie should have been set. Request: [%v], Response: [%v]", r, w)
 	}
@@ -37,7 +41,10 @@ func TestCSRFTokenWithoutCookie(t *testing.T) {
 	if _, err = c.MaybeSetCookie(w, r, failCookieName); err != nil {
 		t.Error("failed to create cookie: ", err)
 	}
-	cookie = cookieSet(w, failCookieName)
+	cookie, err = cookieVal(w, failCookieName)
+	if err != nil {
+		t.Error(err)
+	}
 	if len(cookie) == 0 {
 		t.Errorf("Cookie should have been set. Request: [%v], Response: [%v]", r, w)
 	}
@@ -59,7 +66,11 @@ func TestCSRFTokenWithCookie(t *testing.T) {
 	if err != nil {
 		t.Errorf("NewToken failed: %v", err)
 	}
-	if len(cookieSet(w, cookieName)) > 0 {
+	cookie, err := cookieVal(w, cookieName)
+	if err != nil {
+		t.Error(err)
+	}
+	if len(cookie) > 0 {
 		t.Errorf("Cookie should not be set when it is already present. Request: [%v], Response: [%v]", r, w)
 	}
 	if err := c.ValidateToken(tok, r, cookieName, nil); err != nil {
@@ -84,7 +95,11 @@ func TestCSRFTokenWithData(t *testing.T) {
 	if err != nil {
 		t.Errorf("NewToken failed: %v", err)
 	}
-	if len(cookieSet(w, cookieName)) > 0 {
+	cookie, err := cookieVal(w, cookieName)
+	if err != nil {
+		t.Error(err)
+	}
+	if len(cookie) > 0 {
 		t.Errorf("Cookie should not be set when it is already present. Request: [%v], Response: [%v]", r, w)
 	}
 	var got int
@@ -101,12 +116,30 @@ func TestCSRFTokenWithData(t *testing.T) {
 	}
 }
 
-func cookieSet(w *httptest.ResponseRecorder, cookieName string) string {
-	cookies := strings.Split(w.Header().Get("Set-Cookie"), ";")
-	for _, c := range cookies {
-		if strings.HasPrefix(c, cookieName) {
-			return strings.TrimPrefix(c, cookieName+"=")
+func cookieVal(w *httptest.ResponseRecorder, cookieName string) (string, error) {
+	cookie := w.Header().Get("Set-Cookie")
+	if len(cookie) == 0 {
+		return "", nil
+	}
+	var (
+		val              string
+		httpOnly, secure bool
+	)
+	for _, part := range strings.Split(cookie, "; ") {
+		switch {
+		case strings.HasPrefix(part, cookieName):
+			val = strings.TrimPrefix(part, cookieName+"=")
+		case part == "HttpOnly":
+			httpOnly = true
+		case part == "Secure":
+			secure = true
 		}
 	}
-	return ""
+	if !httpOnly {
+		return "", fmt.Errorf("cookie for name %v is not HttpOnly", cookieName)
+	}
+	if !secure {
+		return "", fmt.Errorf("cookie for name %v is not Secure", cookieName)
+	}
+	return val, nil
 }

@@ -35,7 +35,7 @@ import (
 var (
 	// Flags controlling the HTTP server
 	httpaddr  = flag.String("httpaddr", "localhost:8125", "Address on which the HTTP server listens on.")
-	tlsconfig = flag.String("tlsconfig", "", "Comma-separated list of TLS certificate and private key files. If empty, will not use HTTPS.")
+	tlsconfig = flag.String("tlsconfig", "", "Comma-separated list of TLS certificate and private key files. This must be provided.")
 	host      = flag.String("host", defaultHost(), "Hostname the HTTP server listens on. This can be the name of the host running the webserver, but if running behind a NAT or load balancer, this should be the host name that clients will connect to. For example, if set to 'x.com', Veyron identities will have the IssuerName set to 'x.com' and clients can expect to find the public key of the signer at 'x.com/pubkey/'.")
 
 	// Flags controlling auditing of Blessing operations.
@@ -128,7 +128,7 @@ func main() {
 		}
 	})
 	vlog.Infof("Running HTTP server at: %v", httpaddress())
-	go runHTTPServer(*httpaddr)
+	go runHTTPSServer(*httpaddr)
 	<-signals.ShutdownOnSignals()
 }
 
@@ -205,7 +205,6 @@ func setupServices(r veyron2.Runtime, revocationManager *revocation.RevocationMa
 	return server, published, nil
 }
 
-func enableTLS() bool { return len(*tlsconfig) > 0 }
 func enableRandomHandler() bool {
 	return len(*googleConfigWeb)+len(*googleConfigChrome)+len(*googleConfigAndroid) == 0
 }
@@ -241,12 +240,9 @@ func getOAuthClientIDAndSecret(config string) (clientID, clientSecret string, ok
 	}
 	return clientID, clientSecret, true
 }
-func runHTTPServer(addr string) {
-	if !enableTLS() {
-		if err := http.ListenAndServe(addr, nil); err != nil {
-			vlog.Fatalf("http.ListenAndServe failed: %v", err)
-		}
-		return
+func runHTTPSServer(addr string) {
+	if len(*tlsconfig) == 0 {
+		vlog.Fatal("Please set the --tlsconfig flag")
 	}
 	paths := strings.Split(*tlsconfig, ",")
 	if len(paths) != 2 {
@@ -306,11 +302,7 @@ func httpaddress() string {
 	if err != nil {
 		vlog.Fatalf("Failed to parse %q: %v", *httpaddr, err)
 	}
-	scheme := "http"
-	if enableTLS() {
-		scheme = "https"
-	}
-	return fmt.Sprintf("%s://%s:%v", scheme, *host, port)
+	return fmt.Sprintf("https://%s:%v", *host, port)
 }
 
 func dumpAuditLog() {
