@@ -67,7 +67,6 @@ func New(opts ...veyron2.ROpt) (veyron2.Runtime, error) {
 		runtimeFlags.Parse(os.Args[1:])
 	})
 	rt.flags = runtimeFlags.RuntimeFlags()
-	nsRoots := []string{}
 	for _, o := range opts {
 		switch v := o.(type) {
 		case options.RuntimePrincipal:
@@ -93,7 +92,7 @@ func New(opts ...veyron2.ROpt) (veyron2.Runtime, error) {
 	} else {
 		rt.ns = ns
 	}
-	vlog.VI(2).Infof("Namespace Roots: %s", nsRoots)
+	vlog.VI(2).Infof("Namespace Roots: %s", rt.ns.Roots())
 
 	// Create the default stream manager.
 	if _, err := rt.NewStreamManager(); err != nil {
