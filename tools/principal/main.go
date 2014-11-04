@@ -10,7 +10,6 @@ import (
 	"os/user"
 	"time"
 
-	"veyron.io/veyron/veyron2"
 	"veyron.io/veyron/veyron2/rt"
 	"veyron.io/veyron/veyron2/security"
 	"veyron.io/veyron/veyron2/vom"
@@ -20,8 +19,6 @@ import (
 	vsecurity "veyron.io/veyron/veyron/security"
 	"veyron.io/veyron/veyron/services/identity"
 )
-
-const VEYRON_CREDENTIALS = "VEYRON_CREDENTIALS"
 
 var (
 	// Flags for the "blessself" command
@@ -47,13 +44,10 @@ var (
 		Short: "Dump out information about the principal",
 		Long: `
 Prints out information about the principal specified by the environment
-(VEYRON_CREDENTIALS) that this tool is running in.
+that this tool is running in.
 `,
 		Run: func(cmd *cmdline.Command, args []string) error {
-			p, err := principal()
-			if err != nil {
-				return err
-			}
+			p := rt.Init().Principal()
 			fmt.Printf("Public key : %v\n", p.PublicKey())
 			fmt.Println("---------------- BlessingStore ----------------")
 			fmt.Printf("%v", p.BlessingStore().DebugString())
@@ -111,10 +105,9 @@ this tool. - is used for STDIN.
 		Name:  "blessself",
 		Short: "Generate a self-signed blessing",
 		Long: `
-Returns a blessing with name <name> and self-signed by the principal
-specified by the environment (VEYRON_CREDENTIALS) that this tool is
-running in. Optionally, the blessing can be restricted with an expiry
-caveat specified using the --for flag.
+Returns a blessing with name <name> and self-signed by the principal specified
+by the environment that this tool is running in. Optionally, the blessing can
+be restricted with an expiry caveat specified using the --for flag.
 `,
 		ArgsName: "[<name>]",
 		ArgsLong: `
@@ -141,11 +134,7 @@ machine and the name of the user running this command.
 				}
 				caveats = append(caveats, cav)
 			}
-			p, err := principal()
-			if err != nil {
-				return err
-			}
-			blessing, err := p.BlessSelf(name, caveats...)
+			blessing, err := rt.Init().Principal().BlessSelf(name, caveats...)
 			if err != nil {
 				return fmt.Errorf("failed to create self-signed blessing for name %q: %v", name, err)
 			}
@@ -160,32 +149,38 @@ machine and the name of the user running this command.
 		Long: `
 	Returns a set of blessings obtained when one principal blesses another.
 
-	The blesser is obtained from the VEYRON_CREDENTIALS environment variable.
-	The principal to be blessed is specified as either a path to the VEYRON_CREDENTIALS directory of the other principal, or the filename (or - for STDIN) of any other blessing of that principal.
-	The blessing that the blesser uses (i.e., which is extended to create the blessing) is the default one from the blessers store, or specified via the --with flag.
-	The blessing is valid only for the duration specified in --for.
+	The blesser is obtained from the runtime this tool is running as.
+	The principal to be blessed is specified as either a path to the
+	directory of the other principal, or the filename (- for STDIN)
+	of any other blessing of that principal.
+	The blessing that the blesser uses (i.e., which is extended to create
+	the blessing) is the default one from the blessers store, or specified
+	via the --with flag.  The blessing is valid only for the duration
+	specified in --for.
 
-	For example, let's say a principal with the default blessing "alice" wants to bless another principal as "alice/bob", the invocation would be:
+	For example, let's say a principal with the default blessing "alice"
+	wants to bless another principal as "alice/bob", the invocation would
+	be:
 	VEYRON_CREDENTIALS=<path to alice> principal bless <path to bob> friend
 	`,
 		ArgsName: "<principal to bless> <extension>",
 		ArgsLong: `
-	<principal to bless> represents the principal to be blessed (i.e., whose public key will be provided with a name).
-	This can either be a path to a file containing any other set of blessings of that principal (or - for STDIN) or the
-	path to the VEYRON_CREDENTIALS directory of that principal.
+	<principal to bless> represents the principal to be blessed (i.e.,
+	whose public key will be provided with a name).  This can either be a
+	path to a file containing any other set of blessings of that principal
+	(or - for STDIN) or the path to the directory of that principal.
 
-	<extension> is the string extension that will be applied to create the blessing.
+	<extension> is the string extension that will be applied to create the
+	blessing.
 	`,
 		Run: func(cmd *cmdline.Command, args []string) error {
 			if len(args) != 2 {
 				return fmt.Errorf("require exactly two arguments, provided %d", len(args))
 			}
-			p, err := principal()
-			if err != nil {
-				return err
-			}
+			p := rt.Init().Principal()
 
 			var with security.Blessings
+			var err error
 			if len(flagBlessWith) > 0 {
 				if with, err = decodeBlessings(flagBlessWith); err != nil {
 					return fmt.Errorf("failed to read blessings from --with=%q: %v", flagBlessWith, err)
@@ -229,8 +224,8 @@ machine and the name of the user running this command.
 		Short: "Return blessings marked for the provided peer",
 		Long: `
 Returns blessings that are marked for the provided peer in the
-BlessingStore specified by the environment (VEYRON_CREDENTIALS)
-that this tool is running in.
+BlessingStore specified by the environment that this tool is
+running in.
 `,
 		ArgsName: "[<peer_1> ... <peer_k>]",
 		ArgsLong: `
@@ -241,11 +236,7 @@ store.forpeer returns the blessings that are marked for all peers (i.e.,
 blessings set on the store with the "..." pattern).
 `,
 		Run: func(cmd *cmdline.Command, args []string) error {
-			p, err := principal()
-			if err != nil {
-				return err
-			}
-			return dumpBlessings(p.BlessingStore().ForPeer(args...))
+			return dumpBlessings(rt.Init().Principal().BlessingStore().ForPeer(args...))
 		},
 	}
 
@@ -253,16 +244,11 @@ blessings set on the store with the "..." pattern).
 		Name:  "default",
 		Short: "Return blessings marked as default",
 		Long: `
-Returns blessings that are marked as default in the BlessingStore
-specified by the environment (VEYRON_CREDENTIALS) that this tool
-is running in.
+Returns blessings that are marked as default in the BlessingStore specified by
+the environment that this tool is running in.
 `,
 		Run: func(cmd *cmdline.Command, args []string) error {
-			p, err := principal()
-			if err != nil {
-				return err
-			}
-			return dumpBlessings(p.BlessingStore().Default())
+			return dumpBlessings(rt.Init().Principal().BlessingStore().Default())
 		},
 	}
 
@@ -270,9 +256,8 @@ is running in.
 		Name:  "set",
 		Short: "Set provided blessings for peer",
 		Long: `
-Marks the provided blessings to be shared with the provided
-peers on the BlessingStore specified by the environment
-(VEYRON_CREDENTIALS) that this tool is running in.
+Marks the provided blessings to be shared with the provided peers on the
+BlessingStore specified by the environment that this tool is running in.
 
 'set b pattern' marks the intention to reveal b to peers who
 present blessings of their own matching 'pattern'.
@@ -301,10 +286,7 @@ blessing can be shared with.
 				return fmt.Errorf("failed to decode provided blessings: %v", err)
 			}
 			pattern := security.BlessingPattern(args[1])
-			p, err := principal()
-			if err != nil {
-				return err
-			}
+			p := rt.Init().Principal()
 			if _, err := p.BlessingStore().Set(blessings, pattern); err != nil {
 				return fmt.Errorf("failed to set blessings %v for peers %v: %v", blessings, pattern, err)
 			}
@@ -321,11 +303,11 @@ blessing can be shared with.
 		Name:  "setdefault",
 		Short: "Set provided blessings as default",
 		Long: `
-Sets the provided blessings as default in the BlessingStore specified
-by the environment (VEYRON_CREDENTIALS) that this tool is running in.
+Sets the provided blessings as default in the BlessingStore specified by the
+environment that this tool is running in.
 
-It is an error to call 'store.setdefault' with blessings whose public key
-does not match the public key of the principal specified by the environment.
+It is an error to call 'store.setdefault' with blessings whose public key does
+not match the public key of the principal specified by the environment.
 `,
 		ArgsName: "<file>",
 		ArgsLong: `
@@ -340,11 +322,8 @@ this tool. - is used for STDIN.
 			if err != nil {
 				return fmt.Errorf("failed to decode provided blessings: %v", err)
 			}
-			p, err := principal()
-			if err != nil {
-				return err
-			}
-			if err = p.BlessingStore().SetDefault(blessings); err != nil {
+			p := rt.Init().Principal()
+			if err := p.BlessingStore().SetDefault(blessings); err != nil {
 				return fmt.Errorf("failed to set blessings %v as default: %v", blessings, err)
 			}
 			if flagAddToRoots {
@@ -404,7 +383,6 @@ the directory.
 			if err := p.AddToRoots(blessings); err != nil {
 				return fmt.Errorf("AddToRoots(%v) failed: %v", blessings, err)
 			}
-			fmt.Printf("%s=%q\n", VEYRON_CREDENTIALS, dir)
 			return nil
 		},
 	}
@@ -417,8 +395,8 @@ Seeks blessings from a web-based Veyron blesser which
 requires the caller to first authenticate with Google using OAuth. Simply
 run the command to see what happens.
 
-The blessings are sought for the principal specified by the environment
-(VEYRON_CREDENTIALS) that this tool is running in.
+The blessings are sought for the principal specified by the environment that
+this tool is running in.
 
 The blessings obtained are set as default, unless a --skip_set_default flag
 is provided, and are also set for sharing with all peers, unless a more
@@ -427,10 +405,7 @@ specific peer pattern is provided using the --for_peer flag.
 		Run: func(cmd *cmdline.Command, args []string) error {
 			// Initialize the runtime first so that any local errors are reported
 			// before the HTTP roundtrips for obtaining the macaroon begin.
-			r, err := runtime()
-			if err != nil {
-				return err
-			}
+			r := rt.Init()
 			blessedChan := make(chan string)
 			defer close(blessedChan)
 			macaroonChan, err := getMacaroonForBlessRPC(flagSeekBlessingsFrom, blessedChan)
@@ -512,21 +487,6 @@ All objects are printed using base64-VOM-encoding.
 `,
 		Children: []*cmdline.Command{cmdCreate, cmdSeekBlessings, cmdDump, cmdDumpBlessings, cmdBlessSelf, cmdBless, cmdStore},
 	}).Main()
-}
-
-func runtime() (veyron2.Runtime, error) {
-	if len(os.Getenv(VEYRON_CREDENTIALS)) == 0 {
-		return nil, fmt.Errorf("VEYRON_CREDENTIALS environment variable must be set")
-	}
-	return rt.Init(), nil
-}
-
-func principal() (security.Principal, error) {
-	r, err := runtime()
-	if err != nil {
-		return nil, err
-	}
-	return r.Principal(), nil
 }
 
 func decodeBlessings(fname string) (security.Blessings, error) {
