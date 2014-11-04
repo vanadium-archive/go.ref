@@ -21,7 +21,7 @@
 # # Gets binaries from local filesystem
 # ./nminstall <install parent dir> /path/to/binaries
 #
-# # Gets binaries from HTTP server (TODO(caprita): implement)
+# # Gets binaries from HTTP server
 # ./nminstall <install parent dir> http://host/path
 
 set -e
@@ -74,9 +74,10 @@ get_binaries() {
   local -r BIN_SOURCE="$2"
 
   local bin_names_str=""
-  for bin_name in ${BIN_NAMES[@]}; do
+  for bin_name in "${BIN_NAMES[@]}"; do
     bin_names_str+=" ${bin_name}"
   done
+
   # If source is not specified, try to look for it in the repository.
   if [[ -z "${BIN_SOURCE}" ]]; then
     if [[ -z "${VEYRON_ROOT}" ]]; then
@@ -85,7 +86,7 @@ get_binaries() {
     fi
     local -r REPO_BIN_DIR="${VEYRON_ROOT}/veyron/go/bin"
     echo "Fetching binaries:${bin_names_str} from build repository: ${REPO_BIN_DIR} ..."
-    for bin_name in ${BIN_NAMES[@]}; do
+    for bin_name in "${BIN_NAMES[@]}"; do
       copy_binary "${bin_name}" "${REPO_BIN_DIR}" "${BIN_INSTALL}"
     done
     return
@@ -95,8 +96,20 @@ get_binaries() {
   # look for the binaries there.
   if [[ -d "${BIN_SOURCE}" ]]; then
       echo "Fetching binaries:${bin_names_str} locally from: ${BIN_SOURCE} ..."
-      for bin_name in ${BIN_NAMES[@]}; do
+      for bin_name in "${BIN_NAMES[@]}"; do
         copy_binary "${bin_name}" "${BIN_SOURCE}" "${BIN_INSTALL}"
+      done
+      return
+  fi
+
+  # If the source looks like a URL, use HTTP to fetch.
+  local -r URL_REGEXP='^(https?|ftp|file)://'
+  if [[ "${BIN_SOURCE}" =~ ${URL_REGEXP} ]]; then
+    echo "Fetching binaries:${bin_names_str} remotely from: ${BIN_SOURCE} ..."
+      for bin_name in "${BIN_NAMES[@]}"; do
+        local DEST="${BIN_INSTALL}/${bin_name}"
+        curl -f -o "${DEST}" "${BIN_SOURCE}/${bin_name}"
+        chmod 700 "${DEST}"
       done
       return
   fi
@@ -132,6 +145,13 @@ main() {
   # Fetch the binaries.
   local -r BIN_SOURCE="$2"
   get_binaries "${BIN_INSTALL}" "${BIN_SOURCE}"
+  for bin_name in "${BIN_NAMES[@]}"; do
+    local BINARY="${BIN_INSTALL}/${bin_name}"
+    if [[ ! -s "${BINARY}" ]]; then
+      echo "${BINARY} is empty."
+      exit 1
+    fi
+  done
   echo "Binaries are in ${BIN_INSTALL}."
 
   # Set up the suidhelper.
