@@ -24,8 +24,11 @@ type dispatcher struct {
 	state *state
 }
 
-// newDispatcher is the dispatcher factory.
-func NewDispatcher(root string, depth int, authorizer security.Authorizer) (*dispatcher, error) {
+// TODO(caprita): Move this together with state into a new file, state.go.
+
+// NewState creates a new state object for the binary service.  This
+// should be passed into both NewDispatcher and NewHTTPRoot.
+func NewState(root string, depth int) (*state, error) {
 	if min, max := 0, md5.Size-1; min > depth || depth > max {
 		return nil, fmt.Errorf("Unexpected depth, expected a value between %v and %v, got %v", min, max, depth)
 	}
@@ -40,13 +43,18 @@ func NewDispatcher(root string, depth int, authorizer security.Authorizer) (*dis
 	if expected, got := Version, strings.TrimSpace(string(output)); expected != got {
 		return nil, fmt.Errorf("Unexpected version: expected %v, got %v", expected, got)
 	}
-	return &dispatcher{
-		auth: authorizer,
-		state: &state{
-			depth: depth,
-			root:  root,
-		},
+	return &state{
+		depth: depth,
+		root:  root,
 	}, nil
+}
+
+// NewDispatcher is the dispatcher factory.
+func NewDispatcher(state *state, authorizer security.Authorizer) ipc.Dispatcher {
+	return &dispatcher{
+		auth:  authorizer,
+		state: state,
+	}
 }
 
 // DISPATCHER INTERFACE IMPLEMENTATION

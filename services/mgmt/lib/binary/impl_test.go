@@ -41,10 +41,11 @@ func setupRepository(t *testing.T) (string, func()) {
 		t.Fatalf("NewServer() failed: %v", err)
 	}
 	depth := 2
-	dispatcher, err := impl.NewDispatcher(root, depth, nil)
+	state, err := impl.NewState(root, depth)
 	if err != nil {
-		t.Fatalf("NewDispatcher(%v, %v, %v) failed: %v", root, depth, nil, err)
+		t.Fatalf("NewState(%v, %v) failed: %v", root, depth, err)
 	}
+	dispatcher := impl.NewDispatcher(state, nil)
 	endpoint, err := server.Listen(profiles.LocalListenSpec)
 	if err != nil {
 		t.Fatalf("Listen(%s) failed: %v", profiles.LocalListenSpec, err)

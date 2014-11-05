@@ -4,7 +4,10 @@ import (
 	"bytes"
 	"crypto/md5"
 	"encoding/hex"
+	"fmt"
 	"io/ioutil"
+	"net"
+	"net/http"
 	"os"
 	"path/filepath"
 	"testing"
@@ -92,7 +95,7 @@ func invokeDownload(t *testing.T, binary repository.Binary, part int32) ([]byte,
 }
 
 // startServer starts the binary repository server.
-func startServer(t *testing.T, depth int) (repository.Binary, func()) {
+func startServer(t *testing.T, depth int) (repository.Binary, string, func()) {
 	// Setup the root of the binary repository.
 	root, err := ioutil.TempDir("", veyronPrefix)
 	if err != nil {
@@ -107,10 +110,20 @@ func startServer(t *testing.T, depth int) (repository.Binary, func()) {
 	if err != nil {
 		t.Fatalf("NewServer() failed: %v", err)
 	}
-	dispatcher, err := NewDispatcher(root, depth, nil)
+	state, err := NewState(root, depth)
 	if err != nil {
-		t.Fatalf("NewDispatcher(%v, %v, %v) failed: %v", root, depth, nil, err)
+		t.Fatalf("NewState(%v, %v) failed: %v", root, depth, err)
 	}
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	go func() {
+		if err := http.Serve(listener, http.FileServer(NewHTTPRoot(state))); err != nil {
+			vlog.Fatalf("Serve() failed: %v", err)
+		}
+	}()
+	dispatcher := NewDispatcher(state, nil)
 	endpoint, err := server.Listen(profiles.LocalListenSpec)
 	if err != nil {
 		t.Fatalf("Listen(%s) failed: %v", profiles.LocalListenSpec, err)
@@ -124,17 +137,17 @@ func startServer(t *testing.T, depth int) (repository.Binary, func()) {
 	if err != nil {
 		t.Fatalf("BindBinary(%v) failed: %v", name, err)
 	}
-	return binary, func() {
+	return binary, fmt.Sprintf("http://%s/test", listener.Addr()), func() {
 		// Shutdown the binary repository server.
 		if err := server.Stop(); err != nil {
 			t.Fatalf("Stop() failed: %v", err)
 		}
-		if err := os.Remove(path); err != nil {
+		if err := os.RemoveAll(path); err != nil {
 			t.Fatalf("Remove(%v) failed: %v", path, err)
 		}
 		// Check that any directories and files that were created to
 		// represent the binary objects have been garbage collected.
-		if err := os.Remove(root); err != nil {
+		if err := os.RemoveAll(root); err != nil {
 			t.Fatalf("Remove(%v) failed: %v", root, err)
 		}
 	}
@@ -145,7 +158,7 @@ func startServer(t *testing.T, depth int) (repository.Binary, func()) {
 // hierarchy that stores binary objects in the local file system.
 func TestHierarchy(t *testing.T) {
 	for i := 0; i < md5.Size; i++ {
-		binary, cleanup := startServer(t, i)
+		binary, _, cleanup := startServer(t, i)
 		defer cleanup()
 		// Create up to 4MB of random bytes.
 		size := testutil.Rand.Intn(1000 * bufferLength)
@@ -188,7 +201,7 @@ func TestHierarchy(t *testing.T) {
 // consists of.
 func TestMultiPart(t *testing.T) {
 	for length := 2; length < 5; length++ {
-		binary, cleanup := startServer(t, 2)
+		binary, _, cleanup := startServer(t, 2)
 		defer cleanup()
 		// Create <length> chunks of up to 4MB of random bytes.
 		data := make([][]byte, length)
@@ -209,7 +222,6 @@ func TestMultiPart(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Stat() failed: %v", err)
 		}
-		h := md5.New()
 		for i := 0; i < length; i++ {
 			hpart := md5.New()
 			output, streamErr, err := invokeDownload(t, binary, int32(i))
@@ -219,7 +231,6 @@ func TestMultiPart(t *testing.T) {
 			if bytes.Compare(output, data[i]) != 0 {
 				t.Fatalf("Unexpected output: expected %v, got %v", data[i], output)
 			}
-			h.Write(data[i])
 			hpart.Write(data[i])
 			checksum := hex.EncodeToString(hpart.Sum(nil))
 			if expected, got := checksum, parts[i].Checksum; expected != got {
@@ -240,7 +251,7 @@ func TestMultiPart(t *testing.T) {
 // of.
 func TestResumption(t *testing.T) {
 	for length := 2; length < 5; length++ {
-		binary, cleanup := startServer(t, 2)
+		binary, _, cleanup := startServer(t, 2)
 		defer cleanup()
 		// Create <length> chunks of up to 4MB of random bytes.
 		data := make([][]byte, length)
@@ -282,9 +293,9 @@ func TestResumption(t *testing.T) {
 
 // TestErrors checks that the binary interface correctly reports errors.
 func TestErrors(t *testing.T) {
-	binary, cleanup := startServer(t, 2)
+	binary, _, cleanup := startServer(t, 2)
 	defer cleanup()
-	length := 2
+	const length = 2
 	data := make([][]byte, length)
 	for i := 0; i < length; i++ {
 		size := testutil.Rand.Intn(1000 * bufferLength)
@@ -319,6 +330,20 @@ func TestErrors(t *testing.T) {
 	}
 	if _, streamErr, err := invokeDownload(t, binary, 0); streamErr != nil || err != nil {
 		t.Fatalf("Download() failed: %v", err)
+	}
+	// Upload/Download on a part number that's outside the range set forth in
+	// Create should fail.
+	for _, part := range []int32{-1, length} {
+		if _, err := invokeUpload(t, binary, []byte("dummy"), part); err == nil {
+			t.Fatalf("Upload() did not fail when it should have")
+		} else if want := verror.BadArg; !verror.Is(err, want) {
+			t.Fatalf("Unexpected error: %v, expected error id %v", err, want)
+		}
+		if _, _, err := invokeDownload(t, binary, part); err == nil {
+			t.Fatalf("Download() did not fail when it should have")
+		} else if want := verror.BadArg; !verror.Is(err, want) {
+			t.Fatalf("Unexpected error: %v, expected error id %v", err, want)
+		}
 	}
 	if err := binary.Delete(rt.R().NewContext()); err != nil {
 		t.Fatalf("Delete() failed: %v", err)
