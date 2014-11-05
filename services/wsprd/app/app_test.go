@@ -141,7 +141,7 @@ func startAnyServer(servesMT bool, dispatcher ipc.Dispatcher) (ipc.Server, namin
 		return nil, nil, err
 	}
 
-	if err := s.Serve("", dispatcher); err != nil {
+	if err := s.ServeDispatcher("", dispatcher); err != nil {
 		return nil, nil, err
 	}
 	return s, endpoint, nil
