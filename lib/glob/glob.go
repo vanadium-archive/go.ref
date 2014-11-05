@@ -25,8 +25,9 @@ import (
 
 // Glob represents a slash separated path glob expression.
 type Glob struct {
-	elems     []string
-	recursive bool
+	elems      []string
+	recursive  bool
+	restricted bool
 }
 
 // Parse returns a new Glob.
@@ -39,9 +40,15 @@ func Parse(pattern string) (*Glob, error) {
 	if pattern != "" {
 		g.elems = strings.Split(pattern, "/")
 	}
-	if last := len(g.elems) - 1; last >= 0 && g.elems[last] == "..." {
-		g.elems = g.elems[:last]
-		g.recursive = true
+	if last := len(g.elems) - 1; last >= 0 {
+		if g.elems[last] == "..." {
+			g.elems = g.elems[:last]
+			g.recursive = true
+		} else if g.elems[last] == "***" {
+			g.elems = g.elems[:last]
+			g.recursive = true
+			g.restricted = true
+		}
 	}
 
 	// The only error we can get from the filepath library is badpattern.
@@ -67,12 +74,18 @@ func (g *Glob) Finished() bool {
 	return !g.recursive && len(g.elems) == 0
 }
 
+// Restricted returns true if recursion is restricted (up to the caller to
+// know what that means).
+func (g *Glob) Restricted() bool {
+	return g.restricted
+}
+
 // Split returns the suffix of g starting at the path element corresponding to start.
 func (g *Glob) Split(start int) *Glob {
 	if start >= len(g.elems) {
-		return &Glob{elems: nil, recursive: g.recursive}
+		return &Glob{elems: nil, recursive: g.recursive, restricted: g.restricted}
 	}
-	return &Glob{elems: g.elems[start:], recursive: g.recursive}
+	return &Glob{elems: g.elems[start:], recursive: g.recursive, restricted: g.restricted}
 }
 
 // MatchInitialSegment tries to match segment against the initial element of g.
@@ -169,7 +182,11 @@ func (g *Glob) SplitFixedPrefix() ([]string, *Glob) {
 func (g *Glob) String() string {
 	e := g.elems
 	if g.recursive {
-		e = append(e, "...")
+		if g.restricted {
+			e = append(e, "***")
+		} else {
+			e = append(e, "...")
+		}
 	}
 	return filepath.Join(e...)
 }

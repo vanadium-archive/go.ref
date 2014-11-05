@@ -34,5 +34,7 @@ func convertServers(servers []types.MountedServer) []naming.MountedServer {
 }
 
 func convertMountEntry(e *types.MountEntry) *naming.MountEntry {
-	return &naming.MountEntry{Name: e.Name, MT: e.MT, Servers: convertServers(e.Servers)}
+	v := &naming.MountEntry{Name: e.Name, Servers: convertServers(e.Servers)}
+	v.SetServesMountTable(e.MT)
+	return v
 }

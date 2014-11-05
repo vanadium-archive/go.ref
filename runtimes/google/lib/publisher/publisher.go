@@ -190,11 +190,11 @@ type pubState struct {
 	ctx      context.T
 	ns       naming.Namespace
 	period   time.Duration
-	deadline time.Time                 // deadline for the next sync call
-	names    []string                  // names that have been added
-	servers  map[string]bool           // servers that have been added
-	servesMT map[string]bool           // true if server is a mount table server
-	mounts   map[mountKey]*mountStatus // map each (name,server) to its status
+	deadline time.Time       // deadline for the next sync call
+	names    []string        // names that have been added
+	servers  map[string]bool // servers that have been added, true
+	//   if server is a mount table server
+	mounts map[mountKey]*mountStatus // map each (name,server) to its status
 }
 
 type mountKey struct {
@@ -216,7 +216,6 @@ func newPubState(ctx context.T, ns naming.Namespace, period time.Duration) *pubS
 		period:   period,
 		deadline: time.Now().Add(period),
 		servers:  make(map[string]bool),
-		servesMT: make(map[string]bool),
 		mounts:   make(map[mountKey]*mountStatus),
 	}
 }
@@ -234,18 +233,17 @@ func (ps *pubState) addName(name string) {
 		}
 	}
 	ps.names = append(ps.names, name)
-	for server, _ := range ps.servers {
+	for server, servesMT := range ps.servers {
 		status := new(mountStatus)
 		ps.mounts[mountKey{name, server}] = status
-		ps.mount(name, server, status, ps.servesMT[server])
+		ps.mount(name, server, status, servesMT)
 	}
 }
 
 func (ps *pubState) addServer(server string, servesMT bool) {
 	// Each non-dup server that is added causes new mounts to be created for all
 	// existing names.
-	if !ps.servers[server] {
-		ps.servers[server] = true
+	if _, exists := ps.servers[server]; !exists {
 		ps.servers[server] = servesMT
 		for _, name := range ps.names {
 			status := new(mountStatus)
@@ -288,7 +286,7 @@ func (ps *pubState) sync() {
 			// Desired state is "unmounted", failed at previous attempt. Retry.
 			ps.unmount(key.name, key.server, status)
 		} else {
-			ps.mount(key.name, key.server, status, ps.servesMT[key.server])
+			ps.mount(key.name, key.server, status, ps.servers[key.server])
 		}
 	}
 }

@@ -9,6 +9,7 @@ import (
 
 	"veyron.io/veyron/veyron2/context"
 	"veyron.io/veyron/veyron2/naming"
+	"veyron.io/veyron/veyron2/options"
 	"veyron.io/veyron/veyron2/services/mounttable/types"
 	verror "veyron.io/veyron/veyron2/verror2"
 	"veyron.io/veyron/veyron2/vlog"
@@ -40,17 +41,26 @@ func (ns *namespace) globAtServer(ctx context.T, qe *queuedEntry, pattern *glob.
 		// query on since we know the server will not supply a new address for the
 		// current name.
 		if pattern.Finished() {
+			if !server.ServesMountTable() {
+				return nil
+			}
+			// TODO(p): soon to be unnecessary.
 			_, n := naming.SplitAddressName(s.Server)
 			if strings.HasPrefix(n, "//") {
 				return nil
 			}
 		}
 
+		// If this is restricted recursive and not a mount table, don't
+		// descend into it.
+		if pattern.Restricted() && !server.ServesMountTable() && pattern.Len() == 0 {
+			return nil
+		}
+
 		// Don't further resolve s.Server.
-		s := naming.MakeTerminal(s.Server)
 		callCtx, _ := ctx.WithTimeout(callTimeout)
 		client := ns.rt.Client()
-		call, err := client.StartCall(callCtx, s, "Glob", []interface{}{pstr})
+		call, err := client.StartCall(callCtx, s.Server, "Glob", []interface{}{pstr}, options.NoResolve(true))
 		if err != nil {
 			lastErr = err
 			continue // try another instance
@@ -79,6 +89,7 @@ func (ns *namespace) globAtServer(ctx context.T, qe *queuedEntry, pattern *glob.
 				},
 				depth: qe.depth,
 			}
+			x.me.SetServesMountTable(e.MT)
 			// x.depth is the number of severs we've walked through since we've gone
 			// recursive (i.e. with pattern length of 0).
 			if pattern.Len() == 0 {
@@ -102,29 +113,25 @@ func (ns *namespace) globAtServer(ctx context.T, qe *queuedEntry, pattern *glob.
 // Glob implements naming.MountTable.Glob.
 func (ns *namespace) Glob(ctx context.T, pattern string) (chan naming.MountEntry, error) {
 	defer vlog.LogCall()()
-	root, globPattern := naming.SplitAddressName(pattern)
-	g, err := glob.Parse(globPattern)
+	e, patternWasRooted := ns.rootMountEntry(pattern)
+	if len(e.Servers) == 0 {
+		return nil, verror.Make(naming.ErrNoMountTable, ctx)
+	}
+
+	// If pattern was already rooted, make sure we tack that root
+	// onto all returned names.  Otherwise, just return the relative
+	// name.
+	var prefix string
+	if patternWasRooted {
+		prefix = e.Servers[0].Server
+	}
+	g, err := glob.Parse(e.Name)
 	if err != nil {
 		return nil, err
 	}
-
-	// Add constant components of pattern to the servers' addresses and
-	// to the prefix.
-	//var prefixElements []string
-	//prefixElements, g = g.SplitFixedPrefix()
-	//prefix := strings.Join(prefixElements, "/")
-	prefix := ""
-	if len(root) != 0 {
-		prefix = naming.JoinAddressName(root, prefix)
-	}
-
-	// Start a thread to get the results and return the reply channel to the caller.
-	servers := ns.rootName(prefix)
-	if len(servers) == 0 {
-		return nil, verror.Make(naming.ErrNoMountTable, ctx)
-	}
+	e.Name = ""
 	reply := make(chan naming.MountEntry, 100)
-	go ns.globLoop(ctx, servers, prefix, g, reply)
+	go ns.globLoop(ctx, e, prefix, g, reply)
 	return reply, nil
 }
 
@@ -137,7 +144,7 @@ func depth(name string) int {
 	return strings.Count(name, "/") - strings.Count(name, "//") + 1
 }
 
-func (ns *namespace) globLoop(ctx context.T, servers []string, prefix string, pattern *glob.Glob, reply chan naming.MountEntry) {
+func (ns *namespace) globLoop(ctx context.T, e *naming.MountEntry, prefix string, pattern *glob.Glob, reply chan naming.MountEntry) {
 	defer close(reply)
 
 	// As we encounter new mount tables while traversing the Glob, we add them to the list 'l'.  The loop below
@@ -145,7 +152,7 @@ func (ns *namespace) globLoop(ctx context.T, servers []string, prefix string, pa
 	// server.  globAtServer will send on 'reply' any terminal entries that match the glob and add any new mount
 	// tables to be traversed to the list 'l'.
 	l := list.New()
-	l.PushBack(&queuedEntry{me: &naming.MountEntry{Name: "", Servers: convertStringsToServers(servers)}})
+	l.PushBack(&queuedEntry{me: e})
 	atRoot := true
 
 	// Perform a breadth first search of the name graph.
@@ -168,8 +175,7 @@ func (ns *namespace) globLoop(ctx context.T, servers []string, prefix string, pa
 			reply <- x
 		}
 
-		// 2. The current name fullfills the pattern and further servers did not respond
-		//    with "".  That is, we want to prefer foo/ over foo.
+		// 2. The current name fullfills the pattern.
 		if suffix.Len() == 0 && !atRoot {
 			x := *e.me
 			x.Name = naming.Join(prefix, x.Name)

@@ -358,7 +358,7 @@ func TestNamespaceDetails(t *testing.T) {
 		{"mt2", mts[mt4MP].name},
 		{"//mt2", mts[mt5MP].name},
 	} {
-		if err := ns.Mount(r.NewContext(), mp.name, mp.server, ttl); err != nil {
+		if err := ns.Mount(r.NewContext(), mp.name, mp.server, ttl, naming.ServesMountTableOpt(true)); err != nil {
 			boom(t, "Failed to Mount %s: %s", mp.name, err)
 		}
 	}
@@ -507,14 +507,21 @@ func TestGlobEarlyStop(t *testing.T) {
 	tests := []struct {
 		pattern       string
 		expectedCalls int
+		expected      []string
 	}{
-		{"mt4/foo/bar/glob", 0},
-		{"mt4/foo/bar/glob/...", 1},
-		{"mt4/foo/bar/*", 0},
+		{"mt4/foo/bar/glob", 0, []string{"mt4/foo/bar/glob"}},
+		{"mt4/foo/bar/glob/...", 1, []string{"mt4/foo/bar/glob"}},
+		{"mt4/foo/bar/glob/*", 1, nil},
+		{"mt4/foo/bar/***", 0, []string{"mt4/foo/bar", "mt4/foo/bar/glob"}},
+		{"mt4/foo/bar/...", 1, []string{"mt4/foo/bar", "mt4/foo/bar/glob"}},
+		{"mt4/foo/bar/*", 0, []string{"mt4/foo/bar/glob"}},
+		{"mt4/***/bar/***", 0, []string{"mt4/foo/bar", "mt4/foo/bar/glob"}},
+		{"mt4/*/bar/***", 0, []string{"mt4/foo/bar", "mt4/foo/bar/glob"}},
 	}
+	// Test allowing the tests to descend into leaves.
 	for _, test := range tests {
 		out := doGlob(t, r, ns, test.pattern, 0)
-		compare(t, "Glob", test.pattern, []string{"mt4/foo/bar/glob"}, out)
+		compare(t, "Glob", test.pattern, out, test.expected)
 		if calls := globServer.GetAndResetCount(); calls != test.expectedCalls {
 			boom(t, "Wrong number of Glob calls to terminal server got: %d want: %d.", calls, test.expectedCalls)
 		}
@@ -539,17 +546,17 @@ func TestCycles(t *testing.T) {
 	defer c3.server.Stop()
 
 	m := "c1/c2"
-	if err := ns.Mount(r.NewContext(), m, c1.name, ttl); err != nil {
+	if err := ns.Mount(r.NewContext(), m, c1.name, ttl, naming.ServesMountTableOpt(true)); err != nil {
 		boom(t, "Failed to Mount %s: %s", "c1/c2", err)
 	}
 
 	m = "c1/c2/c3"
-	if err := ns.Mount(r.NewContext(), m, c3.name, ttl); err != nil {
+	if err := ns.Mount(r.NewContext(), m, c3.name, ttl, naming.ServesMountTableOpt(true)); err != nil {
 		boom(t, "Failed to Mount %s: %s", m, err)
 	}
 
 	m = "c1/c3/c4"
-	if err := ns.Mount(r.NewContext(), m, c1.name, ttl); err != nil {
+	if err := ns.Mount(r.NewContext(), m, c1.name, ttl, naming.ServesMountTableOpt(true)); err != nil {
 		boom(t, "Failed to Mount %s: %s", m, err)
 	}
 

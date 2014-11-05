@@ -66,17 +66,10 @@ func terminal(e *naming.MountEntry) bool {
 	return true
 }
 
-func makeTerminal(names []string) (ret []string) {
-	for _, name := range names {
-		ret = append(ret, naming.MakeTerminal(name))
-	}
-	return
-}
-
 // ResolveX implements veyron2/naming.Namespace.
 func (ns *namespace) ResolveX(ctx context.T, name string) (*naming.MountEntry, error) {
 	defer vlog.LogCall()()
-	e := ns.rootMountEntry(name)
+	e, _ := ns.rootMountEntry(name)
 	if vlog.V(2) {
 		_, file, line, _ := runtime.Caller(1)
 		vlog.Infof("ResolveX(%s) called from %s:%d", name, file, line)
@@ -88,7 +81,7 @@ func (ns *namespace) ResolveX(ctx context.T, name string) (*naming.MountEntry, e
 	// Iterate walking through mount table servers.
 	for remaining := ns.maxResolveDepth; remaining > 0; remaining-- {
 		vlog.VI(2).Infof("ResolveX(%s) loop %v", name, *e)
-		if !e.MT || terminal(e) {
+		if !e.ServesMountTable() || terminal(e) {
 			vlog.VI(1).Infof("ResolveX(%s) -> %v", name, *e)
 			return e, nil
 		}
@@ -126,7 +119,7 @@ func (ns *namespace) Resolve(ctx context.T, name string) ([]string, error) {
 // ResolveToMountTableX implements veyron2/naming.Namespace.
 func (ns *namespace) ResolveToMountTableX(ctx context.T, name string) (*naming.MountEntry, error) {
 	defer vlog.LogCall()()
-	e := ns.rootMountEntry(name)
+	e, _ := ns.rootMountEntry(name)
 	if vlog.V(2) {
 		_, file, line, _ := runtime.Caller(1)
 		vlog.Infof("ResolveToMountTableX(%s) called from %s:%d", name, file, line)
@@ -141,7 +134,7 @@ func (ns *namespace) ResolveToMountTableX(ctx context.T, name string) (*naming.M
 		var err error
 		curr := e
 		// If the next name to resolve doesn't point to a mount table, we're done.
-		if !e.MT || terminal(e) {
+		if !e.ServesMountTable() || terminal(e) {
 			vlog.VI(1).Infof("ResolveToMountTableX(%s) -> %v", name, last)
 			return last, nil
 		}
@@ -196,9 +189,8 @@ func finishUnresolve(call ipc.Call) ([]string, error) {
 func unresolveAgainstServer(ctx context.T, client ipc.Client, names []string) ([]string, error) {
 	finalErr := errors.New("no servers to unresolve")
 	for _, name := range names {
-		name = naming.MakeTerminal(name)
 		callCtx, _ := ctx.WithTimeout(callTimeout)
-		call, err := client.StartCall(callCtx, name, "UnresolveStep", nil)
+		call, err := client.StartCall(callCtx, name, "UnresolveStep", nil, options.NoResolve(true))
 		if err != nil {
 			finalErr = err
 			vlog.VI(2).Infof("StartCall %q.UnresolveStep() failed: %s", name, err)

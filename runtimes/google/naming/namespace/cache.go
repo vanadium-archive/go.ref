@@ -96,7 +96,7 @@ func (c *ttlCache) remember(prefix string, entry *naming.MountEntry) {
 	for _, s := range entry.Servers {
 		ce.Servers = append(ce.Servers, s)
 	}
-	ce.MT = entry.MT
+	ce.SetServesMountTable(entry.ServesMountTable())
 	// All keys must be terminal.
 	prefix = naming.MakeTerminal(prefix)
 	c.Lock()

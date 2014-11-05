@@ -124,7 +124,7 @@ func TestFlushCacheEntry(t *testing.T) {
 		t.Errorf("%s should have caused something to flush", toflush)
 	}
 	name := preload[2].name
-	if _, ok := c.entries[name]; !ok {
+	if _, err := c.lookup(name); err != nil {
 		t.Errorf("%s should not have been flushed", name)
 	}
 	if len(c.entries) != 2 {

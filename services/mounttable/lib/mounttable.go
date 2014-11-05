@@ -275,7 +275,7 @@ func (ms *mountContext) Mount(context ipc.ServerContext, server string, ttlsecs 
 
 	// Make sure the server name is reasonable.
 	epString, _ := naming.SplitAddressName(server)
-	ep, err := rt.R().NewEndpoint(epString)
+	_, err := rt.R().NewEndpoint(epString)
 	if err != nil {
 		return fmt.Errorf("malformed address %q for mounted server %q", epString, server)
 	}
@@ -290,7 +290,9 @@ func (ms *mountContext) Mount(context ipc.ServerContext, server string, ttlsecs 
 	if hasReplaceFlag(flags) {
 		n.mount = nil
 	}
-	wantMT := hasMTFlag(flags) || ep.ServesMountTable()
+	// TODO(p): When the endpoint actually has the ServesMountTable bit,
+	// or this with ep.ServesMountTable().
+	wantMT := hasMTFlag(flags)
 	if n.mount == nil {
 		n.mount = &mount{servers: NewServerList(), mt: wantMT}
 	} else {
@@ -384,7 +386,11 @@ func (mt *mountTable) globStep(n *node, name string, pattern *glob.Glob, context
 			n.removeUseless()
 			return
 		}
-		sender.Send(types.MountEntry{Name: name, Servers: m.servers.copyToSlice()})
+		sender.Send(
+			types.MountEntry{
+				Name: name, Servers: m.servers.copyToSlice(),
+				MT: n.mount.mt,
+			})
 		return
 	}
 
