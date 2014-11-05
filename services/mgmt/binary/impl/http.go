@@ -29,7 +29,7 @@ type httpRoot struct {
 func (r httpRoot) Open(name string) (http.File, error) {
 	name = strings.TrimPrefix(name, "/")
 	vlog.Infof("HTTP handler opening %s", name)
-	parts, err := getParts(dir(name, r.state))
+	parts, err := getParts(r.state.dir(name))
 	if err != nil {
 		return nil, err
 	}

@@ -21,12 +21,10 @@ package impl
 import (
 	"crypto/md5"
 	"encoding/hex"
-	"fmt"
 	"io"
 	"io/ioutil"
 	"os"
 	"path/filepath"
-	"strconv"
 	"syscall"
 
 	"veyron.io/veyron/veyron2/ipc"
@@ -35,30 +33,6 @@ import (
 	"veyron.io/veyron/veyron2/verror"
 	"veyron.io/veyron/veyron2/vlog"
 )
-
-// state holds the state shared across different binary repository
-// invocations.
-type state struct {
-	// depth determines the depth of the directory hierarchy that the
-	// binary repository uses to organize binaries in the local file
-	// system. There is a trade-off here: smaller values lead to faster
-	// access, while higher values allow the performance to scale to
-	// larger collections of binaries. The number should be a value
-	// between 0 and (md5.Size - 1).
-	//
-	// Note that the cardinality of each level (except the leaf level)
-	// is at most 256. If you expect to have X total binary items, and
-	// you want to limit directories to at most Y entries (because of
-	// filesystem limitations), then you should set depth to at least
-	// log_256(X/Y). For example, using hierarchyDepth = 3 with a local
-	// filesystem that can handle up to 1,000 entries per directory
-	// before its performance degrades allows the binary repository to
-	// store 16B objects.
-	depth int
-	// root identifies the local filesystem directory in which the
-	// binary repository stores its objects.
-	root string
-}
 
 // invoker holds the state of a binary repository invocation.
 type invoker struct {
@@ -72,12 +46,6 @@ type invoker struct {
 	// be used as a relative object name to identify a binary.
 	suffix string
 }
-
-const (
-	checksum = "checksum"
-	data     = "data"
-	lock     = "lock"
-)
 
 var (
 	errExists          = verror.Existsf("binary already exists")
@@ -95,22 +63,10 @@ var MissingPart = binary.PartInfo{
 	Size:     binary.MissingSize,
 }
 
-// dir generates the local filesystem path for the binary identified by suffix.
-func dir(suffix string, state *state) string {
-	h := md5.New()
-	h.Write([]byte(suffix))
-	hash := hex.EncodeToString(h.Sum(nil))
-	dir := ""
-	for j := 0; j < state.depth; j++ {
-		dir = filepath.Join(dir, hash[j*2:(j+1)*2])
-	}
-	return filepath.Join(state.root, dir, hash)
-}
-
 // newInvoker is the invoker factory.
 func newInvoker(state *state, suffix string) *invoker {
 	return &invoker{
-		path:   dir(suffix, state),
+		path:   state.dir(suffix),
 		state:  state,
 		suffix: suffix,
 	}
@@ -119,69 +75,6 @@ func newInvoker(state *state, suffix string) *invoker {
 // BINARY INTERFACE IMPLEMENTATION
 
 const bufferLength = 4096
-
-// checksumExists checks whether the given part path is valid and
-// contains a checksum. The implementation uses the existence of
-// the path dir to determine whether the part is valid, and the
-// existence of checksum to determine whether the binary part
-// exists.
-func checksumExists(path string) error {
-	switch _, err := os.Stat(path); {
-	case os.IsNotExist(err):
-		return errInvalidPart
-	case err != nil:
-		vlog.Errorf("Stat(%v) failed: %v", path, err)
-		return errOperationFailed
-	}
-	checksumFile := filepath.Join(path, checksum)
-	_, err := os.Stat(checksumFile)
-	switch {
-	case os.IsNotExist(err):
-		return errNotFound
-	case err != nil:
-		vlog.Errorf("Stat(%v) failed: %v", checksumFile, err)
-		return errOperationFailed
-	default:
-		return nil
-	}
-}
-
-// generatePartPath generates a path for the given binary part.
-func (i *invoker) generatePartPath(part int) string {
-	return generatePartPath(i.path, part)
-}
-
-func generatePartPath(dir string, part int) string {
-	return filepath.Join(dir, fmt.Sprintf("%d", part))
-}
-
-// getParts returns a collection of paths to the parts of the binary.
-func getParts(path string) ([]string, error) {
-	infos, err := ioutil.ReadDir(path)
-	if err != nil {
-		vlog.Errorf("ReadDir(%v) failed: %v", path, err)
-		return []string{}, errOperationFailed
-	}
-	result := make([]string, len(infos))
-	for _, info := range infos {
-		if info.IsDir() {
-			partName := info.Name()
-			idx, err := strconv.Atoi(partName)
-			if err != nil {
-				vlog.Errorf("Atoi(%v) failed: %v", partName, err)
-				return []string{}, errOperationFailed
-			}
-			if idx < 0 || idx >= len(infos) || result[idx] != "" {
-				return []string{}, errOperationFailed
-			}
-			result[idx] = filepath.Join(path, partName)
-		} else {
-			// The only entries should correspond to the part dirs.
-			return []string{}, errOperationFailed
-		}
-	}
-	return result, nil
-}
 
 func (i *invoker) Create(_ ipc.ServerContext, nparts int32) error {
 	vlog.Infof("%v.Create(%v)", i.suffix, nparts)
