@@ -216,11 +216,13 @@ func (i *nodeInvoker) testNodeManager(ctx context.T, workspace string, envelope 
 
 	// Setup up the child process callback.
 	callbackState := i.callback
-	listener := callbackState.listenFor(mgmt.ChildNodeManagerConfigKey)
+	listener := callbackState.listenFor(mgmt.ChildNameConfigKey)
 	defer listener.cleanup()
 	cfg := vexec.NewConfig()
 
-	cfg.Set(mgmt.ParentNodeManagerConfigKey, listener.name())
+	cfg.Set(mgmt.ParentNameConfigKey, listener.name())
+	cfg.Set(mgmt.ProtocolConfigKey, "tcp")
+	cfg.Set(mgmt.AddressConfigKey, "127.0.0.1:0")
 	handle := vexec.NewParentHandle(cmd, vexec.ConfigOpt{cfg})
 	// Start the child process.
 	if err := handle.Start(); err != nil {

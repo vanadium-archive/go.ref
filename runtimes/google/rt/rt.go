@@ -126,10 +126,7 @@ func New(opts ...veyron2.ROpt) (veyron2.Runtime, error) {
 		return nil, err
 	}
 
-	// TODO(caprita, cnicolaou): how is this to be configured?
-	// Can it ever be anything other than a localhost/loopback address?
-	listenSpec := ipc.ListenSpec{Protocol: "tcp", Address: "127.0.0.1:0"}
-	if err := rt.mgmt.initMgmt(rt, listenSpec); err != nil {
+	if err := rt.mgmt.initMgmt(rt); err != nil {
 		return nil, err
 	}
 
