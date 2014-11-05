@@ -5,6 +5,7 @@ import (
 	"io"
 	"math"
 	"math/rand"
+	"regexp"
 	"strings"
 	"sync"
 	"time"
@@ -30,6 +31,11 @@ var (
 	errRemainingStreamResults = verror.BadProtocolf("ipc: Finish called with remaining streaming results")
 	errNonRootedName          = verror.BadArgf("ipc: cannot connect to a non-rooted name")
 )
+
+var serverPatternRegexp = regexp.MustCompile("^\\[([^\\]]+)\\](.*)")
+
+// TODO(ribrdb): Flip this to true once everything is updated.
+const enableSecureServerAuth = false
 
 type client struct {
 	streamMgr stream.Manager
@@ -228,6 +234,9 @@ func (c *client) startCall(ctx context.T, name, method string, args []interface{
 // tryCall makes a single attempt at a call.
 func (c *client) tryCall(ctx context.T, name, method string, args []interface{}, opts []ipc.CallOpt) (ipc.Call, verror.E) {
 	ctx, _ = vtrace.WithNewSpan(ctx, fmt.Sprintf("Client Call: %s.%s", name, method))
+
+	_, serverPattern, name := splitObjectName(name)
+
 	// Resolve name unless told not to.
 	var servers []string
 	if getNoResolveOpt(opts) {
@@ -258,7 +267,7 @@ func (c *client) tryCall(ctx context.T, name, method string, args []interface{},
 		// and thus wanted to skip authorization as well.
 		if flow.LocalPrincipal() != nil {
 			// Validate caveats on the server's identity for the context associated with this call.
-			if serverB, grantedB, err = c.authorizeServer(flow, name, suffix, method, opts); err != nil {
+			if serverB, grantedB, err = c.authorizeServer(flow, name, suffix, method, serverPattern, opts); err != nil {
 				lastErr = verror.NoAccessf("ipc: client unwilling to invoke %q.%q on server %v: %v", name, method, flow.RemoteBlessings(), err)
 				flow.Close()
 				continue
@@ -306,17 +315,23 @@ func (c *client) tryCall(ctx context.T, name, method string, args []interface{},
 // the RPC name.method for the client (local end of the flow). It returns the blessings at the
 // server that are authorized for this purpose and any blessings that are to be granted to
 // the server (via ipc.Granter implementations in opts.)
-func (c *client) authorizeServer(flow stream.Flow, name, suffix, method string, opts []ipc.CallOpt) (serverBlessings []string, grantedBlessings security.Blessings, err error) {
+func (c *client) authorizeServer(flow stream.Flow, name, suffix, method string, serverPattern security.BlessingPattern, opts []ipc.CallOpt) (serverBlessings []string, grantedBlessings security.Blessings, err error) {
 	if flow.RemoteBlessings() == nil {
 		return nil, nil, fmt.Errorf("server has not presented any blessings")
 	}
-	serverBlessings = flow.RemoteBlessings().ForContext(serverAuthContext{flow, time.Now()})
+	ctxt := serverAuthContext{flow, time.Now()}
+	serverBlessings = flow.RemoteBlessings().ForContext(ctxt)
+	if serverPattern != "" {
+		if !serverPattern.MatchedBy(serverBlessings...) {
+			return nil, nil, fmt.Errorf("server %v does not match the provided pattern %q", serverBlessings, serverPattern)
+		}
+	} else if enableSecureServerAuth {
+		if err := (defaultAuthorizer{}).Authorize(ctxt); err != nil {
+			return nil, nil, fmt.Errorf("default authorization precludes talking to server %v", serverBlessings)
+		}
+	}
 	for _, o := range opts {
 		switch v := o.(type) {
-		case options.RemoteID:
-			if !security.BlessingPattern(v).MatchedBy(serverBlessings...) {
-				return nil, nil, fmt.Errorf("server %v does not match the provided pattern %q", serverBlessings, v)
-			}
 		case ipc.Granter:
 			if b, err := v.Grant(flow.RemoteBlessings()); err != nil {
 				return nil, nil, fmt.Errorf("failed to grant blessing to server %v: %v", serverBlessings, err)
@@ -580,3 +595,28 @@ func (serverAuthContext) Name() string                              { return "" 
 func (serverAuthContext) Suffix() string                            { return "" }
 func (serverAuthContext) Label() (l security.Label)                 { return l }
 func (serverAuthContext) Discharges() map[string]security.Discharge { return nil }
+
+func splitObjectName(name string) (mtPattern, serverPattern security.BlessingPattern, objectName string) {
+	objectName = name
+	match := serverPatternRegexp.FindSubmatch([]byte(name))
+	if match != nil {
+		objectName = string(match[2])
+		if naming.Rooted(objectName) {
+			mtPattern = security.BlessingPattern(match[1])
+		} else {
+			serverPattern = security.BlessingPattern(match[1])
+			return
+		}
+	}
+	if !naming.Rooted(objectName) {
+		return
+	}
+
+	address, relative := naming.SplitAddressName(objectName)
+	match = serverPatternRegexp.FindSubmatch([]byte(relative))
+	if match != nil {
+		serverPattern = security.BlessingPattern(match[1])
+		objectName = naming.JoinAddressName(address, string(match[2]))
+	}
+	return
+}
