@@ -14,11 +14,11 @@ import (
 func TestFlags(t *testing.T) {
 	fs := flag.NewFlagSet("test", flag.ContinueOnError)
 	if flags.CreateAndRegister(fs) != nil {
-		t.Errorf("should have failed")
+		t.Fatalf("should have returned a nil value")
 	}
 	fl := flags.CreateAndRegister(fs, flags.Runtime)
 	if fl == nil {
-		t.Fatalf("should have returned a non-nil value")
+		t.Errorf("should have failed")
 	}
 	creds := "creddir"
 	roots := []string{"ab:cd:ef"}
@@ -42,6 +42,26 @@ func TestFlags(t *testing.T) {
 	}
 }
 
+func TestACLFlags(t *testing.T) {
+	fs := flag.NewFlagSet("test", flag.ContinueOnError)
+	fl := flags.CreateAndRegister(fs, flags.Runtime, flags.ACL)
+	args := []string{"--veyron.acl=veyron:foo.json", "--veyron.acl=bar:bar.json", "--veyron.acl=baz:bar:baz.json"}
+	fl.Parse(args)
+	aclf := fl.ACLFlags()
+	if got, want := aclf.ACLFile("veyron"), "foo.json"; got != want {
+		t.Errorf("got %t, want %t", got, want)
+	}
+	if got, want := aclf.ACLFile("bar"), "bar.json"; got != want {
+		t.Errorf("got %t, want %t", got, want)
+	}
+	if got, want := aclf.ACLFile("wombat"), ""; got != want {
+		t.Errorf("got %t, want %t", got, want)
+	}
+	if got, want := aclf.ACLFile("baz"), "bar:baz.json"; got != want {
+		t.Errorf("got %t, want %t", got, want)
+	}
+}
+
 func TestFlagError(t *testing.T) {
 	fs := flag.NewFlagSet("test", flag.ContinueOnError)
 	fs.SetOutput(ioutil.Discard)
@@ -54,6 +74,15 @@ func TestFlagError(t *testing.T) {
 	}
 	if got, want := len(fl.Args()), 1; got != want {
 		t.Errorf("got %d, want %d [args: %v]", got, want, fl.Args())
+	}
+
+	fs = flag.NewFlagSet("test", flag.ContinueOnError)
+	fs.SetOutput(ioutil.Discard)
+	fl = flags.CreateAndRegister(fs, flags.ACL)
+	args = []string{"--veyron.acl=noname"}
+	err = fl.Parse(args)
+	if err == nil {
+		t.Fatalf("expected this to fail!")
 	}
 }
 
@@ -138,12 +167,16 @@ func TestDefaults(t *testing.T) {
 	os.Setenv(rootEnvVar, "")
 	os.Setenv(rootEnvVar0, "")
 
-	fl := flags.CreateAndRegister(flag.NewFlagSet("test", flag.ContinueOnError), flags.Runtime)
+	fl := flags.CreateAndRegister(flag.NewFlagSet("test", flag.ContinueOnError), flags.Runtime, flags.ACL)
 	if err := fl.Parse([]string{}); err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
 	rtf := fl.RuntimeFlags()
 	if got, want := rtf.NamespaceRoots, []string{"/proxy.envyor.com:8101"}; !reflect.DeepEqual(got, want) {
+		t.Errorf("got %q, want %q", got, want)
+	}
+	aclf := fl.ACLFlags()
+	if got, want := aclf.ACLFile("veyron"), "acl.json"; got != want {
 		t.Errorf("got %q, want %q", got, want)
 	}
 }

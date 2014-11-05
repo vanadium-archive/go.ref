@@ -24,9 +24,13 @@ const (
 	// --veyron.tcp.address
 	// --veyron.proxy
 	Listen
+	// --veyron.acl (which may be repeated to supply multiple values)
+	ACL
 )
 
 const defaultNamespaceRoot = "/proxy.envyor.com:8101"
+const defaultACLName = "veyron"
+const defaultACLFile = "acl.json"
 
 // Flags represents the set of flag groups created by a call to
 // CreateAndRegister.
@@ -46,11 +50,35 @@ func (nsr *namespaceRootFlagVar) String() string {
 
 func (nsr *namespaceRootFlagVar) Set(v string) error {
 	if !nsr.isSet {
-		// override the default value and
+		// override the default value
 		nsr.isSet = true
 		nsr.roots = []string{}
 	}
 	nsr.roots = append(nsr.roots, v)
+	return nil
+}
+
+type aclFlagVar struct {
+	isSet bool
+	files map[string]string
+}
+
+func (aclf *aclFlagVar) String() string {
+	return fmt.Sprintf("%v", aclf.files)
+}
+
+func (aclf *aclFlagVar) Set(v string) error {
+	if !aclf.isSet {
+		// override the default value
+		aclf.isSet = true
+		aclf.files = make(map[string]string)
+	}
+	parts := strings.SplitN(v, ":", 2)
+	if len(parts) != 2 {
+		return fmt.Errorf("%q is not in 'name:file' format", v)
+	}
+	name, file := parts[0], parts[1]
+	aclf.files[name] = file
 	return nil
 }
 
@@ -66,6 +94,17 @@ type RuntimeFlags struct {
 	Credentials string // TODO(cnicolaou): provide flag.Value impl
 
 	namespaceRootsFlag namespaceRootFlagVar
+}
+
+// ACLFlags contains the values of the ACLFlags flag group.
+type ACLFlags struct {
+	flag aclFlagVar
+}
+
+// ACLFile returns the file which is presumed to contain ACL information
+// associated with the supplied name parameter.
+func (af ACLFlags) ACLFile(name string) string {
+	return af.flag.files[name]
 }
 
 // ListenFlags contains the values of the Listen flag group.
@@ -85,8 +124,16 @@ func createAndRegisterRuntimeFlags(fs *flag.FlagSet) *RuntimeFlags {
 	} else {
 		f.namespaceRootsFlag.roots = roots
 	}
+
 	fs.Var(&f.namespaceRootsFlag, "veyron.namespace.root", "local namespace root; can be repeated to provided multiple roots")
 	fs.StringVar(&f.Credentials, "veyron.credentials", creds, "directory to use for storing security credentials")
+	return f
+}
+
+func createAndRegisterACLFlags(fs *flag.FlagSet) *ACLFlags {
+	f := &ACLFlags{}
+	f.flag.files = map[string]string{defaultACLName: defaultACLFile}
+	fs.Var(&f.flag, "veyron.acl", "specify an acl file as <name>:<aclfile>")
 	return f
 }
 
@@ -116,6 +163,8 @@ func CreateAndRegister(fs *flag.FlagSet, groups ...FlagGroup) *Flags {
 			f.groups[Runtime] = createAndRegisterRuntimeFlags(fs)
 		case Listen:
 			f.groups[Listen] = createAndRegisterListenFlags(fs)
+		case ACL:
+			f.groups[ACL] = createAndRegisterACLFlags(fs)
 		}
 	}
 	return f
@@ -143,6 +192,17 @@ func (f *Flags) ListenFlags() ListenFlags {
 		return *(p.(*ListenFlags))
 	}
 	return ListenFlags{}
+}
+
+// ACLFlags returns a copy of the ACL flag group stored in Flags.
+// This copy will contain default values if the ACL flag group
+// was not specified when CreateAndRegister was called. The HasGroup
+// method can be used for testing to see if any given group was configured.
+func (f *Flags) ACLFlags() ACLFlags {
+	if p := f.groups[ACL]; p != nil {
+		return *(p.(*ACLFlags))
+	}
+	return ACLFlags{}
 }
 
 // HasGroup returns group if the supplied FlagGroup has been created
