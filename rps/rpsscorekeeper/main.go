@@ -41,7 +41,6 @@ func main() {
 	ch := make(chan rps.ScoreCard)
 	rpsService := &impl{ch}
 
-	dispatcher := ipc.LeafDispatcher(rps.NewServerScoreKeeper(rpsService), sflag.NewAuthorizerOrDie())
 	ep, err := server.Listen(roaming.ListenSpec)
 	if err != nil {
 		vlog.Fatalf("Listen(%v) failed: %v", roaming.ListenSpec, err)
@@ -50,7 +49,7 @@ func main() {
 	if err != nil {
 		vlog.Fatalf("os.Hostname failed: %v", err)
 	}
-	if err := server.Serve(fmt.Sprintf("rps/scorekeeper/%s", hostname), dispatcher); err != nil {
+	if err := server.Serve(fmt.Sprintf("rps/scorekeeper/%s", hostname), rps.NewServerScoreKeeper(rpsService), sflag.NewAuthorizerOrDie()); err != nil {
 		vlog.Fatalf("Serve failed: %v", err)
 	}
 	vlog.Infof("Listening on endpoint /%s", ep)

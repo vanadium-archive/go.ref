@@ -18,7 +18,6 @@ import (
 	mtlib "veyron.io/veyron/veyron/services/mounttable/lib"
 
 	"veyron.io/veyron/veyron2"
-	"veyron.io/veyron/veyron2/ipc"
 	"veyron.io/veyron/veyron2/naming"
 	"veyron.io/veyron/veyron2/options"
 	"veyron.io/veyron/veyron2/rt"
@@ -36,8 +35,8 @@ func startMountTable(t *testing.T, runtime veyron2.Runtime) (string, func()) {
 	if err != nil {
 		t.Fatalf("Listen(%v) failed: %v", profiles.LocalListenSpec, err)
 	}
-	if err := server.Serve("", dispatcher); err != nil {
-		t.Fatalf("Serve(%v) failed: %v", dispatcher, err)
+	if err := server.ServeDispatcher("", dispatcher); err != nil {
+		t.Fatalf("ServeDispatcher(%v) failed: %v", dispatcher, err)
 	}
 	address := naming.JoinAddressName(endpoint.String(), "")
 	vlog.VI(1).Infof("Mount table running at endpoint: %s", address)
@@ -60,12 +59,12 @@ func startRockPaperScissors(t *testing.T, rt veyron2.Runtime, mtAddress string) 
 	if _, err = server.Listen(profiles.LocalListenSpec); err != nil {
 		t.Fatalf("Listen failed: %v", err)
 	}
-	disp := ipc.LeafDispatcher(rps.NewServerRockPaperScissors(rpsService), nil)
 	names := []string{"rps/judge/test", "rps/player/test", "rps/scorekeeper/test"}
-	for _, n := range names {
-		if err := server.Serve(n, disp); err != nil {
-			t.Fatalf("Serve(%v) failed: %v", n, err)
-		}
+	if err := server.Serve(names[0], rps.NewServerRockPaperScissors(rpsService), nil); err != nil {
+		t.Fatalf("Serve(%v) failed: %v", names[0], err)
+	}
+	for _, n := range names[1:] {
+		server.AddName(n)
 	}
 	return rpsService, func() {
 		if err := server.Stop(); err != nil {

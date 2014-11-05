@@ -8,7 +8,6 @@ import (
 	"os"
 	"strings"
 
-	"veyron.io/veyron/veyron2/ipc"
 	"veyron.io/veyron/veyron2/rt"
 	"veyron.io/veyron/veyron2/vlog"
 
@@ -66,14 +65,13 @@ func main() {
 		fmt.Sprintf("tunnel/hostname/%s", hostname),
 		fmt.Sprintf("tunnel/hwaddr/%s", hwaddr),
 	}
-	dispatcher := ipc.LeafDispatcher(tunnel.NewServerTunnel(&T{}), auth)
 	published := false
-	for _, n := range names {
-		if err := server.Serve(n, dispatcher); err != nil {
-			vlog.Infof("Serve(%v) failed: %v", n, err)
-			continue
-		}
-		published = true
+	if err := server.Serve(names[0], tunnel.NewServerTunnel(&T{}), auth); err != nil {
+		vlog.Infof("Serve(%v) failed: %v", names[0], err)
+	}
+	published = true
+	for _, n := range names[1:] {
+		server.AddName(n)
 	}
 	if !published {
 		vlog.Fatalf("Failed to publish with any of %v", names)

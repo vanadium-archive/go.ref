@@ -13,7 +13,6 @@ import (
 	"time"
 
 	"veyron.io/veyron/veyron2/context"
-	"veyron.io/veyron/veyron2/ipc"
 	"veyron.io/veyron/veyron2/rt"
 	"veyron.io/veyron/veyron2/vlog"
 
@@ -43,8 +42,6 @@ func main() {
 	rand.Seed(time.Now().UnixNano())
 	rpsService := NewRPS()
 
-	dispatcher := ipc.LeafDispatcher(rps.NewServerRockPaperScissors(rpsService), auth)
-
 	ep, err := server.Listen(roaming.ListenSpec)
 	if err != nil {
 		vlog.Fatalf("Listen(%v) failed: %v", roaming.ListenSpec, err)
@@ -58,7 +55,7 @@ func main() {
 		fmt.Sprintf("rps/scorekeeper/%s", *name),
 	}
 	for _, n := range names {
-		if err := server.Serve(n, dispatcher); err != nil {
+		if err := server.Serve(n, rps.NewServerRockPaperScissors(rpsService), auth); err != nil {
 			vlog.Fatalf("Serve(%v) failed: %v", n, err)
 		}
 	}

@@ -109,7 +109,6 @@ func recvChallenge(rt veyron2.Runtime) gameChallenge {
 	}
 	ch := make(chan gameChallenge)
 
-	dispatcher := ipc.LeafDispatcher(rps.NewServerPlayer(&impl{ch: ch}), sflag.NewAuthorizerOrDie())
 	ep, err := server.Listen(roaming.ListenSpec)
 	if err != nil {
 		vlog.Fatalf("Listen(%v) failed: %v", roaming.ListenSpec, err)
@@ -117,7 +116,7 @@ func recvChallenge(rt veyron2.Runtime) gameChallenge {
 	if *name == "" {
 		*name = common.CreateName()
 	}
-	if err := server.Serve(fmt.Sprintf("rps/player/%s", *name), dispatcher); err != nil {
+	if err := server.Serve(fmt.Sprintf("rps/player/%s", *name), rps.NewServerPlayer(&impl{ch: ch}), sflag.NewAuthorizerOrDie()); err != nil {
 		vlog.Fatalf("Serve failed: %v", err)
 	}
 	vlog.Infof("Listening on endpoint /%s", ep)
