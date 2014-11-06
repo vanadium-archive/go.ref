@@ -85,9 +85,27 @@ func BindMyObject(name string, opts ..._gen_ipc.BindOpt) (MyObject, error) {
 // It takes a regular server implementing the MyObjectService
 // interface, and returns a new server stub.
 func NewServerMyObject(server MyObjectService) interface{} {
-	return &ServerStubMyObject{
+	stub := &ServerStubMyObject{
 		service: server,
 	}
+	var gs _gen_ipc.GlobState
+	var self interface{} = stub
+	// VAllGlobber is implemented by the server object, which is wrapped in
+	// a VDL generated server stub.
+	if x, ok := self.(_gen_ipc.VAllGlobber); ok {
+		gs.VAllGlobber = x
+	}
+	// VAllGlobber is implemented by the server object without using a VDL
+	// generated stub.
+	if x, ok := server.(_gen_ipc.VAllGlobber); ok {
+		gs.VAllGlobber = x
+	}
+	// VChildrenGlobber is implemented in the server object.
+	if x, ok := server.(_gen_ipc.VChildrenGlobber); ok {
+		gs.VChildrenGlobber = x
+	}
+	stub.gs = &gs
+	return stub
 }
 
 // clientStubMyObject implements MyObject.
@@ -196,6 +214,7 @@ func (__gen_c *clientStubMyObject) GetMethodTags(ctx _gen_context.T, method stri
 // the requirements of veyron2/ipc.ReflectInvoker.
 type ServerStubMyObject struct {
 	service MyObjectService
+	gs      *_gen_ipc.GlobState
 }
 
 func (__gen_s *ServerStubMyObject) GetMethodTags(call _gen_ipc.ServerCall, method string) ([]interface{}, error) {
@@ -273,6 +292,10 @@ func (__gen_s *ServerStubMyObject) UnresolveStep(call _gen_ipc.ServerCall) (repl
 		reply[i] = _gen_naming.Join(p, call.Name())
 	}
 	return
+}
+
+func (__gen_s *ServerStubMyObject) VGlob() *_gen_ipc.GlobState {
+	return __gen_s.gs
 }
 
 func (__gen_s *ServerStubMyObject) Get(call _gen_ipc.ServerCall) (err error) {
