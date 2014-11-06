@@ -23,11 +23,33 @@ func main() {
 // WSPR instance represents an instance on a PPAPI client and receives callbacks from PPAPI to handle events.
 type wsprInstance struct {
 	ppapi.Instance
+	fs ppapi.FileSystem
 }
 
-var _ ppapi.InstanceHandlers = wsprInstance{}
+var _ ppapi.InstanceHandlers = &wsprInstance{}
 
-func (inst wsprInstance) DidCreate(args map[string]string) bool {
+const wsprKeyDir = "/wspr/keys"
+
+func (inst *wsprInstance) initFileSystem() {
+	var err error
+	// Create a filesystem.
+	if inst.fs, err = inst.CreateFileSystem(ppapi.PP_FILESYSTEMTYPE_LOCALPERSISTENT); err != nil {
+		panic(err.Error())
+	}
+	if ty := inst.fs.Type(); ty != ppapi.PP_FILESYSTEMTYPE_LOCALPERSISTENT {
+		panic(fmt.Errorf("unexpected filesystem type: %d", ty))
+	}
+	// Open filesystem with expected size of 2K
+	if err = inst.fs.OpenFS(1 << 11); err != nil {
+		panic(fmt.Errorf("failed to open filesystem:%s", err))
+	}
+	// Create directory to store wspr keys
+	if err = inst.fs.MkdirAll(wsprKeyDir); err != nil {
+		panic(fmt.Errorf("failed to create directory:%s", err))
+	}
+}
+
+func (wsprInstance) DidCreate(args map[string]string) bool {
 	fmt.Printf("Got to DidCreate")
 	return true
 }
@@ -59,26 +81,55 @@ func (wsprInstance) Graphics3DContextLost() {
 }
 
 // StartWSPR handles starting WSPR.
-func (wsprInstance) StartWSPR(message ppapi.Var) {
-	// HACK!!
-	// TODO(ataly, ashankar, bprosnitz): The private key should be
-	// generated/retrieved by directly talking to some secure storage
-	// in Chrome, e.g. LocalStorage (and not from the config as below).
-	pemKey, err := message.LookupStringValuedKey("pemPrivateKey")
-	if err != nil {
-		panic(err.Error())
-	}
+func (inst *wsprInstance) StartWSPR(message ppapi.Var) {
+	var ecdsaKey *ecdsa.PrivateKey
+	wsprKeyFile := wsprKeyDir + "/privateKey.pem."
 
-	// TODO(ataly, ashankr, bprosnitz): Figure out whether we need
-	// passphrase protection here (most likely we do but how do we
-	// request the passphrase from the user?)
-	key, err := vsecurity.LoadPEMKey(bytes.NewBufferString(pemKey), nil)
-	if err != nil {
-		panic(err.Error())
-	}
-	ecdsaKey, ok := key.(*ecdsa.PrivateKey)
-	if !ok {
-		panic(fmt.Errorf("got key of type %T, want *ecdsa.PrivateKey", key))
+	// See whether we have any cached keys for WSPR
+	if rFile, err := inst.fs.Open(wsprKeyFile); err == nil {
+		fmt.Print("Opening cached wspr ecdsaPrivateKey")
+		defer rFile.Release()
+		key, err := vsecurity.LoadPEMKey(rFile, nil)
+		if err != nil {
+			panic(fmt.Errorf("failed to load wspr key:%s", err))
+		}
+		var ok bool
+		if ecdsaKey, ok = key.(*ecdsa.PrivateKey); !ok {
+			panic(fmt.Errorf("got key of type %T, want *ecdsa.PrivateKey", key))
+		}
+	} else {
+		if pemKey, err := message.LookupStringValuedKey("pemPrivateKey"); err == nil {
+			fmt.Print("Using ecdsaPrivateKey from incoming request")
+			key, err := vsecurity.LoadPEMKey(bytes.NewBufferString(pemKey), nil)
+			if err != nil {
+				panic(err.Error())
+			}
+			var ok bool
+			ecdsaKey, ok = key.(*ecdsa.PrivateKey)
+			if !ok {
+				panic(fmt.Errorf("got key of type %T, want *ecdsa.PrivateKey", key))
+			}
+		} else {
+			fmt.Print("Generating new wspr ecdsaPrivateKey")
+			// Generate new keys and store them.
+			var err error
+			if _, ecdsaKey, err = vsecurity.NewKey(); err != nil {
+				panic(fmt.Errorf("failed to generate security key:%s", err))
+			}
+		}
+		// Persist the keys in a local file.
+		wFile, err := inst.fs.Create(wsprKeyFile)
+		if err != nil {
+			panic(fmt.Errorf("failed to create file to persist wspr keys:%s", err))
+		}
+		defer wFile.Release()
+		var b bytes.Buffer
+		if err = vsecurity.SavePEMKey(&b, ecdsaKey, nil); err != nil {
+			panic(fmt.Errorf("failed to save wspr key:%s", err))
+		}
+		if n, err := wFile.Write(b.Bytes()); n != b.Len() || err != nil {
+			panic(fmt.Errorf("failed to write wspr key:%s", err))
+		}
 	}
 
 	principal, err := vsecurity.NewPrincipalFromSigner(security.NewInMemoryECDSASigner(ecdsaKey))
@@ -140,8 +191,8 @@ func (wsprInstance) StartWSPR(message ppapi.Var) {
 // HandleMessage receives messages from Javascript and uses them to perform actions.
 // A message is of the form {"type": "typeName", "body": { stuff here }},
 // where the body is passed to the message handler.
-func (inst wsprInstance) HandleMessage(message ppapi.Var) {
-	fmt.Printf("Entered HandleMessage")
+func (inst *wsprInstance) HandleMessage(message ppapi.Var) {
+	fmt.Printf("Entered HandleMessage\n")
 	type handlerType func(ppapi.Var)
 	handlerMap := map[string]handlerType{
 		"start": inst.StartWSPR,
@@ -167,5 +218,7 @@ func (wsprInstance) MouseLockLost() {
 }
 
 func newWsprInstance(inst ppapi.Instance) ppapi.InstanceHandlers {
-	return wsprInstance{Instance: inst}
+	wspr := &wsprInstance{Instance: inst}
+	wspr.initFileSystem()
+	return wspr
 }
