@@ -43,8 +43,8 @@ func main() {
 		os.Exit(1)
 	}
 	name := *mountName
-	if err := mtServer.Serve(name, mt); err != nil {
-		vlog.Errorf("Serve(%v) failed: %v", name, err)
+	if err := mtServer.ServeDispatcher(name, mt); err != nil {
+		vlog.Errorf("ServeDispatcher(%v) failed: %v", name, err)
 		os.Exit(1)
 	}
 
@@ -77,8 +77,8 @@ func main() {
 			vlog.Errorf("NewNeighborhoodServer failed: %v", err)
 			os.Exit(1)
 		}
-		if err := nhServer.Serve(naming.JoinAddressName(myObjectName, "//nh"), nh); err != nil {
-			vlog.Errorf("nhServer.Serve failed to register neighborhood: %v", err)
+		if err := nhServer.ServeDispatcher(naming.JoinAddressName(myObjectName, "//nh"), nh); err != nil {
+			vlog.Errorf("nhServer.ServeDispatcher failed to register neighborhood: %v", err)
 			os.Exit(1)
 		}
 	}

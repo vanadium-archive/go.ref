@@ -193,7 +193,7 @@ func run(t *testing.T, sr veyron2.Runtime, disp ipc.Dispatcher, mountPoint strin
 	if err != nil {
 		boom(t, "Failed to Listen: %s", err)
 	}
-	if err := s.Serve(mountPoint, disp); err != nil {
+	if err := s.ServeDispatcher(mountPoint, disp); err != nil {
 		boom(t, "Failed to serve mount table at %s: %s", mountPoint, err)
 	}
 	name := naming.JoinAddressName(ep.String(), "")

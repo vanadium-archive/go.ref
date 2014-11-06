@@ -4,7 +4,6 @@ import (
 	"flag"
 	"os"
 
-	"veyron.io/veyron/veyron2/ipc"
 	"veyron.io/veyron/veyron2/rt"
 	"veyron.io/veyron/veyron2/services/mgmt/build"
 	"veyron.io/veyron/veyron2/vlog"
@@ -36,7 +35,7 @@ func main() {
 		vlog.Errorf("Listen(%s) failed: %v", roaming.ListenSpec, err)
 		return
 	}
-	if err := server.Serve(*name, ipc.LeafDispatcher(build.NewServerBuilder(impl.NewInvoker(*gobin, *goroot)), vflag.NewAuthorizerOrDie())); err != nil {
+	if err := server.Serve(*name, build.NewServerBuilder(impl.NewInvoker(*gobin, *goroot)), vflag.NewAuthorizerOrDie()); err != nil {
 		vlog.Errorf("Serve(%v) failed: %v", *name, err)
 		return
 	}

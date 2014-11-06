@@ -47,7 +47,11 @@ type server struct {
 	stoppedChan      chan struct{}                     // closed when the server has been stopped.
 	ns               naming.Namespace
 	servesMountTable bool
-	reservedOpt      options.ReservedNameDispatcher
+	// TODO(cnicolaou): remove this when the publisher tracks published names
+	// and can return an appropriate error for RemoveName on a name that
+	// wasn't 'Added' for this server.
+	names       map[string]struct{}
+	reservedOpt options.ReservedNameDispatcher
 	// TODO(cnicolaou): add roaming stats to ipcStats
 	stats *ipcStats // stats for this server.
 }
@@ -533,48 +537,63 @@ func (s *server) dhcpLoop(dhcpl *dhcpListener) {
 	}
 }
 
-func (s *server) Serve(name string, obj interface{}) error {
+func (s *server) Serve(name string, obj interface{}, authorizer security.Authorizer) error {
 	if obj == nil {
-		// nil is an allowed value for obj.
-		return s.ServeDispatcher(name, ipc.Dispatcher(nil))
+		// The ReflectInvoker inside the LeafDispatcher will panic
+		// if called for a nil value.
+		return fmt.Errorf("A nil object is not allowed")
 	}
-	// TRANSITION: this will be disallowed when the transition is complete.
-	if disp, ok := obj.(ipc.Dispatcher); ok {
-		return s.ServeDispatcher(name, disp)
-	}
-	// TRANSITION: We may fail the dispatcher type test, but still be a
-	// dispatcher becase our Lookup method returns ipc.Invoker and not a
-	// raw object. This code here will detect that case and panic as an aid
-	// to catching these cases early.
-	typ := reflect.TypeOf(obj)
-	if lookup, found := typ.MethodByName("Lookup"); found {
-		if lookup.Type.NumIn() == 3 && lookup.Type.NumOut() == 3 {
-			inv := lookup.Type.Out(0)
-			if inv.Name() == "Invoker" {
-				panic(fmt.Sprintf("%q has a Lookup that returns an Invoker", lookup.Name))
-			}
-		}
-	}
-	// TRANSITION: this will go away in the transition.
-	panic("should never get here")
+	return s.ServeDispatcher(name, ipc.LeafDispatcher(obj, authorizer))
 }
 
 func (s *server) ServeDispatcher(name string, disp ipc.Dispatcher) error {
-	defer vlog.LogCall()()
 	s.Lock()
 	defer s.Unlock()
 	if s.stopped {
 		return errServerStopped
 	}
-	if s.disp != nil && disp != nil && s.disp != disp {
-		return fmt.Errorf("attempt to change dispatcher")
+	if disp == nil {
+		return fmt.Errorf("A nil dispacther is not allowed")
 	}
-	if disp != nil {
-		s.disp = disp
+	if s.disp != nil {
+		return fmt.Errorf("Serve or ServeDispatcher has already been called")
 	}
+	s.disp = disp
+	s.names = make(map[string]struct{})
 	if len(name) > 0 {
 		s.publisher.AddName(name)
+		s.names[name] = struct{}{}
 	}
+	return nil
+}
+
+func (s *server) AddName(name string) error {
+	s.Lock()
+	defer s.Unlock()
+	if s.stopped {
+		return errServerStopped
+	}
+	if len(name) == 0 {
+		return fmt.Errorf("empty name")
+	}
+	s.publisher.AddName(name)
+	// TODO(cnicolaou): remove this map when the publisher's RemoveName
+	// method returns an error.
+	s.names[name] = struct{}{}
+	return nil
+}
+
+func (s *server) RemoveName(name string) error {
+	s.Lock()
+	defer s.Unlock()
+	if s.stopped {
+		return errServerStopped
+	}
+	if _, present := s.names[name]; !present {
+		return fmt.Errorf("%q has not been previously used for this server", name)
+	}
+	s.publisher.RemoveName(name)
+	delete(s.names, name)
 	return nil
 }
 

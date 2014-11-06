@@ -131,7 +131,7 @@ func TestClientServerBlessings(t *testing.T) {
 	} else {
 		serverObjectName = naming.JoinAddressName(endpoint.String(), "")
 	}
-	if err := server.Serve("", ipc.LeafDispatcher(testService{}, vsecurity.NewACLAuthorizer(vsecurity.OpenACL()))); err != nil {
+	if err := server.Serve("", testService{}, vsecurity.NewACLAuthorizer(vsecurity.OpenACL())); err != nil {
 		t.Fatal(err)
 	}
 	// Let it rip!

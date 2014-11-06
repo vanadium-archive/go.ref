@@ -56,7 +56,7 @@ func (m *mgmtImpl) initMgmt(rt *vrt, listenSpec ipc.ListenSpec) error {
 	if ep, err = m.server.Listen(listenSpec); err != nil {
 		return err
 	}
-	if err := m.server.Serve("", ipc.LeafDispatcher(appcycle.NewServerAppCycle(m), nil)); err != nil {
+	if err := m.server.Serve("", appcycle.NewServerAppCycle(m), nil); err != nil {
 		return err
 	}
 	return m.callbackToParent(parentName, naming.JoinAddressName(ep.String(), ""))

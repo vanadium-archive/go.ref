@@ -129,7 +129,7 @@ func startServer(t *testing.T, depth int) (repository.Binary, string, func()) {
 		t.Fatalf("Listen(%s) failed: %v", profiles.LocalListenSpec, err)
 	}
 	dontPublishName := ""
-	if err := server.Serve(dontPublishName, dispatcher); err != nil {
+	if err := server.ServeDispatcher(dontPublishName, dispatcher); err != nil {
 		t.Fatalf("Serve(%q) failed: %v", dontPublishName, err)
 	}
 	name := naming.JoinAddressName(endpoint.String(), "//test")

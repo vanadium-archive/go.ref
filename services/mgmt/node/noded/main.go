@@ -65,7 +65,7 @@ func main() {
 	if err != nil {
 		vlog.Fatalf("Failed to create dispatcher: %v", err)
 	}
-	if err := server.Serve(*publishAs, dispatcher); err != nil {
+	if err := server.ServeDispatcher(*publishAs, dispatcher); err != nil {
 		vlog.Fatalf("Serve(%v) failed: %v", *publishAs, err)
 	}
 	impl.InvokeCallback(name)

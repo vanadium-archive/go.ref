@@ -85,7 +85,6 @@ func (d *dispatcher) Lookup(suffix, method string) (interface{}, security.Author
 }
 
 func startServer(t *testing.T, r veyron2.Runtime) (ipc.Server, naming.Endpoint, error) {
-	dispatcher := NewDispatcher()
 	server, err := r.NewServer()
 	if err != nil {
 		t.Errorf("NewServer failed: %v", err)
@@ -96,8 +95,8 @@ func startServer(t *testing.T, r veyron2.Runtime) (ipc.Server, naming.Endpoint, 
 		t.Errorf("Listen failed: %v", err)
 		return nil, nil, err
 	}
-	if err := server.Serve("", dispatcher); err != nil {
-		t.Errorf("Serve failed: %v", err)
+	if err := server.ServeDispatcher("", NewDispatcher()); err != nil {
+		t.Errorf("ServeDispatcher failed: %v", err)
 		return nil, nil, err
 	}
 	return server, endpoint, nil

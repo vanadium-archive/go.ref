@@ -8,7 +8,6 @@ import (
 	"strings"
 	"testing"
 
-	"veyron.io/veyron/veyron2/ipc"
 	"veyron.io/veyron/veyron2/rt"
 	"veyron.io/veyron/veyron2/services/mgmt/build"
 
@@ -58,7 +57,7 @@ func startServer(t *testing.T) (build.Builder, func()) {
 		t.Fatalf("Listen(%s) failed: %v", profiles.LocalListenSpec, err)
 	}
 	unpublished := ""
-	if err := server.Serve(unpublished, ipc.LeafDispatcher(build.NewServerBuilder(NewInvoker(gobin, goroot)), nil)); err != nil {
+	if err := server.Serve(unpublished, build.NewServerBuilder(NewInvoker(gobin, goroot)), nil); err != nil {
 		t.Fatalf("Serve(%q) failed: %v", unpublished, err)
 	}
 	name := "/" + endpoint.String()

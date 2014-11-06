@@ -13,6 +13,9 @@ import (
 	"veyron.io/veyron/veyron2/vlog"
 )
 
+// TODO(cnicolaou): have the done channel return an error so
+// that the publisher calls can return errors also.
+
 // Publisher manages the publishing of servers in mounttable.
 type Publisher interface {
 	// AddServer adds a new server to be mounted.
@@ -21,6 +24,8 @@ type Publisher interface {
 	RemoveServer(server string)
 	// AddName adds a new name for all servers to be mounted as.
 	AddName(name string)
+	// RemoveName removes a name.
+	RemoveName(name string)
 	// Published returns the published names rooted at the mounttable.
 	Published() []string
 	// DebugString returns a string representation of the publisher
@@ -58,8 +63,13 @@ type removeServerCmd struct {
 	done   chan struct{} // closed when the cmd is done
 }
 
-type nameCmd struct {
+type addNameCmd struct {
 	name string        // name to add
+	done chan struct{} // closed when the cmd is done
+}
+
+type removeNameCmd struct {
+	name string        // name to remove
 	done chan struct{} // closed when the cmd is done
 }
 
@@ -104,7 +114,14 @@ func (p *publisher) RemoveServer(server string) {
 
 func (p *publisher) AddName(name string) {
 	done := make(chan struct{})
-	if p.sendCmd(nameCmd{name, done}) {
+	if p.sendCmd(addNameCmd{name, done}) {
+		<-done
+	}
+}
+
+func (p *publisher) RemoveName(name string) {
+	done := make(chan struct{})
+	if p.sendCmd(removeNameCmd{name, done}) {
 		<-done
 	}
 }
@@ -167,8 +184,11 @@ func runLoop(ctx context.T, cmdchan chan interface{}, donechan chan struct{}, ns
 			case removeServerCmd:
 				state.removeServer(tcmd.server)
 				close(tcmd.done)
-			case nameCmd:
+			case addNameCmd:
 				state.addName(tcmd.name)
+				close(tcmd.done)
+			case removeNameCmd:
+				state.removeName(tcmd.name)
 				close(tcmd.done)
 			case publishedCmd:
 				tcmd <- state.published()
@@ -190,11 +210,12 @@ type pubState struct {
 	ctx      context.T
 	ns       naming.Namespace
 	period   time.Duration
-	deadline time.Time       // deadline for the next sync call
-	names    []string        // names that have been added
-	servers  map[string]bool // servers that have been added, true
+	deadline time.Time                 // deadline for the next sync call
+	names    map[string]bool           // names that have been added
+	servers  map[string]bool           // servers that have been added, true
+	servesMT map[string]bool           // true if server is a mount table server
+	mounts   map[mountKey]*mountStatus // map each (name,server) to its status
 	//   if server is a mount table server
-	mounts map[mountKey]*mountStatus // map each (name,server) to its status
 }
 
 type mountKey struct {
@@ -215,6 +236,7 @@ func newPubState(ctx context.T, ns naming.Namespace, period time.Duration) *pubS
 		ns:       ns,
 		period:   period,
 		deadline: time.Now().Add(period),
+		names:    make(map[string]bool),
 		servers:  make(map[string]bool),
 		mounts:   make(map[mountKey]*mountStatus),
 	}
@@ -227,12 +249,10 @@ func (ps *pubState) timeout() <-chan time.Time {
 func (ps *pubState) addName(name string) {
 	// Each non-dup name that is added causes new mounts to be created for all
 	// existing servers.
-	for _, n := range ps.names {
-		if n == name {
-			return
-		}
+	if ps.names[name] {
+		return
 	}
-	ps.names = append(ps.names, name)
+	ps.names[name] = true
 	for server, servesMT := range ps.servers {
 		status := new(mountStatus)
 		ps.mounts[mountKey{name, server}] = status
@@ -240,12 +260,24 @@ func (ps *pubState) addName(name string) {
 	}
 }
 
+func (ps *pubState) removeName(name string) {
+	if !ps.names[name] {
+		return
+	}
+	for server, _ := range ps.servers {
+		if status, exists := ps.mounts[mountKey{name, server}]; exists {
+			ps.unmount(name, server, status)
+		}
+	}
+	delete(ps.names, name)
+}
+
 func (ps *pubState) addServer(server string, servesMT bool) {
 	// Each non-dup server that is added causes new mounts to be created for all
 	// existing names.
-	if _, exists := ps.servers[server]; !exists {
+	if !ps.servers[server] {
 		ps.servers[server] = servesMT
-		for _, name := range ps.names {
+		for name, _ := range ps.names {
 			status := new(mountStatus)
 			ps.mounts[mountKey{name, server}] = status
 			ps.mount(name, server, status, servesMT)
@@ -258,7 +290,7 @@ func (ps *pubState) removeServer(server string) {
 		return
 	}
 	delete(ps.servers, server)
-	for _, name := range ps.names {
+	for name, _ := range ps.names {
 		if status, exists := ps.mounts[mountKey{name, server}]; exists {
 			ps.unmount(name, server, status)
 		}
@@ -310,7 +342,7 @@ func (ps *pubState) unmountAll() {
 
 func (ps *pubState) published() []string {
 	var ret []string
-	for _, name := range ps.names {
+	for name, _ := range ps.names {
 		e, err := ps.ns.ResolveToMountTableX(ps.ctx, name)
 		if err != nil {
 			vlog.Errorf("ipc pub: couldn't resolve %v to mount table: %v", name, err)
@@ -327,6 +359,7 @@ func (ps *pubState) published() []string {
 	return ret
 }
 
+// TODO(toddw): sort the names/servers so that the output order is stable.
 func (ps *pubState) debugString() string {
 	l := make([]string, 2+len(ps.mounts))
 	l = append(l, fmt.Sprintf("Publisher period:%v deadline:%v", ps.period, ps.deadline))

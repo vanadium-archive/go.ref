@@ -55,7 +55,7 @@ func TestNeighborhood(t *testing.T) {
 		boom(t, "Failed to create neighborhood server: %s\n", err)
 	}
 	defer nhd.Stop()
-	if err := server.Serve("", nhd); err != nil {
+	if err := server.ServeDispatcher("", nhd); err != nil {
 		boom(t, "Failed to register neighborhood server: %s", err)
 	}
 

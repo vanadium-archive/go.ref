@@ -35,9 +35,8 @@ func startMockRepos(t *testing.T) (*application.Envelope, func()) {
 func startApplicationRepository() (*application.Envelope, func()) {
 	server, _ := newServer()
 	invoker := new(arInvoker)
-	dispatcher := ipc.LeafDispatcher(repository.NewServerApplication(invoker), nil)
 	name := mockApplicationRepoName
-	if err := server.Serve(name, dispatcher); err != nil {
+	if err := server.Serve(name, repository.NewServerApplication(invoker), nil); err != nil {
 		vlog.Fatalf("Serve(%v) failed: %v", name, err)
 	}
 	return &invoker.envelope, func() {
@@ -68,9 +67,8 @@ type brInvoker struct{}
 // returns a cleanup function.
 func startBinaryRepository() func() {
 	server, _ := newServer()
-	dispatcher := ipc.LeafDispatcher(repository.NewServerBinary(new(brInvoker)), nil)
 	name := mockBinaryRepoName
-	if err := server.Serve(name, dispatcher); err != nil {
+	if err := server.Serve(name, repository.NewServerBinary(new(brInvoker)), nil); err != nil {
 		vlog.Fatalf("Serve(%q) failed: %v", name, err)
 	}
 	return func() {

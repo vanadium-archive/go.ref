@@ -6,7 +6,6 @@ import (
 	"testing"
 
 	"veyron.io/veyron/veyron2"
-	"veyron.io/veyron/veyron2/ipc"
 	"veyron.io/veyron/veyron2/naming"
 	"veyron.io/veyron/veyron2/rt"
 	"veyron.io/veyron/veyron2/security"
@@ -33,7 +32,7 @@ func revokerSetup(t *testing.T) (dischargerKey security.PublicKey, dischargerEnd
 		t.Fatalf("dischargerServer.Listen failed: %v", err)
 	}
 	dischargerServiceStub := services.NewServerDischarger(discharger.NewDischarger())
-	if err := dischargerServer.Serve("", ipc.LeafDispatcher(dischargerServiceStub, nil)); err != nil {
+	if err := dischargerServer.Serve("", dischargerServiceStub, nil); err != nil {
 		t.Fatalf("dischargerServer.Serve revoker: %s", err)
 	}
 	return r.Principal().PublicKey(),

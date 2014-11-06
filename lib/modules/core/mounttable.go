@@ -58,7 +58,7 @@ func runMT(root bool, stdin io.Reader, stdout, stderr io.Writer, env map[string]
 	if err != nil {
 		return fmt.Errorf("server.Listen failed: %s", err)
 	}
-	if err := server.Serve(mp, mt); err != nil {
+	if err := server.ServeDispatcher(mp, mt); err != nil {
 		return fmt.Errorf("root failed: %s", err)
 	}
 	name := naming.JoinAddressName(ep.String(), "")

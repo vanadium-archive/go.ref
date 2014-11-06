@@ -26,8 +26,8 @@ func main() {
 	}
 	vlog.VI(0).Infof("Listening on %v", ep)
 	name := ""
-	if err := server.Serve(name, dispatcher); err != nil {
-		vlog.Errorf("Serve(%v) failed: %v", name, err)
+	if err := server.ServeDispatcher(name, dispatcher); err != nil {
+		vlog.Errorf("ServeDispatcher(%v) failed: %v", name, err)
 		return
 	}
 

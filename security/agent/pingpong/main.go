@@ -58,7 +58,7 @@ func serverMain() {
 	auth := vsecurity.NewACLAuthorizer(security.ACL{In: map[security.BlessingPattern]security.LabelSet{
 		security.AllPrincipals: security.AllLabels,
 	}})
-	if err := s.Serve("pingpong", ipc.LeafDispatcher(serverPong, auth)); err != nil {
+	if err := s.Serve("pingpong", serverPong, auth); err != nil {
 		log.Fatal("error serving service: ", err)
 	}
 

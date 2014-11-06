@@ -153,7 +153,7 @@ func TestProxy(t *testing.T) {
 	if _, err := server.Listen(spec); err != nil {
 		t.Fatal(err)
 	}
-	if err := server.Serve("mountpoint/server", testServerDisp{&testServer{}}); err != nil {
+	if err := server.ServeDispatcher("mountpoint/server", testServerDisp{&testServer{}}); err != nil {
 		t.Fatal(err)
 	}
 	verifyMount(t, ns, name)
@@ -200,7 +200,7 @@ func runServer(stdin io.Reader, stdout, stderr io.Writer, env map[string]string,
 		return fmt.Errorf("InternalNewServer failed: %v", err)
 	}
 	disp := testServerDisp{new(testServer)}
-	if err := server.Serve("server", disp); err != nil {
+	if err := server.ServeDispatcher("server", disp); err != nil {
 		return fmt.Errorf("server.Register failed: %v", err)
 	}
 	spec := listenSpec

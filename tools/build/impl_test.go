@@ -49,7 +49,7 @@ func startServer(t *testing.T) (ipc.Server, naming.Endpoint) {
 		t.Fatalf("Listen(%s) failed: %v", profiles.LocalListenSpec, err)
 	}
 	unpublished := ""
-	if err := server.Serve(unpublished, ipc.LeafDispatcher(build.NewServerBuilder(&mock{}), nil)); err != nil {
+	if err := server.Serve(unpublished, build.NewServerBuilder(&mock{}), nil); err != nil {
 		t.Fatalf("Serve(%v) failed: %v", unpublished, err)
 	}
 	return server, endpoint

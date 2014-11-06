@@ -193,7 +193,7 @@ func setupServices(r veyron2.Runtime, revocationManager *revocation.RevocationMa
 
 	dispatcher := newDispatcher(googleParams, macaroonKey)
 	objectname := naming.Join("identity", fmt.Sprintf("%v", r.Principal().BlessingStore().Default()))
-	if err := server.Serve(objectname, dispatcher); err != nil {
+	if err := server.ServeDispatcher(objectname, dispatcher); err != nil {
 		return nil, nil, fmt.Errorf("failed to start Veyron services: %v", err)
 	}
 	vlog.Infof("Google blessing and discharger services enabled at %v", naming.JoinAddressName(ep.String(), objectname))

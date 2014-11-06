@@ -167,7 +167,7 @@ func nodeManager(stdin io.Reader, stdout, stderr io.Writer, env map[string]strin
 	if err != nil {
 		vlog.Fatalf("Failed to create node manager dispatcher: %v", err)
 	}
-	if err := server.Serve(publishName, dispatcher); err != nil {
+	if err := server.ServeDispatcher(publishName, dispatcher); err != nil {
 		vlog.Fatalf("Serve(%v) failed: %v", publishName, err)
 	}
 	impl.InvokeCallback(name)
@@ -239,7 +239,7 @@ func app(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args 
 	defer rt.R().Cleanup()
 	server, _ := newServer()
 	defer server.Stop()
-	if err := server.Serve(publishName, ipc.LeafDispatcher(new(appService), nil)); err != nil {
+	if err := server.Serve(publishName, new(appService), nil); err != nil {
 		vlog.Fatalf("Serve(%v) failed: %v", publishName, err)
 	}
 	ping()
@@ -497,7 +497,7 @@ func (p pingServerDisp) Ping(_ ipc.ServerCall, arg string) {
 func setupPingServer(t *testing.T) (<-chan string, func()) {
 	server, _ := newServer()
 	pingCh := make(chan string, 1)
-	if err := server.Serve("pingserver", ipc.LeafDispatcher(pingServerDisp(pingCh), nil)); err != nil {
+	if err := server.Serve("pingserver", pingServerDisp(pingCh), nil); err != nil {
 		t.Fatalf("Serve(%q, <dispatcher>) failed: %v", "pingserver", err)
 	}
 	return pingCh, func() {
@@ -1329,7 +1329,7 @@ func TestAppWithSuidHelper(t *testing.T) {
 	server, _ := newServer()
 	defer server.Stop()
 	pingCh := make(chan string, 1)
-	if err := server.Serve("pingserver", ipc.LeafDispatcher(pingServerDisp(pingCh), nil)); err != nil {
+	if err := server.Serve("pingserver", pingServerDisp(pingCh), nil); err != nil {
 		t.Fatalf("Serve(%q, <dispatcher>) failed: %v", "pingserver", err)
 	}
 

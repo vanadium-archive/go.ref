@@ -51,7 +51,7 @@ func setupRepository(t *testing.T) (string, func()) {
 		t.Fatalf("Listen(%s) failed: %v", profiles.LocalListenSpec, err)
 	}
 	suffix := ""
-	if err := server.Serve(suffix, dispatcher); err != nil {
+	if err := server.ServeDispatcher(suffix, dispatcher); err != nil {
 		t.Fatalf("Serve(%v, %v) failed: %v", suffix, dispatcher, err)
 	}
 	von := naming.JoinAddressName(endpoint.String(), "//test")

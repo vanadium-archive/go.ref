@@ -16,7 +16,7 @@ import (
 func TestProxyInvoker(t *testing.T) {
 	r := rt.R()
 
-	// server1 is a normal server with a nil dispatcher.
+	// server1 is a normal server
 	server1, err := r.NewServer()
 	if err != nil {
 		t.Fatalf("NewServer: %v", err)
@@ -27,7 +27,7 @@ func TestProxyInvoker(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Listen: %v", err)
 	}
-	if err := server1.Serve("", nil); err != nil {
+	if err := server1.Serve("", &dummy{}, nil); err != nil {
 		t.Fatalf("server1.Serve: %v", err)
 	}
 
@@ -46,7 +46,7 @@ func TestProxyInvoker(t *testing.T) {
 		security.Label(security.AllLabels),
 		&stats.ServerStubStats{},
 	}
-	if err := server2.Serve("", disp); err != nil {
+	if err := server2.ServeDispatcher("", disp); err != nil {
 		t.Fatalf("server2.Serve: %v", err)
 	}
 
@@ -94,6 +94,10 @@ func doGlob(t *testing.T, name, pattern string) []string {
 	sort.Strings(results)
 	return results
 }
+
+type dummy struct{}
+
+func (*dummy) Method(_ ipc.ServerCall) error { return nil }
 
 type proxyDispatcher struct {
 	remote  string

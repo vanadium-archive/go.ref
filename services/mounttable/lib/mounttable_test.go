@@ -176,7 +176,7 @@ func newMT(t *testing.T, acl string) (ipc.Server, string) {
 	if err != nil {
 		boom(t, "Failed to Listen mount table: %s", err)
 	}
-	if err := server.Serve("", mt); err != nil {
+	if err := server.ServeDispatcher("", mt); err != nil {
 		boom(t, "Failed to register mock collection: %s", err)
 	}
 	estr := e.String()
@@ -197,7 +197,7 @@ func newCollection(t *testing.T, acl string) (ipc.Server, string) {
 	// Add a collection service.  This is just a service we can mount
 	// and test against.
 	cPrefix := "collection"
-	if err := server.Serve(cPrefix, newCollectionServer()); err != nil {
+	if err := server.ServeDispatcher(cPrefix, newCollectionServer()); err != nil {
 		boom(t, "Failed to register mock collection: %s", err)
 	}
 	estr := e.String()

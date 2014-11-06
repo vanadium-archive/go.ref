@@ -39,7 +39,7 @@ func main() {
 	if err != nil {
 		vlog.Fatalf("Listen(%s) failed: %v", roaming.ListenSpec, err)
 	}
-	if err := server.Serve(*name, dispatcher); err != nil {
+	if err := server.ServeDispatcher(*name, dispatcher); err != nil {
 		vlog.Fatalf("Serve(%v) failed: %v", *name, err)
 	}
 	vlog.Infof("Application repository running at endpoint=%q", endpoint)

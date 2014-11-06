@@ -38,7 +38,7 @@ func startServer(t *testing.T) (string, func()) {
 		t.Fatalf("Listen failed: %v", err)
 		return "", nil
 	}
-	if err := server.Serve("", disp); err != nil {
+	if err := server.ServeDispatcher("", disp); err != nil {
 		t.Fatalf("Serve failed: %v", err)
 		return "", nil
 	}

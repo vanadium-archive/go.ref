@@ -114,7 +114,7 @@ func makeTestServer(ns naming.Namespace, name, child string, forceCollect bool) 
 		forceCollect: forceCollect,
 	}
 
-	if err := s.Serve(name, ipc.LeafDispatcher(c, fakeAuthorizer(0))); err != nil {
+	if err := s.Serve(name, c, fakeAuthorizer(0)); err != nil {
 		return nil, err
 	}
 

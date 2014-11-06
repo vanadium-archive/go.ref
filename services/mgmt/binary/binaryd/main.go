@@ -89,8 +89,8 @@ func main() {
 		vlog.Errorf("Listen(%s) failed: %v", roaming.ListenSpec, err)
 		return
 	}
-	if err := server.Serve(*name, impl.NewDispatcher(state, auth)); err != nil {
-		vlog.Errorf("Serve(%v) failed: %v", *name, err)
+	if err := server.ServeDispatcher(*name, impl.NewDispatcher(state, auth)); err != nil {
+		vlog.Errorf("ServeDispatcher(%v) failed: %v", *name, err)
 		return
 	}
 	vlog.Infof("Binary repository running at endpoint=%q", endpoint)

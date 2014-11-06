@@ -45,7 +45,7 @@ func TestInterface(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Listen(%s) failed: %v", profiles.LocalListenSpec, err)
 	}
-	if err := server.Serve("", dispatcher); err != nil {
+	if err := server.ServeDispatcher("", dispatcher); err != nil {
 		t.Fatalf("Serve(%v) failed: %v", dispatcher, err)
 	}
 

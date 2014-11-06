@@ -180,10 +180,10 @@ func startServer(t *testing.T, principal security.Principal, sm stream.Manager, 
 	}
 	vlog.VI(1).Info("server.Serve")
 	disp := testServerDisp{ts}
-	if err := server.Serve("mountpoint/server", disp); err != nil {
+	if err := server.ServeDispatcher("mountpoint/server", disp); err != nil {
 		t.Errorf("server.Publish failed: %v", err)
 	}
-	if err := server.Serve("mountpoint/discharger", disp); err != nil {
+	if err := server.AddName("mountpoint/discharger"); err != nil {
 		t.Errorf("server.Publish for discharger failed: %v", err)
 	}
 	return ep, server
@@ -208,7 +208,7 @@ func stopServer(t *testing.T, server ipc.Server, ns naming.Namespace) {
 	verifyMount(t, ns, n1)
 
 	// publish a second name
-	if err := server.Serve(n2, nil); err != nil {
+	if err := server.AddName(n2); err != nil {
 		t.Errorf("server.Serve failed: %v", err)
 	}
 	verifyMount(t, ns, n2)
@@ -221,7 +221,7 @@ func stopServer(t *testing.T, server ipc.Server, ns naming.Namespace) {
 	verifyMountMissing(t, ns, n2)
 
 	// Check that we can no longer serve after Stop.
-	err := server.Serve("name doesn't matter", nil)
+	err := server.AddName("name doesn't matter")
 	if err == nil || err.Error() != "ipc: server is stopped" {
 		t.Errorf("either no error, or a wrong error was returned: %v", err)
 	}
@@ -267,7 +267,7 @@ func matchesErrorPattern(err error, pattern string) bool {
 	return err == nil || strings.Index(err.Error(), pattern) >= 0
 }
 
-func TestMultipleCallsToServe(t *testing.T) {
+func TestMultipleCallsToServeAndName(t *testing.T) {
 	sm := imanager.InternalNew(naming.FixedRoutingID(0x555555555))
 	ns := tnaming.NewSimpleNamespace()
 	server, err := InternalNewServer(testContext(), sm, ns, vc.LocalPrincipal{sectest.NewPrincipal()})
@@ -280,8 +280,8 @@ func TestMultipleCallsToServe(t *testing.T) {
 	}
 
 	disp := &testServerDisp{&testServer{}}
-	if err := server.Serve("mountpoint/server", disp); err != nil {
-		t.Errorf("server.Publish failed: %v", err)
+	if err := server.ServeDispatcher("mountpoint/server", disp); err != nil {
+		t.Errorf("server.ServeDispatcher failed: %v", err)
 	}
 
 	n1 := "mountpoint/server"
@@ -291,17 +291,35 @@ func TestMultipleCallsToServe(t *testing.T) {
 
 	verifyMount(t, ns, n1)
 
-	if err := server.Serve(n2, disp); err != nil {
-		t.Errorf("server.Serve failed: %v", err)
+	if server.ServeDispatcher(n2, disp) == nil {
+		t.Errorf("server.ServeDispatcher should have failed")
 	}
-	if err := server.Serve(n3, nil); err != nil {
-		t.Errorf("server.Serve failed: %v", err)
+
+	if err := server.Serve(n2, &testServer{}, nil); err == nil {
+		t.Errorf("server.Serve should have failed")
+	}
+
+	if err := server.AddName(n3); err != nil {
+		t.Errorf("server.AddName failed: %v", err)
+	}
+
+	if err := server.AddName(n3); err != nil {
+		t.Errorf("server.AddName failed: %v", err)
 	}
 	verifyMount(t, ns, n2)
 	verifyMount(t, ns, n3)
 
-	if err := server.Serve(n4, &testServerDisp{&testServer{}}); err == nil {
-		t.Errorf("server.Serve should have failed")
+	if err := server.RemoveName(n1); err != nil {
+		t.Errorf("server.RemoveName failed: %v", err)
+	}
+	verifyMountMissing(t, ns, n1)
+
+	if err := server.RemoveName("some randome name"); err == nil {
+		t.Errorf("server.RemoveName should have failed")
+	}
+
+	if err := server.ServeDispatcher(n4, &testServerDisp{&testServer{}}); err == nil {
+		t.Errorf("server.ServeDispatcher should have failed")
 	}
 	verifyMountMissing(t, ns, n4)
 
@@ -602,7 +620,7 @@ func TestDischargeImpetus(t *testing.T) {
 	}
 
 	var tester dischargeImpetusTester
-	if err := server.Serve("mountpoint", &tester); err != nil {
+	if err := server.ServeDispatcher("mountpoint", &tester); err != nil {
 		t.Fatal(err)
 	}
 
@@ -1048,7 +1066,7 @@ func TestSecurityNone(t *testing.T) {
 		t.Fatalf("server.Listen failed: %v", err)
 	}
 	disp := &testServerDisp{&testServer{}}
-	if err := server.Serve("mp/server", disp); err != nil {
+	if err := server.ServeDispatcher("mp/server", disp); err != nil {
 		t.Fatalf("server.Serve failed: %v", err)
 	}
 	client, err := InternalNewClient(sm, ns, options.VCSecurityNone)

@@ -37,7 +37,7 @@ func TestPProfProxy(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to listen: %v", err)
 	}
-	if err := s.Serve("", &dispatcher{impl.NewInvoker()}); err != nil {
+	if err := s.ServeDispatcher("", &dispatcher{impl.NewInvoker()}); err != nil {
 		t.Fatalf("failed to serve: %v", err)
 	}
 	l, err := client.StartProxy(r, naming.JoinAddressName(endpoint.String(), ""))

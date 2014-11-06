@@ -192,7 +192,7 @@ func startAgent(conn *net.UnixConn, runtime veyron2.Runtime, principal security.
 				}
 				spec := ipc.ListenSpec{Protocol: clientAddr.Network(), Address: clientAddr.String()}
 				if _, err = s.Listen(spec); err == nil {
-					err = s.Serve("", ipc.LeafDispatcher(serverAgent, nil))
+					err = s.Serve("", serverAgent, nil)
 				}
 			}
 			if err != nil {
