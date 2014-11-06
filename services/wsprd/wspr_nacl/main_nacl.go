@@ -113,7 +113,7 @@ func (inst *wsprInstance) StartWSPR(message ppapi.Var) {
 			fmt.Print("Generating new wspr ecdsaPrivateKey")
 			// Generate new keys and store them.
 			var err error
-			if _, ecdsaKey, err = vsecurity.NewKey(); err != nil {
+			if _, ecdsaKey, err = vsecurity.NewPrincipalKey(); err != nil {
 				panic(fmt.Errorf("failed to generate security key:%s", err))
 			}
 		}
