@@ -1,6 +1,8 @@
 package benchmarks
 
 import (
+	"io"
+
 	sflag "veyron.io/veyron/veyron/security/flag"
 
 	"veyron.io/veyron/veyron2"
@@ -16,17 +18,20 @@ func (i *impl) Echo(ctx ipc.ServerCall, payload []byte) ([]byte, error) {
 	return payload, nil
 }
 
-func (i *impl) EchoStream(ctx ipc.ServerCall, stream BenchmarkServiceEchoStreamStream) error {
-	rStream := stream.RecvStream()
-	sender := stream.SendStream()
-	for rStream.Advance() {
-		chunk := rStream.Value()
-		if err := sender.Send(chunk); err != nil {
+func (i *impl) EchoStream(ctx ipc.ServerCall) error {
+	for {
+		var chunk []byte
+		if err := ctx.Recv(&chunk); err != nil {
+			if err == io.EOF {
+				break
+			}
+			return err
+		}
+		if err := ctx.Send(chunk); err != nil {
 			return err
 		}
 	}
-
-	return rStream.Err()
+	return nil
 }
 
 // StartServer starts a server that implements the Benchmark service. The
