@@ -143,7 +143,7 @@ func nodeManager(stdin io.Reader, stdout, stderr io.Writer, env map[string]strin
 	defer rt.R().Cleanup()
 	server, endpoint := newServer()
 	defer server.Stop()
-	name := naming.MakeTerminal(naming.JoinAddressName(endpoint, ""))
+	name := naming.JoinAddressName(endpoint, "")
 	vlog.VI(1).Infof("Node manager name: %v", name)
 
 	// Satisfy the contract described in doc.go by passing the config state

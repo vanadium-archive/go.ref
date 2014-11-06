@@ -59,7 +59,7 @@ func echoServer(stdin io.Reader, stdout, stderr io.Writer, env map[string]string
 	if err := server.ServeDispatcher(mp, disp); err != nil {
 		return err
 	}
-	fmt.Fprintf(stdout, "NAME=%s\n", naming.MakeTerminal(naming.JoinAddressName(ep.String(), "")))
+	fmt.Fprintf(stdout, "NAME=%s\n", naming.JoinAddressName(ep.String(), ""))
 	fmt.Fprintf(stdout, "ADDR=%s\n", ep.String())
 	fmt.Fprintf(stdout, "PID=%d\n", os.Getpid())
 	modules.WaitForEOF(stdin)

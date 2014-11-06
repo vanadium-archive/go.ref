@@ -50,7 +50,7 @@ func main() {
 	if err != nil {
 		vlog.Fatalf("Listen(%s) failed: %v", roaming.ListenSpec, err)
 	}
-	name := naming.MakeTerminal(naming.JoinAddressName(endpoint.String(), ""))
+	name := naming.JoinAddressName(endpoint.String(), "")
 	vlog.VI(0).Infof("Node manager object name: %v", name)
 	configState, err := config.Load()
 	if err != nil {

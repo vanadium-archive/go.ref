@@ -177,11 +177,14 @@ func runResolveStep(cmd *cmdline.Command, args []string) error {
 	}
 	ctx, cancel := rt.R().NewContext().WithTimeout(time.Minute)
 	defer cancel()
-	c, err := bindMT(ctx, args[0])
+	call, err := rt.R().Client().StartCall(ctx, args[0], "ResolveStepX", []interface{}{}, options.NoResolve(true))
 	if err != nil {
-		return fmt.Errorf("bind error: %v", err)
+		return err
 	}
-	entry, err := c.ResolveStepX(ctx)
+	var entry types.MountEntry
+	if ierr := call.Finish(&entry, &err); ierr != nil {
+		return ierr
+	}
 	if err != nil {
 		return err
 	}

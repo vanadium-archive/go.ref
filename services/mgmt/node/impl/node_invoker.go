@@ -254,7 +254,7 @@ func (i *nodeInvoker) testNodeManager(ctx context.T, workspace string, envelope 
 		return errOperationFailed
 	}
 	// Check that invoking Update() succeeds.
-	childName = naming.MakeTerminal(naming.Join(childName, "nm"))
+	childName = naming.Join(childName, "nm")
 	nmClient, err := node.BindNode(childName)
 	if err != nil {
 		vlog.Errorf("BindNode(%v) failed: %v", childName, err)

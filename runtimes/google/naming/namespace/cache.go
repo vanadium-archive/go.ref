@@ -45,15 +45,6 @@ func isStale(now time.Time, e naming.MountEntry) bool {
 	return false
 }
 
-// normalize removes any single trailing slash.  Added for idiots who seem to
-// like adding trailing slashes.
-func normalize(name string) string {
-	if strings.HasSuffix(name, "//") {
-		return name
-	}
-	return strings.TrimSuffix(name, "/")
-}
-
 // randomDrop randomly removes one cache entry.  Assumes we've already locked the cache.
 func (c *ttlCache) randomDrop() {
 	n := rand.Intn(len(c.entries))
@@ -90,6 +81,7 @@ func (c *ttlCache) remember(prefix string, entry *naming.MountEntry) {
 	// Remove suffix.  We only care about the name that gets us
 	// to the mounttable from the last mounttable.
 	prefix = normalize(prefix)
+	entry.Name = normalize(entry.Name)
 	prefix = naming.TrimSuffix(prefix, entry.Name)
 	// Copy the entry.
 	var ce naming.MountEntry
@@ -97,8 +89,6 @@ func (c *ttlCache) remember(prefix string, entry *naming.MountEntry) {
 		ce.Servers = append(ce.Servers, s)
 	}
 	ce.SetServesMountTable(entry.ServesMountTable())
-	// All keys must be terminal.
-	prefix = naming.MakeTerminal(prefix)
 	c.Lock()
 	// Enforce an upper limit on the cache size.
 	if len(c.entries) >= maxCacheEntries {

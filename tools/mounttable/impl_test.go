@@ -126,7 +126,8 @@ func TestMountTableClient(t *testing.T) {
 	stdout.Reset()
 
 	// Test the 'resolvestep' command.
-	if err := cmd.Execute([]string{"resolvestep", naming.JoinAddressName(endpoint.String(), "//name")}); err != nil {
+	vlog.Infof("resovestep %s", naming.JoinAddressName(endpoint.String(), "name"))
+	if err := cmd.Execute([]string{"resolvestep", naming.JoinAddressName(endpoint.String(), "name")}); err != nil {
 		t.Fatalf("%v", err)
 	}
 	if expected, got := `Servers: [{server1 123}] Suffix: "name" MT: false`, strings.TrimSpace(stdout.String()); got != expected {

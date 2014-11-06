@@ -78,7 +78,7 @@ func (l *listener) name() string {
 
 func (c *callbackState) listenFor(key string) callbackListener {
 	id := c.generateID()
-	callbackName := naming.MakeTerminal(naming.Join(c.name, configSuffix, id))
+	callbackName := naming.Join(c.name, configSuffix, id)
 	// Make the channel buffered to avoid blocking the Set method when
 	// nothing is receiving on the channel.  This happens e.g. when
 	// unregisterCallbacks executes before Set is called.

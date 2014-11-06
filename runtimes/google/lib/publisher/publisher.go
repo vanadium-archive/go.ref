@@ -213,7 +213,6 @@ type pubState struct {
 	deadline time.Time                 // deadline for the next sync call
 	names    map[string]bool           // names that have been added
 	servers  map[string]bool           // servers that have been added, true
-	servesMT map[string]bool           // true if server is a mount table server
 	mounts   map[mountKey]*mountStatus // map each (name,server) to its status
 	//   if server is a mount table server
 }

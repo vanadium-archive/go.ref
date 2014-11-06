@@ -391,13 +391,9 @@ func (s *server) Listen(listenSpec ipc.ListenSpec) (naming.Endpoint, error) {
 	return ep, nil
 }
 
+// TODO(cnicolaou): Take this out or make the ServesMountTable bit work in the endpoint.
 func (s *server) publishEP(ep *inaming.Endpoint, servesMountTable bool) string {
 	var name string
-	if !s.servesMountTable {
-		// Make sure that client MountTable code doesn't try and
-		// ResolveStep past this final address.
-		name = "//"
-	}
 	ep.IsMountTable = servesMountTable
 	return naming.JoinAddressName(ep.String(), name)
 }

@@ -58,12 +58,7 @@ func (ns *namespace) resolveAgainstMountTable(ctx context.T, client ipc.Client, 
 }
 
 func terminal(e *naming.MountEntry) bool {
-	for _, s := range e.Servers {
-		if !naming.Terminal(naming.JoinAddressName(s.Server, e.Name)) {
-			return false
-		}
-	}
-	return true
+	return len(e.Name) == 0
 }
 
 // ResolveX implements veyron2/naming.Namespace.
@@ -130,7 +125,7 @@ func (ns *namespace) ResolveToMountTableX(ctx context.T, name string) (*naming.M
 	}
 	last := e
 	for remaining := ns.maxResolveDepth; remaining > 0; remaining-- {
-		vlog.VI(2).Infof("ResolveToMountTable(%s) loop %v", name, e)
+		vlog.VI(2).Infof("ResolveToMountTableX(%s) loop %v", name, e)
 		var err error
 		curr := e
 		// If the next name to resolve doesn't point to a mount table, we're done.
@@ -245,7 +240,6 @@ func (ns *namespace) FlushCacheEntry(name string) bool {
 		// Walk the cache as we would in a resolution.  Unlike a resolution, we have to follow
 		// all branches since we want to flush all entries at which we might end up whereas in a resolution,
 		// we stop with the first branch that works.
-		n := naming.MakeTerminal(n)
 		if e, err := ns.resolutionCache.lookup(n); err == nil {
 			// Recurse.
 			for _, s := range e.Servers {

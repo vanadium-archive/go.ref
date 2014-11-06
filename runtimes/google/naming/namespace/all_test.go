@@ -197,9 +197,6 @@ func run(t *testing.T, sr veyron2.Runtime, disp ipc.Dispatcher, mountPoint strin
 		boom(t, "Failed to serve mount table at %s: %s", mountPoint, err)
 	}
 	name := naming.JoinAddressName(ep.String(), "")
-	if !mt {
-		name = name + "//"
-	}
 	return &serverEntry{mountPoint: mountPoint, server: s, endpoint: ep, name: name}
 }
 
@@ -291,21 +288,17 @@ func TestNamespaceCommon(t *testing.T) {
 	// as the address portion of the terminal name for those mounttables.
 	testResolveToMountTable(t, r, ns, "", root.name)
 	for _, m := range []string{mt2MP, mt3MP, mt5MP} {
-		rootMT := naming.MakeTerminal(naming.Join(root.name, m))
+		rootMT := naming.Join(root.name, m)
 		// All of these mount tables are hosted by the root mount table
 		testResolveToMountTable(t, r, ns, m, rootMT)
-		testResolveToMountTable(t, r, ns, "//"+m, rootMT)
 
 		// The server registered for each mount point is a mount table
 		testResolve(t, r, ns, m, mts[m].name)
 
 		// ResolveToMountTable will walk through to the sub MountTables
 		mtbar := naming.Join(m, "bar")
-		subMT := naming.MakeTerminal(naming.Join(mts[m].name, "bar"))
+		subMT := naming.Join(mts[m].name, "bar")
 		testResolveToMountTable(t, r, ns, mtbar, subMT)
-
-		// ResolveToMountTable will not walk through if the name is terminal
-		testResolveToMountTable(t, r, ns, "//"+mtbar, naming.Join(rootMT, "bar"))
 	}
 
 	for _, j := range []string{j1MP, j2MP, j3MP} {
@@ -343,7 +336,7 @@ func TestNamespaceDetails(t *testing.T) {
 		boom(t, "Failed to Mount %s: %s", mt2a, err)
 	}
 
-	mt2mt := naming.MakeTerminal(naming.Join(mts[mt2MP].name, "a"))
+	mt2mt := naming.Join(mts[mt2MP].name, "a")
 	// The mt2/a is served by the mt2 mount table
 	testResolveToMountTable(t, r, ns, mt2a, mt2mt)
 	// The server for mt2a is mt3server from the second mount above.
@@ -365,9 +358,9 @@ func TestNamespaceDetails(t *testing.T) {
 
 	// We now have 3 mount tables prepared to serve mt2/a
 	testResolveToMountTable(t, r, ns, "mt2/a",
-		mts[mt2MP].name+"//a",
-		mts[mt4MP].name+"//a",
-		mts[mt5MP].name+"//a")
+		naming.JoinAddressName(mts[mt2MP].name, "a"),
+		naming.JoinAddressName(mts[mt4MP].name, "a"),
+		naming.JoinAddressName(mts[mt5MP].name, "a"))
 	testResolve(t, r, ns, "mt2", mts[mt2MP].name, mts[mt4MP].name, mts[mt5MP].name)
 }
 
@@ -388,10 +381,11 @@ func TestNestedMounts(t *testing.T) {
 	}
 
 	testResolveToMountTable(t, r, ns, "mt4/foo",
-		mts[mt4MP].name+"//foo")
+		naming.JoinAddressName(mts[mt4MP].name, "foo"))
 	testResolveToMountTable(t, r, ns, "mt4/foo/bar",
-		mts["mt4/foo"].name+"//bar")
-	testResolveToMountTable(t, r, ns, "mt4/foo/baz", mts["mt4/foo"].name+"//baz")
+		naming.JoinAddressName(mts["mt4/foo"].name, "bar"))
+	testResolveToMountTable(t, r, ns, "mt4/foo/baz",
+		naming.JoinAddressName(mts["mt4/foo"].name, "baz"))
 }
 
 // TestServers tests invoking RPCs on simple servers
@@ -413,8 +407,8 @@ func TestServers(t *testing.T) {
 		jokes[gj] = runServer(t, r, disp, globalName)
 		testResolve(t, r, ns, "mt4/"+j, jokes[gj].name)
 		knockKnock(t, r, "mt4/"+j)
-		testResolveToMountTable(t, r, ns, "mt4/"+j, naming.MakeTerminal(globalName))
-		testResolveToMountTable(t, r, ns, "mt4/"+j+"/garbage", naming.MakeTerminal(globalName+"/garbage"))
+		testResolveToMountTable(t, r, ns, "mt4/"+j, globalName)
+		testResolveToMountTable(t, r, ns, "mt4/"+j+"/garbage", globalName+"/garbage")
 	}
 }
 

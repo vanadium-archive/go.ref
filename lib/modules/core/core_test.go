@@ -241,7 +241,7 @@ func TestResolve(t *testing.T) {
 	srvSession := expect.NewSession(t, srv.Stdout(), time.Minute)
 	srvSession.ExpectVar("NAME")
 	addr := srvSession.ExpectVar("ADDR")
-	addr = naming.JoinAddressName(addr, "//")
+	addr = naming.JoinAddressName(addr, "")
 
 	// Resolve an object
 	resolver, err := sh.Start(core.ResolveCommand, nil, rootName+"/"+echoName)
@@ -260,7 +260,7 @@ func TestResolve(t *testing.T) {
 	}
 
 	// Resolve to a mount table using a rooted name.
-	addr = naming.JoinAddressName(mountAddrs[mtName], "//echo")
+	addr = naming.JoinAddressName(mountAddrs[mtName], "echo")
 	resolver, err = sh.Start(core.ResolveMTCommand, nil, rootName+"/"+echoName)
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)

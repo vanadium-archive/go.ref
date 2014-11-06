@@ -46,8 +46,8 @@ func TestCache(t *testing.T) {
 		{"/h2//c/d", "d", "/h3", true},
 		{"/h3//d", "", "/h4:1234", true},
 		{"/notintcache", "", "", false},
-		{"/h1//a/b/f//g", "f//g", "/h2", true},
-		{"/h3//d//e", "//e", "/h4:1234", true},
+		{"/h1//a/b/f//g", "f/g", "/h2", true},
+		{"/h3//d//e", "e", "/h4:1234", true},
 	}
 	for _, p := range tests {
 		e, err := c.lookup(p.name)
