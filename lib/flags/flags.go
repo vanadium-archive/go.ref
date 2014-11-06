@@ -25,12 +25,12 @@ const (
 	// --veyron.proxy
 	Listen
 	// --veyron.acl (which may be repeated to supply multiple values)
+	// ACL files are named - i.e. --veyron.acl=<name>:<file> with the
+	// name <runtime> reserved for use by the runtime.
 	ACL
 )
 
 const defaultNamespaceRoot = "/proxy.envyor.com:8101"
-const defaultACLName = "veyron"
-const defaultACLFile = "acl.json"
 
 // Flags represents the set of flag groups created by a call to
 // CreateAndRegister.
@@ -132,7 +132,6 @@ func createAndRegisterRuntimeFlags(fs *flag.FlagSet) *RuntimeFlags {
 
 func createAndRegisterACLFlags(fs *flag.FlagSet) *ACLFlags {
 	f := &ACLFlags{}
-	f.flag.files = map[string]string{defaultACLName: defaultACLFile}
 	fs.Var(&f.flag, "veyron.acl", "specify an acl file as <name>:<aclfile>")
 	return f
 }

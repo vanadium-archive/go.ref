@@ -45,10 +45,10 @@ func TestFlags(t *testing.T) {
 func TestACLFlags(t *testing.T) {
 	fs := flag.NewFlagSet("test", flag.ContinueOnError)
 	fl := flags.CreateAndRegister(fs, flags.Runtime, flags.ACL)
-	args := []string{"--veyron.acl=veyron:foo.json", "--veyron.acl=bar:bar.json", "--veyron.acl=baz:bar:baz.json"}
+	args := []string{"--veyron.acl=runtime:foo.json", "--veyron.acl=bar:bar.json", "--veyron.acl=baz:bar:baz.json"}
 	fl.Parse(args)
 	aclf := fl.ACLFlags()
-	if got, want := aclf.ACLFile("veyron"), "foo.json"; got != want {
+	if got, want := aclf.ACLFile("runtime"), "foo.json"; got != want {
 		t.Errorf("got %t, want %t", got, want)
 	}
 	if got, want := aclf.ACLFile("bar"), "bar.json"; got != want {
@@ -77,7 +77,7 @@ func TestFlagError(t *testing.T) {
 	}
 
 	fs = flag.NewFlagSet("test", flag.ContinueOnError)
-	fs.SetOutput(ioutil.Discard)
+	//fs.SetOutput(ioutil.Discard)
 	fl = flags.CreateAndRegister(fs, flags.ACL)
 	args = []string{"--veyron.acl=noname"}
 	err = fl.Parse(args)
@@ -176,7 +176,7 @@ func TestDefaults(t *testing.T) {
 		t.Errorf("got %q, want %q", got, want)
 	}
 	aclf := fl.ACLFlags()
-	if got, want := aclf.ACLFile("veyron"), "acl.json"; got != want {
+	if got, want := aclf.ACLFile(""), ""; got != want {
 		t.Errorf("got %q, want %q", got, want)
 	}
 }
