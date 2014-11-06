@@ -2,8 +2,6 @@ package security
 
 import (
 	"crypto/ecdsa"
-	"crypto/elliptic"
-	"crypto/rand"
 	"fmt"
 	"os"
 	"path"
@@ -16,7 +14,7 @@ const privateKeyFile = "privatekey.pem"
 // NewPrincipal mints a new private key and generates a principal based on
 // this key, storing its BlessingRoots and BlessingStore in memory.
 func NewPrincipal() (security.Principal, error) {
-	pub, priv, err := newKey()
+	pub, priv, err := NewPrincipalKey()
 	if err != nil {
 		return nil, err
 	}
@@ -159,15 +157,6 @@ func loadKeyFromDir(dir string, passphrase []byte) (*ecdsa.PrivateKey, error) {
 	return key.(*ecdsa.PrivateKey), nil
 }
 
-// newKey generates an ECDSA (public, private) key pair.
-func newKey() (security.PublicKey, *ecdsa.PrivateKey, error) {
-	priv, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
-	if err != nil {
-		return nil, nil, err
-	}
-	return security.NewECDSAPublicKey(&priv.PublicKey), priv, nil
-}
-
 func initKey(dir string, passphrase []byte) (*ecdsa.PrivateKey, error) {
 	keyFile := path.Join(dir, privateKeyFile)
 	f, err := os.OpenFile(keyFile, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0600)
@@ -175,7 +164,7 @@ func initKey(dir string, passphrase []byte) (*ecdsa.PrivateKey, error) {
 		return nil, fmt.Errorf("failed to open %q for writing: %v", keyFile, err)
 	}
 	defer f.Close()
-	_, key, err := newKey()
+	_, key, err := NewPrincipalKey()
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate private key: %v", err)
 	}

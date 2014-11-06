@@ -3,6 +3,7 @@ package security
 import (
 	"bytes"
 	"crypto/ecdsa"
+	"crypto/elliptic"
 	"crypto/rand"
 	"crypto/x509"
 	"encoding/json"
@@ -28,6 +29,15 @@ func OpenACL() security.ACL {
 }
 
 var PassphraseErr = errors.New("passphrase incorrect for decrypting private key")
+
+// NewPrincipalKey generates an ECDSA (public, private) key pair.
+func NewPrincipalKey() (security.PublicKey, *ecdsa.PrivateKey, error) {
+	priv, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	if err != nil {
+		return nil, nil, err
+	}
+	return security.NewECDSAPublicKey(&priv.PublicKey), priv, nil
+}
 
 // LoadPEMKey loads a key from 'r'. returns PassphraseErr for incorrect Passphrase.
 // If the key held in 'r' is unencrypted, 'passphrase' will be ignored.
