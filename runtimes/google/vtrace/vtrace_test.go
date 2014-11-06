@@ -227,10 +227,10 @@ func TestTraceAcrossRPCs(t *testing.T) {
 
 	expectedSpans := []string{
 		": c0-begin, c0-end",
-		"Client Call: c1.Run",
-		"Server Call: .Run: c1-begin, c1-end",
-		"Client Call: c2.Run",
-		"Server Call: .Run: c2-begin, c2-end",
+		"<client>\"c1\".Run",
+		"\"\".Run: c1-begin, c1-end",
+		"<client>\"c2\".Run",
+		"\"\".Run: c2-begin, c2-end",
 	}
 	expectSequence(t, span.Trace().Record(), expectedSpans)
 }
@@ -247,10 +247,10 @@ func TestTraceAcrossRPCsLateForce(t *testing.T) {
 
 	expectedSpans := []string{
 		": c0-end",
-		"Client Call: c1.Run",
-		"Server Call: .Run: c1-end",
-		"Client Call: c2.Run",
-		"Server Call: .Run: c2-begin, c2-end",
+		"<client>\"c1\".Run",
+		"\"\".Run: c1-end",
+		"<client>\"c2\".Run",
+		"\"\".Run: c2-begin, c2-end",
 	}
 	expectSequence(t, span.Trace().Record(), expectedSpans)
 }

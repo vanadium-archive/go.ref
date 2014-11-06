@@ -233,7 +233,7 @@ func (c *client) startCall(ctx context.T, name, method string, args []interface{
 
 // tryCall makes a single attempt at a call.
 func (c *client) tryCall(ctx context.T, name, method string, args []interface{}, opts []ipc.CallOpt) (ipc.Call, verror.E) {
-	ctx, _ = vtrace.WithNewSpan(ctx, fmt.Sprintf("Client Call: %s.%s", name, method))
+	ctx, _ = vtrace.WithNewSpan(ctx, fmt.Sprintf("<client>\"%s\".%s", name, method))
 
 	_, serverPattern, name := splitObjectName(name)
 

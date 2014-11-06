@@ -9,7 +9,6 @@ import (
 	"sync"
 	"time"
 
-	"veyron.io/veyron/veyron2"
 	"veyron.io/veyron/veyron2/config"
 	"veyron.io/veyron/veyron2/context"
 	"veyron.io/veyron/veyron2/ipc"
@@ -686,11 +685,10 @@ var _ ipc.Stream = (*flowServer)(nil)
 func newFlowServer(flow stream.Flow, server *server) *flowServer {
 	server.Lock()
 	disp := server.disp
-	runtime := veyron2.RuntimeFromContext(server.ctx)
 	server.Unlock()
 
 	return &flowServer{
-		T:      InternalNewContext(runtime),
+		T:      server.ctx,
 		server: server,
 		disp:   disp,
 		// TODO(toddw): Support different codecs
@@ -811,15 +809,15 @@ func (fs *flowServer) processRequest() ([]interface{}, verror.E) {
 	if verr != nil {
 		// We don't know what the ipc call was supposed to be, but we'll create
 		// a placeholder span so we can capture annotations.
-		fs.T, _ = ivtrace.WithNewSpan(fs, "Failed IPC Call")
+		fs.T, _ = ivtrace.WithNewSpan(fs, fmt.Sprintf("\"%s\".UNKNOWN", fs.Name()))
 		return nil, verr
 	}
 	fs.method = req.Method
 
 	// TODO(mattr): Currently this allows users to trigger trace collection
 	// on the server even if they will not be allowed to collect the
-	// results later.  This might be consider a DOS vector.
-	spanName := fmt.Sprintf("Server Call: %s.%s", fs.Name(), fs.Method())
+	// results later.  This might be considered a DOS vector.
+	spanName := fmt.Sprintf("\"%s\".%s", fs.Name(), fs.Method())
 	fs.T, _ = ivtrace.WithContinuedSpan(fs, spanName, req.TraceRequest)
 
 	var cancel context.CancelFunc
