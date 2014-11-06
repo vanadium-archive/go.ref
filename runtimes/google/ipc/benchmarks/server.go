@@ -12,11 +12,11 @@ import (
 type impl struct {
 }
 
-func (i *impl) Echo(ctx ipc.ServerContext, payload []byte) ([]byte, error) {
+func (i *impl) Echo(ctx ipc.ServerCall, payload []byte) ([]byte, error) {
 	return payload, nil
 }
 
-func (i *impl) EchoStream(ctx ipc.ServerContext, stream BenchmarkServiceEchoStreamStream) error {
+func (i *impl) EchoStream(ctx ipc.ServerCall, stream BenchmarkServiceEchoStreamStream) error {
 	rStream := stream.RecvStream()
 	sender := stream.SendStream()
 	for rStream.Advance() {
