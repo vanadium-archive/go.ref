@@ -121,6 +121,11 @@ func (p *proxyInvoker) Invoke(method string, inCall ipc.ServerCall, argptrs []in
 	return results, err
 }
 
+func (p *proxyInvoker) VGlob() *ipc.GlobState {
+	// TODO(rthellend): Add implementation
+	return nil
+}
+
 // numResults returns the number of result values for the given method.
 func (p *proxyInvoker) numResults(method string) (int, error) {
 	sig, err := p.sigStub.Signature(nil)

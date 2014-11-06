@@ -122,10 +122,28 @@ func BindApplication(name string, opts ..._gen_ipc.BindOpt) (Application, error)
 // It takes a regular server implementing the ApplicationService
 // interface, and returns a new server stub.
 func NewServerApplication(server ApplicationService) interface{} {
-	return &ServerStubApplication{
+	stub := &ServerStubApplication{
 		ServerStubApplication: *repository.NewServerApplication(server).(*repository.ServerStubApplication),
 		service:               server,
 	}
+	var gs _gen_ipc.GlobState
+	var self interface{} = stub
+	// VAllGlobber is implemented by the server object, which is wrapped in
+	// a VDL generated server stub.
+	if x, ok := self.(_gen_ipc.VAllGlobber); ok {
+		gs.VAllGlobber = x
+	}
+	// VAllGlobber is implemented by the server object without using a VDL
+	// generated stub.
+	if x, ok := server.(_gen_ipc.VAllGlobber); ok {
+		gs.VAllGlobber = x
+	}
+	// VChildrenGlobber is implemented in the server object.
+	if x, ok := server.(_gen_ipc.VChildrenGlobber); ok {
+		gs.VChildrenGlobber = x
+	}
+	stub.gs = &gs
+	return stub
 }
 
 // clientStubApplication implements Application.
@@ -205,6 +223,7 @@ type ServerStubApplication struct {
 	repository.ServerStubApplication
 
 	service ApplicationService
+	gs      *_gen_ipc.GlobState
 }
 
 func (__gen_s *ServerStubApplication) GetMethodTags(call _gen_ipc.ServerCall, method string) ([]interface{}, error) {
@@ -331,6 +350,10 @@ func (__gen_s *ServerStubApplication) UnresolveStep(call _gen_ipc.ServerCall) (r
 	return
 }
 
+func (__gen_s *ServerStubApplication) VGlob() *_gen_ipc.GlobState {
+	return __gen_s.gs
+}
+
 func (__gen_s *ServerStubApplication) Put(call _gen_ipc.ServerCall, Profiles []string, Envelope application.Envelope) (err error) {
 	err = __gen_s.service.Put(call, Profiles, Envelope)
 	return
@@ -416,10 +439,28 @@ func BindProfile(name string, opts ..._gen_ipc.BindOpt) (Profile, error) {
 // It takes a regular server implementing the ProfileService
 // interface, and returns a new server stub.
 func NewServerProfile(server ProfileService) interface{} {
-	return &ServerStubProfile{
+	stub := &ServerStubProfile{
 		ServerStubProfile: *repository.NewServerProfile(server).(*repository.ServerStubProfile),
 		service:           server,
 	}
+	var gs _gen_ipc.GlobState
+	var self interface{} = stub
+	// VAllGlobber is implemented by the server object, which is wrapped in
+	// a VDL generated server stub.
+	if x, ok := self.(_gen_ipc.VAllGlobber); ok {
+		gs.VAllGlobber = x
+	}
+	// VAllGlobber is implemented by the server object without using a VDL
+	// generated stub.
+	if x, ok := server.(_gen_ipc.VAllGlobber); ok {
+		gs.VAllGlobber = x
+	}
+	// VChildrenGlobber is implemented in the server object.
+	if x, ok := server.(_gen_ipc.VChildrenGlobber); ok {
+		gs.VChildrenGlobber = x
+	}
+	stub.gs = &gs
+	return stub
 }
 
 // clientStubProfile implements Profile.
@@ -510,6 +551,7 @@ type ServerStubProfile struct {
 	repository.ServerStubProfile
 
 	service ProfileService
+	gs      *_gen_ipc.GlobState
 }
 
 func (__gen_s *ServerStubProfile) GetMethodTags(call _gen_ipc.ServerCall, method string) ([]interface{}, error) {
@@ -649,6 +691,10 @@ func (__gen_s *ServerStubProfile) UnresolveStep(call _gen_ipc.ServerCall) (reply
 		reply[i] = _gen_naming.Join(p, call.Name())
 	}
 	return
+}
+
+func (__gen_s *ServerStubProfile) VGlob() *_gen_ipc.GlobState {
+	return __gen_s.gs
 }
 
 func (__gen_s *ServerStubProfile) Specification(call _gen_ipc.ServerCall) (reply profile.Specification, err error) {

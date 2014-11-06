@@ -82,6 +82,10 @@ func (inv closureInvoker) Invoke(method string, call ipc.ServerCall, argptrs []i
 	return nil, errors.New(inv.suffix)
 }
 
+func (inv closureInvoker) VGlob() *ipc.GlobState {
+	return nil
+}
+
 // echoInvoker serves a method that takes a string and echoes it:
 //    func(_ ServerCall, arg string) (string, error)
 type echoInvoker struct{ suffix string }
@@ -98,6 +102,10 @@ func (echoInvoker) Prepare(method string, numArgs int) (argptrs, tags []interfac
 func (inv echoInvoker) Invoke(method string, call ipc.ServerCall, argptrs []interface{}) (results []interface{}, err error) {
 	result := fmt.Sprintf("method:%q,suffix:%q,arg:%q", method, inv.suffix, *argptrs[0].(*string))
 	return []interface{}{result}, nil
+}
+
+func (inv echoInvoker) VGlob() *ipc.GlobState {
+	return nil
 }
 
 func TestFlowClientServer(t *testing.T) {
