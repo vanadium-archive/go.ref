@@ -108,8 +108,8 @@ main() {
         sort) \
     || shell_test::fail "line ${LINENO}: failed to run mounttable"
   WANT="[${NAMESPACE_ROOT}]
-tunnel/hostname/$(hostname) /${EP}// (TTL XmXXs)
-tunnel/hwaddr/XX:XX:XX:XX:XX:XX /${EP}// (TTL XmXXs)"
+tunnel/hostname/$(hostname) /${EP} (TTL XmXXs)
+tunnel/hwaddr/XX:XX:XX:XX:XX:XX /${EP} (TTL XmXXs)"
 
   if [[ "${GOT}" != "${WANT}" ]]; then
     shell_test::fail "line ${LINENO}: unexpected output. Got ${GOT}, want ${WANT}"
