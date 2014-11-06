@@ -3,6 +3,7 @@ package main
 import (
 	"flag"
 	"io/ioutil"
+	"net"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -10,6 +11,7 @@ import (
 	"veyron.io/veyron/veyron2/rt"
 	"veyron.io/veyron/veyron2/vlog"
 
+	"veyron.io/veyron/veyron/lib/netstate"
 	"veyron.io/veyron/veyron/lib/signals"
 	"veyron.io/veyron/veyron/profiles/roaming"
 	vflag "veyron.io/veyron/veyron/security/flag"
@@ -22,12 +24,35 @@ const (
 )
 
 var (
-	name = flag.String("name", "", "name to mount the binary repository as")
-	root = flag.String("root", "", "root directory for the binary repository")
+	name     = flag.String("name", "", "name to mount the binary repository as")
+	root     = flag.String("root", "", "root directory for the binary repository")
+	httpAddr = flag.String("http", ":0", "TCP address on which the HTTP  server runs")
 )
 
+// toIPPort tries to swap in the 'best' accessible IP for the host part of the
+// address, if the provided address has an unspecified IP.
+func toIPPort(addr string) string {
+	host, port, err := net.SplitHostPort(addr)
+	if err != nil {
+		vlog.Errorf("SplitHostPort(%v) failed: %v", addr, err)
+		os.Exit(1)
+	}
+	ip := net.ParseIP(host)
+	if ip.IsUnspecified() {
+		host = "127.0.0.1"
+		ips, err := netstate.GetAccessibleIPs()
+		if err == nil {
+			if a, err := roaming.ListenSpec.AddressChooser("tcp", ips); err == nil && len(a) > 0 {
+				host = a[0].Address().String()
+			}
+		}
+	}
+	return net.JoinHostPort(host, port)
+}
+
 func main() {
-	flag.Parse()
+	runtime := rt.Init()
+	defer runtime.Cleanup()
 	if *root == "" {
 		var err error
 		if *root, err = ioutil.TempDir("", defaultRootPrefix); err != nil {
@@ -67,16 +92,19 @@ func main() {
 		return
 	}
 
-	// TODO(caprita): Flagify port.
+	listener, err := net.Listen("tcp", *httpAddr)
+	if err != nil {
+		vlog.Errorf("Listen(%s) failed: %v", *httpAddr, err)
+		os.Exit(1)
+	}
+	vlog.Infof("Binary repository HTTP server at: %q", toIPPort(listener.Addr().String()))
 	go func() {
-		if err := http.ListenAndServe(":8080", http.FileServer(impl.NewHTTPRoot(state))); err != nil {
-			vlog.Errorf("ListenAndServe() failed: %v", err)
+		if err := http.Serve(listener, http.FileServer(impl.NewHTTPRoot(state))); err != nil {
+			vlog.Errorf("Serve() failed: %v", err)
 			os.Exit(1)
 		}
 	}()
 
-	runtime := rt.Init()
-	defer runtime.Cleanup()
 	server, err := runtime.NewServer()
 	if err != nil {
 		vlog.Errorf("NewServer() failed: %v", err)
