@@ -374,9 +374,27 @@ func BindJudge(name string, opts ..._gen_ipc.BindOpt) (Judge, error) {
 // It takes a regular server implementing the JudgeService
 // interface, and returns a new server stub.
 func NewServerJudge(server JudgeService) interface{} {
-	return &ServerStubJudge{
+	stub := &ServerStubJudge{
 		service: server,
 	}
+	var gs _gen_ipc.GlobState
+	var self interface{} = stub
+	// VAllGlobber is implemented by the server object, which is wrapped in
+	// a VDL generated server stub.
+	if x, ok := self.(_gen_ipc.VAllGlobber); ok {
+		gs.VAllGlobber = x
+	}
+	// VAllGlobber is implemented by the server object without using a VDL
+	// generated stub.
+	if x, ok := server.(_gen_ipc.VAllGlobber); ok {
+		gs.VAllGlobber = x
+	}
+	// VChildrenGlobber is implemented in the server object.
+	if x, ok := server.(_gen_ipc.VChildrenGlobber); ok {
+		gs.VChildrenGlobber = x
+	}
+	stub.gs = &gs
+	return stub
 }
 
 // clientStubJudge implements Judge.
@@ -450,6 +468,7 @@ func (__gen_c *clientStubJudge) GetMethodTags(ctx _gen_context.T, method string,
 // the requirements of veyron2/ipc.ReflectInvoker.
 type ServerStubJudge struct {
 	service JudgeService
+	gs      *_gen_ipc.GlobState
 }
 
 func (__gen_s *ServerStubJudge) GetMethodTags(call _gen_ipc.ServerCall, method string) ([]interface{}, error) {
@@ -564,6 +583,10 @@ func (__gen_s *ServerStubJudge) UnresolveStep(call _gen_ipc.ServerCall) (reply [
 	return
 }
 
+func (__gen_s *ServerStubJudge) VGlob() *_gen_ipc.GlobState {
+	return __gen_s.gs
+}
+
 func (__gen_s *ServerStubJudge) CreateGame(call _gen_ipc.ServerCall, Opts GameOptions) (reply GameID, err error) {
 	reply, err = __gen_s.service.CreateGame(call, Opts)
 	return
@@ -626,9 +649,27 @@ func BindPlayer(name string, opts ..._gen_ipc.BindOpt) (Player, error) {
 // It takes a regular server implementing the PlayerService
 // interface, and returns a new server stub.
 func NewServerPlayer(server PlayerService) interface{} {
-	return &ServerStubPlayer{
+	stub := &ServerStubPlayer{
 		service: server,
 	}
+	var gs _gen_ipc.GlobState
+	var self interface{} = stub
+	// VAllGlobber is implemented by the server object, which is wrapped in
+	// a VDL generated server stub.
+	if x, ok := self.(_gen_ipc.VAllGlobber); ok {
+		gs.VAllGlobber = x
+	}
+	// VAllGlobber is implemented by the server object without using a VDL
+	// generated stub.
+	if x, ok := server.(_gen_ipc.VAllGlobber); ok {
+		gs.VAllGlobber = x
+	}
+	// VChildrenGlobber is implemented in the server object.
+	if x, ok := server.(_gen_ipc.VChildrenGlobber); ok {
+		gs.VChildrenGlobber = x
+	}
+	stub.gs = &gs
+	return stub
 }
 
 // clientStubPlayer implements Player.
@@ -693,6 +734,7 @@ func (__gen_c *clientStubPlayer) GetMethodTags(ctx _gen_context.T, method string
 // the requirements of veyron2/ipc.ReflectInvoker.
 type ServerStubPlayer struct {
 	service PlayerService
+	gs      *_gen_ipc.GlobState
 }
 
 func (__gen_s *ServerStubPlayer) GetMethodTags(call _gen_ipc.ServerCall, method string) ([]interface{}, error) {
@@ -755,6 +797,10 @@ func (__gen_s *ServerStubPlayer) UnresolveStep(call _gen_ipc.ServerCall) (reply 
 	return
 }
 
+func (__gen_s *ServerStubPlayer) VGlob() *_gen_ipc.GlobState {
+	return __gen_s.gs
+}
+
 func (__gen_s *ServerStubPlayer) Challenge(call _gen_ipc.ServerCall, Address string, ID GameID, Opts GameOptions) (err error) {
 	err = __gen_s.service.Challenge(call, Address, ID, Opts)
 	return
@@ -806,9 +852,27 @@ func BindScoreKeeper(name string, opts ..._gen_ipc.BindOpt) (ScoreKeeper, error)
 // It takes a regular server implementing the ScoreKeeperService
 // interface, and returns a new server stub.
 func NewServerScoreKeeper(server ScoreKeeperService) interface{} {
-	return &ServerStubScoreKeeper{
+	stub := &ServerStubScoreKeeper{
 		service: server,
 	}
+	var gs _gen_ipc.GlobState
+	var self interface{} = stub
+	// VAllGlobber is implemented by the server object, which is wrapped in
+	// a VDL generated server stub.
+	if x, ok := self.(_gen_ipc.VAllGlobber); ok {
+		gs.VAllGlobber = x
+	}
+	// VAllGlobber is implemented by the server object without using a VDL
+	// generated stub.
+	if x, ok := server.(_gen_ipc.VAllGlobber); ok {
+		gs.VAllGlobber = x
+	}
+	// VChildrenGlobber is implemented in the server object.
+	if x, ok := server.(_gen_ipc.VChildrenGlobber); ok {
+		gs.VChildrenGlobber = x
+	}
+	stub.gs = &gs
+	return stub
 }
 
 // clientStubScoreKeeper implements ScoreKeeper.
@@ -873,6 +937,7 @@ func (__gen_c *clientStubScoreKeeper) GetMethodTags(ctx _gen_context.T, method s
 // the requirements of veyron2/ipc.ReflectInvoker.
 type ServerStubScoreKeeper struct {
 	service ScoreKeeperService
+	gs      *_gen_ipc.GlobState
 }
 
 func (__gen_s *ServerStubScoreKeeper) GetMethodTags(call _gen_ipc.ServerCall, method string) ([]interface{}, error) {
@@ -948,6 +1013,10 @@ func (__gen_s *ServerStubScoreKeeper) UnresolveStep(call _gen_ipc.ServerCall) (r
 	return
 }
 
+func (__gen_s *ServerStubScoreKeeper) VGlob() *_gen_ipc.GlobState {
+	return __gen_s.gs
+}
+
 func (__gen_s *ServerStubScoreKeeper) Record(call _gen_ipc.ServerCall, Score ScoreCard) (err error) {
 	err = __gen_s.service.Record(call, Score)
 	return
@@ -1009,12 +1078,30 @@ func BindRockPaperScissors(name string, opts ..._gen_ipc.BindOpt) (RockPaperScis
 // It takes a regular server implementing the RockPaperScissorsService
 // interface, and returns a new server stub.
 func NewServerRockPaperScissors(server RockPaperScissorsService) interface{} {
-	return &ServerStubRockPaperScissors{
+	stub := &ServerStubRockPaperScissors{
 		ServerStubJudge:       *NewServerJudge(server).(*ServerStubJudge),
 		ServerStubPlayer:      *NewServerPlayer(server).(*ServerStubPlayer),
 		ServerStubScoreKeeper: *NewServerScoreKeeper(server).(*ServerStubScoreKeeper),
 		service:               server,
 	}
+	var gs _gen_ipc.GlobState
+	var self interface{} = stub
+	// VAllGlobber is implemented by the server object, which is wrapped in
+	// a VDL generated server stub.
+	if x, ok := self.(_gen_ipc.VAllGlobber); ok {
+		gs.VAllGlobber = x
+	}
+	// VAllGlobber is implemented by the server object without using a VDL
+	// generated stub.
+	if x, ok := server.(_gen_ipc.VAllGlobber); ok {
+		gs.VAllGlobber = x
+	}
+	// VChildrenGlobber is implemented in the server object.
+	if x, ok := server.(_gen_ipc.VChildrenGlobber); ok {
+		gs.VChildrenGlobber = x
+	}
+	stub.gs = &gs
+	return stub
 }
 
 // clientStubRockPaperScissors implements RockPaperScissors.
@@ -1076,6 +1163,7 @@ type ServerStubRockPaperScissors struct {
 	ServerStubScoreKeeper
 
 	service RockPaperScissorsService
+	gs      *_gen_ipc.GlobState
 }
 
 func (__gen_s *ServerStubRockPaperScissors) GetMethodTags(call _gen_ipc.ServerCall, method string) ([]interface{}, error) {
@@ -1279,4 +1367,8 @@ func (__gen_s *ServerStubRockPaperScissors) UnresolveStep(call _gen_ipc.ServerCa
 		reply[i] = _gen_naming.Join(p, call.Name())
 	}
 	return
+}
+
+func (__gen_s *ServerStubRockPaperScissors) VGlob() *_gen_ipc.GlobState {
+	return __gen_s.gs
 }
