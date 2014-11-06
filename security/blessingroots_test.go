@@ -15,7 +15,7 @@ func newRootsTester() *rootsTester {
 	var tester rootsTester
 	var err error
 	for idx := range tester {
-		if tester[idx], _, err = newKey(); err != nil {
+		if tester[idx], _, err = NewPrincipalKey(); err != nil {
 			panic(err)
 		}
 	}
