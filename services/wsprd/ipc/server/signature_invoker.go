@@ -32,3 +32,7 @@ func (i *signatureInvoker) Prepare(methodName string, _ int) (argptrs, tags []in
 func (i *signatureInvoker) Invoke(methodName string, call ipc.ServerCall, argptrs []interface{}) ([]interface{}, error) {
 	return []interface{}{i.signature(), nil}, nil
 }
+
+func (i *signatureInvoker) VGlob() *ipc.GlobState {
+	return nil
+}

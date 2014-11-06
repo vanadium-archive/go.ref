@@ -38,6 +38,10 @@ func (mockInvoker) Invoke(string, ipc.ServerCall, []interface{}) ([]interface{},
 	return nil, nil
 }
 
+func (mockInvoker) VGlob() *ipc.GlobState {
+	return nil
+}
+
 type mockInvokerFactory struct{}
 
 func (mockInvokerFactory) createInvoker(handle int64, sig signature.JSONServiceSignature, label security.Label) (ipc.Invoker, error) {
