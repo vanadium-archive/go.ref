@@ -4,11 +4,9 @@ import (
 	"io/ioutil"
 	"reflect"
 	"testing"
-	"time"
 
 	vsecurity "veyron.io/veyron/veyron/security"
 	"veyron.io/veyron/veyron/security/acl/test"
-	"veyron.io/veyron/veyron2/naming"
 	"veyron.io/veyron/veyron2/security"
 )
 
@@ -61,12 +59,13 @@ func TestTaggedACLAuthorizer(t *testing.T) {
 		}
 
 		run = func(test testcase) error {
-			ctx := &context{
-				localP: pserver,
-				local:  server,
-				remote: test.Client,
-				method: test.Method,
-			}
+			ctx := security.NewContext(&security.ContextParams{
+				LocalPrincipal:  pserver,
+				LocalBlessings:  server,
+				RemoteBlessings: test.Client,
+				Method:          test.Method,
+				MethodTags:      methodTags(test.Method),
+			})
 			return authorizer.Authorize(ctx)
 		}
 	)
@@ -123,7 +122,14 @@ func TestTaggedACLAuthorizerSelfRPCs(t *testing.T) {
 		authorizer, _ = TaggedACLAuthorizer(TaggedACLMap{"R": {In: []security.BlessingPattern{"nobody"}}}, reflect.TypeOf(typ))
 	)
 	for _, test := range []string{"Put", "Get", "Resolve", "NoTags", "AllTags"} {
-		if err := authorizer.Authorize(&context{localP: p, local: server, remote: client, method: test}); err != nil {
+		ctx := security.NewContext(&security.ContextParams{
+			LocalPrincipal:  p,
+			LocalBlessings:  server,
+			RemoteBlessings: client,
+			Method:          test,
+			MethodTags:      methodTags(test),
+		})
+		if err := authorizer.Authorize(ctx); err != nil {
 			t.Errorf("Got error %v for method %q", err, test)
 		}
 	}
@@ -138,7 +144,14 @@ func TestTaggedACLAuthorizerWithNilACL(t *testing.T) {
 		client, _     = pclient.BlessSelf("client")
 	)
 	for _, test := range []string{"Put", "Get", "Resolve", "NoTags", "AllTags"} {
-		if err := authorizer.Authorize(&context{localP: pserver, local: server, remote: client, method: test}); err == nil {
+		ctx := security.NewContext(&security.ContextParams{
+			LocalPrincipal:  pserver,
+			LocalBlessings:  server,
+			RemoteBlessings: client,
+			Method:          test,
+			MethodTags:      methodTags(test),
+		})
+		if err := authorizer.Authorize(ctx); err == nil {
 			t.Errorf("nil TaggedACLMap authorized method %q", test)
 		}
 	}
@@ -158,7 +171,13 @@ func TestTaggedACLAuthorizerFromFile(t *testing.T) {
 		pclient, _     = vsecurity.NewPrincipal()
 		server, _      = pserver.BlessSelf("alice")
 		alicefriend, _ = pserver.Bless(pclient.PublicKey(), server, "friend/bob", security.UnconstrainedUse())
-		ctx            = &context{localP: pserver, local: server, remote: alicefriend, method: "Get"}
+		ctx            = security.NewContext(&security.ContextParams{
+			LocalPrincipal:  pserver,
+			LocalBlessings:  server,
+			RemoteBlessings: alicefriend,
+			Method:          "Get",
+			MethodTags:      methodTags("Get"),
+		})
 	)
 	// Make pserver recognize itself as an authority on "alice/..." blessings.
 	if err := pserver.AddToRoots(server); err != nil {
@@ -166,7 +185,7 @@ func TestTaggedACLAuthorizerFromFile(t *testing.T) {
 	}
 	// "alice/friend/bob" should not have access to test.Read methods like Get.
 	if err := authorizer.Authorize(ctx); err == nil {
-		t.Fatalf("Expected authorization error as %v is not on the ACL for Read operations", ctx.remote)
+		t.Fatalf("Expected authorization error as %v is not on the ACL for Read operations", ctx.RemoteBlessings())
 	}
 	// Rewrite the file giving access
 	if err := ioutil.WriteFile(filename, []byte(`{"R": { "In":["alice/friend/..."] }}`), 0600); err != nil {
@@ -188,26 +207,8 @@ func TestTagTypeMustBeString(t *testing.T) {
 	}
 }
 
-// context implements security.Context.
-type context struct {
-	localP        security.Principal
-	local, remote security.Blessings
-	method        string
-}
-
-func (*context) Timestamp() (t time.Time)                  { return t }
-func (c *context) Method() string                          { return c.method }
-func (*context) Name() string                              { return "" }
-func (*context) Suffix() string                            { return "" }
-func (*context) Label() (l security.Label)                 { return l }
-func (*context) Discharges() map[string]security.Discharge { return nil }
-func (c *context) LocalPrincipal() security.Principal      { return c.localP }
-func (c *context) LocalBlessings() security.Blessings      { return c.local }
-func (c *context) RemoteBlessings() security.Blessings     { return c.remote }
-func (*context) LocalEndpoint() naming.Endpoint            { return nil }
-func (*context) RemoteEndpoint() naming.Endpoint           { return nil }
-func (c *context) MethodTags() []interface{} {
+func methodTags(method string) []interface{} {
 	server := &test.ServerStubMyObject{}
-	tags, _ := server.GetMethodTags(nil, c.method)
+	tags, _ := server.GetMethodTags(nil, method)
 	return tags
 }
