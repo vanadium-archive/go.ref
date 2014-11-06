@@ -909,17 +909,19 @@ func (fs *flowServer) processRequest() ([]interface{}, verror.E) {
 // with ipc.DebugKeyword, we use the internal debug dispatcher to look up the
 // invoker. Otherwise, and we use the server's dispatcher. The (stripped) name
 // and dispatch suffix are also returned.
-// TODO(cnicolaou): change this back returning in ipc.Invoker in the pt2 CL.
 func (fs *flowServer) lookup(name, method string) (ipc.Invoker, security.Authorizer, string, verror.E) {
 	name = strings.TrimLeft(name, "/")
 	if method == "Glob" && len(name) == 0 {
-		return ipc.ReflectInvoker(&globInvoker{fs.reservedOpt.Prefix, fs}), &acceptAllAuthorizer{}, name, nil
+		return ipc.ReflectInvoker(&globInvoker{naming.ReservedNamePrefix, fs}), &acceptAllAuthorizer{}, name, nil
 	}
 	disp := fs.disp
-	prefix := fs.reservedOpt.Prefix
-	if len(prefix) > 0 && (name == prefix || strings.HasPrefix(name, prefix+"/")) {
-		name = strings.TrimPrefix(name, prefix)
-		name = strings.TrimLeft(name, "/")
+	if strings.HasPrefix(name, naming.ReservedNamePrefix) {
+		parts := strings.SplitN(name, "/", 2)
+		if len(parts) > 1 {
+			name = parts[1]
+		} else {
+			name = ""
+		}
 		disp = fs.reservedOpt.Dispatcher
 	}
 
