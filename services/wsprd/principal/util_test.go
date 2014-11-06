@@ -3,31 +3,11 @@ package principal
 import (
 	"fmt"
 	"strings"
-	"time"
 
 	vsecurity "veyron.io/veyron/veyron/security"
 
-	"veyron.io/veyron/veyron2/naming"
 	"veyron.io/veyron/veyron2/security"
 )
-
-type context struct {
-	method string
-	local  security.Principal
-}
-
-func (c *context) Timestamp() (t time.Time)                  { return t }
-func (c *context) Method() string                            { return c.method }
-func (c *context) MethodTags() []interface{}                 { return nil }
-func (c *context) Name() string                              { return "" }
-func (c *context) Suffix() string                            { return "" }
-func (c *context) Label() security.Label                     { return 0 }
-func (c *context) Discharges() map[string]security.Discharge { return nil }
-func (c *context) LocalPrincipal() security.Principal        { return c.local }
-func (c *context) LocalBlessings() security.Blessings        { return nil }
-func (c *context) RemoteBlessings() security.Blessings       { return nil }
-func (c *context) LocalEndpoint() naming.Endpoint            { return nil }
-func (c *context) RemoteEndpoint() naming.Endpoint           { return nil }
 
 func newPrincipal() security.Principal {
 	p, err := vsecurity.NewPrincipal()

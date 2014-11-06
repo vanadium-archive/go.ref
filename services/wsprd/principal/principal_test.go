@@ -68,13 +68,16 @@ func (t *tester) testGetters(m *PrincipalManager) error {
 	if !reflect.DeepEqual(decoded, bOrigin) {
 		return fmt.Errorf("reflect.DeepEqual(%v, %v) failed after validBlessing", decoded, bOrigin)
 	}
+	ctx := func(method string) security.Context {
+		return security.NewContext(&security.ContextParams{LocalPrincipal: pOrigin, Method: method})
+	}
 
 	// Validate the blessings in various contexts.
 	want := []string{t.googleAccount + security.ChainSeparator + url.QueryEscape(t.origin)}
-	if got := bOrigin.ForContext(&context{local: pOrigin, method: "Foo"}); !reflect.DeepEqual(got, want) {
+	if got := bOrigin.ForContext(ctx("Foo")); !reflect.DeepEqual(got, want) {
 		return fmt.Errorf("with method 'Foo', got blessing: %v, want: %v", got, want)
 	}
-	if got := bOrigin.ForContext(&context{local: pOrigin, method: "Bar"}); got != nil {
+	if got := bOrigin.ForContext(ctx("Bar")); got != nil {
 		return fmt.Errorf("with method 'Bar', got blessing: %v, want nil", got)
 	}
 
