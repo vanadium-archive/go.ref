@@ -1,9 +1,6 @@
-// merge_file provides an implementation for http.File that merges
-// several files into one logical file.
-package merge_file
-
-// TODO(caprita): rename this package to multipart, and the constructor to
-// NewFile. Usage: f, err := multipart.NewFile(...).
+// multipart provides an implementation for http.File that acts as one logical
+// file backed by several physical files (the 'parts').
+package multipart
 
 import (
 	"fmt"
@@ -15,11 +12,11 @@ import (
 
 var internalErr = fmt.Errorf("internal error")
 
-// NewMergeFile creates the "merge" file out of the provided parts.
+// NewFile creates the multipart file out of the provided parts.
 // The sizes of the parts are captured at the outset and not updated
-// for the lifetime of the merge file (any subsequent modifications
+// for the lifetime of the multipart file (any subsequent modifications
 // in the parts will cause Read and Seek to work incorrectly).
-func NewMergeFile(name string, parts []*os.File) (http.File, error) {
+func NewFile(name string, parts []*os.File) (http.File, error) {
 	fileParts := make([]filePart, len(parts))
 	for i, p := range parts {
 		stat, err := p.Stat()
@@ -33,7 +30,7 @@ func NewMergeFile(name string, parts []*os.File) (http.File, error) {
 		}
 		fileParts[i] = filePart{file: p, size: size}
 	}
-	return &mergeFile{name: name, parts: fileParts}, nil
+	return &multipartFile{name: name, parts: fileParts}, nil
 }
 
 type filePart struct {
@@ -41,14 +38,14 @@ type filePart struct {
 	size int64
 }
 
-type mergeFile struct {
+type multipartFile struct {
 	name       string
 	parts      []filePart
 	activePart int
 	partOffset int64
 }
 
-func (m *mergeFile) currPos() (res int64) {
+func (m *multipartFile) currPos() (res int64) {
 	for i := 0; i < m.activePart; i++ {
 		res += m.parts[i].size
 	}
@@ -56,7 +53,7 @@ func (m *mergeFile) currPos() (res int64) {
 	return
 }
 
-func (m *mergeFile) totalSize() (res int64) {
+func (m *multipartFile) totalSize() (res int64) {
 	for _, p := range m.parts {
 		res += p.size
 	}
@@ -64,7 +61,7 @@ func (m *mergeFile) totalSize() (res int64) {
 }
 
 // Readdir is not implemented.
-func (*mergeFile) Readdir(int) ([]os.FileInfo, error) {
+func (*multipartFile) Readdir(int) ([]os.FileInfo, error) {
 	return nil, fmt.Errorf("Not implemented")
 }
 
@@ -75,12 +72,12 @@ type fileInfo struct {
 	modTime time.Time
 }
 
-// Name returns the name of the merge file.
+// Name returns the name of the multipart file.
 func (f *fileInfo) Name() string {
 	return f.name
 }
 
-// Size returns the size of the merge file (the sum of all parts).
+// Size returns the size of the multipart file (the sum of all parts).
 func (f *fileInfo) Size() int64 {
 	return f.size
 }
@@ -105,8 +102,8 @@ func (f *fileInfo) Sys() interface{} {
 	return nil
 }
 
-// Stat describes the merge file.
-func (m *mergeFile) Stat() (os.FileInfo, error) {
+// Stat describes the multipart file.
+func (m *multipartFile) Stat() (os.FileInfo, error) {
 	return &fileInfo{
 		name:    m.name,
 		size:    m.totalSize(),
@@ -116,7 +113,7 @@ func (m *mergeFile) Stat() (os.FileInfo, error) {
 }
 
 // Close closes all the parts.
-func (m *mergeFile) Close() error {
+func (m *multipartFile) Close() error {
 	var lastErr error
 	for _, p := range m.parts {
 		if err := p.file.Close(); err != nil {
@@ -127,7 +124,7 @@ func (m *mergeFile) Close() error {
 }
 
 // Read reads from the parts in sequence.
-func (m *mergeFile) Read(buf []byte) (int, error) {
+func (m *multipartFile) Read(buf []byte) (int, error) {
 	if m.activePart >= len(m.parts) {
 		return 0, io.EOF
 	}
@@ -151,7 +148,7 @@ func (m *mergeFile) Read(buf []byte) (int, error) {
 }
 
 // Seek seeks into the part corresponding to the global offset.
-func (m *mergeFile) Seek(offset int64, whence int) (int64, error) {
+func (m *multipartFile) Seek(offset int64, whence int) (int64, error) {
 	var target int64
 	switch whence {
 	case 0:

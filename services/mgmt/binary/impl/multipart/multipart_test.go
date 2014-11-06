@@ -1,4 +1,4 @@
-package merge_file_test
+package multipart_test
 
 import (
 	"io"
@@ -10,7 +10,7 @@ import (
 	"strings"
 	"testing"
 
-	"veyron.io/veyron/veyron/services/mgmt/binary/impl/merge_file"
+	"veyron.io/veyron/veyron/services/mgmt/binary/impl/multipart"
 )
 
 func read(t *testing.T, m http.File, thisMuch int) string {
@@ -32,11 +32,11 @@ func read(t *testing.T, m http.File, thisMuch int) string {
 	}
 }
 
-// TestMergeFile verifies the http.File operations on the merge file.
-func TestMergeFile(t *testing.T) {
+// TestFile verifies the http.File operations on the multipart file.
+func TestFile(t *testing.T) {
 	contents := []string{"v", "is", "for", "vanadium"}
 	files := make([]*os.File, len(contents))
-	d, err := ioutil.TempDir("", "merge_files")
+	d, err := ioutil.TempDir("", "multiparts")
 	if err != nil {
 		t.Fatalf("TempDir() failed: %v", err)
 	}
@@ -53,9 +53,9 @@ func TestMergeFile(t *testing.T) {
 			t.Fatalf("Open(%v) failed: %v", fPath, err)
 		}
 	}
-	m, err := merge_file.NewMergeFile("bunnies", files)
+	m, err := multipart.NewFile("bunnies", files)
 	if err != nil {
-		t.Fatalf("newMergeFile failed: %v", err)
+		t.Fatalf("NewFile failed: %v", err)
 	}
 	defer func() {
 		if err := m.Close(); err != nil {
