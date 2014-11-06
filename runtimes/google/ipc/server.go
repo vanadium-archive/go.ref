@@ -906,7 +906,7 @@ func (fs *flowServer) processRequest() ([]interface{}, verror.E) {
 func (fs *flowServer) lookup(name, method string) (ipc.Invoker, security.Authorizer, string, verror.E) {
 	name = strings.TrimLeft(name, "/")
 	if method == "Glob" && len(name) == 0 {
-		return ipc.ReflectInvoker(&globInvoker{naming.ReservedNamePrefix, fs}), &acceptAllAuthorizer{}, name, nil
+		return ipc.ReflectInvoker(&globInvoker{"__debug", fs}), &acceptAllAuthorizer{}, name, nil
 	}
 	disp := fs.disp
 	if strings.HasPrefix(name, naming.ReservedNamePrefix) {

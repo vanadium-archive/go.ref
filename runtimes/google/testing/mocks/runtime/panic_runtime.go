@@ -45,7 +45,7 @@ func (*PanicRuntime) WaitForStop(chan<- string)     { panic(badRuntime) }
 func (*PanicRuntime) AdvanceGoal(delta int)         { panic(badRuntime) }
 func (*PanicRuntime) AdvanceProgress(delta int)     { panic(badRuntime) }
 func (*PanicRuntime) TrackTask(chan<- veyron2.Task) { panic(badRuntime) }
-func (*PanicRuntime) ConfigureReservedName(string, ipc.Dispatcher, ...ipc.ServerOpt) {
+func (*PanicRuntime) ConfigureReservedName(ipc.Dispatcher, ...ipc.ServerOpt) {
 	panic(badRuntime)
 }
 func (*PanicRuntime) Cleanup() { panic(badRuntime) }

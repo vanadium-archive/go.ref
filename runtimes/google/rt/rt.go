@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strings"
 	"sync"
 
 	"veyron.io/veyron/veyron2"
@@ -31,20 +30,19 @@ var errCleaningUp = fmt.Errorf("operation rejected: runtime is being cleaned up"
 type vrt struct {
 	mu sync.Mutex
 
-	profile        veyron2.Profile
-	publisher      *config.Publisher
-	sm             []stream.Manager // GUARDED_BY(mu)
-	ns             naming.Namespace
-	signals        chan os.Signal
-	principal      security.Principal
-	client         ipc.Client
-	mgmt           *mgmtImpl
-	flags          flags.RuntimeFlags
-	reservedDisp   ipc.Dispatcher
-	reservedPrefix string
-	reservedOpts   []ipc.ServerOpt
-	nServers       int  // GUARDED_BY(mu)
-	cleaningUp     bool // GUARDED_BY(mu)
+	profile      veyron2.Profile
+	publisher    *config.Publisher
+	sm           []stream.Manager // GUARDED_BY(mu)
+	ns           naming.Namespace
+	signals      chan os.Signal
+	principal    security.Principal
+	client       ipc.Client
+	mgmt         *mgmtImpl
+	flags        flags.RuntimeFlags
+	reservedDisp ipc.Dispatcher
+	reservedOpts []ipc.ServerOpt
+	nServers     int  // GUARDED_BY(mu)
+	cleaningUp   bool // GUARDED_BY(mu)
 
 	lang    i18n.LangID // Language, from environment variables.
 	program string      // Program name, from os.Args[0].
@@ -145,12 +143,10 @@ func (rt *vrt) Profile() veyron2.Profile {
 	return rt.profile
 }
 
-func (rt *vrt) ConfigureReservedName(prefix string, server ipc.Dispatcher, opts ...ipc.ServerOpt) {
+func (rt *vrt) ConfigureReservedName(server ipc.Dispatcher, opts ...ipc.ServerOpt) {
 	rt.mu.Lock()
 	defer rt.mu.Unlock()
 	rt.reservedDisp = server
-	prefix = strings.TrimLeft(prefix, "_")
-	rt.reservedPrefix = naming.ReservedNamePrefix + prefix
 	rt.reservedOpts = make([]ipc.ServerOpt, 0, len(opts))
 	copy(rt.reservedOpts, opts)
 }

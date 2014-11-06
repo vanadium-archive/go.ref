@@ -94,7 +94,7 @@ func (rt *vrt) NewServer(opts ...ipc.ServerOpt) (ipc.Server, error) {
 	// Add the option that provides the principal to the server.
 	otherOpts = append(otherOpts, vc.LocalPrincipal{rt.principal})
 	if rt.reservedDisp != nil {
-		ropts := options.ReservedNameDispatcher{rt.reservedPrefix, rt.reservedDisp}
+		ropts := options.ReservedNameDispatcher{rt.reservedDisp}
 		otherOpts = append(otherOpts, ropts)
 		otherOpts = append(otherOpts, rt.reservedOpts...)
 	}
