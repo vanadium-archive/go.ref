@@ -84,9 +84,27 @@ func BindOAuthBlesser(name string, opts ..._gen_ipc.BindOpt) (OAuthBlesser, erro
 // It takes a regular server implementing the OAuthBlesserService
 // interface, and returns a new server stub.
 func NewServerOAuthBlesser(server OAuthBlesserService) interface{} {
-	return &ServerStubOAuthBlesser{
+	stub := &ServerStubOAuthBlesser{
 		service: server,
 	}
+	var gs _gen_ipc.GlobState
+	var self interface{} = stub
+	// VAllGlobber is implemented by the server object, which is wrapped in
+	// a VDL generated server stub.
+	if x, ok := self.(_gen_ipc.VAllGlobber); ok {
+		gs.VAllGlobber = x
+	}
+	// VAllGlobber is implemented by the server object without using a VDL
+	// generated stub.
+	if x, ok := server.(_gen_ipc.VAllGlobber); ok {
+		gs.VAllGlobber = x
+	}
+	// VChildrenGlobber is implemented in the server object.
+	if x, ok := server.(_gen_ipc.VChildrenGlobber); ok {
+		gs.VChildrenGlobber = x
+	}
+	stub.gs = &gs
+	return stub
 }
 
 // clientStubOAuthBlesser implements OAuthBlesser.
@@ -151,6 +169,7 @@ func (__gen_c *clientStubOAuthBlesser) GetMethodTags(ctx _gen_context.T, method 
 // the requirements of veyron2/ipc.ReflectInvoker.
 type ServerStubOAuthBlesser struct {
 	service OAuthBlesserService
+	gs      *_gen_ipc.GlobState
 }
 
 func (__gen_s *ServerStubOAuthBlesser) GetMethodTags(call _gen_ipc.ServerCall, method string) ([]interface{}, error) {
@@ -228,6 +247,10 @@ func (__gen_s *ServerStubOAuthBlesser) UnresolveStep(call _gen_ipc.ServerCall) (
 	return
 }
 
+func (__gen_s *ServerStubOAuthBlesser) VGlob() *_gen_ipc.GlobState {
+	return __gen_s.gs
+}
+
 func (__gen_s *ServerStubOAuthBlesser) BlessUsingAccessToken(call _gen_ipc.ServerCall, token string) (blessing security.WireBlessings, email string, err error) {
 	blessing, email, err = __gen_s.service.BlessUsingAccessToken(call, token)
 	return
@@ -284,9 +307,27 @@ func BindMacaroonBlesser(name string, opts ..._gen_ipc.BindOpt) (MacaroonBlesser
 // It takes a regular server implementing the MacaroonBlesserService
 // interface, and returns a new server stub.
 func NewServerMacaroonBlesser(server MacaroonBlesserService) interface{} {
-	return &ServerStubMacaroonBlesser{
+	stub := &ServerStubMacaroonBlesser{
 		service: server,
 	}
+	var gs _gen_ipc.GlobState
+	var self interface{} = stub
+	// VAllGlobber is implemented by the server object, which is wrapped in
+	// a VDL generated server stub.
+	if x, ok := self.(_gen_ipc.VAllGlobber); ok {
+		gs.VAllGlobber = x
+	}
+	// VAllGlobber is implemented by the server object without using a VDL
+	// generated stub.
+	if x, ok := server.(_gen_ipc.VAllGlobber); ok {
+		gs.VAllGlobber = x
+	}
+	// VChildrenGlobber is implemented in the server object.
+	if x, ok := server.(_gen_ipc.VChildrenGlobber); ok {
+		gs.VChildrenGlobber = x
+	}
+	stub.gs = &gs
+	return stub
 }
 
 // clientStubMacaroonBlesser implements MacaroonBlesser.
@@ -351,6 +392,7 @@ func (__gen_c *clientStubMacaroonBlesser) GetMethodTags(ctx _gen_context.T, meth
 // the requirements of veyron2/ipc.ReflectInvoker.
 type ServerStubMacaroonBlesser struct {
 	service MacaroonBlesserService
+	gs      *_gen_ipc.GlobState
 }
 
 func (__gen_s *ServerStubMacaroonBlesser) GetMethodTags(call _gen_ipc.ServerCall, method string) ([]interface{}, error) {
@@ -425,6 +467,10 @@ func (__gen_s *ServerStubMacaroonBlesser) UnresolveStep(call _gen_ipc.ServerCall
 		reply[i] = _gen_naming.Join(p, call.Name())
 	}
 	return
+}
+
+func (__gen_s *ServerStubMacaroonBlesser) VGlob() *_gen_ipc.GlobState {
+	return __gen_s.gs
 }
 
 func (__gen_s *ServerStubMacaroonBlesser) Bless(call _gen_ipc.ServerCall, macaroon string) (reply security.WireBlessings, err error) {

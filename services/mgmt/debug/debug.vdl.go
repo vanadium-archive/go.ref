@@ -97,12 +97,30 @@ func BindDebug(name string, opts ..._gen_ipc.BindOpt) (Debug, error) {
 // It takes a regular server implementing the DebugService
 // interface, and returns a new server stub.
 func NewServerDebug(server DebugService) interface{} {
-	return &ServerStubDebug{
+	stub := &ServerStubDebug{
 		ServerStubLogFile: *logreader.NewServerLogFile(server).(*logreader.ServerStubLogFile),
 		ServerStubStats:   *stats.NewServerStats(server).(*stats.ServerStubStats),
 		ServerStubPProf:   *pprof.NewServerPProf(server).(*pprof.ServerStubPProf),
 		service:           server,
 	}
+	var gs _gen_ipc.GlobState
+	var self interface{} = stub
+	// VAllGlobber is implemented by the server object, which is wrapped in
+	// a VDL generated server stub.
+	if x, ok := self.(_gen_ipc.VAllGlobber); ok {
+		gs.VAllGlobber = x
+	}
+	// VAllGlobber is implemented by the server object without using a VDL
+	// generated stub.
+	if x, ok := server.(_gen_ipc.VAllGlobber); ok {
+		gs.VAllGlobber = x
+	}
+	// VChildrenGlobber is implemented in the server object.
+	if x, ok := server.(_gen_ipc.VChildrenGlobber); ok {
+		gs.VChildrenGlobber = x
+	}
+	stub.gs = &gs
+	return stub
 }
 
 // clientStubDebug implements Debug.
@@ -164,6 +182,7 @@ type ServerStubDebug struct {
 	pprof.ServerStubPProf
 
 	service DebugService
+	gs      *_gen_ipc.GlobState
 }
 
 func (__gen_s *ServerStubDebug) GetMethodTags(call _gen_ipc.ServerCall, method string) ([]interface{}, error) {
@@ -367,4 +386,8 @@ func (__gen_s *ServerStubDebug) UnresolveStep(call _gen_ipc.ServerCall) (reply [
 		reply[i] = _gen_naming.Join(p, call.Name())
 	}
 	return
+}
+
+func (__gen_s *ServerStubDebug) VGlob() *_gen_ipc.GlobState {
+	return __gen_s.gs
 }
