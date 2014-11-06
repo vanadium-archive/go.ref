@@ -8,7 +8,7 @@ import (
 
 	"veyron.io/veyron/veyron2/vlog"
 
-	"veyron.io/veyron/veyron/services/mgmt/binary/impl/merge_file"
+	"veyron.io/veyron/veyron/services/mgmt/binary/impl/multipart"
 )
 
 // NewHTTPRoot returns an implementation of http.FileSystem that can be used
@@ -24,7 +24,7 @@ type httpRoot struct {
 // TODO(caprita): Tie this in with DownloadURL, to control which binaries
 // are downloadable via url.
 
-// Open implements http.FileSystem.  It uses the merge file implementation
+// Open implements http.FileSystem.  It uses the multipart file implementation
 // to wrap the content parts into one logical file.
 func (r httpRoot) Open(name string) (http.File, error) {
 	name = strings.TrimPrefix(name, "/")
@@ -45,5 +45,5 @@ func (r httpRoot) Open(name string) (http.File, error) {
 			return nil, errOperationFailed
 		}
 	}
-	return merge_file.NewMergeFile(name, partFiles)
+	return multipart.NewFile(name, partFiles)
 }
