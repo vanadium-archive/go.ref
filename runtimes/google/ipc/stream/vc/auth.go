@@ -30,20 +30,19 @@ var (
 )
 
 // authenticateAsServer executes the authentication protocol at the server and
-// returns the blessings used to authenticate both ends.
-func authenticateAsServer(conn io.ReadWriteCloser, principal security.Principal, crypter crypto.Crypter, v version.IPCVersion) (client, server security.Blessings, err error) {
+// returns the blessings used to authenticate the client.
+func authenticateAsServer(conn io.ReadWriteCloser, principal security.Principal, server security.Blessings, crypter crypto.Crypter, v version.IPCVersion) (client security.Blessings, err error) {
 	defer conn.Close()
-	server = principal.BlessingStore().Default()
 	if server == nil {
-		return nil, nil, fmt.Errorf("BlessingStore does not contain a default set of blessings, cannot act as a server")
+		return nil, errors.New("no blessings to present as a server")
 	}
 	if err := writeBlessings(conn, authServerContextTag, crypter, principal, server, v); err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 	if client, err = readBlessings(conn, authClientContextTag, crypter, v); err != nil {
-		return nil, nil, err
+		return nil, err
 	}
-	return client, server, nil
+	return client, nil
 }
 
 // authenticateAsClient executes the authentication protocol at the client and
