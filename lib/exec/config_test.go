@@ -27,6 +27,8 @@ func TestConfig(t *testing.T) {
 	checkAbsent(t, c, "food")
 	c.Set("foo", "baz")
 	checkPresent(t, c, "foo", "baz")
+	c.Clear("foo")
+	checkAbsent(t, c, "foo")
 }
 
 // TestSerialize checks that serializing the config and merging from a

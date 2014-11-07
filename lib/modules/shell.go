@@ -62,7 +62,7 @@ type Shell struct {
 	handles      map[Handle]struct{}
 	credDir      string
 	startTimeout time.Duration
-	Config       exec.Config
+	config       exec.Config
 }
 
 type commandDesc struct {
@@ -98,7 +98,7 @@ func NewShell(patterns ...string) *Shell {
 		cmds:         make(map[string]*commandDesc),
 		handles:      make(map[Handle]struct{}),
 		startTimeout: time.Minute,
-		Config:       exec.NewConfig(),
+		config:       exec.NewConfig(),
 	}
 	if flag.Lookup("test.run") != nil && os.Getenv(consts.VeyronCredentials) == "" {
 		if err := sh.CreateAndUseNewCredentials(); err != nil {
@@ -281,6 +281,25 @@ func (sh *Shell) ClearVar(key string) {
 	sh.mu.Lock()
 	defer sh.mu.Unlock()
 	delete(sh.env, key)
+}
+
+// GetConfigKey returns the value associated with the specified key in
+// the Shell's config and an indication of whether it is defined or
+// not.
+func (sh *Shell) GetConfigKey(key string) (string, bool) {
+	v, err := sh.config.Get(key)
+	return v, err == nil
+}
+
+// SetConfigKey sets the value of the specified key in the Shell's
+// config.
+func (sh *Shell) SetConfigKey(key, value string) {
+	sh.config.Set(key, value)
+}
+
+// ClearConfigKey removes the speficied key from the Shell's config.
+func (sh *Shell) ClearConfigKey(key string) {
+	sh.config.Clear(key)
 }
 
 // Env returns the entire set of environment variables associated with this

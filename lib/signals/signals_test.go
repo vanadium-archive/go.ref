@@ -340,9 +340,9 @@ func TestCleanRemoteShutdown(t *testing.T) {
 	configServer, configServiceName, ch := createConfigServer(t)
 	defer configServer.Stop()
 	sh.SetVar(consts.VeyronCredentials, childcreds)
-	sh.Config.Set(mgmt.ParentNameConfigKey, configServiceName)
-	sh.Config.Set(mgmt.ProtocolConfigKey, "tcp")
-	sh.Config.Set(mgmt.AddressConfigKey, "127.0.0.1:0")
+	sh.SetConfigKey(mgmt.ParentNameConfigKey, configServiceName)
+	sh.SetConfigKey(mgmt.ProtocolConfigKey, "tcp")
+	sh.SetConfigKey(mgmt.AddressConfigKey, "127.0.0.1:0")
 	h, err := sh.Start("handleDefaults", nil)
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)

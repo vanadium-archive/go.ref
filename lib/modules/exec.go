@@ -134,7 +134,7 @@ func (eh *execHandle) start(sh *Shell, env []string, args ...string) (Handle, er
 		return nil, err
 	}
 
-	handle := vexec.NewParentHandle(cmd, vexec.ConfigOpt{Config: sh.Config})
+	handle := vexec.NewParentHandle(cmd, vexec.ConfigOpt{Config: sh.config})
 	eh.stdout = stdout
 	eh.stderr = stderr
 	eh.stdin = stdin

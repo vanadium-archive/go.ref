@@ -26,9 +26,11 @@ type Config interface {
 	// Set sets the value for the key.  If the key already exists in the
 	// config, its value is overwritten.
 	Set(key, value string)
-	// Get returns the value for the key.  If the key doesn't exist in the
-	// config, Get returns an error.
+	// Get returns the value for the key. If the key doesn't exist
+	// in the config, Get returns an error.
 	Get(key string) (string, error)
+	// Clear removes the specified key from the config.
+	Clear(key string)
 	// Serialize serializes the config to a string.
 	Serialize() (string, error)
 	// MergeFrom deserializes config information from a string created using
@@ -62,6 +64,12 @@ func (c cfg) Get(key string) (string, error) {
 		return "", verror2.Make(verror2.NoExist, nil, "config.Get", key)
 	}
 	return v, nil
+}
+
+func (c cfg) Clear(key string) {
+	c.Lock()
+	defer c.Unlock()
+	delete(c.m, key)
 }
 
 func (c cfg) Serialize() (string, error) {
