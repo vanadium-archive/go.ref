@@ -11,6 +11,7 @@ import (
 	"veyron.io/veyron/veyron2/verror2"
 	"veyron.io/veyron/veyron2/vlog"
 	"veyron.io/veyron/veyron2/vom"
+	"veyron.io/wspr/veyron/services/wsprd/app"
 
 	"github.com/gorilla/websocket"
 )
@@ -37,7 +38,7 @@ func (w *websocketWriter) Send(messageType lib.ResponseType, data interface{}) e
 
 	var buf2 bytes.Buffer
 
-	if err := vom.ObjToJSON(&buf2, vom.ValueOf(websocketMessage{Id: w.id, Data: buf.String()})); err != nil {
+	if err := vom.ObjToJSON(&buf2, vom.ValueOf(app.Message{Id: w.id, Data: buf.String()})); err != nil {
 		w.logger.Error("Failed to write the message", err)
 		return err
 	}
