@@ -25,6 +25,7 @@ main() {
   local -r REPO="binaryd-test-repo"
   shell_test::start_server "${BINARYD_BIN}" --name="${REPO}" --veyron.tcp.address=127.0.0.1:0 \
     || shell_test::fail "line ${LINENO} failed to start binaryd"
+  local -r HTTP_ADDR=$(grep 'HTTP server at: "' "${START_SERVER_LOG_FILE}" | sed -e 's/^.*HTTP server at: "//' | sed -e 's/"$//')
 
   # Create a binary file.
   local -r BINARY_SUFFIX="test-binary"
@@ -42,7 +43,7 @@ main() {
   fi
 
   local -r BINARY_FILE3=$(shell::tmp_file)
-  curl -f -o "${BINARY_FILE3}" http://localhost:8080/"${BINARY_SUFFIX}" || shell_test::fail "line ${LINENO}: 'HTTP download' failed"
+  curl -f -o "${BINARY_FILE3}" "http://${HTTP_ADDR}/${BINARY_SUFFIX}" || shell_test::fail "line ${LINENO}: 'HTTP download' failed"
   if [[ $(cmp "${BINARY_FILE}" "${BINARY_FILE3}" &> /dev/null) ]]; then
     shell_test::fail "mismatching binary file downloaded via HTTP"
   fi
