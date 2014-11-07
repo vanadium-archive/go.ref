@@ -5,7 +5,9 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"path/filepath"
 	"reflect"
+	"runtime"
 	"strings"
 	"sync"
 	"testing"
@@ -189,15 +191,23 @@ func startServer(t *testing.T, principal security.Principal, sm stream.Manager, 
 	return ep, server
 }
 
-func verifyMount(t *testing.T, ns naming.Namespace, name string) {
-	if _, err := ns.Resolve(testContext(), name); err != nil {
-		t.Errorf("%s not found in mounttable", name)
+func loc(d int) string {
+	_, file, line, _ := runtime.Caller(d + 1)
+	return fmt.Sprintf("%s:%d", filepath.Base(file), line)
+}
+
+func verifyMount(t *testing.T, ns naming.Namespace, name string) []string {
+	addrs, err := ns.Resolve(testContext(), name)
+	if err != nil {
+		t.Errorf("%s: %s not found in mounttable", loc(1), name)
+		return nil
 	}
+	return addrs
 }
 
 func verifyMountMissing(t *testing.T, ns naming.Namespace, name string) {
 	if servers, err := ns.Resolve(testContext(), name); err == nil {
-		t.Errorf("%s not supposed to be found in mounttable; got %d servers instead", name, len(servers))
+		t.Errorf("%s: %s not supposed to be found in mounttable; got %d servers instead", loc(1), name, len(servers))
 	}
 }
 
