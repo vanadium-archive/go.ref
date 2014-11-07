@@ -79,10 +79,7 @@ func (p *Player) InitiateGame(ctx context.T) error {
 }
 
 func (p *Player) createGame(ctx context.T, server string) (rps.GameID, rps.GameOptions, error) {
-	j, err := rps.BindRockPaperScissors(server)
-	if err != nil {
-		return rps.GameID{}, rps.GameOptions{}, err
-	}
+	j := rps.RockPaperScissorsClient(server)
 	numRounds := 3 + rand.Intn(3)
 	gameType := rps.Classic
 	if rand.Intn(2) == 1 {
@@ -94,10 +91,7 @@ func (p *Player) createGame(ctx context.T, server string) (rps.GameID, rps.GameO
 }
 
 func (p *Player) sendChallenge(ctx context.T, opponent, judge string, gameID rps.GameID, gameOpts rps.GameOptions) error {
-	o, err := rps.BindRockPaperScissors(opponent)
-	if err != nil {
-		return err
-	}
+	o := rps.RockPaperScissorsClient(opponent)
 	return o.Challenge(ctx, judge, gameID, gameOpts)
 }
 
@@ -116,10 +110,7 @@ func (p *Player) playGame(outer context.T, judge string, gameID rps.GameID) (rps
 	defer cancel()
 	p.gamesInProgress.Incr(1)
 	defer p.gamesInProgress.Incr(-1)
-	j, err := rps.BindRockPaperScissors(judge)
-	if err != nil {
-		return rps.PlayResult{}, err
-	}
+	j := rps.RockPaperScissorsClient(judge)
 	game, err := j.Play(ctx, gameID)
 	if err != nil {
 		return rps.PlayResult{}, err

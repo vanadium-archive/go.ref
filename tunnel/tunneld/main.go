@@ -66,7 +66,7 @@ func main() {
 		fmt.Sprintf("tunnel/hwaddr/%s", hwaddr),
 	}
 	published := false
-	if err := server.Serve(names[0], tunnel.NewServerTunnel(&T{}), auth); err != nil {
+	if err := server.Serve(names[0], tunnel.TunnelServer(&T{}), auth); err != nil {
 		vlog.Infof("Serve(%v) failed: %v", names[0], err)
 	}
 	published = true

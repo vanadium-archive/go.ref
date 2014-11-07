@@ -53,8 +53,8 @@ type gameChallenge struct {
 	opts    rps.GameOptions
 }
 
-// impl is a PlayerService implementation that prompts the user to accept or
-// decline challenges. While waiting for a reply from the user, any incoming
+// impl is a PlayerServerMethods implementation that prompts the user to accept
+// or decline challenges. While waiting for a reply from the user, any incoming
 // challenges are auto-declined.
 type impl struct {
 	ch      chan gameChallenge
@@ -116,7 +116,7 @@ func recvChallenge(rt veyron2.Runtime) gameChallenge {
 	if *name == "" {
 		*name = common.CreateName()
 	}
-	if err := server.Serve(fmt.Sprintf("rps/player/%s", *name), rps.NewServerPlayer(&impl{ch: ch}), sflag.NewAuthorizerOrDie()); err != nil {
+	if err := server.Serve(fmt.Sprintf("rps/player/%s", *name), rps.PlayerServer(&impl{ch: ch}), sflag.NewAuthorizerOrDie()); err != nil {
 		vlog.Fatalf("Serve failed: %v", err)
 	}
 	vlog.Infof("Listening on endpoint /%s", ep)
@@ -176,18 +176,12 @@ func initiateGame(ctx context.T) error {
 }
 
 func createGame(ctx context.T, server string, opts rps.GameOptions) (rps.GameID, error) {
-	j, err := rps.BindRockPaperScissors(server)
-	if err != nil {
-		return rps.GameID{}, err
-	}
+	j := rps.RockPaperScissorsClient(server)
 	return j.CreateGame(ctx, opts)
 }
 
 func sendChallenge(ctx context.T, opponent, judge string, gameID rps.GameID, gameOpts rps.GameOptions) error {
-	o, err := rps.BindRockPaperScissors(opponent)
-	if err != nil {
-		return err
-	}
+	o := rps.RockPaperScissorsClient(opponent)
 	return o.Challenge(ctx, judge, gameID, gameOpts)
 }
 
@@ -195,11 +189,7 @@ func playGame(outer context.T, judge string, gameID rps.GameID) (rps.PlayResult,
 	ctx, cancel := outer.WithTimeout(10 * time.Minute)
 	defer cancel()
 	fmt.Println()
-	j, err := rps.BindRockPaperScissors(judge)
-	if err != nil {
-		return rps.PlayResult{}, err
-	}
-
+	j := rps.RockPaperScissorsClient(judge)
 	game, err := j.Play(ctx, gameID)
 	if err != nil {
 		return rps.PlayResult{}, err

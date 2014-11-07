@@ -18,15 +18,19 @@
 package rps
 
 import (
-	// The non-user imports are prefixed with "_gen_" to prevent collisions.
-	_gen_io "io"
-	_gen_veyron2 "veyron.io/veyron/veyron2"
-	_gen_context "veyron.io/veyron/veyron2/context"
-	_gen_ipc "veyron.io/veyron/veyron2/ipc"
-	_gen_naming "veyron.io/veyron/veyron2/naming"
-	_gen_vdlutil "veyron.io/veyron/veyron2/vdl/vdlutil"
-	_gen_wiretype "veyron.io/veyron/veyron2/wiretype"
+	// The non-user imports are prefixed with "__" to prevent collisions.
+	__io "io"
+	__veyron2 "veyron.io/veyron/veyron2"
+	__context "veyron.io/veyron/veyron2/context"
+	__ipc "veyron.io/veyron/veyron2/ipc"
+	__vdlutil "veyron.io/veyron/veyron2/vdl/vdlutil"
+	__wiretype "veyron.io/veyron/veyron2/wiretype"
 )
+
+// TODO(toddw): Remove this line once the new signature support is done.
+// It corrects a bug where __wiretype is unused in VDL pacakges where only
+// bootstrap types are used on interfaces.
+const _ = __wiretype.TypeIDInvalid
 
 // A GameID is used to uniquely identify a game within one Judge.
 type GameID struct {
@@ -92,142 +96,174 @@ const Player1 = WinnerTag(1)
 
 const Player2 = WinnerTag(2)
 
-// TODO(toddw): Remove this line once the new signature support is done.
-// It corrects a bug where _gen_wiretype is unused in VDL pacakges where only
-// bootstrap types are used on interfaces.
-const _ = _gen_wiretype.TypeIDInvalid
-
-// Judge is the interface the client binds and uses.
-// Judge_ExcludingUniversal is the interface without internal framework-added methods
-// to enable embedding without method collisions.  Not to be used directly by clients.
-type Judge_ExcludingUniversal interface {
+// JudgeClientMethods is the client interface
+// containing Judge methods.
+type JudgeClientMethods interface {
 	// CreateGame creates a new game with the given game options and returns a game
 	// identifier that can be used by the players to join the game.
-	CreateGame(ctx _gen_context.T, Opts GameOptions, opts ..._gen_ipc.CallOpt) (reply GameID, err error)
+	CreateGame(ctx __context.T, Opts GameOptions, opts ...__ipc.CallOpt) (GameID, error)
 	// Play lets a player join an existing game and play.
-	Play(ctx _gen_context.T, ID GameID, opts ..._gen_ipc.CallOpt) (reply JudgePlayCall, err error)
-}
-type Judge interface {
-	_gen_ipc.UniversalServiceMethods
-	Judge_ExcludingUniversal
+	Play(ctx __context.T, ID GameID, opts ...__ipc.CallOpt) (JudgePlayCall, error)
 }
 
-// JudgeService is the interface the server implements.
-type JudgeService interface {
-
-	// CreateGame creates a new game with the given game options and returns a game
-	// identifier that can be used by the players to join the game.
-	CreateGame(context _gen_ipc.ServerContext, Opts GameOptions) (reply GameID, err error)
-	// Play lets a player join an existing game and play.
-	Play(context _gen_ipc.ServerContext, ID GameID, stream JudgeServicePlayStream) (reply PlayResult, err error)
+// JudgeClientStub adds universal methods to JudgeClientMethods.
+type JudgeClientStub interface {
+	JudgeClientMethods
+	__ipc.UniversalServiceMethods
 }
 
-// JudgePlayCall is the interface for call object of the method
-// Play in the service interface Judge.
-type JudgePlayCall interface {
-	// RecvStream returns the recv portion of the stream
+// JudgeClient returns a client stub for Judge.
+func JudgeClient(name string, opts ...__ipc.BindOpt) JudgeClientStub {
+	var client __ipc.Client
+	for _, opt := range opts {
+		if clientOpt, ok := opt.(__ipc.Client); ok {
+			client = clientOpt
+		}
+	}
+	return implJudgeClientStub{name, client}
+}
+
+type implJudgeClientStub struct {
+	name   string
+	client __ipc.Client
+}
+
+func (c implJudgeClientStub) c(ctx __context.T) __ipc.Client {
+	if c.client != nil {
+		return c.client
+	}
+	return __veyron2.RuntimeFromContext(ctx).Client()
+}
+
+func (c implJudgeClientStub) CreateGame(ctx __context.T, i0 GameOptions, opts ...__ipc.CallOpt) (o0 GameID, err error) {
+	var call __ipc.Call
+	if call, err = c.c(ctx).StartCall(ctx, c.name, "CreateGame", []interface{}{i0}, opts...); err != nil {
+		return
+	}
+	if ierr := call.Finish(&o0, &err); ierr != nil {
+		err = ierr
+	}
+	return
+}
+
+func (c implJudgeClientStub) Play(ctx __context.T, i0 GameID, opts ...__ipc.CallOpt) (ocall JudgePlayCall, err error) {
+	var call __ipc.Call
+	if call, err = c.c(ctx).StartCall(ctx, c.name, "Play", []interface{}{i0}, opts...); err != nil {
+		return
+	}
+	ocall = &implJudgePlayCall{call, implJudgePlayClientRecv{call: call}, implJudgePlayClientSend{call}}
+	return
+}
+
+func (c implJudgeClientStub) Signature(ctx __context.T, opts ...__ipc.CallOpt) (o0 __ipc.ServiceSignature, err error) {
+	var call __ipc.Call
+	if call, err = c.c(ctx).StartCall(ctx, c.name, "Signature", nil, opts...); err != nil {
+		return
+	}
+	if ierr := call.Finish(&o0, &err); ierr != nil {
+		err = ierr
+	}
+	return
+}
+
+func (c implJudgeClientStub) GetMethodTags(ctx __context.T, method string, opts ...__ipc.CallOpt) (o0 []interface{}, err error) {
+	var call __ipc.Call
+	if call, err = c.c(ctx).StartCall(ctx, c.name, "GetMethodTags", []interface{}{method}, opts...); err != nil {
+		return
+	}
+	if ierr := call.Finish(&o0, &err); ierr != nil {
+		err = ierr
+	}
+	return
+}
+
+// JudgePlayClientStream is the client stream for Judge.Play.
+type JudgePlayClientStream interface {
+	// RecvStream returns the receiver side of the client stream.
 	RecvStream() interface {
-		// Advance stages an element so the client can retrieve it
-		// with Value.  Advance returns true iff there is an
-		// element to retrieve.  The client must call Advance before
-		// calling Value. Advance may block if an element is not
-		// immediately available.
+		// Advance stages an item so that it may be retrieved via Value.  Returns
+		// true iff there is an item to retrieve.  Advance must be called before
+		// Value is called.  May block if an item is not available.
 		Advance() bool
-
-		// Value returns the element that was staged by Advance.
-		// Value may panic if Advance returned false or was not
-		// called at all.  Value does not block.
+		// Value returns the item that was staged by Advance.  May panic if Advance
+		// returned false or was not called.  Never blocks.
 		Value() JudgeAction
-
-		// Err returns a non-nil error iff the stream encountered
-		// any errors.  Err does not block.
+		// Err returns any error encountered by Advance.  Never blocks.
 		Err() error
 	}
-
-	// SendStream returns the send portion of the stream
+	// SendStream returns the send side of the client stream.
 	SendStream() interface {
-		// Send places the item onto the output stream, blocking if there is no
-		// buffer space available.  Calls to Send after having called Close
-		// or Cancel will fail.  Any blocked Send calls will be unblocked upon
-		// calling Cancel.
+		// Send places the item onto the output stream.  Returns errors encountered
+		// while sending, or if Send is called after Close or Cancel.  Blocks if
+		// there is no buffer space; will unblock when buffer space is available or
+		// after Cancel.
 		Send(item PlayerAction) error
-
-		// Close indicates to the server that no more items will be sent;
-		// server Recv calls will receive io.EOF after all sent items.  This is
-		// an optional call - it's used by streaming clients that need the
-		// server to receive the io.EOF terminator before the client calls
-		// Finish (for example, if the client needs to continue receiving items
-		// from the server after having finished sending).
-		// Calls to Close after having called Cancel will fail.
-		// Like Send, Close blocks when there's no buffer space available.
+		// Close indicates to the server that no more items will be sent; server
+		// Recv calls will receive io.EOF after all sent items.  This is an optional
+		// call - e.g. a client might call Close if it needs to continue receiving
+		// items from the server after it's done sending.  Returns errors
+		// encountered while closing, or if Close is called after Cancel.  Like
+		// Send, blocks if there is no buffer space available.
 		Close() error
 	}
+}
 
-	// Finish performs the equivalent of SendStream().Close, then blocks until the server
-	// is done, and returns the positional return values for call.
-	// If Cancel has been called, Finish will return immediately; the output of
-	// Finish could either be an error signalling cancelation, or the correct
-	// positional return values from the server depending on the timing of the
-	// call.
+// JudgePlayCall represents the call returned from Judge.Play.
+type JudgePlayCall interface {
+	JudgePlayClientStream
+	// Finish performs the equivalent of SendStream().Close, then blocks until
+	// the server is done, and returns the positional return values for the call.
+	//
+	// Finish returns immediately if Cancel has been called; depending on the
+	// timing the output could either be an error signaling cancelation, or the
+	// valid positional return values from the server.
 	//
 	// Calling Finish is mandatory for releasing stream resources, unless Cancel
-	// has been called or any of the other methods return an error.
-	// Finish should be called at most once.
-	Finish() (reply PlayResult, err error)
-
-	// Cancel cancels the RPC, notifying the server to stop processing.  It
-	// is safe to call Cancel concurrently with any of the other stream methods.
+	// has been called or any of the other methods return an error.  Finish should
+	// be called at most once.
+	Finish() (PlayResult, error)
+	// Cancel cancels the RPC, notifying the server to stop processing.  It is
+	// safe to call Cancel concurrently with any of the other stream methods.
 	// Calling Cancel after Finish has returned is a no-op.
 	Cancel()
 }
 
-type implJudgePlayStreamSender struct {
-	clientCall _gen_ipc.Call
+type implJudgePlayClientRecv struct {
+	call __ipc.Call
+	val  JudgeAction
+	err  error
 }
 
-func (c *implJudgePlayStreamSender) Send(item PlayerAction) error {
-	return c.clientCall.Send(item)
-}
-
-func (c *implJudgePlayStreamSender) Close() error {
-	return c.clientCall.CloseSend()
-}
-
-type implJudgePlayStreamIterator struct {
-	clientCall _gen_ipc.Call
-	val        JudgeAction
-	err        error
-}
-
-func (c *implJudgePlayStreamIterator) Advance() bool {
+func (c *implJudgePlayClientRecv) Advance() bool {
 	c.val = JudgeAction{}
-	c.err = c.clientCall.Recv(&c.val)
+	c.err = c.call.Recv(&c.val)
 	return c.err == nil
 }
-
-func (c *implJudgePlayStreamIterator) Value() JudgeAction {
+func (c *implJudgePlayClientRecv) Value() JudgeAction {
 	return c.val
 }
-
-func (c *implJudgePlayStreamIterator) Err() error {
-	if c.err == _gen_io.EOF {
+func (c *implJudgePlayClientRecv) Err() error {
+	if c.err == __io.EOF {
 		return nil
 	}
 	return c.err
 }
 
-// Implementation of the JudgePlayCall interface that is not exported.
-type implJudgePlayCall struct {
-	clientCall  _gen_ipc.Call
-	writeStream implJudgePlayStreamSender
-	readStream  implJudgePlayStreamIterator
+type implJudgePlayClientSend struct {
+	call __ipc.Call
 }
 
-func (c *implJudgePlayCall) SendStream() interface {
-	Send(item PlayerAction) error
-	Close() error
-} {
-	return &c.writeStream
+func (c *implJudgePlayClientSend) Send(item PlayerAction) error {
+	return c.call.Send(item)
+}
+func (c *implJudgePlayClientSend) Close() error {
+	return c.call.CloseSend()
+}
+
+type implJudgePlayCall struct {
+	call __ipc.Call
+	recv implJudgePlayClientRecv
+	send implJudgePlayClientSend
 }
 
 func (c *implJudgePlayCall) RecvStream() interface {
@@ -235,246 +271,93 @@ func (c *implJudgePlayCall) RecvStream() interface {
 	Value() JudgeAction
 	Err() error
 } {
-	return &c.readStream
+	return &c.recv
 }
-
-func (c *implJudgePlayCall) Finish() (reply PlayResult, err error) {
-	if ierr := c.clientCall.Finish(&reply, &err); ierr != nil {
+func (c *implJudgePlayCall) SendStream() interface {
+	Send(item PlayerAction) error
+	Close() error
+} {
+	return &c.send
+}
+func (c *implJudgePlayCall) Finish() (o0 PlayResult, err error) {
+	if ierr := c.call.Finish(&o0, &err); ierr != nil {
 		err = ierr
 	}
 	return
 }
-
 func (c *implJudgePlayCall) Cancel() {
-	c.clientCall.Cancel()
+	c.call.Cancel()
 }
 
-type implJudgeServicePlayStreamSender struct {
-	serverCall _gen_ipc.ServerCall
+// JudgeServerMethods is the interface a server writer
+// implements for Judge.
+type JudgeServerMethods interface {
+	// CreateGame creates a new game with the given game options and returns a game
+	// identifier that can be used by the players to join the game.
+	CreateGame(ctx __ipc.ServerContext, Opts GameOptions) (GameID, error)
+	// Play lets a player join an existing game and play.
+	Play(ctx JudgePlayContext, ID GameID) (PlayResult, error)
 }
 
-func (s *implJudgeServicePlayStreamSender) Send(item JudgeAction) error {
-	return s.serverCall.Send(item)
+// JudgeServerStubMethods is the server interface containing
+// Judge methods, as expected by ipc.Server.  The difference between
+// this interface and JudgeServerMethods is that the first context
+// argument for each method is always ipc.ServerCall here, while it is either
+// ipc.ServerContext or a typed streaming context there.
+type JudgeServerStubMethods interface {
+	// CreateGame creates a new game with the given game options and returns a game
+	// identifier that can be used by the players to join the game.
+	CreateGame(call __ipc.ServerCall, Opts GameOptions) (GameID, error)
+	// Play lets a player join an existing game and play.
+	Play(call __ipc.ServerCall, ID GameID) (PlayResult, error)
 }
 
-type implJudgeServicePlayStreamIterator struct {
-	serverCall _gen_ipc.ServerCall
-	val        PlayerAction
-	err        error
+// JudgeServerStub adds universal methods to JudgeServerStubMethods.
+type JudgeServerStub interface {
+	JudgeServerStubMethods
+	// GetMethodTags will be replaced with DescribeInterfaces.
+	GetMethodTags(call __ipc.ServerCall, method string) ([]interface{}, error)
+	// Signature will be replaced with DescribeInterfaces.
+	Signature(call __ipc.ServerCall) (__ipc.ServiceSignature, error)
 }
 
-func (s *implJudgeServicePlayStreamIterator) Advance() bool {
-	s.val = PlayerAction{}
-	s.err = s.serverCall.Recv(&s.val)
-	return s.err == nil
-}
-
-func (s *implJudgeServicePlayStreamIterator) Value() PlayerAction {
-	return s.val
-}
-
-func (s *implJudgeServicePlayStreamIterator) Err() error {
-	if s.err == _gen_io.EOF {
-		return nil
+// JudgeServer returns a server stub for Judge.
+// It converts an implementation of JudgeServerMethods into
+// an object that may be used by ipc.Server.
+func JudgeServer(impl JudgeServerMethods) JudgeServerStub {
+	stub := implJudgeServerStub{
+		impl: impl,
 	}
-	return s.err
-}
-
-// JudgeServicePlayStream is the interface for streaming responses of the method
-// Play in the service interface Judge.
-type JudgeServicePlayStream interface {
-	// SendStream returns the send portion of the stream.
-	SendStream() interface {
-		// Send places the item onto the output stream, blocking if there is no buffer
-		// space available.  If the client has canceled, an error is returned.
-		Send(item JudgeAction) error
+	// Initialize GlobState; always check the stub itself first, to handle the
+	// case where the user has the Glob method defined in their VDL source.
+	if gs := __ipc.NewGlobState(stub); gs != nil {
+		stub.gs = gs
+	} else if gs := __ipc.NewGlobState(impl); gs != nil {
+		stub.gs = gs
 	}
-	// RecvStream returns the recv portion of the stream
-	RecvStream() interface {
-		// Advance stages an element so the client can retrieve it
-		// with Value.  Advance returns true iff there is an
-		// element to retrieve.  The client must call Advance before
-		// calling Value.  Advance may block if an element is not
-		// immediately available.
-		Advance() bool
-
-		// Value returns the element that was staged by Advance.
-		// Value may panic if Advance returned false or was not
-		// called at all.  Value does not block.
-		Value() PlayerAction
-
-		// Err returns a non-nil error iff the stream encountered
-		// any errors.  Err does not block.
-		Err() error
-	}
-}
-
-// Implementation of the JudgeServicePlayStream interface that is not exported.
-type implJudgeServicePlayStream struct {
-	writer implJudgeServicePlayStreamSender
-	reader implJudgeServicePlayStreamIterator
-}
-
-func (s *implJudgeServicePlayStream) SendStream() interface {
-	// Send places the item onto the output stream, blocking if there is no buffer
-	// space available.  If the client has canceled, an error is returned.
-	Send(item JudgeAction) error
-} {
-	return &s.writer
-}
-
-func (s *implJudgeServicePlayStream) RecvStream() interface {
-	// Advance stages an element so the client can retrieve it
-	// with Value.  Advance returns true iff there is an
-	// element to retrieve.  The client must call Advance before
-	// calling Value.  The client must call Cancel if it does
-	// not iterate through all elements (i.e. until Advance
-	// returns false).  Advance may block if an element is not
-	// immediately available.
-	Advance() bool
-
-	// Value returns the element that was staged by Advance.
-	// Value may panic if Advance returned false or was not
-	// called at all.  Value does not block.
-	Value() PlayerAction
-
-	// Err returns a non-nil error iff the stream encountered
-	// any errors.  Err does not block.
-	Err() error
-} {
-	return &s.reader
-}
-
-// BindJudge returns the client stub implementing the Judge
-// interface.
-//
-// If no _gen_ipc.Client is specified, the default _gen_ipc.Client in the
-// global Runtime is used.
-func BindJudge(name string, opts ..._gen_ipc.BindOpt) (Judge, error) {
-	var client _gen_ipc.Client
-	switch len(opts) {
-	case 0:
-		// Do nothing.
-	case 1:
-		if clientOpt, ok := opts[0].(_gen_ipc.Client); opts[0] == nil || ok {
-			client = clientOpt
-		} else {
-			return nil, _gen_vdlutil.ErrUnrecognizedOption
-		}
-	default:
-		return nil, _gen_vdlutil.ErrTooManyOptionsToBind
-	}
-	stub := &clientStubJudge{defaultClient: client, name: name}
-
-	return stub, nil
-}
-
-// NewServerJudge creates a new server stub.
-//
-// It takes a regular server implementing the JudgeService
-// interface, and returns a new server stub.
-func NewServerJudge(server JudgeService) interface{} {
-	stub := &ServerStubJudge{
-		service: server,
-	}
-	var gs _gen_ipc.GlobState
-	var self interface{} = stub
-	// VAllGlobber is implemented by the server object, which is wrapped in
-	// a VDL generated server stub.
-	if x, ok := self.(_gen_ipc.VAllGlobber); ok {
-		gs.VAllGlobber = x
-	}
-	// VAllGlobber is implemented by the server object without using a VDL
-	// generated stub.
-	if x, ok := server.(_gen_ipc.VAllGlobber); ok {
-		gs.VAllGlobber = x
-	}
-	// VChildrenGlobber is implemented in the server object.
-	if x, ok := server.(_gen_ipc.VChildrenGlobber); ok {
-		gs.VChildrenGlobber = x
-	}
-	stub.gs = &gs
 	return stub
 }
 
-// clientStubJudge implements Judge.
-type clientStubJudge struct {
-	defaultClient _gen_ipc.Client
-	name          string
+type implJudgeServerStub struct {
+	impl JudgeServerMethods
+	gs   *__ipc.GlobState
 }
 
-func (__gen_c *clientStubJudge) client(ctx _gen_context.T) _gen_ipc.Client {
-	if __gen_c.defaultClient != nil {
-		return __gen_c.defaultClient
-	}
-	return _gen_veyron2.RuntimeFromContext(ctx).Client()
+func (s implJudgeServerStub) CreateGame(call __ipc.ServerCall, i0 GameOptions) (GameID, error) {
+	return s.impl.CreateGame(call, i0)
 }
 
-func (__gen_c *clientStubJudge) CreateGame(ctx _gen_context.T, Opts GameOptions, opts ..._gen_ipc.CallOpt) (reply GameID, err error) {
-	var call _gen_ipc.Call
-	if call, err = __gen_c.client(ctx).StartCall(ctx, __gen_c.name, "CreateGame", []interface{}{Opts}, opts...); err != nil {
-		return
-	}
-	if ierr := call.Finish(&reply, &err); ierr != nil {
-		err = ierr
-	}
-	return
+func (s implJudgeServerStub) Play(call __ipc.ServerCall, i0 GameID) (PlayResult, error) {
+	ctx := &implJudgePlayContext{call, implJudgePlayServerRecv{call: call}, implJudgePlayServerSend{call}}
+	return s.impl.Play(ctx, i0)
 }
 
-func (__gen_c *clientStubJudge) Play(ctx _gen_context.T, ID GameID, opts ..._gen_ipc.CallOpt) (reply JudgePlayCall, err error) {
-	var call _gen_ipc.Call
-	if call, err = __gen_c.client(ctx).StartCall(ctx, __gen_c.name, "Play", []interface{}{ID}, opts...); err != nil {
-		return
-	}
-	reply = &implJudgePlayCall{clientCall: call, writeStream: implJudgePlayStreamSender{clientCall: call}, readStream: implJudgePlayStreamIterator{clientCall: call}}
-	return
+func (s implJudgeServerStub) VGlob() *__ipc.GlobState {
+	return s.gs
 }
 
-func (__gen_c *clientStubJudge) UnresolveStep(ctx _gen_context.T, opts ..._gen_ipc.CallOpt) (reply []string, err error) {
-	var call _gen_ipc.Call
-	if call, err = __gen_c.client(ctx).StartCall(ctx, __gen_c.name, "UnresolveStep", nil, opts...); err != nil {
-		return
-	}
-	if ierr := call.Finish(&reply, &err); ierr != nil {
-		err = ierr
-	}
-	return
-}
-
-func (__gen_c *clientStubJudge) Signature(ctx _gen_context.T, opts ..._gen_ipc.CallOpt) (reply _gen_ipc.ServiceSignature, err error) {
-	var call _gen_ipc.Call
-	if call, err = __gen_c.client(ctx).StartCall(ctx, __gen_c.name, "Signature", nil, opts...); err != nil {
-		return
-	}
-	if ierr := call.Finish(&reply, &err); ierr != nil {
-		err = ierr
-	}
-	return
-}
-
-func (__gen_c *clientStubJudge) GetMethodTags(ctx _gen_context.T, method string, opts ..._gen_ipc.CallOpt) (reply []interface{}, err error) {
-	var call _gen_ipc.Call
-	if call, err = __gen_c.client(ctx).StartCall(ctx, __gen_c.name, "GetMethodTags", []interface{}{method}, opts...); err != nil {
-		return
-	}
-	if ierr := call.Finish(&reply, &err); ierr != nil {
-		err = ierr
-	}
-	return
-}
-
-// ServerStubJudge wraps a server that implements
-// JudgeService and provides an object that satisfies
-// the requirements of veyron2/ipc.ReflectInvoker.
-type ServerStubJudge struct {
-	service JudgeService
-	gs      *_gen_ipc.GlobState
-}
-
-func (__gen_s *ServerStubJudge) GetMethodTags(call _gen_ipc.ServerCall, method string) ([]interface{}, error) {
-	// TODO(bprosnitz) GetMethodTags() will be replaces with Signature().
-	// Note: This exhibits some weird behavior like returning a nil error if the method isn't found.
-	// This will change when it is replaced with Signature().
+func (s implJudgeServerStub) GetMethodTags(call __ipc.ServerCall, method string) ([]interface{}, error) {
+	// TODO(toddw): Replace with new DescribeInterfaces implementation.
 	switch method {
 	case "CreateGame":
 		return []interface{}{}, nil
@@ -485,22 +368,23 @@ func (__gen_s *ServerStubJudge) GetMethodTags(call _gen_ipc.ServerCall, method s
 	}
 }
 
-func (__gen_s *ServerStubJudge) Signature(call _gen_ipc.ServerCall) (_gen_ipc.ServiceSignature, error) {
-	result := _gen_ipc.ServiceSignature{Methods: make(map[string]_gen_ipc.MethodSignature)}
-	result.Methods["CreateGame"] = _gen_ipc.MethodSignature{
-		InArgs: []_gen_ipc.MethodArgument{
+func (s implJudgeServerStub) Signature(call __ipc.ServerCall) (__ipc.ServiceSignature, error) {
+	// TODO(toddw) Replace with new DescribeInterfaces implementation.
+	result := __ipc.ServiceSignature{Methods: make(map[string]__ipc.MethodSignature)}
+	result.Methods["CreateGame"] = __ipc.MethodSignature{
+		InArgs: []__ipc.MethodArgument{
 			{Name: "Opts", Type: 66},
 		},
-		OutArgs: []_gen_ipc.MethodArgument{
+		OutArgs: []__ipc.MethodArgument{
 			{Name: "", Type: 67},
 			{Name: "", Type: 68},
 		},
 	}
-	result.Methods["Play"] = _gen_ipc.MethodSignature{
-		InArgs: []_gen_ipc.MethodArgument{
+	result.Methods["Play"] = __ipc.MethodSignature{
+		InArgs: []__ipc.MethodArgument{
 			{Name: "ID", Type: 67},
 		},
-		OutArgs: []_gen_ipc.MethodArgument{
+		OutArgs: []__ipc.MethodArgument{
 			{Name: "", Type: 69},
 			{Name: "", Type: 68},
 		},
@@ -508,56 +392,56 @@ func (__gen_s *ServerStubJudge) Signature(call _gen_ipc.ServerCall) (_gen_ipc.Se
 		OutStream: 76,
 	}
 
-	result.TypeDefs = []_gen_vdlutil.Any{
-		_gen_wiretype.NamedPrimitiveType{Type: 0x32, Name: "veyron.io/apps/rps.GameTypeTag", Tags: []string(nil)}, _gen_wiretype.StructType{
-			[]_gen_wiretype.FieldType{
-				_gen_wiretype.FieldType{Type: 0x24, Name: "NumRounds"},
-				_gen_wiretype.FieldType{Type: 0x41, Name: "GameType"},
+	result.TypeDefs = []__vdlutil.Any{
+		__wiretype.NamedPrimitiveType{Type: 0x32, Name: "veyron.io/apps/rps.GameTypeTag", Tags: []string(nil)}, __wiretype.StructType{
+			[]__wiretype.FieldType{
+				__wiretype.FieldType{Type: 0x24, Name: "NumRounds"},
+				__wiretype.FieldType{Type: 0x41, Name: "GameType"},
 			},
 			"veyron.io/apps/rps.GameOptions", []string(nil)},
-		_gen_wiretype.StructType{
-			[]_gen_wiretype.FieldType{
-				_gen_wiretype.FieldType{Type: 0x3, Name: "ID"},
+		__wiretype.StructType{
+			[]__wiretype.FieldType{
+				__wiretype.FieldType{Type: 0x3, Name: "ID"},
 			},
 			"veyron.io/apps/rps.GameID", []string(nil)},
-		_gen_wiretype.NamedPrimitiveType{Type: 0x1, Name: "error", Tags: []string(nil)}, _gen_wiretype.StructType{
-			[]_gen_wiretype.FieldType{
-				_gen_wiretype.FieldType{Type: 0x2, Name: "YouWon"},
+		__wiretype.NamedPrimitiveType{Type: 0x1, Name: "error", Tags: []string(nil)}, __wiretype.StructType{
+			[]__wiretype.FieldType{
+				__wiretype.FieldType{Type: 0x2, Name: "YouWon"},
 			},
 			"veyron.io/apps/rps.PlayResult", []string(nil)},
-		_gen_wiretype.StructType{
-			[]_gen_wiretype.FieldType{
-				_gen_wiretype.FieldType{Type: 0x3, Name: "Move"},
-				_gen_wiretype.FieldType{Type: 0x2, Name: "Quit"},
+		__wiretype.StructType{
+			[]__wiretype.FieldType{
+				__wiretype.FieldType{Type: 0x3, Name: "Move"},
+				__wiretype.FieldType{Type: 0x2, Name: "Quit"},
 			},
 			"veyron.io/apps/rps.PlayerAction", []string(nil)},
-		_gen_wiretype.ArrayType{Elem: 0x3, Len: 0x2, Name: "", Tags: []string(nil)}, _gen_wiretype.NamedPrimitiveType{Type: 0x32, Name: "veyron.io/apps/rps.WinnerTag", Tags: []string(nil)}, _gen_wiretype.StructType{
-			[]_gen_wiretype.FieldType{
-				_gen_wiretype.FieldType{Type: 0x47, Name: "Moves"},
-				_gen_wiretype.FieldType{Type: 0x3, Name: "Comment"},
-				_gen_wiretype.FieldType{Type: 0x48, Name: "Winner"},
-				_gen_wiretype.FieldType{Type: 0x25, Name: "StartTimeNS"},
-				_gen_wiretype.FieldType{Type: 0x25, Name: "EndTimeNS"},
+		__wiretype.ArrayType{Elem: 0x3, Len: 0x2, Name: "", Tags: []string(nil)}, __wiretype.NamedPrimitiveType{Type: 0x32, Name: "veyron.io/apps/rps.WinnerTag", Tags: []string(nil)}, __wiretype.StructType{
+			[]__wiretype.FieldType{
+				__wiretype.FieldType{Type: 0x47, Name: "Moves"},
+				__wiretype.FieldType{Type: 0x3, Name: "Comment"},
+				__wiretype.FieldType{Type: 0x48, Name: "Winner"},
+				__wiretype.FieldType{Type: 0x25, Name: "StartTimeNS"},
+				__wiretype.FieldType{Type: 0x25, Name: "EndTimeNS"},
 			},
 			"veyron.io/apps/rps.Round", []string(nil)},
-		_gen_wiretype.SliceType{Elem: 0x49, Name: "", Tags: []string(nil)}, _gen_wiretype.StructType{
-			[]_gen_wiretype.FieldType{
-				_gen_wiretype.FieldType{Type: 0x42, Name: "Opts"},
-				_gen_wiretype.FieldType{Type: 0x3, Name: "Judge"},
-				_gen_wiretype.FieldType{Type: 0x3d, Name: "Players"},
-				_gen_wiretype.FieldType{Type: 0x4a, Name: "Rounds"},
-				_gen_wiretype.FieldType{Type: 0x25, Name: "StartTimeNS"},
-				_gen_wiretype.FieldType{Type: 0x25, Name: "EndTimeNS"},
-				_gen_wiretype.FieldType{Type: 0x48, Name: "Winner"},
+		__wiretype.SliceType{Elem: 0x49, Name: "", Tags: []string(nil)}, __wiretype.StructType{
+			[]__wiretype.FieldType{
+				__wiretype.FieldType{Type: 0x42, Name: "Opts"},
+				__wiretype.FieldType{Type: 0x3, Name: "Judge"},
+				__wiretype.FieldType{Type: 0x3d, Name: "Players"},
+				__wiretype.FieldType{Type: 0x4a, Name: "Rounds"},
+				__wiretype.FieldType{Type: 0x25, Name: "StartTimeNS"},
+				__wiretype.FieldType{Type: 0x25, Name: "EndTimeNS"},
+				__wiretype.FieldType{Type: 0x48, Name: "Winner"},
 			},
 			"veyron.io/apps/rps.ScoreCard", []string(nil)},
-		_gen_wiretype.StructType{
-			[]_gen_wiretype.FieldType{
-				_gen_wiretype.FieldType{Type: 0x24, Name: "PlayerNum"},
-				_gen_wiretype.FieldType{Type: 0x3, Name: "OpponentName"},
-				_gen_wiretype.FieldType{Type: 0x3d, Name: "MoveOptions"},
-				_gen_wiretype.FieldType{Type: 0x49, Name: "RoundResult"},
-				_gen_wiretype.FieldType{Type: 0x4b, Name: "Score"},
+		__wiretype.StructType{
+			[]__wiretype.FieldType{
+				__wiretype.FieldType{Type: 0x24, Name: "PlayerNum"},
+				__wiretype.FieldType{Type: 0x3, Name: "OpponentName"},
+				__wiretype.FieldType{Type: 0x3d, Name: "MoveOptions"},
+				__wiretype.FieldType{Type: 0x49, Name: "RoundResult"},
+				__wiretype.FieldType{Type: 0x4b, Name: "Score"},
 			},
 			"veyron.io/apps/rps.JudgeAction", []string(nil)},
 	}
@@ -565,129 +449,125 @@ func (__gen_s *ServerStubJudge) Signature(call _gen_ipc.ServerCall) (_gen_ipc.Se
 	return result, nil
 }
 
-func (__gen_s *ServerStubJudge) UnresolveStep(call _gen_ipc.ServerCall) (reply []string, err error) {
-	if unresolver, ok := __gen_s.service.(_gen_ipc.Unresolver); ok {
-		return unresolver.UnresolveStep(call)
+// JudgePlayServerStream is the server stream for Judge.Play.
+type JudgePlayServerStream interface {
+	// RecvStream returns the receiver side of the server stream.
+	RecvStream() interface {
+		// Advance stages an item so that it may be retrieved via Value.  Returns
+		// true iff there is an item to retrieve.  Advance must be called before
+		// Value is called.  May block if an item is not available.
+		Advance() bool
+		// Value returns the item that was staged by Advance.  May panic if Advance
+		// returned false or was not called.  Never blocks.
+		Value() PlayerAction
+		// Err returns any error encountered by Advance.  Never blocks.
+		Err() error
 	}
-	if call.Server() == nil {
-		return
+	// SendStream returns the send side of the server stream.
+	SendStream() interface {
+		// Send places the item onto the output stream.  Returns errors encountered
+		// while sending.  Blocks if there is no buffer space; will unblock when
+		// buffer space is available.
+		Send(item JudgeAction) error
 	}
-	var published []string
-	if published, err = call.Server().Published(); err != nil || published == nil {
-		return
-	}
-	reply = make([]string, len(published))
-	for i, p := range published {
-		reply[i] = _gen_naming.Join(p, call.Name())
-	}
-	return
 }
 
-func (__gen_s *ServerStubJudge) VGlob() *_gen_ipc.GlobState {
-	return __gen_s.gs
+// JudgePlayContext represents the context passed to Judge.Play.
+type JudgePlayContext interface {
+	__ipc.ServerContext
+	JudgePlayServerStream
 }
 
-func (__gen_s *ServerStubJudge) CreateGame(call _gen_ipc.ServerCall, Opts GameOptions) (reply GameID, err error) {
-	reply, err = __gen_s.service.CreateGame(call, Opts)
-	return
+type implJudgePlayServerRecv struct {
+	call __ipc.ServerCall
+	val  PlayerAction
+	err  error
 }
 
-func (__gen_s *ServerStubJudge) Play(call _gen_ipc.ServerCall, ID GameID) (reply PlayResult, err error) {
-	stream := &implJudgeServicePlayStream{reader: implJudgeServicePlayStreamIterator{serverCall: call}, writer: implJudgeServicePlayStreamSender{serverCall: call}}
-	reply, err = __gen_s.service.Play(call, ID, stream)
-	return
+func (s *implJudgePlayServerRecv) Advance() bool {
+	s.val = PlayerAction{}
+	s.err = s.call.Recv(&s.val)
+	return s.err == nil
+}
+func (s *implJudgePlayServerRecv) Value() PlayerAction {
+	return s.val
+}
+func (s *implJudgePlayServerRecv) Err() error {
+	if s.err == __io.EOF {
+		return nil
+	}
+	return s.err
 }
 
+type implJudgePlayServerSend struct {
+	call __ipc.ServerCall
+}
+
+func (s *implJudgePlayServerSend) Send(item JudgeAction) error {
+	return s.call.Send(item)
+}
+
+type implJudgePlayContext struct {
+	__ipc.ServerContext
+	recv implJudgePlayServerRecv
+	send implJudgePlayServerSend
+}
+
+func (s *implJudgePlayContext) RecvStream() interface {
+	Advance() bool
+	Value() PlayerAction
+	Err() error
+} {
+	return &s.recv
+}
+func (s *implJudgePlayContext) SendStream() interface {
+	Send(item JudgeAction) error
+} {
+	return &s.send
+}
+
+// PlayerClientMethods is the client interface
+// containing Player methods.
+//
 // Player can receive challenges from other players.
-// Player is the interface the client binds and uses.
-// Player_ExcludingUniversal is the interface without internal framework-added methods
-// to enable embedding without method collisions.  Not to be used directly by clients.
-type Player_ExcludingUniversal interface {
+type PlayerClientMethods interface {
 	// Challenge is used by other players to challenge this player to a game. If
 	// the challenge is accepted, the method returns nil.
-	Challenge(ctx _gen_context.T, Address string, ID GameID, Opts GameOptions, opts ..._gen_ipc.CallOpt) (err error)
-}
-type Player interface {
-	_gen_ipc.UniversalServiceMethods
-	Player_ExcludingUniversal
+	Challenge(ctx __context.T, Address string, ID GameID, Opts GameOptions, opts ...__ipc.CallOpt) error
 }
 
-// PlayerService is the interface the server implements.
-type PlayerService interface {
-
-	// Challenge is used by other players to challenge this player to a game. If
-	// the challenge is accepted, the method returns nil.
-	Challenge(context _gen_ipc.ServerContext, Address string, ID GameID, Opts GameOptions) (err error)
+// PlayerClientStub adds universal methods to PlayerClientMethods.
+type PlayerClientStub interface {
+	PlayerClientMethods
+	__ipc.UniversalServiceMethods
 }
 
-// BindPlayer returns the client stub implementing the Player
-// interface.
-//
-// If no _gen_ipc.Client is specified, the default _gen_ipc.Client in the
-// global Runtime is used.
-func BindPlayer(name string, opts ..._gen_ipc.BindOpt) (Player, error) {
-	var client _gen_ipc.Client
-	switch len(opts) {
-	case 0:
-		// Do nothing.
-	case 1:
-		if clientOpt, ok := opts[0].(_gen_ipc.Client); opts[0] == nil || ok {
+// PlayerClient returns a client stub for Player.
+func PlayerClient(name string, opts ...__ipc.BindOpt) PlayerClientStub {
+	var client __ipc.Client
+	for _, opt := range opts {
+		if clientOpt, ok := opt.(__ipc.Client); ok {
 			client = clientOpt
-		} else {
-			return nil, _gen_vdlutil.ErrUnrecognizedOption
 		}
-	default:
-		return nil, _gen_vdlutil.ErrTooManyOptionsToBind
 	}
-	stub := &clientStubPlayer{defaultClient: client, name: name}
-
-	return stub, nil
+	return implPlayerClientStub{name, client}
 }
 
-// NewServerPlayer creates a new server stub.
-//
-// It takes a regular server implementing the PlayerService
-// interface, and returns a new server stub.
-func NewServerPlayer(server PlayerService) interface{} {
-	stub := &ServerStubPlayer{
-		service: server,
-	}
-	var gs _gen_ipc.GlobState
-	var self interface{} = stub
-	// VAllGlobber is implemented by the server object, which is wrapped in
-	// a VDL generated server stub.
-	if x, ok := self.(_gen_ipc.VAllGlobber); ok {
-		gs.VAllGlobber = x
-	}
-	// VAllGlobber is implemented by the server object without using a VDL
-	// generated stub.
-	if x, ok := server.(_gen_ipc.VAllGlobber); ok {
-		gs.VAllGlobber = x
-	}
-	// VChildrenGlobber is implemented in the server object.
-	if x, ok := server.(_gen_ipc.VChildrenGlobber); ok {
-		gs.VChildrenGlobber = x
-	}
-	stub.gs = &gs
-	return stub
+type implPlayerClientStub struct {
+	name   string
+	client __ipc.Client
 }
 
-// clientStubPlayer implements Player.
-type clientStubPlayer struct {
-	defaultClient _gen_ipc.Client
-	name          string
-}
-
-func (__gen_c *clientStubPlayer) client(ctx _gen_context.T) _gen_ipc.Client {
-	if __gen_c.defaultClient != nil {
-		return __gen_c.defaultClient
+func (c implPlayerClientStub) c(ctx __context.T) __ipc.Client {
+	if c.client != nil {
+		return c.client
 	}
-	return _gen_veyron2.RuntimeFromContext(ctx).Client()
+	return __veyron2.RuntimeFromContext(ctx).Client()
 }
 
-func (__gen_c *clientStubPlayer) Challenge(ctx _gen_context.T, Address string, ID GameID, Opts GameOptions, opts ..._gen_ipc.CallOpt) (err error) {
-	var call _gen_ipc.Call
-	if call, err = __gen_c.client(ctx).StartCall(ctx, __gen_c.name, "Challenge", []interface{}{Address, ID, Opts}, opts...); err != nil {
+func (c implPlayerClientStub) Challenge(ctx __context.T, i0 string, i1 GameID, i2 GameOptions, opts ...__ipc.CallOpt) (err error) {
+	var call __ipc.Call
+	if call, err = c.c(ctx).StartCall(ctx, c.name, "Challenge", []interface{}{i0, i1, i2}, opts...); err != nil {
 		return
 	}
 	if ierr := call.Finish(&err); ierr != nil {
@@ -696,51 +576,90 @@ func (__gen_c *clientStubPlayer) Challenge(ctx _gen_context.T, Address string, I
 	return
 }
 
-func (__gen_c *clientStubPlayer) UnresolveStep(ctx _gen_context.T, opts ..._gen_ipc.CallOpt) (reply []string, err error) {
-	var call _gen_ipc.Call
-	if call, err = __gen_c.client(ctx).StartCall(ctx, __gen_c.name, "UnresolveStep", nil, opts...); err != nil {
+func (c implPlayerClientStub) Signature(ctx __context.T, opts ...__ipc.CallOpt) (o0 __ipc.ServiceSignature, err error) {
+	var call __ipc.Call
+	if call, err = c.c(ctx).StartCall(ctx, c.name, "Signature", nil, opts...); err != nil {
 		return
 	}
-	if ierr := call.Finish(&reply, &err); ierr != nil {
+	if ierr := call.Finish(&o0, &err); ierr != nil {
 		err = ierr
 	}
 	return
 }
 
-func (__gen_c *clientStubPlayer) Signature(ctx _gen_context.T, opts ..._gen_ipc.CallOpt) (reply _gen_ipc.ServiceSignature, err error) {
-	var call _gen_ipc.Call
-	if call, err = __gen_c.client(ctx).StartCall(ctx, __gen_c.name, "Signature", nil, opts...); err != nil {
+func (c implPlayerClientStub) GetMethodTags(ctx __context.T, method string, opts ...__ipc.CallOpt) (o0 []interface{}, err error) {
+	var call __ipc.Call
+	if call, err = c.c(ctx).StartCall(ctx, c.name, "GetMethodTags", []interface{}{method}, opts...); err != nil {
 		return
 	}
-	if ierr := call.Finish(&reply, &err); ierr != nil {
+	if ierr := call.Finish(&o0, &err); ierr != nil {
 		err = ierr
 	}
 	return
 }
 
-func (__gen_c *clientStubPlayer) GetMethodTags(ctx _gen_context.T, method string, opts ..._gen_ipc.CallOpt) (reply []interface{}, err error) {
-	var call _gen_ipc.Call
-	if call, err = __gen_c.client(ctx).StartCall(ctx, __gen_c.name, "GetMethodTags", []interface{}{method}, opts...); err != nil {
-		return
-	}
-	if ierr := call.Finish(&reply, &err); ierr != nil {
-		err = ierr
-	}
-	return
+// PlayerServerMethods is the interface a server writer
+// implements for Player.
+//
+// Player can receive challenges from other players.
+type PlayerServerMethods interface {
+	// Challenge is used by other players to challenge this player to a game. If
+	// the challenge is accepted, the method returns nil.
+	Challenge(ctx __ipc.ServerContext, Address string, ID GameID, Opts GameOptions) error
 }
 
-// ServerStubPlayer wraps a server that implements
-// PlayerService and provides an object that satisfies
-// the requirements of veyron2/ipc.ReflectInvoker.
-type ServerStubPlayer struct {
-	service PlayerService
-	gs      *_gen_ipc.GlobState
+// PlayerServerStubMethods is the server interface containing
+// Player methods, as expected by ipc.Server.  The difference between
+// this interface and PlayerServerMethods is that the first context
+// argument for each method is always ipc.ServerCall here, while it is either
+// ipc.ServerContext or a typed streaming context there.
+type PlayerServerStubMethods interface {
+	// Challenge is used by other players to challenge this player to a game. If
+	// the challenge is accepted, the method returns nil.
+	Challenge(call __ipc.ServerCall, Address string, ID GameID, Opts GameOptions) error
 }
 
-func (__gen_s *ServerStubPlayer) GetMethodTags(call _gen_ipc.ServerCall, method string) ([]interface{}, error) {
-	// TODO(bprosnitz) GetMethodTags() will be replaces with Signature().
-	// Note: This exhibits some weird behavior like returning a nil error if the method isn't found.
-	// This will change when it is replaced with Signature().
+// PlayerServerStub adds universal methods to PlayerServerStubMethods.
+type PlayerServerStub interface {
+	PlayerServerStubMethods
+	// GetMethodTags will be replaced with DescribeInterfaces.
+	GetMethodTags(call __ipc.ServerCall, method string) ([]interface{}, error)
+	// Signature will be replaced with DescribeInterfaces.
+	Signature(call __ipc.ServerCall) (__ipc.ServiceSignature, error)
+}
+
+// PlayerServer returns a server stub for Player.
+// It converts an implementation of PlayerServerMethods into
+// an object that may be used by ipc.Server.
+func PlayerServer(impl PlayerServerMethods) PlayerServerStub {
+	stub := implPlayerServerStub{
+		impl: impl,
+	}
+	// Initialize GlobState; always check the stub itself first, to handle the
+	// case where the user has the Glob method defined in their VDL source.
+	if gs := __ipc.NewGlobState(stub); gs != nil {
+		stub.gs = gs
+	} else if gs := __ipc.NewGlobState(impl); gs != nil {
+		stub.gs = gs
+	}
+	return stub
+}
+
+type implPlayerServerStub struct {
+	impl PlayerServerMethods
+	gs   *__ipc.GlobState
+}
+
+func (s implPlayerServerStub) Challenge(call __ipc.ServerCall, i0 string, i1 GameID, i2 GameOptions) error {
+	return s.impl.Challenge(call, i0, i1, i2)
+}
+
+func (s implPlayerServerStub) VGlob() *__ipc.GlobState {
+	return s.gs
+}
+
+func (s implPlayerServerStub) GetMethodTags(call __ipc.ServerCall, method string) ([]interface{}, error) {
+	// TODO(toddw): Replace with new DescribeInterfaces implementation.
 	switch method {
 	case "Challenge":
 		return []interface{}{}, nil
@@ -749,148 +668,77 @@ func (__gen_s *ServerStubPlayer) GetMethodTags(call _gen_ipc.ServerCall, method 
 	}
 }
 
-func (__gen_s *ServerStubPlayer) Signature(call _gen_ipc.ServerCall) (_gen_ipc.ServiceSignature, error) {
-	result := _gen_ipc.ServiceSignature{Methods: make(map[string]_gen_ipc.MethodSignature)}
-	result.Methods["Challenge"] = _gen_ipc.MethodSignature{
-		InArgs: []_gen_ipc.MethodArgument{
+func (s implPlayerServerStub) Signature(call __ipc.ServerCall) (__ipc.ServiceSignature, error) {
+	// TODO(toddw) Replace with new DescribeInterfaces implementation.
+	result := __ipc.ServiceSignature{Methods: make(map[string]__ipc.MethodSignature)}
+	result.Methods["Challenge"] = __ipc.MethodSignature{
+		InArgs: []__ipc.MethodArgument{
 			{Name: "Address", Type: 3},
 			{Name: "ID", Type: 65},
 			{Name: "Opts", Type: 67},
 		},
-		OutArgs: []_gen_ipc.MethodArgument{
+		OutArgs: []__ipc.MethodArgument{
 			{Name: "", Type: 68},
 		},
 	}
 
-	result.TypeDefs = []_gen_vdlutil.Any{
-		_gen_wiretype.StructType{
-			[]_gen_wiretype.FieldType{
-				_gen_wiretype.FieldType{Type: 0x3, Name: "ID"},
+	result.TypeDefs = []__vdlutil.Any{
+		__wiretype.StructType{
+			[]__wiretype.FieldType{
+				__wiretype.FieldType{Type: 0x3, Name: "ID"},
 			},
 			"veyron.io/apps/rps.GameID", []string(nil)},
-		_gen_wiretype.NamedPrimitiveType{Type: 0x32, Name: "veyron.io/apps/rps.GameTypeTag", Tags: []string(nil)}, _gen_wiretype.StructType{
-			[]_gen_wiretype.FieldType{
-				_gen_wiretype.FieldType{Type: 0x24, Name: "NumRounds"},
-				_gen_wiretype.FieldType{Type: 0x42, Name: "GameType"},
+		__wiretype.NamedPrimitiveType{Type: 0x32, Name: "veyron.io/apps/rps.GameTypeTag", Tags: []string(nil)}, __wiretype.StructType{
+			[]__wiretype.FieldType{
+				__wiretype.FieldType{Type: 0x24, Name: "NumRounds"},
+				__wiretype.FieldType{Type: 0x42, Name: "GameType"},
 			},
 			"veyron.io/apps/rps.GameOptions", []string(nil)},
-		_gen_wiretype.NamedPrimitiveType{Type: 0x1, Name: "error", Tags: []string(nil)}}
+		__wiretype.NamedPrimitiveType{Type: 0x1, Name: "error", Tags: []string(nil)}}
 
 	return result, nil
 }
 
-func (__gen_s *ServerStubPlayer) UnresolveStep(call _gen_ipc.ServerCall) (reply []string, err error) {
-	if unresolver, ok := __gen_s.service.(_gen_ipc.Unresolver); ok {
-		return unresolver.UnresolveStep(call)
-	}
-	if call.Server() == nil {
-		return
-	}
-	var published []string
-	if published, err = call.Server().Published(); err != nil || published == nil {
-		return
-	}
-	reply = make([]string, len(published))
-	for i, p := range published {
-		reply[i] = _gen_naming.Join(p, call.Name())
-	}
-	return
-}
-
-func (__gen_s *ServerStubPlayer) VGlob() *_gen_ipc.GlobState {
-	return __gen_s.gs
-}
-
-func (__gen_s *ServerStubPlayer) Challenge(call _gen_ipc.ServerCall, Address string, ID GameID, Opts GameOptions) (err error) {
-	err = __gen_s.service.Challenge(call, Address, ID, Opts)
-	return
-}
-
+// ScoreKeeperClientMethods is the client interface
+// containing ScoreKeeper methods.
+//
 // ScoreKeeper receives the outcome of games from Judges.
-// ScoreKeeper is the interface the client binds and uses.
-// ScoreKeeper_ExcludingUniversal is the interface without internal framework-added methods
-// to enable embedding without method collisions.  Not to be used directly by clients.
-type ScoreKeeper_ExcludingUniversal interface {
-	Record(ctx _gen_context.T, Score ScoreCard, opts ..._gen_ipc.CallOpt) (err error)
-}
-type ScoreKeeper interface {
-	_gen_ipc.UniversalServiceMethods
-	ScoreKeeper_ExcludingUniversal
+type ScoreKeeperClientMethods interface {
+	Record(ctx __context.T, Score ScoreCard, opts ...__ipc.CallOpt) error
 }
 
-// ScoreKeeperService is the interface the server implements.
-type ScoreKeeperService interface {
-	Record(context _gen_ipc.ServerContext, Score ScoreCard) (err error)
+// ScoreKeeperClientStub adds universal methods to ScoreKeeperClientMethods.
+type ScoreKeeperClientStub interface {
+	ScoreKeeperClientMethods
+	__ipc.UniversalServiceMethods
 }
 
-// BindScoreKeeper returns the client stub implementing the ScoreKeeper
-// interface.
-//
-// If no _gen_ipc.Client is specified, the default _gen_ipc.Client in the
-// global Runtime is used.
-func BindScoreKeeper(name string, opts ..._gen_ipc.BindOpt) (ScoreKeeper, error) {
-	var client _gen_ipc.Client
-	switch len(opts) {
-	case 0:
-		// Do nothing.
-	case 1:
-		if clientOpt, ok := opts[0].(_gen_ipc.Client); opts[0] == nil || ok {
+// ScoreKeeperClient returns a client stub for ScoreKeeper.
+func ScoreKeeperClient(name string, opts ...__ipc.BindOpt) ScoreKeeperClientStub {
+	var client __ipc.Client
+	for _, opt := range opts {
+		if clientOpt, ok := opt.(__ipc.Client); ok {
 			client = clientOpt
-		} else {
-			return nil, _gen_vdlutil.ErrUnrecognizedOption
 		}
-	default:
-		return nil, _gen_vdlutil.ErrTooManyOptionsToBind
 	}
-	stub := &clientStubScoreKeeper{defaultClient: client, name: name}
-
-	return stub, nil
+	return implScoreKeeperClientStub{name, client}
 }
 
-// NewServerScoreKeeper creates a new server stub.
-//
-// It takes a regular server implementing the ScoreKeeperService
-// interface, and returns a new server stub.
-func NewServerScoreKeeper(server ScoreKeeperService) interface{} {
-	stub := &ServerStubScoreKeeper{
-		service: server,
-	}
-	var gs _gen_ipc.GlobState
-	var self interface{} = stub
-	// VAllGlobber is implemented by the server object, which is wrapped in
-	// a VDL generated server stub.
-	if x, ok := self.(_gen_ipc.VAllGlobber); ok {
-		gs.VAllGlobber = x
-	}
-	// VAllGlobber is implemented by the server object without using a VDL
-	// generated stub.
-	if x, ok := server.(_gen_ipc.VAllGlobber); ok {
-		gs.VAllGlobber = x
-	}
-	// VChildrenGlobber is implemented in the server object.
-	if x, ok := server.(_gen_ipc.VChildrenGlobber); ok {
-		gs.VChildrenGlobber = x
-	}
-	stub.gs = &gs
-	return stub
+type implScoreKeeperClientStub struct {
+	name   string
+	client __ipc.Client
 }
 
-// clientStubScoreKeeper implements ScoreKeeper.
-type clientStubScoreKeeper struct {
-	defaultClient _gen_ipc.Client
-	name          string
-}
-
-func (__gen_c *clientStubScoreKeeper) client(ctx _gen_context.T) _gen_ipc.Client {
-	if __gen_c.defaultClient != nil {
-		return __gen_c.defaultClient
+func (c implScoreKeeperClientStub) c(ctx __context.T) __ipc.Client {
+	if c.client != nil {
+		return c.client
 	}
-	return _gen_veyron2.RuntimeFromContext(ctx).Client()
+	return __veyron2.RuntimeFromContext(ctx).Client()
 }
 
-func (__gen_c *clientStubScoreKeeper) Record(ctx _gen_context.T, Score ScoreCard, opts ..._gen_ipc.CallOpt) (err error) {
-	var call _gen_ipc.Call
-	if call, err = __gen_c.client(ctx).StartCall(ctx, __gen_c.name, "Record", []interface{}{Score}, opts...); err != nil {
+func (c implScoreKeeperClientStub) Record(ctx __context.T, i0 ScoreCard, opts ...__ipc.CallOpt) (err error) {
+	var call __ipc.Call
+	if call, err = c.c(ctx).StartCall(ctx, c.name, "Record", []interface{}{i0}, opts...); err != nil {
 		return
 	}
 	if ierr := call.Finish(&err); ierr != nil {
@@ -899,51 +747,86 @@ func (__gen_c *clientStubScoreKeeper) Record(ctx _gen_context.T, Score ScoreCard
 	return
 }
 
-func (__gen_c *clientStubScoreKeeper) UnresolveStep(ctx _gen_context.T, opts ..._gen_ipc.CallOpt) (reply []string, err error) {
-	var call _gen_ipc.Call
-	if call, err = __gen_c.client(ctx).StartCall(ctx, __gen_c.name, "UnresolveStep", nil, opts...); err != nil {
+func (c implScoreKeeperClientStub) Signature(ctx __context.T, opts ...__ipc.CallOpt) (o0 __ipc.ServiceSignature, err error) {
+	var call __ipc.Call
+	if call, err = c.c(ctx).StartCall(ctx, c.name, "Signature", nil, opts...); err != nil {
 		return
 	}
-	if ierr := call.Finish(&reply, &err); ierr != nil {
+	if ierr := call.Finish(&o0, &err); ierr != nil {
 		err = ierr
 	}
 	return
 }
 
-func (__gen_c *clientStubScoreKeeper) Signature(ctx _gen_context.T, opts ..._gen_ipc.CallOpt) (reply _gen_ipc.ServiceSignature, err error) {
-	var call _gen_ipc.Call
-	if call, err = __gen_c.client(ctx).StartCall(ctx, __gen_c.name, "Signature", nil, opts...); err != nil {
+func (c implScoreKeeperClientStub) GetMethodTags(ctx __context.T, method string, opts ...__ipc.CallOpt) (o0 []interface{}, err error) {
+	var call __ipc.Call
+	if call, err = c.c(ctx).StartCall(ctx, c.name, "GetMethodTags", []interface{}{method}, opts...); err != nil {
 		return
 	}
-	if ierr := call.Finish(&reply, &err); ierr != nil {
+	if ierr := call.Finish(&o0, &err); ierr != nil {
 		err = ierr
 	}
 	return
 }
 
-func (__gen_c *clientStubScoreKeeper) GetMethodTags(ctx _gen_context.T, method string, opts ..._gen_ipc.CallOpt) (reply []interface{}, err error) {
-	var call _gen_ipc.Call
-	if call, err = __gen_c.client(ctx).StartCall(ctx, __gen_c.name, "GetMethodTags", []interface{}{method}, opts...); err != nil {
-		return
-	}
-	if ierr := call.Finish(&reply, &err); ierr != nil {
-		err = ierr
-	}
-	return
+// ScoreKeeperServerMethods is the interface a server writer
+// implements for ScoreKeeper.
+//
+// ScoreKeeper receives the outcome of games from Judges.
+type ScoreKeeperServerMethods interface {
+	Record(ctx __ipc.ServerContext, Score ScoreCard) error
 }
 
-// ServerStubScoreKeeper wraps a server that implements
-// ScoreKeeperService and provides an object that satisfies
-// the requirements of veyron2/ipc.ReflectInvoker.
-type ServerStubScoreKeeper struct {
-	service ScoreKeeperService
-	gs      *_gen_ipc.GlobState
+// ScoreKeeperServerStubMethods is the server interface containing
+// ScoreKeeper methods, as expected by ipc.Server.  The difference between
+// this interface and ScoreKeeperServerMethods is that the first context
+// argument for each method is always ipc.ServerCall here, while it is either
+// ipc.ServerContext or a typed streaming context there.
+type ScoreKeeperServerStubMethods interface {
+	Record(call __ipc.ServerCall, Score ScoreCard) error
 }
 
-func (__gen_s *ServerStubScoreKeeper) GetMethodTags(call _gen_ipc.ServerCall, method string) ([]interface{}, error) {
-	// TODO(bprosnitz) GetMethodTags() will be replaces with Signature().
-	// Note: This exhibits some weird behavior like returning a nil error if the method isn't found.
-	// This will change when it is replaced with Signature().
+// ScoreKeeperServerStub adds universal methods to ScoreKeeperServerStubMethods.
+type ScoreKeeperServerStub interface {
+	ScoreKeeperServerStubMethods
+	// GetMethodTags will be replaced with DescribeInterfaces.
+	GetMethodTags(call __ipc.ServerCall, method string) ([]interface{}, error)
+	// Signature will be replaced with DescribeInterfaces.
+	Signature(call __ipc.ServerCall) (__ipc.ServiceSignature, error)
+}
+
+// ScoreKeeperServer returns a server stub for ScoreKeeper.
+// It converts an implementation of ScoreKeeperServerMethods into
+// an object that may be used by ipc.Server.
+func ScoreKeeperServer(impl ScoreKeeperServerMethods) ScoreKeeperServerStub {
+	stub := implScoreKeeperServerStub{
+		impl: impl,
+	}
+	// Initialize GlobState; always check the stub itself first, to handle the
+	// case where the user has the Glob method defined in their VDL source.
+	if gs := __ipc.NewGlobState(stub); gs != nil {
+		stub.gs = gs
+	} else if gs := __ipc.NewGlobState(impl); gs != nil {
+		stub.gs = gs
+	}
+	return stub
+}
+
+type implScoreKeeperServerStub struct {
+	impl ScoreKeeperServerMethods
+	gs   *__ipc.GlobState
+}
+
+func (s implScoreKeeperServerStub) Record(call __ipc.ServerCall, i0 ScoreCard) error {
+	return s.impl.Record(call, i0)
+}
+
+func (s implScoreKeeperServerStub) VGlob() *__ipc.GlobState {
+	return s.gs
+}
+
+func (s implScoreKeeperServerStub) GetMethodTags(call __ipc.ServerCall, method string) ([]interface{}, error) {
+	// TODO(toddw): Replace with new DescribeInterfaces implementation.
 	switch method {
 	case "Record":
 		return []interface{}{}, nil
@@ -952,288 +835,247 @@ func (__gen_s *ServerStubScoreKeeper) GetMethodTags(call _gen_ipc.ServerCall, me
 	}
 }
 
-func (__gen_s *ServerStubScoreKeeper) Signature(call _gen_ipc.ServerCall) (_gen_ipc.ServiceSignature, error) {
-	result := _gen_ipc.ServiceSignature{Methods: make(map[string]_gen_ipc.MethodSignature)}
-	result.Methods["Record"] = _gen_ipc.MethodSignature{
-		InArgs: []_gen_ipc.MethodArgument{
+func (s implScoreKeeperServerStub) Signature(call __ipc.ServerCall) (__ipc.ServiceSignature, error) {
+	// TODO(toddw) Replace with new DescribeInterfaces implementation.
+	result := __ipc.ServiceSignature{Methods: make(map[string]__ipc.MethodSignature)}
+	result.Methods["Record"] = __ipc.MethodSignature{
+		InArgs: []__ipc.MethodArgument{
 			{Name: "Score", Type: 71},
 		},
-		OutArgs: []_gen_ipc.MethodArgument{
+		OutArgs: []__ipc.MethodArgument{
 			{Name: "", Type: 72},
 		},
 	}
 
-	result.TypeDefs = []_gen_vdlutil.Any{
-		_gen_wiretype.NamedPrimitiveType{Type: 0x32, Name: "veyron.io/apps/rps.GameTypeTag", Tags: []string(nil)}, _gen_wiretype.StructType{
-			[]_gen_wiretype.FieldType{
-				_gen_wiretype.FieldType{Type: 0x24, Name: "NumRounds"},
-				_gen_wiretype.FieldType{Type: 0x41, Name: "GameType"},
+	result.TypeDefs = []__vdlutil.Any{
+		__wiretype.NamedPrimitiveType{Type: 0x32, Name: "veyron.io/apps/rps.GameTypeTag", Tags: []string(nil)}, __wiretype.StructType{
+			[]__wiretype.FieldType{
+				__wiretype.FieldType{Type: 0x24, Name: "NumRounds"},
+				__wiretype.FieldType{Type: 0x41, Name: "GameType"},
 			},
 			"veyron.io/apps/rps.GameOptions", []string(nil)},
-		_gen_wiretype.ArrayType{Elem: 0x3, Len: 0x2, Name: "", Tags: []string(nil)}, _gen_wiretype.NamedPrimitiveType{Type: 0x32, Name: "veyron.io/apps/rps.WinnerTag", Tags: []string(nil)}, _gen_wiretype.StructType{
-			[]_gen_wiretype.FieldType{
-				_gen_wiretype.FieldType{Type: 0x43, Name: "Moves"},
-				_gen_wiretype.FieldType{Type: 0x3, Name: "Comment"},
-				_gen_wiretype.FieldType{Type: 0x44, Name: "Winner"},
-				_gen_wiretype.FieldType{Type: 0x25, Name: "StartTimeNS"},
-				_gen_wiretype.FieldType{Type: 0x25, Name: "EndTimeNS"},
+		__wiretype.ArrayType{Elem: 0x3, Len: 0x2, Name: "", Tags: []string(nil)}, __wiretype.NamedPrimitiveType{Type: 0x32, Name: "veyron.io/apps/rps.WinnerTag", Tags: []string(nil)}, __wiretype.StructType{
+			[]__wiretype.FieldType{
+				__wiretype.FieldType{Type: 0x43, Name: "Moves"},
+				__wiretype.FieldType{Type: 0x3, Name: "Comment"},
+				__wiretype.FieldType{Type: 0x44, Name: "Winner"},
+				__wiretype.FieldType{Type: 0x25, Name: "StartTimeNS"},
+				__wiretype.FieldType{Type: 0x25, Name: "EndTimeNS"},
 			},
 			"veyron.io/apps/rps.Round", []string(nil)},
-		_gen_wiretype.SliceType{Elem: 0x45, Name: "", Tags: []string(nil)}, _gen_wiretype.StructType{
-			[]_gen_wiretype.FieldType{
-				_gen_wiretype.FieldType{Type: 0x42, Name: "Opts"},
-				_gen_wiretype.FieldType{Type: 0x3, Name: "Judge"},
-				_gen_wiretype.FieldType{Type: 0x3d, Name: "Players"},
-				_gen_wiretype.FieldType{Type: 0x46, Name: "Rounds"},
-				_gen_wiretype.FieldType{Type: 0x25, Name: "StartTimeNS"},
-				_gen_wiretype.FieldType{Type: 0x25, Name: "EndTimeNS"},
-				_gen_wiretype.FieldType{Type: 0x44, Name: "Winner"},
+		__wiretype.SliceType{Elem: 0x45, Name: "", Tags: []string(nil)}, __wiretype.StructType{
+			[]__wiretype.FieldType{
+				__wiretype.FieldType{Type: 0x42, Name: "Opts"},
+				__wiretype.FieldType{Type: 0x3, Name: "Judge"},
+				__wiretype.FieldType{Type: 0x3d, Name: "Players"},
+				__wiretype.FieldType{Type: 0x46, Name: "Rounds"},
+				__wiretype.FieldType{Type: 0x25, Name: "StartTimeNS"},
+				__wiretype.FieldType{Type: 0x25, Name: "EndTimeNS"},
+				__wiretype.FieldType{Type: 0x44, Name: "Winner"},
 			},
 			"veyron.io/apps/rps.ScoreCard", []string(nil)},
-		_gen_wiretype.NamedPrimitiveType{Type: 0x1, Name: "error", Tags: []string(nil)}}
+		__wiretype.NamedPrimitiveType{Type: 0x1, Name: "error", Tags: []string(nil)}}
 
 	return result, nil
 }
 
-func (__gen_s *ServerStubScoreKeeper) UnresolveStep(call _gen_ipc.ServerCall) (reply []string, err error) {
-	if unresolver, ok := __gen_s.service.(_gen_ipc.Unresolver); ok {
-		return unresolver.UnresolveStep(call)
-	}
-	if call.Server() == nil {
-		return
-	}
-	var published []string
-	if published, err = call.Server().Published(); err != nil || published == nil {
-		return
-	}
-	reply = make([]string, len(published))
-	for i, p := range published {
-		reply[i] = _gen_naming.Join(p, call.Name())
-	}
-	return
-}
-
-func (__gen_s *ServerStubScoreKeeper) VGlob() *_gen_ipc.GlobState {
-	return __gen_s.gs
-}
-
-func (__gen_s *ServerStubScoreKeeper) Record(call _gen_ipc.ServerCall, Score ScoreCard) (err error) {
-	err = __gen_s.service.Record(call, Score)
-	return
-}
-
-// RockPaperScissors is the interface the client binds and uses.
-// RockPaperScissors_ExcludingUniversal is the interface without internal framework-added methods
-// to enable embedding without method collisions.  Not to be used directly by clients.
-type RockPaperScissors_ExcludingUniversal interface {
-	Judge_ExcludingUniversal
+// RockPaperScissorsClientMethods is the client interface
+// containing RockPaperScissors methods.
+type RockPaperScissorsClientMethods interface {
+	JudgeClientMethods
 	// Player can receive challenges from other players.
-	Player_ExcludingUniversal
+	PlayerClientMethods
 	// ScoreKeeper receives the outcome of games from Judges.
-	ScoreKeeper_ExcludingUniversal
-}
-type RockPaperScissors interface {
-	_gen_ipc.UniversalServiceMethods
-	RockPaperScissors_ExcludingUniversal
+	ScoreKeeperClientMethods
 }
 
-// RockPaperScissorsService is the interface the server implements.
-type RockPaperScissorsService interface {
-	JudgeService
-	// Player can receive challenges from other players.
-	PlayerService
-	// ScoreKeeper receives the outcome of games from Judges.
-	ScoreKeeperService
+// RockPaperScissorsClientStub adds universal methods to RockPaperScissorsClientMethods.
+type RockPaperScissorsClientStub interface {
+	RockPaperScissorsClientMethods
+	__ipc.UniversalServiceMethods
 }
 
-// BindRockPaperScissors returns the client stub implementing the RockPaperScissors
-// interface.
-//
-// If no _gen_ipc.Client is specified, the default _gen_ipc.Client in the
-// global Runtime is used.
-func BindRockPaperScissors(name string, opts ..._gen_ipc.BindOpt) (RockPaperScissors, error) {
-	var client _gen_ipc.Client
-	switch len(opts) {
-	case 0:
-		// Do nothing.
-	case 1:
-		if clientOpt, ok := opts[0].(_gen_ipc.Client); opts[0] == nil || ok {
+// RockPaperScissorsClient returns a client stub for RockPaperScissors.
+func RockPaperScissorsClient(name string, opts ...__ipc.BindOpt) RockPaperScissorsClientStub {
+	var client __ipc.Client
+	for _, opt := range opts {
+		if clientOpt, ok := opt.(__ipc.Client); ok {
 			client = clientOpt
-		} else {
-			return nil, _gen_vdlutil.ErrUnrecognizedOption
 		}
-	default:
-		return nil, _gen_vdlutil.ErrTooManyOptionsToBind
 	}
-	stub := &clientStubRockPaperScissors{defaultClient: client, name: name}
-	stub.Judge_ExcludingUniversal, _ = BindJudge(name, client)
-	stub.Player_ExcludingUniversal, _ = BindPlayer(name, client)
-	stub.ScoreKeeper_ExcludingUniversal, _ = BindScoreKeeper(name, client)
-
-	return stub, nil
+	return implRockPaperScissorsClientStub{name, client, JudgeClient(name, client), PlayerClient(name, client), ScoreKeeperClient(name, client)}
 }
 
-// NewServerRockPaperScissors creates a new server stub.
-//
-// It takes a regular server implementing the RockPaperScissorsService
-// interface, and returns a new server stub.
-func NewServerRockPaperScissors(server RockPaperScissorsService) interface{} {
-	stub := &ServerStubRockPaperScissors{
-		ServerStubJudge:       *NewServerJudge(server).(*ServerStubJudge),
-		ServerStubPlayer:      *NewServerPlayer(server).(*ServerStubPlayer),
-		ServerStubScoreKeeper: *NewServerScoreKeeper(server).(*ServerStubScoreKeeper),
-		service:               server,
+type implRockPaperScissorsClientStub struct {
+	name   string
+	client __ipc.Client
+
+	JudgeClientStub
+	PlayerClientStub
+	ScoreKeeperClientStub
+}
+
+func (c implRockPaperScissorsClientStub) c(ctx __context.T) __ipc.Client {
+	if c.client != nil {
+		return c.client
 	}
-	var gs _gen_ipc.GlobState
-	var self interface{} = stub
-	// VAllGlobber is implemented by the server object, which is wrapped in
-	// a VDL generated server stub.
-	if x, ok := self.(_gen_ipc.VAllGlobber); ok {
-		gs.VAllGlobber = x
+	return __veyron2.RuntimeFromContext(ctx).Client()
+}
+
+func (c implRockPaperScissorsClientStub) Signature(ctx __context.T, opts ...__ipc.CallOpt) (o0 __ipc.ServiceSignature, err error) {
+	var call __ipc.Call
+	if call, err = c.c(ctx).StartCall(ctx, c.name, "Signature", nil, opts...); err != nil {
+		return
 	}
-	// VAllGlobber is implemented by the server object without using a VDL
-	// generated stub.
-	if x, ok := server.(_gen_ipc.VAllGlobber); ok {
-		gs.VAllGlobber = x
+	if ierr := call.Finish(&o0, &err); ierr != nil {
+		err = ierr
 	}
-	// VChildrenGlobber is implemented in the server object.
-	if x, ok := server.(_gen_ipc.VChildrenGlobber); ok {
-		gs.VChildrenGlobber = x
+	return
+}
+
+func (c implRockPaperScissorsClientStub) GetMethodTags(ctx __context.T, method string, opts ...__ipc.CallOpt) (o0 []interface{}, err error) {
+	var call __ipc.Call
+	if call, err = c.c(ctx).StartCall(ctx, c.name, "GetMethodTags", []interface{}{method}, opts...); err != nil {
+		return
 	}
-	stub.gs = &gs
+	if ierr := call.Finish(&o0, &err); ierr != nil {
+		err = ierr
+	}
+	return
+}
+
+// RockPaperScissorsServerMethods is the interface a server writer
+// implements for RockPaperScissors.
+type RockPaperScissorsServerMethods interface {
+	JudgeServerMethods
+	// Player can receive challenges from other players.
+	PlayerServerMethods
+	// ScoreKeeper receives the outcome of games from Judges.
+	ScoreKeeperServerMethods
+}
+
+// RockPaperScissorsServerStubMethods is the server interface containing
+// RockPaperScissors methods, as expected by ipc.Server.  The difference between
+// this interface and RockPaperScissorsServerMethods is that the first context
+// argument for each method is always ipc.ServerCall here, while it is either
+// ipc.ServerContext or a typed streaming context there.
+type RockPaperScissorsServerStubMethods interface {
+	JudgeServerStubMethods
+	// Player can receive challenges from other players.
+	PlayerServerStubMethods
+	// ScoreKeeper receives the outcome of games from Judges.
+	ScoreKeeperServerStubMethods
+}
+
+// RockPaperScissorsServerStub adds universal methods to RockPaperScissorsServerStubMethods.
+type RockPaperScissorsServerStub interface {
+	RockPaperScissorsServerStubMethods
+	// GetMethodTags will be replaced with DescribeInterfaces.
+	GetMethodTags(call __ipc.ServerCall, method string) ([]interface{}, error)
+	// Signature will be replaced with DescribeInterfaces.
+	Signature(call __ipc.ServerCall) (__ipc.ServiceSignature, error)
+}
+
+// RockPaperScissorsServer returns a server stub for RockPaperScissors.
+// It converts an implementation of RockPaperScissorsServerMethods into
+// an object that may be used by ipc.Server.
+func RockPaperScissorsServer(impl RockPaperScissorsServerMethods) RockPaperScissorsServerStub {
+	stub := implRockPaperScissorsServerStub{
+		impl:                  impl,
+		JudgeServerStub:       JudgeServer(impl),
+		PlayerServerStub:      PlayerServer(impl),
+		ScoreKeeperServerStub: ScoreKeeperServer(impl),
+	}
+	// Initialize GlobState; always check the stub itself first, to handle the
+	// case where the user has the Glob method defined in their VDL source.
+	if gs := __ipc.NewGlobState(stub); gs != nil {
+		stub.gs = gs
+	} else if gs := __ipc.NewGlobState(impl); gs != nil {
+		stub.gs = gs
+	}
 	return stub
 }
 
-// clientStubRockPaperScissors implements RockPaperScissors.
-type clientStubRockPaperScissors struct {
-	Judge_ExcludingUniversal
-	Player_ExcludingUniversal
-	ScoreKeeper_ExcludingUniversal
+type implRockPaperScissorsServerStub struct {
+	impl RockPaperScissorsServerMethods
+	gs   *__ipc.GlobState
 
-	defaultClient _gen_ipc.Client
-	name          string
+	JudgeServerStub
+	PlayerServerStub
+	ScoreKeeperServerStub
 }
 
-func (__gen_c *clientStubRockPaperScissors) client(ctx _gen_context.T) _gen_ipc.Client {
-	if __gen_c.defaultClient != nil {
-		return __gen_c.defaultClient
-	}
-	return _gen_veyron2.RuntimeFromContext(ctx).Client()
+func (s implRockPaperScissorsServerStub) VGlob() *__ipc.GlobState {
+	return s.gs
 }
 
-func (__gen_c *clientStubRockPaperScissors) UnresolveStep(ctx _gen_context.T, opts ..._gen_ipc.CallOpt) (reply []string, err error) {
-	var call _gen_ipc.Call
-	if call, err = __gen_c.client(ctx).StartCall(ctx, __gen_c.name, "UnresolveStep", nil, opts...); err != nil {
-		return
-	}
-	if ierr := call.Finish(&reply, &err); ierr != nil {
-		err = ierr
-	}
-	return
-}
-
-func (__gen_c *clientStubRockPaperScissors) Signature(ctx _gen_context.T, opts ..._gen_ipc.CallOpt) (reply _gen_ipc.ServiceSignature, err error) {
-	var call _gen_ipc.Call
-	if call, err = __gen_c.client(ctx).StartCall(ctx, __gen_c.name, "Signature", nil, opts...); err != nil {
-		return
-	}
-	if ierr := call.Finish(&reply, &err); ierr != nil {
-		err = ierr
-	}
-	return
-}
-
-func (__gen_c *clientStubRockPaperScissors) GetMethodTags(ctx _gen_context.T, method string, opts ..._gen_ipc.CallOpt) (reply []interface{}, err error) {
-	var call _gen_ipc.Call
-	if call, err = __gen_c.client(ctx).StartCall(ctx, __gen_c.name, "GetMethodTags", []interface{}{method}, opts...); err != nil {
-		return
-	}
-	if ierr := call.Finish(&reply, &err); ierr != nil {
-		err = ierr
-	}
-	return
-}
-
-// ServerStubRockPaperScissors wraps a server that implements
-// RockPaperScissorsService and provides an object that satisfies
-// the requirements of veyron2/ipc.ReflectInvoker.
-type ServerStubRockPaperScissors struct {
-	ServerStubJudge
-	ServerStubPlayer
-	ServerStubScoreKeeper
-
-	service RockPaperScissorsService
-	gs      *_gen_ipc.GlobState
-}
-
-func (__gen_s *ServerStubRockPaperScissors) GetMethodTags(call _gen_ipc.ServerCall, method string) ([]interface{}, error) {
-	// TODO(bprosnitz) GetMethodTags() will be replaces with Signature().
-	// Note: This exhibits some weird behavior like returning a nil error if the method isn't found.
-	// This will change when it is replaced with Signature().
-	if resp, err := __gen_s.ServerStubJudge.GetMethodTags(call, method); resp != nil || err != nil {
+func (s implRockPaperScissorsServerStub) GetMethodTags(call __ipc.ServerCall, method string) ([]interface{}, error) {
+	// TODO(toddw): Replace with new DescribeInterfaces implementation.
+	if resp, err := s.JudgeServerStub.GetMethodTags(call, method); resp != nil || err != nil {
 		return resp, err
 	}
-	if resp, err := __gen_s.ServerStubPlayer.GetMethodTags(call, method); resp != nil || err != nil {
+	if resp, err := s.PlayerServerStub.GetMethodTags(call, method); resp != nil || err != nil {
 		return resp, err
 	}
-	if resp, err := __gen_s.ServerStubScoreKeeper.GetMethodTags(call, method); resp != nil || err != nil {
+	if resp, err := s.ScoreKeeperServerStub.GetMethodTags(call, method); resp != nil || err != nil {
 		return resp, err
 	}
 	return nil, nil
 }
 
-func (__gen_s *ServerStubRockPaperScissors) Signature(call _gen_ipc.ServerCall) (_gen_ipc.ServiceSignature, error) {
-	result := _gen_ipc.ServiceSignature{Methods: make(map[string]_gen_ipc.MethodSignature)}
+func (s implRockPaperScissorsServerStub) Signature(call __ipc.ServerCall) (__ipc.ServiceSignature, error) {
+	// TODO(toddw) Replace with new DescribeInterfaces implementation.
+	result := __ipc.ServiceSignature{Methods: make(map[string]__ipc.MethodSignature)}
 
-	result.TypeDefs = []_gen_vdlutil.Any{}
-	var ss _gen_ipc.ServiceSignature
+	result.TypeDefs = []__vdlutil.Any{}
+	var ss __ipc.ServiceSignature
 	var firstAdded int
-	ss, _ = __gen_s.ServerStubJudge.Signature(call)
+	ss, _ = s.JudgeServerStub.Signature(call)
 	firstAdded = len(result.TypeDefs)
 	for k, v := range ss.Methods {
 		for i, _ := range v.InArgs {
-			if v.InArgs[i].Type >= _gen_wiretype.TypeIDFirst {
-				v.InArgs[i].Type += _gen_wiretype.TypeID(firstAdded)
+			if v.InArgs[i].Type >= __wiretype.TypeIDFirst {
+				v.InArgs[i].Type += __wiretype.TypeID(firstAdded)
 			}
 		}
 		for i, _ := range v.OutArgs {
-			if v.OutArgs[i].Type >= _gen_wiretype.TypeIDFirst {
-				v.OutArgs[i].Type += _gen_wiretype.TypeID(firstAdded)
+			if v.OutArgs[i].Type >= __wiretype.TypeIDFirst {
+				v.OutArgs[i].Type += __wiretype.TypeID(firstAdded)
 			}
 		}
-		if v.InStream >= _gen_wiretype.TypeIDFirst {
-			v.InStream += _gen_wiretype.TypeID(firstAdded)
+		if v.InStream >= __wiretype.TypeIDFirst {
+			v.InStream += __wiretype.TypeID(firstAdded)
 		}
-		if v.OutStream >= _gen_wiretype.TypeIDFirst {
-			v.OutStream += _gen_wiretype.TypeID(firstAdded)
+		if v.OutStream >= __wiretype.TypeIDFirst {
+			v.OutStream += __wiretype.TypeID(firstAdded)
 		}
 		result.Methods[k] = v
 	}
 	//TODO(bprosnitz) combine type definitions from embeded interfaces in a way that doesn't cause duplication.
 	for _, d := range ss.TypeDefs {
 		switch wt := d.(type) {
-		case _gen_wiretype.SliceType:
-			if wt.Elem >= _gen_wiretype.TypeIDFirst {
-				wt.Elem += _gen_wiretype.TypeID(firstAdded)
+		case __wiretype.SliceType:
+			if wt.Elem >= __wiretype.TypeIDFirst {
+				wt.Elem += __wiretype.TypeID(firstAdded)
 			}
 			d = wt
-		case _gen_wiretype.ArrayType:
-			if wt.Elem >= _gen_wiretype.TypeIDFirst {
-				wt.Elem += _gen_wiretype.TypeID(firstAdded)
+		case __wiretype.ArrayType:
+			if wt.Elem >= __wiretype.TypeIDFirst {
+				wt.Elem += __wiretype.TypeID(firstAdded)
 			}
 			d = wt
-		case _gen_wiretype.MapType:
-			if wt.Key >= _gen_wiretype.TypeIDFirst {
-				wt.Key += _gen_wiretype.TypeID(firstAdded)
+		case __wiretype.MapType:
+			if wt.Key >= __wiretype.TypeIDFirst {
+				wt.Key += __wiretype.TypeID(firstAdded)
 			}
-			if wt.Elem >= _gen_wiretype.TypeIDFirst {
-				wt.Elem += _gen_wiretype.TypeID(firstAdded)
+			if wt.Elem >= __wiretype.TypeIDFirst {
+				wt.Elem += __wiretype.TypeID(firstAdded)
 			}
 			d = wt
-		case _gen_wiretype.StructType:
+		case __wiretype.StructType:
 			for i, fld := range wt.Fields {
-				if fld.Type >= _gen_wiretype.TypeIDFirst {
-					wt.Fields[i].Type += _gen_wiretype.TypeID(firstAdded)
+				if fld.Type >= __wiretype.TypeIDFirst {
+					wt.Fields[i].Type += __wiretype.TypeID(firstAdded)
 				}
 			}
 			d = wt
@@ -1241,52 +1083,52 @@ func (__gen_s *ServerStubRockPaperScissors) Signature(call _gen_ipc.ServerCall) 
 		}
 		result.TypeDefs = append(result.TypeDefs, d)
 	}
-	ss, _ = __gen_s.ServerStubPlayer.Signature(call)
+	ss, _ = s.PlayerServerStub.Signature(call)
 	firstAdded = len(result.TypeDefs)
 	for k, v := range ss.Methods {
 		for i, _ := range v.InArgs {
-			if v.InArgs[i].Type >= _gen_wiretype.TypeIDFirst {
-				v.InArgs[i].Type += _gen_wiretype.TypeID(firstAdded)
+			if v.InArgs[i].Type >= __wiretype.TypeIDFirst {
+				v.InArgs[i].Type += __wiretype.TypeID(firstAdded)
 			}
 		}
 		for i, _ := range v.OutArgs {
-			if v.OutArgs[i].Type >= _gen_wiretype.TypeIDFirst {
-				v.OutArgs[i].Type += _gen_wiretype.TypeID(firstAdded)
+			if v.OutArgs[i].Type >= __wiretype.TypeIDFirst {
+				v.OutArgs[i].Type += __wiretype.TypeID(firstAdded)
 			}
 		}
-		if v.InStream >= _gen_wiretype.TypeIDFirst {
-			v.InStream += _gen_wiretype.TypeID(firstAdded)
+		if v.InStream >= __wiretype.TypeIDFirst {
+			v.InStream += __wiretype.TypeID(firstAdded)
 		}
-		if v.OutStream >= _gen_wiretype.TypeIDFirst {
-			v.OutStream += _gen_wiretype.TypeID(firstAdded)
+		if v.OutStream >= __wiretype.TypeIDFirst {
+			v.OutStream += __wiretype.TypeID(firstAdded)
 		}
 		result.Methods[k] = v
 	}
 	//TODO(bprosnitz) combine type definitions from embeded interfaces in a way that doesn't cause duplication.
 	for _, d := range ss.TypeDefs {
 		switch wt := d.(type) {
-		case _gen_wiretype.SliceType:
-			if wt.Elem >= _gen_wiretype.TypeIDFirst {
-				wt.Elem += _gen_wiretype.TypeID(firstAdded)
+		case __wiretype.SliceType:
+			if wt.Elem >= __wiretype.TypeIDFirst {
+				wt.Elem += __wiretype.TypeID(firstAdded)
 			}
 			d = wt
-		case _gen_wiretype.ArrayType:
-			if wt.Elem >= _gen_wiretype.TypeIDFirst {
-				wt.Elem += _gen_wiretype.TypeID(firstAdded)
+		case __wiretype.ArrayType:
+			if wt.Elem >= __wiretype.TypeIDFirst {
+				wt.Elem += __wiretype.TypeID(firstAdded)
 			}
 			d = wt
-		case _gen_wiretype.MapType:
-			if wt.Key >= _gen_wiretype.TypeIDFirst {
-				wt.Key += _gen_wiretype.TypeID(firstAdded)
+		case __wiretype.MapType:
+			if wt.Key >= __wiretype.TypeIDFirst {
+				wt.Key += __wiretype.TypeID(firstAdded)
 			}
-			if wt.Elem >= _gen_wiretype.TypeIDFirst {
-				wt.Elem += _gen_wiretype.TypeID(firstAdded)
+			if wt.Elem >= __wiretype.TypeIDFirst {
+				wt.Elem += __wiretype.TypeID(firstAdded)
 			}
 			d = wt
-		case _gen_wiretype.StructType:
+		case __wiretype.StructType:
 			for i, fld := range wt.Fields {
-				if fld.Type >= _gen_wiretype.TypeIDFirst {
-					wt.Fields[i].Type += _gen_wiretype.TypeID(firstAdded)
+				if fld.Type >= __wiretype.TypeIDFirst {
+					wt.Fields[i].Type += __wiretype.TypeID(firstAdded)
 				}
 			}
 			d = wt
@@ -1294,52 +1136,52 @@ func (__gen_s *ServerStubRockPaperScissors) Signature(call _gen_ipc.ServerCall) 
 		}
 		result.TypeDefs = append(result.TypeDefs, d)
 	}
-	ss, _ = __gen_s.ServerStubScoreKeeper.Signature(call)
+	ss, _ = s.ScoreKeeperServerStub.Signature(call)
 	firstAdded = len(result.TypeDefs)
 	for k, v := range ss.Methods {
 		for i, _ := range v.InArgs {
-			if v.InArgs[i].Type >= _gen_wiretype.TypeIDFirst {
-				v.InArgs[i].Type += _gen_wiretype.TypeID(firstAdded)
+			if v.InArgs[i].Type >= __wiretype.TypeIDFirst {
+				v.InArgs[i].Type += __wiretype.TypeID(firstAdded)
 			}
 		}
 		for i, _ := range v.OutArgs {
-			if v.OutArgs[i].Type >= _gen_wiretype.TypeIDFirst {
-				v.OutArgs[i].Type += _gen_wiretype.TypeID(firstAdded)
+			if v.OutArgs[i].Type >= __wiretype.TypeIDFirst {
+				v.OutArgs[i].Type += __wiretype.TypeID(firstAdded)
 			}
 		}
-		if v.InStream >= _gen_wiretype.TypeIDFirst {
-			v.InStream += _gen_wiretype.TypeID(firstAdded)
+		if v.InStream >= __wiretype.TypeIDFirst {
+			v.InStream += __wiretype.TypeID(firstAdded)
 		}
-		if v.OutStream >= _gen_wiretype.TypeIDFirst {
-			v.OutStream += _gen_wiretype.TypeID(firstAdded)
+		if v.OutStream >= __wiretype.TypeIDFirst {
+			v.OutStream += __wiretype.TypeID(firstAdded)
 		}
 		result.Methods[k] = v
 	}
 	//TODO(bprosnitz) combine type definitions from embeded interfaces in a way that doesn't cause duplication.
 	for _, d := range ss.TypeDefs {
 		switch wt := d.(type) {
-		case _gen_wiretype.SliceType:
-			if wt.Elem >= _gen_wiretype.TypeIDFirst {
-				wt.Elem += _gen_wiretype.TypeID(firstAdded)
+		case __wiretype.SliceType:
+			if wt.Elem >= __wiretype.TypeIDFirst {
+				wt.Elem += __wiretype.TypeID(firstAdded)
 			}
 			d = wt
-		case _gen_wiretype.ArrayType:
-			if wt.Elem >= _gen_wiretype.TypeIDFirst {
-				wt.Elem += _gen_wiretype.TypeID(firstAdded)
+		case __wiretype.ArrayType:
+			if wt.Elem >= __wiretype.TypeIDFirst {
+				wt.Elem += __wiretype.TypeID(firstAdded)
 			}
 			d = wt
-		case _gen_wiretype.MapType:
-			if wt.Key >= _gen_wiretype.TypeIDFirst {
-				wt.Key += _gen_wiretype.TypeID(firstAdded)
+		case __wiretype.MapType:
+			if wt.Key >= __wiretype.TypeIDFirst {
+				wt.Key += __wiretype.TypeID(firstAdded)
 			}
-			if wt.Elem >= _gen_wiretype.TypeIDFirst {
-				wt.Elem += _gen_wiretype.TypeID(firstAdded)
+			if wt.Elem >= __wiretype.TypeIDFirst {
+				wt.Elem += __wiretype.TypeID(firstAdded)
 			}
 			d = wt
-		case _gen_wiretype.StructType:
+		case __wiretype.StructType:
 			for i, fld := range wt.Fields {
-				if fld.Type >= _gen_wiretype.TypeIDFirst {
-					wt.Fields[i].Type += _gen_wiretype.TypeID(firstAdded)
+				if fld.Type >= __wiretype.TypeIDFirst {
+					wt.Fields[i].Type += __wiretype.TypeID(firstAdded)
 				}
 			}
 			d = wt
@@ -1349,26 +1191,4 @@ func (__gen_s *ServerStubRockPaperScissors) Signature(call _gen_ipc.ServerCall) 
 	}
 
 	return result, nil
-}
-
-func (__gen_s *ServerStubRockPaperScissors) UnresolveStep(call _gen_ipc.ServerCall) (reply []string, err error) {
-	if unresolver, ok := __gen_s.service.(_gen_ipc.Unresolver); ok {
-		return unresolver.UnresolveStep(call)
-	}
-	if call.Server() == nil {
-		return
-	}
-	var published []string
-	if published, err = call.Server().Published(); err != nil || published == nil {
-		return
-	}
-	reply = make([]string, len(published))
-	for i, p := range published {
-		reply[i] = _gen_naming.Join(p, call.Name())
-	}
-	return
-}
-
-func (__gen_s *ServerStubRockPaperScissors) VGlob() *_gen_ipc.GlobState {
-	return __gen_s.gs
 }

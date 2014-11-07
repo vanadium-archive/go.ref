@@ -14,29 +14,28 @@ import (
 
 	"veyron.io/apps/tunnel"
 	"veyron.io/apps/tunnel/tunnelutil"
-	"veyron.io/veyron/veyron2/ipc"
 	"veyron.io/veyron/veyron2/vlog"
 )
 
-// T implements tunnel.TunnelService
+// T implements tunnel.TunnelServerMethods
 type T struct {
 }
 
 const nonShellErrorCode = 255
 
-func (t *T) Forward(ctx ipc.ServerContext, network, address string, stream tunnel.TunnelServiceForwardStream) error {
+func (t *T) Forward(ctx tunnel.TunnelForwardContext, network, address string) error {
 	conn, err := net.Dial(network, address)
 	if err != nil {
 		return err
 	}
 	name := fmt.Sprintf("RemoteBlessings:%v LocalAddr:%v RemoteAddr:%v", ctx.RemoteBlessings().ForContext(ctx), conn.LocalAddr(), conn.RemoteAddr())
 	vlog.Infof("TUNNEL START: %v", name)
-	err = tunnelutil.Forward(conn, stream.SendStream(), stream.RecvStream())
+	err = tunnelutil.Forward(conn, ctx.SendStream(), ctx.RecvStream())
 	vlog.Infof("TUNNEL END  : %v (%v)", name, err)
 	return err
 }
 
-func (t *T) Shell(ctx ipc.ServerContext, command string, shellOpts tunnel.ShellOpts, stream tunnel.TunnelServiceShellStream) (int32, error) {
+func (t *T) Shell(ctx tunnel.TunnelShellContext, command string, shellOpts tunnel.ShellOpts) (int32, error) {
 	vlog.Infof("SHELL START for %v: %q", ctx.RemoteBlessings().ForContext(ctx), command)
 	shell, err := findShell()
 	if err != nil {
@@ -46,7 +45,7 @@ func (t *T) Shell(ctx ipc.ServerContext, command string, shellOpts tunnel.ShellO
 	// An empty command means that we need an interactive shell.
 	if len(command) == 0 {
 		c = exec.Command(shell, "-i")
-		sendMotd(stream)
+		sendMotd(ctx)
 	} else {
 		c = exec.Command(shell, "-c", command)
 	}
@@ -105,7 +104,7 @@ func (t *T) Shell(ctx ipc.ServerContext, command string, shellOpts tunnel.ShellO
 	defer c.Process.Kill()
 
 	select {
-	case runErr := <-runIOManager(stdin, stdout, stderr, ptyFd, stream):
+	case runErr := <-runIOManager(stdin, stdout, stderr, ptyFd, ctx):
 		vlog.Infof("SHELL END for %v: %q (%v)", ctx.RemoteBlessings().ForContext(ctx), command, runErr)
 		return harvestExitcode(c.Process, runErr)
 	case <-ctx.Done():
@@ -146,7 +145,7 @@ func findShell() (string, error) {
 }
 
 // sendMotd sends the content of the MOTD file to the stream, if it exists.
-func sendMotd(s tunnel.TunnelServiceShellStream) {
+func sendMotd(s tunnel.TunnelShellServerStream) {
 	data, err := ioutil.ReadFile("/etc/motd")
 	if err != nil {
 		// No MOTD. That's OK.

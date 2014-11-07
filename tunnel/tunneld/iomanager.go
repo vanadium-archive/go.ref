@@ -9,7 +9,7 @@ import (
 	"veyron.io/veyron/veyron2/vlog"
 )
 
-func runIOManager(stdin io.WriteCloser, stdout, stderr io.Reader, ptyFd uintptr, stream tunnel.TunnelServiceShellStream) <-chan error {
+func runIOManager(stdin io.WriteCloser, stdout, stderr io.Reader, ptyFd uintptr, stream tunnel.TunnelShellServerStream) <-chan error {
 	m := ioManager{stdin: stdin, stdout: stdout, stderr: stderr, ptyFd: ptyFd, stream: stream}
 	c := make(chan error, 1) // buffered channel so that the goroutine spawned below is not leaked if the channel is not read from.
 	go func() { c <- m.run() }()
@@ -22,7 +22,7 @@ type ioManager struct {
 	stdin          io.WriteCloser
 	stdout, stderr io.Reader
 	ptyFd          uintptr
-	stream         tunnel.TunnelServiceShellStream
+	stream         tunnel.TunnelShellServerStream
 
 	// streamError receives errors coming from stream operations.
 	streamError chan error

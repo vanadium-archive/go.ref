@@ -17,7 +17,8 @@ type receiver interface {
 	Err() error
 }
 
-// Forward forwards data read from net.Conn to a TunnelForwardStream or a TunnelServiceForwardStream.
+// Forward forwards data read from net.Conn to a TunnelForwardClientStream or a
+// TunnelForwardServerStream.
 func Forward(conn net.Conn, s sender, r receiver) error {
 	defer conn.Close()
 	// Both conn2stream and stream2conn will write to the channel exactly

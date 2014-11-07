@@ -60,7 +60,7 @@ func startRockPaperScissors(t *testing.T, rt veyron2.Runtime, mtAddress string) 
 		t.Fatalf("Listen failed: %v", err)
 	}
 	names := []string{"rps/judge/test", "rps/player/test", "rps/scorekeeper/test"}
-	if err := server.Serve(names[0], rps.NewServerRockPaperScissors(rpsService), nil); err != nil {
+	if err := server.Serve(names[0], rps.RockPaperScissorsServer(rpsService), nil); err != nil {
 		t.Fatalf("Serve(%v) failed: %v", names[0], err)
 	}
 	for _, n := range names[1:] {

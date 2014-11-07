@@ -109,7 +109,7 @@ func (j *Judge) createGame(ownName string, opts rps.GameOptions) (rps.GameID, er
 }
 
 // play interacts with a player for the duration of a game.
-func (j *Judge) play(ctx context.T, name string, id rps.GameID, stream rps.JudgeServicePlayStream) (rps.PlayResult, error) {
+func (j *Judge) play(ctx rps.JudgePlayContext, name string, id rps.GameID) (rps.PlayResult, error) {
 	vlog.VI(1).Infof("play from %q for %v", name, id)
 	nilResult := rps.PlayResult{}
 
@@ -117,7 +117,7 @@ func (j *Judge) play(ctx context.T, name string, id rps.GameID, stream rps.Judge
 	if err != nil {
 		return nilResult, err
 	}
-	playerNum, err := j.addPlayer(name, id, stream)
+	playerNum, err := j.addPlayer(name, id, ctx)
 	if err != nil {
 		return nilResult, err
 	}
@@ -127,7 +127,7 @@ func (j *Judge) play(ctx context.T, name string, id rps.GameID, stream rps.Judge
 	done := make(chan struct{})
 	defer close(done)
 	go func() {
-		rStream := stream.RecvStream()
+		rStream := ctx.RecvStream()
 		for rStream.Advance() {
 			action := rStream.Value()
 			select {
@@ -144,7 +144,7 @@ func (j *Judge) play(ctx context.T, name string, id rps.GameID, stream rps.Judge
 	// Send all the output to the user.
 	go func() {
 		for packet := range pOut[playerNum-1] {
-			if err := stream.SendStream().Send(packet); err != nil {
+			if err := ctx.SendStream().Send(packet); err != nil {
 				vlog.Infof("error sending to player stream: %v", err)
 			}
 		}
@@ -265,7 +265,7 @@ func (j *Judge) playOneRound(info *gameInfo) (rps.Round, error) {
 	return round, nil
 }
 
-func (j *Judge) addPlayer(name string, id rps.GameID, stream rps.JudgeServicePlayStream) (int, error) {
+func (j *Judge) addPlayer(name string, id rps.GameID, stream rps.JudgePlayServerStream) (int, error) {
 	j.lock.Lock()
 	defer j.lock.Unlock()
 
@@ -293,13 +293,8 @@ func (j *Judge) gameChannels(id rps.GameID) (chan playerInput, []chan rps.JudgeA
 
 func (j *Judge) sendScore(ctx context.T, address string, score rps.ScoreCard, done chan bool) error {
 	defer func() { done <- true }()
-	k, err := rps.BindRockPaperScissors(address)
-	if err != nil {
-		vlog.Infof("BindRockPaperScissors: %v", err)
-		return err
-	}
-	err = k.Record(ctx, score)
-	if err != nil {
+	k := rps.RockPaperScissorsClient(address)
+	if err := k.Record(ctx, score); err != nil {
 		vlog.Infof("Record: %v", err)
 		return err
 	}

@@ -49,7 +49,7 @@ func main() {
 	if err != nil {
 		vlog.Fatalf("os.Hostname failed: %v", err)
 	}
-	if err := server.Serve(fmt.Sprintf("rps/scorekeeper/%s", hostname), rps.NewServerScoreKeeper(rpsService), sflag.NewAuthorizerOrDie()); err != nil {
+	if err := server.Serve(fmt.Sprintf("rps/scorekeeper/%s", hostname), rps.ScoreKeeperServer(rpsService), sflag.NewAuthorizerOrDie()); err != nil {
 		vlog.Fatalf("Serve failed: %v", err)
 	}
 	vlog.Infof("Listening on endpoint /%s", ep)

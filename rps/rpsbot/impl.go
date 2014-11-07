@@ -9,7 +9,7 @@ import (
 	"veyron.io/veyron/veyron2/vlog"
 )
 
-// RPS implements rps.RockPaperScissorsService
+// RPS implements rps.RockPaperScissorsServerMethods
 type RPS struct {
 	player      *Player
 	judge       *Judge
@@ -41,13 +41,13 @@ func (r *RPS) CreateGame(ctx ipc.ServerContext, opts rps.GameOptions) (rps.GameI
 	return r.judge.createGame(names[0], opts)
 }
 
-func (r *RPS) Play(ctx ipc.ServerContext, id rps.GameID, stream rps.JudgeServicePlayStream) (rps.PlayResult, error) {
+func (r *RPS) Play(ctx rps.JudgePlayContext, id rps.GameID) (rps.PlayResult, error) {
 	vlog.VI(1).Infof("Play %+v from %v", id, ctx.RemoteBlessings().ForContext(ctx))
 	names := ctx.RemoteBlessings().ForContext(ctx)
 	if len(names) == 0 {
 		return rps.PlayResult{}, errors.New("no names provided for context")
 	}
-	return r.judge.play(ctx, names[0], id, stream)
+	return r.judge.play(ctx, names[0], id)
 }
 
 func (r *RPS) Challenge(ctx ipc.ServerContext, address string, id rps.GameID, opts rps.GameOptions) error {

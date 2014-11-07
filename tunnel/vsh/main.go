@@ -83,11 +83,7 @@ func realMain() int {
 		return 1
 	}
 
-	t, err := tunnel.BindTunnel(oname)
-	if err != nil {
-		vlog.Fatalf("BindTunnel(%q) failed: %v", oname, err)
-	}
-
+	t := tunnel.TunnelClient(oname)
 	ctx := rt.R().NewContext()
 
 	if len(*portforward) > 0 {
@@ -176,7 +172,7 @@ func objectNameAndCommandLine() (string, string, error) {
 	return name, cmd, nil
 }
 
-func runPortForwarding(ctx context.T, t tunnel.Tunnel, oname string) {
+func runPortForwarding(ctx context.T, t tunnel.TunnelClientMethods, oname string) {
 	// *portforward is localaddr,remoteaddr
 	parts := strings.Split(*portforward, ",")
 	var laddr, raddr string
