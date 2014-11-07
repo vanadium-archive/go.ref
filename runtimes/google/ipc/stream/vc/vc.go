@@ -428,12 +428,15 @@ func (vc *VC) HandshakeAcceptedVC(opts ...stream.ListenerOpt) <-chan HandshakeRe
 	}
 	var principal security.Principal
 	var securityLevel options.VCSecurityLevel
+	var lBlessings security.Blessings
 	for _, o := range opts {
 		switch v := o.(type) {
 		case LocalPrincipal:
 			principal = v.Principal
 		case options.VCSecurityLevel:
 			securityLevel = v
+		case options.ServerBlessings:
+			lBlessings = v.Blessings
 		}
 	}
 	// If the listener was setup asynchronously, there is a race between
@@ -448,6 +451,9 @@ func (vc *VC) HandshakeAcceptedVC(opts ...stream.ListenerOpt) <-chan HandshakeRe
 	case options.VCSecurityConfidential:
 		if principal == nil {
 			principal = anonymousPrincipal
+		}
+		if lBlessings == nil {
+			lBlessings = principal.BlessingStore().Default()
 		}
 	case options.VCSecurityNone:
 		return finish(ln, nil)
@@ -491,7 +497,7 @@ func (vc *VC) HandshakeAcceptedVC(opts ...stream.ListenerOpt) <-chan HandshakeRe
 		vc.mu.Lock()
 		vc.authFID = vc.findFlowLocked(authConn)
 		vc.mu.Unlock()
-		rBlessings, lBlessings, err := authenticateAsServer(authConn, principal, crypter, vc.version)
+		rBlessings, err := authenticateAsServer(authConn, principal, lBlessings, crypter, vc.version)
 		if err != nil {
 			sendErr(fmt.Errorf("authentication failed %v", err))
 			return

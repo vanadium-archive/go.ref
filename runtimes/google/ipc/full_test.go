@@ -373,7 +373,7 @@ func TestRemoteIDCallOpt(t *testing.T) {
 		// Recreate client in each test (so as to not re-use VCs to the server).
 		client, err := InternalNewClient(mgr, ns, vc.LocalPrincipal{pclient})
 		if err != nil {
-			t.Errorf("%s: failed ot create client: %v", name, err)
+			t.Errorf("%s: failed to create client: %v", name, err)
 			continue
 		}
 		if call, err := client.StartCall(testContext(), fmt.Sprintf("[%s]mountpoint/server/suffix", test.pattern), "Method", nil); !matchesErrorPattern(err, test.err) {
@@ -1141,6 +1141,79 @@ func TestSplitObjectName(t *testing.T) {
 		if name != c.name {
 			t.Errorf("%q: unexpected name: %q not %q", c.input, name, c.name)
 		}
+	}
+}
+
+func TestServerBlessingsOpt(t *testing.T) {
+	var (
+		pserver   = sectest.NewPrincipal("server")
+		pclient   = sectest.NewPrincipal("client")
+		batman, _ = pserver.BlessSelf("batman")
+	)
+	// Make the client recognize all server blessings
+	if err := pclient.AddToRoots(batman); err != nil {
+		t.Fatal(err)
+	}
+	if err := pclient.AddToRoots(pserver.BlessingStore().Default()); err != nil {
+		t.Fatal(err)
+	}
+	// Start a server that uses the ServerBlessings option to configure itself
+	// to act as batman (as opposed to using the default blessing).
+	ns := tnaming.NewSimpleNamespace()
+	runServer := func(name string, opts ...ipc.ServerOpt) stream.Manager {
+		opts = append(opts, vc.LocalPrincipal{pserver})
+		rid, err := naming.NewRoutingID()
+		if err != nil {
+			t.Fatal(err)
+		}
+		sm := imanager.InternalNew(rid)
+		server, err := InternalNewServer(
+			testContext(),
+			sm,
+			ns,
+			opts...)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, err := server.Listen(listenSpec); err != nil {
+			t.Fatal(err)
+		}
+		if err := server.Serve(name, &testServer{}, nil); err != nil {
+			t.Fatal(err)
+		}
+		return sm
+	}
+
+	defer runServer("mountpoint/batman", options.ServerBlessings{batman}).Shutdown()
+	defer runServer("mountpoint/default").Shutdown()
+
+	// And finally, make and RPC and see that the client sees "batman"
+	runClient := func(server string) ([]string, error) {
+		smc := imanager.InternalNew(naming.FixedRoutingID(0xc))
+		defer smc.Shutdown()
+		client, err := InternalNewClient(
+			smc,
+			ns,
+			vc.LocalPrincipal{pclient})
+		if err != nil {
+			return nil, err
+		}
+		defer client.Close()
+		call, err := client.StartCall(testContext(), server, "Closure", nil)
+		if err != nil {
+			return nil, err
+		}
+		blessings, _ := call.RemoteBlessings()
+		return blessings, nil
+	}
+
+	// When talking to mountpoint/batman, should see "batman"
+	// When talking to mountpoint/default, should see "server"
+	if got, err := runClient("mountpoint/batman"); err != nil || len(got) != 1 || got[0] != "batman" {
+		t.Errorf("Got (%v, %v) wanted 'batman'", got, err)
+	}
+	if got, err := runClient("mountpoint/default"); err != nil || len(got) != 1 || got[0] != "server" {
+		t.Errorf("Got (%v, %v) wanted 'server'", got, err)
 	}
 }
 
