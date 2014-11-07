@@ -18,7 +18,7 @@ func InvokeCallback(name string) {
 	switch err {
 	case nil:
 		// Node manager was started by self-update, notify the parent.
-		callbackName, err := handle.Config.Get(mgmt.ParentNodeManagerConfigKey)
+		callbackName, err := handle.Config.Get(mgmt.ParentNameConfigKey)
 		if err != nil {
 			// Node manager was not started by self-update, return silently.
 			return
@@ -29,8 +29,8 @@ func InvokeCallback(name string) {
 		}
 		ctx, cancel := rt.R().NewContext().WithTimeout(time.Minute)
 		defer cancel()
-		if err := nmClient.Set(ctx, mgmt.ChildNodeManagerConfigKey, name); err != nil {
-			vlog.Fatalf("Set(%v, %v) failed: %v", mgmt.ChildNodeManagerConfigKey, name, err)
+		if err := nmClient.Set(ctx, mgmt.ChildNameConfigKey, name); err != nil {
+			vlog.Fatalf("Set(%v, %v) failed: %v", mgmt.ChildNameConfigKey, name, err)
 		}
 	case exec.ErrNoVersion:
 	default:

@@ -291,7 +291,9 @@ func setupRemoteAppCycleMgr(t *testing.T) (veyron2.Runtime, modules.Handle, appc
 	configServer, configServiceName, ch := createConfigServer(t, r)
 	sh := modules.NewShell(appCmd)
 	sh.SetVar(consts.VeyronCredentials, childcreds)
-	sh.SetVar(mgmt.ParentNodeManagerConfigKey, configServiceName)
+	sh.Config.Set(mgmt.ParentNameConfigKey, configServiceName)
+	sh.Config.Set(mgmt.ProtocolConfigKey, "tcp")
+	sh.Config.Set(mgmt.AddressConfigKey, "127.0.0.1:0")
 	h, err := sh.Start("app", nil)
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)

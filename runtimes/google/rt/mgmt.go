@@ -25,35 +25,48 @@ type mgmtImpl struct {
 	server       ipc.Server // Serves AppCycle service.
 }
 
-// parentName returns the object name for the Config service on which we should
-// communicate the object name of the app cycle service.  Currently, this can
-// be configured either via env vars or via the exec config passed from parent.
-func parentName() (name string) {
-	name = os.Getenv(mgmt.ParentNodeManagerConfigKey)
-	if len(name) > 0 {
-		return
+func getListenSpec(handle *exec.ChildHandle) (*ipc.ListenSpec, error) {
+	protocol, err := handle.Config.Get(mgmt.ProtocolConfigKey)
+	if err != nil {
+		return nil, err
 	}
-	handle, _ := exec.GetChildHandle()
-	if handle == nil {
-		return
+	if protocol == "" {
+		return nil, fmt.Errorf("%v is not set", mgmt.ProtocolConfigKey)
 	}
-	name, _ = handle.Config.Get(mgmt.ParentNodeManagerConfigKey)
-	return
+
+	address, err := handle.Config.Get(mgmt.AddressConfigKey)
+	if err != nil {
+		return nil, err
+	}
+	if address == "" {
+		return nil, fmt.Errorf("%v is not set", mgmt.AddressConfigKey)
+	}
+	return &ipc.ListenSpec{Protocol: protocol, Address: address}, nil
 }
 
-func (m *mgmtImpl) initMgmt(rt *vrt, listenSpec ipc.ListenSpec) error {
-	m.rt = rt
-	parentName := parentName()
-	if len(parentName) == 0 {
+func (m *mgmtImpl) initMgmt(rt *vrt) error {
+	// Do not initialize the mgmt runtime if the process has not
+	// been started through the veyron exec library by a node
+	// manager.
+	handle, err := exec.GetChildHandle()
+	if err != nil {
 		return nil
 	}
-	var err error
-	if m.server, err = rt.NewServer(); err != nil {
+	parentName, err := handle.Config.Get(mgmt.ParentNameConfigKey)
+	if err != nil {
+		return nil
+	}
+	listenSpec, err := getListenSpec(handle)
+	if err != nil {
 		return err
 	}
-	// TODO(caprita): We should pick the address to listen on from config.
-	var ep naming.Endpoint
-	if ep, err = m.server.Listen(listenSpec); err != nil {
+	m.rt = rt
+	m.server, err = rt.NewServer()
+	if err != nil {
+		return err
+	}
+	ep, err := m.server.Listen(*listenSpec)
+	if err != nil {
 		return err
 	}
 	if err := m.server.Serve("", appcycle.NewServerAppCycle(m), nil); err != nil {

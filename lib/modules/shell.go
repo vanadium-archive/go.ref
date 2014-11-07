@@ -49,6 +49,7 @@ import (
 	"sync"
 	"time"
 
+	"veyron.io/veyron/veyron/lib/exec"
 	"veyron.io/veyron/veyron/lib/flags/consts"
 	"veyron.io/veyron/veyron2/vlog"
 )
@@ -61,6 +62,7 @@ type Shell struct {
 	handles      map[Handle]struct{}
 	credDir      string
 	startTimeout time.Duration
+	Config       exec.Config
 }
 
 type commandDesc struct {
@@ -96,6 +98,7 @@ func NewShell(patterns ...string) *Shell {
 		cmds:         make(map[string]*commandDesc),
 		handles:      make(map[Handle]struct{}),
 		startTimeout: time.Minute,
+		Config:       exec.NewConfig(),
 	}
 	if flag.Lookup("test.run") != nil && os.Getenv(consts.VeyronCredentials) == "" {
 		if err := sh.CreateAndUseNewCredentials(); err != nil {

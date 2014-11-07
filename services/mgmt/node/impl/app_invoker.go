@@ -503,7 +503,9 @@ func (i *appInvoker) startCmd(instanceDir string, cmd *exec.Cmd) error {
 	listener := callbackState.listenFor(mgmt.AppCycleManagerConfigKey)
 	defer listener.cleanup()
 	cfg := vexec.NewConfig()
-	cfg.Set(mgmt.ParentNodeManagerConfigKey, listener.name())
+	cfg.Set(mgmt.ParentNameConfigKey, listener.name())
+	cfg.Set(mgmt.ProtocolConfigKey, "tcp")
+	cfg.Set(mgmt.AddressConfigKey, "127.0.0.1:0")
 	handle := vexec.NewParentHandle(cmd, vexec.ConfigOpt{cfg})
 	defer func() {
 		if handle != nil {
