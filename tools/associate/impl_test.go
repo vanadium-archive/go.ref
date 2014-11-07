@@ -78,7 +78,7 @@ func (i *mockNodeInvoker) SetACL(ipc.ServerContext, security.ACL, string) error 
 func (i *mockNodeInvoker) GetACL(ipc.ServerContext) (security.ACL, string, error) {
 	return security.ACL{}, "", nil
 }
-func (i *mockNodeInvoker) Glob(ctx ipc.ServerContext, pattern string, stream mounttable.GlobbableServiceGlobStream) error {
+func (i *mockNodeInvoker) Glob(ctx mounttable.GlobbableGlobContext, pattern string) error {
 	return nil
 }
 
@@ -92,7 +92,7 @@ func NewDispatcher(t *testing.T, tape *Tape) *dispatcher {
 }
 
 func (d *dispatcher) Lookup(suffix, method string) (interface{}, security.Authorizer, error) {
-	invoker := ipc.ReflectInvoker(node.NewServerNode(&mockNodeInvoker{tape: d.tape, t: d.t}))
+	invoker := ipc.ReflectInvoker(node.NodeServer(&mockNodeInvoker{tape: d.tape, t: d.t}))
 	return invoker, nil, nil
 }
 

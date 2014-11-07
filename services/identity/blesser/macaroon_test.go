@@ -8,7 +8,6 @@ import (
 	"time"
 
 	vsecurity "veyron.io/veyron/veyron/security"
-	"veyron.io/veyron/veyron/services/identity"
 	"veyron.io/veyron/veyron/services/identity/util"
 
 	"veyron.io/veyron/veyron2/ipc"
@@ -30,7 +29,7 @@ func TestMacaroonBlesser(t *testing.T) {
 	if _, err := rand.Read(key); err != nil {
 		t.Fatal(err)
 	}
-	blesser := NewMacaroonBlesserServer(key).(*identity.ServerStubMacaroonBlesser)
+	blesser := NewMacaroonBlesserServer(key)
 
 	m := BlessingMacaroon{Creation: time.Now().Add(-1 * time.Hour), Name: "foo"}
 	if got, err := blesser.Bless(context, newMacaroon(t, key, m)); err == nil || err.Error() != "macaroon has expired" {

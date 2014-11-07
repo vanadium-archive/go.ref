@@ -30,6 +30,6 @@ func NewDispatcher(name string, authorizer security.Authorizer) (*dispatcher, er
 // DISPATCHER INTERFACE IMPLEMENTATION
 
 func (d *dispatcher) Lookup(suffix, method string) (interface{}, security.Authorizer, error) {
-	invoker := ipc.ReflectInvoker(repository.NewServerProfile(NewInvoker(d.store, d.storeRoot, suffix)))
+	invoker := ipc.ReflectInvoker(repository.ProfileServer(NewInvoker(d.store, d.storeRoot, suffix)))
 	return invoker, d.auth, nil
 }

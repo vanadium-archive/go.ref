@@ -273,14 +273,14 @@ func createConfigServer(t *testing.T, r veyron2.Runtime) (ipc.Server, string, <-
 	if ep, err = server.Listen(profiles.LocalListenSpec); err != nil {
 		t.Fatalf("Got error: %v", err)
 	}
-	if err := server.Serve("", node.NewServerConfig(&configServer{ch}), vflag.NewAuthorizerOrDie()); err != nil {
+	if err := server.Serve("", node.ConfigServer(&configServer{ch}), vflag.NewAuthorizerOrDie()); err != nil {
 		t.Fatalf("Got error: %v", err)
 	}
 	return server, naming.JoinAddressName(ep.String(), ""), ch
 
 }
 
-func setupRemoteAppCycleMgr(t *testing.T) (veyron2.Runtime, modules.Handle, appcycle.AppCycle, func()) {
+func setupRemoteAppCycleMgr(t *testing.T) (veyron2.Runtime, modules.Handle, appcycle.AppCycleClientMethods, func()) {
 	// We need to use the public API since stubs are used below (and they
 	// refer to the global rt.R() function), but we take care to make sure
 	// that the "google" runtime we are trying to test in this package is
@@ -300,10 +300,7 @@ func setupRemoteAppCycleMgr(t *testing.T) (veyron2.Runtime, modules.Handle, appc
 	}
 
 	appCycleName := <-ch
-	appCycle, err := appcycle.BindAppCycle(appCycleName)
-	if err != nil {
-		t.Fatalf("Got error: %v", err)
-	}
+	appCycle := appcycle.AppCycleClient(appCycleName)
 	return r, h, appCycle, func() {
 		configServer.Stop()
 		sh.Cleanup(os.Stderr, os.Stderr)

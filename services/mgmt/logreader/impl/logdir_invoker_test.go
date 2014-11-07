@@ -56,10 +56,7 @@ func TestLogDirectory(t *testing.T) {
 
 	// Try to access a directory that doesn't exist.
 	{
-		ld, err := mounttable.BindGlobbable(naming.JoinAddressName(endpoint, "//doesntexist"))
-		if err != nil {
-			t.Errorf("BindLogDirectory: %v", err)
-		}
+		ld := mounttable.GlobbableClient(naming.JoinAddressName(endpoint, "//doesntexist"))
 		stream, err := ld.Glob(runtime.NewContext(), "*")
 		if err != nil {
 			t.Errorf("unexpected error, got %v, want: nil", err)
@@ -73,11 +70,7 @@ func TestLogDirectory(t *testing.T) {
 
 	// Try to access a directory that does exist.
 	{
-		ld, err := mounttable.BindGlobbable(naming.JoinAddressName(endpoint, "//"))
-		if err != nil {
-			t.Errorf("BindLogDirectory: %v", err)
-		}
-
+		ld := mounttable.GlobbableClient(naming.JoinAddressName(endpoint, "//"))
 		stream, err := ld.Glob(runtime.NewContext(), "...")
 		if err != nil {
 			t.Errorf("Glob failed: %v", err)
@@ -156,10 +149,7 @@ func TestLogDirectory(t *testing.T) {
 
 	// Try to access a sub-directory.
 	{
-		ld, err := mounttable.BindGlobbable(naming.JoinAddressName(endpoint, "//subdir"))
-		if err != nil {
-			t.Errorf("BindLogDirectory: %v", err)
-		}
+		ld := mounttable.GlobbableClient(naming.JoinAddressName(endpoint, "//subdir"))
 		stream, err := ld.Glob(runtime.NewContext(), "*")
 		if err != nil {
 			t.Errorf("Glob failed: %v", err)
@@ -188,10 +178,7 @@ func TestLogDirectory(t *testing.T) {
 
 	// Try to access a file.
 	{
-		ld, err := mounttable.BindGlobbable(naming.JoinAddressName(endpoint, "//foo.txt"))
-		if err != nil {
-			t.Errorf("BindLogDirectory: %v", err)
-		}
+		ld := mounttable.GlobbableClient(naming.JoinAddressName(endpoint, "//foo.txt"))
 		stream, err := ld.Glob(runtime.NewContext(), "*")
 		if err != nil {
 			t.Errorf("Glob failed: %v", err)

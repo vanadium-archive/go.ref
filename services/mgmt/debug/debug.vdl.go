@@ -10,30 +10,29 @@ import (
 
 	"veyron.io/veyron/veyron2/services/mgmt/stats"
 
-	// The non-user imports are prefixed with "_gen_" to prevent collisions.
-	_gen_veyron2 "veyron.io/veyron/veyron2"
-	_gen_context "veyron.io/veyron/veyron2/context"
-	_gen_ipc "veyron.io/veyron/veyron2/ipc"
-	_gen_naming "veyron.io/veyron/veyron2/naming"
-	_gen_vdlutil "veyron.io/veyron/veyron2/vdl/vdlutil"
-	_gen_wiretype "veyron.io/veyron/veyron2/wiretype"
+	// The non-user imports are prefixed with "__" to prevent collisions.
+	__veyron2 "veyron.io/veyron/veyron2"
+	__context "veyron.io/veyron/veyron2/context"
+	__ipc "veyron.io/veyron/veyron2/ipc"
+	__vdlutil "veyron.io/veyron/veyron2/vdl/vdlutil"
+	__wiretype "veyron.io/veyron/veyron2/wiretype"
 )
 
 // TODO(toddw): Remove this line once the new signature support is done.
-// It corrects a bug where _gen_wiretype is unused in VDL pacakges where only
+// It corrects a bug where __wiretype is unused in VDL pacakges where only
 // bootstrap types are used on interfaces.
-const _ = _gen_wiretype.TypeIDInvalid
+const _ = __wiretype.TypeIDInvalid
 
+// DebugClientMethods is the client interface
+// containing Debug methods.
+//
 // This interface exists only for the purpose of generating a valid Signature
 // for all the interfaces that are served by the debug server. It should be
 // removed when https://code.google.com/p/envyor/issues/detail?id=285 is
 // resolved.
-// Debug is the interface the client binds and uses.
-// Debug_ExcludingUniversal is the interface without internal framework-added methods
-// to enable embedding without method collisions.  Not to be used directly by clients.
-type Debug_ExcludingUniversal interface {
+type DebugClientMethods interface {
 	// LogFile can be used to access log files remotely.
-	logreader.LogFile_ExcludingUniversal
+	logreader.LogFileClientMethods
 	// The Stats interface is used to access stats for troubleshooting and
 	// monitoring purposes. The stats objects are discoverable via the Globbable
 	// interface and watchable via the GlobWatcher interface.
@@ -41,218 +40,214 @@ type Debug_ExcludingUniversal interface {
 	// The types of the object values are implementation specific, but should be
 	// primarily numeric in nature, e.g. counters, memory usage, latency metrics,
 	// etc.
-	stats.Stats_ExcludingUniversal
-	pprof.PProf_ExcludingUniversal
-}
-type Debug interface {
-	_gen_ipc.UniversalServiceMethods
-	Debug_ExcludingUniversal
+	stats.StatsClientMethods
+	pprof.PProfClientMethods
 }
 
-// DebugService is the interface the server implements.
-type DebugService interface {
-
-	// LogFile can be used to access log files remotely.
-	logreader.LogFileService
-	// The Stats interface is used to access stats for troubleshooting and
-	// monitoring purposes. The stats objects are discoverable via the Globbable
-	// interface and watchable via the GlobWatcher interface.
-	//
-	// The types of the object values are implementation specific, but should be
-	// primarily numeric in nature, e.g. counters, memory usage, latency metrics,
-	// etc.
-	stats.StatsService
-	pprof.PProfService
+// DebugClientStub adds universal methods to DebugClientMethods.
+type DebugClientStub interface {
+	DebugClientMethods
+	__ipc.UniversalServiceMethods
 }
 
-// BindDebug returns the client stub implementing the Debug
-// interface.
-//
-// If no _gen_ipc.Client is specified, the default _gen_ipc.Client in the
-// global Runtime is used.
-func BindDebug(name string, opts ..._gen_ipc.BindOpt) (Debug, error) {
-	var client _gen_ipc.Client
-	switch len(opts) {
-	case 0:
-		// Do nothing.
-	case 1:
-		if clientOpt, ok := opts[0].(_gen_ipc.Client); opts[0] == nil || ok {
+// DebugClient returns a client stub for Debug.
+func DebugClient(name string, opts ...__ipc.BindOpt) DebugClientStub {
+	var client __ipc.Client
+	for _, opt := range opts {
+		if clientOpt, ok := opt.(__ipc.Client); ok {
 			client = clientOpt
-		} else {
-			return nil, _gen_vdlutil.ErrUnrecognizedOption
 		}
-	default:
-		return nil, _gen_vdlutil.ErrTooManyOptionsToBind
 	}
-	stub := &clientStubDebug{defaultClient: client, name: name}
-	stub.LogFile_ExcludingUniversal, _ = logreader.BindLogFile(name, client)
-	stub.Stats_ExcludingUniversal, _ = stats.BindStats(name, client)
-	stub.PProf_ExcludingUniversal, _ = pprof.BindPProf(name, client)
-
-	return stub, nil
+	return implDebugClientStub{name, client, logreader.LogFileClient(name, client), stats.StatsClient(name, client), pprof.PProfClient(name, client)}
 }
 
-// NewServerDebug creates a new server stub.
+type implDebugClientStub struct {
+	name   string
+	client __ipc.Client
+
+	logreader.LogFileClientStub
+	stats.StatsClientStub
+	pprof.PProfClientStub
+}
+
+func (c implDebugClientStub) c(ctx __context.T) __ipc.Client {
+	if c.client != nil {
+		return c.client
+	}
+	return __veyron2.RuntimeFromContext(ctx).Client()
+}
+
+func (c implDebugClientStub) Signature(ctx __context.T, opts ...__ipc.CallOpt) (o0 __ipc.ServiceSignature, err error) {
+	var call __ipc.Call
+	if call, err = c.c(ctx).StartCall(ctx, c.name, "Signature", nil, opts...); err != nil {
+		return
+	}
+	if ierr := call.Finish(&o0, &err); ierr != nil {
+		err = ierr
+	}
+	return
+}
+
+func (c implDebugClientStub) GetMethodTags(ctx __context.T, method string, opts ...__ipc.CallOpt) (o0 []interface{}, err error) {
+	var call __ipc.Call
+	if call, err = c.c(ctx).StartCall(ctx, c.name, "GetMethodTags", []interface{}{method}, opts...); err != nil {
+		return
+	}
+	if ierr := call.Finish(&o0, &err); ierr != nil {
+		err = ierr
+	}
+	return
+}
+
+// DebugServerMethods is the interface a server writer
+// implements for Debug.
 //
-// It takes a regular server implementing the DebugService
-// interface, and returns a new server stub.
-func NewServerDebug(server DebugService) interface{} {
-	stub := &ServerStubDebug{
-		ServerStubLogFile: *logreader.NewServerLogFile(server).(*logreader.ServerStubLogFile),
-		ServerStubStats:   *stats.NewServerStats(server).(*stats.ServerStubStats),
-		ServerStubPProf:   *pprof.NewServerPProf(server).(*pprof.ServerStubPProf),
-		service:           server,
+// This interface exists only for the purpose of generating a valid Signature
+// for all the interfaces that are served by the debug server. It should be
+// removed when https://code.google.com/p/envyor/issues/detail?id=285 is
+// resolved.
+type DebugServerMethods interface {
+	// LogFile can be used to access log files remotely.
+	logreader.LogFileServerMethods
+	// The Stats interface is used to access stats for troubleshooting and
+	// monitoring purposes. The stats objects are discoverable via the Globbable
+	// interface and watchable via the GlobWatcher interface.
+	//
+	// The types of the object values are implementation specific, but should be
+	// primarily numeric in nature, e.g. counters, memory usage, latency metrics,
+	// etc.
+	stats.StatsServerMethods
+	pprof.PProfServerMethods
+}
+
+// DebugServerStubMethods is the server interface containing
+// Debug methods, as expected by ipc.Server.  The difference between
+// this interface and DebugServerMethods is that the first context
+// argument for each method is always ipc.ServerCall here, while it is either
+// ipc.ServerContext or a typed streaming context there.
+type DebugServerStubMethods interface {
+	// LogFile can be used to access log files remotely.
+	logreader.LogFileServerStubMethods
+	// The Stats interface is used to access stats for troubleshooting and
+	// monitoring purposes. The stats objects are discoverable via the Globbable
+	// interface and watchable via the GlobWatcher interface.
+	//
+	// The types of the object values are implementation specific, but should be
+	// primarily numeric in nature, e.g. counters, memory usage, latency metrics,
+	// etc.
+	stats.StatsServerStubMethods
+	pprof.PProfServerStubMethods
+}
+
+// DebugServerStub adds universal methods to DebugServerStubMethods.
+type DebugServerStub interface {
+	DebugServerStubMethods
+	// GetMethodTags will be replaced with DescribeInterfaces.
+	GetMethodTags(call __ipc.ServerCall, method string) ([]interface{}, error)
+	// Signature will be replaced with DescribeInterfaces.
+	Signature(call __ipc.ServerCall) (__ipc.ServiceSignature, error)
+}
+
+// DebugServer returns a server stub for Debug.
+// It converts an implementation of DebugServerMethods into
+// an object that may be used by ipc.Server.
+func DebugServer(impl DebugServerMethods) DebugServerStub {
+	stub := implDebugServerStub{
+		impl:              impl,
+		LogFileServerStub: logreader.LogFileServer(impl),
+		StatsServerStub:   stats.StatsServer(impl),
+		PProfServerStub:   pprof.PProfServer(impl),
 	}
-	var gs _gen_ipc.GlobState
-	var self interface{} = stub
-	// VAllGlobber is implemented by the server object, which is wrapped in
-	// a VDL generated server stub.
-	if x, ok := self.(_gen_ipc.VAllGlobber); ok {
-		gs.VAllGlobber = x
+	// Initialize GlobState; always check the stub itself first, to handle the
+	// case where the user has the Glob method defined in their VDL source.
+	if gs := __ipc.NewGlobState(stub); gs != nil {
+		stub.gs = gs
+	} else if gs := __ipc.NewGlobState(impl); gs != nil {
+		stub.gs = gs
 	}
-	// VAllGlobber is implemented by the server object without using a VDL
-	// generated stub.
-	if x, ok := server.(_gen_ipc.VAllGlobber); ok {
-		gs.VAllGlobber = x
-	}
-	// VChildrenGlobber is implemented in the server object.
-	if x, ok := server.(_gen_ipc.VChildrenGlobber); ok {
-		gs.VChildrenGlobber = x
-	}
-	stub.gs = &gs
 	return stub
 }
 
-// clientStubDebug implements Debug.
-type clientStubDebug struct {
-	logreader.LogFile_ExcludingUniversal
-	stats.Stats_ExcludingUniversal
-	pprof.PProf_ExcludingUniversal
+type implDebugServerStub struct {
+	impl DebugServerMethods
+	gs   *__ipc.GlobState
 
-	defaultClient _gen_ipc.Client
-	name          string
+	logreader.LogFileServerStub
+	stats.StatsServerStub
+	pprof.PProfServerStub
 }
 
-func (__gen_c *clientStubDebug) client(ctx _gen_context.T) _gen_ipc.Client {
-	if __gen_c.defaultClient != nil {
-		return __gen_c.defaultClient
-	}
-	return _gen_veyron2.RuntimeFromContext(ctx).Client()
+func (s implDebugServerStub) VGlob() *__ipc.GlobState {
+	return s.gs
 }
 
-func (__gen_c *clientStubDebug) UnresolveStep(ctx _gen_context.T, opts ..._gen_ipc.CallOpt) (reply []string, err error) {
-	var call _gen_ipc.Call
-	if call, err = __gen_c.client(ctx).StartCall(ctx, __gen_c.name, "UnresolveStep", nil, opts...); err != nil {
-		return
-	}
-	if ierr := call.Finish(&reply, &err); ierr != nil {
-		err = ierr
-	}
-	return
-}
-
-func (__gen_c *clientStubDebug) Signature(ctx _gen_context.T, opts ..._gen_ipc.CallOpt) (reply _gen_ipc.ServiceSignature, err error) {
-	var call _gen_ipc.Call
-	if call, err = __gen_c.client(ctx).StartCall(ctx, __gen_c.name, "Signature", nil, opts...); err != nil {
-		return
-	}
-	if ierr := call.Finish(&reply, &err); ierr != nil {
-		err = ierr
-	}
-	return
-}
-
-func (__gen_c *clientStubDebug) GetMethodTags(ctx _gen_context.T, method string, opts ..._gen_ipc.CallOpt) (reply []interface{}, err error) {
-	var call _gen_ipc.Call
-	if call, err = __gen_c.client(ctx).StartCall(ctx, __gen_c.name, "GetMethodTags", []interface{}{method}, opts...); err != nil {
-		return
-	}
-	if ierr := call.Finish(&reply, &err); ierr != nil {
-		err = ierr
-	}
-	return
-}
-
-// ServerStubDebug wraps a server that implements
-// DebugService and provides an object that satisfies
-// the requirements of veyron2/ipc.ReflectInvoker.
-type ServerStubDebug struct {
-	logreader.ServerStubLogFile
-	stats.ServerStubStats
-	pprof.ServerStubPProf
-
-	service DebugService
-	gs      *_gen_ipc.GlobState
-}
-
-func (__gen_s *ServerStubDebug) GetMethodTags(call _gen_ipc.ServerCall, method string) ([]interface{}, error) {
-	// TODO(bprosnitz) GetMethodTags() will be replaces with Signature().
-	// Note: This exhibits some weird behavior like returning a nil error if the method isn't found.
-	// This will change when it is replaced with Signature().
-	if resp, err := __gen_s.ServerStubLogFile.GetMethodTags(call, method); resp != nil || err != nil {
+func (s implDebugServerStub) GetMethodTags(call __ipc.ServerCall, method string) ([]interface{}, error) {
+	// TODO(toddw): Replace with new DescribeInterfaces implementation.
+	if resp, err := s.LogFileServerStub.GetMethodTags(call, method); resp != nil || err != nil {
 		return resp, err
 	}
-	if resp, err := __gen_s.ServerStubStats.GetMethodTags(call, method); resp != nil || err != nil {
+	if resp, err := s.StatsServerStub.GetMethodTags(call, method); resp != nil || err != nil {
 		return resp, err
 	}
-	if resp, err := __gen_s.ServerStubPProf.GetMethodTags(call, method); resp != nil || err != nil {
+	if resp, err := s.PProfServerStub.GetMethodTags(call, method); resp != nil || err != nil {
 		return resp, err
 	}
 	return nil, nil
 }
 
-func (__gen_s *ServerStubDebug) Signature(call _gen_ipc.ServerCall) (_gen_ipc.ServiceSignature, error) {
-	result := _gen_ipc.ServiceSignature{Methods: make(map[string]_gen_ipc.MethodSignature)}
+func (s implDebugServerStub) Signature(call __ipc.ServerCall) (__ipc.ServiceSignature, error) {
+	// TODO(toddw) Replace with new DescribeInterfaces implementation.
+	result := __ipc.ServiceSignature{Methods: make(map[string]__ipc.MethodSignature)}
 
-	result.TypeDefs = []_gen_vdlutil.Any{}
-	var ss _gen_ipc.ServiceSignature
+	result.TypeDefs = []__vdlutil.Any{}
+	var ss __ipc.ServiceSignature
 	var firstAdded int
-	ss, _ = __gen_s.ServerStubLogFile.Signature(call)
+	ss, _ = s.LogFileServerStub.Signature(call)
 	firstAdded = len(result.TypeDefs)
 	for k, v := range ss.Methods {
 		for i, _ := range v.InArgs {
-			if v.InArgs[i].Type >= _gen_wiretype.TypeIDFirst {
-				v.InArgs[i].Type += _gen_wiretype.TypeID(firstAdded)
+			if v.InArgs[i].Type >= __wiretype.TypeIDFirst {
+				v.InArgs[i].Type += __wiretype.TypeID(firstAdded)
 			}
 		}
 		for i, _ := range v.OutArgs {
-			if v.OutArgs[i].Type >= _gen_wiretype.TypeIDFirst {
-				v.OutArgs[i].Type += _gen_wiretype.TypeID(firstAdded)
+			if v.OutArgs[i].Type >= __wiretype.TypeIDFirst {
+				v.OutArgs[i].Type += __wiretype.TypeID(firstAdded)
 			}
 		}
-		if v.InStream >= _gen_wiretype.TypeIDFirst {
-			v.InStream += _gen_wiretype.TypeID(firstAdded)
+		if v.InStream >= __wiretype.TypeIDFirst {
+			v.InStream += __wiretype.TypeID(firstAdded)
 		}
-		if v.OutStream >= _gen_wiretype.TypeIDFirst {
-			v.OutStream += _gen_wiretype.TypeID(firstAdded)
+		if v.OutStream >= __wiretype.TypeIDFirst {
+			v.OutStream += __wiretype.TypeID(firstAdded)
 		}
 		result.Methods[k] = v
 	}
 	//TODO(bprosnitz) combine type definitions from embeded interfaces in a way that doesn't cause duplication.
 	for _, d := range ss.TypeDefs {
 		switch wt := d.(type) {
-		case _gen_wiretype.SliceType:
-			if wt.Elem >= _gen_wiretype.TypeIDFirst {
-				wt.Elem += _gen_wiretype.TypeID(firstAdded)
+		case __wiretype.SliceType:
+			if wt.Elem >= __wiretype.TypeIDFirst {
+				wt.Elem += __wiretype.TypeID(firstAdded)
 			}
 			d = wt
-		case _gen_wiretype.ArrayType:
-			if wt.Elem >= _gen_wiretype.TypeIDFirst {
-				wt.Elem += _gen_wiretype.TypeID(firstAdded)
+		case __wiretype.ArrayType:
+			if wt.Elem >= __wiretype.TypeIDFirst {
+				wt.Elem += __wiretype.TypeID(firstAdded)
 			}
 			d = wt
-		case _gen_wiretype.MapType:
-			if wt.Key >= _gen_wiretype.TypeIDFirst {
-				wt.Key += _gen_wiretype.TypeID(firstAdded)
+		case __wiretype.MapType:
+			if wt.Key >= __wiretype.TypeIDFirst {
+				wt.Key += __wiretype.TypeID(firstAdded)
 			}
-			if wt.Elem >= _gen_wiretype.TypeIDFirst {
-				wt.Elem += _gen_wiretype.TypeID(firstAdded)
+			if wt.Elem >= __wiretype.TypeIDFirst {
+				wt.Elem += __wiretype.TypeID(firstAdded)
 			}
 			d = wt
-		case _gen_wiretype.StructType:
+		case __wiretype.StructType:
 			for i, fld := range wt.Fields {
-				if fld.Type >= _gen_wiretype.TypeIDFirst {
-					wt.Fields[i].Type += _gen_wiretype.TypeID(firstAdded)
+				if fld.Type >= __wiretype.TypeIDFirst {
+					wt.Fields[i].Type += __wiretype.TypeID(firstAdded)
 				}
 			}
 			d = wt
@@ -260,52 +255,52 @@ func (__gen_s *ServerStubDebug) Signature(call _gen_ipc.ServerCall) (_gen_ipc.Se
 		}
 		result.TypeDefs = append(result.TypeDefs, d)
 	}
-	ss, _ = __gen_s.ServerStubStats.Signature(call)
+	ss, _ = s.StatsServerStub.Signature(call)
 	firstAdded = len(result.TypeDefs)
 	for k, v := range ss.Methods {
 		for i, _ := range v.InArgs {
-			if v.InArgs[i].Type >= _gen_wiretype.TypeIDFirst {
-				v.InArgs[i].Type += _gen_wiretype.TypeID(firstAdded)
+			if v.InArgs[i].Type >= __wiretype.TypeIDFirst {
+				v.InArgs[i].Type += __wiretype.TypeID(firstAdded)
 			}
 		}
 		for i, _ := range v.OutArgs {
-			if v.OutArgs[i].Type >= _gen_wiretype.TypeIDFirst {
-				v.OutArgs[i].Type += _gen_wiretype.TypeID(firstAdded)
+			if v.OutArgs[i].Type >= __wiretype.TypeIDFirst {
+				v.OutArgs[i].Type += __wiretype.TypeID(firstAdded)
 			}
 		}
-		if v.InStream >= _gen_wiretype.TypeIDFirst {
-			v.InStream += _gen_wiretype.TypeID(firstAdded)
+		if v.InStream >= __wiretype.TypeIDFirst {
+			v.InStream += __wiretype.TypeID(firstAdded)
 		}
-		if v.OutStream >= _gen_wiretype.TypeIDFirst {
-			v.OutStream += _gen_wiretype.TypeID(firstAdded)
+		if v.OutStream >= __wiretype.TypeIDFirst {
+			v.OutStream += __wiretype.TypeID(firstAdded)
 		}
 		result.Methods[k] = v
 	}
 	//TODO(bprosnitz) combine type definitions from embeded interfaces in a way that doesn't cause duplication.
 	for _, d := range ss.TypeDefs {
 		switch wt := d.(type) {
-		case _gen_wiretype.SliceType:
-			if wt.Elem >= _gen_wiretype.TypeIDFirst {
-				wt.Elem += _gen_wiretype.TypeID(firstAdded)
+		case __wiretype.SliceType:
+			if wt.Elem >= __wiretype.TypeIDFirst {
+				wt.Elem += __wiretype.TypeID(firstAdded)
 			}
 			d = wt
-		case _gen_wiretype.ArrayType:
-			if wt.Elem >= _gen_wiretype.TypeIDFirst {
-				wt.Elem += _gen_wiretype.TypeID(firstAdded)
+		case __wiretype.ArrayType:
+			if wt.Elem >= __wiretype.TypeIDFirst {
+				wt.Elem += __wiretype.TypeID(firstAdded)
 			}
 			d = wt
-		case _gen_wiretype.MapType:
-			if wt.Key >= _gen_wiretype.TypeIDFirst {
-				wt.Key += _gen_wiretype.TypeID(firstAdded)
+		case __wiretype.MapType:
+			if wt.Key >= __wiretype.TypeIDFirst {
+				wt.Key += __wiretype.TypeID(firstAdded)
 			}
-			if wt.Elem >= _gen_wiretype.TypeIDFirst {
-				wt.Elem += _gen_wiretype.TypeID(firstAdded)
+			if wt.Elem >= __wiretype.TypeIDFirst {
+				wt.Elem += __wiretype.TypeID(firstAdded)
 			}
 			d = wt
-		case _gen_wiretype.StructType:
+		case __wiretype.StructType:
 			for i, fld := range wt.Fields {
-				if fld.Type >= _gen_wiretype.TypeIDFirst {
-					wt.Fields[i].Type += _gen_wiretype.TypeID(firstAdded)
+				if fld.Type >= __wiretype.TypeIDFirst {
+					wt.Fields[i].Type += __wiretype.TypeID(firstAdded)
 				}
 			}
 			d = wt
@@ -313,52 +308,52 @@ func (__gen_s *ServerStubDebug) Signature(call _gen_ipc.ServerCall) (_gen_ipc.Se
 		}
 		result.TypeDefs = append(result.TypeDefs, d)
 	}
-	ss, _ = __gen_s.ServerStubPProf.Signature(call)
+	ss, _ = s.PProfServerStub.Signature(call)
 	firstAdded = len(result.TypeDefs)
 	for k, v := range ss.Methods {
 		for i, _ := range v.InArgs {
-			if v.InArgs[i].Type >= _gen_wiretype.TypeIDFirst {
-				v.InArgs[i].Type += _gen_wiretype.TypeID(firstAdded)
+			if v.InArgs[i].Type >= __wiretype.TypeIDFirst {
+				v.InArgs[i].Type += __wiretype.TypeID(firstAdded)
 			}
 		}
 		for i, _ := range v.OutArgs {
-			if v.OutArgs[i].Type >= _gen_wiretype.TypeIDFirst {
-				v.OutArgs[i].Type += _gen_wiretype.TypeID(firstAdded)
+			if v.OutArgs[i].Type >= __wiretype.TypeIDFirst {
+				v.OutArgs[i].Type += __wiretype.TypeID(firstAdded)
 			}
 		}
-		if v.InStream >= _gen_wiretype.TypeIDFirst {
-			v.InStream += _gen_wiretype.TypeID(firstAdded)
+		if v.InStream >= __wiretype.TypeIDFirst {
+			v.InStream += __wiretype.TypeID(firstAdded)
 		}
-		if v.OutStream >= _gen_wiretype.TypeIDFirst {
-			v.OutStream += _gen_wiretype.TypeID(firstAdded)
+		if v.OutStream >= __wiretype.TypeIDFirst {
+			v.OutStream += __wiretype.TypeID(firstAdded)
 		}
 		result.Methods[k] = v
 	}
 	//TODO(bprosnitz) combine type definitions from embeded interfaces in a way that doesn't cause duplication.
 	for _, d := range ss.TypeDefs {
 		switch wt := d.(type) {
-		case _gen_wiretype.SliceType:
-			if wt.Elem >= _gen_wiretype.TypeIDFirst {
-				wt.Elem += _gen_wiretype.TypeID(firstAdded)
+		case __wiretype.SliceType:
+			if wt.Elem >= __wiretype.TypeIDFirst {
+				wt.Elem += __wiretype.TypeID(firstAdded)
 			}
 			d = wt
-		case _gen_wiretype.ArrayType:
-			if wt.Elem >= _gen_wiretype.TypeIDFirst {
-				wt.Elem += _gen_wiretype.TypeID(firstAdded)
+		case __wiretype.ArrayType:
+			if wt.Elem >= __wiretype.TypeIDFirst {
+				wt.Elem += __wiretype.TypeID(firstAdded)
 			}
 			d = wt
-		case _gen_wiretype.MapType:
-			if wt.Key >= _gen_wiretype.TypeIDFirst {
-				wt.Key += _gen_wiretype.TypeID(firstAdded)
+		case __wiretype.MapType:
+			if wt.Key >= __wiretype.TypeIDFirst {
+				wt.Key += __wiretype.TypeID(firstAdded)
 			}
-			if wt.Elem >= _gen_wiretype.TypeIDFirst {
-				wt.Elem += _gen_wiretype.TypeID(firstAdded)
+			if wt.Elem >= __wiretype.TypeIDFirst {
+				wt.Elem += __wiretype.TypeID(firstAdded)
 			}
 			d = wt
-		case _gen_wiretype.StructType:
+		case __wiretype.StructType:
 			for i, fld := range wt.Fields {
-				if fld.Type >= _gen_wiretype.TypeIDFirst {
-					wt.Fields[i].Type += _gen_wiretype.TypeID(firstAdded)
+				if fld.Type >= __wiretype.TypeIDFirst {
+					wt.Fields[i].Type += __wiretype.TypeID(firstAdded)
 				}
 			}
 			d = wt
@@ -368,26 +363,4 @@ func (__gen_s *ServerStubDebug) Signature(call _gen_ipc.ServerCall) (_gen_ipc.Se
 	}
 
 	return result, nil
-}
-
-func (__gen_s *ServerStubDebug) UnresolveStep(call _gen_ipc.ServerCall) (reply []string, err error) {
-	if unresolver, ok := __gen_s.service.(_gen_ipc.Unresolver); ok {
-		return unresolver.UnresolveStep(call)
-	}
-	if call.Server() == nil {
-		return
-	}
-	var published []string
-	if published, err = call.Server().Published(); err != nil || published == nil {
-		return
-	}
-	reply = make([]string, len(published))
-	for i, p := range published {
-		reply[i] = _gen_naming.Join(p, call.Name())
-	}
-	return
-}
-
-func (__gen_s *ServerStubDebug) VGlob() *_gen_ipc.GlobState {
-	return __gen_s.gs
 }

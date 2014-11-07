@@ -418,10 +418,7 @@ specific peer pattern is provided using the --for_peer flag.
 			defer cancel()
 
 			var reply security.WireBlessings
-			blesser, err := identity.BindMacaroonBlesser(service)
-			if err == nil {
-				reply, err = blesser.Bless(ctx, macaroon)
-			}
+			reply, err = identity.MacaroonBlesserClient(service).Bless(ctx, macaroon)
 			if err != nil {
 				return fmt.Errorf("failed to get blessing from %q: %v", service, err)
 			}

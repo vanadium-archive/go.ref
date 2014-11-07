@@ -625,11 +625,7 @@ func (i *appInvoker) Resume(call ipc.ServerContext) error {
 }
 
 func stopAppRemotely(appVON string) error {
-	appStub, err := appcycle.BindAppCycle(appVON)
-	if err != nil {
-		vlog.Errorf("BindAppCycle(%v) failed: %v", appVON, err)
-		return errOperationFailed
-	}
+	appStub := appcycle.AppCycleClient(appVON)
 	ctx, cancel := rt.R().NewContext().WithTimeout(time.Minute)
 	defer cancel()
 	stream, err := appStub.Stop(ctx)
@@ -906,7 +902,7 @@ func (i *appInvoker) addLogFiles(n *treeNode, dir string) {
 	})
 }
 
-func (i *appInvoker) Glob(ctx ipc.ServerContext, pattern string, stream mounttable.GlobbableServiceGlobStream) error {
+func (i *appInvoker) Glob(ctx mounttable.GlobbableGlobContext, pattern string) error {
 	g, err := glob.Parse(pattern)
 	if err != nil {
 		return err
@@ -915,41 +911,36 @@ func (i *appInvoker) Glob(ctx ipc.ServerContext, pattern string, stream mounttab
 	if n == nil {
 		return errInvalidSuffix
 	}
-	i.globStep(ctx, "", g, n, stream)
+	i.globStep(ctx, "", g, n)
 	return nil
 }
 
-func (i *appInvoker) globStep(ctx ipc.ServerContext, prefix string, g *glob.Glob, n *treeNode, stream mounttable.GlobbableServiceGlobStream) {
+func (i *appInvoker) globStep(ctx mounttable.GlobbableGlobContext, prefix string, g *glob.Glob, n *treeNode) {
 	if n.remote != "" {
-		remoteGlob(ctx, n.remote, prefix, g.String(), stream)
+		remoteGlob(ctx, n.remote, prefix, g.String())
 		return
 	}
 	if g.Len() == 0 {
-		stream.SendStream().Send(types.MountEntry{Name: prefix})
+		ctx.SendStream().Send(types.MountEntry{Name: prefix})
 	}
 	if g.Finished() {
 		return
 	}
 	for name, child := range n.children {
 		if ok, _, left := g.MatchInitialSegment(name); ok {
-			i.globStep(ctx, naming.Join(prefix, name), left, child, stream)
+			i.globStep(ctx, naming.Join(prefix, name), left, child)
 		}
 	}
 }
 
-func remoteGlob(ctx ipc.ServerContext, remote, prefix, pattern string, stream mounttable.GlobbableServiceGlobStream) {
-	c, err := mounttable.BindGlobbable(remote)
-	if err != nil {
-		vlog.VI(1).Infof("BindGlobbable(%q): %v", remote, err)
-		return
-	}
-	call, err := c.Glob(ctx, pattern)
+func remoteGlob(ctx mounttable.GlobbableGlobContext, remote, prefix, pattern string) {
+	call, err := mounttable.GlobbableClient(remote).Glob(ctx, pattern)
 	if err != nil {
 		vlog.VI(1).Infof("%q.Glob(%q): %v", remote, pattern, err)
 		return
 	}
 	it := call.RecvStream()
-	sender := stream.SendStream()
+	sender := ctx.SendStream()
 	for it.Advance() {
 		me := it.Value()
 		me.Name = naming.Join(prefix, me.Name)

@@ -33,7 +33,7 @@ func init() {
 
 // invokeUpload invokes the Upload RPC using the given client binary
 // <binary> and streams the given binary <binary> to it.
-func invokeUpload(t *testing.T, binary repository.Binary, data []byte, part int32) (error, error) {
+func invokeUpload(t *testing.T, binary repository.BinaryClientMethods, data []byte, part int32) (error, error) {
 	stream, err := binary.Upload(rt.R().NewContext(), part)
 	if err != nil {
 		t.Errorf("Upload() failed: %v", err)
@@ -65,7 +65,7 @@ func invokeUpload(t *testing.T, binary repository.Binary, data []byte, part int3
 
 // invokeDownload invokes the Download RPC using the given client binary
 // <binary> and streams binary from to it.
-func invokeDownload(t *testing.T, binary repository.Binary, part int32) ([]byte, error, error) {
+func invokeDownload(t *testing.T, binary repository.BinaryClientMethods, part int32) ([]byte, error, error) {
 	stream, err := binary.Download(rt.R().NewContext(), part)
 	if err != nil {
 		t.Errorf("Download() failed: %v", err)
@@ -95,7 +95,7 @@ func invokeDownload(t *testing.T, binary repository.Binary, part int32) ([]byte,
 }
 
 // startServer starts the binary repository server.
-func startServer(t *testing.T, depth int) (repository.Binary, string, func()) {
+func startServer(t *testing.T, depth int) (repository.BinaryClientMethods, string, func()) {
 	// Setup the root of the binary repository.
 	root, err := ioutil.TempDir("", veyronPrefix)
 	if err != nil {
@@ -133,10 +133,7 @@ func startServer(t *testing.T, depth int) (repository.Binary, string, func()) {
 		t.Fatalf("Serve(%q) failed: %v", dontPublishName, err)
 	}
 	name := naming.JoinAddressName(endpoint.String(), "//test")
-	binary, err := repository.BindBinary(name)
-	if err != nil {
-		t.Fatalf("BindBinary(%v) failed: %v", name, err)
-	}
+	binary := repository.BinaryClient(name)
 	return binary, fmt.Sprintf("http://%s/test", listener.Addr()), func() {
 		// Shutdown the binary repository server.
 		if err := server.Stop(); err != nil {

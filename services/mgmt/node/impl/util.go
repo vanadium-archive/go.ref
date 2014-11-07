@@ -30,11 +30,7 @@ func downloadBinary(workspace, fileName, name string) error {
 }
 
 func fetchEnvelope(ctx context.T, origin string) (*application.Envelope, error) {
-	stub, err := repository.BindApplication(origin)
-	if err != nil {
-		vlog.Errorf("BindRepository(%v) failed: %v", origin, err)
-		return nil, errOperationFailed
-	}
+	stub := repository.ApplicationClient(origin)
 	// TODO(jsimsa): Include logic that computes the set of supported
 	// profiles.
 	profiles := []string{"test"}

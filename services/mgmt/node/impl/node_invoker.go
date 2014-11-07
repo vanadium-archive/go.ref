@@ -257,11 +257,7 @@ func (i *nodeInvoker) testNodeManager(ctx context.T, workspace string, envelope 
 	}
 	// Check that invoking Update() succeeds.
 	childName = naming.Join(childName, "nm")
-	nmClient, err := node.BindNode(childName)
-	if err != nil {
-		vlog.Errorf("BindNode(%v) failed: %v", childName, err)
-		return errOperationFailed
-	}
+	nmClient := node.NodeClient(childName)
 	linkOld, pathOld, err := i.getCurrentFileInfo()
 	if err != nil {
 		return errOperationFailed
@@ -467,13 +463,13 @@ func (i *nodeInvoker) GetACL(_ ipc.ServerContext) (acl security.ACL, etag string
 	return i.disp.getACL()
 }
 
-func (i *nodeInvoker) Glob(ctx ipc.ServerContext, pattern string, stream mounttable.GlobbableServiceGlobStream) error {
+func (i *nodeInvoker) Glob(ctx mounttable.GlobbableGlobContext, pattern string) error {
 	g, err := glob.Parse(pattern)
 	if err != nil {
 		return err
 	}
 	if g.Len() == 0 {
-		return stream.SendStream().Send(types.MountEntry{Name: ""})
+		return ctx.SendStream().Send(types.MountEntry{Name: ""})
 	}
 	return nil
 }

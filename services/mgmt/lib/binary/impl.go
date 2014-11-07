@@ -33,14 +33,9 @@ const (
 )
 
 func Delete(name string) error {
-	client, err := repository.BindBinary(name)
-	if err != nil {
-		vlog.Errorf("BindBinary(%v) failed: %v", name, err)
-		return err
-	}
 	ctx, cancel := rt.R().NewContext().WithTimeout(time.Minute)
 	defer cancel()
-	if err := client.Delete(ctx); err != nil {
+	if err := repository.BinaryClient(name).Delete(ctx); err != nil {
 		vlog.Errorf("Delete() failed: %v", err)
 		return err
 	}
@@ -48,11 +43,7 @@ func Delete(name string) error {
 }
 
 func download(ctx context.T, w io.WriteSeeker, von string) error {
-	client, err := repository.BindBinary(von)
-	if err != nil {
-		vlog.Errorf("BindBinary(%v) failed: %v", von, err)
-		return err
-	}
+	client := repository.BinaryClient(von)
 	parts, err := client.Stat(ctx)
 	if err != nil {
 		vlog.Errorf("Stat() failed: %v", err)
@@ -175,11 +166,7 @@ func DownloadToFile(von, path string) error {
 }
 
 func upload(ctx context.T, r io.ReadSeeker, von string) error {
-	client, err := repository.BindBinary(von)
-	if err != nil {
-		vlog.Errorf("BindBinary(%v) failed: %v", von, err)
-		return err
-	}
+	client := repository.BinaryClient(von)
 	offset, whence := int64(0), 2
 	size, err := r.Seek(offset, whence)
 	if err != nil {

@@ -5,14 +5,18 @@
 package test
 
 import (
-	// The non-user imports are prefixed with "_gen_" to prevent collisions.
-	_gen_veyron2 "veyron.io/veyron/veyron2"
-	_gen_context "veyron.io/veyron/veyron2/context"
-	_gen_ipc "veyron.io/veyron/veyron2/ipc"
-	_gen_naming "veyron.io/veyron/veyron2/naming"
-	_gen_vdlutil "veyron.io/veyron/veyron2/vdl/vdlutil"
-	_gen_wiretype "veyron.io/veyron/veyron2/wiretype"
+	// The non-user imports are prefixed with "__" to prevent collisions.
+	__veyron2 "veyron.io/veyron/veyron2"
+	__context "veyron.io/veyron/veyron2/context"
+	__ipc "veyron.io/veyron/veyron2/ipc"
+	__vdlutil "veyron.io/veyron/veyron2/vdl/vdlutil"
+	__wiretype "veyron.io/veyron/veyron2/wiretype"
 )
+
+// TODO(toddw): Remove this line once the new signature support is done.
+// It corrects a bug where __wiretype is unused in VDL pacakges where only
+// bootstrap types are used on interfaces.
+const _ = __wiretype.TypeIDInvalid
 
 // Any package can define tags (of arbitrary types) to be attached to methods.
 // This type can be used to index into a TaggedACLMap.
@@ -26,201 +30,206 @@ const Write = MyTag("W")
 
 const Execute = MyTag("X")
 
-// TODO(toddw): Remove this line once the new signature support is done.
-// It corrects a bug where _gen_wiretype is unused in VDL pacakges where only
-// bootstrap types are used on interfaces.
-const _ = _gen_wiretype.TypeIDInvalid
-
+// MyObjectClientMethods is the client interface
+// containing MyObject methods.
+//
 // MyObject demonstrates how tags are attached to methods.
-// MyObject is the interface the client binds and uses.
-// MyObject_ExcludingUniversal is the interface without internal framework-added methods
-// to enable embedding without method collisions.  Not to be used directly by clients.
-type MyObject_ExcludingUniversal interface {
-	Get(ctx _gen_context.T, opts ..._gen_ipc.CallOpt) (err error)
-	Put(ctx _gen_context.T, opts ..._gen_ipc.CallOpt) (err error)
-	Resolve(ctx _gen_context.T, opts ..._gen_ipc.CallOpt) (err error)
-	NoTags(ctx _gen_context.T, opts ..._gen_ipc.CallOpt) (err error) // No tags attached to this.
-	AllTags(ctx _gen_context.T, opts ..._gen_ipc.CallOpt) (err error)
-}
-type MyObject interface {
-	_gen_ipc.UniversalServiceMethods
-	MyObject_ExcludingUniversal
+type MyObjectClientMethods interface {
+	Get(__context.T, ...__ipc.CallOpt) error
+	Put(__context.T, ...__ipc.CallOpt) error
+	Resolve(__context.T, ...__ipc.CallOpt) error
+	NoTags(__context.T, ...__ipc.CallOpt) error // No tags attached to this.
+	AllTags(__context.T, ...__ipc.CallOpt) error
 }
 
-// MyObjectService is the interface the server implements.
-type MyObjectService interface {
-	Get(context _gen_ipc.ServerContext) (err error)
-	Put(context _gen_ipc.ServerContext) (err error)
-	Resolve(context _gen_ipc.ServerContext) (err error)
-	NoTags(context _gen_ipc.ServerContext) (err error) // No tags attached to this.
-	AllTags(context _gen_ipc.ServerContext) (err error)
+// MyObjectClientStub adds universal methods to MyObjectClientMethods.
+type MyObjectClientStub interface {
+	MyObjectClientMethods
+	__ipc.UniversalServiceMethods
 }
 
-// BindMyObject returns the client stub implementing the MyObject
-// interface.
-//
-// If no _gen_ipc.Client is specified, the default _gen_ipc.Client in the
-// global Runtime is used.
-func BindMyObject(name string, opts ..._gen_ipc.BindOpt) (MyObject, error) {
-	var client _gen_ipc.Client
-	switch len(opts) {
-	case 0:
-		// Do nothing.
-	case 1:
-		if clientOpt, ok := opts[0].(_gen_ipc.Client); opts[0] == nil || ok {
+// MyObjectClient returns a client stub for MyObject.
+func MyObjectClient(name string, opts ...__ipc.BindOpt) MyObjectClientStub {
+	var client __ipc.Client
+	for _, opt := range opts {
+		if clientOpt, ok := opt.(__ipc.Client); ok {
 			client = clientOpt
-		} else {
-			return nil, _gen_vdlutil.ErrUnrecognizedOption
 		}
-	default:
-		return nil, _gen_vdlutil.ErrTooManyOptionsToBind
 	}
-	stub := &clientStubMyObject{defaultClient: client, name: name}
-
-	return stub, nil
+	return implMyObjectClientStub{name, client}
 }
 
-// NewServerMyObject creates a new server stub.
+type implMyObjectClientStub struct {
+	name   string
+	client __ipc.Client
+}
+
+func (c implMyObjectClientStub) c(ctx __context.T) __ipc.Client {
+	if c.client != nil {
+		return c.client
+	}
+	return __veyron2.RuntimeFromContext(ctx).Client()
+}
+
+func (c implMyObjectClientStub) Get(ctx __context.T, opts ...__ipc.CallOpt) (err error) {
+	var call __ipc.Call
+	if call, err = c.c(ctx).StartCall(ctx, c.name, "Get", nil, opts...); err != nil {
+		return
+	}
+	if ierr := call.Finish(&err); ierr != nil {
+		err = ierr
+	}
+	return
+}
+
+func (c implMyObjectClientStub) Put(ctx __context.T, opts ...__ipc.CallOpt) (err error) {
+	var call __ipc.Call
+	if call, err = c.c(ctx).StartCall(ctx, c.name, "Put", nil, opts...); err != nil {
+		return
+	}
+	if ierr := call.Finish(&err); ierr != nil {
+		err = ierr
+	}
+	return
+}
+
+func (c implMyObjectClientStub) Resolve(ctx __context.T, opts ...__ipc.CallOpt) (err error) {
+	var call __ipc.Call
+	if call, err = c.c(ctx).StartCall(ctx, c.name, "Resolve", nil, opts...); err != nil {
+		return
+	}
+	if ierr := call.Finish(&err); ierr != nil {
+		err = ierr
+	}
+	return
+}
+
+func (c implMyObjectClientStub) NoTags(ctx __context.T, opts ...__ipc.CallOpt) (err error) {
+	var call __ipc.Call
+	if call, err = c.c(ctx).StartCall(ctx, c.name, "NoTags", nil, opts...); err != nil {
+		return
+	}
+	if ierr := call.Finish(&err); ierr != nil {
+		err = ierr
+	}
+	return
+}
+
+func (c implMyObjectClientStub) AllTags(ctx __context.T, opts ...__ipc.CallOpt) (err error) {
+	var call __ipc.Call
+	if call, err = c.c(ctx).StartCall(ctx, c.name, "AllTags", nil, opts...); err != nil {
+		return
+	}
+	if ierr := call.Finish(&err); ierr != nil {
+		err = ierr
+	}
+	return
+}
+
+func (c implMyObjectClientStub) Signature(ctx __context.T, opts ...__ipc.CallOpt) (o0 __ipc.ServiceSignature, err error) {
+	var call __ipc.Call
+	if call, err = c.c(ctx).StartCall(ctx, c.name, "Signature", nil, opts...); err != nil {
+		return
+	}
+	if ierr := call.Finish(&o0, &err); ierr != nil {
+		err = ierr
+	}
+	return
+}
+
+func (c implMyObjectClientStub) GetMethodTags(ctx __context.T, method string, opts ...__ipc.CallOpt) (o0 []interface{}, err error) {
+	var call __ipc.Call
+	if call, err = c.c(ctx).StartCall(ctx, c.name, "GetMethodTags", []interface{}{method}, opts...); err != nil {
+		return
+	}
+	if ierr := call.Finish(&o0, &err); ierr != nil {
+		err = ierr
+	}
+	return
+}
+
+// MyObjectServerMethods is the interface a server writer
+// implements for MyObject.
 //
-// It takes a regular server implementing the MyObjectService
-// interface, and returns a new server stub.
-func NewServerMyObject(server MyObjectService) interface{} {
-	stub := &ServerStubMyObject{
-		service: server,
+// MyObject demonstrates how tags are attached to methods.
+type MyObjectServerMethods interface {
+	Get(__ipc.ServerContext) error
+	Put(__ipc.ServerContext) error
+	Resolve(__ipc.ServerContext) error
+	NoTags(__ipc.ServerContext) error // No tags attached to this.
+	AllTags(__ipc.ServerContext) error
+}
+
+// MyObjectServerStubMethods is the server interface containing
+// MyObject methods, as expected by ipc.Server.  The difference between
+// this interface and MyObjectServerMethods is that the first context
+// argument for each method is always ipc.ServerCall here, while it is either
+// ipc.ServerContext or a typed streaming context there.
+type MyObjectServerStubMethods interface {
+	Get(__ipc.ServerCall) error
+	Put(__ipc.ServerCall) error
+	Resolve(__ipc.ServerCall) error
+	NoTags(__ipc.ServerCall) error // No tags attached to this.
+	AllTags(__ipc.ServerCall) error
+}
+
+// MyObjectServerStub adds universal methods to MyObjectServerStubMethods.
+type MyObjectServerStub interface {
+	MyObjectServerStubMethods
+	// GetMethodTags will be replaced with DescribeInterfaces.
+	GetMethodTags(call __ipc.ServerCall, method string) ([]interface{}, error)
+	// Signature will be replaced with DescribeInterfaces.
+	Signature(call __ipc.ServerCall) (__ipc.ServiceSignature, error)
+}
+
+// MyObjectServer returns a server stub for MyObject.
+// It converts an implementation of MyObjectServerMethods into
+// an object that may be used by ipc.Server.
+func MyObjectServer(impl MyObjectServerMethods) MyObjectServerStub {
+	stub := implMyObjectServerStub{
+		impl: impl,
 	}
-	var gs _gen_ipc.GlobState
-	var self interface{} = stub
-	// VAllGlobber is implemented by the server object, which is wrapped in
-	// a VDL generated server stub.
-	if x, ok := self.(_gen_ipc.VAllGlobber); ok {
-		gs.VAllGlobber = x
+	// Initialize GlobState; always check the stub itself first, to handle the
+	// case where the user has the Glob method defined in their VDL source.
+	if gs := __ipc.NewGlobState(stub); gs != nil {
+		stub.gs = gs
+	} else if gs := __ipc.NewGlobState(impl); gs != nil {
+		stub.gs = gs
 	}
-	// VAllGlobber is implemented by the server object without using a VDL
-	// generated stub.
-	if x, ok := server.(_gen_ipc.VAllGlobber); ok {
-		gs.VAllGlobber = x
-	}
-	// VChildrenGlobber is implemented in the server object.
-	if x, ok := server.(_gen_ipc.VChildrenGlobber); ok {
-		gs.VChildrenGlobber = x
-	}
-	stub.gs = &gs
 	return stub
 }
 
-// clientStubMyObject implements MyObject.
-type clientStubMyObject struct {
-	defaultClient _gen_ipc.Client
-	name          string
+type implMyObjectServerStub struct {
+	impl MyObjectServerMethods
+	gs   *__ipc.GlobState
 }
 
-func (__gen_c *clientStubMyObject) client(ctx _gen_context.T) _gen_ipc.Client {
-	if __gen_c.defaultClient != nil {
-		return __gen_c.defaultClient
-	}
-	return _gen_veyron2.RuntimeFromContext(ctx).Client()
+func (s implMyObjectServerStub) Get(call __ipc.ServerCall) error {
+	return s.impl.Get(call)
 }
 
-func (__gen_c *clientStubMyObject) Get(ctx _gen_context.T, opts ..._gen_ipc.CallOpt) (err error) {
-	var call _gen_ipc.Call
-	if call, err = __gen_c.client(ctx).StartCall(ctx, __gen_c.name, "Get", nil, opts...); err != nil {
-		return
-	}
-	if ierr := call.Finish(&err); ierr != nil {
-		err = ierr
-	}
-	return
+func (s implMyObjectServerStub) Put(call __ipc.ServerCall) error {
+	return s.impl.Put(call)
 }
 
-func (__gen_c *clientStubMyObject) Put(ctx _gen_context.T, opts ..._gen_ipc.CallOpt) (err error) {
-	var call _gen_ipc.Call
-	if call, err = __gen_c.client(ctx).StartCall(ctx, __gen_c.name, "Put", nil, opts...); err != nil {
-		return
-	}
-	if ierr := call.Finish(&err); ierr != nil {
-		err = ierr
-	}
-	return
+func (s implMyObjectServerStub) Resolve(call __ipc.ServerCall) error {
+	return s.impl.Resolve(call)
 }
 
-func (__gen_c *clientStubMyObject) Resolve(ctx _gen_context.T, opts ..._gen_ipc.CallOpt) (err error) {
-	var call _gen_ipc.Call
-	if call, err = __gen_c.client(ctx).StartCall(ctx, __gen_c.name, "Resolve", nil, opts...); err != nil {
-		return
-	}
-	if ierr := call.Finish(&err); ierr != nil {
-		err = ierr
-	}
-	return
+func (s implMyObjectServerStub) NoTags(call __ipc.ServerCall) error {
+	return s.impl.NoTags(call)
 }
 
-func (__gen_c *clientStubMyObject) NoTags(ctx _gen_context.T, opts ..._gen_ipc.CallOpt) (err error) {
-	var call _gen_ipc.Call
-	if call, err = __gen_c.client(ctx).StartCall(ctx, __gen_c.name, "NoTags", nil, opts...); err != nil {
-		return
-	}
-	if ierr := call.Finish(&err); ierr != nil {
-		err = ierr
-	}
-	return
+func (s implMyObjectServerStub) AllTags(call __ipc.ServerCall) error {
+	return s.impl.AllTags(call)
 }
 
-func (__gen_c *clientStubMyObject) AllTags(ctx _gen_context.T, opts ..._gen_ipc.CallOpt) (err error) {
-	var call _gen_ipc.Call
-	if call, err = __gen_c.client(ctx).StartCall(ctx, __gen_c.name, "AllTags", nil, opts...); err != nil {
-		return
-	}
-	if ierr := call.Finish(&err); ierr != nil {
-		err = ierr
-	}
-	return
+func (s implMyObjectServerStub) VGlob() *__ipc.GlobState {
+	return s.gs
 }
 
-func (__gen_c *clientStubMyObject) UnresolveStep(ctx _gen_context.T, opts ..._gen_ipc.CallOpt) (reply []string, err error) {
-	var call _gen_ipc.Call
-	if call, err = __gen_c.client(ctx).StartCall(ctx, __gen_c.name, "UnresolveStep", nil, opts...); err != nil {
-		return
-	}
-	if ierr := call.Finish(&reply, &err); ierr != nil {
-		err = ierr
-	}
-	return
-}
-
-func (__gen_c *clientStubMyObject) Signature(ctx _gen_context.T, opts ..._gen_ipc.CallOpt) (reply _gen_ipc.ServiceSignature, err error) {
-	var call _gen_ipc.Call
-	if call, err = __gen_c.client(ctx).StartCall(ctx, __gen_c.name, "Signature", nil, opts...); err != nil {
-		return
-	}
-	if ierr := call.Finish(&reply, &err); ierr != nil {
-		err = ierr
-	}
-	return
-}
-
-func (__gen_c *clientStubMyObject) GetMethodTags(ctx _gen_context.T, method string, opts ..._gen_ipc.CallOpt) (reply []interface{}, err error) {
-	var call _gen_ipc.Call
-	if call, err = __gen_c.client(ctx).StartCall(ctx, __gen_c.name, "GetMethodTags", []interface{}{method}, opts...); err != nil {
-		return
-	}
-	if ierr := call.Finish(&reply, &err); ierr != nil {
-		err = ierr
-	}
-	return
-}
-
-// ServerStubMyObject wraps a server that implements
-// MyObjectService and provides an object that satisfies
-// the requirements of veyron2/ipc.ReflectInvoker.
-type ServerStubMyObject struct {
-	service MyObjectService
-	gs      *_gen_ipc.GlobState
-}
-
-func (__gen_s *ServerStubMyObject) GetMethodTags(call _gen_ipc.ServerCall, method string) ([]interface{}, error) {
-	// TODO(bprosnitz) GetMethodTags() will be replaces with Signature().
-	// Note: This exhibits some weird behavior like returning a nil error if the method isn't found.
-	// This will change when it is replaced with Signature().
+func (s implMyObjectServerStub) GetMethodTags(call __ipc.ServerCall, method string) ([]interface{}, error) {
+	// TODO(toddw): Replace with new DescribeInterfaces implementation.
 	switch method {
 	case "Get":
 		return []interface{}{MyTag("R")}, nil
@@ -237,88 +246,42 @@ func (__gen_s *ServerStubMyObject) GetMethodTags(call _gen_ipc.ServerCall, metho
 	}
 }
 
-func (__gen_s *ServerStubMyObject) Signature(call _gen_ipc.ServerCall) (_gen_ipc.ServiceSignature, error) {
-	result := _gen_ipc.ServiceSignature{Methods: make(map[string]_gen_ipc.MethodSignature)}
-	result.Methods["AllTags"] = _gen_ipc.MethodSignature{
-		InArgs: []_gen_ipc.MethodArgument{},
-		OutArgs: []_gen_ipc.MethodArgument{
+func (s implMyObjectServerStub) Signature(call __ipc.ServerCall) (__ipc.ServiceSignature, error) {
+	// TODO(toddw) Replace with new DescribeInterfaces implementation.
+	result := __ipc.ServiceSignature{Methods: make(map[string]__ipc.MethodSignature)}
+	result.Methods["AllTags"] = __ipc.MethodSignature{
+		InArgs: []__ipc.MethodArgument{},
+		OutArgs: []__ipc.MethodArgument{
 			{Name: "", Type: 65},
 		},
 	}
-	result.Methods["Get"] = _gen_ipc.MethodSignature{
-		InArgs: []_gen_ipc.MethodArgument{},
-		OutArgs: []_gen_ipc.MethodArgument{
+	result.Methods["Get"] = __ipc.MethodSignature{
+		InArgs: []__ipc.MethodArgument{},
+		OutArgs: []__ipc.MethodArgument{
 			{Name: "", Type: 65},
 		},
 	}
-	result.Methods["NoTags"] = _gen_ipc.MethodSignature{
-		InArgs: []_gen_ipc.MethodArgument{},
-		OutArgs: []_gen_ipc.MethodArgument{
+	result.Methods["NoTags"] = __ipc.MethodSignature{
+		InArgs: []__ipc.MethodArgument{},
+		OutArgs: []__ipc.MethodArgument{
 			{Name: "", Type: 65},
 		},
 	}
-	result.Methods["Put"] = _gen_ipc.MethodSignature{
-		InArgs: []_gen_ipc.MethodArgument{},
-		OutArgs: []_gen_ipc.MethodArgument{
+	result.Methods["Put"] = __ipc.MethodSignature{
+		InArgs: []__ipc.MethodArgument{},
+		OutArgs: []__ipc.MethodArgument{
 			{Name: "", Type: 65},
 		},
 	}
-	result.Methods["Resolve"] = _gen_ipc.MethodSignature{
-		InArgs: []_gen_ipc.MethodArgument{},
-		OutArgs: []_gen_ipc.MethodArgument{
+	result.Methods["Resolve"] = __ipc.MethodSignature{
+		InArgs: []__ipc.MethodArgument{},
+		OutArgs: []__ipc.MethodArgument{
 			{Name: "", Type: 65},
 		},
 	}
 
-	result.TypeDefs = []_gen_vdlutil.Any{
-		_gen_wiretype.NamedPrimitiveType{Type: 0x1, Name: "error", Tags: []string(nil)}}
+	result.TypeDefs = []__vdlutil.Any{
+		__wiretype.NamedPrimitiveType{Type: 0x1, Name: "error", Tags: []string(nil)}}
 
 	return result, nil
-}
-
-func (__gen_s *ServerStubMyObject) UnresolveStep(call _gen_ipc.ServerCall) (reply []string, err error) {
-	if unresolver, ok := __gen_s.service.(_gen_ipc.Unresolver); ok {
-		return unresolver.UnresolveStep(call)
-	}
-	if call.Server() == nil {
-		return
-	}
-	var published []string
-	if published, err = call.Server().Published(); err != nil || published == nil {
-		return
-	}
-	reply = make([]string, len(published))
-	for i, p := range published {
-		reply[i] = _gen_naming.Join(p, call.Name())
-	}
-	return
-}
-
-func (__gen_s *ServerStubMyObject) VGlob() *_gen_ipc.GlobState {
-	return __gen_s.gs
-}
-
-func (__gen_s *ServerStubMyObject) Get(call _gen_ipc.ServerCall) (err error) {
-	err = __gen_s.service.Get(call)
-	return
-}
-
-func (__gen_s *ServerStubMyObject) Put(call _gen_ipc.ServerCall) (err error) {
-	err = __gen_s.service.Put(call)
-	return
-}
-
-func (__gen_s *ServerStubMyObject) Resolve(call _gen_ipc.ServerCall) (err error) {
-	err = __gen_s.service.Resolve(call)
-	return
-}
-
-func (__gen_s *ServerStubMyObject) NoTags(call _gen_ipc.ServerCall) (err error) {
-	err = __gen_s.service.NoTags(call)
-	return
-}
-
-func (__gen_s *ServerStubMyObject) AllTags(call _gen_ipc.ServerCall) (err error) {
-	err = __gen_s.service.AllTags(call)
-	return
 }

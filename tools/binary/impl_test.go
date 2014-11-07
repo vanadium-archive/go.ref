@@ -40,9 +40,9 @@ func (s *server) Delete(ipc.ServerContext) error {
 	return nil
 }
 
-func (s *server) Download(_ ipc.ServerContext, _ int32, stream repository.BinaryServiceDownloadStream) error {
+func (s *server) Download(ctx repository.BinaryDownloadContext, _ int32) error {
 	vlog.Infof("Download() was called. suffix=%v", s.suffix)
-	sender := stream.SendStream()
+	sender := ctx.SendStream()
 	sender.Send([]byte("Hello"))
 	sender.Send([]byte("World"))
 	return nil
@@ -62,9 +62,9 @@ func (s *server) Stat(ipc.ServerContext) ([]binary.PartInfo, error) {
 	return []binary.PartInfo{part}, nil
 }
 
-func (s *server) Upload(_ ipc.ServerContext, _ int32, stream repository.BinaryServiceUploadStream) error {
+func (s *server) Upload(ctx repository.BinaryUploadContext, _ int32) error {
 	vlog.Infof("Upload() was called. suffix=%v", s.suffix)
-	rStream := stream.RecvStream()
+	rStream := ctx.RecvStream()
 	for rStream.Advance() {
 	}
 	return nil
@@ -78,7 +78,7 @@ func NewDispatcher() *dispatcher {
 }
 
 func (d *dispatcher) Lookup(suffix, method string) (interface{}, security.Authorizer, error) {
-	invoker := ipc.ReflectInvoker(repository.NewServerBinary(&server{suffix: suffix}))
+	invoker := ipc.ReflectInvoker(repository.BinaryServer(&server{suffix: suffix}))
 	return invoker, nil, nil
 }
 

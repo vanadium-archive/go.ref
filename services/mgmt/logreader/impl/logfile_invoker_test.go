@@ -66,20 +66,14 @@ func TestReadLogImplNoFollow(t *testing.T) {
 	}
 
 	// Try to access a file that doesn't exist.
-	lf, err := logreader.BindLogFile(naming.JoinAddressName(endpoint, "//doesntexist"))
-	if err != nil {
-		t.Errorf("BindLogFile: %v", err)
-	}
+	lf := logreader.LogFileClient(naming.JoinAddressName(endpoint, "//doesntexist"))
 	_, err = lf.Size(runtime.NewContext())
 	if expected := verror.NoExist; !verror.Is(err, expected) {
 		t.Errorf("unexpected error value, got %v, want: %v", err, expected)
 	}
 
 	// Try to access a file that does exist.
-	lf, err = logreader.BindLogFile(naming.JoinAddressName(endpoint, "//"+testFile))
-	if err != nil {
-		t.Errorf("BindLogFile: %v", err)
-	}
+	lf = logreader.LogFileClient(naming.JoinAddressName(endpoint, "//"+testFile))
 	_, err = lf.Size(runtime.NewContext())
 	if err != nil {
 		t.Errorf("Size failed: %v", err)
@@ -154,10 +148,7 @@ func TestReadLogImplWithFollow(t *testing.T) {
 		"Fix it later",
 	}
 
-	lf, err := logreader.BindLogFile(naming.JoinAddressName(endpoint, "//"+testFile))
-	if err != nil {
-		t.Errorf("BindLogFile: %v", err)
-	}
+	lf := logreader.LogFileClient(naming.JoinAddressName(endpoint, "//"+testFile))
 	_, err = lf.Size(runtime.NewContext())
 	if err != nil {
 		t.Errorf("Size failed: %v", err)

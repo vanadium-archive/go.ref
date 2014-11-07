@@ -42,10 +42,7 @@ func TestDebugServer(t *testing.T) {
 
 	// Access a logs directory that exists.
 	{
-		ld, err := mounttable.BindGlobbable(naming.JoinAddressName(endpoint, "//logs"))
-		if err != nil {
-			t.Errorf("BindGlobbable: %v", err)
-		}
+		ld := mounttable.GlobbableClient(naming.JoinAddressName(endpoint, "//logs"))
 		stream, err := ld.Glob(runtime.NewContext(), "*")
 		if err != nil {
 			t.Errorf("Glob failed: %v", err)
@@ -68,10 +65,7 @@ func TestDebugServer(t *testing.T) {
 
 	// Access a logs directory that doesn't exist.
 	{
-		ld, err := mounttable.BindGlobbable(naming.JoinAddressName(endpoint, "//logs/nowheretobefound"))
-		if err != nil {
-			t.Errorf("BindGlobbable: %v", err)
-		}
+		ld := mounttable.GlobbableClient(naming.JoinAddressName(endpoint, "//logs/nowheretobefound"))
 		stream, err := ld.Glob(runtime.NewContext(), "*")
 		if err != nil {
 			t.Errorf("Glob failed: %v", err)
@@ -91,10 +85,7 @@ func TestDebugServer(t *testing.T) {
 
 	// Access a log file that exists.
 	{
-		lf, err := logreader.BindLogFile(naming.JoinAddressName(endpoint, "//logs/test.INFO"))
-		if err != nil {
-			t.Errorf("BindLogFile: %v", err)
-		}
+		lf := logreader.LogFileClient(naming.JoinAddressName(endpoint, "//logs/test.INFO"))
 		size, err := lf.Size(runtime.NewContext())
 		if err != nil {
 			t.Errorf("Size failed: %v", err)
@@ -106,10 +97,7 @@ func TestDebugServer(t *testing.T) {
 
 	// Access a log file that doesn't exist.
 	{
-		lf, err := logreader.BindLogFile(naming.JoinAddressName(endpoint, "//logs/nosuchfile.INFO"))
-		if err != nil {
-			t.Errorf("BindLogFile: %v", err)
-		}
+		lf := logreader.LogFileClient(naming.JoinAddressName(endpoint, "//logs/nosuchfile.INFO"))
 		_, err = lf.Size(runtime.NewContext())
 		if expected := verror.NoExist; !verror.Is(err, expected) {
 			t.Errorf("unexpected error value, got %v, want: %v", err, expected)
@@ -121,10 +109,7 @@ func TestDebugServer(t *testing.T) {
 		foo := libstats.NewInteger("testing/foo")
 		foo.Set(123)
 
-		st, err := stats.BindStats(naming.JoinAddressName(endpoint, "//stats/testing/foo"))
-		if err != nil {
-			t.Errorf("BindStats: %v", err)
-		}
+		st := stats.StatsClient(naming.JoinAddressName(endpoint, "//stats/testing/foo"))
 		v, err := st.Value(runtime.NewContext())
 		if err != nil {
 			t.Errorf("Value failed: %v", err)
@@ -136,10 +121,7 @@ func TestDebugServer(t *testing.T) {
 
 	// Access a stats object that doesn't exists.
 	{
-		st, err := stats.BindStats(naming.JoinAddressName(endpoint, "//stats/testing/nobodyhome"))
-		if err != nil {
-			t.Errorf("BindStats: %v", err)
-		}
+		st := stats.StatsClient(naming.JoinAddressName(endpoint, "//stats/testing/nobodyhome"))
 		_, err = st.Value(runtime.NewContext())
 		if expected := verror.NoExist; !verror.Is(err, expected) {
 			t.Errorf("unexpected error value, got %v, want: %v", err, expected)

@@ -42,7 +42,7 @@ func NewInvoker(gobin, goroot string) *invoker {
 //
 // TODO(jsimsa): Analyze the binary files for shared library
 // dependencies and ship these back.
-func (i *invoker) Build(_ ipc.ServerContext, arch build.Architecture, opsys build.OperatingSystem, stream build.BuilderServiceBuildStream) ([]byte, error) {
+func (i *invoker) Build(ctx build.BuilderBuildContext, arch build.Architecture, opsys build.OperatingSystem) ([]byte, error) {
 	vlog.VI(1).Infof("Build(%v, %v) called.", arch, opsys)
 	dir, prefix := "", ""
 	dirPerm, filePerm := os.FileMode(0700), os.FileMode(0600)
@@ -57,7 +57,7 @@ func (i *invoker) Build(_ ipc.ServerContext, arch build.Architecture, opsys buil
 		vlog.Errorf("MkdirAll(%v, %v) failed: %v", srcDir, dirPerm, err)
 		return nil, errInternalError
 	}
-	iterator := stream.RecvStream()
+	iterator := ctx.RecvStream()
 	for iterator.Advance() {
 		srcFile := iterator.Value()
 		filePath := filepath.Join(srcDir, filepath.FromSlash(srcFile.Name))
@@ -112,7 +112,7 @@ func (i *invoker) Build(_ ipc.ServerContext, arch build.Architecture, opsys buil
 			Name:     "bin/" + file.Name(),
 			Contents: bytes,
 		}
-		if err := stream.SendStream().Send(result); err != nil {
+		if err := ctx.SendStream().Send(result); err != nil {
 			vlog.Errorf("Send() failed: %v", err)
 			return nil, errInternalError
 		}

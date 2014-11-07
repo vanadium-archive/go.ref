@@ -69,7 +69,7 @@ func (m *mgmtImpl) initMgmt(rt *vrt) error {
 	if err != nil {
 		return err
 	}
-	if err := m.server.Serve("", appcycle.NewServerAppCycle(m), nil); err != nil {
+	if err := m.server.Serve("", appcycle.AppCycleServer(m), nil); err != nil {
 		return err
 	}
 	return m.callbackToParent(parentName, naming.JoinAddressName(ep.String(), ""))
@@ -174,7 +174,7 @@ func (rt *vrt) AdvanceProgress(delta int) {
 	rt.advanceTask(delta, 0)
 }
 
-func (m *mgmtImpl) Stop(_ ipc.ServerContext, stream appcycle.AppCycleServiceStopStream) error {
+func (m *mgmtImpl) Stop(ctx appcycle.AppCycleStopContext) error {
 	// The size of the channel should be reasonably sized to expect not to
 	// miss updates while we're waiting for the stream to unblock.
 	ch := make(chan veyron2.Task, 10)
@@ -187,7 +187,7 @@ func (m *mgmtImpl) Stop(_ ipc.ServerContext, stream appcycle.AppCycleServiceStop
 			// Channel closed, meaning process shutdown is imminent.
 			break
 		}
-		stream.Send(task)
+		ctx.SendStream().Send(task)
 	}
 	return nil
 }

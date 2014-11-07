@@ -46,7 +46,7 @@ func findGoBinary(t *testing.T, name string) (bin, goroot string) {
 }
 
 // startServer starts the build server.
-func startServer(t *testing.T) (build.Builder, func()) {
+func startServer(t *testing.T) (build.BuilderClientMethods, func()) {
 	gobin, goroot := findGoBinary(t, "go")
 	server, err := rt.R().NewServer()
 	if err != nil {
@@ -57,22 +57,18 @@ func startServer(t *testing.T) (build.Builder, func()) {
 		t.Fatalf("Listen(%s) failed: %v", profiles.LocalListenSpec, err)
 	}
 	unpublished := ""
-	if err := server.Serve(unpublished, build.NewServerBuilder(NewInvoker(gobin, goroot)), nil); err != nil {
+	if err := server.Serve(unpublished, build.BuilderServer(NewInvoker(gobin, goroot)), nil); err != nil {
 		t.Fatalf("Serve(%q) failed: %v", unpublished, err)
 	}
 	name := "/" + endpoint.String()
-	client, err := build.BindBuilder(name)
-	if err != nil {
-		t.Fatalf("BindBuilder(%v) failed: %v", name, err)
-	}
-	return client, func() {
+	return build.BuilderClient(name), func() {
 		if err := server.Stop(); err != nil {
 			t.Fatalf("Stop() failed: %v", err)
 		}
 	}
 }
 
-func invokeBuild(t *testing.T, client build.Builder, files []build.File) ([]byte, []build.File, error) {
+func invokeBuild(t *testing.T, client build.BuilderClientMethods, files []build.File) ([]byte, []build.File, error) {
 	arch, opsys := getArch(), getOS()
 	stream, err := client.Build(rt.R().NewContext(), arch, opsys)
 	if err != nil {

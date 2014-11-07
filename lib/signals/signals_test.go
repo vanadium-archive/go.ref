@@ -317,7 +317,7 @@ func createConfigServer(t *testing.T) (ipc.Server, string, <-chan string) {
 	if ep, err = server.Listen(profiles.LocalListenSpec); err != nil {
 		t.Fatalf("Got error: %v", err)
 	}
-	if err := server.Serve("", node.NewServerConfig(&configServer{ch}), vflag.NewAuthorizerOrDie()); err != nil {
+	if err := server.Serve("", node.ConfigServer(&configServer{ch}), vflag.NewAuthorizerOrDie()); err != nil {
 		t.Fatalf("Got error: %v", err)
 	}
 	return server, naming.JoinAddressName(ep.String(), ""), ch
@@ -350,10 +350,7 @@ func TestCleanRemoteShutdown(t *testing.T) {
 	s := expect.NewSession(t, h.Stdout(), time.Minute)
 	appCycleName := <-ch
 	s.Expect("ready")
-	appCycle, err := appcycle.BindAppCycle(appCycleName)
-	if err != nil {
-		t.Fatalf("Got error: %v", err)
-	}
+	appCycle := appcycle.AppCycleClient(appCycleName)
 	stream, err := appCycle.Stop(r.NewContext())
 	if err != nil {
 		t.Fatalf("Got error: %v", err)

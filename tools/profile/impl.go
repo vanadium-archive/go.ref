@@ -26,10 +26,7 @@ func runLabel(cmd *cmdline.Command, args []string) error {
 		return cmd.UsageErrorf("label: incorrect number of arguments, expected %d, got %d", expected, got)
 	}
 	name := args[0]
-	p, err := repository.BindProfile(name)
-	if err != nil {
-		return fmt.Errorf("BindProfile(%v) failed: %v", name, err)
-	}
+	p := repository.ProfileClient(name)
 	ctx, cancel := rt.R().NewContext().WithTimeout(time.Minute)
 	defer cancel()
 	label, err := p.Label(ctx)
@@ -54,10 +51,7 @@ func runDescription(cmd *cmdline.Command, args []string) error {
 		return cmd.UsageErrorf("description: incorrect number of arguments, expected %d, got %d", expected, got)
 	}
 	name := args[0]
-	p, err := repository.BindProfile(name)
-	if err != nil {
-		return fmt.Errorf("BindProfile(%v) failed: %v", name, err)
-	}
+	p := repository.ProfileClient(name)
 	ctx, cancel := rt.R().NewContext().WithTimeout(time.Minute)
 	defer cancel()
 	desc, err := p.Description(ctx)
@@ -82,10 +76,7 @@ func runSpecification(cmd *cmdline.Command, args []string) error {
 		return cmd.UsageErrorf("spec: incorrect number of arguments, expected %d, got %d", expected, got)
 	}
 	name := args[0]
-	p, err := repository.BindProfile(name)
-	if err != nil {
-		return fmt.Errorf("BindProfile(%v) failed: %v", name, err)
-	}
+	p := repository.ProfileClient(name)
 	ctx, cancel := rt.R().NewContext().WithTimeout(time.Minute)
 	defer cancel()
 	spec, err := p.Specification(ctx)
@@ -110,10 +101,7 @@ func runPut(cmd *cmdline.Command, args []string) error {
 		return cmd.UsageErrorf("put: incorrect number of arguments, expected %d, got %d", expected, got)
 	}
 	name := args[0]
-	p, err := repository.BindProfile(name)
-	if err != nil {
-		return fmt.Errorf("BindProfile(%v) failed: %v", name, err)
-	}
+	p := repository.ProfileClient(name)
 
 	// TODO(rthellend): Read an actual specification from a file.
 	spec := profile.Specification{
@@ -147,13 +135,10 @@ func runRemove(cmd *cmdline.Command, args []string) error {
 		return cmd.UsageErrorf("remove: incorrect number of arguments, expected %d, got %d", expected, got)
 	}
 	name := args[0]
-	p, err := repository.BindProfile(name)
-	if err != nil {
-		return fmt.Errorf("BindProfile(%v) failed: %v", name, err)
-	}
+	p := repository.ProfileClient(name)
 	ctx, cancel := rt.R().NewContext().WithTimeout(time.Minute)
 	defer cancel()
-	if err = p.Remove(ctx); err != nil {
+	if err := p.Remove(ctx); err != nil {
 		return err
 	}
 	fmt.Fprintln(cmd.Stdout(), "Profile removed successfully.")

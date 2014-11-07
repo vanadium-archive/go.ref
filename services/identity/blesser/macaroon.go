@@ -26,8 +26,8 @@ type BlessingMacaroon struct {
 
 // NewMacaroonBlesserServer provides an identity.MacaroonBlesser Service that generates blessings
 // after unpacking a BlessingMacaroon.
-func NewMacaroonBlesserServer(key []byte) interface{} {
-	return identity.NewServerMacaroonBlesser(&macaroonBlesser{key})
+func NewMacaroonBlesserServer(key []byte) identity.MacaroonBlesserServerStub {
+	return identity.MacaroonBlesserServer(&macaroonBlesser{key})
 }
 
 func (b *macaroonBlesser) Bless(ctx ipc.ServerContext, macaroon string) (security.WireBlessings, error) {

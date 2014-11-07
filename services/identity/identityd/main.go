@@ -145,7 +145,7 @@ func appendSuffixTo(objectname []string, suffix string) []string {
 func newDispatcher(googleParams blesser.GoogleParams, macaroonKey []byte) ipc.Dispatcher {
 	d := dispatcher(map[string]ipc.Invoker{
 		macaroonService:   ipc.ReflectInvoker(blesser.NewMacaroonBlesserServer(macaroonKey)),
-		dischargerService: ipc.ReflectInvoker(services.NewServerDischarger(discharger.NewDischarger())),
+		dischargerService: ipc.ReflectInvoker(services.DischargerServer(discharger.NewDischarger())),
 	})
 	if len(*googleConfigChrome) > 0 || len(*googleConfigAndroid) > 0 {
 		d[googleService] = ipc.ReflectInvoker(blesser.NewGoogleOAuthBlesserServer(googleParams))

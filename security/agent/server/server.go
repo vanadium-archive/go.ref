@@ -170,7 +170,7 @@ func dial(addr net.Addr) *net.UnixConn {
 
 func startAgent(conn *net.UnixConn, runtime veyron2.Runtime, principal security.Principal) error {
 	agent := &agentd{principal: principal}
-	serverAgent := NewServerAgent(agent)
+	serverAgent := AgentServer(agent)
 	go func() {
 		buf := make([]byte, 1)
 		for {

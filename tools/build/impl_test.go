@@ -20,9 +20,9 @@ var errInternalError = verror.Internalf("internal error")
 
 type mock struct{}
 
-func (mock) Build(_ ipc.ServerContext, arch build.Architecture, opsys build.OperatingSystem, stream build.BuilderServiceBuildStream) ([]byte, error) {
+func (mock) Build(ctx build.BuilderBuildContext, arch build.Architecture, opsys build.OperatingSystem) ([]byte, error) {
 	vlog.VI(2).Infof("Build(%v, %v) was called", arch, opsys)
-	iterator := stream.RecvStream()
+	iterator := ctx.RecvStream()
 	for iterator.Advance() {
 	}
 	if err := iterator.Err(); err != nil {
@@ -49,7 +49,7 @@ func startServer(t *testing.T) (ipc.Server, naming.Endpoint) {
 		t.Fatalf("Listen(%s) failed: %v", profiles.LocalListenSpec, err)
 	}
 	unpublished := ""
-	if err := server.Serve(unpublished, build.NewServerBuilder(&mock{}), nil); err != nil {
+	if err := server.Serve(unpublished, build.BuilderServer(&mock{}), nil); err != nil {
 		t.Fatalf("Serve(%v) failed: %v", unpublished, err)
 	}
 	return server, endpoint

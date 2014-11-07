@@ -28,6 +28,6 @@ func NewDispatcher(state *state, authorizer security.Authorizer) ipc.Dispatcher 
 // DISPATCHER INTERFACE IMPLEMENTATION
 
 func (d *dispatcher) Lookup(suffix, method string) (interface{}, security.Authorizer, error) {
-	invoker := ipc.ReflectInvoker(repository.NewServerBinary(newInvoker(d.state, suffix)))
+	invoker := ipc.ReflectInvoker(repository.BinaryServer(newInvoker(d.state, suffix)))
 	return invoker, d.auth, nil
 }

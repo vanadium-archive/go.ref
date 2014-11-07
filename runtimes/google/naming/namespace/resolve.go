@@ -181,6 +181,7 @@ func finishUnresolve(call ipc.Call) ([]string, error) {
 	return newNames, unresolveErr
 }
 
+// TODO(caprita): UnresolveStep no longer exists.
 func unresolveAgainstServer(ctx context.T, client ipc.Client, names []string) ([]string, error) {
 	finalErr := errors.New("no servers to unresolve")
 	for _, name := range names {

@@ -27,7 +27,7 @@ The global flags are:
 
 Associate List
 
-Lists all account associations 
+Lists all account associations
 
 Usage:
    associate list <nodemanager>.

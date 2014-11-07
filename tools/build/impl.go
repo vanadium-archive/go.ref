@@ -142,11 +142,7 @@ func invokeBuild(ctx context.T, name string, sources <-chan vbuild.File, cancel 
 	go func() {
 		defer close(binaries)
 		rt.Init()
-		client, err := vbuild.BindBuilder(name)
-		if err != nil {
-			errchan <- fmt.Errorf("BindBuilder(%v) failed: %v", name, err)
-			return
-		}
+		client := vbuild.BuilderClient(name)
 		stream, err := client.Build(ctx, vbuild.Architecture(flagArch), vbuild.OperatingSystem(flagOS))
 		if err != nil {
 			errchan <- fmt.Errorf("Build() failed: %v", err)

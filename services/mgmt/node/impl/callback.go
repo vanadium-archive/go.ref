@@ -23,10 +23,7 @@ func InvokeCallback(name string) {
 			// Node manager was not started by self-update, return silently.
 			return
 		}
-		nmClient, err := node.BindConfig(callbackName)
-		if err != nil {
-			vlog.Fatalf("BindNode(%v) failed: %v", callbackName, err)
-		}
+		nmClient := node.ConfigClient(callbackName)
 		ctx, cancel := rt.R().NewContext().WithTimeout(time.Minute)
 		defer cancel()
 		if err := nmClient.Set(ctx, mgmt.ChildNameConfigKey, name); err != nil {

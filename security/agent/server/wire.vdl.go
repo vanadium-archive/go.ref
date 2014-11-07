@@ -6,326 +6,377 @@ package server
 import (
 	"veyron.io/veyron/veyron2/security"
 
-	// The non-user imports are prefixed with "_gen_" to prevent collisions.
-	_gen_veyron2 "veyron.io/veyron/veyron2"
-	_gen_context "veyron.io/veyron/veyron2/context"
-	_gen_ipc "veyron.io/veyron/veyron2/ipc"
-	_gen_naming "veyron.io/veyron/veyron2/naming"
-	_gen_vdlutil "veyron.io/veyron/veyron2/vdl/vdlutil"
-	_gen_wiretype "veyron.io/veyron/veyron2/wiretype"
+	// The non-user imports are prefixed with "__" to prevent collisions.
+	__veyron2 "veyron.io/veyron/veyron2"
+	__context "veyron.io/veyron/veyron2/context"
+	__ipc "veyron.io/veyron/veyron2/ipc"
+	__vdlutil "veyron.io/veyron/veyron2/vdl/vdlutil"
+	__wiretype "veyron.io/veyron/veyron2/wiretype"
 )
 
 // TODO(toddw): Remove this line once the new signature support is done.
-// It corrects a bug where _gen_wiretype is unused in VDL pacakges where only
+// It corrects a bug where __wiretype is unused in VDL pacakges where only
 // bootstrap types are used on interfaces.
-const _ = _gen_wiretype.TypeIDInvalid
+const _ = __wiretype.TypeIDInvalid
 
-// Agent is the interface the client binds and uses.
-// Agent_ExcludingUniversal is the interface without internal framework-added methods
-// to enable embedding without method collisions.  Not to be used directly by clients.
-type Agent_ExcludingUniversal interface {
-	Bless(ctx _gen_context.T, key []byte, wit security.WireBlessings, extension string, caveat security.Caveat, additionalCaveats []security.Caveat, opts ..._gen_ipc.CallOpt) (reply security.WireBlessings, err error)
-	BlessSelf(ctx _gen_context.T, name string, caveats []security.Caveat, opts ..._gen_ipc.CallOpt) (reply security.WireBlessings, err error)
-	Sign(ctx _gen_context.T, message []byte, opts ..._gen_ipc.CallOpt) (reply security.Signature, err error)
-	MintDischarge(ctx _gen_context.T, tp _gen_vdlutil.Any, caveat security.Caveat, additionalCaveats []security.Caveat, opts ..._gen_ipc.CallOpt) (reply _gen_vdlutil.Any, err error)
-	PublicKey(ctx _gen_context.T, opts ..._gen_ipc.CallOpt) (reply []byte, err error)
-	AddToRoots(ctx _gen_context.T, blessing security.WireBlessings, opts ..._gen_ipc.CallOpt) (err error)
-	BlessingStoreSet(ctx _gen_context.T, blessings security.WireBlessings, forPeers security.BlessingPattern, opts ..._gen_ipc.CallOpt) (reply security.WireBlessings, err error)
-	BlessingStoreForPeer(ctx _gen_context.T, peerBlessings []string, opts ..._gen_ipc.CallOpt) (reply security.WireBlessings, err error)
-	BlessingStoreSetDefault(ctx _gen_context.T, blessings security.WireBlessings, opts ..._gen_ipc.CallOpt) (err error)
-	BlessingStoreDefault(ctx _gen_context.T, opts ..._gen_ipc.CallOpt) (reply security.WireBlessings, err error)
-	BlessingStoreDebugString(ctx _gen_context.T, opts ..._gen_ipc.CallOpt) (reply string, err error)
-	BlessingRootsAdd(ctx _gen_context.T, root []byte, pattern security.BlessingPattern, opts ..._gen_ipc.CallOpt) (err error)
-	BlessingRootsRecognized(ctx _gen_context.T, root []byte, blessing string, opts ..._gen_ipc.CallOpt) (err error)
-	BlessingRootsDebugString(ctx _gen_context.T, opts ..._gen_ipc.CallOpt) (reply string, err error)
-}
-type Agent interface {
-	_gen_ipc.UniversalServiceMethods
-	Agent_ExcludingUniversal
+// AgentClientMethods is the client interface
+// containing Agent methods.
+type AgentClientMethods interface {
+	Bless(ctx __context.T, key []byte, wit security.WireBlessings, extension string, caveat security.Caveat, additionalCaveats []security.Caveat, opts ...__ipc.CallOpt) (security.WireBlessings, error)
+	BlessSelf(ctx __context.T, name string, caveats []security.Caveat, opts ...__ipc.CallOpt) (security.WireBlessings, error)
+	Sign(ctx __context.T, message []byte, opts ...__ipc.CallOpt) (security.Signature, error)
+	MintDischarge(ctx __context.T, tp __vdlutil.Any, caveat security.Caveat, additionalCaveats []security.Caveat, opts ...__ipc.CallOpt) (__vdlutil.Any, error)
+	PublicKey(__context.T, ...__ipc.CallOpt) ([]byte, error)
+	AddToRoots(ctx __context.T, blessing security.WireBlessings, opts ...__ipc.CallOpt) error
+	BlessingStoreSet(ctx __context.T, blessings security.WireBlessings, forPeers security.BlessingPattern, opts ...__ipc.CallOpt) (security.WireBlessings, error)
+	BlessingStoreForPeer(ctx __context.T, peerBlessings []string, opts ...__ipc.CallOpt) (security.WireBlessings, error)
+	BlessingStoreSetDefault(ctx __context.T, blessings security.WireBlessings, opts ...__ipc.CallOpt) error
+	BlessingStoreDefault(__context.T, ...__ipc.CallOpt) (security.WireBlessings, error)
+	BlessingStoreDebugString(__context.T, ...__ipc.CallOpt) (string, error)
+	BlessingRootsAdd(ctx __context.T, root []byte, pattern security.BlessingPattern, opts ...__ipc.CallOpt) error
+	BlessingRootsRecognized(ctx __context.T, root []byte, blessing string, opts ...__ipc.CallOpt) error
+	BlessingRootsDebugString(__context.T, ...__ipc.CallOpt) (string, error)
 }
 
-// AgentService is the interface the server implements.
-type AgentService interface {
-	Bless(context _gen_ipc.ServerContext, key []byte, wit security.WireBlessings, extension string, caveat security.Caveat, additionalCaveats []security.Caveat) (reply security.WireBlessings, err error)
-	BlessSelf(context _gen_ipc.ServerContext, name string, caveats []security.Caveat) (reply security.WireBlessings, err error)
-	Sign(context _gen_ipc.ServerContext, message []byte) (reply security.Signature, err error)
-	MintDischarge(context _gen_ipc.ServerContext, tp _gen_vdlutil.Any, caveat security.Caveat, additionalCaveats []security.Caveat) (reply _gen_vdlutil.Any, err error)
-	PublicKey(context _gen_ipc.ServerContext) (reply []byte, err error)
-	AddToRoots(context _gen_ipc.ServerContext, blessing security.WireBlessings) (err error)
-	BlessingStoreSet(context _gen_ipc.ServerContext, blessings security.WireBlessings, forPeers security.BlessingPattern) (reply security.WireBlessings, err error)
-	BlessingStoreForPeer(context _gen_ipc.ServerContext, peerBlessings []string) (reply security.WireBlessings, err error)
-	BlessingStoreSetDefault(context _gen_ipc.ServerContext, blessings security.WireBlessings) (err error)
-	BlessingStoreDefault(context _gen_ipc.ServerContext) (reply security.WireBlessings, err error)
-	BlessingStoreDebugString(context _gen_ipc.ServerContext) (reply string, err error)
-	BlessingRootsAdd(context _gen_ipc.ServerContext, root []byte, pattern security.BlessingPattern) (err error)
-	BlessingRootsRecognized(context _gen_ipc.ServerContext, root []byte, blessing string) (err error)
-	BlessingRootsDebugString(context _gen_ipc.ServerContext) (reply string, err error)
+// AgentClientStub adds universal methods to AgentClientMethods.
+type AgentClientStub interface {
+	AgentClientMethods
+	__ipc.UniversalServiceMethods
 }
 
-// BindAgent returns the client stub implementing the Agent
-// interface.
-//
-// If no _gen_ipc.Client is specified, the default _gen_ipc.Client in the
-// global Runtime is used.
-func BindAgent(name string, opts ..._gen_ipc.BindOpt) (Agent, error) {
-	var client _gen_ipc.Client
-	switch len(opts) {
-	case 0:
-		// Do nothing.
-	case 1:
-		if clientOpt, ok := opts[0].(_gen_ipc.Client); opts[0] == nil || ok {
+// AgentClient returns a client stub for Agent.
+func AgentClient(name string, opts ...__ipc.BindOpt) AgentClientStub {
+	var client __ipc.Client
+	for _, opt := range opts {
+		if clientOpt, ok := opt.(__ipc.Client); ok {
 			client = clientOpt
-		} else {
-			return nil, _gen_vdlutil.ErrUnrecognizedOption
 		}
-	default:
-		return nil, _gen_vdlutil.ErrTooManyOptionsToBind
 	}
-	stub := &clientStubAgent{defaultClient: client, name: name}
-
-	return stub, nil
+	return implAgentClientStub{name, client}
 }
 
-// NewServerAgent creates a new server stub.
-//
-// It takes a regular server implementing the AgentService
-// interface, and returns a new server stub.
-func NewServerAgent(server AgentService) interface{} {
-	stub := &ServerStubAgent{
-		service: server,
+type implAgentClientStub struct {
+	name   string
+	client __ipc.Client
+}
+
+func (c implAgentClientStub) c(ctx __context.T) __ipc.Client {
+	if c.client != nil {
+		return c.client
 	}
-	var gs _gen_ipc.GlobState
-	var self interface{} = stub
-	// VAllGlobber is implemented by the server object, which is wrapped in
-	// a VDL generated server stub.
-	if x, ok := self.(_gen_ipc.VAllGlobber); ok {
-		gs.VAllGlobber = x
+	return __veyron2.RuntimeFromContext(ctx).Client()
+}
+
+func (c implAgentClientStub) Bless(ctx __context.T, i0 []byte, i1 security.WireBlessings, i2 string, i3 security.Caveat, i4 []security.Caveat, opts ...__ipc.CallOpt) (o0 security.WireBlessings, err error) {
+	var call __ipc.Call
+	if call, err = c.c(ctx).StartCall(ctx, c.name, "Bless", []interface{}{i0, i1, i2, i3, i4}, opts...); err != nil {
+		return
 	}
-	// VAllGlobber is implemented by the server object without using a VDL
-	// generated stub.
-	if x, ok := server.(_gen_ipc.VAllGlobber); ok {
-		gs.VAllGlobber = x
+	if ierr := call.Finish(&o0, &err); ierr != nil {
+		err = ierr
 	}
-	// VChildrenGlobber is implemented in the server object.
-	if x, ok := server.(_gen_ipc.VChildrenGlobber); ok {
-		gs.VChildrenGlobber = x
+	return
+}
+
+func (c implAgentClientStub) BlessSelf(ctx __context.T, i0 string, i1 []security.Caveat, opts ...__ipc.CallOpt) (o0 security.WireBlessings, err error) {
+	var call __ipc.Call
+	if call, err = c.c(ctx).StartCall(ctx, c.name, "BlessSelf", []interface{}{i0, i1}, opts...); err != nil {
+		return
 	}
-	stub.gs = &gs
+	if ierr := call.Finish(&o0, &err); ierr != nil {
+		err = ierr
+	}
+	return
+}
+
+func (c implAgentClientStub) Sign(ctx __context.T, i0 []byte, opts ...__ipc.CallOpt) (o0 security.Signature, err error) {
+	var call __ipc.Call
+	if call, err = c.c(ctx).StartCall(ctx, c.name, "Sign", []interface{}{i0}, opts...); err != nil {
+		return
+	}
+	if ierr := call.Finish(&o0, &err); ierr != nil {
+		err = ierr
+	}
+	return
+}
+
+func (c implAgentClientStub) MintDischarge(ctx __context.T, i0 __vdlutil.Any, i1 security.Caveat, i2 []security.Caveat, opts ...__ipc.CallOpt) (o0 __vdlutil.Any, err error) {
+	var call __ipc.Call
+	if call, err = c.c(ctx).StartCall(ctx, c.name, "MintDischarge", []interface{}{i0, i1, i2}, opts...); err != nil {
+		return
+	}
+	if ierr := call.Finish(&o0, &err); ierr != nil {
+		err = ierr
+	}
+	return
+}
+
+func (c implAgentClientStub) PublicKey(ctx __context.T, opts ...__ipc.CallOpt) (o0 []byte, err error) {
+	var call __ipc.Call
+	if call, err = c.c(ctx).StartCall(ctx, c.name, "PublicKey", nil, opts...); err != nil {
+		return
+	}
+	if ierr := call.Finish(&o0, &err); ierr != nil {
+		err = ierr
+	}
+	return
+}
+
+func (c implAgentClientStub) AddToRoots(ctx __context.T, i0 security.WireBlessings, opts ...__ipc.CallOpt) (err error) {
+	var call __ipc.Call
+	if call, err = c.c(ctx).StartCall(ctx, c.name, "AddToRoots", []interface{}{i0}, opts...); err != nil {
+		return
+	}
+	if ierr := call.Finish(&err); ierr != nil {
+		err = ierr
+	}
+	return
+}
+
+func (c implAgentClientStub) BlessingStoreSet(ctx __context.T, i0 security.WireBlessings, i1 security.BlessingPattern, opts ...__ipc.CallOpt) (o0 security.WireBlessings, err error) {
+	var call __ipc.Call
+	if call, err = c.c(ctx).StartCall(ctx, c.name, "BlessingStoreSet", []interface{}{i0, i1}, opts...); err != nil {
+		return
+	}
+	if ierr := call.Finish(&o0, &err); ierr != nil {
+		err = ierr
+	}
+	return
+}
+
+func (c implAgentClientStub) BlessingStoreForPeer(ctx __context.T, i0 []string, opts ...__ipc.CallOpt) (o0 security.WireBlessings, err error) {
+	var call __ipc.Call
+	if call, err = c.c(ctx).StartCall(ctx, c.name, "BlessingStoreForPeer", []interface{}{i0}, opts...); err != nil {
+		return
+	}
+	if ierr := call.Finish(&o0, &err); ierr != nil {
+		err = ierr
+	}
+	return
+}
+
+func (c implAgentClientStub) BlessingStoreSetDefault(ctx __context.T, i0 security.WireBlessings, opts ...__ipc.CallOpt) (err error) {
+	var call __ipc.Call
+	if call, err = c.c(ctx).StartCall(ctx, c.name, "BlessingStoreSetDefault", []interface{}{i0}, opts...); err != nil {
+		return
+	}
+	if ierr := call.Finish(&err); ierr != nil {
+		err = ierr
+	}
+	return
+}
+
+func (c implAgentClientStub) BlessingStoreDefault(ctx __context.T, opts ...__ipc.CallOpt) (o0 security.WireBlessings, err error) {
+	var call __ipc.Call
+	if call, err = c.c(ctx).StartCall(ctx, c.name, "BlessingStoreDefault", nil, opts...); err != nil {
+		return
+	}
+	if ierr := call.Finish(&o0, &err); ierr != nil {
+		err = ierr
+	}
+	return
+}
+
+func (c implAgentClientStub) BlessingStoreDebugString(ctx __context.T, opts ...__ipc.CallOpt) (o0 string, err error) {
+	var call __ipc.Call
+	if call, err = c.c(ctx).StartCall(ctx, c.name, "BlessingStoreDebugString", nil, opts...); err != nil {
+		return
+	}
+	if ierr := call.Finish(&o0, &err); ierr != nil {
+		err = ierr
+	}
+	return
+}
+
+func (c implAgentClientStub) BlessingRootsAdd(ctx __context.T, i0 []byte, i1 security.BlessingPattern, opts ...__ipc.CallOpt) (err error) {
+	var call __ipc.Call
+	if call, err = c.c(ctx).StartCall(ctx, c.name, "BlessingRootsAdd", []interface{}{i0, i1}, opts...); err != nil {
+		return
+	}
+	if ierr := call.Finish(&err); ierr != nil {
+		err = ierr
+	}
+	return
+}
+
+func (c implAgentClientStub) BlessingRootsRecognized(ctx __context.T, i0 []byte, i1 string, opts ...__ipc.CallOpt) (err error) {
+	var call __ipc.Call
+	if call, err = c.c(ctx).StartCall(ctx, c.name, "BlessingRootsRecognized", []interface{}{i0, i1}, opts...); err != nil {
+		return
+	}
+	if ierr := call.Finish(&err); ierr != nil {
+		err = ierr
+	}
+	return
+}
+
+func (c implAgentClientStub) BlessingRootsDebugString(ctx __context.T, opts ...__ipc.CallOpt) (o0 string, err error) {
+	var call __ipc.Call
+	if call, err = c.c(ctx).StartCall(ctx, c.name, "BlessingRootsDebugString", nil, opts...); err != nil {
+		return
+	}
+	if ierr := call.Finish(&o0, &err); ierr != nil {
+		err = ierr
+	}
+	return
+}
+
+func (c implAgentClientStub) Signature(ctx __context.T, opts ...__ipc.CallOpt) (o0 __ipc.ServiceSignature, err error) {
+	var call __ipc.Call
+	if call, err = c.c(ctx).StartCall(ctx, c.name, "Signature", nil, opts...); err != nil {
+		return
+	}
+	if ierr := call.Finish(&o0, &err); ierr != nil {
+		err = ierr
+	}
+	return
+}
+
+func (c implAgentClientStub) GetMethodTags(ctx __context.T, method string, opts ...__ipc.CallOpt) (o0 []interface{}, err error) {
+	var call __ipc.Call
+	if call, err = c.c(ctx).StartCall(ctx, c.name, "GetMethodTags", []interface{}{method}, opts...); err != nil {
+		return
+	}
+	if ierr := call.Finish(&o0, &err); ierr != nil {
+		err = ierr
+	}
+	return
+}
+
+// AgentServerMethods is the interface a server writer
+// implements for Agent.
+type AgentServerMethods interface {
+	Bless(ctx __ipc.ServerContext, key []byte, wit security.WireBlessings, extension string, caveat security.Caveat, additionalCaveats []security.Caveat) (security.WireBlessings, error)
+	BlessSelf(ctx __ipc.ServerContext, name string, caveats []security.Caveat) (security.WireBlessings, error)
+	Sign(ctx __ipc.ServerContext, message []byte) (security.Signature, error)
+	MintDischarge(ctx __ipc.ServerContext, tp __vdlutil.Any, caveat security.Caveat, additionalCaveats []security.Caveat) (__vdlutil.Any, error)
+	PublicKey(__ipc.ServerContext) ([]byte, error)
+	AddToRoots(ctx __ipc.ServerContext, blessing security.WireBlessings) error
+	BlessingStoreSet(ctx __ipc.ServerContext, blessings security.WireBlessings, forPeers security.BlessingPattern) (security.WireBlessings, error)
+	BlessingStoreForPeer(ctx __ipc.ServerContext, peerBlessings []string) (security.WireBlessings, error)
+	BlessingStoreSetDefault(ctx __ipc.ServerContext, blessings security.WireBlessings) error
+	BlessingStoreDefault(__ipc.ServerContext) (security.WireBlessings, error)
+	BlessingStoreDebugString(__ipc.ServerContext) (string, error)
+	BlessingRootsAdd(ctx __ipc.ServerContext, root []byte, pattern security.BlessingPattern) error
+	BlessingRootsRecognized(ctx __ipc.ServerContext, root []byte, blessing string) error
+	BlessingRootsDebugString(__ipc.ServerContext) (string, error)
+}
+
+// AgentServerStubMethods is the server interface containing
+// Agent methods, as expected by ipc.Server.  The difference between
+// this interface and AgentServerMethods is that the first context
+// argument for each method is always ipc.ServerCall here, while it is either
+// ipc.ServerContext or a typed streaming context there.
+type AgentServerStubMethods interface {
+	Bless(call __ipc.ServerCall, key []byte, wit security.WireBlessings, extension string, caveat security.Caveat, additionalCaveats []security.Caveat) (security.WireBlessings, error)
+	BlessSelf(call __ipc.ServerCall, name string, caveats []security.Caveat) (security.WireBlessings, error)
+	Sign(call __ipc.ServerCall, message []byte) (security.Signature, error)
+	MintDischarge(call __ipc.ServerCall, tp __vdlutil.Any, caveat security.Caveat, additionalCaveats []security.Caveat) (__vdlutil.Any, error)
+	PublicKey(__ipc.ServerCall) ([]byte, error)
+	AddToRoots(call __ipc.ServerCall, blessing security.WireBlessings) error
+	BlessingStoreSet(call __ipc.ServerCall, blessings security.WireBlessings, forPeers security.BlessingPattern) (security.WireBlessings, error)
+	BlessingStoreForPeer(call __ipc.ServerCall, peerBlessings []string) (security.WireBlessings, error)
+	BlessingStoreSetDefault(call __ipc.ServerCall, blessings security.WireBlessings) error
+	BlessingStoreDefault(__ipc.ServerCall) (security.WireBlessings, error)
+	BlessingStoreDebugString(__ipc.ServerCall) (string, error)
+	BlessingRootsAdd(call __ipc.ServerCall, root []byte, pattern security.BlessingPattern) error
+	BlessingRootsRecognized(call __ipc.ServerCall, root []byte, blessing string) error
+	BlessingRootsDebugString(__ipc.ServerCall) (string, error)
+}
+
+// AgentServerStub adds universal methods to AgentServerStubMethods.
+type AgentServerStub interface {
+	AgentServerStubMethods
+	// GetMethodTags will be replaced with DescribeInterfaces.
+	GetMethodTags(call __ipc.ServerCall, method string) ([]interface{}, error)
+	// Signature will be replaced with DescribeInterfaces.
+	Signature(call __ipc.ServerCall) (__ipc.ServiceSignature, error)
+}
+
+// AgentServer returns a server stub for Agent.
+// It converts an implementation of AgentServerMethods into
+// an object that may be used by ipc.Server.
+func AgentServer(impl AgentServerMethods) AgentServerStub {
+	stub := implAgentServerStub{
+		impl: impl,
+	}
+	// Initialize GlobState; always check the stub itself first, to handle the
+	// case where the user has the Glob method defined in their VDL source.
+	if gs := __ipc.NewGlobState(stub); gs != nil {
+		stub.gs = gs
+	} else if gs := __ipc.NewGlobState(impl); gs != nil {
+		stub.gs = gs
+	}
 	return stub
 }
 
-// clientStubAgent implements Agent.
-type clientStubAgent struct {
-	defaultClient _gen_ipc.Client
-	name          string
+type implAgentServerStub struct {
+	impl AgentServerMethods
+	gs   *__ipc.GlobState
 }
 
-func (__gen_c *clientStubAgent) client(ctx _gen_context.T) _gen_ipc.Client {
-	if __gen_c.defaultClient != nil {
-		return __gen_c.defaultClient
-	}
-	return _gen_veyron2.RuntimeFromContext(ctx).Client()
+func (s implAgentServerStub) Bless(call __ipc.ServerCall, i0 []byte, i1 security.WireBlessings, i2 string, i3 security.Caveat, i4 []security.Caveat) (security.WireBlessings, error) {
+	return s.impl.Bless(call, i0, i1, i2, i3, i4)
 }
 
-func (__gen_c *clientStubAgent) Bless(ctx _gen_context.T, key []byte, wit security.WireBlessings, extension string, caveat security.Caveat, additionalCaveats []security.Caveat, opts ..._gen_ipc.CallOpt) (reply security.WireBlessings, err error) {
-	var call _gen_ipc.Call
-	if call, err = __gen_c.client(ctx).StartCall(ctx, __gen_c.name, "Bless", []interface{}{key, wit, extension, caveat, additionalCaveats}, opts...); err != nil {
-		return
-	}
-	if ierr := call.Finish(&reply, &err); ierr != nil {
-		err = ierr
-	}
-	return
+func (s implAgentServerStub) BlessSelf(call __ipc.ServerCall, i0 string, i1 []security.Caveat) (security.WireBlessings, error) {
+	return s.impl.BlessSelf(call, i0, i1)
 }
 
-func (__gen_c *clientStubAgent) BlessSelf(ctx _gen_context.T, name string, caveats []security.Caveat, opts ..._gen_ipc.CallOpt) (reply security.WireBlessings, err error) {
-	var call _gen_ipc.Call
-	if call, err = __gen_c.client(ctx).StartCall(ctx, __gen_c.name, "BlessSelf", []interface{}{name, caveats}, opts...); err != nil {
-		return
-	}
-	if ierr := call.Finish(&reply, &err); ierr != nil {
-		err = ierr
-	}
-	return
+func (s implAgentServerStub) Sign(call __ipc.ServerCall, i0 []byte) (security.Signature, error) {
+	return s.impl.Sign(call, i0)
 }
 
-func (__gen_c *clientStubAgent) Sign(ctx _gen_context.T, message []byte, opts ..._gen_ipc.CallOpt) (reply security.Signature, err error) {
-	var call _gen_ipc.Call
-	if call, err = __gen_c.client(ctx).StartCall(ctx, __gen_c.name, "Sign", []interface{}{message}, opts...); err != nil {
-		return
-	}
-	if ierr := call.Finish(&reply, &err); ierr != nil {
-		err = ierr
-	}
-	return
+func (s implAgentServerStub) MintDischarge(call __ipc.ServerCall, i0 __vdlutil.Any, i1 security.Caveat, i2 []security.Caveat) (__vdlutil.Any, error) {
+	return s.impl.MintDischarge(call, i0, i1, i2)
 }
 
-func (__gen_c *clientStubAgent) MintDischarge(ctx _gen_context.T, tp _gen_vdlutil.Any, caveat security.Caveat, additionalCaveats []security.Caveat, opts ..._gen_ipc.CallOpt) (reply _gen_vdlutil.Any, err error) {
-	var call _gen_ipc.Call
-	if call, err = __gen_c.client(ctx).StartCall(ctx, __gen_c.name, "MintDischarge", []interface{}{tp, caveat, additionalCaveats}, opts...); err != nil {
-		return
-	}
-	if ierr := call.Finish(&reply, &err); ierr != nil {
-		err = ierr
-	}
-	return
+func (s implAgentServerStub) PublicKey(call __ipc.ServerCall) ([]byte, error) {
+	return s.impl.PublicKey(call)
 }
 
-func (__gen_c *clientStubAgent) PublicKey(ctx _gen_context.T, opts ..._gen_ipc.CallOpt) (reply []byte, err error) {
-	var call _gen_ipc.Call
-	if call, err = __gen_c.client(ctx).StartCall(ctx, __gen_c.name, "PublicKey", nil, opts...); err != nil {
-		return
-	}
-	if ierr := call.Finish(&reply, &err); ierr != nil {
-		err = ierr
-	}
-	return
+func (s implAgentServerStub) AddToRoots(call __ipc.ServerCall, i0 security.WireBlessings) error {
+	return s.impl.AddToRoots(call, i0)
 }
 
-func (__gen_c *clientStubAgent) AddToRoots(ctx _gen_context.T, blessing security.WireBlessings, opts ..._gen_ipc.CallOpt) (err error) {
-	var call _gen_ipc.Call
-	if call, err = __gen_c.client(ctx).StartCall(ctx, __gen_c.name, "AddToRoots", []interface{}{blessing}, opts...); err != nil {
-		return
-	}
-	if ierr := call.Finish(&err); ierr != nil {
-		err = ierr
-	}
-	return
+func (s implAgentServerStub) BlessingStoreSet(call __ipc.ServerCall, i0 security.WireBlessings, i1 security.BlessingPattern) (security.WireBlessings, error) {
+	return s.impl.BlessingStoreSet(call, i0, i1)
 }
 
-func (__gen_c *clientStubAgent) BlessingStoreSet(ctx _gen_context.T, blessings security.WireBlessings, forPeers security.BlessingPattern, opts ..._gen_ipc.CallOpt) (reply security.WireBlessings, err error) {
-	var call _gen_ipc.Call
-	if call, err = __gen_c.client(ctx).StartCall(ctx, __gen_c.name, "BlessingStoreSet", []interface{}{blessings, forPeers}, opts...); err != nil {
-		return
-	}
-	if ierr := call.Finish(&reply, &err); ierr != nil {
-		err = ierr
-	}
-	return
+func (s implAgentServerStub) BlessingStoreForPeer(call __ipc.ServerCall, i0 []string) (security.WireBlessings, error) {
+	return s.impl.BlessingStoreForPeer(call, i0)
 }
 
-func (__gen_c *clientStubAgent) BlessingStoreForPeer(ctx _gen_context.T, peerBlessings []string, opts ..._gen_ipc.CallOpt) (reply security.WireBlessings, err error) {
-	var call _gen_ipc.Call
-	if call, err = __gen_c.client(ctx).StartCall(ctx, __gen_c.name, "BlessingStoreForPeer", []interface{}{peerBlessings}, opts...); err != nil {
-		return
-	}
-	if ierr := call.Finish(&reply, &err); ierr != nil {
-		err = ierr
-	}
-	return
+func (s implAgentServerStub) BlessingStoreSetDefault(call __ipc.ServerCall, i0 security.WireBlessings) error {
+	return s.impl.BlessingStoreSetDefault(call, i0)
 }
 
-func (__gen_c *clientStubAgent) BlessingStoreSetDefault(ctx _gen_context.T, blessings security.WireBlessings, opts ..._gen_ipc.CallOpt) (err error) {
-	var call _gen_ipc.Call
-	if call, err = __gen_c.client(ctx).StartCall(ctx, __gen_c.name, "BlessingStoreSetDefault", []interface{}{blessings}, opts...); err != nil {
-		return
-	}
-	if ierr := call.Finish(&err); ierr != nil {
-		err = ierr
-	}
-	return
+func (s implAgentServerStub) BlessingStoreDefault(call __ipc.ServerCall) (security.WireBlessings, error) {
+	return s.impl.BlessingStoreDefault(call)
 }
 
-func (__gen_c *clientStubAgent) BlessingStoreDefault(ctx _gen_context.T, opts ..._gen_ipc.CallOpt) (reply security.WireBlessings, err error) {
-	var call _gen_ipc.Call
-	if call, err = __gen_c.client(ctx).StartCall(ctx, __gen_c.name, "BlessingStoreDefault", nil, opts...); err != nil {
-		return
-	}
-	if ierr := call.Finish(&reply, &err); ierr != nil {
-		err = ierr
-	}
-	return
+func (s implAgentServerStub) BlessingStoreDebugString(call __ipc.ServerCall) (string, error) {
+	return s.impl.BlessingStoreDebugString(call)
 }
 
-func (__gen_c *clientStubAgent) BlessingStoreDebugString(ctx _gen_context.T, opts ..._gen_ipc.CallOpt) (reply string, err error) {
-	var call _gen_ipc.Call
-	if call, err = __gen_c.client(ctx).StartCall(ctx, __gen_c.name, "BlessingStoreDebugString", nil, opts...); err != nil {
-		return
-	}
-	if ierr := call.Finish(&reply, &err); ierr != nil {
-		err = ierr
-	}
-	return
+func (s implAgentServerStub) BlessingRootsAdd(call __ipc.ServerCall, i0 []byte, i1 security.BlessingPattern) error {
+	return s.impl.BlessingRootsAdd(call, i0, i1)
 }
 
-func (__gen_c *clientStubAgent) BlessingRootsAdd(ctx _gen_context.T, root []byte, pattern security.BlessingPattern, opts ..._gen_ipc.CallOpt) (err error) {
-	var call _gen_ipc.Call
-	if call, err = __gen_c.client(ctx).StartCall(ctx, __gen_c.name, "BlessingRootsAdd", []interface{}{root, pattern}, opts...); err != nil {
-		return
-	}
-	if ierr := call.Finish(&err); ierr != nil {
-		err = ierr
-	}
-	return
+func (s implAgentServerStub) BlessingRootsRecognized(call __ipc.ServerCall, i0 []byte, i1 string) error {
+	return s.impl.BlessingRootsRecognized(call, i0, i1)
 }
 
-func (__gen_c *clientStubAgent) BlessingRootsRecognized(ctx _gen_context.T, root []byte, blessing string, opts ..._gen_ipc.CallOpt) (err error) {
-	var call _gen_ipc.Call
-	if call, err = __gen_c.client(ctx).StartCall(ctx, __gen_c.name, "BlessingRootsRecognized", []interface{}{root, blessing}, opts...); err != nil {
-		return
-	}
-	if ierr := call.Finish(&err); ierr != nil {
-		err = ierr
-	}
-	return
+func (s implAgentServerStub) BlessingRootsDebugString(call __ipc.ServerCall) (string, error) {
+	return s.impl.BlessingRootsDebugString(call)
 }
 
-func (__gen_c *clientStubAgent) BlessingRootsDebugString(ctx _gen_context.T, opts ..._gen_ipc.CallOpt) (reply string, err error) {
-	var call _gen_ipc.Call
-	if call, err = __gen_c.client(ctx).StartCall(ctx, __gen_c.name, "BlessingRootsDebugString", nil, opts...); err != nil {
-		return
-	}
-	if ierr := call.Finish(&reply, &err); ierr != nil {
-		err = ierr
-	}
-	return
+func (s implAgentServerStub) VGlob() *__ipc.GlobState {
+	return s.gs
 }
 
-func (__gen_c *clientStubAgent) UnresolveStep(ctx _gen_context.T, opts ..._gen_ipc.CallOpt) (reply []string, err error) {
-	var call _gen_ipc.Call
-	if call, err = __gen_c.client(ctx).StartCall(ctx, __gen_c.name, "UnresolveStep", nil, opts...); err != nil {
-		return
-	}
-	if ierr := call.Finish(&reply, &err); ierr != nil {
-		err = ierr
-	}
-	return
-}
-
-func (__gen_c *clientStubAgent) Signature(ctx _gen_context.T, opts ..._gen_ipc.CallOpt) (reply _gen_ipc.ServiceSignature, err error) {
-	var call _gen_ipc.Call
-	if call, err = __gen_c.client(ctx).StartCall(ctx, __gen_c.name, "Signature", nil, opts...); err != nil {
-		return
-	}
-	if ierr := call.Finish(&reply, &err); ierr != nil {
-		err = ierr
-	}
-	return
-}
-
-func (__gen_c *clientStubAgent) GetMethodTags(ctx _gen_context.T, method string, opts ..._gen_ipc.CallOpt) (reply []interface{}, err error) {
-	var call _gen_ipc.Call
-	if call, err = __gen_c.client(ctx).StartCall(ctx, __gen_c.name, "GetMethodTags", []interface{}{method}, opts...); err != nil {
-		return
-	}
-	if ierr := call.Finish(&reply, &err); ierr != nil {
-		err = ierr
-	}
-	return
-}
-
-// ServerStubAgent wraps a server that implements
-// AgentService and provides an object that satisfies
-// the requirements of veyron2/ipc.ReflectInvoker.
-type ServerStubAgent struct {
-	service AgentService
-	gs      *_gen_ipc.GlobState
-}
-
-func (__gen_s *ServerStubAgent) GetMethodTags(call _gen_ipc.ServerCall, method string) ([]interface{}, error) {
-	// TODO(bprosnitz) GetMethodTags() will be replaces with Signature().
-	// Note: This exhibits some weird behavior like returning a nil error if the method isn't found.
-	// This will change when it is replaced with Signature().
+func (s implAgentServerStub) GetMethodTags(call __ipc.ServerCall, method string) ([]interface{}, error) {
+	// TODO(toddw): Replace with new DescribeInterfaces implementation.
 	switch method {
 	case "Bless":
 		return []interface{}{}, nil
@@ -360,253 +411,162 @@ func (__gen_s *ServerStubAgent) GetMethodTags(call _gen_ipc.ServerCall, method s
 	}
 }
 
-func (__gen_s *ServerStubAgent) Signature(call _gen_ipc.ServerCall) (_gen_ipc.ServiceSignature, error) {
-	result := _gen_ipc.ServiceSignature{Methods: make(map[string]_gen_ipc.MethodSignature)}
-	result.Methods["AddToRoots"] = _gen_ipc.MethodSignature{
-		InArgs: []_gen_ipc.MethodArgument{
+func (s implAgentServerStub) Signature(call __ipc.ServerCall) (__ipc.ServiceSignature, error) {
+	// TODO(toddw) Replace with new DescribeInterfaces implementation.
+	result := __ipc.ServiceSignature{Methods: make(map[string]__ipc.MethodSignature)}
+	result.Methods["AddToRoots"] = __ipc.MethodSignature{
+		InArgs: []__ipc.MethodArgument{
 			{Name: "blessing", Type: 74},
 		},
-		OutArgs: []_gen_ipc.MethodArgument{
+		OutArgs: []__ipc.MethodArgument{
 			{Name: "", Type: 75},
 		},
 	}
-	result.Methods["Bless"] = _gen_ipc.MethodSignature{
-		InArgs: []_gen_ipc.MethodArgument{
+	result.Methods["Bless"] = __ipc.MethodSignature{
+		InArgs: []__ipc.MethodArgument{
 			{Name: "key", Type: 66},
 			{Name: "wit", Type: 74},
 			{Name: "extension", Type: 3},
 			{Name: "caveat", Type: 67},
 			{Name: "additionalCaveats", Type: 68},
 		},
-		OutArgs: []_gen_ipc.MethodArgument{
+		OutArgs: []__ipc.MethodArgument{
 			{Name: "", Type: 74},
 			{Name: "", Type: 75},
 		},
 	}
-	result.Methods["BlessSelf"] = _gen_ipc.MethodSignature{
-		InArgs: []_gen_ipc.MethodArgument{
+	result.Methods["BlessSelf"] = __ipc.MethodSignature{
+		InArgs: []__ipc.MethodArgument{
 			{Name: "name", Type: 3},
 			{Name: "caveats", Type: 68},
 		},
-		OutArgs: []_gen_ipc.MethodArgument{
+		OutArgs: []__ipc.MethodArgument{
 			{Name: "", Type: 74},
 			{Name: "", Type: 75},
 		},
 	}
-	result.Methods["BlessingRootsAdd"] = _gen_ipc.MethodSignature{
-		InArgs: []_gen_ipc.MethodArgument{
+	result.Methods["BlessingRootsAdd"] = __ipc.MethodSignature{
+		InArgs: []__ipc.MethodArgument{
 			{Name: "root", Type: 66},
 			{Name: "pattern", Type: 77},
 		},
-		OutArgs: []_gen_ipc.MethodArgument{
+		OutArgs: []__ipc.MethodArgument{
 			{Name: "", Type: 75},
 		},
 	}
-	result.Methods["BlessingRootsDebugString"] = _gen_ipc.MethodSignature{
-		InArgs: []_gen_ipc.MethodArgument{},
-		OutArgs: []_gen_ipc.MethodArgument{
+	result.Methods["BlessingRootsDebugString"] = __ipc.MethodSignature{
+		InArgs: []__ipc.MethodArgument{},
+		OutArgs: []__ipc.MethodArgument{
 			{Name: "", Type: 3},
 			{Name: "", Type: 75},
 		},
 	}
-	result.Methods["BlessingRootsRecognized"] = _gen_ipc.MethodSignature{
-		InArgs: []_gen_ipc.MethodArgument{
+	result.Methods["BlessingRootsRecognized"] = __ipc.MethodSignature{
+		InArgs: []__ipc.MethodArgument{
 			{Name: "root", Type: 66},
 			{Name: "blessing", Type: 3},
 		},
-		OutArgs: []_gen_ipc.MethodArgument{
+		OutArgs: []__ipc.MethodArgument{
 			{Name: "", Type: 75},
 		},
 	}
-	result.Methods["BlessingStoreDebugString"] = _gen_ipc.MethodSignature{
-		InArgs: []_gen_ipc.MethodArgument{},
-		OutArgs: []_gen_ipc.MethodArgument{
+	result.Methods["BlessingStoreDebugString"] = __ipc.MethodSignature{
+		InArgs: []__ipc.MethodArgument{},
+		OutArgs: []__ipc.MethodArgument{
 			{Name: "", Type: 3},
 			{Name: "", Type: 75},
 		},
 	}
-	result.Methods["BlessingStoreDefault"] = _gen_ipc.MethodSignature{
-		InArgs: []_gen_ipc.MethodArgument{},
-		OutArgs: []_gen_ipc.MethodArgument{
+	result.Methods["BlessingStoreDefault"] = __ipc.MethodSignature{
+		InArgs: []__ipc.MethodArgument{},
+		OutArgs: []__ipc.MethodArgument{
 			{Name: "", Type: 74},
 			{Name: "", Type: 75},
 		},
 	}
-	result.Methods["BlessingStoreForPeer"] = _gen_ipc.MethodSignature{
-		InArgs: []_gen_ipc.MethodArgument{
+	result.Methods["BlessingStoreForPeer"] = __ipc.MethodSignature{
+		InArgs: []__ipc.MethodArgument{
 			{Name: "peerBlessings", Type: 61},
 		},
-		OutArgs: []_gen_ipc.MethodArgument{
+		OutArgs: []__ipc.MethodArgument{
 			{Name: "", Type: 74},
 			{Name: "", Type: 75},
 		},
 	}
-	result.Methods["BlessingStoreSet"] = _gen_ipc.MethodSignature{
-		InArgs: []_gen_ipc.MethodArgument{
+	result.Methods["BlessingStoreSet"] = __ipc.MethodSignature{
+		InArgs: []__ipc.MethodArgument{
 			{Name: "blessings", Type: 74},
 			{Name: "forPeers", Type: 77},
 		},
-		OutArgs: []_gen_ipc.MethodArgument{
+		OutArgs: []__ipc.MethodArgument{
 			{Name: "", Type: 74},
 			{Name: "", Type: 75},
 		},
 	}
-	result.Methods["BlessingStoreSetDefault"] = _gen_ipc.MethodSignature{
-		InArgs: []_gen_ipc.MethodArgument{
+	result.Methods["BlessingStoreSetDefault"] = __ipc.MethodSignature{
+		InArgs: []__ipc.MethodArgument{
 			{Name: "blessings", Type: 74},
 		},
-		OutArgs: []_gen_ipc.MethodArgument{
+		OutArgs: []__ipc.MethodArgument{
 			{Name: "", Type: 75},
 		},
 	}
-	result.Methods["MintDischarge"] = _gen_ipc.MethodSignature{
-		InArgs: []_gen_ipc.MethodArgument{
+	result.Methods["MintDischarge"] = __ipc.MethodSignature{
+		InArgs: []__ipc.MethodArgument{
 			{Name: "tp", Type: 76},
 			{Name: "caveat", Type: 67},
 			{Name: "additionalCaveats", Type: 68},
 		},
-		OutArgs: []_gen_ipc.MethodArgument{
+		OutArgs: []__ipc.MethodArgument{
 			{Name: "", Type: 76},
 			{Name: "", Type: 75},
 		},
 	}
-	result.Methods["PublicKey"] = _gen_ipc.MethodSignature{
-		InArgs: []_gen_ipc.MethodArgument{},
-		OutArgs: []_gen_ipc.MethodArgument{
+	result.Methods["PublicKey"] = __ipc.MethodSignature{
+		InArgs: []__ipc.MethodArgument{},
+		OutArgs: []__ipc.MethodArgument{
 			{Name: "", Type: 66},
 			{Name: "", Type: 75},
 		},
 	}
-	result.Methods["Sign"] = _gen_ipc.MethodSignature{
-		InArgs: []_gen_ipc.MethodArgument{
+	result.Methods["Sign"] = __ipc.MethodSignature{
+		InArgs: []__ipc.MethodArgument{
 			{Name: "message", Type: 66},
 		},
-		OutArgs: []_gen_ipc.MethodArgument{
+		OutArgs: []__ipc.MethodArgument{
 			{Name: "", Type: 70},
 			{Name: "", Type: 75},
 		},
 	}
 
-	result.TypeDefs = []_gen_vdlutil.Any{
-		_gen_wiretype.NamedPrimitiveType{Type: 0x32, Name: "byte", Tags: []string(nil)}, _gen_wiretype.SliceType{Elem: 0x41, Name: "", Tags: []string(nil)}, _gen_wiretype.StructType{
-			[]_gen_wiretype.FieldType{
-				_gen_wiretype.FieldType{Type: 0x42, Name: "ValidatorVOM"},
+	result.TypeDefs = []__vdlutil.Any{
+		__wiretype.NamedPrimitiveType{Type: 0x32, Name: "byte", Tags: []string(nil)}, __wiretype.SliceType{Elem: 0x41, Name: "", Tags: []string(nil)}, __wiretype.StructType{
+			[]__wiretype.FieldType{
+				__wiretype.FieldType{Type: 0x42, Name: "ValidatorVOM"},
 			},
 			"veyron.io/veyron/veyron2/security.Caveat", []string(nil)},
-		_gen_wiretype.SliceType{Elem: 0x43, Name: "", Tags: []string(nil)}, _gen_wiretype.NamedPrimitiveType{Type: 0x3, Name: "veyron.io/veyron/veyron2/security.Hash", Tags: []string(nil)}, _gen_wiretype.StructType{
-			[]_gen_wiretype.FieldType{
-				_gen_wiretype.FieldType{Type: 0x42, Name: "Purpose"},
-				_gen_wiretype.FieldType{Type: 0x45, Name: "Hash"},
-				_gen_wiretype.FieldType{Type: 0x42, Name: "R"},
-				_gen_wiretype.FieldType{Type: 0x42, Name: "S"},
+		__wiretype.SliceType{Elem: 0x43, Name: "", Tags: []string(nil)}, __wiretype.NamedPrimitiveType{Type: 0x3, Name: "veyron.io/veyron/veyron2/security.Hash", Tags: []string(nil)}, __wiretype.StructType{
+			[]__wiretype.FieldType{
+				__wiretype.FieldType{Type: 0x42, Name: "Purpose"},
+				__wiretype.FieldType{Type: 0x45, Name: "Hash"},
+				__wiretype.FieldType{Type: 0x42, Name: "R"},
+				__wiretype.FieldType{Type: 0x42, Name: "S"},
 			},
 			"veyron.io/veyron/veyron2/security.Signature", []string(nil)},
-		_gen_wiretype.StructType{
-			[]_gen_wiretype.FieldType{
-				_gen_wiretype.FieldType{Type: 0x3, Name: "Extension"},
-				_gen_wiretype.FieldType{Type: 0x42, Name: "PublicKey"},
-				_gen_wiretype.FieldType{Type: 0x44, Name: "Caveats"},
-				_gen_wiretype.FieldType{Type: 0x46, Name: "Signature"},
+		__wiretype.StructType{
+			[]__wiretype.FieldType{
+				__wiretype.FieldType{Type: 0x3, Name: "Extension"},
+				__wiretype.FieldType{Type: 0x42, Name: "PublicKey"},
+				__wiretype.FieldType{Type: 0x44, Name: "Caveats"},
+				__wiretype.FieldType{Type: 0x46, Name: "Signature"},
 			},
 			"veyron.io/veyron/veyron2/security.Certificate", []string(nil)},
-		_gen_wiretype.SliceType{Elem: 0x47, Name: "", Tags: []string(nil)}, _gen_wiretype.SliceType{Elem: 0x48, Name: "", Tags: []string(nil)}, _gen_wiretype.StructType{
-			[]_gen_wiretype.FieldType{
-				_gen_wiretype.FieldType{Type: 0x49, Name: "CertificateChains"},
+		__wiretype.SliceType{Elem: 0x47, Name: "", Tags: []string(nil)}, __wiretype.SliceType{Elem: 0x48, Name: "", Tags: []string(nil)}, __wiretype.StructType{
+			[]__wiretype.FieldType{
+				__wiretype.FieldType{Type: 0x49, Name: "CertificateChains"},
 			},
 			"veyron.io/veyron/veyron2/security.WireBlessings", []string(nil)},
-		_gen_wiretype.NamedPrimitiveType{Type: 0x1, Name: "error", Tags: []string(nil)}, _gen_wiretype.NamedPrimitiveType{Type: 0x1, Name: "anydata", Tags: []string(nil)}, _gen_wiretype.NamedPrimitiveType{Type: 0x3, Name: "veyron.io/veyron/veyron2/security.BlessingPattern", Tags: []string(nil)}}
+		__wiretype.NamedPrimitiveType{Type: 0x1, Name: "error", Tags: []string(nil)}, __wiretype.NamedPrimitiveType{Type: 0x1, Name: "anydata", Tags: []string(nil)}, __wiretype.NamedPrimitiveType{Type: 0x3, Name: "veyron.io/veyron/veyron2/security.BlessingPattern", Tags: []string(nil)}}
 
 	return result, nil
-}
-
-func (__gen_s *ServerStubAgent) UnresolveStep(call _gen_ipc.ServerCall) (reply []string, err error) {
-	if unresolver, ok := __gen_s.service.(_gen_ipc.Unresolver); ok {
-		return unresolver.UnresolveStep(call)
-	}
-	if call.Server() == nil {
-		return
-	}
-	var published []string
-	if published, err = call.Server().Published(); err != nil || published == nil {
-		return
-	}
-	reply = make([]string, len(published))
-	for i, p := range published {
-		reply[i] = _gen_naming.Join(p, call.Name())
-	}
-	return
-}
-
-func (__gen_s *ServerStubAgent) VGlob() *_gen_ipc.GlobState {
-	return __gen_s.gs
-}
-
-func (__gen_s *ServerStubAgent) Bless(call _gen_ipc.ServerCall, key []byte, wit security.WireBlessings, extension string, caveat security.Caveat, additionalCaveats []security.Caveat) (reply security.WireBlessings, err error) {
-	reply, err = __gen_s.service.Bless(call, key, wit, extension, caveat, additionalCaveats)
-	return
-}
-
-func (__gen_s *ServerStubAgent) BlessSelf(call _gen_ipc.ServerCall, name string, caveats []security.Caveat) (reply security.WireBlessings, err error) {
-	reply, err = __gen_s.service.BlessSelf(call, name, caveats)
-	return
-}
-
-func (__gen_s *ServerStubAgent) Sign(call _gen_ipc.ServerCall, message []byte) (reply security.Signature, err error) {
-	reply, err = __gen_s.service.Sign(call, message)
-	return
-}
-
-func (__gen_s *ServerStubAgent) MintDischarge(call _gen_ipc.ServerCall, tp _gen_vdlutil.Any, caveat security.Caveat, additionalCaveats []security.Caveat) (reply _gen_vdlutil.Any, err error) {
-	reply, err = __gen_s.service.MintDischarge(call, tp, caveat, additionalCaveats)
-	return
-}
-
-func (__gen_s *ServerStubAgent) PublicKey(call _gen_ipc.ServerCall) (reply []byte, err error) {
-	reply, err = __gen_s.service.PublicKey(call)
-	return
-}
-
-func (__gen_s *ServerStubAgent) AddToRoots(call _gen_ipc.ServerCall, blessing security.WireBlessings) (err error) {
-	err = __gen_s.service.AddToRoots(call, blessing)
-	return
-}
-
-func (__gen_s *ServerStubAgent) BlessingStoreSet(call _gen_ipc.ServerCall, blessings security.WireBlessings, forPeers security.BlessingPattern) (reply security.WireBlessings, err error) {
-	reply, err = __gen_s.service.BlessingStoreSet(call, blessings, forPeers)
-	return
-}
-
-func (__gen_s *ServerStubAgent) BlessingStoreForPeer(call _gen_ipc.ServerCall, peerBlessings []string) (reply security.WireBlessings, err error) {
-	reply, err = __gen_s.service.BlessingStoreForPeer(call, peerBlessings)
-	return
-}
-
-func (__gen_s *ServerStubAgent) BlessingStoreSetDefault(call _gen_ipc.ServerCall, blessings security.WireBlessings) (err error) {
-	err = __gen_s.service.BlessingStoreSetDefault(call, blessings)
-	return
-}
-
-func (__gen_s *ServerStubAgent) BlessingStoreDefault(call _gen_ipc.ServerCall) (reply security.WireBlessings, err error) {
-	reply, err = __gen_s.service.BlessingStoreDefault(call)
-	return
-}
-
-func (__gen_s *ServerStubAgent) BlessingStoreDebugString(call _gen_ipc.ServerCall) (reply string, err error) {
-	reply, err = __gen_s.service.BlessingStoreDebugString(call)
-	return
-}
-
-func (__gen_s *ServerStubAgent) BlessingRootsAdd(call _gen_ipc.ServerCall, root []byte, pattern security.BlessingPattern) (err error) {
-	err = __gen_s.service.BlessingRootsAdd(call, root, pattern)
-	return
-}
-
-func (__gen_s *ServerStubAgent) BlessingRootsRecognized(call _gen_ipc.ServerCall, root []byte, blessing string) (err error) {
-	err = __gen_s.service.BlessingRootsRecognized(call, root, blessing)
-	return
-}
-
-func (__gen_s *ServerStubAgent) BlessingRootsDebugString(call _gen_ipc.ServerCall) (reply string, err error) {
-	reply, err = __gen_s.service.BlessingRootsDebugString(call)
-	return
 }

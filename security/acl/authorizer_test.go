@@ -208,7 +208,7 @@ func TestTagTypeMustBeString(t *testing.T) {
 }
 
 func methodTags(method string) []interface{} {
-	server := &test.ServerStubMyObject{}
+	server := test.MyObjectServer(nil)
 	tags, _ := server.GetMethodTags(nil, method)
 	return tags
 }

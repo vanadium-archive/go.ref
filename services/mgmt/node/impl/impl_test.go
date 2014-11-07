@@ -224,7 +224,7 @@ func (appService) Echo(_ ipc.ServerCall, message string) (string, error) {
 func ping() {
 	if call, err := rt.R().Client().StartCall(rt.R().NewContext(), "pingserver", "Ping", []interface{}{os.Getenv(suidhelper.SavedArgs)}); err != nil {
 		vlog.Fatalf("StartCall failed: %v", err)
-	} else if err = call.Finish(); err != nil {
+	} else if err := call.Finish(); err != nil {
 		vlog.Fatalf("Finish failed: %v", err)
 	}
 }
@@ -725,11 +725,8 @@ func newRuntime(t *testing.T) veyron2.Runtime {
 
 func tryInstall(rt veyron2.Runtime) error {
 	appsName := "nm//apps"
-	stub, err := node.BindApplication(appsName, rt.Client())
-	if err != nil {
-		return fmt.Errorf("BindApplication(%v) failed: %v", appsName, err)
-	}
-	if _, err = stub.Install(rt.NewContext(), mockApplicationRepoName); err != nil {
+	stub := node.ApplicationClient(appsName, rt.Client())
+	if _, err := stub.Install(rt.NewContext(), mockApplicationRepoName); err != nil {
 		return fmt.Errorf("Install failed: %v", err)
 	}
 	return nil
@@ -763,21 +760,17 @@ func TestNodeManagerClaim(t *testing.T) {
 	defer os.RemoveAll(crDir)
 	*envelope = envelopeFromShell(sh, crEnv, appCmd, "google naps", "trapp")
 
-	nodeStub, err := node.BindNode("nm//nm")
-	if err != nil {
-		t.Fatalf("BindNode failed: %v", err)
-	}
-
+	nodeStub := node.NodeClient("nm//nm")
 	selfRT := rt.R()
 	otherRT := newRuntime(t)
 	defer otherRT.Cleanup()
 
 	// Nodemanager should have open ACLs before we claim it and so an Install from otherRT should succeed.
-	if err = tryInstall(otherRT); err != nil {
+	if err := tryInstall(otherRT); err != nil {
 		t.Fatal(err)
 	}
 	// Claim the nodemanager with selfRT as <defaultblessing>/mydevice
-	if err = nodeStub.Claim(selfRT.NewContext(), &granter{p: selfRT.Principal(), extension: "mydevice"}); err != nil {
+	if err := nodeStub.Claim(selfRT.NewContext(), &granter{p: selfRT.Principal(), extension: "mydevice"}); err != nil {
 		t.Fatal(err)
 	}
 
@@ -786,7 +779,7 @@ func TestNodeManagerClaim(t *testing.T) {
 	appID := installApp(t)
 
 	// otherRT should be unable to install though, since the ACLs have changed now.
-	if err = tryInstall(otherRT); err == nil {
+	if err := tryInstall(otherRT); err == nil {
 		t.Fatalf("Install should have failed from otherRT")
 	}
 
@@ -852,10 +845,7 @@ func TestNodeManagerUpdateACL(t *testing.T) {
 	defer os.RemoveAll(crDir)
 	*envelope = envelopeFromShell(sh, crEnv, appCmd, "google naps")
 
-	nodeStub, err := node.BindNode("nm//nm")
-	if err != nil {
-		t.Fatalf("BindNode failed: %v", err)
-	}
+	nodeStub := node.NodeClient("nm//nm")
 	acl, etag, err := nodeStub.GetACL(selfRT.NewContext())
 	if err != nil {
 		t.Fatalf("GetACL failed:%v", err)
@@ -865,7 +855,7 @@ func TestNodeManagerUpdateACL(t *testing.T) {
 	}
 
 	// Claim the nodemanager as "root/self/mydevice"
-	if err = nodeStub.Claim(selfRT.NewContext(), &granter{p: selfRT.Principal(), extension: "mydevice"}); err != nil {
+	if err := nodeStub.Claim(selfRT.NewContext(), &granter{p: selfRT.Principal(), extension: "mydevice"}); err != nil {
 		t.Fatal(err)
 	}
 	expectedACL := security.ACL{In: map[security.BlessingPattern]security.LabelSet{"root/self/mydevice": security.AllLabels}}
@@ -882,21 +872,21 @@ func TestNodeManagerUpdateACL(t *testing.T) {
 		t.Fatalf("getACL expected:%v(%v), got:%v(%v)", expectedACL, expectedETAG, acl, etag)
 	}
 	// Install from otherRT should fail, since it does not match the ACL.
-	if err = tryInstall(otherRT); err == nil {
+	if err := tryInstall(otherRT); err == nil {
 		t.Fatalf("Install should have failed with random identity")
 	}
 	newACL := security.ACL{In: map[security.BlessingPattern]security.LabelSet{"root/other": security.AllLabels}}
-	if err = nodeStub.SetACL(selfRT.NewContext(), newACL, "invalid"); err == nil {
+	if err := nodeStub.SetACL(selfRT.NewContext(), newACL, "invalid"); err == nil {
 		t.Fatalf("SetACL should have failed with invalid etag")
 	}
-	if err = nodeStub.SetACL(selfRT.NewContext(), newACL, etag); err != nil {
+	if err := nodeStub.SetACL(selfRT.NewContext(), newACL, etag); err != nil {
 		t.Fatal(err)
 	}
 	// Install should now fail with selfRT, which no longer matches the ACLs but succeed with otherRT, which does.
-	if err = tryInstall(selfRT); err == nil {
+	if err := tryInstall(selfRT); err == nil {
 		t.Errorf("Install should have failed with selfRT since it should no longer match the ACL")
 	}
-	if err = tryInstall(otherRT); err != nil {
+	if err := tryInstall(otherRT); err != nil {
 		t.Error(err)
 	}
 }
@@ -1072,10 +1062,7 @@ func TestNodeManagerGlobAndDebug(t *testing.T) {
 	}
 	for _, file := range files {
 		name := naming.Join("nm", file)
-		c, err := logreader.BindLogFile(name)
-		if err != nil {
-			t.Fatalf("BindLogFile failed: %v", err)
-		}
+		c := logreader.LogFileClient(name)
 		if _, err := c.Size(rt.R().NewContext()); err != nil {
 			t.Errorf("Size(%q) failed: %v", name, err)
 		}
@@ -1088,10 +1075,7 @@ func TestNodeManagerGlobAndDebug(t *testing.T) {
 	}
 	for _, obj := range objects {
 		name := naming.Join("nm", obj)
-		c, err := stats.BindStats(name)
-		if err != nil {
-			t.Fatalf("BindStats failed: %v", err)
-		}
+		c := stats.StatsClient(name)
 		if _, err := c.Value(rt.R().NewContext()); err != nil {
 			t.Errorf("Value(%q) failed: %v", name, err)
 		}
@@ -1100,10 +1084,7 @@ func TestNodeManagerGlobAndDebug(t *testing.T) {
 	// Call CmdLine() on the pprof object.
 	{
 		name := "nm/apps/google naps/" + installID + "/" + instance1ID + "/pprof"
-		c, err := pprof.BindPProf(name)
-		if err != nil {
-			t.Fatalf("BindPProf failed: %v", err)
-		}
+		c := pprof.PProfClient(name)
 		v, err := c.CmdLine(rt.R().NewContext())
 		if err != nil {
 			t.Errorf("CmdLine(%q) failed: %v", name, err)
@@ -1118,10 +1099,7 @@ func TestNodeManagerGlobAndDebug(t *testing.T) {
 }
 
 func doGlob(t *testing.T, name, pattern string) []string {
-	c, err := mounttable.BindGlobbable(name)
-	if err != nil {
-		t.Fatalf("BindGlobbable failed: %v", err)
-	}
+	c := mounttable.GlobbableClient(name)
 	stream, err := c.Glob(rt.R().NewContext(), pattern)
 	if err != nil {
 		t.Errorf("Glob failed: %v", err)
@@ -1140,7 +1118,7 @@ func doGlob(t *testing.T, name, pattern string) []string {
 	return results
 }
 
-func listAndVerifyAssociations(t *testing.T, stub node.Node, run veyron2.Runtime, expected []node.Association) {
+func listAndVerifyAssociations(t *testing.T, stub node.NodeClientMethods, run veyron2.Runtime, expected []node.Association) {
 	assocs, err := stub.ListAssociations(run.NewContext())
 	if err != nil {
 		t.Fatalf("ListAssociations failed %v", err)
@@ -1182,10 +1160,7 @@ func TestAccountAssociation(t *testing.T) {
 	pid := readPID(t, nms)
 	defer syscall.Kill(pid, syscall.SIGINT)
 
-	nodeStub, err := node.BindNode("nm//nm")
-	if err != nil {
-		t.Fatalf("BindNode failed %v", err)
-	}
+	nodeStub := node.NodeClient("nm//nm")
 
 	// Attempt to list associations on the node manager without having
 	// claimed it.
@@ -1194,14 +1169,14 @@ func TestAccountAssociation(t *testing.T) {
 	}
 
 	// self claims the node manager.
-	if err = nodeStub.Claim(selfRT.NewContext(), &granter{p: selfRT.Principal(), extension: "alice"}); err != nil {
+	if err := nodeStub.Claim(selfRT.NewContext(), &granter{p: selfRT.Principal(), extension: "alice"}); err != nil {
 		t.Fatalf("Claim failed: %v", err)
 	}
 
 	vlog.VI(2).Info("Verify that associations start out empty.")
 	listAndVerifyAssociations(t, nodeStub, selfRT, []node.Association(nil))
 
-	if err = nodeStub.AssociateAccount(selfRT.NewContext(), []string{"root/self", "root/other"}, "alice_system_account"); err != nil {
+	if err := nodeStub.AssociateAccount(selfRT.NewContext(), []string{"root/self", "root/other"}, "alice_system_account"); err != nil {
 		t.Fatalf("ListAssociations failed %v", err)
 	}
 	vlog.VI(2).Info("Added association should appear.")
@@ -1216,7 +1191,7 @@ func TestAccountAssociation(t *testing.T) {
 		},
 	})
 
-	if err = nodeStub.AssociateAccount(selfRT.NewContext(), []string{"root/self", "root/other"}, "alice_other_account"); err != nil {
+	if err := nodeStub.AssociateAccount(selfRT.NewContext(), []string{"root/self", "root/other"}, "alice_other_account"); err != nil {
 		t.Fatalf("AssociateAccount failed %v", err)
 	}
 	vlog.VI(2).Info("Change the associations and the change should appear.")
@@ -1231,8 +1206,7 @@ func TestAccountAssociation(t *testing.T) {
 		},
 	})
 
-	err = nodeStub.AssociateAccount(selfRT.NewContext(), []string{"root/other"}, "")
-	if err != nil {
+	if err := nodeStub.AssociateAccount(selfRT.NewContext(), []string{"root/other"}, ""); err != nil {
 		t.Fatalf("AssociateAccount failed %v", err)
 	}
 	vlog.VI(2).Info("Verify that we can remove an association.")
@@ -1296,10 +1270,7 @@ func TestAppWithSuidHelper(t *testing.T) {
 	pid := readPID(t, nms)
 	defer syscall.Kill(pid, syscall.SIGINT)
 
-	nodeStub, err := node.BindNode("nm//nm")
-	if err != nil {
-		t.Fatalf("BindNode failed %v", err)
-	}
+	nodeStub := node.NodeClient("nm//nm")
 
 	// Create the local server that the app uses to tell us which system name
 	// the node manager wished to run it as.
@@ -1320,7 +1291,7 @@ func TestAppWithSuidHelper(t *testing.T) {
 	appID := installApp(t, selfRT)
 
 	// Claim the nodemanager with selfRT as root/self/alice
-	if err = nodeStub.Claim(selfRT.NewContext(), &granter{p: selfRT.Principal(), extension: "alice"}); err != nil {
+	if err := nodeStub.Claim(selfRT.NewContext(), &granter{p: selfRT.Principal(), extension: "alice"}); err != nil {
 		t.Fatal(err)
 	}
 
@@ -1329,7 +1300,7 @@ func TestAppWithSuidHelper(t *testing.T) {
 	startAppExpectError(t, appID, verror.NoAccess, selfRT)
 
 	// Create an association for selfRT
-	if err = nodeStub.AssociateAccount(selfRT.NewContext(), []string{"root/self"}, testUserName); err != nil {
+	if err := nodeStub.AssociateAccount(selfRT.NewContext(), []string{"root/self"}, testUserName); err != nil {
 		t.Fatalf("AssociateAccount failed %v", err)
 	}
 
@@ -1341,7 +1312,7 @@ func TestAppWithSuidHelper(t *testing.T) {
 	startAppExpectError(t, appID, verror.NoAccess, otherRT)
 
 	// Self will now let other also run apps.
-	if err = nodeStub.AssociateAccount(selfRT.NewContext(), []string{"root/other"}, testUserName); err != nil {
+	if err := nodeStub.AssociateAccount(selfRT.NewContext(), []string{"root/other"}, testUserName); err != nil {
 		t.Fatalf("AssociateAccount failed %v", err)
 	}
 	// Add Start to the ACL list for root/other.
@@ -1350,7 +1321,7 @@ func TestAppWithSuidHelper(t *testing.T) {
 		t.Fatalf("GetACL failed %v", err)
 	}
 	newACL.In["root/other/..."] = security.AllLabels
-	if err = nodeStub.SetACL(selfRT.NewContext(), newACL, ""); err != nil {
+	if err := nodeStub.SetACL(selfRT.NewContext(), newACL, ""); err != nil {
 		t.Fatalf("SetACL failed %v", err)
 	}
 
@@ -1365,7 +1336,7 @@ func TestAppWithSuidHelper(t *testing.T) {
 	suspendApp(t, appID, instance2ID, otherRT)
 
 	// Change the associated system name.
-	if err = nodeStub.AssociateAccount(selfRT.NewContext(), []string{"root/other"}, anotherTestUserName); err != nil {
+	if err := nodeStub.AssociateAccount(selfRT.NewContext(), []string{"root/other"}, anotherTestUserName); err != nil {
 		t.Fatalf("AssociateAccount failed %v", err)
 	}
 

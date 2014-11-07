@@ -6,149 +6,186 @@
 package benchmarks
 
 import (
-	// The non-user imports are prefixed with "_gen_" to prevent collisions.
-	_gen_io "io"
-	_gen_veyron2 "veyron.io/veyron/veyron2"
-	_gen_context "veyron.io/veyron/veyron2/context"
-	_gen_ipc "veyron.io/veyron/veyron2/ipc"
-	_gen_naming "veyron.io/veyron/veyron2/naming"
-	_gen_vdlutil "veyron.io/veyron/veyron2/vdl/vdlutil"
-	_gen_wiretype "veyron.io/veyron/veyron2/wiretype"
+	// The non-user imports are prefixed with "__" to prevent collisions.
+	__io "io"
+	__veyron2 "veyron.io/veyron/veyron2"
+	__context "veyron.io/veyron/veyron2/context"
+	__ipc "veyron.io/veyron/veyron2/ipc"
+	__vdlutil "veyron.io/veyron/veyron2/vdl/vdlutil"
+	__wiretype "veyron.io/veyron/veyron2/wiretype"
 )
 
 // TODO(toddw): Remove this line once the new signature support is done.
-// It corrects a bug where _gen_wiretype is unused in VDL pacakges where only
+// It corrects a bug where __wiretype is unused in VDL pacakges where only
 // bootstrap types are used on interfaces.
-const _ = _gen_wiretype.TypeIDInvalid
+const _ = __wiretype.TypeIDInvalid
 
-// Benchmark is the interface the client binds and uses.
-// Benchmark_ExcludingUniversal is the interface without internal framework-added methods
-// to enable embedding without method collisions.  Not to be used directly by clients.
-type Benchmark_ExcludingUniversal interface {
+// BenchmarkClientMethods is the client interface
+// containing Benchmark methods.
+type BenchmarkClientMethods interface {
 	// Echo returns the payload that it receives.
-	Echo(ctx _gen_context.T, Payload []byte, opts ..._gen_ipc.CallOpt) (reply []byte, err error)
+	Echo(ctx __context.T, Payload []byte, opts ...__ipc.CallOpt) ([]byte, error)
 	// EchoStream returns the payload that it receives via the stream.
-	EchoStream(ctx _gen_context.T, opts ..._gen_ipc.CallOpt) (reply BenchmarkEchoStreamCall, err error)
-}
-type Benchmark interface {
-	_gen_ipc.UniversalServiceMethods
-	Benchmark_ExcludingUniversal
+	EchoStream(__context.T, ...__ipc.CallOpt) (BenchmarkEchoStreamCall, error)
 }
 
-// BenchmarkService is the interface the server implements.
-type BenchmarkService interface {
-
-	// Echo returns the payload that it receives.
-	Echo(context _gen_ipc.ServerContext, Payload []byte) (reply []byte, err error)
-	// EchoStream returns the payload that it receives via the stream.
-	EchoStream(context _gen_ipc.ServerContext, stream BenchmarkServiceEchoStreamStream) (err error)
+// BenchmarkClientStub adds universal methods to BenchmarkClientMethods.
+type BenchmarkClientStub interface {
+	BenchmarkClientMethods
+	__ipc.UniversalServiceMethods
 }
 
-// BenchmarkEchoStreamCall is the interface for call object of the method
-// EchoStream in the service interface Benchmark.
-type BenchmarkEchoStreamCall interface {
-	// RecvStream returns the recv portion of the stream
+// BenchmarkClient returns a client stub for Benchmark.
+func BenchmarkClient(name string, opts ...__ipc.BindOpt) BenchmarkClientStub {
+	var client __ipc.Client
+	for _, opt := range opts {
+		if clientOpt, ok := opt.(__ipc.Client); ok {
+			client = clientOpt
+		}
+	}
+	return implBenchmarkClientStub{name, client}
+}
+
+type implBenchmarkClientStub struct {
+	name   string
+	client __ipc.Client
+}
+
+func (c implBenchmarkClientStub) c(ctx __context.T) __ipc.Client {
+	if c.client != nil {
+		return c.client
+	}
+	return __veyron2.RuntimeFromContext(ctx).Client()
+}
+
+func (c implBenchmarkClientStub) Echo(ctx __context.T, i0 []byte, opts ...__ipc.CallOpt) (o0 []byte, err error) {
+	var call __ipc.Call
+	if call, err = c.c(ctx).StartCall(ctx, c.name, "Echo", []interface{}{i0}, opts...); err != nil {
+		return
+	}
+	if ierr := call.Finish(&o0, &err); ierr != nil {
+		err = ierr
+	}
+	return
+}
+
+func (c implBenchmarkClientStub) EchoStream(ctx __context.T, opts ...__ipc.CallOpt) (ocall BenchmarkEchoStreamCall, err error) {
+	var call __ipc.Call
+	if call, err = c.c(ctx).StartCall(ctx, c.name, "EchoStream", nil, opts...); err != nil {
+		return
+	}
+	ocall = &implBenchmarkEchoStreamCall{call, implBenchmarkEchoStreamClientRecv{call: call}, implBenchmarkEchoStreamClientSend{call}}
+	return
+}
+
+func (c implBenchmarkClientStub) Signature(ctx __context.T, opts ...__ipc.CallOpt) (o0 __ipc.ServiceSignature, err error) {
+	var call __ipc.Call
+	if call, err = c.c(ctx).StartCall(ctx, c.name, "Signature", nil, opts...); err != nil {
+		return
+	}
+	if ierr := call.Finish(&o0, &err); ierr != nil {
+		err = ierr
+	}
+	return
+}
+
+func (c implBenchmarkClientStub) GetMethodTags(ctx __context.T, method string, opts ...__ipc.CallOpt) (o0 []interface{}, err error) {
+	var call __ipc.Call
+	if call, err = c.c(ctx).StartCall(ctx, c.name, "GetMethodTags", []interface{}{method}, opts...); err != nil {
+		return
+	}
+	if ierr := call.Finish(&o0, &err); ierr != nil {
+		err = ierr
+	}
+	return
+}
+
+// BenchmarkEchoStreamClientStream is the client stream for Benchmark.EchoStream.
+type BenchmarkEchoStreamClientStream interface {
+	// RecvStream returns the receiver side of the client stream.
 	RecvStream() interface {
-		// Advance stages an element so the client can retrieve it
-		// with Value.  Advance returns true iff there is an
-		// element to retrieve.  The client must call Advance before
-		// calling Value. Advance may block if an element is not
-		// immediately available.
+		// Advance stages an item so that it may be retrieved via Value.  Returns
+		// true iff there is an item to retrieve.  Advance must be called before
+		// Value is called.  May block if an item is not available.
 		Advance() bool
-
-		// Value returns the element that was staged by Advance.
-		// Value may panic if Advance returned false or was not
-		// called at all.  Value does not block.
+		// Value returns the item that was staged by Advance.  May panic if Advance
+		// returned false or was not called.  Never blocks.
 		Value() []byte
-
-		// Err returns a non-nil error iff the stream encountered
-		// any errors.  Err does not block.
+		// Err returns any error encountered by Advance.  Never blocks.
 		Err() error
 	}
-
-	// SendStream returns the send portion of the stream
+	// SendStream returns the send side of the client stream.
 	SendStream() interface {
-		// Send places the item onto the output stream, blocking if there is no
-		// buffer space available.  Calls to Send after having called Close
-		// or Cancel will fail.  Any blocked Send calls will be unblocked upon
-		// calling Cancel.
+		// Send places the item onto the output stream.  Returns errors encountered
+		// while sending, or if Send is called after Close or Cancel.  Blocks if
+		// there is no buffer space; will unblock when buffer space is available or
+		// after Cancel.
 		Send(item []byte) error
-
-		// Close indicates to the server that no more items will be sent;
-		// server Recv calls will receive io.EOF after all sent items.  This is
-		// an optional call - it's used by streaming clients that need the
-		// server to receive the io.EOF terminator before the client calls
-		// Finish (for example, if the client needs to continue receiving items
-		// from the server after having finished sending).
-		// Calls to Close after having called Cancel will fail.
-		// Like Send, Close blocks when there's no buffer space available.
+		// Close indicates to the server that no more items will be sent; server
+		// Recv calls will receive io.EOF after all sent items.  This is an optional
+		// call - e.g. a client might call Close if it needs to continue receiving
+		// items from the server after it's done sending.  Returns errors
+		// encountered while closing, or if Close is called after Cancel.  Like
+		// Send, blocks if there is no buffer space available.
 		Close() error
 	}
+}
 
-	// Finish performs the equivalent of SendStream().Close, then blocks until the server
-	// is done, and returns the positional return values for call.
-	// If Cancel has been called, Finish will return immediately; the output of
-	// Finish could either be an error signalling cancelation, or the correct
-	// positional return values from the server depending on the timing of the
-	// call.
+// BenchmarkEchoStreamCall represents the call returned from Benchmark.EchoStream.
+type BenchmarkEchoStreamCall interface {
+	BenchmarkEchoStreamClientStream
+	// Finish performs the equivalent of SendStream().Close, then blocks until
+	// the server is done, and returns the positional return values for the call.
+	//
+	// Finish returns immediately if Cancel has been called; depending on the
+	// timing the output could either be an error signaling cancelation, or the
+	// valid positional return values from the server.
 	//
 	// Calling Finish is mandatory for releasing stream resources, unless Cancel
-	// has been called or any of the other methods return an error.
-	// Finish should be called at most once.
-	Finish() (err error)
-
-	// Cancel cancels the RPC, notifying the server to stop processing.  It
-	// is safe to call Cancel concurrently with any of the other stream methods.
+	// has been called or any of the other methods return an error.  Finish should
+	// be called at most once.
+	Finish() error
+	// Cancel cancels the RPC, notifying the server to stop processing.  It is
+	// safe to call Cancel concurrently with any of the other stream methods.
 	// Calling Cancel after Finish has returned is a no-op.
 	Cancel()
 }
 
-type implBenchmarkEchoStreamStreamSender struct {
-	clientCall _gen_ipc.Call
+type implBenchmarkEchoStreamClientRecv struct {
+	call __ipc.Call
+	val  []byte
+	err  error
 }
 
-func (c *implBenchmarkEchoStreamStreamSender) Send(item []byte) error {
-	return c.clientCall.Send(item)
-}
-
-func (c *implBenchmarkEchoStreamStreamSender) Close() error {
-	return c.clientCall.CloseSend()
-}
-
-type implBenchmarkEchoStreamStreamIterator struct {
-	clientCall _gen_ipc.Call
-	val        []byte
-	err        error
-}
-
-func (c *implBenchmarkEchoStreamStreamIterator) Advance() bool {
-	c.err = c.clientCall.Recv(&c.val)
+func (c *implBenchmarkEchoStreamClientRecv) Advance() bool {
+	c.err = c.call.Recv(&c.val)
 	return c.err == nil
 }
-
-func (c *implBenchmarkEchoStreamStreamIterator) Value() []byte {
+func (c *implBenchmarkEchoStreamClientRecv) Value() []byte {
 	return c.val
 }
-
-func (c *implBenchmarkEchoStreamStreamIterator) Err() error {
-	if c.err == _gen_io.EOF {
+func (c *implBenchmarkEchoStreamClientRecv) Err() error {
+	if c.err == __io.EOF {
 		return nil
 	}
 	return c.err
 }
 
-// Implementation of the BenchmarkEchoStreamCall interface that is not exported.
-type implBenchmarkEchoStreamCall struct {
-	clientCall  _gen_ipc.Call
-	writeStream implBenchmarkEchoStreamStreamSender
-	readStream  implBenchmarkEchoStreamStreamIterator
+type implBenchmarkEchoStreamClientSend struct {
+	call __ipc.Call
 }
 
-func (c *implBenchmarkEchoStreamCall) SendStream() interface {
-	Send(item []byte) error
-	Close() error
-} {
-	return &c.writeStream
+func (c *implBenchmarkEchoStreamClientSend) Send(item []byte) error {
+	return c.call.Send(item)
+}
+func (c *implBenchmarkEchoStreamClientSend) Close() error {
+	return c.call.CloseSend()
+}
+
+type implBenchmarkEchoStreamCall struct {
+	call __ipc.Call
+	recv implBenchmarkEchoStreamClientRecv
+	send implBenchmarkEchoStreamClientSend
 }
 
 func (c *implBenchmarkEchoStreamCall) RecvStream() interface {
@@ -156,245 +193,91 @@ func (c *implBenchmarkEchoStreamCall) RecvStream() interface {
 	Value() []byte
 	Err() error
 } {
-	return &c.readStream
+	return &c.recv
 }
-
+func (c *implBenchmarkEchoStreamCall) SendStream() interface {
+	Send(item []byte) error
+	Close() error
+} {
+	return &c.send
+}
 func (c *implBenchmarkEchoStreamCall) Finish() (err error) {
-	if ierr := c.clientCall.Finish(&err); ierr != nil {
+	if ierr := c.call.Finish(&err); ierr != nil {
 		err = ierr
 	}
 	return
 }
-
 func (c *implBenchmarkEchoStreamCall) Cancel() {
-	c.clientCall.Cancel()
+	c.call.Cancel()
 }
 
-type implBenchmarkServiceEchoStreamStreamSender struct {
-	serverCall _gen_ipc.ServerCall
+// BenchmarkServerMethods is the interface a server writer
+// implements for Benchmark.
+type BenchmarkServerMethods interface {
+	// Echo returns the payload that it receives.
+	Echo(ctx __ipc.ServerContext, Payload []byte) ([]byte, error)
+	// EchoStream returns the payload that it receives via the stream.
+	EchoStream(BenchmarkEchoStreamContext) error
 }
 
-func (s *implBenchmarkServiceEchoStreamStreamSender) Send(item []byte) error {
-	return s.serverCall.Send(item)
+// BenchmarkServerStubMethods is the server interface containing
+// Benchmark methods, as expected by ipc.Server.  The difference between
+// this interface and BenchmarkServerMethods is that the first context
+// argument for each method is always ipc.ServerCall here, while it is either
+// ipc.ServerContext or a typed streaming context there.
+type BenchmarkServerStubMethods interface {
+	// Echo returns the payload that it receives.
+	Echo(call __ipc.ServerCall, Payload []byte) ([]byte, error)
+	// EchoStream returns the payload that it receives via the stream.
+	EchoStream(__ipc.ServerCall) error
 }
 
-type implBenchmarkServiceEchoStreamStreamIterator struct {
-	serverCall _gen_ipc.ServerCall
-	val        []byte
-	err        error
+// BenchmarkServerStub adds universal methods to BenchmarkServerStubMethods.
+type BenchmarkServerStub interface {
+	BenchmarkServerStubMethods
+	// GetMethodTags will be replaced with DescribeInterfaces.
+	GetMethodTags(call __ipc.ServerCall, method string) ([]interface{}, error)
+	// Signature will be replaced with DescribeInterfaces.
+	Signature(call __ipc.ServerCall) (__ipc.ServiceSignature, error)
 }
 
-func (s *implBenchmarkServiceEchoStreamStreamIterator) Advance() bool {
-	s.err = s.serverCall.Recv(&s.val)
-	return s.err == nil
-}
-
-func (s *implBenchmarkServiceEchoStreamStreamIterator) Value() []byte {
-	return s.val
-}
-
-func (s *implBenchmarkServiceEchoStreamStreamIterator) Err() error {
-	if s.err == _gen_io.EOF {
-		return nil
+// BenchmarkServer returns a server stub for Benchmark.
+// It converts an implementation of BenchmarkServerMethods into
+// an object that may be used by ipc.Server.
+func BenchmarkServer(impl BenchmarkServerMethods) BenchmarkServerStub {
+	stub := implBenchmarkServerStub{
+		impl: impl,
 	}
-	return s.err
-}
-
-// BenchmarkServiceEchoStreamStream is the interface for streaming responses of the method
-// EchoStream in the service interface Benchmark.
-type BenchmarkServiceEchoStreamStream interface {
-	// SendStream returns the send portion of the stream.
-	SendStream() interface {
-		// Send places the item onto the output stream, blocking if there is no buffer
-		// space available.  If the client has canceled, an error is returned.
-		Send(item []byte) error
+	// Initialize GlobState; always check the stub itself first, to handle the
+	// case where the user has the Glob method defined in their VDL source.
+	if gs := __ipc.NewGlobState(stub); gs != nil {
+		stub.gs = gs
+	} else if gs := __ipc.NewGlobState(impl); gs != nil {
+		stub.gs = gs
 	}
-	// RecvStream returns the recv portion of the stream
-	RecvStream() interface {
-		// Advance stages an element so the client can retrieve it
-		// with Value.  Advance returns true iff there is an
-		// element to retrieve.  The client must call Advance before
-		// calling Value.  Advance may block if an element is not
-		// immediately available.
-		Advance() bool
-
-		// Value returns the element that was staged by Advance.
-		// Value may panic if Advance returned false or was not
-		// called at all.  Value does not block.
-		Value() []byte
-
-		// Err returns a non-nil error iff the stream encountered
-		// any errors.  Err does not block.
-		Err() error
-	}
-}
-
-// Implementation of the BenchmarkServiceEchoStreamStream interface that is not exported.
-type implBenchmarkServiceEchoStreamStream struct {
-	writer implBenchmarkServiceEchoStreamStreamSender
-	reader implBenchmarkServiceEchoStreamStreamIterator
-}
-
-func (s *implBenchmarkServiceEchoStreamStream) SendStream() interface {
-	// Send places the item onto the output stream, blocking if there is no buffer
-	// space available.  If the client has canceled, an error is returned.
-	Send(item []byte) error
-} {
-	return &s.writer
-}
-
-func (s *implBenchmarkServiceEchoStreamStream) RecvStream() interface {
-	// Advance stages an element so the client can retrieve it
-	// with Value.  Advance returns true iff there is an
-	// element to retrieve.  The client must call Advance before
-	// calling Value.  The client must call Cancel if it does
-	// not iterate through all elements (i.e. until Advance
-	// returns false).  Advance may block if an element is not
-	// immediately available.
-	Advance() bool
-
-	// Value returns the element that was staged by Advance.
-	// Value may panic if Advance returned false or was not
-	// called at all.  Value does not block.
-	Value() []byte
-
-	// Err returns a non-nil error iff the stream encountered
-	// any errors.  Err does not block.
-	Err() error
-} {
-	return &s.reader
-}
-
-// BindBenchmark returns the client stub implementing the Benchmark
-// interface.
-//
-// If no _gen_ipc.Client is specified, the default _gen_ipc.Client in the
-// global Runtime is used.
-func BindBenchmark(name string, opts ..._gen_ipc.BindOpt) (Benchmark, error) {
-	var client _gen_ipc.Client
-	switch len(opts) {
-	case 0:
-		// Do nothing.
-	case 1:
-		if clientOpt, ok := opts[0].(_gen_ipc.Client); opts[0] == nil || ok {
-			client = clientOpt
-		} else {
-			return nil, _gen_vdlutil.ErrUnrecognizedOption
-		}
-	default:
-		return nil, _gen_vdlutil.ErrTooManyOptionsToBind
-	}
-	stub := &clientStubBenchmark{defaultClient: client, name: name}
-
-	return stub, nil
-}
-
-// NewServerBenchmark creates a new server stub.
-//
-// It takes a regular server implementing the BenchmarkService
-// interface, and returns a new server stub.
-func NewServerBenchmark(server BenchmarkService) interface{} {
-	stub := &ServerStubBenchmark{
-		service: server,
-	}
-	var gs _gen_ipc.GlobState
-	var self interface{} = stub
-	// VAllGlobber is implemented by the server object, which is wrapped in
-	// a VDL generated server stub.
-	if x, ok := self.(_gen_ipc.VAllGlobber); ok {
-		gs.VAllGlobber = x
-	}
-	// VAllGlobber is implemented by the server object without using a VDL
-	// generated stub.
-	if x, ok := server.(_gen_ipc.VAllGlobber); ok {
-		gs.VAllGlobber = x
-	}
-	// VChildrenGlobber is implemented in the server object.
-	if x, ok := server.(_gen_ipc.VChildrenGlobber); ok {
-		gs.VChildrenGlobber = x
-	}
-	stub.gs = &gs
 	return stub
 }
 
-// clientStubBenchmark implements Benchmark.
-type clientStubBenchmark struct {
-	defaultClient _gen_ipc.Client
-	name          string
+type implBenchmarkServerStub struct {
+	impl BenchmarkServerMethods
+	gs   *__ipc.GlobState
 }
 
-func (__gen_c *clientStubBenchmark) client(ctx _gen_context.T) _gen_ipc.Client {
-	if __gen_c.defaultClient != nil {
-		return __gen_c.defaultClient
-	}
-	return _gen_veyron2.RuntimeFromContext(ctx).Client()
+func (s implBenchmarkServerStub) Echo(call __ipc.ServerCall, i0 []byte) ([]byte, error) {
+	return s.impl.Echo(call, i0)
 }
 
-func (__gen_c *clientStubBenchmark) Echo(ctx _gen_context.T, Payload []byte, opts ..._gen_ipc.CallOpt) (reply []byte, err error) {
-	var call _gen_ipc.Call
-	if call, err = __gen_c.client(ctx).StartCall(ctx, __gen_c.name, "Echo", []interface{}{Payload}, opts...); err != nil {
-		return
-	}
-	if ierr := call.Finish(&reply, &err); ierr != nil {
-		err = ierr
-	}
-	return
+func (s implBenchmarkServerStub) EchoStream(call __ipc.ServerCall) error {
+	ctx := &implBenchmarkEchoStreamContext{call, implBenchmarkEchoStreamServerRecv{call: call}, implBenchmarkEchoStreamServerSend{call}}
+	return s.impl.EchoStream(ctx)
 }
 
-func (__gen_c *clientStubBenchmark) EchoStream(ctx _gen_context.T, opts ..._gen_ipc.CallOpt) (reply BenchmarkEchoStreamCall, err error) {
-	var call _gen_ipc.Call
-	if call, err = __gen_c.client(ctx).StartCall(ctx, __gen_c.name, "EchoStream", nil, opts...); err != nil {
-		return
-	}
-	reply = &implBenchmarkEchoStreamCall{clientCall: call, writeStream: implBenchmarkEchoStreamStreamSender{clientCall: call}, readStream: implBenchmarkEchoStreamStreamIterator{clientCall: call}}
-	return
+func (s implBenchmarkServerStub) VGlob() *__ipc.GlobState {
+	return s.gs
 }
 
-func (__gen_c *clientStubBenchmark) UnresolveStep(ctx _gen_context.T, opts ..._gen_ipc.CallOpt) (reply []string, err error) {
-	var call _gen_ipc.Call
-	if call, err = __gen_c.client(ctx).StartCall(ctx, __gen_c.name, "UnresolveStep", nil, opts...); err != nil {
-		return
-	}
-	if ierr := call.Finish(&reply, &err); ierr != nil {
-		err = ierr
-	}
-	return
-}
-
-func (__gen_c *clientStubBenchmark) Signature(ctx _gen_context.T, opts ..._gen_ipc.CallOpt) (reply _gen_ipc.ServiceSignature, err error) {
-	var call _gen_ipc.Call
-	if call, err = __gen_c.client(ctx).StartCall(ctx, __gen_c.name, "Signature", nil, opts...); err != nil {
-		return
-	}
-	if ierr := call.Finish(&reply, &err); ierr != nil {
-		err = ierr
-	}
-	return
-}
-
-func (__gen_c *clientStubBenchmark) GetMethodTags(ctx _gen_context.T, method string, opts ..._gen_ipc.CallOpt) (reply []interface{}, err error) {
-	var call _gen_ipc.Call
-	if call, err = __gen_c.client(ctx).StartCall(ctx, __gen_c.name, "GetMethodTags", []interface{}{method}, opts...); err != nil {
-		return
-	}
-	if ierr := call.Finish(&reply, &err); ierr != nil {
-		err = ierr
-	}
-	return
-}
-
-// ServerStubBenchmark wraps a server that implements
-// BenchmarkService and provides an object that satisfies
-// the requirements of veyron2/ipc.ReflectInvoker.
-type ServerStubBenchmark struct {
-	service BenchmarkService
-	gs      *_gen_ipc.GlobState
-}
-
-func (__gen_s *ServerStubBenchmark) GetMethodTags(call _gen_ipc.ServerCall, method string) ([]interface{}, error) {
-	// TODO(bprosnitz) GetMethodTags() will be replaces with Signature().
-	// Note: This exhibits some weird behavior like returning a nil error if the method isn't found.
-	// This will change when it is replaced with Signature().
+func (s implBenchmarkServerStub) GetMethodTags(call __ipc.ServerCall, method string) ([]interface{}, error) {
+	// TODO(toddw): Replace with new DescribeInterfaces implementation.
 	switch method {
 	case "Echo":
 		return []interface{}{}, nil
@@ -405,61 +288,105 @@ func (__gen_s *ServerStubBenchmark) GetMethodTags(call _gen_ipc.ServerCall, meth
 	}
 }
 
-func (__gen_s *ServerStubBenchmark) Signature(call _gen_ipc.ServerCall) (_gen_ipc.ServiceSignature, error) {
-	result := _gen_ipc.ServiceSignature{Methods: make(map[string]_gen_ipc.MethodSignature)}
-	result.Methods["Echo"] = _gen_ipc.MethodSignature{
-		InArgs: []_gen_ipc.MethodArgument{
+func (s implBenchmarkServerStub) Signature(call __ipc.ServerCall) (__ipc.ServiceSignature, error) {
+	// TODO(toddw) Replace with new DescribeInterfaces implementation.
+	result := __ipc.ServiceSignature{Methods: make(map[string]__ipc.MethodSignature)}
+	result.Methods["Echo"] = __ipc.MethodSignature{
+		InArgs: []__ipc.MethodArgument{
 			{Name: "Payload", Type: 66},
 		},
-		OutArgs: []_gen_ipc.MethodArgument{
+		OutArgs: []__ipc.MethodArgument{
 			{Name: "", Type: 66},
 			{Name: "", Type: 67},
 		},
 	}
-	result.Methods["EchoStream"] = _gen_ipc.MethodSignature{
-		InArgs: []_gen_ipc.MethodArgument{},
-		OutArgs: []_gen_ipc.MethodArgument{
+	result.Methods["EchoStream"] = __ipc.MethodSignature{
+		InArgs: []__ipc.MethodArgument{},
+		OutArgs: []__ipc.MethodArgument{
 			{Name: "", Type: 67},
 		},
 		InStream:  66,
 		OutStream: 66,
 	}
 
-	result.TypeDefs = []_gen_vdlutil.Any{
-		_gen_wiretype.NamedPrimitiveType{Type: 0x32, Name: "byte", Tags: []string(nil)}, _gen_wiretype.SliceType{Elem: 0x41, Name: "", Tags: []string(nil)}, _gen_wiretype.NamedPrimitiveType{Type: 0x1, Name: "error", Tags: []string(nil)}}
+	result.TypeDefs = []__vdlutil.Any{
+		__wiretype.NamedPrimitiveType{Type: 0x32, Name: "byte", Tags: []string(nil)}, __wiretype.SliceType{Elem: 0x41, Name: "", Tags: []string(nil)}, __wiretype.NamedPrimitiveType{Type: 0x1, Name: "error", Tags: []string(nil)}}
 
 	return result, nil
 }
 
-func (__gen_s *ServerStubBenchmark) UnresolveStep(call _gen_ipc.ServerCall) (reply []string, err error) {
-	if unresolver, ok := __gen_s.service.(_gen_ipc.Unresolver); ok {
-		return unresolver.UnresolveStep(call)
+// BenchmarkEchoStreamServerStream is the server stream for Benchmark.EchoStream.
+type BenchmarkEchoStreamServerStream interface {
+	// RecvStream returns the receiver side of the server stream.
+	RecvStream() interface {
+		// Advance stages an item so that it may be retrieved via Value.  Returns
+		// true iff there is an item to retrieve.  Advance must be called before
+		// Value is called.  May block if an item is not available.
+		Advance() bool
+		// Value returns the item that was staged by Advance.  May panic if Advance
+		// returned false or was not called.  Never blocks.
+		Value() []byte
+		// Err returns any error encountered by Advance.  Never blocks.
+		Err() error
 	}
-	if call.Server() == nil {
-		return
+	// SendStream returns the send side of the server stream.
+	SendStream() interface {
+		// Send places the item onto the output stream.  Returns errors encountered
+		// while sending.  Blocks if there is no buffer space; will unblock when
+		// buffer space is available.
+		Send(item []byte) error
 	}
-	var published []string
-	if published, err = call.Server().Published(); err != nil || published == nil {
-		return
-	}
-	reply = make([]string, len(published))
-	for i, p := range published {
-		reply[i] = _gen_naming.Join(p, call.Name())
-	}
-	return
 }
 
-func (__gen_s *ServerStubBenchmark) VGlob() *_gen_ipc.GlobState {
-	return __gen_s.gs
+// BenchmarkEchoStreamContext represents the context passed to Benchmark.EchoStream.
+type BenchmarkEchoStreamContext interface {
+	__ipc.ServerContext
+	BenchmarkEchoStreamServerStream
 }
 
-func (__gen_s *ServerStubBenchmark) Echo(call _gen_ipc.ServerCall, Payload []byte) (reply []byte, err error) {
-	reply, err = __gen_s.service.Echo(call, Payload)
-	return
+type implBenchmarkEchoStreamServerRecv struct {
+	call __ipc.ServerCall
+	val  []byte
+	err  error
 }
 
-func (__gen_s *ServerStubBenchmark) EchoStream(call _gen_ipc.ServerCall) (err error) {
-	stream := &implBenchmarkServiceEchoStreamStream{reader: implBenchmarkServiceEchoStreamStreamIterator{serverCall: call}, writer: implBenchmarkServiceEchoStreamStreamSender{serverCall: call}}
-	err = __gen_s.service.EchoStream(call, stream)
-	return
+func (s *implBenchmarkEchoStreamServerRecv) Advance() bool {
+	s.err = s.call.Recv(&s.val)
+	return s.err == nil
+}
+func (s *implBenchmarkEchoStreamServerRecv) Value() []byte {
+	return s.val
+}
+func (s *implBenchmarkEchoStreamServerRecv) Err() error {
+	if s.err == __io.EOF {
+		return nil
+	}
+	return s.err
+}
+
+type implBenchmarkEchoStreamServerSend struct {
+	call __ipc.ServerCall
+}
+
+func (s *implBenchmarkEchoStreamServerSend) Send(item []byte) error {
+	return s.call.Send(item)
+}
+
+type implBenchmarkEchoStreamContext struct {
+	__ipc.ServerContext
+	recv implBenchmarkEchoStreamServerRecv
+	send implBenchmarkEchoStreamServerSend
+}
+
+func (s *implBenchmarkEchoStreamContext) RecvStream() interface {
+	Advance() bool
+	Value() []byte
+	Err() error
+} {
+	return &s.recv
+}
+func (s *implBenchmarkEchoStreamContext) SendStream() interface {
+	Send(item []byte) error
+} {
+	return &s.send
 }
