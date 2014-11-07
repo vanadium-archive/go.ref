@@ -15,6 +15,7 @@ import (
 	"veyron.io/veyron/veyron2/ipc"
 	"veyron.io/veyron/veyron2/naming"
 	"veyron.io/veyron/veyron2/rt"
+	"veyron.io/veyron/veyron2/security"
 	"veyron.io/veyron/veyron2/services/mgmt/node"
 	"veyron.io/veyron/veyron2/verror"
 	"veyron.io/veyron/veyron2/vlog"
@@ -23,7 +24,7 @@ import (
 	"veyron.io/veyron/veyron/lib/flags/consts"
 	"veyron.io/veyron/veyron/lib/modules"
 	"veyron.io/veyron/veyron/lib/modules/core"
-	"veyron.io/veyron/veyron/lib/testutil/security"
+	tsecurity "veyron.io/veyron/veyron/lib/testutil/security"
 	"veyron.io/veyron/veyron/profiles/static"
 	"veyron.io/veyron/veyron/services/mgmt/node/impl"
 	"veyron.io/veyron/veyron2/services/mgmt/application"
@@ -53,7 +54,7 @@ func startRootMT(t *testing.T, sh *modules.Shell) (string, modules.Handle, *expe
 }
 
 func credentialsForChild(blessing string) (string, []string) {
-	creds := security.NewVeyronCredentials(rt.R().Principal(), blessing)
+	creds := tsecurity.NewVeyronCredentials(rt.R().Principal(), blessing)
 	return creds, []string{consts.VeyronCredentials + "=" + creds}
 }
 
@@ -229,8 +230,18 @@ func installApp(t *testing.T, opt ...veyron2.Runtime) string {
 	return appID
 }
 
+type granter struct {
+	ipc.CallOpt
+	p         security.Principal
+	extension string
+}
+
+func (g *granter) Grant(other security.Blessings) (security.Blessings, error) {
+	return g.p.Bless(other.PublicKey(), g.p.BlessingStore().Default(), g.extension, security.UnconstrainedUse())
+}
+
 func startAppImpl(t *testing.T, appID string, opt []veyron2.Runtime) (string, error) {
-	if instanceIDs, err := appStub(appID).Start(ort(opt).NewContext()); err != nil {
+	if instanceIDs, err := appStub(appID).Start(ort(opt).NewContext(), &granter{p: ort(opt).Principal(), extension: "forapp"}); err != nil {
 		return "", err
 	} else {
 		if want, got := 1, len(instanceIDs); want != got {
