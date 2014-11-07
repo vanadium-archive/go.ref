@@ -69,7 +69,7 @@ func NewDispatcher() *dispatcher {
 }
 
 func (d *dispatcher) Lookup(suffix, method string) (interface{}, security.Authorizer, error) {
-	invoker := ipc.ReflectInvoker(repository.NewServerApplication(&server{suffix: suffix}))
+	invoker := ipc.ReflectInvoker(repository.ApplicationServer(&server{suffix: suffix}))
 	return invoker, nil, nil
 }
 

@@ -157,7 +157,7 @@ func (i *invoker) Delete(context ipc.ServerContext) error {
 	return nil
 }
 
-func (i *invoker) Download(context ipc.ServerContext, part int32, stream repository.BinaryServiceDownloadStream) error {
+func (i *invoker) Download(context repository.BinaryDownloadContext, part int32) error {
 	vlog.Infof("%v.Download(%v)", i.suffix, part)
 	path := i.generatePartPath(int(part))
 	if err := checksumExists(path); err != nil {
@@ -171,7 +171,7 @@ func (i *invoker) Download(context ipc.ServerContext, part int32, stream reposit
 	}
 	defer file.Close()
 	buffer := make([]byte, bufferLength)
-	sender := stream.SendStream()
+	sender := context.SendStream()
 	for {
 		n, err := file.Read(buffer)
 		if err != nil && err != io.EOF {
@@ -228,7 +228,7 @@ func (i *invoker) Stat(ipc.ServerContext) ([]binary.PartInfo, error) {
 	return result, nil
 }
 
-func (i *invoker) Upload(context ipc.ServerContext, part int32, stream repository.BinaryServiceUploadStream) error {
+func (i *invoker) Upload(context repository.BinaryUploadContext, part int32) error {
 	vlog.Infof("%v.Upload(%v)", i.suffix, part)
 	path, suffix := i.generatePartPath(int(part)), ""
 	err := checksumExists(path)
@@ -258,7 +258,7 @@ func (i *invoker) Upload(context ipc.ServerContext, part int32, stream repositor
 	}
 	defer file.Close()
 	h := md5.New()
-	rStream := stream.RecvStream()
+	rStream := context.RecvStream()
 	for rStream.Advance() {
 		bytes := rStream.Value()
 		if _, err := file.Write(bytes); err != nil {

@@ -4,156 +4,382 @@
 package test_base
 
 import (
-	// The non-user imports are prefixed with "_gen_" to prevent collisions.
-	_gen_io "io"
-	_gen_veyron2 "veyron.io/veyron/veyron2"
-	_gen_context "veyron.io/veyron/veyron2/context"
-	_gen_ipc "veyron.io/veyron/veyron2/ipc"
-	_gen_naming "veyron.io/veyron/veyron2/naming"
-	_gen_vdlutil "veyron.io/veyron/veyron2/vdl/vdlutil"
-	_gen_wiretype "veyron.io/veyron/veyron2/wiretype"
+	// The non-user imports are prefixed with "__" to prevent collisions.
+	__io "io"
+	__veyron2 "veyron.io/veyron/veyron2"
+	__context "veyron.io/veyron/veyron2/context"
+	__ipc "veyron.io/veyron/veyron2/ipc"
+	__vdlutil "veyron.io/veyron/veyron2/vdl/vdlutil"
+	__wiretype "veyron.io/veyron/veyron2/wiretype"
 )
+
+// TODO(toddw): Remove this line once the new signature support is done.
+// It corrects a bug where __wiretype is unused in VDL pacakges where only
+// bootstrap types are used on interfaces.
+const _ = __wiretype.TypeIDInvalid
 
 type Struct struct {
 	X int32
 	Y int32
 }
 
-// TODO(toddw): Remove this line once the new signature support is done.
-// It corrects a bug where _gen_wiretype is unused in VDL pacakges where only
-// bootstrap types are used on interfaces.
-const _ = _gen_wiretype.TypeIDInvalid
-
-// TypeTester is the interface the client binds and uses.
-// TypeTester_ExcludingUniversal is the interface without internal framework-added methods
-// to enable embedding without method collisions.  Not to be used directly by clients.
-type TypeTester_ExcludingUniversal interface {
+// TypeTesterClientMethods is the client interface
+// containing TypeTester methods.
+type TypeTesterClientMethods interface {
 	// Methods to test support for generic types.
-	EchoBool(ctx _gen_context.T, I1 bool, opts ..._gen_ipc.CallOpt) (reply bool, err error)
-	EchoFloat32(ctx _gen_context.T, I1 float32, opts ..._gen_ipc.CallOpt) (reply float32, err error)
-	EchoFloat64(ctx _gen_context.T, I1 float64, opts ..._gen_ipc.CallOpt) (reply float64, err error)
-	EchoInt32(ctx _gen_context.T, I1 int32, opts ..._gen_ipc.CallOpt) (reply int32, err error)
-	EchoInt64(ctx _gen_context.T, I1 int64, opts ..._gen_ipc.CallOpt) (reply int64, err error)
-	EchoString(ctx _gen_context.T, I1 string, opts ..._gen_ipc.CallOpt) (reply string, err error)
-	EchoByte(ctx _gen_context.T, I1 byte, opts ..._gen_ipc.CallOpt) (reply byte, err error)
-	EchoUInt32(ctx _gen_context.T, I1 uint32, opts ..._gen_ipc.CallOpt) (reply uint32, err error)
-	EchoUInt64(ctx _gen_context.T, I1 uint64, opts ..._gen_ipc.CallOpt) (reply uint64, err error)
+	EchoBool(ctx __context.T, I1 bool, opts ...__ipc.CallOpt) (O1 bool, err error)
+	EchoFloat32(ctx __context.T, I1 float32, opts ...__ipc.CallOpt) (O1 float32, err error)
+	EchoFloat64(ctx __context.T, I1 float64, opts ...__ipc.CallOpt) (O1 float64, err error)
+	EchoInt32(ctx __context.T, I1 int32, opts ...__ipc.CallOpt) (O1 int32, err error)
+	EchoInt64(ctx __context.T, I1 int64, opts ...__ipc.CallOpt) (O1 int64, err error)
+	EchoString(ctx __context.T, I1 string, opts ...__ipc.CallOpt) (O1 string, err error)
+	EchoByte(ctx __context.T, I1 byte, opts ...__ipc.CallOpt) (O1 byte, err error)
+	EchoUInt32(ctx __context.T, I1 uint32, opts ...__ipc.CallOpt) (O1 uint32, err error)
+	EchoUInt64(ctx __context.T, I1 uint64, opts ...__ipc.CallOpt) (O1 uint64, err error)
 	// Methods to test support for composite types.
-	InputArray(ctx _gen_context.T, I1 [2]byte, opts ..._gen_ipc.CallOpt) (err error)
-	InputMap(ctx _gen_context.T, I1 map[byte]byte, opts ..._gen_ipc.CallOpt) (err error)
-	InputSlice(ctx _gen_context.T, I1 []byte, opts ..._gen_ipc.CallOpt) (err error)
-	InputStruct(ctx _gen_context.T, I1 Struct, opts ..._gen_ipc.CallOpt) (err error)
-	OutputArray(ctx _gen_context.T, opts ..._gen_ipc.CallOpt) (reply [2]byte, err error)
-	OutputMap(ctx _gen_context.T, opts ..._gen_ipc.CallOpt) (reply map[byte]byte, err error)
-	OutputSlice(ctx _gen_context.T, opts ..._gen_ipc.CallOpt) (reply []byte, err error)
-	OutputStruct(ctx _gen_context.T, opts ..._gen_ipc.CallOpt) (reply Struct, err error)
+	InputArray(ctx __context.T, I1 [2]byte, opts ...__ipc.CallOpt) error
+	InputMap(ctx __context.T, I1 map[byte]byte, opts ...__ipc.CallOpt) error
+	InputSlice(ctx __context.T, I1 []byte, opts ...__ipc.CallOpt) error
+	InputStruct(ctx __context.T, I1 Struct, opts ...__ipc.CallOpt) error
+	OutputArray(__context.T, ...__ipc.CallOpt) (O1 [2]byte, err error)
+	OutputMap(__context.T, ...__ipc.CallOpt) (O1 map[byte]byte, err error)
+	OutputSlice(__context.T, ...__ipc.CallOpt) (O1 []byte, err error)
+	OutputStruct(__context.T, ...__ipc.CallOpt) (O1 Struct, err error)
 	// Methods to test support for different number of arguments.
-	NoArguments(ctx _gen_context.T, opts ..._gen_ipc.CallOpt) (err error)
-	MultipleArguments(ctx _gen_context.T, I1 int32, I2 int32, opts ..._gen_ipc.CallOpt) (O1 int32, O2 int32, err error)
+	NoArguments(__context.T, ...__ipc.CallOpt) error
+	MultipleArguments(ctx __context.T, I1 int32, I2 int32, opts ...__ipc.CallOpt) (O1 int32, O2 int32, err error)
 	// Methods to test support for streaming.
-	StreamingOutput(ctx _gen_context.T, NumStreamItems int32, StreamItem bool, opts ..._gen_ipc.CallOpt) (reply TypeTesterStreamingOutputCall, err error)
-}
-type TypeTester interface {
-	_gen_ipc.UniversalServiceMethods
-	TypeTester_ExcludingUniversal
+	StreamingOutput(ctx __context.T, NumStreamItems int32, StreamItem bool, opts ...__ipc.CallOpt) (TypeTesterStreamingOutputCall, error)
 }
 
-// TypeTesterService is the interface the server implements.
-type TypeTesterService interface {
-
-	// Methods to test support for generic types.
-	EchoBool(context _gen_ipc.ServerContext, I1 bool) (reply bool, err error)
-	EchoFloat32(context _gen_ipc.ServerContext, I1 float32) (reply float32, err error)
-	EchoFloat64(context _gen_ipc.ServerContext, I1 float64) (reply float64, err error)
-	EchoInt32(context _gen_ipc.ServerContext, I1 int32) (reply int32, err error)
-	EchoInt64(context _gen_ipc.ServerContext, I1 int64) (reply int64, err error)
-	EchoString(context _gen_ipc.ServerContext, I1 string) (reply string, err error)
-	EchoByte(context _gen_ipc.ServerContext, I1 byte) (reply byte, err error)
-	EchoUInt32(context _gen_ipc.ServerContext, I1 uint32) (reply uint32, err error)
-	EchoUInt64(context _gen_ipc.ServerContext, I1 uint64) (reply uint64, err error)
-	// Methods to test support for composite types.
-	InputArray(context _gen_ipc.ServerContext, I1 [2]byte) (err error)
-	InputMap(context _gen_ipc.ServerContext, I1 map[byte]byte) (err error)
-	InputSlice(context _gen_ipc.ServerContext, I1 []byte) (err error)
-	InputStruct(context _gen_ipc.ServerContext, I1 Struct) (err error)
-	OutputArray(context _gen_ipc.ServerContext) (reply [2]byte, err error)
-	OutputMap(context _gen_ipc.ServerContext) (reply map[byte]byte, err error)
-	OutputSlice(context _gen_ipc.ServerContext) (reply []byte, err error)
-	OutputStruct(context _gen_ipc.ServerContext) (reply Struct, err error)
-	// Methods to test support for different number of arguments.
-	NoArguments(context _gen_ipc.ServerContext) (err error)
-	MultipleArguments(context _gen_ipc.ServerContext, I1 int32, I2 int32) (O1 int32, O2 int32, err error)
-	// Methods to test support for streaming.
-	StreamingOutput(context _gen_ipc.ServerContext, NumStreamItems int32, StreamItem bool, stream TypeTesterServiceStreamingOutputStream) (err error)
+// TypeTesterClientStub adds universal methods to TypeTesterClientMethods.
+type TypeTesterClientStub interface {
+	TypeTesterClientMethods
+	__ipc.UniversalServiceMethods
 }
 
-// TypeTesterStreamingOutputCall is the interface for call object of the method
-// StreamingOutput in the service interface TypeTester.
-type TypeTesterStreamingOutputCall interface {
-	// RecvStream returns the recv portion of the stream
+// TypeTesterClient returns a client stub for TypeTester.
+func TypeTesterClient(name string, opts ...__ipc.BindOpt) TypeTesterClientStub {
+	var client __ipc.Client
+	for _, opt := range opts {
+		if clientOpt, ok := opt.(__ipc.Client); ok {
+			client = clientOpt
+		}
+	}
+	return implTypeTesterClientStub{name, client}
+}
+
+type implTypeTesterClientStub struct {
+	name   string
+	client __ipc.Client
+}
+
+func (c implTypeTesterClientStub) c(ctx __context.T) __ipc.Client {
+	if c.client != nil {
+		return c.client
+	}
+	return __veyron2.RuntimeFromContext(ctx).Client()
+}
+
+func (c implTypeTesterClientStub) EchoBool(ctx __context.T, i0 bool, opts ...__ipc.CallOpt) (o0 bool, err error) {
+	var call __ipc.Call
+	if call, err = c.c(ctx).StartCall(ctx, c.name, "EchoBool", []interface{}{i0}, opts...); err != nil {
+		return
+	}
+	if ierr := call.Finish(&o0, &err); ierr != nil {
+		err = ierr
+	}
+	return
+}
+
+func (c implTypeTesterClientStub) EchoFloat32(ctx __context.T, i0 float32, opts ...__ipc.CallOpt) (o0 float32, err error) {
+	var call __ipc.Call
+	if call, err = c.c(ctx).StartCall(ctx, c.name, "EchoFloat32", []interface{}{i0}, opts...); err != nil {
+		return
+	}
+	if ierr := call.Finish(&o0, &err); ierr != nil {
+		err = ierr
+	}
+	return
+}
+
+func (c implTypeTesterClientStub) EchoFloat64(ctx __context.T, i0 float64, opts ...__ipc.CallOpt) (o0 float64, err error) {
+	var call __ipc.Call
+	if call, err = c.c(ctx).StartCall(ctx, c.name, "EchoFloat64", []interface{}{i0}, opts...); err != nil {
+		return
+	}
+	if ierr := call.Finish(&o0, &err); ierr != nil {
+		err = ierr
+	}
+	return
+}
+
+func (c implTypeTesterClientStub) EchoInt32(ctx __context.T, i0 int32, opts ...__ipc.CallOpt) (o0 int32, err error) {
+	var call __ipc.Call
+	if call, err = c.c(ctx).StartCall(ctx, c.name, "EchoInt32", []interface{}{i0}, opts...); err != nil {
+		return
+	}
+	if ierr := call.Finish(&o0, &err); ierr != nil {
+		err = ierr
+	}
+	return
+}
+
+func (c implTypeTesterClientStub) EchoInt64(ctx __context.T, i0 int64, opts ...__ipc.CallOpt) (o0 int64, err error) {
+	var call __ipc.Call
+	if call, err = c.c(ctx).StartCall(ctx, c.name, "EchoInt64", []interface{}{i0}, opts...); err != nil {
+		return
+	}
+	if ierr := call.Finish(&o0, &err); ierr != nil {
+		err = ierr
+	}
+	return
+}
+
+func (c implTypeTesterClientStub) EchoString(ctx __context.T, i0 string, opts ...__ipc.CallOpt) (o0 string, err error) {
+	var call __ipc.Call
+	if call, err = c.c(ctx).StartCall(ctx, c.name, "EchoString", []interface{}{i0}, opts...); err != nil {
+		return
+	}
+	if ierr := call.Finish(&o0, &err); ierr != nil {
+		err = ierr
+	}
+	return
+}
+
+func (c implTypeTesterClientStub) EchoByte(ctx __context.T, i0 byte, opts ...__ipc.CallOpt) (o0 byte, err error) {
+	var call __ipc.Call
+	if call, err = c.c(ctx).StartCall(ctx, c.name, "EchoByte", []interface{}{i0}, opts...); err != nil {
+		return
+	}
+	if ierr := call.Finish(&o0, &err); ierr != nil {
+		err = ierr
+	}
+	return
+}
+
+func (c implTypeTesterClientStub) EchoUInt32(ctx __context.T, i0 uint32, opts ...__ipc.CallOpt) (o0 uint32, err error) {
+	var call __ipc.Call
+	if call, err = c.c(ctx).StartCall(ctx, c.name, "EchoUInt32", []interface{}{i0}, opts...); err != nil {
+		return
+	}
+	if ierr := call.Finish(&o0, &err); ierr != nil {
+		err = ierr
+	}
+	return
+}
+
+func (c implTypeTesterClientStub) EchoUInt64(ctx __context.T, i0 uint64, opts ...__ipc.CallOpt) (o0 uint64, err error) {
+	var call __ipc.Call
+	if call, err = c.c(ctx).StartCall(ctx, c.name, "EchoUInt64", []interface{}{i0}, opts...); err != nil {
+		return
+	}
+	if ierr := call.Finish(&o0, &err); ierr != nil {
+		err = ierr
+	}
+	return
+}
+
+func (c implTypeTesterClientStub) InputArray(ctx __context.T, i0 [2]byte, opts ...__ipc.CallOpt) (err error) {
+	var call __ipc.Call
+	if call, err = c.c(ctx).StartCall(ctx, c.name, "InputArray", []interface{}{i0}, opts...); err != nil {
+		return
+	}
+	if ierr := call.Finish(&err); ierr != nil {
+		err = ierr
+	}
+	return
+}
+
+func (c implTypeTesterClientStub) InputMap(ctx __context.T, i0 map[byte]byte, opts ...__ipc.CallOpt) (err error) {
+	var call __ipc.Call
+	if call, err = c.c(ctx).StartCall(ctx, c.name, "InputMap", []interface{}{i0}, opts...); err != nil {
+		return
+	}
+	if ierr := call.Finish(&err); ierr != nil {
+		err = ierr
+	}
+	return
+}
+
+func (c implTypeTesterClientStub) InputSlice(ctx __context.T, i0 []byte, opts ...__ipc.CallOpt) (err error) {
+	var call __ipc.Call
+	if call, err = c.c(ctx).StartCall(ctx, c.name, "InputSlice", []interface{}{i0}, opts...); err != nil {
+		return
+	}
+	if ierr := call.Finish(&err); ierr != nil {
+		err = ierr
+	}
+	return
+}
+
+func (c implTypeTesterClientStub) InputStruct(ctx __context.T, i0 Struct, opts ...__ipc.CallOpt) (err error) {
+	var call __ipc.Call
+	if call, err = c.c(ctx).StartCall(ctx, c.name, "InputStruct", []interface{}{i0}, opts...); err != nil {
+		return
+	}
+	if ierr := call.Finish(&err); ierr != nil {
+		err = ierr
+	}
+	return
+}
+
+func (c implTypeTesterClientStub) OutputArray(ctx __context.T, opts ...__ipc.CallOpt) (o0 [2]byte, err error) {
+	var call __ipc.Call
+	if call, err = c.c(ctx).StartCall(ctx, c.name, "OutputArray", nil, opts...); err != nil {
+		return
+	}
+	if ierr := call.Finish(&o0, &err); ierr != nil {
+		err = ierr
+	}
+	return
+}
+
+func (c implTypeTesterClientStub) OutputMap(ctx __context.T, opts ...__ipc.CallOpt) (o0 map[byte]byte, err error) {
+	var call __ipc.Call
+	if call, err = c.c(ctx).StartCall(ctx, c.name, "OutputMap", nil, opts...); err != nil {
+		return
+	}
+	if ierr := call.Finish(&o0, &err); ierr != nil {
+		err = ierr
+	}
+	return
+}
+
+func (c implTypeTesterClientStub) OutputSlice(ctx __context.T, opts ...__ipc.CallOpt) (o0 []byte, err error) {
+	var call __ipc.Call
+	if call, err = c.c(ctx).StartCall(ctx, c.name, "OutputSlice", nil, opts...); err != nil {
+		return
+	}
+	if ierr := call.Finish(&o0, &err); ierr != nil {
+		err = ierr
+	}
+	return
+}
+
+func (c implTypeTesterClientStub) OutputStruct(ctx __context.T, opts ...__ipc.CallOpt) (o0 Struct, err error) {
+	var call __ipc.Call
+	if call, err = c.c(ctx).StartCall(ctx, c.name, "OutputStruct", nil, opts...); err != nil {
+		return
+	}
+	if ierr := call.Finish(&o0, &err); ierr != nil {
+		err = ierr
+	}
+	return
+}
+
+func (c implTypeTesterClientStub) NoArguments(ctx __context.T, opts ...__ipc.CallOpt) (err error) {
+	var call __ipc.Call
+	if call, err = c.c(ctx).StartCall(ctx, c.name, "NoArguments", nil, opts...); err != nil {
+		return
+	}
+	if ierr := call.Finish(&err); ierr != nil {
+		err = ierr
+	}
+	return
+}
+
+func (c implTypeTesterClientStub) MultipleArguments(ctx __context.T, i0 int32, i1 int32, opts ...__ipc.CallOpt) (o0 int32, o1 int32, err error) {
+	var call __ipc.Call
+	if call, err = c.c(ctx).StartCall(ctx, c.name, "MultipleArguments", []interface{}{i0, i1}, opts...); err != nil {
+		return
+	}
+	if ierr := call.Finish(&o0, &o1, &err); ierr != nil {
+		err = ierr
+	}
+	return
+}
+
+func (c implTypeTesterClientStub) StreamingOutput(ctx __context.T, i0 int32, i1 bool, opts ...__ipc.CallOpt) (ocall TypeTesterStreamingOutputCall, err error) {
+	var call __ipc.Call
+	if call, err = c.c(ctx).StartCall(ctx, c.name, "StreamingOutput", []interface{}{i0, i1}, opts...); err != nil {
+		return
+	}
+	ocall = &implTypeTesterStreamingOutputCall{call, implTypeTesterStreamingOutputClientRecv{call: call}}
+	return
+}
+
+func (c implTypeTesterClientStub) Signature(ctx __context.T, opts ...__ipc.CallOpt) (o0 __ipc.ServiceSignature, err error) {
+	var call __ipc.Call
+	if call, err = c.c(ctx).StartCall(ctx, c.name, "Signature", nil, opts...); err != nil {
+		return
+	}
+	if ierr := call.Finish(&o0, &err); ierr != nil {
+		err = ierr
+	}
+	return
+}
+
+func (c implTypeTesterClientStub) GetMethodTags(ctx __context.T, method string, opts ...__ipc.CallOpt) (o0 []interface{}, err error) {
+	var call __ipc.Call
+	if call, err = c.c(ctx).StartCall(ctx, c.name, "GetMethodTags", []interface{}{method}, opts...); err != nil {
+		return
+	}
+	if ierr := call.Finish(&o0, &err); ierr != nil {
+		err = ierr
+	}
+	return
+}
+
+// TypeTesterStreamingOutputClientStream is the client stream for TypeTester.StreamingOutput.
+type TypeTesterStreamingOutputClientStream interface {
+	// RecvStream returns the receiver side of the client stream.
 	RecvStream() interface {
-		// Advance stages an element so the client can retrieve it
-		// with Value.  Advance returns true iff there is an
-		// element to retrieve.  The client must call Advance before
-		// calling Value. Advance may block if an element is not
-		// immediately available.
+		// Advance stages an item so that it may be retrieved via Value.  Returns
+		// true iff there is an item to retrieve.  Advance must be called before
+		// Value is called.  May block if an item is not available.
 		Advance() bool
-
-		// Value returns the element that was staged by Advance.
-		// Value may panic if Advance returned false or was not
-		// called at all.  Value does not block.
+		// Value returns the item that was staged by Advance.  May panic if Advance
+		// returned false or was not called.  Never blocks.
 		Value() bool
-
-		// Err returns a non-nil error iff the stream encountered
-		// any errors.  Err does not block.
+		// Err returns any error encountered by Advance.  Never blocks.
 		Err() error
 	}
+}
 
-	// Finish blocks until the server is done and returns the positional
-	// return values for call.
+// TypeTesterStreamingOutputCall represents the call returned from TypeTester.StreamingOutput.
+type TypeTesterStreamingOutputCall interface {
+	TypeTesterStreamingOutputClientStream
+	// Finish blocks until the server is done, and returns the positional return
+	// values for call.
 	//
-	// If Cancel has been called, Finish will return immediately; the output of
-	// Finish could either be an error signalling cancelation, or the correct
-	// positional return values from the server depending on the timing of the
-	// call.
+	// Finish returns immediately if Cancel has been called; depending on the
+	// timing the output could either be an error signaling cancelation, or the
+	// valid positional return values from the server.
 	//
 	// Calling Finish is mandatory for releasing stream resources, unless Cancel
-	// has been called or any of the other methods return an error.
-	// Finish should be called at most once.
-	Finish() (err error)
-
-	// Cancel cancels the RPC, notifying the server to stop processing.  It
-	// is safe to call Cancel concurrently with any of the other stream methods.
+	// has been called or any of the other methods return an error.  Finish should
+	// be called at most once.
+	Finish() error
+	// Cancel cancels the RPC, notifying the server to stop processing.  It is
+	// safe to call Cancel concurrently with any of the other stream methods.
 	// Calling Cancel after Finish has returned is a no-op.
 	Cancel()
 }
 
-type implTypeTesterStreamingOutputStreamIterator struct {
-	clientCall _gen_ipc.Call
-	val        bool
-	err        error
+type implTypeTesterStreamingOutputClientRecv struct {
+	call __ipc.Call
+	val  bool
+	err  error
 }
 
-func (c *implTypeTesterStreamingOutputStreamIterator) Advance() bool {
-	c.err = c.clientCall.Recv(&c.val)
+func (c *implTypeTesterStreamingOutputClientRecv) Advance() bool {
+	c.err = c.call.Recv(&c.val)
 	return c.err == nil
 }
-
-func (c *implTypeTesterStreamingOutputStreamIterator) Value() bool {
+func (c *implTypeTesterStreamingOutputClientRecv) Value() bool {
 	return c.val
 }
-
-func (c *implTypeTesterStreamingOutputStreamIterator) Err() error {
-	if c.err == _gen_io.EOF {
+func (c *implTypeTesterStreamingOutputClientRecv) Err() error {
+	if c.err == __io.EOF {
 		return nil
 	}
 	return c.err
 }
 
-// Implementation of the TypeTesterStreamingOutputCall interface that is not exported.
 type implTypeTesterStreamingOutputCall struct {
-	clientCall _gen_ipc.Call
-	readStream implTypeTesterStreamingOutputStreamIterator
+	call __ipc.Call
+	recv implTypeTesterStreamingOutputClientRecv
 }
 
 func (c *implTypeTesterStreamingOutputCall) RecvStream() interface {
@@ -161,380 +387,197 @@ func (c *implTypeTesterStreamingOutputCall) RecvStream() interface {
 	Value() bool
 	Err() error
 } {
-	return &c.readStream
+	return &c.recv
 }
-
 func (c *implTypeTesterStreamingOutputCall) Finish() (err error) {
-	if ierr := c.clientCall.Finish(&err); ierr != nil {
+	if ierr := c.call.Finish(&err); ierr != nil {
 		err = ierr
 	}
 	return
 }
-
 func (c *implTypeTesterStreamingOutputCall) Cancel() {
-	c.clientCall.Cancel()
+	c.call.Cancel()
 }
 
-type implTypeTesterServiceStreamingOutputStreamSender struct {
-	serverCall _gen_ipc.ServerCall
+// TypeTesterServerMethods is the interface a server writer
+// implements for TypeTester.
+type TypeTesterServerMethods interface {
+	// Methods to test support for generic types.
+	EchoBool(ctx __ipc.ServerContext, I1 bool) (O1 bool, E error)
+	EchoFloat32(ctx __ipc.ServerContext, I1 float32) (O1 float32, E error)
+	EchoFloat64(ctx __ipc.ServerContext, I1 float64) (O1 float64, E error)
+	EchoInt32(ctx __ipc.ServerContext, I1 int32) (O1 int32, E error)
+	EchoInt64(ctx __ipc.ServerContext, I1 int64) (O1 int64, E error)
+	EchoString(ctx __ipc.ServerContext, I1 string) (O1 string, E error)
+	EchoByte(ctx __ipc.ServerContext, I1 byte) (O1 byte, E error)
+	EchoUInt32(ctx __ipc.ServerContext, I1 uint32) (O1 uint32, E error)
+	EchoUInt64(ctx __ipc.ServerContext, I1 uint64) (O1 uint64, E error)
+	// Methods to test support for composite types.
+	InputArray(ctx __ipc.ServerContext, I1 [2]byte) (E error)
+	InputMap(ctx __ipc.ServerContext, I1 map[byte]byte) (E error)
+	InputSlice(ctx __ipc.ServerContext, I1 []byte) (E error)
+	InputStruct(ctx __ipc.ServerContext, I1 Struct) (E error)
+	OutputArray(__ipc.ServerContext) (O1 [2]byte, E error)
+	OutputMap(__ipc.ServerContext) (O1 map[byte]byte, E error)
+	OutputSlice(__ipc.ServerContext) (O1 []byte, E error)
+	OutputStruct(__ipc.ServerContext) (O1 Struct, E error)
+	// Methods to test support for different number of arguments.
+	NoArguments(__ipc.ServerContext) error
+	MultipleArguments(ctx __ipc.ServerContext, I1 int32, I2 int32) (O1 int32, O2 int32, E error)
+	// Methods to test support for streaming.
+	StreamingOutput(ctx TypeTesterStreamingOutputContext, NumStreamItems int32, StreamItem bool) error
 }
 
-func (s *implTypeTesterServiceStreamingOutputStreamSender) Send(item bool) error {
-	return s.serverCall.Send(item)
+// TypeTesterServerStubMethods is the server interface containing
+// TypeTester methods, as expected by ipc.Server.  The difference between
+// this interface and TypeTesterServerMethods is that the first context
+// argument for each method is always ipc.ServerCall here, while it is either
+// ipc.ServerContext or a typed streaming context there.
+type TypeTesterServerStubMethods interface {
+	// Methods to test support for generic types.
+	EchoBool(call __ipc.ServerCall, I1 bool) (O1 bool, E error)
+	EchoFloat32(call __ipc.ServerCall, I1 float32) (O1 float32, E error)
+	EchoFloat64(call __ipc.ServerCall, I1 float64) (O1 float64, E error)
+	EchoInt32(call __ipc.ServerCall, I1 int32) (O1 int32, E error)
+	EchoInt64(call __ipc.ServerCall, I1 int64) (O1 int64, E error)
+	EchoString(call __ipc.ServerCall, I1 string) (O1 string, E error)
+	EchoByte(call __ipc.ServerCall, I1 byte) (O1 byte, E error)
+	EchoUInt32(call __ipc.ServerCall, I1 uint32) (O1 uint32, E error)
+	EchoUInt64(call __ipc.ServerCall, I1 uint64) (O1 uint64, E error)
+	// Methods to test support for composite types.
+	InputArray(call __ipc.ServerCall, I1 [2]byte) (E error)
+	InputMap(call __ipc.ServerCall, I1 map[byte]byte) (E error)
+	InputSlice(call __ipc.ServerCall, I1 []byte) (E error)
+	InputStruct(call __ipc.ServerCall, I1 Struct) (E error)
+	OutputArray(__ipc.ServerCall) (O1 [2]byte, E error)
+	OutputMap(__ipc.ServerCall) (O1 map[byte]byte, E error)
+	OutputSlice(__ipc.ServerCall) (O1 []byte, E error)
+	OutputStruct(__ipc.ServerCall) (O1 Struct, E error)
+	// Methods to test support for different number of arguments.
+	NoArguments(__ipc.ServerCall) error
+	MultipleArguments(call __ipc.ServerCall, I1 int32, I2 int32) (O1 int32, O2 int32, E error)
+	// Methods to test support for streaming.
+	StreamingOutput(call __ipc.ServerCall, NumStreamItems int32, StreamItem bool) error
 }
 
-// TypeTesterServiceStreamingOutputStream is the interface for streaming responses of the method
-// StreamingOutput in the service interface TypeTester.
-type TypeTesterServiceStreamingOutputStream interface {
-	// SendStream returns the send portion of the stream.
-	SendStream() interface {
-		// Send places the item onto the output stream, blocking if there is no buffer
-		// space available.  If the client has canceled, an error is returned.
-		Send(item bool) error
+// TypeTesterServerStub adds universal methods to TypeTesterServerStubMethods.
+type TypeTesterServerStub interface {
+	TypeTesterServerStubMethods
+	// GetMethodTags will be replaced with DescribeInterfaces.
+	GetMethodTags(call __ipc.ServerCall, method string) ([]interface{}, error)
+	// Signature will be replaced with DescribeInterfaces.
+	Signature(call __ipc.ServerCall) (__ipc.ServiceSignature, error)
+}
+
+// TypeTesterServer returns a server stub for TypeTester.
+// It converts an implementation of TypeTesterServerMethods into
+// an object that may be used by ipc.Server.
+func TypeTesterServer(impl TypeTesterServerMethods) TypeTesterServerStub {
+	stub := implTypeTesterServerStub{
+		impl: impl,
 	}
-}
-
-// Implementation of the TypeTesterServiceStreamingOutputStream interface that is not exported.
-type implTypeTesterServiceStreamingOutputStream struct {
-	writer implTypeTesterServiceStreamingOutputStreamSender
-}
-
-func (s *implTypeTesterServiceStreamingOutputStream) SendStream() interface {
-	// Send places the item onto the output stream, blocking if there is no buffer
-	// space available.  If the client has canceled, an error is returned.
-	Send(item bool) error
-} {
-	return &s.writer
-}
-
-// BindTypeTester returns the client stub implementing the TypeTester
-// interface.
-//
-// If no _gen_ipc.Client is specified, the default _gen_ipc.Client in the
-// global Runtime is used.
-func BindTypeTester(name string, opts ..._gen_ipc.BindOpt) (TypeTester, error) {
-	var client _gen_ipc.Client
-	switch len(opts) {
-	case 0:
-		// Do nothing.
-	case 1:
-		if clientOpt, ok := opts[0].(_gen_ipc.Client); opts[0] == nil || ok {
-			client = clientOpt
-		} else {
-			return nil, _gen_vdlutil.ErrUnrecognizedOption
-		}
-	default:
-		return nil, _gen_vdlutil.ErrTooManyOptionsToBind
+	// Initialize GlobState; always check the stub itself first, to handle the
+	// case where the user has the Glob method defined in their VDL source.
+	if gs := __ipc.NewGlobState(stub); gs != nil {
+		stub.gs = gs
+	} else if gs := __ipc.NewGlobState(impl); gs != nil {
+		stub.gs = gs
 	}
-	stub := &clientStubTypeTester{defaultClient: client, name: name}
-
-	return stub, nil
-}
-
-// NewServerTypeTester creates a new server stub.
-//
-// It takes a regular server implementing the TypeTesterService
-// interface, and returns a new server stub.
-func NewServerTypeTester(server TypeTesterService) interface{} {
-	stub := &ServerStubTypeTester{
-		service: server,
-	}
-	var gs _gen_ipc.GlobState
-	var self interface{} = stub
-	// VAllGlobber is implemented by the server object, which is wrapped in
-	// a VDL generated server stub.
-	if x, ok := self.(_gen_ipc.VAllGlobber); ok {
-		gs.VAllGlobber = x
-	}
-	// VAllGlobber is implemented by the server object without using a VDL
-	// generated stub.
-	if x, ok := server.(_gen_ipc.VAllGlobber); ok {
-		gs.VAllGlobber = x
-	}
-	// VChildrenGlobber is implemented in the server object.
-	if x, ok := server.(_gen_ipc.VChildrenGlobber); ok {
-		gs.VChildrenGlobber = x
-	}
-	stub.gs = &gs
 	return stub
 }
 
-// clientStubTypeTester implements TypeTester.
-type clientStubTypeTester struct {
-	defaultClient _gen_ipc.Client
-	name          string
+type implTypeTesterServerStub struct {
+	impl TypeTesterServerMethods
+	gs   *__ipc.GlobState
 }
 
-func (__gen_c *clientStubTypeTester) client(ctx _gen_context.T) _gen_ipc.Client {
-	if __gen_c.defaultClient != nil {
-		return __gen_c.defaultClient
-	}
-	return _gen_veyron2.RuntimeFromContext(ctx).Client()
+func (s implTypeTesterServerStub) EchoBool(call __ipc.ServerCall, i0 bool) (bool, error) {
+	return s.impl.EchoBool(call, i0)
 }
 
-func (__gen_c *clientStubTypeTester) EchoBool(ctx _gen_context.T, I1 bool, opts ..._gen_ipc.CallOpt) (reply bool, err error) {
-	var call _gen_ipc.Call
-	if call, err = __gen_c.client(ctx).StartCall(ctx, __gen_c.name, "EchoBool", []interface{}{I1}, opts...); err != nil {
-		return
-	}
-	if ierr := call.Finish(&reply, &err); ierr != nil {
-		err = ierr
-	}
-	return
+func (s implTypeTesterServerStub) EchoFloat32(call __ipc.ServerCall, i0 float32) (float32, error) {
+	return s.impl.EchoFloat32(call, i0)
 }
 
-func (__gen_c *clientStubTypeTester) EchoFloat32(ctx _gen_context.T, I1 float32, opts ..._gen_ipc.CallOpt) (reply float32, err error) {
-	var call _gen_ipc.Call
-	if call, err = __gen_c.client(ctx).StartCall(ctx, __gen_c.name, "EchoFloat32", []interface{}{I1}, opts...); err != nil {
-		return
-	}
-	if ierr := call.Finish(&reply, &err); ierr != nil {
-		err = ierr
-	}
-	return
+func (s implTypeTesterServerStub) EchoFloat64(call __ipc.ServerCall, i0 float64) (float64, error) {
+	return s.impl.EchoFloat64(call, i0)
 }
 
-func (__gen_c *clientStubTypeTester) EchoFloat64(ctx _gen_context.T, I1 float64, opts ..._gen_ipc.CallOpt) (reply float64, err error) {
-	var call _gen_ipc.Call
-	if call, err = __gen_c.client(ctx).StartCall(ctx, __gen_c.name, "EchoFloat64", []interface{}{I1}, opts...); err != nil {
-		return
-	}
-	if ierr := call.Finish(&reply, &err); ierr != nil {
-		err = ierr
-	}
-	return
+func (s implTypeTesterServerStub) EchoInt32(call __ipc.ServerCall, i0 int32) (int32, error) {
+	return s.impl.EchoInt32(call, i0)
 }
 
-func (__gen_c *clientStubTypeTester) EchoInt32(ctx _gen_context.T, I1 int32, opts ..._gen_ipc.CallOpt) (reply int32, err error) {
-	var call _gen_ipc.Call
-	if call, err = __gen_c.client(ctx).StartCall(ctx, __gen_c.name, "EchoInt32", []interface{}{I1}, opts...); err != nil {
-		return
-	}
-	if ierr := call.Finish(&reply, &err); ierr != nil {
-		err = ierr
-	}
-	return
+func (s implTypeTesterServerStub) EchoInt64(call __ipc.ServerCall, i0 int64) (int64, error) {
+	return s.impl.EchoInt64(call, i0)
 }
 
-func (__gen_c *clientStubTypeTester) EchoInt64(ctx _gen_context.T, I1 int64, opts ..._gen_ipc.CallOpt) (reply int64, err error) {
-	var call _gen_ipc.Call
-	if call, err = __gen_c.client(ctx).StartCall(ctx, __gen_c.name, "EchoInt64", []interface{}{I1}, opts...); err != nil {
-		return
-	}
-	if ierr := call.Finish(&reply, &err); ierr != nil {
-		err = ierr
-	}
-	return
+func (s implTypeTesterServerStub) EchoString(call __ipc.ServerCall, i0 string) (string, error) {
+	return s.impl.EchoString(call, i0)
 }
 
-func (__gen_c *clientStubTypeTester) EchoString(ctx _gen_context.T, I1 string, opts ..._gen_ipc.CallOpt) (reply string, err error) {
-	var call _gen_ipc.Call
-	if call, err = __gen_c.client(ctx).StartCall(ctx, __gen_c.name, "EchoString", []interface{}{I1}, opts...); err != nil {
-		return
-	}
-	if ierr := call.Finish(&reply, &err); ierr != nil {
-		err = ierr
-	}
-	return
+func (s implTypeTesterServerStub) EchoByte(call __ipc.ServerCall, i0 byte) (byte, error) {
+	return s.impl.EchoByte(call, i0)
 }
 
-func (__gen_c *clientStubTypeTester) EchoByte(ctx _gen_context.T, I1 byte, opts ..._gen_ipc.CallOpt) (reply byte, err error) {
-	var call _gen_ipc.Call
-	if call, err = __gen_c.client(ctx).StartCall(ctx, __gen_c.name, "EchoByte", []interface{}{I1}, opts...); err != nil {
-		return
-	}
-	if ierr := call.Finish(&reply, &err); ierr != nil {
-		err = ierr
-	}
-	return
+func (s implTypeTesterServerStub) EchoUInt32(call __ipc.ServerCall, i0 uint32) (uint32, error) {
+	return s.impl.EchoUInt32(call, i0)
 }
 
-func (__gen_c *clientStubTypeTester) EchoUInt32(ctx _gen_context.T, I1 uint32, opts ..._gen_ipc.CallOpt) (reply uint32, err error) {
-	var call _gen_ipc.Call
-	if call, err = __gen_c.client(ctx).StartCall(ctx, __gen_c.name, "EchoUInt32", []interface{}{I1}, opts...); err != nil {
-		return
-	}
-	if ierr := call.Finish(&reply, &err); ierr != nil {
-		err = ierr
-	}
-	return
+func (s implTypeTesterServerStub) EchoUInt64(call __ipc.ServerCall, i0 uint64) (uint64, error) {
+	return s.impl.EchoUInt64(call, i0)
 }
 
-func (__gen_c *clientStubTypeTester) EchoUInt64(ctx _gen_context.T, I1 uint64, opts ..._gen_ipc.CallOpt) (reply uint64, err error) {
-	var call _gen_ipc.Call
-	if call, err = __gen_c.client(ctx).StartCall(ctx, __gen_c.name, "EchoUInt64", []interface{}{I1}, opts...); err != nil {
-		return
-	}
-	if ierr := call.Finish(&reply, &err); ierr != nil {
-		err = ierr
-	}
-	return
+func (s implTypeTesterServerStub) InputArray(call __ipc.ServerCall, i0 [2]byte) error {
+	return s.impl.InputArray(call, i0)
 }
 
-func (__gen_c *clientStubTypeTester) InputArray(ctx _gen_context.T, I1 [2]byte, opts ..._gen_ipc.CallOpt) (err error) {
-	var call _gen_ipc.Call
-	if call, err = __gen_c.client(ctx).StartCall(ctx, __gen_c.name, "InputArray", []interface{}{I1}, opts...); err != nil {
-		return
-	}
-	if ierr := call.Finish(&err); ierr != nil {
-		err = ierr
-	}
-	return
+func (s implTypeTesterServerStub) InputMap(call __ipc.ServerCall, i0 map[byte]byte) error {
+	return s.impl.InputMap(call, i0)
 }
 
-func (__gen_c *clientStubTypeTester) InputMap(ctx _gen_context.T, I1 map[byte]byte, opts ..._gen_ipc.CallOpt) (err error) {
-	var call _gen_ipc.Call
-	if call, err = __gen_c.client(ctx).StartCall(ctx, __gen_c.name, "InputMap", []interface{}{I1}, opts...); err != nil {
-		return
-	}
-	if ierr := call.Finish(&err); ierr != nil {
-		err = ierr
-	}
-	return
+func (s implTypeTesterServerStub) InputSlice(call __ipc.ServerCall, i0 []byte) error {
+	return s.impl.InputSlice(call, i0)
 }
 
-func (__gen_c *clientStubTypeTester) InputSlice(ctx _gen_context.T, I1 []byte, opts ..._gen_ipc.CallOpt) (err error) {
-	var call _gen_ipc.Call
-	if call, err = __gen_c.client(ctx).StartCall(ctx, __gen_c.name, "InputSlice", []interface{}{I1}, opts...); err != nil {
-		return
-	}
-	if ierr := call.Finish(&err); ierr != nil {
-		err = ierr
-	}
-	return
+func (s implTypeTesterServerStub) InputStruct(call __ipc.ServerCall, i0 Struct) error {
+	return s.impl.InputStruct(call, i0)
 }
 
-func (__gen_c *clientStubTypeTester) InputStruct(ctx _gen_context.T, I1 Struct, opts ..._gen_ipc.CallOpt) (err error) {
-	var call _gen_ipc.Call
-	if call, err = __gen_c.client(ctx).StartCall(ctx, __gen_c.name, "InputStruct", []interface{}{I1}, opts...); err != nil {
-		return
-	}
-	if ierr := call.Finish(&err); ierr != nil {
-		err = ierr
-	}
-	return
+func (s implTypeTesterServerStub) OutputArray(call __ipc.ServerCall) ([2]byte, error) {
+	return s.impl.OutputArray(call)
 }
 
-func (__gen_c *clientStubTypeTester) OutputArray(ctx _gen_context.T, opts ..._gen_ipc.CallOpt) (reply [2]byte, err error) {
-	var call _gen_ipc.Call
-	if call, err = __gen_c.client(ctx).StartCall(ctx, __gen_c.name, "OutputArray", nil, opts...); err != nil {
-		return
-	}
-	if ierr := call.Finish(&reply, &err); ierr != nil {
-		err = ierr
-	}
-	return
+func (s implTypeTesterServerStub) OutputMap(call __ipc.ServerCall) (map[byte]byte, error) {
+	return s.impl.OutputMap(call)
 }
 
-func (__gen_c *clientStubTypeTester) OutputMap(ctx _gen_context.T, opts ..._gen_ipc.CallOpt) (reply map[byte]byte, err error) {
-	var call _gen_ipc.Call
-	if call, err = __gen_c.client(ctx).StartCall(ctx, __gen_c.name, "OutputMap", nil, opts...); err != nil {
-		return
-	}
-	if ierr := call.Finish(&reply, &err); ierr != nil {
-		err = ierr
-	}
-	return
+func (s implTypeTesterServerStub) OutputSlice(call __ipc.ServerCall) ([]byte, error) {
+	return s.impl.OutputSlice(call)
 }
 
-func (__gen_c *clientStubTypeTester) OutputSlice(ctx _gen_context.T, opts ..._gen_ipc.CallOpt) (reply []byte, err error) {
-	var call _gen_ipc.Call
-	if call, err = __gen_c.client(ctx).StartCall(ctx, __gen_c.name, "OutputSlice", nil, opts...); err != nil {
-		return
-	}
-	if ierr := call.Finish(&reply, &err); ierr != nil {
-		err = ierr
-	}
-	return
+func (s implTypeTesterServerStub) OutputStruct(call __ipc.ServerCall) (Struct, error) {
+	return s.impl.OutputStruct(call)
 }
 
-func (__gen_c *clientStubTypeTester) OutputStruct(ctx _gen_context.T, opts ..._gen_ipc.CallOpt) (reply Struct, err error) {
-	var call _gen_ipc.Call
-	if call, err = __gen_c.client(ctx).StartCall(ctx, __gen_c.name, "OutputStruct", nil, opts...); err != nil {
-		return
-	}
-	if ierr := call.Finish(&reply, &err); ierr != nil {
-		err = ierr
-	}
-	return
+func (s implTypeTesterServerStub) NoArguments(call __ipc.ServerCall) error {
+	return s.impl.NoArguments(call)
 }
 
-func (__gen_c *clientStubTypeTester) NoArguments(ctx _gen_context.T, opts ..._gen_ipc.CallOpt) (err error) {
-	var call _gen_ipc.Call
-	if call, err = __gen_c.client(ctx).StartCall(ctx, __gen_c.name, "NoArguments", nil, opts...); err != nil {
-		return
-	}
-	if ierr := call.Finish(&err); ierr != nil {
-		err = ierr
-	}
-	return
+func (s implTypeTesterServerStub) MultipleArguments(call __ipc.ServerCall, i0 int32, i1 int32) (int32, int32, error) {
+	return s.impl.MultipleArguments(call, i0, i1)
 }
 
-func (__gen_c *clientStubTypeTester) MultipleArguments(ctx _gen_context.T, I1 int32, I2 int32, opts ..._gen_ipc.CallOpt) (O1 int32, O2 int32, err error) {
-	var call _gen_ipc.Call
-	if call, err = __gen_c.client(ctx).StartCall(ctx, __gen_c.name, "MultipleArguments", []interface{}{I1, I2}, opts...); err != nil {
-		return
-	}
-	if ierr := call.Finish(&O1, &O2, &err); ierr != nil {
-		err = ierr
-	}
-	return
+func (s implTypeTesterServerStub) StreamingOutput(call __ipc.ServerCall, i0 int32, i1 bool) error {
+	ctx := &implTypeTesterStreamingOutputContext{call, implTypeTesterStreamingOutputServerSend{call}}
+	return s.impl.StreamingOutput(ctx, i0, i1)
 }
 
-func (__gen_c *clientStubTypeTester) StreamingOutput(ctx _gen_context.T, NumStreamItems int32, StreamItem bool, opts ..._gen_ipc.CallOpt) (reply TypeTesterStreamingOutputCall, err error) {
-	var call _gen_ipc.Call
-	if call, err = __gen_c.client(ctx).StartCall(ctx, __gen_c.name, "StreamingOutput", []interface{}{NumStreamItems, StreamItem}, opts...); err != nil {
-		return
-	}
-	reply = &implTypeTesterStreamingOutputCall{clientCall: call, readStream: implTypeTesterStreamingOutputStreamIterator{clientCall: call}}
-	return
+func (s implTypeTesterServerStub) VGlob() *__ipc.GlobState {
+	return s.gs
 }
 
-func (__gen_c *clientStubTypeTester) UnresolveStep(ctx _gen_context.T, opts ..._gen_ipc.CallOpt) (reply []string, err error) {
-	var call _gen_ipc.Call
-	if call, err = __gen_c.client(ctx).StartCall(ctx, __gen_c.name, "UnresolveStep", nil, opts...); err != nil {
-		return
-	}
-	if ierr := call.Finish(&reply, &err); ierr != nil {
-		err = ierr
-	}
-	return
-}
-
-func (__gen_c *clientStubTypeTester) Signature(ctx _gen_context.T, opts ..._gen_ipc.CallOpt) (reply _gen_ipc.ServiceSignature, err error) {
-	var call _gen_ipc.Call
-	if call, err = __gen_c.client(ctx).StartCall(ctx, __gen_c.name, "Signature", nil, opts...); err != nil {
-		return
-	}
-	if ierr := call.Finish(&reply, &err); ierr != nil {
-		err = ierr
-	}
-	return
-}
-
-func (__gen_c *clientStubTypeTester) GetMethodTags(ctx _gen_context.T, method string, opts ..._gen_ipc.CallOpt) (reply []interface{}, err error) {
-	var call _gen_ipc.Call
-	if call, err = __gen_c.client(ctx).StartCall(ctx, __gen_c.name, "GetMethodTags", []interface{}{method}, opts...); err != nil {
-		return
-	}
-	if ierr := call.Finish(&reply, &err); ierr != nil {
-		err = ierr
-	}
-	return
-}
-
-// ServerStubTypeTester wraps a server that implements
-// TypeTesterService and provides an object that satisfies
-// the requirements of veyron2/ipc.ReflectInvoker.
-type ServerStubTypeTester struct {
-	service TypeTesterService
-	gs      *_gen_ipc.GlobState
-}
-
-func (__gen_s *ServerStubTypeTester) GetMethodTags(call _gen_ipc.ServerCall, method string) ([]interface{}, error) {
-	// TODO(bprosnitz) GetMethodTags() will be replaces with Signature().
-	// Note: This exhibits some weird behavior like returning a nil error if the method isn't found.
-	// This will change when it is replaced with Signature().
+func (s implTypeTesterServerStub) GetMethodTags(call __ipc.ServerCall, method string) ([]interface{}, error) {
+	// TODO(toddw): Replace with new DescribeInterfaces implementation.
 	switch method {
 	case "EchoBool":
 		return []interface{}{}, nil
@@ -581,183 +624,184 @@ func (__gen_s *ServerStubTypeTester) GetMethodTags(call _gen_ipc.ServerCall, met
 	}
 }
 
-func (__gen_s *ServerStubTypeTester) Signature(call _gen_ipc.ServerCall) (_gen_ipc.ServiceSignature, error) {
-	result := _gen_ipc.ServiceSignature{Methods: make(map[string]_gen_ipc.MethodSignature)}
-	result.Methods["EchoBool"] = _gen_ipc.MethodSignature{
-		InArgs: []_gen_ipc.MethodArgument{
+func (s implTypeTesterServerStub) Signature(call __ipc.ServerCall) (__ipc.ServiceSignature, error) {
+	// TODO(toddw) Replace with new DescribeInterfaces implementation.
+	result := __ipc.ServiceSignature{Methods: make(map[string]__ipc.MethodSignature)}
+	result.Methods["EchoBool"] = __ipc.MethodSignature{
+		InArgs: []__ipc.MethodArgument{
 			{Name: "I1", Type: 2},
 		},
-		OutArgs: []_gen_ipc.MethodArgument{
+		OutArgs: []__ipc.MethodArgument{
 			{Name: "O1", Type: 2},
 			{Name: "E", Type: 65},
 		},
 	}
-	result.Methods["EchoByte"] = _gen_ipc.MethodSignature{
-		InArgs: []_gen_ipc.MethodArgument{
+	result.Methods["EchoByte"] = __ipc.MethodSignature{
+		InArgs: []__ipc.MethodArgument{
 			{Name: "I1", Type: 66},
 		},
-		OutArgs: []_gen_ipc.MethodArgument{
+		OutArgs: []__ipc.MethodArgument{
 			{Name: "O1", Type: 66},
 			{Name: "E", Type: 65},
 		},
 	}
-	result.Methods["EchoFloat32"] = _gen_ipc.MethodSignature{
-		InArgs: []_gen_ipc.MethodArgument{
+	result.Methods["EchoFloat32"] = __ipc.MethodSignature{
+		InArgs: []__ipc.MethodArgument{
 			{Name: "I1", Type: 25},
 		},
-		OutArgs: []_gen_ipc.MethodArgument{
+		OutArgs: []__ipc.MethodArgument{
 			{Name: "O1", Type: 25},
 			{Name: "E", Type: 65},
 		},
 	}
-	result.Methods["EchoFloat64"] = _gen_ipc.MethodSignature{
-		InArgs: []_gen_ipc.MethodArgument{
+	result.Methods["EchoFloat64"] = __ipc.MethodSignature{
+		InArgs: []__ipc.MethodArgument{
 			{Name: "I1", Type: 26},
 		},
-		OutArgs: []_gen_ipc.MethodArgument{
+		OutArgs: []__ipc.MethodArgument{
 			{Name: "O1", Type: 26},
 			{Name: "E", Type: 65},
 		},
 	}
-	result.Methods["EchoInt32"] = _gen_ipc.MethodSignature{
-		InArgs: []_gen_ipc.MethodArgument{
+	result.Methods["EchoInt32"] = __ipc.MethodSignature{
+		InArgs: []__ipc.MethodArgument{
 			{Name: "I1", Type: 36},
 		},
-		OutArgs: []_gen_ipc.MethodArgument{
+		OutArgs: []__ipc.MethodArgument{
 			{Name: "O1", Type: 36},
 			{Name: "E", Type: 65},
 		},
 	}
-	result.Methods["EchoInt64"] = _gen_ipc.MethodSignature{
-		InArgs: []_gen_ipc.MethodArgument{
+	result.Methods["EchoInt64"] = __ipc.MethodSignature{
+		InArgs: []__ipc.MethodArgument{
 			{Name: "I1", Type: 37},
 		},
-		OutArgs: []_gen_ipc.MethodArgument{
+		OutArgs: []__ipc.MethodArgument{
 			{Name: "O1", Type: 37},
 			{Name: "E", Type: 65},
 		},
 	}
-	result.Methods["EchoString"] = _gen_ipc.MethodSignature{
-		InArgs: []_gen_ipc.MethodArgument{
+	result.Methods["EchoString"] = __ipc.MethodSignature{
+		InArgs: []__ipc.MethodArgument{
 			{Name: "I1", Type: 3},
 		},
-		OutArgs: []_gen_ipc.MethodArgument{
+		OutArgs: []__ipc.MethodArgument{
 			{Name: "O1", Type: 3},
 			{Name: "E", Type: 65},
 		},
 	}
-	result.Methods["EchoUInt32"] = _gen_ipc.MethodSignature{
-		InArgs: []_gen_ipc.MethodArgument{
+	result.Methods["EchoUInt32"] = __ipc.MethodSignature{
+		InArgs: []__ipc.MethodArgument{
 			{Name: "I1", Type: 52},
 		},
-		OutArgs: []_gen_ipc.MethodArgument{
+		OutArgs: []__ipc.MethodArgument{
 			{Name: "O1", Type: 52},
 			{Name: "E", Type: 65},
 		},
 	}
-	result.Methods["EchoUInt64"] = _gen_ipc.MethodSignature{
-		InArgs: []_gen_ipc.MethodArgument{
+	result.Methods["EchoUInt64"] = __ipc.MethodSignature{
+		InArgs: []__ipc.MethodArgument{
 			{Name: "I1", Type: 53},
 		},
-		OutArgs: []_gen_ipc.MethodArgument{
+		OutArgs: []__ipc.MethodArgument{
 			{Name: "O1", Type: 53},
 			{Name: "E", Type: 65},
 		},
 	}
-	result.Methods["InputArray"] = _gen_ipc.MethodSignature{
-		InArgs: []_gen_ipc.MethodArgument{
+	result.Methods["InputArray"] = __ipc.MethodSignature{
+		InArgs: []__ipc.MethodArgument{
 			{Name: "I1", Type: 67},
 		},
-		OutArgs: []_gen_ipc.MethodArgument{
+		OutArgs: []__ipc.MethodArgument{
 			{Name: "E", Type: 65},
 		},
 	}
-	result.Methods["InputMap"] = _gen_ipc.MethodSignature{
-		InArgs: []_gen_ipc.MethodArgument{
+	result.Methods["InputMap"] = __ipc.MethodSignature{
+		InArgs: []__ipc.MethodArgument{
 			{Name: "I1", Type: 68},
 		},
-		OutArgs: []_gen_ipc.MethodArgument{
+		OutArgs: []__ipc.MethodArgument{
 			{Name: "E", Type: 65},
 		},
 	}
-	result.Methods["InputSlice"] = _gen_ipc.MethodSignature{
-		InArgs: []_gen_ipc.MethodArgument{
+	result.Methods["InputSlice"] = __ipc.MethodSignature{
+		InArgs: []__ipc.MethodArgument{
 			{Name: "I1", Type: 69},
 		},
-		OutArgs: []_gen_ipc.MethodArgument{
+		OutArgs: []__ipc.MethodArgument{
 			{Name: "E", Type: 65},
 		},
 	}
-	result.Methods["InputStruct"] = _gen_ipc.MethodSignature{
-		InArgs: []_gen_ipc.MethodArgument{
+	result.Methods["InputStruct"] = __ipc.MethodSignature{
+		InArgs: []__ipc.MethodArgument{
 			{Name: "I1", Type: 70},
 		},
-		OutArgs: []_gen_ipc.MethodArgument{
+		OutArgs: []__ipc.MethodArgument{
 			{Name: "E", Type: 65},
 		},
 	}
-	result.Methods["MultipleArguments"] = _gen_ipc.MethodSignature{
-		InArgs: []_gen_ipc.MethodArgument{
+	result.Methods["MultipleArguments"] = __ipc.MethodSignature{
+		InArgs: []__ipc.MethodArgument{
 			{Name: "I1", Type: 36},
 			{Name: "I2", Type: 36},
 		},
-		OutArgs: []_gen_ipc.MethodArgument{
+		OutArgs: []__ipc.MethodArgument{
 			{Name: "O1", Type: 36},
 			{Name: "O2", Type: 36},
 			{Name: "E", Type: 65},
 		},
 	}
-	result.Methods["NoArguments"] = _gen_ipc.MethodSignature{
-		InArgs: []_gen_ipc.MethodArgument{},
-		OutArgs: []_gen_ipc.MethodArgument{
+	result.Methods["NoArguments"] = __ipc.MethodSignature{
+		InArgs: []__ipc.MethodArgument{},
+		OutArgs: []__ipc.MethodArgument{
 			{Name: "", Type: 65},
 		},
 	}
-	result.Methods["OutputArray"] = _gen_ipc.MethodSignature{
-		InArgs: []_gen_ipc.MethodArgument{},
-		OutArgs: []_gen_ipc.MethodArgument{
+	result.Methods["OutputArray"] = __ipc.MethodSignature{
+		InArgs: []__ipc.MethodArgument{},
+		OutArgs: []__ipc.MethodArgument{
 			{Name: "O1", Type: 67},
 			{Name: "E", Type: 65},
 		},
 	}
-	result.Methods["OutputMap"] = _gen_ipc.MethodSignature{
-		InArgs: []_gen_ipc.MethodArgument{},
-		OutArgs: []_gen_ipc.MethodArgument{
+	result.Methods["OutputMap"] = __ipc.MethodSignature{
+		InArgs: []__ipc.MethodArgument{},
+		OutArgs: []__ipc.MethodArgument{
 			{Name: "O1", Type: 68},
 			{Name: "E", Type: 65},
 		},
 	}
-	result.Methods["OutputSlice"] = _gen_ipc.MethodSignature{
-		InArgs: []_gen_ipc.MethodArgument{},
-		OutArgs: []_gen_ipc.MethodArgument{
+	result.Methods["OutputSlice"] = __ipc.MethodSignature{
+		InArgs: []__ipc.MethodArgument{},
+		OutArgs: []__ipc.MethodArgument{
 			{Name: "O1", Type: 69},
 			{Name: "E", Type: 65},
 		},
 	}
-	result.Methods["OutputStruct"] = _gen_ipc.MethodSignature{
-		InArgs: []_gen_ipc.MethodArgument{},
-		OutArgs: []_gen_ipc.MethodArgument{
+	result.Methods["OutputStruct"] = __ipc.MethodSignature{
+		InArgs: []__ipc.MethodArgument{},
+		OutArgs: []__ipc.MethodArgument{
 			{Name: "O1", Type: 70},
 			{Name: "E", Type: 65},
 		},
 	}
-	result.Methods["StreamingOutput"] = _gen_ipc.MethodSignature{
-		InArgs: []_gen_ipc.MethodArgument{
+	result.Methods["StreamingOutput"] = __ipc.MethodSignature{
+		InArgs: []__ipc.MethodArgument{
 			{Name: "NumStreamItems", Type: 36},
 			{Name: "StreamItem", Type: 2},
 		},
-		OutArgs: []_gen_ipc.MethodArgument{
+		OutArgs: []__ipc.MethodArgument{
 			{Name: "", Type: 65},
 		},
 
 		OutStream: 2,
 	}
 
-	result.TypeDefs = []_gen_vdlutil.Any{
-		_gen_wiretype.NamedPrimitiveType{Type: 0x1, Name: "error", Tags: []string(nil)}, _gen_wiretype.NamedPrimitiveType{Type: 0x32, Name: "byte", Tags: []string(nil)}, _gen_wiretype.ArrayType{Elem: 0x42, Len: 0x2, Name: "", Tags: []string(nil)}, _gen_wiretype.MapType{Key: 0x42, Elem: 0x42, Name: "", Tags: []string(nil)}, _gen_wiretype.SliceType{Elem: 0x42, Name: "", Tags: []string(nil)}, _gen_wiretype.StructType{
-			[]_gen_wiretype.FieldType{
-				_gen_wiretype.FieldType{Type: 0x24, Name: "X"},
-				_gen_wiretype.FieldType{Type: 0x24, Name: "Y"},
+	result.TypeDefs = []__vdlutil.Any{
+		__wiretype.NamedPrimitiveType{Type: 0x1, Name: "error", Tags: []string(nil)}, __wiretype.NamedPrimitiveType{Type: 0x32, Name: "byte", Tags: []string(nil)}, __wiretype.ArrayType{Elem: 0x42, Len: 0x2, Name: "", Tags: []string(nil)}, __wiretype.MapType{Key: 0x42, Elem: 0x42, Name: "", Tags: []string(nil)}, __wiretype.SliceType{Elem: 0x42, Name: "", Tags: []string(nil)}, __wiretype.StructType{
+			[]__wiretype.FieldType{
+				__wiretype.FieldType{Type: 0x24, Name: "X"},
+				__wiretype.FieldType{Type: 0x24, Name: "Y"},
 			},
 			"veyron.io/veyron/veyron/tools/vrpc/test_base.Struct", []string(nil)},
 	}
@@ -765,125 +809,38 @@ func (__gen_s *ServerStubTypeTester) Signature(call _gen_ipc.ServerCall) (_gen_i
 	return result, nil
 }
 
-func (__gen_s *ServerStubTypeTester) UnresolveStep(call _gen_ipc.ServerCall) (reply []string, err error) {
-	if unresolver, ok := __gen_s.service.(_gen_ipc.Unresolver); ok {
-		return unresolver.UnresolveStep(call)
+// TypeTesterStreamingOutputServerStream is the server stream for TypeTester.StreamingOutput.
+type TypeTesterStreamingOutputServerStream interface {
+	// SendStream returns the send side of the server stream.
+	SendStream() interface {
+		// Send places the item onto the output stream.  Returns errors encountered
+		// while sending.  Blocks if there is no buffer space; will unblock when
+		// buffer space is available.
+		Send(item bool) error
 	}
-	if call.Server() == nil {
-		return
-	}
-	var published []string
-	if published, err = call.Server().Published(); err != nil || published == nil {
-		return
-	}
-	reply = make([]string, len(published))
-	for i, p := range published {
-		reply[i] = _gen_naming.Join(p, call.Name())
-	}
-	return
 }
 
-func (__gen_s *ServerStubTypeTester) VGlob() *_gen_ipc.GlobState {
-	return __gen_s.gs
+// TypeTesterStreamingOutputContext represents the context passed to TypeTester.StreamingOutput.
+type TypeTesterStreamingOutputContext interface {
+	__ipc.ServerContext
+	TypeTesterStreamingOutputServerStream
 }
 
-func (__gen_s *ServerStubTypeTester) EchoBool(call _gen_ipc.ServerCall, I1 bool) (reply bool, err error) {
-	reply, err = __gen_s.service.EchoBool(call, I1)
-	return
+type implTypeTesterStreamingOutputServerSend struct {
+	call __ipc.ServerCall
 }
 
-func (__gen_s *ServerStubTypeTester) EchoFloat32(call _gen_ipc.ServerCall, I1 float32) (reply float32, err error) {
-	reply, err = __gen_s.service.EchoFloat32(call, I1)
-	return
+func (s *implTypeTesterStreamingOutputServerSend) Send(item bool) error {
+	return s.call.Send(item)
 }
 
-func (__gen_s *ServerStubTypeTester) EchoFloat64(call _gen_ipc.ServerCall, I1 float64) (reply float64, err error) {
-	reply, err = __gen_s.service.EchoFloat64(call, I1)
-	return
+type implTypeTesterStreamingOutputContext struct {
+	__ipc.ServerContext
+	send implTypeTesterStreamingOutputServerSend
 }
 
-func (__gen_s *ServerStubTypeTester) EchoInt32(call _gen_ipc.ServerCall, I1 int32) (reply int32, err error) {
-	reply, err = __gen_s.service.EchoInt32(call, I1)
-	return
-}
-
-func (__gen_s *ServerStubTypeTester) EchoInt64(call _gen_ipc.ServerCall, I1 int64) (reply int64, err error) {
-	reply, err = __gen_s.service.EchoInt64(call, I1)
-	return
-}
-
-func (__gen_s *ServerStubTypeTester) EchoString(call _gen_ipc.ServerCall, I1 string) (reply string, err error) {
-	reply, err = __gen_s.service.EchoString(call, I1)
-	return
-}
-
-func (__gen_s *ServerStubTypeTester) EchoByte(call _gen_ipc.ServerCall, I1 byte) (reply byte, err error) {
-	reply, err = __gen_s.service.EchoByte(call, I1)
-	return
-}
-
-func (__gen_s *ServerStubTypeTester) EchoUInt32(call _gen_ipc.ServerCall, I1 uint32) (reply uint32, err error) {
-	reply, err = __gen_s.service.EchoUInt32(call, I1)
-	return
-}
-
-func (__gen_s *ServerStubTypeTester) EchoUInt64(call _gen_ipc.ServerCall, I1 uint64) (reply uint64, err error) {
-	reply, err = __gen_s.service.EchoUInt64(call, I1)
-	return
-}
-
-func (__gen_s *ServerStubTypeTester) InputArray(call _gen_ipc.ServerCall, I1 [2]byte) (err error) {
-	err = __gen_s.service.InputArray(call, I1)
-	return
-}
-
-func (__gen_s *ServerStubTypeTester) InputMap(call _gen_ipc.ServerCall, I1 map[byte]byte) (err error) {
-	err = __gen_s.service.InputMap(call, I1)
-	return
-}
-
-func (__gen_s *ServerStubTypeTester) InputSlice(call _gen_ipc.ServerCall, I1 []byte) (err error) {
-	err = __gen_s.service.InputSlice(call, I1)
-	return
-}
-
-func (__gen_s *ServerStubTypeTester) InputStruct(call _gen_ipc.ServerCall, I1 Struct) (err error) {
-	err = __gen_s.service.InputStruct(call, I1)
-	return
-}
-
-func (__gen_s *ServerStubTypeTester) OutputArray(call _gen_ipc.ServerCall) (reply [2]byte, err error) {
-	reply, err = __gen_s.service.OutputArray(call)
-	return
-}
-
-func (__gen_s *ServerStubTypeTester) OutputMap(call _gen_ipc.ServerCall) (reply map[byte]byte, err error) {
-	reply, err = __gen_s.service.OutputMap(call)
-	return
-}
-
-func (__gen_s *ServerStubTypeTester) OutputSlice(call _gen_ipc.ServerCall) (reply []byte, err error) {
-	reply, err = __gen_s.service.OutputSlice(call)
-	return
-}
-
-func (__gen_s *ServerStubTypeTester) OutputStruct(call _gen_ipc.ServerCall) (reply Struct, err error) {
-	reply, err = __gen_s.service.OutputStruct(call)
-	return
-}
-
-func (__gen_s *ServerStubTypeTester) NoArguments(call _gen_ipc.ServerCall) (err error) {
-	err = __gen_s.service.NoArguments(call)
-	return
-}
-
-func (__gen_s *ServerStubTypeTester) MultipleArguments(call _gen_ipc.ServerCall, I1 int32, I2 int32) (O1 int32, O2 int32, err error) {
-	O1, O2, err = __gen_s.service.MultipleArguments(call, I1, I2)
-	return
-}
-
-func (__gen_s *ServerStubTypeTester) StreamingOutput(call _gen_ipc.ServerCall, NumStreamItems int32, StreamItem bool) (err error) {
-	stream := &implTypeTesterServiceStreamingOutputStream{writer: implTypeTesterServiceStreamingOutputStreamSender{serverCall: call}}
-	err = __gen_s.service.StreamingOutput(call, NumStreamItems, StreamItem, stream)
-	return
+func (s *implTypeTesterStreamingOutputContext) SendStream() interface {
+	Send(item bool) error
+} {
+	return &s.send
 }

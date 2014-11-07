@@ -19,11 +19,7 @@ func CallEcho(ctx context.T, address string, iterations, payloadSize int, log io
 		payload[i] = byte(i & 0xff)
 	}
 
-	stub, err := BindBenchmark(address)
-	if err != nil {
-		vlog.Fatalf("BindBenchmark(%q) failed: %v", address, err)
-	}
-
+	stub := BenchmarkClient(address)
 	for i := 0; i < iterations; i++ {
 		start := time.Now()
 		result, err := stub.Echo(ctx, payload)
@@ -49,11 +45,7 @@ func CallEchoStream(address string, rpcCount, messageCount, payloadSize int, log
 		payload[i] = byte(i & 0xff)
 	}
 
-	stub, err := BindBenchmark(address)
-	if err != nil {
-		vlog.Fatalf("BindBenchmark(%q) failed: %v", address, err)
-	}
-
+	stub := BenchmarkClient(address)
 	for i := 0; i < rpcCount; i++ {
 		start := time.Now()
 		ctx, _ := rt.R().NewContext().WithTimeout(time.Hour)

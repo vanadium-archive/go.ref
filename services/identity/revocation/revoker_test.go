@@ -31,7 +31,7 @@ func revokerSetup(t *testing.T) (dischargerKey security.PublicKey, dischargerEnd
 	if err != nil {
 		t.Fatalf("dischargerServer.Listen failed: %v", err)
 	}
-	dischargerServiceStub := services.NewServerDischarger(discharger.NewDischarger())
+	dischargerServiceStub := services.DischargerServer(discharger.NewDischarger())
 	if err := dischargerServer.Serve("", dischargerServiceStub, nil); err != nil {
 		t.Fatalf("dischargerServer.Serve revoker: %s", err)
 	}
@@ -49,11 +49,7 @@ func TestDischargeRevokeDischargeRevokeDischarge(t *testing.T) {
 	dcKey, dc, revoker, closeFunc, r := revokerSetup(t)
 	defer closeFunc()
 
-	discharger, err := services.BindDischarger(dc)
-	if err != nil {
-		t.Fatalf("error binding to server: ", err)
-	}
-
+	discharger := services.DischargerClient(dc)
 	cav, err := revoker.NewCaveat(dcKey, dc)
 	if err != nil {
 		t.Fatalf("failed to create public key caveat: %s", err)

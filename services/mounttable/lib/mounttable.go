@@ -107,7 +107,7 @@ func (mt *mountTable) Lookup(name, method string) (interface{}, security.Authori
 		ms.elems = strings.Split(name, "/")
 		ms.cleanedElems = strings.Split(strings.TrimLeft(path.Clean(name), "/"), "/")
 	}
-	return ipc.ReflectInvoker(mounttable.NewServerMountTable(ms)), ms, nil
+	return ipc.ReflectInvoker(mounttable.MountTableServer(ms)), ms, nil
 }
 
 // findNode returns the node for the name path represented by elems.  If none exists and create is false, return nil.
@@ -365,7 +365,7 @@ type globEntry struct {
 	name string
 }
 
-func (mt *mountTable) globStep(n *node, name string, pattern *glob.Glob, context ipc.ServerContext, reply mounttable.GlobbableServiceGlobStream) {
+func (mt *mountTable) globStep(n *node, name string, pattern *glob.Glob, context mounttable.GlobbableGlobContext) {
 	vlog.VI(2).Infof("globStep(%s, %s)", name, pattern)
 
 	if mt.acls != nil {
@@ -378,7 +378,7 @@ func (mt *mountTable) globStep(n *node, name string, pattern *glob.Glob, context
 		}
 	}
 
-	sender := reply.SendStream()
+	sender := context.SendStream()
 	// If this is a mount point, we're done.
 	if m := n.mount; m != nil {
 		// Garbage-collect if expired.
@@ -410,7 +410,7 @@ func (mt *mountTable) globStep(n *node, name string, pattern *glob.Glob, context
 	// Recurse through the children.
 	for k, c := range n.children {
 		if ok, _, suffix := pattern.MatchInitialSegment(k); ok {
-			mt.globStep(c, naming.Join(name, k), suffix, context, reply)
+			mt.globStep(c, naming.Join(name, k), suffix, context)
 		}
 	}
 }
@@ -418,7 +418,7 @@ func (mt *mountTable) globStep(n *node, name string, pattern *glob.Glob, context
 // Glob finds matches in the namespace.  If we reach a mount point before matching the
 // whole pattern, return that mount point.
 // pattern is a glob pattern as defined by the veyron/lib/glob package.
-func (ms *mountContext) Glob(context ipc.ServerContext, pattern string, reply mounttable.GlobbableServiceGlobStream) error {
+func (ms *mountContext) Glob(context mounttable.GlobbableGlobContext, pattern string) error {
 	vlog.VI(2).Infof("mt.Glob %v", ms.elems)
 
 	g, err := glob.Parse(pattern)
@@ -439,15 +439,15 @@ func (ms *mountContext) Glob(context ipc.ServerContext, pattern string, reply mo
 	// name back to the client.
 	n := mt.findNode(ms.cleanedElems, false)
 	if n == nil {
-		ms.linkToLeaf(reply)
+		ms.linkToLeaf(context)
 		return nil
 	}
 
-	mt.globStep(n, "", g, context, reply)
+	mt.globStep(n, "", g, context)
 	return nil
 }
 
-func (ms *mountContext) linkToLeaf(reply mounttable.GlobbableServiceGlobStream) {
+func (ms *mountContext) linkToLeaf(stream mounttable.GlobbableGlobServerStream) {
 	n, elems := ms.mt.walk(ms.mt.root, ms.cleanedElems)
 	if n == nil {
 		return
@@ -456,5 +456,5 @@ func (ms *mountContext) linkToLeaf(reply mounttable.GlobbableServiceGlobStream) 
 	for i, s := range servers {
 		servers[i].Server = naming.Join(s.Server, slashSlashJoin(elems))
 	}
-	reply.SendStream().Send(types.MountEntry{Name: "", Servers: servers})
+	stream.SendStream().Send(types.MountEntry{Name: "", Servers: servers})
 }

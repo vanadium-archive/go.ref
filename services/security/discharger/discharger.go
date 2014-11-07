@@ -33,6 +33,6 @@ func (dischargerd) Discharge(ctx ipc.ServerContext, caveatAny vdlutil.Any, _ sec
 
 // NewDischarger returns a discharger service implementation that grants discharges using the MintDischarge
 // on the principal receiving the RPC.
-func NewDischarger() services.DischargerService {
+func NewDischarger() services.DischargerServerMethods {
 	return dischargerd{}
 }

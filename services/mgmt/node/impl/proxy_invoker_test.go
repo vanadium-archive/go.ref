@@ -44,7 +44,7 @@ func TestProxyInvoker(t *testing.T) {
 	disp := &proxyDispatcher{
 		naming.JoinAddressName(ep1.String(), "__debug/stats"),
 		security.Label(security.AllLabels),
-		&stats.ServerStubStats{},
+		stats.StatsServer(nil),
 	}
 	if err := server2.ServeDispatcher("", disp); err != nil {
 		t.Fatalf("server2.Serve: %v", err)
@@ -52,10 +52,7 @@ func TestProxyInvoker(t *testing.T) {
 
 	// Call Value()
 	name := naming.JoinAddressName(ep2.String(), "system/start-time-rfc1123")
-	c, err := stats.BindStats(name)
-	if err != nil {
-		t.Fatalf("BindStats error: %v", err)
-	}
+	c := stats.StatsClient(name)
 	if _, err := c.Value(r.NewContext()); err != nil {
 		t.Errorf("%q.Value() error: %v", name, err)
 	}
@@ -72,10 +69,7 @@ func TestProxyInvoker(t *testing.T) {
 }
 
 func doGlob(t *testing.T, name, pattern string) []string {
-	c, err := mounttable.BindGlobbable(name)
-	if err != nil {
-		t.Fatalf("BindGlobbable failed: %v", err)
-	}
+	c := mounttable.GlobbableClient(name)
 	stream, err := c.Glob(rt.R().NewContext(), pattern)
 	if err != nil {
 		t.Fatalf("Glob failed: %v", err)

@@ -4,108 +4,60 @@
 package node
 
 import (
-	// The non-user imports are prefixed with "_gen_" to prevent collisions.
-	_gen_veyron2 "veyron.io/veyron/veyron2"
-	_gen_context "veyron.io/veyron/veyron2/context"
-	_gen_ipc "veyron.io/veyron/veyron2/ipc"
-	_gen_naming "veyron.io/veyron/veyron2/naming"
-	_gen_vdlutil "veyron.io/veyron/veyron2/vdl/vdlutil"
-	_gen_wiretype "veyron.io/veyron/veyron2/wiretype"
+	// The non-user imports are prefixed with "__" to prevent collisions.
+	__veyron2 "veyron.io/veyron/veyron2"
+	__context "veyron.io/veyron/veyron2/context"
+	__ipc "veyron.io/veyron/veyron2/ipc"
+	__vdlutil "veyron.io/veyron/veyron2/vdl/vdlutil"
+	__wiretype "veyron.io/veyron/veyron2/wiretype"
 )
 
 // TODO(toddw): Remove this line once the new signature support is done.
-// It corrects a bug where _gen_wiretype is unused in VDL pacakges where only
+// It corrects a bug where __wiretype is unused in VDL pacakges where only
 // bootstrap types are used on interfaces.
-const _ = _gen_wiretype.TypeIDInvalid
+const _ = __wiretype.TypeIDInvalid
 
+// ConfigClientMethods is the client interface
+// containing Config methods.
+//
 // Config is an RPC API to the config service.
-// Config is the interface the client binds and uses.
-// Config_ExcludingUniversal is the interface without internal framework-added methods
-// to enable embedding without method collisions.  Not to be used directly by clients.
-type Config_ExcludingUniversal interface {
+type ConfigClientMethods interface {
 	// Set sets the value for key.
-	Set(ctx _gen_context.T, key string, value string, opts ..._gen_ipc.CallOpt) (err error)
-}
-type Config interface {
-	_gen_ipc.UniversalServiceMethods
-	Config_ExcludingUniversal
+	Set(ctx __context.T, key string, value string, opts ...__ipc.CallOpt) error
 }
 
-// ConfigService is the interface the server implements.
-type ConfigService interface {
-
-	// Set sets the value for key.
-	Set(context _gen_ipc.ServerContext, key string, value string) (err error)
+// ConfigClientStub adds universal methods to ConfigClientMethods.
+type ConfigClientStub interface {
+	ConfigClientMethods
+	__ipc.UniversalServiceMethods
 }
 
-// BindConfig returns the client stub implementing the Config
-// interface.
-//
-// If no _gen_ipc.Client is specified, the default _gen_ipc.Client in the
-// global Runtime is used.
-func BindConfig(name string, opts ..._gen_ipc.BindOpt) (Config, error) {
-	var client _gen_ipc.Client
-	switch len(opts) {
-	case 0:
-		// Do nothing.
-	case 1:
-		if clientOpt, ok := opts[0].(_gen_ipc.Client); opts[0] == nil || ok {
+// ConfigClient returns a client stub for Config.
+func ConfigClient(name string, opts ...__ipc.BindOpt) ConfigClientStub {
+	var client __ipc.Client
+	for _, opt := range opts {
+		if clientOpt, ok := opt.(__ipc.Client); ok {
 			client = clientOpt
-		} else {
-			return nil, _gen_vdlutil.ErrUnrecognizedOption
 		}
-	default:
-		return nil, _gen_vdlutil.ErrTooManyOptionsToBind
 	}
-	stub := &clientStubConfig{defaultClient: client, name: name}
-
-	return stub, nil
+	return implConfigClientStub{name, client}
 }
 
-// NewServerConfig creates a new server stub.
-//
-// It takes a regular server implementing the ConfigService
-// interface, and returns a new server stub.
-func NewServerConfig(server ConfigService) interface{} {
-	stub := &ServerStubConfig{
-		service: server,
-	}
-	var gs _gen_ipc.GlobState
-	var self interface{} = stub
-	// VAllGlobber is implemented by the server object, which is wrapped in
-	// a VDL generated server stub.
-	if x, ok := self.(_gen_ipc.VAllGlobber); ok {
-		gs.VAllGlobber = x
-	}
-	// VAllGlobber is implemented by the server object without using a VDL
-	// generated stub.
-	if x, ok := server.(_gen_ipc.VAllGlobber); ok {
-		gs.VAllGlobber = x
-	}
-	// VChildrenGlobber is implemented in the server object.
-	if x, ok := server.(_gen_ipc.VChildrenGlobber); ok {
-		gs.VChildrenGlobber = x
-	}
-	stub.gs = &gs
-	return stub
+type implConfigClientStub struct {
+	name   string
+	client __ipc.Client
 }
 
-// clientStubConfig implements Config.
-type clientStubConfig struct {
-	defaultClient _gen_ipc.Client
-	name          string
-}
-
-func (__gen_c *clientStubConfig) client(ctx _gen_context.T) _gen_ipc.Client {
-	if __gen_c.defaultClient != nil {
-		return __gen_c.defaultClient
+func (c implConfigClientStub) c(ctx __context.T) __ipc.Client {
+	if c.client != nil {
+		return c.client
 	}
-	return _gen_veyron2.RuntimeFromContext(ctx).Client()
+	return __veyron2.RuntimeFromContext(ctx).Client()
 }
 
-func (__gen_c *clientStubConfig) Set(ctx _gen_context.T, key string, value string, opts ..._gen_ipc.CallOpt) (err error) {
-	var call _gen_ipc.Call
-	if call, err = __gen_c.client(ctx).StartCall(ctx, __gen_c.name, "Set", []interface{}{key, value}, opts...); err != nil {
+func (c implConfigClientStub) Set(ctx __context.T, i0 string, i1 string, opts ...__ipc.CallOpt) (err error) {
+	var call __ipc.Call
+	if call, err = c.c(ctx).StartCall(ctx, c.name, "Set", []interface{}{i0, i1}, opts...); err != nil {
 		return
 	}
 	if ierr := call.Finish(&err); ierr != nil {
@@ -114,51 +66,88 @@ func (__gen_c *clientStubConfig) Set(ctx _gen_context.T, key string, value strin
 	return
 }
 
-func (__gen_c *clientStubConfig) UnresolveStep(ctx _gen_context.T, opts ..._gen_ipc.CallOpt) (reply []string, err error) {
-	var call _gen_ipc.Call
-	if call, err = __gen_c.client(ctx).StartCall(ctx, __gen_c.name, "UnresolveStep", nil, opts...); err != nil {
+func (c implConfigClientStub) Signature(ctx __context.T, opts ...__ipc.CallOpt) (o0 __ipc.ServiceSignature, err error) {
+	var call __ipc.Call
+	if call, err = c.c(ctx).StartCall(ctx, c.name, "Signature", nil, opts...); err != nil {
 		return
 	}
-	if ierr := call.Finish(&reply, &err); ierr != nil {
+	if ierr := call.Finish(&o0, &err); ierr != nil {
 		err = ierr
 	}
 	return
 }
 
-func (__gen_c *clientStubConfig) Signature(ctx _gen_context.T, opts ..._gen_ipc.CallOpt) (reply _gen_ipc.ServiceSignature, err error) {
-	var call _gen_ipc.Call
-	if call, err = __gen_c.client(ctx).StartCall(ctx, __gen_c.name, "Signature", nil, opts...); err != nil {
+func (c implConfigClientStub) GetMethodTags(ctx __context.T, method string, opts ...__ipc.CallOpt) (o0 []interface{}, err error) {
+	var call __ipc.Call
+	if call, err = c.c(ctx).StartCall(ctx, c.name, "GetMethodTags", []interface{}{method}, opts...); err != nil {
 		return
 	}
-	if ierr := call.Finish(&reply, &err); ierr != nil {
+	if ierr := call.Finish(&o0, &err); ierr != nil {
 		err = ierr
 	}
 	return
 }
 
-func (__gen_c *clientStubConfig) GetMethodTags(ctx _gen_context.T, method string, opts ..._gen_ipc.CallOpt) (reply []interface{}, err error) {
-	var call _gen_ipc.Call
-	if call, err = __gen_c.client(ctx).StartCall(ctx, __gen_c.name, "GetMethodTags", []interface{}{method}, opts...); err != nil {
-		return
-	}
-	if ierr := call.Finish(&reply, &err); ierr != nil {
-		err = ierr
-	}
-	return
+// ConfigServerMethods is the interface a server writer
+// implements for Config.
+//
+// Config is an RPC API to the config service.
+type ConfigServerMethods interface {
+	// Set sets the value for key.
+	Set(ctx __ipc.ServerContext, key string, value string) error
 }
 
-// ServerStubConfig wraps a server that implements
-// ConfigService and provides an object that satisfies
-// the requirements of veyron2/ipc.ReflectInvoker.
-type ServerStubConfig struct {
-	service ConfigService
-	gs      *_gen_ipc.GlobState
+// ConfigServerStubMethods is the server interface containing
+// Config methods, as expected by ipc.Server.  The difference between
+// this interface and ConfigServerMethods is that the first context
+// argument for each method is always ipc.ServerCall here, while it is either
+// ipc.ServerContext or a typed streaming context there.
+type ConfigServerStubMethods interface {
+	// Set sets the value for key.
+	Set(call __ipc.ServerCall, key string, value string) error
 }
 
-func (__gen_s *ServerStubConfig) GetMethodTags(call _gen_ipc.ServerCall, method string) ([]interface{}, error) {
-	// TODO(bprosnitz) GetMethodTags() will be replaces with Signature().
-	// Note: This exhibits some weird behavior like returning a nil error if the method isn't found.
-	// This will change when it is replaced with Signature().
+// ConfigServerStub adds universal methods to ConfigServerStubMethods.
+type ConfigServerStub interface {
+	ConfigServerStubMethods
+	// GetMethodTags will be replaced with DescribeInterfaces.
+	GetMethodTags(call __ipc.ServerCall, method string) ([]interface{}, error)
+	// Signature will be replaced with DescribeInterfaces.
+	Signature(call __ipc.ServerCall) (__ipc.ServiceSignature, error)
+}
+
+// ConfigServer returns a server stub for Config.
+// It converts an implementation of ConfigServerMethods into
+// an object that may be used by ipc.Server.
+func ConfigServer(impl ConfigServerMethods) ConfigServerStub {
+	stub := implConfigServerStub{
+		impl: impl,
+	}
+	// Initialize GlobState; always check the stub itself first, to handle the
+	// case where the user has the Glob method defined in their VDL source.
+	if gs := __ipc.NewGlobState(stub); gs != nil {
+		stub.gs = gs
+	} else if gs := __ipc.NewGlobState(impl); gs != nil {
+		stub.gs = gs
+	}
+	return stub
+}
+
+type implConfigServerStub struct {
+	impl ConfigServerMethods
+	gs   *__ipc.GlobState
+}
+
+func (s implConfigServerStub) Set(call __ipc.ServerCall, i0 string, i1 string) error {
+	return s.impl.Set(call, i0, i1)
+}
+
+func (s implConfigServerStub) VGlob() *__ipc.GlobState {
+	return s.gs
+}
+
+func (s implConfigServerStub) GetMethodTags(call __ipc.ServerCall, method string) ([]interface{}, error) {
+	// TODO(toddw): Replace with new DescribeInterfaces implementation.
 	switch method {
 	case "Set":
 		return []interface{}{}, nil
@@ -167,47 +156,21 @@ func (__gen_s *ServerStubConfig) GetMethodTags(call _gen_ipc.ServerCall, method 
 	}
 }
 
-func (__gen_s *ServerStubConfig) Signature(call _gen_ipc.ServerCall) (_gen_ipc.ServiceSignature, error) {
-	result := _gen_ipc.ServiceSignature{Methods: make(map[string]_gen_ipc.MethodSignature)}
-	result.Methods["Set"] = _gen_ipc.MethodSignature{
-		InArgs: []_gen_ipc.MethodArgument{
+func (s implConfigServerStub) Signature(call __ipc.ServerCall) (__ipc.ServiceSignature, error) {
+	// TODO(toddw) Replace with new DescribeInterfaces implementation.
+	result := __ipc.ServiceSignature{Methods: make(map[string]__ipc.MethodSignature)}
+	result.Methods["Set"] = __ipc.MethodSignature{
+		InArgs: []__ipc.MethodArgument{
 			{Name: "key", Type: 3},
 			{Name: "value", Type: 3},
 		},
-		OutArgs: []_gen_ipc.MethodArgument{
+		OutArgs: []__ipc.MethodArgument{
 			{Name: "", Type: 65},
 		},
 	}
 
-	result.TypeDefs = []_gen_vdlutil.Any{
-		_gen_wiretype.NamedPrimitiveType{Type: 0x1, Name: "error", Tags: []string(nil)}}
+	result.TypeDefs = []__vdlutil.Any{
+		__wiretype.NamedPrimitiveType{Type: 0x1, Name: "error", Tags: []string(nil)}}
 
 	return result, nil
-}
-
-func (__gen_s *ServerStubConfig) UnresolveStep(call _gen_ipc.ServerCall) (reply []string, err error) {
-	if unresolver, ok := __gen_s.service.(_gen_ipc.Unresolver); ok {
-		return unresolver.UnresolveStep(call)
-	}
-	if call.Server() == nil {
-		return
-	}
-	var published []string
-	if published, err = call.Server().Published(); err != nil || published == nil {
-		return
-	}
-	reply = make([]string, len(published))
-	for i, p := range published {
-		reply[i] = _gen_naming.Join(p, call.Name())
-	}
-	return
-}
-
-func (__gen_s *ServerStubConfig) VGlob() *_gen_ipc.GlobState {
-	return __gen_s.gs
-}
-
-func (__gen_s *ServerStubConfig) Set(call _gen_ipc.ServerCall, key string, value string) (err error) {
-	err = __gen_s.service.Set(call, key, value)
-	return
 }

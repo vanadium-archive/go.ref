@@ -19,7 +19,7 @@ import (
 	"veyron.io/veyron/veyron2/services/mgmt/application"
 )
 
-func getEnvelopeJSON(ctx context.T, app repository.Application, profiles string) ([]byte, error) {
+func getEnvelopeJSON(ctx context.T, app repository.ApplicationClientMethods, profiles string) ([]byte, error) {
 	env, err := app.Match(ctx, strings.Split(profiles, ","))
 	if err != nil {
 		return nil, err
@@ -31,7 +31,7 @@ func getEnvelopeJSON(ctx context.T, app repository.Application, profiles string)
 	return j, nil
 }
 
-func putEnvelopeJSON(ctx context.T, app repository.Application, profiles string, j []byte) error {
+func putEnvelopeJSON(ctx context.T, app repository.ApplicationClientMethods, profiles string, j []byte) error {
 	var env application.Envelope
 	if err := json.Unmarshal(j, &env); err != nil {
 		return fmt.Errorf("Unmarshal(%v) failed: %v", string(j), err)
@@ -67,10 +67,7 @@ func runMatch(cmd *cmdline.Command, args []string) error {
 		return cmd.UsageErrorf("match: incorrect number of arguments, expected %d, got %d", expected, got)
 	}
 	name, profiles := args[0], args[1]
-	app, err := repository.BindApplication(name)
-	if err != nil {
-		return fmt.Errorf("BindApplication(%v) failed: %v", name, err)
-	}
+	app := repository.ApplicationClient(name)
 	ctx, cancel := rt.R().NewContext().WithTimeout(time.Minute)
 	defer cancel()
 	j, err := getEnvelopeJSON(ctx, app, profiles)
@@ -98,10 +95,7 @@ func runPut(cmd *cmdline.Command, args []string) error {
 		return cmd.UsageErrorf("put: incorrect number of arguments, expected %d, got %d", expected, got)
 	}
 	name, profiles, envelope := args[0], args[1], args[2]
-	app, err := repository.BindApplication(name)
-	if err != nil {
-		return fmt.Errorf("BindApplication(%v) failed: %v", name, err)
-	}
+	app := repository.ApplicationClient(name)
 	j, err := ioutil.ReadFile(envelope)
 	if err != nil {
 		return fmt.Errorf("ReadFile(%v): %v", envelope, err)
@@ -131,13 +125,10 @@ func runRemove(cmd *cmdline.Command, args []string) error {
 		return cmd.UsageErrorf("remove: incorrect number of arguments, expected %d, got %d", expected, got)
 	}
 	name, profile := args[0], args[1]
-	app, err := repository.BindApplication(name)
-	if err != nil {
-		return fmt.Errorf("BindApplication(%v) failed: %v", name, err)
-	}
+	app := repository.ApplicationClient(name)
 	ctx, cancel := rt.R().NewContext().WithTimeout(time.Minute)
 	defer cancel()
-	if err = app.Remove(ctx, profile); err != nil {
+	if err := app.Remove(ctx, profile); err != nil {
 		return err
 	}
 	fmt.Fprintln(cmd.Stdout(), "Application envelope removed successfully.")
@@ -160,10 +151,7 @@ func runEdit(cmd *cmdline.Command, args []string) error {
 		return cmd.UsageErrorf("edit: incorrect number of arguments, expected %d, got %d", expected, got)
 	}
 	name, profile := args[0], args[1]
-	app, err := repository.BindApplication(name)
-	if err != nil {
-		return fmt.Errorf("BindApplication(%v) failed: %v", name, err)
-	}
+	app := repository.ApplicationClient(name)
 	f, err := ioutil.TempFile("", "application-edit-")
 	if err != nil {
 		return fmt.Errorf("TempFile() failed: %v", err)

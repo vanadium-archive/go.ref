@@ -27,11 +27,7 @@ func runList(cmd *cmdline.Command, args []string) error {
 
 	ctx, cancel := rt.R().NewContext().WithTimeout(time.Minute)
 	defer cancel()
-	nodeStub, err := node.BindNode(args[0])
-	if err != nil {
-		return fmt.Errorf("BindNode(%s) failed: %v", args[0], err)
-	}
-	assocs, err := nodeStub.ListAssociations(ctx)
+	assocs, err := node.NodeClient(args[0]).ListAssociations(ctx)
 	if err != nil {
 		return fmt.Errorf("ListAssociations failed: %v", err)
 	}
@@ -60,11 +56,7 @@ func runAdd(cmd *cmdline.Command, args []string) error {
 	}
 	ctx, cancel := rt.R().NewContext().WithTimeout(time.Minute)
 	defer cancel()
-	nodeStub, err := node.BindNode(args[0])
-	if err != nil {
-		return fmt.Errorf("BindNode(%s) failed: %v", args[0], err)
-	}
-	return nodeStub.AssociateAccount(ctx, args[2:], args[1])
+	return node.NodeClient(args[0]).AssociateAccount(ctx, args[2:], args[1])
 }
 
 var cmdRemove = &cmdline.Command{
@@ -84,12 +76,7 @@ func runRemove(cmd *cmdline.Command, args []string) error {
 	}
 	ctx, cancel := rt.R().NewContext().WithTimeout(time.Minute)
 	defer cancel()
-	nodeStub, err := node.BindNode(args[0])
-	if err != nil {
-		return fmt.Errorf("BindNode(%s) failed: %v", args[0], err)
-	}
-
-	return nodeStub.AssociateAccount(ctx, args[1:], "")
+	return node.NodeClient(args[0]).AssociateAccount(ctx, args[1:], "")
 }
 
 func root() *cmdline.Command {

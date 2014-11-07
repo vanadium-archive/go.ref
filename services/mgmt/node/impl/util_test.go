@@ -167,17 +167,13 @@ func resolve(t *testing.T, name string, replicas int) []string {
 // The following set of functions are convenience wrappers around Update and
 // Revert for node manager.
 
-func nodeStub(t *testing.T, name string) node.Node {
+func nodeStub(name string) node.NodeClientMethods {
 	nodeName := naming.Join(name, "nm")
-	stub, err := node.BindNode(nodeName)
-	if err != nil {
-		t.Fatalf("%s: BindNode(%v) failed: %v", loc(1), nodeName, err)
-	}
-	return stub
+	return node.NodeClient(nodeName)
 }
 
 func updateNodeExpectError(t *testing.T, name string, errID verror.ID) {
-	if err := nodeStub(t, name).Update(rt.R().NewContext()); !verror.Is(err, errID) {
+	if err := nodeStub(name).Update(rt.R().NewContext()); !verror.Is(err, errID) {
 		if errID == naming.ErrNoSuchName.ID && err.Error() == "no different version available" {
 			// TODO(bprosnitz) Remove this check when errUpdateNoOp is updated to verror2
 			return
@@ -187,13 +183,13 @@ func updateNodeExpectError(t *testing.T, name string, errID verror.ID) {
 }
 
 func updateNode(t *testing.T, name string) {
-	if err := nodeStub(t, name).Update(rt.R().NewContext()); err != nil {
+	if err := nodeStub(name).Update(rt.R().NewContext()); err != nil {
 		t.Fatalf("%s: Update(%v) failed: %v", loc(1), name, err)
 	}
 }
 
 func revertNodeExpectError(t *testing.T, name string, errID verror.ID) {
-	if err := nodeStub(t, name).Revert(rt.R().NewContext()); !verror.Is(err, errID) {
+	if err := nodeStub(name).Revert(rt.R().NewContext()); !verror.Is(err, errID) {
 		if errID == naming.ErrNoSuchName.ID && err.Error() == "no different version available" {
 			// TODO(bprosnitz) Remove this check when errUpdateNoOp is updated to verror2
 			return
@@ -203,7 +199,7 @@ func revertNodeExpectError(t *testing.T, name string, errID verror.ID) {
 }
 
 func revertNode(t *testing.T, name string) {
-	if err := nodeStub(t, name).Revert(rt.R().NewContext()); err != nil {
+	if err := nodeStub(name).Revert(rt.R().NewContext()); err != nil {
 		t.Fatalf("%s: Revert(%v) failed: %v", loc(1), name, err)
 	}
 }
@@ -219,18 +215,14 @@ func ort(opt []veyron2.Runtime) veyron2.Runtime {
 	}
 }
 
-func appStub(t *testing.T, nameComponents ...string) node.Application {
+func appStub(nameComponents ...string) node.ApplicationClientMethods {
 	appsName := "nm//apps"
 	appName := naming.Join(append([]string{appsName}, nameComponents...)...)
-	stub, err := node.BindApplication(appName)
-	if err != nil {
-		t.Fatalf("%s: BindApplication(%v) failed: %v", loc(1), appName, err)
-	}
-	return stub
+	return node.ApplicationClient(appName)
 }
 
 func installApp(t *testing.T, opt ...veyron2.Runtime) string {
-	appID, err := appStub(t).Install(ort(opt).NewContext(), mockApplicationRepoName)
+	appID, err := appStub().Install(ort(opt).NewContext(), mockApplicationRepoName)
 	if err != nil {
 		t.Fatalf("%s: Install failed: %v", loc(1), err)
 	}
@@ -238,7 +230,7 @@ func installApp(t *testing.T, opt ...veyron2.Runtime) string {
 }
 
 func startAppImpl(t *testing.T, appID string, opt []veyron2.Runtime) (string, error) {
-	if instanceIDs, err := appStub(t, appID).Start(ort(opt).NewContext()); err != nil {
+	if instanceIDs, err := appStub(appID).Start(ort(opt).NewContext()); err != nil {
 		return "", err
 	} else {
 		if want, got := 1, len(instanceIDs); want != got {
@@ -263,37 +255,37 @@ func startAppExpectError(t *testing.T, appID string, expectedError verror.ID, op
 }
 
 func stopApp(t *testing.T, appID, instanceID string, opt ...veyron2.Runtime) {
-	if err := appStub(t, appID, instanceID).Stop(ort(opt).NewContext(), 5); err != nil {
+	if err := appStub(appID, instanceID).Stop(ort(opt).NewContext(), 5); err != nil {
 		t.Fatalf("%s: Stop(%v/%v) failed: %v", loc(1), appID, instanceID, err)
 	}
 }
 
 func suspendApp(t *testing.T, appID, instanceID string, opt ...veyron2.Runtime) {
-	if err := appStub(t, appID, instanceID).Suspend(ort(opt).NewContext()); err != nil {
+	if err := appStub(appID, instanceID).Suspend(ort(opt).NewContext()); err != nil {
 		t.Fatalf("%s: Suspend(%v/%v) failed: %v", loc(1), appID, instanceID, err)
 	}
 }
 
 func resumeApp(t *testing.T, appID, instanceID string, opt ...veyron2.Runtime) {
-	if err := appStub(t, appID, instanceID).Resume(ort(opt).NewContext()); err != nil {
+	if err := appStub(appID, instanceID).Resume(ort(opt).NewContext()); err != nil {
 		t.Fatalf("%s: Resume(%v/%v) failed: %v", loc(1), appID, instanceID, err)
 	}
 }
 
 func resumeAppExpectError(t *testing.T, appID, instanceID string, expectedError verror.ID, opt ...veyron2.Runtime) {
-	if err := appStub(t, appID, instanceID).Resume(ort(opt).NewContext()); err == nil || !verror.Is(err, expectedError) {
+	if err := appStub(appID, instanceID).Resume(ort(opt).NewContext()); err == nil || !verror.Is(err, expectedError) {
 		t.Fatalf("%s: Resume(%v/%v) expected to fail with %v, got %v instead", loc(1), appID, instanceID, expectedError, err)
 	}
 }
 
 func updateApp(t *testing.T, appID string, opt ...veyron2.Runtime) {
-	if err := appStub(t, appID).Update(ort(opt).NewContext()); err != nil {
+	if err := appStub(appID).Update(ort(opt).NewContext()); err != nil {
 		t.Fatalf("%s: Update(%v) failed: %v", loc(1), appID, err)
 	}
 }
 
 func updateAppExpectError(t *testing.T, appID string, expectedError verror.ID) {
-	if err := appStub(t, appID).Update(rt.R().NewContext()); err == nil || !verror.Is(err, expectedError) {
+	if err := appStub(appID).Update(rt.R().NewContext()); err == nil || !verror.Is(err, expectedError) {
 		if expectedError == naming.ErrNoSuchName.ID && err.Error() == "no different version available" {
 			// TODO(bprosnitz) Remove this check when errUpdateNoOp is updated to verror2
 			return
@@ -303,13 +295,13 @@ func updateAppExpectError(t *testing.T, appID string, expectedError verror.ID) {
 }
 
 func revertApp(t *testing.T, appID string) {
-	if err := appStub(t, appID).Revert(rt.R().NewContext()); err != nil {
+	if err := appStub(appID).Revert(rt.R().NewContext()); err != nil {
 		t.Fatalf("%s: Revert(%v) failed: %v", loc(1), appID, err)
 	}
 }
 
 func revertAppExpectError(t *testing.T, appID string, expectedError verror.ID) {
-	if err := appStub(t, appID).Revert(rt.R().NewContext()); err == nil || !verror.Is(err, expectedError) {
+	if err := appStub(appID).Revert(rt.R().NewContext()); err == nil || !verror.Is(err, expectedError) {
 		if expectedError == naming.ErrNoSuchName.ID && err.Error() == "no different version available" {
 			// TODO(bprosnitz) Remove this check when errUpdateNoOp is updated to verror2
 			return
@@ -319,7 +311,7 @@ func revertAppExpectError(t *testing.T, appID string, expectedError verror.ID) {
 }
 
 func uninstallApp(t *testing.T, appID string) {
-	if err := appStub(t, appID).Uninstall(rt.R().NewContext()); err != nil {
+	if err := appStub(appID).Uninstall(rt.R().NewContext()); err != nil {
 		t.Fatalf("%s: Uninstall(%v) failed: %v", loc(1), appID, err)
 	}
 }

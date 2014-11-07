@@ -12,52 +12,68 @@ import (
 	"veyron.io/veyron/veyron2/ipc"
 )
 
-// AppCycleService is the interface the server implements.
-type AppCycleService interface {
-
-	// Stop initiates shutdown of the server.  It streams back periodic updates
-	// to give the client an idea of how the shutdown is progressing.
-	Stop(context ipc.ServerContext, stream AppCycleServiceStopStream) (err error)
-	// ForceStop tells the server to shut down right away.  It can be issued while
-	// a Stop is outstanding if for example the client does not want to wait any
-	// longer.
-	ForceStop(context ipc.ServerContext) (err error)
+// AppCycleServerMethods is the interface a server writer
+// implements for AppCycle.
+//
+// AppCycle interfaces with the process running a veyron runtime.
+type AppCycleServerMethods interface {
+	// Stop initiates shutdown of the server.  It streams back periodic
+	// updates to give the client an idea of how the shutdown is
+	// progressing.
+	Stop(AppCycleStopContext) error
+	// ForceStop tells the server to shut down right away.  It can be issued
+	// while a Stop is outstanding if for example the client does not want
+	// to wait any longer.
+	ForceStop(ipc.ServerContext) error
 }
 
-// NewServerAppCycle creates a new receiver from the given AppCycleService.
-func NewServerAppCycle(server AppCycleService) interface{} {
-	return &ServerStubAppCycle{
-		service: server,
+// AppCycleServer returns a server stub for AppCycle.
+// It converts an implementation of AppCycleServerMethods into
+// an object that may be used by ipc.Server.
+func AppCycleServer(impl AppCycleServerMethods) AppCycleServerStub {
+	return AppCycleServerStub{impl}
+}
+
+type AppCycleServerStub struct {
+	impl AppCycleServerMethods
+}
+
+func (s AppCycleServerStub) Stop(call ipc.ServerCall) error {
+	ctx := &implAppCycleStopContext{call, implAppCycleStopServerSend{call}}
+	return s.impl.Stop(ctx)
+}
+
+func (s AppCycleServerStub) ForceStop(call ipc.ServerCall) error {
+	return s.impl.ForceStop(call)
+}
+
+// AppCycleStopContext represents the context passed to AppCycle.Stop.
+type AppCycleStopContext interface {
+	ipc.ServerContext
+	// SendStream returns the send side of the server stream.
+	SendStream() interface {
+		// Send places the item onto the output stream.  Returns errors encountered
+		// while sending.  Blocks if there is no buffer space; will unblock when
+		// buffer space is available.
+		Send(item veyron2.Task) error
 	}
 }
 
-type AppCycleServiceStopStream interface {
-	// Send places the item onto the output stream, blocking if there is no buffer
-	// space available.
+type implAppCycleStopServerSend struct {
+	call ipc.ServerCall
+}
+
+func (s *implAppCycleStopServerSend) Send(item veyron2.Task) error {
+	return s.call.Send(item)
+}
+
+type implAppCycleStopContext struct {
+	ipc.ServerContext
+	send implAppCycleStopServerSend
+}
+
+func (s *implAppCycleStopContext) SendStream() interface {
 	Send(item veyron2.Task) error
-}
-
-// Implementation of the AppCycleServiceStopStream interface that is not exported.
-type implAppCycleServiceStopStream struct {
-	serverCall ipc.ServerCall
-}
-
-func (s *implAppCycleServiceStopStream) Send(item veyron2.Task) error {
-	return s.serverCall.Send(item)
-}
-
-// ServerStubAppCycle wraps a server that implements
-// AppCycleService and provides an object that satisfies
-// the requirements of veyron2/ipc.ReflectInvoker.
-type ServerStubAppCycle struct {
-	service AppCycleService
-}
-
-func (s *ServerStubAppCycle) Stop(call ipc.ServerCall) error {
-	stream := &implAppCycleServiceStopStream{serverCall: call}
-	return s.service.Stop(call, stream)
-}
-
-func (s *ServerStubAppCycle) ForceStop(call ipc.ServerCall) error {
-	return s.service.ForceStop(call)
+} {
+	return &s.send
 }

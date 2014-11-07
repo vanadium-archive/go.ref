@@ -116,9 +116,9 @@ func (*server) MultipleArguments(call ipc.ServerContext, i1, i2 int32) (int32, i
 	return i1, i2, nil
 }
 
-func (*server) StreamingOutput(call ipc.ServerContext, nStream int32, item bool, reply test_base.TypeTesterServiceStreamingOutputStream) error {
+func (*server) StreamingOutput(ctx test_base.TypeTesterStreamingOutputContext, nStream int32, item bool) error {
 	vlog.VI(2).Info("StreamingOutput(%v,%v) was called.", nStream, item)
-	sender := reply.SendStream()
+	sender := ctx.SendStream()
 	for i := int32(0); i < nStream; i++ {
 		sender.Send(item)
 	}
@@ -126,7 +126,7 @@ func (*server) StreamingOutput(call ipc.ServerContext, nStream int32, item bool,
 }
 
 func startServer(t *testing.T, r veyron2.Runtime) (ipc.Server, naming.Endpoint, error) {
-	obj := test_base.NewServerTypeTester(&server{})
+	obj := test_base.TypeTesterServer(&server{})
 	server, err := r.NewServer()
 	if err != nil {
 		t.Errorf("NewServer failed: %v", err)

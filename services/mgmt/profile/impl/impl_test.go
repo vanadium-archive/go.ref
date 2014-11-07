@@ -65,10 +65,7 @@ func TestInterface(t *testing.T) {
 	t.Logf("Profile repository at %v", endpoint)
 
 	// Create client stubs for talking to the server.
-	stub, err := repository.BindProfile(naming.JoinAddressName(endpoint.String(), "//linux/base"))
-	if err != nil {
-		t.Fatalf("BindApplication() failed: %v", err)
-	}
+	stub := repository.ProfileClient(naming.JoinAddressName(endpoint.String(), "//linux/base"))
 
 	// Put
 	if err := stub.Put(ctx, spec); err != nil {

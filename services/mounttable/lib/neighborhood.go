@@ -135,7 +135,7 @@ func (nh *neighborhood) Lookup(name, method string) (interface{}, security.Autho
 		elems: elems,
 		nh:    nh,
 	}
-	return ipc.ReflectInvoker(mounttable.NewServerMountTable(ns)), nh, nil
+	return ipc.ReflectInvoker(mounttable.MountTableServer(ns)), nh, nil
 }
 
 func (nh *neighborhood) Authorize(context security.Context) error {
@@ -257,7 +257,7 @@ func (*neighborhoodService) Unmount(_ ipc.ServerContext, _ string) error {
 }
 
 // Glob implements Glob
-func (ns *neighborhoodService) Glob(ctx ipc.ServerContext, pattern string, reply mounttable.GlobbableServiceGlobStream) error {
+func (ns *neighborhoodService) Glob(ctx mounttable.GlobbableGlobContext, pattern string) error {
 	g, err := glob.Parse(pattern)
 	if err != nil {
 		return err
@@ -266,7 +266,7 @@ func (ns *neighborhoodService) Glob(ctx ipc.ServerContext, pattern string, reply
 	// return all neighbors that match the first element of the pattern.
 	nh := ns.nh
 
-	sender := reply.SendStream()
+	sender := ctx.SendStream()
 	switch len(ns.elems) {
 	case 0:
 		for k, n := range nh.neighbors() {

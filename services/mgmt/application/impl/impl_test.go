@@ -50,18 +50,9 @@ func TestInterface(t *testing.T) {
 	}
 
 	// Create client stubs for talking to the server.
-	stub, err := repository.BindApplication(naming.JoinAddressName(endpoint.String(), "//search"))
-	if err != nil {
-		t.Fatalf("BindRepository() failed: %v", err)
-	}
-	stubV1, err := repository.BindApplication(naming.JoinAddressName(endpoint.String(), "//search/v1"))
-	if err != nil {
-		t.Fatalf("BindRepository() failed: %v", err)
-	}
-	stubV2, err := repository.BindApplication(naming.JoinAddressName(endpoint.String(), "//search/v2"))
-	if err != nil {
-		t.Fatalf("BindRepository() failed: %v", err)
-	}
+	stub := repository.ApplicationClient(naming.JoinAddressName(endpoint.String(), "//search"))
+	stubV1 := repository.ApplicationClient(naming.JoinAddressName(endpoint.String(), "//search/v1"))
+	stubV2 := repository.ApplicationClient(naming.JoinAddressName(endpoint.String(), "//search/v2"))
 
 	// Create example envelopes.
 	envelopeV1 := application.Envelope{

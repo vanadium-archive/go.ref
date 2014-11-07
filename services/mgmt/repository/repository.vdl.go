@@ -14,27 +14,26 @@ import (
 
 	"veyron.io/veyron/veyron2/services/mgmt/repository"
 
-	// The non-user imports are prefixed with "_gen_" to prevent collisions.
-	_gen_veyron2 "veyron.io/veyron/veyron2"
-	_gen_context "veyron.io/veyron/veyron2/context"
-	_gen_ipc "veyron.io/veyron/veyron2/ipc"
-	_gen_naming "veyron.io/veyron/veyron2/naming"
-	_gen_vdlutil "veyron.io/veyron/veyron2/vdl/vdlutil"
-	_gen_wiretype "veyron.io/veyron/veyron2/wiretype"
+	// The non-user imports are prefixed with "__" to prevent collisions.
+	__veyron2 "veyron.io/veyron/veyron2"
+	__context "veyron.io/veyron/veyron2/context"
+	__ipc "veyron.io/veyron/veyron2/ipc"
+	__vdlutil "veyron.io/veyron/veyron2/vdl/vdlutil"
+	__wiretype "veyron.io/veyron/veyron2/wiretype"
 )
 
 // TODO(toddw): Remove this line once the new signature support is done.
-// It corrects a bug where _gen_wiretype is unused in VDL pacakges where only
+// It corrects a bug where __wiretype is unused in VDL pacakges where only
 // bootstrap types are used on interfaces.
-const _ = _gen_wiretype.TypeIDInvalid
+const _ = __wiretype.TypeIDInvalid
 
+// ApplicationClientMethods is the client interface
+// containing Application methods.
+//
 // Application describes an application repository internally. Besides
 // the public Application interface, it allows to add and remove
 // application envelopes.
-// Application is the interface the client binds and uses.
-// Application_ExcludingUniversal is the interface without internal framework-added methods
-// to enable embedding without method collisions.  Not to be used directly by clients.
-type Application_ExcludingUniversal interface {
+type ApplicationClientMethods interface {
 	// Application provides access to application envelopes. An
 	// application envelope is identified by an application name and an
 	// application version, which are specified through the object name,
@@ -45,11 +44,11 @@ type Application_ExcludingUniversal interface {
 	//   returns an application envelope that can be used for downloading
 	//   and executing the "search" application, version "v1", runnable
 	//   on either the "base" or "media" profile.
-	repository.Application_ExcludingUniversal
+	repository.ApplicationClientMethods
 	// Put adds the given tuple of application version (specified
 	// through the object name suffix) and application envelope to all
 	// of the given application profiles.
-	Put(ctx _gen_context.T, Profiles []string, Envelope application.Envelope, opts ..._gen_ipc.CallOpt) (err error)
+	Put(ctx __context.T, Profiles []string, Envelope application.Envelope, opts ...__ipc.CallOpt) error
 	// Remove removes the application envelope for the given profile
 	// name and application version (specified through the object name
 	// suffix). If no version is specified as part of the suffix, the
@@ -57,180 +56,196 @@ type Application_ExcludingUniversal interface {
 	//
 	// TODO(jsimsa): Add support for using "*" to specify all profiles
 	// when Matt implements Globing (or Ken implements querying).
-	Remove(ctx _gen_context.T, Profile string, opts ..._gen_ipc.CallOpt) (err error)
-}
-type Application interface {
-	_gen_ipc.UniversalServiceMethods
-	Application_ExcludingUniversal
+	Remove(ctx __context.T, Profile string, opts ...__ipc.CallOpt) error
 }
 
-// ApplicationService is the interface the server implements.
-type ApplicationService interface {
-
-	// Application provides access to application envelopes. An
-	// application envelope is identified by an application name and an
-	// application version, which are specified through the object name,
-	// and a profile name, which is specified using a method argument.
-	//
-	// Example:
-	// /apps/search/v1.Match([]string{"base", "media"})
-	//   returns an application envelope that can be used for downloading
-	//   and executing the "search" application, version "v1", runnable
-	//   on either the "base" or "media" profile.
-	repository.ApplicationService
-	// Put adds the given tuple of application version (specified
-	// through the object name suffix) and application envelope to all
-	// of the given application profiles.
-	Put(context _gen_ipc.ServerContext, Profiles []string, Envelope application.Envelope) (err error)
-	// Remove removes the application envelope for the given profile
-	// name and application version (specified through the object name
-	// suffix). If no version is specified as part of the suffix, the
-	// method removes all versions for the given profile.
-	//
-	// TODO(jsimsa): Add support for using "*" to specify all profiles
-	// when Matt implements Globing (or Ken implements querying).
-	Remove(context _gen_ipc.ServerContext, Profile string) (err error)
+// ApplicationClientStub adds universal methods to ApplicationClientMethods.
+type ApplicationClientStub interface {
+	ApplicationClientMethods
+	__ipc.UniversalServiceMethods
 }
 
-// BindApplication returns the client stub implementing the Application
-// interface.
-//
-// If no _gen_ipc.Client is specified, the default _gen_ipc.Client in the
-// global Runtime is used.
-func BindApplication(name string, opts ..._gen_ipc.BindOpt) (Application, error) {
-	var client _gen_ipc.Client
-	switch len(opts) {
-	case 0:
-		// Do nothing.
-	case 1:
-		if clientOpt, ok := opts[0].(_gen_ipc.Client); opts[0] == nil || ok {
+// ApplicationClient returns a client stub for Application.
+func ApplicationClient(name string, opts ...__ipc.BindOpt) ApplicationClientStub {
+	var client __ipc.Client
+	for _, opt := range opts {
+		if clientOpt, ok := opt.(__ipc.Client); ok {
 			client = clientOpt
-		} else {
-			return nil, _gen_vdlutil.ErrUnrecognizedOption
 		}
-	default:
-		return nil, _gen_vdlutil.ErrTooManyOptionsToBind
 	}
-	stub := &clientStubApplication{defaultClient: client, name: name}
-	stub.Application_ExcludingUniversal, _ = repository.BindApplication(name, client)
-
-	return stub, nil
+	return implApplicationClientStub{name, client, repository.ApplicationClient(name, client)}
 }
 
-// NewServerApplication creates a new server stub.
+type implApplicationClientStub struct {
+	name   string
+	client __ipc.Client
+
+	repository.ApplicationClientStub
+}
+
+func (c implApplicationClientStub) c(ctx __context.T) __ipc.Client {
+	if c.client != nil {
+		return c.client
+	}
+	return __veyron2.RuntimeFromContext(ctx).Client()
+}
+
+func (c implApplicationClientStub) Put(ctx __context.T, i0 []string, i1 application.Envelope, opts ...__ipc.CallOpt) (err error) {
+	var call __ipc.Call
+	if call, err = c.c(ctx).StartCall(ctx, c.name, "Put", []interface{}{i0, i1}, opts...); err != nil {
+		return
+	}
+	if ierr := call.Finish(&err); ierr != nil {
+		err = ierr
+	}
+	return
+}
+
+func (c implApplicationClientStub) Remove(ctx __context.T, i0 string, opts ...__ipc.CallOpt) (err error) {
+	var call __ipc.Call
+	if call, err = c.c(ctx).StartCall(ctx, c.name, "Remove", []interface{}{i0}, opts...); err != nil {
+		return
+	}
+	if ierr := call.Finish(&err); ierr != nil {
+		err = ierr
+	}
+	return
+}
+
+func (c implApplicationClientStub) Signature(ctx __context.T, opts ...__ipc.CallOpt) (o0 __ipc.ServiceSignature, err error) {
+	var call __ipc.Call
+	if call, err = c.c(ctx).StartCall(ctx, c.name, "Signature", nil, opts...); err != nil {
+		return
+	}
+	if ierr := call.Finish(&o0, &err); ierr != nil {
+		err = ierr
+	}
+	return
+}
+
+func (c implApplicationClientStub) GetMethodTags(ctx __context.T, method string, opts ...__ipc.CallOpt) (o0 []interface{}, err error) {
+	var call __ipc.Call
+	if call, err = c.c(ctx).StartCall(ctx, c.name, "GetMethodTags", []interface{}{method}, opts...); err != nil {
+		return
+	}
+	if ierr := call.Finish(&o0, &err); ierr != nil {
+		err = ierr
+	}
+	return
+}
+
+// ApplicationServerMethods is the interface a server writer
+// implements for Application.
 //
-// It takes a regular server implementing the ApplicationService
-// interface, and returns a new server stub.
-func NewServerApplication(server ApplicationService) interface{} {
-	stub := &ServerStubApplication{
-		ServerStubApplication: *repository.NewServerApplication(server).(*repository.ServerStubApplication),
-		service:               server,
+// Application describes an application repository internally. Besides
+// the public Application interface, it allows to add and remove
+// application envelopes.
+type ApplicationServerMethods interface {
+	// Application provides access to application envelopes. An
+	// application envelope is identified by an application name and an
+	// application version, which are specified through the object name,
+	// and a profile name, which is specified using a method argument.
+	//
+	// Example:
+	// /apps/search/v1.Match([]string{"base", "media"})
+	//   returns an application envelope that can be used for downloading
+	//   and executing the "search" application, version "v1", runnable
+	//   on either the "base" or "media" profile.
+	repository.ApplicationServerMethods
+	// Put adds the given tuple of application version (specified
+	// through the object name suffix) and application envelope to all
+	// of the given application profiles.
+	Put(ctx __ipc.ServerContext, Profiles []string, Envelope application.Envelope) error
+	// Remove removes the application envelope for the given profile
+	// name and application version (specified through the object name
+	// suffix). If no version is specified as part of the suffix, the
+	// method removes all versions for the given profile.
+	//
+	// TODO(jsimsa): Add support for using "*" to specify all profiles
+	// when Matt implements Globing (or Ken implements querying).
+	Remove(ctx __ipc.ServerContext, Profile string) error
+}
+
+// ApplicationServerStubMethods is the server interface containing
+// Application methods, as expected by ipc.Server.  The difference between
+// this interface and ApplicationServerMethods is that the first context
+// argument for each method is always ipc.ServerCall here, while it is either
+// ipc.ServerContext or a typed streaming context there.
+type ApplicationServerStubMethods interface {
+	// Application provides access to application envelopes. An
+	// application envelope is identified by an application name and an
+	// application version, which are specified through the object name,
+	// and a profile name, which is specified using a method argument.
+	//
+	// Example:
+	// /apps/search/v1.Match([]string{"base", "media"})
+	//   returns an application envelope that can be used for downloading
+	//   and executing the "search" application, version "v1", runnable
+	//   on either the "base" or "media" profile.
+	repository.ApplicationServerStubMethods
+	// Put adds the given tuple of application version (specified
+	// through the object name suffix) and application envelope to all
+	// of the given application profiles.
+	Put(call __ipc.ServerCall, Profiles []string, Envelope application.Envelope) error
+	// Remove removes the application envelope for the given profile
+	// name and application version (specified through the object name
+	// suffix). If no version is specified as part of the suffix, the
+	// method removes all versions for the given profile.
+	//
+	// TODO(jsimsa): Add support for using "*" to specify all profiles
+	// when Matt implements Globing (or Ken implements querying).
+	Remove(call __ipc.ServerCall, Profile string) error
+}
+
+// ApplicationServerStub adds universal methods to ApplicationServerStubMethods.
+type ApplicationServerStub interface {
+	ApplicationServerStubMethods
+	// GetMethodTags will be replaced with DescribeInterfaces.
+	GetMethodTags(call __ipc.ServerCall, method string) ([]interface{}, error)
+	// Signature will be replaced with DescribeInterfaces.
+	Signature(call __ipc.ServerCall) (__ipc.ServiceSignature, error)
+}
+
+// ApplicationServer returns a server stub for Application.
+// It converts an implementation of ApplicationServerMethods into
+// an object that may be used by ipc.Server.
+func ApplicationServer(impl ApplicationServerMethods) ApplicationServerStub {
+	stub := implApplicationServerStub{
+		impl: impl,
+		ApplicationServerStub: repository.ApplicationServer(impl),
 	}
-	var gs _gen_ipc.GlobState
-	var self interface{} = stub
-	// VAllGlobber is implemented by the server object, which is wrapped in
-	// a VDL generated server stub.
-	if x, ok := self.(_gen_ipc.VAllGlobber); ok {
-		gs.VAllGlobber = x
+	// Initialize GlobState; always check the stub itself first, to handle the
+	// case where the user has the Glob method defined in their VDL source.
+	if gs := __ipc.NewGlobState(stub); gs != nil {
+		stub.gs = gs
+	} else if gs := __ipc.NewGlobState(impl); gs != nil {
+		stub.gs = gs
 	}
-	// VAllGlobber is implemented by the server object without using a VDL
-	// generated stub.
-	if x, ok := server.(_gen_ipc.VAllGlobber); ok {
-		gs.VAllGlobber = x
-	}
-	// VChildrenGlobber is implemented in the server object.
-	if x, ok := server.(_gen_ipc.VChildrenGlobber); ok {
-		gs.VChildrenGlobber = x
-	}
-	stub.gs = &gs
 	return stub
 }
 
-// clientStubApplication implements Application.
-type clientStubApplication struct {
-	repository.Application_ExcludingUniversal
+type implApplicationServerStub struct {
+	impl ApplicationServerMethods
+	gs   *__ipc.GlobState
 
-	defaultClient _gen_ipc.Client
-	name          string
+	repository.ApplicationServerStub
 }
 
-func (__gen_c *clientStubApplication) client(ctx _gen_context.T) _gen_ipc.Client {
-	if __gen_c.defaultClient != nil {
-		return __gen_c.defaultClient
-	}
-	return _gen_veyron2.RuntimeFromContext(ctx).Client()
+func (s implApplicationServerStub) Put(call __ipc.ServerCall, i0 []string, i1 application.Envelope) error {
+	return s.impl.Put(call, i0, i1)
 }
 
-func (__gen_c *clientStubApplication) Put(ctx _gen_context.T, Profiles []string, Envelope application.Envelope, opts ..._gen_ipc.CallOpt) (err error) {
-	var call _gen_ipc.Call
-	if call, err = __gen_c.client(ctx).StartCall(ctx, __gen_c.name, "Put", []interface{}{Profiles, Envelope}, opts...); err != nil {
-		return
-	}
-	if ierr := call.Finish(&err); ierr != nil {
-		err = ierr
-	}
-	return
+func (s implApplicationServerStub) Remove(call __ipc.ServerCall, i0 string) error {
+	return s.impl.Remove(call, i0)
 }
 
-func (__gen_c *clientStubApplication) Remove(ctx _gen_context.T, Profile string, opts ..._gen_ipc.CallOpt) (err error) {
-	var call _gen_ipc.Call
-	if call, err = __gen_c.client(ctx).StartCall(ctx, __gen_c.name, "Remove", []interface{}{Profile}, opts...); err != nil {
-		return
-	}
-	if ierr := call.Finish(&err); ierr != nil {
-		err = ierr
-	}
-	return
+func (s implApplicationServerStub) VGlob() *__ipc.GlobState {
+	return s.gs
 }
 
-func (__gen_c *clientStubApplication) UnresolveStep(ctx _gen_context.T, opts ..._gen_ipc.CallOpt) (reply []string, err error) {
-	var call _gen_ipc.Call
-	if call, err = __gen_c.client(ctx).StartCall(ctx, __gen_c.name, "UnresolveStep", nil, opts...); err != nil {
-		return
-	}
-	if ierr := call.Finish(&reply, &err); ierr != nil {
-		err = ierr
-	}
-	return
-}
-
-func (__gen_c *clientStubApplication) Signature(ctx _gen_context.T, opts ..._gen_ipc.CallOpt) (reply _gen_ipc.ServiceSignature, err error) {
-	var call _gen_ipc.Call
-	if call, err = __gen_c.client(ctx).StartCall(ctx, __gen_c.name, "Signature", nil, opts...); err != nil {
-		return
-	}
-	if ierr := call.Finish(&reply, &err); ierr != nil {
-		err = ierr
-	}
-	return
-}
-
-func (__gen_c *clientStubApplication) GetMethodTags(ctx _gen_context.T, method string, opts ..._gen_ipc.CallOpt) (reply []interface{}, err error) {
-	var call _gen_ipc.Call
-	if call, err = __gen_c.client(ctx).StartCall(ctx, __gen_c.name, "GetMethodTags", []interface{}{method}, opts...); err != nil {
-		return
-	}
-	if ierr := call.Finish(&reply, &err); ierr != nil {
-		err = ierr
-	}
-	return
-}
-
-// ServerStubApplication wraps a server that implements
-// ApplicationService and provides an object that satisfies
-// the requirements of veyron2/ipc.ReflectInvoker.
-type ServerStubApplication struct {
-	repository.ServerStubApplication
-
-	service ApplicationService
-	gs      *_gen_ipc.GlobState
-}
-
-func (__gen_s *ServerStubApplication) GetMethodTags(call _gen_ipc.ServerCall, method string) ([]interface{}, error) {
-	// TODO(bprosnitz) GetMethodTags() will be replaces with Signature().
-	// Note: This exhibits some weird behavior like returning a nil error if the method isn't found.
-	// This will change when it is replaced with Signature().
-	if resp, err := __gen_s.ServerStubApplication.GetMethodTags(call, method); resp != nil || err != nil {
+func (s implApplicationServerStub) GetMethodTags(call __ipc.ServerCall, method string) ([]interface{}, error) {
+	// TODO(toddw): Replace with new DescribeInterfaces implementation.
+	if resp, err := s.ApplicationServerStub.GetMethodTags(call, method); resp != nil || err != nil {
 		return resp, err
 	}
 	switch method {
@@ -243,84 +258,85 @@ func (__gen_s *ServerStubApplication) GetMethodTags(call _gen_ipc.ServerCall, me
 	}
 }
 
-func (__gen_s *ServerStubApplication) Signature(call _gen_ipc.ServerCall) (_gen_ipc.ServiceSignature, error) {
-	result := _gen_ipc.ServiceSignature{Methods: make(map[string]_gen_ipc.MethodSignature)}
-	result.Methods["Put"] = _gen_ipc.MethodSignature{
-		InArgs: []_gen_ipc.MethodArgument{
+func (s implApplicationServerStub) Signature(call __ipc.ServerCall) (__ipc.ServiceSignature, error) {
+	// TODO(toddw) Replace with new DescribeInterfaces implementation.
+	result := __ipc.ServiceSignature{Methods: make(map[string]__ipc.MethodSignature)}
+	result.Methods["Put"] = __ipc.MethodSignature{
+		InArgs: []__ipc.MethodArgument{
 			{Name: "Profiles", Type: 61},
 			{Name: "Envelope", Type: 65},
 		},
-		OutArgs: []_gen_ipc.MethodArgument{
+		OutArgs: []__ipc.MethodArgument{
 			{Name: "", Type: 66},
 		},
 	}
-	result.Methods["Remove"] = _gen_ipc.MethodSignature{
-		InArgs: []_gen_ipc.MethodArgument{
+	result.Methods["Remove"] = __ipc.MethodSignature{
+		InArgs: []__ipc.MethodArgument{
 			{Name: "Profile", Type: 3},
 		},
-		OutArgs: []_gen_ipc.MethodArgument{
+		OutArgs: []__ipc.MethodArgument{
 			{Name: "", Type: 66},
 		},
 	}
 
-	result.TypeDefs = []_gen_vdlutil.Any{
-		_gen_wiretype.StructType{
-			[]_gen_wiretype.FieldType{
-				_gen_wiretype.FieldType{Type: 0x3, Name: "Title"},
-				_gen_wiretype.FieldType{Type: 0x3d, Name: "Args"},
-				_gen_wiretype.FieldType{Type: 0x3, Name: "Binary"},
-				_gen_wiretype.FieldType{Type: 0x3d, Name: "Env"},
+	result.TypeDefs = []__vdlutil.Any{
+		__wiretype.StructType{
+			[]__wiretype.FieldType{
+				__wiretype.FieldType{Type: 0x3, Name: "Title"},
+				__wiretype.FieldType{Type: 0x3d, Name: "Args"},
+				__wiretype.FieldType{Type: 0x3, Name: "Binary"},
+				__wiretype.FieldType{Type: 0x3d, Name: "Env"},
 			},
 			"veyron.io/veyron/veyron2/services/mgmt/application.Envelope", []string(nil)},
-		_gen_wiretype.NamedPrimitiveType{Type: 0x1, Name: "error", Tags: []string(nil)}}
-	var ss _gen_ipc.ServiceSignature
+		__wiretype.NamedPrimitiveType{Type: 0x1, Name: "error", Tags: []string(nil)}}
+	var ss __ipc.ServiceSignature
 	var firstAdded int
-	ss, _ = __gen_s.ServerStubApplication.Signature(call)
+	ss, _ = s.ApplicationServerStub.Signature(call)
 	firstAdded = len(result.TypeDefs)
 	for k, v := range ss.Methods {
 		for i, _ := range v.InArgs {
-			if v.InArgs[i].Type >= _gen_wiretype.TypeIDFirst {
-				v.InArgs[i].Type += _gen_wiretype.TypeID(firstAdded)
+			if v.InArgs[i].Type >= __wiretype.TypeIDFirst {
+				v.InArgs[i].Type += __wiretype.TypeID(firstAdded)
 			}
 		}
 		for i, _ := range v.OutArgs {
-			if v.OutArgs[i].Type >= _gen_wiretype.TypeIDFirst {
-				v.OutArgs[i].Type += _gen_wiretype.TypeID(firstAdded)
+			if v.OutArgs[i].Type >= __wiretype.TypeIDFirst {
+				v.OutArgs[i].Type += __wiretype.TypeID(firstAdded)
 			}
 		}
-		if v.InStream >= _gen_wiretype.TypeIDFirst {
-			v.InStream += _gen_wiretype.TypeID(firstAdded)
+		if v.InStream >= __wiretype.TypeIDFirst {
+			v.InStream += __wiretype.TypeID(firstAdded)
 		}
-		if v.OutStream >= _gen_wiretype.TypeIDFirst {
-			v.OutStream += _gen_wiretype.TypeID(firstAdded)
+		if v.OutStream >= __wiretype.TypeIDFirst {
+			v.OutStream += __wiretype.TypeID(firstAdded)
 		}
 		result.Methods[k] = v
 	}
 	//TODO(bprosnitz) combine type definitions from embeded interfaces in a way that doesn't cause duplication.
 	for _, d := range ss.TypeDefs {
 		switch wt := d.(type) {
-		case _gen_wiretype.SliceType:
-			if wt.Elem >= _gen_wiretype.TypeIDFirst {
-				wt.Elem += _gen_wiretype.TypeID(firstAdded)
+		case __wiretype.SliceType:
+			if wt.Elem >= __wiretype.TypeIDFirst {
+				wt.Elem += __wiretype.TypeID(firstAdded)
 			}
 			d = wt
-		case _gen_wiretype.ArrayType:
-			if wt.Elem >= _gen_wiretype.TypeIDFirst {
-				wt.Elem += _gen_wiretype.TypeID(firstAdded)
+		case __wiretype.ArrayType:
+			if wt.Elem >= __wiretype.TypeIDFirst {
+				wt.Elem += __wiretype.TypeID(firstAdded)
 			}
 			d = wt
-		case _gen_wiretype.MapType:
-			if wt.Key >= _gen_wiretype.TypeIDFirst {
-				wt.Key += _gen_wiretype.TypeID(firstAdded)
+		case __wiretype.MapType:
+			if wt.Key >= __wiretype.TypeIDFirst {
+				wt.Key += __wiretype.TypeID(firstAdded)
 			}
-			if wt.Elem >= _gen_wiretype.TypeIDFirst {
-				wt.Elem += _gen_wiretype.TypeID(firstAdded)
+			if wt.Elem >= __wiretype.TypeIDFirst {
+				wt.Elem += __wiretype.TypeID(firstAdded)
 			}
 			d = wt
-		case _gen_wiretype.StructType:
+		case __wiretype.StructType:
 			for i, fld := range wt.Fields {
-				if fld.Type >= _gen_wiretype.TypeIDFirst {
-					wt.Fields[i].Type += _gen_wiretype.TypeID(firstAdded)
+				if fld.Type >= __wiretype.TypeIDFirst {
+					wt.Fields[i].Type += __wiretype.TypeID(firstAdded)
 				}
 			}
 			d = wt
@@ -332,233 +348,211 @@ func (__gen_s *ServerStubApplication) Signature(call _gen_ipc.ServerCall) (_gen_
 	return result, nil
 }
 
-func (__gen_s *ServerStubApplication) UnresolveStep(call _gen_ipc.ServerCall) (reply []string, err error) {
-	if unresolver, ok := __gen_s.service.(_gen_ipc.Unresolver); ok {
-		return unresolver.UnresolveStep(call)
-	}
-	if call.Server() == nil {
-		return
-	}
-	var published []string
-	if published, err = call.Server().Published(); err != nil || published == nil {
-		return
-	}
-	reply = make([]string, len(published))
-	for i, p := range published {
-		reply[i] = _gen_naming.Join(p, call.Name())
-	}
-	return
-}
-
-func (__gen_s *ServerStubApplication) VGlob() *_gen_ipc.GlobState {
-	return __gen_s.gs
-}
-
-func (__gen_s *ServerStubApplication) Put(call _gen_ipc.ServerCall, Profiles []string, Envelope application.Envelope) (err error) {
-	err = __gen_s.service.Put(call, Profiles, Envelope)
-	return
-}
-
-func (__gen_s *ServerStubApplication) Remove(call _gen_ipc.ServerCall, Profile string) (err error) {
-	err = __gen_s.service.Remove(call, Profile)
-	return
-}
-
+// ProfileClientMethods is the client interface
+// containing Profile methods.
+//
 // Profile describes a profile internally. Besides the public Profile
 // interface, it allows to add and remove profile specifications.
-// Profile is the interface the client binds and uses.
-// Profile_ExcludingUniversal is the interface without internal framework-added methods
-// to enable embedding without method collisions.  Not to be used directly by clients.
-type Profile_ExcludingUniversal interface {
+type ProfileClientMethods interface {
 	// Profile abstracts a device's ability to run binaries, and hides
 	// specifics such as the operating system, hardware architecture, and
 	// the set of installed libraries. Profiles describe binaries and
 	// devices, and are used to match them.
-	repository.Profile_ExcludingUniversal
+	repository.ProfileClientMethods
 	// Specification returns the profile specification for the profile
 	// identified through the object name suffix.
-	Specification(ctx _gen_context.T, opts ..._gen_ipc.CallOpt) (reply profile.Specification, err error)
+	Specification(__context.T, ...__ipc.CallOpt) (profile.Specification, error)
 	// Put sets the profile specification for the profile identified
 	// through the object name suffix.
-	Put(ctx _gen_context.T, Specification profile.Specification, opts ..._gen_ipc.CallOpt) (err error)
+	Put(ctx __context.T, Specification profile.Specification, opts ...__ipc.CallOpt) error
 	// Remove removes the profile specification for the profile
 	// identified through the object name suffix.
-	Remove(ctx _gen_context.T, opts ..._gen_ipc.CallOpt) (err error)
-}
-type Profile interface {
-	_gen_ipc.UniversalServiceMethods
-	Profile_ExcludingUniversal
+	Remove(__context.T, ...__ipc.CallOpt) error
 }
 
-// ProfileService is the interface the server implements.
-type ProfileService interface {
-
-	// Profile abstracts a device's ability to run binaries, and hides
-	// specifics such as the operating system, hardware architecture, and
-	// the set of installed libraries. Profiles describe binaries and
-	// devices, and are used to match them.
-	repository.ProfileService
-	// Specification returns the profile specification for the profile
-	// identified through the object name suffix.
-	Specification(context _gen_ipc.ServerContext) (reply profile.Specification, err error)
-	// Put sets the profile specification for the profile identified
-	// through the object name suffix.
-	Put(context _gen_ipc.ServerContext, Specification profile.Specification) (err error)
-	// Remove removes the profile specification for the profile
-	// identified through the object name suffix.
-	Remove(context _gen_ipc.ServerContext) (err error)
+// ProfileClientStub adds universal methods to ProfileClientMethods.
+type ProfileClientStub interface {
+	ProfileClientMethods
+	__ipc.UniversalServiceMethods
 }
 
-// BindProfile returns the client stub implementing the Profile
-// interface.
-//
-// If no _gen_ipc.Client is specified, the default _gen_ipc.Client in the
-// global Runtime is used.
-func BindProfile(name string, opts ..._gen_ipc.BindOpt) (Profile, error) {
-	var client _gen_ipc.Client
-	switch len(opts) {
-	case 0:
-		// Do nothing.
-	case 1:
-		if clientOpt, ok := opts[0].(_gen_ipc.Client); opts[0] == nil || ok {
+// ProfileClient returns a client stub for Profile.
+func ProfileClient(name string, opts ...__ipc.BindOpt) ProfileClientStub {
+	var client __ipc.Client
+	for _, opt := range opts {
+		if clientOpt, ok := opt.(__ipc.Client); ok {
 			client = clientOpt
-		} else {
-			return nil, _gen_vdlutil.ErrUnrecognizedOption
 		}
-	default:
-		return nil, _gen_vdlutil.ErrTooManyOptionsToBind
 	}
-	stub := &clientStubProfile{defaultClient: client, name: name}
-	stub.Profile_ExcludingUniversal, _ = repository.BindProfile(name, client)
-
-	return stub, nil
+	return implProfileClientStub{name, client, repository.ProfileClient(name, client)}
 }
 
-// NewServerProfile creates a new server stub.
+type implProfileClientStub struct {
+	name   string
+	client __ipc.Client
+
+	repository.ProfileClientStub
+}
+
+func (c implProfileClientStub) c(ctx __context.T) __ipc.Client {
+	if c.client != nil {
+		return c.client
+	}
+	return __veyron2.RuntimeFromContext(ctx).Client()
+}
+
+func (c implProfileClientStub) Specification(ctx __context.T, opts ...__ipc.CallOpt) (o0 profile.Specification, err error) {
+	var call __ipc.Call
+	if call, err = c.c(ctx).StartCall(ctx, c.name, "Specification", nil, opts...); err != nil {
+		return
+	}
+	if ierr := call.Finish(&o0, &err); ierr != nil {
+		err = ierr
+	}
+	return
+}
+
+func (c implProfileClientStub) Put(ctx __context.T, i0 profile.Specification, opts ...__ipc.CallOpt) (err error) {
+	var call __ipc.Call
+	if call, err = c.c(ctx).StartCall(ctx, c.name, "Put", []interface{}{i0}, opts...); err != nil {
+		return
+	}
+	if ierr := call.Finish(&err); ierr != nil {
+		err = ierr
+	}
+	return
+}
+
+func (c implProfileClientStub) Remove(ctx __context.T, opts ...__ipc.CallOpt) (err error) {
+	var call __ipc.Call
+	if call, err = c.c(ctx).StartCall(ctx, c.name, "Remove", nil, opts...); err != nil {
+		return
+	}
+	if ierr := call.Finish(&err); ierr != nil {
+		err = ierr
+	}
+	return
+}
+
+func (c implProfileClientStub) Signature(ctx __context.T, opts ...__ipc.CallOpt) (o0 __ipc.ServiceSignature, err error) {
+	var call __ipc.Call
+	if call, err = c.c(ctx).StartCall(ctx, c.name, "Signature", nil, opts...); err != nil {
+		return
+	}
+	if ierr := call.Finish(&o0, &err); ierr != nil {
+		err = ierr
+	}
+	return
+}
+
+func (c implProfileClientStub) GetMethodTags(ctx __context.T, method string, opts ...__ipc.CallOpt) (o0 []interface{}, err error) {
+	var call __ipc.Call
+	if call, err = c.c(ctx).StartCall(ctx, c.name, "GetMethodTags", []interface{}{method}, opts...); err != nil {
+		return
+	}
+	if ierr := call.Finish(&o0, &err); ierr != nil {
+		err = ierr
+	}
+	return
+}
+
+// ProfileServerMethods is the interface a server writer
+// implements for Profile.
 //
-// It takes a regular server implementing the ProfileService
-// interface, and returns a new server stub.
-func NewServerProfile(server ProfileService) interface{} {
-	stub := &ServerStubProfile{
-		ServerStubProfile: *repository.NewServerProfile(server).(*repository.ServerStubProfile),
-		service:           server,
+// Profile describes a profile internally. Besides the public Profile
+// interface, it allows to add and remove profile specifications.
+type ProfileServerMethods interface {
+	// Profile abstracts a device's ability to run binaries, and hides
+	// specifics such as the operating system, hardware architecture, and
+	// the set of installed libraries. Profiles describe binaries and
+	// devices, and are used to match them.
+	repository.ProfileServerMethods
+	// Specification returns the profile specification for the profile
+	// identified through the object name suffix.
+	Specification(__ipc.ServerContext) (profile.Specification, error)
+	// Put sets the profile specification for the profile identified
+	// through the object name suffix.
+	Put(ctx __ipc.ServerContext, Specification profile.Specification) error
+	// Remove removes the profile specification for the profile
+	// identified through the object name suffix.
+	Remove(__ipc.ServerContext) error
+}
+
+// ProfileServerStubMethods is the server interface containing
+// Profile methods, as expected by ipc.Server.  The difference between
+// this interface and ProfileServerMethods is that the first context
+// argument for each method is always ipc.ServerCall here, while it is either
+// ipc.ServerContext or a typed streaming context there.
+type ProfileServerStubMethods interface {
+	// Profile abstracts a device's ability to run binaries, and hides
+	// specifics such as the operating system, hardware architecture, and
+	// the set of installed libraries. Profiles describe binaries and
+	// devices, and are used to match them.
+	repository.ProfileServerStubMethods
+	// Specification returns the profile specification for the profile
+	// identified through the object name suffix.
+	Specification(__ipc.ServerCall) (profile.Specification, error)
+	// Put sets the profile specification for the profile identified
+	// through the object name suffix.
+	Put(call __ipc.ServerCall, Specification profile.Specification) error
+	// Remove removes the profile specification for the profile
+	// identified through the object name suffix.
+	Remove(__ipc.ServerCall) error
+}
+
+// ProfileServerStub adds universal methods to ProfileServerStubMethods.
+type ProfileServerStub interface {
+	ProfileServerStubMethods
+	// GetMethodTags will be replaced with DescribeInterfaces.
+	GetMethodTags(call __ipc.ServerCall, method string) ([]interface{}, error)
+	// Signature will be replaced with DescribeInterfaces.
+	Signature(call __ipc.ServerCall) (__ipc.ServiceSignature, error)
+}
+
+// ProfileServer returns a server stub for Profile.
+// It converts an implementation of ProfileServerMethods into
+// an object that may be used by ipc.Server.
+func ProfileServer(impl ProfileServerMethods) ProfileServerStub {
+	stub := implProfileServerStub{
+		impl:              impl,
+		ProfileServerStub: repository.ProfileServer(impl),
 	}
-	var gs _gen_ipc.GlobState
-	var self interface{} = stub
-	// VAllGlobber is implemented by the server object, which is wrapped in
-	// a VDL generated server stub.
-	if x, ok := self.(_gen_ipc.VAllGlobber); ok {
-		gs.VAllGlobber = x
+	// Initialize GlobState; always check the stub itself first, to handle the
+	// case where the user has the Glob method defined in their VDL source.
+	if gs := __ipc.NewGlobState(stub); gs != nil {
+		stub.gs = gs
+	} else if gs := __ipc.NewGlobState(impl); gs != nil {
+		stub.gs = gs
 	}
-	// VAllGlobber is implemented by the server object without using a VDL
-	// generated stub.
-	if x, ok := server.(_gen_ipc.VAllGlobber); ok {
-		gs.VAllGlobber = x
-	}
-	// VChildrenGlobber is implemented in the server object.
-	if x, ok := server.(_gen_ipc.VChildrenGlobber); ok {
-		gs.VChildrenGlobber = x
-	}
-	stub.gs = &gs
 	return stub
 }
 
-// clientStubProfile implements Profile.
-type clientStubProfile struct {
-	repository.Profile_ExcludingUniversal
+type implProfileServerStub struct {
+	impl ProfileServerMethods
+	gs   *__ipc.GlobState
 
-	defaultClient _gen_ipc.Client
-	name          string
+	repository.ProfileServerStub
 }
 
-func (__gen_c *clientStubProfile) client(ctx _gen_context.T) _gen_ipc.Client {
-	if __gen_c.defaultClient != nil {
-		return __gen_c.defaultClient
-	}
-	return _gen_veyron2.RuntimeFromContext(ctx).Client()
+func (s implProfileServerStub) Specification(call __ipc.ServerCall) (profile.Specification, error) {
+	return s.impl.Specification(call)
 }
 
-func (__gen_c *clientStubProfile) Specification(ctx _gen_context.T, opts ..._gen_ipc.CallOpt) (reply profile.Specification, err error) {
-	var call _gen_ipc.Call
-	if call, err = __gen_c.client(ctx).StartCall(ctx, __gen_c.name, "Specification", nil, opts...); err != nil {
-		return
-	}
-	if ierr := call.Finish(&reply, &err); ierr != nil {
-		err = ierr
-	}
-	return
+func (s implProfileServerStub) Put(call __ipc.ServerCall, i0 profile.Specification) error {
+	return s.impl.Put(call, i0)
 }
 
-func (__gen_c *clientStubProfile) Put(ctx _gen_context.T, Specification profile.Specification, opts ..._gen_ipc.CallOpt) (err error) {
-	var call _gen_ipc.Call
-	if call, err = __gen_c.client(ctx).StartCall(ctx, __gen_c.name, "Put", []interface{}{Specification}, opts...); err != nil {
-		return
-	}
-	if ierr := call.Finish(&err); ierr != nil {
-		err = ierr
-	}
-	return
+func (s implProfileServerStub) Remove(call __ipc.ServerCall) error {
+	return s.impl.Remove(call)
 }
 
-func (__gen_c *clientStubProfile) Remove(ctx _gen_context.T, opts ..._gen_ipc.CallOpt) (err error) {
-	var call _gen_ipc.Call
-	if call, err = __gen_c.client(ctx).StartCall(ctx, __gen_c.name, "Remove", nil, opts...); err != nil {
-		return
-	}
-	if ierr := call.Finish(&err); ierr != nil {
-		err = ierr
-	}
-	return
+func (s implProfileServerStub) VGlob() *__ipc.GlobState {
+	return s.gs
 }
 
-func (__gen_c *clientStubProfile) UnresolveStep(ctx _gen_context.T, opts ..._gen_ipc.CallOpt) (reply []string, err error) {
-	var call _gen_ipc.Call
-	if call, err = __gen_c.client(ctx).StartCall(ctx, __gen_c.name, "UnresolveStep", nil, opts...); err != nil {
-		return
-	}
-	if ierr := call.Finish(&reply, &err); ierr != nil {
-		err = ierr
-	}
-	return
-}
-
-func (__gen_c *clientStubProfile) Signature(ctx _gen_context.T, opts ..._gen_ipc.CallOpt) (reply _gen_ipc.ServiceSignature, err error) {
-	var call _gen_ipc.Call
-	if call, err = __gen_c.client(ctx).StartCall(ctx, __gen_c.name, "Signature", nil, opts...); err != nil {
-		return
-	}
-	if ierr := call.Finish(&reply, &err); ierr != nil {
-		err = ierr
-	}
-	return
-}
-
-func (__gen_c *clientStubProfile) GetMethodTags(ctx _gen_context.T, method string, opts ..._gen_ipc.CallOpt) (reply []interface{}, err error) {
-	var call _gen_ipc.Call
-	if call, err = __gen_c.client(ctx).StartCall(ctx, __gen_c.name, "GetMethodTags", []interface{}{method}, opts...); err != nil {
-		return
-	}
-	if ierr := call.Finish(&reply, &err); ierr != nil {
-		err = ierr
-	}
-	return
-}
-
-// ServerStubProfile wraps a server that implements
-// ProfileService and provides an object that satisfies
-// the requirements of veyron2/ipc.ReflectInvoker.
-type ServerStubProfile struct {
-	repository.ServerStubProfile
-
-	service ProfileService
-	gs      *_gen_ipc.GlobState
-}
-
-func (__gen_s *ServerStubProfile) GetMethodTags(call _gen_ipc.ServerCall, method string) ([]interface{}, error) {
-	// TODO(bprosnitz) GetMethodTags() will be replaces with Signature().
-	// Note: This exhibits some weird behavior like returning a nil error if the method isn't found.
-	// This will change when it is replaced with Signature().
-	if resp, err := __gen_s.ServerStubProfile.GetMethodTags(call, method); resp != nil || err != nil {
+func (s implProfileServerStub) GetMethodTags(call __ipc.ServerCall, method string) ([]interface{}, error) {
+	// TODO(toddw): Replace with new DescribeInterfaces implementation.
+	if resp, err := s.ProfileServerStub.GetMethodTags(call, method); resp != nil || err != nil {
 		return resp, err
 	}
 	switch method {
@@ -573,97 +567,98 @@ func (__gen_s *ServerStubProfile) GetMethodTags(call _gen_ipc.ServerCall, method
 	}
 }
 
-func (__gen_s *ServerStubProfile) Signature(call _gen_ipc.ServerCall) (_gen_ipc.ServiceSignature, error) {
-	result := _gen_ipc.ServiceSignature{Methods: make(map[string]_gen_ipc.MethodSignature)}
-	result.Methods["Put"] = _gen_ipc.MethodSignature{
-		InArgs: []_gen_ipc.MethodArgument{
+func (s implProfileServerStub) Signature(call __ipc.ServerCall) (__ipc.ServiceSignature, error) {
+	// TODO(toddw) Replace with new DescribeInterfaces implementation.
+	result := __ipc.ServiceSignature{Methods: make(map[string]__ipc.MethodSignature)}
+	result.Methods["Put"] = __ipc.MethodSignature{
+		InArgs: []__ipc.MethodArgument{
 			{Name: "Specification", Type: 70},
 		},
-		OutArgs: []_gen_ipc.MethodArgument{
+		OutArgs: []__ipc.MethodArgument{
 			{Name: "", Type: 71},
 		},
 	}
-	result.Methods["Remove"] = _gen_ipc.MethodSignature{
-		InArgs: []_gen_ipc.MethodArgument{},
-		OutArgs: []_gen_ipc.MethodArgument{
+	result.Methods["Remove"] = __ipc.MethodSignature{
+		InArgs: []__ipc.MethodArgument{},
+		OutArgs: []__ipc.MethodArgument{
 			{Name: "", Type: 71},
 		},
 	}
-	result.Methods["Specification"] = _gen_ipc.MethodSignature{
-		InArgs: []_gen_ipc.MethodArgument{},
-		OutArgs: []_gen_ipc.MethodArgument{
+	result.Methods["Specification"] = __ipc.MethodSignature{
+		InArgs: []__ipc.MethodArgument{},
+		OutArgs: []__ipc.MethodArgument{
 			{Name: "", Type: 70},
 			{Name: "", Type: 71},
 		},
 	}
 
-	result.TypeDefs = []_gen_vdlutil.Any{
-		_gen_wiretype.NamedPrimitiveType{Type: 0x3, Name: "veyron.io/veyron/veyron2/services/mgmt/build.Architecture", Tags: []string(nil)}, _gen_wiretype.NamedPrimitiveType{Type: 0x3, Name: "veyron.io/veyron/veyron2/services/mgmt/build.Format", Tags: []string(nil)}, _gen_wiretype.StructType{
-			[]_gen_wiretype.FieldType{
-				_gen_wiretype.FieldType{Type: 0x3, Name: "Name"},
-				_gen_wiretype.FieldType{Type: 0x3, Name: "MajorVersion"},
-				_gen_wiretype.FieldType{Type: 0x3, Name: "MinorVersion"},
+	result.TypeDefs = []__vdlutil.Any{
+		__wiretype.NamedPrimitiveType{Type: 0x3, Name: "veyron.io/veyron/veyron2/services/mgmt/build.Architecture", Tags: []string(nil)}, __wiretype.NamedPrimitiveType{Type: 0x3, Name: "veyron.io/veyron/veyron2/services/mgmt/build.Format", Tags: []string(nil)}, __wiretype.StructType{
+			[]__wiretype.FieldType{
+				__wiretype.FieldType{Type: 0x3, Name: "Name"},
+				__wiretype.FieldType{Type: 0x3, Name: "MajorVersion"},
+				__wiretype.FieldType{Type: 0x3, Name: "MinorVersion"},
 			},
 			"veyron.io/veyron/veyron/services/mgmt/profile.Library", []string(nil)},
-		_gen_wiretype.MapType{Key: 0x43, Elem: 0x2, Name: "", Tags: []string(nil)}, _gen_wiretype.NamedPrimitiveType{Type: 0x3, Name: "veyron.io/veyron/veyron2/services/mgmt/build.OperatingSystem", Tags: []string(nil)}, _gen_wiretype.StructType{
-			[]_gen_wiretype.FieldType{
-				_gen_wiretype.FieldType{Type: 0x41, Name: "Arch"},
-				_gen_wiretype.FieldType{Type: 0x3, Name: "Description"},
-				_gen_wiretype.FieldType{Type: 0x42, Name: "Format"},
-				_gen_wiretype.FieldType{Type: 0x44, Name: "Libraries"},
-				_gen_wiretype.FieldType{Type: 0x3, Name: "Label"},
-				_gen_wiretype.FieldType{Type: 0x45, Name: "OS"},
+		__wiretype.MapType{Key: 0x43, Elem: 0x2, Name: "", Tags: []string(nil)}, __wiretype.NamedPrimitiveType{Type: 0x3, Name: "veyron.io/veyron/veyron2/services/mgmt/build.OperatingSystem", Tags: []string(nil)}, __wiretype.StructType{
+			[]__wiretype.FieldType{
+				__wiretype.FieldType{Type: 0x41, Name: "Arch"},
+				__wiretype.FieldType{Type: 0x3, Name: "Description"},
+				__wiretype.FieldType{Type: 0x42, Name: "Format"},
+				__wiretype.FieldType{Type: 0x44, Name: "Libraries"},
+				__wiretype.FieldType{Type: 0x3, Name: "Label"},
+				__wiretype.FieldType{Type: 0x45, Name: "OS"},
 			},
 			"veyron.io/veyron/veyron/services/mgmt/profile.Specification", []string(nil)},
-		_gen_wiretype.NamedPrimitiveType{Type: 0x1, Name: "error", Tags: []string(nil)}}
-	var ss _gen_ipc.ServiceSignature
+		__wiretype.NamedPrimitiveType{Type: 0x1, Name: "error", Tags: []string(nil)}}
+	var ss __ipc.ServiceSignature
 	var firstAdded int
-	ss, _ = __gen_s.ServerStubProfile.Signature(call)
+	ss, _ = s.ProfileServerStub.Signature(call)
 	firstAdded = len(result.TypeDefs)
 	for k, v := range ss.Methods {
 		for i, _ := range v.InArgs {
-			if v.InArgs[i].Type >= _gen_wiretype.TypeIDFirst {
-				v.InArgs[i].Type += _gen_wiretype.TypeID(firstAdded)
+			if v.InArgs[i].Type >= __wiretype.TypeIDFirst {
+				v.InArgs[i].Type += __wiretype.TypeID(firstAdded)
 			}
 		}
 		for i, _ := range v.OutArgs {
-			if v.OutArgs[i].Type >= _gen_wiretype.TypeIDFirst {
-				v.OutArgs[i].Type += _gen_wiretype.TypeID(firstAdded)
+			if v.OutArgs[i].Type >= __wiretype.TypeIDFirst {
+				v.OutArgs[i].Type += __wiretype.TypeID(firstAdded)
 			}
 		}
-		if v.InStream >= _gen_wiretype.TypeIDFirst {
-			v.InStream += _gen_wiretype.TypeID(firstAdded)
+		if v.InStream >= __wiretype.TypeIDFirst {
+			v.InStream += __wiretype.TypeID(firstAdded)
 		}
-		if v.OutStream >= _gen_wiretype.TypeIDFirst {
-			v.OutStream += _gen_wiretype.TypeID(firstAdded)
+		if v.OutStream >= __wiretype.TypeIDFirst {
+			v.OutStream += __wiretype.TypeID(firstAdded)
 		}
 		result.Methods[k] = v
 	}
 	//TODO(bprosnitz) combine type definitions from embeded interfaces in a way that doesn't cause duplication.
 	for _, d := range ss.TypeDefs {
 		switch wt := d.(type) {
-		case _gen_wiretype.SliceType:
-			if wt.Elem >= _gen_wiretype.TypeIDFirst {
-				wt.Elem += _gen_wiretype.TypeID(firstAdded)
+		case __wiretype.SliceType:
+			if wt.Elem >= __wiretype.TypeIDFirst {
+				wt.Elem += __wiretype.TypeID(firstAdded)
 			}
 			d = wt
-		case _gen_wiretype.ArrayType:
-			if wt.Elem >= _gen_wiretype.TypeIDFirst {
-				wt.Elem += _gen_wiretype.TypeID(firstAdded)
+		case __wiretype.ArrayType:
+			if wt.Elem >= __wiretype.TypeIDFirst {
+				wt.Elem += __wiretype.TypeID(firstAdded)
 			}
 			d = wt
-		case _gen_wiretype.MapType:
-			if wt.Key >= _gen_wiretype.TypeIDFirst {
-				wt.Key += _gen_wiretype.TypeID(firstAdded)
+		case __wiretype.MapType:
+			if wt.Key >= __wiretype.TypeIDFirst {
+				wt.Key += __wiretype.TypeID(firstAdded)
 			}
-			if wt.Elem >= _gen_wiretype.TypeIDFirst {
-				wt.Elem += _gen_wiretype.TypeID(firstAdded)
+			if wt.Elem >= __wiretype.TypeIDFirst {
+				wt.Elem += __wiretype.TypeID(firstAdded)
 			}
 			d = wt
-		case _gen_wiretype.StructType:
+		case __wiretype.StructType:
 			for i, fld := range wt.Fields {
-				if fld.Type >= _gen_wiretype.TypeIDFirst {
-					wt.Fields[i].Type += _gen_wiretype.TypeID(firstAdded)
+				if fld.Type >= __wiretype.TypeIDFirst {
+					wt.Fields[i].Type += __wiretype.TypeID(firstAdded)
 				}
 			}
 			d = wt
@@ -673,41 +668,4 @@ func (__gen_s *ServerStubProfile) Signature(call _gen_ipc.ServerCall) (_gen_ipc.
 	}
 
 	return result, nil
-}
-
-func (__gen_s *ServerStubProfile) UnresolveStep(call _gen_ipc.ServerCall) (reply []string, err error) {
-	if unresolver, ok := __gen_s.service.(_gen_ipc.Unresolver); ok {
-		return unresolver.UnresolveStep(call)
-	}
-	if call.Server() == nil {
-		return
-	}
-	var published []string
-	if published, err = call.Server().Published(); err != nil || published == nil {
-		return
-	}
-	reply = make([]string, len(published))
-	for i, p := range published {
-		reply[i] = _gen_naming.Join(p, call.Name())
-	}
-	return
-}
-
-func (__gen_s *ServerStubProfile) VGlob() *_gen_ipc.GlobState {
-	return __gen_s.gs
-}
-
-func (__gen_s *ServerStubProfile) Specification(call _gen_ipc.ServerCall) (reply profile.Specification, err error) {
-	reply, err = __gen_s.service.Specification(call)
-	return
-}
-
-func (__gen_s *ServerStubProfile) Put(call _gen_ipc.ServerCall, Specification profile.Specification) (err error) {
-	err = __gen_s.service.Put(call, Specification)
-	return
-}
-
-func (__gen_s *ServerStubProfile) Remove(call _gen_ipc.ServerCall) (err error) {
-	err = __gen_s.service.Remove(call)
-	return
 }

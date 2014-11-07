@@ -241,7 +241,7 @@ func (d *dispatcher) Lookup(suffix, method string) (interface{}, security.Author
 	// prefix.
 	switch components[0] {
 	case nodeSuffix:
-		receiver := node.NewServerNode(&nodeInvoker{
+		receiver := node.NodeServer(&nodeInvoker{
 			callback: d.internal.callback,
 			updating: d.internal.updating,
 			config:   d.config,
@@ -278,17 +278,17 @@ func (d *dispatcher) Lookup(suffix, method string) (interface{}, security.Author
 				var sigStub signatureStub
 				if kind == "pprof" {
 					label = security.DebugLabel
-					sigStub = &pprof.ServerStubPProf{}
+					sigStub = pprof.PProfServer(nil)
 				} else {
 					label = security.DebugLabel | security.MonitoringLabel
-					sigStub = &stats.ServerStubStats{}
+					sigStub = stats.StatsServer(nil)
 				}
 				suffix := naming.Join("__debug", naming.Join(components[4:]...))
 				remote := naming.JoinAddressName(info.AppCycleMgrName, suffix)
 				return &proxyInvoker{remote, label, sigStub}, d.auth, nil
 			}
 		}
-		receiver := node.NewServerApplication(&appInvoker{
+		receiver := node.ApplicationServer(&appInvoker{
 			callback: d.internal.callback,
 			config:   d.config,
 			suffix:   components[1:],
@@ -302,7 +302,7 @@ func (d *dispatcher) Lookup(suffix, method string) (interface{}, security.Author
 		if len(components) != 2 {
 			return nil, nil, errInvalidSuffix
 		}
-		receiver := inode.NewServerConfig(&configInvoker{
+		receiver := inode.ConfigServer(&configInvoker{
 			callback: d.internal.callback,
 			suffix:   components[1],
 		})

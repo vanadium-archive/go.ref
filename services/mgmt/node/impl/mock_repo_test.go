@@ -36,7 +36,7 @@ func startApplicationRepository() (*application.Envelope, func()) {
 	server, _ := newServer()
 	invoker := new(arInvoker)
 	name := mockApplicationRepoName
-	if err := server.Serve(name, repository.NewServerApplication(invoker), nil); err != nil {
+	if err := server.Serve(name, repository.ApplicationServer(invoker), nil); err != nil {
 		vlog.Fatalf("Serve(%v) failed: %v", name, err)
 	}
 	return &invoker.envelope, func() {
@@ -68,7 +68,7 @@ type brInvoker struct{}
 func startBinaryRepository() func() {
 	server, _ := newServer()
 	name := mockBinaryRepoName
-	if err := server.Serve(name, repository.NewServerBinary(new(brInvoker)), nil); err != nil {
+	if err := server.Serve(name, repository.BinaryServer(new(brInvoker)), nil); err != nil {
 		vlog.Fatalf("Serve(%q) failed: %v", name, err)
 	}
 	return func() {
@@ -92,7 +92,7 @@ func (i *brInvoker) Delete(ipc.ServerContext) error {
 
 var errOperationFailed = errors.New("operation failed")
 
-func (i *brInvoker) Download(_ ipc.ServerContext, _ int32, stream repository.BinaryServiceDownloadStream) error {
+func (i *brInvoker) Download(ctx repository.BinaryDownloadContext, _ int32) error {
 	vlog.VI(1).Infof("Download()")
 	file, err := os.Open(os.Args[0])
 	if err != nil {
@@ -102,7 +102,7 @@ func (i *brInvoker) Download(_ ipc.ServerContext, _ int32, stream repository.Bin
 	defer file.Close()
 	bufferLength := 4096
 	buffer := make([]byte, bufferLength)
-	sender := stream.SendStream()
+	sender := ctx.SendStream()
 	for {
 		n, err := file.Read(buffer)
 		switch err {
@@ -137,7 +137,7 @@ func (*brInvoker) Stat(ipc.ServerContext) ([]binary.PartInfo, error) {
 	return []binary.PartInfo{part}, nil
 }
 
-func (i *brInvoker) Upload(ipc.ServerContext, int32, repository.BinaryServiceUploadStream) error {
+func (i *brInvoker) Upload(repository.BinaryUploadContext, int32) error {
 	vlog.VI(1).Infof("Upload()")
 	return nil
 }

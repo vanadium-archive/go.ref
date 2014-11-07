@@ -6,111 +6,62 @@
 package root
 
 import (
-	// The non-user imports are prefixed with "_gen_" to prevent collisions.
-	_gen_veyron2 "veyron.io/veyron/veyron2"
-	_gen_context "veyron.io/veyron/veyron2/context"
-	_gen_ipc "veyron.io/veyron/veyron2/ipc"
-	_gen_naming "veyron.io/veyron/veyron2/naming"
-	_gen_vdlutil "veyron.io/veyron/veyron2/vdl/vdlutil"
-	_gen_wiretype "veyron.io/veyron/veyron2/wiretype"
+	// The non-user imports are prefixed with "__" to prevent collisions.
+	__veyron2 "veyron.io/veyron/veyron2"
+	__context "veyron.io/veyron/veyron2/context"
+	__ipc "veyron.io/veyron/veyron2/ipc"
+	__vdlutil "veyron.io/veyron/veyron2/vdl/vdlutil"
+	__wiretype "veyron.io/veyron/veyron2/wiretype"
 )
 
 // TODO(toddw): Remove this line once the new signature support is done.
-// It corrects a bug where _gen_wiretype is unused in VDL pacakges where only
+// It corrects a bug where __wiretype is unused in VDL pacakges where only
 // bootstrap types are used on interfaces.
-const _ = _gen_wiretype.TypeIDInvalid
+const _ = __wiretype.TypeIDInvalid
 
+// RootClientMethods is the client interface
+// containing Root methods.
+//
 // Root is an interface to be implemented by a process with root level
 // privileges.
-// Root is the interface the client binds and uses.
-// Root_ExcludingUniversal is the interface without internal framework-added methods
-// to enable embedding without method collisions.  Not to be used directly by clients.
-type Root_ExcludingUniversal interface {
+type RootClientMethods interface {
 	// Reset waits for the given deadline (in milliseconds) and then
 	// restars the host node machine.
-	Reset(ctx _gen_context.T, Deadline uint64, opts ..._gen_ipc.CallOpt) (err error)
-}
-type Root interface {
-	_gen_ipc.UniversalServiceMethods
-	Root_ExcludingUniversal
+	Reset(ctx __context.T, Deadline uint64, opts ...__ipc.CallOpt) error
 }
 
-// RootService is the interface the server implements.
-type RootService interface {
-
-	// Reset waits for the given deadline (in milliseconds) and then
-	// restars the host node machine.
-	Reset(context _gen_ipc.ServerContext, Deadline uint64) (err error)
+// RootClientStub adds universal methods to RootClientMethods.
+type RootClientStub interface {
+	RootClientMethods
+	__ipc.UniversalServiceMethods
 }
 
-// BindRoot returns the client stub implementing the Root
-// interface.
-//
-// If no _gen_ipc.Client is specified, the default _gen_ipc.Client in the
-// global Runtime is used.
-func BindRoot(name string, opts ..._gen_ipc.BindOpt) (Root, error) {
-	var client _gen_ipc.Client
-	switch len(opts) {
-	case 0:
-		// Do nothing.
-	case 1:
-		if clientOpt, ok := opts[0].(_gen_ipc.Client); opts[0] == nil || ok {
+// RootClient returns a client stub for Root.
+func RootClient(name string, opts ...__ipc.BindOpt) RootClientStub {
+	var client __ipc.Client
+	for _, opt := range opts {
+		if clientOpt, ok := opt.(__ipc.Client); ok {
 			client = clientOpt
-		} else {
-			return nil, _gen_vdlutil.ErrUnrecognizedOption
 		}
-	default:
-		return nil, _gen_vdlutil.ErrTooManyOptionsToBind
 	}
-	stub := &clientStubRoot{defaultClient: client, name: name}
-
-	return stub, nil
+	return implRootClientStub{name, client}
 }
 
-// NewServerRoot creates a new server stub.
-//
-// It takes a regular server implementing the RootService
-// interface, and returns a new server stub.
-func NewServerRoot(server RootService) interface{} {
-	stub := &ServerStubRoot{
-		service: server,
-	}
-	var gs _gen_ipc.GlobState
-	var self interface{} = stub
-	// VAllGlobber is implemented by the server object, which is wrapped in
-	// a VDL generated server stub.
-	if x, ok := self.(_gen_ipc.VAllGlobber); ok {
-		gs.VAllGlobber = x
-	}
-	// VAllGlobber is implemented by the server object without using a VDL
-	// generated stub.
-	if x, ok := server.(_gen_ipc.VAllGlobber); ok {
-		gs.VAllGlobber = x
-	}
-	// VChildrenGlobber is implemented in the server object.
-	if x, ok := server.(_gen_ipc.VChildrenGlobber); ok {
-		gs.VChildrenGlobber = x
-	}
-	stub.gs = &gs
-	return stub
+type implRootClientStub struct {
+	name   string
+	client __ipc.Client
 }
 
-// clientStubRoot implements Root.
-type clientStubRoot struct {
-	defaultClient _gen_ipc.Client
-	name          string
-}
-
-func (__gen_c *clientStubRoot) client(ctx _gen_context.T) _gen_ipc.Client {
-	if __gen_c.defaultClient != nil {
-		return __gen_c.defaultClient
+func (c implRootClientStub) c(ctx __context.T) __ipc.Client {
+	if c.client != nil {
+		return c.client
 	}
-	return _gen_veyron2.RuntimeFromContext(ctx).Client()
+	return __veyron2.RuntimeFromContext(ctx).Client()
 }
 
-func (__gen_c *clientStubRoot) Reset(ctx _gen_context.T, Deadline uint64, opts ..._gen_ipc.CallOpt) (err error) {
-	var call _gen_ipc.Call
-	if call, err = __gen_c.client(ctx).StartCall(ctx, __gen_c.name, "Reset", []interface{}{Deadline}, opts...); err != nil {
+func (c implRootClientStub) Reset(ctx __context.T, i0 uint64, opts ...__ipc.CallOpt) (err error) {
+	var call __ipc.Call
+	if call, err = c.c(ctx).StartCall(ctx, c.name, "Reset", []interface{}{i0}, opts...); err != nil {
 		return
 	}
 	if ierr := call.Finish(&err); ierr != nil {
@@ -119,51 +70,91 @@ func (__gen_c *clientStubRoot) Reset(ctx _gen_context.T, Deadline uint64, opts .
 	return
 }
 
-func (__gen_c *clientStubRoot) UnresolveStep(ctx _gen_context.T, opts ..._gen_ipc.CallOpt) (reply []string, err error) {
-	var call _gen_ipc.Call
-	if call, err = __gen_c.client(ctx).StartCall(ctx, __gen_c.name, "UnresolveStep", nil, opts...); err != nil {
+func (c implRootClientStub) Signature(ctx __context.T, opts ...__ipc.CallOpt) (o0 __ipc.ServiceSignature, err error) {
+	var call __ipc.Call
+	if call, err = c.c(ctx).StartCall(ctx, c.name, "Signature", nil, opts...); err != nil {
 		return
 	}
-	if ierr := call.Finish(&reply, &err); ierr != nil {
+	if ierr := call.Finish(&o0, &err); ierr != nil {
 		err = ierr
 	}
 	return
 }
 
-func (__gen_c *clientStubRoot) Signature(ctx _gen_context.T, opts ..._gen_ipc.CallOpt) (reply _gen_ipc.ServiceSignature, err error) {
-	var call _gen_ipc.Call
-	if call, err = __gen_c.client(ctx).StartCall(ctx, __gen_c.name, "Signature", nil, opts...); err != nil {
+func (c implRootClientStub) GetMethodTags(ctx __context.T, method string, opts ...__ipc.CallOpt) (o0 []interface{}, err error) {
+	var call __ipc.Call
+	if call, err = c.c(ctx).StartCall(ctx, c.name, "GetMethodTags", []interface{}{method}, opts...); err != nil {
 		return
 	}
-	if ierr := call.Finish(&reply, &err); ierr != nil {
+	if ierr := call.Finish(&o0, &err); ierr != nil {
 		err = ierr
 	}
 	return
 }
 
-func (__gen_c *clientStubRoot) GetMethodTags(ctx _gen_context.T, method string, opts ..._gen_ipc.CallOpt) (reply []interface{}, err error) {
-	var call _gen_ipc.Call
-	if call, err = __gen_c.client(ctx).StartCall(ctx, __gen_c.name, "GetMethodTags", []interface{}{method}, opts...); err != nil {
-		return
-	}
-	if ierr := call.Finish(&reply, &err); ierr != nil {
-		err = ierr
-	}
-	return
+// RootServerMethods is the interface a server writer
+// implements for Root.
+//
+// Root is an interface to be implemented by a process with root level
+// privileges.
+type RootServerMethods interface {
+	// Reset waits for the given deadline (in milliseconds) and then
+	// restars the host node machine.
+	Reset(ctx __ipc.ServerContext, Deadline uint64) error
 }
 
-// ServerStubRoot wraps a server that implements
-// RootService and provides an object that satisfies
-// the requirements of veyron2/ipc.ReflectInvoker.
-type ServerStubRoot struct {
-	service RootService
-	gs      *_gen_ipc.GlobState
+// RootServerStubMethods is the server interface containing
+// Root methods, as expected by ipc.Server.  The difference between
+// this interface and RootServerMethods is that the first context
+// argument for each method is always ipc.ServerCall here, while it is either
+// ipc.ServerContext or a typed streaming context there.
+type RootServerStubMethods interface {
+	// Reset waits for the given deadline (in milliseconds) and then
+	// restars the host node machine.
+	Reset(call __ipc.ServerCall, Deadline uint64) error
 }
 
-func (__gen_s *ServerStubRoot) GetMethodTags(call _gen_ipc.ServerCall, method string) ([]interface{}, error) {
-	// TODO(bprosnitz) GetMethodTags() will be replaces with Signature().
-	// Note: This exhibits some weird behavior like returning a nil error if the method isn't found.
-	// This will change when it is replaced with Signature().
+// RootServerStub adds universal methods to RootServerStubMethods.
+type RootServerStub interface {
+	RootServerStubMethods
+	// GetMethodTags will be replaced with DescribeInterfaces.
+	GetMethodTags(call __ipc.ServerCall, method string) ([]interface{}, error)
+	// Signature will be replaced with DescribeInterfaces.
+	Signature(call __ipc.ServerCall) (__ipc.ServiceSignature, error)
+}
+
+// RootServer returns a server stub for Root.
+// It converts an implementation of RootServerMethods into
+// an object that may be used by ipc.Server.
+func RootServer(impl RootServerMethods) RootServerStub {
+	stub := implRootServerStub{
+		impl: impl,
+	}
+	// Initialize GlobState; always check the stub itself first, to handle the
+	// case where the user has the Glob method defined in their VDL source.
+	if gs := __ipc.NewGlobState(stub); gs != nil {
+		stub.gs = gs
+	} else if gs := __ipc.NewGlobState(impl); gs != nil {
+		stub.gs = gs
+	}
+	return stub
+}
+
+type implRootServerStub struct {
+	impl RootServerMethods
+	gs   *__ipc.GlobState
+}
+
+func (s implRootServerStub) Reset(call __ipc.ServerCall, i0 uint64) error {
+	return s.impl.Reset(call, i0)
+}
+
+func (s implRootServerStub) VGlob() *__ipc.GlobState {
+	return s.gs
+}
+
+func (s implRootServerStub) GetMethodTags(call __ipc.ServerCall, method string) ([]interface{}, error) {
+	// TODO(toddw): Replace with new DescribeInterfaces implementation.
 	switch method {
 	case "Reset":
 		return []interface{}{}, nil
@@ -172,46 +163,20 @@ func (__gen_s *ServerStubRoot) GetMethodTags(call _gen_ipc.ServerCall, method st
 	}
 }
 
-func (__gen_s *ServerStubRoot) Signature(call _gen_ipc.ServerCall) (_gen_ipc.ServiceSignature, error) {
-	result := _gen_ipc.ServiceSignature{Methods: make(map[string]_gen_ipc.MethodSignature)}
-	result.Methods["Reset"] = _gen_ipc.MethodSignature{
-		InArgs: []_gen_ipc.MethodArgument{
+func (s implRootServerStub) Signature(call __ipc.ServerCall) (__ipc.ServiceSignature, error) {
+	// TODO(toddw) Replace with new DescribeInterfaces implementation.
+	result := __ipc.ServiceSignature{Methods: make(map[string]__ipc.MethodSignature)}
+	result.Methods["Reset"] = __ipc.MethodSignature{
+		InArgs: []__ipc.MethodArgument{
 			{Name: "Deadline", Type: 53},
 		},
-		OutArgs: []_gen_ipc.MethodArgument{
+		OutArgs: []__ipc.MethodArgument{
 			{Name: "", Type: 65},
 		},
 	}
 
-	result.TypeDefs = []_gen_vdlutil.Any{
-		_gen_wiretype.NamedPrimitiveType{Type: 0x1, Name: "error", Tags: []string(nil)}}
+	result.TypeDefs = []__vdlutil.Any{
+		__wiretype.NamedPrimitiveType{Type: 0x1, Name: "error", Tags: []string(nil)}}
 
 	return result, nil
-}
-
-func (__gen_s *ServerStubRoot) UnresolveStep(call _gen_ipc.ServerCall) (reply []string, err error) {
-	if unresolver, ok := __gen_s.service.(_gen_ipc.Unresolver); ok {
-		return unresolver.UnresolveStep(call)
-	}
-	if call.Server() == nil {
-		return
-	}
-	var published []string
-	if published, err = call.Server().Published(); err != nil || published == nil {
-		return
-	}
-	reply = make([]string, len(published))
-	for i, p := range published {
-		reply[i] = _gen_naming.Join(p, call.Name())
-	}
-	return
-}
-
-func (__gen_s *ServerStubRoot) VGlob() *_gen_ipc.GlobState {
-	return __gen_s.gs
-}
-
-func (__gen_s *ServerStubRoot) Reset(call _gen_ipc.ServerCall, Deadline uint64) (err error) {
-	err = __gen_s.service.Reset(call, Deadline)
-	return
 }

@@ -65,11 +65,7 @@ func (p *proxy) index(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	c, err := pprof.BindPProf(p.name)
-	if err != nil {
-		replyUnavailable(w, err)
-		return
-	}
+	c := pprof.PProfClient(p.name)
 	profiles, err := c.Profiles(p.rt.NewContext())
 	if err != nil {
 		replyUnavailable(w, err)
@@ -86,11 +82,7 @@ func (p *proxy) index(w http.ResponseWriter, r *http.Request) {
 func (p *proxy) sendProfile(name string, w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 	debug, _ := strconv.Atoi(r.FormValue("debug"))
-	c, err := pprof.BindPProf(p.name)
-	if err != nil {
-		replyUnavailable(w, err)
-		return
-	}
+	c := pprof.PProfClient(p.name)
 	prof, err := c.Profile(p.rt.NewContext(), name, int32(debug))
 	if err != nil {
 		replyUnavailable(w, err)
@@ -120,11 +112,7 @@ func (p *proxy) profile(w http.ResponseWriter, r *http.Request) {
 		sec = 30
 	}
 	w.Header().Set("Content-Type", "application/octet-stream")
-	c, err := pprof.BindPProf(p.name)
-	if err != nil {
-		replyUnavailable(w, err)
-		return
-	}
+	c := pprof.PProfClient(p.name)
 	prof, err := c.CPUProfile(p.rt.NewContext(), int32(sec))
 	if err != nil {
 		replyUnavailable(w, err)
@@ -149,11 +137,7 @@ func (p *proxy) profile(w http.ResponseWriter, r *http.Request) {
 
 // cmdLine replies with the command-line arguments of the process.
 func (p *proxy) cmdLine(w http.ResponseWriter, r *http.Request) {
-	c, err := pprof.BindPProf(p.name)
-	if err != nil {
-		replyUnavailable(w, err)
-		return
-	}
+	c := pprof.PProfClient(p.name)
 	cmdline, err := c.CmdLine(p.rt.NewContext())
 	if err != nil {
 		replyUnavailable(w, err)
@@ -190,11 +174,7 @@ func (p *proxy) symbol(w http.ResponseWriter, r *http.Request) {
 			break
 		}
 	}
-	c, err := pprof.BindPProf(p.name)
-	if err != nil {
-		replyUnavailable(w, err)
-		return
-	}
+	c := pprof.PProfClient(p.name)
 	pcMap, err := c.Symbol(p.rt.NewContext(), pcList)
 	if err != nil {
 		replyUnavailable(w, err)

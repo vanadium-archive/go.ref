@@ -26,11 +26,7 @@ func clientMain() {
 	log := runtime.Logger()
 	log.Info("Pinging...")
 
-	s, err := BindPingPong("pingpong")
-	if err != nil {
-		log.Fatal("error binding to server: ", err)
-	}
-
+	s := PingPongClient("pingpong")
 	pong, err := s.Ping(runtime.NewContext(), "ping")
 	if err != nil {
 		log.Fatal("error pinging: ", err)
@@ -47,7 +43,7 @@ func serverMain() {
 	}
 	log.Info("Waiting for ping")
 
-	serverPong := NewServerPingPong(&pongd{})
+	serverPong := PingPongServer(&pongd{})
 
 	if endpoint, err := s.Listen(ipc.ListenSpec{Protocol: "tcp", Address: "127.0.0.1:0"}); err == nil {
 		fmt.Printf("Listening at: %v\n", endpoint)

@@ -64,10 +64,7 @@ func TestStatsInvoker(t *testing.T) {
 		histogram.Add(int64(i))
 	}
 
-	c, err := stats.BindStats(naming.JoinAddressName(endpoint, ""))
-	if err != nil {
-		t.Errorf("BindStats: %v", err)
-	}
+	c := stats.StatsClient(naming.JoinAddressName(endpoint, ""))
 
 	// Test Glob()
 	{
@@ -154,10 +151,7 @@ func TestStatsInvoker(t *testing.T) {
 
 	// Test Value()
 	{
-		c, err := stats.BindStats(naming.JoinAddressName(endpoint, "//testing/foo/bar"))
-		if err != nil {
-			t.Errorf("BindStats: %v", err)
-		}
+		c := stats.StatsClient(naming.JoinAddressName(endpoint, "//testing/foo/bar"))
 		value, err := c.Value(rt.R().NewContext())
 		if err != nil {
 			t.Errorf("unexpected error: %v", err)
@@ -169,10 +163,7 @@ func TestStatsInvoker(t *testing.T) {
 
 	// Test Value() with Histogram
 	{
-		c, err := stats.BindStats(naming.JoinAddressName(endpoint, "//testing/hist/foo"))
-		if err != nil {
-			t.Errorf("BindStats: %v", err)
-		}
+		c := stats.StatsClient(naming.JoinAddressName(endpoint, "//testing/hist/foo"))
 		value, err := c.Value(rt.R().NewContext())
 		if err != nil {
 			t.Errorf("unexpected error: %v", err)

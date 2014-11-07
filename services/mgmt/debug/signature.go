@@ -17,7 +17,7 @@ func NewSignatureInvoker(suffix string) ipc.Invoker {
 
 // TODO(rthellend): This is a temporary hack until https://code.google.com/p/envyor/issues/detail?id=285 is resolved.
 func (s signatureInvoker) Signature(ipc.ServerCall) (ipc.ServiceSignature, error) {
-	debugStub := ServerStubDebug{}
+	debugStub := DebugServer(nil)
 	fullSig, _ := debugStub.Signature(nil)
 
 	var show []string

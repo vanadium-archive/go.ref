@@ -39,7 +39,7 @@ func (collectionDispatcher) Authorize(security.Context) error {
 	return nil
 }
 
-// Export implements CollectionService.Export.
+// Export implements CollectionServerMethods.Export.
 func (c *rpcContext) Export(ctx ipc.ServerCall, val []byte, overwrite bool) error {
 	c.Lock()
 	defer c.Unlock()
@@ -50,7 +50,7 @@ func (c *rpcContext) Export(ctx ipc.ServerCall, val []byte, overwrite bool) erro
 	return verror.Make(naming.ErrNameExists, ctx, c.name)
 }
 
-// Lookup implements CollectionService.Lookup.
+// Lookup implements CollectionServerMethods.Lookup.
 func (c *rpcContext) Lookup(ctx ipc.ServerCall) ([]byte, error) {
 	c.Lock()
 	defer c.Unlock()

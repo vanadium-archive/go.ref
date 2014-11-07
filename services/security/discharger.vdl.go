@@ -6,25 +6,24 @@ package security
 import (
 	"veyron.io/veyron/veyron2/security"
 
-	// The non-user imports are prefixed with "_gen_" to prevent collisions.
-	_gen_veyron2 "veyron.io/veyron/veyron2"
-	_gen_context "veyron.io/veyron/veyron2/context"
-	_gen_ipc "veyron.io/veyron/veyron2/ipc"
-	_gen_naming "veyron.io/veyron/veyron2/naming"
-	_gen_vdlutil "veyron.io/veyron/veyron2/vdl/vdlutil"
-	_gen_wiretype "veyron.io/veyron/veyron2/wiretype"
+	// The non-user imports are prefixed with "__" to prevent collisions.
+	__veyron2 "veyron.io/veyron/veyron2"
+	__context "veyron.io/veyron/veyron2/context"
+	__ipc "veyron.io/veyron/veyron2/ipc"
+	__vdlutil "veyron.io/veyron/veyron2/vdl/vdlutil"
+	__wiretype "veyron.io/veyron/veyron2/wiretype"
 )
 
 // TODO(toddw): Remove this line once the new signature support is done.
-// It corrects a bug where _gen_wiretype is unused in VDL pacakges where only
+// It corrects a bug where __wiretype is unused in VDL pacakges where only
 // bootstrap types are used on interfaces.
-const _ = _gen_wiretype.TypeIDInvalid
+const _ = __wiretype.TypeIDInvalid
 
+// DischargerClientMethods is the client interface
+// containing Discharger methods.
+//
 // Discharger is the interface for obtaining discharges for ThirdPartyCaveats.
-// Discharger is the interface the client binds and uses.
-// Discharger_ExcludingUniversal is the interface without internal framework-added methods
-// to enable embedding without method collisions.  Not to be used directly by clients.
-type Discharger_ExcludingUniversal interface {
+type DischargerClientMethods interface {
 	// Discharge is called by a principal that holds a blessing with a third
 	// party caveat and seeks to get a discharge that proves the fulfillment of
 	// this caveat.
@@ -33,148 +32,145 @@ type Discharger_ExcludingUniversal interface {
 	// respectively. (not enforced here because vdl does not know these types)
 	// TODO(ataly,ashankar): Figure out a VDL representation for ThirdPartyCaveat
 	// and Discharge and use those here?
-	Discharge(ctx _gen_context.T, Caveat _gen_vdlutil.Any, Impetus security.DischargeImpetus, opts ..._gen_ipc.CallOpt) (reply _gen_vdlutil.Any, err error)
-}
-type Discharger interface {
-	_gen_ipc.UniversalServiceMethods
-	Discharger_ExcludingUniversal
+	Discharge(ctx __context.T, Caveat __vdlutil.Any, Impetus security.DischargeImpetus, opts ...__ipc.CallOpt) (Discharge __vdlutil.Any, err error)
 }
 
-// DischargerService is the interface the server implements.
-type DischargerService interface {
-
-	// Discharge is called by a principal that holds a blessing with a third
-	// party caveat and seeks to get a discharge that proves the fulfillment of
-	// this caveat.
-	//
-	// Caveat and Discharge are of type ThirdPartyCaveat and Discharge
-	// respectively. (not enforced here because vdl does not know these types)
-	// TODO(ataly,ashankar): Figure out a VDL representation for ThirdPartyCaveat
-	// and Discharge and use those here?
-	Discharge(context _gen_ipc.ServerContext, Caveat _gen_vdlutil.Any, Impetus security.DischargeImpetus) (reply _gen_vdlutil.Any, err error)
+// DischargerClientStub adds universal methods to DischargerClientMethods.
+type DischargerClientStub interface {
+	DischargerClientMethods
+	__ipc.UniversalServiceMethods
 }
 
-// BindDischarger returns the client stub implementing the Discharger
-// interface.
-//
-// If no _gen_ipc.Client is specified, the default _gen_ipc.Client in the
-// global Runtime is used.
-func BindDischarger(name string, opts ..._gen_ipc.BindOpt) (Discharger, error) {
-	var client _gen_ipc.Client
-	switch len(opts) {
-	case 0:
-		// Do nothing.
-	case 1:
-		if clientOpt, ok := opts[0].(_gen_ipc.Client); opts[0] == nil || ok {
+// DischargerClient returns a client stub for Discharger.
+func DischargerClient(name string, opts ...__ipc.BindOpt) DischargerClientStub {
+	var client __ipc.Client
+	for _, opt := range opts {
+		if clientOpt, ok := opt.(__ipc.Client); ok {
 			client = clientOpt
-		} else {
-			return nil, _gen_vdlutil.ErrUnrecognizedOption
 		}
-	default:
-		return nil, _gen_vdlutil.ErrTooManyOptionsToBind
 	}
-	stub := &clientStubDischarger{defaultClient: client, name: name}
-
-	return stub, nil
+	return implDischargerClientStub{name, client}
 }
 
-// NewServerDischarger creates a new server stub.
+type implDischargerClientStub struct {
+	name   string
+	client __ipc.Client
+}
+
+func (c implDischargerClientStub) c(ctx __context.T) __ipc.Client {
+	if c.client != nil {
+		return c.client
+	}
+	return __veyron2.RuntimeFromContext(ctx).Client()
+}
+
+func (c implDischargerClientStub) Discharge(ctx __context.T, i0 __vdlutil.Any, i1 security.DischargeImpetus, opts ...__ipc.CallOpt) (o0 __vdlutil.Any, err error) {
+	var call __ipc.Call
+	if call, err = c.c(ctx).StartCall(ctx, c.name, "Discharge", []interface{}{i0, i1}, opts...); err != nil {
+		return
+	}
+	if ierr := call.Finish(&o0, &err); ierr != nil {
+		err = ierr
+	}
+	return
+}
+
+func (c implDischargerClientStub) Signature(ctx __context.T, opts ...__ipc.CallOpt) (o0 __ipc.ServiceSignature, err error) {
+	var call __ipc.Call
+	if call, err = c.c(ctx).StartCall(ctx, c.name, "Signature", nil, opts...); err != nil {
+		return
+	}
+	if ierr := call.Finish(&o0, &err); ierr != nil {
+		err = ierr
+	}
+	return
+}
+
+func (c implDischargerClientStub) GetMethodTags(ctx __context.T, method string, opts ...__ipc.CallOpt) (o0 []interface{}, err error) {
+	var call __ipc.Call
+	if call, err = c.c(ctx).StartCall(ctx, c.name, "GetMethodTags", []interface{}{method}, opts...); err != nil {
+		return
+	}
+	if ierr := call.Finish(&o0, &err); ierr != nil {
+		err = ierr
+	}
+	return
+}
+
+// DischargerServerMethods is the interface a server writer
+// implements for Discharger.
 //
-// It takes a regular server implementing the DischargerService
-// interface, and returns a new server stub.
-func NewServerDischarger(server DischargerService) interface{} {
-	stub := &ServerStubDischarger{
-		service: server,
+// Discharger is the interface for obtaining discharges for ThirdPartyCaveats.
+type DischargerServerMethods interface {
+	// Discharge is called by a principal that holds a blessing with a third
+	// party caveat and seeks to get a discharge that proves the fulfillment of
+	// this caveat.
+	//
+	// Caveat and Discharge are of type ThirdPartyCaveat and Discharge
+	// respectively. (not enforced here because vdl does not know these types)
+	// TODO(ataly,ashankar): Figure out a VDL representation for ThirdPartyCaveat
+	// and Discharge and use those here?
+	Discharge(ctx __ipc.ServerContext, Caveat __vdlutil.Any, Impetus security.DischargeImpetus) (Discharge __vdlutil.Any, err error)
+}
+
+// DischargerServerStubMethods is the server interface containing
+// Discharger methods, as expected by ipc.Server.  The difference between
+// this interface and DischargerServerMethods is that the first context
+// argument for each method is always ipc.ServerCall here, while it is either
+// ipc.ServerContext or a typed streaming context there.
+type DischargerServerStubMethods interface {
+	// Discharge is called by a principal that holds a blessing with a third
+	// party caveat and seeks to get a discharge that proves the fulfillment of
+	// this caveat.
+	//
+	// Caveat and Discharge are of type ThirdPartyCaveat and Discharge
+	// respectively. (not enforced here because vdl does not know these types)
+	// TODO(ataly,ashankar): Figure out a VDL representation for ThirdPartyCaveat
+	// and Discharge and use those here?
+	Discharge(call __ipc.ServerCall, Caveat __vdlutil.Any, Impetus security.DischargeImpetus) (Discharge __vdlutil.Any, err error)
+}
+
+// DischargerServerStub adds universal methods to DischargerServerStubMethods.
+type DischargerServerStub interface {
+	DischargerServerStubMethods
+	// GetMethodTags will be replaced with DescribeInterfaces.
+	GetMethodTags(call __ipc.ServerCall, method string) ([]interface{}, error)
+	// Signature will be replaced with DescribeInterfaces.
+	Signature(call __ipc.ServerCall) (__ipc.ServiceSignature, error)
+}
+
+// DischargerServer returns a server stub for Discharger.
+// It converts an implementation of DischargerServerMethods into
+// an object that may be used by ipc.Server.
+func DischargerServer(impl DischargerServerMethods) DischargerServerStub {
+	stub := implDischargerServerStub{
+		impl: impl,
 	}
-	var gs _gen_ipc.GlobState
-	var self interface{} = stub
-	// VAllGlobber is implemented by the server object, which is wrapped in
-	// a VDL generated server stub.
-	if x, ok := self.(_gen_ipc.VAllGlobber); ok {
-		gs.VAllGlobber = x
+	// Initialize GlobState; always check the stub itself first, to handle the
+	// case where the user has the Glob method defined in their VDL source.
+	if gs := __ipc.NewGlobState(stub); gs != nil {
+		stub.gs = gs
+	} else if gs := __ipc.NewGlobState(impl); gs != nil {
+		stub.gs = gs
 	}
-	// VAllGlobber is implemented by the server object without using a VDL
-	// generated stub.
-	if x, ok := server.(_gen_ipc.VAllGlobber); ok {
-		gs.VAllGlobber = x
-	}
-	// VChildrenGlobber is implemented in the server object.
-	if x, ok := server.(_gen_ipc.VChildrenGlobber); ok {
-		gs.VChildrenGlobber = x
-	}
-	stub.gs = &gs
 	return stub
 }
 
-// clientStubDischarger implements Discharger.
-type clientStubDischarger struct {
-	defaultClient _gen_ipc.Client
-	name          string
+type implDischargerServerStub struct {
+	impl DischargerServerMethods
+	gs   *__ipc.GlobState
 }
 
-func (__gen_c *clientStubDischarger) client(ctx _gen_context.T) _gen_ipc.Client {
-	if __gen_c.defaultClient != nil {
-		return __gen_c.defaultClient
-	}
-	return _gen_veyron2.RuntimeFromContext(ctx).Client()
+func (s implDischargerServerStub) Discharge(call __ipc.ServerCall, i0 __vdlutil.Any, i1 security.DischargeImpetus) (__vdlutil.Any, error) {
+	return s.impl.Discharge(call, i0, i1)
 }
 
-func (__gen_c *clientStubDischarger) Discharge(ctx _gen_context.T, Caveat _gen_vdlutil.Any, Impetus security.DischargeImpetus, opts ..._gen_ipc.CallOpt) (reply _gen_vdlutil.Any, err error) {
-	var call _gen_ipc.Call
-	if call, err = __gen_c.client(ctx).StartCall(ctx, __gen_c.name, "Discharge", []interface{}{Caveat, Impetus}, opts...); err != nil {
-		return
-	}
-	if ierr := call.Finish(&reply, &err); ierr != nil {
-		err = ierr
-	}
-	return
+func (s implDischargerServerStub) VGlob() *__ipc.GlobState {
+	return s.gs
 }
 
-func (__gen_c *clientStubDischarger) UnresolveStep(ctx _gen_context.T, opts ..._gen_ipc.CallOpt) (reply []string, err error) {
-	var call _gen_ipc.Call
-	if call, err = __gen_c.client(ctx).StartCall(ctx, __gen_c.name, "UnresolveStep", nil, opts...); err != nil {
-		return
-	}
-	if ierr := call.Finish(&reply, &err); ierr != nil {
-		err = ierr
-	}
-	return
-}
-
-func (__gen_c *clientStubDischarger) Signature(ctx _gen_context.T, opts ..._gen_ipc.CallOpt) (reply _gen_ipc.ServiceSignature, err error) {
-	var call _gen_ipc.Call
-	if call, err = __gen_c.client(ctx).StartCall(ctx, __gen_c.name, "Signature", nil, opts...); err != nil {
-		return
-	}
-	if ierr := call.Finish(&reply, &err); ierr != nil {
-		err = ierr
-	}
-	return
-}
-
-func (__gen_c *clientStubDischarger) GetMethodTags(ctx _gen_context.T, method string, opts ..._gen_ipc.CallOpt) (reply []interface{}, err error) {
-	var call _gen_ipc.Call
-	if call, err = __gen_c.client(ctx).StartCall(ctx, __gen_c.name, "GetMethodTags", []interface{}{method}, opts...); err != nil {
-		return
-	}
-	if ierr := call.Finish(&reply, &err); ierr != nil {
-		err = ierr
-	}
-	return
-}
-
-// ServerStubDischarger wraps a server that implements
-// DischargerService and provides an object that satisfies
-// the requirements of veyron2/ipc.ReflectInvoker.
-type ServerStubDischarger struct {
-	service DischargerService
-	gs      *_gen_ipc.GlobState
-}
-
-func (__gen_s *ServerStubDischarger) GetMethodTags(call _gen_ipc.ServerCall, method string) ([]interface{}, error) {
-	// TODO(bprosnitz) GetMethodTags() will be replaces with Signature().
-	// Note: This exhibits some weird behavior like returning a nil error if the method isn't found.
-	// This will change when it is replaced with Signature().
+func (s implDischargerServerStub) GetMethodTags(call __ipc.ServerCall, method string) ([]interface{}, error) {
+	// TODO(toddw): Replace with new DescribeInterfaces implementation.
 	switch method {
 	case "Discharge":
 		return []interface{}{security.Label(2)}, nil
@@ -183,55 +179,29 @@ func (__gen_s *ServerStubDischarger) GetMethodTags(call _gen_ipc.ServerCall, met
 	}
 }
 
-func (__gen_s *ServerStubDischarger) Signature(call _gen_ipc.ServerCall) (_gen_ipc.ServiceSignature, error) {
-	result := _gen_ipc.ServiceSignature{Methods: make(map[string]_gen_ipc.MethodSignature)}
-	result.Methods["Discharge"] = _gen_ipc.MethodSignature{
-		InArgs: []_gen_ipc.MethodArgument{
+func (s implDischargerServerStub) Signature(call __ipc.ServerCall) (__ipc.ServiceSignature, error) {
+	// TODO(toddw) Replace with new DescribeInterfaces implementation.
+	result := __ipc.ServiceSignature{Methods: make(map[string]__ipc.MethodSignature)}
+	result.Methods["Discharge"] = __ipc.MethodSignature{
+		InArgs: []__ipc.MethodArgument{
 			{Name: "Caveat", Type: 65},
 			{Name: "Impetus", Type: 69},
 		},
-		OutArgs: []_gen_ipc.MethodArgument{
+		OutArgs: []__ipc.MethodArgument{
 			{Name: "Discharge", Type: 65},
 			{Name: "err", Type: 70},
 		},
 	}
 
-	result.TypeDefs = []_gen_vdlutil.Any{
-		_gen_wiretype.NamedPrimitiveType{Type: 0x1, Name: "anydata", Tags: []string(nil)}, _gen_wiretype.NamedPrimitiveType{Type: 0x3, Name: "veyron.io/veyron/veyron2/security.BlessingPattern", Tags: []string(nil)}, _gen_wiretype.SliceType{Elem: 0x42, Name: "", Tags: []string(nil)}, _gen_wiretype.SliceType{Elem: 0x41, Name: "", Tags: []string(nil)}, _gen_wiretype.StructType{
-			[]_gen_wiretype.FieldType{
-				_gen_wiretype.FieldType{Type: 0x43, Name: "Server"},
-				_gen_wiretype.FieldType{Type: 0x3, Name: "Method"},
-				_gen_wiretype.FieldType{Type: 0x44, Name: "Arguments"},
+	result.TypeDefs = []__vdlutil.Any{
+		__wiretype.NamedPrimitiveType{Type: 0x1, Name: "anydata", Tags: []string(nil)}, __wiretype.NamedPrimitiveType{Type: 0x3, Name: "veyron.io/veyron/veyron2/security.BlessingPattern", Tags: []string(nil)}, __wiretype.SliceType{Elem: 0x42, Name: "", Tags: []string(nil)}, __wiretype.SliceType{Elem: 0x41, Name: "", Tags: []string(nil)}, __wiretype.StructType{
+			[]__wiretype.FieldType{
+				__wiretype.FieldType{Type: 0x43, Name: "Server"},
+				__wiretype.FieldType{Type: 0x3, Name: "Method"},
+				__wiretype.FieldType{Type: 0x44, Name: "Arguments"},
 			},
 			"veyron.io/veyron/veyron2/security.DischargeImpetus", []string(nil)},
-		_gen_wiretype.NamedPrimitiveType{Type: 0x1, Name: "error", Tags: []string(nil)}}
+		__wiretype.NamedPrimitiveType{Type: 0x1, Name: "error", Tags: []string(nil)}}
 
 	return result, nil
-}
-
-func (__gen_s *ServerStubDischarger) UnresolveStep(call _gen_ipc.ServerCall) (reply []string, err error) {
-	if unresolver, ok := __gen_s.service.(_gen_ipc.Unresolver); ok {
-		return unresolver.UnresolveStep(call)
-	}
-	if call.Server() == nil {
-		return
-	}
-	var published []string
-	if published, err = call.Server().Published(); err != nil || published == nil {
-		return
-	}
-	reply = make([]string, len(published))
-	for i, p := range published {
-		reply[i] = _gen_naming.Join(p, call.Name())
-	}
-	return
-}
-
-func (__gen_s *ServerStubDischarger) VGlob() *_gen_ipc.GlobState {
-	return __gen_s.gs
-}
-
-func (__gen_s *ServerStubDischarger) Discharge(call _gen_ipc.ServerCall, Caveat _gen_vdlutil.Any, Impetus security.DischargeImpetus) (reply _gen_vdlutil.Any, err error) {
-	reply, err = __gen_s.service.Discharge(call, Caveat, Impetus)
-	return
 }

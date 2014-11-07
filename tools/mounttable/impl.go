@@ -14,7 +14,7 @@ import (
 	"veyron.io/veyron/veyron2/services/mounttable/types"
 )
 
-func bindMT(ctx context.T, name string) (mounttable.MountTable, error) {
+func bindMT(ctx context.T, name string) (mounttable.MountTableClientMethods, error) {
 	e, err := rt.R().Namespace().ResolveToMountTableX(ctx, name)
 	if err != nil {
 		return nil, err
@@ -27,7 +27,7 @@ func bindMT(ctx context.T, name string) (mounttable.MountTable, error) {
 		servers = append(servers, naming.JoinAddressName(s.Server, e.Name))
 	}
 	fmt.Println(servers)
-	return mounttable.BindMountTable(servers[0])
+	return mounttable.MountTableClient(servers[0]), nil
 }
 
 var cmdGlob = &cmdline.Command{

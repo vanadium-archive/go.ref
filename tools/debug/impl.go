@@ -143,10 +143,7 @@ func runLogsRead(cmd *cmdline.Command, args []string) error {
 		return cmd.UsageErrorf("read: incorrect number of arguments, got %d, want %d", got, want)
 	}
 	name := args[0]
-	lf, err := logreader.BindLogFile(name)
-	if err != nil {
-		return err
-	}
+	lf := logreader.LogFileClient(name)
 	stream, err := lf.ReadLog(rt.R().NewContext(), startPos, int32(numEntries), follow)
 	if err != nil {
 		return err
@@ -189,10 +186,7 @@ func runLogsSize(cmd *cmdline.Command, args []string) error {
 		return cmd.UsageErrorf("size: incorrect number of arguments, got %d, want %d", got, want)
 	}
 	name := args[0]
-	lf, err := logreader.BindLogFile(name)
-	if err != nil {
-		return err
-	}
+	lf := logreader.LogFileClient(name)
 	size, err := lf.Size(rt.R().NewContext())
 	if err != nil {
 		return err
@@ -250,14 +244,9 @@ func runStatsRead(cmd *cmdline.Command, args []string) error {
 
 func doValue(ctx context.T, name string, output chan<- string, errors chan<- error, wg *sync.WaitGroup) {
 	defer wg.Done()
-	s, err := stats.BindStats(name)
-	if err != nil {
-		errors <- fmt.Errorf("%s: %v", name, err)
-		return
-	}
 	ctx, cancel := ctx.WithTimeout(time.Minute)
 	defer cancel()
-	v, err := s.Value(ctx)
+	v, err := stats.StatsClient(name).Value(ctx)
 	if err != nil {
 		errors <- fmt.Errorf("%s: %v", name, err)
 		return
@@ -322,11 +311,7 @@ func doWatch(ctx context.T, pattern string, results chan<- string, errors chan<-
 	if len(root) != 0 {
 		name = naming.JoinAddressName(root, name)
 	}
-	c, err := watch.BindGlobWatcher(name)
-	if err != nil {
-		errors <- fmt.Errorf("%s: %v", name, err)
-		return
-	}
+	c := watch.GlobWatcherClient(name)
 	for retry := false; ; retry = true {
 		if retry {
 			time.Sleep(10 * time.Second)
@@ -445,11 +430,7 @@ func runPProf(cmd *cmdline.Command, args []string) error {
 }
 
 func showPProfProfiles(cmd *cmdline.Command, name string) error {
-	pp, err := pprof.BindPProf(name)
-	if err != nil {
-		return err
-	}
-	v, err := pp.Profiles(rt.R().NewContext())
+	v, err := pprof.PProfClient(name).Profiles(rt.R().NewContext())
 	if err != nil {
 		return err
 	}
