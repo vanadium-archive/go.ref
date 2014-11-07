@@ -122,8 +122,26 @@ func (p *proxyInvoker) Invoke(method string, inCall ipc.ServerCall, argptrs []in
 }
 
 func (p *proxyInvoker) VGlob() *ipc.GlobState {
-	// TODO(rthellend): Add implementation
-	return nil
+	return &ipc.GlobState{VAllGlobber: p}
+}
+
+func (p *proxyInvoker) Glob(call ipc.ServerCall, pattern string) error {
+	argptrs := []interface{}{&pattern}
+	results, err := p.Invoke(ipc.GlobMethod, call, argptrs)
+	if err != nil {
+		return err
+	}
+	if len(results) != 1 {
+		return fmt.Errorf("unexpected number of result values. Got %d, want 1.", len(results))
+	}
+	if results[0] == nil {
+		return nil
+	}
+	err, ok := results[0].(error)
+	if !ok {
+		return fmt.Errorf("unexpected result value type. Got %T, want error.", err)
+	}
+	return err
 }
 
 // numResults returns the number of result values for the given method.
@@ -131,6 +149,9 @@ func (p *proxyInvoker) numResults(method string) (int, error) {
 	sig, err := p.sigStub.Signature(nil)
 	if err != nil {
 		return 0, err
+	}
+	if method == ipc.GlobMethod {
+		method = "Glob"
 	}
 	m, ok := sig.Methods[method]
 	if !ok {

@@ -16,13 +16,11 @@ import (
 	"veyron.io/veyron/veyron2/naming"
 	"veyron.io/veyron/veyron2/options"
 	"veyron.io/veyron/veyron2/security"
-	mttypes "veyron.io/veyron/veyron2/services/mounttable/types"
 	"veyron.io/veyron/veyron2/verror"
 	"veyron.io/veyron/veyron2/vlog"
 	"veyron.io/veyron/veyron2/vom"
 	"veyron.io/veyron/veyron2/vtrace"
 
-	"veyron.io/veyron/veyron/lib/glob"
 	"veyron.io/veyron/veyron/lib/netstate"
 	"veyron.io/veyron/veyron/runtimes/google/lib/publisher"
 	inaming "veyron.io/veyron/veyron/runtimes/google/naming"
@@ -809,6 +807,7 @@ func (fs *flowServer) processRequest() ([]interface{}, verror.E) {
 		return nil, verr
 	}
 	fs.method = req.Method
+	fs.suffix = req.Suffix
 
 	// TODO(mattr): Currently this allows users to trigger trace collection
 	// on the server even if they will not be allowed to collect the
@@ -861,14 +860,13 @@ func (fs *flowServer) processRequest() ([]interface{}, verror.E) {
 		fs.discharges[d.ID()] = d
 	}
 	// Lookup the invoker.
-	invoker, auth, suffix, verr := fs.lookup(req.Suffix, req.Method)
-	fs.suffix = suffix // with leading /'s stripped
+	invoker, auth, verr := fs.lookup(&fs.suffix, &fs.method)
 	if verr != nil {
 		return nil, verr
 	}
 	// Prepare invoker and decode args.
 	numArgs := int(req.NumPosArgs)
-	argptrs, tags, err := invoker.Prepare(req.Method, numArgs)
+	argptrs, tags, err := invoker.Prepare(fs.method, numArgs)
 	fs.tags = tags
 	if err != nil {
 		return nil, verror.Makef(verror.ErrorID(err), "%s: name: %q", err, req.Suffix)
@@ -893,141 +891,46 @@ func (fs *flowServer) processRequest() ([]interface{}, verror.E) {
 		fs.allowDebug = fs.authorizeForDebug(auth) == nil
 	}
 
-	results, err := invoker.Invoke(req.Method, fs, argptrs)
-	fs.server.stats.record(req.Method, time.Since(fs.starttime))
+	results, err := invoker.Invoke(fs.method, fs, argptrs)
+	fs.server.stats.record(fs.method, time.Since(fs.starttime))
 	return results, verror.Convert(err)
 }
 
 // lookup returns the invoker and authorizer responsible for serving the given
 // name and method.  The name is stripped of any leading slashes. If it begins
 // with ipc.DebugKeyword, we use the internal debug dispatcher to look up the
-// invoker. Otherwise, and we use the server's dispatcher. The (stripped) name
-// and dispatch suffix are also returned.
-func (fs *flowServer) lookup(name, method string) (ipc.Invoker, security.Authorizer, string, verror.E) {
-	name = strings.TrimLeft(name, "/")
-	if method == "Glob" && len(name) == 0 {
-		return ipc.ReflectInvoker(&globInvoker{"__debug", fs}), &acceptAllAuthorizer{}, name, nil
+// invoker. Otherwise, and we use the server's dispatcher. The name and method
+// value may be modified to match the actual name and method to use.
+func (fs *flowServer) lookup(name, method *string) (ipc.Invoker, security.Authorizer, verror.E) {
+	*name = strings.TrimLeft(*name, "/")
+	// TODO(rthellend): Remove "Glob" from the condition below after
+	// everything has transitioned to the new name.
+	if *method == "Glob" || *method == ipc.GlobMethod {
+		*method = "Glob"
+		return ipc.ReflectInvoker(&globInternal{fs, *name}), &acceptAllAuthorizer{}, nil
 	}
-	disp := fs.disp
-	if strings.HasPrefix(name, naming.ReservedNamePrefix) {
-		parts := strings.SplitN(name, "/", 2)
-		if len(parts) > 1 {
-			name = parts[1]
-		} else {
-			name = ""
-		}
+	var disp ipc.Dispatcher
+	if naming.IsReserved(*name) {
 		disp = fs.reservedOpt.Dispatcher
+	} else {
+		disp = fs.disp
 	}
-
 	if disp != nil {
-		invoker, auth, err := lookupInvoker(disp, name, method)
+		invoker, auth, err := lookupInvoker(disp, *name, *method)
 		switch {
 		case err != nil:
-			return nil, nil, "", verror.Convert(err)
+			return nil, nil, verror.Convert(err)
 		case invoker != nil:
-			return invoker, auth, name, nil
+			return invoker, auth, nil
 		}
 	}
-	return nil, nil, "", verror.NoExistf("ipc: invoker not found for %q", name)
+	return nil, nil, verror.NoExistf("ipc: invoker not found for %q", *name)
 }
 
 type acceptAllAuthorizer struct{}
 
 func (acceptAllAuthorizer) Authorize(security.Context) error {
 	return nil
-}
-
-type globInvoker struct {
-	prefix string
-	fs     *flowServer
-}
-
-// Glob matches the pattern against internal object names if the double-
-// underscore prefix is explicitly part of the pattern. Otherwise, it invokes
-// the service's Glob method.
-func (i *globInvoker) Glob(call ipc.ServerCall, pattern string) error {
-	g, err := glob.Parse(pattern)
-	if err != nil {
-		return err
-	}
-	if strings.HasPrefix(pattern, naming.ReservedNamePrefix) {
-		var err error
-		// Match against internal object names.
-		if ok, _, left := g.MatchInitialSegment(i.prefix); ok {
-			if ierr := i.invokeGlob(call, i.fs.reservedOpt.Dispatcher, i.prefix, left.String()); ierr != nil {
-				err = ierr
-			}
-		}
-		return err
-	}
-	// Invoke the service's method.
-	return i.invokeGlob(call, i.fs.disp, "", pattern)
-}
-
-func (i *globInvoker) invokeGlob(call ipc.ServerCall, d ipc.Dispatcher, prefix, pattern string) error {
-	if d == nil {
-		return nil
-	}
-	obj, auth, err := d.Lookup("", "Glob")
-	if err != nil {
-		return err
-	}
-	// TODO(cnicolaou): ipc.Serve TRANSITION
-	invoker, ok := obj.(ipc.Invoker)
-	if !ok {
-		panic(fmt.Errorf("Lookup should have returned an ipc.Invoker, returned %T", obj))
-	}
-	if obj == nil || !ok {
-		return verror.NoExistf("ipc: invoker not found for Glob")
-	}
-
-	argptrs, tags, err := invoker.Prepare("Glob", 1)
-	i.fs.tags = tags
-	if err != nil {
-		return verror.Makef(verror.ErrorID(err), "%s", err)
-	}
-	if err := i.fs.authorize(auth); err != nil {
-		return err
-	}
-	leafCall := &localServerCall{call, prefix}
-	argptrs[0] = &pattern
-	results, err := invoker.Invoke("Glob", leafCall, argptrs)
-	if err != nil {
-		return err
-	}
-
-	if len(results) != 1 {
-		return verror.BadArgf("unexpected number of results. Got %d, want 1", len(results))
-	}
-	res := results[0]
-	if res == nil {
-		return nil
-	}
-	err, ok = res.(error)
-	if !ok {
-		return verror.BadArgf("unexpected result type. Got %T, want error", res)
-	}
-	return err
-}
-
-// An ipc.ServerCall that prepends a prefix to all the names in the streamed
-// MountEntry objects.
-type localServerCall struct {
-	ipc.ServerCall
-	prefix string
-}
-
-var _ ipc.ServerCall = (*localServerCall)(nil)
-var _ ipc.Stream = (*localServerCall)(nil)
-var _ ipc.ServerContext = (*localServerCall)(nil)
-
-func (c *localServerCall) Send(v interface{}) error {
-	me, ok := v.(mttypes.MountEntry)
-	if !ok {
-		return verror.BadArgf("unexpected stream type. Got %T, want MountEntry", v)
-	}
-	me.Name = naming.Join(c.prefix, me.Name)
-	return c.ServerCall.Send(me)
 }
 
 func (fs *flowServer) authorize(auth security.Authorizer) verror.E {

@@ -4,13 +4,12 @@ import (
 	"strings"
 	"time"
 
-	"veyron.io/veyron/veyron/services/mgmt/lib/toplevelglob"
+	"veyron.io/veyron/veyron2/ipc"
+	"veyron.io/veyron/veyron2/security"
+
 	logreaderimpl "veyron.io/veyron/veyron/services/mgmt/logreader/impl"
 	pprofimpl "veyron.io/veyron/veyron/services/mgmt/pprof/impl"
 	statsimpl "veyron.io/veyron/veyron/services/mgmt/stats/impl"
-
-	"veyron.io/veyron/veyron2/ipc"
-	"veyron.io/veyron/veyron2/security"
 )
 
 // dispatcher holds the state of the debug dispatcher.
@@ -25,13 +24,24 @@ func NewDispatcher(logsDir string, authorizer security.Authorizer) *dispatcher {
 	return &dispatcher{logsDir, authorizer}
 }
 
+// The first part of the names of the objects served by this dispatcher.
+var rootName = "__debug"
+
 func (d *dispatcher) Lookup(suffix, method string) (interface{}, security.Authorizer, error) {
+	if suffix == "" {
+		return ipc.VChildrenGlobberInvoker(rootName), d.auth, nil
+	}
+	if !strings.HasPrefix(suffix, rootName) {
+		return nil, nil, nil
+	}
+	suffix = strings.TrimPrefix(suffix, rootName)
+	suffix = strings.TrimLeft(suffix, "/")
+
 	if method == "Signature" {
 		return NewSignatureInvoker(suffix), d.auth, nil
 	}
-	if len(suffix) == 0 {
-		leaves := []string{"logs", "pprof", "stats"}
-		return toplevelglob.New(d, leaves), d.auth, nil
+	if suffix == "" {
+		return ipc.VChildrenGlobberInvoker("logs", "pprof", "stats"), d.auth, nil
 	}
 	parts := strings.SplitN(suffix, "/", 2)
 	if len(parts) == 2 {
@@ -41,7 +51,7 @@ func (d *dispatcher) Lookup(suffix, method string) (interface{}, security.Author
 	}
 	switch parts[0] {
 	case "logs":
-		if method == "Glob" {
+		if method == ipc.GlobMethod {
 			return logreaderimpl.NewLogDirectoryInvoker(d.logsDir, suffix), d.auth, nil
 		}
 		return logreaderimpl.NewLogFileInvoker(d.logsDir, suffix), d.auth, nil

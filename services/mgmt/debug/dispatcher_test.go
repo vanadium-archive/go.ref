@@ -1,6 +1,7 @@
-package debug_test
+package debug
 
 import (
+	"fmt"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -10,6 +11,8 @@ import (
 	"testing"
 	"time"
 
+	"veyron.io/veyron/veyron2"
+	"veyron.io/veyron/veyron2/ipc"
 	"veyron.io/veyron/veyron2/naming"
 	"veyron.io/veyron/veyron2/rt"
 	"veyron.io/veyron/veyron2/services/mgmt/logreader"
@@ -19,11 +22,32 @@ import (
 
 	libstats "veyron.io/veyron/veyron/lib/stats"
 	"veyron.io/veyron/veyron/profiles"
-	"veyron.io/veyron/veyron/services/mgmt/debug"
 )
+
+// startDebugServer starts a debug server.
+func startDebugServer(rt veyron2.Runtime, listenSpec ipc.ListenSpec, logsDir string) (string, func(), error) {
+	if len(logsDir) == 0 {
+		return "", nil, fmt.Errorf("logs directory missing")
+	}
+	disp := NewDispatcher(logsDir, nil)
+	server, err := rt.NewServer()
+	if err != nil {
+		return "", nil, fmt.Errorf("failed to start debug server: %v", err)
+	}
+	endpoint, err := server.Listen(listenSpec)
+	if err != nil {
+		return "", nil, fmt.Errorf("failed to listen on %s: %v", listenSpec, err)
+	}
+	if err := server.ServeDispatcher("", disp); err != nil {
+		return "", nil, err
+	}
+	ep := endpoint.String()
+	return ep, func() { server.Stop() }, nil
+}
 
 func TestDebugServer(t *testing.T) {
 	runtime := rt.Init()
+	rootName = "debug"
 
 	workdir, err := ioutil.TempDir("", "logreadertest")
 	if err != nil {
@@ -34,7 +58,7 @@ func TestDebugServer(t *testing.T) {
 		t.Fatalf("ioutil.WriteFile failed: %v", err)
 	}
 
-	endpoint, stop, err := debug.StartDebugServer(runtime, profiles.LocalListenSpec, workdir, nil)
+	endpoint, stop, err := startDebugServer(runtime, profiles.LocalListenSpec, workdir)
 	if err != nil {
 		t.Fatalf("StartDebugServer failed: %v", err)
 	}
@@ -42,7 +66,7 @@ func TestDebugServer(t *testing.T) {
 
 	// Access a logs directory that exists.
 	{
-		ld := mounttable.GlobbableClient(naming.JoinAddressName(endpoint, "//logs"))
+		ld := mounttable.GlobbableClient(naming.JoinAddressName(endpoint, "debug/logs"))
 		stream, err := ld.Glob(runtime.NewContext(), "*")
 		if err != nil {
 			t.Errorf("Glob failed: %v", err)
@@ -65,7 +89,7 @@ func TestDebugServer(t *testing.T) {
 
 	// Access a logs directory that doesn't exist.
 	{
-		ld := mounttable.GlobbableClient(naming.JoinAddressName(endpoint, "//logs/nowheretobefound"))
+		ld := mounttable.GlobbableClient(naming.JoinAddressName(endpoint, "debug/logs/nowheretobefound"))
 		stream, err := ld.Glob(runtime.NewContext(), "*")
 		if err != nil {
 			t.Errorf("Glob failed: %v", err)
@@ -85,7 +109,7 @@ func TestDebugServer(t *testing.T) {
 
 	// Access a log file that exists.
 	{
-		lf := logreader.LogFileClient(naming.JoinAddressName(endpoint, "//logs/test.INFO"))
+		lf := logreader.LogFileClient(naming.JoinAddressName(endpoint, "debug/logs/test.INFO"))
 		size, err := lf.Size(runtime.NewContext())
 		if err != nil {
 			t.Errorf("Size failed: %v", err)
@@ -97,7 +121,7 @@ func TestDebugServer(t *testing.T) {
 
 	// Access a log file that doesn't exist.
 	{
-		lf := logreader.LogFileClient(naming.JoinAddressName(endpoint, "//logs/nosuchfile.INFO"))
+		lf := logreader.LogFileClient(naming.JoinAddressName(endpoint, "debug/logs/nosuchfile.INFO"))
 		_, err = lf.Size(runtime.NewContext())
 		if expected := verror.NoExist; !verror.Is(err, expected) {
 			t.Errorf("unexpected error value, got %v, want: %v", err, expected)
@@ -109,7 +133,7 @@ func TestDebugServer(t *testing.T) {
 		foo := libstats.NewInteger("testing/foo")
 		foo.Set(123)
 
-		st := stats.StatsClient(naming.JoinAddressName(endpoint, "//stats/testing/foo"))
+		st := stats.StatsClient(naming.JoinAddressName(endpoint, "debug/stats/testing/foo"))
 		v, err := st.Value(runtime.NewContext())
 		if err != nil {
 			t.Errorf("Value failed: %v", err)
@@ -121,7 +145,7 @@ func TestDebugServer(t *testing.T) {
 
 	// Access a stats object that doesn't exists.
 	{
-		st := stats.StatsClient(naming.JoinAddressName(endpoint, "//stats/testing/nobodyhome"))
+		st := stats.StatsClient(naming.JoinAddressName(endpoint, "debug/stats/testing/nobodyhome"))
 		_, err = st.Value(runtime.NewContext())
 		if expected := verror.NoExist; !verror.Is(err, expected) {
 			t.Errorf("unexpected error value, got %v, want: %v", err, expected)
@@ -131,7 +155,7 @@ func TestDebugServer(t *testing.T) {
 	// Glob from the root.
 	{
 		ns := rt.R().Namespace()
-		ns.SetRoots(naming.JoinAddressName(endpoint, "//"))
+		ns.SetRoots(naming.JoinAddressName(endpoint, "debug"))
 		ctx, cancel := rt.R().NewContext().WithTimeout(10 * time.Second)
 		defer cancel()
 		c, err := ns.Glob(ctx, "logs/...")

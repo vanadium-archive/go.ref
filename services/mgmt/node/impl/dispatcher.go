@@ -14,7 +14,6 @@ import (
 	vsecurity "veyron.io/veyron/veyron/security"
 	vflag "veyron.io/veyron/veyron/security/flag"
 	"veyron.io/veyron/veyron/security/serialization"
-	"veyron.io/veyron/veyron/services/mgmt/lib/toplevelglob"
 	logsimpl "veyron.io/veyron/veyron/services/mgmt/logreader/impl"
 	inode "veyron.io/veyron/veyron/services/mgmt/node"
 	"veyron.io/veyron/veyron/services/mgmt/node/config"
@@ -231,8 +230,8 @@ func (d *dispatcher) Lookup(suffix, method string) (interface{}, security.Author
 		}
 	}
 	if len(components) == 0 {
-		if method == "Glob" {
-			return toplevelglob.New(d, []string{nodeSuffix, appsSuffix}), d.auth, nil
+		if method == ipc.GlobMethod {
+			return ipc.VChildrenGlobberInvoker(nodeSuffix, appsSuffix), d.auth, nil
 		}
 		return nil, nil, errInvalidSuffix
 	}
@@ -256,7 +255,7 @@ func (d *dispatcher) Lookup(suffix, method string) (interface{}, security.Author
 		// Requests to apps/*/*/*/pprof are proxied to the apps' __debug/pprof object.
 		// Requests to apps/*/*/*/stats are proxied to the apps' __debug/stats object.
 		// Everything else is handled by appInvoker.
-		if len(components) >= 5 && (method != "Glob" || components[4] != "logs") {
+		if len(components) >= 5 && (method != ipc.GlobMethod || components[4] != "logs") {
 			appInstanceDir, err := instanceDir(d.config.Root, components[1:4])
 			if err != nil {
 				return nil, nil, err
