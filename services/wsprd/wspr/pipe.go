@@ -9,71 +9,12 @@ import (
 	"time"
 
 	"veyron.io/veyron/veyron2/options"
-	"veyron.io/veyron/veyron2/verror"
 	"veyron.io/veyron/veyron2/vlog"
 	"veyron.io/wspr/veyron/services/wsprd/app"
 	"veyron.io/wspr/veyron/services/wsprd/lib"
 
 	"github.com/gorilla/websocket"
 )
-
-// The type of message sent by the JS client to the wspr.
-type websocketMessageType int
-
-const (
-	// Making a veyron client request, streaming or otherwise
-	websocketVeyronRequest websocketMessageType = 0
-
-	// Serving this websocket under an object name
-	websocketServe = 1
-
-	// A response from a service in javascript to a request
-	// from the proxy.
-	websocketServerResponse = 2
-
-	// Sending streaming data, either from a JS client or JS service.
-	websocketStreamingValue = 3
-
-	// A response that means the stream is closed by the client.
-	websocketStreamClose = 4
-
-	// A request to get signature of a remote server
-	websocketSignatureRequest = 5
-
-	// A request to stop a server
-	websocketStopServer = 6
-
-	// A request to bless a public key.
-	websocketBlessPublicKey = 7
-
-	// A request to unlink blessings.  This request means that
-	// we can remove the given handle from the handle store.
-	websocketUnlinkBlessings = 8
-
-	// A request to create a new random blessings
-	websocketCreateBlessings = 9
-
-	// A request to run the lookup function on a dispatcher.
-	websocketLookupResponse = 11
-
-	// A request to run the authorizer for an rpc.
-	websocketAuthResponse = 12
-
-	// A request to run a namespace client method
-	websocketNamespaceRequest = 13
-
-	// A request to cancel an rpc initiated by the JS.
-	websocketCancel = 17
-)
-
-type websocketMessage struct {
-	Id int64
-	// This contains the json encoded payload.
-	Data string
-
-	// Whether it is an rpc request or a serve request.
-	Type websocketMessageType
-}
 
 // wsMessage is the struct that is put on the write queue.
 type wsMessage struct {
@@ -217,7 +158,7 @@ func (p *pipe) readLoop() {
 			p.logger.Errorf("unexpected websocket op: %v", op)
 		}
 
-		var msg websocketMessage
+		var msg app.Message
 		decoder := json.NewDecoder(r)
 		if err := decoder.Decode(&msg); err != nil {
 			errMsg := fmt.Sprintf("can't unmarshall JSONMessage: %v", err)
@@ -232,41 +173,7 @@ func (p *pipe) readLoop() {
 		// from javascript.
 		ctx := p.wspr.rt.NewContext()
 
-		switch msg.Type {
-		case websocketVeyronRequest:
-			p.controller.HandleVeyronRequest(ctx, msg.Id, msg.Data, ww)
-		case websocketCancel:
-			go p.controller.HandleVeyronCancellation(msg.Id)
-		case websocketStreamingValue:
-			// SendOnStream queues up the message to be sent, but doesn't do the send
-			// on this goroutine.  We need to queue the messages synchronously so that
-			// the order is preserved.
-			p.controller.SendOnStream(msg.Id, msg.Data, ww)
-		case websocketStreamClose:
-			p.controller.CloseStream(msg.Id)
-		case websocketServe:
-			go p.controller.HandleServeRequest(msg.Data, ww)
-		case websocketStopServer:
-			go p.controller.HandleStopRequest(msg.Data, ww)
-		case websocketServerResponse:
-			go p.controller.HandleServerResponse(msg.Id, msg.Data)
-		case websocketSignatureRequest:
-			go p.controller.HandleSignatureRequest(ctx, msg.Data, ww)
-		case websocketLookupResponse:
-			go p.controller.HandleLookupResponse(msg.Id, msg.Data)
-		case websocketBlessPublicKey:
-			go p.controller.HandleBlessPublicKey(msg.Data, ww)
-		case websocketCreateBlessings:
-			go p.controller.HandleCreateBlessings(msg.Data, ww)
-		case websocketUnlinkBlessings:
-			go p.controller.HandleUnlinkJSBlessings(msg.Data, ww)
-		case websocketAuthResponse:
-			go p.controller.HandleAuthResponse(msg.Id, msg.Data)
-		case websocketNamespaceRequest:
-			go p.controller.HandleNamespaceRequest(ctx, msg.Data, ww)
-		default:
-			ww.Error(verror.Unknownf("unknown message type: %v", msg.Type))
-		}
+		p.controller.HandleIncomingMessage(ctx, msg, ww)
 	}
 	p.cleanup()
 }
