@@ -54,9 +54,12 @@ func main() {
 		fmt.Sprintf("rps/player/%s", *name),
 		fmt.Sprintf("rps/scorekeeper/%s", *name),
 	}
-	for _, n := range names {
-		if err := server.Serve(n, rps.NewServerRockPaperScissors(rpsService), auth); err != nil {
-			vlog.Fatalf("Serve(%v) failed: %v", n, err)
+	if err := server.Serve(names[0], rps.NewServerRockPaperScissors(rpsService), auth); err != nil {
+		vlog.Fatalf("Serve(%v) failed: %v", names[0], err)
+	}
+	for _, n := range names[1:] {
+		if err := server.AddName(n); err != nil {
+			vlog.Fatalf("(%v) failed: %v", n, err)
 		}
 	}
 	vlog.Infof("Listening on endpoint /%s (published as %v)", ep, names)
