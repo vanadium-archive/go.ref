@@ -4,20 +4,20 @@
 package channel
 
 import (
-	// The non-user imports are prefixed with "_gen_" to prevent collisions.
-	_gen_vdlutil "veyron.io/veyron/veyron2/vdl/vdlutil"
+	// The non-user imports are prefixed with "__" to prevent collisions.
+	__vdlutil "veyron.io/veyron/veyron2/vdl/vdlutil"
 )
 
 type Request struct {
 	Type string
 	Seq  uint64
-	Body _gen_vdlutil.Any
+	Body __vdlutil.Any
 }
 
 type Response struct {
 	ReqSeq uint64
 	Err    string // TODO(bprosnitz) change this back to error when it is possible to do so. (issue 368)
-	Body   _gen_vdlutil.Any
+	Body   __vdlutil.Any
 }
 
 type Message struct{ oneof interface{} }
