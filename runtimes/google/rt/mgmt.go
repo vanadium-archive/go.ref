@@ -10,6 +10,7 @@ import (
 	"veyron.io/veyron/veyron2/ipc"
 	"veyron.io/veyron/veyron2/mgmt"
 	"veyron.io/veyron/veyron2/naming"
+	"veyron.io/veyron/veyron2/options"
 
 	"veyron.io/veyron/veyron/lib/exec"
 	"veyron.io/veyron/veyron/runtimes/google/appcycle"
@@ -60,8 +61,16 @@ func (m *mgmtImpl) initMgmt(rt *vrt) error {
 	if err != nil {
 		return err
 	}
+	var serverOpts []ipc.ServerOpt
+	parentPeerPattern, err := handle.Config.Get(mgmt.ParentBlessingConfigKey)
+	if err == nil && parentPeerPattern != "" {
+		// Grab the blessing from our blessing store that the parent
+		// told us to use so they can talk to us.
+		serverBlessing := rt.Principal().BlessingStore().ForPeer(parentPeerPattern)
+		serverOpts = append(serverOpts, options.ServerBlessings{serverBlessing})
+	}
 	m.rt = rt
-	m.server, err = rt.NewServer()
+	m.server, err = rt.NewServer(serverOpts...)
 	if err != nil {
 		return err
 	}

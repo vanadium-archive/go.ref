@@ -312,7 +312,7 @@ func TestNodeManagerUpdateAndRevert(t *testing.T) {
 	// convenient to put it there so we have everything in one place.
 	currLink := filepath.Join(root, "current_link")
 
-	crDir, crEnv := credentialsForChild("anyvalue")
+	crDir, crEnv := credentialsForChild("nodemanager")
 	defer os.RemoveAll(crDir)
 	nmArgs := []string{"factoryNM", root, "unused_helper", mockApplicationRepoName, currLink}
 	args, env := sh.CommandEnvelope(nodeManagerCmd, crEnv, nmArgs...)
@@ -350,7 +350,7 @@ func TestNodeManagerUpdateAndRevert(t *testing.T) {
 
 	// Set up a second version of the node manager. The information in the
 	// envelope will be used by the node manager to stage the next version.
-	crDir, crEnv = credentialsForChild("anyvalue")
+	crDir, crEnv = credentialsForChild("nodemanager")
 	defer os.RemoveAll(crDir)
 	*envelope = envelopeFromShell(sh, crEnv, nodeManagerCmd, application.NodeManagerTitle, "v2NM")
 	updateNode(t, "factoryNM")
@@ -398,7 +398,7 @@ func TestNodeManagerUpdateAndRevert(t *testing.T) {
 	}
 
 	// Create a third version of the node manager and issue an update.
-	crDir, crEnv = credentialsForChild("anyvalue")
+	crDir, crEnv = credentialsForChild("nodemanager")
 	defer os.RemoveAll(crDir)
 	*envelope = envelopeFromShell(sh, crEnv, nodeManagerCmd, application.NodeManagerTitle,
 		"v3NM")
@@ -462,9 +462,9 @@ func TestNodeManagerUpdateAndRevert(t *testing.T) {
 	nms.ExpectEOF()
 }
 
-type pingServerDisp chan<- string
+type pingServer chan<- string
 
-func (p pingServerDisp) Ping(_ ipc.ServerCall, arg string) {
+func (p pingServer) Ping(_ ipc.ServerCall, arg string) {
 	p <- arg
 }
 
@@ -474,7 +474,7 @@ func (p pingServerDisp) Ping(_ ipc.ServerCall, arg string) {
 func setupPingServer(t *testing.T) (<-chan string, func()) {
 	server, _ := newServer()
 	pingCh := make(chan string, 1)
-	if err := server.Serve("pingserver", pingServerDisp(pingCh), nil); err != nil {
+	if err := server.Serve("pingserver", pingServer(pingCh), nil); err != nil {
 		t.Fatalf("Serve(%q, <dispatcher>) failed: %v", "pingserver", err)
 	}
 	return pingCh, func() {
@@ -546,7 +546,7 @@ func TestAppLifeCycle(t *testing.T) {
 	// Create a script wrapping the test target that implements suidhelper.
 	helperPath := generateSuidHelperScript(t, root)
 
-	crDir, crEnv := credentialsForChild("anyvalue")
+	crDir, crEnv := credentialsForChild("nodemanager")
 	defer os.RemoveAll(crDir)
 
 	// Set up the node manager.  Since we won't do node manager updates,
@@ -560,10 +560,8 @@ func TestAppLifeCycle(t *testing.T) {
 
 	resolve(t, "pingserver", 1)
 
-	crDir, crEnv = credentialsForChild("anyvalue")
-	defer os.RemoveAll(crDir)
 	// Create an envelope for a first version of the app.
-	*envelope = envelopeFromShell(sh, crEnv, appCmd, "google naps", "appV1")
+	*envelope = envelopeFromShell(sh, nil, appCmd, "google naps", "appV1")
 
 	// Install the app.
 	appID := installApp(t)
@@ -623,9 +621,7 @@ func TestAppLifeCycle(t *testing.T) {
 	updateAppExpectError(t, appID, verror.BadArg)
 
 	// Create a second version of the app and update the app to it.
-	crDir, crEnv = credentialsForChild("anyvalue")
-	defer os.RemoveAll(crDir)
-	*envelope = envelopeFromShell(sh, crEnv, appCmd, "google naps", "appV2")
+	*envelope = envelopeFromShell(sh, nil, appCmd, "google naps", "appV2")
 
 	updateApp(t, appID)
 
@@ -704,16 +700,6 @@ func TestAppLifeCycle(t *testing.T) {
 	nms.ExpectEOF()
 }
 
-type granter struct {
-	ipc.CallOpt
-	p         security.Principal
-	extension string
-}
-
-func (g *granter) Grant(other security.Blessings) (security.Blessings, error) {
-	return g.p.Bless(other.PublicKey(), g.p.BlessingStore().Default(), g.extension, security.UnconstrainedUse())
-}
-
 func newRuntime(t *testing.T) veyron2.Runtime {
 	runtime, err := rt.New()
 	if err != nil {
@@ -744,7 +730,7 @@ func TestNodeManagerClaim(t *testing.T) {
 	root, cleanup := setupRootDir(t)
 	defer cleanup()
 
-	crDir, crEnv := credentialsForChild("anyvalue")
+	crDir, crEnv := credentialsForChild("nodemanager")
 	defer os.RemoveAll(crDir)
 
 	// Create a script wrapping the test target that implements suidhelper.
@@ -756,9 +742,7 @@ func TestNodeManagerClaim(t *testing.T) {
 	pid := readPID(t, nms)
 	defer syscall.Kill(pid, syscall.SIGINT)
 
-	crDir, crEnv = credentialsForChild("mydevice/anyvalue")
-	defer os.RemoveAll(crDir)
-	*envelope = envelopeFromShell(sh, crEnv, appCmd, "google naps", "trapp")
+	*envelope = envelopeFromShell(sh, nil, appCmd, "google naps", "trapp")
 
 	nodeStub := node.NodeClient("nm//nm")
 	selfRT := rt.R()
@@ -831,7 +815,7 @@ func TestNodeManagerUpdateACL(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	crDir, crEnv := credentialsForChild("anyvalue")
+	crDir, crEnv := credentialsForChild("nodemanager")
 	defer os.RemoveAll(crDir)
 
 	// Set up the node manager.  Since we won't do node manager updates,
@@ -841,9 +825,7 @@ func TestNodeManagerUpdateACL(t *testing.T) {
 	defer syscall.Kill(pid, syscall.SIGINT)
 
 	// Create an envelope for an app.
-	crDir, crEnv = credentialsForChild("anyvalue")
-	defer os.RemoveAll(crDir)
-	*envelope = envelopeFromShell(sh, crEnv, appCmd, "google naps")
+	*envelope = envelopeFromShell(sh, nil, appCmd, "google naps")
 
 	nodeStub := node.NodeClient("nm//nm")
 	acl, etag, err := nodeStub.GetACL(selfRT.NewContext())
@@ -959,7 +941,7 @@ func TestNodeManagerGlobAndDebug(t *testing.T) {
 	root, cleanup := setupRootDir(t)
 	defer cleanup()
 
-	crDir, crEnv := credentialsForChild("anyvalue")
+	crDir, crEnv := credentialsForChild("nodemanager")
 	defer os.RemoveAll(crDir)
 
 	// Create a script wrapping the test target that implements suidhelper.
@@ -976,7 +958,7 @@ func TestNodeManagerGlobAndDebug(t *testing.T) {
 	defer cleanup()
 
 	// Create the envelope for the first version of the app.
-	*envelope = envelopeFromShell(sh, crEnv, appCmd, "google naps", "appV1")
+	*envelope = envelopeFromShell(sh, nil, appCmd, "google naps", "appV1")
 
 	// Install the app.
 	appID := installApp(t)
@@ -1153,7 +1135,7 @@ func TestAccountAssociation(t *testing.T) {
 	if err := idp.Bless(otherRT.Principal(), "other"); err != nil {
 		t.Fatal(err)
 	}
-	crFile, crEnv := credentialsForChild("anyvalue")
+	crFile, crEnv := credentialsForChild("nodemanager")
 	defer os.RemoveAll(crFile)
 
 	_, nms := runShellCommand(t, sh, crEnv, nodeManagerCmd, "nm", root, "unused_helper", "unused_app_repo_name", "unused_curr_link")
@@ -1259,7 +1241,7 @@ func TestAppWithSuidHelper(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	crDir, crEnv := credentialsForChild("anyvalue")
+	crDir, crEnv := credentialsForChild("nodemanager")
 	defer os.RemoveAll(crDir)
 
 	// Create a script wrapping the test target that implements
@@ -1277,15 +1259,12 @@ func TestAppWithSuidHelper(t *testing.T) {
 	server, _ := newServer()
 	defer server.Stop()
 	pingCh := make(chan string, 1)
-	if err := server.Serve("pingserver", pingServerDisp(pingCh), nil); err != nil {
+	if err := server.Serve("pingserver", pingServer(pingCh), nil); err != nil {
 		t.Fatalf("Serve(%q, <dispatcher>) failed: %v", "pingserver", err)
 	}
 
-	// Create an envelope for a first version of the app with an
-	// appropriate blessing.
-	crDir, crEnv = credentialsForChild("alice/child")
-	defer os.RemoveAll(crDir)
-	*envelope = envelopeFromShell(sh, crEnv, appCmd, "google naps", "appV1")
+	// Create an envelope for a first version of the app.
+	*envelope = envelopeFromShell(sh, nil, appCmd, "google naps", "appV1")
 
 	// Install and start the app as root/self.
 	appID := installApp(t, selfRT)
