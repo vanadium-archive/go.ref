@@ -240,8 +240,12 @@ func (g *granter) Grant(other security.Blessings) (security.Blessings, error) {
 	return g.p.Bless(other.PublicKey(), g.p.BlessingStore().Default(), g.extension, security.UnconstrainedUse())
 }
 
-func startAppImpl(t *testing.T, appID string, opt []veyron2.Runtime) (string, error) {
-	if instanceIDs, err := appStub(appID).Start(ort(opt).NewContext(), &granter{p: ort(opt).Principal(), extension: "forapp"}); err != nil {
+func startAppImpl(t *testing.T, appID, grant string, opt ...veyron2.Runtime) (string, error) {
+	var opts []ipc.CallOpt
+	if grant != "" {
+		opts = append(opts, &granter{p: ort(opt).Principal(), extension: grant})
+	}
+	if instanceIDs, err := appStub(appID).Start(ort(opt).NewContext(), opts...); err != nil {
 		return "", err
 	} else {
 		if want, got := 1, len(instanceIDs); want != got {
@@ -252,7 +256,7 @@ func startAppImpl(t *testing.T, appID string, opt []veyron2.Runtime) (string, er
 }
 
 func startApp(t *testing.T, appID string, opt ...veyron2.Runtime) string {
-	instanceID, err := startAppImpl(t, appID, opt)
+	instanceID, err := startAppImpl(t, appID, "forapp", opt...)
 	if err != nil {
 		t.Fatalf("%s: Start(%v) failed: %v", loc(1), appID, err)
 	}
@@ -260,7 +264,7 @@ func startApp(t *testing.T, appID string, opt ...veyron2.Runtime) string {
 }
 
 func startAppExpectError(t *testing.T, appID string, expectedError verror.ID, opt ...veyron2.Runtime) {
-	if _, err := startAppImpl(t, appID, opt); err == nil || !verror.Is(err, expectedError) {
+	if _, err := startAppImpl(t, appID, "forapp", opt...); err == nil || !verror.Is(err, expectedError) {
 		t.Fatalf("%s: Start(%v) expected to fail with %v, got %v instead", loc(1), appID, expectedError, err)
 	}
 }

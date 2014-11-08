@@ -565,6 +565,12 @@ func TestAppLifeCycle(t *testing.T) {
 
 	// Install the app.
 	appID := installApp(t)
+
+	// Start requires the caller to grant a blessing for the app instance.
+	if _, err := startAppImpl(t, appID, ""); err == nil || !verror.Is(err, verror.BadArg) {
+		t.Fatalf("Start(%v) expected to fail with %v, got %v instead", appID, verror.BadArg, err)
+	}
+
 	// Start an instance of the app.
 	instance1ID := startApp(t, appID)
 

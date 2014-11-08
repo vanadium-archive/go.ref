@@ -378,8 +378,8 @@ func (i *appInvoker) installationDir() (string, error) {
 	return installationDir, nil
 }
 
-// setupIdentity sets up the instance's principal, with the right blessings.
-func setupIdentity(instanceDir, versionDir string, call ipc.ServerContext, info *instanceInfo) error {
+// setupPrincipal sets up the instance's principal, with the right blessings.
+func setupPrincipal(instanceDir, versionDir string, call ipc.ServerContext, info *instanceInfo) error {
 	credentialsDir := filepath.Join(instanceDir, "credentials")
 	// TODO(caprita): The app's system user id needs access to this dir.
 	// Use the suidhelper to chown it.
@@ -400,8 +400,12 @@ func setupIdentity(instanceDir, versionDir string, call ipc.ServerContext, info 
 	nmPrincipal := call.LocalPrincipal()
 	// Take the blessings conferred upon us by the Start-er, extend them
 	// with the app title.
+	grantedBlessings := call.Blessings()
+	if grantedBlessings == nil {
+		return errInvalidBlessing
+	}
 	// TODO(caprita): Revisit UnconstrainedUse.
-	appBlessings, err := nmPrincipal.Bless(p.PublicKey(), call.Blessings(), envelope.Title, security.UnconstrainedUse())
+	appBlessings, err := nmPrincipal.Bless(p.PublicKey(), grantedBlessings, envelope.Title, security.UnconstrainedUse())
 	if err != nil {
 		vlog.Errorf("Bless() failed: %v", err)
 		return errOperationFailed
@@ -422,6 +426,17 @@ func setupIdentity(instanceDir, versionDir string, call ipc.ServerContext, info 
 	}
 	// In addition, we give the app separate blessings for the purpose of
 	// communicating with the node manager.
+	//
+	// NOTE(caprita/ataly): Giving the app an unconstrained blessing from
+	// the node manager's default presents the app with a blessing that's
+	// potentially more powerful than what is strictly needed to allow
+	// communication between node manager and app (which could be more
+	// narrowly accomplished by using a custom-purpose self-signed blessing
+	// that the node manger produces solely to talk to the app).
+	//
+	// TODO(caprita): Figure out if there is any feature value in providing
+	// the app with a node manager-derived blessing (e.g., may the app need
+	// to prove it's running on the node?).
 	nmBlessings, err := nmPrincipal.Bless(p.PublicKey(), nmPrincipal.BlessingStore().Default(), "callback", security.UnconstrainedUse())
 	// Put the names of the node manager's default blessings as patterns for
 	// the child, so that the child uses the right blessing when talking
@@ -480,7 +495,7 @@ func (i *appInvoker) newInstance(call ipc.ServerContext) (string, string, error)
 		return instanceDir, instanceID, errOperationFailed
 	}
 	instanceInfo := new(instanceInfo)
-	if err := setupIdentity(instanceDir, versionDir, call, instanceInfo); err != nil {
+	if err := setupPrincipal(instanceDir, versionDir, call, instanceInfo); err != nil {
 		return instanceDir, instanceID, err
 	}
 	if err := saveInstanceInfo(instanceDir, instanceInfo); err != nil {
