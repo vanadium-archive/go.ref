@@ -32,7 +32,6 @@ import (
 	"veyron.io/veyron/veyron2/ipc"
 	"veyron.io/veyron/veyron2/rt"
 	"veyron.io/veyron/veyron2/security"
-	"veyron.io/veyron/veyron2/vdl/vdlutil"
 	"veyron.io/veyron/veyron2/vlog"
 
 	"veyron.io/wspr/veyron/services/wsprd/principal"
@@ -44,7 +43,7 @@ const (
 )
 
 type blesserService interface {
-	BlessUsingAccessToken(ctx context.T, token string, opts ...ipc.CallOpt) (blessingObj vdlutil.Any, account string, err error)
+	BlessUsingAccessToken(ctx context.T, token string, opts ...ipc.CallOpt) (blessingObj security.WireBlessings, account string, err error)
 }
 
 type bs struct {
@@ -52,7 +51,7 @@ type bs struct {
 	name   string
 }
 
-func (s *bs) BlessUsingAccessToken(ctx context.T, token string, opts ...ipc.CallOpt) (blessingObj vdlutil.Any, account string, err error) {
+func (s *bs) BlessUsingAccessToken(ctx context.T, token string, opts ...ipc.CallOpt) (blessingObj security.WireBlessings, account string, err error) {
 	var call ipc.Call
 	if call, err = s.client.StartCall(ctx, s.name, "BlessUsingAccessToken", []interface{}{token}, opts...); err != nil {
 		return
@@ -270,7 +269,7 @@ func (ctx *WSPR) handleCreateAccount(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	accountBlessings, err := security.NewBlessings(blessingsAny.(security.WireBlessings))
+	accountBlessings, err := security.NewBlessings(blessingsAny)
 	if err != nil {
 		ctx.logAndSendBadReqErr(w, fmt.Sprintf("Error creating blessings from wire data: %v", err))
 		return

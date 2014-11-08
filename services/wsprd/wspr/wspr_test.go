@@ -11,7 +11,6 @@ import (
 	"veyron.io/veyron/veyron2/context"
 	"veyron.io/veyron/veyron2/ipc"
 	"veyron.io/veyron/veyron2/security"
-	"veyron.io/veyron/veyron2/vdl/vdlutil"
 
 	"veyron.io/veyron/veyron/profiles"
 )
@@ -32,12 +31,13 @@ func newMockBlesserService(p security.Principal) *mockBlesserService {
 	}
 }
 
-func (m *mockBlesserService) BlessUsingAccessToken(c context.T, accessToken string, co ...ipc.CallOpt) (vdlutil.Any, string, error) {
+func (m *mockBlesserService) BlessUsingAccessToken(c context.T, accessToken string, co ...ipc.CallOpt) (security.WireBlessings, string, error) {
+	var empty security.WireBlessings
 	m.count = m.count + 1
 	name := fmt.Sprintf("%s%s%d", topLevelName, security.ChainSeparator, m.count)
 	blessing, err := m.p.BlessSelf(name)
 	if err != nil {
-		return nil, "", err
+		return empty, "", err
 	}
 	return security.MarshalBlessings(blessing), name, nil
 }
