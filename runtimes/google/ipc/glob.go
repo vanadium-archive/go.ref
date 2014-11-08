@@ -94,12 +94,18 @@ func (i *globInternal) globStep(call ipc.ServerCall, disp ipc.Dispatcher, name s
 	// If the object implements both VAllGlobber and VChildrenGlobber, we'll
 	// use VAllGlobber.
 	gs := invoker.VGlob()
-	if gs != nil && gs.VAllGlobber != nil {
+	if gs == nil || (gs.VAllGlobber == nil && gs.VChildrenGlobber == nil) {
+		if g.Len() == 0 {
+			call.Send(types.MountEntry{Name: name})
+		}
+		return nil
+	}
+	if gs.VAllGlobber != nil {
 		vlog.VI(3).Infof("ipc Glob: %q implements VAllGlobber", suffix)
 		childCall := &localServerCall{ServerCall: call, basename: name}
 		return gs.VAllGlobber.Glob(childCall, g.String())
 	}
-	if gs != nil && gs.VChildrenGlobber != nil {
+	if gs.VChildrenGlobber != nil {
 		vlog.VI(3).Infof("ipc Glob: %q implements VChildrenGlobber", suffix)
 		children, err := gs.VChildrenGlobber.VGlobChildren()
 		if err != nil {
@@ -130,8 +136,7 @@ func (i *globInternal) globStep(call ipc.ServerCall, disp ipc.Dispatcher, name s
 		return nil
 	}
 
-	vlog.VI(3).Infof("ipc Glob: %q implements neither VAllGlobber nor VChildrenGlobber", suffix)
-	return verror.NoExistf("ipc: Glob is not implemented by %q", suffix)
+	return nil // Unreachable
 }
 
 // An ipc.ServerCall that prepends a name to all the names in the streamed
