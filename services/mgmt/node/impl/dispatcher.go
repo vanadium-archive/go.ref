@@ -184,15 +184,15 @@ func (d *dispatcher) claimNodeManager(names []string, proof security.Blessings) 
 }
 
 // TODO(rjkroege): Further refactor ACL-setting code.
-func setAppACL(locks aclLocks, key, dir string, acl security.ACL, etag string) error {
+func setAppACL(locks aclLocks, dir string, acl security.ACL, etag string) error {
 	aclpath := path.Join(dir, "acls", "data")
 	sigpath := path.Join(dir, "acls", "signature")
 
 	// Acquire lock. Locks are per path to an acls file.
-	lck, contains := locks[key]
+	lck, contains := locks[dir]
 	if !contains {
 		lck = new(sync.Mutex)
-		locks[key] = lck
+		locks[dir] = lck
 	}
 	lck.Lock()
 	defer lck.Unlock()
@@ -222,15 +222,14 @@ func setAppACL(locks aclLocks, key, dir string, acl security.ACL, etag string) e
 	return writeACLs(aclpath, sigpath, dir, acl)
 }
 
-// TODO(rjkroege): Use the dir as the key.
-func getAppACL(locks aclLocks, key, dir string) (security.ACL, string, error) {
+func getAppACL(locks aclLocks, dir string) (security.ACL, string, error) {
 	aclpath := path.Join(dir, "acls", "data")
 
 	// Acquire lock. Locks are per path to an acls file.
-	lck, contains := locks[key]
+	lck, contains := locks[dir]
 	if !contains {
 		lck = new(sync.Mutex)
-		locks[key] = lck
+		locks[dir] = lck
 	}
 	lck.Lock()
 	defer lck.Unlock()

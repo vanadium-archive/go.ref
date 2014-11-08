@@ -554,7 +554,7 @@ func (i *appService) installationDir() (string, error) {
 	return installationDirCore(i.suffix, i.config.Root)
 }
 
-func initializeInstanceACLs(key, installationDir, instanceDir string, blessings []string, acl security.ACL) error {
+func initializeInstanceACLs(instanceDir string, blessings []string, acl security.ACL) error {
 	if acl.In == nil {
 		// The acl.In will be empty for an unclaimed node manager. In this case,
 		// create it
@@ -610,7 +610,7 @@ func (i *appService) newInstance(call ipc.ServerContext) (string, string, error)
 		return instanceDir, instanceID, err
 	}
 
-	if err := initializeInstanceACLs(installationDir, installationDir, instanceDir, call.RemoteBlessings().ForContext(call), i.nodeACL); err != nil {
+	if err := initializeInstanceACLs(instanceDir, call.RemoteBlessings().ForContext(call), i.nodeACL); err != nil {
 		return instanceDir, instanceID, err
 	}
 	return instanceDir, instanceID, nil
@@ -1207,13 +1207,12 @@ func dirFromSuffix(suffix []string, root string) (string, error) {
 }
 
 // TODO(rjkroege): Consider maintaining an in-memory ACL cache.
-// TODO(rjkroege): Excise the idea of the key. Use the dir instead.
 func (i *appService) SetACL(_ ipc.ServerContext, acl security.ACL, etag string) error {
 	dir, err := dirFromSuffix(i.suffix, i.config.Root)
 	if err != nil {
 		return err
 	}
-	return setAppACL(i.locks, dir, dir, acl, etag)
+	return setAppACL(i.locks, dir, acl, etag)
 }
 
 func (i *appService) GetACL(_ ipc.ServerContext) (acl security.ACL, etag string, err error) {
@@ -1221,5 +1220,5 @@ func (i *appService) GetACL(_ ipc.ServerContext) (acl security.ACL, etag string,
 	if err != nil {
 		return security.ACL{}, "", err
 	}
-	return getAppACL(i.locks, dir, dir)
+	return getAppACL(i.locks, dir)
 }
