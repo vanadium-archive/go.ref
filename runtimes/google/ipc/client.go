@@ -247,11 +247,9 @@ func (c *client) tryCall(ctx context.T, name, method string, args []interface{},
 			return nil, verror.NoExistf("ipc: Resolve(%q) failed: %v", name, err)
 		}
 	}
-
 	// Try all servers, and if none of them are authorized for the call then return the error of the last server
 	// that was tried.
 	var lastErr verror.E
-	// TODO(cnicolaou): sort servers by sensible metric.
 	for _, server := range servers {
 		flow, suffix, err := c.connectFlow(server)
 		if err != nil {

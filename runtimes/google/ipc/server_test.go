@@ -4,21 +4,19 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"reflect"
-	"sort"
 	"strings"
 	"testing"
 	"time"
 
-	"veyron.io/veyron/veyron2/ipc"
 	"veyron.io/veyron/veyron2/naming"
 
 	"veyron.io/veyron/veyron/lib/expect"
+	"veyron.io/veyron/veyron/runtimes/google/ipc/stream/vc"
+
 	"veyron.io/veyron/veyron/lib/modules"
 	imanager "veyron.io/veyron/veyron/runtimes/google/ipc/stream/manager"
 	"veyron.io/veyron/veyron/runtimes/google/ipc/stream/proxy"
 	"veyron.io/veyron/veyron/runtimes/google/ipc/stream/sectest"
-	"veyron.io/veyron/veyron/runtimes/google/ipc/stream/vc"
 	inaming "veyron.io/veyron/veyron/runtimes/google/naming"
 	tnaming "veyron.io/veyron/veyron/runtimes/google/testing/mocks/naming"
 )
@@ -115,22 +113,7 @@ func (h *proxyHandle) Stop() error {
 	return h.ns.Unmount(testContext(), "proxy", h.mount)
 }
 
-func TestProxyOnly(t *testing.T) {
-	listenSpec := ipc.ListenSpec{Proxy: "proxy"}
-	testProxy(t, listenSpec)
-}
-
 func TestProxy(t *testing.T) {
-	listenSpec := ipc.ListenSpec{Protocol: "tcp", Address: "127.0.0.1:0", Proxy: "proxy"}
-	testProxy(t, listenSpec)
-}
-
-func addrOnly(name string) string {
-	addr, _ := naming.SplitAddressName(name)
-	return addr
-}
-
-func testProxy(t *testing.T, spec ipc.ListenSpec) {
 	sm := imanager.InternalNew(naming.FixedRoutingID(0x555555555))
 	ns := tnaming.NewSimpleNamespace()
 	client, err := InternalNewClient(sm, ns, vc.LocalPrincipal{sectest.NewPrincipal("client")})
@@ -143,10 +126,6 @@ func testProxy(t *testing.T, spec ipc.ListenSpec) {
 		t.Fatal(err)
 	}
 	defer server.Stop()
-
-	// If no address is specified then we'll only 'listen' via
-	// the proxy.
-	hasLocalListener := len(spec.Address) != 0
 
 	name := "mountpoint/server/suffix"
 	makeCall := func() (string, error) {
@@ -169,69 +148,15 @@ func testProxy(t *testing.T, spec ipc.ListenSpec) {
 		t.Fatal(err)
 	}
 	defer proxy.Stop()
-	addrs := verifyMount(t, ns, "proxy")
-	if len(addrs) != 1 {
-		t.Fatalf("failed to lookup proxy")
-	}
-	proxyEP := addrOnly(addrs[0])
-
-	ep, err := server.Listen(spec)
-	if err != nil {
+	spec := listenSpec
+	spec.Proxy = "proxy"
+	if _, err := server.Listen(spec); err != nil {
 		t.Fatal(err)
 	}
 	if err := server.ServeDispatcher("mountpoint/server", testServerDisp{&testServer{}}); err != nil {
 		t.Fatal(err)
 	}
-
-	ch := make(chan struct{})
-	// Proxy connections are started asynchronously, so we need to wait..
-	waitfor := func(expect int) {
-		for {
-			addrs, _ := ns.Resolve(testContext(), name)
-			if len(addrs) == expect {
-				close(ch)
-				return
-			}
-			time.Sleep(100 * time.Millisecond)
-		}
-	}
-
-	proxiedEP, err := inaming.NewEndpoint(proxyEP)
-	if err != nil {
-		t.Fatalf("unexpected error: %s", err)
-	}
-	proxiedEP.RID = naming.FixedRoutingID(0x555555555)
-	expectedEndpoints := []string{proxiedEP.String()}
-	if hasLocalListener {
-		expectedEndpoints = append(expectedEndpoints, ep.String())
-	}
-
-	// Proxy connetions are created asynchronously, so we wait for the
-	// expected number of endpoints to appear for the specified service name.
-	go waitfor(len(expectedEndpoints))
-	select {
-	case <-time.After(time.Minute):
-		t.Fatalf("timedout waiting for two entries in the mount table")
-	case <-ch:
-	}
-
-	got := []string{}
-	for _, s := range verifyMount(t, ns, name) {
-		got = append(got, addrOnly(s))
-	}
-	sort.Strings(got)
-	sort.Strings(expectedEndpoints)
-	if !reflect.DeepEqual(got, expectedEndpoints) {
-		t.Errorf("got %v, want %v", got, expectedEndpoints)
-	}
-
-	if hasLocalListener {
-		// Listen will publish both the local and proxied endpoint with the
-		// mount table, given that we're trying to test the proxy, we remove
-		// the local endpoint from the mount table entry!
-		ns.Unmount(testContext(), "mountpoint/server", naming.JoinAddressName(ep.String(), ""))
-	}
-
+	verifyMount(t, ns, name)
 	// Proxied endpoint should be published and RPC should succeed (through proxy)
 	const expected = `method:"Echo",suffix:"suffix",arg:"batman"`
 	if result, err := makeCall(); result != expected || err != nil {
