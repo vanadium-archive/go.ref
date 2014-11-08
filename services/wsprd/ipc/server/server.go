@@ -391,3 +391,11 @@ func (s *Server) Stop() {
 	s.outstandingServerRequests = make(map[int64]chan *serverRPCReply)
 	s.server.Stop()
 }
+
+func (s *Server) AddName(name string) error {
+	return s.server.AddName(name)
+}
+
+func (s *Server) RemoveName(name string) error {
+	return s.server.RemoveName(name)
+}

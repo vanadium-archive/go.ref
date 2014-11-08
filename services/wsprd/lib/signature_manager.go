@@ -10,6 +10,7 @@ import (
 
 type SignatureManager interface {
 	Signature(ctx context.T, name string, client ipc.Client, opts ...ipc.CallOpt) (*ipc.ServiceSignature, error)
+	FlushCacheEntry(name string)
 }
 
 // signatureManager can be used to discover the signature of a remote service
@@ -43,7 +44,7 @@ func (c cacheEntry) expired() bool {
 	return time.Now().Sub(c.lastAccessed) > ttl
 }
 
-// signature uses the given client to fetch the signature for the given service name.
+// Signature uses the given client to fetch the signature for the given service name.
 // It locks until it fetches the service signature from the remote server, if not a cache hit.
 func (sm *signatureManager) Signature(ctx context.T, name string, client ipc.Client, opts ...ipc.CallOpt) (*ipc.ServiceSignature, error) {
 	sm.Lock()
@@ -76,4 +77,9 @@ func (sm *signatureManager) Signature(ctx context.T, name string, client ipc.Cli
 	}
 
 	return &result, nil
+}
+
+// FlushCacheEntry removes the cached signature for the given name
+func (sm *signatureManager) FlushCacheEntry(name string) {
+	delete(sm.cache, name)
 }

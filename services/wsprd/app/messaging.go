@@ -61,6 +61,12 @@ const (
 
 	// A request to cancel an rpc initiated by the JS.
 	cancelMessage = 17
+
+	// A request to add a new name to server.
+	websocketAddName = 18
+
+	// A request to remove a name from server.
+	websocketRemoveName = 19
 )
 
 type Message struct {
@@ -89,6 +95,10 @@ func (c *Controller) HandleIncomingMessage(ctx context.T, msg Message, w lib.Cli
 		go c.HandleServeRequest(msg.Data, w)
 	case stopServerMessage:
 		go c.HandleStopRequest(msg.Data, w)
+	case websocketAddName:
+		go c.HandleAddNameRequest(msg.Data, w)
+	case websocketRemoveName:
+		go c.HandleRemoveNameRequest(msg.Data, w)
 	case serverResponseMessage:
 		go c.HandleServerResponse(msg.Id, msg.Data)
 	case signatureRequestMessage:

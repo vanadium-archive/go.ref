@@ -73,8 +73,12 @@ type veyronRPC struct {
 	IsStreaming bool
 }
 
-// A request javascript to serve undern a particular name
 type serveRequest struct {
+	Name     string
+	ServerId uint64
+}
+
+type addRemoveNameRequest struct {
 	Name     string
 	ServerId uint64
 }
@@ -560,6 +564,65 @@ func (c *Controller) HandleStopRequest(data string, w lib.ClientWriter) {
 	c.removeServer(serverId)
 
 	// Send true to indicate stop has finished
+	if err := w.Send(lib.ResponseFinal, true); err != nil {
+		w.Error(verror2.Convert(verror2.Internal, nil, err))
+		return
+	}
+}
+
+// HandleAddNameRequest takes a request to add a new name to a server
+func (c *Controller) HandleAddNameRequest(data string, w lib.ClientWriter) {
+	var request addRemoveNameRequest
+	if err := json.Unmarshal([]byte(data), &request); err != nil {
+		w.Error(verror2.Convert(verror2.Internal, nil, err))
+		return
+	}
+
+	// Create a server for the websocket pipe, if it does not exist already
+	server, err := c.maybeCreateServer(request.ServerId)
+	if err != nil {
+		w.Error(verror2.Convert(verror2.Internal, nil, err))
+		return
+	}
+
+	// Add name
+	if err := server.AddName(request.Name); err != nil {
+		w.Error(verror2.Convert(verror2.Internal, nil, err))
+		return
+	}
+
+	// Send true to indicate request has finished without error
+	if err := w.Send(lib.ResponseFinal, true); err != nil {
+		w.Error(verror2.Convert(verror2.Internal, nil, err))
+		return
+	}
+}
+
+// HandleRemoveNameRequest takes a request to remove a name from a server
+func (c *Controller) HandleRemoveNameRequest(data string, w lib.ClientWriter) {
+	var request addRemoveNameRequest
+	if err := json.Unmarshal([]byte(data), &request); err != nil {
+		w.Error(verror2.Convert(verror2.Internal, nil, err))
+		return
+	}
+
+	// Create a server for the websocket pipe, if it does not exist already
+	server, err := c.maybeCreateServer(request.ServerId)
+	if err != nil {
+		w.Error(verror2.Convert(verror2.Internal, nil, err))
+		return
+	}
+
+	// Remove name
+	if err := server.RemoveName(request.Name); err != nil {
+		w.Error(verror2.Convert(verror2.Internal, nil, err))
+		return
+	}
+
+	// Remove name from signature cache as well
+	c.signatureManager.FlushCacheEntry(request.Name)
+
+	// Send true to indicate request has finished without error
 	if err := w.Send(lib.ResponseFinal, true); err != nil {
 		w.Error(verror2.Convert(verror2.Internal, nil, err))
 		return
