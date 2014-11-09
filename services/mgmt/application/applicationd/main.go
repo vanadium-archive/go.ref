@@ -3,6 +3,7 @@ package main
 import (
 	"flag"
 
+	"veyron.io/veyron/veyron2/naming"
 	"veyron.io/veyron/veyron2/rt"
 	"veyron.io/veyron/veyron2/vlog"
 
@@ -42,8 +43,12 @@ func main() {
 	if err := server.ServeDispatcher(*name, dispatcher); err != nil {
 		vlog.Fatalf("Serve(%v) failed: %v", *name, err)
 	}
-	vlog.Infof("Application repository running at endpoint=%q", endpoint)
-
+	epName := naming.JoinAddressName(endpoint.String(), "")
+	if *name != "" {
+		vlog.Infof("Application repository serving at %q (%q)", *name, epName)
+	} else {
+		vlog.Infof("Application repository serving at %q", epName)
+	}
 	// Wait until shutdown.
 	<-signals.ShutdownOnSignals()
 }
