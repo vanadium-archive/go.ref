@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"veyron.io/veyron/veyron2/naming"
 	"veyron.io/veyron/veyron2/rt"
 	"veyron.io/veyron/veyron2/vlog"
 
@@ -26,7 +27,7 @@ const (
 var (
 	name     = flag.String("name", "", "name to mount the binary repository as")
 	root     = flag.String("root", "", "root directory for the binary repository")
-	httpAddr = flag.String("http", ":0", "TCP address on which the HTTP  server runs")
+	httpAddr = flag.String("http", ":0", "TCP address on which the HTTP server runs")
 )
 
 // toIPPort tries to swap in the 'best' accessible IP for the host part of the
@@ -121,7 +122,12 @@ func main() {
 		vlog.Errorf("ServeDispatcher(%v) failed: %v", *name, err)
 		return
 	}
-	vlog.Infof("Binary repository running at endpoint=%q", endpoint)
+	epName := naming.JoinAddressName(endpoint.String(), "")
+	if *name != "" {
+		vlog.Infof("Binary repository serving at %q (%q)", *name, epName)
+	} else {
+		vlog.Infof("Binary repository serving at %q", epName)
+	}
 	// Wait until shutdown.
 	<-signals.ShutdownOnSignals()
 }
