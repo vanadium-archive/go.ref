@@ -45,6 +45,7 @@ func TestGlob(t *testing.T) {
 		"a/b/c2/d1",
 		"a/b/c2/d2",
 		"a/x/y/z",
+		"leaf",
 	}
 	tree := newNode()
 	for _, p := range namespace {
@@ -74,6 +75,7 @@ func TestGlob(t *testing.T) {
 			"a/x",
 			"a/x/y",
 			"a/x/y/z",
+			"leaf",
 		}},
 		{"a", "...", []string{
 			"",
@@ -118,7 +120,7 @@ func TestGlob(t *testing.T) {
 			"",
 		}},
 		{"", "", []string{""}},
-		{"", "*", []string{"a"}},
+		{"", "*", []string{"a", "leaf"}},
 		{"a", "", []string{""}},
 		{"a", "*", []string{"b", "x"}},
 		{"a/b", "", []string{""}},
@@ -137,6 +139,7 @@ func TestGlob(t *testing.T) {
 		{"a/b/c1/bad", "", []string{}},
 		{"a/x/bad", "", []string{}},
 		{"a/x/y/bad", "", []string{}},
+		{"leaf", "", []string{""}},
 		// muah is an infinite space to test rescursion limit.
 		{"muah", "*", []string{"ha"}},
 		{"muah", "*/*", []string{"ha/ha"}},
@@ -190,6 +193,9 @@ func (d *disp) Lookup(suffix, method string) (interface{}, security.Authorizer, 
 		// Infinite space. Each node has one child named "ha".
 		return ipc.VChildrenGlobberInvoker("ha"), nil, nil
 
+	}
+	if len(elems) != 0 && elems[0] == "leaf" {
+		return leafObject{}, nil, nil
 	}
 	if len(elems) <= 2 || (elems[0] == "a" && elems[1] == "x") {
 		return &vChildrenObject{d.tree, elems}, nil, nil
@@ -278,4 +284,10 @@ func (n *node) find(names []string, create bool) *node {
 		}
 		return nil
 	}
+}
+
+type leafObject struct{}
+
+func (l leafObject) Func(call ipc.ServerCall) error {
+	return nil
 }
