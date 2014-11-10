@@ -35,15 +35,18 @@ var cmdGlob = &cmdline.Command{
 	Name:     "glob",
 	Short:    "returns all matching entries in the mount table",
 	Long:     "returns all matching entries in the mount table",
-	ArgsName: "<mount name> <pattern>",
+	ArgsName: "[<mount name>] <pattern>",
 	ArgsLong: `
-<mount name> is a mount name on a mount table.
+<mount name> is a mount name on a mount table.  Defaults to namespace root.
 <pattern> is a glob pattern that is matched against all the entries below the
 specified mount name.
 `,
 }
 
 func runGlob(cmd *cmdline.Command, args []string) error {
+	if len(args) == 1 {
+		args = append([]string{""}, args...)
+	}
 	if expected, got := 2, len(args); expected != got {
 		return cmd.UsageErrorf("glob: incorrect number of arguments, expected %d, got %d", expected, got)
 	}
