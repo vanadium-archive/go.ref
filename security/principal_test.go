@@ -66,13 +66,9 @@ func testCreatePersistentPrincipal(t *testing.T, message, passphrase []byte) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	p, err = CreatePersistentPrincipal(dir, passphrase)
+	_, err = CreatePersistentPrincipal(dir, passphrase)
 	if err == nil {
 		t.Error("CreatePersistentPrincipal passed unexpectedly")
-	}
-	p, err = CreateOrOverwritePersistentPrincipal(dir, passphrase)
-	if err != nil {
-		t.Errorf("CreateOrOverwritePersistentPrincipal failed unexpectedly: %v", err)
 	}
 
 	sig, err := p.Sign(message)
