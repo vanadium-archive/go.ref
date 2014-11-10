@@ -344,8 +344,8 @@ to the provided directory. The same directory can be used to set the VEYRON_CRED
 environment variables for other veyron applications.
 
 The operation fails if the directory already contains a principal. In this case
-the --overwrite flag can be provided to overwrite the existing principal data in
-the directory.
+the --overwrite flag can be provided to clear the directory and write out a
+new principal.
 `,
 		ArgsName: "<directory> <blessing>",
 		ArgsLong: `
@@ -363,7 +363,10 @@ the directory.
 				err error
 			)
 			if flagCreateOverwrite {
-				p, err = vsecurity.CreateOrOverwritePersistentPrincipal(dir, nil)
+				if err = os.RemoveAll(dir); err != nil {
+					return err
+				}
+				p, err = vsecurity.CreatePersistentPrincipal(dir, nil)
 			} else {
 				p, err = vsecurity.CreatePersistentPrincipal(dir, nil)
 			}

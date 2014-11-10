@@ -76,17 +76,6 @@ func CreatePersistentPrincipal(dir string, passphrase []byte) (principal securit
 	return newPersistentPrincipalFromSigner(security.NewInMemoryECDSASigner(key), dir)
 }
 
-// CreateOrOverwritePersistentPrincipal behaves like CreatePersistentPrincipal except that
-// if the provided directory holds any preexisting principal data then the data gets
-// overwritten.  Any prexising private key, BlessingRoots and BlessingStore would get lost
-// as a result of calling this function.
-func CreateOrOverwritePersistentPrincipal(dir string, passphrase []byte) (principal security.Principal, err error) {
-	if err := removePersistentPrincipal(dir); err != nil {
-		return nil, err
-	}
-	return CreatePersistentPrincipal(dir, passphrase)
-}
-
 // InitDefaultBlessings uses the provided principal to create a self blessing for name 'name',
 // sets it as default on the principal's BlessingStore and adds it as root to the principal's BlessingRoots.
 func InitDefaultBlessings(p security.Principal, name string) error {
@@ -102,16 +91,6 @@ func InitDefaultBlessings(p security.Principal, name string) error {
 	}
 	if err := p.AddToRoots(blessing); err != nil {
 		return err
-	}
-	return nil
-}
-
-func removePersistentPrincipal(dir string) error {
-	files := []string{privateKeyFile, blessingRootsDataFile, blessingRootsSigFile, blessingStoreDataFile, blessingStoreSigFile}
-	for _, f := range files {
-		if err := os.Remove(path.Join(dir, f)); err != nil && !os.IsNotExist(err) {
-			return err
-		}
 	}
 	return nil
 }
