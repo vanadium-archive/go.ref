@@ -11,17 +11,12 @@ import (
 	"veyron.io/veyron/veyron2/security"
 )
 
-const (
-	blessingRootsDataFile = "blessingroots.data"
-	blessingRootsSigFile  = "blessingroots.sig"
-)
-
 // blessingRoots implements security.BlessingRoots.
 type blessingRoots struct {
-	dir    string
-	signer serialization.Signer
-	mu     sync.RWMutex
-	store  map[string][]security.BlessingPattern // GUARDED_BY(mu)
+	persistedData SerializerReaderWriter
+	signer        serialization.Signer
+	mu            sync.RWMutex
+	store         map[string][]security.BlessingPattern // GUARDED_BY(mu)
 }
 
 func storeMapKey(root security.PublicKey) (string, error) {
@@ -93,10 +88,14 @@ func (br *blessingRoots) DebugString() string {
 }
 
 func (br *blessingRoots) save() error {
-	if (br.signer == nil) && (br.dir == "") {
+	if (br.signer == nil) && (br.persistedData == nil) {
 		return nil
 	}
-	return encodeAndStore(br.store, br.dir, blessingRootsDataFile, blessingRootsSigFile, br.signer)
+	data, signature, err := br.persistedData.Writers()
+	if err != nil {
+		return err
+	}
+	return encodeAndStore(br.store, data, signature, br.signer)
 }
 
 // newInMemoryBlessingRoots returns an in-memory security.BlessingRoots.
@@ -108,27 +107,26 @@ func newInMemoryBlessingRoots() security.BlessingRoots {
 	}
 }
 
-// newPersistingBlessingRoots returns a security.BlessingRoots that signs
-// and persists all updates to the provided directory. Signing is carried
-// out using the provided signer.
-//
-// The returned BlessingRoots is initialized from the existing data present
-// in the directory. The data is verified to have been written by a persisting
-// BlessingRoots object constructed from the same signer.
-//
-// Any errors obtained in reading or verifying the data are returned.
-func newPersistingBlessingRoots(directory string, signer serialization.Signer) (security.BlessingRoots, error) {
-	if directory == "" || signer == nil {
-		return nil, errors.New("directory or signer is not specified")
+// newPersistingBlessingRoots returns a security.BlessingRoots for a principal
+// that is initialized with the persisted data. The returned security.BlessingRoots
+// also persists any updates to its state.
+func newPersistingBlessingRoots(persistedData SerializerReaderWriter, signer serialization.Signer) (security.BlessingRoots, error) {
+	if persistedData == nil || signer == nil {
+		return nil, errors.New("persisted data or signer is not specified")
 	}
 	br := &blessingRoots{
-		store:  make(map[string][]security.BlessingPattern),
-		dir:    directory,
-		signer: signer,
+		store:         make(map[string][]security.BlessingPattern),
+		persistedData: persistedData,
+		signer:        signer,
 	}
-
-	if err := decodeFromStorage(&br.store, br.dir, blessingRootsDataFile, blessingRootsSigFile, br.signer.PublicKey()); err != nil {
+	data, signature, err := br.persistedData.Readers()
+	if err != nil {
 		return nil, err
+	}
+	if (data != nil) && (signature != nil) {
+		if err := decodeFromStorage(&br.store, data, signature, br.signer.PublicKey()); err != nil {
+			return nil, err
+		}
 	}
 	return br, nil
 }

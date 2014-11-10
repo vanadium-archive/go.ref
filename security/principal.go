@@ -9,7 +9,15 @@ import (
 	"veyron.io/veyron/veyron2/security"
 )
 
-const privateKeyFile = "privatekey.pem"
+const (
+	blessingStoreDataFile = "blessingstore.data"
+	blessingStoreSigFile  = "blessingstore.sig"
+
+	blessingRootsDataFile = "blessingroots.data"
+	blessingRootsSigFile  = "blessingroots.sig"
+
+	privateKeyFile = "privatekey.pem"
+)
 
 // NewPrincipal mints a new private key and generates a principal based on
 // this key, storing its BlessingRoots and BlessingStore in memory.
@@ -27,7 +35,7 @@ func NewPrincipalFromSigner(signer security.Signer) (security.Principal, error) 
 	return security.CreatePrincipal(signer, newInMemoryBlessingStore(signer.PublicKey()), newInMemoryBlessingRoots())
 }
 
-// NewPersistentPrincipalForSigner creates a new principal using the provided Signer and a
+// NewPersistentPrincipalFromSigner creates a new principal using the provided Signer and a
 // partial state (i.e., BlessingRoots, BlessingStore) that is read from the provided directory 'dir'.
 // Changes to the partial state are persisted and commited to the same directory; the provided
 // signer isn't persisted: the caller is expected to persist it separately or use the
@@ -100,11 +108,22 @@ func newPersistentPrincipalFromSigner(signer security.Signer, dir string) (secur
 	if err != nil {
 		return nil, fmt.Errorf("failed to create serialization.Signer: %v", err)
 	}
-	roots, err := newPersistingBlessingRoots(dir, serializationSigner)
+	dataFile := path.Join(dir, blessingRootsDataFile)
+	signatureFile := path.Join(dir, blessingRootsSigFile)
+	fs, err := NewFileSerializer(dataFile, signatureFile)
+	if err != nil {
+		return nil, err
+	}
+	roots, err := newPersistingBlessingRoots(fs, serializationSigner)
 	if err != nil {
 		return nil, fmt.Errorf("failed to load BlessingRoots from %q: %v", dir, err)
 	}
-	store, err := newPersistingBlessingStore(dir, serializationSigner)
+	dataFile = path.Join(dir, blessingStoreDataFile)
+	signatureFile = path.Join(dir, blessingStoreSigFile)
+	if fs, err = NewFileSerializer(dataFile, signatureFile); err != nil {
+		return nil, err
+	}
+	store, err := newPersistingBlessingStore(fs, serializationSigner)
 	if err != nil {
 		return nil, fmt.Errorf("failed to load BlessingStore from %q: %v", dir, err)
 	}
