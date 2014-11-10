@@ -17,7 +17,7 @@ import (
 // implementation should not ever use the Runtime from a context.
 func testContext() context.T {
 	ctx := InternalNewContext(&runtime.PanicRuntime{})
-	ctx, _ = vtrace.WithNewSpan(ctx, "")
+	ctx, _ = vtrace.WithNewRootSpan(ctx, nil, false)
 	ctx, _ = ctx.WithDeadline(time.Now().Add(20 * time.Second))
 	return ctx
 }

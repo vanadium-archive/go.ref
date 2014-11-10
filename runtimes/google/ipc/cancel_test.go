@@ -55,7 +55,7 @@ func (c *canceld) Run(ctx ipc.ServerCall) error {
 func makeCanceld(ns naming.Namespace, name, child string) (*canceld, error) {
 	sm := manager.InternalNew(naming.FixedRoutingID(0x111111111))
 	ctx := testContext()
-	s, err := InternalNewServer(ctx, sm, ns)
+	s, err := InternalNewServer(ctx, sm, ns, nil)
 	if err != nil {
 		return nil, err
 	}

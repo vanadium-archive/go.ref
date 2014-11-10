@@ -70,27 +70,37 @@ type spanKey struct{}
 // ContinuedSpan creates a span that represents a continuation of a trace from
 // a remote server.  name is a user readable string that describes the context
 // and req contains the parameters needed to connect this span with it's trace.
-func WithContinuedSpan(ctx context.T, name string, req vtrace.Request) (context.T, vtrace.Span) {
-	newSpan := newSpan(req.SpanID, name, newCollector(req.TraceID))
+func WithContinuedSpan(ctx context.T, name string, req vtrace.Request, store *Store) (context.T, vtrace.Span) {
+	newSpan := newSpan(req.SpanID, name, newCollector(req.TraceID, store))
 	if req.Method == vtrace.InMemory {
 		newSpan.collector.ForceCollect()
 	}
 	return ctx.WithValue(spanKey{}, newSpan), newSpan
 }
 
+func WithNewRootSpan(ctx context.T, store *Store, forceCollect bool) (context.T, vtrace.Span) {
+	id, err := uniqueid.Random()
+	if err != nil {
+		vlog.Errorf("vtrace: Couldn't generate Trace ID, debug data may be lost: %v", err)
+	}
+	col := newCollector(id, store)
+	if forceCollect {
+		col.ForceCollect()
+	}
+	s := newSpan(id, "", col)
+
+	return ctx.WithValue(spanKey{}, s), s
+}
+
 // NewSpan creates a new span.
 func WithNewSpan(parent context.T, name string) (context.T, vtrace.Span) {
-	var s *span
 	if curSpan := getSpan(parent); curSpan != nil {
-		s = newSpan(curSpan.ID(), name, curSpan.collector)
-	} else {
-		id, err := uniqueid.Random()
-		if err != nil {
-			vlog.Errorf("vtrace: Couldn't generate Trace ID, debug data may be lost: %v", err)
-		}
-		s = newSpan(id, name, newCollector(id))
+		s := newSpan(curSpan.ID(), name, curSpan.collector)
+		return parent.WithValue(spanKey{}, s), s
 	}
-	return parent.WithValue(spanKey{}, s), s
+
+	vlog.Error("vtrace: Creating a new child span from context with no existing span.")
+	return WithNewRootSpan(parent, nil, false)
 }
 
 func getSpan(ctx context.T) *span {

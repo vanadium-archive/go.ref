@@ -35,8 +35,7 @@ func TestDebugServer(t *testing.T) {
 	sm := manager.InternalNew(naming.FixedRoutingID(0x555555555))
 	defer sm.Shutdown()
 	ns := tnaming.NewSimpleNamespace()
-
-	server, err := InternalNewServer(testContext(), sm, ns, options.ReservedNameDispatcher{debugDisp}, vc.LocalPrincipal{pserver})
+	server, err := InternalNewServer(testContext(), sm, ns, nil, options.ReservedNameDispatcher{debugDisp}, vc.LocalPrincipal{pserver})
 	if err != nil {
 		t.Fatalf("InternalNewServer failed: %v", err)
 	}

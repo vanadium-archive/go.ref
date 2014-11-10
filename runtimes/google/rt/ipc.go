@@ -2,6 +2,7 @@ package rt
 
 import (
 	"fmt"
+	"math/rand"
 
 	iipc "veyron.io/veyron/veyron/runtimes/google/ipc"
 	imanager "veyron.io/veyron/veyron/runtimes/google/ipc/stream/manager"
@@ -47,7 +48,11 @@ func (rt *vrt) NewContext() context.T {
 	ctx := iipc.InternalNewContext(rt)
 	ctx = i18n.ContextWithLangID(ctx, rt.lang)
 	ctx = verror2.ContextWithComponentName(ctx, rt.program)
-	ctx, _ = ivtrace.WithNewSpan(ctx, "") // Initial span has empty name.
+
+	sr := rt.flags.Vtrace.SampleRate
+	forceCollect := sr > 0.0 && (sr >= 1.0 || rand.Float64() < sr)
+	ctx, _ = ivtrace.WithNewRootSpan(ctx, rt.traceStore, forceCollect)
+
 	return ctx
 }
 
@@ -98,8 +103,7 @@ func (rt *vrt) NewServer(opts ...ipc.ServerOpt) (ipc.Server, error) {
 		otherOpts = append(otherOpts, ropts)
 		otherOpts = append(otherOpts, rt.reservedOpts...)
 	}
-	ctx := rt.NewContext()
-	return iipc.InternalNewServer(ctx, sm, ns, otherOpts...)
+	return iipc.InternalNewServer(rt.NewContext(), sm, ns, rt.traceStore, otherOpts...)
 }
 
 func (rt *vrt) NewStreamManager(opts ...stream.ManagerOpt) (stream.Manager, error) {

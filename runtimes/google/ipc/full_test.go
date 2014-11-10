@@ -169,7 +169,7 @@ func (t testServerDisp) Lookup(suffix, method string) (interface{}, security.Aut
 
 func startServer(t *testing.T, principal security.Principal, sm stream.Manager, ns naming.Namespace, ts interface{}) (naming.Endpoint, ipc.Server) {
 	vlog.VI(1).Info("InternalNewServer")
-	server, err := InternalNewServer(testContext(), sm, ns, vc.LocalPrincipal{principal})
+	server, err := InternalNewServer(testContext(), sm, ns, nil, vc.LocalPrincipal{principal})
 	if err != nil {
 		t.Errorf("InternalNewServer failed: %v", err)
 	}
@@ -270,7 +270,7 @@ func matchesErrorPattern(err error, pattern string) bool {
 func TestMultipleCallsToServeAndName(t *testing.T) {
 	sm := imanager.InternalNew(naming.FixedRoutingID(0x555555555))
 	ns := tnaming.NewSimpleNamespace()
-	server, err := InternalNewServer(testContext(), sm, ns, vc.LocalPrincipal{sectest.NewPrincipal()})
+	server, err := InternalNewServer(testContext(), sm, ns, nil, vc.LocalPrincipal{sectest.NewPrincipal()})
 	if err != nil {
 		t.Errorf("InternalNewServer failed: %v", err)
 	}
@@ -610,7 +610,7 @@ func TestDischargeImpetus(t *testing.T) {
 			return vc.LocalPrincipal{pclient}
 		}
 	)
-	server, err := InternalNewServer(testContext(), sm, ns, vc.LocalPrincipal{pserver})
+	server, err := InternalNewServer(testContext(), sm, ns, nil, vc.LocalPrincipal{pserver})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -995,7 +995,7 @@ func TestPreferredAddress(t *testing.T) {
 		a.IP = net.ParseIP("1.1.1.1")
 		return []ipc.Address{&netstate.AddrIfc{Addr: a}}, nil
 	}
-	server, err := InternalNewServer(testContext(), sm, ns, vc.LocalPrincipal{sectest.NewPrincipal("server")})
+	server, err := InternalNewServer(testContext(), sm, ns, nil, vc.LocalPrincipal{sectest.NewPrincipal("server")})
 	if err != nil {
 		t.Errorf("InternalNewServer failed: %v", err)
 	}
@@ -1031,7 +1031,7 @@ func TestPreferredAddressErrors(t *testing.T) {
 	paerr := func(_ string, a []ipc.Address) ([]ipc.Address, error) {
 		return nil, fmt.Errorf("oops")
 	}
-	server, err := InternalNewServer(testContext(), sm, ns, vc.LocalPrincipal{sectest.NewPrincipal("server")})
+	server, err := InternalNewServer(testContext(), sm, ns, nil, vc.LocalPrincipal{sectest.NewPrincipal("server")})
 	if err != nil {
 		t.Errorf("InternalNewServer failed: %v", err)
 	}
@@ -1058,7 +1058,7 @@ func TestSecurityNone(t *testing.T) {
 	sm := imanager.InternalNew(naming.FixedRoutingID(0x66666666))
 	defer sm.Shutdown()
 	ns := tnaming.NewSimpleNamespace()
-	server, err := InternalNewServer(testContext(), sm, ns, options.VCSecurityNone)
+	server, err := InternalNewServer(testContext(), sm, ns, nil, options.VCSecurityNone)
 	if err != nil {
 		t.Fatalf("InternalNewServer failed: %v", err)
 	}
@@ -1171,6 +1171,7 @@ func TestServerBlessingsOpt(t *testing.T) {
 			testContext(),
 			sm,
 			ns,
+			nil,
 			opts...)
 		if err != nil {
 			t.Fatal(err)

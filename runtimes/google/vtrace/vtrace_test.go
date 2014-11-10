@@ -97,7 +97,7 @@ func (c *testServer) Run(ctx ipc.ServerCall) error {
 func makeTestServer(ns naming.Namespace, name, child string, forceCollect bool) (*testServer, error) {
 	sm := manager.InternalNew(naming.FixedRoutingID(0x111111111))
 	ctx := testContext()
-	s, err := iipc.InternalNewServer(ctx, sm, ns)
+	s, err := iipc.InternalNewServer(ctx, sm, ns, nil)
 	if err != nil {
 		return nil, err
 	}

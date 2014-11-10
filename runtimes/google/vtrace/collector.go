@@ -26,16 +26,19 @@ func copySpanRecord(in *vtrace.SpanRecord) *vtrace.SpanRecord {
 // as well as in-memory collection.
 type collector struct {
 	traceID uniqueid.ID
-	method  vtrace.TraceMethod
-	spans   map[uniqueid.ID]*vtrace.SpanRecord
-	mu      sync.Mutex
+	store   *Store
+
+	mu     sync.Mutex
+	method vtrace.TraceMethod                 // GUARDED_BY(mu)
+	spans  map[uniqueid.ID]*vtrace.SpanRecord // GUARDED_BY(mu)
 }
 
 // newCollector returns a new collector for the given traceID.
-func newCollector(traceID uniqueid.ID) *collector {
+func newCollector(traceID uniqueid.ID, store *Store) *collector {
 	return &collector{
 		traceID: traceID,
 		method:  vtrace.None,
+		store:   store,
 	}
 }
 
@@ -53,6 +56,9 @@ func (c *collector) ForceCollect() {
 		c.method = vtrace.InMemory
 		c.spans = make(map[uniqueid.ID]*vtrace.SpanRecord)
 	}
+	if c.store != nil {
+		c.store.Consider(c)
+	}
 }
 
 func (c *collector) spanRecordLocked(s *span) *vtrace.SpanRecord {
@@ -66,6 +72,9 @@ func (c *collector) spanRecordLocked(s *span) *vtrace.SpanRecord {
 			Start:  s.start.UnixNano(),
 		}
 		c.spans[sid] = record
+	}
+	if c.store != nil {
+		c.store.Consider(c)
 	}
 	return record
 }

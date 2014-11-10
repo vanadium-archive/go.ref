@@ -121,7 +121,7 @@ func TestProxy(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer client.Close()
-	server, err := InternalNewServer(testContext(), sm, ns, vc.LocalPrincipal{sectest.NewPrincipal("server")})
+	server, err := InternalNewServer(testContext(), sm, ns, nil, vc.LocalPrincipal{sectest.NewPrincipal("server")})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -195,7 +195,7 @@ func TestProxy(t *testing.T) {
 func runServer(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
 	mgr := imanager.InternalNew(naming.FixedRoutingID(0x1111111))
 	ns := tnaming.NewSimpleNamespace()
-	server, err := InternalNewServer(testContext(), mgr, ns, vc.LocalPrincipal{sectest.NewPrincipal("server")})
+	server, err := InternalNewServer(testContext(), mgr, ns, nil, vc.LocalPrincipal{sectest.NewPrincipal("server")})
 	if err != nil {
 		return fmt.Errorf("InternalNewServer failed: %v", err)
 	}

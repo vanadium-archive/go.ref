@@ -19,9 +19,11 @@ import (
 	"veyron.io/veyron/veyron/lib/flags"
 	_ "veyron.io/veyron/veyron/lib/stats/sysstats"
 	"veyron.io/veyron/veyron/runtimes/google/naming/namespace"
+	ivtrace "veyron.io/veyron/veyron/runtimes/google/vtrace"
 	"veyron.io/veyron/veyron2/options"
 	"veyron.io/veyron/veyron2/security"
 	"veyron.io/veyron/veyron2/vlog"
+	"veyron.io/veyron/veyron2/vtrace"
 )
 
 // TODO(caprita): Verrorize this, and maybe move it in the API.
@@ -44,8 +46,9 @@ type vrt struct {
 	nServers     int  // GUARDED_BY(mu)
 	cleaningUp   bool // GUARDED_BY(mu)
 
-	lang    i18n.LangID // Language, from environment variables.
-	program string      // Program name, from os.Args[0].
+	lang       i18n.LangID    // Language, from environment variables.
+	program    string         // Program name, from os.Args[0].
+	traceStore *ivtrace.Store // Storage of sampled vtrace traces.
 }
 
 var _ veyron2.Runtime = (*vrt)(nil)
@@ -60,11 +63,18 @@ func init() {
 
 // Implements veyron2/rt.New
 func New(opts ...veyron2.ROpt) (veyron2.Runtime, error) {
-	rt := &vrt{mgmt: new(mgmtImpl), lang: i18n.LangIDFromEnv(), program: filepath.Base(os.Args[0])}
 	flagsOnce.Do(func() {
 		runtimeFlags.Parse(os.Args[1:])
 	})
-	rt.flags = runtimeFlags.RuntimeFlags()
+	flags := runtimeFlags.RuntimeFlags()
+	rt := &vrt{
+		mgmt:       new(mgmtImpl),
+		lang:       i18n.LangIDFromEnv(),
+		program:    filepath.Base(os.Args[0]),
+		flags:      flags,
+		traceStore: ivtrace.NewStore(flags.Vtrace.CacheSize),
+	}
+
 	for _, o := range opts {
 		switch v := o.(type) {
 		case options.RuntimePrincipal:
@@ -149,6 +159,10 @@ func (rt *vrt) ConfigureReservedName(server ipc.Dispatcher, opts ...ipc.ServerOp
 }
 
 func (rt *vrt) Cleanup() {
+	if rt.flags.Vtrace.DumpOnShutdown {
+		vtrace.FormatTraces(os.Stderr, rt.traceStore.TraceRecords(), nil)
+	}
+
 	rt.mu.Lock()
 	if rt.cleaningUp {
 		rt.mu.Unlock()

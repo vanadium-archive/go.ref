@@ -50,7 +50,8 @@ type server struct {
 	names       map[string]struct{}
 	reservedOpt options.ReservedNameDispatcher
 	// TODO(cnicolaou): add roaming stats to ipcStats
-	stats *ipcStats // stats for this server.
+	stats      *ipcStats      // stats for this server.
+	traceStore *ivtrace.Store // store for vtrace traces.
 }
 
 var _ ipc.Server = (*server)(nil)
@@ -64,7 +65,8 @@ type dhcpListener struct {
 	ch        chan config.Setting // channel to receive settings over
 }
 
-func InternalNewServer(ctx context.T, streamMgr stream.Manager, ns naming.Namespace, opts ...ipc.ServerOpt) (ipc.Server, error) {
+func InternalNewServer(ctx context.T, streamMgr stream.Manager, ns naming.Namespace, store *ivtrace.Store, opts ...ipc.ServerOpt) (ipc.Server, error) {
+	ctx, _ = ivtrace.WithNewSpan(ctx, "NewServer")
 	s := &server{
 		ctx:         ctx,
 		streamMgr:   streamMgr,
@@ -73,6 +75,7 @@ func InternalNewServer(ctx context.T, streamMgr stream.Manager, ns naming.Namesp
 		stoppedChan: make(chan struct{}),
 		ns:          ns,
 		stats:       newIPCStats(naming.Join("ipc", "server", streamMgr.RoutingID().String())),
+		traceStore:  store,
 	}
 	for _, opt := range opts {
 		switch opt := opt.(type) {
@@ -542,6 +545,8 @@ func (s *server) Serve(name string, obj interface{}, authorizer security.Authori
 func (s *server) ServeDispatcher(name string, disp ipc.Dispatcher) error {
 	s.Lock()
 	defer s.Unlock()
+	ivtrace.FromContext(s.ctx).Annotate("Serving under name: " + name)
+
 	if s.stopped {
 		return errServerStopped
 	}
@@ -563,6 +568,7 @@ func (s *server) ServeDispatcher(name string, disp ipc.Dispatcher) error {
 func (s *server) AddName(name string) error {
 	s.Lock()
 	defer s.Unlock()
+	ivtrace.FromContext(s.ctx).Annotate("Serving under name: " + name)
 	if s.stopped {
 		return errServerStopped
 	}
@@ -579,6 +585,7 @@ func (s *server) AddName(name string) error {
 func (s *server) RemoveName(name string) error {
 	s.Lock()
 	defer s.Unlock()
+	ivtrace.FromContext(s.ctx).Annotate("Removed name: " + name)
 	if s.stopped {
 		return errServerStopped
 	}
@@ -813,7 +820,7 @@ func (fs *flowServer) processRequest() ([]interface{}, verror.E) {
 	// on the server even if they will not be allowed to collect the
 	// results later.  This might be considered a DOS vector.
 	spanName := fmt.Sprintf("\"%s\".%s", fs.Name(), fs.Method())
-	fs.T, _ = ivtrace.WithContinuedSpan(fs, spanName, req.TraceRequest)
+	fs.T, _ = ivtrace.WithContinuedSpan(fs, spanName, req.TraceRequest, fs.server.traceStore)
 
 	var cancel context.CancelFunc
 	if req.Timeout != ipc.NoTimeout {

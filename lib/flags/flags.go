@@ -93,7 +93,23 @@ type RuntimeFlags struct {
 	// environment variable. The command line will override the environment.
 	Credentials string // TODO(cnicolaou): provide flag.Value impl
 
+	// Vtrace flags control various aspects of Vtrace.
+	Vtrace VtraceFlags
+
 	namespaceRootsFlag namespaceRootFlagVar
+}
+
+type VtraceFlags struct {
+	// VtraceSampleRate is the rate (from 0.0 - 1.0) at which
+	// vtrace traces started by this process are sampled for collection.
+	SampleRate float64
+
+	// VtraceDumpOnShutdown tells the runtime to dump all stored traces
+	// to Stderr at shutdown if true.
+	DumpOnShutdown bool
+
+	// VtraceCacheSize the number of traces to cache in memory.
+	CacheSize int
 }
 
 // ACLFlags contains the values of the ACLFlags flag group.
@@ -127,6 +143,11 @@ func createAndRegisterRuntimeFlags(fs *flag.FlagSet) *RuntimeFlags {
 
 	fs.Var(&f.namespaceRootsFlag, "veyron.namespace.root", "local namespace root; can be repeated to provided multiple roots")
 	fs.StringVar(&f.Credentials, "veyron.credentials", creds, "directory to use for storing security credentials")
+
+	fs.Float64Var(&f.Vtrace.SampleRate, "veyron.vtrace.sample_rate", 0.0, "Rate (from 0.0 to 1.0) to sample vtrace traces.")
+	fs.BoolVar(&f.Vtrace.DumpOnShutdown, "veyron.vtrace.dump_on_shutdown", false, "If true, dump all stored traces on runtime shutdown.")
+	fs.IntVar(&f.Vtrace.CacheSize, "veyron.vtrace.cache_size", 1024, "The number of vtrace traces to store in memory.")
+
 	return f
 }
 
