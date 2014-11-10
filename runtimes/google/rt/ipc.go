@@ -3,6 +3,7 @@ package rt
 import (
 	"fmt"
 	"math/rand"
+	"time"
 
 	iipc "veyron.io/veyron/veyron/runtimes/google/ipc"
 	imanager "veyron.io/veyron/veyron/runtimes/google/ipc/stream/manager"
@@ -36,7 +37,11 @@ func (rt *vrt) NewClient(opts ...ipc.ClientOpt) (ipc.Client, error) {
 		}
 	}
 	// Add the option that provides the runtime's principal to the client.
-	otherOpts = append(otherOpts, vc.LocalPrincipal{rt.principal})
+	// Set a low timeout for now, until we get parallel connections
+	// going.
+	// TODO(cnicolaou): extend the timeout when parallel connections are
+	// going.
+	otherOpts = append(otherOpts, vc.LocalPrincipal{rt.principal}, &imanager.DialTimeout{5 * time.Second})
 	return iipc.InternalNewClient(sm, ns, otherOpts...)
 }
 

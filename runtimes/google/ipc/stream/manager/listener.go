@@ -6,6 +6,7 @@ import (
 	"net"
 	"strings"
 	"sync"
+	"time"
 
 	"veyron.io/veyron/veyron/runtimes/google/ipc/stream/proxy"
 	"veyron.io/veyron/veyron/runtimes/google/ipc/stream/vif"
@@ -154,7 +155,9 @@ func newProxyListener(m *manager, ep naming.Endpoint, opts []stream.ListenerOpt)
 
 func (ln *proxyListener) connect() (*vif.VIF, naming.Endpoint, error) {
 	vlog.VI(1).Infof("Connecting to proxy at %v", ln.proxyEP)
-	vf, err := ln.manager.FindOrDialVIF(ln.proxyEP.Addr())
+	// TODO(cnicolaou, ashankar): probably want to set a timeout here.
+	var timeout time.Duration
+	vf, err := ln.manager.FindOrDialVIF(ln.proxyEP.Addr(), timeout)
 	if err != nil {
 		return nil, nil, err
 	}

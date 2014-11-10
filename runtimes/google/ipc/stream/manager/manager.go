@@ -7,6 +7,7 @@ import (
 	"net"
 	"strings"
 	"sync"
+	"time"
 
 	"veyron.io/veyron/veyron/lib/stats"
 	"veyron.io/veyron/veyron/runtimes/google/ipc/stream/crypto"
@@ -54,23 +55,28 @@ type manager struct {
 
 var _ stream.Manager = (*manager)(nil)
 
-func dial(network, address string) (net.Conn, error) {
+type DialTimeout struct{ time.Duration }
+
+func (DialTimeout) IPCStreamVCOpt() {}
+func (DialTimeout) IPCClientOpt()   {}
+
+func dial(network, address string, timeout time.Duration) (net.Conn, error) {
 	if d, _ := stream.RegisteredProtocol(network); d != nil {
 		return d(address)
 	}
-	return net.Dial(network, address)
+	return net.DialTimeout(network, address, timeout)
 }
 
 // FindOrDialVIF returns the network connection (VIF) to the provided address
 // from the cache in the manager. If not already present in the cache, a new
 // connection will be created using net.Dial.
-func (m *manager) FindOrDialVIF(addr net.Addr) (*vif.VIF, error) {
+func (m *manager) FindOrDialVIF(addr net.Addr, timeout time.Duration) (*vif.VIF, error) {
 	network, address := addr.Network(), addr.String()
 	if vf := m.vifs.Find(network, address); vf != nil {
 		return vf, nil
 	}
 	vlog.VI(1).Infof("(%q, %q) not in VIF cache. Dialing", network, address)
-	conn, err := dial(network, address)
+	conn, err := dial(network, address, timeout)
 	if err != nil {
 		return nil, fmt.Errorf("net.Dial(%q, %q) failed: %v", network, address, err)
 	}
@@ -104,10 +110,17 @@ func (m *manager) FindOrDialVIF(addr net.Addr) (*vif.VIF, error) {
 }
 
 func (m *manager) Dial(remote naming.Endpoint, opts ...stream.VCOpt) (stream.VC, error) {
+	var timeout time.Duration
+	for _, o := range opts {
+		switch v := o.(type) {
+		case *DialTimeout:
+			timeout = v.Duration
+		}
+	}
 	// If vif.Dial fails because the cached network connection was broken, remove from
 	// the cache and try once more.
 	for retry := true; true; retry = false {
-		vf, err := m.FindOrDialVIF(remote.Addr())
+		vf, err := m.FindOrDialVIF(remote.Addr(), timeout)
 		if err != nil {
 			return nil, err
 		}

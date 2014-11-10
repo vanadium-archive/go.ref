@@ -124,6 +124,27 @@ func TestSimpleFlow(t *testing.T) {
 	}
 }
 
+func TestConnectionTimeout(t *testing.T) {
+	client := InternalNew(naming.FixedRoutingID(0xcccccccc))
+
+	ch := make(chan error)
+	go func() {
+		// 203.0.113.0 is TEST-NET-3 from RFC5737
+		ep, _ := inaming.NewEndpoint(naming.FormatEndpoint("tcp", "203.0.113.10:80"))
+		_, err := client.Dial(ep, &DialTimeout{time.Second})
+		ch <- err
+	}()
+
+	select {
+	case err := <-ch:
+		if err == nil {
+			t.Fatalf("expected an error")
+		}
+	case <-time.After(time.Minute):
+		t.Fatalf("timedout")
+	}
+}
+
 func TestAuthenticatedByDefault(t *testing.T) {
 	var (
 		server = InternalNew(naming.FixedRoutingID(0x55555555))
@@ -473,7 +494,7 @@ func TestServerRestartDuringClientLifetime(t *testing.T) {
 	}
 }
 
-// Required by blackbox framework
+// Needed by modules framework
 func TestHelperProcess(t *testing.T) {
 	modules.DispatchInTest()
 }
