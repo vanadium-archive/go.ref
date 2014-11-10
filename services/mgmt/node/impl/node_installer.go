@@ -84,7 +84,7 @@ func SelfInstall(args, env []string) error {
 	if err := linkSelf(nmDir, "noded"); err != nil {
 		return err
 	}
-	// We don't pass in the config state setting, since they're already
+	// We don't pass in the config state settings, since they're already
 	// contained in the environment.
 	if err := generateScript(nmDir, nil, envelope); err != nil {
 		return err
