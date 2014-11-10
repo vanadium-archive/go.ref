@@ -61,7 +61,7 @@ ${EP}/__debug/stats"
   shell_test::assert_eq "${GOT}" "${WANT}" "${LINENO}"
 
   # Test stats read.
-  GOT=$("${DEBUG_BIN}" stats read "${EP}/__debug/stats/ipc/server/*/ReadLog/latency-ms" 2> "${DBGLOG}" | wc -l) \
+  GOT=$("${DEBUG_BIN}" stats read "${EP}/__debug/stats/ipc/server/routing-id/*/methods/ReadLog/latency-ms" 2> "${DBGLOG}" | wc -l) \
     || (dumplogs "${DBGLOG}"; shell_test::fail "line ${LINENO}: failed to run debug")
   shell_test::assert_gt "${GOT}" "0" "${LINENO}"
 
@@ -69,7 +69,7 @@ ${EP}/__debug/stats"
   local TMP=$(shell::tmp_file)
   touch "${TMP}"
   local -r DEBUG_PID=$(shell::run_server "${shell_test_DEFAULT_SERVER_TIMEOUT}" "${TMP}" "${DBGLOG}" \
-    "${DEBUG_BIN}" stats watch -raw "${EP}/__debug/stats/ipc/server/*/ReadLog/latency-ms")
+    "${DEBUG_BIN}" stats watch -raw "${EP}/__debug/stats/ipc/server/routing-id/*/methods/ReadLog/latency-ms")
   shell::timed_wait_for "${shell_test_DEFAULT_MESSAGE_TIMEOUT}" "${TMP}" "ReadLog/latency-ms"
   kill "${DEBUG_PID}"
   grep -q "Count:1 " "${TMP}" || (dumplogs "${TMP}"; shell_test::fail "line ${LINENO}: failed to find expected output")
