@@ -27,6 +27,7 @@
 package principal
 
 import (
+	"bytes"
 	"io"
 	"net/url"
 	"sync"
@@ -60,15 +61,35 @@ type persistentState struct {
 	Accounts map[string]security.WireBlessings
 }
 
-// Serializer is a factory for managing the readers and writers used by the
-// PrincipalManager for serialization and deserialization
-type Serializer interface {
-	// Readers returns io.Readers for reading the PrincipalManager's serialized
-	// data and its signature.
-	Readers() (data io.Reader, signature io.Reader, err error)
-	// Writers returns io.WriteClosers for writing the PrincipalManager's
-	// serialized data and integrity signature.
-	Writers() (data io.WriteCloser, signature io.WriteCloser, err error)
+// bufferCloser implements io.ReadWriteCloser.
+type bufferCloser struct {
+	bytes.Buffer
+}
+
+func (*bufferCloser) Close() error {
+	return nil
+}
+
+// InMemorySerializer implements SerializerReaderWriter. This Serializer should only
+// be used in tests.
+type InMemorySerializer struct {
+	data      bufferCloser
+	signature bufferCloser
+	hasData   bool
+}
+
+func (s *InMemorySerializer) Readers() (io.ReadCloser, io.ReadCloser, error) {
+	if !s.hasData {
+		return nil, nil, nil
+	}
+	return &s.data, &s.signature, nil
+}
+
+func (s *InMemorySerializer) Writers() (io.WriteCloser, io.WriteCloser, error) {
+	s.hasData = true
+	s.data.Reset()
+	s.signature.Reset()
+	return &s.data, &s.signature, nil
 }
 
 var OriginDoesNotExist = verror.NoExistf("origin not found")
@@ -83,7 +104,7 @@ type PrincipalManager struct {
 	// root is the Principal that hosts this PrincipalManager.
 	root security.Principal
 
-	serializer Serializer
+	serializer vsecurity.SerializerReaderWriter
 }
 
 // NewPrincipalManager returns a new PrincipalManager that creates new principals
@@ -93,7 +114,7 @@ type PrincipalManager struct {
 //
 // It is initialized by reading data from the 'serializer' passed in which must
 // be non-nil.
-func NewPrincipalManager(root security.Principal, serializer Serializer) (*PrincipalManager, error) {
+func NewPrincipalManager(root security.Principal, serializer vsecurity.SerializerReaderWriter) (*PrincipalManager, error) {
 	result := &PrincipalManager{
 		state: persistentState{
 			Origins:  map[string]permissions{},
