@@ -816,9 +816,7 @@ func (fs *flowServer) processRequest() ([]interface{}, verror.E) {
 // value may be modified to match the actual name and method to use.
 func (fs *flowServer) lookup(name, method *string) (ipc.Invoker, security.Authorizer, verror.E) {
 	*name = strings.TrimLeft(*name, "/")
-	// TODO(rthellend): Remove "Glob" from the condition below after
-	// everything has transitioned to the new name.
-	if *method == "Glob" || *method == ipc.GlobMethod {
+	if *method == ipc.GlobMethod {
 		*method = "Glob"
 		return ipc.ReflectInvoker(&globInternal{fs, *name}), &acceptAllAuthorizer{}, nil
 	}

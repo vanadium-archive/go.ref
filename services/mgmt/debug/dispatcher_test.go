@@ -17,10 +17,10 @@ import (
 	"veyron.io/veyron/veyron2/rt"
 	"veyron.io/veyron/veyron2/services/mgmt/logreader"
 	"veyron.io/veyron/veyron2/services/mgmt/stats"
-	"veyron.io/veyron/veyron2/services/mounttable"
 	"veyron.io/veyron/veyron2/verror"
 
 	libstats "veyron.io/veyron/veyron/lib/stats"
+	"veyron.io/veyron/veyron/lib/testutil"
 	"veyron.io/veyron/veyron/profiles"
 )
 
@@ -66,44 +66,23 @@ func TestDebugServer(t *testing.T) {
 
 	// Access a logs directory that exists.
 	{
-		ld := mounttable.GlobbableClient(naming.JoinAddressName(endpoint, "debug/logs"))
-		stream, err := ld.Glob(runtime.NewContext(), "*")
+		results, err := testutil.GlobName(naming.JoinAddressName(endpoint, "debug/logs"), "*")
 		if err != nil {
 			t.Errorf("Glob failed: %v", err)
 		}
-		results := []string{}
-		iterator := stream.RecvStream()
-		for count := 0; iterator.Advance(); count++ {
-			results = append(results, iterator.Value().Name)
-		}
 		if len(results) != 1 || results[0] != "test.INFO" {
 			t.Errorf("unexpected result. Got %v, want 'test.INFO'", results)
-		}
-		if err := iterator.Err(); err != nil {
-			t.Errorf("unexpected stream error: %v", iterator.Err())
-		}
-		if err := stream.Finish(); err != nil {
-			t.Errorf("Finish failed: %v", err)
 		}
 	}
 
 	// Access a logs directory that doesn't exist.
 	{
-		ld := mounttable.GlobbableClient(naming.JoinAddressName(endpoint, "debug/logs/nowheretobefound"))
-		stream, err := ld.Glob(runtime.NewContext(), "*")
-		if err != nil {
-			t.Errorf("Glob failed: %v", err)
-		}
-		results := []string{}
-		iterator := stream.RecvStream()
-		for count := 0; iterator.Advance(); count++ {
-			results = append(results, iterator.Value().Name)
-		}
+		results, err := testutil.GlobName(naming.JoinAddressName(endpoint, "debug/logs/nowheretobefound"), "*")
 		if len(results) != 0 {
 			t.Errorf("unexpected result. Got %v, want ''", results)
 		}
-		if expected, got := verror.NoExist, stream.Finish(); !verror.Is(got, expected) {
-			t.Errorf("unexpected error value, got %v, want: %v", got, expected)
+		if expected := verror.NoExist; !verror.Is(err, expected) {
+			t.Errorf("unexpected error value, got %v, want: %v", err, expected)
 		}
 	}
 

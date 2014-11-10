@@ -3,7 +3,6 @@ package ipc_test
 import (
 	"fmt"
 	"reflect"
-	"sort"
 	"strings"
 	"testing"
 
@@ -12,10 +11,10 @@ import (
 	"veyron.io/veyron/veyron2/naming"
 	"veyron.io/veyron/veyron2/rt"
 	"veyron.io/veyron/veyron2/security"
-	"veyron.io/veyron/veyron2/services/mounttable"
 	"veyron.io/veyron/veyron2/services/mounttable/types"
 
 	"veyron.io/veyron/veyron/lib/glob"
+	"veyron.io/veyron/veyron/lib/testutil"
 	"veyron.io/veyron/veyron/profiles"
 )
 
@@ -159,26 +158,14 @@ func TestGlob(t *testing.T) {
 		}},
 	}
 	for _, tc := range testcases {
-		c := mounttable.GlobbableClient(naming.JoinAddressName(ep, tc.name))
-
-		stream, err := c.Glob(runtime.NewContext(), tc.pattern)
+		name := naming.JoinAddressName(ep, tc.name)
+		results, err := testutil.GlobName(name, tc.pattern)
 		if err != nil {
-			t.Fatalf("Glob failed: %v", err)
+			t.Errorf("unexpected Glob error for (%q, %q): %v", tc.name, tc.pattern, err)
+			continue
 		}
-		results := []string{}
-		iterator := stream.RecvStream()
-		for iterator.Advance() {
-			results = append(results, iterator.Value().Name)
-		}
-		sort.Strings(results)
 		if !reflect.DeepEqual(results, tc.expected) {
 			t.Errorf("unexpected result for (%q, %q). Got %q, want %q", tc.name, tc.pattern, results, tc.expected)
-		}
-		if err := iterator.Err(); err != nil {
-			t.Errorf("unexpected stream error for %q: %v", tc.name, err)
-		}
-		if err := stream.Finish(); err != nil {
-			t.Errorf("Finish failed for %q: %v", tc.name, err)
 		}
 	}
 }

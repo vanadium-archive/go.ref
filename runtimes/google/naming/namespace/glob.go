@@ -8,6 +8,7 @@ import (
 	"veyron.io/veyron/veyron/lib/glob"
 
 	"veyron.io/veyron/veyron2/context"
+	"veyron.io/veyron/veyron2/ipc"
 	"veyron.io/veyron/veyron2/naming"
 	"veyron.io/veyron/veyron2/options"
 	"veyron.io/veyron/veyron2/services/mounttable/types"
@@ -60,7 +61,7 @@ func (ns *namespace) globAtServer(ctx context.T, qe *queuedEntry, pattern *glob.
 		// Don't further resolve s.Server.
 		callCtx, _ := ctx.WithTimeout(callTimeout)
 		client := ns.rt.Client()
-		call, err := client.StartCall(callCtx, s.Server, "Glob", []interface{}{pstr}, options.NoResolve(true))
+		call, err := client.StartCall(callCtx, s.Server, ipc.GlobMethod, []interface{}{pstr}, options.NoResolve(true))
 		if err != nil {
 			lastErr = err
 			continue // try another instance

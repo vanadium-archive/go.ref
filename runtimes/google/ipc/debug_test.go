@@ -99,7 +99,7 @@ func TestDebugServer(t *testing.T) {
 	}
 	for _, tc := range testcases {
 		addr := naming.JoinAddressName(ep.String(), "//"+tc.name)
-		call, err := client.StartCall(ctx, addr, "Glob", []interface{}{tc.pattern})
+		call, err := client.StartCall(ctx, addr, ipc.GlobMethod, []interface{}{tc.pattern})
 		if err != nil {
 			t.Fatalf("client.StartCall failed: %v", err)
 		}

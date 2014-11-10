@@ -36,7 +36,6 @@ import (
 	"veyron.io/veyron/veyron2/services/mgmt/node"
 	"veyron.io/veyron/veyron2/services/mgmt/pprof"
 	"veyron.io/veyron/veyron2/services/mgmt/stats"
-	"veyron.io/veyron/veyron2/services/mounttable"
 	"veyron.io/veyron/veyron2/services/mounttable/types"
 	"veyron.io/veyron/veyron2/verror"
 	"veyron.io/veyron/veyron2/vlog"
@@ -1020,7 +1019,11 @@ func TestNodeManagerGlobAndDebug(t *testing.T) {
 	logFileRemoveErrorFatalWarningRE := regexp.MustCompile("(ERROR|FATAL|WARNING)")
 	statsTrimRE := regexp.MustCompile("/stats/(ipc|system(/start-time.*)?)$")
 	for _, tc := range testcases {
-		results := doGlob(t, tc.name, tc.pattern)
+		results, err := testutil.GlobName(tc.name, tc.pattern)
+		if err != nil {
+			t.Errorf("unexpected glob error for (%q, %q): %v", tc.name, tc.pattern, err)
+			continue
+		}
 		filteredResults := []string{}
 		for _, name := range results {
 			// Keep only the stats object names that match this RE.
@@ -1044,7 +1047,10 @@ func TestNodeManagerGlobAndDebug(t *testing.T) {
 	}
 
 	// Call Size() on the log file objects.
-	files := doGlob(t, "nm", "apps/google naps/"+installID+"/"+instance1ID+"/logs/*")
+	files, err := testutil.GlobName("nm", "apps/google naps/"+installID+"/"+instance1ID+"/logs/*")
+	if err != nil {
+		t.Errorf("unexpected glob error: %v", err)
+	}
 	if want, got := 4, len(files); got < want {
 		t.Errorf("Unexpected number of matches. Got %d, want at least %d", got, want)
 	}
@@ -1057,7 +1063,10 @@ func TestNodeManagerGlobAndDebug(t *testing.T) {
 	}
 
 	// Call Value() on some of the stats objects.
-	objects := doGlob(t, "nm", "apps/google naps/"+installID+"/"+instance1ID+"/stats/system/start-time*")
+	objects, err := testutil.GlobName("nm", "apps/google naps/"+installID+"/"+instance1ID+"/stats/system/start-time*")
+	if err != nil {
+		t.Errorf("unexpected glob error: %v", err)
+	}
 	if want, got := 2, len(objects); got != want {
 		t.Errorf("Unexpected number of matches. Got %d, want %d", got, want)
 	}
@@ -1084,26 +1093,6 @@ func TestNodeManagerGlobAndDebug(t *testing.T) {
 			t.Errorf("Unexpected value for argv[0]. Got %v, want %v", got, want)
 		}
 	}
-}
-
-func doGlob(t *testing.T, name, pattern string) []string {
-	c := mounttable.GlobbableClient(name)
-	stream, err := c.Glob(rt.R().NewContext(), pattern)
-	if err != nil {
-		t.Errorf("Glob failed: %v", err)
-	}
-	results := []string{}
-	iterator := stream.RecvStream()
-	for iterator.Advance() {
-		results = append(results, iterator.Value().Name)
-	}
-	if err := iterator.Err(); err != nil {
-		t.Errorf("unexpected stream error: %v", err)
-	}
-	if err := stream.Finish(); err != nil {
-		t.Errorf("Finish failed: %v", err)
-	}
-	return results
 }
 
 func listAndVerifyAssociations(t *testing.T, stub node.NodeClientMethods, run veyron2.Runtime, expected []node.Association) {
