@@ -39,6 +39,7 @@ import (
 
 	"code.google.com/p/goauth2/oauth"
 
+	"veyron.io/veyron/veyron/services/identity/auditor"
 	"veyron.io/veyron/veyron/services/identity/blesser"
 	"veyron.io/veyron/veyron/services/identity/revocation"
 	"veyron.io/veyron/veyron/services/identity/util"
@@ -73,9 +74,8 @@ type HandlerArgs struct {
 	// client_id and client_secret registered with the Google Developer
 	// Console for API access.
 	ClientID, ClientSecret string
-	// Prefix for the audit log from which data will be sourced.
-	// (auditor.ReadAuditLog).
-	Auditor string
+	// BlessingLogReder is needed for reading audit logs.
+	BlessingLogReader auditor.BlessingLogReader
 	// The RevocationManager is used to revoke blessings granted with a revocation caveat.
 	// If nil, then revocation caveats cannot be added to blessings and an expiration caveat
 	// will be used instead.
@@ -171,6 +171,24 @@ func (h *handler) listBlessingsCallback(w http.ResponseWriter, r *http.Request) 
 		util.HTTPBadRequest(w, r, err)
 		return
 	}
+
+	type tmplentry struct {
+		Timestamp      time.Time
+		Caveats        []security.Caveat
+		RevocationTime time.Time
+		Blessed        security.Blessings
+		Token          string
+	}
+	tmplargs := struct {
+		Log                chan tmplentry
+		Email, RevokeRoute string
+	}{
+		Log:         make(chan tmplentry),
+		Email:       email,
+		RevokeRoute: revokeRoute,
+	}
+	entrych := h.args.BlessingLogReader.Read(email)
+
 	w.Header().Set("Context-Type", "text/html")
 	// This MaybeSetCookie call is needed to ensure that a cookie is created. Since the
 	// header cannot be changed once the body is written to, this needs to be called first.
@@ -179,16 +197,31 @@ func (h *handler) listBlessingsCallback(w http.ResponseWriter, r *http.Request) 
 		util.HTTPServerError(w, err)
 		return
 	}
-	w.Write([]byte(fmt.Sprintf(`
-<html>
-<head>
-  <title>DISABLED FUNCTIONALITY</title>
- </head>
- <body>
- <h1>Attention %s</h1>
- <h2>This functionality has been temporarily disabled. ashankar@ and suharshs@ will know more</h2>
- </body>
- </html>`, email)))
+	go func(ch chan tmplentry) {
+		defer close(ch)
+		for entry := range entrych {
+			tmplEntry := tmplentry{
+				Timestamp: entry.Timestamp,
+				Caveats:   entry.Caveats,
+				Blessed:   entry.Blessings,
+			}
+			if len(entry.RevocationCaveatID) > 0 && h.args.RevocationManager != nil {
+				if revocationTime := h.args.RevocationManager.GetRevocationTime(entry.RevocationCaveatID); revocationTime != nil {
+					tmplEntry.RevocationTime = *revocationTime
+				} else {
+					caveatID := base64.URLEncoding.EncodeToString([]byte(entry.RevocationCaveatID))
+					if tmplEntry.Token, err = h.csrfCop.NewToken(w, r, clientIDCookie, caveatID); err != nil {
+						vlog.Errorf("Failed to create CSRF token[%v] for request %#v", err, r)
+					}
+				}
+			}
+			ch <- tmplEntry
+		}
+	}(tmplargs.Log)
+	if err := tmplViewBlessings.Execute(w, tmplargs); err != nil {
+		vlog.Errorf("Unable to execute audit page template: %v", err)
+		util.HTTPServerError(w, err)
+	}
 }
 
 func (h *handler) revoke(w http.ResponseWriter, r *http.Request) {

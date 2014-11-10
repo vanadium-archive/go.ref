@@ -3,9 +3,11 @@ package main
 
 import (
 	"crypto/rand"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"html/template"
+	"io/ioutil"
 	"net"
 	"net/http"
 	"os"
@@ -22,6 +24,8 @@ import (
 	"veyron.io/veyron/veyron2/vlog"
 
 	"veyron.io/veyron/veyron/lib/signals"
+	"veyron.io/veyron/veyron/security/audit"
+	"veyron.io/veyron/veyron/services/identity/auditor"
 	"veyron.io/veyron/veyron/services/identity/blesser"
 	"veyron.io/veyron/veyron/services/identity/googleoauth"
 	"veyron.io/veyron/veyron/services/identity/handlers"
@@ -38,9 +42,8 @@ var (
 	tlsconfig = flag.String("tlsconfig", "", "Comma-separated list of TLS certificate and private key files. This must be provided.")
 	host      = flag.String("host", defaultHost(), "Hostname the HTTP server listens on. This can be the name of the host running the webserver, but if running behind a NAT or load balancer, this should be the host name that clients will connect to. For example, if set to 'x.com', Veyron identities will have the IssuerName set to 'x.com' and clients can expect to find the public key of the signer at 'x.com/pubkey/'.")
 
-	// Flags controlling auditing of Blessing operations.
-	auditprefix = flag.String("audit", "", "File prefix to files where auditing information will be written.")
-	auditfilter = flag.String("audit_filter", "", "If non-empty, instead of starting the server the audit log will be dumped to STDOUT (with the filter set to the value of this flag. '/' can be used to dump all events).")
+	// Flag controlling auditing of Blessing operations.
+	auditConfig = flag.String("audit_config", "", "A JSON-encoded file with sql server configuration information for auditing. The file must have an entry for user, host, password, database, and table.")
 
 	// Configuration for various Google OAuth-based clients.
 	googleConfigWeb     = flag.String("google_config_web", "", "Path to JSON-encoded OAuth client configuration for the web application that renders the audit log for blessings provided by this provider.")
@@ -61,13 +64,9 @@ const (
 
 func main() {
 	flag.Usage = usage
-	r := rt.Init(providerPrincipal())
+	p, blessingLogReader := providerPrincipal()
+	r := rt.Init(options.RuntimePrincipal{p})
 	defer r.Cleanup()
-
-	if len(*auditfilter) > 0 {
-		dumpAuditLog()
-		return
-	}
 
 	// Calling with empty string returns a empty RevocationManager
 	revocationManager, err := revocation.NewRevocationManager(*revocationDir)
@@ -95,7 +94,7 @@ func main() {
 			Addr:                    fmt.Sprintf("%s%s", httpaddress(), n),
 			ClientID:                clientID,
 			ClientSecret:            clientSecret,
-			Auditor:                 *auditprefix,
+			BlessingLogReader:       blessingLogReader,
 			RevocationManager:       revocationManager,
 			MacaroonBlessingService: naming.JoinAddressName(published[0], macaroonService),
 		})
@@ -120,7 +119,7 @@ func main() {
 		if len(*googleConfigChrome) > 0 || len(*googleConfigAndroid) > 0 {
 			args.GoogleServers = appendSuffixTo(published, googleService)
 		}
-		if len(*auditprefix) > 0 && len(*googleConfigWeb) > 0 {
+		if len(*auditConfig) > 0 && len(*googleConfigWeb) > 0 {
 			args.ListBlessingsRoute = googleoauth.ListBlessingsRoute
 		}
 		if err := tmpl.Execute(w, args); err != nil {
@@ -280,8 +279,9 @@ func defaultHost() string {
 	return host
 }
 
-// providerPrincipal returns the Principal to use for the identity provider (i.e., this program).
-func providerPrincipal() veyron2.ROpt {
+// providerPrincipal returns the Principal to use for the identity provider (i.e., this program) and
+// the database where audits will be store. If no database exists nil will be returned.
+func providerPrincipal() (security.Principal, auditor.BlessingLogReader) {
 	// TODO(ashankar): Somewhat silly to have to create a runtime, but oh-well.
 	r, err := rt.New()
 	if err != nil {
@@ -289,12 +289,33 @@ func providerPrincipal() veyron2.ROpt {
 	}
 	defer r.Cleanup()
 	p := r.Principal()
-	// TODO(ashankar): Hook this up with Suharsh's new auditor implementation.
-	if len(*auditprefix) == 0 {
-		return options.RuntimePrincipal{p}
+	if len(*auditConfig) == 0 {
+		return p, nil
 	}
-	vlog.Fatalf("--auditprefix is not supported just yet!")
-	return nil
+	config, err := readSQLConfigFromFile(*auditConfig)
+	if err != nil {
+		vlog.Fatalf("Failed to read sql config: %v", err)
+	}
+	auditor, reader, err := auditor.NewSQLBlessingAuditor(config)
+	if err != nil {
+		vlog.Fatalf("Failed to create sql auditor from config: %v", err)
+	}
+	return audit.NewPrincipal(p, auditor), reader
+}
+
+func readSQLConfigFromFile(file string) (auditor.SQLConfig, error) {
+	var config auditor.SQLConfig
+	content, err := ioutil.ReadFile(file)
+	if err != nil {
+		return config, err
+	}
+	if err := json.Unmarshal(content, &config); err != nil {
+		return config, err
+	}
+	if len(strings.Split(config.Table, " ")) != 1 || strings.Contains(config.Table, ";") {
+		return config, fmt.Errorf("sql config table value must be 1 word long")
+	}
+	return config, nil
 }
 
 func httpaddress() string {
@@ -303,13 +324,6 @@ func httpaddress() string {
 		vlog.Fatalf("Failed to parse %q: %v", *httpaddr, err)
 	}
 	return fmt.Sprintf("https://%s:%v", *host, port)
-}
-
-func dumpAuditLog() {
-	if len(*auditprefix) == 0 {
-		vlog.Fatalf("Must set --audit")
-	}
-	vlog.Fatalf("Auditing support disabled. Please contact ashankar@ or suharshs@ for restoration timeline")
 }
 
 var tmpl = template.Must(template.New("main").Parse(`<!doctype html>

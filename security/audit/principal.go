@@ -79,7 +79,10 @@ func (p *auditingPrincipal) audit(err error, method string, args args, result in
 
 func addCaveats(args args, caveats ...security.Caveat) args {
 	for _, c := range caveats {
-		args = append(args, c)
+		// TODO(ashankar,suharshs): Should isUnconstrainedCaveat in veyron2/security be exported and used here?
+		if len(c.ValidatorVOM) > 0 {
+			args = append(args, c)
+		}
 	}
 	return args
 }

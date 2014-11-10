@@ -73,22 +73,24 @@ function failMessage(revokeButton) {
 <table class="table table-bordered table-hover table-responsive">
 <thead>
 <tr>
-  <th>Blessing sought as</th>
   <th>Blessed as</th>
+  <th>Public Key</th>
   <th>Issued</th>
-  <th>Expires</th>
-  <th>PublicKey</th>
+  <th>Caveats</th>
   <th>Revoked</th>
   </tr>
 </thead>
 <tbody>
 {{range .Log}}
 <tr>
-<td>{{.Blessee}}</td>
 <td>{{.Blessed}}</td>
-<td><div class="unixtime" data-unixtime={{.Start.Unix}}>{{.Start.String}}</div></td>
-<td><div class="unixtime" data-unixtime={{.End.Unix}}>{{.End.String}}</div></td>
-<td>{{.Blessee.PublicKey}}</td>
+<td>{{.Blessed.PublicKey}}</td>
+<td><div class="unixtime" data-unixtime={{.Timestamp.Unix}}>{{.Timestamp.String}}</div></td>
+<td>
+{{range .Caveats}}
+  {{.}}</br>
+{{end}}
+</td>
 <td>
   {{ if .Token }}
   <button class="revoke" value="{{.Token}}">Revoke</button>

@@ -123,6 +123,8 @@ func SaveACL(w io.Writer, acl security.ACL) error {
 //
 // It is an error if any of the provided caveat bytes cannot
 // be decoded into a security.CaveatValidator.
+// TODO(suharshs,ashankar,ataly): Rather than quitting on non-decodable caveats, just skip
+// them and return on caveats that we can decode.
 func CaveatValidators(caveats ...security.Caveat) ([]security.CaveatValidator, error) {
 	if len(caveats) == 0 {
 		return nil, nil
