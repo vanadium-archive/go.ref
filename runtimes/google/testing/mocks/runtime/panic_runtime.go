@@ -48,4 +48,5 @@ func (*PanicRuntime) TrackTask(chan<- veyron2.Task) { panic(badRuntime) }
 func (*PanicRuntime) ConfigureReservedName(ipc.Dispatcher, ...ipc.ServerOpt) {
 	panic(badRuntime)
 }
-func (*PanicRuntime) Cleanup() { panic(badRuntime) }
+func (*PanicRuntime) VtraceStore() vtrace.Store { panic(badRuntime) }
+func (*PanicRuntime) Cleanup()                  { panic(badRuntime) }

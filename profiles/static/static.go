@@ -58,7 +58,7 @@ func (*static) Platform() *veyron2.Platform {
 func (p *static) Init(rt veyron2.Runtime, _ *config.Publisher) error {
 	log := rt.Logger()
 
-	rt.ConfigureReservedName(debug.NewDispatcher(log.LogDir(), sflag.NewAuthorizerOrDie()))
+	rt.ConfigureReservedName(debug.NewDispatcher(log.LogDir(), sflag.NewAuthorizerOrDie(), rt.VtraceStore()))
 
 	lf := commonFlags.ListenFlags()
 	ListenSpec = ipc.ListenSpec{

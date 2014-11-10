@@ -58,20 +58,20 @@ func (s *Store) Consider(trace vtrace.Trace) {
 }
 
 // TraceRecords returns TraceRecords for all traces saved in the store.
-func (s *Store) TraceRecords() []*vtrace.TraceRecord {
+func (s *Store) TraceRecords() []vtrace.TraceRecord {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	out := make([]*vtrace.TraceRecord, s.size)
+	out := make([]vtrace.TraceRecord, s.size)
 	i := 0
 	for _, ts := range s.traces {
-		out[i] = ts.traceRecord()
+		ts.traceRecord(&out[i])
 		i++
 	}
 	return out
 }
 
-// TraceRecord returns a TraceRecord for a given uniqueid.  Returns
+// TraceRecord returns a TraceRecord for a given ID.  Returns
 // nil if the given id is not present.
 func (s *Store) TraceRecord(id uniqueid.ID) *vtrace.TraceRecord {
 	s.mu.Lock()
@@ -80,7 +80,9 @@ func (s *Store) TraceRecord(id uniqueid.ID) *vtrace.TraceRecord {
 	if ts == nil {
 		return nil
 	}
-	return ts.traceRecord()
+	out := vtrace.TraceRecord{}
+	ts.traceRecord(&out)
+	return &out
 }
 
 // trimLocked removes elements from the store LRU first until we are
@@ -135,9 +137,7 @@ func (ts *traceSet) id() uniqueid.ID {
 	panic("unreachable")
 }
 
-func (ts *traceSet) traceRecord() *vtrace.TraceRecord {
-	var out vtrace.TraceRecord
-
+func (ts *traceSet) traceRecord(out *vtrace.TraceRecord) {
 	// It is possible to have duplicate copies of spans.  Consider the
 	// case where a server calls itself (even indirectly) we'll have one
 	// Trace in the set for the parent call and one Trace in the set for
@@ -156,5 +156,4 @@ func (ts *traceSet) traceRecord() *vtrace.TraceRecord {
 			out.Spans = append(out.Spans, span)
 		}
 	}
-	return &out
 }

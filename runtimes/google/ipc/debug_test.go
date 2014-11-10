@@ -16,6 +16,7 @@ import (
 	"veyron.io/veyron/veyron/runtimes/google/ipc/stream/sectest"
 	"veyron.io/veyron/veyron/runtimes/google/ipc/stream/vc"
 	tnaming "veyron.io/veyron/veyron/runtimes/google/testing/mocks/naming"
+	"veyron.io/veyron/veyron/runtimes/google/vtrace"
 	"veyron.io/veyron/veyron/services/mgmt/debug"
 )
 
@@ -30,7 +31,8 @@ func TestDebugServer(t *testing.T) {
 	pclient.AddToRoots(bclient)                    // Client recognizes "server" as a root of blessings.
 	pclient.BlessingStore().Set(bclient, "server") // Client presents bclient to server
 
-	debugDisp := debug.NewDispatcher(vlog.Log.LogDir(), nil)
+	store := vtrace.NewStore(10)
+	debugDisp := debug.NewDispatcher(vlog.Log.LogDir(), nil, store)
 
 	sm := manager.InternalNew(naming.FixedRoutingID(0x555555555))
 	defer sm.Shutdown()
@@ -94,8 +96,8 @@ func TestDebugServer(t *testing.T) {
 	}{
 		{"", "*", []string{}},
 		{"", "__*", []string{"__debug"}},
-		{"", "__*/*", []string{"__debug/logs", "__debug/pprof", "__debug/stats"}},
-		{"__debug", "*", []string{"logs", "pprof", "stats"}},
+		{"", "__*/*", []string{"__debug/logs", "__debug/pprof", "__debug/stats", "__debug/vtrace"}},
+		{"__debug", "*", []string{"logs", "pprof", "stats", "vtrace"}},
 	}
 	for _, tc := range testcases {
 		addr := naming.JoinAddressName(ep.String(), "//"+tc.name)

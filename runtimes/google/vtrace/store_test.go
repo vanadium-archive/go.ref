@@ -27,7 +27,7 @@ func makeTraces(n int, st *Store) []vtrace.Trace {
 	return traces
 }
 
-func recordids(records ...*vtrace.TraceRecord) map[uniqueid.ID]bool {
+func recordids(records ...vtrace.TraceRecord) map[uniqueid.ID]bool {
 	out := make(map[uniqueid.ID]bool)
 	for _, trace := range records {
 		out[trace.ID] = true

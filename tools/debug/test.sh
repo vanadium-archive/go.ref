@@ -39,7 +39,8 @@ main() {
     || (dumplogs "${DBGLOG}"; shell_test::fail "line ${LINENO}: failed to run debug")
   WANT="${EP}/__debug/logs
 ${EP}/__debug/pprof
-${EP}/__debug/stats"
+${EP}/__debug/stats
+${EP}/__debug/vtrace"
   shell_test::assert_eq "${GOT}" "${WANT}" "${LINENO}"
 
   # Test logs glob.

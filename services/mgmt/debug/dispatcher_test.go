@@ -2,6 +2,7 @@ package debug
 
 import (
 	"fmt"
+	"io"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -17,6 +18,7 @@ import (
 	"veyron.io/veyron/veyron2/rt"
 	"veyron.io/veyron/veyron2/services/mgmt/logreader"
 	"veyron.io/veyron/veyron2/services/mgmt/stats"
+	"veyron.io/veyron/veyron2/services/mgmt/vtrace"
 	"veyron.io/veyron/veyron2/verror"
 
 	libstats "veyron.io/veyron/veyron/lib/stats"
@@ -29,7 +31,7 @@ func startDebugServer(rt veyron2.Runtime, listenSpec ipc.ListenSpec, logsDir str
 	if len(logsDir) == 0 {
 		return "", nil, fmt.Errorf("logs directory missing")
 	}
-	disp := NewDispatcher(logsDir, nil)
+	disp := NewDispatcher(logsDir, nil, rt.VtraceStore())
 	server, err := rt.NewServer()
 	if err != nil {
 		return "", nil, fmt.Errorf("failed to start debug server: %v", err)
@@ -131,6 +133,27 @@ func TestDebugServer(t *testing.T) {
 		}
 	}
 
+	// Access vtrace.
+	{
+		vt := vtrace.StoreClient(naming.JoinAddressName(endpoint, "debug/vtrace"))
+		call, err := vt.AllTraces(runtime.NewContext())
+		if err != nil {
+			t.Errorf("AllTraces failed: %v", err)
+		}
+		ntraces := 0
+		stream := call.RecvStream()
+		for stream.Advance() {
+			stream.Value()
+			ntraces++
+		}
+		if err = stream.Err(); err != nil && err != io.EOF {
+			t.Fatalf("Unexpected error reading trace stream: %s", err)
+		}
+		if ntraces < 1 {
+			t.Errorf("We expected at least one trace, got: %d", ntraces)
+		}
+	}
+
 	// Glob from the root.
 	{
 		ns := rt.R().Namespace()
@@ -183,6 +206,7 @@ func TestDebugServer(t *testing.T) {
 			"logs",
 			"pprof",
 			"stats",
+			"vtrace",
 		}
 		if !reflect.DeepEqual(expected, results) {
 			t.Errorf("unexpected result. Got %v, want %v", results, expected)
@@ -208,6 +232,7 @@ func TestDebugServer(t *testing.T) {
 			"pprof",
 			"stats",
 			"stats/testing/foo",
+			"vtrace",
 		}
 		if !reflect.DeepEqual(expected, results) {
 			t.Errorf("unexpected result. Got %v, want %v", results, expected)

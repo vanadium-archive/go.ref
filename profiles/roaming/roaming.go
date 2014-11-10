@@ -72,7 +72,7 @@ func (p *profile) String() string {
 func (p *profile) Init(rt veyron2.Runtime, publisher *config.Publisher) error {
 	log := rt.Logger()
 
-	rt.ConfigureReservedName(debug.NewDispatcher(log.LogDir(), sflag.NewAuthorizerOrDie()))
+	rt.ConfigureReservedName(debug.NewDispatcher(log.LogDir(), sflag.NewAuthorizerOrDie(), rt.VtraceStore()))
 
 	lf := commonFlags.ListenFlags()
 	ListenSpec = ipc.ListenSpec{

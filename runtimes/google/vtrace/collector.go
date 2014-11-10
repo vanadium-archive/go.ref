@@ -27,10 +27,9 @@ func copySpanRecord(in *vtrace.SpanRecord) *vtrace.SpanRecord {
 type collector struct {
 	traceID uniqueid.ID
 	store   *Store
-
-	mu     sync.Mutex
-	method vtrace.TraceMethod                 // GUARDED_BY(mu)
-	spans  map[uniqueid.ID]*vtrace.SpanRecord // GUARDED_BY(mu)
+	mu      sync.Mutex
+	method  vtrace.TraceMethod                 // GUARDED_BY(mu)
+	spans   map[uniqueid.ID]*vtrace.SpanRecord // GUARDED_BY(mu)
 }
 
 // newCollector returns a new collector for the given traceID.

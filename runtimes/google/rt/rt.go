@@ -158,6 +158,10 @@ func (rt *vrt) ConfigureReservedName(server ipc.Dispatcher, opts ...ipc.ServerOp
 	copy(rt.reservedOpts, opts)
 }
 
+func (rt *vrt) VtraceStore() vtrace.Store {
+	return rt.traceStore
+}
+
 func (rt *vrt) Cleanup() {
 	if rt.flags.Vtrace.DumpOnShutdown {
 		vtrace.FormatTraces(os.Stderr, rt.traceStore.TraceRecords(), nil)

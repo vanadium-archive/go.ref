@@ -6,22 +6,25 @@ import (
 
 	"veyron.io/veyron/veyron2/ipc"
 	"veyron.io/veyron/veyron2/security"
+	"veyron.io/veyron/veyron2/vtrace"
 
 	logreaderimpl "veyron.io/veyron/veyron/services/mgmt/logreader/impl"
 	pprofimpl "veyron.io/veyron/veyron/services/mgmt/pprof/impl"
 	statsimpl "veyron.io/veyron/veyron/services/mgmt/stats/impl"
+	vtraceimpl "veyron.io/veyron/veyron/services/mgmt/vtrace/impl"
 )
 
 // dispatcher holds the state of the debug dispatcher.
 type dispatcher struct {
 	logsDir string // The root of the logs directory.
 	auth    security.Authorizer
+	store   vtrace.Store
 }
 
 var _ ipc.Dispatcher = (*dispatcher)(nil)
 
-func NewDispatcher(logsDir string, authorizer security.Authorizer) *dispatcher {
-	return &dispatcher{logsDir, authorizer}
+func NewDispatcher(logsDir string, authorizer security.Authorizer, store vtrace.Store) *dispatcher {
+	return &dispatcher{logsDir, authorizer, store}
 }
 
 // The first part of the names of the objects served by this dispatcher.
@@ -41,7 +44,7 @@ func (d *dispatcher) Lookup(suffix, method string) (interface{}, security.Author
 		return NewSignatureInvoker(suffix), d.auth, nil
 	}
 	if suffix == "" {
-		return ipc.VChildrenGlobberInvoker("logs", "pprof", "stats"), d.auth, nil
+		return ipc.VChildrenGlobberInvoker("logs", "pprof", "stats", "vtrace"), d.auth, nil
 	}
 	parts := strings.SplitN(suffix, "/", 2)
 	if len(parts) == 2 {
@@ -59,6 +62,8 @@ func (d *dispatcher) Lookup(suffix, method string) (interface{}, security.Author
 		return pprofimpl.NewInvoker(), d.auth, nil
 	case "stats":
 		return statsimpl.NewStatsInvoker(suffix, 10*time.Second), d.auth, nil
+	case "vtrace":
+		return vtraceimpl.NewVtraceService(d.store), d.auth, nil
 	}
 	return nil, d.auth, nil
 }
