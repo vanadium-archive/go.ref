@@ -232,7 +232,7 @@ func readEnv() ([]string, string) {
 	return roots, os.Getenv(consts.VeyronCredentials)
 }
 
-// Parse parses the supplied args, as per flag.Parse
+// Parse parses the supplied args, as per flag.Parse.
 func (f *Flags) Parse(args []string) error {
 	// TODO(cnicolaou): implement a single env var 'VANADIUM_OPTS'
 	// that can be used to specify any command line.

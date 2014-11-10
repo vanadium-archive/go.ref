@@ -52,6 +52,10 @@ func (ip IPHostPortFlag) Get() interface{} {
 
 // Implements flag.Value.Set
 func (ip *IPHostPortFlag) Set(s string) error {
+	if len(s) == 0 {
+		ip.Address, ip.Port, ip.Host = "", "", ""
+		return nil
+	}
 	ip.Address = s
 	host, port, err := net.SplitHostPort(s)
 	if err != nil {
@@ -87,6 +91,9 @@ func (ip *IPHostPortFlag) Set(s string) error {
 
 // Implements flag.Value.String
 func (ip IPHostPortFlag) String() string {
+	if len(ip.Address) == 0 && len(ip.Port) == 0 {
+		return ""
+	}
 	host := ip.Host
 	if len(ip.Host) == 0 && ip.IP != nil && len(ip.IP) > 0 {
 		// We don't have a hostname, so there should be at most one IP address.

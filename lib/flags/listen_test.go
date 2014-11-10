@@ -43,7 +43,7 @@ func TestIPHostPortFlag(t *testing.T) {
 		want  flags.IPHostPortFlag
 		str   string
 	}{
-		{"", flags.IPHostPortFlag{Port: "0"}, ":0"},
+		{"", flags.IPHostPortFlag{Port: ""}, ""},
 		{":0", flags.IPHostPortFlag{Port: "0"}, ":0"},
 		{":22", flags.IPHostPortFlag{Port: "22"}, ":22"},
 		{"127.0.0.1", flags.IPHostPortFlag{IP: lh, Port: "0"}, "127.0.0.1:0"},
