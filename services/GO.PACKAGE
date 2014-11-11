@@ -2,9 +2,10 @@
 	"dependencies": {
 		"incoming": [
 			{"allow": "veyron.io/veyron/veyron/services/..."},
+			{"allow": "veyron.io/veyron/veyron/lib/...", "comment":"temporarily allowing dependency from lib"},
+			{"allow": "veyron.io/veyron/veyron/profiles/...", "comment":"temporarily allowing dependency from profiles"},
 			{"allow": "veyron.io/veyron/veyron/tools/...", "comment":"temporarily allowing dependency from veyron/tools"},
 			{"allow": "veyron.io/veyron/veyron/runtimes/google/...", "comment":"temporarily allowing dependency from veyron/runtimes/google"},
-			{"allow": "veyron.io/veyron/veyron/lib/...", "comment":"temporarily allowing dependency from lib"},
 			{"deny": "..."}
 		]
 	}
