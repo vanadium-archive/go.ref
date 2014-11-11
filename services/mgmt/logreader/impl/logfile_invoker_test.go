@@ -6,8 +6,10 @@ import (
 	"path"
 	"testing"
 
+	"veyron.io/veyron/veyron/profiles"
 	"veyron.io/veyron/veyron/services/mgmt/logreader/impl"
 
+	"veyron.io/veyron/veyron2/ipc"
 	"veyron.io/veyron/veyron2/naming"
 	"veyron.io/veyron/veyron2/rt"
 	"veyron.io/veyron/veyron2/security"
@@ -15,6 +17,30 @@ import (
 	"veyron.io/veyron/veyron2/services/mgmt/logreader/types"
 	"veyron.io/veyron/veyron2/verror"
 )
+
+func startServer(t *testing.T, disp ipc.Dispatcher) (ipc.Server, string, error) {
+	server, err := rt.R().NewServer()
+	if err != nil {
+		t.Fatalf("NewServer failed: %v", err)
+		return nil, "", err
+	}
+	endpoint, err := server.Listen(profiles.LocalListenSpec)
+	if err != nil {
+		t.Fatalf("Listen failed: %v", err)
+		return nil, "", err
+	}
+	if err := server.ServeDispatcher("", disp); err != nil {
+		t.Fatalf("Serve failed: %v", err)
+		return nil, "", err
+	}
+	return server, endpoint.String(), nil
+}
+
+func stopServer(t *testing.T, server ipc.Server) {
+	if err := server.Stop(); err != nil {
+		t.Errorf("server.Stop failed: %v", err)
+	}
+}
 
 type logFileDispatcher struct {
 	root string

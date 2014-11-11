@@ -123,14 +123,11 @@ import (
 	"veyron.io/veyron/veyron2/security"
 	"veyron.io/veyron/veyron2/services/mgmt/appcycle"
 	"veyron.io/veyron/veyron2/services/mgmt/application"
-	"veyron.io/veyron/veyron2/services/mounttable"
-	"veyron.io/veyron/veyron2/services/mounttable/types"
 	"veyron.io/veyron/veyron2/verror"
 	"veyron.io/veyron/veyron2/vlog"
 
 	vexec "veyron.io/veyron/veyron/lib/exec"
 	"veyron.io/veyron/veyron/lib/flags/consts"
-	"veyron.io/veyron/veyron/lib/glob"
 	vsecurity "veyron.io/veyron/veyron/security"
 	iconfig "veyron.io/veyron/veyron/services/mgmt/node/config"
 )
@@ -979,7 +976,6 @@ func (i *appInvoker) Revert(ipc.ServerContext) error {
 
 type treeNode struct {
 	children map[string]*treeNode
-	remote   string // Used to implement Glob for remote objects.
 }
 
 func newTreeNode() *treeNode {
@@ -1007,20 +1003,13 @@ func (n *treeNode) find(names []string, create bool) *treeNode {
 	}
 }
 
-// scanConfigDir scans the config directory to build tree representation of all
-// the valid object names.
-func (i *appInvoker) scanConfigDir() *treeNode {
-	tree := newTreeNode()
-
-	// appIDMap[appID]title
-	appIDMap := make(map[string]string)
-
-	// Find all envelopes, extract appID and installID.
-	envGlob := []string{i.config.Root, "app-*", "installation-*", "*", "envelope"}
+func (i *appInvoker) scanEnvelopes(tree *treeNode, appDir string) {
+	// Find all envelopes, extract installID.
+	envGlob := []string{i.config.Root, appDir, "installation-*", "*", "envelope"}
 	envelopes, err := filepath.Glob(filepath.Join(envGlob...))
 	if err != nil {
 		vlog.Errorf("unexpected error: %v", err)
-		return nil
+		return
 	}
 	for _, path := range envelopes {
 		env, err := loadEnvelope(filepath.Dir(path))
@@ -1033,114 +1022,85 @@ func (i *appInvoker) scanConfigDir() *treeNode {
 			vlog.Errorf("unexpected number of path components: %q (%q)", elems, path)
 			continue
 		}
-		appID := strings.TrimPrefix(elems[0], "app-")
 		installID := strings.TrimPrefix(elems[1], "installation-")
-		appIDMap[appID] = env.Title
 		tree.find([]string{env.Title, installID}, true)
 	}
+	return
+}
 
+func (i *appInvoker) scanInstances(tree *treeNode) {
+	if len(i.suffix) < 2 {
+		return
+	}
+	title := i.suffix[0]
+	installDir, err := installationDirCore(i.suffix[:2], i.config.Root)
+	if err != nil {
+		return
+	}
 	// Find all instances.
-	infoGlob := []string{i.config.Root, "app-*", "installation-*", "instances", "instance-*", "info"}
+	infoGlob := []string{installDir, "instances", "instance-*", "info"}
 	instances, err := filepath.Glob(filepath.Join(infoGlob...))
 	if err != nil {
 		vlog.Errorf("unexpected error: %v", err)
-		return nil
+		return
 	}
 	for _, path := range instances {
 		instanceDir := filepath.Dir(path)
-		info, err := loadInstanceInfo(instanceDir)
+		i.scanInstance(tree, title, instanceDir)
+	}
+	return
+}
+
+func (i *appInvoker) scanInstance(tree *treeNode, title, instanceDir string) {
+	if _, err := loadInstanceInfo(instanceDir); err != nil {
+		return
+	}
+	relpath, _ := filepath.Rel(i.config.Root, instanceDir)
+	elems := strings.Split(relpath, string(filepath.Separator))
+	if len(elems) < 4 {
+		vlog.Errorf("unexpected number of path components: %q (%q)", elems, instanceDir)
+		return
+	}
+	installID := strings.TrimPrefix(elems[1], "installation-")
+	instanceID := strings.TrimPrefix(elems[3], "instance-")
+	tree.find([]string{title, installID, instanceID, "logs"}, true)
+	if instanceStateIs(instanceDir, started) {
+		for _, obj := range []string{"pprof", "stats"} {
+			tree.find([]string{title, installID, instanceID, obj}, true)
+		}
+	}
+}
+
+func (i *appInvoker) VGlobChildren() ([]string, error) {
+	tree := newTreeNode()
+	switch len(i.suffix) {
+	case 0:
+		i.scanEnvelopes(tree, "app-*")
+	case 1:
+		appDir := applicationDirName(i.suffix[0])
+		i.scanEnvelopes(tree, appDir)
+	case 2:
+		i.scanInstances(tree)
+	case 3:
+		dir, err := i.instanceDir()
 		if err != nil {
-			continue
+			break
 		}
-		relpath, _ := filepath.Rel(i.config.Root, path)
-		elems := strings.Split(relpath, string(filepath.Separator))
-		if len(elems) != len(infoGlob)-1 {
-			vlog.Errorf("unexpected number of path components: %q (%q)", elems, path)
-			continue
-		}
-		appID := strings.TrimPrefix(elems[0], "app-")
-		installID := strings.TrimPrefix(elems[1], "installation-")
-		instanceID := strings.TrimPrefix(elems[3], "instance-")
-		if title, ok := appIDMap[appID]; ok {
-			n := tree.find([]string{title, installID, instanceID, "logs"}, true)
-			i.addLogFiles(n, filepath.Join(instanceDir, "logs"))
-
-			if instanceStateIs(instanceDir, started) {
-				// Set the name of the remote objects that should handle Glob.
-				for _, obj := range []string{"pprof", "stats"} {
-					n = tree.find([]string{title, installID, instanceID, obj}, true)
-					n.remote = naming.JoinAddressName(info.AppCycleMgrName, naming.Join("__debug", obj))
-				}
-			}
-		}
+		i.scanInstance(tree, i.suffix[0], dir)
+	default:
+		return nil, errNotExist
 	}
-	return tree
-}
-
-func (i *appInvoker) addLogFiles(n *treeNode, dir string) {
-	filepath.Walk(dir, func(path string, _ os.FileInfo, _ error) error {
-		if path == dir {
-			// Skip the logs directory itself.
-			return nil
-		}
-		relpath, _ := filepath.Rel(dir, path)
-		n.find(strings.Split(relpath, string(filepath.Separator)), true)
-		return nil
-	})
-}
-
-func (i *appInvoker) Glob(ctx mounttable.GlobbableGlobContext, pattern string) error {
-	g, err := glob.Parse(pattern)
-	if err != nil {
-		return err
-	}
-	n := i.scanConfigDir().find(i.suffix, false)
+	n := tree.find(i.suffix, false)
 	if n == nil {
-		return errInvalidSuffix
+		return nil, errInvalidSuffix
 	}
-	i.globStep(ctx, "", g, n)
-	return nil
-}
-
-func (i *appInvoker) globStep(ctx mounttable.GlobbableGlobContext, prefix string, g *glob.Glob, n *treeNode) {
-	if n.remote != "" {
-		remoteGlob(ctx, n.remote, prefix, g.String())
-		return
+	children := make([]string, len(n.children))
+	index := 0
+	for child, _ := range n.children {
+		children[index] = child
+		index++
 	}
-	if g.Len() == 0 {
-		ctx.SendStream().Send(types.MountEntry{Name: prefix})
-	}
-	if g.Finished() {
-		return
-	}
-	for name, child := range n.children {
-		if ok, _, left := g.MatchInitialSegment(name); ok {
-			i.globStep(ctx, naming.Join(prefix, name), left, child)
-		}
-	}
-}
-
-func remoteGlob(ctx mounttable.GlobbableGlobContext, remote, prefix, pattern string) {
-	call, err := mounttable.GlobbableClient(remote).Glob(ctx, pattern)
-	if err != nil {
-		vlog.VI(1).Infof("%q.Glob(%q): %v", remote, pattern, err)
-		return
-	}
-	it := call.RecvStream()
-	sender := ctx.SendStream()
-	for it.Advance() {
-		me := it.Value()
-		me.Name = naming.Join(prefix, me.Name)
-		sender.Send(me)
-	}
-	if err := it.Err(); err != nil {
-		vlog.VI(1).Infof("%q.Glob(%q): %v", remote, pattern, err)
-		return
-	}
-	if err := call.Finish(); err != nil {
-		vlog.VI(1).Infof("%q.Glob(%q): %v", remote, pattern, err)
-		return
-	}
+	return children, nil
 }
 
 // TODO(rjkroege): Refactor to eliminate redundancy with newAppSpecificAuthorizer.

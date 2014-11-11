@@ -7,10 +7,7 @@ import (
 	"runtime/pprof"
 	"time"
 
-	"veyron.io/veyron/veyron/lib/glob"
-
 	"veyron.io/veyron/veyron2/ipc"
-	"veyron.io/veyron/veyron2/services/mounttable/types"
 	"veyron.io/veyron/veyron2/verror"
 )
 
@@ -78,19 +75,6 @@ func (pprofInvoker) Symbol(_ ipc.ServerCall, programCounters []uint64) ([]string
 		}
 	}
 	return results, nil
-}
-
-// Glob streams the name of all the objects that match pattern. In this case,
-// there is only the root object.
-func (pprofInvoker) Glob(call ipc.ServerCall, pattern string) error {
-	g, err := glob.Parse(pattern)
-	if err != nil {
-		return err
-	}
-	if g.Len() == 0 {
-		return call.Send(types.MountEntry{Name: ""})
-	}
-	return nil
 }
 
 type streamWriter struct {

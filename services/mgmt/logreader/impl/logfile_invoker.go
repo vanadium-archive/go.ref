@@ -81,3 +81,42 @@ func (i *logFileInvoker) ReadLog(call ipc.ServerCall, startpos int64, numEntries
 	}
 	return reader.tell(), nil
 }
+
+// VGlobChildren returns the list of files in a directory, or an empty list if
+// the object is a file.
+func (i *logFileInvoker) VGlobChildren() ([]string, error) {
+	vlog.VI(1).Infof("%v.VGlobChildren()", i.suffix)
+	dirName, err := translateNameToFilename(i.root, i.suffix)
+	if err != nil {
+		return nil, err
+	}
+	stat, err := os.Stat(dirName)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil, errNotFound
+		}
+		return nil, errOperationFailed
+	}
+	if !stat.IsDir() {
+		return nil, nil
+	}
+
+	f, err := os.Open(dirName)
+	if err != nil {
+		return nil, errOperationFailed
+	}
+	fi, err := f.Readdir(0)
+	if err != nil {
+		return nil, errOperationFailed
+	}
+	f.Close()
+	children := []string{}
+	for _, file := range fi {
+		fileName := file.Name()
+		if fileName == "." || fileName == ".." {
+			continue
+		}
+		children = append(children, file.Name())
+	}
+	return children, nil
+}

@@ -54,9 +54,6 @@ func (d *dispatcher) Lookup(suffix, method string) (interface{}, security.Author
 	}
 	switch parts[0] {
 	case "logs":
-		if method == ipc.GlobMethod {
-			return logreaderimpl.NewLogDirectoryInvoker(d.logsDir, suffix), d.auth, nil
-		}
 		return logreaderimpl.NewLogFileInvoker(d.logsDir, suffix), d.auth, nil
 	case "pprof":
 		return pprofimpl.NewInvoker(), d.auth, nil

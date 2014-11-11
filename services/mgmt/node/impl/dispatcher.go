@@ -352,13 +352,11 @@ func (d *dispatcher) Lookup(suffix, method string) (interface{}, security.Author
 		})
 		return ipc.ReflectInvoker(receiver), d.auth, nil
 	case appsSuffix:
-		// Glob requests are handled by appInvoker, except for pprof and
-		// stats objects which handle Glob themselves.
 		// Requests to apps/*/*/*/logs are handled locally by LogFileInvoker.
 		// Requests to apps/*/*/*/pprof are proxied to the apps' __debug/pprof object.
 		// Requests to apps/*/*/*/stats are proxied to the apps' __debug/stats object.
 		// Everything else is handled by appInvoker.
-		if len(components) >= 5 && (method != ipc.GlobMethod || components[4] != "logs") {
+		if len(components) >= 5 {
 			appInstanceDir, err := instanceDir(d.config.Root, components[1:4])
 			if err != nil {
 				return nil, nil, err

@@ -83,8 +83,8 @@ func TestDebugServer(t *testing.T) {
 		if len(results) != 0 {
 			t.Errorf("unexpected result. Got %v, want ''", results)
 		}
-		if expected := verror.NoExist; !verror.Is(err, expected) {
-			t.Errorf("unexpected error value, got %v, want: %v", err, expected)
+		if err != nil {
+			t.Errorf("unexpected error value: %v", err)
 		}
 	}
 
