@@ -13,6 +13,7 @@ The nodex commands are:
    associate   Tool for creating associations between Vanadium blessings and a
                system account
    claim       Claim the node.
+   instance    Subtool for managing application instances
    help        Display help for commands or topics
 Run "nodex help [command]" for command usage.
 
@@ -122,6 +123,67 @@ Usage:
 
 <grant extension> is used to extend the default blessing of the current
 principal when blessing the app instance.
+
+Nodex Instance
+
+The instance tool permits controlling application instances.
+
+Usage:
+   nodex instance <command>
+
+The nodex instance commands are:
+   stop        Stop the given application instance.
+   suspend     Suspend the given application instance.
+   resume      Resume the given application instance.
+   refresh     Refresh the given application instance.
+   suspend     Restart the given application instance.
+
+Nodex Instance Stop
+
+Stop the given application instance.
+
+Usage:
+   nodex instance stop <app instance> [<deadline>]
+
+<app instance> is the veyron object name of the application instance to stop.
+<deadline> is the optional deadline to shut down by. If not provided, defaults
+to 5 seconds.
+
+Nodex Instance Suspend
+
+Suspend the given application instance.
+
+Usage:
+   nodex instance suspend <app instance>
+
+<app instance> is the veyron object name of the application instance to stop.
+
+Nodex Instance Resume
+
+Resume the given application instance.
+
+Usage:
+   nodex instance resume <app instance>
+
+<app instance> is the veyron object name of the application instance to stop.
+
+Nodex Instance Refresh
+
+Refresh the given application instance.
+
+Usage:
+   nodex instance refresh <app instance>
+
+<app instance> is the veyron object name of the application instance to stop.
+
+Nodex Instance Suspend
+
+Restart the given application instance.
+
+Usage:
+   nodex instance suspend <app instance>
+
+<app instance> is the veyron object name of the application instance to stop.
 
 Nodex Help
 
