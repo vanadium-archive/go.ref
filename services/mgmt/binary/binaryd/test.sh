@@ -23,7 +23,7 @@ main() {
 
   # Start the binary repository daemon.
   local -r REPO="binaryd-test-repo"
-  shell_test::start_server "${BINARYD_BIN}" --name="${REPO}" --veyron.tcp.address=127.0.0.1:0 \
+  shell_test::start_server "${BINARYD_BIN}" --name="${REPO}" --veyron.tcp.address=127.0.0.1:0 --http=127.0.0.1:0 \
     || shell_test::fail "line ${LINENO} failed to start binaryd"
   local -r HTTP_ADDR=$(grep 'HTTP server at: "' "${START_SERVER_LOG_FILE}" | sed -e 's/^.*HTTP server at: "//' | sed -e 's/"$//')
 
