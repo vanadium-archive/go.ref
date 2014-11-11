@@ -6,6 +6,7 @@
 			{"allow": "veyron.io/veyron/veyron/profiles/...", "comment":"temporarily allowing dependency from profiles"},
 			{"allow": "veyron.io/veyron/veyron/tools/...", "comment":"temporarily allowing dependency from veyron/tools"},
 			{"allow": "veyron.io/veyron/veyron/runtimes/google/...", "comment":"temporarily allowing dependency from veyron/runtimes/google"},
+			{"allow": "veyron.io/jni/veyron/runtimes/google/...", "comment":"temporarily allowing dependency from veyron/runtimes/google"},
 			{"deny": "..."}
 		]
 	}
