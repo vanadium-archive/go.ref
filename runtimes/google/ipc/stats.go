@@ -48,7 +48,7 @@ func (s *ipcStats) newPerMethodStats(method string) *perMethodStats {
 	defer s.mu.Unlock()
 	m, ok := s.methods[method]
 	if !ok {
-		name := naming.Join(s.prefix, method, "latency-ms")
+		name := naming.Join(s.prefix, "methods", method, "latency-ms")
 		s.methods[method] = &perMethodStats{
 			latency: stats.NewHistogram(name, histogram.Options{
 				NumBuckets:         25,

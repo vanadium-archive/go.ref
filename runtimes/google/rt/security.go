@@ -6,6 +6,7 @@ import (
 	"os/user"
 	"strconv"
 
+	"veyron.io/veyron/veyron/lib/stats"
 	vsecurity "veyron.io/veyron/veyron/security"
 	"veyron.io/veyron/veyron/security/agent"
 
@@ -18,6 +19,16 @@ func (rt *vrt) Principal() security.Principal {
 }
 
 func (rt *vrt) initSecurity(credentials string) error {
+	if err := rt.setupPrincipal(credentials); err != nil {
+		return err
+	}
+	stats.NewString("security/principal/key").Set(rt.principal.PublicKey().String())
+	stats.NewStringFunc("security/principal/blessingstore", rt.principal.BlessingStore().DebugString)
+	stats.NewStringFunc("security/principal/blessingroots", rt.principal.Roots().DebugString)
+	return nil
+}
+
+func (rt *vrt) setupPrincipal(credentials string) error {
 	if rt.principal != nil {
 		return nil
 	}

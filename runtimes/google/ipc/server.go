@@ -22,6 +22,8 @@ import (
 	"veyron.io/veyron/veyron2/vtrace"
 
 	"veyron.io/veyron/veyron/lib/netstate"
+	"veyron.io/veyron/veyron/lib/stats"
+	"veyron.io/veyron/veyron/runtimes/google/ipc/stream/vc"
 	"veyron.io/veyron/veyron/runtimes/google/lib/publisher"
 	inaming "veyron.io/veyron/veyron/runtimes/google/naming"
 	ivtrace "veyron.io/veyron/veyron/runtimes/google/vtrace"
@@ -68,6 +70,7 @@ type dhcpListener struct {
 
 func InternalNewServer(ctx context.T, streamMgr stream.Manager, ns naming.Namespace, store *ivtrace.Store, opts ...ipc.ServerOpt) (ipc.Server, error) {
 	ctx, _ = ivtrace.WithNewSpan(ctx, "NewServer")
+	statsPrefix := naming.Join("ipc", "server", "routing-id", streamMgr.RoutingID().String())
 	s := &server{
 		ctx:         ctx,
 		streamMgr:   streamMgr,
@@ -75,19 +78,39 @@ func InternalNewServer(ctx context.T, streamMgr stream.Manager, ns naming.Namesp
 		listeners:   make(map[stream.Listener]*dhcpListener),
 		stoppedChan: make(chan struct{}),
 		ns:          ns,
-		stats:       newIPCStats(naming.Join("ipc", "server", streamMgr.RoutingID().String())),
+		stats:       newIPCStats(statsPrefix),
 		traceStore:  store,
 	}
+	var (
+		principal security.Principal
+		blessings security.Blessings
+	)
 	for _, opt := range opts {
 		switch opt := opt.(type) {
 		case stream.ListenerOpt:
 			// Collect all ServerOpts that are also ListenerOpts.
 			s.listenerOpts = append(s.listenerOpts, opt)
+			switch opt := opt.(type) {
+			case vc.LocalPrincipal:
+				principal = opt.Principal
+			case options.ServerBlessings:
+				blessings = opt.Blessings
+			}
 		case options.ServesMountTable:
 			s.servesMountTable = bool(opt)
 		case options.ReservedNameDispatcher:
 			s.reservedOpt = opt
 		}
+	}
+	blessingsStatsName := naming.Join(statsPrefix, "security", "blessings")
+	if blessings != nil {
+		// TODO(caprita): revist printing the blessings with %s, and
+		// instead expose them as a list.
+		stats.NewString(blessingsStatsName).Set(fmt.Sprintf("%s", blessings))
+	} else if principal != nil { // principal should have been passed in, but just in case.
+		stats.NewStringFunc(blessingsStatsName, func() string {
+			return fmt.Sprintf("%s (default)", principal.BlessingStore().Default())
+		})
 	}
 	return s, nil
 }
