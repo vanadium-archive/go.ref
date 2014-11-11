@@ -5,13 +5,11 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"time"
 
 	"veyron.io/veyron/veyron/runtimes/google/ipc/stream/crypto"
 	"veyron.io/veyron/veyron/runtimes/google/lib/iobuf"
 
 	"veyron.io/veyron/veyron2/ipc/version"
-	"veyron.io/veyron/veyron2/naming"
 	"veyron.io/veyron/veyron2/security"
 	"veyron.io/veyron/veyron2/vom"
 )
@@ -58,10 +56,9 @@ func authenticateAsClient(conn io.ReadWriteCloser, principal security.Principal,
 	if server, err = readBlessings(conn, authServerContextTag, crypter, v); err != nil {
 		return nil, nil, err
 	}
-	serverB := server.ForContext(&serverAuthContext{
-		self:      principal,
-		remote:    server,
-		timestamp: time.Now(),
+	serverB := server.ForContext(security.NewContext(&security.ContextParams{
+		LocalPrincipal:  principal,
+		RemoteBlessings: server,
 		// TODO(ashankar): Get the local and remote endpoint here?
 		// There is also a bootstrapping problem here. For example, let's say
 		// (1) server has the blessing "provider/server" with a PeerIdentity caveat of "provider/client"
@@ -69,7 +66,7 @@ func authenticateAsClient(conn io.ReadWriteCloser, principal security.Principal,
 		// How do we get that working?
 		// One option is to have a UnionOfBlessings of all blessings of the client in the BlessingStore
 		// made available to serverAuthContext.LocalBlessings for this call.
-	})
+	}))
 	client = principal.BlessingStore().ForPeer(serverB...)
 	if client == nil {
 		return nil, nil, fmt.Errorf("no blessing tagged for peer %v in the BlessingStore", serverB)
@@ -132,24 +129,3 @@ func readBlessings(r io.Reader, tag []byte, crypter crypto.Crypter, v version.IP
 	}
 	return b, nil
 }
-
-// security.Context implementation used when extracting blessings from what the
-// server presents during authentication.
-type serverAuthContext struct {
-	self      security.Principal
-	remote    security.Blessings
-	timestamp time.Time
-}
-
-func (c *serverAuthContext) Timestamp() time.Time                      { return c.timestamp }
-func (*serverAuthContext) Method() string                              { return "" }
-func (*serverAuthContext) MethodTags() []interface{}                   { return nil }
-func (*serverAuthContext) Name() string                                { return "" }
-func (*serverAuthContext) Suffix() string                              { return "" }
-func (*serverAuthContext) Label() (l security.Label)                   { return l }
-func (c *serverAuthContext) Discharges() map[string]security.Discharge { return nil }
-func (c *serverAuthContext) LocalPrincipal() security.Principal        { return c.self }
-func (c *serverAuthContext) LocalBlessings() security.Blessings        { return nil }
-func (c *serverAuthContext) RemoteBlessings() security.Blessings       { return c.remote }
-func (c *serverAuthContext) LocalEndpoint() naming.Endpoint            { return nil }
-func (c *serverAuthContext) RemoteEndpoint() naming.Endpoint           { return nil }

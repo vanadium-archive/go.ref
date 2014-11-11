@@ -927,7 +927,7 @@ func (fs *flowServer) Recv(itemptr interface{}) error {
 
 // Implementations of ipc.ServerContext methods.
 
-func (fs *flowServer) Discharges() map[string]security.Discharge {
+func (fs *flowServer) RemoteDischarges() map[string]security.Discharge {
 	//nologcall
 	return fs.discharges
 }

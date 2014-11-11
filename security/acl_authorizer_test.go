@@ -5,32 +5,9 @@ import (
 	"os"
 	"runtime"
 	"testing"
-	"time"
 
-	"veyron.io/veyron/veyron2/naming"
 	"veyron.io/veyron/veyron2/security"
 )
-
-// context implements security.Context.
-type context struct {
-	localPrincipal                  security.Principal
-	localBlessings, remoteBlessings security.Blessings
-	method                          string
-	label                           security.Label
-}
-
-func (c *context) Timestamp() (t time.Time)                  { return t }
-func (c *context) Method() string                            { return c.method }
-func (c *context) MethodTags() []interface{}                 { return nil }
-func (c *context) Name() string                              { return "" }
-func (c *context) Suffix() string                            { return "" }
-func (c *context) Label() security.Label                     { return c.label }
-func (c *context) Discharges() map[string]security.Discharge { return nil }
-func (c *context) LocalPrincipal() security.Principal        { return c.localPrincipal }
-func (c *context) LocalBlessings() security.Blessings        { return c.localBlessings }
-func (c *context) RemoteBlessings() security.Blessings       { return c.remoteBlessings }
-func (c *context) LocalEndpoint() naming.Endpoint            { return nil }
-func (c *context) RemoteEndpoint() naming.Endpoint           { return nil }
 
 func saveACLToTempFile(acl security.ACL) string {
 	f, err := ioutil.TempFile("", "saved_acl")
@@ -62,31 +39,25 @@ func testSelfRPCs(t *testing.T, authorizer security.Authorizer) {
 		pserver, server = newPrincipal("server")
 		_, imposter     = newPrincipal("server")
 		palice, alice   = newPrincipal("alice")
+		aliceServer     = bless(palice, pserver, alice, "server")
 
-		serverAlice = bless(pserver, palice, server, "alice")
-		aliceServer = bless(palice, pserver, alice, "server")
-
-		ctx = &context{
-			localPrincipal: pserver,
-			localBlessings: server,
-		}
-
+		ctxp  = &security.ContextParams{LocalPrincipal: pserver, LocalBlessings: server}
 		tests = []struct {
 			remote       security.Blessings
 			isAuthorized bool
 		}{
 			{server, true},
 			{imposter, false},
-			{serverAlice, false},
 			// A principal talking to itself (even if with a different blessing) is authorized.
 			// TODO(ashankar,ataly): Is this a desired property?
 			{aliceServer, true},
 		}
 	)
 	for _, test := range tests {
-		ctx.remoteBlessings = test.remote
+		ctxp.RemoteBlessings = test.remote
+		ctx := security.NewContext(ctxp)
 		if got, want := authorizer.Authorize(ctx), test.isAuthorized; (got == nil) != want {
-			t.Errorf("%s:%d: %+v.Authorize(&context{local: %v, remote: %v}) returned error: %v, want error: %v", file, line, authorizer, ctx.localBlessings, ctx.remoteBlessings, got, !want)
+			t.Errorf("%s:%d: %+v.Authorize(%v) returned error: %v, want error: %v", file, line, authorizer, ctx, got, !want)
 		}
 	}
 }
@@ -119,13 +90,23 @@ func testNothingPermitted(t *testing.T, authorizer security.Authorizer) {
 	// valid or invalid label.
 	for _, u := range users {
 		for _, l := range security.ValidLabels {
-			ctx := &context{localPrincipal: pserver, localBlessings: server, remoteBlessings: u, label: l}
+			ctx := security.NewContext(&security.ContextParams{
+				LocalPrincipal:  pserver,
+				LocalBlessings:  server,
+				RemoteBlessings: u,
+				MethodTags:      []interface{}{l},
+			})
 			if got := authorizer.Authorize(ctx); got == nil {
 				t.Errorf("%s:%d: %+v.Authorize(%v) returns nil, want error", file, line, authorizer, ctx)
 			}
 		}
 
-		ctx := &context{localPrincipal: pserver, localBlessings: server, remoteBlessings: u, label: invalidLabel}
+		ctx := security.NewContext(&security.ContextParams{
+			LocalPrincipal:  pserver,
+			LocalBlessings:  server,
+			RemoteBlessings: u,
+			MethodTags:      []interface{}{invalidLabel},
+		})
 		if got := authorizer.Authorize(ctx); got == nil {
 			t.Errorf("%s:%d: %+v.Authorize(%v) returns nil, want error", file, line, authorizer, ctx)
 		}
@@ -164,9 +145,14 @@ func TestACLAuthorizer(t *testing.T) {
 			_, file, line, _ := runtime.Caller(1)
 			for user, labels := range expectations {
 				for _, l := range security.ValidLabels {
-					ctx := &context{remoteBlessings: user, localBlessings: server, localPrincipal: pserver, label: l}
+					ctx := security.NewContext(&security.ContextParams{
+						LocalPrincipal:  pserver,
+						LocalBlessings:  server,
+						RemoteBlessings: user,
+						MethodTags:      []interface{}{l},
+					})
 					if got, want := authorizer.Authorize(ctx), labels.HasLabel(l); (got == nil) != want {
-						t.Errorf("%s:%d: %+v.Authorize(&context{remoteBlessings: %v, label: %v}) returned error: %v, want error: %v", file, line, authorizer, user, l, got, !want)
+						t.Errorf("%s:%d: %+v.Authorize(%v) returned error: %v, want error: %v", file, line, authorizer, ctx, got, !want)
 					}
 				}
 			}
