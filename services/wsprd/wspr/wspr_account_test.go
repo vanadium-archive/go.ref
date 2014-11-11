@@ -33,7 +33,7 @@ func newMockBlesserService(p security.Principal) *mockBlesserService {
 
 func (m *mockBlesserService) BlessUsingAccessToken(c context.T, accessToken string, co ...ipc.CallOpt) (security.WireBlessings, string, error) {
 	var empty security.WireBlessings
-	m.count = m.count + 1
+	m.count++
 	name := fmt.Sprintf("%s%s%d", topLevelName, security.ChainSeparator, m.count)
 	blessing, err := m.p.BlessSelf(name)
 	if err != nil {
@@ -48,7 +48,7 @@ func setup(t *testing.T) (*WSPR, func()) {
 	spec := profiles.LocalListenSpec
 	spec.Proxy = "/mock/proxy"
 	wspr := NewWSPR(0, spec, "/mock/identd", nil)
-	wspr.blesser = newMockBlesserService(wspr.rt.Principal())
+	wspr.accountManager.SetMockBlesser(newMockBlesserService(wspr.rt.Principal()))
 	return wspr, func() {
 		wspr.Shutdown()
 	}
