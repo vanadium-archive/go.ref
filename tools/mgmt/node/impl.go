@@ -45,6 +45,7 @@ var cmdStart = &cmdline.Command{
 	ArgsLong: `
 <application installation> is the veyron object name of the
 application installation from which to start an instance.
+
 <grant extension> is used to extend the default blessing of the
 current principal when blessing the app instance.`,
 }
@@ -74,6 +75,31 @@ func runStart(cmd *cmdline.Command, args []string) error {
 	return nil
 }
 
+var cmdClaim = &cmdline.Command{
+	Run:      runClaim,
+	Name:     "claim",
+	Short:    "Claim the node.",
+	Long:     "Claim the node.",
+	ArgsName: "<node> <grant extension>",
+	ArgsLong: `
+<node> is the veyron object name of the node manager's app service.
+
+<grant extension> is used to extend the default blessing of the
+current principal when blessing the app instance.`,
+}
+
+func runClaim(cmd *cmdline.Command, args []string) error {
+	if expected, got := 2, len(args); expected != got {
+		return cmd.UsageErrorf("claim: incorrect number of arguments, expected %d, got %d", expected, got)
+	}
+	nodeName, grant := args[0], args[1]
+	if err := node.NodeClient(nodeName).Claim(rt.R().NewContext(), &granter{p: rt.R().Principal(), extension: grant}); err != nil {
+		return fmt.Errorf("Claim failed: %v", err)
+	}
+	fmt.Fprintln(cmd.Stdout(), "Successfully claimed.")
+	return nil
+}
+
 func root() *cmdline.Command {
 	return &cmdline.Command{
 		Name:  "node",
@@ -81,6 +107,6 @@ func root() *cmdline.Command {
 		Long: `
 The node tool facilitates interaction with the veyron node manager.
 `,
-		Children: []*cmdline.Command{cmdInstall, cmdStart},
+		Children: []*cmdline.Command{cmdInstall, cmdStart, cmdClaim},
 	}
 }
