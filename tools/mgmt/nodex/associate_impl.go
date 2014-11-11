@@ -79,7 +79,7 @@ func runRemove(cmd *cmdline.Command, args []string) error {
 	return node.NodeClient(args[0]).AssociateAccount(ctx, args[1:], "")
 }
 
-func root() *cmdline.Command {
+func associateRoot() *cmdline.Command {
 	return &cmdline.Command{
 		Name:  "associate",
 		Short: "Tool for creating associations between Vanadium blessings and a system account",

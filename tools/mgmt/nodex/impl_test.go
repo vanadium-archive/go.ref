@@ -153,7 +153,7 @@ func TestListCommand(t *testing.T) {
 		err: nil,
 	}})
 
-	if err := cmd.Execute([]string{"list", nodeName}); err != nil {
+	if err := cmd.Execute([]string{"associate", "list", nodeName}); err != nil {
 		t.Fatalf("%v", err)
 	}
 	if expected, got := "root/self alice_self_account\nroot/other alice_other_account", strings.TrimSpace(stdout.String()); got != expected {
@@ -166,7 +166,7 @@ func TestListCommand(t *testing.T) {
 	stdout.Reset()
 
 	// Test list with bad parameters.
-	if err := cmd.Execute([]string{"list", nodeName, "hello"}); err == nil {
+	if err := cmd.Execute([]string{"associate", "list", nodeName, "hello"}); err == nil {
 		t.Fatalf("wrongly failed to receive a non-nil error.")
 	}
 	if got, expected := len(tape.Play()), 0; got != expected {
@@ -201,7 +201,7 @@ func TestAddCommand(t *testing.T) {
 	stdout.Reset()
 
 	tape.SetResponses([]interface{}{nil})
-	if err := cmd.Execute([]string{"add", nodeName, "alice", "root/self"}); err != nil {
+	if err := cmd.Execute([]string{"associate", "add", nodeName, "alice", "root/self"}); err != nil {
 		t.Fatalf("%v", err)
 	}
 	expected := []interface{}{
@@ -214,7 +214,7 @@ func TestAddCommand(t *testing.T) {
 	stdout.Reset()
 
 	tape.SetResponses([]interface{}{nil})
-	if err := cmd.Execute([]string{"add", nodeName, "alice", "root/other", "root/self"}); err != nil {
+	if err := cmd.Execute([]string{"associate", "add", nodeName, "alice", "root/other", "root/self"}); err != nil {
 		t.Fatalf("%v", err)
 	}
 	expected = []interface{}{
@@ -252,7 +252,7 @@ func TestRemoveCommand(t *testing.T) {
 	stdout.Reset()
 
 	tape.SetResponses([]interface{}{nil})
-	if err := cmd.Execute([]string{"remove", nodeName, "root/self"}); err != nil {
+	if err := cmd.Execute([]string{"associate", "remove", nodeName, "root/self"}); err != nil {
 		t.Fatalf("%v", err)
 	}
 	expected := []interface{}{
