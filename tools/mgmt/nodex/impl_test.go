@@ -83,19 +83,29 @@ func (mni *mockNodeInvoker) Install(call ipc.ServerContext, appName string) (str
 	return r.appId, r.err
 }
 
-func (*mockNodeInvoker) Refresh(ipc.ServerContext) error                        { return nil }
-func (*mockNodeInvoker) Restart(ipc.ServerContext) error                        { return nil }
-func (*mockNodeInvoker) Resume(ipc.ServerContext) error                         { return nil }
-func (i *mockNodeInvoker) Revert(call ipc.ServerContext) error                  { return nil }
-func (*mockNodeInvoker) Start(ipc.ServerContext) ([]string, error)              { return []string{}, nil }
-func (*mockNodeInvoker) Stop(ipc.ServerContext, uint32) error                   { return nil }
-func (*mockNodeInvoker) Suspend(ipc.ServerContext) error                        { return nil }
-func (*mockNodeInvoker) Uninstall(ipc.ServerContext) error                      { return nil }
-func (i *mockNodeInvoker) Update(ipc.ServerContext) error                       { return nil }
-func (*mockNodeInvoker) UpdateTo(ipc.ServerContext, string) error               { return nil }
-func (i *mockNodeInvoker) SetACL(ipc.ServerContext, security.ACL, string) error { return nil }
-func (i *mockNodeInvoker) GetACL(ipc.ServerContext) (security.ACL, string, error) {
-	return security.ACL{}, "", nil
+func (*mockNodeInvoker) Refresh(ipc.ServerContext) error           { return nil }
+func (*mockNodeInvoker) Restart(ipc.ServerContext) error           { return nil }
+func (*mockNodeInvoker) Resume(ipc.ServerContext) error            { return nil }
+func (i *mockNodeInvoker) Revert(call ipc.ServerContext) error     { return nil }
+func (*mockNodeInvoker) Start(ipc.ServerContext) ([]string, error) { return []string{}, nil }
+func (*mockNodeInvoker) Stop(ipc.ServerContext, uint32) error      { return nil }
+func (*mockNodeInvoker) Suspend(ipc.ServerContext) error           { return nil }
+func (*mockNodeInvoker) Uninstall(ipc.ServerContext) error         { return nil }
+func (i *mockNodeInvoker) Update(ipc.ServerContext) error          { return nil }
+func (*mockNodeInvoker) UpdateTo(ipc.ServerContext, string) error  { return nil }
+
+// Mock ACL getting and setting
+type GetACLResponse struct {
+	acl  security.ACL
+	etag string
+	err  error
+}
+
+func (mni *mockNodeInvoker) SetACL(ipc.ServerContext, security.ACL, string) error { return nil }
+func (mni *mockNodeInvoker) GetACL(ipc.ServerContext) (security.ACL, string, error) {
+	ir := mni.tape.Record("GetACL")
+	r := ir.(GetACLResponse)
+	return r.acl, r.etag, r.err
 }
 
 type dispatcher struct {

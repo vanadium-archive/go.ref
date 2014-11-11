@@ -107,8 +107,6 @@ func root() *cmdline.Command {
 		Long: `
 The nodex tool facilitates interaction with the veyron node manager.
 `,
-
-		// TODO(rjk): will have to fold these in...
-		Children: []*cmdline.Command{cmdInstall, cmdStart, associateRoot(), cmdClaim, cmdStop, cmdSuspend, cmdResume},
+		Children: []*cmdline.Command{cmdInstall, cmdStart, associateRoot(), cmdClaim, cmdStop, cmdSuspend, cmdResume, aclRoot()},
 	}
 }
