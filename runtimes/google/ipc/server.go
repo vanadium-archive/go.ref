@@ -495,11 +495,14 @@ func (s *server) AddName(name string) error {
 	s.Lock()
 	defer s.Unlock()
 	ivtrace.FromContext(s.ctx).Annotate("Serving under name: " + name)
+	if len(name) == 0 {
+		return fmt.Errorf("empty name")
+	}
 	if s.stopped {
 		return errServerStopped
 	}
-	if len(name) == 0 {
-		return fmt.Errorf("empty name")
+	if s.disp == nil {
+		return fmt.Errorf("Adding name before calling Serve or ServeDispatcher is not allowed")
 	}
 	s.publisher.AddName(name)
 	// TODO(cnicolaou): remove this map when the publisher's RemoveName
@@ -514,6 +517,9 @@ func (s *server) RemoveName(name string) error {
 	ivtrace.FromContext(s.ctx).Annotate("Removed name: " + name)
 	if s.stopped {
 		return errServerStopped
+	}
+	if s.disp == nil {
+		return fmt.Errorf("Removing name before calling Serve or ServeDispatcher is not allowed")
 	}
 	if _, present := s.names[name]; !present {
 		return fmt.Errorf("%q has not been previously used for this server", name)
