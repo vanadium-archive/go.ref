@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"fmt"
 	"reflect"
 	"strings"
 	"testing"
@@ -24,6 +25,7 @@ type mockNodeInvoker struct {
 	t    *testing.T
 }
 
+// Mock ListAssociations
 type ListAssociationResponse struct {
 	na  []node.Association
 	err error
@@ -37,6 +39,7 @@ func (mni *mockNodeInvoker) ListAssociations(ipc.ServerContext) (associations []
 	return r.na, r.err
 }
 
+// Mock AssociateAccount
 type AddAssociationStimulus struct {
 	fun           string
 	identityNames []string
@@ -62,8 +65,25 @@ func (*mockNodeInvoker) Describe(ipc.ServerContext) (node.Description, error) {
 func (*mockNodeInvoker) IsRunnable(_ ipc.ServerContext, description binary.Description) (bool, error) {
 	return false, nil
 }
-func (*mockNodeInvoker) Reset(call ipc.ServerContext, deadline uint64) error    { return nil }
-func (*mockNodeInvoker) Install(ipc.ServerContext, string) (string, error)      { return "", nil }
+func (*mockNodeInvoker) Reset(call ipc.ServerContext, deadline uint64) error { return nil }
+
+// Mock Install
+type InstallStimulus struct {
+	fun     string
+	appName string
+}
+
+type InstallResponse struct {
+	appId string
+	err   error
+}
+
+func (mni *mockNodeInvoker) Install(call ipc.ServerContext, appName string) (string, error) {
+	ir := mni.tape.Record(InstallStimulus{"Install", appName})
+	r := ir.(InstallResponse)
+	return r.appId, r.err
+}
+
 func (*mockNodeInvoker) Refresh(ipc.ServerContext) error                        { return nil }
 func (*mockNodeInvoker) Restart(ipc.ServerContext) error                        { return nil }
 func (*mockNodeInvoker) Resume(ipc.ServerContext) error                         { return nil }
@@ -189,7 +209,7 @@ func TestAddCommand(t *testing.T) {
 	cmd := root()
 	var stdout, stderr bytes.Buffer
 	cmd.Init(nil, &stdout, &stderr)
-	nodeName := naming.JoinAddressName(endpoint.String(), "//myapp/1")
+	nodeName := naming.JoinAddressName(endpoint.String(), "/myapp/1")
 
 	if err := cmd.Execute([]string{"add", "one"}); err == nil {
 		t.Fatalf("wrongly failed to receive a non-nil error.")
@@ -240,7 +260,7 @@ func TestRemoveCommand(t *testing.T) {
 	cmd := root()
 	var stdout, stderr bytes.Buffer
 	cmd.Init(nil, &stdout, &stderr)
-	nodeName := naming.JoinAddressName(endpoint.String(), "//myapp/1")
+	nodeName := naming.JoinAddressName(endpoint.String(), "/myapp/1")
 
 	if err := cmd.Execute([]string{"remove", "one"}); err == nil {
 		t.Fatalf("wrongly failed to receive a non-nil error.")
@@ -257,6 +277,63 @@ func TestRemoveCommand(t *testing.T) {
 	}
 	expected := []interface{}{
 		AddAssociationStimulus{"AssociateAccount", []string{"root/self"}, ""},
+	}
+	if got := tape.Play(); !reflect.DeepEqual(expected, got) {
+		t.Errorf("unexpected result. Got %v want %v", got, expected)
+	}
+	tape.Rewind()
+	stdout.Reset()
+}
+
+func TestInstallCommand(t *testing.T) {
+	runtime := rt.Init()
+	tape := NewTape()
+	server, endpoint, err := startServer(t, runtime, tape)
+	if err != nil {
+		return
+	}
+	defer stopServer(t, server)
+
+	// Setup the command-line.
+	cmd := root()
+	var stdout, stderr bytes.Buffer
+	cmd.Init(nil, &stdout, &stderr)
+	nodeName := naming.JoinAddressName(endpoint.String(), "/myapp/1")
+
+	if err := cmd.Execute([]string{"install", "blech"}); err == nil {
+		t.Fatalf("wrongly failed to receive a non-nil error.")
+	}
+	if got, expected := len(tape.Play()), 0; got != expected {
+		t.Errorf("invalid call sequence. Got %v, want %v", got, expected)
+	}
+	tape.Rewind()
+	stdout.Reset()
+
+	if err := cmd.Execute([]string{"install", "blech1", "blech2", "blech3"}); err == nil {
+		t.Fatalf("wrongly failed to receive a non-nil error.")
+	}
+	if got, expected := len(tape.Play()), 0; got != expected {
+		t.Errorf("invalid call sequence. Got %v, want %v", got, expected)
+	}
+	tape.Rewind()
+	stdout.Reset()
+
+	appId := "myBestAppID"
+	tape.SetResponses([]interface{}{InstallResponse{
+		appId: appId,
+		err:   nil,
+	}})
+	if err := cmd.Execute([]string{"install", nodeName, "myBestApp"}); err != nil {
+		t.Fatalf("%v", err)
+	}
+
+	eb := new(bytes.Buffer)
+	fmt.Fprintf(eb, "Successfully installed: %q", naming.Join(nodeName, appId))
+	if expected, got := eb.String(), strings.TrimSpace(stdout.String()); got != expected {
+		t.Fatalf("Unexpected output from Install. Got %q, expected %q", got, expected)
+	}
+	expected := []interface{}{
+		InstallStimulus{"Install", "myBestApp"},
 	}
 	if got := tape.Play(); !reflect.DeepEqual(expected, got) {
 		t.Errorf("unexpected result. Got %v want %v", got, expected)
