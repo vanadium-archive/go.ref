@@ -8,13 +8,13 @@ import (
 	// roadmap_watchtypes "veyron.io/store/veyron2/services/watch/types"
 	// "veyron.io/store/veyron2/storage"
 
-	mttypes "veyron.io/veyron/veyron2/services/mounttable/types"
+	"veyron.io/veyron/veyron2/naming"
 	watchtypes "veyron.io/veyron/veyron2/services/watch/types"
 	"veyron.io/veyron/veyron2/vom"
 )
 
 func init() {
-	vom.Register(mttypes.MountEntry{})
+	vom.Register(naming.VDLMountEntry{})
 	vom.Register(watchtypes.GlobRequest{})
 	vom.Register(watchtypes.Change{})
 	// vom.Register(storage.Entry{})
