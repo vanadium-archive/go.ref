@@ -35,8 +35,8 @@ const SavedArgs = "VEYRON_SAVED_ARGS"
 
 var (
 	flagUsername, flagWorkspace, flagLogDir, flagRun *string
-	flagMinimumUid                                                     *int64
-	flagRemove                                                         *bool
+	flagMinimumUid                                   *int64
+	flagRemove                                       *bool
 )
 
 func init() {

@@ -14,8 +14,8 @@ import "flag"
 
 var (
 	Username, Workspace, LogDir, Run *string
-	MinimumUid                                     *int64
-	Remove                                         *bool
+	MinimumUid                       *int64
+	Remove                           *bool
 )
 
 func init() {
