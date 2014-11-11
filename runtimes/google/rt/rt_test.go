@@ -10,7 +10,6 @@ import (
 	"testing"
 	"time"
 
-	"veyron.io/veyron/veyron2/naming"
 	"veyron.io/veyron/veyron2/options"
 	"veyron.io/veyron/veyron2/rt"
 	"veyron.io/veyron/veyron2/security"
@@ -22,23 +21,6 @@ import (
 	"veyron.io/veyron/veyron/lib/testutil"
 	vsecurity "veyron.io/veyron/veyron/security"
 )
-
-type context struct {
-	local security.Principal
-}
-
-func (*context) Timestamp() (t time.Time)                  { return t }
-func (*context) Method() string                            { return "" }
-func (*context) MethodTags() []interface{}                 { return nil }
-func (*context) Name() string                              { return "" }
-func (*context) Suffix() string                            { return "" }
-func (*context) Label() (l security.Label)                 { return }
-func (*context) Discharges() map[string]security.Discharge { return nil }
-func (c *context) LocalPrincipal() security.Principal      { return c.local }
-func (*context) LocalBlessings() security.Blessings        { return nil }
-func (*context) RemoteBlessings() security.Blessings       { return nil }
-func (*context) LocalEndpoint() naming.Endpoint            { return nil }
-func (*context) RemoteEndpoint() naming.Endpoint           { return nil }
 
 func init() {
 	testutil.Init()
@@ -120,7 +102,8 @@ func validatePrincipal(p security.Principal) error {
 		return fmt.Errorf("rt.Principal().BlessingStore().Default() returned nil")
 
 	}
-	if n := len(blessings.ForContext(&context{local: p})); n != 1 {
+	ctx := security.NewContext(&security.ContextParams{LocalPrincipal: p})
+	if n := len(blessings.ForContext(ctx)); n != 1 {
 		fmt.Errorf("rt.Principal().BlessingStore().Default() returned Blessing %v with %d recognized blessings, want exactly one recognized blessing", blessings, n)
 	}
 	return nil

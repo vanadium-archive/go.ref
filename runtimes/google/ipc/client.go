@@ -590,13 +590,15 @@ type serverAuthContext struct {
 // validation for a server's blessings are eanbled.
 // Returning zero values affects more than third-party caveats, so yeah, have
 // to remove them soon!
-func (c serverAuthContext) Timestamp() time.Time                    { return c.timestamp }
-func (serverAuthContext) Method() string                            { return "" }
-func (serverAuthContext) MethodTags() []interface{}                 { return nil }
-func (serverAuthContext) Name() string                              { return "" }
-func (serverAuthContext) Suffix() string                            { return "" }
-func (serverAuthContext) Label() (l security.Label)                 { return l }
-func (serverAuthContext) Discharges() map[string]security.Discharge { return nil }
+func (c serverAuthContext) Timestamp() time.Time    { return c.timestamp }
+func (serverAuthContext) Method() string            { return "" }
+func (serverAuthContext) MethodTags() []interface{} { return nil }
+func (serverAuthContext) Name() string              { return "" }
+func (serverAuthContext) Suffix() string            { return "" }
+func (serverAuthContext) Label() (l security.Label) { return l }
+
+// TODO(ataly): Remove this once the method is added to the flow type?
+func (serverAuthContext) RemoteDischarges() map[string]security.Discharge { return nil }
 
 func splitObjectName(name string) (mtPattern, serverPattern security.BlessingPattern, objectName string) {
 	objectName = name
