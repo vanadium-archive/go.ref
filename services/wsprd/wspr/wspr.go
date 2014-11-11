@@ -23,17 +23,15 @@ import (
 	"net"
 	"net/http"
 	_ "net/http/pprof"
-	"strings"
 	"sync"
 	"time"
 
 	"veyron.io/veyron/veyron2"
-	"veyron.io/veyron/veyron2/context"
 	"veyron.io/veyron/veyron2/ipc"
 	"veyron.io/veyron/veyron2/rt"
-	"veyron.io/veyron/veyron2/security"
 	"veyron.io/veyron/veyron2/vlog"
 
+	"veyron.io/wspr/veyron/services/wsprd/account"
 	"veyron.io/wspr/veyron/services/wsprd/principal"
 )
 
@@ -41,32 +39,6 @@ const (
 	pingInterval = 50 * time.Second              // how often the server pings the client.
 	pongTimeout  = pingInterval + 10*time.Second // maximum wait for pong.
 )
-
-type blesserService interface {
-	BlessUsingAccessToken(ctx context.T, token string, opts ...ipc.CallOpt) (blessingObj security.WireBlessings, account string, err error)
-}
-
-type bs struct {
-	client ipc.Client
-	name   string
-}
-
-func (s *bs) BlessUsingAccessToken(ctx context.T, token string, opts ...ipc.CallOpt) (blessingObj security.WireBlessings, account string, err error) {
-	var call ipc.Call
-	if call, err = s.client.StartCall(ctx, s.name, "BlessUsingAccessToken", []interface{}{token}, opts...); err != nil {
-		return
-	}
-	var email string
-	if ierr := call.Finish(&blessingObj, &email, &err); ierr != nil {
-		err = ierr
-	}
-	serverBlessings, _ := call.RemoteBlessings()
-	return blessingObj, accountName(serverBlessings, email), nil
-}
-
-func accountName(serverBlessings []string, email string) string {
-	return strings.Join(serverBlessings, "#") + security.ChainSeparator + email
-}
 
 type WSPR struct {
 	mu      sync.Mutex
@@ -80,7 +52,7 @@ type WSPR struct {
 	identdEP         string
 	namespaceRoots   []string
 	principalManager *principal.PrincipalManager
-	blesser          blesserService
+	accountManager   *account.AccountManager
 	pipes            map[*http.Request]*pipe
 }
 
@@ -128,9 +100,6 @@ func (ln tcpKeepAliveListener) Accept() (c net.Conn, err error) {
 
 // Starts serving http requests. This method is blocking.
 func (ctx *WSPR) Serve() {
-	// Initialize the Blesser service.
-	ctx.blesser = &bs{client: ctx.rt.Client(), name: ctx.identdEP}
-
 	// Configure HTTP routes.
 	http.HandleFunc("/debug", ctx.handleDebug)
 	http.HandleFunc("/create-account", ctx.handleCreateAccount)
@@ -188,6 +157,8 @@ func NewWSPR(httpPort int, listenSpec ipc.ListenSpec, identdEP string, namespace
 	if wspr.principalManager, err = principal.NewPrincipalManager(newrt.Principal(), &principal.InMemorySerializer{}); err != nil {
 		vlog.Fatalf("principal.NewPrincipalManager failed: %s", err)
 	}
+
+	wspr.accountManager = account.NewAccountManager(newrt, identdEP, wspr.principalManager)
 
 	return wspr
 }
@@ -260,24 +231,9 @@ func (ctx *WSPR) handleCreateAccount(w http.ResponseWriter, r *http.Request) {
 		ctx.logAndSendBadReqErr(w, fmt.Sprintf("Error parsing body: %v", err))
 	}
 
-	// Get a blessing for the access token from blessing server.
-	rctx, cancel := ctx.rt.NewContext().WithTimeout(time.Minute)
-	defer cancel()
-	blessingsAny, account, err := ctx.blesser.BlessUsingAccessToken(rctx, data.AccessToken)
+	account, err := ctx.accountManager.CreateAccount(data.AccessToken)
 	if err != nil {
-		ctx.logAndSendBadReqErr(w, fmt.Sprintf("Error getting blessing for access token: %v", err))
-		return
-	}
-
-	accountBlessings, err := security.NewBlessings(blessingsAny)
-	if err != nil {
-		ctx.logAndSendBadReqErr(w, fmt.Sprintf("Error creating blessings from wire data: %v", err))
-		return
-	}
-	// Add accountBlessings to principalManager under the provided
-	// account.
-	if err := ctx.principalManager.AddAccount(account, accountBlessings); err != nil {
-		ctx.logAndSendBadReqErr(w, fmt.Sprintf("Error adding account: %v", err))
+		ctx.logAndSendBadReqErr(w, err.Error())
 		return
 	}
 
@@ -315,10 +271,8 @@ func (ctx *WSPR) handleAssocAccount(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, fmt.Sprintf("Error parsing body: %v", err), http.StatusBadRequest)
 	}
 
-	// Store the origin.
-	// TODO(nlacasse, bjornick): determine what the caveats should be.
-	if err := ctx.principalManager.AddOrigin(data.Origin, data.Account, nil); err != nil {
-		http.Error(w, fmt.Sprintf("Error associating account: %v", err), http.StatusBadRequest)
+	if err := ctx.accountManager.AssociateAccount(data.Origin, data.Account); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
