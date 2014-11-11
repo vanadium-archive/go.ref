@@ -77,7 +77,7 @@ func CreatePersistentPrincipal(dir string, passphrase []byte) (principal securit
 	if err := mkDir(dir); err != nil {
 		return nil, err
 	}
-	key, err := initKey(dir, nil)
+	key, err := initKey(dir, passphrase)
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize private key: %v", err)
 	}
