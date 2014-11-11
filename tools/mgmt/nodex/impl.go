@@ -102,11 +102,13 @@ func runClaim(cmd *cmdline.Command, args []string) error {
 
 func root() *cmdline.Command {
 	return &cmdline.Command{
-		Name:  "node",
+		Name:  "nodex",
 		Short: "Tool for interacting with the veyron node manager",
 		Long: `
-The node tool facilitates interaction with the veyron node manager.
+The nodex tool facilitates interaction with the veyron node manager.
 `,
-		Children: []*cmdline.Command{cmdInstall, cmdStart, cmdClaim},
+
+
+ 		Children: []*cmdline.Command{cmdInstall, cmdStart, associateRoot(), cmdClaim},
 	}
 }
