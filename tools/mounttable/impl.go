@@ -11,7 +11,6 @@ import (
 	"veyron.io/veyron/veyron2/options"
 	"veyron.io/veyron/veyron2/rt"
 	"veyron.io/veyron/veyron2/services/mounttable"
-	"veyron.io/veyron/veyron2/services/mounttable/types"
 )
 
 func bindMT(ctx context.T, name string) (mounttable.MountTableClientMethods, error) {
@@ -100,7 +99,7 @@ func runMount(cmd *cmdline.Command, args []string) error {
 	if got < 2 || got > 4 {
 		return cmd.UsageErrorf("mount: incorrect number of arguments, expected 2, 3, or 4, got %d", got)
 	}
-	var flags types.MountFlag
+	var flags naming.MountFlag
 	var seconds uint32
 	if got >= 3 {
 		ttl, err := time.ParseDuration(args[2])
@@ -113,9 +112,9 @@ func runMount(cmd *cmdline.Command, args []string) error {
 		for _, c := range args[3] {
 			switch c {
 			case 'M':
-				flags |= types.MountFlag(types.MT)
+				flags |= naming.MountFlag(naming.MT)
 			case 'R':
-				flags |= types.MountFlag(types.Replace)
+				flags |= naming.MountFlag(naming.Replace)
 			}
 		}
 	}
@@ -184,7 +183,7 @@ func runResolveStep(cmd *cmdline.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	var entry types.MountEntry
+	var entry naming.VDLMountEntry
 	if ierr := call.Finish(&entry, &err); ierr != nil {
 		return ierr
 	}

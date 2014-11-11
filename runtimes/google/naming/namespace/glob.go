@@ -11,7 +11,6 @@ import (
 	"veyron.io/veyron/veyron2/ipc"
 	"veyron.io/veyron/veyron2/naming"
 	"veyron.io/veyron/veyron2/options"
-	"veyron.io/veyron/veyron2/services/mounttable/types"
 	verror "veyron.io/veyron/veyron2/verror2"
 	"veyron.io/veyron/veyron2/vlog"
 )
@@ -69,7 +68,7 @@ func (ns *namespace) globAtServer(ctx context.T, qe *queuedEntry, pattern *glob.
 
 		// At this point we're commited to a server since it answered tha call.
 		for {
-			var e types.MountEntry
+			var e naming.VDLMountEntry
 			err := call.Recv(&e)
 			if err == io.EOF {
 				break

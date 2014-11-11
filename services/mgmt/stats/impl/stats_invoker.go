@@ -8,8 +8,8 @@ import (
 	"veyron.io/veyron/veyron/lib/stats"
 
 	"veyron.io/veyron/veyron2/ipc"
+	"veyron.io/veyron/veyron2/naming"
 	"veyron.io/veyron/veyron2/services/mgmt/stats/types"
-	mttypes "veyron.io/veyron/veyron2/services/mounttable/types"
 	watchtypes "veyron.io/veyron/veyron2/services/watch/types"
 	"veyron.io/veyron/veyron2/vdl/vdlutil"
 	"veyron.io/veyron/veyron2/verror"
@@ -39,7 +39,7 @@ func (i *statsInvoker) Glob(call ipc.ServerCall, pattern string) error {
 
 	it := stats.Glob(i.suffix, pattern, time.Time{}, false)
 	for it.Advance() {
-		call.Send(mttypes.MountEntry{Name: it.Value().Key})
+		call.Send(naming.VDLMountEntry{Name: it.Value().Key})
 	}
 	if err := it.Err(); err != nil {
 		if err == stats.ErrNotFound {

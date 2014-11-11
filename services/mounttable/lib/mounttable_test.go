@@ -16,7 +16,6 @@ import (
 	"veyron.io/veyron/veyron2/options"
 	"veyron.io/veyron/veyron2/rt"
 	"veyron.io/veyron/veyron2/security"
-	"veyron.io/veyron/veyron2/services/mounttable/types"
 	"veyron.io/veyron/veyron2/vlog"
 
 	"veyron.io/veyron/veyron/lib/testutil"
@@ -93,7 +92,7 @@ func resolve(name string, as veyron2.Runtime) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	var entry types.MountEntry
+	var entry naming.VDLMountEntry
 	if ierr := call.Finish(&entry, &err); ierr != nil {
 		return "", ierr
 	}
@@ -282,7 +281,7 @@ func doGlobX(t *testing.T, ep, suffix, pattern string, as veyron2.Runtime, joinS
 	}
 	var reply []string
 	for {
-		var e types.MountEntry
+		var e naming.VDLMountEntry
 		err := call.Recv(&e)
 		if err == io.EOF {
 			break

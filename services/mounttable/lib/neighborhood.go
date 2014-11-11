@@ -14,7 +14,6 @@ import (
 	"veyron.io/veyron/veyron2/rt"
 	"veyron.io/veyron/veyron2/security"
 	"veyron.io/veyron/veyron2/services/mounttable"
-	"veyron.io/veyron/veyron2/services/mounttable/types"
 	verror "veyron.io/veyron/veyron2/verror2"
 	"veyron.io/veyron/veyron2/vlog"
 
@@ -153,8 +152,8 @@ func (nh *neighborhood) Stop() {
 }
 
 // neighbor returns the MountedServers for a particular neighbor.
-func (nh *neighborhood) neighbor(instance string) []types.MountedServer {
-	var reply []types.MountedServer
+func (nh *neighborhood) neighbor(instance string) []naming.VDLMountedServer {
+	var reply []naming.VDLMountedServer
 	si := nh.mdns.ResolveInstance(instance, "veyron")
 
 	// Use a map to dedup any addresses seen
@@ -171,7 +170,7 @@ func (nh *neighborhood) neighbor(instance string) []types.MountedServer {
 		}
 	}
 	for addr, ttl := range addrMap {
-		reply = append(reply, types.MountedServer{addr, ttl})
+		reply = append(reply, naming.VDLMountedServer{addr, ttl})
 	}
 
 	if reply != nil {
@@ -187,15 +186,15 @@ func (nh *neighborhood) neighbor(instance string) []types.MountedServer {
 		for _, ip := range ips {
 			addr := net.JoinHostPort(ip.String(), strconv.Itoa(int(rr.Port)))
 			ep := naming.FormatEndpoint("tcp", addr)
-			reply = append(reply, types.MountedServer{naming.JoinAddressName(ep, ""), ttl})
+			reply = append(reply, naming.VDLMountedServer{naming.JoinAddressName(ep, ""), ttl})
 		}
 	}
 	return reply
 }
 
 // neighbors returns all neighbors and their MountedServer structs.
-func (nh *neighborhood) neighbors() map[string][]types.MountedServer {
-	neighbors := make(map[string][]types.MountedServer, 0)
+func (nh *neighborhood) neighbors() map[string][]naming.VDLMountedServer {
+	neighbors := make(map[string][]naming.VDLMountedServer, 0)
 	members := nh.mdns.ServiceDiscovery("veyron")
 	for _, m := range members {
 		if neighbor := nh.neighbor(m.Name); neighbor != nil {
@@ -207,7 +206,7 @@ func (nh *neighborhood) neighbors() map[string][]types.MountedServer {
 }
 
 // ResolveStep implements ResolveStep
-func (ns *neighborhoodService) ResolveStep(ctx ipc.ServerContext) (servers []types.MountedServer, suffix string, err error) {
+func (ns *neighborhoodService) ResolveStep(ctx ipc.ServerContext) (servers []naming.VDLMountedServer, suffix string, err error) {
 	nh := ns.nh
 	vlog.VI(2).Infof("ResolveStep %v\n", ns.elems)
 	if len(ns.elems) == 0 {
@@ -224,7 +223,7 @@ func (ns *neighborhoodService) ResolveStep(ctx ipc.ServerContext) (servers []typ
 }
 
 // ResolveStepX implements ResolveStepX
-func (ns *neighborhoodService) ResolveStepX(ctx ipc.ServerContext) (entry types.MountEntry, err error) {
+func (ns *neighborhoodService) ResolveStepX(ctx ipc.ServerContext) (entry naming.VDLMountEntry, err error) {
 	nh := ns.nh
 	vlog.VI(2).Infof("ResolveStep %v\n", ns.elems)
 	if len(ns.elems) == 0 {
@@ -247,7 +246,7 @@ func (ns *neighborhoodService) ResolveStepX(ctx ipc.ServerContext) (entry types.
 }
 
 // Mount not implemented.
-func (*neighborhoodService) Mount(_ ipc.ServerContext, server string, ttlsecs uint32, opts types.MountFlag) error {
+func (*neighborhoodService) Mount(_ ipc.ServerContext, server string, ttlsecs uint32, opts naming.MountFlag) error {
 	return errors.New("this server does not implement Mount")
 }
 
@@ -273,7 +272,7 @@ func (ns *neighborhoodService) Glob(ctx mounttable.GlobbableGlobContext, pattern
 			if ok, _, _ := g.MatchInitialSegment(k); !ok {
 				continue
 			}
-			if err := sender.Send(types.MountEntry{Name: k, Servers: n, MT: true}); err != nil {
+			if err := sender.Send(naming.VDLMountEntry{Name: k, Servers: n, MT: true}); err != nil {
 				return err
 			}
 		}
@@ -283,7 +282,7 @@ func (ns *neighborhoodService) Glob(ctx mounttable.GlobbableGlobContext, pattern
 		if neighbor == nil {
 			return verror.Make(naming.ErrNoSuchName, ctx, ns.elems[0])
 		}
-		return sender.Send(types.MountEntry{Name: "", Servers: neighbor, MT: true})
+		return sender.Send(naming.VDLMountEntry{Name: "", Servers: neighbor, MT: true})
 	default:
 		return verror.Make(naming.ErrNoSuchName, ctx, ns.elems)
 	}

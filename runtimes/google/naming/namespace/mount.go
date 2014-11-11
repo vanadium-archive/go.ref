@@ -7,12 +7,11 @@ import (
 	"veyron.io/veyron/veyron2/ipc"
 	"veyron.io/veyron/veyron2/naming"
 	"veyron.io/veyron/veyron2/options"
-	"veyron.io/veyron/veyron2/services/mounttable/types"
 	"veyron.io/veyron/veyron2/vlog"
 )
 
 // mountIntoMountTable mounts a single server into a single mount table.
-func mountIntoMountTable(ctx context.T, client ipc.Client, name, server string, ttl time.Duration, flags types.MountFlag) error {
+func mountIntoMountTable(ctx context.T, client ipc.Client, name, server string, ttl time.Duration, flags naming.MountFlag) error {
 	ctx, _ = ctx.WithTimeout(callTimeout)
 	call, err := client.StartCall(ctx, name, "Mount", []interface{}{server, uint32(ttl.Seconds()), flags}, options.NoResolve(true))
 	if err != nil {
@@ -40,17 +39,17 @@ func unmountFromMountTable(ctx context.T, client ipc.Client, name, server string
 func (ns *namespace) Mount(ctx context.T, name, server string, ttl time.Duration, opts ...naming.MountOpt) error {
 	defer vlog.LogCall()()
 
-	var flags types.MountFlag
+	var flags naming.MountFlag
 	for _, o := range opts {
 		// NB: used a switch since we'll be adding more options.
 		switch v := o.(type) {
 		case naming.ReplaceMountOpt:
 			if v {
-				flags |= types.MountFlag(types.Replace)
+				flags |= naming.MountFlag(naming.Replace)
 			}
 		case naming.ServesMountTableOpt:
 			if v {
-				flags |= types.MountFlag(types.MT)
+				flags |= naming.MountFlag(naming.MT)
 			}
 		}
 	}

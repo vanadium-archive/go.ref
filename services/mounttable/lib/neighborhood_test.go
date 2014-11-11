@@ -9,7 +9,6 @@ import (
 
 	"veyron.io/veyron/veyron2/naming"
 	"veyron.io/veyron/veyron2/options"
-	"veyron.io/veyron/veyron2/services/mounttable/types"
 	"veyron.io/veyron/veyron2/vlog"
 
 	"veyron.io/veyron/veyron/lib/testutil"
@@ -87,7 +86,7 @@ L:
 	if cerr != nil {
 		boom(t, "ResolveStepX.StartCall: %s", cerr)
 	}
-	var entry types.MountEntry
+	var entry naming.VDLMountEntry
 	if cerr = call.Finish(&entry, &err); cerr != nil {
 		boom(t, "ResolveStepX: %s", cerr)
 	}

@@ -8,7 +8,6 @@ import (
 	"veyron.io/veyron/veyron2/ipc"
 	"veyron.io/veyron/veyron2/naming"
 	"veyron.io/veyron/veyron2/options"
-	"veyron.io/veyron/veyron2/services/mounttable/types"
 	"veyron.io/veyron/veyron2/vlog"
 
 	"veyron.io/veyron/veyron/lib/stats"
@@ -107,7 +106,7 @@ func TestDebugServer(t *testing.T) {
 		}
 		results := []string{}
 		for {
-			var me types.MountEntry
+			var me naming.VDLMountEntry
 			if err := call.Recv(&me); err != nil {
 				break
 			}

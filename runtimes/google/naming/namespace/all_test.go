@@ -14,7 +14,6 @@ import (
 	"veyron.io/veyron/veyron2/rt"
 	"veyron.io/veyron/veyron2/security"
 	"veyron.io/veyron/veyron2/services/mounttable"
-	"veyron.io/veyron/veyron2/services/mounttable/types"
 	verror "veyron.io/veyron/veyron2/verror2"
 	"veyron.io/veyron/veyron2/vlog"
 
@@ -98,7 +97,7 @@ func (t *testServer) Glob(call ipc.ServerCall, pattern string) error {
 
 func (t *testServer) globLoop(call ipc.ServerCall, prefix string, g *glob.Glob, tree []string) error {
 	if g.Len() == 0 {
-		if err := call.Send(types.MountEntry{Name: prefix}); err != nil {
+		if err := call.Send(naming.VDLMountEntry{Name: prefix}); err != nil {
 			return err
 		}
 	}

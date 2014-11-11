@@ -12,6 +12,7 @@ import (
 	"veyron.io/veyron/veyron2"
 	"veyron.io/veyron/veyron2/context"
 	"veyron.io/veyron/veyron2/ipc"
+	"veyron.io/veyron/veyron2/naming"
 	"veyron.io/veyron/veyron2/rt"
 	"veyron.io/veyron/veyron2/vdl/vdlutil"
 	"veyron.io/veyron/veyron2/vom"
@@ -19,7 +20,6 @@ import (
 
 	idl_binary "veyron.io/veyron/veyron2/services/mgmt/binary"
 	idl_node "veyron.io/veyron/veyron2/services/mgmt/node"
-	idl_mounttable_types "veyron.io/veyron/veyron2/services/mounttable/types"
 )
 
 const serverDesc = `
@@ -131,9 +131,9 @@ func runInvoke(cmd *cmdline.Command, args []string) error {
 	vom.Register(x2)
 	var x3 idl_binary.Description
 	vom.Register(x3)
-	var x4 idl_mounttable_types.MountedServer
+	var x4 naming.VDLMountedServer
 	vom.Register(x4)
-	var x5 idl_mounttable_types.MountEntry
+	var x5 naming.VDLMountEntry
 	vom.Register(x5)
 
 	// Decode the inputs from vomJSON-formatted command-line arguments.

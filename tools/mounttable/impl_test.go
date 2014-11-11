@@ -11,7 +11,6 @@ import (
 	"veyron.io/veyron/veyron2/rt"
 	"veyron.io/veyron/veyron2/security"
 	"veyron.io/veyron/veyron2/services/mounttable"
-	"veyron.io/veyron/veyron2/services/mounttable/types"
 	"veyron.io/veyron/veyron2/vlog"
 
 	"veyron.io/veyron/veyron/profiles"
@@ -24,12 +23,12 @@ type server struct {
 func (s *server) Glob(ctx mounttable.GlobbableGlobContext, pattern string) error {
 	vlog.VI(2).Infof("Glob() was called. suffix=%v pattern=%q", s.suffix, pattern)
 	sender := ctx.SendStream()
-	sender.Send(types.MountEntry{"name1", []types.MountedServer{{"server1", 123}}, false})
-	sender.Send(types.MountEntry{"name2", []types.MountedServer{{"server2", 456}, {"server3", 789}}, false})
+	sender.Send(naming.VDLMountEntry{"name1", []naming.VDLMountedServer{{"server1", 123}}, false})
+	sender.Send(naming.VDLMountEntry{"name2", []naming.VDLMountedServer{{"server2", 456}, {"server3", 789}}, false})
 	return nil
 }
 
-func (s *server) Mount(_ ipc.ServerContext, server string, ttl uint32, flags types.MountFlag) error {
+func (s *server) Mount(_ ipc.ServerContext, server string, ttl uint32, flags naming.MountFlag) error {
 	vlog.VI(2).Infof("Mount() was called. suffix=%v server=%q ttl=%d", s.suffix, server, ttl)
 	return nil
 }
@@ -39,16 +38,16 @@ func (s *server) Unmount(_ ipc.ServerContext, server string) error {
 	return nil
 }
 
-func (s *server) ResolveStep(ipc.ServerContext) (servers []types.MountedServer, suffix string, err error) {
+func (s *server) ResolveStep(ipc.ServerContext) (servers []naming.VDLMountedServer, suffix string, err error) {
 	vlog.VI(2).Infof("ResolveStep() was called. suffix=%v", s.suffix)
-	servers = []types.MountedServer{{"server1", 123}}
+	servers = []naming.VDLMountedServer{{"server1", 123}}
 	suffix = s.suffix
 	return
 }
 
-func (s *server) ResolveStepX(ipc.ServerContext) (entry types.MountEntry, err error) {
+func (s *server) ResolveStepX(ipc.ServerContext) (entry naming.VDLMountEntry, err error) {
 	vlog.VI(2).Infof("ResolveStepX() was called. suffix=%v", s.suffix)
-	entry.Servers = []types.MountedServer{{"server1", 123}}
+	entry.Servers = []naming.VDLMountedServer{{"server1", 123}}
 	entry.Name = s.suffix
 	return
 }

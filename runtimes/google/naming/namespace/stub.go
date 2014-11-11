@@ -4,7 +4,6 @@ import (
 	"time"
 
 	"veyron.io/veyron/veyron2/naming"
-	"veyron.io/veyron/veyron2/services/mounttable/types"
 )
 
 func convertServersToStrings(servers []naming.MountedServer, suffix string) (ret []string) {
@@ -21,7 +20,7 @@ func convertStringsToServers(servers []string) (ret []naming.MountedServer) {
 	return
 }
 
-func convertServers(servers []types.MountedServer) []naming.MountedServer {
+func convertServers(servers []naming.VDLMountedServer) []naming.MountedServer {
 	var reply []naming.MountedServer
 	for _, s := range servers {
 		if s.TTL == 0 {
@@ -33,7 +32,7 @@ func convertServers(servers []types.MountedServer) []naming.MountedServer {
 	return reply
 }
 
-func convertMountEntry(e *types.MountEntry) *naming.MountEntry {
+func convertMountEntry(e *naming.VDLMountEntry) *naming.MountEntry {
 	v := &naming.MountEntry{Name: e.Name, Servers: convertServers(e.Servers)}
 	v.SetServesMountTable(e.MT)
 	return v

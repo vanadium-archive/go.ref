@@ -17,7 +17,6 @@ import (
 	"veyron.io/veyron/veyron2/rt"
 	"veyron.io/veyron/veyron2/security"
 	"veyron.io/veyron/veyron2/services/mounttable"
-	"veyron.io/veyron/veyron2/services/mounttable/types"
 	verror "veyron.io/veyron/veyron2/verror2"
 	"veyron.io/veyron/veyron2/vlog"
 )
@@ -211,7 +210,7 @@ func (ms *mountContext) Authorize(context security.Context) error {
 
 // ResolveStep returns the next server in a resolution, the name remaining below that server,
 // and whether or not that server is another mount table.
-func (ms *mountContext) ResolveStep(context ipc.ServerContext) (servers []types.MountedServer, suffix string, err error) {
+func (ms *mountContext) ResolveStep(context ipc.ServerContext) (servers []naming.VDLMountedServer, suffix string, err error) {
 	vlog.VI(2).Infof("ResolveStep %q", ms.name)
 	mt := ms.mt
 	// TODO(caprita): we need to grab a write lock because walk may
@@ -232,7 +231,7 @@ func (ms *mountContext) ResolveStep(context ipc.ServerContext) (servers []types.
 
 // ResolveStepX returns the next server in a resolution in the form of a MountEntry.  The name
 // in the mount entry is the name relative to the server's root.
-func (ms *mountContext) ResolveStepX(context ipc.ServerContext) (entry types.MountEntry, err error) {
+func (ms *mountContext) ResolveStepX(context ipc.ServerContext) (entry naming.VDLMountEntry, err error) {
 	vlog.VI(2).Infof("ResolveStep %q", ms.name)
 	mt := ms.mt
 	// TODO(caprita): we need to grab a write lock because walk may
@@ -257,16 +256,16 @@ func (ms *mountContext) ResolveStepX(context ipc.ServerContext) (entry types.Mou
 	return
 }
 
-func hasMTFlag(flags types.MountFlag) bool {
-	return (flags & types.MT) == types.MT
+func hasMTFlag(flags naming.MountFlag) bool {
+	return (flags & naming.MT) == naming.MT
 }
 
-func hasReplaceFlag(flags types.MountFlag) bool {
-	return (flags & types.Replace) == types.Replace
+func hasReplaceFlag(flags naming.MountFlag) bool {
+	return (flags & naming.Replace) == naming.Replace
 }
 
 // Mount a server onto the name in the receiver.
-func (ms *mountContext) Mount(context ipc.ServerContext, server string, ttlsecs uint32, flags types.MountFlag) error {
+func (ms *mountContext) Mount(context ipc.ServerContext, server string, ttlsecs uint32, flags naming.MountFlag) error {
 	mt := ms.mt
 	if ttlsecs == 0 {
 		ttlsecs = 10 * 365 * 24 * 60 * 60 // a really long time
@@ -387,7 +386,7 @@ func (mt *mountTable) globStep(n *node, name string, pattern *glob.Glob, context
 			return
 		}
 		sender.Send(
-			types.MountEntry{
+			naming.VDLMountEntry{
 				Name: name, Servers: m.servers.copyToSlice(),
 				MT: n.mount.mt,
 			})
@@ -400,7 +399,7 @@ func (mt *mountTable) globStep(n *node, name string, pattern *glob.Glob, context
 			n.removeUseless()
 			return
 		}
-		sender.Send(types.MountEntry{Name: name})
+		sender.Send(naming.VDLMountEntry{Name: name})
 	}
 
 	if pattern.Finished() {
@@ -456,5 +455,5 @@ func (ms *mountContext) linkToLeaf(stream mounttable.GlobbableGlobServerStream) 
 	for i, s := range servers {
 		servers[i].Server = naming.Join(s.Server, slashSlashJoin(elems))
 	}
-	stream.SendStream().Send(types.MountEntry{Name: "", Servers: servers})
+	stream.SendStream().Send(naming.VDLMountEntry{Name: "", Servers: servers})
 }

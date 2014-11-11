@@ -11,7 +11,6 @@ import (
 	"veyron.io/veyron/veyron2/naming"
 	"veyron.io/veyron/veyron2/rt"
 	"veyron.io/veyron/veyron2/security"
-	"veyron.io/veyron/veyron2/services/mounttable/types"
 
 	"veyron.io/veyron/veyron/lib/glob"
 	"veyron.io/veyron/veyron/lib/testutil"
@@ -210,7 +209,7 @@ func (o *globObject) Glob(call ipc.ServerCall, pattern string) error {
 
 func (o *globObject) globLoop(call ipc.ServerCall, name string, g *glob.Glob, n *node) {
 	if g.Len() == 0 {
-		call.Send(types.MountEntry{Name: name})
+		call.Send(naming.VDLMountEntry{Name: name})
 	}
 	if g.Finished() {
 		return

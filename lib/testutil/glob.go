@@ -5,8 +5,8 @@ import (
 	"sort"
 
 	"veyron.io/veyron/veyron2/ipc"
+	"veyron.io/veyron/veyron2/naming"
 	"veyron.io/veyron/veyron2/rt"
-	"veyron.io/veyron/veyron2/services/mounttable/types"
 )
 
 // GlobName calls __Glob on the given object with the given pattern and returns
@@ -19,7 +19,7 @@ func GlobName(name, pattern string) ([]string, error) {
 	results := []string{}
 Loop:
 	for {
-		var me types.MountEntry
+		var me naming.VDLMountEntry
 		switch err := call.Recv(&me); err {
 		case nil:
 			results = append(results, me.Name)

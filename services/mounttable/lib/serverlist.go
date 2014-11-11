@@ -5,7 +5,7 @@ import (
 	"sync"
 	"time"
 
-	"veyron.io/veyron/veyron2/services/mounttable/types"
+	"veyron.io/veyron/veyron2/naming"
 )
 
 type serverListClock interface {
@@ -110,15 +110,15 @@ func (sl *serverList) removeExpired() int {
 }
 
 // copyToSlice returns the contents of the list as a slice of MountedServer.
-func (sl *serverList) copyToSlice() []types.MountedServer {
+func (sl *serverList) copyToSlice() []naming.VDLMountedServer {
 	sl.Lock()
 	defer sl.Unlock()
-	var slice []types.MountedServer
+	var slice []naming.VDLMountedServer
 	now := slc.now()
 	for e := sl.l.Front(); e != nil; e = e.Next() {
 		s := e.Value.(*server)
 		ttl := uint32(s.expires.Sub(now).Seconds())
-		ms := types.MountedServer{Server: s.oa, TTL: ttl}
+		ms := naming.VDLMountedServer{Server: s.oa, TTL: ttl}
 		slice = append(slice, ms)
 	}
 	return slice

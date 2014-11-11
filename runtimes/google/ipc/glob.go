@@ -6,7 +6,6 @@ import (
 	"veyron.io/veyron/veyron2/ipc"
 	"veyron.io/veyron/veyron2/naming"
 	"veyron.io/veyron/veyron2/security"
-	"veyron.io/veyron/veyron2/services/mounttable/types"
 	"veyron.io/veyron/veyron2/verror"
 	"veyron.io/veyron/veyron2/vlog"
 
@@ -96,7 +95,7 @@ func (i *globInternal) globStep(call ipc.ServerCall, disp ipc.Dispatcher, name s
 	gs := invoker.VGlob()
 	if gs == nil || (gs.VAllGlobber == nil && gs.VChildrenGlobber == nil) {
 		if g.Len() == 0 {
-			call.Send(types.MountEntry{Name: name})
+			call.Send(naming.VDLMountEntry{Name: name})
 		}
 		return nil
 	}
@@ -112,7 +111,7 @@ func (i *globInternal) globStep(call ipc.ServerCall, disp ipc.Dispatcher, name s
 			return nil
 		}
 		if g.Len() == 0 {
-			call.Send(types.MountEntry{Name: name})
+			call.Send(naming.VDLMountEntry{Name: name})
 		}
 		if g.Finished() {
 			return nil
@@ -151,7 +150,7 @@ var _ ipc.Stream = (*localServerCall)(nil)
 var _ ipc.ServerContext = (*localServerCall)(nil)
 
 func (c *localServerCall) Send(v interface{}) error {
-	me, ok := v.(types.MountEntry)
+	me, ok := v.(naming.VDLMountEntry)
 	if !ok {
 		return verror.BadArgf("unexpected stream type. Got %T, want MountEntry", v)
 	}

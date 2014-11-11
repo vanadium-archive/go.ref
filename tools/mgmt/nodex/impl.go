@@ -108,7 +108,6 @@ func root() *cmdline.Command {
 The nodex tool facilitates interaction with the veyron node manager.
 `,
 
-
- 		Children: []*cmdline.Command{cmdInstall, cmdStart, associateRoot(), cmdClaim},
+		Children: []*cmdline.Command{cmdInstall, cmdStart, associateRoot(), cmdClaim},
 	}
 }

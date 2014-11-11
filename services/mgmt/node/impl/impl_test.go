@@ -37,7 +37,6 @@ import (
 	"veyron.io/veyron/veyron2/services/mgmt/node"
 	"veyron.io/veyron/veyron2/services/mgmt/pprof"
 	"veyron.io/veyron/veyron2/services/mgmt/stats"
-	"veyron.io/veyron/veyron2/services/mounttable/types"
 	"veyron.io/veyron/veyron2/verror"
 	"veyron.io/veyron/veyron2/vlog"
 	"veyron.io/veyron/veyron2/vom"
@@ -62,7 +61,7 @@ const (
 
 func init() {
 	// TODO(rthellend): Remove when vom2 is ready.
-	vom.Register(&types.MountedServer{})
+	vom.Register(&naming.VDLMountedServer{})
 
 	modules.RegisterChild(execScriptCmd, "", execScript)
 	modules.RegisterChild(nodeManagerCmd, "", nodeManager)

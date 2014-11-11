@@ -8,7 +8,6 @@ import (
 	"veyron.io/veyron/veyron2/ipc"
 	"veyron.io/veyron/veyron2/naming"
 	"veyron.io/veyron/veyron2/options"
-	"veyron.io/veyron/veyron2/services/mounttable/types"
 	verror "veyron.io/veyron/veyron2/verror2"
 	"veyron.io/veyron/veyron2/vlog"
 )
@@ -31,7 +30,7 @@ func (ns *namespace) resolveAgainstMountTable(ctx context.T, client ipc.Client, 
 			vlog.VI(2).Infof("ResolveStep.StartCall %s failed: %s", name, err)
 			continue
 		}
-		var entry types.MountEntry
+		var entry naming.VDLMountEntry
 		ierr := call.Finish(&entry, &err)
 		if ierr != nil {
 			// Internal/system error.
