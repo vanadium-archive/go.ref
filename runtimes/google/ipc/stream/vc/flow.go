@@ -16,6 +16,7 @@ type authN interface {
 	LocalPrincipal() security.Principal
 	LocalBlessings() security.Blessings
 	RemoteBlessings() security.Blessings
+	RemoteDischarges() map[string]security.Discharge
 }
 
 func (f *flow) LocalEndpoint() naming.Endpoint  { return f.localEndpoint }

@@ -20,14 +20,14 @@ import (
 	"veyron.io/veyron/veyron/lib/expect"
 	"veyron.io/veyron/veyron/lib/modules"
 	"veyron.io/veyron/veyron/lib/testutil"
-	"veyron.io/veyron/veyron/runtimes/google/ipc/stream/sectest"
+	tsecurity "veyron.io/veyron/veyron/lib/testutil/security"
 	"veyron.io/veyron/veyron/runtimes/google/ipc/stream/vc"
 	"veyron.io/veyron/veyron/runtimes/google/ipc/version"
 	inaming "veyron.io/veyron/veyron/runtimes/google/naming"
 )
 
 func newPrincipal(defaultBlessing string) vc.LocalPrincipal {
-	return vc.LocalPrincipal{sectest.NewPrincipal(defaultBlessing)}
+	return vc.LocalPrincipal{tsecurity.NewPrincipal(defaultBlessing)}
 }
 
 func init() {

@@ -20,10 +20,11 @@ func (*noopFlow) LocalEndpoint() naming.Endpoint  { return nil }
 func (*noopFlow) RemoteEndpoint() naming.Endpoint { return nil }
 
 // Other stream.Flow methods
-func (*noopFlow) LocalPrincipal() security.Principal  { return nil }
-func (*noopFlow) LocalBlessings() security.Blessings  { return nil }
-func (*noopFlow) RemoteBlessings() security.Blessings { return nil }
-func (*noopFlow) SetDeadline(<-chan struct{})         {}
+func (*noopFlow) LocalPrincipal() security.Principal              { return nil }
+func (*noopFlow) LocalBlessings() security.Blessings              { return nil }
+func (*noopFlow) RemoteBlessings() security.Blessings             { return nil }
+func (*noopFlow) RemoteDischarges() map[string]security.Discharge { return nil }
+func (*noopFlow) SetDeadline(<-chan struct{})                     {}
 
 func TestListener(t *testing.T) {
 	ln := newListener()

@@ -1,8 +1,10 @@
 package rt_test
 
 import (
+	"fmt"
 	"reflect"
 	"testing"
+	"time"
 
 	"veyron.io/veyron/veyron2"
 	"veyron.io/veyron/veyron2/ipc"
@@ -11,8 +13,11 @@ import (
 	"veyron.io/veyron/veyron2/security"
 
 	"veyron.io/veyron/veyron/lib/testutil"
+	tsecurity "veyron.io/veyron/veyron/lib/testutil/security"
 	"veyron.io/veyron/veyron/profiles"
 	vsecurity "veyron.io/veyron/veyron/security"
+	"veyron.io/veyron/veyron2/vdl/vdlutil"
+	"veyron.io/veyron/veyron2/verror"
 )
 
 func init() { testutil.Init() }
@@ -23,37 +28,25 @@ func (testService) EchoBlessings(call ipc.ServerCall) []string {
 	return call.RemoteBlessings().ForContext(call)
 }
 
+type dischargeService struct{}
+
+func (dischargeService) Discharge(ctx ipc.ServerCall, cav vdlutil.Any, _ security.DischargeImpetus) (vdlutil.Any, error) {
+	c, ok := cav.(security.ThirdPartyCaveat)
+	if !ok {
+		return nil, fmt.Errorf("discharger: unknown caveat(%T)", cav)
+	}
+	if err := c.Dischargeable(ctx); err != nil {
+		return nil, fmt.Errorf("third-party caveat %v cannot be discharged for this context: %v", c, err)
+	}
+	return ctx.LocalPrincipal().MintDischarge(c, security.UnconstrainedUse())
+}
+
 func newRT() veyron2.Runtime {
 	r, err := rt.New()
 	if err != nil {
 		panic(err)
 	}
 	return r
-}
-
-type rootPrincipal struct {
-	p security.Principal
-	b security.Blessings
-}
-
-func newRootPrincipal(name string) *rootPrincipal {
-	p, err := vsecurity.NewPrincipal()
-	if err != nil {
-		panic(err)
-	}
-	b, err := p.BlessSelf(name)
-	if err != nil {
-		panic(err)
-	}
-	return &rootPrincipal{p, b}
-}
-
-func (r *rootPrincipal) Bless(p security.Principal, extension string) security.Blessings {
-	b, err := r.p.Bless(p.PublicKey(), r.b, extension, security.UnconstrainedUse())
-	if err != nil {
-		panic(err)
-	}
-	return b
 }
 
 func union(blessings ...security.Blessings) security.Blessings {
@@ -67,20 +60,68 @@ func union(blessings ...security.Blessings) security.Blessings {
 	return ret
 }
 
+func newCaveat(v security.CaveatValidator) security.Caveat {
+	cav, err := security.NewCaveat(v)
+	if err != nil {
+		panic(err)
+	}
+	return cav
+}
+
+func mkCaveat(cav security.Caveat, err error) security.Caveat {
+	if err != nil {
+		panic(err)
+	}
+	return cav
+}
+
+func mkThirdPartyCaveat(discharger security.PublicKey, location string, caveats ...security.Caveat) security.Caveat {
+	if len(caveats) == 0 {
+		caveats = []security.Caveat{security.UnconstrainedUse()}
+	}
+	tpc, err := security.NewPublicKeyCaveat(discharger, location, security.ThirdPartyRequirements{}, caveats[0], caveats[1:]...)
+	if err != nil {
+		panic(err)
+	}
+	return newCaveat(tpc)
+}
+
+func startServer(runtime veyron2.Runtime, s interface{}) (ipc.Server, string, error) {
+	server, err := runtime.NewServer()
+	if err != nil {
+		return nil, "", err
+	}
+	endpoint, err := server.Listen(profiles.LocalListenSpec)
+	if err != nil {
+		return nil, "", err
+	}
+	serverObjectName := naming.JoinAddressName(endpoint.String(), "")
+	if err := server.Serve("", s, vsecurity.NewACLAuthorizer(vsecurity.OpenACL())); err != nil {
+		return nil, "", err
+	}
+	return server, serverObjectName, nil
+}
+
 func TestClientServerBlessings(t *testing.T) {
+	b := func(blessings security.Blessings, err error) security.Blessings {
+		if err != nil {
+			t.Fatal(err)
+		}
+		return blessings
+	}
 	var (
-		rootAlpha, rootBeta, rootUnrecognized = newRootPrincipal("alpha"), newRootPrincipal("beta"), newRootPrincipal("unrecognized")
+		rootAlpha, rootBeta, rootUnrecognized = tsecurity.NewIDProvider("alpha"), tsecurity.NewIDProvider("beta"), tsecurity.NewIDProvider("unrecognized")
 		clientRT, serverRT                    = newRT(), newRT()
 		pclient, pserver                      = clientRT.Principal(), serverRT.Principal()
 
 		// A bunch of blessings
-		alphaClient        = rootAlpha.Bless(pclient, "client")
-		betaClient         = rootBeta.Bless(pclient, "client")
-		unrecognizedClient = rootUnrecognized.Bless(pclient, "client")
+		alphaClient        = b(rootAlpha.NewBlessings(pclient, "client"))
+		betaClient         = b(rootBeta.NewBlessings(pclient, "client"))
+		unrecognizedClient = b(rootUnrecognized.NewBlessings(pclient, "client"))
 
-		alphaServer        = rootAlpha.Bless(pserver, "server")
-		betaServer         = rootBeta.Bless(pserver, "server")
-		unrecognizedServer = rootUnrecognized.Bless(pserver, "server")
+		alphaServer        = b(rootAlpha.NewBlessings(pserver, "server"))
+		betaServer         = b(rootBeta.NewBlessings(pserver, "server"))
+		unrecognizedServer = b(rootUnrecognized.NewBlessings(pserver, "server"))
 	)
 	// Setup the client's blessing store
 	pclient.BlessingStore().Set(alphaClient, "alpha/server")
@@ -113,27 +154,19 @@ func TestClientServerBlessings(t *testing.T) {
 
 	// Have the client and server both trust both the root principals.
 	for _, rt := range []veyron2.Runtime{clientRT, serverRT} {
-		for _, root := range []*rootPrincipal{rootAlpha, rootBeta} {
-			if err := rt.Principal().AddToRoots(root.b); err != nil {
+		for _, b := range []security.Blessings{alphaClient, betaClient} {
+			if err := rt.Principal().AddToRoots(b); err != nil {
 				t.Fatal(err)
 			}
 		}
 	}
 	// Start the server process.
-	server, err := serverRT.NewServer()
+	server, serverObjectName, err := startServer(serverRT, testService{})
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer server.Stop()
-	var serverObjectName string
-	if endpoint, err := server.Listen(profiles.LocalListenSpec); err != nil {
-		t.Fatal(err)
-	} else {
-		serverObjectName = naming.JoinAddressName(endpoint.String(), "")
-	}
-	if err := server.Serve("", testService{}, vsecurity.NewACLAuthorizer(vsecurity.OpenACL())); err != nil {
-		t.Fatal(err)
-	}
+
 	// Let it rip!
 	for _, test := range tests {
 		// Create a new client per test so as to not re-use established authenticated VCs.
@@ -158,5 +191,89 @@ func TestClientServerBlessings(t *testing.T) {
 			t.Errorf("%v: Got %v, want %v for server blessings", test.server, gotServer, test.wantClient)
 		}
 		client.Close()
+	}
+}
+
+func TestServerDischarges(t *testing.T) {
+	b := func(blessings security.Blessings, err error) security.Blessings {
+		if err != nil {
+			t.Fatal(err)
+		}
+		return blessings
+	}
+	var (
+		dischargerRT, clientRT, serverRT = newRT(), newRT(), newRT()
+		pdischarger, pclient, pserver    = dischargerRT.Principal(), clientRT.Principal(), serverRT.Principal()
+		root                             = tsecurity.NewIDProvider("root")
+	)
+
+	// Start the server and discharge server.
+	server, serverName, err := startServer(serverRT, &testService{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer server.Stop()
+	dischargeServer, dischargeServerName, err := startServer(dischargerRT, &dischargeService{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer dischargeServer.Stop()
+
+	// Setup the server's and discharger's blessing store and blessing roots.
+	if err := root.Bless(pserver, "server", mkThirdPartyCaveat(pdischarger.PublicKey(), dischargeServerName)); err != nil {
+		t.Fatal(err)
+	}
+	if err := root.Bless(pdischarger, "discharger"); err != nil {
+		t.Fatal(err)
+	}
+
+	// Create a new client.
+	client, err := clientRT.NewClient()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer client.Close()
+
+	// Setup up the client's blessing store so that it can talk to the server.
+	rootClient := b(root.NewBlessings(pclient, "client"))
+	if _, err := pclient.BlessingStore().Set(nil, security.AllPrincipals); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := pclient.BlessingStore().Set(rootClient, "root/server"); err != nil {
+		t.Fatal(err)
+	}
+	if err := pclient.AddToRoots(rootClient); err != nil {
+		t.Fatal(err)
+	}
+
+	// Test that the client and server can communicate with the expected set of blessings
+	// when server provides appropriate discharges.
+	wantClient := []string{"root/client"}
+	wantServer := []string{"root/server"}
+	var gotClient []string
+	if call, err := client.StartCall(clientRT.NewContext(), serverName, "EchoBlessings", nil); err != nil {
+		t.Errorf("client.StartCall failed: %v", err)
+	} else if err = call.Finish(&gotClient); err != nil {
+		t.Errorf("call.Finish failed: %v", err)
+	} else if !reflect.DeepEqual(gotClient, wantClient) {
+		t.Errorf("Got %v, want %v for client blessings", gotClient, wantClient)
+	} else if gotServer, _ := call.RemoteBlessings(); !reflect.DeepEqual(gotServer, wantServer) {
+		t.Errorf("Got %v, want %v for server blessings", gotServer, wantServer)
+	}
+
+	// Test that the client fails to talk to server that does not present appropriate discharges.
+	// Setup a new client so that there are no cached VCs.
+	if client, err = clientRT.NewClient(); err != nil {
+		t.Fatal(err)
+	}
+	defer client.Close()
+
+	rootServerInvalidTPCaveat := b(root.NewBlessings(pserver, "server", mkThirdPartyCaveat(pdischarger.PublicKey(), dischargeServerName, mkCaveat(security.ExpiryCaveat(time.Now().Add(-1*time.Second))))))
+	if err := pserver.BlessingStore().SetDefault(rootServerInvalidTPCaveat); err != nil {
+		t.Fatal(err)
+	}
+	if call, err := client.StartCall(clientRT.NewContext(), serverName, "EchoBlessings", nil); verror.Is(err, verror.NoAccess) {
+		remoteBlessings, _ := call.RemoteBlessings()
+		t.Errorf("client.StartCall passed unexpectedly with remote end authenticated as: %v", remoteBlessings)
 	}
 }

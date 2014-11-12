@@ -12,9 +12,9 @@ import (
 	"veyron.io/veyron/veyron2/naming"
 
 	"veyron.io/veyron/veyron/lib/testutil"
+	tsecurity "veyron.io/veyron/veyron/lib/testutil/security"
 	"veyron.io/veyron/veyron/runtimes/google/ipc/stream/manager"
 	"veyron.io/veyron/veyron/runtimes/google/ipc/stream/proxy"
-	"veyron.io/veyron/veyron/runtimes/google/ipc/stream/sectest"
 	"veyron.io/veyron/veyron/runtimes/google/ipc/stream/vc"
 )
 
@@ -108,7 +108,7 @@ func TestDuplicateRoutingID(t *testing.T) {
 }
 
 func TestProxyAuthentication(t *testing.T) {
-	pproxy := sectest.NewPrincipal("proxy")
+	pproxy := tsecurity.NewPrincipal("proxy")
 	proxy, err := proxy.New(naming.FixedRoutingID(0xbbbbbbbbbbbbbbbb), pproxy, "tcp", "127.0.0.1:0", "")
 	if err != nil {
 		t.Fatal(err)
@@ -140,7 +140,7 @@ func TestServerBlessings(t *testing.T) {
 
 	server := manager.InternalNew(naming.FixedRoutingID(0x5555555555555555))
 	defer server.Shutdown()
-	pserver := sectest.NewPrincipal("server")
+	pserver := tsecurity.NewPrincipal("server")
 	ln, ep, err := server.Listen(proxy.Endpoint().Network(), proxy.Endpoint().String(), vc.LocalPrincipal{pserver})
 	if err != nil {
 		t.Fatal(err)

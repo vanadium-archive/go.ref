@@ -29,18 +29,22 @@ var (
 
 // authenticateAsServer executes the authentication protocol at the server and
 // returns the blessings used to authenticate the client.
-func authenticateAsServer(conn io.ReadWriteCloser, principal security.Principal, server security.Blessings, crypter crypto.Crypter, v version.IPCVersion) (client security.Blessings, err error) {
+func authenticateAsServer(conn io.ReadWriteCloser, principal security.Principal, server security.Blessings, dc DischargeClient, crypter crypto.Crypter, v version.IPCVersion) (client security.Blessings, clientDischarges map[string]security.Discharge, err error) {
 	defer conn.Close()
 	if server == nil {
-		return nil, errors.New("no blessings to present as a server")
+		return nil, nil, fmt.Errorf("BlessingStore does not contain a default set of blessings, cannot act as a server")
 	}
-	if err := writeBlessings(conn, authServerContextTag, crypter, principal, server, v); err != nil {
-		return nil, err
+	var discharges []security.Discharge
+	if tpcavs := server.ThirdPartyCaveats(); len(tpcavs) > 0 && dc != nil {
+		discharges = dc.PrepareDischarges(tpcavs, security.DischargeImpetus{})
 	}
-	if client, err = readBlessings(conn, authClientContextTag, crypter, v); err != nil {
-		return nil, err
+	if err = writeBlessings(conn, authServerContextTag, crypter, principal, server, discharges, v); err != nil {
+		return
 	}
-	return client, nil
+	if client, clientDischarges, err = readBlessings(conn, authClientContextTag, crypter, v); err != nil {
+		return
+	}
+	return
 }
 
 // authenticateAsClient executes the authentication protocol at the client and
@@ -51,14 +55,15 @@ func authenticateAsServer(conn io.ReadWriteCloser, principal security.Principal,
 //
 // TODO(ashankar): Seems like there is no way the blessing store
 // can say that it does NOT want to share the default blessing with the server?
-func authenticateAsClient(conn io.ReadWriteCloser, principal security.Principal, crypter crypto.Crypter, v version.IPCVersion) (server, client security.Blessings, err error) {
+func authenticateAsClient(conn io.ReadWriteCloser, principal security.Principal, dc DischargeClient, crypter crypto.Crypter, v version.IPCVersion) (server, client security.Blessings, serverDischarges map[string]security.Discharge, err error) {
 	defer conn.Close()
-	if server, err = readBlessings(conn, authServerContextTag, crypter, v); err != nil {
-		return nil, nil, err
+	if server, serverDischarges, err = readBlessings(conn, authServerContextTag, crypter, v); err != nil {
+		return
 	}
 	serverB := server.ForContext(security.NewContext(&security.ContextParams{
-		LocalPrincipal:  principal,
-		RemoteBlessings: server,
+		LocalPrincipal:   principal,
+		RemoteBlessings:  server,
+		RemoteDischarges: serverDischarges,
 		// TODO(ashankar): Get the local and remote endpoint here?
 		// There is also a bootstrapping problem here. For example, let's say
 		// (1) server has the blessing "provider/server" with a PeerIdentity caveat of "provider/client"
@@ -69,15 +74,19 @@ func authenticateAsClient(conn io.ReadWriteCloser, principal security.Principal,
 	}))
 	client = principal.BlessingStore().ForPeer(serverB...)
 	if client == nil {
-		return nil, nil, fmt.Errorf("no blessing tagged for peer %v in the BlessingStore", serverB)
+		return nil, nil, nil, fmt.Errorf("no blessing tagged for peer %v in the BlessingStore", serverB)
 	}
-	if err = writeBlessings(conn, authClientContextTag, crypter, principal, client, v); err != nil {
-		return nil, nil, err
+	var discharges []security.Discharge
+	if dc != nil {
+		discharges = dc.PrepareDischarges(client.ThirdPartyCaveats(), security.DischargeImpetus{})
 	}
-	return server, client, nil
+	if err = writeBlessings(conn, authClientContextTag, crypter, principal, client, discharges, v); err != nil {
+		return
+	}
+	return
 }
 
-func writeBlessings(w io.Writer, tag []byte, crypter crypto.Crypter, p security.Principal, b security.Blessings, v version.IPCVersion) error {
+func writeBlessings(w io.Writer, tag []byte, crypter crypto.Crypter, p security.Principal, b security.Blessings, discharges []security.Discharge, v version.IPCVersion) error {
 	signature, err := p.Sign(append(tag, crypter.ChannelBinding()...))
 	if err != nil {
 		return err
@@ -90,6 +99,11 @@ func writeBlessings(w io.Writer, tag []byte, crypter crypto.Crypter, p security.
 	if err := enc.Encode(b); err != nil {
 		return err
 	}
+	if v >= version.IPCVersion5 {
+		if err := enc.Encode(discharges); err != nil {
+			return err
+		}
+	}
 	msg, err := crypter.Encrypt(iobuf.NewSlice(buf.Bytes()))
 	if err != nil {
 		return err
@@ -98,34 +112,49 @@ func writeBlessings(w io.Writer, tag []byte, crypter crypto.Crypter, p security.
 	return vom.NewEncoder(w).Encode(msg.Contents)
 }
 
-func readBlessings(r io.Reader, tag []byte, crypter crypto.Crypter, v version.IPCVersion) (security.Blessings, error) {
+func readBlessings(r io.Reader, tag []byte, crypter crypto.Crypter, v version.IPCVersion) (blessings security.Blessings, discharges map[string]security.Discharge, err error) {
 	var msg []byte
-	if err := vom.NewDecoder(r).Decode(&msg); err != nil {
-		return nil, fmt.Errorf("failed to read handshake message: %v", err)
+	if err = vom.NewDecoder(r).Decode(&msg); err != nil {
+		return nil, nil, fmt.Errorf("failed to read handshake message: %v", err)
 	}
 	buf, err := crypter.Decrypt(iobuf.NewSlice(msg))
 	if err != nil {
-		return nil, err
+		return
 	}
 	defer buf.Release()
 	dec := vom.NewDecoder(bytes.NewReader(buf.Contents))
-	var wireb security.WireBlessings
-	var sig security.Signature
-	if err := dec.Decode(&sig); err != nil {
-		return nil, err
+
+	var (
+		wireb security.WireBlessings
+		sig   security.Signature
+	)
+	if err = dec.Decode(&sig); err != nil {
+		return
 	}
-	if err := dec.Decode(&wireb); err != nil {
-		return nil, err
+	if err = dec.Decode(&wireb); err != nil {
+		return
 	}
-	b, err := security.NewBlessings(wireb)
+	var dischargeSet []security.Discharge
+	if v >= version.IPCVersion5 {
+		if err = dec.Decode(&dischargeSet); err != nil {
+			return
+		}
+	}
+	if len(dischargeSet) > 0 {
+		discharges = make(map[string]security.Discharge)
+		for _, d := range dischargeSet {
+			discharges[d.ID()] = d
+		}
+	}
+	blessings, err = security.NewBlessings(wireb)
 	if err != nil {
-		return nil, err
+		return
 	}
-	if b == nil {
-		return nil, errNoCertificatesReceived
+	if blessings == nil {
+		return nil, nil, errNoCertificatesReceived
 	}
-	if !sig.Verify(b.PublicKey(), append(tag, crypter.ChannelBinding()...)) {
-		return nil, errInvalidSignatureInMessage
+	if !sig.Verify(blessings.PublicKey(), append(tag, crypter.ChannelBinding()...)) {
+		return nil, nil, errInvalidSignatureInMessage
 	}
-	return b, nil
+	return
 }

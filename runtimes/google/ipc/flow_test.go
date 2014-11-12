@@ -7,7 +7,7 @@ import (
 	"testing"
 
 	"veyron.io/veyron/veyron/lib/testutil"
-	"veyron.io/veyron/veyron/runtimes/google/ipc/stream/sectest"
+	tsecurity "veyron.io/veyron/veyron/lib/testutil/security"
 
 	"veyron.io/veyron/veyron2/ipc"
 	"veyron.io/veyron/veyron2/naming"
@@ -21,7 +21,7 @@ func init() { testutil.Init() }
 // own bookkeeping, to allow testing of method calls.
 func newTestFlows() (*testFlow, *testFlow) {
 	var (
-		p0, p1               = sectest.NewPrincipal("p0"), sectest.NewPrincipal("p1")
+		p0, p1               = tsecurity.NewPrincipal("p0"), tsecurity.NewPrincipal("p1")
 		blessing0, blessing1 = p0.BlessingStore().Default(), p1.BlessingStore().Default()
 		b0, b1               = new(bytes.Buffer), new(bytes.Buffer)
 	)
@@ -36,17 +36,18 @@ type testFlow struct {
 	errClose      error
 }
 
-func (f *testFlow) Read(b []byte) (int, error)          { return f.r.Read(b) }
-func (f *testFlow) Write(b []byte) (int, error)         { return f.w.Write(b) }
-func (f *testFlow) LocalEndpoint() naming.Endpoint      { return nil }
-func (f *testFlow) RemoteEndpoint() naming.Endpoint     { return nil }
-func (f *testFlow) LocalPrincipal() security.Principal  { return f.p }
-func (f *testFlow) LocalBlessings() security.Blessings  { return f.lb }
-func (f *testFlow) RemoteBlessings() security.Blessings { return f.rb }
-func (f *testFlow) SetDeadline(<-chan struct{})         {}
-func (f *testFlow) IsClosed() bool                      { return false }
-func (f *testFlow) Closed() <-chan struct{}             { return nil }
-func (f *testFlow) Cancel()                             {}
+func (f *testFlow) Read(b []byte) (int, error)                    { return f.r.Read(b) }
+func (f *testFlow) Write(b []byte) (int, error)                   { return f.w.Write(b) }
+func (*testFlow) LocalEndpoint() naming.Endpoint                  { return nil }
+func (*testFlow) RemoteEndpoint() naming.Endpoint                 { return nil }
+func (f *testFlow) LocalPrincipal() security.Principal            { return f.p }
+func (f *testFlow) LocalBlessings() security.Blessings            { return f.lb }
+func (f *testFlow) RemoteBlessings() security.Blessings           { return f.rb }
+func (*testFlow) RemoteDischarges() map[string]security.Discharge { return nil }
+func (*testFlow) SetDeadline(<-chan struct{})                     {}
+func (*testFlow) IsClosed() bool                                  { return false }
+func (*testFlow) Closed() <-chan struct{}                         { return nil }
+func (*testFlow) Cancel()                                         {}
 
 func (f *testFlow) Close() error {
 	f.numCloseCalls++
@@ -134,7 +135,7 @@ func TestFlowClientServer(t *testing.T) {
 	}
 	for _, test := range tests {
 		clientFlow, serverFlow := newTestFlows()
-		client := newFlowClient(testContext(), []string{"p0"}, clientFlow, nil, nil)
+		client := newFlowClient(testContext(), []string{"p0"}, clientFlow, nil)
 		server := newFlowServer(serverFlow, ipcServer)
 		err := client.start(test.suffix, test.method, test.args, 0, nil)
 		if err != nil {
