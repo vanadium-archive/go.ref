@@ -102,6 +102,7 @@ func (inst *browsprInstance) StartBrowspr(message ppapi.Var) error {
 
 	fmt.Printf("Starting browspr with config: proxy=%q mounttable=%q identityd=%q ", veyronProxy, mounttable, identd)
 	inst.browspr = browspr.NewBrowspr(inst.BrowsprOutgoingPostMessage, listenSpec, identd, []string{mounttable}, options.RuntimePrincipal{principal})
+	return nil
 }
 
 func (inst *browsprInstance) BrowsprOutgoingPostMessage(instanceId int32, ty string, message string) {
@@ -134,6 +135,7 @@ func (inst *browsprInstance) HandleBrowsprMessage(message ppapi.Var) error {
 		// TODO(bprosnitz) Remove. We shouldn't panic on user input.
 		return fmt.Errorf("Error while handling message in browspr: %v", err)
 	}
+	return nil
 }
 
 func (inst *browsprInstance) HandleBrowsprCleanup(message ppapi.Var) error {
@@ -157,11 +159,12 @@ func (inst *browsprInstance) HandleBrowsprCreateAccount(message ppapi.Var) error
 		return err
 	}
 
-	err = inst.browspr.HandleCreateAccountMessage(instanceId, accessToken)
+	err = inst.browspr.HandleCreateAccountMessage(int32(instanceId), accessToken)
 	if err != nil {
 		// TODO(bprosnitz) Remove. We shouldn't panic on user input.
 		panic(fmt.Sprintf("Error creating account: %v", err))
 	}
+	return nil
 }
 
 func (inst *browsprInstance) HandleBrowsprAssociateAccount(message ppapi.Var) error {
@@ -180,22 +183,13 @@ func (inst *browsprInstance) HandleBrowsprAssociateAccount(message ppapi.Var) er
 		// TODO(bprosnitz) Remove. We shouldn't panic on user input.
 		return fmt.Errorf("Error associating account: %v", err)
 	}
+	return nil
 }
 
 // handleGoError handles error returned by go code.
 func (inst *browsprInstance) handleGoError(err error) {
-	vlog.V(2).Error(err)
-	inst.LogString(fmt.Sprintf("Error in go code: %v", err.Error()))
-}
-
-type handlerType func(ppapi.Var)
-
-var messageHandlers = map[string]handlerType{
-	"start":                   inst.StartBrowspr,
-	"browsprMsg":              inst.HandleBrowsprMessage,
-	"browpsrClose":            inst.HandleBrowsprCleanup,
-	"browsprCreateAccount":    inst.HandleBrowsprCreateAccount,
-	"browsprAssociateAccount": inst.HandleBrowsprAssociateAccount,
+	vlog.VI(2).Info(err)
+	inst.LogString(ppapi.PP_LOGLEVEL_ERROR, fmt.Sprintf("Error in go code: %v", err.Error()))
 }
 
 // HandleMessage receives messages from Javascript and uses them to perform actions.
@@ -205,11 +199,20 @@ func (inst *browsprInstance) HandleMessage(message ppapi.Var) {
 	fmt.Printf("Entered HandleMessage")
 	ty, err := message.LookupStringValuedKey("type")
 	if err != nil {
-		return handleGoError(err)
+		inst.handleGoError(err)
+		return
+	}
+	var messageHandlers = map[string]func(ppapi.Var) error{
+		"start":                   inst.StartBrowspr,
+		"browsprMsg":              inst.HandleBrowsprMessage,
+		"browpsrClose":            inst.HandleBrowsprCleanup,
+		"browsprCreateAccount":    inst.HandleBrowsprCreateAccount,
+		"browsprAssociateAccount": inst.HandleBrowsprAssociateAccount,
 	}
 	h, ok := messageHandlers[ty]
 	if !ok {
-		return handleGoError("No handler found for message type: %q", ty)
+		inst.handleGoError(fmt.Errorf("No handler found for message type: %q", ty))
+		return
 	}
 	body, err := message.LookupKey("body")
 	if err != nil {
@@ -218,7 +221,7 @@ func (inst *browsprInstance) HandleMessage(message ppapi.Var) {
 	err = h(body)
 	body.Release()
 	if err != nil {
-		handleGoError(err)
+		inst.handleGoError(err)
 	}
 }
 
