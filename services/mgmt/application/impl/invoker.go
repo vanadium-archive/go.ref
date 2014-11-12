@@ -143,3 +143,66 @@ func (i *invoker) Remove(context ipc.ServerContext, profile string) error {
 	}
 	return nil
 }
+
+func (i *invoker) allApplications() ([]string, error) {
+	apps, err := i.store.BindObject("/applications").Children()
+	if err != nil {
+		return nil, err
+	}
+	return apps, nil
+}
+
+func (i *invoker) allAppVersions(appName string) ([]string, error) {
+	profiles, err := i.store.BindObject(naming.Join("/applications", appName)).Children()
+	if err != nil {
+		return nil, err
+	}
+	uniqueVersions := make(map[string]struct{})
+	for _, profile := range profiles {
+		versions, err := i.store.BindObject(naming.Join("/applications", appName, profile)).Children()
+		if err != nil {
+			return nil, err
+		}
+		for _, v := range versions {
+			uniqueVersions[v] = struct{}{}
+		}
+	}
+	versions := make([]string, len(uniqueVersions))
+	index := 0
+	for v, _ := range uniqueVersions {
+		versions[index] = v
+		index++
+	}
+	return versions, nil
+}
+
+func (i *invoker) VGlobChildren() ([]string, error) {
+	vlog.VI(0).Infof("%v.VGlobChildren()", i.suffix)
+	i.store.Lock()
+	defer i.store.Unlock()
+
+	var elems []string
+	if i.suffix != "" {
+		elems = strings.Split(i.suffix, "/")
+	}
+
+	switch len(elems) {
+	case 0:
+		return i.allApplications()
+	case 1:
+		return i.allAppVersions(elems[0])
+	case 2:
+		versions, err := i.allAppVersions(elems[0])
+		if err != nil {
+			return nil, err
+		}
+		for _, v := range versions {
+			if v == elems[1] {
+				return nil, nil
+			}
+		}
+		return nil, errNotFound
+	default:
+		return nil, errNotFound
+	}
+}

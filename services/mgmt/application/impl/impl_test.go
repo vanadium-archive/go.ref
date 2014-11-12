@@ -9,6 +9,7 @@ import (
 	"veyron.io/veyron/veyron2/rt"
 	"veyron.io/veyron/veyron2/services/mgmt/application"
 
+	"veyron.io/veyron/veyron/lib/testutil"
 	"veyron.io/veyron/veyron/profiles"
 	"veyron.io/veyron/veyron/services/mgmt/repository"
 )
@@ -100,6 +101,21 @@ func TestInterface(t *testing.T) {
 	}
 	if _, err := stub.Match(ctx, []string{"media"}); err == nil || err.Error() != errInvalidSuffix.Error() {
 		t.Fatalf("Unexpected error: expected %v, got %v", errInvalidSuffix, err)
+	}
+
+	// Test Glob
+	matches, err := testutil.GlobName(naming.JoinAddressName(endpoint.String(), ""), "...")
+	if err != nil {
+		t.Errorf("Unexpected Glob error: %v", err)
+	}
+	expected := []string{
+		"",
+		"search",
+		"search/v1",
+		"search/v2",
+	}
+	if !reflect.DeepEqual(matches, expected) {
+		t.Errorf("unexpected Glob results. Got %q, want %q", matches, expected)
 	}
 
 	// Test Remove(), trying to remove both existing and non-existing

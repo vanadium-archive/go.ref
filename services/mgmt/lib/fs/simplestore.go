@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"sort"
 	"strings"
 	"sync"
 
@@ -329,6 +330,45 @@ func (o *boundObject) Put(_ interface{}, envelope interface{}) (*boundObject, er
 	default:
 		return o, verror.BadProtocolf("attempted Put to Memstore of unsupported type")
 	}
+}
+
+func (o *boundObject) Children() ([]string, error) {
+	if !o.ms.locked {
+		return nil, verror.BadProtocolf("Children() without a lock.")
+	}
+	found := false
+	set := make(map[string]struct{})
+	for k, _ := range o.ms.data {
+		if strings.HasPrefix(k, o.path) || o.path == "" {
+			name := strings.TrimPrefix(k, o.path)
+			// Found the object itself.
+			if len(name) == 0 {
+				found = true
+				continue
+			}
+			// This was only a prefix match, not what we're looking for.
+			if name[0] != '/' && o.path != "" {
+				continue
+			}
+			found = true
+			name = strings.TrimLeft(name, "/")
+			if idx := strings.Index(name, "/"); idx != -1 {
+				name = name[:idx]
+			}
+			set[name] = keyExists
+		}
+	}
+	if !found {
+		return nil, verror.NoExistf("object %q does not exist", o.path)
+	}
+	children := make([]string, len(set))
+	i := 0
+	for k, _ := range set {
+		children[i] = k
+		i++
+	}
+	sort.Strings(children)
+	return children, nil
 }
 
 // persist() writes the state of the Memstore to persistent storage.

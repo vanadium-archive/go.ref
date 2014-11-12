@@ -449,3 +449,68 @@ func TestOpenEmptyMemstore(t *testing.T) {
 		t.Fatalf("fs.NewMemstore() failed: %v", err)
 	}
 }
+
+func TestChildren(t *testing.T) {
+	memstore, err := fs.NewMemstore("")
+	if err != nil {
+		t.Fatalf("fs.NewMemstore() failed: %v", err)
+	}
+	defer os.Remove(memstore.PersistedFile())
+
+	// Create example data.
+	envelope := application.Envelope{
+		Args:   []string{"--help"},
+		Env:    []string{"DEBUG=1"},
+		Binary: "/veyron/name/of/binary",
+	}
+
+	// TRANSACTION BEGIN
+	memstore.Lock()
+	tname, err := memstore.BindTransactionRoot("ignored").CreateTransaction(nil)
+	if err != nil {
+		t.Fatalf("CreateTransaction() failed: %v", err)
+	}
+	// Insert a few values
+	names := []string{"/test/a", "/test/b", "/test/a/x", "/test/a/y", "/test/b/fooooo/bar"}
+	for _, n := range names {
+		if _, err := memstore.BindObject(fs.TP(n)).Put(nil, envelope); err != nil {
+			t.Fatalf("Put() failed: %v", err)
+		}
+	}
+	if err := memstore.BindTransaction(tname).Commit(nil); err != nil {
+		t.Fatalf("Commit() failed: %v", err)
+	}
+	memstore.Unlock()
+	// TRANSACTION END
+
+	memstore.Lock()
+	testcases := []struct {
+		name     string
+		children []string
+	}{
+		{"/", []string{"test"}},
+		{"/test", []string{"a", "b"}},
+		{"/test/a", []string{"x", "y"}},
+		{"/test/b", []string{"fooooo"}},
+		{"/test/b/fooooo", []string{"bar"}},
+		{"/test/a/x", []string{}},
+		{"/test/a/y", []string{}},
+	}
+	for _, tc := range testcases {
+		children, err := memstore.BindObject(tc.name).Children()
+		if err != nil {
+			t.Errorf("unexpected error for %q: %v", tc.name, err)
+			continue
+		}
+		if !reflect.DeepEqual(children, tc.children) {
+			t.Errorf("unexpected result for %q: got %q, expected %q", tc.name, children, tc.children)
+		}
+	}
+
+	for _, notthere := range []string{"/doesnt-exist", "/tes"} {
+		if _, err := memstore.BindObject(notthere).Children(); err == nil {
+			t.Errorf("unexpected success for: %q", notthere)
+		}
+	}
+	memstore.Unlock()
+}
