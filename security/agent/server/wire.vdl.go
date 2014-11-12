@@ -263,34 +263,18 @@ type AgentServerMethods interface {
 }
 
 // AgentServerStubMethods is the server interface containing
-// Agent methods, as expected by ipc.Server.  The difference between
-// this interface and AgentServerMethods is that the first context
-// argument for each method is always ipc.ServerCall here, while it is either
-// ipc.ServerContext or a typed streaming context there.
-type AgentServerStubMethods interface {
-	Bless(call __ipc.ServerCall, key []byte, wit security.WireBlessings, extension string, caveat security.Caveat, additionalCaveats []security.Caveat) (security.WireBlessings, error)
-	BlessSelf(call __ipc.ServerCall, name string, caveats []security.Caveat) (security.WireBlessings, error)
-	Sign(call __ipc.ServerCall, message []byte) (security.Signature, error)
-	MintDischarge(call __ipc.ServerCall, tp __vdlutil.Any, caveat security.Caveat, additionalCaveats []security.Caveat) (__vdlutil.Any, error)
-	PublicKey(__ipc.ServerCall) ([]byte, error)
-	AddToRoots(call __ipc.ServerCall, blessing security.WireBlessings) error
-	BlessingStoreSet(call __ipc.ServerCall, blessings security.WireBlessings, forPeers security.BlessingPattern) (security.WireBlessings, error)
-	BlessingStoreForPeer(call __ipc.ServerCall, peerBlessings []string) (security.WireBlessings, error)
-	BlessingStoreSetDefault(call __ipc.ServerCall, blessings security.WireBlessings) error
-	BlessingStoreDefault(__ipc.ServerCall) (security.WireBlessings, error)
-	BlessingStoreDebugString(__ipc.ServerCall) (string, error)
-	BlessingRootsAdd(call __ipc.ServerCall, root []byte, pattern security.BlessingPattern) error
-	BlessingRootsRecognized(call __ipc.ServerCall, root []byte, blessing string) error
-	BlessingRootsDebugString(__ipc.ServerCall) (string, error)
-}
+// Agent methods, as expected by ipc.Server.
+// There is no difference between this interface and AgentServerMethods
+// since there are no streaming methods.
+type AgentServerStubMethods AgentServerMethods
 
 // AgentServerStub adds universal methods to AgentServerStubMethods.
 type AgentServerStub interface {
 	AgentServerStubMethods
 	// GetMethodTags will be replaced with DescribeInterfaces.
-	GetMethodTags(call __ipc.ServerCall, method string) ([]interface{}, error)
+	GetMethodTags(ctx __ipc.ServerContext, method string) ([]interface{}, error)
 	// Signature will be replaced with DescribeInterfaces.
-	Signature(call __ipc.ServerCall) (__ipc.ServiceSignature, error)
+	Signature(ctx __ipc.ServerContext) (__ipc.ServiceSignature, error)
 }
 
 // AgentServer returns a server stub for Agent.
@@ -315,67 +299,67 @@ type implAgentServerStub struct {
 	gs   *__ipc.GlobState
 }
 
-func (s implAgentServerStub) Bless(call __ipc.ServerCall, i0 []byte, i1 security.WireBlessings, i2 string, i3 security.Caveat, i4 []security.Caveat) (security.WireBlessings, error) {
-	return s.impl.Bless(call, i0, i1, i2, i3, i4)
+func (s implAgentServerStub) Bless(ctx __ipc.ServerContext, i0 []byte, i1 security.WireBlessings, i2 string, i3 security.Caveat, i4 []security.Caveat) (security.WireBlessings, error) {
+	return s.impl.Bless(ctx, i0, i1, i2, i3, i4)
 }
 
-func (s implAgentServerStub) BlessSelf(call __ipc.ServerCall, i0 string, i1 []security.Caveat) (security.WireBlessings, error) {
-	return s.impl.BlessSelf(call, i0, i1)
+func (s implAgentServerStub) BlessSelf(ctx __ipc.ServerContext, i0 string, i1 []security.Caveat) (security.WireBlessings, error) {
+	return s.impl.BlessSelf(ctx, i0, i1)
 }
 
-func (s implAgentServerStub) Sign(call __ipc.ServerCall, i0 []byte) (security.Signature, error) {
-	return s.impl.Sign(call, i0)
+func (s implAgentServerStub) Sign(ctx __ipc.ServerContext, i0 []byte) (security.Signature, error) {
+	return s.impl.Sign(ctx, i0)
 }
 
-func (s implAgentServerStub) MintDischarge(call __ipc.ServerCall, i0 __vdlutil.Any, i1 security.Caveat, i2 []security.Caveat) (__vdlutil.Any, error) {
-	return s.impl.MintDischarge(call, i0, i1, i2)
+func (s implAgentServerStub) MintDischarge(ctx __ipc.ServerContext, i0 __vdlutil.Any, i1 security.Caveat, i2 []security.Caveat) (__vdlutil.Any, error) {
+	return s.impl.MintDischarge(ctx, i0, i1, i2)
 }
 
-func (s implAgentServerStub) PublicKey(call __ipc.ServerCall) ([]byte, error) {
-	return s.impl.PublicKey(call)
+func (s implAgentServerStub) PublicKey(ctx __ipc.ServerContext) ([]byte, error) {
+	return s.impl.PublicKey(ctx)
 }
 
-func (s implAgentServerStub) AddToRoots(call __ipc.ServerCall, i0 security.WireBlessings) error {
-	return s.impl.AddToRoots(call, i0)
+func (s implAgentServerStub) AddToRoots(ctx __ipc.ServerContext, i0 security.WireBlessings) error {
+	return s.impl.AddToRoots(ctx, i0)
 }
 
-func (s implAgentServerStub) BlessingStoreSet(call __ipc.ServerCall, i0 security.WireBlessings, i1 security.BlessingPattern) (security.WireBlessings, error) {
-	return s.impl.BlessingStoreSet(call, i0, i1)
+func (s implAgentServerStub) BlessingStoreSet(ctx __ipc.ServerContext, i0 security.WireBlessings, i1 security.BlessingPattern) (security.WireBlessings, error) {
+	return s.impl.BlessingStoreSet(ctx, i0, i1)
 }
 
-func (s implAgentServerStub) BlessingStoreForPeer(call __ipc.ServerCall, i0 []string) (security.WireBlessings, error) {
-	return s.impl.BlessingStoreForPeer(call, i0)
+func (s implAgentServerStub) BlessingStoreForPeer(ctx __ipc.ServerContext, i0 []string) (security.WireBlessings, error) {
+	return s.impl.BlessingStoreForPeer(ctx, i0)
 }
 
-func (s implAgentServerStub) BlessingStoreSetDefault(call __ipc.ServerCall, i0 security.WireBlessings) error {
-	return s.impl.BlessingStoreSetDefault(call, i0)
+func (s implAgentServerStub) BlessingStoreSetDefault(ctx __ipc.ServerContext, i0 security.WireBlessings) error {
+	return s.impl.BlessingStoreSetDefault(ctx, i0)
 }
 
-func (s implAgentServerStub) BlessingStoreDefault(call __ipc.ServerCall) (security.WireBlessings, error) {
-	return s.impl.BlessingStoreDefault(call)
+func (s implAgentServerStub) BlessingStoreDefault(ctx __ipc.ServerContext) (security.WireBlessings, error) {
+	return s.impl.BlessingStoreDefault(ctx)
 }
 
-func (s implAgentServerStub) BlessingStoreDebugString(call __ipc.ServerCall) (string, error) {
-	return s.impl.BlessingStoreDebugString(call)
+func (s implAgentServerStub) BlessingStoreDebugString(ctx __ipc.ServerContext) (string, error) {
+	return s.impl.BlessingStoreDebugString(ctx)
 }
 
-func (s implAgentServerStub) BlessingRootsAdd(call __ipc.ServerCall, i0 []byte, i1 security.BlessingPattern) error {
-	return s.impl.BlessingRootsAdd(call, i0, i1)
+func (s implAgentServerStub) BlessingRootsAdd(ctx __ipc.ServerContext, i0 []byte, i1 security.BlessingPattern) error {
+	return s.impl.BlessingRootsAdd(ctx, i0, i1)
 }
 
-func (s implAgentServerStub) BlessingRootsRecognized(call __ipc.ServerCall, i0 []byte, i1 string) error {
-	return s.impl.BlessingRootsRecognized(call, i0, i1)
+func (s implAgentServerStub) BlessingRootsRecognized(ctx __ipc.ServerContext, i0 []byte, i1 string) error {
+	return s.impl.BlessingRootsRecognized(ctx, i0, i1)
 }
 
-func (s implAgentServerStub) BlessingRootsDebugString(call __ipc.ServerCall) (string, error) {
-	return s.impl.BlessingRootsDebugString(call)
+func (s implAgentServerStub) BlessingRootsDebugString(ctx __ipc.ServerContext) (string, error) {
+	return s.impl.BlessingRootsDebugString(ctx)
 }
 
 func (s implAgentServerStub) VGlob() *__ipc.GlobState {
 	return s.gs
 }
 
-func (s implAgentServerStub) GetMethodTags(call __ipc.ServerCall, method string) ([]interface{}, error) {
+func (s implAgentServerStub) GetMethodTags(ctx __ipc.ServerContext, method string) ([]interface{}, error) {
 	// TODO(toddw): Replace with new DescribeInterfaces implementation.
 	switch method {
 	case "Bless":
@@ -411,7 +395,7 @@ func (s implAgentServerStub) GetMethodTags(call __ipc.ServerCall, method string)
 	}
 }
 
-func (s implAgentServerStub) Signature(call __ipc.ServerCall) (__ipc.ServiceSignature, error) {
+func (s implAgentServerStub) Signature(ctx __ipc.ServerContext) (__ipc.ServiceSignature, error) {
 	// TODO(toddw) Replace with new DescribeInterfaces implementation.
 	result := __ipc.ServiceSignature{Methods: make(map[string]__ipc.MethodSignature)}
 	result.Methods["AddToRoots"] = __ipc.MethodSignature{

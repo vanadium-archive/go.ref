@@ -167,43 +167,18 @@ type ApplicationServerMethods interface {
 }
 
 // ApplicationServerStubMethods is the server interface containing
-// Application methods, as expected by ipc.Server.  The difference between
-// this interface and ApplicationServerMethods is that the first context
-// argument for each method is always ipc.ServerCall here, while it is either
-// ipc.ServerContext or a typed streaming context there.
-type ApplicationServerStubMethods interface {
-	// Application provides access to application envelopes. An
-	// application envelope is identified by an application name and an
-	// application version, which are specified through the object name,
-	// and a profile name, which is specified using a method argument.
-	//
-	// Example:
-	// /apps/search/v1.Match([]string{"base", "media"})
-	//   returns an application envelope that can be used for downloading
-	//   and executing the "search" application, version "v1", runnable
-	//   on either the "base" or "media" profile.
-	repository.ApplicationServerStubMethods
-	// Put adds the given tuple of application version (specified
-	// through the object name suffix) and application envelope to all
-	// of the given application profiles.
-	Put(call __ipc.ServerCall, Profiles []string, Envelope application.Envelope) error
-	// Remove removes the application envelope for the given profile
-	// name and application version (specified through the object name
-	// suffix). If no version is specified as part of the suffix, the
-	// method removes all versions for the given profile.
-	//
-	// TODO(jsimsa): Add support for using "*" to specify all profiles
-	// when Matt implements Globing (or Ken implements querying).
-	Remove(call __ipc.ServerCall, Profile string) error
-}
+// Application methods, as expected by ipc.Server.
+// There is no difference between this interface and ApplicationServerMethods
+// since there are no streaming methods.
+type ApplicationServerStubMethods ApplicationServerMethods
 
 // ApplicationServerStub adds universal methods to ApplicationServerStubMethods.
 type ApplicationServerStub interface {
 	ApplicationServerStubMethods
 	// GetMethodTags will be replaced with DescribeInterfaces.
-	GetMethodTags(call __ipc.ServerCall, method string) ([]interface{}, error)
+	GetMethodTags(ctx __ipc.ServerContext, method string) ([]interface{}, error)
 	// Signature will be replaced with DescribeInterfaces.
-	Signature(call __ipc.ServerCall) (__ipc.ServiceSignature, error)
+	Signature(ctx __ipc.ServerContext) (__ipc.ServiceSignature, error)
 }
 
 // ApplicationServer returns a server stub for Application.
@@ -226,26 +201,25 @@ func ApplicationServer(impl ApplicationServerMethods) ApplicationServerStub {
 
 type implApplicationServerStub struct {
 	impl ApplicationServerMethods
-	gs   *__ipc.GlobState
-
 	repository.ApplicationServerStub
+	gs *__ipc.GlobState
 }
 
-func (s implApplicationServerStub) Put(call __ipc.ServerCall, i0 []string, i1 application.Envelope) error {
-	return s.impl.Put(call, i0, i1)
+func (s implApplicationServerStub) Put(ctx __ipc.ServerContext, i0 []string, i1 application.Envelope) error {
+	return s.impl.Put(ctx, i0, i1)
 }
 
-func (s implApplicationServerStub) Remove(call __ipc.ServerCall, i0 string) error {
-	return s.impl.Remove(call, i0)
+func (s implApplicationServerStub) Remove(ctx __ipc.ServerContext, i0 string) error {
+	return s.impl.Remove(ctx, i0)
 }
 
 func (s implApplicationServerStub) VGlob() *__ipc.GlobState {
 	return s.gs
 }
 
-func (s implApplicationServerStub) GetMethodTags(call __ipc.ServerCall, method string) ([]interface{}, error) {
+func (s implApplicationServerStub) GetMethodTags(ctx __ipc.ServerContext, method string) ([]interface{}, error) {
 	// TODO(toddw): Replace with new DescribeInterfaces implementation.
-	if resp, err := s.ApplicationServerStub.GetMethodTags(call, method); resp != nil || err != nil {
+	if resp, err := s.ApplicationServerStub.GetMethodTags(ctx, method); resp != nil || err != nil {
 		return resp, err
 	}
 	switch method {
@@ -258,7 +232,7 @@ func (s implApplicationServerStub) GetMethodTags(call __ipc.ServerCall, method s
 	}
 }
 
-func (s implApplicationServerStub) Signature(call __ipc.ServerCall) (__ipc.ServiceSignature, error) {
+func (s implApplicationServerStub) Signature(ctx __ipc.ServerContext) (__ipc.ServiceSignature, error) {
 	// TODO(toddw) Replace with new DescribeInterfaces implementation.
 	result := __ipc.ServiceSignature{Methods: make(map[string]__ipc.MethodSignature)}
 	result.Methods["Put"] = __ipc.MethodSignature{
@@ -291,7 +265,7 @@ func (s implApplicationServerStub) Signature(call __ipc.ServerCall) (__ipc.Servi
 		__wiretype.NamedPrimitiveType{Type: 0x1, Name: "error", Tags: []string(nil)}}
 	var ss __ipc.ServiceSignature
 	var firstAdded int
-	ss, _ = s.ApplicationServerStub.Signature(call)
+	ss, _ = s.ApplicationServerStub.Signature(ctx)
 	firstAdded = len(result.TypeDefs)
 	for k, v := range ss.Methods {
 		for i, _ := range v.InArgs {
@@ -479,34 +453,18 @@ type ProfileServerMethods interface {
 }
 
 // ProfileServerStubMethods is the server interface containing
-// Profile methods, as expected by ipc.Server.  The difference between
-// this interface and ProfileServerMethods is that the first context
-// argument for each method is always ipc.ServerCall here, while it is either
-// ipc.ServerContext or a typed streaming context there.
-type ProfileServerStubMethods interface {
-	// Profile abstracts a device's ability to run binaries, and hides
-	// specifics such as the operating system, hardware architecture, and
-	// the set of installed libraries. Profiles describe binaries and
-	// devices, and are used to match them.
-	repository.ProfileServerStubMethods
-	// Specification returns the profile specification for the profile
-	// identified through the object name suffix.
-	Specification(__ipc.ServerCall) (profile.Specification, error)
-	// Put sets the profile specification for the profile identified
-	// through the object name suffix.
-	Put(call __ipc.ServerCall, Specification profile.Specification) error
-	// Remove removes the profile specification for the profile
-	// identified through the object name suffix.
-	Remove(__ipc.ServerCall) error
-}
+// Profile methods, as expected by ipc.Server.
+// There is no difference between this interface and ProfileServerMethods
+// since there are no streaming methods.
+type ProfileServerStubMethods ProfileServerMethods
 
 // ProfileServerStub adds universal methods to ProfileServerStubMethods.
 type ProfileServerStub interface {
 	ProfileServerStubMethods
 	// GetMethodTags will be replaced with DescribeInterfaces.
-	GetMethodTags(call __ipc.ServerCall, method string) ([]interface{}, error)
+	GetMethodTags(ctx __ipc.ServerContext, method string) ([]interface{}, error)
 	// Signature will be replaced with DescribeInterfaces.
-	Signature(call __ipc.ServerCall) (__ipc.ServiceSignature, error)
+	Signature(ctx __ipc.ServerContext) (__ipc.ServiceSignature, error)
 }
 
 // ProfileServer returns a server stub for Profile.
@@ -529,30 +487,29 @@ func ProfileServer(impl ProfileServerMethods) ProfileServerStub {
 
 type implProfileServerStub struct {
 	impl ProfileServerMethods
-	gs   *__ipc.GlobState
-
 	repository.ProfileServerStub
+	gs *__ipc.GlobState
 }
 
-func (s implProfileServerStub) Specification(call __ipc.ServerCall) (profile.Specification, error) {
-	return s.impl.Specification(call)
+func (s implProfileServerStub) Specification(ctx __ipc.ServerContext) (profile.Specification, error) {
+	return s.impl.Specification(ctx)
 }
 
-func (s implProfileServerStub) Put(call __ipc.ServerCall, i0 profile.Specification) error {
-	return s.impl.Put(call, i0)
+func (s implProfileServerStub) Put(ctx __ipc.ServerContext, i0 profile.Specification) error {
+	return s.impl.Put(ctx, i0)
 }
 
-func (s implProfileServerStub) Remove(call __ipc.ServerCall) error {
-	return s.impl.Remove(call)
+func (s implProfileServerStub) Remove(ctx __ipc.ServerContext) error {
+	return s.impl.Remove(ctx)
 }
 
 func (s implProfileServerStub) VGlob() *__ipc.GlobState {
 	return s.gs
 }
 
-func (s implProfileServerStub) GetMethodTags(call __ipc.ServerCall, method string) ([]interface{}, error) {
+func (s implProfileServerStub) GetMethodTags(ctx __ipc.ServerContext, method string) ([]interface{}, error) {
 	// TODO(toddw): Replace with new DescribeInterfaces implementation.
-	if resp, err := s.ProfileServerStub.GetMethodTags(call, method); resp != nil || err != nil {
+	if resp, err := s.ProfileServerStub.GetMethodTags(ctx, method); resp != nil || err != nil {
 		return resp, err
 	}
 	switch method {
@@ -567,7 +524,7 @@ func (s implProfileServerStub) GetMethodTags(call __ipc.ServerCall, method strin
 	}
 }
 
-func (s implProfileServerStub) Signature(call __ipc.ServerCall) (__ipc.ServiceSignature, error) {
+func (s implProfileServerStub) Signature(ctx __ipc.ServerContext) (__ipc.ServiceSignature, error) {
 	// TODO(toddw) Replace with new DescribeInterfaces implementation.
 	result := __ipc.ServiceSignature{Methods: make(map[string]__ipc.MethodSignature)}
 	result.Methods["Put"] = __ipc.MethodSignature{
@@ -613,7 +570,7 @@ func (s implProfileServerStub) Signature(call __ipc.ServerCall) (__ipc.ServiceSi
 		__wiretype.NamedPrimitiveType{Type: 0x1, Name: "error", Tags: []string(nil)}}
 	var ss __ipc.ServiceSignature
 	var firstAdded int
-	ss, _ = s.ProfileServerStub.Signature(call)
+	ss, _ = s.ProfileServerStub.Signature(ctx)
 	firstAdded = len(result.TypeDefs)
 	for k, v := range ss.Methods {
 		for i, _ := range v.InArgs {

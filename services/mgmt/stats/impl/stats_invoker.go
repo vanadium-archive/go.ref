@@ -34,12 +34,12 @@ func NewStatsServer(suffix string, watchFreq time.Duration) interface{} {
 }
 
 // Glob returns the name of all objects that match pattern.
-func (i *statsInvoker) Glob(call ipc.ServerCall, pattern string) error {
+func (i *statsInvoker) Glob(ctx *ipc.GlobContextStub, pattern string) error {
 	vlog.VI(1).Infof("%v.Glob(%q)", i.suffix, pattern)
 
 	it := stats.Glob(i.suffix, pattern, time.Time{}, false)
 	for it.Advance() {
-		call.Send(naming.VDLMountEntry{Name: it.Value().Key})
+		ctx.SendStream().Send(naming.VDLMountEntry{Name: it.Value().Key})
 	}
 	if err := it.Err(); err != nil {
 		if err == stats.ErrNotFound {
@@ -92,7 +92,7 @@ Loop:
 }
 
 // Value returns the value of the receiver object.
-func (i *statsInvoker) Value(call ipc.ServerCall) (vdlutil.Any, error) {
+func (i *statsInvoker) Value(ctx ipc.ServerContext) (vdlutil.Any, error) {
 	vlog.VI(1).Infof("%v.Value()", i.suffix)
 
 	v, err := stats.Value(i.suffix)

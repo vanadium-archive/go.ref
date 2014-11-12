@@ -72,31 +72,31 @@ type userType string
 
 type testServer struct{}
 
-func (*testServer) Closure(call ipc.ServerCall) {
+func (*testServer) Closure(ctx ipc.ServerContext) {
 }
 
-func (*testServer) Error(call ipc.ServerCall) error {
+func (*testServer) Error(ctx ipc.ServerContext) error {
 	return errMethod
 }
 
-func (*testServer) Echo(call ipc.ServerCall, arg string) string {
-	return fmt.Sprintf("method:%q,suffix:%q,arg:%q", call.Method(), call.Suffix(), arg)
+func (*testServer) Echo(ctx ipc.ServerContext, arg string) string {
+	return fmt.Sprintf("method:%q,suffix:%q,arg:%q", ctx.Method(), ctx.Suffix(), arg)
 }
 
-func (*testServer) EchoUser(call ipc.ServerCall, arg string, u userType) (string, userType) {
-	return fmt.Sprintf("method:%q,suffix:%q,arg:%q", call.Method(), call.Suffix(), arg), u
+func (*testServer) EchoUser(ctx ipc.ServerContext, arg string, u userType) (string, userType) {
+	return fmt.Sprintf("method:%q,suffix:%q,arg:%q", ctx.Method(), ctx.Suffix(), arg), u
 }
 
-func (*testServer) EchoBlessings(call ipc.ServerCall) (server, client string) {
-	return fmt.Sprintf("%v", call.LocalBlessings().ForContext(call)), fmt.Sprintf("%v", call.RemoteBlessings().ForContext(call))
+func (*testServer) EchoBlessings(ctx ipc.ServerContext) (server, client string) {
+	return fmt.Sprintf("%v", ctx.LocalBlessings().ForContext(ctx)), fmt.Sprintf("%v", ctx.RemoteBlessings().ForContext(ctx))
 }
 
-func (*testServer) EchoGrantedBlessings(call ipc.ServerCall, arg string) (result, blessing string) {
-	return arg, fmt.Sprintf("%v", call.Blessings())
+func (*testServer) EchoGrantedBlessings(ctx ipc.ServerContext, arg string) (result, blessing string) {
+	return arg, fmt.Sprintf("%v", ctx.Blessings())
 }
 
-func (*testServer) EchoAndError(call ipc.ServerCall, arg string) (string, error) {
-	result := fmt.Sprintf("method:%q,suffix:%q,arg:%q", call.Method(), call.Suffix(), arg)
+func (*testServer) EchoAndError(ctx ipc.ServerContext, arg string) (string, error) {
+	result := fmt.Sprintf("method:%q,suffix:%q,arg:%q", ctx.Method(), ctx.Suffix(), arg)
 	if arg == "error" {
 		return result, errMethod
 	}
@@ -619,12 +619,16 @@ type dischargeImpetusTester struct {
 
 // Implements ipc.Dispatcher
 func (s *dischargeImpetusTester) Lookup(_, _ string) (interface{}, security.Authorizer, error) {
-	return s, testServerAuthorizer{}, nil
+	return ipc.ReflectInvoker(dischargeImpetusServer{s}), testServerAuthorizer{}, nil
+}
+
+type dischargeImpetusServer struct {
+	s *dischargeImpetusTester
 }
 
 // Implements the discharge service: Always fails to issue a discharge, but records the impetus
-func (s *dischargeImpetusTester) Discharge(ctx ipc.ServerCall, cav vdlutil.Any, impetus security.DischargeImpetus) (vdlutil.Any, error) {
-	s.LastDischargeImpetus = impetus
+func (s dischargeImpetusServer) Discharge(ctx ipc.ServerContext, cav vdlutil.Any, impetus security.DischargeImpetus) (vdlutil.Any, error) {
+	s.s.LastDischargeImpetus = impetus
 	return nil, fmt.Errorf("discharges not issued")
 }
 

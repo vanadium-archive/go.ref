@@ -98,22 +98,18 @@ type ConfigServerMethods interface {
 }
 
 // ConfigServerStubMethods is the server interface containing
-// Config methods, as expected by ipc.Server.  The difference between
-// this interface and ConfigServerMethods is that the first context
-// argument for each method is always ipc.ServerCall here, while it is either
-// ipc.ServerContext or a typed streaming context there.
-type ConfigServerStubMethods interface {
-	// Set sets the value for key.
-	Set(call __ipc.ServerCall, key string, value string) error
-}
+// Config methods, as expected by ipc.Server.
+// There is no difference between this interface and ConfigServerMethods
+// since there are no streaming methods.
+type ConfigServerStubMethods ConfigServerMethods
 
 // ConfigServerStub adds universal methods to ConfigServerStubMethods.
 type ConfigServerStub interface {
 	ConfigServerStubMethods
 	// GetMethodTags will be replaced with DescribeInterfaces.
-	GetMethodTags(call __ipc.ServerCall, method string) ([]interface{}, error)
+	GetMethodTags(ctx __ipc.ServerContext, method string) ([]interface{}, error)
 	// Signature will be replaced with DescribeInterfaces.
-	Signature(call __ipc.ServerCall) (__ipc.ServiceSignature, error)
+	Signature(ctx __ipc.ServerContext) (__ipc.ServiceSignature, error)
 }
 
 // ConfigServer returns a server stub for Config.
@@ -138,15 +134,15 @@ type implConfigServerStub struct {
 	gs   *__ipc.GlobState
 }
 
-func (s implConfigServerStub) Set(call __ipc.ServerCall, i0 string, i1 string) error {
-	return s.impl.Set(call, i0, i1)
+func (s implConfigServerStub) Set(ctx __ipc.ServerContext, i0 string, i1 string) error {
+	return s.impl.Set(ctx, i0, i1)
 }
 
 func (s implConfigServerStub) VGlob() *__ipc.GlobState {
 	return s.gs
 }
 
-func (s implConfigServerStub) GetMethodTags(call __ipc.ServerCall, method string) ([]interface{}, error) {
+func (s implConfigServerStub) GetMethodTags(ctx __ipc.ServerContext, method string) ([]interface{}, error) {
 	// TODO(toddw): Replace with new DescribeInterfaces implementation.
 	switch method {
 	case "Set":
@@ -156,7 +152,7 @@ func (s implConfigServerStub) GetMethodTags(call __ipc.ServerCall, method string
 	}
 }
 
-func (s implConfigServerStub) Signature(call __ipc.ServerCall) (__ipc.ServiceSignature, error) {
+func (s implConfigServerStub) Signature(ctx __ipc.ServerContext) (__ipc.ServiceSignature, error) {
 	// TODO(toddw) Replace with new DescribeInterfaces implementation.
 	result := __ipc.ServiceSignature{Methods: make(map[string]__ipc.MethodSignature)}
 	result.Methods["Set"] = __ipc.MethodSignature{

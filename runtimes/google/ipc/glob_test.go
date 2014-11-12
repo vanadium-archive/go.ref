@@ -194,7 +194,7 @@ type globObject struct {
 	suffix []string
 }
 
-func (o *globObject) Glob(call ipc.ServerCall, pattern string) error {
+func (o *globObject) Glob(ctx *ipc.GlobContextStub, pattern string) error {
 	g, err := glob.Parse(pattern)
 	if err != nil {
 		return err
@@ -203,20 +203,20 @@ func (o *globObject) Glob(call ipc.ServerCall, pattern string) error {
 	if n == nil {
 		return nil
 	}
-	o.globLoop(call, "", g, n)
+	o.globLoop(ctx, "", g, n)
 	return nil
 }
 
-func (o *globObject) globLoop(call ipc.ServerCall, name string, g *glob.Glob, n *node) {
+func (o *globObject) globLoop(ctx *ipc.GlobContextStub, name string, g *glob.Glob, n *node) {
 	if g.Len() == 0 {
-		call.Send(naming.VDLMountEntry{Name: name})
+		ctx.SendStream().Send(naming.VDLMountEntry{Name: name})
 	}
 	if g.Finished() {
 		return
 	}
 	for leaf, child := range n.children {
 		if ok, _, left := g.MatchInitialSegment(leaf); ok {
-			o.globLoop(call, naming.Join(name, leaf), left, child)
+			o.globLoop(ctx, naming.Join(name, leaf), left, child)
 		}
 	}
 }
@@ -274,6 +274,6 @@ func (n *node) find(names []string, create bool) *node {
 
 type leafObject struct{}
 
-func (l leafObject) Func(call ipc.ServerCall) error {
+func (l leafObject) Func(call ipc.ServerContext) error {
 	return nil
 }

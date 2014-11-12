@@ -11,14 +11,15 @@ type vtraceServer struct {
 	store vtrace.Store
 }
 
-func (v *vtraceServer) Trace(call ipc.ServerCall, id uniqueid.ID) (vtrace.TraceRecord, error) {
+func (v *vtraceServer) Trace(ctx ipc.ServerContext, id uniqueid.ID) (vtrace.TraceRecord, error) {
 	tr := v.store.TraceRecord(id)
 	if tr == nil {
-		return vtrace.TraceRecord{}, verror2.Make(verror2.NoExist, call, "No trace with id %x", id)
+		return vtrace.TraceRecord{}, verror2.Make(verror2.NoExist, ctx, "No trace with id %x", id)
 	}
 	return *tr, nil
 }
 
+// TODO(toddw): Change ipc.ServerCall into a struct stub context.
 func (v *vtraceServer) AllTraces(call ipc.ServerCall) error {
 	// TODO(mattr): Consider changing the store to allow us to iterate through traces
 	// when there are many.

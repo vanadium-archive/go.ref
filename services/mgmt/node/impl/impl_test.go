@@ -216,7 +216,7 @@ func install(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, a
 // interact with an active service.
 type appService struct{}
 
-func (appService) Echo(_ ipc.ServerCall, message string) (string, error) {
+func (appService) Echo(_ ipc.ServerContext, message string) (string, error) {
 	return message, nil
 }
 
@@ -463,7 +463,7 @@ func TestNodeManagerUpdateAndRevert(t *testing.T) {
 
 type pingServer chan<- string
 
-func (p pingServer) Ping(_ ipc.ServerCall, arg string) {
+func (p pingServer) Ping(_ ipc.ServerContext, arg string) {
 	p <- arg
 }
 

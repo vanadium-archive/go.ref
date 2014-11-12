@@ -49,7 +49,7 @@ type globInternal struct {
 // levels.
 const maxRecursiveGlobDepth = 10
 
-func (i *globInternal) Glob(call ipc.ServerCall, pattern string) error {
+func (i *globInternal) Glob(ctx *ipc.GlobContextStub, pattern string) error {
 	vlog.VI(3).Infof("ipc Glob: Incoming request: %q.Glob(%q)", i.receiver, pattern)
 	g, err := glob.Parse(pattern)
 	if err != nil {
@@ -66,10 +66,10 @@ func (i *globInternal) Glob(call ipc.ServerCall, pattern string) error {
 	if disp == nil {
 		return verror.NoExistf("ipc: Glob is not implemented by %q", i.receiver)
 	}
-	return i.globStep(call, disp, "", g, 0)
+	return i.globStep(ctx, disp, "", g, 0)
 }
 
-func (i *globInternal) globStep(call ipc.ServerCall, disp ipc.Dispatcher, name string, g *glob.Glob, depth int) error {
+func (i *globInternal) globStep(ctx *ipc.GlobContextStub, disp ipc.Dispatcher, name string, g *glob.Glob, depth int) error {
 	suffix := naming.Join(i.receiver, name)
 	if depth > maxRecursiveGlobDepth {
 		err := verror.Internalf("ipc: Glob exceeded its recursion limit (%d): %q", maxRecursiveGlobDepth, suffix)
@@ -95,14 +95,14 @@ func (i *globInternal) globStep(call ipc.ServerCall, disp ipc.Dispatcher, name s
 	gs := invoker.VGlob()
 	if gs == nil || (gs.VAllGlobber == nil && gs.VChildrenGlobber == nil) {
 		if g.Len() == 0 {
-			call.Send(naming.VDLMountEntry{Name: name})
+			ctx.SendStream().Send(naming.VDLMountEntry{Name: name})
 		}
 		return nil
 	}
 	if gs.VAllGlobber != nil {
 		vlog.VI(3).Infof("ipc Glob: %q implements VAllGlobber", suffix)
-		childCall := &localServerCall{ServerCall: call, basename: name}
-		return gs.VAllGlobber.Glob(childCall, g.String())
+		childCtx := &ipc.GlobContextStub{&localServerCall{ctx, name}}
+		return gs.VAllGlobber.Glob(childCtx, g.String())
 	}
 	if gs.VChildrenGlobber != nil {
 		vlog.VI(3).Infof("ipc Glob: %q implements VChildrenGlobber", suffix)
@@ -111,7 +111,7 @@ func (i *globInternal) globStep(call ipc.ServerCall, disp ipc.Dispatcher, name s
 			return nil
 		}
 		if g.Len() == 0 {
-			call.Send(naming.VDLMountEntry{Name: name})
+			ctx.SendStream().Send(naming.VDLMountEntry{Name: name})
 		}
 		if g.Finished() {
 			return nil
@@ -127,7 +127,7 @@ func (i *globInternal) globStep(call ipc.ServerCall, disp ipc.Dispatcher, name s
 			}
 			if ok, _, left := g.MatchInitialSegment(child); ok {
 				next := naming.Join(name, child)
-				if err := i.globStep(call, disp, next, left, depth); err != nil {
+				if err := i.globStep(ctx, disp, next, left, depth); err != nil {
 					vlog.VI(1).Infof("ipc Glob: globStep(%q, %q): %v", next, left, err)
 				}
 			}
@@ -146,8 +146,6 @@ type localServerCall struct {
 }
 
 var _ ipc.ServerCall = (*localServerCall)(nil)
-var _ ipc.Stream = (*localServerCall)(nil)
-var _ ipc.ServerContext = (*localServerCall)(nil)
 
 func (c *localServerCall) Send(v interface{}) error {
 	me, ok := v.(naming.VDLMountEntry)

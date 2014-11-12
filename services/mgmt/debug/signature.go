@@ -16,7 +16,7 @@ func NewSignatureObject(suffix string) interface{} {
 }
 
 // TODO(rthellend): This is a temporary hack until https://code.google.com/p/envyor/issues/detail?id=285 is resolved.
-func (s signatureInvoker) Signature(ipc.ServerCall) (ipc.ServiceSignature, error) {
+func (s signatureInvoker) Signature(ipc.ServerContext) (ipc.ServiceSignature, error) {
 	debugStub := DebugServer(nil)
 	fullSig, _ := debugStub.Signature(nil)
 

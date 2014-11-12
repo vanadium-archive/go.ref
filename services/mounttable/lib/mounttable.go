@@ -364,7 +364,7 @@ type globEntry struct {
 	name string
 }
 
-func (mt *mountTable) globStep(n *node, name string, pattern *glob.Glob, context mounttable.GlobbableGlobContext) {
+func (mt *mountTable) globStep(n *node, name string, pattern *glob.Glob, context ipc.GlobContext) {
 	vlog.VI(2).Infof("globStep(%s, %s)", name, pattern)
 
 	if mt.acls != nil {
@@ -417,7 +417,7 @@ func (mt *mountTable) globStep(n *node, name string, pattern *glob.Glob, context
 // Glob finds matches in the namespace.  If we reach a mount point before matching the
 // whole pattern, return that mount point.
 // pattern is a glob pattern as defined by the veyron/lib/glob package.
-func (ms *mountContext) Glob(context mounttable.GlobbableGlobContext, pattern string) error {
+func (ms *mountContext) Glob(context ipc.GlobContext, pattern string) error {
 	vlog.VI(2).Infof("mt.Glob %v", ms.elems)
 
 	g, err := glob.Parse(pattern)
@@ -446,7 +446,7 @@ func (ms *mountContext) Glob(context mounttable.GlobbableGlobContext, pattern st
 	return nil
 }
 
-func (ms *mountContext) linkToLeaf(stream mounttable.GlobbableGlobServerStream) {
+func (ms *mountContext) linkToLeaf(stream ipc.GlobServerStream) {
 	n, elems := ms.mt.walk(ms.mt.root, ms.cleanedElems)
 	if n == nil {
 		return

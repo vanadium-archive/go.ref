@@ -91,7 +91,7 @@ func doGlob(t *testing.T, name, pattern string) []string {
 
 type dummy struct{}
 
-func (*dummy) Method(_ ipc.ServerCall) error { return nil }
+func (*dummy) Method(_ ipc.ServerContext) error { return nil }
 
 type proxyDispatcher struct {
 	remote  string

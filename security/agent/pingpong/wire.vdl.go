@@ -96,21 +96,18 @@ type PingPongServerMethods interface {
 }
 
 // PingPongServerStubMethods is the server interface containing
-// PingPong methods, as expected by ipc.Server.  The difference between
-// this interface and PingPongServerMethods is that the first context
-// argument for each method is always ipc.ServerCall here, while it is either
-// ipc.ServerContext or a typed streaming context there.
-type PingPongServerStubMethods interface {
-	Ping(call __ipc.ServerCall, message string) (string, error)
-}
+// PingPong methods, as expected by ipc.Server.
+// There is no difference between this interface and PingPongServerMethods
+// since there are no streaming methods.
+type PingPongServerStubMethods PingPongServerMethods
 
 // PingPongServerStub adds universal methods to PingPongServerStubMethods.
 type PingPongServerStub interface {
 	PingPongServerStubMethods
 	// GetMethodTags will be replaced with DescribeInterfaces.
-	GetMethodTags(call __ipc.ServerCall, method string) ([]interface{}, error)
+	GetMethodTags(ctx __ipc.ServerContext, method string) ([]interface{}, error)
 	// Signature will be replaced with DescribeInterfaces.
-	Signature(call __ipc.ServerCall) (__ipc.ServiceSignature, error)
+	Signature(ctx __ipc.ServerContext) (__ipc.ServiceSignature, error)
 }
 
 // PingPongServer returns a server stub for PingPong.
@@ -135,15 +132,15 @@ type implPingPongServerStub struct {
 	gs   *__ipc.GlobState
 }
 
-func (s implPingPongServerStub) Ping(call __ipc.ServerCall, i0 string) (string, error) {
-	return s.impl.Ping(call, i0)
+func (s implPingPongServerStub) Ping(ctx __ipc.ServerContext, i0 string) (string, error) {
+	return s.impl.Ping(ctx, i0)
 }
 
 func (s implPingPongServerStub) VGlob() *__ipc.GlobState {
 	return s.gs
 }
 
-func (s implPingPongServerStub) GetMethodTags(call __ipc.ServerCall, method string) ([]interface{}, error) {
+func (s implPingPongServerStub) GetMethodTags(ctx __ipc.ServerContext, method string) ([]interface{}, error) {
 	// TODO(toddw): Replace with new DescribeInterfaces implementation.
 	switch method {
 	case "Ping":
@@ -153,7 +150,7 @@ func (s implPingPongServerStub) GetMethodTags(call __ipc.ServerCall, method stri
 	}
 }
 
-func (s implPingPongServerStub) Signature(call __ipc.ServerCall) (__ipc.ServiceSignature, error) {
+func (s implPingPongServerStub) Signature(ctx __ipc.ServerContext) (__ipc.ServiceSignature, error) {
 	// TODO(toddw) Replace with new DescribeInterfaces implementation.
 	result := __ipc.ServiceSignature{Methods: make(map[string]__ipc.MethodSignature)}
 	result.Methods["Ping"] = __ipc.MethodSignature{

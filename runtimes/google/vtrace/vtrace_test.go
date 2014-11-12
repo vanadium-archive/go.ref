@@ -60,7 +60,7 @@ type testServer struct {
 	forceCollect bool
 }
 
-func (c *testServer) Run(ctx ipc.ServerCall) error {
+func (c *testServer) Run(ctx ipc.ServerContext) error {
 	if c.forceCollect {
 		ivtrace.FromContext(ctx).Trace().ForceCollect()
 	}

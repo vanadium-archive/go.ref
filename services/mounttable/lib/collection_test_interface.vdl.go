@@ -117,28 +117,18 @@ type CollectionServerMethods interface {
 }
 
 // CollectionServerStubMethods is the server interface containing
-// Collection methods, as expected by ipc.Server.  The difference between
-// this interface and CollectionServerMethods is that the first context
-// argument for each method is always ipc.ServerCall here, while it is either
-// ipc.ServerContext or a typed streaming context there.
-type CollectionServerStubMethods interface {
-	// Export sets the value for a name.  Overwrite controls the behavior when
-	// an entry exists, if Overwrite is true, then the binding is replaced,
-	// otherwise the call fails with an error.  The Val must be no larger than
-	// MaxSize bytes.
-	Export(call __ipc.ServerCall, Val string, Overwrite bool) error
-	// Lookup retrieves the value associated with a name.  Returns an error if
-	// there is no such binding.
-	Lookup(__ipc.ServerCall) ([]byte, error)
-}
+// Collection methods, as expected by ipc.Server.
+// There is no difference between this interface and CollectionServerMethods
+// since there are no streaming methods.
+type CollectionServerStubMethods CollectionServerMethods
 
 // CollectionServerStub adds universal methods to CollectionServerStubMethods.
 type CollectionServerStub interface {
 	CollectionServerStubMethods
 	// GetMethodTags will be replaced with DescribeInterfaces.
-	GetMethodTags(call __ipc.ServerCall, method string) ([]interface{}, error)
+	GetMethodTags(ctx __ipc.ServerContext, method string) ([]interface{}, error)
 	// Signature will be replaced with DescribeInterfaces.
-	Signature(call __ipc.ServerCall) (__ipc.ServiceSignature, error)
+	Signature(ctx __ipc.ServerContext) (__ipc.ServiceSignature, error)
 }
 
 // CollectionServer returns a server stub for Collection.
@@ -163,19 +153,19 @@ type implCollectionServerStub struct {
 	gs   *__ipc.GlobState
 }
 
-func (s implCollectionServerStub) Export(call __ipc.ServerCall, i0 string, i1 bool) error {
-	return s.impl.Export(call, i0, i1)
+func (s implCollectionServerStub) Export(ctx __ipc.ServerContext, i0 string, i1 bool) error {
+	return s.impl.Export(ctx, i0, i1)
 }
 
-func (s implCollectionServerStub) Lookup(call __ipc.ServerCall) ([]byte, error) {
-	return s.impl.Lookup(call)
+func (s implCollectionServerStub) Lookup(ctx __ipc.ServerContext) ([]byte, error) {
+	return s.impl.Lookup(ctx)
 }
 
 func (s implCollectionServerStub) VGlob() *__ipc.GlobState {
 	return s.gs
 }
 
-func (s implCollectionServerStub) GetMethodTags(call __ipc.ServerCall, method string) ([]interface{}, error) {
+func (s implCollectionServerStub) GetMethodTags(ctx __ipc.ServerContext, method string) ([]interface{}, error) {
 	// TODO(toddw): Replace with new DescribeInterfaces implementation.
 	switch method {
 	case "Export":
@@ -187,7 +177,7 @@ func (s implCollectionServerStub) GetMethodTags(call __ipc.ServerCall, method st
 	}
 }
 
-func (s implCollectionServerStub) Signature(call __ipc.ServerCall) (__ipc.ServiceSignature, error) {
+func (s implCollectionServerStub) Signature(ctx __ipc.ServerContext) (__ipc.ServiceSignature, error) {
 	// TODO(toddw) Replace with new DescribeInterfaces implementation.
 	result := __ipc.ServiceSignature{Methods: make(map[string]__ipc.MethodSignature)}
 	result.Methods["Export"] = __ipc.MethodSignature{

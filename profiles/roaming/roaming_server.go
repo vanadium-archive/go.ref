@@ -40,6 +40,6 @@ func main() {
 
 type dispatcher struct{}
 
-func (d *dispatcher) Echo(call ipc.ServerCall, arg string) (string, error) {
+func (d *dispatcher) Echo(call ipc.ServerContext, arg string) (string, error) {
 	return arg, nil
 }

@@ -20,7 +20,7 @@ type server struct {
 	suffix string
 }
 
-func (s *server) Glob(ctx mounttable.GlobbableGlobContext, pattern string) error {
+func (s *server) Glob(ctx ipc.GlobContext, pattern string) error {
 	vlog.VI(2).Infof("Glob() was called. suffix=%v pattern=%q", s.suffix, pattern)
 	sender := ctx.SendStream()
 	sender.Send(naming.VDLMountEntry{"name1", []naming.VDLMountedServer{{"server1", 123}}, false})

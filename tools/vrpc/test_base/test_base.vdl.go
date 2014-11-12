@@ -295,7 +295,7 @@ func (c implTypeTesterClientStub) StreamingOutput(ctx __context.T, i0 int32, i1 
 	if call, err = c.c(ctx).StartCall(ctx, c.name, "StreamingOutput", []interface{}{i0, i1}, opts...); err != nil {
 		return
 	}
-	ocall = &implTypeTesterStreamingOutputCall{call, implTypeTesterStreamingOutputClientRecv{call: call}}
+	ocall = &implTypeTesterStreamingOutputCall{Call: call}
 	return
 }
 
@@ -323,7 +323,7 @@ func (c implTypeTesterClientStub) GetMethodTags(ctx __context.T, method string, 
 
 // TypeTesterStreamingOutputClientStream is the client stream for TypeTester.StreamingOutput.
 type TypeTesterStreamingOutputClientStream interface {
-	// RecvStream returns the receiver side of the client stream.
+	// RecvStream returns the receiver side of the TypeTester.StreamingOutput client stream.
 	RecvStream() interface {
 		// Advance stages an item so that it may be retrieved via Value.  Returns
 		// true iff there is an item to retrieve.  Advance must be called before
@@ -357,29 +357,10 @@ type TypeTesterStreamingOutputCall interface {
 	Cancel()
 }
 
-type implTypeTesterStreamingOutputClientRecv struct {
-	call __ipc.Call
-	val  bool
-	err  error
-}
-
-func (c *implTypeTesterStreamingOutputClientRecv) Advance() bool {
-	c.err = c.call.Recv(&c.val)
-	return c.err == nil
-}
-func (c *implTypeTesterStreamingOutputClientRecv) Value() bool {
-	return c.val
-}
-func (c *implTypeTesterStreamingOutputClientRecv) Err() error {
-	if c.err == __io.EOF {
-		return nil
-	}
-	return c.err
-}
-
 type implTypeTesterStreamingOutputCall struct {
-	call __ipc.Call
-	recv implTypeTesterStreamingOutputClientRecv
+	__ipc.Call
+	valRecv bool
+	errRecv error
 }
 
 func (c *implTypeTesterStreamingOutputCall) RecvStream() interface {
@@ -387,16 +368,31 @@ func (c *implTypeTesterStreamingOutputCall) RecvStream() interface {
 	Value() bool
 	Err() error
 } {
-	return &c.recv
+	return implTypeTesterStreamingOutputCallRecv{c}
+}
+
+type implTypeTesterStreamingOutputCallRecv struct {
+	c *implTypeTesterStreamingOutputCall
+}
+
+func (c implTypeTesterStreamingOutputCallRecv) Advance() bool {
+	c.c.errRecv = c.c.Recv(&c.c.valRecv)
+	return c.c.errRecv == nil
+}
+func (c implTypeTesterStreamingOutputCallRecv) Value() bool {
+	return c.c.valRecv
+}
+func (c implTypeTesterStreamingOutputCallRecv) Err() error {
+	if c.c.errRecv == __io.EOF {
+		return nil
+	}
+	return c.c.errRecv
 }
 func (c *implTypeTesterStreamingOutputCall) Finish() (err error) {
-	if ierr := c.call.Finish(&err); ierr != nil {
+	if ierr := c.Call.Finish(&err); ierr != nil {
 		err = ierr
 	}
 	return
-}
-func (c *implTypeTesterStreamingOutputCall) Cancel() {
-	c.call.Cancel()
 }
 
 // TypeTesterServerMethods is the interface a server writer
@@ -429,44 +425,43 @@ type TypeTesterServerMethods interface {
 }
 
 // TypeTesterServerStubMethods is the server interface containing
-// TypeTester methods, as expected by ipc.Server.  The difference between
-// this interface and TypeTesterServerMethods is that the first context
-// argument for each method is always ipc.ServerCall here, while it is either
-// ipc.ServerContext or a typed streaming context there.
+// TypeTester methods, as expected by ipc.Server.
+// The only difference between this interface and TypeTesterServerMethods
+// is the streaming methods.
 type TypeTesterServerStubMethods interface {
 	// Methods to test support for generic types.
-	EchoBool(call __ipc.ServerCall, I1 bool) (O1 bool, E error)
-	EchoFloat32(call __ipc.ServerCall, I1 float32) (O1 float32, E error)
-	EchoFloat64(call __ipc.ServerCall, I1 float64) (O1 float64, E error)
-	EchoInt32(call __ipc.ServerCall, I1 int32) (O1 int32, E error)
-	EchoInt64(call __ipc.ServerCall, I1 int64) (O1 int64, E error)
-	EchoString(call __ipc.ServerCall, I1 string) (O1 string, E error)
-	EchoByte(call __ipc.ServerCall, I1 byte) (O1 byte, E error)
-	EchoUInt32(call __ipc.ServerCall, I1 uint32) (O1 uint32, E error)
-	EchoUInt64(call __ipc.ServerCall, I1 uint64) (O1 uint64, E error)
+	EchoBool(ctx __ipc.ServerContext, I1 bool) (O1 bool, E error)
+	EchoFloat32(ctx __ipc.ServerContext, I1 float32) (O1 float32, E error)
+	EchoFloat64(ctx __ipc.ServerContext, I1 float64) (O1 float64, E error)
+	EchoInt32(ctx __ipc.ServerContext, I1 int32) (O1 int32, E error)
+	EchoInt64(ctx __ipc.ServerContext, I1 int64) (O1 int64, E error)
+	EchoString(ctx __ipc.ServerContext, I1 string) (O1 string, E error)
+	EchoByte(ctx __ipc.ServerContext, I1 byte) (O1 byte, E error)
+	EchoUInt32(ctx __ipc.ServerContext, I1 uint32) (O1 uint32, E error)
+	EchoUInt64(ctx __ipc.ServerContext, I1 uint64) (O1 uint64, E error)
 	// Methods to test support for composite types.
-	InputArray(call __ipc.ServerCall, I1 [2]byte) (E error)
-	InputMap(call __ipc.ServerCall, I1 map[byte]byte) (E error)
-	InputSlice(call __ipc.ServerCall, I1 []byte) (E error)
-	InputStruct(call __ipc.ServerCall, I1 Struct) (E error)
-	OutputArray(__ipc.ServerCall) (O1 [2]byte, E error)
-	OutputMap(__ipc.ServerCall) (O1 map[byte]byte, E error)
-	OutputSlice(__ipc.ServerCall) (O1 []byte, E error)
-	OutputStruct(__ipc.ServerCall) (O1 Struct, E error)
+	InputArray(ctx __ipc.ServerContext, I1 [2]byte) (E error)
+	InputMap(ctx __ipc.ServerContext, I1 map[byte]byte) (E error)
+	InputSlice(ctx __ipc.ServerContext, I1 []byte) (E error)
+	InputStruct(ctx __ipc.ServerContext, I1 Struct) (E error)
+	OutputArray(__ipc.ServerContext) (O1 [2]byte, E error)
+	OutputMap(__ipc.ServerContext) (O1 map[byte]byte, E error)
+	OutputSlice(__ipc.ServerContext) (O1 []byte, E error)
+	OutputStruct(__ipc.ServerContext) (O1 Struct, E error)
 	// Methods to test support for different number of arguments.
-	NoArguments(__ipc.ServerCall) error
-	MultipleArguments(call __ipc.ServerCall, I1 int32, I2 int32) (O1 int32, O2 int32, E error)
+	NoArguments(__ipc.ServerContext) error
+	MultipleArguments(ctx __ipc.ServerContext, I1 int32, I2 int32) (O1 int32, O2 int32, E error)
 	// Methods to test support for streaming.
-	StreamingOutput(call __ipc.ServerCall, NumStreamItems int32, StreamItem bool) error
+	StreamingOutput(ctx *TypeTesterStreamingOutputContextStub, NumStreamItems int32, StreamItem bool) error
 }
 
 // TypeTesterServerStub adds universal methods to TypeTesterServerStubMethods.
 type TypeTesterServerStub interface {
 	TypeTesterServerStubMethods
 	// GetMethodTags will be replaced with DescribeInterfaces.
-	GetMethodTags(call __ipc.ServerCall, method string) ([]interface{}, error)
+	GetMethodTags(ctx __ipc.ServerContext, method string) ([]interface{}, error)
 	// Signature will be replaced with DescribeInterfaces.
-	Signature(call __ipc.ServerCall) (__ipc.ServiceSignature, error)
+	Signature(ctx __ipc.ServerContext) (__ipc.ServiceSignature, error)
 }
 
 // TypeTesterServer returns a server stub for TypeTester.
@@ -491,84 +486,83 @@ type implTypeTesterServerStub struct {
 	gs   *__ipc.GlobState
 }
 
-func (s implTypeTesterServerStub) EchoBool(call __ipc.ServerCall, i0 bool) (bool, error) {
-	return s.impl.EchoBool(call, i0)
+func (s implTypeTesterServerStub) EchoBool(ctx __ipc.ServerContext, i0 bool) (bool, error) {
+	return s.impl.EchoBool(ctx, i0)
 }
 
-func (s implTypeTesterServerStub) EchoFloat32(call __ipc.ServerCall, i0 float32) (float32, error) {
-	return s.impl.EchoFloat32(call, i0)
+func (s implTypeTesterServerStub) EchoFloat32(ctx __ipc.ServerContext, i0 float32) (float32, error) {
+	return s.impl.EchoFloat32(ctx, i0)
 }
 
-func (s implTypeTesterServerStub) EchoFloat64(call __ipc.ServerCall, i0 float64) (float64, error) {
-	return s.impl.EchoFloat64(call, i0)
+func (s implTypeTesterServerStub) EchoFloat64(ctx __ipc.ServerContext, i0 float64) (float64, error) {
+	return s.impl.EchoFloat64(ctx, i0)
 }
 
-func (s implTypeTesterServerStub) EchoInt32(call __ipc.ServerCall, i0 int32) (int32, error) {
-	return s.impl.EchoInt32(call, i0)
+func (s implTypeTesterServerStub) EchoInt32(ctx __ipc.ServerContext, i0 int32) (int32, error) {
+	return s.impl.EchoInt32(ctx, i0)
 }
 
-func (s implTypeTesterServerStub) EchoInt64(call __ipc.ServerCall, i0 int64) (int64, error) {
-	return s.impl.EchoInt64(call, i0)
+func (s implTypeTesterServerStub) EchoInt64(ctx __ipc.ServerContext, i0 int64) (int64, error) {
+	return s.impl.EchoInt64(ctx, i0)
 }
 
-func (s implTypeTesterServerStub) EchoString(call __ipc.ServerCall, i0 string) (string, error) {
-	return s.impl.EchoString(call, i0)
+func (s implTypeTesterServerStub) EchoString(ctx __ipc.ServerContext, i0 string) (string, error) {
+	return s.impl.EchoString(ctx, i0)
 }
 
-func (s implTypeTesterServerStub) EchoByte(call __ipc.ServerCall, i0 byte) (byte, error) {
-	return s.impl.EchoByte(call, i0)
+func (s implTypeTesterServerStub) EchoByte(ctx __ipc.ServerContext, i0 byte) (byte, error) {
+	return s.impl.EchoByte(ctx, i0)
 }
 
-func (s implTypeTesterServerStub) EchoUInt32(call __ipc.ServerCall, i0 uint32) (uint32, error) {
-	return s.impl.EchoUInt32(call, i0)
+func (s implTypeTesterServerStub) EchoUInt32(ctx __ipc.ServerContext, i0 uint32) (uint32, error) {
+	return s.impl.EchoUInt32(ctx, i0)
 }
 
-func (s implTypeTesterServerStub) EchoUInt64(call __ipc.ServerCall, i0 uint64) (uint64, error) {
-	return s.impl.EchoUInt64(call, i0)
+func (s implTypeTesterServerStub) EchoUInt64(ctx __ipc.ServerContext, i0 uint64) (uint64, error) {
+	return s.impl.EchoUInt64(ctx, i0)
 }
 
-func (s implTypeTesterServerStub) InputArray(call __ipc.ServerCall, i0 [2]byte) error {
-	return s.impl.InputArray(call, i0)
+func (s implTypeTesterServerStub) InputArray(ctx __ipc.ServerContext, i0 [2]byte) error {
+	return s.impl.InputArray(ctx, i0)
 }
 
-func (s implTypeTesterServerStub) InputMap(call __ipc.ServerCall, i0 map[byte]byte) error {
-	return s.impl.InputMap(call, i0)
+func (s implTypeTesterServerStub) InputMap(ctx __ipc.ServerContext, i0 map[byte]byte) error {
+	return s.impl.InputMap(ctx, i0)
 }
 
-func (s implTypeTesterServerStub) InputSlice(call __ipc.ServerCall, i0 []byte) error {
-	return s.impl.InputSlice(call, i0)
+func (s implTypeTesterServerStub) InputSlice(ctx __ipc.ServerContext, i0 []byte) error {
+	return s.impl.InputSlice(ctx, i0)
 }
 
-func (s implTypeTesterServerStub) InputStruct(call __ipc.ServerCall, i0 Struct) error {
-	return s.impl.InputStruct(call, i0)
+func (s implTypeTesterServerStub) InputStruct(ctx __ipc.ServerContext, i0 Struct) error {
+	return s.impl.InputStruct(ctx, i0)
 }
 
-func (s implTypeTesterServerStub) OutputArray(call __ipc.ServerCall) ([2]byte, error) {
-	return s.impl.OutputArray(call)
+func (s implTypeTesterServerStub) OutputArray(ctx __ipc.ServerContext) ([2]byte, error) {
+	return s.impl.OutputArray(ctx)
 }
 
-func (s implTypeTesterServerStub) OutputMap(call __ipc.ServerCall) (map[byte]byte, error) {
-	return s.impl.OutputMap(call)
+func (s implTypeTesterServerStub) OutputMap(ctx __ipc.ServerContext) (map[byte]byte, error) {
+	return s.impl.OutputMap(ctx)
 }
 
-func (s implTypeTesterServerStub) OutputSlice(call __ipc.ServerCall) ([]byte, error) {
-	return s.impl.OutputSlice(call)
+func (s implTypeTesterServerStub) OutputSlice(ctx __ipc.ServerContext) ([]byte, error) {
+	return s.impl.OutputSlice(ctx)
 }
 
-func (s implTypeTesterServerStub) OutputStruct(call __ipc.ServerCall) (Struct, error) {
-	return s.impl.OutputStruct(call)
+func (s implTypeTesterServerStub) OutputStruct(ctx __ipc.ServerContext) (Struct, error) {
+	return s.impl.OutputStruct(ctx)
 }
 
-func (s implTypeTesterServerStub) NoArguments(call __ipc.ServerCall) error {
-	return s.impl.NoArguments(call)
+func (s implTypeTesterServerStub) NoArguments(ctx __ipc.ServerContext) error {
+	return s.impl.NoArguments(ctx)
 }
 
-func (s implTypeTesterServerStub) MultipleArguments(call __ipc.ServerCall, i0 int32, i1 int32) (int32, int32, error) {
-	return s.impl.MultipleArguments(call, i0, i1)
+func (s implTypeTesterServerStub) MultipleArguments(ctx __ipc.ServerContext, i0 int32, i1 int32) (int32, int32, error) {
+	return s.impl.MultipleArguments(ctx, i0, i1)
 }
 
-func (s implTypeTesterServerStub) StreamingOutput(call __ipc.ServerCall, i0 int32, i1 bool) error {
-	ctx := &implTypeTesterStreamingOutputContext{call, implTypeTesterStreamingOutputServerSend{call}}
+func (s implTypeTesterServerStub) StreamingOutput(ctx *TypeTesterStreamingOutputContextStub, i0 int32, i1 bool) error {
 	return s.impl.StreamingOutput(ctx, i0, i1)
 }
 
@@ -576,7 +570,7 @@ func (s implTypeTesterServerStub) VGlob() *__ipc.GlobState {
 	return s.gs
 }
 
-func (s implTypeTesterServerStub) GetMethodTags(call __ipc.ServerCall, method string) ([]interface{}, error) {
+func (s implTypeTesterServerStub) GetMethodTags(ctx __ipc.ServerContext, method string) ([]interface{}, error) {
 	// TODO(toddw): Replace with new DescribeInterfaces implementation.
 	switch method {
 	case "EchoBool":
@@ -624,7 +618,7 @@ func (s implTypeTesterServerStub) GetMethodTags(call __ipc.ServerCall, method st
 	}
 }
 
-func (s implTypeTesterServerStub) Signature(call __ipc.ServerCall) (__ipc.ServiceSignature, error) {
+func (s implTypeTesterServerStub) Signature(ctx __ipc.ServerContext) (__ipc.ServiceSignature, error) {
 	// TODO(toddw) Replace with new DescribeInterfaces implementation.
 	result := __ipc.ServiceSignature{Methods: make(map[string]__ipc.MethodSignature)}
 	result.Methods["EchoBool"] = __ipc.MethodSignature{
@@ -811,7 +805,7 @@ func (s implTypeTesterServerStub) Signature(call __ipc.ServerCall) (__ipc.Servic
 
 // TypeTesterStreamingOutputServerStream is the server stream for TypeTester.StreamingOutput.
 type TypeTesterStreamingOutputServerStream interface {
-	// SendStream returns the send side of the server stream.
+	// SendStream returns the send side of the TypeTester.StreamingOutput server stream.
 	SendStream() interface {
 		// Send places the item onto the output stream.  Returns errors encountered
 		// while sending.  Blocks if there is no buffer space; will unblock when
@@ -826,21 +820,28 @@ type TypeTesterStreamingOutputContext interface {
 	TypeTesterStreamingOutputServerStream
 }
 
-type implTypeTesterStreamingOutputServerSend struct {
-	call __ipc.ServerCall
+// TypeTesterStreamingOutputContextStub is a wrapper that converts ipc.ServerCall into
+// a typesafe stub that implements TypeTesterStreamingOutputContext.
+type TypeTesterStreamingOutputContextStub struct {
+	__ipc.ServerCall
 }
 
-func (s *implTypeTesterStreamingOutputServerSend) Send(item bool) error {
-	return s.call.Send(item)
+// Init initializes TypeTesterStreamingOutputContextStub from ipc.ServerCall.
+func (s *TypeTesterStreamingOutputContextStub) Init(call __ipc.ServerCall) {
+	s.ServerCall = call
 }
 
-type implTypeTesterStreamingOutputContext struct {
-	__ipc.ServerContext
-	send implTypeTesterStreamingOutputServerSend
-}
-
-func (s *implTypeTesterStreamingOutputContext) SendStream() interface {
+// SendStream returns the send side of the TypeTester.StreamingOutput server stream.
+func (s *TypeTesterStreamingOutputContextStub) SendStream() interface {
 	Send(item bool) error
 } {
-	return &s.send
+	return implTypeTesterStreamingOutputContextSend{s}
+}
+
+type implTypeTesterStreamingOutputContextSend struct {
+	s *TypeTesterStreamingOutputContextStub
+}
+
+func (s implTypeTesterStreamingOutputContextSend) Send(item bool) error {
+	return s.s.Send(item)
 }

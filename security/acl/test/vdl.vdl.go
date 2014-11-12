@@ -161,25 +161,18 @@ type MyObjectServerMethods interface {
 }
 
 // MyObjectServerStubMethods is the server interface containing
-// MyObject methods, as expected by ipc.Server.  The difference between
-// this interface and MyObjectServerMethods is that the first context
-// argument for each method is always ipc.ServerCall here, while it is either
-// ipc.ServerContext or a typed streaming context there.
-type MyObjectServerStubMethods interface {
-	Get(__ipc.ServerCall) error
-	Put(__ipc.ServerCall) error
-	Resolve(__ipc.ServerCall) error
-	NoTags(__ipc.ServerCall) error // No tags attached to this.
-	AllTags(__ipc.ServerCall) error
-}
+// MyObject methods, as expected by ipc.Server.
+// There is no difference between this interface and MyObjectServerMethods
+// since there are no streaming methods.
+type MyObjectServerStubMethods MyObjectServerMethods
 
 // MyObjectServerStub adds universal methods to MyObjectServerStubMethods.
 type MyObjectServerStub interface {
 	MyObjectServerStubMethods
 	// GetMethodTags will be replaced with DescribeInterfaces.
-	GetMethodTags(call __ipc.ServerCall, method string) ([]interface{}, error)
+	GetMethodTags(ctx __ipc.ServerContext, method string) ([]interface{}, error)
 	// Signature will be replaced with DescribeInterfaces.
-	Signature(call __ipc.ServerCall) (__ipc.ServiceSignature, error)
+	Signature(ctx __ipc.ServerContext) (__ipc.ServiceSignature, error)
 }
 
 // MyObjectServer returns a server stub for MyObject.
@@ -204,31 +197,31 @@ type implMyObjectServerStub struct {
 	gs   *__ipc.GlobState
 }
 
-func (s implMyObjectServerStub) Get(call __ipc.ServerCall) error {
-	return s.impl.Get(call)
+func (s implMyObjectServerStub) Get(ctx __ipc.ServerContext) error {
+	return s.impl.Get(ctx)
 }
 
-func (s implMyObjectServerStub) Put(call __ipc.ServerCall) error {
-	return s.impl.Put(call)
+func (s implMyObjectServerStub) Put(ctx __ipc.ServerContext) error {
+	return s.impl.Put(ctx)
 }
 
-func (s implMyObjectServerStub) Resolve(call __ipc.ServerCall) error {
-	return s.impl.Resolve(call)
+func (s implMyObjectServerStub) Resolve(ctx __ipc.ServerContext) error {
+	return s.impl.Resolve(ctx)
 }
 
-func (s implMyObjectServerStub) NoTags(call __ipc.ServerCall) error {
-	return s.impl.NoTags(call)
+func (s implMyObjectServerStub) NoTags(ctx __ipc.ServerContext) error {
+	return s.impl.NoTags(ctx)
 }
 
-func (s implMyObjectServerStub) AllTags(call __ipc.ServerCall) error {
-	return s.impl.AllTags(call)
+func (s implMyObjectServerStub) AllTags(ctx __ipc.ServerContext) error {
+	return s.impl.AllTags(ctx)
 }
 
 func (s implMyObjectServerStub) VGlob() *__ipc.GlobState {
 	return s.gs
 }
 
-func (s implMyObjectServerStub) GetMethodTags(call __ipc.ServerCall, method string) ([]interface{}, error) {
+func (s implMyObjectServerStub) GetMethodTags(ctx __ipc.ServerContext, method string) ([]interface{}, error) {
 	// TODO(toddw): Replace with new DescribeInterfaces implementation.
 	switch method {
 	case "Get":
@@ -246,7 +239,7 @@ func (s implMyObjectServerStub) GetMethodTags(call __ipc.ServerCall, method stri
 	}
 }
 
-func (s implMyObjectServerStub) Signature(call __ipc.ServerCall) (__ipc.ServiceSignature, error) {
+func (s implMyObjectServerStub) Signature(ctx __ipc.ServerContext) (__ipc.ServiceSignature, error) {
 	// TODO(toddw) Replace with new DescribeInterfaces implementation.
 	result := __ipc.ServiceSignature{Methods: make(map[string]__ipc.MethodSignature)}
 	result.Methods["AllTags"] = __ipc.MethodSignature{

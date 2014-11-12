@@ -125,6 +125,6 @@ func TestDebugServer(t *testing.T) {
 type testObject struct {
 }
 
-func (o testObject) Foo(ipc.ServerCall) string {
+func (o testObject) Foo(ipc.ServerContext) string {
 	return "BAR"
 }

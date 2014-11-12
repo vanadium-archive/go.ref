@@ -114,29 +114,18 @@ type DischargerServerMethods interface {
 }
 
 // DischargerServerStubMethods is the server interface containing
-// Discharger methods, as expected by ipc.Server.  The difference between
-// this interface and DischargerServerMethods is that the first context
-// argument for each method is always ipc.ServerCall here, while it is either
-// ipc.ServerContext or a typed streaming context there.
-type DischargerServerStubMethods interface {
-	// Discharge is called by a principal that holds a blessing with a third
-	// party caveat and seeks to get a discharge that proves the fulfillment of
-	// this caveat.
-	//
-	// Caveat and Discharge are of type ThirdPartyCaveat and Discharge
-	// respectively. (not enforced here because vdl does not know these types)
-	// TODO(ataly,ashankar): Figure out a VDL representation for ThirdPartyCaveat
-	// and Discharge and use those here?
-	Discharge(call __ipc.ServerCall, Caveat __vdlutil.Any, Impetus security.DischargeImpetus) (Discharge __vdlutil.Any, err error)
-}
+// Discharger methods, as expected by ipc.Server.
+// There is no difference between this interface and DischargerServerMethods
+// since there are no streaming methods.
+type DischargerServerStubMethods DischargerServerMethods
 
 // DischargerServerStub adds universal methods to DischargerServerStubMethods.
 type DischargerServerStub interface {
 	DischargerServerStubMethods
 	// GetMethodTags will be replaced with DescribeInterfaces.
-	GetMethodTags(call __ipc.ServerCall, method string) ([]interface{}, error)
+	GetMethodTags(ctx __ipc.ServerContext, method string) ([]interface{}, error)
 	// Signature will be replaced with DescribeInterfaces.
-	Signature(call __ipc.ServerCall) (__ipc.ServiceSignature, error)
+	Signature(ctx __ipc.ServerContext) (__ipc.ServiceSignature, error)
 }
 
 // DischargerServer returns a server stub for Discharger.
@@ -161,15 +150,15 @@ type implDischargerServerStub struct {
 	gs   *__ipc.GlobState
 }
 
-func (s implDischargerServerStub) Discharge(call __ipc.ServerCall, i0 __vdlutil.Any, i1 security.DischargeImpetus) (__vdlutil.Any, error) {
-	return s.impl.Discharge(call, i0, i1)
+func (s implDischargerServerStub) Discharge(ctx __ipc.ServerContext, i0 __vdlutil.Any, i1 security.DischargeImpetus) (__vdlutil.Any, error) {
+	return s.impl.Discharge(ctx, i0, i1)
 }
 
 func (s implDischargerServerStub) VGlob() *__ipc.GlobState {
 	return s.gs
 }
 
-func (s implDischargerServerStub) GetMethodTags(call __ipc.ServerCall, method string) ([]interface{}, error) {
+func (s implDischargerServerStub) GetMethodTags(ctx __ipc.ServerContext, method string) ([]interface{}, error) {
 	// TODO(toddw): Replace with new DescribeInterfaces implementation.
 	switch method {
 	case "Discharge":
@@ -179,7 +168,7 @@ func (s implDischargerServerStub) GetMethodTags(call __ipc.ServerCall, method st
 	}
 }
 
-func (s implDischargerServerStub) Signature(call __ipc.ServerCall) (__ipc.ServiceSignature, error) {
+func (s implDischargerServerStub) Signature(ctx __ipc.ServerContext) (__ipc.ServiceSignature, error) {
 	// TODO(toddw) Replace with new DescribeInterfaces implementation.
 	result := __ipc.ServiceSignature{Methods: make(map[string]__ipc.MethodSignature)}
 	result.Methods["Discharge"] = __ipc.MethodSignature{

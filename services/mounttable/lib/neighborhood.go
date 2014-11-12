@@ -256,7 +256,7 @@ func (*neighborhoodService) Unmount(_ ipc.ServerContext, _ string) error {
 }
 
 // Glob implements Glob
-func (ns *neighborhoodService) Glob(ctx mounttable.GlobbableGlobContext, pattern string) error {
+func (ns *neighborhoodService) Glob(ctx ipc.GlobContext, pattern string) error {
 	g, err := glob.Parse(pattern)
 	if err != nil {
 		return err

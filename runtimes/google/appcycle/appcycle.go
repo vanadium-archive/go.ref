@@ -38,8 +38,7 @@ type AppCycleServerStub struct {
 	impl AppCycleServerMethods
 }
 
-func (s AppCycleServerStub) Stop(call ipc.ServerCall) error {
-	ctx := &implAppCycleStopContext{call, implAppCycleStopServerSend{call}}
+func (s AppCycleServerStub) Stop(ctx *AppCycleStopContextStub) error {
 	return s.impl.Stop(ctx)
 }
 
@@ -59,21 +58,24 @@ type AppCycleStopContext interface {
 	}
 }
 
-type implAppCycleStopServerSend struct {
-	call ipc.ServerCall
+type AppCycleStopContextStub struct {
+	ipc.ServerCall
 }
 
-func (s *implAppCycleStopServerSend) Send(item veyron2.Task) error {
-	return s.call.Send(item)
+func (s *AppCycleStopContextStub) Init(call ipc.ServerCall) {
+	s.ServerCall = call
 }
 
-type implAppCycleStopContext struct {
-	ipc.ServerContext
-	send implAppCycleStopServerSend
-}
-
-func (s *implAppCycleStopContext) SendStream() interface {
+func (s *AppCycleStopContextStub) SendStream() interface {
 	Send(item veyron2.Task) error
 } {
-	return &s.send
+	return implAppCycleStopContextSend{s}
+}
+
+type implAppCycleStopContextSend struct {
+	s *AppCycleStopContextStub
+}
+
+func (s implAppCycleStopContextSend) Send(item veyron2.Task) error {
+	return s.s.Send(item)
 }

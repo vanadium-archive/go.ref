@@ -121,10 +121,9 @@ type DebugServerMethods interface {
 }
 
 // DebugServerStubMethods is the server interface containing
-// Debug methods, as expected by ipc.Server.  The difference between
-// this interface and DebugServerMethods is that the first context
-// argument for each method is always ipc.ServerCall here, while it is either
-// ipc.ServerContext or a typed streaming context there.
+// Debug methods, as expected by ipc.Server.
+// The only difference between this interface and DebugServerMethods
+// is the streaming methods.
 type DebugServerStubMethods interface {
 	// LogFile can be used to access log files remotely.
 	logreader.LogFileServerStubMethods
@@ -143,9 +142,9 @@ type DebugServerStubMethods interface {
 type DebugServerStub interface {
 	DebugServerStubMethods
 	// GetMethodTags will be replaced with DescribeInterfaces.
-	GetMethodTags(call __ipc.ServerCall, method string) ([]interface{}, error)
+	GetMethodTags(ctx __ipc.ServerContext, method string) ([]interface{}, error)
 	// Signature will be replaced with DescribeInterfaces.
-	Signature(call __ipc.ServerCall) (__ipc.ServiceSignature, error)
+	Signature(ctx __ipc.ServerContext) (__ipc.ServiceSignature, error)
 }
 
 // DebugServer returns a server stub for Debug.
@@ -170,39 +169,38 @@ func DebugServer(impl DebugServerMethods) DebugServerStub {
 
 type implDebugServerStub struct {
 	impl DebugServerMethods
-	gs   *__ipc.GlobState
-
 	logreader.LogFileServerStub
 	stats.StatsServerStub
 	pprof.PProfServerStub
+	gs *__ipc.GlobState
 }
 
 func (s implDebugServerStub) VGlob() *__ipc.GlobState {
 	return s.gs
 }
 
-func (s implDebugServerStub) GetMethodTags(call __ipc.ServerCall, method string) ([]interface{}, error) {
+func (s implDebugServerStub) GetMethodTags(ctx __ipc.ServerContext, method string) ([]interface{}, error) {
 	// TODO(toddw): Replace with new DescribeInterfaces implementation.
-	if resp, err := s.LogFileServerStub.GetMethodTags(call, method); resp != nil || err != nil {
+	if resp, err := s.LogFileServerStub.GetMethodTags(ctx, method); resp != nil || err != nil {
 		return resp, err
 	}
-	if resp, err := s.StatsServerStub.GetMethodTags(call, method); resp != nil || err != nil {
+	if resp, err := s.StatsServerStub.GetMethodTags(ctx, method); resp != nil || err != nil {
 		return resp, err
 	}
-	if resp, err := s.PProfServerStub.GetMethodTags(call, method); resp != nil || err != nil {
+	if resp, err := s.PProfServerStub.GetMethodTags(ctx, method); resp != nil || err != nil {
 		return resp, err
 	}
 	return nil, nil
 }
 
-func (s implDebugServerStub) Signature(call __ipc.ServerCall) (__ipc.ServiceSignature, error) {
+func (s implDebugServerStub) Signature(ctx __ipc.ServerContext) (__ipc.ServiceSignature, error) {
 	// TODO(toddw) Replace with new DescribeInterfaces implementation.
 	result := __ipc.ServiceSignature{Methods: make(map[string]__ipc.MethodSignature)}
 
 	result.TypeDefs = []__vdlutil.Any{}
 	var ss __ipc.ServiceSignature
 	var firstAdded int
-	ss, _ = s.LogFileServerStub.Signature(call)
+	ss, _ = s.LogFileServerStub.Signature(ctx)
 	firstAdded = len(result.TypeDefs)
 	for k, v := range ss.Methods {
 		for i, _ := range v.InArgs {
@@ -255,7 +253,7 @@ func (s implDebugServerStub) Signature(call __ipc.ServerCall) (__ipc.ServiceSign
 		}
 		result.TypeDefs = append(result.TypeDefs, d)
 	}
-	ss, _ = s.StatsServerStub.Signature(call)
+	ss, _ = s.StatsServerStub.Signature(ctx)
 	firstAdded = len(result.TypeDefs)
 	for k, v := range ss.Methods {
 		for i, _ := range v.InArgs {
@@ -308,7 +306,7 @@ func (s implDebugServerStub) Signature(call __ipc.ServerCall) (__ipc.ServiceSign
 		}
 		result.TypeDefs = append(result.TypeDefs, d)
 	}
-	ss, _ = s.PProfServerStub.Signature(call)
+	ss, _ = s.PProfServerStub.Signature(ctx)
 	firstAdded = len(result.TypeDefs)
 	for k, v := range ss.Methods {
 		for i, _ := range v.InArgs {

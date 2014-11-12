@@ -10,7 +10,6 @@ import (
 	"veyron.io/veyron/veyron2/security"
 	"veyron.io/veyron/veyron2/services/mgmt/binary"
 	"veyron.io/veyron/veyron2/services/mgmt/node"
-	"veyron.io/veyron/veyron2/services/mounttable"
 
 	"veyron.io/veyron/veyron/profiles"
 	"veyron.io/veyron/veyron2"
@@ -97,9 +96,6 @@ func (*mockNodeInvoker) UpdateTo(ipc.ServerContext, string) error               
 func (i *mockNodeInvoker) SetACL(ipc.ServerContext, security.ACL, string) error { return nil }
 func (i *mockNodeInvoker) GetACL(ipc.ServerContext) (security.ACL, string, error) {
 	return security.ACL{}, "", nil
-}
-func (i *mockNodeInvoker) Glob(ctx mounttable.GlobbableGlobContext, pattern string) error {
-	return nil
 }
 
 type dispatcher struct {

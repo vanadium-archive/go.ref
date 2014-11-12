@@ -23,7 +23,7 @@ type proxyInvoker struct {
 }
 
 type signatureStub interface {
-	Signature(ipc.ServerCall) (ipc.ServiceSignature, error)
+	Signature(ipc.ServerContext) (ipc.ServiceSignature, error)
 }
 
 func (p *proxyInvoker) Prepare(method string, numArgs int) (argptrs, tags []interface{}, err error) {
@@ -125,9 +125,9 @@ func (p *proxyInvoker) VGlob() *ipc.GlobState {
 	return &ipc.GlobState{VAllGlobber: p}
 }
 
-func (p *proxyInvoker) Glob(call ipc.ServerCall, pattern string) error {
+func (p *proxyInvoker) Glob(ctx *ipc.GlobContextStub, pattern string) error {
 	argptrs := []interface{}{&pattern}
-	results, err := p.Invoke(ipc.GlobMethod, call, argptrs)
+	results, err := p.Invoke(ipc.GlobMethod, ctx, argptrs)
 	if err != nil {
 		return err
 	}

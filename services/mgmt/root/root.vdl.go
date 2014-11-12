@@ -104,23 +104,18 @@ type RootServerMethods interface {
 }
 
 // RootServerStubMethods is the server interface containing
-// Root methods, as expected by ipc.Server.  The difference between
-// this interface and RootServerMethods is that the first context
-// argument for each method is always ipc.ServerCall here, while it is either
-// ipc.ServerContext or a typed streaming context there.
-type RootServerStubMethods interface {
-	// Reset waits for the given deadline (in milliseconds) and then
-	// restars the host node machine.
-	Reset(call __ipc.ServerCall, Deadline uint64) error
-}
+// Root methods, as expected by ipc.Server.
+// There is no difference between this interface and RootServerMethods
+// since there are no streaming methods.
+type RootServerStubMethods RootServerMethods
 
 // RootServerStub adds universal methods to RootServerStubMethods.
 type RootServerStub interface {
 	RootServerStubMethods
 	// GetMethodTags will be replaced with DescribeInterfaces.
-	GetMethodTags(call __ipc.ServerCall, method string) ([]interface{}, error)
+	GetMethodTags(ctx __ipc.ServerContext, method string) ([]interface{}, error)
 	// Signature will be replaced with DescribeInterfaces.
-	Signature(call __ipc.ServerCall) (__ipc.ServiceSignature, error)
+	Signature(ctx __ipc.ServerContext) (__ipc.ServiceSignature, error)
 }
 
 // RootServer returns a server stub for Root.
@@ -145,15 +140,15 @@ type implRootServerStub struct {
 	gs   *__ipc.GlobState
 }
 
-func (s implRootServerStub) Reset(call __ipc.ServerCall, i0 uint64) error {
-	return s.impl.Reset(call, i0)
+func (s implRootServerStub) Reset(ctx __ipc.ServerContext, i0 uint64) error {
+	return s.impl.Reset(ctx, i0)
 }
 
 func (s implRootServerStub) VGlob() *__ipc.GlobState {
 	return s.gs
 }
 
-func (s implRootServerStub) GetMethodTags(call __ipc.ServerCall, method string) ([]interface{}, error) {
+func (s implRootServerStub) GetMethodTags(ctx __ipc.ServerContext, method string) ([]interface{}, error) {
 	// TODO(toddw): Replace with new DescribeInterfaces implementation.
 	switch method {
 	case "Reset":
@@ -163,7 +158,7 @@ func (s implRootServerStub) GetMethodTags(call __ipc.ServerCall, method string) 
 	}
 }
 
-func (s implRootServerStub) Signature(call __ipc.ServerCall) (__ipc.ServiceSignature, error) {
+func (s implRootServerStub) Signature(ctx __ipc.ServerContext) (__ipc.ServiceSignature, error) {
 	// TODO(toddw) Replace with new DescribeInterfaces implementation.
 	result := __ipc.ServiceSignature{Methods: make(map[string]__ipc.MethodSignature)}
 	result.Methods["Reset"] = __ipc.MethodSignature{

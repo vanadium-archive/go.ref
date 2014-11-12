@@ -127,23 +127,18 @@ type OAuthBlesserServerMethods interface {
 }
 
 // OAuthBlesserServerStubMethods is the server interface containing
-// OAuthBlesser methods, as expected by ipc.Server.  The difference between
-// this interface and OAuthBlesserServerMethods is that the first context
-// argument for each method is always ipc.ServerCall here, while it is either
-// ipc.ServerContext or a typed streaming context there.
-type OAuthBlesserServerStubMethods interface {
-	// BlessUsingAccessToken uses the provided access token to obtain the email
-	// address and returns a blessing along with the email address.
-	BlessUsingAccessToken(call __ipc.ServerCall, token string) (blessing security.WireBlessings, email string, err error)
-}
+// OAuthBlesser methods, as expected by ipc.Server.
+// There is no difference between this interface and OAuthBlesserServerMethods
+// since there are no streaming methods.
+type OAuthBlesserServerStubMethods OAuthBlesserServerMethods
 
 // OAuthBlesserServerStub adds universal methods to OAuthBlesserServerStubMethods.
 type OAuthBlesserServerStub interface {
 	OAuthBlesserServerStubMethods
 	// GetMethodTags will be replaced with DescribeInterfaces.
-	GetMethodTags(call __ipc.ServerCall, method string) ([]interface{}, error)
+	GetMethodTags(ctx __ipc.ServerContext, method string) ([]interface{}, error)
 	// Signature will be replaced with DescribeInterfaces.
-	Signature(call __ipc.ServerCall) (__ipc.ServiceSignature, error)
+	Signature(ctx __ipc.ServerContext) (__ipc.ServiceSignature, error)
 }
 
 // OAuthBlesserServer returns a server stub for OAuthBlesser.
@@ -168,15 +163,15 @@ type implOAuthBlesserServerStub struct {
 	gs   *__ipc.GlobState
 }
 
-func (s implOAuthBlesserServerStub) BlessUsingAccessToken(call __ipc.ServerCall, i0 string) (security.WireBlessings, string, error) {
-	return s.impl.BlessUsingAccessToken(call, i0)
+func (s implOAuthBlesserServerStub) BlessUsingAccessToken(ctx __ipc.ServerContext, i0 string) (security.WireBlessings, string, error) {
+	return s.impl.BlessUsingAccessToken(ctx, i0)
 }
 
 func (s implOAuthBlesserServerStub) VGlob() *__ipc.GlobState {
 	return s.gs
 }
 
-func (s implOAuthBlesserServerStub) GetMethodTags(call __ipc.ServerCall, method string) ([]interface{}, error) {
+func (s implOAuthBlesserServerStub) GetMethodTags(ctx __ipc.ServerContext, method string) ([]interface{}, error) {
 	// TODO(toddw): Replace with new DescribeInterfaces implementation.
 	switch method {
 	case "BlessUsingAccessToken":
@@ -186,7 +181,7 @@ func (s implOAuthBlesserServerStub) GetMethodTags(call __ipc.ServerCall, method 
 	}
 }
 
-func (s implOAuthBlesserServerStub) Signature(call __ipc.ServerCall) (__ipc.ServiceSignature, error) {
+func (s implOAuthBlesserServerStub) Signature(ctx __ipc.ServerContext) (__ipc.ServiceSignature, error) {
 	// TODO(toddw) Replace with new DescribeInterfaces implementation.
 	result := __ipc.ServiceSignature{Methods: make(map[string]__ipc.MethodSignature)}
 	result.Methods["BlessUsingAccessToken"] = __ipc.MethodSignature{
@@ -315,23 +310,18 @@ type MacaroonBlesserServerMethods interface {
 }
 
 // MacaroonBlesserServerStubMethods is the server interface containing
-// MacaroonBlesser methods, as expected by ipc.Server.  The difference between
-// this interface and MacaroonBlesserServerMethods is that the first context
-// argument for each method is always ipc.ServerCall here, while it is either
-// ipc.ServerContext or a typed streaming context there.
-type MacaroonBlesserServerStubMethods interface {
-	// Bless uses the provided macaroon (which contains email and caveats)
-	// to return a blessing for the client.
-	Bless(call __ipc.ServerCall, macaroon string) (blessing security.WireBlessings, err error)
-}
+// MacaroonBlesser methods, as expected by ipc.Server.
+// There is no difference between this interface and MacaroonBlesserServerMethods
+// since there are no streaming methods.
+type MacaroonBlesserServerStubMethods MacaroonBlesserServerMethods
 
 // MacaroonBlesserServerStub adds universal methods to MacaroonBlesserServerStubMethods.
 type MacaroonBlesserServerStub interface {
 	MacaroonBlesserServerStubMethods
 	// GetMethodTags will be replaced with DescribeInterfaces.
-	GetMethodTags(call __ipc.ServerCall, method string) ([]interface{}, error)
+	GetMethodTags(ctx __ipc.ServerContext, method string) ([]interface{}, error)
 	// Signature will be replaced with DescribeInterfaces.
-	Signature(call __ipc.ServerCall) (__ipc.ServiceSignature, error)
+	Signature(ctx __ipc.ServerContext) (__ipc.ServiceSignature, error)
 }
 
 // MacaroonBlesserServer returns a server stub for MacaroonBlesser.
@@ -356,15 +346,15 @@ type implMacaroonBlesserServerStub struct {
 	gs   *__ipc.GlobState
 }
 
-func (s implMacaroonBlesserServerStub) Bless(call __ipc.ServerCall, i0 string) (security.WireBlessings, error) {
-	return s.impl.Bless(call, i0)
+func (s implMacaroonBlesserServerStub) Bless(ctx __ipc.ServerContext, i0 string) (security.WireBlessings, error) {
+	return s.impl.Bless(ctx, i0)
 }
 
 func (s implMacaroonBlesserServerStub) VGlob() *__ipc.GlobState {
 	return s.gs
 }
 
-func (s implMacaroonBlesserServerStub) GetMethodTags(call __ipc.ServerCall, method string) ([]interface{}, error) {
+func (s implMacaroonBlesserServerStub) GetMethodTags(ctx __ipc.ServerContext, method string) ([]interface{}, error) {
 	// TODO(toddw): Replace with new DescribeInterfaces implementation.
 	switch method {
 	case "Bless":
@@ -374,7 +364,7 @@ func (s implMacaroonBlesserServerStub) GetMethodTags(call __ipc.ServerCall, meth
 	}
 }
 
-func (s implMacaroonBlesserServerStub) Signature(call __ipc.ServerCall) (__ipc.ServiceSignature, error) {
+func (s implMacaroonBlesserServerStub) Signature(ctx __ipc.ServerContext) (__ipc.ServiceSignature, error) {
 	// TODO(toddw) Replace with new DescribeInterfaces implementation.
 	result := __ipc.ServiceSignature{Methods: make(map[string]__ipc.MethodSignature)}
 	result.Methods["Bless"] = __ipc.MethodSignature{

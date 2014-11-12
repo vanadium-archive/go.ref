@@ -72,7 +72,7 @@ type testServer struct {
 	suffix string
 }
 
-func (testServer) KnockKnock(call ipc.ServerCall) string {
+func (testServer) KnockKnock(ctx ipc.ServerContext) string {
 	return "Who's there?"
 }
 
@@ -81,7 +81,7 @@ func (testServer) KnockKnock(call ipc.ServerCall) string {
 // "".Glob("*") returns "level1"
 // "".Glob("...") returns "level1" and "level1/level2"
 // "level1".Glob("*") returns "level2"
-func (t *testServer) Glob(call ipc.ServerCall, pattern string) error {
+func (t *testServer) Glob(ctx *ipc.GlobContextStub, pattern string) error {
 	g, err := glob.Parse(pattern)
 	if err != nil {
 		return err
@@ -89,15 +89,15 @@ func (t *testServer) Glob(call ipc.ServerCall, pattern string) error {
 	tree := []string{"", "level1", "level2"}
 	for i, leaf := range tree {
 		if leaf == t.suffix {
-			return t.globLoop(call, "", g, tree[i+1:])
+			return t.globLoop(ctx, "", g, tree[i+1:])
 		}
 	}
 	return nil
 }
 
-func (t *testServer) globLoop(call ipc.ServerCall, prefix string, g *glob.Glob, tree []string) error {
+func (t *testServer) globLoop(ctx *ipc.GlobContextStub, prefix string, g *glob.Glob, tree []string) error {
 	if g.Len() == 0 {
-		if err := call.Send(naming.VDLMountEntry{Name: prefix}); err != nil {
+		if err := ctx.SendStream().Send(naming.VDLMountEntry{Name: prefix}); err != nil {
 			return err
 		}
 	}
@@ -105,7 +105,7 @@ func (t *testServer) globLoop(call ipc.ServerCall, prefix string, g *glob.Glob, 
 		return nil
 	}
 	if ok, _, left := g.MatchInitialSegment(tree[0]); ok {
-		if err := t.globLoop(call, naming.Join(prefix, tree[0]), left, tree[1:]); err != nil {
+		if err := t.globLoop(ctx, naming.Join(prefix, tree[0]), left, tree[1:]); err != nil {
 			return err
 		}
 	}
@@ -465,7 +465,7 @@ type GlobbableServer struct {
 	mu        sync.Mutex
 }
 
-func (g *GlobbableServer) Glob(mounttable.GlobbableGlobContext, string) error {
+func (g *GlobbableServer) Glob(ipc.GlobContext, string) error {
 	g.mu.Lock()
 	defer g.mu.Unlock()
 	g.callCount++

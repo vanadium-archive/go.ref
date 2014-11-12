@@ -14,7 +14,7 @@ import (
 type impl struct {
 }
 
-func (i *impl) Echo(ctx ipc.ServerCall, payload []byte) ([]byte, error) {
+func (i *impl) Echo(ctx ipc.ServerContext, payload []byte) ([]byte, error) {
 	return payload, nil
 }
 
