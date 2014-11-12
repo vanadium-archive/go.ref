@@ -144,8 +144,12 @@ func (a *keymgr) readKey(handle keyHandle) security.Principal {
 		vlog.Errorf("unable to load key: %v", err)
 		return nil
 	}
-
-	principal, err := vsecurity.NewPersistentPrincipalFromSigner(security.NewInMemoryECDSASigner(key.(*ecdsa.PrivateKey)), filepath.Join(a.path, "creds", filename))
+	state, err := vsecurity.NewPrincipalStateSerializer(filepath.Join(a.path, "creds", filename))
+	if err != nil {
+		vlog.Errorf("unable to create persisted state serializer: %v", err)
+		return nil
+	}
+	principal, err := vsecurity.NewPrincipalFromSigner(security.NewInMemoryECDSASigner(key.(*ecdsa.PrivateKey)), state)
 	if err != nil {
 		vlog.Errorf("unable to load principal: %v", err)
 		return nil
@@ -250,7 +254,7 @@ func (a keymgr) newKey(in_memory bool) (id []byte, p security.Principal, err err
 	}
 	signer := security.NewInMemoryECDSASigner(key)
 	if in_memory {
-		p, err = vsecurity.NewPrincipalFromSigner(signer)
+		p, err = vsecurity.NewPrincipalFromSigner(signer, nil)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -266,7 +270,11 @@ func (a keymgr) newKey(in_memory bool) (id []byte, p security.Principal, err err
 		if err != nil {
 			return nil, nil, err
 		}
-		p, err = vsecurity.NewPersistentPrincipalFromSigner(signer, filepath.Join(a.path, "creds", filename))
+		state, err := vsecurity.NewPrincipalStateSerializer(filepath.Join(a.path, "creds", filename))
+		if err != nil {
+			return nil, nil, err
+		}
+		p, err = vsecurity.NewPrincipalFromSigner(signer, state)
 		if err != nil {
 			return nil, nil, err
 		}

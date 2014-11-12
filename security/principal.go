@@ -29,25 +29,55 @@ func NewPrincipal() (security.Principal, error) {
 	return security.CreatePrincipal(security.NewInMemoryECDSASigner(priv), newInMemoryBlessingStore(pub), newInMemoryBlessingRoots())
 }
 
-// NewPrincipalFromSigner creates a principal using the provided signer, storing its
-// BlessingRoots and BlessingStore in memory.
-func NewPrincipalFromSigner(signer security.Signer) (security.Principal, error) {
-	return security.CreatePrincipal(signer, newInMemoryBlessingStore(signer.PublicKey()), newInMemoryBlessingRoots())
+// PrincipalStateSerializer is used to persist BlessingRoots/BlessingStore state for
+// a principal with the provided SerializerReaderWriters.
+type PrincipalStateSerializer struct {
+	BlessingRoots SerializerReaderWriter
+	BlessingStore SerializerReaderWriter
 }
 
-// NewPersistentPrincipalFromSigner creates a new principal using the provided Signer and a
-// partial state (i.e., BlessingRoots, BlessingStore) that is read from the provided directory 'dir'.
-// Changes to the partial state are persisted and commited to the same directory; the provided
-// signer isn't persisted: the caller is expected to persist it separately or use the
-// {Load,Create}PersistentPrincipal() methods instead.
-//
-// If the directory does not contain any partial state, new partial state instances are created
-// and subsequently commited to 'dir'.  If the directory does not exist, it is created.
-func NewPersistentPrincipalFromSigner(signer security.Signer, dir string) (security.Principal, error) {
+// NewPrincipalStateSerializer is a convenience function that returns a serializer
+// for BlessingStore and BlessingRoots given a directory location. We create the
+// directory if it does not already exist.
+func NewPrincipalStateSerializer(dir string) (*PrincipalStateSerializer, error) {
 	if err := mkDir(dir); err != nil {
 		return nil, err
 	}
-	return newPersistentPrincipalFromSigner(signer, dir)
+	roots, err := NewFileSerializer(path.Join(dir, blessingRootsDataFile), path.Join(dir, blessingRootsSigFile))
+	if err != nil {
+		return nil, err
+	}
+	store, err := NewFileSerializer(path.Join(dir, blessingStoreDataFile), path.Join(dir, blessingStoreSigFile))
+	if err != nil {
+		return nil, err
+	}
+	return &PrincipalStateSerializer{
+		BlessingRoots: roots,
+		BlessingStore: store,
+	}, nil
+}
+
+// NewPrincipalFromSigner creates a new principal using the provided Signer. If previously
+// persisted state is available, we use the serializers to populate BlessingRoots/BlessingStore
+// for the Principal. If provided, changes to the state are persisted and committed with the
+// same serializers. Otherwise, the state (ie: BlessingStore, BlessingRoots) is kept in memory.
+func NewPrincipalFromSigner(signer security.Signer, state *PrincipalStateSerializer) (security.Principal, error) {
+	if state == nil {
+		return security.CreatePrincipal(signer, newInMemoryBlessingStore(signer.PublicKey()), newInMemoryBlessingRoots())
+	}
+	serializationSigner, err := security.CreatePrincipal(signer, nil, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create serialization.Signer: %v", err)
+	}
+	blessingRoots, err := newPersistingBlessingRoots(state.BlessingRoots, serializationSigner)
+	if err != nil {
+		return nil, fmt.Errorf("failed to load BlessingRoots: %v", err)
+	}
+	blessingStore, err := newPersistingBlessingStore(state.BlessingStore, serializationSigner)
+	if err != nil {
+		return nil, fmt.Errorf("failed to load BlessingStore: %v", err)
+	}
+	return security.CreatePrincipal(signer, blessingStore, blessingRoots)
 }
 
 // LoadPersistentPrincipal reads state for a principal (private key, BlessingRoots, BlessingStore)
@@ -59,7 +89,11 @@ func LoadPersistentPrincipal(dir string, passphrase []byte) (security.Principal,
 	if err != nil {
 		return nil, err
 	}
-	return newPersistentPrincipalFromSigner(security.NewInMemoryECDSASigner(key), dir)
+	state, err := NewPrincipalStateSerializer(dir)
+	if err != nil {
+		return nil, err
+	}
+	return NewPrincipalFromSigner(security.NewInMemoryECDSASigner(key), state)
 }
 
 // CreatePersistentPrincipal creates a new principal (private key, BlessingRoots,
@@ -81,7 +115,11 @@ func CreatePersistentPrincipal(dir string, passphrase []byte) (principal securit
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize private key: %v", err)
 	}
-	return newPersistentPrincipalFromSigner(security.NewInMemoryECDSASigner(key), dir)
+	state, err := NewPrincipalStateSerializer(dir)
+	if err != nil {
+		return nil, err
+	}
+	return NewPrincipalFromSigner(security.NewInMemoryECDSASigner(key), state)
 }
 
 // InitDefaultBlessings uses the provided principal to create a self blessing for name 'name',
@@ -101,33 +139,6 @@ func InitDefaultBlessings(p security.Principal, name string) error {
 		return err
 	}
 	return nil
-}
-
-func newPersistentPrincipalFromSigner(signer security.Signer, dir string) (security.Principal, error) {
-	serializationSigner, err := security.CreatePrincipal(signer, nil, nil)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create serialization.Signer: %v", err)
-	}
-	dataFile := path.Join(dir, blessingRootsDataFile)
-	signatureFile := path.Join(dir, blessingRootsSigFile)
-	fs, err := NewFileSerializer(dataFile, signatureFile)
-	if err != nil {
-		return nil, err
-	}
-	roots, err := newPersistingBlessingRoots(fs, serializationSigner)
-	if err != nil {
-		return nil, fmt.Errorf("failed to load BlessingRoots from %q: %v", dir, err)
-	}
-	dataFile = path.Join(dir, blessingStoreDataFile)
-	signatureFile = path.Join(dir, blessingStoreSigFile)
-	if fs, err = NewFileSerializer(dataFile, signatureFile); err != nil {
-		return nil, err
-	}
-	store, err := newPersistingBlessingStore(fs, serializationSigner)
-	if err != nil {
-		return nil, fmt.Errorf("failed to load BlessingStore from %q: %v", dir, err)
-	}
-	return security.CreatePrincipal(signer, store, roots)
 }
 
 func mkDir(dir string) error {
