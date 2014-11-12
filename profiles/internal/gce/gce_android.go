@@ -1,7 +1,5 @@
-// +build linux,android
+// +build android
 
-// The GCE profile shouldn't be used with android. This file solves build issues
-// due to android using go 1.2.2
 package gce
 
 import (
