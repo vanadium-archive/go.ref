@@ -183,7 +183,7 @@ func (d *disp) Lookup(suffix, method string) (interface{}, security.Authorizer, 
 	if len(elems) != 0 && elems[0] == "leaf" {
 		return leafObject{}, nil, nil
 	}
-	if len(elems) <= 2 || (elems[0] == "a" && elems[1] == "x") {
+	if len(elems) < 2 || (elems[0] == "a" && elems[1] == "x") {
 		return &vChildrenObject{d.tree, elems}, nil, nil
 	}
 	return &globObject{d.tree, elems}, nil, nil
