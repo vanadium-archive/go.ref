@@ -163,8 +163,24 @@ main() {
   local -r NM_ROOT="${INSTALL_DIR}/nmroot"
   echo "Installing node manager under ${NM_ROOT} ..."
   local -r PUBLISH=$(hostname)
-  VEYRON_NM_CURRENT="${INSTALL_DIR}/curr" VEYRON_NM_ROOT="${NM_ROOT}" VEYRON_NM_HELPER="${SETUID_SCRIPT}" "${BIN_INSTALL}/noded" --install_self --name="${PUBLISH}"
+  VEYRON_NM_CURRENT="${INSTALL_DIR}/noded.curr" VEYRON_NM_ROOT="${NM_ROOT}" VEYRON_NM_HELPER="${SETUID_SCRIPT}" "${BIN_INSTALL}/noded" --install_self --name="${PUBLISH}"
   echo "Node manager installed."
+
+  local -r SECURITY_DIR="${INSTALL_DIR}/security"
+  mkdir -m 700 "${SECURITY_DIR}"
+  local -r PRINCIPAL_DIR="${SECURITY_DIR}/principal"
+  mkdir -m 700 "${PRINCIPAL_DIR}"
+  local -r AGENT_KEY_DIR="${SECURITY_DIR}/keys"
+  mkdir -m 700 "${AGENT_KEY_DIR}"
+
+  # Run node manager under the security agent.
+  echo
+  echo "Running:"
+  echo "VEYRON_CREDENTIALS=\"${PRINCIPAL_DIR}\" \"${BIN_INSTALL}/agentd\" --additional_principals=\"${AGENT_KEY_DIR}\" \"${INSTALL_DIR}/noded.curr\""
+  echo
+  # NOTE: If you update the command below, please also update the command echoed
+  # above to keep the two in sync.
+  VEYRON_CREDENTIALS="${PRINCIPAL_DIR}" "${BIN_INSTALL}/agentd" --additional_principals="${AGENT_KEY_DIR}" "${INSTALL_DIR}/noded.curr"
 }
 
 main "$@"
