@@ -96,7 +96,7 @@ func (c implTunnelClientStub) Forward(ctx __context.T, i0 string, i1 string, opt
 	if call, err = c.c(ctx).StartCall(ctx, c.name, "Forward", []interface{}{i0, i1}, opts...); err != nil {
 		return
 	}
-	ocall = &implTunnelForwardCall{call, implTunnelForwardClientRecv{call: call}, implTunnelForwardClientSend{call}}
+	ocall = &implTunnelForwardCall{Call: call}
 	return
 }
 
@@ -105,7 +105,7 @@ func (c implTunnelClientStub) Shell(ctx __context.T, i0 string, i1 ShellOpts, op
 	if call, err = c.c(ctx).StartCall(ctx, c.name, "Shell", []interface{}{i0, i1}, opts...); err != nil {
 		return
 	}
-	ocall = &implTunnelShellCall{call, implTunnelShellClientRecv{call: call}, implTunnelShellClientSend{call}}
+	ocall = &implTunnelShellCall{Call: call}
 	return
 }
 
@@ -133,7 +133,7 @@ func (c implTunnelClientStub) GetMethodTags(ctx __context.T, method string, opts
 
 // TunnelForwardClientStream is the client stream for Tunnel.Forward.
 type TunnelForwardClientStream interface {
-	// RecvStream returns the receiver side of the client stream.
+	// RecvStream returns the receiver side of the Tunnel.Forward client stream.
 	RecvStream() interface {
 		// Advance stages an item so that it may be retrieved via Value.  Returns
 		// true iff there is an item to retrieve.  Advance must be called before
@@ -145,7 +145,7 @@ type TunnelForwardClientStream interface {
 		// Err returns any error encountered by Advance.  Never blocks.
 		Err() error
 	}
-	// SendStream returns the send side of the client stream.
+	// SendStream returns the send side of the Tunnel.Forward client stream.
 	SendStream() interface {
 		// Send places the item onto the output stream.  Returns errors encountered
 		// while sending, or if Send is called after Close or Cancel.  Blocks if
@@ -182,41 +182,10 @@ type TunnelForwardCall interface {
 	Cancel()
 }
 
-type implTunnelForwardClientRecv struct {
-	call __ipc.Call
-	val  []byte
-	err  error
-}
-
-func (c *implTunnelForwardClientRecv) Advance() bool {
-	c.err = c.call.Recv(&c.val)
-	return c.err == nil
-}
-func (c *implTunnelForwardClientRecv) Value() []byte {
-	return c.val
-}
-func (c *implTunnelForwardClientRecv) Err() error {
-	if c.err == __io.EOF {
-		return nil
-	}
-	return c.err
-}
-
-type implTunnelForwardClientSend struct {
-	call __ipc.Call
-}
-
-func (c *implTunnelForwardClientSend) Send(item []byte) error {
-	return c.call.Send(item)
-}
-func (c *implTunnelForwardClientSend) Close() error {
-	return c.call.CloseSend()
-}
-
 type implTunnelForwardCall struct {
-	call __ipc.Call
-	recv implTunnelForwardClientRecv
-	send implTunnelForwardClientSend
+	__ipc.Call
+	valRecv []byte
+	errRecv error
 }
 
 func (c *implTunnelForwardCall) RecvStream() interface {
@@ -224,27 +193,53 @@ func (c *implTunnelForwardCall) RecvStream() interface {
 	Value() []byte
 	Err() error
 } {
-	return &c.recv
+	return implTunnelForwardCallRecv{c}
+}
+
+type implTunnelForwardCallRecv struct {
+	c *implTunnelForwardCall
+}
+
+func (c implTunnelForwardCallRecv) Advance() bool {
+	c.c.errRecv = c.c.Recv(&c.c.valRecv)
+	return c.c.errRecv == nil
+}
+func (c implTunnelForwardCallRecv) Value() []byte {
+	return c.c.valRecv
+}
+func (c implTunnelForwardCallRecv) Err() error {
+	if c.c.errRecv == __io.EOF {
+		return nil
+	}
+	return c.c.errRecv
 }
 func (c *implTunnelForwardCall) SendStream() interface {
 	Send(item []byte) error
 	Close() error
 } {
-	return &c.send
+	return implTunnelForwardCallSend{c}
+}
+
+type implTunnelForwardCallSend struct {
+	c *implTunnelForwardCall
+}
+
+func (c implTunnelForwardCallSend) Send(item []byte) error {
+	return c.c.Send(item)
+}
+func (c implTunnelForwardCallSend) Close() error {
+	return c.c.CloseSend()
 }
 func (c *implTunnelForwardCall) Finish() (err error) {
-	if ierr := c.call.Finish(&err); ierr != nil {
+	if ierr := c.Call.Finish(&err); ierr != nil {
 		err = ierr
 	}
 	return
 }
-func (c *implTunnelForwardCall) Cancel() {
-	c.call.Cancel()
-}
 
 // TunnelShellClientStream is the client stream for Tunnel.Shell.
 type TunnelShellClientStream interface {
-	// RecvStream returns the receiver side of the client stream.
+	// RecvStream returns the receiver side of the Tunnel.Shell client stream.
 	RecvStream() interface {
 		// Advance stages an item so that it may be retrieved via Value.  Returns
 		// true iff there is an item to retrieve.  Advance must be called before
@@ -256,7 +251,7 @@ type TunnelShellClientStream interface {
 		// Err returns any error encountered by Advance.  Never blocks.
 		Err() error
 	}
-	// SendStream returns the send side of the client stream.
+	// SendStream returns the send side of the Tunnel.Shell client stream.
 	SendStream() interface {
 		// Send places the item onto the output stream.  Returns errors encountered
 		// while sending, or if Send is called after Close or Cancel.  Blocks if
@@ -293,42 +288,10 @@ type TunnelShellCall interface {
 	Cancel()
 }
 
-type implTunnelShellClientRecv struct {
-	call __ipc.Call
-	val  ServerShellPacket
-	err  error
-}
-
-func (c *implTunnelShellClientRecv) Advance() bool {
-	c.val = ServerShellPacket{}
-	c.err = c.call.Recv(&c.val)
-	return c.err == nil
-}
-func (c *implTunnelShellClientRecv) Value() ServerShellPacket {
-	return c.val
-}
-func (c *implTunnelShellClientRecv) Err() error {
-	if c.err == __io.EOF {
-		return nil
-	}
-	return c.err
-}
-
-type implTunnelShellClientSend struct {
-	call __ipc.Call
-}
-
-func (c *implTunnelShellClientSend) Send(item ClientShellPacket) error {
-	return c.call.Send(item)
-}
-func (c *implTunnelShellClientSend) Close() error {
-	return c.call.CloseSend()
-}
-
 type implTunnelShellCall struct {
-	call __ipc.Call
-	recv implTunnelShellClientRecv
-	send implTunnelShellClientSend
+	__ipc.Call
+	valRecv ServerShellPacket
+	errRecv error
 }
 
 func (c *implTunnelShellCall) RecvStream() interface {
@@ -336,22 +299,49 @@ func (c *implTunnelShellCall) RecvStream() interface {
 	Value() ServerShellPacket
 	Err() error
 } {
-	return &c.recv
+	return implTunnelShellCallRecv{c}
+}
+
+type implTunnelShellCallRecv struct {
+	c *implTunnelShellCall
+}
+
+func (c implTunnelShellCallRecv) Advance() bool {
+	c.c.valRecv = ServerShellPacket{}
+	c.c.errRecv = c.c.Recv(&c.c.valRecv)
+	return c.c.errRecv == nil
+}
+func (c implTunnelShellCallRecv) Value() ServerShellPacket {
+	return c.c.valRecv
+}
+func (c implTunnelShellCallRecv) Err() error {
+	if c.c.errRecv == __io.EOF {
+		return nil
+	}
+	return c.c.errRecv
 }
 func (c *implTunnelShellCall) SendStream() interface {
 	Send(item ClientShellPacket) error
 	Close() error
 } {
-	return &c.send
+	return implTunnelShellCallSend{c}
+}
+
+type implTunnelShellCallSend struct {
+	c *implTunnelShellCall
+}
+
+func (c implTunnelShellCallSend) Send(item ClientShellPacket) error {
+	return c.c.Send(item)
+}
+func (c implTunnelShellCallSend) Close() error {
+	return c.c.CloseSend()
 }
 func (c *implTunnelShellCall) Finish() (o0 int32, err error) {
-	if ierr := c.call.Finish(&o0, &err); ierr != nil {
+	if ierr := c.Call.Finish(&o0, &err); ierr != nil {
 		err = ierr
 	}
 	return
-}
-func (c *implTunnelShellCall) Cancel() {
-	c.call.Cancel()
 }
 
 // TunnelServerMethods is the interface a server writer
@@ -371,31 +361,30 @@ type TunnelServerMethods interface {
 }
 
 // TunnelServerStubMethods is the server interface containing
-// Tunnel methods, as expected by ipc.Server.  The difference between
-// this interface and TunnelServerMethods is that the first context
-// argument for each method is always ipc.ServerCall here, while it is either
-// ipc.ServerContext or a typed streaming context there.
+// Tunnel methods, as expected by ipc.Server.
+// The only difference between this interface and TunnelServerMethods
+// is the streaming methods.
 type TunnelServerStubMethods interface {
 	// The Forward method is used for network forwarding. All the data sent over
 	// the byte stream is forwarded to the requested network address and all the
 	// data received from that network connection is sent back in the reply
 	// stream.
-	Forward(call __ipc.ServerCall, network string, address string) error
+	Forward(ctx *TunnelForwardContextStub, network string, address string) error
 	// The Shell method is used to either run shell commands remotely, or to open
 	// an interactive shell. The data received over the byte stream is sent to the
 	// shell's stdin, and the data received from the shell's stdout and stderr is
 	// sent back in the reply stream. It returns the exit status of the shell
 	// command.
-	Shell(call __ipc.ServerCall, command string, shellOpts ShellOpts) (int32, error)
+	Shell(ctx *TunnelShellContextStub, command string, shellOpts ShellOpts) (int32, error)
 }
 
 // TunnelServerStub adds universal methods to TunnelServerStubMethods.
 type TunnelServerStub interface {
 	TunnelServerStubMethods
 	// GetMethodTags will be replaced with DescribeInterfaces.
-	GetMethodTags(call __ipc.ServerCall, method string) ([]interface{}, error)
+	GetMethodTags(ctx __ipc.ServerContext, method string) ([]interface{}, error)
 	// Signature will be replaced with DescribeInterfaces.
-	Signature(call __ipc.ServerCall) (__ipc.ServiceSignature, error)
+	Signature(ctx __ipc.ServerContext) (__ipc.ServiceSignature, error)
 }
 
 // TunnelServer returns a server stub for Tunnel.
@@ -420,13 +409,11 @@ type implTunnelServerStub struct {
 	gs   *__ipc.GlobState
 }
 
-func (s implTunnelServerStub) Forward(call __ipc.ServerCall, i0 string, i1 string) error {
-	ctx := &implTunnelForwardContext{call, implTunnelForwardServerRecv{call: call}, implTunnelForwardServerSend{call}}
+func (s implTunnelServerStub) Forward(ctx *TunnelForwardContextStub, i0 string, i1 string) error {
 	return s.impl.Forward(ctx, i0, i1)
 }
 
-func (s implTunnelServerStub) Shell(call __ipc.ServerCall, i0 string, i1 ShellOpts) (int32, error) {
-	ctx := &implTunnelShellContext{call, implTunnelShellServerRecv{call: call}, implTunnelShellServerSend{call}}
+func (s implTunnelServerStub) Shell(ctx *TunnelShellContextStub, i0 string, i1 ShellOpts) (int32, error) {
 	return s.impl.Shell(ctx, i0, i1)
 }
 
@@ -434,7 +421,7 @@ func (s implTunnelServerStub) VGlob() *__ipc.GlobState {
 	return s.gs
 }
 
-func (s implTunnelServerStub) GetMethodTags(call __ipc.ServerCall, method string) ([]interface{}, error) {
+func (s implTunnelServerStub) GetMethodTags(ctx __ipc.ServerContext, method string) ([]interface{}, error) {
 	// TODO(toddw): Replace with new DescribeInterfaces implementation.
 	switch method {
 	case "Forward":
@@ -446,7 +433,7 @@ func (s implTunnelServerStub) GetMethodTags(call __ipc.ServerCall, method string
 	}
 }
 
-func (s implTunnelServerStub) Signature(call __ipc.ServerCall) (__ipc.ServiceSignature, error) {
+func (s implTunnelServerStub) Signature(ctx __ipc.ServerContext) (__ipc.ServiceSignature, error) {
 	// TODO(toddw) Replace with new DescribeInterfaces implementation.
 	result := __ipc.ServiceSignature{Methods: make(map[string]__ipc.MethodSignature)}
 	result.Methods["Forward"] = __ipc.MethodSignature{
@@ -503,7 +490,7 @@ func (s implTunnelServerStub) Signature(call __ipc.ServerCall) (__ipc.ServiceSig
 
 // TunnelForwardServerStream is the server stream for Tunnel.Forward.
 type TunnelForwardServerStream interface {
-	// RecvStream returns the receiver side of the server stream.
+	// RecvStream returns the receiver side of the Tunnel.Forward server stream.
 	RecvStream() interface {
 		// Advance stages an item so that it may be retrieved via Value.  Returns
 		// true iff there is an item to retrieve.  Advance must be called before
@@ -515,7 +502,7 @@ type TunnelForwardServerStream interface {
 		// Err returns any error encountered by Advance.  Never blocks.
 		Err() error
 	}
-	// SendStream returns the send side of the server stream.
+	// SendStream returns the send side of the Tunnel.Forward server stream.
 	SendStream() interface {
 		// Send places the item onto the output stream.  Returns errors encountered
 		// while sending.  Blocks if there is no buffer space; will unblock when
@@ -530,56 +517,64 @@ type TunnelForwardContext interface {
 	TunnelForwardServerStream
 }
 
-type implTunnelForwardServerRecv struct {
-	call __ipc.ServerCall
-	val  []byte
-	err  error
+// TunnelForwardContextStub is a wrapper that converts ipc.ServerCall into
+// a typesafe stub that implements TunnelForwardContext.
+type TunnelForwardContextStub struct {
+	__ipc.ServerCall
+	valRecv []byte
+	errRecv error
 }
 
-func (s *implTunnelForwardServerRecv) Advance() bool {
-	s.err = s.call.Recv(&s.val)
-	return s.err == nil
-}
-func (s *implTunnelForwardServerRecv) Value() []byte {
-	return s.val
-}
-func (s *implTunnelForwardServerRecv) Err() error {
-	if s.err == __io.EOF {
-		return nil
-	}
-	return s.err
+// Init initializes TunnelForwardContextStub from ipc.ServerCall.
+func (s *TunnelForwardContextStub) Init(call __ipc.ServerCall) {
+	s.ServerCall = call
 }
 
-type implTunnelForwardServerSend struct {
-	call __ipc.ServerCall
-}
-
-func (s *implTunnelForwardServerSend) Send(item []byte) error {
-	return s.call.Send(item)
-}
-
-type implTunnelForwardContext struct {
-	__ipc.ServerContext
-	recv implTunnelForwardServerRecv
-	send implTunnelForwardServerSend
-}
-
-func (s *implTunnelForwardContext) RecvStream() interface {
+// RecvStream returns the receiver side of the Tunnel.Forward server stream.
+func (s *TunnelForwardContextStub) RecvStream() interface {
 	Advance() bool
 	Value() []byte
 	Err() error
 } {
-	return &s.recv
+	return implTunnelForwardContextRecv{s}
 }
-func (s *implTunnelForwardContext) SendStream() interface {
+
+type implTunnelForwardContextRecv struct {
+	s *TunnelForwardContextStub
+}
+
+func (s implTunnelForwardContextRecv) Advance() bool {
+	s.s.errRecv = s.s.Recv(&s.s.valRecv)
+	return s.s.errRecv == nil
+}
+func (s implTunnelForwardContextRecv) Value() []byte {
+	return s.s.valRecv
+}
+func (s implTunnelForwardContextRecv) Err() error {
+	if s.s.errRecv == __io.EOF {
+		return nil
+	}
+	return s.s.errRecv
+}
+
+// SendStream returns the send side of the Tunnel.Forward server stream.
+func (s *TunnelForwardContextStub) SendStream() interface {
 	Send(item []byte) error
 } {
-	return &s.send
+	return implTunnelForwardContextSend{s}
+}
+
+type implTunnelForwardContextSend struct {
+	s *TunnelForwardContextStub
+}
+
+func (s implTunnelForwardContextSend) Send(item []byte) error {
+	return s.s.Send(item)
 }
 
 // TunnelShellServerStream is the server stream for Tunnel.Shell.
 type TunnelShellServerStream interface {
-	// RecvStream returns the receiver side of the server stream.
+	// RecvStream returns the receiver side of the Tunnel.Shell server stream.
 	RecvStream() interface {
 		// Advance stages an item so that it may be retrieved via Value.  Returns
 		// true iff there is an item to retrieve.  Advance must be called before
@@ -591,7 +586,7 @@ type TunnelShellServerStream interface {
 		// Err returns any error encountered by Advance.  Never blocks.
 		Err() error
 	}
-	// SendStream returns the send side of the server stream.
+	// SendStream returns the send side of the Tunnel.Shell server stream.
 	SendStream() interface {
 		// Send places the item onto the output stream.  Returns errors encountered
 		// while sending.  Blocks if there is no buffer space; will unblock when
@@ -606,50 +601,58 @@ type TunnelShellContext interface {
 	TunnelShellServerStream
 }
 
-type implTunnelShellServerRecv struct {
-	call __ipc.ServerCall
-	val  ClientShellPacket
-	err  error
+// TunnelShellContextStub is a wrapper that converts ipc.ServerCall into
+// a typesafe stub that implements TunnelShellContext.
+type TunnelShellContextStub struct {
+	__ipc.ServerCall
+	valRecv ClientShellPacket
+	errRecv error
 }
 
-func (s *implTunnelShellServerRecv) Advance() bool {
-	s.val = ClientShellPacket{}
-	s.err = s.call.Recv(&s.val)
-	return s.err == nil
-}
-func (s *implTunnelShellServerRecv) Value() ClientShellPacket {
-	return s.val
-}
-func (s *implTunnelShellServerRecv) Err() error {
-	if s.err == __io.EOF {
-		return nil
-	}
-	return s.err
+// Init initializes TunnelShellContextStub from ipc.ServerCall.
+func (s *TunnelShellContextStub) Init(call __ipc.ServerCall) {
+	s.ServerCall = call
 }
 
-type implTunnelShellServerSend struct {
-	call __ipc.ServerCall
-}
-
-func (s *implTunnelShellServerSend) Send(item ServerShellPacket) error {
-	return s.call.Send(item)
-}
-
-type implTunnelShellContext struct {
-	__ipc.ServerContext
-	recv implTunnelShellServerRecv
-	send implTunnelShellServerSend
-}
-
-func (s *implTunnelShellContext) RecvStream() interface {
+// RecvStream returns the receiver side of the Tunnel.Shell server stream.
+func (s *TunnelShellContextStub) RecvStream() interface {
 	Advance() bool
 	Value() ClientShellPacket
 	Err() error
 } {
-	return &s.recv
+	return implTunnelShellContextRecv{s}
 }
-func (s *implTunnelShellContext) SendStream() interface {
+
+type implTunnelShellContextRecv struct {
+	s *TunnelShellContextStub
+}
+
+func (s implTunnelShellContextRecv) Advance() bool {
+	s.s.valRecv = ClientShellPacket{}
+	s.s.errRecv = s.s.Recv(&s.s.valRecv)
+	return s.s.errRecv == nil
+}
+func (s implTunnelShellContextRecv) Value() ClientShellPacket {
+	return s.s.valRecv
+}
+func (s implTunnelShellContextRecv) Err() error {
+	if s.s.errRecv == __io.EOF {
+		return nil
+	}
+	return s.s.errRecv
+}
+
+// SendStream returns the send side of the Tunnel.Shell server stream.
+func (s *TunnelShellContextStub) SendStream() interface {
 	Send(item ServerShellPacket) error
 } {
-	return &s.send
+	return implTunnelShellContextSend{s}
+}
+
+type implTunnelShellContextSend struct {
+	s *TunnelShellContextStub
+}
+
+func (s implTunnelShellContextSend) Send(item ServerShellPacket) error {
+	return s.s.Send(item)
 }

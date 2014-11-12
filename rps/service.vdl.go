@@ -151,7 +151,7 @@ func (c implJudgeClientStub) Play(ctx __context.T, i0 GameID, opts ...__ipc.Call
 	if call, err = c.c(ctx).StartCall(ctx, c.name, "Play", []interface{}{i0}, opts...); err != nil {
 		return
 	}
-	ocall = &implJudgePlayCall{call, implJudgePlayClientRecv{call: call}, implJudgePlayClientSend{call}}
+	ocall = &implJudgePlayCall{Call: call}
 	return
 }
 
@@ -179,7 +179,7 @@ func (c implJudgeClientStub) GetMethodTags(ctx __context.T, method string, opts 
 
 // JudgePlayClientStream is the client stream for Judge.Play.
 type JudgePlayClientStream interface {
-	// RecvStream returns the receiver side of the client stream.
+	// RecvStream returns the receiver side of the Judge.Play client stream.
 	RecvStream() interface {
 		// Advance stages an item so that it may be retrieved via Value.  Returns
 		// true iff there is an item to retrieve.  Advance must be called before
@@ -191,7 +191,7 @@ type JudgePlayClientStream interface {
 		// Err returns any error encountered by Advance.  Never blocks.
 		Err() error
 	}
-	// SendStream returns the send side of the client stream.
+	// SendStream returns the send side of the Judge.Play client stream.
 	SendStream() interface {
 		// Send places the item onto the output stream.  Returns errors encountered
 		// while sending, or if Send is called after Close or Cancel.  Blocks if
@@ -228,42 +228,10 @@ type JudgePlayCall interface {
 	Cancel()
 }
 
-type implJudgePlayClientRecv struct {
-	call __ipc.Call
-	val  JudgeAction
-	err  error
-}
-
-func (c *implJudgePlayClientRecv) Advance() bool {
-	c.val = JudgeAction{}
-	c.err = c.call.Recv(&c.val)
-	return c.err == nil
-}
-func (c *implJudgePlayClientRecv) Value() JudgeAction {
-	return c.val
-}
-func (c *implJudgePlayClientRecv) Err() error {
-	if c.err == __io.EOF {
-		return nil
-	}
-	return c.err
-}
-
-type implJudgePlayClientSend struct {
-	call __ipc.Call
-}
-
-func (c *implJudgePlayClientSend) Send(item PlayerAction) error {
-	return c.call.Send(item)
-}
-func (c *implJudgePlayClientSend) Close() error {
-	return c.call.CloseSend()
-}
-
 type implJudgePlayCall struct {
-	call __ipc.Call
-	recv implJudgePlayClientRecv
-	send implJudgePlayClientSend
+	__ipc.Call
+	valRecv JudgeAction
+	errRecv error
 }
 
 func (c *implJudgePlayCall) RecvStream() interface {
@@ -271,22 +239,49 @@ func (c *implJudgePlayCall) RecvStream() interface {
 	Value() JudgeAction
 	Err() error
 } {
-	return &c.recv
+	return implJudgePlayCallRecv{c}
+}
+
+type implJudgePlayCallRecv struct {
+	c *implJudgePlayCall
+}
+
+func (c implJudgePlayCallRecv) Advance() bool {
+	c.c.valRecv = JudgeAction{}
+	c.c.errRecv = c.c.Recv(&c.c.valRecv)
+	return c.c.errRecv == nil
+}
+func (c implJudgePlayCallRecv) Value() JudgeAction {
+	return c.c.valRecv
+}
+func (c implJudgePlayCallRecv) Err() error {
+	if c.c.errRecv == __io.EOF {
+		return nil
+	}
+	return c.c.errRecv
 }
 func (c *implJudgePlayCall) SendStream() interface {
 	Send(item PlayerAction) error
 	Close() error
 } {
-	return &c.send
+	return implJudgePlayCallSend{c}
+}
+
+type implJudgePlayCallSend struct {
+	c *implJudgePlayCall
+}
+
+func (c implJudgePlayCallSend) Send(item PlayerAction) error {
+	return c.c.Send(item)
+}
+func (c implJudgePlayCallSend) Close() error {
+	return c.c.CloseSend()
 }
 func (c *implJudgePlayCall) Finish() (o0 PlayResult, err error) {
-	if ierr := c.call.Finish(&o0, &err); ierr != nil {
+	if ierr := c.Call.Finish(&o0, &err); ierr != nil {
 		err = ierr
 	}
 	return
-}
-func (c *implJudgePlayCall) Cancel() {
-	c.call.Cancel()
 }
 
 // JudgeServerMethods is the interface a server writer
@@ -300,25 +295,24 @@ type JudgeServerMethods interface {
 }
 
 // JudgeServerStubMethods is the server interface containing
-// Judge methods, as expected by ipc.Server.  The difference between
-// this interface and JudgeServerMethods is that the first context
-// argument for each method is always ipc.ServerCall here, while it is either
-// ipc.ServerContext or a typed streaming context there.
+// Judge methods, as expected by ipc.Server.
+// The only difference between this interface and JudgeServerMethods
+// is the streaming methods.
 type JudgeServerStubMethods interface {
 	// CreateGame creates a new game with the given game options and returns a game
 	// identifier that can be used by the players to join the game.
-	CreateGame(call __ipc.ServerCall, Opts GameOptions) (GameID, error)
+	CreateGame(ctx __ipc.ServerContext, Opts GameOptions) (GameID, error)
 	// Play lets a player join an existing game and play.
-	Play(call __ipc.ServerCall, ID GameID) (PlayResult, error)
+	Play(ctx *JudgePlayContextStub, ID GameID) (PlayResult, error)
 }
 
 // JudgeServerStub adds universal methods to JudgeServerStubMethods.
 type JudgeServerStub interface {
 	JudgeServerStubMethods
 	// GetMethodTags will be replaced with DescribeInterfaces.
-	GetMethodTags(call __ipc.ServerCall, method string) ([]interface{}, error)
+	GetMethodTags(ctx __ipc.ServerContext, method string) ([]interface{}, error)
 	// Signature will be replaced with DescribeInterfaces.
-	Signature(call __ipc.ServerCall) (__ipc.ServiceSignature, error)
+	Signature(ctx __ipc.ServerContext) (__ipc.ServiceSignature, error)
 }
 
 // JudgeServer returns a server stub for Judge.
@@ -343,12 +337,11 @@ type implJudgeServerStub struct {
 	gs   *__ipc.GlobState
 }
 
-func (s implJudgeServerStub) CreateGame(call __ipc.ServerCall, i0 GameOptions) (GameID, error) {
-	return s.impl.CreateGame(call, i0)
+func (s implJudgeServerStub) CreateGame(ctx __ipc.ServerContext, i0 GameOptions) (GameID, error) {
+	return s.impl.CreateGame(ctx, i0)
 }
 
-func (s implJudgeServerStub) Play(call __ipc.ServerCall, i0 GameID) (PlayResult, error) {
-	ctx := &implJudgePlayContext{call, implJudgePlayServerRecv{call: call}, implJudgePlayServerSend{call}}
+func (s implJudgeServerStub) Play(ctx *JudgePlayContextStub, i0 GameID) (PlayResult, error) {
 	return s.impl.Play(ctx, i0)
 }
 
@@ -356,7 +349,7 @@ func (s implJudgeServerStub) VGlob() *__ipc.GlobState {
 	return s.gs
 }
 
-func (s implJudgeServerStub) GetMethodTags(call __ipc.ServerCall, method string) ([]interface{}, error) {
+func (s implJudgeServerStub) GetMethodTags(ctx __ipc.ServerContext, method string) ([]interface{}, error) {
 	// TODO(toddw): Replace with new DescribeInterfaces implementation.
 	switch method {
 	case "CreateGame":
@@ -368,7 +361,7 @@ func (s implJudgeServerStub) GetMethodTags(call __ipc.ServerCall, method string)
 	}
 }
 
-func (s implJudgeServerStub) Signature(call __ipc.ServerCall) (__ipc.ServiceSignature, error) {
+func (s implJudgeServerStub) Signature(ctx __ipc.ServerContext) (__ipc.ServiceSignature, error) {
 	// TODO(toddw) Replace with new DescribeInterfaces implementation.
 	result := __ipc.ServiceSignature{Methods: make(map[string]__ipc.MethodSignature)}
 	result.Methods["CreateGame"] = __ipc.MethodSignature{
@@ -451,7 +444,7 @@ func (s implJudgeServerStub) Signature(call __ipc.ServerCall) (__ipc.ServiceSign
 
 // JudgePlayServerStream is the server stream for Judge.Play.
 type JudgePlayServerStream interface {
-	// RecvStream returns the receiver side of the server stream.
+	// RecvStream returns the receiver side of the Judge.Play server stream.
 	RecvStream() interface {
 		// Advance stages an item so that it may be retrieved via Value.  Returns
 		// true iff there is an item to retrieve.  Advance must be called before
@@ -463,7 +456,7 @@ type JudgePlayServerStream interface {
 		// Err returns any error encountered by Advance.  Never blocks.
 		Err() error
 	}
-	// SendStream returns the send side of the server stream.
+	// SendStream returns the send side of the Judge.Play server stream.
 	SendStream() interface {
 		// Send places the item onto the output stream.  Returns errors encountered
 		// while sending.  Blocks if there is no buffer space; will unblock when
@@ -478,52 +471,60 @@ type JudgePlayContext interface {
 	JudgePlayServerStream
 }
 
-type implJudgePlayServerRecv struct {
-	call __ipc.ServerCall
-	val  PlayerAction
-	err  error
+// JudgePlayContextStub is a wrapper that converts ipc.ServerCall into
+// a typesafe stub that implements JudgePlayContext.
+type JudgePlayContextStub struct {
+	__ipc.ServerCall
+	valRecv PlayerAction
+	errRecv error
 }
 
-func (s *implJudgePlayServerRecv) Advance() bool {
-	s.val = PlayerAction{}
-	s.err = s.call.Recv(&s.val)
-	return s.err == nil
-}
-func (s *implJudgePlayServerRecv) Value() PlayerAction {
-	return s.val
-}
-func (s *implJudgePlayServerRecv) Err() error {
-	if s.err == __io.EOF {
-		return nil
-	}
-	return s.err
+// Init initializes JudgePlayContextStub from ipc.ServerCall.
+func (s *JudgePlayContextStub) Init(call __ipc.ServerCall) {
+	s.ServerCall = call
 }
 
-type implJudgePlayServerSend struct {
-	call __ipc.ServerCall
-}
-
-func (s *implJudgePlayServerSend) Send(item JudgeAction) error {
-	return s.call.Send(item)
-}
-
-type implJudgePlayContext struct {
-	__ipc.ServerContext
-	recv implJudgePlayServerRecv
-	send implJudgePlayServerSend
-}
-
-func (s *implJudgePlayContext) RecvStream() interface {
+// RecvStream returns the receiver side of the Judge.Play server stream.
+func (s *JudgePlayContextStub) RecvStream() interface {
 	Advance() bool
 	Value() PlayerAction
 	Err() error
 } {
-	return &s.recv
+	return implJudgePlayContextRecv{s}
 }
-func (s *implJudgePlayContext) SendStream() interface {
+
+type implJudgePlayContextRecv struct {
+	s *JudgePlayContextStub
+}
+
+func (s implJudgePlayContextRecv) Advance() bool {
+	s.s.valRecv = PlayerAction{}
+	s.s.errRecv = s.s.Recv(&s.s.valRecv)
+	return s.s.errRecv == nil
+}
+func (s implJudgePlayContextRecv) Value() PlayerAction {
+	return s.s.valRecv
+}
+func (s implJudgePlayContextRecv) Err() error {
+	if s.s.errRecv == __io.EOF {
+		return nil
+	}
+	return s.s.errRecv
+}
+
+// SendStream returns the send side of the Judge.Play server stream.
+func (s *JudgePlayContextStub) SendStream() interface {
 	Send(item JudgeAction) error
 } {
-	return &s.send
+	return implJudgePlayContextSend{s}
+}
+
+type implJudgePlayContextSend struct {
+	s *JudgePlayContextStub
+}
+
+func (s implJudgePlayContextSend) Send(item JudgeAction) error {
+	return s.s.Send(item)
 }
 
 // PlayerClientMethods is the client interface
@@ -609,23 +610,18 @@ type PlayerServerMethods interface {
 }
 
 // PlayerServerStubMethods is the server interface containing
-// Player methods, as expected by ipc.Server.  The difference between
-// this interface and PlayerServerMethods is that the first context
-// argument for each method is always ipc.ServerCall here, while it is either
-// ipc.ServerContext or a typed streaming context there.
-type PlayerServerStubMethods interface {
-	// Challenge is used by other players to challenge this player to a game. If
-	// the challenge is accepted, the method returns nil.
-	Challenge(call __ipc.ServerCall, Address string, ID GameID, Opts GameOptions) error
-}
+// Player methods, as expected by ipc.Server.
+// There is no difference between this interface and PlayerServerMethods
+// since there are no streaming methods.
+type PlayerServerStubMethods PlayerServerMethods
 
 // PlayerServerStub adds universal methods to PlayerServerStubMethods.
 type PlayerServerStub interface {
 	PlayerServerStubMethods
 	// GetMethodTags will be replaced with DescribeInterfaces.
-	GetMethodTags(call __ipc.ServerCall, method string) ([]interface{}, error)
+	GetMethodTags(ctx __ipc.ServerContext, method string) ([]interface{}, error)
 	// Signature will be replaced with DescribeInterfaces.
-	Signature(call __ipc.ServerCall) (__ipc.ServiceSignature, error)
+	Signature(ctx __ipc.ServerContext) (__ipc.ServiceSignature, error)
 }
 
 // PlayerServer returns a server stub for Player.
@@ -650,15 +646,15 @@ type implPlayerServerStub struct {
 	gs   *__ipc.GlobState
 }
 
-func (s implPlayerServerStub) Challenge(call __ipc.ServerCall, i0 string, i1 GameID, i2 GameOptions) error {
-	return s.impl.Challenge(call, i0, i1, i2)
+func (s implPlayerServerStub) Challenge(ctx __ipc.ServerContext, i0 string, i1 GameID, i2 GameOptions) error {
+	return s.impl.Challenge(ctx, i0, i1, i2)
 }
 
 func (s implPlayerServerStub) VGlob() *__ipc.GlobState {
 	return s.gs
 }
 
-func (s implPlayerServerStub) GetMethodTags(call __ipc.ServerCall, method string) ([]interface{}, error) {
+func (s implPlayerServerStub) GetMethodTags(ctx __ipc.ServerContext, method string) ([]interface{}, error) {
 	// TODO(toddw): Replace with new DescribeInterfaces implementation.
 	switch method {
 	case "Challenge":
@@ -668,7 +664,7 @@ func (s implPlayerServerStub) GetMethodTags(call __ipc.ServerCall, method string
 	}
 }
 
-func (s implPlayerServerStub) Signature(call __ipc.ServerCall) (__ipc.ServiceSignature, error) {
+func (s implPlayerServerStub) Signature(ctx __ipc.ServerContext) (__ipc.ServiceSignature, error) {
 	// TODO(toddw) Replace with new DescribeInterfaces implementation.
 	result := __ipc.ServiceSignature{Methods: make(map[string]__ipc.MethodSignature)}
 	result.Methods["Challenge"] = __ipc.MethodSignature{
@@ -778,21 +774,18 @@ type ScoreKeeperServerMethods interface {
 }
 
 // ScoreKeeperServerStubMethods is the server interface containing
-// ScoreKeeper methods, as expected by ipc.Server.  The difference between
-// this interface and ScoreKeeperServerMethods is that the first context
-// argument for each method is always ipc.ServerCall here, while it is either
-// ipc.ServerContext or a typed streaming context there.
-type ScoreKeeperServerStubMethods interface {
-	Record(call __ipc.ServerCall, Score ScoreCard) error
-}
+// ScoreKeeper methods, as expected by ipc.Server.
+// There is no difference between this interface and ScoreKeeperServerMethods
+// since there are no streaming methods.
+type ScoreKeeperServerStubMethods ScoreKeeperServerMethods
 
 // ScoreKeeperServerStub adds universal methods to ScoreKeeperServerStubMethods.
 type ScoreKeeperServerStub interface {
 	ScoreKeeperServerStubMethods
 	// GetMethodTags will be replaced with DescribeInterfaces.
-	GetMethodTags(call __ipc.ServerCall, method string) ([]interface{}, error)
+	GetMethodTags(ctx __ipc.ServerContext, method string) ([]interface{}, error)
 	// Signature will be replaced with DescribeInterfaces.
-	Signature(call __ipc.ServerCall) (__ipc.ServiceSignature, error)
+	Signature(ctx __ipc.ServerContext) (__ipc.ServiceSignature, error)
 }
 
 // ScoreKeeperServer returns a server stub for ScoreKeeper.
@@ -817,15 +810,15 @@ type implScoreKeeperServerStub struct {
 	gs   *__ipc.GlobState
 }
 
-func (s implScoreKeeperServerStub) Record(call __ipc.ServerCall, i0 ScoreCard) error {
-	return s.impl.Record(call, i0)
+func (s implScoreKeeperServerStub) Record(ctx __ipc.ServerContext, i0 ScoreCard) error {
+	return s.impl.Record(ctx, i0)
 }
 
 func (s implScoreKeeperServerStub) VGlob() *__ipc.GlobState {
 	return s.gs
 }
 
-func (s implScoreKeeperServerStub) GetMethodTags(call __ipc.ServerCall, method string) ([]interface{}, error) {
+func (s implScoreKeeperServerStub) GetMethodTags(ctx __ipc.ServerContext, method string) ([]interface{}, error) {
 	// TODO(toddw): Replace with new DescribeInterfaces implementation.
 	switch method {
 	case "Record":
@@ -835,7 +828,7 @@ func (s implScoreKeeperServerStub) GetMethodTags(call __ipc.ServerCall, method s
 	}
 }
 
-func (s implScoreKeeperServerStub) Signature(call __ipc.ServerCall) (__ipc.ServiceSignature, error) {
+func (s implScoreKeeperServerStub) Signature(ctx __ipc.ServerContext) (__ipc.ServiceSignature, error) {
 	// TODO(toddw) Replace with new DescribeInterfaces implementation.
 	result := __ipc.ServiceSignature{Methods: make(map[string]__ipc.MethodSignature)}
 	result.Methods["Record"] = __ipc.MethodSignature{
@@ -955,10 +948,9 @@ type RockPaperScissorsServerMethods interface {
 }
 
 // RockPaperScissorsServerStubMethods is the server interface containing
-// RockPaperScissors methods, as expected by ipc.Server.  The difference between
-// this interface and RockPaperScissorsServerMethods is that the first context
-// argument for each method is always ipc.ServerCall here, while it is either
-// ipc.ServerContext or a typed streaming context there.
+// RockPaperScissors methods, as expected by ipc.Server.
+// The only difference between this interface and RockPaperScissorsServerMethods
+// is the streaming methods.
 type RockPaperScissorsServerStubMethods interface {
 	JudgeServerStubMethods
 	// Player can receive challenges from other players.
@@ -971,9 +963,9 @@ type RockPaperScissorsServerStubMethods interface {
 type RockPaperScissorsServerStub interface {
 	RockPaperScissorsServerStubMethods
 	// GetMethodTags will be replaced with DescribeInterfaces.
-	GetMethodTags(call __ipc.ServerCall, method string) ([]interface{}, error)
+	GetMethodTags(ctx __ipc.ServerContext, method string) ([]interface{}, error)
 	// Signature will be replaced with DescribeInterfaces.
-	Signature(call __ipc.ServerCall) (__ipc.ServiceSignature, error)
+	Signature(ctx __ipc.ServerContext) (__ipc.ServiceSignature, error)
 }
 
 // RockPaperScissorsServer returns a server stub for RockPaperScissors.
@@ -998,39 +990,38 @@ func RockPaperScissorsServer(impl RockPaperScissorsServerMethods) RockPaperSciss
 
 type implRockPaperScissorsServerStub struct {
 	impl RockPaperScissorsServerMethods
-	gs   *__ipc.GlobState
-
 	JudgeServerStub
 	PlayerServerStub
 	ScoreKeeperServerStub
+	gs *__ipc.GlobState
 }
 
 func (s implRockPaperScissorsServerStub) VGlob() *__ipc.GlobState {
 	return s.gs
 }
 
-func (s implRockPaperScissorsServerStub) GetMethodTags(call __ipc.ServerCall, method string) ([]interface{}, error) {
+func (s implRockPaperScissorsServerStub) GetMethodTags(ctx __ipc.ServerContext, method string) ([]interface{}, error) {
 	// TODO(toddw): Replace with new DescribeInterfaces implementation.
-	if resp, err := s.JudgeServerStub.GetMethodTags(call, method); resp != nil || err != nil {
+	if resp, err := s.JudgeServerStub.GetMethodTags(ctx, method); resp != nil || err != nil {
 		return resp, err
 	}
-	if resp, err := s.PlayerServerStub.GetMethodTags(call, method); resp != nil || err != nil {
+	if resp, err := s.PlayerServerStub.GetMethodTags(ctx, method); resp != nil || err != nil {
 		return resp, err
 	}
-	if resp, err := s.ScoreKeeperServerStub.GetMethodTags(call, method); resp != nil || err != nil {
+	if resp, err := s.ScoreKeeperServerStub.GetMethodTags(ctx, method); resp != nil || err != nil {
 		return resp, err
 	}
 	return nil, nil
 }
 
-func (s implRockPaperScissorsServerStub) Signature(call __ipc.ServerCall) (__ipc.ServiceSignature, error) {
+func (s implRockPaperScissorsServerStub) Signature(ctx __ipc.ServerContext) (__ipc.ServiceSignature, error) {
 	// TODO(toddw) Replace with new DescribeInterfaces implementation.
 	result := __ipc.ServiceSignature{Methods: make(map[string]__ipc.MethodSignature)}
 
 	result.TypeDefs = []__vdlutil.Any{}
 	var ss __ipc.ServiceSignature
 	var firstAdded int
-	ss, _ = s.JudgeServerStub.Signature(call)
+	ss, _ = s.JudgeServerStub.Signature(ctx)
 	firstAdded = len(result.TypeDefs)
 	for k, v := range ss.Methods {
 		for i, _ := range v.InArgs {
@@ -1083,7 +1074,7 @@ func (s implRockPaperScissorsServerStub) Signature(call __ipc.ServerCall) (__ipc
 		}
 		result.TypeDefs = append(result.TypeDefs, d)
 	}
-	ss, _ = s.PlayerServerStub.Signature(call)
+	ss, _ = s.PlayerServerStub.Signature(ctx)
 	firstAdded = len(result.TypeDefs)
 	for k, v := range ss.Methods {
 		for i, _ := range v.InArgs {
@@ -1136,7 +1127,7 @@ func (s implRockPaperScissorsServerStub) Signature(call __ipc.ServerCall) (__ipc
 		}
 		result.TypeDefs = append(result.TypeDefs, d)
 	}
-	ss, _ = s.ScoreKeeperServerStub.Signature(call)
+	ss, _ = s.ScoreKeeperServerStub.Signature(ctx)
 	firstAdded = len(result.TypeDefs)
 	for k, v := range ss.Methods {
 		for i, _ := range v.InArgs {
