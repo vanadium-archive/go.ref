@@ -264,8 +264,8 @@ func (s *server) Listen(listenSpec ipc.ListenSpec) (naming.Endpoint, error) {
 
 	if dhcpl != nil {
 		// We have a goroutine to listen for dhcp changes.
+		s.active.Add(1)
 		go func() {
-			s.active.Add(1)
 			s.dhcpLoop(dhcpl)
 			s.active.Done()
 		}()
@@ -277,8 +277,8 @@ func (s *server) Listen(listenSpec ipc.ListenSpec) (naming.Endpoint, error) {
 	if iep != nil {
 		// We have a goroutine per listener to accept new flows.
 		// Each flow is served from its own goroutine.
+		s.active.Add(1)
 		go func() {
-			s.active.Add(1)
 			s.listenLoop(ln, iep)
 			s.active.Done()
 		}()
@@ -287,8 +287,8 @@ func (s *server) Listen(listenSpec ipc.ListenSpec) (naming.Endpoint, error) {
 
 	if len(listenSpec.Proxy) > 0 {
 		// We have a goroutine for listening on proxy connections.
+		s.active.Add(1)
 		go func() {
-			s.active.Add(1)
 			s.proxyListenLoop(listenSpec.Proxy)
 			s.active.Done()
 		}()
@@ -385,7 +385,9 @@ func (s *server) proxyListenLoop(proxy string) {
 
 func (s *server) listenLoop(ln stream.Listener, ep naming.Endpoint) {
 	defer vlog.VI(1).Infof("ipc: Stopped listening on %v", ep)
+	var calls sync.WaitGroup
 	defer func() {
+		calls.Wait()
 		s.Lock()
 		delete(s.listeners, ln)
 		s.Unlock()
@@ -396,7 +398,7 @@ func (s *server) listenLoop(ln stream.Listener, ep naming.Endpoint) {
 			vlog.VI(10).Infof("ipc: Accept on %v failed: %v", ln, err)
 			return
 		}
-		s.active.Add(1)
+		calls.Add(1)
 		go func(flow stream.Flow) {
 			if err := newFlowServer(flow, s).serve(); err != nil {
 				// TODO(caprita): Logging errors here is
@@ -405,7 +407,7 @@ func (s *server) listenLoop(ln stream.Listener, ep naming.Endpoint) {
 				// logged as server errors.
 				vlog.Errorf("Flow serve on %v failed: %v", ln, err)
 			}
-			s.active.Done()
+			calls.Done()
 		}(flow)
 	}
 }
