@@ -94,8 +94,9 @@ type cancelContext struct {
 	done chan struct{}
 	err  error
 
-	// children is used to keep track of decendant cancellable contexts.
-	// This is an optimization to prevent excessive goroutines.
+	// children is used to keep track of descendant cancellable
+	// contexts. This is an optimization to prevent excessive
+	// goroutines.
 	children map[cancellable]bool
 
 	mu sync.Mutex
@@ -120,7 +121,7 @@ func newCancelContext(parent context.T) (ctx *cancelContext, cancel context.Canc
 	}
 
 	// If neither the parent nor the child are canceled then both the
-	// parent and the child will leak.  Note this will only happen for
+	// parent and the child will leak. Note this will only happen for
 	// non-standard implementations of the context.T interface.
 	go func() {
 		select {
@@ -136,36 +137,35 @@ func (c *cancelContext) parent() context.T {
 	return c.T
 }
 
-// addChild sets child as a descendant cancellable context.
-// This allows us to propagate cancellations through the
-// context tree.
+// addChild sets child as a descendant cancellable context. This
+// allows us to propagate cancellations through the context tree.
 func (c *cancelContext) addChild(child cancellable) {
 	c.mu.Lock()
-	defer c.mu.Unlock()
 	if c.err != nil {
 		// If the parent is already canceled, just cancel the child.
+		c.mu.Unlock()
 		child.cancel(c.err)
 		return
 	}
+	defer c.mu.Unlock()
 	if c.children == nil {
 		c.children = make(map[cancellable]bool)
 	}
 	c.children[child] = true
 }
 
-// removeChild is called by decendant contexts when they
-// are canceled.  This prevents old contexts which are
-// no longer relevant from consuming resources.
+// removeChild is called by descendant contexts when they are
+// canceled.  This prevents old contexts which are no longer relevant
+// from consuming resources.
 func (c *cancelContext) removeChild(child cancellable) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	delete(c.children, child)
 }
 
-// cancelChildren cancels all decendant cancellable contexts.
-// This is called during cancel but while mu is NOT held.
-// Children may try to make calls to parents, which would
-// result in a deadlock.
+// cancelChildren cancels all descendant cancellable contexts. This
+// is called during cancel but while mu is NOT held. Children may try
+// to make calls to parents, which would result in a deadlock.
 func cancelChildren(children map[cancellable]bool, err error) {
 	for child, _ := range children {
 		child.cancel(err)
@@ -252,8 +252,8 @@ func newDeadlineContext(parent context.T, deadline time.Time) (*deadlineContext,
 	return ctx, func() { ctx.cancel(context.Canceled) }
 }
 
-// cancel cancels the deadlineContext, forwards the signal to decendants, and notifies
-// parents.
+// cancel cancels the deadlineContext, forwards the signal to
+// descendants, and notifies parents.
 func (d *deadlineContext) cancel(err error) {
 	d.timer.Stop()
 	d.cancelContext.cancel(err)
