@@ -58,11 +58,15 @@ func (t *tester) testGetters(m *PrincipalManager) error {
 	bOrigin := pOrigin.BlessingStore().Default()
 	// Validate the integrity of the bits.
 	buf := new(bytes.Buffer)
-	if err := vom.NewEncoder(buf).Encode(bOrigin); err != nil {
+	if err := vom.NewEncoder(buf).Encode(security.MarshalBlessings(bOrigin)); err != nil {
 		return err
 	}
-	var decoded security.Blessings
-	if err := vom.NewDecoder(buf).Decode(&decoded); err != nil {
+	var wire security.WireBlessings
+	if err := vom.NewDecoder(buf).Decode(&wire); err != nil {
+		return err
+	}
+	decoded, err := security.NewBlessings(wire)
+	if err != nil {
 		return err
 	}
 	if !reflect.DeepEqual(decoded, bOrigin) {
