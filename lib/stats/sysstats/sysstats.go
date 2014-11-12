@@ -29,10 +29,10 @@ func init() {
 }
 
 func exportEnv() {
-	kv := make([]stats.KeyValue, len(os.Environ()))
-	for i, v := range os.Environ() {
+	var kv []stats.KeyValue
+	for _, v := range os.Environ() {
 		if parts := strings.SplitN(v, "=", 2); len(parts) == 2 {
-			kv[i] = stats.KeyValue{parts[0], parts[1]}
+			kv = append(kv, stats.KeyValue{parts[0], parts[1]})
 		}
 	}
 	stats.NewMap("system/environ").Set(kv)
