@@ -11,9 +11,9 @@ import (
 	"veyron.io/veyron/veyron2/verror"
 )
 
-// NewInvoker returns a new pprof invoker.
-func NewInvoker() ipc.Invoker {
-	return ipc.ReflectInvoker(&pprofInvoker{})
+// NewServer returns a new pprof server.
+func NewServer() interface{} {
+	return &pprofInvoker{}
 }
 
 type pprofInvoker struct {

@@ -350,7 +350,7 @@ func (d *dispatcher) Lookup(suffix, method string) (interface{}, security.Author
 			disp:     d,
 			uat:      d.uat,
 		})
-		return ipc.ReflectInvoker(receiver), d.auth, nil
+		return receiver, d.auth, nil
 	case appsSuffix:
 		// Requests to apps/*/*/*/logs are handled locally by LogFileInvoker.
 		// Requests to apps/*/*/*/pprof are proxied to the apps' __debug/pprof object.
@@ -365,7 +365,7 @@ func (d *dispatcher) Lookup(suffix, method string) (interface{}, security.Author
 			case "logs":
 				logsDir := filepath.Join(appInstanceDir, "logs")
 				suffix := naming.Join(components[5:]...)
-				return logsimpl.NewLogFileInvoker(logsDir, suffix), d.auth, nil
+				return logsimpl.NewLogFileServer(logsDir, suffix), d.auth, nil
 			case "pprof", "stats":
 				info, err := loadInstanceInfo(appInstanceDir)
 				if err != nil {
@@ -404,7 +404,7 @@ func (d *dispatcher) Lookup(suffix, method string) (interface{}, security.Author
 		if err != nil {
 			return nil, nil, err
 		}
-		return ipc.ReflectInvoker(receiver), appSpecificAuthorizer, nil
+		return receiver, appSpecificAuthorizer, nil
 	case configSuffix:
 		if len(components) != 2 {
 			return nil, nil, errInvalidSuffix
@@ -420,7 +420,7 @@ func (d *dispatcher) Lookup(suffix, method string) (interface{}, security.Author
 		// TODO(caprita,rjkroege): We should further refine this, by
 		// only allowing the app to update state referring to itself
 		// (and not other apps).
-		return ipc.ReflectInvoker(receiver), nil, nil
+		return receiver, nil, nil
 	default:
 		return nil, nil, errInvalidSuffix
 	}

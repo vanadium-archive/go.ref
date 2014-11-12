@@ -10,9 +10,9 @@ type signatureInvoker struct {
 	suffix string
 }
 
-// NewSignatureInvoker is the invoker factory.
-func NewSignatureInvoker(suffix string) ipc.Invoker {
-	return ipc.ReflectInvoker(&signatureInvoker{suffix})
+// NewSignatureObject is the signature object factory.
+func NewSignatureObject(suffix string) interface{} {
+	return &signatureInvoker{suffix}
 }
 
 // TODO(rthellend): This is a temporary hack until https://code.google.com/p/envyor/issues/detail?id=285 is resolved.

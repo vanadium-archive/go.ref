@@ -20,9 +20,9 @@ type logFileInvoker struct {
 	suffix string
 }
 
-// NewLogFileInvoker is the invoker factory.
-func NewLogFileInvoker(root, suffix string) ipc.Invoker {
-	return ipc.ReflectInvoker(&logFileInvoker{filepath.Clean(root), suffix})
+// NewLogFileServer returns a new log file server.
+func NewLogFileServer(root, suffix string) interface{} {
+	return &logFileInvoker{filepath.Clean(root), suffix}
 }
 
 // Size returns the size of the log file, in bytes.

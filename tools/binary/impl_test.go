@@ -78,8 +78,7 @@ func NewDispatcher() *dispatcher {
 }
 
 func (d *dispatcher) Lookup(suffix, method string) (interface{}, security.Authorizer, error) {
-	invoker := ipc.ReflectInvoker(repository.BinaryServer(&server{suffix: suffix}))
-	return invoker, nil, nil
+	return repository.BinaryServer(&server{suffix: suffix}), nil, nil
 }
 
 func startServer(t *testing.T, r veyron2.Runtime) (ipc.Server, naming.Endpoint, error) {

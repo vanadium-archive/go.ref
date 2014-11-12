@@ -47,7 +47,7 @@ type logFileDispatcher struct {
 }
 
 func (d *logFileDispatcher) Lookup(suffix, _ string) (interface{}, security.Authorizer, error) {
-	return impl.NewLogFileInvoker(d.root, suffix), nil, nil
+	return impl.NewLogFileServer(d.root, suffix), nil, nil
 }
 
 func writeAndSync(t *testing.T, w *os.File, s string) {

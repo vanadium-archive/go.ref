@@ -139,15 +139,15 @@ func appendSuffixTo(objectname []string, suffix string) []string {
 	return names
 }
 
-// newDispatcher returns a dispatcher for both the blessing and the discharging service.
-// their suffix. ReflectInvoker is used to invoke methods.
+// newDispatcher returns a dispatcher for both the blessing and the
+// discharging service.
 func newDispatcher(googleParams blesser.GoogleParams, macaroonKey []byte) ipc.Dispatcher {
-	d := dispatcher(map[string]ipc.Invoker{
-		macaroonService:   ipc.ReflectInvoker(blesser.NewMacaroonBlesserServer(macaroonKey)),
-		dischargerService: ipc.ReflectInvoker(services.DischargerServer(discharger.NewDischarger())),
+	d := dispatcher(map[string]interface{}{
+		macaroonService:   blesser.NewMacaroonBlesserServer(macaroonKey),
+		dischargerService: services.DischargerServer(discharger.NewDischarger()),
 	})
 	if len(*googleConfigChrome) > 0 || len(*googleConfigAndroid) > 0 {
-		d[googleService] = ipc.ReflectInvoker(blesser.NewGoogleOAuthBlesserServer(googleParams))
+		d[googleService] = blesser.NewGoogleOAuthBlesserServer(googleParams)
 	}
 	return d
 }
@@ -156,7 +156,7 @@ type allowEveryoneAuthorizer struct{}
 
 func (allowEveryoneAuthorizer) Authorize(security.Context) error { return nil }
 
-type dispatcher map[string]ipc.Invoker
+type dispatcher map[string]interface{}
 
 func (d dispatcher) Lookup(suffix, method string) (interface{}, security.Authorizer, error) {
 	if invoker := d[suffix]; invoker != nil {

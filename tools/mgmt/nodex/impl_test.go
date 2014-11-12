@@ -112,8 +112,7 @@ func NewDispatcher(t *testing.T, tape *Tape) *dispatcher {
 }
 
 func (d *dispatcher) Lookup(suffix, method string) (interface{}, security.Authorizer, error) {
-	invoker := ipc.ReflectInvoker(node.NodeServer(&mockNodeInvoker{tape: d.tape, t: d.t}))
-	return invoker, nil, nil
+	return node.NodeServer(&mockNodeInvoker{tape: d.tape, t: d.t}), nil, nil
 }
 
 func startServer(t *testing.T, r veyron2.Runtime, tape *Tape) (ipc.Server, naming.Endpoint, error) {

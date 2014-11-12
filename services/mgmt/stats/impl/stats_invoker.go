@@ -29,8 +29,8 @@ var (
 
 // NewStatsInvoker returns a new Invoker. The value of watchFreq is used to
 // specify the time between WatchGlob updates.
-func NewStatsInvoker(suffix string, watchFreq time.Duration) ipc.Invoker {
-	return ipc.ReflectInvoker(&statsInvoker{suffix, watchFreq})
+func NewStatsServer(suffix string, watchFreq time.Duration) interface{} {
+	return &statsInvoker{suffix, watchFreq}
 }
 
 // Glob returns the name of all objects that match pattern.

@@ -6,7 +6,6 @@ import (
 	"net/http"
 	"testing"
 
-	"veyron.io/veyron/veyron2/ipc"
 	"veyron.io/veyron/veyron2/naming"
 	"veyron.io/veyron/veyron2/rt"
 	"veyron.io/veyron/veyron2/security"
@@ -17,11 +16,11 @@ import (
 )
 
 type dispatcher struct {
-	invoker ipc.Invoker
+	server interface{}
 }
 
 func (d *dispatcher) Lookup(suffix, method string) (interface{}, security.Authorizer, error) {
-	return d.invoker, nil, nil
+	return d.server, nil, nil
 }
 
 func TestPProfProxy(t *testing.T) {
@@ -37,7 +36,7 @@ func TestPProfProxy(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to listen: %v", err)
 	}
-	if err := s.ServeDispatcher("", &dispatcher{impl.NewInvoker()}); err != nil {
+	if err := s.ServeDispatcher("", &dispatcher{impl.NewServer()}); err != nil {
 		t.Fatalf("failed to serve: %v", err)
 	}
 	l, err := client.StartProxy(r, naming.JoinAddressName(endpoint.String(), ""))

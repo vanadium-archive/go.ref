@@ -31,10 +31,6 @@ func (v *vtraceServer) AllTraces(call ipc.ServerCall) error {
 	return nil
 }
 
-func NewVtraceInvoker(store vtrace.Store) ipc.Invoker {
-	return ipc.ReflectInvoker(&vtraceServer{store})
-}
-
 func NewVtraceService(store vtrace.Store) interface{} {
 	return &vtraceServer{store}
 }

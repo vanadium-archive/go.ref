@@ -140,7 +140,7 @@ func (t testServerDisp) Lookup(suffix, method string) (interface{}, security.Aut
 	var authorizer security.Authorizer
 	switch suffix {
 	case "discharger":
-		return ipc.ReflectInvoker(&dischargeServer{}), testServerAuthorizer{}, nil
+		return &dischargeServer{}, testServerAuthorizer{}, nil
 	case "nilAuth":
 		authorizer = nil
 	case "aclAuth":
@@ -152,7 +152,7 @@ func (t testServerDisp) Lookup(suffix, method string) (interface{}, security.Aut
 	default:
 		authorizer = testServerAuthorizer{}
 	}
-	return ipc.ReflectInvoker(t.server), authorizer, nil
+	return t.server, authorizer, nil
 }
 
 type dischargeServer struct{}
@@ -619,7 +619,7 @@ type dischargeImpetusTester struct {
 
 // Implements ipc.Dispatcher
 func (s *dischargeImpetusTester) Lookup(_, _ string) (interface{}, security.Authorizer, error) {
-	return ipc.ReflectInvoker(s), testServerAuthorizer{}, nil
+	return s, testServerAuthorizer{}, nil
 }
 
 // Implements the discharge service: Always fails to issue a discharge, but records the impetus

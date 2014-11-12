@@ -17,7 +17,7 @@ import (
 	verror "veyron.io/veyron/veyron2/verror2"
 	"veyron.io/veyron/veyron2/vlog"
 
-	"github.com/presotto/go-mdns-sd"
+	mdns "github.com/presotto/go-mdns-sd"
 )
 
 const addressPrefix = "address:"
@@ -134,7 +134,7 @@ func (nh *neighborhood) Lookup(name, method string) (interface{}, security.Autho
 		elems: elems,
 		nh:    nh,
 	}
-	return ipc.ReflectInvoker(mounttable.MountTableServer(ns)), nh, nil
+	return mounttable.MountTableServer(ns), nh, nil
 }
 
 func (nh *neighborhood) Authorize(context security.Context) error {

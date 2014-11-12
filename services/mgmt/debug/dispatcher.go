@@ -41,7 +41,7 @@ func (d *dispatcher) Lookup(suffix, method string) (interface{}, security.Author
 	suffix = strings.TrimLeft(suffix, "/")
 
 	if method == "Signature" {
-		return NewSignatureInvoker(suffix), d.auth, nil
+		return NewSignatureObject(suffix), d.auth, nil
 	}
 	if suffix == "" {
 		return ipc.VChildrenGlobberInvoker("logs", "pprof", "stats", "vtrace"), d.auth, nil
@@ -54,11 +54,11 @@ func (d *dispatcher) Lookup(suffix, method string) (interface{}, security.Author
 	}
 	switch parts[0] {
 	case "logs":
-		return logreaderimpl.NewLogFileInvoker(d.logsDir, suffix), d.auth, nil
+		return logreaderimpl.NewLogFileServer(d.logsDir, suffix), d.auth, nil
 	case "pprof":
-		return pprofimpl.NewInvoker(), d.auth, nil
+		return pprofimpl.NewServer(), d.auth, nil
 	case "stats":
-		return statsimpl.NewStatsInvoker(suffix, 10*time.Second), d.auth, nil
+		return statsimpl.NewStatsServer(suffix, 10*time.Second), d.auth, nil
 	case "vtrace":
 		return vtraceimpl.NewVtraceService(d.store), d.auth, nil
 	}

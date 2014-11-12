@@ -106,7 +106,7 @@ func (mt *mountTable) Lookup(name, method string) (interface{}, security.Authori
 		ms.elems = strings.Split(name, "/")
 		ms.cleanedElems = strings.Split(strings.TrimLeft(path.Clean(name), "/"), "/")
 	}
-	return ipc.ReflectInvoker(mounttable.MountTableServer(ms)), ms, nil
+	return mounttable.MountTableServer(ms), ms, nil
 }
 
 // findNode returns the node for the name path represented by elems.  If none exists and create is false, return nil.

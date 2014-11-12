@@ -119,7 +119,7 @@ func (allowEveryoneAuthorizer) Authorize(security.Context) error { return nil }
 type dispatcher struct{}
 
 func (d *dispatcher) Lookup(suffix, method string) (interface{}, security.Authorizer, error) {
-	return ipc.ReflectInvoker(&testServer{suffix}), allowEveryoneAuthorizer{}, nil
+	return &testServer{suffix}, allowEveryoneAuthorizer{}, nil
 }
 
 func knockKnock(t *testing.T, runtime veyron2.Runtime, name string) {
