@@ -14,8 +14,8 @@ import (
 	"testing"
 
 	"veyron.io/veyron/veyron/lib/testutil"
+	tsecurity "veyron.io/veyron/veyron/lib/testutil/security"
 	"veyron.io/veyron/veyron/runtimes/google/ipc/stream/id"
-	"veyron.io/veyron/veyron/runtimes/google/ipc/stream/sectest"
 	"veyron.io/veyron/veyron/runtimes/google/ipc/stream/vc"
 	"veyron.io/veyron/veyron/runtimes/google/lib/bqueue"
 	"veyron.io/veyron/veyron/runtimes/google/lib/bqueue/drrqueue"
@@ -37,7 +37,7 @@ const (
 	SecurityNone = options.VCSecurityNone
 	SecurityTLS  = options.VCSecurityConfidential
 
-	LatestVersion = version.IPCVersion4
+	LatestVersion = version.IPCVersion5
 )
 
 // testFlowEcho writes a random string of 'size' bytes on the flow and then
@@ -77,8 +77,8 @@ func testFlowEcho(t *testing.T, flow stream.Flow, size int) {
 func TestHandshake(t *testing.T) {
 	// When SecurityNone is used, the blessings should not be sent over the wire.
 	var (
-		client    = sectest.NewPrincipal("client")
-		server    = sectest.NewPrincipal("server")
+		client    = tsecurity.NewPrincipal("client")
+		server    = tsecurity.NewPrincipal("server")
 		h, vc     = New(SecurityNone, LatestVersion, client, server)
 		flow, err = vc.Connect()
 	)
@@ -94,27 +94,35 @@ func TestHandshake(t *testing.T) {
 	}
 }
 
+func testFlowAuthN(flow stream.Flow, serverBlessings security.Blessings, serverDischarges map[string]security.Discharge, clientBlessings security.Blessings) error {
+	if got, want := flow.RemoteBlessings(), serverBlessings; !reflect.DeepEqual(got, want) {
+		return fmt.Errorf("Got blessings %v from server, want %v", got, want)
+	}
+	if got, want := flow.RemoteDischarges(), serverDischarges; !reflect.DeepEqual(got, want) {
+		return fmt.Errorf("Got discharges %v from server, want %v", got, want)
+	}
+	if got, want := flow.LocalBlessings(), clientBlessings; !reflect.DeepEqual(got, want) {
+		return fmt.Errorf("Client shared %v, wanted %v", got, want)
+	}
+	return nil
+}
+
+func addToRoots(principals []security.Principal, blessings []security.Blessings) error {
+	for _, p := range principals {
+		for _, b := range blessings {
+			if err := p.AddToRoots(b); err != nil {
+				return fmt.Errorf("%v.AddToRoots(%v): %v", p, b, err)
+			}
+		}
+	}
+	return nil
+}
+
 func TestHandshakeTLS(t *testing.T) {
 	var (
-		client  = sectest.NewPrincipal("client")
-		server1 = sectest.NewPrincipal("server1")
-		server2 = sectest.NewPrincipal("server2")
-
-		testBlessings = func(server security.Principal, wantClient security.Blessings) error {
-			h, vc := New(SecurityTLS, LatestVersion, client, server)
-			defer h.Close()
-			flow, err := vc.Connect()
-			if err != nil {
-				return fmt.Errorf("unable to create flow: %v", err)
-			}
-			if got, want := flow.RemoteBlessings(), server.BlessingStore().Default(); !reflect.DeepEqual(got, want) {
-				return fmt.Errorf("Got blessings %v from server, want %v", got, want)
-			}
-			if got, want := flow.LocalBlessings(), wantClient; !reflect.DeepEqual(got, want) {
-				return fmt.Errorf("Client shared %v, wanted %v", got, want)
-			}
-			return nil
-		}
+		client  = tsecurity.NewPrincipal("client")
+		server1 = tsecurity.NewPrincipal("server1")
+		server2 = tsecurity.NewPrincipal("server2")
 	)
 	// Setup client so that is has a specific blessing for S2.
 	forServer1 := client.BlessingStore().Default()
@@ -127,24 +135,104 @@ func TestHandshakeTLS(t *testing.T) {
 	client.BlessingStore().Set(forServer2, security.BlessingPattern("server2"))
 
 	// Make the clients and servers recognize each other as valid root certificate providers.
-	for _, p := range []security.Principal{client, server1, server2} {
-		for _, b := range []security.Blessings{server1.BlessingStore().Default(), server2.BlessingStore().Default(), client.BlessingStore().Default()} {
-			if err := p.AddToRoots(b); err != nil {
-				t.Fatalf("%v.AddToRoots(%v): %v", p, b, err)
-			}
-		}
+	if err := addToRoots([]security.Principal{client, server1, server2}, []security.Blessings{server1.BlessingStore().Default(), server2.BlessingStore().Default(), client.BlessingStore().Default()}); err != nil {
+		t.Fatal(err)
 	}
 
-	if err := testBlessings(server1, forServer1); err != nil {
+	// Test handshake between client and server1
+	h, vc := New(SecurityTLS, LatestVersion, client, server1)
+	defer h.Close()
+	flow, err := vc.Connect()
+	if err != nil {
+		t.Fatalf("Unable to create flow: %v", err)
+	}
+	if err := testFlowAuthN(flow, server1.BlessingStore().Default(), nil, forServer1); err != nil {
 		t.Error(err)
 	}
-	if err := testBlessings(server2, forServer2); err != nil {
+
+	// Test handshake between client and server2
+	h, vc = New(SecurityTLS, LatestVersion, client, server2)
+	defer h.Close()
+	flow, err = vc.Connect()
+	if err != nil {
+		t.Fatalf("Unable to create flow: %v", err)
+	}
+	if err := testFlowAuthN(flow, server2.BlessingStore().Default(), nil, forServer2); err != nil {
+		t.Error(err)
+	}
+}
+
+type mockDischargeClient []security.Discharge
+
+func (m mockDischargeClient) PrepareDischarges(forcaveats []security.ThirdPartyCaveat, impetus security.DischargeImpetus) []security.Discharge {
+	return m
+}
+func (mockDischargeClient) Invalidate(...security.Discharge) {}
+func (mockDischargeClient) IPCStreamListenerOpt()            {}
+func (mockDischargeClient) IPCStreamVCOpt()                  {}
+func (mockDischargeClient) IPCServerOpt()                    {}
+func (mockDischargeClient) IPCClientOpt()                    {}
+
+// Test that mockDischargeClient implements vc.DischargeClient.
+var _ vc.DischargeClient = (mockDischargeClient)(nil)
+
+func TestHandshakeWithDischargesTLS(t *testing.T) {
+	newCaveat := func(validator security.CaveatValidator) security.Caveat {
+		cav, err := security.NewCaveat(validator)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return cav
+	}
+	var (
+		discharger = tsecurity.NewPrincipal("discharger")
+		client     = tsecurity.NewPrincipal()
+		server     = tsecurity.NewPrincipal()
+		root       = tsecurity.NewIDProvider("root")
+	)
+	tpcav, err := security.NewPublicKeyCaveat(discharger.PublicKey(), "irrelevant", security.ThirdPartyRequirements{}, security.UnconstrainedUse())
+	if err != nil {
+		t.Fatal(err)
+	}
+	dis, err := discharger.MintDischarge(tpcav, security.UnconstrainedUse())
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Setup 'client' and 'server' so that they use a blessing from 'root' with a third-party caveat
+	// during VC handshake.
+	if err := root.Bless(client, "client", newCaveat(tpcav)); err != nil {
+		t.Fatal(err)
+	}
+	if err := root.Bless(server, "server", newCaveat(tpcav)); err != nil {
+		t.Fatal(err)
+	}
+
+	// Test handshake without Discharges
+	h, vc := New(SecurityTLS, LatestVersion, client, server, mockDischargeClient(nil))
+	defer h.Close()
+	flow, err := vc.Connect()
+	if err != nil {
+		t.Fatalf("Unable to create flow: %v", err)
+	}
+	if err := testFlowAuthN(flow, server.BlessingStore().Default(), nil, client.BlessingStore().Default()); err != nil {
+		t.Error(err)
+	}
+
+	// Test handshake with Discharges
+	h, vc = New(SecurityTLS, LatestVersion, client, server, mockDischargeClient([]security.Discharge{dis}))
+	defer h.Close()
+	flow, err = vc.Connect()
+	if err != nil {
+		t.Fatalf("Unable to create flow: %v", err)
+	}
+	if err := testFlowAuthN(flow, server.BlessingStore().Default(), map[string]security.Discharge{dis.ID(): dis}, client.BlessingStore().Default()); err != nil {
 		t.Error(err)
 	}
 }
 
 func testConnect_Small(t *testing.T, security options.VCSecurityLevel) {
-	h, vc := New(security, LatestVersion, sectest.NewPrincipal("client"), sectest.NewPrincipal("server"))
+	h, vc := New(security, LatestVersion, tsecurity.NewPrincipal("client"), tsecurity.NewPrincipal("server"))
 	defer h.Close()
 	flow, err := vc.Connect()
 	if err != nil {
@@ -156,7 +244,7 @@ func TestConnect_Small(t *testing.T)    { testConnect_Small(t, SecurityNone) }
 func TestConnect_SmallTLS(t *testing.T) { testConnect_Small(t, SecurityTLS) }
 
 func testConnect(t *testing.T, security options.VCSecurityLevel) {
-	h, vc := New(security, LatestVersion, sectest.NewPrincipal("client"), sectest.NewPrincipal("server"))
+	h, vc := New(security, LatestVersion, tsecurity.NewPrincipal("client"), tsecurity.NewPrincipal("server"))
 	defer h.Close()
 	flow, err := vc.Connect()
 	if err != nil {
@@ -168,7 +256,7 @@ func TestConnect(t *testing.T)    { testConnect(t, SecurityNone) }
 func TestConnectTLS(t *testing.T) { testConnect(t, SecurityTLS) }
 
 func testConnect_Version4(t *testing.T, security options.VCSecurityLevel) {
-	h, vc := New(security, version.IPCVersion4, sectest.NewPrincipal("client"), sectest.NewPrincipal("server"))
+	h, vc := New(security, version.IPCVersion4, tsecurity.NewPrincipal("client"), tsecurity.NewPrincipal("server"))
 	defer h.Close()
 	flow, err := vc.Connect()
 	if err != nil {
@@ -185,7 +273,7 @@ func TestConnect_Version4TLS(t *testing.T) { testConnect_Version4(t, SecurityTLS
 func testConcurrentFlows(t *testing.T, security options.VCSecurityLevel, flows, gomaxprocs int) {
 	mp := runtime.GOMAXPROCS(gomaxprocs)
 	defer runtime.GOMAXPROCS(mp)
-	h, vc := New(security, LatestVersion, sectest.NewPrincipal("client"), sectest.NewPrincipal("server"))
+	h, vc := New(security, LatestVersion, tsecurity.NewPrincipal("client"), tsecurity.NewPrincipal("server"))
 	defer h.Close()
 
 	var wg sync.WaitGroup
@@ -212,7 +300,7 @@ func TestConcurrentFlows_10TLS(t *testing.T) { testConcurrentFlows(t, SecurityTL
 
 func testListen(t *testing.T, security options.VCSecurityLevel) {
 	data := "the dark knight"
-	h, vc := New(security, LatestVersion, sectest.NewPrincipal("client"), sectest.NewPrincipal("server"))
+	h, vc := New(security, LatestVersion, tsecurity.NewPrincipal("client"), tsecurity.NewPrincipal("server"))
 	defer h.Close()
 	if err := h.VC.AcceptFlow(id.Flow(21)); err == nil {
 		t.Errorf("Expected AcceptFlow on a new flow to fail as Listen was not called")
@@ -259,7 +347,7 @@ func TestListen(t *testing.T)    { testListen(t, SecurityNone) }
 func TestListenTLS(t *testing.T) { testListen(t, SecurityTLS) }
 
 func testNewFlowAfterClose(t *testing.T, security options.VCSecurityLevel) {
-	h, _ := New(security, LatestVersion, sectest.NewPrincipal("client"), sectest.NewPrincipal("server"))
+	h, _ := New(security, LatestVersion, tsecurity.NewPrincipal("client"), tsecurity.NewPrincipal("server"))
 	defer h.Close()
 	h.VC.Close("reason")
 	if err := h.VC.AcceptFlow(id.Flow(10)); err == nil {
@@ -270,7 +358,7 @@ func TestNewFlowAfterClose(t *testing.T)    { testNewFlowAfterClose(t, SecurityN
 func TestNewFlowAfterCloseTLS(t *testing.T) { testNewFlowAfterClose(t, SecurityTLS) }
 
 func testConnectAfterClose(t *testing.T, security options.VCSecurityLevel) {
-	h, vc := New(security, LatestVersion, sectest.NewPrincipal("client"), sectest.NewPrincipal("server"))
+	h, vc := New(security, LatestVersion, tsecurity.NewPrincipal("client"), tsecurity.NewPrincipal("server"))
 	defer h.Close()
 	h.VC.Close("myerr")
 	if f, err := vc.Connect(); f != nil || err == nil || !strings.Contains(err.Error(), "myerr") {
@@ -292,7 +380,7 @@ type helper struct {
 // New creates both ends of a VC but returns only the "client" end (i.e., the
 // one that initiated the VC). The "server" end (the one that "accepted" the VC)
 // listens for flows and simply echoes data read.
-func New(security options.VCSecurityLevel, v version.IPCVersion, client, server security.Principal) (*helper, stream.VC) {
+func New(security options.VCSecurityLevel, v version.IPCVersion, client, server security.Principal, dischargeClients ...vc.DischargeClient) (*helper, stream.VC) {
 	clientH := &helper{bq: drrqueue.New(vc.MaxPayloadSizeBytes)}
 	serverH := &helper{bq: drrqueue.New(vc.MaxPayloadSizeBytes)}
 	clientH.otherEnd = serverH
@@ -328,8 +416,16 @@ func New(security options.VCSecurityLevel, v version.IPCVersion, client, server 
 	go clientH.pipeLoop(serverH.VC)
 	go serverH.pipeLoop(clientH.VC)
 
-	c := serverH.VC.HandshakeAcceptedVC(security, vc.LocalPrincipal{server})
-	if err := clientH.VC.HandshakeDialedVC(security, vc.LocalPrincipal{client}); err != nil {
+	lopts := []stream.ListenerOpt{vc.LocalPrincipal{server}, security}
+	vcopts := []stream.VCOpt{vc.LocalPrincipal{client}, security}
+
+	if len(dischargeClients) > 0 {
+		lopts = append(lopts, dischargeClients[0])
+		vcopts = append(vcopts, dischargeClients[0])
+	}
+
+	c := serverH.VC.HandshakeAcceptedVC(lopts...)
+	if err := clientH.VC.HandshakeDialedVC(vcopts...); err != nil {
 		panic(err)
 	}
 	hr := <-c

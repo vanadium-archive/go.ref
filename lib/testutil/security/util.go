@@ -38,6 +38,32 @@ func NewVeyronCredentials(parent security.Principal, name string) string {
 	return dir
 }
 
+// NewPrincipal creates a new security.Principal.
+//
+// It also creates self-certified blessings for defaultBlessings and
+// marks the union of these blessings as default and shareable with all
+// peers on the principal's blessing store.
+func NewPrincipal(defaultBlessings ...string) security.Principal {
+	p, err := vsecurity.NewPrincipal()
+	if err != nil {
+		panic(err)
+	}
+	var def security.Blessings
+	for _, blessing := range defaultBlessings {
+		b, err := p.BlessSelf(blessing)
+		if err != nil {
+			panic(err)
+		}
+		if def, err = security.UnionOfBlessings(def, b); err != nil {
+			panic(err)
+		}
+	}
+	if def != nil {
+		SetDefaultBlessings(p, def)
+	}
+	return p
+}
+
 // SetDefaultBlessings updates the BlessingStore and BlessingRoots of p
 // so that:
 // (1) b is revealed to all clients that connect to Servers operated
@@ -98,15 +124,25 @@ func NewIDProvider(name string) *IDProvider {
 // Bless sets up the provided principal to use blessings from idp as its
 // default.
 func (idp *IDProvider) Bless(who security.Principal, extension string, caveats ...security.Caveat) error {
-	if len(caveats) == 0 {
-		caveats = append(caveats, security.UnconstrainedUse())
-	}
-	blessings, err := idp.p.Bless(who.PublicKey(), idp.b, extension, caveats[0], caveats[1:]...)
+	blessings, err := idp.NewBlessings(who, extension, caveats...)
 	if err != nil {
 		return err
 	}
 	SetDefaultBlessings(who, blessings)
 	return nil
+}
+
+// NewBlessings returns Blessings that extend the identity provider's blessing
+// with 'extension' and binds it to 'p.PublicKey'.
+func (idp *IDProvider) NewBlessings(p security.Principal, extension string, caveats ...security.Caveat) (security.Blessings, error) {
+	if len(caveats) == 0 {
+		caveats = append(caveats, security.UnconstrainedUse())
+	}
+	blessings, err := idp.p.Bless(p.PublicKey(), idp.b, extension, caveats[0], caveats[1:]...)
+	if err != nil {
+		return nil, err
+	}
+	return blessings, nil
 }
 
 // PublicKey is the public key of the identity provider.

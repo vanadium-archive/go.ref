@@ -15,9 +15,9 @@ import (
 
 	"veyron.io/veyron/veyron/lib/expect"
 	"veyron.io/veyron/veyron/lib/modules"
+	tsecurity "veyron.io/veyron/veyron/lib/testutil/security"
 	imanager "veyron.io/veyron/veyron/runtimes/google/ipc/stream/manager"
 	"veyron.io/veyron/veyron/runtimes/google/ipc/stream/proxy"
-	"veyron.io/veyron/veyron/runtimes/google/ipc/stream/sectest"
 	"veyron.io/veyron/veyron/runtimes/google/ipc/stream/vc"
 	inaming "veyron.io/veyron/veyron/runtimes/google/naming"
 	tnaming "veyron.io/veyron/veyron/runtimes/google/testing/mocks/naming"
@@ -27,7 +27,7 @@ import (
 // connection to the server if the server dies and comes back (on the same
 // endpoint).
 func TestReconnect(t *testing.T) {
-	b := createBundle(t, sectest.NewPrincipal("client"), nil, nil) // We only need the client from the bundle.
+	b := createBundle(t, tsecurity.NewPrincipal("client"), nil, nil) // We only need the client from the bundle.
 	defer b.cleanup(t)
 	sh := modules.NewShell()
 	defer sh.Cleanup(os.Stderr, os.Stderr)
@@ -133,12 +133,12 @@ func addrOnly(name string) string {
 func testProxy(t *testing.T, spec ipc.ListenSpec) {
 	sm := imanager.InternalNew(naming.FixedRoutingID(0x555555555))
 	ns := tnaming.NewSimpleNamespace()
-	client, err := InternalNewClient(sm, ns, vc.LocalPrincipal{sectest.NewPrincipal("client")})
+	client, err := InternalNewClient(sm, ns, vc.LocalPrincipal{tsecurity.NewPrincipal("client")})
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer client.Close()
-	server, err := InternalNewServer(testContext(), sm, ns, nil, vc.LocalPrincipal{sectest.NewPrincipal("server")})
+	server, err := InternalNewServer(testContext(), sm, ns, nil, vc.LocalPrincipal{tsecurity.NewPrincipal("server")})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -270,7 +270,7 @@ func testProxy(t *testing.T, spec ipc.ListenSpec) {
 func runServer(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
 	mgr := imanager.InternalNew(naming.FixedRoutingID(0x1111111))
 	ns := tnaming.NewSimpleNamespace()
-	server, err := InternalNewServer(testContext(), mgr, ns, nil, vc.LocalPrincipal{sectest.NewPrincipal("server")})
+	server, err := InternalNewServer(testContext(), mgr, ns, nil, vc.LocalPrincipal{tsecurity.NewPrincipal("server")})
 	if err != nil {
 		return fmt.Errorf("InternalNewServer failed: %v", err)
 	}
@@ -295,7 +295,7 @@ func runProxy(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, 
 	if err != nil {
 		return err
 	}
-	proxy, err := proxy.New(rid, sectest.NewPrincipal("proxy"), "tcp", "127.0.0.1:0", "")
+	proxy, err := proxy.New(rid, tsecurity.NewPrincipal("proxy"), "tcp", "127.0.0.1:0", "")
 	if err != nil {
 		return err
 	}

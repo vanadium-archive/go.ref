@@ -11,8 +11,8 @@ import (
 	"veyron.io/veyron/veyron2/vlog"
 
 	"veyron.io/veyron/veyron/lib/stats"
+	tsecurity "veyron.io/veyron/veyron/lib/testutil/security"
 	"veyron.io/veyron/veyron/runtimes/google/ipc/stream/manager"
-	"veyron.io/veyron/veyron/runtimes/google/ipc/stream/sectest"
 	"veyron.io/veyron/veyron/runtimes/google/ipc/stream/vc"
 	tnaming "veyron.io/veyron/veyron/runtimes/google/testing/mocks/naming"
 	"veyron.io/veyron/veyron/runtimes/google/vtrace"
@@ -23,8 +23,8 @@ func TestDebugServer(t *testing.T) {
 	// Setup the client and server principals, with the client willing to share its
 	// blessing with the server.
 	var (
-		pclient = sectest.NewPrincipal("client")
-		pserver = sectest.NewPrincipal("server")
+		pclient = tsecurity.NewPrincipal("client")
+		pserver = tsecurity.NewPrincipal("server")
 		bclient = bless(pserver, pclient, "client") // server/client blessing.
 	)
 	pclient.AddToRoots(bclient)                    // Client recognizes "server" as a root of blessings.

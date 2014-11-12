@@ -15,7 +15,7 @@ import (
 	"testing"
 
 	"veyron.io/veyron/veyron/lib/testutil"
-	"veyron.io/veyron/veyron/runtimes/google/ipc/stream/sectest"
+	tsecurity "veyron.io/veyron/veyron/lib/testutil/security"
 	"veyron.io/veyron/veyron/runtimes/google/ipc/stream/vc"
 	"veyron.io/veyron/veyron/runtimes/google/ipc/stream/vif"
 	iversion "veyron.io/veyron/veyron/runtimes/google/ipc/version"
@@ -28,7 +28,7 @@ import (
 func init() { testutil.Init() }
 
 func newPrincipal(defaultBlessing string) vc.LocalPrincipal {
-	return vc.LocalPrincipal{sectest.NewPrincipal("defaultBlessing")}
+	return vc.LocalPrincipal{tsecurity.NewPrincipal("defaultBlessing")}
 }
 
 func TestSingleFlowCreatedAtClient(t *testing.T) {

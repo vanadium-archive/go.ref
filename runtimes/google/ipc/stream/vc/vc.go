@@ -42,6 +42,7 @@ type VC struct {
 	localEP, remoteEP               naming.Endpoint
 	localPrincipal                  security.Principal
 	localBlessings, remoteBlessings security.Blessings
+	remoteDischarges                map[string]security.Discharge
 
 	pool           *iobuf.Pool
 	reserveBytes   uint
@@ -104,6 +105,21 @@ func (LocalPrincipal) IPCStreamListenerOpt() {}
 func (LocalPrincipal) IPCStreamVCOpt()       {}
 func (LocalPrincipal) IPCClientOpt()         {}
 func (LocalPrincipal) IPCServerOpt()         {}
+
+// DischargeClient is an interface for obtaining discharges for a set of third-party
+// caveats.
+//
+// TODO(ataly, ashankar): What should be the impetus for obtaining the discharges?
+type DischargeClient interface {
+	PrepareDischarges(forcaveats []security.ThirdPartyCaveat, impetus security.DischargeImpetus) []security.Discharge
+	// Invalidate marks the provided discharges as invalid, and therefore unfit
+	// for being returned by a subsequent PrepareDischarges call.
+	Invalidate(discharges ...security.Discharge)
+	IPCServerOpt()
+	IPCClientOpt()
+	IPCStreamListenerOpt()
+	IPCStreamVCOpt()
+}
 
 // InternalNew creates a new VC, which implements the stream.VC interface.
 //
@@ -340,11 +356,16 @@ func (vc *VC) err(err error) error {
 // authentication etc.) under the assumption that the VC was initiated by the
 // local process (i.e., the local process "Dial"ed to create the VC).
 func (vc *VC) HandshakeDialedVC(opts ...stream.VCOpt) error {
-	var principal security.Principal
-	var tlsSessionCache crypto.TLSClientSessionCache
-	var securityLevel options.VCSecurityLevel
+	var (
+		principal       security.Principal
+		tlsSessionCache crypto.TLSClientSessionCache
+		securityLevel   options.VCSecurityLevel
+		dischargeClient DischargeClient
+	)
 	for _, o := range opts {
 		switch v := o.(type) {
+		case DischargeClient:
+			dischargeClient = v
 		case LocalPrincipal:
 			principal = v.Principal
 		case options.VCSecurityLevel:
@@ -389,7 +410,7 @@ func (vc *VC) HandshakeDialedVC(opts ...stream.VCOpt) error {
 	if err != nil {
 		return vc.err(fmt.Errorf("failed to create a Flow for authentication: %v", err))
 	}
-	rBlessings, lBlessings, err := authenticateAsClient(authConn, principal, crypter, vc.version)
+	rBlessings, lBlessings, rDischarges, err := authenticateAsClient(authConn, principal, dischargeClient, crypter, vc.version)
 	if err != nil {
 		return vc.err(fmt.Errorf("authentication failed: %v", err))
 	}
@@ -399,8 +420,9 @@ func (vc *VC) HandshakeDialedVC(opts ...stream.VCOpt) error {
 	vc.authFID = authFID
 	vc.crypter = crypter
 	vc.localPrincipal = principal
-	vc.remoteBlessings = rBlessings
 	vc.localBlessings = lBlessings
+	vc.remoteBlessings = rBlessings
+	vc.remoteDischarges = rDischarges
 	vc.mu.Unlock()
 
 	vlog.VI(1).Infof("Client VC %v authenticated. RemoteBlessings:%v, LocalBlessings:%v", vc, rBlessings, lBlessings)
@@ -426,11 +448,16 @@ func (vc *VC) HandshakeAcceptedVC(opts ...stream.ListenerOpt) <-chan HandshakeRe
 		result <- HandshakeResult{ln, err}
 		return result
 	}
-	var principal security.Principal
-	var securityLevel options.VCSecurityLevel
-	var lBlessings security.Blessings
+	var (
+		principal       security.Principal
+		securityLevel   options.VCSecurityLevel
+		dischargeClient DischargeClient
+		lBlessings      security.Blessings
+	)
 	for _, o := range opts {
 		switch v := o.(type) {
+		case DischargeClient:
+			dischargeClient = v
 		case LocalPrincipal:
 			principal = v.Principal
 		case options.VCSecurityLevel:
@@ -497,7 +524,7 @@ func (vc *VC) HandshakeAcceptedVC(opts ...stream.ListenerOpt) <-chan HandshakeRe
 		vc.mu.Lock()
 		vc.authFID = vc.findFlowLocked(authConn)
 		vc.mu.Unlock()
-		rBlessings, err := authenticateAsServer(authConn, principal, lBlessings, crypter, vc.version)
+		rBlessings, rDischarges, err := authenticateAsServer(authConn, principal, lBlessings, dischargeClient, crypter, vc.version)
 		if err != nil {
 			sendErr(fmt.Errorf("authentication failed %v", err))
 			return
@@ -508,6 +535,7 @@ func (vc *VC) HandshakeAcceptedVC(opts ...stream.ListenerOpt) <-chan HandshakeRe
 		vc.localPrincipal = principal
 		vc.localBlessings = lBlessings
 		vc.remoteBlessings = rBlessings
+		vc.remoteDischarges = rDischarges
 		close(vc.acceptHandshakeDone)
 		vc.acceptHandshakeDone = nil
 		vc.mu.Unlock()
@@ -592,6 +620,15 @@ func (vc *VC) RemoteBlessings() security.Blessings {
 	defer vc.mu.Unlock()
 	vc.waitForHandshakeLocked()
 	return vc.remoteBlessings
+}
+
+// RemoteDischarges returns the discharges presented by the remote end of the VC during
+// authentication.
+func (vc *VC) RemoteDischarges() map[string]security.Discharge {
+	vc.mu.Lock()
+	defer vc.mu.Unlock()
+	vc.waitForHandshakeLocked()
+	return vc.remoteDischarges
 }
 
 // waitForHandshakeLocked blocks until an in-progress handshake (encryption
