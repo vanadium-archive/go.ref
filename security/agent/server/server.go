@@ -182,7 +182,7 @@ func startAgent(conn *net.UnixConn, runtime veyron2.Runtime, principal security.
 			if err == io.EOF {
 				return
 			}
-			if err == nil {
+			if clientAddr != nil {
 				// VCSecurityNone is safe since we're using anonymous unix sockets.
 				// Only our child process can possibly communicate on the socket.
 				//

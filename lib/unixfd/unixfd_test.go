@@ -136,15 +136,25 @@ func TestSendConnection(t *testing.T) {
 	if err != nil {
 		t.Fatalf("FileConn: %v", err)
 	}
+	var readErr error
+	var n int
+	var saddr net.Addr
+	done := make(chan struct{})
+	buf := make([]byte, 10)
+	go func() {
+		saddr, n, err = ReadConnection(server, buf)
+		close(done)
+	}()
 	caddr, err := SendConnection(uclient.(*net.UnixConn), []byte("hello"), true)
 	if err != nil {
 		t.Fatalf("SendConnection: %v", err)
 	}
-
-	buf := make([]byte, 10)
-	saddr, n, err := ReadConnection(server, buf)
-	if err != nil {
-		t.Fatalf("ReadConnection: %v", err)
+	<-done
+	if readErr != nil {
+		t.Fatalf("ReadConnection: %v", readErr)
+	}
+	if saddr == nil {
+		t.Fatalf("ReadConnection returned nil, %d", n)
 	}
 	data := buf[0:n]
 	if !bytes.Equal([]byte("hello"), data) {

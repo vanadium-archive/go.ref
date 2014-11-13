@@ -202,16 +202,37 @@ func SendConnection(conn *net.UnixConn, data []byte, closeOnExec bool) (addr net
 	}
 	defer local.maybeClose()
 	rfile := remote.releaseFile()
-	defer rfile.Close()
 
 	rights := syscall.UnixRights(int(rfile.Fd()))
 	n, oobn, err := conn.WriteMsgUnix(data, rights, nil)
 	if err != nil {
+		rfile.Close()
 		return nil, err
 	} else if n != len(data) || oobn != len(rights) {
+		rfile.Close()
 		return nil, fmt.Errorf("expected to send %d, %d bytes,  sent %d, %d", len(data), len(rights), n, oobn)
 	}
-	return local.releaseAddr(), nil
+	// Wait for the other side to acknowledge.
+	// This is to work around a race on OS X where it appears we can close
+	// the file descriptor before it gets transfered over the socket.
+	f := local.releaseFile()
+	fd, err := syscall.Dup(int(f.Fd()))
+	if err != nil {
+		f.Close()
+		rfile.Close()
+		return nil, err
+	}
+	newConn, err := net.FileConn(f)
+	f.Close()
+	if err != nil {
+		rfile.Close()
+		return nil, err
+	}
+	newConn.Read(make([]byte, 1))
+	newConn.Close()
+	rfile.Close()
+
+	return Addr(uintptr(fd)), nil
 }
 
 const cmsgDataLength = int(unsafe.Sizeof(int(1)))
@@ -232,22 +253,40 @@ func ReadConnection(conn *net.UnixConn, buf []byte) (net.Addr, int, error) {
 		return nil, n, err
 	}
 	fd := -1
+	// Loop through any file descriptors we are sent, and close
+	// all extras.
 	for _, scm := range scms {
 		fds, err := syscall.ParseUnixRights(&scm)
 		if err != nil {
 			return nil, n, err
 		}
 		for _, f := range fds {
-			if fd != -1 {
-				syscall.Close(fd)
+			if fd == -1 {
+				fd = f
+			} else if f != -1 {
+				syscall.Close(f)
 			}
-			fd = f
 		}
 	}
 	if fd == -1 {
 		return nil, n, nil
 	}
-	return Addr(uintptr(fd)), n, nil
+	result := Addr(uintptr(fd))
+	fd, err = syscall.Dup(fd)
+	if err != nil {
+		CloseUnixAddr(result)
+		return nil, n, err
+	}
+	file := os.NewFile(uintptr(fd), "newconn")
+	newconn, err := net.FileConn(file)
+	file.Close()
+	if err != nil {
+		CloseUnixAddr(result)
+		return nil, n, err
+	}
+	newconn.Write(make([]byte, 1))
+	newconn.Close()
+	return result, n, nil
 }
 
 func CloseUnixAddr(addr net.Addr) error {
