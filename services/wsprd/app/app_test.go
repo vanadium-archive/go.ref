@@ -1,7 +1,9 @@
 package app
 
 import (
+	"bytes"
 	"encoding/base64"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"reflect"
@@ -17,6 +19,7 @@ import (
 	"veyron.io/veyron/veyron2/verror2"
 	"veyron.io/veyron/veyron2/vom"
 	vom_wiretype "veyron.io/veyron/veyron2/vom/wiretype"
+	"veyron.io/veyron/veyron2/vom2"
 	"veyron.io/veyron/veyron2/wiretype"
 	"veyron.io/wspr/veyron/services/wsprd/lib"
 	"veyron.io/wspr/veyron/services/wsprd/lib/testwriter"
@@ -267,6 +270,19 @@ func runGoServerTestCase(t *testing.T, test goServerTestCase) {
 	}
 }
 
+func vomEncode(i interface{}) string {
+	var buf bytes.Buffer
+	encoder, err := vom2.NewBinaryEncoder(&buf)
+	if err != nil {
+		panic(err)
+	}
+
+	if err := encoder.Encode(i); err != nil {
+		panic(err)
+	}
+	return hex.EncodeToString(buf.Bytes())
+
+}
 func TestCallingGoServer(t *testing.T) {
 	runGoServerTestCase(t, goServerTestCase{
 		method:     "Add",
@@ -274,7 +290,7 @@ func TestCallingGoServer(t *testing.T) {
 		numOutArgs: 2,
 		expectedStream: []testwriter.Response{
 			testwriter.Response{
-				Message: []interface{}{5.0},
+				Message: vomEncode([]interface{}{int32(5)}),
 				Type:    lib.ResponseFinal,
 			},
 		},
@@ -299,19 +315,19 @@ func TestCallingGoWithStreaming(t *testing.T) {
 		numOutArgs:         2,
 		expectedStream: []testwriter.Response{
 			testwriter.Response{
-				Message: 1.0,
+				Message: vomEncode(int32(1)),
 				Type:    lib.ResponseStream,
 			},
 			testwriter.Response{
-				Message: 3.0,
+				Message: vomEncode(int32(3)),
 				Type:    lib.ResponseStream,
 			},
 			testwriter.Response{
-				Message: 6.0,
+				Message: vomEncode(int32(6)),
 				Type:    lib.ResponseStream,
 			},
 			testwriter.Response{
-				Message: 10.0,
+				Message: vomEncode(int32(10)),
 				Type:    lib.ResponseStream,
 			},
 			testwriter.Response{
@@ -319,7 +335,7 @@ func TestCallingGoWithStreaming(t *testing.T) {
 				Type:    lib.ResponseStreamClose,
 			},
 			testwriter.Response{
-				Message: []interface{}{10.0},
+				Message: vomEncode([]interface{}{int32(10)}),
 				Type:    lib.ResponseFinal,
 			},
 		},
@@ -726,7 +742,7 @@ func runJsServerTestCase(t *testing.T, test jsServerTestCase) {
 			"ServerId": 0.0,
 			"Method":   lib.LowercaseFirstCharacter(test.method),
 			"Handle":   0.0,
-			"Args":     test.inArgs,
+			"Args":     vomEncode(test.inArgs),
 			"Context": map[string]interface{}{
 				"Name":    "adder",
 				"Suffix":  "adder",
@@ -745,7 +761,7 @@ func runJsServerTestCase(t *testing.T, test jsServerTestCase) {
 		t.Errorf("didn't receive expected message: %v", err)
 	}
 	for _, msg := range test.clientStream {
-		expectedWebsocketMessage = append(expectedWebsocketMessage, testwriter.Response{Type: lib.ResponseStream, Message: msg})
+		expectedWebsocketMessage = append(expectedWebsocketMessage, testwriter.Response{Type: lib.ResponseStream, Message: vomEncode(msg)})
 		if err := call.Send(msg); err != nil {
 			t.Errorf("unexpected error while sending %v: %v", msg, err)
 		}

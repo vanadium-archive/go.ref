@@ -4,6 +4,7 @@ package app
 
 import (
 	"bytes"
+	"encoding/hex"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -22,6 +23,7 @@ import (
 	"veyron.io/veyron/veyron2/vlog"
 	"veyron.io/veyron/veyron2/vom"
 	vom_wiretype "veyron.io/veyron/veyron2/vom/wiretype"
+	"veyron.io/veyron/veyron2/vom2"
 	wiretype_build "veyron.io/veyron/veyron2/wiretype/build"
 	"veyron.io/wspr/veyron/services/wsprd/ipc/server"
 	"veyron.io/wspr/veyron/services/wsprd/lib"
@@ -188,7 +190,20 @@ func (c *Controller) finishCall(ctx context.T, w lib.ClientWriter, clientCall ip
 				w.Error(err) // Send streaming error as is
 				return
 			}
-			if err := w.Send(lib.ResponseStream, item); err != nil {
+
+			var buf bytes.Buffer
+			encoder, err := vom2.NewBinaryEncoder(&buf)
+			if err != nil {
+				w.Error(verror2.Make(marshallingError, ctx, item))
+				continue
+			}
+
+			if err := encoder.Encode(item); err != nil {
+				w.Error(verror2.Make(marshallingError, ctx, item))
+				continue
+			}
+
+			if err := w.Send(lib.ResponseStream, hex.EncodeToString(buf.Bytes())); err != nil {
 				w.Error(verror2.Make(marshallingError, ctx, item))
 			}
 		}
@@ -221,7 +236,19 @@ func (c *Controller) finishCall(ctx context.T, w lib.ClientWriter, clientCall ip
 		return
 	}
 
-	if err := w.Send(lib.ResponseFinal, results[0:len(results)-1]); err != nil {
+	var buf bytes.Buffer
+	encoder, err := vom2.NewBinaryEncoder(&buf)
+	if err != nil {
+		w.Error(err)
+		return
+	}
+
+	if err := encoder.Encode(results[:len(results)-1]); err != nil {
+		w.Error(err)
+		return
+	}
+
+	if err := w.Send(lib.ResponseFinal, hex.EncodeToString(buf.Bytes())); err != nil {
 		w.Error(verror2.Convert(marshallingError, ctx, err))
 	}
 }
@@ -686,8 +713,20 @@ func (c *Controller) HandleSignatureRequest(ctx context.T, data string, w lib.Cl
 		return
 	}
 
+	var buf bytes.Buffer
+	encoder, err := vom2.NewBinaryEncoder(&buf)
+	if err != nil {
+		w.Error(err)
+		return
+	}
+
+	if err := encoder.Encode(jsSig); err != nil {
+		w.Error(err)
+		return
+	}
+
 	// Send the signature back
-	if err := w.Send(lib.ResponseFinal, jsSig); err != nil {
+	if err := w.Send(lib.ResponseFinal, hex.EncodeToString(buf.Bytes())); err != nil {
 		w.Error(verror2.Convert(verror2.Internal, ctx, err))
 		return
 	}
