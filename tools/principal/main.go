@@ -2,6 +2,8 @@ package main
 
 import (
 	"bytes"
+	"crypto/rand"
+	"crypto/subtle"
 	"encoding/base64"
 	"errors"
 	"fmt"
@@ -10,12 +12,15 @@ import (
 	"os/user"
 	"time"
 
+	"veyron.io/veyron/veyron2"
+	"veyron.io/veyron/veyron2/ipc"
+	"veyron.io/veyron/veyron2/naming"
 	"veyron.io/veyron/veyron2/rt"
 	"veyron.io/veyron/veyron2/security"
 	"veyron.io/veyron/veyron2/vom"
 
 	"veyron.io/veyron/veyron/lib/cmdline"
-	_ "veyron.io/veyron/veyron/profiles"
+	profile "veyron.io/veyron/veyron/profiles/static"
 	vsecurity "veyron.io/veyron/veyron/security"
 	"veyron.io/veyron/veyron/services/identity"
 )
@@ -25,8 +30,10 @@ var (
 	flagBlessSelfFor time.Duration
 
 	// Flags for the "bless" command
-	flagBlessFor  time.Duration
-	flagBlessWith string
+	flagBlessFor         time.Duration
+	flagBlessWith        string
+	flagBlessRemoteKey   string
+	flagBlessRemoteToken string
 
 	// Flags for the "seekblessings" command
 	flagSeekBlessingsFrom       string
@@ -147,40 +154,48 @@ machine and the name of the user running this command.
 		Name:  "bless",
 		Short: "Bless another principal",
 		Long: `
-	Returns a set of blessings obtained when one principal blesses another.
+Bless another principal.
 
-	The blesser is obtained from the runtime this tool is running as.
-	The principal to be blessed is specified as either a path to the
-	directory of the other principal, or the filename (- for STDIN)
-	of any other blessing of that principal.
-	The blessing that the blesser uses (i.e., which is extended to create
-	the blessing) is the default one from the blessers store, or specified
-	via the --with flag.  The blessing is valid only for the duration
-	specified in --for.
+The blesser is obtained from the runtime this tool is using.  The blessing that
+will be extended is the default one from the blesser's store, or specified by
+the --with flag. Caveats on the blessing are controlled via the --for flag.
 
-	For example, let's say a principal with the default blessing "alice"
-	wants to bless another principal as "alice/bob", the invocation would
-	be:
-	VEYRON_CREDENTIALS=<path to alice> principal bless <path to bob> friend
-	`,
+For example, let's say a principal "alice" wants to bless another principal "bob"
+as "alice/friend", the invocation would be:
+    VEYRON_CREDENTIALS=<path to alice> principal bless <path to bob> friend
+and this will dump the blessing to STDOUT.
+
+With the --remote_key and --remote_token flags, this command can be used to
+bless a principal on a remote machine as well. In this case, the blessing is
+not dumped to STDOUT but sent to the remote end. Use 'principal help
+recvblessings' for more details on that.
+`,
 		ArgsName: "<principal to bless> <extension>",
 		ArgsLong: `
-	<principal to bless> represents the principal to be blessed (i.e.,
-	whose public key will be provided with a name).  This can either be a
-	path to a file containing any other set of blessings of that principal
-	(or - for STDIN) or the path to the directory of that principal.
+<principal to bless> represents the principal to be blessed (i.e., whose public
+key will be provided with a name).  This can be either:
+(a) The directory containing credentials for that principal,
+OR
+(b) The filename (- for STDIN) containing any other blessings of that
+    principal,
+OR
+(c) The object name produced by the 'recvblessings' command of this tool
+    running on behalf of another principal (if the --remote_key and
+    --remote_token flags are specified).
 
-	<extension> is the string extension that will be applied to create the
-	blessing.
+<extension> is the string extension that will be applied to create the
+blessing.
 	`,
 		Run: func(cmd *cmdline.Command, args []string) error {
 			if len(args) != 2 {
 				return fmt.Errorf("require exactly two arguments, provided %d", len(args))
 			}
-			p := rt.Init().Principal()
+			r := rt.Init()
+			p := r.Principal()
 
 			var with security.Blessings
 			var err error
+			var caveats []security.Caveat
 			if len(flagBlessWith) > 0 {
 				if with, err = decodeBlessings(flagBlessWith); err != nil {
 					return fmt.Errorf("failed to read blessings from --with=%q: %v", flagBlessWith, err)
@@ -189,10 +204,26 @@ machine and the name of the user running this command.
 				with = p.BlessingStore().Default()
 			}
 
-			var key security.PublicKey
+			if c, err := security.ExpiryCaveat(time.Now().Add(flagBlessFor)); err != nil {
+				return fmt.Errorf("failed to create ExpiryCaveat: %v", err)
+			} else {
+				caveats = append(caveats, c)
+			}
+			// TODO(ashankar,ataly,suharshs): Work out how to add additional caveats, like maybe
+			// revocation, method etc.
 			tobless, extension := args[0], args[1]
+			if (len(flagBlessRemoteKey) == 0) != (len(flagBlessRemoteToken) == 0) {
+				return fmt.Errorf("either both --remote_key and --remote_token should be set, or neither should")
+			}
+			if len(flagBlessRemoteKey) > 0 {
+				// Send blessings to a "server" started by a "recvblessings" command
+				granter := &granter{p, with, extension, caveats, flagBlessRemoteKey}
+				return sendBlessings(r, tobless, granter, flagBlessRemoteToken)
+			}
+			// Blessing a principal whose key is available locally.
+			var key security.PublicKey
 			if finfo, err := os.Stat(tobless); err == nil && finfo.IsDir() {
-				// TODO(suharshs,ashankar,ataly): How should we make an ecrypted pk... or is that up to the agent?
+				// TODO(suharshs,ashankar,ataly): How should we make an encrypted pk... or is that up to the agent?
 				other, err := vsecurity.LoadPersistentPrincipal(tobless, nil)
 				if err != nil {
 					if other, err = vsecurity.CreatePersistentPrincipal(tobless, nil); err != nil {
@@ -206,14 +237,9 @@ machine and the name of the user running this command.
 				key = other.PublicKey()
 			}
 
-			caveat, err := security.ExpiryCaveat(time.Now().Add(flagBlessFor))
+			blessings, err := p.Bless(key, with, extension, caveats[0], caveats[1:]...)
 			if err != nil {
-				return fmt.Errorf("failed to create ExpirtyCaveat: %v", err)
-			}
-
-			blessings, err := p.Bless(key, with, extension, caveat)
-			if err != nil {
-				return fmt.Errorf("Bless(%v, %v, %q, ExpiryCaveat(%v)) failed: %v", key, with, extension, flagBlessFor, err)
+				return fmt.Errorf("Bless(%v, %v, %q, ...) failed: %v", key, with, extension, err)
 			}
 			return dumpBlessings(blessings)
 		},
@@ -392,7 +418,7 @@ new principal.
 
 	cmdSeekBlessings = &cmdline.Command{
 		Name:  "seekblessings",
-		Short: "Seek blessings from a web-based Veyron blesser",
+		Short: "Seek blessings from a web-based Veyron blessing service",
 		Long: `
 Seeks blessings from a web-based Veyron blesser which
 requires the caller to first authenticate with Google using OAuth. Simply
@@ -451,18 +477,97 @@ specific peer pattern is provided using the --for_peer flag.
 			return dumpBlessings(blessings)
 		},
 	}
+
+	cmdRecvBlessings = &cmdline.Command{
+		Name:  "recvblessings",
+		Short: "Receive blessings sent by another principal and use them as the default",
+		Long: `
+Allow another principal (likely a remote process) to bless this one.
+
+This command sets up the invoker (this process) to wait for a blessing
+from another invocation of this tool (remote process) and prints out the
+command to be run as the remote principal.
+
+The received blessings are set as the default blessing of this principal
+and also as the blessing to be shared with all peers.
+
+TODO(ashankar,cnicolaou): Make this next paragraph possible! Requires
+the ability to obtain the proxied endpoint.
+
+Typically, this command should require no arguments.
+However, if the sender and receiver are on different network domains, it may
+make sense to use the --veyron.proxy flag:
+    principal --veyron.proxy=/proxy.envyor.com:8101 recvblessings
+
+The command to be run at the sender is of the form:
+    principal bless --remote_key=KEY --remote_token=TOKEN ADDRESS
+
+The --remote_key flag is used to by the sender to "authenticate" the receiver,
+ensuring it blesses the intended recipient and not any attacker that may have
+taken over the address.
+
+The --remote_token flag is used by the sender to authenticate itself to the
+receiver. This helps ensure that the receiver rejects blessings from senders
+who just happened to guess the network address of the 'recvblessings'
+invocation.
+`,
+		Run: func(cmd *cmdline.Command, args []string) error {
+			if len(args) != 0 {
+				return fmt.Errorf("command accepts no arguments")
+			}
+			r := rt.Init()
+			server, err := r.NewServer()
+			if err != nil {
+				return fmt.Errorf("failed to create server to listen for blessings: %v", err)
+			}
+			defer server.Stop()
+			ep, err := server.Listen(profile.ListenSpec)
+			if err != nil {
+				return fmt.Errorf("failed to setup listening: %v", err)
+			}
+			var token [24]byte
+			if _, err := rand.Read(token[:]); err != nil {
+				return fmt.Errorf("unable to generate token: %v", err)
+			}
+			service := &recvBlessingsService{
+				principal: r.Principal(),
+				token:     base64.URLEncoding.EncodeToString(token[:]),
+				notify:    make(chan error),
+			}
+			if err := server.Serve("", service, allowAnyone{}); err != nil {
+				return fmt.Errorf("failed to setup service: %v", err)
+			}
+			// Proposed name:
+			extension := fmt.Sprintf("extension%d", int(token[0])<<16|int(token[1])<<8|int(token[2]))
+			fmt.Println("Run the following command on behalf of the principal that will send blessings:")
+			fmt.Println("You may want to adjust flags affecting the caveats on this blessing, for example using")
+			fmt.Println("the --for flag, or change the extension to something more meaningful")
+			fmt.Println()
+			fmt.Printf("principal bless --remote_key=%v --remote_token=%v %v %v\n", r.Principal().PublicKey(), service.token, naming.JoinAddressName(ep.String(), ""), extension)
+			fmt.Println()
+			fmt.Println("...waiting for sender..")
+			return <-service.notify
+		},
+	}
 )
 
 func main() {
 	cmdBlessSelf.Flags.DurationVar(&flagBlessSelfFor, "for", 0, "Duration of blessing validity (zero means no that the blessing is always valid)")
+
 	cmdBless.Flags.DurationVar(&flagBlessFor, "for", time.Minute, "Duration of blessing validity")
-	cmdBless.Flags.StringVar(&flagBlessWith, "with", "", "Path to file containing blessing to extend. ")
+	cmdBless.Flags.StringVar(&flagBlessWith, "with", "", "Path to file containing blessing to extend")
+	cmdBless.Flags.StringVar(&flagBlessRemoteKey, "remote_key", "", "Public key of the remote principal to bless (obtained from the 'recvblessings' command run by the remote principal")
+	cmdBless.Flags.StringVar(&flagBlessRemoteToken, "remote_token", "", "Token provided by principal running the 'recvblessings' command")
+
 	cmdSeekBlessings.Flags.StringVar(&flagSeekBlessingsFrom, "from", "https://proxy.envyor.com:8125/google", "URL to use to begin the seek blessings process")
 	cmdSeekBlessings.Flags.BoolVar(&flagSeekBlessingsSetDefault, "set_default", true, "If true, the blessings obtained will be set as the default blessing in the store")
 	cmdSeekBlessings.Flags.StringVar(&flagSeekBlessingsForPeer, "for_peer", string(security.AllPrincipals), "If non-empty, the blessings obtained will be marked for peers matching this pattern in the store")
 	cmdSeekBlessings.Flags.BoolVar(&flagAddToRoots, "add_to_roots", true, "If true, the root certificate of the blessing will be added to the principal's set of recognized root certificates")
+
 	cmdStoreSet.Flags.BoolVar(&flagAddToRoots, "add_to_roots", true, "If true, the root certificate of the blessing will be added to the principal's set of recognized root certificates")
+
 	cmdStoreSetDefault.Flags.BoolVar(&flagAddToRoots, "add_to_roots", true, "If true, the root certificate of the blessing will be added to the principal's set of recognized root certificates")
+
 	cmdCreate.Flags.BoolVar(&flagCreateOverwrite, "overwrite", false, "If true, any existing principal data in the directory will be overwritten")
 
 	cmdStore := &cmdline.Command{
@@ -485,7 +590,7 @@ roots bound to a principal.
 
 All objects are printed using base64-VOM-encoding.
 `,
-		Children: []*cmdline.Command{cmdCreate, cmdSeekBlessings, cmdDump, cmdDumpBlessings, cmdBlessSelf, cmdBless, cmdStore},
+		Children: []*cmdline.Command{cmdCreate, cmdSeekBlessings, cmdRecvBlessings, cmdDump, cmdDumpBlessings, cmdBlessSelf, cmdBless, cmdStore},
 	}).Main()
 }
 
@@ -583,4 +688,76 @@ func base64VomDecode(s string, i interface{}) error {
 		return err
 	}
 	return vom.NewDecoder(bytes.NewBuffer(b)).Decode(i)
+}
+
+type recvBlessingsService struct {
+	principal security.Principal
+	notify    chan error
+	token     string
+}
+
+func (r *recvBlessingsService) Grant(call ipc.ServerCall, token string) error {
+	b := call.Blessings()
+	if b == nil {
+		return fmt.Errorf("no blessings granted by sender")
+	}
+	if len(token) != len(r.token) {
+		// A timing attack can be used to figure out the length
+		// of the token, but then again, so can looking at the
+		// source code. So, it's okay.
+		return fmt.Errorf("blessings received from unexpected sender")
+	}
+	if subtle.ConstantTimeCompare([]byte(token), []byte(r.token)) != 1 {
+		return fmt.Errorf("blessings received from unexpected sender")
+	}
+	// Maybe flagify the "SetDefault" and "Set" calls?
+	if err := r.principal.BlessingStore().SetDefault(b); err != nil {
+		return fmt.Errorf("failed to add granted blessings: %v", err)
+	}
+	if _, err := r.principal.BlessingStore().Set(b, security.AllPrincipals); err != nil {
+		return fmt.Errorf("failed to add granted blessings: %v", err)
+	}
+	if flagAddToRoots {
+		if err := r.principal.AddToRoots(b); err != nil {
+			return fmt.Errorf("failed to add blessings to recognized roots: %v", err)
+		}
+	}
+	fmt.Println("Received blessings:", b)
+	r.notify <- nil
+	return nil
+}
+
+type allowAnyone struct{}
+
+func (allowAnyone) Authorize(security.Context) error { return nil }
+
+type granter struct {
+	p         security.Principal
+	with      security.Blessings
+	extension string
+	caveats   []security.Caveat
+	serverKey string
+}
+
+func (g *granter) Grant(server security.Blessings) (security.Blessings, error) {
+	if got := fmt.Sprintf("%v", server.PublicKey()); got != g.serverKey {
+		// If the granter returns an error, the IPC framework should
+		// abort the RPC before sending the request to the server.
+		// Thus, there is no concern about leaking the token to an
+		// imposter server.
+		return nil, fmt.Errorf("key mismatch: Remote end has public key %v, want %v", got, g.serverKey)
+	}
+	return g.p.Bless(server.PublicKey(), g.with, g.extension, g.caveats[0], g.caveats[1:]...)
+}
+func (*granter) IPCCallOpt() {}
+
+func sendBlessings(r veyron2.Runtime, object string, granter *granter, remoteToken string) error {
+	call, err := r.Client().StartCall(r.NewContext(), object, "Grant", []interface{}{remoteToken}, granter)
+	if err != nil {
+		return fmt.Errorf("failed to start RPC to %q: %v", object, err)
+	}
+	if ierr := call.Finish(&err); ierr != nil {
+		return fmt.Errorf("failed to finish RPC to %q: %v", object, ierr)
+	}
+	return err
 }

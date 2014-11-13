@@ -35,25 +35,53 @@ main() {
 
   # Prevent any VEYRON_CREDENTIALS in the environment from interfering with this test.
   unset VEYRON_CREDENTIALS
-  # Create two principals, one called "alice" one called "bob"
+  # Create three principals, one called "alice" one called "bob" and one called "carol"
   "${PRINCIPAL_BIN}" create --overwrite=true ./alice alice >/dev/null || shell_test::fail "line ${LINENO}: create failed"
   "${PRINCIPAL_BIN}" create ./bob bob >/dev/null || shell_test::fail "line ${LINENO}: create failed"
   "${PRINCIPAL_BIN}" create --overwrite=true ./bob bob >/dev/null || shell_test::fail "line ${LINENO}: create failed"
+  "${PRINCIPAL_BIN}" create ./carol carol >/dev/null || shell_test::fail "line ${LINENO}: create failed"
+
   # Run dump, bless, blessself on alice
   export VEYRON_CREDENTIALS=./alice
   "${PRINCIPAL_BIN}" blessself alicereborn >alice.blessself || shell_test::fail "line ${LINENO}: blessself failed"
   "${PRINCIPAL_BIN}" bless ./bob friend >alice.bless || shell_test::fail "line ${LINENO}: bless failed"
   "${PRINCIPAL_BIN}" dump >alice.dump || shell_test::fail "line ${LINENO}: dump failed"
+
   # Run store setdefault, store default, store set, store forpeer on bob
   # This time use the --veyron.credentials flag to set the principal.
   "${PRINCIPAL_BIN}" --veyron.credentials=./bob store setdefault alice.bless || shell_test::fail "line ${LINENO}: store setdefault failed"
   "${PRINCIPAL_BIN}" --veyron.credentials=./bob store default >bob.store.default || shell_test::fail "line ${LINENO}: store default failed"
   "${PRINCIPAL_BIN}" --veyron.credentials=./bob store set alice.bless alice/... || shell_test::fail "line ${LINENO}: store set failed"
   "${PRINCIPAL_BIN}" --veyron.credentials=./bob store forpeer alice/server >bob.store.forpeer || shell_test::fail "line ${LINENO}: store forpeer failed" 
+
+  # Run recvblessings on carol, and have alice send blessings over.
+  "${PRINCIPAL_BIN}" --veyron.credentials=./carol --veyron.tcp.address=127.0.0.1:0 recvblessings >carol.recvblessings&
+  shell::timed_wait_for "${shell_test_DEFAULT_MESSAGE_TIMEOUT}" carol.recvblessings "bless --remote_key" || shell_test::fail "line ${LINENO}: recvblessings did not print command for sender"
+  local -r PRINCIPAL_BIN_DIR=$(dirname "${PRINCIPAL_BIN}")
+  local SEND_BLESSINGS_CMD=$(grep "bless --remote_key" carol.recvblessings | sed -e 's|extension[0-9]*|friend/carol|')
+  SEND_BLESSINGS_CMD="${PRINCIPAL_BIN_DIR}/${SEND_BLESSINGS_CMD}"
+  $(${SEND_BLESSINGS_CMD}) || shell_test::fail "line ${LINENO}: ${SEND_BLESSINGS_CMD} failed"
+  grep "Received blessings: alice/friend/carol" carol.recvblessings >/dev/null || shell_test::fail "line ${LINENO}: recvblessings did not log any blessings received $(cat carol.recvblessings)"
+  # Mucking around with the private key should fail
+  "${PRINCIPAL_BIN}" --veyron.credentials=./carol --veyron.tcp.address=127.0.0.1:0 recvblessings >carol.recvblessings&
+  shell::timed_wait_for "${shell_test_DEFAULT_MESSAGE_TIMEOUT}" carol.recvblessings "bless --remote_key" || shell_test::fail "line ${LINENO}: recvblessings did not print command for sender"
+  SEND_BLESSINGS_CMD=$(grep "bless --remote_key" carol.recvblessings | sed -e 's|remote_key=|remote_key=BAD|')
+  SEND_BLESSINGS_CMD="${PRINCIPAL_BIN_DIR}/${SEND_BLESSINGS_CMD}"
+  $(${SEND_BLESSINGS_CMD} 2>error) && shell_test::fail "line ${LINENO}: ${SEND_BLESSINGS_CMD} should have failed"
+  grep "key mismatch" error >/dev/null || shell_test::fail "line ${LINENO}: key mismatch error not printed"
+  # Mucking around with the token should fail
+  SEND_BLESSINGS_CMD=$(grep "bless --remote_key" carol.recvblessings | sed -e 's|remote_token=|remote_token=BAD|')
+  SEND_BLESSINGS_CMD="${PRINCIPAL_BIN_DIR}/${SEND_BLESSINGS_CMD}"
+  $(${SEND_BLESSINGS_CMD} 2>error) && shell_test::fail "line ${LINENO}: ${SEND_BLESSINGS_CMD} should have failed"
+  grep "blessings received from unexpected sender" error >/dev/null || shell_test::fail "line ${LINENO}: unexpected sender error not printed"
+  # Dump carol out, the only blessing that survives should be from the first
+  # "bless" command. (alice/friend/carol).
+  "${PRINCIPAL_BIN}" --veyron.credentials=./carol dump >carol.dump || shell_test::fail "line ${LINENO}: dump failed"
+
   # Any other commands to be run without VEYRON_CREDENTIALS set.
   unset VEYRON_CREDENTIALS
 
-  # Validate the output of various commands (mostly using "principal dumpblessings")
+  # Validate the output of various commands (mostly using "principal dump" or "principal dumpblessings")
   cat alice.dump | rmpublickey >got || shell_test::fail "line ${LINENO}: cat alice.dump | rmpublickey failed"
   cat >want <<EOF
 Public key : XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX
@@ -66,7 +94,7 @@ Public key                                      : Pattern
 XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX : [alice/...]
 EOF
   if ! diff got want; then
-  	shell_test::fail "line ${LINENO}"
+    shell_test::fail "line ${LINENO}"
   fi
 
   dumpblessings alice.blessself >got || shell_test::fail "line ${LINENO}: dumpblessings failed"
@@ -78,7 +106,7 @@ Chain #0 (1 certificates). Root certificate public key: XX:XX:XX:XX:XX:XX:XX:XX:
   Certificate #0: alicereborn with 0 caveats
 EOF
   if ! diff got want; then
-  	shell_test::fail "line ${LINENO}"
+    shell_test::fail "line ${LINENO}"
   fi
 
   dumpblessings bob.store.default >got || shell_test::fail "line ${LINENO}: dumpblessings failed"
@@ -92,7 +120,7 @@ Chain #0 (2 certificates). Root certificate public key: XX:XX:XX:XX:XX:XX:XX:XX:
     (0) security.unixTimeExpiryCaveat
 EOF
   if ! diff got want; then
-	shell_test::fail "line ${LINENO}"
+    shell_test::fail "line ${LINENO}"
   fi
 
   dumpblessings bob.store.forpeer >got || shell_test::fail "line ${LINENO}: dumpblessings failed"
@@ -108,9 +136,24 @@ Chain #1 (2 certificates). Root certificate public key: XX:XX:XX:XX:XX:XX:XX:XX:
     (0) security.unixTimeExpiryCaveat
 EOF
   if ! diff got want; then
-	shell_test::fail "line ${LINENO}"
+    shell_test::fail "line ${LINENO}"
   fi
 
+  cat carol.dump | rmpublickey >got || shell_test::fail "line ${LINENO}: cat carol.dump | rmpublickey failed"
+  cat >want <<EOF
+Public key : XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX
+---------------- BlessingStore ----------------
+Default blessings: alice/friend/carol
+Peer pattern                   : Blessings
+...                            : alice/friend/carol
+---------------- BlessingRoots ----------------
+Public key                                      : Pattern
+XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX : [alice/...]
+XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX : [carol/...]
+EOF
+  if ! diff got want; then
+    shell_test::fail "line ${LINENO}"
+  fi
   shell_test::pass
 }
 
