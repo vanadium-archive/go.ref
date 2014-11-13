@@ -105,6 +105,11 @@ func (p *ParentHandle) Start() error {
 
 	// Create anonymous pipe for communicating data between the child
 	// and the parent.
+	// TODO(caprita): As per ribrdb@, Go's exec does not prune the set
+	// of file descriptors passed down to the child process, and hence
+	// a child may get access to the files meant for another child.
+	// Do we need to ensure only one thread is allowed to create these
+	// pipes at any time?
 	dataRead, dataWrite, err := os.Pipe()
 	if err != nil {
 		return err

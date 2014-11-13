@@ -6,20 +6,22 @@ import (
 	"os/user"
 	"strconv"
 
+	"veyron.io/veyron/veyron2/mgmt"
+	"veyron.io/veyron/veyron2/options"
+	"veyron.io/veyron/veyron2/security"
+
+	"veyron.io/veyron/veyron/lib/exec"
 	"veyron.io/veyron/veyron/lib/stats"
 	vsecurity "veyron.io/veyron/veyron/security"
 	"veyron.io/veyron/veyron/security/agent"
-
-	"veyron.io/veyron/veyron2/options"
-	"veyron.io/veyron/veyron2/security"
 )
 
 func (rt *vrt) Principal() security.Principal {
 	return rt.principal
 }
 
-func (rt *vrt) initSecurity(credentials string) error {
-	if err := rt.setupPrincipal(credentials); err != nil {
+func (rt *vrt) initSecurity(handle *exec.ChildHandle, credentials string) error {
+	if err := rt.setupPrincipal(handle, credentials); err != nil {
 		return err
 	}
 	stats.NewString("security/principal/key").Set(rt.principal.PublicKey().String())
@@ -28,20 +30,39 @@ func (rt *vrt) initSecurity(credentials string) error {
 	return nil
 }
 
-func (rt *vrt) setupPrincipal(credentials string) error {
+// agentFD returns a non-negative file descriptor to be used to communicate with
+// the security agent if the current process has been configured to use the
+// agent.
+func agentFD(handle *exec.ChildHandle) (int, error) {
+	var fd string
+	if handle != nil {
+		// We were started by a parent (presumably, node manager).
+		fd, _ = handle.Config.Get(mgmt.SecurityAgentFDConfigKey)
+	} else {
+		fd = os.Getenv(agent.FdVarName)
+	}
+	if fd == "" {
+		return -1, nil
+	}
+	return strconv.Atoi(fd)
+}
+
+func (rt *vrt) setupPrincipal(handle *exec.ChildHandle, credentials string) error {
 	if rt.principal != nil {
 		return nil
 	}
-	var err error
-	// TODO(cnicolaou,ashankar,ribrdb): this should be supplied via
-	// the exec.GetChildHandle call.
-	if len(os.Getenv(agent.FdVarName)) > 0 {
-		rt.principal, err = rt.connectToAgent()
+	if fd, err := agentFD(handle); err != nil {
 		return err
-	} else if len(credentials) > 0 {
+	} else if fd >= 0 {
+		var err error
+		rt.principal, err = rt.connectToAgent(fd)
+		return err
+	}
+	if len(credentials) > 0 {
 		// TODO(ataly, ashankar): If multiple runtimes are getting
 		// initialized at the same time from the same VEYRON_CREDENTIALS
 		// we will need some kind of locking for the credential files.
+		var err error
 		if rt.principal, err = vsecurity.LoadPersistentPrincipal(credentials, nil); err != nil {
 			if os.IsNotExist(err) {
 				if rt.principal, err = vsecurity.CreatePersistentPrincipal(credentials, nil); err != nil {
@@ -53,6 +74,7 @@ func (rt *vrt) setupPrincipal(credentials string) error {
 		}
 		return nil
 	}
+	var err error
 	if rt.principal, err = vsecurity.NewPrincipal(); err != nil {
 		return err
 	}
@@ -72,12 +94,8 @@ func defaultBlessingName() string {
 	return fmt.Sprintf("%s-%d", name, os.Getpid())
 }
 
-func (rt *vrt) connectToAgent() (security.Principal, error) {
+func (rt *vrt) connectToAgent(fd int) (security.Principal, error) {
 	client, err := rt.NewClient(options.VCSecurityNone)
-	if err != nil {
-		return nil, err
-	}
-	fd, err := strconv.Atoi(os.Getenv(agent.FdVarName))
 	if err != nil {
 		return nil, err
 	}

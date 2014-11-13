@@ -110,15 +110,6 @@ func New(opts ...veyron2.ROpt) (veyron2.Runtime, error) {
 		return nil, fmt.Errorf("failed to create stream manager: %s", err)
 	}
 
-	if err := rt.initSecurity(rt.flags.Credentials); err != nil {
-		return nil, fmt.Errorf("failed to init sercurity: %s", err)
-	}
-
-	var err error
-	if rt.client, err = rt.NewClient(); err != nil {
-		return nil, fmt.Errorf("failed to create new client: %s", err)
-	}
-
 	handle, err := exec.GetChildHandle()
 	switch err {
 	case exec.ErrNoVersion:
@@ -126,10 +117,22 @@ func New(opts ...veyron2.ROpt) (veyron2.Runtime, error) {
 		// library. No further action is needed.
 	case nil:
 		// The process has been started through the veyron exec
-		// library. Signal the parent the the child is ready.
-		handle.SetReady()
+		// library.
 	default:
 		return nil, fmt.Errorf("failed to get child handle: %s", err)
+	}
+
+	if err := rt.initSecurity(handle, rt.flags.Credentials); err != nil {
+		return nil, fmt.Errorf("failed to init sercurity: %s", err)
+	}
+
+	if rt.client, err = rt.NewClient(); err != nil {
+		return nil, fmt.Errorf("failed to create new client: %s", err)
+	}
+
+	if handle != nil {
+		// Signal the parent the the child is ready.
+		handle.SetReady()
 	}
 
 	rt.publisher = config.NewPublisher()
@@ -137,7 +140,7 @@ func New(opts ...veyron2.ROpt) (veyron2.Runtime, error) {
 		return nil, err
 	}
 
-	if err := rt.mgmt.initMgmt(rt); err != nil {
+	if err := rt.mgmt.initMgmt(rt, handle); err != nil {
 		return nil, err
 	}
 

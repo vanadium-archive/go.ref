@@ -13,6 +13,8 @@ import (
 	"sync"
 
 	vsecurity "veyron.io/veyron/veyron/security"
+	"veyron.io/veyron/veyron/security/agent"
+	"veyron.io/veyron/veyron/security/agent/keymgr"
 	vflag "veyron.io/veyron/veyron/security/flag"
 	"veyron.io/veyron/veyron/security/serialization"
 	logsimpl "veyron.io/veyron/veyron/services/mgmt/logreader/impl"
@@ -34,8 +36,9 @@ import (
 // internalState wraps state shared between different node manager
 // invocations.
 type internalState struct {
-	callback *callbackState
-	updating *updatingState
+	callback      *callbackState
+	updating      *updatingState
+	securityAgent *securityAgentState
 }
 
 // aclLocks provides a mutex lock for each acl file path.
@@ -56,7 +59,8 @@ type dispatcher struct {
 	config *config.State
 	// dispatcherMutex is a lock for coordinating concurrent access to some
 	// dispatcher methods.
-	mu  sync.RWMutex
+	mu sync.RWMutex
+	// TODO(rjkroege): Consider moving this inside internal.
 	uat BlessingSystemAssociationStore
 	// TODO(rjkroege): Eliminate need for locks.
 	locks aclLocks
@@ -132,6 +136,16 @@ func NewDispatcher(config *config.State) (*dispatcher, error) {
 			// If there are no specified ACLs we grant nodemanager access to all
 			// principals until it is claimed.
 			d.auth = vsecurity.NewACLAuthorizer(vsecurity.OpenACL())
+		}
+	}
+	// If we're in 'security agent mode', set up the key manager agent.
+	if len(os.Getenv(agent.FdVarName)) > 0 {
+		if keyMgrAgent, err := keymgr.NewAgent(); err != nil {
+			return nil, fmt.Errorf("NewAgent() failed: %v", err)
+		} else {
+			d.internal.securityAgent = &securityAgentState{
+				keyMgrAgent: keyMgrAgent,
+			}
 		}
 	}
 	return d, nil
@@ -393,12 +407,13 @@ func (d *dispatcher) Lookup(suffix, method string) (interface{}, security.Author
 			return nil, nil, err
 		}
 		receiver := node.ApplicationServer(&appInvoker{
-			callback: d.internal.callback,
-			config:   d.config,
-			suffix:   components[1:],
-			uat:      d.uat,
-			locks:    d.locks,
-			nodeACL:  nodeACLs,
+			callback:      d.internal.callback,
+			config:        d.config,
+			suffix:        components[1:],
+			uat:           d.uat,
+			locks:         d.locks,
+			nodeACL:       nodeACLs,
+			securityAgent: d.internal.securityAgent,
 		})
 		appSpecificAuthorizer, err := newAppSpecificAuthorizer(d.auth, d.config, components[1:])
 		if err != nil {

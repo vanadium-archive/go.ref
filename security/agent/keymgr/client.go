@@ -37,12 +37,14 @@ func newAgent(fd int) (a *Agent, err error) {
 	return &Agent{conn: conn.(*net.UnixConn)}, nil
 }
 
+// TODO(caprita): Get rid of context.T arg.  Doesn't seem to be used.
+
 // NewPrincipal creates a new principal and returns the handle and a socket serving
 // the principal.
 // Typically the socket will be passed to a child process using cmd.ExtraFiles.
-func (a *Agent) NewPrincipal(ctx context.T, in_memory bool) (handle []byte, conn *os.File, err error) {
+func (a *Agent) NewPrincipal(_ context.T, inMemory bool) (handle []byte, conn *os.File, err error) {
 	req := make([]byte, 1)
-	if in_memory {
+	if inMemory {
 		req[0] = 1
 	}
 	a.mu.Lock()

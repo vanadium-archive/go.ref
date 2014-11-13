@@ -45,12 +45,11 @@ func getListenSpec(handle *exec.ChildHandle) (*ipc.ListenSpec, error) {
 	return &ipc.ListenSpec{Protocol: protocol, Address: address}, nil
 }
 
-func (m *mgmtImpl) initMgmt(rt *vrt) error {
+func (m *mgmtImpl) initMgmt(rt *vrt, handle *exec.ChildHandle) error {
 	// Do not initialize the mgmt runtime if the process has not
 	// been started through the veyron exec library by a node
 	// manager.
-	handle, err := exec.GetChildHandle()
-	if err != nil {
+	if handle == nil {
 		return nil
 	}
 	parentName, err := handle.Config.Get(mgmt.ParentNameConfigKey)

@@ -7,9 +7,11 @@ import (
 	"reflect"
 	"syscall"
 	"testing"
+
 	_ "veyron.io/veyron/veyron/profiles"
 	"veyron.io/veyron/veyron/security/agent"
 	"veyron.io/veyron/veyron/security/agent/server"
+
 	"veyron.io/veyron/veyron2"
 	"veyron.io/veyron/veyron2/options"
 	"veyron.io/veyron/veyron2/rt"

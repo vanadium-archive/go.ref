@@ -32,11 +32,11 @@ var (
 	once           sync.Once
 )
 
-// fileOffset accounts for the file descriptors that are always passed
+// FileOffset accounts for the file descriptors that are always passed
 // to the child by the parent: stderr, stdin, stdout, data read, and
 // status write. Any extra files added by the client will follow
 // fileOffset.
-const fileOffset = 5
+const FileOffset = 5
 
 // GetChildHandle returns a ChildHandle that can be used to signal
 // that the child is 'ready' (by calling SetReady) to its parent or to
@@ -73,7 +73,7 @@ func (c *ChildHandle) SetFailed(oerr error) error {
 // discounting stdout, stderr, stdin and the files reserved by the framework for
 // its own purposes.
 func (c *ChildHandle) NewExtraFile(i uintptr, name string) *os.File {
-	return os.NewFile(i+fileOffset, name)
+	return os.NewFile(i+FileOffset, name)
 }
 
 func createChildHandle() (*ChildHandle, error) {

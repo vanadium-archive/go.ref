@@ -1,13 +1,15 @@
 package main
 
 import (
-	"code.google.com/p/go.crypto/ssh/terminal"
 	"flag"
 	"fmt"
 	"os"
 	"os/exec"
 	"os/signal"
 	"syscall"
+
+	"code.google.com/p/go.crypto/ssh/terminal"
+
 	"veyron.io/veyron/veyron/lib/flags/consts"
 	_ "veyron.io/veyron/veyron/profiles"
 	vsecurity "veyron.io/veyron/veyron/security"
@@ -26,12 +28,18 @@ func main() {
 	flag.Usage = func() {
 		fmt.Fprintf(os.Stderr, `Usage: %s [agent options] command command_args...
 
-Loads the private key specified in under privatekey.pem in %v into memory, then
+Loads the private key specified in privatekey.pem in %v into memory, then
 starts the specified command with access to the private key via the
 agent protocol instead of directly reading from disk.
 
 `, os.Args[0], consts.VeyronCredentials)
 		flag.PrintDefaults()
+	}
+	flag.Parse()
+	if len(flag.Args()) < 1 {
+		fmt.Fprintln(os.Stderr, "Need at least one argument.")
+		flag.Usage()
+		os.Exit(1)
 	}
 	// TODO(ashankar,cnicolaou): Should flags.Parse be used instead? But that adds unnecessary
 	// flags like "--veyron.namespace.root", which has no meaning for this binary.
@@ -47,11 +55,6 @@ agent protocol instead of directly reading from disk.
 
 	runtime := rt.Init(options.RuntimePrincipal{p})
 	log := runtime.Logger()
-
-	if len(flag.Args()) < 1 {
-		flag.Usage()
-		os.Exit(1)
-	}
 
 	if err = os.Setenv(agent.FdVarName, "3"); err != nil {
 		log.Fatalf("setenv: %v", err)
