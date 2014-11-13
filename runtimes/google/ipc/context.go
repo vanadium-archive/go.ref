@@ -8,11 +8,13 @@ import (
 	"veyron.io/veyron/veyron2/context"
 )
 
+const nilRuntimeMessage = "attempting to create a context with a nil runtime"
+
 // InternalNewContext creates a new context.T.  This function should only
 // be called from within the runtime implementation.
 func InternalNewContext(runtime veyron2.Runtime) context.T {
 	if runtime == nil {
-		panic("attempting to create a context with a nil runtime")
+		panic(nilRuntimeMessage)
 	}
 	return rootContext{runtime}
 }
@@ -133,9 +135,6 @@ func newCancelContext(parent context.T) (ctx *cancelContext, cancel context.Canc
 
 	return
 }
-func (c *cancelContext) parent() context.T {
-	return c.T
-}
 
 // addChild sets child as a descendant cancellable context. This
 // allows us to propagate cancellations through the context tree.
@@ -211,7 +210,7 @@ func (c *cancelContext) findCancellableAncestor() (ancestor cancellable, nonStan
 		}
 		parent = c.parent()
 	}
-	return nil, false
+	return nil, false // Unreachable.
 }
 
 func (c *cancelContext) Done() <-chan struct{} { return c.done }

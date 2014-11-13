@@ -49,9 +49,44 @@ func testCancel(t *testing.T, ctx context.T, cancel context.CancelFunc) {
 	}
 }
 
+func TestRootContext(t *testing.T) {
+	r := &runtime.PanicRuntime{}
+	ctx := InternalNewContext(r)
+
+	if got := ctx.Runtime(); got != r {
+		t.Errorf("Expected runtime %v, but found %v", r, got)
+	}
+
+	if got := ctx.Err(); got != nil {
+		t.Errorf("Expected nil error, got: %v", got)
+	}
+
+	defer func() {
+		r := recover()
+		if r != nilRuntimeMessage {
+			t.Errorf("Unexpected recover value: %s", r)
+		}
+	}()
+	InternalNewContext(nil)
+}
+
 func TestCancelContext(t *testing.T) {
 	ctx, cancel := testContext().WithCancel()
 	testCancel(t, ctx, cancel)
+
+	// Test cancelling a cancel context which is the child
+	// of a cancellable context.
+	parent, _ := testContext().WithCancel()
+	child, cancel := parent.WithCancel()
+	cancel()
+	<-child.Done()
+
+	// Test adding a cancellable child context after the parent is
+	// already cancelled.
+	parent, cancel = testContext().WithCancel()
+	cancel()
+	child, _ = parent.WithCancel()
+	<-child.Done() // The child should have been cancelled right away.
 }
 
 func TestMultiLevelCancelContext(t *testing.T) {
@@ -80,11 +115,14 @@ func (n *nonStandardContext) WithValue(key interface{}, val interface{}) context
 }
 
 func TestCancelContextWithNonStandard(t *testing.T) {
-	c0, c0Cancel := testContext().WithCancel()
-	c1 := &nonStandardContext{c0}
+	// Test that cancellation flows properly through non-standard intermediates.
+	ctx := testContext()
+	c0 := &nonStandardContext{ctx}
+	c1, c1Cancel := c0.WithCancel()
 	c2 := &nonStandardContext{c1}
-	c3, _ := c2.WithCancel()
-	testCancel(t, c3, c0Cancel)
+	c3 := &nonStandardContext{c2}
+	c4, _ := c3.WithCancel()
+	testCancel(t, c4, c1Cancel)
 }
 
 func testDeadline(t *testing.T, ctx context.T, start time.Time, desiredTimeout time.Duration) {
@@ -99,12 +137,37 @@ func testDeadline(t *testing.T, ctx context.T, start time.Time, desiredTimeout t
 
 func TestDeadlineContext(t *testing.T) {
 	cases := []time.Duration{
-		10 * time.Millisecond,
+		3 * time.Millisecond,
 		0,
 	}
+	rootCtx := InternalNewContext(&runtime.PanicRuntime{})
+	cancelCtx, _ := rootCtx.WithCancel()
+	deadlineCtx, _ := rootCtx.WithDeadline(time.Now().Add(time.Hour))
+
 	for _, desiredTimeout := range cases {
+		// Test all the various ways of getting deadline contexts.
 		start := time.Now()
-		ctx, _ := testContext().WithDeadline(start.Add(desiredTimeout))
+		ctx, _ := rootCtx.WithDeadline(start.Add(desiredTimeout))
+		testDeadline(t, ctx, start, desiredTimeout)
+
+		start = time.Now()
+		ctx, _ = cancelCtx.WithDeadline(start.Add(desiredTimeout))
+		testDeadline(t, ctx, start, desiredTimeout)
+
+		start = time.Now()
+		ctx, _ = deadlineCtx.WithDeadline(start.Add(desiredTimeout))
+		testDeadline(t, ctx, start, desiredTimeout)
+
+		start = time.Now()
+		ctx, _ = rootCtx.WithTimeout(desiredTimeout)
+		testDeadline(t, ctx, start, desiredTimeout)
+
+		start = time.Now()
+		ctx, _ = cancelCtx.WithTimeout(desiredTimeout)
+		testDeadline(t, ctx, start, desiredTimeout)
+
+		start = time.Now()
+		ctx, _ = deadlineCtx.WithTimeout(desiredTimeout)
 		testDeadline(t, ctx, start, desiredTimeout)
 	}
 
