@@ -491,7 +491,7 @@ func (c *client) authorizeServer(flow stream.Flow, name, method string, serverPa
 		RemoteEndpoint:   flow.RemoteEndpoint(),
 		RemoteDischarges: flow.RemoteDischarges(),
 		Method:           method,
-		Name:             name})
+		Suffix:           name})
 	serverBlessings = flow.RemoteBlessings().ForContext(ctxt)
 	if serverPattern != "" {
 		if !serverPattern.MatchedBy(serverBlessings...) {
