@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"crypto/ecdsa"
 	"fmt"
+	"io"
+	"os"
 	"runtime/ppapi"
 
 	"veyron.io/veyron/veyron2/ipc"
@@ -21,44 +23,163 @@ func main() {
 	ppapi.Init(newBrowsprInstance)
 }
 
+// fileSerializer implements vsecurity.SerializerReaderWriter that persists state to
+// files with the pepper API.
+type fileSerializer struct {
+	system    ppapi.FileSystem
+	data      *ppapi.FileIO
+	signature *ppapi.FileIO
+
+	dataFile      string
+	signatureFile string
+}
+
+func (fs *fileSerializer) Readers() (io.ReadCloser, io.ReadCloser, error) {
+	if fs.data == nil || fs.signature == nil {
+		return nil, nil, nil
+	}
+	return fs.data, fs.signature, nil
+}
+
+func (fs *fileSerializer) Writers() (io.WriteCloser, io.WriteCloser, error) {
+	// Remove previous version of the files
+	fs.system.Remove(fs.dataFile)
+	fs.system.Remove(fs.signatureFile)
+	var err error
+	if fs.data, err = fs.system.Create(fs.dataFile); err != nil {
+		return nil, nil, err
+	}
+	if fs.signature, err = fs.system.Create(fs.signatureFile); err != nil {
+		return nil, nil, err
+	}
+	return fs.data, fs.signature, nil
+}
+
+func fileNotExist(err error) bool {
+	pe, ok := err.(*os.PathError)
+	return ok && pe.Err.Error() == "file not found"
+}
+
+func newFileSerializer(dataFile, signatureFile string, system ppapi.FileSystem) (*fileSerializer, error) {
+	data, err := system.Open(dataFile)
+	if err != nil && !fileNotExist(err) {
+		return nil, err
+	}
+	signature, err := system.Open(signatureFile)
+	if err != nil && !fileNotExist(err) {
+		return nil, err
+	}
+	fmt.Print("NewFileSerializer:%v", err)
+	return &fileSerializer{
+		system:        system,
+		data:          data,
+		signature:     signature,
+		dataFile:      dataFile,
+		signatureFile: signatureFile,
+	}, nil
+}
+
 // WSPR instance represents an instance of a PPAPI client and receives callbacks from PPAPI to handle events.
 type browsprInstance struct {
 	ppapi.Instance
+	fs      ppapi.FileSystem
 	browspr *browspr.Browspr
 }
 
 var _ ppapi.InstanceHandlers = (*browsprInstance)(nil)
 
-func newBrowsprInstance(inst ppapi.Instance) ppapi.InstanceHandlers {
-	return &browsprInstance{
-		Instance: inst,
+const wsprDir = "/wspr/data"
+
+func (inst *browsprInstance) initFileSystem() {
+	var err error
+	// Create a filesystem.
+	if inst.fs, err = inst.CreateFileSystem(ppapi.PP_FILESYSTEMTYPE_LOCALPERSISTENT); err != nil {
+		panic(err.Error())
 	}
+	if ty := inst.fs.Type(); ty != ppapi.PP_FILESYSTEMTYPE_LOCALPERSISTENT {
+		panic(fmt.Errorf("unexpected filesystem type: %d", ty))
+	}
+	// Open filesystem with expected size of 2K
+	if err = inst.fs.OpenFS(1 << 11); err != nil {
+		panic(fmt.Errorf("failed to open filesystem:%s", err))
+	}
+	// Create directory to store wspr keys
+	if err = inst.fs.MkdirAll(wsprDir); err != nil {
+		panic(fmt.Errorf("failed to create directory:%s", err))
+	}
+}
+
+func newBrowsprInstance(inst ppapi.Instance) ppapi.InstanceHandlers {
+	bwspr := &browsprInstance{Instance: inst}
+	bwspr.initFileSystem()
+	return bwspr
 }
 
 // StartBrowspr handles starting browspr.
 func (inst *browsprInstance) StartBrowspr(message ppapi.Var) error {
-	// HACK!!
-	// TODO(ataly, ashankar, bprosnitz): The private key should be
-	// generated/retrieved by directly talking to some secure storage
-	// in Chrome, e.g. LocalStorage (and not from the config as below).
-	pemKey, err := message.LookupStringValuedKey("pemPrivateKey")
-	if err != nil {
-		return err
+	var ecdsaKey *ecdsa.PrivateKey
+	wsprKeyFile := wsprDir + "/privateKey.pem."
+
+	// See whether we have any cached keys for WSPR
+	if rFile, err := inst.fs.Open(wsprKeyFile); err == nil {
+		fmt.Print("Opening cached wspr ecdsaPrivateKey")
+		defer rFile.Release()
+		key, err := vsecurity.LoadPEMKey(rFile, nil)
+		if err != nil {
+			return fmt.Errorf("failed to load wspr key:%s", err)
+		}
+		var ok bool
+		if ecdsaKey, ok = key.(*ecdsa.PrivateKey); !ok {
+			return fmt.Errorf("got key of type %T, want *ecdsa.PrivateKey", key)
+		}
+	} else {
+		if pemKey, err := message.LookupStringValuedKey("pemPrivateKey"); err == nil {
+			fmt.Print("Using ecdsaPrivateKey from incoming request")
+			key, err := vsecurity.LoadPEMKey(bytes.NewBufferString(pemKey), nil)
+			if err != nil {
+				return err
+			}
+			var ok bool
+			ecdsaKey, ok = key.(*ecdsa.PrivateKey)
+			if !ok {
+				return fmt.Errorf("got key of type %T, want *ecdsa.PrivateKey", key)
+			}
+		} else {
+			fmt.Print("Generating new wspr ecdsaPrivateKey")
+			// Generate new keys and store them.
+			var err error
+			if _, ecdsaKey, err = vsecurity.NewPrincipalKey(); err != nil {
+				return fmt.Errorf("failed to generate security key:%s", err)
+			}
+		}
+		// Persist the keys in a local file.
+		wFile, err := inst.fs.Create(wsprKeyFile)
+		if err != nil {
+			return fmt.Errorf("failed to create file to persist wspr keys:%s", err)
+		}
+		defer wFile.Release()
+		var b bytes.Buffer
+		if err = vsecurity.SavePEMKey(&b, ecdsaKey, nil); err != nil {
+			return fmt.Errorf("failed to save wspr key:%s", err)
+		}
+		if n, err := wFile.Write(b.Bytes()); n != b.Len() || err != nil {
+			return fmt.Errorf("failed to write wspr key:%s", err)
+		}
 	}
 
-	// TODO(ataly, ashankr, bprosnitz): Figure out whether we need
-	// passphrase protection here (most likely we do but how do we
-	// request the passphrase from the user?)
-	key, err := vsecurity.LoadPEMKey(bytes.NewBufferString(pemKey), nil)
+	roots, err := newFileSerializer(wsprDir+"/blessingroots.data", wsprDir+"/blessingroots.sig", inst.fs)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to create blessing roots serializer:%s", err)
 	}
-	ecdsaKey, ok := key.(*ecdsa.PrivateKey)
-	if !ok {
-		return fmt.Errorf("got key of type %T, want *ecdsa.PrivateKey", key)
+	store, err := newFileSerializer(wsprDir+"/blessingstore.data", wsprDir+"/blessingstore.sig", inst.fs)
+	if err != nil {
+		return fmt.Errorf("failed to create blessing store serializer:%s", err)
 	}
-
-	principal, err := vsecurity.NewPrincipalFromSigner(security.NewInMemoryECDSASigner(ecdsaKey), nil)
+	state := &vsecurity.PrincipalStateSerializer{
+		BlessingRoots: roots,
+		BlessingStore: store,
+	}
+	principal, err := vsecurity.NewPrincipalFromSigner(security.NewInMemoryECDSASigner(ecdsaKey), state)
 	if err != nil {
 		return err
 	}
