@@ -61,8 +61,8 @@ func (p *profile) Name() string {
 	return "roaming" + p.gce
 }
 
-func (p *profile) Runtime() string {
-	return veyron2.GoogleRuntimeName
+func (p *profile) Runtime() (string, []veyron2.ROpt) {
+	return veyron2.GoogleRuntimeName, nil
 }
 
 func (p *profile) String() string {

@@ -29,6 +29,7 @@ import (
 
 var (
 	errNoServers              = verror.NoExistf("ipc: no servers")
+	errNoAccess               = verror.NoAccessf("ipc: client unwilling to access to server")
 	errFlowClosed             = verror.Abortedf("ipc: flow closed")
 	errRemainingStreamResults = verror.BadProtocolf("ipc: Finish called with remaining streaming results")
 	errNonRootedName          = verror.BadArgf("ipc: cannot connect to a non-rooted name")
@@ -40,9 +41,10 @@ var serverPatternRegexp = regexp.MustCompile("^\\[([^\\]]+)\\](.*)")
 const enableSecureServerAuth = false
 
 type client struct {
-	streamMgr stream.Manager
-	ns        naming.Namespace
-	vcOpts    []stream.VCOpt // vc opts passed to dial
+	streamMgr          stream.Manager
+	ns                 naming.Namespace
+	vcOpts             []stream.VCOpt // vc opts passed to dial
+	preferredProtocols []string
 
 	// We support concurrent calls to StartCall and Close, so we must protect the
 	// vcMap.  Everything else is initialized upon client construction, and safe
@@ -63,6 +65,7 @@ type vcInfo struct {
 }
 
 func InternalNewClient(streamMgr stream.Manager, ns naming.Namespace, opts ...ipc.ClientOpt) (ipc.Client, error) {
+
 	c := &client{
 		streamMgr: streamMgr,
 		ns:        ns,
@@ -73,16 +76,23 @@ func InternalNewClient(streamMgr stream.Manager, ns naming.Namespace, opts ...ip
 			c.dc = dc
 		}
 		// Collect all client opts that are also vc opts.
-		if vcOpt, ok := opt.(stream.VCOpt); ok {
-			c.vcOpts = append(c.vcOpts, vcOpt)
+		switch v := opt.(type) {
+		case stream.VCOpt:
+			c.vcOpts = append(c.vcOpts, v)
+		case options.PreferredProtocols:
+			c.preferredProtocols = v
 		}
 	}
+
 	return c, nil
 }
 
 func (c *client) createFlow(ep naming.Endpoint) (stream.Flow, error) {
 	c.vcMapMu.Lock()
 	defer c.vcMapMu.Unlock()
+	if c.vcMap == nil {
+		return nil, fmt.Errorf("client has been closed")
+	}
 	if vcinfo := c.vcMap[ep.String()]; vcinfo != nil {
 		if flow, err := vcinfo.vc.Connect(); err == nil {
 			return flow, nil
@@ -95,11 +105,16 @@ func (c *client) createFlow(ep naming.Endpoint) (stream.Flow, error) {
 		// before removing the vc from the map?
 		delete(c.vcMap, ep.String())
 	}
+	sm := c.streamMgr
 	c.vcMapMu.Unlock()
-	vc, err := c.streamMgr.Dial(ep, c.vcOpts...)
+	vc, err := sm.Dial(ep, c.vcOpts...)
 	c.vcMapMu.Lock()
 	if err != nil {
 		return nil, err
+	}
+	if c.vcMap == nil {
+		sm.ShutdownEndpoint(ep)
+		return nil, fmt.Errorf("client has been closed")
 	}
 	if othervc, exists := c.vcMap[ep.String()]; exists {
 		vc = othervc.vc
@@ -253,79 +268,211 @@ func (c *client) startCall(ctx context.T, name, method string, args []interface{
 	return nil, lastErr
 }
 
-// tryCall makes a single attempt at a call.
+type serverStatus struct {
+	index     int
+	suffix    string
+	flow      stream.Flow
+	processed bool
+	err       verror.E
+}
+
+func (c *client) tryServer(index int, server string, ch chan<- *serverStatus, done <-chan struct{}) {
+	select {
+	case <-done:
+		return
+	default:
+	}
+	status := &serverStatus{index: index}
+	flow, suffix, err := c.connectFlow(server)
+	if err != nil {
+		vlog.VI(2).Infof("ipc: couldn't connect to server %v: %v", server, err)
+		status.err = verror.NoExistf("ipc: %q: %s", server, err)
+		ch <- status
+		return
+	}
+	status.suffix = suffix
+	status.flow = flow
+	select {
+	case <-done:
+		flow.Close()
+	default:
+		ch <- status
+	}
+}
+
+// tryCall makes a single attempt at a call, against possibly multiple servers.
 func (c *client) tryCall(ctx context.T, name, method string, args []interface{}, opts []ipc.CallOpt) (ipc.Call, verror.E) {
 	ctx, _ = vtrace.WithNewSpan(ctx, fmt.Sprintf("<client>\"%s\".%s", name, method))
-
 	_, serverPattern, name := splitObjectName(name)
-
 	// Resolve name unless told not to.
 	var servers []string
 	if getNoResolveOpt(opts) {
 		servers = []string{name}
 	} else {
-		var err error
-		if servers, err = c.ns.Resolve(ctx, name); err != nil {
+		if resolved, err := c.ns.Resolve(ctx, name); err != nil {
 			return nil, verror.NoExistf("ipc: Resolve(%q) failed: %v", name, err)
+		} else {
+			// An empty set of protocols means all protocols...
+			ordered, err := filterAndOrderServers(resolved, c.preferredProtocols)
+			if len(ordered) == 0 {
+				return nil, verror.NoExistf("ipc: %q: %s", name, err)
+			}
+			servers = ordered
 		}
 	}
+	// servers is now orderd by the priority heurestic implemented in
+	// filterAndOrderServers.
+	attempts := len(servers)
+	if attempts == 0 {
+		return nil, errNoServers
+	}
 
-	// Try all servers, and if none of them are authorized for the call then return the error of the last server
-	// that was tried.
-	var lastErr verror.E
-	// TODO(cnicolaou): sort servers by sensible metric.
-	for _, server := range servers {
-		flow, suffix, err := c.connectFlow(server)
-		if err != nil {
-			lastErr = verror.NoExistf("ipc: couldn't connect to server %v: %v", server, err)
-			vlog.VI(2).Infof("ipc: couldn't connect to server %v: %v", server, err)
-			continue // Try the next server.
-		}
-		flow.SetDeadline(ctx.Done())
-		var (
-			serverB  []string
-			grantedB security.Blessings
-		)
-		// LocalPrincipal is nil means that the client wanted to avoid authentication,
-		// and thus wanted to skip authorization as well.
-		if flow.LocalPrincipal() != nil {
-			// Validate caveats on the server's identity for the context associated with this call.
-			if serverB, grantedB, err = c.authorizeServer(flow, name, method, serverPattern, opts); err != nil {
-				lastErr = verror.NoAccessf("ipc: client unwilling to invoke %q.%q on server %v: %v", name, method, flow.RemoteBlessings(), err)
-				flow.Close()
-				continue
+	// Try to connect to all servers in parallel.
+	responses := make([]*serverStatus, attempts)
+
+	// Provide sufficient buffering for all of the connections to finish
+	// instantaneously. This is important because we want to process
+	// the responses in priority order; that order is indicated by the
+	// order of entries in servers. So, if two respones come in at the
+	// same 'instant', we prefer the first in the slice.
+	ch := make(chan *serverStatus, attempts)
+
+	// Read as many responses as we can before we would block.
+	gatherResponses := func() {
+		for {
+			select {
+			default:
+				return
+			case s := <-ch:
+				responses[s.index] = s
 			}
 		}
-
-		lastErr = nil
-		fc := newFlowClient(ctx, serverB, flow, c.dc)
-
-		if doneChan := ctx.Done(); doneChan != nil {
-			go func() {
-				select {
-				case <-ctx.Done():
-					fc.Cancel()
-				case <-fc.flow.Closed():
-				}
-			}()
-		}
-
-		timeout := time.Duration(ipc.NoTimeout)
-		if deadline, hasDeadline := ctx.Deadline(); hasDeadline {
-			timeout = deadline.Sub(time.Now())
-		}
-		if verr := fc.start(suffix, method, args, timeout, grantedB); verr != nil {
-			return nil, verr
-		}
-		return fc, nil
 	}
-	if lastErr != nil {
-		// If there was any problem starting the call, flush the cache entry under the
-		// assumption that it was caused by stale data.
+
+	delay := time.Duration(ipc.NoTimeout)
+	if dl, set := ctx.Deadline(); set {
+		delay = dl.Sub(time.Now())
+	}
+	timeoutChan := time.After(delay)
+
+	// We'll close this channel when an RPC has been started and we've
+	// irrevocably selected a server.
+	done := make(chan struct{})
+	// Try all of the servers in parallel.
+	for i, server := range servers {
+		go c.tryServer(i, server, ch, done)
+	}
+
+	select {
+	case <-timeoutChan:
+		// All calls failed if we get here.
+		close(done)
 		c.ns.FlushCacheEntry(name)
-		return nil, lastErr
+		return nil, verror.NoExistf("ipc: couldn't connect to server %v", name)
+	case s := <-ch:
+		responses[s.index] = s
+		gatherResponses()
 	}
-	return nil, errNoServers
+
+	accessErrs := []error{}
+	connErrs := []error{}
+	for {
+
+		for _, r := range responses {
+			if r == nil || r.err != nil {
+				if r != nil && r.err != nil && !r.processed {
+					connErrs = append(connErrs, r.err)
+					r.processed = true
+				}
+				continue
+			}
+
+			flow := r.flow
+			suffix := r.suffix
+			flow.SetDeadline(ctx.Done())
+
+			var (
+				serverB  []string
+				grantedB security.Blessings
+			)
+
+			// LocalPrincipal is nil means that the client wanted to avoid
+			// authentication, and thus wanted to skip authorization as well.
+			if flow.LocalPrincipal() != nil {
+				// Validate caveats on the server's identity for the context associated with this call.
+				var err error
+				if serverB, grantedB, err = c.authorizeServer(flow, name, method, serverPattern, opts); err != nil {
+					vlog.VI(2).Infof("ipc: client unwilling to invoke %q.%q on server %v: %v", name, method, flow.RemoteBlessings(), err)
+					if !r.processed {
+						accessErrs = append(accessErrs, err)
+						r.err = verror.NoAccessf("ipc: unwilling to invoke %q.%q on server %v: %v", name, method, flow.RemoteBlessings(), err)
+						r.processed = true
+					}
+					flow.Close()
+					continue
+				}
+			}
+
+			// This is the 'point of no return', so we tell the tryServer
+			// goroutines to not bother sending us any more flows.
+			// Once the RPC is started (fc.start below) we can't be sure
+			// if it makes it to the server or not so, this code will
+			// never call fc.start more than once to ensure that we
+			// provide 'at-most-once' rpc semantics at this level. Retrying
+			// the network connections (i.e. creating flows) is fine since
+			// we can cleanup that state if we abort a call (i.e. close the
+			// flow).
+			close(done)
+
+			fc := newFlowClient(ctx, serverB, flow, c.dc)
+
+			if doneChan := ctx.Done(); doneChan != nil {
+				go func() {
+					select {
+					case <-ctx.Done():
+						fc.Cancel()
+					case <-fc.flow.Closed():
+					}
+				}()
+			}
+
+			timeout := time.Duration(ipc.NoTimeout)
+			if deadline, hasDeadline := ctx.Deadline(); hasDeadline {
+				timeout = deadline.Sub(time.Now())
+			}
+			if verr := fc.start(suffix, method, args, timeout, grantedB); verr != nil {
+				return nil, verr
+			}
+			return fc, nil
+		}
+
+		// Quit if we've seen an error from all parallel connection attempts
+		handled := 0
+		for _, r := range responses {
+			if r != nil && r.err != nil {
+				handled++
+			}
+		}
+		if handled == len(responses) {
+			break
+		}
+
+		select {
+		case <-timeoutChan:
+			// All remaining calls failed if we get here.
+			vlog.VI(2).Infof("ipc: couldn't connect to server %v", name)
+			goto quit
+		case s := <-ch:
+			responses[s.index] = s
+			gatherResponses()
+		}
+	}
+quit:
+	close(done)
+	c.ns.FlushCacheEntry(name)
+	// TODO(cnicolaou): introduce a third error code here for mixed
+	// conn/access errors.
+	return nil, verror.NoExistf("ipc: client failed to invoke  %q.%q: on %v", name, method, servers, append(connErrs, accessErrs...))
 }
 
 // authorizeServer validates that the server (remote end of flow) has the credentials to serve

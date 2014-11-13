@@ -32,19 +32,20 @@ var errCleaningUp = fmt.Errorf("operation rejected: runtime is being cleaned up"
 type vrt struct {
 	mu sync.Mutex
 
-	profile      veyron2.Profile
-	publisher    *config.Publisher
-	sm           []stream.Manager // GUARDED_BY(mu)
-	ns           naming.Namespace
-	signals      chan os.Signal
-	principal    security.Principal
-	client       ipc.Client
-	mgmt         *mgmtImpl
-	flags        flags.RuntimeFlags
-	reservedDisp ipc.Dispatcher
-	reservedOpts []ipc.ServerOpt
-	nServers     int  // GUARDED_BY(mu)
-	cleaningUp   bool // GUARDED_BY(mu)
+	profile            veyron2.Profile
+	publisher          *config.Publisher
+	sm                 []stream.Manager // GUARDED_BY(mu)
+	ns                 naming.Namespace
+	signals            chan os.Signal
+	principal          security.Principal
+	client             ipc.Client
+	mgmt               *mgmtImpl
+	flags              flags.RuntimeFlags
+	preferredProtocols options.PreferredProtocols
+	reservedDisp       ipc.Dispatcher
+	reservedOpts       []ipc.ServerOpt
+	nServers           int  // GUARDED_BY(mu)
+	cleaningUp         bool // GUARDED_BY(mu)
 
 	lang       i18n.LangID    // Language, from environment variables.
 	program    string         // Program name, from os.Args[0].
@@ -81,6 +82,8 @@ func New(opts ...veyron2.ROpt) (veyron2.Runtime, error) {
 			rt.principal = v.Principal
 		case options.Profile:
 			rt.profile = v.Profile
+		case options.PreferredProtocols:
+			rt.preferredProtocols = v
 		default:
 			return nil, fmt.Errorf("option has wrong type %T", o)
 		}

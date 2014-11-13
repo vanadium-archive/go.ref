@@ -30,8 +30,8 @@ func (mp *myprofile) Name() string {
 	return "test"
 }
 
-func (mp *myprofile) Runtime() string {
-	return "google"
+func (mp *myprofile) Runtime() (string, []veyron2.ROpt) {
+	return "google", nil
 }
 
 func (mp *myprofile) Platform() *veyron2.Platform {

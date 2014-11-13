@@ -46,8 +46,8 @@ func (p *static) Name() string {
 	return "static" + p.gce
 }
 
-func (p *static) Runtime() string {
-	return "google"
+func (p *static) Runtime() (string, []veyron2.ROpt) {
+	return "google", nil
 }
 
 func (*static) Platform() *veyron2.Platform {

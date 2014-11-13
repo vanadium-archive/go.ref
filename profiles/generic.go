@@ -35,8 +35,8 @@ func (*generic) Name() string {
 	return "generic"
 }
 
-func (*generic) Runtime() string {
-	return veyron2.GoogleRuntimeName
+func (*generic) Runtime() (string, []veyron2.ROpt) {
+	return veyron2.GoogleRuntimeName, nil
 }
 
 func (*generic) Platform() *veyron2.Platform {

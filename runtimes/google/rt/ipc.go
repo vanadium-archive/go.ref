@@ -36,12 +36,7 @@ func (rt *vrt) NewClient(opts ...ipc.ClientOpt) (ipc.Client, error) {
 			otherOpts = append(otherOpts, opt)
 		}
 	}
-	// Add the option that provides the runtime's principal to the client.
-	// Set a low timeout for now, until we get parallel connections
-	// going.
-	// TODO(cnicolaou): extend the timeout when parallel connections are
-	// going.
-	otherOpts = append(otherOpts, vc.LocalPrincipal{rt.principal}, &imanager.DialTimeout{5 * time.Second})
+	otherOpts = append(otherOpts, vc.LocalPrincipal{rt.principal}, &imanager.DialTimeout{5 * time.Minute}, rt.preferredProtocols)
 
 	dc, err := iipc.InternalNewDischargeClient(sm, ns, rt.NewContext(), otherOpts...)
 	if err != nil {

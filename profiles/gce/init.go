@@ -41,8 +41,8 @@ func (p *profile) Name() string {
 	return "GCE"
 }
 
-func (p *profile) Runtime() string {
-	return ""
+func (p *profile) Runtime() (string, []veyron2.ROpt) {
+	return "", nil
 }
 
 func (p *profile) Platform() *veyron2.Platform {
