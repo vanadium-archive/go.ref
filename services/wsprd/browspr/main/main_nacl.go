@@ -58,7 +58,7 @@ func (inst *browsprInstance) StartBrowspr(message ppapi.Var) error {
 		return fmt.Errorf("got key of type %T, want *ecdsa.PrivateKey", key)
 	}
 
-	principal, err := vsecurity.NewPrincipalFromSigner(security.NewInMemoryECDSASigner(ecdsaKey))
+	principal, err := vsecurity.NewPrincipalFromSigner(security.NewInMemoryECDSASigner(ecdsaKey), nil)
 	if err != nil {
 		return err
 	}
