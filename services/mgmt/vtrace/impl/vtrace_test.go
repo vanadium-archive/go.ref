@@ -35,7 +35,7 @@ func setup(t *testing.T) (string, ipc.Server, veyron2.Runtime) {
 	return endpoint.String(), server, runtime
 }
 
-func TestVtraceInvoker(t *testing.T) {
+func TestVtraceServer(t *testing.T) {
 	endpoint, server, runtime := setup(t)
 	defer server.Stop()
 

@@ -16,7 +16,7 @@ import (
 	"veyron.io/veyron/veyron2/vlog"
 )
 
-type statsInvoker struct {
+type statsImpl struct {
 	suffix    string
 	watchFreq time.Duration
 }
@@ -27,14 +27,14 @@ var (
 	errOperationFailed = verror.Internalf("operation failed")
 )
 
-// NewStatsInvoker returns a new Invoker. The value of watchFreq is used to
-// specify the time between WatchGlob updates.
+// NewStatsServer returns a stats server implementation. The value of watchFreq
+// is used to specify the time between WatchGlob updates.
 func NewStatsServer(suffix string, watchFreq time.Duration) interface{} {
-	return &statsInvoker{suffix, watchFreq}
+	return &statsImpl{suffix, watchFreq}
 }
 
 // Glob returns the name of all objects that match pattern.
-func (i *statsInvoker) Glob(ctx *ipc.GlobContextStub, pattern string) error {
+func (i *statsImpl) Glob(ctx *ipc.GlobContextStub, pattern string) error {
 	vlog.VI(1).Infof("%v.Glob(%q)", i.suffix, pattern)
 
 	it := stats.Glob(i.suffix, pattern, time.Time{}, false)
@@ -52,7 +52,7 @@ func (i *statsInvoker) Glob(ctx *ipc.GlobContextStub, pattern string) error {
 
 // WatchGlob returns the name and value of the objects that match the request,
 // followed by periodic updates when values change.
-func (i *statsInvoker) WatchGlob(call ipc.ServerCall, req watchtypes.GlobRequest) error {
+func (i *statsImpl) WatchGlob(call ipc.ServerCall, req watchtypes.GlobRequest) error {
 	vlog.VI(1).Infof("%v.WatchGlob(%+v)", i.suffix, req)
 
 	var t time.Time
@@ -92,7 +92,7 @@ Loop:
 }
 
 // Value returns the value of the receiver object.
-func (i *statsInvoker) Value(ctx ipc.ServerContext) (vdlutil.Any, error) {
+func (i *statsImpl) Value(ctx ipc.ServerContext) (vdlutil.Any, error) {
 	vlog.VI(1).Infof("%v.Value()", i.suffix)
 
 	v, err := stats.Value(i.suffix)
