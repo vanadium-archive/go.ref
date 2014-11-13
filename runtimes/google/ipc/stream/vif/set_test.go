@@ -1,26 +1,34 @@
 package vif_test
 
 import (
+	"fmt"
 	"io/ioutil"
 	"net"
 	"path"
 	"testing"
 
-	"veyron.io/veyron/veyron2/naming"
-
 	"veyron.io/veyron/veyron/runtimes/google/ipc/stream/vif"
+	"veyron.io/veyron/veyron2/naming"
 )
 
 func TestSetWithPipes(t *testing.T) {
 	var (
-		conn1, _ = net.Pipe()
-		conn2, _ = net.Pipe()
-		addr1    = conn1.RemoteAddr()
-		addr2    = conn2.RemoteAddr()
+		conn1, conn1s = net.Pipe()
+		conn2, _      = net.Pipe()
+		addr1         = conn1.RemoteAddr()
+		addr2         = conn2.RemoteAddr()
 
-		vf, err = vif.InternalNewDialedVIF(conn1, naming.FixedRoutingID(1), nil)
-		set     = vif.NewSet()
+		set = vif.NewSet()
 	)
+	// The server is needed to negotiate with the dialed VIF.  Otherwise, the
+	// InternalNewDialedVIF below will block.
+	go func() {
+		_, err := vif.InternalNewAcceptedVIF(conn1s, naming.FixedRoutingID(2), nil)
+		if err != nil {
+			panic(fmt.Sprintf("failed to create server: %s", err))
+		}
+	}()
+	vf, err := vif.InternalNewDialedVIF(conn1, naming.FixedRoutingID(1), nil, nil, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -50,10 +58,16 @@ func TestSetWithUnixSocket(t *testing.T) {
 	// with the same "address" (empty string).
 	go func() {
 		for i := 0; i < 2; i++ {
-			if _, err := net.Dial("unix", sockname); err != nil {
+			conn, err := net.Dial("unix", sockname)
+			if err != nil {
 				ln.Close()
-				t.Fatal(err)
+				panic(fmt.Sprintf("dial failure: %s", err))
 			}
+			go func() {
+				if _, err := vif.InternalNewDialedVIF(conn, naming.FixedRoutingID(1), nil, nil, nil); err != nil {
+					panic(fmt.Sprintf("failed to dial VIF: %s", err))
+				}
+			}()
 		}
 	}()
 
@@ -74,6 +88,9 @@ func TestSetWithUnixSocket(t *testing.T) {
 	}
 	vif1, err := vif.InternalNewAcceptedVIF(conn1, naming.FixedRoutingID(1), nil)
 	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := vif.InternalNewAcceptedVIF(conn2, naming.FixedRoutingID(1), nil); err != nil {
 		t.Fatal(err)
 	}
 	set := vif.NewSet()

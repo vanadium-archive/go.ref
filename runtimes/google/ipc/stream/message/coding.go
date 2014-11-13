@@ -139,3 +139,12 @@ func writeCounters(w io.Writer, c Counters) (err error) {
 	}
 	return
 }
+
+func readAndDiscardToError(r io.Reader) {
+	var data [1024]byte
+	for {
+		if _, err := r.Read(data[:]); err != nil {
+			return
+		}
+	}
+}

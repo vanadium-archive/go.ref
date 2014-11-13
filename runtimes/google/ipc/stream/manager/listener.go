@@ -157,7 +157,7 @@ func (ln *proxyListener) connect() (*vif.VIF, naming.Endpoint, error) {
 	vlog.VI(1).Infof("Connecting to proxy at %v", ln.proxyEP)
 	// TODO(cnicolaou, ashankar): probably want to set a timeout here.
 	var timeout time.Duration
-	vf, err := ln.manager.FindOrDialVIF(ln.proxyEP.Addr(), timeout)
+	vf, err := ln.manager.FindOrDialVIF(ln.proxyEP, &DialTimeout{Duration: timeout})
 	if err != nil {
 		return nil, nil, err
 	}

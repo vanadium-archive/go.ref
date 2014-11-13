@@ -15,19 +15,19 @@ type Range struct {
 }
 
 var (
-	// supportedRange represents the range of protocol verions supported by this
+	// SupportedRange represents the range of protocol verions supported by this
 	// implementation.
 	// Max should be incremented whenever we make a protocol
 	// change that's not both forward and backward compatible.
 	// Min should be incremented whenever we want to remove
 	// support for old protocol versions.
-	supportedRange = &Range{Min: version.IPCVersion4, Max: version.IPCVersion5}
+	SupportedRange = &Range{Min: version.IPCVersion4, Max: version.IPCVersion6}
 
 	// Export the methods on supportedRange.
-	Endpoint           = supportedRange.Endpoint
-	ProxiedEndpoint    = supportedRange.ProxiedEndpoint
-	CommonVersion      = supportedRange.CommonVersion
-	CheckCompatibility = supportedRange.CheckCompatibility
+	Endpoint           = SupportedRange.Endpoint
+	ProxiedEndpoint    = SupportedRange.ProxiedEndpoint
+	CommonVersion      = SupportedRange.CommonVersion
+	CheckCompatibility = SupportedRange.CheckCompatibility
 )
 
 var (
@@ -82,6 +82,15 @@ func intersectRanges(amin, amax, bmin, bmax version.IPCVersion) (min, max versio
 
 func intersectEndpoints(a, b *inaming.Endpoint) (min, max version.IPCVersion, err error) {
 	return intersectRanges(a.MinIPCVersion, a.MaxIPCVersion, b.MinIPCVersion, b.MaxIPCVersion)
+}
+
+func (r1 *Range) Intersect(r2 *Range) (*Range, error) {
+	min, max, err := intersectRanges(r1.Min, r1.Max, r2.Min, r2.Max)
+	if err != nil {
+		return nil, err
+	}
+	r := &Range{Min: min, Max: max}
+	return r, nil
 }
 
 // ProxiedEndpoint returns an endpoint with the Min/MaxIPCVersion properly filled in

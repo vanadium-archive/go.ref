@@ -377,7 +377,7 @@ func (vc *VC) HandshakeDialedVC(opts ...stream.VCOpt) error {
 	switch securityLevel {
 	case options.VCSecurityConfidential:
 		if principal == nil {
-			principal = anonymousPrincipal
+			principal = AnonymousPrincipal
 		}
 	case options.VCSecurityNone:
 		return nil
@@ -403,14 +403,14 @@ func (vc *VC) HandshakeDialedVC(opts ...stream.VCOpt) error {
 	// to readFromUntil in
 	// https://code.google.com/p/go/source/browse/src/pkg/crypto/tls/conn.go?spec=svn654b2703fcc466a29692068ab56efedd09fb3d05&r=654b2703fcc466a29692068ab56efedd09fb3d05#539).
 	// This is not a problem when tls.Conn is used as intended (to wrap over a stream), but
-	// becomes a problem when shoehoring a block encrypter (Crypter interface) over this
+	// becomes a problem when shoehorning a block encrypter (Crypter interface) over this
 	// stream API.
 	authFID := vc.allocFID()
 	authConn, err := vc.connectFID(authFID)
 	if err != nil {
 		return vc.err(fmt.Errorf("failed to create a Flow for authentication: %v", err))
 	}
-	rBlessings, lBlessings, rDischarges, err := authenticateAsClient(authConn, principal, dischargeClient, crypter, vc.version)
+	rBlessings, lBlessings, rDischarges, err := AuthenticateAsClient(authConn, principal, dischargeClient, crypter, vc.version)
 	if err != nil {
 		return vc.err(fmt.Errorf("authentication failed: %v", err))
 	}
@@ -477,7 +477,7 @@ func (vc *VC) HandshakeAcceptedVC(opts ...stream.ListenerOpt) <-chan HandshakeRe
 	switch securityLevel {
 	case options.VCSecurityConfidential:
 		if principal == nil {
-			principal = anonymousPrincipal
+			principal = AnonymousPrincipal
 		}
 		if lBlessings == nil {
 			lBlessings = principal.BlessingStore().Default()
@@ -524,7 +524,7 @@ func (vc *VC) HandshakeAcceptedVC(opts ...stream.ListenerOpt) <-chan HandshakeRe
 		vc.mu.Lock()
 		vc.authFID = vc.findFlowLocked(authConn)
 		vc.mu.Unlock()
-		rBlessings, rDischarges, err := authenticateAsServer(authConn, principal, lBlessings, dischargeClient, crypter, vc.version)
+		rBlessings, rDischarges, err := AuthenticateAsServer(authConn, principal, lBlessings, dischargeClient, crypter, vc.version)
 		if err != nil {
 			sendErr(fmt.Errorf("authentication failed %v", err))
 			return

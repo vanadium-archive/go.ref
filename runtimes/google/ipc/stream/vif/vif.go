@@ -7,12 +7,14 @@ package vif
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"net"
 	"strings"
 	"sync"
 	"time"
 
+	"veyron.io/veyron/veyron/runtimes/google/ipc/stream/crypto"
 	"veyron.io/veyron/veyron/runtimes/google/ipc/stream/id"
 	"veyron.io/veyron/veyron/runtimes/google/ipc/stream/message"
 	"veyron.io/veyron/veyron/runtimes/google/ipc/stream/vc"
@@ -23,7 +25,6 @@ import (
 	"veyron.io/veyron/veyron/runtimes/google/lib/pcqueue"
 	vsync "veyron.io/veyron/veyron/runtimes/google/lib/sync"
 	"veyron.io/veyron/veyron/runtimes/google/lib/upcqueue"
-
 	"veyron.io/veyron/veyron2/ipc/stream"
 	"veyron.io/veyron/veyron2/naming"
 	"veyron.io/veyron/veyron2/verror"
@@ -38,6 +39,13 @@ type VIF struct {
 	conn    net.Conn
 	pool    *iobuf.Pool
 	localEP naming.Endpoint
+
+	// control channel encryption.
+	isSetup bool
+	// ctrlCipher is normally guarded by writeMu, however see the exception in
+	// readLoop.
+	ctrlCipher crypto.ControlCipher
+	writeMu    sync.Mutex
 
 	vcMap              *vcMap
 	wpending, rpending vsync.WaitGroup
@@ -87,6 +95,10 @@ const (
 	sharedFlowID                = vc.SharedFlowID
 )
 
+var (
+	errAlreadySetup = errors.New("VIF is already setup")
+)
+
 // InternalNewDialedVIF creates a new virtual interface over the provided
 // network connection, under the assumption that the conn object was created
 // using net.Dial.
@@ -94,8 +106,16 @@ const (
 // As the name suggests, this method is intended for use only within packages
 // placed inside veyron/runtimes/google. Code outside the
 // veyron2/runtimes/google/* packages should never call this method.
-func InternalNewDialedVIF(conn net.Conn, rid naming.RoutingID, versions *version.Range) (*VIF, error) {
-	return internalNew(conn, rid, id.VC(vc.NumReservedVCs), versions, nil, nil)
+func InternalNewDialedVIF(conn net.Conn, rid naming.RoutingID, versions *version.Range, opts ...stream.VCOpt) (*VIF, error) {
+	principal, dc, err := clientAuthOptions(opts)
+	if err != nil {
+		return nil, err
+	}
+	c, err := AuthenticateAsClient(conn, versions, principal, dc)
+	if err != nil {
+		return nil, err
+	}
+	return internalNew(conn, rid, id.VC(vc.NumReservedVCs), versions, nil, nil, c)
 }
 
 // InternalNewAcceptedVIF creates a new virtual interface over the provided
@@ -109,10 +129,11 @@ func InternalNewDialedVIF(conn net.Conn, rid naming.RoutingID, versions *version
 // placed inside veyron/runtimes/google. Code outside the
 // veyron/runtimes/google/* packages should never call this method.
 func InternalNewAcceptedVIF(conn net.Conn, rid naming.RoutingID, versions *version.Range, lopts ...stream.ListenerOpt) (*VIF, error) {
-	return internalNew(conn, rid, id.VC(vc.NumReservedVCs)+1, versions, upcqueue.New(), lopts)
+	var nc crypto.NullControlCipher
+	return internalNew(conn, rid, id.VC(vc.NumReservedVCs)+1, versions, upcqueue.New(), lopts, &nc)
 }
 
-func internalNew(conn net.Conn, rid naming.RoutingID, initialVCI id.VC, versions *version.Range, acceptor *upcqueue.T, listenerOpts []stream.ListenerOpt) (*VIF, error) {
+func internalNew(conn net.Conn, rid naming.RoutingID, initialVCI id.VC, versions *version.Range, acceptor *upcqueue.T, listenerOpts []stream.ListenerOpt, c crypto.ControlCipher) (*VIF, error) {
 	// Some cloud providers (like Google Compute Engine) seem to blackhole
 	// inactive TCP connections, set a TCP keep alive to prevent that.
 	// See: https://developers.google.com/compute/docs/troubleshooting#communicatewithinternet
@@ -160,6 +181,7 @@ func internalNew(conn net.Conn, rid naming.RoutingID, initialVCI id.VC, versions
 	vif := &VIF{
 		conn:         conn,
 		pool:         iobuf.NewPool(0),
+		ctrlCipher:   c,
 		vcMap:        newVCMap(),
 		acceptor:     acceptor,
 		listenerOpts: listenerOpts,
@@ -298,24 +320,32 @@ func (vif *VIF) readLoop() {
 	defer reader.Close()
 	defer vif.stopVCDispatchLoops()
 	for {
-		msg, err := message.ReadFrom(reader)
+		// vif.ctrlCipher is guarded by vif.writeMu.  However, the only mutation
+		// to it is in handleMessage, which runs in the same goroutine, so a
+		// lock is not required here.
+		msg, err := message.ReadFrom(reader, vif.ctrlCipher)
 		if err != nil {
 			vlog.VI(1).Infof("Exiting readLoop of VIF %s because of read error: %v", vif, err)
 			return
 		}
 		vlog.VI(3).Infof("Received %T = [%v] on VIF %s", msg, msg, vif)
-		vif.handleMessage(msg)
+		if err := vif.handleMessage(msg); err != nil {
+			vlog.VI(1).Infof("Exiting readLoop of VIF %s because of message error: %v", vif, err)
+			return
+		}
 	}
 }
 
-func (vif *VIF) handleMessage(msg message.T) {
+// handleMessage handles a single incoming message.  Any error returned is
+// fatal, causing the VIF to close.
+func (vif *VIF) handleMessage(msg message.T) error {
 	switch m := msg.(type) {
 	case *message.Data:
 		_, rq, _ := vif.vcMap.Find(m.VCI)
 		if rq == nil {
 			vlog.VI(2).Infof("Ignoring message of %d bytes for unrecognized VCI %d on VIF %s", m.Payload.Size(), m.VCI, vif)
 			m.Release()
-			return
+			return nil
 		}
 		if err := rq.Put(m, nil); err != nil {
 			vlog.VI(2).Infof("Failed to put message(%v) on VC queue on VIF %v: %v", m, vif, err)
@@ -332,7 +362,7 @@ func (vif *VIF) handleMessage(msg message.T) {
 				VCI:   m.VCI,
 				Error: "VCs not accepted",
 			})
-			return
+			return nil
 		}
 		vc, err := vif.newVC(m.VCI, m.DstEndpoint, m.SrcEndpoint, false)
 		vif.distributeCounters(m.Counters)
@@ -341,7 +371,7 @@ func (vif *VIF) handleMessage(msg message.T) {
 				VCI:   m.VCI,
 				Error: err.Error(),
 			})
-			return
+			return nil
 		}
 		go vif.acceptFlowsLoop(vc, vc.HandshakeAcceptedVC(lopts...))
 	case *message.CloseVC:
@@ -349,7 +379,7 @@ func (vif *VIF) handleMessage(msg message.T) {
 			vif.vcMap.Delete(vc.VCI())
 			vlog.VI(2).Infof("CloseVC(%+v) on VIF %s", m, vif)
 			vc.Close(fmt.Sprintf("remote end closed VC(%v)", m.Error))
-			return
+			return nil
 		}
 		vlog.VI(2).Infof("Ignoring CloseVC(%+v) for unrecognized VCI on VIF %s", m, vif)
 	case *message.AddReceiveBuffers:
@@ -361,15 +391,34 @@ func (vif *VIF) handleMessage(msg message.T) {
 				cm := &message.Data{VCI: m.VCI, Flow: m.Flow}
 				cm.SetClose()
 				vif.sendOnExpressQ(cm)
-				return
+				return nil
 			}
 			vc.ReleaseCounters(m.Flow, m.InitialCounters)
-			return
+			return nil
 		}
 		vlog.VI(2).Infof("Ignoring OpenFlow(%+v) for unrecognized VCI on VIF %s", m, m, vif)
+	case *message.HopSetup:
+		// Configure the VIF.  This takes over the conn during negotiation.
+		if vif.isSetup {
+			return errAlreadySetup
+		}
+		principal, lBlessings, dischargeClient, err := serverAuthOptions(vif.listenerOpts)
+		if err != nil {
+			return errVersionNegotiationFailed
+		}
+		vif.writeMu.Lock()
+		c, err := AuthenticateAsServer(vif.conn, vif.versions, principal, lBlessings, dischargeClient, m)
+		if err != nil {
+			vif.writeMu.Unlock()
+			return err
+		}
+		vif.ctrlCipher = c
+		vif.writeMu.Unlock()
+		vif.isSetup = true
 	default:
 		vlog.Infof("Ignoring unrecognized message %T on VIF %s", m, vif)
 	}
+	return nil
 }
 
 func (vif *VIF) vcDispatchLoop(vc *vc.VC, messages *pcqueue.T) {
@@ -457,8 +506,8 @@ func (vif *VIF) writeLoop() {
 		switch writer {
 		case vif.expressQ:
 			for _, b := range bufs {
-				if n, err := vif.conn.Write(b.Contents); err != nil || n != b.Size() {
-					vlog.Errorf("Exiting writeLoop of VIF %s because Control message write failed. Got (%d, %v), want (%d, nil)", vif, n, err, b.Size())
+				if err := vif.writeSerializedMessage(b.Contents); err != nil {
+					vlog.Errorf("Exiting writeLoop of VIF %s because Control message write failed: %s", vif, err)
 					releaseBufs(bufs)
 					return
 				}
@@ -476,7 +525,7 @@ func (vif *VIF) writeLoop() {
 			vif.flowMu.Unlock()
 			if len(msg.Counters) > 0 {
 				vlog.VI(3).Infof("Sending counters %v on VIF %s", msg.Counters, vif)
-				if err := message.WriteTo(vif.conn, msg); err != nil {
+				if err := vif.writeMessage(msg); err != nil {
 					vlog.VI(1).Infof("Exiting writeLoop of VIF %s because AddReceiveBuffers message write failed: %v", vif, err)
 					return
 				}
@@ -511,7 +560,7 @@ func (vif *VIF) vcWriteLoop(vc *vc.VC, messages *pcqueue.T) {
 			vif.shutdownFlow(vc, m.Flow)
 		}
 		if err == nil {
-			err = message.WriteTo(vif.conn, m)
+			err = vif.writeMessage(m)
 		}
 		if err != nil {
 			// TODO(caprita): Calling closeVCAndSendMsg below causes
@@ -551,10 +600,39 @@ func (vif *VIF) stopVCWriteLoops() {
 func (vif *VIF) sendOnExpressQ(msg message.T) error {
 	vlog.VI(1).Infof("sendOnExpressQ(%T = %+v) on VIF %s", msg, msg, vif)
 	var buf bytes.Buffer
-	if err := message.WriteTo(&buf, msg); err != nil {
+	// Don't encrypt yet, because the message ordering isn't yet determined.
+	// Encryption is performed by vif.writeSerializedMessage() when the
+	// message is actually written to vif.conn.
+	vif.writeMu.Lock()
+	c := vif.ctrlCipher
+	vif.writeMu.Unlock()
+	if err := message.WriteTo(&buf, msg, crypto.NewDisabledControlCipher(c)); err != nil {
 		return err
 	}
 	return vif.expressQ.Put(iobuf.NewSlice(buf.Bytes()), nil)
+}
+
+// writeMessage writes the message to the channel.  Writes must be serialized so
+// that the control channel can be encrypted, so we acquire the writeMu.
+func (vif *VIF) writeMessage(msg message.T) error {
+	vif.writeMu.Lock()
+	defer vif.writeMu.Unlock()
+	return message.WriteTo(vif.conn, msg, vif.ctrlCipher)
+}
+
+// Write writes the message to the channel, encrypting the control data.  Writes
+// must be serialized so that the control channel can be encrypted, so we
+// acquire the writeMu.
+func (vif *VIF) writeSerializedMessage(msg []byte) error {
+	vif.writeMu.Lock()
+	defer vif.writeMu.Unlock()
+	if err := message.EncryptMessage(msg, vif.ctrlCipher); err != nil {
+		return err
+	}
+	if n, err := vif.conn.Write(msg); err != nil {
+		return fmt.Errorf("write failed: got (%d, %v) for %d byte message", n, err, len(msg))
+	}
+	return nil
 }
 
 func (vif *VIF) writeDataMessages(writer bqueue.Writer, bufs []*iobuf.Slice) {
@@ -616,7 +694,7 @@ func (vif *VIF) newVC(vci id.VC, localEP, remoteEP naming.Endpoint, dialed bool)
 		LocalEP:      localEP,
 		RemoteEP:     remoteEP,
 		Pool:         vif.pool,
-		ReserveBytes: message.HeaderSizeBytes,
+		ReserveBytes: uint(message.HeaderSizeBytes + vif.ctrlCipher.MACSize()),
 		Helper:       vcHelper{vif},
 		Version:      version,
 	})

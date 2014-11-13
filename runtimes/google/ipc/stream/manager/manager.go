@@ -16,6 +16,7 @@ import (
 	inaming "veyron.io/veyron/veyron/runtimes/google/naming"
 
 	"veyron.io/veyron/veyron2/ipc/stream"
+	ipcversion "veyron.io/veyron/veyron2/ipc/version"
 	"veyron.io/veyron/veyron2/naming"
 	"veyron.io/veyron/veyron2/verror"
 	"veyron.io/veyron/veyron2/vlog"
@@ -70,7 +71,17 @@ func dial(network, address string, timeout time.Duration) (net.Conn, error) {
 // FindOrDialVIF returns the network connection (VIF) to the provided address
 // from the cache in the manager. If not already present in the cache, a new
 // connection will be created using net.Dial.
-func (m *manager) FindOrDialVIF(addr net.Addr, timeout time.Duration) (*vif.VIF, error) {
+func (m *manager) FindOrDialVIF(remote naming.Endpoint, opts ...stream.VCOpt) (*vif.VIF, error) {
+	// Extract options.
+	var timeout time.Duration
+	for _, o := range opts {
+		switch v := o.(type) {
+		case *DialTimeout:
+			timeout = v.Duration
+		}
+	}
+
+	addr := remote.Addr()
 	network, address := addr.Network(), addr.String()
 	if vf := m.vifs.Find(network, address); vf != nil {
 		return vf, nil
@@ -92,7 +103,22 @@ func (m *manager) FindOrDialVIF(addr net.Addr, timeout time.Duration) (*vif.VIF,
 		conn.Close()
 		return vf, nil
 	}
-	vf, err := vif.InternalNewDialedVIF(conn, m.rid, nil)
+	vRange := version.SupportedRange
+	if ep, ok := remote.(*inaming.Endpoint); ok {
+		epRange := &version.Range{Min: ep.MinIPCVersion, Max: ep.MaxIPCVersion}
+		if epRange.Max == ipcversion.UnknownIPCVersion {
+			// If the server's version is unknown, we need to back off to
+			// something we are sure it can understand.
+			//
+			// TODO(jyh): Remove this once the min version is IPC6, where we can
+			// support version negotiation.
+			epRange.Max = ipcversion.IPCVersion5
+		}
+		if r, err := vRange.Intersect(epRange); err == nil {
+			vRange = r
+		}
+	}
+	vf, err := vif.InternalNewDialedVIF(conn, m.rid, vRange, opts...)
 	if err != nil {
 		conn.Close()
 		return nil, fmt.Errorf("failed to create VIF: %v", err)
@@ -110,17 +136,10 @@ func (m *manager) FindOrDialVIF(addr net.Addr, timeout time.Duration) (*vif.VIF,
 }
 
 func (m *manager) Dial(remote naming.Endpoint, opts ...stream.VCOpt) (stream.VC, error) {
-	var timeout time.Duration
-	for _, o := range opts {
-		switch v := o.(type) {
-		case *DialTimeout:
-			timeout = v.Duration
-		}
-	}
 	// If vif.Dial fails because the cached network connection was broken, remove from
 	// the cache and try once more.
 	for retry := true; true; retry = false {
-		vf, err := m.FindOrDialVIF(remote.Addr(), timeout)
+		vf, err := m.FindOrDialVIF(remote, opts...)
 		if err != nil {
 			return nil, err
 		}

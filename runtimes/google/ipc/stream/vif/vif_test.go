@@ -12,7 +12,9 @@ import (
 	"reflect"
 	"runtime"
 	"sort"
+	"sync"
 	"testing"
+	"time"
 
 	"veyron.io/veyron/veyron/lib/testutil"
 	tsecurity "veyron.io/veyron/veyron/lib/testutil/security"
@@ -318,10 +320,17 @@ func TestShutdownVCs(t *testing.T) {
 type versionTestCase struct {
 	client, server, ep *iversion.Range
 	expectError        bool
+	expectVIFError     bool
 }
 
 func (tc *versionTestCase) Run(t *testing.T) {
-	client, server := NewVersionedClientServer(tc.client, tc.server)
+	client, server, err := NewVersionedClientServer(tc.client, tc.server)
+	if (err != nil) != tc.expectVIFError {
+		t.Errorf("Error mismatch.  Wanted error: %v, got %v; client: %v, server: %v", tc.expectVIFError, err, tc.client, tc.server)
+	}
+	if err != nil {
+		return
+	}
 	defer client.Close()
 
 	ep := tc.ep.Endpoint("test", "addr", naming.FixedRoutingID(0x5))
@@ -344,19 +353,23 @@ func (tc *versionTestCase) Run(t *testing.T) {
 }
 
 // TestIncompatibleVersions tests many cases where the client and server
-// have compatbile or incompatible supported version ranges.  It ensures
+// have compatible or incompatible supported version ranges.  It ensures
 // that overlapping ranges work properly, but non-overlapping ranges generate
 // errors.
 func TestIncompatibleVersions(t *testing.T) {
 	unknown := &iversion.Range{version.UnknownIPCVersion, version.UnknownIPCVersion}
 	tests := []versionTestCase{
-		{&iversion.Range{1, 1}, &iversion.Range{1, 1}, &iversion.Range{1, 1}, false},
-		{&iversion.Range{1, 3}, &iversion.Range{3, 5}, &iversion.Range{3, 5}, false},
-		{&iversion.Range{1, 3}, &iversion.Range{3, 5}, unknown, false},
+		{&iversion.Range{1, 1}, &iversion.Range{1, 1}, &iversion.Range{1, 1}, false, false},
+		{&iversion.Range{1, 3}, &iversion.Range{3, 5}, &iversion.Range{3, 5}, false, false},
+		{&iversion.Range{1, 3}, &iversion.Range{3, 5}, unknown, false, false},
 
-		{&iversion.Range{1, 3}, &iversion.Range{4, 5}, &iversion.Range{4, 5}, true},
-		{&iversion.Range{1, 3}, &iversion.Range{4, 5}, unknown, true},
-		{&iversion.Range{3, 5}, &iversion.Range{1, 3}, unknown, true},
+		// No VIF error because the client does not initiate authentication.
+		{&iversion.Range{1, 3}, &iversion.Range{4, 5}, &iversion.Range{4, 5}, true, false},
+		{&iversion.Range{1, 3}, &iversion.Range{4, 5}, unknown, true, false},
+
+		// VIF error because the client asks for authentication, but the server
+		// doesn't understand it.
+		{&iversion.Range{6, 6}, &iversion.Range{1, 5}, unknown, true, true},
 	}
 
 	for _, tc := range tests {
@@ -366,14 +379,19 @@ func TestIncompatibleVersions(t *testing.T) {
 
 func TestNetworkFailure(t *testing.T) {
 	c1, c2 := pipe()
-	client, err := vif.InternalNewDialedVIF(c1, naming.FixedRoutingID(0xc), nil)
-	if err != nil {
-		t.Fatal(err)
-	}
+	result := make(chan *vif.VIF)
+	go func() {
+		client, err := vif.InternalNewDialedVIF(c1, naming.FixedRoutingID(0xc), nil, nil, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		result <- client
+	}()
 	server, err := vif.InternalNewAcceptedVIF(c2, naming.FixedRoutingID(0x5), nil)
 	if err != nil {
 		t.Fatal(err)
 	}
+	client := <-result
 	// If the network connection dies, Dial and Accept should fail.
 	c1.Close()
 	if _, err := client.Dial(makeEP(0x5)); err == nil {
@@ -394,35 +412,104 @@ type pipeAddr struct{ name string }
 func (a pipeAddr) Network() string { return "pipe" }
 func (a pipeAddr) String() string  { return a.name }
 
-// pipeConn provides a LocalAddr and RemoteAddr based on pipeAddr.
+// pipeConn provides a buffered net.Conn, with pipeAddr addressing.
 type pipeConn struct {
-	net.Conn
+	lock sync.Mutex
+	// w is guarded by lock, to prevent Close from racing with Write.  This is a
+	// quick way to prevent the race, but it allows a Write to block the Close.
+	// This isn't a problem in the tests currently.
+	w            chan<- []byte
+	r            <-chan []byte
+	rdata        []byte
 	laddr, raddr pipeAddr
 }
 
-func (c *pipeConn) LocalAddr() net.Addr  { return c.laddr }
-func (c *pipeConn) RemoteAddr() net.Addr { return c.raddr }
+func (c *pipeConn) Read(data []byte) (int, error) {
+	for len(c.rdata) == 0 {
+		d, ok := <-c.r
+		if !ok {
+			return 0, io.EOF
+		}
+		c.rdata = d
+	}
+	n := copy(data, c.rdata)
+	c.rdata = c.rdata[n:]
+	return n, nil
+}
+
+func (c *pipeConn) Write(data []byte) (int, error) {
+	c.lock.Lock()
+	defer c.lock.Unlock()
+	if c.w == nil {
+		return 0, io.EOF
+	}
+	d := make([]byte, len(data))
+	copy(d, data)
+	c.w <- d
+	return len(data), nil
+}
+
+func (c *pipeConn) Close() error {
+	c.lock.Lock()
+	defer c.lock.Unlock()
+	if c.w == nil {
+		return io.EOF
+	}
+	close(c.w)
+	c.w = nil
+	return nil
+}
+
+func (c *pipeConn) LocalAddr() net.Addr                { return c.laddr }
+func (c *pipeConn) RemoteAddr() net.Addr               { return c.raddr }
+func (c *pipeConn) SetDeadline(t time.Time) error      { return nil }
+func (c *pipeConn) SetReadDeadline(t time.Time) error  { return nil }
+func (c *pipeConn) SetWriteDeadline(t time.Time) error { return nil }
 
 func pipe() (net.Conn, net.Conn) {
 	clientAddr := pipeAddr{"client"}
 	serverAddr := pipeAddr{"server"}
-	client, server := net.Pipe()
-	return &pipeConn{client, clientAddr, serverAddr}, &pipeConn{server, serverAddr, clientAddr}
+	c1 := make(chan []byte, 10)
+	c2 := make(chan []byte, 10)
+	p1 := &pipeConn{w: c1, r: c2, laddr: clientAddr, raddr: serverAddr}
+	p2 := &pipeConn{w: c2, r: c1, laddr: serverAddr, raddr: clientAddr}
+	return p1, p2
 }
 
 func NewClientServer() (client, server *vif.VIF) {
-	return NewVersionedClientServer(nil, nil)
+	var err error
+	client, server, err = NewVersionedClientServer(nil, nil)
+	if err != nil {
+		panic(err)
+	}
+	return
 }
 
-func NewVersionedClientServer(clientVersions, serverVersions *iversion.Range) (client, server *vif.VIF) {
+func NewVersionedClientServer(clientVersions, serverVersions *iversion.Range) (client, server *vif.VIF, verr error) {
 	c1, c2 := pipe()
-	var err error
-	if client, err = vif.InternalNewDialedVIF(c1, naming.FixedRoutingID(0xc), clientVersions); err != nil {
-		panic(err)
+	var cerr error
+	cl := make(chan *vif.VIF)
+	go func() {
+		c, err := vif.InternalNewDialedVIF(c1, naming.FixedRoutingID(0xc), clientVersions, newPrincipal("client"), nil)
+		if err != nil {
+			cerr = err
+			close(cl)
+		} else {
+			cl <- c
+		}
+	}()
+	s, err := vif.InternalNewAcceptedVIF(c2, naming.FixedRoutingID(0x5), serverVersions, newPrincipal("server"))
+	c, ok := <-cl
+	if err != nil {
+		verr = err
+		return
 	}
-	if server, err = vif.InternalNewAcceptedVIF(c2, naming.FixedRoutingID(0x5), serverVersions, newPrincipal("server")); err != nil {
-		panic(err)
+	if !ok {
+		verr = cerr
+		return
 	}
+	server = s
+	client = c
 	return
 }
 

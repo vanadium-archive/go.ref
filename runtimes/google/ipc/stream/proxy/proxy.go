@@ -6,16 +6,17 @@ import (
 	"net"
 	"sync"
 
+	"veyron.io/veyron/veyron/runtimes/google/ipc/stream/crypto"
 	"veyron.io/veyron/veyron/runtimes/google/ipc/stream/id"
 	"veyron.io/veyron/veyron/runtimes/google/ipc/stream/message"
 	"veyron.io/veyron/veyron/runtimes/google/ipc/stream/vc"
+	"veyron.io/veyron/veyron/runtimes/google/ipc/stream/vif"
 	"veyron.io/veyron/veyron/runtimes/google/ipc/version"
 	"veyron.io/veyron/veyron/runtimes/google/lib/bqueue"
 	"veyron.io/veyron/veyron/runtimes/google/lib/bqueue/drrqueue"
 	"veyron.io/veyron/veyron/runtimes/google/lib/iobuf"
 	"veyron.io/veyron/veyron/runtimes/google/lib/upcqueue"
 
-	"veyron.io/veyron/veyron2/ipc/stream"
 	"veyron.io/veyron/veyron2/naming"
 	"veyron.io/veyron/veyron2/security"
 	"veyron.io/veyron/veyron2/verror"
@@ -34,7 +35,7 @@ var (
 type Proxy struct {
 	ln         net.Listener
 	rid        naming.RoutingID
-	principal  stream.ListenerOpt
+	principal  security.Principal
 	mu         sync.RWMutex
 	servers    *servermap
 	processes  map[*process]struct{}
@@ -45,6 +46,8 @@ type Proxy struct {
 // associated with the process at the other end of the network connection.
 type process struct {
 	Conn         net.Conn
+	isSetup      bool
+	ctrlCipher   crypto.ControlCipher
 	Queue        *upcqueue.T
 	mu           sync.RWMutex
 	routingTable map[id.VC]*destination
@@ -141,7 +144,7 @@ func New(rid naming.RoutingID, principal security.Principal, network, address, p
 		servers:    &servermap{m: make(map[naming.RoutingID]*server)},
 		processes:  make(map[*process]struct{}),
 		pubAddress: pubAddress,
-		principal:  vc.LocalPrincipal{principal},
+		principal:  principal,
 	}
 	go proxy.listenLoop()
 	return proxy, nil
@@ -155,18 +158,24 @@ func (p *Proxy) listenLoop() {
 			proxyLog().Infof("Exiting listenLoop of proxy %q: %v", p.Endpoint(), err)
 			return
 		}
-		process := &process{
-			Conn:         conn,
-			Queue:        upcqueue.New(),
-			routingTable: make(map[id.VC]*destination),
-			servers:      make(map[id.VC]*vc.VC),
-			BQ:           drrqueue.New(vc.MaxPayloadSizeBytes),
-		}
-		go writeLoop(process)
-		go serverVCsLoop(process)
-		go p.readLoop(process)
+		go p.acceptProcess(conn)
 	}
 }
+
+func (p *Proxy) acceptProcess(conn net.Conn) {
+	process := &process{
+		Conn:         conn,
+		ctrlCipher:   &crypto.NullControlCipher{},
+		Queue:        upcqueue.New(),
+		routingTable: make(map[id.VC]*destination),
+		servers:      make(map[id.VC]*vc.VC),
+		BQ:           drrqueue.New(vc.MaxPayloadSizeBytes),
+	}
+	go writeLoop(process)
+	go serverVCsLoop(process)
+	go p.readLoop(process)
+}
+
 func writeLoop(process *process) {
 	defer processLog().Infof("Exited writeLoop for %v", process)
 	defer process.Close()
@@ -178,7 +187,7 @@ func writeLoop(process *process) {
 			}
 			return
 		}
-		if err = message.WriteTo(process.Conn, item.(message.T)); err != nil {
+		if err = message.WriteTo(process.Conn, item.(message.T), process.ctrlCipher); err != nil {
 			processLog().Infof("message.WriteTo on %v failed: %v", process, err)
 			return
 		}
@@ -245,7 +254,7 @@ func (p *Proxy) readLoop(process *process) {
 	reader := iobuf.NewReader(iobuf.NewPool(0), process.Conn)
 	defer reader.Close()
 	for {
-		msg, err := message.ReadFrom(reader)
+		msg, err := message.ReadFrom(reader, process.ctrlCipher)
 		if err != nil {
 			processLog().Infof("Read on %v failed: %v", process, err)
 			return
@@ -317,7 +326,7 @@ func (p *Proxy) readLoop(process *process) {
 				p.routeCounters(process, m.Counters)
 				if vcObj != nil {
 					server := &server{Process: process, VC: vcObj}
-					go p.runServer(server, vcObj.HandshakeAcceptedVC(p.principal))
+					go p.runServer(server, vcObj.HandshakeAcceptedVC(vc.LocalPrincipal{p.principal}))
 				}
 				break
 			}
@@ -344,6 +353,24 @@ func (p *Proxy) readLoop(process *process) {
 			m.VCI = dstVCI
 			dstprocess.Queue.Put(m)
 			p.routeCounters(process, counters)
+		case *message.HopSetup:
+			// Set up the hop.  This takes over the process during negotiation.
+			if process.isSetup {
+				// Already performed authentication.  We don't do it again.
+				processLog().Infof("Process %v is already setup", process)
+				return
+			}
+			var blessings security.Blessings
+			if p.principal != nil {
+				blessings = p.principal.BlessingStore().Default()
+			}
+			c, err := vif.AuthenticateAsServer(process.Conn, nil, p.principal, blessings, nil, m)
+			if err != nil {
+				processLog().Infof("Process %v failed to authenticate: %s", process, err)
+				return
+			}
+			process.ctrlCipher = c
+			process.isSetup = true
 		default:
 			processLog().Infof("Closing %v because of unrecognized message %T", process, m)
 			return

@@ -2,6 +2,7 @@ package message
 
 import (
 	"bytes"
+	"encoding/binary"
 	"reflect"
 	"testing"
 
@@ -9,6 +10,54 @@ import (
 	"veyron.io/veyron/veyron/runtimes/google/lib/iobuf"
 	"veyron.io/veyron/veyron2/naming"
 )
+
+// testControlCipher is a super-simple cipher that xor's each byte of the
+// payload with 0xaa.
+type testControlCipher struct{}
+
+const testMACSize = 4
+
+func (*testControlCipher) MACSize() int {
+	return testMACSize
+}
+
+func testMAC(data []byte) []byte {
+	var h uint32
+	for _, b := range data {
+		h = (h << 1) ^ uint32(b)
+	}
+	var hash [4]byte
+	binary.BigEndian.PutUint32(hash[:], h)
+	return hash[:]
+}
+
+func (c *testControlCipher) Decrypt(data []byte) {
+	for i, _ := range data {
+		data[i] ^= 0xaa
+	}
+}
+
+func (c *testControlCipher) Encrypt(data []byte) {
+	for i, _ := range data {
+		data[i] ^= 0xaa
+	}
+}
+
+func (c *testControlCipher) Open(data []byte) bool {
+	mac := testMAC(data[:len(data)-testMACSize])
+	if bytes.Compare(mac, data[len(data)-testMACSize:]) != 0 {
+		return false
+	}
+	c.Decrypt(data[:len(data)-testMACSize])
+	return true
+}
+
+func (c *testControlCipher) Seal(data []byte) error {
+	c.Encrypt(data[:len(data)-testMACSize])
+	mac := testMAC(data[:len(data)-testMACSize])
+	copy(data[len(data)-testMACSize:], mac)
+	return nil
+}
 
 func TestControl(t *testing.T) {
 	counters := NewCounters()
@@ -32,17 +81,28 @@ func TestControl(t *testing.T) {
 		&AddReceiveBuffers{Counters: counters},
 
 		&OpenFlow{VCI: 1, Flow: 10, InitialCounters: 1 << 24},
+
+		&HopSetup{
+			Versions: version.Range{Min: 21, Max: 71},
+			Options: []HopSetupOption{
+				&NaclBox{PublicKey: [32]byte{'h', 'e', 'l', 'l', 'o', 'w', 'o', 'r', 'l', 'd'}},
+				&NaclBox{PublicKey: [32]byte{7, 67, 31}},
+			},
+		},
+
+		&HopSetupStream{Data: []byte("HelloWorld")},
 	}
 
+	var c testControlCipher
 	pool := iobuf.NewPool(0)
 	for i, msg := range tests {
 		var buf bytes.Buffer
-		if err := WriteTo(&buf, msg); err != nil {
+		if err := WriteTo(&buf, msg, &c); err != nil {
 			t.Errorf("WriteTo(%T) (test #%d) failed: %v", msg, i, err)
 			continue
 		}
 		reader := iobuf.NewReader(pool, &buf)
-		read, err := ReadFrom(reader)
+		read, err := ReadFrom(reader, &c)
 		reader.Close()
 		if err != nil {
 			t.Errorf("ReadFrom failed (test #%d): %v", i, err)
@@ -63,18 +123,19 @@ func TestData(t *testing.T) {
 		{Data{VCI: 10, Flow: 3, flags: 1}, "batman"},
 	}
 
+	var c testControlCipher
 	pool := iobuf.NewPool(0)
-	allocator := iobuf.NewAllocator(pool, HeaderSizeBytes)
+	allocator := iobuf.NewAllocator(pool, HeaderSizeBytes+testMACSize)
 	for i, test := range tests {
 		var buf bytes.Buffer
 		msgW := test.Header
 		msgW.Payload = allocator.Copy([]byte(test.Payload))
-		if err := WriteTo(&buf, &msgW); err != nil {
+		if err := WriteTo(&buf, &msgW, &c); err != nil {
 			t.Errorf("WriteTo(%v) failed: %v", i, err)
 			continue
 		}
 		reader := iobuf.NewReader(pool, &buf)
-		read, err := ReadFrom(reader)
+		read, err := ReadFrom(reader, &c)
 		if err != nil {
 			t.Errorf("ReadFrom(%v) failed: %v", i, err)
 			continue
@@ -100,14 +161,15 @@ func TestDataNoPayload(t *testing.T) {
 		{VCI: 10, Flow: 3},
 		{VCI: 11, Flow: 4, flags: 10},
 	}
+	var c testControlCipher
 	pool := iobuf.NewPool(0)
 	for _, test := range tests {
 		var buf bytes.Buffer
-		if err := WriteTo(&buf, &test); err != nil {
+		if err := WriteTo(&buf, &test, &c); err != nil {
 			t.Errorf("WriteTo(%v) failed: %v", test, err)
 			continue
 		}
-		read, err := ReadFrom(iobuf.NewReader(pool, &buf))
+		read, err := ReadFrom(iobuf.NewReader(pool, &buf), &c)
 		if err != nil {
 			t.Errorf("ReadFrom(%v) failed: %v", test, err)
 			continue

@@ -10,7 +10,7 @@ import (
 	"veyron.io/veyron/veyron2/vlog"
 )
 
-var anonymousPrincipal security.Principal
+var AnonymousPrincipal security.Principal
 
 func init() {
 	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
@@ -18,10 +18,10 @@ func init() {
 		vlog.Fatalf("could not create private key for anonymous principal: %v", err)
 	}
 	store := &anonymousBlessingStore{k: security.NewECDSAPublicKey(&key.PublicKey)}
-	if anonymousPrincipal, err = security.CreatePrincipal(security.NewInMemoryECDSASigner(key), store, nil); err != nil {
+	if AnonymousPrincipal, err = security.CreatePrincipal(security.NewInMemoryECDSASigner(key), store, nil); err != nil {
 		vlog.Fatalf("could not create anonymous principal: %v", err)
 	}
-	if store.b, err = anonymousPrincipal.BlessSelf("anonymous"); err != nil {
+	if store.b, err = AnonymousPrincipal.BlessSelf("anonymous"); err != nil {
 		vlog.Fatalf("failed to generate the one blessing to be used by the anonymous principal: %v", err)
 	}
 }

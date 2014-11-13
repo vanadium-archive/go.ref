@@ -22,17 +22,18 @@ var (
 var (
 	errSameChannelPublicKey      = errors.New("same public keys for both ends of the channel")
 	errChannelIDMismatch         = errors.New("channel id does not match expectation")
+	errChecksumMismatch          = errors.New("checksum mismatch")
 	errInvalidSignatureInMessage = errors.New("signature does not verify in authentication handshake message")
 	errNoCertificatesReceived    = errors.New("no certificates received")
 	errSingleCertificateRequired = errors.New("exactly one X.509 certificate chain with exactly one certificate is required")
 )
 
-// authenticateAsServer executes the authentication protocol at the server and
+// AuthenticateAsServer executes the authentication protocol at the server and
 // returns the blessings used to authenticate the client.
-func authenticateAsServer(conn io.ReadWriteCloser, principal security.Principal, server security.Blessings, dc DischargeClient, crypter crypto.Crypter, v version.IPCVersion) (client security.Blessings, clientDischarges map[string]security.Discharge, err error) {
+func AuthenticateAsServer(conn io.ReadWriteCloser, principal security.Principal, server security.Blessings, dc DischargeClient, crypter crypto.Crypter, v version.IPCVersion) (client security.Blessings, clientDischarges map[string]security.Discharge, err error) {
 	defer conn.Close()
 	if server == nil {
-		return nil, nil, fmt.Errorf("BlessingStore does not contain a default set of blessings, cannot act as a server")
+		return nil, nil, errors.New("no blessings to present as a server")
 	}
 	var discharges []security.Discharge
 	if tpcavs := server.ThirdPartyCaveats(); len(tpcavs) > 0 && dc != nil {
@@ -47,7 +48,7 @@ func authenticateAsServer(conn io.ReadWriteCloser, principal security.Principal,
 	return
 }
 
-// authenticateAsClient executes the authentication protocol at the client and
+// AuthenticateAsClient executes the authentication protocol at the client and
 // returns the blessings used to authenticate both ends.
 //
 // The client will only share its identity if its blessing store has one marked
@@ -55,7 +56,7 @@ func authenticateAsServer(conn io.ReadWriteCloser, principal security.Principal,
 //
 // TODO(ashankar): Seems like there is no way the blessing store
 // can say that it does NOT want to share the default blessing with the server?
-func authenticateAsClient(conn io.ReadWriteCloser, principal security.Principal, dc DischargeClient, crypter crypto.Crypter, v version.IPCVersion) (server, client security.Blessings, serverDischarges map[string]security.Discharge, err error) {
+func AuthenticateAsClient(conn io.ReadWriteCloser, principal security.Principal, dc DischargeClient, crypter crypto.Crypter, v version.IPCVersion) (server, client security.Blessings, serverDischarges map[string]security.Discharge, err error) {
 	defer conn.Close()
 	if server, serverDischarges, err = readBlessings(conn, authServerContextTag, crypter, v); err != nil {
 		return
