@@ -4,6 +4,8 @@
 // 2) go:generate performs $NAME expansion, so the bash cmd can't contain '$'.
 // 3) We generate into a *.tmp file first, otherwise go run will pick up the
 //    initially empty *.go file, and fail.
+// TODO(rjkroege): The below fails because _test.go files are present. Fix this.
+//  An alternative in Sam/Acme: Edit /\/\*/+1, /\*\//-1 <./nodex help -style'='godoc ...
 //
 //go:generate bash -c "{ echo -e '// This file was auto-generated via go generate.\n// DO NOT UPDATE MANUALLY\n\n/*' && veyron go run *.go help -style=godoc ... && echo -e '*/\npackage main'; } > ./doc.go.tmp && mv ./doc.go.tmp ./doc.go"
 

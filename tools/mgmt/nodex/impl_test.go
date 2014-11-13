@@ -3,20 +3,21 @@ package main
 import (
 	"bytes"
 	"fmt"
+	"log"
 	"reflect"
 	"strings"
 	"testing"
 
-	"veyron.io/veyron/veyron2/security"
-	"veyron.io/veyron/veyron2/services/mgmt/binary"
-	"veyron.io/veyron/veyron2/services/mgmt/node"
-
-	"veyron.io/veyron/veyron/profiles"
 	"veyron.io/veyron/veyron2"
 	"veyron.io/veyron/veyron2/ipc"
 	"veyron.io/veyron/veyron2/naming"
 	"veyron.io/veyron/veyron2/rt"
+	"veyron.io/veyron/veyron2/security"
+	"veyron.io/veyron/veyron2/services/mgmt/binary"
+	"veyron.io/veyron/veyron2/services/mgmt/node"
 	"veyron.io/veyron/veyron2/vlog"
+
+	"veyron.io/veyron/veyron/profiles"
 )
 
 type mockNodeInvoker struct {
@@ -53,7 +54,7 @@ func (i *mockNodeInvoker) AssociateAccount(call ipc.ServerContext, identityNames
 	case error:
 		return r
 	}
-	i.t.Fatalf("AssociateAccount (mock) response %v is of bad type", ri)
+	log.Fatalf("AssociateAccount (mock) response %v is of bad type", ri)
 	return nil
 }
 
@@ -101,7 +102,24 @@ type GetACLResponse struct {
 	err  error
 }
 
-func (mni *mockNodeInvoker) SetACL(ipc.ServerContext, security.ACL, string) error { return nil }
+type SetACLStimulus struct {
+	fun  string
+	acl  security.ACL
+	etag string
+}
+
+func (mni *mockNodeInvoker) SetACL(_ ipc.ServerContext, acl security.ACL, etag string) error {
+	ri := mni.tape.Record(SetACLStimulus{"SetACL", acl, etag})
+	switch r := ri.(type) {
+	case nil:
+		return nil
+	case error:
+		return r
+	}
+	log.Fatalf("AssociateAccount (mock) response %v is of bad type\n", ri)
+	return nil
+}
+
 func (mni *mockNodeInvoker) GetACL(ipc.ServerContext) (security.ACL, string, error) {
 	ir := mni.tape.Record("GetACL")
 	r := ir.(GetACLResponse)
