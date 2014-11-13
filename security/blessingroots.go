@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"sort"
 	"sync"
 
 	"veyron.io/veyron/veyron/security/serialization"
@@ -71,21 +72,37 @@ func (br *blessingRoots) Recognized(root security.PublicKey, blessing string) er
 // format
 //
 // Public key   : Pattern
-// <public key> : <pattern>
+// <public key> : <patterns>
 // ...
-// <public key> : <pattern>
+// <public key> : <patterns>
 func (br *blessingRoots) DebugString() string {
 	const format = "%-47s : %s\n"
 	b := bytes.NewBufferString(fmt.Sprintf(format, "Public key", "Pattern"))
-	for keyBytes, pattern := range br.store {
+	var s rootSorter
+	for keyBytes, patterns := range br.store {
 		key, err := security.UnmarshalPublicKey([]byte(keyBytes))
 		if err != nil {
 			return fmt.Sprintf("failed to decode public key: %v", err)
 		}
-		b.WriteString(fmt.Sprintf(format, key, pattern))
+		s = append(s, &root{key, fmt.Sprintf("%v", patterns)})
+	}
+	sort.Sort(s)
+	for _, r := range s {
+		b.WriteString(fmt.Sprintf(format, r.key, r.patterns))
 	}
 	return b.String()
 }
+
+type root struct {
+	key      security.PublicKey
+	patterns string
+}
+
+type rootSorter []*root
+
+func (s rootSorter) Len() int           { return len(s) }
+func (s rootSorter) Less(i, j int) bool { return s[i].patterns < s[j].patterns }
+func (s rootSorter) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
 
 func (br *blessingRoots) save() error {
 	if (br.signer == nil) && (br.persistedData == nil) {
