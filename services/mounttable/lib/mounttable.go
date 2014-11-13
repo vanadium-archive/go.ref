@@ -180,18 +180,6 @@ func (mt *mountTable) authorizeStep(name string, c security.Context) error {
 	return nil
 }
 
-func slashSlashJoin(elems []string) string {
-	// TODO(p): once doubleslash is gone, revisit this.  It is just preserving the
-	// original double slash.
-	if len(elems) == 2 && len(elems[0]) == 0 && len(elems[1]) == 0 {
-		return "//"
-	}
-	if len(elems) > 0 && len(elems[0]) == 0 {
-		return "/" + strings.Join(elems, "/")
-	}
-	return strings.Join(elems, "/")
-}
-
 // Authorize verifies that the client has access to the requested node.
 // Checks the acls on all nodes in the path starting at the root.
 func (ms *mountContext) Authorize(context security.Context) error {
@@ -226,7 +214,7 @@ func (ms *mountContext) ResolveStep(context ipc.ServerContext) (servers []naming
 		}
 		return nil, ms.name, verror.Make(naming.ErrNoSuchName, context, ms.name)
 	}
-	return n.mount.servers.copyToSlice(), slashSlashJoin(elems), nil
+	return n.mount.servers.copyToSlice(), strings.Join(elems, "/"), nil
 }
 
 // ResolveStepX returns the next server in a resolution in the form of a MountEntry.  The name
@@ -251,7 +239,7 @@ func (ms *mountContext) ResolveStepX(context ipc.ServerContext) (entry naming.VD
 		return
 	}
 	entry.Servers = n.mount.servers.copyToSlice()
-	entry.Name = slashSlashJoin(elems)
+	entry.Name = strings.Join(elems, "/")
 	entry.MT = n.mount.mt
 	return
 }
@@ -453,7 +441,7 @@ func (ms *mountContext) linkToLeaf(stream ipc.GlobServerStream) {
 	}
 	servers := n.mount.servers.copyToSlice()
 	for i, s := range servers {
-		servers[i].Server = naming.Join(s.Server, slashSlashJoin(elems))
+		servers[i].Server = naming.Join(s.Server, strings.Join(elems, "/"))
 	}
 	stream.SendStream().Send(naming.VDLMountEntry{Name: "", Servers: servers})
 }

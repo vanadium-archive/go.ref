@@ -80,8 +80,8 @@ func (c *ttlCache) cleaner() {
 func (c *ttlCache) remember(prefix string, entry *naming.MountEntry) {
 	// Remove suffix.  We only care about the name that gets us
 	// to the mounttable from the last mounttable.
-	prefix = normalize(prefix)
-	entry.Name = normalize(entry.Name)
+	prefix = naming.Clean(prefix)
+	entry.Name = naming.Clean(entry.Name)
 	prefix = naming.TrimSuffix(prefix, entry.Name)
 	// Copy the entry.
 	var ce naming.MountEntry
@@ -107,7 +107,7 @@ func (c *ttlCache) forget(names []string) {
 	defer c.Unlock()
 	for key := range c.entries {
 		for _, n := range names {
-			n = normalize(n)
+			n = naming.Clean(n)
 			if strings.HasPrefix(key, n) {
 				delete(c.entries, key)
 				break
@@ -120,7 +120,7 @@ func (c *ttlCache) forget(names []string) {
 // prefix, and suffix.  If any of the associated servers is expired, don't return anything
 // since that would reduce availability.
 func (c *ttlCache) lookup(name string) (naming.MountEntry, error) {
-	name = normalize(name)
+	name = naming.Clean(name)
 	c.Lock()
 	defer c.Unlock()
 	now := time.Now()
@@ -139,22 +139,14 @@ func (c *ttlCache) lookup(name string) (naming.MountEntry, error) {
 	return naming.MountEntry{}, verror.Make(naming.ErrNoSuchName, nil, name)
 }
 
-// backup moves the last element of the prefix to the suffix.  "//" is preserved.  Thus
-//   a/b//c, -> a/b, //c
-//   /a/b,c/d -> /a, b/c/d
-//   /a,b/c/d -> ,/a/b/c/d
+// backup moves the last element of the prefix to the suffix.
 func backup(prefix, suffix string) (string, string) {
 	for i := len(prefix) - 1; i > 0; i-- {
 		if prefix[i] != '/' {
 			continue
 		}
-		if prefix[i-1] == '/' {
-			suffix = naming.Join(prefix[i-1:], suffix)
-			prefix = prefix[:i-1]
-		} else {
-			suffix = naming.Join(prefix[i+1:], suffix)
-			prefix = prefix[:i]
-		}
+		suffix = naming.Join(prefix[i+1:], suffix)
+		prefix = prefix[:i]
 		return prefix, suffix
 	}
 	return "", naming.Join(prefix, suffix)

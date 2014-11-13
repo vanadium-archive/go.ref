@@ -316,17 +316,14 @@ func TestNamespaceDetails(t *testing.T) {
 	ns := r.Namespace()
 	ns.SetRoots(root.name)
 
-	// Mount using a relative name starting with //.
-	// This means don't walk out of the namespace's root mount table
-	// even if there is already something mounted at mt2. Thus, the example
-	// below will fail.
+	// /mt2 is not an endpoint. Thus, the example below will fail.
 	mt3Server := mts[mt3MP].name
-	mt2a := "//mt2/a"
+	mt2a := "/mt2/a"
 	if err := ns.Mount(r.NewContext(), mt2a, mt3Server, ttl); verror.Is(err, naming.ErrNoSuchName.ID) {
 		boom(t, "Successfully mounted %s - expected an err %v, not %v", mt2a, naming.ErrNoSuchName, err)
 	}
 
-	// Mount using the relative name not starting with //.
+	// Mount using the relative name.
 	// This means walk through mt2 if it already exists and mount within
 	// the lower level mount table, if the name doesn't exist we'll create
 	// a new name for it.
@@ -341,14 +338,11 @@ func TestNamespaceDetails(t *testing.T) {
 	// The server for mt2a is mt3server from the second mount above.
 	testResolve(t, r, ns, mt2a, mt3Server)
 
-	// Using a terminal or non-terminal name makes no difference if the
-	// mount is directed to the root name server (since that's the root
-	// for the namespace for this process) and the name exists within
-	// that mount table. In both cases, the server will be added to the
-	// set of mount table servers for that name.
+	// Add two more mounts. The // should be stripped off of the
+	// second.
 	for _, mp := range []struct{ name, server string }{
 		{"mt2", mts[mt4MP].name},
-		{"//mt2", mts[mt5MP].name},
+		{"mt2//", mts[mt5MP].name},
 	} {
 		if err := ns.Mount(r.NewContext(), mp.name, mp.server, ttl, naming.ServesMountTableOpt(true)); err != nil {
 			boom(t, "Failed to Mount %s: %s", mp.name, err)

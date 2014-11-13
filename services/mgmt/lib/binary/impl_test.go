@@ -54,7 +54,7 @@ func setupRepository(t *testing.T) (string, func()) {
 	if err := server.ServeDispatcher(suffix, dispatcher); err != nil {
 		t.Fatalf("Serve(%v, %v) failed: %v", suffix, dispatcher, err)
 	}
-	von := naming.JoinAddressName(endpoint.String(), "//test")
+	von := naming.JoinAddressName(endpoint.String(), "test")
 	return von, func() {
 		if err := os.Remove(path); err != nil {
 			t.Fatalf("Remove(%v) failed: %v", path, err)

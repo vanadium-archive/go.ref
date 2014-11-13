@@ -51,9 +51,9 @@ func TestInterface(t *testing.T) {
 	}
 
 	// Create client stubs for talking to the server.
-	stub := repository.ApplicationClient(naming.JoinAddressName(endpoint.String(), "//search"))
-	stubV1 := repository.ApplicationClient(naming.JoinAddressName(endpoint.String(), "//search/v1"))
-	stubV2 := repository.ApplicationClient(naming.JoinAddressName(endpoint.String(), "//search/v2"))
+	stub := repository.ApplicationClient(naming.JoinAddressName(endpoint.String(), "search"))
+	stubV1 := repository.ApplicationClient(naming.JoinAddressName(endpoint.String(), "search/v1"))
+	stubV2 := repository.ApplicationClient(naming.JoinAddressName(endpoint.String(), "search/v2"))
 
 	// Create example envelopes.
 	envelopeV1 := application.Envelope{

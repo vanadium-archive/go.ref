@@ -142,7 +142,7 @@ func (s *server) resolveToAddress(address string) (string, error) {
 	}
 	for _, n := range names {
 		address, suffix := naming.SplitAddressName(n)
-		if suffix != "" && suffix != "//" {
+		if suffix != "" {
 			continue
 		}
 		if _, err := inaming.NewEndpoint(address); err == nil {

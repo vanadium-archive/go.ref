@@ -17,7 +17,7 @@
 #
 # "s1/a", ["/s2/b"(mountpoint)]
 # "s1/a", ["/s3/c"(mountpoint)]
-# "s1/a", ["/s4//"(mountpoint)]
+# "s1/a", ["/s4"(mountpoint)]
 
 set localaddr="--veyron.tcp.address=127.0.0.1:0"
 

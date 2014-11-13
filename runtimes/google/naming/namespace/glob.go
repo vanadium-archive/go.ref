@@ -44,11 +44,6 @@ func (ns *namespace) globAtServer(ctx context.T, qe *queuedEntry, pattern *glob.
 			if !server.ServesMountTable() {
 				return nil
 			}
-			// TODO(p): soon to be unnecessary.
-			_, n := naming.SplitAddressName(s.Server)
-			if strings.HasPrefix(n, "//") {
-				return nil
-			}
 		}
 
 		// If this is restricted recursive and not a mount table, don't
@@ -137,11 +132,11 @@ func (ns *namespace) Glob(ctx context.T, pattern string) (chan naming.MountEntry
 
 // depth returns the directory depth of a given name.
 func depth(name string) int {
-	name = strings.Trim(name, "/")
+	name = strings.Trim(naming.Clean(name), "/")
 	if name == "" {
 		return 0
 	}
-	return strings.Count(name, "/") - strings.Count(name, "//") + 1
+	return strings.Count(name, "/") + 1
 }
 
 func (ns *namespace) globLoop(ctx context.T, e *naming.MountEntry, prefix string, pattern *glob.Glob, reply chan naming.MountEntry) {

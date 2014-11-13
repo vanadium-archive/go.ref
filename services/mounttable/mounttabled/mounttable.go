@@ -77,7 +77,7 @@ func main() {
 			vlog.Errorf("NewNeighborhoodServer failed: %v", err)
 			os.Exit(1)
 		}
-		if err := nhServer.ServeDispatcher(naming.JoinAddressName(myObjectName, "//nh"), nh); err != nil {
+		if err := nhServer.ServeDispatcher(naming.JoinAddressName(myObjectName, "nh"), nh); err != nil {
 			vlog.Errorf("nhServer.ServeDispatcher failed to register neighborhood: %v", err)
 			os.Exit(1)
 		}

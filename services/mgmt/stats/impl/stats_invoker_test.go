@@ -151,7 +151,7 @@ func TestStatsInvoker(t *testing.T) {
 
 	// Test Value()
 	{
-		c := stats.StatsClient(naming.JoinAddressName(endpoint, "//testing/foo/bar"))
+		c := stats.StatsClient(naming.JoinAddressName(endpoint, "testing/foo/bar"))
 		value, err := c.Value(rt.R().NewContext())
 		if err != nil {
 			t.Errorf("unexpected error: %v", err)
@@ -163,7 +163,7 @@ func TestStatsInvoker(t *testing.T) {
 
 	// Test Value() with Histogram
 	{
-		c := stats.StatsClient(naming.JoinAddressName(endpoint, "//testing/hist/foo"))
+		c := stats.StatsClient(naming.JoinAddressName(endpoint, "testing/hist/foo"))
 		value, err := c.Value(rt.R().NewContext())
 		if err != nil {
 			t.Errorf("unexpected error: %v", err)

@@ -1,7 +1,6 @@
 package namespace
 
 import (
-	"strings"
 	"sync"
 	"time"
 
@@ -97,7 +96,7 @@ func (ns *namespace) Roots() []string {
 // rootName 'roots' a name: if name is not a rooted name, it prepends the root
 // mounttable's OA.
 func (ns *namespace) rootName(name string) []string {
-	name = normalize(name)
+	name = naming.Clean(name)
 	if address, _ := naming.SplitAddressName(name); len(address) == 0 {
 		var ret []string
 		ns.RLock()
@@ -112,7 +111,7 @@ func (ns *namespace) rootName(name string) []string {
 
 // rootMountEntry 'roots' a name creating a mount entry for the name.
 func (ns *namespace) rootMountEntry(name string) (*naming.MountEntry, bool) {
-	name = normalize(name)
+	name = naming.Clean(name)
 	e := new(naming.MountEntry)
 	expiration := time.Now().Add(time.Hour) // plenty of time for a call
 	address, suffix := naming.SplitAddressName(name)
@@ -180,22 +179,4 @@ func (ns *namespace) CacheCtl(ctls ...naming.CacheCtl) []naming.CacheCtl {
 		return []naming.CacheCtl{naming.DisableCache(true)}
 	}
 	return nil
-}
-
-// normalize removes any single trailing slash and compresses
-// multiple consecutive slashes to one.
-// TODO(p): Transitionally it also removes a leading double
-// slash that used to mean something but doesn't any more.
-// I should remove that in a week or so when we've killed off
-// all code inserting this double slash.
-func normalize(name string) string {
-	// Eradicate leading double slash (for now).  Eventually we
-	// should get ris of this.
-	name = strings.TrimPrefix(name, "//")
-	// Eradicate duplicate slashes and trailing slashes.  We
-	// could use path.Clean but it has other side effects.
-	for strings.Contains(name, "//") {
-		name = strings.Replace(name, "//", "/", -1)
-	}
-	return strings.TrimSuffix(name, "/")
 }

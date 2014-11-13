@@ -132,7 +132,7 @@ func startServer(t *testing.T, depth int) (repository.BinaryClientMethods, strin
 	if err := server.ServeDispatcher(dontPublishName, dispatcher); err != nil {
 		t.Fatalf("Serve(%q) failed: %v", dontPublishName, err)
 	}
-	name := naming.JoinAddressName(endpoint.String(), "//test")
+	name := naming.JoinAddressName(endpoint.String(), "test")
 	binary := repository.BinaryClient(name)
 	return binary, fmt.Sprintf("http://%s/test", listener.Addr()), func() {
 		// Shutdown the binary repository server.
