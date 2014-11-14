@@ -178,6 +178,7 @@ func (h *handler) listBlessingsCallback(w http.ResponseWriter, r *http.Request) 
 		RevocationTime time.Time
 		Blessed        security.Blessings
 		Token          string
+		Error          error
 	}
 	tmplargs := struct {
 		Log                chan tmplentry
@@ -201,6 +202,7 @@ func (h *handler) listBlessingsCallback(w http.ResponseWriter, r *http.Request) 
 		defer close(ch)
 		for entry := range entrych {
 			tmplEntry := tmplentry{
+				Error:     entry.DecodeError,
 				Timestamp: entry.Timestamp,
 				Caveats:   entry.Caveats,
 				Blessed:   entry.Blessings,
@@ -212,6 +214,7 @@ func (h *handler) listBlessingsCallback(w http.ResponseWriter, r *http.Request) 
 					caveatID := base64.URLEncoding.EncodeToString([]byte(entry.RevocationCaveatID))
 					if tmplEntry.Token, err = h.csrfCop.NewToken(w, r, clientIDCookie, caveatID); err != nil {
 						vlog.Errorf("Failed to create CSRF token[%v] for request %#v", err, r)
+						tmplEntry.Error = fmt.Errorf("server error: unable to create revocation token")
 					}
 				}
 			}

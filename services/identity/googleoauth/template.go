@@ -72,7 +72,7 @@ function failMessage(revokeButton) {
 <h3>Blessing log for {{.Email}}</h3>
 <table class="table table-bordered table-hover table-responsive">
 <thead>
-<tr>
+  <tr>
   <th>Blessed as</th>
   <th>Public Key</th>
   <th>Issued</th>
@@ -82,27 +82,33 @@ function failMessage(revokeButton) {
 </thead>
 <tbody>
 {{range .Log}}
-<tr>
-<td>{{.Blessed}}</td>
-<td>{{.Blessed.PublicKey}}</td>
-<td><div class="unixtime" data-unixtime={{.Timestamp.Unix}}>{{.Timestamp.String}}</div></td>
-<td>
-{{range .Caveats}}
-  {{.}}</br>
-{{end}}
-</td>
-<td>
-  {{ if .Token }}
-  <button class="revoke" value="{{.Token}}">Revoke</button>
-  {{ else if not .RevocationTime.IsZero }}
-    <div class="unixtime" data-unixtime={{.RevocationTime.Unix}}>{{.RevocationTime.String}}</div>
-  {{ end }}
-</td>
-</tr>
+  {{if .Error}}
+    <tr class="bg-danger">
+      <td colspan="5">Failed to read audit log: Error: {{.Error}}</td>
+    </tr>
+  {{else}}
+    <tr>
+    <td>{{.Blessed}}</td>
+    <td>{{.Blessed.PublicKey}}</td>
+    <td><div class="unixtime" data-unixtime={{.Timestamp.Unix}}>{{.Timestamp.String}}</div></td>
+    <td>
+    {{range .Caveats}}
+      {{.}}</br>
+    {{end}}
+    </td>
+    <td>
+      {{ if .Token }}
+      <button class="revoke" value="{{.Token}}">Revoke</button>
+      {{ else if not .RevocationTime.IsZero }}
+        <div class="unixtime" data-unixtime={{.RevocationTime.Unix}}>{{.RevocationTime.String}}</div>
+      {{ end }}
+    </td>
+    </tr>
+  {{end}}
 {{else}}
-<tr>
-<td colspan=5>No blessings issued</td>
-</tr>
+  <tr>
+  <td colspan=5>No blessings issued</td>
+  </tr>
 {{end}}
 </tbody>
 </table>

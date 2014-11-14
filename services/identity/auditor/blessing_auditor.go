@@ -10,7 +10,6 @@ import (
 	vsecurity "veyron.io/veyron/veyron/security"
 	"veyron.io/veyron/veyron/security/audit"
 	"veyron.io/veyron/veyron2/security"
-	"veyron.io/veyron/veyron2/vlog"
 	"veyron.io/veyron/veyron2/vom"
 )
 
@@ -27,6 +26,7 @@ type BlessingEntry struct {
 	Timestamp          time.Time // Time when the blesings were created.
 	RevocationCaveatID string
 	Blessings          security.Blessings
+	DecodeError        error
 }
 
 // NewSQLBlessingAuditor returns an auditor for wrapping a principal with, and a BlessingLogReader
@@ -70,12 +70,7 @@ func (r *blessingLogReader) sendAuditEvents(dst chan<- BlessingEntry, email stri
 	defer close(dst)
 	dbch := r.db.Query(email)
 	for dbentry := range dbch {
-		var entry BlessingEntry
-		if err := entry.fromDatabaseEntry(dbentry); err != nil {
-			vlog.Errorf("Corrupt database data? %#v, %v", dbentry, err)
-			continue
-		}
-		dst <- entry
+		dst <- newBlessingEntry(dbentry)
 	}
 }
 
@@ -115,22 +110,29 @@ func newDatabaseEntry(entry audit.Entry) (databaseEntry, error) {
 	return d, nil
 }
 
-func (b *BlessingEntry) fromDatabaseEntry(dbentry databaseEntry) error {
-	b.Email = dbentry.email
-	b.Timestamp = dbentry.timestamp
+func newBlessingEntry(dbentry databaseEntry) BlessingEntry {
+	if dbentry.decodeErr != nil {
+		return BlessingEntry{DecodeError: dbentry.decodeErr}
+	}
+	b := BlessingEntry{
+		Email:     dbentry.email,
+		Timestamp: dbentry.timestamp,
+	}
 	var wireBlessings security.WireBlessings
 	var err error
-	if err := vom.NewDecoder(bytes.NewBuffer(dbentry.blessings)).Decode(&wireBlessings); err != nil {
-		return err
+	if err = vom.NewDecoder(bytes.NewBuffer(dbentry.blessings)).Decode(&wireBlessings); err != nil {
+		return BlessingEntry{DecodeError: fmt.Errorf("failed to decode blessings: %s", err)}
 	}
 	if b.Blessings, err = security.NewBlessings(wireBlessings); err != nil {
-		return err
+		return BlessingEntry{DecodeError: fmt.Errorf("failed to construct blessings: %s", err)}
 	}
-	if err := vom.NewDecoder(bytes.NewBuffer(dbentry.caveats)).Decode(&b.Caveats); err != nil {
-		return err
+	if err = vom.NewDecoder(bytes.NewBuffer(dbentry.caveats)).Decode(&b.Caveats); err != nil {
+		return BlessingEntry{DecodeError: fmt.Errorf("failed to decode caveats: %s", err)}
 	}
-	b.RevocationCaveatID, err = revocationCaveatID(b.Caveats)
-	return err
+	if b.RevocationCaveatID, err = revocationCaveatID(b.Caveats); err != nil {
+		return BlessingEntry{DecodeError: fmt.Errorf("error getting revocationCaveatID: %s", err)}
+	}
+	return b
 }
 
 func revocationCaveatID(caveats []security.Caveat) (string, error) {

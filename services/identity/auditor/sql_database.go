@@ -25,6 +25,7 @@ type databaseEntry struct {
 	email, revocationCaveatID string
 	caveats, blessings        []byte
 	timestamp                 time.Time
+	decodeErr                 error
 }
 
 // newSQLDatabase returns a SQL implementation of the database interface.
@@ -72,13 +73,14 @@ func (s sqlDatabase) sendDatabaseEntries(email string, dst chan<- databaseEntry)
 	rows, err := s.queryStmt.Query(email)
 	if err != nil {
 		vlog.Errorf("query failed %v", err)
+		dst <- databaseEntry{decodeErr: fmt.Errorf("Failed to query for all audits: %v", err)}
 		return
 	}
 	for rows.Next() {
 		var dbentry databaseEntry
 		if err = rows.Scan(&dbentry.email, &dbentry.caveats, &dbentry.revocationCaveatID, &dbentry.timestamp, &dbentry.blessings); err != nil {
 			vlog.Errorf("scan of row failed %v", err)
-			return
+			dbentry.decodeErr = fmt.Errorf("failed to read sql row, %s", err)
 		}
 		dst <- dbentry
 	}
