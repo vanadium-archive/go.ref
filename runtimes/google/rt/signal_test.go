@@ -14,6 +14,7 @@ import (
 	"veyron.io/veyron/veyron2/options"
 	"veyron.io/veyron/veyron2/rt"
 
+	"veyron.io/veyron/veyron/lib/appcycle"
 	"veyron.io/veyron/veyron/lib/expect"
 	"veyron.io/veyron/veyron/lib/modules"
 )
@@ -42,9 +43,11 @@ func (mp *myprofile) String() string {
 	return "myprofile on " + mp.Platform().String()
 }
 
-func (mp *myprofile) Init(veyron2.Runtime, *config.Publisher) error {
-	return nil
+func (mp *myprofile) Init(rt veyron2.Runtime, _ *config.Publisher) (veyron2.AppCycle, error) {
+	return appcycle.New(rt), nil
 }
+
+func (mp *myprofile) Cleanup() {}
 
 func simpleEchoProgram(stdin io.Reader, stdout io.Writer) {
 	fmt.Fprintf(stdout, "ready\n")

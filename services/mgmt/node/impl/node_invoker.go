@@ -159,7 +159,7 @@ func (i *nodeInvoker) revertNodeManager() error {
 	if err := updateLink(i.config.Previous, i.config.CurrentLink); err != nil {
 		return err
 	}
-	rt.R().Stop()
+	rt.R().AppCycle().Stop()
 	return nil
 }
 
@@ -376,7 +376,7 @@ func (i *nodeInvoker) updateNodeManager(ctx context.T) error {
 		return err
 	}
 
-	rt.R().Stop()
+	rt.R().AppCycle().Stop()
 	deferrer = nil
 	return nil
 }

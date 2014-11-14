@@ -47,7 +47,7 @@ func ShutdownOnSignals(signals ...os.Signal) <-chan os.Signal {
 				sawStop = true
 				if r := rt.R(); r != nil {
 					stopWaiter := make(chan string, 1)
-					r.WaitForStop(stopWaiter)
+					r.AppCycle().WaitForStop(stopWaiter)
 					go func() {
 						for {
 							ch <- stopSignal(<-stopWaiter)
