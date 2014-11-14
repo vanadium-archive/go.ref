@@ -11,18 +11,18 @@
 # 2. Starts a shell under the agent, optionally fetching a remote blessing if
 # the principal is missing.
 #
-# Uses ~/.vsh to store its files, including binaries and the principal.
+# Uses ~/.vbash to store its files, including binaries and the principal.
 #
 # Usage:
 #
 # # Gets binaries from local repository
-# ./vsh
+# ./vbash
 #
 # # Gets binaries from local filesystem
-# ./vsh /path/to/binaries
+# ./vbash /path/to/binaries
 #
 # # Gets binaries from HTTP server
-# ./vsh http://host/path
+# ./vbash http://host/path
 #
 # Limitations:
 # This only works on Linux and was only tested on goobuntu.
@@ -117,14 +117,14 @@ get_binaries() {
 }
 
 main() {
-  if [[ ! -z "${VSH_INDICATOR}" ]]; then
-    echo "Disallowing running VSH within VSH."
+  if [[ ! -z "${VBASH_INDICATOR}" ]]; then
+    echo "Disallowing running VBASH within VBASH."
     echo "https://memegen.googleplex.com/5551020600983552"
     exit 1
   fi
-  export VSH_INDICATOR="1"
+  export VBASH_INDICATOR="1"
 
-  local -r INSTALL_DIR="${HOME}/.vsh"
+  local -r INSTALL_DIR="${HOME}/.vbash"
   if [[ ! -e "${INSTALL_DIR}" ]]; then
     mkdir -m 700 "${INSTALL_DIR}"
   fi
