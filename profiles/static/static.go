@@ -11,6 +11,7 @@ import (
 	"veyron.io/veyron/veyron2/ipc"
 	"veyron.io/veyron/veyron2/rt"
 
+	"veyron.io/veyron/veyron/lib/appcycle"
 	"veyron.io/veyron/veyron/lib/flags"
 	"veyron.io/veyron/veyron/lib/netstate"
 	"veyron.io/veyron/veyron/profiles"
@@ -34,6 +35,7 @@ func init() {
 
 type static struct {
 	gce string
+	ac  *appcycle.AppCycle
 }
 
 // New returns a new instance of a very static Profile. It can be used
@@ -55,7 +57,7 @@ func (*static) Platform() *veyron2.Platform {
 	return p
 }
 
-func (p *static) Init(rt veyron2.Runtime, _ *config.Publisher) error {
+func (p *static) Init(rt veyron2.Runtime, _ *config.Publisher) (veyron2.AppCycle, error) {
 	log := rt.Logger()
 
 	rt.ConfigureReservedName(debug.NewDispatcher(log.LogDir(), sflag.NewAuthorizerOrDie(), rt.VtraceStore()))
@@ -67,6 +69,8 @@ func (p *static) Init(rt veyron2.Runtime, _ *config.Publisher) error {
 		Proxy:    lf.ListenProxy,
 	}
 
+	p.ac = appcycle.New(rt)
+
 	// Our address is private, so we test for running on GCE and for its
 	// 1:1 NAT configuration. GCEPublicAddress returns a non-nil addr
 	// if we are indeed running on GCE.
@@ -76,11 +80,17 @@ func (p *static) Init(rt veyron2.Runtime, _ *config.Publisher) error {
 				return []ipc.Address{&netstate.AddrIfc{addr, "nat", nil}}, nil
 			}
 			p.gce = "+gce"
-			return nil
+			return p.ac, nil
 		}
 	}
 	ListenSpec.AddressChooser = internal.IPAddressChooser
-	return nil
+	return p.ac, nil
+}
+
+func (p *static) Cleanup() {
+	if p.ac != nil {
+		p.ac.Shutdown()
+	}
 }
 
 func (p *static) String() string {

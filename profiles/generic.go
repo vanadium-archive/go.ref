@@ -6,6 +6,7 @@ import (
 	"veyron.io/veyron/veyron2/ipc"
 	"veyron.io/veyron/veyron2/rt"
 
+	"veyron.io/veyron/veyron/lib/appcycle"
 	"veyron.io/veyron/veyron/profiles/internal"
 	_ "veyron.io/veyron/veyron/runtimes/google/rt"
 )
@@ -17,7 +18,7 @@ var LocalListenSpec = ipc.ListenSpec{
 	AddressChooser: internal.IPAddressChooser,
 }
 
-type generic struct{}
+type generic struct{ ac *appcycle.AppCycle }
 
 var _ veyron2.Profile = (*generic)(nil)
 
@@ -44,9 +45,14 @@ func (*generic) Platform() *veyron2.Platform {
 	return p
 }
 
-func (g *generic) Init(rt veyron2.Runtime, _ *config.Publisher) error {
+func (g *generic) Init(rt veyron2.Runtime, _ *config.Publisher) (veyron2.AppCycle, error) {
 	rt.Logger().VI(1).Infof("%s", g)
-	return nil
+	g.ac = appcycle.New(rt)
+	return g.ac, nil
+}
+
+func (g *generic) Cleanup() {
+	g.ac.Shutdown()
 }
 
 func (g *generic) String() string {

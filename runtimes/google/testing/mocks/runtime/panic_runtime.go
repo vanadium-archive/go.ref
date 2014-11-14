@@ -22,6 +22,7 @@ type PanicRuntime struct {
 const badRuntime = "The runtime implmentation should not call methods on runtime intances."
 
 func (*PanicRuntime) Profile() veyron2.Profile                               { panic(badRuntime) }
+func (*PanicRuntime) AppCycle() veyron2.AppCycle                             { panic(badRuntime) }
 func (*PanicRuntime) Publisher() *config.Publisher                           { panic(badRuntime) }
 func (*PanicRuntime) Principal() security.Principal                          { panic(badRuntime) }
 func (*PanicRuntime) NewClient(opts ...ipc.ClientOpt) (ipc.Client, error)    { panic(badRuntime) }
@@ -39,12 +40,6 @@ func (*PanicRuntime) Logger() vlog.Logger                            { panic(bad
 func (*PanicRuntime) NewLogger(name string, opts ...vlog.LoggingOpts) (vlog.Logger, error) {
 	panic(badRuntime)
 }
-func (*PanicRuntime) Stop()                         { panic(badRuntime) }
-func (*PanicRuntime) ForceStop()                    { panic(badRuntime) }
-func (*PanicRuntime) WaitForStop(chan<- string)     { panic(badRuntime) }
-func (*PanicRuntime) AdvanceGoal(delta int)         { panic(badRuntime) }
-func (*PanicRuntime) AdvanceProgress(delta int)     { panic(badRuntime) }
-func (*PanicRuntime) TrackTask(chan<- veyron2.Task) { panic(badRuntime) }
 func (*PanicRuntime) ConfigureReservedName(ipc.Dispatcher, ...ipc.ServerOpt) {
 	panic(badRuntime)
 }

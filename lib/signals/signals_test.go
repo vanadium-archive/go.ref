@@ -49,7 +49,7 @@ func stopLoop(stdin io.Reader, ch chan<- struct{}) {
 			close(ch)
 			return
 		case "stop":
-			rt.R().Stop()
+			rt.R().AppCycle().Stop()
 		}
 	}
 }

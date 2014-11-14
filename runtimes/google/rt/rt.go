@@ -30,8 +30,7 @@ import (
 var errCleaningUp = fmt.Errorf("operation rejected: runtime is being cleaned up")
 
 type vrt struct {
-	mu sync.Mutex
-
+	mu                 sync.Mutex
 	profile            veyron2.Profile
 	publisher          *config.Publisher
 	sm                 []stream.Manager // GUARDED_BY(mu)
@@ -39,7 +38,8 @@ type vrt struct {
 	signals            chan os.Signal
 	principal          security.Principal
 	client             ipc.Client
-	mgmt               *mgmtImpl
+	ac                 veyron2.AppCycle
+	acServer           ipc.Server
 	flags              flags.RuntimeFlags
 	preferredProtocols options.PreferredProtocols
 	reservedDisp       ipc.Dispatcher
@@ -69,7 +69,6 @@ func New(opts ...veyron2.ROpt) (veyron2.Runtime, error) {
 	})
 	flags := runtimeFlags.RuntimeFlags()
 	rt := &vrt{
-		mgmt:       new(mgmtImpl),
 		lang:       i18n.LangIDFromEnv(),
 		program:    filepath.Base(os.Args[0]),
 		flags:      flags,
@@ -136,14 +135,14 @@ func New(opts ...veyron2.ROpt) (veyron2.Runtime, error) {
 	}
 
 	rt.publisher = config.NewPublisher()
-	if err := rt.profile.Init(rt, rt.publisher); err != nil {
+	if rt.ac, err = rt.profile.Init(rt, rt.publisher); err != nil {
 		return nil, err
 	}
-
-	if err := rt.mgmt.initMgmt(rt, handle); err != nil {
+	server, err := rt.initMgmt(rt.ac, handle)
+	if err != nil {
 		return nil, err
 	}
-
+	rt.acServer = server
 	vlog.VI(2).Infof("rt.Init done")
 	return rt, nil
 }
@@ -154,6 +153,10 @@ func (rt *vrt) Publisher() *config.Publisher {
 
 func (rt *vrt) Profile() veyron2.Profile {
 	return rt.profile
+}
+
+func (rt *vrt) AppCycle() veyron2.AppCycle {
+	return rt.ac
 }
 
 func (rt *vrt) ConfigureReservedName(server ipc.Dispatcher, opts ...ipc.ServerOpt) {
@@ -188,7 +191,11 @@ func (rt *vrt) Cleanup() {
 	// TODO(caprita): Consider shutting down mgmt later in the runtime's
 	// shutdown sequence, to capture some of the runtime internal shutdown
 	// tasks in the task tracker.
-	rt.mgmt.shutdown()
+	rt.profile.Cleanup()
+	if rt.acServer != nil {
+		rt.acServer.Stop()
+	}
+
 	// It's ok to access rt.sm out of lock below, since a Mutex acts as a
 	// barrier in Go and hence we're guaranteed that cleaningUp is true at
 	// this point.  The only code that mutates rt.sm is NewStreamManager in

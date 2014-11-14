@@ -14,6 +14,7 @@ import (
 	"veyron.io/veyron/veyron2/ipc"
 	"veyron.io/veyron/veyron2/rt"
 
+	"veyron.io/veyron/veyron/lib/appcycle"
 	"veyron.io/veyron/veyron/lib/flags"
 	"veyron.io/veyron/veyron/lib/netstate"
 	"veyron.io/veyron/veyron/profiles"
@@ -35,7 +36,9 @@ func init() {
 	rt.RegisterProfile(&profile{})
 }
 
-type profile struct{}
+type profile struct {
+	ac *appcycle.AppCycle
+}
 
 func (p *profile) Name() string {
 	return "GCE"
@@ -54,17 +57,22 @@ func (p *profile) String() string {
 	return "net " + p.Platform().String()
 }
 
-func (p *profile) Init(rt veyron2.Runtime, publisher *config.Publisher) error {
+func (p *profile) Init(rt veyron2.Runtime, publisher *config.Publisher) (veyron2.AppCycle, error) {
 	if !gce.RunningOnGCE() {
-		return fmt.Errorf("GCE profile used on a non-GCE system")
+		return nil, fmt.Errorf("GCE profile used on a non-GCE system")
 	}
+	p.ac = appcycle.New(rt)
 	ListenSpec.Address = listenAddressFlag.String()
 	if ip, err := gce.ExternalIPAddress(); err != nil {
-		return err
+		return p.ac, err
 	} else {
 		ListenSpec.AddressChooser = func(network string, addrs []ipc.Address) ([]ipc.Address, error) {
 			return []ipc.Address{&netstate.AddrIfc{&net.IPAddr{IP: ip}, "gce-nat", nil}}, nil
 		}
 	}
-	return nil
+	return p.ac, nil
+}
+
+func (p *profile) Cleanup() {
+	p.ac.Shutdown()
 }

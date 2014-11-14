@@ -39,11 +39,13 @@ func (*chrome) Platform() *veyron2.Platform {
 	return p
 }
 
-func (g *chrome) Init(rt veyron2.Runtime, _ *config.Publisher) error {
-	rt.Logger().VI(1).Infof("%s", g)
-	return nil
+func (c *chrome) Init(rt veyron2.Runtime, _ *config.Publisher) (veyron2.AppCycle, error) {
+	rt.Logger().VI(1).Infof("%s", c)
+	return nil, nil
 }
 
-func (g *chrome) String() string {
-	return "chrome profile on " + g.Platform().String()
+func (*chrome) Cleanup() {}
+
+func (c *chrome) String() string {
+	return "chrome profile on " + c.Platform().String()
 }

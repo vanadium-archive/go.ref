@@ -18,6 +18,7 @@ import (
 	"veyron.io/veyron/veyron2/ipc"
 	"veyron.io/veyron/veyron2/rt"
 
+	"veyron.io/veyron/veyron/lib/appcycle"
 	"veyron.io/veyron/veyron/lib/flags"
 	"veyron.io/veyron/veyron/lib/netconfig"
 	"veyron.io/veyron/veyron/lib/netstate"
@@ -45,7 +46,9 @@ func init() {
 }
 
 type profile struct {
-	gce string
+	gce                  string
+	ac                   *appcycle.AppCycle
+	cleanupCh, watcherCh chan struct{}
 }
 
 func New() veyron2.Profile {
@@ -69,7 +72,7 @@ func (p *profile) String() string {
 	return p.Name() + " " + p.Platform().String()
 }
 
-func (p *profile) Init(rt veyron2.Runtime, publisher *config.Publisher) error {
+func (p *profile) Init(rt veyron2.Runtime, publisher *config.Publisher) (veyron2.AppCycle, error) {
 	log := rt.Logger()
 
 	rt.ConfigureReservedName(debug.NewDispatcher(log.LogDir(), sflag.NewAuthorizerOrDie(), rt.VtraceStore()))
@@ -81,6 +84,8 @@ func (p *profile) Init(rt veyron2.Runtime, publisher *config.Publisher) error {
 		Proxy:    lf.ListenProxy,
 	}
 
+	p.ac = appcycle.New(rt)
+
 	// Our address is private, so we test for running on GCE and for its
 	// 1:1 NAT configuration.
 	if !internal.HasPublicIP(log) {
@@ -89,7 +94,7 @@ func (p *profile) Init(rt veyron2.Runtime, publisher *config.Publisher) error {
 				return []ipc.Address{&netstate.AddrIfc{addr, "nat", nil}}, nil
 			}
 			p.gce = "+gce"
-			return nil
+			return p.ac, nil
 		}
 	}
 
@@ -99,40 +104,57 @@ func (p *profile) Init(rt veyron2.Runtime, publisher *config.Publisher) error {
 	stop, err := publisher.CreateStream(SettingsStreamName, SettingsStreamName, ch)
 	if err != nil {
 		log.Errorf("failed to create publisher: %s", err)
-		return err
+		p.ac.Shutdown()
+		return nil, err
 	}
 
-	ListenSpec.StreamPublisher = publisher
-	ListenSpec.StreamName = SettingsStreamName
-	ListenSpec.AddressChooser = internal.IPAddressChooser
-	go monitorNetworkSettings(rt, stop, ch, ListenSpec)
-	return nil
-}
-
-// monitorNetworkSettings will monitor network configuration changes and
-// publish subsequent Settings to reflect any changes detected.
-func monitorNetworkSettings(rt veyron2.Runtime, stop <-chan struct{},
-	ch chan<- config.Setting, listenSpec ipc.ListenSpec) {
-	defer close(ch)
-
-	log := rt.Logger()
 	prev, err := netstate.GetAccessibleIPs()
 	if err != nil {
-		// TODO(cnicolaou): add support for shutting down profiles
-		//<-stop
 		log.VI(2).Infof("failed to determine network state")
-		return
+		p.ac.Shutdown()
+		return nil, err
 	}
 
 	// Start the dhcp watcher.
 	watcher, err := netconfig.NewNetConfigWatcher()
 	if err != nil {
 		log.VI(2).Infof("Failed to get new config watcher: %s", err)
-		// TODO(cnicolaou): add support for shutting down profiles
-		//<-stop
-		return
+		p.ac.Shutdown()
+		return nil, err
 	}
 
+	p.cleanupCh = make(chan struct{})
+	p.watcherCh = make(chan struct{})
+
+	ListenSpec.StreamPublisher = publisher
+	ListenSpec.StreamName = SettingsStreamName
+	ListenSpec.AddressChooser = internal.IPAddressChooser
+
+	go monitorNetworkSettings(rt, watcher, prev, stop, p.cleanupCh, p.watcherCh, ch, ListenSpec)
+	return p.ac, nil
+}
+
+func (p *profile) Cleanup() {
+	if p.cleanupCh != nil {
+		close(p.cleanupCh)
+	}
+	if p.ac != nil {
+		p.ac.Shutdown()
+	}
+	if p.watcherCh != nil {
+		<-p.watcherCh
+	}
+}
+
+// monitorNetworkSettings will monitor network configuration changes and
+// publish subsequent Settings to reflect any changes detected.
+func monitorNetworkSettings(rt veyron2.Runtime, watcher netconfig.NetConfigWatcher, prev netstate.AddrList, pubStop, cleanup <-chan struct{},
+	watcherLoop chan<- struct{}, ch chan<- config.Setting, listenSpec ipc.ListenSpec) {
+	defer close(ch)
+
+	log := rt.Logger()
+
+done:
 	for {
 		select {
 		case <-watcher.Channel():
@@ -160,9 +182,12 @@ func monitorNetworkSettings(rt veyron2.Runtime, stop <-chan struct{},
 				ch <- ipc.NewAddAddrsSetting(chosen)
 			}
 			prev = cur
-			// TODO(cnicolaou): add support for shutting down profiles.
-			//case <-stop:
-			//	return
+		case <-cleanup:
+			break done
+		case <-pubStop:
+			goto done
 		}
 	}
+	watcher.Stop()
+	close(watcherLoop)
 }

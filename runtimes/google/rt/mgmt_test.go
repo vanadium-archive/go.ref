@@ -45,7 +45,8 @@ func init() {
 // TestBasic verifies that the basic plumbing works: LocalStop calls result in
 // stop messages being sent on the channel passed to WaitForStop.
 func TestBasic(t *testing.T) {
-	m, _ := rt.New(profileOpt)
+	r, _ := rt.New(profileOpt)
+	m := r.AppCycle()
 	ch := make(chan string, 1)
 	m.WaitForStop(ch)
 	for i := 0; i < 10; i++ {
@@ -64,7 +65,8 @@ func TestBasic(t *testing.T) {
 // TestMultipleWaiters verifies that the plumbing works with more than one
 // registered wait channel.
 func TestMultipleWaiters(t *testing.T) {
-	m, _ := rt.New(profileOpt)
+	r, _ := rt.New(profileOpt)
+	m := r.AppCycle()
 	ch1 := make(chan string, 1)
 	m.WaitForStop(ch1)
 	ch2 := make(chan string, 1)
@@ -84,7 +86,8 @@ func TestMultipleWaiters(t *testing.T) {
 // channel is not being drained: once the channel's buffer fills up, future
 // Stops become no-ops.
 func TestMultipleStops(t *testing.T) {
-	m, _ := rt.New(profileOpt)
+	r, _ := rt.New(profileOpt)
+	m := r.AppCycle()
 	ch := make(chan string, 1)
 	m.WaitForStop(ch)
 	for i := 0; i < 10; i++ {
@@ -101,7 +104,8 @@ func TestMultipleStops(t *testing.T) {
 }
 
 func noWaiters(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
-	m, _ := rt.New(profileOpt)
+	r, _ := rt.New(profileOpt)
+	m := r.AppCycle()
 	fmt.Fprintf(stdout, "ready\n")
 	modules.WaitForEOF(stdin)
 	m.Stop()
@@ -126,7 +130,8 @@ func TestNoWaiters(t *testing.T) {
 }
 
 func forceStop(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
-	m, _ := rt.New(profileOpt)
+	r, _ := rt.New(profileOpt)
+	m := r.AppCycle()
 	fmt.Fprintf(stdout, "ready\n")
 	modules.WaitForEOF(stdin)
 	m.WaitForStop(make(chan string, 1))
@@ -153,7 +158,7 @@ func TestForceStop(t *testing.T) {
 	}
 }
 
-func checkProgress(t *testing.T, ch <-chan veyron2.Task, progress, goal int) {
+func checkProgress(t *testing.T, ch <-chan veyron2.Task, progress, goal int32) {
 	if want, got := (veyron2.Task{progress, goal}), <-ch; !reflect.DeepEqual(want, got) {
 		t.Errorf("Unexpected progress: want %+v, got %+v", want, got)
 	}
@@ -170,7 +175,8 @@ func checkNoProgress(t *testing.T, ch <-chan veyron2.Task) {
 // TestProgress verifies that the ticker update/track logic works for a single
 // tracker.
 func TestProgress(t *testing.T) {
-	m, _ := rt.New(profileOpt)
+	r, _ := rt.New(profileOpt)
+	m := r.AppCycle()
 	m.AdvanceGoal(50)
 	ch := make(chan veyron2.Task, 1)
 	m.TrackTask(ch)
@@ -190,7 +196,7 @@ func TestProgress(t *testing.T) {
 	checkNoProgress(t, ch)
 	m.AdvanceGoal(0)
 	checkNoProgress(t, ch)
-	m.Cleanup()
+	r.Cleanup()
 	if _, ok := <-ch; ok {
 		t.Errorf("Expected channel to be closed")
 	}
@@ -200,7 +206,8 @@ func TestProgress(t *testing.T) {
 // works for more than one tracker.  It also ensures that the runtime doesn't
 // block when the tracker channels are full.
 func TestProgressMultipleTrackers(t *testing.T) {
-	m, _ := rt.New(profileOpt)
+	r, _ := rt.New(profileOpt)
+	m := r.AppCycle()
 	// ch1 is 1-buffered, ch2 is 2-buffered.
 	ch1, ch2 := make(chan veyron2.Task, 1), make(chan veyron2.Task, 2)
 	m.TrackTask(ch1)
@@ -223,7 +230,7 @@ func TestProgressMultipleTrackers(t *testing.T) {
 	m.AdvanceGoal(4)
 	checkProgress(t, ch1, 11, 4)
 	checkProgress(t, ch2, 11, 4)
-	m.Cleanup()
+	r.Cleanup()
 	if _, ok := <-ch1; ok {
 		t.Errorf("Expected channel to be closed")
 	}
@@ -237,15 +244,16 @@ func app(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args 
 	if err != nil {
 		return err
 	}
+	m := r.AppCycle()
 	defer r.Cleanup()
 	ch := make(chan string, 1)
-	r.WaitForStop(ch)
+	m.WaitForStop(ch)
 	fmt.Fprintf(stdout, "Got %s\n", <-ch)
-	r.AdvanceGoal(10)
+	m.AdvanceGoal(10)
 	fmt.Fprintf(stdout, "Doing some work\n")
-	r.AdvanceProgress(2)
+	m.AdvanceProgress(2)
 	fmt.Fprintf(stdout, "Doing some more work\n")
-	r.AdvanceProgress(5)
+	m.AdvanceProgress(5)
 	return nil
 }
 
@@ -268,7 +276,6 @@ func createConfigServer(t *testing.T, r veyron2.Runtime) (ipc.Server, string, <-
 		t.Fatalf("Got error: %v", err)
 	}
 	ch := make(chan string)
-
 	var ep naming.Endpoint
 	if ep, err = server.Listen(profiles.LocalListenSpec); err != nil {
 		t.Fatalf("Got error: %v", err)
@@ -277,7 +284,6 @@ func createConfigServer(t *testing.T, r veyron2.Runtime) (ipc.Server, string, <-
 		t.Fatalf("Got error: %v", err)
 	}
 	return server, naming.JoinAddressName(ep.String(), ""), ch
-
 }
 
 func setupRemoteAppCycleMgr(t *testing.T) (veyron2.Runtime, modules.Handle, appcycle.AppCycleClientMethods, func()) {
@@ -298,8 +304,12 @@ func setupRemoteAppCycleMgr(t *testing.T) (veyron2.Runtime, modules.Handle, appc
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
-
-	appCycleName := <-ch
+	appCycleName := ""
+	select {
+	case appCycleName = <-ch:
+	case <-time.After(time.Minute):
+		t.Errorf("timeout")
+	}
 	appCycle := appcycle.AppCycleClient(appCycleName)
 	return r, h, appCycle, func() {
 		configServer.Stop()
