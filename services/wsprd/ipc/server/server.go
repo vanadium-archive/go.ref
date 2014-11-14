@@ -3,6 +3,8 @@
 package server
 
 import (
+	"bytes"
+	"encoding/hex"
 	"encoding/json"
 	"sync"
 	"time"
@@ -16,6 +18,7 @@ import (
 	"veyron.io/veyron/veyron2/security"
 	"veyron.io/veyron/veyron2/verror2"
 	"veyron.io/veyron/veyron2/vlog"
+	"veyron.io/veyron/veyron2/vom2"
 )
 
 type Flow struct {
@@ -28,7 +31,7 @@ type serverRPCRequest struct {
 	ServerId uint64
 	Handle   int64
 	Method   string
-	Args     []interface{}
+	Args     string
 	Context  serverRPCRequestContext
 }
 
@@ -157,23 +160,36 @@ func (s *Server) createRemoteInvokerFunc(handle int64) remoteInvokeFunc {
 			RemoteBlessingStrings: call.RemoteBlessings().ForContext(call),
 		}
 
-		// Send a invocation request to JavaScript
-		message := serverRPCRequest{
-			ServerId: s.id,
-			Handle:   handle,
-			Method:   lib.LowercaseFirstCharacter(methodName),
-			Args:     args,
-			Context:  context,
-		}
-
-		if err := flow.Writer.Send(lib.ResponseServerRequest, message); err != nil {
-			// Error in marshaling, pass the error through the channel immediately
+		errHandler := func(err error) <-chan *serverRPCReply {
 			if ch := s.popServerRequest(flow.ID); ch != nil {
 				stdErr := verror2.Convert(verror2.Internal, call, err).(verror2.Standard)
 				ch <- &serverRPCReply{nil, &stdErr}
 				s.helper.CleanupFlow(flow.ID)
 			}
 			return replyChan
+
+		}
+		var buf bytes.Buffer
+		encoder, err := vom2.NewBinaryEncoder(&buf)
+		if err != nil {
+			return errHandler(err)
+		}
+
+		if err := encoder.Encode(args); err != nil {
+			return errHandler(err)
+		}
+
+		// Send a invocation request to JavaScript
+		message := serverRPCRequest{
+			ServerId: s.id,
+			Handle:   handle,
+			Method:   lib.LowercaseFirstCharacter(methodName),
+			Args:     hex.EncodeToString(buf.Bytes()),
+			Context:  context,
+		}
+
+		if err := flow.Writer.Send(lib.ResponseServerRequest, message); err != nil {
+			return errHandler(err)
 		}
 
 		s.helper.GetLogger().VI(3).Infof("request received to call method %q on "+
@@ -205,7 +221,19 @@ func (s *Server) createRemoteInvokerFunc(handle int64) remoteInvokeFunc {
 func proxyStream(stream ipc.Stream, w lib.ClientWriter, logger vlog.Logger) {
 	var item interface{}
 	for err := stream.Recv(&item); err == nil; err = stream.Recv(&item) {
-		if err := w.Send(lib.ResponseStream, item); err != nil {
+		var buf bytes.Buffer
+		encoder, err := vom2.NewBinaryEncoder(&buf)
+		if err != nil {
+			w.Error(verror2.Convert(verror2.Internal, nil, err))
+			return
+		}
+
+		if err := encoder.Encode(item); err != nil {
+			w.Error(verror2.Convert(verror2.Internal, nil, err))
+			return
+		}
+
+		if err := w.Send(lib.ResponseStream, hex.EncodeToString(buf.Bytes())); err != nil {
 			w.Error(verror2.Convert(verror2.Internal, nil, err))
 			return
 		}
