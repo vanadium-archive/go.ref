@@ -15,24 +15,48 @@ import (
 
 var errStoreAddMismatch = errors.New("blessing's public key does not match store's public key")
 
-type persistentState struct {
+type blessings struct {
+	Value       security.WireBlessings
+	unmarshaled security.Blessings
+}
+
+func (w *blessings) Blessings() security.Blessings {
+	if w == nil {
+		return nil
+	}
+	return w.unmarshaled
+}
+
+func (w *blessings) Verify() error {
+	var err error
+	if w.unmarshaled == nil {
+		w.unmarshaled, err = security.NewBlessings(w.Value)
+	}
+	return err
+}
+
+func newWireBlessings(b security.Blessings) *blessings {
+	return &blessings{Value: security.MarshalBlessings(b), unmarshaled: b}
+}
+
+type state struct {
 	// Store maps BlessingPatterns to the Blessings object that is to be shared
 	// with peers which present blessings of their own that match the pattern.
 	//
 	// All blessings bind to the same public key.
-	Store map[security.BlessingPattern]security.Blessings
+	Store map[security.BlessingPattern]*blessings
 	// Default is the default Blessings to be shared with peers for which
 	// no other information is available to select blessings.
-	Default security.Blessings
+	Default *blessings
 }
 
 // blessingStore implements security.BlessingStore.
 type blessingStore struct {
-	publicKey     security.PublicKey
-	persistedData SerializerReaderWriter
-	signer        serialization.Signer
-	mu            sync.RWMutex
-	state         persistentState // GUARDED_BY(mu)
+	publicKey  security.PublicKey
+	serializer SerializerReaderWriter
+	signer     serialization.Signer
+	mu         sync.RWMutex
+	state      state // GUARDED_BY(mu)
 }
 
 func (bs *blessingStore) Set(blessings security.Blessings, forPeers security.BlessingPattern) (security.Blessings, error) {
@@ -46,7 +70,7 @@ func (bs *blessingStore) Set(blessings security.Blessings, forPeers security.Ble
 	defer bs.mu.Unlock()
 	old, hadold := bs.state.Store[forPeers]
 	if blessings != nil {
-		bs.state.Store[forPeers] = blessings
+		bs.state.Store[forPeers] = newWireBlessings(blessings)
 	} else {
 		delete(bs.state.Store, forPeers)
 	}
@@ -58,7 +82,7 @@ func (bs *blessingStore) Set(blessings security.Blessings, forPeers security.Ble
 		}
 		return nil, err
 	}
-	return old, nil
+	return old.Blessings(), nil
 }
 
 func (bs *blessingStore) ForPeer(peerBlessings ...string) security.Blessings {
@@ -66,10 +90,11 @@ func (bs *blessingStore) ForPeer(peerBlessings ...string) security.Blessings {
 	defer bs.mu.RUnlock()
 
 	var ret security.Blessings
-	for pattern, blessings := range bs.state.Store {
+	for pattern, wb := range bs.state.Store {
 		if pattern.MatchedBy(peerBlessings...) {
-			if union, err := security.UnionOfBlessings(ret, blessings); err != nil {
-				vlog.Errorf("UnionOfBlessings(%v, %v) failed: %v, dropping the latter from BlessingStore.ForPeers(%v)", ret, blessings, err, peerBlessings)
+			b := wb.Blessings()
+			if union, err := security.UnionOfBlessings(ret, b); err != nil {
+				vlog.Errorf("UnionOfBlessings(%v, %v) failed: %v, dropping the latter from BlessingStore.ForPeers(%v)", ret, b, err, peerBlessings)
 			} else {
 				ret = union
 			}
@@ -82,7 +107,7 @@ func (bs *blessingStore) Default() security.Blessings {
 	bs.mu.RLock()
 	defer bs.mu.RUnlock()
 	if bs.state.Default != nil {
-		return bs.state.Default
+		return bs.state.Default.Blessings()
 	}
 	return bs.ForPeer()
 }
@@ -94,7 +119,7 @@ func (bs *blessingStore) SetDefault(blessings security.Blessings) error {
 		return errStoreAddMismatch
 	}
 	oldDefault := bs.state.Default
-	bs.state.Default = blessings
+	bs.state.Default = newWireBlessings(blessings)
 	if err := bs.save(); err != nil {
 		bs.state.Default = oldDefault
 	}
@@ -119,20 +144,20 @@ func (bs *blessingStore) String() string {
 // <pattern>    : <blessings>
 func (bs *blessingStore) DebugString() string {
 	const format = "%-30s : %s\n"
-	b := bytes.NewBufferString(fmt.Sprintf("Default blessings: %v\n", bs.state.Default))
+	b := bytes.NewBufferString(fmt.Sprintf("Default blessings: %v\n", bs.state.Default.Blessings()))
 
 	b.WriteString(fmt.Sprintf(format, "Peer pattern", "Blessings"))
-	for pattern, blessings := range bs.state.Store {
-		b.WriteString(fmt.Sprintf(format, pattern, blessings))
+	for pattern, wb := range bs.state.Store {
+		b.WriteString(fmt.Sprintf(format, pattern, wb.Blessings()))
 	}
 	return b.String()
 }
 
 func (bs *blessingStore) save() error {
-	if (bs.signer == nil) && (bs.persistedData == nil) {
+	if (bs.signer == nil) && (bs.serializer == nil) {
 		return nil
 	}
-	data, signature, err := bs.persistedData.Writers()
+	data, signature, err := bs.serializer.Writers()
 	if err != nil {
 		return err
 	}
@@ -146,24 +171,36 @@ func (bs *blessingStore) save() error {
 func newInMemoryBlessingStore(publicKey security.PublicKey) security.BlessingStore {
 	return &blessingStore{
 		publicKey: publicKey,
-		state:     persistentState{Store: make(map[security.BlessingPattern]security.Blessings)},
+		state:     state{Store: make(map[security.BlessingPattern]*blessings)},
 	}
 }
 
 // newPersistingBlessingStore returns a security.BlessingStore for a principal
 // that is initialized with the persisted data. The returned security.BlessingStore
 // also persists any updates to its state.
-func newPersistingBlessingStore(persistedData SerializerReaderWriter, signer serialization.Signer) (security.BlessingStore, error) {
-	if persistedData == nil || signer == nil {
+func newPersistingBlessingStore(serializer SerializerReaderWriter, signer serialization.Signer) (security.BlessingStore, error) {
+	verifyBlessings := func(wb *blessings, key security.PublicKey) error {
+		if wb == nil {
+			return nil
+		}
+		if err := wb.Verify(); err != nil {
+			return err
+		}
+		if b := wb.Blessings(); !reflect.DeepEqual(b.PublicKey(), key) {
+			return fmt.Errorf("read Blessings: %v that are not for provided PublicKey: %v", b, key)
+		}
+		return nil
+	}
+	if serializer == nil || signer == nil {
 		return nil, errors.New("persisted data or signer is not specified")
 	}
 	bs := &blessingStore{
-		publicKey:     signer.PublicKey(),
-		state:         persistentState{Store: make(map[security.BlessingPattern]security.Blessings)},
-		persistedData: persistedData,
-		signer:        signer,
+		publicKey:  signer.PublicKey(),
+		state:      state{Store: make(map[security.BlessingPattern]*blessings)},
+		serializer: serializer,
+		signer:     signer,
 	}
-	data, signature, err := bs.persistedData.Readers()
+	data, signature, err := bs.serializer.Readers()
 	if err != nil {
 		return nil, err
 	}
@@ -172,10 +209,13 @@ func newPersistingBlessingStore(persistedData SerializerReaderWriter, signer ser
 			return nil, err
 		}
 	}
-	for _, b := range bs.state.Store {
-		if !reflect.DeepEqual(b.PublicKey(), bs.publicKey) {
-			return nil, fmt.Errorf("directory contains Blessings: %v that are not for the provided PublicKey: %v", b, bs.publicKey)
+	for _, wb := range bs.state.Store {
+		if err := verifyBlessings(wb, bs.publicKey); err != nil {
+			return nil, err
 		}
+	}
+	if err := verifyBlessings(bs.state.Default, bs.publicKey); err != nil {
+		return nil, err
 	}
 	return bs, nil
 }

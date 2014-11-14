@@ -606,7 +606,7 @@ func dumpBlessings(blessings security.Blessings) error {
 	if blessings == nil {
 		return errors.New("no blessings found")
 	}
-	str, err := base64VomEncode(blessings)
+	str, err := base64VomEncode(security.MarshalBlessings(blessings))
 	if err != nil {
 		return fmt.Errorf("base64-VOM encoding failed: %v", err)
 	}

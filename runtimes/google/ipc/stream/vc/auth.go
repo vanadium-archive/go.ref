@@ -97,7 +97,7 @@ func writeBlessings(w io.Writer, tag []byte, crypter crypto.Crypter, p security.
 	if err := enc.Encode(signature); err != nil {
 		return err
 	}
-	if err := enc.Encode(b); err != nil {
+	if err := enc.Encode(security.MarshalBlessings(b)); err != nil {
 		return err
 	}
 	if v >= version.IPCVersion5 {
