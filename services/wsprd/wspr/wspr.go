@@ -254,8 +254,9 @@ func (ctx *WSPR) handleCreateAccount(w http.ResponseWriter, r *http.Request) {
 
 // Struct for marshalling input to assoc-account route.
 type assocAccountInput struct {
-	Account string `json:"account"`
-	Origin  string `json:"origin"`
+	Account string           `json:"account"`
+	Origin  string           `json:"origin"`
+	Caveats []account.Caveat `json:"caveats"`
 }
 
 // Handler for associating an existing principal with an origin.
@@ -271,7 +272,7 @@ func (ctx *WSPR) handleAssocAccount(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, fmt.Sprintf("Error parsing body: %v", err), http.StatusBadRequest)
 	}
 
-	if err := ctx.accountManager.AssociateAccount(data.Origin, data.Account); err != nil {
+	if err := ctx.accountManager.AssociateAccount(data.Origin, data.Account, data.Caveats); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}

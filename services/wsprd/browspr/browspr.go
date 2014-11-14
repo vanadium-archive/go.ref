@@ -118,8 +118,8 @@ func (b *Browspr) HandleCreateAccountMessage(instanceId int32, accessToken strin
 }
 
 // HandleAssociateAccountMessage associates an account with the specified origin.
-func (b *Browspr) HandleAssociateAccountMessage(origin, account string) error {
-	if err := b.accountManager.AssociateAccount(origin, account); err != nil {
+func (b *Browspr) HandleAssociateAccountMessage(origin, account string, cavs []account.Caveat) error {
+	if err := b.accountManager.AssociateAccount(origin, account, cavs); err != nil {
 		return err
 	}
 	return nil

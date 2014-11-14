@@ -76,11 +76,14 @@ func (am *AccountManager) CreateAccount(accessToken string) (string, error) {
 	return account, nil
 }
 
-func (am *AccountManager) AssociateAccount(origin, account string) error {
+func (am *AccountManager) AssociateAccount(origin, account string, cavs []Caveat) error {
+	caveats, err := constructCaveats(cavs)
+	if err != nil {
+		return fmt.Errorf("failed to construct caveats: %v", err)
+	}
 	// Store the origin.
-	// TODO(nlacasse, bjornick): determine what the caveats should be.
-	if err := am.principalManager.AddOrigin(origin, account, nil); err != nil {
-		return fmt.Errorf("Error associating account: %v", err)
+	if err := am.principalManager.AddOrigin(origin, account, caveats); err != nil {
+		return fmt.Errorf("failed to associate account: %v", err)
 	}
 	return nil
 }
@@ -96,4 +99,49 @@ func (am *AccountManager) PrincipalManager() *principal.PrincipalManager {
 // TODO(bprosnitz) Refactor WSPR to remove this.
 func (am *AccountManager) SetMockBlesser(blesser BlesserService) {
 	am.blesser = blesser
+}
+
+// Caveat describes a restriction on the validity of a blessing/discharge.
+type Caveat struct {
+	Type string `json:"type"`
+	Args string `json:"args"`
+}
+
+func constructCaveats(cavs []Caveat) ([]security.Caveat, error) {
+	var caveats []security.Caveat
+	for _, cav := range cavs {
+		var (
+			caveat security.Caveat
+			err    error
+		)
+		switch cav.Type {
+		case "ExpiryCaveat":
+			caveat, err = createExpiryCaveat(cav.Args)
+		case "MethodCaveat":
+			caveat, err = createMethodCaveat(cav.Args)
+		default:
+			return nil, fmt.Errorf("caveat %v does not exist", cav.Type)
+		}
+		if err != nil {
+			return nil, err
+		}
+		caveats = append(caveats, caveat)
+	}
+	return caveats, nil
+}
+
+func createExpiryCaveat(arg string) (security.Caveat, error) {
+	dur, err := time.ParseDuration(arg)
+	if err != nil {
+		return security.Caveat{}, fmt.Errorf("time.parseDuration(%v) failed: %v", arg, err)
+	}
+	return security.ExpiryCaveat(time.Now().Add(dur))
+}
+
+func createMethodCaveat(a string) (security.Caveat, error) {
+	args := strings.Split(a, ",")
+	if len(args) == 0 {
+		return security.Caveat{}, fmt.Errorf("must pass at least one method")
+	}
+	return security.MethodCaveat(args[0], args[1:]...)
 }

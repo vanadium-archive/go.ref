@@ -123,7 +123,8 @@ func TestHandleAssocAccount(t *testing.T) {
 
 	origin := "https://my.webapp.com:443"
 
-	if err := browspr.HandleAssociateAccountMessage(origin, account); err != nil {
+	// TODO(suharshs,nlacasse,bprosnitz): Get caveats here like wspr is doing. See account.go AssociateAccount.
+	if err := browspr.HandleAssociateAccountMessage(origin, account, nil); err != nil {
 		t.Fatalf("Failed to associate account: %v", err)
 	}
 
@@ -145,7 +146,8 @@ func TestHandleAssocAccountWithMissingAccount(t *testing.T) {
 	account := "mock-account"
 	origin := "https://my.webapp.com:443"
 
-	if err := browspr.HandleAssociateAccountMessage(origin, account); err == nil {
+	// TODO(suharshs,nlacasse,bprosnitz): Get caveats here like wspr is doing. See account.go AssociateAccount.
+	if err := browspr.HandleAssociateAccountMessage(origin, account, nil); err == nil {
 		t.Fatalf("Expected to receive error associating non-existant account.")
 	}
 

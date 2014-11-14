@@ -299,7 +299,8 @@ func (inst *browsprInstance) HandleBrowsprAssociateAccount(message ppapi.Var) er
 		return err
 	}
 
-	err = inst.browspr.HandleAssociateAccountMessage(origin, account)
+	// TODO(suharshs,nlacasse,bprosnitz): Get caveats here like wspr is doing. See account.go AssociateAccount.
+	err = inst.browspr.HandleAssociateAccountMessage(origin, account, nil)
 	if err != nil {
 		// TODO(bprosnitz) Remove. We shouldn't panic on user input.
 		return fmt.Errorf("Error associating account: %v", err)
