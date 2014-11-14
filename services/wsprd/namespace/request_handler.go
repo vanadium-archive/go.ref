@@ -1,6 +1,8 @@
 package namespace
 
 import (
+	"bytes"
+	"encoding/hex"
 	"encoding/json"
 	"time"
 
@@ -8,6 +10,7 @@ import (
 	"veyron.io/veyron/veyron2/context"
 	"veyron.io/veyron/veyron2/naming"
 	"veyron.io/veyron/veyron2/verror2"
+	"veyron.io/veyron/veyron2/vom2"
 
 	"veyron.io/wspr/veyron/services/wsprd/lib"
 )
@@ -109,6 +112,35 @@ func HandleRequest(ctx context.T, rt veyron2.Runtime, data string, w lib.ClientW
 	}
 }
 
+func encodeVom2(value interface{}) (string, error) {
+	var buf bytes.Buffer
+	encoder, err := vom2.NewBinaryEncoder(&buf)
+	if err != nil {
+		return "", err
+	}
+
+	if err := encoder.Encode(value); err != nil {
+		return "", err
+	}
+	return hex.EncodeToString(buf.Bytes()), nil
+
+}
+
+func convertToVDLEntry(value naming.MountEntry) naming.VDLMountEntry {
+	result := naming.VDLMountEntry{
+		Name: value.Name,
+		MT:   false,
+	}
+	for _, s := range value.Servers {
+		result.Servers = append(result.Servers,
+			naming.VDLMountedServer{
+				Server: s.Server,
+				TTL:    uint32(s.Expires.Sub(time.Now())),
+			})
+	}
+	return result
+}
+
 func glob(ctx context.T, ns naming.Namespace, w lib.ClientWriter, rawArgs json.RawMessage) {
 	var args globArgs
 	if err := json.Unmarshal([]byte(rawArgs), &args); err != nil {
@@ -125,7 +157,12 @@ func glob(ctx context.T, ns naming.Namespace, w lib.ClientWriter, rawArgs json.R
 	}
 
 	for name := range ch {
-		if err := w.Send(lib.ResponseStream, name); err != nil {
+		val, err := encodeVom2(convertToVDLEntry(name))
+		if err != nil {
+			w.Error(verror2.Make(verror2.Internal, ctx, err))
+			return
+		}
+		if err := w.Send(lib.ResponseStream, val); err != nil {
 			w.Error(verror2.Make(verror2.Internal, ctx, name))
 			return
 		}
