@@ -45,7 +45,7 @@ func startServer(t *testing.T) (string, func()) {
 	return endpoint.String(), func() { server.Stop() }
 }
 
-func TestStatsInvoker(t *testing.T) {
+func TestStatsImpl(t *testing.T) {
 	rt.Init()
 
 	endpoint, stop := startServer(t)
