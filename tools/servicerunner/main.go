@@ -57,25 +57,30 @@ func updateVars(h modules.Handle, vars map[string]string, varNames ...string) er
 func main() {
 	rt.Init()
 
-	// TODO(sadovsky): It would be better if Dispatch() itself performed the env
+	// NOTE(sadovsky): It would be better if Dispatch() itself performed the env
 	// check.
 	if os.Getenv(modules.ShellEntryPoint) != "" {
 		panicOnError(modules.Dispatch())
 		return
 	}
 
+	vars := map[string]string{}
+
 	sh := modules.NewShell()
 	defer sh.Cleanup(os.Stderr, os.Stderr)
-	// TODO(sadovsky): Shell only does this for tests. It would be better if it
+	// NOTE(sadovsky): Shell only does this for tests. It would be better if it
 	// either always did it or never did it.
 	if os.Getenv(consts.VeyronCredentials) == "" {
 		panicOnError(sh.CreateAndUseNewCredentials())
+		v, ok := sh.GetVar(consts.VeyronCredentials)
+		if !ok {
+			panic("Missing " + consts.VeyronCredentials)
+		}
+		vars[consts.VeyronCredentials] = v
 	}
-	// TODO(sadovsky): The following line will not be needed if the modules
+	// NOTE(sadovsky): The following line will not be needed if the modules
 	// library is restructured per my proposal.
 	core.Install(sh)
-
-	vars := map[string]string{}
 
 	h, err := sh.Start("root", nil, "--", "--veyron.tcp.address=127.0.0.1:0")
 	panicOnError(err)
@@ -83,18 +88,17 @@ func main() {
 
 	// Set consts.NamespaceRootPrefix env var, consumed downstream by proxyd
 	// among others.
-	// NOTE(sadovsky): If this is not set, proxyd takes several seconds to
-	// start; if it is set, proxyd starts instantly. Fun!
+	// NOTE(sadovsky): If this var is not set, proxyd takes several seconds to
+	// start; if it is set, proxyd starts instantly. Confusing.
 	sh.SetVar(consts.NamespaceRootPrefix, vars["MT_NAME"])
 
 	// NOTE(sadovsky): The proxyd binary requires --protocol and --address flags
 	// while the proxyd command instead uses ListenSpec flags.
-	h, err = sh.Start("proxyd", nil, "--", "--veyron.tcp.address=127.0.0.1:0", "p")
+	h, err = sh.Start("proxyd", nil, "--", "--veyron.tcp.address=127.0.0.1:0", "test/proxy")
 	panicOnError(err)
 	updateVars(h, vars, "PROXY_ADDR")
 
-	// TODO(sadovsky): Which identd should we be using?
-	h, err = sh.Start("wsprd", nil, "--", "--veyron.proxy="+vars["PROXY_ADDR"], "--identd=/proxy.envyor.com:8101/identity/veyron-test/google")
+	h, err = sh.Start("wsprd", nil, "--", "--veyron.tcp.address=127.0.0.1:0", "--veyron.proxy=test/proxy", "--identd=test/identd")
 	panicOnError(err)
 	updateVars(h, vars, "WSPR_ADDR")
 
