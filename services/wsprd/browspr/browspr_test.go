@@ -1,6 +1,8 @@
 package browspr
 
 import (
+	"bytes"
+	"encoding/hex"
 	"encoding/json"
 	"testing"
 
@@ -12,6 +14,7 @@ import (
 	"veyron.io/veyron/veyron2/options"
 	"veyron.io/veyron/veyron2/rt"
 	"veyron.io/veyron/veyron2/vdl/vdlutil"
+	"veyron.io/veyron/veyron2/vom2"
 	"veyron.io/veyron/veyron2/wiretype"
 	"veyron.io/wspr/veyron/services/wsprd/app"
 	"veyron.io/wspr/veyron/services/wsprd/lib"
@@ -220,8 +223,21 @@ func TestBrowspr(t *testing.T) {
 	if responseMsg.Type != lib.ResponseFinal {
 		t.Errorf("Data was %q, expected %q", outMsg.Data, `["[InputValue]"]`)
 	}
-	outArgs := responseMsg.Message.([]interface{})
-	if len(outArgs) != 1 || outArgs[0].(string) != "[InputValue]" {
-		t.Errorf("Got unexpected response message body: %v", responseMsg.Message)
+	var outArg string
+	var ok bool
+	if outArg, ok = responseMsg.Message.(string); !ok {
+		t.Errorf("Got unexpected response message body of type %T, expected type string", responseMsg.Message)
+	}
+	var result []string
+	arg, err := hex.DecodeString(outArg)
+	if err != nil {
+		t.Errorf("failed to hex decode string: %v", err)
+	}
+	decoder, err := vom2.NewDecoder(bytes.NewBuffer(arg))
+	if err != nil {
+		t.Fatalf("failed to construct new decoder: %v", err)
+	}
+	if err := decoder.Decode(&result); err != nil || result[0] != "[InputValue]" {
+		t.Errorf("got %s with err: %v, expected %s", result[0], err, "[InputValue]")
 	}
 }
