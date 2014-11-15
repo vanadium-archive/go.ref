@@ -272,32 +272,19 @@ type serverStatus struct {
 	index     int
 	suffix    string
 	flow      stream.Flow
-	processed bool
-	err       verror.E
+	errConn   verror.E
+	errAccess verror.E
 }
 
-func (c *client) tryServer(index int, server string, ch chan<- *serverStatus, done <-chan struct{}) {
-	select {
-	case <-done:
-		return
-	default:
-	}
+func (c *client) tryServer(index int, server string, ch chan<- *serverStatus) {
 	status := &serverStatus{index: index}
-	flow, suffix, err := c.connectFlow(server)
-	if err != nil {
+	var err error
+	if status.flow, status.suffix, err = c.connectFlow(server); err != nil {
 		vlog.VI(2).Infof("ipc: couldn't connect to server %v: %v", server, err)
-		status.err = verror.NoExistf("ipc: %q: %s", server, err)
-		ch <- status
-		return
+		status.errConn = verror.NoExistf("ipc: %q: %s", server, err)
+		status.flow = nil
 	}
-	status.suffix = suffix
-	status.flow = flow
-	select {
-	case <-done:
-		flow.Close()
-	default:
-		ch <- status
-	}
+	ch <- status
 }
 
 // tryCall makes a single attempt at a call, against possibly multiple servers.
@@ -327,69 +314,53 @@ func (c *client) tryCall(ctx context.T, name, method string, args []interface{},
 		return nil, errNoServers
 	}
 
-	// Try to connect to all servers in parallel.
+	// Try to connect to all servers in parallel.  Provide sufficient buffering
+	// for all of the connections to finish instantaneously. This is important
+	// because we want to process the responses in priority order; that order is
+	// indicated by the order of entries in servers. So, if two respones come in
+	// at the same 'instant', we prefer the first in the slice.
 	responses := make([]*serverStatus, attempts)
-
-	// Provide sufficient buffering for all of the connections to finish
-	// instantaneously. This is important because we want to process
-	// the responses in priority order; that order is indicated by the
-	// order of entries in servers. So, if two respones come in at the
-	// same 'instant', we prefer the first in the slice.
 	ch := make(chan *serverStatus, attempts)
-
-	// Read as many responses as we can before we would block.
-	gatherResponses := func() {
-		for {
-			select {
-			default:
-				return
-			case s := <-ch:
-				responses[s.index] = s
-			}
-		}
+	for i, server := range servers {
+		go c.tryServer(i, server, ch)
 	}
 
 	delay := time.Duration(ipc.NoTimeout)
-	if dl, set := ctx.Deadline(); set {
+	if dl, ok := ctx.Deadline(); ok {
 		delay = dl.Sub(time.Now())
 	}
 	timeoutChan := time.After(delay)
 
-	// We'll close this channel when an RPC has been started and we've
-	// irrevocably selected a server.
-	done := make(chan struct{})
-	// Try all of the servers in parallel.
-	for i, server := range servers {
-		go c.tryServer(i, server, ch, done)
-	}
-
-	select {
-	case <-timeoutChan:
-		// All calls failed if we get here.
-		close(done)
-		c.ns.FlushCacheEntry(name)
-		return nil, verror.NoExistf("ipc: couldn't connect to server %v", name)
-	case s := <-ch:
-		responses[s.index] = s
-		gatherResponses()
-	}
-
-	accessErrs := []error{}
-	connErrs := []error{}
 	for {
-
-		for _, r := range responses {
-			if r == nil || r.err != nil {
-				if r != nil && r.err != nil && !r.processed {
-					connErrs = append(connErrs, r.err)
-					r.processed = true
+		// Block for at least one new response from the server, or the timeout.
+		select {
+		case r := <-ch:
+			responses[r.index] = r
+			// Read as many more responses as we can without blocking.
+		LoopNonBlocking:
+			for {
+				select {
+				default:
+					break LoopNonBlocking
+				case r := <-ch:
+					responses[r.index] = r
 				}
+			}
+		case <-timeoutChan:
+			vlog.VI(2).Infof("ipc: timeout on connection to server %v ", name)
+			return c.failedTryCall(name, method, servers, responses, ch)
+		}
+
+		// Process new responses, in priority order.
+		numResponses := 0
+		for _, r := range responses {
+			if r != nil {
+				numResponses++
+			}
+			if r == nil || r.flow == nil {
 				continue
 			}
-
-			flow := r.flow
-			suffix := r.suffix
-			flow.SetDeadline(ctx.Done())
+			r.flow.SetDeadline(ctx.Done())
 
 			var (
 				serverB  []string
@@ -398,33 +369,28 @@ func (c *client) tryCall(ctx context.T, name, method string, args []interface{},
 
 			// LocalPrincipal is nil means that the client wanted to avoid
 			// authentication, and thus wanted to skip authorization as well.
-			if flow.LocalPrincipal() != nil {
+			if r.flow.LocalPrincipal() != nil {
 				// Validate caveats on the server's identity for the context associated with this call.
 				var err error
-				if serverB, grantedB, err = c.authorizeServer(flow, name, method, serverPattern, opts); err != nil {
-					vlog.VI(2).Infof("ipc: client unwilling to invoke %q.%q on server %v: %v", name, method, flow.RemoteBlessings(), err)
-					if !r.processed {
-						accessErrs = append(accessErrs, err)
-						r.err = verror.NoAccessf("ipc: unwilling to invoke %q.%q on server %v: %v", name, method, flow.RemoteBlessings(), err)
-						r.processed = true
-					}
-					flow.Close()
+				if serverB, grantedB, err = c.authorizeServer(r.flow, name, method, serverPattern, opts); err != nil {
+					vlog.VI(2).Infof("ipc: client unwilling to invoke %q.%q on server %v: %v", name, method, r.flow.RemoteBlessings(), err)
+					r.errAccess = verror.NoAccessf("ipc: unwilling to invoke %q.%q on server %v: %v", name, method, r.flow.RemoteBlessings(), err)
+					r.flow.Close()
+					r.flow = nil
 					continue
 				}
 			}
 
-			// This is the 'point of no return', so we tell the tryServer
-			// goroutines to not bother sending us any more flows.
-			// Once the RPC is started (fc.start below) we can't be sure
-			// if it makes it to the server or not so, this code will
-			// never call fc.start more than once to ensure that we
-			// provide 'at-most-once' rpc semantics at this level. Retrying
-			// the network connections (i.e. creating flows) is fine since
-			// we can cleanup that state if we abort a call (i.e. close the
-			// flow).
-			close(done)
-
-			fc := newFlowClient(ctx, serverB, flow, c.dc)
+			// This is the 'point of no return'; once the RPC is started (fc.start
+			// below) we can't be sure if it makes it to the server or not so, this
+			// code will never call fc.start more than once to ensure that we provide
+			// 'at-most-once' rpc semantics at this level. Retrying the network
+			// connections (i.e. creating flows) is fine since we can cleanup that
+			// state if we abort a call (i.e. close the flow).
+			//
+			// We must ensure that all flows other than r.flow are closed.
+			go cleanupTryCall(r, responses, ch)
+			fc := newFlowClient(ctx, serverB, r.flow, c.dc)
 
 			if doneChan := ctx.Done(); doneChan != nil {
 				go func() {
@@ -440,39 +406,61 @@ func (c *client) tryCall(ctx context.T, name, method string, args []interface{},
 			if deadline, hasDeadline := ctx.Deadline(); hasDeadline {
 				timeout = deadline.Sub(time.Now())
 			}
-			if verr := fc.start(suffix, method, args, timeout, grantedB); verr != nil {
+			if verr := fc.start(r.suffix, method, args, timeout, grantedB); verr != nil {
 				return nil, verr
 			}
 			return fc, nil
 		}
-
-		// Quit if we've seen an error from all parallel connection attempts
-		handled := 0
-		for _, r := range responses {
-			if r != nil && r.err != nil {
-				handled++
-			}
-		}
-		if handled == len(responses) {
-			break
-		}
-
-		select {
-		case <-timeoutChan:
-			// All remaining calls failed if we get here.
-			vlog.VI(2).Infof("ipc: couldn't connect to server %v", name)
-			goto quit
-		case s := <-ch:
-			responses[s.index] = s
-			gatherResponses()
+		if numResponses == len(responses) {
+			return c.failedTryCall(name, method, servers, responses, ch)
 		}
 	}
-quit:
-	close(done)
+}
+
+// cleanupTryCall ensures we've waited for every response from the tryServer
+// goroutines, and have closed the flow from each one except skip.  This is a
+// blocking function; it should be called in its own goroutine.
+func cleanupTryCall(skip *serverStatus, responses []*serverStatus, ch chan *serverStatus) {
+	numPending := 0
+	for _, r := range responses {
+		switch {
+		case r == nil:
+			// The response hasn't arrived yet.
+			numPending++
+		case r == skip || r.flow == nil:
+			// Either we should skip this flow, or we've closed the flow for this
+			// response already; nothing more to do.
+		default:
+			// We received the response, but haven't closed the flow yet.
+			r.flow.Close()
+		}
+	}
+	// Now we just need to wait for the pending responses and close their flows.
+	for i := 0; i < numPending; i++ {
+		if r := <-ch; r.flow != nil {
+			r.flow.Close()
+		}
+	}
+}
+
+// failedTryCall performs asynchronous cleanup for tryCall, and returns an
+// appropriate error from the responses we've already received.  All parallel
+// calls in tryCall failed or we timed out if we get here.
+func (c *client) failedTryCall(name, method string, servers []string, responses []*serverStatus, ch chan *serverStatus) (ipc.Call, verror.E) {
+	go cleanupTryCall(nil, responses, ch)
 	c.ns.FlushCacheEntry(name)
 	// TODO(cnicolaou): introduce a third error code here for mixed
 	// conn/access errors.
-	return nil, verror.NoExistf("ipc: client failed to invoke  %q.%q: on %v", name, method, servers, append(connErrs, accessErrs...))
+	var errs []verror.E
+	for _, r := range responses {
+		switch {
+		case r != nil && r.errConn != nil:
+			errs = append(errs, r.errConn)
+		case r != nil && r.errAccess != nil:
+			errs = append(errs, r.errAccess)
+		}
+	}
+	return nil, verror.NoExistf("ipc: client failed to invoke %q.%q: on %v: %v", name, method, servers, errs)
 }
 
 // authorizeServer validates that the server (remote end of flow) has the credentials to serve
