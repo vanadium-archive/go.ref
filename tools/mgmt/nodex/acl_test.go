@@ -46,7 +46,7 @@ func TestACLGetCommand(t *testing.T) {
 		t.Fatalf("%v, ouput: %v, error: %v", err)
 	}
 	if expected, got := "root/bob/... nin W\nroot/other in R\nroot/self/... in XRWADM", strings.TrimSpace(stdout.String()); got != expected {
-		t.Fatalf("Unexpected output from list. Got %q, expected %q", got, expected)
+		t.Fatalf("Unexpected output from get. Got %q, expected %q", got, expected)
 	}
 	if got, expected := tape.Play(), []interface{}{"GetACL"}; !reflect.DeepEqual(expected, got) {
 		t.Errorf("invalid call sequence. Got %v, want %v", got, expected)
