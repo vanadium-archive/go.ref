@@ -276,6 +276,7 @@ type serverStatus struct {
 	errAccess verror.E
 }
 
+// TODO(cnicolaou): implement real, configurable load balancing.
 func (c *client) tryServer(index int, server string, ch chan<- *serverStatus) {
 	status := &serverStatus{index: index}
 	var err error
