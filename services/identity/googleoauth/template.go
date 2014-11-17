@@ -171,17 +171,16 @@ var tmplSelectCaveats = template.Must(template.New("bless").Parse(`<!doctype htm
   <label class="col-sm-2" for="required-caveat">Expiration</label>
   <div class="col-sm-10" class="input-group" name="required-caveat">
     <div class="radio">
-      <div class="input-group">
-        <input type="radio" name="requiredCaveat" id="requiredCaveat" value="Expiry" checked>
-        <input type="text" name="expiry" id="expiry" value="1h" placeholder="time after which the blessing will expire">
-      </div>
-    </div>
-    <div class="radio">
       <label>
-      <!-- TODO(suharshs): Re-enable -->
-      <input type="radio" name="requiredCaveat" id="requiredCaveat" value="Revocation" disabled>
+      <input type="radio" name="requiredCaveat" id="requiredCaveat" value="Revocation" checked>
       When explicitly revoked
       </label>
+    </div>
+    <div class="radio">
+      <div class="input-group">
+        <input type="radio" name="requiredCaveat" id="requiredCaveat" value="Expiry">
+        <input type="text" name="expiry" id="expiry" value="1h" placeholder="time after which the blessing will expire">
+      </div>
     </div>
   </div>
 </div>

@@ -3,7 +3,7 @@ package main
 
 import (
 	"crypto/rand"
-	"encoding/json"
+	"database/sql"
 	"flag"
 	"fmt"
 	"html/template"
@@ -42,18 +42,14 @@ var (
 	tlsconfig = flag.String("tlsconfig", "", "Comma-separated list of TLS certificate and private key files. This must be provided.")
 	host      = flag.String("host", defaultHost(), "Hostname the HTTP server listens on. This can be the name of the host running the webserver, but if running behind a NAT or load balancer, this should be the host name that clients will connect to. For example, if set to 'x.com', Veyron identities will have the IssuerName set to 'x.com' and clients can expect to find the public key of the signer at 'x.com/pubkey/'.")
 
-	// Flag controlling auditing of Blessing operations.
-	auditConfig = flag.String("audit_config", "", "A JSON-encoded file with sql server configuration information for auditing. The file must have an entry for user, host, password, database, and table.")
+	// Flag controlling auditing and revocation of Blessing operations.
+	sqlConfig = flag.String("sqlconfig", "", "Path to file containing go-sql-driver connection string of the following form: [username[:password]@][protocol[(address)]]/dbname")
 
 	// Configuration for various Google OAuth-based clients.
 	googleConfigWeb     = flag.String("google_config_web", "", "Path to JSON-encoded OAuth client configuration for the web application that renders the audit log for blessings provided by this provider.")
 	googleConfigChrome  = flag.String("google_config_chrome", "", "Path to the JSON-encoded OAuth client configuration for Chrome browser applications that obtain blessings from this server (via the OAuthBlesser.BlessUsingAccessToken RPC) from this server.")
 	googleConfigAndroid = flag.String("google_config_android", "", "Path to the JSON-encoded OAuth client configuration for Android applications that obtain blessings from this server (via the OAuthBlesser.BlessUsingAccessToken RPC) from this server.")
 	googleDomain        = flag.String("google_domain", "", "An optional domain name. When set, only email addresses from this domain are allowed to authenticate via Google OAuth")
-
-	// Revocation/expiry configuration.
-	// TODO(ashankar,ataly,suharshs): Re-enable by default once the move to the new security API is complete?
-	revocationDir = flag.String("revocation_dir", "" /*filepath.Join(os.TempDir(), "revocation_dir")*/, "Path where the revocation manager will store caveat and revocation information.")
 )
 
 const (
@@ -64,14 +60,32 @@ const (
 
 func main() {
 	flag.Usage = usage
-	p, blessingLogReader := providerPrincipal()
+	flag.Parse()
+
+	var sqlDB *sql.DB
+	var err error
+	if len(*sqlConfig) > 0 {
+		config, err := ioutil.ReadFile(*sqlConfig)
+		if err != nil {
+			vlog.Fatalf("failed to read sql config from %v", *sqlConfig)
+		}
+		sqlDB, err = dbFromConfigDatabase(strings.Trim(string(config), "\n"))
+		if err != nil {
+			vlog.Fatalf("failed to create sqlDB: %v", err)
+		}
+	}
+
+	p, blessingLogReader := providerPrincipal(sqlDB)
 	r := rt.Init(options.RuntimePrincipal{p})
 	defer r.Cleanup()
 
-	// Calling with empty string returns a empty RevocationManager
-	revocationManager, err := revocation.NewRevocationManager(*revocationDir)
-	if err != nil {
-		vlog.Fatalf("Failed to start RevocationManager: %v", err)
+	var revocationManager *revocation.RevocationManager
+	// Only set revocationManager sqlConfig (and thus sqlDB) is set.
+	if sqlDB != nil {
+		revocationManager, err = revocation.NewRevocationManager(sqlDB)
+		if err != nil {
+			vlog.Fatalf("Failed to start RevocationManager: %v", err)
+		}
 	}
 
 	// Setup handlers
@@ -119,7 +133,7 @@ func main() {
 		if len(*googleConfigChrome) > 0 || len(*googleConfigAndroid) > 0 {
 			args.GoogleServers = appendSuffixTo(published, googleService)
 		}
-		if len(*auditConfig) > 0 && len(*googleConfigWeb) > 0 {
+		if sqlDB != nil && len(*googleConfigWeb) > 0 {
 			args.ListBlessingsRoute = googleoauth.ListBlessingsRoute
 		}
 		if err := tmpl.Execute(w, args); err != nil {
@@ -281,7 +295,7 @@ func defaultHost() string {
 
 // providerPrincipal returns the Principal to use for the identity provider (i.e., this program) and
 // the database where audits will be store. If no database exists nil will be returned.
-func providerPrincipal() (security.Principal, auditor.BlessingLogReader) {
+func providerPrincipal(sqlDB *sql.DB) (security.Principal, auditor.BlessingLogReader) {
 	// TODO(ashankar): Somewhat silly to have to create a runtime, but oh-well.
 	r, err := rt.New()
 	if err != nil {
@@ -289,33 +303,25 @@ func providerPrincipal() (security.Principal, auditor.BlessingLogReader) {
 	}
 	defer r.Cleanup()
 	p := r.Principal()
-	if len(*auditConfig) == 0 {
+	if sqlDB == nil {
 		return p, nil
 	}
-	config, err := readSQLConfigFromFile(*auditConfig)
-	if err != nil {
-		vlog.Fatalf("Failed to read sql config: %v", err)
-	}
-	auditor, reader, err := auditor.NewSQLBlessingAuditor(config)
+	auditor, reader, err := auditor.NewSQLBlessingAuditor(sqlDB)
 	if err != nil {
 		vlog.Fatalf("Failed to create sql auditor from config: %v", err)
 	}
 	return audit.NewPrincipal(p, auditor), reader
 }
 
-func readSQLConfigFromFile(file string) (auditor.SQLConfig, error) {
-	var config auditor.SQLConfig
-	content, err := ioutil.ReadFile(file)
+func dbFromConfigDatabase(database string) (*sql.DB, error) {
+	db, err := sql.Open("mysql", database+"?parseTime=true")
 	if err != nil {
-		return config, err
+		return nil, fmt.Errorf("failed to create database with database(%v): %v", database, err)
 	}
-	if err := json.Unmarshal(content, &config); err != nil {
-		return config, err
+	if err := db.Ping(); err != nil {
+		return nil, err
 	}
-	if len(strings.Split(config.Table, " ")) != 1 || strings.Contains(config.Table, ";") {
-		return config, fmt.Errorf("sql config table value must be 1 word long")
-	}
-	return config, nil
+	return db, nil
 }
 
 func httpaddress() string {

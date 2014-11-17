@@ -76,12 +76,12 @@ func TestBlessingAuditor(t *testing.T) {
 		if !reflect.DeepEqual(got.Blessings, test.Blessings) {
 			t.Errorf("got %v, want %v", got.Blessings, test.Blessings)
 		}
-		var extraRoutines bool
+		var extra bool
 		for _ = range ch {
 			// Drain the channel to prevent the producer goroutines from being leaked.
-			extraRoutines = true
+			extra = true
 		}
-		if extraRoutines {
+		if extra {
 			t.Errorf("Got more entries that expected for test %+v", test)
 		}
 	}

@@ -1,28 +1,54 @@
 package revocation
 
 import (
-	"os"
-	"path/filepath"
+	"bytes"
 	"testing"
+	"time"
 
 	"veyron.io/veyron/veyron2"
 	"veyron.io/veyron/veyron2/naming"
 	"veyron.io/veyron/veyron2/rt"
 	"veyron.io/veyron/veyron2/security"
+	"veyron.io/veyron/veyron2/vom"
 
 	"veyron.io/veyron/veyron/profiles"
 	services "veyron.io/veyron/veyron/services/security"
 	"veyron.io/veyron/veyron/services/security/discharger"
 )
 
-func revokerSetup(t *testing.T) (dischargerKey security.PublicKey, dischargerEndpoint string, revoker *RevocationManager, closeFunc func(), runtime veyron2.Runtime) {
-	var dir = filepath.Join(os.TempDir(), "revoker_test_dir")
-	r := rt.Init()
-	revokerService, err := NewRevocationManager(dir)
-	if err != nil {
-		t.Fatalf("NewRevocationManager failed: %v", err)
-	}
+type mockDatabase struct {
+	tpCavIDToRevCavID   map[string][]byte
+	revCavIDToTimestamp map[string]*time.Time
+}
 
+func (m *mockDatabase) InsertCaveat(thirdPartyCaveatID string, revocationCaveatID []byte) error {
+	m.tpCavIDToRevCavID[thirdPartyCaveatID] = revocationCaveatID
+	return nil
+}
+
+func (m *mockDatabase) Revoke(thirdPartyCaveatID string) error {
+	timestamp := time.Now()
+	m.revCavIDToTimestamp[string(m.tpCavIDToRevCavID[thirdPartyCaveatID])] = &timestamp
+	return nil
+}
+
+func (m *mockDatabase) IsRevoked(revocationCaveatID []byte) (bool, error) {
+	_, exists := m.revCavIDToTimestamp[string(revocationCaveatID)]
+	return exists, nil
+}
+
+func (m *mockDatabase) RevocationTime(thirdPartyCaveatID string) (*time.Time, error) {
+	return m.revCavIDToTimestamp[string(m.tpCavIDToRevCavID[thirdPartyCaveatID])], nil
+}
+
+func newRevocationManager(t *testing.T) *RevocationManager {
+	revocationDB = &mockDatabase{make(map[string][]byte), make(map[string]*time.Time)}
+	return &RevocationManager{}
+}
+
+func revokerSetup(t *testing.T) (dischargerKey security.PublicKey, dischargerEndpoint string, revoker *RevocationManager, closeFunc func(), runtime veyron2.Runtime) {
+	r := rt.Init()
+	revokerService := newRevocationManager(t)
 	dischargerServer, err := r.NewServer()
 	if err != nil {
 		t.Fatalf("rt.R().NewServer: %s", err)
@@ -39,7 +65,6 @@ func revokerSetup(t *testing.T) (dischargerKey security.PublicKey, dischargerEnd
 		naming.JoinAddressName(dischargerEP.String(), ""),
 		revokerService,
 		func() {
-			defer os.RemoveAll(dir)
 			dischargerServer.Stop()
 		},
 		r
@@ -50,9 +75,13 @@ func TestDischargeRevokeDischargeRevokeDischarge(t *testing.T) {
 	defer closeFunc()
 
 	discharger := services.DischargerClient(dc)
-	cav, err := revoker.NewCaveat(dcKey, dc)
+	caveat, err := revoker.NewCaveat(dcKey, dc)
 	if err != nil {
-		t.Fatalf("failed to create public key caveat: %s", err)
+		t.Fatalf("failed to create revocation caveat: %s", err)
+	}
+	var cav security.ThirdPartyCaveat
+	if err := vom.NewDecoder(bytes.NewBuffer(caveat.ValidatorVOM)).Decode(&cav); err != nil {
+		t.Fatalf("failed to create decode tp caveat: %s", err)
 	}
 
 	var impetus security.DischargeImpetus

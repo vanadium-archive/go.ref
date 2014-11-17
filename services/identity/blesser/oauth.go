@@ -122,11 +122,7 @@ func (b *googleOAuth) bless(ctx ipc.ServerContext, extension string) (security.W
 	var caveat security.Caveat
 	var err error
 	if b.revocationManager != nil {
-		revocationCaveat, err := b.revocationManager.NewCaveat(self.PublicKey(), b.dischargerLocation)
-		if err != nil {
-			return noblessings, "", err
-		}
-		caveat, err = security.NewCaveat(revocationCaveat)
+		caveat, err = b.revocationManager.NewCaveat(self.PublicKey(), b.dischargerLocation)
 	} else {
 		caveat, err = security.ExpiryCaveat(time.Now().Add(b.duration))
 	}

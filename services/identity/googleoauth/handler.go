@@ -430,11 +430,7 @@ func (h *handler) caveats(r *http.Request) ([]security.Caveat, error) {
 		if h.args.RevocationManager == nil {
 			return nil, fmt.Errorf("server not configured to support revocation")
 		}
-		tpc, err := h.args.RevocationManager.NewCaveat(h.args.R.Principal().PublicKey(), h.args.DischargerLocation)
-		if err != nil {
-			return nil, fmt.Errorf("failed to create revocation caveat: %v", err)
-		}
-		revocation, err := security.NewCaveat(tpc)
+		revocation, err := h.args.RevocationManager.NewCaveat(h.args.R.Principal().PublicKey(), h.args.DischargerLocation)
 		if err != nil {
 			return nil, fmt.Errorf("failed to create revocation caveat: %v", err)
 		}
