@@ -42,6 +42,14 @@ func (mockInvoker) VGlob() *ipc.GlobState {
 	return nil
 }
 
+func (mockInvoker) Signature(ctx ipc.ServerContext) ([]ipc.InterfaceSig, error) {
+	return nil, nil
+}
+
+func (mockInvoker) MethodSignature(ctx ipc.ServerContext, method string) (ipc.MethodSig, error) {
+	return ipc.MethodSig{}, nil
+}
+
 type mockInvokerFactory struct{}
 
 func (mockInvokerFactory) createInvoker(handle int64, sig signature.JSONServiceSignature, label security.Label) (ipc.Invoker, error) {

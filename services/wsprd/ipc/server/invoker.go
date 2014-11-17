@@ -103,3 +103,13 @@ func (i *invoker) Invoke(methodName string, call ipc.ServerCall, argptrs []inter
 func (i *invoker) VGlob() *ipc.GlobState {
 	return nil
 }
+
+// TODO(bjornick,toddw): Implement this for JS.
+func (i *invoker) Signature(ctx ipc.ServerContext) ([]ipc.InterfaceSig, error) {
+	return nil, nil
+}
+
+// TODO(bjornick,toddw): Implement this for JS.
+func (i *invoker) MethodSignature(ctx ipc.ServerContext, method string) (ipc.MethodSig, error) {
+	return ipc.MethodSig{}, nil
+}
