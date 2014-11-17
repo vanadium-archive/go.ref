@@ -2,6 +2,7 @@ package namespace
 
 import (
 	"errors"
+	"fmt"
 	"runtime"
 
 	"veyron.io/veyron/veyron2/context"
@@ -12,11 +13,17 @@ import (
 	"veyron.io/veyron/veyron2/vlog"
 )
 
-func (ns *namespace) resolveAgainstMountTable(ctx context.T, client ipc.Client, e *naming.MountEntry) (*naming.MountEntry, error) {
+func (ns *namespace) resolveAgainstMountTable(ctx context.T, client ipc.Client, e *naming.MountEntry, pattern string) (*naming.MountEntry, error) {
 	// Try each server till one answers.
 	finalErr := errors.New("no servers to resolve query")
 	for _, s := range e.Servers {
+		var pattern_and_name string
 		name := naming.JoinAddressName(s.Server, e.Name)
+		if pattern != "" {
+			pattern_and_name = naming.JoinAddressName(s.Server, fmt.Sprintf("[%s]%s", pattern, e.Name))
+		} else {
+			pattern_and_name = name
+		}
 		// First check the cache.
 		if ne, err := ns.resolutionCache.lookup(name); err == nil {
 			vlog.VI(2).Infof("resolveAMT %s from cache -> %v", name, convertServersToStrings(ne.Servers, ne.Name))
@@ -24,7 +31,7 @@ func (ns *namespace) resolveAgainstMountTable(ctx context.T, client ipc.Client, 
 		}
 		// Not in cache, call the real server.
 		callCtx, _ := ctx.WithTimeout(callTimeout)
-		call, err := client.StartCall(callCtx, name, "ResolveStepX", nil, options.NoResolve(true))
+		call, err := client.StartCall(callCtx, pattern_and_name, "ResolveStepX", nil, options.NoResolve(true))
 		if err != nil {
 			finalErr = err
 			vlog.VI(2).Infof("ResolveStep.StartCall %s failed: %s", name, err)
@@ -61,7 +68,7 @@ func terminal(e *naming.MountEntry) bool {
 }
 
 // ResolveX implements veyron2/naming.Namespace.
-func (ns *namespace) ResolveX(ctx context.T, name string) (*naming.MountEntry, error) {
+func (ns *namespace) ResolveX(ctx context.T, name string, opts ...naming.ResolveOpt) (*naming.MountEntry, error) {
 	defer vlog.LogCall()()
 	e, _ := ns.rootMountEntry(name)
 	if vlog.V(2) {
@@ -72,6 +79,7 @@ func (ns *namespace) ResolveX(ctx context.T, name string) (*naming.MountEntry, e
 	if len(e.Servers) == 0 {
 		return nil, verror.Make(naming.ErrNoSuchName, ctx, name)
 	}
+	pattern := getRootPattern(opts)
 	// Iterate walking through mount table servers.
 	for remaining := ns.maxResolveDepth; remaining > 0; remaining-- {
 		vlog.VI(2).Infof("ResolveX(%s) loop %v", name, *e)
@@ -81,7 +89,7 @@ func (ns *namespace) ResolveX(ctx context.T, name string) (*naming.MountEntry, e
 		}
 		var err error
 		curr := e
-		if e, err = ns.resolveAgainstMountTable(ctx, ns.rt.Client(), curr); err != nil {
+		if e, err = ns.resolveAgainstMountTable(ctx, ns.rt.Client(), curr, pattern); err != nil {
 			// If the name could not be found in the mount table, return an error.
 			if verror.Is(err, naming.ErrNoSuchNameRoot.ID) {
 				err = verror.Make(naming.ErrNoSuchName, ctx, name)
@@ -90,20 +98,26 @@ func (ns *namespace) ResolveX(ctx context.T, name string) (*naming.MountEntry, e
 				vlog.VI(1).Infof("ResolveX(%s) -> (NoSuchName: %v)", name, curr)
 				return nil, err
 			}
+			if verror.Is(err, verror.NoAccess.ID) {
+				vlog.VI(1).Infof("ResolveX(%s) -> (NoAccess: %v)", name, curr)
+				return nil, err
+
+			}
 			// Any other failure (server not found, no ResolveStep
 			// method, etc.) are a sign that iterative resolution can
 			// stop.
 			vlog.VI(1).Infof("ResolveX(%s) -> %v", name, curr)
 			return curr, nil
 		}
+		pattern = ""
 	}
 	return nil, verror.Make(naming.ErrResolutionDepthExceeded, ctx)
 }
 
 // Resolve implements veyron2/naming.Namespace.
-func (ns *namespace) Resolve(ctx context.T, name string) ([]string, error) {
+func (ns *namespace) Resolve(ctx context.T, name string, opts ...naming.ResolveOpt) ([]string, error) {
 	defer vlog.LogCall()()
-	e, err := ns.ResolveX(ctx, name)
+	e, err := ns.ResolveX(ctx, name, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -111,7 +125,7 @@ func (ns *namespace) Resolve(ctx context.T, name string) ([]string, error) {
 }
 
 // ResolveToMountTableX implements veyron2/naming.Namespace.
-func (ns *namespace) ResolveToMountTableX(ctx context.T, name string) (*naming.MountEntry, error) {
+func (ns *namespace) ResolveToMountTableX(ctx context.T, name string, opts ...naming.ResolveOpt) (*naming.MountEntry, error) {
 	defer vlog.LogCall()()
 	e, _ := ns.rootMountEntry(name)
 	if vlog.V(2) {
@@ -122,6 +136,7 @@ func (ns *namespace) ResolveToMountTableX(ctx context.T, name string) (*naming.M
 	if len(e.Servers) == 0 {
 		return nil, verror.Make(naming.ErrNoMountTable, ctx)
 	}
+	pattern := getRootPattern(opts)
 	last := e
 	for remaining := ns.maxResolveDepth; remaining > 0; remaining-- {
 		vlog.VI(2).Infof("ResolveToMountTableX(%s) loop %v", name, e)
@@ -132,7 +147,7 @@ func (ns *namespace) ResolveToMountTableX(ctx context.T, name string) (*naming.M
 			vlog.VI(1).Infof("ResolveToMountTableX(%s) -> %v", name, last)
 			return last, nil
 		}
-		if e, err = ns.resolveAgainstMountTable(ctx, ns.rt.Client(), e); err != nil {
+		if e, err = ns.resolveAgainstMountTable(ctx, ns.rt.Client(), e, pattern); err != nil {
 			if verror.Is(err, naming.ErrNoSuchNameRoot.ID) {
 				vlog.VI(1).Infof("ResolveToMountTableX(%s) -> %v (NoSuchRoot: %v)", name, last, curr)
 				return last, nil
@@ -157,14 +172,15 @@ func (ns *namespace) ResolveToMountTableX(ctx context.T, name string) (*naming.M
 			return nil, err
 		}
 		last = curr
+		pattern = ""
 	}
 	return nil, verror.Make(naming.ErrResolutionDepthExceeded, ctx)
 }
 
 // ResolveToMountTable implements veyron2/naming.Namespace.
-func (ns *namespace) ResolveToMountTable(ctx context.T, name string) ([]string, error) {
+func (ns *namespace) ResolveToMountTable(ctx context.T, name string, opts ...naming.ResolveOpt) ([]string, error) {
 	defer vlog.LogCall()()
-	e, err := ns.ResolveToMountTableX(ctx, name)
+	e, err := ns.ResolveToMountTableX(ctx, name, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -253,4 +269,13 @@ func (ns *namespace) FlushCacheEntry(name string) bool {
 		}
 	}
 	return flushed
+}
+
+func getRootPattern(opts []naming.ResolveOpt) string {
+	for _, opt := range opts {
+		if pattern, ok := opt.(naming.RootBlessingPatternOpt); ok {
+			return string(pattern)
+		}
+	}
+	return ""
 }
