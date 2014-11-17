@@ -18,7 +18,7 @@ func TestHTTP(t *testing.T) {
 	// TODO(caprita): This is based on TestMultiPart (impl_test.go).  Share
 	// the code where possible.
 	for length := 2; length < 5; length++ {
-		binary, url, cleanup := startServer(t, 2)
+		binary, _, url, cleanup := startServer(t, 2)
 		defer cleanup()
 		// Create <length> chunks of up to 4MB of random bytes.
 		data := make([][]byte, length)

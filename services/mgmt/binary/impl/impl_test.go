@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"reflect"
 	"testing"
 
 	"veyron.io/veyron/veyron2/naming"
@@ -95,7 +96,7 @@ func invokeDownload(t *testing.T, binary repository.BinaryClientMethods, part in
 }
 
 // startServer starts the binary repository server.
-func startServer(t *testing.T, depth int) (repository.BinaryClientMethods, string, func()) {
+func startServer(t *testing.T, depth int) (repository.BinaryClientMethods, string, string, func()) {
 	// Setup the root of the binary repository.
 	root, err := ioutil.TempDir("", veyronPrefix)
 	if err != nil {
@@ -134,7 +135,7 @@ func startServer(t *testing.T, depth int) (repository.BinaryClientMethods, strin
 	}
 	name := naming.JoinAddressName(endpoint.String(), "test")
 	binary := repository.BinaryClient(name)
-	return binary, fmt.Sprintf("http://%s/test", listener.Addr()), func() {
+	return binary, endpoint.String(), fmt.Sprintf("http://%s/test", listener.Addr()), func() {
 		// Shutdown the binary repository server.
 		if err := server.Stop(); err != nil {
 			t.Fatalf("Stop() failed: %v", err)
@@ -155,7 +156,7 @@ func startServer(t *testing.T, depth int) (repository.BinaryClientMethods, strin
 // hierarchy that stores binary objects in the local file system.
 func TestHierarchy(t *testing.T) {
 	for i := 0; i < md5.Size; i++ {
-		binary, _, cleanup := startServer(t, i)
+		binary, ep, _, cleanup := startServer(t, i)
 		defer cleanup()
 		// Create up to 4MB of random bytes.
 		size := testutil.Rand.Intn(1000 * bufferLength)
@@ -187,6 +188,13 @@ func TestHierarchy(t *testing.T) {
 		if bytes.Compare(output, data) != 0 {
 			t.Fatalf("Unexpected output: expected %v, got %v", data, output)
 		}
+		results, err := testutil.GlobName(naming.JoinAddressName(ep, ""), "...")
+		if err != nil {
+			t.Fatalf("GlobName failed: %v", err)
+		}
+		if expected := []string{"", "test"}; !reflect.DeepEqual(results, expected) {
+			t.Errorf("Unexpected results: expected %q, got %q", expected, results)
+		}
 		if err := binary.Delete(rt.R().NewContext()); err != nil {
 			t.Fatalf("Delete() failed: %v", err)
 		}
@@ -198,7 +206,7 @@ func TestHierarchy(t *testing.T) {
 // consists of.
 func TestMultiPart(t *testing.T) {
 	for length := 2; length < 5; length++ {
-		binary, _, cleanup := startServer(t, 2)
+		binary, _, _, cleanup := startServer(t, 2)
 		defer cleanup()
 		// Create <length> chunks of up to 4MB of random bytes.
 		data := make([][]byte, length)
@@ -248,7 +256,7 @@ func TestMultiPart(t *testing.T) {
 // of.
 func TestResumption(t *testing.T) {
 	for length := 2; length < 5; length++ {
-		binary, _, cleanup := startServer(t, 2)
+		binary, _, _, cleanup := startServer(t, 2)
 		defer cleanup()
 		// Create <length> chunks of up to 4MB of random bytes.
 		data := make([][]byte, length)
@@ -290,7 +298,7 @@ func TestResumption(t *testing.T) {
 
 // TestErrors checks that the binary interface correctly reports errors.
 func TestErrors(t *testing.T) {
-	binary, _, cleanup := startServer(t, 2)
+	binary, _, _, cleanup := startServer(t, 2)
 	defer cleanup()
 	const length = 2
 	data := make([][]byte, length)
@@ -349,5 +357,34 @@ func TestErrors(t *testing.T) {
 		t.Fatalf("Delete() did not fail when it should have")
 	} else if want := verror.NoExist; !verror.Is(err, want) {
 		t.Fatalf("Unexpected error: %v, expected error id %v", err, want)
+	}
+}
+
+func TestGlob(t *testing.T) {
+	_, ep, _, cleanup := startServer(t, 2)
+	defer cleanup()
+	// Create up to 4MB of random bytes.
+	size := testutil.Rand.Intn(1000 * bufferLength)
+	data := testutil.RandomBytes(size)
+
+	objects := []string{"foo", "bar", "hello world", "a/b/c"}
+	for _, obj := range objects {
+		name := naming.JoinAddressName(ep, obj)
+		binary := repository.BinaryClient(name)
+
+		if err := binary.Create(rt.R().NewContext(), 1); err != nil {
+			t.Fatalf("Create() failed: %v", err)
+		}
+		if streamErr, err := invokeUpload(t, binary, data, 0); streamErr != nil || err != nil {
+			t.FailNow()
+		}
+	}
+	results, err := testutil.GlobName(naming.JoinAddressName(ep, ""), "...")
+	if err != nil {
+		t.Fatalf("GlobName failed: %v", err)
+	}
+	expected := []string{"", "a", "a/b", "a/b/c", "bar", "foo", "hello world"}
+	if !reflect.DeepEqual(results, expected) {
+		t.Errorf("Unexpected results: expected %q, got %q", expected, results)
 	}
 }
