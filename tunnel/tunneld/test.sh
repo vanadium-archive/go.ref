@@ -104,7 +104,7 @@ main() {
 
   # Verify that all the published names are there.
   GOT=$("${MOUNTTABLE_BIN}" glob "${NAMESPACE_ROOT}" 'tunnel/*/*' | \
-        sed -e 's/TTL .m..s/TTL XmXXs/' -e 's!hwaddr/[^ ]*!hwaddr/XX:XX:XX:XX:XX:XX!' | \
+	  sed -e 's/ \/@.@ws@[^ ]* (TTL .m..s)//' -e 's/TTL .m..s/TTL XmXXs/' -e 's!hwaddr/[^ ]*!hwaddr/XX:XX:XX:XX:XX:XX!' | \
         sort) \
     || shell_test::fail "line ${LINENO}: failed to run mounttable"
   WANT="[${NAMESPACE_ROOT}]
