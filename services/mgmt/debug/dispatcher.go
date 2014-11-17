@@ -54,11 +54,11 @@ func (d *dispatcher) Lookup(suffix, method string) (interface{}, security.Author
 	}
 	switch parts[0] {
 	case "logs":
-		return logreaderimpl.NewLogFileServer(d.logsDir, suffix), d.auth, nil
+		return logreaderimpl.NewLogFileService(d.logsDir, suffix), d.auth, nil
 	case "pprof":
-		return pprofimpl.NewServer(), d.auth, nil
+		return pprofimpl.NewPProfService(), d.auth, nil
 	case "stats":
-		return statsimpl.NewStatsServer(suffix, 10*time.Second), d.auth, nil
+		return statsimpl.NewStatsService(suffix, 10*time.Second), d.auth, nil
 	case "vtrace":
 		return vtraceimpl.NewVtraceService(d.store), d.auth, nil
 	}

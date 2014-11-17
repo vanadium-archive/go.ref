@@ -23,7 +23,7 @@ type statsDispatcher struct {
 }
 
 func (d *statsDispatcher) Lookup(suffix, method string) (interface{}, security.Authorizer, error) {
-	return impl.NewStatsServer(suffix, 100*time.Millisecond), nil, nil
+	return impl.NewStatsService(suffix, 100*time.Millisecond), nil, nil
 }
 
 func startServer(t *testing.T) (string, func()) {
