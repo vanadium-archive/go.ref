@@ -291,13 +291,13 @@ func (c *client) tryServer(index int, server string, ch chan<- *serverStatus) {
 // tryCall makes a single attempt at a call, against possibly multiple servers.
 func (c *client) tryCall(ctx context.T, name, method string, args []interface{}, opts []ipc.CallOpt) (ipc.Call, verror.E) {
 	ctx, _ = vtrace.WithNewSpan(ctx, fmt.Sprintf("<client>\"%s\".%s", name, method))
-	mtPattern, serverPattern, name := splitObjectName(name)
+	_, serverPattern, name := splitObjectName(name)
 	// Resolve name unless told not to.
 	var servers []string
 	if getNoResolveOpt(opts) {
 		servers = []string{name}
 	} else {
-		if resolved, err := c.ns.Resolve(ctx, name, naming.RootBlessingPatternOpt(mtPattern)); err != nil {
+		if resolved, err := c.ns.Resolve(ctx, name); err != nil {
 			return nil, verror.NoExistf("ipc: Resolve(%q) failed: %v", name, err)
 		} else {
 			// An empty set of protocols means all protocols...
