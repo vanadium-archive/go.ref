@@ -628,6 +628,10 @@ func runJsServerTestCase(t *testing.T, test jsServerTestCase) {
 	expectedBlessingsHandle := 1.0
 	expectedFlowCount := int64(4)
 	if test.hasAuthorizer {
+		// TODO(toddw,bjornick): This is too fragile, clean it up.  In particular,
+		// it depends on the ordering of the authorizer calls for the rpc itself and
+		// the debug trace, which should be an internal detail of the server.
+		//
 		// If an authorizer exists, it gets called twice.  The first time to see if the
 		// client is actually able to make this rpc and a second time to see if the server
 		// is ok with the client getting trace information for the rpc.
