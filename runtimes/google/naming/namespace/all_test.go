@@ -3,12 +3,14 @@ package namespace_test
 import (
 	"runtime"
 	"runtime/debug"
+	"strings"
 	"sync"
 	"testing"
 	"time"
 
 	"veyron.io/veyron/veyron2"
 	"veyron.io/veyron/veyron2/ipc"
+	"veyron.io/veyron/veyron2/ipc/stream"
 	"veyron.io/veyron/veyron2/naming"
 	"veyron.io/veyron/veyron2/options"
 	"veyron.io/veyron/veyron2/rt"
@@ -19,16 +21,24 @@ import (
 
 	"veyron.io/veyron/veyron/lib/glob"
 	"veyron.io/veyron/veyron/lib/testutil"
+	"veyron.io/veyron/veyron/lib/websocket"
 	_ "veyron.io/veyron/veyron/profiles"
 	"veyron.io/veyron/veyron/runtimes/google/naming/namespace"
 	service "veyron.io/veyron/veyron/services/mounttable/lib"
 )
 
-func init() { testutil.Init() }
+func init() {
+	testutil.Init()
+	stream.RegisterProtocol("ws", websocket.Dial, nil)
+}
 
 func boom(t *testing.T, f string, v ...interface{}) {
 	t.Logf(f, v...)
 	t.Fatal(string(debug.Stack()))
+}
+
+func addWSName(name string) []string {
+	return []string{name, strings.Replace(name, "@tcp@", "@ws@", 1)}
 }
 
 // N squared but who cares, this is a little test.
@@ -292,16 +302,16 @@ func TestNamespaceCommon(t *testing.T) {
 		testResolveToMountTable(t, r, ns, m, rootMT)
 
 		// The server registered for each mount point is a mount table
-		testResolve(t, r, ns, m, mts[m].name)
+		testResolve(t, r, ns, m, addWSName(mts[m].name)...)
 
 		// ResolveToMountTable will walk through to the sub MountTables
 		mtbar := naming.Join(m, "bar")
 		subMT := naming.Join(mts[m].name, "bar")
-		testResolveToMountTable(t, r, ns, mtbar, subMT)
+		testResolveToMountTable(t, r, ns, mtbar, addWSName(subMT)...)
 	}
 
 	for _, j := range []string{j1MP, j2MP, j3MP} {
-		testResolve(t, r, ns, j, jokes[j].name)
+		testResolve(t, r, ns, j, addWSName(jokes[j].name)...)
 	}
 }
 
@@ -334,7 +344,7 @@ func TestNamespaceDetails(t *testing.T) {
 
 	mt2mt := naming.Join(mts[mt2MP].name, "a")
 	// The mt2/a is served by the mt2 mount table
-	testResolveToMountTable(t, r, ns, mt2a, mt2mt)
+	testResolveToMountTable(t, r, ns, mt2a, addWSName(mt2mt)...)
 	// The server for mt2a is mt3server from the second mount above.
 	testResolve(t, r, ns, mt2a, mt3Server)
 
@@ -349,12 +359,14 @@ func TestNamespaceDetails(t *testing.T) {
 		}
 	}
 
+	names := []string{naming.JoinAddressName(mts[mt4MP].name, "a"),
+		naming.JoinAddressName(mts[mt5MP].name, "a")}
+	names = append(names, addWSName(naming.JoinAddressName(mts[mt2MP].name, "a"))...)
 	// We now have 3 mount tables prepared to serve mt2/a
-	testResolveToMountTable(t, r, ns, "mt2/a",
-		naming.JoinAddressName(mts[mt2MP].name, "a"),
-		naming.JoinAddressName(mts[mt4MP].name, "a"),
-		naming.JoinAddressName(mts[mt5MP].name, "a"))
-	testResolve(t, r, ns, "mt2", mts[mt2MP].name, mts[mt4MP].name, mts[mt5MP].name)
+	testResolveToMountTable(t, r, ns, "mt2/a", names...)
+	names = []string{mts[mt4MP].name, mts[mt5MP].name}
+	names = append(names, addWSName(mts[mt2MP].name)...)
+	testResolve(t, r, ns, "mt2", names...)
 }
 
 // TestNestedMounts tests some more deeply nested mounts
@@ -370,15 +382,15 @@ func TestNestedMounts(t *testing.T) {
 
 	// Set up some nested mounts and verify resolution.
 	for _, m := range []string{"mt4/foo", "mt4/foo/bar"} {
-		testResolve(t, r, ns, m, mts[m].name)
+		testResolve(t, r, ns, m, addWSName(mts[m].name)...)
 	}
 
 	testResolveToMountTable(t, r, ns, "mt4/foo",
-		naming.JoinAddressName(mts[mt4MP].name, "foo"))
+		addWSName(naming.JoinAddressName(mts[mt4MP].name, "foo"))...)
 	testResolveToMountTable(t, r, ns, "mt4/foo/bar",
-		naming.JoinAddressName(mts["mt4/foo"].name, "bar"))
+		addWSName(naming.JoinAddressName(mts["mt4/foo"].name, "bar"))...)
 	testResolveToMountTable(t, r, ns, "mt4/foo/baz",
-		naming.JoinAddressName(mts["mt4/foo"].name, "baz"))
+		addWSName(naming.JoinAddressName(mts["mt4/foo"].name, "baz"))...)
 }
 
 // TestServers tests invoking RPCs on simple servers
@@ -392,16 +404,16 @@ func TestServers(t *testing.T) {
 
 	// Let's run some non-mount table services
 	for _, j := range []string{j1MP, j2MP, j3MP} {
-		testResolve(t, r, ns, j, jokes[j].name)
+		testResolve(t, r, ns, j, addWSName(jokes[j].name)...)
 		knockKnock(t, r, j)
 		globalName := naming.JoinAddressName(mts["mt4"].name, j)
 		disp := &dispatcher{}
 		gj := "g_" + j
 		jokes[gj] = runServer(t, r, disp, globalName)
-		testResolve(t, r, ns, "mt4/"+j, jokes[gj].name)
+		testResolve(t, r, ns, "mt4/"+j, addWSName(jokes[gj].name)...)
 		knockKnock(t, r, "mt4/"+j)
-		testResolveToMountTable(t, r, ns, "mt4/"+j, globalName)
-		testResolveToMountTable(t, r, ns, "mt4/"+j+"/garbage", globalName+"/garbage")
+		testResolveToMountTable(t, r, ns, "mt4/"+j, addWSName(globalName)...)
+		testResolveToMountTable(t, r, ns, "mt4/"+j+"/garbage", addWSName(globalName+"/garbage")...)
 	}
 }
 
@@ -547,7 +559,8 @@ func TestCycles(t *testing.T) {
 		boom(t, "Failed to Mount %s: %s", m, err)
 	}
 
-	testResolve(t, r, ns, "c1", c1.name)
+	// Since c1 was mounted with the Serve call, it will have both the tcp and ws endpoints.
+	testResolve(t, r, ns, "c1", addWSName(c1.name)...)
 	testResolve(t, r, ns, "c1/c2", c1.name)
 	testResolve(t, r, ns, "c1/c3", c3.name)
 	testResolve(t, r, ns, "c1/c3/c4", c1.name)

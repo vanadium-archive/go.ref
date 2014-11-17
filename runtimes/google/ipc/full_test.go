@@ -26,6 +26,7 @@ import (
 	"veyron.io/veyron/veyron/lib/netstate"
 	"veyron.io/veyron/veyron/lib/testutil"
 	tsecurity "veyron.io/veyron/veyron/lib/testutil/security"
+	"veyron.io/veyron/veyron/lib/websocket"
 	imanager "veyron.io/veyron/veyron/runtimes/google/ipc/stream/manager"
 	"veyron.io/veyron/veyron/runtimes/google/ipc/stream/vc"
 	"veyron.io/veyron/veyron/runtimes/google/ipc/version"
@@ -34,6 +35,10 @@ import (
 	tnaming "veyron.io/veyron/veyron/runtimes/google/testing/mocks/naming"
 	vsecurity "veyron.io/veyron/veyron/security"
 )
+
+func init() {
+	stream.RegisterProtocol("ws", websocket.Dial, nil)
+}
 
 var (
 	errMethod  = verror.Abortedf("server returned an error")
@@ -235,6 +240,20 @@ func stopServer(t *testing.T, server ipc.Server, ns naming.Namespace, name strin
 		t.Errorf("either no error, or a wrong error was returned: %v", err)
 	}
 	vlog.VI(1).Info("server.Stop DONE")
+}
+
+func resolveWSEndpoint(ns naming.Namespace, name string) (string, error) {
+	// Find the ws endpoint and use that.
+	servers, err := ns.Resolve(testContext(), name)
+	if err != nil {
+		return "", err
+	}
+	for _, s := range servers {
+		if strings.Index(s, "@ws@") != -1 {
+			return s, nil
+		}
+	}
+	return "", fmt.Errorf("No ws endpoint found %v", servers)
 }
 
 type bundle struct {
@@ -440,20 +459,40 @@ func TestRPCServerAuthorization(t *testing.T) {
 			}
 		}
 		client.Close()
+
 	}
 }
 
+type websocketMode bool
+type closeSendMode bool
+
+const (
+	useWebsocket websocketMode = true
+	noWebsocket  websocketMode = false
+
+	closeSend   closeSendMode = true
+	noCloseSend closeSendMode = false
+)
+
 func TestRPC(t *testing.T) {
-	testRPC(t, true)
+	testRPC(t, closeSend, noWebsocket)
+}
+
+func TestRPCWithWebsocket(t *testing.T) {
+	testRPC(t, closeSend, useWebsocket)
 }
 
 // TestCloseSendOnFinish tests that Finish informs the server that no more
 // inputs will be sent by the client if CloseSend has not already done so.
 func TestRPCCloseSendOnFinish(t *testing.T) {
-	testRPC(t, false)
+	testRPC(t, noCloseSend, noWebsocket)
 }
 
-func testRPC(t *testing.T, shouldCloseSend bool) {
+func TestRPCCloseSendOnFinishWithWebsocket(t *testing.T) {
+	testRPC(t, noCloseSend, useWebsocket)
+}
+
+func testRPC(t *testing.T, shouldCloseSend closeSendMode, shouldUseWebsocket websocketMode) {
 	type v []interface{}
 	type testcase struct {
 		name       string
@@ -494,7 +533,16 @@ func testRPC(t *testing.T, shouldCloseSend bool) {
 	pserver.AddToRoots(pclient.BlessingStore().Default())
 	for _, test := range tests {
 		vlog.VI(1).Infof("%s client.StartCall", name(test))
-		call, err := b.client.StartCall(testContext(), test.name, test.method, test.args)
+		vname := test.name
+		if shouldUseWebsocket {
+			var err error
+			vname, err = resolveWSEndpoint(b.ns, vname)
+			if err != nil && err != test.startErr {
+				t.Errorf(`%s ns.Resolve got error "%v", want "%v"`, name(test), err, test.startErr)
+				continue
+			}
+		}
+		call, err := b.client.StartCall(testContext(), vname, test.method, test.args)
 		if err != test.startErr {
 			t.Errorf(`%s client.StartCall got error "%v", want "%v"`, name(test), err, test.startErr)
 			continue

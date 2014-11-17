@@ -101,8 +101,8 @@ func TestMultipleEndpoints(t *testing.T) {
 		}
 	}
 
-	// Verify that there are 101 entries for echoServer in the mount table.
-	if got, want := numServers(t, sh, "echoServer"), "101"; got != want {
+	// Verify that there are 102 entries for echoServer in the mount table.
+	if got, want := numServers(t, sh, "echoServer"), "102"; got != want {
 		vlog.Fatalf("got: %q, want: %q", got, want)
 	}
 
@@ -119,7 +119,7 @@ func TestMultipleEndpoints(t *testing.T) {
 	// TODO(cnicolaou,p): figure out why the real entry isn't removed
 	// from the mount table.
 	// Verify that there are 100 entries for echoServer in the mount table.
-	if got, want := numServers(t, sh, "echoServer"), "101"; got != want {
+	if got, want := numServers(t, sh, "echoServer"), "102"; got != want {
 		vlog.Fatalf("got: %q, want: %q", got, want)
 	}
 }

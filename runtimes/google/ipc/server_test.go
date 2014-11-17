@@ -130,6 +130,10 @@ func addrOnly(name string) string {
 	return addr
 }
 
+func addWSName(name string) []string {
+	return []string{name, strings.Replace(name, "@tcp@", "@ws@", 1)}
+}
+
 func testProxy(t *testing.T, spec ipc.ListenSpec) {
 	sm := imanager.InternalNew(naming.FixedRoutingID(0x555555555))
 	ns := tnaming.NewSimpleNamespace()
@@ -201,9 +205,9 @@ func testProxy(t *testing.T, spec ipc.ListenSpec) {
 		t.Fatalf("unexpected error: %s", err)
 	}
 	proxiedEP.RID = naming.FixedRoutingID(0x555555555)
-	expectedEndpoints := []string{proxiedEP.String()}
+	expectedEndpoints := addWSName(proxiedEP.String())
 	if hasLocalListener {
-		expectedEndpoints = append(expectedEndpoints, ep.String())
+		expectedEndpoints = append(expectedEndpoints, addWSName(ep.String())...)
 	}
 
 	// Proxy connetions are created asynchronously, so we wait for the
@@ -228,8 +232,12 @@ func testProxy(t *testing.T, spec ipc.ListenSpec) {
 	if hasLocalListener {
 		// Listen will publish both the local and proxied endpoint with the
 		// mount table, given that we're trying to test the proxy, we remove
-		// the local endpoint from the mount table entry!
-		ns.Unmount(testContext(), "mountpoint/server", naming.JoinAddressName(ep.String(), ""))
+		// the local endpoint from the mount table entry!  We have to remove both
+		// the tcp and the websocket address.
+		sep := ep.String()
+		wsep := strings.Replace(sep, "@tcp@", "@ws@", 1)
+		ns.Unmount(testContext(), "mountpoint/server", naming.JoinAddressName(sep, ""))
+		ns.Unmount(testContext(), "mountpoint/server", naming.JoinAddressName(wsep, ""))
 	}
 
 	// Proxied endpoint should be published and RPC should succeed (through proxy)

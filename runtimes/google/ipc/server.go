@@ -283,6 +283,11 @@ func (s *server) Listen(listenSpec ipc.ListenSpec) (naming.Endpoint, error) {
 			s.active.Done()
 		}()
 		s.publisher.AddServer(s.publishEP(iep, s.servesMountTable), s.servesMountTable)
+		if strings.HasPrefix(iep.Protocol, "tcp") {
+			epCopy := *iep
+			epCopy.Protocol = "ws"
+			s.publisher.AddServer(s.publishEP(&epCopy, s.servesMountTable), s.servesMountTable)
+		}
 	}
 
 	if len(listenSpec.Proxy) > 0 {
@@ -321,6 +326,13 @@ func (s *server) reconnectAndPublishProxy(proxy string) (*inaming.Endpoint, stre
 	s.listeners[ln] = nil
 	s.Unlock()
 	s.publisher.AddServer(s.publishEP(iep, s.servesMountTable), s.servesMountTable)
+
+	if strings.HasPrefix(iep.Protocol, "tcp") {
+		epCopy := *iep
+		epCopy.Protocol = "ws"
+		s.publisher.AddServer(s.publishEP(&epCopy, s.servesMountTable), s.servesMountTable)
+	}
+
 	return iep, ln, nil
 }
 
@@ -351,6 +363,11 @@ func (s *server) proxyListenLoop(proxy string) {
 			// The listener is done, so:
 			// (1) Unpublish its name
 			s.publisher.RemoveServer(s.publishEP(iep, s.servesMountTable))
+			if strings.HasPrefix(iep.Protocol, "tcp") {
+				iepCopy := *iep
+				iepCopy.Protocol = "ws"
+				s.publisher.RemoveServer(s.publishEP(&iepCopy, s.servesMountTable))
+			}
 		}
 
 		s.Lock()

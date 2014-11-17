@@ -472,7 +472,7 @@ func (vif *VIF) acceptFlowsLoop(vc *vc.VC, c <-chan vc.HandshakeResult) {
 	for {
 		f, err := hr.Listener.Accept()
 		if err != nil {
-			vlog.VI(2).Infof("Accept failed on VC %v on VIF %v", vc, vif)
+			vlog.VI(2).Infof("Accept failed on VC %v on VIF %v: %v", vc, vif, err)
 			return
 		}
 		if err := acceptor.Put(ConnectorAndFlow{vc, f}); err != nil {

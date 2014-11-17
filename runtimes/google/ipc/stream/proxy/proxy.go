@@ -11,6 +11,7 @@ import (
 	"veyron.io/veyron/veyron/runtimes/google/ipc/stream/message"
 	"veyron.io/veyron/veyron/runtimes/google/ipc/stream/vc"
 	"veyron.io/veyron/veyron/runtimes/google/ipc/stream/vif"
+	"veyron.io/veyron/veyron/runtimes/google/ipc/stream/wslistener"
 	"veyron.io/veyron/veyron/runtimes/google/ipc/version"
 	"veyron.io/veyron/veyron/runtimes/google/lib/bqueue"
 	"veyron.io/veyron/veyron/runtimes/google/lib/bqueue/drrqueue"
@@ -135,6 +136,7 @@ func New(rid naming.RoutingID, principal security.Principal, network, address, p
 	if err != nil {
 		return nil, fmt.Errorf("net.Listen(%q, %q) failed: %v", network, address, err)
 	}
+	ln = wslistener.NewListener(ln)
 	if len(pubAddress) == 0 {
 		pubAddress = ln.Addr().String()
 	}

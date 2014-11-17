@@ -6,6 +6,7 @@ import (
 	"reflect"
 	"sort"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 
@@ -242,6 +243,7 @@ func TestResolve(t *testing.T) {
 	srvSession.ExpectVar("NAME")
 	addr := srvSession.ExpectVar("ADDR")
 	addr = naming.JoinAddressName(addr, "")
+	wsAddr := strings.Replace(addr, "@tcp@", "@ws@", 1)
 
 	// Resolve an object
 	resolver, err := sh.Start(core.ResolveCommand, nil, rootName+"/"+echoName)
@@ -249,11 +251,11 @@ func TestResolve(t *testing.T) {
 		t.Fatalf("unexpected error: %s", err)
 	}
 	resolverSession := expect.NewSession(t, resolver.Stdout(), time.Minute)
-	if got, want := resolverSession.ExpectVar("RN"), "1"; got != want {
+	if got, want := resolverSession.ExpectVar("RN"), "2"; got != want {
 		t.Fatalf("got %v, want %v", got, want)
 	}
-	if got, want := resolverSession.ExpectVar("R0"), addr; got != want {
-		t.Errorf("got %v, want %v", got, want)
+	if got, want := resolverSession.ExpectVar("R0"), addr; got != want && got != wsAddr {
+		t.Errorf("got %v, want either %v or %v", got, want, wsAddr)
 	}
 	if err = resolver.Shutdown(nil, os.Stderr); err != nil {
 		t.Fatalf("unexpected error: %s", err)
@@ -261,16 +263,17 @@ func TestResolve(t *testing.T) {
 
 	// Resolve to a mount table using a rooted name.
 	addr = naming.JoinAddressName(mountAddrs[mtName], "echo")
+	wsAddr = strings.Replace(addr, "@tcp@", "@ws@", 1)
 	resolver, err = sh.Start(core.ResolveMTCommand, nil, rootName+"/"+echoName)
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
 	resolverSession = expect.NewSession(t, resolver.Stdout(), time.Minute)
-	if got, want := resolverSession.ExpectVar("RN"), "1"; got != want {
+	if got, want := resolverSession.ExpectVar("RN"), "2"; got != want {
 		t.Fatalf("got %v, want %v", got, want)
 	}
-	if got, want := resolverSession.ExpectVar("R0"), addr; got != want {
-		t.Fatalf("got %v, want %v", got, want)
+	if got, want := resolverSession.ExpectVar("R0"), addr; got != want && got != wsAddr {
+		t.Fatalf("got %v, want either %v or %v", got, want, wsAddr)
 	}
 	if err := resolver.Shutdown(nil, os.Stderr); err != nil {
 		t.Fatalf("unexpected error: %s", err)
@@ -290,11 +293,11 @@ func TestResolve(t *testing.T) {
 		t.Fatalf("unexpected error: %s", err)
 	}
 	resolverSession = expect.NewSession(t, resolver.Stdout(), time.Minute)
-	if got, want := resolverSession.ExpectVar("RN"), "1"; got != want {
+	if got, want := resolverSession.ExpectVar("RN"), "2"; got != want {
 		t.Fatalf("got %v, want %v", got, want)
 	}
-	if got, want := resolverSession.ExpectVar("R0"), addr; got != want {
-		t.Fatalf("got %v, want %v", got, want)
+	if got, want := resolverSession.ExpectVar("R0"), addr; got != want && got != wsAddr {
+		t.Fatalf("got %v, want either %v or %v", got, want, wsAddr)
 	}
 	if err := resolver.Shutdown(nil, os.Stderr); err != nil {
 		t.Fatalf("unexpected error: %s", err)

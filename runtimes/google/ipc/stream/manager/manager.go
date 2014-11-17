@@ -12,6 +12,7 @@ import (
 	"veyron.io/veyron/veyron/lib/stats"
 	"veyron.io/veyron/veyron/runtimes/google/ipc/stream/crypto"
 	"veyron.io/veyron/veyron/runtimes/google/ipc/stream/vif"
+	"veyron.io/veyron/veyron/runtimes/google/ipc/stream/wslistener"
 	"veyron.io/veyron/veyron/runtimes/google/ipc/version"
 	inaming "veyron.io/veyron/veyron/runtimes/google/naming"
 
@@ -65,7 +66,20 @@ func dial(network, address string, timeout time.Duration) (net.Conn, error) {
 	if d, _ := stream.RegisteredProtocol(network); d != nil {
 		return d(address)
 	}
-	return net.DialTimeout(network, address, timeout)
+	conn, err := net.DialTimeout(network, address, timeout)
+	if err != nil || !strings.HasPrefix(network, "tcp") {
+		return conn, err
+	}
+
+	// For tcp connections we add an extra magic byte so we can differentiate between
+	// raw tcp and websocket on the same port.
+	switch n, err := conn.Write([]byte{wslistener.BinaryMagicByte}); {
+	case err != nil:
+		return nil, err
+	case n != 1:
+		return nil, fmt.Errorf("Unable to write the magic byte")
+	}
+	return conn, nil
 }
 
 // FindOrDialVIF returns the network connection (VIF) to the provided address
@@ -186,6 +200,12 @@ func (m *manager) Listen(protocol, address string, opts ...stream.ListenerOpt) (
 		m.muListeners.Unlock()
 		closeNetListener(netln)
 		return nil, nil, errShutDown
+	}
+
+	// If the protocol is tcp, we add the listener that supports both tcp and websocket
+	// so that javascript can talk to this server.
+	if strings.HasPrefix(protocol, "tcp") {
+		netln = wslistener.NewListener(netln)
 	}
 	ln := newNetListener(m, netln, opts)
 	m.listeners[ln] = true

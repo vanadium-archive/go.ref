@@ -8,6 +8,7 @@ import (
 	"reflect"
 	"runtime"
 	"sort"
+	"strings"
 	"testing"
 	"time"
 
@@ -159,10 +160,18 @@ func resolve(t *testing.T, name string, replicas int) []string {
 	if err != nil {
 		t.Fatalf("Resolve(%v) failed: %v", name, err)
 	}
-	if want, got := replicas, len(results); want != got {
+
+	filteredResults := []string{}
+	for _, r := range results {
+		if strings.Index(r, "@tcp") != -1 {
+			filteredResults = append(filteredResults, r)
+		}
+	}
+	// We are going to get a websocket and a tcp endpoint for each replica.
+	if want, got := replicas, len(filteredResults); want != got {
 		t.Fatalf("Resolve(%v) expected %d result(s), got %d instead", name, want, got)
 	}
-	return results
+	return filteredResults
 }
 
 // The following set of functions are convenience wrappers around Update and
