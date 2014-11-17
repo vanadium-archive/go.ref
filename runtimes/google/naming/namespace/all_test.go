@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"veyron.io/veyron/veyron2"
-	"veyron.io/veyron/veyron2/context"
 	"veyron.io/veyron/veyron2/ipc"
 	"veyron.io/veyron/veyron2/naming"
 	"veyron.io/veyron/veyron2/options"
@@ -21,7 +20,6 @@ import (
 	"veyron.io/veyron/veyron/lib/glob"
 	"veyron.io/veyron/veyron/lib/testutil"
 	_ "veyron.io/veyron/veyron/profiles"
-	"veyron.io/veyron/veyron/runtimes/google/ipc/stream/sectest"
 	"veyron.io/veyron/veyron/runtimes/google/naming/namespace"
 	service "veyron.io/veyron/veyron/services/mounttable/lib"
 )
@@ -140,28 +138,20 @@ func knockKnock(t *testing.T, runtime veyron2.Runtime, name string) {
 	}
 }
 
-func doResolveTest(t *testing.T, fname string, f func(context.T, string, ...naming.ResolveOpt) ([]string, error), ctx context.T, name string, want []string, opts ...naming.ResolveOpt) {
-	servers, err := f(ctx, name, opts...)
-	if err != nil {
-		boom(t, "Failed to %s %s: %s", fname, name, err)
-	}
-	compare(t, fname, name, servers, want)
-}
-
 func testResolveToMountTable(t *testing.T, r veyron2.Runtime, ns naming.Namespace, name string, want ...string) {
-	doResolveTest(t, "ResolveToMountTable", ns.ResolveToMountTable, r.NewContext(), name, want)
-}
-
-func testResolveToMountTableWithPattern(t *testing.T, r veyron2.Runtime, ns naming.Namespace, name string, pattern naming.ResolveOpt, want ...string) {
-	doResolveTest(t, "ResolveToMountTable", ns.ResolveToMountTable, r.NewContext(), name, want, pattern)
+	servers, err := ns.ResolveToMountTable(r.NewContext(), name)
+	if err != nil {
+		boom(t, "Failed to ResolveToMountTable %q: %s", name, err)
+	}
+	compare(t, "ResolveToMountTable", name, servers, want)
 }
 
 func testResolve(t *testing.T, r veyron2.Runtime, ns naming.Namespace, name string, want ...string) {
-	doResolveTest(t, "Resolve", ns.Resolve, r.NewContext(), name, want)
-}
-
-func testResolveWithPattern(t *testing.T, r veyron2.Runtime, ns naming.Namespace, name string, pattern naming.ResolveOpt, want ...string) {
-	doResolveTest(t, "Resolve", ns.Resolve, r.NewContext(), name, want, pattern)
+	servers, err := ns.Resolve(r.NewContext(), name)
+	if err != nil {
+		boom(t, "Failed to Resolve %q: %s", name, err)
+	}
+	compare(t, "Resolve", name, servers, want)
 }
 
 func testUnresolve(t *testing.T, r veyron2.Runtime, ns naming.Namespace, name string, want ...string) {
@@ -619,57 +609,4 @@ func TestBadRoots(t *testing.T) {
 	if _, err := namespace.New(r, "not a rooted name"); err == nil {
 		t.Errorf("namespace.New should have failed with an unrooted name")
 	}
-}
-
-func bless(blesser, delegate security.Principal, extension string) {
-	b, err := blesser.Bless(delegate.PublicKey(), blesser.BlessingStore().Default(), extension, security.UnconstrainedUse())
-	if err != nil {
-		panic(err)
-	}
-	delegate.BlessingStore().SetDefault(b)
-}
-
-func TestRootBlessing(t *testing.T) {
-	// We need the default runtime for the server-side mounttable code
-	// which references rt.R() to create new endpoints
-	cr := rt.Init()
-	r, _ := rt.New() // We use a different runtime for the client side.
-
-	proot := sectest.NewPrincipal("root")
-	bless(proot, r.Principal(), "server")
-	bless(proot, cr.Principal(), "client")
-
-	cr.Principal().AddToRoots(proot.BlessingStore().Default())
-	r.Principal().AddToRoots(proot.BlessingStore().Default())
-
-	root, mts, _, stopper := createNamespace(t, r)
-	defer stopper()
-	ns := r.Namespace()
-
-	name := naming.Join(root.name, mt2MP)
-	// First check with a non-matching blessing pattern.
-	_, err := ns.Resolve(r.NewContext(), name, naming.RootBlessingPatternOpt("root/foobar"))
-	if !verror.Is(err, verror.NoAccess.ID) {
-		t.Errorf("Resolve expected NoAccess error, got %v", err)
-	}
-	_, err = ns.ResolveToMountTable(r.NewContext(), name, naming.RootBlessingPatternOpt("root/foobar"))
-	if !verror.Is(err, verror.NoAccess.ID) {
-		t.Errorf("ResolveToMountTable expected NoAccess error, got %v", err)
-	}
-
-	// Now check a matching pattern.
-	testResolveWithPattern(t, r, ns, name, naming.RootBlessingPatternOpt("root/server"), mts[mt2MP].name)
-	testResolveToMountTableWithPattern(t, r, ns, name, naming.RootBlessingPatternOpt("root/server"), name)
-
-	// After successful lookup it should be cached, so the pattern doesn't matter.
-	testResolveWithPattern(t, r, ns, name, naming.RootBlessingPatternOpt("root/foobar"), mts[mt2MP].name)
-
-	// Test calling a method.
-	jokeName := naming.Join(root.name, mt4MP, j1MP)
-	runServer(t, r, &dispatcher{}, naming.Join(mts["mt4"].name, j1MP))
-	_, err = r.Client().StartCall(r.NewContext(), "[root/foobar]"+jokeName, "KnockKnock", nil)
-	if err == nil {
-		t.Errorf("StartCall expected NoAccess error, got %v", err)
-	}
-	knockKnock(t, r, "[root/server]"+jokeName)
 }
