@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/hex"
 	"encoding/json"
+	"strings"
 	"testing"
 
 	"veyron.io/veyron/veyron/profiles"
@@ -140,7 +141,14 @@ func TestBrowspr(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Error fetching published names from mounttable: %v", err)
 	}
-	if len(mountEntry.Servers) != 1 || mountEntry.Servers[0].Server != "/"+mockServerEndpoint.String() {
+
+	servers := []string{}
+	for _, s := range mountEntry.Servers {
+		if strings.Index(s.Server, "@tcp") != -1 {
+			servers = append(servers, s.Server)
+		}
+	}
+	if len(servers) != 1 || servers[0] != "/"+mockServerEndpoint.String() {
 		t.Fatalf("Incorrect names retrieved from mounttable: %v", mountEntry)
 	}
 
