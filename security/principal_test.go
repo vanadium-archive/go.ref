@@ -41,6 +41,18 @@ func TestLoadPersistentPrincipal(t *testing.T) {
 	os.RemoveAll(dir)
 }
 
+// This Test checks that the all changes made to the principal's serialization
+// format stay backwards compatible.
+//
+// The 'testdata' directory used by this test was generated using the
+// principal tool as part of CL #6820.
+// $VEYRON_BIN/principal create testdata test
+func TestLoadPersistentPrincipalBackwardsCompatibility(t *testing.T) {
+	if _, err := LoadPersistentPrincipal("./testdata", nil); err != nil {
+		t.Fatal("LoadPersistentPrincipal is not backwards compatible: failed to read serialized principal data from CL #6820")
+	}
+}
+
 func TestCreatePersistentPrincipal(t *testing.T) {
 	tests := []struct {
 		Message, Passphrase []byte
