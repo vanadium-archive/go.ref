@@ -89,17 +89,6 @@ func (c implBenchmarkClientStub) Signature(ctx __context.T, opts ...__ipc.CallOp
 	return
 }
 
-func (c implBenchmarkClientStub) GetMethodTags(ctx __context.T, method string, opts ...__ipc.CallOpt) (o0 []interface{}, err error) {
-	var call __ipc.Call
-	if call, err = c.c(ctx).StartCall(ctx, c.name, "GetMethodTags", []interface{}{method}, opts...); err != nil {
-		return
-	}
-	if ierr := call.Finish(&o0, &err); ierr != nil {
-		err = ierr
-	}
-	return
-}
-
 // BenchmarkEchoStreamClientStream is the client stream for Benchmark.EchoStream.
 type BenchmarkEchoStreamClientStream interface {
 	// RecvStream returns the receiver side of the Benchmark.EchoStream client stream.
@@ -229,9 +218,9 @@ type BenchmarkServerStubMethods interface {
 // BenchmarkServerStub adds universal methods to BenchmarkServerStubMethods.
 type BenchmarkServerStub interface {
 	BenchmarkServerStubMethods
-	// GetMethodTags will be replaced with DescribeInterfaces.
-	GetMethodTags(ctx __ipc.ServerContext, method string) ([]interface{}, error)
-	// Signature will be replaced with DescribeInterfaces.
+	// Describe the Benchmark interfaces.
+	Describe__() []__ipc.InterfaceDesc
+	// Signature will be replaced with Describe__.
 	Signature(ctx __ipc.ServerContext) (__ipc.ServiceSignature, error)
 }
 
@@ -269,20 +258,41 @@ func (s implBenchmarkServerStub) VGlob() *__ipc.GlobState {
 	return s.gs
 }
 
-func (s implBenchmarkServerStub) GetMethodTags(ctx __ipc.ServerContext, method string) ([]interface{}, error) {
-	// TODO(toddw): Replace with new DescribeInterfaces implementation.
-	switch method {
-	case "Echo":
-		return []interface{}{}, nil
-	case "EchoStream":
-		return []interface{}{}, nil
-	default:
-		return nil, nil
-	}
+func (s implBenchmarkServerStub) Describe__() []__ipc.InterfaceDesc {
+	return []__ipc.InterfaceDesc{BenchmarkDesc}
+}
+
+// BenchmarkDesc describes the Benchmark interface.
+var BenchmarkDesc __ipc.InterfaceDesc = descBenchmark
+
+// descBenchmark hides the desc to keep godoc clean.
+var descBenchmark = __ipc.InterfaceDesc{
+	Name:    "Benchmark",
+	PkgPath: "veyron.io/veyron/veyron/runtimes/google/ipc/benchmarks",
+	Methods: []__ipc.MethodDesc{
+		{
+			Name: "Echo",
+			Doc:  "// Echo returns the payload that it receives.",
+			InArgs: []__ipc.ArgDesc{
+				{"Payload", ``}, // []byte
+			},
+			OutArgs: []__ipc.ArgDesc{
+				{"", ``}, // []byte
+				{"", ``}, // error
+			},
+		},
+		{
+			Name: "EchoStream",
+			Doc:  "// EchoStream returns the payload that it receives via the stream.",
+			OutArgs: []__ipc.ArgDesc{
+				{"", ``}, // error
+			},
+		},
+	},
 }
 
 func (s implBenchmarkServerStub) Signature(ctx __ipc.ServerContext) (__ipc.ServiceSignature, error) {
-	// TODO(toddw) Replace with new DescribeInterfaces implementation.
+	// TODO(toddw): Replace with new Describe__ implementation.
 	result := __ipc.ServiceSignature{Methods: make(map[string]__ipc.MethodSignature)}
 	result.Methods["Echo"] = __ipc.MethodSignature{
 		InArgs: []__ipc.MethodArgument{

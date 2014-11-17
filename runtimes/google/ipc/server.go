@@ -41,6 +41,7 @@ type server struct {
 	listenerOpts     []stream.ListenerOpt              // listener opts passed to Listen.
 	listeners        map[stream.Listener]*dhcpListener // listeners created by Listen.
 	disp             ipc.Dispatcher                    // dispatcher to serve RPCs
+	dispReserved     ipc.Dispatcher                    // dispatcher for reserved methods
 	active           sync.WaitGroup                    // active goroutines we've spawned.
 	stopped          bool                              // whether the server has been stopped.
 	stoppedChan      chan struct{}                     // closed when the server has been stopped.
@@ -49,8 +50,7 @@ type server struct {
 	// TODO(cnicolaou): remove this when the publisher tracks published names
 	// and can return an appropriate error for RemoveName on a name that
 	// wasn't 'Added' for this server.
-	names       map[string]struct{}
-	reservedOpt options.ReservedNameDispatcher
+	names map[string]struct{}
 	// TODO(cnicolaou): add roaming stats to ipcStats
 	stats      *ipcStats      // stats for this server.
 	traceStore *ivtrace.Store // store for vtrace traces.
@@ -99,7 +99,7 @@ func InternalNewServer(ctx context.T, streamMgr stream.Manager, ns naming.Namesp
 		case options.ServesMountTable:
 			s.servesMountTable = bool(opt)
 		case options.ReservedNameDispatcher:
-			s.reservedOpt = opt
+			s.dispReserved = opt.Dispatcher
 		}
 	}
 	blessingsStatsName := naming.Join(statsPrefix, "security", "blessings")
@@ -401,10 +401,8 @@ func (s *server) listenLoop(ln stream.Listener, ep naming.Endpoint) {
 		calls.Add(1)
 		go func(flow stream.Flow) {
 			if err := newFlowServer(flow, s).serve(); err != nil {
-				// TODO(caprita): Logging errors here is
-				// too spammy. For example, "not
-				// authorized" errors shouldn't be
-				// logged as server errors.
+				// TODO(caprita): Logging errors here is too spammy. For example, "not
+				// authorized" errors shouldn't be logged as server errors.
 				vlog.Errorf("Flow serve on %v failed: %v", ln, err)
 			}
 			calls.Done()
@@ -601,12 +599,11 @@ func (s *server) Stop() error {
 // flow that's already connected to the client.
 type flowServer struct {
 	context.T
-	server      *server        // ipc.Server that this flow server belongs to
-	disp        ipc.Dispatcher // ipc.Dispatcher that will serve RPCs on this flow
-	dec         *vom.Decoder   // to decode requests and args from the client
-	enc         *vom.Encoder   // to encode responses and results to the client
-	flow        stream.Flow    // underlying flow
-	reservedOpt options.ReservedNameDispatcher
+	server *server        // ipc.Server that this flow server belongs to
+	disp   ipc.Dispatcher // ipc.Dispatcher that will serve RPCs on this flow
+	dec    *vom.Decoder   // to decode requests and args from the client
+	enc    *vom.Encoder   // to encode responses and results to the client
+	flow   stream.Flow    // underlying flow
 
 	// Fields filled in during the server invocation.
 	blessings      security.Blessings
@@ -630,11 +627,10 @@ func newFlowServer(flow stream.Flow, server *server) *flowServer {
 		server: server,
 		disp:   disp,
 		// TODO(toddw): Support different codecs
-		dec:         vom.NewDecoder(flow),
-		enc:         vom.NewEncoder(flow),
-		flow:        flow,
-		reservedOpt: server.reservedOpt,
-		discharges:  make(map[string]security.Discharge),
+		dec:        vom.NewDecoder(flow),
+		enc:        vom.NewEncoder(flow),
+		flow:       flow,
+		discharges: make(map[string]security.Discharge),
 	}
 }
 
@@ -727,20 +723,6 @@ func (fs *flowServer) readIPCRequest() (*ipc.Request, verror.E) {
 	return &req, nil
 }
 
-func lookupInvoker(d ipc.Dispatcher, name, method string) (ipc.Invoker, security.Authorizer, error) {
-	obj, auth, err := d.Lookup(name, method)
-	switch {
-	case err != nil:
-		return nil, nil, err
-	case obj == nil:
-		return nil, auth, nil
-	}
-	if invoker, ok := obj.(ipc.Invoker); ok {
-		return invoker, auth, nil
-	}
-	return ipc.ReflectInvoker(obj), auth, nil
-}
-
 func (fs *flowServer) processRequest() ([]interface{}, verror.E) {
 	fs.starttime = time.Now()
 	req, verr := fs.readIPCRequest()
@@ -751,7 +733,7 @@ func (fs *flowServer) processRequest() ([]interface{}, verror.E) {
 		return nil, verr
 	}
 	fs.method = req.Method
-	fs.suffix = req.Suffix
+	fs.suffix = strings.TrimLeft(req.Suffix, "/")
 
 	// TODO(mattr): Currently this allows users to trigger trace collection
 	// on the server even if they will not be allowed to collect the
@@ -766,45 +748,14 @@ func (fs *flowServer) processRequest() ([]interface{}, verror.E) {
 		fs.T, cancel = fs.WithCancel()
 	}
 	fs.flow.SetDeadline(fs.Done())
+	go fs.cancelContextOnClose(cancel)
 
-	// Ensure that the context gets cancelled if the flow is closed
-	// due to a network error, or client cancellation.
-	go func() {
-		select {
-		case <-fs.flow.Closed():
-			// Here we remove the contexts channel as a deadline to the flow.
-			// We do this to ensure clients get a consistent error when they read/write
-			// after the flow is closed.  Since the flow is already closed, it doesn't
-			// matter that the context is also cancelled.
-			fs.flow.SetDeadline(nil)
-			cancel()
-		case <-fs.Done():
-		}
-	}()
-
-	// If additional credentials are provided, make them available in the context
-	var err error
-	if fs.blessings, err = security.NewBlessings(req.GrantedBlessings); err != nil {
-		return nil, verror.BadProtocolf("ipc: failed to decode granted blessings: %v", err)
-	}
-	// Detect unusable blessings now, rather then discovering they are unusable on first use.
-	// TODO(ashankar,ataly): Potential confused deputy attack: The client provides the
-	// server's identity as the blessing. Figure out what we want to do about this -
-	// should servers be able to assume that a blessing is something that does not
-	// have the authorizations that the server's own identity has?
-	if fs.blessings != nil && !reflect.DeepEqual(fs.blessings.PublicKey(), fs.flow.LocalPrincipal().PublicKey()) {
-		return nil, verror.BadProtocolf("ipc: blessing granted not bound to this server(%v vs %v)", fs.blessings.PublicKey(), fs.flow.LocalPrincipal().PublicKey())
-	}
-	// Receive third party caveat discharges the client sent
-	for i := uint64(0); i < req.NumDischarges; i++ {
-		var d security.Discharge
-		if err := fs.dec.Decode(&d); err != nil {
-			return nil, verror.BadProtocolf("ipc: decoding discharge %d of %d failed: %v", i, req.NumDischarges, err)
-		}
-		fs.discharges[d.ID()] = d
+	// Initialize security: blessings, discharges, etc.
+	if verr := fs.initSecurity(req); verr != nil {
+		return nil, verr
 	}
 	// Lookup the invoker.
-	invoker, auth, verr := fs.lookup(&fs.suffix, &fs.method)
+	invoker, auth, verr := fs.lookup(fs.suffix, &fs.method)
 	if verr != nil {
 		return nil, verr
 	}
@@ -813,60 +764,109 @@ func (fs *flowServer) processRequest() ([]interface{}, verror.E) {
 	argptrs, tags, err := invoker.Prepare(fs.method, numArgs)
 	fs.tags = tags
 	if err != nil {
-		return nil, verror.Makef(verror.ErrorID(err), "%s: name: %q", err, req.Suffix)
+		return nil, verror.Makef(verror.ErrorID(err), "%s: name: %q", err, fs.suffix)
 	}
 	if len(argptrs) != numArgs {
-		return nil, verror.BadProtocolf(fmt.Sprintf("ipc: wrong number of input arguments for method %q, name %q (called with %d args, expected %d)", req.Method, req.Suffix, numArgs, len(argptrs)))
+		return nil, verror.BadProtocolf(fmt.Sprintf("ipc: wrong number of input arguments for method %q, name %q (called with %d args, expected %d)", fs.method, fs.suffix, numArgs, len(argptrs)))
 	}
 	for ix, argptr := range argptrs {
 		if err := fs.dec.Decode(argptr); err != nil {
 			return nil, verror.BadProtocolf("ipc: arg %d decoding failed: %v", ix, err)
 		}
 	}
-	fs.allowDebug = fs.LocalPrincipal() == nil
-	// Check application's authorization policy and invoke the method.
-	// LocalPrincipal is nil means that the server wanted to avoid authentication,
-	// and thus wanted to skip authorization as well.
-	if fs.LocalPrincipal() != nil {
-		// Check if the caller is permitted to view debug information.
-		if err := fs.authorize(auth); err != nil {
-			return nil, err
-		}
-		fs.allowDebug = fs.authorizeForDebug(auth) == nil
+	// Check application's authorization policy.
+	if verr := authorize(fs, auth); verr != nil {
+		return nil, verr
 	}
-
+	// Check if the caller is permitted to view debug information.
+	// TODO(mattr): Is DebugLabel the right thing to check?
+	fs.allowDebug = authorize(debugContext{fs}, auth) == nil
+	// Invoke the method.
 	results, err := invoker.Invoke(fs.method, fs, argptrs)
 	fs.server.stats.record(fs.method, time.Since(fs.starttime))
 	return results, verror.Convert(err)
 }
 
-// lookup returns the invoker and authorizer responsible for serving the given
-// name and method.  The name is stripped of any leading slashes. If it begins
-// with ipc.DebugKeyword, we use the internal debug dispatcher to look up the
-// invoker. Otherwise, and we use the server's dispatcher. The name and method
-// value may be modified to match the actual name and method to use.
-func (fs *flowServer) lookup(name, method *string) (ipc.Invoker, security.Authorizer, verror.E) {
-	*name = strings.TrimLeft(*name, "/")
-	if *method == ipc.GlobMethod {
-		*method = "Glob"
-		return ipc.ReflectInvoker(&globInternal{fs, *name}), &acceptAllAuthorizer{}, nil
+func (fs *flowServer) cancelContextOnClose(cancel context.CancelFunc) {
+	// Ensure that the context gets cancelled if the flow is closed
+	// due to a network error, or client cancellation.
+	select {
+	case <-fs.flow.Closed():
+		// Here we remove the contexts channel as a deadline to the flow.
+		// We do this to ensure clients get a consistent error when they read/write
+		// after the flow is closed.  Since the flow is already closed, it doesn't
+		// matter that the context is also cancelled.
+		fs.flow.SetDeadline(nil)
+		cancel()
+	case <-fs.Done():
 	}
-	var disp ipc.Dispatcher
-	if naming.IsReserved(*name) {
-		disp = fs.reservedOpt.Dispatcher
-	} else {
-		disp = fs.disp
+}
+
+// lookup returns the invoker and authorizer responsible for serving the given
+// name and method.  The suffix is stripped of any leading slashes. If it begins
+// with ipc.DebugKeyword, we use the internal debug dispatcher to look up the
+// invoker. Otherwise, and we use the server's dispatcher. The suffix and method
+// value may be modified to match the actual suffix and method to use.
+func (fs *flowServer) lookup(suffix string, method *string) (ipc.Invoker, security.Authorizer, verror.E) {
+	if naming.IsReserved(*method) {
+		// All reserved methods are trapped and handled here, by removing the
+		// reserved prefix and invoking them on reservedMethods.  E.g. "__Glob"
+		// invokes reservedMethods.Glob.
+		*method = naming.StripReserved(*method)
+		return reservedInvoker(fs.disp, fs.server.dispReserved), &acceptAllAuthorizer{}, nil
+	}
+	disp := fs.disp
+	if naming.IsReserved(suffix) {
+		disp = fs.server.dispReserved
 	}
 	if disp != nil {
-		invoker, auth, err := lookupInvoker(disp, *name, *method)
+		obj, auth, err := disp.Lookup(suffix, *method)
 		switch {
 		case err != nil:
 			return nil, nil, verror.Convert(err)
-		case invoker != nil:
-			return invoker, auth, nil
+		case obj != nil:
+			return objectToInvoker(obj), auth, nil
 		}
 	}
-	return nil, nil, verror.NoExistf("ipc: invoker not found for %q", *name)
+	return nil, nil, verror.NoExistf("ipc: invoker not found for %q", suffix)
+}
+
+func objectToInvoker(obj interface{}) ipc.Invoker {
+	if obj == nil {
+		return nil
+	}
+	if invoker, ok := obj.(ipc.Invoker); ok {
+		return invoker
+	}
+	return ipc.ReflectInvoker(obj)
+}
+
+func (fs *flowServer) initSecurity(req *ipc.Request) verror.E {
+	// If additional credentials are provided, make them available in the context
+	blessings, err := security.NewBlessings(req.GrantedBlessings)
+	if err != nil {
+		return verror.BadProtocolf("ipc: failed to decode granted blessings: %v", err)
+	}
+	fs.blessings = blessings
+	// Detect unusable blessings now, rather then discovering they are unusable on
+	// first use.
+	//
+	// TODO(ashankar,ataly): Potential confused deputy attack: The client provides
+	// the server's identity as the blessing. Figure out what we want to do about
+	// this - should servers be able to assume that a blessing is something that
+	// does not have the authorizations that the server's own identity has?
+	if blessings != nil && !reflect.DeepEqual(blessings.PublicKey(), fs.flow.LocalPrincipal().PublicKey()) {
+		return verror.BadProtocolf("ipc: blessing granted not bound to this server(%v vs %v)", blessings.PublicKey(), fs.flow.LocalPrincipal().PublicKey())
+	}
+	// Receive third party caveat discharges the client sent
+	for i := uint64(0); i < req.NumDischarges; i++ {
+		var d security.Discharge
+		if err := fs.dec.Decode(&d); err != nil {
+			return verror.BadProtocolf("ipc: decoding discharge %d of %d failed: %v", i, req.NumDischarges, err)
+		}
+		fs.discharges[d.ID()] = d
+	}
+	return nil
 }
 
 type acceptAllAuthorizer struct{}
@@ -875,13 +875,18 @@ func (acceptAllAuthorizer) Authorize(security.Context) error {
 	return nil
 }
 
-func (fs *flowServer) authorize(auth security.Authorizer) verror.E {
+func authorize(ctx security.Context, auth security.Authorizer) verror.E {
+	if ctx.LocalPrincipal() == nil {
+		// LocalPrincipal is nil means that the server wanted to avoid
+		// authentication, and thus wanted to skip authorization as well.
+		return nil
+	}
 	if auth == nil {
 		auth = defaultAuthorizer{}
 	}
-	if err := auth.Authorize(fs); err != nil {
+	if err := auth.Authorize(ctx); err != nil {
 		// TODO(ataly, ashankar): For privacy reasons, should we hide the authorizer error?
-		return verror.NoAccessf("ipc: not authorized to call %q.%q (%v)", fs.Name(), fs.Method(), err)
+		return verror.NoAccessf("ipc: not authorized to call %q.%q (%v)", ctx.Suffix(), ctx.Method(), err)
 	}
 	return nil
 }
@@ -893,15 +898,6 @@ type debugContext struct {
 }
 
 func (debugContext) Label() security.Label { return security.DebugLabel }
-
-// TODO(mattr): Is DebugLabel the right thing to check?
-func (fs *flowServer) authorizeForDebug(auth security.Authorizer) error {
-	dc := debugContext{fs}
-	if auth == nil {
-		auth = defaultAuthorizer{}
-	}
-	return auth.Authorize(dc)
-}
 
 // Send implements the ipc.Stream method.
 func (fs *flowServer) Send(item interface{}) error {
@@ -933,7 +929,6 @@ func (fs *flowServer) RemoteDischarges() map[string]security.Discharge {
 	//nologcall
 	return fs.discharges
 }
-
 func (fs *flowServer) Server() ipc.Server {
 	//nologcall
 	return fs.server
@@ -963,12 +958,7 @@ func (fs *flowServer) Suffix() string {
 }
 func (fs *flowServer) Label() security.Label {
 	//nologcall
-	for _, t := range fs.tags {
-		if l, ok := t.(security.Label); ok {
-			return l
-		}
-	}
-	return security.AdminLabel
+	return security.LabelFromMethodTags(fs.tags)
 }
 func (fs *flowServer) LocalPrincipal() security.Principal {
 	//nologcall

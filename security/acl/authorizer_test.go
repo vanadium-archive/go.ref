@@ -207,8 +207,18 @@ func TestTagTypeMustBeString(t *testing.T) {
 	}
 }
 
-func methodTags(method string) []interface{} {
+func methodTags(name string) []interface{} {
 	server := test.MyObjectServer(nil)
-	tags, _ := server.GetMethodTags(nil, method)
-	return tags
+	for _, iface := range server.Describe__() {
+		for _, method := range iface.Methods {
+			if method.Name == name {
+				tags := make([]interface{}, len(method.Tags))
+				for index, tag := range method.Tags {
+					tags[index] = tag
+				}
+				return tags
+			}
+		}
+	}
+	return nil
 }

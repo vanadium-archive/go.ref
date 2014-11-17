@@ -93,17 +93,6 @@ func (c implOAuthBlesserClientStub) Signature(ctx __context.T, opts ...__ipc.Cal
 	return
 }
 
-func (c implOAuthBlesserClientStub) GetMethodTags(ctx __context.T, method string, opts ...__ipc.CallOpt) (o0 []interface{}, err error) {
-	var call __ipc.Call
-	if call, err = c.c(ctx).StartCall(ctx, c.name, "GetMethodTags", []interface{}{method}, opts...); err != nil {
-		return
-	}
-	if ierr := call.Finish(&o0, &err); ierr != nil {
-		err = ierr
-	}
-	return
-}
-
 // OAuthBlesserServerMethods is the interface a server writer
 // implements for OAuthBlesser.
 //
@@ -135,9 +124,9 @@ type OAuthBlesserServerStubMethods OAuthBlesserServerMethods
 // OAuthBlesserServerStub adds universal methods to OAuthBlesserServerStubMethods.
 type OAuthBlesserServerStub interface {
 	OAuthBlesserServerStubMethods
-	// GetMethodTags will be replaced with DescribeInterfaces.
-	GetMethodTags(ctx __ipc.ServerContext, method string) ([]interface{}, error)
-	// Signature will be replaced with DescribeInterfaces.
+	// Describe the OAuthBlesser interfaces.
+	Describe__() []__ipc.InterfaceDesc
+	// Signature will be replaced with Describe__.
 	Signature(ctx __ipc.ServerContext) (__ipc.ServiceSignature, error)
 }
 
@@ -171,18 +160,36 @@ func (s implOAuthBlesserServerStub) VGlob() *__ipc.GlobState {
 	return s.gs
 }
 
-func (s implOAuthBlesserServerStub) GetMethodTags(ctx __ipc.ServerContext, method string) ([]interface{}, error) {
-	// TODO(toddw): Replace with new DescribeInterfaces implementation.
-	switch method {
-	case "BlessUsingAccessToken":
-		return []interface{}{}, nil
-	default:
-		return nil, nil
-	}
+func (s implOAuthBlesserServerStub) Describe__() []__ipc.InterfaceDesc {
+	return []__ipc.InterfaceDesc{OAuthBlesserDesc}
+}
+
+// OAuthBlesserDesc describes the OAuthBlesser interface.
+var OAuthBlesserDesc __ipc.InterfaceDesc = descOAuthBlesser
+
+// descOAuthBlesser hides the desc to keep godoc clean.
+var descOAuthBlesser = __ipc.InterfaceDesc{
+	Name:    "OAuthBlesser",
+	PkgPath: "veyron.io/veyron/veyron/services/identity",
+	Doc:     "// OAuthBlesser exchanges OAuth access tokens for\n// an email address from an OAuth-based identity provider and uses the email\n// address obtained to bless the client.\n//\n// OAuth is described in RFC 6749 (http://tools.ietf.org/html/rfc6749),\n// though the Google implementation also has informative documentation at\n// https://developers.google.com/accounts/docs/OAuth2\n//\n// WARNING: There is no binding between the channel over which the access token\n// was obtained (typically https) and the channel used to make the RPC (a\n// veyron virtual circuit).\n// Thus, if Mallory possesses the access token associated with Alice's account,\n// she may be able to obtain a blessing with Alice's name on it.",
+	Methods: []__ipc.MethodDesc{
+		{
+			Name: "BlessUsingAccessToken",
+			Doc:  "// BlessUsingAccessToken uses the provided access token to obtain the email\n// address and returns a blessing along with the email address.",
+			InArgs: []__ipc.ArgDesc{
+				{"token", ``}, // string
+			},
+			OutArgs: []__ipc.ArgDesc{
+				{"blessing", ``}, // security.WireBlessings
+				{"email", ``},    // string
+				{"err", ``},      // error
+			},
+		},
+	},
 }
 
 func (s implOAuthBlesserServerStub) Signature(ctx __ipc.ServerContext) (__ipc.ServiceSignature, error) {
-	// TODO(toddw) Replace with new DescribeInterfaces implementation.
+	// TODO(toddw): Replace with new Describe__ implementation.
 	result := __ipc.ServiceSignature{Methods: make(map[string]__ipc.MethodSignature)}
 	result.Methods["BlessUsingAccessToken"] = __ipc.MethodSignature{
 		InArgs: []__ipc.MethodArgument{
@@ -288,17 +295,6 @@ func (c implMacaroonBlesserClientStub) Signature(ctx __context.T, opts ...__ipc.
 	return
 }
 
-func (c implMacaroonBlesserClientStub) GetMethodTags(ctx __context.T, method string, opts ...__ipc.CallOpt) (o0 []interface{}, err error) {
-	var call __ipc.Call
-	if call, err = c.c(ctx).StartCall(ctx, c.name, "GetMethodTags", []interface{}{method}, opts...); err != nil {
-		return
-	}
-	if ierr := call.Finish(&o0, &err); ierr != nil {
-		err = ierr
-	}
-	return
-}
-
 // MacaroonBlesserServerMethods is the interface a server writer
 // implements for MacaroonBlesser.
 //
@@ -318,9 +314,9 @@ type MacaroonBlesserServerStubMethods MacaroonBlesserServerMethods
 // MacaroonBlesserServerStub adds universal methods to MacaroonBlesserServerStubMethods.
 type MacaroonBlesserServerStub interface {
 	MacaroonBlesserServerStubMethods
-	// GetMethodTags will be replaced with DescribeInterfaces.
-	GetMethodTags(ctx __ipc.ServerContext, method string) ([]interface{}, error)
-	// Signature will be replaced with DescribeInterfaces.
+	// Describe the MacaroonBlesser interfaces.
+	Describe__() []__ipc.InterfaceDesc
+	// Signature will be replaced with Describe__.
 	Signature(ctx __ipc.ServerContext) (__ipc.ServiceSignature, error)
 }
 
@@ -354,18 +350,35 @@ func (s implMacaroonBlesserServerStub) VGlob() *__ipc.GlobState {
 	return s.gs
 }
 
-func (s implMacaroonBlesserServerStub) GetMethodTags(ctx __ipc.ServerContext, method string) ([]interface{}, error) {
-	// TODO(toddw): Replace with new DescribeInterfaces implementation.
-	switch method {
-	case "Bless":
-		return []interface{}{}, nil
-	default:
-		return nil, nil
-	}
+func (s implMacaroonBlesserServerStub) Describe__() []__ipc.InterfaceDesc {
+	return []__ipc.InterfaceDesc{MacaroonBlesserDesc}
+}
+
+// MacaroonBlesserDesc describes the MacaroonBlesser interface.
+var MacaroonBlesserDesc __ipc.InterfaceDesc = descMacaroonBlesser
+
+// descMacaroonBlesser hides the desc to keep godoc clean.
+var descMacaroonBlesser = __ipc.InterfaceDesc{
+	Name:    "MacaroonBlesser",
+	PkgPath: "veyron.io/veyron/veyron/services/identity",
+	Doc:     "// MacaroonBlesser returns a blessing given the provided macaroon string.",
+	Methods: []__ipc.MethodDesc{
+		{
+			Name: "Bless",
+			Doc:  "// Bless uses the provided macaroon (which contains email and caveats)\n// to return a blessing for the client.",
+			InArgs: []__ipc.ArgDesc{
+				{"macaroon", ``}, // string
+			},
+			OutArgs: []__ipc.ArgDesc{
+				{"blessing", ``}, // security.WireBlessings
+				{"err", ``},      // error
+			},
+		},
+	},
 }
 
 func (s implMacaroonBlesserServerStub) Signature(ctx __ipc.ServerContext) (__ipc.ServiceSignature, error) {
-	// TODO(toddw) Replace with new DescribeInterfaces implementation.
+	// TODO(toddw): Replace with new Describe__ implementation.
 	result := __ipc.ServiceSignature{Methods: make(map[string]__ipc.MethodSignature)}
 	result.Methods["Bless"] = __ipc.MethodSignature{
 		InArgs: []__ipc.MethodArgument{

@@ -137,17 +137,6 @@ func (c implMyObjectClientStub) Signature(ctx __context.T, opts ...__ipc.CallOpt
 	return
 }
 
-func (c implMyObjectClientStub) GetMethodTags(ctx __context.T, method string, opts ...__ipc.CallOpt) (o0 []interface{}, err error) {
-	var call __ipc.Call
-	if call, err = c.c(ctx).StartCall(ctx, c.name, "GetMethodTags", []interface{}{method}, opts...); err != nil {
-		return
-	}
-	if ierr := call.Finish(&o0, &err); ierr != nil {
-		err = ierr
-	}
-	return
-}
-
 // MyObjectServerMethods is the interface a server writer
 // implements for MyObject.
 //
@@ -169,9 +158,9 @@ type MyObjectServerStubMethods MyObjectServerMethods
 // MyObjectServerStub adds universal methods to MyObjectServerStubMethods.
 type MyObjectServerStub interface {
 	MyObjectServerStubMethods
-	// GetMethodTags will be replaced with DescribeInterfaces.
-	GetMethodTags(ctx __ipc.ServerContext, method string) ([]interface{}, error)
-	// Signature will be replaced with DescribeInterfaces.
+	// Describe the MyObject interfaces.
+	Describe__() []__ipc.InterfaceDesc
+	// Signature will be replaced with Describe__.
 	Signature(ctx __ipc.ServerContext) (__ipc.ServiceSignature, error)
 }
 
@@ -221,26 +210,58 @@ func (s implMyObjectServerStub) VGlob() *__ipc.GlobState {
 	return s.gs
 }
 
-func (s implMyObjectServerStub) GetMethodTags(ctx __ipc.ServerContext, method string) ([]interface{}, error) {
-	// TODO(toddw): Replace with new DescribeInterfaces implementation.
-	switch method {
-	case "Get":
-		return []interface{}{MyTag("R")}, nil
-	case "Put":
-		return []interface{}{MyTag("W")}, nil
-	case "Resolve":
-		return []interface{}{MyTag("X")}, nil
-	case "NoTags":
-		return []interface{}{}, nil
-	case "AllTags":
-		return []interface{}{MyTag("R"), MyTag("W"), MyTag("X")}, nil
-	default:
-		return nil, nil
-	}
+func (s implMyObjectServerStub) Describe__() []__ipc.InterfaceDesc {
+	return []__ipc.InterfaceDesc{MyObjectDesc}
+}
+
+// MyObjectDesc describes the MyObject interface.
+var MyObjectDesc __ipc.InterfaceDesc = descMyObject
+
+// descMyObject hides the desc to keep godoc clean.
+var descMyObject = __ipc.InterfaceDesc{
+	Name:    "MyObject",
+	PkgPath: "veyron.io/veyron/veyron/security/acl/test",
+	Doc:     "// MyObject demonstrates how tags are attached to methods.",
+	Methods: []__ipc.MethodDesc{
+		{
+			Name: "Get",
+			OutArgs: []__ipc.ArgDesc{
+				{"", ``}, // error
+			},
+			Tags: []__vdlutil.Any{MyTag("R")},
+		},
+		{
+			Name: "Put",
+			OutArgs: []__ipc.ArgDesc{
+				{"", ``}, // error
+			},
+			Tags: []__vdlutil.Any{MyTag("W")},
+		},
+		{
+			Name: "Resolve",
+			OutArgs: []__ipc.ArgDesc{
+				{"", ``}, // error
+			},
+			Tags: []__vdlutil.Any{MyTag("X")},
+		},
+		{
+			Name: "NoTags",
+			OutArgs: []__ipc.ArgDesc{
+				{"", ``}, // error
+			},
+		},
+		{
+			Name: "AllTags",
+			OutArgs: []__ipc.ArgDesc{
+				{"", ``}, // error
+			},
+			Tags: []__vdlutil.Any{MyTag("R"), MyTag("W"), MyTag("X")},
+		},
+	},
 }
 
 func (s implMyObjectServerStub) Signature(ctx __ipc.ServerContext) (__ipc.ServiceSignature, error) {
-	// TODO(toddw) Replace with new DescribeInterfaces implementation.
+	// TODO(toddw): Replace with new Describe__ implementation.
 	result := __ipc.ServiceSignature{Methods: make(map[string]__ipc.MethodSignature)}
 	result.Methods["AllTags"] = __ipc.MethodSignature{
 		InArgs: []__ipc.MethodArgument{},

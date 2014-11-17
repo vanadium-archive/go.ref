@@ -123,17 +123,6 @@ func (c implApplicationClientStub) Signature(ctx __context.T, opts ...__ipc.Call
 	return
 }
 
-func (c implApplicationClientStub) GetMethodTags(ctx __context.T, method string, opts ...__ipc.CallOpt) (o0 []interface{}, err error) {
-	var call __ipc.Call
-	if call, err = c.c(ctx).StartCall(ctx, c.name, "GetMethodTags", []interface{}{method}, opts...); err != nil {
-		return
-	}
-	if ierr := call.Finish(&o0, &err); ierr != nil {
-		err = ierr
-	}
-	return
-}
-
 // ApplicationServerMethods is the interface a server writer
 // implements for Application.
 //
@@ -175,9 +164,9 @@ type ApplicationServerStubMethods ApplicationServerMethods
 // ApplicationServerStub adds universal methods to ApplicationServerStubMethods.
 type ApplicationServerStub interface {
 	ApplicationServerStubMethods
-	// GetMethodTags will be replaced with DescribeInterfaces.
-	GetMethodTags(ctx __ipc.ServerContext, method string) ([]interface{}, error)
-	// Signature will be replaced with DescribeInterfaces.
+	// Describe the Application interfaces.
+	Describe__() []__ipc.InterfaceDesc
+	// Signature will be replaced with Describe__.
 	Signature(ctx __ipc.ServerContext) (__ipc.ServiceSignature, error)
 }
 
@@ -217,23 +206,50 @@ func (s implApplicationServerStub) VGlob() *__ipc.GlobState {
 	return s.gs
 }
 
-func (s implApplicationServerStub) GetMethodTags(ctx __ipc.ServerContext, method string) ([]interface{}, error) {
-	// TODO(toddw): Replace with new DescribeInterfaces implementation.
-	if resp, err := s.ApplicationServerStub.GetMethodTags(ctx, method); resp != nil || err != nil {
-		return resp, err
-	}
-	switch method {
-	case "Put":
-		return []interface{}{security.Label(4)}, nil
-	case "Remove":
-		return []interface{}{security.Label(4)}, nil
-	default:
-		return nil, nil
-	}
+func (s implApplicationServerStub) Describe__() []__ipc.InterfaceDesc {
+	return []__ipc.InterfaceDesc{ApplicationDesc, repository.ApplicationDesc}
+}
+
+// ApplicationDesc describes the Application interface.
+var ApplicationDesc __ipc.InterfaceDesc = descApplication
+
+// descApplication hides the desc to keep godoc clean.
+var descApplication = __ipc.InterfaceDesc{
+	Name:    "Application",
+	PkgPath: "veyron.io/veyron/veyron/services/mgmt/repository",
+	Doc:     "// Application describes an application repository internally. Besides\n// the public Application interface, it allows to add and remove\n// application envelopes.",
+	Embeds: []__ipc.EmbedDesc{
+		{"Application", "veyron.io/veyron/veyron2/services/mgmt/repository", "// Application provides access to application envelopes. An\n// application envelope is identified by an application name and an\n// application version, which are specified through the object name,\n// and a profile name, which is specified using a method argument.\n//\n// Example:\n// /apps/search/v1.Match([]string{\"base\", \"media\"})\n//   returns an application envelope that can be used for downloading\n//   and executing the \"search\" application, version \"v1\", runnable\n//   on either the \"base\" or \"media\" profile."},
+	},
+	Methods: []__ipc.MethodDesc{
+		{
+			Name: "Put",
+			Doc:  "// Put adds the given tuple of application version (specified\n// through the object name suffix) and application envelope to all\n// of the given application profiles.",
+			InArgs: []__ipc.ArgDesc{
+				{"Profiles", ``}, // []string
+				{"Envelope", ``}, // application.Envelope
+			},
+			OutArgs: []__ipc.ArgDesc{
+				{"", ``}, // error
+			},
+			Tags: []__vdlutil.Any{security.Label(4)},
+		},
+		{
+			Name: "Remove",
+			Doc:  "// Remove removes the application envelope for the given profile\n// name and application version (specified through the object name\n// suffix). If no version is specified as part of the suffix, the\n// method removes all versions for the given profile.\n//\n// TODO(jsimsa): Add support for using \"*\" to specify all profiles\n// when Matt implements Globing (or Ken implements querying).",
+			InArgs: []__ipc.ArgDesc{
+				{"Profile", ``}, // string
+			},
+			OutArgs: []__ipc.ArgDesc{
+				{"", ``}, // error
+			},
+			Tags: []__vdlutil.Any{security.Label(4)},
+		},
+	},
 }
 
 func (s implApplicationServerStub) Signature(ctx __ipc.ServerContext) (__ipc.ServiceSignature, error) {
-	// TODO(toddw) Replace with new DescribeInterfaces implementation.
+	// TODO(toddw): Replace with new Describe__ implementation.
 	result := __ipc.ServiceSignature{Methods: make(map[string]__ipc.MethodSignature)}
 	result.Methods["Put"] = __ipc.MethodSignature{
 		InArgs: []__ipc.MethodArgument{
@@ -419,17 +435,6 @@ func (c implProfileClientStub) Signature(ctx __context.T, opts ...__ipc.CallOpt)
 	return
 }
 
-func (c implProfileClientStub) GetMethodTags(ctx __context.T, method string, opts ...__ipc.CallOpt) (o0 []interface{}, err error) {
-	var call __ipc.Call
-	if call, err = c.c(ctx).StartCall(ctx, c.name, "GetMethodTags", []interface{}{method}, opts...); err != nil {
-		return
-	}
-	if ierr := call.Finish(&o0, &err); ierr != nil {
-		err = ierr
-	}
-	return
-}
-
 // ProfileServerMethods is the interface a server writer
 // implements for Profile.
 //
@@ -461,9 +466,9 @@ type ProfileServerStubMethods ProfileServerMethods
 // ProfileServerStub adds universal methods to ProfileServerStubMethods.
 type ProfileServerStub interface {
 	ProfileServerStubMethods
-	// GetMethodTags will be replaced with DescribeInterfaces.
-	GetMethodTags(ctx __ipc.ServerContext, method string) ([]interface{}, error)
-	// Signature will be replaced with DescribeInterfaces.
+	// Describe the Profile interfaces.
+	Describe__() []__ipc.InterfaceDesc
+	// Signature will be replaced with Describe__.
 	Signature(ctx __ipc.ServerContext) (__ipc.ServiceSignature, error)
 }
 
@@ -507,25 +512,55 @@ func (s implProfileServerStub) VGlob() *__ipc.GlobState {
 	return s.gs
 }
 
-func (s implProfileServerStub) GetMethodTags(ctx __ipc.ServerContext, method string) ([]interface{}, error) {
-	// TODO(toddw): Replace with new DescribeInterfaces implementation.
-	if resp, err := s.ProfileServerStub.GetMethodTags(ctx, method); resp != nil || err != nil {
-		return resp, err
-	}
-	switch method {
-	case "Specification":
-		return []interface{}{security.Label(2)}, nil
-	case "Put":
-		return []interface{}{security.Label(4)}, nil
-	case "Remove":
-		return []interface{}{security.Label(4)}, nil
-	default:
-		return nil, nil
-	}
+func (s implProfileServerStub) Describe__() []__ipc.InterfaceDesc {
+	return []__ipc.InterfaceDesc{ProfileDesc, repository.ProfileDesc}
+}
+
+// ProfileDesc describes the Profile interface.
+var ProfileDesc __ipc.InterfaceDesc = descProfile
+
+// descProfile hides the desc to keep godoc clean.
+var descProfile = __ipc.InterfaceDesc{
+	Name:    "Profile",
+	PkgPath: "veyron.io/veyron/veyron/services/mgmt/repository",
+	Doc:     "// Profile describes a profile internally. Besides the public Profile\n// interface, it allows to add and remove profile specifications.",
+	Embeds: []__ipc.EmbedDesc{
+		{"Profile", "veyron.io/veyron/veyron2/services/mgmt/repository", "// Profile abstracts a device's ability to run binaries, and hides\n// specifics such as the operating system, hardware architecture, and\n// the set of installed libraries. Profiles describe binaries and\n// devices, and are used to match them."},
+	},
+	Methods: []__ipc.MethodDesc{
+		{
+			Name: "Specification",
+			Doc:  "// Specification returns the profile specification for the profile\n// identified through the object name suffix.",
+			OutArgs: []__ipc.ArgDesc{
+				{"", ``}, // profile.Specification
+				{"", ``}, // error
+			},
+			Tags: []__vdlutil.Any{security.Label(2)},
+		},
+		{
+			Name: "Put",
+			Doc:  "// Put sets the profile specification for the profile identified\n// through the object name suffix.",
+			InArgs: []__ipc.ArgDesc{
+				{"Specification", ``}, // profile.Specification
+			},
+			OutArgs: []__ipc.ArgDesc{
+				{"", ``}, // error
+			},
+			Tags: []__vdlutil.Any{security.Label(4)},
+		},
+		{
+			Name: "Remove",
+			Doc:  "// Remove removes the profile specification for the profile\n// identified through the object name suffix.",
+			OutArgs: []__ipc.ArgDesc{
+				{"", ``}, // error
+			},
+			Tags: []__vdlutil.Any{security.Label(4)},
+		},
+	},
 }
 
 func (s implProfileServerStub) Signature(ctx __ipc.ServerContext) (__ipc.ServiceSignature, error) {
-	// TODO(toddw) Replace with new DescribeInterfaces implementation.
+	// TODO(toddw): Replace with new Describe__ implementation.
 	result := __ipc.ServiceSignature{Methods: make(map[string]__ipc.MethodSignature)}
 	result.Methods["Put"] = __ipc.MethodSignature{
 		InArgs: []__ipc.MethodArgument{

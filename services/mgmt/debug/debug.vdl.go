@@ -88,17 +88,6 @@ func (c implDebugClientStub) Signature(ctx __context.T, opts ...__ipc.CallOpt) (
 	return
 }
 
-func (c implDebugClientStub) GetMethodTags(ctx __context.T, method string, opts ...__ipc.CallOpt) (o0 []interface{}, err error) {
-	var call __ipc.Call
-	if call, err = c.c(ctx).StartCall(ctx, c.name, "GetMethodTags", []interface{}{method}, opts...); err != nil {
-		return
-	}
-	if ierr := call.Finish(&o0, &err); ierr != nil {
-		err = ierr
-	}
-	return
-}
-
 // DebugServerMethods is the interface a server writer
 // implements for Debug.
 //
@@ -141,9 +130,9 @@ type DebugServerStubMethods interface {
 // DebugServerStub adds universal methods to DebugServerStubMethods.
 type DebugServerStub interface {
 	DebugServerStubMethods
-	// GetMethodTags will be replaced with DescribeInterfaces.
-	GetMethodTags(ctx __ipc.ServerContext, method string) ([]interface{}, error)
-	// Signature will be replaced with DescribeInterfaces.
+	// Describe the Debug interfaces.
+	Describe__() []__ipc.InterfaceDesc
+	// Signature will be replaced with Describe__.
 	Signature(ctx __ipc.ServerContext) (__ipc.ServiceSignature, error)
 }
 
@@ -179,22 +168,27 @@ func (s implDebugServerStub) VGlob() *__ipc.GlobState {
 	return s.gs
 }
 
-func (s implDebugServerStub) GetMethodTags(ctx __ipc.ServerContext, method string) ([]interface{}, error) {
-	// TODO(toddw): Replace with new DescribeInterfaces implementation.
-	if resp, err := s.LogFileServerStub.GetMethodTags(ctx, method); resp != nil || err != nil {
-		return resp, err
-	}
-	if resp, err := s.StatsServerStub.GetMethodTags(ctx, method); resp != nil || err != nil {
-		return resp, err
-	}
-	if resp, err := s.PProfServerStub.GetMethodTags(ctx, method); resp != nil || err != nil {
-		return resp, err
-	}
-	return nil, nil
+func (s implDebugServerStub) Describe__() []__ipc.InterfaceDesc {
+	return []__ipc.InterfaceDesc{DebugDesc, logreader.LogFileDesc, stats.StatsDesc, pprof.PProfDesc}
+}
+
+// DebugDesc describes the Debug interface.
+var DebugDesc __ipc.InterfaceDesc = descDebug
+
+// descDebug hides the desc to keep godoc clean.
+var descDebug = __ipc.InterfaceDesc{
+	Name:    "Debug",
+	PkgPath: "veyron.io/veyron/veyron/services/mgmt/debug",
+	Doc:     "// This interface exists only for the purpose of generating a valid Signature\n// for all the interfaces that are served by the debug server. It should be\n// removed when https://code.google.com/p/envyor/issues/detail?id=285 is\n// resolved.",
+	Embeds: []__ipc.EmbedDesc{
+		{"LogFile", "veyron.io/veyron/veyron2/services/mgmt/logreader", "// LogFile can be used to access log files remotely."},
+		{"Stats", "veyron.io/veyron/veyron2/services/mgmt/stats", "// The Stats interface is used to access stats for troubleshooting and\n// monitoring purposes. The stats objects are discoverable via the Globbable\n// interface and watchable via the GlobWatcher interface.\n//\n// The types of the object values are implementation specific, but should be\n// primarily numeric in nature, e.g. counters, memory usage, latency metrics,\n// etc."},
+		{"PProf", "veyron.io/veyron/veyron2/services/mgmt/pprof", ``},
+	},
 }
 
 func (s implDebugServerStub) Signature(ctx __ipc.ServerContext) (__ipc.ServiceSignature, error) {
-	// TODO(toddw) Replace with new DescribeInterfaces implementation.
+	// TODO(toddw): Replace with new Describe__ implementation.
 	result := __ipc.ServiceSignature{Methods: make(map[string]__ipc.MethodSignature)}
 
 	result.TypeDefs = []__vdlutil.Any{}

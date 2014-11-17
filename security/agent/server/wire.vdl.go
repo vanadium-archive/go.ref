@@ -232,17 +232,6 @@ func (c implAgentClientStub) Signature(ctx __context.T, opts ...__ipc.CallOpt) (
 	return
 }
 
-func (c implAgentClientStub) GetMethodTags(ctx __context.T, method string, opts ...__ipc.CallOpt) (o0 []interface{}, err error) {
-	var call __ipc.Call
-	if call, err = c.c(ctx).StartCall(ctx, c.name, "GetMethodTags", []interface{}{method}, opts...); err != nil {
-		return
-	}
-	if ierr := call.Finish(&o0, &err); ierr != nil {
-		err = ierr
-	}
-	return
-}
-
 // AgentServerMethods is the interface a server writer
 // implements for Agent.
 type AgentServerMethods interface {
@@ -271,9 +260,9 @@ type AgentServerStubMethods AgentServerMethods
 // AgentServerStub adds universal methods to AgentServerStubMethods.
 type AgentServerStub interface {
 	AgentServerStubMethods
-	// GetMethodTags will be replaced with DescribeInterfaces.
-	GetMethodTags(ctx __ipc.ServerContext, method string) ([]interface{}, error)
-	// Signature will be replaced with DescribeInterfaces.
+	// Describe the Agent interfaces.
+	Describe__() []__ipc.InterfaceDesc
+	// Signature will be replaced with Describe__.
 	Signature(ctx __ipc.ServerContext) (__ipc.ServiceSignature, error)
 }
 
@@ -359,44 +348,157 @@ func (s implAgentServerStub) VGlob() *__ipc.GlobState {
 	return s.gs
 }
 
-func (s implAgentServerStub) GetMethodTags(ctx __ipc.ServerContext, method string) ([]interface{}, error) {
-	// TODO(toddw): Replace with new DescribeInterfaces implementation.
-	switch method {
-	case "Bless":
-		return []interface{}{}, nil
-	case "BlessSelf":
-		return []interface{}{}, nil
-	case "Sign":
-		return []interface{}{}, nil
-	case "MintDischarge":
-		return []interface{}{}, nil
-	case "PublicKey":
-		return []interface{}{}, nil
-	case "AddToRoots":
-		return []interface{}{}, nil
-	case "BlessingStoreSet":
-		return []interface{}{}, nil
-	case "BlessingStoreForPeer":
-		return []interface{}{}, nil
-	case "BlessingStoreSetDefault":
-		return []interface{}{}, nil
-	case "BlessingStoreDefault":
-		return []interface{}{}, nil
-	case "BlessingStoreDebugString":
-		return []interface{}{}, nil
-	case "BlessingRootsAdd":
-		return []interface{}{}, nil
-	case "BlessingRootsRecognized":
-		return []interface{}{}, nil
-	case "BlessingRootsDebugString":
-		return []interface{}{}, nil
-	default:
-		return nil, nil
-	}
+func (s implAgentServerStub) Describe__() []__ipc.InterfaceDesc {
+	return []__ipc.InterfaceDesc{AgentDesc}
+}
+
+// AgentDesc describes the Agent interface.
+var AgentDesc __ipc.InterfaceDesc = descAgent
+
+// descAgent hides the desc to keep godoc clean.
+var descAgent = __ipc.InterfaceDesc{
+	Name:    "Agent",
+	PkgPath: "veyron.io/veyron/veyron/security/agent/server",
+	Methods: []__ipc.MethodDesc{
+		{
+			Name: "Bless",
+			InArgs: []__ipc.ArgDesc{
+				{"key", ``},               // []byte
+				{"wit", ``},               // security.WireBlessings
+				{"extension", ``},         // string
+				{"caveat", ``},            // security.Caveat
+				{"additionalCaveats", ``}, // []security.Caveat
+			},
+			OutArgs: []__ipc.ArgDesc{
+				{"", ``}, // security.WireBlessings
+				{"", ``}, // error
+			},
+		},
+		{
+			Name: "BlessSelf",
+			InArgs: []__ipc.ArgDesc{
+				{"name", ``},    // string
+				{"caveats", ``}, // []security.Caveat
+			},
+			OutArgs: []__ipc.ArgDesc{
+				{"", ``}, // security.WireBlessings
+				{"", ``}, // error
+			},
+		},
+		{
+			Name: "Sign",
+			InArgs: []__ipc.ArgDesc{
+				{"message", ``}, // []byte
+			},
+			OutArgs: []__ipc.ArgDesc{
+				{"", ``}, // security.Signature
+				{"", ``}, // error
+			},
+		},
+		{
+			Name: "MintDischarge",
+			InArgs: []__ipc.ArgDesc{
+				{"tp", ``},                // __vdlutil.Any
+				{"caveat", ``},            // security.Caveat
+				{"additionalCaveats", ``}, // []security.Caveat
+			},
+			OutArgs: []__ipc.ArgDesc{
+				{"", ``}, // __vdlutil.Any
+				{"", ``}, // error
+			},
+		},
+		{
+			Name: "PublicKey",
+			OutArgs: []__ipc.ArgDesc{
+				{"", ``}, // []byte
+				{"", ``}, // error
+			},
+		},
+		{
+			Name: "AddToRoots",
+			InArgs: []__ipc.ArgDesc{
+				{"blessing", ``}, // security.WireBlessings
+			},
+			OutArgs: []__ipc.ArgDesc{
+				{"", ``}, // error
+			},
+		},
+		{
+			Name: "BlessingStoreSet",
+			InArgs: []__ipc.ArgDesc{
+				{"blessings", ``}, // security.WireBlessings
+				{"forPeers", ``},  // security.BlessingPattern
+			},
+			OutArgs: []__ipc.ArgDesc{
+				{"", ``}, // security.WireBlessings
+				{"", ``}, // error
+			},
+		},
+		{
+			Name: "BlessingStoreForPeer",
+			InArgs: []__ipc.ArgDesc{
+				{"peerBlessings", ``}, // []string
+			},
+			OutArgs: []__ipc.ArgDesc{
+				{"", ``}, // security.WireBlessings
+				{"", ``}, // error
+			},
+		},
+		{
+			Name: "BlessingStoreSetDefault",
+			InArgs: []__ipc.ArgDesc{
+				{"blessings", ``}, // security.WireBlessings
+			},
+			OutArgs: []__ipc.ArgDesc{
+				{"", ``}, // error
+			},
+		},
+		{
+			Name: "BlessingStoreDefault",
+			OutArgs: []__ipc.ArgDesc{
+				{"", ``}, // security.WireBlessings
+				{"", ``}, // error
+			},
+		},
+		{
+			Name: "BlessingStoreDebugString",
+			OutArgs: []__ipc.ArgDesc{
+				{"", ``}, // string
+				{"", ``}, // error
+			},
+		},
+		{
+			Name: "BlessingRootsAdd",
+			InArgs: []__ipc.ArgDesc{
+				{"root", ``},    // []byte
+				{"pattern", ``}, // security.BlessingPattern
+			},
+			OutArgs: []__ipc.ArgDesc{
+				{"", ``}, // error
+			},
+		},
+		{
+			Name: "BlessingRootsRecognized",
+			InArgs: []__ipc.ArgDesc{
+				{"root", ``},     // []byte
+				{"blessing", ``}, // string
+			},
+			OutArgs: []__ipc.ArgDesc{
+				{"", ``}, // error
+			},
+		},
+		{
+			Name: "BlessingRootsDebugString",
+			OutArgs: []__ipc.ArgDesc{
+				{"", ``}, // string
+				{"", ``}, // error
+			},
+		},
+	},
 }
 
 func (s implAgentServerStub) Signature(ctx __ipc.ServerContext) (__ipc.ServiceSignature, error) {
-	// TODO(toddw) Replace with new DescribeInterfaces implementation.
+	// TODO(toddw): Replace with new Describe__ implementation.
 	result := __ipc.ServiceSignature{Methods: make(map[string]__ipc.MethodSignature)}
 	result.Methods["AddToRoots"] = __ipc.MethodSignature{
 		InArgs: []__ipc.MethodArgument{
