@@ -77,17 +77,6 @@ func (c implConfigClientStub) Signature(ctx __context.T, opts ...__ipc.CallOpt) 
 	return
 }
 
-func (c implConfigClientStub) GetMethodTags(ctx __context.T, method string, opts ...__ipc.CallOpt) (o0 []interface{}, err error) {
-	var call __ipc.Call
-	if call, err = c.c(ctx).StartCall(ctx, c.name, "GetMethodTags", []interface{}{method}, opts...); err != nil {
-		return
-	}
-	if ierr := call.Finish(&o0, &err); ierr != nil {
-		err = ierr
-	}
-	return
-}
-
 // ConfigServerMethods is the interface a server writer
 // implements for Config.
 //
@@ -106,9 +95,9 @@ type ConfigServerStubMethods ConfigServerMethods
 // ConfigServerStub adds universal methods to ConfigServerStubMethods.
 type ConfigServerStub interface {
 	ConfigServerStubMethods
-	// GetMethodTags will be replaced with DescribeInterfaces.
-	GetMethodTags(ctx __ipc.ServerContext, method string) ([]interface{}, error)
-	// Signature will be replaced with DescribeInterfaces.
+	// Describe the Config interfaces.
+	Describe__() []__ipc.InterfaceDesc
+	// Signature will be replaced with Describe__.
 	Signature(ctx __ipc.ServerContext) (__ipc.ServiceSignature, error)
 }
 
@@ -142,18 +131,35 @@ func (s implConfigServerStub) VGlob() *__ipc.GlobState {
 	return s.gs
 }
 
-func (s implConfigServerStub) GetMethodTags(ctx __ipc.ServerContext, method string) ([]interface{}, error) {
-	// TODO(toddw): Replace with new DescribeInterfaces implementation.
-	switch method {
-	case "Set":
-		return []interface{}{}, nil
-	default:
-		return nil, nil
-	}
+func (s implConfigServerStub) Describe__() []__ipc.InterfaceDesc {
+	return []__ipc.InterfaceDesc{ConfigDesc}
+}
+
+// ConfigDesc describes the Config interface.
+var ConfigDesc __ipc.InterfaceDesc = descConfig
+
+// descConfig hides the desc to keep godoc clean.
+var descConfig = __ipc.InterfaceDesc{
+	Name:    "Config",
+	PkgPath: "veyron.io/veyron/veyron/services/mgmt/node",
+	Doc:     "// Config is an RPC API to the config service.",
+	Methods: []__ipc.MethodDesc{
+		{
+			Name: "Set",
+			Doc:  "// Set sets the value for key.",
+			InArgs: []__ipc.ArgDesc{
+				{"key", ``},   // string
+				{"value", ``}, // string
+			},
+			OutArgs: []__ipc.ArgDesc{
+				{"", ``}, // error
+			},
+		},
+	},
 }
 
 func (s implConfigServerStub) Signature(ctx __ipc.ServerContext) (__ipc.ServiceSignature, error) {
-	// TODO(toddw) Replace with new DescribeInterfaces implementation.
+	// TODO(toddw): Replace with new Describe__ implementation.
 	result := __ipc.ServiceSignature{Methods: make(map[string]__ipc.MethodSignature)}
 	result.Methods["Set"] = __ipc.MethodSignature{
 		InArgs: []__ipc.MethodArgument{

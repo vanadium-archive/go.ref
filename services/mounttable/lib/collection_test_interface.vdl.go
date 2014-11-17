@@ -92,17 +92,6 @@ func (c implCollectionClientStub) Signature(ctx __context.T, opts ...__ipc.CallO
 	return
 }
 
-func (c implCollectionClientStub) GetMethodTags(ctx __context.T, method string, opts ...__ipc.CallOpt) (o0 []interface{}, err error) {
-	var call __ipc.Call
-	if call, err = c.c(ctx).StartCall(ctx, c.name, "GetMethodTags", []interface{}{method}, opts...); err != nil {
-		return
-	}
-	if ierr := call.Finish(&o0, &err); ierr != nil {
-		err = ierr
-	}
-	return
-}
-
 // CollectionServerMethods is the interface a server writer
 // implements for Collection.
 type CollectionServerMethods interface {
@@ -125,9 +114,9 @@ type CollectionServerStubMethods CollectionServerMethods
 // CollectionServerStub adds universal methods to CollectionServerStubMethods.
 type CollectionServerStub interface {
 	CollectionServerStubMethods
-	// GetMethodTags will be replaced with DescribeInterfaces.
-	GetMethodTags(ctx __ipc.ServerContext, method string) ([]interface{}, error)
-	// Signature will be replaced with DescribeInterfaces.
+	// Describe the Collection interfaces.
+	Describe__() []__ipc.InterfaceDesc
+	// Signature will be replaced with Describe__.
 	Signature(ctx __ipc.ServerContext) (__ipc.ServiceSignature, error)
 }
 
@@ -165,20 +154,42 @@ func (s implCollectionServerStub) VGlob() *__ipc.GlobState {
 	return s.gs
 }
 
-func (s implCollectionServerStub) GetMethodTags(ctx __ipc.ServerContext, method string) ([]interface{}, error) {
-	// TODO(toddw): Replace with new DescribeInterfaces implementation.
-	switch method {
-	case "Export":
-		return []interface{}{}, nil
-	case "Lookup":
-		return []interface{}{}, nil
-	default:
-		return nil, nil
-	}
+func (s implCollectionServerStub) Describe__() []__ipc.InterfaceDesc {
+	return []__ipc.InterfaceDesc{CollectionDesc}
+}
+
+// CollectionDesc describes the Collection interface.
+var CollectionDesc __ipc.InterfaceDesc = descCollection
+
+// descCollection hides the desc to keep godoc clean.
+var descCollection = __ipc.InterfaceDesc{
+	Name:    "Collection",
+	PkgPath: "veyron.io/veyron/veyron/services/mounttable/lib",
+	Methods: []__ipc.MethodDesc{
+		{
+			Name: "Export",
+			Doc:  "// Export sets the value for a name.  Overwrite controls the behavior when\n// an entry exists, if Overwrite is true, then the binding is replaced,\n// otherwise the call fails with an error.  The Val must be no larger than\n// MaxSize bytes.",
+			InArgs: []__ipc.ArgDesc{
+				{"Val", ``},       // string
+				{"Overwrite", ``}, // bool
+			},
+			OutArgs: []__ipc.ArgDesc{
+				{"", ``}, // error
+			},
+		},
+		{
+			Name: "Lookup",
+			Doc:  "// Lookup retrieves the value associated with a name.  Returns an error if\n// there is no such binding.",
+			OutArgs: []__ipc.ArgDesc{
+				{"", ``}, // []byte
+				{"", ``}, // error
+			},
+		},
+	},
 }
 
 func (s implCollectionServerStub) Signature(ctx __ipc.ServerContext) (__ipc.ServiceSignature, error) {
-	// TODO(toddw) Replace with new DescribeInterfaces implementation.
+	// TODO(toddw): Replace with new Describe__ implementation.
 	result := __ipc.ServiceSignature{Methods: make(map[string]__ipc.MethodSignature)}
 	result.Methods["Export"] = __ipc.MethodSignature{
 		InArgs: []__ipc.MethodArgument{

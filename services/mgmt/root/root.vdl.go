@@ -81,17 +81,6 @@ func (c implRootClientStub) Signature(ctx __context.T, opts ...__ipc.CallOpt) (o
 	return
 }
 
-func (c implRootClientStub) GetMethodTags(ctx __context.T, method string, opts ...__ipc.CallOpt) (o0 []interface{}, err error) {
-	var call __ipc.Call
-	if call, err = c.c(ctx).StartCall(ctx, c.name, "GetMethodTags", []interface{}{method}, opts...); err != nil {
-		return
-	}
-	if ierr := call.Finish(&o0, &err); ierr != nil {
-		err = ierr
-	}
-	return
-}
-
 // RootServerMethods is the interface a server writer
 // implements for Root.
 //
@@ -112,9 +101,9 @@ type RootServerStubMethods RootServerMethods
 // RootServerStub adds universal methods to RootServerStubMethods.
 type RootServerStub interface {
 	RootServerStubMethods
-	// GetMethodTags will be replaced with DescribeInterfaces.
-	GetMethodTags(ctx __ipc.ServerContext, method string) ([]interface{}, error)
-	// Signature will be replaced with DescribeInterfaces.
+	// Describe the Root interfaces.
+	Describe__() []__ipc.InterfaceDesc
+	// Signature will be replaced with Describe__.
 	Signature(ctx __ipc.ServerContext) (__ipc.ServiceSignature, error)
 }
 
@@ -148,18 +137,34 @@ func (s implRootServerStub) VGlob() *__ipc.GlobState {
 	return s.gs
 }
 
-func (s implRootServerStub) GetMethodTags(ctx __ipc.ServerContext, method string) ([]interface{}, error) {
-	// TODO(toddw): Replace with new DescribeInterfaces implementation.
-	switch method {
-	case "Reset":
-		return []interface{}{}, nil
-	default:
-		return nil, nil
-	}
+func (s implRootServerStub) Describe__() []__ipc.InterfaceDesc {
+	return []__ipc.InterfaceDesc{RootDesc}
+}
+
+// RootDesc describes the Root interface.
+var RootDesc __ipc.InterfaceDesc = descRoot
+
+// descRoot hides the desc to keep godoc clean.
+var descRoot = __ipc.InterfaceDesc{
+	Name:    "Root",
+	PkgPath: "veyron.io/veyron/veyron/services/mgmt/root",
+	Doc:     "// Root is an interface to be implemented by a process with root level\n// privileges.",
+	Methods: []__ipc.MethodDesc{
+		{
+			Name: "Reset",
+			Doc:  "// Reset waits for the given deadline (in milliseconds) and then\n// restars the host node machine.",
+			InArgs: []__ipc.ArgDesc{
+				{"Deadline", ``}, // uint64
+			},
+			OutArgs: []__ipc.ArgDesc{
+				{"", ``}, // error
+			},
+		},
+	},
 }
 
 func (s implRootServerStub) Signature(ctx __ipc.ServerContext) (__ipc.ServiceSignature, error) {
-	// TODO(toddw) Replace with new DescribeInterfaces implementation.
+	// TODO(toddw): Replace with new Describe__ implementation.
 	result := __ipc.ServiceSignature{Methods: make(map[string]__ipc.MethodSignature)}
 	result.Methods["Reset"] = __ipc.MethodSignature{
 		InArgs: []__ipc.MethodArgument{

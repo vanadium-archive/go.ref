@@ -13,6 +13,8 @@ import (
 	"veyron.io/veyron/veyron2/services/mounttable"
 )
 
+// TODO(toddw): Add tests of Signature and MethodSignature.
+
 func TestProxyInvoker(t *testing.T) {
 	r := rt.R()
 

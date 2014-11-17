@@ -76,17 +76,6 @@ func (c implPingPongClientStub) Signature(ctx __context.T, opts ...__ipc.CallOpt
 	return
 }
 
-func (c implPingPongClientStub) GetMethodTags(ctx __context.T, method string, opts ...__ipc.CallOpt) (o0 []interface{}, err error) {
-	var call __ipc.Call
-	if call, err = c.c(ctx).StartCall(ctx, c.name, "GetMethodTags", []interface{}{method}, opts...); err != nil {
-		return
-	}
-	if ierr := call.Finish(&o0, &err); ierr != nil {
-		err = ierr
-	}
-	return
-}
-
 // PingPongServerMethods is the interface a server writer
 // implements for PingPong.
 //
@@ -104,9 +93,9 @@ type PingPongServerStubMethods PingPongServerMethods
 // PingPongServerStub adds universal methods to PingPongServerStubMethods.
 type PingPongServerStub interface {
 	PingPongServerStubMethods
-	// GetMethodTags will be replaced with DescribeInterfaces.
-	GetMethodTags(ctx __ipc.ServerContext, method string) ([]interface{}, error)
-	// Signature will be replaced with DescribeInterfaces.
+	// Describe the PingPong interfaces.
+	Describe__() []__ipc.InterfaceDesc
+	// Signature will be replaced with Describe__.
 	Signature(ctx __ipc.ServerContext) (__ipc.ServiceSignature, error)
 }
 
@@ -140,18 +129,34 @@ func (s implPingPongServerStub) VGlob() *__ipc.GlobState {
 	return s.gs
 }
 
-func (s implPingPongServerStub) GetMethodTags(ctx __ipc.ServerContext, method string) ([]interface{}, error) {
-	// TODO(toddw): Replace with new DescribeInterfaces implementation.
-	switch method {
-	case "Ping":
-		return []interface{}{}, nil
-	default:
-		return nil, nil
-	}
+func (s implPingPongServerStub) Describe__() []__ipc.InterfaceDesc {
+	return []__ipc.InterfaceDesc{PingPongDesc}
+}
+
+// PingPongDesc describes the PingPong interface.
+var PingPongDesc __ipc.InterfaceDesc = descPingPong
+
+// descPingPong hides the desc to keep godoc clean.
+var descPingPong = __ipc.InterfaceDesc{
+	Name:    "PingPong",
+	PkgPath: "veyron.io/veyron/veyron/security/agent/pingpong",
+	Doc:     "// Simple service used in the agent tests.",
+	Methods: []__ipc.MethodDesc{
+		{
+			Name: "Ping",
+			InArgs: []__ipc.ArgDesc{
+				{"message", ``}, // string
+			},
+			OutArgs: []__ipc.ArgDesc{
+				{"", ``}, // string
+				{"", ``}, // error
+			},
+		},
+	},
 }
 
 func (s implPingPongServerStub) Signature(ctx __ipc.ServerContext) (__ipc.ServiceSignature, error) {
-	// TODO(toddw) Replace with new DescribeInterfaces implementation.
+	// TODO(toddw): Replace with new Describe__ implementation.
 	result := __ipc.ServiceSignature{Methods: make(map[string]__ipc.MethodSignature)}
 	result.Methods["Ping"] = __ipc.MethodSignature{
 		InArgs: []__ipc.MethodArgument{

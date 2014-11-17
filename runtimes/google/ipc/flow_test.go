@@ -75,15 +75,19 @@ func newClosureInvoker(suffix string) ipc.Invoker {
 func (closureInvoker) Prepare(method string, numArgs int) (argptrs, tags []interface{}, err error) {
 	return nil, []interface{}{security.AdminLabel}, nil
 }
-
 func (inv closureInvoker) Invoke(method string, call ipc.ServerCall, argptrs []interface{}) (results []interface{}, err error) {
 	if inv.suffix == "" {
 		return nil, nil
 	}
 	return nil, errors.New(inv.suffix)
 }
-
-func (inv closureInvoker) VGlob() *ipc.GlobState {
+func (closureInvoker) Signature(ctx ipc.ServerContext) ([]ipc.InterfaceSig, error) {
+	return nil, nil
+}
+func (closureInvoker) MethodSignature(ctx ipc.ServerContext, method string) (ipc.MethodSig, error) {
+	return ipc.MethodSig{}, nil
+}
+func (closureInvoker) VGlob() *ipc.GlobState {
 	return nil
 }
 
@@ -99,13 +103,17 @@ func (echoInvoker) Prepare(method string, numArgs int) (argptrs, tags []interfac
 	var arg string
 	return []interface{}{&arg}, []interface{}{security.AdminLabel}, nil
 }
-
 func (inv echoInvoker) Invoke(method string, call ipc.ServerCall, argptrs []interface{}) (results []interface{}, err error) {
 	result := fmt.Sprintf("method:%q,suffix:%q,arg:%q", method, inv.suffix, *argptrs[0].(*string))
 	return []interface{}{result}, nil
 }
-
-func (inv echoInvoker) VGlob() *ipc.GlobState {
+func (echoInvoker) Signature(ctx ipc.ServerContext) ([]ipc.InterfaceSig, error) {
+	return nil, nil
+}
+func (echoInvoker) MethodSignature(ctx ipc.ServerContext, method string) (ipc.MethodSig, error) {
+	return ipc.MethodSig{}, nil
+}
+func (echoInvoker) VGlob() *ipc.GlobState {
 	return nil
 }
 

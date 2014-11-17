@@ -310,17 +310,6 @@ func (c implTypeTesterClientStub) Signature(ctx __context.T, opts ...__ipc.CallO
 	return
 }
 
-func (c implTypeTesterClientStub) GetMethodTags(ctx __context.T, method string, opts ...__ipc.CallOpt) (o0 []interface{}, err error) {
-	var call __ipc.Call
-	if call, err = c.c(ctx).StartCall(ctx, c.name, "GetMethodTags", []interface{}{method}, opts...); err != nil {
-		return
-	}
-	if ierr := call.Finish(&o0, &err); ierr != nil {
-		err = ierr
-	}
-	return
-}
-
 // TypeTesterStreamingOutputClientStream is the client stream for TypeTester.StreamingOutput.
 type TypeTesterStreamingOutputClientStream interface {
 	// RecvStream returns the receiver side of the TypeTester.StreamingOutput client stream.
@@ -458,9 +447,9 @@ type TypeTesterServerStubMethods interface {
 // TypeTesterServerStub adds universal methods to TypeTesterServerStubMethods.
 type TypeTesterServerStub interface {
 	TypeTesterServerStubMethods
-	// GetMethodTags will be replaced with DescribeInterfaces.
-	GetMethodTags(ctx __ipc.ServerContext, method string) ([]interface{}, error)
-	// Signature will be replaced with DescribeInterfaces.
+	// Describe the TypeTester interfaces.
+	Describe__() []__ipc.InterfaceDesc
+	// Signature will be replaced with Describe__.
 	Signature(ctx __ipc.ServerContext) (__ipc.ServiceSignature, error)
 }
 
@@ -570,56 +559,209 @@ func (s implTypeTesterServerStub) VGlob() *__ipc.GlobState {
 	return s.gs
 }
 
-func (s implTypeTesterServerStub) GetMethodTags(ctx __ipc.ServerContext, method string) ([]interface{}, error) {
-	// TODO(toddw): Replace with new DescribeInterfaces implementation.
-	switch method {
-	case "EchoBool":
-		return []interface{}{}, nil
-	case "EchoFloat32":
-		return []interface{}{}, nil
-	case "EchoFloat64":
-		return []interface{}{}, nil
-	case "EchoInt32":
-		return []interface{}{}, nil
-	case "EchoInt64":
-		return []interface{}{}, nil
-	case "EchoString":
-		return []interface{}{}, nil
-	case "EchoByte":
-		return []interface{}{}, nil
-	case "EchoUInt32":
-		return []interface{}{}, nil
-	case "EchoUInt64":
-		return []interface{}{}, nil
-	case "InputArray":
-		return []interface{}{}, nil
-	case "InputMap":
-		return []interface{}{}, nil
-	case "InputSlice":
-		return []interface{}{}, nil
-	case "InputStruct":
-		return []interface{}{}, nil
-	case "OutputArray":
-		return []interface{}{}, nil
-	case "OutputMap":
-		return []interface{}{}, nil
-	case "OutputSlice":
-		return []interface{}{}, nil
-	case "OutputStruct":
-		return []interface{}{}, nil
-	case "NoArguments":
-		return []interface{}{}, nil
-	case "MultipleArguments":
-		return []interface{}{}, nil
-	case "StreamingOutput":
-		return []interface{}{}, nil
-	default:
-		return nil, nil
-	}
+func (s implTypeTesterServerStub) Describe__() []__ipc.InterfaceDesc {
+	return []__ipc.InterfaceDesc{TypeTesterDesc}
+}
+
+// TypeTesterDesc describes the TypeTester interface.
+var TypeTesterDesc __ipc.InterfaceDesc = descTypeTester
+
+// descTypeTester hides the desc to keep godoc clean.
+var descTypeTester = __ipc.InterfaceDesc{
+	Name:    "TypeTester",
+	PkgPath: "veyron.io/veyron/veyron/tools/vrpc/test_base",
+	Methods: []__ipc.MethodDesc{
+		{
+			Name: "EchoBool",
+			Doc:  "// Methods to test support for generic types.",
+			InArgs: []__ipc.ArgDesc{
+				{"I1", ``}, // bool
+			},
+			OutArgs: []__ipc.ArgDesc{
+				{"O1", ``}, // bool
+				{"E", ``},  // error
+			},
+		},
+		{
+			Name: "EchoFloat32",
+			InArgs: []__ipc.ArgDesc{
+				{"I1", ``}, // float32
+			},
+			OutArgs: []__ipc.ArgDesc{
+				{"O1", ``}, // float32
+				{"E", ``},  // error
+			},
+		},
+		{
+			Name: "EchoFloat64",
+			InArgs: []__ipc.ArgDesc{
+				{"I1", ``}, // float64
+			},
+			OutArgs: []__ipc.ArgDesc{
+				{"O1", ``}, // float64
+				{"E", ``},  // error
+			},
+		},
+		{
+			Name: "EchoInt32",
+			InArgs: []__ipc.ArgDesc{
+				{"I1", ``}, // int32
+			},
+			OutArgs: []__ipc.ArgDesc{
+				{"O1", ``}, // int32
+				{"E", ``},  // error
+			},
+		},
+		{
+			Name: "EchoInt64",
+			InArgs: []__ipc.ArgDesc{
+				{"I1", ``}, // int64
+			},
+			OutArgs: []__ipc.ArgDesc{
+				{"O1", ``}, // int64
+				{"E", ``},  // error
+			},
+		},
+		{
+			Name: "EchoString",
+			InArgs: []__ipc.ArgDesc{
+				{"I1", ``}, // string
+			},
+			OutArgs: []__ipc.ArgDesc{
+				{"O1", ``}, // string
+				{"E", ``},  // error
+			},
+		},
+		{
+			Name: "EchoByte",
+			InArgs: []__ipc.ArgDesc{
+				{"I1", ``}, // byte
+			},
+			OutArgs: []__ipc.ArgDesc{
+				{"O1", ``}, // byte
+				{"E", ``},  // error
+			},
+		},
+		{
+			Name: "EchoUInt32",
+			InArgs: []__ipc.ArgDesc{
+				{"I1", ``}, // uint32
+			},
+			OutArgs: []__ipc.ArgDesc{
+				{"O1", ``}, // uint32
+				{"E", ``},  // error
+			},
+		},
+		{
+			Name: "EchoUInt64",
+			InArgs: []__ipc.ArgDesc{
+				{"I1", ``}, // uint64
+			},
+			OutArgs: []__ipc.ArgDesc{
+				{"O1", ``}, // uint64
+				{"E", ``},  // error
+			},
+		},
+		{
+			Name: "InputArray",
+			Doc:  "// Methods to test support for composite types.",
+			InArgs: []__ipc.ArgDesc{
+				{"I1", ``}, // [2]byte
+			},
+			OutArgs: []__ipc.ArgDesc{
+				{"E", ``}, // error
+			},
+		},
+		{
+			Name: "InputMap",
+			InArgs: []__ipc.ArgDesc{
+				{"I1", ``}, // map[byte]byte
+			},
+			OutArgs: []__ipc.ArgDesc{
+				{"E", ``}, // error
+			},
+		},
+		{
+			Name: "InputSlice",
+			InArgs: []__ipc.ArgDesc{
+				{"I1", ``}, // []byte
+			},
+			OutArgs: []__ipc.ArgDesc{
+				{"E", ``}, // error
+			},
+		},
+		{
+			Name: "InputStruct",
+			InArgs: []__ipc.ArgDesc{
+				{"I1", ``}, // Struct
+			},
+			OutArgs: []__ipc.ArgDesc{
+				{"E", ``}, // error
+			},
+		},
+		{
+			Name: "OutputArray",
+			OutArgs: []__ipc.ArgDesc{
+				{"O1", ``}, // [2]byte
+				{"E", ``},  // error
+			},
+		},
+		{
+			Name: "OutputMap",
+			OutArgs: []__ipc.ArgDesc{
+				{"O1", ``}, // map[byte]byte
+				{"E", ``},  // error
+			},
+		},
+		{
+			Name: "OutputSlice",
+			OutArgs: []__ipc.ArgDesc{
+				{"O1", ``}, // []byte
+				{"E", ``},  // error
+			},
+		},
+		{
+			Name: "OutputStruct",
+			OutArgs: []__ipc.ArgDesc{
+				{"O1", ``}, // Struct
+				{"E", ``},  // error
+			},
+		},
+		{
+			Name: "NoArguments",
+			Doc:  "// Methods to test support for different number of arguments.",
+			OutArgs: []__ipc.ArgDesc{
+				{"", ``}, // error
+			},
+		},
+		{
+			Name: "MultipleArguments",
+			InArgs: []__ipc.ArgDesc{
+				{"I1", ``}, // int32
+				{"I2", ``}, // int32
+			},
+			OutArgs: []__ipc.ArgDesc{
+				{"O1", ``}, // int32
+				{"O2", ``}, // int32
+				{"E", ``},  // error
+			},
+		},
+		{
+			Name: "StreamingOutput",
+			Doc:  "// Methods to test support for streaming.",
+			InArgs: []__ipc.ArgDesc{
+				{"NumStreamItems", ``}, // int32
+				{"StreamItem", ``},     // bool
+			},
+			OutArgs: []__ipc.ArgDesc{
+				{"", ``}, // error
+			},
+		},
+	},
 }
 
 func (s implTypeTesterServerStub) Signature(ctx __ipc.ServerContext) (__ipc.ServiceSignature, error) {
-	// TODO(toddw) Replace with new DescribeInterfaces implementation.
+	// TODO(toddw): Replace with new Describe__ implementation.
 	result := __ipc.ServiceSignature{Methods: make(map[string]__ipc.MethodSignature)}
 	result.Methods["EchoBool"] = __ipc.MethodSignature{
 		InArgs: []__ipc.MethodArgument{

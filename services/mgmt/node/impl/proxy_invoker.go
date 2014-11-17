@@ -22,6 +22,8 @@ type proxyInvoker struct {
 	sigStub signatureStub
 }
 
+var _ ipc.Invoker = (*proxyInvoker)(nil)
+
 type signatureStub interface {
 	Signature(ipc.ServerContext) (ipc.ServiceSignature, error)
 }
@@ -121,6 +123,67 @@ func (p *proxyInvoker) Invoke(method string, inCall ipc.ServerCall, argptrs []in
 	return results, err
 }
 
+// TODO(toddw): Expose a helper function that performs all error checking based
+// on reflection, to simplify the repeated logic processing results.
+func (p *proxyInvoker) Signature(ctx ipc.ServerContext) ([]ipc.InterfaceSig, error) {
+	call, ok := ctx.(ipc.ServerCall)
+	if !ok {
+		return nil, fmt.Errorf("couldn't upgrade ipc.ServerContext to ipc.ServerCall")
+	}
+	results, err := p.Invoke(ipc.ReservedSignature, call, nil)
+	if err != nil {
+		return nil, err
+	}
+	if len(results) != 2 {
+		return nil, fmt.Errorf("unexpected number of result values. Got %d, want 2.", len(results))
+	}
+	if results[1] != nil {
+		err, ok := results[1].(error)
+		if !ok {
+			return nil, fmt.Errorf("unexpected error type. Got %T, want error.", err)
+		}
+		return nil, err
+	}
+	var res []ipc.InterfaceSig
+	if results[0] != nil {
+		sig, ok := results[0].([]ipc.InterfaceSig)
+		if !ok {
+			return nil, fmt.Errorf("unexpected result value type. Got %T, want []ipc.InterfaceSig.", sig)
+		}
+	}
+	return res, nil
+}
+
+func (p *proxyInvoker) MethodSignature(ctx ipc.ServerContext, method string) (ipc.MethodSig, error) {
+	empty := ipc.MethodSig{}
+	call, ok := ctx.(ipc.ServerCall)
+	if !ok {
+		return empty, fmt.Errorf("couldn't upgrade ipc.ServerContext to ipc.ServerCall")
+	}
+	results, err := p.Invoke(ipc.ReservedMethodSignature, call, []interface{}{&method})
+	if err != nil {
+		return empty, err
+	}
+	if len(results) != 2 {
+		return empty, fmt.Errorf("unexpected number of result values. Got %d, want 2.", len(results))
+	}
+	if results[1] != nil {
+		err, ok := results[1].(error)
+		if !ok {
+			return empty, fmt.Errorf("unexpected error type. Got %T, want error.", err)
+		}
+		return empty, err
+	}
+	var res ipc.MethodSig
+	if results[0] != nil {
+		sig, ok := results[0].(ipc.MethodSig)
+		if !ok {
+			return empty, fmt.Errorf("unexpected result value type. Got %T, want ipc.MethodSig.", sig)
+		}
+	}
+	return res, nil
+}
+
 func (p *proxyInvoker) VGlob() *ipc.GlobState {
 	return &ipc.GlobState{VAllGlobber: p}
 }
@@ -146,12 +209,17 @@ func (p *proxyInvoker) Glob(ctx *ipc.GlobContextStub, pattern string) error {
 
 // numResults returns the number of result values for the given method.
 func (p *proxyInvoker) numResults(method string) (int, error) {
+	// TODO(toddw): Replace this mechanism when the new signature mechanism is
+	// complete.
+	switch method {
+	case ipc.GlobMethod:
+		return 1, nil
+	case ipc.ReservedSignature, ipc.ReservedMethodSignature:
+		return 2, nil
+	}
 	sig, err := p.sigStub.Signature(nil)
 	if err != nil {
 		return 0, err
-	}
-	if method == ipc.GlobMethod {
-		method = "Glob"
 	}
 	m, ok := sig.Methods[method]
 	if !ok {

@@ -86,17 +86,6 @@ func (c implDischargerClientStub) Signature(ctx __context.T, opts ...__ipc.CallO
 	return
 }
 
-func (c implDischargerClientStub) GetMethodTags(ctx __context.T, method string, opts ...__ipc.CallOpt) (o0 []interface{}, err error) {
-	var call __ipc.Call
-	if call, err = c.c(ctx).StartCall(ctx, c.name, "GetMethodTags", []interface{}{method}, opts...); err != nil {
-		return
-	}
-	if ierr := call.Finish(&o0, &err); ierr != nil {
-		err = ierr
-	}
-	return
-}
-
 // DischargerServerMethods is the interface a server writer
 // implements for Discharger.
 //
@@ -122,9 +111,9 @@ type DischargerServerStubMethods DischargerServerMethods
 // DischargerServerStub adds universal methods to DischargerServerStubMethods.
 type DischargerServerStub interface {
 	DischargerServerStubMethods
-	// GetMethodTags will be replaced with DescribeInterfaces.
-	GetMethodTags(ctx __ipc.ServerContext, method string) ([]interface{}, error)
-	// Signature will be replaced with DescribeInterfaces.
+	// Describe the Discharger interfaces.
+	Describe__() []__ipc.InterfaceDesc
+	// Signature will be replaced with Describe__.
 	Signature(ctx __ipc.ServerContext) (__ipc.ServiceSignature, error)
 }
 
@@ -158,18 +147,37 @@ func (s implDischargerServerStub) VGlob() *__ipc.GlobState {
 	return s.gs
 }
 
-func (s implDischargerServerStub) GetMethodTags(ctx __ipc.ServerContext, method string) ([]interface{}, error) {
-	// TODO(toddw): Replace with new DescribeInterfaces implementation.
-	switch method {
-	case "Discharge":
-		return []interface{}{security.Label(2)}, nil
-	default:
-		return nil, nil
-	}
+func (s implDischargerServerStub) Describe__() []__ipc.InterfaceDesc {
+	return []__ipc.InterfaceDesc{DischargerDesc}
+}
+
+// DischargerDesc describes the Discharger interface.
+var DischargerDesc __ipc.InterfaceDesc = descDischarger
+
+// descDischarger hides the desc to keep godoc clean.
+var descDischarger = __ipc.InterfaceDesc{
+	Name:    "Discharger",
+	PkgPath: "veyron.io/veyron/veyron/services/security",
+	Doc:     "// Discharger is the interface for obtaining discharges for ThirdPartyCaveats.",
+	Methods: []__ipc.MethodDesc{
+		{
+			Name: "Discharge",
+			Doc:  "// Discharge is called by a principal that holds a blessing with a third\n// party caveat and seeks to get a discharge that proves the fulfillment of\n// this caveat.\n//\n// Caveat and Discharge are of type ThirdPartyCaveat and Discharge\n// respectively. (not enforced here because vdl does not know these types)\n// TODO(ataly,ashankar): Figure out a VDL representation for ThirdPartyCaveat\n// and Discharge and use those here?",
+			InArgs: []__ipc.ArgDesc{
+				{"Caveat", ``},  // __vdlutil.Any
+				{"Impetus", ``}, // security.DischargeImpetus
+			},
+			OutArgs: []__ipc.ArgDesc{
+				{"Discharge", ``}, // __vdlutil.Any
+				{"err", ``},       // error
+			},
+			Tags: []__vdlutil.Any{security.Label(2)},
+		},
+	},
 }
 
 func (s implDischargerServerStub) Signature(ctx __ipc.ServerContext) (__ipc.ServiceSignature, error) {
-	// TODO(toddw) Replace with new DescribeInterfaces implementation.
+	// TODO(toddw): Replace with new Describe__ implementation.
 	result := __ipc.ServiceSignature{Methods: make(map[string]__ipc.MethodSignature)}
 	result.Methods["Discharge"] = __ipc.MethodSignature{
 		InArgs: []__ipc.MethodArgument{
