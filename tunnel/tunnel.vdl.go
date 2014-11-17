@@ -120,17 +120,6 @@ func (c implTunnelClientStub) Signature(ctx __context.T, opts ...__ipc.CallOpt) 
 	return
 }
 
-func (c implTunnelClientStub) GetMethodTags(ctx __context.T, method string, opts ...__ipc.CallOpt) (o0 []interface{}, err error) {
-	var call __ipc.Call
-	if call, err = c.c(ctx).StartCall(ctx, c.name, "GetMethodTags", []interface{}{method}, opts...); err != nil {
-		return
-	}
-	if ierr := call.Finish(&o0, &err); ierr != nil {
-		err = ierr
-	}
-	return
-}
-
 // TunnelForwardClientStream is the client stream for Tunnel.Forward.
 type TunnelForwardClientStream interface {
 	// RecvStream returns the receiver side of the Tunnel.Forward client stream.
@@ -381,9 +370,9 @@ type TunnelServerStubMethods interface {
 // TunnelServerStub adds universal methods to TunnelServerStubMethods.
 type TunnelServerStub interface {
 	TunnelServerStubMethods
-	// GetMethodTags will be replaced with DescribeInterfaces.
-	GetMethodTags(ctx __ipc.ServerContext, method string) ([]interface{}, error)
-	// Signature will be replaced with DescribeInterfaces.
+	// Describe the Tunnel interfaces.
+	Describe__() []__ipc.InterfaceDesc
+	// Signature will be replaced with Describe__.
 	Signature(ctx __ipc.ServerContext) (__ipc.ServiceSignature, error)
 }
 
@@ -421,20 +410,48 @@ func (s implTunnelServerStub) VGlob() *__ipc.GlobState {
 	return s.gs
 }
 
-func (s implTunnelServerStub) GetMethodTags(ctx __ipc.ServerContext, method string) ([]interface{}, error) {
-	// TODO(toddw): Replace with new DescribeInterfaces implementation.
-	switch method {
-	case "Forward":
-		return []interface{}{security.Label(8)}, nil
-	case "Shell":
-		return []interface{}{security.Label(8)}, nil
-	default:
-		return nil, nil
-	}
+func (s implTunnelServerStub) Describe__() []__ipc.InterfaceDesc {
+	return []__ipc.InterfaceDesc{TunnelDesc}
+}
+
+// TunnelDesc describes the Tunnel interface.
+var TunnelDesc __ipc.InterfaceDesc = descTunnel
+
+// descTunnel hides the desc to keep godoc clean.
+var descTunnel = __ipc.InterfaceDesc{
+	Name:    "Tunnel",
+	PkgPath: "veyron.io/apps/tunnel",
+	Methods: []__ipc.MethodDesc{
+		{
+			Name: "Forward",
+			Doc:  "// The Forward method is used for network forwarding. All the data sent over\n// the byte stream is forwarded to the requested network address and all the\n// data received from that network connection is sent back in the reply\n// stream.",
+			InArgs: []__ipc.ArgDesc{
+				{"network", ``}, // string
+				{"address", ``}, // string
+			},
+			OutArgs: []__ipc.ArgDesc{
+				{"", ``}, // error
+			},
+			Tags: []__vdlutil.Any{security.Label(8)},
+		},
+		{
+			Name: "Shell",
+			Doc:  "// The Shell method is used to either run shell commands remotely, or to open\n// an interactive shell. The data received over the byte stream is sent to the\n// shell's stdin, and the data received from the shell's stdout and stderr is\n// sent back in the reply stream. It returns the exit status of the shell\n// command.",
+			InArgs: []__ipc.ArgDesc{
+				{"command", ``},   // string
+				{"shellOpts", ``}, // ShellOpts
+			},
+			OutArgs: []__ipc.ArgDesc{
+				{"", ``}, // int32
+				{"", ``}, // error
+			},
+			Tags: []__vdlutil.Any{security.Label(8)},
+		},
+	},
 }
 
 func (s implTunnelServerStub) Signature(ctx __ipc.ServerContext) (__ipc.ServiceSignature, error) {
-	// TODO(toddw) Replace with new DescribeInterfaces implementation.
+	// TODO(toddw): Replace with new Describe__ implementation.
 	result := __ipc.ServiceSignature{Methods: make(map[string]__ipc.MethodSignature)}
 	result.Methods["Forward"] = __ipc.MethodSignature{
 		InArgs: []__ipc.MethodArgument{

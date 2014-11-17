@@ -166,17 +166,6 @@ func (c implJudgeClientStub) Signature(ctx __context.T, opts ...__ipc.CallOpt) (
 	return
 }
 
-func (c implJudgeClientStub) GetMethodTags(ctx __context.T, method string, opts ...__ipc.CallOpt) (o0 []interface{}, err error) {
-	var call __ipc.Call
-	if call, err = c.c(ctx).StartCall(ctx, c.name, "GetMethodTags", []interface{}{method}, opts...); err != nil {
-		return
-	}
-	if ierr := call.Finish(&o0, &err); ierr != nil {
-		err = ierr
-	}
-	return
-}
-
 // JudgePlayClientStream is the client stream for Judge.Play.
 type JudgePlayClientStream interface {
 	// RecvStream returns the receiver side of the Judge.Play client stream.
@@ -309,9 +298,9 @@ type JudgeServerStubMethods interface {
 // JudgeServerStub adds universal methods to JudgeServerStubMethods.
 type JudgeServerStub interface {
 	JudgeServerStubMethods
-	// GetMethodTags will be replaced with DescribeInterfaces.
-	GetMethodTags(ctx __ipc.ServerContext, method string) ([]interface{}, error)
-	// Signature will be replaced with DescribeInterfaces.
+	// Describe the Judge interfaces.
+	Describe__() []__ipc.InterfaceDesc
+	// Signature will be replaced with Describe__.
 	Signature(ctx __ipc.ServerContext) (__ipc.ServiceSignature, error)
 }
 
@@ -349,20 +338,45 @@ func (s implJudgeServerStub) VGlob() *__ipc.GlobState {
 	return s.gs
 }
 
-func (s implJudgeServerStub) GetMethodTags(ctx __ipc.ServerContext, method string) ([]interface{}, error) {
-	// TODO(toddw): Replace with new DescribeInterfaces implementation.
-	switch method {
-	case "CreateGame":
-		return []interface{}{}, nil
-	case "Play":
-		return []interface{}{}, nil
-	default:
-		return nil, nil
-	}
+func (s implJudgeServerStub) Describe__() []__ipc.InterfaceDesc {
+	return []__ipc.InterfaceDesc{JudgeDesc}
+}
+
+// JudgeDesc describes the Judge interface.
+var JudgeDesc __ipc.InterfaceDesc = descJudge
+
+// descJudge hides the desc to keep godoc clean.
+var descJudge = __ipc.InterfaceDesc{
+	Name:    "Judge",
+	PkgPath: "veyron.io/apps/rps",
+	Methods: []__ipc.MethodDesc{
+		{
+			Name: "CreateGame",
+			Doc:  "// CreateGame creates a new game with the given game options and returns a game\n// identifier that can be used by the players to join the game.",
+			InArgs: []__ipc.ArgDesc{
+				{"Opts", ``}, // GameOptions
+			},
+			OutArgs: []__ipc.ArgDesc{
+				{"", ``}, // GameID
+				{"", ``}, // error
+			},
+		},
+		{
+			Name: "Play",
+			Doc:  "// Play lets a player join an existing game and play.",
+			InArgs: []__ipc.ArgDesc{
+				{"ID", ``}, // GameID
+			},
+			OutArgs: []__ipc.ArgDesc{
+				{"", ``}, // PlayResult
+				{"", ``}, // error
+			},
+		},
+	},
 }
 
 func (s implJudgeServerStub) Signature(ctx __ipc.ServerContext) (__ipc.ServiceSignature, error) {
-	// TODO(toddw) Replace with new DescribeInterfaces implementation.
+	// TODO(toddw): Replace with new Describe__ implementation.
 	result := __ipc.ServiceSignature{Methods: make(map[string]__ipc.MethodSignature)}
 	result.Methods["CreateGame"] = __ipc.MethodSignature{
 		InArgs: []__ipc.MethodArgument{
@@ -588,17 +602,6 @@ func (c implPlayerClientStub) Signature(ctx __context.T, opts ...__ipc.CallOpt) 
 	return
 }
 
-func (c implPlayerClientStub) GetMethodTags(ctx __context.T, method string, opts ...__ipc.CallOpt) (o0 []interface{}, err error) {
-	var call __ipc.Call
-	if call, err = c.c(ctx).StartCall(ctx, c.name, "GetMethodTags", []interface{}{method}, opts...); err != nil {
-		return
-	}
-	if ierr := call.Finish(&o0, &err); ierr != nil {
-		err = ierr
-	}
-	return
-}
-
 // PlayerServerMethods is the interface a server writer
 // implements for Player.
 //
@@ -618,9 +621,9 @@ type PlayerServerStubMethods PlayerServerMethods
 // PlayerServerStub adds universal methods to PlayerServerStubMethods.
 type PlayerServerStub interface {
 	PlayerServerStubMethods
-	// GetMethodTags will be replaced with DescribeInterfaces.
-	GetMethodTags(ctx __ipc.ServerContext, method string) ([]interface{}, error)
-	// Signature will be replaced with DescribeInterfaces.
+	// Describe the Player interfaces.
+	Describe__() []__ipc.InterfaceDesc
+	// Signature will be replaced with Describe__.
 	Signature(ctx __ipc.ServerContext) (__ipc.ServiceSignature, error)
 }
 
@@ -654,18 +657,36 @@ func (s implPlayerServerStub) VGlob() *__ipc.GlobState {
 	return s.gs
 }
 
-func (s implPlayerServerStub) GetMethodTags(ctx __ipc.ServerContext, method string) ([]interface{}, error) {
-	// TODO(toddw): Replace with new DescribeInterfaces implementation.
-	switch method {
-	case "Challenge":
-		return []interface{}{}, nil
-	default:
-		return nil, nil
-	}
+func (s implPlayerServerStub) Describe__() []__ipc.InterfaceDesc {
+	return []__ipc.InterfaceDesc{PlayerDesc}
+}
+
+// PlayerDesc describes the Player interface.
+var PlayerDesc __ipc.InterfaceDesc = descPlayer
+
+// descPlayer hides the desc to keep godoc clean.
+var descPlayer = __ipc.InterfaceDesc{
+	Name:    "Player",
+	PkgPath: "veyron.io/apps/rps",
+	Doc:     "// Player can receive challenges from other players.",
+	Methods: []__ipc.MethodDesc{
+		{
+			Name: "Challenge",
+			Doc:  "// Challenge is used by other players to challenge this player to a game. If\n// the challenge is accepted, the method returns nil.",
+			InArgs: []__ipc.ArgDesc{
+				{"Address", ``}, // string
+				{"ID", ``},      // GameID
+				{"Opts", ``},    // GameOptions
+			},
+			OutArgs: []__ipc.ArgDesc{
+				{"", ``}, // error
+			},
+		},
+	},
 }
 
 func (s implPlayerServerStub) Signature(ctx __ipc.ServerContext) (__ipc.ServiceSignature, error) {
-	// TODO(toddw) Replace with new DescribeInterfaces implementation.
+	// TODO(toddw): Replace with new Describe__ implementation.
 	result := __ipc.ServiceSignature{Methods: make(map[string]__ipc.MethodSignature)}
 	result.Methods["Challenge"] = __ipc.MethodSignature{
 		InArgs: []__ipc.MethodArgument{
@@ -754,17 +775,6 @@ func (c implScoreKeeperClientStub) Signature(ctx __context.T, opts ...__ipc.Call
 	return
 }
 
-func (c implScoreKeeperClientStub) GetMethodTags(ctx __context.T, method string, opts ...__ipc.CallOpt) (o0 []interface{}, err error) {
-	var call __ipc.Call
-	if call, err = c.c(ctx).StartCall(ctx, c.name, "GetMethodTags", []interface{}{method}, opts...); err != nil {
-		return
-	}
-	if ierr := call.Finish(&o0, &err); ierr != nil {
-		err = ierr
-	}
-	return
-}
-
 // ScoreKeeperServerMethods is the interface a server writer
 // implements for ScoreKeeper.
 //
@@ -782,9 +792,9 @@ type ScoreKeeperServerStubMethods ScoreKeeperServerMethods
 // ScoreKeeperServerStub adds universal methods to ScoreKeeperServerStubMethods.
 type ScoreKeeperServerStub interface {
 	ScoreKeeperServerStubMethods
-	// GetMethodTags will be replaced with DescribeInterfaces.
-	GetMethodTags(ctx __ipc.ServerContext, method string) ([]interface{}, error)
-	// Signature will be replaced with DescribeInterfaces.
+	// Describe the ScoreKeeper interfaces.
+	Describe__() []__ipc.InterfaceDesc
+	// Signature will be replaced with Describe__.
 	Signature(ctx __ipc.ServerContext) (__ipc.ServiceSignature, error)
 }
 
@@ -818,18 +828,33 @@ func (s implScoreKeeperServerStub) VGlob() *__ipc.GlobState {
 	return s.gs
 }
 
-func (s implScoreKeeperServerStub) GetMethodTags(ctx __ipc.ServerContext, method string) ([]interface{}, error) {
-	// TODO(toddw): Replace with new DescribeInterfaces implementation.
-	switch method {
-	case "Record":
-		return []interface{}{}, nil
-	default:
-		return nil, nil
-	}
+func (s implScoreKeeperServerStub) Describe__() []__ipc.InterfaceDesc {
+	return []__ipc.InterfaceDesc{ScoreKeeperDesc}
+}
+
+// ScoreKeeperDesc describes the ScoreKeeper interface.
+var ScoreKeeperDesc __ipc.InterfaceDesc = descScoreKeeper
+
+// descScoreKeeper hides the desc to keep godoc clean.
+var descScoreKeeper = __ipc.InterfaceDesc{
+	Name:    "ScoreKeeper",
+	PkgPath: "veyron.io/apps/rps",
+	Doc:     "// ScoreKeeper receives the outcome of games from Judges.",
+	Methods: []__ipc.MethodDesc{
+		{
+			Name: "Record",
+			InArgs: []__ipc.ArgDesc{
+				{"Score", ``}, // ScoreCard
+			},
+			OutArgs: []__ipc.ArgDesc{
+				{"", ``}, // error
+			},
+		},
+	},
 }
 
 func (s implScoreKeeperServerStub) Signature(ctx __ipc.ServerContext) (__ipc.ServiceSignature, error) {
-	// TODO(toddw) Replace with new DescribeInterfaces implementation.
+	// TODO(toddw): Replace with new Describe__ implementation.
 	result := __ipc.ServiceSignature{Methods: make(map[string]__ipc.MethodSignature)}
 	result.Methods["Record"] = __ipc.MethodSignature{
 		InArgs: []__ipc.MethodArgument{
@@ -926,17 +951,6 @@ func (c implRockPaperScissorsClientStub) Signature(ctx __context.T, opts ...__ip
 	return
 }
 
-func (c implRockPaperScissorsClientStub) GetMethodTags(ctx __context.T, method string, opts ...__ipc.CallOpt) (o0 []interface{}, err error) {
-	var call __ipc.Call
-	if call, err = c.c(ctx).StartCall(ctx, c.name, "GetMethodTags", []interface{}{method}, opts...); err != nil {
-		return
-	}
-	if ierr := call.Finish(&o0, &err); ierr != nil {
-		err = ierr
-	}
-	return
-}
-
 // RockPaperScissorsServerMethods is the interface a server writer
 // implements for RockPaperScissors.
 type RockPaperScissorsServerMethods interface {
@@ -962,9 +976,9 @@ type RockPaperScissorsServerStubMethods interface {
 // RockPaperScissorsServerStub adds universal methods to RockPaperScissorsServerStubMethods.
 type RockPaperScissorsServerStub interface {
 	RockPaperScissorsServerStubMethods
-	// GetMethodTags will be replaced with DescribeInterfaces.
-	GetMethodTags(ctx __ipc.ServerContext, method string) ([]interface{}, error)
-	// Signature will be replaced with DescribeInterfaces.
+	// Describe the RockPaperScissors interfaces.
+	Describe__() []__ipc.InterfaceDesc
+	// Signature will be replaced with Describe__.
 	Signature(ctx __ipc.ServerContext) (__ipc.ServiceSignature, error)
 }
 
@@ -1000,22 +1014,26 @@ func (s implRockPaperScissorsServerStub) VGlob() *__ipc.GlobState {
 	return s.gs
 }
 
-func (s implRockPaperScissorsServerStub) GetMethodTags(ctx __ipc.ServerContext, method string) ([]interface{}, error) {
-	// TODO(toddw): Replace with new DescribeInterfaces implementation.
-	if resp, err := s.JudgeServerStub.GetMethodTags(ctx, method); resp != nil || err != nil {
-		return resp, err
-	}
-	if resp, err := s.PlayerServerStub.GetMethodTags(ctx, method); resp != nil || err != nil {
-		return resp, err
-	}
-	if resp, err := s.ScoreKeeperServerStub.GetMethodTags(ctx, method); resp != nil || err != nil {
-		return resp, err
-	}
-	return nil, nil
+func (s implRockPaperScissorsServerStub) Describe__() []__ipc.InterfaceDesc {
+	return []__ipc.InterfaceDesc{RockPaperScissorsDesc, JudgeDesc, PlayerDesc, ScoreKeeperDesc}
+}
+
+// RockPaperScissorsDesc describes the RockPaperScissors interface.
+var RockPaperScissorsDesc __ipc.InterfaceDesc = descRockPaperScissors
+
+// descRockPaperScissors hides the desc to keep godoc clean.
+var descRockPaperScissors = __ipc.InterfaceDesc{
+	Name:    "RockPaperScissors",
+	PkgPath: "veyron.io/apps/rps",
+	Embeds: []__ipc.EmbedDesc{
+		{"Judge", "veyron.io/apps/rps", ``},
+		{"Player", "veyron.io/apps/rps", "// Player can receive challenges from other players."},
+		{"ScoreKeeper", "veyron.io/apps/rps", "// ScoreKeeper receives the outcome of games from Judges."},
+	},
 }
 
 func (s implRockPaperScissorsServerStub) Signature(ctx __ipc.ServerContext) (__ipc.ServiceSignature, error) {
-	// TODO(toddw) Replace with new DescribeInterfaces implementation.
+	// TODO(toddw): Replace with new Describe__ implementation.
 	result := __ipc.ServiceSignature{Methods: make(map[string]__ipc.MethodSignature)}
 
 	result.TypeDefs = []__vdlutil.Any{}
