@@ -37,7 +37,8 @@ main() {
     || (cat "${MTLOG}"; shell_test::fail "line ${LINENO}: failed to identify endpoint")
 
   # Get the neighborhood endpoint from the mounttable.
-  NHEP=$(${MOUNTTABLE_BIN} glob "${EP}" nh | grep ^nh | cut -d' ' -f2) \
+  NHEP=$(${MOUNTTABLE_BIN} glob "${EP}" nh | grep ^nh | \
+	 sed -e 's/ \/@.@ws@[^ ]* (TTL .m..s)//' | cut -d' ' -f2) \
     || (cat "${MTLOG}"; shell_test::fail "line ${LINENO}: failed to identify neighborhood endpoint")
 
   # Mount objects and verify the result.
@@ -47,7 +48,8 @@ main() {
     || shell_test::fail "line ${LINENO}: failed to mount www.google.com"
 
   # <mounttable>.Glob('*')
-  GOT=$(${MOUNTTABLE_BIN} glob "${EP}" '*' | sed 's/TTL [^)]*/TTL XmXXs/' | sort) \
+  GOT=$(${MOUNTTABLE_BIN} glob "${EP}" '*' | \
+	  sed -e 's/ \/@.@ws@[^ ]* (TTL .m..s)//' -e 's/TTL [^)]*/TTL XmXXs/' | sort) \
     || shell_test::fail "line ${LINENO}: failed to run mounttable"
   WANT="[${EP}]
 google /www.google.com:80 (TTL XmXXs)
