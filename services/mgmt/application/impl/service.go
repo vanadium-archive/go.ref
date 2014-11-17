@@ -11,16 +11,16 @@ import (
 	"veyron.io/veyron/veyron2/vlog"
 )
 
-// invoker holds the state of an application repository invocation.
-type invoker struct {
+// appRepoService implements the Application repository interface.
+type appRepoService struct {
 	// store is the storage server used for storing application
 	// metadata.
-	// All Invokers share a single dispatcher's Memstore.
+	// All objects share the same Memstore.
 	store *fs.Memstore
-	// storeRoot is a name in the Store under which all data will be stored.
+	// storeRoot is a name in the directory under which all data will be
+	// stored.
 	storeRoot string
-	// suffix is the suffix of the current invocation that is assumed to
-	// be used as a relative object name to identify an application.
+	// suffix is the name of the application object.
 	suffix string
 }
 
@@ -30,9 +30,9 @@ var (
 	errNotFound        = errors.New("not found")
 )
 
-// NewInvoker is the invoker factory.
-func NewInvoker(store *fs.Memstore, storeRoot, suffix string) *invoker {
-	return &invoker{store: store, storeRoot: storeRoot, suffix: suffix}
+// NewApplicationService returns a new Application service implementation.
+func NewApplicationService(store *fs.Memstore, storeRoot, suffix string) *appRepoService {
+	return &appRepoService{store: store, storeRoot: storeRoot, suffix: suffix}
 }
 
 func parse(suffix string) (string, string, error) {
@@ -47,9 +47,7 @@ func parse(suffix string) (string, string, error) {
 	}
 }
 
-// APPLICATION INTERFACE IMPLEMENTATION
-
-func (i *invoker) Match(context ipc.ServerContext, profiles []string) (application.Envelope, error) {
+func (i *appRepoService) Match(context ipc.ServerContext, profiles []string) (application.Envelope, error) {
 	vlog.VI(0).Infof("%v.Match(%v)", i.suffix, profiles)
 	empty := application.Envelope{}
 	name, version, err := parse(i.suffix)
@@ -78,7 +76,7 @@ func (i *invoker) Match(context ipc.ServerContext, profiles []string) (applicati
 	return empty, errNotFound
 }
 
-func (i *invoker) Put(context ipc.ServerContext, profiles []string, envelope application.Envelope) error {
+func (i *appRepoService) Put(context ipc.ServerContext, profiles []string, envelope application.Envelope) error {
 	vlog.VI(0).Infof("%v.Put(%v, %v)", i.suffix, profiles, envelope)
 	name, version, err := parse(i.suffix)
 	if err != nil {
@@ -110,7 +108,7 @@ func (i *invoker) Put(context ipc.ServerContext, profiles []string, envelope app
 	return nil
 }
 
-func (i *invoker) Remove(context ipc.ServerContext, profile string) error {
+func (i *appRepoService) Remove(context ipc.ServerContext, profile string) error {
 	vlog.VI(0).Infof("%v.Remove(%v)", i.suffix, profile)
 	name, version, err := parse(i.suffix)
 	if err != nil {
@@ -144,7 +142,7 @@ func (i *invoker) Remove(context ipc.ServerContext, profile string) error {
 	return nil
 }
 
-func (i *invoker) allApplications() ([]string, error) {
+func (i *appRepoService) allApplications() ([]string, error) {
 	apps, err := i.store.BindObject("/applications").Children()
 	if err != nil {
 		return nil, err
@@ -152,7 +150,7 @@ func (i *invoker) allApplications() ([]string, error) {
 	return apps, nil
 }
 
-func (i *invoker) allAppVersions(appName string) ([]string, error) {
+func (i *appRepoService) allAppVersions(appName string) ([]string, error) {
 	profiles, err := i.store.BindObject(naming.Join("/applications", appName)).Children()
 	if err != nil {
 		return nil, err
@@ -176,7 +174,7 @@ func (i *invoker) allAppVersions(appName string) ([]string, error) {
 	return versions, nil
 }
 
-func (i *invoker) VGlobChildren() ([]string, error) {
+func (i *appRepoService) VGlobChildren() ([]string, error) {
 	vlog.VI(0).Infof("%v.VGlobChildren()", i.suffix)
 	i.store.Lock()
 	defer i.store.Unlock()

@@ -43,7 +43,7 @@ func checksumExists(path string) error {
 }
 
 // generatePartPath generates a path for the given binary part.
-func (i *invoker) generatePartPath(part int) string {
+func (i *binaryService) generatePartPath(part int) string {
 	return generatePartPath(i.path, part)
 }
 

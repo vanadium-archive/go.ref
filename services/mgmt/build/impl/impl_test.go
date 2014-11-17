@@ -57,7 +57,7 @@ func startServer(t *testing.T) (build.BuilderClientMethods, func()) {
 		t.Fatalf("Listen(%s) failed: %v", profiles.LocalListenSpec, err)
 	}
 	unpublished := ""
-	if err := server.Serve(unpublished, build.BuilderServer(NewInvoker(gobin, goroot)), nil); err != nil {
+	if err := server.Serve(unpublished, build.BuilderServer(NewBuilderService(gobin, goroot)), nil); err != nil {
 		t.Fatalf("Serve(%q) failed: %v", unpublished, err)
 	}
 	name := "/" + endpoint.String()

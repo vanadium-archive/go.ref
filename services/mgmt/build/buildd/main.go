@@ -35,7 +35,7 @@ func main() {
 		vlog.Errorf("Listen(%s) failed: %v", roaming.ListenSpec, err)
 		return
 	}
-	if err := server.Serve(*name, build.BuilderServer(impl.NewInvoker(*gobin, *goroot)), vflag.NewAuthorizerOrDie()); err != nil {
+	if err := server.Serve(*name, build.BuilderServer(impl.NewBuilderService(*gobin, *goroot)), vflag.NewAuthorizerOrDie()); err != nil {
 		vlog.Errorf("Serve(%v) failed: %v", *name, err)
 		return
 	}

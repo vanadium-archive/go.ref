@@ -114,15 +114,15 @@ func (c *callbackState) unregister(id string) {
 	delete(c.channels, id)
 }
 
-// configInvoker holds the state of a config service invocation.
-type configInvoker struct {
+// configService implements the Node manager's Config interface.
+type configService struct {
 	callback *callbackState
 	// Suffix contains an identifier for the channel corresponding to the
 	// request.
 	suffix string
 }
 
-func (i *configInvoker) Set(_ ipc.ServerContext, key, value string) error {
+func (i *configService) Set(_ ipc.ServerContext, key, value string) error {
 	id := i.suffix
 	i.callback.Lock()
 	if _, ok := i.callback.channels[id]; !ok {

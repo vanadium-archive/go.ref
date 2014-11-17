@@ -185,8 +185,8 @@ type securityAgentState struct {
 	startLock sync.Mutex
 }
 
-// appInvoker holds the state of an application-related method invocation.
-type appInvoker struct {
+// appService implements the Node manager's Application interface.
+type appService struct {
 	callback *callbackState
 	config   *iconfig.State
 	// suffix contains the name components of the current invocation name
@@ -362,7 +362,7 @@ func initializeInstallationACLs(dir string, blessings []string, acl security.ACL
 	return writeACLs(aclData, aclSig, aclDir, acl)
 }
 
-func (i *appInvoker) Install(call ipc.ServerContext, applicationVON string) (string, error) {
+func (i *appService) Install(call ipc.ServerContext, applicationVON string) (string, error) {
 	if len(i.suffix) > 0 {
 		return "", errInvalidSuffix
 	}
@@ -399,12 +399,12 @@ func (i *appInvoker) Install(call ipc.ServerContext, applicationVON string) (str
 	return naming.Join(envelope.Title, installationID), nil
 }
 
-func (*appInvoker) Refresh(ipc.ServerContext) error {
+func (*appService) Refresh(ipc.ServerContext) error {
 	// TODO(jsimsa): Implement.
 	return nil
 }
 
-func (*appInvoker) Restart(ipc.ServerContext) error {
+func (*appService) Restart(ipc.ServerContext) error {
 	// TODO(jsimsa): Implement.
 	return nil
 }
@@ -550,7 +550,7 @@ func setupPrincipal(instanceDir, versionDir string, call ipc.ServerContext, secu
 // installation referred to by the invoker's suffix.  Returns an error if the
 // suffix does not name an installation or if the named installation does not
 // exist.
-func (i *appInvoker) installationDir() (string, error) {
+func (i *appService) installationDir() (string, error) {
 	return installationDirCore(i.suffix, i.config.Root)
 }
 
@@ -575,7 +575,7 @@ func initializeInstanceACLs(key, installationDir, instanceDir string, blessings 
 }
 
 // newInstance sets up the directory for a new application instance.
-func (i *appInvoker) newInstance(call ipc.ServerContext) (string, string, error) {
+func (i *appService) newInstance(call ipc.ServerContext) (string, string, error) {
 	installationDir, err := i.installationDir()
 	if err != nil {
 		return "", "", err
@@ -718,7 +718,7 @@ func genCmd(instanceDir, helperPath, systemName string) (*exec.Cmd, error) {
 	return cmd, nil
 }
 
-func (i *appInvoker) startCmd(instanceDir string, cmd *exec.Cmd) error {
+func (i *appService) startCmd(instanceDir string, cmd *exec.Cmd) error {
 	info, err := loadInstanceInfo(instanceDir)
 	if err != nil {
 		return err
@@ -804,7 +804,7 @@ func (i *appInvoker) startCmd(instanceDir string, cmd *exec.Cmd) error {
 	return nil
 }
 
-func (i *appInvoker) run(instanceDir, systemName string) error {
+func (i *appService) run(instanceDir, systemName string) error {
 	if err := transitionInstance(instanceDir, suspended, starting); err != nil {
 		return err
 	}
@@ -820,7 +820,7 @@ func (i *appInvoker) run(instanceDir, systemName string) error {
 	return transitionInstance(instanceDir, starting, started)
 }
 
-func (i *appInvoker) Start(call ipc.ServerContext) ([]string, error) {
+func (i *appService) Start(call ipc.ServerContext) ([]string, error) {
 	helper := i.config.Helper
 	instanceDir, instanceID, err := i.newInstance(call)
 
@@ -865,11 +865,11 @@ func instanceDir(root string, suffix []string) (string, error) {
 // instanceDir returns the path to the directory containing the app instance
 // referred to by the invoker's suffix, as well as the corresponding stopped
 // instance dir.  Returns an error if the suffix does not name an instance.
-func (i *appInvoker) instanceDir() (string, error) {
+func (i *appService) instanceDir() (string, error) {
 	return instanceDir(i.config.Root, i.suffix)
 }
 
-func (i *appInvoker) Resume(call ipc.ServerContext) error {
+func (i *appService) Resume(call ipc.ServerContext) error {
 	instanceDir, err := i.instanceDir()
 	if err != nil {
 		return err
@@ -925,7 +925,7 @@ func stop(instanceDir string) error {
 
 // TODO(caprita): implement deadline for Stop.
 
-func (i *appInvoker) Stop(_ ipc.ServerContext, deadline uint32) error {
+func (i *appService) Stop(_ ipc.ServerContext, deadline uint32) error {
 	instanceDir, err := i.instanceDir()
 	if err != nil {
 		return err
@@ -943,7 +943,7 @@ func (i *appInvoker) Stop(_ ipc.ServerContext, deadline uint32) error {
 	return transitionInstance(instanceDir, stopping, stopped)
 }
 
-func (i *appInvoker) Suspend(ipc.ServerContext) error {
+func (i *appService) Suspend(ipc.ServerContext) error {
 	instanceDir, err := i.instanceDir()
 	if err != nil {
 		return err
@@ -958,7 +958,7 @@ func (i *appInvoker) Suspend(ipc.ServerContext) error {
 	return transitionInstance(instanceDir, suspending, suspended)
 }
 
-func (i *appInvoker) Uninstall(ipc.ServerContext) error {
+func (i *appService) Uninstall(ipc.ServerContext) error {
 	installationDir, err := i.installationDir()
 	if err != nil {
 		return err
@@ -966,7 +966,7 @@ func (i *appInvoker) Uninstall(ipc.ServerContext) error {
 	return transitionInstallation(installationDir, active, uninstalled)
 }
 
-func (i *appInvoker) Update(ipc.ServerContext) error {
+func (i *appService) Update(ipc.ServerContext) error {
 	installationDir, err := i.installationDir()
 	if err != nil {
 		return err
@@ -1016,12 +1016,12 @@ func (i *appInvoker) Update(ipc.ServerContext) error {
 	return nil
 }
 
-func (*appInvoker) UpdateTo(_ ipc.ServerContext, von string) error {
+func (*appService) UpdateTo(_ ipc.ServerContext, von string) error {
 	// TODO(jsimsa): Implement.
 	return nil
 }
 
-func (i *appInvoker) Revert(ipc.ServerContext) error {
+func (i *appService) Revert(ipc.ServerContext) error {
 	installationDir, err := i.installationDir()
 	if err != nil {
 		return err
@@ -1086,7 +1086,7 @@ func (n *treeNode) find(names []string, create bool) *treeNode {
 	}
 }
 
-func (i *appInvoker) scanEnvelopes(tree *treeNode, appDir string) {
+func (i *appService) scanEnvelopes(tree *treeNode, appDir string) {
 	// Find all envelopes, extract installID.
 	envGlob := []string{i.config.Root, appDir, "installation-*", "*", "envelope"}
 	envelopes, err := filepath.Glob(filepath.Join(envGlob...))
@@ -1111,7 +1111,7 @@ func (i *appInvoker) scanEnvelopes(tree *treeNode, appDir string) {
 	return
 }
 
-func (i *appInvoker) scanInstances(tree *treeNode) {
+func (i *appService) scanInstances(tree *treeNode) {
 	if len(i.suffix) < 2 {
 		return
 	}
@@ -1134,7 +1134,7 @@ func (i *appInvoker) scanInstances(tree *treeNode) {
 	return
 }
 
-func (i *appInvoker) scanInstance(tree *treeNode, title, instanceDir string) {
+func (i *appService) scanInstance(tree *treeNode, title, instanceDir string) {
 	if _, err := loadInstanceInfo(instanceDir); err != nil {
 		return
 	}
@@ -1154,7 +1154,7 @@ func (i *appInvoker) scanInstance(tree *treeNode, title, instanceDir string) {
 	}
 }
 
-func (i *appInvoker) VGlobChildren() ([]string, error) {
+func (i *appService) VGlobChildren() ([]string, error) {
 	tree := newTreeNode()
 	switch len(i.suffix) {
 	case 0:
@@ -1208,7 +1208,7 @@ func dirFromSuffix(suffix []string, root string) (string, error) {
 
 // TODO(rjkroege): Consider maintaining an in-memory ACL cache.
 // TODO(rjkroege): Excise the idea of the key. Use the dir instead.
-func (i *appInvoker) SetACL(_ ipc.ServerContext, acl security.ACL, etag string) error {
+func (i *appService) SetACL(_ ipc.ServerContext, acl security.ACL, etag string) error {
 	dir, err := dirFromSuffix(i.suffix, i.config.Root)
 	if err != nil {
 		return err
@@ -1216,7 +1216,7 @@ func (i *appInvoker) SetACL(_ ipc.ServerContext, acl security.ACL, etag string) 
 	return setAppACL(i.locks, dir, dir, acl, etag)
 }
 
-func (i *appInvoker) GetACL(_ ipc.ServerContext) (acl security.ACL, etag string, err error) {
+func (i *appService) GetACL(_ ipc.ServerContext) (acl security.ACL, etag string, err error) {
 	dir, err := dirFromSuffix(i.suffix, i.config.Root)
 	if err != nil {
 		return security.ACL{}, "", err

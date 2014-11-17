@@ -11,15 +11,13 @@ import (
 	"veyron.io/veyron/veyron2/vlog"
 )
 
-// invoker holds the profile repository invocation.
-type invoker struct {
+// profileService implements the Profile server interface.
+type profileService struct {
 	// store is the storage server used for storing profile data.
 	store *fs.Memstore
 	// storeRoot is a name in the Store under which all data will be stored.
 	storeRoot string
-	// suffix is the suffix of the current invocation that is assumed to
-	// be used as a relative object name to identify a profile
-	// specification.
+	// suffix is the name of the profile specification.
 	suffix string
 }
 
@@ -28,14 +26,14 @@ var (
 	errOperationFailed = errors.New("operation failed")
 )
 
-// NewInvoker is the invoker factory.
-func NewInvoker(store *fs.Memstore, storeRoot, suffix string) *invoker {
-	return &invoker{store: store, storeRoot: storeRoot, suffix: suffix}
+// NewProfileService returns a new Profile service implementation.
+func NewProfileService(store *fs.Memstore, storeRoot, suffix string) *profileService {
+	return &profileService{store: store, storeRoot: storeRoot, suffix: suffix}
 }
 
 // STORE MANAGEMENT INTERFACE IMPLEMENTATION
 
-func (i *invoker) Put(context ipc.ServerContext, profile profile.Specification) error {
+func (i *profileService) Put(context ipc.ServerContext, profile profile.Specification) error {
 	vlog.VI(0).Infof("%v.Put(%v)", i.suffix, profile)
 	// Transaction is rooted at "", so tname == tid.
 	i.store.Lock()
@@ -55,7 +53,7 @@ func (i *invoker) Put(context ipc.ServerContext, profile profile.Specification) 
 	return nil
 }
 
-func (i *invoker) Remove(context ipc.ServerContext) error {
+func (i *profileService) Remove(context ipc.ServerContext) error {
 	vlog.VI(0).Infof("%v.Remove()", i.suffix)
 	i.store.Lock()
 	defer i.store.Unlock()
@@ -84,7 +82,7 @@ func (i *invoker) Remove(context ipc.ServerContext) error {
 
 // PROFILE INTERACE IMPLEMENTATION
 
-func (i *invoker) lookup(context ipc.ServerContext) (profile.Specification, error) {
+func (i *profileService) lookup(context ipc.ServerContext) (profile.Specification, error) {
 	empty := profile.Specification{}
 	path := naming.Join("/profiles", i.suffix)
 
@@ -102,7 +100,7 @@ func (i *invoker) lookup(context ipc.ServerContext) (profile.Specification, erro
 	return s, nil
 }
 
-func (i *invoker) Label(context ipc.ServerContext) (string, error) {
+func (i *profileService) Label(context ipc.ServerContext) (string, error) {
 	vlog.VI(0).Infof("%v.Label()", i.suffix)
 	s, err := i.lookup(context)
 	if err != nil {
@@ -111,7 +109,7 @@ func (i *invoker) Label(context ipc.ServerContext) (string, error) {
 	return s.Label, nil
 }
 
-func (i *invoker) Description(context ipc.ServerContext) (string, error) {
+func (i *profileService) Description(context ipc.ServerContext) (string, error) {
 	vlog.VI(0).Infof("%v.Description()", i.suffix)
 	s, err := i.lookup(context)
 	if err != nil {
@@ -120,7 +118,7 @@ func (i *invoker) Description(context ipc.ServerContext) (string, error) {
 	return s.Description, nil
 }
 
-func (i *invoker) Specification(context ipc.ServerContext) (profile.Specification, error) {
+func (i *profileService) Specification(context ipc.ServerContext) (profile.Specification, error) {
 	vlog.VI(0).Infof("%v.Specification()", i.suffix)
 	return i.lookup(context)
 }

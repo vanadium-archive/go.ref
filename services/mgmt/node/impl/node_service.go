@@ -84,8 +84,8 @@ func (u *updatingState) unsetUpdating() {
 	u.updatingMutex.Unlock()
 }
 
-// nodeInvoker holds the state of a node manager method invocation.
-type nodeInvoker struct {
+// nodeService implements the Node manager's Node interface.
+type nodeService struct {
 	updating *updatingState
 	callback *callbackState
 	config   *config.State
@@ -93,7 +93,7 @@ type nodeInvoker struct {
 	uat      BlessingSystemAssociationStore
 }
 
-func (i *nodeInvoker) Claim(call ipc.ServerContext) error {
+func (i *nodeService) Claim(call ipc.ServerContext) error {
 	// Get the blessing to be used by the claimant.
 	blessings := call.Blessings()
 	if blessings == nil {
@@ -102,7 +102,7 @@ func (i *nodeInvoker) Claim(call ipc.ServerContext) error {
 	return i.disp.claimNodeManager(blessings.ForContext(call), blessings)
 }
 
-func (*nodeInvoker) Describe(ipc.ServerContext) (node.Description, error) {
+func (*nodeService) Describe(ipc.ServerContext) (node.Description, error) {
 	empty := node.Description{}
 	nodeProfile, err := computeNodeProfile()
 	if err != nil {
@@ -116,7 +116,7 @@ func (*nodeInvoker) Describe(ipc.ServerContext) (node.Description, error) {
 	return result, nil
 }
 
-func (*nodeInvoker) IsRunnable(_ ipc.ServerContext, description binary.Description) (bool, error) {
+func (*nodeService) IsRunnable(_ ipc.ServerContext, description binary.Description) (bool, error) {
 	nodeProfile, err := computeNodeProfile()
 	if err != nil {
 		return false, err
@@ -133,14 +133,14 @@ func (*nodeInvoker) IsRunnable(_ ipc.ServerContext, description binary.Descripti
 	return len(result.Profiles) > 0, nil
 }
 
-func (*nodeInvoker) Reset(call ipc.ServerContext, deadline uint64) error {
+func (*nodeService) Reset(call ipc.ServerContext, deadline uint64) error {
 	// TODO(jsimsa): Implement.
 	return nil
 }
 
 // getCurrentFileInfo returns the os.FileInfo for both the symbolic link
 // CurrentLink, and the node script in the workspace that this link points to.
-func (i *nodeInvoker) getCurrentFileInfo() (os.FileInfo, string, error) {
+func (i *nodeService) getCurrentFileInfo() (os.FileInfo, string, error) {
 	path := i.config.CurrentLink
 	link, err := os.Lstat(path)
 	if err != nil {
@@ -155,7 +155,7 @@ func (i *nodeInvoker) getCurrentFileInfo() (os.FileInfo, string, error) {
 	return link, scriptPath, nil
 }
 
-func (i *nodeInvoker) revertNodeManager() error {
+func (i *nodeService) revertNodeManager() error {
 	if err := updateLink(i.config.Previous, i.config.CurrentLink); err != nil {
 		return err
 	}
@@ -163,7 +163,7 @@ func (i *nodeInvoker) revertNodeManager() error {
 	return nil
 }
 
-func (i *nodeInvoker) newLogfile(prefix string) (*os.File, error) {
+func (i *nodeService) newLogfile(prefix string) (*os.File, error) {
 	d := filepath.Join(i.config.Root, "node_test_logs")
 	if _, err := os.Stat(d); err != nil {
 		if err := os.MkdirAll(d, 0700); err != nil {
@@ -179,7 +179,7 @@ func (i *nodeInvoker) newLogfile(prefix string) (*os.File, error) {
 
 // TODO(cnicolaou): would this be better implemented using the modules
 // framework now that it exists?
-func (i *nodeInvoker) testNodeManager(ctx context.T, workspace string, envelope *application.Envelope) error {
+func (i *nodeService) testNodeManager(ctx context.T, workspace string, envelope *application.Envelope) error {
 	path := filepath.Join(workspace, "noded.sh")
 	cmd := exec.Command(path)
 
@@ -313,7 +313,7 @@ func generateScript(workspace string, configSettings []string, envelope *applica
 	return nil
 }
 
-func (i *nodeInvoker) updateNodeManager(ctx context.T) error {
+func (i *nodeService) updateNodeManager(ctx context.T) error {
 	if len(i.config.Origin) == 0 {
 		return errUpdateNoOp
 	}
@@ -381,25 +381,25 @@ func (i *nodeInvoker) updateNodeManager(ctx context.T) error {
 	return nil
 }
 
-func (*nodeInvoker) Install(ipc.ServerContext, string) (string, error) {
+func (*nodeService) Install(ipc.ServerContext, string) (string, error) {
 	return "", errInvalidSuffix
 }
 
-func (*nodeInvoker) Refresh(ipc.ServerContext) error {
+func (*nodeService) Refresh(ipc.ServerContext) error {
 	// TODO(jsimsa): Implement.
 	return nil
 }
 
-func (*nodeInvoker) Restart(ipc.ServerContext) error {
+func (*nodeService) Restart(ipc.ServerContext) error {
 	// TODO(jsimsa): Implement.
 	return nil
 }
 
-func (*nodeInvoker) Resume(ipc.ServerContext) error {
+func (*nodeService) Resume(ipc.ServerContext) error {
 	return errInvalidSuffix
 }
 
-func (i *nodeInvoker) Revert(call ipc.ServerContext) error {
+func (i *nodeService) Revert(call ipc.ServerContext) error {
 	if i.config.Previous == "" {
 		return errUpdateNoOp
 	}
@@ -414,24 +414,24 @@ func (i *nodeInvoker) Revert(call ipc.ServerContext) error {
 	return err
 }
 
-func (*nodeInvoker) Start(ipc.ServerContext) ([]string, error) {
+func (*nodeService) Start(ipc.ServerContext) ([]string, error) {
 	return nil, errInvalidSuffix
 }
 
-func (*nodeInvoker) Stop(ipc.ServerContext, uint32) error {
+func (*nodeService) Stop(ipc.ServerContext, uint32) error {
 	return errInvalidSuffix
 }
 
-func (*nodeInvoker) Suspend(ipc.ServerContext) error {
+func (*nodeService) Suspend(ipc.ServerContext) error {
 	// TODO(jsimsa): Implement.
 	return nil
 }
 
-func (*nodeInvoker) Uninstall(ipc.ServerContext) error {
+func (*nodeService) Uninstall(ipc.ServerContext) error {
 	return errInvalidSuffix
 }
 
-func (i *nodeInvoker) Update(ipc.ServerContext) error {
+func (i *nodeService) Update(ipc.ServerContext) error {
 	ctx, cancel := rt.R().NewContext().WithTimeout(time.Minute)
 	defer cancel()
 
@@ -447,16 +447,16 @@ func (i *nodeInvoker) Update(ipc.ServerContext) error {
 	return err
 }
 
-func (*nodeInvoker) UpdateTo(ipc.ServerContext, string) error {
+func (*nodeService) UpdateTo(ipc.ServerContext, string) error {
 	// TODO(jsimsa): Implement.
 	return nil
 }
 
-func (i *nodeInvoker) SetACL(_ ipc.ServerContext, acl security.ACL, etag string) error {
+func (i *nodeService) SetACL(_ ipc.ServerContext, acl security.ACL, etag string) error {
 	return i.disp.setACL(acl, etag, true /* store ACL on disk */)
 }
 
-func (i *nodeInvoker) GetACL(_ ipc.ServerContext) (acl security.ACL, etag string, err error) {
+func (i *nodeService) GetACL(_ ipc.ServerContext) (acl security.ACL, etag string, err error) {
 	return i.disp.getACL()
 }
 
@@ -473,7 +473,7 @@ func sameMachineCheck(call ipc.ServerContext) error {
 
 // TODO(rjkroege): Make it possible for users on the same system to also
 // associate their accounts with their identities.
-func (i *nodeInvoker) AssociateAccount(call ipc.ServerContext, identityNames []string, accountName string) error {
+func (i *nodeService) AssociateAccount(call ipc.ServerContext, identityNames []string, accountName string) error {
 	if err := sameMachineCheck(call); err != nil {
 		return err
 	}
@@ -486,7 +486,7 @@ func (i *nodeInvoker) AssociateAccount(call ipc.ServerContext, identityNames []s
 	}
 }
 
-func (i *nodeInvoker) ListAssociations(call ipc.ServerContext) (associations []node.Association, err error) {
+func (i *nodeService) ListAssociations(call ipc.ServerContext) (associations []node.Association, err error) {
 	// Temporary code. Dump this.
 	vlog.VI(2).Infof("ListAssociations given blessings: %v\n", call.RemoteBlessings().ForContext(call))
 

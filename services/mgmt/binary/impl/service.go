@@ -34,16 +34,15 @@ import (
 	"veyron.io/veyron/veyron2/vlog"
 )
 
-// invoker holds the state of a binary repository invocation.
-type invoker struct {
+// binaryService implements the Binary server interface.
+type binaryService struct {
 	// path is the local filesystem path to the object identified by the
 	// object name suffix.
 	path string
 	// state holds the state shared across different binary repository
 	// invocations.
 	state *state
-	// suffix is the suffix of the current invocation that is assumed to
-	// be used as a relative object name to identify a binary.
+	// suffix is the name of the binary object.
 	suffix string
 }
 
@@ -63,20 +62,18 @@ var MissingPart = binary.PartInfo{
 	Size:     binary.MissingSize,
 }
 
-// newInvoker is the invoker factory.
-func newInvoker(state *state, suffix string) *invoker {
-	return &invoker{
+// newBinaryService returns a new Binary service implementation.
+func newBinaryService(state *state, suffix string) *binaryService {
+	return &binaryService{
 		path:   state.dir(suffix),
 		state:  state,
 		suffix: suffix,
 	}
 }
 
-// BINARY INTERFACE IMPLEMENTATION
-
 const bufferLength = 4096
 
-func (i *invoker) Create(_ ipc.ServerContext, nparts int32) error {
+func (i *binaryService) Create(_ ipc.ServerContext, nparts int32) error {
 	vlog.Infof("%v.Create(%v)", i.suffix, nparts)
 	if nparts < 1 {
 		return errInvalidParts
@@ -119,7 +116,7 @@ func (i *invoker) Create(_ ipc.ServerContext, nparts int32) error {
 	return nil
 }
 
-func (i *invoker) Delete(context ipc.ServerContext) error {
+func (i *binaryService) Delete(context ipc.ServerContext) error {
 	vlog.Infof("%v.Delete()", i.suffix)
 	if _, err := os.Stat(i.path); err != nil {
 		if os.IsNotExist(err) {
@@ -157,7 +154,7 @@ func (i *invoker) Delete(context ipc.ServerContext) error {
 	return nil
 }
 
-func (i *invoker) Download(context repository.BinaryDownloadContext, part int32) error {
+func (i *binaryService) Download(context repository.BinaryDownloadContext, part int32) error {
 	vlog.Infof("%v.Download(%v)", i.suffix, part)
 	path := i.generatePartPath(int(part))
 	if err := checksumExists(path); err != nil {
@@ -189,13 +186,13 @@ func (i *invoker) Download(context repository.BinaryDownloadContext, part int32)
 	return nil
 }
 
-func (i *invoker) DownloadURL(ipc.ServerContext) (string, int64, error) {
+func (i *binaryService) DownloadURL(ipc.ServerContext) (string, int64, error) {
 	vlog.Infof("%v.DownloadURL()", i.suffix)
 	// TODO(jsimsa): Implement.
 	return "", 0, nil
 }
 
-func (i *invoker) Stat(ipc.ServerContext) ([]binary.PartInfo, error) {
+func (i *binaryService) Stat(ipc.ServerContext) ([]binary.PartInfo, error) {
 	vlog.Infof("%v.Stat()", i.suffix)
 	result := make([]binary.PartInfo, 0)
 	parts, err := getParts(i.path)
@@ -228,7 +225,7 @@ func (i *invoker) Stat(ipc.ServerContext) ([]binary.PartInfo, error) {
 	return result, nil
 }
 
-func (i *invoker) Upload(context repository.BinaryUploadContext, part int32) error {
+func (i *binaryService) Upload(context repository.BinaryUploadContext, part int32) error {
 	vlog.Infof("%v.Upload(%v)", i.suffix, part)
 	path, suffix := i.generatePartPath(int(part)), ""
 	err := checksumExists(path)

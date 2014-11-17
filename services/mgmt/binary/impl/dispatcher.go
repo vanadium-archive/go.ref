@@ -28,5 +28,5 @@ func NewDispatcher(state *state, authorizer security.Authorizer) ipc.Dispatcher 
 // DISPATCHER INTERFACE IMPLEMENTATION
 
 func (d *dispatcher) Lookup(suffix, method string) (interface{}, security.Authorizer, error) {
-	return repository.BinaryServer(newInvoker(d.state, suffix)), d.auth, nil
+	return repository.BinaryServer(newBinaryService(d.state, suffix)), d.auth, nil
 }

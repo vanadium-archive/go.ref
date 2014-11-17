@@ -21,28 +21,26 @@ var (
 	errInternalError = verror.Internalf("internal error")
 )
 
-// invoker holds the state of a build server invocation.
-type invoker struct {
+// builderService implements the Builder server interface.
+type builderService struct {
 	// Path to the binary and the value of the GOROOT environment variable.
 	gobin, goroot string
 }
 
-// NewInvoker is the invoker factory.
-func NewInvoker(gobin, goroot string) *invoker {
-	return &invoker{
+// NewBuilderService returns a new Build service implementation.
+func NewBuilderService(gobin, goroot string) *builderService {
+	return &builderService{
 		gobin:  gobin,
 		goroot: goroot,
 	}
 }
-
-// BUILD INTERFACE IMPLEMENTATION
 
 // TODO(jsimsa): Add support for building for a specific profile
 // specified as a suffix the Build().
 //
 // TODO(jsimsa): Analyze the binary files for shared library
 // dependencies and ship these back.
-func (i *invoker) Build(ctx build.BuilderBuildContext, arch build.Architecture, opsys build.OperatingSystem) ([]byte, error) {
+func (i *builderService) Build(ctx build.BuilderBuildContext, arch build.Architecture, opsys build.OperatingSystem) ([]byte, error) {
 	vlog.VI(1).Infof("Build(%v, %v) called.", arch, opsys)
 	dir, prefix := "", ""
 	dirPerm, filePerm := os.FileMode(0700), os.FileMode(0600)
@@ -120,7 +118,7 @@ func (i *invoker) Build(ctx build.BuilderBuildContext, arch build.Architecture, 
 	return output.Bytes(), nil
 }
 
-func (i *invoker) Describe(_ ipc.ServerContext, name string) (binary.Description, error) {
+func (i *builderService) Describe(_ ipc.ServerContext, name string) (binary.Description, error) {
 	// TODO(jsimsa): Implement.
 	return binary.Description{}, nil
 }

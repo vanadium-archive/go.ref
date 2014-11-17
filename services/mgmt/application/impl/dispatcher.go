@@ -30,5 +30,5 @@ func NewDispatcher(name string, authorizer security.Authorizer) (*dispatcher, er
 // DISPATCHER INTERFACE IMPLEMENTATION
 
 func (d *dispatcher) Lookup(suffix, method string) (interface{}, security.Authorizer, error) {
-	return repository.ApplicationServer(NewInvoker(d.store, d.storeRoot, suffix)), d.auth, nil
+	return repository.ApplicationServer(NewApplicationService(d.store, d.storeRoot, suffix)), d.auth, nil
 }

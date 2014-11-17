@@ -357,7 +357,7 @@ func (d *dispatcher) Lookup(suffix, method string) (interface{}, security.Author
 	// prefix.
 	switch components[0] {
 	case nodeSuffix:
-		receiver := node.NodeServer(&nodeInvoker{
+		receiver := node.NodeServer(&nodeService{
 			callback: d.internal.callback,
 			updating: d.internal.updating,
 			config:   d.config,
@@ -366,10 +366,10 @@ func (d *dispatcher) Lookup(suffix, method string) (interface{}, security.Author
 		})
 		return receiver, d.auth, nil
 	case appsSuffix:
-		// Requests to apps/*/*/*/logs are handled locally by LogFileInvoker.
+		// Requests to apps/*/*/*/logs are handled locally by LogFileServer.
 		// Requests to apps/*/*/*/pprof are proxied to the apps' __debug/pprof object.
 		// Requests to apps/*/*/*/stats are proxied to the apps' __debug/stats object.
-		// Everything else is handled by appInvoker.
+		// Everything else is handled by the Application server.
 		if len(components) >= 5 {
 			appInstanceDir, err := instanceDir(d.config.Root, components[1:4])
 			if err != nil {
@@ -406,7 +406,7 @@ func (d *dispatcher) Lookup(suffix, method string) (interface{}, security.Author
 		if err != nil {
 			return nil, nil, err
 		}
-		receiver := node.ApplicationServer(&appInvoker{
+		receiver := node.ApplicationServer(&appService{
 			callback:      d.internal.callback,
 			config:        d.config,
 			suffix:        components[1:],
@@ -424,7 +424,7 @@ func (d *dispatcher) Lookup(suffix, method string) (interface{}, security.Author
 		if len(components) != 2 {
 			return nil, nil, errInvalidSuffix
 		}
-		receiver := inode.ConfigServer(&configInvoker{
+		receiver := inode.ConfigServer(&configService{
 			callback: d.internal.callback,
 			suffix:   components[1],
 		})
