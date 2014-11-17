@@ -1,3 +1,5 @@
+// +build !nacl
+
 package wslistener
 
 import (

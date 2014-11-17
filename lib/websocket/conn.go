@@ -1,4 +1,5 @@
 // +build !nacl
+
 package websocket
 
 import (
@@ -7,7 +8,6 @@ import (
 	"io"
 	"net"
 	"sync"
-
 	"time"
 )
 
@@ -43,7 +43,6 @@ func (c *wrappedConn) readFromCurrReader(b []byte) (int, error) {
 		c.currReader = nil
 	}
 	return n, err
-
 }
 
 func (c *wrappedConn) Read(b []byte) (int, error) {
