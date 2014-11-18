@@ -183,33 +183,29 @@ func (i *nodeService) testNodeManager(ctx context.T, workspace string, envelope 
 	path := filepath.Join(workspace, "noded.sh")
 	cmd := exec.Command(path)
 
-	// We use a combination of a pipe and file to capture output from
-	// the child node manager more reliably than merging their
-	// stdout, stderr file descriptors.
-
-	// Using a pipe reduces the likelihood of the two processes corrupting
-	// each other's output.
-	stdout, err := cmd.StdoutPipe()
-	if err != nil {
-		vlog.Errorf("StdoutPipe() failed: %v", err)
-		return errOperationFailed
-	}
-	go func(r io.Reader) {
-		scanner := bufio.NewScanner(r)
-		for scanner.Scan() {
-			fmt.Fprintf(os.Stdout, "%s\n", scanner.Text())
+	for k, v := range map[string]*io.Writer{
+		"stdout": &cmd.Stdout,
+		"stderr": &cmd.Stderr,
+	} {
+		// Using a log file makes it less likely that stdout and stderr
+		// output will be lost if the child crashes.
+		file, err := i.newLogfile(fmt.Sprintf("noded-test-%s", k))
+		if err != nil {
+			return err
 		}
-	}(stdout)
+		fName := file.Name()
+		defer os.Remove(fName)
+		*v = file
 
-	// Using a log file for stderr makes it less likely that error output
-	// will be lost if the child crashes.
-	stderr, err := i.newLogfile("noded-test-stderr")
-	if err != nil {
-		return err
+		defer func() {
+			if f, err := os.Open(fName); err == nil {
+				scanner := bufio.NewScanner(f)
+				for scanner.Scan() {
+					vlog.Infof("[testNodeManager %s] %s", k, scanner.Text())
+				}
+			}
+		}()
 	}
-	defer os.Remove(stderr.Name())
-
-	cmd.Stderr = stderr
 
 	// Setup up the child process callback.
 	callbackState := i.callback
@@ -232,13 +228,6 @@ func (i *nodeService) testNodeManager(ctx context.T, workspace string, envelope 
 			vlog.Errorf("Wait() failed: %v", err)
 			if err := handle.Clean(); err != nil {
 				vlog.Errorf("Clean() failed: %v", err)
-			}
-		}
-		logFile := stderr.Name()
-		if f, err := os.Open(logFile); err == nil {
-			scanner := bufio.NewScanner(f)
-			for scanner.Scan() {
-				vlog.Infof("%s", scanner.Text())
 			}
 		}
 	}()
