@@ -18,48 +18,44 @@ type SerializerReaderWriter interface {
 
 // FileSerializer implements SerializerReaderWriter that persists state to files.
 type FileSerializer struct {
-	data      *os.File
-	signature *os.File
-
 	dataFilePath      string
 	signatureFilePath string
 }
 
 // NewFileSerializer creates a FileSerializer with the given data and signature files.
-func NewFileSerializer(dataFilePath, signatureFilePath string) (*FileSerializer, error) {
-	data, err := os.Open(dataFilePath)
-	if err != nil && !os.IsNotExist(err) {
-		return nil, err
-	}
-	signature, err := os.Open(signatureFilePath)
-	if err != nil && !os.IsNotExist(err) {
-		return nil, err
-	}
+func NewFileSerializer(dataFilePath, signatureFilePath string) *FileSerializer {
 	return &FileSerializer{
-		data:              data,
-		signature:         signature,
 		dataFilePath:      dataFilePath,
 		signatureFilePath: signatureFilePath,
-	}, nil
+	}
 }
 
 func (fs *FileSerializer) Readers() (io.ReadCloser, io.ReadCloser, error) {
-	if fs.data == nil || fs.signature == nil {
+	data, err := os.Open(fs.dataFilePath)
+	if err != nil && !os.IsNotExist(err) {
+		return nil, nil, err
+	}
+	signature, err := os.Open(fs.signatureFilePath)
+	if err != nil && !os.IsNotExist(err) {
+		return nil, nil, err
+	}
+	if data == nil || signature == nil {
 		return nil, nil, nil
 	}
-	return fs.data, fs.signature, nil
+	return data, signature, nil
 }
 
 func (fs *FileSerializer) Writers() (io.WriteCloser, io.WriteCloser, error) {
 	// Remove previous version of the files
 	os.Remove(fs.dataFilePath)
 	os.Remove(fs.signatureFilePath)
-	var err error
-	if fs.data, err = os.Create(fs.dataFilePath); err != nil {
+	data, err := os.Create(fs.dataFilePath)
+	if err != nil {
 		return nil, nil, err
 	}
-	if fs.signature, err = os.Create(fs.signatureFilePath); err != nil {
+	signature, err := os.Create(fs.signatureFilePath)
+	if err != nil {
 		return nil, nil, err
 	}
-	return fs.data, fs.signature, nil
+	return data, signature, nil
 }

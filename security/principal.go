@@ -43,17 +43,9 @@ func NewPrincipalStateSerializer(dir string) (*PrincipalStateSerializer, error) 
 	if err := mkDir(dir); err != nil {
 		return nil, err
 	}
-	roots, err := NewFileSerializer(path.Join(dir, blessingRootsDataFile), path.Join(dir, blessingRootsSigFile))
-	if err != nil {
-		return nil, err
-	}
-	store, err := NewFileSerializer(path.Join(dir, blessingStoreDataFile), path.Join(dir, blessingStoreSigFile))
-	if err != nil {
-		return nil, err
-	}
 	return &PrincipalStateSerializer{
-		BlessingRoots: roots,
-		BlessingStore: store,
+		BlessingRoots: NewFileSerializer(path.Join(dir, blessingRootsDataFile), path.Join(dir, blessingRootsSigFile)),
+		BlessingStore: NewFileSerializer(path.Join(dir, blessingStoreDataFile), path.Join(dir, blessingStoreSigFile)),
 	}, nil
 }
 
