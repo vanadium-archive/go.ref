@@ -7,7 +7,7 @@ import (
 	"io"
 	"net"
 
-	"golang.org/x/crypto/nacl/box"
+	"code.google.com/p/go.crypto/nacl/box"
 
 	"veyron.io/veyron/veyron/runtimes/google/ipc/stream/crypto"
 	"veyron.io/veyron/veyron/runtimes/google/ipc/stream/message"
@@ -49,7 +49,7 @@ type privateData struct {
 //      pairs, sending the public key to the peer as a crypto option.  The
 //      remainder of the communication is encrypted as HopSetupStream messages
 //      using NewControlCipherIPC6, which is based on
-//      golang.org/x/crypto/nacl/box.
+//      code.google.com/p/go.crypto/nacl/box.
 //
 //    - Once the encrypted HopSetupStream channel is setup, the client and
 //      server authenticate using the vc.AuthenticateAs{Client,Server} protocol.
