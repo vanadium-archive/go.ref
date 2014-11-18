@@ -137,14 +137,12 @@ func runner(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, ar
 		return err
 	}
 	sh := modules.NewShell()
-	defer sh.Cleanup(os.Stderr, os.Stderr)
-	h, err := sh.Start("principal", nil, args[1:]...)
+	_, err = sh.Start("principal", nil, args[1:]...)
 	if err != nil {
 		return err
 	}
-	s := expect.NewSession(nil, h.Stdout(), 1*time.Second) // time.Minute)
-	fmt.Fprintf(stdout, s.ReadLine()+"\n")
-	fmt.Fprintf(stdout, s.ReadLine()+"\n")
+	// Cleanup copies the output of sh to these Writers.
+	sh.Cleanup(stdout, stderr)
 	modules.WaitForEOF(stdin)
 	return nil
 }
