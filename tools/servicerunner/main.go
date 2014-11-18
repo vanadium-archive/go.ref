@@ -14,7 +14,6 @@ import (
 	"veyron.io/veyron/veyron/lib/expect"
 	"veyron.io/veyron/veyron/lib/flags/consts"
 	"veyron.io/veyron/veyron/lib/modules"
-	"veyron.io/veyron/veyron/lib/modules/core"
 	_ "veyron.io/veyron/veyron/profiles"
 )
 
@@ -57,9 +56,7 @@ func updateVars(h modules.Handle, vars map[string]string, varNames ...string) er
 func main() {
 	rt.Init()
 
-	// NOTE(sadovsky): It would be better if Dispatch() itself performed the env
-	// check.
-	if os.Getenv(modules.ShellEntryPoint) != "" {
+	if modules.IsModulesProcess() {
 		panicOnError(modules.Dispatch())
 		return
 	}
@@ -78,9 +75,6 @@ func main() {
 		}
 		vars[consts.VeyronCredentials] = v
 	}
-	// NOTE(sadovsky): The following line will not be needed if the modules
-	// library is restructured per my proposal.
-	core.Install(sh)
 
 	h, err := sh.Start("root", nil, "--", "--veyron.tcp.address=127.0.0.1:0")
 	panicOnError(err)

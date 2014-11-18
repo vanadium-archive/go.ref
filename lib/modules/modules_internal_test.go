@@ -8,10 +8,6 @@ import (
 	"testing"
 )
 
-func init() {
-	RegisterChild("echos", "[args]*", Echo)
-}
-
 func Echo(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
 	if len(args) == 0 {
 		return fmt.Errorf("no args")
@@ -30,19 +26,18 @@ func assertNumHandles(t *testing.T, sh *Shell, n int) {
 }
 
 func TestState(t *testing.T) {
-	sh := NewShell("echos")
-	sh.AddSubprocess("echonotregistered", "[args]*")
-	sh.AddFunction("echof", Echo, "[args]*")
+	sh := NewShell()
+	RegisterFunction("echoff", "[args]*", Echo)
 	assertNumHandles(t, sh, 0)
 
 	_, _ = sh.Start("echonotregistered", nil) // won't start.
 	hs, _ := sh.Start("echos", nil, "a")
-	hf, _ := sh.Start("echof", nil, "b")
+	hf, _ := sh.Start("echoff", nil, "b")
 	assertNumHandles(t, sh, 2)
 
 	for i, h := range []Handle{hs, hf} {
 		if got := h.Shutdown(nil, nil); got != nil {
-			t.Errorf("%d: got %q, want %q", i, got, nil)
+			t.Errorf("%d: got %q, want %v", i, got, nil)
 		}
 	}
 	assertNumHandles(t, sh, 0)

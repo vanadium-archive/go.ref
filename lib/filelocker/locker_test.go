@@ -62,7 +62,7 @@ func TestLockUnlockInterProcess(t *testing.T) {
 	filepath := newFile()
 	defer os.Remove(filepath)
 
-	sh := modules.NewShell("testLockUnlockChild")
+	sh := modules.NewShell()
 	defer sh.Cleanup(os.Stderr, os.Stderr)
 	h, err := sh.Start("testLockUnlockChild", nil, filepath)
 	if err != nil {

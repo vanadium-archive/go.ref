@@ -70,7 +70,7 @@ func child(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, arg
 }
 
 func TestInitArgs(t *testing.T) {
-	sh := modules.NewShell("child")
+	sh := modules.NewShell()
 	defer sh.Cleanup(os.Stderr, os.Stderr)
 	h, err := sh.Start("child", nil, "--logtostderr=true", "--vv=3", "--", "foobar")
 	if err != nil {
@@ -136,7 +136,7 @@ func runner(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, ar
 	if err != nil {
 		return err
 	}
-	sh := modules.NewShell("principal")
+	sh := modules.NewShell()
 	defer sh.Cleanup(os.Stderr, os.Stderr)
 	h, err := sh.Start("principal", nil, args[1:]...)
 	if err != nil {
@@ -191,7 +191,7 @@ func createCredentialsInDir(t *testing.T, dir string) security.Principal {
 }
 
 func TestPrincipalInheritance(t *testing.T) {
-	sh := modules.NewShell("principal", "runner")
+	sh := modules.NewShell()
 	defer func() {
 		sh.Cleanup(os.Stdout, os.Stderr)
 	}()
@@ -259,7 +259,7 @@ func TestPrincipalInit(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	sh := modules.NewShell("principal")
+	sh := modules.NewShell()
 	defer sh.Cleanup(os.Stderr, os.Stderr)
 
 	pubkey, err := collect(sh, "principal", nil)

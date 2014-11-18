@@ -23,7 +23,7 @@ import (
 )
 
 func TestCommands(t *testing.T) {
-	sh := core.NewShell()
+	sh := modules.NewShell()
 	defer sh.Cleanup(nil, os.Stderr)
 	for _, c := range []string{core.RootMTCommand, core.MTCommand} {
 		if len(sh.Help(c)) == 0 {
@@ -38,7 +38,7 @@ func init() {
 }
 
 func newShell() (*modules.Shell, func()) {
-	sh := core.NewShell()
+	sh := modules.NewShell()
 	return sh, func() {
 		if testing.Verbose() {
 			vlog.Infof("------ cleanup ------")

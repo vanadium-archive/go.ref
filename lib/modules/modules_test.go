@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -19,8 +20,13 @@ func init() {
 	testutil.Init()
 	modules.RegisterChild("envtest", "envtest: <variables to print>...", PrintFromEnv)
 	modules.RegisterChild("printenv", "printenv", PrintEnv)
-	modules.RegisterChild("echo", "[args]*", Echo)
-	modules.RegisterChild("errortest", "", ErrorMain)
+	modules.RegisterChild("echos", "[args]*", Echo)
+	modules.RegisterChild("errortestChild", "", ErrorMain)
+
+	modules.RegisterFunction("envtestf", "envtest: <variables to print>...", PrintFromEnv)
+	modules.RegisterFunction("echof", "[args]*", Echo)
+	modules.RegisterFunction("errortestFunc", "", ErrorMain)
+
 }
 
 func Echo(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
@@ -111,7 +117,7 @@ func testCommand(t *testing.T, sh *modules.Shell, name, key, val string) {
 }
 
 func TestChild(t *testing.T) {
-	sh := modules.NewShell("envtest")
+	sh := modules.NewShell()
 	defer sh.Cleanup(nil, nil)
 	key, val := "simpleVar", "foo & bar"
 	sh.SetVar(key, val)
@@ -125,24 +131,23 @@ func TestChildNoRegistration(t *testing.T) {
 	sh.SetVar(key, val)
 	testCommand(t, sh, "envtest", key, val)
 	_, err := sh.Start("non-existent-command", nil, "random", "args")
-	if err == nil || err.Error() != `Shell command "non-existent-command" not registered` {
-		t.Fatalf("unexpected error %v", err)
+	if err == nil {
+		t.Fatalf("expected error")
 	}
 }
 
 func TestFunction(t *testing.T) {
-	sh := modules.NewShell(".*")
+	sh := modules.NewShell()
 	defer sh.Cleanup(nil, nil)
 	key, val := "simpleVar", "foo & bar & baz"
 	sh.SetVar(key, val)
-	sh.AddFunction("envtestf", PrintFromEnv, "envtest: <variables to print>...")
 	testCommand(t, sh, "envtestf", key, val)
 }
 
 func TestErrorChild(t *testing.T) {
-	sh := modules.NewShell("errortest")
+	sh := modules.NewShell()
 	defer sh.Cleanup(nil, nil)
-	h, err := sh.Start("errortest", nil)
+	h, err := sh.Start("errortestChild", nil)
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
@@ -151,16 +156,16 @@ func TestErrorChild(t *testing.T) {
 	}
 }
 
-func testShutdown(t *testing.T, sh *modules.Shell, isfunc bool) {
+func testShutdown(t *testing.T, sh *modules.Shell, command string, isfunc bool) {
 	result := ""
 	args := []string{"a", "b c", "ddd"}
-	if _, err := sh.Start("echo", nil, args...); err != nil {
+	if _, err := sh.Start(command, nil, args...); err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
 	var stdoutBuf bytes.Buffer
 	var stderrBuf bytes.Buffer
 	sh.Cleanup(&stdoutBuf, &stderrBuf)
-	stdoutOutput, stderrOutput := "stdout: echo\n", "stderr: echo\n"
+	stdoutOutput, stderrOutput := "stdout: "+command+"\n", "stderr: "+command+"\n"
 	for _, a := range args {
 		stdoutOutput += fmt.Sprintf("stdout: %s\n", a)
 		stderrOutput += fmt.Sprintf("stderr: %s\n", a)
@@ -177,21 +182,17 @@ func testShutdown(t *testing.T, sh *modules.Shell, isfunc bool) {
 }
 
 func TestShutdownSubprocess(t *testing.T) {
-	sh := modules.NewShell("echo")
-	testShutdown(t, sh, false)
+	testShutdown(t, modules.NewShell(), "echos", false)
 }
 
 func TestShutdownFunction(t *testing.T) {
-	sh := modules.NewShell()
-	sh.AddFunction("echo", Echo, "[args]*")
-	testShutdown(t, sh, true)
+	testShutdown(t, modules.NewShell(), "echof", true)
 }
 
 func TestErrorFunc(t *testing.T) {
 	sh := modules.NewShell()
 	defer sh.Cleanup(nil, nil)
-	sh.AddFunction("errortest", ErrorMain, "")
-	h, err := sh.Start("errortest", nil)
+	h, err := sh.Start("errortestFunc", nil)
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
@@ -210,7 +211,7 @@ func find(want string, in []string) bool {
 }
 
 func TestEnvelope(t *testing.T) {
-	sh := modules.NewShell("printenv")
+	sh := modules.NewShell()
 	defer sh.Cleanup(nil, nil)
 	sh.SetVar("a", "1")
 	sh.SetVar("b", "2")
@@ -258,7 +259,7 @@ func TestEnvelope(t *testing.T) {
 }
 
 func TestEnvMerge(t *testing.T) {
-	sh := modules.NewShell("printenv")
+	sh := modules.NewShell()
 	defer sh.Cleanup(nil, nil)
 	sh.SetVar("a", "1")
 	os.Setenv("a", "wrong, should be 1")
@@ -285,14 +286,23 @@ func TestEnvMerge(t *testing.T) {
 	}
 }
 
+func TestSetEntryPoint(t *testing.T) {
+	env := map[string]string{"a": "a", "b": "b"}
+	nenv := modules.SetEntryPoint(env, "eg1")
+	if got, want := len(nenv), 3; got != want {
+		t.Errorf("got %d, want %d", got, want)
+	}
+	nenv = modules.SetEntryPoint(env, "eg2")
+	if got, want := len(nenv), 3; got != want {
+		t.Errorf("got %d, want %d", got, want)
+	}
+	if got, want := nenv, []string{"a=a", "b=b", "VEYRON_SHELL_HELPER_PROCESS_ENTRY_POINT=eg2"}; !reflect.DeepEqual(got, want) {
+		t.Errorf("got %d, want %d", got, want)
+	}
+}
+
 func TestHelperProcess(t *testing.T) {
 	modules.DispatchInTest()
 }
 
-// TODO(cnicolaou): more complete tests for environment variables,
-// OS being overridden by Shell for example.
-//
-// TODO(cnicolaou): test for one or either of the io.Writers being nil
-// on calls to Shutdown
-//
 // TODO(cnicolaou): test for error return from cleanup

@@ -48,8 +48,6 @@
 //    runs a proxy server
 package core
 
-import "veyron.io/veyron/veyron/lib/modules"
-
 const (
 	// Functions
 	LSCommand                = "ls"
@@ -70,50 +68,3 @@ const (
 	WSPRCommand        = "wsprd"
 	ShellCommand       = "sh"
 )
-
-// NewShell returns a new Shell instance with the core commands installed.
-func NewShell() *modules.Shell {
-	shell := modules.NewShell("")
-	Install(shell)
-	return shell
-}
-
-// Install installs the core commands into the supplied Shell.
-func Install(shell *modules.Shell) {
-	// Explicitly add the subprocesses so that we can provide a help string
-	shell.AddSubprocess(EchoServerCommand, `<message> <name>
-	mount an echo server at <name>, it will prepend <message> to its responses`)
-	shell.AddSubprocess(EchoClientCommand, `
-		<name> <text>
-		invoke name.Echo(<text>)`)
-	shell.AddSubprocess(RootMTCommand, `run a root mount table
-		it will output MT_NAME, MT_ADDR and PID`)
-	shell.AddSubprocess(MTCommand, `<name>
-		run a mount table mounted at <name>`)
-	shell.AddSubprocess(LSExternalCommand, `<glob>
-		run a glob command as an external subprocess`)
-	shell.AddSubprocess(ProxyServerCommand, `<name>...
-		run a proxy server mounted at the specified names`)
-	// TODO(sadovsky): It's unfortunate that we must duplicate help strings
-	// between RegisterChild and AddSubprocess. Will be fixed by my proposed
-	// refactoring.
-	shell.AddSubprocess(WSPRCommand, usageWSPR())
-	//shell.AddSubprocess(ShellCommand, subshell, "")
-
-	shell.AddFunction(LSCommand, ls, `<glob>...
-	issues glob requests using the current processes namespace library`)
-	shell.AddFunction(ResolveCommand, resolveObject, `<name>
-	resolves name to obtain an object server address`)
-	shell.AddFunction(ResolveMTCommand, resolveMT, `<name>
-	resolves name to obtain a mount table address`)
-	shell.AddFunction(SetNamespaceRootsCommand, setNamespaceRoots, `<name>...
-	set the in-process namespace roots to <name>...`)
-	shell.AddFunction(SleepCommand, sleep, `[duration]
-	sleep for a time (in go time.Duration format): defaults to 1s`)
-	shell.AddFunction(TimeCommand, now, `
-	prints the current time`)
-	shell.AddFunction(NamespaceCacheCommand, namespaceCache, `on|off
-	turns the namespace cache on or off`)
-	shell.AddFunction(MountCommand, mountServer, `<mountpoint> <server> <ttl> [M][R]
-	invokes namespace.Mount(<mountpoint>, <server>, <ttl>)`)
-}

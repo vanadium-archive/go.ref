@@ -2,11 +2,9 @@ package modules
 
 import (
 	"flag"
-	"fmt"
 	"io"
 	"os"
 	"os/exec"
-	"regexp"
 	"strings"
 	"sync"
 	"time"
@@ -63,14 +61,8 @@ func IsTestHelperProcess() bool {
 	return runFlag.Value.String() == "TestHelperProcess"
 }
 
-// IsModulesProcess returns true if this process is run using
-// the modules package.
-func IsModulesProcess() bool {
-	return os.Getenv(ShellEntryPoint) != ""
-}
-
 func newExecHandle(name string) command {
-	return &execHandle{name: name, entryPoint: ShellEntryPoint + "=" + name}
+	return &execHandle{name: name, entryPoint: shellEntryPoint + "=" + name}
 }
 
 func (eh *execHandle) Stdout() io.Reader {
@@ -101,11 +93,11 @@ func (eh *execHandle) envelope(sh *Shell, env []string, args ...string) ([]strin
 	newargs := []string{os.Args[0]}
 	newargs = append(newargs, testFlags()...)
 	newargs = append(newargs, args...)
-	// Be careful to remove any existing ShellEntryPoint env vars. This
+	// Be careful to remove any existing shellEntryPoint env vars. This
 	// can happen when subprocesses run other subprocesses etc.
 	cleaned := make([]string, 0, len(env)+1)
 	for _, e := range env {
-		if strings.HasPrefix(e, ShellEntryPoint+"=") {
+		if strings.HasPrefix(e, shellEntryPoint+"=") {
 			continue
 		}
 		cleaned = append(cleaned, e)
@@ -193,127 +185,4 @@ func (eh *execHandle) Shutdown(stdout, stderr io.Writer) error {
 		stderrFile.Close()
 	}
 	return procErr
-}
-
-const ShellEntryPoint = "VEYRON_SHELL_HELPER_PROCESS_ENTRY_POINT"
-
-func RegisterChild(name, help string, main Main) {
-	child.Lock()
-	defer child.Unlock()
-	child.mains[name] = &childEntryPoint{main, help}
-}
-
-// DispatchInTest will execute the requested subproccess command from within
-// a unit test run as a subprocess.
-func DispatchInTest() {
-	if !IsTestHelperProcess() {
-		return
-	}
-	if err := child.dispatch(); err != nil {
-		vlog.Fatalf("Failed: %s", err)
-	}
-	os.Exit(0)
-}
-
-// Dispatch will execute the requested subprocess command from a within a
-// a subprocess that is not a unit test.
-func Dispatch() error {
-	if IsTestHelperProcess() {
-		return fmt.Errorf("use DispatchInTest in unittests")
-	}
-	return child.dispatch()
-}
-
-func (child *childRegistrar) hasCommand(name string) bool {
-	child.Lock()
-	_, present := child.mains[name]
-	child.Unlock()
-	return present
-}
-
-func (child *childRegistrar) dispatch() error {
-	ch, err := vexec.GetChildHandle()
-	if err != nil {
-		// This is for debugging only. It's perfectly reasonable for this
-		// error to occur if the process is started by a means other
-		// than the exec library.
-		vlog.VI(1).Infof("failed to get child handle: %s", err)
-	}
-
-	// Only signal that the child is ready or failed if we successfully get
-	// a child handle. We most likely failed to get a child handle
-	// because the subprocess was run directly from the command line.
-	command := os.Getenv(ShellEntryPoint)
-	if len(command) == 0 {
-		err := fmt.Errorf("Failed to find entrypoint %q", ShellEntryPoint)
-		if ch != nil {
-			ch.SetFailed(err)
-		}
-		return err
-	}
-
-	child.Lock()
-	m := child.mains[command]
-	child.Unlock()
-
-	if m == nil {
-		err := fmt.Errorf("Shell command %q not registered", command)
-		if ch != nil {
-			ch.SetFailed(err)
-		}
-		return err
-	}
-
-	if ch != nil {
-		ch.SetReady()
-	}
-
-	go func(pid int) {
-		for {
-			_, err := os.FindProcess(pid)
-			if err != nil {
-				vlog.Fatalf("Looks like our parent exited: %v", err)
-			}
-			time.Sleep(time.Second)
-		}
-	}(os.Getppid())
-
-	args := append([]string{command}, flag.Args()...)
-	return m.fn(os.Stdin, os.Stdout, os.Stderr, envSliceToMap(os.Environ()), args...)
-}
-
-func (child *childRegistrar) addSubprocesses(sh *Shell, pattern string) error {
-	re, err := regexp.Compile(pattern)
-	if err != nil {
-		return err
-	}
-	child.Lock()
-	defer child.Unlock()
-	found := false
-	for name, subproc := range child.mains {
-		if re.MatchString(name) {
-			sh.addSubprocess(name, subproc.help)
-			found = true
-		}
-	}
-	if !found {
-		return fmt.Errorf("patterh %q failed to match any registered commands", pattern)
-	}
-	return nil
-}
-
-// AddRegisteredSubprocesses adds any commands that match the regexp pattern
-// to the supplied shell.
-func AddRegisteredSubprocesses(sh *Shell, pattern string) error {
-	return child.addSubprocesses(sh, pattern)
-}
-
-// WaitForEof returns when a read on its io.Reader parameter returns io.EOF
-func WaitForEOF(stdin io.Reader) {
-	buf := [1024]byte{}
-	for {
-		if _, err := stdin.Read(buf[:]); err == io.EOF {
-			return
-		}
-	}
 }
