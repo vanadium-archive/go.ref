@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"flag"
 	"fmt"
 	"os"
@@ -139,6 +140,13 @@ func handlePassphrase(dir string) (security.Principal, []byte, error) {
 }
 
 func getPassword(prompt string) ([]byte, error) {
+	if !terminal.IsTerminal(int(os.Stdin.Fd())) {
+		// If the standard input is not a terminal, the
+		// password is obtained by reading a line from it.
+		//
+		// TODO(suharshs): Mitigate buffering.
+		return bufio.NewReader(os.Stdin).ReadBytes('\n')
+	}
 	fmt.Printf(prompt)
 	stop := make(chan bool)
 	defer close(stop)
