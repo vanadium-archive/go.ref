@@ -5,7 +5,7 @@ import (
 	"crypto/rand"
 	"testing"
 
-	"golang.org/x/crypto/nacl/box"
+	"code.google.com/p/go.crypto/nacl/box"
 
 	"veyron.io/veyron/veyron/runtimes/google/ipc/stream/crypto"
 )

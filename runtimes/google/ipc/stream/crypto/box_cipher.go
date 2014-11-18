@@ -4,8 +4,8 @@ import (
 	"encoding/binary"
 	"errors"
 
-	"golang.org/x/crypto/nacl/box"
-	"golang.org/x/crypto/salsa20/salsa"
+	"code.google.com/p/go.crypto/nacl/box"
+	"code.google.com/p/go.crypto/salsa20/salsa"
 )
 
 // cbox implements a ControlCipher using go.crypto/nacl/box.
