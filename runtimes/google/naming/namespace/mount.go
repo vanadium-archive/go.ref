@@ -3,6 +3,8 @@ package namespace
 import (
 	"time"
 
+	inaming "veyron.io/veyron/veyron/runtimes/google/naming"
+
 	"veyron.io/veyron/veyron2/context"
 	"veyron.io/veyron/veyron2/ipc"
 	"veyron.io/veyron/veyron2/naming"
@@ -10,30 +12,93 @@ import (
 	"veyron.io/veyron/veyron2/vlog"
 )
 
+type status struct {
+	id  string
+	err error
+}
+
 // mountIntoMountTable mounts a single server into a single mount table.
-func mountIntoMountTable(ctx context.T, client ipc.Client, name, server string, ttl time.Duration, flags naming.MountFlag) error {
+func mountIntoMountTable(ctx context.T, client ipc.Client, name, server string, ttl time.Duration, flags naming.MountFlag, id string) (s status) {
+	s.id = id
 	ctx, _ = ctx.WithTimeout(callTimeout)
 	call, err := client.StartCall(ctx, name, "Mount", []interface{}{server, uint32(ttl.Seconds()), flags}, options.NoResolve(true))
+	s.err = err
 	if err != nil {
-		return err
+		return
 	}
 	if ierr := call.Finish(&err); ierr != nil {
-		return ierr
+		s.err = ierr
 	}
-	return err
+	return
 }
 
 // unmountFromMountTable removes a single mounted server from a single mount table.
-func unmountFromMountTable(ctx context.T, client ipc.Client, name, server string) error {
+func unmountFromMountTable(ctx context.T, client ipc.Client, name, server string, id string) (s status) {
+	s.id = id
 	ctx, _ = ctx.WithTimeout(callTimeout)
 	call, err := client.StartCall(ctx, name, "Unmount", []interface{}{server}, options.NoResolve(true))
+	s.err = err
+	if err != nil {
+		return
+	}
+	if ierr := call.Finish(&err); ierr != nil {
+		s.err = ierr
+	}
+	return
+}
+
+// nameToRID converts a name to a routing ID string. If a routing ID can't be obtained,
+// it just returns the name.
+func nameToRID(name string) string {
+	address, _ := naming.SplitAddressName(name)
+	if ep, err := inaming.NewEndpoint(address); err == nil {
+		return ep.RID.String()
+	}
+	return name
+}
+
+// collectStati collects n status messages from channel c and returns an error if, for
+// any id, there is no successful reply.
+func collectStati(c chan status, n int) error {
+	// Make a map indexed by the routing id (or address if routing id not found) of
+	// each mount table.  A mount table may be reachable via multiple addresses but
+	// each address should have the same routing id.  We should only return an error
+	// if any of the ids had no successful mounts.
+	statusByID := make(map[string]error)
+	// Get the status of each request.
+	for i := 0; i < n; i++ {
+		s := <-c
+		if _, ok := statusByID[s.id]; !ok || s.err == nil {
+			statusByID[s.id] = s.err
+		}
+	}
+	// Return any error.
+	for _, s := range statusByID {
+		if s != nil {
+			return s
+		}
+	}
+	return nil
+}
+
+// dispatch executes f in parallel for each mount table implementing mTName.
+func (ns *namespace) dispatch(ctx context.T, mTName string, f func(context.T, string, string) status) error {
+	// Resolve to all the mount tables implementing name.
+	mts, err := ns.ResolveToMountTable(ctx, mTName)
 	if err != nil {
 		return err
 	}
-	if ierr := call.Finish(&err); ierr != nil {
-		return ierr
+	// Apply f to each of the returned mount tables.
+	c := make(chan status, len(mts))
+	for _, mt := range mts {
+		go func(mt string) {
+			c <- f(ctx, mt, nameToRID(mt))
+		}(mt)
 	}
-	return err
+	finalerr := collectStati(c, len(mts))
+	// Forget any previous cached information about these names.
+	ns.resolutionCache.forget(mts)
+	return finalerr
 }
 
 func (ns *namespace) Mount(ctx context.T, name, server string, ttl time.Duration, opts ...naming.MountOpt) error {
@@ -53,55 +118,22 @@ func (ns *namespace) Mount(ctx context.T, name, server string, ttl time.Duration
 			}
 		}
 	}
-
-	// Resolve to all the mount tables implementing name.
-	mtServers, err := ns.ResolveToMountTable(ctx, name)
-	if err != nil {
-		return err
-	}
 	// Mount the server in all the returned mount tables.
-	c := make(chan error, len(mtServers))
-	for _, mt := range mtServers {
-		go func() {
-			c <- mountIntoMountTable(ctx, ns.rt.Client(), mt, server, ttl, flags)
-		}()
+	f := func(ctx context.T, mt, id string) status {
+		return mountIntoMountTable(ctx, ns.rt.Client(), mt, server, ttl, flags, id)
 	}
-	// Return error if any mounts failed, since otherwise we'll get
-	// inconsistent resolutions down the road.
-	var finalerr error
-	for _ = range mtServers {
-		if err := <-c; err != nil {
-			finalerr = err
-		}
-	}
-	vlog.VI(1).Infof("Mount(%s, %s) -> %v", name, server, finalerr)
-	// Forget any previous cached information about these names.
-	ns.resolutionCache.forget(mtServers)
-	return finalerr
+	err := ns.dispatch(ctx, name, f)
+	vlog.VI(1).Infof("Mount(%s, %s) -> %v", name, server, err)
+	return err
 }
 
 func (ns *namespace) Unmount(ctx context.T, name, server string) error {
 	defer vlog.LogCall()()
-	mts, err := ns.ResolveToMountTable(ctx, name)
-	if err != nil {
-		return err
-	}
-
 	// Unmount the server from all the mount tables.
-	c := make(chan error, len(mts))
-	for _, mt := range mts {
-		go func() {
-			c <- unmountFromMountTable(ctx, ns.rt.Client(), mt, server)
-		}()
+	f := func(ctx context.T, mt, id string) status {
+		return unmountFromMountTable(ctx, ns.rt.Client(), mt, server, id)
 	}
-	// Return error if any mounts failed, since otherwise we'll get
-	// inconsistent resolutions down the road.
-	var finalerr error
-	for _ = range mts {
-		if err := <-c; err != nil {
-			finalerr = err
-		}
-	}
-	ns.resolutionCache.forget(mts)
-	return finalerr
+	err := ns.dispatch(ctx, name, f)
+	vlog.VI(1).Infof("Unmount(%s, %s) -> %v", name, server, err)
+	return err
 }
