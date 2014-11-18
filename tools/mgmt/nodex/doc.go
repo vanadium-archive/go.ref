@@ -13,7 +13,10 @@ The nodex commands are:
    associate   Tool for creating associations between Vanadium blessings and a
                system account
    claim       Claim the node.
-   instance    Subtool for managing application instances
+   stop        Stop the given application instance.
+   suspend     Suspend the given application instance.
+   resume      Resume the given application instance.
+   acl         Tool for setting node manager ACLs
    help        Display help for commands or topics
 Run "nodex help [command]" for command usage.
 
@@ -124,66 +127,75 @@ Usage:
 <grant extension> is used to extend the default blessing of the current
 principal when blessing the app instance.
 
-Nodex Instance
-
-The instance tool permits controlling application instances.
-
-Usage:
-   nodex instance <command>
-
-The nodex instance commands are:
-   stop        Stop the given application instance.
-   suspend     Suspend the given application instance.
-   resume      Resume the given application instance.
-   refresh     Refresh the given application instance.
-   suspend     Restart the given application instance.
-
-Nodex Instance Stop
+Nodex Stop
 
 Stop the given application instance.
 
 Usage:
-   nodex instance stop <app instance> [<deadline>]
+   nodex stop <app instance>
 
 <app instance> is the veyron object name of the application instance to stop.
-<deadline> is the optional deadline to shut down by. If not provided, defaults
-to 5 seconds.
 
-Nodex Instance Suspend
+Nodex Suspend
 
 Suspend the given application instance.
 
 Usage:
-   nodex instance suspend <app instance>
+   nodex suspend <app instance>
 
-<app instance> is the veyron object name of the application instance to stop.
+<app instance> is the veyron object name of the application instance to suspend.
 
-Nodex Instance Resume
+Nodex Resume
 
 Resume the given application instance.
 
 Usage:
-   nodex instance resume <app instance>
+   nodex resume <app instance>
 
-<app instance> is the veyron object name of the application instance to stop.
+<app instance> is the veyron object name of the application instance to resume.
 
-Nodex Instance Refresh
+Nodex Acl
 
-Refresh the given application instance.
-
-Usage:
-   nodex instance refresh <app instance>
-
-<app instance> is the veyron object name of the application instance to stop.
-
-Nodex Instance Suspend
-
-Restart the given application instance.
+The acl tool manages ACLs on the node manger, installations and instances.
 
 Usage:
-   nodex instance suspend <app instance>
+   nodex acl <command>
 
-<app instance> is the veyron object name of the application instance to stop.
+The nodex acl commands are:
+   get         Get ACLs for the given target.
+   set         Set ACLs for the given target.
+
+Nodex Acl Get
+
+Get ACLs for the given target.
+
+Usage:
+   nodex acl get <node manager name>
+
+<node manager name> can be a Vanadium name for a node manager, application
+installation or instance.
+
+Nodex Acl Set
+
+Set ACLs for the given target
+
+Usage:
+   nodex acl set <node manager name>  (<blessing> [!]<label>)...
+
+<node manager name> can be a Vanadium name for a node manager, application
+installation or instance.
+
+<blessing> is a blessing pattern.
+
+<label> is a character sequence defining a set of rights: some subset of the
+defined standard Vanadium labels of XRWADM where X is resolve, R is read, W for
+write, A for admin, D for debug and M is for monitoring. By default, the
+combination of <blessing>, <label> replaces whatever entry is present in the
+ACL's In field for the <blessing> but it can instead be added to the NotIn field
+by prefacing <label> with a '!' character. Use the <label> of 0 to clear the
+label.
+
+For example: root/self !0 will clear the NotIn field for blessingroot/self.
 
 Nodex Help
 
