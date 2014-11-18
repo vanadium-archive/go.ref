@@ -2,11 +2,14 @@
 package browspr
 
 import (
+	"fmt"
 	"net"
+	"regexp"
 	"time"
 
 	"veyron.io/veyron/veyron2"
 	"veyron.io/veyron/veyron2/ipc"
+	"veyron.io/veyron/veyron2/naming"
 	"veyron.io/veyron/veyron2/rt"
 	"veyron.io/veyron/veyron2/vlog"
 	"veyron.io/wspr/veyron/services/wsprd/account"
@@ -35,31 +38,35 @@ func NewBrowspr(postMessage func(instanceId int32, ty, msg string), listenSpec i
 		vlog.Fatalf("an identd server must be set")
 	}
 
-	newrt, err := rt.New(opts...)
+	runtime, err := rt.New(opts...)
 	if err != nil {
 		vlog.Fatalf("rt.New failed: %s", err)
 	}
-	if namespaceRoots != nil {
-		newrt.Namespace().SetRoots(namespaceRoots...)
+
+	wsNamespaceRoots, err := wsNames(namespaceRoots)
+	if err != nil {
+		vlog.Fatal(err)
 	}
+
+	runtime.Namespace().SetRoots(wsNamespaceRoots...)
 
 	browspr := &Browspr{
 		listenSpec:      listenSpec,
 		identdEP:        identdEP,
-		namespaceRoots:  namespaceRoots,
+		namespaceRoots:  wsNamespaceRoots,
 		postMessage:     postMessage,
-		rt:              newrt,
-		logger:          newrt.Logger(),
+		rt:              runtime,
+		logger:          runtime.Logger(),
 		activeInstances: make(map[int32]*pipe),
 	}
 
 	// TODO(nlacasse, bjornick) use a serializer that can actually persist.
 	var principalManager *principal.PrincipalManager
-	if principalManager, err = principal.NewPrincipalManager(newrt.Principal(), &principal.InMemorySerializer{}); err != nil {
+	if principalManager, err = principal.NewPrincipalManager(runtime.Principal(), &principal.InMemorySerializer{}); err != nil {
 		vlog.Fatalf("principal.NewPrincipalManager failed: %s", err)
 	}
 
-	browspr.accountManager = account.NewAccountManager(newrt, identdEP, principalManager)
+	browspr.accountManager = account.NewAccountManager(runtime, identdEP, principalManager)
 
 	return browspr
 }
@@ -86,7 +93,8 @@ func (ln tcpKeepAliveListener) Accept() (c net.Conn, err error) {
 	return tc, nil
 }
 
-// HandleMessage handles most messages from javascript and forwards them to a Controller.
+// HandleMessage handles most messages from javascript and forwards them to a
+// Controller.
 func (b *Browspr) HandleMessage(instanceId int32, msg string) error {
 	instance, ok := b.activeInstances[instanceId]
 	if !ok {
@@ -97,7 +105,8 @@ func (b *Browspr) HandleMessage(instanceId int32, msg string) error {
 	return instance.handleMessage(msg)
 }
 
-// HandleCleanupMessage cleans up the specified instance state. (For instance, when a browser tab is closed)
+// HandleCleanupMessage cleans up the specified instance state. (For instance,
+// when a browser tab is closed)
 func (b *Browspr) HandleCleanupMessage(instanceId int32) {
 	if instance, ok := b.activeInstances[instanceId]; ok {
 		instance.cleanup()
@@ -123,4 +132,27 @@ func (b *Browspr) HandleAssociateAccountMessage(origin, account string, cavs []a
 		return err
 	}
 	return nil
+}
+
+// Turns a list of names into a list of names that use the "ws" protocol.
+func wsNames(names []string) ([]string, error) {
+	runtime, err := rt.New()
+	if err != nil {
+		return nil, fmt.Errorf("rt.New() failed: %v", err)
+	}
+	outNames := []string{}
+	tcpRegexp := regexp.MustCompile(`@tcp\d*@`)
+	for _, name := range names {
+		addr, suff := naming.SplitAddressName(name)
+		ep, err := runtime.NewEndpoint(addr)
+		if err != nil {
+			return nil, fmt.Errorf("runtime.NewEndpoint(%v) failed: %v", addr, err)
+		}
+
+		wsEp := tcpRegexp.ReplaceAllLiteralString(ep.String(), "@ws@")
+		wsName := naming.JoinAddressName(wsEp, suff)
+
+		outNames = append(outNames, wsName)
+	}
+	return outNames, nil
 }

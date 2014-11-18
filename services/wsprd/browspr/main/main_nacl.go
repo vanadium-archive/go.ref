@@ -8,16 +8,20 @@ import (
 	"os"
 	"runtime/ppapi"
 
+	"veyron.io/veyron/veyron/lib/websocket"
+	_ "veyron.io/veyron/veyron/profiles/chrome"
+	vsecurity "veyron.io/veyron/veyron/security"
 	"veyron.io/veyron/veyron2/ipc"
+	"veyron.io/veyron/veyron2/ipc/stream"
 	"veyron.io/veyron/veyron2/options"
-	"veyron.io/veyron/veyron2/rt"
 	"veyron.io/veyron/veyron2/security"
 	"veyron.io/veyron/veyron2/vlog"
 	"veyron.io/wspr/veyron/services/wsprd/browspr"
-
-	_ "veyron.io/veyron/veyron/profiles"
-	vsecurity "veyron.io/veyron/veyron/security"
 )
+
+func init() {
+	stream.RegisterProtocol("ws", websocket.Dial, nil)
+}
 
 func main() {
 	ppapi.Init(newBrowsprInstance)
@@ -88,7 +92,14 @@ type browsprInstance struct {
 
 var _ ppapi.InstanceHandlers = (*browsprInstance)(nil)
 
-const wsprDir = "/wspr/data"
+func newBrowsprInstance(inst ppapi.Instance) ppapi.InstanceHandlers {
+	browspr := &browsprInstance{Instance: inst}
+	browspr.initFileSystem()
+	websocket.PpapiInstance = inst
+	return browspr
+}
+
+const browsprDir = "/browspr/data"
 
 func (inst *browsprInstance) initFileSystem() {
 	var err error
@@ -103,30 +114,25 @@ func (inst *browsprInstance) initFileSystem() {
 	if err = inst.fs.OpenFS(1 << 11); err != nil {
 		panic(fmt.Errorf("failed to open filesystem:%s", err))
 	}
-	// Create directory to store wspr keys
-	if err = inst.fs.MkdirAll(wsprDir); err != nil {
+	// Create directory to store browspr keys
+	if err = inst.fs.MkdirAll(browsprDir); err != nil {
 		panic(fmt.Errorf("failed to create directory:%s", err))
 	}
 }
 
-func newBrowsprInstance(inst ppapi.Instance) ppapi.InstanceHandlers {
-	bwspr := &browsprInstance{Instance: inst}
-	bwspr.initFileSystem()
-	return bwspr
-}
-
 // StartBrowspr handles starting browspr.
-func (inst *browsprInstance) StartBrowspr(message ppapi.Var) error {
+func (inst *browsprInstance) StartBrowspr(instanceId int32, message ppapi.Var) error {
+	fmt.Println("Starting Browspr")
 	var ecdsaKey *ecdsa.PrivateKey
-	wsprKeyFile := wsprDir + "/privateKey.pem."
+	browsprKeyFile := browsprDir + "/privateKey.pem."
 
 	// See whether we have any cached keys for WSPR
-	if rFile, err := inst.fs.Open(wsprKeyFile); err == nil {
-		fmt.Print("Opening cached wspr ecdsaPrivateKey")
+	if rFile, err := inst.fs.Open(browsprKeyFile); err == nil {
+		fmt.Print("Opening cached browspr ecdsaPrivateKey")
 		defer rFile.Release()
 		key, err := vsecurity.LoadPEMKey(rFile, nil)
 		if err != nil {
-			return fmt.Errorf("failed to load wspr key:%s", err)
+			return fmt.Errorf("failed to load browspr key:%s", err)
 		}
 		var ok bool
 		if ecdsaKey, ok = key.(*ecdsa.PrivateKey); !ok {
@@ -145,7 +151,7 @@ func (inst *browsprInstance) StartBrowspr(message ppapi.Var) error {
 				return fmt.Errorf("got key of type %T, want *ecdsa.PrivateKey", key)
 			}
 		} else {
-			fmt.Print("Generating new wspr ecdsaPrivateKey")
+			fmt.Print("Generating new browspr ecdsaPrivateKey")
 			// Generate new keys and store them.
 			var err error
 			if _, ecdsaKey, err = vsecurity.NewPrincipalKey(); err != nil {
@@ -153,25 +159,25 @@ func (inst *browsprInstance) StartBrowspr(message ppapi.Var) error {
 			}
 		}
 		// Persist the keys in a local file.
-		wFile, err := inst.fs.Create(wsprKeyFile)
+		wFile, err := inst.fs.Create(browsprKeyFile)
 		if err != nil {
-			return fmt.Errorf("failed to create file to persist wspr keys:%s", err)
+			return fmt.Errorf("failed to create file to persist browspr keys:%s", err)
 		}
 		defer wFile.Release()
 		var b bytes.Buffer
 		if err = vsecurity.SavePEMKey(&b, ecdsaKey, nil); err != nil {
-			return fmt.Errorf("failed to save wspr key:%s", err)
+			return fmt.Errorf("failed to save browspr key:%s", err)
 		}
 		if n, err := wFile.Write(b.Bytes()); n != b.Len() || err != nil {
-			return fmt.Errorf("failed to write wspr key:%s", err)
+			return fmt.Errorf("failed to write browspr key:%s", err)
 		}
 	}
 
-	roots, err := newFileSerializer(wsprDir+"/blessingroots.data", wsprDir+"/blessingroots.sig", inst.fs)
+	roots, err := newFileSerializer(browsprDir+"/blessingroots.data", browsprDir+"/blessingroots.sig", inst.fs)
 	if err != nil {
 		return fmt.Errorf("failed to create blessing roots serializer:%s", err)
 	}
-	store, err := newFileSerializer(wsprDir+"/blessingstore.data", wsprDir+"/blessingstore.sig", inst.fs)
+	store, err := newFileSerializer(browsprDir+"/blessingstore.data", browsprDir+"/blessingstore.sig", inst.fs)
 	if err != nil {
 		return fmt.Errorf("failed to create blessing store serializer:%s", err)
 	}
@@ -192,23 +198,21 @@ func (inst *browsprInstance) StartBrowspr(message ppapi.Var) error {
 	if err := vsecurity.InitDefaultBlessings(principal, defaultBlessingName); err != nil {
 		return err
 	}
-	runtime := rt.Init(options.RuntimePrincipal{principal})
 
-	veyronProxy, err := message.LookupStringValuedKey("proxyName")
+	veyronProxy, err := message.LookupStringValuedKey("proxy")
 	if err != nil {
 		return err
 	}
 	if veyronProxy == "" {
-		return fmt.Errorf("proxyName field was empty")
+		return fmt.Errorf("proxy field was empty")
 	}
 
 	mounttable, err := message.LookupStringValuedKey("namespaceRoot")
 	if err != nil {
 		return err
 	}
-	runtime.Namespace().SetRoots(mounttable)
 
-	identd, err := message.LookupStringValuedKey("identityd")
+	identityd, err := message.LookupStringValuedKey("identityd")
 	if err != nil {
 		return err
 	}
@@ -218,69 +222,62 @@ func (inst *browsprInstance) StartBrowspr(message ppapi.Var) error {
 	listenSpec := ipc.ListenSpec{
 		Proxy:    veyronProxy,
 		Protocol: "tcp",
-		Address:  ":0",
+		Address:  "",
 	}
 
-	fmt.Printf("Starting browspr with config: proxy=%q mounttable=%q identityd=%q ", veyronProxy, mounttable, identd)
-	inst.browspr = browspr.NewBrowspr(inst.BrowsprOutgoingPostMessage, listenSpec, identd, []string{mounttable}, options.RuntimePrincipal{principal})
+	fmt.Printf("Starting browspr with config: proxy=%q mounttable=%q identityd=%q ", veyronProxy, mounttable, identityd)
+	inst.browspr = browspr.NewBrowspr(inst.BrowsprOutgoingPostMessage, listenSpec, identityd, []string{mounttable}, options.RuntimePrincipal{principal})
+
+	inst.BrowsprOutgoingPostMessage(instanceId, "browsprStarted", "blah")
 	return nil
 }
 
 func (inst *browsprInstance) BrowsprOutgoingPostMessage(instanceId int32, ty string, message string) {
+	if message == "" {
+		// TODO(nlacasse,bprosnitz): VarFromString crashes if the
+		// string is empty, so we must use a placeholder.
+		message = "."
+	}
 	dict := ppapi.NewDictVar()
 	instVar := ppapi.VarFromInt(instanceId)
-	msgVar := ppapi.VarFromString(message)
+	bodyVar := ppapi.VarFromString(message)
 	tyVar := ppapi.VarFromString(ty)
 	dict.DictionarySet("instanceId", instVar)
 	dict.DictionarySet("type", tyVar)
-	dict.DictionarySet("msg", msgVar)
+	dict.DictionarySet("body", bodyVar)
 	inst.PostMessage(dict)
 	instVar.Release()
-	msgVar.Release()
+	bodyVar.Release()
 	tyVar.Release()
 	dict.Release()
 }
 
-func (inst *browsprInstance) HandleBrowsprMessage(message ppapi.Var) error {
-	instanceId, err := message.LookupIntValuedKey("instanceId")
+func (inst *browsprInstance) HandleBrowsprMessage(instanceId int32, message ppapi.Var) error {
+	str, err := message.AsString()
 	if err != nil {
-		return err
+		// TODO(bprosnitz) Remove. We shouldn't panic on user input.
+		return fmt.Errorf("Error while converting message to string: %v", err)
 	}
 
-	msg, err := message.LookupStringValuedKey("msg")
-	if err != nil {
-		return err
-	}
-
-	if err := inst.browspr.HandleMessage(int32(instanceId), msg); err != nil {
+	if err := inst.browspr.HandleMessage(instanceId, str); err != nil {
 		// TODO(bprosnitz) Remove. We shouldn't panic on user input.
 		return fmt.Errorf("Error while handling message in browspr: %v", err)
 	}
 	return nil
 }
 
-func (inst *browsprInstance) HandleBrowsprCleanup(message ppapi.Var) error {
-	instanceId, err := message.LookupIntValuedKey("instanceId")
-	if err != nil {
-		return err
-	}
-
-	inst.browspr.HandleCleanupMessage(int32(instanceId))
+func (inst *browsprInstance) HandleBrowsprCleanup(instanceId int32, message ppapi.Var) error {
+	inst.browspr.HandleCleanupMessage(instanceId)
 	return nil
 }
 
-func (inst *browsprInstance) HandleBrowsprCreateAccount(message ppapi.Var) error {
-	instanceId, err := message.LookupIntValuedKey("instanceId")
-	if err != nil {
-		return err
-	}
-
+func (inst *browsprInstance) HandleBrowsprCreateAccount(instanceId int32, message ppapi.Var) error {
 	accessToken, err := message.LookupStringValuedKey("accessToken")
 	if err != nil {
 		return err
 	}
 
-	err = inst.browspr.HandleCreateAccountMessage(int32(instanceId), accessToken)
+	err = inst.browspr.HandleCreateAccountMessage(instanceId, accessToken)
 	if err != nil {
 		// TODO(bprosnitz) Remove. We shouldn't panic on user input.
 		panic(fmt.Sprintf("Error creating account: %v", err))
@@ -288,7 +285,7 @@ func (inst *browsprInstance) HandleBrowsprCreateAccount(message ppapi.Var) error
 	return nil
 }
 
-func (inst *browsprInstance) HandleBrowsprAssociateAccount(message ppapi.Var) error {
+func (inst *browsprInstance) HandleBrowsprAssociateAccount(_ int32, message ppapi.Var) error {
 	origin, err := message.LookupStringValuedKey("origin")
 	if err != nil {
 		return err
@@ -312,6 +309,7 @@ func (inst *browsprInstance) HandleBrowsprAssociateAccount(message ppapi.Var) er
 func (inst *browsprInstance) handleGoError(err error) {
 	vlog.VI(2).Info(err)
 	inst.LogString(ppapi.PP_LOGLEVEL_ERROR, fmt.Sprintf("Error in go code: %v", err.Error()))
+	vlog.Error(err)
 }
 
 // HandleMessage receives messages from Javascript and uses them to perform actions.
@@ -319,15 +317,20 @@ func (inst *browsprInstance) handleGoError(err error) {
 // where the body is passed to the message handler.
 func (inst *browsprInstance) HandleMessage(message ppapi.Var) {
 	fmt.Printf("Entered HandleMessage")
+	instanceId, err := message.LookupIntValuedKey("instanceId")
+	if err != nil {
+		inst.handleGoError(err)
+		return
+	}
 	ty, err := message.LookupStringValuedKey("type")
 	if err != nil {
 		inst.handleGoError(err)
 		return
 	}
-	var messageHandlers = map[string]func(ppapi.Var) error{
-		"start":                   inst.StartBrowspr,
+	var messageHandlers = map[string]func(int32, ppapi.Var) error{
+		"browsprStart":            inst.StartBrowspr,
 		"browsprMsg":              inst.HandleBrowsprMessage,
-		"browpsrClose":            inst.HandleBrowsprCleanup,
+		"browsprCleanup":          inst.HandleBrowsprCleanup,
 		"browsprCreateAccount":    inst.HandleBrowsprCreateAccount,
 		"browsprAssociateAccount": inst.HandleBrowsprAssociateAccount,
 	}
@@ -340,7 +343,7 @@ func (inst *browsprInstance) HandleMessage(message ppapi.Var) {
 	if err != nil {
 		body = ppapi.VarUndefined
 	}
-	err = h(body)
+	err = h(int32(instanceId), body)
 	body.Release()
 	if err != nil {
 		inst.handleGoError(err)

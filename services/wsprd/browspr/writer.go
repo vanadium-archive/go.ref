@@ -17,7 +17,7 @@ func (w *postMessageWriter) Send(messageType lib.ResponseType, data interface{})
 		return err
 	}
 
-	w.p.browspr.postMessage(w.p.instanceId, "msg", outMsg)
+	w.p.browspr.postMessage(w.p.instanceId, "browsprMsg", outMsg)
 	return nil
 }
 

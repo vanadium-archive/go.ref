@@ -299,11 +299,13 @@ func (s *Server) Serve(name string) (string, error) {
 	}
 
 	if s.endpoint == "" {
-		endpoint, err := s.server.Listen(*s.listenSpec)
+		ep, err := s.server.Listen(*s.listenSpec)
 		if err != nil {
 			return "", err
 		}
-		s.endpoint = endpoint.String()
+		// TODO(nlacasse,bjornick): When listening through a proxy and with no
+		// address, 'ep' will be nil and the call to ep.String() panics.
+		s.endpoint = ep.String()
 	}
 	if err := s.server.ServeDispatcher(name, s.dispatcher); err != nil {
 		return "", err

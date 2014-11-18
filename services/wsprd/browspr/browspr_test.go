@@ -119,7 +119,8 @@ func TestBrowspr(t *testing.T) {
 		t.Fatalf("Failed to start mounttable server: %v", err)
 	}
 	defer mtServer.Stop()
-	if err := r.Namespace().SetRoots("/" + mtEndpoint.String()); err != nil {
+	tcpNamespaceRoot := "/" + mtEndpoint.String()
+	if err := r.Namespace().SetRoots(tcpNamespaceRoot); err != nil {
 		t.Fatalf("Failed to set namespace roots: %v", err)
 	}
 
@@ -134,7 +135,7 @@ func TestBrowspr(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Error fetching published names: %v", err)
 	}
-	if len(names) != 1 || names[0] != "/"+mtEndpoint.String()+"/"+mockServerName {
+	if len(names) != 1 || names[0] != tcpNamespaceRoot+"/"+mockServerName {
 		t.Fatalf("Incorrectly mounted server. Names: %v", names)
 	}
 	mountEntry, err := r.Namespace().ResolveX(nil, mockServerName)
@@ -167,7 +168,10 @@ func TestBrowspr(t *testing.T) {
 		receivedResponse <- true
 	}
 
-	browspr := NewBrowspr(postMessageHandler, spec, "/mock/identd", []string{"/" + mtEndpoint.String()}, options.RuntimePrincipal{r.Principal()})
+	browspr := NewBrowspr(postMessageHandler, spec, "/mock/identd", []string{tcpNamespaceRoot}, options.RuntimePrincipal{r.Principal()})
+
+	// browspr sets its namespace root to use the "ws" protocol, but we want to force "tcp" here.
+	browspr.namespaceRoots = []string{tcpNamespaceRoot}
 
 	principal := browspr.rt.Principal()
 	browspr.accountManager.SetMockBlesser(newMockBlesserService(principal))
@@ -209,8 +213,8 @@ func TestBrowspr(t *testing.T) {
 	if receivedInstanceId != msgInstanceId {
 		t.Errorf("Received unexpected instance id: %d. Expected: %d", receivedInstanceId, msgInstanceId)
 	}
-	if receivedType != "msg" {
-		t.Errorf("Received unexpected response type. Expected: %q, but got %q", "msg", receivedType)
+	if receivedType != "browsprMsg" {
+		t.Errorf("Received unexpected response type. Expected: %q, but got %q", "browsprMsg", receivedType)
 	}
 
 	var outMsg app.Message
@@ -247,5 +251,28 @@ func TestBrowspr(t *testing.T) {
 	}
 	if err := decoder.Decode(&result); err != nil || result[0] != "[InputValue]" {
 		t.Errorf("got %s with err: %v, expected %s", result[0], err, "[InputValue]")
+	}
+}
+
+func TestWsNames(t *testing.T) {
+	testdata := map[string]string{
+		"/@2@tcp@127.0.0.1:46504@d7b41510a6e78033ed86e38efb61ef52@4@6@@":               "/@2@ws@127.0.0.1:46504@d7b41510a6e78033ed86e38efb61ef52@4@6@@",
+		"/@2@tcp4@example.com:46504@d7b41510a6e78033ed86e38efb61ef52@4@6@@/more/stuff": "/@2@ws@example.com:46504@d7b41510a6e78033ed86e38efb61ef52@4@6@@/more/stuff",
+		"/@2@ws@example.com:46504@d7b41510a6e78033ed86e38efb61ef52@4@6@@/more/stuff":   "/@2@ws@example.com:46504@d7b41510a6e78033ed86e38efb61ef52@4@6@@/more/stuff",
+		"/@2@tcp@[::]:60624@21ba0c2508adfe8507eb953e526bd5a2@4@6@@":                    "/@2@ws@[::]:60624@21ba0c2508adfe8507eb953e526bd5a2@4@6@@",
+		"/example.com:12345":                                                           "/@2@ws@example.com:12345@00000000000000000000000000000000@@@@",
+		"/example.com:12345/more/stuff/in/suffix":                                      "/@2@ws@example.com:12345@00000000000000000000000000000000@@@@/more/stuff/in/suffix",
+	}
+
+	for name, expectedWsName := range testdata {
+		inputNames := []string{name}
+		actualWsNames, err := wsNames(inputNames)
+		if err != nil {
+			t.Fatal(err)
+		}
+		expectedWsNames := []string{expectedWsName}
+		if len(actualWsNames) != 1 || actualWsNames[0] != expectedWsNames[0] {
+			t.Errorf("expected wsNames(%v) to be %v but got %v", inputNames, expectedWsNames, actualWsNames)
+		}
 	}
 }
