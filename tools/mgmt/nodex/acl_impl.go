@@ -16,7 +16,7 @@ var cmdGet = &cmdline.Command{
 	Run:      runGet,
 	Name:     "get",
 	Short:    "Get ACLs for the given target.",
-	Long:     "Get ACLs for the given target with friendly output. Also see getraw.",
+	Long:     "Get ACLs for the given target.",
 	ArgsName: "<node manager name>",
 	ArgsLong: `
 <node manager name> can be a Vanadium name for a node manager,
@@ -37,9 +37,8 @@ func (a byBlessing) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
 func (a byBlessing) Less(i, j int) bool { return a[i].blessing < a[j].blessing }
 
 func runGet(cmd *cmdline.Command, args []string) error {
-
 	if expected, got := 1, len(args); expected != got {
-		return cmd.UsageErrorf("install: incorrect number of arguments, expected %d, got %d", expected, got)
+		return cmd.UsageErrorf("get: incorrect number of arguments, expected %d, got %d", expected, got)
 	}
 
 	vanaName := args[0]
@@ -54,7 +53,6 @@ func runGet(cmd *cmdline.Command, args []string) error {
 		output = append(output, formattedACLEntry{string(k), "in", objACL.In[k].String()})
 	}
 	for k, _ := range objACL.NotIn {
-
 		output = append(output, formattedACLEntry{string(k), "nin", objACL.NotIn[k].String()})
 	}
 
@@ -74,7 +72,7 @@ func aclRoot() *cmdline.Command {
 		Name:  "acl",
 		Short: "Tool for creating associations between Vanadium blessings and a system account",
 		Long: `
-The associate tool facilitates managing blessing to system account associations.
+The acl tool manages ACLs on the node manger, installations and instances.
 `,
 		Children: []*cmdline.Command{cmdGet},
 	}
