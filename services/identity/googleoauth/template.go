@@ -124,7 +124,10 @@ var tmplSelectCaveats = template.Must(template.New("bless").Parse(`<!doctype htm
 <title>Blessings: Select caveats</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <link rel="stylesheet" href="//netdna.bootstrapcdn.com/bootstrap/3.0.0/css/bootstrap.min.css">
+<link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/css/toastr.min.css">
+<script src="//cdnjs.cloudflare.com/ajax/libs/moment.js/2.7.0/moment.min.js"></script>
 <script src="//ajax.googleapis.com/ajax/libs/jquery/1.11.1/jquery.min.js"></script>
+<script src="//cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/js/toastr.min.js"></script>
 <script>
   // TODO(suharshs): Move this and other JS/CSS to an assets directory in identity server.
   $(document).ready(function() {
@@ -152,19 +155,30 @@ var tmplSelectCaveats = template.Must(template.New("bless").Parse(`<!doctype htm
 
     // Upon clicking the '-' button caveats should be removed.
     $('body').on('click', '.removeCaveat', function() {
-      $(this).parents(".caveatRow").remove();
+      $(this).parents('.caveatRow').remove();
     });
+
+    // Get the timezoneOffset for the server to create a correct expiry caveat.
+    // The offset is the minutes between UTC and local time.
+    var d = new Date();
+    $('#timezoneOffset').val(d.getTimezoneOffset());
+
+    // Set the datetime picker to have a default value of one day from now.
+    var m = moment().add(1, 'd').format("YYYY-MM-DDTHH:MM")
+    $('#expiry').val(m);
+    $('#ExpiryCaveat').val(m);
   });
 </script>
 </head>
 <body class="container">
-<form class="form-horizontal" method="POST" name="input" action="/google/{{.MacaroonRoute}}" role="form">
+<form class="form-horizontal" method="POST" id="caveats-form" name="input" action="/google/{{.MacaroonRoute}}" role="form">
 <h2 class="form-signin-heading">{{.Extension}}</h2>
 <input type="text" class="hidden" name="macaroon" value="{{.Macaroon}}">
 <div class="form-group form-group-lg">
   <label class="col-sm-2" for="blessing-extension">Extension</label>
   <div class="col-sm-10">
   <input name="blessingExtension" type="text" class="form-control" id="blessing-extension" placeholder="(optional) name of the device/application for which the blessing is being sought, e.g. homelaptop">
+  <input type="text" class="hidden" id="timezoneOffset" name="timezoneOffset">
   </div>
 </div>
 <div class="form-group form-group-lg">
@@ -179,7 +193,7 @@ var tmplSelectCaveats = template.Must(template.New("bless").Parse(`<!doctype htm
     <div class="radio">
       <div class="input-group">
         <input type="radio" name="requiredCaveat" id="requiredCaveat" value="Expiry">
-        <input type="text" name="expiry" id="expiry" value="1h" placeholder="time after which the blessing will expire">
+        <input type="datetime-local" id="expiry" name="expiry">
       </div>
     </div>
   </div>
@@ -190,15 +204,19 @@ var tmplSelectCaveats = template.Must(template.New("bless").Parse(`<!doctype htm
   <div class="col-md-4">
     <select name="caveat" class="form-control caveats">
       <option value="none" selected="selected">Select a caveat.</option>
-      {{ $caveatMap := .CaveatMap }}
-      {{range $key, $value := $caveatMap}}
-      <option name="{{$key}}" value="{{$key}}">{{$key}}</option>
+      {{ $caveatList := .CaveatList }}
+      {{range $index, $name := $caveatList}}
+      <option name="{{$name}}" value="{{$name}}">{{$name}}</option>
       {{end}}
     </select>
   </div>
   <div class="col-md-7">
-    {{range $key, $entry := $caveatMap}}
-      <input type="text" id="{{$key}}" class="form-control caveatInput" name="{{$key}}" placeholder="{{$entry.Placeholder}}">
+    {{range $index, $name := $caveatList}}
+      {{if eq $name "ExpiryCaveat"}}
+      <input type="datetime-local" class="form-control caveatInput" id="{{$name}}" name="{{$name}}">
+      {{else if eq $name "MethodCaveat"}}
+      <input type="text" id="{{$name}}" class="form-control caveatInput" name="{{$name}}" placeholder="comma-separated method list">
+      {{end}}
     {{end}}
   </div>
   <div class="col-md-1">
