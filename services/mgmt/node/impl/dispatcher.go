@@ -366,7 +366,7 @@ func (d *dispatcher) Lookup(suffix, method string) (interface{}, security.Author
 		})
 		return receiver, d.auth, nil
 	case appsSuffix:
-		// Requests to apps/*/*/*/logs are handled locally by LogFileServer.
+		// Requests to apps/*/*/*/logs are handled locally by LogFileService.
 		// Requests to apps/*/*/*/pprof are proxied to the apps' __debug/pprof object.
 		// Requests to apps/*/*/*/stats are proxied to the apps' __debug/stats object.
 		// Everything else is handled by the Application server.
@@ -379,7 +379,7 @@ func (d *dispatcher) Lookup(suffix, method string) (interface{}, security.Author
 			case "logs":
 				logsDir := filepath.Join(appInstanceDir, "logs")
 				suffix := naming.Join(components[5:]...)
-				return logsimpl.NewLogFileServer(logsDir, suffix), d.auth, nil
+				return logsimpl.NewLogFileService(logsDir, suffix), d.auth, nil
 			case "pprof", "stats":
 				info, err := loadInstanceInfo(appInstanceDir)
 				if err != nil {

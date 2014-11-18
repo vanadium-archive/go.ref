@@ -24,9 +24,9 @@ var (
 	errOperationFailed = verror.Internalf("operation failed")
 )
 
-// NewLogFileServer returns a new log file server.
-func NewLogFileServer(root, suffix string) interface{} {
-	return &logfileImpl{filepath.Clean(root), suffix}
+// NewLogFileService returns a new log file server.
+func NewLogFileService(root, suffix string) interface{} {
+	return &logfileService{filepath.Clean(root), suffix}
 }
 
 // translateNameToFilename returns the file name that corresponds to the object
@@ -43,8 +43,8 @@ func translateNameToFilename(root, name string) (string, error) {
 	return p, nil
 }
 
-// logfileImpl holds the state of a logfile invocation.
-type logfileImpl struct {
+// logfileService holds the state of a logfile invocation.
+type logfileService struct {
 	// root is the root directory from which the object names are based.
 	root string
 	// suffix is the suffix of the current invocation that is assumed to
@@ -53,7 +53,7 @@ type logfileImpl struct {
 }
 
 // Size returns the size of the log file, in bytes.
-func (i *logfileImpl) Size(call ipc.ServerCall) (int64, error) {
+func (i *logfileService) Size(call ipc.ServerCall) (int64, error) {
 	vlog.VI(1).Infof("%v.Size()", i.suffix)
 	fname, err := translateNameToFilename(i.root, i.suffix)
 	if err != nil {
@@ -74,7 +74,7 @@ func (i *logfileImpl) Size(call ipc.ServerCall) (int64, error) {
 }
 
 // ReadLog returns log entries from the log file.
-func (i *logfileImpl) ReadLog(call ipc.ServerCall, startpos int64, numEntries int32, follow bool) (int64, error) {
+func (i *logfileService) ReadLog(call ipc.ServerCall, startpos int64, numEntries int32, follow bool) (int64, error) {
 	vlog.VI(1).Infof("%v.ReadLog(%v, %v, %v)", i.suffix, startpos, numEntries, follow)
 	fname, err := translateNameToFilename(i.root, i.suffix)
 	if err != nil {
@@ -111,7 +111,7 @@ func (i *logfileImpl) ReadLog(call ipc.ServerCall, startpos int64, numEntries in
 
 // VGlobChildren returns the list of files in a directory, or an empty list if
 // the object is a file.
-func (i *logfileImpl) VGlobChildren() ([]string, error) {
+func (i *logfileService) VGlobChildren() ([]string, error) {
 	vlog.VI(1).Infof("%v.VGlobChildren()", i.suffix)
 	dirName, err := translateNameToFilename(i.root, i.suffix)
 	if err != nil {
