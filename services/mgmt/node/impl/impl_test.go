@@ -361,12 +361,6 @@ func TestNodeManagerUpdateAndRevert(t *testing.T) {
 		t.Fatalf("current link didn't change")
 	}
 
-	// This is from the child node manager started by the node manager
-	// as an update test.
-	readPID(t, nms)
-
-	nms.Expect("v2NM terminating")
-
 	updateNodeExpectError(t, "factoryNM", verror.Exists) // Update already in progress.
 
 	nmh.CloseStdin()
@@ -393,8 +387,7 @@ func TestNodeManagerUpdateAndRevert(t *testing.T) {
 	// Create a third version of the node manager and issue an update.
 	crDir, crEnv = credentialsForChild("nodemanager")
 	defer os.RemoveAll(crDir)
-	*envelope = envelopeFromShell(sh, crEnv, nodeManagerCmd, application.NodeManagerTitle,
-		"v3NM")
+	*envelope = envelopeFromShell(sh, crEnv, nodeManagerCmd, application.NodeManagerTitle, "v3NM")
 	updateNode(t, "v2NM")
 
 	scriptPathV3 := evalLink()
@@ -402,12 +395,7 @@ func TestNodeManagerUpdateAndRevert(t *testing.T) {
 		t.Fatalf("current link didn't change")
 	}
 
-	// This is from the child node manager started by the node manager
-	// as an update test.
-	readPID(t, nms)
-	// Both the parent and child node manager should terminate upon successful
-	// update.
-	nms.ExpectSetRE("v3NM terminating", "v2NM terminating")
+	nms.Expect("v2NM terminating")
 
 	nmh.Shutdown(os.Stderr, os.Stderr)
 
