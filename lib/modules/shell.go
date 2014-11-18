@@ -1,21 +1,15 @@
 // Package modules provides a mechanism for running commonly used services
 // as subprocesses and client functionality for accessing those services.
 // Such services and functions are collectively called 'commands' and are
-// registered with and executed within a context, defined by the Shell type.
-// The Shell is analagous to the original UNIX shell and maintains a
-// key, value store of variables that is accessible to all of the commands that
-// it hosts. These variables may be referenced by the arguments passed to
-// commands.
+// registered with a single, per-process, registry, but executed within a
+// context, defined by the Shell type. The Shell is analagous to the original
+// UNIX shell and maintains a key, value store of variables that is accessible
+// to all of the commands that it hosts. These variables may be referenced by
+// the arguments passed to commands.
 //
-// Commands are added to a shell in two ways: one for a subprocess and another
-// for an inprocess function.
-//
-// - subprocesses are added using the AddSubprocess method in the parent
-//   and by the modules.RegisterChild function in the child process (typically
-//   RegisterChild is called from an init function). modules.Dispatch must
-//   be called in the child process to execute the subprocess 'Main' function
-//   provided to RegisterChild.
-// - inprocess functions are added using the AddFunction method.
+// Commands are added to the registry in two ways:
+// - via RegisterChild for a subprocess
+// - via RegisterFunction for an in-process function
 //
 // In all cases commands are started by invoking the Start method on the
 // Shell with the name of the command to run. An instance of the Handle
@@ -42,60 +36,34 @@ package modules
 
 import (
 	"flag"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"os"
-	"strings"
 	"sync"
 	"time"
 
 	"veyron.io/veyron/veyron/lib/exec"
 	"veyron.io/veyron/veyron/lib/flags/consts"
-	"veyron.io/veyron/veyron2/vlog"
 )
 
 // Shell represents the context within which commands are run.
 type Shell struct {
 	mu           sync.Mutex
 	env          map[string]string
-	cmds         map[string]*commandDesc
 	handles      map[Handle]struct{}
 	credDir      string
 	startTimeout time.Duration
 	config       exec.Config
 }
 
-type commandDesc struct {
-	factory func() command
-	help    string
-}
-
-type childEntryPoint struct {
-	fn   Main
-	help string
-}
-
-type childRegistrar struct {
-	sync.Mutex
-	mains map[string]*childEntryPoint
-}
-
-var child = &childRegistrar{mains: make(map[string]*childEntryPoint)}
-
 // NewShell creates a new instance of Shell. If this new instance is is a test
 // and no credentials have been configured in the environment via
 // consts.VeyronCredentials then CreateAndUseNewCredentials will be used to
-// configure a new ID for the shell and its children.  NewShell takes optional
-// regexp patterns that can be used to specify subprocess commands that are
-// implemented in the same binary as this shell (i.e. have been registered
-// using modules.RegisterChild) to be automatically added to it. If the
-// patterns fail to match any such command then they have no effect.
-func NewShell(patterns ...string) *Shell {
-	// TODO(cnicolaou): should create a new identity if one doesn't
-	// already exist
+// configure a new ID for the shell and its children.
+func NewShell() *Shell {
 	sh := &Shell{
 		env:          make(map[string]string),
-		cmds:         make(map[string]*commandDesc),
 		handles:      make(map[Handle]struct{}),
 		startTimeout: time.Minute,
 		config:       exec.NewConfig(),
@@ -105,9 +73,6 @@ func NewShell(patterns ...string) *Shell {
 			// TODO(cnicolaou): return an error rather than panic.
 			panic(err)
 		}
-	}
-	for _, pattern := range patterns {
-		child.addSubprocesses(sh, pattern)
 	}
 	return sh
 }
@@ -134,51 +99,15 @@ func (sh *Shell) CreateAndUseNewCredentials() error {
 
 type Main func(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error
 
-// AddSubprocess adds a new command to the Shell that will be run
-// as a subprocess. In addition, the child process must call RegisterChild
-// using the same name used here and provide the function to be executed
-// in the child.
-func (sh *Shell) AddSubprocess(name, help string) {
-	if !child.hasCommand(name) {
-		vlog.Infof("Warning: %q is not registered with modules.Dispatcher", name)
-	}
-	sh.addSubprocess(name, help)
-}
-
-func (sh *Shell) addSubprocess(name string, help string) {
-	sh.mu.Lock()
-	sh.cmds[name] = &commandDesc{func() command { return newExecHandle(name) }, help}
-	sh.mu.Unlock()
-}
-
-// AddFunction adds a new command to the Shell that will be run
-// within the current process.
-func (sh *Shell) AddFunction(name string, main Main, help string) {
-	sh.mu.Lock()
-	sh.cmds[name] = &commandDesc{func() command { return newFunctionHandle(name, main) }, help}
-	sh.mu.Unlock()
-}
-
 // String returns a string representation of the Shell, which is a
 // list of the commands currently available in the shell.
 func (sh *Shell) String() string {
-	sh.mu.Lock()
-	defer sh.mu.Unlock()
-	h := ""
-	for n, _ := range sh.cmds {
-		h += n + ", "
-	}
-	return strings.TrimRight(h, ", ")
+	return registry.help("")
 }
 
 // Help returns the help message for the specified command.
 func (sh *Shell) Help(command string) string {
-	sh.mu.Lock()
-	defer sh.mu.Unlock()
-	if c := sh.cmds[command]; c != nil {
-		return command + ": " + c.help
-	}
-	return ""
+	return registry.help(command)
 }
 
 // Start starts the specified command, it returns a Handle which can be used
@@ -191,16 +120,14 @@ func (sh *Shell) Help(command string) string {
 // error is returned, in which case it may be used to retrieve any output
 // from the failed command.
 //
-// Commands may have already been registered with the Shell using AddFunction
-// or AddSubprocess, but if not, they will treated as subprocess commands
-// and an attempt made to run them. Such 'dynamically' started subprocess
-// commands are not remembered the by Shell and do not provide a 'help'
-// message etc; their handles are remembered and will be acted on by
-// the Cleanup method. If the non-registered subprocess command does not
-// exist then the Start command will return an error.
+// Commands must have already been registered using RegisterFunction
+// or RegisterChild.
 func (sh *Shell) Start(name string, env []string, args ...string) (Handle, error) {
 	cenv := sh.MergedEnv(env)
-	cmd := sh.getCommand(name)
+	cmd := registry.getCommand(name)
+	if cmd == nil {
+		return nil, fmt.Errorf("%s: not registered", name)
+	}
 	expanded := append([]string{name}, sh.expand(args...)...)
 	h, err := cmd.factory().start(sh, cenv, expanded...)
 	if err != nil {
@@ -214,16 +141,6 @@ func (sh *Shell) Start(name string, env []string, args ...string) (Handle, error
 	return h, nil
 }
 
-func (sh *Shell) getCommand(name string) *commandDesc {
-	sh.mu.Lock()
-	cmd := sh.cmds[name]
-	sh.mu.Unlock()
-	if cmd == nil {
-		cmd = &commandDesc{func() command { return newExecHandle(name) }, ""}
-	}
-	return cmd
-}
-
 // SetStartTimeout sets the timeout for starting subcommands.
 func (sh *Shell) SetStartTimeout(d time.Duration) {
 	sh.startTimeout = d
@@ -233,7 +150,11 @@ func (sh *Shell) SetStartTimeout(d time.Duration) {
 // used for running the subprocess or function if it were started with the
 // specifed arguments.
 func (sh *Shell) CommandEnvelope(name string, env []string, args ...string) ([]string, []string) {
-	return sh.getCommand(name).factory().envelope(sh, sh.MergedEnv(env), args...)
+	cmd := registry.getCommand(name)
+	if cmd == nil {
+		return []string{}, []string{}
+	}
+	return cmd.factory().envelope(sh, sh.MergedEnv(env), args...)
 }
 
 // Forget tells the Shell to stop tracking the supplied Handle. This is

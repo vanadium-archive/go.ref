@@ -11,6 +11,19 @@ import (
 	"veyron.io/veyron/veyron/lib/modules"
 )
 
+func init() {
+
+	modules.RegisterFunction(NamespaceCacheCommand, `on|off
+	turns the namespace cache on or off`, namespaceCache)
+	modules.RegisterFunction(MountCommand, `<mountpoint> <server> <ttl> [M][R]
+	invokes namespace.Mount(<mountpoint>, <server>, <ttl>)`, mountServer)
+	modules.RegisterFunction(SleepCommand, `[duration]
+	sleep for a time(in go time.Duration format): defaults to 1s`, sleep)
+	modules.RegisterFunction(TimeCommand, `
+	prints the current time`, now)
+
+}
+
 func sleep(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
 	d := time.Second
 	if len(args) > 1 {

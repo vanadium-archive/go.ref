@@ -60,7 +60,7 @@ func credentialsForChild(blessing string) (string, []string) {
 }
 
 func createShellAndMountTable(t *testing.T) (*modules.Shell, func()) {
-	sh := core.NewShell()
+	sh := modules.NewShell()
 	// The shell, will, by default share credentials with its children.
 	sh.ClearVar(consts.VeyronCredentials)
 

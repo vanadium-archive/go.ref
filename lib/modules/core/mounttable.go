@@ -22,6 +22,18 @@ func init() {
 	modules.RegisterChild(LSExternalCommand, `<glob>...
 	issues glob requests using the current processes namespace library`,
 		ls)
+	modules.RegisterFunction(LSCommand, `<glob>...
+	issues glob requests using the current processes namespace library`, ls)
+	modules.RegisterFunction(ResolveCommand, `<name>
+	resolves name to obtain an object server address`, resolveObject)
+	modules.RegisterFunction(ResolveMTCommand, `<name>
+	resolves name to obtain a mount table address`, resolveMT)
+	modules.RegisterFunction(SetNamespaceRootsCommand, `<name>...
+	set the in-process namespace roots to <name>...`, setNamespaceRoots)
+	modules.RegisterFunction(NamespaceCacheCommand, `on|off
+	turns the namespace cache on or off`, namespaceCache)
+	modules.RegisterFunction(MountCommand, `<mountpoint> <server> <ttl> [M][R]
+	invokes namespace.Mount(<mountpoint>, <server>, <ttl>)`, mountServer)
 }
 
 func mountTable(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {

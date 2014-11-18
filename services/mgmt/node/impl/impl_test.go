@@ -190,16 +190,10 @@ func install(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, a
 	// args[0] is the entrypoint for the binary to be run from the shell script
 	// that SelfInstall will write out.
 	entrypoint := args[0]
-	osenv := make([]string, 0, len(env))
-	for k, v := range env {
-		if k == modules.ShellEntryPoint {
-			// Overwrite the entrypoint in our environment (i.e. the one
-			// that got us here), with the one we want written out in the shell
-			// script.
-			v = entrypoint
-		}
-		osenv = append(osenv, k+"="+v)
-	}
+	// Overwrite the entrypoint in our environment (i.e. the one
+	// that got us here), with the one we want written out in the shell
+	// script.
+	osenv := modules.SetEntryPoint(env, entrypoint)
 	if args[1] != "--" {
 		vlog.Fatalf("expected '--' immediately following command name")
 	}
