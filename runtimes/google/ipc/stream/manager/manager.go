@@ -17,7 +17,6 @@ import (
 	inaming "veyron.io/veyron/veyron/runtimes/google/naming"
 
 	"veyron.io/veyron/veyron2/ipc/stream"
-	ipcversion "veyron.io/veyron/veyron2/ipc/version"
 	"veyron.io/veyron/veyron2/naming"
 	"veyron.io/veyron/veyron2/verror"
 	"veyron.io/veyron/veyron2/vlog"
@@ -120,14 +119,6 @@ func (m *manager) FindOrDialVIF(remote naming.Endpoint, opts ...stream.VCOpt) (*
 	vRange := version.SupportedRange
 	if ep, ok := remote.(*inaming.Endpoint); ok {
 		epRange := &version.Range{Min: ep.MinIPCVersion, Max: ep.MaxIPCVersion}
-		if epRange.Max == ipcversion.UnknownIPCVersion {
-			// If the server's version is unknown, we need to back off to
-			// something we are sure it can understand.
-			//
-			// TODO(jyh): Remove this once the min version is IPC6, where we can
-			// support version negotiation.
-			epRange.Max = ipcversion.IPCVersion5
-		}
 		if r, err := vRange.Intersect(epRange); err == nil {
 			vRange = r
 		}
