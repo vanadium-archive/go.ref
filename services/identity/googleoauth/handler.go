@@ -327,6 +327,8 @@ type addCaveatsMacaroon struct {
 	ToolRedirectURL, ToolState, Email string
 }
 
+var caveatList = []string{"ExpiryCaveat", "MethodCaveat"}
+
 func (h *handler) addCaveats(w http.ResponseWriter, r *http.Request) {
 	var inputMacaroon seekBlessingsMacaroon
 	if err := h.csrfCop.ValidateToken(r.FormValue("state"), r, clientIDCookie, &inputMacaroon); err != nil {
@@ -354,9 +356,9 @@ func (h *handler) addCaveats(w http.ResponseWriter, r *http.Request) {
 	}
 	tmplargs := struct {
 		Extension               string
-		CaveatMap               map[string]caveatInfo
+		CaveatList              []string
 		Macaroon, MacaroonRoute string
-	}{email, caveatMap, outputMacaroon, sendMacaroonRoute}
+	}{email, caveatList, outputMacaroon, sendMacaroonRoute}
 	w.Header().Set("Context-Type", "text/html")
 	if err := tmplSelectCaveats.Execute(w, tmplargs); err != nil {
 		vlog.Errorf("Unable to execute bless page template: %v", err)
@@ -416,12 +418,7 @@ func (h *handler) caveats(r *http.Request) ([]security.Caveat, error) {
 	// Fill in the required caveat.
 	switch required := r.FormValue("requiredCaveat"); required {
 	case "Expiry":
-		str := r.FormValue("expiry")
-		d, err := time.ParseDuration(str)
-		if err != nil {
-			return nil, fmt.Errorf("failed to parse expiration duration(%q): %v", str, err)
-		}
-		expiry, err := security.ExpiryCaveat(time.Now().Add(d))
+		expiry, err := newExpiryCaveat(r.FormValue("expiry"), r.FormValue("timezoneOffset"))
 		if err != nil {
 			return nil, fmt.Errorf("failed to create ExpiryCaveat: %v", err)
 		}
@@ -444,56 +441,45 @@ func (h *handler) caveats(r *http.Request) ([]security.Caveat, error) {
 
 	// And find any additional ones
 	for i, cavName := range r.Form["caveat"] {
-		if cavName == "none" {
+		var err error
+		var caveat security.Caveat
+		switch cavName {
+		case "ExpiryCaveat":
+			caveat, err = newExpiryCaveat(r.Form[cavName][i], r.FormValue("timezoneOffset"))
+		case "MethodCaveat":
+			caveat, err = newMethodCaveat(strings.Split(r.Form[cavName][i], ","))
+		case "none":
 			continue
-		}
-		args := strings.Split(r.Form[cavName][i], ",")
-		cavInfo, ok := caveatMap[cavName]
-		if !ok {
+		default:
 			return nil, fmt.Errorf("unable to create caveat %s: caveat does not exist", cavName)
 		}
-		caveat, err := cavInfo.New(args...)
 		if err != nil {
-			return nil, fmt.Errorf("unable to create caveat %s(%v): cavInfo.New failed: %v", cavName, args, err)
+			return nil, fmt.Errorf("unable to create caveat %s: %v", cavName, err)
 		}
 		caveats = append(caveats, caveat)
 	}
 	return caveats, nil
 }
 
-type caveatInfo struct {
-	New         func(args ...string) (security.Caveat, error)
-	Placeholder string
+func newExpiryCaveat(timestamp, utcOffset string) (security.Caveat, error) {
+	var empty security.Caveat
+	t, err := time.Parse("2006-01-02T15:04", timestamp)
+	if err != nil {
+		return empty, fmt.Errorf("parseTime failed: %v", err)
+	}
+	// utcOffset is returned as minutes from JS, so we need to parse it to a duration.
+	offset, err := time.ParseDuration(utcOffset + "m")
+	if err != nil {
+		return empty, fmt.Errorf("failed to parse duration: %v", err)
+	}
+	return security.ExpiryCaveat(t.Add(time.Minute * offset))
 }
 
-// caveatMap is a map from Caveat name to caveat information.
-// To add to this map append
-// key = "CaveatName"
-// New = func that returns instantiation of specific caveat wrapped in security.Caveat.
-// Placeholder = the placeholder text for the html input element.
-var caveatMap = map[string]caveatInfo{
-	"ExpiryCaveat": {
-		New: func(args ...string) (security.Caveat, error) {
-			if len(args) != 1 {
-				return security.Caveat{}, fmt.Errorf("must pass exactly one duration string.")
-			}
-			dur, err := time.ParseDuration(args[0])
-			if err != nil {
-				return security.Caveat{}, fmt.Errorf("parse duration failed: %v", err)
-			}
-			return security.ExpiryCaveat(time.Now().Add(dur))
-		},
-		Placeholder: "i.e. 2h45m. Valid time units are ns, us (or µs), ms, s, m, h.",
-	},
-	"MethodCaveat": {
-		New: func(args ...string) (security.Caveat, error) {
-			if len(args) < 1 {
-				return security.Caveat{}, fmt.Errorf("must pass at least one method")
-			}
-			return security.MethodCaveat(args[0], args[1:]...)
-		},
-		Placeholder: "Comma-separated method names.",
-	},
+func newMethodCaveat(methods []string) (security.Caveat, error) {
+	if len(methods) < 1 {
+		return security.Caveat{}, fmt.Errorf("must pass at least one method")
+	}
+	return security.MethodCaveat(methods[0], methods[1:]...)
 }
 
 // exchangeAuthCodeForEmail exchanges the authorization code (which must
