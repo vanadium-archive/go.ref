@@ -56,21 +56,42 @@ func TestOrderingByProtocol(t *testing.T) {
 		name := naming.JoinAddressName(naming.FormatEndpoint("foobar", a), "")
 		servers = append(servers, name)
 	}
+	for _, a := range []string{"127.0.0.7", "127.0.0.8"} {
+		name := naming.JoinAddressName(naming.FormatEndpoint("tcp6", a), "")
+		servers = append(servers, name)
+	}
 
-	got, err := filterAndOrderServers(servers, []string{"foobar", "tcp"})
+	got, err := filterAndOrderServers(servers, []string{"batman"})
+	if err == nil {
+		t.Fatalf("expected an error")
+	}
+
+	got, err = filterAndOrderServers(servers, []string{"foobar", "tcp4"})
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
 
-	// Just foobar and tcp
+	// Just foobar and tcp4
 	want := []string{
 		"/@2@foobar@127.0.0.10@00000000000000000000000000000000@@@@",
 		"/@2@foobar@127.0.0.11@00000000000000000000000000000000@@@@",
-		"/@2@tcp@127.0.0.3@00000000000000000000000000000000@@@@",
-		"/@2@tcp@127.0.0.4@00000000000000000000000000000000@@@@",
+		"/@2@tcp4@127.0.0.1@00000000000000000000000000000000@@@@",
+		"/@2@tcp4@127.0.0.2@00000000000000000000000000000000@@@@",
 	}
 	if !reflect.DeepEqual(got, want) {
 		t.Errorf("got: %v, want %v", got, want)
+	}
+
+	got, err = filterAndOrderServers(servers, []string{"tcp"})
+	if err != nil {
+		t.Fatalf("unexpected error: %s", err)
+	}
+	// tcp or tcp4
+	want = []string{
+		"/@2@tcp4@127.0.0.1@00000000000000000000000000000000@@@@",
+		"/@2@tcp4@127.0.0.2@00000000000000000000000000000000@@@@",
+		"/@2@tcp@127.0.0.3@00000000000000000000000000000000@@@@",
+		"/@2@tcp@127.0.0.4@00000000000000000000000000000000@@@@",
 	}
 
 	// Everything, since we didn't specify a protocol
@@ -82,10 +103,12 @@ func TestOrderingByProtocol(t *testing.T) {
 	// original ordering within each protocol, with protocols that
 	// are not in the default ordering list at the end.
 	want = []string{
-		"/@2@tcp4@127.0.0.1@00000000000000000000000000000000@@@@",
-		"/@2@tcp4@127.0.0.2@00000000000000000000000000000000@@@@",
 		"/@2@tcp@127.0.0.3@00000000000000000000000000000000@@@@",
 		"/@2@tcp@127.0.0.4@00000000000000000000000000000000@@@@",
+		"/@2@tcp4@127.0.0.1@00000000000000000000000000000000@@@@",
+		"/@2@tcp4@127.0.0.2@00000000000000000000000000000000@@@@",
+		"/@2@tcp6@127.0.0.7@00000000000000000000000000000000@@@@",
+		"/@2@tcp6@127.0.0.8@00000000000000000000000000000000@@@@",
 		"/@2@foobar@127.0.0.10@00000000000000000000000000000000@@@@",
 		"/@2@foobar@127.0.0.11@00000000000000000000000000000000@@@@",
 	}

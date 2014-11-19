@@ -73,30 +73,27 @@ func filterCompatibleEndpoints(errs *errorAccumulator, servers []string) []*serv
 	return se
 }
 
-func sortByProtocol(eps []*serverEndpoint) map[string][]*serverEndpoint {
+// sortByProtocols sorts the supplied slice of serverEndpoints into a hash
+// map keyed by the protocol of each of those endpoints where that protocol
+// is listed in the protocols parameter and keyed by '*' if not so listed.
+func sortByProtocol(eps []*serverEndpoint, protocols []string) (bool, map[string][]*serverEndpoint) {
 	byProtocol := make(map[string][]*serverEndpoint)
+	matched := false
 	for _, ep := range eps {
-		p := ep.iep.Protocol
-		byProtocol[p] = append(byProtocol[p], ep)
-	}
-	return byProtocol
-}
-
-func unmatchedProtocols(hashed map[string][]*serverEndpoint, protocols []string) []*serverEndpoint {
-	unmatched := make([]*serverEndpoint, 0, 10)
-	for p, eps := range hashed {
 		found := false
-		for _, preferred := range protocols {
-			if p == preferred {
+		for _, p := range protocols {
+			if ep.iep.Protocol == p || (p == "tcp" && strings.HasPrefix(ep.iep.Protocol, "tcp")) {
+				byProtocol[p] = append(byProtocol[p], ep)
 				found = true
+				matched = true
 				break
 			}
 		}
 		if !found {
-			unmatched = append(unmatched, eps...)
+			byProtocol["*"] = append(byProtocol["*"], ep)
 		}
 	}
-	return unmatched
+	return matched, byProtocol
 }
 
 func orderByLocality(ifcs netstate.AddrList, eps []*serverEndpoint) []*serverEndpoint {
@@ -167,8 +164,21 @@ func sliceByProtocol(eps map[string][]*serverEndpoint, protocols []string) []str
 	return r
 }
 
-var defaultPreferredProtocolOrder = []string{"unixfd", "tcp4", "tcp", "tcp6"}
+var defaultPreferredProtocolOrder = []string{"unixfd", "tcp4", "tcp", "*"}
 
+// filterAndOrderServers returns a set of servers that are compatible with
+// the current client in order of 'preference' specified by the supplied
+// protocols and a notion of 'locality' according to the supplied protocol
+// list as follows:
+// - if the protocol parameter is non-empty, then only servers matching those
+// protocols are returned and the endpoints are ordered first by protocol
+// and then by locality within each protocol. If tcp4 and unixfd are requested
+// for example then only protocols that match tcp4 and unixfd will returned
+// with the tcp4 ones preceeding the unixfd ones.
+// - if the protocol parameter is empty, then a default protocol ordering
+// will be used, but unlike the previous case, any servers that don't support
+// these protocols will be returned also, but following the default
+// preferences.
 func filterAndOrderServers(servers []string, protocols []string) ([]string, error) {
 	errs := newErrorAccumulator()
 	vlog.VI(3).Infof("Candidates[%v]: %v", protocols, servers)
@@ -178,39 +188,25 @@ func filterAndOrderServers(servers []string, protocols []string) ([]string, erro
 	}
 	vlog.VI(3).Infof("Version Compatible: %v", compatible)
 
+	defaultOrdering := len(protocols) == 0
+
 	// put the server endpoints into per-protocol lists
-	byProtocol := sortByProtocol(compatible)
+	matched, byProtocol := sortByProtocol(compatible, protocols)
 
-	if len(protocols) > 0 {
-		found := 0
-		for _, p := range protocols {
-			found += len(byProtocol[p])
-		}
-		if found == 0 {
-			return nil, fmt.Errorf("failed to find any servers compatible with %v from %s", protocols, servers)
-		}
+	if !defaultOrdering && !matched {
+		return nil, fmt.Errorf("failed to find any servers compatible with %v from %s", protocols, servers)
 	}
-
-	// If a set of protocols is specified, then we will order
-	// and return endpoints that contain those protocols alone.
-	// However, if no protocols are supplied we'll order by
-	// a default ordering but append any endpoints that don't belong
-	// to that default ordering set to the returned endpoints.
-	remaining := []*serverEndpoint{}
 	preferredProtocolOrder := defaultPreferredProtocolOrder
-	if len(protocols) > 0 {
+	if !defaultOrdering {
 		preferredProtocolOrder = protocols
-	} else {
-		remaining = unmatchedProtocols(byProtocol, preferredProtocolOrder)
 	}
 
 	vlog.VI(3).Infof("Have Protocols(%v): %v", protocols, byProtocol)
 
 	networks, err := netstate.GetAll()
 	if err != nil {
-		r := sliceByProtocol(byProtocol, preferredProtocolOrder)
-		r = append(r, slice(remaining)...)
-		return r, nil
+		// return whatever we have now, just not sorted by locality.
+		return sliceByProtocol(byProtocol, preferredProtocolOrder), nil
 	}
 
 	ordered := make([]*serverEndpoint, 0, len(byProtocol))
@@ -219,9 +215,6 @@ func filterAndOrderServers(servers []string, protocols []string) ([]string, erro
 		ordered = append(ordered, o...)
 	}
 
-	if len(protocols) == 0 {
-		ordered = append(ordered, remaining...)
-	}
 	vlog.VI(2).Infof("Ordered By Locality: %v", ordered)
 	return slice(ordered), nil
 }
