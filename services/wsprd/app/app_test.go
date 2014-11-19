@@ -552,7 +552,6 @@ func runJsServerTestCase(t *testing.T, test jsServerTestCase) {
 			Message: map[string]interface{}{
 				"serverId": 0.0,
 				"suffix":   "adder",
-				"method":   "resolveStepX",
 			},
 		},
 	}
@@ -591,7 +590,6 @@ func runJsServerTestCase(t *testing.T, test jsServerTestCase) {
 		Message: map[string]interface{}{
 			"serverId": 0.0,
 			"suffix":   "adder",
-			"method":   lib.LowercaseFirstCharacter(test.method),
 		},
 	})
 

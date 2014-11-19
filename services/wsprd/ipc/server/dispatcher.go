@@ -38,7 +38,6 @@ type lookupReply struct {
 type dispatcherRequest struct {
 	ServerID uint64 `json:"serverId"`
 	Suffix   string `json:"suffix"`
-	Method   string `json:"method"`
 }
 
 // dispatcher holds the invoker and the authorizer to be used for lookup.
@@ -67,7 +66,7 @@ func newDispatcher(serverID uint64, flowFactory flowFactory, invokerFactory invo
 }
 
 // Lookup implements dispatcher interface Lookup.
-func (d *dispatcher) Lookup(suffix, method string) (interface{}, security.Authorizer, error) {
+func (d *dispatcher) Lookup(suffix string) (interface{}, security.Authorizer, error) {
 	flow := d.flowFactory.createFlow()
 	d.mu.Lock()
 	ch := make(chan lookupReply, 1)
@@ -77,7 +76,6 @@ func (d *dispatcher) Lookup(suffix, method string) (interface{}, security.Author
 	message := dispatcherRequest{
 		ServerID: d.serverID,
 		Suffix:   suffix,
-		Method:   lib.LowercaseFirstCharacter(method),
 	}
 	if err := flow.Writer.Send(lib.ResponseDispatcherLookup, message); err != nil {
 		ch <- lookupReply{Err: verror2.Convert(verror2.Internal, nil, err).(*verror2.Standard)}

@@ -86,7 +86,7 @@ func TestSuccessfulLookup(t *testing.T) {
 		d.handleLookupResponse(0, jsonResponse)
 	}()
 
-	invoker, auth, err := d.Lookup("a/b", "Read")
+	invoker, auth, err := d.Lookup("a/b")
 
 	if err != nil {
 		t.Errorf("Unexpected error: %v", err)
@@ -114,7 +114,6 @@ func TestSuccessfulLookup(t *testing.T) {
 			Message: map[string]interface{}{
 				"serverId": 0.0,
 				"suffix":   "a/b",
-				"method":   "read",
 			},
 		},
 	}
@@ -136,7 +135,7 @@ func TestSuccessfulLookupWithAuthorizer(t *testing.T) {
 		d.handleLookupResponse(0, jsonResponse)
 	}()
 
-	invoker, auth, err := d.Lookup("a/b", "Read")
+	invoker, auth, err := d.Lookup("a/b")
 
 	if err != nil {
 		t.Errorf("Unexpected error: %v", err)
@@ -164,7 +163,6 @@ func TestSuccessfulLookupWithAuthorizer(t *testing.T) {
 			Message: map[string]interface{}{
 				"serverId": 0.0,
 				"suffix":   "a/b",
-				"method":   "read",
 			},
 		},
 	}
@@ -185,7 +183,7 @@ func TestFailedLookup(t *testing.T) {
 		d.handleLookupResponse(0, jsonResponse)
 	}()
 
-	_, _, err := d.Lookup("a/b", "Read")
+	_, _, err := d.Lookup("a/b")
 
 	if err == nil {
 		t.Errorf("expected error, but got none", err)
@@ -197,7 +195,6 @@ func TestFailedLookup(t *testing.T) {
 			Message: map[string]interface{}{
 				"serverId": 0.0,
 				"suffix":   "a/b",
-				"method":   "read",
 			},
 		},
 	}
