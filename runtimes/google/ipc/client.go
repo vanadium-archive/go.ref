@@ -106,8 +106,10 @@ func (c *client) createFlow(ep naming.Endpoint) (stream.Flow, error) {
 		delete(c.vcMap, ep.String())
 	}
 	sm := c.streamMgr
+	vcOpts := make([]stream.VCOpt, len(c.vcOpts))
+	copy(vcOpts, c.vcOpts)
 	c.vcMapMu.Unlock()
-	vc, err := sm.Dial(ep, c.vcOpts...)
+	vc, err := sm.Dial(ep, vcOpts...)
 	c.vcMapMu.Lock()
 	if err != nil {
 		return nil, err
