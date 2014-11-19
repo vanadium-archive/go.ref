@@ -197,6 +197,29 @@ func (bs *blessingStore) tryOldFormat() bool {
 	return false
 }
 
+func (bs *blessingStore) verifyState() error {
+	verifyBlessings := func(wb *blessings, key security.PublicKey) error {
+		if err := wb.Verify(); err != nil {
+			return err
+		}
+		if b := wb.Blessings(); b != nil && !reflect.DeepEqual(b.PublicKey(), key) {
+			return fmt.Errorf("read Blessings: %v that are not for provided PublicKey: %v", b, key)
+		}
+		return nil
+	}
+	for _, wb := range bs.state.Store {
+		if err := verifyBlessings(wb, bs.publicKey); err != nil {
+			return err
+		}
+	}
+	if bs.state.Default != nil {
+		if err := verifyBlessings(bs.state.Default, bs.publicKey); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 // TODO(ataly, ashankar): Get rid of this method once we have switched all
 // credentials directories to the new serialization format.
 func (bs *blessingStore) deserializeOld() error {
@@ -215,6 +238,16 @@ func (bs *blessingStore) deserializeOld() error {
 		bs.state.Store[p] = &blessings{Value: wire}
 	}
 	bs.state.Default = &blessings{Value: old.Default}
+
+	if err := bs.verifyState(); err != nil {
+		return err
+	}
+	// Save the blessingstore in the new serialization format. This will ensure
+	// that all credentials directories in the old format will switch to the new
+	// format.
+	if err := bs.save(); err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -227,7 +260,7 @@ func (bs *blessingStore) deserialize() error {
 		return nil
 	}
 	if err := decodeFromStorage(&bs.state, data, signature, bs.signer.PublicKey()); err == nil && !bs.tryOldFormat() {
-		return nil
+		return bs.verifyState()
 	}
 	if err := bs.deserializeOld(); err != nil {
 		return err
@@ -239,15 +272,6 @@ func (bs *blessingStore) deserialize() error {
 // that is initialized with the persisted data. The returned security.BlessingStore
 // also persists any updates to its state.
 func newPersistingBlessingStore(serializer SerializerReaderWriter, signer serialization.Signer) (security.BlessingStore, error) {
-	verifyBlessings := func(wb *blessings, key security.PublicKey) error {
-		if err := wb.Verify(); err != nil {
-			return err
-		}
-		if b := wb.Blessings(); b != nil && !reflect.DeepEqual(b.PublicKey(), key) {
-			return fmt.Errorf("read Blessings: %v that are not for provided PublicKey: %v", b, key)
-		}
-		return nil
-	}
 	if serializer == nil || signer == nil {
 		return nil, errors.New("persisted data or signer is not specified")
 	}
@@ -258,24 +282,6 @@ func newPersistingBlessingStore(serializer SerializerReaderWriter, signer serial
 		signer:     signer,
 	}
 	if err := bs.deserialize(); err != nil {
-		return nil, err
-	}
-	for _, wb := range bs.state.Store {
-		if err := verifyBlessings(wb, bs.publicKey); err != nil {
-			return nil, err
-		}
-	}
-	if bs.state.Default != nil {
-		if err := verifyBlessings(bs.state.Default, bs.publicKey); err != nil {
-			return nil, err
-		}
-	}
-	// Save the blessingstore in the new serialization format. This will ensure
-	// that all credentials directories in the old format will switch to the new
-	// format.
-	// TODO(ataly, ashankar): Get rid of this  once we have switched all
-	// credentials directories to the new serialization format.
-	if err := bs.save(); err != nil {
 		return nil, err
 	}
 	return bs, nil
