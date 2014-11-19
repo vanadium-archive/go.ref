@@ -10,6 +10,7 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
+	"flag"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -73,6 +74,17 @@ func init() {
 		return
 	}
 	initRT()
+
+	// NOTE(caprita): The default 1m timeout that the modules package gives
+	// to subprocesses is insufficient, especially with --race.
+	// If not explicitly set to a non-default value by the user, we set the
+	// test-wide timeout to 2 minutes (which will get propagated by the
+	// modules framework to the subprocesses).
+	timeoutFlag := flag.Lookup("test.timeout")
+	if timeoutFlag.Value.String() == timeoutFlag.DefValue {
+		timeoutFlag.Value.Set("2m")
+		vlog.Infof("Setting test.timeout to 2m.")
+	}
 }
 
 func initRT() {
