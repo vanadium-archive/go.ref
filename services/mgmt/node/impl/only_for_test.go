@@ -25,6 +25,9 @@ func (d *dispatcher) Leaking() bool {
 
 func init() {
 	cleanupDir = func(dir, helper string) {
+		if dir == "" {
+			return
+		}
 		parentDir, base := filepath.Dir(dir), filepath.Base(dir)
 		var renamed string
 		if helper != "" {
