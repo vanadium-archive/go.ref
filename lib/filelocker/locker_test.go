@@ -6,6 +6,7 @@ import (
 	"io"
 	"io/ioutil"
 	"os"
+	"syscall"
 	"testing"
 	"time"
 
@@ -14,7 +15,7 @@ import (
 )
 
 func init() {
-	modules.RegisterChild("testLockUnlockChild", "", testLockUnlockChild)
+	modules.RegisterChild("testLockChild", "", testLockChild)
 }
 
 func TestHelperProcess(t *testing.T) {
@@ -39,7 +40,7 @@ func grabbedLock(lock <-chan bool) bool {
 	}
 }
 
-func testLockUnlockChild(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
+func testLockChild(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
 	// Lock the file
 	unlocker, err := Lock(args[1])
 	if err != nil {
@@ -58,13 +59,13 @@ func testLockUnlockChild(stdin io.Reader, stdout, stderr io.Writer, env map[stri
 	return nil
 }
 
-func TestLockUnlockInterProcess(t *testing.T) {
+func TestLockInterProcess(t *testing.T) {
 	filepath := newFile()
 	defer os.Remove(filepath)
 
 	sh := modules.NewShell()
 	defer sh.Cleanup(os.Stderr, os.Stderr)
-	h, err := sh.Start("testLockUnlockChild", nil, filepath)
+	h, err := sh.Start("testLockChild", nil, filepath)
 	if err != nil {
 		t.Fatalf("sh.Start failed: %v", err)
 	}
@@ -97,7 +98,7 @@ func TestLockUnlockInterProcess(t *testing.T) {
 	s.ExpectEOF()
 }
 
-func TestLockUnlockIntraProcess(t *testing.T) {
+func TestLockIntraProcess(t *testing.T) {
 	filepath := newFile()
 	defer os.Remove(filepath)
 
@@ -126,4 +127,34 @@ func TestLockUnlockIntraProcess(t *testing.T) {
 	if !grabbedLock(lock) {
 		t.Fatal("Another goroutine failed to grab the lock after this goroutine released it")
 	}
+}
+
+func TestTryLock(t *testing.T) {
+	filepath := newFile()
+	defer os.Remove(filepath)
+
+	sh := modules.NewShell()
+	defer sh.Cleanup(os.Stderr, os.Stderr)
+	h, err := sh.Start("testLockChild", nil, filepath)
+	if err != nil {
+		t.Fatalf("sh.Start failed: %v", err)
+	}
+	s := expect.NewSession(t, h.Stdout(), time.Minute)
+
+	// Test that child grabbed the lock.
+	s.Expect("locked")
+
+	// Test that parent cannot grab the lock, and then send a message
+	// to the child to release the lock.
+	if _, err := TryLock(filepath); err != syscall.EWOULDBLOCK {
+		t.Fatal("TryLock returned error: %v, want: %v", err, syscall.EWOULDBLOCK)
+	}
+
+	// Test that the parent can grab the lock after the child has released it.
+	h.Stdin().Write([]byte("unlock\n"))
+	s.Expect("unlocked")
+	if _, err = TryLock(filepath); err != nil {
+		t.Fatalf("TryLock failed: %v", err)
+	}
+	s.ExpectEOF()
 }
