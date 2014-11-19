@@ -30,7 +30,7 @@ func newPipe(b *Browspr, instanceId int32) *pipe {
 		// TODO(bjornick): Send an error to the client when all of the principal stuff is set up.
 	}
 
-	pipe.controller, err = app.NewController(pipe.createWriter, &b.listenSpec, b.namespaceRoots, options.RuntimePrincipal{p})
+	pipe.controller, err = app.NewController(pipe.createWriter, b.profileFactory(), &b.listenSpec, b.namespaceRoots, options.RuntimePrincipal{p})
 	if err != nil {
 		b.rt.Logger().Errorf("Could not create controller: %v", err)
 		return nil

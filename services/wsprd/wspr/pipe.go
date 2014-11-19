@@ -8,6 +8,7 @@ import (
 	_ "net/http/pprof"
 	"time"
 
+	"veyron.io/veyron/veyron2"
 	"veyron.io/veyron/veyron2/options"
 	"veyron.io/veyron/veyron2/vlog"
 	"veyron.io/wspr/veyron/services/wsprd/app"
@@ -68,7 +69,11 @@ func newPipe(w http.ResponseWriter, req *http.Request, wspr *WSPR, creator func(
 		// TODO(bjornick): Send an error to the client when all of the principal stuff is set up.
 	}
 
-	pipe.controller, err = app.NewController(creator, &wspr.listenSpec, wspr.namespaceRoots, options.RuntimePrincipal{p})
+	var profile veyron2.Profile
+	if wspr.profileFactory != nil {
+		profile = wspr.profileFactory()
+	}
+	pipe.controller, err = app.NewController(creator, profile, wspr.listenSpec, wspr.namespaceRoots, options.RuntimePrincipal{p})
 	if err != nil {
 		wspr.rt.Logger().Errorf("Could not create controller: %v", err)
 		http.Error(w, fmt.Sprintf("Failed to create controller: %v", err), http.StatusInternalServerError)

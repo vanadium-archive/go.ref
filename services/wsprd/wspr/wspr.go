@@ -48,7 +48,8 @@ type WSPR struct {
 	httpPort         int
 	ln               *net.TCPListener // HTTP listener
 	logger           vlog.Logger
-	listenSpec       ipc.ListenSpec
+	profileFactory   func() veyron2.Profile
+	listenSpec       *ipc.ListenSpec
 	identdEP         string
 	namespaceRoots   []string
 	principalManager *principal.PrincipalManager
@@ -127,7 +128,7 @@ func (ctx *WSPR) CleanUpPipe(req *http.Request) {
 }
 
 // Creates a new WebSocket Proxy object.
-func NewWSPR(httpPort int, listenSpec ipc.ListenSpec, identdEP string, namespaceRoots []string, opts ...veyron2.ROpt) *WSPR {
+func NewWSPR(httpPort int, profileFactory func() veyron2.Profile, listenSpec *ipc.ListenSpec, identdEP string, namespaceRoots []string, opts ...veyron2.ROpt) *WSPR {
 	if listenSpec.Proxy == "" {
 		vlog.Fatalf("a veyron proxy must be set")
 	}
@@ -145,6 +146,7 @@ func NewWSPR(httpPort int, listenSpec ipc.ListenSpec, identdEP string, namespace
 
 	wspr := &WSPR{
 		httpPort:       httpPort,
+		profileFactory: profileFactory,
 		listenSpec:     listenSpec,
 		identdEP:       identdEP,
 		namespaceRoots: namespaceRoots,

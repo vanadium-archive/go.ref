@@ -19,6 +19,7 @@ import (
 // Browspr is an intermediary between our javascript code and the veyron network that allows our javascript library to use veyron.
 type Browspr struct {
 	rt             veyron2.Runtime
+	profileFactory func() veyron2.Profile
 	listenSpec     ipc.ListenSpec
 	identdEP       string
 	namespaceRoots []string
@@ -30,7 +31,7 @@ type Browspr struct {
 }
 
 // Create a new Browspr instance.
-func NewBrowspr(postMessage func(instanceId int32, ty, msg string), listenSpec ipc.ListenSpec, identdEP string, namespaceRoots []string, opts ...veyron2.ROpt) *Browspr {
+func NewBrowspr(postMessage func(instanceId int32, ty, msg string), profileFactory func() veyron2.Profile, listenSpec ipc.ListenSpec, identdEP string, namespaceRoots []string, opts ...veyron2.ROpt) *Browspr {
 	if listenSpec.Proxy == "" {
 		vlog.Fatalf("a veyron proxy must be set")
 	}
@@ -51,6 +52,7 @@ func NewBrowspr(postMessage func(instanceId int32, ty, msg string), listenSpec i
 	runtime.Namespace().SetRoots(wsNamespaceRoots...)
 
 	browspr := &Browspr{
+		profileFactory:  profileFactory,
 		listenSpec:      listenSpec,
 		identdEP:        identdEP,
 		namespaceRoots:  wsNamespaceRoots,

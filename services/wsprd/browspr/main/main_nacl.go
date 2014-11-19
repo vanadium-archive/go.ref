@@ -9,7 +9,7 @@ import (
 	"runtime/ppapi"
 
 	"veyron.io/veyron/veyron/lib/websocket"
-	_ "veyron.io/veyron/veyron/profiles/chrome"
+	"veyron.io/veyron/veyron/profiles/chrome"
 	vsecurity "veyron.io/veyron/veyron/security"
 	"veyron.io/veyron/veyron2/ipc"
 	"veyron.io/veyron/veyron2/ipc/stream"
@@ -226,7 +226,7 @@ func (inst *browsprInstance) StartBrowspr(instanceId int32, message ppapi.Var) e
 	}
 
 	fmt.Printf("Starting browspr with config: proxy=%q mounttable=%q identityd=%q ", veyronProxy, mounttable, identityd)
-	inst.browspr = browspr.NewBrowspr(inst.BrowsprOutgoingPostMessage, listenSpec, identityd, []string{mounttable}, options.RuntimePrincipal{principal})
+	inst.browspr = browspr.NewBrowspr(inst.BrowsprOutgoingPostMessage, chrome.New, listenSpec, identityd, []string{mounttable}, options.RuntimePrincipal{principal})
 
 	inst.BrowsprOutgoingPostMessage(instanceId, "browsprStarted", "blah")
 	return nil

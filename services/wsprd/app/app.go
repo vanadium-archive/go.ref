@@ -12,7 +12,6 @@ import (
 	"sync"
 	"time"
 
-	"veyron.io/veyron/veyron/profiles/roaming"
 	vsecurity "veyron.io/veyron/veyron/security"
 	"veyron.io/veyron/veyron2"
 	"veyron.io/veyron/veyron2/context"
@@ -153,8 +152,10 @@ type Controller struct {
 // NewController creates a new Controller.  writerCreator will be used to create a new flow for rpcs to
 // javascript server. veyronProxyEP is an endpoint for the veyron proxy to serve through.  It can't be empty.
 // opts are any options that should be passed to the rt.New().
-func NewController(writerCreator func(id int64) lib.ClientWriter, listenSpec *ipc.ListenSpec, namespaceRoots []string, opts ...veyron2.ROpt) (*Controller, error) {
-	opts = append(opts, options.Profile{roaming.New()})
+func NewController(writerCreator func(id int64) lib.ClientWriter, profile veyron2.Profile, listenSpec *ipc.ListenSpec, namespaceRoots []string, opts ...veyron2.ROpt) (*Controller, error) {
+	if profile != nil {
+		opts = append(opts, options.Profile{profile})
+	}
 	r, err := rt.New(opts...)
 	if err != nil {
 		return nil, err
