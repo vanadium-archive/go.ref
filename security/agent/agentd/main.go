@@ -1,9 +1,9 @@
 package main
 
 import (
-	"bufio"
 	"flag"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"os/signal"
@@ -116,8 +116,7 @@ func newPrincipalFromDir(dir string) (security.Principal, []byte, error) {
 }
 
 func handleDoesNotExist(dir string) (security.Principal, []byte, error) {
-	fmt.Println("Private key file does not exist. Creating new private key...")
-	pass, err := getPassword("Enter passphrase (entering nothing will store unencrypted): ")
+	pass, err := getPassword("Private key file does not exist. Creating new private key...\nEnter passphrase (entering nothing will store unencrypted): ")
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to read passphrase: %v", err)
 	}
@@ -130,8 +129,7 @@ func handleDoesNotExist(dir string) (security.Principal, []byte, error) {
 }
 
 func handlePassphrase(dir string) (security.Principal, []byte, error) {
-	fmt.Println("Private key file is encrypted. Please enter passphrase.")
-	pass, err := getPassword("Enter passphrase: ")
+	pass, err := getPassword("Private key file is encrypted. Please enter passphrase.\nEnter passphrase: ")
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to read passphrase: %v", err)
 	}
@@ -141,11 +139,8 @@ func handlePassphrase(dir string) (security.Principal, []byte, error) {
 
 func getPassword(prompt string) ([]byte, error) {
 	if !terminal.IsTerminal(int(os.Stdin.Fd())) {
-		// If the standard input is not a terminal, the
-		// password is obtained by reading a line from it.
-		//
-		// TODO(suharshs): Mitigate buffering.
-		return bufio.NewReader(os.Stdin).ReadBytes('\n')
+		// If the standard input is not a terminal, the password is obtained by reading a line from it.
+		return readPassword()
 	}
 	fmt.Printf(prompt)
 	stop := make(chan bool)
@@ -155,7 +150,41 @@ func getPassword(prompt string) ([]byte, error) {
 		return nil, err
 	}
 	go catchTerminationSignals(stop, state)
+	defer fmt.Printf("\n")
 	return terminal.ReadPassword(int(os.Stdin.Fd()))
+}
+
+// readPassword reads form Stdin until it sees '\n' or EOF.
+func readPassword() ([]byte, error) {
+	var pass []byte
+	var total int
+	for {
+		b := make([]byte, 1)
+		count, err := os.Stdin.Read(b)
+		if err != nil && err != io.EOF {
+			return nil, err
+		}
+		if err == io.EOF || b[0] == '\n' {
+			return pass[:total], nil
+		}
+		total += count
+		pass = secureAppend(pass, b)
+	}
+}
+
+func secureAppend(s, t []byte) []byte {
+	res := append(s, t...)
+	if len(res) > cap(s) {
+		// When append needs to allocate a new array, clear out the old one.
+		for i := range s {
+			s[i] = '0'
+		}
+	}
+	// Clear out the second array.
+	for i := range t {
+		t[i] = '0'
+	}
+	return res
 }
 
 // catchTerminationSignals catches signals to allow us to turn terminal echo back on.
