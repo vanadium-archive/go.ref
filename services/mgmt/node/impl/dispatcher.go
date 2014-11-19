@@ -337,7 +337,7 @@ func (d *dispatcher) getACL() (acl security.ACL, etag string, err error) {
 }
 
 // DISPATCHER INTERFACE IMPLEMENTATION
-func (d *dispatcher) Lookup(suffix, method string) (interface{}, security.Authorizer, error) {
+func (d *dispatcher) Lookup(suffix string) (interface{}, security.Authorizer, error) {
 	components := strings.Split(suffix, "/")
 	for i := 0; i < len(components); i++ {
 		if len(components[i]) == 0 {
@@ -346,10 +346,7 @@ func (d *dispatcher) Lookup(suffix, method string) (interface{}, security.Author
 		}
 	}
 	if len(components) == 0 {
-		if method == ipc.GlobMethod {
-			return ipc.VChildrenGlobberInvoker(nodeSuffix, appsSuffix), d.auth, nil
-		}
-		return nil, nil, errInvalidSuffix
+		return ipc.VChildrenGlobberInvoker(nodeSuffix, appsSuffix), d.auth, nil
 	}
 	// The implementation of the node manager is split up into several
 	// invokers, which are instantiated depending on the receiver name

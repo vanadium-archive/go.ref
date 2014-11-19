@@ -94,7 +94,7 @@ func parseACLs(path string) (map[string]security.Authorizer, error) {
 }
 
 // Lookup implements ipc.Dispatcher.Lookup.
-func (mt *mountTable) Lookup(name, method string) (interface{}, security.Authorizer, error) {
+func (mt *mountTable) Lookup(name string) (interface{}, security.Authorizer, error) {
 	vlog.VI(2).Infof("*********************Lookup %s", name)
 	mt.RLock()
 	defer mt.RUnlock()

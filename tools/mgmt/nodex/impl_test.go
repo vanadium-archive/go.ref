@@ -135,7 +135,7 @@ func NewDispatcher(t *testing.T, tape *Tape) *dispatcher {
 	return &dispatcher{tape: tape, t: t}
 }
 
-func (d *dispatcher) Lookup(suffix, method string) (interface{}, security.Authorizer, error) {
+func (d *dispatcher) Lookup(suffix string) (interface{}, security.Authorizer, error) {
 	return node.NodeServer(&mockNodeInvoker{tape: d.tape, t: d.t}), nil, nil
 }
 

@@ -20,6 +20,6 @@ func NewDispatcher() *dispatcher {
 
 // DISPATCHER INTERFACE IMPLEMENTATION
 
-func (d *dispatcher) Lookup(suffix, method string) (interface{}, security.Authorizer, error) {
+func (d *dispatcher) Lookup(suffix string) (interface{}, security.Authorizer, error) {
 	return root.RootServer(d.state), nil, nil
 }

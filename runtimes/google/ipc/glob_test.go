@@ -173,7 +173,7 @@ type disp struct {
 	tree *node
 }
 
-func (d *disp) Lookup(suffix, method string) (interface{}, security.Authorizer, error) {
+func (d *disp) Lookup(suffix string) (interface{}, security.Authorizer, error) {
 	elems := strings.Split(suffix, "/")
 	if len(elems) != 0 && elems[0] == "muah" {
 		// Infinite space. Each node has one child named "ha".

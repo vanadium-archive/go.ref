@@ -101,6 +101,6 @@ type proxyDispatcher struct {
 	sigStub signatureStub
 }
 
-func (d *proxyDispatcher) Lookup(suffix, method string) (interface{}, security.Authorizer, error) {
+func (d *proxyDispatcher) Lookup(suffix string) (interface{}, security.Authorizer, error) {
 	return &proxyInvoker{naming.Join(d.remote, suffix), d.label, d.sigStub}, nil, nil
 }

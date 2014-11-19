@@ -22,7 +22,7 @@ func init() {
 
 type treeDispatcher struct{ id string }
 
-func (d treeDispatcher) Lookup(suffix, method string) (interface{}, security.Authorizer, error) {
+func (d treeDispatcher) Lookup(suffix string) (interface{}, security.Authorizer, error) {
 	return &echoServerObject{d.id, suffix}, nil, nil
 }
 
