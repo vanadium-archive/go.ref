@@ -42,7 +42,7 @@ func (m *mockBlesserService) BlessUsingAccessToken(c context.T, accessToken stri
 func setup(t *testing.T, postMessageHandler func(instanceId int32, ty string, msg string)) (*Browspr, func()) {
 	spec := profiles.LocalListenSpec
 	spec.Proxy = "/mock/proxy"
-	browspr := NewBrowspr(postMessageHandler, spec, "/mock/identd", nil)
+	browspr := NewBrowspr(postMessageHandler, nil, spec, "/mock/identd", nil)
 	browspr.accountManager.SetMockBlesser(newMockBlesserService(browspr.rt.Principal()))
 	return browspr, func() {
 		browspr.Shutdown()

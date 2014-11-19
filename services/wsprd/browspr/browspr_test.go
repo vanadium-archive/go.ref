@@ -168,7 +168,7 @@ func TestBrowspr(t *testing.T) {
 		receivedResponse <- true
 	}
 
-	browspr := NewBrowspr(postMessageHandler, spec, "/mock/identd", []string{tcpNamespaceRoot}, options.RuntimePrincipal{r.Principal()})
+	browspr := NewBrowspr(postMessageHandler, nil, spec, "/mock/identd", []string{tcpNamespaceRoot}, options.RuntimePrincipal{r.Principal()})
 
 	// browspr sets its namespace root to use the "ws" protocol, but we want to force "tcp" here.
 	browspr.namespaceRoots = []string{tcpNamespaceRoot}
