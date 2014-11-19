@@ -521,7 +521,7 @@ func (c *Controller) removeServer(serverId uint64) {
 }
 
 func (c *Controller) serve(serveRequest serveRequest, w lib.ClientWriter) {
-	// Create a server for the websocket pipe, if it does not exist already
+	// Create a server for the websocket pipe, if it does not exist already.
 	server, err := c.maybeCreateServer(serveRequest.ServerId)
 	if err != nil {
 		w.Error(verror2.Convert(verror2.Internal, nil, err))
@@ -529,20 +529,19 @@ func (c *Controller) serve(serveRequest serveRequest, w lib.ClientWriter) {
 
 	c.logger.VI(2).Infof("serving under name: %q", serveRequest.Name)
 
-	endpoint, err := server.Serve(serveRequest.Name)
-	if err != nil {
+	if err := server.Serve(serveRequest.Name); err != nil {
 		w.Error(verror2.Convert(verror2.Internal, nil, err))
 		return
 	}
-	// Send the endpoint back
-	if err := w.Send(lib.ResponseFinal, endpoint); err != nil {
+	// Send true to indicate the serve has succeeded.
+	if err := w.Send(lib.ResponseFinal, true); err != nil {
 		w.Error(verror2.Convert(verror2.Internal, nil, err))
 		return
 	}
 }
 
-// HandleServeRequest takes a request to serve a server, creates
-// a server, registers the provided services and sends the endpoint back.
+// HandleServeRequest takes a request to serve a server, creates a server,
+// registers the provided services and sends true if everything succeeded.
 func (c *Controller) HandleServeRequest(data string, w lib.ClientWriter) {
 	// Decode the serve request which includes IDL, registered services and name
 	var serveRequest serveRequest

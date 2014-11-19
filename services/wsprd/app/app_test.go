@@ -407,13 +407,6 @@ func TestJavascriptServeServer(t *testing.T) {
 		t.Errorf("unknown stream message Got: %v, expected: serve response", resp)
 		return
 	}
-
-	if msg, ok := resp.Message.(string); ok {
-		if _, err := r.NewEndpoint(msg); err == nil {
-			return
-		}
-	}
-	t.Errorf("invalid endpdoint returned from serve: %v", resp.Message)
 }
 
 func TestJavascriptStopServer(t *testing.T) {
@@ -474,7 +467,7 @@ type jsServerTestCase struct {
 
 func sendServerStream(t *testing.T, controller *Controller, test *jsServerTestCase, w lib.ClientWriter, expectedFlow int64) {
 	for _, msg := range test.serverStream {
-		controller.SendOnStream(4, msg, w)
+		controller.SendOnStream(expectedFlow, msg, w)
 	}
 
 	serverReply := map[string]interface{}{
@@ -489,9 +482,8 @@ func sendServerStream(t *testing.T, controller *Controller, test *jsServerTestCa
 	controller.HandleServerResponse(expectedFlow, string(bytes))
 }
 
-// Replaces the "remoteEndpoint" in security context of the message
-// passed in with a constant string "remoteEndpoint" since there is
-// no way to get the endpoint of the client.
+// Replaces "localEndpoint" and "remoteEndpoint" in security context of the
+// message passed in with constant strings "localEndpoint" and "remoteEndpoint".
 func cleanUpAuthRequest(message *testwriter.Response, t *testing.T) {
 	// We should make sure that remoteEndpoint exists in the last message and
 	// change it to a fixed string.
@@ -500,10 +492,14 @@ func cleanUpAuthRequest(message *testwriter.Response, t *testing.T) {
 		return
 	}
 	context := message.Message.(map[string]interface{})["context"].(map[string]interface{})
-	if context["remoteEndpoint"] == nil || context["remoteEndpoint"] == "" {
-		t.Errorf("Unexpected auth message %v", message)
+
+	keysToReplace := []string{"localEndpoint", "remoteEndpoint"}
+	for _, key := range keysToReplace {
+		if context[key] == nil || context[key] == "" {
+			t.Errorf("Unexpected auth message %v", message)
+		}
+		context[key] = key
 	}
-	context["remoteEndpoint"] = "remoteEndpoint"
 }
 
 func runJsServerTestCase(t *testing.T, test jsServerTestCase) {
@@ -511,6 +507,8 @@ func runJsServerTestCase(t *testing.T, test jsServerTestCase) {
 	defer rt.mounttableServer.Stop()
 	defer rt.proxyServer.Shutdown()
 	defer rt.controller.Cleanup()
+
+	expectedFlowCount := int64(0)
 
 	if err != nil {
 		t.Errorf("could not serve server %v", err)
@@ -528,15 +526,6 @@ func runJsServerTestCase(t *testing.T, test jsServerTestCase) {
 		return
 	}
 
-	msg, ok := resp.Message.(string)
-	if !ok {
-		t.Errorf("invalid endpdoint returned from serve: %v", resp.Message)
-	}
-	endpoint, err := r.NewEndpoint(msg)
-	if err != nil {
-		t.Errorf("invalid endpdoint returned from serve: %v", resp.Message)
-	}
-
 	rt.writer.Stream = nil
 
 	// Create a client using app's runtime so it points to the right mounttable.
@@ -546,52 +535,19 @@ func runJsServerTestCase(t *testing.T, test jsServerTestCase) {
 		t.Errorf("unable to create client: %v", err)
 	}
 
-	expectedWebsocketMessage := []testwriter.Response{
-		testwriter.Response{
-			Type: lib.ResponseDispatcherLookup,
-			Message: map[string]interface{}{
-				"serverId": 0.0,
-				"suffix":   "adder",
-			},
-		},
-	}
-
-	// We have to have a go routine handle the resolveStep call because StartCall blocks until the
-	// resolve step is complete.
-	go func() {
-		// Wait until ResolveStep lookup has been called.
-		if err := rt.writer.WaitForMessage(len(expectedWebsocketMessage)); err != nil {
-			t.Errorf("didn't receive expected message: %v", err)
-		}
-
-		// Handle the ResolveStep
-		dispatcherResponse := map[string]interface{}{
-			"Err": map[string]interface{}{
-				"id":      "veyron2/verror.NotFound",
-				"message": "ResolveStep not found",
-			},
-		}
-		bytes, err := json.Marshal(dispatcherResponse)
-		if err != nil {
-			t.Errorf("failed to serailize the response: %v", err)
-			return
-		}
-		rt.controller.HandleLookupResponse(0, string(bytes))
-	}()
-
-	call, err := client.StartCall(rt.controller.rt.NewContext(), "/"+msg+"/adder", test.method, test.inArgs)
+	call, err := client.StartCall(rt.controller.rt.NewContext(), "adder/adder", test.method, test.inArgs)
 	if err != nil {
 		t.Errorf("failed to start call: %v", err)
 	}
 
 	// This is lookup call for dispatcher.
-	expectedWebsocketMessage = append(expectedWebsocketMessage, testwriter.Response{
+	expectedWebsocketMessage := []testwriter.Response{testwriter.Response{
 		Type: lib.ResponseDispatcherLookup,
 		Message: map[string]interface{}{
 			"serverId": 0.0,
 			"suffix":   "adder",
 		},
-	})
+	}}
 
 	if err := rt.writer.WaitForMessage(len(expectedWebsocketMessage)); err != nil {
 		t.Errorf("didn't receive expected message: %v", err)
@@ -608,7 +564,8 @@ func runJsServerTestCase(t *testing.T, test jsServerTestCase) {
 		t.Errorf("failed to serailize the response: %v", err)
 		return
 	}
-	rt.controller.HandleLookupResponse(2, string(bytes))
+	rt.controller.HandleLookupResponse(expectedFlowCount, string(bytes))
+	expectedFlowCount += 2
 
 	blessings := rt.controller.rt.Principal().BlessingStore().Default()
 	k := blessings.PublicKey()
@@ -624,7 +581,6 @@ func runJsServerTestCase(t *testing.T, test jsServerTestCase) {
 	// The expectedBlessingsHandle for the javascript Blessings.  Since we don't always call the authorizer
 	// this handle could be different by the time we make the start rpc call.
 	expectedBlessingsHandle := 1.0
-	expectedFlowCount := int64(4)
 	if test.hasAuthorizer {
 		// TODO(toddw,bjornick): This is too fragile, clean it up.  In particular,
 		// it depends on the ordering of the authorizer calls for the rpc itself and
@@ -653,7 +609,7 @@ func runJsServerTestCase(t *testing.T, test jsServerTestCase) {
 						"PublicKey": publicKey,
 					},
 					"remoteBlessingStrings": []interface{}{testPrincipalBlessing},
-					"localEndpoint":         endpoint.String(),
+					"localEndpoint":         "localEndpoint",
 					"remoteEndpoint":        "remoteEndpoint",
 				},
 			},
@@ -672,7 +628,8 @@ func runJsServerTestCase(t *testing.T, test jsServerTestCase) {
 			t.Errorf("failed to serailize the response: %v", err)
 			return
 		}
-		rt.controller.HandleAuthResponse(4, string(bytes))
+		rt.controller.HandleAuthResponse(expectedFlowCount, string(bytes))
+		expectedFlowCount += 2
 
 		// If we expected an auth error, we should go ahead and finish this rpc to get back
 		// the auth error.
@@ -713,7 +670,7 @@ func runJsServerTestCase(t *testing.T, test jsServerTestCase) {
 						"PublicKey": publicKey,
 					},
 					"remoteBlessingStrings": []interface{}{testPrincipalBlessing},
-					"localEndpoint":         endpoint.String(),
+					"localEndpoint":         "localEndpoint",
 					"remoteEndpoint":        "remoteEndpoint",
 				},
 			},
@@ -731,10 +688,10 @@ func runJsServerTestCase(t *testing.T, test jsServerTestCase) {
 			t.Errorf("failed to serailize the response: %v", err)
 			return
 		}
-		rt.controller.HandleAuthResponse(6, string(bytes))
+		rt.controller.HandleAuthResponse(expectedFlowCount, string(bytes))
+		expectedFlowCount += 2
 
 		expectedBlessingsHandle += 4
-		expectedFlowCount += 4
 	}
 
 	// Now we expect the rpc to be invoked on the Javascript server.

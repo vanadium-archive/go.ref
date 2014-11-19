@@ -150,9 +150,16 @@ func wsNames(names []string) ([]string, error) {
 		if err != nil {
 			return nil, fmt.Errorf("runtime.NewEndpoint(%v) failed: %v", addr, err)
 		}
-
-		wsEp := tcpRegexp.ReplaceAllLiteralString(ep.String(), "@ws@")
-		wsName := naming.JoinAddressName(wsEp, suff)
+		// Replace only the first match.
+		first := true
+		wsEp := tcpRegexp.ReplaceAllFunc([]byte(ep.String()), func(s []byte) []byte {
+			if first {
+				first = false
+				return []byte("@ws@")
+			}
+			return s
+		})
+		wsName := naming.JoinAddressName(string(wsEp), suff)
 
 		outNames = append(outNames, wsName)
 	}

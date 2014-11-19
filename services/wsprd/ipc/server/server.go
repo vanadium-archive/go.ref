@@ -106,9 +106,8 @@ type Server struct {
 	// The saved dispatcher to reuse when serve is called multiple times.
 	dispatcher *dispatcher
 
-	// The endpoint of the server.  This is empty until the server has been
-	// started and listen has been called on it.
-	endpoint string
+	// Whether the server is listening.
+	isListening bool
 
 	// The server id.
 	id     uint64
@@ -290,7 +289,7 @@ func (s *Server) createRemoteAuthFunc(handle int64) remoteAuthFunc {
 	}
 }
 
-func (s *Server) Serve(name string) (string, error) {
+func (s *Server) Serve(name string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -298,20 +297,17 @@ func (s *Server) Serve(name string) (string, error) {
 		s.dispatcher = newDispatcher(s.id, s, s, s, s.helper.GetLogger())
 	}
 
-	if s.endpoint == "" {
-		ep, err := s.server.Listen(*s.listenSpec)
+	if !s.isListening {
+		_, err := s.server.Listen(*s.listenSpec)
 		if err != nil {
-			return "", err
+			return err
 		}
-		// TODO(nlacasse,bjornick): When listening through a proxy and with no
-		// address, 'ep' will be nil and the call to ep.String() panics.
-		s.endpoint = ep.String()
+		s.isListening = true
 	}
 	if err := s.server.ServeDispatcher(name, s.dispatcher); err != nil {
-		return "", err
+		return err
 	}
-	s.helper.GetLogger().VI(1).Infof("endpoint is %s", s.endpoint)
-	return s.endpoint, nil
+	return nil
 }
 
 func (s *Server) popServerRequest(id int64) chan *serverRPCReply {
