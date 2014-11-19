@@ -1,6 +1,8 @@
 package impl
 
 import (
+	"path/filepath"
+
 	"veyron.io/veyron/veyron/services/mgmt/repository"
 
 	"veyron.io/veyron/veyron/services/mgmt/lib/fs"
@@ -17,14 +19,14 @@ type dispatcher struct {
 
 var _ ipc.Dispatcher = (*dispatcher)(nil)
 
-// NewDispatcher is the dispatcher factory.
-func NewDispatcher(name string, authorizer security.Authorizer) (*dispatcher, error) {
-	// TODO(rjkroege@google.com): Use the config service.
-	store, err := fs.NewMemstore("")
+// NewDispatcher is the dispatcher factory. storeDir is a path to a
+// directory in which the profile state is persisted.
+func NewDispatcher(storeDir string, authorizer security.Authorizer) (*dispatcher, error) {
+	store, err := fs.NewMemstore(filepath.Join(storeDir, "profilestate.db"))
 	if err != nil {
 		return nil, err
 	}
-	return &dispatcher{store: store, storeRoot: name, auth: authorizer}, nil
+	return &dispatcher{store: store, storeRoot: storeDir, auth: authorizer}, nil
 }
 
 // DISPATCHER INTERFACE IMPLEMENTATION
