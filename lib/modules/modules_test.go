@@ -7,6 +7,7 @@ import (
 	"io"
 	"os"
 	"reflect"
+	"sort"
 	"strings"
 	"testing"
 	"time"
@@ -296,7 +297,8 @@ func TestSetEntryPoint(t *testing.T) {
 	if got, want := len(nenv), 3; got != want {
 		t.Errorf("got %d, want %d", got, want)
 	}
-	if got, want := nenv, []string{"a=a", "b=b", "VEYRON_SHELL_HELPER_PROCESS_ENTRY_POINT=eg2"}; !reflect.DeepEqual(got, want) {
+	sort.Strings(nenv)
+	if got, want := nenv, []string{"VEYRON_SHELL_HELPER_PROCESS_ENTRY_POINT=eg2", "a=a", "b=b"}; !reflect.DeepEqual(got, want) {
 		t.Errorf("got %d, want %d", got, want)
 	}
 }
