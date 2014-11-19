@@ -282,46 +282,75 @@ func (s *Session) ExpectSetRE(expected ...string) {
 	if s.Failed() {
 		return
 	}
+	if err := s.expectSetRE(len(expected), expected...); err != nil {
+		s.error(err)
+	}
+}
+
+// ExpectSetEventuallyRE is like ExpectSetRE except that it reads
+// all remaining output rather than just the next n lines and thus
+// can be used to look for a set of patterns that occur within that
+// output.
+func (s *Session) ExpectSetEventuallyRE(expected ...string) {
+	if s.Failed() {
+		return
+	}
+	if err := s.expectSetRE(-1, expected...); err != nil {
+		s.error(err)
+	}
+}
+
+// expectSetRE will look for the expected set of patterns in the next
+// numLines of output or in all remaining output.
+func (s *Session) expectSetRE(numLines int, expected ...string) error {
+
 	regexps := make([]*regexp.Regexp, len(expected))
 	for i, expRE := range expected {
 		re, err := regexp.Compile(expRE)
 		if err != nil {
-			s.error(err)
-			return
+			return err
 		}
 		regexps[i] = re
 	}
-	actual := make([]string, len(expected))
-	for i := 0; i < len(expected); i++ {
+	actual := []string{}
+	i := 0
+	for {
 		line, err := s.read(readLine)
 		line = strings.TrimRight(line, "\n")
 		s.log(err, "ExpectSetRE: %s", line)
 		if err != nil {
-			s.error(err)
-			return
+			if numLines >= 0 {
+				return err
+			}
+			break
 		}
-		actual[i] = line
+		actual = append(actual, line)
+		i++
+		if numLines > 0 && i >= numLines {
+			break
+		}
 	}
+
 	// Match each line against all regexp's and remove each regexp
 	// that matches.
 	for _, l := range actual {
-		found := false
 		for i, re := range regexps {
 			if re == nil {
 				continue
 			}
 			if re.MatchString(l) {
-				// We remove each RE that matches.
-				found = true
 				regexps[i] = nil
 				break
 			}
 		}
-		if !found {
-			s.error(fmt.Errorf("found no match for %q", l))
-			return
+	}
+	// It's an error if there are any unmatched regexps.
+	for _, re := range regexps {
+		if re != nil {
+			return fmt.Errorf("found no match for %q", re)
 		}
 	}
+	return nil
 }
 
 // ReadLine reads the next line, if any, from the input stream. It will set
