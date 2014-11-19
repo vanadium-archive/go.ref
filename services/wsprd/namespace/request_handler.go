@@ -15,16 +15,15 @@ import (
 	"veyron.io/wspr/veyron/services/wsprd/lib"
 )
 
-// request struct represents a request to call a method on the namespace client
+// request struct represents a request to call a method on the runtime's namespace client
 type request struct {
 	Method namespaceMethod
 	Args   json.RawMessage
-	Roots  []string
 }
 
 type namespaceMethod int
 
-// enumerates the methods available to be called on the namespace client
+// enumerates the methods available to be called on the runtime's namespace client
 const (
 	methodGlob            namespaceMethod = 0
 	methodMount                           = 1
@@ -34,6 +33,7 @@ const (
 	methodFlushCacheEntry                 = 5
 	methodDisableCache                    = 6
 	methodRoots                           = 7
+	methodSetRoots                        = 8
 )
 
 // globArgs defines the args for the glob method
@@ -75,6 +75,11 @@ type disableCacheArgs struct {
 	Disable bool
 }
 
+// setRootsArgs defines the args for the setRoots method
+type setRootsArgs struct {
+	Roots []string
+}
+
 // handleRequest uses the namespace client to respond to namespace specific requests such as glob
 func HandleRequest(ctx context.T, rt veyron2.Runtime, data string, w lib.ClientWriter) {
 	// Decode the request
@@ -84,11 +89,8 @@ func HandleRequest(ctx context.T, rt veyron2.Runtime, data string, w lib.ClientW
 		return
 	}
 
-	// Create a namespace and set roots if provided
+	// Get the runtime's Namespace client
 	var ns = rt.Namespace()
-	if len(req.Roots) > 0 {
-		ns.SetRoots(req.Roots...)
-	}
 
 	switch req.Method {
 	case methodGlob:
@@ -107,6 +109,8 @@ func HandleRequest(ctx context.T, rt veyron2.Runtime, data string, w lib.ClientW
 		disableCache(ctx, ns, w, req.Args)
 	case methodRoots:
 		roots(ctx, ns, w)
+	case methodSetRoots:
+		setRoots(ctx, ns, w, req.Args)
 	default:
 		w.Error(verror2.Make(verror2.NoExist, ctx, req.Method))
 	}
@@ -283,6 +287,23 @@ func roots(ctx context.T, ns naming.Namespace, w lib.ClientWriter) {
 	roots := ns.Roots()
 
 	if err := w.Send(lib.ResponseFinal, roots); err != nil {
+		w.Error(verror2.Make(verror2.Internal, ctx, "ResponseFinal"))
+	}
+}
+
+func setRoots(ctx context.T, ns naming.Namespace, w lib.ClientWriter, rawArgs json.RawMessage) {
+	var args setRootsArgs
+	if err := json.Unmarshal([]byte(rawArgs), &args); err != nil {
+		w.Error(verror2.Convert(verror2.Internal, ctx, err))
+		return
+	}
+
+	if err := ns.SetRoots(args.Roots...); err != nil {
+		w.Error(verror2.Convert(verror2.Internal, ctx, err))
+		return
+	}
+
+	if err := w.Send(lib.ResponseFinal, nil); err != nil {
 		w.Error(verror2.Make(verror2.Internal, ctx, "ResponseFinal"))
 	}
 }
