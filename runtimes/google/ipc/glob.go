@@ -82,7 +82,7 @@ func (r *reservedMethods) Signature(ctxOrig ipc.ServerContext) ([]ipc.InterfaceS
 	if disp == nil {
 		return nil, verror.NoExistf("ipc: no dispatcher for %q.%s", ctx.Suffix(), ctx.Method())
 	}
-	obj, auth, err := disp.Lookup(ctx.Suffix(), ctx.Method())
+	obj, auth, err := disp.Lookup(ctx.Suffix())
 	switch {
 	case err != nil:
 		return nil, err
@@ -117,7 +117,7 @@ func (r *reservedMethods) MethodSignature(ctxOrig ipc.ServerContext, method stri
 	if disp == nil {
 		return ipc.MethodSig{}, verror.NoExistf("ipc: no such method %q", ctx.Method())
 	}
-	obj, auth, err := disp.Lookup(ctx.Suffix(), ctx.Method())
+	obj, auth, err := disp.Lookup(ctx.Suffix())
 	switch {
 	case err != nil:
 		return ipc.MethodSig{}, err
@@ -181,6 +181,7 @@ func (i *globInternal) Glob(call *mutableCall, pattern string) error {
 		return err
 	}
 	disp := i.dispNormal
+	call.M.Method = ipc.GlobMethod
 	call.M.MethodTags = []interface{}{security.ResolveLabel}
 	if naming.IsReserved(i.receiver) || (i.receiver == "" && naming.IsReserved(pattern)) {
 		disp = i.dispReserved
@@ -199,7 +200,7 @@ func (i *globInternal) globStep(call *mutableCall, disp ipc.Dispatcher, name str
 		vlog.Error(err)
 		return err
 	}
-	obj, auth, err := disp.Lookup(call.Suffix(), ipc.GlobMethod)
+	obj, auth, err := disp.Lookup(call.Suffix())
 	switch {
 	case err != nil:
 		return err

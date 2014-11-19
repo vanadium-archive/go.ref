@@ -30,7 +30,7 @@ func NewDispatcher(logsDir string, authorizer security.Authorizer, store vtrace.
 // The first part of the names of the objects served by this dispatcher.
 var rootName = "__debug"
 
-func (d *dispatcher) Lookup(suffix, method string) (interface{}, security.Authorizer, error) {
+func (d *dispatcher) Lookup(suffix string) (interface{}, security.Authorizer, error) {
 	if suffix == "" {
 		return ipc.VChildrenGlobberInvoker(rootName), d.auth, nil
 	}
@@ -40,9 +40,6 @@ func (d *dispatcher) Lookup(suffix, method string) (interface{}, security.Author
 	suffix = strings.TrimPrefix(suffix, rootName)
 	suffix = strings.TrimLeft(suffix, "/")
 
-	if method == "Signature" {
-		return NewSignatureObject(suffix), d.auth, nil
-	}
 	if suffix == "" {
 		return ipc.VChildrenGlobberInvoker("logs", "pprof", "stats", "vtrace"), d.auth, nil
 	}

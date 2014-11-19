@@ -22,7 +22,7 @@ import (
 type statsDispatcher struct {
 }
 
-func (d *statsDispatcher) Lookup(suffix, method string) (interface{}, security.Authorizer, error) {
+func (d *statsDispatcher) Lookup(suffix string) (interface{}, security.Authorizer, error) {
 	return impl.NewStatsService(suffix, 100*time.Millisecond), nil, nil
 }
 

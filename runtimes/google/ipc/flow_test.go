@@ -60,7 +60,7 @@ type testDisp struct {
 	newInvoker func(suffix string) ipc.Invoker
 }
 
-func (td testDisp) Lookup(suffix, method string) (interface{}, security.Authorizer, error) {
+func (td testDisp) Lookup(suffix string) (interface{}, security.Authorizer, error) {
 	return td.newInvoker(suffix), testServerAuthorizer{}, nil
 }
 

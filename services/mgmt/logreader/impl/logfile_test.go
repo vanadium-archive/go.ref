@@ -46,7 +46,7 @@ type logFileDispatcher struct {
 	root string
 }
 
-func (d *logFileDispatcher) Lookup(suffix, _ string) (interface{}, security.Authorizer, error) {
+func (d *logFileDispatcher) Lookup(suffix string) (interface{}, security.Authorizer, error) {
 	return impl.NewLogFileService(d.root, suffix), nil, nil
 }
 

@@ -128,7 +128,7 @@ func (allowEveryoneAuthorizer) Authorize(security.Context) error { return nil }
 
 type dispatcher struct{}
 
-func (d *dispatcher) Lookup(suffix, method string) (interface{}, security.Authorizer, error) {
+func (d *dispatcher) Lookup(suffix string) (interface{}, security.Authorizer, error) {
 	return &testServer{suffix}, allowEveryoneAuthorizer{}, nil
 }
 

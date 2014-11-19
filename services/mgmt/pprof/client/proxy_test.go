@@ -19,7 +19,7 @@ type dispatcher struct {
 	server interface{}
 }
 
-func (d *dispatcher) Lookup(suffix, method string) (interface{}, security.Authorizer, error) {
+func (d *dispatcher) Lookup(suffix string) (interface{}, security.Authorizer, error) {
 	return d.server, nil, nil
 }
 

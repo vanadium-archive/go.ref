@@ -55,7 +55,7 @@ func (s *server) ResolveStepX(ipc.ServerContext) (entry naming.VDLMountEntry, er
 type dispatcher struct {
 }
 
-func (d *dispatcher) Lookup(suffix, method string) (interface{}, security.Authorizer, error) {
+func (d *dispatcher) Lookup(suffix string) (interface{}, security.Authorizer, error) {
 	return mounttable.MountTableServer(&server{suffix: suffix}), nil, nil
 }
 

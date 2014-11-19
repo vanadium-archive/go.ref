@@ -172,7 +172,7 @@ func (allowEveryoneAuthorizer) Authorize(security.Context) error { return nil }
 
 type dispatcher map[string]interface{}
 
-func (d dispatcher) Lookup(suffix, method string) (interface{}, security.Authorizer, error) {
+func (d dispatcher) Lookup(suffix string) (interface{}, security.Authorizer, error) {
 	if invoker := d[suffix]; invoker != nil {
 		return invoker, allowEveryoneAuthorizer{}, nil
 	}

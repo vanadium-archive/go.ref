@@ -837,7 +837,7 @@ func (fs *flowServer) lookup(suffix string, method *string) (ipc.Invoker, securi
 		disp = fs.server.dispReserved
 	}
 	if disp != nil {
-		obj, auth, err := disp.Lookup(suffix, *method)
+		obj, auth, err := disp.Lookup(suffix)
 		switch {
 		case err != nil:
 			return nil, nil, verror.Convert(err)
