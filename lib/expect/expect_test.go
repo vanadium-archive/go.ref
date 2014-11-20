@@ -102,8 +102,38 @@ func TestExpectSetRE(t *testing.T) {
 	buffer.WriteString("ooh\n")
 	buffer.WriteString("aah\n")
 	s.ExpectSetRE("bar=.*", "def")
-	if got, want := s.Error(), "expect_test.go:104: found no match for \"ooh\""; got == nil || got.Error() != want {
+	if got, want := s.Error(), "expect_test.go:104: found no match for \"bar=.*\""; got == nil || got.Error() != want {
 		t.Errorf("got %v, want %q", got, want)
+	}
+	s.ExpectEOF()
+}
+
+func TestExpectSetEventuallyRE(t *testing.T) {
+	buf := []byte{}
+	buffer := bytes.NewBuffer(buf)
+	buffer.WriteString("bar=baz\n")
+	buffer.WriteString("abc\n")
+	buffer.WriteString("def\n")
+	buffer.WriteString("abc\n")
+	s := expect.NewSession(nil, bufio.NewReader(buffer), time.Minute)
+	s.SetVerbosity(testing.Verbose())
+	s.ExpectSetEventuallyRE("^bar=.*$", "def")
+	if s.Error() != nil {
+		t.Errorf("unexpected error: %s", s.Error())
+	}
+	s.ExpectSetEventuallyRE("abc")
+	if got, want := s.Error(), "expect_test.go:124: found no match for \"abc\""; got == nil || got.Error() != want {
+		t.Errorf("got %q, want %q", got, want)
+	}
+	// Need to clear the EOF from the previous ExpectSetEventuallyRE call
+	buf = []byte{}
+	buffer = bytes.NewBuffer(buf)
+	s = expect.NewSession(nil, bufio.NewReader(buffer), time.Minute)
+	buffer.WriteString("ooh\n")
+	buffer.WriteString("aah\n")
+	s.ExpectSetEventuallyRE("zzz")
+	if got, want := s.Error(), "expect_test.go:134: found no match for \"zzz\""; got == nil || got.Error() != want {
+		t.Errorf("got %q, want %q", got, want)
 	}
 	s.ExpectEOF()
 }
