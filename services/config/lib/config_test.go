@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"io/ioutil"
+	"math/rand"
 	"os"
 	"testing"
 	"time"
@@ -99,14 +100,21 @@ func waitForConsistency(cs ConfigService, ref map[string]string) error {
 	return errors.New("timeout waiting for consistency: " + finalerr.Error())
 }
 
+func pickRandomPort() uint16 {
+	rand.Seed(time.Now().UnixNano())
+	return uint16(rand.Intn(1000)) + 5354
+}
+
 func testConfig(fileA, fileB, fileD string) error {
+	port := pickRandomPort()
+
 	// Write a config to fileA.
 	if err := ioutil.WriteFile(fileA, []byte(configFileA), 0644); err != nil {
 		return fmt.Errorf("writing initial %s: %s", fileA, err)
 	}
 
 	// Start a config service with a file and compare the parsed file to the reference.
-	csa, err := MDNSConfigService("foo", fileA, true)
+	csa, err := MDNSConfigService("foo", fileA, true, port)
 	if err != nil {
 		return fmt.Errorf("creating service %s", err)
 	}
@@ -116,14 +124,14 @@ func testConfig(fileA, fileB, fileD string) error {
 	}
 
 	// Create a second instance with a non existant file.
-	csb, err := MDNSConfigService("foo", fileB, true)
+	csb, err := MDNSConfigService("foo", fileB, true, port)
 	if err != nil {
 		return fmt.Errorf("creating service %s", err)
 	}
 	defer csb.Stop()
 
 	// Create a third passive instance with no file.
-	csc, err := MDNSConfigService("foo", "", true)
+	csc, err := MDNSConfigService("foo", "", true, port)
 	if err != nil {
 		return fmt.Errorf("creating service %s", err)
 	}
@@ -169,7 +177,7 @@ func testConfig(fileA, fileB, fileD string) error {
 	if err := ioutil.WriteFile(fileD, []byte(configFileA), 0644); err != nil {
 		return fmt.Errorf("writing initial %s: %s", fileD, err)
 	}
-	csd, err := MDNSConfigService("foo", fileD, true)
+	csd, err := MDNSConfigService("foo", fileD, true, port)
 	if err != nil {
 		return fmt.Errorf("creating service %s", err)
 	}
@@ -213,7 +221,7 @@ func TestConfigStream(t *testing.T) {
 	defer os.Remove(fileA)
 
 	// Start a cs service.
-	cs, err := MDNSConfigService("foo", fileA, true)
+	cs, err := MDNSConfigService("foo", fileA, true, pickRandomPort())
 	if err != nil {
 		t.Fatal("creating service %s", err)
 	}

@@ -46,12 +46,17 @@ type configService struct {
 // If file is non blank, the initial config is read from file and any learned configs are
 // stored in it.  Only instances with a file to backup will offer configs to the net.
 // All other instances are passive.
-func MDNSConfigService(name, file string, loopback bool) (ConfigService, error) {
+func MDNSConfigService(name, file string, loopback bool, port uint16) (ConfigService, error) {
 	x := filepath.Base(file)
 	if x == "." {
 		x = ""
 	}
-	mdns, err := mdns.NewMDNS(x, "", "", loopback, false)
+	var ipv4hp, ipv6hp string
+	if port != 0 {
+		ipv4hp = fmt.Sprintf("224.0.0.251:%d", port)
+		ipv6hp = fmt.Sprintf("[FF02::FB]:%d", port)
+	}
+	mdns, err := mdns.NewMDNS(x, ipv4hp, ipv6hp, loopback, false)
 	if err != nil {
 		vlog.Errorf("mdns startup failed: %s", err)
 		return nil, err
