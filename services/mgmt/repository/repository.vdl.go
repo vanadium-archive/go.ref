@@ -254,10 +254,10 @@ func (s implApplicationServerStub) Signature(ctx __ipc.ServerContext) (__ipc.Ser
 	result.Methods["Put"] = __ipc.MethodSignature{
 		InArgs: []__ipc.MethodArgument{
 			{Name: "Profiles", Type: 61},
-			{Name: "Envelope", Type: 65},
+			{Name: "Envelope", Type: 66},
 		},
 		OutArgs: []__ipc.MethodArgument{
-			{Name: "", Type: 66},
+			{Name: "", Type: 67},
 		},
 	}
 	result.Methods["Remove"] = __ipc.MethodSignature{
@@ -265,17 +265,18 @@ func (s implApplicationServerStub) Signature(ctx __ipc.ServerContext) (__ipc.Ser
 			{Name: "Profile", Type: 3},
 		},
 		OutArgs: []__ipc.MethodArgument{
-			{Name: "", Type: 66},
+			{Name: "", Type: 67},
 		},
 	}
 
 	result.TypeDefs = []__vdlutil.Any{
-		__wiretype.StructType{
+		__wiretype.MapType{Key: 0x3, Elem: 0x3, Name: "", Tags: []string(nil)}, __wiretype.StructType{
 			[]__wiretype.FieldType{
 				__wiretype.FieldType{Type: 0x3, Name: "Title"},
 				__wiretype.FieldType{Type: 0x3d, Name: "Args"},
 				__wiretype.FieldType{Type: 0x3, Name: "Binary"},
 				__wiretype.FieldType{Type: 0x3d, Name: "Env"},
+				__wiretype.FieldType{Type: 0x41, Name: "Packages"},
 			},
 			"veyron.io/veyron/veyron2/services/mgmt/application.Envelope", []string(nil)},
 		__wiretype.NamedPrimitiveType{Type: 0x1, Name: "error", Tags: []string(nil)}}

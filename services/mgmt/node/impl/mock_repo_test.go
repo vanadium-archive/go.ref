@@ -80,7 +80,7 @@ func startBinaryRepository() func() {
 
 // BINARY REPOSITORY INTERFACE IMPLEMENTATION
 
-func (*brInvoker) Create(ipc.ServerContext, int32) error {
+func (*brInvoker) Create(ipc.ServerContext, int32, string) error {
 	vlog.VI(1).Infof("Create()")
 	return nil
 }
@@ -125,16 +125,16 @@ func (*brInvoker) DownloadURL(ipc.ServerContext) (string, int64, error) {
 	return "", 0, nil
 }
 
-func (*brInvoker) Stat(ipc.ServerContext) ([]binary.PartInfo, error) {
+func (*brInvoker) Stat(ipc.ServerContext) ([]binary.PartInfo, string, error) {
 	vlog.VI(1).Infof("Stat()")
 	h := md5.New()
 	bytes, err := ioutil.ReadFile(os.Args[0])
 	if err != nil {
-		return []binary.PartInfo{}, errOperationFailed
+		return []binary.PartInfo{}, "", errOperationFailed
 	}
 	h.Write(bytes)
 	part := binary.PartInfo{Checksum: hex.EncodeToString(h.Sum(nil)), Size: int64(len(bytes))}
-	return []binary.PartInfo{part}, nil
+	return []binary.PartInfo{part}, "application/octet-stream", nil
 }
 
 func (i *brInvoker) Upload(repository.BinaryUploadContext, int32) error {

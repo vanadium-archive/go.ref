@@ -162,13 +162,13 @@ func TestHierarchy(t *testing.T) {
 		size := testutil.Rand.Intn(1000 * bufferLength)
 		data := testutil.RandomBytes(size)
 		// Test the binary repository interface.
-		if err := binary.Create(rt.R().NewContext(), 1); err != nil {
+		if err := binary.Create(rt.R().NewContext(), 1, "applicaton/octet-stream"); err != nil {
 			t.Fatalf("Create() failed: %v", err)
 		}
 		if streamErr, err := invokeUpload(t, binary, data, 0); streamErr != nil || err != nil {
 			t.FailNow()
 		}
-		parts, err := binary.Stat(rt.R().NewContext())
+		parts, _, err := binary.Stat(rt.R().NewContext())
 		if err != nil {
 			t.Fatalf("Stat() failed: %v", err)
 		}
@@ -215,7 +215,7 @@ func TestMultiPart(t *testing.T) {
 			data[i] = testutil.RandomBytes(size)
 		}
 		// Test the binary repository interface.
-		if err := binary.Create(rt.R().NewContext(), int32(length)); err != nil {
+		if err := binary.Create(rt.R().NewContext(), int32(length), "applicaton/octet-stream"); err != nil {
 			t.Fatalf("Create() failed: %v", err)
 		}
 		for i := 0; i < length; i++ {
@@ -223,7 +223,7 @@ func TestMultiPart(t *testing.T) {
 				t.FailNow()
 			}
 		}
-		parts, err := binary.Stat(rt.R().NewContext())
+		parts, _, err := binary.Stat(rt.R().NewContext())
 		if err != nil {
 			t.Fatalf("Stat() failed: %v", err)
 		}
@@ -264,13 +264,13 @@ func TestResumption(t *testing.T) {
 			size := testutil.Rand.Intn(1000 * bufferLength)
 			data[i] = testutil.RandomBytes(size)
 		}
-		if err := binary.Create(rt.R().NewContext(), int32(length)); err != nil {
+		if err := binary.Create(rt.R().NewContext(), int32(length), "applicaton/octet-stream"); err != nil {
 			t.Fatalf("Create() failed: %v", err)
 		}
 		// Simulate a flaky upload client that keeps uploading parts until
 		// finished.
 		for {
-			parts, err := binary.Stat(rt.R().NewContext())
+			parts, _, err := binary.Stat(rt.R().NewContext())
 			if err != nil {
 				t.Fatalf("Stat() failed: %v", err)
 			}
@@ -309,10 +309,10 @@ func TestErrors(t *testing.T) {
 			data[i][j] = byte(testutil.Rand.Int())
 		}
 	}
-	if err := binary.Create(rt.R().NewContext(), int32(length)); err != nil {
+	if err := binary.Create(rt.R().NewContext(), int32(length), "applicaton/octet-stream"); err != nil {
 		t.Fatalf("Create() failed: %v", err)
 	}
-	if err := binary.Create(rt.R().NewContext(), int32(length)); err == nil {
+	if err := binary.Create(rt.R().NewContext(), int32(length), "applicaton/octet-stream"); err == nil {
 		t.Fatalf("Create() did not fail when it should have")
 	} else if want := verror.Exists; !verror.Is(err, want) {
 		t.Fatalf("Unexpected error: %v, expected error id %v", err, want)
@@ -372,7 +372,7 @@ func TestGlob(t *testing.T) {
 		name := naming.JoinAddressName(ep, obj)
 		binary := repository.BinaryClient(name)
 
-		if err := binary.Create(rt.R().NewContext(), 1); err != nil {
+		if err := binary.Create(rt.R().NewContext(), 1, "applicaton/octet-stream"); err != nil {
 			t.Fatalf("Create() failed: %v", err)
 		}
 		if streamErr, err := invokeUpload(t, binary, data, 0); streamErr != nil || err != nil {

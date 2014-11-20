@@ -27,7 +27,7 @@ func TestHTTP(t *testing.T) {
 			size := testutil.Rand.Intn(1000*bufferLength) + 1
 			data[i] = testutil.RandomBytes(size)
 		}
-		if err := binary.Create(rt.R().NewContext(), int32(length)); err != nil {
+		if err := binary.Create(rt.R().NewContext(), int32(length), "application/octet-stream"); err != nil {
 			t.Fatalf("Create() failed: %v", err)
 		}
 		for i := 0; i < length; i++ {
@@ -35,7 +35,7 @@ func TestHTTP(t *testing.T) {
 				t.FailNow()
 			}
 		}
-		parts, err := binary.Stat(rt.R().NewContext())
+		parts, _, err := binary.Stat(rt.R().NewContext())
 		if err != nil {
 			t.Fatalf("Stat() failed: %v", err)
 		}

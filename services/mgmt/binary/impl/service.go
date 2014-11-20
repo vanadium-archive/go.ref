@@ -75,8 +75,8 @@ func newBinaryService(state *state, suffix string) *binaryService {
 
 const bufferLength = 4096
 
-func (i *binaryService) Create(_ ipc.ServerContext, nparts int32) error {
-	vlog.Infof("%v.Create(%v)", i.suffix, nparts)
+func (i *binaryService) Create(_ ipc.ServerContext, nparts int32, mediaType string) error {
+	vlog.Infof("%v.Create(%v, %v)", i.suffix, nparts, mediaType)
 	if nparts < 1 {
 		return errInvalidParts
 	}
@@ -199,12 +199,12 @@ func (i *binaryService) DownloadURL(ipc.ServerContext) (string, int64, error) {
 	return "", 0, nil
 }
 
-func (i *binaryService) Stat(ipc.ServerContext) ([]binary.PartInfo, error) {
+func (i *binaryService) Stat(ipc.ServerContext) ([]binary.PartInfo, string, error) {
 	vlog.Infof("%v.Stat()", i.suffix)
 	result := make([]binary.PartInfo, 0)
 	parts, err := getParts(i.path)
 	if err != nil {
-		return []binary.PartInfo{}, err
+		return []binary.PartInfo{}, "", err
 	}
 	for _, part := range parts {
 		checksumFile := filepath.Join(part, checksum)
@@ -215,7 +215,7 @@ func (i *binaryService) Stat(ipc.ServerContext) ([]binary.PartInfo, error) {
 				continue
 			}
 			vlog.Errorf("ReadFile(%v) failed: %v", checksumFile, err)
-			return []binary.PartInfo{}, errOperationFailed
+			return []binary.PartInfo{}, "", errOperationFailed
 		}
 		dataFile := filepath.Join(part, data)
 		fi, err := os.Stat(dataFile)
@@ -225,11 +225,12 @@ func (i *binaryService) Stat(ipc.ServerContext) ([]binary.PartInfo, error) {
 				continue
 			}
 			vlog.Errorf("Stat(%v) failed: %v", dataFile, err)
-			return []binary.PartInfo{}, errOperationFailed
+			return []binary.PartInfo{}, "", errOperationFailed
 		}
 		result = append(result, binary.PartInfo{Checksum: string(bytes), Size: fi.Size()})
 	}
-	return result, nil
+	// TODO(rthellend): Store the actual media type.
+	return result, "application/octet-stream", nil
 }
 
 func (i *binaryService) Upload(context repository.BinaryUploadContext, part int32) error {

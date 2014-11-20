@@ -44,7 +44,8 @@ func Delete(name string) error {
 
 func download(ctx context.T, w io.WriteSeeker, von string) error {
 	client := repository.BinaryClient(von)
-	parts, err := client.Stat(ctx)
+	// TODO(rthellend): Use the media type.
+	parts, _, err := client.Stat(ctx)
 	if err != nil {
 		vlog.Errorf("Stat() failed: %v", err)
 		return err
@@ -174,7 +175,9 @@ func upload(ctx context.T, r io.ReadSeeker, von string) error {
 		return errOperationFailed
 	}
 	nparts := (size-1)/partSize + 1
-	if err := client.Create(ctx, int32(nparts)); err != nil {
+	// TODO(rthellend): Determine the actual media type.
+	mediaType := "application/octet-stream"
+	if err := client.Create(ctx, int32(nparts), mediaType); err != nil {
 		vlog.Errorf("Create() failed: %v", err)
 		return err
 	}
@@ -220,7 +223,7 @@ func upload(ctx context.T, r io.ReadSeeker, von string) error {
 			}
 			if err := sender.Close(); err != nil {
 				vlog.Errorf("Close() failed: %v", err)
-				parts, statErr := client.Stat(ctx)
+				parts, _, statErr := client.Stat(ctx)
 				if statErr != nil {
 					vlog.Errorf("Stat() failed: %v", statErr)
 					if deleteErr := client.Delete(ctx); err != nil {
@@ -235,7 +238,7 @@ func upload(ctx context.T, r io.ReadSeeker, von string) error {
 			}
 			if err := stream.Finish(); err != nil {
 				vlog.Errorf("Finish() failed: %v", err)
-				parts, statErr := client.Stat(ctx)
+				parts, _, statErr := client.Stat(ctx)
 				if statErr != nil {
 					vlog.Errorf("Stat() failed: %v", statErr)
 					if deleteErr := client.Delete(ctx); err != nil {
