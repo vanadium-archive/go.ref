@@ -6,13 +6,12 @@ import (
 	"fmt"
 	"sort"
 
+	"veyron.io/lib/cmdline"
 	"veyron.io/veyron/veyron2/rt"
 	"veyron.io/veyron/veyron2/security"
 	"veyron.io/veyron/veyron2/services/mgmt/node"
 	"veyron.io/veyron/veyron2/services/security/access"
 	"veyron.io/veyron/veyron2/verror"
-
-	"veyron.io/veyron/veyron/lib/cmdline"
 )
 
 var cmdGet = &cmdline.Command{

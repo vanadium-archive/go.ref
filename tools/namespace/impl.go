@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"time"
 
-	"veyron.io/veyron/veyron/lib/cmdline"
+	"veyron.io/lib/cmdline"
 	"veyron.io/veyron/veyron2/naming"
 	"veyron.io/veyron/veyron2/rt"
 	"veyron.io/veyron/veyron2/vlog"

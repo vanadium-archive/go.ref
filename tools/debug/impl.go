@@ -12,12 +12,11 @@ import (
 	"sync"
 	"time"
 
-	"veyron.io/veyron/veyron/lib/cmdline"
+	"veyron.io/lib/cmdline"
 	"veyron.io/veyron/veyron/lib/glob"
 	"veyron.io/veyron/veyron/lib/signals"
 	"veyron.io/veyron/veyron/services/mgmt/pprof/client"
 	istats "veyron.io/veyron/veyron/services/mgmt/stats"
-
 	"veyron.io/veyron/veyron2/context"
 	"veyron.io/veyron/veyron2/naming"
 	"veyron.io/veyron/veyron2/rt"

@@ -5,10 +5,9 @@ package main
 import (
 	"fmt"
 
+	"veyron.io/lib/cmdline"
 	"veyron.io/veyron/veyron2/rt"
 	"veyron.io/veyron/veyron2/services/mgmt/node"
-
-	"veyron.io/veyron/veyron/lib/cmdline"
 )
 
 var cmdStop = &cmdline.Command{

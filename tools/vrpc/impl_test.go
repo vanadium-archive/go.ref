@@ -6,15 +6,14 @@ import (
 	"strings"
 	"testing"
 
+	"veyron.io/lib/cmdline"
+	"veyron.io/veyron/veyron/profiles"
+	"veyron.io/veyron/veyron/tools/vrpc/test_base"
 	"veyron.io/veyron/veyron2"
 	"veyron.io/veyron/veyron2/ipc"
 	"veyron.io/veyron/veyron2/naming"
 	"veyron.io/veyron/veyron2/rt"
 	"veyron.io/veyron/veyron2/vlog"
-
-	"veyron.io/veyron/veyron/lib/cmdline"
-	"veyron.io/veyron/veyron/profiles"
-	"veyron.io/veyron/veyron/tools/vrpc/test_base"
 )
 
 type server struct{}

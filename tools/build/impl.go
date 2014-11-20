@@ -10,8 +10,7 @@ import (
 	"strings"
 	"time"
 
-	"veyron.io/veyron/veyron/lib/cmdline"
-
+	"veyron.io/lib/cmdline"
 	"veyron.io/veyron/veyron2/context"
 	"veyron.io/veyron/veyron2/rt"
 	vbuild "veyron.io/veyron/veyron2/services/mgmt/build"
