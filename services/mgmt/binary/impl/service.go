@@ -5,8 +5,9 @@
 // local filesystem: /<root>/<dir_1>/.../<dir_n>/<hash>. The root and
 // the directory depth are parameters of the implementation. The
 // contents of the directory include the checksum and data for each of
-// the individual parts of the binary:
+// the individual parts of the binary, and the name of the object:
 //
+// name
 // <part_1>/checksum
 // <part_1>/data
 // ...
@@ -25,6 +26,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"strings"
 	"syscall"
 
 	"veyron.io/veyron/veyron2/ipc"
@@ -87,6 +89,11 @@ func (i *binaryService) Create(_ ipc.ServerContext, nparts int32) error {
 	tmpDir, err := ioutil.TempDir(parent, prefix)
 	if err != nil {
 		vlog.Errorf("TempDir(%v, %v) failed: %v", parent, prefix, err)
+		return errOperationFailed
+	}
+	nameFile := filepath.Join(tmpDir, "name")
+	if err := ioutil.WriteFile(nameFile, []byte(i.suffix), os.FileMode(0600)); err != nil {
+		vlog.Errorf("WriteFile(%q) failed: %v", nameFile)
 		return errOperationFailed
 	}
 	for j := 0; j < int(nparts); j++ {
@@ -294,4 +301,22 @@ func (i *binaryService) Upload(context repository.BinaryUploadContext, part int3
 		return errOperationFailed
 	}
 	return nil
+}
+
+func (i *binaryService) VGlobChildren() ([]string, error) {
+	elems := strings.Split(i.suffix, "/")
+	if len(elems) == 1 && elems[0] == "" {
+		elems = nil
+	}
+	n := i.createObjectNameTree().find(elems, false)
+	if n == nil {
+		return nil, errOperationFailed
+	}
+	results := make([]string, len(n.children))
+	index := 0
+	for k, _ := range n.children {
+		results[index] = k
+		index++
+	}
+	return results, nil
 }

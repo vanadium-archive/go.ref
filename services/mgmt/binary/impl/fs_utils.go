@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 
 	"veyron.io/veyron/veyron2/vlog"
 )
@@ -58,7 +59,13 @@ func getParts(path string) ([]string, error) {
 		vlog.Errorf("ReadDir(%v) failed: %v", path, err)
 		return []string{}, errOperationFailed
 	}
-	result := make([]string, len(infos))
+	nDirs := 0
+	for _, info := range infos {
+		if info.IsDir() {
+			nDirs++
+		}
+	}
+	result := make([]string, nDirs)
 	for _, info := range infos {
 		if info.IsDir() {
 			partName := info.Name()
@@ -72,9 +79,65 @@ func getParts(path string) ([]string, error) {
 			}
 			result[idx] = filepath.Join(path, partName)
 		} else {
+			if info.Name() == "name" {
+				continue
+			}
 			// The only entries should correspond to the part dirs.
 			return []string{}, errOperationFailed
 		}
 	}
 	return result, nil
+}
+
+// createObjectNameTree returns a tree of all the valid object names in the
+// repository.
+func (i *binaryService) createObjectNameTree() *treeNode {
+	pattern := i.state.root
+	for d := 0; d < i.state.depth; d++ {
+		pattern = filepath.Join(pattern, "*")
+	}
+	pattern = filepath.Join(pattern, "*", "name")
+	matches, err := filepath.Glob(pattern)
+	if err != nil {
+		return nil
+	}
+	tree := newTreeNode()
+	for _, m := range matches {
+		name, err := ioutil.ReadFile(m)
+		if err != nil {
+			continue
+		}
+		elems := strings.Split(string(name), string(filepath.Separator))
+		tree.find(elems, true)
+	}
+	return tree
+}
+
+type treeNode struct {
+	children map[string]*treeNode
+}
+
+func newTreeNode() *treeNode {
+	return &treeNode{children: make(map[string]*treeNode)}
+}
+
+func (n *treeNode) find(names []string, create bool) *treeNode {
+	for {
+		if len(names) == 0 {
+			return n
+		}
+		if next, ok := n.children[names[0]]; ok {
+			n = next
+			names = names[1:]
+			continue
+		}
+		if create {
+			nn := newTreeNode()
+			n.children[names[0]] = nn
+			n = nn
+			names = names[1:]
+			continue
+		}
+		return nil
+	}
 }
