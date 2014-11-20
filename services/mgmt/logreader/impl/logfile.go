@@ -12,6 +12,7 @@ import (
 	"strings"
 
 	"veyron.io/veyron/veyron2/ipc"
+	"veyron.io/veyron/veyron2/services/mgmt/logreader"
 	"veyron.io/veyron/veyron2/services/mgmt/logreader/types"
 	"veyron.io/veyron/veyron2/verror"
 	"veyron.io/veyron/veyron2/vlog"
@@ -26,7 +27,7 @@ var (
 
 // NewLogFileService returns a new log file server.
 func NewLogFileService(root, suffix string) interface{} {
-	return &logfileService{filepath.Clean(root), suffix}
+	return logreader.LogFileServer(&logfileService{filepath.Clean(root), suffix})
 }
 
 // translateNameToFilename returns the file name that corresponds to the object
@@ -53,7 +54,7 @@ type logfileService struct {
 }
 
 // Size returns the size of the log file, in bytes.
-func (i *logfileService) Size(call ipc.ServerCall) (int64, error) {
+func (i *logfileService) Size(ipc.ServerContext) (int64, error) {
 	vlog.VI(1).Infof("%v.Size()", i.suffix)
 	fname, err := translateNameToFilename(i.root, i.suffix)
 	if err != nil {
@@ -74,7 +75,7 @@ func (i *logfileService) Size(call ipc.ServerCall) (int64, error) {
 }
 
 // ReadLog returns log entries from the log file.
-func (i *logfileService) ReadLog(call ipc.ServerCall, startpos int64, numEntries int32, follow bool) (int64, error) {
+func (i *logfileService) ReadLog(ctx logreader.LogFileReadLogContext, startpos int64, numEntries int32, follow bool) (int64, error) {
 	vlog.VI(1).Infof("%v.ReadLog(%v, %v, %v)", i.suffix, startpos, numEntries, follow)
 	fname, err := translateNameToFilename(i.root, i.suffix)
 	if err != nil {
@@ -87,7 +88,7 @@ func (i *logfileService) ReadLog(call ipc.ServerCall, startpos int64, numEntries
 		}
 		return 0, errOperationFailed
 	}
-	reader := newFollowReader(call, f, startpos, follow)
+	reader := newFollowReader(ctx, f, startpos, follow)
 	if numEntries == types.AllEntries {
 		numEntries = int32(math.MaxInt32)
 	}
@@ -102,7 +103,7 @@ func (i *logfileService) ReadLog(call ipc.ServerCall, startpos int64, numEntries
 		if err != nil {
 			return reader.tell(), errOperationFailed
 		}
-		if err := call.Send(types.LogEntry{Position: offset, Line: line}); err != nil {
+		if err := ctx.SendStream().Send(types.LogEntry{Position: offset, Line: line}); err != nil {
 			return reader.tell(), err
 		}
 	}

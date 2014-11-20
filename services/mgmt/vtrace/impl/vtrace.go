@@ -2,6 +2,7 @@ package impl
 
 import (
 	"veyron.io/veyron/veyron2/ipc"
+	svtrace "veyron.io/veyron/veyron2/services/mgmt/vtrace"
 	"veyron.io/veyron/veyron2/uniqueid"
 	"veyron.io/veyron/veyron2/verror2"
 	"veyron.io/veyron/veyron2/vtrace"
@@ -19,13 +20,12 @@ func (v *vtraceService) Trace(ctx ipc.ServerContext, id uniqueid.ID) (vtrace.Tra
 	return *tr, nil
 }
 
-// TODO(toddw): Change ipc.ServerCall into a struct stub context.
-func (v *vtraceService) AllTraces(call ipc.ServerCall) error {
+func (v *vtraceService) AllTraces(ctx svtrace.StoreAllTracesContext) error {
 	// TODO(mattr): Consider changing the store to allow us to iterate through traces
 	// when there are many.
 	traces := v.store.TraceRecords()
 	for i := range traces {
-		if err := call.Send(traces[i]); err != nil {
+		if err := ctx.SendStream().Send(traces[i]); err != nil {
 			return err
 		}
 	}
@@ -33,5 +33,5 @@ func (v *vtraceService) AllTraces(call ipc.ServerCall) error {
 }
 
 func NewVtraceService(store vtrace.Store) interface{} {
-	return &vtraceService{store}
+	return svtrace.StoreServer(&vtraceService{store})
 }

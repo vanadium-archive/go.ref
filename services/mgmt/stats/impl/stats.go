@@ -5,11 +5,13 @@ package impl
 import (
 	"time"
 
-	"veyron.io/veyron/veyron/lib/stats"
+	libstats "veyron.io/veyron/veyron/lib/stats"
 
 	"veyron.io/veyron/veyron2/ipc"
 	"veyron.io/veyron/veyron2/naming"
+	"veyron.io/veyron/veyron2/services/mgmt/stats"
 	"veyron.io/veyron/veyron2/services/mgmt/stats/types"
+	"veyron.io/veyron/veyron2/services/watch"
 	watchtypes "veyron.io/veyron/veyron2/services/watch/types"
 	"veyron.io/veyron/veyron2/vdl/vdlutil"
 	"veyron.io/veyron/veyron2/verror"
@@ -30,19 +32,19 @@ var (
 // NewStatsService returns a stats server implementation. The value of watchFreq
 // is used to specify the time between WatchGlob updates.
 func NewStatsService(suffix string, watchFreq time.Duration) interface{} {
-	return &statsService{suffix, watchFreq}
+	return stats.StatsServer(&statsService{suffix, watchFreq})
 }
 
 // Glob returns the name of all objects that match pattern.
-func (i *statsService) Glob(ctx *ipc.GlobContextStub, pattern string) error {
+func (i *statsService) Glob(ctx ipc.GlobContext, pattern string) error {
 	vlog.VI(1).Infof("%v.Glob(%q)", i.suffix, pattern)
 
-	it := stats.Glob(i.suffix, pattern, time.Time{}, false)
+	it := libstats.Glob(i.suffix, pattern, time.Time{}, false)
 	for it.Advance() {
 		ctx.SendStream().Send(naming.VDLMountEntry{Name: it.Value().Key})
 	}
 	if err := it.Err(); err != nil {
-		if err == stats.ErrNotFound {
+		if err == libstats.ErrNotFound {
 			return errNotFound
 		}
 		return errOperationFailed
@@ -52,7 +54,7 @@ func (i *statsService) Glob(ctx *ipc.GlobContextStub, pattern string) error {
 
 // WatchGlob returns the name and value of the objects that match the request,
 // followed by periodic updates when values change.
-func (i *statsService) WatchGlob(call ipc.ServerCall, req watchtypes.GlobRequest) error {
+func (i *statsService) WatchGlob(ctx watch.GlobWatcherWatchGlobContext, req watchtypes.GlobRequest) error {
 	vlog.VI(1).Infof("%v.WatchGlob(%+v)", i.suffix, req)
 
 	var t time.Time
@@ -60,7 +62,7 @@ Loop:
 	for {
 		prevTime := t
 		t = time.Now()
-		it := stats.Glob(i.suffix, req.Pattern, prevTime, true)
+		it := libstats.Glob(i.suffix, req.Pattern, prevTime, true)
 		changes := []watchtypes.Change{}
 		for it.Advance() {
 			v := it.Value()
@@ -72,18 +74,18 @@ Loop:
 			changes = append(changes, c)
 		}
 		if err := it.Err(); err != nil {
-			if err == stats.ErrNotFound {
+			if err == libstats.ErrNotFound {
 				return errNotFound
 			}
 			return errOperationFailed
 		}
 		for _, change := range changes {
-			if err := call.Send(change); err != nil {
+			if err := ctx.SendStream().Send(change); err != nil {
 				return err
 			}
 		}
 		select {
-		case <-call.Done():
+		case <-ctx.Done():
 			break Loop
 		case <-time.After(i.watchFreq):
 		}
@@ -95,11 +97,11 @@ Loop:
 func (i *statsService) Value(ctx ipc.ServerContext) (vdlutil.Any, error) {
 	vlog.VI(1).Infof("%v.Value()", i.suffix)
 
-	v, err := stats.Value(i.suffix)
+	v, err := libstats.Value(i.suffix)
 	switch err {
-	case stats.ErrNotFound:
+	case libstats.ErrNotFound:
 		return nil, errNotFound
-	case stats.ErrNoValue:
+	case libstats.ErrNoValue:
 		return nil, errNoValue
 	case nil:
 		return v, nil

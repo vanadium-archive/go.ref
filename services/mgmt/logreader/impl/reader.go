@@ -14,7 +14,7 @@ import (
 // - it aborts when the parent RPC is canceled.
 type followReader struct {
 	reader io.ReadSeeker
-	call   ipc.ServerCall
+	ctx    ipc.ServerContext
 	offset int64
 	follow bool
 	err    error
@@ -22,11 +22,11 @@ type followReader struct {
 }
 
 // newFollowReader is the factory for followReader.
-func newFollowReader(call ipc.ServerCall, reader io.ReadSeeker, startpos int64, follow bool) *followReader {
+func newFollowReader(ctx ipc.ServerContext, reader io.ReadSeeker, startpos int64, follow bool) *followReader {
 	_, err := reader.Seek(startpos, 0)
 	return &followReader{
 		reader: reader,
-		call:   call,
+		ctx:    ctx,
 		offset: startpos,
 		follow: follow,
 		err:    err,
@@ -43,9 +43,9 @@ func (f *followReader) read(b []byte) (int, error) {
 		return 0, f.err
 	}
 	for {
-		if f.call != nil {
+		if f.ctx != nil {
 			select {
-			case <-f.call.Done():
+			case <-f.ctx.Done():
 				return 0, errCanceled
 			default:
 			}
