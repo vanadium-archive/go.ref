@@ -118,28 +118,6 @@ func SaveACL(w io.Writer, acl security.ACL) error {
 	return json.NewEncoder(w).Encode(acl)
 }
 
-// CaveatValidators returns the set of security.CaveatValidators
-// obtained by decoding the provided caveat bytes.
-//
-// It is an error if any of the provided caveat bytes cannot
-// be decoded into a security.CaveatValidator.
-// TODO(suharshs,ashankar,ataly): Rather than quitting on non-decodable caveats, just skip
-// them and return on caveats that we can decode.
-func CaveatValidators(caveats ...security.Caveat) ([]security.CaveatValidator, error) {
-	if len(caveats) == 0 {
-		return nil, nil
-	}
-	validators := make([]security.CaveatValidator, len(caveats))
-	for i, c := range caveats {
-		var v security.CaveatValidator
-		if err := vom.NewDecoder(bytes.NewReader(c.ValidatorVOM)).Decode(&v); err != nil {
-			return nil, fmt.Errorf("caveat bytes could not be VOM-decoded: %s", err)
-		}
-		validators[i] = v
-	}
-	return validators, nil
-}
-
 // ThirdPartyCaveats returns the set of security.ThirdPartyCaveats
 // that could be successfully decoded from the provided caveat bytes.
 func ThirdPartyCaveats(caveats ...security.Caveat) []security.ThirdPartyCaveat {

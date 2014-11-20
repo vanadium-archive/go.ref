@@ -129,21 +129,13 @@ func newBlessingEntry(dbentry databaseEntry) BlessingEntry {
 	if err = vom.NewDecoder(bytes.NewBuffer(dbentry.caveats)).Decode(&b.Caveats); err != nil {
 		return BlessingEntry{DecodeError: fmt.Errorf("failed to decode caveats: %s", err)}
 	}
-	if b.RevocationCaveatID, err = revocationCaveatID(b.Caveats); err != nil {
-		return BlessingEntry{DecodeError: fmt.Errorf("error getting revocationCaveatID: %s", err)}
-	}
+	b.RevocationCaveatID = revocationCaveatID(b.Caveats)
 	return b
 }
 
-func revocationCaveatID(caveats []security.Caveat) (string, error) {
-	validators, err := vsecurity.CaveatValidators(caveats...)
-	if err != nil {
-		return "", err
+func revocationCaveatID(caveats []security.Caveat) string {
+	for _, tpcav := range vsecurity.ThirdPartyCaveats(caveats...) {
+		return tpcav.ID()
 	}
-	for _, cav := range validators {
-		if tpcav, ok := cav.(security.ThirdPartyCaveat); ok {
-			return tpcav.ID(), nil
-		}
-	}
-	return "", nil
+	return ""
 }
