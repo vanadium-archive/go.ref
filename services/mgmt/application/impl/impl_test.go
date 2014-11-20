@@ -2,6 +2,7 @@ package impl
 
 import (
 	"io/ioutil"
+	"os"
 	"reflect"
 	"testing"
 
@@ -17,21 +18,15 @@ import (
 // TestInterface tests that the implementation correctly implements
 // the Application interface.
 func TestInterface(t *testing.T) {
-	runtime := rt.Init()
-	ctx := runtime.NewContext()
-	defer runtime.Cleanup()
+	ctx := rt.R().NewContext()
 
 	// Setup and start the application repository server.
-	server, err := runtime.NewServer()
+	server, err := rt.R().NewServer()
 	if err != nil {
 		t.Fatalf("NewServer() failed: %v", err)
 	}
 	defer server.Stop()
 
-	server, err = runtime.NewServer()
-	if err != nil {
-		t.Fatalf("NewServer() failed: %v", err)
-	}
 	dir, prefix := "", ""
 	store, err := ioutil.TempDir(dir, prefix)
 	if err != nil {
@@ -154,5 +149,90 @@ func TestInterface(t *testing.T) {
 	// Shutdown the application repository server.
 	if err := server.Stop(); err != nil {
 		t.Fatalf("Stop() failed: %v", err)
+	}
+}
+
+func init() {
+	rt.Init()
+}
+
+func TestPreserveAcrossRestarts(t *testing.T) {
+	server, err := rt.R().NewServer()
+	if err != nil {
+		t.Fatalf("NewServer() failed: %v", err)
+	}
+	defer server.Stop()
+	dir, prefix := "", ""
+	storedir, err := ioutil.TempDir(dir, prefix)
+	if err != nil {
+		t.Fatalf("TempDir(%q, %q) failed: %v", dir, prefix, err)
+	}
+	defer os.RemoveAll(storedir)
+
+	dispatcher, err := NewDispatcher(storedir, nil)
+	if err != nil {
+		t.Fatalf("NewDispatcher() failed: %v", err)
+	}
+
+	endpoint, err := server.Listen(profiles.LocalListenSpec)
+	if err != nil {
+		t.Fatalf("Listen(%s) failed: %v", profiles.LocalListenSpec, err)
+	}
+	if err := server.ServeDispatcher("", dispatcher); err != nil {
+		t.Fatalf("Serve(%v) failed: %v", dispatcher, err)
+	}
+
+	// Create client stubs for talking to the server.
+	stubV1 := repository.ApplicationClient(naming.JoinAddressName(endpoint.String(), "search/v1"))
+
+	// Create example envelopes.
+	envelopeV1 := application.Envelope{
+		Args:   []string{"--help"},
+		Env:    []string{"DEBUG=1"},
+		Binary: "/veyron/name/of/binary",
+	}
+
+	if err := stubV1.Put(rt.R().NewContext(), []string{"media"}, envelopeV1); err != nil {
+		t.Fatalf("Put() failed: %v", err)
+	}
+
+	// There is content here now.
+	output, err := stubV1.Match(rt.R().NewContext(), []string{"media"})
+	if err != nil {
+		t.Fatalf("Match(%v) failed: %v", "media", err)
+	}
+	if !reflect.DeepEqual(envelopeV1, output) {
+		t.Fatalf("Incorrect output: expected %v, got %v", envelopeV1, output)
+	}
+
+	server.Stop()
+
+	// Setup and start a second application server in its place.
+	server, err = rt.R().NewServer()
+	if err != nil {
+		t.Fatalf("NewServer() failed: %v", err)
+	}
+	defer server.Stop()
+
+	dispatcher, err = NewDispatcher(storedir, nil)
+	if err != nil {
+		t.Fatalf("NewDispatcher() failed: %v", err)
+	}
+	endpoint, err = server.Listen(profiles.LocalListenSpec)
+	if err != nil {
+		t.Fatalf("Listen(%s) failed: %v", profiles.LocalListenSpec, err)
+	}
+	if err := server.ServeDispatcher("", dispatcher); err != nil {
+		t.Fatalf("Serve(%v) failed: %v", dispatcher, err)
+	}
+
+	stubV1 = repository.ApplicationClient(naming.JoinAddressName(endpoint.String(), "search/v1"))
+
+	output, err = stubV1.Match(rt.R().NewContext(), []string{"media"})
+	if err != nil {
+		t.Fatalf("Match(%v) failed: %v", "media", err)
+	}
+	if !reflect.DeepEqual(envelopeV1, output) {
+		t.Fatalf("Incorrect output: expected %v, got %v", envelopeV1, output)
 	}
 }
