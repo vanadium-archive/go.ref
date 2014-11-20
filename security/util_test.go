@@ -5,7 +5,6 @@ import (
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/rand"
-	"fmt"
 	"reflect"
 	"testing"
 
@@ -133,29 +132,14 @@ func TestCaveatUtil(t *testing.T) {
 		{C{newCaveat(tp)}, V{tp}, TP{tp}},
 		{C{newCaveat(fp), newCaveat(tp)}, V{fp, tp}, TP{tp}},
 	}
-	for i, d := range testdata {
-		// Test CaveatValidators.
-		got, err := CaveatValidators(d.caveats...)
-		if err != nil {
-			t.Errorf("CaveatValidators(%v) failed: %s", d.caveats, err)
-			continue
-		}
-		if !reflect.DeepEqual(got, d.validators) {
-			fmt.Println("TEST ", i)
-			t.Errorf("CaveatValidators(%v): got: %#v, want: %#v", d.caveats, got, d.validators)
-			continue
-		}
-		if _, err := CaveatValidators(append(d.caveats, invalid)...); err == nil {
-			t.Errorf("CaveatValidators(%v) succeeded unexpectedly", d.caveats)
-			continue
-		}
+	for _, d := range testdata {
 		// Test ThirdPartyCaveats.
 		if got := ThirdPartyCaveats(d.caveats...); !reflect.DeepEqual(got, d.tpCaveats) {
 			t.Errorf("ThirdPartyCaveats(%v): got: %#v, want: %#v", d.caveats, got, d.tpCaveats)
 			continue
 		}
 		if got := ThirdPartyCaveats(append(d.caveats, invalid)...); !reflect.DeepEqual(got, d.tpCaveats) {
-			t.Errorf("ThirdPartyCaveats(%v): got: %#v, want: %#v", d.caveats, got, d.tpCaveats)
+			t.Errorf("ThirdPartyCaveats(%v, invalid): got: %#v, want: %#v", d.caveats, got, d.tpCaveats)
 			continue
 		}
 	}
