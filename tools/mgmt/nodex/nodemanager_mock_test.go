@@ -42,19 +42,28 @@ type AddAssociationStimulus struct {
 	accountName   string
 }
 
-func (i *mockNodeInvoker) AssociateAccount(call ipc.ServerContext, identityNames []string, accountName string) error {
-	ri := i.tape.Record(AddAssociationStimulus{"AssociateAccount", identityNames, accountName})
+// simpleCore implements the core of all mock methods that take
+// arguments and return error.
+func (mni *mockNodeInvoker) simpleCore(callRecord interface{}, name string) error {
+	ri := mni.tape.Record(callRecord)
 	switch r := ri.(type) {
 	case nil:
 		return nil
 	case error:
 		return r
 	}
-	log.Fatalf("AssociateAccount (mock) response %v is of bad type", ri)
+	log.Fatalf("%s (mock) response %v is of bad type", name, ri)
 	return nil
 }
 
-func (i *mockNodeInvoker) Claim(call ipc.ServerContext) error { return nil }
+func (mni *mockNodeInvoker) AssociateAccount(call ipc.ServerContext, identityNames []string, accountName string) error {
+	return mni.simpleCore(AddAssociationStimulus{"AssociateAccount", identityNames, accountName}, "AssociateAccount")
+}
+
+func (mni *mockNodeInvoker) Claim(call ipc.ServerContext) error {
+	return mni.simpleCore("Claim", "Claim")
+}
+
 func (*mockNodeInvoker) Describe(ipc.ServerContext) (node.Description, error) {
 	return node.Description{}, nil
 }
@@ -80,16 +89,40 @@ func (mni *mockNodeInvoker) Install(call ipc.ServerContext, appName string) (str
 	return r.appId, r.err
 }
 
-func (*mockNodeInvoker) Refresh(ipc.ServerContext) error           { return nil }
-func (*mockNodeInvoker) Restart(ipc.ServerContext) error           { return nil }
-func (*mockNodeInvoker) Resume(ipc.ServerContext) error            { return nil }
-func (i *mockNodeInvoker) Revert(call ipc.ServerContext) error     { return nil }
-func (*mockNodeInvoker) Start(ipc.ServerContext) ([]string, error) { return []string{}, nil }
-func (*mockNodeInvoker) Stop(ipc.ServerContext, uint32) error      { return nil }
-func (*mockNodeInvoker) Suspend(ipc.ServerContext) error           { return nil }
-func (*mockNodeInvoker) Uninstall(ipc.ServerContext) error         { return nil }
-func (i *mockNodeInvoker) Update(ipc.ServerContext) error          { return nil }
-func (*mockNodeInvoker) UpdateTo(ipc.ServerContext, string) error  { return nil }
+func (*mockNodeInvoker) Refresh(ipc.ServerContext) error { return nil }
+func (*mockNodeInvoker) Restart(ipc.ServerContext) error { return nil }
+
+func (mni *mockNodeInvoker) Resume(_ ipc.ServerContext) error {
+	return mni.simpleCore("Resume", "Resume")
+}
+func (i *mockNodeInvoker) Revert(call ipc.ServerContext) error { return nil }
+
+type StartResponse struct {
+	appIds []string
+	err    error
+}
+
+func (mni *mockNodeInvoker) Start(ipc.ServerContext) ([]string, error) {
+	ir := mni.tape.Record("Start")
+	r := ir.(StartResponse)
+	return r.appIds, r.err
+}
+
+type StopStimulus struct {
+	fun       string
+	timeDelta uint32
+}
+
+func (mni *mockNodeInvoker) Stop(_ ipc.ServerContext, timeDelta uint32) error {
+	return mni.simpleCore(StopStimulus{"Stop", timeDelta}, "Stop")
+}
+
+func (mni *mockNodeInvoker) Suspend(_ ipc.ServerContext) error {
+	return mni.simpleCore("Suspend", "Suspend")
+}
+func (*mockNodeInvoker) Uninstall(ipc.ServerContext) error        { return nil }
+func (i *mockNodeInvoker) Update(ipc.ServerContext) error         { return nil }
+func (*mockNodeInvoker) UpdateTo(ipc.ServerContext, string) error { return nil }
 
 // Mock ACL getting and setting
 type GetACLResponse struct {
@@ -105,15 +138,7 @@ type SetACLStimulus struct {
 }
 
 func (mni *mockNodeInvoker) SetACL(_ ipc.ServerContext, acl access.TaggedACLMap, etag string) error {
-	ri := mni.tape.Record(SetACLStimulus{"SetACL", acl, etag})
-	switch r := ri.(type) {
-	case nil:
-		return nil
-	case error:
-		return r
-	}
-	log.Fatalf("AssociateAccount (mock) response %v is of bad type\n", ri)
-	return nil
+	return mni.simpleCore(SetACLStimulus{"SetACL", acl, etag}, "SetACL")
 }
 
 func (mni *mockNodeInvoker) GetACL(ipc.ServerContext) (access.TaggedACLMap, string, error) {
