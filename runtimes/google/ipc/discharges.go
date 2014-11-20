@@ -57,7 +57,7 @@ func (d *dischargeClient) PrepareDischarges(forcaveats []security.ThirdPartyCave
 	discharges := make([]security.Discharge, len(caveats))
 	d.cache.Discharges(caveats, discharges)
 
-	// Fetch discharges for caveats for which no discharges was found
+	// Fetch discharges for caveats for which no discharges were found
 	// in the cache.
 	d.fetchDischarges(d.ctx, caveats, impetus, discharges)
 	for _, d := range discharges {
@@ -91,15 +91,15 @@ func (d *dischargeClient) fetchDischarges(ctx context.T, caveats []security.Thir
 			wg.Add(1)
 			go func(i int, cav security.ThirdPartyCaveat) {
 				defer wg.Done()
-				vlog.VI(3).Infof("Fetching discharge for %T from %v (%+v)", cav, cav.Location(), cav.Requirements())
+				vlog.VI(3).Infof("Fetching discharge for %v", cav)
 				call, err := d.c.StartCall(ctx, cav.Location(), "Discharge", []interface{}{cav, filteredImpetus(cav.Requirements(), impetus)})
 				if err != nil {
-					vlog.VI(3).Infof("Discharge fetch for caveat %T from %v failed: %v", cav, cav.Location(), err)
+					vlog.VI(3).Infof("Discharge fetch for %v failed: %v", cav, err)
 					return
 				}
 				var dAny vdlutil.Any
 				if ierr := call.Finish(&dAny, &err); ierr != nil || err != nil {
-					vlog.VI(3).Infof("Discharge fetch for caveat %T from %v failed: (%v, %v)", cav, cav.Location(), err, ierr)
+					vlog.VI(3).Infof("Discharge fetch for %v failed: (%v, %v)", cav, err, ierr)
 					return
 				}
 				d, ok := dAny.(security.Discharge)

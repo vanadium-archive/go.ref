@@ -661,23 +661,33 @@ func mkThirdPartyCaveat(discharger security.PublicKey, location string, c securi
 	return newCaveat(tpc)
 }
 
-type dischargeImpetusTester struct {
-	LastDischargeImpetus security.DischargeImpetus
-}
-
-// Implements ipc.Dispatcher
-func (s *dischargeImpetusTester) Lookup(_ string) (interface{}, security.Authorizer, error) {
-	return ipc.ReflectInvoker(dischargeImpetusServer{s}), testServerAuthorizer{}, nil
-}
-
+// dischargeImpetusServer implements the discharge service. Always fails to
+// issue a discharge, but records the impetus.
 type dischargeImpetusServer struct {
-	s *dischargeImpetusTester
+	mu      sync.Mutex
+	impetus []security.DischargeImpetus // GUARDED_BY(mu)
 }
 
-// Implements the discharge service: Always fails to issue a discharge, but records the impetus
-func (s dischargeImpetusServer) Discharge(ctx ipc.ServerContext, cav vdlutil.Any, impetus security.DischargeImpetus) (vdlutil.Any, error) {
-	s.s.LastDischargeImpetus = impetus
+func (s *dischargeImpetusServer) Discharge(ctx ipc.ServerContext, cav vdlutil.Any, impetus security.DischargeImpetus) (vdlutil.Any, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.impetus = append(s.impetus, impetus)
 	return nil, fmt.Errorf("discharges not issued")
+}
+
+// TestAndClearImpetus checks if all the recorded impetuses match want.
+// Returns an error if they do not.
+// Error or no error, it clears the set of recorded impetuses.
+func (s *dischargeImpetusServer) TestAndClearImpetus(want security.DischargeImpetus) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	defer func() { s.impetus = nil }()
+	for idx, imp := range s.impetus {
+		if !reflect.DeepEqual(imp, want) {
+			return fmt.Errorf("impetus %d of %d: Got [%v] want [%v]", idx, len(s.impetus), imp, want)
+		}
+	}
+	return nil
 }
 
 func names2patterns(names []string) []security.BlessingPattern {
@@ -723,8 +733,8 @@ func TestDischargeImpetus(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	var tester dischargeImpetusTester
-	if err := server.ServeDispatcher("mountpoint", &tester); err != nil {
+	var tester dischargeImpetusServer
+	if err := server.Serve("mountpoint", &tester, testServerAuthorizer{}); err != nil {
 		t.Fatal(err)
 	}
 
@@ -762,8 +772,8 @@ func TestDischargeImpetus(t *testing.T) {
 			t.Errorf("StartCall(%+v) failed: %v", test.Requirements, err)
 			continue
 		}
-		if got, want := tester.LastDischargeImpetus, test.Impetus; !reflect.DeepEqual(got, want) {
-			t.Errorf("Got [%v] want [%v] for test %+v", got, want, test.Requirements)
+		if err := tester.TestAndClearImpetus(test.Impetus); err != nil {
+			t.Errorf("Test %+v: %v", test.Requirements, err)
 		}
 	}
 }
