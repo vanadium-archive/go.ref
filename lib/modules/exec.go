@@ -24,6 +24,7 @@ type execHandle struct {
 	stderr     *os.File
 	stdout     io.ReadCloser
 	stdin      io.WriteCloser
+	procErrCh  chan error
 }
 
 func testFlags() []string {
@@ -50,7 +51,7 @@ func testFlags() []string {
 	return fl
 }
 
-// IsTestHelperProces returns true if it is called in via
+// IsTestHelperProcess returns true if it is called in via
 // -run=TestHelperProcess which normally only ever happens for subprocesses
 // run from tests.
 func IsTestHelperProcess() bool {
@@ -62,7 +63,7 @@ func IsTestHelperProcess() bool {
 }
 
 func newExecHandle(name string) command {
-	return &execHandle{name: name, entryPoint: shellEntryPoint + "=" + name}
+	return &execHandle{name: name, entryPoint: shellEntryPoint + "=" + name, procErrCh: make(chan error, 1)}
 }
 
 func (eh *execHandle) Stdout() io.Reader {
@@ -112,15 +113,19 @@ func (eh *execHandle) start(sh *Shell, env []string, args ...string) (Handle, er
 	newargs, newenv := eh.envelope(sh, env, args[1:]...)
 	cmd := exec.Command(os.Args[0], newargs[1:]...)
 	cmd.Env = newenv
-	stderr, err := newLogfile(strings.TrimLeft(eh.name, "-\n\t "))
+	stderr, err := newLogfile("stderr", eh.name)
 	if err != nil {
 		return nil, err
 	}
 	cmd.Stderr = stderr
-	stdout, err := cmd.StdoutPipe()
-	if err != nil {
-		return nil, err
-	}
+	// We use a custom queue-based Writer implementation for stdout to
+	// decouple the consumers of eh.stdout from the file where the child
+	// sends its output.  This avoids data races between closing the file
+	// and reading from it (since cmd.Wait will wait for the all readers to
+	// be done before closing it).  It also enables Shutdown to drain stdout
+	// while respecting the timeout.
+	stdout := newRW()
+	cmd.Stdout = stdout
 	stdin, err := cmd.StdinPipe()
 	if err != nil {
 		return nil, err
@@ -139,6 +144,15 @@ func (eh *execHandle) start(sh *Shell, env []string, args ...string) (Handle, er
 	}
 	vlog.VI(1).Infof("Started: %q, pid %d", eh.name, cmd.Process.Pid)
 	err = handle.WaitForReady(sh.startTimeout)
+	go func() {
+		eh.procErrCh <- eh.handle.Wait(0)
+		// It's now safe to close eh.stdout, since Wait only returns
+		// once all writes from the pipe to the stdout Writer have
+		// completed.  Closing eh.stdout lets consumers of stdout wrap
+		// up (they'll receive EOF).
+		eh.stdout.Close()
+	}()
+
 	return eh, err
 }
 
@@ -151,38 +165,34 @@ func (eh *execHandle) Shutdown(stdout, stderr io.Writer) error {
 	defer eh.mu.Unlock()
 	vlog.VI(1).Infof("Shutdown: %q", eh.name)
 	eh.stdin.Close()
-	logFile := eh.stderr.Name()
 	defer eh.sh.Forget(eh)
 
-	defer func() {
-		os.Remove(logFile)
-	}()
-
-	// TODO(cnicolaou): make this configurable
-	timeout := 10 * time.Second
-	if stdout == nil && stderr == nil {
-		return eh.handle.Wait(timeout)
-	}
-
+	waitStdout := make(chan struct{})
 	if stdout != nil {
-		// Read from stdin before waiting for the child process to ensure
-		// that we get to read all of its output.
-		readTo(eh.stdout, stdout)
+		// Drain stdout.
+		go func() {
+			io.Copy(stdout, eh.stdout)
+			close(waitStdout)
+		}()
+	} else {
+		close(waitStdout)
 	}
 
-	procErr := eh.handle.Wait(timeout)
-
-	// Stderr is buffered to a file, so we can safely read it after we
-	// wait for the process.
-	eh.stderr.Close()
-	if stderr != nil {
-		stderrFile, err := os.Open(logFile)
-		if err != nil {
-			vlog.VI(1).Infof("failed to open %q: %s\n", logFile, err)
-			return procErr
-		}
-		readTo(stderrFile, stderr)
-		stderrFile.Close()
+	var procErr error
+	select {
+	case procErr = <-eh.procErrCh:
+		// The child has exited already.
+	case <-time.After(eh.sh.waitTimeout):
+		// Time out waiting for child to exit.
+		procErr = vexec.ErrTimeout
+		// Force close stdout to unblock any readers of stdout
+		// (including the drain loop started above).
+		eh.stdout.Close()
 	}
+	<-waitStdout
+
+	// Transcribe stderr.
+	outputFromFile(eh.stderr, stderr)
+
 	return procErr
 }

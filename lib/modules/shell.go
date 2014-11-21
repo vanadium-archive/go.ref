@@ -49,12 +49,12 @@ import (
 
 // Shell represents the context within which commands are run.
 type Shell struct {
-	mu           sync.Mutex
-	env          map[string]string
-	handles      map[Handle]struct{}
-	credDir      string
-	startTimeout time.Duration
-	config       exec.Config
+	mu                        sync.Mutex
+	env                       map[string]string
+	handles                   map[Handle]struct{}
+	credDir                   string
+	startTimeout, waitTimeout time.Duration
+	config                    exec.Config
 }
 
 // NewShell creates a new instance of Shell. If this new instance is is a test
@@ -66,6 +66,7 @@ func NewShell() *Shell {
 		env:          make(map[string]string),
 		handles:      make(map[Handle]struct{}),
 		startTimeout: time.Minute,
+		waitTimeout:  10 * time.Second,
 		config:       exec.NewConfig(),
 	}
 	if flag.Lookup("test.run") != nil && os.Getenv(consts.VeyronCredentials) == "" {
@@ -144,6 +145,11 @@ func (sh *Shell) Start(name string, env []string, args ...string) (Handle, error
 // SetStartTimeout sets the timeout for starting subcommands.
 func (sh *Shell) SetStartTimeout(d time.Duration) {
 	sh.startTimeout = d
+}
+
+// SetWaitTimeout sets the timeout for waiting on subcommands to complete.
+func (sh *Shell) SetWaitTimeout(d time.Duration) {
+	sh.waitTimeout = d
 }
 
 // CommandEnvelope returns the command line and environment that would be

@@ -13,7 +13,7 @@ func Echo(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args
 		return fmt.Errorf("no args")
 	}
 	for _, a := range args {
-		fmt.Println(a)
+		fmt.Fprintln(stdout, a)
 	}
 	return nil
 }
