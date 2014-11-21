@@ -13,13 +13,15 @@ import (
 	"time"
 
 	"veyron.io/veyron/veyron2"
+	"veyron.io/veyron/veyron2/context"
 	"veyron.io/veyron/veyron2/ipc"
 	"veyron.io/veyron/veyron2/naming"
 	"veyron.io/veyron/veyron2/rt"
 	"veyron.io/veyron/veyron2/services/mgmt/logreader"
 	"veyron.io/veyron/veyron2/services/mgmt/stats"
-	"veyron.io/veyron/veyron2/services/mgmt/vtrace"
+	vtracesvc "veyron.io/veyron/veyron2/services/mgmt/vtrace"
 	"veyron.io/veyron/veyron2/verror"
+	"veyron.io/veyron/veyron2/vtrace"
 
 	libstats "veyron.io/veyron/veyron/lib/stats"
 	"veyron.io/veyron/veyron/lib/testutil"
@@ -49,6 +51,11 @@ func startDebugServer(rt veyron2.Runtime, listenSpec ipc.ListenSpec, logsDir str
 
 func TestDebugServer(t *testing.T) {
 	runtime := rt.Init()
+	tracedContext := func() context.T {
+		ctx := runtime.NewContext()
+		vtrace.FromContext(ctx).Trace().ForceCollect()
+		return ctx
+	}
 	rootName = "debug"
 
 	workdir, err := ioutil.TempDir("", "logreadertest")
@@ -91,7 +98,7 @@ func TestDebugServer(t *testing.T) {
 	// Access a log file that exists.
 	{
 		lf := logreader.LogFileClient(naming.JoinAddressName(endpoint, "debug/logs/test.INFO"))
-		size, err := lf.Size(runtime.NewContext())
+		size, err := lf.Size(tracedContext())
 		if err != nil {
 			t.Errorf("Size failed: %v", err)
 		}
@@ -103,7 +110,7 @@ func TestDebugServer(t *testing.T) {
 	// Access a log file that doesn't exist.
 	{
 		lf := logreader.LogFileClient(naming.JoinAddressName(endpoint, "debug/logs/nosuchfile.INFO"))
-		_, err = lf.Size(runtime.NewContext())
+		_, err = lf.Size(tracedContext())
 		if expected := verror.NoExist; !verror.Is(err, expected) {
 			t.Errorf("unexpected error value, got %v, want: %v", err, expected)
 		}
@@ -115,7 +122,7 @@ func TestDebugServer(t *testing.T) {
 		foo.Set(123)
 
 		st := stats.StatsClient(naming.JoinAddressName(endpoint, "debug/stats/testing/foo"))
-		v, err := st.Value(runtime.NewContext())
+		v, err := st.Value(tracedContext())
 		if err != nil {
 			t.Errorf("Value failed: %v", err)
 		}
@@ -127,7 +134,7 @@ func TestDebugServer(t *testing.T) {
 	// Access a stats object that doesn't exists.
 	{
 		st := stats.StatsClient(naming.JoinAddressName(endpoint, "debug/stats/testing/nobodyhome"))
-		_, err = st.Value(runtime.NewContext())
+		_, err = st.Value(tracedContext())
 		if expected := verror.NoExist; !verror.Is(err, expected) {
 			t.Errorf("unexpected error value, got %v, want: %v", err, expected)
 		}
@@ -135,7 +142,7 @@ func TestDebugServer(t *testing.T) {
 
 	// Access vtrace.
 	{
-		vt := vtrace.StoreClient(naming.JoinAddressName(endpoint, "debug/vtrace"))
+		vt := vtracesvc.StoreClient(naming.JoinAddressName(endpoint, "debug/vtrace"))
 		call, err := vt.AllTraces(runtime.NewContext())
 		if err != nil {
 			t.Errorf("AllTraces failed: %v", err)
@@ -149,8 +156,8 @@ func TestDebugServer(t *testing.T) {
 		if err = stream.Err(); err != nil && err != io.EOF {
 			t.Fatalf("Unexpected error reading trace stream: %s", err)
 		}
-		if ntraces < 1 {
-			t.Errorf("We expected at least one trace, got: %d", ntraces)
+		if ntraces != 4 {
+			t.Errorf("We expected 4 traces, got: %d", ntraces)
 		}
 	}
 

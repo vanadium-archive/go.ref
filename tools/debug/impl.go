@@ -24,9 +24,12 @@ import (
 	logtypes "veyron.io/veyron/veyron2/services/mgmt/logreader/types"
 	"veyron.io/veyron/veyron2/services/mgmt/pprof"
 	"veyron.io/veyron/veyron2/services/mgmt/stats"
+	vtracesvc "veyron.io/veyron/veyron2/services/mgmt/vtrace"
 	"veyron.io/veyron/veyron2/services/watch"
 	watchtypes "veyron.io/veyron/veyron2/services/watch/types"
+	"veyron.io/veyron/veyron2/uniqueid"
 	"veyron.io/veyron/veyron2/vom"
+	"veyron.io/veyron/veyron2/vtrace"
 )
 
 var (
@@ -58,6 +61,81 @@ func init() {
 
 	// pprof flags
 	cmdPProfRun.Flags.StringVar(&pprofCmd, "pprofcmd", "veyron go tool pprof", "The pprof command to use.")
+}
+
+var cmdVtrace = &cmdline.Command{
+	Run:      runVtrace,
+	Name:     "vtrace",
+	Short:    "Returns vtrace traces.",
+	Long:     "Returns matching vtrace traces (or all stored traces if no ids are given).",
+	ArgsName: "<name> [id ...]",
+	ArgsLong: `
+<name> is the name of a vtrace object.
+[id] is a vtrace trace id.
+`,
+}
+
+func doFetchTrace(ctx context.T, wg *sync.WaitGroup, client vtracesvc.StoreClientStub,
+	id uniqueid.ID, traces chan *vtrace.TraceRecord, errors chan error) {
+	defer wg.Done()
+
+	trace, err := client.Trace(ctx, id)
+	if err != nil {
+		errors <- err
+	} else {
+		traces <- &trace
+	}
+}
+
+func runVtrace(cmd *cmdline.Command, args []string) error {
+	ctx := rt.R().NewContext()
+	arglen := len(args)
+	if arglen == 0 {
+		return cmd.UsageErrorf("vtrace: incorrect number of arguments, got %d want >= 1", arglen)
+	}
+
+	name := args[0]
+	client := vtracesvc.StoreClient(name)
+	if arglen == 1 {
+		call, err := client.AllTraces(ctx)
+		if err != nil {
+			return err
+		}
+		stream := call.RecvStream()
+		for stream.Advance() {
+			trace := stream.Value()
+			vtrace.FormatTrace(os.Stdout, &trace, nil)
+		}
+		if err := stream.Err(); err != nil {
+			return err
+		}
+		return call.Finish()
+	}
+
+	ntraces := len(args) - 1
+	traces := make(chan *vtrace.TraceRecord, ntraces)
+	errors := make(chan error, ntraces)
+	var wg sync.WaitGroup
+	wg.Add(ntraces)
+	for _, arg := range args[1:] {
+		id, err := uniqueid.FromHexString(arg)
+		if err != nil {
+			return err
+		}
+		go doFetchTrace(ctx, &wg, client, id, traces, errors)
+	}
+	go func() {
+		wg.Wait()
+		close(traces)
+		close(errors)
+	}()
+
+	for trace := range traces {
+		vtrace.FormatTrace(os.Stdout, trace, nil)
+	}
+
+	// Just return one of the errors.
+	return <-errors
 }
 
 var cmdGlob = &cmdline.Command{
@@ -487,6 +565,7 @@ var cmdRoot = cmdline.Command{
 	Long:  "Command-line tool for interacting with the debug server.",
 	Children: []*cmdline.Command{
 		cmdGlob,
+		cmdVtrace,
 		&cmdline.Command{
 			Name:     "logs",
 			Short:    "Accesses log files",

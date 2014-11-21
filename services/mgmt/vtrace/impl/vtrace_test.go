@@ -75,8 +75,8 @@ func TestVtraceServer(t *testing.T) {
 	if err = stream.Err(); err != nil && err != io.EOF {
 		t.Fatalf("Unexpected error reading trace stream: %s", err)
 	}
-	if ntraces < 2 {
-		t.Fatalf("Expected at least 2 traces, got %#v", ntraces)
+	if ntraces != 1 {
+		t.Fatalf("Expected 1 trace, got %#v", ntraces)
 	}
 	if tr == nil {
 		t.Fatalf("Desired trace %x not found.", id)

@@ -62,7 +62,7 @@ func (s *Store) TraceRecords() []vtrace.TraceRecord {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	out := make([]vtrace.TraceRecord, s.size)
+	out := make([]vtrace.TraceRecord, len(s.traces))
 	i := 0
 	for _, ts := range s.traces {
 		ts.traceRecord(&out[i])
