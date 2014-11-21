@@ -9,6 +9,7 @@ import (
 	"reflect"
 	"sort"
 	"strings"
+	"syscall"
 	"testing"
 	"time"
 
@@ -23,11 +24,16 @@ func init() {
 	modules.RegisterChild("printenv", "printenv", PrintEnv)
 	modules.RegisterChild("echos", "[args]*", Echo)
 	modules.RegisterChild("errortestChild", "", ErrorMain)
+	modules.RegisterChild("ignores_stdin", "", ignoresStdin)
 
 	modules.RegisterFunction("envtestf", "envtest: <variables to print>...", PrintFromEnv)
 	modules.RegisterFunction("echof", "[args]*", Echo)
 	modules.RegisterFunction("errortestFunc", "", ErrorMain)
+}
 
+func ignoresStdin(io.Reader, io.Writer, io.Writer, map[string]string, ...string) error {
+	<-time.After(time.Minute)
+	return nil
 }
 
 func Echo(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
@@ -184,6 +190,60 @@ func testShutdown(t *testing.T, sh *modules.Shell, command string, isfunc bool) 
 
 func TestShutdownSubprocess(t *testing.T) {
 	testShutdown(t, modules.NewShell(), "echos", false)
+}
+
+// TestShutdownSubprocessIgnoresStdin verifies that Shutdown doesn't wait
+// forever if a child does not die upon closing stdin; but instead times out and
+// returns an appropriate error.
+func TestShutdownSubprocessIgnoresStdin(t *testing.T) {
+	sh := modules.NewShell()
+	sh.SetWaitTimeout(time.Second)
+	h, err := sh.Start("ignores_stdin", nil)
+	if err != nil {
+		t.Fatalf("unexpected error: %s", err)
+	}
+	var stdoutBuf, stderrBuf bytes.Buffer
+	if err := sh.Cleanup(&stdoutBuf, &stderrBuf); err == nil || err.Error() != exec.ErrTimeout.Error() {
+		t.Errorf("unexpected error in Cleanup: got %v, want %v", err, exec.ErrTimeout)
+	}
+	if err := syscall.Kill(h.Pid(), syscall.SIGINT); err != nil {
+		t.Errorf("Kill failed: %v", err)
+	}
+}
+
+// TestStdoutRace exemplifies a potential race between reading from child's
+// stdout and closing stdout in Wait (called by Shutdown).
+//
+// NOTE: triggering the actual --race failure is hard, even if the
+// implementation inappropriately sets stdout to the file that is to be closed
+// in Wait.
+func TestStdoutRace(t *testing.T) {
+	sh := modules.NewShell()
+	sh.SetWaitTimeout(time.Second)
+	h, err := sh.Start("ignores_stdin", nil)
+	if err != nil {
+		t.Fatalf("unexpected error: %s", err)
+	}
+	ch := make(chan error, 1)
+	go func() {
+		buf := make([]byte, 5)
+		// This will block since the child is not writing anything on
+		// stdout.
+		_, err := h.Stdout().Read(buf)
+		ch <- err
+	}()
+	// Give the goroutine above a chance to run, so that we're blocked on
+	// stdout.Read.
+	<-time.After(time.Second)
+	// Cleanup should close stdout, and unblock the goroutine.
+	sh.Cleanup(nil, nil)
+	if got, want := <-ch, io.EOF; got != want {
+		t.Errorf("Expected %v, got %v instead", want, got)
+	}
+
+	if err := syscall.Kill(h.Pid(), syscall.SIGINT); err != nil {
+		t.Errorf("Kill failed: %v", err)
+	}
 }
 
 func TestShutdownFunction(t *testing.T) {

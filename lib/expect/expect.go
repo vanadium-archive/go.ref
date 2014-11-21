@@ -242,7 +242,7 @@ func (s *Session) ExpectRE(pattern string, n int) [][]string {
 		return [][]string{}
 	}
 	l, m, err := s.expectRE(pattern, n)
-	s.log(err, "ExpectVar: %s", l)
+	s.log(err, "ExpectRE: %s", l)
 	if err != nil {
 		s.error(err)
 		return [][]string{}

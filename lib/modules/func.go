@@ -65,7 +65,7 @@ func (fh *functionHandle) start(sh *Shell, env []string, args ...string) (Handle
 			return nil, err
 		}
 	}
-	stderr, err := newLogfile(args[0])
+	stderr, err := newLogfile("stderr", args[0])
 	if err != nil {
 		return nil, err
 	}
@@ -111,7 +111,9 @@ func (fh *functionHandle) Shutdown(stdout_w, stderr_w io.Writer) error {
 	fh.mu.Unlock()
 
 	// Read stdout until EOF to ensure that we read all of it.
-	readTo(stdout, stdout_w)
+	if stdout_w != nil {
+		io.Copy(stdout_w, stdout)
+	}
 	fh.wg.Wait()
 
 	fh.mu.Lock()
@@ -120,12 +122,13 @@ func (fh *functionHandle) Shutdown(stdout_w, stderr_w io.Writer) error {
 
 	// Safe to close stderr now.
 	stderr.Close()
-	stderr, err := os.Open(stderr.Name())
-	if err == nil {
-		readTo(stderr, stderr_w)
-		stderr.Close()
-	} else {
-		fmt.Fprintf(os.Stderr, "failed to open %q: %s\n", stderr.Name(), err)
+	if stderr_w != nil {
+		if stderr, err := os.Open(stderr.Name()); err == nil {
+			io.Copy(stderr_w, stderr)
+			stderr.Close()
+		} else {
+			fmt.Fprintf(os.Stderr, "failed to open %q: %s\n", stderr.Name(), err)
+		}
 	}
 
 	fh.mu.Lock()

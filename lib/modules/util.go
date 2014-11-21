@@ -1,30 +1,39 @@
 package modules
 
 import (
-	"bufio"
 	"fmt"
+	"hash/adler32"
 	"io"
 	"io/ioutil"
 	"os"
 	"strings"
+
+	"veyron.io/veyron/veyron2/vlog"
 )
 
-func newLogfile(prefix string) (*os.File, error) {
-	f, err := ioutil.TempFile("", "__modules__"+prefix)
+func newLogfile(prefix, name string) (*os.File, error) {
+	nameHash := adler32.Checksum([]byte(name))
+	f, err := ioutil.TempFile("", fmt.Sprintf("__modules__%s-%x", prefix, nameHash))
 	if err != nil {
 		return nil, err
 	}
 	return f, nil
 }
 
-func readTo(r io.Reader, w io.Writer) {
-	if w == nil {
+func outputFromFile(f *os.File, out io.Writer) {
+	f.Close()
+	fName := f.Name()
+	defer os.Remove(fName)
+	if out == nil {
 		return
 	}
-	scanner := bufio.NewScanner(r)
-	for scanner.Scan() {
-		fmt.Fprintf(w, "%s\n", scanner.Text())
+	var err error
+	if f, err = os.Open(fName); err != nil {
+		vlog.VI(1).Infof("failed to open %q: %s\n", fName, err)
+		return
 	}
+	io.Copy(out, f)
+	f.Close()
 }
 
 // envSliceToMap returns a map representation of a string slive
