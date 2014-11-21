@@ -59,6 +59,18 @@ func credentialsForChild(blessing string) (string, []string) {
 	return creds, []string{consts.VeyronCredentials + "=" + creds}
 }
 
+// setNSRoots sets the roots for the local runtime's namespace using the modules
+// function SetNamesaceRootCommand.
+func setNSRoots(t *testing.T, sh *modules.Shell, roots ...string) {
+	setRootsHandle, err := sh.Start(core.SetNamespaceRootsCommand, nil, roots...)
+	if err != nil {
+		t.Fatalf("%s: unexpected error: %s", loc(2), err)
+	}
+	if err := setRootsHandle.Shutdown(nil, os.Stderr); err != nil {
+		t.Fatalf("%s: SetNamespaceRootsCommand failed with %v", loc(2), err)
+	}
+}
+
 func createShellAndMountTable(t *testing.T) (*modules.Shell, func()) {
 	sh := modules.NewShell()
 	// The shell, will, by default share credentials with its children.
@@ -70,17 +82,18 @@ func createShellAndMountTable(t *testing.T) (*modules.Shell, func()) {
 	// their shutdown process
 	sh.Forget(mtHandle)
 
+	// TODO(caprita): Define a GetNamespaceRootsCommand in modules/core and
+	// use that?
+	oldNamespaceRoots := rt.R().Namespace().Roots()
 	fn := func() {
 		vlog.VI(1).Info("------------ CLEANUP ------------")
 		vlog.VI(1).Info("---------------------------------")
 		sh.Cleanup(nil, os.Stderr)
 		mtHandle.Shutdown(nil, os.Stderr)
-		sh.Start(core.SetNamespaceRootsCommand, nil, "")
+		setNSRoots(t, sh, oldNamespaceRoots...)
 	}
 
-	if _, err := sh.Start(core.SetNamespaceRootsCommand, nil, mtName); err != nil {
-		t.Fatalf("%s: unexpected error: %s", loc(1), err)
-	}
+	setNSRoots(t, sh, mtName)
 	sh.SetVar(consts.NamespaceRootPrefix, mtName)
 	return sh, fn
 }

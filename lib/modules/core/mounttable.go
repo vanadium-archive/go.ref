@@ -148,9 +148,5 @@ func resolveMT(stdin io.Reader, stdout, stderr io.Writer, env map[string]string,
 }
 
 func setNamespaceRoots(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
-	ns := rt.R().Namespace()
-	if err := checkArgs(args, -1, "<name>..."); err != nil {
-		return err
-	}
-	return ns.SetRoots(args[1:]...)
+	return rt.R().Namespace().SetRoots(args[1:]...)
 }
