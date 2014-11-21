@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"os"
 	"path/filepath"
 	"reflect"
 	"runtime"
@@ -19,7 +20,7 @@ import (
 	"veyron.io/veyron/veyron2/options"
 	"veyron.io/veyron/veyron2/security"
 	"veyron.io/veyron/veyron2/vdl/vdlutil"
-	"veyron.io/veyron/veyron2/verror"
+	verror "veyron.io/veyron/veyron2/verror2"
 	"veyron.io/veyron/veyron2/vlog"
 	"veyron.io/veyron/veyron2/vom"
 
@@ -41,7 +42,7 @@ func init() {
 }
 
 var (
-	errMethod  = verror.Abortedf("server returned an error")
+	errMethod  = verror.Make(verror.Aborted, nil)
 	clock      = new(fakeClock)
 	listenSpec = ipc.ListenSpec{Protocol: "tcp", Address: "127.0.0.1:0"}
 )
@@ -290,11 +291,17 @@ func createBundle(t *testing.T, client, server security.Principal, ts interface{
 	return
 }
 
-func matchesErrorPattern(err error, pattern string) bool {
-	if (len(pattern) == 0) != (err == nil) {
-		return false
+func matchesErrorPattern(err error, id verror.IDAction, pattern string) bool {
+	if len(pattern) > 0 && err != nil {
+		if strings.Index(err.Error(), pattern) < 0 {
+			fmt.Fprintf(os.Stderr, "got error msg: %q, expected: %q\n", err, pattern)
+		}
 	}
-	return err == nil || strings.Index(err.Error(), pattern) >= 0
+	// TODO(cnicolaou): Move this special case into verror.Is.
+	if reflect.DeepEqual(id, verror.IDAction{}) {
+		return err == nil
+	}
+	return verror.Is(err, id.ID)
 }
 
 func TestMultipleCallsToServeAndName(t *testing.T) {
@@ -391,27 +398,28 @@ func TestRPCServerAuthorization(t *testing.T) {
 		tests = []struct {
 			server  security.Blessings       // blessings presented by the server to the client.
 			pattern security.BlessingPattern // pattern on the server identity expected by the client.
+			errID   verror.IDAction
 			err     string
 		}{
 			// Client accepts talking to the server only if the server's blessings match the provided pattern
-			{bServer, security.AllPrincipals, ""},
-			{bServer, "root/server", ""},
-			{bServer, "root/otherserver", nameErr},
-			{bServer, "otherroot/server", nameErr},
+			{bServer, security.AllPrincipals, verror.Success, ""},
+			{bServer, "root/server", verror.Success, ""},
+			{bServer, "root/otherserver", verror.NotTrusted, nameErr},
+			{bServer, "otherroot/server", verror.NotTrusted, nameErr},
 
 			// and, if the server's blessing has third-party caveats then the server provides
 			// appropriate discharges.
-			{bServerTPValid, security.AllPrincipals, ""},
-			{bServerTPValid, "root/serverWithTPCaveats", ""},
-			{bServerTPValid, "root/otherserver", nameErr},
-			{bServerTPValid, "otherroot/server", nameErr},
+			{bServerTPValid, security.AllPrincipals, verror.Success, ""},
+			{bServerTPValid, "root/serverWithTPCaveats", verror.Success, ""},
+			{bServerTPValid, "root/otherserver", verror.NotTrusted, nameErr},
+			{bServerTPValid, "otherroot/server", verror.NotTrusted, nameErr},
 
 			// Client does not talk to a server that presents expired blessings.
-			{bServerExpired, security.AllPrincipals, vcErr},
+			{bServerExpired, security.AllPrincipals, verror.NotTrusted, vcErr},
 
 			// Client does not talk to a server that fails to provide discharges for
 			// third-party caveats on the blessings presented by it.
-			{bServerTPExpired, security.AllPrincipals, vcErr},
+			{bServerTPExpired, security.AllPrincipals, verror.NotTrusted, vcErr},
 		}
 	)
 
@@ -433,7 +441,7 @@ func TestRPCServerAuthorization(t *testing.T) {
 	// Set a blessing that the client is willing to share with servers with blessings
 	// from pprovider.
 	pclient.BlessingStore().Set(bless(pprovider, pclient, "client"), "root/...")
-	for _, test := range tests {
+	for i, test := range tests {
 		name := fmt.Sprintf("(%q@%q)", test.pattern, test.server)
 		if err := pserver.BlessingStore().SetDefault(test.server); err != nil {
 			t.Fatalf("SetDefault failed on server's BlessingStore: %v", err)
@@ -447,8 +455,9 @@ func TestRPCServerAuthorization(t *testing.T) {
 			t.Errorf("%s: failed to create client: %v", name, err)
 			continue
 		}
-		if call, err := client.StartCall(testContext(), fmt.Sprintf("[%s]%s/suffix", test.pattern, serverName), "Method", nil); !matchesErrorPattern(err, test.err) {
-			t.Errorf(`%s: client.StartCall: got error "%v", want to match "%v"`, name, err, test.err)
+		call, err := client.StartCall(testContext(), fmt.Sprintf("[%s]%s/suffix", test.pattern, serverName), "Method", nil)
+		if !matchesErrorPattern(err, test.errID, test.err) {
+			t.Errorf(`%d: %s: client.StartCall: got error "%v", want to match "%v"`, i, name, err, test.err)
 		} else if call != nil {
 			blessings, proof := call.RemoteBlessings()
 			if proof == nil {
@@ -458,6 +467,7 @@ func TestRPCServerAuthorization(t *testing.T) {
 				t.Errorf("%s: %q.MatchedBy(%v) failed", name, test.pattern, blessings)
 			}
 		}
+		vlog.Infof("\nC")
 		client.Close()
 
 	}
@@ -600,9 +610,8 @@ func TestMultipleFinish(t *testing.T) {
 		t.Fatalf(`call.Finish got error "%v"`, err)
 	}
 	// Calling Finish a second time should result in a useful error.
-	err = call.Finish(&results)
-	if got, want := err, verror.BadProtocolf("ipc: multiple calls to Finish not allowed"); got != want {
-		t.Fatalf(`call.Finish got error "%v", want "%v"`, got, want)
+	if err = call.Finish(&results); !matchesErrorPattern(err, verror.BadState, "xxx") {
+		t.Fatalf(`got "%v", want "%v"`, err, verror.BadState)
 	}
 }
 
@@ -625,23 +634,24 @@ func TestGranter(t *testing.T) {
 
 	tests := []struct {
 		granter                       ipc.Granter
+		startErrID, finishErrID       verror.IDAction
 		blessing, starterr, finisherr string
 	}{
 		{blessing: "<nil>"},
 		{granter: granter{b: bless(pclient, pserver, "blessed")}, blessing: "client/blessed"},
-		{granter: granter{err: errors.New("hell no")}, starterr: "hell no"},
-		{granter: granter{b: pclient.BlessingStore().Default()}, finisherr: "blessing granted not bound to this server"},
+		{granter: granter{err: errors.New("hell no")}, startErrID: verror.NotTrusted, starterr: "hell no"},
+		{granter: granter{b: pclient.BlessingStore().Default()}, finishErrID: verror.NoAccess, finisherr: "blessing granted not bound to this server"},
 	}
-	for _, test := range tests {
+	for i, test := range tests {
 		call, err := b.client.StartCall(testContext(), "mountpoint/server/suffix", "EchoGrantedBlessings", []interface{}{"argument"}, test.granter)
-		if !matchesErrorPattern(err, test.starterr) {
-			t.Errorf("%+v: StartCall returned error %v", test, err)
+		if !matchesErrorPattern(err, test.startErrID, test.starterr) {
+			t.Errorf("%d: %+v: StartCall returned error %v", i, test, err)
 		}
 		if err != nil {
 			continue
 		}
 		var result, blessing string
-		if err = call.Finish(&result, &blessing); !matchesErrorPattern(err, test.finisherr) {
+		if err = call.Finish(&result, &blessing); !matchesErrorPattern(err, test.finishErrID, test.finisherr) {
 			t.Errorf("%+v: Finish returned error %v", test, err)
 		}
 		if err != nil {
@@ -911,8 +921,8 @@ func TestRPCClientAuthorization(t *testing.T) {
 			t.Errorf(`%s call.Finish got error: "%v", wanted the RPC to succeed`, name, err)
 		} else if err == nil && !test.authorized {
 			t.Errorf("%s call.Finish succeeded, expected authorization failure", name)
-		} else if !test.authorized && !verror.Is(err, verror.NoAccess) {
-			t.Errorf("%s. call.Finish returned error %v(%v), wanted %v", name, verror.Convert(err).ErrorID(), err, verror.NoAccess)
+		} else if !test.authorized && !verror.Is(err, verror.NoAccess.ID) {
+			t.Errorf("%s. call.Finish returned error %v(%v), wanted %v", name, verror.Convert(verror.NoAccess, nil, err).ErrorID(), err, verror.NoAccess)
 		}
 	}
 }
@@ -940,17 +950,17 @@ func TestDischargePurgeFromCache(t *testing.T) {
 	if b.client, err = InternalNewClient(b.sm, b.ns, vc.LocalPrincipal{pclient}, dc); err != nil {
 		t.Fatalf("InternalNewClient failed: %v", err)
 	}
-	call := func() error {
+	call := func() verror.E {
 		call, err := b.client.StartCall(testContext(), "mountpoint/server/aclAuth", "Echo", []interface{}{"batman"})
 		if err != nil {
-			return fmt.Errorf("client.StartCall failed: %v", err)
+			return err.(verror.E) //fmt.Errorf("client.StartCall failed: %v", err)
 		}
 		var got string
 		if err := call.Finish(&got); err != nil {
-			return fmt.Errorf("client.Finish failed: %v", err)
+			return err.(verror.E) //fmt.Errorf("client.Finish failed: %v", err)
 		}
 		if want := `method:"Echo",suffix:"aclAuth",arg:"batman"`; got != want {
-			return fmt.Errorf("Got [%v] want [%v]", got, want)
+			return verror.Convert(verror.BadArg, nil, fmt.Errorf("Got [%v] want [%v]", got, want))
 		}
 		return nil
 	}
@@ -961,7 +971,7 @@ func TestDischargePurgeFromCache(t *testing.T) {
 	}
 	// Advance virtual clock, which will invalidate the discharge
 	clock.Advance(1)
-	if err, want := call(), "not authorized"; !matchesErrorPattern(err, want) {
+	if err, want := call(), "not authorized"; !matchesErrorPattern(err, verror.NoAccess, want) {
 		t.Errorf("Got error [%v] wanted to match pattern %q", err, want)
 	}
 	// But retrying will succeed since the discharge should be purged from cache and refreshed
@@ -1245,8 +1255,8 @@ func TestCallWithNilContext(t *testing.T) {
 	if call != nil {
 		t.Errorf("Expected nil interface got: %#v", call)
 	}
-	if !verror.Is(err, verror.BadArg) {
-		t.Errorf("Expected a BadArg error, got: %s", err.Error())
+	if !verror.Is(err, verror.BadArg.ID) {
+		t.Errorf("Expected an BadArg error, got: %s", err.Error())
 	}
 }
 
