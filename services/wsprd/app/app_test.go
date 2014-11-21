@@ -2,7 +2,6 @@ package app
 
 import (
 	"bytes"
-	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
@@ -508,8 +507,6 @@ func runJsServerTestCase(t *testing.T, test jsServerTestCase) {
 	defer rt.proxyServer.Shutdown()
 	defer rt.controller.Cleanup()
 
-	expectedFlowCount := int64(0)
-
 	if err != nil {
 		t.Errorf("could not serve server %v", err)
 	}
@@ -528,6 +525,28 @@ func runJsServerTestCase(t *testing.T, test jsServerTestCase) {
 
 	rt.writer.Stream = nil
 
+	vomClientStream := []string{}
+	for _, m := range test.clientStream {
+		vomClientStream = append(vomClientStream, vomEncode(m))
+	}
+	mock := &mockJSServer{
+		controller:           rt.controller,
+		t:                    t,
+		method:               test.method,
+		serviceSignature:     adderServiceSignature,
+		expectedClientStream: vomClientStream,
+		serverStream:         test.serverStream,
+		hasAuthorizer:        test.hasAuthorizer,
+		authError:            test.authError,
+		inArgs:               vomEncode(test.inArgs),
+		finalResponse:        test.finalResponse,
+		finalError:           test.err,
+	}
+	// Let's replace the test writer with the mockJSServer
+	rt.controller.writerCreator = func(int64) lib.ClientWriter {
+		return mock
+	}
+
 	// Create a client using app's runtime so it points to the right mounttable.
 	client, err := rt.controller.rt.NewClient()
 
@@ -540,201 +559,16 @@ func runJsServerTestCase(t *testing.T, test jsServerTestCase) {
 		t.Errorf("failed to start call: %v", err)
 	}
 
-	// This is lookup call for dispatcher.
-	expectedWebsocketMessage := []testwriter.Response{testwriter.Response{
-		Type: lib.ResponseDispatcherLookup,
-		Message: map[string]interface{}{
-			"serverId": 0.0,
-			"suffix":   "adder",
-		},
-	}}
-
-	if err := rt.writer.WaitForMessage(len(expectedWebsocketMessage)); err != nil {
-		t.Errorf("didn't receive expected message: %v", err)
-	}
-
-	dispatcherResponse := map[string]interface{}{
-		"handle":        0,
-		"signature":     adderServiceSignature,
-		"hasAuthorizer": test.hasAuthorizer,
-	}
-
-	bytes, err := json.Marshal(dispatcherResponse)
-	if err != nil {
-		t.Errorf("failed to serailize the response: %v", err)
-		return
-	}
-	rt.controller.HandleLookupResponse(expectedFlowCount, string(bytes))
-	expectedFlowCount += 2
-
-	blessings := rt.controller.rt.Principal().BlessingStore().Default()
-	k := blessings.PublicKey()
-	keyBytes, err := k.MarshalBinary()
-
-	if err != nil {
-		t.Errorf("Failed to marshal key, %v", err)
-		return
-	}
-
-	publicKey := base64.StdEncoding.EncodeToString(keyBytes)
-
-	// The expectedBlessingsHandle for the javascript Blessings.  Since we don't always call the authorizer
-	// this handle could be different by the time we make the start rpc call.
-	expectedBlessingsHandle := 1.0
-	if test.hasAuthorizer {
-		// TODO(toddw,bjornick): This is too fragile, clean it up.  In particular,
-		// it depends on the ordering of the authorizer calls for the rpc itself and
-		// the debug trace, which should be an internal detail of the server.
-		//
-		// If an authorizer exists, it gets called twice.  The first time to see if the
-		// client is actually able to make this rpc and a second time to see if the server
-		// is ok with the client getting trace information for the rpc.
-		expectedWebsocketMessage = append(expectedWebsocketMessage, testwriter.Response{
-			Type: lib.ResponseAuthRequest,
-			Message: map[string]interface{}{
-				"serverID": 0.0,
-				"handle":   0.0,
-				"context": map[string]interface{}{
-					"method": lib.LowercaseFirstCharacter(test.method),
-					"name":   "adder",
-					"suffix": "adder",
-					"label":  8.0, // This is a read label.
-					"localBlessings": map[string]interface{}{
-						"Handle":    1.0,
-						"PublicKey": publicKey,
-					},
-					"localBlessingStrings": []interface{}{testPrincipalBlessing},
-					"remoteBlessings": map[string]interface{}{
-						"Handle":    2.0,
-						"PublicKey": publicKey,
-					},
-					"remoteBlessingStrings": []interface{}{testPrincipalBlessing},
-					"localEndpoint":         "localEndpoint",
-					"remoteEndpoint":        "remoteEndpoint",
-				},
-			},
-		})
-		if err := rt.writer.WaitForMessage(len(expectedWebsocketMessage)); err != nil {
-			t.Errorf("didn't receive expected message: %v", err)
-		}
-
-		cleanUpAuthRequest(&rt.writer.Stream[len(expectedWebsocketMessage)-1], t)
-		authResponse := map[string]interface{}{
-			"err": test.authError,
-		}
-
-		bytes, err := json.Marshal(authResponse)
-		if err != nil {
-			t.Errorf("failed to serailize the response: %v", err)
-			return
-		}
-		rt.controller.HandleAuthResponse(expectedFlowCount, string(bytes))
-		expectedFlowCount += 2
-
-		// If we expected an auth error, we should go ahead and finish this rpc to get back
-		// the auth error.
-		if test.authError != nil {
-			var result interface{}
-			var err2 error
-			err := call.Finish(&result, &err2)
-			if err := testwriter.CheckResponses(rt.writer, expectedWebsocketMessage, nil); err != nil {
-				t.Error(err)
-			}
-			// We can't do a deep equal with authError because the error returned by the
-			// authorizer is wrapped into another error by the ipc framework.
-			if err == nil {
-				t.Errorf("unexpected auth error, expected %v, got %v", test.authError, err)
-			}
-			return
-		}
-
-		// The debug authorize call is identical to the regular auth call with a different
-		// label.
-		expectedWebsocketMessage = append(expectedWebsocketMessage, testwriter.Response{
-			Type: lib.ResponseAuthRequest,
-			Message: map[string]interface{}{
-				"serverID": 0.0,
-				"handle":   0.0,
-				"context": map[string]interface{}{
-					"method": lib.LowercaseFirstCharacter(test.method),
-					"name":   "adder",
-					"suffix": "adder",
-					"label":  16.0,
-					"localBlessings": map[string]interface{}{
-						"Handle":    3.0,
-						"PublicKey": publicKey,
-					},
-					"localBlessingStrings": []interface{}{testPrincipalBlessing},
-					"remoteBlessings": map[string]interface{}{
-						"Handle":    4.0,
-						"PublicKey": publicKey,
-					},
-					"remoteBlessingStrings": []interface{}{testPrincipalBlessing},
-					"localEndpoint":         "localEndpoint",
-					"remoteEndpoint":        "remoteEndpoint",
-				},
-			},
-		})
-
-		if err := rt.writer.WaitForMessage(len(expectedWebsocketMessage)); err != nil {
-			t.Errorf("didn't receive expected message: %v", err)
-		}
-
-		cleanUpAuthRequest(&rt.writer.Stream[len(expectedWebsocketMessage)-1], t)
-		authResponse = map[string]interface{}{}
-
-		bytes, err = json.Marshal(authResponse)
-		if err != nil {
-			t.Errorf("failed to serailize the response: %v", err)
-			return
-		}
-		rt.controller.HandleAuthResponse(expectedFlowCount, string(bytes))
-		expectedFlowCount += 2
-
-		expectedBlessingsHandle += 4
-	}
-
-	// Now we expect the rpc to be invoked on the Javascript server.
-	expectedWebsocketMessage = append(expectedWebsocketMessage, testwriter.Response{
-		Type: lib.ResponseServerRequest,
-		Message: map[string]interface{}{
-			"ServerId": 0.0,
-			"Method":   lib.LowercaseFirstCharacter(test.method),
-			"Handle":   0.0,
-			"Args":     vomEncode(test.inArgs),
-			"Context": map[string]interface{}{
-				"Name":    "adder",
-				"Suffix":  "adder",
-				"Timeout": float64(lib.JSIPCNoTimeout),
-				"RemoteBlessings": map[string]interface{}{
-					"Handle":    expectedBlessingsHandle,
-					"PublicKey": publicKey,
-				},
-				"RemoteBlessingStrings": []interface{}{testPrincipalBlessing},
-			},
-		},
-	})
-
-	// Wait until the rpc has started.
-	if err := rt.writer.WaitForMessage(len(expectedWebsocketMessage)); err != nil {
-		t.Errorf("didn't receive expected message: %v", err)
-	}
 	for _, msg := range test.clientStream {
-		expectedWebsocketMessage = append(expectedWebsocketMessage, testwriter.Response{Type: lib.ResponseStream, Message: vomEncode(msg)})
 		if err := call.Send(msg); err != nil {
 			t.Errorf("unexpected error while sending %v: %v", msg, err)
 		}
 	}
-
-	// Wait until all the streaming messages have been acknowledged.
-	if err := rt.writer.WaitForMessage(len(expectedWebsocketMessage)); err != nil {
-		t.Errorf("didn't receive expected message: %v", err)
+	if err := call.CloseSend(); err != nil {
+		t.Errorf("unexpected error on close: %v", err)
 	}
 
-	expectedWebsocketMessage = append(expectedWebsocketMessage, testwriter.Response{Type: lib.ResponseStreamClose})
-
 	expectedStream := test.expectedServerStream
-	go sendServerStream(t, rt.controller, &test, rt.writer, expectedFlowCount)
 	for {
 		var data interface{}
 		if err := call.Recv(&data); err != nil {
@@ -749,13 +583,18 @@ func runJsServerTestCase(t *testing.T, test jsServerTestCase) {
 		}
 		expectedStream = expectedStream[1:]
 	}
+
 	var result interface{}
 	var err2 error
 
-	if err := call.Finish(&result, &err2); err != nil {
-		t.Errorf("unexpected err :%v", err)
+	err = call.Finish(&result, &err2)
+	if (err == nil && test.authError != nil) || (err != nil && test.authError == nil) {
+		t.Errorf("unexpected err :%v, %v", err, test.authError)
 	}
 
+	if err != nil {
+		return
+	}
 	if !reflect.DeepEqual(result, test.finalResponse) {
 		t.Errorf("unexected final response: got %v, expected %v", result, test.finalResponse)
 	}
@@ -765,15 +604,6 @@ func runJsServerTestCase(t *testing.T, test jsServerTestCase) {
 	// the values is non-nil.  If both values are nil, then we consider them equal.
 	if (err2 != nil || test.err != nil) && !verror2.Equal(err2, test.err) {
 		t.Errorf("unexpected error: got %#v, expected %#v", err2, test.err)
-	}
-
-	// Wait until the close streaming messages have been acknowledged.
-	if err := rt.writer.WaitForMessage(len(expectedWebsocketMessage)); err != nil {
-		t.Errorf("didn't receive expected message: %v", err)
-	}
-
-	if err := testwriter.CheckResponses(rt.writer, expectedWebsocketMessage, nil); err != nil {
-		t.Error(err)
 	}
 }
 

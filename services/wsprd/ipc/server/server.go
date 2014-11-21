@@ -351,7 +351,7 @@ func (s *Server) HandleAuthResponse(id int64, data string) {
 	s.mu.Unlock()
 	if ch == nil {
 		s.helper.GetLogger().Errorf("unexpected result from JavaScript. No channel "+
-			"for MessageId: %d exists. Ignoring the results.", id)
+			"for MessageId: %d exists. Ignoring the results(%s)", id, data)
 		//Ignore unknown responses that don't belong to any channel
 		return
 	}
