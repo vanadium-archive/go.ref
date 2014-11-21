@@ -256,12 +256,12 @@ func TestBrowspr(t *testing.T) {
 
 func TestWsNames(t *testing.T) {
 	testdata := map[string]string{
-		"/@2@tcp@127.0.0.1:46504@d7b41510a6e78033ed86e38efb61ef52@4@6@@":               "/@2@ws@127.0.0.1:46504@d7b41510a6e78033ed86e38efb61ef52@4@6@@",
-		"/@2@tcp4@example.com:46504@d7b41510a6e78033ed86e38efb61ef52@4@6@@/more/stuff": "/@2@ws@example.com:46504@d7b41510a6e78033ed86e38efb61ef52@4@6@@/more/stuff",
-		"/@2@ws@example.com:46504@d7b41510a6e78033ed86e38efb61ef52@4@6@@/more/stuff":   "/@2@ws@example.com:46504@d7b41510a6e78033ed86e38efb61ef52@4@6@@/more/stuff",
-		"/@2@tcp@[::]:60624@21ba0c2508adfe8507eb953e526bd5a2@4@6@@":                    "/@2@ws@[::]:60624@21ba0c2508adfe8507eb953e526bd5a2@4@6@@",
-		"/example.com:12345":                                                           "/@2@ws@example.com:12345@00000000000000000000000000000000@@@@",
-		"/example.com:12345/more/stuff/in/suffix":                                      "/@2@ws@example.com:12345@00000000000000000000000000000000@@@@/more/stuff/in/suffix",
+		"/@3@tcp@127.0.0.1:46504@d7b41510a6e78033ed86e38efb61ef52@4@6@m@@":               "/@3@ws@127.0.0.1:46504@d7b41510a6e78033ed86e38efb61ef52@4@6@m@@",
+		"/@3@tcp4@example.com:46504@d7b41510a6e78033ed86e38efb61ef52@4@6@m@@/more/stuff": "/@3@ws@example.com:46504@d7b41510a6e78033ed86e38efb61ef52@4@6@m@@/more/stuff",
+		"/@3@ws@example.com:46504@d7b41510a6e78033ed86e38efb61ef52@4@6@m@@/more/stuff":   "/@3@ws@example.com:46504@d7b41510a6e78033ed86e38efb61ef52@4@6@m@@/more/stuff",
+		"/@3@tcp@[::]:60624@21ba0c2508adfe8507eb953e526bd5a2@4@6@m@@":                    "/@3@ws@[::]:60624@21ba0c2508adfe8507eb953e526bd5a2@4@6@m@@",
+		"/example.com:12345":                                                             "/@3@ws@example.com:12345@00000000000000000000000000000000@@@m@@",
+		"/example.com:12345/more/stuff/in/suffix":                                        "/@3@ws@example.com:12345@00000000000000000000000000000000@@@m@@/more/stuff/in/suffix",
 	}
 
 	for name, expectedWsName := range testdata {
