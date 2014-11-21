@@ -20,31 +20,32 @@ type Response struct {
 	Body   __vdlutil.Any
 }
 
-type Message struct{ oneof interface{} }
-
-// MakeMessage creates a Message.
-// Returns true iff the oneof value has a valid type.
-func MakeMessage(oneof interface{}) (x Message, ok bool) {
-	ok = x.Assign(oneof)
-	return
-}
-
-// Assign assigns oneof to x.
-// Returns true iff the oneof value has a valid type.
-func (x *Message) Assign(oneof interface{}) bool {
-	switch oneof.(type) {
-	case Request, Response:
-		x.oneof = oneof
-		return true
+type (
+	// Message represents any single field of the Message oneof type.
+	Message interface {
+		// Index returns the field index.
+		Index() int
+		// Name returns the field name.
+		Name() string
+		// __DescribeOneOf describes the Message oneof type.
+		__DescribeOneOf(__MessageDesc)
 	}
-	x.oneof = nil
-	return false
-}
+	// MessageRequest represents field Request of the Message oneof type.
+	MessageRequest struct{ Value Request }
+	// MessageResponse represents field Response of the Message oneof type.
+	MessageResponse struct{ Value Response }
+	// __MessageDesc describes the Message oneof type.
+	__MessageDesc struct {
+		Message
+		Request  MessageRequest
+		Response MessageResponse
+	}
+)
 
-// OneOf returns the underlying typed value of x.
-func (x Message) OneOf() interface{} {
-	return x.oneof
-}
+func (MessageRequest) Index() int                    { return 0 }
+func (MessageRequest) Name() string                  { return "Request" }
+func (MessageRequest) __DescribeOneOf(__MessageDesc) {}
 
-// vdlOneOfTypes identifies Message as a oneof.
-func (Message) vdlOneOfTypes(_ Request, _ Response) {}
+func (MessageResponse) Index() int                    { return 1 }
+func (MessageResponse) Name() string                  { return "Response" }
+func (MessageResponse) __DescribeOneOf(__MessageDesc) {}

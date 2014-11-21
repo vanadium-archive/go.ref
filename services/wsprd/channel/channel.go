@@ -30,19 +30,15 @@ func (c *Channel) PerformRpc(typ string, body interface{}) (interface{}, error) 
 	c.lock.Lock()
 	c.lastSeq++
 	lastSeq := c.lastSeq
-	req := Request{
+	m := MessageRequest{Request{
 		Type: typ,
 		Seq:  lastSeq,
 		Body: body,
-	}
+	}}
 	pending := make(chan Response, 1)
 	c.pendingResponses[lastSeq] = pending
 	c.lock.Unlock()
 
-	m, ok := MakeMessage(req)
-	if !ok {
-		return nil, fmt.Errorf("Failed to make message")
-	}
 	go c.messageHandler(m)
 	response := <-pending
 
@@ -76,15 +72,11 @@ func (c *Channel) handleRequest(req Request) {
 	if err != nil {
 		errMsg = err.Error()
 	}
-	resp := Response{
+	m := MessageResponse{Response{
 		ReqSeq: req.Seq,
 		Err:    errMsg,
 		Body:   result,
-	}
-	m, ok := MakeMessage(resp)
-	if !ok {
-		panic("Failed to make message")
-	}
+	}}
 	c.messageHandler(m)
 }
 
@@ -100,13 +92,13 @@ func (c *Channel) handleResponse(resp Response) {
 	pendingResponse <- resp
 }
 
-func (c *Channel) HandleMessage(in Message) {
-	switch m := in.OneOf().(type) {
-	case Request:
-		c.handleRequest(m)
-	case Response:
-		c.handleResponse(m)
+func (c *Channel) HandleMessage(m Message) {
+	switch r := m.(type) {
+	case MessageRequest:
+		c.handleRequest(r.Value)
+	case MessageResponse:
+		c.handleResponse(r.Value)
 	default:
-		panic(fmt.Sprintf("Unknown message type: %T", in))
+		panic(fmt.Sprintf("Unknown message type: %T", m))
 	}
 }
