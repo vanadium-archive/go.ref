@@ -76,7 +76,7 @@ func complexServerProgram(stdin io.Reader, stdout, stderr io.Writer, env map[str
 	// commands from the parent process to simulate Stop and
 	// RemoteStop commands that would normally be issued from
 	// application code.
-	go remoteCmdLoop(stdin)()
+	defer remoteCmdLoop(stdin)()
 
 	// r.Cleanup is optional, but it's a good idea to clean up, especially
 	// since it takes care of flushing the logs before exiting.
@@ -219,7 +219,7 @@ func simpleServerProgram(stdin io.Reader, stdout, stderr io.Writer, env map[stri
 	// commands from the parent process to simulate Stop and
 	// RemoteStop commands that would normally be issued from
 	// application code.
-	go remoteCmdLoop(stdin)()
+	defer remoteCmdLoop(stdin)()
 
 	// r.Cleanup is optional, but it's a good idea to clean up, especially
 	// since it takes care of flushing the logs before exiting.
