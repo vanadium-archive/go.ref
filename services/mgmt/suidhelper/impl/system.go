@@ -34,22 +34,37 @@ func (hw *WorkParameters) Chown() error {
 }
 
 func (hw *WorkParameters) Exec() error {
+	attr := new(syscall.ProcAttr)
+
+	if dir, err := os.Getwd(); err != nil {
+		log.Printf("error Getwd(): %v\n", err)
+		return fmt.Errorf("os.Getwd failed: %v", err)
+		attr.Dir = dir
+	}
+	attr.Env = hw.envv
+
 	if hw.dryrun {
 		log.Printf("[dryrun] syscall.Setgid(%d)", hw.gid)
 		log.Printf("[dryrun] syscall.Setuid(%d)", hw.uid)
 	} else {
-		// NOTE(caprita): Commenting this out since it's broken with go
-		// 1.4, to make the integration test pass.  go/vcl/8240 will fix
-		// it properly.
-
-		// if err := syscall.Setgid(hw.gid); err != nil {
-		// 	return fmt.Errorf("syscall.Setgid(%d) failed: %v", hw.gid, err)
-		// }
-		// if err := syscall.Setuid(hw.uid); err != nil {
-		// 	return fmt.Errorf("syscall.Setuid(%d) failed: %v", hw.uid, err)
-		// }
+		attr.Sys = new(syscall.SysProcAttr)
+		attr.Sys.Credential = new(syscall.Credential)
+		attr.Sys.Credential.Gid = uint32(hw.gid)
+		attr.Sys.Credential.Uid = uint32(hw.uid)
 	}
-	return syscall.Exec(hw.argv0, hw.argv, hw.envv)
+
+	_, _, err := syscall.StartProcess(hw.argv0, hw.argv, attr)
+	if err != nil {
+		if !hw.dryrun {
+			log.Printf("StartProcess failed: attr: %#v, attr.Sys: %#v, attr.Sys.Cred: %#v error: %v\n", attr, attr.Sys, attr.Sys.Credential, err)
+		} else {
+			log.Printf("StartProcess failed: %v", err)
+		}
+		return fmt.Errorf("syscall.StartProcess(%s) failed: %v", hw.argv0, err)
+	}
+	// TODO(rjkroege): Return the pid to the node manager.
+	os.Exit(0)
+	return nil // Not reached.
 }
 
 func (hw *WorkParameters) Remove() error {

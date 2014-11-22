@@ -85,6 +85,24 @@ func TestParseArguments(t *testing.T) {
 			fmt.Errorf("suidhelper does not permit uids less than 501"),
 			WorkParameters{},
 		},
+
+		{
+			[]string{"setuidhelper", "--minuid", "1", "--username", testUserName, "--workspace", "/hello",
+				"--logdir", "/logging", "--run", "/bin/veyron", "--dryrun", "--", "one", "two"},
+			[]string{"A=B"},
+			nil,
+			WorkParameters{
+				uid:       testUid,
+				gid:       testGid,
+				workspace: "/hello",
+				logDir:    "/logging",
+				argv0:     "/bin/veyron",
+				argv:      []string{"/bin/veyron", "one", "two"},
+				envv:      []string{"A=B"},
+				dryrun:    true,
+				remove:    false,
+			},
+		},
 	}
 
 	for _, c := range cases {

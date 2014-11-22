@@ -15,7 +15,7 @@ import "flag"
 var (
 	Username, Workspace, LogDir, Run *string
 	MinimumUid                       *int64
-	Remove                           *bool
+	Remove, Dryrun                   *bool
 )
 
 func init() {
@@ -29,6 +29,7 @@ func SetupFlags(fs *flag.FlagSet) {
 	Run = fs.String("run", "", "Path to the application to exec.")
 	MinimumUid = fs.Int64("minuid", uidThreshold, "UIDs cannot be less than this number.")
 	Remove = fs.Bool("rm", false, "Remove the file trees given as command-line arguments.")
+	Dryrun = fs.Bool("dryrun", false, "Elides root-requiring systemcalls.")
 }
 
 const uidThreshold = 501

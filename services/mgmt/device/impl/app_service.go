@@ -119,7 +119,6 @@ import (
 	"io/ioutil"
 	"os"
 	"os/exec"
-	"os/user"
 	"path"
 	"path/filepath"
 	"reflect"
@@ -677,56 +676,6 @@ func (i *appService) newInstance(call ipc.ServerContext) (string, string, error)
 	return instanceDir, instanceID, nil
 }
 
-// isSetuid is defined like this so we can override its
-// implementation for tests.
-var isSetuid = func(fileStat os.FileInfo) bool {
-	vlog.VI(2).Infof("running the original isSetuid")
-	return fileStat.Mode()&os.ModeSetuid == os.ModeSetuid
-}
-
-// systemAccountForHelper returns the uname that the helper uses to invoke the
-// application. If the helper exists and is setuid, the device manager
-// requires that there is a uname associated with the Veyron
-// identity that requested starting an application.
-// TODO(rjkroege): This function assumes a desktop installation target
-// and is probably not a good fit in other contexts. Revisit the design
-// as appropriate. This function also internalizes a decision as to when
-// it is possible to start an application that needs to be made explicit.
-func systemAccountForHelper(ctx ipc.ServerContext, helperPath string, uat BlessingSystemAssociationStore) (systemName string, err error) {
-	identityNames := ctx.RemoteBlessings().ForContext(ctx)
-	helperStat, err := os.Stat(helperPath)
-	if err != nil {
-		vlog.Errorf("Stat(%v) failed: %v. helper is required.", helperPath, err)
-		return "", verror2.Make(ErrOperationFailed, ctx.Context())
-	}
-	haveHelper := isSetuid(helperStat)
-	systemName, present := uat.SystemAccountForBlessings(identityNames)
-
-	switch {
-	case haveHelper && present:
-		return systemName, nil
-	case haveHelper && !present:
-		// The helper is owned by the device manager and installed as
-		// setuid root.  Therefore, the device manager must never run an
-		// app as itself to prevent an app trivially granting itself
-		// root permissions.  There must be an associated uname for the
-		// account in this case.
-		return "", verror2.Make(verror2.NoAccess, ctx.Context(), "use of setuid helper requires an associated uname.")
-	case !haveHelper:
-		// When the helper is not setuid, the helper can't change the
-		// app's uid so just run the app as the device manager's uname
-		// whether or not there is an association.
-		vlog.VI(1).Infof("helper not setuid. Device manager will invoke app with its own userid")
-		user, err := user.Current()
-		if err != nil {
-			vlog.Errorf("user.Current() failed: %v", err)
-			return "", verror2.Make(ErrOperationFailed, ctx.Context())
-		}
-		return user.Username, nil
-	}
-	return "", verror2.Make(ErrOperationFailed, ctx.Context())
-}
-
 func genCmd(instanceDir, helperPath, systemName string, nsRoots []string) (*exec.Cmd, error) {
 	versionLink := filepath.Join(instanceDir, "version")
 	versionDir, err := filepath.EvalSymlinks(versionLink)
@@ -745,7 +694,15 @@ func genCmd(instanceDir, helperPath, systemName string, nsRoots []string) (*exec
 	}
 
 	cmd := exec.Command(helperPath)
-	cmd.Args = append(cmd.Args, "--username", systemName)
+
+	switch yes, err := suidHelper.suidhelperEnabled(systemName, helperPath); {
+	case err != nil:
+		return nil, err
+	case yes:
+		cmd.Args = append(cmd.Args, "--username", systemName)
+	case !yes:
+		cmd.Args = append(cmd.Args, "--username", systemName, "--dryrun")
+	}
 
 	var nsRootEnvs []string
 	for i, r := range nsRoots {
@@ -908,12 +865,7 @@ func (i *appService) Start(call ipc.ServerContext) ([]string, error) {
 		return nil, err
 	}
 
-	systemName, err := systemAccountForHelper(call, helper, i.uat)
-	if err != nil {
-		cleanupDir(instanceDir, helper)
-		return nil, err
-	}
-
+	systemName := suidHelper.usernameForPrincipal(call, i.uat)
 	if err := saveSystemNameForInstance(instanceDir, systemName); err != nil {
 		cleanupDir(instanceDir, helper)
 		return nil, err
@@ -956,11 +908,7 @@ func (i *appService) Resume(call ipc.ServerContext) error {
 		return err
 	}
 
-	systemName, err := systemAccountForHelper(call, i.config.Helper, i.uat)
-	if err != nil {
-		return err
-	}
-
+	systemName := suidHelper.usernameForPrincipal(call, i.uat)
 	startSystemName, err := readSystemNameForInstance(instanceDir)
 	if err != nil {
 		return err

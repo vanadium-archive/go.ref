@@ -36,7 +36,7 @@ const SavedArgs = "VEYRON_SAVED_ARGS"
 var (
 	flagUsername, flagWorkspace, flagLogDir, flagRun *string
 	flagMinimumUid                                   *int64
-	flagRemove                                       *bool
+	flagRemove, flagDryrun                           *bool
 )
 
 func init() {
@@ -53,6 +53,7 @@ func setupFlags(fs *flag.FlagSet) {
 	flagRun = sflag.Run
 	flagMinimumUid = sflag.MinimumUid
 	flagRemove = sflag.Remove
+	flagDryrun = sflag.Dryrun
 }
 
 // ParseArguments populates the WorkParameter object from the provided args
@@ -87,6 +88,8 @@ func (wp *WorkParameters) ProcessArguments(fs *flag.FlagSet, env []string) error
 	if uid < *flagMinimumUid {
 		return fmt.Errorf("suidhelper does not permit uids less than %d", *flagMinimumUid)
 	}
+
+	wp.dryrun = *flagDryrun
 
 	// Preserve the arguments for examination by the test harness if executed
 	// in the course of a test.
