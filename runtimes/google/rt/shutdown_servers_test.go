@@ -47,7 +47,6 @@ func makeServer() ipc.Server {
 func remoteCmdLoop(stdin io.Reader) func() {
 	done := make(chan struct{})
 	go func() {
-		defer close(done)
 		scanner := bufio.NewScanner(stdin)
 		for scanner.Scan() {
 			switch scanner.Text() {
@@ -57,6 +56,7 @@ func remoteCmdLoop(stdin io.Reader) func() {
 				fmt.Println("straight exit")
 				rt.R().AppCycle().ForceStop()
 			case "close":
+				close(done)
 				return
 			}
 		}
@@ -128,7 +128,7 @@ func complexServerProgram(stdin io.Reader, stdout, stderr io.Writer, env map[str
 		case <-stopChan:
 		}
 		<-blockingCh
-		os.Exit(1)
+		os.Exit(signals.DoubleStopExitCode)
 	}()
 
 	// This communicates to the parent test driver process in our unit test
