@@ -410,6 +410,29 @@ func TestExitEarly(t *testing.T) {
 	clean(t, ph)
 }
 
+func TestWaitAndCleanRace(t *testing.T) {
+	name := "TestWaitAndCleanRace"
+	cmd := helperCommand("testReadySlow")
+	tk := timekeeper.NewManualTime()
+	ph := vexec.NewParentHandle(cmd, vexec.TimeKeeperOpt{tk})
+	err := ph.Start()
+	if err != nil {
+		t.Fatalf("%s: start: %v", name, err)
+	}
+	go func() {
+		// Wait for the ph.Wait below to block, then advance the time
+		// s.t. the Wait times out.
+		<-tk.Requests()
+		tk.AdvanceTime(2 * time.Second)
+	}()
+	if got, want := ph.Wait(time.Second), vexec.ErrTimeout; got == nil || got.Error() != want.Error() {
+		t.Fatalf("Wait returned %v, wanted %v instead", got, want)
+	}
+	if got, want := ph.Clean(), "signal: killed"; got == nil || got.Error() != want {
+		t.Fatalf("Wait returned %v, wanted %v instead", got, want)
+	}
+}
+
 func verifyNoExecVariable() {
 	version := os.Getenv(vexec.VersionVariable)
 	if len(version) != 0 {

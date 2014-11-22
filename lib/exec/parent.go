@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"strings"
+	"sync"
 	"syscall"
 	"time"
 
@@ -30,6 +31,9 @@ type ParentHandle struct {
 	statusRead  *os.File
 	statusWrite *os.File
 	tk          timekeeper.TimeKeeper
+	waitDone    bool
+	waitErr     error
+	waitLock    sync.Mutex
 }
 
 // ParentHandleOpt is an option for NewParentHandle.
@@ -202,13 +206,28 @@ func (p *ParentHandle) WaitForReady(timeout time.Duration) error {
 	panic("unreachable")
 }
 
+// wait performs the Wait on the underlying command under lock, and only once
+// (subsequent wait calls block until the Wait is finished).  It's ok to call
+// wait multiple times, and in parallel.  The error from the initial Wait is
+// cached and returned for all subsequent calls.
+func (p *ParentHandle) wait() error {
+	p.waitLock.Lock()
+	defer p.waitLock.Unlock()
+	if p.waitDone {
+		return p.waitErr
+	}
+	p.waitErr = p.c.Wait()
+	p.waitDone = true
+	return p.waitErr
+}
+
 // Wait will wait for the child process to terminate of its own accord.
 // It returns nil if the process exited cleanly with an exit status of 0,
 // any other exit code or error will result in an appropriate error return
 func (p *ParentHandle) Wait(timeout time.Duration) error {
 	c := make(chan error, 1)
 	go func() {
-		c <- p.c.Wait()
+		c <- p.wait()
 		close(c)
 	}()
 	// If timeout is zero time.After will panic; we handle zero specially
@@ -257,7 +276,7 @@ func (p *ParentHandle) Clean() error {
 	if err := p.Kill(); err != nil {
 		return err
 	}
-	return p.c.Wait()
+	return p.wait()
 }
 
 func encodeString(w io.Writer, data string) error {
