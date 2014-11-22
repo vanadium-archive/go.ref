@@ -873,7 +873,7 @@ func (fs *flowServer) initSecurity(req *ipc.Request) verror.E {
 	// this - should servers be able to assume that a blessing is something that
 	// does not have the authorizations that the server's own identity has?
 	if blessings != nil && !reflect.DeepEqual(blessings.PublicKey(), fs.flow.LocalPrincipal().PublicKey()) {
-		return verror.BadProtocolf("ipc: blessing granted not bound to this server(%v vs %v)", blessings.PublicKey(), fs.flow.LocalPrincipal().PublicKey())
+		return verror.NoAccessf("ipc: blessing granted not bound to this server(%v vs %v)", blessings.PublicKey(), fs.flow.LocalPrincipal().PublicKey())
 	}
 	// Receive third party caveat discharges the client sent
 	for i := uint64(0); i < req.NumDischarges; i++ {
