@@ -8,8 +8,6 @@ import (
 	"veyron.io/veyron/veyron/runtimes/google/lib/upcqueue"
 )
 
-// TODO(caprita): Write unit tests.
-
 // queueRW implements a ReadWriteCloser backed by an unbounded in-memory
 // producer-consumer queue.
 type queueRW struct {
@@ -47,6 +45,7 @@ func (q *queueRW) Read(p []byte) (n int, err error) {
 		q.buf, q.buffered = b, len(b)
 	}
 	copied := copy(p, q.buf[:q.buffered])
+	q.buf = q.buf[copied:]
 	q.buffered -= copied
 	return copied, nil
 }
