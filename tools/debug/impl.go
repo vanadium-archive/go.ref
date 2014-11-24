@@ -19,7 +19,6 @@ import (
 	istats "veyron.io/veyron/veyron/services/mgmt/stats"
 	"veyron.io/veyron/veyron2/context"
 	"veyron.io/veyron/veyron2/naming"
-	"veyron.io/veyron/veyron2/rt"
 	"veyron.io/veyron/veyron2/services/mgmt/logreader"
 	logtypes "veyron.io/veyron/veyron2/services/mgmt/logreader/types"
 	"veyron.io/veyron/veyron2/services/mgmt/pprof"
@@ -88,7 +87,7 @@ func doFetchTrace(ctx context.T, wg *sync.WaitGroup, client vtracesvc.StoreClien
 }
 
 func runVtrace(cmd *cmdline.Command, args []string) error {
-	ctx := rt.R().NewContext()
+	ctx := runtime.NewContext()
 	arglen := len(args)
 	if arglen == 0 {
 		return cmd.UsageErrorf("vtrace: incorrect number of arguments, got %d want >= 1", arglen)
@@ -155,7 +154,7 @@ func runGlob(cmd *cmdline.Command, args []string) error {
 	}
 	results := make(chan naming.MountEntry)
 	errors := make(chan error)
-	doGlobs(rt.R().NewContext(), args, results, errors)
+	doGlobs(runtime.NewContext(), args, results, errors)
 	var lastErr error
 	for {
 		select {
@@ -194,7 +193,7 @@ func doGlob(ctx context.T, pattern string, results chan<- naming.MountEntry, err
 	defer wg.Done()
 	ctx, cancel := ctx.WithTimeout(time.Minute)
 	defer cancel()
-	c, err := rt.R().Namespace().Glob(ctx, pattern)
+	c, err := runtime.Namespace().Glob(ctx, pattern)
 	if err != nil {
 		errors <- fmt.Errorf("%s: %v", pattern, err)
 		return
@@ -221,7 +220,7 @@ func runLogsRead(cmd *cmdline.Command, args []string) error {
 	}
 	name := args[0]
 	lf := logreader.LogFileClient(name)
-	stream, err := lf.ReadLog(rt.R().NewContext(), startPos, int32(numEntries), follow)
+	stream, err := lf.ReadLog(runtime.NewContext(), startPos, int32(numEntries), follow)
 	if err != nil {
 		return err
 	}
@@ -264,7 +263,7 @@ func runLogsSize(cmd *cmdline.Command, args []string) error {
 	}
 	name := args[0]
 	lf := logreader.LogFileClient(name)
-	size, err := lf.Size(rt.R().NewContext())
+	size, err := lf.Size(runtime.NewContext())
 	if err != nil {
 		return err
 	}
@@ -288,7 +287,7 @@ func runStatsRead(cmd *cmdline.Command, args []string) error {
 	if min, got := 1, len(args); got < min {
 		return cmd.UsageErrorf("read: incorrect number of arguments, got %d, want >=%d", got, min)
 	}
-	ctx := rt.R().NewContext()
+	ctx := runtime.NewContext()
 	globResults := make(chan naming.MountEntry)
 	errors := make(chan error)
 	doGlobs(ctx, args, globResults, errors)
@@ -349,7 +348,7 @@ func runStatsWatch(cmd *cmdline.Command, args []string) error {
 
 	results := make(chan string)
 	errors := make(chan error)
-	ctx := rt.R().NewContext()
+	ctx := runtime.NewContext()
 	var wg sync.WaitGroup
 	wg.Add(len(args))
 	for _, arg := range args {
@@ -484,7 +483,7 @@ func runPProf(cmd *cmdline.Command, args []string) error {
 		return showPProfProfiles(cmd, name)
 	}
 	profile := args[1]
-	listener, err := client.StartProxy(rt.R(), name)
+	listener, err := client.StartProxy(runtime, name)
 	if err != nil {
 		return err
 	}
@@ -507,7 +506,7 @@ func runPProf(cmd *cmdline.Command, args []string) error {
 }
 
 func showPProfProfiles(cmd *cmdline.Command, name string) error {
-	v, err := pprof.PProfClient(name).Profiles(rt.R().NewContext())
+	v, err := pprof.PProfClient(name).Profiles(runtime.NewContext())
 	if err != nil {
 		return err
 	}
@@ -544,7 +543,7 @@ func runPProfProxy(cmd *cmdline.Command, args []string) error {
 		return cmd.UsageErrorf("proxy: incorrect number of arguments, got %d, want %d", got, want)
 	}
 	name := args[0]
-	listener, err := client.StartProxy(rt.R(), name)
+	listener, err := client.StartProxy(runtime, name)
 	if err != nil {
 		return err
 	}
