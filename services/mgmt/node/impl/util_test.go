@@ -31,27 +31,33 @@ import (
 	"veyron.io/veyron/veyron2/services/mgmt/application"
 )
 
-// Setting this environment variable to any non-empty value avoids removing the
-// node manager's workspace for successful test runs (for failed test runs, this
-// is already the case).  This is useful when developing test cases.
-const preserveNMWorkspaceEnv = "VEYRON_TEST_PRESERVE_NM_WORKSPACE"
+const (
+	// Setting this environment variable to any non-empty value avoids
+	// removing the node manager's workspace for successful test runs (for
+	// failed test runs, this is already the case).  This is useful when
+	// developing test cases.
+	preserveNMWorkspaceEnv = "VEYRON_TEST_PRESERVE_NM_WORKSPACE"
+
+	// TODO(caprita): Set the timeout in a more principled manner.
+	expectTimeout = 20 * time.Second
+)
 
 func loc(d int) string {
 	_, file, line, _ := runtime.Caller(d + 1)
 	return fmt.Sprintf("%s:%d", filepath.Base(file), line)
 }
 
-func startRootMT(t *testing.T, sh *modules.Shell) (string, modules.Handle, *expect.Session) {
+func startRootMT(t *testing.T, sh *modules.Shell) (string, modules.Handle) {
 	h, err := sh.Start(core.RootMTCommand, nil, "--", "--veyron.tcp.address=127.0.0.1:0")
 	if err != nil {
 		t.Fatalf("failed to start root mount table: %s", err)
 	}
-	s := expect.NewSession(t, h.Stdout(), time.Minute)
+	s := expect.NewSession(t, h.Stdout(), expectTimeout)
 	rootName := s.ExpectVar("MT_NAME")
 	if t.Failed() {
 		t.Fatalf("failed to read mt name: %s", s.Error())
 	}
-	return rootName, h, s
+	return rootName, h
 }
 
 func credentialsForChild(blessing string) (string, []string) {
@@ -76,7 +82,7 @@ func createShellAndMountTable(t *testing.T) (*modules.Shell, func()) {
 	// The shell, will, by default share credentials with its children.
 	sh.ClearVar(consts.VeyronCredentials)
 
-	mtName, mtHandle, _ := startRootMT(t, sh)
+	mtName, mtHandle := startRootMT(t, sh)
 	// Make sure the root mount table is the last process to be shutdown
 	// since the others will likely want to communicate with it during
 	// their shutdown process
@@ -104,7 +110,7 @@ func runShellCommand(t *testing.T, sh *modules.Shell, env []string, cmd string, 
 		t.Fatalf("%s: failed to start %q: %s", loc(1), cmd, err)
 		return nil, nil
 	}
-	s := expect.NewSession(t, h.Stdout(), 10*time.Second)
+	s := expect.NewSession(t, h.Stdout(), expectTimeout)
 	s.SetVerbosity(testing.Verbose())
 	return h, s
 }

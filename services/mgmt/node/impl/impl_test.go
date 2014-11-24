@@ -457,6 +457,9 @@ func TestNodeManagerUpdateAndRevert(t *testing.T) {
 
 type pingServer chan<- string
 
+// TODO(caprita): Set the timeout in a more principled manner.
+const pingTimeout = 20 * time.Second
+
 func (p pingServer) Ping(_ ipc.ServerContext, arg string) {
 	p <- arg
 }
@@ -508,7 +511,7 @@ func verifyHelperArgs(t *testing.T, pingCh <-chan string, username string) {
 	var env string
 	select {
 	case env = <-pingCh:
-	case <-time.After(time.Minute):
+	case <-time.After(pingTimeout):
 		t.Fatalf("%s: failed to get ping", loc(1))
 	}
 	d := json.NewDecoder(strings.NewReader(env))
@@ -776,7 +779,7 @@ func TestNodeManagerClaim(t *testing.T) {
 	// Wait until the app pings us that it's ready.
 	select {
 	case <-pingCh:
-	case <-time.After(5 * time.Second):
+	case <-time.After(pingTimeout):
 		t.Fatalf("failed to get ping")
 	}
 	resolve(t, "trapp", 1)
@@ -969,7 +972,7 @@ func TestNodeManagerGlobAndDebug(t *testing.T) {
 	// Wait until the app pings us that it's ready.
 	select {
 	case <-pingCh:
-	case <-time.After(5 * time.Second):
+	case <-time.After(pingTimeout):
 		t.Fatalf("failed to get ping")
 	}
 
