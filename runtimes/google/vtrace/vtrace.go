@@ -4,6 +4,7 @@
 package vtrace
 
 import (
+	"fmt"
 	"time"
 
 	"veyron.io/veyron/veyron2/context"
@@ -41,8 +42,13 @@ func (c *span) ID() uniqueid.ID     { return c.id }
 func (c *span) Parent() uniqueid.ID { return c.parent }
 func (c *span) Name() string        { return c.name }
 func (c *span) Trace() vtrace.Trace { return c.collector }
-func (c *span) Annotate(msg string) { c.collector.annotate(c, msg) }
-func (c *span) Finish()             { c.collector.finish(c) }
+func (c *span) Annotate(s string) {
+	c.collector.annotate(c, s)
+}
+func (c *span) Annotatef(format string, a ...interface{}) {
+	c.collector.annotate(c, fmt.Sprintf(format, a...))
+}
+func (c *span) Finish() { c.collector.finish(c) }
 
 // Request generates a vtrace.Request from the active Span.
 func Request(ctx context.T) vtrace.Request {

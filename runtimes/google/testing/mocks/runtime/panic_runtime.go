@@ -52,9 +52,10 @@ func (*PanicRuntime) Cleanup()                  { panic(badRuntime) }
 
 type span struct{ m string }
 
-func (s *span) Name() string        { return s.m + ".panic" }
-func (*span) ID() uniqueid.ID       { return uniqueid.ID{} }
-func (s *span) Parent() uniqueid.ID { return s.ID() }
-func (*span) Annotate(string)       {}
-func (*span) Finish()               {}
-func (*span) Trace() vtrace.Trace   { return nil }
+func (s *span) Name() string                   { return s.m + ".panic" }
+func (*span) ID() uniqueid.ID                  { return uniqueid.ID{} }
+func (s *span) Parent() uniqueid.ID            { return s.ID() }
+func (*span) Annotate(string)                  {}
+func (*span) Annotatef(string, ...interface{}) {}
+func (*span) Finish()                          {}
+func (*span) Trace() vtrace.Trace              { return nil }

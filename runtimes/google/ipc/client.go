@@ -270,6 +270,7 @@ func (c *client) startCall(ctx context.T, name, method string, args []interface{
 	if ctx == nil {
 		return nil, verror.ExplicitMake(verror.BadArg, i18n.NoLangID, "ipc.Client", "StartCall")
 	}
+	ctx, span := vtrace.WithNewSpan(ctx, fmt.Sprintf("<client>%q.%s", name, method))
 	ctx = verror.ContextWithComponentName(ctx, "ipc.Client")
 
 	// Context specified deadline.
@@ -295,8 +296,10 @@ func (c *client) startCall(ctx context.T, name, method string, args []interface{
 		}
 		lastErr = err
 		if time.Now().After(deadline) || err.Action() != verror.RetryConnection {
+			span.Annotatef("Cannot retry after error: %s", err)
 			break
 		}
+		span.Annotatef("Retrying due to error: %s", err)
 	}
 	return nil, lastErr
 }
@@ -322,7 +325,6 @@ func (c *client) tryServer(ctx context.T, index int, server string, ch chan<- *s
 
 // tryCall makes a single attempt at a call, against possibly multiple servers.
 func (c *client) tryCall(ctx context.T, name, method string, args []interface{}, opts []ipc.CallOpt) (ipc.Call, verror.E) {
-	ctx, _ = vtrace.WithNewSpan(ctx, fmt.Sprintf("<client>\"%s\".%s", name, method))
 	_, serverPattern, name := splitObjectName(name)
 	// Resolve name unless told not to.
 	var servers []string
