@@ -45,8 +45,10 @@ func testFlags() []string {
 		// use supplied command value for subprocesses
 		fl = append(fl, "--test.timeout="+timeout.Value.String())
 	} else {
-		// translate default value into 1m for subproccesses
-		fl = append(fl, "--test.timeout=1m")
+		// translate default value into 3m for subproccesses.  The
+		// default of 10m is too long to wait in order to find out that
+		// our subprocess is wedged.
+		fl = append(fl, "--test.timeout=3m")
 	}
 	return fl
 }
