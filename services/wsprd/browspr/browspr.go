@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net"
 	"regexp"
+	"sync"
 	"time"
 
 	"veyron.io/veyron/veyron2"
@@ -27,6 +28,8 @@ type Browspr struct {
 	accountManager *account.AccountManager
 	postMessage    func(instanceId int32, ty, msg string)
 
+	// Locks activeInstances
+	mu              sync.Mutex
 	activeInstances map[int32]*pipe
 }
 
@@ -98,6 +101,8 @@ func (ln tcpKeepAliveListener) Accept() (c net.Conn, err error) {
 // HandleMessage handles most messages from javascript and forwards them to a
 // Controller.
 func (b *Browspr) HandleMessage(instanceId int32, msg string) error {
+	b.mu.Lock()
+	defer b.mu.Unlock()
 	instance, ok := b.activeInstances[instanceId]
 	if !ok {
 		instance = newPipe(b, instanceId)
@@ -110,9 +115,15 @@ func (b *Browspr) HandleMessage(instanceId int32, msg string) error {
 // HandleCleanupMessage cleans up the specified instance state. (For instance,
 // when a browser tab is closed)
 func (b *Browspr) HandleCleanupMessage(instanceId int32) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
 	if instance, ok := b.activeInstances[instanceId]; ok {
-		instance.cleanup()
 		delete(b.activeInstances, instanceId)
+		// NOTE(nlacasse): Calling cleanup() on the main thread locks
+		// browspr, so we must do it in a goroutine.
+		// TODO(nlacasse): Consider running all the message handlers in
+		// goroutines.
+		go instance.cleanup()
 	}
 }
 

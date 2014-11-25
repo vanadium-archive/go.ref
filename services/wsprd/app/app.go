@@ -132,7 +132,7 @@ type Controller struct {
 	// A manager that Handles fetching and caching signature of remote services
 	signatureManager lib.SignatureManager
 
-	// We maintain multiple Veyron server per websocket pipe for serving JavaScript
+	// We maintain multiple Veyron server per pipe for serving JavaScript
 	// services.
 	servers map[uint64]*server.Server
 
@@ -321,7 +321,7 @@ func (c *Controller) AddBlessings(blessings security.Blessings) int64 {
 
 // Cleanup cleans up any outstanding rpcs.
 func (c *Controller) Cleanup() {
-	c.logger.VI(0).Info("Cleaning up websocket")
+	c.logger.VI(0).Info("Cleaning up pipe")
 	c.Lock()
 	defer c.Unlock()
 
@@ -521,7 +521,7 @@ func (c *Controller) removeServer(serverId uint64) {
 }
 
 func (c *Controller) serve(serveRequest serveRequest, w lib.ClientWriter) {
-	// Create a server for the websocket pipe, if it does not exist already.
+	// Create a server for the pipe, if it does not exist already.
 	server, err := c.maybeCreateServer(serveRequest.ServerId)
 	if err != nil {
 		w.Error(verror2.Convert(verror2.Internal, nil, err))
@@ -607,7 +607,7 @@ func (c *Controller) HandleAddNameRequest(data string, w lib.ClientWriter) {
 		return
 	}
 
-	// Create a server for the websocket pipe, if it does not exist already
+	// Create a server for the pipe, if it does not exist already
 	server, err := c.maybeCreateServer(request.ServerId)
 	if err != nil {
 		w.Error(verror2.Convert(verror2.Internal, nil, err))
@@ -635,7 +635,7 @@ func (c *Controller) HandleRemoveNameRequest(data string, w lib.ClientWriter) {
 		return
 	}
 
-	// Create a server for the websocket pipe, if it does not exist already
+	// Create a server for the pipe, if it does not exist already
 	server, err := c.maybeCreateServer(request.ServerId)
 	if err != nil {
 		w.Error(verror2.Convert(verror2.Internal, nil, err))

@@ -19,11 +19,8 @@ import (
 	"veyron.io/wspr/veyron/services/wsprd/browspr"
 )
 
-func init() {
-	stream.RegisterProtocol("ws", websocket.Dial, nil)
-}
-
 func main() {
+	stream.RegisterProtocol("ws", websocket.Dial, nil)
 	ppapi.Init(newBrowsprInstance)
 }
 
@@ -228,7 +225,7 @@ func (inst *browsprInstance) StartBrowspr(instanceId int32, message ppapi.Var) e
 	fmt.Printf("Starting browspr with config: proxy=%q mounttable=%q identityd=%q ", veyronProxy, mounttable, identityd)
 	inst.browspr = browspr.NewBrowspr(inst.BrowsprOutgoingPostMessage, chrome.New, listenSpec, identityd, []string{mounttable}, options.RuntimePrincipal{principal})
 
-	inst.BrowsprOutgoingPostMessage(instanceId, "browsprStarted", "blah")
+	inst.BrowsprOutgoingPostMessage(instanceId, "browsprStarted", "")
 	return nil
 }
 
@@ -316,7 +313,6 @@ func (inst *browsprInstance) handleGoError(err error) {
 // A message is of the form {"type": "typeName", "body": { stuff here }},
 // where the body is passed to the message handler.
 func (inst *browsprInstance) HandleMessage(message ppapi.Var) {
-	fmt.Printf("Entered HandleMessage")
 	instanceId, err := message.LookupIntValuedKey("instanceId")
 	if err != nil {
 		inst.handleGoError(err)

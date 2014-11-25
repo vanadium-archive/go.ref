@@ -52,7 +52,7 @@ func (p *pipe) createWriter(messageId int64) lib.ClientWriter {
 }
 
 func (p *pipe) cleanup() {
-	p.browspr.logger.VI(0).Info("Cleaning up websocket")
+	p.browspr.logger.VI(0).Info("Cleaning up controller")
 	p.controller.Cleanup()
 }
 
