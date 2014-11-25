@@ -6,7 +6,7 @@
 package tunnel
 
 import (
-	"veyron.io/veyron/veyron2/security"
+	"veyron.io/veyron/veyron2/services/security/access"
 
 	// The non-user imports are prefixed with "__" to prevent collisions.
 	__io "io"
@@ -432,7 +432,7 @@ var descTunnel = __ipc.InterfaceDesc{
 			OutArgs: []__ipc.ArgDesc{
 				{"", ``}, // error
 			},
-			Tags: []__vdlutil.Any{security.Label(8)},
+			Tags: []__vdlutil.Any{access.Tag("Admin")},
 		},
 		{
 			Name: "Shell",
@@ -445,7 +445,7 @@ var descTunnel = __ipc.InterfaceDesc{
 				{"", ``}, // int32
 				{"", ``}, // error
 			},
-			Tags: []__vdlutil.Any{security.Label(8)},
+			Tags: []__vdlutil.Any{access.Tag("Admin")},
 		},
 	},
 }

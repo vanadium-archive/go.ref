@@ -18,6 +18,8 @@
 package rps
 
 import (
+	"veyron.io/veyron/veyron2/services/security/access"
+
 	// The non-user imports are prefixed with "__" to prevent collisions.
 	__io "io"
 	__veyron2 "veyron.io/veyron/veyron2"
@@ -360,6 +362,7 @@ var descJudge = __ipc.InterfaceDesc{
 				{"", ``}, // GameID
 				{"", ``}, // error
 			},
+			Tags: []__vdlutil.Any{access.Tag("Admin")},
 		},
 		{
 			Name: "Play",
@@ -371,6 +374,7 @@ var descJudge = __ipc.InterfaceDesc{
 				{"", ``}, // PlayResult
 				{"", ``}, // error
 			},
+			Tags: []__vdlutil.Any{access.Tag("Admin")},
 		},
 	},
 }
@@ -681,6 +685,7 @@ var descPlayer = __ipc.InterfaceDesc{
 			OutArgs: []__ipc.ArgDesc{
 				{"", ``}, // error
 			},
+			Tags: []__vdlutil.Any{access.Tag("Admin")},
 		},
 	},
 }
@@ -849,6 +854,7 @@ var descScoreKeeper = __ipc.InterfaceDesc{
 			OutArgs: []__ipc.ArgDesc{
 				{"", ``}, // error
 			},
+			Tags: []__vdlutil.Any{access.Tag("Admin")},
 		},
 	},
 }
