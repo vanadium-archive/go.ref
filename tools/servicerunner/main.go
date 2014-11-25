@@ -66,16 +66,11 @@ func main() {
 
 	sh := modules.NewShell()
 	defer sh.Cleanup(os.Stderr, os.Stderr)
-	// NOTE(sadovsky): Shell only does this for tests. It would be better if it
-	// either always did it or never did it.
-	if os.Getenv(consts.VeyronCredentials) == "" {
-		panicOnError(sh.CreateAndUseNewCredentials())
-		v, ok := sh.GetVar(consts.VeyronCredentials)
-		if !ok {
-			panic("Missing " + consts.VeyronCredentials)
-		}
-		vars[consts.VeyronCredentials] = v
+	v, ok := sh.GetVar(consts.VeyronCredentials)
+	if !ok {
+		panic("modules.Shell: missing " + consts.VeyronCredentials)
 	}
+	vars[consts.VeyronCredentials] = v
 
 	h, err := sh.Start("root", nil, "--", "--veyron.tcp.address=127.0.0.1:0")
 	panicOnError(err)

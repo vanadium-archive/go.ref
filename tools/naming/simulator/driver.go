@@ -19,7 +19,6 @@ import (
 	"veyron.io/veyron/veyron2/rt"
 
 	"veyron.io/veyron/veyron/lib/expect"
-	"veyron.io/veyron/veyron/lib/flags/consts"
 	"veyron.io/veyron/veyron/lib/modules"
 	_ "veyron.io/veyron/veyron/profiles"
 )
@@ -111,9 +110,6 @@ func main() {
 
 	shell := modules.NewShell()
 	defer shell.Cleanup(os.Stderr, os.Stderr)
-	if os.Getenv(consts.VeyronCredentials) == "" {
-		shell.CreateAndUseNewCredentials()
-	}
 
 	scanner := bufio.NewScanner(os.Stdin)
 	lineno := 1

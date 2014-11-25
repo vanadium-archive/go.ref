@@ -335,7 +335,6 @@ func TestRemoteForceStop(t *testing.T) {
 	if err == nil || err.Error() != want {
 		t.Errorf("got %v, want %s", err, want)
 	}
-
 }
 
 // TestRemoteStop verifies that the child shuts down cleanly when sending it

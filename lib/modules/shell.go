@@ -29,13 +29,24 @@
 // In particular stdin, stdout and stderr are provided as parameters, as is
 // a map representation of the shell's environment.
 //
-// If a Shell is created within a unit test then it will automatically
-// generate a security ID, write it to a file and set the appropriate
-// environment variable to refer to it.
+// Every Shell created by NewShell is initialized with its VeyronCredentials
+// environment variable set. The variable is set to the os's VeyronCredentials
+// if that is set, otherwise to a freshly created credentials directory. The
+// shell's VeyronCredentials can be set and cleared using the SetVar and
+// ClearVar methods respectively.
+//
+// By default, the VeyronCredentials for each command Start-ed by the shell are
+// set to a freshly created credentials directory that is blessed by the shell's
+// credentials (i.e., if shell's credentials have not been cleared). Thus, each
+// child of the shell gets its own credentials directory with a blessing from the
+// shell of the form
+//   <shell's default blessing>/child
+// These default credentials provided by the shell to each command can be
+// overridden by specifying VeyronCredentials in the environment provided as a
+// parameter to the Start method.
 package modules
 
 import (
-	"flag"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -45,22 +56,44 @@ import (
 
 	"veyron.io/veyron/veyron/lib/exec"
 	"veyron.io/veyron/veyron/lib/flags/consts"
+	vsecurity "veyron.io/veyron/veyron/security"
+
+	"veyron.io/veyron/veyron2/security"
+)
+
+const (
+	shellBlessingExtension = "test-shell"
+	childBlessingExtension = "child"
 )
 
 // Shell represents the context within which commands are run.
 type Shell struct {
-	mu                        sync.Mutex
-	env                       map[string]string
-	handles                   map[Handle]struct{}
-	credDir                   string
+	mu      sync.Mutex
+	env     map[string]string
+	handles map[Handle]struct{}
+	// tmpCredDirs are the temporary directories created by this
+	// shell. These must be removed when the shell is cleaned up.
+	tempCredDirs              []string
 	startTimeout, waitTimeout time.Duration
 	config                    exec.Config
 }
 
-// NewShell creates a new instance of Shell. If this new instance is is a test
-// and no credentials have been configured in the environment via
-// consts.VeyronCredentials then CreateAndUseNewCredentials will be used to
-// configure a new ID for the shell and its children.
+// NewShell creates a new instance of Shell.
+//
+// The VeyronCredentials environment variable of the shell is set
+// as follows. If the OS's VeyronCredentials is set then the shell's
+// VeyronCredentials is set to the same value, otherwise it is set
+// to a freshly created credentials directory.
+//
+// The shell's credentials are used to bless the principal supplied
+// to any children of this shell (see Start).
+// TODO(cnicolaou): this should use the principal already setup
+// with the runtime if the runtime has been initialized, if not,
+// it should create a new principal. As of now, this approach only works
+// for child processes that talk to each other, but not to the parent
+// process that started them since it's running with a different set of
+// credentials setup elsewhere. When this change is made it should
+// be possible to remove creating credentials in many unit tests.
 func NewShell() *Shell {
 	sh := &Shell{
 		env:          make(map[string]string),
@@ -69,33 +102,61 @@ func NewShell() *Shell {
 		waitTimeout:  10 * time.Second,
 		config:       exec.NewConfig(),
 	}
-	if flag.Lookup("test.run") != nil && os.Getenv(consts.VeyronCredentials) == "" {
-		if err := sh.CreateAndUseNewCredentials(); err != nil {
-			// TODO(cnicolaou): return an error rather than panic.
-			panic(err)
-		}
+	if err := sh.initShellCredentials(); err != nil {
+		// TODO(cnicolaou): return an error rather than panic.
+		panic(err)
 	}
 	return sh
 }
 
-// CreateAndUseNewCredentials setups a new credentials directory and then
-// configures the shell and all of its children to use to it.
-//
-// TODO(cnicolaou): this should use the principal already setup
-// with the runtime if the runtime has been initialized, if not,
-// it should create a new principal. As of now, this approach only works
-// for child processes that talk to each other, but not to the parent
-// process that started them since it's running with a different set of
-// credentials setup elsewhere. When this change is made it should
-// be possible to remove creating credentials in many unit tests.
-func (sh *Shell) CreateAndUseNewCredentials() error {
-	dir, err := ioutil.TempDir("", "veyron_credentials")
+func (sh *Shell) initShellCredentials() error {
+	sh.mu.Lock()
+	defer sh.mu.Unlock()
+	if dir := os.Getenv(consts.VeyronCredentials); len(dir) != 0 {
+		sh.env[consts.VeyronCredentials] = dir
+		return nil
+	}
+
+	dir, err := ioutil.TempDir("", "shell_credentials")
 	if err != nil {
 		return err
 	}
-	sh.credDir = dir
-	sh.SetVar(consts.VeyronCredentials, sh.credDir)
+	sh.env[consts.VeyronCredentials] = dir
+	sh.tempCredDirs = append(sh.tempCredDirs, dir)
 	return nil
+}
+
+func (sh *Shell) getChildCredentials(shellCredDir string) (string, error) {
+	root, err := principalFromDir(shellCredDir)
+	if err != nil {
+		return "", err
+	}
+
+	dir, err := ioutil.TempDir("", "shell_child_credentials")
+	if err != nil {
+		return "", err
+	}
+	p, err := vsecurity.CreatePersistentPrincipal(dir, nil)
+	if err != nil {
+		return "", err
+	}
+
+	blessing, err := root.Bless(p.PublicKey(), root.BlessingStore().Default(), childBlessingExtension, security.UnconstrainedUse())
+	if err != nil {
+		return "", err
+	}
+	if err := p.BlessingStore().SetDefault(blessing); err != nil {
+		return "", err
+	}
+	if _, err := p.BlessingStore().Set(blessing, security.AllPrincipals); err != nil {
+		return "", err
+	}
+	if err := p.AddToRoots(blessing); err != nil {
+		return "", err
+	}
+
+	sh.tempCredDirs = append(sh.tempCredDirs, dir)
+	return dir, nil
 }
 
 type Main func(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error
@@ -111,10 +172,20 @@ func (sh *Shell) Help(command string) string {
 	return registry.help(command)
 }
 
-// Start starts the specified command, it returns a Handle which can be used
-// for interacting with that command. The OS and shell environment variables
-// are merged with the ones supplied as a parameter; the parameter specified
-// ones override the Shell and the Shell ones override the OS ones.
+// Start starts the specified command, it returns a Handle which can be
+// used for interacting with that command.
+//
+// The environment variables for the command are set by merging variables
+// from the OS environment, those in this Shell and those provided as a
+// parameter to it. In general, it prefers values from its parameter over
+// those from the Shell, over those from the OS. However, the VeyronCredentials
+// environment variable is handled specially.
+//
+// If the VeyronCredentials environment variable is set in 'env' then that
+// is the value that gets used. If the shell's VeyronCredentials are set then
+// VeyronCredentials for the command are set to a freshly created directory
+// specifying a principal blessed by the shell's credentials. In all other
+// cases VeyronCredentials for the command remains unset.
 //
 // The Shell tracks all of the Handles that it creates so that it can shut
 // them down when asked to. The returned Handle may be non-nil even when an
@@ -124,7 +195,10 @@ func (sh *Shell) Help(command string) string {
 // Commands must have already been registered using RegisterFunction
 // or RegisterChild.
 func (sh *Shell) Start(name string, env []string, args ...string) (Handle, error) {
-	cenv := sh.MergedEnv(env)
+	cenv, err := sh.setupCommandEnv(env)
+	if err != nil {
+		return nil, err
+	}
 	cmd := registry.getCommand(name)
 	if cmd == nil {
 		return nil, fmt.Errorf("%s: not registered", name)
@@ -155,12 +229,20 @@ func (sh *Shell) SetWaitTimeout(d time.Duration) {
 // CommandEnvelope returns the command line and environment that would be
 // used for running the subprocess or function if it were started with the
 // specifed arguments.
+//
+// This method is not idempotent as the directory pointed to by the
+// VeyronCredentials environment variable may be freshly created with
+// each invocation.
 func (sh *Shell) CommandEnvelope(name string, env []string, args ...string) ([]string, []string) {
 	cmd := registry.getCommand(name)
 	if cmd == nil {
 		return []string{}, []string{}
 	}
-	return cmd.factory().envelope(sh, sh.MergedEnv(env), args...)
+	menv, err := sh.setupCommandEnv(env)
+	if err != nil {
+		return []string{}, []string{}
+	}
+	return cmd.factory().envelope(sh, menv, args...)
 }
 
 // Forget tells the Shell to stop tracking the supplied Handle. This is
@@ -196,6 +278,11 @@ func (sh *Shell) GetVar(key string) (string, bool) {
 }
 
 // SetVar sets the value to be associated with key.
+//
+// Note that setting the VeyronCredentials environement
+// variable changes the shell's principal which is used
+// for blessing the principals supplied to the shell's
+// children.
 func (sh *Shell) SetVar(key, value string) {
 	sh.mu.Lock()
 	defer sh.mu.Unlock()
@@ -204,6 +291,11 @@ func (sh *Shell) SetVar(key, value string) {
 }
 
 // ClearVar removes the speficied variable from the Shell's environment
+//
+// Note that clearing the VeyronCredentials environment variable
+// would amount to clearing the shell's principal, and therefore, any
+// children of this shell would have their VeyronCredentials environment
+// variable set only if it is explicitly set in their parameters.
 func (sh *Shell) ClearVar(key string) {
 	sh.mu.Lock()
 	defer sh.mu.Unlock()
@@ -261,28 +353,49 @@ func (sh *Shell) Cleanup(stdout, stderr io.Writer) error {
 			err = cerr
 		}
 	}
-	if len(sh.credDir) > 0 {
-		os.RemoveAll(sh.credDir)
+
+	// TODO(ataly, ashankar, caprita): The following code may lead to
+	// removing the credential directories for child processes that are
+	// still alive (this can happen e.g. if the Wait on the child timed
+	// out). While we can hope that some error will reach the caller of
+	// Cleanup (because we harvest the error codes from Shutdown), it may
+	// lead to failures that are harder to debug because the original issue
+	// will get masked by the credentials going away. One possibility is
+	// to only remove the credentials dir when Shutdown returns no timeout
+	// error.
+	for _, dir := range sh.tempCredDirs {
+		os.RemoveAll(dir)
 	}
 	return err
 }
 
-// MergedEnv returns a slice that contains the merged set of environment
-// variables from the OS environment, those in this Shell and those provided
-// as a parameter to it. It prefers values from its parameter over those
-// from the Shell, over those from the OS.
-func (sh *Shell) MergedEnv(env []string) []string {
+func (sh *Shell) setupCommandEnv(env []string) ([]string, error) {
 	osmap := envSliceToMap(os.Environ())
 	evmap := envSliceToMap(env)
+
 	sh.mu.Lock()
-	m1 := mergeMaps(osmap, sh.env)
 	defer sh.mu.Unlock()
+	m1 := mergeMaps(osmap, sh.env)
+	// Clear any VeyronCredentials directory in m1 as we never
+	// want the child to directly use the directory specified
+	// by the shell's VeyronCredentials.
+	delete(m1, consts.VeyronCredentials)
+
+	// Set the VeyronCredentials environment variable for the child
+	// if it is not already set and the shell's VeyronCredentials are set.
+	if len(evmap[consts.VeyronCredentials]) == 0 && len(sh.env[consts.VeyronCredentials]) != 0 {
+		var err error
+		if evmap[consts.VeyronCredentials], err = sh.getChildCredentials(sh.env[consts.VeyronCredentials]); err != nil {
+			return nil, err
+		}
+	}
+
 	m2 := mergeMaps(m1, evmap)
 	r := []string{}
 	for k, v := range m2 {
 		r = append(r, k+"="+v)
 	}
-	return r
+	return r, nil
 }
 
 // Handle represents a running command.

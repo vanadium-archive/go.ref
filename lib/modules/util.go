@@ -8,6 +8,9 @@ import (
 	"os"
 	"strings"
 
+	vsecurity "veyron.io/veyron/veyron/security"
+
+	"veyron.io/veyron/veyron2/security"
 	"veyron.io/veyron/veyron2/vlog"
 )
 
@@ -71,4 +74,22 @@ func mergeMaps(a, b map[string]string) map[string]string {
 		merged[k] = v
 	}
 	return merged
+}
+
+func principalFromDir(dir string) (security.Principal, error) {
+	p, err := vsecurity.LoadPersistentPrincipal(dir, nil)
+	if err == nil {
+		return p, nil
+	}
+	if !os.IsNotExist(err) {
+		return nil, err
+	}
+	p, err = vsecurity.CreatePersistentPrincipal(dir, nil)
+	if err != nil {
+		return nil, err
+	}
+	if err := vsecurity.InitDefaultBlessings(p, shellBlessingExtension); err != nil {
+		return nil, err
+	}
+	return p, nil
 }

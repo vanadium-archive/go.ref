@@ -3,6 +3,7 @@ package modules_test
 import (
 	"bufio"
 	"bytes"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -14,9 +15,17 @@ import (
 	"time"
 
 	"veyron.io/veyron/veyron/lib/exec"
+	"veyron.io/veyron/veyron/lib/flags/consts"
 	"veyron.io/veyron/veyron/lib/modules"
 	"veyron.io/veyron/veyron/lib/testutil"
+	tsecurity "veyron.io/veyron/veyron/lib/testutil/security"
+	_ "veyron.io/veyron/veyron/profiles"
+	vsecurity "veyron.io/veyron/veyron/security"
+
+	"veyron.io/veyron/veyron2/security"
 )
+
+const credentialsEnvPrefix = "\"" + consts.VeyronCredentials + "="
 
 func init() {
 	testutil.Init()
@@ -304,19 +313,133 @@ func TestEnvelope(t *testing.T) {
 		}
 	}
 
+	foundVeyronCredentials := false
 	for _, want := range shEnv {
+		if strings.HasPrefix(want, credentialsEnvPrefix) {
+			foundVeyronCredentials = true
+			continue
+		}
 		if !find(want, childEnv) {
 			t.Errorf("failed to find %s in %#v", want, childEnv)
 		}
 	}
+	if !foundVeyronCredentials {
+		t.Errorf("%v environment variable not set in command envelope", consts.VeyronCredentials)
+	}
+
+	foundVeyronCredentials = false
 	for _, want := range childEnv {
 		if want == "\""+exec.VersionVariable+"=\"" {
+			continue
+		}
+		if strings.HasPrefix(want, credentialsEnvPrefix) {
+			foundVeyronCredentials = true
 			continue
 		}
 		if !find(want, shEnv) {
 			t.Errorf("failed to find %s in %#v", want, shEnv)
 		}
 	}
+	if !foundVeyronCredentials {
+		t.Errorf("%v environment variable not set for command", consts.VeyronCredentials)
+	}
+}
+
+func TestEnvCredentials(t *testing.T) {
+	startChildAndGetCredentials := func(sh *modules.Shell, env []string) string {
+		h, err := sh.Start("printenv", env)
+		if err != nil {
+			t.Fatalf("unexpected error: %s", err)
+		}
+		defer h.Shutdown(os.Stderr, os.Stderr)
+		scanner := bufio.NewScanner(h.Stdout())
+		for scanner.Scan() {
+			o := scanner.Text()
+			if strings.HasPrefix(o, credentialsEnvPrefix) {
+				return strings.TrimSuffix(strings.TrimPrefix(o, credentialsEnvPrefix), "\"")
+			}
+		}
+		return ""
+	}
+	validateCredentials := func(dir string, wantBlessing string) error {
+		if len(dir) == 0 {
+			return errors.New("credentials directory not found")
+		}
+		p, err := vsecurity.LoadPersistentPrincipal(dir, nil)
+		if err != nil {
+			return err
+		}
+		def := p.BlessingStore().Default()
+		if blessingsSharedWithAll := p.BlessingStore().ForPeer("random_peer"); !reflect.DeepEqual(blessingsSharedWithAll, def) {
+			return fmt.Errorf("Blessing shared with all peers: %v is different from default Blessings: %v", blessingsSharedWithAll, def)
+		}
+		if got := def.ForContext(security.NewContext(&security.ContextParams{LocalPrincipal: p})); len(got) != 1 || got[0] != wantBlessing {
+			return fmt.Errorf("got blessings: %v, want exactly one blessing: %v", got, wantBlessing)
+		}
+		return nil
+	}
+
+	// Test child credentials when runtime is not initialized and VeyronCredentials
+	// is not set.
+	sh := modules.NewShell()
+	defer sh.Cleanup(nil, nil)
+	if err := validateCredentials(startChildAndGetCredentials(sh, nil), "test-shell/child"); err != nil {
+		t.Fatal(err)
+	}
+
+	// Test that no two children have the same credentials directory.
+	if cred1, cred2 := startChildAndGetCredentials(sh, nil), startChildAndGetCredentials(sh, nil); cred1 == cred2 {
+		t.Fatalf("The same credentials directory %v was set for two children", cred1)
+	}
+
+	// Test child credentials when VeyronCredentials are set.
+	root := tsecurity.NewPrincipal("root")
+	old := os.Getenv(consts.VeyronCredentials)
+	defer os.Setenv(consts.VeyronCredentials, old)
+	dir := tsecurity.NewVeyronCredentials(root, "os")
+	defer os.RemoveAll(dir)
+	if err := os.Setenv(consts.VeyronCredentials, dir); err != nil {
+		t.Fatal(err)
+	}
+	sh = modules.NewShell()
+	if err := validateCredentials(startChildAndGetCredentials(sh, nil), "root/os/child"); err != nil {
+		t.Fatal(err)
+	}
+	sh.Cleanup(nil, nil)
+
+	// Test that os VeyronCredentials are not deleted by the Cleanup.
+	if finfo, err := os.Stat(dir); err != nil || !finfo.IsDir() {
+		t.Fatalf("%q is not a directory", dir)
+	}
+
+	// Test that VeyronCredentials specified on the shell override the OS ones.
+	dir = tsecurity.NewVeyronCredentials(root, "shell")
+	defer os.RemoveAll(dir)
+	sh = modules.NewShell()
+	sh.SetVar(consts.VeyronCredentials, dir)
+	if err := validateCredentials(startChildAndGetCredentials(sh, nil), "root/shell/child"); err != nil {
+		t.Fatal(err)
+	}
+	sh.ClearVar(consts.VeyronCredentials)
+	if credentials := startChildAndGetCredentials(sh, nil); len(credentials) != 0 {
+		t.Fatalf("found credentials %v set for child even when shell credentials were cleared", credentials)
+	}
+	anotherDir := tsecurity.NewVeyronCredentials(root, "anotherShell")
+	defer os.RemoveAll(anotherDir)
+	sh.SetVar(consts.VeyronCredentials, anotherDir)
+	if err := validateCredentials(startChildAndGetCredentials(sh, nil), "root/anotherShell/child"); err != nil {
+		t.Fatal(err)
+	}
+
+	// Test that VeyronCredentials specified as a parameter overrides the OS and
+	// shell ones.
+	dir = tsecurity.NewVeyronCredentials(root, "param")
+	defer os.RemoveAll(dir)
+	env := []string{consts.VeyronCredentials + "=" + dir}
+	if err := validateCredentials(startChildAndGetCredentials(sh, env), "root/param"); err != nil {
+		t.Fatal(err)
+	}
+
 }
 
 func TestEnvMerge(t *testing.T) {
@@ -326,7 +449,6 @@ func TestEnvMerge(t *testing.T) {
 	os.Setenv("a", "wrong, should be 1")
 	sh.SetVar("b", "2 also wrong")
 	os.Setenv("b", "wrong, should be 2")
-
 	h, err := sh.Start("printenv", []string{"b=2"})
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
