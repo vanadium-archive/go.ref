@@ -129,7 +129,7 @@ func InternalNewClient(streamMgr stream.Manager, ns naming.Namespace, opts ...ip
 	return c, nil
 }
 
-func (c *client) createFlow(ctx context.T, ep naming.Endpoint) (stream.Flow, verror.E) {
+func (c *client) createFlow(ctx context.T, ep naming.Endpoint, noDischarges bool) (stream.Flow, verror.E) {
 	c.vcMapMu.Lock()
 	defer c.vcMapMu.Unlock()
 	if c.vcMap == nil {
@@ -151,6 +151,9 @@ func (c *client) createFlow(ctx context.T, ep naming.Endpoint) (stream.Flow, ver
 	vcOpts := make([]stream.VCOpt, len(c.vcOpts))
 	copy(vcOpts, c.vcOpts)
 	c.vcMapMu.Unlock()
+	if noDischarges {
+		vcOpts = append(vcOpts, vc.NoDischarges{})
+	}
 	vc, err := sm.Dial(ep, vcOpts...)
 	c.vcMapMu.Lock()
 	if err != nil {
@@ -183,7 +186,7 @@ func (c *client) createFlow(ctx context.T, ep naming.Endpoint) (stream.Flow, ver
 // a flow to the endpoint, returning the parsed suffix.
 // The server name passed in should be a rooted name, of the form "/ep/suffix" or
 // "/ep//suffix", or just "/ep".
-func (c *client) connectFlow(ctx context.T, server string) (stream.Flow, string, verror.E) {
+func (c *client) connectFlow(ctx context.T, server string, noDischarges bool) (stream.Flow, string, verror.E) {
 	address, suffix := naming.SplitAddressName(server)
 	if len(address) == 0 {
 		return nil, "", verror.Make(errNonRootedName, ctx, server)
@@ -195,7 +198,7 @@ func (c *client) connectFlow(ctx context.T, server string) (stream.Flow, string,
 	if err = version.CheckCompatibility(ep); err != nil {
 		return nil, "", verror.Make(errIncompatibleEndpoint, ctx, ep)
 	}
-	flow, verr := c.createFlow(ctx, ep)
+	flow, verr := c.createFlow(ctx, ep, noDischarges)
 	if verr != nil {
 		return nil, "", verr
 	}
@@ -242,6 +245,15 @@ func getNoResolveOpt(opts []ipc.CallOpt) bool {
 	for _, o := range opts {
 		if r, ok := o.(options.NoResolve); ok {
 			return bool(r)
+		}
+	}
+	return false
+}
+
+func shouldNotFetchDischarges(opts []ipc.CallOpt) bool {
+	for _, o := range opts {
+		if _, ok := o.(vc.NoDischarges); ok {
+			return true
 		}
 	}
 	return false
@@ -312,10 +324,10 @@ type serverStatus struct {
 }
 
 // TODO(cnicolaou): implement real, configurable load balancing.
-func (c *client) tryServer(ctx context.T, index int, server string, ch chan<- *serverStatus) {
+func (c *client) tryServer(ctx context.T, index int, server string, ch chan<- *serverStatus, noDischarges bool) {
 	status := &serverStatus{index: index}
 	var err verror.E
-	if status.flow, status.suffix, err = c.connectFlow(ctx, server); err != nil {
+	if status.flow, status.suffix, err = c.connectFlow(ctx, server, noDischarges); err != nil {
 		vlog.VI(2).Infof("ipc: err: %s", err)
 		status.err = err
 		status.flow = nil
@@ -326,6 +338,7 @@ func (c *client) tryServer(ctx context.T, index int, server string, ch chan<- *s
 // tryCall makes a single attempt at a call, against possibly multiple servers.
 func (c *client) tryCall(ctx context.T, name, method string, args []interface{}, opts []ipc.CallOpt) (ipc.Call, verror.E) {
 	mtPattern, serverPattern, name := splitObjectName(name)
+	noDischarges := shouldNotFetchDischarges(opts)
 	// Resolve name unless told not to.
 	var servers []string
 	if getNoResolveOpt(opts) {
@@ -366,7 +379,7 @@ func (c *client) tryCall(ctx context.T, name, method string, args []interface{},
 	responses := make([]*serverStatus, attempts)
 	ch := make(chan *serverStatus, attempts)
 	for i, server := range servers {
-		go c.tryServer(ctx, i, server, ch)
+		go c.tryServer(ctx, i, server, ch, noDischarges)
 	}
 
 	delay := time.Duration(ipc.NoTimeout)
@@ -450,6 +463,9 @@ func (c *client) tryCall(ctx context.T, name, method string, args []interface{},
 			timeout := time.Duration(ipc.NoTimeout)
 			if deadline, hasDeadline := ctx.Deadline(); hasDeadline {
 				timeout = deadline.Sub(time.Now())
+			}
+			if noDischarges {
+				fc.dc = nil
 			}
 			if verr := fc.start(r.suffix, method, args, timeout, grantedB); verr != nil {
 				return nil, verr
