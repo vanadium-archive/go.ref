@@ -15,6 +15,12 @@ import (
 	"veyron.io/veyron/veyron2/vlog"
 )
 
+// TODO(caprita): Set these timeout in a more principled manner.
+const (
+	childReadyTimeout = 20 * time.Second
+	ipcContextTimeout = time.Minute
+)
+
 func downloadBinary(workspace, fileName, name string) error {
 	data, err := binary.Download(name)
 	if err != nil {

@@ -366,7 +366,7 @@ func (i *appService) Install(call ipc.ServerContext, applicationVON string) (str
 	if len(i.suffix) > 0 {
 		return "", errInvalidSuffix
 	}
-	ctx, cancel := rt.R().NewContext().WithTimeout(time.Minute)
+	ctx, cancel := rt.R().NewContext().WithTimeout(ipcContextTimeout)
 	defer cancel()
 	envelope, err := fetchAppEnvelope(ctx, applicationVON)
 	if err != nil {
@@ -785,12 +785,11 @@ func (i *appService) startCmd(instanceDir string, cmd *exec.Cmd) error {
 	}
 
 	// Wait for the child process to start.
-	timeout := 10 * time.Second
-	if err := handle.WaitForReady(timeout); err != nil {
-		vlog.Errorf("WaitForReady(%v) failed: %v", timeout, err)
+	if err := handle.WaitForReady(childReadyTimeout); err != nil {
+		vlog.Errorf("WaitForReady(%v) failed: %v", childReadyTimeout, err)
 		return errOperationFailed
 	}
-	childName, err := listener.waitForValue(timeout)
+	childName, err := listener.waitForValue(childReadyTimeout)
 	if err != nil {
 		return errOperationFailed
 	}
@@ -893,7 +892,7 @@ func (i *appService) Resume(call ipc.ServerContext) error {
 
 func stopAppRemotely(appVON string) error {
 	appStub := appcycle.AppCycleClient(appVON)
-	ctx, cancel := rt.R().NewContext().WithTimeout(time.Minute)
+	ctx, cancel := rt.R().NewContext().WithTimeout(ipcContextTimeout)
 	defer cancel()
 	stream, err := appStub.Stop(ctx)
 	if err != nil {
@@ -978,7 +977,7 @@ func (i *appService) Update(ipc.ServerContext) error {
 	if err != nil {
 		return err
 	}
-	ctx, cancel := rt.R().NewContext().WithTimeout(time.Minute)
+	ctx, cancel := rt.R().NewContext().WithTimeout(ipcContextTimeout)
 	defer cancel()
 	newEnvelope, err := fetchAppEnvelope(ctx, originVON)
 	if err != nil {

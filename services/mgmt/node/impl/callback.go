@@ -1,8 +1,6 @@
 package impl
 
 import (
-	"time"
-
 	"veyron.io/veyron/veyron2/mgmt"
 	"veyron.io/veyron/veyron2/rt"
 	"veyron.io/veyron/veyron2/vlog"
@@ -24,7 +22,7 @@ func InvokeCallback(name string) {
 			return
 		}
 		nmClient := node.ConfigClient(callbackName)
-		ctx, cancel := rt.R().NewContext().WithTimeout(time.Minute)
+		ctx, cancel := rt.R().NewContext().WithTimeout(ipcContextTimeout)
 		defer cancel()
 		if err := nmClient.Set(ctx, mgmt.ChildNameConfigKey, name); err != nil {
 			vlog.Fatalf("Set(%v, %v) failed: %v", mgmt.ChildNameConfigKey, name, err)

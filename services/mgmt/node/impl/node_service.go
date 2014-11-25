@@ -223,21 +223,16 @@ func (i *nodeService) testNodeManager(ctx context.T, workspace string, envelope 
 		return errOperationFailed
 	}
 	defer func() {
-		// Ensure that any stdout output gets flushed.
-		if err := handle.Wait(10 * time.Second); err != nil {
-			vlog.Errorf("Wait() failed: %v", err)
-			if err := handle.Clean(); err != nil {
-				vlog.Errorf("Clean() failed: %v", err)
-			}
+		if err := handle.Clean(); err != nil {
+			vlog.Errorf("Clean() failed: %v", err)
 		}
 	}()
 	// Wait for the child process to start.
-	testTimeout := 10 * time.Second
-	if err := handle.WaitForReady(testTimeout); err != nil {
-		vlog.Errorf("WaitForReady(%v) failed: %v", testTimeout, err)
+	if err := handle.WaitForReady(childReadyTimeout); err != nil {
+		vlog.Errorf("WaitForReady(%v) failed: %v", childReadyTimeout, err)
 		return errOperationFailed
 	}
-	childName, err := listener.waitForValue(testTimeout)
+	childName, err := listener.waitForValue(childReadyTimeout)
 	if err != nil {
 		return errOperationFailed
 	}
@@ -421,7 +416,7 @@ func (*nodeService) Uninstall(ipc.ServerContext) error {
 }
 
 func (i *nodeService) Update(ipc.ServerContext) error {
-	ctx, cancel := rt.R().NewContext().WithTimeout(time.Minute)
+	ctx, cancel := rt.R().NewContext().WithTimeout(ipcContextTimeout)
 	defer cancel()
 
 	updatingState := i.updating
