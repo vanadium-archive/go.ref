@@ -4,6 +4,8 @@ import (
 	"sync"
 	"time"
 
+	inaming "veyron.io/veyron/veyron/runtimes/google/naming"
+
 	"veyron.io/veyron/veyron2"
 	"veyron.io/veyron/veyron2/naming"
 	"veyron.io/veyron/veyron2/verror"
@@ -125,9 +127,11 @@ func (ns *namespace) rootMountEntry(name string) (*naming.MountEntry, bool) {
 		}
 		return e, false
 	}
-	// TODO(p): right now I assume any address handed to me to be resolved is a mount table.
-	// Eventually we should do something like the following:
-	e.SetServesMountTable(true)
+	servesMT := true
+	if ep, err := inaming.NewEndpoint(address); err == nil {
+		servesMT = ep.ServesMountTable()
+	}
+	e.SetServesMountTable(servesMT)
 	e.Name = suffix
 	e.Servers = append(e.Servers, naming.MountedServer{Server: naming.JoinAddressName(address, ""), Expires: expiration})
 	return e, true

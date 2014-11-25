@@ -36,6 +36,9 @@ type Endpoint struct {
 func NewEndpoint(input string) (*Endpoint, error) {
 	var ep Endpoint
 
+	// We have to guess this is a mount table if we don't know.
+	ep.IsMountTable = true
+
 	// The prefix and suffix are optional.
 	input = strings.TrimPrefix(strings.TrimSuffix(input, suffix), separator)
 
@@ -116,7 +119,10 @@ func printIPCVersion(v version.IPCVersion) string {
 }
 
 func parseMountTableFlag(input string) (bool, error) {
-	if len(input) == 1 {
+	switch len(input) {
+	case 0:
+		return true, nil
+	case 1:
 		switch f := input[0]; f {
 		case 'm':
 			return true, nil
@@ -169,7 +175,7 @@ func (ep *Endpoint) Network() string {
 	return Network
 }
 
-var defaultVersion = 2
+var defaultVersion = 3
 
 func (ep *Endpoint) VersionedString(version int) string {
 	switch version {
@@ -205,7 +211,7 @@ func (ep *Endpoint) Addr() net.Addr {
 
 func (ep *Endpoint) ServesMountTable() bool {
 	//nologcall
-	return true
+	return ep.IsMountTable
 }
 
 type addr struct {
