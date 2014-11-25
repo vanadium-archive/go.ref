@@ -6,13 +6,12 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
-	"runtime"
+	goruntime "runtime"
 	"strings"
 	"time"
 
 	"veyron.io/lib/cmdline"
 	"veyron.io/veyron/veyron2/context"
-	"veyron.io/veyron/veyron2/rt"
 	vbuild "veyron.io/veyron/veyron2/services/mgmt/build"
 )
 
@@ -22,8 +21,8 @@ var (
 )
 
 func init() {
-	cmdBuild.Flags.StringVar(&flagArch, "arch", runtime.GOARCH, "Target architecture.")
-	cmdBuild.Flags.StringVar(&flagOS, "os", runtime.GOOS, "Target operating system.")
+	cmdBuild.Flags.StringVar(&flagArch, "arch", goruntime.GOARCH, "Target architecture.")
+	cmdBuild.Flags.StringVar(&flagOS, "os", goruntime.GOOS, "Target operating system.")
 }
 
 var cmdRoot = &cmdline.Command{
@@ -140,7 +139,6 @@ func invokeBuild(ctx context.T, name string, sources <-chan vbuild.File, cancel 
 	binaries := make(chan vbuild.File)
 	go func() {
 		defer close(binaries)
-		rt.Init()
 		client := vbuild.BuilderClient(name)
 		stream, err := client.Build(ctx, vbuild.Architecture(flagArch), vbuild.OperatingSystem(flagOS))
 		if err != nil {
@@ -211,7 +209,7 @@ func runBuild(command *cmdline.Command, args []string) error {
 	cancel, errchan := make(chan struct{}), make(chan error)
 	defer close(errchan)
 
-	ctx, ctxCancel := rt.R().NewContext().WithTimeout(time.Minute)
+	ctx, ctxCancel := runtime.NewContext().WithTimeout(time.Minute)
 	defer ctxCancel()
 
 	// Start all stages of the pipeline.

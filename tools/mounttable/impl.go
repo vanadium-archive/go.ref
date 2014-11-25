@@ -8,12 +8,11 @@ import (
 	"veyron.io/veyron/veyron2/context"
 	"veyron.io/veyron/veyron2/naming"
 	"veyron.io/veyron/veyron2/options"
-	"veyron.io/veyron/veyron2/rt"
 	"veyron.io/veyron/veyron2/services/mounttable"
 )
 
 func bindMT(ctx context.T, name string) (mounttable.MountTableClientMethods, error) {
-	e, err := rt.R().Namespace().ResolveToMountTableX(ctx, name)
+	e, err := runtime.Namespace().ResolveToMountTableX(ctx, name)
 	if err != nil {
 		return nil, err
 	}
@@ -48,7 +47,7 @@ func runGlob(cmd *cmdline.Command, args []string) error {
 	if expected, got := 2, len(args); expected != got {
 		return cmd.UsageErrorf("glob: incorrect number of arguments, expected %d, got %d", expected, got)
 	}
-	ctx, cancel := rt.R().NewContext().WithTimeout(time.Minute)
+	ctx, cancel := runtime.NewContext().WithTimeout(time.Minute)
 	defer cancel()
 	c, err := bindMT(ctx, args[0])
 	if err != nil {
@@ -117,9 +116,9 @@ func runMount(cmd *cmdline.Command, args []string) error {
 			}
 		}
 	}
-	ctx, cancel := rt.R().NewContext().WithTimeout(time.Minute)
+	ctx, cancel := runtime.NewContext().WithTimeout(time.Minute)
 	defer cancel()
-	call, err := rt.R().Client().StartCall(ctx, args[0], "Mount", []interface{}{args[1], seconds, 0}, options.NoResolve(true))
+	call, err := runtime.Client().StartCall(ctx, args[0], "Mount", []interface{}{args[1], seconds, 0}, options.NoResolve(true))
 	if err != nil {
 		return err
 	}
@@ -147,9 +146,9 @@ func runUnmount(cmd *cmdline.Command, args []string) error {
 	if expected, got := 2, len(args); expected != got {
 		return cmd.UsageErrorf("unmount: incorrect number of arguments, expected %d, got %d", expected, got)
 	}
-	ctx, cancel := rt.R().NewContext().WithTimeout(time.Minute)
+	ctx, cancel := runtime.NewContext().WithTimeout(time.Minute)
 	defer cancel()
-	call, err := rt.R().Client().StartCall(ctx, args[0], "Unmount", []interface{}{args[1]}, options.NoResolve(true))
+	call, err := runtime.Client().StartCall(ctx, args[0], "Unmount", []interface{}{args[1]}, options.NoResolve(true))
 	if err != nil {
 		return err
 	}
@@ -176,9 +175,9 @@ func runResolveStep(cmd *cmdline.Command, args []string) error {
 	if expected, got := 1, len(args); expected != got {
 		return cmd.UsageErrorf("mount: incorrect number of arguments, expected %d, got %d", expected, got)
 	}
-	ctx, cancel := rt.R().NewContext().WithTimeout(time.Minute)
+	ctx, cancel := runtime.NewContext().WithTimeout(time.Minute)
 	defer cancel()
-	call, err := rt.R().Client().StartCall(ctx, args[0], "ResolveStepX", []interface{}{}, options.NoResolve(true))
+	call, err := runtime.Client().StartCall(ctx, args[0], "ResolveStepX", []interface{}{}, options.NoResolve(true))
 	if err != nil {
 		return err
 	}

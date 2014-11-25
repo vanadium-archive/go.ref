@@ -6,7 +6,6 @@ import (
 
 	"veyron.io/lib/cmdline"
 	"veyron.io/veyron/veyron2/naming"
-	"veyron.io/veyron/veyron2/rt"
 	"veyron.io/veyron/veyron2/vlog"
 )
 
@@ -27,8 +26,8 @@ func runGlob(cmd *cmdline.Command, args []string) error {
 		return cmd.UsageErrorf("glob: incorrect number of arguments, expected %d, got %d", expected, got)
 	}
 	pattern := args[0]
-	ns := rt.R().Namespace()
-	ctx, cancel := rt.R().NewContext().WithTimeout(time.Minute)
+	ns := runtime.Namespace()
+	ctx, cancel := runtime.NewContext().WithTimeout(time.Minute)
 	defer cancel()
 	c, err := ns.Glob(ctx, pattern)
 	if err != nil {
@@ -71,8 +70,8 @@ func runMount(cmd *cmdline.Command, args []string) error {
 	if err != nil {
 		return fmt.Errorf("TTL parse error: %v", err)
 	}
-	ns := rt.R().Namespace()
-	ctx, cancel := rt.R().NewContext().WithTimeout(time.Minute)
+	ns := runtime.Namespace()
+	ctx, cancel := runtime.NewContext().WithTimeout(time.Minute)
 	defer cancel()
 	if err = ns.Mount(ctx, name, server, ttl); err != nil {
 		vlog.Infof("ns.Mount(%q, %q, %s) failed: %v", name, server, ttl, err)
@@ -100,8 +99,8 @@ func runUnmount(cmd *cmdline.Command, args []string) error {
 	}
 	name := args[0]
 	server := args[1]
-	ns := rt.R().Namespace()
-	ctx, cancel := rt.R().NewContext().WithTimeout(time.Minute)
+	ns := runtime.Namespace()
+	ctx, cancel := runtime.NewContext().WithTimeout(time.Minute)
 	defer cancel()
 	if err := ns.Unmount(ctx, name, server); err != nil {
 		vlog.Infof("ns.Unmount(%q, %q) failed: %v", name, server, err)
@@ -125,8 +124,8 @@ func runResolve(cmd *cmdline.Command, args []string) error {
 		return cmd.UsageErrorf("resolve: incorrect number of arguments, expected %d, got %d", expected, got)
 	}
 	name := args[0]
-	ns := rt.R().Namespace()
-	ctx, cancel := rt.R().NewContext().WithTimeout(time.Minute)
+	ns := runtime.Namespace()
+	ctx, cancel := runtime.NewContext().WithTimeout(time.Minute)
 	defer cancel()
 	servers, err := ns.Resolve(ctx, name)
 	if err != nil {
@@ -153,8 +152,8 @@ func runResolveToMT(cmd *cmdline.Command, args []string) error {
 		return cmd.UsageErrorf("resolvetomt: incorrect number of arguments, expected %d, got %d", expected, got)
 	}
 	name := args[0]
-	ns := rt.R().Namespace()
-	ctx, cancel := rt.R().NewContext().WithTimeout(time.Minute)
+	ns := runtime.Namespace()
+	ctx, cancel := runtime.NewContext().WithTimeout(time.Minute)
 	defer cancel()
 	e, err := ns.ResolveToMountTableX(ctx, name)
 	if err != nil {
@@ -181,8 +180,8 @@ func runUnresolve(cmd *cmdline.Command, args []string) error {
 		return cmd.UsageErrorf("unresolve: incorrect number of arguments, expected %d, got %d", expected, got)
 	}
 	name := args[0]
-	ns := rt.R().Namespace()
-	ctx, cancel := rt.R().NewContext().WithTimeout(time.Minute)
+	ns := runtime.Namespace()
+	ctx, cancel := runtime.NewContext().WithTimeout(time.Minute)
 	defer cancel()
 	servers, err := ns.Unresolve(ctx, name)
 	if err != nil {

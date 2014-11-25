@@ -13,7 +13,6 @@ import (
 	"veyron.io/veyron/veyron2/context"
 	"veyron.io/veyron/veyron2/ipc"
 	"veyron.io/veyron/veyron2/naming"
-	"veyron.io/veyron/veyron2/rt"
 	"veyron.io/veyron/veyron2/vdl/vdlutil"
 	"veyron.io/veyron/veyron2/vom"
 	"veyron.io/veyron/veyron2/wiretype"
@@ -53,8 +52,6 @@ func runDescribe(cmd *cmdline.Command, args []string) error {
 		return cmd.UsageErrorf("describe: incorrect number of arguments, expected 1, got %d", len(args))
 	}
 
-	runtime := rt.R()
-
 	client, err := setupClient(cmd, runtime)
 	if err != nil {
 		return err
@@ -92,8 +89,6 @@ func runInvoke(cmd *cmdline.Command, args []string) error {
 		return cmd.UsageErrorf("invoke: incorrect number of arguments, expected at least 2, got %d", len(args))
 	}
 	server, method, args := args[0], args[1], args[2:]
-
-	runtime := rt.R()
 
 	client, err := setupClient(cmd, runtime)
 	if err != nil {

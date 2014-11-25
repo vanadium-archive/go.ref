@@ -10,6 +10,7 @@ import (
 	"veyron.io/veyron/veyron/services/mgmt/lib/binary"
 
 	"veyron.io/veyron/veyron2/context"
+	"veyron.io/veyron/veyron2/rt"
 	"veyron.io/veyron/veyron2/services/mgmt/application"
 	"veyron.io/veyron/veyron2/services/mgmt/repository"
 	"veyron.io/veyron/veyron2/vlog"
@@ -22,7 +23,7 @@ const (
 )
 
 func downloadBinary(workspace, fileName, name string) error {
-	data, err := binary.Download(name)
+	data, err := binary.Download(rt.R().NewContext(), name)
 	if err != nil {
 		vlog.Errorf("Download(%v) failed: %v", name, err)
 		return errOperationFailed

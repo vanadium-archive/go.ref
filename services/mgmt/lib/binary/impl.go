@@ -14,7 +14,6 @@ import (
 	"time"
 
 	"veyron.io/veyron/veyron2/context"
-	"veyron.io/veyron/veyron2/rt"
 	"veyron.io/veyron/veyron2/services/mgmt/binary"
 	"veyron.io/veyron/veyron2/services/mgmt/repository"
 	"veyron.io/veyron/veyron2/verror"
@@ -32,8 +31,8 @@ const (
 	subpartSize = 1 << 12
 )
 
-func Delete(name string) error {
-	ctx, cancel := rt.R().NewContext().WithTimeout(time.Minute)
+func Delete(ctx context.T, name string) error {
+	ctx, cancel := ctx.WithTimeout(time.Minute)
 	defer cancel()
 	if err := repository.BinaryClient(name).Delete(ctx); err != nil {
 		vlog.Errorf("Delete() failed: %v", err)
@@ -110,7 +109,7 @@ func download(ctx context.T, w io.WriteSeeker, von string) error {
 	return nil
 }
 
-func Download(von string) ([]byte, error) {
+func Download(ctx context.T, von string) ([]byte, error) {
 	dir, prefix := "", ""
 	file, err := ioutil.TempFile(dir, prefix)
 	if err != nil {
@@ -119,7 +118,7 @@ func Download(von string) ([]byte, error) {
 	}
 	defer os.Remove(file.Name())
 	defer file.Close()
-	ctx, cancel := rt.R().NewContext().WithTimeout(time.Minute)
+	ctx, cancel := ctx.WithTimeout(time.Minute)
 	defer cancel()
 	if err := download(ctx, file, von); err != nil {
 		return nil, errOperationFailed
@@ -132,7 +131,7 @@ func Download(von string) ([]byte, error) {
 	return bytes, nil
 }
 
-func DownloadToFile(von, path string) error {
+func DownloadToFile(ctx context.T, von, path string) error {
 	dir, prefix := "", ""
 	file, err := ioutil.TempFile(dir, prefix)
 	if err != nil {
@@ -140,7 +139,7 @@ func DownloadToFile(von, path string) error {
 		return errOperationFailed
 	}
 	defer file.Close()
-	ctx, cancel := rt.R().NewContext().WithTimeout(time.Minute)
+	ctx, cancel := ctx.WithTimeout(time.Minute)
 	defer cancel()
 	if err := download(ctx, file, von); err != nil {
 		if err := os.Remove(file.Name()); err != nil {
@@ -259,21 +258,21 @@ func upload(ctx context.T, r io.ReadSeeker, von string) error {
 	return nil
 }
 
-func Upload(von string, data []byte) error {
+func Upload(ctx context.T, von string, data []byte) error {
 	buffer := bytes.NewReader(data)
-	ctx, cancel := rt.R().NewContext().WithTimeout(time.Minute)
+	ctx, cancel := ctx.WithTimeout(time.Minute)
 	defer cancel()
 	return upload(ctx, buffer, von)
 }
 
-func UploadFromFile(von, path string) error {
+func UploadFromFile(ctx context.T, von, path string) error {
 	file, err := os.Open(path)
 	defer file.Close()
 	if err != nil {
 		vlog.Errorf("Open(%v) failed: %v", err)
 		return errOperationFailed
 	}
-	ctx, cancel := rt.R().NewContext().WithTimeout(time.Minute)
+	ctx, cancel := ctx.WithTimeout(time.Minute)
 	defer cancel()
 	return upload(ctx, file, von)
 }

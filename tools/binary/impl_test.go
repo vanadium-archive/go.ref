@@ -107,7 +107,13 @@ func stopServer(t *testing.T, server ipc.Server) {
 }
 
 func TestBinaryClient(t *testing.T) {
-	runtime := rt.Init()
+	var err error
+	runtime, err = rt.New()
+	if err != nil {
+		t.Fatalf("Unexpected error initializing runtime: %s", err)
+	}
+	defer runtime.Cleanup()
+
 	server, endpoint, err := startServer(t, runtime)
 	if err != nil {
 		return

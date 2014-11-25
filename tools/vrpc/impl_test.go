@@ -169,7 +169,13 @@ func testError(t *testing.T, cmd *cmdline.Command, args []string, expected strin
 }
 
 func TestVRPC(t *testing.T) {
-	runtime := rt.Init()
+	var err error
+	runtime, err = rt.New()
+	if err != nil {
+		t.Fatalf("Unexpected error initializing runtime: %s", err)
+	}
+	defer runtime.Cleanup()
+
 	// Skip defer runtime.Cleanup() to avoid messing up other tests in the
 	// same process.
 	server, endpoint, err := startServer(t, runtime)

@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"veyron.io/veyron/veyron2"
 	"veyron.io/veyron/veyron2/naming"
 	"veyron.io/veyron/veyron2/rt"
 	"veyron.io/veyron/veyron2/vlog"
@@ -20,9 +21,16 @@ const (
 	veyronPrefix = "veyron_binary_repository"
 )
 
+var runtime veyron2.Runtime
+
 func init() {
 	testutil.Init()
-	rt.Init()
+
+	var err error
+	runtime, err = rt.New()
+	if err != nil {
+		panic(err)
+	}
 }
 
 func setupRepository(t *testing.T) (string, func()) {
@@ -36,7 +44,7 @@ func setupRepository(t *testing.T) (string, func()) {
 		vlog.Fatalf("WriteFile(%v, %v, %v) failed: %v", path, impl.Version, perm, err)
 	}
 	// Setup and start the binary repository server.
-	server, err := rt.R().NewServer()
+	server, err := runtime.NewServer()
 	if err != nil {
 		t.Fatalf("NewServer() failed: %v", err)
 	}
@@ -77,20 +85,20 @@ func TestBufferAPI(t *testing.T) {
 	von, cleanup := setupRepository(t)
 	defer cleanup()
 	data := testutil.RandomBytes(testutil.Rand.Intn(10 << 20))
-	if err := Upload(von, data); err != nil {
+	if err := Upload(runtime.NewContext(), von, data); err != nil {
 		t.Fatalf("Upload(%v) failed: %v", von, err)
 	}
-	output, err := Download(von)
+	output, err := Download(runtime.NewContext(), von)
 	if err != nil {
 		t.Fatalf("Download(%v) failed: %v", von, err)
 	}
 	if bytes.Compare(data, output) != 0 {
 		t.Fatalf("Data mismatch:\nexpected %v %v\ngot %v %v", len(data), data[:100], len(output), output[:100])
 	}
-	if err := Delete(von); err != nil {
+	if err := Delete(runtime.NewContext(), von); err != nil {
 		t.Fatalf("Delete(%v) failed: %v", von, err)
 	}
-	if _, err := Download(von); err == nil {
+	if _, err := Download(runtime.NewContext(), von); err == nil {
 		t.Fatalf("Download(%v) did not fail", von)
 	}
 }
@@ -118,10 +126,10 @@ func TestFileAPI(t *testing.T) {
 	if _, err := src.Write(data); err != nil {
 		t.Fatalf("Write() failed: %v", err)
 	}
-	if err := UploadFromFile(von, src.Name()); err != nil {
+	if err := UploadFromFile(runtime.NewContext(), von, src.Name()); err != nil {
 		t.Fatalf("UploadFromFile(%v, %v) failed: %v", von, src.Name(), err)
 	}
-	if err := DownloadToFile(von, dst.Name()); err != nil {
+	if err := DownloadToFile(runtime.NewContext(), von, dst.Name()); err != nil {
 		t.Fatalf("DownloadToFile(%v, %v) failed: %v", von, dst.Name(), err)
 	}
 	output, err := ioutil.ReadFile(dst.Name())
@@ -131,7 +139,7 @@ func TestFileAPI(t *testing.T) {
 	if bytes.Compare(data, output) != 0 {
 		t.Fatalf("Data mismatch:\nexpected %v %v\ngot %v %v", len(data), data[:100], len(output), output[:100])
 	}
-	if err := Delete(von); err != nil {
+	if err := Delete(runtime.NewContext(), von); err != nil {
 		t.Fatalf("Delete(%v) failed: %v", von, err)
 	}
 }
