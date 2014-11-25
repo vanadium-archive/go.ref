@@ -50,7 +50,7 @@ func (c *wrappedConn) Read(b []byte) (int, error) {
 	if len(c.currBuffer) == 0 {
 		c.currBuffer, err = c.ws.ReceiveMessage()
 		if err != nil {
-			return 0, nil
+			return 0, err
 		}
 	}
 
