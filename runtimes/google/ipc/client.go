@@ -325,13 +325,13 @@ func (c *client) tryServer(ctx context.T, index int, server string, ch chan<- *s
 
 // tryCall makes a single attempt at a call, against possibly multiple servers.
 func (c *client) tryCall(ctx context.T, name, method string, args []interface{}, opts []ipc.CallOpt) (ipc.Call, verror.E) {
-	_, serverPattern, name := splitObjectName(name)
+	mtPattern, serverPattern, name := splitObjectName(name)
 	// Resolve name unless told not to.
 	var servers []string
 	if getNoResolveOpt(opts) {
 		servers = []string{name}
 	} else {
-		if resolved, err := c.ns.Resolve(ctx, name); err != nil {
+		if resolved, err := c.ns.Resolve(ctx, name, naming.RootBlessingPatternOpt(mtPattern)); err != nil {
 			return nil, verror.Make(verror.NoExist, ctx, name, err)
 		} else {
 			if len(resolved) == 0 {

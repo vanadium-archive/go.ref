@@ -120,7 +120,7 @@ func ls(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args .
 	return nil
 }
 
-type resolver func(ctx context.T, name string) (names []string, err error)
+type resolver func(ctx context.T, name string, opts ...naming.ResolveOpt) (names []string, err error)
 
 func resolve(fn resolver, stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
 	if err := checkArgs(args[1:], 1, "<name>"); err != nil {
