@@ -4,7 +4,6 @@ package main
 
 import (
 	"fmt"
-	"sort"
 
 	"veyron.io/lib/cmdline"
 	"veyron.io/veyron/veyron2/rt"
@@ -25,19 +24,6 @@ var cmdGet = &cmdline.Command{
 application installation or instance.`,
 }
 
-type formattedACLEntry struct {
-	blessing string
-	inout    string
-	label    string
-}
-
-// Code to make formattedACLEntry sorted.
-type byBlessing []formattedACLEntry
-
-func (a byBlessing) Len() int           { return len(a) }
-func (a byBlessing) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
-func (a byBlessing) Less(i, j int) bool { return a[i].blessing < a[j].blessing }
-
 func runGet(cmd *cmdline.Command, args []string) error {
 	if expected, got := 1, len(args); expected != got {
 		return cmd.UsageErrorf("get: incorrect number of arguments, expected %d, got %d", expected, got)
@@ -48,21 +34,17 @@ func runGet(cmd *cmdline.Command, args []string) error {
 	if err != nil {
 		return fmt.Errorf("GetACL on %s failed: %v", vanaName, err)
 	}
-
-	// TODO(rjkroege): Update for custom labels.
-	output := make([]formattedACLEntry, 0)
-	for k, _ := range objACL.In {
-		output = append(output, formattedACLEntry{string(k), "", objACL.In[k].String()})
+	// Convert objACL (TaggedACLMap) into aclEntries for pretty printing.
+	entries := make(aclEntries)
+	for tag, acl := range objACL {
+		for _, p := range acl.In {
+			entries.Tags(string(p))[tag] = false
+		}
+		for _, b := range acl.NotIn {
+			entries.Tags(b)[tag] = true
+		}
 	}
-	for k, _ := range objACL.NotIn {
-		output = append(output, formattedACLEntry{string(k), "!", objACL.NotIn[k].String()})
-	}
-
-	sort.Sort(byBlessing(output))
-
-	for _, e := range output {
-		fmt.Fprintf(cmd.Stdout(), "%s %s%s\n", e.blessing, e.inout, e.label)
-	}
+	fmt.Fprintf(cmd.Stdout(), "%v", entries)
 	return nil
 }
 
@@ -71,32 +53,28 @@ var cmdSet = &cmdline.Command{
 	Name:     "set",
 	Short:    "Set ACLs for the given target.",
 	Long:     "Set ACLs for the given target",
-	ArgsName: "<node manager name>  (<blessing> [!]<label>)...",
+	ArgsName: "<node manager name>  (<blessing> [!]<tag>(,[!]<tag>)*",
 	ArgsLong: `
 <node manager name> can be a Vanadium name for a node manager,
 application installation or instance.
 
 <blessing> is a blessing pattern.
+If the same pattern is repeated multiple times in the command, then
+the only the last occurrence will be honored.
 
-<label> is a character sequence defining a set of rights: some subset
-of the defined standard Vanadium labels of XRWADM where X is resolve,
-R is read, W for write, A for admin, D for debug and M is for
-monitoring. By default, the combination of <blessing>, <label>
-replaces whatever entry is present in the ACL's In field for the
-<blessing> but it can instead be added to the NotIn field by prefacing
-<label> with a '!' character. Use the <label> of 0 to clear the label.
+<tag> is a subset of defined access types ("Admin", "Read", "Write" etc.).
+If the access right is prefixed with a '!' then <blessing> is added to the
+NotIn list for that right. Using "^" as a "tag" causes all occurrences of
+<blessing> in the current ACL to be cleared.
 
-For example: root/self !0 will clear the NotIn field for blessingroot/self.`,
-}
+Examples:
+set root/self ^
+will remove "root/self" from the In and NotIn lists for all access rights.
 
-type inAdditionTuple struct {
-	blessing security.BlessingPattern
-	ls       *security.LabelSet
-}
-
-type notInAdditionTuple struct {
-	blessing string
-	ls       *security.LabelSet
+set root/self Read,!Write
+will add "root/self" to the In list for Read access and the NotIn list
+for Write access (and remove "root/self" from both the In and NotIn
+lists of all other access rights)`,
 }
 
 func runSet(cmd *cmdline.Command, args []string) error {
@@ -107,70 +85,32 @@ func runSet(cmd *cmdline.Command, args []string) error {
 	vanaName := args[0]
 	pairs := args[1:]
 
-	// Parse each pair and aggregate what should happen to all of them
-	notInDeletions := make([]string, 0)
-	inDeletions := make([]security.BlessingPattern, 0)
-	inAdditions := make([]inAdditionTuple, 0)
-	notInAdditions := make([]notInAdditionTuple, 0)
-
+	entries := make(aclEntries)
 	for i := 0; i < len(pairs); i += 2 {
-		blessing, label := pairs[i], pairs[i+1]
-		if label == "" || label == "!" {
-			return cmd.UsageErrorf("failed to parse LabelSet pair %s, %s", blessing, label)
+		blessing := pairs[i]
+		tags, err := parseAccessTags(pairs[i+1])
+		if err != nil {
+			return cmd.UsageErrorf("failed to parse access tags for %q: %v", blessing, err)
 		}
-
-		switch {
-		case label == "!0":
-			notInDeletions = append(notInDeletions, blessing)
-		case label == "0":
-			inDeletions = append(inDeletions, security.BlessingPattern(blessing))
-		case label[0] == '!':
-			// e.g. !RW
-			ls := new(security.LabelSet)
-			if err := ls.FromString(label[1:]); err != nil {
-				return cmd.UsageErrorf("failed to parse LabelSet %s:  %v", label, err)
-			}
-			notInAdditions = append(notInAdditions, notInAdditionTuple{blessing, ls})
-		default:
-			// e.g. X
-			ls := new(security.LabelSet)
-			if err := ls.FromString(label); err != nil {
-				return fmt.Errorf("failed to parse LabelSet %s:  %v", label, err)
-			}
-			inAdditions = append(inAdditions, inAdditionTuple{security.BlessingPattern(blessing), ls})
-		}
+		entries[blessing] = tags
 	}
 
-	// Set the ACLs on the specified name.
+	// Set the ACLs on the specified names.
 	for {
 		objACL, etag, err := node.ApplicationClient(vanaName).GetACL(rt.R().NewContext())
 		if err != nil {
 			return cmd.UsageErrorf("GetACL(%s) failed: %v", vanaName, err)
 		}
-
-		// Insert into objACL
-		for _, b := range notInDeletions {
-			if _, contains := objACL.NotIn[b]; !contains {
-				fmt.Fprintf(cmd.Stderr(), "WARNING: ignoring attempt to remove non-existing NotIn ACL for %s\n", b)
+		for blessingOrPattern, tags := range entries {
+			objACL.Clear(blessingOrPattern) // Clear out any existing references
+			for tag, blacklist := range tags {
+				if blacklist {
+					objACL.Blacklist(blessingOrPattern, tag)
+				} else {
+					objACL.Add(security.BlessingPattern(blessingOrPattern), tag)
+				}
 			}
-			delete(objACL.NotIn, b)
 		}
-
-		for _, b := range inDeletions {
-			if _, contains := objACL.In[b]; !contains {
-				fmt.Fprintf(cmd.Stderr(), "WARNING: ignoring attempt to remove non-existing In ACL for %s\n", b)
-			}
-			delete(objACL.In, b)
-		}
-
-		for _, b := range inAdditions {
-			objACL.In[b.blessing] = *b.ls
-		}
-
-		for _, b := range notInAdditions {
-			objACL.NotIn[b.blessing] = *b.ls
-		}
-
 		switch err := node.ApplicationClient(vanaName).SetACL(rt.R().NewContext(), objACL, etag); {
 		case err != nil && !verror.Is(err, access.ErrBadEtag):
 			return cmd.UsageErrorf("SetACL(%s) failed: %v", vanaName, err)

@@ -7,9 +7,9 @@ import (
 	"testing"
 
 	tsecurity "veyron.io/veyron/veyron/lib/testutil/security"
-	vsecurity "veyron.io/veyron/veyron/security"
 
 	"veyron.io/veyron/veyron2/security"
+	"veyron.io/veyron/veyron2/services/security/access"
 )
 
 func TestNewAuthorizerOrDie(t *testing.T) {
@@ -29,11 +29,22 @@ func TestNewAuthorizerOrDie(t *testing.T) {
 		flag.Set("acl_file", "")
 	}
 	var (
-		acl1 = security.ACL{}
-		acl2 = security.ACL{In: map[security.BlessingPattern]security.LabelSet{
-			"veyron/alice": security.LabelSet(security.ReadLabel | security.WriteLabel),
-			"veyron/bob":   security.LabelSet(security.ReadLabel),
-		}}
+		acl1 = access.TaggedACLMap{}
+		acl2 = access.TaggedACLMap{
+			string(access.Read): access.ACL{
+				In: []security.BlessingPattern{"veyron/alice", "veyron/bob"},
+			},
+			string(access.Write): access.ACL{
+				In: []security.BlessingPattern{"veyron/alice"},
+			},
+		}
+
+		auth = func(a security.Authorizer, err error) security.Authorizer {
+			if err != nil {
+				panic(err)
+			}
+			return a
+		}
 	)
 	acl2File := tsecurity.SaveACLToFile(acl2)
 	defer os.Remove(acl2File)
@@ -49,19 +60,19 @@ func TestNewAuthorizerOrDie(t *testing.T) {
 		},
 		{
 			flags:    flagValue{"acl": "{}"},
-			wantAuth: vsecurity.NewACLAuthorizer(acl1),
+			wantAuth: auth(access.TaggedACLAuthorizer(acl1, access.TypicalTagType())),
 		},
 		{
 			flags:    flagValue{"acl": `{"In":{"veyron/alice":"RW", "veyron/bob": "R"}}`},
-			wantAuth: vsecurity.NewACLAuthorizer(acl2),
+			wantAuth: auth(access.TaggedACLAuthorizer(acl2, access.TypicalTagType())),
 		},
 		{
 			flags:    flagValue{"acl": `{"In":{"veyron/bob":"R", "veyron/alice": "WR"}}`},
-			wantAuth: vsecurity.NewACLAuthorizer(acl2),
+			wantAuth: auth(access.TaggedACLAuthorizer(acl2, access.TypicalTagType())),
 		},
 		{
 			flags:    flagValue{"acl_file": acl2File},
-			wantAuth: vsecurity.NewFileACLAuthorizer(acl2File),
+			wantAuth: auth(access.TaggedACLAuthorizerFromFile(acl2File, access.TypicalTagType())),
 		},
 		{
 			flags:     flagValue{"acl_file": acl2File, "acl": `{"In":{"veyron/alice":"RW", "veyron/bob": "R"}}`},

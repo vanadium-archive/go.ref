@@ -8,6 +8,7 @@ import (
 	"veyron.io/veyron/veyron2/ipc"
 	"veyron.io/veyron/veyron2/naming"
 	"veyron.io/veyron/veyron2/security"
+	"veyron.io/veyron/veyron2/services/security/access"
 	"veyron.io/veyron/veyron2/verror"
 	"veyron.io/veyron/veyron2/vlog"
 
@@ -160,8 +161,8 @@ func (r *reservedMethods) Glob(ctx *ipc.GlobContextStub, pattern string) error {
 // AllGlobber or ChildrenGlobber interface of objects as many times as needed.
 //
 // Before accessing an object, globInternal ensures that the requester is
-// authorized to access it. Internal objects require either security.DebugLabel
-// or security.MonitoringLabel. Service objects require security.ResolveLabel.
+// authorized to access it. Internal objects require access.Debug. Service
+// objects require access.Resolve.
 type globInternal struct {
 	dispNormal   ipc.Dispatcher
 	dispReserved ipc.Dispatcher
@@ -182,10 +183,10 @@ func (i *globInternal) Glob(call *mutableCall, pattern string) error {
 	}
 	disp := i.dispNormal
 	call.M.Method = ipc.GlobMethod
-	call.M.MethodTags = []interface{}{security.ResolveLabel}
+	call.M.MethodTags = []interface{}{access.Resolve}
 	if naming.IsReserved(i.receiver) || (i.receiver == "" && naming.IsReserved(pattern)) {
 		disp = i.dispReserved
-		call.M.MethodTags = []interface{}{security.DebugLabel | security.MonitoringLabel}
+		call.M.MethodTags = []interface{}{access.Debug}
 	}
 	if disp == nil {
 		return verror.NoExistf("ipc: Glob is not implemented by %q", i.receiver)
@@ -328,14 +329,11 @@ type mutableContext struct {
 	}
 }
 
-func (c *mutableContext) Timestamp() time.Time      { return c.M.Timestamp }
-func (c *mutableContext) Method() string            { return c.M.Method }
-func (c *mutableContext) MethodTags() []interface{} { return c.M.MethodTags }
-func (c *mutableContext) Name() string              { return c.M.Suffix }
-func (c *mutableContext) Suffix() string            { return c.M.Suffix }
-func (c *mutableContext) Label() security.Label {
-	return security.LabelFromMethodTags(c.M.MethodTags)
-}
+func (c *mutableContext) Timestamp() time.Time                            { return c.M.Timestamp }
+func (c *mutableContext) Method() string                                  { return c.M.Method }
+func (c *mutableContext) MethodTags() []interface{}                       { return c.M.MethodTags }
+func (c *mutableContext) Name() string                                    { return c.M.Suffix }
+func (c *mutableContext) Suffix() string                                  { return c.M.Suffix }
 func (c *mutableContext) LocalPrincipal() security.Principal              { return c.M.LocalPrincipal }
 func (c *mutableContext) LocalBlessings() security.Blessings              { return c.M.LocalBlessings }
 func (c *mutableContext) RemoteBlessings() security.Blessings             { return c.M.RemoteBlessings }

@@ -10,6 +10,7 @@ import (
 	"veyron.io/veyron/veyron2/security"
 	"veyron.io/veyron/veyron2/services/mgmt/binary"
 	"veyron.io/veyron/veyron2/services/mgmt/node"
+	"veyron.io/veyron/veyron2/services/security/access"
 	"veyron.io/veyron/veyron2/vlog"
 
 	"veyron.io/veyron/veyron/profiles"
@@ -92,18 +93,18 @@ func (*mockNodeInvoker) UpdateTo(ipc.ServerContext, string) error  { return nil 
 
 // Mock ACL getting and setting
 type GetACLResponse struct {
-	acl  security.ACL
+	acl  access.TaggedACLMap
 	etag string
 	err  error
 }
 
 type SetACLStimulus struct {
 	fun  string
-	acl  security.ACL
+	acl  access.TaggedACLMap
 	etag string
 }
 
-func (mni *mockNodeInvoker) SetACL(_ ipc.ServerContext, acl security.ACL, etag string) error {
+func (mni *mockNodeInvoker) SetACL(_ ipc.ServerContext, acl access.TaggedACLMap, etag string) error {
 	ri := mni.tape.Record(SetACLStimulus{"SetACL", acl, etag})
 	switch r := ri.(type) {
 	case nil:
@@ -115,7 +116,7 @@ func (mni *mockNodeInvoker) SetACL(_ ipc.ServerContext, acl security.ACL, etag s
 	return nil
 }
 
-func (mni *mockNodeInvoker) GetACL(ipc.ServerContext) (security.ACL, string, error) {
+func (mni *mockNodeInvoker) GetACL(ipc.ServerContext) (access.TaggedACLMap, string, error) {
 	ir := mni.tape.Record("GetACL")
 	r := ir.(GetACLResponse)
 	return r.acl, r.etag, r.err

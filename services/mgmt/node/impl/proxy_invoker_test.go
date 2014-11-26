@@ -11,6 +11,7 @@ import (
 	"veyron.io/veyron/veyron2/security"
 	"veyron.io/veyron/veyron2/services/mgmt/stats"
 	"veyron.io/veyron/veyron2/services/mounttable"
+	"veyron.io/veyron/veyron2/services/security/access"
 )
 
 // TODO(toddw): Add tests of Signature and MethodSignature.
@@ -45,7 +46,6 @@ func TestProxyInvoker(t *testing.T) {
 	}
 	disp := &proxyDispatcher{
 		naming.JoinAddressName(ep1.String(), "__debug/stats"),
-		security.Label(security.AllLabels),
 		stats.StatsServer(nil),
 	}
 	if err := server2.ServeDispatcher("", disp); err != nil {
@@ -97,10 +97,9 @@ func (*dummy) Method(_ ipc.ServerContext) error { return nil }
 
 type proxyDispatcher struct {
 	remote  string
-	label   security.Label
 	sigStub signatureStub
 }
 
 func (d *proxyDispatcher) Lookup(suffix string) (interface{}, security.Authorizer, error) {
-	return &proxyInvoker{naming.Join(d.remote, suffix), d.label, d.sigStub}, nil, nil
+	return &proxyInvoker{naming.Join(d.remote, suffix), access.Debug, d.sigStub}, nil, nil
 }

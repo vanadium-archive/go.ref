@@ -37,6 +37,7 @@ import (
 	"veyron.io/veyron/veyron2/services/mgmt/node"
 	"veyron.io/veyron/veyron2/services/mgmt/pprof"
 	"veyron.io/veyron/veyron2/services/mgmt/stats"
+	"veyron.io/veyron/veyron2/services/security/access"
 	"veyron.io/veyron/veyron2/verror"
 	"veyron.io/veyron/veyron2/vlog"
 	"veyron.io/veyron/veyron2/vom"
@@ -46,7 +47,6 @@ import (
 	"veyron.io/veyron/veyron/lib/signals"
 	"veyron.io/veyron/veyron/lib/testutil"
 	tsecurity "veyron.io/veyron/veyron/lib/testutil/security"
-	vsecurity "veyron.io/veyron/veyron/security"
 	"veyron.io/veyron/veyron/services/mgmt/node/config"
 	"veyron.io/veyron/veyron/services/mgmt/node/impl"
 	suidhelper "veyron.io/veyron/veyron/services/mgmt/suidhelper/impl"
@@ -833,10 +833,13 @@ func TestNodeManagerUpdateACL(t *testing.T) {
 	if err := nodeStub.Claim(selfRT.NewContext(), &granter{p: selfRT.Principal(), extension: "mydevice"}); err != nil {
 		t.Fatal(err)
 	}
-	expectedACL := security.ACL{In: map[security.BlessingPattern]security.LabelSet{"root/self/mydevice": security.AllLabels}}
+	expectedACL := make(access.TaggedACLMap)
+	for _, tag := range access.AllTypicalTags() {
+		expectedACL[string(tag)] = access.ACL{In: []security.BlessingPattern{"root/self/mydevice"}}
+	}
 	var b bytes.Buffer
-	if err := vsecurity.SaveACL(&b, expectedACL); err != nil {
-		t.Fatalf("Failed to saveACL:%v", err)
+	if err := expectedACL.WriteTo(&b); err != nil {
+		t.Fatalf("Failed to save ACL:%v", err)
 	}
 	md5hash := md5.Sum(b.Bytes())
 	expectedETAG := hex.EncodeToString(md5hash[:])
@@ -850,7 +853,10 @@ func TestNodeManagerUpdateACL(t *testing.T) {
 	if err := tryInstall(otherRT); err == nil {
 		t.Fatalf("Install should have failed with random identity")
 	}
-	newACL := security.ACL{In: map[security.BlessingPattern]security.LabelSet{"root/other": security.AllLabels}}
+	newACL := make(access.TaggedACLMap)
+	for _, tag := range access.AllTypicalTags() {
+		newACL.Add("root/other", string(tag))
+	}
 	if err := nodeStub.SetACL(selfRT.NewContext(), newACL, "invalid"); err == nil {
 		t.Fatalf("SetACL should have failed with invalid etag")
 	}
@@ -1282,7 +1288,7 @@ func TestAppWithSuidHelper(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GetACL failed %v", err)
 	}
-	newACL.In["root/other/..."] = security.LabelSet(security.WriteLabel)
+	newACL.Add("root/other", string(access.Write))
 	if err := nodeStub.SetACL(selfRT.NewContext(), newACL, ""); err != nil {
 		t.Fatalf("SetACL failed %v", err)
 	}
@@ -1299,7 +1305,7 @@ func TestAppWithSuidHelper(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GetACL on appID: %v failed %v", appID, err)
 	}
-	newACL.In["root/other/..."] = security.LabelSet(security.ReadLabel)
+	newACL.Add("root/other", string(access.Read))
 	if err = appStub(appID).SetACL(selfRT.NewContext(), newACL, ""); err != nil {
 		t.Fatalf("SetACL on appID: %v failed: %v", appID, err)
 	}

@@ -1,5 +1,14 @@
 {
-"/": {"In": {"root": "RW", "...": "R"}},
-"/stuff": {"In": {"root": "RW", "bob": "R"}},
-"/a": {"In": {"root": "RW", "alice": "R"}}
+"/": {
+	"Read":  { "In": ["..."] },
+	"Write": { "In": ["root"] }
+},
+"/stuff": {
+	"Read":  { "In": ["bob", "root"] },
+        "Write": { "In": ["root"] }
+},
+"/a": {
+	"Read":  { "In": ["alice", "root"] },
+        "Write": { "In": ["root"] }
+}
 }

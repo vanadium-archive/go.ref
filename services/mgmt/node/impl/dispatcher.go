@@ -12,7 +12,6 @@ import (
 	"strings"
 	"sync"
 
-	vsecurity "veyron.io/veyron/veyron/security"
 	"veyron.io/veyron/veyron/security/agent"
 	"veyron.io/veyron/veyron/security/agent/keymgr"
 	vflag "veyron.io/veyron/veyron/security/flag"
@@ -48,7 +47,7 @@ type aclLocks map[string]*sync.Mutex
 type dispatcher struct {
 	// acl/auth hold the acl and authorizer used to authorize access to the
 	// node manager methods.
-	acl  security.ACL
+	acl  access.TaggedACLMap
 	auth security.Authorizer
 	// etag holds the version string for the ACL. We use this for optimistic
 	// concurrency control when clients update the ACLs for the node manager.
@@ -124,7 +123,7 @@ func NewDispatcher(config *config.State) (*dispatcher, error) {
 		if err != nil {
 			return nil, fmt.Errorf("failed to read nodemanager ACL file:%v", err)
 		}
-		acl, err := vsecurity.LoadACL(reader)
+		acl, err := access.ReadTaggedACLMap(reader)
 		if err != nil {
 			return nil, fmt.Errorf("failed to load nodemanager ACL:%v", err)
 		}
@@ -135,7 +134,7 @@ func NewDispatcher(config *config.State) (*dispatcher, error) {
 		if d.auth = vflag.NewAuthorizerOrDie(); d.auth == nil {
 			// If there are no specified ACLs we grant nodemanager access to all
 			// principals until it is claimed.
-			d.auth = vsecurity.NewACLAuthorizer(vsecurity.OpenACL())
+			d.auth = allowEveryone{}
 		}
 	}
 	// If we're in 'security agent mode', set up the key manager agent.
@@ -167,9 +166,11 @@ func (d *dispatcher) claimNodeManager(names []string, proof security.Blessings) 
 	rt.R().Principal().BlessingStore().Set(proof, security.AllPrincipals)
 	rt.R().Principal().BlessingStore().SetDefault(proof)
 	// Create ACLs to transfer nodemanager permissions to the provided identity.
-	acl := security.ACL{In: make(map[security.BlessingPattern]security.LabelSet)}
-	for _, name := range names {
-		acl.In[security.BlessingPattern(name)] = security.AllLabels
+	acl := make(access.TaggedACLMap)
+	for _, n := range names {
+		for _, tag := range access.AllTypicalTags() {
+			acl.Add(security.BlessingPattern(n), string(tag))
+		}
 	}
 	_, etag, err := d.getACL()
 	if err != nil {
@@ -184,7 +185,7 @@ func (d *dispatcher) claimNodeManager(names []string, proof security.Blessings) 
 }
 
 // TODO(rjkroege): Further refactor ACL-setting code.
-func setAppACL(locks aclLocks, dir string, acl security.ACL, etag string) error {
+func setAppACL(locks aclLocks, dir string, acl access.TaggedACLMap, etag string) error {
 	aclpath := path.Join(dir, "acls", "data")
 	sigpath := path.Join(dir, "acls", "signature")
 
@@ -204,9 +205,9 @@ func setAppACL(locks aclLocks, dir string, acl security.ACL, etag string) error 
 	}
 	defer f.Close()
 
-	curACL, err := vsecurity.LoadACL(f)
+	curACL, err := access.ReadTaggedACLMap(f)
 	if err != nil {
-		vlog.Errorf("LoadACL(%s) failed: %v", aclpath, err)
+		vlog.Errorf("ReadTaggedACLMap(%s) failed: %v", aclpath, err)
 		return err
 	}
 	curEtag, err := computeEtag(curACL)
@@ -222,7 +223,7 @@ func setAppACL(locks aclLocks, dir string, acl security.ACL, etag string) error 
 	return writeACLs(aclpath, sigpath, dir, acl)
 }
 
-func getAppACL(locks aclLocks, dir string) (security.ACL, string, error) {
+func getAppACL(locks aclLocks, dir string) (access.TaggedACLMap, string, error) {
 	aclpath := path.Join(dir, "acls", "data")
 
 	// Acquire lock. Locks are per path to an acls file.
@@ -236,30 +237,26 @@ func getAppACL(locks aclLocks, dir string) (security.ACL, string, error) {
 
 	f, err := os.Open(aclpath)
 	if err != nil {
-		vlog.Errorf("LoadACL(%s) failed: %v", aclpath, err)
-		return security.ACL{}, "", err
+		vlog.Errorf("Open(%s) failed: %v", aclpath, err)
+		return nil, "", err
 	}
 	defer f.Close()
 
-	acl, err := vsecurity.LoadACL(f)
+	acl, err := access.ReadTaggedACLMap(f)
 	if err != nil {
-		vlog.Errorf("LoadACL(%s) failed: %v", aclpath, err)
-		return security.ACL{}, "", err
+		vlog.Errorf("ReadTaggedACLMap(%s) failed: %v", aclpath, err)
+		return nil, "", err
 	}
 	curEtag, err := computeEtag(acl)
 	if err != nil {
-		return security.ACL{}, "", err
-	}
-
-	if err != nil {
-		return security.ACL{}, "", err
+		return nil, "", err
 	}
 	return acl, curEtag, nil
 }
 
-func computeEtag(acl security.ACL) (string, error) {
+func computeEtag(acl access.TaggedACLMap) (string, error) {
 	b := new(bytes.Buffer)
-	if err := vsecurity.SaveACL(b, acl); err != nil {
+	if err := acl.WriteTo(b); err != nil {
 		vlog.Errorf("Failed to save ACL:%v", err)
 		return "", err
 	}
@@ -269,7 +266,7 @@ func computeEtag(acl security.ACL) (string, error) {
 	return etag, nil
 }
 
-func writeACLs(aclFile, sigFile, dir string, acl security.ACL) error {
+func writeACLs(aclFile, sigFile, dir string, acl access.TaggedACLMap) error {
 	// Create dir directory if it does not exist
 	os.MkdirAll(dir, os.FileMode(0700))
 	// Save the object to temporary data and signature files, and then move
@@ -291,7 +288,7 @@ func writeACLs(aclFile, sigFile, dir string, acl security.ACL) error {
 		vlog.Errorf("Failed to create NewSigningWriteCloser:%v", err)
 		return errOperationFailed
 	}
-	if err = vsecurity.SaveACL(writer, acl); err != nil {
+	if err = acl.WriteTo(writer); err != nil {
 		vlog.Errorf("Failed to SaveACL:%v", err)
 		return errOperationFailed
 	}
@@ -308,7 +305,7 @@ func writeACLs(aclFile, sigFile, dir string, acl security.ACL) error {
 	return nil
 }
 
-func (d *dispatcher) setACL(acl security.ACL, etag string, writeToFile bool) error {
+func (d *dispatcher) setACL(acl access.TaggedACLMap, etag string, writeToFile bool) error {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 	aclFile, sigFile, nodedata := d.getACLFilePaths()
@@ -326,11 +323,15 @@ func (d *dispatcher) setACL(acl security.ACL, etag string, writeToFile bool) err
 	if err != nil {
 		return err
 	}
-	d.acl, d.etag, d.auth = acl, etag, vsecurity.NewACLAuthorizer(acl)
+	auth, err := access.TaggedACLAuthorizer(acl, access.TypicalTagType())
+	if err != nil {
+		return err
+	}
+	d.acl, d.etag, d.auth = acl, etag, auth
 	return nil
 }
 
-func (d *dispatcher) getACL() (acl security.ACL, etag string, err error) {
+func (d *dispatcher) getACL() (acl access.TaggedACLMap, etag string, err error) {
 	d.mu.RLock()
 	defer d.mu.RUnlock()
 	return d.acl, d.etag, nil
@@ -384,18 +385,15 @@ func (d *dispatcher) Lookup(suffix string) (interface{}, security.Authorizer, er
 				if !instanceStateIs(appInstanceDir, started) {
 					return nil, nil, errInvalidSuffix
 				}
-				var label security.Label
 				var sigStub signatureStub
 				if kind == "pprof" {
-					label = security.DebugLabel
 					sigStub = pprof.PProfServer(nil)
 				} else {
-					label = security.DebugLabel | security.MonitoringLabel
 					sigStub = stats.StatsServer(nil)
 				}
 				suffix := naming.Join("__debug", naming.Join(components[4:]...))
 				remote := naming.JoinAddressName(info.AppCycleMgrName, suffix)
-				return &proxyInvoker{remote, label, sigStub}, d.auth, nil
+				return &proxyInvoker{remote, access.Debug, sigStub}, d.auth, nil
 			}
 		}
 		nodeACLs, _, err := d.getACL()
@@ -445,23 +443,27 @@ func newAppSpecificAuthorizer(sec security.Authorizer, config *config.State, suf
 		return sec, nil
 	}
 	// Otherwise, we require a per-installation and per-instance ACL file.
-
 	if len(suffix) == 2 {
 		p, err := installationDirCore(suffix, config.Root)
 		if err != nil {
 			vlog.Errorf("newAppSpecificAuthorizer failed: %v", err)
 			return nil, err
 		}
-		p = path.Join(p, "acls", "data")
-		return vsecurity.NewFileACLAuthorizer(p), nil
-	} else if len(suffix) > 2 {
+		return access.TaggedACLAuthorizerFromFile(path.Join(p, "acls", "data"), access.TypicalTagType())
+	}
+	if len(suffix) > 2 {
 		p, err := instanceDir(config.Root, suffix[0:3])
 		if err != nil {
 			vlog.Errorf("newAppSpecificAuthorizer failed: %v", err)
 			return nil, err
 		}
-		p = path.Join(p, "acls", "data")
-		return vsecurity.NewFileACLAuthorizer(p), nil
+		return access.TaggedACLAuthorizerFromFile(path.Join(p, "acls", "data"), access.TypicalTagType())
 	}
 	return nil, errInvalidSuffix
 }
+
+// allowEveryone implements the authorization policy that allows all principals
+// access.
+type allowEveryone struct{}
+
+func (allowEveryone) Authorize(security.Context) error { return nil }

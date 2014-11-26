@@ -43,10 +43,10 @@ import (
 	"veyron.io/veyron/veyron2/mgmt"
 	"veyron.io/veyron/veyron2/naming"
 	"veyron.io/veyron/veyron2/rt"
-	"veyron.io/veyron/veyron2/security"
 	"veyron.io/veyron/veyron2/services/mgmt/application"
 	"veyron.io/veyron/veyron2/services/mgmt/binary"
 	"veyron.io/veyron/veyron2/services/mgmt/node"
+	"veyron.io/veyron/veyron2/services/security/access"
 	"veyron.io/veyron/veyron2/vlog"
 
 	vexec "veyron.io/veyron/veyron/lib/exec"
@@ -436,11 +436,11 @@ func (*nodeService) UpdateTo(ipc.ServerContext, string) error {
 	return nil
 }
 
-func (i *nodeService) SetACL(_ ipc.ServerContext, acl security.ACL, etag string) error {
+func (i *nodeService) SetACL(_ ipc.ServerContext, acl access.TaggedACLMap, etag string) error {
 	return i.disp.setACL(acl, etag, true /* store ACL on disk */)
 }
 
-func (i *nodeService) GetACL(_ ipc.ServerContext) (acl security.ACL, etag string, err error) {
+func (i *nodeService) GetACL(_ ipc.ServerContext) (acl access.TaggedACLMap, etag string, err error) {
 	return i.disp.getACL()
 }
 

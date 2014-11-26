@@ -6,7 +6,6 @@ import (
 	"crypto/elliptic"
 	"crypto/rand"
 	"crypto/x509"
-	"encoding/json"
 	"encoding/pem"
 	"errors"
 	"fmt"
@@ -18,15 +17,6 @@ import (
 )
 
 const ecPrivateKeyPEMType = "EC PRIVATE KEY"
-
-var nullACL security.ACL
-
-// OpenACL creates an ACL that grants access to all principals.
-func OpenACL() security.ACL {
-	acl := security.ACL{}
-	acl.In = map[security.BlessingPattern]security.LabelSet{security.AllPrincipals: security.AllLabels}
-	return acl
-}
 
 var PassphraseErr = errors.New("passphrase incorrect for decrypting private key")
 
@@ -102,20 +92,6 @@ func SavePEMKey(w io.Writer, key interface{}, passphrase []byte) error {
 	}
 
 	return pem.Encode(w, pemKey)
-}
-
-// LoadACL reads an ACL from the provided Reader containing a JSON encoded ACL.
-func LoadACL(r io.Reader) (security.ACL, error) {
-	var acl security.ACL
-	if err := json.NewDecoder(r).Decode(&acl); err != nil {
-		return nullACL, err
-	}
-	return acl, nil
-}
-
-// SaveACL encodes an ACL in JSON format and writes it to the provided Writer.
-func SaveACL(w io.Writer, acl security.ACL) error {
-	return json.NewEncoder(w).Encode(acl)
 }
 
 // ThirdPartyCaveats returns the set of security.ThirdPartyCaveats

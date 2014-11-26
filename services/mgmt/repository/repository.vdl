@@ -4,8 +4,8 @@ package repository
 
 import (
 	"veyron.io/veyron/veyron/services/mgmt/profile"
-	"veyron.io/veyron/veyron2/security"
 	"veyron.io/veyron/veyron2/services/mgmt/application"
+	"veyron.io/veyron/veyron2/services/security/access"
 	public "veyron.io/veyron/veyron2/services/mgmt/repository"
 )
 
@@ -17,7 +17,7 @@ type Application interface {
 	// Put adds the given tuple of application version (specified
 	// through the object name suffix) and application envelope to all
 	// of the given application profiles.
-	Put(Profiles []string, Envelope application.Envelope) error {security.WriteLabel}
+	Put(Profiles []string, Envelope application.Envelope) error {access.Write}
 	// Remove removes the application envelope for the given profile
 	// name and application version (specified through the object name
 	// suffix). If no version is specified as part of the suffix, the
@@ -25,7 +25,7 @@ type Application interface {
 	//
 	// TODO(jsimsa): Add support for using "*" to specify all profiles
 	// when Matt implements Globing (or Ken implements querying).
-	Remove(Profile string) error {security.WriteLabel}
+	Remove(Profile string) error {access.Write}
 }
 
 // Profile describes a profile internally. Besides the public Profile
@@ -34,11 +34,11 @@ type Profile interface {
 	public.Profile
 	// Specification returns the profile specification for the profile
 	// identified through the object name suffix.
-	Specification() (profile.Specification, error) {security.ReadLabel}
+	Specification() (profile.Specification, error) {access.Read}
 	// Put sets the profile specification for the profile identified
 	// through the object name suffix.
-	Put(Specification profile.Specification) error {security.WriteLabel}
+	Put(Specification profile.Specification) error {access.Write}
 	// Remove removes the profile specification for the profile
 	// identified through the object name suffix.
-	Remove() error {security.WriteLabel}
+	Remove() error {access.Write}
 }

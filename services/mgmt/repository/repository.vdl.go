@@ -8,11 +8,11 @@ package repository
 import (
 	"veyron.io/veyron/veyron/services/mgmt/profile"
 
-	"veyron.io/veyron/veyron2/security"
-
 	"veyron.io/veyron/veyron2/services/mgmt/application"
 
 	"veyron.io/veyron/veyron2/services/mgmt/repository"
+
+	"veyron.io/veyron/veyron2/services/security/access"
 
 	// The non-user imports are prefixed with "__" to prevent collisions.
 	__veyron2 "veyron.io/veyron/veyron2"
@@ -232,7 +232,7 @@ var descApplication = __ipc.InterfaceDesc{
 			OutArgs: []__ipc.ArgDesc{
 				{"", ``}, // error
 			},
-			Tags: []__vdlutil.Any{security.Label(4)},
+			Tags: []__vdlutil.Any{access.Tag("Write")},
 		},
 		{
 			Name: "Remove",
@@ -243,7 +243,7 @@ var descApplication = __ipc.InterfaceDesc{
 			OutArgs: []__ipc.ArgDesc{
 				{"", ``}, // error
 			},
-			Tags: []__vdlutil.Any{security.Label(4)},
+			Tags: []__vdlutil.Any{access.Tag("Write")},
 		},
 	},
 }
@@ -536,7 +536,7 @@ var descProfile = __ipc.InterfaceDesc{
 				{"", ``}, // profile.Specification
 				{"", ``}, // error
 			},
-			Tags: []__vdlutil.Any{security.Label(2)},
+			Tags: []__vdlutil.Any{access.Tag("Read")},
 		},
 		{
 			Name: "Put",
@@ -547,7 +547,7 @@ var descProfile = __ipc.InterfaceDesc{
 			OutArgs: []__ipc.ArgDesc{
 				{"", ``}, // error
 			},
-			Tags: []__vdlutil.Any{security.Label(4)},
+			Tags: []__vdlutil.Any{access.Tag("Write")},
 		},
 		{
 			Name: "Remove",
@@ -555,7 +555,7 @@ var descProfile = __ipc.InterfaceDesc{
 			OutArgs: []__ipc.ArgDesc{
 				{"", ``}, // error
 			},
-			Tags: []__vdlutil.Any{security.Label(4)},
+			Tags: []__vdlutil.Any{access.Tag("Write")},
 		},
 	},
 }

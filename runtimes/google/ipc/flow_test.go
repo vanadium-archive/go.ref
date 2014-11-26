@@ -73,7 +73,7 @@ func newClosureInvoker(suffix string) ipc.Invoker {
 }
 
 func (closureInvoker) Prepare(method string, numArgs int) (argptrs, tags []interface{}, err error) {
-	return nil, []interface{}{security.AdminLabel}, nil
+	return nil, nil, nil
 }
 func (inv closureInvoker) Invoke(method string, call ipc.ServerCall, argptrs []interface{}) (results []interface{}, err error) {
 	if inv.suffix == "" {
@@ -101,7 +101,7 @@ func newEchoInvoker(suffix string) ipc.Invoker {
 
 func (echoInvoker) Prepare(method string, numArgs int) (argptrs, tags []interface{}, err error) {
 	var arg string
-	return []interface{}{&arg}, []interface{}{security.AdminLabel}, nil
+	return []interface{}{&arg}, nil, nil
 }
 func (inv echoInvoker) Invoke(method string, call ipc.ServerCall, argptrs []interface{}) (results []interface{}, err error) {
 	result := fmt.Sprintf("method:%q,suffix:%q,arg:%q", method, inv.suffix, *argptrs[0].(*string))
