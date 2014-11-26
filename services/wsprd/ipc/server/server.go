@@ -78,7 +78,7 @@ type context struct {
 	Method                string                    `json:"method"`
 	Name                  string                    `json:"name"`
 	Suffix                string                    `json:"suffix"`
-	Label                 security.Label            `json:"label"`
+	Label                 security.Label            `json:"label"` // TODO(bjornick,ashankar): This should be method tags!
 	LocalBlessings        principal.BlessingsHandle `json:"localBlessings"`
 	LocalBlessingStrings  []string                  `json:"localBlessingStrings"`
 	RemoteBlessings       principal.BlessingsHandle `json:"remoteBlessings"`
@@ -264,7 +264,7 @@ func (s *Server) createRemoteAuthFunc(handle int64) remoteAuthFunc {
 				Method:                lib.LowercaseFirstCharacter(ctx.Method()),
 				Name:                  ctx.Name(),
 				Suffix:                ctx.Suffix(),
-				Label:                 ctx.Label(),
+				Label:                 labelFromMethodTags(ctx.MethodTags()),
 				LocalEndpoint:         ctx.LocalEndpoint().String(),
 				RemoteEndpoint:        ctx.RemoteEndpoint().String(),
 				LocalBlessings:        s.convertBlessingsToHandle(ctx.LocalBlessings()),
@@ -424,4 +424,13 @@ func (s *Server) AddName(name string) error {
 
 func (s *Server) RemoveName(name string) error {
 	return s.server.RemoveName(name)
+}
+
+func labelFromMethodTags(tags []interface{}) security.Label {
+	for _, t := range tags {
+		if l, ok := t.(security.Label); ok {
+			return l
+		}
+	}
+	return security.AdminLabel
 }
