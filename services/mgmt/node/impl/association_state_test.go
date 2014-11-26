@@ -128,13 +128,17 @@ func TestAssociationPersistanceDetectsBadStartingConditions(t *testing.T) {
 	}
 
 	// Create a NewBlessingSystemAssociationStore directory as a side-effect.
-	nbsa1, err = impl.NewBlessingSystemAssociationStore(os.TempDir())
-	defer os.RemoveAll(path.Join(os.TempDir(), "node-manager"))
+	dir, err = ioutil.TempDir("", "bad-starting-conditions")
+	if err != nil {
+		t.Fatalf("TempDir failed: %v", err)
+	}
+	nbsa1, err = impl.NewBlessingSystemAssociationStore(dir)
+	defer os.RemoveAll(dir)
 	if err != nil {
 		t.Fatalf("NewBlessingSystemAssociationStore failed: %v", err)
 	}
 
-	tpath := path.Join(os.TempDir(), "node-manager", "node-data", "associated.accounts")
+	tpath := path.Join(dir, "node-manager", "node-data", "associated.accounts")
 	f, err := os.Create(tpath)
 	if err != nil {
 		t.Fatalf("could not open backing file for setup: %v", err)
