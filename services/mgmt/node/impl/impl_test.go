@@ -235,6 +235,9 @@ func app(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args 
 	if err := server.Serve(publishName, new(appService), nil); err != nil {
 		vlog.Fatalf("Serve(%v) failed: %v", publishName, err)
 	}
+	// Some of our tests look for log files, so make sure they are flushed
+	// to ensure that at least the files exist.
+	vlog.FlushLog()
 	ping()
 
 	<-signals.ShutdownOnSignals()
