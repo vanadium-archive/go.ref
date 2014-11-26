@@ -25,6 +25,7 @@ import (
 	__veyron2 "veyron.io/veyron/veyron2"
 	__context "veyron.io/veyron/veyron2/context"
 	__ipc "veyron.io/veyron/veyron2/ipc"
+	__vdl "veyron.io/veyron/veyron2/vdl"
 	__vdlutil "veyron.io/veyron/veyron2/vdl/vdlutil"
 	__wiretype "veyron.io/veyron/veyron2/wiretype"
 )
@@ -39,17 +40,37 @@ type GameID struct {
 	ID string
 }
 
+func (GameID) __VDLReflect(struct {
+	Name string "veyron.io/apps/rps.GameID"
+}) {
+}
+
 // GameOptions specifies the parameters of a game.
 type GameOptions struct {
 	NumRounds int32       // The number of rounds that a player must win to win the game.
 	GameType  GameTypeTag // The type of game to play: Classic or LizardSpock.
 }
 
+func (GameOptions) __VDLReflect(struct {
+	Name string "veyron.io/apps/rps.GameOptions"
+}) {
+}
+
 type GameTypeTag byte
+
+func (GameTypeTag) __VDLReflect(struct {
+	Name string "veyron.io/apps/rps.GameTypeTag"
+}) {
+}
 
 type PlayerAction struct {
 	Move string // The move that the player wants to make.
 	Quit bool   // Whether the player wants to quit the game.
+}
+
+func (PlayerAction) __VDLReflect(struct {
+	Name string "veyron.io/apps/rps.PlayerAction"
+}) {
 }
 
 type JudgeAction struct {
@@ -58,6 +79,11 @@ type JudgeAction struct {
 	MoveOptions  []string  // A list of allowed moves that the player must choose from. Not always present.
 	RoundResult  Round     // The result of the previous round. Not always present.
 	Score        ScoreCard // The result of the game. Not always present.
+}
+
+func (JudgeAction) __VDLReflect(struct {
+	Name string "veyron.io/apps/rps.JudgeAction"
+}) {
 }
 
 // Round represents the state of a round.
@@ -69,13 +95,28 @@ type Round struct {
 	EndTimeNS   int64     // The time at which the round ended.
 }
 
+func (Round) __VDLReflect(struct {
+	Name string "veyron.io/apps/rps.Round"
+}) {
+}
+
 // WinnerTag is a type used to indicate whether a round or a game was a draw,
 // was won by player 1 or was won by player 2.
 type WinnerTag byte
 
+func (WinnerTag) __VDLReflect(struct {
+	Name string "veyron.io/apps/rps.WinnerTag"
+}) {
+}
+
 // PlayResult is the value returned by the Play method. It indicates the outcome of the game.
 type PlayResult struct {
 	YouWon bool // True if the player receiving the result won the game.
+}
+
+func (PlayResult) __VDLReflect(struct {
+	Name string "veyron.io/apps/rps.PlayResult"
+}) {
 }
 
 type ScoreCard struct {
@@ -86,6 +127,23 @@ type ScoreCard struct {
 	StartTimeNS int64       // The time at which the game started.
 	EndTimeNS   int64       // The time at which the game ended.
 	Winner      WinnerTag   // Who won the game.
+}
+
+func (ScoreCard) __VDLReflect(struct {
+	Name string "veyron.io/apps/rps.ScoreCard"
+}) {
+}
+
+func init() {
+	__vdl.Register(GameID{})
+	__vdl.Register(GameOptions{})
+	__vdl.Register(GameTypeTag(0))
+	__vdl.Register(PlayerAction{})
+	__vdl.Register(JudgeAction{})
+	__vdl.Register(Round{})
+	__vdl.Register(WinnerTag(0))
+	__vdl.Register(PlayResult{})
+	__vdl.Register(ScoreCard{})
 }
 
 const Classic = GameTypeTag(0) // Rock-Paper-Scissors

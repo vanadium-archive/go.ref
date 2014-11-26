@@ -13,6 +13,7 @@ import (
 	__veyron2 "veyron.io/veyron/veyron2"
 	__context "veyron.io/veyron/veyron2/context"
 	__ipc "veyron.io/veyron/veyron2/ipc"
+	__vdl "veyron.io/veyron/veyron2/vdl"
 	__vdlutil "veyron.io/veyron/veyron2/vdl/vdlutil"
 	__wiretype "veyron.io/veyron/veyron2/wiretype"
 )
@@ -29,6 +30,11 @@ type ShellOpts struct {
 	Cols        uint32
 }
 
+func (ShellOpts) __VDLReflect(struct {
+	Name string "veyron.io/apps/tunnel.ShellOpts"
+}) {
+}
+
 type ClientShellPacket struct {
 	// Bytes going to the shell's stdin.
 	Stdin []byte
@@ -39,11 +45,27 @@ type ClientShellPacket struct {
 	Cols uint32
 }
 
+func (ClientShellPacket) __VDLReflect(struct {
+	Name string "veyron.io/apps/tunnel.ClientShellPacket"
+}) {
+}
+
 type ServerShellPacket struct {
 	// Bytes coming from the shell's stdout.
 	Stdout []byte
 	// Bytes coming from the shell's stderr.
 	Stderr []byte
+}
+
+func (ServerShellPacket) __VDLReflect(struct {
+	Name string "veyron.io/apps/tunnel.ServerShellPacket"
+}) {
+}
+
+func init() {
+	__vdl.Register(ShellOpts{})
+	__vdl.Register(ClientShellPacket{})
+	__vdl.Register(ServerShellPacket{})
 }
 
 // TunnelClientMethods is the client interface
