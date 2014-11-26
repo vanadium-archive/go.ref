@@ -36,18 +36,19 @@ var (
 
 type server struct {
 	sync.Mutex
-	ctx              context.T                         // context used by the server to make internal RPCs.
-	streamMgr        stream.Manager                    // stream manager to listen for new flows.
-	publisher        publisher.Publisher               // publisher to publish mounttable mounts.
-	listenerOpts     []stream.ListenerOpt              // listener opts passed to Listen.
-	listeners        map[stream.Listener]*dhcpListener // listeners created by Listen.
-	disp             ipc.Dispatcher                    // dispatcher to serve RPCs
-	dispReserved     ipc.Dispatcher                    // dispatcher for reserved methods
-	active           sync.WaitGroup                    // active goroutines we've spawned.
-	stopped          bool                              // whether the server has been stopped.
-	stoppedChan      chan struct{}                     // closed when the server has been stopped.
-	ns               naming.Namespace
-	servesMountTable bool
+	ctx                context.T                         // context used by the server to make internal RPCs.
+	streamMgr          stream.Manager                    // stream manager to listen for new flows.
+	publisher          publisher.Publisher               // publisher to publish mounttable mounts.
+	listenerOpts       []stream.ListenerOpt              // listener opts passed to Listen.
+	listeners          map[stream.Listener]*dhcpListener // listeners created by Listen.
+	disp               ipc.Dispatcher                    // dispatcher to serve RPCs
+	dispReserved       ipc.Dispatcher                    // dispatcher for reserved methods
+	active             sync.WaitGroup                    // active goroutines we've spawned.
+	stopped            bool                              // whether the server has been stopped.
+	stoppedChan        chan struct{}                     // closed when the server has been stopped.
+	preferredProtocols []string                          // protocols to use when resolving proxy name to endpoint.
+	ns                 naming.Namespace
+	servesMountTable   bool
 	// TODO(cnicolaou): remove this when the publisher tracks published names
 	// and can return an appropriate error for RemoveName on a name that
 	// wasn't 'Added' for this server.
@@ -68,6 +69,12 @@ type dhcpListener struct {
 	pubPort   string              // port to use with the publish addresses
 	ch        chan config.Setting // channel to receive settings over
 }
+
+// This option is used to sort and filter the endpoints when resolving the
+// proxy name from a mounttable.
+type PreferredServerResolveProtocols []string
+
+func (PreferredServerResolveProtocols) IPCServerOpt() {}
 
 func InternalNewServer(ctx context.T, streamMgr stream.Manager, ns naming.Namespace, store *ivtrace.Store, opts ...ipc.ServerOpt) (ipc.Server, error) {
 	ctx, _ = ivtrace.WithNewSpan(ctx, "NewServer")
@@ -101,6 +108,8 @@ func InternalNewServer(ctx context.T, streamMgr stream.Manager, ns naming.Namesp
 			s.servesMountTable = bool(opt)
 		case options.ReservedNameDispatcher:
 			s.dispReserved = opt.Dispatcher
+		case PreferredServerResolveProtocols:
+			s.preferredProtocols = []string(opt)
 		}
 	}
 	blessingsStatsName := naming.Join(statsPrefix, "security", "blessings")
@@ -141,7 +150,12 @@ func (s *server) resolveToAddress(address string) (string, error) {
 	} else {
 		names = append(names, address)
 	}
-	for _, n := range names {
+	// An empty set of protocols means all protocols...
+	ordered, err := filterAndOrderServers(names, s.preferredProtocols)
+	if err != nil {
+		return "", err
+	}
+	for _, n := range ordered {
 		address, suffix := naming.SplitAddressName(n)
 		if suffix != "" {
 			continue

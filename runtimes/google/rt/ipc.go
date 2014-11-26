@@ -109,6 +109,11 @@ func (rt *vrt) NewServer(opts ...ipc.ServerOpt) (ipc.Server, error) {
 		otherOpts = append(otherOpts, rt.reservedOpts...)
 	}
 
+	// Add the preferred protocols from the runtime if there are any.
+	if len(rt.preferredProtocols) > 0 {
+		otherOpts = append(otherOpts, iipc.PreferredServerResolveProtocols(rt.preferredProtocols))
+	}
+
 	// Add the option that provides a discharge client to the server.
 	// TODO(cnicolaou): extend the timeout when parallel connections are
 	// going.
