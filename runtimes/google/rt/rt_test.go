@@ -69,7 +69,10 @@ func child(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, arg
 }
 
 func TestInitArgs(t *testing.T) {
-	sh := modules.NewShell()
+	sh, err := modules.NewShell(nil)
+	if err != nil {
+		t.Fatalf("unexpected error: %s", err)
+	}
 	defer sh.Cleanup(os.Stderr, os.Stderr)
 	h, err := sh.Start("child", nil, "--logtostderr=true", "--vv=3", "--", "foobar")
 	if err != nil {
@@ -136,7 +139,10 @@ func runner(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, ar
 		return err
 	}
 	fmt.Fprintf(stdout, "RUNNER_DEFAULT_BLESSING=%v\n", defaultBlessing(r.Principal()))
-	sh := modules.NewShell()
+	sh, err := modules.NewShell(nil)
+	if err != nil {
+		return err
+	}
 	if _, err := sh.Start("principal", nil, args[1:]...); err != nil {
 		return err
 	}
@@ -156,7 +162,10 @@ func createCredentialsInDir(t *testing.T, dir string, blessing string) {
 }
 
 func TestPrincipalInheritance(t *testing.T) {
-	sh := modules.NewShell()
+	sh, err := modules.NewShell(nil)
+	if err != nil {
+		t.Fatalf("unexpected error: %s", err)
+	}
 	defer func() {
 		sh.Cleanup(os.Stdout, os.Stderr)
 	}()
@@ -216,7 +225,10 @@ func TestPrincipalInit(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	sh := modules.NewShell()
+	sh, err := modules.NewShell(nil)
+	if err != nil {
+		t.Fatalf("unexpected error: %s", err)
+	}
 	defer sh.Cleanup(os.Stderr, os.Stderr)
 
 	blessing := collect(sh, nil)

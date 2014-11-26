@@ -23,8 +23,8 @@ import (
 )
 
 func TestCommands(t *testing.T) {
-	sh := modules.NewShell()
-	defer sh.Cleanup(nil, os.Stderr)
+	sh, fn := newShell(t)
+	defer fn()
 	for _, c := range []string{core.RootMTCommand, core.MTCommand} {
 		if len(sh.Help(c)) == 0 {
 			t.Fatalf("missing command %q", c)
@@ -37,8 +37,11 @@ func init() {
 	rt.Init()
 }
 
-func newShell() (*modules.Shell, func()) {
-	sh := modules.NewShell()
+func newShell(t *testing.T) (*modules.Shell, func()) {
+	sh, err := modules.NewShell(nil)
+	if err != nil {
+		t.Fatalf("unexpected error: %s", err)
+	}
 	return sh, func() {
 		if testing.Verbose() {
 			vlog.Infof("------ cleanup ------")
@@ -55,7 +58,7 @@ func testArgs(args ...string) []string {
 }
 
 func TestRoot(t *testing.T) {
-	sh, fn := newShell()
+	sh, fn := newShell(t)
 	defer fn()
 	root, err := sh.Start(core.RootMTCommand, nil, testArgs()...)
 	if err != nil {
@@ -128,7 +131,7 @@ func getMatchingMountpoint(r [][]string) string {
 }
 
 func TestMountTableAndGlob(t *testing.T) {
-	sh, fn := newShell()
+	sh, fn := newShell(t)
 	defer fn()
 
 	mountPoints := []string{"a", "b", "c", "d", "e"}
@@ -201,7 +204,7 @@ func TestMountTableAndGlob(t *testing.T) {
 }
 
 func TestEcho(t *testing.T) {
-	sh, fn := newShell()
+	sh, fn := newShell(t)
 	defer fn()
 
 	srv, err := sh.Start(core.EchoServerCommand, nil, testArgs("test", "")...)
@@ -223,7 +226,7 @@ func TestEcho(t *testing.T) {
 }
 
 func TestResolve(t *testing.T) {
-	sh, fn := newShell()
+	sh, fn := newShell(t)
 	defer fn()
 
 	mountPoints := []string{"a", "b"}

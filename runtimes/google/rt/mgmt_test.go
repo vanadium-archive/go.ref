@@ -116,7 +116,10 @@ func noWaiters(stdin io.Reader, stdout, stderr io.Writer, env map[string]string,
 // TestNoWaiters verifies that the child process exits in the absence of any
 // wait channel being registered with its runtime.
 func TestNoWaiters(t *testing.T) {
-	sh := modules.NewShell()
+	sh, err := modules.NewShell(nil)
+	if err != nil {
+		t.Fatalf("unexpected error: %s", err)
+	}
 	defer sh.Cleanup(os.Stderr, os.Stderr)
 	h, err := sh.Start(noWaitersCmd, nil)
 	if err != nil {
@@ -143,7 +146,10 @@ func forceStop(stdin io.Reader, stdout, stderr io.Writer, env map[string]string,
 // TestForceStop verifies that ForceStop causes the child process to exit
 // immediately.
 func TestForceStop(t *testing.T) {
-	sh := modules.NewShell()
+	sh, err := modules.NewShell(nil)
+	if err != nil {
+		t.Fatalf("unexpected error: %s", err)
+	}
 	defer sh.Cleanup(os.Stderr, os.Stderr)
 	h, err := sh.Start(forceStopCmd, nil)
 	if err != nil {
@@ -295,7 +301,10 @@ func setupRemoteAppCycleMgr(t *testing.T) (veyron2.Runtime, modules.Handle, appc
 
 	childcreds := security.NewVeyronCredentials(r.Principal(), appCmd)
 	configServer, configServiceName, ch := createConfigServer(t, r)
-	sh := modules.NewShell()
+	sh, err := modules.NewShell(nil)
+	if err != nil {
+		t.Fatalf("unexpected error: %s", err)
+	}
 	sh.SetVar(consts.VeyronCredentials, childcreds)
 	sh.SetConfigKey(mgmt.ParentNameConfigKey, configServiceName)
 	sh.SetConfigKey(mgmt.ProtocolConfigKey, "tcp")

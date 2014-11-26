@@ -26,7 +26,10 @@ func assertNumHandles(t *testing.T, sh *Shell, n int) {
 }
 
 func TestState(t *testing.T) {
-	sh := NewShell()
+	sh, err := NewShell(nil)
+	if err != nil {
+		t.Fatalf("unexpected error: %s", err)
+	}
 	RegisterFunction("echoff", "[args]*", Echo)
 	assertNumHandles(t, sh, 0)
 

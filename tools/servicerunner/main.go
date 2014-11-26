@@ -64,7 +64,10 @@ func main() {
 
 	vars := map[string]string{}
 
-	sh := modules.NewShell()
+	sh, err := modules.NewShell(nil)
+	if err != nil {
+		panic(fmt.Sprintf("modules.NewShell: %s", err))
+	}
 	defer sh.Cleanup(os.Stderr, os.Stderr)
 	v, ok := sh.GetVar(consts.VeyronCredentials)
 	if !ok {

@@ -79,7 +79,10 @@ func setNSRoots(t *testing.T, sh *modules.Shell, roots ...string) {
 }
 
 func createShellAndMountTable(t *testing.T) (*modules.Shell, func()) {
-	sh := modules.NewShell()
+	sh, err := modules.NewShell(nil)
+	if err != nil {
+		t.Fatalf("unexpected error: %s", err)
+	}
 	// The shell, will, by default share credentials with its children.
 	sh.ClearVar(consts.VeyronCredentials)
 

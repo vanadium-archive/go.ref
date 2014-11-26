@@ -112,7 +112,10 @@ func checkSignalIsNotDefault(t *testing.T, sig os.Signal) {
 }
 
 func newShell(t *testing.T, command string) (*modules.Shell, modules.Handle, *expect.Session) {
-	sh := modules.NewShell()
+	sh, err := modules.NewShell(nil)
+	if err != nil {
+		t.Fatalf("unexpected error: %s", err)
+	}
 	handle, err := sh.Start(command, nil)
 	if err != nil {
 		sh.Cleanup(os.Stderr, os.Stderr)
@@ -328,7 +331,10 @@ func TestCleanRemoteShutdown(t *testing.T) {
 	r := rt.Init()
 	defer r.Cleanup()
 
-	sh := modules.NewShell()
+	sh, err := modules.NewShell(nil)
+	if err != nil {
+		t.Fatalf("unexpected error: %s", err)
+	}
 	defer sh.Cleanup(os.Stderr, os.Stderr)
 
 	// Set the child process up with a blessing from the parent so that

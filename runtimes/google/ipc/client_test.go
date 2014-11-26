@@ -26,7 +26,10 @@ func testArgs(args ...string) []string {
 }
 
 func runMountTable(t *testing.T) (*modules.Shell, func()) {
-	sh := modules.NewShell()
+	sh, err := modules.NewShell(nil)
+	if err != nil {
+		t.Fatalf("unexpected error: %s", err)
+	}
 	root, err := sh.Start(core.RootMTCommand, nil, testArgs()...)
 	if err != nil {
 		t.Fatalf("unexpected error for root mt: %s", err)

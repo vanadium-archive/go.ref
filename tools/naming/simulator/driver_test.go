@@ -40,7 +40,10 @@ func TestFields(t *testing.T) {
 }
 
 func TestVariables(t *testing.T) {
-	sh := modules.NewShell()
+	sh, err := modules.NewShell(nil)
+	if err != nil {
+		t.Fatalf("unexpected error: %s", err)
+	}
 	sh.SetVar("foo", "bar")
 	cases := []struct {
 		input  string

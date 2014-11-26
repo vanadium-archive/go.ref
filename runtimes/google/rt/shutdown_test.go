@@ -25,10 +25,18 @@ func init() {
 	}
 }
 
+func newShell(t *testing.T) *modules.Shell {
+	sh, err := modules.NewShell(nil)
+	if err != nil {
+		t.Fatalf("unexpected error: %s", err)
+	}
+	return sh
+}
+
 // TestSimpleServerSignal verifies that sending a signal to the simple server
 // causes it to exit cleanly.
 func TestSimpleServerSignal(t *testing.T) {
-	sh := modules.NewShell()
+	sh := newShell(t)
 	defer sh.Cleanup(os.Stdout, cstderr)
 	h, _ := sh.Start("simpleServerProgram", nil)
 	s := expect.NewSession(t, h.Stdout(), time.Minute)
@@ -44,7 +52,7 @@ func TestSimpleServerSignal(t *testing.T) {
 // TestSimpleServerLocalStop verifies that sending a local stop command to the
 // simple server causes it to exit cleanly.
 func TestSimpleServerLocalStop(t *testing.T) {
-	sh := modules.NewShell()
+	sh := newShell(t)
 	defer sh.Cleanup(os.Stdout, cstderr)
 	h, _ := sh.Start("simpleServerProgram", nil)
 	s := expect.NewSession(t, h.Stdout(), time.Minute)
@@ -61,7 +69,7 @@ func TestSimpleServerLocalStop(t *testing.T) {
 // signals to the simple server causes it to initiate the cleanup sequence on
 // the first signal and then exit immediately on the second signal.
 func TestSimpleServerDoubleSignal(t *testing.T) {
-	sh := modules.NewShell()
+	sh := newShell(t)
 	defer sh.Cleanup(os.Stdout, cstderr)
 	h, _ := sh.Start("simpleServerProgram", nil)
 	s := expect.NewSession(t, h.Stdout(), time.Minute)
@@ -81,7 +89,7 @@ func TestSimpleServerDoubleSignal(t *testing.T) {
 // TestSimpleServerLocalForceStop verifies that sending a local ForceStop
 // command to the simple server causes it to exit immediately.
 func TestSimpleServerLocalForceStop(t *testing.T) {
-	sh := modules.NewShell()
+	sh := newShell(t)
 	defer sh.Cleanup(os.Stdout, cstderr)
 	h, _ := sh.Start("simpleServerProgram", nil)
 	s := expect.NewSession(t, h.Stdout(), time.Minute)
@@ -100,7 +108,7 @@ func TestSimpleServerLocalForceStop(t *testing.T) {
 // TestSimpleServerKill demonstrates that a SIGKILL still forces the server
 // to exit regardless of our signal handling.
 func TestSimpleServerKill(t *testing.T) {
-	sh := modules.NewShell()
+	sh := newShell(t)
 	defer sh.Cleanup(os.Stdout, cstderr)
 	h, _ := sh.Start("simpleServerProgram", nil)
 	s := expect.NewSession(t, h.Stdout(), time.Minute)
@@ -120,7 +128,7 @@ func TestSimpleServerKill(t *testing.T) {
 // corresponding to all the simulated sequential/parallel and
 // blocking/interruptible shutdown steps), and then exits cleanly.
 func TestComplexServerSignal(t *testing.T) {
-	sh := modules.NewShell()
+	sh := newShell(t)
 	defer sh.Cleanup(os.Stdout, cstderr)
 	h, _ := sh.Start("complexServerProgram", nil)
 	s := expect.NewSession(t, h.Stdout(), time.Minute)
@@ -142,7 +150,7 @@ func TestComplexServerSignal(t *testing.T) {
 // printouts corresponding to all the simulated sequential/parallel and
 // blocking/interruptible shutdown steps), and then exits cleanly.
 func TestComplexServerLocalStop(t *testing.T) {
-	sh := modules.NewShell()
+	sh := newShell(t)
 	defer sh.Cleanup(os.Stdout, cstderr)
 	h, _ := sh.Start("complexServerProgram", nil)
 	s := expect.NewSession(t, h.Stdout(), time.Minute)
@@ -169,7 +177,7 @@ func TestComplexServerLocalStop(t *testing.T) {
 // the corresponding printouts from the server).  Note that we have no
 // expectations on whether or not the interruptible shutdown steps execute.
 func TestComplexServerDoubleSignal(t *testing.T) {
-	sh := modules.NewShell()
+	sh := newShell(t)
 	defer sh.Cleanup(os.Stdout, cstderr)
 	h, _ := sh.Start("complexServerProgram", nil)
 	s := expect.NewSession(t, h.Stdout(), time.Minute)
@@ -193,7 +201,7 @@ func TestComplexServerDoubleSignal(t *testing.T) {
 // TestComplexServerLocalForceStop verifies that sending a local ForceStop
 // command to the complex server forces it to exit immediately.
 func TestComplexServerLocalForceStop(t *testing.T) {
-	sh := modules.NewShell()
+	sh := newShell(t)
 	defer sh.Cleanup(os.Stdout, cstderr)
 	h, _ := sh.Start("complexServerProgram", nil)
 	s := expect.NewSession(t, h.Stdout(), time.Minute)
@@ -212,7 +220,7 @@ func TestComplexServerLocalForceStop(t *testing.T) {
 // TestComplexServerKill demonstrates that a SIGKILL still forces the server to
 // exit regardless of our signal handling.
 func TestComplexServerKill(t *testing.T) {
-	sh := modules.NewShell()
+	sh := newShell(t)
 	defer sh.Cleanup(os.Stdout, cstderr)
 	h, _ := sh.Start("complexServerProgram", nil)
 	s := expect.NewSession(t, h.Stdout(), time.Minute)

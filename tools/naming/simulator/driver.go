@@ -108,7 +108,11 @@ func main() {
 		return
 	}
 
-	shell := modules.NewShell()
+	shell, err := modules.NewShell(nil)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "unexpected error: %s\n", err)
+		os.Exit(1)
+	}
 	defer shell.Cleanup(os.Stderr, os.Stderr)
 
 	scanner := bufio.NewScanner(os.Stdin)

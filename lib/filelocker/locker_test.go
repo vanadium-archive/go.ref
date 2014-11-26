@@ -63,7 +63,10 @@ func TestLockInterProcess(t *testing.T) {
 	filepath := newFile()
 	defer os.Remove(filepath)
 
-	sh := modules.NewShell()
+	sh, err := modules.NewShell(nil)
+	if err != nil {
+		t.Fatalf("unexpected error: %s", err)
+	}
 	defer sh.Cleanup(os.Stderr, os.Stderr)
 	h, err := sh.Start("testLockChild", nil, filepath)
 	if err != nil {
@@ -133,7 +136,10 @@ func TestTryLock(t *testing.T) {
 	filepath := newFile()
 	defer os.Remove(filepath)
 
-	sh := modules.NewShell()
+	sh, err := modules.NewShell(nil)
+	if err != nil {
+		t.Fatalf("unexpected error: %s", err)
+	}
 	defer sh.Cleanup(os.Stderr, os.Stderr)
 	h, err := sh.Start("testLockChild", nil, filepath)
 	if err != nil {

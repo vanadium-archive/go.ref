@@ -29,7 +29,10 @@ import (
 func TestReconnect(t *testing.T) {
 	b := createBundle(t, tsecurity.NewPrincipal("client"), nil, nil) // We only need the client from the bundle.
 	defer b.cleanup(t)
-	sh := modules.NewShell()
+	sh, err := modules.NewShell(nil)
+	if err != nil {
+		t.Fatalf("unexpected error: %s", err)
+	}
 	defer sh.Cleanup(os.Stderr, os.Stderr)
 	server, err := sh.Start("runServer", nil, "127.0.0.1:0")
 	if err != nil {
@@ -86,7 +89,10 @@ type proxyHandle struct {
 }
 
 func (h *proxyHandle) Start(t *testing.T) error {
-	sh := modules.NewShell()
+	sh, err := modules.NewShell(nil)
+	if err != nil {
+		t.Fatalf("unexpected error: %s", err)
+	}
 	server, err := sh.Start("runProxy", nil)
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)

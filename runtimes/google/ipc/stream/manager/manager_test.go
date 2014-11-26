@@ -544,7 +544,10 @@ func TestAddressResolution(t *testing.T) {
 
 func TestServerRestartDuringClientLifetime(t *testing.T) {
 	client := InternalNew(naming.FixedRoutingID(0xcccccccc))
-	sh := modules.NewShell()
+	sh, err := modules.NewShell(nil)
+	if err != nil {
+		t.Fatalf("unexpected error: %s", err)
+	}
 	defer sh.Cleanup(nil, nil)
 	h, err := sh.Start("runServer", nil, "127.0.0.1:0")
 	if err != nil {
@@ -583,7 +586,10 @@ func TestServerRestartDuringClientLifetime(t *testing.T) {
 
 func TestServerRestartDuringClientLifetimeWS(t *testing.T) {
 	client := InternalNew(naming.FixedRoutingID(0xcccccccc))
-	sh := modules.NewShell()
+	sh, err := modules.NewShell(nil)
+	if err != nil {
+		t.Fatalf("unexpected error: %s", err)
+	}
 	defer sh.Cleanup(nil, nil)
 	h, err := sh.Start("runServer", nil, "127.0.0.1:0")
 	if err != nil {

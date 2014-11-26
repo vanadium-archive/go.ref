@@ -133,7 +133,10 @@ func testCommand(t *testing.T, sh *modules.Shell, name, key, val string) {
 }
 
 func TestChild(t *testing.T) {
-	sh := modules.NewShell()
+	sh, err := modules.NewShell(nil)
+	if err != nil {
+		t.Fatalf("unexpected error: %s", err)
+	}
 	defer sh.Cleanup(nil, nil)
 	key, val := "simpleVar", "foo & bar"
 	sh.SetVar(key, val)
@@ -141,19 +144,25 @@ func TestChild(t *testing.T) {
 }
 
 func TestChildNoRegistration(t *testing.T) {
-	sh := modules.NewShell()
+	sh, err := modules.NewShell(nil)
+	if err != nil {
+		t.Fatalf("unexpected error: %s", err)
+	}
 	defer sh.Cleanup(os.Stderr, os.Stderr)
 	key, val := "simpleVar", "foo & bar"
 	sh.SetVar(key, val)
 	testCommand(t, sh, "envtest", key, val)
-	_, err := sh.Start("non-existent-command", nil, "random", "args")
+	_, err = sh.Start("non-existent-command", nil, "random", "args")
 	if err == nil {
 		t.Fatalf("expected error")
 	}
 }
 
 func TestFunction(t *testing.T) {
-	sh := modules.NewShell()
+	sh, err := modules.NewShell(nil)
+	if err != nil {
+		t.Fatalf("unexpected error: %s", err)
+	}
 	defer sh.Cleanup(nil, nil)
 	key, val := "simpleVar", "foo & bar & baz"
 	sh.SetVar(key, val)
@@ -161,7 +170,10 @@ func TestFunction(t *testing.T) {
 }
 
 func TestErrorChild(t *testing.T) {
-	sh := modules.NewShell()
+	sh, err := modules.NewShell(nil)
+	if err != nil {
+		t.Fatalf("unexpected error: %s", err)
+	}
 	defer sh.Cleanup(nil, nil)
 	h, err := sh.Start("errortestChild", nil)
 	if err != nil {
@@ -198,14 +210,21 @@ func testShutdown(t *testing.T, sh *modules.Shell, command string, isfunc bool) 
 }
 
 func TestShutdownSubprocess(t *testing.T) {
-	testShutdown(t, modules.NewShell(), "echos", false)
+	sh, err := modules.NewShell(nil)
+	if err != nil {
+		t.Fatalf("unexpected error: %s", err)
+	}
+	testShutdown(t, sh, "echos", false)
 }
 
 // TestShutdownSubprocessIgnoresStdin verifies that Shutdown doesn't wait
 // forever if a child does not die upon closing stdin; but instead times out and
 // returns an appropriate error.
 func TestShutdownSubprocessIgnoresStdin(t *testing.T) {
-	sh := modules.NewShell()
+	sh, err := modules.NewShell(nil)
+	if err != nil {
+		t.Fatalf("unexpected error: %s", err)
+	}
 	sh.SetWaitTimeout(time.Second)
 	h, err := sh.Start("ignores_stdin", nil)
 	if err != nil {
@@ -227,7 +246,10 @@ func TestShutdownSubprocessIgnoresStdin(t *testing.T) {
 // implementation inappropriately sets stdout to the file that is to be closed
 // in Wait.
 func TestStdoutRace(t *testing.T) {
-	sh := modules.NewShell()
+	sh, err := modules.NewShell(nil)
+	if err != nil {
+		t.Fatalf("unexpected error: %s", err)
+	}
 	sh.SetWaitTimeout(time.Second)
 	h, err := sh.Start("ignores_stdin", nil)
 	if err != nil {
@@ -256,11 +278,18 @@ func TestStdoutRace(t *testing.T) {
 }
 
 func TestShutdownFunction(t *testing.T) {
-	testShutdown(t, modules.NewShell(), "echof", true)
+	sh, err := modules.NewShell(nil)
+	if err != nil {
+		t.Fatalf("unexpected error: %s", err)
+	}
+	testShutdown(t, sh, "echof", true)
 }
 
 func TestErrorFunc(t *testing.T) {
-	sh := modules.NewShell()
+	sh, err := modules.NewShell(nil)
+	if err != nil {
+		t.Fatalf("unexpected error: %s", err)
+	}
 	defer sh.Cleanup(nil, nil)
 	h, err := sh.Start("errortestFunc", nil)
 	if err != nil {
@@ -281,7 +310,10 @@ func find(want string, in []string) bool {
 }
 
 func TestEnvelope(t *testing.T) {
-	sh := modules.NewShell()
+	sh, err := modules.NewShell(nil)
+	if err != nil {
+		t.Fatalf("unexpected error: %s", err)
+	}
 	defer sh.Cleanup(nil, nil)
 	sh.SetVar("a", "1")
 	sh.SetVar("b", "2")
@@ -381,7 +413,10 @@ func TestEnvCredentials(t *testing.T) {
 
 	// Test child credentials when runtime is not initialized and VeyronCredentials
 	// is not set.
-	sh := modules.NewShell()
+	sh, err := modules.NewShell(nil)
+	if err != nil {
+		t.Fatalf("unexpected error: %s", err)
+	}
 	defer sh.Cleanup(nil, nil)
 	if err := validateCredentials(startChildAndGetCredentials(sh, nil), "test-shell/child"); err != nil {
 		t.Fatal(err)
@@ -401,7 +436,10 @@ func TestEnvCredentials(t *testing.T) {
 	if err := os.Setenv(consts.VeyronCredentials, dir); err != nil {
 		t.Fatal(err)
 	}
-	sh = modules.NewShell()
+	sh, err = modules.NewShell(nil)
+	if err != nil {
+		t.Fatalf("unexpected error: %s", err)
+	}
 	if err := validateCredentials(startChildAndGetCredentials(sh, nil), "root/os/child"); err != nil {
 		t.Fatal(err)
 	}
@@ -415,7 +453,10 @@ func TestEnvCredentials(t *testing.T) {
 	// Test that VeyronCredentials specified on the shell override the OS ones.
 	dir = tsecurity.NewVeyronCredentials(root, "shell")
 	defer os.RemoveAll(dir)
-	sh = modules.NewShell()
+	sh, err = modules.NewShell(nil)
+	if err != nil {
+		t.Fatalf("unexpected error: %s", err)
+	}
 	sh.SetVar(consts.VeyronCredentials, dir)
 	if err := validateCredentials(startChildAndGetCredentials(sh, nil), "root/shell/child"); err != nil {
 		t.Fatal(err)
@@ -443,7 +484,10 @@ func TestEnvCredentials(t *testing.T) {
 }
 
 func TestEnvMerge(t *testing.T) {
-	sh := modules.NewShell()
+	sh, err := modules.NewShell(nil)
+	if err != nil {
+		t.Fatalf("unexpected error: %s", err)
+	}
 	defer sh.Cleanup(nil, nil)
 	sh.SetVar("a", "1")
 	os.Setenv("a", "wrong, should be 1")

@@ -50,15 +50,16 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"math/rand"
 	"os"
 	"sync"
 	"time"
 
+	"veyron.io/veyron/veyron2/security"
+
 	"veyron.io/veyron/veyron/lib/exec"
 	"veyron.io/veyron/veyron/lib/flags/consts"
 	vsecurity "veyron.io/veyron/veyron/security"
-
-	"veyron.io/veyron/veyron2/security"
 )
 
 const (
@@ -76,37 +77,51 @@ type Shell struct {
 	tempCredDirs              []string
 	startTimeout, waitTimeout time.Duration
 	config                    exec.Config
+	principal                 security.Principal
+	blessing                  security.Blessings
 }
 
-// NewShell creates a new instance of Shell.
-//
-// The VeyronCredentials environment variable of the shell is set
-// as follows. If the OS's VeyronCredentials is set then the shell's
-// VeyronCredentials is set to the same value, otherwise it is set
-// to a freshly created credentials directory.
-//
-// The shell's credentials are used to bless the principal supplied
-// to any children of this shell (see Start).
-// TODO(cnicolaou): this should use the principal already setup
-// with the runtime if the runtime has been initialized, if not,
-// it should create a new principal. As of now, this approach only works
-// for child processes that talk to each other, but not to the parent
-// process that started them since it's running with a different set of
-// credentials setup elsewhere. When this change is made it should
-// be possible to remove creating credentials in many unit tests.
-func NewShell() *Shell {
+// NewShell creates a new instance of Shell. It will also add a blessing
+// to the supplied principal and ensure that any child processes are
+// created with principals that are in turn blessed with it. A typical
+// use case is to pass in the runtime's principal and hence allow the
+// process hosting the shell to interact with its children and vice
+// versa. If a nil principal is passed in then NewShell will create a new
+// principal that shares a blessing with all of its children, in this mode,
+// any child processes can interact with each other but not with the parent.
+func NewShell(p security.Principal) (*Shell, error) {
 	sh := &Shell{
 		env:          make(map[string]string),
 		handles:      make(map[Handle]struct{}),
 		startTimeout: time.Minute,
 		waitTimeout:  10 * time.Second,
 		config:       exec.NewConfig(),
+		principal:    p,
 	}
-	if err := sh.initShellCredentials(); err != nil {
-		// TODO(cnicolaou): return an error rather than panic.
-		panic(err)
+	if p == nil {
+		if err := sh.initShellCredentials(); err != nil {
+			return nil, err
+		}
+		return sh, nil
 	}
-	return sh
+	gen := rand.New(rand.NewSource(time.Now().UnixNano()))
+	// Use a unique blessing tree per shell.
+	blessingName := fmt.Sprintf("%s-%d", shellBlessingExtension, gen.Int63())
+	blessing, err := p.BlessSelf(blessingName)
+	if err != nil {
+		return nil, err
+	}
+	sh.blessing = blessing
+	if _, err := p.BlessingStore().Set(blessing, security.BlessingPattern(blessingName+"/"+childBlessingExtension+"/...")); err != nil {
+		return nil, err
+	}
+	if err := p.AddToRoots(blessing); err != nil {
+		return nil, err
+	}
+	// Our blessing store now contains a blessing with our unique prefix
+	// and the principal has that blessing's root added to its trusted
+	// list so that it will accept blessings derived from it.
+	return sh, nil
 }
 
 func (sh *Shell) initShellCredentials() error {
@@ -127,34 +142,64 @@ func (sh *Shell) initShellCredentials() error {
 }
 
 func (sh *Shell) getChildCredentials(shellCredDir string) (string, error) {
-	root, err := principalFromDir(shellCredDir)
-	if err != nil {
-		return "", err
+	root := sh.principal
+	rootBlessing := sh.blessing
+	if root == nil {
+		r, err := principalFromDir(shellCredDir)
+		if err != nil {
+			return "", err
+		}
+		root = r
+		rootBlessing = root.BlessingStore().Default()
 	}
 
 	dir, err := ioutil.TempDir("", "shell_child_credentials")
 	if err != nil {
 		return "", err
 	}
+	// Create a principal and default blessing for the child that is
+	// derived from the blessing created for this shell. This can
+	// be used by the parent to invoke RPCs on any children and for the
+	// children to invoke RPCs on each other.
 	p, err := vsecurity.CreatePersistentPrincipal(dir, nil)
 	if err != nil {
 		return "", err
 	}
-
-	blessing, err := root.Bless(p.PublicKey(), root.BlessingStore().Default(), childBlessingExtension, security.UnconstrainedUse())
+	blessingForChild, err := root.Bless(p.PublicKey(), rootBlessing, childBlessingExtension, security.UnconstrainedUse())
 	if err != nil {
 		return "", err
 	}
-	if err := p.BlessingStore().SetDefault(blessing); err != nil {
+	if err := p.BlessingStore().SetDefault(blessingForChild); err != nil {
 		return "", err
 	}
-	if _, err := p.BlessingStore().Set(blessing, security.AllPrincipals); err != nil {
+	if _, err := p.BlessingStore().Set(blessingForChild, security.AllPrincipals); err != nil {
 		return "", err
 	}
-	if err := p.AddToRoots(blessing); err != nil {
+	if err := p.AddToRoots(blessingForChild); err != nil {
 		return "", err
 	}
 
+	if sh.blessing != nil {
+		// Create a second blessing for the child, that will be accepted
+		// by the parent, should the child choose to invoke RPCs on the parent.
+		blessingFromChild, err := root.Bless(p.PublicKey(), root.BlessingStore().Default(), childBlessingExtension, security.UnconstrainedUse())
+		if err != nil {
+			return "", err
+		}
+		// We store this blessing as the one to use with a pattern that matches
+		// the root's name.
+		// TODO(cnicolaou,caprita): at some point there will be a nicer API
+		// for getting the name of a blessing.
+		ctx := security.NewContext(&security.ContextParams{LocalPrincipal: root})
+		rootName := root.BlessingStore().Default().ForContext(ctx)[0]
+		if _, err := p.BlessingStore().Set(blessingFromChild, security.BlessingPattern(rootName)); err != nil {
+			return "", err
+		}
+
+		if err := p.AddToRoots(blessingFromChild); err != nil {
+			return "", err
+		}
+	}
 	sh.tempCredDirs = append(sh.tempCredDirs, dir)
 	return dir, nil
 }
