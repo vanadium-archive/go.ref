@@ -177,7 +177,7 @@ func TestPrincipalInheritance(t *testing.T) {
 		t.Fatalf("unexpected error: %s", err)
 	}
 
-	s := expect.NewSession(t, h.Stdout(), 2*time.Second) //time.Minute)
+	s := expect.NewSession(t, h.Stdout(), time.Minute)
 	runnerBlessing := s.ExpectVar("RUNNER_DEFAULT_BLESSING")
 	principalBlessing := s.ExpectVar("DEFAULT_BLESSING")
 	if err := s.Error(); err != nil {
