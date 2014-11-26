@@ -3,6 +3,7 @@ package core
 import (
 	"fmt"
 	"io"
+	"strings"
 	"time"
 
 	"veyron.io/veyron/veyron2/naming"
@@ -48,6 +49,12 @@ func proxyServer(stdin io.Reader, stdout, stderr io.Writer, env map[string]strin
 	defer pub.WaitForStop()
 	defer pub.Stop()
 	pub.AddServer(pname, false)
+	// If the protocol is tcp we need to also publish the websocket endpoint.
+	// TODO(bjornick): Remove this hack before we launch.
+	if strings.HasPrefix(proxy.Endpoint().Addr().Network(), "tcp") {
+		wsEP := strings.Replace(pname, "@"+proxy.Endpoint().Addr().Network()+"@", "@ws@", 1)
+		pub.AddServer(wsEP, false)
+	}
 	for _, name := range args {
 		pub.AddName(name)
 	}
