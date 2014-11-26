@@ -12,8 +12,13 @@ import (
 	"veyron.io/veyron/veyron2/vlog"
 	"veyron.io/wspr/veyron/services/wsprd/account"
 	"veyron.io/wspr/veyron/services/wsprd/lib"
+	"veyron.io/wspr/veyron/services/wsprd/namespace"
 	"veyron.io/wspr/veyron/services/wsprd/principal"
 )
+
+func init() {
+	namespace.EpFormatter = lib.EndpointsToWs
+}
 
 // Browspr is an intermediary between our javascript code and the veyron network that allows our javascript library to use veyron.
 type Browspr struct {

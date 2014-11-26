@@ -15,6 +15,9 @@ import (
 	"veyron.io/wspr/veyron/services/wsprd/lib"
 )
 
+// Function to format endpoints.  Used by browspr to swap 'tcp' for 'ws'.
+var EpFormatter func(veyron2.Runtime, []string) ([]string, error) = nil
+
 // request struct represents a request to call a method on the runtime's namespace client
 type request struct {
 	Method namespaceMethod
@@ -309,12 +312,18 @@ func setRoots(ctx context.T, ns naming.Namespace, rt veyron2.Runtime, w lib.Clie
 		return
 	}
 
-	wsRoots, err := lib.EndpointsToWs(rt, args.Roots)
-	if err != nil {
-		w.Error(verror2.Convert(verror2.Internal, ctx, err))
+	var formattedRoots []string
+	var err error
+	if EpFormatter != nil {
+		formattedRoots, err = EpFormatter(rt, args.Roots)
+		if err != nil {
+			w.Error(verror2.Convert(verror2.Internal, ctx, err))
+		}
+	} else {
+		formattedRoots = args.Roots
 	}
 
-	if err := ns.SetRoots(wsRoots...); err != nil {
+	if err := ns.SetRoots(formattedRoots...); err != nil {
 		w.Error(verror2.Convert(verror2.Internal, ctx, err))
 		return
 	}
