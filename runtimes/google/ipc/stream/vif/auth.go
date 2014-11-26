@@ -14,6 +14,7 @@ import (
 	"veyron.io/veyron/veyron/runtimes/google/ipc/stream/vc"
 	"veyron.io/veyron/veyron/runtimes/google/ipc/version"
 	"veyron.io/veyron/veyron/runtimes/google/lib/iobuf"
+	"veyron.io/veyron/veyron2/context"
 	"veyron.io/veyron/veyron2/ipc/stream"
 	ipcversion "veyron.io/veyron/veyron2/ipc/version"
 	"veyron.io/veyron/veyron2/options"
@@ -60,7 +61,7 @@ type privateData struct {
 // including a hash of the HopSetup message in the encrypted stream.  It is
 // likely that this will be addressed in subsequent protocol versions (or it may
 // not be addressed at all if IPCVersion6 becomes the only supported version).
-func AuthenticateAsClient(conn net.Conn, versions *version.Range, principal security.Principal, dc vc.DischargeClient) (crypto.ControlCipher, error) {
+func AuthenticateAsClient(ctx context.T, conn net.Conn, versions *version.Range, principal security.Principal, dc vc.DischargeClient) (crypto.ControlCipher, error) {
 	if versions == nil {
 		versions = version.SupportedRange
 	}
@@ -110,13 +111,13 @@ func AuthenticateAsClient(conn net.Conn, versions *version.Range, principal secu
 	// Perform the authentication.
 	switch v {
 	case ipcversion.IPCVersion6:
-		return authenticateAsClientIPC6(conn, reader, principal, dc, &pvt, &pub, ppub)
+		return authenticateAsClientIPC6(ctx, conn, reader, principal, dc, &pvt, &pub, ppub)
 	default:
 		return nil, errUnsupportedEncryptVersion
 	}
 }
 
-func authenticateAsClientIPC6(writer io.Writer, reader *iobuf.Reader, principal security.Principal, dc vc.DischargeClient,
+func authenticateAsClientIPC6(ctx context.T, writer io.Writer, reader *iobuf.Reader, principal security.Principal, dc vc.DischargeClient,
 	pvt *privateData, pub, ppub *message.HopSetup) (crypto.ControlCipher, error) {
 	pbox := ppub.NaclBox()
 	if pbox == nil {
@@ -125,7 +126,7 @@ func authenticateAsClientIPC6(writer io.Writer, reader *iobuf.Reader, principal 
 	c := crypto.NewControlCipherIPC6(&pbox.PublicKey, &pvt.naclBoxPrivateKey, false)
 	sconn := newSetupConn(writer, reader, c)
 	// TODO(jyh): act upon the authentication results.
-	_, _, _, err := vc.AuthenticateAsClient(sconn, principal, dc, crypto.NewNullCrypter(), ipcversion.IPCVersion6)
+	_, _, _, err := vc.AuthenticateAsClient(ctx, sconn, principal, dc, crypto.NewNullCrypter(), ipcversion.IPCVersion6)
 	if err != nil {
 		return nil, err
 	}
@@ -229,11 +230,13 @@ func serverAuthOptions(lopts []stream.ListenerOpt) (principal security.Principal
 
 // clientAuthOptions extracts the client authentication options from the options
 // list.
-func clientAuthOptions(lopts []stream.VCOpt) (principal security.Principal, dischargeClient vc.DischargeClient, err error) {
+func clientAuthOptions(lopts []stream.VCOpt) (ctx context.T, principal security.Principal, dischargeClient vc.DischargeClient, err error) {
 	var securityLevel options.VCSecurityLevel
 	var noDischarges bool
 	for _, o := range lopts {
 		switch v := o.(type) {
+		case vc.DialContext:
+			ctx = v.T
 		case vc.DischargeClient:
 			dischargeClient = v
 		case vc.LocalPrincipal:

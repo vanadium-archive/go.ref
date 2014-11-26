@@ -1,9 +1,11 @@
 package ipc
 
 import (
+	"fmt"
 	"sync"
 
 	"veyron.io/veyron/veyron/runtimes/google/ipc/stream/vc"
+	ivtrace "veyron.io/veyron/veyron/runtimes/google/vtrace"
 
 	"veyron.io/veyron/veyron2/context"
 	"veyron.io/veyron/veyron2/ipc"
@@ -12,24 +14,35 @@ import (
 	"veyron.io/veyron/veyron2/security"
 	"veyron.io/veyron/veyron2/vdl/vdlutil"
 	"veyron.io/veyron/veyron2/vlog"
+	"veyron.io/veyron/veyron2/vtrace"
 )
 
 // discharger implements vc.DischargeClient.
 type dischargeClient struct {
-	c     ipc.Client
-	ctx   context.T
-	cache dischargeCache
+	c          ipc.Client
+	defaultCtx context.T
+	cache      dischargeCache
 }
 
-func InternalNewDischargeClient(streamMgr stream.Manager, ns naming.Namespace, ctx context.T, opts ...ipc.ClientOpt) (vc.DischargeClient, error) {
+// InternalNewDischargeClient creates a vc.DischargeClient that will be used to
+// fetch discharges to support blessings presented to a remote process.
+//
+// defaultCtx is the context used when none (nil) is explicitly provided to the
+// PrepareDischarges call. This typically happens when fetching discharges on
+// behalf of a server accepting connections, i.e., before any notion of the
+// "context" of an API call has been established.
+func InternalNewDischargeClient(streamMgr stream.Manager, ns naming.Namespace, defaultCtx context.T, opts ...ipc.ClientOpt) (vc.DischargeClient, error) {
+	if defaultCtx == nil {
+		return nil, fmt.Errorf("must provide a non-nil context to InternalNewDischargeClient")
+	}
 	c, err := InternalNewClient(streamMgr, ns, opts...)
 	if err != nil {
 		return nil, err
 	}
 	return &dischargeClient{
-		c:     c,
-		ctx:   ctx,
-		cache: dischargeCache{cache: make(map[string]security.Discharge)},
+		c:          c,
+		defaultCtx: defaultCtx,
+		cache:      dischargeCache{cache: make(map[string]security.Discharge)},
 	}, nil
 }
 
@@ -43,7 +56,7 @@ func (*dischargeClient) IPCStreamVCOpt()       {}
 // options, or requested from the discharge issuer indicated on the caveat.
 // Note that requesting a discharge is an ipc call, so one copy of this
 // function must be able to successfully terminate while another is blocked.
-func (d *dischargeClient) PrepareDischarges(forcaveats []security.ThirdPartyCaveat, impetus security.DischargeImpetus) (ret []security.Discharge) {
+func (d *dischargeClient) PrepareDischarges(ctx context.T, forcaveats []security.ThirdPartyCaveat, impetus security.DischargeImpetus) (ret []security.Discharge) {
 	if len(forcaveats) == 0 {
 		return
 	}
@@ -59,7 +72,16 @@ func (d *dischargeClient) PrepareDischarges(forcaveats []security.ThirdPartyCave
 
 	// Fetch discharges for caveats for which no discharges were found
 	// in the cache.
-	d.fetchDischarges(d.ctx, caveats, impetus, discharges)
+	if ctx == nil {
+		ctx = d.defaultCtx
+	}
+	if ctx != nil {
+		var span vtrace.Span
+		ctx, span = ivtrace.WithNewSpan(ctx, "Fetching Discharges")
+		defer span.Finish()
+	}
+
+	d.fetchDischarges(ctx, caveats, impetus, discharges)
 	for _, d := range discharges {
 		if d != nil {
 			ret = append(ret, d)
@@ -89,7 +111,7 @@ func (d *dischargeClient) fetchDischarges(ctx context.T, caveats []security.Thir
 				continue
 			}
 			wg.Add(1)
-			go func(i int, cav security.ThirdPartyCaveat) {
+			go func(i int, ctx context.T, cav security.ThirdPartyCaveat) {
 				defer wg.Done()
 				vlog.VI(3).Infof("Fetching discharge for %v", cav)
 				call, err := d.c.StartCall(ctx, cav.Location(), "Discharge", []interface{}{cav, filteredImpetus(cav.Requirements(), impetus)}, vc.NoDischarges{})
@@ -107,7 +129,7 @@ func (d *dischargeClient) fetchDischarges(ctx context.T, caveats []security.Thir
 					vlog.Errorf("fetchDischarges: server at %s sent a %T (%v) instead of a Discharge", cav.Location(), dAny, dAny)
 				}
 				discharges <- fetched{i, d}
-			}(i, caveats[i])
+			}(i, ctx, caveats[i])
 		}
 		wg.Wait()
 		close(discharges)

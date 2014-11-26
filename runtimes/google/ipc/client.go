@@ -13,7 +13,7 @@ import (
 	"veyron.io/veyron/veyron/runtimes/google/ipc/stream/vc"
 	"veyron.io/veyron/veyron/runtimes/google/ipc/version"
 	inaming "veyron.io/veyron/veyron/runtimes/google/naming"
-	"veyron.io/veyron/veyron/runtimes/google/vtrace"
+	ivtrace "veyron.io/veyron/veyron/runtimes/google/vtrace"
 
 	"veyron.io/veyron/veyron2/context"
 	"veyron.io/veyron/veyron2/i18n"
@@ -27,6 +27,7 @@ import (
 	verror "veyron.io/veyron/veyron2/verror2"
 	"veyron.io/veyron/veyron2/vlog"
 	"veyron.io/veyron/veyron2/vom"
+	"veyron.io/veyron/veyron2/vtrace"
 )
 
 const pkgPath = "veyron.io/veyron/veyron/runtimes/google/ipc"
@@ -154,7 +155,7 @@ func (c *client) createFlow(ctx context.T, ep naming.Endpoint, noDischarges bool
 	if noDischarges {
 		vcOpts = append(vcOpts, vc.NoDischarges{})
 	}
-	vc, err := sm.Dial(ep, vcOpts...)
+	vc, err := sm.Dial(ep, append(vcOpts, vc.DialContext{ctx})...)
 	c.vcMapMu.Lock()
 	if err != nil {
 		if strings.Contains(err.Error(), "authentication failed") {
@@ -282,7 +283,7 @@ func (c *client) startCall(ctx context.T, name, method string, args []interface{
 	if ctx == nil {
 		return nil, verror.ExplicitMake(verror.BadArg, i18n.NoLangID, "ipc.Client", "StartCall")
 	}
-	ctx, span := vtrace.WithNewSpan(ctx, fmt.Sprintf("<client>%q.%s", name, method))
+	ctx, span := ivtrace.WithNewSpan(ctx, fmt.Sprintf("<client>%q.%s", name, method))
 	ctx = verror.ContextWithComponentName(ctx, "ipc.Client")
 
 	// Context specified deadline.
@@ -327,6 +328,10 @@ type serverStatus struct {
 func (c *client) tryServer(ctx context.T, index int, server string, ch chan<- *serverStatus, noDischarges bool) {
 	status := &serverStatus{index: index}
 	var err verror.E
+	var span vtrace.Span
+	ctx, span = ivtrace.WithNewSpan(ctx, "<client>connectFlow")
+	span.Annotatef("address:%v", server)
+	defer span.Finish()
 	if status.flow, status.suffix, err = c.connectFlow(ctx, server, noDischarges); err != nil {
 		vlog.VI(2).Infof("ipc: err: %s", err)
 		status.err = err
@@ -631,7 +636,7 @@ func (fc *flowClient) start(suffix, method string, args []interface{}, timeout t
 	// Fetch any discharges for third-party caveats on the client's blessings
 	// if this client owns a discharge-client.
 	if self := fc.flow.LocalBlessings(); self != nil && fc.dc != nil {
-		fc.discharges = fc.dc.PrepareDischarges(self.ThirdPartyCaveats(), mkDischargeImpetus(fc.server, method, args))
+		fc.discharges = fc.dc.PrepareDischarges(fc.ctx, self.ThirdPartyCaveats(), mkDischargeImpetus(fc.server, method, args))
 	}
 	req := ipc.Request{
 		Suffix:           suffix,
@@ -640,7 +645,7 @@ func (fc *flowClient) start(suffix, method string, args []interface{}, timeout t
 		Timeout:          int64(timeout),
 		GrantedBlessings: security.MarshalBlessings(blessings),
 		NumDischarges:    uint64(len(fc.discharges)),
-		TraceRequest:     vtrace.Request(fc.ctx),
+		TraceRequest:     ivtrace.Request(fc.ctx),
 	}
 	if err := fc.enc.Encode(req); err != nil {
 		return fc.close(badProtocol(fc.ctx, verror.Make(errRequestEncoding, fc.ctx, req, err)))
@@ -738,7 +743,7 @@ func (fc *flowClient) closeSend() verror.E {
 func (fc *flowClient) Finish(resultptrs ...interface{}) error {
 	defer vlog.LogCall()()
 	err := fc.finish(resultptrs...)
-	vtrace.FromContext(fc.ctx).Finish()
+	ivtrace.FromContext(fc.ctx).Finish()
 	return err
 }
 
@@ -781,7 +786,7 @@ func (fc *flowClient) finish(resultptrs ...interface{}) verror.E {
 	}
 
 	// Incorporate any VTrace info that was returned.
-	vtrace.MergeResponse(fc.ctx, &fc.response.TraceResponse)
+	ivtrace.MergeResponse(fc.ctx, &fc.response.TraceResponse)
 
 	if fc.response.Error != nil {
 		// TODO(cnicolaou): remove verror.NoAccess with verror version
@@ -811,7 +816,7 @@ func (fc *flowClient) finish(resultptrs ...interface{}) verror.E {
 
 func (fc *flowClient) Cancel() {
 	defer vlog.LogCall()()
-	vtrace.FromContext(fc.ctx).Annotate("Cancelled")
+	ivtrace.FromContext(fc.ctx).Annotate("Cancelled")
 	fc.flow.Cancel()
 }
 

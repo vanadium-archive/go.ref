@@ -9,6 +9,7 @@ import (
 	"veyron.io/veyron/veyron/runtimes/google/ipc/stream/crypto"
 	"veyron.io/veyron/veyron/runtimes/google/lib/iobuf"
 
+	"veyron.io/veyron/veyron2/context"
 	"veyron.io/veyron/veyron2/ipc/version"
 	"veyron.io/veyron/veyron2/security"
 	"veyron.io/veyron/veyron2/vom"
@@ -37,7 +38,7 @@ func AuthenticateAsServer(conn io.ReadWriteCloser, principal security.Principal,
 	}
 	var discharges []security.Discharge
 	if tpcavs := server.ThirdPartyCaveats(); len(tpcavs) > 0 && dc != nil {
-		discharges = dc.PrepareDischarges(tpcavs, security.DischargeImpetus{})
+		discharges = dc.PrepareDischarges(nil, tpcavs, security.DischargeImpetus{})
 	}
 	if err = writeBlessings(conn, authServerContextTag, crypter, principal, server, discharges, v); err != nil {
 		return
@@ -56,7 +57,7 @@ func AuthenticateAsServer(conn io.ReadWriteCloser, principal security.Principal,
 //
 // TODO(ashankar): Seems like there is no way the blessing store
 // can say that it does NOT want to share the default blessing with the server?
-func AuthenticateAsClient(conn io.ReadWriteCloser, principal security.Principal, dc DischargeClient, crypter crypto.Crypter, v version.IPCVersion) (server, client security.Blessings, serverDischarges map[string]security.Discharge, err error) {
+func AuthenticateAsClient(ctx context.T, conn io.ReadWriteCloser, principal security.Principal, dc DischargeClient, crypter crypto.Crypter, v version.IPCVersion) (server, client security.Blessings, serverDischarges map[string]security.Discharge, err error) {
 	defer conn.Close()
 	if server, serverDischarges, err = readBlessings(conn, authServerContextTag, crypter, v); err != nil {
 		return
@@ -79,7 +80,7 @@ func AuthenticateAsClient(conn io.ReadWriteCloser, principal security.Principal,
 	}
 	var discharges []security.Discharge
 	if dc != nil {
-		discharges = dc.PrepareDischarges(client.ThirdPartyCaveats(), security.DischargeImpetus{})
+		discharges = dc.PrepareDischarges(ctx, client.ThirdPartyCaveats(), security.DischargeImpetus{})
 	}
 	if err = writeBlessings(conn, authClientContextTag, crypter, principal, client, discharges, v); err != nil {
 		return
