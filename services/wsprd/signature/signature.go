@@ -28,6 +28,7 @@ type JSONMethodSignature struct {
 	InArgs      []string // InArgs is a list of argument names.
 	NumOutArgs  int
 	IsStreaming bool
+	Tags        []interface{}
 }
 
 // NewJSONServiceSignature converts an ipc service signature to the format used by JSON.

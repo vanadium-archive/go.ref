@@ -2,13 +2,19 @@ package app
 
 import (
 	"bytes"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"reflect"
 	"sync"
 	"testing"
 
+	"veyron.io/veyron/veyron2/vdl"
+	"veyron.io/veyron/veyron2/vdl/valconv"
+	"veyron.io/veyron/veyron2/vom2"
+	"veyron.io/wspr/veyron/services/wsprd/ipc/server"
 	"veyron.io/wspr/veyron/services/wsprd/lib"
+	"veyron.io/wspr/veyron/services/wsprd/principal"
 	"veyron.io/wspr/veyron/services/wsprd/signature"
 )
 
@@ -22,7 +28,7 @@ type mockJSServer struct {
 	serverStream         []string
 	hasAuthorizer        bool
 	authError            error
-	inArgs               string
+	inArgs               []interface{}
 	finalResponse        interface{}
 	finalError           error
 	hasCalledAuth        bool
@@ -65,6 +71,19 @@ func (m *mockJSServer) Error(err error) {
 	panic(err)
 }
 
+func vomDecode(s string, v interface{}) error {
+	b, err := hex.DecodeString(s)
+	if err != nil {
+		return err
+	}
+	decoder, err := vom2.NewDecoder(bytes.NewBuffer(b))
+	if err != nil {
+		return err
+	}
+
+	return decoder.Decode(v)
+}
+
 func normalize(msg interface{}) (map[string]interface{}, error) {
 	// We serialize and deserialize the reponse so that we can do deep equal with
 	// messages that contain non-exported structs.
@@ -97,7 +116,7 @@ func (m *mockJSServer) handleDispatcherLookup(v interface{}) error {
 	}
 	bytes, err := json.Marshal(map[string]interface{}{
 		"handle":        0,
-		"signature":     m.serviceSignature,
+		"signature":     vomEncodeOrDie(m.serviceSignature),
 		"hasAuthorizer": m.hasAuthorizer,
 	})
 	if err != nil {
@@ -109,18 +128,14 @@ func (m *mockJSServer) handleDispatcherLookup(v interface{}) error {
 }
 
 // Returns false if the blessing is malformed
-func validateBlessing(v interface{}) bool {
-	blessings, ok := v.(map[string]interface{})
-	return ok && blessings["Handle"] != nil && blessings["PublicKey"] != nil
+func validateBlessing(blessings principal.BlessingsHandle) bool {
+	return blessings.Handle != 0 && blessings.PublicKey != ""
 }
 
-func validateEndpoint(v interface{}) bool {
-	if v == nil {
-		return false
-	}
-	ep, ok := v.(string)
-	return ok && ep != ""
+func validateEndpoint(ep string) bool {
+	return ep != ""
 }
+
 func (m *mockJSServer) handleAuthRequest(v interface{}) error {
 	defer func() {
 		m.flowCount += 2
@@ -132,53 +147,55 @@ func (m *mockJSServer) handleAuthRequest(v interface{}) error {
 		return nil
 	}
 
-	msg, err := normalize(v)
-	if err != nil {
-		m.controller.HandleAuthResponse(m.flowCount, internalErrJSON(err))
-		return nil
-
-	}
-	if msg["handle"] != 0.0 {
-		m.controller.HandleAuthResponse(m.flowCount, internalErrJSON(fmt.Sprintf("unexpected handled: %f", msg["handle"])))
+	var msg server.AuthRequest
+	if err := vomDecode(v.(string), &msg); err != nil {
+		m.controller.HandleAuthResponse(m.flowCount, internalErrJSON(fmt.Sprintf("error decoding %v:", err)))
 		return nil
 	}
 
-	// Do an exact match on keys in this map for the context structure.
-	// For keys not in this map, we can't do an exact equality check and
-	// we'll verify them later.
-	expectedContextValues := map[string]interface{}{
-		"method": lib.LowercaseFirstCharacter(m.method),
-		"name":   "adder",
-		"suffix": "adder",
+	if msg.Handle != 0 {
+		m.controller.HandleAuthResponse(m.flowCount, internalErrJSON(fmt.Sprintf("unexpected handled: %f", msg.Handle)))
+		return nil
 	}
 
-	context := msg["context"].(map[string]interface{})
-	for key, value := range expectedContextValues {
-		if !reflect.DeepEqual(context[key], value) {
-			m.controller.HandleAuthResponse(m.flowCount, internalErrJSON(fmt.Sprintf("unexpected value for %s: got %v, want %v", key, context[key], value)))
-			return nil
+	context := msg.Context
+	if field, got, want := "Method", context.Method, lib.LowercaseFirstCharacter(m.method); got != want {
+		m.controller.HandleAuthResponse(m.flowCount, internalErrJSON(fmt.Sprintf("unexpected value for %s: got %v, want %v", field, got, want)))
+		return nil
 
-		}
 	}
+
+	if field, got, want := "Name", context.Name, "adder"; got != want {
+		m.controller.HandleAuthResponse(m.flowCount, internalErrJSON(fmt.Sprintf("unexpected value for %s: got %v, want %v", field, got, want)))
+		return nil
+
+	}
+
+	if field, got, want := "Suffix", context.Suffix, "adder"; got != want {
+		m.controller.HandleAuthResponse(m.flowCount, internalErrJSON(fmt.Sprintf("unexpected value for %s: got %v, want %v", field, got, want)))
+		return nil
+
+	}
+
 	// We expect localBlessings and remoteBlessings to be set and the publicKey be a string
-	if !validateBlessing(context["localBlessings"]) {
-		m.controller.HandleAuthResponse(m.flowCount, internalErrJSON(fmt.Sprintf("bad localblessing:%v", context["localBlessing"])))
+	if !validateBlessing(context.LocalBlessings) {
+		m.controller.HandleAuthResponse(m.flowCount, internalErrJSON(fmt.Sprintf("bad localblessing:%v", context.LocalBlessings)))
 		return nil
 	}
-	if !validateBlessing(context["remoteBlessings"]) {
-		m.controller.HandleAuthResponse(m.flowCount, internalErrJSON(fmt.Sprintf("bad remoteblessing:%v", context["remoteBlessings"])))
+	if !validateBlessing(context.RemoteBlessings) {
+		m.controller.HandleAuthResponse(m.flowCount, internalErrJSON(fmt.Sprintf("bad remoteblessing:%v", context.RemoteBlessings)))
 		return nil
 	}
 
 	// We expect endpoints to be set
-	if !validateEndpoint(context["localEndpoint"]) {
-		m.controller.HandleAuthResponse(m.flowCount, internalErrJSON(fmt.Sprintf("bad endpoint:%v", context["localEndpoint"])))
+	if !validateEndpoint(context.LocalEndpoint) {
+		m.controller.HandleAuthResponse(m.flowCount, internalErrJSON(fmt.Sprintf("bad endpoint:%v", context.LocalEndpoint)))
 		return nil
 
 	}
 
-	if !validateEndpoint(context["remoteEndpoint"]) {
-		m.controller.HandleAuthResponse(m.flowCount, internalErrJSON(fmt.Sprintf("bad endpoint:%v", context["remoteEndpoint"])))
+	if !validateEndpoint(context.RemoteEndpoint) {
+		m.controller.HandleAuthResponse(m.flowCount, internalErrJSON(fmt.Sprintf("bad endpoint:%v", context.RemoteEndpoint)))
 		return nil
 
 	}
@@ -205,46 +222,55 @@ func (m *mockJSServer) handleServerRequest(v interface{}) error {
 		return nil
 	}
 
-	msg, err := normalize(v)
-	if err != nil {
+	var msg server.ServerRPCRequest
+	if err := vomDecode(v.(string), &msg); err != nil {
 		m.controller.HandleServerResponse(m.flowCount, internalErrJSON(err))
 		return nil
 
 	}
 
-	// Do an exact match on keys in this map for the request structure.
-	// For keys not in this map, we can't do an exact equality check and
-	// we'll verify them later.
-	expectedRequestValues := map[string]interface{}{
-		"Method": lib.LowercaseFirstCharacter(m.method),
-		"Handle": 0.0,
-		"Args":   m.inArgs,
+	if field, got, want := "Method", msg.Method, lib.LowercaseFirstCharacter(m.method); got != want {
+		m.controller.HandleServerResponse(m.flowCount, internalErrJSON(fmt.Sprintf("unexpected value for %s: got %v, want %v", field, got, want)))
+		return nil
+
 	}
 
-	for key, value := range expectedRequestValues {
-		if !reflect.DeepEqual(msg[key], value) {
-			m.controller.HandleServerResponse(m.flowCount, internalErrJSON(fmt.Sprintf("unexpected value for %s: got %v, want %v", key, msg[key], value)))
-			return nil
+	if field, got, want := "Handle", msg.Handle, int64(0); got != want {
+		m.controller.HandleServerResponse(m.flowCount, internalErrJSON(fmt.Sprintf("unexpected value for %s: got %v, want %v", field, got, want)))
+		return nil
 
+	}
+
+	vdlArgs := []interface{}{}
+	for _, v := range m.inArgs {
+		var vdlArg *vdl.Value
+		if err := valconv.Convert(&vdlArg, v); err != nil {
+			fmt.Println("Failed to convert", err)
 		}
+		vdlArgs = append(vdlArgs, vdlArg)
+	}
+	if field, got, want := "Args", msg.Args, vdlArgs; !reflect.DeepEqual(got, want) {
+		fmt.Printf("type %T %T\n", got[0], want[0])
+		m.controller.HandleServerResponse(m.flowCount, internalErrJSON(fmt.Sprintf("unexpected value for %s: got %v, want %v", field, got, want)))
+		return nil
+
 	}
 
-	context := msg["Context"].(map[string]interface{})
-	expectedContextValues := map[string]interface{}{
-		"Name":   "adder",
-		"Suffix": "adder",
+	context := msg.Context
+	if field, got, want := "Name", context.Name, "adder"; got != want {
+		m.controller.HandleServerResponse(m.flowCount, internalErrJSON(fmt.Sprintf("unexpected value for %s: got %v, want %v", field, got, want)))
+		return nil
+
 	}
 
-	for key, value := range expectedContextValues {
-		if !reflect.DeepEqual(context[key], value) {
-			m.controller.HandleServerResponse(m.flowCount, internalErrJSON(fmt.Sprintf("unexpected value for %s: got %v, want %v", key, context[key], value)))
-			return nil
+	if field, got, want := "Suffix", context.Suffix, "adder"; got != want {
+		m.controller.HandleServerResponse(m.flowCount, internalErrJSON(fmt.Sprintf("unexpected value for %s: got %v, want %v", field, got, want)))
+		return nil
 
-		}
 	}
 
-	if !validateBlessing(context["RemoteBlessings"]) {
-		m.controller.HandleServerResponse(m.flowCount, internalErrJSON(fmt.Sprintf("bad Remoteblessing:%v", context["RemoteBlessings"])))
+	if !validateBlessing(context.RemoteBlessings) {
+		m.controller.HandleServerResponse(m.flowCount, internalErrJSON(fmt.Sprintf("bad Remoteblessing:%v", context.RemoteBlessings)))
 		return nil
 	}
 

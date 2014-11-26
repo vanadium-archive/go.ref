@@ -27,11 +27,10 @@ func (*mockFlowFactory) cleanupFlow(int64) {}
 type mockInvoker struct {
 	handle int64
 	sig    signature.JSONServiceSignature
-	label  security.Label
 }
 
 func (m mockInvoker) Prepare(string, int) ([]interface{}, []interface{}, error) {
-	return nil, []interface{}{m.label}, nil
+	return nil, []interface{}{}, nil
 }
 
 func (mockInvoker) Invoke(string, ipc.ServerCall, []interface{}) ([]interface{}, error) {
@@ -52,8 +51,8 @@ func (mockInvoker) MethodSignature(ctx ipc.ServerContext, method string) (ipc.Me
 
 type mockInvokerFactory struct{}
 
-func (mockInvokerFactory) createInvoker(handle int64, sig signature.JSONServiceSignature, label security.Label) (ipc.Invoker, error) {
-	return &mockInvoker{handle: handle, sig: sig, label: label}, nil
+func (mockInvokerFactory) createInvoker(handle int64, sig signature.JSONServiceSignature) (ipc.Invoker, error) {
+	return &mockInvoker{handle: handle, sig: sig}, nil
 }
 
 type mockAuthorizer struct {
@@ -73,16 +72,31 @@ func init() {
 	rt.Init()
 }
 
+func vomEncodeOrDie(v interface{}) string {
+	s, err := lib.VomEncode(v)
+	if err != nil {
+		panic(err)
+	}
+	return s
+}
+
 func TestSuccessfulLookup(t *testing.T) {
 	flowFactory := &mockFlowFactory{}
 	d := newDispatcher(0, flowFactory, mockInvokerFactory{}, mockAuthorizerFactory{}, rt.R().Logger())
+	expectedSig := signature.JSONServiceSignature{
+		"add": signature.JSONMethodSignature{
+			InArgs:     []string{"foo", "bar"},
+			NumOutArgs: 1,
+			Tags:       []interface{}{},
+		},
+	}
+
 	go func() {
 		if err := flowFactory.writer.WaitForMessage(1); err != nil {
 			t.Errorf("failed to get dispatch request %v", err)
 			t.Fail()
 		}
-		signature := `{"add":{"inArgs":["foo","bar"],"numOutArgs":1,"isStreaming":false}}`
-		jsonResponse := fmt.Sprintf(`{"handle":1,"hasAuthorizer":false,"label":%d,"signature":%s}`, security.WriteLabel, signature)
+		jsonResponse := fmt.Sprintf(`{"handle":1,"hasAuthorizer":false,"signature":"%s"}`, vomEncodeOrDie(expectedSig))
 		d.handleLookupResponse(0, jsonResponse)
 	}()
 
@@ -92,15 +106,9 @@ func TestSuccessfulLookup(t *testing.T) {
 		t.Errorf("Unexpected error: %v", err)
 	}
 
-	expectedSig := signature.JSONServiceSignature{
-		"add": signature.JSONMethodSignature{
-			InArgs:     []string{"foo", "bar"},
-			NumOutArgs: 1,
-		},
-	}
-	expectedInvoker := &mockInvoker{handle: 1, sig: expectedSig, label: security.WriteLabel}
+	expectedInvoker := &mockInvoker{handle: 1, sig: expectedSig}
 	if !reflect.DeepEqual(invoker, expectedInvoker) {
-		t.Errorf("wrong invoker returned, expected: %v, got :%v", expectedInvoker, invoker)
+		t.Errorf("wrong invoker returned, expected: %#v, got :%#v", expectedInvoker, invoker)
 	}
 
 	expectedAuth := mockAuthorizer{handle: 1, hasAuthorizer: false}
@@ -125,13 +133,20 @@ func TestSuccessfulLookup(t *testing.T) {
 func TestSuccessfulLookupWithAuthorizer(t *testing.T) {
 	flowFactory := &mockFlowFactory{}
 	d := newDispatcher(0, flowFactory, mockInvokerFactory{}, mockAuthorizerFactory{}, rt.R().Logger())
+	expectedSig := signature.JSONServiceSignature{
+		"add": signature.JSONMethodSignature{
+			InArgs:     []string{"foo", "bar"},
+			NumOutArgs: 1,
+			Tags:       []interface{}{},
+		},
+	}
+
 	go func() {
 		if err := flowFactory.writer.WaitForMessage(1); err != nil {
 			t.Errorf("failed to get dispatch request %v", err)
 			t.Fail()
 		}
-		signature := `{"add":{"inArgs":["foo","bar"],"numOutArgs":1,"isStreaming":false}}`
-		jsonResponse := fmt.Sprintf(`{"handle":1,"hasAuthorizer":true,"label":%d,"signature":%s}`, security.ReadLabel, signature)
+		jsonResponse := fmt.Sprintf(`{"handle":1,"hasAuthorizer":true,"signature":"%s"}`, vomEncodeOrDie(expectedSig))
 		d.handleLookupResponse(0, jsonResponse)
 	}()
 
@@ -141,13 +156,7 @@ func TestSuccessfulLookupWithAuthorizer(t *testing.T) {
 		t.Errorf("Unexpected error: %v", err)
 	}
 
-	expectedSig := signature.JSONServiceSignature{
-		"add": signature.JSONMethodSignature{
-			InArgs:     []string{"foo", "bar"},
-			NumOutArgs: 1,
-		},
-	}
-	expectedInvoker := &mockInvoker{handle: 1, sig: expectedSig, label: security.ReadLabel}
+	expectedInvoker := &mockInvoker{handle: 1, sig: expectedSig}
 	if !reflect.DeepEqual(invoker, expectedInvoker) {
 		t.Errorf("wrong invoker returned, expected: %v, got :%v", expectedInvoker, invoker)
 	}

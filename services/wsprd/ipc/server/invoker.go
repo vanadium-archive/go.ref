@@ -2,8 +2,10 @@ package server
 
 import (
 	"veyron.io/veyron/veyron2/ipc"
-	"veyron.io/veyron/veyron2/security"
 	"veyron.io/veyron/veyron2/verror"
+
+	"veyron.io/wspr/veyron/services/wsprd/lib"
+	"veyron.io/wspr/veyron/services/wsprd/signature"
 )
 
 var typedNil []int
@@ -18,32 +20,33 @@ type invoker struct {
 	// map of special methods like "Signature" which invoker handles on behalf of the actual service
 	predefinedInvokers map[string]ipc.Invoker
 
-	label security.Label
+	// This is to get the method tags.  TODO(bjornick): Remove this when vom2 signatures
+	// has tags.
+	jsonSig signature.JSONServiceSignature
 }
 
 var _ ipc.Invoker = (*invoker)(nil)
 
 // newInvoker is an invoker factory
-func newInvoker(sig ipc.ServiceSignature, label security.Label, invokeFunc remoteInvokeFunc) ipc.Invoker {
+func newInvoker(sig ipc.ServiceSignature, jsonSig signature.JSONServiceSignature, invokeFunc remoteInvokeFunc) ipc.Invoker {
 	predefinedInvokers := make(map[string]ipc.Invoker)
 
 	// Special handling for predefined "signature" method
 	predefinedInvokers["Signature"] = newSignatureInvoker(sig)
 
-	i := &invoker{sig, invokeFunc, predefinedInvokers, label}
+	i := &invoker{sig, invokeFunc, predefinedInvokers, jsonSig}
 	return i
 }
 
 // Prepare implements the Invoker interface.
 func (i *invoker) Prepare(methodName string, numArgs int) ([]interface{}, []interface{}, error) {
-
 	if pi := i.predefinedInvokers[methodName]; pi != nil {
 		return pi.Prepare(methodName, numArgs)
 	}
 
-	method, ok := i.sig.Methods[methodName]
+	method, ok := i.jsonSig[lib.LowercaseFirstCharacter(methodName)]
 	if !ok {
-		return nil, []interface{}{security.AdminLabel}, verror.NoExistf("method name not found in IDL: %s", methodName)
+		return nil, nil, verror.NoExistf("method name not found in IDL: %s", methodName)
 	}
 
 	argptrs := make([]interface{}, len(method.InArgs))
@@ -53,13 +56,7 @@ func (i *invoker) Prepare(methodName string, numArgs int) ([]interface{}, []inte
 		argptrs[ix] = &x // Accept AnyData
 	}
 
-	securityLabel := i.label
-
-	if !security.IsValidLabel(securityLabel) {
-		securityLabel = security.AdminLabel
-	}
-
-	return argptrs, []interface{}{securityLabel}, nil
+	return argptrs, method.Tags, nil
 }
 
 // Invoke implements the Invoker interface.

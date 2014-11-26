@@ -2,6 +2,7 @@ package server
 
 import (
 	"bytes"
+	"encoding/hex"
 	"encoding/json"
 	"sync"
 
@@ -12,6 +13,7 @@ import (
 	"veyron.io/veyron/veyron2/security"
 	"veyron.io/veyron/veyron2/verror2"
 	"veyron.io/veyron/veyron2/vlog"
+	"veyron.io/veyron/veyron2/vom2"
 )
 
 type flowFactory interface {
@@ -20,7 +22,7 @@ type flowFactory interface {
 }
 
 type invokerFactory interface {
-	createInvoker(handle int64, signature signature.JSONServiceSignature, label security.Label) (ipc.Invoker, error)
+	createInvoker(handle int64, signature signature.JSONServiceSignature) (ipc.Invoker, error)
 }
 
 type authFactory interface {
@@ -30,8 +32,7 @@ type authFactory interface {
 type lookupReply struct {
 	Handle        int64
 	HasAuthorizer bool
-	Label         security.Label
-	Signature     signature.JSONServiceSignature
+	Signature     string
 	Err           *verror2.Standard
 }
 
@@ -96,7 +97,22 @@ func (d *dispatcher) Lookup(suffix string) (interface{}, security.Authorizer, er
 		return nil, nil, verror2.Make(verror2.NoExist, nil, "Dispatcher", suffix)
 	}
 
-	invoker, err := d.invokerFactory.createInvoker(request.Handle, request.Signature, request.Label)
+	var sig signature.JSONServiceSignature
+	b, err := hex.DecodeString(request.Signature)
+	if err != nil {
+		return nil, nil, verror2.Convert(verror2.Internal, nil, err)
+	}
+	buf := bytes.NewBuffer(b)
+	decoder, err := vom2.NewDecoder(buf)
+	if err != nil {
+		return nil, nil, verror2.Convert(verror2.Internal, nil, err)
+	}
+
+	if err := decoder.Decode(&sig); err != nil {
+		return nil, nil, verror2.Convert(verror2.Internal, nil, err)
+	}
+
+	invoker, err := d.invokerFactory.createInvoker(request.Handle, sig)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -120,7 +136,8 @@ func (d *dispatcher) handleLookupResponse(id int64, data string) {
 	var request lookupReply
 	decoder := json.NewDecoder(bytes.NewBufferString(data))
 	if err := decoder.Decode(&request); err != nil {
-		request = lookupReply{Err: verror2.Convert(verror2.Internal, nil, err).(*verror2.Standard)}
+		err2 := verror2.Convert(verror2.Internal, nil, err).(verror2.Standard)
+		request = lookupReply{Err: &err2}
 		d.logger.Errorf("unmarshaling invoke request failed: %v, %s", err, data)
 	}
 	ch <- request
