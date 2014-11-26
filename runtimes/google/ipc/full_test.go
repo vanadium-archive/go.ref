@@ -1373,11 +1373,14 @@ func TestServerBlessingsOpt(t *testing.T) {
 }
 
 type mockDischarger struct {
+	mu     sync.Mutex
 	called bool
 }
 
 func (m *mockDischarger) Discharge(ctx ipc.ServerContext, caveatAny vdlutil.Any, _ security.DischargeImpetus) (vdlutil.Any, error) {
+	m.mu.Lock()
 	m.called = true
+	m.mu.Unlock()
 	caveat, ok := caveatAny.(security.ThirdPartyCaveat)
 	if !ok {
 		return nil, fmt.Errorf("type %T does not implement security.ThirdPartyCaveat", caveatAny)
