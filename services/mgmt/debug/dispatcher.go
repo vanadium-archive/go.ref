@@ -32,7 +32,7 @@ var rootName = "__debug"
 
 func (d *dispatcher) Lookup(suffix string) (interface{}, security.Authorizer, error) {
 	if suffix == "" {
-		return ipc.VChildrenGlobberInvoker(rootName), d.auth, nil
+		return ipc.ChildrenGlobberInvoker(rootName), d.auth, nil
 	}
 	if !strings.HasPrefix(suffix, rootName) {
 		return nil, nil, nil
@@ -41,7 +41,7 @@ func (d *dispatcher) Lookup(suffix string) (interface{}, security.Authorizer, er
 	suffix = strings.TrimLeft(suffix, "/")
 
 	if suffix == "" {
-		return ipc.VChildrenGlobberInvoker("logs", "pprof", "stats", "vtrace"), d.auth, nil
+		return ipc.ChildrenGlobberInvoker("logs", "pprof", "stats", "vtrace"), d.auth, nil
 	}
 	parts := strings.SplitN(suffix, "/", 2)
 	if len(parts) == 2 {

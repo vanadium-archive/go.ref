@@ -1206,7 +1206,7 @@ func (i *appService) scanInstance(tree *treeNode, title, instanceDir string) {
 	}
 }
 
-func (i *appService) VGlobChildren() ([]string, error) {
+func (i *appService) GlobChildren__() (<-chan string, error) {
 	tree := newTreeNode()
 	switch len(i.suffix) {
 	case 0:
@@ -1229,13 +1229,14 @@ func (i *appService) VGlobChildren() ([]string, error) {
 	if n == nil {
 		return nil, errInvalidSuffix
 	}
-	children := make([]string, len(n.children))
-	index := 0
-	for child, _ := range n.children {
-		children[index] = child
-		index++
-	}
-	return children, nil
+	ch := make(chan string, 100)
+	go func() {
+		for child, _ := range n.children {
+			ch <- child
+		}
+		close(ch)
+	}()
+	return ch, nil
 }
 
 // TODO(rjkroege): Refactor to eliminate redundancy with newAppSpecificAuthorizer.

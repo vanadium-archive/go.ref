@@ -177,7 +177,7 @@ func (d *disp) Lookup(suffix string) (interface{}, security.Authorizer, error) {
 	elems := strings.Split(suffix, "/")
 	if len(elems) != 0 && elems[0] == "muah" {
 		// Infinite space. Each node has one child named "ha".
-		return ipc.VChildrenGlobberInvoker("ha"), nil, nil
+		return ipc.ChildrenGlobberInvoker("ha"), nil, nil
 
 	}
 	if len(elems) != 0 && elems[0] == "leaf" {
@@ -226,18 +226,17 @@ type vChildrenObject struct {
 	suffix []string
 }
 
-func (o *vChildrenObject) VGlobChildren() ([]string, error) {
+func (o *vChildrenObject) GlobChildren__() (<-chan string, error) {
 	n := o.n.find(o.suffix, false)
 	if n == nil {
 		return nil, fmt.Errorf("object does not exist")
 	}
-	children := make([]string, len(n.children))
-	index := 0
+	ch := make(chan string, len(n.children))
 	for child, _ := range n.children {
-		children[index] = child
-		index++
+		ch <- child
 	}
-	return children, nil
+	close(ch)
+	return ch, nil
 }
 
 type node struct {

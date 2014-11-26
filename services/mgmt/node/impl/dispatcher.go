@@ -346,7 +346,7 @@ func (d *dispatcher) Lookup(suffix string) (interface{}, security.Authorizer, er
 		}
 	}
 	if len(components) == 0 {
-		return ipc.VChildrenGlobberInvoker(nodeSuffix, appsSuffix), d.auth, nil
+		return ipc.ChildrenGlobberInvoker(nodeSuffix, appsSuffix), d.auth, nil
 	}
 	// The implementation of the node manager is split up into several
 	// invokers, which are instantiated depending on the receiver name

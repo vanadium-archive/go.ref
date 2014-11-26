@@ -145,19 +145,19 @@ func (r *reservedMethods) Glob(ctx *ipc.GlobContextStub, pattern string) error {
 // response if the double underscore is explicitly part of the pattern, e.g.
 // "".Glob("__*/*"), or "".Glob("__debug/...").
 //
-// Service objects may choose to implement either VAllGlobber or
-// VChildrenGlobber. VAllGlobber is more flexible, but VChildrenGlobber is
-// simpler to implement and less prone to errors.
+// Service objects may choose to implement either AllGlobber or ChildrenGlobber.
+// AllGlobber is more flexible, but ChildrenGlobber is simpler to implement and
+// less prone to errors.
 //
-// If objects implement VAllGlobber, it must be able to handle recursive pattern
+// If objects implement AllGlobber, it must be able to handle recursive pattern
 // for the entire namespace below the receiver object, i.e. "a/b".Glob("...")
 // must return the name of all the objects under "a/b".
 //
-// If they implement VChildrenGlobber, it provides a list of the receiver's
+// If they implement ChildrenGlobber, it provides a list of the receiver's
 // immediate children names, or a non-nil error if the receiver doesn't exist.
 //
 // globInternal constructs the Glob response by internally accessing the
-// VAllGlobber or VChildrenGlobber interface of objects as many times as needed.
+// AllGlobber or ChildrenGlobber interface of objects as many times as needed.
 //
 // Before accessing an object, globInternal ensures that the requester is
 // authorized to access it. Internal objects require either security.DebugLabel
@@ -190,67 +190,87 @@ func (i *globInternal) Glob(call *mutableCall, pattern string) error {
 	if disp == nil {
 		return verror.NoExistf("ipc: Glob is not implemented by %q", i.receiver)
 	}
-	return i.globStep(call, disp, "", g, 0)
-}
 
-func (i *globInternal) globStep(call *mutableCall, disp ipc.Dispatcher, name string, g *glob.Glob, depth int) error {
-	call.M.Suffix = naming.Join(i.receiver, name)
-	if depth > maxRecursiveGlobDepth {
-		err := verror.Internalf("ipc: Glob exceeded its recursion limit (%d): %q", maxRecursiveGlobDepth, call.Suffix())
-		vlog.Error(err)
-		return err
+	type gState struct {
+		name  string
+		glob  *glob.Glob
+		depth int
 	}
-	obj, auth, err := disp.Lookup(call.Suffix())
-	switch {
-	case err != nil:
-		return err
-	case obj == nil:
-		return verror.NoExistf("ipc: invoker not found for %q.%s", call.Suffix(), ipc.GlobMethod)
-	}
+	queue := []gState{gState{glob: g}}
 
-	// Verify that that requester is authorized for the current object.
-	if err := authorize(call, auth); err != nil {
-		return err
-	}
-
-	// If the object implements both VAllGlobber and VChildrenGlobber, we'll
-	// use VAllGlobber.
-	gs := objectToInvoker(obj).VGlob()
-	if gs == nil || (gs.VAllGlobber == nil && gs.VChildrenGlobber == nil) {
-		if g.Len() == 0 {
-			call.Send(naming.VDLMountEntry{Name: name})
+	for len(queue) != 0 {
+		select {
+		case <-call.Done():
+			// RPC timed out or was canceled.
+			return nil
+		default:
 		}
-		return nil
-	}
-	if gs.VAllGlobber != nil {
-		vlog.VI(3).Infof("ipc Glob: %q implements VAllGlobber", call.Suffix())
-		childCtx := &ipc.GlobContextStub{&localServerCall{call, name}}
-		return gs.VAllGlobber.Glob(childCtx, g.String())
-	}
-	vlog.VI(3).Infof("ipc Glob: %q implements VChildrenGlobber", call.Suffix())
-	children, err := gs.VChildrenGlobber.VGlobChildren()
-	if err != nil {
-		return nil
-	}
-	if g.Len() == 0 {
-		call.Send(naming.VDLMountEntry{Name: name})
-	}
-	if g.Finished() {
-		return nil
-	}
-	if g.Len() == 0 {
-		// This is a recursive pattern. Make sure we don't recurse forever.
-		depth++
-	}
-	for _, child := range children {
-		if len(child) == 0 || strings.Contains(child, "/") {
-			vlog.Errorf("ipc: %q.VGlobChildren() returned an invalid child name: %q", call.Suffix(), child)
+		state := queue[0]
+		queue = queue[1:]
+
+		call.M.Suffix = naming.Join(i.receiver, state.name)
+		if state.depth > maxRecursiveGlobDepth {
+			vlog.Errorf("ipc Glob: exceeded recursion limit (%d): %q", maxRecursiveGlobDepth, call.Suffix())
 			continue
 		}
-		if ok, _, left := g.MatchInitialSegment(child); ok {
-			next := naming.Join(name, child)
-			if err := i.globStep(call, disp, next, left, depth); err != nil {
-				vlog.VI(1).Infof("ipc Glob: globStep(%q, %q): %v", next, left, err)
+		obj, auth, err := disp.Lookup(call.Suffix())
+		if err != nil {
+			vlog.VI(3).Infof("ipc Glob: Lookup failed for %q: %v", call.Suffix(), err)
+			continue
+		}
+		if obj == nil {
+			vlog.VI(3).Infof("ipc Glob: object not found for %q", call.Suffix())
+			continue
+		}
+
+		// Verify that that requester is authorized for the current object.
+		if err := authorize(call, auth); err != nil {
+			vlog.VI(3).Infof("ipc Glob: client is not authorized for %q: %v", call.Suffix(), err)
+			continue
+		}
+
+		// If the object implements both AllGlobber and ChildrenGlobber, we'll
+		// use AllGlobber.
+		gs := objectToInvoker(obj).VGlob()
+		if gs == nil || (gs.AllGlobber == nil && gs.ChildrenGlobber == nil) {
+			if state.glob.Len() == 0 {
+				call.Send(naming.VDLMountEntry{Name: state.name})
+			}
+			continue
+		}
+		if gs.AllGlobber != nil {
+			vlog.VI(3).Infof("ipc Glob: %q implements AllGlobber", call.Suffix())
+			childCtx := &ipc.GlobContextStub{&localServerCall{call, state.name}}
+			gs.AllGlobber.Glob(childCtx, state.glob.String())
+			continue
+		}
+		vlog.VI(3).Infof("ipc Glob: %q implements ChildrenGlobber", call.Suffix())
+		children, err := gs.ChildrenGlobber.GlobChildren__()
+		// The requested object doesn't exist.
+		if err != nil {
+			continue
+		}
+		// The glob pattern matches the current object.
+		if state.glob.Len() == 0 {
+			call.Send(naming.VDLMountEntry{Name: state.name})
+		}
+		// The current object has no children.
+		if children == nil {
+			continue
+		}
+		depth := state.depth
+		// This is a recursive pattern. Make sure we don't recurse forever.
+		if state.glob.Len() == 0 {
+			depth++
+		}
+		for child := range children {
+			if len(child) == 0 || strings.Contains(child, "/") {
+				vlog.Errorf("ipc Glob: %q.GlobChildren__() sent an invalid child name: %q", call.Suffix(), child)
+				continue
+			}
+			if ok, _, left := state.glob.MatchInitialSegment(child); ok {
+				next := naming.Join(state.name, child)
+				queue = append(queue, gState{next, left, depth})
 			}
 		}
 	}

@@ -325,7 +325,7 @@ func (i *binaryService) Upload(context repository.BinaryUploadContext, part int3
 	return nil
 }
 
-func (i *binaryService) VGlobChildren() ([]string, error) {
+func (i *binaryService) GlobChildren__() (<-chan string, error) {
 	elems := strings.Split(i.suffix, "/")
 	if len(elems) == 1 && elems[0] == "" {
 		elems = nil
@@ -334,11 +334,12 @@ func (i *binaryService) VGlobChildren() ([]string, error) {
 	if n == nil {
 		return nil, errOperationFailed
 	}
-	results := make([]string, len(n.children))
-	index := 0
-	for k, _ := range n.children {
-		results[index] = k
-		index++
-	}
-	return results, nil
+	ch := make(chan string, 100)
+	go func() {
+		for k, _ := range n.children {
+			ch <- k
+		}
+		close(ch)
+	}()
+	return ch, nil
 }

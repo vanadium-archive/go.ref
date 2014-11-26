@@ -185,7 +185,7 @@ func (p *proxyInvoker) MethodSignature(ctx ipc.ServerContext, method string) (ip
 }
 
 func (p *proxyInvoker) VGlob() *ipc.GlobState {
-	return &ipc.GlobState{VAllGlobber: p}
+	return &ipc.GlobState{AllGlobber: p}
 }
 
 func (p *proxyInvoker) Glob(ctx *ipc.GlobContextStub, pattern string) error {

@@ -110,10 +110,10 @@ func (i *logfileService) ReadLog(ctx logreader.LogFileReadLogContext, startpos i
 	return reader.tell(), nil
 }
 
-// VGlobChildren returns the list of files in a directory, or an empty list if
-// the object is a file.
-func (i *logfileService) VGlobChildren() ([]string, error) {
-	vlog.VI(1).Infof("%v.VGlobChildren()", i.suffix)
+// GlobChildren__ returns the list of files in a directory streamed on a
+// channel. The list is empty if the object is a file.
+func (i *logfileService) GlobChildren__() (<-chan string, error) {
+	vlog.VI(1).Infof("%v.GlobChildren__()", i.suffix)
 	dirName, err := translateNameToFilename(i.root, i.suffix)
 	if err != nil {
 		return nil, err
@@ -129,22 +129,24 @@ func (i *logfileService) VGlobChildren() ([]string, error) {
 		return nil, nil
 	}
 
-	f, err := os.Open(dirName)
-	if err != nil {
-		return nil, errOperationFailed
-	}
-	fi, err := f.Readdir(0)
-	if err != nil {
-		return nil, errOperationFailed
-	}
-	f.Close()
-	children := []string{}
-	for _, file := range fi {
-		fileName := file.Name()
-		if fileName == "." || fileName == ".." {
-			continue
+	const batchSize = 100
+	ch := make(chan string, batchSize)
+	go func() {
+		defer close(ch)
+		f, err := os.Open(dirName)
+		if err != nil {
+			return
 		}
-		children = append(children, file.Name())
-	}
-	return children, nil
+		defer f.Close()
+		for {
+			fi, err := f.Readdir(batchSize)
+			if err != nil {
+				return
+			}
+			for _, file := range fi {
+				ch <- file.Name()
+			}
+		}
+	}()
+	return ch, nil
 }

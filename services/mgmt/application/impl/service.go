@@ -174,8 +174,8 @@ func (i *appRepoService) allAppVersions(appName string) ([]string, error) {
 	return versions, nil
 }
 
-func (i *appRepoService) VGlobChildren() ([]string, error) {
-	vlog.VI(0).Infof("%v.VGlobChildren()", i.suffix)
+func (i *appRepoService) GlobChildren__() (<-chan string, error) {
+	vlog.VI(0).Infof("%v.GlobChildren__()", i.suffix)
 	i.store.Lock()
 	defer i.store.Unlock()
 
@@ -184,11 +184,19 @@ func (i *appRepoService) VGlobChildren() ([]string, error) {
 		elems = strings.Split(i.suffix, "/")
 	}
 
+	var results []string
+	var err error
 	switch len(elems) {
 	case 0:
-		return i.allApplications()
+		results, err = i.allApplications()
+		if err != nil {
+			return nil, err
+		}
 	case 1:
-		return i.allAppVersions(elems[0])
+		results, err = i.allAppVersions(elems[0])
+		if err != nil {
+			return nil, err
+		}
 	case 2:
 		versions, err := i.allAppVersions(elems[0])
 		if err != nil {
@@ -203,4 +211,11 @@ func (i *appRepoService) VGlobChildren() ([]string, error) {
 	default:
 		return nil, errNotFound
 	}
+
+	ch := make(chan string, len(results))
+	for _, r := range results {
+		ch <- r
+	}
+	close(ch)
+	return ch, nil
 }
