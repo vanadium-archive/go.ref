@@ -16,13 +16,16 @@ import (
 	"veyron.io/veyron/veyron/runtimes/google/lib/bqueue"
 	"veyron.io/veyron/veyron/runtimes/google/lib/iobuf"
 	vsync "veyron.io/veyron/veyron/runtimes/google/lib/sync"
+	ivtrace "veyron.io/veyron/veyron/runtimes/google/vtrace"
 
+	"veyron.io/veyron/veyron2/context"
 	"veyron.io/veyron/veyron2/ipc/stream"
 	"veyron.io/veyron/veyron2/ipc/version"
 	"veyron.io/veyron/veyron2/naming"
 	"veyron.io/veyron/veyron2/options"
 	"veyron.io/veyron/veyron2/security"
 	"veyron.io/veyron/veyron2/vlog"
+	"veyron.io/veyron/veyron2/vtrace"
 )
 
 var (
@@ -117,7 +120,7 @@ func (LocalPrincipal) IPCServerOpt()         {}
 //
 // TODO(ataly, ashankar): What should be the impetus for obtaining the discharges?
 type DischargeClient interface {
-	PrepareDischarges(forcaveats []security.ThirdPartyCaveat, impetus security.DischargeImpetus) []security.Discharge
+	PrepareDischarges(ctx context.T, forcaveats []security.ThirdPartyCaveat, impetus security.DischargeImpetus) []security.Discharge
 	// Invalidate marks the provided discharges as invalid, and therefore unfit
 	// for being returned by a subsequent PrepareDischarges call.
 	Invalidate(discharges ...security.Discharge)
@@ -126,6 +129,11 @@ type DischargeClient interface {
 	IPCStreamListenerOpt()
 	IPCStreamVCOpt()
 }
+
+// DialContext establishes the context under which a VC Dial was initiated.
+type DialContext struct{ context.T }
+
+func (DialContext) IPCStreamVCOpt() {}
 
 // InternalNew creates a new VC, which implements the stream.VC interface.
 //
@@ -367,10 +375,13 @@ func (vc *VC) HandshakeDialedVC(opts ...stream.VCOpt) error {
 		tlsSessionCache crypto.TLSClientSessionCache
 		securityLevel   options.VCSecurityLevel
 		dischargeClient DischargeClient
+		ctx             context.T
 		noDischarges    bool
 	)
 	for _, o := range opts {
 		switch v := o.(type) {
+		case DialContext:
+			ctx = v.T
 		case DischargeClient:
 			dischargeClient = v
 		case LocalPrincipal:
@@ -382,6 +393,11 @@ func (vc *VC) HandshakeDialedVC(opts ...stream.VCOpt) error {
 		case NoDischarges:
 			noDischarges = true
 		}
+	}
+	if ctx != nil {
+		var span vtrace.Span
+		ctx, span = ivtrace.WithNewSpan(ctx, "vc.HandshakeDialedVC")
+		defer span.Finish()
 	}
 	// If noDischarge is provided, disable the dischargeClient.
 	if noDischarges {
@@ -423,7 +439,7 @@ func (vc *VC) HandshakeDialedVC(opts ...stream.VCOpt) error {
 	if err != nil {
 		return vc.err(fmt.Errorf("failed to create a Flow for authentication: %v", err))
 	}
-	rBlessings, lBlessings, rDischarges, err := AuthenticateAsClient(authConn, principal, dischargeClient, crypter, vc.version)
+	rBlessings, lBlessings, rDischarges, err := AuthenticateAsClient(ctx, authConn, principal, dischargeClient, crypter, vc.version)
 	if err != nil {
 		return vc.err(fmt.Errorf("authentication failed: %v", err))
 	}

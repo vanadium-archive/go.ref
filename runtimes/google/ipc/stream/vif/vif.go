@@ -25,10 +25,12 @@ import (
 	"veyron.io/veyron/veyron/runtimes/google/lib/pcqueue"
 	vsync "veyron.io/veyron/veyron/runtimes/google/lib/sync"
 	"veyron.io/veyron/veyron/runtimes/google/lib/upcqueue"
+	ivtrace "veyron.io/veyron/veyron/runtimes/google/vtrace"
 	"veyron.io/veyron/veyron2/ipc/stream"
 	"veyron.io/veyron/veyron2/naming"
 	"veyron.io/veyron/veyron2/verror"
 	"veyron.io/veyron/veyron2/vlog"
+	"veyron.io/veyron/veyron2/vtrace"
 )
 
 // VIF implements a "virtual interface" over an underlying network connection
@@ -107,11 +109,17 @@ var (
 // placed inside veyron/runtimes/google. Code outside the
 // veyron2/runtimes/google/* packages should never call this method.
 func InternalNewDialedVIF(conn net.Conn, rid naming.RoutingID, versions *version.Range, opts ...stream.VCOpt) (*VIF, error) {
-	principal, dc, err := clientAuthOptions(opts)
+	ctx, principal, dc, err := clientAuthOptions(opts)
 	if err != nil {
 		return nil, err
 	}
-	c, err := AuthenticateAsClient(conn, versions, principal, dc)
+	if ctx != nil {
+		var span vtrace.Span
+		ctx, span = ivtrace.WithNewSpan(ctx, "InternalNewDialedVIF")
+		span.Annotatef("(%v, %v)", conn.RemoteAddr().Network(), conn.RemoteAddr())
+		defer span.Finish()
+	}
+	c, err := AuthenticateAsClient(ctx, conn, versions, principal, dc)
 	if err != nil {
 		return nil, err
 	}

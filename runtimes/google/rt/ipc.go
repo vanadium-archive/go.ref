@@ -112,11 +112,12 @@ func (rt *vrt) NewServer(opts ...ipc.ServerOpt) (ipc.Server, error) {
 	// Add the option that provides a discharge client to the server.
 	// TODO(cnicolaou): extend the timeout when parallel connections are
 	// going.
-	dc, err := iipc.InternalNewDischargeClient(sm, ns, rt.NewContext(), vc.LocalPrincipal{rt.principal}, &imanager.DialTimeout{5 * time.Second})
+	ctx := rt.NewContext()
+	dc, err := iipc.InternalNewDischargeClient(sm, ns, ctx, vc.LocalPrincipal{rt.principal}, &imanager.DialTimeout{5 * time.Second})
 	if err != nil {
 		return nil, fmt.Errorf("failed to create discharge-client: %v", err)
 	}
-	return iipc.InternalNewServer(rt.NewContext(), sm, ns, rt.traceStore, append(otherOpts, dc)...)
+	return iipc.InternalNewServer(ctx, sm, ns, rt.traceStore, append(otherOpts, dc)...)
 }
 
 func (rt *vrt) NewStreamManager(opts ...stream.ManagerOpt) (stream.Manager, error) {

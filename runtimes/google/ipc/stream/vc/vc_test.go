@@ -21,6 +21,7 @@ import (
 	"veyron.io/veyron/veyron/runtimes/google/lib/bqueue/drrqueue"
 	"veyron.io/veyron/veyron/runtimes/google/lib/iobuf"
 
+	"veyron.io/veyron/veyron2/context"
 	"veyron.io/veyron/veyron2/ipc/stream"
 	"veyron.io/veyron/veyron2/ipc/version"
 	"veyron.io/veyron/veyron2/naming"
@@ -164,7 +165,7 @@ func TestHandshakeTLS(t *testing.T) {
 
 type mockDischargeClient []security.Discharge
 
-func (m mockDischargeClient) PrepareDischarges(forcaveats []security.ThirdPartyCaveat, impetus security.DischargeImpetus) []security.Discharge {
+func (m mockDischargeClient) PrepareDischarges(_ context.T, forcaveats []security.ThirdPartyCaveat, impetus security.DischargeImpetus) []security.Discharge {
 	return m
 }
 func (mockDischargeClient) Invalidate(...security.Discharge) {}

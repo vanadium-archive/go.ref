@@ -134,7 +134,9 @@ func summary(span *vtrace.SpanRecord) string {
 }
 
 func expectSequence(t *testing.T, trace vtrace.TraceRecord, expectedSpans []string) {
-	if got, want := len(trace.Spans), len(expectedSpans); got != want {
+	// It's okay to have additional spans - someone may have inserted
+	// additional spans for more debugging.
+	if got, want := len(trace.Spans), len(expectedSpans); got < want {
 		t.Errorf("Found %d spans, want %d", got, want)
 	}
 
