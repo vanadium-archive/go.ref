@@ -638,7 +638,6 @@ func TestJSServerWithAuthorizerAndAuthError(t *testing.T) {
 func TestJSServerWihStreamingInputs(t *testing.T) {
 	runJsServerTestCase(t, jsServerTestCase{
 		method:        "StreamingAdd",
-		inArgs:        []interface{}{},
 		clientStream:  []interface{}{3.0, 4.0},
 		finalResponse: 10.0,
 	})
@@ -647,7 +646,6 @@ func TestJSServerWihStreamingInputs(t *testing.T) {
 func TestJSServerWihStreamingOutputs(t *testing.T) {
 	runJsServerTestCase(t, jsServerTestCase{
 		method:               "StreamingAdd",
-		inArgs:               []interface{}{},
 		serverStream:         []string{"3", "4"},
 		expectedServerStream: []interface{}{3.0, 4.0},
 		finalResponse:        10.0,
@@ -657,7 +655,6 @@ func TestJSServerWihStreamingOutputs(t *testing.T) {
 func TestJSServerWihStreamingInputsAndOutputs(t *testing.T) {
 	runJsServerTestCase(t, jsServerTestCase{
 		method:               "StreamingAdd",
-		inArgs:               []interface{}{},
 		clientStream:         []interface{}{1.0, 2.0},
 		serverStream:         []string{"3", "4"},
 		expectedServerStream: []interface{}{3.0, 4.0},

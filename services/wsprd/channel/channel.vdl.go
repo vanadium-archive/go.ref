@@ -5,6 +5,7 @@ package channel
 
 import (
 	// The non-user imports are prefixed with "__" to prevent collisions.
+	__vdl "veyron.io/veyron/veyron2/vdl"
 	__vdlutil "veyron.io/veyron/veyron2/vdl/vdlutil"
 )
 
@@ -14,10 +15,20 @@ type Request struct {
 	Body __vdlutil.Any
 }
 
+func (Request) __VDLReflect(struct {
+	Name string "veyron.io/wspr/veyron/services/wsprd/channel.Request"
+}) {
+}
+
 type Response struct {
 	ReqSeq uint64
 	Err    string // TODO(bprosnitz) change this back to error when it is possible to do so. (issue 368)
 	Body   __vdlutil.Any
+}
+
+func (Response) __VDLReflect(struct {
+	Name string "veyron.io/wspr/veyron/services/wsprd/channel.Response"
+}) {
 }
 
 type (
@@ -27,25 +38,34 @@ type (
 		Index() int
 		// Name returns the field name.
 		Name() string
-		// __DescribeOneOf describes the Message oneof type.
-		__DescribeOneOf(__MessageDesc)
+		// __VDLReflect describes the Message oneof type.
+		__VDLReflect(__MessageReflect)
 	}
 	// MessageRequest represents field Request of the Message oneof type.
 	MessageRequest struct{ Value Request }
 	// MessageResponse represents field Response of the Message oneof type.
 	MessageResponse struct{ Value Response }
-	// __MessageDesc describes the Message oneof type.
-	__MessageDesc struct {
-		Message
-		Request  MessageRequest
-		Response MessageResponse
+	// __MessageReflect describes the Message oneof type.
+	__MessageReflect struct {
+		Name  string "veyron.io/wspr/veyron/services/wsprd/channel.Message"
+		Type  Message
+		OneOf struct {
+			Request  MessageRequest
+			Response MessageResponse
+		}
 	}
 )
 
 func (MessageRequest) Index() int                    { return 0 }
 func (MessageRequest) Name() string                  { return "Request" }
-func (MessageRequest) __DescribeOneOf(__MessageDesc) {}
+func (MessageRequest) __VDLReflect(__MessageReflect) {}
 
 func (MessageResponse) Index() int                    { return 1 }
 func (MessageResponse) Name() string                  { return "Response" }
-func (MessageResponse) __DescribeOneOf(__MessageDesc) {}
+func (MessageResponse) __VDLReflect(__MessageReflect) {}
+
+func init() {
+	__vdl.Register(Request{})
+	__vdl.Register(Response{})
+	__vdl.Register(Message(MessageRequest{Request{}}))
+}

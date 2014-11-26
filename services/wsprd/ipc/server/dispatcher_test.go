@@ -87,7 +87,6 @@ func TestSuccessfulLookup(t *testing.T) {
 		"add": signature.JSONMethodSignature{
 			InArgs:     []string{"foo", "bar"},
 			NumOutArgs: 1,
-			Tags:       []interface{}{},
 		},
 	}
 
@@ -137,7 +136,6 @@ func TestSuccessfulLookupWithAuthorizer(t *testing.T) {
 		"add": signature.JSONMethodSignature{
 			InArgs:     []string{"foo", "bar"},
 			NumOutArgs: 1,
-			Tags:       []interface{}{},
 		},
 	}
 

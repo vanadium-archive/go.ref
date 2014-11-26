@@ -9,8 +9,6 @@ import (
 	"sync"
 	"testing"
 
-	"veyron.io/veyron/veyron2/vdl"
-	"veyron.io/veyron/veyron2/vdl/valconv"
 	"veyron.io/veyron/veyron2/vom2"
 	"veyron.io/wspr/veyron/services/wsprd/ipc/server"
 	"veyron.io/wspr/veyron/services/wsprd/lib"
@@ -241,16 +239,7 @@ func (m *mockJSServer) handleServerRequest(v interface{}) error {
 
 	}
 
-	vdlArgs := []interface{}{}
-	for _, v := range m.inArgs {
-		var vdlArg *vdl.Value
-		if err := valconv.Convert(&vdlArg, v); err != nil {
-			fmt.Println("Failed to convert", err)
-		}
-		vdlArgs = append(vdlArgs, vdlArg)
-	}
-	if field, got, want := "Args", msg.Args, vdlArgs; !reflect.DeepEqual(got, want) {
-		fmt.Printf("type %T %T\n", got[0], want[0])
+	if field, got, want := "Args", msg.Args, m.inArgs; !reflect.DeepEqual(got, want) {
 		m.controller.HandleServerResponse(m.flowCount, internalErrJSON(fmt.Sprintf("unexpected value for %s: got %v, want %v", field, got, want)))
 		return nil
 
@@ -260,7 +249,6 @@ func (m *mockJSServer) handleServerRequest(v interface{}) error {
 	if field, got, want := "Name", context.Name, "adder"; got != want {
 		m.controller.HandleServerResponse(m.flowCount, internalErrJSON(fmt.Sprintf("unexpected value for %s: got %v, want %v", field, got, want)))
 		return nil
-
 	}
 
 	if field, got, want := "Suffix", context.Suffix, "adder"; got != want {
