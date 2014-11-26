@@ -2,18 +2,16 @@
 package browspr
 
 import (
-	"fmt"
 	"net"
-	"regexp"
 	"sync"
 	"time"
 
 	"veyron.io/veyron/veyron2"
 	"veyron.io/veyron/veyron2/ipc"
-	"veyron.io/veyron/veyron2/naming"
 	"veyron.io/veyron/veyron2/rt"
 	"veyron.io/veyron/veyron2/vlog"
 	"veyron.io/wspr/veyron/services/wsprd/account"
+	"veyron.io/wspr/veyron/services/wsprd/lib"
 	"veyron.io/wspr/veyron/services/wsprd/principal"
 )
 
@@ -47,7 +45,7 @@ func NewBrowspr(postMessage func(instanceId int32, ty, msg string), profileFacto
 		vlog.Fatalf("rt.New failed: %s", err)
 	}
 
-	wsNamespaceRoots, err := wsNames(namespaceRoots)
+	wsNamespaceRoots, err := lib.EndpointsToWs(runtime, namespaceRoots)
 	if err != nil {
 		vlog.Fatal(err)
 	}
@@ -145,34 +143,4 @@ func (b *Browspr) HandleAssociateAccountMessage(origin, account string, cavs []a
 		return err
 	}
 	return nil
-}
-
-// Turns a list of names into a list of names that use the "ws" protocol.
-func wsNames(names []string) ([]string, error) {
-	runtime, err := rt.New()
-	if err != nil {
-		return nil, fmt.Errorf("rt.New() failed: %v", err)
-	}
-	outNames := []string{}
-	tcpRegexp := regexp.MustCompile(`@tcp\d*@`)
-	for _, name := range names {
-		addr, suff := naming.SplitAddressName(name)
-		ep, err := runtime.NewEndpoint(addr)
-		if err != nil {
-			return nil, fmt.Errorf("runtime.NewEndpoint(%v) failed: %v", addr, err)
-		}
-		// Replace only the first match.
-		first := true
-		wsEp := tcpRegexp.ReplaceAllFunc([]byte(ep.String()), func(s []byte) []byte {
-			if first {
-				first = false
-				return []byte("@ws@")
-			}
-			return s
-		})
-		wsName := naming.JoinAddressName(string(wsEp), suff)
-
-		outNames = append(outNames, wsName)
-	}
-	return outNames, nil
 }

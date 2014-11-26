@@ -54,7 +54,7 @@ func init() {
 	// TODO(bjornick,nlacasse): Remove the retryTimeout flag once we able
 	// to pass it in from javascript. For now all RPCs have the same
 	// retryTimeout, set by command line flag.
-	retryTimeout = flag.Int("retry-timeout", 0, "Duration in seconds to retry starting an RPC call. 0 means never retry.")
+	retryTimeout = flag.Int("retry-timeout", 2, "Duration in seconds to retry starting an RPC call. 0 means never retry.")
 }
 
 // Temporary holder of RPC so that we can store the unprocessed args.
