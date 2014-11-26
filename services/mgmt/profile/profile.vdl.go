@@ -7,6 +7,9 @@ package profile
 
 import (
 	"veyron.io/veyron/veyron2/services/mgmt/build"
+
+	// The non-user imports are prefixed with "__" to prevent collisions.
+	__vdl "veyron.io/veyron/veyron2/vdl"
 )
 
 // Library describes a shared library that applications may use.
@@ -17,6 +20,11 @@ type Library struct {
 	MajorVersion string
 	// MinorVersion is the minor version of the library.
 	MinorVersion string
+}
+
+func (Library) __VDLReflect(struct {
+	Name string "veyron.io/veyron/veyron/services/mgmt/profile.Library"
+}) {
 }
 
 // Specification is how we represent a profile internally. It should
@@ -35,4 +43,14 @@ type Specification struct {
 	Label string
 	// OS is the target operating system of the profile.
 	OS build.OperatingSystem
+}
+
+func (Specification) __VDLReflect(struct {
+	Name string "veyron.io/veyron/veyron/services/mgmt/profile.Specification"
+}) {
+}
+
+func init() {
+	__vdl.Register(Library{})
+	__vdl.Register(Specification{})
 }

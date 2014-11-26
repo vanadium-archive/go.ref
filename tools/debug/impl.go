@@ -27,7 +27,7 @@ import (
 	"veyron.io/veyron/veyron2/services/watch"
 	watchtypes "veyron.io/veyron/veyron2/services/watch/types"
 	"veyron.io/veyron/veyron2/uniqueid"
-	"veyron.io/veyron/veyron2/vom"
+	"veyron.io/veyron/veyron2/vdl/vdlutil"
 	"veyron.io/veyron/veyron2/vtrace"
 )
 
@@ -42,7 +42,7 @@ var (
 )
 
 func init() {
-	vom.Register(istats.HistogramValue{})
+	vdlutil.Register(istats.HistogramValue{})
 
 	// logs read flags
 	cmdLogsRead.Flags.BoolVar(&follow, "f", false, "When true, read will wait for new log entries when it reaches the end of the file.")

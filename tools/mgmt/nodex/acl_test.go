@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"reflect"
+	"regexp"
 	"strings"
 	"testing"
 
@@ -226,8 +227,8 @@ func TestACLSetCommand(t *testing.T) {
 	if err := cmd.Execute([]string{"acl", "set", nodeName, "vana/bad", "Read"}); err == nil {
 		t.Fatalf("GetACL RPC inside acl set command failed but error wrongly not detected")
 	}
-	if expected, got := "ERROR: GetACL("+nodeName+") failed: oops!", strings.TrimSpace(stderr.String()); !strings.HasPrefix(got, expected) {
-		t.Fatalf("Unexpected output from list. Got %q, prefix %q", got, expected)
+	if expected, got := `^ERROR: GetACL\(`+nodeName+`\) failed:.*oops!`, strings.TrimSpace(stderr.String()); !regexp.MustCompile(expected).MatchString(got) {
+		t.Fatalf("Unexpected output from list. Got %q, regexp %q", got, expected)
 	}
 	if expected, got := "", strings.TrimSpace(stdout.String()); got != expected {
 		t.Fatalf("Unexpected output from list. Got %q, expected %q", got, expected)
@@ -262,8 +263,8 @@ func TestACLSetCommand(t *testing.T) {
 	if expected, got := "", strings.TrimSpace(stdout.String()); got != expected {
 		t.Fatalf("Unexpected output from list. Got %q, expected %q", got, expected)
 	}
-	if expected, got := "ERROR: SetACL("+nodeName+") failed: oops!", strings.TrimSpace(stderr.String()); !strings.HasPrefix(got, expected) {
-		t.Fatalf("Unexpected output from list. Got %q, prefix %q", got, expected)
+	if expected, got := `^ERROR: SetACL\(`+nodeName+`\) failed:.*oops!`, strings.TrimSpace(stderr.String()); !regexp.MustCompile(expected).MatchString(got) {
+		t.Fatalf("Unexpected output from list. Got %q, regexp %q", got, expected)
 	}
 
 	expected = []interface{}{

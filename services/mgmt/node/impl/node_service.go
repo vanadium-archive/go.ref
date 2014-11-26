@@ -47,6 +47,7 @@ import (
 	"veyron.io/veyron/veyron2/services/mgmt/binary"
 	"veyron.io/veyron/veyron2/services/mgmt/node"
 	"veyron.io/veyron/veyron2/services/security/access"
+	"veyron.io/veyron/veyron2/verror2"
 	"veyron.io/veyron/veyron2/vlog"
 
 	vexec "veyron.io/veyron/veyron/lib/exec"
@@ -97,7 +98,7 @@ func (i *nodeService) Claim(call ipc.ServerContext) error {
 	// Get the blessing to be used by the claimant.
 	blessings := call.Blessings()
 	if blessings == nil {
-		return errInvalidBlessing
+		return verror2.Make(ErrInvalidBlessing, call)
 	}
 	return i.disp.claimNodeManager(blessings.ForContext(call), blessings)
 }
@@ -220,7 +221,7 @@ func (i *nodeService) testNodeManager(ctx context.T, workspace string, envelope 
 	// Start the child process.
 	if err := handle.Start(); err != nil {
 		vlog.Errorf("Start() failed: %v", err)
-		return errOperationFailed
+		return verror2.Make(ErrOperationFailed, ctx)
 	}
 	defer func() {
 		if err := handle.Clean(); err != nil {
@@ -230,40 +231,40 @@ func (i *nodeService) testNodeManager(ctx context.T, workspace string, envelope 
 	// Wait for the child process to start.
 	if err := handle.WaitForReady(childReadyTimeout); err != nil {
 		vlog.Errorf("WaitForReady(%v) failed: %v", childReadyTimeout, err)
-		return errOperationFailed
+		return verror2.Make(ErrOperationFailed, ctx)
 	}
 	childName, err := listener.waitForValue(childReadyTimeout)
 	if err != nil {
-		return errOperationFailed
+		return verror2.Make(ErrOperationFailed, ctx)
 	}
 	// Check that invoking Update() succeeds.
 	childName = naming.Join(childName, "nm")
 	nmClient := node.NodeClient(childName)
 	linkOld, pathOld, err := i.getCurrentFileInfo()
 	if err != nil {
-		return errOperationFailed
+		return verror2.Make(ErrOperationFailed, ctx)
 	}
 	// Since the resolution of mtime for files is seconds, the test sleeps
 	// for a second to make sure it can check whether the current symlink is
 	// updated.
 	time.Sleep(time.Second)
 	if err := nmClient.Revert(ctx); err != nil {
-		return errOperationFailed
+		return verror2.Make(ErrOperationFailed, ctx)
 	}
 	linkNew, pathNew, err := i.getCurrentFileInfo()
 	if err != nil {
-		return errOperationFailed
+		return verror2.Make(ErrOperationFailed, ctx)
 	}
 	// Check that the new node manager updated the current symbolic link.
 	if !linkOld.ModTime().Before(linkNew.ModTime()) {
 		vlog.Errorf("new node manager test failed")
-		return errOperationFailed
+		return verror2.Make(ErrOperationFailed, ctx)
 	}
 	// Ensure that the current symbolic link points to the same script.
 	if pathNew != pathOld {
 		updateLink(pathOld, i.config.CurrentLink)
 		vlog.Errorf("new node manager test failed")
-		return errOperationFailed
+		return verror2.Make(ErrOperationFailed, ctx)
 	}
 	return nil
 }
@@ -276,7 +277,7 @@ func generateScript(workspace string, configSettings []string, envelope *applica
 	path, err := filepath.EvalSymlinks(os.Args[0])
 	if err != nil {
 		vlog.Errorf("EvalSymlinks(%v) failed: %v", os.Args[0], err)
-		return errOperationFailed
+		return verror2.Make(ErrOperationFailed, nil)
 	}
 
 	output := "#!/bin/bash\n"
@@ -292,31 +293,31 @@ func generateScript(workspace string, configSettings []string, envelope *applica
 	path = filepath.Join(workspace, "noded.sh")
 	if err := ioutil.WriteFile(path, []byte(output), 0700); err != nil {
 		vlog.Errorf("WriteFile(%v) failed: %v", path, err)
-		return errOperationFailed
+		return verror2.Make(ErrOperationFailed, nil)
 	}
 	return nil
 }
 
 func (i *nodeService) updateNodeManager(ctx context.T) error {
 	if len(i.config.Origin) == 0 {
-		return errUpdateNoOp
+		return verror2.Make(ErrUpdateNoOp, ctx)
 	}
 	envelope, err := fetchEnvelope(ctx, i.config.Origin)
 	if err != nil {
 		return err
 	}
 	if envelope.Title != application.NodeManagerTitle {
-		return errIncompatibleUpdate
+		return verror2.Make(ErrAppTitleMismatch, ctx)
 	}
 	if i.config.Envelope != nil && reflect.DeepEqual(envelope, i.config.Envelope) {
-		return errUpdateNoOp
+		return verror2.Make(ErrUpdateNoOp, ctx)
 	}
 	// Create new workspace.
 	workspace := filepath.Join(i.config.Root, "node-manager", generateVersionDirName())
 	perm := os.FileMode(0700)
 	if err := os.MkdirAll(workspace, perm); err != nil {
 		vlog.Errorf("MkdirAll(%v, %v) failed: %v", workspace, perm, err)
-		return errOperationFailed
+		return verror2.Make(ErrOperationFailed, ctx)
 	}
 
 	deferrer := func() {
@@ -345,7 +346,7 @@ func (i *nodeService) updateNodeManager(ctx context.T) error {
 	// Populate the new workspace with a node manager script.
 	configSettings, err := i.config.Save(envelope)
 	if err != nil {
-		return errOperationFailed
+		return verror2.Make(ErrOperationFailed, ctx)
 	}
 
 	if err := generateScript(workspace, configSettings, envelope); err != nil {
@@ -365,8 +366,8 @@ func (i *nodeService) updateNodeManager(ctx context.T) error {
 	return nil
 }
 
-func (*nodeService) Install(ipc.ServerContext, string) (string, error) {
-	return "", errInvalidSuffix
+func (*nodeService) Install(ctx ipc.ServerContext, _ string) (string, error) {
+	return "", verror2.Make(ErrInvalidSuffix, ctx)
 }
 
 func (*nodeService) Refresh(ipc.ServerContext) error {
@@ -379,17 +380,17 @@ func (*nodeService) Restart(ipc.ServerContext) error {
 	return nil
 }
 
-func (*nodeService) Resume(ipc.ServerContext) error {
-	return errInvalidSuffix
+func (*nodeService) Resume(ctx ipc.ServerContext) error {
+	return verror2.Make(ErrInvalidSuffix, ctx)
 }
 
 func (i *nodeService) Revert(call ipc.ServerContext) error {
 	if i.config.Previous == "" {
-		return errUpdateNoOp
+		return verror2.Make(ErrUpdateNoOp, call)
 	}
 	updatingState := i.updating
 	if updatingState.testAndSetUpdating() {
-		return errInProgress
+		return verror2.Make(ErrOperationInProgress, call)
 	}
 	err := i.revertNodeManager()
 	if err != nil {
@@ -398,12 +399,12 @@ func (i *nodeService) Revert(call ipc.ServerContext) error {
 	return err
 }
 
-func (*nodeService) Start(ipc.ServerContext) ([]string, error) {
-	return nil, errInvalidSuffix
+func (*nodeService) Start(ctx ipc.ServerContext) ([]string, error) {
+	return nil, verror2.Make(ErrInvalidSuffix, ctx)
 }
 
-func (*nodeService) Stop(ipc.ServerContext, uint32) error {
-	return errInvalidSuffix
+func (*nodeService) Stop(ctx ipc.ServerContext, _ uint32) error {
+	return verror2.Make(ErrInvalidSuffix, ctx)
 }
 
 func (*nodeService) Suspend(ipc.ServerContext) error {
@@ -411,17 +412,17 @@ func (*nodeService) Suspend(ipc.ServerContext) error {
 	return nil
 }
 
-func (*nodeService) Uninstall(ipc.ServerContext) error {
-	return errInvalidSuffix
+func (*nodeService) Uninstall(ctx ipc.ServerContext) error {
+	return verror2.Make(ErrInvalidSuffix, ctx)
 }
 
-func (i *nodeService) Update(ipc.ServerContext) error {
+func (i *nodeService) Update(call ipc.ServerContext) error {
 	ctx, cancel := rt.R().NewContext().WithTimeout(ipcContextTimeout)
 	defer cancel()
 
 	updatingState := i.updating
 	if updatingState.testAndSetUpdating() {
-		return errInProgress
+		return verror2.Make(ErrOperationInProgress, call)
 	}
 
 	err := i.updateNodeManager(ctx)
@@ -444,13 +445,13 @@ func (i *nodeService) GetACL(_ ipc.ServerContext) (acl access.TaggedACLMap, etag
 	return i.disp.getACL()
 }
 
-func sameMachineCheck(call ipc.ServerContext) error {
-	switch local, err := netstate.SameMachine(call.RemoteEndpoint().Addr()); {
+func sameMachineCheck(ctx ipc.ServerContext) error {
+	switch local, err := netstate.SameMachine(ctx.RemoteEndpoint().Addr()); {
 	case err != nil:
 		return err
 	case local == false:
 		vlog.Errorf("SameMachine() indicates that endpoint is not on the same node")
-		return errOperationFailed
+		return verror2.Make(ErrOperationFailed, ctx)
 	}
 	return nil
 }

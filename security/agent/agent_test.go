@@ -4,7 +4,6 @@ import (
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/rand"
-	"errors"
 	"reflect"
 	"testing"
 
@@ -15,6 +14,7 @@ import (
 	"veyron.io/veyron/veyron2/options"
 	"veyron.io/veyron/veyron2/rt"
 	"veyron.io/veyron/veyron2/security"
+	"veyron.io/veyron/veyron2/verror2"
 )
 
 func setupAgent(t *testing.T, p security.Principal) security.Principal {
@@ -39,13 +39,17 @@ type testInfo struct {
 	Method string
 	Args   V
 	Result interface{} // Result returned by the Method call.
-	Error  error       // If Error is not nil will be compared to the last result.
+	Error  verror2.E   // If Error is not nil will be compared to the last result.
 }
 
-var addToRootsErr = errors.New("AddToRoots")
-var storeSetDefaultErr = errors.New("StoreSetDefault")
-var rootsAddErr = errors.New("RootsAdd")
-var rootsRecognizedErr = errors.New("RootsRecognized")
+const pkgPath = "veyron.io/veyron/veyron/security/agent/"
+
+var (
+	addToRootsErr      = verror2.Register(pkgPath+".addToRoots", verror2.NoRetry, "")
+	storeSetDefaultErr = verror2.Register(pkgPath+".storeSetDefault", verror2.NoRetry, "")
+	rootsAddErr        = verror2.Register(pkgPath+".rootsAdd", verror2.NoRetry, "")
+	rootsRecognizedErr = verror2.Register(pkgPath+".rootsRecognized", verror2.NoRetry, "")
+)
 
 func TestAgent(t *testing.T) {
 	var (
@@ -56,10 +60,12 @@ func TestAgent(t *testing.T) {
 	tests := []testInfo{
 		{"BlessSelf", V{"self"}, newBlessing(t, "blessing"), nil},
 		{"Bless", V{newPrincipal(t).PublicKey(), newBlessing(t, "root"), "extension", security.UnconstrainedUse()}, newBlessing(t, "root/extension"), nil},
+		// TODO(toddw): This change is necessary for vom2:
+		//{"Sign", V{make([]byte, 10)}, security.Signature{Purpose: []byte{}, R: []byte{1}, S: []byte{1}}, nil},
 		{"Sign", V{make([]byte, 10)}, security.Signature{R: []byte{1}, S: []byte{1}}, nil},
 		{"MintDischarge", V{thirdPartyCaveat, security.UnconstrainedUse()}, discharge, nil},
 		{"PublicKey", V{}, mockP.PublicKey(), nil},
-		{"AddToRoots", V{newBlessing(t, "blessing")}, nil, addToRootsErr},
+		{"AddToRoots", V{newBlessing(t, "blessing")}, nil, verror2.Make(addToRootsErr, nil)},
 	}
 	for _, test := range tests {
 		mockP.NextResult = test.Result
@@ -71,7 +77,7 @@ func TestAgent(t *testing.T) {
 	storeTests := []testInfo{
 		{"Set", V{newBlessing(t, "blessing"), security.BlessingPattern("test")}, newBlessing(t, "root/extension"), nil},
 		{"ForPeer", V{"test", "oink"}, newBlessing(t, "for/peer"), nil},
-		{"SetDefault", V{newBlessing(t, "blessing")}, nil, storeSetDefaultErr},
+		{"SetDefault", V{newBlessing(t, "blessing")}, nil, verror2.Make(storeSetDefaultErr, nil)},
 		{"Default", V{}, newBlessing(t, "root/extension"), nil},
 		{"PublicKey", V{}, mockP.PublicKey(), nil},
 		{"DebugString", V{}, "StoreString", nil},
@@ -84,8 +90,8 @@ func TestAgent(t *testing.T) {
 
 	roots := agent.Roots()
 	rootTests := []testInfo{
-		{"Add", V{newPrincipal(t).PublicKey(), security.BlessingPattern("test")}, nil, rootsAddErr},
-		{"Recognized", V{newPrincipal(t).PublicKey(), "blessing"}, nil, rootsRecognizedErr},
+		{"Add", V{newPrincipal(t).PublicKey(), security.BlessingPattern("test")}, nil, verror2.Make(rootsAddErr, nil)},
+		{"Recognized", V{newPrincipal(t).PublicKey(), "blessing"}, nil, verror2.Make(rootsRecognizedErr, nil)},
 		{"DebugString", V{}, "RootsString", nil},
 	}
 	for _, test := range rootTests {
@@ -103,7 +109,7 @@ func runTest(t *testing.T, receiver interface{}, test testInfo) {
 	}
 	// We only set the error value when error is the only output to ensure the real function gets called.
 	if test.Error != nil {
-		if got := results[len(results)-1]; got == nil || got.(error).Error() != test.Error.Error() {
+		if got := results[len(results)-1]; got == nil || !verror2.Is(got.(error), test.Error.ErrorID()) {
 			t.Errorf("p.%v(%#v) returned an incorrect error: %v, expected %v", test.Method, test.Args, got, test.Error)
 		}
 		if len(results) == 1 {
@@ -111,7 +117,7 @@ func runTest(t *testing.T, receiver interface{}, test testInfo) {
 		}
 	}
 	if got := results[0]; !reflect.DeepEqual(got, test.Result) {
-		t.Errorf("p.%v(%#v) returned %v(%T) want %v(%T)", test.Method, test.Args, got, got, test.Result, test.Result)
+		t.Errorf("p.%v(%#v) returned %#v want %#v", test.Method, test.Args, got, test.Result)
 	}
 }
 

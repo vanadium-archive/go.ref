@@ -1,13 +1,13 @@
 package impl
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
-	"veyron.io/veyron/veyron2/services/mgmt/node"
-	"veyron.io/veyron/veyron2/verror"
-
-	"encoding/json"
 	"sync"
+
+	"veyron.io/veyron/veyron2/services/mgmt/node"
+	"veyron.io/veyron/veyron2/verror2"
 )
 
 // BlessingSystemAssociationStore manages a persisted association between
@@ -65,7 +65,7 @@ func (u *association) AllBlessingSystemAssociations() ([]node.Association, error
 func (u *association) serialize() (err error) {
 	f, err := os.OpenFile(u.filename, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0600)
 	if err != nil {
-		return verror.NoExistf("Could not open association file for writing %s: %v", u.filename, err)
+		return verror2.Make(verror2.NoExist, nil, "Could not open association file for writing", u.filename, err)
 	}
 	defer func() {
 		if closerr := f.Close(); closerr != nil {
@@ -100,13 +100,13 @@ func (u *association) DisassociateSystemAccountForBlessings(blessings []string) 
 func NewBlessingSystemAssociationStore(root string) (BlessingSystemAssociationStore, error) {
 	nddir := filepath.Join(root, "node-manager", "node-data")
 	if err := os.MkdirAll(nddir, os.FileMode(0700)); err != nil {
-		return nil, verror.NoExistf("Could not create node-data directory %s: %v\n", nddir, err)
+		return nil, verror2.Make(verror2.NoExist, nil, "Could not create node-data directory", nddir, err)
 	}
 	msf := filepath.Join(nddir, "associated.accounts")
 
 	f, err := os.Open(msf)
 	if err != nil && os.IsExist(err) {
-		return nil, verror.NoExistf("Could not open association file %s: %v\n", msf, err)
+		return nil, verror2.Make(verror2.NoExist, nil, "Could not open association file", msf, err)
 
 	}
 	defer f.Close()
@@ -117,7 +117,7 @@ func NewBlessingSystemAssociationStore(root string) (BlessingSystemAssociationSt
 		dec := json.NewDecoder(f)
 		err := dec.Decode(&a.data)
 		if err != nil {
-			return nil, verror.NoExistf("Could not read association file %s: %v\n", msf, err)
+			return nil, verror2.Make(verror2.NoExist, nil, "Could not read association file", msf, err)
 		}
 	}
 	return BlessingSystemAssociationStore(a), nil

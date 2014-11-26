@@ -9,6 +9,7 @@ import (
 	"io"
 
 	"veyron.io/veyron/veyron2/security"
+	"veyron.io/veyron/veyron2/vdl/vdlutil"
 	"veyron.io/veyron/veyron2/vom"
 )
 
@@ -119,5 +120,5 @@ func (r *verifyingReader) verifySignature(signature io.Reader, key security.Publ
 }
 
 func init() {
-	vom.Register([sha256.Size]byte{})
+	vdlutil.Register([sha256.Size]byte{})
 }

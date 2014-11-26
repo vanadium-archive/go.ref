@@ -107,6 +107,8 @@ func TestStatsImpl(t *testing.T) {
 
 	// Test WatchGlob()
 	{
+		noRM := types.ResumeMarker{}
+		_ = noRM
 		stream, err := c.WatchGlob(rt.R().NewContext(), types.GlobRequest{Pattern: "testing/foo/bar"})
 		if err != nil {
 			t.Fatalf("c.WatchGlob failed: %v", err)
@@ -116,6 +118,8 @@ func TestStatsImpl(t *testing.T) {
 			t.Fatalf("expected more stream values")
 		}
 		got := iterator.Value()
+		// TODO(toddw): This change is necessary for vom2:
+		//expected := types.Change{Name: "testing/foo/bar", Value: int64(10), ResumeMarker: noRM}
 		expected := types.Change{Name: "testing/foo/bar", Value: int64(10)}
 		if !reflect.DeepEqual(got, expected) {
 			t.Errorf("unexpected result. Got %#v, want %#v", got, expected)
@@ -127,6 +131,8 @@ func TestStatsImpl(t *testing.T) {
 			t.Fatalf("expected more stream values")
 		}
 		got = iterator.Value()
+		// TODO(toddw): This change is necessary for vom2:
+		//expected := types.Change{Name: "testing/foo/bar", Value: int64(15), ResumeMarker: noRM}
 		expected = types.Change{Name: "testing/foo/bar", Value: int64(15)}
 		if !reflect.DeepEqual(got, expected) {
 			t.Errorf("unexpected result. Got %#v, want %#v", got, expected)
@@ -138,6 +144,8 @@ func TestStatsImpl(t *testing.T) {
 			t.Fatalf("expected more stream values")
 		}
 		got = iterator.Value()
+		// TODO(toddw): This change is necessary for vom2:
+		//expected := types.Change{Name: "testing/foo/bar", Value: int64(17), ResumeMarker: noRM}
 		expected = types.Change{Name: "testing/foo/bar", Value: int64(17)}
 		if !reflect.DeepEqual(got, expected) {
 			t.Errorf("unexpected result. Got %#v, want %#v", got, expected)

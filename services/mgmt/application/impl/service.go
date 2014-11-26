@@ -1,13 +1,13 @@
 package impl
 
 import (
-	"errors"
 	"strings"
 
 	"veyron.io/veyron/veyron/services/mgmt/lib/fs"
 	"veyron.io/veyron/veyron2/ipc"
 	"veyron.io/veyron/veyron2/naming"
 	"veyron.io/veyron/veyron2/services/mgmt/application"
+	"veyron.io/veyron/veyron2/verror2"
 	"veyron.io/veyron/veyron2/vlog"
 )
 
@@ -24,10 +24,12 @@ type appRepoService struct {
 	suffix string
 }
 
+const pkgPath = "veyron.io/veyron/veyron/services/mgmt/application/impl/"
+
 var (
-	errInvalidSuffix   = errors.New("invalid suffix")
-	errOperationFailed = errors.New("operation failed")
-	errNotFound        = errors.New("not found")
+	errInvalidSuffix   = verror2.Register(pkgPath+".invalidSuffix", verror2.NoRetry, "")
+	errOperationFailed = verror2.Register(pkgPath+".operationFailed", verror2.NoRetry, "")
+	errNotFound        = verror2.Register(pkgPath+".notFound", verror2.NoRetry, "")
 )
 
 // NewApplicationService returns a new Application service implementation.
@@ -35,7 +37,7 @@ func NewApplicationService(store *fs.Memstore, storeRoot, suffix string) *appRep
 	return &appRepoService{store: store, storeRoot: storeRoot, suffix: suffix}
 }
 
-func parse(suffix string) (string, string, error) {
+func parse(context ipc.ServerContext, suffix string) (string, string, error) {
 	tokens := strings.Split(suffix, "/")
 	switch len(tokens) {
 	case 2:
@@ -43,19 +45,19 @@ func parse(suffix string) (string, string, error) {
 	case 1:
 		return tokens[0], "", nil
 	default:
-		return "", "", errInvalidSuffix
+		return "", "", verror2.Make(errInvalidSuffix, context)
 	}
 }
 
 func (i *appRepoService) Match(context ipc.ServerContext, profiles []string) (application.Envelope, error) {
 	vlog.VI(0).Infof("%v.Match(%v)", i.suffix, profiles)
 	empty := application.Envelope{}
-	name, version, err := parse(i.suffix)
+	name, version, err := parse(context, i.suffix)
 	if err != nil {
 		return empty, err
 	}
 	if version == "" {
-		return empty, errInvalidSuffix
+		return empty, verror2.Make(errInvalidSuffix, context)
 	}
 
 	i.store.Lock()
@@ -73,17 +75,17 @@ func (i *appRepoService) Match(context ipc.ServerContext, profiles []string) (ap
 		}
 		return envelope, nil
 	}
-	return empty, errNotFound
+	return empty, verror2.Make(errNotFound, context)
 }
 
 func (i *appRepoService) Put(context ipc.ServerContext, profiles []string, envelope application.Envelope) error {
 	vlog.VI(0).Infof("%v.Put(%v, %v)", i.suffix, profiles, envelope)
-	name, version, err := parse(i.suffix)
+	name, version, err := parse(context, i.suffix)
 	if err != nil {
 		return err
 	}
 	if version == "" {
-		return errInvalidSuffix
+		return verror2.Make(errInvalidSuffix, context)
 	}
 	i.store.Lock()
 	defer i.store.Unlock()
@@ -99,18 +101,18 @@ func (i *appRepoService) Put(context ipc.ServerContext, profiles []string, envel
 		object := i.store.BindObject(path)
 		_, err := object.Put(context, envelope)
 		if err != nil {
-			return errOperationFailed
+			return verror2.Make(errOperationFailed, context)
 		}
 	}
 	if err := i.store.BindTransaction(tname).Commit(context); err != nil {
-		return errOperationFailed
+		return verror2.Make(errOperationFailed, context)
 	}
 	return nil
 }
 
 func (i *appRepoService) Remove(context ipc.ServerContext, profile string) error {
 	vlog.VI(0).Infof("%v.Remove(%v)", i.suffix, profile)
-	name, version, err := parse(i.suffix)
+	name, version, err := parse(context, i.suffix)
 	if err != nil {
 		return err
 	}
@@ -128,16 +130,16 @@ func (i *appRepoService) Remove(context ipc.ServerContext, profile string) error
 	object := i.store.BindObject(path)
 	found, err := object.Exists(context)
 	if err != nil {
-		return errOperationFailed
+		return verror2.Make(errOperationFailed, context)
 	}
 	if !found {
-		return errNotFound
+		return verror2.Make(errNotFound, context)
 	}
 	if err := object.Remove(context); err != nil {
-		return errOperationFailed
+		return verror2.Make(errOperationFailed, context)
 	}
 	if err := i.store.BindTransaction(tname).Commit(context); err != nil {
-		return errOperationFailed
+		return verror2.Make(errOperationFailed, context)
 	}
 	return nil
 }
@@ -207,9 +209,9 @@ func (i *appRepoService) GlobChildren__() (<-chan string, error) {
 				return nil, nil
 			}
 		}
-		return nil, errNotFound
+		return nil, verror2.Make(errNotFound, nil)
 	default:
-		return nil, errNotFound
+		return nil, verror2.Make(errNotFound, nil)
 	}
 
 	ch := make(chan string, len(results))

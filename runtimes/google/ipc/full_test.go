@@ -25,7 +25,6 @@ import (
 	"veyron.io/veyron/veyron2/vdl/vdlutil"
 	verror "veyron.io/veyron/veyron2/verror2"
 	"veyron.io/veyron/veyron2/vlog"
-	"veyron.io/veyron/veyron2/vom"
 
 	"veyron.io/veyron/veyron/lib/netstate"
 	"veyron.io/veyron/veyron/lib/testutil"
@@ -374,7 +373,7 @@ func TestMultipleCallsToServeAndName(t *testing.T) {
 func TestRPCServerAuthorization(t *testing.T) {
 	const (
 		vcErr   = "VC handshake failed"
-		nameErr = "does not match the provided pattern"
+		nameErr = "do not match pattern"
 	)
 	var (
 		pprovider, pclient, pserver = tsecurity.NewPrincipal("root"), tsecurity.NewPrincipal(), tsecurity.NewPrincipal()
@@ -1605,5 +1604,5 @@ func TestNoImplicitDischargeFetching(t *testing.T) {
 
 func init() {
 	testutil.Init()
-	vom.Register(fakeTimeCaveat(0))
+	vdlutil.Register(fakeTimeCaveat(0))
 }

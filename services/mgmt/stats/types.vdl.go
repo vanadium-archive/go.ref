@@ -4,6 +4,11 @@
 // Packages stats defines the non-native types exported by the stats service.
 package stats
 
+import (
+	// The non-user imports are prefixed with "__" to prevent collisions.
+	__vdl "veyron.io/veyron/veyron2/vdl"
+)
+
 // HistogramValue is the value of Histogram objects.
 type HistogramValue struct {
 	// Count is the total number of values added to the histogram.
@@ -14,10 +19,25 @@ type HistogramValue struct {
 	Buckets []HistogramBucket
 }
 
+func (HistogramValue) __VDLReflect(struct {
+	Name string "veyron.io/veyron/veyron/services/mgmt/stats.HistogramValue"
+}) {
+}
+
 // HistogramBucket is one histogram bucket.
 type HistogramBucket struct {
 	// LowBound is the lower bound of the bucket.
 	LowBound int64
 	// Count is the number of values in the bucket.
 	Count int64
+}
+
+func (HistogramBucket) __VDLReflect(struct {
+	Name string "veyron.io/veyron/veyron/services/mgmt/stats.HistogramBucket"
+}) {
+}
+
+func init() {
+	__vdl.Register(HistogramValue{})
+	__vdl.Register(HistogramBucket{})
 }

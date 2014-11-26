@@ -3,10 +3,20 @@
 
 package proxy
 
+import (
+	// The non-user imports are prefixed with "__" to prevent collisions.
+	__vdl "veyron.io/veyron/veyron2/vdl"
+)
+
 // Request is the message sent by a server to request that the proxy route
 // traffic intended for the server's RoutingID to the network connection
 // between the server and the proxy.
 type Request struct {
+}
+
+func (Request) __VDLReflect(struct {
+	Name string "veyron.io/veyron/veyron/runtimes/google/ipc/stream/proxy.Request"
+}) {
 }
 
 // Response is sent by the proxy to the server after processing Request.
@@ -17,4 +27,14 @@ type Response struct {
 	// Endpoint is the string representation of an endpoint that can be
 	// used to communicate with the server through the proxy.
 	Endpoint string
+}
+
+func (Response) __VDLReflect(struct {
+	Name string "veyron.io/veyron/veyron/runtimes/google/ipc/stream/proxy.Response"
+}) {
+}
+
+func init() {
+	__vdl.Register(Request{})
+	__vdl.Register(Response{})
 }

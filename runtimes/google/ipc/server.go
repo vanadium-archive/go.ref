@@ -20,6 +20,7 @@ import (
 	"veyron.io/veyron/veyron2/verror"
 	"veyron.io/veyron/veyron2/vlog"
 	"veyron.io/veyron/veyron2/vom"
+	"veyron.io/veyron/veyron2/vom2"
 	"veyron.io/veyron/veyron2/vtrace"
 
 	"veyron.io/veyron/veyron/lib/netstate"
@@ -432,12 +433,17 @@ func (s *server) listenLoop(ln stream.Listener, ep naming.Endpoint) {
 		}
 		calls.Add(1)
 		go func(flow stream.Flow) {
-			if err := newFlowServer(flow, s).serve(); err != nil {
+			defer calls.Done()
+			fs, err := newFlowServer(flow, s)
+			if err != nil {
+				vlog.Errorf("newFlowServer on %v failed: %v", ln, err)
+				return
+			}
+			if err := fs.serve(); err != nil {
 				// TODO(caprita): Logging errors here is too spammy. For example, "not
 				// authorized" errors shouldn't be logged as server errors.
 				vlog.Errorf("Flow serve on %v failed: %v", ln, err)
 			}
-			calls.Done()
 		}(flow)
 	}
 }
@@ -627,14 +633,23 @@ func (s *server) Stop() error {
 	return firstErr
 }
 
+// TODO(toddw): Remove these interfaces after the vom2 transition.
+type vomEncoder interface {
+	Encode(v interface{}) error
+}
+
+type vomDecoder interface {
+	Decode(v interface{}) error
+}
+
 // flowServer implements the RPC server-side protocol for a single RPC, over a
 // flow that's already connected to the client.
 type flowServer struct {
 	context.T
 	server *server        // ipc.Server that this flow server belongs to
 	disp   ipc.Dispatcher // ipc.Dispatcher that will serve RPCs on this flow
-	dec    *vom.Decoder   // to decode requests and args from the client
-	enc    *vom.Encoder   // to encode responses and results to the client
+	dec    vomDecoder     // to decode requests and args from the client
+	enc    vomEncoder     // to encode responses and results to the client
 	flow   stream.Flow    // underlying flow
 
 	// Fields filled in during the server invocation.
@@ -649,21 +664,33 @@ type flowServer struct {
 
 var _ ipc.Stream = (*flowServer)(nil)
 
-func newFlowServer(flow stream.Flow, server *server) *flowServer {
+func newFlowServer(flow stream.Flow, server *server) (*flowServer, error) {
 	server.Lock()
 	disp := server.disp
 	server.Unlock()
 
-	return &flowServer{
-		T:      server.ctx,
-		server: server,
-		disp:   disp,
-		// TODO(toddw): Support different codecs
-		dec:        vom.NewDecoder(flow),
-		enc:        vom.NewEncoder(flow),
+	fs := &flowServer{
+		T:          server.ctx,
+		server:     server,
+		disp:       disp,
 		flow:       flow,
 		discharges: make(map[string]security.Discharge),
 	}
+	if vom2.IsEnabled() {
+		var err error
+		if fs.dec, err = vom2.NewDecoder(flow); err != nil {
+			flow.Close()
+			return nil, err
+		}
+		if fs.enc, err = vom2.NewBinaryEncoder(flow); err != nil {
+			flow.Close()
+			return nil, err
+		}
+	} else {
+		fs.dec = vom.NewDecoder(flow)
+		fs.enc = vom.NewEncoder(flow)
+	}
+	return fs, nil
 }
 
 // Vom does not encode untyped nils.
@@ -677,7 +704,7 @@ func newFlowServer(flow stream.Flow, server *server) *flowServer {
 // - Server methods return 0 or more results
 // - Any values returned by the server that have an interface type are either
 //   non-nil or of type error.
-func result2vom(res interface{}) vom.Value {
+func vomErrorHack(res interface{}) vom.Value {
 	v := vom.ValueOf(res)
 	if !v.IsValid() {
 		// Untyped nils are assumed to be nil-errors.
@@ -691,6 +718,22 @@ func result2vom(res interface{}) vom.Value {
 		return vom.ValueOf(verror.Convert(err))
 	}
 	return v
+}
+
+// TODO(toddw): Remove this function and encodeValueHack after the vom2 transition.
+func vom2ErrorHack(res interface{}) interface{} {
+	if err, ok := res.(error); ok {
+		return &err
+	}
+	return res
+}
+
+// TODO(toddw): Remove this function and vom2ErrorHack after the vom2 transition.
+func (fs *flowServer) encodeValueHack(res interface{}) error {
+	if vom2.IsEnabled() {
+		return fs.enc.Encode(vom2ErrorHack(res))
+	}
+	return fs.enc.(*vom.Encoder).EncodeValue(vomErrorHack(res))
 }
 
 func (fs *flowServer) serve() error {
@@ -719,7 +762,7 @@ func (fs *flowServer) serve() error {
 		return response.Error
 	}
 	for ix, res := range results {
-		if err := fs.enc.EncodeValue(result2vom(res)); err != nil {
+		if err := fs.encodeValueHack(res); err != nil {
 			return verror.BadProtocolf("ipc: result #%d [%T=%v] encoding failed: %v", ix, res, res, err)
 		}
 	}

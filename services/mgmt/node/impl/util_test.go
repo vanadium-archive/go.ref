@@ -19,6 +19,7 @@ import (
 	"veyron.io/veyron/veyron2/security"
 	"veyron.io/veyron/veyron2/services/mgmt/node"
 	"veyron.io/veyron/veyron2/verror"
+	"veyron.io/veyron/veyron2/verror2"
 	"veyron.io/veyron/veyron2/vlog"
 
 	"veyron.io/veyron/veyron/lib/expect"
@@ -168,7 +169,7 @@ func newServer() (ipc.Server, string) {
 func resolveExpectNotFound(t *testing.T, name string) {
 	if results, err := rt.R().Namespace().Resolve(rt.R().NewContext(), name); err == nil {
 		t.Fatalf("Resolve(%v) succeeded with results %v when it was expected to fail", name, results)
-	} else if expectErr := naming.ErrNoSuchName.ID; !verror.Is(err, expectErr) {
+	} else if expectErr := naming.ErrNoSuchName.ID; !verror2.Is(err, expectErr) {
 		t.Fatalf("Resolve(%v) failed with error %v, expected error ID %v", name, err, expectErr)
 	}
 }
@@ -202,11 +203,7 @@ func nodeStub(name string) node.NodeClientMethods {
 }
 
 func updateNodeExpectError(t *testing.T, name string, errID verror.ID) {
-	if err := nodeStub(name).Update(rt.R().NewContext()); !verror.Is(err, errID) {
-		if errID == naming.ErrNoSuchName.ID && err.Error() == "no different version available" {
-			// TODO(bprosnitz) Remove this check when errUpdateNoOp is updated to verror2
-			return
-		}
+	if err := nodeStub(name).Update(rt.R().NewContext()); !verror2.Is(err, errID) {
 		t.Fatalf("%s: Update(%v) expected to fail with %v, got %v instead", loc(1), name, errID, err)
 	}
 }
@@ -218,11 +215,7 @@ func updateNode(t *testing.T, name string) {
 }
 
 func revertNodeExpectError(t *testing.T, name string, errID verror.ID) {
-	if err := nodeStub(name).Revert(rt.R().NewContext()); !verror.Is(err, errID) {
-		if errID == naming.ErrNoSuchName.ID && err.Error() == "no different version available" {
-			// TODO(bprosnitz) Remove this check when errUpdateNoOp is updated to verror2
-			return
-		}
+	if err := nodeStub(name).Revert(rt.R().NewContext()); !verror2.Is(err, errID) {
 		t.Fatalf("%s: Revert(%v) expected to fail with %v, got %v instead", loc(1), name, errID, err)
 	}
 }
@@ -292,7 +285,7 @@ func startApp(t *testing.T, appID string, opt ...veyron2.Runtime) string {
 }
 
 func startAppExpectError(t *testing.T, appID string, expectedError verror.ID, opt ...veyron2.Runtime) {
-	if _, err := startAppImpl(t, appID, "forapp", opt...); err == nil || !verror.Is(err, expectedError) {
+	if _, err := startAppImpl(t, appID, "forapp", opt...); err == nil || !verror2.Is(err, expectedError) {
 		t.Fatalf("%s: Start(%v) expected to fail with %v, got %v instead", loc(1), appID, expectedError, err)
 	}
 }
@@ -316,7 +309,7 @@ func resumeApp(t *testing.T, appID, instanceID string, opt ...veyron2.Runtime) {
 }
 
 func resumeAppExpectError(t *testing.T, appID, instanceID string, expectedError verror.ID, opt ...veyron2.Runtime) {
-	if err := appStub(appID, instanceID).Resume(ort(opt).NewContext()); err == nil || !verror.Is(err, expectedError) {
+	if err := appStub(appID, instanceID).Resume(ort(opt).NewContext()); err == nil || !verror2.Is(err, expectedError) {
 		t.Fatalf("%s: Resume(%v/%v) expected to fail with %v, got %v instead", loc(1), appID, instanceID, expectedError, err)
 	}
 }
@@ -328,11 +321,7 @@ func updateApp(t *testing.T, appID string, opt ...veyron2.Runtime) {
 }
 
 func updateAppExpectError(t *testing.T, appID string, expectedError verror.ID) {
-	if err := appStub(appID).Update(rt.R().NewContext()); err == nil || !verror.Is(err, expectedError) {
-		if expectedError == naming.ErrNoSuchName.ID && err.Error() == "no different version available" {
-			// TODO(bprosnitz) Remove this check when errUpdateNoOp is updated to verror2
-			return
-		}
+	if err := appStub(appID).Update(rt.R().NewContext()); err == nil || !verror2.Is(err, expectedError) {
 		t.Fatalf("%s: Update(%v) expected to fail with %v, got %v instead", loc(1), appID, expectedError, err)
 	}
 }
@@ -344,11 +333,7 @@ func revertApp(t *testing.T, appID string) {
 }
 
 func revertAppExpectError(t *testing.T, appID string, expectedError verror.ID) {
-	if err := appStub(appID).Revert(rt.R().NewContext()); err == nil || !verror.Is(err, expectedError) {
-		if expectedError == naming.ErrNoSuchName.ID && err.Error() == "no different version available" {
-			// TODO(bprosnitz) Remove this check when errUpdateNoOp is updated to verror2
-			return
-		}
+	if err := appStub(appID).Revert(rt.R().NewContext()); err == nil || !verror2.Is(err, expectedError) {
 		t.Fatalf("%s: Revert(%v) expected to fail with %v, got %v instead", loc(1), appID, expectedError, err)
 	}
 }

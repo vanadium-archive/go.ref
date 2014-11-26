@@ -29,6 +29,7 @@ import (
 	"veyron.io/veyron/veyron2/services/mgmt/stats"
 	"veyron.io/veyron/veyron2/services/security/access"
 	"veyron.io/veyron/veyron2/verror"
+	"veyron.io/veyron/veyron2/verror2"
 	"veyron.io/veyron/veyron2/vlog"
 )
 
@@ -71,18 +72,19 @@ const (
 	appsSuffix   = "apps"
 	nodeSuffix   = "nm"
 	configSuffix = "cfg"
+
+	pkgPath = "veyron.io/veyron/veyron/services/mgmt/node/impl"
 )
 
 var (
-	errInvalidSuffix      = verror.BadArgf("invalid suffix")
-	errOperationFailed    = verror.Internalf("operation failed")
-	errInProgress         = verror.Existsf("operation in progress")
-	errIncompatibleUpdate = verror.BadArgf("update failed: mismatching app title")
-	// TODO(bprosnitz) Remove the TODO blocks in util_test when these are upgraded to verror2
-	errUpdateNoOp       = verror.NoExistf("no different version available")
-	errNotExist         = verror.NoExistf("object does not exist")
-	errInvalidOperation = verror.BadArgf("invalid operation")
-	errInvalidBlessing  = verror.BadArgf("invalid claim blessing")
+	ErrInvalidSuffix       = verror2.Register(pkgPath+".InvalidSuffix", verror2.NoRetry, "")
+	ErrOperationFailed     = verror2.Register(pkgPath+".OperationFailed", verror2.NoRetry, "")
+	ErrOperationInProgress = verror2.Register(pkgPath+".OperationInProgress", verror2.NoRetry, "")
+	ErrAppTitleMismatch    = verror2.Register(pkgPath+".AppTitleMismatch", verror2.NoRetry, "")
+	ErrUpdateNoOp          = verror2.Register(pkgPath+".UpdateNoOp", verror2.NoRetry, "")
+	ErrObjectNoExist       = verror2.Register(pkgPath+".ObjectNoExist", verror2.NoRetry, "")
+	ErrInvalidOperation    = verror2.Register(pkgPath+".InvalidOperation", verror2.NoRetry, "")
+	ErrInvalidBlessing     = verror2.Register(pkgPath+".InvalidBlessing", verror2.NoRetry, "")
 )
 
 // NewDispatcher is the node manager dispatcher factory.
@@ -161,7 +163,7 @@ func (d *dispatcher) claimNodeManager(names []string, proof security.Blessings) 
 	// TODO(rjkroege): Scrub the state tree of installation and instance ACL files.
 	if len(names) == 0 {
 		vlog.Errorf("No names for claimer(%v) are trusted", proof)
-		return errOperationFailed
+		return verror2.Make(ErrOperationFailed, nil)
 	}
 	rt.R().Principal().BlessingStore().Set(proof, security.AllPrincipals)
 	rt.R().Principal().BlessingStore().SetDefault(proof)
@@ -175,11 +177,11 @@ func (d *dispatcher) claimNodeManager(names []string, proof security.Blessings) 
 	_, etag, err := d.getACL()
 	if err != nil {
 		vlog.Errorf("Failed to getACL:%v", err)
-		return errOperationFailed
+		return verror2.Make(ErrOperationFailed, nil)
 	}
 	if err := d.setACL(acl, etag, true /* store ACL on disk */); err != nil {
 		vlog.Errorf("Failed to setACL:%v", err)
-		return errOperationFailed
+		return verror2.Make(ErrOperationFailed, nil)
 	}
 	return nil
 }
@@ -274,27 +276,27 @@ func writeACLs(aclFile, sigFile, dir string, acl access.TaggedACLMap) error {
 	data, err := ioutil.TempFile(dir, "data")
 	if err != nil {
 		vlog.Errorf("Failed to open tmpfile data:%v", err)
-		return errOperationFailed
+		return verror2.Make(ErrOperationFailed, nil)
 	}
 	defer os.Remove(data.Name())
 	sig, err := ioutil.TempFile(dir, "sig")
 	if err != nil {
 		vlog.Errorf("Failed to open tmpfile sig:%v", err)
-		return errOperationFailed
+		return verror2.Make(ErrOperationFailed, nil)
 	}
 	defer os.Remove(sig.Name())
 	writer, err := serialization.NewSigningWriteCloser(data, sig, rt.R().Principal(), nil)
 	if err != nil {
 		vlog.Errorf("Failed to create NewSigningWriteCloser:%v", err)
-		return errOperationFailed
+		return verror2.Make(ErrOperationFailed, nil)
 	}
 	if err = acl.WriteTo(writer); err != nil {
 		vlog.Errorf("Failed to SaveACL:%v", err)
-		return errOperationFailed
+		return verror2.Make(ErrOperationFailed, nil)
 	}
 	if err = writer.Close(); err != nil {
 		vlog.Errorf("Failed to Close() SigningWriteCloser:%v", err)
-		return errOperationFailed
+		return verror2.Make(ErrOperationFailed, nil)
 	}
 	if err := os.Rename(data.Name(), aclFile); err != nil {
 		return err
@@ -383,7 +385,7 @@ func (d *dispatcher) Lookup(suffix string) (interface{}, security.Authorizer, er
 					return nil, nil, err
 				}
 				if !instanceStateIs(appInstanceDir, started) {
-					return nil, nil, errInvalidSuffix
+					return nil, nil, verror2.Make(ErrInvalidSuffix, nil)
 				}
 				var sigStub signatureStub
 				if kind == "pprof" {
@@ -416,7 +418,7 @@ func (d *dispatcher) Lookup(suffix string) (interface{}, security.Authorizer, er
 		return receiver, appSpecificAuthorizer, nil
 	case configSuffix:
 		if len(components) != 2 {
-			return nil, nil, errInvalidSuffix
+			return nil, nil, verror2.Make(ErrInvalidSuffix, nil)
 		}
 		receiver := inode.ConfigServer(&configService{
 			callback: d.internal.callback,
@@ -431,7 +433,7 @@ func (d *dispatcher) Lookup(suffix string) (interface{}, security.Authorizer, er
 		// (and not other apps).
 		return receiver, nil, nil
 	default:
-		return nil, nil, errInvalidSuffix
+		return nil, nil, verror2.Make(ErrInvalidSuffix, nil)
 	}
 }
 
@@ -459,7 +461,7 @@ func newAppSpecificAuthorizer(sec security.Authorizer, config *config.State, suf
 		}
 		return access.TaggedACLAuthorizerFromFile(path.Join(p, "acls", "data"), access.TypicalTagType())
 	}
-	return nil, errInvalidSuffix
+	return nil, verror2.Make(ErrInvalidSuffix, nil)
 }
 
 // allowEveryone implements the authorization policy that allows all principals

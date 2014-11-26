@@ -9,6 +9,7 @@ import (
 	"veyron.io/veyron/veyron2/naming"
 	"veyron.io/veyron/veyron2/rt"
 	"veyron.io/veyron/veyron2/services/mgmt/application"
+	"veyron.io/veyron/veyron2/verror2"
 
 	"veyron.io/veyron/veyron/lib/testutil"
 	"veyron.io/veyron/veyron/profiles"
@@ -69,7 +70,7 @@ func TestInterface(t *testing.T) {
 	if err := stubV2.Put(ctx, []string{"base"}, envelopeV2); err != nil {
 		t.Fatalf("Put() failed: %v", err)
 	}
-	if err := stub.Put(ctx, []string{"base", "media"}, envelopeV1); err == nil || err.Error() != errInvalidSuffix.Error() {
+	if err := stub.Put(ctx, []string{"base", "media"}, envelopeV1); err == nil || !verror2.Is(err, errInvalidSuffix.ID) {
 		t.Fatalf("Unexpected error: expected %v, got %v", errInvalidSuffix, err)
 	}
 
@@ -88,13 +89,13 @@ func TestInterface(t *testing.T) {
 	if !reflect.DeepEqual(envelopeV1, output) {
 		t.Fatalf("Unexpected output: expected %v, got %v", envelopeV1, output)
 	}
-	if _, err := stubV2.Match(ctx, []string{"media"}); err == nil || err.Error() != errNotFound.Error() {
+	if _, err := stubV2.Match(ctx, []string{"media"}); err == nil || !verror2.Is(err, errNotFound.ID) {
 		t.Fatalf("Unexpected error: expected %v, got %v", errNotFound, err)
 	}
-	if _, err := stubV2.Match(ctx, []string{}); err == nil || err.Error() != errNotFound.Error() {
+	if _, err := stubV2.Match(ctx, []string{}); err == nil || !verror2.Is(err, errNotFound.ID) {
 		t.Fatalf("Unexpected error: expected %v, got %v", errNotFound, err)
 	}
-	if _, err := stub.Match(ctx, []string{"media"}); err == nil || err.Error() != errInvalidSuffix.Error() {
+	if _, err := stub.Match(ctx, []string{"media"}); err == nil || !verror2.Is(err, errInvalidSuffix.ID) {
 		t.Fatalf("Unexpected error: expected %v, got %v", errInvalidSuffix, err)
 	}
 
@@ -121,13 +122,13 @@ func TestInterface(t *testing.T) {
 	if output, err = stubV1.Match(ctx, []string{"media"}); err != nil {
 		t.Fatalf("Match() failed: %v", err)
 	}
-	if err := stubV1.Remove(ctx, "base"); err == nil || err.Error() != errNotFound.Error() {
+	if err := stubV1.Remove(ctx, "base"); err == nil || !verror2.Is(err, errNotFound.ID) {
 		t.Fatalf("Unexpected error: expected %v, got %v", errNotFound, err)
 	}
 	if err := stub.Remove(ctx, "base"); err != nil {
 		t.Fatalf("Remove() failed: %v", err)
 	}
-	if err := stubV2.Remove(ctx, "media"); err == nil || err.Error() != errNotFound.Error() {
+	if err := stubV2.Remove(ctx, "media"); err == nil || !verror2.Is(err, errNotFound.ID) {
 		t.Fatalf("Unexpected error: expected %v, got %v", errNotFound, err)
 	}
 	if err := stubV1.Remove(ctx, "media"); err != nil {
@@ -136,13 +137,13 @@ func TestInterface(t *testing.T) {
 
 	// Finally, use Match() to test that Remove really removed the
 	// application envelopes.
-	if _, err := stubV1.Match(ctx, []string{"base"}); err == nil || err.Error() != errNotFound.Error() {
+	if _, err := stubV1.Match(ctx, []string{"base"}); err == nil || !verror2.Is(err, errNotFound.ID) {
 		t.Fatalf("Unexpected error: expected %v, got %v", errNotFound, err)
 	}
-	if _, err := stubV1.Match(ctx, []string{"media"}); err == nil || err.Error() != errNotFound.Error() {
+	if _, err := stubV1.Match(ctx, []string{"media"}); err == nil || !verror2.Is(err, errNotFound.ID) {
 		t.Fatalf("Unexpected error: expected %v, got %v", errNotFound, err)
 	}
-	if _, err := stubV2.Match(ctx, []string{"base"}); err == nil || err.Error() != errNotFound.Error() {
+	if _, err := stubV2.Match(ctx, []string{"base"}); err == nil || !verror2.Is(err, errNotFound.ID) {
 		t.Fatalf("Unexpected error: expected %v, got %v", errNotFound, err)
 	}
 

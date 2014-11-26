@@ -121,15 +121,15 @@ func runInvoke(cmd *cmdline.Command, args []string) error {
 	// Benj implements support for decoding arbitrary structs to an
 	// empty interface, this will no longer be needed.
 	var x1 idl_test_base.Struct
-	vom.Register(x1)
+	vdlutil.Register(x1)
 	var x2 idl_node.Description
-	vom.Register(x2)
+	vdlutil.Register(x2)
 	var x3 idl_binary.Description
-	vom.Register(x3)
+	vdlutil.Register(x3)
 	var x4 naming.VDLMountedServer
-	vom.Register(x4)
+	vdlutil.Register(x4)
 	var x5 naming.VDLMountEntry
-	vom.Register(x5)
+	vdlutil.Register(x5)
 
 	// Decode the inputs from vomJSON-formatted command-line arguments.
 	inputs := make([]interface{}, len(args))

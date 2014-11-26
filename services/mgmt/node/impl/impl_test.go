@@ -38,9 +38,9 @@ import (
 	"veyron.io/veyron/veyron2/services/mgmt/pprof"
 	"veyron.io/veyron/veyron2/services/mgmt/stats"
 	"veyron.io/veyron/veyron2/services/security/access"
+	"veyron.io/veyron/veyron2/vdl/vdlutil"
 	"veyron.io/veyron/veyron2/verror"
 	"veyron.io/veyron/veyron2/vlog"
-	"veyron.io/veyron/veyron2/vom"
 
 	"veyron.io/veyron/veyron/lib/expect"
 	"veyron.io/veyron/veyron/lib/modules"
@@ -61,7 +61,7 @@ const (
 
 func init() {
 	// TODO(rthellend): Remove when vom2 is ready.
-	vom.Register(&naming.VDLMountedServer{})
+	vdlutil.Register(&naming.VDLMountedServer{})
 
 	modules.RegisterChild(execScriptCmd, "", execScript)
 	modules.RegisterChild(nodeManagerCmd, "", nodeManager)
@@ -341,8 +341,8 @@ func TestNodeManagerUpdateAndRevert(t *testing.T) {
 	// Simulate an invalid envelope in the application repository.
 	*envelope = envelopeFromShell(sh, nmPauseBeforeStopEnv, nodeManagerCmd, "bogus", nmArgs...)
 
-	updateNodeExpectError(t, "factoryNM", verror.BadArg)  // Incorrect title.
-	revertNodeExpectError(t, "factoryNM", verror.NoExist) // No previous version available.
+	updateNodeExpectError(t, "factoryNM", impl.ErrAppTitleMismatch.ID)
+	revertNodeExpectError(t, "factoryNM", impl.ErrUpdateNoOp.ID)
 
 	// Set up a second version of the node manager. The information in the
 	// envelope will be used by the node manager to stage the next version.
@@ -364,7 +364,7 @@ func TestNodeManagerUpdateAndRevert(t *testing.T) {
 		t.Fatalf("current link didn't change")
 	}
 
-	updateNodeExpectError(t, "factoryNM", verror.Exists) // Update already in progress.
+	updateNodeExpectError(t, "factoryNM", impl.ErrOperationInProgress.ID)
 
 	nmh.CloseStdin()
 
@@ -382,7 +382,7 @@ func TestNodeManagerUpdateAndRevert(t *testing.T) {
 
 	// Try issuing an update without changing the envelope in the application
 	// repository: this should fail, and current link should be unchanged.
-	updateNodeExpectError(t, "v2NM", naming.ErrNoSuchName.ID)
+	updateNodeExpectError(t, "v2NM", impl.ErrUpdateNoOp.ID)
 	if evalLink() != scriptPathV2 {
 		t.Fatalf("script changed")
 	}
@@ -415,7 +415,7 @@ func TestNodeManagerUpdateAndRevert(t *testing.T) {
 
 	// Revert the node manager to its previous version (v2).
 	revertNode(t, "v3NM")
-	revertNodeExpectError(t, "v3NM", verror.Exists) // Revert already in progress.
+	revertNodeExpectError(t, "v3NM", impl.ErrOperationInProgress.ID) // Revert already in progress.
 	nmh.CloseStdin()
 	nms.Expect("v3NM terminating")
 	if evalLink() != scriptPathV2 {
@@ -554,8 +554,8 @@ func TestAppLifeCycle(t *testing.T) {
 	appID := installApp(t)
 
 	// Start requires the caller to grant a blessing for the app instance.
-	if _, err := startAppImpl(t, appID, ""); err == nil || !verror.Is(err, verror.BadArg) {
-		t.Fatalf("Start(%v) expected to fail with %v, got %v instead", appID, verror.BadArg, err)
+	if _, err := startAppImpl(t, appID, ""); err == nil || !verror.Is(err, impl.ErrInvalidBlessing.ID) {
+		t.Fatalf("Start(%v) expected to fail with %v, got %v instead", appID, impl.ErrInvalidBlessing.ID, err)
 	}
 
 	// Start an instance of the app.
@@ -606,12 +606,12 @@ func TestAppLifeCycle(t *testing.T) {
 	}
 
 	// Updating the installation to itself is a no-op.
-	updateAppExpectError(t, appID, naming.ErrNoSuchName.ID)
+	updateAppExpectError(t, appID, impl.ErrUpdateNoOp.ID)
 
 	// Updating the installation should not work with a mismatched title.
 	*envelope = envelopeFromShell(sh, nil, appCmd, "bogus")
 
-	updateAppExpectError(t, appID, verror.BadArg)
+	updateAppExpectError(t, appID, impl.ErrAppTitleMismatch.ID)
 
 	// Create a second version of the app and update the app to it.
 	*envelope = envelopeFromShell(sh, nil, appCmd, "google naps", "appV2")
@@ -673,19 +673,19 @@ func TestAppLifeCycle(t *testing.T) {
 	resolveExpectNotFound(t, "appV1")
 
 	// We are already on the first version, no further revert possible.
-	revertAppExpectError(t, appID, naming.ErrNoSuchName.ID)
+	revertAppExpectError(t, appID, impl.ErrUpdateNoOp.ID)
 
 	// Uninstall the app.
 	uninstallApp(t, appID)
 
 	// Updating the installation should no longer be allowed.
-	updateAppExpectError(t, appID, verror.BadArg)
+	updateAppExpectError(t, appID, impl.ErrInvalidOperation.ID)
 
 	// Reverting the installation should no longer be allowed.
-	revertAppExpectError(t, appID, verror.BadArg)
+	revertAppExpectError(t, appID, impl.ErrInvalidOperation.ID)
 
 	// Starting new instances should no longer be allowed.
-	startAppExpectError(t, appID, verror.BadArg)
+	startAppExpectError(t, appID, impl.ErrInvalidOperation.ID)
 
 	// Cleanly shut down the node manager.
 	syscall.Kill(nmh.Pid(), syscall.SIGINT)
@@ -921,7 +921,7 @@ func TestNodeManagerInstall(t *testing.T) {
 	// sent to their children and so on.
 	pid := readPID(t, nms)
 	resolve(t, "nm", 1)
-	revertNodeExpectError(t, "nm", naming.ErrNoSuchName.ID) // No previous version available.
+	revertNodeExpectError(t, "nm", impl.ErrUpdateNoOp.ID) // No previous version available.
 	syscall.Kill(pid, syscall.SIGINT)
 
 	nms.Expect("nm terminating")

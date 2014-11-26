@@ -9,7 +9,7 @@ import (
 	"testing"
 
 	"veyron.io/veyron/veyron2/security"
-	"veyron.io/veyron/veyron2/vom"
+	"veyron.io/veyron/veyron2/vdl/vdlutil"
 )
 
 func TestLoadSavePEMKey(t *testing.T) {
@@ -121,6 +121,6 @@ func TestCaveatUtil(t *testing.T) {
 }
 
 func init() {
-	vom.Register(&fpCaveat{})
-	vom.Register(&tpCaveat{})
+	vdlutil.Register(&fpCaveat{})
+	vdlutil.Register(&tpCaveat{})
 }

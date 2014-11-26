@@ -27,6 +27,7 @@ import (
 	verror "veyron.io/veyron/veyron2/verror2"
 	"veyron.io/veyron/veyron2/vlog"
 	"veyron.io/veyron/veyron2/vom"
+	"veyron.io/veyron/veyron2/vom2"
 	"veyron.io/veyron/veyron2/vtrace"
 )
 
@@ -51,6 +52,9 @@ var (
 
 	errSystemRetry   = verror.Register(pkgPath+".sysErrorRetryConnection", verror.RetryConnection, "{:3:}")
 	errSystemNoRetry = verror.Register(pkgPath+".sysErrorNoRetry", verror.NoRetry, "{:3:}")
+
+	errVomEncoder = verror.Register(pkgPath+".vomEncoder", verror.NoRetry, "failed to create vom encoder {:3}")
+	errVomDecoder = verror.Register(pkgPath+".vomDecoder", verror.NoRetry, "failed to create vom decoder {:3}")
 
 	errRequestEncoding = verror.Register(pkgPath+".requestEncoding", verror.NoRetry, "failed to encode request {3}{:4}")
 
@@ -453,7 +457,10 @@ func (c *client) tryCall(ctx context.T, name, method string, args []interface{},
 			//
 			// We must ensure that all flows other than r.flow are closed.
 			go cleanupTryCall(r, responses, ch)
-			fc := newFlowClient(ctx, serverB, r.flow, c.dc)
+			fc, err := newFlowClient(ctx, serverB, r.flow, c.dc)
+			if err != nil {
+				return nil, err.(verror.E)
+			}
 
 			if doneChan := ctx.Done(); doneChan != nil {
 				go func() {
@@ -596,8 +603,8 @@ func (c *client) IPCBindOpt() {
 // flow that's already connected to the server.
 type flowClient struct {
 	ctx      context.T    // context to annotate with call details
-	dec      *vom.Decoder // to decode responses and results from the server
-	enc      *vom.Encoder // to encode requests and args to the server
+	dec      vomDecoder   // to decode responses and results from the server
+	enc      vomEncoder   // to encode requests and args to the server
 	server   []string     // Blessings bound to the server that authorize it to receive the IPC request from the client.
 	flow     stream.Flow  // the underlying flow
 	response ipc.Response // each decoded response message is kept here
@@ -614,8 +621,8 @@ type flowClient struct {
 var _ ipc.Call = (*flowClient)(nil)
 var _ ipc.Stream = (*flowClient)(nil)
 
-func newFlowClient(ctx context.T, server []string, flow stream.Flow, dc vc.DischargeClient) *flowClient {
-	return &flowClient{
+func newFlowClient(ctx context.T, server []string, flow stream.Flow, dc vc.DischargeClient) (*flowClient, error) {
+	fc := &flowClient{
 		ctx:    ctx,
 		dec:    vom.NewDecoder(flow),
 		enc:    vom.NewEncoder(flow),
@@ -623,6 +630,19 @@ func newFlowClient(ctx context.T, server []string, flow stream.Flow, dc vc.Disch
 		flow:   flow,
 		dc:     dc,
 	}
+	if vom2.IsEnabled() {
+		var err error
+		if fc.enc, err = vom2.NewBinaryEncoder(flow); err != nil {
+			return nil, fc.close(badProtocol(fc.ctx, verror.Make(errVomEncoder, fc.ctx, err)))
+		}
+		if fc.dec, err = vom2.NewDecoder(flow); err != nil {
+			return nil, fc.close(badProtocol(fc.ctx, verror.Make(errVomDecoder, fc.ctx, err)))
+		}
+	} else {
+		fc.dec = vom.NewDecoder(flow)
+		fc.enc = vom.NewEncoder(flow)
+	}
+	return fc, nil
 }
 
 func (fc *flowClient) close(verr verror.E) verror.E {

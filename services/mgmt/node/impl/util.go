@@ -13,6 +13,7 @@ import (
 	"veyron.io/veyron/veyron2/rt"
 	"veyron.io/veyron/veyron2/services/mgmt/application"
 	"veyron.io/veyron/veyron2/services/mgmt/repository"
+	"veyron.io/veyron/veyron2/verror2"
 	"veyron.io/veyron/veyron2/vlog"
 )
 
@@ -26,12 +27,12 @@ func downloadBinary(workspace, fileName, name string) error {
 	data, _, err := binary.Download(rt.R().NewContext(), name)
 	if err != nil {
 		vlog.Errorf("Download(%v) failed: %v", name, err)
-		return errOperationFailed
+		return verror2.Make(ErrOperationFailed, nil)
 	}
 	path, perm := filepath.Join(workspace, fileName), os.FileMode(755)
 	if err := ioutil.WriteFile(path, data, perm); err != nil {
 		vlog.Errorf("WriteFile(%v, %v) failed: %v", path, perm, err)
-		return errOperationFailed
+		return verror2.Make(ErrOperationFailed, nil)
 	}
 	return nil
 }
@@ -44,7 +45,7 @@ func fetchEnvelope(ctx context.T, origin string) (*application.Envelope, error) 
 	envelope, err := stub.Match(ctx, profiles)
 	if err != nil {
 		vlog.Errorf("Match(%v) failed: %v", profiles, err)
-		return nil, errOperationFailed
+		return nil, verror2.Make(ErrOperationFailed, ctx)
 	}
 	return &envelope, nil
 }
@@ -55,7 +56,7 @@ func linkSelf(workspace, fileName string) error {
 	self := os.Args[0]
 	if err := os.Link(self, path); err != nil {
 		vlog.Errorf("Link(%v, %v) failed: %v", self, path, err)
-		return errOperationFailed
+		return verror2.Make(ErrOperationFailed, nil)
 	}
 	return nil
 }
@@ -70,16 +71,16 @@ func updateLink(target, link string) error {
 	if err == nil {
 		if err := os.Remove(fi.Name()); err != nil {
 			vlog.Errorf("Remove(%v) failed: %v", fi.Name(), err)
-			return errOperationFailed
+			return verror2.Make(ErrOperationFailed, nil)
 		}
 	}
 	if err := os.Symlink(target, newLink); err != nil {
 		vlog.Errorf("Symlink(%v, %v) failed: %v", target, newLink, err)
-		return errOperationFailed
+		return verror2.Make(ErrOperationFailed, nil)
 	}
 	if err := os.Rename(newLink, link); err != nil {
 		vlog.Errorf("Rename(%v, %v) failed: %v", newLink, link, err)
-		return errOperationFailed
+		return verror2.Make(ErrOperationFailed, nil)
 	}
 	return nil
 }

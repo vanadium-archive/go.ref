@@ -3,7 +3,6 @@ package impl_test
 import (
 	"crypto/md5"
 	"encoding/hex"
-	"errors"
 	"io"
 	"io/ioutil"
 	"os"
@@ -13,6 +12,7 @@ import (
 	"veyron.io/veyron/veyron2/services/mgmt/application"
 	"veyron.io/veyron/veyron2/services/mgmt/binary"
 	"veyron.io/veyron/veyron2/services/mgmt/repository"
+	"veyron.io/veyron/veyron2/verror2"
 	"veyron.io/veyron/veyron2/vlog"
 )
 
@@ -80,6 +80,11 @@ func startBinaryRepository() func() {
 
 // BINARY REPOSITORY INTERFACE IMPLEMENTATION
 
+// TODO(toddw): Move the errors from dispatcher.go into a common location.
+const pkgPath = "veyron.io/veyron/veyron/services/mgmt/node/impl"
+
+var ErrOperationFailed = verror2.Register(pkgPath+".OperationFailed", verror2.NoRetry, "")
+
 func (*brInvoker) Create(ipc.ServerContext, int32, repository.MediaInfo) error {
 	vlog.VI(1).Infof("Create()")
 	return nil
@@ -90,14 +95,12 @@ func (i *brInvoker) Delete(ipc.ServerContext) error {
 	return nil
 }
 
-var errOperationFailed = errors.New("operation failed")
-
 func (i *brInvoker) Download(ctx repository.BinaryDownloadContext, _ int32) error {
 	vlog.VI(1).Infof("Download()")
 	file, err := os.Open(os.Args[0])
 	if err != nil {
 		vlog.Errorf("Open() failed: %v", err)
-		return errOperationFailed
+		return verror2.Make(ErrOperationFailed, ctx)
 	}
 	defer file.Close()
 	bufferLength := 4096
@@ -111,11 +114,11 @@ func (i *brInvoker) Download(ctx repository.BinaryDownloadContext, _ int32) erro
 		case nil:
 			if err := sender.Send(buffer[:n]); err != nil {
 				vlog.Errorf("Send() failed: %v", err)
-				return errOperationFailed
+				return verror2.Make(ErrOperationFailed, ctx)
 			}
 		default:
 			vlog.Errorf("Read() failed: %v", err)
-			return errOperationFailed
+			return verror2.Make(ErrOperationFailed, ctx)
 		}
 	}
 }
@@ -125,12 +128,12 @@ func (*brInvoker) DownloadURL(ipc.ServerContext) (string, int64, error) {
 	return "", 0, nil
 }
 
-func (*brInvoker) Stat(ipc.ServerContext) ([]binary.PartInfo, repository.MediaInfo, error) {
+func (*brInvoker) Stat(ctx ipc.ServerContext) ([]binary.PartInfo, repository.MediaInfo, error) {
 	vlog.VI(1).Infof("Stat()")
 	h := md5.New()
 	bytes, err := ioutil.ReadFile(os.Args[0])
 	if err != nil {
-		return []binary.PartInfo{}, repository.MediaInfo{}, errOperationFailed
+		return []binary.PartInfo{}, repository.MediaInfo{}, verror2.Make(ErrOperationFailed, ctx)
 	}
 	h.Write(bytes)
 	part := binary.PartInfo{Checksum: hex.EncodeToString(h.Sum(nil)), Size: int64(len(bytes))}

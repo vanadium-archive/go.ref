@@ -7,6 +7,7 @@ import (
 	"io/ioutil"
 	"path/filepath"
 
+	"veyron.io/veyron/veyron2/verror2"
 	"veyron.io/veyron/veyron2/vlog"
 )
 
@@ -14,7 +15,7 @@ func saveSystemNameForInstance(dir, systemName string) error {
 	snp := filepath.Join(dir, "systemname")
 	if err := ioutil.WriteFile(snp, []byte(systemName), 0600); err != nil {
 		vlog.Errorf("WriteFile(%v, %v) failed: %v", snp, systemName, err)
-		return errOperationFailed
+		return verror2.Make(ErrOperationFailed, nil)
 	}
 	return nil
 }
@@ -24,7 +25,7 @@ func readSystemNameForInstance(dir string) (string, error) {
 	name, err := ioutil.ReadFile(snp)
 	if err != nil {
 		vlog.Errorf("ReadFile(%v) failed: %v", snp, err)
-		return "", errOperationFailed
+		return "", verror2.Make(ErrOperationFailed, nil)
 	}
 	return string(name), nil
 }
