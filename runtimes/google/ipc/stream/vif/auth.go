@@ -231,6 +231,7 @@ func serverAuthOptions(lopts []stream.ListenerOpt) (principal security.Principal
 // list.
 func clientAuthOptions(lopts []stream.VCOpt) (principal security.Principal, dischargeClient vc.DischargeClient, err error) {
 	var securityLevel options.VCSecurityLevel
+	var noDischarges bool
 	for _, o := range lopts {
 		switch v := o.(type) {
 		case vc.DischargeClient:
@@ -239,7 +240,12 @@ func clientAuthOptions(lopts []stream.VCOpt) (principal security.Principal, disc
 			principal = v.Principal
 		case options.VCSecurityLevel:
 			securityLevel = v
+		case vc.NoDischarges:
+			noDischarges = true
 		}
+	}
+	if noDischarges {
+		dischargeClient = nil
 	}
 	switch securityLevel {
 	case options.VCSecurityConfidential:

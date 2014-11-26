@@ -1228,7 +1228,7 @@ func TestSecurityNone(t *testing.T) {
 		t.Fatalf("InternalNewClient failed: %v", err)
 	}
 	// When using VCSecurityNone, all authorization checks should be skipped, so
-	// unauthorized methods shoudl be callable.
+	// unauthorized methods should be callable.
 	call, err := client.StartCall(testContext(), "mp/server", "Unauthorized", nil)
 	if err != nil {
 		t.Fatalf("client.StartCall failed: %v", err)
@@ -1369,6 +1369,172 @@ func TestServerBlessingsOpt(t *testing.T) {
 	}
 	if got, err := runClient("mountpoint/default"); err != nil || len(got) != 1 || got[0] != "server" {
 		t.Errorf("Got (%v, %v) wanted 'server'", got, err)
+	}
+}
+
+type mockDischarger struct {
+	called bool
+}
+
+func (m *mockDischarger) Discharge(ctx ipc.ServerContext, caveatAny vdlutil.Any, _ security.DischargeImpetus) (vdlutil.Any, error) {
+	m.called = true
+	caveat, ok := caveatAny.(security.ThirdPartyCaveat)
+	if !ok {
+		return nil, fmt.Errorf("type %T does not implement security.ThirdPartyCaveat", caveatAny)
+	}
+	return ctx.LocalPrincipal().MintDischarge(caveat, security.UnconstrainedUse())
+}
+
+func TestNoDischargesOpt(t *testing.T) {
+	var (
+		pdischarger = tsecurity.NewPrincipal("discharger")
+		pserver     = tsecurity.NewPrincipal("server")
+		pclient     = tsecurity.NewPrincipal("client")
+	)
+	// Make the client recognize all server blessings
+	if err := pclient.AddToRoots(pserver.BlessingStore().Default()); err != nil {
+		t.Fatal(err)
+	}
+	if err := pclient.AddToRoots(pdischarger.BlessingStore().Default()); err != nil {
+		t.Fatal(err)
+	}
+
+	// Bless the client with a ThirdPartyCaveat.
+	tpcav := mkThirdPartyCaveat(pdischarger.PublicKey(), "mountpoint/discharger", mkCaveat(security.ExpiryCaveat(time.Now().Add(time.Hour))))
+	blessings, err := pserver.Bless(pclient.PublicKey(), pserver.BlessingStore().Default(), "tpcav", tpcav)
+	if err != nil {
+		t.Fatalf("failed to create Blessings: %v", err)
+	}
+	if _, err = pclient.BlessingStore().Set(blessings, "server"); err != nil {
+		t.Fatalf("failed to set blessings: %v", err)
+	}
+
+	ns := tnaming.NewSimpleNamespace()
+	runServer := func(name string, obj interface{}, principal security.Principal) stream.Manager {
+		rid, err := naming.NewRoutingID()
+		if err != nil {
+			t.Fatal(err)
+		}
+		sm := imanager.InternalNew(rid)
+		server, err := InternalNewServer(testContext(), sm, ns, nil, vc.LocalPrincipal{principal})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, err := server.Listen(listenSpec); err != nil {
+			t.Fatal(err)
+		}
+		if err := server.Serve(name, obj, acceptAllAuthorizer{}); err != nil {
+			t.Fatal(err)
+		}
+		return sm
+	}
+
+	// Setup the disharger and test server.
+	discharger := &mockDischarger{}
+	defer runServer("mountpoint/discharger", discharger, pdischarger).Shutdown()
+	defer runServer("mountpoint/testServer", &testServer{}, pserver).Shutdown()
+
+	runClient := func(noDischarges bool) {
+		rid, err := naming.NewRoutingID()
+		if err != nil {
+			t.Fatal(err)
+		}
+		smc := imanager.InternalNew(rid)
+		defer smc.Shutdown()
+		dc, err := InternalNewDischargeClient(smc, ns, testContext())
+		if err != nil {
+			t.Fatal(err)
+		}
+		client, err := InternalNewClient(smc, ns, vc.LocalPrincipal{pclient}, dc)
+		if err != nil {
+			t.Fatalf("failed to create client: %v", err)
+		}
+		defer client.Close()
+		var opts []ipc.CallOpt
+		if noDischarges {
+			opts = append(opts, vc.NoDischarges{})
+		}
+		if _, err = client.StartCall(testContext(), "mountpoint/testServer", "Closure", nil, opts...); err != nil {
+			t.Fatalf("failed to StartCall: %v", err)
+		}
+	}
+
+	// Test that when the NoDischarges option is set, mockDischarger does not get called.
+	if runClient(true); discharger.called {
+		t.Errorf("did not expect discharger to be called")
+	}
+	discharger.called = false
+	// Test that when the Nodischarges option is not set, mockDischarger does get called.
+	if runClient(false); !discharger.called {
+		t.Errorf("expected discharger to be called")
+	}
+}
+
+func TestNoImplicitDischargeFetching(t *testing.T) {
+	// This test ensures that discharge clients only fetch discharges for the specified tp caveats and not its own.
+	var (
+		pdischarger1     = tsecurity.NewPrincipal("discharger1")
+		pdischarger2     = tsecurity.NewPrincipal("discharger2")
+		pdischargeClient = tsecurity.NewPrincipal("dischargeClient")
+	)
+
+	// Bless the client with a ThirdPartyCaveat from discharger1.
+	tpcav1 := mkThirdPartyCaveat(pdischarger1.PublicKey(), "mountpoint/discharger1", mkCaveat(security.ExpiryCaveat(time.Now().Add(time.Hour))))
+	blessings, err := pdischarger1.Bless(pdischargeClient.PublicKey(), pdischarger1.BlessingStore().Default(), "tpcav1", tpcav1)
+	if err != nil {
+		t.Fatalf("failed to create Blessings: %v", err)
+	}
+	if err = pdischargeClient.BlessingStore().SetDefault(blessings); err != nil {
+		t.Fatalf("failed to set blessings: %v", err)
+	}
+
+	ns := tnaming.NewSimpleNamespace()
+	runServer := func(name string, obj interface{}, principal security.Principal) stream.Manager {
+		rid, err := naming.NewRoutingID()
+		if err != nil {
+			t.Fatal(err)
+		}
+		sm := imanager.InternalNew(rid)
+		server, err := InternalNewServer(testContext(), sm, ns, nil, vc.LocalPrincipal{principal})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, err := server.Listen(listenSpec); err != nil {
+			t.Fatal(err)
+		}
+		if err := server.Serve(name, obj, acceptAllAuthorizer{}); err != nil {
+			t.Fatal(err)
+		}
+		return sm
+	}
+
+	// Setup the disharger and test server.
+	discharger1 := &mockDischarger{}
+	discharger2 := &mockDischarger{}
+	defer runServer("mountpoint/discharger1", discharger1, pdischarger1).Shutdown()
+	defer runServer("mountpoint/discharger2", discharger2, pdischarger2).Shutdown()
+
+	rid, err := naming.NewRoutingID()
+	if err != nil {
+		t.Fatal(err)
+	}
+	sm := imanager.InternalNew(rid)
+	dc, err := InternalNewDischargeClient(sm, ns, testContext(), vc.LocalPrincipal{pdischargeClient})
+	if err != nil {
+		t.Fatal(err)
+	}
+	tpcav2, err := security.NewPublicKeyCaveat(pdischarger2.PublicKey(), "mountpoint/discharger2", security.ThirdPartyRequirements{}, mkCaveat(security.ExpiryCaveat(time.Now().Add(time.Hour))))
+	if err != nil {
+		t.Error(err)
+	}
+	_ = dc.PrepareDischarges([]security.ThirdPartyCaveat{tpcav2}, security.DischargeImpetus{})
+
+	// Ensure that discharger1 was not called and discharger2 was called.
+	if discharger1.called {
+		t.Errorf("discharge for caveat on discharge client should not have been fetched.")
+	}
+	if !discharger2.called {
+		t.Errorf("discharge for caveat passed to PrepareDischarges should have been fetched.")
 	}
 }
 

@@ -92,7 +92,7 @@ func (d *dischargeClient) fetchDischarges(ctx context.T, caveats []security.Thir
 			go func(i int, cav security.ThirdPartyCaveat) {
 				defer wg.Done()
 				vlog.VI(3).Infof("Fetching discharge for %v", cav)
-				call, err := d.c.StartCall(ctx, cav.Location(), "Discharge", []interface{}{cav, filteredImpetus(cav.Requirements(), impetus)})
+				call, err := d.c.StartCall(ctx, cav.Location(), "Discharge", []interface{}{cav, filteredImpetus(cav.Requirements(), impetus)}, vc.NoDischarges{})
 				if err != nil {
 					vlog.VI(3).Infof("Discharge fetch for %v failed: %v", cav, err)
 					return

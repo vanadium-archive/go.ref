@@ -62,6 +62,12 @@ type VC struct {
 	version version.IPCVersion
 }
 
+// NoDischarges specifies that the RPC call should not fetch discharges.
+type NoDischarges struct{}
+
+func (NoDischarges) IPCCallOpt()     {}
+func (NoDischarges) IPCStreamVCOpt() {}
+
 var _ stream.VC = (*VC)(nil)
 
 // Helper is the interface for functionality required by the stream.VC
@@ -361,6 +367,7 @@ func (vc *VC) HandshakeDialedVC(opts ...stream.VCOpt) error {
 		tlsSessionCache crypto.TLSClientSessionCache
 		securityLevel   options.VCSecurityLevel
 		dischargeClient DischargeClient
+		noDischarges    bool
 	)
 	for _, o := range opts {
 		switch v := o.(type) {
@@ -372,7 +379,13 @@ func (vc *VC) HandshakeDialedVC(opts ...stream.VCOpt) error {
 			securityLevel = v
 		case crypto.TLSClientSessionCache:
 			tlsSessionCache = v
+		case NoDischarges:
+			noDischarges = true
 		}
+	}
+	// If noDischarge is provided, disable the dischargeClient.
+	if noDischarges {
+		dischargeClient = nil
 	}
 	switch securityLevel {
 	case options.VCSecurityConfidential:
