@@ -7,14 +7,13 @@ import (
 	"errors"
 	"flag"
 
-	vsecurity "veyron.io/veyron/veyron/security"
-
 	"veyron.io/veyron/veyron2/security"
+	"veyron.io/veyron/veyron2/services/security/access"
 )
 
 var (
-	acl     = flag.String("acl", "", `acl is an optional JSON-encoded security.ACL that is used to construct a security.Authorizer. Example: {"In":{"veyron/alice/...":"RW"}} is a JSON-encoded ACL that allows all delegates of "veyron/alice" to access all methods with ReadLabel or WriteLabel. If this flag is provided then the \"--acl_file\" must be absent.`)
-	aclFile = flag.String("acl_file", "", "acl_file is an optional path to a file containing a JSON-encoded security.ACL that is used to construct a security.Authorizer. If this flag is provided then the \"--acl_file\" flag must be absent.")
+	acl     = flag.String("acl", "", `acl is an optional JSON-encoded access.TaggedACLMap that is used to construct a security.Authorizer using the tags defined in the access package. Example: {"Read": {"In": ["veyron/alice/..."]}} allows all delegates of "veyron/alice" to access all methods with the "Read" access tag on them. If this flag is set then the --acl_file flag must not be set.`)
+	aclFile = flag.String("acl_file", "", "acl_file is an optional path to a file containing a JSON-encoded access.TaggedACLMap that is used to construct a security.Authorizer (with the set of tags defined in the access package). If this flag is set then --acl must not be set")
 )
 
 // NewAuthorizerOrDie constructs an Authorizer based on the provided "--acl" or
@@ -28,12 +27,18 @@ func NewAuthorizerOrDie() security.Authorizer {
 	if len(*acl) != 0 && len(*aclFile) != 0 {
 		panic(errors.New("only one of the flags \"--acl\" or \"--acl_file\" must be provided"))
 	}
+	var a security.Authorizer
+	var err error
 	if len(*aclFile) != 0 {
-		return vsecurity.NewFileACLAuthorizer(*aclFile)
+		a, err = access.TaggedACLAuthorizerFromFile(*aclFile, access.TypicalTagType())
+	} else {
+		var tam access.TaggedACLMap
+		if tam, err = access.ReadTaggedACLMap(bytes.NewBufferString(*acl)); err == nil {
+			a, err = access.TaggedACLAuthorizer(tam, access.TypicalTagType())
+		}
 	}
-	a, err := vsecurity.LoadACL(bytes.NewBufferString(*acl))
 	if err != nil {
 		panic(err)
 	}
-	return vsecurity.NewACLAuthorizer(a)
+	return a
 }

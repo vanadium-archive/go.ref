@@ -10,13 +10,13 @@ import (
 	"time"
 
 	"veyron.io/veyron/veyron/lib/glob"
-	vsecurity "veyron.io/veyron/veyron/security"
 
 	"veyron.io/veyron/veyron2/ipc"
 	"veyron.io/veyron/veyron2/naming"
 	"veyron.io/veyron/veyron2/rt"
 	"veyron.io/veyron/veyron2/security"
 	"veyron.io/veyron/veyron2/services/mounttable"
+	"veyron.io/veyron/veyron2/services/security/access"
 	verror "veyron.io/veyron/veyron2/verror2"
 	"veyron.io/veyron/veyron2/vlog"
 )
@@ -58,7 +58,12 @@ type node struct {
 	children map[string]*node
 }
 
-// NewMountTable creates a new server that uses the default authorization policy.
+// NewMountTable creates a new server that uses the ACLs specified in
+// aclfile for authorization.
+//
+// aclfile is a JSON-encoded mapping from paths in the mounttable to the
+// access.TaggedACLMap for that path. The tags used in the map are the typical
+// access tags (the Tag type defined in veyron2/services/security/access).
 func NewMountTable(aclfile string) (*mountTable, error) {
 	acls, err := parseACLs(aclfile)
 	if err != nil {
@@ -74,7 +79,7 @@ func parseACLs(path string) (map[string]security.Authorizer, error) {
 	if path == "" {
 		return nil, nil
 	}
-	var acls map[string]security.ACL
+	var acls map[string]access.TaggedACLMap
 	f, err := os.Open(path)
 	if err != nil {
 		return nil, err
@@ -85,7 +90,10 @@ func parseACLs(path string) (map[string]security.Authorizer, error) {
 	}
 	result := make(map[string]security.Authorizer)
 	for name, acl := range acls {
-		result[name] = vsecurity.NewACLAuthorizer(acl)
+		result[name], err = access.TaggedACLAuthorizer(acl, access.TypicalTagType())
+		if err != nil {
+			return nil, fmt.Errorf("Unable to create ACL for %q: %v", name, err)
+		}
 	}
 	if result["/"] == nil {
 		return nil, fmt.Errorf("No acl for / in %s", path)
@@ -173,7 +181,7 @@ func (mt *mountTable) authorizeStep(name string, c security.Context) error {
 	mt.Lock()
 	acl := mt.acls[name]
 	mt.Unlock()
-	vlog.VI(2).Infof("authorizeStep(%s) %s %s %s", name, c.RemoteBlessings(), c.Label(), acl)
+	vlog.VI(2).Infof("authorizeStep(%v) %v %v %v", name, c.RemoteBlessings(), c.MethodTags(), acl)
 	if acl != nil {
 		return acl.Authorize(c)
 	}

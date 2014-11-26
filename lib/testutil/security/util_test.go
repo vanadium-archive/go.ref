@@ -7,6 +7,7 @@ import (
 
 	"veyron.io/veyron/veyron2/rt"
 	"veyron.io/veyron/veyron2/security"
+	"veyron.io/veyron/veyron2/services/security/access"
 
 	_ "veyron.io/veyron/veyron/profiles"
 	vsecurity "veyron.io/veyron/veyron/security"
@@ -37,14 +38,11 @@ func TestSaveACLToFile(t *testing.T) {
 		t.Fatalf("rt.New failed: %v", err)
 	}
 	defer r.Cleanup()
-	acl := security.ACL{}
-	acl.In = map[security.BlessingPattern]security.LabelSet{
-		"veyron/...":   security.LabelSet(security.ReadLabel),
-		"veyron/alice": security.LabelSet(security.ReadLabel | security.WriteLabel),
-		"veyron/bob":   security.LabelSet(security.AdminLabel),
-	}
-	acl.NotIn = map[string]security.LabelSet{
-		"veyron/che": security.LabelSet(security.ReadLabel),
+	acl := access.TaggedACLMap{
+		"Admin": access.ACL{
+			In:    []security.BlessingPattern{"comics/..."},
+			NotIn: []string{"comics/villain"},
+		},
 	}
 
 	filePath := SaveACLToFile(acl)
@@ -55,12 +53,12 @@ func TestSaveACLToFile(t *testing.T) {
 		t.Fatalf("os.Open(%v) failed: %v", filePath, err)
 	}
 	defer f.Close()
-	loadedACL, err := vsecurity.LoadACL(f)
+	loadedACL, err := access.ReadTaggedACLMap(f)
 	if err != nil {
 		t.Fatalf("LoadACL failed: %v", err)
 	}
 	if !reflect.DeepEqual(loadedACL, acl) {
-		t.Fatalf("Got ACL %v, but want %v", loadedACL, acl)
+		t.Fatalf("Got %#v, want %#v", loadedACL, acl)
 	}
 }
 

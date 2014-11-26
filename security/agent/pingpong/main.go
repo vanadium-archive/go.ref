@@ -6,7 +6,6 @@ import (
 
 	"veyron.io/veyron/veyron/lib/signals"
 	_ "veyron.io/veyron/veyron/profiles"
-	vsecurity "veyron.io/veyron/veyron/security"
 
 	"veyron.io/veyron/veyron2/ipc"
 	"veyron.io/veyron/veyron2/rt"
@@ -51,16 +50,17 @@ func serverMain() {
 		log.Fatal("error listening to service: ", err)
 	}
 
-	auth := vsecurity.NewACLAuthorizer(security.ACL{In: map[security.BlessingPattern]security.LabelSet{
-		security.AllPrincipals: security.AllLabels,
-	}})
-	if err := s.Serve("pingpong", serverPong, auth); err != nil {
+	if err := s.Serve("pingpong", serverPong, allowEveryone{}); err != nil {
 		log.Fatal("error serving service: ", err)
 	}
 
 	// Wait forever.
 	<-signals.ShutdownOnSignals()
 }
+
+type allowEveryone struct{}
+
+func (allowEveryone) Authorize(security.Context) error { return nil }
 
 func main() {
 	flag.Parse()

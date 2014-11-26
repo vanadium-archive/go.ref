@@ -16,6 +16,7 @@ import (
 	"veyron.io/veyron/veyron2/naming"
 	"veyron.io/veyron/veyron2/options"
 	"veyron.io/veyron/veyron2/security"
+	"veyron.io/veyron/veyron2/services/security/access"
 	"veyron.io/veyron/veyron2/verror"
 	"veyron.io/veyron/veyron2/vlog"
 	"veyron.io/veyron/veyron2/vom"
@@ -796,7 +797,7 @@ func (fs *flowServer) processRequest() ([]interface{}, verror.E) {
 		return nil, verr
 	}
 	// Check if the caller is permitted to view debug information.
-	// TODO(mattr): Is DebugLabel the right thing to check?
+	// TODO(mattr): Is access.Debug the right thing to check?
 	fs.allowDebug = authorize(debugContext{fs}, auth) == nil
 	// Invoke the method.
 	results, err := invoker.Invoke(fs.method, fs, argptrs)
@@ -909,12 +910,14 @@ func authorize(ctx security.Context, auth security.Authorizer) verror.E {
 }
 
 // debugContext is a context which wraps another context but always returns
-// the debug label.
+// the debug tag.
 type debugContext struct {
 	security.Context
 }
 
-func (debugContext) Label() security.Label { return security.DebugLabel }
+func (debugContext) MethodTags() []interface{} {
+	return []interface{}{access.Debug}
+}
 
 // Send implements the ipc.Stream method.
 func (fs *flowServer) Send(item interface{}) error {
@@ -972,10 +975,6 @@ func (fs *flowServer) Name() string {
 func (fs *flowServer) Suffix() string {
 	//nologcall
 	return fs.suffix
-}
-func (fs *flowServer) Label() security.Label {
-	//nologcall
-	return security.LabelFromMethodTags(fs.tags)
 }
 func (fs *flowServer) LocalPrincipal() security.Principal {
 	//nologcall

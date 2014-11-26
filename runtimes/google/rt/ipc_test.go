@@ -15,7 +15,6 @@ import (
 	"veyron.io/veyron/veyron/lib/testutil"
 	tsecurity "veyron.io/veyron/veyron/lib/testutil/security"
 	"veyron.io/veyron/veyron/profiles"
-	vsecurity "veyron.io/veyron/veyron/security"
 	"veyron.io/veyron/veyron2/vdl/vdlutil"
 	"veyron.io/veyron/veyron2/verror"
 )
@@ -96,7 +95,7 @@ func startServer(runtime veyron2.Runtime, s interface{}) (ipc.Server, string, er
 		return nil, "", err
 	}
 	serverObjectName := naming.JoinAddressName(endpoint.String(), "")
-	if err := server.Serve("", s, vsecurity.NewACLAuthorizer(vsecurity.OpenACL())); err != nil {
+	if err := server.Serve("", s, allowEveryone{}); err != nil {
 		return nil, "", err
 	}
 	return server, serverObjectName, nil
@@ -277,3 +276,7 @@ func TestServerDischarges(t *testing.T) {
 		t.Errorf("client.StartCall passed unexpectedly with remote end authenticated as: %v", remoteBlessings)
 	}
 }
+
+type allowEveryone struct{}
+
+func (allowEveryone) Authorize(security.Context) error { return nil }

@@ -29,30 +29,33 @@ func TestACLGetCommand(t *testing.T) {
 	cmd.Init(nil, &stdout, &stderr)
 	nodeName := naming.JoinAddressName(endpoint.String(), "")
 
-	// Test the 'list' command.
+	// Test the 'get' command.
 	tape.SetResponses([]interface{}{GetACLResponse{
-		acl: security.ACL{
-			In: map[security.BlessingPattern]security.LabelSet{
-				"root/self/...": security.AllLabels,
-				"root/other":    security.LabelSet(security.ReadLabel),
+		acl: access.TaggedACLMap{
+			"Admin": access.ACL{
+				In:    []security.BlessingPattern{"self/..."},
+				NotIn: []string{"self/bad"},
 			},
-			NotIn: map[string]security.LabelSet{
-				"root/bob/...": security.LabelSet(security.WriteLabel),
+			"Read": access.ACL{
+				In: []security.BlessingPattern{"other", "self/..."},
 			},
 		},
 		etag: "anEtagForToday",
 		err:  nil,
-	},
-	})
+	}})
 
 	if err := cmd.Execute([]string{"acl", "get", nodeName}); err != nil {
-		t.Fatalf("%v, ouput: %v, error: %v", err)
+		t.Fatalf("%v, output: %v, error: %v", err)
 	}
-	if expected, got := "root/bob/... !W\nroot/other R\nroot/self/... XRWADM", strings.TrimSpace(stdout.String()); got != expected {
-		t.Fatalf("Unexpected output from get. Got %q, expected %q", got, expected)
+	if expected, got := strings.TrimSpace(`
+other Read
+self/... Admin,Read
+self/bad !Admin
+`), strings.TrimSpace(stdout.String()); got != expected {
+		t.Errorf("Unexpected output from get. Got %q, expected %q", got, expected)
 	}
 	if got, expected := tape.Play(), []interface{}{"GetACL"}; !reflect.DeepEqual(expected, got) {
-		t.Errorf("invalid call sequence. Got %v, want %v", got, expected)
+		t.Errorf("invalid call sequence. Got %#v, want %#v", got, expected)
 	}
 	tape.Rewind()
 	stdout.Reset()
@@ -104,21 +107,21 @@ func TestACLSetCommand(t *testing.T) {
 	if err := cmd.Execute([]string{"acl", "set", nodeName, "foo", "!"}); err == nil {
 		t.Fatalf("failed to detect invalid parameter")
 	}
-	if expected, got := "ERROR: failed to parse LabelSet pair foo, !", strings.TrimSpace(stderr.String()); !strings.HasPrefix(got, expected) {
-		t.Fatalf("Unexpected output from list. Got %q, expected prefix %q", got, expected)
+	if expected, got := "ERROR: failed to parse access tags for \"foo\": empty access tag", strings.TrimSpace(stderr.String()); !strings.HasPrefix(got, expected) {
+		t.Errorf("Unexpected output from list. Got %q, expected prefix %q", got, expected)
 	}
 
 	// Correct operation in the absence of errors.
 	stderr.Reset()
 	stdout.Reset()
 	tape.SetResponses([]interface{}{GetACLResponse{
-		acl: security.ACL{
-			In: map[security.BlessingPattern]security.LabelSet{
-				"root/self/...": security.AllLabels,
-				"root/other":    security.LabelSet(security.ReadLabel),
+		acl: access.TaggedACLMap{
+			"Admin": access.ACL{
+				In: []security.BlessingPattern{"self/..."},
 			},
-			NotIn: map[string]security.LabelSet{
-				"root/bob": security.LabelSet(security.WriteLabel),
+			"Read": access.ACL{
+				In:    []security.BlessingPattern{"other/...", "self/..."},
+				NotIn: []string{"other/bob"},
 			},
 		},
 		etag: "anEtagForToday",
@@ -126,14 +129,13 @@ func TestACLSetCommand(t *testing.T) {
 	},
 		verror.Make(access.ErrBadEtag, fmt.Sprintf("etag mismatch in:%s vers:%s", "anEtagForToday", "anEtagForTomorrow")),
 		GetACLResponse{
-			acl: security.ACL{
-				In: map[security.BlessingPattern]security.LabelSet{
-					"root/self/...": security.AllLabels,
-					"root/other":    security.LabelSet(security.ReadLabel),
+			acl: access.TaggedACLMap{
+				"Admin": access.ACL{
+					In: []security.BlessingPattern{"self/..."},
 				},
-				NotIn: map[string]security.LabelSet{
-					"root/bob":       security.LabelSet(security.WriteLabel),
-					"root/alice/cat": security.LabelSet(security.AdminLabel),
+				"Read": access.ACL{
+					In:    []security.BlessingPattern{"other/...", "self/..."},
+					NotIn: []string{"other/bob/baddevice"},
 				},
 			},
 			etag: "anEtagForTomorrow",
@@ -142,7 +144,20 @@ func TestACLSetCommand(t *testing.T) {
 		nil,
 	})
 
-	if err := cmd.Execute([]string{"acl", "set", nodeName, "root/vana/bad", "!XR", "root/vana/...", "RD", "root/other", "0", "root/bob", "!0"}); err != nil {
+	// set command that:
+	// - Adds entry for "friends/..." to "Write" & "Admin"
+	// - Adds a blacklist entry for "friend/alice"  for "Admin"
+	// - Edits existing entry for "self/..." (adding "Write" access)
+	// - Removes entry for "other/bob/baddevice"
+	if err := cmd.Execute([]string{
+		"acl",
+		"set",
+		nodeName,
+		"friends/...", "Admin,Write",
+		"friends/alice", "!Admin,Write",
+		"self/...", "Admin,Write,Read",
+		"other/bob/baddevice", "^",
+	}); err != nil {
 		t.Fatalf("SetACL failed: %v", err)
 	}
 
@@ -152,18 +167,22 @@ func TestACLSetCommand(t *testing.T) {
 	if expected, got := "WARNING: trying again because of asynchronous change", strings.TrimSpace(stderr.String()); got != expected {
 		t.Fatalf("Unexpected output from list. Got %q, expected %q", got, expected)
 	}
-
 	expected := []interface{}{
 		"GetACL",
 		SetACLStimulus{
 			fun: "SetACL",
-			acl: security.ACL{
-				In: map[security.BlessingPattern]security.LabelSet{
-					"root/self/...": security.AllLabels,
-					"root/vana/...": security.LabelSet(security.ReadLabel | security.DebugLabel),
+			acl: access.TaggedACLMap{
+				"Admin": access.ACL{
+					In:    []security.BlessingPattern{"friends/...", "self/..."},
+					NotIn: []string{"friends/alice"},
 				},
-				NotIn: map[string]security.LabelSet{
-					"root/vana/bad": security.LabelSet(security.ResolveLabel | security.ReadLabel),
+				"Read": access.ACL{
+					In:    []security.BlessingPattern{"other/...", "self/..."},
+					NotIn: []string{"other/bob"},
+				},
+				"Write": access.ACL{
+					In:    []security.BlessingPattern{"friends/...", "friends/alice", "self/..."},
+					NotIn: []string{},
 				},
 			},
 			etag: "anEtagForToday",
@@ -171,14 +190,18 @@ func TestACLSetCommand(t *testing.T) {
 		"GetACL",
 		SetACLStimulus{
 			fun: "SetACL",
-			acl: security.ACL{
-				In: map[security.BlessingPattern]security.LabelSet{
-					"root/self/...": security.AllLabels,
-					"root/vana/...": security.LabelSet(security.ReadLabel | security.DebugLabel),
+			acl: access.TaggedACLMap{
+				"Admin": access.ACL{
+					In:    []security.BlessingPattern{"friends/...", "self/..."},
+					NotIn: []string{"friends/alice"},
 				},
-				NotIn: map[string]security.LabelSet{
-					"root/alice/cat": security.LabelSet(security.AdminLabel),
-					"root/vana/bad":  security.LabelSet(security.ResolveLabel | security.ReadLabel),
+				"Read": access.ACL{
+					In:    []security.BlessingPattern{"other/...", "self/..."},
+					NotIn: []string{},
+				},
+				"Write": access.ACL{
+					In:    []security.BlessingPattern{"friends/...", "friends/alice", "self/..."},
+					NotIn: []string{},
 				},
 			},
 			etag: "anEtagForTomorrow",
@@ -186,7 +209,7 @@ func TestACLSetCommand(t *testing.T) {
 	}
 
 	if got := tape.Play(); !reflect.DeepEqual(expected, got) {
-		t.Errorf("invalid call sequence. Got %v, want %v", got, expected)
+		t.Errorf("invalid call sequence. Got %#v, want %#v", got, expected)
 	}
 	tape.Rewind()
 	stdout.Reset()
@@ -194,13 +217,13 @@ func TestACLSetCommand(t *testing.T) {
 
 	// GetACL fails.
 	tape.SetResponses([]interface{}{GetACLResponse{
-		acl:  security.ACL{In: nil, NotIn: nil},
+		acl:  access.TaggedACLMap{},
 		etag: "anEtagForToday",
 		err:  verror.BadArgf("oops!"),
 	},
 	})
 
-	if err := cmd.Execute([]string{"acl", "set", nodeName, "root/vana/bad", "!XR", "root/vana/...", "RD", "root/other", "0", "root/bob", "!0"}); err == nil {
+	if err := cmd.Execute([]string{"acl", "set", nodeName, "vana/bad", "Read"}); err == nil {
 		t.Fatalf("GetACL RPC inside acl set command failed but error wrongly not detected")
 	}
 	if expected, got := "ERROR: GetACL("+nodeName+") failed: oops!", strings.TrimSpace(stderr.String()); !strings.HasPrefix(got, expected) {
@@ -214,21 +237,17 @@ func TestACLSetCommand(t *testing.T) {
 	}
 
 	if got := tape.Play(); !reflect.DeepEqual(expected, got) {
-		t.Errorf("invalid call sequence. Got %v, want %v", got, expected)
+		t.Errorf("invalid call sequence. Got %#v, want %#v", got, expected)
 	}
 	tape.Rewind()
 	stdout.Reset()
 	stderr.Reset()
 
-	// SetACL fails with not a bad etag failure.
+	// SetACL fails with something other than a bad etag failure.
 	tape.SetResponses([]interface{}{GetACLResponse{
-		acl: security.ACL{
-			In: map[security.BlessingPattern]security.LabelSet{
-				"root/self/...": security.AllLabels,
-				"root/other":    security.LabelSet(security.ReadLabel),
-			},
-			NotIn: map[string]security.LabelSet{
-				"root/bob": security.LabelSet(security.WriteLabel),
+		acl: access.TaggedACLMap{
+			"Read": access.ACL{
+				In: []security.BlessingPattern{"other", "self/..."},
 			},
 		},
 		etag: "anEtagForToday",
@@ -237,7 +256,7 @@ func TestACLSetCommand(t *testing.T) {
 		verror.BadArgf("oops!"),
 	})
 
-	if err := cmd.Execute([]string{"acl", "set", nodeName, "root/vana/bad", "!XR", "root/vana/...", "RD", "root/other", "0", "root/bob", "!0"}); err == nil {
+	if err := cmd.Execute([]string{"acl", "set", nodeName, "friend", "Read"}); err == nil {
 		t.Fatalf("SetACL should have failed: %v", err)
 	}
 	if expected, got := "", strings.TrimSpace(stdout.String()); got != expected {
@@ -251,13 +270,10 @@ func TestACLSetCommand(t *testing.T) {
 		"GetACL",
 		SetACLStimulus{
 			fun: "SetACL",
-			acl: security.ACL{
-				In: map[security.BlessingPattern]security.LabelSet{
-					"root/self/...": security.AllLabels,
-					"root/vana/...": security.LabelSet(security.ReadLabel | security.DebugLabel),
-				},
-				NotIn: map[string]security.LabelSet{
-					"root/vana/bad": security.LabelSet(security.ResolveLabel | security.ReadLabel),
+			acl: access.TaggedACLMap{
+				"Read": access.ACL{
+					In:    []security.BlessingPattern{"friend", "other", "self/..."},
+					NotIn: []string{},
 				},
 			},
 			etag: "anEtagForToday",
@@ -265,46 +281,7 @@ func TestACLSetCommand(t *testing.T) {
 	}
 
 	if got := tape.Play(); !reflect.DeepEqual(expected, got) {
-		t.Errorf("invalid call sequence. Got %v, want %v", got, expected)
-	}
-	tape.Rewind()
-	stdout.Reset()
-	stderr.Reset()
-
-	// Trying to delete non-existent items.
-	stderr.Reset()
-	stdout.Reset()
-	tape.SetResponses([]interface{}{GetACLResponse{
-		acl: security.ACL{
-			In:    map[security.BlessingPattern]security.LabelSet{},
-			NotIn: map[string]security.LabelSet{},
-		},
-		etag: "anEtagForToday",
-		err:  nil,
-	},
-		nil,
-	})
-
-	if err := cmd.Execute([]string{"acl", "set", nodeName, "root/vana/notin/missing", "!0", "root/vana/in/missing", "0"}); err != nil {
-		t.Fatalf("SetACL failed: %v", err)
-	}
-	if expected, got := "", strings.TrimSpace(stdout.String()); got != expected {
-		t.Fatalf("Unexpected output from list. Got %q, expected %q", got, expected)
-	}
-	if expected, got := "WARNING: ignoring attempt to remove non-existing NotIn ACL for root/vana/notin/missing\nWARNING: ignoring attempt to remove non-existing In ACL for root/vana/in/missing", strings.TrimSpace(stderr.String()); got != expected {
-		t.Fatalf("Unexpected output from list. Got %q, expected %q", got, expected)
-	}
-
-	expected = []interface{}{
-		"GetACL",
-		SetACLStimulus{
-			fun:  "SetACL",
-			acl:  security.ACL{},
-			etag: "anEtagForToday",
-		},
-	}
-	if got := tape.Play(); !reflect.DeepEqual(expected, got) {
-		t.Errorf("invalid call sequence. Got %v, want %v", got, expected)
+		t.Errorf("invalid call sequence. Got %#v, want %#v", got, expected)
 	}
 	tape.Rewind()
 	stdout.Reset()

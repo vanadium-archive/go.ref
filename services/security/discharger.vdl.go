@@ -171,7 +171,6 @@ var descDischarger = __ipc.InterfaceDesc{
 				{"Discharge", ``}, // __vdlutil.Any
 				{"err", ``},       // error
 			},
-			Tags: []__vdlutil.Any{security.Label(2)},
 		},
 	},
 }

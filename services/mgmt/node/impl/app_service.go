@@ -135,6 +135,7 @@ import (
 	"veyron.io/veyron/veyron2/security"
 	"veyron.io/veyron/veyron2/services/mgmt/appcycle"
 	"veyron.io/veyron/veyron2/services/mgmt/application"
+	"veyron.io/veyron/veyron2/services/security/access"
 	"veyron.io/veyron/veyron2/verror"
 	"veyron.io/veyron/veyron2/vlog"
 
@@ -205,7 +206,7 @@ type appService struct {
 	uat    BlessingSystemAssociationStore
 	locks  aclLocks
 	// Reference to the nodemanager top-level ACL list.
-	nodeACL security.ACL
+	nodeACL access.TaggedACLMap
 	// securityAgent holds state related to the security agent (nil if not
 	// using the agent).
 	securityAgent *securityAgentState
@@ -363,23 +364,14 @@ func newVersion(installationDir string, envelope *application.Envelope, oldVersi
 	return versionDir, updateLink(versionDir, filepath.Join(installationDir, "current"))
 }
 
-// TODO(rjkroege): Refactor this code with the intance creation code.
-func initializeInstallationACLs(dir string, blessings []string, acl security.ACL) error {
-	// Start out with the claimant's ACLs and add the invoker's blessings.
-
-	var labels security.LabelSet
-	if acl.In == nil {
-		// The acl.In will be empty for an unclaimed node manager. In this case,
-		// create it.
-		acl.In = make(map[security.BlessingPattern]security.LabelSet)
+// TODO(rjkroege): Refactor this code with the instance creation code.
+func initializeInstallationACLs(dir string, blessings []string, acl access.TaggedACLMap) error {
+	// Add the invoker's blessings.
+	for _, b := range blessings {
+		for _, tag := range access.AllTypicalTags() {
+			acl.Add(security.BlessingPattern(b), string(tag))
+		}
 	}
-	labels = security.AllLabels
-
-	for _, name := range blessings {
-		// TODO(rjkroege): Use custom labels.
-		acl.In[security.BlessingPattern(name)] = labels
-	}
-
 	aclDir := path.Join(dir, "acls")
 	aclData := path.Join(aclDir, "data")
 	aclSig := path.Join(aclDir, "signature")
@@ -416,7 +408,10 @@ func (i *appService) Install(call ipc.ServerContext, applicationVON string) (str
 		return "", err
 	}
 
-	if err := initializeInstallationACLs(installationDir, call.RemoteBlessings().ForContext(call), i.nodeACL); err != nil {
+	// TODO(caprita,rjkroege): Should the installation ACLs really be
+	// seeded with the node ACL? Instead, might want to hide the nodeACL
+	// from the app?
+	if err := initializeInstallationACLs(installationDir, call.RemoteBlessings().ForContext(call), i.nodeACL.Copy()); err != nil {
 		return "", err
 	}
 	deferrer = nil
@@ -603,23 +598,15 @@ func installPackages(versionDir, instanceDir string) error {
 	return nil
 }
 
-func initializeInstanceACLs(instanceDir string, blessings []string, acl security.ACL) error {
-	if acl.In == nil {
-		// The acl.In will be empty for an unclaimed node manager. In this case,
-		// create it
-		acl.In = make(map[security.BlessingPattern]security.LabelSet)
+func initializeInstanceACLs(instanceDir string, blessings []string, acl access.TaggedACLMap) error {
+	for _, b := range blessings {
+		for _, tag := range access.AllTypicalTags() {
+			acl.Add(security.BlessingPattern(b), string(tag))
+		}
 	}
-
-	labels := security.AllLabels
-	for _, name := range blessings {
-		// TODO(rjkroege): Use custom labels.
-		acl.In[security.BlessingPattern(name)] = labels
-	}
-
 	aclDir := path.Join(instanceDir, "acls")
 	aclData := path.Join(aclDir, "data")
 	aclSig := path.Join(aclDir, "signature")
-
 	return writeACLs(aclData, aclSig, aclDir, acl)
 }
 
@@ -663,7 +650,7 @@ func (i *appService) newInstance(call ipc.ServerContext) (string, string, error)
 		return instanceDir, instanceID, err
 	}
 
-	if err := initializeInstanceACLs(instanceDir, call.RemoteBlessings().ForContext(call), i.nodeACL); err != nil {
+	if err := initializeInstanceACLs(instanceDir, call.RemoteBlessings().ForContext(call), i.nodeACL.Copy()); err != nil {
 		return instanceDir, instanceID, err
 	}
 	return instanceDir, instanceID, nil
@@ -1260,7 +1247,7 @@ func dirFromSuffix(suffix []string, root string) (string, error) {
 }
 
 // TODO(rjkroege): Consider maintaining an in-memory ACL cache.
-func (i *appService) SetACL(_ ipc.ServerContext, acl security.ACL, etag string) error {
+func (i *appService) SetACL(_ ipc.ServerContext, acl access.TaggedACLMap, etag string) error {
 	dir, err := dirFromSuffix(i.suffix, i.config.Root)
 	if err != nil {
 		return err
@@ -1268,10 +1255,10 @@ func (i *appService) SetACL(_ ipc.ServerContext, acl security.ACL, etag string) 
 	return setAppACL(i.locks, dir, acl, etag)
 }
 
-func (i *appService) GetACL(_ ipc.ServerContext) (acl security.ACL, etag string, err error) {
+func (i *appService) GetACL(_ ipc.ServerContext) (acl access.TaggedACLMap, etag string, err error) {
 	dir, err := dirFromSuffix(i.suffix, i.config.Root)
 	if err != nil {
-		return security.ACL{}, "", err
+		return nil, "", err
 	}
 	return getAppACL(i.locks, dir)
 }

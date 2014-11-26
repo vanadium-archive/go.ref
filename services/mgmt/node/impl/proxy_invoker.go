@@ -6,7 +6,7 @@ import (
 
 	"veyron.io/veyron/veyron2/ipc"
 	"veyron.io/veyron/veyron2/rt"
-	"veyron.io/veyron/veyron2/security"
+	"veyron.io/veyron/veyron2/services/security/access"
 )
 
 // proxyInvoker is an ipc.Invoker implementation that proxies all requests
@@ -14,11 +14,11 @@ import (
 // <remote> transparently.
 //
 // remote is the name of the remote object.
-// label is the security label required to access this object.
+// access is the access tag require to access the object.
 // sigStub is used to get the signature of the remote object.
 type proxyInvoker struct {
 	remote  string
-	label   security.Label
+	access  access.Tag
 	sigStub signatureStub
 }
 
@@ -34,7 +34,7 @@ func (p *proxyInvoker) Prepare(method string, numArgs int) (argptrs, tags []inte
 		var x interface{}
 		argptrs[i] = &x
 	}
-	tags = []interface{}{p.label}
+	tags = []interface{}{p.access}
 	return
 }
 

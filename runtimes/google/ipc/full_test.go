@@ -20,6 +20,7 @@ import (
 	"veyron.io/veyron/veyron2/naming"
 	"veyron.io/veyron/veyron2/options"
 	"veyron.io/veyron/veyron2/security"
+	"veyron.io/veyron/veyron2/services/security/access"
 	"veyron.io/veyron/veyron2/uniqueid"
 	"veyron.io/veyron/veyron2/vdl/vdlutil"
 	verror "veyron.io/veyron/veyron2/verror2"
@@ -37,7 +38,6 @@ import (
 	inaming "veyron.io/veyron/veyron/runtimes/google/naming"
 	tnaming "veyron.io/veyron/veyron/runtimes/google/testing/mocks/naming"
 	"veyron.io/veyron/veyron/runtimes/google/vtrace"
-	vsecurity "veyron.io/veyron/veyron/security"
 )
 
 func init() {
@@ -154,10 +154,9 @@ func (t testServerDisp) Lookup(suffix string) (interface{}, security.Authorizer,
 		authorizer = nil
 	case "aclAuth":
 		// Only authorize clients matching patterns "client" or "server/...".
-		authorizer = vsecurity.NewACLAuthorizer(security.ACL{In: map[security.BlessingPattern]security.LabelSet{
-			"server/...": security.LabelSet(security.AdminLabel),
-			"client":     security.LabelSet(security.AdminLabel),
-		}})
+		authorizer = &access.ACL{
+			In: []security.BlessingPattern{"client", "server/..."},
+		}
 	default:
 		authorizer = testServerAuthorizer{}
 	}

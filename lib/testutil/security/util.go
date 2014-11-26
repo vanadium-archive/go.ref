@@ -9,6 +9,7 @@ import (
 	vsecurity "veyron.io/veyron/veyron/security"
 
 	"veyron.io/veyron/veyron2/security"
+	"veyron.io/veyron/veyron2/services/security/access"
 )
 
 // NewVeyronCredentials generates a directory with a new principal
@@ -88,13 +89,13 @@ func SetDefaultBlessings(p security.Principal, b security.Blessings) {
 // temporary file, and returns the path to the file. This function is meant
 // to be used for testing purposes only, it panics if there is an error. The
 // caller must ensure that the created file is removed once it is no longer needed.
-func SaveACLToFile(acl security.ACL) string {
+func SaveACLToFile(acl access.TaggedACLMap) string {
 	f, err := ioutil.TempFile("", "saved_acl")
 	if err != nil {
 		panic(err)
 	}
 	defer f.Close()
-	if err := vsecurity.SaveACL(f, acl); err != nil {
+	if err := acl.WriteTo(f); err != nil {
 		defer os.Remove(f.Name())
 		panic(err)
 	}
