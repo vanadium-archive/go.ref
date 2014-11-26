@@ -71,6 +71,7 @@ file. When successful, it writes the name of the new binary to stdout.
 }
 
 func runUpload(cmd *cmdline.Command, args []string) error {
+	// TODO(rthellend): Add support for creating packages on the fly.
 	if expected, got := 2, len(args); expected != got {
 		return cmd.UsageErrorf("upload: incorrect number of arguments, expected %d, got %d", expected, got)
 	}

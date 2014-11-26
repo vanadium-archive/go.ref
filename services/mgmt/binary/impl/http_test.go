@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"veyron.io/veyron/veyron2/rt"
+	"veyron.io/veyron/veyron2/services/mgmt/repository"
 
 	"veyron.io/veyron/veyron/lib/testutil"
 )
@@ -27,7 +28,8 @@ func TestHTTP(t *testing.T) {
 			size := testutil.Rand.Intn(1000*bufferLength) + 1
 			data[i] = testutil.RandomBytes(size)
 		}
-		if err := binary.Create(rt.R().NewContext(), int32(length), "application/octet-stream"); err != nil {
+		mediaInfo := repository.MediaInfo{Type: "application/octet-stream"}
+		if err := binary.Create(rt.R().NewContext(), int32(length), mediaInfo); err != nil {
 			t.Fatalf("Create() failed: %v", err)
 		}
 		for i := 0; i < length; i++ {

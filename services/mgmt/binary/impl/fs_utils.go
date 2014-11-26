@@ -79,7 +79,7 @@ func getParts(path string) ([]string, error) {
 			}
 			result[idx] = filepath.Join(path, partName)
 		} else {
-			if info.Name() == "name" {
+			if info.Name() == "name" || info.Name() == "mediainfo" {
 				continue
 			}
 			// The only entries should correspond to the part dirs.

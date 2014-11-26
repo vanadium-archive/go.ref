@@ -5,11 +5,13 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"reflect"
 	"testing"
 
 	"veyron.io/veyron/veyron2"
 	"veyron.io/veyron/veyron2/naming"
 	"veyron.io/veyron/veyron2/rt"
+	"veyron.io/veyron/veyron2/services/mgmt/repository"
 	"veyron.io/veyron/veyron2/vlog"
 
 	"veyron.io/veyron/veyron/lib/testutil"
@@ -85,21 +87,25 @@ func TestBufferAPI(t *testing.T) {
 	von, cleanup := setupRepository(t)
 	defer cleanup()
 	data := testutil.RandomBytes(testutil.Rand.Intn(10 << 20))
-	if err := Upload(runtime.NewContext(), von, data); err != nil {
+	mediaInfo := repository.MediaInfo{Type: "application/octet-stream"}
+	if err := Upload(runtime.NewContext(), von, data, mediaInfo); err != nil {
 		t.Fatalf("Upload(%v) failed: %v", von, err)
 	}
-	output, err := Download(runtime.NewContext(), von)
+	output, outInfo, err := Download(runtime.NewContext(), von)
 	if err != nil {
 		t.Fatalf("Download(%v) failed: %v", von, err)
 	}
 	if bytes.Compare(data, output) != 0 {
-		t.Fatalf("Data mismatch:\nexpected %v %v\ngot %v %v", len(data), data[:100], len(output), output[:100])
+		t.Errorf("Data mismatch:\nexpected %v %v\ngot %v %v", len(data), data[:100], len(output), output[:100])
 	}
 	if err := Delete(runtime.NewContext(), von); err != nil {
-		t.Fatalf("Delete(%v) failed: %v", von, err)
+		t.Errorf("Delete(%v) failed: %v", von, err)
 	}
-	if _, err := Download(runtime.NewContext(), von); err == nil {
-		t.Fatalf("Download(%v) did not fail", von)
+	if _, _, err := Download(runtime.NewContext(), von); err == nil {
+		t.Errorf("Download(%v) did not fail", von)
+	}
+	if !reflect.DeepEqual(mediaInfo, outInfo) {
+		t.Errorf("unexpected media info: expected %v, got %v", mediaInfo, outInfo)
 	}
 }
 
@@ -117,11 +123,15 @@ func TestFileAPI(t *testing.T) {
 	}
 	defer os.Remove(src.Name())
 	defer src.Close()
-	dst, err := ioutil.TempFile(dir, prefix)
+	dstdir, err := ioutil.TempDir(dir, prefix)
 	if err != nil {
-		t.Fatalf("TempFile(%v, %v) failed: %v", dir, prefix, err)
+		t.Fatalf("TempDir(%v, %v) failed: %v", dir, prefix, err)
 	}
-	defer os.Remove(dst.Name())
+	defer os.RemoveAll(dstdir)
+	dst, err := ioutil.TempFile(dstdir, prefix)
+	if err != nil {
+		t.Fatalf("TempFile(%v, %v) failed: %v", dstdir, prefix, err)
+	}
 	defer dst.Close()
 	if _, err := src.Write(data); err != nil {
 		t.Fatalf("Write() failed: %v", err)
@@ -134,12 +144,19 @@ func TestFileAPI(t *testing.T) {
 	}
 	output, err := ioutil.ReadFile(dst.Name())
 	if err != nil {
-		t.Fatalf("ReadFile(%v) failed: %v", dst.Name(), err)
+		t.Errorf("ReadFile(%v) failed: %v", dst.Name(), err)
 	}
 	if bytes.Compare(data, output) != 0 {
-		t.Fatalf("Data mismatch:\nexpected %v %v\ngot %v %v", len(data), data[:100], len(output), output[:100])
+		t.Errorf("Data mismatch:\nexpected %v %v\ngot %v %v", len(data), data[:100], len(output), output[:100])
+	}
+	jMediaInfo, err := ioutil.ReadFile(dst.Name() + ".__info")
+	if err != nil {
+		t.Errorf("ReadFile(%v) failed: %v", dst.Name()+".__info", err)
+	}
+	if expected := `{"Type":"application/octet-stream","Encoding":""}`; string(jMediaInfo) != expected {
+		t.Errorf("unexpected media info: expected %q, got %q", expected, string(jMediaInfo))
 	}
 	if err := Delete(runtime.NewContext(), von); err != nil {
-		t.Fatalf("Delete(%v) failed: %v", von, err)
+		t.Errorf("Delete(%v) failed: %v", von, err)
 	}
 }

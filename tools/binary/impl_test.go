@@ -27,7 +27,7 @@ type server struct {
 	suffix string
 }
 
-func (s *server) Create(ipc.ServerContext, int32, string) error {
+func (s *server) Create(ipc.ServerContext, int32, repository.MediaInfo) error {
 	vlog.Infof("Create() was called. suffix=%v", s.suffix)
 	return nil
 }
@@ -53,13 +53,13 @@ func (s *server) DownloadURL(ipc.ServerContext) (string, int64, error) {
 	return "", 0, nil
 }
 
-func (s *server) Stat(ipc.ServerContext) ([]binary.PartInfo, string, error) {
+func (s *server) Stat(ipc.ServerContext) ([]binary.PartInfo, repository.MediaInfo, error) {
 	vlog.Infof("Stat() was called. suffix=%v", s.suffix)
 	h := md5.New()
 	text := "HelloWorld"
 	h.Write([]byte(text))
 	part := binary.PartInfo{Checksum: hex.EncodeToString(h.Sum(nil)), Size: int64(len(text))}
-	return []binary.PartInfo{part}, "text/plain", nil
+	return []binary.PartInfo{part}, repository.MediaInfo{Type: "text/plain"}, nil
 }
 
 func (s *server) Upload(ctx repository.BinaryUploadContext, _ int32) error {

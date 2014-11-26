@@ -23,7 +23,7 @@ const (
 )
 
 func downloadBinary(workspace, fileName, name string) error {
-	data, err := binary.Download(rt.R().NewContext(), name)
+	data, _, err := binary.Download(rt.R().NewContext(), name)
 	if err != nil {
 		vlog.Errorf("Download(%v) failed: %v", name, err)
 		return errOperationFailed

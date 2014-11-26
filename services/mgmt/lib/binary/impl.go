@@ -18,6 +18,8 @@ import (
 	"veyron.io/veyron/veyron2/services/mgmt/repository"
 	"veyron.io/veyron/veyron2/verror"
 	"veyron.io/veyron/veyron2/vlog"
+
+	"veyron.io/veyron/veyron/services/mgmt/lib/packages"
 )
 
 var (
@@ -41,17 +43,16 @@ func Delete(ctx context.T, name string) error {
 	return nil
 }
 
-func download(ctx context.T, w io.WriteSeeker, von string) error {
+func download(ctx context.T, w io.WriteSeeker, von string) (repository.MediaInfo, error) {
 	client := repository.BinaryClient(von)
-	// TODO(rthellend): Use the media type.
-	parts, _, err := client.Stat(ctx)
+	parts, mediaInfo, err := client.Stat(ctx)
 	if err != nil {
 		vlog.Errorf("Stat() failed: %v", err)
-		return err
+		return repository.MediaInfo{}, err
 	}
 	for _, part := range parts {
 		if part.Checksum == binary.MissingChecksum {
-			return errNotExist
+			return repository.MediaInfo{}, errNotExist
 		}
 	}
 	offset, whence := int64(0), 0
@@ -102,33 +103,34 @@ func download(ctx context.T, w io.WriteSeeker, von string) error {
 			success = true
 		}
 		if !success {
-			return errOperationFailed
+			return repository.MediaInfo{}, errOperationFailed
 		}
 		offset += part.Size
 	}
-	return nil
+	return mediaInfo, nil
 }
 
-func Download(ctx context.T, von string) ([]byte, error) {
+func Download(ctx context.T, von string) ([]byte, repository.MediaInfo, error) {
 	dir, prefix := "", ""
 	file, err := ioutil.TempFile(dir, prefix)
 	if err != nil {
 		vlog.Errorf("TempFile(%v, %v) failed: %v", dir, prefix, err)
-		return nil, errOperationFailed
+		return nil, repository.MediaInfo{}, errOperationFailed
 	}
 	defer os.Remove(file.Name())
 	defer file.Close()
 	ctx, cancel := ctx.WithTimeout(time.Minute)
 	defer cancel()
-	if err := download(ctx, file, von); err != nil {
-		return nil, errOperationFailed
+	mediaInfo, err := download(ctx, file, von)
+	if err != nil {
+		return nil, repository.MediaInfo{}, errOperationFailed
 	}
 	bytes, err := ioutil.ReadFile(file.Name())
 	if err != nil {
 		vlog.Errorf("ReadFile(%v) failed: %v", file.Name(), err)
-		return nil, errOperationFailed
+		return nil, repository.MediaInfo{}, errOperationFailed
 	}
-	return bytes, nil
+	return bytes, mediaInfo, nil
 }
 
 func DownloadToFile(ctx context.T, von, path string) error {
@@ -141,13 +143,14 @@ func DownloadToFile(ctx context.T, von, path string) error {
 	defer file.Close()
 	ctx, cancel := ctx.WithTimeout(time.Minute)
 	defer cancel()
-	if err := download(ctx, file, von); err != nil {
+	mediaInfo, err := download(ctx, file, von)
+	if err != nil {
 		if err := os.Remove(file.Name()); err != nil {
 			vlog.Errorf("Remove(%v) failed: %v", file.Name(), err)
 		}
 		return errOperationFailed
 	}
-	perm := os.FileMode(0700)
+	perm := os.FileMode(0600)
 	if err := file.Chmod(perm); err != nil {
 		vlog.Errorf("Chmod(%v) failed: %v", perm, err)
 		if err := os.Remove(file.Name()); err != nil {
@@ -162,10 +165,17 @@ func DownloadToFile(ctx context.T, von, path string) error {
 		}
 		return errOperationFailed
 	}
+	if err := packages.SaveMediaInfo(path, mediaInfo); err != nil {
+		vlog.Errorf("packages.SaveMediaInfo(%v, %v) failed: %v", path, mediaInfo, err)
+		if err := os.Remove(path); err != nil {
+			vlog.Errorf("Remove(%v) failed: %v", path, err)
+		}
+		return errOperationFailed
+	}
 	return nil
 }
 
-func upload(ctx context.T, r io.ReadSeeker, von string) error {
+func upload(ctx context.T, r io.ReadSeeker, mediaInfo repository.MediaInfo, von string) error {
 	client := repository.BinaryClient(von)
 	offset, whence := int64(0), 2
 	size, err := r.Seek(offset, whence)
@@ -174,9 +184,7 @@ func upload(ctx context.T, r io.ReadSeeker, von string) error {
 		return errOperationFailed
 	}
 	nparts := (size-1)/partSize + 1
-	// TODO(rthellend): Determine the actual media type.
-	mediaType := "application/octet-stream"
-	if err := client.Create(ctx, int32(nparts), mediaType); err != nil {
+	if err := client.Create(ctx, int32(nparts), mediaInfo); err != nil {
 		vlog.Errorf("Create() failed: %v", err)
 		return err
 	}
@@ -258,11 +266,11 @@ func upload(ctx context.T, r io.ReadSeeker, von string) error {
 	return nil
 }
 
-func Upload(ctx context.T, von string, data []byte) error {
+func Upload(ctx context.T, von string, data []byte, mediaInfo repository.MediaInfo) error {
 	buffer := bytes.NewReader(data)
 	ctx, cancel := ctx.WithTimeout(time.Minute)
 	defer cancel()
-	return upload(ctx, buffer, von)
+	return upload(ctx, buffer, mediaInfo, von)
 }
 
 func UploadFromFile(ctx context.T, von, path string) error {
@@ -274,5 +282,6 @@ func UploadFromFile(ctx context.T, von, path string) error {
 	}
 	ctx, cancel := ctx.WithTimeout(time.Minute)
 	defer cancel()
-	return upload(ctx, file, von)
+	mediaInfo := packages.MediaInfoForFileName(path)
+	return upload(ctx, file, mediaInfo, von)
 }

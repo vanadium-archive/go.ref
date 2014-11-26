@@ -22,6 +22,7 @@ package impl
 import (
 	"crypto/md5"
 	"encoding/hex"
+	"encoding/json"
 	"io"
 	"io/ioutil"
 	"os"
@@ -75,8 +76,8 @@ func newBinaryService(state *state, suffix string) *binaryService {
 
 const bufferLength = 4096
 
-func (i *binaryService) Create(_ ipc.ServerContext, nparts int32, mediaType string) error {
-	vlog.Infof("%v.Create(%v, %v)", i.suffix, nparts, mediaType)
+func (i *binaryService) Create(_ ipc.ServerContext, nparts int32, mediaInfo repository.MediaInfo) error {
+	vlog.Infof("%v.Create(%v, %v)", i.suffix, nparts, mediaInfo)
 	if nparts < 1 {
 		return errInvalidParts
 	}
@@ -94,6 +95,16 @@ func (i *binaryService) Create(_ ipc.ServerContext, nparts int32, mediaType stri
 	nameFile := filepath.Join(tmpDir, "name")
 	if err := ioutil.WriteFile(nameFile, []byte(i.suffix), os.FileMode(0600)); err != nil {
 		vlog.Errorf("WriteFile(%q) failed: %v", nameFile)
+		return errOperationFailed
+	}
+	infoFile := filepath.Join(tmpDir, "mediainfo")
+	jInfo, err := json.Marshal(mediaInfo)
+	if err != nil {
+		vlog.Errorf("json.Marshal(%v) failed: %v", mediaInfo, err)
+		return errOperationFailed
+	}
+	if err := ioutil.WriteFile(infoFile, jInfo, os.FileMode(0600)); err != nil {
+		vlog.Errorf("WriteFile(%q) failed: %v", infoFile, err)
 		return errOperationFailed
 	}
 	for j := 0; j < int(nparts); j++ {
@@ -199,12 +210,12 @@ func (i *binaryService) DownloadURL(ipc.ServerContext) (string, int64, error) {
 	return "", 0, nil
 }
 
-func (i *binaryService) Stat(ipc.ServerContext) ([]binary.PartInfo, string, error) {
+func (i *binaryService) Stat(ipc.ServerContext) ([]binary.PartInfo, repository.MediaInfo, error) {
 	vlog.Infof("%v.Stat()", i.suffix)
 	result := make([]binary.PartInfo, 0)
 	parts, err := getParts(i.path)
 	if err != nil {
-		return []binary.PartInfo{}, "", err
+		return []binary.PartInfo{}, repository.MediaInfo{}, err
 	}
 	for _, part := range parts {
 		checksumFile := filepath.Join(part, checksum)
@@ -215,7 +226,7 @@ func (i *binaryService) Stat(ipc.ServerContext) ([]binary.PartInfo, string, erro
 				continue
 			}
 			vlog.Errorf("ReadFile(%v) failed: %v", checksumFile, err)
-			return []binary.PartInfo{}, "", errOperationFailed
+			return []binary.PartInfo{}, repository.MediaInfo{}, errOperationFailed
 		}
 		dataFile := filepath.Join(part, data)
 		fi, err := os.Stat(dataFile)
@@ -225,12 +236,22 @@ func (i *binaryService) Stat(ipc.ServerContext) ([]binary.PartInfo, string, erro
 				continue
 			}
 			vlog.Errorf("Stat(%v) failed: %v", dataFile, err)
-			return []binary.PartInfo{}, "", errOperationFailed
+			return []binary.PartInfo{}, repository.MediaInfo{}, errOperationFailed
 		}
 		result = append(result, binary.PartInfo{Checksum: string(bytes), Size: fi.Size()})
 	}
-	// TODO(rthellend): Store the actual media type.
-	return result, "application/octet-stream", nil
+	infoFile := filepath.Join(i.path, "mediainfo")
+	jInfo, err := ioutil.ReadFile(infoFile)
+	if err != nil {
+		vlog.Errorf("ReadFile(%q) failed: %v", infoFile)
+		return []binary.PartInfo{}, repository.MediaInfo{}, errOperationFailed
+	}
+	var mediaInfo repository.MediaInfo
+	if err := json.Unmarshal(jInfo, &mediaInfo); err != nil {
+		vlog.Errorf("json.Unmarshal(%v) failed: %v", jInfo, err)
+		return []binary.PartInfo{}, repository.MediaInfo{}, errOperationFailed
+	}
+	return result, mediaInfo, nil
 }
 
 func (i *binaryService) Upload(context repository.BinaryUploadContext, part int32) error {
