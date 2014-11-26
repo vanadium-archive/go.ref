@@ -110,7 +110,7 @@ func HandleRequest(ctx context.T, rt veyron2.Runtime, data string, w lib.ClientW
 	case methodRoots:
 		roots(ctx, ns, w)
 	case methodSetRoots:
-		setRoots(ctx, ns, w, req.Args)
+		setRoots(ctx, ns, rt, w, req.Args)
 	default:
 		w.Error(verror2.Make(verror2.NoExist, ctx, req.Method))
 	}
@@ -291,14 +291,19 @@ func roots(ctx context.T, ns naming.Namespace, w lib.ClientWriter) {
 	}
 }
 
-func setRoots(ctx context.T, ns naming.Namespace, w lib.ClientWriter, rawArgs json.RawMessage) {
+func setRoots(ctx context.T, ns naming.Namespace, rt veyron2.Runtime, w lib.ClientWriter, rawArgs json.RawMessage) {
 	var args setRootsArgs
 	if err := json.Unmarshal([]byte(rawArgs), &args); err != nil {
 		w.Error(verror2.Convert(verror2.Internal, ctx, err))
 		return
 	}
 
-	if err := ns.SetRoots(args.Roots...); err != nil {
+	wsRoots, err := lib.EndpointsToWs(rt, args.Roots)
+	if err != nil {
+		w.Error(verror2.Convert(verror2.Internal, ctx, err))
+	}
+
+	if err := ns.SetRoots(wsRoots...); err != nil {
 		w.Error(verror2.Convert(verror2.Internal, ctx, err))
 		return
 	}
