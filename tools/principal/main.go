@@ -25,8 +25,6 @@ import (
 )
 
 var (
-	runtime veyron2.Runtime
-
 	// Flags for the "blessself" command
 	flagBlessSelfFor time.Duration
 
@@ -55,6 +53,12 @@ Prints out information about the principal specified by the environment
 that this tool is running in.
 `,
 		Run: func(cmd *cmdline.Command, args []string) error {
+			runtime, err := rt.New()
+			if err != nil {
+				panic(err)
+			}
+			defer runtime.Cleanup()
+
 			p := runtime.Principal()
 			fmt.Printf("Public key : %v\n", p.PublicKey())
 			fmt.Println("---------------- BlessingStore ----------------")
@@ -142,6 +146,13 @@ machine and the name of the user running this command.
 				}
 				caveats = append(caveats, cav)
 			}
+
+			runtime, err := rt.New()
+			if err != nil {
+				panic(err)
+			}
+			defer runtime.Cleanup()
+
 			blessing, err := runtime.Principal().BlessSelf(name, caveats...)
 			if err != nil {
 				return fmt.Errorf("failed to create self-signed blessing for name %q: %v", name, err)
@@ -191,10 +202,16 @@ blessing.
 			if len(args) != 2 {
 				return fmt.Errorf("require exactly two arguments, provided %d", len(args))
 			}
+
+			runtime, err := rt.New()
+			if err != nil {
+				panic(err)
+			}
+			defer runtime.Cleanup()
+
 			p := runtime.Principal()
 
 			var with security.Blessings
-			var err error
 			var caveats []security.Caveat
 			if len(flagBlessWith) > 0 {
 				if with, err = decodeBlessings(flagBlessWith); err != nil {
@@ -262,6 +279,12 @@ store.forpeer returns the blessings that are marked for all peers (i.e.,
 blessings set on the store with the "..." pattern).
 `,
 		Run: func(cmd *cmdline.Command, args []string) error {
+			runtime, err := rt.New()
+			if err != nil {
+				panic(err)
+			}
+			defer runtime.Cleanup()
+
 			return dumpBlessings(runtime.Principal().BlessingStore().ForPeer(args...))
 		},
 	}
@@ -274,6 +297,12 @@ Returns blessings that are marked as default in the BlessingStore specified by
 the environment that this tool is running in.
 `,
 		Run: func(cmd *cmdline.Command, args []string) error {
+			runtime, err := rt.New()
+			if err != nil {
+				panic(err)
+			}
+			defer runtime.Cleanup()
+
 			return dumpBlessings(runtime.Principal().BlessingStore().Default())
 		},
 	}
@@ -312,6 +341,13 @@ blessing can be shared with.
 				return fmt.Errorf("failed to decode provided blessings: %v", err)
 			}
 			pattern := security.BlessingPattern(args[1])
+
+			runtime, err := rt.New()
+			if err != nil {
+				panic(err)
+			}
+			defer runtime.Cleanup()
+
 			p := runtime.Principal()
 			if _, err := p.BlessingStore().Set(blessings, pattern); err != nil {
 				return fmt.Errorf("failed to set blessings %v for peers %v: %v", blessings, pattern, err)
@@ -348,6 +384,13 @@ this tool. - is used for STDIN.
 			if err != nil {
 				return fmt.Errorf("failed to decode provided blessings: %v", err)
 			}
+
+			runtime, err := rt.New()
+			if err != nil {
+				panic(err)
+			}
+			defer runtime.Cleanup()
+
 			p := runtime.Principal()
 			if err := p.BlessingStore().SetDefault(blessings); err != nil {
 				return fmt.Errorf("failed to set blessings %v as default: %v", blessings, err)
@@ -434,6 +477,12 @@ specific peer pattern is provided using the --for_peer flag.
 		Run: func(cmd *cmdline.Command, args []string) error {
 			// Initialize the runtime first so that any local errors are reported
 			// before the HTTP roundtrips for obtaining the macaroon begin.
+			runtime, err := rt.New()
+			if err != nil {
+				panic(err)
+			}
+			defer runtime.Cleanup()
+
 			blessedChan := make(chan string)
 			defer close(blessedChan)
 			macaroonChan, err := getMacaroonForBlessRPC(flagSeekBlessingsFrom, blessedChan)
@@ -514,6 +563,13 @@ invocation.
 			if len(args) != 0 {
 				return fmt.Errorf("command accepts no arguments")
 			}
+
+			runtime, err := rt.New()
+			if err != nil {
+				panic(err)
+			}
+			defer runtime.Cleanup()
+
 			server, err := runtime.NewServer()
 			if err != nil {
 				return fmt.Errorf("failed to create server to listen for blessings: %v", err)
@@ -550,13 +606,6 @@ invocation.
 )
 
 func main() {
-	var err error
-	runtime, err = rt.New()
-	if err != nil {
-		panic(err)
-	}
-	defer runtime.Cleanup()
-
 	cmdBlessSelf.Flags.DurationVar(&flagBlessSelfFor, "for", 0, "Duration of blessing validity (zero means no that the blessing is always valid)")
 
 	cmdBless.Flags.DurationVar(&flagBlessFor, "for", time.Minute, "Duration of blessing validity")
