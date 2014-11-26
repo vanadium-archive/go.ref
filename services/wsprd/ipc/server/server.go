@@ -27,21 +27,23 @@ type Flow struct {
 }
 
 // A request from the proxy to javascript to handle an RPC
-type serverRPCRequest struct {
+type ServerRPCRequest struct {
 	ServerId uint64
 	Handle   int64
 	Method   string
-	Args     string
-	Context  serverRPCRequestContext
+	Args     []interface{}
+	Context  ServerRPCRequestContext
 }
 
-// call context for a serverRPCRequest
-type serverRPCRequestContext struct {
+// TODO(bjornick): Merge this with the context used by the security code.
+// call context for a ServerRPCRequest
+type ServerRPCRequestContext struct {
 	Suffix                string
 	Name                  string
 	RemoteBlessings       principal.BlessingsHandle
 	RemoteBlessingStrings []string
 	Timeout               int64 // The time period (in ns) between now and the deadline.
+	MethodTags            []interface{}
 }
 
 // The response from the javascript server to the proxy.
@@ -74,11 +76,13 @@ type authReply struct {
 	Err *verror2.Standard
 }
 
-type context struct {
+// Contex is the security context passed to Javascript.
+// This is exported to make the app test easier.
+type Context struct {
 	Method                string                    `json:"method"`
 	Name                  string                    `json:"name"`
 	Suffix                string                    `json:"suffix"`
-	Label                 security.Label            `json:"label"` // TODO(bjornick,ashankar): This should be method tags!
+	MethodTags            []interface{}             `json:"methodTags"`
 	LocalBlessings        principal.BlessingsHandle `json:"localBlessings"`
 	LocalBlessingStrings  []string                  `json:"localBlessingStrings"`
 	RemoteBlessings       principal.BlessingsHandle `json:"remoteBlessings"`
@@ -87,10 +91,12 @@ type context struct {
 	RemoteEndpoint        string                    `json:"remoteEndpoint"`
 }
 
-type authRequest struct {
+// AuthRequest is a request for a javascript authorizer to run
+// This is exported to make the app test easier.
+type AuthRequest struct {
 	ServerID uint64  `json:"serverID"`
 	Handle   int64   `json:"handle"`
-	Context  context `json:"context"`
+	Context  Context `json:"context"`
 }
 
 type Server struct {
@@ -151,14 +157,6 @@ func (s *Server) createRemoteInvokerFunc(handle int64) remoteInvokeFunc {
 			timeout = lib.GoToJSDuration(deadline.Sub(time.Now()))
 		}
 
-		context := serverRPCRequestContext{
-			Suffix:                call.Suffix(),
-			Name:                  call.Name(),
-			Timeout:               timeout,
-			RemoteBlessings:       s.convertBlessingsToHandle(call.RemoteBlessings()),
-			RemoteBlessingStrings: call.RemoteBlessings().ForContext(call),
-		}
-
 		errHandler := func(err error) <-chan *serverRPCReply {
 			if ch := s.popServerRequest(flow.ID); ch != nil {
 				stdErr := verror2.Convert(verror2.Internal, call, err).(verror2.Standard)
@@ -168,26 +166,32 @@ func (s *Server) createRemoteInvokerFunc(handle int64) remoteInvokeFunc {
 			return replyChan
 
 		}
-		var buf bytes.Buffer
-		encoder, err := vom2.NewBinaryEncoder(&buf)
+
+		context := ServerRPCRequestContext{
+			Suffix:                call.Suffix(),
+			Name:                  call.Name(),
+			Timeout:               timeout,
+			RemoteBlessings:       s.convertBlessingsToHandle(call.RemoteBlessings()),
+			RemoteBlessingStrings: call.RemoteBlessings().ForContext(call),
+			MethodTags:            call.MethodTags(),
+		}
+
+		// Send a invocation request to JavaScript
+		message := ServerRPCRequest{
+			ServerId: s.id,
+			Handle:   handle,
+			Method:   lib.LowercaseFirstCharacter(methodName),
+			Args:     args,
+			Context:  context,
+		}
+
+		vomMessage, err := lib.VomEncode(message)
+
 		if err != nil {
 			return errHandler(err)
 		}
 
-		if err := encoder.Encode(args); err != nil {
-			return errHandler(err)
-		}
-
-		// Send a invocation request to JavaScript
-		message := serverRPCRequest{
-			ServerId: s.id,
-			Handle:   handle,
-			Method:   lib.LowercaseFirstCharacter(methodName),
-			Args:     hex.EncodeToString(buf.Bytes()),
-			Context:  context,
-		}
-
-		if err := flow.Writer.Send(lib.ResponseServerRequest, message); err != nil {
+		if err := flow.Writer.Send(lib.ResponseServerRequest, vomMessage); err != nil {
 			return errHandler(err)
 		}
 
@@ -257,14 +261,14 @@ func (s *Server) createRemoteAuthFunc(handle int64) remoteAuthFunc {
 		s.mu.Lock()
 		s.outstandingAuthRequests[flow.ID] = replyChan
 		s.mu.Unlock()
-		message := authRequest{
+		message := AuthRequest{
 			ServerID: s.id,
 			Handle:   handle,
-			Context: context{
+			Context: Context{
 				Method:                lib.LowercaseFirstCharacter(ctx.Method()),
 				Name:                  ctx.Name(),
 				Suffix:                ctx.Suffix(),
-				Label:                 labelFromMethodTags(ctx.MethodTags()),
+				MethodTags:            ctx.MethodTags(),
 				LocalEndpoint:         ctx.LocalEndpoint().String(),
 				RemoteEndpoint:        ctx.RemoteEndpoint().String(),
 				LocalBlessings:        s.convertBlessingsToHandle(ctx.LocalBlessings()),
@@ -275,11 +279,14 @@ func (s *Server) createRemoteAuthFunc(handle int64) remoteAuthFunc {
 		}
 		s.helper.GetLogger().VI(0).Infof("Sending out auth request for %v, %v", flow.ID, message)
 
-		if err := flow.Writer.Send(lib.ResponseAuthRequest, message); err != nil {
+		vomMessage, err := lib.VomEncode(message)
+		if err != nil {
+			replyChan <- verror2.Convert(verror2.Internal, nil, err)
+		} else if err := flow.Writer.Send(lib.ResponseAuthRequest, vomMessage); err != nil {
 			replyChan <- verror2.Convert(verror2.Internal, nil, err)
 		}
 
-		err := <-replyChan
+		err = <-replyChan
 		s.helper.GetLogger().VI(0).Infof("going to respond with %v", err)
 		s.mu.Lock()
 		delete(s.outstandingAuthRequests, flow.ID)
@@ -383,14 +390,14 @@ func (s *Server) cleanupFlow(id int64) {
 	s.helper.CleanupFlow(id)
 }
 
-func (s *Server) createInvoker(handle int64, sig signature.JSONServiceSignature, label security.Label) (ipc.Invoker, error) {
+func (s *Server) createInvoker(handle int64, sig signature.JSONServiceSignature) (ipc.Invoker, error) {
 	serviceSig, err := sig.ServiceSignature()
 	if err != nil {
 		return nil, err
 	}
 
 	remoteInvokeFunc := s.createRemoteInvokerFunc(handle)
-	return newInvoker(serviceSig, label, remoteInvokeFunc), nil
+	return newInvoker(serviceSig, sig, remoteInvokeFunc), nil
 }
 
 func (s *Server) createAuthorizer(handle int64, hasAuthorizer bool) (security.Authorizer, error) {

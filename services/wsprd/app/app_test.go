@@ -1,8 +1,6 @@
 package app
 
 import (
-	"bytes"
-	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"reflect"
@@ -18,7 +16,6 @@ import (
 	"veyron.io/veyron/veyron2/verror2"
 	"veyron.io/veyron/veyron2/vom"
 	vom_wiretype "veyron.io/veyron/veyron2/vom/wiretype"
-	"veyron.io/veyron/veyron2/vom2"
 	"veyron.io/veyron/veyron2/wiretype"
 	"veyron.io/wspr/veyron/services/wsprd/lib"
 	"veyron.io/wspr/veyron/services/wsprd/lib/testwriter"
@@ -269,18 +266,12 @@ func runGoServerTestCase(t *testing.T, test goServerTestCase) {
 	}
 }
 
-func vomEncode(i interface{}) string {
-	var buf bytes.Buffer
-	encoder, err := vom2.NewBinaryEncoder(&buf)
+func vomEncodeOrDie(v interface{}) string {
+	s, err := lib.VomEncode(v)
 	if err != nil {
 		panic(err)
 	}
-
-	if err := encoder.Encode(i); err != nil {
-		panic(err)
-	}
-	return hex.EncodeToString(buf.Bytes())
-
+	return s
 }
 func TestCallingGoServer(t *testing.T) {
 	runGoServerTestCase(t, goServerTestCase{
@@ -289,7 +280,7 @@ func TestCallingGoServer(t *testing.T) {
 		numOutArgs: 2,
 		expectedStream: []testwriter.Response{
 			testwriter.Response{
-				Message: vomEncode([]interface{}{int32(5)}),
+				Message: vomEncodeOrDie([]interface{}{int32(5)}),
 				Type:    lib.ResponseFinal,
 			},
 		},
@@ -314,19 +305,19 @@ func TestCallingGoWithStreaming(t *testing.T) {
 		numOutArgs:         2,
 		expectedStream: []testwriter.Response{
 			testwriter.Response{
-				Message: vomEncode(int32(1)),
+				Message: vomEncodeOrDie(int32(1)),
 				Type:    lib.ResponseStream,
 			},
 			testwriter.Response{
-				Message: vomEncode(int32(3)),
+				Message: vomEncodeOrDie(int32(3)),
 				Type:    lib.ResponseStream,
 			},
 			testwriter.Response{
-				Message: vomEncode(int32(6)),
+				Message: vomEncodeOrDie(int32(6)),
 				Type:    lib.ResponseStream,
 			},
 			testwriter.Response{
-				Message: vomEncode(int32(10)),
+				Message: vomEncodeOrDie(int32(10)),
 				Type:    lib.ResponseStream,
 			},
 			testwriter.Response{
@@ -334,7 +325,7 @@ func TestCallingGoWithStreaming(t *testing.T) {
 				Type:    lib.ResponseStreamClose,
 			},
 			testwriter.Response{
-				Message: vomEncode([]interface{}{int32(10)}),
+				Message: vomEncodeOrDie([]interface{}{int32(10)}),
 				Type:    lib.ResponseFinal,
 			},
 		},
@@ -527,7 +518,7 @@ func runJsServerTestCase(t *testing.T, test jsServerTestCase) {
 
 	vomClientStream := []string{}
 	for _, m := range test.clientStream {
-		vomClientStream = append(vomClientStream, vomEncode(m))
+		vomClientStream = append(vomClientStream, vomEncodeOrDie(m))
 	}
 	mock := &mockJSServer{
 		controller:           rt.controller,
@@ -538,7 +529,7 @@ func runJsServerTestCase(t *testing.T, test jsServerTestCase) {
 		serverStream:         test.serverStream,
 		hasAuthorizer:        test.hasAuthorizer,
 		authError:            test.authError,
-		inArgs:               vomEncode(test.inArgs),
+		inArgs:               test.inArgs,
 		finalResponse:        test.finalResponse,
 		finalError:           test.err,
 	}
