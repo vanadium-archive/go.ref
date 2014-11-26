@@ -47,8 +47,8 @@ main() {
   if [[ $(cmp "${BINARY_FILE}" "${BINARY_FILE2}" &> /dev/null) ]]; then
     shell_test::fail "mismatching binary file downloaded via RPC"
   fi
-  local -r BINARY_FILE2_INFO=$(cat "${BINARY_FILE2}.info")
-  shell_test::assert_eq "${BINARY_FILE2_INFO}" '{"type":"application/octet-stream"}' "${LINENO}"
+  local -r BINARY_FILE2_INFO=$(cat "${BINARY_FILE2}.__info")
+  shell_test::assert_eq "${BINARY_FILE2_INFO}" '{"Type":"application/octet-stream","Encoding":""}' "${LINENO}"
 
   # Download the tar file.
   local -r TAR_FILE2="${WORKDIR}/downloadedtar"
@@ -56,8 +56,8 @@ main() {
   if [[ $(cmp "${TAR_FILE}" "${TAR_FILE2}" &> /dev/null) ]]; then
     shell_test::fail "mismatching tar file downloaded via RPC"
   fi
-  local -r TAR_FILE2_INFO=$(cat "${TAR_FILE2}.info")
-  shell_test::assert_eq "${TAR_FILE2_INFO}" '{"encoding":"gzip","type":"application/x-tar"}' "${LINENO}"
+  local -r TAR_FILE2_INFO=$(cat "${TAR_FILE2}.__info")
+  shell_test::assert_eq "${TAR_FILE2_INFO}" '{"Type":"application/x-tar","Encoding":"gzip"}' "${LINENO}"
 
   local -r BINARY_FILE3="${WORKDIR}/bin3"
   curl -f -o "${BINARY_FILE3}" "http://${HTTP_ADDR}/${BINARY_SUFFIX}" || shell_test::fail "line ${LINENO}: 'HTTP download' failed"
