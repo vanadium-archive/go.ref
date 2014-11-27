@@ -91,7 +91,7 @@ func realMain() int {
 	}
 
 	if *noshell {
-		<-signals.ShutdownOnSignals()
+		<-signals.ShutdownOnSignals(r)
 		return 0
 	}
 

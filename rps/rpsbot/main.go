@@ -66,7 +66,7 @@ func main() {
 
 	ctx := r.NewContext()
 	go initiateGames(ctx, rpsService)
-	<-signals.ShutdownOnSignals()
+	<-signals.ShutdownOnSignals(r)
 }
 
 func initiateGames(ctx context.T, rpsService *RPS) {

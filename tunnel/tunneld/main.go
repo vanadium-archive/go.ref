@@ -77,5 +77,5 @@ func main() {
 		vlog.Fatalf("Failed to publish with any of %v", names)
 	}
 	vlog.Infof("Published as %v", names)
-	<-signals.ShutdownOnSignals()
+	<-signals.ShutdownOnSignals(r)
 }
