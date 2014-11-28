@@ -75,7 +75,7 @@ func TestDebugServer(t *testing.T) {
 
 	// Access a logs directory that exists.
 	{
-		results, err := testutil.GlobName(naming.JoinAddressName(endpoint, "debug/logs"), "*")
+		results, err := testutil.GlobName(runtime.NewContext(), naming.JoinAddressName(endpoint, "debug/logs"), "*")
 		if err != nil {
 			t.Errorf("Glob failed: %v", err)
 		}
@@ -86,7 +86,7 @@ func TestDebugServer(t *testing.T) {
 
 	// Access a logs directory that doesn't exist.
 	{
-		results, err := testutil.GlobName(naming.JoinAddressName(endpoint, "debug/logs/nowheretobefound"), "*")
+		results, err := testutil.GlobName(runtime.NewContext(), naming.JoinAddressName(endpoint, "debug/logs/nowheretobefound"), "*")
 		if len(results) != 0 {
 			t.Errorf("unexpected result. Got %v, want ''", results)
 		}

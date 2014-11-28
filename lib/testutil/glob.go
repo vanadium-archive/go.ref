@@ -4,15 +4,17 @@ import (
 	"io"
 	"sort"
 
+	"veyron.io/veyron/veyron2"
+	"veyron.io/veyron/veyron2/context"
 	"veyron.io/veyron/veyron2/ipc"
 	"veyron.io/veyron/veyron2/naming"
-	"veyron.io/veyron/veyron2/rt"
 )
 
 // GlobName calls __Glob on the given object with the given pattern and returns
 // a sorted list of matching object names, or an error.
-func GlobName(name, pattern string) ([]string, error) {
-	call, err := rt.R().Client().StartCall(rt.R().NewContext(), name, ipc.GlobMethod, []interface{}{pattern})
+func GlobName(ctx context.T, name, pattern string) ([]string, error) {
+	client := ctx.Runtime().(veyron2.Runtime).Client()
+	call, err := client.StartCall(ctx, name, ipc.GlobMethod, []interface{}{pattern})
 	if err != nil {
 		return nil, err
 	}

@@ -100,7 +100,7 @@ func TestInterface(t *testing.T) {
 	}
 
 	// Test Glob
-	matches, err := testutil.GlobName(naming.JoinAddressName(endpoint.String(), ""), "...")
+	matches, err := testutil.GlobName(ctx, naming.JoinAddressName(endpoint.String(), ""), "...")
 	if err != nil {
 		t.Errorf("Unexpected Glob error: %v", err)
 	}

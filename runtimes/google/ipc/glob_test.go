@@ -34,7 +34,10 @@ func startServer(rt veyron2.Runtime, tree *node) (string, func(), error) {
 }
 
 func TestGlob(t *testing.T) {
-	runtime := rt.Init()
+	runtime, err := rt.New()
+	if err != nil {
+		panic(err)
+	}
 	defer runtime.Cleanup()
 
 	namespace := []string{
@@ -158,7 +161,7 @@ func TestGlob(t *testing.T) {
 	}
 	for _, tc := range testcases {
 		name := naming.JoinAddressName(ep, tc.name)
-		results, err := testutil.GlobName(name, tc.pattern)
+		results, err := testutil.GlobName(runtime.NewContext(), name, tc.pattern)
 		if err != nil {
 			t.Errorf("unexpected Glob error for (%q, %q): %v", tc.name, tc.pattern, err)
 			continue

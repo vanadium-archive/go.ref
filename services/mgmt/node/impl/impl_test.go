@@ -1013,7 +1013,7 @@ func TestNodeManagerGlobAndDebug(t *testing.T) {
 	logFileRemoveErrorFatalWarningRE := regexp.MustCompile("(ERROR|FATAL|WARNING)")
 	statsTrimRE := regexp.MustCompile("/stats/(ipc|system(/start-time.*)?)$")
 	for _, tc := range testcases {
-		results, err := testutil.GlobName(tc.name, tc.pattern)
+		results, err := testutil.GlobName(rt.R().NewContext(), tc.name, tc.pattern)
 		if err != nil {
 			t.Errorf("unexpected glob error for (%q, %q): %v", tc.name, tc.pattern, err)
 			continue
@@ -1041,7 +1041,7 @@ func TestNodeManagerGlobAndDebug(t *testing.T) {
 	}
 
 	// Call Size() on the log file objects.
-	files, err := testutil.GlobName("nm", "apps/google naps/"+installID+"/"+instance1ID+"/logs/*")
+	files, err := testutil.GlobName(rt.R().NewContext(), "nm", "apps/google naps/"+installID+"/"+instance1ID+"/logs/*")
 	if err != nil {
 		t.Errorf("unexpected glob error: %v", err)
 	}
@@ -1057,7 +1057,7 @@ func TestNodeManagerGlobAndDebug(t *testing.T) {
 	}
 
 	// Call Value() on some of the stats objects.
-	objects, err := testutil.GlobName("nm", "apps/google naps/"+installID+"/"+instance1ID+"/stats/system/start-time*")
+	objects, err := testutil.GlobName(rt.R().NewContext(), "nm", "apps/google naps/"+installID+"/"+instance1ID+"/stats/system/start-time*")
 	if err != nil {
 		t.Errorf("unexpected glob error: %v", err)
 	}
