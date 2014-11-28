@@ -84,5 +84,5 @@ func main() {
 	}
 
 	// Wait until signal is received.
-	vlog.Info("Received signal ", <-signals.ShutdownOnSignals())
+	vlog.Info("Received signal ", <-signals.ShutdownOnSignals(r))
 }

@@ -76,5 +76,5 @@ func main() {
 	impl.InvokeCallback(name)
 
 	// Wait until shutdown.
-	<-signals.ShutdownOnSignals()
+	<-signals.ShutdownOnSignals(runtime)
 }

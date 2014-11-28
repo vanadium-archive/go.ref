@@ -142,7 +142,7 @@ func main() {
 	})
 	vlog.Infof("Running HTTP server at: %v", httpaddress())
 	go runHTTPSServer(*httpaddr)
-	<-signals.ShutdownOnSignals()
+	<-signals.ShutdownOnSignals(r)
 }
 
 func appendSuffixTo(objectname []string, suffix string) []string {

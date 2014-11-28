@@ -41,7 +41,7 @@ func init() {
 	modules.RegisterChild("handleDefaultsIgnoreChan", "", handleDefaultsIgnoreChan)
 }
 
-func stopLoop(stdin io.Reader, ch chan<- struct{}) {
+func stopLoop(runtime veyron2.Runtime, stdin io.Reader, ch chan<- struct{}) {
 	scanner := bufio.NewScanner(stdin)
 	for scanner.Scan() {
 		switch scanner.Text() {
@@ -49,19 +49,23 @@ func stopLoop(stdin io.Reader, ch chan<- struct{}) {
 			close(ch)
 			return
 		case "stop":
-			rt.R().AppCycle().Stop()
+			runtime.AppCycle().Stop()
 		}
 	}
 }
 
 func program(stdin io.Reader, stdout io.Writer, signals ...os.Signal) {
-	r := rt.Init()
+	runtime, err := rt.New()
+	if err != nil {
+		panic(err)
+	}
+
 	closeStopLoop := make(chan struct{})
-	go stopLoop(stdin, closeStopLoop)
-	wait := ShutdownOnSignals(signals...)
+	go stopLoop(runtime, stdin, closeStopLoop)
+	wait := ShutdownOnSignals(runtime, signals...)
 	fmt.Fprintf(stdout, "ready\n")
 	fmt.Fprintf(stdout, "received signal %s\n", <-wait)
-	r.Cleanup()
+	runtime.Cleanup()
 	<-closeStopLoop
 }
 
@@ -81,10 +85,14 @@ func handleCustomWithStop(stdin io.Reader, stdout, stderr io.Writer, env map[str
 }
 
 func handleDefaultsIgnoreChan(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
-	defer rt.Init().Cleanup()
+	runtime, err := rt.New()
+	if err != nil {
+		panic(err)
+	}
+	defer runtime.Cleanup()
 	closeStopLoop := make(chan struct{})
-	go stopLoop(stdin, closeStopLoop)
-	ShutdownOnSignals()
+	go stopLoop(runtime, stdin, closeStopLoop)
+	ShutdownOnSignals(runtime)
 	fmt.Fprintf(stdout, "ready\n")
 	<-closeStopLoop
 	return nil
@@ -287,7 +295,7 @@ func TestHandlerCustomSignalWithStop(t *testing.T) {
 // the input list of signals.
 func TestParseSignalsList(t *testing.T) {
 	list := []os.Signal{STOP, syscall.SIGTERM}
-	ShutdownOnSignals(list...)
+	ShutdownOnSignals(nil, list...)
 	if !isSignalInSet(syscall.SIGTERM, list) {
 		t.Errorf("signal %s not in signal set, as expected: %v", syscall.SIGTERM, list)
 	}
@@ -309,8 +317,8 @@ func (c *configServer) Set(_ ipc.ServerContext, key, value string) error {
 
 }
 
-func createConfigServer(t *testing.T) (ipc.Server, string, <-chan string) {
-	server, err := rt.R().NewServer()
+func createConfigServer(t *testing.T, runtime veyron2.Runtime) (ipc.Server, string, <-chan string) {
+	server, err := runtime.NewServer()
 	if err != nil {
 		t.Fatalf("Got error: %v", err)
 	}
@@ -328,8 +336,11 @@ func createConfigServer(t *testing.T) (ipc.Server, string, <-chan string) {
 
 // TestCleanRemoteShutdown verifies that remote shutdown works correctly.
 func TestCleanRemoteShutdown(t *testing.T) {
-	r := rt.Init()
-	defer r.Cleanup()
+	runtime, err := rt.New()
+	if err != nil {
+		panic(err)
+	}
+	defer runtime.Cleanup()
 
 	sh, err := modules.NewShell(nil)
 	if err != nil {
@@ -339,9 +350,9 @@ func TestCleanRemoteShutdown(t *testing.T) {
 
 	// Set the child process up with a blessing from the parent so that
 	// the default authorization works for RPCs between the two.
-	childcreds := security.NewVeyronCredentials(r.Principal(), "child")
+	childcreds := security.NewVeyronCredentials(runtime.Principal(), "child")
 	defer os.RemoveAll(childcreds)
-	configServer, configServiceName, ch := createConfigServer(t)
+	configServer, configServiceName, ch := createConfigServer(t, runtime)
 	defer configServer.Stop()
 	sh.SetVar(consts.VeyronCredentials, childcreds)
 	sh.SetConfigKey(mgmt.ParentNameConfigKey, configServiceName)
@@ -355,7 +366,7 @@ func TestCleanRemoteShutdown(t *testing.T) {
 	appCycleName := <-ch
 	s.Expect("ready")
 	appCycle := appcycle.AppCycleClient(appCycleName)
-	stream, err := appCycle.Stop(r.NewContext())
+	stream, err := appCycle.Stop(runtime.NewContext())
 	if err != nil {
 		t.Fatalf("Got error: %v", err)
 	}

@@ -19,6 +19,8 @@ var (
 
 func main() {
 	r := rt.Init()
+	defer r.Cleanup()
+
 	ctx := r.NewContext()
 	if *chunkCount == 0 {
 		benchmarks.CallEcho(ctx, *server, *count, *payloadSize, os.Stdout)

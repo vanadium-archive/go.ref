@@ -238,7 +238,7 @@ func simpleServerProgram(stdin io.Reader, stdout, stderr io.Writer, env map[stri
 	// Note, if the developer wants to exit immediately upon receiving a
 	// signal or stop command, they can skip this, in which case the default
 	// behavior is for the process to exit.
-	waiter := signals.ShutdownOnSignals()
+	waiter := signals.ShutdownOnSignals(r)
 
 	// This communicates to the parent test driver process in our unit test
 	// that this server is ready and waiting on signals or stop commands.

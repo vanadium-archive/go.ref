@@ -12,8 +12,10 @@ import (
 
 func main() {
 	r := rt.Init()
+	defer r.Cleanup()
+
 	addr, stop := benchmarks.StartServer(r, roaming.ListenSpec)
 	vlog.Infof("Listening on %s", addr)
 	defer stop()
-	<-signals.ShutdownOnSignals()
+	<-signals.ShutdownOnSignals(r)
 }

@@ -173,7 +173,7 @@ func nodeManager(stdin io.Reader, stdout, stderr io.Writer, env map[string]strin
 
 	fmt.Fprintf(stdout, "ready:%d\n", os.Getpid())
 
-	<-signals.ShutdownOnSignals()
+	<-signals.ShutdownOnSignals(rt.R())
 
 	if val, present := env["PAUSE_BEFORE_STOP"]; present && val == "1" {
 		modules.WaitForEOF(stdin)
@@ -240,7 +240,7 @@ func app(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args 
 	vlog.FlushLog()
 	ping()
 
-	<-signals.ShutdownOnSignals()
+	<-signals.ShutdownOnSignals(rt.R())
 	if err := ioutil.WriteFile("testfile", []byte("goodbye world"), 0600); err != nil {
 		vlog.Fatalf("Failed to write testfile: %v", err)
 	}

@@ -129,5 +129,5 @@ func main() {
 		vlog.Infof("Binary repository serving at %q", epName)
 	}
 	// Wait until shutdown.
-	<-signals.ShutdownOnSignals()
+	<-signals.ShutdownOnSignals(runtime)
 }

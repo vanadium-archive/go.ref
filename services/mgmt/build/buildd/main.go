@@ -42,5 +42,5 @@ func main() {
 	vlog.Infof("Build server running at endpoint=%q", endpoint)
 
 	// Wait until shutdown.
-	<-signals.ShutdownOnSignals()
+	<-signals.ShutdownOnSignals(runtime)
 }

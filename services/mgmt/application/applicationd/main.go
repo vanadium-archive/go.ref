@@ -50,5 +50,5 @@ func main() {
 		vlog.Infof("Application repository serving at %q", epName)
 	}
 	// Wait until shutdown.
-	<-signals.ShutdownOnSignals()
+	<-signals.ShutdownOnSignals(runtime)
 }

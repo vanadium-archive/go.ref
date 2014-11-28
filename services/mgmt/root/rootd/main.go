@@ -32,5 +32,5 @@ func main() {
 	}
 
 	// Wait until shutdown.
-	<-signals.ShutdownOnSignals()
+	<-signals.ShutdownOnSignals(r)
 }

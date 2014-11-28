@@ -22,6 +22,8 @@ func (f *pongd) Ping(_ ipc.ServerContext, message string) (result string, err er
 
 func clientMain() {
 	runtime := rt.Init()
+	defer runtime.Cleanup()
+
 	log := runtime.Logger()
 	log.Info("Pinging...")
 
@@ -55,7 +57,7 @@ func serverMain() {
 	}
 
 	// Wait forever.
-	<-signals.ShutdownOnSignals()
+	<-signals.ShutdownOnSignals(r)
 }
 
 type allowEveryone struct{}

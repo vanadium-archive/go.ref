@@ -5,7 +5,7 @@ import (
 	"os/signal"
 	"syscall"
 
-	"veyron.io/veyron/veyron2/rt"
+	"veyron.io/veyron/veyron2"
 )
 
 type stopSignal string
@@ -31,7 +31,7 @@ func defaultSignals() []os.Signal {
 // none are specified, the default signals.  The first signal received will be
 // made available on the returned channel; upon receiving a second signal, the
 // process will exit.
-func ShutdownOnSignals(signals ...os.Signal) <-chan os.Signal {
+func ShutdownOnSignals(runtime veyron2.Runtime, signals ...os.Signal) <-chan os.Signal {
 	if len(signals) == 0 {
 		signals = defaultSignals()
 	}
@@ -45,9 +45,9 @@ func ShutdownOnSignals(signals ...os.Signal) <-chan os.Signal {
 		case STOP:
 			if !sawStop {
 				sawStop = true
-				if r := rt.R(); r != nil {
+				if runtime != nil {
 					stopWaiter := make(chan string, 1)
-					r.AppCycle().WaitForStop(stopWaiter)
+					runtime.AppCycle().WaitForStop(stopWaiter)
 					go func() {
 						for {
 							ch <- stopSignal(<-stopWaiter)
