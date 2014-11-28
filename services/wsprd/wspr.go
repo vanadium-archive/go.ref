@@ -16,7 +16,8 @@ func main() {
 
 	flag.Parse()
 
-	rt.Init()
+	r := rt.Init()
+	defer r.Cleanup()
 
 	proxy := wspr.NewWSPR(*port, roaming.New, &roaming.ListenSpec, *identd, nil)
 	defer proxy.Shutdown()
@@ -26,5 +27,5 @@ func main() {
 		proxy.Serve()
 	}()
 
-	<-signals.ShutdownOnSignals()
+	<-signals.ShutdownOnSignals(r)
 }
