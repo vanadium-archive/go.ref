@@ -300,6 +300,9 @@ func (c *client) startCall(ctx context.T, name, method string, args []interface{
 		// Caller specified deadline.
 		deadline = time.Now().Add(time.Duration(r))
 	}
+
+	skipResolve := getNoResolveOpt(opts)
+
 	var lastErr verror.E
 	for retries := 0; ; retries++ {
 		if retries != 0 {
@@ -307,12 +310,26 @@ func (c *client) startCall(ctx context.T, name, method string, args []interface{
 				break
 			}
 		}
-		call, err := c.tryCall(ctx, name, method, args, opts)
+		call, err := c.tryCall(ctx, name, method, args, skipResolve, opts)
 		if err == nil {
 			return call, nil
 		}
 		lastErr = err
-		if time.Now().After(deadline) || err.Action() != verror.RetryConnection {
+
+		shouldRetry := true
+		switch {
+		case err.Action() != verror.RetryConnection && err.Action() != verror.RetryRefetch:
+			shouldRetry = false
+		case time.Now().After(deadline):
+			shouldRetry = false
+		case verror.Is(err, verror.NoServers.ID) && skipResolve:
+			// If we're skipping resolution and there are no servers for
+			// this call retrying is not going to help, we can't come up
+			// with new servers if there is no resolution.
+			shouldRetry = false
+		}
+
+		if !shouldRetry {
 			span.Annotatef("Cannot retry after error: %s", err)
 			break
 		}
@@ -345,15 +362,18 @@ func (c *client) tryServer(ctx context.T, index int, server string, ch chan<- *s
 }
 
 // tryCall makes a single attempt at a call, against possibly multiple servers.
-func (c *client) tryCall(ctx context.T, name, method string, args []interface{}, opts []ipc.CallOpt) (ipc.Call, verror.E) {
+func (c *client) tryCall(ctx context.T, name, method string, args []interface{}, skipResolve bool, opts []ipc.CallOpt) (ipc.Call, verror.E) {
 	mtPattern, serverPattern, name := splitObjectName(name)
 	noDischarges := shouldNotFetchDischarges(opts)
 	// Resolve name unless told not to.
 	var servers []string
-	if getNoResolveOpt(opts) {
+	if skipResolve {
 		servers = []string{name}
 	} else {
 		if resolved, err := c.ns.Resolve(ctx, name, naming.RootBlessingPatternOpt(mtPattern)); err != nil {
+			if verror.Is(err, naming.ErrNoSuchName.ID) {
+				return nil, verror.Make(verror.NoServers, ctx, name)
+			}
 			return nil, verror.Make(verror.NoExist, ctx, name, err)
 		} else {
 			if len(resolved) == 0 {

@@ -16,9 +16,13 @@ import (
 // so we use a fake one that panics if used.  The runtime
 // implementation should not ever use the Runtime from a context.
 func testContext() context.T {
+	ctx, _ := testContextWithoutDeadline().WithTimeout(20 * time.Second)
+	return ctx
+}
+
+func testContextWithoutDeadline() context.T {
 	ctx := InternalNewContext(&runtime.PanicRuntime{})
 	ctx, _ = vtrace.WithNewRootSpan(ctx, nil, false)
-	ctx, _ = ctx.WithDeadline(time.Now().Add(20 * time.Second))
 	return ctx
 }
 

@@ -8,7 +8,7 @@ import (
 
 	"veyron.io/veyron/veyron2/context"
 	"veyron.io/veyron/veyron2/naming"
-	"veyron.io/veyron/veyron2/verror"
+	verror "veyron.io/veyron/veyron2/verror2"
 	"veyron.io/veyron/veyron2/vlog"
 )
 
@@ -74,7 +74,7 @@ func (ns *namespace) Resolve(ctx context.T, name string, opts ...naming.ResolveO
 			return ret, nil
 		}
 	}
-	return nil, verror.NoExistf("Resolve name %q not found in %v", name, ns.mounts)
+	return nil, verror.Make(naming.ErrNoSuchName, ctx, fmt.Sprintf("Resolve name %q not found in %v", name, ns.mounts))
 }
 
 func (ns *namespace) ResolveX(ctx context.T, name string, opts ...naming.ResolveOpt) (*naming.MountEntry, error) {
@@ -95,7 +95,7 @@ func (ns *namespace) ResolveX(ctx context.T, name string, opts ...naming.Resolve
 			return e, nil
 		}
 	}
-	return nil, verror.NoExistf("Resolve name %q not found in %v", name, ns.mounts)
+	return nil, verror.Make(naming.ErrNoSuchName, ctx, fmt.Sprintf("Resolve name %q not found in %v", name, ns.mounts))
 }
 
 func (ns *namespace) ResolveToMountTableX(ctx context.T, name string, opts ...naming.ResolveOpt) (*naming.MountEntry, error) {
