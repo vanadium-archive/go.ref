@@ -87,6 +87,7 @@ func createShellAndMountTable(t *testing.T) (*modules.Shell, func()) {
 	sh.ClearVar(consts.VeyronCredentials)
 
 	mtName, mtHandle := startRootMT(t, sh)
+	vlog.VI(1).Infof("Started shell mounttable with name %v", mtName)
 	// Make sure the root mount table is the last process to be shutdown
 	// since the others will likely want to communicate with it during
 	// their shutdown process
@@ -98,11 +99,22 @@ func createShellAndMountTable(t *testing.T) (*modules.Shell, func()) {
 	fn := func() {
 		vlog.VI(1).Info("------------ CLEANUP ------------")
 		vlog.VI(1).Info("---------------------------------")
-		sh.Cleanup(nil, os.Stderr)
-		mtHandle.Shutdown(nil, os.Stderr)
+		vlog.VI(1).Info("--(cleaning up shell)------------")
+		if err := sh.Cleanup(os.Stdout, os.Stderr); err != nil {
+			t.Fatalf("sh.Cleanup failed with %v", err)
+		}
+		vlog.VI(1).Info("--(done cleaning up shell)-------")
+		vlog.VI(1).Info("--(shutting down root mt)--------")
+		if err := mtHandle.Shutdown(os.Stdout, os.Stderr); err != nil {
+			t.Fatalf("mtHandle.Shutdown failed with %v", err)
+		}
+		vlog.VI(1).Info("--(done shutting down root mt)---")
+		vlog.VI(1).Info("--------- DONE CLEANUP ----------")
+		// Calling sh.Start after sh.Cleanup is not a good idea.
+		// TODO(caprita): set the roots by hand and avoid running the
+		// corresponding modules command.
 		setNSRoots(t, sh, oldNamespaceRoots...)
 	}
-
 	setNSRoots(t, sh, mtName)
 	sh.SetVar(consts.NamespaceRootPrefix, mtName)
 	return sh, fn
@@ -160,7 +172,7 @@ func newServer() (ipc.Server, string) {
 		vlog.Fatalf("NewServer() failed: %v", err)
 	}
 	spec := static.ListenSpec
-	spec.Address = "127.0.0.1:0"
+	spec.Address = "127.0.0.1:0" // Isn't this the default?
 	endpoint, err := server.Listen(spec)
 	if err != nil {
 		vlog.Fatalf("Listen(%s) failed: %v", static.ListenSpec, err)
