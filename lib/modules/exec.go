@@ -166,6 +166,7 @@ func (eh *execHandle) Shutdown(stdout, stderr io.Writer) error {
 	eh.mu.Lock()
 	defer eh.mu.Unlock()
 	vlog.VI(1).Infof("Shutdown: %q", eh.name)
+	defer vlog.VI(1).Infof("Shutdown: %q [DONE]", eh.name)
 	eh.stdin.Close()
 	defer eh.sh.Forget(eh)
 
