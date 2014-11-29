@@ -36,7 +36,7 @@ import (
 	"veyron.io/veyron/veyron/runtimes/google/lib/publisher"
 	inaming "veyron.io/veyron/veyron/runtimes/google/naming"
 	tnaming "veyron.io/veyron/veyron/runtimes/google/testing/mocks/naming"
-	"veyron.io/veyron/veyron/runtimes/google/vtrace"
+	ivtrace "veyron.io/veyron/veyron/runtimes/google/vtrace"
 )
 
 func init() {
@@ -424,11 +424,14 @@ func TestRPCServerAuthorization(t *testing.T) {
 		}
 	)
 
+	ctx := testContextWithoutDeadline()
+
 	// Start the main server.
-	dc, err := InternalNewDischargeClient(mgr, ns, testContext(), vc.LocalPrincipal{pserver})
+	dc, err := InternalNewDischargeClient(mgr, ns, ctx, vc.LocalPrincipal{pserver})
 	if err != nil {
 		t.Errorf("InternalNewDischargeClient failed: %v", err)
 	}
+
 	_, server := startServer(t, pserver, mgr, ns, serverName, testServerDisp{&testServer{}}, dc)
 	defer stopServer(t, server, ns, serverName)
 
@@ -456,7 +459,8 @@ func TestRPCServerAuthorization(t *testing.T) {
 			t.Errorf("%s: failed to create client: %v", name, err)
 			continue
 		}
-		call, err := client.StartCall(testContext(), fmt.Sprintf("[%s]%s/suffix", test.pattern, serverName), "Method", nil)
+		dctx, cancel := ctx.WithTimeout(10 * time.Second)
+		call, err := client.StartCall(dctx, fmt.Sprintf("[%s]%s/suffix", test.pattern, serverName), "Method", nil)
 		if !matchesErrorPattern(err, test.errID, test.err) {
 			t.Errorf(`%d: %s: client.StartCall: got error "%v", want to match "%v"`, i, name, err, test.err)
 		} else if call != nil {
@@ -468,9 +472,8 @@ func TestRPCServerAuthorization(t *testing.T) {
 				t.Errorf("%s: %q.MatchedBy(%v) failed", name, test.pattern, blessings)
 			}
 		}
-		vlog.Infof("\nC")
+		cancel()
 		client.Close()
-
 	}
 }
 
@@ -682,7 +685,7 @@ type dischargeTestServer struct {
 
 func (s *dischargeTestServer) Discharge(ctx ipc.ServerContext, cav vdlutil.Any, impetus security.DischargeImpetus) (vdlutil.Any, error) {
 	s.impetus = append(s.impetus, impetus)
-	s.traceid = append(s.traceid, vtrace.FromContext(ctx).Trace().ID())
+	s.traceid = append(s.traceid, ivtrace.FromContext(ctx).Trace().ID())
 	return nil, fmt.Errorf("discharges not issued")
 }
 
@@ -807,7 +810,7 @@ func TestDischargeImpetusAndContextPropagation(t *testing.T) {
 		}
 		defer client.Close()
 		ctx := testContext()
-		tid := vtrace.FromContext(ctx).Trace().ID()
+		tid := ivtrace.FromContext(ctx).Trace().ID()
 		// StartCall should fetch the discharge, do not worry about finishing the RPC - do not care about that for this test.
 		if _, err := client.StartCall(ctx, object, "Method", []interface{}{"argument"}); err != nil {
 			t.Errorf("StartCall(%+v) failed: %v", test.Requirements, err)
