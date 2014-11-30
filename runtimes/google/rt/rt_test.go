@@ -42,7 +42,7 @@ func TestInit(t *testing.T) {
 	args := fmt.Sprintf("%s", l)
 	expected := regexp.MustCompile("name=veyron logdirs=\\[/tmp\\] logtostderr=true|false alsologtostderr=false|true max_stack_buf_size=4292608 v=[0-9] stderrthreshold=2 vmodule= log_backtrace_at=:0")
 	if !expected.MatchString(args) {
-		t.Errorf("unexpected default args: %q", args)
+		t.Errorf("unexpected default args: %s", args)
 	}
 	p := r.Principal()
 	if p == nil {
@@ -74,7 +74,7 @@ func TestInitArgs(t *testing.T) {
 		t.Fatalf("unexpected error: %s", err)
 	}
 	defer sh.Cleanup(os.Stderr, os.Stderr)
-	h, err := sh.Start("child", nil, "--logtostderr=true", "--vv=3", "--", "foobar")
+	h, err := sh.Start("child", nil, "--logtostderr=true", "--vmodule=*=3", "--", "foobar")
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
@@ -84,9 +84,9 @@ func TestInitArgs(t *testing.T) {
 		"logtostderr=true "+
 		"alsologtostderr=true "+
 		"max_stack_buf_size=4292608 "+
-		"v=3 "+
+		"v=0 "+
 		"stderrthreshold=2 "+
-		"vmodule= "+
+		"vmodule=*=3 "+
 		"log_backtrace_at=:0",
 		os.TempDir()))
 	h.CloseStdin()

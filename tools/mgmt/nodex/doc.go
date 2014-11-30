@@ -47,8 +47,6 @@ The global flags are:
    Rate (from 0.0 to 1.0) to sample vtrace traces.
  -vmodule=
    comma-separated list of pattern=N settings for file-filtered logging
- -vv=0
-   log level for V logs
 
 Nodex Install
 
