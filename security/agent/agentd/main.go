@@ -23,7 +23,10 @@ import (
 	"veyron.io/veyron/veyron2/vlog"
 )
 
-var keypath = flag.String("additional_principals", "", "If non-empty, allow for the creation of new principals and save them in this directory.")
+var (
+	keypath      = flag.String("additional_principals", "", "If non-empty, allow for the creation of new principals and save them in this directory.")
+	noPassphrase = flag.Bool("no_passphrase", false, "If true, user will not be prompted for principal encryption passphrase.")
+)
 
 func main() {
 	flag.Usage = func() {
@@ -116,9 +119,13 @@ func newPrincipalFromDir(dir string) (security.Principal, []byte, error) {
 }
 
 func handleDoesNotExist(dir string) (security.Principal, []byte, error) {
-	pass, err := getPassword("Private key file does not exist. Creating new private key...\nEnter passphrase (entering nothing will store unencrypted): ")
-	if err != nil {
-		return nil, nil, fmt.Errorf("failed to read passphrase: %v", err)
+	fmt.Println("Private key file does not exist. Creating new private key...")
+	var pass []byte
+	if !*noPassphrase {
+		var err error
+		if pass, err = getPassword("Enter passphrase (entering nothing will store unencrypted): "); err != nil {
+			return nil, nil, fmt.Errorf("failed to read passphrase: %v", err)
+		}
 	}
 	p, err := vsecurity.CreatePersistentPrincipal(dir, pass)
 	if err != nil {
@@ -129,6 +136,9 @@ func handleDoesNotExist(dir string) (security.Principal, []byte, error) {
 }
 
 func handlePassphrase(dir string) (security.Principal, []byte, error) {
+	if *noPassphrase {
+		return nil, nil, fmt.Errorf("Passphrase required for decrypting principal.")
+	}
 	pass, err := getPassword("Private key file is encrypted. Please enter passphrase.\nEnter passphrase: ")
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to read passphrase: %v", err)
