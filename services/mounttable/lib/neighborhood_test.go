@@ -49,7 +49,7 @@ func TestNeighborhood(t *testing.T) {
 	serverName := fmt.Sprintf("nhtest%d", os.Getpid())
 
 	// Add neighborhood server.
-	nhd, err := NewLoopbackNeighborhoodServer(serverName, addresses...)
+	nhd, err := NewLoopbackNeighborhoodServer(rootRT, serverName, addresses...)
 	if err != nil {
 		boom(t, "Failed to create neighborhood server: %s\n", err)
 	}

@@ -23,7 +23,10 @@ var (
 )
 
 func main() {
-	r := rt.Init()
+	r, err := rt.New()
+	if err != nil {
+		vlog.Fatalf("Could not initialize runtime: %v", err)
+	}
 	defer r.Cleanup()
 
 	mtServer, err := r.NewServer(options.ServesMountTable(true))
@@ -72,7 +75,7 @@ func main() {
 
 		myObjectName := naming.JoinAddressName(mtEndpoint.String(), "")
 
-		nh, err := mounttable.NewNeighborhoodServer(*nhName, myObjectName)
+		nh, err := mounttable.NewNeighborhoodServer(r, *nhName, myObjectName)
 		if err != nil {
 			vlog.Errorf("NewNeighborhoodServer failed: %v", err)
 			os.Exit(1)

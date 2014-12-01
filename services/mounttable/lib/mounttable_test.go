@@ -452,8 +452,11 @@ func TestBadACLs(t *testing.T) {
 func init() {
 	testutil.Init()
 	// Create the runtime for each of the three "processes"
-	rootRT = rt.Init()
+
 	var err error
+	if rootRT, err = rt.New(); err != nil {
+		panic(err)
+	}
 	if aliceRT, err = rt.New(); err != nil {
 		panic(err)
 	}

@@ -9,9 +9,9 @@ import (
 	"veyron.io/veyron/veyron/lib/glob"
 	"veyron.io/veyron/veyron/lib/netconfig"
 
+	"veyron.io/veyron/veyron2"
 	"veyron.io/veyron/veyron2/ipc"
 	"veyron.io/veyron/veyron2/naming"
-	"veyron.io/veyron/veyron2/rt"
 	"veyron.io/veyron/veyron2/security"
 	"veyron.io/veyron/veyron2/services/mounttable"
 	verror "veyron.io/veyron/veyron2/verror2"
@@ -37,10 +37,10 @@ type neighborhoodService struct {
 	nh    *neighborhood
 }
 
-func getPort(address string) uint16 {
+func getPort(r veyron2.Runtime, address string) uint16 {
 	epAddr, _ := naming.SplitAddressName(address)
 
-	ep, err := rt.R().NewEndpoint(epAddr)
+	ep, err := r.NewEndpoint(epAddr)
 	if err != nil {
 		return 0
 	}
@@ -62,14 +62,14 @@ func getPort(address string) uint16 {
 	return uint16(port)
 }
 
-func newNeighborhoodServer(host string, addresses []string, loopback bool) (*neighborhood, error) {
+func newNeighborhoodServer(r veyron2.Runtime, host string, addresses []string, loopback bool) (*neighborhood, error) {
 	// Create the TXT contents with addresses to announce. Also pick up a port number.
 	var txt []string
 	var port uint16
 	for _, addr := range addresses {
 		txt = append(txt, addressPrefix+addr)
 		if port == 0 {
-			port = getPort(addr)
+			port = getPort(r, addr)
 		}
 	}
 	if txt == nil {
@@ -113,13 +113,13 @@ func newNeighborhoodServer(host string, addresses []string, loopback bool) (*nei
 }
 
 // NewLoopbackNeighborhoodServer creates a new instance of a neighborhood server on loopback interfaces for testing.
-func NewLoopbackNeighborhoodServer(host string, addresses ...string) (*neighborhood, error) {
-	return newNeighborhoodServer(host, addresses, true)
+func NewLoopbackNeighborhoodServer(r veyron2.Runtime, host string, addresses ...string) (*neighborhood, error) {
+	return newNeighborhoodServer(r, host, addresses, true)
 }
 
 // NewNeighborhoodServer creates a new instance of a neighborhood server.
-func NewNeighborhoodServer(host string, addresses ...string) (*neighborhood, error) {
-	return newNeighborhoodServer(host, addresses, false)
+func NewNeighborhoodServer(r veyron2.Runtime, host string, addresses ...string) (*neighborhood, error) {
+	return newNeighborhoodServer(r, host, addresses, false)
 }
 
 // Lookup implements ipc.Dispatcher.Lookup.
