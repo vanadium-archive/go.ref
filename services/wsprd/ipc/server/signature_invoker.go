@@ -35,7 +35,7 @@ func (i *signatureInvoker) Invoke(methodName string, call ipc.ServerCall, argptr
 	return []interface{}{i.signature(), nil}, nil
 }
 
-func (i *signatureInvoker) VGlob() *ipc.GlobState {
+func (i *signatureInvoker) Globber() *ipc.GlobState {
 	return nil
 }
 

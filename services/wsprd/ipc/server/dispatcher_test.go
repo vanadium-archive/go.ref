@@ -37,7 +37,7 @@ func (mockInvoker) Invoke(string, ipc.ServerCall, []interface{}) ([]interface{},
 	return nil, nil
 }
 
-func (mockInvoker) VGlob() *ipc.GlobState {
+func (mockInvoker) Globber() *ipc.GlobState {
 	return nil
 }
 
