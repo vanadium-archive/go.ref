@@ -25,7 +25,7 @@ func doGlob(root, pattern string, since time.Time, includeValues bool) ([]libsta
 
 func TestStats(t *testing.T) {
 	now := time.Unix(1, 0)
-	counter.Now = func() time.Time { return now }
+	counter.TimeNow = func() time.Time { return now }
 
 	a := libstats.NewInteger("ipc/test/aaa")
 	b := libstats.NewFloat("ipc/test/bbb")
@@ -224,6 +224,8 @@ func TestStats(t *testing.T) {
 			Value: istats.HistogramValue{
 				Count: 2,
 				Sum:   3,
+				Min:   1,
+				Max:   2,
 				Buckets: []istats.HistogramBucket{
 					istats.HistogramBucket{LowBound: 0, Count: 0},
 					istats.HistogramBucket{LowBound: 1, Count: 1},
@@ -253,6 +255,8 @@ func TestStats(t *testing.T) {
 			Value: istats.HistogramValue{
 				Count: 2,
 				Sum:   5,
+				Min:   2,
+				Max:   3,
 				Buckets: []istats.HistogramBucket{
 					istats.HistogramBucket{LowBound: 0, Count: 0},
 					istats.HistogramBucket{LowBound: 1, Count: 0},

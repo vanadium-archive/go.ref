@@ -20,7 +20,7 @@ import (
 
 var (
 	// Used for testing.
-	Now func() time.Time = time.Now
+	TimeNow func() time.Time = time.Now
 )
 
 const (
@@ -39,7 +39,7 @@ type Counter struct {
 
 // New returns a new Counter.
 func New() *Counter {
-	now := Now()
+	now := TimeNow()
 	c := &Counter{}
 	c.ts[hour] = newTimeSeries(now, time.Hour, time.Minute)
 	c.ts[tenminutes] = newTimeSeries(now, 10*time.Minute, 10*time.Second)
@@ -48,7 +48,7 @@ func New() *Counter {
 }
 
 func (c *Counter) advance() time.Time {
-	now := Now()
+	now := TimeNow()
 	for _, ts := range c.ts {
 		ts.advanceTime(now)
 	}
@@ -141,7 +141,7 @@ func (c *Counter) Rate1m() float64 {
 func (c *Counter) Reset() {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	now := Now()
+	now := TimeNow()
 	for _, ts := range c.ts {
 		ts.reset(now)
 	}

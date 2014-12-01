@@ -8,11 +8,11 @@ import (
 
 func TestHistogram(t *testing.T) {
 	// This creates a histogram with the following buckets:
-	//  [1, 2[
-	//  [2, 4[
-	//  [4, 8[
-	//  [8, 16[
-	//  [16, Inf
+	//  [1, 2)
+	//  [2, 4)
+	//  [4, 8)
+	//  [8, 16)
+	//  [16, Inf)
 	opts := histogram.Options{
 		NumBuckets:         5,
 		GrowthFactor:       1.0,
@@ -22,20 +22,34 @@ func TestHistogram(t *testing.T) {
 	h := histogram.New(opts)
 	// Trying to add a value that's less than MinValue, should return an error.
 	if err := h.Add(0); err == nil {
-		t.Errorf("unexpected return value for Add(0.0). Want != nil, Got nil")
+		t.Errorf("unexpected return value for Add(0.0). Want != nil, got nil")
 	}
 	// Adding good values. Expect no errors.
 	for i := 1; i <= 50; i++ {
 		if err := h.Add(int64(i)); err != nil {
-			t.Errorf("unexpected return value for Add(%d). Want nil, Got %v", i, err)
+			t.Errorf("unexpected return value for Add(%d). Want nil, got %v", i, err)
 		}
 	}
 	expectedCount := []int64{1, 2, 4, 8, 35}
 	buckets := h.Value().Buckets
 	for i := 0; i < opts.NumBuckets; i++ {
 		if buckets[i].Count != expectedCount[i] {
-			t.Errorf("unexpected count for bucket[%d]. Want %d, Got %v", i, expectedCount[i], buckets[i].Count)
+			t.Errorf("unexpected count for bucket[%d]. Want %d, got %v", i, expectedCount[i], buckets[i].Count)
 		}
+	}
+
+	v := h.Value()
+	if expected, got := int64(50), v.Count; got != expected {
+		t.Errorf("unexpected count in histogram value. Want %d, got %v", expected, got)
+	}
+	if expected, got := int64(50*(1+50)/2), v.Sum; got != expected {
+		t.Errorf("unexpected sum in histogram value. Want %d, got %v", expected, got)
+	}
+	if expected, got := int64(1), v.Min; got != expected {
+		t.Errorf("unexpected min in histogram value. Want %d, got %v", expected, got)
+	}
+	if expected, got := int64(50), v.Max; got != expected {
+		t.Errorf("unexpected max in histogram value. Want %d, got %v", expected, got)
 	}
 }
 

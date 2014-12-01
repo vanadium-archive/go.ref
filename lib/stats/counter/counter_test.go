@@ -10,7 +10,7 @@ import (
 
 func TestCounter(t *testing.T) {
 	now := time.Unix(1, 0)
-	counter.Now = func() time.Time { return now }
+	counter.TimeNow = func() time.Time { return now }
 	c := counter.New()
 
 	// Time 1, value=1
@@ -107,7 +107,7 @@ func TestCounter(t *testing.T) {
 
 func TestCounterRate(t *testing.T) {
 	now := time.Unix(1, 0)
-	counter.Now = func() time.Time { return now }
+	counter.TimeNow = func() time.Time { return now }
 	c := counter.New()
 
 	// No data, rate is 0.

@@ -3,7 +3,6 @@ package main
 import (
 	"bytes"
 	"fmt"
-	"io"
 	"os"
 	"os/exec"
 	"regexp"
@@ -423,38 +422,11 @@ func formatValue(value interface{}) string {
 	}
 	switch v := value.(type) {
 	case istats.HistogramValue:
-		writeASCIIHistogram(&buf, v)
+		v.Print(&buf)
 	default:
 		fmt.Fprintf(&buf, "%v", v)
 	}
 	return buf.String()
-}
-
-func writeASCIIHistogram(w io.Writer, h istats.HistogramValue) {
-	scale := h.Count
-	if scale > 100 {
-		scale = 100
-	}
-	var avg float64
-	if h.Count > 0 {
-		avg = float64(h.Sum) / float64(h.Count)
-	}
-	fmt.Fprintf(w, "Count: %d Sum: %d Avg: %f\n", h.Count, h.Sum, avg)
-	for i, b := range h.Buckets {
-		var r string
-		if i+1 < len(h.Buckets) {
-			r = fmt.Sprintf("[%d,%d[", b.LowBound, h.Buckets[i+1].LowBound)
-		} else {
-			r = fmt.Sprintf("[%d,Inf", b.LowBound)
-		}
-		fmt.Fprintf(w, "%-18s: ", r)
-		if b.Count > 0 && h.Count > 0 {
-			fmt.Fprintf(w, "%s %d (%.1f%%)", strings.Repeat("*", int(b.Count*scale/h.Count)), b.Count, 100*float64(b.Count)/float64(h.Count))
-		}
-		if i+1 < len(h.Buckets) {
-			fmt.Fprintln(w)
-		}
-	}
 }
 
 var cmdPProfRun = &cmdline.Command{

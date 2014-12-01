@@ -179,6 +179,8 @@ func TestStatsImpl(t *testing.T) {
 		want := istats.HistogramValue{
 			Count: 10,
 			Sum:   45,
+			Min:   0,
+			Max:   9,
 			Buckets: []istats.HistogramBucket{
 				istats.HistogramBucket{LowBound: 0, Count: 1},
 				istats.HistogramBucket{LowBound: 1, Count: 2},

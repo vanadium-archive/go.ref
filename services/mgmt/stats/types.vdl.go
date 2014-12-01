@@ -15,6 +15,10 @@ type HistogramValue struct {
 	Count int64
 	// Sum is the sum of all the values added to the histogram.
 	Sum int64
+	// Min is the minimum of all the values added to the histogram.
+	Min int64
+	// Max is the maximum of all the values added to the histogram.
+	Max int64
 	// Buckets contains all the buckets of the histogram.
 	Buckets []HistogramBucket
 }

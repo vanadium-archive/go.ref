@@ -69,6 +69,28 @@ func TestTimeSeries(t *testing.T) {
 	if expected, got := int64(345), ts.tailValue(); got != expected {
 		t.Errorf("unexpected value. Got %v, want %v", got, expected)
 	}
+	if expected, got := int64(111), ts.min(); got != expected {
+		t.Errorf("unexpected value. Got %v, want %v", got, expected)
+	}
+	if expected, got := int64(345), ts.max(); got != expected {
+		t.Errorf("unexpected value. Got %v, want %v", got, expected)
+	}
+
+	// Time 8
+	now = now.Add(time.Second)
+	ts.advanceTime(now)
+	if expected, got := int64(111), ts.headValue(); got != expected {
+		t.Errorf("unexpected value. Got %v, want %v", got, expected)
+	}
+	if expected, got := int64(345), ts.tailValue(); got != expected {
+		t.Errorf("unexpected value. Got %v, want %v", got, expected)
+	}
+	if expected, got := int64(111), ts.min(); got != expected {
+		t.Errorf("unexpected value. Got %v, want %v", got, expected)
+	}
+	if expected, got := int64(111), ts.max(); got != expected {
+		t.Errorf("unexpected value. Got %v, want %v", got, expected)
+	}
 
 	// Time 27
 	now = now.Add(20 * time.Second)

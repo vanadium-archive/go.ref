@@ -29,10 +29,10 @@ func newTimeSeries(initialTime time.Time, period, resolution time.Duration) *tim
 	}
 }
 
-// advanceTime moves the timeseries forward to time t and fills in any slots
-// that get skipped in the process. Values older than the timeseries period are
-// lost.
-func (ts *timeseries) advanceTime(t time.Time) {
+// advanceTimeWithFill moves the timeseries forward to time t and fills in any
+// slots that get skipped in the process with the given value. Values older than
+// the timeseries period are lost.
+func (ts *timeseries) advanceTimeWithFill(t time.Time, value int64) {
 	advanceTo := t.Truncate(ts.resolution)
 	if !advanceTo.After(ts.time) {
 		// This is shortcut for the most common case of a busy counter
@@ -45,13 +45,19 @@ func (ts *timeseries) advanceTime(t time.Time) {
 	if steps > ts.size {
 		steps = ts.size
 	}
-	value := ts.slots[ts.head]
 	for steps > 0 {
 		ts.head = (ts.head + 1) % ts.size
 		ts.slots[ts.head] = value
 		steps--
 	}
 	ts.time = advanceTo
+}
+
+// advanceTime moves the timeseries forward to time t and fills in any slots
+// that get skipped in the process with the head value. Values older than the
+// timeseries period are lost.
+func (ts *timeseries) advanceTime(t time.Time) {
+	ts.advanceTimeWithFill(t, ts.slots[ts.head])
 }
 
 // set sets the current value of the timeseries.
@@ -113,9 +119,10 @@ func (ts *timeseries) min() int64 {
 	if ts.stepCount < int64(ts.size) {
 		to = ts.head + 1
 	}
+	tail := (ts.head + 1) % ts.size
 	min := int64(math.MaxInt64)
 	for b := 0; b < to; b++ {
-		if ts.slots[b] < min {
+		if b != tail && ts.slots[b] < min {
 			min = ts.slots[b]
 		}
 	}
@@ -128,9 +135,10 @@ func (ts *timeseries) max() int64 {
 	if ts.stepCount < int64(ts.size) {
 		to = ts.head + 1
 	}
+	tail := (ts.head + 1) % ts.size
 	max := int64(math.MinInt64)
 	for b := 0; b < to; b++ {
-		if ts.slots[b] > max {
+		if b != tail && ts.slots[b] > max {
 			max = ts.slots[b]
 		}
 	}

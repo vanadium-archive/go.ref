@@ -17,8 +17,9 @@ import (
 type Histogram struct {
 	opts    Options
 	buckets []bucketInternal
-	sum     *counter.Counter
 	count   *counter.Counter
+	sum     *counter.Counter
+	tracker *counter.Tracker
 }
 
 // Options contains the parameters that define the histogram's buckets.
@@ -54,8 +55,9 @@ func New(opts Options) *Histogram {
 	h := Histogram{
 		opts:    opts,
 		buckets: make([]bucketInternal, opts.NumBuckets),
-		sum:     counter.New(),
 		count:   counter.New(),
+		sum:     counter.New(),
+		tracker: counter.NewTracker(),
 	}
 	low := opts.MinValue
 	delta := opts.SmallestBucketSize
@@ -82,6 +84,7 @@ func (h *Histogram) Add(value int64) error {
 	h.buckets[bucket].count.Incr(1)
 	h.count.Incr(1)
 	h.sum.Incr(value)
+	h.tracker.Push(value)
 	return nil
 }
 
@@ -103,6 +106,8 @@ func (h *Histogram) Value() stats.HistogramValue {
 	v := stats.HistogramValue{
 		Count:   h.count.Value(),
 		Sum:     h.sum.Value(),
+		Min:     h.tracker.Min(),
+		Max:     h.tracker.Max(),
 		Buckets: b,
 	}
 	return v
@@ -121,6 +126,8 @@ func (h *Histogram) Delta1h() stats.HistogramValue {
 	v := stats.HistogramValue{
 		Count:   h.count.Delta1h(),
 		Sum:     h.sum.Delta1h(),
+		Min:     h.tracker.Min1h(),
+		Max:     h.tracker.Max1h(),
 		Buckets: b,
 	}
 	return v
@@ -139,6 +146,8 @@ func (h *Histogram) Delta10m() stats.HistogramValue {
 	v := stats.HistogramValue{
 		Count:   h.count.Delta10m(),
 		Sum:     h.sum.Delta10m(),
+		Min:     h.tracker.Min10m(),
+		Max:     h.tracker.Max10m(),
 		Buckets: b,
 	}
 	return v
@@ -157,6 +166,8 @@ func (h *Histogram) Delta1m() stats.HistogramValue {
 	v := stats.HistogramValue{
 		Count:   h.count.Delta1m(),
 		Sum:     h.sum.Delta1m(),
+		Min:     h.tracker.Min1m(),
+		Max:     h.tracker.Max1m(),
 		Buckets: b,
 	}
 	return v
