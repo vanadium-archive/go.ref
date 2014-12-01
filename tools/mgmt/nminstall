@@ -28,7 +28,7 @@ set -e
 
 usage() {
   echo "usage:"
-  echo "./nminstall <install parent dir> [<binary source>]"
+  echo "./nminstall [--single_user] <install parent dir> [<binary source>]"
 }
 
 readonly BIN_NAMES=(noded suidhelper agentd)
@@ -118,6 +118,14 @@ get_binaries() {
 }
 
 main() {
+  if [[ "$1" == "--single_user" ]]; then
+    local -r SINGLE_USER=true
+    shift
+    local -r AGENT_FLAG="--no_passphrase"
+  else
+    local -r SINGLE_USER=false
+    local -r AGENT_FLAG=""
+  fi
   local -r INSTALL_PARENT_DIR="$1"
   if [[ -z "${INSTALL_PARENT_DIR}" ]]; then
     echo 'No local install destination specified!'
@@ -135,7 +143,11 @@ main() {
   # TODO(caprita): Check that the node manager is not already installed before
   # proceeding.  We should require an explicit uninstall to avoid wiping away
   # the node manager accidentally.
-  sudo rm -rf "${INSTALL_DIR}"
+  if [[ ! ${SINGLE_USER} ]]; then
+    sudo rm -rf "${INSTALL_DIR}"
+  else
+    rm -rf "${INSTALL_DIR}"
+  fi
   mkdir -m 700 "${INSTALL_DIR}"
 
   local -r BIN_INSTALL="${INSTALL_DIR}/bin"
@@ -156,7 +168,9 @@ main() {
   # Set up the suidhelper.
   echo "Configuring suidhelper ..."
   local -r SETUID_SCRIPT="${BIN_INSTALL}/suidhelper"
-  sudo bash -c "chown root:root \"${SETUID_SCRIPT}\"; chmod 4551 \"${SETUID_SCRIPT}\""
+  if [[ ! ${SINGLE_USER} ]]; then
+    sudo bash -c "chown root:root \"${SETUID_SCRIPT}\"; chmod 4551 \"${SETUID_SCRIPT}\""
+  fi
   echo "Suidhelper configured."
 
   # Tell the node manager to install itself.
@@ -176,11 +190,11 @@ main() {
   # Run node manager under the security agent.
   echo
   echo "Running:"
-  echo "VEYRON_CREDENTIALS=\"${PRINCIPAL_DIR}\" \"${BIN_INSTALL}/agentd\" --additional_principals=\"${AGENT_KEY_DIR}\" \"${INSTALL_DIR}/noded.curr\""
+  echo "VEYRON_CREDENTIALS=\"${PRINCIPAL_DIR}\" \"${BIN_INSTALL}/agentd\" ${AGENT_FLAG} --additional_principals=\"${AGENT_KEY_DIR}\" \"${INSTALL_DIR}/noded.curr\""
   echo
   # NOTE: If you update the command below, please also update the command echoed
   # above to keep the two in sync.
-  VEYRON_CREDENTIALS="${PRINCIPAL_DIR}" "${BIN_INSTALL}/agentd" --additional_principals="${AGENT_KEY_DIR}" "${INSTALL_DIR}/noded.curr"
+  VEYRON_CREDENTIALS="${PRINCIPAL_DIR}" "${BIN_INSTALL}/agentd" "${AGENT_FLAG}" --additional_principals="${AGENT_KEY_DIR}" "${INSTALL_DIR}/noded.curr"
 }
 
 main "$@"
