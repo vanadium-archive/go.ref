@@ -185,17 +185,16 @@ var tmplSelectCaveats = template.Must(template.New("bless").Parse(`<!doctype htm
   <label class="col-sm-2" for="required-caveat">Expiration</label>
   <div class="col-sm-10" class="input-group" name="required-caveat">
     <div class="radio">
-      <div class="input-group">
-        <input type="radio" name="requiredCaveat" id="requiredCaveat" value="Expiry" checked>
-        <input type="datetime-local" id="expiry" name="expiry">
-      </div>
-    </div>
-    <div class="radio">
       <label>
-      <!-- TODO(suharshs): Enable this after ThirdPartyCaveats are fixed. -->
-      <input type="radio" name="requiredCaveat" id="requiredCaveat" value="Revocation" disabled>
+      <input type="radio" name="requiredCaveat" id="requiredCaveat" value="Revocation" checked>
       When explicitly revoked
       </label>
+    </div>
+    <div class="radio">
+      <div class="input-group">
+        <input type="radio" name="requiredCaveat" id="requiredCaveat" value="Expiry">
+        <input type="datetime-local" id="expiry" name="expiry">
+      </div>
     </div>
   </div>
 </div>
