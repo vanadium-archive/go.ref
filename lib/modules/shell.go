@@ -428,7 +428,7 @@ func (sh *Shell) setupCommandEnv(env []string) ([]string, error) {
 
 	// Set the VeyronCredentials environment variable for the child
 	// if it is not already set and the shell's VeyronCredentials are set.
-	if len(evmap[consts.VeyronCredentials]) == 0 && len(sh.env[consts.VeyronCredentials]) != 0 {
+	if len(evmap[consts.VeyronCredentials]) == 0 && (len(sh.env[consts.VeyronCredentials]) != 0 || sh.principal != nil) {
 		var err error
 		if evmap[consts.VeyronCredentials], err = sh.getChildCredentials(sh.env[consts.VeyronCredentials]); err != nil {
 			return nil, err

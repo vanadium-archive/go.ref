@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"time"
 
 	"veyron.io/veyron/veyron2/ipc"
 	"veyron.io/veyron/veyron2/naming"
@@ -35,6 +36,15 @@ func (es *echoServerObject) Echo(call ipc.ServerContext, m string) (string, erro
 		return fmt.Sprintf("%s.%s: %s\n", es.id, es.suffix, m), nil
 	}
 	return fmt.Sprintf("%s: %s\n", es.id, m), nil
+}
+
+func (es *echoServerObject) Sleep(call ipc.ServerContext, d string) error {
+	duration, err := time.ParseDuration(d)
+	if err != nil {
+		return err
+	}
+	time.Sleep(duration)
+	return nil
 }
 
 func echoServer(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {

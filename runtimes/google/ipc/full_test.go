@@ -32,7 +32,6 @@ import (
 	"veyron.io/veyron/veyron/lib/websocket"
 	imanager "veyron.io/veyron/veyron/runtimes/google/ipc/stream/manager"
 	"veyron.io/veyron/veyron/runtimes/google/ipc/stream/vc"
-	"veyron.io/veyron/veyron/runtimes/google/ipc/version"
 	"veyron.io/veyron/veyron/runtimes/google/lib/publisher"
 	inaming "veyron.io/veyron/veyron/runtimes/google/naming"
 	tnaming "veyron.io/veyron/veyron/runtimes/google/testing/mocks/naming"
@@ -614,7 +613,7 @@ func TestMultipleFinish(t *testing.T) {
 		t.Fatalf(`call.Finish got error "%v"`, err)
 	}
 	// Calling Finish a second time should result in a useful error.
-	if err = call.Finish(&results); !matchesErrorPattern(err, verror.BadState, "xxx") {
+	if err = call.Finish(&results); !matchesErrorPattern(err, verror.BadState, "Finish has already been called") {
 		t.Fatalf(`got "%v", want "%v"`, err, verror.BadState)
 	}
 }
@@ -1181,9 +1180,11 @@ func TestConnectWithIncompatibleServers(t *testing.T) {
 	publisher.AddServer("/@2@tcp@localhost:10000@@1000000@2000000@@", false)
 	publisher.AddServer("/@2@tcp@localhost:10001@@2000000@3000000@@", false)
 
-	_, err := b.client.StartCall(testContext(), "incompatible/suffix", "Echo", []interface{}{"foo"})
-	if !strings.Contains(err.Error(), version.NoCompatibleVersionErr.Error()) {
-		t.Errorf("Expected error %v, found: %v", version.NoCompatibleVersionErr, err)
+	ctx, _ := testContext().WithTimeout(100 * time.Millisecond)
+
+	_, err := b.client.StartCall(ctx, "incompatible/suffix", "Echo", []interface{}{"foo"})
+	if !verror.Is(err, verror.NoServers.ID) {
+		t.Errorf("Expected error %s, found: %v", verror.NoServers, err)
 	}
 
 	// Now add a server with a compatible endpoint and try again.
