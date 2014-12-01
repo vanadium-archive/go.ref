@@ -394,7 +394,7 @@ func (s implJudgeServerStub) Play(ctx *JudgePlayContextStub, i0 GameID) (PlayRes
 	return s.impl.Play(ctx, i0)
 }
 
-func (s implJudgeServerStub) VGlob() *__ipc.GlobState {
+func (s implJudgeServerStub) Globber() *__ipc.GlobState {
 	return s.gs
 }
 
@@ -715,7 +715,7 @@ func (s implPlayerServerStub) Challenge(ctx __ipc.ServerContext, i0 string, i1 G
 	return s.impl.Challenge(ctx, i0, i1, i2)
 }
 
-func (s implPlayerServerStub) VGlob() *__ipc.GlobState {
+func (s implPlayerServerStub) Globber() *__ipc.GlobState {
 	return s.gs
 }
 
@@ -887,7 +887,7 @@ func (s implScoreKeeperServerStub) Record(ctx __ipc.ServerContext, i0 ScoreCard)
 	return s.impl.Record(ctx, i0)
 }
 
-func (s implScoreKeeperServerStub) VGlob() *__ipc.GlobState {
+func (s implScoreKeeperServerStub) Globber() *__ipc.GlobState {
 	return s.gs
 }
 
@@ -1074,7 +1074,7 @@ type implRockPaperScissorsServerStub struct {
 	gs *__ipc.GlobState
 }
 
-func (s implRockPaperScissorsServerStub) VGlob() *__ipc.GlobState {
+func (s implRockPaperScissorsServerStub) Globber() *__ipc.GlobState {
 	return s.gs
 }
 

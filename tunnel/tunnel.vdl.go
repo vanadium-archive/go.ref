@@ -428,7 +428,7 @@ func (s implTunnelServerStub) Shell(ctx *TunnelShellContextStub, i0 string, i1 S
 	return s.impl.Shell(ctx, i0, i1)
 }
 
-func (s implTunnelServerStub) VGlob() *__ipc.GlobState {
+func (s implTunnelServerStub) Globber() *__ipc.GlobState {
 	return s.gs
 }
 
