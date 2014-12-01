@@ -163,25 +163,23 @@ func glob(ctx context.T, ns naming.Namespace, w lib.ClientWriter, rawArgs json.R
 		return
 	}
 
-	for name := range ch {
-		// TODO(aghassemi)
-		// Namespace client glob method can return items that have
-		// errors in them. We are removing those items for two reasons:
-		// 1- naming.VDLMountEntry does not have the field Error and we want to use
-		// VLD types between JS/WSPR
-		// 2- It's quite confusing that every user of glob method needs to know this
-		// fact and most likely needs to act upon items with error considering they
-		// may be completely invalid and not match the pattern even.
-		if name.Error != nil {
+	for mp := range ch {
+		// send results that have error through the error stream.
+		// TODO(aghassemi) we want mp to be part of the error's ParamsList, but there is no good way right now in verror2 to do this.
+		if mp.Error != nil {
+			err := verror2.Convert(verror2.Unknown, ctx, mp.Error)
+			w.Error(err)
 			continue
 		}
-		val, err := encodeVom2(convertToVDLEntry(name))
+
+		val, err := encodeVom2(convertToVDLEntry(mp))
 		if err != nil {
 			w.Error(verror2.Make(verror2.Internal, ctx, err))
 			return
 		}
+
 		if err := w.Send(lib.ResponseStream, val); err != nil {
-			w.Error(verror2.Make(verror2.Internal, ctx, name))
+			w.Error(verror2.Make(verror2.Internal, ctx, mp))
 			return
 		}
 	}
