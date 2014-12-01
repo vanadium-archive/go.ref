@@ -314,11 +314,6 @@ func (s *Server) Serve(name string) error {
 	if err := s.server.ServeDispatcher(name, s.dispatcher); err != nil {
 		return err
 	}
-	// TODO(nlacasse): This Sleep is necessary to prevent the client from
-	// making calls to the name before it has been mounted in the
-	// mounttable.  Remove this once
-	// https://veyron-review.googlesource.com/#/c/7358/ has landed.
-	time.Sleep(1 * time.Second)
 	return nil
 }
 
