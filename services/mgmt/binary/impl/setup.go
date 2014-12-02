@@ -19,6 +19,12 @@ func SetupRoot(root string) (string, error) {
 			vlog.Errorf("TempDir() failed: %v\n", err)
 			return "", err
 		}
+		path, perm := filepath.Join(root, VersionFile), os.FileMode(0600)
+		if err := ioutil.WriteFile(path, []byte(Version), perm); err != nil {
+			vlog.Errorf("WriteFile(%v, %v, %v) failed: %v", path, Version, perm, err)
+			return "", err
+		}
+		return root, nil
 	}
 
 	_, err := os.Stat(root)
