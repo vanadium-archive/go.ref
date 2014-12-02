@@ -76,8 +76,11 @@ func main() {
 	}
 
 	p, blessingLogReader := providerPrincipal(sqlDB)
-	r := rt.Init(options.RuntimePrincipal{p})
-	defer r.Cleanup()
+	runtime, err := rt.New(options.RuntimePrincipal{p})
+	if err != nil {
+		vlog.Fatal(err)
+	}
+	defer runtime.Cleanup()
 
 	var revocationManager *revocation.RevocationManager
 	// Only set revocationManager sqlConfig (and thus sqlDB) is set.
@@ -89,13 +92,13 @@ func main() {
 	}
 
 	// Setup handlers
-	http.Handle("/pubkey/", handlers.PublicKey{r.Principal().PublicKey()}) // public key of this server
+	http.Handle("/pubkey/", handlers.PublicKey{runtime.Principal().PublicKey()}) // public key of this server
 	macaroonKey := make([]byte, 32)
 	if _, err := rand.Read(macaroonKey); err != nil {
 		vlog.Fatalf("macaroonKey generation failed: %v", err)
 	}
 	// Google OAuth
-	ipcServer, published, err := setupServices(r, revocationManager, macaroonKey)
+	ipcServer, published, err := setupServices(runtime, revocationManager, macaroonKey)
 	if err != nil {
 		vlog.Fatalf("Failed to setup veyron services for blessing: %v", err)
 	}
@@ -103,7 +106,7 @@ func main() {
 	if clientID, clientSecret, ok := getOAuthClientIDAndSecret(*googleConfigWeb); ok {
 		n := "/google/"
 		h, err := googleoauth.NewHandler(googleoauth.HandlerArgs{
-			R:                       r,
+			R:                       runtime,
 			MacaroonKey:             macaroonKey,
 			Addr:                    fmt.Sprintf("%s%s", httpaddress(), n),
 			ClientID:                clientID,
@@ -124,7 +127,7 @@ func main() {
 			GoogleServers, DischargeServers []string
 			ListBlessingsRoute              string
 		}{
-			Self:      rt.R().Principal().BlessingStore().Default(),
+			Self:      runtime.Principal().BlessingStore().Default(),
 			RandomWeb: enableRandomHandler(),
 		}
 		if revocationManager != nil {
@@ -142,7 +145,7 @@ func main() {
 	})
 	vlog.Infof("Running HTTP server at: %v", httpaddress())
 	go runHTTPSServer(*httpaddr)
-	<-signals.ShutdownOnSignals(r)
+	<-signals.ShutdownOnSignals(runtime)
 }
 
 func appendSuffixTo(objectname []string, suffix string) []string {
