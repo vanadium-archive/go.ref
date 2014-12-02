@@ -11,9 +11,9 @@ import (
 
 	"veyron.io/veyron/veyron/lib/glob"
 
+	"veyron.io/veyron/veyron2"
 	"veyron.io/veyron/veyron2/ipc"
 	"veyron.io/veyron/veyron2/naming"
-	"veyron.io/veyron/veyron2/rt"
 	"veyron.io/veyron/veyron2/security"
 	"veyron.io/veyron/veyron2/services/mounttable"
 	"veyron.io/veyron/veyron2/services/security/access"
@@ -270,7 +270,8 @@ func (ms *mountContext) Mount(context ipc.ServerContext, server string, ttlsecs 
 
 	// Make sure the server name is reasonable.
 	epString, _ := naming.SplitAddressName(server)
-	_, err := rt.R().NewEndpoint(epString)
+	runtime := veyron2.RuntimeFromContext(context)
+	_, err := runtime.NewEndpoint(epString)
 	if err != nil {
 		return fmt.Errorf("malformed address %q for mounted server %q", epString, server)
 	}

@@ -34,6 +34,26 @@ func init() {
 	stream.RegisterProtocol("ws", websocket.Dial, nil)
 }
 
+func createRuntimes(t *testing.T) (sr, r veyron2.Runtime, cleanup func()) {
+	var err error
+	// Create a runtime for the server.
+	sr, err = rt.New()
+	if err != nil {
+		t.Fatalf("Could not initialize runtime: %v", err)
+	}
+
+	// We use a different runtime for the client side.
+	r, err = rt.New()
+	if err != nil {
+		t.Fatalf("Could not initialize runtime: %v", err)
+	}
+
+	return sr, r, func() {
+		sr.Cleanup()
+		r.Cleanup()
+	}
+}
+
 func boom(t *testing.T, f string, v ...interface{}) {
 	t.Logf(f, v...)
 	t.Fatal(string(debug.Stack()))
@@ -294,10 +314,9 @@ func runNestedMountTables(t *testing.T, r veyron2.Runtime, mts map[string]*serve
 // TestNamespaceCommon tests common use of the Namespace library
 // against a root mount table and some mount tables mounted on it.
 func TestNamespaceCommon(t *testing.T) {
-	// We need the default runtime for the server-side mounttable code
-	// which references rt.R() to create new endpoints
-	rt.Init()
-	r, _ := rt.New() // We use a different runtime for the client side.
+	_, r, cleanup := createRuntimes(t)
+	defer cleanup()
+
 	root, mts, jokes, stopper := createNamespace(t, r)
 	defer stopper()
 	ns := r.Namespace()
@@ -328,8 +347,9 @@ func TestNamespaceCommon(t *testing.T) {
 // TestNamespaceDetails tests more detailed use of the Namespace library,
 // including the intricacies of // meaning and placement.
 func TestNamespaceDetails(t *testing.T) {
-	sr := rt.Init()
-	r, _ := rt.New() // We use a different runtime for the client side.
+	sr, r, cleanup := createRuntimes(t)
+	defer cleanup()
+
 	root, mts, _, stopper := createNamespace(t, sr)
 	defer stopper()
 
@@ -381,8 +401,9 @@ func TestNamespaceDetails(t *testing.T) {
 
 // TestNestedMounts tests some more deeply nested mounts
 func TestNestedMounts(t *testing.T) {
-	sr := rt.Init()
-	r, _ := rt.New() // We use a different runtime for the client side.
+	sr, r, cleanup := createRuntimes(t)
+	defer cleanup()
+
 	root, mts, _, stopper := createNamespace(t, sr)
 	runNestedMountTables(t, sr, mts)
 	defer stopper()
@@ -405,8 +426,9 @@ func TestNestedMounts(t *testing.T) {
 
 // TestServers tests invoking RPCs on simple servers
 func TestServers(t *testing.T) {
-	sr := rt.Init()
-	r, _ := rt.New() // We use a different runtime for the client side.
+	sr, r, cleanup := createRuntimes(t)
+	defer cleanup()
+
 	root, mts, jokes, stopper := createNamespace(t, sr)
 	defer stopper()
 	ns := r.Namespace()
@@ -429,8 +451,9 @@ func TestServers(t *testing.T) {
 
 // TestGlob tests some glob patterns.
 func TestGlob(t *testing.T) {
-	sr := rt.Init()
-	r, _ := rt.New() // We use a different runtime for the client side.
+	sr, r, cleanup := createRuntimes(t)
+	defer cleanup()
+
 	root, mts, _, stopper := createNamespace(t, sr)
 	runNestedMountTables(t, sr, mts)
 	defer stopper()
@@ -499,8 +522,9 @@ func (g *GlobbableServer) GetAndResetCount() int {
 
 // TestGlobEarlyStop tests that Glob doesn't query terminal servers with finished patterns.
 func TestGlobEarlyStop(t *testing.T) {
-	sr := rt.Init()
-	r, _ := rt.New() // We use a different runtime for the client side.
+	sr, r, cleanup := createRuntimes(t)
+	defer cleanup()
+
 	root, mts, _, stopper := createNamespace(t, sr)
 	runNestedMountTables(t, sr, mts)
 	defer stopper()
@@ -538,9 +562,8 @@ func TestGlobEarlyStop(t *testing.T) {
 }
 
 func TestCycles(t *testing.T) {
-	sr := rt.Init()
-	r, _ := rt.New() // We use a different runtime for the client side.
-	defer r.Cleanup()
+	sr, r, cleanup := createRuntimes(t)
+	defer cleanup()
 
 	root, _, _, stopper := createNamespace(t, sr)
 	defer stopper()
@@ -592,9 +615,10 @@ func TestUnresolve(t *testing.T) {
 	// that's annoying because the stub compiler has some blocking bugs and the
 	// Unresolve functionality is partially implemented in the stubs.
 	t.Skip()
-	sr := rt.Init()
-	r, _ := rt.New() // We use a different runtime for the client side.
-	defer r.Cleanup()
+
+	sr, r, cleanup := createRuntimes(t)
+	defer cleanup()
+
 	root, mts, jokes, stopper := createNamespace(t, sr)
 	runNestedMountTables(t, sr, mts)
 	defer stopper()
@@ -609,9 +633,9 @@ func TestUnresolve(t *testing.T) {
 // TestGoroutineLeaks tests for leaking goroutines - we have many:-(
 func TestGoroutineLeaks(t *testing.T) {
 	t.Skip()
-	sr := rt.Init()
-	r, _ := rt.New() // We use a different runtime for the client side.
-	defer r.Cleanup()
+	sr, _, cleanup := createRuntimes(t)
+	defer cleanup()
+
 	_, _, _, stopper := createNamespace(t, sr)
 	defer func() {
 		vlog.Infof("%d goroutines:", runtime.NumGoroutine())
@@ -624,8 +648,9 @@ func TestGoroutineLeaks(t *testing.T) {
 }
 
 func TestBadRoots(t *testing.T) {
-	r, _ := rt.New()
-	defer r.Cleanup()
+	_, r, cleanup := createRuntimes(t)
+	defer cleanup()
+
 	if _, err := namespace.New(r); err != nil {
 		t.Errorf("namespace.New should not have failed with no roots")
 	}
@@ -643,10 +668,8 @@ func bless(blesser, delegate security.Principal, extension string) {
 }
 
 func TestRootBlessing(t *testing.T) {
-	// We need the default runtime for the server-side mounttable code
-	// which references rt.R() to create new endpoints
-	cr := rt.Init()
-	r, _ := rt.New() // We use a different runtime for the client side.
+	r, cr, cleanup := createRuntimes(t)
+	defer cleanup()
 
 	proot, err := vsecurity.NewPrincipal()
 	if err != nil {
