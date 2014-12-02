@@ -85,6 +85,53 @@ func SaveMediaInfo(pkgFile string, mediaInfo repository.MediaInfo) error {
 	return nil
 }
 
+// CreateZip creates a package from the files in the source directory. The
+// created package is a Zip file.
+func CreateZip(zipFile, sourceDir string) error {
+	z, err := os.OpenFile(zipFile, os.O_CREATE|os.O_WRONLY, os.FileMode(0644))
+	if err != nil {
+		return err
+	}
+	defer z.Close()
+	w := zip.NewWriter(z)
+	if err := filepath.Walk(sourceDir, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		if sourceDir == path {
+			return nil
+		}
+		fh, err := zip.FileInfoHeader(info)
+		if err != nil {
+			return err
+		}
+		fh.Name, _ = filepath.Rel(sourceDir, path)
+		hdr, err := w.CreateHeader(fh)
+		if err != nil {
+			return err
+		}
+		if !info.IsDir() {
+			content, err := ioutil.ReadFile(path)
+			if err != nil {
+				return err
+			}
+			if _, err = hdr.Write(content); err != nil {
+				return err
+			}
+		}
+		return nil
+	}); err != nil {
+		return err
+	}
+	if err := w.Close(); err != nil {
+		return err
+	}
+	if err := SaveMediaInfo(zipFile, repository.MediaInfo{Type: "application/zip"}); err != nil {
+		return err
+	}
+	return nil
+}
+
 func extractZip(zipFile, installDir string) error {
 	zr, err := zip.OpenReader(zipFile)
 	if err != nil {

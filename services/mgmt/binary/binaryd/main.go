@@ -2,11 +2,9 @@ package main
 
 import (
 	"flag"
-	"io/ioutil"
 	"net"
 	"net/http"
 	"os"
-	"path/filepath"
 
 	"veyron.io/veyron/veyron2/naming"
 	"veyron.io/veyron/veyron2/rt"
@@ -19,14 +17,11 @@ import (
 	"veyron.io/veyron/veyron/services/mgmt/binary/impl"
 )
 
-const (
-	defaultDepth      = 3
-	defaultRootPrefix = "veyron_binary_repository"
-)
+const defaultDepth = 3
 
 var (
 	name     = flag.String("name", "", "name to mount the binary repository as")
-	root     = flag.String("root", "", "root directory for the binary repository")
+	rootFlag = flag.String("root", "", "root directory for the binary repository")
 	httpAddr = flag.String("http", ":0", "TCP address on which the HTTP server runs")
 )
 
@@ -54,42 +49,16 @@ func toIPPort(addr string) string {
 func main() {
 	runtime := rt.Init()
 	defer runtime.Cleanup()
-	if *root == "" {
-		var err error
-		if *root, err = ioutil.TempDir("", defaultRootPrefix); err != nil {
-			vlog.Errorf("TempDir() failed: %v\n", err)
-			return
-		}
-		path, perm := filepath.Join(*root, impl.VersionFile), os.FileMode(0600)
-		if err := ioutil.WriteFile(path, []byte(impl.Version), perm); err != nil {
-			vlog.Errorf("WriteFile(%v, %v, %v) failed: %v", path, impl.Version, perm, err)
-			return
-		}
-	} else {
-		_, err := os.Stat(*root)
-		switch {
-		case err == nil:
-		case os.IsNotExist(err):
-			perm := os.FileMode(0700)
-			if err := os.MkdirAll(*root, perm); err != nil {
-				vlog.Errorf("MkdirAll(%v, %v) failed: %v", *root, perm, err)
-				return
-			}
-			path, perm := filepath.Join(*root, impl.VersionFile), os.FileMode(0600)
-			if err := ioutil.WriteFile(path, []byte(impl.Version), perm); err != nil {
-				vlog.Errorf("WriteFile(%v, %v, %v) failed: %v", path, impl.Version, perm, err)
-				return
-			}
-		default:
-			vlog.Errorf("Stat(%v) failed: %v", *root, err)
-			return
-		}
-	}
-	vlog.Infof("Binary repository rooted at %v", *root)
-
-	state, err := impl.NewState(*root, defaultDepth)
+	root, err := impl.SetupRoot(*rootFlag)
 	if err != nil {
-		vlog.Errorf("NewState(%v, %v) failed: %v", *root, defaultDepth, err)
+		vlog.Errorf("SetupRoot(%q) failed: %v", *rootFlag, err)
+		return
+	}
+	vlog.Infof("Binary repository rooted at %v", root)
+
+	state, err := impl.NewState(root, defaultDepth)
+	if err != nil {
+		vlog.Errorf("NewState(%v, %v) failed: %v", root, defaultDepth, err)
 		return
 	}
 

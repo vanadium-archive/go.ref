@@ -47,6 +47,8 @@ import (
 	"veyron.io/veyron/veyron/lib/signals"
 	"veyron.io/veyron/veyron/lib/testutil"
 	tsecurity "veyron.io/veyron/veyron/lib/testutil/security"
+	binaryimpl "veyron.io/veyron/veyron/services/mgmt/binary/impl"
+	libbinary "veyron.io/veyron/veyron/services/mgmt/lib/binary"
 	"veyron.io/veyron/veyron/services/mgmt/node/config"
 	"veyron.io/veyron/veyron/services/mgmt/node/impl"
 	suidhelper "veyron.io/veyron/veyron/services/mgmt/suidhelper/impl"
@@ -214,12 +216,38 @@ func (appService) Echo(_ ipc.ServerContext, message string) (string, error) {
 	return message, nil
 }
 
+func (appService) Cat(_ ipc.ServerContext, file string) (string, error) {
+	if file == "" || file[0] == filepath.Separator || file[0] == '.' {
+		return "", fmt.Errorf("illegal file name: %q", file)
+	}
+	bytes, err := ioutil.ReadFile(file)
+	if err != nil {
+		return "", err
+	}
+	return string(bytes), nil
+}
+
 func ping() {
 	if call, err := rt.R().Client().StartCall(rt.R().NewContext(), "pingserver", "Ping", []interface{}{os.Getenv(suidhelper.SavedArgs)}); err != nil {
 		vlog.Fatalf("StartCall failed: %v", err)
 	} else if err := call.Finish(); err != nil {
 		vlog.Fatalf("Finish failed: %v", err)
 	}
+}
+
+func cat(name, file string) (string, error) {
+	runtime := rt.R()
+	ctx, cancel := runtime.NewContext().WithTimeout(time.Minute)
+	defer cancel()
+	call, err := runtime.Client().StartCall(ctx, name, "Cat", []interface{}{file})
+	if err != nil {
+		return "", err
+	}
+	var content string
+	if ferr := call.Finish(&content, &err); ferr != nil {
+		err = ferr
+	}
+	return content, err
 }
 
 func app(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
@@ -711,6 +739,42 @@ func tryInstall(rt veyron2.Runtime) error {
 	return nil
 }
 
+func startRealBinaryRepository(t *testing.T) func() {
+	root, err := binaryimpl.SetupRoot("")
+	if err != nil {
+		t.Fatalf("binaryimpl.SetupRoot failed: %v", err)
+	}
+	state, err := binaryimpl.NewState(root, 3)
+	if err != nil {
+		t.Fatalf("binaryimpl.NewState failed: %v", err)
+	}
+	server, _ := newServer()
+	name := "realbin"
+	if err := server.ServeDispatcher(name, binaryimpl.NewDispatcher(state, nil)); err != nil {
+		t.Fatalf("server.ServeDispatcher failed: %v", err)
+	}
+
+	tmpdir, err := ioutil.TempDir("", "test-package-")
+	if err != nil {
+		t.Fatalf("ioutil.TempDir failed: %v", err)
+	}
+	defer os.RemoveAll(tmpdir)
+	if err := ioutil.WriteFile(filepath.Join(tmpdir, "hello.txt"), []byte("Hello World!"), 0600); err != nil {
+		t.Fatalf("ioutil.WriteFile failed: %v", err)
+	}
+	if err := libbinary.UploadFromDir(rt.R().NewContext(), naming.Join(name, "testpkg"), tmpdir); err != nil {
+		t.Fatalf("libbinary.UploadFromDir failed: %v", err)
+	}
+	return func() {
+		if err := server.Stop(); err != nil {
+			t.Fatalf("server.Stop failed: %v", err)
+		}
+		if err := os.RemoveAll(root); err != nil {
+			t.Fatalf("os.RemoveAll(%q) failed: %v", root, err)
+		}
+	}
+}
+
 // TestNodeManagerClaim claims a nodemanager and tests ACL permissions on its methods.
 func TestNodeManagerClaim(t *testing.T) {
 	sh, deferFn := createShellAndMountTable(t)
@@ -1086,6 +1150,66 @@ func TestNodeManagerGlobAndDebug(t *testing.T) {
 		if got, want := filepath.Base(v[0]), "bin"; got != want {
 			t.Errorf("Unexpected value for argv[0]. Got %v, want %v", got, want)
 		}
+	}
+}
+
+func TestNodeManagerPackages(t *testing.T) {
+	sh, deferFn := createShellAndMountTable(t)
+	defer deferFn()
+
+	// Set up mock application and binary repositories.
+	envelope, cleanup := startMockRepos(t)
+	defer cleanup()
+
+	defer startRealBinaryRepository(t)()
+
+	root, cleanup := setupRootDir(t)
+	defer cleanup()
+
+	crDir, crEnv := credentialsForChild("nodemanager")
+	defer os.RemoveAll(crDir)
+
+	// Create a script wrapping the test target that implements suidhelper.
+	helperPath := generateSuidHelperScript(t, root)
+
+	// Set up the node manager.  Since we won't do node manager updates,
+	// don't worry about its application envelope and current link.
+	_, nms := runShellCommand(t, sh, crEnv, nodeManagerCmd, "nm", root, helperPath, "unused_app_repo_name", "unused_curr_link")
+	pid := readPID(t, nms)
+	defer syscall.Kill(pid, syscall.SIGINT)
+
+	// Create the local server that the app uses to let us know it's ready.
+	pingCh, cleanup := setupPingServer(t)
+	defer cleanup()
+
+	// Create the envelope for the first version of the app.
+	*envelope = envelopeFromShell(sh, nil, appCmd, "google naps", "appV1")
+	(*envelope).Packages = map[string]string{
+		"test": "realbin/testpkg",
+	}
+
+	// Install the app.
+	appID := installApp(t)
+
+	// Start an instance of the app.
+	startApp(t, appID)
+
+	// Wait until the app pings us that it's ready.
+	select {
+	case <-pingCh:
+	case <-time.After(pingTimeout):
+		t.Fatalf("failed to get ping")
+	}
+
+	// Ask the app to cat a file from the package.
+	file := filepath.Join("packages", "test", "hello.txt")
+	name := "appV1"
+	content, err := cat(name, file)
+	if err != nil {
+		t.Errorf("cat(%q, %q) failed: %v", name, file, err)
+	}
+	if expected := "Hello World!"; content != expected {
+		t.Errorf("unexpected content: expected %q, got %q", expected, content)
 	}
 }
 

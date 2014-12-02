@@ -2,7 +2,6 @@ package packages_test
 
 import (
 	"archive/tar"
-	"archive/zip"
 	"compress/gzip"
 	"fmt"
 	"io"
@@ -107,44 +106,8 @@ func createFiles(t *testing.T, dir string) {
 }
 
 func makeZip(t *testing.T, zipfile, dir string) {
-	z, err := os.OpenFile(zipfile, os.O_CREATE|os.O_WRONLY, os.FileMode(0644))
-	if err != nil {
-		t.Fatalf("os.OpenFile(%q) failed: %v", zipfile, err)
-	}
-	defer z.Close()
-	w := zip.NewWriter(z)
-	filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
-		if err != nil {
-			t.Fatalf("Walk(%q) error: %v", dir, err)
-		}
-		if dir == path {
-			return nil
-		}
-		fh, err := zip.FileInfoHeader(info)
-		if err != nil {
-			t.Fatalf("FileInfoHeader failed: %v", err)
-		}
-		fh.Name, _ = filepath.Rel(dir, path)
-		hdr, err := w.CreateHeader(fh)
-		if err != nil {
-			t.Fatalf("w.CreateHeader failed: %v", err)
-		}
-		if !info.IsDir() {
-			content, err := ioutil.ReadFile(path)
-			if err != nil {
-				t.Fatalf("ioutil.ReadFile(%q) failed: %v", path, err)
-			}
-			if _, err = hdr.Write(content); err != nil {
-				t.Fatalf("hdr.Write(%q) failed: %v", content, err)
-			}
-		}
-		return nil
-	})
-	if err := w.Close(); err != nil {
-		t.Fatalf("w.Close() failed: %v", err)
-	}
-	if err := ioutil.WriteFile(zipfile+".__info", []byte(`{"type":"application/zip"}`), os.FileMode(0644)); err != nil {
-		t.Fatalf("ioutil.WriteFile() failed: %v", err)
+	if err := packages.CreateZip(zipfile, dir); err != nil {
+		t.Fatalf("packages.CreateZip failed: %v", err)
 	}
 }
 

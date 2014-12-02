@@ -11,6 +11,7 @@ import (
 	"io"
 	"io/ioutil"
 	"os"
+	"path/filepath"
 	"time"
 
 	"veyron.io/veyron/veyron2/context"
@@ -284,4 +285,17 @@ func UploadFromFile(ctx context.T, von, path string) error {
 	defer cancel()
 	mediaInfo := packages.MediaInfoForFileName(path)
 	return upload(ctx, file, mediaInfo, von)
+}
+
+func UploadFromDir(ctx context.T, von, sourceDir string) error {
+	dir, err := ioutil.TempDir("", "create-package-")
+	if err != nil {
+		return err
+	}
+	defer os.RemoveAll(dir)
+	zipfile := filepath.Join(dir, "file.zip")
+	if err := packages.CreateZip(zipfile, sourceDir); err != nil {
+		return err
+	}
+	return UploadFromFile(ctx, von, zipfile)
 }
