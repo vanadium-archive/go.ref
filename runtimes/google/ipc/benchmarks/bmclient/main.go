@@ -18,13 +18,16 @@ var (
 )
 
 func main() {
-	r := rt.Init()
-	defer r.Cleanup()
+	runtime, err := rt.New()
+	if err != nil {
+		panic(err)
+	}
+	defer runtime.Cleanup()
 
-	ctx := r.NewContext()
+	ctx := runtime.NewContext()
 	if *chunkCount == 0 {
 		benchmarks.CallEcho(ctx, *server, *count, *payloadSize, os.Stdout)
 	} else {
-		benchmarks.CallEchoStream(*server, *count, *chunkCount, *payloadSize, os.Stdout)
+		benchmarks.CallEchoStream(runtime, *server, *count, *chunkCount, *payloadSize, os.Stdout)
 	}
 }

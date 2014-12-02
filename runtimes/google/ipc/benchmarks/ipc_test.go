@@ -3,13 +3,22 @@ package benchmarks_test
 import (
 	"testing"
 
+	"veyron.io/veyron/veyron2"
 	"veyron.io/veyron/veyron2/rt"
 
 	"veyron.io/veyron/veyron/profiles"
 	"veyron.io/veyron/veyron/runtimes/google/ipc/benchmarks"
 )
 
-var runtime = rt.Init()
+var runtime veyron2.Runtime
+
+func init() {
+	var err error
+	runtime, err = rt.New()
+	if err != nil {
+		panic(err)
+	}
+}
 
 func RunBenchmark(b *testing.B, payloadSize int) {
 	address, stop := benchmarks.StartServer(runtime, profiles.LocalListenSpec)
@@ -23,9 +32,9 @@ func RunBenchmark(b *testing.B, payloadSize int) {
 func RunStreamBenchmark(b *testing.B, rpcCount, messageCount, payloadSize int) {
 	address, stop := benchmarks.StartServer(runtime, profiles.LocalListenSpec)
 	defer stop()
-	benchmarks.CallEchoStream(address, 1, 1, 1, nil) // Create VC
+	benchmarks.CallEchoStream(runtime, address, 1, 1, 1, nil) // Create VC
 	b.ResetTimer()
-	benchmarks.CallEchoStream(address, rpcCount, messageCount, payloadSize, nil)
+	benchmarks.CallEchoStream(runtime, address, rpcCount, messageCount, payloadSize, nil)
 }
 
 func Benchmark____1B(b *testing.B) {

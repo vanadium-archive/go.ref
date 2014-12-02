@@ -6,8 +6,8 @@ import (
 	"io"
 	"time"
 
+	"veyron.io/veyron/veyron2"
 	"veyron.io/veyron/veyron2/context"
-	"veyron.io/veyron/veyron2/rt"
 	"veyron.io/veyron/veyron2/vlog"
 )
 
@@ -39,7 +39,7 @@ func CallEcho(ctx context.T, address string, iterations, payloadSize int, log io
 // CallEchoStream calls the EchoStream method 'rpcCount' times. Each iteration
 // sends 'messageCount' messages on the stream and receives the same number
 // back. Each message has the given payload size. Optionally logs the result.
-func CallEchoStream(address string, rpcCount, messageCount, payloadSize int, log io.Writer) {
+func CallEchoStream(runtime veyron2.Runtime, address string, rpcCount, messageCount, payloadSize int, log io.Writer) {
 	payload := make([]byte, payloadSize)
 	for _, i := range payload {
 		payload[i] = byte(i & 0xff)
@@ -48,7 +48,7 @@ func CallEchoStream(address string, rpcCount, messageCount, payloadSize int, log
 	stub := BenchmarkClient(address)
 	for i := 0; i < rpcCount; i++ {
 		start := time.Now()
-		ctx, _ := rt.R().NewContext().WithTimeout(time.Hour)
+		ctx, _ := runtime.NewContext().WithTimeout(time.Hour)
 		stream, err := stub.EchoStream(ctx)
 		if err != nil {
 			vlog.Fatalf("EchoStream failed: %v", err)

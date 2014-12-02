@@ -17,8 +17,8 @@ import (
 
 func init() { testutil.Init() }
 
-func startSigServer(rt veyron2.Runtime, sig sigImpl) (string, func(), error) {
-	server, err := rt.NewServer()
+func startSigServer(runtime veyron2.Runtime, sig sigImpl) (string, func(), error) {
+	server, err := runtime.NewServer()
 	if err != nil {
 		return "", nil, fmt.Errorf("failed to start sig server: %v", err)
 	}
@@ -41,7 +41,10 @@ func (sigImpl) NonStreaming0(ipc.ServerContext) {}
 // support for typeobject and encoding *vdl.Type.  Re-enable this test when we
 // have vom2 optionally enabled in our stack.
 func disabledTestMethodSignature(t *testing.T) {
-	runtime := rt.Init()
+	runtime, err := rt.New()
+	if err != nil {
+		t.Fatalf("Couldn't initialize runtime: %s", err)
+	}
 	defer runtime.Cleanup()
 
 	ep, stop, err := startSigServer(runtime, sigImpl{})
@@ -60,7 +63,7 @@ func disabledTestMethodSignature(t *testing.T) {
 	}
 	for _, test := range tests {
 		name := naming.JoinAddressName(ep, "")
-		sig, err := reserved.MethodSignature(rt.R().NewContext(), name, test.Method)
+		sig, err := reserved.MethodSignature(runtime.NewContext(), name, test.Method)
 		if err != nil {
 			t.Errorf("call failed: %v", err)
 		}
