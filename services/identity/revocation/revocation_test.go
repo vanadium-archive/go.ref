@@ -46,8 +46,7 @@ func newRevocationManager(t *testing.T) *RevocationManager {
 	return &RevocationManager{}
 }
 
-func revokerSetup(t *testing.T) (dischargerKey security.PublicKey, dischargerEndpoint string, revoker *RevocationManager, closeFunc func(), runtime veyron2.Runtime) {
-	r := rt.Init()
+func revokerSetup(t *testing.T, r veyron2.Runtime) (dischargerKey security.PublicKey, dischargerEndpoint string, revoker *RevocationManager, closeFunc func(), runtime veyron2.Runtime) {
 	revokerService := newRevocationManager(t)
 	dischargerServer, err := r.NewServer()
 	if err != nil {
@@ -71,7 +70,13 @@ func revokerSetup(t *testing.T) (dischargerKey security.PublicKey, dischargerEnd
 }
 
 func TestDischargeRevokeDischargeRevokeDischarge(t *testing.T) {
-	dcKey, dc, revoker, closeFunc, r := revokerSetup(t)
+	r, err := rt.New()
+	if err != nil {
+		t.Fatalf("Could not initialize runtime: %v", err)
+	}
+	defer r.Cleanup()
+
+	dcKey, dc, revoker, closeFunc, r := revokerSetup(t, r)
 	defer closeFunc()
 
 	discharger := services.DischargerClient(dc)
