@@ -361,6 +361,49 @@ blessing can be shared with.
 		},
 	}
 
+	cmdStoreAddToRoots = &cmdline.Command{
+		Name:  "addtoroots",
+		Short: "Add provided blessings to root set",
+		Long: `
+Adds the provided blessings to the set of trusted roots for this principal.
+
+'addtoroots b' adds blessings b to the trusted root set.
+
+For example, to make the principal in credentials directory A trust the
+root of the default blessing in credentials directory B:
+  principal -veyron.credentials=B bless A some_extension |
+  principal -veyron.credentials=A store addtoroots -
+
+The extension 'some_extension' has no effect in the command above.
+`,
+		ArgsName: "<file>",
+		ArgsLong: `
+<file> is the path to a file containing a blessing typically obtained
+from this tool. - is used for STDIN.
+`,
+		Run: func(cmd *cmdline.Command, args []string) error {
+			if len(args) != 1 {
+				return fmt.Errorf("requires exactly one argument <file>, provided %d", len(args))
+			}
+			blessings, err := decodeBlessings(args[0])
+			if err != nil {
+				return fmt.Errorf("failed to decode provided blessings: %v", err)
+			}
+
+			runtime, err := rt.New()
+			if err != nil {
+				panic(err)
+			}
+			defer runtime.Cleanup()
+
+			p := runtime.Principal()
+			if err := p.AddToRoots(blessings); err != nil {
+				return fmt.Errorf("AddToRoots failed: %v", err)
+			}
+			return nil
+		},
+	}
+
 	cmdStoreSetDefault = &cmdline.Command{
 		Name:  "setdefault",
 		Short: "Set provided blessings as default",
@@ -632,7 +675,7 @@ Commands to manipulate and inspect the blessing store of the principal.
 
 All blessings are printed to stdout using base64-VOM-encoding
 `,
-		Children: []*cmdline.Command{cmdStoreDefault, cmdStoreSetDefault, cmdStoreForPeer, cmdStoreSet},
+		Children: []*cmdline.Command{cmdStoreDefault, cmdStoreSetDefault, cmdStoreForPeer, cmdStoreSet, cmdStoreAddToRoots},
 	}
 
 	(&cmdline.Command{
