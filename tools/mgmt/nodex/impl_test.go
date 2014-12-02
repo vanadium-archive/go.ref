@@ -80,7 +80,6 @@ func TestAddCommand(t *testing.T) {
 	var stdout, stderr bytes.Buffer
 	cmd.Init(nil, &stdout, &stderr)
 	nodeName := naming.JoinAddressName(endpoint.String(), "/myapp/1")
-	//nodeName := endpoint.String()
 
 	if err := cmd.Execute([]string{"add", "one"}); err == nil {
 		t.Fatalf("wrongly failed to receive a non-nil error.")
@@ -227,7 +226,6 @@ func TestClaimCommand(t *testing.T) {
 	var stdout, stderr bytes.Buffer
 	cmd.Init(nil, &stdout, &stderr)
 	nodeName := naming.JoinAddressName(endpoint.String(), "")
-	
 
 	// Confirm that we correctly enforce the number of arguments.
 	if err := cmd.Execute([]string{"claim", "nope"}); err == nil {
