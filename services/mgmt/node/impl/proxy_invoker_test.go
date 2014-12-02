@@ -2,7 +2,6 @@ package impl
 
 import (
 	"reflect"
-	"sort"
 	"testing"
 
 	"veyron.io/veyron/veyron2/ipc"
@@ -10,8 +9,9 @@ import (
 	"veyron.io/veyron/veyron2/rt"
 	"veyron.io/veyron/veyron2/security"
 	"veyron.io/veyron/veyron2/services/mgmt/stats"
-	"veyron.io/veyron/veyron2/services/mounttable"
 	"veyron.io/veyron/veyron2/services/security/access"
+
+	"veyron.io/veyron/veyron/lib/testutil"
 )
 
 // TODO(toddw): Add tests of Signature and MethodSignature.
@@ -60,7 +60,10 @@ func TestProxyInvoker(t *testing.T) {
 	}
 
 	// Call Glob()
-	results := doGlob(t, naming.JoinAddressName(ep2.String(), "system"), "start-time-*")
+	results, err := testutil.GlobName(r.NewContext(), naming.JoinAddressName(ep2.String(), "system"), "start-time-*")
+	if err != nil {
+		t.Fatalf("Glob failed: %v", err)
+	}
 	expected := []string{
 		"start-time-rfc1123",
 		"start-time-unix",
@@ -68,27 +71,6 @@ func TestProxyInvoker(t *testing.T) {
 	if !reflect.DeepEqual(results, expected) {
 		t.Errorf("unexpected results. Got %q, want %q", results, expected)
 	}
-}
-
-func doGlob(t *testing.T, name, pattern string) []string {
-	c := mounttable.GlobbableClient(name)
-	stream, err := c.Glob(rt.R().NewContext(), pattern)
-	if err != nil {
-		t.Fatalf("Glob failed: %v", err)
-	}
-	results := []string{}
-	iterator := stream.RecvStream()
-	for iterator.Advance() {
-		results = append(results, iterator.Value().Name)
-	}
-	if err := iterator.Err(); err != nil {
-		t.Errorf("unexpected stream error: %v", err)
-	}
-	if err := stream.Finish(); err != nil {
-		t.Errorf("Finish failed: %v", err)
-	}
-	sort.Strings(results)
-	return results
 }
 
 type dummy struct{}

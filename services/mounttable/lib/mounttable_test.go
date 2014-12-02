@@ -275,7 +275,7 @@ func doGlobX(t *testing.T, ep, suffix, pattern string, as veyron2.Runtime, joinS
 	name := naming.JoinAddressName(ep, suffix)
 	ctx := as.NewContext()
 	client := as.Client()
-	call, err := client.StartCall(ctx, name, "Glob", []interface{}{pattern}, options.NoResolve(true))
+	call, err := client.StartCall(ctx, name, ipc.GlobMethod, []interface{}{pattern}, options.NoResolve(true))
 	if err != nil {
 		boom(t, "Glob.StartCall %s %s: %s", name, pattern, err)
 	}

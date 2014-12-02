@@ -125,7 +125,7 @@ func (s implPingPongServerStub) Ping(ctx __ipc.ServerContext, i0 string) (string
 	return s.impl.Ping(ctx, i0)
 }
 
-func (s implPingPongServerStub) VGlob() *__ipc.GlobState {
+func (s implPingPongServerStub) Globber() *__ipc.GlobState {
 	return s.gs
 }
 

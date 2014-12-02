@@ -344,7 +344,7 @@ func (s implAgentServerStub) BlessingRootsDebugString(ctx __ipc.ServerContext) (
 	return s.impl.BlessingRootsDebugString(ctx)
 }
 
-func (s implAgentServerStub) VGlob() *__ipc.GlobState {
+func (s implAgentServerStub) Globber() *__ipc.GlobState {
 	return s.gs
 }
 

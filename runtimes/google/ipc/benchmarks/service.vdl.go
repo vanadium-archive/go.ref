@@ -254,7 +254,7 @@ func (s implBenchmarkServerStub) EchoStream(ctx *BenchmarkEchoStreamContextStub)
 	return s.impl.EchoStream(ctx)
 }
 
-func (s implBenchmarkServerStub) VGlob() *__ipc.GlobState {
+func (s implBenchmarkServerStub) Globber() *__ipc.GlobState {
 	return s.gs
 }
 

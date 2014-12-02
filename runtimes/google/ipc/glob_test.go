@@ -197,29 +197,33 @@ type globObject struct {
 	suffix []string
 }
 
-func (o *globObject) Glob(ctx *ipc.GlobContextStub, pattern string) error {
+func (o *globObject) Glob__(ctx ipc.ServerContext, pattern string) (<-chan naming.VDLMountEntry, error) {
 	g, err := glob.Parse(pattern)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	n := o.n.find(o.suffix, false)
 	if n == nil {
-		return nil
+		return nil, nil
 	}
-	o.globLoop(ctx, "", g, n)
-	return nil
+	ch := make(chan naming.VDLMountEntry)
+	go func() {
+		o.globLoop(ch, "", g, n)
+		close(ch)
+	}()
+	return ch, nil
 }
 
-func (o *globObject) globLoop(ctx *ipc.GlobContextStub, name string, g *glob.Glob, n *node) {
+func (o *globObject) globLoop(ch chan<- naming.VDLMountEntry, name string, g *glob.Glob, n *node) {
 	if g.Len() == 0 {
-		ctx.SendStream().Send(naming.VDLMountEntry{Name: name})
+		ch <- naming.VDLMountEntry{Name: name}
 	}
 	if g.Finished() {
 		return
 	}
 	for leaf, child := range n.children {
 		if ok, _, left := g.MatchInitialSegment(leaf); ok {
-			o.globLoop(ctx, naming.Join(name, leaf), left, child)
+			o.globLoop(ch, naming.Join(name, leaf), left, child)
 		}
 	}
 }
@@ -229,7 +233,7 @@ type vChildrenObject struct {
 	suffix []string
 }
 
-func (o *vChildrenObject) GlobChildren__() (<-chan string, error) {
+func (o *vChildrenObject) GlobChildren__(ipc.ServerContext) (<-chan string, error) {
 	n := o.n.find(o.suffix, false)
 	if n == nil {
 		return nil, fmt.Errorf("object does not exist")

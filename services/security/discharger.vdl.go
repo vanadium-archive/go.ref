@@ -143,7 +143,7 @@ func (s implDischargerServerStub) Discharge(ctx __ipc.ServerContext, i0 __vdluti
 	return s.impl.Discharge(ctx, i0, i1)
 }
 
-func (s implDischargerServerStub) VGlob() *__ipc.GlobState {
+func (s implDischargerServerStub) Globber() *__ipc.GlobState {
 	return s.gs
 }
 

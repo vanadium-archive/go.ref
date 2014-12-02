@@ -131,7 +131,7 @@ func (r *reservedMethods) MethodSignature(ctxOrig ipc.ServerContext, method stri
 	return objectToInvoker(obj).MethodSignature(ctx, ctx.Method())
 }
 
-func (r *reservedMethods) Glob(ctx *ipc.GlobContextStub, pattern string) error {
+func (r *reservedMethods) Glob(ctx ipc.ServerCall, pattern string) error {
 	// Copy the original call to shield ourselves from changes the flowServer makes.
 	glob := globInternal{r.dispNormal, r.dispReserved, ctx.Suffix()}
 	return glob.Glob(copyMutableCall(ctx), pattern)
@@ -232,7 +232,7 @@ func (i *globInternal) Glob(call *mutableCall, pattern string) error {
 
 		// If the object implements both AllGlobber and ChildrenGlobber, we'll
 		// use AllGlobber.
-		gs := objectToInvoker(obj).VGlob()
+		gs := objectToInvoker(obj).Globber()
 		if gs == nil || (gs.AllGlobber == nil && gs.ChildrenGlobber == nil) {
 			if state.glob.Len() == 0 {
 				call.Send(naming.VDLMountEntry{Name: state.name})
@@ -241,12 +241,22 @@ func (i *globInternal) Glob(call *mutableCall, pattern string) error {
 		}
 		if gs.AllGlobber != nil {
 			vlog.VI(3).Infof("ipc Glob: %q implements AllGlobber", call.Suffix())
-			childCtx := &ipc.GlobContextStub{&localServerCall{call, state.name}}
-			gs.AllGlobber.Glob(childCtx, state.glob.String())
+			ch, err := gs.AllGlobber.Glob__(call, state.glob.String())
+			if err != nil {
+				vlog.VI(3).Infof("ipc Glob: %q.Glob(%q) failed: %v", call.Suffix(), state.glob, err)
+				continue
+			}
+			if ch == nil {
+				continue
+			}
+			for me := range ch {
+				me.Name = naming.Join(state.name, me.Name)
+				call.Send(me)
+			}
 			continue
 		}
 		vlog.VI(3).Infof("ipc Glob: %q implements ChildrenGlobber", call.Suffix())
-		children, err := gs.ChildrenGlobber.GlobChildren__()
+		children, err := gs.ChildrenGlobber.GlobChildren__(call)
 		// The requested object doesn't exist.
 		if err != nil {
 			continue
@@ -276,24 +286,6 @@ func (i *globInternal) Glob(call *mutableCall, pattern string) error {
 		}
 	}
 	return nil
-}
-
-// An ipc.ServerCall that prepends a name to all the names in the streamed
-// MountEntry objects.
-type localServerCall struct {
-	ipc.ServerCall
-	basename string
-}
-
-var _ ipc.ServerCall = (*localServerCall)(nil)
-
-func (c *localServerCall) Send(v interface{}) error {
-	me, ok := v.(naming.VDLMountEntry)
-	if !ok {
-		return verror.BadArgf("unexpected stream type. Got %T, want MountEntry", v)
-	}
-	me.Name = naming.Join(c.basename, me.Name)
-	return c.ServerCall.Send(me)
 }
 
 // copyMutableCall returns a new mutableCall copied from call.  Changes to the

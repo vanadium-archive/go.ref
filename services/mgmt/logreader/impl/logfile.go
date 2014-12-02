@@ -112,7 +112,7 @@ func (i *logfileService) ReadLog(ctx logreader.LogFileReadLogContext, startpos i
 
 // GlobChildren__ returns the list of files in a directory streamed on a
 // channel. The list is empty if the object is a file.
-func (i *logfileService) GlobChildren__() (<-chan string, error) {
+func (i *logfileService) GlobChildren__(ipc.ServerContext) (<-chan string, error) {
 	vlog.VI(1).Infof("%v.GlobChildren__()", i.suffix)
 	dirName, err := translateNameToFilename(i.root, i.suffix)
 	if err != nil {

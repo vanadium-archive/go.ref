@@ -5,6 +5,7 @@ import (
 	"io"
 
 	"veyron.io/veyron/veyron2/ipc"
+	"veyron.io/veyron/veyron2/naming"
 	"veyron.io/veyron/veyron2/rt"
 	"veyron.io/veyron/veyron2/services/security/access"
 )
@@ -184,27 +185,31 @@ func (p *proxyInvoker) MethodSignature(ctx ipc.ServerContext, method string) (ip
 	return res, nil
 }
 
-func (p *proxyInvoker) VGlob() *ipc.GlobState {
+func (p *proxyInvoker) Globber() *ipc.GlobState {
 	return &ipc.GlobState{AllGlobber: p}
 }
 
-func (p *proxyInvoker) Glob(ctx *ipc.GlobContextStub, pattern string) error {
-	argptrs := []interface{}{&pattern}
-	results, err := p.Invoke(ipc.GlobMethod, ctx, argptrs)
-	if err != nil {
-		return err
-	}
-	if len(results) != 1 {
-		return fmt.Errorf("unexpected number of result values. Got %d, want 1.", len(results))
-	}
-	if results[0] == nil {
-		return nil
-	}
-	err, ok := results[0].(error)
-	if !ok {
-		return fmt.Errorf("unexpected result value type. Got %T, want error.", err)
-	}
-	return err
+type call struct {
+	ipc.ServerContext
+	ch chan<- naming.VDLMountEntry
+}
+
+func (c *call) Recv(v interface{}) error {
+	return io.EOF
+}
+
+func (c *call) Send(v interface{}) error {
+	c.ch <- v.(naming.VDLMountEntry)
+	return nil
+}
+
+func (p *proxyInvoker) Glob__(ctx ipc.ServerContext, pattern string) (<-chan naming.VDLMountEntry, error) {
+	ch := make(chan naming.VDLMountEntry)
+	go func() {
+		p.Invoke(ipc.GlobMethod, &call{ctx, ch}, []interface{}{&pattern})
+		close(ch)
+	}()
+	return ch, nil
 }
 
 // numResults returns the number of result values for the given method.

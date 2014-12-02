@@ -176,7 +176,7 @@ func (i *appRepoService) allAppVersions(appName string) ([]string, error) {
 	return versions, nil
 }
 
-func (i *appRepoService) GlobChildren__() (<-chan string, error) {
+func (i *appRepoService) GlobChildren__(ipc.ServerContext) (<-chan string, error) {
 	vlog.VI(0).Infof("%v.GlobChildren__()", i.suffix)
 	i.store.Lock()
 	defer i.store.Unlock()

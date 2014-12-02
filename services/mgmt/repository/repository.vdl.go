@@ -202,7 +202,7 @@ func (s implApplicationServerStub) Remove(ctx __ipc.ServerContext, i0 string) er
 	return s.impl.Remove(ctx, i0)
 }
 
-func (s implApplicationServerStub) VGlob() *__ipc.GlobState {
+func (s implApplicationServerStub) Globber() *__ipc.GlobState {
 	return s.gs
 }
 
@@ -509,7 +509,7 @@ func (s implProfileServerStub) Remove(ctx __ipc.ServerContext) error {
 	return s.impl.Remove(ctx)
 }
 
-func (s implProfileServerStub) VGlob() *__ipc.GlobState {
+func (s implProfileServerStub) Globber() *__ipc.GlobState {
 	return s.gs
 }
 

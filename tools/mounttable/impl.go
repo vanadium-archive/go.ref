@@ -1,31 +1,15 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"time"
 
 	"veyron.io/lib/cmdline"
-	"veyron.io/veyron/veyron2/context"
+	"veyron.io/veyron/veyron2/ipc"
 	"veyron.io/veyron/veyron2/naming"
 	"veyron.io/veyron/veyron2/options"
-	"veyron.io/veyron/veyron2/services/mounttable"
 )
-
-func bindMT(ctx context.T, name string) (mounttable.MountTableClientMethods, error) {
-	e, err := runtime.Namespace().ResolveToMountTableX(ctx, name)
-	if err != nil {
-		return nil, err
-	}
-	if len(e.Servers) == 0 {
-		return nil, fmt.Errorf("Failed to find any mount tables at %q", name)
-	}
-	var servers []string
-	for _, s := range e.Servers {
-		servers = append(servers, naming.JoinAddressName(s.Server, e.Name))
-	}
-	fmt.Println(servers)
-	return mounttable.MountTableClient(servers[0]), nil
-}
 
 var cmdGlob = &cmdline.Command{
 	Run:      runGlob,
@@ -42,40 +26,37 @@ specified mount name.
 
 func runGlob(cmd *cmdline.Command, args []string) error {
 	if len(args) == 1 {
-		args = append([]string{""}, args...)
+		roots := runtime.Namespace().Roots()
+		if len(roots) == 0 {
+			return errors.New("no namespace root")
+		}
+		args = append([]string{roots[0]}, args...)
 	}
 	if expected, got := 2, len(args); expected != got {
 		return cmd.UsageErrorf("glob: incorrect number of arguments, expected %d, got %d", expected, got)
 	}
 	ctx, cancel := runtime.NewContext().WithTimeout(time.Minute)
 	defer cancel()
-	c, err := bindMT(ctx, args[0])
-	if err != nil {
-		return fmt.Errorf("bind error: %v", err)
-	}
-	stream, err := c.Glob(ctx, args[1])
+	name, pattern := args[0], args[1]
+	call, err := runtime.Client().StartCall(ctx, name, ipc.GlobMethod, []interface{}{pattern}, options.NoResolve(true))
 	if err != nil {
 		return err
 	}
-	rStream := stream.RecvStream()
-	for rStream.Advance() {
-		buf := rStream.Value()
-
-		fmt.Fprint(cmd.Stdout(), buf.Name)
-		for _, s := range buf.Servers {
+	for {
+		var me naming.VDLMountEntry
+		if err := call.Recv(&me); err != nil {
+			break
+		}
+		fmt.Fprint(cmd.Stdout(), me.Name)
+		for _, s := range me.Servers {
 			fmt.Fprintf(cmd.Stdout(), " %s (TTL %s)", s.Server, time.Duration(s.TTL)*time.Second)
 		}
 		fmt.Fprintln(cmd.Stdout())
 	}
-
-	if err := rStream.Err(); err != nil {
-		return fmt.Errorf("advance error: %v", err)
+	if ferr := call.Finish(&err); ferr != nil {
+		err = ferr
 	}
-	err = stream.Finish()
-	if err != nil {
-		return fmt.Errorf("finish error: %v", err)
-	}
-	return nil
+	return err
 }
 
 var cmdMount = &cmdline.Command{
@@ -123,7 +104,10 @@ func runMount(cmd *cmdline.Command, args []string) error {
 		return err
 	}
 	if ierr := call.Finish(&err); ierr != nil {
-		return ierr
+		err = ierr
+	}
+	if err != nil {
+		return err
 	}
 
 	fmt.Fprintln(cmd.Stdout(), "Name mounted successfully.")
@@ -153,11 +137,14 @@ func runUnmount(cmd *cmdline.Command, args []string) error {
 		return err
 	}
 	if ierr := call.Finish(&err); ierr != nil {
-		return ierr
+		err = ierr
+	}
+	if err != nil {
+		return err
 	}
 
 	fmt.Fprintln(cmd.Stdout(), "Name unmounted successfully.")
-	return nil
+	return err
 }
 
 var cmdResolveStep = &cmdline.Command{
@@ -183,7 +170,7 @@ func runResolveStep(cmd *cmdline.Command, args []string) error {
 	}
 	var entry naming.VDLMountEntry
 	if ierr := call.Finish(&entry, &err); ierr != nil {
-		return ierr
+		err = ierr
 	}
 	if err != nil {
 		return err

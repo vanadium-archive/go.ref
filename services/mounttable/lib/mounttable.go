@@ -361,7 +361,7 @@ type globEntry struct {
 	name string
 }
 
-func (mt *mountTable) globStep(n *node, name string, pattern *glob.Glob, context ipc.GlobContext) {
+func (mt *mountTable) globStep(n *node, name string, pattern *glob.Glob, context ipc.ServerContext, ch chan<- naming.VDLMountEntry) {
 	vlog.VI(2).Infof("globStep(%s, %s)", name, pattern)
 
 	if mt.acls != nil {
@@ -374,7 +374,6 @@ func (mt *mountTable) globStep(n *node, name string, pattern *glob.Glob, context
 		}
 	}
 
-	sender := context.SendStream()
 	// If this is a mount point, we're done.
 	if m := n.mount; m != nil {
 		// Garbage-collect if expired.
@@ -382,11 +381,11 @@ func (mt *mountTable) globStep(n *node, name string, pattern *glob.Glob, context
 			n.removeUseless()
 			return
 		}
-		sender.Send(
-			naming.VDLMountEntry{
-				Name: name, Servers: m.servers.copyToSlice(),
-				MT: n.mount.mt,
-			})
+		ch <- naming.VDLMountEntry{
+			Name:    name,
+			Servers: m.servers.copyToSlice(),
+			MT:      n.mount.mt,
+		}
 		return
 	}
 
@@ -396,7 +395,7 @@ func (mt *mountTable) globStep(n *node, name string, pattern *glob.Glob, context
 			n.removeUseless()
 			return
 		}
-		sender.Send(naming.VDLMountEntry{Name: name})
+		ch <- naming.VDLMountEntry{Name: name}
 	}
 
 	if pattern.Finished() {
@@ -406,7 +405,7 @@ func (mt *mountTable) globStep(n *node, name string, pattern *glob.Glob, context
 	// Recurse through the children.
 	for k, c := range n.children {
 		if ok, _, suffix := pattern.MatchInitialSegment(k); ok {
-			mt.globStep(c, naming.Join(name, k), suffix, context)
+			mt.globStep(c, naming.Join(name, k), suffix, context, ch)
 		}
 	}
 }
@@ -414,36 +413,40 @@ func (mt *mountTable) globStep(n *node, name string, pattern *glob.Glob, context
 // Glob finds matches in the namespace.  If we reach a mount point before matching the
 // whole pattern, return that mount point.
 // pattern is a glob pattern as defined by the veyron/lib/glob package.
-func (ms *mountContext) Glob(context ipc.GlobContext, pattern string) error {
+func (ms *mountContext) Glob__(context ipc.ServerContext, pattern string) (<-chan naming.VDLMountEntry, error) {
 	vlog.VI(2).Infof("mt.Glob %v", ms.elems)
 
 	g, err := glob.Parse(pattern)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	mt := ms.mt
 
-	// TODO(caprita): we need to grab a write lock because globStep may
-	// garbage-collect expired servers.  Rework this to avoid this potential
-	// bottleneck.
-	mt.Lock()
-	defer mt.Unlock()
+	ch := make(chan naming.VDLMountEntry)
+	go func() {
+		defer close(ch)
+		// TODO(caprita): we need to grab a write lock because globStep may
+		// garbage-collect expired servers.  Rework this to avoid this potential
+		// bottleneck.
+		mt.Lock()
+		defer mt.Unlock()
 
-	// If the current name is not fully resolvable on this nameserver we
-	// don't need to evaluate the glob expression. Send a partially resolved
-	// name back to the client.
-	n := mt.findNode(ms.cleanedElems, false)
-	if n == nil {
-		ms.linkToLeaf(context)
-		return nil
-	}
+		// If the current name is not fully resolvable on this nameserver we
+		// don't need to evaluate the glob expression. Send a partially resolved
+		// name back to the client.
+		n := mt.findNode(ms.cleanedElems, false)
+		if n == nil {
+			ms.linkToLeaf(ch)
+			return
+		}
 
-	mt.globStep(n, "", g, context)
-	return nil
+		mt.globStep(n, "", g, context, ch)
+	}()
+	return ch, nil
 }
 
-func (ms *mountContext) linkToLeaf(stream ipc.GlobServerStream) {
+func (ms *mountContext) linkToLeaf(ch chan<- naming.VDLMountEntry) {
 	n, elems := ms.mt.walk(ms.mt.root, ms.cleanedElems)
 	if n == nil {
 		return
@@ -452,5 +455,5 @@ func (ms *mountContext) linkToLeaf(stream ipc.GlobServerStream) {
 	for i, s := range servers {
 		servers[i].Server = naming.Join(s.Server, strings.Join(elems, "/"))
 	}
-	stream.SendStream().Send(naming.VDLMountEntry{Name: "", Servers: servers})
+	ch <- naming.VDLMountEntry{Name: "", Servers: servers}
 }

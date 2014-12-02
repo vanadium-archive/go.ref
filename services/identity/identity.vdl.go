@@ -156,7 +156,7 @@ func (s implOAuthBlesserServerStub) BlessUsingAccessToken(ctx __ipc.ServerContex
 	return s.impl.BlessUsingAccessToken(ctx, i0)
 }
 
-func (s implOAuthBlesserServerStub) VGlob() *__ipc.GlobState {
+func (s implOAuthBlesserServerStub) Globber() *__ipc.GlobState {
 	return s.gs
 }
 
@@ -346,7 +346,7 @@ func (s implMacaroonBlesserServerStub) Bless(ctx __ipc.ServerContext, i0 string)
 	return s.impl.Bless(ctx, i0)
 }
 
-func (s implMacaroonBlesserServerStub) VGlob() *__ipc.GlobState {
+func (s implMacaroonBlesserServerStub) Globber() *__ipc.GlobState {
 	return s.gs
 }
 
