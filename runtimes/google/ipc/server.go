@@ -32,6 +32,7 @@ import (
 )
 
 var (
+	// TODO(cnicolaou): this should be BadState in verror2.
 	errServerStopped = verror.Abortedf("ipc: server is stopped")
 )
 

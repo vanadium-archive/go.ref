@@ -410,7 +410,9 @@ func (vif *VIF) handleMessage(msg message.T) error {
 		if vif.isSetup {
 			return errAlreadySetup
 		}
+		vif.muListen.Lock()
 		principal, lBlessings, dischargeClient, err := serverAuthOptions(vif.listenerOpts)
+		vif.muListen.Unlock()
 		if err != nil {
 			return errVersionNegotiationFailed
 		}

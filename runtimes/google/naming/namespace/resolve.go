@@ -106,7 +106,7 @@ func (ns *namespace) ResolveX(ctx context.T, name string, opts ...naming.Resolve
 			// Any other failure (server not found, no ResolveStep
 			// method, etc.) are a sign that iterative resolution can
 			// stop.
-			vlog.VI(1).Infof("ResolveX(%s) -> %v", name, curr)
+			vlog.VI(1).Infof("ResolveX(%s) -> %v (%s)", name, curr, err)
 			return curr, nil
 		}
 		pattern = ""
