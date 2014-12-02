@@ -1194,7 +1194,7 @@ func (i *appService) scanInstance(tree *treeNode, title, instanceDir string) {
 	}
 }
 
-func (i *appService) GlobChildren__() (<-chan string, error) {
+func (i *appService) GlobChildren__(ipc.ServerContext) (<-chan string, error) {
 	tree := newTreeNode()
 	switch len(i.suffix) {
 	case 0:

@@ -51,8 +51,7 @@ main() {
   GOT=$(${MOUNTTABLE_BIN} glob "${EP}" '*' | \
 	  sed -e 's/ \/@.@ws@[^ ]* (TTL .m..s)//' -e 's/TTL [^)]*/TTL XmXXs/' | sort) \
     || shell_test::fail "line ${LINENO}: failed to run mounttable"
-  WANT="[${EP}]
-google /www.google.com:80 (TTL XmXXs)
+  WANT="google /www.google.com:80 (TTL XmXXs)
 myself ${EP} (TTL XmXXs)
 nh ${NHEP} (TTL XmXXs)"
   shell_test::assert_eq "${GOT}" "${WANT}" "${LINENO}"
@@ -60,8 +59,7 @@ nh ${NHEP} (TTL XmXXs)"
   # <neighborhood>.Glob('NHNAME')
   GOT=$("${MOUNTTABLE_BIN}" glob "${NHEP}" "${NHNAME}" | sed 's/TTL [^)]*/TTL XmXXs/' | sort) \
     || shell_test::fail "line ${LINENO}: failed to run mounttable"
-  WANT="[${NHEP}]
-${NHNAME} ${EP} (TTL XmXXs)"
+  WANT="${NHNAME} ${EP} (TTL XmXXs)"
   shell_test::assert_eq "${GOT}" "${WANT}" "${LINENO}"
 
   shell_test::pass

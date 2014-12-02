@@ -127,7 +127,7 @@ func (s implConfigServerStub) Set(ctx __ipc.ServerContext, i0 string, i1 string)
 	return s.impl.Set(ctx, i0, i1)
 }
 
-func (s implConfigServerStub) VGlob() *__ipc.GlobState {
+func (s implConfigServerStub) Globber() *__ipc.GlobState {
 	return s.gs
 }
 

@@ -150,7 +150,7 @@ func (s implCollectionServerStub) Lookup(ctx __ipc.ServerContext) ([]byte, error
 	return s.impl.Lookup(ctx)
 }
 
-func (s implCollectionServerStub) VGlob() *__ipc.GlobState {
+func (s implCollectionServerStub) Globber() *__ipc.GlobState {
 	return s.gs
 }
 

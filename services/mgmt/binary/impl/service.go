@@ -325,7 +325,7 @@ func (i *binaryService) Upload(context repository.BinaryUploadContext, part int3
 	return nil
 }
 
-func (i *binaryService) GlobChildren__() (<-chan string, error) {
+func (i *binaryService) GlobChildren__(ipc.ServerContext) (<-chan string, error) {
 	elems := strings.Split(i.suffix, "/")
 	if len(elems) == 1 && elems[0] == "" {
 		elems = nil

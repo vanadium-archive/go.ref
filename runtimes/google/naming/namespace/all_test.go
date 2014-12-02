@@ -16,11 +16,9 @@ import (
 	"veyron.io/veyron/veyron2/options"
 	"veyron.io/veyron/veyron2/rt"
 	"veyron.io/veyron/veyron2/security"
-	"veyron.io/veyron/veyron2/services/mounttable"
 	verror "veyron.io/veyron/veyron2/verror2"
 	"veyron.io/veyron/veyron2/vlog"
 
-	"veyron.io/veyron/veyron/lib/glob"
 	"veyron.io/veyron/veyron/lib/testutil"
 	"veyron.io/veyron/veyron/lib/websocket"
 	_ "veyron.io/veyron/veyron/profiles"
@@ -108,40 +106,20 @@ func (testServer) KnockKnock(ctx ipc.ServerContext) string {
 	return "Who's there?"
 }
 
-// Glob applies pattern to the following tree:
+// testServer has the following namespace:
 // "" -> {level1} -> {level2}
-// "".Glob("*") returns "level1"
-// "".Glob("...") returns "level1" and "level1/level2"
-// "level1".Glob("*") returns "level2"
-func (t *testServer) Glob(ctx *ipc.GlobContextStub, pattern string) error {
-	g, err := glob.Parse(pattern)
-	if err != nil {
-		return err
+func (t *testServer) GlobChildren__(ipc.ServerContext) (<-chan string, error) {
+	ch := make(chan string, 1)
+	switch t.suffix {
+	case "":
+		ch <- "level1"
+	case "level1":
+		ch <- "level2"
+	default:
+		return nil, nil
 	}
-	tree := []string{"", "level1", "level2"}
-	for i, leaf := range tree {
-		if leaf == t.suffix {
-			return t.globLoop(ctx, "", g, tree[i+1:])
-		}
-	}
-	return nil
-}
-
-func (t *testServer) globLoop(ctx *ipc.GlobContextStub, prefix string, g *glob.Glob, tree []string) error {
-	if g.Len() == 0 {
-		if err := ctx.SendStream().Send(naming.VDLMountEntry{Name: prefix}); err != nil {
-			return err
-		}
-	}
-	if g.Finished() || len(tree) == 0 {
-		return nil
-	}
-	if ok, _, left := g.MatchInitialSegment(tree[0]); ok {
-		if err := t.globLoop(ctx, naming.Join(prefix, tree[0]), left, tree[1:]); err != nil {
-			return err
-		}
-	}
-	return nil
+	close(ch)
+	return ch, nil
 }
 
 type allowEveryoneAuthorizer struct{}
@@ -504,11 +482,11 @@ type GlobbableServer struct {
 	mu        sync.Mutex
 }
 
-func (g *GlobbableServer) Glob(ipc.GlobContext, string) error {
+func (g *GlobbableServer) Glob__(ipc.ServerContext, string) (<-chan naming.VDLMountEntry, error) {
 	g.mu.Lock()
 	defer g.mu.Unlock()
 	g.callCount++
-	return nil
+	return nil, nil
 }
 
 func (g *GlobbableServer) GetAndResetCount() int {
@@ -531,7 +509,7 @@ func TestGlobEarlyStop(t *testing.T) {
 
 	globServer := &GlobbableServer{}
 	name := naming.JoinAddressName(mts["mt4/foo/bar"].name, "glob")
-	runningGlobServer := runServer(t, r, ipc.LeafDispatcher(mounttable.GlobbableServer(globServer), nil), name)
+	runningGlobServer := runServer(t, r, ipc.LeafDispatcher(globServer, nil), name)
 	defer runningGlobServer.server.Stop()
 
 	ns := r.Namespace()

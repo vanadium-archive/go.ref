@@ -35,21 +35,22 @@ func NewStatsService(suffix string, watchFreq time.Duration) interface{} {
 	return stats.StatsServer(&statsService{suffix, watchFreq})
 }
 
-// Glob returns the name of all objects that match pattern.
-func (i *statsService) Glob(ctx ipc.GlobContext, pattern string) error {
-	vlog.VI(1).Infof("%v.Glob(%q)", i.suffix, pattern)
+// Glob__ returns the name of all objects that match pattern.
+func (i *statsService) Glob__(ctx ipc.ServerContext, pattern string) (<-chan naming.VDLMountEntry, error) {
+	vlog.VI(1).Infof("%v.Glob__(%q)", i.suffix, pattern)
 
-	it := libstats.Glob(i.suffix, pattern, time.Time{}, false)
-	for it.Advance() {
-		ctx.SendStream().Send(naming.VDLMountEntry{Name: it.Value().Key})
-	}
-	if err := it.Err(); err != nil {
-		if err == libstats.ErrNotFound {
-			return errNotFound
+	ch := make(chan naming.VDLMountEntry)
+	go func() {
+		defer close(ch)
+		it := libstats.Glob(i.suffix, pattern, time.Time{}, false)
+		for it.Advance() {
+			ch <- naming.VDLMountEntry{Name: it.Value().Key}
 		}
-		return errOperationFailed
-	}
-	return nil
+		if err := it.Err(); err != nil {
+			vlog.VI(1).Infof("libstats.Glob(%q, %q) failed: %v", i.suffix, pattern, err)
+		}
+	}()
+	return ch, nil
 }
 
 // WatchGlob returns the name and value of the objects that match the request,

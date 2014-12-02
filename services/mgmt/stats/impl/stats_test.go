@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"veyron.io/veyron/veyron2"
 	"veyron.io/veyron/veyron2/naming"
 	"veyron.io/veyron/veyron2/rt"
 	"veyron.io/veyron/veyron2/security"
@@ -14,6 +15,7 @@ import (
 
 	libstats "veyron.io/veyron/veyron/lib/stats"
 	"veyron.io/veyron/veyron/lib/stats/histogram"
+	"veyron.io/veyron/veyron/lib/testutil"
 	"veyron.io/veyron/veyron/profiles"
 	istats "veyron.io/veyron/veyron/services/mgmt/stats"
 	"veyron.io/veyron/veyron/services/mgmt/stats/impl"
@@ -26,9 +28,9 @@ func (d *statsDispatcher) Lookup(suffix string) (interface{}, security.Authorize
 	return impl.NewStatsService(suffix, 100*time.Millisecond), nil, nil
 }
 
-func startServer(t *testing.T) (string, func()) {
+func startServer(t *testing.T, runtime veyron2.Runtime) (string, func()) {
 	disp := &statsDispatcher{}
-	server, err := rt.R().NewServer()
+	server, err := runtime.NewServer()
 	if err != nil {
 		t.Fatalf("NewServer failed: %v", err)
 		return "", nil
@@ -46,9 +48,10 @@ func startServer(t *testing.T) (string, func()) {
 }
 
 func TestStatsImpl(t *testing.T) {
-	rt.Init()
+	runtime, _ := rt.New()
+	defer runtime.Cleanup()
 
-	endpoint, stop := startServer(t)
+	endpoint, stop := startServer(t, runtime)
 	defer stop()
 
 	counter := libstats.NewCounter("testing/foo/bar")
@@ -64,29 +67,14 @@ func TestStatsImpl(t *testing.T) {
 		histogram.Add(int64(i))
 	}
 
-	c := stats.StatsClient(naming.JoinAddressName(endpoint, ""))
+	name := naming.JoinAddressName(endpoint, "")
+	c := stats.StatsClient(name)
 
 	// Test Glob()
 	{
-		stream, err := c.Glob(rt.R().NewContext(), "testing/foo/...")
+		results, err := testutil.GlobName(runtime.NewContext(), name, "testing/foo/...")
 		if err != nil {
-			t.Fatalf("c.Glob failed: %v", err)
-		}
-		iterator := stream.RecvStream()
-		results := []string{}
-		for iterator.Advance() {
-			me := iterator.Value()
-			if len(me.Servers) > 0 {
-				t.Errorf("unexpected servers. Got %v, want none", me.Servers)
-			}
-			results = append(results, me.Name)
-		}
-		if err := iterator.Err(); err != nil {
-			t.Errorf("unexpected stream error: %v", err)
-		}
-		err = stream.Finish()
-		if err != nil {
-			t.Errorf("gstream.Finish failed: %v", err)
+			t.Fatalf("testutil.GlobName failed: %v", err)
 		}
 		expected := []string{
 			"testing/foo",
@@ -109,7 +97,7 @@ func TestStatsImpl(t *testing.T) {
 	{
 		noRM := types.ResumeMarker{}
 		_ = noRM
-		stream, err := c.WatchGlob(rt.R().NewContext(), types.GlobRequest{Pattern: "testing/foo/bar"})
+		stream, err := c.WatchGlob(runtime.NewContext(), types.GlobRequest{Pattern: "testing/foo/bar"})
 		if err != nil {
 			t.Fatalf("c.WatchGlob failed: %v", err)
 		}
@@ -160,7 +148,7 @@ func TestStatsImpl(t *testing.T) {
 	// Test Value()
 	{
 		c := stats.StatsClient(naming.JoinAddressName(endpoint, "testing/foo/bar"))
-		value, err := c.Value(rt.R().NewContext())
+		value, err := c.Value(runtime.NewContext())
 		if err != nil {
 			t.Errorf("unexpected error: %v", err)
 		}
@@ -172,7 +160,7 @@ func TestStatsImpl(t *testing.T) {
 	// Test Value() with Histogram
 	{
 		c := stats.StatsClient(naming.JoinAddressName(endpoint, "testing/hist/foo"))
-		value, err := c.Value(rt.R().NewContext())
+		value, err := c.Value(runtime.NewContext())
 		if err != nil {
 			t.Errorf("unexpected error: %v", err)
 		}

@@ -133,7 +133,7 @@ func (s implRootServerStub) Reset(ctx __ipc.ServerContext, i0 uint64) error {
 	return s.impl.Reset(ctx, i0)
 }
 
-func (s implRootServerStub) VGlob() *__ipc.GlobState {
+func (s implRootServerStub) Globber() *__ipc.GlobState {
 	return s.gs
 }
 

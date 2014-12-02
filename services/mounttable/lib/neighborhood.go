@@ -255,35 +255,39 @@ func (*neighborhoodService) Unmount(_ ipc.ServerContext, _ string) error {
 	return errors.New("this server does not implement Unmount")
 }
 
-// Glob implements Glob
-func (ns *neighborhoodService) Glob(ctx ipc.GlobContext, pattern string) error {
+// Glob__ implements ipc.AllGlobber
+func (ns *neighborhoodService) Glob__(ctx ipc.ServerContext, pattern string) (<-chan naming.VDLMountEntry, error) {
 	g, err := glob.Parse(pattern)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	// return all neighbors that match the first element of the pattern.
 	nh := ns.nh
 
-	sender := ctx.SendStream()
 	switch len(ns.elems) {
 	case 0:
-		for k, n := range nh.neighbors() {
-			if ok, _, _ := g.MatchInitialSegment(k); !ok {
-				continue
+		ch := make(chan naming.VDLMountEntry)
+		go func() {
+			defer close(ch)
+			for k, n := range nh.neighbors() {
+				if ok, _, _ := g.MatchInitialSegment(k); !ok {
+					continue
+				}
+				ch <- naming.VDLMountEntry{Name: k, Servers: n, MT: true}
 			}
-			if err := sender.Send(naming.VDLMountEntry{Name: k, Servers: n, MT: true}); err != nil {
-				return err
-			}
-		}
-		return nil
+		}()
+		return ch, nil
 	case 1:
 		neighbor := nh.neighbor(ns.elems[0])
 		if neighbor == nil {
-			return verror.Make(naming.ErrNoSuchName, ctx, ns.elems[0])
+			return nil, verror.Make(naming.ErrNoSuchName, ctx, ns.elems[0])
 		}
-		return sender.Send(naming.VDLMountEntry{Name: "", Servers: neighbor, MT: true})
+		ch := make(chan naming.VDLMountEntry, 1)
+		ch <- naming.VDLMountEntry{Name: "", Servers: neighbor, MT: true}
+		close(ch)
+		return ch, nil
 	default:
-		return verror.Make(naming.ErrNoSuchName, ctx, ns.elems)
+		return nil, verror.Make(naming.ErrNoSuchName, ctx, ns.elems)
 	}
 }

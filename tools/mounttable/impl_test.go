@@ -20,12 +20,13 @@ type server struct {
 	suffix string
 }
 
-func (s *server) Glob(ctx ipc.GlobContext, pattern string) error {
+func (s *server) Glob__(ctx ipc.ServerContext, pattern string) (<-chan naming.VDLMountEntry, error) {
 	vlog.VI(2).Infof("Glob() was called. suffix=%v pattern=%q", s.suffix, pattern)
-	sender := ctx.SendStream()
-	sender.Send(naming.VDLMountEntry{"name1", []naming.VDLMountedServer{{"server1", 123}}, false})
-	sender.Send(naming.VDLMountEntry{"name2", []naming.VDLMountedServer{{"server2", 456}, {"server3", 789}}, false})
-	return nil
+	ch := make(chan naming.VDLMountEntry, 2)
+	ch <- naming.VDLMountEntry{"name1", []naming.VDLMountedServer{{"server1", 123}}, false}
+	ch <- naming.VDLMountEntry{"name2", []naming.VDLMountedServer{{"server2", 456}, {"server3", 789}}, false}
+	close(ch)
+	return ch, nil
 }
 
 func (s *server) Mount(_ ipc.ServerContext, server string, ttl uint32, flags naming.MountFlag) error {

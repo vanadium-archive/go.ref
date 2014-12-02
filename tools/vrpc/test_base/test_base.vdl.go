@@ -565,7 +565,7 @@ func (s implTypeTesterServerStub) StreamingOutput(ctx *TypeTesterStreamingOutput
 	return s.impl.StreamingOutput(ctx, i0, i1)
 }
 
-func (s implTypeTesterServerStub) VGlob() *__ipc.GlobState {
+func (s implTypeTesterServerStub) Globber() *__ipc.GlobState {
 	return s.gs
 }
 
