@@ -17,7 +17,7 @@ main() {
   local file
   for file in "${DIR}"/*.scr; do
     echo "${file}"
-    "${SIMULATOR_BIN}" < "${file}" &> /dev/null || shell_test::fail "line ${LINENO}: failed for ${file}"
+    "${SIMULATOR_BIN}" --interactive=false < "${file}" &> /dev/null || shell_test::fail "line ${LINENO}: failed for ${file}"
   done
   shell_test::pass
 }

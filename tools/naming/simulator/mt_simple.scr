@@ -42,34 +42,49 @@ wait $_
 resolve $root/usa
 set r=$_
 eval $r
-assert $RN 1
+# We get two endpoints back, in arbitrary order
+# one of which is 'ws', the other 'tcp'
+assert $RN 2
 eval $r
-assert $R0 $usa_mt
+set ep1=$R0
+eval $r
+set ep2=$R1
+assertOneOf $usa_mt $ep1 $ep2
 wait $r
 
 resolve  "$root/usa/palo alto"
 set r=$_
-assert $RN 1
+assert $RN 2
 eval $r
 # this resolves to the mount table hosting palo alto, not the mount table
 # that would host any objects mounted on .../palo alto/...
 # but the uk/cambridge example below seems to behave the opposite way?
-assert $R0 $usa_mt
+eval $r
+set ep1=$R0
+eval $r
+set ep2=$R1
+assertOneOf $pa_mt $ep1 $ep2
 wait $r
 
 resolve $root/uk
 set r=$_
 eval $r
-assert $RN 1
+assert $RN 2
 eval $r
-assert $R0 $uk_mt
+set ep1=$R0
+eval $r
+set ep2=$R1
+assertOneOf $uk_mt $ep1 $ep2
 wait $r
 
 resolve "$root/uk/cambridge"
 set r=$_
 eval $r
-assert $RN 1
+assert $RN 2
 eval $r
+set ep1=$R0
+eval $r
+set ep2=$R1
 # this behaves differently to the usa/palo alto case?
-assert $R0 $cam_mt
+assertOneOf $cam_mt $ep1 $ep2
 wait $r

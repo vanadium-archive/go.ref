@@ -182,6 +182,10 @@ var defaultPreferredProtocolOrder = []string{"unixfd", "tcp4", "tcp", "*"}
 func filterAndOrderServers(servers []string, protocols []string) ([]string, error) {
 	errs := newErrorAccumulator()
 	vlog.VI(3).Infof("Candidates[%v]: %v", protocols, servers)
+
+	// TODO(cnicolaou): ideally we should filter out unsupported protocols
+	// here - e.g. no point dialing on a ws protocol if it's not registered
+	// etc.
 	compatible := filterCompatibleEndpoints(errs, servers)
 	if len(compatible) == 0 {
 		return nil, fmt.Errorf("failed to find any compatible servers: %s", errs)
@@ -189,16 +193,15 @@ func filterAndOrderServers(servers []string, protocols []string) ([]string, erro
 	vlog.VI(3).Infof("Version Compatible: %v", compatible)
 
 	defaultOrdering := len(protocols) == 0
-
-	// put the server endpoints into per-protocol lists
-	matched, byProtocol := sortByProtocol(compatible, protocols)
-
-	if !defaultOrdering && !matched {
-		return nil, fmt.Errorf("failed to find any servers compatible with %v from %s", protocols, servers)
-	}
 	preferredProtocolOrder := defaultPreferredProtocolOrder
 	if !defaultOrdering {
 		preferredProtocolOrder = protocols
+	}
+
+	// put the server endpoints into per-protocol lists
+	matched, byProtocol := sortByProtocol(compatible, preferredProtocolOrder)
+	if !defaultOrdering && !matched {
+		return nil, fmt.Errorf("failed to find any servers compatible with %v from %s", protocols, servers)
 	}
 
 	vlog.VI(3).Infof("Have Protocols(%v): %v", protocols, byProtocol)
@@ -212,6 +215,7 @@ func filterAndOrderServers(servers []string, protocols []string) ([]string, erro
 	ordered := make([]*serverEndpoint, 0, len(byProtocol))
 	for _, protocol := range preferredProtocolOrder {
 		o := orderByLocality(networks, byProtocol[protocol])
+		vlog.VI(3).Infof("Protocol: %q ordered by locality: %v", protocol, o)
 		ordered = append(ordered, o...)
 	}
 

@@ -82,6 +82,39 @@ func TestOrderingByProtocol(t *testing.T) {
 		t.Errorf("got: %v, want %v", got, want)
 	}
 
+	// Everything, since we didn't specify a protocol, but ordered by
+	// the internal metric - see defaultPreferredProtocolOrder.
+	// The order will be the default preferred order for protocols, the
+	// original ordering within each protocol, with protocols that
+	// are not in the default ordering list at the end.
+	got, err = filterAndOrderServers(servers, nil)
+	if err != nil {
+		t.Fatalf("unexpected error: %s", err)
+	}
+
+	want = []string{
+		"/@3@tcp4@127.0.0.1@00000000000000000000000000000000@@@m@@",
+		"/@3@tcp4@127.0.0.2@00000000000000000000000000000000@@@m@@",
+		"/@3@tcp@127.0.0.3@00000000000000000000000000000000@@@m@@",
+		"/@3@tcp@127.0.0.4@00000000000000000000000000000000@@@m@@",
+		"/@3@tcp6@127.0.0.7@00000000000000000000000000000000@@@m@@",
+		"/@3@tcp6@127.0.0.8@00000000000000000000000000000000@@@m@@",
+		"/@3@foobar@127.0.0.10@00000000000000000000000000000000@@@m@@",
+		"/@3@foobar@127.0.0.11@00000000000000000000000000000000@@@m@@",
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("got: %v, want %v", got, want)
+	}
+
+	got, err = filterAndOrderServers(servers, []string{})
+	if err != nil {
+		t.Fatalf("unexpected error: %s", err)
+	}
+
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("got: %v, want %v", got, want)
+	}
+
 	got, err = filterAndOrderServers(servers, []string{"tcp"})
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
@@ -92,28 +125,6 @@ func TestOrderingByProtocol(t *testing.T) {
 		"/@3@tcp4@127.0.0.2@00000000000000000000000000000000@@@m@@",
 		"/@3@tcp@127.0.0.3@00000000000000000000000000000000@@@m@@",
 		"/@3@tcp@127.0.0.4@00000000000000000000000000000000@@@m@@",
-	}
-
-	// Everything, since we didn't specify a protocol
-	got, err = filterAndOrderServers(servers, []string{})
-	if err != nil {
-		t.Fatalf("unexpected error: %s", err)
-	}
-	// The order will be the default preferred order for protocols, the
-	// original ordering within each protocol, with protocols that
-	// are not in the default ordering list at the end.
-	want = []string{
-		"/@3@tcp@127.0.0.3@00000000000000000000000000000000@@@m@@",
-		"/@3@tcp@127.0.0.4@00000000000000000000000000000000@@@m@@",
-		"/@3@tcp4@127.0.0.1@00000000000000000000000000000000@@@m@@",
-		"/@3@tcp4@127.0.0.2@00000000000000000000000000000000@@@m@@",
-		"/@3@tcp6@127.0.0.7@00000000000000000000000000000000@@@m@@",
-		"/@3@tcp6@127.0.0.8@00000000000000000000000000000000@@@m@@",
-		"/@3@foobar@127.0.0.10@00000000000000000000000000000000@@@m@@",
-		"/@3@foobar@127.0.0.11@00000000000000000000000000000000@@@m@@",
-	}
-	if !reflect.DeepEqual(got, want) {
-		t.Errorf("got: %v, want %v", got, want)
 	}
 
 	// Ask for all protocols, with no ordering, except for locality

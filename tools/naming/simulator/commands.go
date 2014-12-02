@@ -22,20 +22,21 @@ var builtins = map[string]*struct {
 	needsHandle bool
 	fn          builtinCmd
 }{
-	"print":      {-1, "print <args>...", false, print},
-	"help":       {-1, "help", false, nil},
-	"set":        {-1, "set <var>=<val>...", false, set},
-	"json_set":   {-1, "<var>...", false, json_set},
-	"json_print": {0, "", false, json_print},
-	"splitEP":    {-1, "splitEP", false, splitEP},
-	"assert":     {2, "val1 val2", false, assert},
-	"read":       {-1, "read <handle> [var]", true, read},
-	"eval":       {1, "eval <handle>", true, eval},
-	"wait":       {1, "wait <handle>", true, wait},
-	"stop":       {1, "stop <handle>", true, stop},
-	"stderr":     {1, "stderr <handle>", true, stderr},
-	"list":       {0, "list", false, list},
-	"quit":       {0, "quit", false, quit},
+	"print":       {-1, "print <args>...", false, print},
+	"help":        {-1, "help", false, nil},
+	"set":         {-1, "set <var>=<val>...", false, set},
+	"json_set":    {-1, "<var>...", false, json_set},
+	"json_print":  {0, "", false, json_print},
+	"splitEP":     {-1, "splitEP", false, splitEP},
+	"assert":      {2, "val1 val2", false, assert},
+	"assertOneOf": {-1, "val1 val...", false, assertOneOf},
+	"read":        {-1, "read <handle> [var]", true, read},
+	"eval":        {1, "eval <handle>", true, eval},
+	"wait":        {1, "wait <handle>", true, wait},
+	"stop":        {1, "stop <handle>", true, stop},
+	"stderr":      {1, "stderr <handle>", true, stderr},
+	"list":        {0, "list", false, list},
+	"quit":        {0, "quit", false, quit},
 }
 
 func init() {
@@ -119,6 +120,19 @@ func assert(sh *modules.Shell, _ *cmdState, args ...string) (string, error) {
 		return "", fmt.Errorf("assertion failed: %q != %q", args[0], args[1])
 	}
 	return "", nil
+}
+
+func assertOneOf(sh *modules.Shell, _ *cmdState, args ...string) (string, error) {
+	if len(args) < 2 {
+		return "", fmt.Errorf("missing assertOneOf args")
+	}
+	expected := args[0]
+	for _, a := range args[1:] {
+		if a == expected {
+			return "", nil
+		}
+	}
+	return "", fmt.Errorf("assertion failed: %q not in %v", expected, args[1:])
 }
 
 func stderr(sh *modules.Shell, state *cmdState, args ...string) (string, error) {

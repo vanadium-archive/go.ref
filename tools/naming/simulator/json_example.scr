@@ -27,3 +27,4 @@ json_print
 
 # uncomment wait $root to have the script leave all of the processes running
 #wait $root
+stop $proxyd

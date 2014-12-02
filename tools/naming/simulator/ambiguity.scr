@@ -49,11 +49,13 @@ eval $l
 assert $RN 4
 wait $l
 
-# Returns three mounts at s1/a.
+# Returns the mount at s1/a.
 ls $s1/a
 set l=$_
 eval $l
-assert $RN 3
+assert $RN 1
+eval $l
+assert $R0 $s1/a
 wait $l
 
 stop $es_h

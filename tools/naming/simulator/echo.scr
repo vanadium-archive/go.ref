@@ -43,9 +43,12 @@ setRoots $root
 resolve a/b
 set r=$_
 eval $r
-assert $RN 1
+assert $RN 2
 eval $r
-assert $R0 $es_name//
+set ep1=$R0
+eval $r
+set ep2=$R1
+assertOneOf $es_name $ep1 $ep2
 
 # resolveMT will return the mount table's address (the part before the //)
 resolveMT a/b
@@ -53,6 +56,6 @@ set r=$_
 eval $r
 assert $RN 1
 eval $r
-assert $R0 $root//a/b
+assert $R0 $root/a/b
 
 stop $es

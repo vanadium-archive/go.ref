@@ -27,8 +27,8 @@ eval $proxy
 eval $proxy
 read $proxy
 splitEP $PROXY_ADDR
-assert $PN 6
-set PROXY_ADDRESS=$P2
+assert $PN 7
+set PROXY_ADDR=$P2
 set PROXY_RID=$P3
 
 
@@ -56,21 +56,37 @@ set ECHOS_RID=$P3
 #wait $l
 
 print "root mt:" $NAMESPACE_ROOT
+print "proxy:" $PROXY_ADDR
 print "no proxy: " $NP_ECHOS_ADDR
 print "with proxy: " $ECHOS_ADDR
-# The ipc.Server implementation publishes the proxy supplied address
-# in the mount table
-# TODO(cnicolaou): we also need a way of publishing the local address, right
-# only the proxy's address appears.
+# The ipc.Server implementation publishes the proxy supplied address and
+# the local address in the mount table
 resolve echo/withproxy
 set rs=$_
 eval $rs
-assert $RN 1
+assert $RN 4
 eval $rs
-splitEP $R0
-assert $PN 6
-assert $P2 $PROXY_ADDRESS
-assert $P3 $ECHOS_RID
+set ep1=$R0
+eval $rs
+set ep2=$R1
+eval $rs
+set ep3=$R2
+eval $rs
+set ep4=$R3
+
+splitEP $ep1
+assert $PN 7
+set ep1_addr=$P2
+set rid=$P3
+splitEP $ep2
+set ep2_addr=$P2
+splitEP $ep3
+set ep3_addr=$P2
+splitEP $ep4
+set ep4_addr=$P2
+
+assertOneOf $PROXY_ADDR $ep1_addr $ep2_addr $ep3_addr $ep4_addr
+assert $rid $ECHOS_RID
 
 ls -l echo/withproxy
 wait $_
