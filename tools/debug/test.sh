@@ -48,7 +48,7 @@ ${EP}/__debug/vtrace"
   GOT=$("${DEBUG_BIN}" "${DEBUG_FLAGS}" glob "${EP}/__debug/logs/*" 2> "${DBGLOG}" | wc -l) \
     || (dumplogs "${DBGLOG}"; shell_test::fail "line ${LINENO}: failed to run debug")
   shell_test::assert_gt "${GOT}" "0" "${LINENO}"
-
+  
   # Test logs size.
   echo "This is a log file" > "${TMPDIR}/my-test-log-file"
   GOT=$("${DEBUG_BIN}" "${DEBUG_FLAGS}" logs size "${EP}/__debug/logs/my-test-log-file" 2> "${DBGLOG}") \

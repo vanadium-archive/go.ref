@@ -90,24 +90,17 @@ func (ns *namespace) ResolveX(ctx context.T, name string, opts ...naming.Resolve
 		var err error
 		curr := e
 		if e, err = ns.resolveAgainstMountTable(ctx, ns.rt.Client(), curr, pattern); err != nil {
-			// If the name could not be found in the mount table, return an error.
+			// Lots of reasons why another error can happen.  We are trying
+			// to single out "this isn't a mount table".
+			if notAnMT(err) {
+				vlog.VI(1).Infof("ResolveX(%s) -> %v", name, curr)
+				return curr, nil
+			}
 			if verror.Is(err, naming.ErrNoSuchNameRoot.ID) {
 				err = verror.Make(naming.ErrNoSuchName, ctx, name)
 			}
-			if verror.Is(err, naming.ErrNoSuchName.ID) {
-				vlog.VI(1).Infof("ResolveX(%s) -> (NoSuchName: %v)", name, curr)
-				return nil, err
-			}
-			if verror.Is(err, verror.NotTrusted.ID) {
-				vlog.VI(1).Infof("ResolveX(%s) -> (NotTrusted: %v)", name, curr)
-				return nil, err
-
-			}
-			// Any other failure (server not found, no ResolveStep
-			// method, etc.) are a sign that iterative resolution can
-			// stop.
-			vlog.VI(1).Infof("ResolveX(%s) -> %v (%s)", name, curr, err)
-			return curr, nil
+			vlog.VI(1).Infof("ResolveX(%s) -> (%s: %v)", err, name, curr)
+			return nil, err
 		}
 		pattern = ""
 	}
@@ -158,9 +151,6 @@ func (ns *namespace) ResolveToMountTableX(ctx context.T, name string, opts ...na
 			}
 			// Lots of reasons why another error can happen.  We are trying
 			// to single out "this isn't a mount table".
-			// TODO(p); make this less of a hack, make a specific verror code
-			// that means "we are up but don't implement what you are
-			// asking for".
 			if notAnMT(err) {
 				vlog.VI(1).Infof("ResolveToMountTableX(%s) -> %v", name, last)
 				return last, nil
