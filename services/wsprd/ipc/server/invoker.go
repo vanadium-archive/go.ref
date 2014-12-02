@@ -97,7 +97,7 @@ func (i *invoker) Invoke(methodName string, call ipc.ServerCall, argptrs []inter
 }
 
 // TODO(bjornick,rthellend): Find a reasonable way to implement this for JS.
-func (i *invoker) VGlob() *ipc.GlobState {
+func (i *invoker) Globber() *ipc.GlobState {
 	return nil
 }
 
