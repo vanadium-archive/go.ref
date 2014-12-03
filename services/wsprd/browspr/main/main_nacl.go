@@ -12,7 +12,6 @@ import (
 	"veyron.io/veyron/veyron/profiles/chrome"
 	vsecurity "veyron.io/veyron/veyron/security"
 	"veyron.io/veyron/veyron2/ipc"
-	"veyron.io/veyron/veyron2/ipc/stream"
 	"veyron.io/veyron/veyron2/options"
 	"veyron.io/veyron/veyron2/security"
 	"veyron.io/veyron/veyron2/vlog"
@@ -20,7 +19,6 @@ import (
 )
 
 func main() {
-	stream.RegisterProtocol("ws", websocket.Dial, nil)
 	ppapi.Init(newBrowsprInstance)
 }
 
