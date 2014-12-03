@@ -9,7 +9,8 @@ import (
 	"veyron.io/veyron/veyron2/options"
 	"veyron.io/veyron/veyron2/rt"
 
-	"veyron.io/veyron/veyron/profiles"
+	_ "veyron.io/veyron/veyron/lib/websocket"
+	"veyron.io/veyron/veyron/profiles/internal/platform"
 )
 
 var ListenSpec = ipc.ListenSpec{}
@@ -35,7 +36,7 @@ func (*chrome) Runtime() (string, []veyron2.ROpt) {
 }
 
 func (*chrome) Platform() *veyron2.Platform {
-	p, _ := profiles.Platform()
+	p, _ := platform.Platform()
 	return p
 }
 

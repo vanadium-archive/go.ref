@@ -17,8 +17,11 @@ import (
 	"veyron.io/veyron/veyron/lib/appcycle"
 	"veyron.io/veyron/veyron/lib/flags"
 	"veyron.io/veyron/veyron/lib/netstate"
-	"veyron.io/veyron/veyron/profiles"
+	_ "veyron.io/veyron/veyron/lib/tcp"
+	_ "veyron.io/veyron/veyron/lib/websocket"
 	"veyron.io/veyron/veyron/profiles/internal/gce"
+	"veyron.io/veyron/veyron/profiles/internal/platform"
+	_ "veyron.io/veyron/veyron/runtimes/google/rt"
 )
 
 var (
@@ -49,8 +52,8 @@ func (p *profile) Runtime() (string, []veyron2.ROpt) {
 }
 
 func (p *profile) Platform() *veyron2.Platform {
-	platform, _ := profiles.Platform()
-	return platform
+	pstr, _ := platform.Platform()
+	return pstr
 }
 
 func (p *profile) String() string {

@@ -14,8 +14,11 @@ import (
 	"veyron.io/veyron/veyron/lib/appcycle"
 	"veyron.io/veyron/veyron/lib/flags"
 	"veyron.io/veyron/veyron/lib/netstate"
-	"veyron.io/veyron/veyron/profiles"
+	_ "veyron.io/veyron/veyron/lib/tcp"
+	_ "veyron.io/veyron/veyron/lib/websocket"
 	"veyron.io/veyron/veyron/profiles/internal"
+	"veyron.io/veyron/veyron/profiles/internal/platform"
+	_ "veyron.io/veyron/veyron/runtimes/google/rt"
 	"veyron.io/veyron/veyron/services/mgmt/debug"
 	// TODO(cnicolaou,ashankar): move this into flags.
 	sflag "veyron.io/veyron/veyron/security/flag"
@@ -53,8 +56,8 @@ func (p *static) Runtime() (string, []veyron2.ROpt) {
 }
 
 func (*static) Platform() *veyron2.Platform {
-	p, _ := profiles.Platform()
-	return p
+	pstr, _ := platform.Platform()
+	return pstr
 }
 
 func (p *static) Init(rt veyron2.Runtime, _ *config.Publisher) (veyron2.AppCycle, error) {

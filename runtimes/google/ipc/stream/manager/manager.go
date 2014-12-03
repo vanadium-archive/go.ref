@@ -9,17 +9,17 @@ import (
 	"sync"
 	"time"
 
-	"veyron.io/veyron/veyron/lib/stats"
-	"veyron.io/veyron/veyron/runtimes/google/ipc/stream/crypto"
-	"veyron.io/veyron/veyron/runtimes/google/ipc/stream/vif"
-	"veyron.io/veyron/veyron/runtimes/google/ipc/stream/wslistener"
-	"veyron.io/veyron/veyron/runtimes/google/ipc/version"
-	inaming "veyron.io/veyron/veyron/runtimes/google/naming"
-
 	"veyron.io/veyron/veyron2/ipc/stream"
 	"veyron.io/veyron/veyron2/naming"
 	"veyron.io/veyron/veyron2/verror"
 	"veyron.io/veyron/veyron2/vlog"
+
+	"veyron.io/veyron/veyron/lib/stats"
+	"veyron.io/veyron/veyron/lib/websocket"
+	"veyron.io/veyron/veyron/runtimes/google/ipc/stream/crypto"
+	"veyron.io/veyron/veyron/runtimes/google/ipc/stream/vif"
+	"veyron.io/veyron/veyron/runtimes/google/ipc/version"
+	inaming "veyron.io/veyron/veyron/runtimes/google/naming"
 )
 
 var errShutDown = errors.New("manager has been shut down")
@@ -63,22 +63,9 @@ func (DialTimeout) IPCClientOpt()   {}
 
 func dial(network, address string, timeout time.Duration) (net.Conn, error) {
 	if d, _ := stream.RegisteredProtocol(network); d != nil {
-		return d(address)
+		return d(network, address, timeout)
 	}
-	conn, err := net.DialTimeout(network, address, timeout)
-	if err != nil || !strings.HasPrefix(network, "tcp") {
-		return conn, err
-	}
-
-	// For tcp connections we add an extra magic byte so we can differentiate between
-	// raw tcp and websocket on the same port.
-	switch n, err := conn.Write([]byte{wslistener.BinaryMagicByte}); {
-	case err != nil:
-		return nil, err
-	case n != 1:
-		return nil, fmt.Errorf("Unable to write the magic byte")
-	}
-	return conn, nil
+	return nil, fmt.Errorf("unknown network %s", network)
 }
 
 // FindOrDialVIF returns the network connection (VIF) to the provided address
@@ -160,9 +147,9 @@ func (m *manager) Dial(remote naming.Endpoint, opts ...stream.VCOpt) (stream.VC,
 
 func listen(protocol, address string) (net.Listener, error) {
 	if _, l := stream.RegisteredProtocol(protocol); l != nil {
-		return l(address)
+		return l(protocol, address)
 	}
-	return net.Listen(protocol, address)
+	return nil, fmt.Errorf("unknown network %s", protocol)
 }
 
 func (m *manager) Listen(protocol, address string, opts ...stream.ListenerOpt) (stream.Listener, naming.Endpoint, error) {
@@ -196,7 +183,12 @@ func (m *manager) Listen(protocol, address string, opts ...stream.ListenerOpt) (
 	// If the protocol is tcp, we add the listener that supports both tcp and websocket
 	// so that javascript can talk to this server.
 	if strings.HasPrefix(protocol, "tcp") {
-		netln = wslistener.NewListener(netln)
+		wsln, err := websocket.NewListener(netln)
+		if err != nil {
+			netln.Close()
+			return nil, nil, err
+		}
+		netln = wsln
 	}
 	ln := newNetListener(m, netln, opts)
 	m.listeners[ln] = true

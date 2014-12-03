@@ -1,6 +1,6 @@
 // +build linux,!arm
 
-package profiles
+package platform
 
 // str converts the input byte slice to a string, ignoring everything following
 // a null character (including the null character).

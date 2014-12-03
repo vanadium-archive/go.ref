@@ -11,6 +11,7 @@ import (
 	"veyron.io/veyron/veyron2/ipc/stream"
 	"veyron.io/veyron/veyron2/naming"
 
+	_ "veyron.io/veyron/veyron/lib/tcp"
 	"veyron.io/veyron/veyron/lib/testutil"
 	tsecurity "veyron.io/veyron/veyron/lib/testutil/security"
 	"veyron.io/veyron/veyron/runtimes/google/ipc/stream/manager"

@@ -11,7 +11,9 @@ import (
 	"strconv"
 	"sync"
 	"syscall"
+	"time"
 	"unsafe"
+
 	"veyron.io/veyron/veyron2/ipc/stream"
 )
 
@@ -63,7 +65,11 @@ func (l *singleConnListener) Addr() net.Addr {
 	return l.addr
 }
 
-func unixFDConn(address string) (net.Conn, error) {
+func unixFDConn(protocol, address string, timeout time.Duration) (net.Conn, error) {
+	// TODO(cnicolaou): have this respect the timeout. Possibly have a helper
+	// function that can be generally used for this, but in practice, I think
+	// it'll be cleaner to use the underlying protocol's deadline support of it
+	// has it.
 	fd, err := strconv.ParseInt(address, 10, 32)
 	if err != nil {
 		return nil, err
@@ -100,8 +106,8 @@ func (c *fdConn) RemoteAddr() net.Addr {
 	return c.addr
 }
 
-func unixFDListen(address string) (net.Listener, error) {
-	conn, err := unixFDConn(address)
+func unixFDListen(protocol, address string) (net.Listener, error) {
+	conn, err := unixFDConn(protocol, address, 0)
 	if err != nil {
 		return nil, err
 	}

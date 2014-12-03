@@ -1,8 +1,9 @@
 // +build nacl
 
-package wslistener
+package websocket
 
 import (
+	"fmt"
 	"net"
 )
 
@@ -11,6 +12,6 @@ import (
 
 const BinaryMagicByte byte = 0x90
 
-func NewListener(netLn net.Listener) net.Listener {
-	panic("Websocket NewListener called in nacl code!")
+func NewListener(netLn net.Listener) (net.Listener, error) {
+	return nil, fmt.Errorf("Websocket NewListener called in nacl code!")
 }

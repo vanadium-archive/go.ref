@@ -7,7 +7,10 @@ import (
 	"veyron.io/veyron/veyron2/rt"
 
 	"veyron.io/veyron/veyron/lib/appcycle"
+	_ "veyron.io/veyron/veyron/lib/tcp"
+	_ "veyron.io/veyron/veyron/lib/websocket"
 	"veyron.io/veyron/veyron/profiles/internal"
+	"veyron.io/veyron/veyron/profiles/internal/platform"
 	_ "veyron.io/veyron/veyron/runtimes/google/rt"
 )
 
@@ -41,8 +44,8 @@ func (*generic) Runtime() (string, []veyron2.ROpt) {
 }
 
 func (*generic) Platform() *veyron2.Platform {
-	p, _ := Platform()
-	return p
+	pstr, _ := platform.Platform()
+	return pstr
 }
 
 func (g *generic) Init(rt veyron2.Runtime, _ *config.Publisher) (veyron2.AppCycle, error) {

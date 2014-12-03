@@ -27,9 +27,10 @@ import (
 	"veyron.io/veyron/veyron2/vlog"
 
 	"veyron.io/veyron/veyron/lib/netstate"
+	_ "veyron.io/veyron/veyron/lib/tcp"
 	"veyron.io/veyron/veyron/lib/testutil"
 	tsecurity "veyron.io/veyron/veyron/lib/testutil/security"
-	"veyron.io/veyron/veyron/lib/websocket"
+	_ "veyron.io/veyron/veyron/lib/websocket"
 	imanager "veyron.io/veyron/veyron/runtimes/google/ipc/stream/manager"
 	"veyron.io/veyron/veyron/runtimes/google/ipc/stream/vc"
 	"veyron.io/veyron/veyron/runtimes/google/lib/publisher"
@@ -37,10 +38,6 @@ import (
 	tnaming "veyron.io/veyron/veyron/runtimes/google/testing/mocks/naming"
 	ivtrace "veyron.io/veyron/veyron/runtimes/google/vtrace"
 )
-
-func init() {
-	stream.RegisterProtocol("ws", websocket.Dial, nil)
-}
 
 var (
 	errMethod  = verror.Make(verror.Aborted, nil)
