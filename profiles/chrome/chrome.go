@@ -11,6 +11,7 @@ import (
 
 	_ "veyron.io/veyron/veyron/lib/websocket"
 	"veyron.io/veyron/veyron/profiles/internal/platform"
+	_ "veyron.io/veyron/veyron/runtimes/google/rt"
 )
 
 var ListenSpec = ipc.ListenSpec{}
