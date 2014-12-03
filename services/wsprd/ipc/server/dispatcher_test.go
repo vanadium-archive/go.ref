@@ -9,6 +9,7 @@ import (
 	"veyron.io/veyron/veyron2/ipc"
 	"veyron.io/veyron/veyron2/rt"
 	"veyron.io/veyron/veyron2/security"
+	vdlsig "veyron.io/veyron/veyron2/vdl/vdlroot/src/signature"
 	"veyron.io/wspr/veyron/services/wsprd/lib"
 	"veyron.io/wspr/veyron/services/wsprd/lib/testwriter"
 	"veyron.io/wspr/veyron/services/wsprd/signature"
@@ -41,12 +42,12 @@ func (mockInvoker) Globber() *ipc.GlobState {
 	return nil
 }
 
-func (mockInvoker) Signature(ctx ipc.ServerContext) ([]ipc.InterfaceSig, error) {
+func (mockInvoker) Signature(ctx ipc.ServerContext) ([]vdlsig.Interface, error) {
 	return nil, nil
 }
 
-func (mockInvoker) MethodSignature(ctx ipc.ServerContext, method string) (ipc.MethodSig, error) {
-	return ipc.MethodSig{}, nil
+func (mockInvoker) MethodSignature(ctx ipc.ServerContext, method string) (vdlsig.Method, error) {
+	return vdlsig.Method{}, nil
 }
 
 type mockInvokerFactory struct{}

@@ -3,6 +3,7 @@ package server
 import (
 	"veyron.io/veyron/veyron2/ipc"
 	"veyron.io/veyron/veyron2/security"
+	vdlsig "veyron.io/veyron/veyron2/vdl/vdlroot/src/signature"
 )
 
 // signatureInvoker acts as the signature() method and is used to handle calls
@@ -39,10 +40,10 @@ func (i *signatureInvoker) Globber() *ipc.GlobState {
 	return nil
 }
 
-func (i *signatureInvoker) Signature(ctx ipc.ServerContext) ([]ipc.InterfaceSig, error) {
+func (i *signatureInvoker) Signature(ctx ipc.ServerContext) ([]vdlsig.Interface, error) {
 	return nil, nil
 }
 
-func (i *signatureInvoker) MethodSignature(ctx ipc.ServerContext, method string) (ipc.MethodSig, error) {
-	return ipc.MethodSig{}, nil
+func (i *signatureInvoker) MethodSignature(ctx ipc.ServerContext, method string) (vdlsig.Method, error) {
+	return vdlsig.Method{}, nil
 }

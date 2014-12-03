@@ -2,6 +2,7 @@ package server
 
 import (
 	"veyron.io/veyron/veyron2/ipc"
+	vdlsig "veyron.io/veyron/veyron2/vdl/vdlroot/src/signature"
 	"veyron.io/veyron/veyron2/verror"
 
 	"veyron.io/wspr/veyron/services/wsprd/lib"
@@ -102,11 +103,11 @@ func (i *invoker) Globber() *ipc.GlobState {
 }
 
 // TODO(bjornick,toddw): Implement this for JS.
-func (i *invoker) Signature(ctx ipc.ServerContext) ([]ipc.InterfaceSig, error) {
+func (i *invoker) Signature(ctx ipc.ServerContext) ([]vdlsig.Interface, error) {
 	return nil, nil
 }
 
 // TODO(bjornick,toddw): Implement this for JS.
-func (i *invoker) MethodSignature(ctx ipc.ServerContext, method string) (ipc.MethodSig, error) {
-	return ipc.MethodSig{}, nil
+func (i *invoker) MethodSignature(ctx ipc.ServerContext, method string) (vdlsig.Method, error) {
+	return vdlsig.Method{}, nil
 }
