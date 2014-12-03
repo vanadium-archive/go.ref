@@ -48,6 +48,12 @@ func (es *echoServerObject) Sleep(call ipc.ServerContext, d string) error {
 }
 
 func echoServer(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
+	runtime, err := rt.New()
+	if err != nil {
+		panic(err)
+	}
+	defer runtime.Cleanup()
+
 	fl, args, err := parseListenFlags(args)
 	if err != nil {
 		return fmt.Errorf("failed to parse args: %s", err)
@@ -57,7 +63,7 @@ func echoServer(stdin io.Reader, stdout, stderr io.Writer, env map[string]string
 	}
 	id, mp := args[0], args[1]
 	disp := &treeDispatcher{id: id}
-	server, err := rt.R().NewServer()
+	server, err := runtime.NewServer()
 	if err != nil {
 		return err
 	}
@@ -77,12 +83,18 @@ func echoServer(stdin io.Reader, stdout, stderr io.Writer, env map[string]string
 }
 
 func echoClient(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
+	runtime, err := rt.New()
+	if err != nil {
+		panic(err)
+	}
+	defer runtime.Cleanup()
+
 	args = args[1:]
 	name := args[0]
 	args = args[1:]
-	client := rt.R().Client()
+	client := runtime.Client()
 	for _, a := range args {
-		ctxt := rt.R().NewContext()
+		ctxt := runtime.NewContext()
 		h, err := client.StartCall(ctxt, name, "Echo", []interface{}{a})
 		if err != nil {
 			return err

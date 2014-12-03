@@ -6,12 +6,9 @@ import (
 	"reflect"
 	"sort"
 	"strconv"
-	"strings"
 	"testing"
 	"time"
 
-	"veyron.io/veyron/veyron2/naming"
-	"veyron.io/veyron/veyron2/rt"
 	"veyron.io/veyron/veyron2/vlog"
 
 	"veyron.io/veyron/veyron/lib/expect"
@@ -34,7 +31,6 @@ func TestCommands(t *testing.T) {
 
 func init() {
 	testutil.Init()
-	rt.Init()
 }
 
 func newShell(t *testing.T) (*modules.Shell, func()) {
@@ -135,44 +131,14 @@ func TestMountTableAndGlob(t *testing.T) {
 	defer fn()
 
 	mountPoints := []string{"a", "b", "c", "d", "e"}
-	mountAddrs, fn, err := startMountTables(t, sh, mountPoints...)
+	_, fn, err := startMountTables(t, sh, mountPoints...)
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
 	defer fn()
 
-	rootName := mountAddrs["root"]
-	ls, err := sh.Start(core.LSCommand, nil, rootName+"/...")
-	if err != nil {
-		t.Fatalf("unexpected error: %s", err)
-	}
-	lsSession := expect.NewSession(t, ls.Stdout(), time.Minute)
-	lsSession.SetVerbosity(testing.Verbose())
-
-	if got, want := lsSession.ExpectVar("RN"), strconv.Itoa(len(mountPoints)+1); got != want {
-		t.Fatalf("got %v, want %v", got, want)
-	}
-	lsSession.Expect("R0=" + rootName)
-
-	// Look for names that correspond to the mountpoints above (i.e, a, b or c)
-	pattern := ""
-	for _, n := range mountPoints {
-		pattern = pattern + "^R[\\d]+=(" + rootName + "/(" + n + ")$)|"
-	}
-	pattern = pattern[:len(pattern)-1]
-
-	found := []string{}
-	for i := 0; i < len(mountPoints); i++ {
-		found = append(found, getMatchingMountpoint(lsSession.ExpectRE(pattern, 1)))
-	}
-	sort.Strings(found)
-	sort.Strings(mountPoints)
-	if got, want := found, mountPoints; !reflect.DeepEqual(got, want) {
-		t.Errorf("got %v, want %v", got, want)
-	}
-
 	// Run the ls command in a subprocess, with consts.NamespaceRootPrefix as set above.
-	lse, err := sh.Start(core.LSExternalCommand, nil, "...")
+	lse, err := sh.Start(core.LSCommand, nil, "...")
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
@@ -183,7 +149,7 @@ func TestMountTableAndGlob(t *testing.T) {
 		t.Fatalf("got %v, want %v", got, want)
 	}
 
-	pattern = ""
+	pattern := ""
 	for _, n := range mountPoints {
 		// Since the LSExternalCommand runs in a subprocess with
 		// consts.NamespaceRootPrefix set to the name of the root mount
@@ -192,7 +158,7 @@ func TestMountTableAndGlob(t *testing.T) {
 		pattern = pattern + "^R[\\d]+=(" + n + "$)|"
 	}
 	pattern = pattern[:len(pattern)-1]
-	found = []string{}
+	found := []string{}
 	for i := 0; i < len(mountPoints); i++ {
 		found = append(found, getMatchingMountpoint(lseSession.ExpectRE(pattern, 1)))
 	}
@@ -223,90 +189,6 @@ func TestEcho(t *testing.T) {
 	cltSession := expect.NewSession(t, clt.Stdout(), time.Minute)
 	cltSession.Expect("test: a message")
 	srv.Shutdown(nil, nil)
-}
-
-func TestResolve(t *testing.T) {
-	sh, fn := newShell(t)
-	defer fn()
-
-	mountPoints := []string{"a", "b"}
-	mountAddrs, fn, err := startMountTables(t, sh, mountPoints...)
-	if err != nil {
-		t.Fatalf("unexpected error: %s", err)
-	}
-	defer fn()
-	rootName := mountAddrs["root"]
-	mtName := "b"
-	echoName := naming.Join(mtName, "echo")
-	srv, err := sh.Start(core.EchoServerCommand, nil, testArgs("test", echoName)...)
-	if err != nil {
-		t.Fatalf("unexpected error: %s", err)
-	}
-	srvSession := expect.NewSession(t, srv.Stdout(), time.Minute)
-	srvSession.ExpectVar("NAME")
-	addr := srvSession.ExpectVar("ADDR")
-	addr = naming.JoinAddressName(addr, "")
-	wsAddr := strings.Replace(addr, "@tcp@", "@ws@", 1)
-
-	// Resolve an object
-	resolver, err := sh.Start(core.ResolveCommand, nil, rootName+"/"+echoName)
-	if err != nil {
-		t.Fatalf("unexpected error: %s", err)
-	}
-	resolverSession := expect.NewSession(t, resolver.Stdout(), time.Minute)
-	if got, want := resolverSession.ExpectVar("RN"), "2"; got != want {
-		t.Fatalf("got %v, want %v", got, want)
-	}
-	if got, want := resolverSession.ExpectVar("R0"), addr; got != want && got != wsAddr {
-		t.Errorf("got %v, want either %v or %v", got, want, wsAddr)
-	}
-	if err = resolver.Shutdown(nil, os.Stderr); err != nil {
-		t.Fatalf("unexpected error: %s", err)
-	}
-
-	// Resolve to a mount table using a rooted name.
-	addr = naming.JoinAddressName(mountAddrs[mtName], "echo")
-	wsAddr = strings.Replace(addr, "@tcp@", "@ws@", 1)
-	resolver, err = sh.Start(core.ResolveMTCommand, nil, rootName+"/"+echoName)
-	if err != nil {
-		t.Fatalf("unexpected error: %s", err)
-	}
-	resolverSession = expect.NewSession(t, resolver.Stdout(), time.Minute)
-	if got, want := resolverSession.ExpectVar("RN"), "2"; got != want {
-		t.Fatalf("got %v, want %v", got, want)
-	}
-	if got, want := resolverSession.ExpectVar("R0"), addr; got != want && got != wsAddr {
-		t.Fatalf("got %v, want either %v or %v", got, want, wsAddr)
-	}
-	if err := resolver.Shutdown(nil, os.Stderr); err != nil {
-		t.Fatalf("unexpected error: %s", err)
-	}
-
-	// Resolve to a mount table, but using a relative name.
-	nsroots, err := sh.Start(core.SetNamespaceRootsCommand, nil, rootName)
-	if err != nil {
-		t.Fatalf("unexpected error: %s", err)
-	}
-	if err := nsroots.Shutdown(nil, os.Stderr); err != nil {
-		t.Fatalf("unexpected error: %s", err)
-	}
-
-	resolver, err = sh.Start(core.ResolveMTCommand, nil, echoName)
-	if err != nil {
-		t.Fatalf("unexpected error: %s", err)
-	}
-	resolverSession = expect.NewSession(t, resolver.Stdout(), time.Minute)
-	if got, want := resolverSession.ExpectVar("RN"), "2"; got != want {
-		t.Fatalf("got %v, want %v", got, want)
-	}
-	if got, want := resolverSession.ExpectVar("R0"), addr; got != want && got != wsAddr {
-		t.Fatalf("got %v, want either %v or %v", got, want, wsAddr)
-	}
-	if err := resolver.Shutdown(nil, os.Stderr); err != nil {
-		t.Fatalf("unexpected error: %s", err)
-	}
-	srv.Shutdown(nil, nil)
-	nsroots.Shutdown(nil, nil)
 }
 
 func TestHelperProcess(t *testing.T) {

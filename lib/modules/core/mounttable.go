@@ -6,7 +6,6 @@ import (
 	"os"
 	"strings"
 
-	"veyron.io/veyron/veyron2/context"
 	"veyron.io/veyron/veyron2/naming"
 	"veyron.io/veyron/veyron2/options"
 	"veyron.io/veyron/veyron2/rt"
@@ -19,21 +18,9 @@ func init() {
 	modules.RegisterChild(RootMTCommand, "", rootMountTable)
 	modules.RegisterChild(MTCommand, `<mount point>
 	reads NAMESPACE_ROOT from its environment and mounts a new mount table at <mount point>`, mountTable)
-	modules.RegisterChild(LSExternalCommand, `<glob>...
+	modules.RegisterChild(LSCommand, `<glob>...
 	issues glob requests using the current processes namespace library`,
 		ls)
-	modules.RegisterFunction(LSCommand, `<glob>...
-	issues glob requests using the current processes namespace library`, ls)
-	modules.RegisterFunction(ResolveCommand, `<name>
-	resolves name to obtain an object server address`, resolveObject)
-	modules.RegisterFunction(ResolveMTCommand, `<name>
-	resolves name to obtain a mount table address`, resolveMT)
-	modules.RegisterFunction(SetNamespaceRootsCommand, `<name>...
-	set the in-process namespace roots to <name>...`, setNamespaceRoots)
-	modules.RegisterFunction(NamespaceCacheCommand, `on|off
-	turns the namespace cache on or off`, namespaceCache)
-	modules.RegisterFunction(MountCommand, `<mountpoint> <server> <ttl> [M][R]
-	invokes namespace.Mount(<mountpoint>, <server>, <ttl>)`, mountServer)
 }
 
 func mountTable(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
@@ -45,7 +32,12 @@ func rootMountTable(stdin io.Reader, stdout, stderr io.Writer, env map[string]st
 }
 
 func runMT(root bool, stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
-	r := rt.R()
+	r, err := rt.New()
+	if err != nil {
+		panic(err)
+	}
+	defer r.Cleanup()
+
 	fl, args, err := parseListenFlags(args)
 	if err != nil {
 		return fmt.Errorf("failed to parse args: %s", err)
@@ -82,17 +74,23 @@ func runMT(root bool, stdin io.Reader, stdout, stderr io.Writer, env map[string]
 }
 
 func ls(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
+	r, err := rt.New()
+	if err != nil {
+		panic(err)
+	}
+	defer r.Cleanup()
+
 	details := false
 	args = args[1:] // skip over command name
 	if len(args) > 0 && args[0] == "-l" {
 		details = true
 		args = args[1:]
 	}
-	ns := rt.R().Namespace()
+	ns := r.Namespace()
 	entry := 0
 	output := ""
 	for _, pattern := range args {
-		ch, err := ns.Glob(rt.R().NewContext(), pattern)
+		ch, err := ns.Glob(r.NewContext(), pattern)
 		if err != nil {
 			return err
 		}
@@ -118,35 +116,4 @@ func ls(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args .
 	fmt.Fprintf(stdout, "RN=%d\n", entry)
 	fmt.Fprint(stdout, output)
 	return nil
-}
-
-type resolver func(ctx context.T, name string, opts ...naming.ResolveOpt) (names []string, err error)
-
-func resolve(fn resolver, stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
-	if err := checkArgs(args[1:], 1, "<name>"); err != nil {
-		return err
-	}
-	name := args[1]
-	servers, err := fn(rt.R().NewContext(), name)
-	if err != nil {
-		fmt.Fprintf(stdout, "RN=0\n")
-		return err
-	}
-	fmt.Fprintf(stdout, "RN=%d\n", len(servers))
-	for i, s := range servers {
-		fmt.Fprintf(stdout, "R%d=%s\n", i, s)
-	}
-	return nil
-}
-
-func resolveObject(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
-	return resolve(rt.R().Namespace().Resolve, stdin, stdout, stderr, env, args...)
-}
-
-func resolveMT(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
-	return resolve(rt.R().Namespace().ResolveToMountTable, stdin, stdout, stderr, env, args...)
-}
-
-func setNamespaceRoots(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
-	return rt.R().Namespace().SetRoots(args[1:]...)
 }

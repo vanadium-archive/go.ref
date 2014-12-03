@@ -36,7 +36,7 @@ eval $l
 assert $RN 7
 wait $l
 
-ls -l $root/...
+ls -- -l $root/...
 wait $_
 
 resolve $root/usa

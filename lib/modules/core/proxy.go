@@ -44,7 +44,13 @@ func proxyServer(stdin io.Reader, stdout, stderr io.Writer, env map[string]strin
 	pname := naming.JoinAddressName(proxy.Endpoint().String(), "")
 	fmt.Fprintf(stdout, "PROXY_ADDR=%s\n", proxy.Endpoint().String())
 	fmt.Fprintf(stdout, "PROXY_NAME=%s\n", pname)
-	r := rt.R()
+
+	r, err := rt.New()
+	if err != nil {
+		panic(err)
+	}
+	defer r.Cleanup()
+
 	pub := publisher.New(r.NewContext(), r.Namespace(), time.Minute)
 	defer pub.WaitForStop()
 	defer pub.Stop()

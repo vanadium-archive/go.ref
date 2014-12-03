@@ -5,23 +5,14 @@ import (
 	"io"
 	"time"
 
-	"veyron.io/veyron/veyron2/naming"
-	"veyron.io/veyron/veyron2/rt"
-
 	"veyron.io/veyron/veyron/lib/modules"
 )
 
 func init() {
-
-	modules.RegisterFunction(NamespaceCacheCommand, `on|off
-	turns the namespace cache on or off`, namespaceCache)
-	modules.RegisterFunction(MountCommand, `<mountpoint> <server> <ttl> [M][R]
-	invokes namespace.Mount(<mountpoint>, <server>, <ttl>)`, mountServer)
 	modules.RegisterFunction(SleepCommand, `[duration]
 	sleep for a time(in go time.Duration format): defaults to 1s`, sleep)
 	modules.RegisterFunction(TimeCommand, `
 	prints the current time`, now)
-
 }
 
 func sleep(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
@@ -51,50 +42,5 @@ func sleep(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, arg
 
 func now(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
 	fmt.Fprintf(stdout, "%s\n", time.Now())
-	return nil
-}
-
-func mountServer(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
-	if err := checkArgs(args[1:], -3, "<mount point> <server> <ttl> [M][R]"); err != nil {
-		return err
-	}
-	var opts []naming.MountOpt
-	for _, arg := range args[4:] {
-		for _, c := range arg {
-			switch c {
-			case 'R':
-				opts = append(opts, naming.ReplaceMountOpt(true))
-			case 'M':
-				opts = append(opts, naming.ServesMountTableOpt(true))
-			}
-		}
-	}
-	mp, server, ttlstr := args[1], args[2], args[3]
-	ttl, err := time.ParseDuration(ttlstr)
-	if err != nil {
-		return fmt.Errorf("failed to parse time from %q", ttlstr)
-	}
-	ns := rt.R().Namespace()
-	if err := ns.Mount(rt.R().NewContext(), mp, server, ttl, opts...); err != nil {
-		return err
-	}
-	fmt.Fprintf(stdout, "Mount(%s, %s, %s, %v)\n", mp, server, ttl, opts)
-	return nil
-}
-
-func namespaceCache(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
-	if err := checkArgs(args[1:], 1, "on|off"); err != nil {
-		return err
-	}
-	disable := true
-	switch args[1] {
-	case "on":
-		disable = false
-	case "off":
-		disable = true
-	default:
-		return fmt.Errorf("arg must be 'on' or 'off'")
-	}
-	rt.R().Namespace().CacheCtl(naming.DisableCache(disable))
 	return nil
 }

@@ -87,12 +87,12 @@ set es_E1_addr=$ADDR
 ls ...
 set l=$_
 eval $l
-assert $RN 1
+assert $RN 2
 
 ls $root/...
 set l=$_
 eval $l
-assert $RN 2
+assert $RN 3
 
 echoClient tl test
 read $_ o
@@ -257,7 +257,7 @@ set symlink_target=some/deep/name/that/is/a/mount
 mount tl/b/symlink /$mt_b_addr/$symlink_target 1h M
 wait $_
 
-ls -l tl/b/symlink
+ls -- -l tl/b/symlink
 wait $_
 
 resolve tl/b/symlink

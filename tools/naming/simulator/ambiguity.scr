@@ -46,7 +46,7 @@ set es_h=$_
 ls $s1/...
 set l=$_
 eval $l
-assert $RN 4
+assert $RN 5
 wait $l
 
 # Returns the mount at s1/a.

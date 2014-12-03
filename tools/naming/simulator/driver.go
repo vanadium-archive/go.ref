@@ -16,6 +16,7 @@ import (
 	"time"
 	"unicode"
 
+	"veyron.io/veyron/veyron2"
 	"veyron.io/veyron/veyron2/rt"
 
 	"veyron.io/veyron/veyron/lib/expect"
@@ -94,8 +95,14 @@ func prompt(lineno int) {
 	}
 }
 
+var runtime veyron2.Runtime
+
 func main() {
-	rt.Init()
+	var err error
+	if runtime, err = rt.New(); err != nil {
+		panic(err)
+	}
+	defer runtime.Cleanup()
 
 	// Subprocesses commands are run by fork/execing this binary
 	// so we must test to see if this instance is a subprocess or the

@@ -88,9 +88,9 @@ set ep4_addr=$P2
 assertOneOf $PROXY_ADDR $ep1_addr $ep2_addr $ep3_addr $ep4_addr
 assert $rid $ECHOS_RID
 
-ls -l echo/withproxy
+ls -- -l echo/withproxy
 wait $_
-ls -l echo/noproxy
+ls -- -l echo/noproxy
 wait $_
 
 echoClient echo/withproxy "ohh"

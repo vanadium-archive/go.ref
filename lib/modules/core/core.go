@@ -50,20 +50,14 @@ package core
 
 const (
 	// Functions
-	LSCommand                = "ls"
-	SetNamespaceRootsCommand = "setRoots"
-	ResolveCommand           = "resolve"
-	ResolveMTCommand         = "resolveMT"
-	SleepCommand             = "sleep"
-	TimeCommand              = "time"
-	MountCommand             = "mount"
-	NamespaceCacheCommand    = "cache"
+	SleepCommand = "sleep"
+	TimeCommand  = "time"
 	// Subprocesses
 	EchoServerCommand  = "echoServer"
 	EchoClientCommand  = "echoClient"
 	RootMTCommand      = "root"
 	MTCommand          = "mt"
-	LSExternalCommand  = "lse"
+	LSCommand          = "ls"
 	ProxyServerCommand = "proxyd"
 	WSPRCommand        = "wsprd"
 	ShellCommand       = "sh"

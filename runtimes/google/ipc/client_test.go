@@ -29,7 +29,11 @@ var r veyron2.Runtime
 
 func init() {
 	modules.RegisterChild("ping", "<name>", childPing)
-	r = rt.Init()
+	var err error
+	if r, err = rt.New(); err != nil {
+		panic(err)
+	}
+
 	r.Namespace().CacheCtl(naming.DisableCache(true))
 }
 
@@ -55,7 +59,9 @@ func runMountTable(t *testing.T, r veyron2.Runtime) (*modules.Shell, func()) {
 		t.Fatalf("%s", rootSession.Error())
 	}
 	sh.SetVar(consts.NamespaceRootPrefix, rootName)
-	r.Namespace().SetRoots(rootName)
+	if err = r.Namespace().SetRoots(rootName); err != nil {
+		t.Fatalf("unexpected error setting namespace roots: %s", err)
+	}
 
 	deferFn := func() {
 		if testing.Verbose() {
@@ -84,20 +90,12 @@ func runClient(t *testing.T, sh *modules.Shell) error {
 	return nil
 }
 
-func numServers(t *testing.T, sh *modules.Shell, name string) string {
-	r, err := sh.Start(core.ResolveCommand, nil, "echoServer")
+func numServers(t *testing.T, name string) int {
+	servers, err := r.Namespace().Resolve(r.NewContext(), name)
 	if err != nil {
-		t.Fatalf("unexpected error: %s", err)
+		return 0
 	}
-	s := expect.NewSession(t, r.Stdout(), time.Minute)
-	rn := s.ExpectVar("RN")
-	return rn
-}
-
-func mount(t *testing.T, r veyron2.Runtime, name, server string) {
-	if err := r.Namespace().Mount(r.NewContext(), name, server, time.Hour); err != nil {
-		t.Fatalf("unexpected error: %s", err)
-	}
+	return len(servers)
 }
 
 // TODO(cnicolaou): figure out how to test and see what the internals
@@ -115,16 +113,19 @@ func TestMultipleEndpoints(t *testing.T) {
 	runClient(t, sh)
 
 	// Create a fake set of 100 entries in the mount table
+	ctx := r.NewContext()
 	for i := 0; i < 100; i++ {
 		// 203.0.113.0 is TEST-NET-3 from RFC5737
 		ep := naming.FormatEndpoint("tcp", fmt.Sprintf("203.0.113.%d:443", i))
 		n := naming.JoinAddressName(ep, "")
-		mount(t, r, "echoServer", n)
+		if err := r.Namespace().Mount(ctx, "echoServer", n, time.Hour); err != nil {
+			t.Fatalf("unexpected error: %s", err)
+		}
 	}
 
 	// Verify that there are 102 entries for echoServer in the mount table.
-	if got, want := numServers(t, sh, "echoServer"), "102"; got != want {
-		t.Fatalf("got: %q, want: %q", got, want)
+	if got, want := numServers(t, "echoServer"), 102; got != want {
+		t.Fatalf("got: %d, want: %d", got, want)
 	}
 
 	// TODO(cnicolaou): ok, so it works, but I'm not sure how
@@ -137,16 +138,13 @@ func TestMultipleEndpoints(t *testing.T) {
 	srv.CloseStdin()
 	srv.Shutdown(nil, nil)
 
-	// TODO(cnicolaou,p): figure out why the real entry isn't removed
-	// from the mount table.
 	// Verify that there are 100 entries for echoServer in the mount table.
-	if got, want := numServers(t, sh, "echoServer"), "100"; got != want {
-		t.Fatalf("got: %q, want: %q", got, want)
+	if got, want := numServers(t, "echoServer"), 100; got != want {
+		t.Fatalf("got: %d, want: %d", got, want)
 	}
 }
 
 func TestTimeoutCall(t *testing.T) {
-	r := rt.Init()
 	client := r.Client()
 	ctx, _ := r.NewContext().WithTimeout(100 * time.Millisecond)
 	name := naming.JoinAddressName(naming.FormatEndpoint("tcp", "203.0.113.10:443"), "")
@@ -198,10 +196,6 @@ func (s *sleeper) Sink(call ipc.ServerCall) (int, error) {
 
 func childPing(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
 	name := args[1]
-	r, err := rt.New()
-	if err != nil {
-		return fmt.Errorf("unexpected error: %s", err)
-	}
 	call, err := r.Client().StartCall(r.NewContext(), name, "Ping", nil)
 	if err != nil {
 		fmt.Errorf("unexpected error: %s", err)
