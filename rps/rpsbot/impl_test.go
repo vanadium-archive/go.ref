@@ -76,7 +76,10 @@ func startRockPaperScissors(t *testing.T, rt veyron2.Runtime, mtAddress string) 
 // TestRockPaperScissorsImpl runs one rock-paper-scissors game and verifies
 // that all the counters are consistent.
 func TestRockPaperScissorsImpl(t *testing.T) {
-	r := rt.Init()
+	r, err := rt.New()
+	if err != nil {
+		t.Fatalf("Could not initialize runtime: %v", err)
+	}
 	defer r.Cleanup()
 
 	ctx := r.NewContext()

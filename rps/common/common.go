@@ -12,8 +12,8 @@ import (
 
 	"veyron.io/apps/rps"
 
+	"veyron.io/veyron/veyron2"
 	"veyron.io/veyron/veyron2/context"
-	"veyron.io/veyron/veyron2/rt"
 	"veyron.io/veyron/veyron2/vlog"
 )
 
@@ -62,7 +62,8 @@ func FindScoreKeepers(ctx context.T) ([]string, error) {
 
 func findAll(ctx context.T, t string) ([]string, error) {
 	start := time.Now()
-	ns := rt.R().Namespace()
+	runtime := veyron2.RuntimeFromContext(ctx)
+	ns := runtime.Namespace()
 	c, err := ns.Glob(ctx, "rps/"+t+"/*")
 	if err != nil {
 		vlog.Infof("mt.Glob failed: %v", err)

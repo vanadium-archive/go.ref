@@ -30,8 +30,12 @@ var (
 )
 
 func main() {
-	r := rt.Init()
+	r, err := rt.New()
+	if err != nil {
+		vlog.Fatalf("Could not initialize runtime %v", err)
+	}
 	defer r.Cleanup()
+
 	auth := sflag.NewAuthorizerOrDie()
 	server, err := r.NewServer()
 	if err != nil {

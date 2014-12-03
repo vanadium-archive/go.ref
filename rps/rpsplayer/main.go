@@ -29,7 +29,10 @@ var (
 )
 
 func main() {
-	r := rt.Init()
+	r, err := rt.New()
+	if err != nil {
+		vlog.Fatalf("Could not initialize runtime %v", err)
+	}
 	defer r.Cleanup()
 
 	for {
@@ -277,7 +280,8 @@ func selectOne(choices []string) (choice int) {
 }
 
 func findAll(ctx context.T, t string, out chan []string) {
-	ns := rt.R().Namespace()
+	runtime := veyron2.RuntimeFromContext(ctx)
+	ns := runtime.Namespace()
 	var result []string
 	c, err := ns.Glob(ctx, "rps/"+t+"/*")
 	if err != nil {

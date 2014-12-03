@@ -73,7 +73,10 @@ func main() {
 }
 
 func realMain() int {
-	r := rt.Init()
+	r, err := rt.New()
+	if err != nil {
+		vlog.Fatalf("Could not initialize runtime %v", err)
+	}
 	defer r.Cleanup()
 
 	oname, cmd, err := objectNameAndCommandLine()
@@ -84,7 +87,7 @@ func realMain() int {
 	}
 
 	t := tunnel.TunnelClient(oname)
-	ctx := rt.R().NewContext()
+	ctx := r.NewContext()
 
 	if len(*portforward) > 0 {
 		go runPortForwarding(ctx, t, oname)
