@@ -8,7 +8,6 @@ import (
 	"net/http"
 	"testing"
 
-	"veyron.io/veyron/veyron2/rt"
 	"veyron.io/veyron/veyron2/services/mgmt/repository"
 
 	"veyron.io/veyron/veyron/lib/testutil"
@@ -29,7 +28,7 @@ func TestHTTP(t *testing.T) {
 			data[i] = testutil.RandomBytes(size)
 		}
 		mediaInfo := repository.MediaInfo{Type: "application/octet-stream"}
-		if err := binary.Create(rt.R().NewContext(), int32(length), mediaInfo); err != nil {
+		if err := binary.Create(runtime.NewContext(), int32(length), mediaInfo); err != nil {
 			t.Fatalf("Create() failed: %v", err)
 		}
 		for i := 0; i < length; i++ {
@@ -37,7 +36,7 @@ func TestHTTP(t *testing.T) {
 				t.FailNow()
 			}
 		}
-		parts, _, err := binary.Stat(rt.R().NewContext())
+		parts, _, err := binary.Stat(runtime.NewContext())
 		if err != nil {
 			t.Fatalf("Stat() failed: %v", err)
 		}
@@ -70,7 +69,7 @@ func TestHTTP(t *testing.T) {
 				t.Fatalf("Unexpected size: expected %v, got %v", expected, got)
 			}
 		}
-		if err := binary.Delete(rt.R().NewContext()); err != nil {
+		if err := binary.Delete(runtime.NewContext()); err != nil {
 			t.Fatalf("Delete() failed: %v", err)
 		}
 	}

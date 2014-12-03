@@ -6,6 +6,7 @@ import (
 	"reflect"
 	"testing"
 
+	"veyron.io/veyron/veyron2"
 	"veyron.io/veyron/veyron2/naming"
 	"veyron.io/veyron/veyron2/rt"
 	"veyron.io/veyron/veyron2/services/mgmt/application"
@@ -19,10 +20,10 @@ import (
 // TestInterface tests that the implementation correctly implements
 // the Application interface.
 func TestInterface(t *testing.T) {
-	ctx := rt.R().NewContext()
+	ctx := runtime.NewContext()
 
 	// Setup and start the application repository server.
-	server, err := rt.R().NewServer()
+	server, err := runtime.NewServer()
 	if err != nil {
 		t.Fatalf("NewServer() failed: %v", err)
 	}
@@ -153,12 +154,18 @@ func TestInterface(t *testing.T) {
 	}
 }
 
+var runtime veyron2.Runtime
+
 func init() {
-	rt.Init()
+	var err error
+	runtime, err = rt.New()
+	if err != nil {
+		panic(err)
+	}
 }
 
 func TestPreserveAcrossRestarts(t *testing.T) {
-	server, err := rt.R().NewServer()
+	server, err := runtime.NewServer()
 	if err != nil {
 		t.Fatalf("NewServer() failed: %v", err)
 	}
@@ -193,12 +200,12 @@ func TestPreserveAcrossRestarts(t *testing.T) {
 		Binary: "/veyron/name/of/binary",
 	}
 
-	if err := stubV1.Put(rt.R().NewContext(), []string{"media"}, envelopeV1); err != nil {
+	if err := stubV1.Put(runtime.NewContext(), []string{"media"}, envelopeV1); err != nil {
 		t.Fatalf("Put() failed: %v", err)
 	}
 
 	// There is content here now.
-	output, err := stubV1.Match(rt.R().NewContext(), []string{"media"})
+	output, err := stubV1.Match(runtime.NewContext(), []string{"media"})
 	if err != nil {
 		t.Fatalf("Match(%v) failed: %v", "media", err)
 	}
@@ -209,7 +216,7 @@ func TestPreserveAcrossRestarts(t *testing.T) {
 	server.Stop()
 
 	// Setup and start a second application server in its place.
-	server, err = rt.R().NewServer()
+	server, err = runtime.NewServer()
 	if err != nil {
 		t.Fatalf("NewServer() failed: %v", err)
 	}
@@ -229,7 +236,7 @@ func TestPreserveAcrossRestarts(t *testing.T) {
 
 	stubV1 = repository.ApplicationClient(naming.JoinAddressName(endpoint.String(), "search/v1"))
 
-	output, err = stubV1.Match(rt.R().NewContext(), []string{"media"})
+	output, err = stubV1.Match(runtime.NewContext(), []string{"media"})
 	if err != nil {
 		t.Fatalf("Match(%v) failed: %v", "media", err)
 	}

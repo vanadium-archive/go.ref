@@ -15,7 +15,6 @@ import (
 	"veyron.io/veyron/veyron2"
 	"veyron.io/veyron/veyron2/ipc"
 	"veyron.io/veyron/veyron2/naming"
-	"veyron.io/veyron/veyron2/rt"
 	"veyron.io/veyron/veyron2/security"
 	"veyron.io/veyron/veyron2/services/mgmt/node"
 	"veyron.io/veyron/veyron2/verror"
@@ -62,13 +61,13 @@ func startRootMT(t *testing.T, sh *modules.Shell) (string, modules.Handle) {
 }
 
 func credentialsForChild(blessing string) (string, []string) {
-	creds := tsecurity.NewVeyronCredentials(rt.R().Principal(), blessing)
+	creds := tsecurity.NewVeyronCredentials(globalRT.Principal(), blessing)
 	return creds, []string{consts.VeyronCredentials + "=" + creds}
 }
 
 // setNSRoots sets the roots for the local runtime's namespace.
 func setNSRoots(t *testing.T, roots ...string) {
-	if err := rt.R().Namespace().SetRoots(roots...); err != nil {
+	if err := globalRT.Namespace().SetRoots(roots...); err != nil {
 		t.Fatalf("%s: SetRoots(%v) failed with %v", loc(2), roots, err)
 	}
 }
@@ -90,7 +89,7 @@ func createShellAndMountTable(t *testing.T) (*modules.Shell, func()) {
 
 	// TODO(caprita): Define a GetNamespaceRootsCommand in modules/core and
 	// use that?
-	oldNamespaceRoots := rt.R().Namespace().Roots()
+	oldNamespaceRoots := globalRT.Namespace().Roots()
 	fn := func() {
 		vlog.VI(1).Info("------------ CLEANUP ------------")
 		vlog.VI(1).Info("---------------------------------")
@@ -159,7 +158,7 @@ func setupRootDir(t *testing.T) (string, func()) {
 }
 
 func newServer() (ipc.Server, string) {
-	server, err := rt.R().NewServer()
+	server, err := globalRT.NewServer()
 	if err != nil {
 		vlog.Fatalf("NewServer() failed: %v", err)
 	}
@@ -174,7 +173,7 @@ func newServer() (ipc.Server, string) {
 
 // resolveExpectError verifies that the given name is not in the mounttable.
 func resolveExpectNotFound(t *testing.T, name string) {
-	if results, err := rt.R().Namespace().Resolve(rt.R().NewContext(), name); err == nil {
+	if results, err := globalRT.Namespace().Resolve(globalRT.NewContext(), name); err == nil {
 		t.Fatalf("Resolve(%v) succeeded with results %v when it was expected to fail", name, results)
 	} else if expectErr := naming.ErrNoSuchName.ID; !verror2.Is(err, expectErr) {
 		t.Fatalf("Resolve(%v) failed with error %v, expected error ID %v", name, err, expectErr)
@@ -183,7 +182,7 @@ func resolveExpectNotFound(t *testing.T, name string) {
 
 // resolve looks up the given name in the mounttable.
 func resolve(t *testing.T, name string, replicas int) []string {
-	results, err := rt.R().Namespace().Resolve(rt.R().NewContext(), name)
+	results, err := globalRT.Namespace().Resolve(globalRT.NewContext(), name)
 	if err != nil {
 		t.Fatalf("Resolve(%v) failed: %v", name, err)
 	}
@@ -210,25 +209,25 @@ func nodeStub(name string) node.NodeClientMethods {
 }
 
 func updateNodeExpectError(t *testing.T, name string, errID verror.ID) {
-	if err := nodeStub(name).Update(rt.R().NewContext()); !verror2.Is(err, errID) {
+	if err := nodeStub(name).Update(globalRT.NewContext()); !verror2.Is(err, errID) {
 		t.Fatalf("%s: Update(%v) expected to fail with %v, got %v instead", loc(1), name, errID, err)
 	}
 }
 
 func updateNode(t *testing.T, name string) {
-	if err := nodeStub(name).Update(rt.R().NewContext()); err != nil {
+	if err := nodeStub(name).Update(globalRT.NewContext()); err != nil {
 		t.Fatalf("%s: Update(%v) failed: %v", loc(1), name, err)
 	}
 }
 
 func revertNodeExpectError(t *testing.T, name string, errID verror.ID) {
-	if err := nodeStub(name).Revert(rt.R().NewContext()); !verror2.Is(err, errID) {
+	if err := nodeStub(name).Revert(globalRT.NewContext()); !verror2.Is(err, errID) {
 		t.Fatalf("%s: Revert(%v) expected to fail with %v, got %v instead", loc(1), name, errID, err)
 	}
 }
 
 func revertNode(t *testing.T, name string) {
-	if err := nodeStub(name).Revert(rt.R().NewContext()); err != nil {
+	if err := nodeStub(name).Revert(globalRT.NewContext()); err != nil {
 		t.Fatalf("%s: Revert(%v) failed: %v", loc(1), name, err)
 	}
 }
@@ -240,7 +239,7 @@ func ort(opt []veyron2.Runtime) veyron2.Runtime {
 	if len(opt) > 0 {
 		return opt[0]
 	} else {
-		return rt.R()
+		return globalRT
 	}
 }
 
@@ -328,25 +327,25 @@ func updateApp(t *testing.T, appID string, opt ...veyron2.Runtime) {
 }
 
 func updateAppExpectError(t *testing.T, appID string, expectedError verror.ID) {
-	if err := appStub(appID).Update(rt.R().NewContext()); err == nil || !verror2.Is(err, expectedError) {
+	if err := appStub(appID).Update(globalRT.NewContext()); err == nil || !verror2.Is(err, expectedError) {
 		t.Fatalf("%s: Update(%v) expected to fail with %v, got %v instead", loc(1), appID, expectedError, err)
 	}
 }
 
 func revertApp(t *testing.T, appID string) {
-	if err := appStub(appID).Revert(rt.R().NewContext()); err != nil {
+	if err := appStub(appID).Revert(globalRT.NewContext()); err != nil {
 		t.Fatalf("%s: Revert(%v) failed: %v", loc(1), appID, err)
 	}
 }
 
 func revertAppExpectError(t *testing.T, appID string, expectedError verror.ID) {
-	if err := appStub(appID).Revert(rt.R().NewContext()); err == nil || !verror2.Is(err, expectedError) {
+	if err := appStub(appID).Revert(globalRT.NewContext()); err == nil || !verror2.Is(err, expectedError) {
 		t.Fatalf("%s: Revert(%v) expected to fail with %v, got %v instead", loc(1), appID, expectedError, err)
 	}
 }
 
 func uninstallApp(t *testing.T, appID string) {
-	if err := appStub(appID).Uninstall(rt.R().NewContext()); err != nil {
+	if err := appStub(appID).Uninstall(globalRT.NewContext()); err != nil {
 		t.Fatalf("%s: Uninstall(%v) failed: %v", loc(1), appID, err)
 	}
 }

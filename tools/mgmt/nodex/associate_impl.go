@@ -5,7 +5,6 @@ import (
 	"time"
 
 	"veyron.io/lib/cmdline"
-	"veyron.io/veyron/veyron2/rt"
 	"veyron.io/veyron/veyron2/services/mgmt/node"
 )
 
@@ -24,7 +23,7 @@ func runList(cmd *cmdline.Command, args []string) error {
 		return cmd.UsageErrorf("list: incorrect number of arguments, expected %d, got %d", expected, got)
 	}
 
-	ctx, cancel := rt.R().NewContext().WithTimeout(time.Minute)
+	ctx, cancel := runtime.NewContext().WithTimeout(time.Minute)
 	defer cancel()
 	assocs, err := node.NodeClient(args[0]).ListAssociations(ctx)
 	if err != nil {
@@ -53,7 +52,7 @@ func runAdd(cmd *cmdline.Command, args []string) error {
 	if expected, got := 3, len(args); got < expected {
 		return cmd.UsageErrorf("add: incorrect number of arguments, expected at least %d, got %d", expected, got)
 	}
-	ctx, cancel := rt.R().NewContext().WithTimeout(time.Minute)
+	ctx, cancel := runtime.NewContext().WithTimeout(time.Minute)
 	defer cancel()
 	return node.NodeClient(args[0]).AssociateAccount(ctx, args[2:], args[1])
 }
@@ -73,7 +72,7 @@ func runRemove(cmd *cmdline.Command, args []string) error {
 	if expected, got := 2, len(args); got < expected {
 		return cmd.UsageErrorf("remove: incorrect number of arguments, expected at least %d, got %d", expected, got)
 	}
-	ctx, cancel := rt.R().NewContext().WithTimeout(time.Minute)
+	ctx, cancel := runtime.NewContext().WithTimeout(time.Minute)
 	defer cancel()
 	return node.NodeClient(args[0]).AssociateAccount(ctx, args[1:], "")
 }

@@ -13,8 +13,14 @@ import (
 	"veyron.io/veyron/veyron2/verror"
 )
 
+func init() {
+	var err error
+	if runtime, err = rt.New(); err != nil {
+		panic(err)
+	}
+}
+
 func TestListCommand(t *testing.T) {
-	runtime := rt.Init()
 	tape := NewTape()
 	server, endpoint, err := startServer(t, runtime, tape)
 	if err != nil {
@@ -67,7 +73,6 @@ func TestListCommand(t *testing.T) {
 }
 
 func TestAddCommand(t *testing.T) {
-	runtime := rt.Init()
 	tape := NewTape()
 	server, endpoint, err := startServer(t, runtime, tape)
 	if err != nil {
@@ -118,7 +123,6 @@ func TestAddCommand(t *testing.T) {
 }
 
 func TestRemoveCommand(t *testing.T) {
-	runtime := rt.Init()
 	tape := NewTape()
 	server, endpoint, err := startServer(t, runtime, tape)
 	if err != nil {
@@ -156,7 +160,6 @@ func TestRemoveCommand(t *testing.T) {
 }
 
 func TestInstallCommand(t *testing.T) {
-	runtime := rt.Init()
 	tape := NewTape()
 	server, endpoint, err := startServer(t, runtime, tape)
 	if err != nil {
@@ -213,7 +216,6 @@ func TestInstallCommand(t *testing.T) {
 }
 
 func TestClaimCommand(t *testing.T) {
-	runtime := rt.Init()
 	tape := NewTape()
 	server, endpoint, err := startServer(t, runtime, tape)
 	if err != nil {
@@ -291,7 +293,6 @@ func TestClaimCommand(t *testing.T) {
 }
 
 func TestStartCommand(t *testing.T) {
-	runtime := rt.Init()
 	tape := NewTape()
 	server, endpoint, err := startServer(t, runtime, tape)
 	if err != nil {

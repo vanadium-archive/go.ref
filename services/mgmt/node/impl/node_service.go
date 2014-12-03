@@ -38,11 +38,11 @@ import (
 	"sync"
 	"time"
 
+	"veyron.io/veyron/veyron2"
 	"veyron.io/veyron/veyron2/context"
 	"veyron.io/veyron/veyron2/ipc"
 	"veyron.io/veyron/veyron2/mgmt"
 	"veyron.io/veyron/veyron2/naming"
-	"veyron.io/veyron/veyron2/rt"
 	"veyron.io/veyron/veyron2/services/mgmt/application"
 	"veyron.io/veyron/veyron2/services/mgmt/binary"
 	"veyron.io/veyron/veyron2/services/mgmt/node"
@@ -100,7 +100,7 @@ func (i *nodeService) Claim(call ipc.ServerContext) error {
 	if blessings == nil {
 		return verror2.Make(ErrInvalidBlessing, call)
 	}
-	return i.disp.claimNodeManager(blessings.ForContext(call), blessings)
+	return i.disp.claimNodeManager(call.LocalPrincipal(), blessings.ForContext(call), blessings)
 }
 
 func (*nodeService) Describe(ipc.ServerContext) (node.Description, error) {
@@ -156,11 +156,12 @@ func (i *nodeService) getCurrentFileInfo() (os.FileInfo, string, error) {
 	return link, scriptPath, nil
 }
 
-func (i *nodeService) revertNodeManager() error {
+func (i *nodeService) revertNodeManager(ctx context.T) error {
 	if err := updateLink(i.config.Previous, i.config.CurrentLink); err != nil {
 		return err
 	}
-	rt.R().AppCycle().Stop()
+	runtime := veyron2.RuntimeFromContext(ctx)
+	runtime.AppCycle().Stop()
 	return nil
 }
 
@@ -338,7 +339,7 @@ func (i *nodeService) updateNodeManager(ctx context.T) error {
 			return err
 		}
 	} else {
-		if err := downloadBinary(workspace, "noded", envelope.Binary); err != nil {
+		if err := downloadBinary(ctx, workspace, "noded", envelope.Binary); err != nil {
 			return err
 		}
 	}
@@ -361,7 +362,8 @@ func (i *nodeService) updateNodeManager(ctx context.T) error {
 		return err
 	}
 
-	rt.R().AppCycle().Stop()
+	runtime := veyron2.RuntimeFromContext(ctx)
+	runtime.AppCycle().Stop()
 	deferrer = nil
 	return nil
 }
@@ -392,7 +394,7 @@ func (i *nodeService) Revert(call ipc.ServerContext) error {
 	if updatingState.testAndSetUpdating() {
 		return verror2.Make(ErrOperationInProgress, call)
 	}
-	err := i.revertNodeManager()
+	err := i.revertNodeManager(call)
 	if err != nil {
 		updatingState.unsetUpdating()
 	}
@@ -417,7 +419,7 @@ func (*nodeService) Uninstall(ctx ipc.ServerContext) error {
 }
 
 func (i *nodeService) Update(call ipc.ServerContext) error {
-	ctx, cancel := rt.R().NewContext().WithTimeout(ipcContextTimeout)
+	ctx, cancel := call.WithTimeout(ipcContextTimeout)
 	defer cancel()
 
 	updatingState := i.updating
@@ -437,8 +439,8 @@ func (*nodeService) UpdateTo(ipc.ServerContext, string) error {
 	return nil
 }
 
-func (i *nodeService) SetACL(_ ipc.ServerContext, acl access.TaggedACLMap, etag string) error {
-	return i.disp.setACL(acl, etag, true /* store ACL on disk */)
+func (i *nodeService) SetACL(ctx ipc.ServerContext, acl access.TaggedACLMap, etag string) error {
+	return i.disp.setACL(ctx.LocalPrincipal(), acl, etag, true /* store ACL on disk */)
 }
 
 func (i *nodeService) GetACL(_ ipc.ServerContext) (acl access.TaggedACLMap, etag string, err error) {

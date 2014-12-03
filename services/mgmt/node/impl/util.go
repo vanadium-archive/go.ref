@@ -10,7 +10,6 @@ import (
 	"veyron.io/veyron/veyron/services/mgmt/lib/binary"
 
 	"veyron.io/veyron/veyron2/context"
-	"veyron.io/veyron/veyron2/rt"
 	"veyron.io/veyron/veyron2/services/mgmt/application"
 	"veyron.io/veyron/veyron2/services/mgmt/repository"
 	"veyron.io/veyron/veyron2/verror2"
@@ -23,8 +22,8 @@ const (
 	ipcContextTimeout = time.Minute
 )
 
-func downloadBinary(workspace, fileName, name string) error {
-	data, _, err := binary.Download(rt.R().NewContext(), name)
+func downloadBinary(ctx context.T, workspace, fileName, name string) error {
+	data, _, err := binary.Download(ctx, name)
 	if err != nil {
 		vlog.Errorf("Download(%v) failed: %v", name, err)
 		return verror2.Make(ErrOperationFailed, nil)

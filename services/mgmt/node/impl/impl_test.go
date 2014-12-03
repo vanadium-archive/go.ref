@@ -28,6 +28,7 @@ import (
 	"time"
 
 	"veyron.io/veyron/veyron2"
+	"veyron.io/veyron/veyron2/context"
 	"veyron.io/veyron/veyron2/ipc"
 	"veyron.io/veyron/veyron2/naming"
 	"veyron.io/veyron/veyron2/rt"
@@ -77,12 +78,18 @@ func init() {
 	initRT()
 }
 
+var globalRT veyron2.Runtime
+
 func initRT() {
-	rt.Init()
+	var err error
+	if globalRT, err = rt.New(); err != nil {
+		panic(err)
+	}
+
 	// Disable the cache because we will be manipulating/using the namespace
 	// across multiple processes and want predictable behaviour without
 	// relying on timeouts.
-	rt.R().Namespace().CacheCtl(naming.DisableCache(true))
+	globalRT.Namespace().CacheCtl(naming.DisableCache(true))
 }
 
 // TestHelperProcess is the entrypoint for the modules commands in a
@@ -93,7 +100,7 @@ func TestHelperProcess(t *testing.T) {
 }
 
 // TestSuidHelper is testing boilerplate for suidhelper that does not
-// invoke rt.Init() because the suidhelper is not a Veyron application.
+// create a runtime because the suidhelper is not a Veyron application.
 func TestSuidHelper(t *testing.T) {
 	if os.Getenv("VEYRON_SUIDHELPER_TEST") != "1" {
 		return
@@ -138,10 +145,9 @@ func nodeManager(stdin io.Reader, stdout, stderr io.Writer, env map[string]strin
 	}
 	publishName := args[0]
 	args = args[1:]
-
 	defer fmt.Fprintf(stdout, "%v terminating\n", publishName)
 	defer vlog.VI(1).Infof("%v terminating", publishName)
-	defer rt.R().Cleanup()
+	defer globalRT.Cleanup()
 	server, endpoint := newServer()
 	defer server.Stop()
 	name := naming.JoinAddressName(endpoint, "")
@@ -164,18 +170,18 @@ func nodeManager(stdin io.Reader, stdout, stderr io.Writer, env map[string]strin
 		}
 		configState.Root, configState.Helper, configState.Origin, configState.CurrentLink = args[0], args[1], args[2], args[3]
 	}
-	dispatcher, err := impl.NewDispatcher(configState)
+	dispatcher, err := impl.NewDispatcher(globalRT.Principal(), configState)
 	if err != nil {
 		vlog.Fatalf("Failed to create node manager dispatcher: %v", err)
 	}
 	if err := server.ServeDispatcher(publishName, dispatcher); err != nil {
 		vlog.Fatalf("Serve(%v) failed: %v", publishName, err)
 	}
-	impl.InvokeCallback(name)
+	impl.InvokeCallback(globalRT.NewContext(), name)
 
 	fmt.Fprintf(stdout, "ready:%d\n", os.Getpid())
 
-	<-signals.ShutdownOnSignals(rt.R())
+	<-signals.ShutdownOnSignals(globalRT)
 
 	if val, present := env["PAUSE_BEFORE_STOP"]; present && val == "1" {
 		modules.WaitForEOF(stdin)
@@ -228,7 +234,7 @@ func (appService) Cat(_ ipc.ServerContext, file string) (string, error) {
 }
 
 func ping() {
-	if call, err := rt.R().Client().StartCall(rt.R().NewContext(), "pingserver", "Ping", []interface{}{os.Getenv(suidhelper.SavedArgs)}); err != nil {
+	if call, err := globalRT.Client().StartCall(globalRT.NewContext(), "pingserver", "Ping", []interface{}{os.Getenv(suidhelper.SavedArgs)}); err != nil {
 		vlog.Fatalf("StartCall failed: %v", err)
 	} else if err := call.Finish(); err != nil {
 		vlog.Fatalf("Finish failed: %v", err)
@@ -236,10 +242,9 @@ func ping() {
 }
 
 func cat(name, file string) (string, error) {
-	runtime := rt.R()
-	ctx, cancel := runtime.NewContext().WithTimeout(time.Minute)
+	ctx, cancel := globalRT.NewContext().WithTimeout(time.Minute)
 	defer cancel()
-	call, err := runtime.Client().StartCall(ctx, name, "Cat", []interface{}{file})
+	call, err := globalRT.Client().StartCall(ctx, name, "Cat", []interface{}{file})
 	if err != nil {
 		return "", err
 	}
@@ -257,7 +262,7 @@ func app(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args 
 	}
 	publishName := args[0]
 
-	defer rt.R().Cleanup()
+	defer globalRT.Cleanup()
 	server, _ := newServer()
 	defer server.Stop()
 	if err := server.Serve(publishName, new(appService), nil); err != nil {
@@ -268,7 +273,7 @@ func app(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args 
 	vlog.FlushLog()
 	ping()
 
-	<-signals.ShutdownOnSignals(rt.R())
+	<-signals.ShutdownOnSignals(globalRT)
 	if err := ioutil.WriteFile("testfile", []byte("goodbye world"), 0600); err != nil {
 		vlog.Fatalf("Failed to write testfile: %v", err)
 	}
@@ -726,14 +731,14 @@ func newRuntime(t *testing.T) veyron2.Runtime {
 	if err != nil {
 		t.Fatalf("rt.New() failed: %v", err)
 	}
-	runtime.Namespace().SetRoots(rt.R().Namespace().Roots()[0])
+	runtime.Namespace().SetRoots(globalRT.Namespace().Roots()[0])
 	return runtime
 }
 
-func tryInstall(rt veyron2.Runtime) error {
+func tryInstall(ctx context.T) error {
 	appsName := "nm//apps"
-	stub := node.ApplicationClient(appsName, rt.Client())
-	if _, err := stub.Install(rt.NewContext(), mockApplicationRepoName); err != nil {
+	stub := node.ApplicationClient(appsName)
+	if _, err := stub.Install(ctx, mockApplicationRepoName); err != nil {
 		return fmt.Errorf("Install failed: %v", err)
 	}
 	return nil
@@ -762,7 +767,7 @@ func startRealBinaryRepository(t *testing.T) func() {
 	if err := ioutil.WriteFile(filepath.Join(tmpdir, "hello.txt"), []byte("Hello World!"), 0600); err != nil {
 		t.Fatalf("ioutil.WriteFile failed: %v", err)
 	}
-	if err := libbinary.UploadFromDir(rt.R().NewContext(), naming.Join(name, "testpkg"), tmpdir); err != nil {
+	if err := libbinary.UploadFromDir(globalRT.NewContext(), naming.Join(name, "testpkg"), tmpdir); err != nil {
 		t.Fatalf("libbinary.UploadFromDir failed: %v", err)
 	}
 	return func() {
@@ -802,25 +807,27 @@ func TestNodeManagerClaim(t *testing.T) {
 	*envelope = envelopeFromShell(sh, nil, appCmd, "google naps", "trapp")
 
 	nodeStub := node.NodeClient("nm//nm")
-	selfRT := rt.R()
+	selfRT := globalRT
 	otherRT := newRuntime(t)
 	defer otherRT.Cleanup()
 
+	octx := otherRT.NewContext()
+
 	// Nodemanager should have open ACLs before we claim it and so an Install from otherRT should succeed.
-	if err := tryInstall(otherRT); err != nil {
-		t.Fatal(err)
+	if err := tryInstall(octx); err != nil {
+		t.Fatalf("Failed to install: %s", err)
 	}
 	// Claim the nodemanager with selfRT as <defaultblessing>/mydevice
 	if err := nodeStub.Claim(selfRT.NewContext(), &granter{p: selfRT.Principal(), extension: "mydevice"}); err != nil {
 		t.Fatal(err)
 	}
 
-	// Installation should succeed since rt.R() (a.k.a. selfRT) is now the
+	// Installation should succeed since globalRT (a.k.a. selfRT) is now the
 	// "owner" of the nodemanager.
 	appID := installApp(t)
 
 	// otherRT should be unable to install though, since the ACLs have changed now.
-	if err := tryInstall(otherRT); err == nil {
+	if err := tryInstall(octx); err == nil {
 		t.Fatalf("Install should have failed from otherRT")
 	}
 
@@ -858,10 +865,11 @@ func TestNodeManagerUpdateACL(t *testing.T) {
 		idp = tsecurity.NewIDProvider("root")
 		// The two "processes"/runtimes which will act as IPC clients to the
 		// nodemanager process.
-		selfRT  = rt.R()
+		selfRT  = globalRT
 		otherRT = newRuntime(t)
 	)
 	defer otherRT.Cleanup()
+	octx := otherRT.NewContext()
 	// By default, selfRT and otherRT will have blessings generated based on the
 	// username/machine name running this process. Since these blessings will appear
 	// in ACLs, give them recognizable names.
@@ -914,7 +922,7 @@ func TestNodeManagerUpdateACL(t *testing.T) {
 		t.Fatalf("getACL expected:%v(%v), got:%v(%v)", expectedACL, expectedETAG, acl, etag)
 	}
 	// Install from otherRT should fail, since it does not match the ACL.
-	if err := tryInstall(otherRT); err == nil {
+	if err := tryInstall(octx); err == nil {
 		t.Fatalf("Install should have failed with random identity")
 	}
 	newACL := make(access.TaggedACLMap)
@@ -928,10 +936,10 @@ func TestNodeManagerUpdateACL(t *testing.T) {
 		t.Fatal(err)
 	}
 	// Install should now fail with selfRT, which no longer matches the ACLs but succeed with otherRT, which does.
-	if err := tryInstall(selfRT); err == nil {
+	if err := tryInstall(selfRT.NewContext()); err == nil {
 		t.Errorf("Install should have failed with selfRT since it should no longer match the ACL")
 	}
-	if err := tryInstall(otherRT); err != nil {
+	if err := tryInstall(octx); err != nil {
 		t.Error(err)
 	}
 }
@@ -1077,7 +1085,7 @@ func TestNodeManagerGlobAndDebug(t *testing.T) {
 	logFileRemoveErrorFatalWarningRE := regexp.MustCompile("(ERROR|FATAL|WARNING)")
 	statsTrimRE := regexp.MustCompile("/stats/(ipc|system(/start-time.*)?)$")
 	for _, tc := range testcases {
-		results, err := testutil.GlobName(rt.R().NewContext(), tc.name, tc.pattern)
+		results, err := testutil.GlobName(globalRT.NewContext(), tc.name, tc.pattern)
 		if err != nil {
 			t.Errorf("unexpected glob error for (%q, %q): %v", tc.name, tc.pattern, err)
 			continue
@@ -1105,7 +1113,7 @@ func TestNodeManagerGlobAndDebug(t *testing.T) {
 	}
 
 	// Call Size() on the log file objects.
-	files, err := testutil.GlobName(rt.R().NewContext(), "nm", "apps/google naps/"+installID+"/"+instance1ID+"/logs/*")
+	files, err := testutil.GlobName(globalRT.NewContext(), "nm", "apps/google naps/"+installID+"/"+instance1ID+"/logs/*")
 	if err != nil {
 		t.Errorf("unexpected glob error: %v", err)
 	}
@@ -1115,13 +1123,13 @@ func TestNodeManagerGlobAndDebug(t *testing.T) {
 	for _, file := range files {
 		name := naming.Join("nm", file)
 		c := logreader.LogFileClient(name)
-		if _, err := c.Size(rt.R().NewContext()); err != nil {
+		if _, err := c.Size(globalRT.NewContext()); err != nil {
 			t.Errorf("Size(%q) failed: %v", name, err)
 		}
 	}
 
 	// Call Value() on some of the stats objects.
-	objects, err := testutil.GlobName(rt.R().NewContext(), "nm", "apps/google naps/"+installID+"/"+instance1ID+"/stats/system/start-time*")
+	objects, err := testutil.GlobName(globalRT.NewContext(), "nm", "apps/google naps/"+installID+"/"+instance1ID+"/stats/system/start-time*")
 	if err != nil {
 		t.Errorf("unexpected glob error: %v", err)
 	}
@@ -1131,7 +1139,7 @@ func TestNodeManagerGlobAndDebug(t *testing.T) {
 	for _, obj := range objects {
 		name := naming.Join("nm", obj)
 		c := stats.StatsClient(name)
-		if _, err := c.Value(rt.R().NewContext()); err != nil {
+		if _, err := c.Value(globalRT.NewContext()); err != nil {
 			t.Errorf("Value(%q) failed: %v", name, err)
 		}
 	}
@@ -1140,7 +1148,7 @@ func TestNodeManagerGlobAndDebug(t *testing.T) {
 	{
 		name := "nm/apps/google naps/" + installID + "/" + instance1ID + "/pprof"
 		c := pprof.PProfClient(name)
-		v, err := c.CmdLine(rt.R().NewContext())
+		v, err := c.CmdLine(globalRT.NewContext())
 		if err != nil {
 			t.Errorf("CmdLine(%q) failed: %v", name, err)
 		}
@@ -1234,7 +1242,7 @@ func TestAccountAssociation(t *testing.T) {
 		idp = tsecurity.NewIDProvider("root")
 		// The two "processes"/runtimes which will act as IPC clients to
 		// the nodemanager process.
-		selfRT  = rt.R()
+		selfRT  = globalRT
 		otherRT = newRuntime(t)
 	)
 	defer otherRT.Cleanup()
@@ -1338,7 +1346,7 @@ func TestAppWithSuidHelper(t *testing.T) {
 		idp = tsecurity.NewIDProvider("root")
 		// The two "processes"/runtimes which will act as IPC clients to
 		// the nodemanager process.
-		selfRT  = rt.R()
+		selfRT  = globalRT
 		otherRT = newRuntime(t)
 	)
 	defer otherRT.Cleanup()

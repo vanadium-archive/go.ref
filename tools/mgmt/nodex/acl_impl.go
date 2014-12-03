@@ -6,7 +6,6 @@ import (
 	"fmt"
 
 	"veyron.io/lib/cmdline"
-	"veyron.io/veyron/veyron2/rt"
 	"veyron.io/veyron/veyron2/security"
 	"veyron.io/veyron/veyron2/services/mgmt/node"
 	"veyron.io/veyron/veyron2/services/security/access"
@@ -30,7 +29,7 @@ func runGet(cmd *cmdline.Command, args []string) error {
 	}
 
 	vanaName := args[0]
-	objACL, _, err := node.ApplicationClient(vanaName).GetACL(rt.R().NewContext())
+	objACL, _, err := node.ApplicationClient(vanaName).GetACL(runtime.NewContext())
 	if err != nil {
 		return fmt.Errorf("GetACL on %s failed: %v", vanaName, err)
 	}
@@ -96,8 +95,9 @@ func runSet(cmd *cmdline.Command, args []string) error {
 	}
 
 	// Set the ACLs on the specified names.
+	ctx := runtime.NewContext()
 	for {
-		objACL, etag, err := node.ApplicationClient(vanaName).GetACL(rt.R().NewContext())
+		objACL, etag, err := node.ApplicationClient(vanaName).GetACL(ctx)
 		if err != nil {
 			return cmd.UsageErrorf("GetACL(%s) failed: %v", vanaName, err)
 		}
@@ -111,7 +111,7 @@ func runSet(cmd *cmdline.Command, args []string) error {
 				}
 			}
 		}
-		switch err := node.ApplicationClient(vanaName).SetACL(rt.R().NewContext(), objACL, etag); {
+		switch err := node.ApplicationClient(vanaName).SetACL(ctx, objACL, etag); {
 		case err != nil && !verror.Is(err, access.ErrBadEtag):
 			return cmd.UsageErrorf("SetACL(%s) failed: %v", vanaName, err)
 		case err == nil:

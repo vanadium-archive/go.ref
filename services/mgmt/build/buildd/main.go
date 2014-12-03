@@ -22,7 +22,10 @@ var (
 
 func main() {
 	flag.Parse()
-	runtime := rt.Init()
+	runtime, err := rt.New()
+	if err != nil {
+		vlog.Fatalf("Could not initialize runtime: %v", err)
+	}
 	defer runtime.Cleanup()
 	server, err := runtime.NewServer()
 	if err != nil {

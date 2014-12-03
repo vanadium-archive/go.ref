@@ -9,6 +9,7 @@ import (
 	"veyron.io/veyron/veyron/profiles"
 	"veyron.io/veyron/veyron/services/mgmt/logreader/impl"
 
+	"veyron.io/veyron/veyron2"
 	"veyron.io/veyron/veyron2/ipc"
 	"veyron.io/veyron/veyron2/naming"
 	"veyron.io/veyron/veyron2/rt"
@@ -18,8 +19,8 @@ import (
 	"veyron.io/veyron/veyron2/verror"
 )
 
-func startServer(t *testing.T, disp ipc.Dispatcher) (ipc.Server, string, error) {
-	server, err := rt.R().NewServer()
+func startServer(t *testing.T, runtime veyron2.Runtime, disp ipc.Dispatcher) (ipc.Server, string, error) {
+	server, err := runtime.NewServer()
 	if err != nil {
 		t.Fatalf("NewServer failed: %v", err)
 		return nil, "", err
@@ -60,14 +61,18 @@ func writeAndSync(t *testing.T, w *os.File, s string) {
 }
 
 func TestReadLogImplNoFollow(t *testing.T) {
-	runtime := rt.Init()
+	runtime, err := rt.New()
+	if err != nil {
+		t.Fatalf("Could not initialize runtime: %v", err)
+	}
+	defer runtime.Cleanup()
 
 	workdir, err := ioutil.TempDir("", "logreadertest")
 	if err != nil {
 		t.Fatalf("ioutil.TempDir: %v", err)
 	}
 	defer os.RemoveAll(workdir)
-	server, endpoint, err := startServer(t, &logFileDispatcher{workdir})
+	server, endpoint, err := startServer(t, runtime, &logFileDispatcher{workdir})
 	if err != nil {
 		t.Fatalf("startServer failed: %v", err)
 	}
@@ -146,14 +151,18 @@ func TestReadLogImplNoFollow(t *testing.T) {
 }
 
 func TestReadLogImplWithFollow(t *testing.T) {
-	runtime := rt.Init()
+	runtime, err := rt.New()
+	if err != nil {
+		t.Fatalf("Could not initialize runtime: %v", err)
+	}
+	defer runtime.Cleanup()
 
 	workdir, err := ioutil.TempDir("", "logreadertest")
 	if err != nil {
 		t.Fatalf("ioutil.TempDir: %v", err)
 	}
 	defer os.RemoveAll(workdir)
-	server, endpoint, err := startServer(t, &logFileDispatcher{workdir})
+	server, endpoint, err := startServer(t, runtime, &logFileDispatcher{workdir})
 	if err != nil {
 		t.Fatalf("startServer failed: %v", err)
 	}

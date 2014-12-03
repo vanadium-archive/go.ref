@@ -22,7 +22,6 @@ import (
 
 	"veyron.io/veyron/veyron2/ipc"
 	"veyron.io/veyron/veyron2/naming"
-	"veyron.io/veyron/veyron2/rt"
 	"veyron.io/veyron/veyron2/security"
 	"veyron.io/veyron/veyron2/services/mgmt/node"
 	"veyron.io/veyron/veyron2/services/mgmt/pprof"
@@ -88,7 +87,7 @@ var (
 )
 
 // NewDispatcher is the node manager dispatcher factory.
-func NewDispatcher(config *config.State) (*dispatcher, error) {
+func NewDispatcher(principal security.Principal, config *config.State) (*dispatcher, error) {
 	if err := config.Validate(); err != nil {
 		return nil, fmt.Errorf("invalid config %v: %v", config, err)
 	}
@@ -121,7 +120,7 @@ func NewDispatcher(config *config.State) (*dispatcher, error) {
 		}
 		defer sig.Close()
 		// read and verify the signature of the acl file
-		reader, err := serialization.NewVerifyingReader(data, sig, rt.R().Principal().PublicKey())
+		reader, err := serialization.NewVerifyingReader(data, sig, principal.PublicKey())
 		if err != nil {
 			return nil, fmt.Errorf("failed to read nodemanager ACL file:%v", err)
 		}
@@ -129,7 +128,7 @@ func NewDispatcher(config *config.State) (*dispatcher, error) {
 		if err != nil {
 			return nil, fmt.Errorf("failed to load nodemanager ACL:%v", err)
 		}
-		if err := d.setACL(acl, d.etag, false /* just update etag */); err != nil {
+		if err := d.setACL(principal, acl, d.etag, false /* just update etag */); err != nil {
 			return nil, err
 		}
 	} else {
@@ -158,15 +157,15 @@ func (d *dispatcher) getACLFilePaths() (acl, signature, nodedata string) {
 	return
 }
 
-func (d *dispatcher) claimNodeManager(names []string, proof security.Blessings) error {
+func (d *dispatcher) claimNodeManager(principal security.Principal, names []string, proof security.Blessings) error {
 	// TODO(gauthamt): Should we start trusting these identity providers?
 	// TODO(rjkroege): Scrub the state tree of installation and instance ACL files.
 	if len(names) == 0 {
 		vlog.Errorf("No names for claimer(%v) are trusted", proof)
 		return verror2.Make(ErrOperationFailed, nil)
 	}
-	rt.R().Principal().BlessingStore().Set(proof, security.AllPrincipals)
-	rt.R().Principal().BlessingStore().SetDefault(proof)
+	principal.BlessingStore().Set(proof, security.AllPrincipals)
+	principal.BlessingStore().SetDefault(proof)
 	// Create ACLs to transfer nodemanager permissions to the provided identity.
 	acl := make(access.TaggedACLMap)
 	for _, n := range names {
@@ -179,7 +178,7 @@ func (d *dispatcher) claimNodeManager(names []string, proof security.Blessings) 
 		vlog.Errorf("Failed to getACL:%v", err)
 		return verror2.Make(ErrOperationFailed, nil)
 	}
-	if err := d.setACL(acl, etag, true /* store ACL on disk */); err != nil {
+	if err := d.setACL(principal, acl, etag, true /* store ACL on disk */); err != nil {
 		vlog.Errorf("Failed to setACL:%v", err)
 		return verror2.Make(ErrOperationFailed, nil)
 	}
@@ -187,7 +186,7 @@ func (d *dispatcher) claimNodeManager(names []string, proof security.Blessings) 
 }
 
 // TODO(rjkroege): Further refactor ACL-setting code.
-func setAppACL(locks aclLocks, dir string, acl access.TaggedACLMap, etag string) error {
+func setAppACL(principal security.Principal, locks aclLocks, dir string, acl access.TaggedACLMap, etag string) error {
 	aclpath := path.Join(dir, "acls", "data")
 	sigpath := path.Join(dir, "acls", "signature")
 
@@ -222,7 +221,7 @@ func setAppACL(locks aclLocks, dir string, acl access.TaggedACLMap, etag string)
 		return verror.Make(access.ErrBadEtag, fmt.Sprintf("etag mismatch in:%s vers:%s", etag, curEtag))
 	}
 
-	return writeACLs(aclpath, sigpath, dir, acl)
+	return writeACLs(principal, aclpath, sigpath, dir, acl)
 }
 
 func getAppACL(locks aclLocks, dir string) (access.TaggedACLMap, string, error) {
@@ -268,7 +267,7 @@ func computeEtag(acl access.TaggedACLMap) (string, error) {
 	return etag, nil
 }
 
-func writeACLs(aclFile, sigFile, dir string, acl access.TaggedACLMap) error {
+func writeACLs(principal security.Principal, aclFile, sigFile, dir string, acl access.TaggedACLMap) error {
 	// Create dir directory if it does not exist
 	os.MkdirAll(dir, os.FileMode(0700))
 	// Save the object to temporary data and signature files, and then move
@@ -285,7 +284,7 @@ func writeACLs(aclFile, sigFile, dir string, acl access.TaggedACLMap) error {
 		return verror2.Make(ErrOperationFailed, nil)
 	}
 	defer os.Remove(sig.Name())
-	writer, err := serialization.NewSigningWriteCloser(data, sig, rt.R().Principal(), nil)
+	writer, err := serialization.NewSigningWriteCloser(data, sig, principal, nil)
 	if err != nil {
 		vlog.Errorf("Failed to create NewSigningWriteCloser:%v", err)
 		return verror2.Make(ErrOperationFailed, nil)
@@ -307,7 +306,7 @@ func writeACLs(aclFile, sigFile, dir string, acl access.TaggedACLMap) error {
 	return nil
 }
 
-func (d *dispatcher) setACL(acl access.TaggedACLMap, etag string, writeToFile bool) error {
+func (d *dispatcher) setACL(principal security.Principal, acl access.TaggedACLMap, etag string, writeToFile bool) error {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 	aclFile, sigFile, nodedata := d.getACLFilePaths()
@@ -316,7 +315,7 @@ func (d *dispatcher) setACL(acl access.TaggedACLMap, etag string, writeToFile bo
 		return verror.Make(access.ErrBadEtag, fmt.Sprintf("etag mismatch in:%s vers:%s", etag, d.etag))
 	}
 	if writeToFile {
-		if err := writeACLs(aclFile, sigFile, nodedata, acl); err != nil {
+		if err := writeACLs(principal, aclFile, sigFile, nodedata, acl); err != nil {
 			return err
 		}
 	}
@@ -395,7 +394,12 @@ func (d *dispatcher) Lookup(suffix string) (interface{}, security.Authorizer, er
 				}
 				suffix := naming.Join("__debug", naming.Join(components[4:]...))
 				remote := naming.JoinAddressName(info.AppCycleMgrName, suffix)
-				return &proxyInvoker{remote, access.Debug, sigStub}, d.auth, nil
+				invoker := &proxyInvoker{
+					remote:  remote,
+					access:  access.Debug,
+					sigStub: sigStub,
+				}
+				return invoker, d.auth, nil
 			}
 		}
 		nodeACLs, _, err := d.getACL()

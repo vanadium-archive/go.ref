@@ -10,7 +10,10 @@ import (
 )
 
 func main() {
-	r := rt.Init()
+	r, err := rt.New()
+	if err != nil {
+		vlog.Fatalf("Could not initialize runtime: %v", err)
+	}
 	defer r.Cleanup()
 	server, err := r.NewServer()
 	if err != nil {

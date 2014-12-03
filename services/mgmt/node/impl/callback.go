@@ -1,8 +1,8 @@
 package impl
 
 import (
+	"veyron.io/veyron/veyron2/context"
 	"veyron.io/veyron/veyron2/mgmt"
-	"veyron.io/veyron/veyron2/rt"
 	"veyron.io/veyron/veyron2/vlog"
 
 	"veyron.io/veyron/veyron/lib/exec"
@@ -11,7 +11,7 @@ import (
 
 // InvokeCallback provides the parent node manager with the given name (which
 // is expected to be this node manager's object name).
-func InvokeCallback(name string) {
+func InvokeCallback(ctx context.T, name string) {
 	handle, err := exec.GetChildHandle()
 	switch err {
 	case nil:
@@ -22,7 +22,7 @@ func InvokeCallback(name string) {
 			return
 		}
 		nmClient := node.ConfigClient(callbackName)
-		ctx, cancel := rt.R().NewContext().WithTimeout(ipcContextTimeout)
+		ctx, cancel := ctx.WithTimeout(ipcContextTimeout)
 		defer cancel()
 		if err := nmClient.Set(ctx, mgmt.ChildNameConfigKey, name); err != nil {
 			vlog.Fatalf("Set(%v, %v) failed: %v", mgmt.ChildNameConfigKey, name, err)

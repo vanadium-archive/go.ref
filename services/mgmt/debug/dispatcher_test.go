@@ -50,7 +50,12 @@ func startDebugServer(rt veyron2.Runtime, listenSpec ipc.ListenSpec, logsDir str
 }
 
 func TestDebugServer(t *testing.T) {
-	runtime := rt.Init()
+	runtime, err := rt.New()
+	if err != nil {
+		t.Fatalf("Could not initialize runtime: %v", err)
+	}
+	defer runtime.Cleanup()
+
 	tracedContext := func() context.T {
 		ctx := runtime.NewContext()
 		vtrace.FromContext(ctx).Trace().ForceCollect()
@@ -163,9 +168,9 @@ func TestDebugServer(t *testing.T) {
 
 	// Glob from the root.
 	{
-		ns := rt.R().Namespace()
+		ns := runtime.Namespace()
 		ns.SetRoots(naming.JoinAddressName(endpoint, "debug"))
-		ctx, cancel := rt.R().NewContext().WithTimeout(10 * time.Second)
+		ctx, cancel := runtime.NewContext().WithTimeout(10 * time.Second)
 		defer cancel()
 		c, err := ns.Glob(ctx, "logs/...")
 		if err != nil {

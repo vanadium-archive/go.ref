@@ -22,7 +22,10 @@ var (
 
 func main() {
 	flag.Parse()
-	runtime := rt.Init()
+	runtime, err := rt.New()
+	if err != nil {
+		vlog.Fatalf("Could not initialize runtime: %v", err)
+	}
 	defer runtime.Cleanup()
 
 	if len(*installFrom) > 0 {
@@ -65,7 +68,7 @@ func main() {
 	// TODO(caprita): We need a way to set config fields outside of the
 	// update mechanism (since that should ideally be an opaque
 	// implementation detail).
-	dispatcher, err := impl.NewDispatcher(configState)
+	dispatcher, err := impl.NewDispatcher(runtime.Principal(), configState)
 	if err != nil {
 		vlog.Fatalf("Failed to create dispatcher: %v", err)
 	}
@@ -73,7 +76,7 @@ func main() {
 		vlog.Fatalf("Serve(%v) failed: %v", *publishAs, err)
 	}
 	vlog.VI(0).Infof("Node manager published as: %v", *publishAs)
-	impl.InvokeCallback(name)
+	impl.InvokeCallback(runtime.NewContext(), name)
 
 	// Wait until shutdown.
 	<-signals.ShutdownOnSignals(runtime)

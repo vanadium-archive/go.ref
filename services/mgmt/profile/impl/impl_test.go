@@ -6,6 +6,7 @@ import (
 	"reflect"
 	"testing"
 
+	"veyron.io/veyron/veyron2"
 	"veyron.io/veyron/veyron2/naming"
 	"veyron.io/veyron/veyron2/rt"
 	"veyron.io/veyron/veyron2/services/mgmt/build"
@@ -30,7 +31,6 @@ var (
 // TestInterface tests that the implementation correctly implements
 // the Profile interface.
 func TestInterface(t *testing.T) {
-	runtime := rt.R()
 	ctx := runtime.NewContext()
 
 	// Setup and start the profile repository server.
@@ -104,12 +104,16 @@ func TestInterface(t *testing.T) {
 	}
 }
 
+var runtime veyron2.Runtime
+
 func init() {
-	rt.Init()
+	var err error
+	if runtime, err = rt.New(); err != nil {
+		panic(err)
+	}
 }
 
 func TestPreserveAcrossRestarts(t *testing.T) {
-	runtime := rt.R()
 	ctx := runtime.NewContext()
 
 	// Setup and start the profile repository server.

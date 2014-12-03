@@ -9,14 +9,12 @@ import (
 	"testing"
 
 	"veyron.io/veyron/veyron2/naming"
-	"veyron.io/veyron/veyron2/rt"
 	"veyron.io/veyron/veyron2/security"
 	"veyron.io/veyron/veyron2/services/security/access"
 	"veyron.io/veyron/veyron2/verror"
 )
 
 func TestACLGetCommand(t *testing.T) {
-	runtime := rt.Init()
 	tape := NewTape()
 	server, endpoint, err := startServer(t, runtime, tape)
 	if err != nil {
@@ -63,7 +61,6 @@ self/bad !Admin
 }
 
 func TestACLSetCommand(t *testing.T) {
-	runtime := rt.Init()
 	tape := NewTape()
 	server, endpoint, err := startServer(t, runtime, tape)
 	if err != nil {

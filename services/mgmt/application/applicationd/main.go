@@ -23,7 +23,10 @@ func main() {
 	if *store == "" {
 		vlog.Fatalf("Specify a directory for storing application envelopes using --store=<name>")
 	}
-	runtime := rt.Init()
+	runtime, err := rt.New()
+	if err != nil {
+		vlog.Fatalf("Could not initialize runtime: %v", err)
+	}
 	defer runtime.Cleanup()
 	server, err := runtime.NewServer()
 	if err != nil {

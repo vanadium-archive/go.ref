@@ -8,6 +8,7 @@ import (
 	"strings"
 	"testing"
 
+	"veyron.io/veyron/veyron2"
 	"veyron.io/veyron/veyron2/rt"
 	"veyron.io/veyron/veyron2/services/mgmt/build"
 
@@ -15,9 +16,14 @@ import (
 	"veyron.io/veyron/veyron/profiles"
 )
 
+var globalRT veyron2.Runtime
+
 func init() {
 	testutil.Init()
-	rt.Init()
+	var err error
+	if globalRT, err = rt.New(); err != nil {
+		panic(err)
+	}
 }
 
 // findGoBinary returns the path to the given Go binary and
@@ -48,7 +54,7 @@ func findGoBinary(t *testing.T, name string) (bin, goroot string) {
 // startServer starts the build server.
 func startServer(t *testing.T) (build.BuilderClientMethods, func()) {
 	gobin, goroot := findGoBinary(t, "go")
-	server, err := rt.R().NewServer()
+	server, err := globalRT.NewServer()
 	if err != nil {
 		t.Fatalf("NewServer() failed: %v", err)
 	}
@@ -70,7 +76,7 @@ func startServer(t *testing.T) (build.BuilderClientMethods, func()) {
 
 func invokeBuild(t *testing.T, client build.BuilderClientMethods, files []build.File) ([]byte, []build.File, error) {
 	arch, opsys := getArch(), getOS()
-	stream, err := client.Build(rt.R().NewContext(), arch, opsys)
+	stream, err := client.Build(globalRT.NewContext(), arch, opsys)
 	if err != nil {
 		t.Errorf("Build(%v, %v) failed: %v", err, arch, opsys)
 		return nil, nil, err

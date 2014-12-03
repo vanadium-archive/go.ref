@@ -7,12 +7,10 @@ import (
 	"testing"
 
 	"veyron.io/veyron/veyron2/naming"
-	"veyron.io/veyron/veyron2/rt"
 	"veyron.io/veyron/veyron2/verror"
 )
 
 func TestStopCommand(t *testing.T) {
-	runtime := rt.Init()
 	tape := NewTape()
 	server, endpoint, err := startServer(t, runtime, tape)
 	if err != nil {
@@ -85,7 +83,6 @@ func TestStopCommand(t *testing.T) {
 }
 
 func testHelper(t *testing.T, lower, upper string) {
-	runtime := rt.Init()
 	tape := NewTape()
 	server, endpoint, err := startServer(t, runtime, tape)
 	if err != nil {

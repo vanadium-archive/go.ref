@@ -24,7 +24,10 @@ func (d *dispatcher) Lookup(suffix string) (interface{}, security.Authorizer, er
 }
 
 func TestPProfProxy(t *testing.T) {
-	r := rt.Init()
+	r, err := rt.New()
+	if err != nil {
+		t.Fatalf("Could not initialize runtime: %v", err)
+	}
 	defer r.Cleanup()
 
 	s, err := r.NewServer()

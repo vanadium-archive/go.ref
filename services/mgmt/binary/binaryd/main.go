@@ -47,8 +47,12 @@ func toIPPort(addr string) string {
 }
 
 func main() {
-	runtime := rt.Init()
+	runtime, err := rt.New()
+	if err != nil {
+		vlog.Fatalf("Could not initialize runtime: %v", err)
+	}
 	defer runtime.Cleanup()
+
 	root, err := impl.SetupRoot(*rootFlag)
 	if err != nil {
 		vlog.Errorf("SetupRoot(%q) failed: %v", *rootFlag, err)

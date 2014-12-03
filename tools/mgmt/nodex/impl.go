@@ -6,7 +6,6 @@ import (
 	"veyron.io/lib/cmdline"
 	"veyron.io/veyron/veyron2/ipc"
 	"veyron.io/veyron/veyron2/naming"
-	"veyron.io/veyron/veyron2/rt"
 	"veyron.io/veyron/veyron2/security"
 	"veyron.io/veyron/veyron2/services/mgmt/node"
 )
@@ -27,7 +26,7 @@ func runInstall(cmd *cmdline.Command, args []string) error {
 		return cmd.UsageErrorf("install: incorrect number of arguments, expected %d, got %d", expected, got)
 	}
 	nodeName, appName := args[0], args[1]
-	appID, err := node.ApplicationClient(nodeName).Install(rt.R().NewContext(), appName)
+	appID, err := node.ApplicationClient(nodeName).Install(runtime.NewContext(), appName)
 	if err != nil {
 		return fmt.Errorf("Install failed: %v", err)
 	}
@@ -64,7 +63,7 @@ func runStart(cmd *cmdline.Command, args []string) error {
 		return cmd.UsageErrorf("start: incorrect number of arguments, expected %d, got %d", expected, got)
 	}
 	appInstallation, grant := args[0], args[1]
-	appInstanceIDs, err := node.ApplicationClient(appInstallation).Start(rt.R().NewContext(), &granter{p: rt.R().Principal(), extension: grant})
+	appInstanceIDs, err := node.ApplicationClient(appInstallation).Start(runtime.NewContext(), &granter{p: runtime.Principal(), extension: grant})
 	if err != nil {
 		return fmt.Errorf("Start failed: %v", err)
 	}
@@ -92,7 +91,7 @@ func runClaim(cmd *cmdline.Command, args []string) error {
 		return cmd.UsageErrorf("claim: incorrect number of arguments, expected %d, got %d", expected, got)
 	}
 	nodeName, grant := args[0], args[1]
-	if err := node.NodeClient(nodeName).Claim(rt.R().NewContext(), &granter{p: rt.R().Principal(), extension: grant}); err != nil {
+	if err := node.NodeClient(nodeName).Claim(runtime.NewContext(), &granter{p: runtime.Principal(), extension: grant}); err != nil {
 		return fmt.Errorf("Claim failed: %v", err)
 	}
 	fmt.Fprintln(cmd.Stdout(), "Successfully claimed.")

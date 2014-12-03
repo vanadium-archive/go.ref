@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"io"
 
+	"veyron.io/veyron/veyron2"
 	"veyron.io/veyron/veyron2/ipc"
 	"veyron.io/veyron/veyron2/naming"
-	"veyron.io/veyron/veyron2/rt"
 	"veyron.io/veyron/veyron2/services/security/access"
 )
 
@@ -46,7 +46,8 @@ func (p *proxyInvoker) Invoke(method string, inCall ipc.ServerCall, argptrs []in
 	for i, ap := range argptrs {
 		args[i] = ap
 	}
-	outCall, err := rt.R().Client().StartCall(inCall, p.remote, method, args)
+	runtime := veyron2.RuntimeFromContext(inCall)
+	outCall, err := runtime.Client().StartCall(inCall, p.remote, method, args)
 	if err != nil {
 		return nil, err
 	}

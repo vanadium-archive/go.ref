@@ -4,6 +4,7 @@ import (
 	"reflect"
 	"testing"
 
+	"veyron.io/veyron/veyron2"
 	"veyron.io/veyron/veyron2/ipc"
 	"veyron.io/veyron/veyron2/naming"
 	"veyron.io/veyron/veyron2/rt"
@@ -17,10 +18,14 @@ import (
 // TODO(toddw): Add tests of Signature and MethodSignature.
 
 func TestProxyInvoker(t *testing.T) {
-	r := rt.R()
+	runtime, err := rt.New()
+	if err != nil {
+		t.Fatalf("Could not initialize runtime: %v", err)
+	}
+	defer runtime.Cleanup()
 
 	// server1 is a normal server
-	server1, err := r.NewServer()
+	server1, err := runtime.NewServer()
 	if err != nil {
 		t.Fatalf("NewServer: %v", err)
 	}
@@ -35,7 +40,7 @@ func TestProxyInvoker(t *testing.T) {
 	}
 
 	// server2 proxies requests to <suffix> to server1/__debug/stats/<suffix>
-	server2, err := r.NewServer()
+	server2, err := runtime.NewServer()
 	if err != nil {
 		t.Fatalf("NewServer: %v", err)
 	}
@@ -45,6 +50,7 @@ func TestProxyInvoker(t *testing.T) {
 		t.Fatalf("Listen: %v", err)
 	}
 	disp := &proxyDispatcher{
+		runtime,
 		naming.JoinAddressName(ep1.String(), "__debug/stats"),
 		stats.StatsServer(nil),
 	}
@@ -55,12 +61,12 @@ func TestProxyInvoker(t *testing.T) {
 	// Call Value()
 	name := naming.JoinAddressName(ep2.String(), "system/start-time-rfc1123")
 	c := stats.StatsClient(name)
-	if _, err := c.Value(r.NewContext()); err != nil {
+	if _, err := c.Value(runtime.NewContext()); err != nil {
 		t.Errorf("%q.Value() error: %v", name, err)
 	}
 
 	// Call Glob()
-	results, err := testutil.GlobName(r.NewContext(), naming.JoinAddressName(ep2.String(), "system"), "start-time-*")
+	results, err := testutil.GlobName(runtime.NewContext(), naming.JoinAddressName(ep2.String(), "system"), "start-time-*")
 	if err != nil {
 		t.Fatalf("Glob failed: %v", err)
 	}
@@ -78,10 +84,16 @@ type dummy struct{}
 func (*dummy) Method(_ ipc.ServerContext) error { return nil }
 
 type proxyDispatcher struct {
+	runtime veyron2.Runtime
 	remote  string
 	sigStub signatureStub
 }
 
 func (d *proxyDispatcher) Lookup(suffix string) (interface{}, security.Authorizer, error) {
-	return &proxyInvoker{naming.Join(d.remote, suffix), access.Debug, d.sigStub}, nil, nil
+	invoker := &proxyInvoker{
+		remote:  naming.Join(d.remote, suffix),
+		access:  access.Debug,
+		sigStub: d.sigStub,
+	}
+	return invoker, nil, nil
 }

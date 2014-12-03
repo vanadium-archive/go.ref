@@ -293,10 +293,6 @@ func createConfigServer(t *testing.T, r veyron2.Runtime) (ipc.Server, string, <-
 }
 
 func setupRemoteAppCycleMgr(t *testing.T) (veyron2.Runtime, modules.Handle, appcycle.AppCycleClientMethods, func()) {
-	// We need to use the public API since stubs are used below (and they
-	// refer to the global rt.R() function), but we take care to make sure
-	// that the "google" runtime we are trying to test in this package is
-	// the one being used.
 	r, _ := rt.New(profileOpt)
 
 	childcreds := security.NewVeyronCredentials(r.Principal(), appCmd)

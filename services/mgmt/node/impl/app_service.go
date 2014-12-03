@@ -126,12 +126,12 @@ import (
 	"sync"
 	"time"
 
+	"veyron.io/veyron/veyron2"
 	"veyron.io/veyron/veyron2/context"
 	"veyron.io/veyron/veyron2/ipc"
 	"veyron.io/veyron/veyron2/mgmt"
 	"veyron.io/veyron/veyron2/naming"
 	"veyron.io/veyron/veyron2/options"
-	"veyron.io/veyron/veyron2/rt"
 	"veyron.io/veyron/veyron2/security"
 	"veyron.io/veyron/veyron2/services/mgmt/appcycle"
 	"veyron.io/veyron/veyron2/services/mgmt/application"
@@ -324,7 +324,7 @@ func fetchAppEnvelope(ctx context.T, origin string) (*application.Envelope, erro
 }
 
 // newVersion sets up the directory for a new application version.
-func newVersion(installationDir string, envelope *application.Envelope, oldVersionDir string) (string, error) {
+func newVersion(ctx context.T, installationDir string, envelope *application.Envelope, oldVersionDir string) (string, error) {
 	versionDir := filepath.Join(installationDir, generateVersionDirName())
 	if err := mkdir(versionDir); err != nil {
 		return "", verror2.Make(ErrOperationFailed, nil)
@@ -334,7 +334,7 @@ func newVersion(installationDir string, envelope *application.Envelope, oldVersi
 		return "", verror2.Make(ErrOperationFailed, nil)
 	}
 	// TODO(caprita): Share binaries if already existing locally.
-	if err := downloadBinary(versionDir, "bin", envelope.Binary); err != nil {
+	if err := downloadBinary(ctx, versionDir, "bin", envelope.Binary); err != nil {
 		return versionDir, err
 	}
 	for localPkg, pkgName := range envelope.Packages {
@@ -343,7 +343,7 @@ func newVersion(installationDir string, envelope *application.Envelope, oldVersi
 			return versionDir, verror2.Make(ErrOperationFailed, nil)
 		}
 		path := filepath.Join(pkgDir, localPkg)
-		if err := libbinary.DownloadToFile(rt.R().NewContext(), pkgName, path); err != nil {
+		if err := libbinary.DownloadToFile(ctx, pkgName, path); err != nil {
 			vlog.Infof("DownloadToFile(%q, %q) failed: %v", pkgName, path, err)
 			return versionDir, verror2.Make(ErrOperationFailed, nil)
 		}
@@ -365,7 +365,7 @@ func newVersion(installationDir string, envelope *application.Envelope, oldVersi
 }
 
 // TODO(rjkroege): Refactor this code with the instance creation code.
-func initializeInstallationACLs(dir string, blessings []string, acl access.TaggedACLMap) error {
+func initializeInstallationACLs(principal security.Principal, dir string, blessings []string, acl access.TaggedACLMap) error {
 	// Add the invoker's blessings.
 	for _, b := range blessings {
 		for _, tag := range access.AllTypicalTags() {
@@ -375,14 +375,14 @@ func initializeInstallationACLs(dir string, blessings []string, acl access.Tagge
 	aclDir := path.Join(dir, "acls")
 	aclData := path.Join(aclDir, "data")
 	aclSig := path.Join(aclDir, "signature")
-	return writeACLs(aclData, aclSig, aclDir, acl)
+	return writeACLs(principal, aclData, aclSig, aclDir, acl)
 }
 
 func (i *appService) Install(call ipc.ServerContext, applicationVON string) (string, error) {
 	if len(i.suffix) > 0 {
 		return "", verror2.Make(ErrInvalidSuffix, call)
 	}
-	ctx, cancel := rt.R().NewContext().WithTimeout(ipcContextTimeout)
+	ctx, cancel := call.WithTimeout(ipcContextTimeout)
 	defer cancel()
 	envelope, err := fetchAppEnvelope(ctx, applicationVON)
 	if err != nil {
@@ -398,7 +398,7 @@ func (i *appService) Install(call ipc.ServerContext, applicationVON string) (str
 			deferrer()
 		}
 	}()
-	if _, err := newVersion(installationDir, envelope, ""); err != nil {
+	if _, err := newVersion(call, installationDir, envelope, ""); err != nil {
 		return "", err
 	}
 	if err := saveOrigin(installationDir, applicationVON); err != nil {
@@ -411,7 +411,7 @@ func (i *appService) Install(call ipc.ServerContext, applicationVON string) (str
 	// TODO(caprita,rjkroege): Should the installation ACLs really be
 	// seeded with the node ACL? Instead, might want to hide the nodeACL
 	// from the app?
-	if err := initializeInstallationACLs(installationDir, call.RemoteBlessings().ForContext(call), i.nodeACL.Copy()); err != nil {
+	if err := initializeInstallationACLs(call.LocalPrincipal(), installationDir, call.RemoteBlessings().ForContext(call), i.nodeACL.Copy()); err != nil {
 		return "", err
 	}
 	deferrer = nil
@@ -455,21 +455,23 @@ func installationDirCore(components []string, root string) (string, error) {
 }
 
 // setupPrincipal sets up the instance's principal, with the right blessings.
-func setupPrincipal(instanceDir, versionDir string, call ipc.ServerContext, securityAgent *securityAgentState, info *instanceInfo) error {
+func setupPrincipal(ctx context.T, instanceDir, versionDir string, call ipc.ServerContext, securityAgent *securityAgentState, info *instanceInfo) error {
 	var p security.Principal
 	if securityAgent != nil {
 		// TODO(caprita): Part of the cleanup upon destroying an
 		// instance, we should tell the agent to drop the principal.
-		handle, conn, err := securityAgent.keyMgrAgent.NewPrincipal(rt.R().NewContext(), false)
+		handle, conn, err := securityAgent.keyMgrAgent.NewPrincipal(ctx, false)
 		defer conn.Close()
-		client, err := rt.R().NewClient(options.VCSecurityNone)
+
+		runtime := veyron2.RuntimeFromContext(ctx)
+		client, err := runtime.NewClient(options.VCSecurityNone)
 		if err != nil {
 			vlog.Errorf("NewClient() failed: %v", err)
 			return verror2.Make(ErrOperationFailed, nil)
 		}
 		defer client.Close()
 		// TODO(caprita): release the socket created by NewAgentPrincipal.
-		if p, err = agent.NewAgentPrincipal(client, int(conn.Fd()), rt.R().NewContext()); err != nil {
+		if p, err = agent.NewAgentPrincipal(client, int(conn.Fd()), ctx); err != nil {
 			vlog.Errorf("NewAgentPrincipal() failed: %v", err)
 			return verror2.Make(ErrOperationFailed, nil)
 		}
@@ -598,7 +600,7 @@ func installPackages(versionDir, instanceDir string) error {
 	return nil
 }
 
-func initializeInstanceACLs(instanceDir string, blessings []string, acl access.TaggedACLMap) error {
+func initializeInstanceACLs(principal security.Principal, instanceDir string, blessings []string, acl access.TaggedACLMap) error {
 	for _, b := range blessings {
 		for _, tag := range access.AllTypicalTags() {
 			acl.Add(security.BlessingPattern(b), string(tag))
@@ -607,7 +609,7 @@ func initializeInstanceACLs(instanceDir string, blessings []string, acl access.T
 	aclDir := path.Join(instanceDir, "acls")
 	aclData := path.Join(aclDir, "data")
 	aclSig := path.Join(aclDir, "signature")
-	return writeACLs(aclData, aclSig, aclDir, acl)
+	return writeACLs(principal, aclData, aclSig, aclDir, acl)
 }
 
 // newInstance sets up the directory for a new application instance.
@@ -640,7 +642,7 @@ func (i *appService) newInstance(call ipc.ServerContext) (string, string, error)
 		return instanceDir, instanceID, verror2.Make(ErrOperationFailed, call)
 	}
 	instanceInfo := new(instanceInfo)
-	if err := setupPrincipal(instanceDir, versionDir, call, i.securityAgent, instanceInfo); err != nil {
+	if err := setupPrincipal(call, instanceDir, versionDir, call, i.securityAgent, instanceInfo); err != nil {
 		return instanceDir, instanceID, err
 	}
 	if err := saveInstanceInfo(instanceDir, instanceInfo); err != nil {
@@ -650,7 +652,7 @@ func (i *appService) newInstance(call ipc.ServerContext) (string, string, error)
 		return instanceDir, instanceID, err
 	}
 
-	if err := initializeInstanceACLs(instanceDir, call.RemoteBlessings().ForContext(call), i.nodeACL.Copy()); err != nil {
+	if err := initializeInstanceACLs(call.LocalPrincipal(), instanceDir, call.RemoteBlessings().ForContext(call), i.nodeACL.Copy()); err != nil {
 		return instanceDir, instanceID, err
 	}
 	return instanceDir, instanceID, nil
@@ -931,9 +933,9 @@ func (i *appService) Resume(call ipc.ServerContext) error {
 	return i.run(instanceDir, systemName)
 }
 
-func stopAppRemotely(appVON string) error {
+func stopAppRemotely(ctx context.T, appVON string) error {
 	appStub := appcycle.AppCycleClient(appVON)
-	ctx, cancel := rt.R().NewContext().WithTimeout(ipcContextTimeout)
+	ctx, cancel := ctx.WithTimeout(ipcContextTimeout)
 	defer cancel()
 	stream, err := appStub.Stop(ctx)
 	if err != nil {
@@ -955,17 +957,17 @@ func stopAppRemotely(appVON string) error {
 	return nil
 }
 
-func stop(instanceDir string) error {
+func stop(ctx context.T, instanceDir string) error {
 	info, err := loadInstanceInfo(instanceDir)
 	if err != nil {
 		return err
 	}
-	return stopAppRemotely(info.AppCycleMgrName)
+	return stopAppRemotely(ctx, info.AppCycleMgrName)
 }
 
 // TODO(caprita): implement deadline for Stop.
 
-func (i *appService) Stop(_ ipc.ServerContext, deadline uint32) error {
+func (i *appService) Stop(ctx ipc.ServerContext, deadline uint32) error {
 	instanceDir, err := i.instanceDir()
 	if err != nil {
 		return err
@@ -976,14 +978,14 @@ func (i *appService) Stop(_ ipc.ServerContext, deadline uint32) error {
 	if err := transitionInstance(instanceDir, started, stopping); err != nil {
 		return err
 	}
-	if err := stop(instanceDir); err != nil {
+	if err := stop(ctx, instanceDir); err != nil {
 		transitionInstance(instanceDir, stopping, started)
 		return err
 	}
 	return transitionInstance(instanceDir, stopping, stopped)
 }
 
-func (i *appService) Suspend(ipc.ServerContext) error {
+func (i *appService) Suspend(ctx ipc.ServerContext) error {
 	instanceDir, err := i.instanceDir()
 	if err != nil {
 		return err
@@ -991,7 +993,7 @@ func (i *appService) Suspend(ipc.ServerContext) error {
 	if err := transitionInstance(instanceDir, started, suspending); err != nil {
 		return err
 	}
-	if err := stop(instanceDir); err != nil {
+	if err := stop(ctx, instanceDir); err != nil {
 		transitionInstance(instanceDir, suspending, started)
 		return err
 	}
@@ -1018,7 +1020,7 @@ func (i *appService) Update(call ipc.ServerContext) error {
 	if err != nil {
 		return err
 	}
-	ctx, cancel := rt.R().NewContext().WithTimeout(ipcContextTimeout)
+	ctx, cancel := call.WithTimeout(ipcContextTimeout)
 	defer cancel()
 	newEnvelope, err := fetchAppEnvelope(ctx, originVON)
 	if err != nil {
@@ -1048,7 +1050,7 @@ func (i *appService) Update(call ipc.ServerContext) error {
 	if reflect.DeepEqual(oldEnvelope, newEnvelope) {
 		return verror2.Make(ErrUpdateNoOp, call)
 	}
-	versionDir, err := newVersion(installationDir, newEnvelope, oldVersionDir)
+	versionDir, err := newVersion(call, installationDir, newEnvelope, oldVersionDir)
 	if err != nil {
 		cleanupDir(versionDir, "")
 		return err
@@ -1248,12 +1250,12 @@ func dirFromSuffix(suffix []string, root string) (string, error) {
 }
 
 // TODO(rjkroege): Consider maintaining an in-memory ACL cache.
-func (i *appService) SetACL(_ ipc.ServerContext, acl access.TaggedACLMap, etag string) error {
+func (i *appService) SetACL(ctx ipc.ServerContext, acl access.TaggedACLMap, etag string) error {
 	dir, err := dirFromSuffix(i.suffix, i.config.Root)
 	if err != nil {
 		return err
 	}
-	return setAppACL(i.locks, dir, acl, etag)
+	return setAppACL(ctx.LocalPrincipal(), i.locks, dir, acl, etag)
 }
 
 func (i *appService) GetACL(_ ipc.ServerContext) (acl access.TaggedACLMap, etag string, err error) {
