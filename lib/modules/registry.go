@@ -115,6 +115,16 @@ func DispatchInTest() {
 // a subprocess that is not a unit test. It will return without an error
 // if it is executed by a process that does not specify an entry point
 // in its environment.
+//
+// func main() {
+//     if modules.IsModulesProcess() {
+//         if err := modules.Dispatch(); err != nil {
+//             panic("error")
+//          }
+//          return
+//      }
+//      parent code...
+//
 func Dispatch() error {
 	if !IsModulesProcess() {
 		return nil
@@ -123,6 +133,27 @@ func Dispatch() error {
 		return fmt.Errorf("use DispatchInTest in unittests")
 	}
 	return registry.dispatch()
+}
+
+// DispatchAndExit is like Dispatch except that it will call os.Exit(0)
+// when executed within a child process and the command succeeds, or panic
+// on encountering an error.
+//
+// func main() {
+//     modules.DispatchAndExit()
+//     parent code...
+//
+func DispatchAndExit() {
+	if !IsModulesProcess() {
+		return
+	}
+	if IsTestHelperProcess() {
+		panic("use DispatchInTest in unittests")
+	}
+	if err := registry.dispatch(); err != nil {
+		panic(fmt.Sprintf("unexpected error: %s", err))
+	}
+	os.Exit(0)
 }
 
 func (r *cmdRegistry) dispatch() error {
