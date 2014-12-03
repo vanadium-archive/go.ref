@@ -469,14 +469,17 @@ func TestNoServersAvailable(t *testing.T) {
 	ctx, _ := r.NewContext().WithTimeout(300 * time.Millisecond)
 	call, verr := r.Client().StartCall(ctx, name, "Sleep", nil)
 	if verr != nil {
-		if !verror.Is(verr, verror.Timeout.ID) && !verror.Is(verr, verror.NoExist.ID) {
-			t.Fatalf("verror should be a timeout or does not exist, not %s: stack %s",
-				verr, verr.(verror.E).Stack())
-		}
+		testForVerror(t, verr, verror.Timeout, verror.BadProtocol, verror.NoExist)
 		return
 	}
+	// The local namespace client may return the 'current' name when it encounters
+	// a timeout or other networking error, which means we may end up invoking an
+	// RPC on that entry - which in our case means we end up invoking:
+	// <mount table endpoint>/noservers.Sleep(). This RPC will fail immediately
+	// since we've already reached our timeout, but we can't see that error
+	// until we call Finish.
 	err := call.Finish(&verr)
-	testForVerror(t, err, verror.Timeout)
+	testForVerror(t, err, verror.Timeout, verror.BadProtocol)
 }
 
 func TestNoMountTable(t *testing.T) {
