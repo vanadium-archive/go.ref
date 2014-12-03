@@ -1,4 +1,4 @@
-package profiles
+package platform
 
 // #include <sys/utsname.h>
 // #include <errno.h>

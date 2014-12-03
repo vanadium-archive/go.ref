@@ -11,7 +11,6 @@ import (
 	"veyron.io/veyron/veyron2"
 	"veyron.io/veyron/veyron2/context"
 	"veyron.io/veyron/veyron2/ipc"
-	"veyron.io/veyron/veyron2/ipc/stream"
 	"veyron.io/veyron/veyron2/naming"
 	"veyron.io/veyron/veyron2/options"
 	"veyron.io/veyron/veyron2/rt"
@@ -20,7 +19,6 @@ import (
 	"veyron.io/veyron/veyron2/vlog"
 
 	"veyron.io/veyron/veyron/lib/testutil"
-	"veyron.io/veyron/veyron/lib/websocket"
 	_ "veyron.io/veyron/veyron/profiles"
 	"veyron.io/veyron/veyron/runtimes/google/naming/namespace"
 	vsecurity "veyron.io/veyron/veyron/security"
@@ -29,7 +27,6 @@ import (
 
 func init() {
 	testutil.Init()
-	stream.RegisterProtocol("ws", websocket.Dial, nil)
 }
 
 func createRuntimes(t *testing.T) (sr, r veyron2.Runtime, cleanup func()) {

@@ -1,6 +1,6 @@
 // +build !nacl
 
-package wslistener
+package websocket
 
 import (
 	"bufio"
@@ -10,12 +10,11 @@ import (
 	"net/http"
 	"sync"
 
-	vwebsocket "veyron.io/veyron/veyron/lib/websocket"
-	"veyron.io/veyron/veyron/runtimes/google/lib/upcqueue"
+	"github.com/gorilla/websocket"
 
 	"veyron.io/veyron/veyron2/vlog"
 
-	"github.com/gorilla/websocket"
+	"veyron.io/veyron/veyron/runtimes/google/lib/upcqueue"
 )
 
 var errListenerIsClosed = errors.New("Listener has been Closed")
@@ -93,7 +92,7 @@ func (l *queueListener) Addr() net.Addr {
 	return l.ln.Addr()
 }
 
-func NewListener(netLn net.Listener) net.Listener {
+func NewListener(netLn net.Listener) (net.Listener, error) {
 	ln := &wsTCPListener{
 		q:     upcqueue.New(),
 		httpQ: upcqueue.New(),
@@ -121,19 +120,18 @@ func NewListener(netLn net.Listener) net.Listener {
 			vlog.Errorf("Rejected a non-websocket request: %v", err)
 			return
 		}
-		conn := vwebsocket.WebsocketConn(ws)
+		conn := WebsocketConn(ws)
 		if err := ln.q.Put(conn); err != nil {
 			vlog.VI(1).Infof("Shutting down conn from %s (local address: %s) as Put failed: %v", ws.RemoteAddr(), ws.LocalAddr(), err)
 			ws.Close()
 			return
 		}
-
 	}
 	ln.wsServer = http.Server{
 		Handler: http.HandlerFunc(handler),
 	}
 	go ln.wsServer.Serve(httpListener)
-	return ln
+	return ln, nil
 }
 
 func (ln *wsTCPListener) netAcceptLoop() {

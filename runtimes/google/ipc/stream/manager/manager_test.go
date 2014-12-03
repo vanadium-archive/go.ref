@@ -12,7 +12,6 @@ import (
 	"testing"
 	"time"
 
-	"veyron.io/veyron/veyron/lib/websocket"
 	"veyron.io/veyron/veyron2/ipc/stream"
 	"veyron.io/veyron/veyron2/naming"
 	"veyron.io/veyron/veyron2/security"
@@ -20,8 +19,10 @@ import (
 
 	"veyron.io/veyron/veyron/lib/expect"
 	"veyron.io/veyron/veyron/lib/modules"
+	_ "veyron.io/veyron/veyron/lib/tcp"
 	"veyron.io/veyron/veyron/lib/testutil"
 	tsecurity "veyron.io/veyron/veyron/lib/testutil/security"
+	_ "veyron.io/veyron/veyron/lib/websocket"
 	"veyron.io/veyron/veyron/runtimes/google/ipc/stream/vc"
 	"veyron.io/veyron/veyron/runtimes/google/ipc/version"
 	inaming "veyron.io/veyron/veyron/runtimes/google/naming"
@@ -39,7 +40,6 @@ func init() {
 	// introduces less variance in the behavior of the test.
 	runtime.GOMAXPROCS(1)
 	modules.RegisterChild("runServer", "", runServer)
-	stream.RegisterProtocol("ws", websocket.Dial, nil)
 }
 
 func testSimpleFlow(t *testing.T, useWebsocket bool) {
@@ -673,10 +673,10 @@ func TestRegistration(t *testing.T) {
 	server := InternalNew(naming.FixedRoutingID(0x55555555))
 	client := InternalNew(naming.FixedRoutingID(0xcccccccc))
 
-	dialer := func(addr string) (net.Conn, error) {
+	dialer := func(_, _ string, _ time.Duration) (net.Conn, error) {
 		return nil, fmt.Errorf("tn.Dial")
 	}
-	listener := func(addr string) (net.Listener, error) {
+	listener := func(_, _ string) (net.Listener, error) {
 		return nil, fmt.Errorf("tn.Listen")
 	}
 	stream.RegisterProtocol("tn", dialer, listener)
@@ -692,7 +692,7 @@ func TestRegistration(t *testing.T) {
 	}
 
 	// Need a functional listener to test Dial.
-	listener = func(addr string) (net.Listener, error) {
+	listener = func(_, addr string) (net.Listener, error) {
 		return net.Listen("tcp", addr)
 	}
 

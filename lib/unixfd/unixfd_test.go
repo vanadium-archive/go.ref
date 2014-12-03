@@ -12,13 +12,13 @@ type nothing struct{}
 
 func dial(fd *fileDescriptor) (net.Conn, net.Addr, error) {
 	addr := fd.releaseAddr()
-	conn, err := unixFDConn(addr.String())
+	conn, err := unixFDConn(Network, addr.String(), 0)
 	return conn, addr, err
 }
 
 func listen(fd *fileDescriptor) (net.Listener, net.Addr, error) {
 	addr := fd.releaseAddr()
-	l, err := unixFDListen(addr.String())
+	l, err := unixFDListen(Network, addr.String())
 	return l, addr, err
 }
 
@@ -161,11 +161,11 @@ func TestSendConnection(t *testing.T) {
 		t.Fatalf("unexpected data %q", data)
 	}
 
-	a, err := unixFDConn(caddr.String())
+	a, err := unixFDConn(Network, caddr.String(), 0)
 	if err != nil {
 		t.Fatalf("dial %v: %v", caddr, err)
 	}
-	b, err := unixFDConn(saddr.String())
+	b, err := unixFDConn(Network, saddr.String(), 0)
 	if err != nil {
 		t.Fatalf("dial %v: %v", saddr, err)
 	}

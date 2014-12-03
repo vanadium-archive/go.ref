@@ -10,11 +10,14 @@
 //
 // Profiles register themselves by calling veyron2/rt.RegisterProfile in their
 // init function and are hence are chosen by importing them into an
-// applications main package. More specific packages may use functionality
-// exposed by more general packages and rely on go's module dependency
-// algorithm to execute the init function from the more specific package
-// after the less specific one and hence override the earlier Profile
-// registration.
+// applications main package. It is possible, but discouraged, for more
+// specific packages may use functionality exposed by more general packages
+// and rely on go's module dependency algorithm to execute the init function
+// from the more specific package after the less specific one and hence
+// override the earlier Profile registration. This is discouraged because it
+// is harder for the reader to track the dependencies to see what is included
+// by each package. Commonly used functionality is placed in profiles/internal
+// for use by all profiles.
 //
 // This top level directory contains a 'generic' Profile and utility routines
 // used by other Profiles. It should be imported whenever possible and

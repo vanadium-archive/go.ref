@@ -6,23 +6,23 @@ import (
 	"net"
 	"sync"
 
-	"veyron.io/veyron/veyron/runtimes/google/ipc/stream/crypto"
-	"veyron.io/veyron/veyron/runtimes/google/ipc/stream/id"
-	"veyron.io/veyron/veyron/runtimes/google/ipc/stream/message"
-	"veyron.io/veyron/veyron/runtimes/google/ipc/stream/vc"
-	"veyron.io/veyron/veyron/runtimes/google/ipc/stream/vif"
-	"veyron.io/veyron/veyron/runtimes/google/ipc/stream/wslistener"
-	"veyron.io/veyron/veyron/runtimes/google/ipc/version"
-	"veyron.io/veyron/veyron/runtimes/google/lib/bqueue"
-	"veyron.io/veyron/veyron/runtimes/google/lib/bqueue/drrqueue"
-	"veyron.io/veyron/veyron/runtimes/google/lib/iobuf"
-	"veyron.io/veyron/veyron/runtimes/google/lib/upcqueue"
-
 	"veyron.io/veyron/veyron2/naming"
 	"veyron.io/veyron/veyron2/security"
 	"veyron.io/veyron/veyron2/verror"
 	"veyron.io/veyron/veyron2/vlog"
 	"veyron.io/veyron/veyron2/vom"
+
+	"veyron.io/veyron/veyron/lib/websocket"
+	"veyron.io/veyron/veyron/runtimes/google/ipc/stream/crypto"
+	"veyron.io/veyron/veyron/runtimes/google/ipc/stream/id"
+	"veyron.io/veyron/veyron/runtimes/google/ipc/stream/message"
+	"veyron.io/veyron/veyron/runtimes/google/ipc/stream/vc"
+	"veyron.io/veyron/veyron/runtimes/google/ipc/stream/vif"
+	"veyron.io/veyron/veyron/runtimes/google/ipc/version"
+	"veyron.io/veyron/veyron/runtimes/google/lib/bqueue"
+	"veyron.io/veyron/veyron/runtimes/google/lib/bqueue/drrqueue"
+	"veyron.io/veyron/veyron/runtimes/google/lib/iobuf"
+	"veyron.io/veyron/veyron/runtimes/google/lib/upcqueue"
 )
 
 var (
@@ -136,7 +136,10 @@ func New(rid naming.RoutingID, principal security.Principal, network, address, p
 	if err != nil {
 		return nil, fmt.Errorf("net.Listen(%q, %q) failed: %v", network, address, err)
 	}
-	ln = wslistener.NewListener(ln)
+	ln, err = websocket.NewListener(ln)
+	if err != nil {
+		return nil, err
+	}
 	if len(pubAddress) == 0 {
 		pubAddress = ln.Addr().String()
 	}
