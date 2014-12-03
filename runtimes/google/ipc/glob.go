@@ -9,6 +9,7 @@ import (
 	"veyron.io/veyron/veyron2/naming"
 	"veyron.io/veyron/veyron2/security"
 	"veyron.io/veyron/veyron2/services/security/access"
+	"veyron.io/veyron/veyron2/vdl/vdlroot/src/signature"
 	"veyron.io/veyron/veyron2/verror"
 	"veyron.io/veyron/veyron2/vlog"
 
@@ -72,7 +73,7 @@ func (r *reservedMethods) Describe__() []ipc.InterfaceDesc {
 	}}
 }
 
-func (r *reservedMethods) Signature(ctxOrig ipc.ServerContext) ([]ipc.InterfaceSig, error) {
+func (r *reservedMethods) Signature(ctxOrig ipc.ServerContext) ([]signature.Interface, error) {
 	// Copy the original context to shield ourselves from changes the flowServer makes.
 	ctx := copyMutableContext(ctxOrig)
 	ctx.M.Method = "__Signature"
@@ -102,7 +103,7 @@ func (r *reservedMethods) Signature(ctxOrig ipc.ServerContext) ([]ipc.InterfaceS
 	return sig, nil
 }
 
-func (r *reservedMethods) MethodSignature(ctxOrig ipc.ServerContext, method string) (ipc.MethodSig, error) {
+func (r *reservedMethods) MethodSignature(ctxOrig ipc.ServerContext, method string) (signature.Method, error) {
 	// Copy the original context to shield ourselves from changes the flowServer makes.
 	ctx := copyMutableContext(ctxOrig)
 	ctx.M.Method = method
@@ -116,17 +117,17 @@ func (r *reservedMethods) MethodSignature(ctxOrig ipc.ServerContext, method stri
 		disp = r.dispReserved
 	}
 	if disp == nil {
-		return ipc.MethodSig{}, verror.NoExistf("ipc: no such method %q", ctx.Method())
+		return signature.Method{}, verror.NoExistf("ipc: no such method %q", ctx.Method())
 	}
 	obj, auth, err := disp.Lookup(ctx.Suffix())
 	switch {
 	case err != nil:
-		return ipc.MethodSig{}, err
+		return signature.Method{}, err
 	case obj == nil:
-		return ipc.MethodSig{}, verror.NoExistf("ipc: no such method %q", ctx.Method())
+		return signature.Method{}, verror.NoExistf("ipc: no such method %q", ctx.Method())
 	}
 	if verr := authorize(ctx, auth); verr != nil {
-		return ipc.MethodSig{}, verr
+		return signature.Method{}, verr
 	}
 	return objectToInvoker(obj).MethodSignature(ctx, ctx.Method())
 }

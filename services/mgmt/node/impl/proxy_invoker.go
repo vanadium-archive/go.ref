@@ -8,6 +8,7 @@ import (
 	"veyron.io/veyron/veyron2/ipc"
 	"veyron.io/veyron/veyron2/naming"
 	"veyron.io/veyron/veyron2/services/security/access"
+	"veyron.io/veyron/veyron2/vdl/vdlroot/src/signature"
 )
 
 // proxyInvoker is an ipc.Invoker implementation that proxies all requests
@@ -127,7 +128,7 @@ func (p *proxyInvoker) Invoke(method string, inCall ipc.ServerCall, argptrs []in
 
 // TODO(toddw): Expose a helper function that performs all error checking based
 // on reflection, to simplify the repeated logic processing results.
-func (p *proxyInvoker) Signature(ctx ipc.ServerContext) ([]ipc.InterfaceSig, error) {
+func (p *proxyInvoker) Signature(ctx ipc.ServerContext) ([]signature.Interface, error) {
 	call, ok := ctx.(ipc.ServerCall)
 	if !ok {
 		return nil, fmt.Errorf("couldn't upgrade ipc.ServerContext to ipc.ServerCall")
@@ -146,18 +147,18 @@ func (p *proxyInvoker) Signature(ctx ipc.ServerContext) ([]ipc.InterfaceSig, err
 		}
 		return nil, err
 	}
-	var res []ipc.InterfaceSig
+	var res []signature.Interface
 	if results[0] != nil {
-		sig, ok := results[0].([]ipc.InterfaceSig)
+		sig, ok := results[0].([]signature.Interface)
 		if !ok {
-			return nil, fmt.Errorf("unexpected result value type. Got %T, want []ipc.InterfaceSig.", sig)
+			return nil, fmt.Errorf("unexpected result value type. Got %T, want []signature.Interface.", sig)
 		}
 	}
 	return res, nil
 }
 
-func (p *proxyInvoker) MethodSignature(ctx ipc.ServerContext, method string) (ipc.MethodSig, error) {
-	empty := ipc.MethodSig{}
+func (p *proxyInvoker) MethodSignature(ctx ipc.ServerContext, method string) (signature.Method, error) {
+	empty := signature.Method{}
 	call, ok := ctx.(ipc.ServerCall)
 	if !ok {
 		return empty, fmt.Errorf("couldn't upgrade ipc.ServerContext to ipc.ServerCall")
@@ -176,11 +177,11 @@ func (p *proxyInvoker) MethodSignature(ctx ipc.ServerContext, method string) (ip
 		}
 		return empty, err
 	}
-	var res ipc.MethodSig
+	var res signature.Method
 	if results[0] != nil {
-		sig, ok := results[0].(ipc.MethodSig)
+		sig, ok := results[0].(signature.Method)
 		if !ok {
-			return empty, fmt.Errorf("unexpected result value type. Got %T, want ipc.MethodSig.", sig)
+			return empty, fmt.Errorf("unexpected result value type. Got %T, want signature.Method.", sig)
 		}
 	}
 	return res, nil
