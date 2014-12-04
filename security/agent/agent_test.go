@@ -11,14 +11,14 @@ import (
 	"veyron.io/veyron/veyron/security/agent"
 	"veyron.io/veyron/veyron/security/agent/server"
 
+	"veyron.io/veyron/veyron2"
 	"veyron.io/veyron/veyron2/options"
 	"veyron.io/veyron/veyron2/rt"
 	"veyron.io/veyron/veyron2/security"
 	"veyron.io/veyron/veyron2/verror2"
 )
 
-func setupAgent(t *testing.T, p security.Principal) security.Principal {
-	runtime := rt.Init()
+func setupAgent(t *testing.T, runtime veyron2.Runtime, p security.Principal) security.Principal {
 	sock, err := server.RunAnonymousAgent(runtime, p)
 	if err != nil {
 		t.Fatal(err)
@@ -52,10 +52,16 @@ var (
 )
 
 func TestAgent(t *testing.T) {
+	r, err := rt.New()
+	if err != nil {
+		t.Fatalf("Could not initialize runtime: %s", err)
+	}
+	defer r.Cleanup()
+
 	var (
 		thirdPartyCaveat, discharge = newThirdPartyCaveatAndDischarge(t)
 		mockP                       = newMockPrincipal()
-		agent                       = setupAgent(t, mockP)
+		agent                       = setupAgent(t, r, mockP)
 	)
 	tests := []testInfo{
 		{"BlessSelf", V{"self"}, newBlessing(t, "blessing"), nil},

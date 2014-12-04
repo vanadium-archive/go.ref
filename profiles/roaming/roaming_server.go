@@ -7,12 +7,16 @@ import (
 
 	"veyron.io/veyron/veyron2/ipc"
 	"veyron.io/veyron/veyron2/rt"
+	"veyron.io/veyron/veyron2/vlog"
 
 	"veyron.io/veyron/veyron/profiles/roaming"
 )
 
 func main() {
-	r := rt.Init()
+	r, err := rt.New()
+	if err != nil {
+		vlog.Fatalf("Could not initialize runtime: %s", err)
+	}
 	defer r.Cleanup()
 	log := r.Logger()
 

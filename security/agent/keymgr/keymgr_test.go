@@ -40,7 +40,12 @@ func createAgent(runtime veyron2.Runtime, path string) (*Agent, func(), error) {
 }
 
 func TestNoNodemanager(t *testing.T) {
-	runtime := rt.Init()
+	runtime, err := rt.New()
+	if err != nil {
+		t.Fatalf("Could not initialize runtime: %s", err)
+	}
+	defer runtime.Cleanup()
+
 	agent, cleanup, err := createAgent(runtime, "")
 	defer cleanup()
 	if err == nil {
@@ -74,7 +79,12 @@ func createClient2(runtime veyron2.Runtime, conn *os.File) (security.Principal, 
 }
 
 func TestSigning(t *testing.T) {
-	runtime := rt.Init()
+	runtime, err := rt.New()
+	if err != nil {
+		t.Fatalf("Could not initialize runtime: %s", err)
+	}
+	defer runtime.Cleanup()
+
 	path, err := ioutil.TempDir("", "agent")
 	if err != nil {
 		t.Fatal(err)
@@ -139,7 +149,12 @@ func TestSigning(t *testing.T) {
 }
 
 func TestInMemorySigning(t *testing.T) {
-	runtime := rt.Init()
+	runtime, err := rt.New()
+	if err != nil {
+		t.Fatalf("Could not initialize runtime: %s", err)
+	}
+	defer runtime.Cleanup()
+
 	path, err := ioutil.TempDir("", "agent")
 	if err != nil {
 		t.Fatal(err)

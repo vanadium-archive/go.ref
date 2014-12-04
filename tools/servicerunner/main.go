@@ -55,7 +55,11 @@ func updateVars(h modules.Handle, vars map[string]string, varNames ...string) er
 }
 
 func main() {
-	rt.Init()
+	r, err := rt.New()
+	if err != nil {
+		panic(fmt.Sprintf("Could not initialize runtime %s", err))
+	}
+	defer r.Cleanup()
 
 	if modules.IsModulesProcess() {
 		panicOnError(modules.Dispatch())

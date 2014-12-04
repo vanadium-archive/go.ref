@@ -11,7 +11,10 @@ import (
 )
 
 func main() {
-	r := rt.Init()
+	r, err := rt.New()
+	if err != nil {
+		vlog.Fatalf("Could not initialize runtime: %s", err)
+	}
 	defer r.Cleanup()
 
 	addr, stop := benchmarks.StartServer(r, roaming.ListenSpec)

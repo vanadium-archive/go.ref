@@ -7,9 +7,11 @@ import (
 	"veyron.io/veyron/veyron/lib/signals"
 	_ "veyron.io/veyron/veyron/profiles"
 
+	"veyron.io/veyron/veyron2"
 	"veyron.io/veyron/veyron2/ipc"
 	"veyron.io/veyron/veyron2/rt"
 	"veyron.io/veyron/veyron2/security"
+	"veyron.io/veyron/veyron2/vlog"
 )
 
 var runServer = flag.Bool("server", false, "Whether to run in server mode")
@@ -20,10 +22,7 @@ func (f *pongd) Ping(_ ipc.ServerContext, message string) (result string, err er
 	return "pong", nil
 }
 
-func clientMain() {
-	runtime := rt.Init()
-	defer runtime.Cleanup()
-
+func clientMain(runtime veyron2.Runtime) {
 	log := runtime.Logger()
 	log.Info("Pinging...")
 
@@ -35,8 +34,7 @@ func clientMain() {
 	fmt.Println(pong)
 }
 
-func serverMain() {
-	r := rt.Init()
+func serverMain(r veyron2.Runtime) {
 	log := r.Logger()
 	s, err := r.NewServer()
 	if err != nil {
@@ -66,9 +64,16 @@ func (allowEveryone) Authorize(security.Context) error { return nil }
 
 func main() {
 	flag.Parse()
+
+	runtime, err := rt.New()
+	if err != nil {
+		vlog.Fatalf("Could not initialize runtime: %s", err)
+	}
+	defer runtime.Cleanup()
+
 	if *runServer {
-		serverMain()
+		serverMain(runtime)
 	} else {
-		clientMain()
+		clientMain(runtime)
 	}
 }

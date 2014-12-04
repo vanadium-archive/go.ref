@@ -31,7 +31,10 @@ var (
 )
 
 func main() {
-	r := rt.Init()
+	r, err := rt.New()
+	if err != nil {
+		vlog.Fatalf("Could not initialize runtime: %s", err)
+	}
 	defer r.Cleanup()
 
 	rid, err := naming.NewRoutingID()

@@ -84,16 +84,27 @@ func unixFDConn(protocol, address string, timeout time.Duration) (net.Conn, erro
 	}
 	// We wrap 'conn' so we can customize the address, and also
 	// to close 'file'.
-	return &fdConn{addr(address), file, conn}, nil
+	return &fdConn{addr: addr(address), sock: file, Conn: conn}, nil
 }
 
 type fdConn struct {
 	addr net.Addr
 	sock *os.File
 	net.Conn
+
+	mu     sync.Mutex
+	closed bool
 }
 
 func (c *fdConn) Close() (err error) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	if c.closed {
+		return nil
+	}
+
+	c.closed = true
 	defer c.sock.Close()
 	return c.Conn.Close()
 }
