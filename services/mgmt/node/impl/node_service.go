@@ -292,7 +292,7 @@ func generateScript(workspace string, configSettings []string, envelope *applica
 	//
 	// TODO(caprita/rthellend): expose and use shellEscape (from
 	// veyron/tools/debug/impl.go) instead.
-	output += fmt.Sprintf("%q", filepath.Join(workspace, "noded")) + " "
+	output += fmt.Sprintf("exec %q", filepath.Join(workspace, "noded")) + " "
 	output += strings.Join(envelope.Args, " ")
 	output += "\n"
 	path = filepath.Join(workspace, "noded.sh")
