@@ -1033,7 +1033,7 @@ func TestNodeManagerGlobAndDebug(t *testing.T) {
 
 	// Install the app.
 	appID := installApp(t)
-	installID := path.Base(appID)
+	install1ID := path.Base(appID)
 
 	// Start an instance of the app.
 	instance1ID := startApp(t, appID)
@@ -1045,6 +1045,9 @@ func TestNodeManagerGlobAndDebug(t *testing.T) {
 		t.Fatalf("failed to get ping")
 	}
 
+	app2ID := installApp(t)
+	install2ID := path.Base(app2ID)
+
 	testcases := []struct {
 		name, pattern string
 		expected      []string
@@ -1053,32 +1056,33 @@ func TestNodeManagerGlobAndDebug(t *testing.T) {
 			"",
 			"apps",
 			"apps/google naps",
-			"apps/google naps/" + installID,
-			"apps/google naps/" + installID + "/" + instance1ID,
-			"apps/google naps/" + installID + "/" + instance1ID + "/logs",
-			"apps/google naps/" + installID + "/" + instance1ID + "/logs/STDERR-<timestamp>",
-			"apps/google naps/" + installID + "/" + instance1ID + "/logs/STDOUT-<timestamp>",
-			"apps/google naps/" + installID + "/" + instance1ID + "/logs/bin.INFO",
-			"apps/google naps/" + installID + "/" + instance1ID + "/logs/bin.<*>.INFO.<timestamp>",
-			"apps/google naps/" + installID + "/" + instance1ID + "/pprof",
-			"apps/google naps/" + installID + "/" + instance1ID + "/stats",
-			"apps/google naps/" + installID + "/" + instance1ID + "/stats/ipc",
-			"apps/google naps/" + installID + "/" + instance1ID + "/stats/system",
-			"apps/google naps/" + installID + "/" + instance1ID + "/stats/system/start-time-rfc1123",
-			"apps/google naps/" + installID + "/" + instance1ID + "/stats/system/start-time-unix",
+			"apps/google naps/" + install1ID,
+			"apps/google naps/" + install1ID + "/" + instance1ID,
+			"apps/google naps/" + install1ID + "/" + instance1ID + "/logs",
+			"apps/google naps/" + install1ID + "/" + instance1ID + "/logs/STDERR-<timestamp>",
+			"apps/google naps/" + install1ID + "/" + instance1ID + "/logs/STDOUT-<timestamp>",
+			"apps/google naps/" + install1ID + "/" + instance1ID + "/logs/bin.INFO",
+			"apps/google naps/" + install1ID + "/" + instance1ID + "/logs/bin.<*>.INFO.<timestamp>",
+			"apps/google naps/" + install1ID + "/" + instance1ID + "/pprof",
+			"apps/google naps/" + install1ID + "/" + instance1ID + "/stats",
+			"apps/google naps/" + install1ID + "/" + instance1ID + "/stats/ipc",
+			"apps/google naps/" + install1ID + "/" + instance1ID + "/stats/system",
+			"apps/google naps/" + install1ID + "/" + instance1ID + "/stats/system/start-time-rfc1123",
+			"apps/google naps/" + install1ID + "/" + instance1ID + "/stats/system/start-time-unix",
+			"apps/google naps/" + install2ID,
 			"nm",
 		}},
 		{"nm/apps", "*", []string{"google naps"}},
-		{"nm/apps/google naps", "*", []string{installID}},
-		{"nm/apps/google naps/" + installID, "*", []string{instance1ID}},
-		{"nm/apps/google naps/" + installID + "/" + instance1ID, "*", []string{"logs", "pprof", "stats"}},
-		{"nm/apps/google naps/" + installID + "/" + instance1ID + "/logs", "*", []string{
+		{"nm/apps/google naps", "*", []string{install1ID, install2ID}},
+		{"nm/apps/google naps/" + install1ID, "*", []string{instance1ID}},
+		{"nm/apps/google naps/" + install1ID + "/" + instance1ID, "*", []string{"logs", "pprof", "stats"}},
+		{"nm/apps/google naps/" + install1ID + "/" + instance1ID + "/logs", "*", []string{
 			"STDERR-<timestamp>",
 			"STDOUT-<timestamp>",
 			"bin.INFO",
 			"bin.<*>.INFO.<timestamp>",
 		}},
-		{"nm/apps/google naps/" + installID + "/" + instance1ID + "/stats/system", "start-time*", []string{"start-time-rfc1123", "start-time-unix"}},
+		{"nm/apps/google naps/" + install1ID + "/" + instance1ID + "/stats/system", "start-time*", []string{"start-time-rfc1123", "start-time-unix"}},
 	}
 	logFileTimeStampRE := regexp.MustCompile("(STDOUT|STDERR)-[0-9]+$")
 	logFileTrimInfoRE := regexp.MustCompile(`bin\..*\.INFO\.[0-9.-]+$`)
@@ -1113,7 +1117,7 @@ func TestNodeManagerGlobAndDebug(t *testing.T) {
 	}
 
 	// Call Size() on the log file objects.
-	files, err := testutil.GlobName(globalRT.NewContext(), "nm", "apps/google naps/"+installID+"/"+instance1ID+"/logs/*")
+	files, err := testutil.GlobName(globalRT.NewContext(), "nm", "apps/google naps/"+install1ID+"/"+instance1ID+"/logs/*")
 	if err != nil {
 		t.Errorf("unexpected glob error: %v", err)
 	}
@@ -1129,7 +1133,7 @@ func TestNodeManagerGlobAndDebug(t *testing.T) {
 	}
 
 	// Call Value() on some of the stats objects.
-	objects, err := testutil.GlobName(globalRT.NewContext(), "nm", "apps/google naps/"+installID+"/"+instance1ID+"/stats/system/start-time*")
+	objects, err := testutil.GlobName(globalRT.NewContext(), "nm", "apps/google naps/"+install1ID+"/"+instance1ID+"/stats/system/start-time*")
 	if err != nil {
 		t.Errorf("unexpected glob error: %v", err)
 	}
@@ -1146,7 +1150,7 @@ func TestNodeManagerGlobAndDebug(t *testing.T) {
 
 	// Call CmdLine() on the pprof object.
 	{
-		name := "nm/apps/google naps/" + installID + "/" + instance1ID + "/pprof"
+		name := "nm/apps/google naps/" + install1ID + "/" + instance1ID + "/pprof"
 		c := pprof.PProfClient(name)
 		v, err := c.CmdLine(globalRT.NewContext())
 		if err != nil {

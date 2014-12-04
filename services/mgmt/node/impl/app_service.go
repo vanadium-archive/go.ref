@@ -1162,6 +1162,8 @@ func (i *appService) scanInstances(tree *treeNode) {
 	if err != nil {
 		return
 	}
+	// Add the node corresponding to the installation itself.
+	tree.find(i.suffix[:2], true)
 	// Find all instances.
 	infoGlob := []string{installDir, "instances", "instance-*", "info"}
 	instances, err := filepath.Glob(filepath.Join(infoGlob...))
