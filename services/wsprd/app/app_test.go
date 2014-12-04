@@ -31,8 +31,15 @@ import (
 var (
 	testPrincipalBlessing = "test"
 	testPrincipal         = newPrincipal(testPrincipalBlessing)
-	r                     = rt.Init()
+	r                     veyron2.Runtime
 )
+
+func init() {
+	var err error
+	if r, err = rt.New(); err != nil {
+		panic(err)
+	}
+}
 
 // newBlessedPrincipal returns a new principal that has a blessing from the
 // provided runtime's principal which is set on its BlessingStore such

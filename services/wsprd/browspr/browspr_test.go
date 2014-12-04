@@ -10,6 +10,7 @@ import (
 	"veyron.io/veyron/veyron/profiles"
 	"veyron.io/veyron/veyron/runtimes/google/ipc/stream/proxy"
 	mounttable "veyron.io/veyron/veyron/services/mounttable/lib"
+	"veyron.io/veyron/veyron2"
 	"veyron.io/veyron/veyron2/ipc"
 	"veyron.io/veyron/veyron2/naming"
 	"veyron.io/veyron/veyron2/options"
@@ -21,9 +22,14 @@ import (
 	"veyron.io/wspr/veyron/services/wsprd/lib"
 )
 
-var (
-	r = rt.Init()
-)
+var r veyron2.Runtime
+
+func init() {
+	var err error
+	if r, err = rt.New(); err != nil {
+		panic(err)
+	}
+}
 
 func startProxy() (*proxy.Proxy, error) {
 	rid, err := naming.NewRoutingID()

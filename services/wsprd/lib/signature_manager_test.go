@@ -16,10 +16,6 @@ const (
 	name = "/veyron/name"
 )
 
-func init() {
-	rt.Init()
-}
-
 func expectedSignature() ipc.ServiceSignature {
 	return ipc.ServiceSignature{
 		Methods: make(map[string]ipc.MethodSignature),
@@ -80,8 +76,14 @@ func assertSignatureAsExpected(t *testing.T, got, expected *ipc.ServiceSignature
 }
 
 func TestFetching(t *testing.T) {
+	runtime, err := rt.New()
+	if err != nil {
+		t.Fatalf("Could not initialize runtime: %s", err)
+	}
+	defer runtime.Cleanup()
+
 	sm := NewSignatureManager()
-	got, err := sm.Signature(rt.R().NewContext(), name, client())
+	got, err := sm.Signature(runtime.NewContext(), name, client())
 	if err != nil {
 		t.Errorf(`Did not expect an error but got %v`, err)
 		return
@@ -91,8 +93,14 @@ func TestFetching(t *testing.T) {
 }
 
 func TestThatCachedAfterFetching(t *testing.T) {
+	runtime, err := rt.New()
+	if err != nil {
+		t.Fatalf("Could not initialize runtime: %s", err)
+	}
+	defer runtime.Cleanup()
+
 	sm := NewSignatureManager().(*signatureManager)
-	sig, _ := sm.Signature(rt.R().NewContext(), name, client())
+	sig, _ := sm.Signature(runtime.NewContext(), name, client())
 	cache, ok := sm.cache[name]
 	if !ok {
 		t.Errorf(`Signature manager did not cache the results`)
@@ -102,12 +110,18 @@ func TestThatCachedAfterFetching(t *testing.T) {
 }
 
 func TestThatCacheIsUsed(t *testing.T) {
+	runtime, err := rt.New()
+	if err != nil {
+		t.Fatalf("Could not initialize runtime: %s", err)
+	}
+	defer runtime.Cleanup()
+
 	client := client()
 	sm := NewSignatureManager()
 
 	// call twice
-	sm.Signature(rt.R().NewContext(), name, client)
-	sm.Signature(rt.R().NewContext(), name, client)
+	sm.Signature(runtime.NewContext(), name, client)
+	sm.Signature(runtime.NewContext(), name, client)
 
 	// expect number of calls to Signature method of client to still be 1 since cache
 	// should have been used despite the second call
@@ -117,16 +131,22 @@ func TestThatCacheIsUsed(t *testing.T) {
 }
 
 func TestThatLastAccessedGetUpdated(t *testing.T) {
+	runtime, err := rt.New()
+	if err != nil {
+		t.Fatalf("Could not initialize runtime: %s", err)
+	}
+	defer runtime.Cleanup()
+
 	client := client()
 	sm := NewSignatureManager().(*signatureManager)
-	sm.Signature(rt.R().NewContext(), name, client)
+	sm.Signature(runtime.NewContext(), name, client)
 	// make last accessed be in the past to account for the fact that
 	// two consecutive calls to time.Now() can return identical values.
 	sm.cache[name].lastAccessed = sm.cache[name].lastAccessed.Add(-ttl / 2)
 	prevAccess := sm.cache[name].lastAccessed
 
 	// access again
-	sm.Signature(rt.R().NewContext(), name, client)
+	sm.Signature(runtime.NewContext(), name, client)
 	newAccess := sm.cache[name].lastAccessed
 
 	if !newAccess.After(prevAccess) {
@@ -135,15 +155,21 @@ func TestThatLastAccessedGetUpdated(t *testing.T) {
 }
 
 func TestThatTTLExpires(t *testing.T) {
+	runtime, err := rt.New()
+	if err != nil {
+		t.Fatalf("Could not initialize runtime: %s", err)
+	}
+	defer runtime.Cleanup()
+
 	client := client()
 	sm := NewSignatureManager().(*signatureManager)
-	sm.Signature(rt.R().NewContext(), name, client)
+	sm.Signature(runtime.NewContext(), name, client)
 
 	// make last accessed go over the ttl
 	sm.cache[name].lastAccessed = sm.cache[name].lastAccessed.Add(-2 * ttl)
 
 	// make a second call
-	sm.Signature(rt.R().NewContext(), name, client)
+	sm.Signature(runtime.NewContext(), name, client)
 
 	// expect number of calls to Signature method of client to be 2 since cache should have expired
 	if client.TimesCalled("Signature") != 2 {

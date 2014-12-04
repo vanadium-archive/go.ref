@@ -69,10 +69,6 @@ func (mockAuthorizerFactory) createAuthorizer(handle int64, hasAuthorizer bool) 
 	return mockAuthorizer{handle: handle, hasAuthorizer: hasAuthorizer}, nil
 }
 
-func init() {
-	rt.Init()
-}
-
 func vomEncodeOrDie(v interface{}) string {
 	s, err := lib.VomEncode(v)
 	if err != nil {
@@ -82,8 +78,14 @@ func vomEncodeOrDie(v interface{}) string {
 }
 
 func TestSuccessfulLookup(t *testing.T) {
+	runtime, err := rt.New()
+	if err != nil {
+		t.Fatalf("Could not initialize runtime: %s", err)
+	}
+	defer runtime.Cleanup()
+
 	flowFactory := &mockFlowFactory{}
-	d := newDispatcher(0, flowFactory, mockInvokerFactory{}, mockAuthorizerFactory{}, rt.R().Logger())
+	d := newDispatcher(0, flowFactory, mockInvokerFactory{}, mockAuthorizerFactory{}, runtime.Logger())
 	expectedSig := signature.JSONServiceSignature{
 		"add": signature.JSONMethodSignature{
 			InArgs:     []string{"foo", "bar"},
@@ -131,8 +133,14 @@ func TestSuccessfulLookup(t *testing.T) {
 }
 
 func TestSuccessfulLookupWithAuthorizer(t *testing.T) {
+	runtime, err := rt.New()
+	if err != nil {
+		t.Fatalf("Could not initialize runtime: %s", err)
+	}
+	defer runtime.Cleanup()
+
 	flowFactory := &mockFlowFactory{}
-	d := newDispatcher(0, flowFactory, mockInvokerFactory{}, mockAuthorizerFactory{}, rt.R().Logger())
+	d := newDispatcher(0, flowFactory, mockInvokerFactory{}, mockAuthorizerFactory{}, runtime.Logger())
 	expectedSig := signature.JSONServiceSignature{
 		"add": signature.JSONMethodSignature{
 			InArgs:     []string{"foo", "bar"},
@@ -180,8 +188,14 @@ func TestSuccessfulLookupWithAuthorizer(t *testing.T) {
 }
 
 func TestFailedLookup(t *testing.T) {
+	runtime, err := rt.New()
+	if err != nil {
+		t.Fatalf("Could not initialize runtime: %s", err)
+	}
+	defer runtime.Cleanup()
+
 	flowFactory := &mockFlowFactory{}
-	d := newDispatcher(0, flowFactory, mockInvokerFactory{}, mockAuthorizerFactory{}, rt.R().Logger())
+	d := newDispatcher(0, flowFactory, mockInvokerFactory{}, mockAuthorizerFactory{}, runtime.Logger())
 	go func() {
 		if err := flowFactory.writer.WaitForMessage(1); err != nil {
 			t.Errorf("failed to get dispatch request %v", err)
@@ -191,7 +205,7 @@ func TestFailedLookup(t *testing.T) {
 		d.handleLookupResponse(0, jsonResponse)
 	}()
 
-	_, _, err := d.Lookup("a/b")
+	_, _, err = d.Lookup("a/b")
 
 	if err == nil {
 		t.Errorf("expected error, but got none", err)
