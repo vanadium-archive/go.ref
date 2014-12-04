@@ -1,6 +1,7 @@
 package vtrace_test
 
 import (
+	"bytes"
 	"strings"
 	"testing"
 
@@ -134,6 +135,12 @@ func summary(span *vtrace.SpanRecord) string {
 	return summary
 }
 
+func traceString(trace *vtrace.TraceRecord) string {
+	var b bytes.Buffer
+	vtrace.FormatTrace(&b, trace, nil)
+	return b.String()
+}
+
 func expectSequence(t *testing.T, trace vtrace.TraceRecord, expectedSpans []string) {
 	// It's okay to have additional spans - someone may have inserted
 	// additional spans for more debugging.
@@ -148,13 +155,22 @@ func expectSequence(t *testing.T, trace vtrace.TraceRecord, expectedSpans []stri
 
 		// All spans should have a start.
 		if span.Start == 0 {
-			t.Errorf("span missing start: %#v", span)
+			t.Errorf("span missing start: %x, %s", span.ID[12:], traceString(&trace))
 		}
-		// All spans except the root should have an end.
-		if span.Name != "" && span.End == 0 {
-			t.Errorf("span missing end: %#v", span)
-			if span.Start >= span.End {
-				t.Errorf("span end should be after start: %#v", span)
+		// All spans except the root should have a valid end.
+		// TODO(mattr): For now I'm also skipping connectFlow and
+		// vc.HandshakeDialedVC spans because the ws endpoints are
+		// currently non-deterministic in terms of whether they fail
+		// before the test ends or not.  In the future it will be
+		// configurable whether we listen on ws or not and then we should
+		// adjust the test to not listen and remove this check.
+		if span.Name != "" &&
+			span.Name != "<client>connectFlow" &&
+			span.Name != "vc.HandshakeDialedVC" {
+			if span.End == 0 {
+				t.Errorf("span missing end: %x, %s", span.ID[12:], traceString(&trace))
+			} else if span.Start >= span.End {
+				t.Errorf("span end should be after start: %x, %s", span.ID[12:], traceString(&trace))
 			}
 		}
 
