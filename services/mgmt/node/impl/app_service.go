@@ -707,7 +707,7 @@ func systemAccountForHelper(ctx ipc.ServerContext, helperPath string, uat Blessi
 	return "", verror2.Make(ErrOperationFailed, ctx)
 }
 
-func genCmd(instanceDir, helperPath, systemName string) (*exec.Cmd, error) {
+func genCmd(instanceDir, helperPath, systemName string, nsRoots []string) (*exec.Cmd, error) {
 	versionLink := filepath.Join(instanceDir, "version")
 	versionDir, err := filepath.EvalSymlinks(versionLink)
 	if err != nil {
@@ -727,9 +727,11 @@ func genCmd(instanceDir, helperPath, systemName string) (*exec.Cmd, error) {
 	cmd := exec.Command(helperPath)
 	cmd.Args = append(cmd.Args, "--username", systemName)
 
-	// TODO(caprita): Also pass in configuration info like NAMESPACE_ROOT to
-	// the app (to point to the device mounttable).
-	cmd.Env = envelope.Env
+	var nsRootEnvs []string
+	for i, r := range nsRoots {
+		nsRootEnvs = append(nsRootEnvs, fmt.Sprintf("%s%d=%s", consts.NamespaceRootPrefix, i, r))
+	}
+	cmd.Env = append(nsRootEnvs, envelope.Env...)
 	rootDir := filepath.Join(instanceDir, "root")
 	if err := mkdir(rootDir); err != nil {
 		return nil, err
@@ -755,7 +757,7 @@ func genCmd(instanceDir, helperPath, systemName string) (*exec.Cmd, error) {
 	cmd.Args = append(cmd.Args, "--run", binPath)
 	cmd.Args = append(cmd.Args, "--")
 
-	// Set up args and env.
+	// Args to be passed by helper to the app.
 	cmd.Args = append(cmd.Args, "--log_dir=../logs")
 	cmd.Args = append(cmd.Args, envelope.Args...)
 	return cmd, nil
@@ -846,12 +848,12 @@ func (i *appService) startCmd(instanceDir string, cmd *exec.Cmd) error {
 	return nil
 }
 
-func (i *appService) run(instanceDir, systemName string) error {
+func (i *appService) run(nsRoots []string, instanceDir, systemName string) error {
 	if err := transitionInstance(instanceDir, suspended, starting); err != nil {
 		return err
 	}
 
-	cmd, err := genCmd(instanceDir, i.config.Helper, systemName)
+	cmd, err := genCmd(instanceDir, i.config.Helper, systemName, nsRoots)
 	if err == nil {
 		err = i.startCmd(instanceDir, cmd)
 	}
@@ -882,7 +884,9 @@ func (i *appService) Start(call ipc.ServerContext) ([]string, error) {
 		return nil, err
 	}
 
-	if err = i.run(instanceDir, systemName); err != nil {
+	// For now, use the namespace roots of the node manager runtime to pass
+	// to the app.
+	if err = i.run(veyron2.RuntimeFromContext(call).Namespace().Roots(), instanceDir, systemName); err != nil {
 		// TODO(caprita): We should call cleanupDir here, but we don't
 		// in order to not lose the logs for the instance (so we can
 		// debug why run failed).  Clean this up.
@@ -930,7 +934,7 @@ func (i *appService) Resume(call ipc.ServerContext) error {
 	if startSystemName != systemName {
 		return verror2.Make(verror2.NoAccess, call, "Not allowed to resume an application under a different system name.")
 	}
-	return i.run(instanceDir, systemName)
+	return i.run(veyron2.RuntimeFromContext(call).Namespace().Roots(), instanceDir, systemName)
 }
 
 func stopAppRemotely(ctx context.T, appVON string) error {

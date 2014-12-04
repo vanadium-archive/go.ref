@@ -571,7 +571,7 @@ func TestAppLifeCycle(t *testing.T) {
 
 	// Set up the node manager.  Since we won't do node manager updates,
 	// don't worry about its application envelope and current link.
-	nmh, nms := runShellCommand(t, sh, crEnv, nodeManagerCmd, "nm", root, helperPath, "unused_app_rep_ name", "unused_curr_link")
+	nmh, nms := runShellCommand(t, sh, crEnv, nodeManagerCmd, "nm", root, helperPath, "unused_app_repo_name", "unused_curr_link")
 	readPID(t, nms)
 
 	// Create the local server that the app uses to let us know it's ready.
