@@ -238,7 +238,7 @@ func (i *nodeService) testNodeManager(ctx context.T, workspace string, envelope 
 	if err != nil {
 		return verror2.Make(ErrOperationFailed, ctx)
 	}
-	// Check that invoking Update() succeeds.
+	// Check that invoking Revert() succeeds.
 	childName = naming.Join(childName, "nm")
 	nmClient := node.NodeClient(childName)
 	linkOld, pathOld, err := i.getCurrentFileInfo()
@@ -258,13 +258,17 @@ func (i *nodeService) testNodeManager(ctx context.T, workspace string, envelope 
 	}
 	// Check that the new node manager updated the current symbolic link.
 	if !linkOld.ModTime().Before(linkNew.ModTime()) {
-		vlog.Errorf("new node manager test failed")
+		vlog.Errorf("New node manager test failed")
 		return verror2.Make(ErrOperationFailed, ctx)
 	}
 	// Ensure that the current symbolic link points to the same script.
 	if pathNew != pathOld {
 		updateLink(pathOld, i.config.CurrentLink)
-		vlog.Errorf("new node manager test failed")
+		vlog.Errorf("New node manager test failed")
+		return verror2.Make(ErrOperationFailed, ctx)
+	}
+	if err := handle.Wait(childWaitTimeout); err != nil {
+		vlog.Errorf("New node manager failed to exit cleanly: %v", err)
 		return verror2.Make(ErrOperationFailed, ctx)
 	}
 	return nil

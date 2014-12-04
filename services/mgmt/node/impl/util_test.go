@@ -171,12 +171,12 @@ func newServer() (ipc.Server, string) {
 	return server, endpoint.String()
 }
 
-// resolveExpectError verifies that the given name is not in the mounttable.
+// resolveExpectNotFound verifies that the given name is not in the mounttable.
 func resolveExpectNotFound(t *testing.T, name string) {
 	if results, err := globalRT.Namespace().Resolve(globalRT.NewContext(), name); err == nil {
-		t.Fatalf("Resolve(%v) succeeded with results %v when it was expected to fail", name, results)
+		t.Fatalf("%s: Resolve(%v) succeeded with results %v when it was expected to fail", loc(1), name, results)
 	} else if expectErr := naming.ErrNoSuchName.ID; !verror2.Is(err, expectErr) {
-		t.Fatalf("Resolve(%v) failed with error %v, expected error ID %v", name, err, expectErr)
+		t.Fatalf("%s: Resolve(%v) failed with error %v, expected error ID %v", loc(1), name, err, expectErr)
 	}
 }
 
