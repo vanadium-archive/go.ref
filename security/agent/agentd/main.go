@@ -12,6 +12,7 @@ import (
 	"code.google.com/p/go.crypto/ssh/terminal"
 
 	"veyron.io/veyron/veyron/lib/flags/consts"
+	vsignals "veyron.io/veyron/veyron/lib/signals"
 	_ "veyron.io/veyron/veyron/profiles"
 	vsecurity "veyron.io/veyron/veyron/security"
 	"veyron.io/veyron/veyron/security/agent"
@@ -102,7 +103,22 @@ agent protocol instead of directly reading from disk.
 		log.Fatalf("Error starting child: %v", err)
 	}
 	sock.Close()
+	shutdown := make(chan struct{})
+	go func() {
+		select {
+		case sig := <-vsignals.ShutdownOnSignals(runtime):
+			// TODO(caprita): Should we also relay double signal to
+			// the child?  That currently just force exits the
+			// current process.
+			if sig == vsignals.STOP {
+				sig = syscall.SIGTERM
+			}
+			cmd.Process.Signal(sig)
+		case <-shutdown:
+		}
+	}()
 	cmd.Wait()
+	close(shutdown)
 	status := cmd.ProcessState.Sys().(syscall.WaitStatus)
 	os.Exit(status.ExitStatus())
 }
