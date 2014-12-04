@@ -60,7 +60,12 @@ func TestInit(t *testing.T) {
 }
 
 func child(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
-	r := rt.Init()
+	r, err := rt.New()
+	if err != nil {
+		vlog.Fatalf("Could not initialize runtime: %s", err)
+	}
+	defer r.Cleanup()
+
 	vlog.Infof("%s\n", r.Logger())
 	fmt.Fprintf(stdout, "%s\n", r.Logger())
 	modules.WaitForEOF(stdin)
@@ -123,7 +128,12 @@ func tmpDir(t *testing.T) string {
 }
 
 func principal(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
-	r := rt.Init()
+	r, err := rt.New()
+	if err != nil {
+		vlog.Fatalf("Could not initialize runtime: %s", err)
+	}
+	defer r.Cleanup()
+
 	if err := validatePrincipal(r.Principal()); err != nil {
 		return err
 	}
@@ -134,7 +144,12 @@ func principal(stdin io.Reader, stdout, stderr io.Writer, env map[string]string,
 // Runner runs a principal as a subprocess and reports back with its
 // own security info and it's childs.
 func runner(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
-	r := rt.Init()
+	r, err := rt.New()
+	if err != nil {
+		vlog.Fatalf("Could not initialize runtime: %s", err)
+	}
+	defer r.Cleanup()
+
 	if err := validatePrincipal(r.Principal()); err != nil {
 		return err
 	}

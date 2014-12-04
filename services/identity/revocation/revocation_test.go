@@ -50,7 +50,7 @@ func revokerSetup(t *testing.T, r veyron2.Runtime) (dischargerKey security.Publi
 	revokerService := newRevocationManager(t)
 	dischargerServer, err := r.NewServer()
 	if err != nil {
-		t.Fatalf("rt.R().NewServer: %s", err)
+		t.Fatalf("r.NewServer: %s", err)
 	}
 	dischargerEP, err := dischargerServer.Listen(profiles.LocalListenSpec)
 	if err != nil {

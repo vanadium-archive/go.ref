@@ -9,6 +9,7 @@ import (
 	"sync"
 	"syscall"
 
+	"veyron.io/veyron/veyron2"
 	"veyron.io/veyron/veyron2/ipc"
 	"veyron.io/veyron/veyron2/rt"
 	"veyron.io/veyron/veyron2/vlog"
@@ -28,8 +29,8 @@ type dummy struct{}
 func (*dummy) Echo(ipc.ServerContext) error { return nil }
 
 // makeServer sets up a simple dummy server.
-func makeServer() ipc.Server {
-	server, err := rt.R().NewServer()
+func makeServer(r veyron2.Runtime) ipc.Server {
+	server, err := r.NewServer()
 	if err != nil {
 		vlog.Fatalf("r.NewServer error: %s", err)
 	}
@@ -44,17 +45,17 @@ func makeServer() ipc.Server {
 
 // remoteCmdLoop listens on stdin and interprets commands sent over stdin (from
 // the parent process).
-func remoteCmdLoop(stdin io.Reader) func() {
+func remoteCmdLoop(r veyron2.Runtime, stdin io.Reader) func() {
 	done := make(chan struct{})
 	go func() {
 		scanner := bufio.NewScanner(stdin)
 		for scanner.Scan() {
 			switch scanner.Text() {
 			case "stop":
-				rt.R().AppCycle().Stop()
+				r.AppCycle().Stop()
 			case "forcestop":
 				fmt.Println("straight exit")
-				rt.R().AppCycle().ForceStop()
+				r.AppCycle().ForceStop()
 			case "close":
 				close(done)
 				return
@@ -70,21 +71,24 @@ func remoteCmdLoop(stdin io.Reader) func() {
 // For a more typical server, see simpleServerProgram.
 func complexServerProgram(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
 	// Initialize the runtime.  This is boilerplate.
-	r := rt.Init()
+	r, err := rt.New()
+	if err != nil {
+		vlog.Fatalf("Could not initialize runtime: %s", err)
+	}
 
 	// This is part of the test setup -- we need a way to accept
 	// commands from the parent process to simulate Stop and
 	// RemoteStop commands that would normally be issued from
 	// application code.
-	defer remoteCmdLoop(stdin)()
+	defer remoteCmdLoop(r, stdin)()
 
 	// r.Cleanup is optional, but it's a good idea to clean up, especially
 	// since it takes care of flushing the logs before exiting.
 	defer r.Cleanup()
 
 	// Create a couple servers, and start serving.
-	server1 := makeServer()
-	server2 := makeServer()
+	server1 := makeServer(r)
+	server2 := makeServer(r)
 
 	// This is how to wait for a shutdown.  In this example, a shutdown
 	// comes from a signal or a stop command.
@@ -213,13 +217,16 @@ func complexServerProgram(stdin io.Reader, stdout, stderr io.Writer, env map[str
 // complexServerProgram.
 func simpleServerProgram(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
 	// Initialize the runtime.  This is boilerplate.
-	r := rt.Init()
+	r, err := rt.New()
+	if err != nil {
+		vlog.Fatalf("Could not initialize runtime: %s", err)
+	}
 
 	// This is part of the test setup -- we need a way to accept
 	// commands from the parent process to simulate Stop and
 	// RemoteStop commands that would normally be issued from
 	// application code.
-	defer remoteCmdLoop(stdin)()
+	defer remoteCmdLoop(r, stdin)()
 
 	// r.Cleanup is optional, but it's a good idea to clean up, especially
 	// since it takes care of flushing the logs before exiting.
@@ -230,7 +237,7 @@ func simpleServerProgram(stdin io.Reader, stdout, stderr io.Writer, env map[stri
 	defer r.Cleanup()
 
 	// Create a server, and start serving.
-	server := makeServer()
+	server := makeServer(r)
 
 	// This is how to wait for a shutdown.  In this example, a shutdown
 	// comes from a signal or a stop command.
