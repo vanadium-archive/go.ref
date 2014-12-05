@@ -19,7 +19,7 @@ func init() {
 	stats.NewString("system/start-time-rfc1123").Set(now.Format(time.RFC1123))
 	stats.NewString("system/cmdline").Set(strings.Join(os.Args, " "))
 	stats.NewInteger("system/num-cpu").Set(int64(runtime.NumCPU()))
-	stats.NewInteger("system/num-goroutine").Set(int64(runtime.NumGoroutine()))
+	stats.NewIntegerFunc("system/num-goroutine", func() int64 { return int64(runtime.NumGoroutine()) })
 	stats.NewString("system/version").Set(runtime.Version())
 	if hostname, err := os.Hostname(); err == nil {
 		stats.NewString("system/hostname").Set(hostname)
