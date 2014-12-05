@@ -97,7 +97,7 @@ func New(opts ...veyron2.ROpt) (veyron2.Runtime, error) {
 		vlog.VI(1).Infof("Using profile %q", rt.profile.Name())
 	}
 
-	if ns, err := namespace.New(rt, rt.flags.NamespaceRoots...); err != nil {
+	if ns, err := namespace.New(rt.flags.NamespaceRoots...); err != nil {
 		return nil, fmt.Errorf("Couldn't create mount table: %v", err)
 	} else {
 		rt.ns = ns

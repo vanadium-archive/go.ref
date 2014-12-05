@@ -5,6 +5,7 @@ import (
 
 	inaming "veyron.io/veyron/veyron/runtimes/google/naming"
 
+	"veyron.io/veyron/veyron2"
 	"veyron.io/veyron/veyron2/context"
 	"veyron.io/veyron/veyron2/ipc"
 	"veyron.io/veyron/veyron2/naming"
@@ -118,9 +119,12 @@ func (ns *namespace) Mount(ctx context.T, name, server string, ttl time.Duration
 			}
 		}
 	}
+
+	client := veyron2.RuntimeFromContext(ctx).Client()
+
 	// Mount the server in all the returned mount tables.
 	f := func(ctx context.T, mt, id string) status {
-		return mountIntoMountTable(ctx, ns.rt.Client(), mt, server, ttl, flags, id)
+		return mountIntoMountTable(ctx, client, mt, server, ttl, flags, id)
 	}
 	err := ns.dispatch(ctx, name, f)
 	vlog.VI(1).Infof("Mount(%s, %s) -> %v", name, server, err)
@@ -130,8 +134,9 @@ func (ns *namespace) Mount(ctx context.T, name, server string, ttl time.Duration
 func (ns *namespace) Unmount(ctx context.T, name, server string) error {
 	defer vlog.LogCall()()
 	// Unmount the server from all the mount tables.
-	f := func(ctx context.T, mt, id string) status {
-		return unmountFromMountTable(ctx, ns.rt.Client(), mt, server, id)
+	client := veyron2.RuntimeFromContext(ctx).Client()
+	f := func(context context.T, mt, id string) status {
+		return unmountFromMountTable(ctx, client, mt, server, id)
 	}
 	err := ns.dispatch(ctx, name, f)
 	vlog.VI(1).Infof("Unmount(%s, %s) -> %v", name, server, err)
