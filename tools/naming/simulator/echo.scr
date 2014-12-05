@@ -3,6 +3,8 @@
 
 set localaddr=--veyron.tcp.address=127.0.0.1:0
 
+setRoots ""
+
 # A 'stand-alone' server
 echoServer -- $localaddr "text" ""
 set es=$_

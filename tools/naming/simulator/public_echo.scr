@@ -1,6 +1,9 @@
 # Simple script to test for interop between the current checked in
 # code here and the running public mount table.
 
+# TODO(cnicolaou): reenable this when our prod services are more reliable.
+quit
+
 set localaddr=--veyron.tcp.address=127.0.0.1:0
 
 # now use the global nameserver.
