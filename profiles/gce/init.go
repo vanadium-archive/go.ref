@@ -60,11 +60,11 @@ func (p *profile) String() string {
 	return "net " + p.Platform().String()
 }
 
-func (p *profile) Init(rt veyron2.Runtime, publisher *config.Publisher) (veyron2.AppCycle, error) {
+func (p *profile) Init(veyron2.Runtime, *config.Publisher) (veyron2.AppCycle, error) {
 	if !gce.RunningOnGCE() {
 		return nil, fmt.Errorf("GCE profile used on a non-GCE system")
 	}
-	p.ac = appcycle.New(rt)
+	p.ac = appcycle.New()
 	ListenSpec.Address = listenAddressFlag.String()
 	if ip, err := gce.ExternalIPAddress(); err != nil {
 		return p.ac, err
