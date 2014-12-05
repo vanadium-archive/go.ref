@@ -152,7 +152,7 @@ func (ln *wsTCPListener) netAcceptLoop() {
 			continue
 		}
 
-		vlog.VI(1).Info("Got a connection from %s (local address: %s)", conn.RemoteAddr(), conn.LocalAddr())
+		vlog.VI(1).Infof("Got a connection from %s (local address: %s)", conn.RemoteAddr(), conn.LocalAddr())
 		// Check to see if it is a regular connection or a http connection.
 		if magic[0] == BinaryMagicByte {
 			if _, err := bc.r.ReadByte(); err != nil {
