@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"veyron.io/lib/cmdline"
-	_ "veyron.io/veyron/veyron/profiles/static"
 	idl_test_base "veyron.io/veyron/veyron/tools/vrpc/test_base"
 	"veyron.io/veyron/veyron2"
 	"veyron.io/veyron/veyron2/context"
