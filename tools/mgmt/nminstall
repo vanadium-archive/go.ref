@@ -28,7 +28,7 @@ set -e
 
 usage() {
   echo "usage:"
-  echo "./nminstall [--single_user] <install parent dir> [<binary source>]"
+  echo "./nminstall [--single_user] <install parent dir> [<binary source>] [-- args for node manager...]"
 }
 
 readonly BIN_NAMES=(noded suidhelper agentd)
@@ -132,6 +132,7 @@ main() {
     usage
     exit 1
   fi
+  shift
 
   if [[ ! -d "${INSTALL_PARENT_DIR}" ]]; then
     echo "${INSTALL_PARENT_DIR} is not a directory!"
@@ -143,7 +144,7 @@ main() {
   # TODO(caprita): Check that the node manager is not already installed before
   # proceeding.  We should require an explicit uninstall to avoid wiping away
   # the node manager accidentally.
-  if [[ ! ${SINGLE_USER} ]]; then
+  if [[ ${SINGLE_USER} == false ]]; then
     sudo rm -rf "${INSTALL_DIR}"
   else
     rm -rf "${INSTALL_DIR}"
@@ -154,7 +155,12 @@ main() {
   mkdir -m 700 "${BIN_INSTALL}"
 
   # Fetch the binaries.
-  local -r BIN_SOURCE="$2"
+  if [[ $# = 0 || "$1" = "--" ]]; then
+    local -r BIN_SOURCE=""
+  else
+    local -r BIN_SOURCE="$1"
+    shift
+  fi
   get_binaries "${BIN_INSTALL}" "${BIN_SOURCE}"
   for bin_name in "${BIN_NAMES[@]}"; do
     local BINARY="${BIN_INSTALL}/${bin_name}"
@@ -168,7 +174,7 @@ main() {
   # Set up the suidhelper.
   echo "Configuring suidhelper ..."
   local -r SETUID_SCRIPT="${BIN_INSTALL}/suidhelper"
-  if [[ ! ${SINGLE_USER} ]]; then
+  if [[ ${SINGLE_USER} == false ]]; then
     sudo bash -c "chown root:root \"${SETUID_SCRIPT}\"; chmod 4551 \"${SETUID_SCRIPT}\""
   fi
   echo "Suidhelper configured."
@@ -177,7 +183,15 @@ main() {
   local -r NM_ROOT="${INSTALL_DIR}/nmroot"
   echo "Installing node manager under ${NM_ROOT} ..."
   local -r PUBLISH=$(hostname)
-  VEYRON_NM_CURRENT="${INSTALL_DIR}/noded.curr" VEYRON_NM_ROOT="${NM_ROOT}" VEYRON_NM_HELPER="${SETUID_SCRIPT}" "${BIN_INSTALL}/noded" --install_self --name="${PUBLISH}"
+  if [[ "$1" = "--" ]]; then
+    shift
+  elif [[ $# != 0 ]]; then
+    echo "Unexpected arguments: $@"
+    usage
+    exit 1
+  fi
+
+  VEYRON_NM_CURRENT="${INSTALL_DIR}/noded.curr" VEYRON_NM_ROOT="${NM_ROOT}" VEYRON_NM_HELPER="${SETUID_SCRIPT}" "${BIN_INSTALL}/noded" --install_self -- --name="${PUBLISH}" "$@"
   echo "Node manager installed."
 
   local -r SECURITY_DIR="${INSTALL_DIR}/security"
@@ -194,7 +208,7 @@ main() {
   echo
   # NOTE: If you update the command below, please also update the command echoed
   # above to keep the two in sync.
-  VEYRON_CREDENTIALS="${PRINCIPAL_DIR}" "${BIN_INSTALL}/agentd" "${AGENT_FLAG}" --additional_principals="${AGENT_KEY_DIR}" "${INSTALL_DIR}/noded.curr"
+  VEYRON_CREDENTIALS="${PRINCIPAL_DIR}" exec "${BIN_INSTALL}/agentd" ${AGENT_FLAG} --additional_principals="${AGENT_KEY_DIR}" "${INSTALL_DIR}/noded.curr"
 }
 
 main "$@"

@@ -37,11 +37,8 @@ func main() {
 	}
 
 	if *installSelf {
-		// If the user specified a name to publish as, pass that through
-		// to the installed node manager script.
-		// TODO(caprita): Make the flag survive updates.
-		args := append([]string{"--name=" + *publishAs}, flag.Args()...)
-		if err := impl.SelfInstall(args, os.Environ()); err != nil {
+		// TODO(caprita): Make the flags survive updates.
+		if err := impl.SelfInstall(flag.Args(), os.Environ()); err != nil {
 			vlog.Errorf("SelfInstall failed: %v", err)
 			os.Exit(1)
 		}
