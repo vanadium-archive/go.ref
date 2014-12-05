@@ -62,7 +62,11 @@ func withRuntime(stdin io.Reader, stdout, stderr io.Writer, env map[string]strin
 	// Make sure that we use "google" runtime implementation in this
 	// package even though we have to use the public API which supports
 	// arbitrary runtime implementations.
-	rt.Init(options.Profile{&myprofile{}})
+	r, err := rt.New(options.Profile{&myprofile{}})
+	if err != nil {
+		return err
+	}
+	defer r.Cleanup()
 	simpleEchoProgram(stdin, stdout)
 	return nil
 }

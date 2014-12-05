@@ -58,7 +58,12 @@ agent protocol instead of directly reading from disk.
 		vlog.Fatalf("failed to create new principal from dir(%s): %v", dir, err)
 	}
 
-	runtime := rt.Init(options.RuntimePrincipal{p})
+	runtime, err := rt.New(options.RuntimePrincipal{p})
+	if err != nil {
+		panic("Could not initialize runtime: " + err.Error())
+	}
+	defer runtime.Cleanup()
+
 	log := runtime.Logger()
 
 	if err = os.Setenv(agent.FdVarName, "3"); err != nil {

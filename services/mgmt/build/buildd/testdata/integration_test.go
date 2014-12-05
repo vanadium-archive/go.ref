@@ -14,12 +14,7 @@ import (
 	"veyron.io/veyron/veyron/lib/testutil/integration"
 	"veyron.io/veyron/veyron/lib/testutil/security"
 	_ "veyron.io/veyron/veyron/profiles"
-	"veyron.io/veyron/veyron2/rt"
 )
-
-func init() {
-	rt.Init()
-}
 
 var binPkgs = []string{
 	"veyron.io/veyron/veyron/services/mgmt/build/buildd",
