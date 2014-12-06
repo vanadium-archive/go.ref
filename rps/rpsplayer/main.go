@@ -290,6 +290,10 @@ func findAll(ctx context.T, t string, out chan []string) {
 		return
 	}
 	for e := range c {
+		if e.Error != nil {
+			fmt.Print("E")
+			continue
+		}
 		fmt.Print(".")
 		result = append(result, e.Name)
 	}
