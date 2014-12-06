@@ -3,7 +3,6 @@ package auditor
 import (
 	"database/sql"
 	"fmt"
-	_ "github.com/go-sql-driver/mysql"
 	"time"
 
 	"veyron.io/veyron/veyron2/vlog"
