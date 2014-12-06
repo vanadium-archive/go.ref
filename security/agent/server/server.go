@@ -22,11 +22,21 @@ import (
 	"veyron.io/veyron/veyron2/options"
 	"veyron.io/veyron/veyron2/security"
 	"veyron.io/veyron/veyron2/vdl/vdlutil"
-	"veyron.io/veyron/veyron2/verror"
+	verror "veyron.io/veyron/veyron2/verror2"
 	"veyron.io/veyron/veyron2/vlog"
 )
 
 const PrincipalHandleByteSize = sha512.Size
+
+const pkgPath = "veyron.io/veyron/veyron/security/agent/server"
+
+// Errors
+var (
+	errStoragePathRequired = verror.Register(pkgPath+".errStoragePathRequired",
+		verror.NoRetry, "{1:}{2:} RunKeyManager: storage path is required")
+	errNotMultiKeyMode = verror.Register(pkgPath+".errNotMultiKeyMode",
+		verror.NoRetry, "{1:}{2:} Not running in multi-key mode")
+)
 
 type keyHandle [PrincipalHandleByteSize]byte
 
@@ -63,7 +73,7 @@ func RunAnonymousAgent(runtime veyron2.Runtime, principal security.Principal) (c
 // The returned 'client' is typically passed via cmd.ExtraFiles to a child process.
 func RunKeyManager(runtime veyron2.Runtime, path string, passphrase []byte) (client *os.File, err error) {
 	if path == "" {
-		return nil, verror.BadArgf("storage path is required")
+		return nil, verror.Make(errStoragePathRequired, nil)
 	}
 
 	mgr := &keymgr{path: path, passphrase: passphrase, principals: make(map[keyHandle]security.Principal), runtime: runtime}
@@ -245,7 +255,7 @@ func (a agentd) MintDischarge(_ ipc.ServerContext, tp vdlutil.Any, caveat securi
 
 func (a keymgr) newKey(in_memory bool) (id []byte, p security.Principal, err error) {
 	if a.path == "" {
-		return nil, nil, verror.NoAccessf("not running in multi-key mode")
+		return nil, nil, verror.Make(errNotMultiKeyMode, nil)
 	}
 	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	keyHandle, err := keyid(key)

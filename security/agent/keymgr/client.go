@@ -11,7 +11,17 @@ import (
 	"veyron.io/veyron/veyron/lib/unixfd"
 	"veyron.io/veyron/veyron/security/agent/server"
 	"veyron.io/veyron/veyron2/context"
-	"veyron.io/veyron/veyron2/verror"
+	verror "veyron.io/veyron/veyron2/verror2"
+)
+
+const pkgPath = "veyron.io/veyron/veyron/security/agent/keymgr"
+
+// Errors
+var (
+	errInvalidResponse = verror.Register(pkgPath+".errInvalidResponse",
+		verror.NoRetry, "{1:}{2:} invalid response from agent. (expected {3} bytes, got {4})")
+	errInvalidKeyHandle = verror.Register(pkgPath+".errInvalidKeyHandle",
+		verror.NoRetry, "{1:}{2:} Invalid key handle")
 )
 
 const defaultManagerSocket = 4
@@ -42,7 +52,7 @@ func newAgent(fd int) (a *Agent, err error) {
 // NewPrincipal creates a new principal and returns the handle and a socket serving
 // the principal.
 // Typically the socket will be passed to a child process using cmd.ExtraFiles.
-func (a *Agent) NewPrincipal(_ context.T, inMemory bool) (handle []byte, conn *os.File, err error) {
+func (a *Agent) NewPrincipal(ctx context.T, inMemory bool) (handle []byte, conn *os.File, err error) {
 	req := make([]byte, 1)
 	if inMemory {
 		req[0] = 1
@@ -61,7 +71,7 @@ func (a *Agent) NewPrincipal(_ context.T, inMemory bool) (handle []byte, conn *o
 	}
 	if n != server.PrincipalHandleByteSize {
 		conn.Close()
-		return nil, nil, verror.BadProtocolf("invalid response from agent. (expected %d bytes, got %d)", server.PrincipalHandleByteSize, n)
+		return nil, nil, verror.Make(errInvalidResponse, ctx, server.PrincipalHandleByteSize, n)
 	}
 	return buf, conn, nil
 }
@@ -84,7 +94,7 @@ func (a *Agent) connect(req []byte) (*os.File, error) {
 // Typically this will be passed to a child process using cmd.ExtraFiles.
 func (a *Agent) NewConnection(handle []byte) (*os.File, error) {
 	if len(handle) != server.PrincipalHandleByteSize {
-		return nil, verror.BadArgf("Invalid key handle")
+		return nil, verror.Make(errInvalidKeyHandle, nil)
 	}
 	a.mu.Lock()
 	defer a.mu.Unlock()
