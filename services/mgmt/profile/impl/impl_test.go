@@ -45,6 +45,7 @@ func TestInterface(t *testing.T) {
 	if err != nil {
 		t.Fatalf("TempDir(%q, %q) failed: %v", dir, prefix, err)
 	}
+	defer os.RemoveAll(store)
 	dispatcher, err := NewDispatcher(store, nil)
 	if err != nil {
 		t.Fatalf("NewDispatcher() failed: %v", err)
