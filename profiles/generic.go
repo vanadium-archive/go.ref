@@ -12,10 +12,6 @@ import (
 	"veyron.io/veyron/veyron/profiles/internal"
 	"veyron.io/veyron/veyron/profiles/internal/platform"
 	_ "veyron.io/veyron/veyron/runtimes/google/rt"
-	"veyron.io/veyron/veyron/services/mgmt/debug"
-
-	// TODO(cnicolaou,ashankar): move this into flags.
-	sflag "veyron.io/veyron/veyron/security/flag"
 )
 
 // LocalListenSpec is a ListenSpec for 127.0.0.1.
@@ -53,11 +49,8 @@ func (*generic) Platform() *veyron2.Platform {
 }
 
 func (g *generic) Init(rt veyron2.Runtime, _ *config.Publisher) (veyron2.AppCycle, error) {
-	log := rt.Logger()
-	log.VI(1).Infof("%s", g)
+	rt.Logger().VI(1).Infof("%s", g)
 	g.ac = appcycle.New()
-
-	rt.ConfigureReservedName(debug.NewDispatcher(log.LogDir(), sflag.NewAuthorizerOrDie(), rt.VtraceStore()))
 	return g.ac, nil
 }
 
