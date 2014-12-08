@@ -43,8 +43,8 @@ func (mp *myprofile) String() string {
 	return "myprofile on " + mp.Platform().String()
 }
 
-func (mp *myprofile) Init(rt veyron2.Runtime, _ *config.Publisher) (veyron2.AppCycle, error) {
-	return appcycle.New(rt), nil
+func (mp *myprofile) Init(veyron2.Runtime, *config.Publisher) (veyron2.AppCycle, error) {
+	return appcycle.New(), nil
 }
 
 func (mp *myprofile) Cleanup() {}

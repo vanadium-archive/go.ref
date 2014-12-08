@@ -50,7 +50,7 @@ func (*generic) Platform() *veyron2.Platform {
 
 func (g *generic) Init(rt veyron2.Runtime, _ *config.Publisher) (veyron2.AppCycle, error) {
 	rt.Logger().VI(1).Infof("%s", g)
-	g.ac = appcycle.New(rt)
+	g.ac = appcycle.New()
 	return g.ac, nil
 }
 

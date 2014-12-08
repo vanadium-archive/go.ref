@@ -16,7 +16,6 @@ type AppCycle struct {
 	taskTrackers []chan<- veyron2.Task
 	task         veyron2.Task
 	shutDown     bool
-	rt           veyron2.Runtime
 	disp         *invoker
 }
 
@@ -24,8 +23,8 @@ type invoker struct {
 	ac *AppCycle
 }
 
-func New(rt veyron2.Runtime) *AppCycle {
-	ac := &AppCycle{rt: rt}
+func New() *AppCycle {
+	ac := new(AppCycle)
 	ac.disp = &invoker{ac}
 	return ac
 }

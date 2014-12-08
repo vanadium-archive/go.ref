@@ -72,7 +72,7 @@ func (p *static) Init(rt veyron2.Runtime, _ *config.Publisher) (veyron2.AppCycle
 		Proxy:    lf.ListenProxy,
 	}
 
-	p.ac = appcycle.New(rt)
+	p.ac = appcycle.New()
 
 	// Our address is private, so we test for running on GCE and for its
 	// 1:1 NAT configuration. GCEPublicAddress returns a non-nil addr

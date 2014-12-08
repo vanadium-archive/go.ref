@@ -88,7 +88,7 @@ func (p *profile) Init(rt veyron2.Runtime, publisher *config.Publisher) (veyron2
 		Proxy:    lf.ListenProxy,
 	}
 
-	p.ac = appcycle.New(rt)
+	p.ac = appcycle.New()
 
 	// Our address is private, so we test for running on GCE and for its
 	// 1:1 NAT configuration.
