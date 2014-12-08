@@ -29,21 +29,24 @@ type state struct {
 	// before its performance degrades allows the binary repository to
 	// store 16B objects.
 	depth int
-	// root identifies the local filesystem directory in which the
+	// rootDir identifies the local filesystem directory in which the
 	// binary repository stores its objects.
-	root string
+	rootDir string
+	// rootURL identifies the root URL of the HTTP server serving
+	// the download URLs.
+	rootURL string
 }
 
 // NewState creates a new state object for the binary service.  This
 // should be passed into both NewDispatcher and NewHTTPRoot.
-func NewState(root string, depth int) (*state, error) {
+func NewState(rootDir, rootURL string, depth int) (*state, error) {
 	if min, max := 0, md5.Size-1; min > depth || depth > max {
 		return nil, fmt.Errorf("Unexpected depth, expected a value between %v and %v, got %v", min, max, depth)
 	}
-	if _, err := os.Stat(root); err != nil {
-		return nil, fmt.Errorf("Stat(%v) failed: %v", root, err)
+	if _, err := os.Stat(rootDir); err != nil {
+		return nil, fmt.Errorf("Stat(%v) failed: %v", rootDir, err)
 	}
-	path := filepath.Join(root, VersionFile)
+	path := filepath.Join(rootDir, VersionFile)
 	output, err := ioutil.ReadFile(path)
 	if err != nil {
 		return nil, fmt.Errorf("ReadFile(%v) failed: %v", path, err)
@@ -52,8 +55,9 @@ func NewState(root string, depth int) (*state, error) {
 		return nil, fmt.Errorf("Unexpected version: expected %v, got %v", expected, got)
 	}
 	return &state{
-		depth: depth,
-		root:  root,
+		depth:   depth,
+		rootDir: rootDir,
+		rootURL: rootURL,
 	}, nil
 }
 
@@ -66,5 +70,5 @@ func (s *state) dir(suffix string) string {
 	for j := 0; j < s.depth; j++ {
 		dir = filepath.Join(dir, hash[j*2:(j+1)*2])
 	}
-	return filepath.Join(s.root, dir, hash)
+	return filepath.Join(s.rootDir, dir, hash)
 }

@@ -745,11 +745,11 @@ func tryInstall(ctx context.T) error {
 }
 
 func startRealBinaryRepository(t *testing.T) func() {
-	root, err := binaryimpl.SetupRoot("")
+	rootDir, err := binaryimpl.SetupRootDir("")
 	if err != nil {
-		t.Fatalf("binaryimpl.SetupRoot failed: %v", err)
+		t.Fatalf("binaryimpl.SetupRootDir failed: %v", err)
 	}
-	state, err := binaryimpl.NewState(root, 3)
+	state, err := binaryimpl.NewState(rootDir, "", 3)
 	if err != nil {
 		t.Fatalf("binaryimpl.NewState failed: %v", err)
 	}
@@ -774,8 +774,8 @@ func startRealBinaryRepository(t *testing.T) func() {
 		if err := server.Stop(); err != nil {
 			t.Fatalf("server.Stop failed: %v", err)
 		}
-		if err := os.RemoveAll(root); err != nil {
-			t.Fatalf("os.RemoveAll(%q) failed: %v", root, err)
+		if err := os.RemoveAll(rootDir); err != nil {
+			t.Fatalf("os.RemoveAll(%q) failed: %v", rootDir, err)
 		}
 	}
 }

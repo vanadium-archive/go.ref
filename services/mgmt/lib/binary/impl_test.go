@@ -37,11 +37,11 @@ func init() {
 
 func setupRepository(t *testing.T) (string, func()) {
 	// Setup the root of the binary repository.
-	root, err := ioutil.TempDir("", veyronPrefix)
+	rootDir, err := ioutil.TempDir("", veyronPrefix)
 	if err != nil {
 		t.Fatalf("TempDir() failed: %v", err)
 	}
-	path, perm := filepath.Join(root, impl.VersionFile), os.FileMode(0600)
+	path, perm := filepath.Join(rootDir, impl.VersionFile), os.FileMode(0600)
 	if err := ioutil.WriteFile(path, []byte(impl.Version), perm); err != nil {
 		vlog.Fatalf("WriteFile(%v, %v, %v) failed: %v", path, impl.Version, perm, err)
 	}
@@ -51,9 +51,9 @@ func setupRepository(t *testing.T) (string, func()) {
 		t.Fatalf("NewServer() failed: %v", err)
 	}
 	depth := 2
-	state, err := impl.NewState(root, depth)
+	state, err := impl.NewState(rootDir, "http://test-root-url", depth)
 	if err != nil {
-		t.Fatalf("NewState(%v, %v) failed: %v", root, depth, err)
+		t.Fatalf("NewState(%v, %v) failed: %v", rootDir, depth, err)
 	}
 	dispatcher := impl.NewDispatcher(state, nil)
 	endpoint, err := server.Listen(profiles.LocalListenSpec)
@@ -71,8 +71,8 @@ func setupRepository(t *testing.T) (string, func()) {
 		}
 		// Check that any directories and files that were created to
 		// represent the binary objects have been garbage collected.
-		if err := os.Remove(root); err != nil {
-			t.Fatalf("Remove(%v) failed: %v", root, err)
+		if err := os.RemoveAll(rootDir); err != nil {
+			t.Fatalf("Remove(%v) failed: %v", rootDir, err)
 		}
 		// Shutdown the binary repository server.
 		if err := server.Stop(); err != nil {
@@ -158,5 +158,19 @@ func TestFileAPI(t *testing.T) {
 	}
 	if err := Delete(runtime.NewContext(), von); err != nil {
 		t.Errorf("Delete(%v) failed: %v", von, err)
+	}
+}
+
+// TestDownloadURL tests the binary repository client-side library
+// DownloadURL method.
+func TestDownloadURL(t *testing.T) {
+	von, cleanup := setupRepository(t)
+	defer cleanup()
+	url, _, err := DownloadURL(runtime.NewContext(), von)
+	if err != nil {
+		t.Fatalf("DownloadURL(%v) failed: %v", von, err)
+	}
+	if got, want := url, "http://test-root-url/test"; got != want {
+		t.Fatalf("unexpect output: got %v, want %v", got, want)
 	}
 }

@@ -20,9 +20,9 @@ import (
 const defaultDepth = 3
 
 var (
-	name     = flag.String("name", "", "name to mount the binary repository as")
-	rootFlag = flag.String("root", "", "root directory for the binary repository")
-	httpAddr = flag.String("http", ":0", "TCP address on which the HTTP server runs")
+	name        = flag.String("name", "", "name to mount the binary repository as")
+	rootDirFlag = flag.String("root_dir", "", "root directory for the binary repository")
+	httpAddr    = flag.String("http", ":0", "TCP address on which the HTTP server runs")
 )
 
 // toIPPort tries to swap in the 'best' accessible IP for the host part of the
@@ -53,32 +53,31 @@ func main() {
 	}
 	defer runtime.Cleanup()
 
-	root, err := impl.SetupRoot(*rootFlag)
+	rootDir, err := impl.SetupRootDir(*rootDirFlag)
 	if err != nil {
-		vlog.Errorf("SetupRoot(%q) failed: %v", *rootFlag, err)
+		vlog.Errorf("SetupRootDir(%q) failed: %v", *rootDirFlag, err)
 		return
 	}
-	vlog.Infof("Binary repository rooted at %v", root)
-
-	state, err := impl.NewState(root, defaultDepth)
-	if err != nil {
-		vlog.Errorf("NewState(%v, %v) failed: %v", root, defaultDepth, err)
-		return
-	}
+	vlog.Infof("Binary repository rooted at %v", rootDir)
 
 	listener, err := net.Listen("tcp", *httpAddr)
 	if err != nil {
 		vlog.Errorf("Listen(%s) failed: %v", *httpAddr, err)
 		os.Exit(1)
 	}
-	vlog.Infof("Binary repository HTTP server at: %q", toIPPort(listener.Addr().String()))
+	rootURL := toIPPort(listener.Addr().String())
+	state, err := impl.NewState(rootDir, rootURL, defaultDepth)
+	if err != nil {
+		vlog.Errorf("NewState(%v, %v, %v) failed: %v", rootDir, rootURL, defaultDepth, err)
+		return
+	}
+	vlog.Infof("Binary repository HTTP server at: %q", rootURL)
 	go func() {
 		if err := http.Serve(listener, http.FileServer(impl.NewHTTPRoot(state))); err != nil {
 			vlog.Errorf("Serve() failed: %v", err)
 			os.Exit(1)
 		}
 	}()
-
 	server, err := runtime.NewServer()
 	if err != nil {
 		vlog.Errorf("NewServer() failed: %v", err)

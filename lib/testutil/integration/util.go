@@ -94,16 +94,19 @@ func StartServer(bin string, args []string) (*os.Process, error) {
 	if err := cmd.Start(); err != nil {
 		return nil, fmt.Errorf("%q failed: %v", strings.Join(cmd.Args, " "), err)
 	}
-	// Wait for the server to mount itself.
+	// Wait for the server to mount both its tcp and ws endpoint.
 	ready := make(chan struct{}, 1)
 	go func() {
 		defer outPipe.Close()
 		scanner := bufio.NewScanner(outPipe)
+		nmounts := 0
 		for scanner.Scan() {
 			line := scanner.Text()
 			if strings.Index(line, "ipc pub: mount") != -1 {
-				close(ready)
-				return
+				nmounts++
+				if nmounts == 2 {
+					close(ready)
+				}
 			}
 		}
 		if err := scanner.Err(); err != nil {

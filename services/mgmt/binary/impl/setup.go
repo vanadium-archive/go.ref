@@ -10,9 +10,9 @@ import (
 
 const defaultRootPrefix = "veyron_binary_repository"
 
-// SetupRoot sets up the root directory if it doesn't already exist. If an
+// SetupRootDir sets up the root directory if it doesn't already exist. If an
 // empty string is used as root, create a new temporary directory.
-func SetupRoot(root string) (string, error) {
+func SetupRootDir(root string) (string, error) {
 	if root == "" {
 		var err error
 		if root, err = ioutil.TempDir("", defaultRootPrefix); err != nil {

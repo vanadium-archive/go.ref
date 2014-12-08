@@ -105,11 +105,11 @@ func invokeDownload(t *testing.T, binary repository.BinaryClientMethods, part in
 // startServer starts the binary repository server.
 func startServer(t *testing.T, depth int) (repository.BinaryClientMethods, string, string, func()) {
 	// Setup the root of the binary repository.
-	root, err := ioutil.TempDir("", veyronPrefix)
+	rootDir, err := ioutil.TempDir("", veyronPrefix)
 	if err != nil {
 		t.Fatalf("TempDir() failed: %v", err)
 	}
-	path, perm := filepath.Join(root, VersionFile), os.FileMode(0600)
+	path, perm := filepath.Join(rootDir, VersionFile), os.FileMode(0600)
 	if err := ioutil.WriteFile(path, []byte(Version), perm); err != nil {
 		vlog.Fatalf("WriteFile(%v, %v, %v) failed: %v", path, Version, perm, err)
 	}
@@ -118,13 +118,13 @@ func startServer(t *testing.T, depth int) (repository.BinaryClientMethods, strin
 	if err != nil {
 		t.Fatalf("NewServer() failed: %v", err)
 	}
-	state, err := NewState(root, depth)
-	if err != nil {
-		t.Fatalf("NewState(%v, %v) failed: %v", root, depth, err)
-	}
 	listener, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
 		t.Fatal(err)
+	}
+	state, err := NewState(rootDir, listener.Addr().String(), depth)
+	if err != nil {
+		t.Fatalf("NewState(%v, %v) failed: %v", rootDir, listener.Addr().String(), depth, err)
 	}
 	go func() {
 		if err := http.Serve(listener, http.FileServer(NewHTTPRoot(state))); err != nil {
@@ -148,12 +148,10 @@ func startServer(t *testing.T, depth int) (repository.BinaryClientMethods, strin
 			t.Fatalf("Stop() failed: %v", err)
 		}
 		if err := os.RemoveAll(path); err != nil {
-			t.Fatalf("Remove(%v) failed: %v", path, err)
+			t.Fatalf("RemoveAll(%v) failed: %v", path, err)
 		}
-		// Check that any directories and files that were created to
-		// represent the binary objects have been garbage collected.
-		if err := os.RemoveAll(root); err != nil {
-			t.Fatalf("Remove(%v) failed: %v", root, err)
+		if err := os.RemoveAll(rootDir); err != nil {
+			t.Fatalf("RemoveAll(%v) failed: %v", rootDir, err)
 		}
 	}
 }
