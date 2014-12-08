@@ -62,7 +62,7 @@ func runDescription(cmd *cmdline.Command, args []string) error {
 
 var cmdSpecification = &cmdline.Command{
 	Run:      runSpecification,
-	Name:     "spec",
+	Name:     "specification",
 	Short:    "Shows the specification of the profile.",
 	Long:     "Shows the specification of the profile.",
 	ArgsName: "<profile>",
@@ -71,7 +71,7 @@ var cmdSpecification = &cmdline.Command{
 
 func runSpecification(cmd *cmdline.Command, args []string) error {
 	if expected, got := 1, len(args); expected != got {
-		return cmd.UsageErrorf("spec: incorrect number of arguments, expected %d, got %d", expected, got)
+		return cmd.UsageErrorf("specification: incorrect number of arguments, expected %d, got %d", expected, got)
 	}
 	name := args[0]
 	p := repository.ProfileClient(name)

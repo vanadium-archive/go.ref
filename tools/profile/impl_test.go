@@ -145,7 +145,7 @@ func TestProfileClient(t *testing.T) {
 	stdout.Reset()
 
 	// Test the 'spec' command.
-	if err := cmd.Execute([]string{"spec", exists}); err != nil {
+	if err := cmd.Execute([]string{"specification", exists}); err != nil {
 		t.Fatalf("%v", err)
 	}
 	if expected, got := fmt.Sprintf("%#v", spec), strings.TrimSpace(stdout.String()); got != expected {

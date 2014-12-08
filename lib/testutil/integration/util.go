@@ -91,6 +91,9 @@ func StartServer(bin string, args []string) (*os.Process, error) {
 	if err != nil {
 		return nil, err
 	}
+	// TODO(jsimsa): Consider using the veyron exec library to
+	// facilitate coordination and communication between the
+	// parent and the child process.
 	if err := cmd.Start(); err != nil {
 		return nil, fmt.Errorf("%q failed: %v", strings.Join(cmd.Args, " "), err)
 	}
@@ -99,15 +102,18 @@ func StartServer(bin string, args []string) (*os.Process, error) {
 	go func() {
 		defer outPipe.Close()
 		scanner := bufio.NewScanner(outPipe)
+		nmounts := 0
 		for scanner.Scan() {
 			line := scanner.Text()
 			if strings.Index(line, "ipc pub: mount") != -1 {
-				close(ready)
-				return
+				nmounts++
+				if nmounts == 2 {
+					close(ready)
+				}
 			}
 		}
 		if err := scanner.Err(); err != nil {
-			fmt.Fprintf(os.Stderr, "Scan() failOAed: %v\n", err)
+			fmt.Fprintf(os.Stderr, "Scan() failed: %v\n", err)
 		}
 	}()
 	select {
@@ -115,6 +121,6 @@ func StartServer(bin string, args []string) (*os.Process, error) {
 		return cmd.Process, nil
 	case <-time.After(time.Second):
 		cmd.Process.Kill()
-		return nil, fmt.Errorf("timed out waiting for %q to mount itself", bin)
+		return nil, fmt.Errorf("timed out waiting for %q to mount itself", strings.Join(cmd.Args, " "))
 	}
 }
