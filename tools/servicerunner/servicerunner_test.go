@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"os"
 	"os/exec"
 	"path"
 	"testing"
@@ -21,6 +22,8 @@ func check(t *testing.T, err error) {
 func TestMain(t *testing.T) {
 	tmpdir, err := ioutil.TempDir("", "servicerunner_test")
 	check(t, err)
+	defer os.RemoveAll(tmpdir)
+	os.Setenv("TMPDIR", tmpdir)
 
 	bin := path.Join(tmpdir, "servicerunner")
 	fmt.Println("Building", bin)

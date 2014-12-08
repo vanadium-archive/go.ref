@@ -44,6 +44,7 @@ func TestVariables(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
+	defer sh.Cleanup(nil, nil)
 	sh.SetVar("foo", "bar")
 	cases := []struct {
 		input  string

@@ -22,6 +22,7 @@ func TestNewVeyronCredentials(t *testing.T) {
 
 	parent := r.Principal()
 	childdir := NewVeyronCredentials(parent, "child")
+	defer os.RemoveAll(childdir)
 	if _, err = vsecurity.LoadPersistentPrincipal(childdir, nil); err != nil {
 		t.Fatalf("Expected NewVeyronCredentials to have populated the directory %q: %v", childdir, err)
 	}
