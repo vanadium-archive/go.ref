@@ -64,7 +64,7 @@ main() {
 
   # Install and start node manager.
   shell_test::start_server "${NMINSTALL_SCRIPT}" --single_user $(shell::tmp_dir) \
-    "${BIN_STAGING_DIR}" -- || shell_test::fail "line ${LINENO} failed to start node manager"
+    "${BIN_STAGING_DIR}" -- --veyron.tcp.address=127.0.0.1:0 || shell_test::fail "line ${LINENO} failed to start node manager"
   # Dump nminstall's log, just to provide visibility into its steps.
   cat "${START_SERVER_LOG_FILE}"
 
@@ -110,7 +110,7 @@ main() {
   # Upload an envelope for our test app.
   local -r SAMPLE_APP_NAME="${APPLICATIOND_NAME}/testapp/v0"
   local -r APP_PUBLISH_NAME="testbinaryd"
-  echo "{\"Title\":\"BINARYD\", \"Args\":[\"--name=${APP_PUBLISH_NAME}\", \"--root=./binstore\"], \"Binary\":\"${SAMPLE_APP_BIN_NAME}\", \"Env\":[]}" > ./app.envelope && \
+  echo "{\"Title\":\"BINARYD\", \"Args\":[\"--name=${APP_PUBLISH_NAME}\", \"--root=./binstore\", \"--veyron.tcp.address=127.0.0.1:0\"], \"Binary\":\"${SAMPLE_APP_BIN_NAME}\", \"Env\":[]}" > ./app.envelope && \
     "${APPLICATION_BIN}" put "${SAMPLE_APP_NAME}" test ./app.envelope && rm ./app.envelope
 
   # Verify that the envelope we uploaded shows up with glob.
