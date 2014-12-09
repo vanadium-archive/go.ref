@@ -1,4 +1,8 @@
+// +build -darwin
+
 package main
+
+// These tests need go 1.4 to run successfully on a mac.
 
 import (
 	"bytes"
