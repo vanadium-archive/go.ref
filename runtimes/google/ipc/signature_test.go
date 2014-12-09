@@ -100,7 +100,7 @@ func disabledTestMethodSignature(t *testing.T) {
 		}},
 	}
 	for _, test := range tests {
-		sig, err := reserved.MethodSignature(runtime.NewContext(), name, test.Method)
+		sig, err := reserved.MethodSignature(runtime.NewContext(), nil, name, test.Method)
 		if err != nil {
 			t.Errorf("call failed: %v", err)
 		}
@@ -155,7 +155,7 @@ func disabledTestSignature(t *testing.T) {
 		},
 	}
 
-	sig, err := reserved.Signature(runtime.NewContext(), name)
+	sig, err := reserved.Signature(runtime.NewContext(), nil, name)
 	if err != nil {
 		t.Errorf("call failed: %v", err)
 	}

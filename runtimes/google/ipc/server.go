@@ -429,7 +429,7 @@ func (s *server) listenLoop(ln stream.Listener, ep naming.Endpoint) {
 	for {
 		flow, err := ln.Accept()
 		if err != nil {
-			vlog.VI(10).Infof("ipc: Accept on %v failed: %v", ln, err)
+			vlog.VI(10).Infof("ipc: Accept on %v failed: %v", ep, err)
 			return
 		}
 		calls.Add(1)
@@ -437,13 +437,13 @@ func (s *server) listenLoop(ln stream.Listener, ep naming.Endpoint) {
 			defer calls.Done()
 			fs, err := newFlowServer(flow, s)
 			if err != nil {
-				vlog.Errorf("newFlowServer on %v failed: %v", ln, err)
+				vlog.Errorf("newFlowServer on %v failed: %v", ep, err)
 				return
 			}
 			if err := fs.serve(); err != nil {
 				// TODO(caprita): Logging errors here is too spammy. For example, "not
 				// authorized" errors shouldn't be logged as server errors.
-				vlog.Errorf("Flow serve on %v failed: %v", ln, err)
+				vlog.Errorf("Flow serve on %v failed: %v", ep, err)
 			}
 		}(flow)
 	}
