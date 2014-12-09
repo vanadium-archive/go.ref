@@ -9,6 +9,8 @@ import (
 	"veyron.io/veyron/veyron/lib/flags"
 	"veyron.io/veyron/veyron/lib/modules"
 	"veyron.io/wspr/veyron/services/wsprd/wspr"
+
+	"veyron.io/veyron/veyron2/rt"
 )
 
 var (
@@ -47,8 +49,13 @@ func startWSPR(stdin io.Reader, stdout, stderr io.Writer, env map[string]string,
 	}
 	args = fl.Args()
 
+	r, err := rt.New()
+	if err != nil {
+		return fmt.Errorf("rt.New failed: %s", err)
+	}
+	defer r.Cleanup()
 	l := initListenSpec(fl)
-	proxy := wspr.NewWSPR(*port, nil, &l, *identd, nil)
+	proxy := wspr.NewWSPR(r, *port, nil, &l, *identd, nil)
 	defer proxy.Shutdown()
 
 	addr := proxy.Listen()
