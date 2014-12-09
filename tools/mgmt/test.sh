@@ -89,7 +89,7 @@ main() {
   # Start a binary server.
   local -r BINARYD_NAME="binaryd"
   shell_test::start_server "${BINARYD_BIN}" --name="${BINARYD_NAME}" \
-    --root="$(shell::tmp_dir)/binstore" --veyron.tcp.address=127.0.0.1:0 --http=127.0.0.1:0 \
+    --root_dir="$(shell::tmp_dir)/binstore" --veyron.tcp.address=127.0.0.1:0 --http=127.0.0.1:0 \
     || shell_test::fail "line ${LINENO} failed to start binaryd"
 
   # Upload a binary to the binary server.  The binary we upload is binaryd
@@ -110,7 +110,7 @@ main() {
   # Upload an envelope for our test app.
   local -r SAMPLE_APP_NAME="${APPLICATIOND_NAME}/testapp/v0"
   local -r APP_PUBLISH_NAME="testbinaryd"
-  echo "{\"Title\":\"BINARYD\", \"Args\":[\"--name=${APP_PUBLISH_NAME}\", \"--root=./binstore\", \"--veyron.tcp.address=127.0.0.1:0\"], \"Binary\":\"${SAMPLE_APP_BIN_NAME}\", \"Env\":[]}" > ./app.envelope && \
+  echo "{\"Title\":\"BINARYD\", \"Args\":[\"--name=${APP_PUBLISH_NAME}\", \"--root_dir=./binstore\", \"--veyron.tcp.address=127.0.0.1:0\"], \"Binary\":\"${SAMPLE_APP_BIN_NAME}\", \"Env\":[]}" > ./app.envelope && \
     "${APPLICATION_BIN}" put "${SAMPLE_APP_NAME}" test ./app.envelope && rm ./app.envelope
 
   # Verify that the envelope we uploaded shows up with glob.
