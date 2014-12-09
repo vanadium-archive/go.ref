@@ -157,7 +157,7 @@ func NewDispatcher(t *testing.T, tape *Tape) *dispatcher {
 }
 
 func (d *dispatcher) Lookup(suffix string) (interface{}, security.Authorizer, error) {
-	return node.NodeServer(&mockNodeInvoker{tape: d.tape, t: d.t}), nil, nil
+	return node.DeviceServer(&mockNodeInvoker{tape: d.tape, t: d.t}), nil, nil
 }
 
 func startServer(t *testing.T, r veyron2.Runtime, tape *Tape) (ipc.Server, naming.Endpoint, error) {

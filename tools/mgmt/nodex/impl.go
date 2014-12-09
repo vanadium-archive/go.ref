@@ -91,7 +91,7 @@ func runClaim(cmd *cmdline.Command, args []string) error {
 		return cmd.UsageErrorf("claim: incorrect number of arguments, expected %d, got %d", expected, got)
 	}
 	nodeName, grant := args[0], args[1]
-	if err := node.NodeClient(nodeName).Claim(runtime.NewContext(), &granter{p: runtime.Principal(), extension: grant}); err != nil {
+	if err := node.DeviceClient(nodeName).Claim(runtime.NewContext(), &granter{p: runtime.Principal(), extension: grant}); err != nil {
 		return fmt.Errorf("Claim failed: %v", err)
 	}
 	fmt.Fprintln(cmd.Stdout(), "Successfully claimed.")

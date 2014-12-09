@@ -240,7 +240,7 @@ func (i *nodeService) testNodeManager(ctx context.T, workspace string, envelope 
 	}
 	// Check that invoking Revert() succeeds.
 	childName = naming.Join(childName, "nm")
-	nmClient := node.NodeClient(childName)
+	nmClient := node.DeviceClient(childName)
 	linkOld, pathOld, err := i.getCurrentFileInfo()
 	if err != nil {
 		return verror2.Make(ErrOperationFailed, ctx)

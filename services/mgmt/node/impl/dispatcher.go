@@ -355,7 +355,7 @@ func (d *dispatcher) Lookup(suffix string) (interface{}, security.Authorizer, er
 	// prefix.
 	switch components[0] {
 	case nodeSuffix:
-		receiver := node.NodeServer(&nodeService{
+		receiver := node.DeviceServer(&nodeService{
 			callback: d.internal.callback,
 			updating: d.internal.updating,
 			config:   d.config,
