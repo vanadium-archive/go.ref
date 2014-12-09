@@ -45,6 +45,10 @@ var (
 	// Flags common to many commands
 	flagAddToRoots bool
 
+	// Flags for the "recvblessings" command
+	flagRecvBlessingsSetDefault bool
+	flagRecvBlessingsForPeer    string
+
 	cmdDump = &cmdline.Command{
 		Name:  "dump",
 		Short: "Dump out information about the principal",
@@ -513,8 +517,8 @@ run the command to see what happens.
 The blessings are sought for the principal specified by the environment that
 this tool is running in.
 
-The blessings obtained are set as default, unless a --skip_set_default flag
-is provided, and are also set for sharing with all peers, unless a more
+The blessings obtained are set as default, unless the --set_default flag is
+set to true, and are also set for sharing with all peers, unless a more
 specific peer pattern is provided using the --for_peer flag.
 `,
 		Run: func(cmd *cmdline.Command, args []string) error {
@@ -579,8 +583,9 @@ This command sets up the invoker (this process) to wait for a blessing
 from another invocation of this tool (remote process) and prints out the
 command to be run as the remote principal.
 
-The received blessings are set as the default blessing of this principal
-and also as the blessing to be shared with all peers.
+The received blessings are set as default, unless the --set_default flag is
+set to true, and are also set for sharing with all peers, unless a more
+specific peer pattern is provided using the --for_peer flag.
 
 TODO(ashankar,cnicolaou): Make this next paragraph possible! Requires
 the ability to obtain the proxied endpoint.
@@ -666,6 +671,9 @@ func main() {
 	cmdStoreSetDefault.Flags.BoolVar(&flagAddToRoots, "add_to_roots", true, "If true, the root certificate of the blessing will be added to the principal's set of recognized root certificates")
 
 	cmdCreate.Flags.BoolVar(&flagCreateOverwrite, "overwrite", false, "If true, any existing principal data in the directory will be overwritten")
+
+	cmdRecvBlessings.Flags.BoolVar(&flagRecvBlessingsSetDefault, "set_default", true, "If true, the blessings received will be set as the default blessing in the store")
+	cmdRecvBlessings.Flags.StringVar(&flagRecvBlessingsForPeer, "for_peer", string(security.AllPrincipals), "If non-empty, the blessings received will be marked for peers matching this pattern in the store")
 
 	cmdStore := &cmdline.Command{
 		Name:  "store",
@@ -807,12 +815,15 @@ func (r *recvBlessingsService) Grant(call ipc.ServerCall, token string) error {
 	if subtle.ConstantTimeCompare([]byte(token), []byte(r.token)) != 1 {
 		return fmt.Errorf("blessings received from unexpected sender")
 	}
-	// Maybe flagify the "SetDefault" and "Set" calls?
-	if err := r.principal.BlessingStore().SetDefault(b); err != nil {
-		return fmt.Errorf("failed to add granted blessings: %v", err)
+	if flagRecvBlessingsSetDefault {
+		if err := r.principal.BlessingStore().SetDefault(b); err != nil {
+			return fmt.Errorf("failed to set blessings %v as default: %v", b, err)
+		}
 	}
-	if _, err := r.principal.BlessingStore().Set(b, security.AllPrincipals); err != nil {
-		return fmt.Errorf("failed to add granted blessings: %v", err)
+	if pattern := security.BlessingPattern(flagRecvBlessingsForPeer); len(pattern) > 0 {
+		if _, err := r.principal.BlessingStore().Set(b, pattern); err != nil {
+			return fmt.Errorf("failed to set blessings %v for peers %v: %v", b, pattern, err)
+		}
 	}
 	if flagAddToRoots {
 		if err := r.principal.AddToRoots(b); err != nil {
