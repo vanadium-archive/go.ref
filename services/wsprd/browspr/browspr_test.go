@@ -16,6 +16,7 @@ import (
 	"veyron.io/veyron/veyron2/options"
 	"veyron.io/veyron/veyron2/rt"
 	"veyron.io/veyron/veyron2/vdl/vdlutil"
+	"veyron.io/veyron/veyron2/vlog"
 	"veyron.io/veyron/veyron2/vom2"
 	"veyron.io/veyron/veyron2/wiretype"
 	"veyron.io/wspr/veyron/services/wsprd/app"
@@ -174,12 +175,25 @@ func TestBrowspr(t *testing.T) {
 		receivedResponse <- true
 	}
 
-	browspr := NewBrowspr(postMessageHandler, nil, spec, "/mock/identd", []string{tcpNamespaceRoot}, options.RuntimePrincipal{r.Principal()})
+	// TODO(ataly, caprita, bprosnitz): Why create a new runtime here? Is it so that
+	// we don't overwrite the namespace roots for the 'global' runtime? We should
+	// revisit this design.
+	runtime, err := rt.New(options.RuntimePrincipal{r.Principal()})
+	if err != nil {
+		vlog.Fatalf("rt.New failed: %s", err)
+	}
+	defer runtime.Cleanup()
+	wsNamespaceRoots, err := lib.EndpointsToWs(runtime, []string{tcpNamespaceRoot})
+	if err != nil {
+		vlog.Fatal(err)
+	}
+	runtime.Namespace().SetRoots(wsNamespaceRoots...)
+	browspr := NewBrowspr(runtime, postMessageHandler, nil, spec, "/mock/identd", wsNamespaceRoots)
 
 	// browspr sets its namespace root to use the "ws" protocol, but we want to force "tcp" here.
 	browspr.namespaceRoots = []string{tcpNamespaceRoot}
 
-	principal := browspr.rt.Principal()
+	principal := r.Principal()
 	browspr.accountManager.SetMockBlesser(newMockBlesserService(principal))
 
 	msgInstanceId := int32(11)

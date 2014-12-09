@@ -220,8 +220,20 @@ func (inst *browsprInstance) StartBrowspr(instanceId int32, message ppapi.Var) e
 		Address:  "",
 	}
 
+	runtime, err := rt.New(options.RuntimePrincipal{principal})
+	if err != nil {
+		vlog.Fatalf("rt.New failed: %s", err)
+	}
+	// TODO(ataly, bprosnitz, caprita): The runtime MUST be cleaned up
+	// after use. Figure out the appropriate place to add the Cleanup call.
+	wsNamespaceRoots, err := lib.EndpointsToWs(runtime, []string{mounttable})
+	if err != nil {
+		vlog.Fatal(err)
+	}
+	runtime.Namespace().SetRoots(wsNamespaceRoots...)
+
 	fmt.Printf("Starting browspr with config: proxy=%q mounttable=%q identityd=%q ", veyronProxy, mounttable, identityd)
-	inst.browspr = browspr.NewBrowspr(inst.BrowsprOutgoingPostMessage, chrome.New, listenSpec, identityd, []string{mounttable}, options.RuntimePrincipal{principal})
+	inst.browspr = browspr.NewBrowspr(runtime, inst.BrowsprOutgoingPostMessage, chrome.New, listenSpec, identityd, wsNamespaceRoots)
 
 	inst.BrowsprOutgoingPostMessage(instanceId, "browsprStarted", "")
 	return nil

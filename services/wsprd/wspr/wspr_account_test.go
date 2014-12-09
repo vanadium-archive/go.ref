@@ -10,6 +10,7 @@ import (
 
 	"veyron.io/veyron/veyron2/context"
 	"veyron.io/veyron/veyron2/ipc"
+	"veyron.io/veyron/veyron2/rt"
 	"veyron.io/veyron/veyron2/security"
 
 	"veyron.io/veyron/veyron/profiles"
@@ -18,7 +19,6 @@ import (
 const topLevelName = "mock-blesser"
 
 // BEGIN MOCK BLESSER SERVICE
-// TODO(nlacasse): Is there a better way to mock this?!
 type mockBlesserService struct {
 	p     security.Principal
 	count int
@@ -47,10 +47,15 @@ func (m *mockBlesserService) BlessUsingAccessToken(c context.T, accessToken stri
 func setup(t *testing.T) (*WSPR, func()) {
 	spec := profiles.LocalListenSpec
 	spec.Proxy = "/mock/proxy"
-	wspr := NewWSPR(0, nil, &spec, "/mock/identd", nil)
+	r, err := rt.New()
+	if err != nil {
+		panic(err)
+	}
+	wspr := NewWSPR(r, 0, nil, &spec, "/mock/identd", nil)
 	wspr.accountManager.SetMockBlesser(newMockBlesserService(wspr.rt.Principal()))
 	return wspr, func() {
 		wspr.Shutdown()
+		r.Cleanup()
 	}
 }
 

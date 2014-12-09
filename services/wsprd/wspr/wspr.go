@@ -28,7 +28,6 @@ import (
 
 	"veyron.io/veyron/veyron2"
 	"veyron.io/veyron/veyron2/ipc"
-	"veyron.io/veyron/veyron2/rt"
 	"veyron.io/veyron/veyron2/vlog"
 
 	"veyron.io/wspr/veyron/services/wsprd/account"
@@ -118,7 +117,7 @@ func (ctx *WSPR) Serve() {
 }
 
 func (ctx *WSPR) Shutdown() {
-	ctx.rt.Cleanup()
+	// TODO(ataly, bprosnitz): Get rid of this method if possible.
 }
 
 func (ctx *WSPR) CleanUpPipe(req *http.Request) {
@@ -128,20 +127,12 @@ func (ctx *WSPR) CleanUpPipe(req *http.Request) {
 }
 
 // Creates a new WebSocket Proxy object.
-func NewWSPR(httpPort int, profileFactory func() veyron2.Profile, listenSpec *ipc.ListenSpec, identdEP string, namespaceRoots []string, opts ...veyron2.ROpt) *WSPR {
+func NewWSPR(runtime veyron2.Runtime, httpPort int, profileFactory func() veyron2.Profile, listenSpec *ipc.ListenSpec, identdEP string, namespaceRoots []string) *WSPR {
 	if listenSpec.Proxy == "" {
 		vlog.Fatalf("a veyron proxy must be set")
 	}
 	if identdEP == "" {
 		vlog.Fatalf("an identd server must be set")
-	}
-
-	newrt, err := rt.New(opts...)
-	if err != nil {
-		vlog.Fatalf("rt.New failed: %s", err)
-	}
-	if namespaceRoots != nil {
-		newrt.Namespace().SetRoots(namespaceRoots...)
 	}
 
 	wspr := &WSPR{
@@ -150,17 +141,18 @@ func NewWSPR(httpPort int, profileFactory func() veyron2.Profile, listenSpec *ip
 		listenSpec:     listenSpec,
 		identdEP:       identdEP,
 		namespaceRoots: namespaceRoots,
-		rt:             newrt,
-		logger:         newrt.Logger(),
+		rt:             runtime,
+		logger:         runtime.Logger(),
 		pipes:          map[*http.Request]*pipe{},
 	}
 
 	// TODO(nlacasse, bjornick) use a serializer that can actually persist.
-	if wspr.principalManager, err = principal.NewPrincipalManager(newrt.Principal(), &principal.InMemorySerializer{}); err != nil {
+	var err error
+	if wspr.principalManager, err = principal.NewPrincipalManager(runtime.Principal(), &principal.InMemorySerializer{}); err != nil {
 		vlog.Fatalf("principal.NewPrincipalManager failed: %s", err)
 	}
 
-	wspr.accountManager = account.NewAccountManager(newrt, identdEP, wspr.principalManager)
+	wspr.accountManager = account.NewAccountManager(runtime, identdEP, wspr.principalManager)
 
 	return wspr
 }

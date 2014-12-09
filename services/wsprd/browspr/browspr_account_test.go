@@ -6,15 +6,17 @@ import (
 
 	"veyron.io/veyron/veyron2/context"
 	"veyron.io/veyron/veyron2/ipc"
+	"veyron.io/veyron/veyron2/rt"
 	"veyron.io/veyron/veyron2/security"
+	"veyron.io/veyron/veyron2/vlog"
 
 	"veyron.io/veyron/veyron/profiles"
+	"veyron.io/wspr/veyron/services/wsprd/lib"
 )
 
 const topLevelName = "mock-blesser"
 
 // BEGIN MOCK BLESSER SERVICE
-// TODO(nlacasse): Is there a better way to mock this?!
 type mockBlesserService struct {
 	p     security.Principal
 	count int
@@ -42,7 +44,17 @@ func (m *mockBlesserService) BlessUsingAccessToken(c context.T, accessToken stri
 func setup(t *testing.T, postMessageHandler func(instanceId int32, ty string, msg string)) (*Browspr, func()) {
 	spec := profiles.LocalListenSpec
 	spec.Proxy = "/mock/proxy"
-	browspr := NewBrowspr(postMessageHandler, nil, spec, "/mock/identd", nil)
+	runtime, err := rt.New()
+	if err != nil {
+		vlog.Fatalf("rt.New failed: %s", err)
+	}
+	defer runtime.Cleanup()
+	wsNamespaceRoots, err := lib.EndpointsToWs(runtime, nil)
+	if err != nil {
+		vlog.Fatal(err)
+	}
+	runtime.Namespace().SetRoots(wsNamespaceRoots...)
+	browspr := NewBrowspr(runtime, postMessageHandler, nil, spec, "/mock/identd", wsNamespaceRoots)
 	browspr.accountManager.SetMockBlesser(newMockBlesserService(browspr.rt.Principal()))
 	return browspr, func() {
 		browspr.Shutdown()

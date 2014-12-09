@@ -8,7 +8,6 @@ import (
 
 	"veyron.io/veyron/veyron2"
 	"veyron.io/veyron/veyron2/ipc"
-	"veyron.io/veyron/veyron2/rt"
 	"veyron.io/veyron/veyron2/vlog"
 	"veyron.io/wspr/veyron/services/wsprd/account"
 	"veyron.io/wspr/veyron/services/wsprd/lib"
@@ -37,25 +36,13 @@ type Browspr struct {
 }
 
 // Create a new Browspr instance.
-func NewBrowspr(postMessage func(instanceId int32, ty, msg string), profileFactory func() veyron2.Profile, listenSpec ipc.ListenSpec, identdEP string, namespaceRoots []string, opts ...veyron2.ROpt) *Browspr {
+func NewBrowspr(runtime veyron2.Runtime, postMessage func(instanceId int32, ty, msg string), profileFactory func() veyron2.Profile, listenSpec ipc.ListenSpec, identdEP string, wsNamespaceRoots []string) *Browspr {
 	if listenSpec.Proxy == "" {
 		vlog.Fatalf("a veyron proxy must be set")
 	}
 	if identdEP == "" {
 		vlog.Fatalf("an identd server must be set")
 	}
-
-	runtime, err := rt.New(opts...)
-	if err != nil {
-		vlog.Fatalf("rt.New failed: %s", err)
-	}
-
-	wsNamespaceRoots, err := lib.EndpointsToWs(runtime, namespaceRoots)
-	if err != nil {
-		vlog.Fatal(err)
-	}
-
-	runtime.Namespace().SetRoots(wsNamespaceRoots...)
 
 	browspr := &Browspr{
 		profileFactory:  profileFactory,
@@ -69,8 +56,8 @@ func NewBrowspr(postMessage func(instanceId int32, ty, msg string), profileFacto
 	}
 
 	// TODO(nlacasse, bjornick) use a serializer that can actually persist.
-	var principalManager *principal.PrincipalManager
-	if principalManager, err = principal.NewPrincipalManager(runtime.Principal(), &principal.InMemorySerializer{}); err != nil {
+	principalManager, err := principal.NewPrincipalManager(runtime.Principal(), &principal.InMemorySerializer{})
+	if err != nil {
 		vlog.Fatalf("principal.NewPrincipalManager failed: %s", err)
 	}
 
@@ -80,7 +67,7 @@ func NewBrowspr(postMessage func(instanceId int32, ty, msg string), profileFacto
 }
 
 func (browspr *Browspr) Shutdown() {
-	browspr.rt.Cleanup()
+	// TODO(ataly, bprosnitz): Get rid of this method if possible.
 }
 
 // tcpKeepAliveListener sets TCP keep-alive timeouts on accepted connections.

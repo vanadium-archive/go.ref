@@ -17,17 +17,13 @@ func main() {
 
 	flag.Parse()
 
-	// TODO(mattr): This runtime isn't really used and should be removed.
-	// Unfortunately if you don't initialize it some parts of the ListenSpec
-	// are not properly initialized.  We should fix that behavior as it's
-	// very unintuitive.
 	r, err := rt.New()
 	if err != nil {
 		panic("Could not initialize runtime: " + err.Error())
 	}
 	defer r.Cleanup()
 
-	proxy := wspr.NewWSPR(*port, roaming.New, &roaming.ListenSpec, *identd, nil)
+	proxy := wspr.NewWSPR(r, *port, roaming.New, &roaming.ListenSpec, *identd, nil)
 	defer proxy.Shutdown()
 
 	proxy.Listen()
