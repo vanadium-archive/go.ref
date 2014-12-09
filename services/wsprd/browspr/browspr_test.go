@@ -144,7 +144,7 @@ func TestBrowspr(t *testing.T) {
 	if len(names) != 1 || names[0] != tcpNamespaceRoot+"/"+mockServerName {
 		t.Fatalf("Incorrectly mounted server. Names: %v", names)
 	}
-	mountEntry, err := r.Namespace().ResolveX(nil, mockServerName)
+	mountEntry, err := r.Namespace().ResolveX(r.NewContext(), mockServerName)
 	if err != nil {
 		t.Fatalf("Error fetching published names from mounttable: %v", err)
 	}
