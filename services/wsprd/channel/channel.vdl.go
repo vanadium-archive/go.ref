@@ -36,6 +36,8 @@ type (
 	Message interface {
 		// Index returns the field index.
 		Index() int
+		// Interface returns the field value as an interface.
+		Interface() interface{}
 		// Name returns the field name.
 		Name() string
 		// __VDLReflect describes the Message oneof type.
@@ -56,13 +58,15 @@ type (
 	}
 )
 
-func (MessageRequest) Index() int                    { return 0 }
-func (MessageRequest) Name() string                  { return "Request" }
-func (MessageRequest) __VDLReflect(__MessageReflect) {}
+func (x MessageRequest) Index() int                    { return 0 }
+func (x MessageRequest) Interface() interface{}        { return x.Value }
+func (x MessageRequest) Name() string                  { return "Request" }
+func (x MessageRequest) __VDLReflect(__MessageReflect) {}
 
-func (MessageResponse) Index() int                    { return 1 }
-func (MessageResponse) Name() string                  { return "Response" }
-func (MessageResponse) __VDLReflect(__MessageReflect) {}
+func (x MessageResponse) Index() int                    { return 1 }
+func (x MessageResponse) Interface() interface{}        { return x.Value }
+func (x MessageResponse) Name() string                  { return "Response" }
+func (x MessageResponse) __VDLReflect(__MessageReflect) {}
 
 func init() {
 	__vdl.Register(Request{})
