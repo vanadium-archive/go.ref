@@ -2,8 +2,8 @@ package fs_test
 
 import (
 	"fmt"
+	"io/ioutil"
 	"os"
-	"path/filepath"
 	"reflect"
 	"testing"
 
@@ -14,6 +14,15 @@ import (
 	"veyron.io/veyron/veyron2/verror"
 )
 
+func tempFile(t *testing.T) string {
+	tmpfile, err := ioutil.TempFile("", "simplestore-test-")
+	if err != nil {
+		t.Fatalf("ioutil.TempFile() failed: %v", err)
+	}
+	defer tmpfile.Close()
+	return tmpfile.Name()
+}
+
 func TestNewMemstore(t *testing.T) {
 	memstore, err := fs.NewMemstore("")
 
@@ -21,22 +30,21 @@ func TestNewMemstore(t *testing.T) {
 		t.Fatalf("fs.NewMemstore() failed: %v", err)
 	}
 
-	_, err = os.Stat(memstore.PersistedFile())
-	if err != nil {
+	if _, err = os.Stat(memstore.PersistedFile()); err != nil {
 		t.Fatalf("Stat(%v) failed: %v", memstore.PersistedFile(), err)
 	}
+	os.Remove(memstore.PersistedFile())
 }
 
 func TestNewNamedMemstore(t *testing.T) {
-	path := filepath.Join(os.TempDir(), "namedms")
+	path := tempFile(t)
+	defer os.Remove(path)
 	memstore, err := fs.NewMemstore(path)
 	if err != nil {
 		t.Fatalf("fs.NewMemstore() failed: %v", err)
 	}
-	defer os.Remove(path)
 
-	_, err = os.Stat(memstore.PersistedFile())
-	if err != nil {
+	if _, err = os.Stat(memstore.PersistedFile()); err != nil {
 		t.Fatalf("Stat(%v) failed: %v", path, err)
 	}
 }
@@ -91,12 +99,12 @@ func allPathsEqual(ts *fs.Memstore, pvs []PathValue) error {
 }
 
 func TestSerializeDeserialize(t *testing.T) {
-	path := filepath.Join(os.TempDir(), "namedms")
+	path := tempFile(t)
+	defer os.Remove(path)
 	memstoreOriginal, err := fs.NewMemstore(path)
 	if err != nil {
 		t.Fatalf("fs.NewMemstore() failed: %v", err)
 	}
-	defer os.Remove(path)
 
 	// Create example data.
 	envelope := application.Envelope{
@@ -367,12 +375,12 @@ func TestSerializeDeserialize(t *testing.T) {
 }
 
 func TestOperationsNeedValidBinding(t *testing.T) {
-	path := filepath.Join(os.TempDir(), "namedms")
+	path := tempFile(t)
+	defer os.Remove(path)
 	memstoreOriginal, err := fs.NewMemstore(path)
 	if err != nil {
 		t.Fatalf("fs.NewMemstore() failed: %v", err)
 	}
-	defer os.Remove(path)
 
 	// Create example data.
 	envelope := application.Envelope{
@@ -432,20 +440,18 @@ func TestOperationsNeedValidBinding(t *testing.T) {
 }
 
 func TestOpenEmptyMemstore(t *testing.T) {
-	path := filepath.Join(os.TempDir(), "namedms")
+	path := tempFile(t)
 	defer os.Remove(path)
 
 	// Create a brand new memstore persisted to namedms. This will
 	// have the side-effect of creating an empty backing file.
-	_, err := fs.NewMemstore(path)
-	if err != nil {
+	if _, err := fs.NewMemstore(path); err != nil {
 		t.Fatalf("fs.NewMemstore() failed: %v", err)
 	}
 
 	// Create another memstore that will attempt to deserialize the empty
 	// backing file.
-	_, err = fs.NewMemstore(path)
-	if err != nil {
+	if _, err := fs.NewMemstore(path); err != nil {
 		t.Fatalf("fs.NewMemstore() failed: %v", err)
 	}
 }
