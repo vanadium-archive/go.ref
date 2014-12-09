@@ -196,6 +196,7 @@ func (eh *execHandle) Shutdown(stdout, stderr io.Writer) error {
 
 	// Transcribe stderr.
 	outputFromFile(eh.stderr, stderr)
+	os.Remove(eh.stderr.Name())
 
 	return procErr
 }
