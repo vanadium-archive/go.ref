@@ -67,7 +67,6 @@ func (p *pipe) handleMessage(jsonMsg string) error {
 	}
 
 	writer := p.createWriter(msg.Id)
-	context := p.browspr.rt.NewContext()
-	p.controller.HandleIncomingMessage(context, msg, writer)
+	p.controller.HandleIncomingMessage(msg, writer)
 	return nil
 }

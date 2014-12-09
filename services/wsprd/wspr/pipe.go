@@ -173,12 +173,7 @@ func (p *pipe) readLoop() {
 		}
 
 		ww := p.writerCreator(msg.Id)
-
-		// TODO(mattr): Get the proper context information
-		// from javascript.
-		ctx := p.wspr.rt.NewContext()
-
-		p.controller.HandleIncomingMessage(ctx, msg, ww)
+		p.controller.HandleIncomingMessage(msg, ww)
 	}
 	p.cleanup()
 }

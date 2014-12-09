@@ -6,7 +6,6 @@ import (
 	"path/filepath"
 	"runtime"
 
-	"veyron.io/veyron/veyron2/context"
 	verror "veyron.io/veyron/veyron2/verror2"
 	"veyron.io/veyron/veyron2/vlog"
 	"veyron.io/veyron/veyron2/vom"
@@ -91,7 +90,10 @@ type Message struct {
 }
 
 // HandleIncomingMessage handles most incoming messages from JS and calls the appropriate handler.
-func (c *Controller) HandleIncomingMessage(ctx context.T, msg Message, w lib.ClientWriter) {
+func (c *Controller) HandleIncomingMessage(msg Message, w lib.ClientWriter) {
+	// TODO(mattr): Get the proper context information from javascript.
+	ctx := c.RT().NewContext()
+
 	switch msg.Type {
 	case VeyronRequestMessage:
 		c.HandleVeyronRequest(ctx, msg.Id, msg.Data, w)
