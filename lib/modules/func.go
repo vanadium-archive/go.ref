@@ -121,13 +121,15 @@ func (fh *functionHandle) Shutdown(stdout_w, stderr_w io.Writer) error {
 	fh.mu.Unlock()
 
 	// Safe to close stderr now.
+	stderrName := stderr.Name()
 	stderr.Close()
+	defer os.Remove(stderrName)
 	if stderr_w != nil {
-		if stderr, err := os.Open(stderr.Name()); err == nil {
+		if stderr, err := os.Open(stderrName); err == nil {
 			io.Copy(stderr_w, stderr)
 			stderr.Close()
 		} else {
-			fmt.Fprintf(os.Stderr, "failed to open %q: %s\n", stderr.Name(), err)
+			fmt.Fprintf(os.Stderr, "failed to open %q: %s\n", stderrName, err)
 		}
 	}
 

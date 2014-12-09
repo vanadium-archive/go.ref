@@ -16,7 +16,7 @@ import (
 
 func newLogfile(prefix, name string) (*os.File, error) {
 	nameHash := adler32.Checksum([]byte(name))
-	f, err := ioutil.TempFile("", fmt.Sprintf("__modules__%s-%x", prefix, nameHash))
+	f, err := ioutil.TempFile("", fmt.Sprintf("__modules__%s-%x-", prefix, nameHash))
 	if err != nil {
 		return nil, err
 	}
