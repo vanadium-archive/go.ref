@@ -54,7 +54,8 @@ main() {
   "${PRINCIPAL_BIN}" --veyron.credentials=./bob store set alice.bless alice/... || shell_test::fail "line ${LINENO}: store set failed"
   "${PRINCIPAL_BIN}" --veyron.credentials=./bob store forpeer alice/server >bob.store.forpeer || shell_test::fail "line ${LINENO}: store forpeer failed" 
 
-  # Run recvblessings on carol, and have alice send blessings over.
+  # Run recvblessings on carol, and have alice send blessings over
+  # (blessings received must be set as default and shareable with all peers.)
   "${PRINCIPAL_BIN}" --veyron.credentials=./carol --veyron.tcp.address=127.0.0.1:0 recvblessings >carol.recvblessings&
   shell::timed_wait_for "${shell_test_DEFAULT_MESSAGE_TIMEOUT}" carol.recvblessings "bless --remote_key" || shell_test::fail "line ${LINENO}: recvblessings did not print command for sender"
   local -r PRINCIPAL_BIN_DIR=$(dirname "${PRINCIPAL_BIN}")
@@ -62,6 +63,14 @@ main() {
   SEND_BLESSINGS_CMD="${PRINCIPAL_BIN_DIR}/${SEND_BLESSINGS_CMD}"
   $(${SEND_BLESSINGS_CMD}) || shell_test::fail "line ${LINENO}: ${SEND_BLESSINGS_CMD} failed"
   grep "Received blessings: alice/friend/carol" carol.recvblessings >/dev/null || shell_test::fail "line ${LINENO}: recvblessings did not log any blessings received $(cat carol.recvblessings)"
+  # Run recvblessings on carol, and have alice send blessings over
+  # (blessings received must be set as shareable with peers matching 'alice/...'.)
+  "${PRINCIPAL_BIN}" --veyron.credentials=./carol --veyron.tcp.address=127.0.0.1:0 recvblessings --for_peer=alice/... --set_default=false >carol.recvblessings&
+  shell::timed_wait_for "${shell_test_DEFAULT_MESSAGE_TIMEOUT}" carol.recvblessings "bless --remote_key" || shell_test::fail "line ${LINENO}: recvblessings did not print command for sender"
+  SEND_BLESSINGS_CMD=$(grep "bless --remote_key" carol.recvblessings | sed -e 's|extension[0-9]*|friend/carol/foralice|')
+  SEND_BLESSINGS_CMD="${PRINCIPAL_BIN_DIR}/${SEND_BLESSINGS_CMD}"
+  $(${SEND_BLESSINGS_CMD}) || shell_test::fail "line ${LINENO}: ${SEND_BLESSINGS_CMD} failed"
+  grep "Received blessings: alice/friend/carol/foralice" carol.recvblessings >/dev/null || shell_test::fail "line ${LINENO}: recvblessings did not log any blessings received $(cat carol.recvblessings)"
   # Mucking around with the private key should fail
   "${PRINCIPAL_BIN}" --veyron.credentials=./carol --veyron.tcp.address=127.0.0.1:0 recvblessings >carol.recvblessings&
   shell::timed_wait_for "${shell_test_DEFAULT_MESSAGE_TIMEOUT}" carol.recvblessings "bless --remote_key" || shell_test::fail "line ${LINENO}: recvblessings did not print command for sender"
@@ -146,6 +155,7 @@ Public key : XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX
 Default blessings: alice/friend/carol
 Peer pattern                   : Blessings
 ...                            : alice/friend/carol
+alice/...                      : alice/friend/carol/foralice
 ---------------- BlessingRoots ----------------
 Public key                                      : Pattern
 XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX : [alice/...]
