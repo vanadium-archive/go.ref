@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net"
+	"os"
 	"path"
 	"testing"
 
@@ -48,6 +49,7 @@ func TestSetWithUnixSocket(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer os.RemoveAll(dir)
 	sockname := path.Join(dir, "socket")
 	ln, err := net.Listen("unix", sockname)
 	if err != nil {

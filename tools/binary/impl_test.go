@@ -142,7 +142,7 @@ func TestBinaryClient(t *testing.T) {
 	if err != nil {
 		t.Fatalf("%v", err)
 	}
-	defer os.Remove(dir)
+	defer os.RemoveAll(dir)
 	file := path.Join(dir, "testfile")
 	defer os.Remove(file)
 	if err := cmd.Execute([]string{"download", naming.JoinAddressName(endpoint.String(), "exists"), file}); err != nil {

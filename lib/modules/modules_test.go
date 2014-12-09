@@ -214,6 +214,7 @@ func TestShutdownSubprocess(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
+	defer sh.Cleanup(nil, nil)
 	testShutdown(t, sh, "echos", false)
 }
 
@@ -282,6 +283,7 @@ func TestShutdownFunction(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
+	defer sh.Cleanup(nil, nil)
 	testShutdown(t, sh, "echof", true)
 }
 
@@ -417,7 +419,6 @@ func TestEnvCredentials(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
-	defer sh.Cleanup(nil, nil)
 	if err := validateCredentials(startChildAndGetCredentials(sh, nil), "test-shell/child"); err != nil {
 		t.Fatal(err)
 	}
@@ -426,6 +427,7 @@ func TestEnvCredentials(t *testing.T) {
 	if cred1, cred2 := startChildAndGetCredentials(sh, nil), startChildAndGetCredentials(sh, nil); cred1 == cred2 {
 		t.Fatalf("The same credentials directory %v was set for two children", cred1)
 	}
+	sh.Cleanup(nil, nil)
 
 	// Test child credentials when VeyronCredentials are set.
 	root := tsecurity.NewPrincipal("root")
@@ -471,6 +473,7 @@ func TestEnvCredentials(t *testing.T) {
 	if err := validateCredentials(startChildAndGetCredentials(sh, nil), "root/anotherShell/child"); err != nil {
 		t.Fatal(err)
 	}
+	sh.Cleanup(nil, nil)
 
 	// Test that VeyronCredentials specified as a parameter overrides the OS and
 	// shell ones.

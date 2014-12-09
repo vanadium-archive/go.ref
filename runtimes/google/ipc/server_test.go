@@ -86,6 +86,7 @@ type proxyHandle struct {
 	process modules.Handle
 	session *expect.Session
 	mount   string
+	sh      *modules.Shell
 }
 
 func (h *proxyHandle) Start(t *testing.T) error {
@@ -100,6 +101,7 @@ func (h *proxyHandle) Start(t *testing.T) error {
 	h.process = server
 	h.session = expect.NewSession(t, server.Stdout(), time.Minute)
 	h.mount = h.session.ReadLine()
+	h.sh = sh
 	if err := h.session.Error(); err != nil {
 		return err
 	}
@@ -118,6 +120,7 @@ func (h *proxyHandle) Stop() error {
 	if len(h.mount) == 0 {
 		return nil
 	}
+	h.sh.Cleanup(nil, nil)
 	return h.ns.Unmount(testContext(), "proxy", h.mount)
 }
 

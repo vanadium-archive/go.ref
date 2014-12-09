@@ -157,6 +157,7 @@ func (sh *Shell) getChildCredentials(shellCredDir string) (string, error) {
 	if err != nil {
 		return "", err
 	}
+	sh.tempCredDirs = append(sh.tempCredDirs, dir)
 	// Create a principal and default blessing for the child that is
 	// derived from the blessing created for this shell. This can
 	// be used by the parent to invoke RPCs on any children and for the
@@ -200,7 +201,6 @@ func (sh *Shell) getChildCredentials(shellCredDir string) (string, error) {
 			return "", err
 		}
 	}
-	sh.tempCredDirs = append(sh.tempCredDirs, dir)
 	return dir, nil
 }
 

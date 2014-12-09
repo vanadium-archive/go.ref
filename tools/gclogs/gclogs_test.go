@@ -15,7 +15,7 @@ import (
 
 func setup(t *testing.T, workdir, username string) (tmpdir string) {
 	var err error
-	tmpdir, err = ioutil.TempDir(workdir, "parse-file-info-")
+	tmpdir, err = ioutil.TempDir(workdir, "gclogs-test-setup-")
 	if err != nil {
 		t.Fatalf("ioutil.TempDir failed: %v", err)
 	}
