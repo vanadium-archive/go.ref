@@ -472,7 +472,7 @@ func newExpiryCaveat(timestamp, utcOffset string) (security.Caveat, error) {
 	if err != nil {
 		return empty, fmt.Errorf("failed to parse duration: %v", err)
 	}
-	return security.ExpiryCaveat(t.Add(time.Minute * offset))
+	return security.ExpiryCaveat(t.Add(offset))
 }
 
 func newMethodCaveat(methods []string) (security.Caveat, error) {
