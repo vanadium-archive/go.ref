@@ -2,7 +2,6 @@ package main
 
 import (
 	"bytes"
-	"fmt"
 	"reflect"
 	"regexp"
 	"strings"
@@ -11,7 +10,14 @@ import (
 	"veyron.io/veyron/veyron2/naming"
 	"veyron.io/veyron/veyron2/security"
 	"veyron.io/veyron/veyron2/services/security/access"
-	"veyron.io/veyron/veyron2/verror"
+	verror "veyron.io/veyron/veyron2/verror2"
+)
+
+const pkgPath = "veyron.io/veyron/veyron/tools/mgmt/nodex/main"
+
+var (
+	errOops    = verror.Register(pkgPath+".errOops", verror.NoRetry, "oops!")
+	errBadETag = verror.Register(access.ErrBadEtag, verror.NoRetry, "{1:}{2:} etag is out of date{:_}")
 )
 
 func TestACLGetCommand(t *testing.T) {
@@ -125,7 +131,7 @@ func TestACLSetCommand(t *testing.T) {
 		etag: "anEtagForToday",
 		err:  nil,
 	},
-		verror.Make(access.ErrBadEtag, fmt.Sprintf("etag mismatch in:%s vers:%s", "anEtagForToday", "anEtagForTomorrow")),
+		verror.Make(errBadETag, nil, "anEtagForToday", "anEtagForTomorrow"),
 		GetACLResponse{
 			acl: access.TaggedACLMap{
 				"Admin": access.ACL{
@@ -217,7 +223,7 @@ func TestACLSetCommand(t *testing.T) {
 	tape.SetResponses([]interface{}{GetACLResponse{
 		acl:  access.TaggedACLMap{},
 		etag: "anEtagForToday",
-		err:  verror.BadArgf("oops!"),
+		err:  verror.Make(errOops, nil),
 	},
 	})
 
@@ -251,7 +257,7 @@ func TestACLSetCommand(t *testing.T) {
 		etag: "anEtagForToday",
 		err:  nil,
 	},
-		verror.BadArgf("oops!"),
+		verror.Make(errOops, nil),
 	})
 
 	if err := cmd.Execute([]string{"acl", "set", nodeName, "friend", "Read"}); err == nil {

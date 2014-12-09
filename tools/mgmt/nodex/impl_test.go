@@ -10,7 +10,7 @@ import (
 	"veyron.io/veyron/veyron2/naming"
 	"veyron.io/veyron/veyron2/rt"
 	"veyron.io/veyron/veyron2/services/mgmt/node"
-	"veyron.io/veyron/veyron2/verror"
+	verror "veyron.io/veyron/veyron2/verror2"
 )
 
 func init() {
@@ -275,7 +275,7 @@ func TestClaimCommand(t *testing.T) {
 
 	// Error operation.
 	tape.SetResponses([]interface{}{
-		verror.BadArgf("oops!"),
+		verror.Make(errOops, nil),
 	})
 	if err := cmd.Execute([]string{"claim", nodeName, "grant"}); err == nil {
 		t.Fatalf("claim() failed to detect error", err)
@@ -355,7 +355,7 @@ func TestStartCommand(t *testing.T) {
 	// Error operation.
 	tape.SetResponses([]interface{}{StartResponse{
 		[]string{},
-		verror.BadArgf("oops!"),
+		verror.Make(errOops, nil),
 	},
 	})
 	if err := cmd.Execute([]string{"start", appName, "grant"}); err == nil {
