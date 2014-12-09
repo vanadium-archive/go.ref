@@ -11,13 +11,11 @@ import (
 	"veyron.io/veyron/veyron2/rt"
 	"veyron.io/veyron/veyron2/services/mgmt/binary"
 	"veyron.io/veyron/veyron2/services/mgmt/build"
-	"veyron.io/veyron/veyron2/verror"
+	verror "veyron.io/veyron/veyron2/verror2"
 	"veyron.io/veyron/veyron2/vlog"
 
 	"veyron.io/veyron/veyron/profiles"
 )
-
-var errInternalError = verror.Internalf("internal error")
 
 type mock struct{}
 
@@ -28,7 +26,7 @@ func (mock) Build(ctx build.BuilderBuildContext, arch build.Architecture, opsys 
 	}
 	if err := iterator.Err(); err != nil {
 		vlog.Errorf("Advance() failed: %v", err)
-		return nil, errInternalError
+		return nil, verror.Make(verror.Internal, ctx)
 	}
 	return nil, nil
 }
