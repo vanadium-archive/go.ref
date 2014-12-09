@@ -109,7 +109,7 @@ func TestFlushCacheEntry(t *testing.T) {
 		{"/h2//c", "/h3"},
 		{"/h3//d", "/h4:1234"},
 	}
-	ns, _ := New(nil)
+	ns, _ := New()
 	c := ns.resolutionCache.(*ttlCache)
 	for _, p := range preload {
 		e := &naming.MountEntry{Servers: []naming.MountedServer{naming.MountedServer{Server: "p.server", Expires: future(3000)}}}
@@ -152,7 +152,7 @@ func disabled(ctls []naming.CacheCtl) bool {
 }
 
 func TestCacheDisableEnable(t *testing.T) {
-	ns, _ := New(nil)
+	ns, _ := New()
 
 	// Default should be working resolution cache.
 	name := "/h1//a"

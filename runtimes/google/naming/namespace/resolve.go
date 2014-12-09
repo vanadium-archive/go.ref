@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"runtime"
 
+	"veyron.io/veyron/veyron2"
 	"veyron.io/veyron/veyron2/context"
 	"veyron.io/veyron/veyron2/ipc"
 	"veyron.io/veyron/veyron2/naming"
@@ -80,6 +81,7 @@ func (ns *namespace) ResolveX(ctx context.T, name string, opts ...naming.Resolve
 		return nil, verror.Make(naming.ErrNoSuchName, ctx, name)
 	}
 	pattern := getRootPattern(opts)
+	client := veyron2.RuntimeFromContext(ctx).Client()
 	// Iterate walking through mount table servers.
 	for remaining := ns.maxResolveDepth; remaining > 0; remaining-- {
 		vlog.VI(2).Infof("ResolveX(%s) loop %v", name, *e)
@@ -89,7 +91,7 @@ func (ns *namespace) ResolveX(ctx context.T, name string, opts ...naming.Resolve
 		}
 		var err error
 		curr := e
-		if e, err = ns.resolveAgainstMountTable(ctx, ns.rt.Client(), curr, pattern); err != nil {
+		if e, err = ns.resolveAgainstMountTable(ctx, client, curr, pattern); err != nil {
 			// Lots of reasons why another error can happen.  We are trying
 			// to single out "this isn't a mount table".
 			if notAnMT(err) {
@@ -130,6 +132,7 @@ func (ns *namespace) ResolveToMountTableX(ctx context.T, name string, opts ...na
 		return nil, verror.Make(naming.ErrNoMountTable, ctx)
 	}
 	pattern := getRootPattern(opts)
+	client := veyron2.RuntimeFromContext(ctx).Client()
 	last := e
 	for remaining := ns.maxResolveDepth; remaining > 0; remaining-- {
 		vlog.VI(2).Infof("ResolveToMountTableX(%s) loop %v", name, e)
@@ -140,7 +143,7 @@ func (ns *namespace) ResolveToMountTableX(ctx context.T, name string, opts ...na
 			vlog.VI(1).Infof("ResolveToMountTableX(%s) -> %v", name, last)
 			return last, nil
 		}
-		if e, err = ns.resolveAgainstMountTable(ctx, ns.rt.Client(), e, pattern); err != nil {
+		if e, err = ns.resolveAgainstMountTable(ctx, client, e, pattern); err != nil {
 			if verror.Is(err, naming.ErrNoSuchNameRoot.ID) {
 				vlog.VI(1).Infof("ResolveToMountTableX(%s) -> %v (NoSuchRoot: %v)", name, last, curr)
 				return last, nil
@@ -224,10 +227,11 @@ func (ns *namespace) Unresolve(ctx context.T, name string) ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
+	client := veyron2.RuntimeFromContext(ctx).Client()
 	for remaining := ns.maxResolveDepth; remaining > 0; remaining-- {
 		vlog.VI(2).Infof("Unresolve loop %s", names)
 		curr := names
-		if names, err = unresolveAgainstServer(ctx, ns.rt.Client(), names); err != nil {
+		if names, err = unresolveAgainstServer(ctx, client, names); err != nil {
 			return nil, err
 		}
 		if len(names) == 0 {

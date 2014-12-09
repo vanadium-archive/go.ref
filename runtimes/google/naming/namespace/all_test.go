@@ -623,13 +623,10 @@ func TestGoroutineLeaks(t *testing.T) {
 }
 
 func TestBadRoots(t *testing.T) {
-	_, r, cleanup := createRuntimes(t)
-	defer cleanup()
-
-	if _, err := namespace.New(r); err != nil {
+	if _, err := namespace.New(); err != nil {
 		t.Errorf("namespace.New should not have failed with no roots")
 	}
-	if _, err := namespace.New(r, "not a rooted name"); err == nil {
+	if _, err := namespace.New("not a rooted name"); err == nil {
 		t.Errorf("namespace.New should have failed with an unrooted name")
 	}
 }

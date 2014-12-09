@@ -7,6 +7,7 @@ import (
 
 	"veyron.io/veyron/veyron/lib/glob"
 
+	"veyron.io/veyron/veyron2"
 	"veyron.io/veyron/veyron2/context"
 	"veyron.io/veyron/veyron2/ipc"
 	"veyron.io/veyron/veyron2/naming"
@@ -30,6 +31,7 @@ type queuedEntry struct {
 //   recursive true to continue below the matched pattern
 func (ns *namespace) globAtServer(ctx context.T, qe *queuedEntry, pattern *glob.Glob, l *list.List) error {
 	server := qe.me
+	client := veyron2.RuntimeFromContext(ctx).Client()
 	pstr := pattern.String()
 	vlog.VI(2).Infof("globAtServer(%v, %v)", *server, pstr)
 
@@ -54,7 +56,6 @@ func (ns *namespace) globAtServer(ctx context.T, qe *queuedEntry, pattern *glob.
 
 		// Don't further resolve s.Server.
 		callCtx, _ := ctx.WithTimeout(callTimeout)
-		client := ns.rt.Client()
 		call, err := client.StartCall(callCtx, s.Server, ipc.GlobMethod, []interface{}{pstr}, options.NoResolve(true))
 		if err != nil {
 			lastErr = err

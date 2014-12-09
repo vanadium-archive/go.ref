@@ -6,7 +6,6 @@ import (
 
 	inaming "veyron.io/veyron/veyron/runtimes/google/naming"
 
-	"veyron.io/veyron/veyron2"
 	"veyron.io/veyron/veyron2/naming"
 	"veyron.io/veyron/veyron2/verror"
 	"veyron.io/veyron/veyron2/vlog"
@@ -18,7 +17,6 @@ const defaultMaxRecursiveGlobDepth = 10
 // namespace is an implementation of naming.Namespace.
 type namespace struct {
 	sync.RWMutex
-	rt veyron2.Runtime
 
 	// the default root servers for resolutions in this namespace.
 	roots []string
@@ -45,13 +43,12 @@ func badRoots(roots []string) verror.E {
 }
 
 // Create a new namespace.
-func New(rt veyron2.Runtime, roots ...string) (*namespace, error) {
+func New(roots ...string) (*namespace, error) {
 	if !rooted(roots) {
 		return nil, badRoots(roots)
 	}
 	// A namespace with no roots can still be used for lookups of rooted names.
 	return &namespace{
-		rt:                    rt,
 		roots:                 roots,
 		maxResolveDepth:       defaultMaxResolveDepth,
 		maxRecursiveGlobDepth: defaultMaxRecursiveGlobDepth,
