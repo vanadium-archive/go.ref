@@ -13,9 +13,11 @@ import (
 	vsecurity "veyron.io/veyron/veyron/security"
 	"veyron.io/veyron/veyron2/ipc"
 	"veyron.io/veyron/veyron2/options"
+	"veyron.io/veyron/veyron2/rt"
 	"veyron.io/veyron/veyron2/security"
 	"veyron.io/veyron/veyron2/vlog"
 	"veyron.io/wspr/veyron/services/wsprd/browspr"
+	"veyron.io/wspr/veyron/services/wsprd/lib"
 )
 
 func main() {
