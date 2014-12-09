@@ -176,6 +176,17 @@ func DownloadToFile(ctx context.T, von, path string) error {
 	return nil
 }
 
+func DownloadURL(ctx context.T, von string) (string, int64, error) {
+	ctx, cancel := ctx.WithTimeout(time.Minute)
+	defer cancel()
+	url, ttl, err := repository.BinaryClient(von).DownloadURL(ctx)
+	if err != nil {
+		vlog.Errorf("DownloadURL() failed: %v", err)
+		return "", 0, err
+	}
+	return url, ttl, nil
+}
+
 func upload(ctx context.T, r io.ReadSeeker, mediaInfo repository.MediaInfo, von string) error {
 	client := repository.BinaryClient(von)
 	offset, whence := int64(0), 2

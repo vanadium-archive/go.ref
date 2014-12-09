@@ -92,7 +92,7 @@ func getParts(path string) ([]string, error) {
 // createObjectNameTree returns a tree of all the valid object names in the
 // repository.
 func (i *binaryService) createObjectNameTree() *treeNode {
-	pattern := i.state.root
+	pattern := i.state.rootDir
 	for d := 0; d < i.state.depth; d++ {
 		pattern = filepath.Join(pattern, "*")
 	}

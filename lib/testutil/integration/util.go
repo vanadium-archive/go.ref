@@ -97,7 +97,7 @@ func StartServer(bin string, args []string) (*os.Process, error) {
 	if err := cmd.Start(); err != nil {
 		return nil, fmt.Errorf("%q failed: %v", strings.Join(cmd.Args, " "), err)
 	}
-	// Wait for the server to mount itself.
+	// Wait for the server to mount both its tcp and ws endpoint.
 	ready := make(chan struct{}, 1)
 	go func() {
 		defer outPipe.Close()

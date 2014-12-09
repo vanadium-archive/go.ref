@@ -2,10 +2,11 @@
 // objects identified by object name suffixes using the local file
 // system. Given an object name suffix, the implementation computes an
 // MD5 hash of the suffix and generates the following path in the
-// local filesystem: /<root>/<dir_1>/.../<dir_n>/<hash>. The root and
-// the directory depth are parameters of the implementation. The
-// contents of the directory include the checksum and data for each of
-// the individual parts of the binary, and the name of the object:
+// local filesystem: /<root_dir>/<dir_1>/.../<dir_n>/<hash>. The root
+// directory and the directory depth are parameters of the
+// implementation. The contents of the directory include the checksum
+// and data for each of the individual parts of the binary, and the
+// name of the object:
 //
 // name
 // <part_1>/checksum
@@ -156,9 +157,9 @@ func (i *binaryService) Delete(context ipc.ServerContext) error {
 	}
 	for {
 		// Remove the binary and all directories on the path back to the
-		// root that are left empty after the binary is removed.
+		// root directory that are left empty after the binary is removed.
 		path = filepath.Dir(path)
-		if i.state.root == path {
+		if i.state.rootDir == path {
 			break
 		}
 		if err := os.Remove(path); err != nil {
@@ -204,10 +205,11 @@ func (i *binaryService) Download(context repository.BinaryDownloadContext, part 
 	return nil
 }
 
+// TODO(jsimsa): Design and implement an access control mechanism for
+// the URL-based downloads.
 func (i *binaryService) DownloadURL(ipc.ServerContext) (string, int64, error) {
 	vlog.Infof("%v.DownloadURL()", i.suffix)
-	// TODO(jsimsa): Implement.
-	return "", 0, nil
+	return i.state.rootURL + "/" + i.suffix, 0, nil
 }
 
 func (i *binaryService) Stat(ipc.ServerContext) ([]binary.PartInfo, repository.MediaInfo, error) {

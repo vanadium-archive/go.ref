@@ -47,7 +47,7 @@ func TestHelperProcess(t *testing.T) {
 	modules.DispatchInTest()
 }
 
-func TestBuild(t *testing.T) {
+func TestBuildServerIntegration(t *testing.T) {
 	// Build the required binaries.
 	binDir, cleanup, err := integration.BuildPkgs(binPkgs)
 	if err != nil {

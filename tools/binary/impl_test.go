@@ -50,7 +50,10 @@ func (s *server) Download(ctx repository.BinaryDownloadContext, _ int32) error {
 
 func (s *server) DownloadURL(ipc.ServerContext) (string, int64, error) {
 	vlog.Infof("DownloadURL() was called. suffix=%v", s.suffix)
-	return "", 0, nil
+	if s.suffix != "" {
+		return "", 0, fmt.Errorf("non-empty suffix: %v", s.suffix)
+	}
+	return "test-download-url", 0, nil
 }
 
 func (s *server) Stat(ipc.ServerContext) ([]binary.PartInfo, repository.MediaInfo, error) {
@@ -119,19 +122,20 @@ func TestBinaryClient(t *testing.T) {
 		return
 	}
 	defer stopServer(t, server)
+
 	// Setup the command-line.
 	cmd := root()
-	var stdout, stderr bytes.Buffer
-	cmd.Init(nil, &stdout, &stderr)
+	var out bytes.Buffer
+	cmd.Init(nil, &out, &out)
 
 	// Test the 'delete' command.
 	if err := cmd.Execute([]string{"delete", naming.JoinAddressName(endpoint.String(), "exists")}); err != nil {
-		t.Fatalf("%v", err)
+		t.Fatalf("%v failed: %v\n%v", "delete", err, out.String())
 	}
-	if expected, got := "Binary deleted successfully", strings.TrimSpace(stdout.String()); got != expected {
+	if expected, got := "Binary deleted successfully", strings.TrimSpace(out.String()); got != expected {
 		t.Errorf("Got %q, expected %q", got, expected)
 	}
-	stdout.Reset()
+	out.Reset()
 
 	// Test the 'download' command.
 	dir, err := ioutil.TempDir("", "binaryimpltest")
@@ -142,9 +146,9 @@ func TestBinaryClient(t *testing.T) {
 	file := path.Join(dir, "testfile")
 	defer os.Remove(file)
 	if err := cmd.Execute([]string{"download", naming.JoinAddressName(endpoint.String(), "exists"), file}); err != nil {
-		t.Fatalf("%v", err)
+		t.Fatalf("%v failed: %v\n%v", "download", err, out.String())
 	}
-	if expected, got := "Binary downloaded to file "+file, strings.TrimSpace(stdout.String()); got != expected {
+	if expected, got := "Binary downloaded to file "+file, strings.TrimSpace(out.String()); got != expected {
 		t.Errorf("Got %q, expected %q", got, expected)
 	}
 	buf, err := ioutil.ReadFile(file)
@@ -154,10 +158,19 @@ func TestBinaryClient(t *testing.T) {
 	if expected := "HelloWorld"; string(buf) != expected {
 		t.Errorf("Got %q, expected %q", string(buf), expected)
 	}
-	stdout.Reset()
+	out.Reset()
 
 	// Test the 'upload' command.
 	if err := cmd.Execute([]string{"upload", naming.JoinAddressName(endpoint.String(), "exists"), file}); err != nil {
-		t.Fatalf("%v", err)
+		t.Fatalf("%v failed: %v\n%v", "upload", err, out.String())
+	}
+	out.Reset()
+
+	// Test the 'url' command.
+	if err := cmd.Execute([]string{"url", naming.JoinAddressName(endpoint.String(), "")}); err != nil {
+		t.Fatalf("%v failed: %v\n%v", "url", err, out.String())
+	}
+	if expected, got := "test-download-url", strings.TrimSpace(out.String()); got != expected {
+		t.Errorf("Got %q, expected %q", got, expected)
 	}
 }
