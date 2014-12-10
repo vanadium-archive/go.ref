@@ -806,7 +806,7 @@ func TestNodeManagerClaim(t *testing.T) {
 
 	*envelope = envelopeFromShell(sh, nil, appCmd, "google naps", "trapp")
 
-	nodeStub := node.NodeClient("nm//nm")
+	nodeStub := node.DeviceClient("nm//nm")
 	selfRT := globalRT
 	otherRT := newRuntime(t)
 	defer otherRT.Cleanup()
@@ -892,7 +892,7 @@ func TestNodeManagerUpdateACL(t *testing.T) {
 	// Create an envelope for an app.
 	*envelope = envelopeFromShell(sh, nil, appCmd, "google naps")
 
-	nodeStub := node.NodeClient("nm//nm")
+	nodeStub := node.DeviceClient("nm//nm")
 	acl, etag, err := nodeStub.GetACL(selfRT.NewContext())
 	if err != nil {
 		t.Fatalf("GetACL failed:%v", err)
@@ -1225,7 +1225,7 @@ func TestNodeManagerPackages(t *testing.T) {
 	}
 }
 
-func listAndVerifyAssociations(t *testing.T, stub node.NodeClientMethods, run veyron2.Runtime, expected []node.Association) {
+func listAndVerifyAssociations(t *testing.T, stub node.DeviceClientMethods, run veyron2.Runtime, expected []node.Association) {
 	assocs, err := stub.ListAssociations(run.NewContext())
 	if err != nil {
 		t.Fatalf("ListAssociations failed %v", err)
@@ -1267,7 +1267,7 @@ func TestAccountAssociation(t *testing.T) {
 	pid := readPID(t, nms)
 	defer syscall.Kill(pid, syscall.SIGINT)
 
-	nodeStub := node.NodeClient("nm//nm")
+	nodeStub := node.DeviceClient("nm//nm")
 
 	// Attempt to list associations on the node manager without having
 	// claimed it.
@@ -1377,7 +1377,7 @@ func TestAppWithSuidHelper(t *testing.T) {
 	pid := readPID(t, nms)
 	defer syscall.Kill(pid, syscall.SIGINT)
 
-	nodeStub := node.NodeClient("nm//nm")
+	nodeStub := node.DeviceClient("nm//nm")
 
 	// Create the local server that the app uses to tell us which system name
 	// the node manager wished to run it as.

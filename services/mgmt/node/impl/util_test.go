@@ -203,9 +203,9 @@ func resolve(t *testing.T, name string, replicas int) []string {
 // The following set of functions are convenience wrappers around Update and
 // Revert for node manager.
 
-func nodeStub(name string) node.NodeClientMethods {
+func nodeStub(name string) node.DeviceClientMethods {
 	nodeName := naming.Join(name, "nm")
-	return node.NodeClient(nodeName)
+	return node.DeviceClient(nodeName)
 }
 
 func updateNodeExpectError(t *testing.T, name string, errID verror.ID) {
