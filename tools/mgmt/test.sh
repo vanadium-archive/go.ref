@@ -18,7 +18,7 @@ build() {
   NAMESPACE_BIN="$(shell_test::build_go_binary 'veyron.io/veyron/veyron/tools/namespace')"
   PRINCIPAL_BIN="$(shell_test::build_go_binary 'veyron.io/veyron/veyron/tools/principal')"
   DEBUG_BIN="$(shell_test::build_go_binary 'veyron.io/veyron/veyron/tools/debug')"
-  NMINSTALL_SCRIPT="$(shell::go_package_dir 'veyron.io/veyron/veyron/tools/mgmt')/nminstall"
+  DMINSTALL_SCRIPT="$(shell::go_package_dir 'veyron.io/veyron/veyron/tools/mgmt')/nminstall"
 }
 
 # TODO(caprita): Move to shell_tesh.sh
@@ -63,14 +63,14 @@ main() {
   # test.sh by hand and exercise the code that requires root privileges.
 
   # Install and start device manager.
-  shell_test::start_server "${NMINSTALL_SCRIPT}" --single_user $(shell::tmp_dir) \
+  shell_test::start_server "${DMINSTALL_SCRIPT}" --single_user $(shell::tmp_dir) \
     "${BIN_STAGING_DIR}" -- --veyron.tcp.address=127.0.0.1:0 || shell_test::fail "line ${LINENO} failed to start device manager"
   # Dump nminstall's log, just to provide visibility into its steps.
   cat "${START_SERVER_LOG_FILE}"
 
-  local -r NM_NAME=$(hostname)
+  local -r DM_NAME=$(hostname)
   # Verify that device manager is published under the expected name (hostname).
-  shell_test::assert_ne "$("${NAMESPACE_BIN}" glob "${NM_NAME}")" "" "${LINENO}"
+  shell_test::assert_ne "$("${NAMESPACE_BIN}" glob "${DM_NAME}")" "" "${LINENO}"
 
   # Create the client principal, "alice".
   "${PRINCIPAL_BIN}" create --overwrite=true ./alice alice >/dev/null || \
@@ -80,10 +80,10 @@ main() {
   export VEYRON_CREDENTIALS=./alice
 
   # Claim the device as "alice/myworkstation".
-  "${DEVICE_BIN}" claim "${NM_NAME}/nm" myworkstation
+  "${DEVICE_BIN}" claim "${DM_NAME}/device" myworkstation
 
   # Verify the device's default blessing is as expected.
-  shell_test::assert_eq "$("${DEBUG_BIN}" stats read "${NM_NAME}/__debug/stats/security/principal/blessingstore" | head -1 | sed -e 's/^.*Default blessings: '//)" \
+  shell_test::assert_eq "$("${DEBUG_BIN}" stats read "${DM_NAME}/__debug/stats/security/principal/blessingstore" | head -1 | sed -e 's/^.*Default blessings: '//)" \
     "alice/myworkstation" "${LINENO}"
 
   # Start a binary server.
@@ -118,10 +118,10 @@ main() {
     "BINARYD" "${LINENO}"
 
   # Install the app on the device.
-  local -r INSTALLATION_NAME=$("${DEVICE_BIN}" install "${NM_NAME}/apps" "${SAMPLE_APP_NAME}" | sed -e 's/Successfully installed: "//' | sed -e 's/"//')
+  local -r INSTALLATION_NAME=$("${DEVICE_BIN}" install "${DM_NAME}/apps" "${SAMPLE_APP_NAME}" | sed -e 's/Successfully installed: "//' | sed -e 's/"//')
 
   # Verify that the installation shows up when globbing the device manager.
-  shell_test::assert_eq "$("${NAMESPACE_BIN}" glob "${NM_NAME}/apps/BINARYD/*")" \
+  shell_test::assert_eq "$("${NAMESPACE_BIN}" glob "${DM_NAME}/apps/BINARYD/*")" \
     "${INSTALLATION_NAME}" "${LINENO}"
 
   # Start an instance of the app, granting it blessing extension myapp.
@@ -129,7 +129,7 @@ main() {
   wait_for_mountentry "${NAMESPACE_BIN}" "5" "${APP_PUBLISH_NAME}"
 
   # Verify that the instance shows up when globbing the device manager.
-  shell_test::assert_eq "$("${NAMESPACE_BIN}" glob "${NM_NAME}/apps/BINARYD/*/*")" "${INSTANCE_NAME}" "${LINENO}"
+  shell_test::assert_eq "$("${NAMESPACE_BIN}" glob "${DM_NAME}/apps/BINARYD/*/*")" "${INSTANCE_NAME}" "${LINENO}"
 
   # Verify the app's default blessing.
   shell_test::assert_eq "$("${DEBUG_BIN}" stats read "${INSTANCE_NAME}/stats/security/principal/blessingstore" | head -1 | sed -e 's/^.*Default blessings: '//)" \

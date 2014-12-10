@@ -70,7 +70,7 @@ var _ ipc.Dispatcher = (*dispatcher)(nil)
 
 const (
 	appsSuffix   = "apps"
-	deviceSuffix = "nm"
+	deviceSuffix = "device"
 	configSuffix = "cfg"
 
 	pkgPath = "veyron.io/veyron/veyron/services/mgmt/device/impl"

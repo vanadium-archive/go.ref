@@ -21,10 +21,10 @@ func InvokeCallback(ctx context.T, name string) {
 			// Device manager was not started by self-update, return silently.
 			return
 		}
-		nmClient := device.ConfigClient(callbackName)
+		client := device.ConfigClient(callbackName)
 		ctx, cancel := ctx.WithTimeout(ipcContextTimeout)
 		defer cancel()
-		if err := nmClient.Set(ctx, mgmt.ChildNameConfigKey, name); err != nil {
+		if err := client.Set(ctx, mgmt.ChildNameConfigKey, name); err != nil {
 			vlog.Fatalf("Set(%v, %v) failed: %v", mgmt.ChildNameConfigKey, name, err)
 		}
 	case exec.ErrNoVersion:

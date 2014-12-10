@@ -14,7 +14,7 @@ import (
 // TestAssociationPersistance verifies correct operation of association
 // persistance code.
 func TestAssociationPersistance(t *testing.T) {
-	td, err := ioutil.TempDir("", "nmtest")
+	td, err := ioutil.TempDir("", "device_test")
 	if err != nil {
 		t.Fatalf("TempDir failed: %v", err)
 	}

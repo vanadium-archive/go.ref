@@ -495,7 +495,7 @@ func setupPrincipal(ctx context.T, instanceDir, versionDir string, call ipc.Serv
 	if err != nil {
 		return err
 	}
-	nmPrincipal := call.LocalPrincipal()
+	dmPrincipal := call.LocalPrincipal()
 	// Take the blessings conferred upon us by the Start-er, extend them
 	// with the app title.
 	grantedBlessings := call.Blessings()
@@ -503,7 +503,7 @@ func setupPrincipal(ctx context.T, instanceDir, versionDir string, call ipc.Serv
 		return verror2.Make(ErrInvalidBlessing, nil)
 	}
 	// TODO(caprita): Revisit UnconstrainedUse.
-	appBlessings, err := nmPrincipal.Bless(p.PublicKey(), grantedBlessings, envelope.Title, security.UnconstrainedUse())
+	appBlessings, err := dmPrincipal.Bless(p.PublicKey(), grantedBlessings, envelope.Title, security.UnconstrainedUse())
 	if err != nil {
 		vlog.Errorf("Bless() failed: %v", err)
 		return verror2.Make(ErrOperationFailed, nil)
@@ -535,13 +535,13 @@ func setupPrincipal(ctx context.T, instanceDir, versionDir string, call ipc.Serv
 	// TODO(caprita): Figure out if there is any feature value in providing
 	// the app with a device manager-derived blessing (e.g., may the app
 	// need to prove it's running on the device?).
-	nmBlessings, err := nmPrincipal.Bless(p.PublicKey(), nmPrincipal.BlessingStore().Default(), "callback", security.UnconstrainedUse())
+	dmBlessings, err := dmPrincipal.Bless(p.PublicKey(), dmPrincipal.BlessingStore().Default(), "callback", security.UnconstrainedUse())
 	// Put the names of the device manager's default blessings as patterns
 	// for the child, so that the child uses the right blessing when talking
 	// back to the device manager.
-	names := nmPrincipal.BlessingStore().Default().ForContext(call)
+	names := dmPrincipal.BlessingStore().Default().ForContext(call)
 	for _, n := range names {
-		if _, err := p.BlessingStore().Set(nmBlessings, security.BlessingPattern(n)); err != nil {
+		if _, err := p.BlessingStore().Set(dmBlessings, security.BlessingPattern(n)); err != nil {
 			vlog.Errorf("BlessingStore.Set() failed: %v", err)
 			return verror2.Make(ErrOperationFailed, nil)
 		}
@@ -555,12 +555,12 @@ func setupPrincipal(ctx context.T, instanceDir, versionDir string, call ipc.Serv
 		vlog.Errorf("generateRandomString() failed: %v", err)
 		return verror2.Make(ErrOperationFailed, nil)
 	}
-	if _, err := p.BlessingStore().Set(nmBlessings, security.BlessingPattern(randomPattern)); err != nil {
+	if _, err := p.BlessingStore().Set(dmBlessings, security.BlessingPattern(randomPattern)); err != nil {
 		vlog.Errorf("BlessingStore.Set() failed: %v", err)
 		return verror2.Make(ErrOperationFailed, nil)
 	}
 	info.DeviceManagerPeerPattern = randomPattern
-	if err := p.AddToRoots(nmBlessings); err != nil {
+	if err := p.AddToRoots(dmBlessings); err != nil {
 		vlog.Errorf("AddToRoots() failed: %v", err)
 		return verror2.Make(ErrOperationFailed, nil)
 	}

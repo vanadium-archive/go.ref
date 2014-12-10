@@ -90,12 +90,12 @@ func RunKeyManager(runtime veyron2.Runtime, path string, passphrase []byte) (cli
 		return nil, err
 	}
 
-	go mgr.readNMConns(local)
+	go mgr.readDMConns(local)
 
 	return client, nil
 }
 
-func (a keymgr) readNMConns(conn *net.UnixConn) {
+func (a keymgr) readDMConns(conn *net.UnixConn) {
 	defer conn.Close()
 	var buf keyHandle
 	for {

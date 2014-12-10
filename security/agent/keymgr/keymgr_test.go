@@ -56,8 +56,8 @@ func TestNoDeviceManager(t *testing.T) {
 	}
 }
 
-func createClient(runtime veyron2.Runtime, nmagent *Agent, id []byte) (security.Principal, error) {
-	file, err := nmagent.NewConnection(id)
+func createClient(runtime veyron2.Runtime, deviceAgent *Agent, id []byte) (security.Principal, error) {
+	file, err := deviceAgent.NewConnection(id)
 	if err != nil {
 		return nil, err
 	}
