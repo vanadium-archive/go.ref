@@ -102,7 +102,7 @@ func TestDebugServer(t *testing.T) {
 		addr := naming.JoinAddressName(ep.String(), tc.name)
 		call, err := client.StartCall(ctx, addr, ipc.GlobMethod, []interface{}{tc.pattern}, options.NoResolve(true))
 		if err != nil {
-			t.Fatalf("client.StartCall failed: %v", err)
+			t.Fatalf("client.StartCall failed for %q: %v", tc.name, err)
 		}
 		results := []string{}
 		for {
@@ -113,11 +113,11 @@ func TestDebugServer(t *testing.T) {
 			results = append(results, me.Name)
 		}
 		if ferr := call.Finish(&err); ferr != nil {
-			t.Fatalf("call.Finish failed: %v", ferr)
+			t.Fatalf("call.Finish failed for %q: %v", tc.name, ferr)
 		}
 		sort.Strings(results)
 		if !reflect.DeepEqual(tc.expected, results) {
-			t.Errorf("unexpected results. Got %v, want %v", results, tc.expected)
+			t.Errorf("unexpected results for %q. Got %v, want %v", tc.name, results, tc.expected)
 		}
 	}
 }
