@@ -2,6 +2,7 @@ package vc
 
 import (
 	"bytes"
+	"io"
 	"net"
 	"reflect"
 	"testing"
@@ -92,6 +93,26 @@ func TestCloseBeforeWrite(t *testing.T) {
 
 	if n, err := w.Write([]byte{1, 2}); n != 0 || err != errWriterClosed {
 		t.Errorf("Got (%v, %v) want (0, %v)", n, err, errWriterClosed)
+	}
+}
+
+func TestShutdownBeforeWrite(t *testing.T) {
+	bq := drrqueue.New(128)
+	defer bq.Close()
+
+	bw, err := bq.NewWriter(0, 0, 10)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	shared := sync.NewSemaphore()
+	shared.IncN(4)
+
+	w := newTestWriter(bw, shared)
+	w.shutdown(true)
+
+	if n, err := w.Write([]byte{1, 2}); n != 0 || err != io.EOF {
+		t.Errorf("Got (%v, %v) want (0, %v)", n, err, io.EOF)
 	}
 }
 

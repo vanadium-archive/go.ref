@@ -443,7 +443,9 @@ func (s *server) listenLoop(ln stream.Listener, ep naming.Endpoint) {
 			if err := fs.serve(); err != nil {
 				// TODO(caprita): Logging errors here is too spammy. For example, "not
 				// authorized" errors shouldn't be logged as server errors.
-				vlog.Errorf("Flow serve on %v failed: %v", ep, err)
+				if err != io.EOF {
+					vlog.Errorf("Flow serve on %v failed: %v", ep, err)
+				}
 			}
 		}(flow)
 	}
@@ -757,6 +759,10 @@ func (fs *flowServer) serve() error {
 		TraceResponse:    traceResponse,
 	}
 	if err := fs.enc.Encode(response); err != nil {
+		if err == io.EOF {
+			return err
+		}
+		// We'll close the flow 2x.
 		return verror.BadProtocolf("ipc: response encoding failed: %v", err)
 	}
 	if response.Error != nil {
@@ -764,6 +770,9 @@ func (fs *flowServer) serve() error {
 	}
 	for ix, res := range results {
 		if err := fs.encodeValueHack(res); err != nil {
+			if err == io.EOF {
+				return err
+			}
 			return verror.BadProtocolf("ipc: result #%d [%T=%v] encoding failed: %v", ix, res, res, err)
 		}
 	}

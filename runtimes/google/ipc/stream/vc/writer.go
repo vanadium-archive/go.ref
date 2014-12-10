@@ -3,6 +3,7 @@ package vc
 import (
 	"errors"
 	"fmt"
+	"io"
 	"sync"
 	"sync/atomic"
 
@@ -20,11 +21,12 @@ type writer struct {
 	Alloc          *iobuf.Allocator // Allocator for iobuf.Slice objects. GUARDED_BY(mu)
 	SharedCounters *vsync.Semaphore // Semaphore hosting counters shared by all flows over a VC.
 
-	mu        sync.Mutex      // Guards call to Writes
-	wroteOnce bool            // GUARDED_BY(mu)
-	isClosed  bool            // GUARDED_BY(mu)
-	closed    chan struct{}   // GUARDED_BY(mu)
-	deadline  <-chan struct{} // GUARDED_BY(mu)
+	mu         sync.Mutex      // Guards call to Writes
+	wroteOnce  bool            // GUARDED_BY(mu)
+	isClosed   bool            // GUARDED_BY(mu)
+	closeError error           // GUARDED_BY(mu)
+	closed     chan struct{}   // GUARDED_BY(mu)
+	deadline   <-chan struct{} // GUARDED_BY(mu)
 
 	// Total number of bytes filled in by all Write calls on this writer.
 	// Atomic operations are used to manipulate it.
@@ -42,6 +44,7 @@ func newWriter(mtu int, sink bqueue.Writer, alloc *iobuf.Allocator, counters *vs
 		Alloc:          alloc,
 		SharedCounters: counters,
 		closed:         make(chan struct{}),
+		closeError:     errWriterClosed,
 	}
 }
 
@@ -50,15 +53,15 @@ func newWriter(mtu int, sink bqueue.Writer, alloc *iobuf.Allocator, counters *vs
 // If removeWriter is true the writer will also be removed entirely from the
 // bqueue, otherwise the now empty writer will eventually be returned by
 // bqueue.Get.
-func (w *writer) Shutdown(removeWriter bool) {
+func (w *writer) shutdown(removeWriter bool) {
 	w.Sink.Shutdown(removeWriter)
-	w.finishClose()
+	w.finishClose(true)
 }
 
 // Close closes the writer without discarding any queued up write buffers.
 func (w *writer) Close() {
 	w.Sink.Close()
-	w.finishClose()
+	w.finishClose(false)
 }
 
 func (w *writer) IsClosed() bool {
@@ -71,7 +74,7 @@ func (w *writer) Closed() <-chan struct{} {
 	return w.closed
 }
 
-func (w *writer) finishClose() {
+func (w *writer) finishClose(remoteShutdown bool) {
 	// IsClosed() and Closed() indicate that the writer is closed before
 	// finishClose() completes. This is safe because Alloc and shared counters
 	// are guarded, and are not accessed elsewhere after w.closed is closed.
@@ -79,8 +82,12 @@ func (w *writer) finishClose() {
 	// finishClose() is idempotent, but Go's builtin close is not.
 	if !w.isClosed {
 		w.isClosed = true
+		if remoteShutdown {
+			w.closeError = io.EOF
+		}
 		close(w.closed)
 	}
+
 	w.Alloc.Release()
 	w.mu.Unlock()
 
@@ -103,8 +110,9 @@ func (w *writer) Write(b []byte) (int, error) {
 	w.mu.Lock()
 	defer w.mu.Unlock()
 	if w.isClosed {
-		return 0, errWriterClosed
+		return 0, w.closeError
 	}
+
 	for len(b) > 0 {
 		n := len(b)
 		if n > w.MTU {
@@ -134,7 +142,7 @@ func (w *writer) Write(b []byte) (int, error) {
 			case bqueue.ErrCancelled, vsync.ErrCanceled:
 				return written, timeoutError{}
 			case bqueue.ErrWriterIsClosed:
-				return written, errWriterClosed
+				return written, w.closeError
 			default:
 				return written, fmt.Errorf("bqueue.Writer.Put failed: %v", err)
 			}
