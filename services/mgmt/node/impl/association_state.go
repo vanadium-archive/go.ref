@@ -98,9 +98,9 @@ func (u *association) DisassociateSystemAccountForBlessings(blessings []string) 
 }
 
 func NewBlessingSystemAssociationStore(root string) (BlessingSystemAssociationStore, error) {
-	nddir := filepath.Join(root, "node-manager", "node-data")
+	nddir := filepath.Join(root, "device-manager", "device-data")
 	if err := os.MkdirAll(nddir, os.FileMode(0700)); err != nil {
-		return nil, verror2.Make(verror2.NoExist, nil, "Could not create node-data directory", nddir, err)
+		return nil, verror2.Make(verror2.NoExist, nil, "Could not create device-data directory", nddir, err)
 	}
 	msf := filepath.Join(nddir, "associated.accounts")
 

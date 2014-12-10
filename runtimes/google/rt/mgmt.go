@@ -17,7 +17,7 @@ import (
 // refactor the profiles/runtime interface.
 func (rt *vrt) initMgmt(appCycle veyron2.AppCycle, handle *exec.ChildHandle) (ipc.Server, error) {
 	// Do not initialize the mgmt runtime if the process has not
-	// been started through the veyron exec library by a node
+	// been started through the veyron exec library by a device
 	// manager.
 	if handle == nil {
 		return nil, nil

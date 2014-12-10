@@ -1,29 +1,29 @@
 package impl
 
-// The node invoker is responsible for managing the state of the node manager
-// itself.  The implementation expects that the node manager installations are
-// all organized in the following directory structure:
+// The device invoker is responsible for managing the state of the device
+// manager itself.  The implementation expects that the device manager
+// installations are all organized in the following directory structure:
 //
 // <config.Root>/
-//   node-manager/
+//   device-manager/
 //     <version 1 timestamp>/  - timestamp of when the version was downloaded
-//       noded                 - the node manager binary
-//       noded.sh              - a shell script to start the binary
+//       deviced               - the device manager binary
+//       deviced.sh            - a shell script to start the binary
 //     <version 2 timestamp>
 //     ...
-//     node-data/
-//       acl.nodemanager
+//     device-data/
+//       acl.devicemanager
 //	 acl.signature
 //	 associated.accounts
 //
-// The node manager is always expected to be started through the symbolic link
+// The device manager is always expected to be started through the symbolic link
 // passed in as config.CurrentLink, which is monitored by an init daemon. This
 // provides for simple and robust updates.
 //
-// To update the node manager to a newer version, a new workspace is created and
-// the symlink is updated to the new noded.sh script. Similarly, to revert the
-// node manager to a previous version, all that is required is to update the
-// symlink to point to the previous noded.sh script.
+// To update the device manager to a newer version, a new workspace is created
+// and the symlink is updated to the new deviced.sh script. Similarly, to revert
+// the device manager to a previous version, all that is required is to update
+// the symlink to point to the previous deviced.sh script.
 
 import (
 	"bufio"
@@ -57,7 +57,7 @@ import (
 )
 
 type updatingState struct {
-	// updating is a flag that records whether this instance of node
+	// updating is a flag that records whether this instance of device
 	// manager is being updated.
 	updating bool
 	// updatingMutex is a lock for coordinating concurrent access to
@@ -85,8 +85,8 @@ func (u *updatingState) unsetUpdating() {
 	u.updatingMutex.Unlock()
 }
 
-// nodeService implements the Node manager's Node interface.
-type nodeService struct {
+// deviceService implements the Device manager's Device interface.
+type deviceService struct {
 	updating *updatingState
 	callback *callbackState
 	config   *config.State
@@ -94,18 +94,18 @@ type nodeService struct {
 	uat      BlessingSystemAssociationStore
 }
 
-func (i *nodeService) Claim(call ipc.ServerContext) error {
+func (i *deviceService) Claim(call ipc.ServerContext) error {
 	// Get the blessing to be used by the claimant.
 	blessings := call.Blessings()
 	if blessings == nil {
 		return verror2.Make(ErrInvalidBlessing, call)
 	}
-	return i.disp.claimNodeManager(call.LocalPrincipal(), blessings.ForContext(call), blessings)
+	return i.disp.claimDeviceManager(call.LocalPrincipal(), blessings.ForContext(call), blessings)
 }
 
-func (*nodeService) Describe(ipc.ServerContext) (node.Description, error) {
+func (*deviceService) Describe(ipc.ServerContext) (node.Description, error) {
 	empty := node.Description{}
-	nodeProfile, err := computeNodeProfile()
+	deviceProfile, err := computeDeviceProfile()
 	if err != nil {
 		return empty, err
 	}
@@ -113,12 +113,12 @@ func (*nodeService) Describe(ipc.ServerContext) (node.Description, error) {
 	if err != nil {
 		return empty, err
 	}
-	result := matchProfiles(nodeProfile, knownProfiles)
+	result := matchProfiles(deviceProfile, knownProfiles)
 	return result, nil
 }
 
-func (*nodeService) IsRunnable(_ ipc.ServerContext, description binary.Description) (bool, error) {
-	nodeProfile, err := computeNodeProfile()
+func (*deviceService) IsRunnable(_ ipc.ServerContext, description binary.Description) (bool, error) {
+	deviceProfile, err := computeDeviceProfile()
 	if err != nil {
 		return false, err
 	}
@@ -130,18 +130,18 @@ func (*nodeService) IsRunnable(_ ipc.ServerContext, description binary.Descripti
 		}
 		binaryProfiles = append(binaryProfiles, *profile)
 	}
-	result := matchProfiles(nodeProfile, binaryProfiles)
+	result := matchProfiles(deviceProfile, binaryProfiles)
 	return len(result.Profiles) > 0, nil
 }
 
-func (*nodeService) Reset(call ipc.ServerContext, deadline uint64) error {
+func (*deviceService) Reset(call ipc.ServerContext, deadline uint64) error {
 	// TODO(jsimsa): Implement.
 	return nil
 }
 
 // getCurrentFileInfo returns the os.FileInfo for both the symbolic link
-// CurrentLink, and the node script in the workspace that this link points to.
-func (i *nodeService) getCurrentFileInfo() (os.FileInfo, string, error) {
+// CurrentLink, and the device script in the workspace that this link points to.
+func (i *deviceService) getCurrentFileInfo() (os.FileInfo, string, error) {
 	path := i.config.CurrentLink
 	link, err := os.Lstat(path)
 	if err != nil {
@@ -156,7 +156,7 @@ func (i *nodeService) getCurrentFileInfo() (os.FileInfo, string, error) {
 	return link, scriptPath, nil
 }
 
-func (i *nodeService) revertNodeManager(ctx context.T) error {
+func (i *deviceService) revertDeviceManager(ctx context.T) error {
 	if err := updateLink(i.config.Previous, i.config.CurrentLink); err != nil {
 		return err
 	}
@@ -165,14 +165,14 @@ func (i *nodeService) revertNodeManager(ctx context.T) error {
 	return nil
 }
 
-func (i *nodeService) newLogfile(prefix string) (*os.File, error) {
-	d := filepath.Join(i.config.Root, "node_test_logs")
+func (i *deviceService) newLogfile(prefix string) (*os.File, error) {
+	d := filepath.Join(i.config.Root, "device_test_logs")
 	if _, err := os.Stat(d); err != nil {
 		if err := os.MkdirAll(d, 0700); err != nil {
 			return nil, err
 		}
 	}
-	f, err := ioutil.TempFile(d, "__node_impl_test__"+prefix)
+	f, err := ioutil.TempFile(d, "__device_impl_test__"+prefix)
 	if err != nil {
 		return nil, err
 	}
@@ -181,8 +181,8 @@ func (i *nodeService) newLogfile(prefix string) (*os.File, error) {
 
 // TODO(cnicolaou): would this be better implemented using the modules
 // framework now that it exists?
-func (i *nodeService) testNodeManager(ctx context.T, workspace string, envelope *application.Envelope) error {
-	path := filepath.Join(workspace, "noded.sh")
+func (i *deviceService) testDeviceManager(ctx context.T, workspace string, envelope *application.Envelope) error {
+	path := filepath.Join(workspace, "deviced.sh")
 	cmd := exec.Command(path)
 
 	for k, v := range map[string]*io.Writer{
@@ -191,7 +191,7 @@ func (i *nodeService) testNodeManager(ctx context.T, workspace string, envelope 
 	} {
 		// Using a log file makes it less likely that stdout and stderr
 		// output will be lost if the child crashes.
-		file, err := i.newLogfile(fmt.Sprintf("noded-test-%s", k))
+		file, err := i.newLogfile(fmt.Sprintf("deviced-test-%s", k))
 		if err != nil {
 			return err
 		}
@@ -203,7 +203,7 @@ func (i *nodeService) testNodeManager(ctx context.T, workspace string, envelope 
 			if f, err := os.Open(fName); err == nil {
 				scanner := bufio.NewScanner(f)
 				for scanner.Scan() {
-					vlog.Infof("[testNodeManager %s] %s", k, scanner.Text())
+					vlog.Infof("[testDeviceManager %s] %s", k, scanner.Text())
 				}
 			}
 		}()
@@ -256,19 +256,19 @@ func (i *nodeService) testNodeManager(ctx context.T, workspace string, envelope 
 	if err != nil {
 		return verror2.Make(ErrOperationFailed, ctx)
 	}
-	// Check that the new node manager updated the current symbolic link.
+	// Check that the new device manager updated the current symbolic link.
 	if !linkOld.ModTime().Before(linkNew.ModTime()) {
-		vlog.Errorf("New node manager test failed")
+		vlog.Errorf("New device manager test failed")
 		return verror2.Make(ErrOperationFailed, ctx)
 	}
 	// Ensure that the current symbolic link points to the same script.
 	if pathNew != pathOld {
 		updateLink(pathOld, i.config.CurrentLink)
-		vlog.Errorf("New node manager test failed")
+		vlog.Errorf("New device manager test failed")
 		return verror2.Make(ErrOperationFailed, ctx)
 	}
 	if err := handle.Wait(childWaitTimeout); err != nil {
-		vlog.Errorf("New node manager failed to exit cleanly: %v", err)
+		vlog.Errorf("New device manager failed to exit cleanly: %v", err)
 		return verror2.Make(ErrOperationFailed, ctx)
 	}
 	return nil
@@ -292,10 +292,10 @@ func generateScript(workspace string, configSettings []string, envelope *applica
 	//
 	// TODO(caprita/rthellend): expose and use shellEscape (from
 	// veyron/tools/debug/impl.go) instead.
-	output += fmt.Sprintf("exec %q", filepath.Join(workspace, "noded")) + " "
+	output += fmt.Sprintf("exec %q", filepath.Join(workspace, "deviced")) + " "
 	output += strings.Join(envelope.Args, " ")
 	output += "\n"
-	path = filepath.Join(workspace, "noded.sh")
+	path = filepath.Join(workspace, "deviced.sh")
 	if err := ioutil.WriteFile(path, []byte(output), 0700); err != nil {
 		vlog.Errorf("WriteFile(%v) failed: %v", path, err)
 		return verror2.Make(ErrOperationFailed, nil)
@@ -303,7 +303,7 @@ func generateScript(workspace string, configSettings []string, envelope *applica
 	return nil
 }
 
-func (i *nodeService) updateNodeManager(ctx context.T) error {
+func (i *deviceService) updateDeviceManager(ctx context.T) error {
 	if len(i.config.Origin) == 0 {
 		return verror2.Make(ErrUpdateNoOp, ctx)
 	}
@@ -311,14 +311,14 @@ func (i *nodeService) updateNodeManager(ctx context.T) error {
 	if err != nil {
 		return err
 	}
-	if envelope.Title != application.NodeManagerTitle {
+	if envelope.Title != application.DeviceManagerTitle {
 		return verror2.Make(ErrAppTitleMismatch, ctx)
 	}
 	if i.config.Envelope != nil && reflect.DeepEqual(envelope, i.config.Envelope) {
 		return verror2.Make(ErrUpdateNoOp, ctx)
 	}
 	// Create new workspace.
-	workspace := filepath.Join(i.config.Root, "node-manager", generateVersionDirName())
+	workspace := filepath.Join(i.config.Root, "device-manager", generateVersionDirName())
 	perm := os.FileMode(0700)
 	if err := os.MkdirAll(workspace, perm); err != nil {
 		vlog.Errorf("MkdirAll(%v, %v) failed: %v", workspace, perm, err)
@@ -334,21 +334,21 @@ func (i *nodeService) updateNodeManager(ctx context.T) error {
 		}
 	}()
 
-	// Populate the new workspace with a node manager binary.
+	// Populate the new workspace with a device manager binary.
 	// TODO(caprita): match identical binaries on binary metadata
 	// rather than binary object name.
 	sameBinary := i.config.Envelope != nil && envelope.Binary == i.config.Envelope.Binary
 	if sameBinary {
-		if err := linkSelf(workspace, "noded"); err != nil {
+		if err := linkSelf(workspace, "deviced"); err != nil {
 			return err
 		}
 	} else {
-		if err := downloadBinary(ctx, workspace, "noded", envelope.Binary); err != nil {
+		if err := downloadBinary(ctx, workspace, "deviced", envelope.Binary); err != nil {
 			return err
 		}
 	}
 
-	// Populate the new workspace with a node manager script.
+	// Populate the new workspace with a device manager script.
 	configSettings, err := i.config.Save(envelope)
 	if err != nil {
 		return verror2.Make(ErrOperationFailed, ctx)
@@ -358,11 +358,11 @@ func (i *nodeService) updateNodeManager(ctx context.T) error {
 		return err
 	}
 
-	if err := i.testNodeManager(ctx, workspace, envelope); err != nil {
+	if err := i.testDeviceManager(ctx, workspace, envelope); err != nil {
 		return err
 	}
 
-	if err := updateLink(filepath.Join(workspace, "noded.sh"), i.config.CurrentLink); err != nil {
+	if err := updateLink(filepath.Join(workspace, "deviced.sh"), i.config.CurrentLink); err != nil {
 		return err
 	}
 
@@ -372,25 +372,25 @@ func (i *nodeService) updateNodeManager(ctx context.T) error {
 	return nil
 }
 
-func (*nodeService) Install(ctx ipc.ServerContext, _ string) (string, error) {
+func (*deviceService) Install(ctx ipc.ServerContext, _ string) (string, error) {
 	return "", verror2.Make(ErrInvalidSuffix, ctx)
 }
 
-func (*nodeService) Refresh(ipc.ServerContext) error {
+func (*deviceService) Refresh(ipc.ServerContext) error {
 	// TODO(jsimsa): Implement.
 	return nil
 }
 
-func (*nodeService) Restart(ipc.ServerContext) error {
+func (*deviceService) Restart(ipc.ServerContext) error {
 	// TODO(jsimsa): Implement.
 	return nil
 }
 
-func (*nodeService) Resume(ctx ipc.ServerContext) error {
+func (*deviceService) Resume(ctx ipc.ServerContext) error {
 	return verror2.Make(ErrInvalidSuffix, ctx)
 }
 
-func (i *nodeService) Revert(call ipc.ServerContext) error {
+func (i *deviceService) Revert(call ipc.ServerContext) error {
 	if i.config.Previous == "" {
 		return verror2.Make(ErrUpdateNoOp, call)
 	}
@@ -398,31 +398,31 @@ func (i *nodeService) Revert(call ipc.ServerContext) error {
 	if updatingState.testAndSetUpdating() {
 		return verror2.Make(ErrOperationInProgress, call)
 	}
-	err := i.revertNodeManager(call)
+	err := i.revertDeviceManager(call)
 	if err != nil {
 		updatingState.unsetUpdating()
 	}
 	return err
 }
 
-func (*nodeService) Start(ctx ipc.ServerContext) ([]string, error) {
+func (*deviceService) Start(ctx ipc.ServerContext) ([]string, error) {
 	return nil, verror2.Make(ErrInvalidSuffix, ctx)
 }
 
-func (*nodeService) Stop(ctx ipc.ServerContext, _ uint32) error {
+func (*deviceService) Stop(ctx ipc.ServerContext, _ uint32) error {
 	return verror2.Make(ErrInvalidSuffix, ctx)
 }
 
-func (*nodeService) Suspend(ipc.ServerContext) error {
+func (*deviceService) Suspend(ipc.ServerContext) error {
 	// TODO(jsimsa): Implement.
 	return nil
 }
 
-func (*nodeService) Uninstall(ctx ipc.ServerContext) error {
+func (*deviceService) Uninstall(ctx ipc.ServerContext) error {
 	return verror2.Make(ErrInvalidSuffix, ctx)
 }
 
-func (i *nodeService) Update(call ipc.ServerContext) error {
+func (i *deviceService) Update(call ipc.ServerContext) error {
 	ctx, cancel := call.WithTimeout(ipcContextTimeout)
 	defer cancel()
 
@@ -431,23 +431,23 @@ func (i *nodeService) Update(call ipc.ServerContext) error {
 		return verror2.Make(ErrOperationInProgress, call)
 	}
 
-	err := i.updateNodeManager(ctx)
+	err := i.updateDeviceManager(ctx)
 	if err != nil {
 		updatingState.unsetUpdating()
 	}
 	return err
 }
 
-func (*nodeService) UpdateTo(ipc.ServerContext, string) error {
+func (*deviceService) UpdateTo(ipc.ServerContext, string) error {
 	// TODO(jsimsa): Implement.
 	return nil
 }
 
-func (i *nodeService) SetACL(ctx ipc.ServerContext, acl access.TaggedACLMap, etag string) error {
+func (i *deviceService) SetACL(ctx ipc.ServerContext, acl access.TaggedACLMap, etag string) error {
 	return i.disp.setACL(ctx.LocalPrincipal(), acl, etag, true /* store ACL on disk */)
 }
 
-func (i *nodeService) GetACL(_ ipc.ServerContext) (acl access.TaggedACLMap, etag string, err error) {
+func (i *deviceService) GetACL(_ ipc.ServerContext) (acl access.TaggedACLMap, etag string, err error) {
 	return i.disp.getACL()
 }
 
@@ -456,7 +456,7 @@ func sameMachineCheck(ctx ipc.ServerContext) error {
 	case err != nil:
 		return err
 	case local == false:
-		vlog.Errorf("SameMachine() indicates that endpoint is not on the same node")
+		vlog.Errorf("SameMachine() indicates that endpoint is not on the same device")
 		return verror2.Make(ErrOperationFailed, ctx)
 	}
 	return nil
@@ -464,7 +464,7 @@ func sameMachineCheck(ctx ipc.ServerContext) error {
 
 // TODO(rjkroege): Make it possible for users on the same system to also
 // associate their accounts with their identities.
-func (i *nodeService) AssociateAccount(call ipc.ServerContext, identityNames []string, accountName string) error {
+func (i *deviceService) AssociateAccount(call ipc.ServerContext, identityNames []string, accountName string) error {
 	if err := sameMachineCheck(call); err != nil {
 		return err
 	}
@@ -477,7 +477,7 @@ func (i *nodeService) AssociateAccount(call ipc.ServerContext, identityNames []s
 	}
 }
 
-func (i *nodeService) ListAssociations(call ipc.ServerContext) (associations []node.Association, err error) {
+func (i *deviceService) ListAssociations(call ipc.ServerContext) (associations []node.Association, err error) {
 	// Temporary code. Dump this.
 	vlog.VI(2).Infof("ListAssociations given blessings: %v\n", call.RemoteBlessings().ForContext(call))
 

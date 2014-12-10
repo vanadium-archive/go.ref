@@ -15,7 +15,7 @@ import (
 )
 
 var (
-	publishAs   = flag.String("name", "", "name to publish the node manager at")
+	publishAs   = flag.String("name", "", "name to publish the device manager at")
 	installSelf = flag.Bool("install_self", false, "perform installation using environment and command-line flags")
 	installFrom = flag.String("install_from", "", "if not-empty, perform installation from the provided application envelope object name")
 )
@@ -55,7 +55,7 @@ func main() {
 		vlog.Fatalf("Listen(%s) failed: %v", roaming.ListenSpec, err)
 	}
 	name := naming.JoinAddressName(endpoint.String(), "")
-	vlog.VI(0).Infof("Node manager object name: %v", name)
+	vlog.VI(0).Infof("Device manager object name: %v", name)
 	configState, err := config.Load()
 	if err != nil {
 		vlog.Fatalf("Failed to load config passed from parent: %v", err)
@@ -72,7 +72,7 @@ func main() {
 	if err := server.ServeDispatcher(*publishAs, dispatcher); err != nil {
 		vlog.Fatalf("Serve(%v) failed: %v", *publishAs, err)
 	}
-	vlog.VI(0).Infof("Node manager published as: %v", *publishAs)
+	vlog.VI(0).Infof("Device manager published as: %v", *publishAs)
 	impl.InvokeCallback(runtime.NewContext(), name)
 
 	// Wait until shutdown.

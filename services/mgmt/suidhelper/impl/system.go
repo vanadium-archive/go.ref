@@ -25,7 +25,7 @@ func (hw *WorkParameters) Chown() error {
 	}
 
 	for _, p := range []string{hw.workspace, hw.logDir} {
-		// TODO(rjkroege): Ensure that the nodemanager can read log entries.
+		// TODO(rjkroege): Ensure that the device manager can read log entries.
 		if err := filepath.Walk(p, chown); err != nil {
 			return fmt.Errorf("os.Chown(%s, %d, %d) failed: %v", p, hw.uid, hw.gid, err)
 		}

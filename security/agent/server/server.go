@@ -69,7 +69,7 @@ func RunAnonymousAgent(runtime veyron2.Runtime, principal security.Principal) (c
 
 // RunKeyManager starts the key manager server listening on an
 // anonymous unix domain socket. It will persist principals in 'path' using 'passphrase'.
-// Typically only used by the node manager.
+// Typically only used by the device manager.
 // The returned 'client' is typically passed via cmd.ExtraFiles to a child process.
 func RunKeyManager(runtime veyron2.Runtime, path string, passphrase []byte) (client *os.File, err error) {
 	if path == "" {

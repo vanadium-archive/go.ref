@@ -13,9 +13,9 @@ var cmdList = &cmdline.Command{
 	Name:     "list",
 	Short:    "Lists the account associations.",
 	Long:     "Lists all account associations.",
-	ArgsName: "<nodemanager>.",
+	ArgsName: "<devicemanager>.",
 	ArgsLong: `
-<nodemanager> is the name of the node manager to connect to.`,
+<devicemanager> is the name of the device manager to connect to.`,
 }
 
 func runList(cmd *cmdline.Command, args []string) error {
@@ -41,9 +41,9 @@ var cmdAdd = &cmdline.Command{
 	Name:     "add",
 	Short:    "Add the listed blessings with the specified system account.",
 	Long:     "Add the listed blessings with the specified system account.",
-	ArgsName: "<nodemanager> <systemName> <blessing>...",
+	ArgsName: "<devicemanager> <systemName> <blessing>...",
 	ArgsLong: `
-<nodemanager> is the name of the node manager to connect to.
+<devicemanager> is the name of the device manager to connect to.
 <systemName> is the name of an account holder on the local system.
 <blessing>.. are the blessings to associate systemAccount with.`,
 }
@@ -62,9 +62,9 @@ var cmdRemove = &cmdline.Command{
 	Name:     "remove",
 	Short:    "Removes system accounts associated with the listed blessings.",
 	Long:     "Removes system accounts associated with the listed blessings.",
-	ArgsName: "<nodemanager>  <blessing>...",
+	ArgsName: "<devicemanager>  <blessing>...",
 	ArgsLong: `
-<nodemanager> is the name of the node manager to connect to.
+<devicemanager> is the name of the device manager to connect to.
 <blessing>... is a list of blessings.`,
 }
 

@@ -56,10 +56,10 @@ import (
 )
 
 const (
-	execScriptCmd  = "execScriptCmd"
-	nodeManagerCmd = "nodeManager"
-	appCmd         = "app"
-	installerCmd   = "installer"
+	execScriptCmd    = "execScriptCmd"
+	deviceManagerCmd = "deviceManager"
+	appCmd           = "app"
+	installerCmd     = "installer"
 )
 
 func init() {
@@ -67,7 +67,7 @@ func init() {
 	vdlutil.Register(&naming.VDLMountedServer{})
 
 	modules.RegisterChild(execScriptCmd, "", execScript)
-	modules.RegisterChild(nodeManagerCmd, "", nodeManager)
+	modules.RegisterChild(deviceManagerCmd, "", deviceManager)
 	modules.RegisterChild(appCmd, "", app)
 	modules.RegisterChild(installerCmd, "", install)
 	testutil.Init()
@@ -135,13 +135,13 @@ func execScript(stdin io.Reader, stdout, stderr io.Writer, env map[string]string
 	return cmd.Run()
 }
 
-// nodeManager sets up a node manager server.  It accepts the name to publish
-// the server under as an argument.  Additional arguments can optionally specify
-// node manager config settings.
-func nodeManager(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
+// deviceManager sets up a device manager server.  It accepts the name to
+// publish the server under as an argument.  Additional arguments can optionally
+// specify device manager config settings.
+func deviceManager(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
 	args = args[1:]
 	if len(args) == 0 {
-		vlog.Fatalf("nodeManager expected at least an argument")
+		vlog.Fatalf("deviceManager expected at least an argument")
 	}
 	publishName := args[0]
 	args = args[1:]
@@ -151,10 +151,10 @@ func nodeManager(stdin io.Reader, stdout, stderr io.Writer, env map[string]strin
 	server, endpoint := newServer()
 	defer server.Stop()
 	name := naming.JoinAddressName(endpoint, "")
-	vlog.VI(1).Infof("Node manager name: %v", name)
+	vlog.VI(1).Infof("Device manager name: %v", name)
 
 	// Satisfy the contract described in doc.go by passing the config state
-	// through to the node manager dispatcher constructor.
+	// through to the device manager dispatcher constructor.
 	configState, err := config.Load()
 	if err != nil {
 		vlog.Fatalf("Failed to decode config state: %v", err)
@@ -162,8 +162,8 @@ func nodeManager(stdin io.Reader, stdout, stderr io.Writer, env map[string]strin
 	configState.Name = name
 
 	// This exemplifies how to override or set specific config fields, if,
-	// for example, the node manager is invoked 'by hand' instead of via a
-	// script prepared by a previous version of the node manager.
+	// for example, the device manager is invoked 'by hand' instead of via a
+	// script prepared by a previous version of the device manager.
 	if len(args) > 0 {
 		if want, got := 4, len(args); want != got {
 			vlog.Fatalf("expected %d additional arguments, got %d instead", want, got)
@@ -172,7 +172,7 @@ func nodeManager(stdin io.Reader, stdout, stderr io.Writer, env map[string]strin
 	}
 	dispatcher, err := impl.NewDispatcher(globalRT.Principal(), configState)
 	if err != nil {
-		vlog.Fatalf("Failed to create node manager dispatcher: %v", err)
+		vlog.Fatalf("Failed to create device manager dispatcher: %v", err)
 	}
 	if err := server.ServeDispatcher(publishName, dispatcher); err != nil {
 		vlog.Fatalf("Serve(%v) failed: %v", publishName, err)
@@ -187,20 +187,19 @@ func nodeManager(stdin io.Reader, stdout, stderr io.Writer, env map[string]strin
 		modules.WaitForEOF(stdin)
 	}
 	if dispatcher.Leaking() {
-		vlog.Fatalf("node manager leaking resources")
+		vlog.Fatalf("device manager leaking resources")
 	}
 	return nil
 }
 
-// install installs the node manager.
+// install installs the device manager.
 func install(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
 	args = args[1:]
-	// args[0] is the entrypoint for the binary to be run from the shell script
-	// that SelfInstall will write out.
+	// args[0] is the entrypoint for the binary to be run from the shell
+	// script that SelfInstall will write out.
 	entrypoint := args[0]
-	// Overwrite the entrypoint in our environment (i.e. the one
-	// that got us here), with the one we want written out in the shell
-	// script.
+	// Overwrite the entrypoint in our environment (i.e. the one that got us
+	// here), with the one we want written out in the shell script.
 	osenv := modules.SetEntryPoint(env, entrypoint)
 	if args[1] != "--" {
 		vlog.Fatalf("expected '--' immediately following command name")
@@ -280,14 +279,14 @@ func app(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args 
 	return nil
 }
 
-// TODO(rjkroege): generateNodeManagerScript and generateSuidHelperScript have code
-// similarity that might benefit from refactoring.
-// generateNodeManagerScript is very similar in behavior to generateScript in node_invoker.go.
-// However, we chose to re-implement it here for two reasons: (1) avoid making
-// generateScript public; and (2) how the test choses to invoke the node manager
-// subprocess the first time should be independent of how node manager
-// implementation sets up its updated versions.
-func generateNodeManagerScript(t *testing.T, root string, args, env []string) string {
+// TODO(rjkroege): generateDeviceManagerScript and generateSuidHelperScript have
+// code similarity that might benefit from refactoring.
+// generateDeviceManagerScript is very similar in behavior to generateScript in
+// node_invoker.go.  However, we chose to re-implement it here for two reasons:
+// (1) avoid making generateScript public; and (2) how the test choses to invoke
+// the device manager subprocess the first time should be independent of how
+// device manager implementation sets up its updated versions.
+func generateDeviceManagerScript(t *testing.T, root string, args, env []string) string {
 	env = impl.VeyronEnvironment(env)
 	output := "#!/bin/bash\n"
 	output += strings.Join(config.QuoteEnv(env), " ") + " "
@@ -296,8 +295,8 @@ func generateNodeManagerScript(t *testing.T, root string, args, env []string) st
 		t.Fatalf("MkdirAll failed: %v", err)
 	}
 	// Why pigeons? To show that the name we choose for the initial script
-	// doesn't matter and in particular is independent of how node manager
-	// names its updated version scripts (noded.sh).
+	// doesn't matter and in particular is independent of how device manager
+	// names its updated version scripts (deviced.sh).
 	path := filepath.Join(root, "factory", "pigeons.sh")
 	if err := ioutil.WriteFile(path, []byte(output), 0755); err != nil {
 		t.Fatalf("WriteFile(%v) failed: %v", path, err)
@@ -305,7 +304,7 @@ func generateNodeManagerScript(t *testing.T, root string, args, env []string) st
 	return path
 }
 
-/// readPID waits for the "ready:<PID>" line from the child and parses out the
+// readPID waits for the "ready:<PID>" line from the child and parses out the
 // PID of the child.
 func readPID(t *testing.T, s *expect.Session) int {
 	m := s.ExpectRE("ready:([0-9]+)", -1)
@@ -320,13 +319,13 @@ func readPID(t *testing.T, s *expect.Session) int {
 	return 0
 }
 
-// TestNodeManagerUpdateAndRevert makes the node manager go through the
+// TestDeviceManagerUpdateAndRevert makes the device manager go through the
 // motions of updating itself to newer versions (twice), and reverting itself
 // back (twice). It also checks that update and revert fail when they're
-// supposed to. The initial node manager is started 'by hand' via a module
-// command. Further versions are started through the soft link that the node
+// supposed to. The initial device manager is started 'by hand' via a module
+// command. Further versions are started through the soft link that the device
 // manager itself updates.
-func TestNodeManagerUpdateAndRevert(t *testing.T) {
+func TestDeviceManagerUpdateAndRevert(t *testing.T) {
 	sh, deferFn := createShellAndMountTable(t)
 	defer deferFn()
 
@@ -341,48 +340,49 @@ func TestNodeManagerUpdateAndRevert(t *testing.T) {
 	// convenient to put it there so we have everything in one place.
 	currLink := filepath.Join(root, "current_link")
 
-	crDir, crEnv := credentialsForChild("nodemanager")
+	crDir, crEnv := credentialsForChild("devicemanager")
 	defer os.RemoveAll(crDir)
 	nmArgs := []string{"factoryNM", root, "unused_helper", mockApplicationRepoName, currLink}
-	args, env := sh.CommandEnvelope(nodeManagerCmd, crEnv, nmArgs...)
+	args, env := sh.CommandEnvelope(deviceManagerCmd, crEnv, nmArgs...)
 
-	scriptPathFactory := generateNodeManagerScript(t, root, args, env)
+	scriptPathFactory := generateDeviceManagerScript(t, root, args, env)
 
 	if err := os.Symlink(scriptPathFactory, currLink); err != nil {
 		t.Fatalf("Symlink(%q, %q) failed: %v", scriptPathFactory, currLink, err)
 	}
 
-	// We instruct the initial node manager that we run to pause before
+	// We instruct the initial device manager that we run to pause before
 	// stopping its service, so that we get a chance to verify that
 	// attempting an update while another one is ongoing will fail.
 	nmPauseBeforeStopEnv := append(crEnv, "PAUSE_BEFORE_STOP=1")
 
-	// Start the initial version of the node manager, the so-called
+	// Start the initial version of the device manager, the so-called
 	// "factory" version. We use the modules-generated command to start it.
-	// We could have also used the scriptPathFactory to start it, but
-	// this demonstrates that the initial node manager could be started by
-	// hand as long as the right initial configuration is passed into the
-	// node manager implementation.
-	nmh, nms := runShellCommand(t, sh, nmPauseBeforeStopEnv, nodeManagerCmd, nmArgs...)
+	// We could have also used the scriptPathFactory to start it, but this
+	// demonstrates that the initial device manager could be started by hand
+	// as long as the right initial configuration is passed into the device
+	// manager implementation.
+	nmh, nms := runShellCommand(t, sh, nmPauseBeforeStopEnv, deviceManagerCmd, nmArgs...)
 	defer func() {
 		syscall.Kill(nmh.Pid(), syscall.SIGINT)
 	}()
 
 	readPID(t, nms)
-	resolve(t, "factoryNM", 1) // Verify the node manager has published itself.
+	resolve(t, "factoryNM", 1) // Verify the device manager has published itself.
 
 	// Simulate an invalid envelope in the application repository.
-	*envelope = envelopeFromShell(sh, nmPauseBeforeStopEnv, nodeManagerCmd, "bogus", nmArgs...)
+	*envelope = envelopeFromShell(sh, nmPauseBeforeStopEnv, deviceManagerCmd, "bogus", nmArgs...)
 
-	updateNodeExpectError(t, "factoryNM", impl.ErrAppTitleMismatch.ID)
-	revertNodeExpectError(t, "factoryNM", impl.ErrUpdateNoOp.ID)
+	updateDeviceExpectError(t, "factoryNM", impl.ErrAppTitleMismatch.ID)
+	revertDeviceExpectError(t, "factoryNM", impl.ErrUpdateNoOp.ID)
 
-	// Set up a second version of the node manager. The information in the
-	// envelope will be used by the node manager to stage the next version.
-	crDir, crEnv = credentialsForChild("nodemanager")
+	// Set up a second version of the device manager. The information in the
+	// envelope will be used by the device manager to stage the next
+	// version.
+	crDir, crEnv = credentialsForChild("devicemanager")
 	defer os.RemoveAll(crDir)
-	*envelope = envelopeFromShell(sh, crEnv, nodeManagerCmd, application.NodeManagerTitle, "v2NM")
-	updateNode(t, "factoryNM")
+	*envelope = envelopeFromShell(sh, crEnv, deviceManagerCmd, application.DeviceManagerTitle, "v2NM")
+	updateDevice(t, "factoryNM")
 
 	// Current link should have been updated to point to v2.
 	evalLink := func() string {
@@ -397,14 +397,14 @@ func TestNodeManagerUpdateAndRevert(t *testing.T) {
 		t.Fatalf("current link didn't change")
 	}
 
-	updateNodeExpectError(t, "factoryNM", impl.ErrOperationInProgress.ID)
+	updateDeviceExpectError(t, "factoryNM", impl.ErrOperationInProgress.ID)
 
 	nmh.CloseStdin()
 
 	nms.Expect("factoryNM terminating")
 	nmh.Shutdown(os.Stderr, os.Stderr)
 
-	// A successful update means the node manager has stopped itself.  We
+	// A successful update means the device manager has stopped itself.  We
 	// relaunch it from the current link.
 	resolveExpectNotFound(t, "v2NM") // Ensure a clean slate.
 
@@ -413,18 +413,19 @@ func TestNodeManagerUpdateAndRevert(t *testing.T) {
 	readPID(t, nms)
 	resolve(t, "v2NM", 1) // Current link should have been launching v2.
 
-	// Try issuing an update without changing the envelope in the application
-	// repository: this should fail, and current link should be unchanged.
-	updateNodeExpectError(t, "v2NM", impl.ErrUpdateNoOp.ID)
+	// Try issuing an update without changing the envelope in the
+	// application repository: this should fail, and current link should be
+	// unchanged.
+	updateDeviceExpectError(t, "v2NM", impl.ErrUpdateNoOp.ID)
 	if evalLink() != scriptPathV2 {
 		t.Fatalf("script changed")
 	}
 
-	// Create a third version of the node manager and issue an update.
-	crDir, crEnv = credentialsForChild("nodemanager")
+	// Create a third version of the device manager and issue an update.
+	crDir, crEnv = credentialsForChild("devicemanager")
 	defer os.RemoveAll(crDir)
-	*envelope = envelopeFromShell(sh, crEnv, nodeManagerCmd, application.NodeManagerTitle, "v3NM")
-	updateNode(t, "v2NM")
+	*envelope = envelopeFromShell(sh, crEnv, deviceManagerCmd, application.DeviceManagerTitle, "v3NM")
+	updateDevice(t, "v2NM")
 
 	scriptPathV3 := evalLink()
 	if scriptPathV3 == scriptPathV2 {
@@ -437,18 +438,17 @@ func TestNodeManagerUpdateAndRevert(t *testing.T) {
 
 	resolveExpectNotFound(t, "v3NM") // Ensure a clean slate.
 
-	// Re-lanuch the node manager from current link.
-	// We instruct the node manager to pause before stopping its server, so
-	// that we can verify that a second revert fails while a revert is in
-	// progress.
+	// Re-lanuch the device manager from current link.  We instruct the
+	// device manager to pause before stopping its server, so that we can
+	// verify that a second revert fails while a revert is in progress.
 	nmh, nms = runShellCommand(t, sh, nmPauseBeforeStopEnv, execScriptCmd, currLink)
 
 	readPID(t, nms)
 	resolve(t, "v3NM", 1) // Current link should have been launching v3.
 
-	// Revert the node manager to its previous version (v2).
-	revertNode(t, "v3NM")
-	revertNodeExpectError(t, "v3NM", impl.ErrOperationInProgress.ID) // Revert already in progress.
+	// Revert the device manager to its previous version (v2).
+	revertDevice(t, "v3NM")
+	revertDeviceExpectError(t, "v3NM", impl.ErrOperationInProgress.ID) // Revert already in progress.
 	nmh.CloseStdin()
 	nms.Expect("v3NM terminating")
 	if evalLink() != scriptPathV2 {
@@ -462,8 +462,8 @@ func TestNodeManagerUpdateAndRevert(t *testing.T) {
 	readPID(t, nms)
 	resolve(t, "v2NM", 1) // Current link should have been launching v2.
 
-	// Revert the node manager to its previous version (factory).
-	revertNode(t, "v2NM")
+	// Revert the device manager to its previous version (factory).
+	revertDevice(t, "v2NM")
 	nms.Expect("v2NM terminating")
 	if evalLink() != scriptPathFactory {
 		t.Fatalf("current link was not reverted correctly")
@@ -505,11 +505,11 @@ func setupPingServer(t *testing.T) (<-chan string, func()) {
 }
 
 func verifyAppWorkspace(t *testing.T, root, appID, instanceID string) {
-	// HACK ALERT: for now, we peek inside the node manager's directory
+	// HACK ALERT: for now, we peek inside the device manager's directory
 	// structure (which ought to be opaque) to check for what the app has
 	// written to its local root.
 	//
-	// TODO(caprita): add support to node manager to browse logs/app local
+	// TODO(caprita): add support to device manager to browse logs/app local
 	// root.
 	applicationDirName := func(title string) string {
 		h := md5.New()
@@ -566,12 +566,12 @@ func TestAppLifeCycle(t *testing.T) {
 	// Create a script wrapping the test target that implements suidhelper.
 	helperPath := generateSuidHelperScript(t, root)
 
-	crDir, crEnv := credentialsForChild("nodemanager")
+	crDir, crEnv := credentialsForChild("devicemanager")
 	defer os.RemoveAll(crDir)
 
-	// Set up the node manager.  Since we won't do node manager updates,
+	// Set up the device manager.  Since we won't do device manager updates,
 	// don't worry about its application envelope and current link.
-	nmh, nms := runShellCommand(t, sh, crEnv, nodeManagerCmd, "nm", root, helperPath, "unused_app_repo_name", "unused_curr_link")
+	nmh, nms := runShellCommand(t, sh, crEnv, deviceManagerCmd, "nm", root, helperPath, "unused_app_repo_name", "unused_curr_link")
 	readPID(t, nms)
 
 	// Create the local server that the app uses to let us know it's ready.
@@ -720,7 +720,7 @@ func TestAppLifeCycle(t *testing.T) {
 	// Starting new instances should no longer be allowed.
 	startAppExpectError(t, appID, impl.ErrInvalidOperation.ID)
 
-	// Cleanly shut down the node manager.
+	// Cleanly shut down the device manager.
 	syscall.Kill(nmh.Pid(), syscall.SIGINT)
 	nms.Expect("nm terminating")
 	nms.ExpectEOF()
@@ -780,8 +780,9 @@ func startRealBinaryRepository(t *testing.T) func() {
 	}
 }
 
-// TestNodeManagerClaim claims a nodemanager and tests ACL permissions on its methods.
-func TestNodeManagerClaim(t *testing.T) {
+// TestDeviceManagerClaim claims a devicemanager and tests ACL permissions on
+// its methods.
+func TestDeviceManagerClaim(t *testing.T) {
 	sh, deferFn := createShellAndMountTable(t)
 	defer deferFn()
 
@@ -792,41 +793,43 @@ func TestNodeManagerClaim(t *testing.T) {
 	root, cleanup := setupRootDir(t)
 	defer cleanup()
 
-	crDir, crEnv := credentialsForChild("nodemanager")
+	crDir, crEnv := credentialsForChild("devicemanager")
 	defer os.RemoveAll(crDir)
 
 	// Create a script wrapping the test target that implements suidhelper.
 	helperPath := generateSuidHelperScript(t, root)
 
-	// Set up the node manager.  Since we won't do node manager updates,
+	// Set up the device manager.  Since we won't do device manager updates,
 	// don't worry about its application envelope and current link.
-	_, nms := runShellCommand(t, sh, crEnv, nodeManagerCmd, "nm", root, helperPath, "unused_app_repo_name", "unused_curr_link")
+	_, nms := runShellCommand(t, sh, crEnv, deviceManagerCmd, "nm", root, helperPath, "unused_app_repo_name", "unused_curr_link")
 	pid := readPID(t, nms)
 	defer syscall.Kill(pid, syscall.SIGINT)
 
 	*envelope = envelopeFromShell(sh, nil, appCmd, "google naps", "trapp")
 
-	nodeStub := node.DeviceClient("nm//nm")
+	deviceStub := node.DeviceClient("nm//nm")
 	selfRT := globalRT
 	otherRT := newRuntime(t)
 	defer otherRT.Cleanup()
 
 	octx := otherRT.NewContext()
 
-	// Nodemanager should have open ACLs before we claim it and so an Install from otherRT should succeed.
+	// Devicemanager should have open ACLs before we claim it and so an
+	// Install from otherRT should succeed.
 	if err := tryInstall(octx); err != nil {
 		t.Fatalf("Failed to install: %s", err)
 	}
-	// Claim the nodemanager with selfRT as <defaultblessing>/mydevice
-	if err := nodeStub.Claim(selfRT.NewContext(), &granter{p: selfRT.Principal(), extension: "mydevice"}); err != nil {
+	// Claim the devicemanager with selfRT as <defaultblessing>/mydevice
+	if err := deviceStub.Claim(selfRT.NewContext(), &granter{p: selfRT.Principal(), extension: "mydevice"}); err != nil {
 		t.Fatal(err)
 	}
 
 	// Installation should succeed since globalRT (a.k.a. selfRT) is now the
-	// "owner" of the nodemanager.
+	// "owner" of the devicemanager.
 	appID := installApp(t)
 
-	// otherRT should be unable to install though, since the ACLs have changed now.
+	// otherRT should be unable to install though, since the ACLs have
+	// changed now.
 	if err := tryInstall(octx); err == nil {
 		t.Fatalf("Install should have failed from otherRT")
 	}
@@ -847,10 +850,10 @@ func TestNodeManagerClaim(t *testing.T) {
 	resolve(t, "trapp", 1)
 	suspendApp(t, appID, instanceID)
 
-	// TODO(gauthamt): Test that ACLs persist across nodemanager restarts
+	// TODO(gauthamt): Test that ACLs persist across devicemanager restarts
 }
 
-func TestNodeManagerUpdateACL(t *testing.T) {
+func TestDeviceManagerUpdateACL(t *testing.T) {
 	sh, deferFn := createShellAndMountTable(t)
 	defer deferFn()
 
@@ -863,16 +866,16 @@ func TestNodeManagerUpdateACL(t *testing.T) {
 
 	var (
 		idp = tsecurity.NewIDProvider("root")
-		// The two "processes"/runtimes which will act as IPC clients to the
-		// nodemanager process.
+		// The two "processes"/runtimes which will act as IPC clients to
+		// the devicemanager process.
 		selfRT  = globalRT
 		otherRT = newRuntime(t)
 	)
 	defer otherRT.Cleanup()
 	octx := otherRT.NewContext()
-	// By default, selfRT and otherRT will have blessings generated based on the
-	// username/machine name running this process. Since these blessings will appear
-	// in ACLs, give them recognizable names.
+	// By default, selfRT and otherRT will have blessings generated based on
+	// the username/machine name running this process. Since these blessings
+	// will appear in ACLs, give them recognizable names.
 	if err := idp.Bless(selfRT.Principal(), "self"); err != nil {
 		t.Fatal(err)
 	}
@@ -880,20 +883,20 @@ func TestNodeManagerUpdateACL(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	crDir, crEnv := credentialsForChild("nodemanager")
+	crDir, crEnv := credentialsForChild("devicemanager")
 	defer os.RemoveAll(crDir)
 
-	// Set up the node manager.  Since we won't do node manager updates,
+	// Set up the device manager.  Since we won't do device manager updates,
 	// don't worry about its application envelope and current link.
-	_, nms := runShellCommand(t, sh, crEnv, nodeManagerCmd, "nm", root, "unused_helper", "unused_app_repo_name", "unused_curr_link")
+	_, nms := runShellCommand(t, sh, crEnv, deviceManagerCmd, "nm", root, "unused_helper", "unused_app_repo_name", "unused_curr_link")
 	pid := readPID(t, nms)
 	defer syscall.Kill(pid, syscall.SIGINT)
 
 	// Create an envelope for an app.
 	*envelope = envelopeFromShell(sh, nil, appCmd, "google naps")
 
-	nodeStub := node.DeviceClient("nm//nm")
-	acl, etag, err := nodeStub.GetACL(selfRT.NewContext())
+	deviceStub := node.DeviceClient("nm//nm")
+	acl, etag, err := deviceStub.GetACL(selfRT.NewContext())
 	if err != nil {
 		t.Fatalf("GetACL failed:%v", err)
 	}
@@ -901,8 +904,8 @@ func TestNodeManagerUpdateACL(t *testing.T) {
 		t.Fatalf("getACL expected:default, got:%v(%v)", etag, acl)
 	}
 
-	// Claim the nodemanager as "root/self/mydevice"
-	if err := nodeStub.Claim(selfRT.NewContext(), &granter{p: selfRT.Principal(), extension: "mydevice"}); err != nil {
+	// Claim the devicemanager as "root/self/mydevice"
+	if err := deviceStub.Claim(selfRT.NewContext(), &granter{p: selfRT.Principal(), extension: "mydevice"}); err != nil {
 		t.Fatal(err)
 	}
 	expectedACL := make(access.TaggedACLMap)
@@ -915,7 +918,7 @@ func TestNodeManagerUpdateACL(t *testing.T) {
 	}
 	md5hash := md5.Sum(b.Bytes())
 	expectedETAG := hex.EncodeToString(md5hash[:])
-	if acl, etag, err = nodeStub.GetACL(selfRT.NewContext()); err != nil {
+	if acl, etag, err = deviceStub.GetACL(selfRT.NewContext()); err != nil {
 		t.Fatal(err)
 	}
 	if etag != expectedETAG {
@@ -929,13 +932,14 @@ func TestNodeManagerUpdateACL(t *testing.T) {
 	for _, tag := range access.AllTypicalTags() {
 		newACL.Add("root/other", string(tag))
 	}
-	if err := nodeStub.SetACL(selfRT.NewContext(), newACL, "invalid"); err == nil {
+	if err := deviceStub.SetACL(selfRT.NewContext(), newACL, "invalid"); err == nil {
 		t.Fatalf("SetACL should have failed with invalid etag")
 	}
-	if err := nodeStub.SetACL(selfRT.NewContext(), newACL, etag); err != nil {
+	if err := deviceStub.SetACL(selfRT.NewContext(), newACL, etag); err != nil {
 		t.Fatal(err)
 	}
-	// Install should now fail with selfRT, which no longer matches the ACLs but succeed with otherRT, which does.
+	// Install should now fail with selfRT, which no longer matches the ACLs
+	// but succeed with otherRT, which does.
 	if err := tryInstall(selfRT.NewContext()); err == nil {
 		t.Errorf("Install should have failed with selfRT since it should no longer match the ACL")
 	}
@@ -944,11 +948,11 @@ func TestNodeManagerUpdateACL(t *testing.T) {
 	}
 }
 
-// TestNodeManagerInstall verifies the 'self install' functionality of the node
-// manager: it runs SelfInstall in a child process, then runs the executable
-// from the soft link that the installation created.  This should bring up a
-// functioning node manager.
-func TestNodeManagerInstall(t *testing.T) {
+// TestDeviceManagerInstall verifies the 'self install' functionality of the
+// device manager: it runs SelfInstall in a child process, then runs the
+// executable from the soft link that the installation created.  This should
+// bring up a functioning device manager.
+func TestDeviceManagerInstall(t *testing.T) {
 	sh, deferFn := createShellAndMountTable(t)
 	defer deferFn()
 
@@ -959,41 +963,42 @@ func TestNodeManagerInstall(t *testing.T) {
 	// convenient to put it there so we have everything in one place.
 	currLink := filepath.Join(root, "current_link")
 
-	// Create an 'envelope' for the node manager that we can pass to the
-	// installer, to ensure that the node manager that the installer
+	// Create an 'envelope' for the device manager that we can pass to the
+	// installer, to ensure that the device manager that the installer
 	// configures can run. The installer uses a shell script, so we need
 	// to get a set of arguments that will work from within the shell
-	// script in order for it to start a node manager.
+	// script in order for it to start a device manager.
 	// We don't need the environment here since that can only
 	// be correctly setup in the actual 'installer' command implementation
 	// (in this case the shell script) which will inherit its environment
 	// when we run it.
 	// TODO(caprita): figure out if this is really necessary, hopefully not.
-	nmargs, _ := sh.CommandEnvelope(nodeManagerCmd, nil)
-	argsForNodeManager := append([]string{nodeManagerCmd, "--"}, nmargs[1:]...)
-	argsForNodeManager = append(argsForNodeManager, "nm")
+	nmargs, _ := sh.CommandEnvelope(deviceManagerCmd, nil)
+	argsForDeviceManager := append([]string{deviceManagerCmd, "--"}, nmargs[1:]...)
+	argsForDeviceManager = append(argsForDeviceManager, "nm")
 
-	// Add vars to instruct the installer how to configure the node manager.
+	// Add vars to instruct the installer how to configure the device
+	// manager.
 	installerEnv := []string{config.RootEnv + "=" + root, config.CurrentLinkEnv + "=" + currLink, config.HelperEnv + "=" + "unused"}
-	installerh, installers := runShellCommand(t, sh, installerEnv, installerCmd, argsForNodeManager...)
+	installerh, installers := runShellCommand(t, sh, installerEnv, installerCmd, argsForDeviceManager...)
 	installers.ExpectEOF()
 	installerh.Shutdown(os.Stderr, os.Stderr)
 
-	// CurrLink should now be pointing to a node manager script that
-	// can start up a node manager.
+	// CurrLink should now be pointing to a device manager script that
+	// can start up a device manager.
 	nmh, nms := runShellCommand(t, sh, nil, execScriptCmd, currLink)
 
-	// We need the pid of the child process started by the node manager
+	// We need the pid of the child process started by the device manager
 	// script above to signal it, not the pid of the script itself.
-	// TODO(caprita): the scripts that the node manager generates
-	// should progagate signals so you don't have to obtain the pid of the
-	// child by reading it from stdout as we do here. The node manager should
-	// be able to retain a list of the processes it spawns and be confident
+	// TODO(caprita): the scripts that the device manager generates should
+	// progagate signals so you don't have to obtain the pid of the child by
+	// reading it from stdout as we do here. The device manager should be
+	// able to retain a list of the processes it spawns and be confident
 	// that sending a signal to them will also result in that signal being
 	// sent to their children and so on.
 	pid := readPID(t, nms)
 	resolve(t, "nm", 1)
-	revertNodeExpectError(t, "nm", impl.ErrUpdateNoOp.ID) // No previous version available.
+	revertDeviceExpectError(t, "nm", impl.ErrUpdateNoOp.ID) // No previous version available.
 	syscall.Kill(pid, syscall.SIGINT)
 
 	nms.Expect("nm terminating")
@@ -1001,7 +1006,7 @@ func TestNodeManagerInstall(t *testing.T) {
 	nmh.Shutdown(os.Stderr, os.Stderr)
 }
 
-func TestNodeManagerGlobAndDebug(t *testing.T) {
+func TestDeviceManagerGlobAndDebug(t *testing.T) {
 	sh, deferFn := createShellAndMountTable(t)
 	defer deferFn()
 
@@ -1012,15 +1017,15 @@ func TestNodeManagerGlobAndDebug(t *testing.T) {
 	root, cleanup := setupRootDir(t)
 	defer cleanup()
 
-	crDir, crEnv := credentialsForChild("nodemanager")
+	crDir, crEnv := credentialsForChild("devicemanager")
 	defer os.RemoveAll(crDir)
 
 	// Create a script wrapping the test target that implements suidhelper.
 	helperPath := generateSuidHelperScript(t, root)
 
-	// Set up the node manager.  Since we won't do node manager updates,
+	// Set up the device manager.  Since we won't do device manager updates,
 	// don't worry about its application envelope and current link.
-	_, nms := runShellCommand(t, sh, crEnv, nodeManagerCmd, "nm", root, helperPath, "unused_app_repo_name", "unused_curr_link")
+	_, nms := runShellCommand(t, sh, crEnv, deviceManagerCmd, "nm", root, helperPath, "unused_app_repo_name", "unused_curr_link")
 	pid := readPID(t, nms)
 	defer syscall.Kill(pid, syscall.SIGINT)
 
@@ -1165,7 +1170,7 @@ func TestNodeManagerGlobAndDebug(t *testing.T) {
 	}
 }
 
-func TestNodeManagerPackages(t *testing.T) {
+func TestDeviceManagerPackages(t *testing.T) {
 	sh, deferFn := createShellAndMountTable(t)
 	defer deferFn()
 
@@ -1178,15 +1183,15 @@ func TestNodeManagerPackages(t *testing.T) {
 	root, cleanup := setupRootDir(t)
 	defer cleanup()
 
-	crDir, crEnv := credentialsForChild("nodemanager")
+	crDir, crEnv := credentialsForChild("devicemanager")
 	defer os.RemoveAll(crDir)
 
 	// Create a script wrapping the test target that implements suidhelper.
 	helperPath := generateSuidHelperScript(t, root)
 
-	// Set up the node manager.  Since we won't do node manager updates,
+	// Set up the device manager.  Since we won't do device manager updates,
 	// don't worry about its application envelope and current link.
-	_, nms := runShellCommand(t, sh, crEnv, nodeManagerCmd, "nm", root, helperPath, "unused_app_repo_name", "unused_curr_link")
+	_, nms := runShellCommand(t, sh, crEnv, deviceManagerCmd, "nm", root, helperPath, "unused_app_repo_name", "unused_curr_link")
 	pid := readPID(t, nms)
 	defer syscall.Kill(pid, syscall.SIGINT)
 
@@ -1233,8 +1238,8 @@ func listAndVerifyAssociations(t *testing.T, stub node.DeviceClientMethods, run 
 	compareAssociations(t, assocs, expected)
 }
 
-// TODO(rjkroege): Verify that associations persist across restarts
-// once permanent storage is added.
+// TODO(rjkroege): Verify that associations persist across restarts once
+// permanent storage is added.
 func TestAccountAssociation(t *testing.T) {
 	sh, deferFn := createShellAndMountTable(t)
 	defer deferFn()
@@ -1245,49 +1250,48 @@ func TestAccountAssociation(t *testing.T) {
 	var (
 		idp = tsecurity.NewIDProvider("root")
 		// The two "processes"/runtimes which will act as IPC clients to
-		// the nodemanager process.
+		// the devicemanager process.
 		selfRT  = globalRT
 		otherRT = newRuntime(t)
 	)
 	defer otherRT.Cleanup()
-	// By default, selfRT and otherRT will have blessings generated based
-	// on the username/machine name running this process. Since these
-	// blessings will appear in test expecations, give them readable
-	// names.
+	// By default, selfRT and otherRT will have blessings generated based on
+	// the username/machine name running this process. Since these blessings
+	// will appear in test expecations, give them readable names.
 	if err := idp.Bless(selfRT.Principal(), "self"); err != nil {
 		t.Fatal(err)
 	}
 	if err := idp.Bless(otherRT.Principal(), "other"); err != nil {
 		t.Fatal(err)
 	}
-	crFile, crEnv := credentialsForChild("nodemanager")
+	crFile, crEnv := credentialsForChild("devicemanager")
 	defer os.RemoveAll(crFile)
 
-	_, nms := runShellCommand(t, sh, crEnv, nodeManagerCmd, "nm", root, "unused_helper", "unused_app_repo_name", "unused_curr_link")
+	_, nms := runShellCommand(t, sh, crEnv, deviceManagerCmd, "nm", root, "unused_helper", "unused_app_repo_name", "unused_curr_link")
 	pid := readPID(t, nms)
 	defer syscall.Kill(pid, syscall.SIGINT)
 
-	nodeStub := node.DeviceClient("nm//nm")
+	deviceStub := node.DeviceClient("nm//nm")
 
-	// Attempt to list associations on the node manager without having
+	// Attempt to list associations on the device manager without having
 	// claimed it.
-	if list, err := nodeStub.ListAssociations(otherRT.NewContext()); err != nil || list != nil {
-		t.Fatalf("ListAssociations should fail on unclaimed node manager but did not: %v", err)
+	if list, err := deviceStub.ListAssociations(otherRT.NewContext()); err != nil || list != nil {
+		t.Fatalf("ListAssociations should fail on unclaimed device manager but did not: %v", err)
 	}
 
-	// self claims the node manager.
-	if err := nodeStub.Claim(selfRT.NewContext(), &granter{p: selfRT.Principal(), extension: "alice"}); err != nil {
+	// self claims the device manager.
+	if err := deviceStub.Claim(selfRT.NewContext(), &granter{p: selfRT.Principal(), extension: "alice"}); err != nil {
 		t.Fatalf("Claim failed: %v", err)
 	}
 
 	vlog.VI(2).Info("Verify that associations start out empty.")
-	listAndVerifyAssociations(t, nodeStub, selfRT, []node.Association(nil))
+	listAndVerifyAssociations(t, deviceStub, selfRT, []node.Association(nil))
 
-	if err := nodeStub.AssociateAccount(selfRT.NewContext(), []string{"root/self", "root/other"}, "alice_system_account"); err != nil {
+	if err := deviceStub.AssociateAccount(selfRT.NewContext(), []string{"root/self", "root/other"}, "alice_system_account"); err != nil {
 		t.Fatalf("ListAssociations failed %v", err)
 	}
 	vlog.VI(2).Info("Added association should appear.")
-	listAndVerifyAssociations(t, nodeStub, selfRT, []node.Association{
+	listAndVerifyAssociations(t, deviceStub, selfRT, []node.Association{
 		{
 			"root/self",
 			"alice_system_account",
@@ -1298,11 +1302,11 @@ func TestAccountAssociation(t *testing.T) {
 		},
 	})
 
-	if err := nodeStub.AssociateAccount(selfRT.NewContext(), []string{"root/self", "root/other"}, "alice_other_account"); err != nil {
+	if err := deviceStub.AssociateAccount(selfRT.NewContext(), []string{"root/self", "root/other"}, "alice_other_account"); err != nil {
 		t.Fatalf("AssociateAccount failed %v", err)
 	}
 	vlog.VI(2).Info("Change the associations and the change should appear.")
-	listAndVerifyAssociations(t, nodeStub, selfRT, []node.Association{
+	listAndVerifyAssociations(t, deviceStub, selfRT, []node.Association{
 		{
 			"root/self",
 			"alice_other_account",
@@ -1313,11 +1317,11 @@ func TestAccountAssociation(t *testing.T) {
 		},
 	})
 
-	if err := nodeStub.AssociateAccount(selfRT.NewContext(), []string{"root/other"}, ""); err != nil {
+	if err := deviceStub.AssociateAccount(selfRT.NewContext(), []string{"root/other"}, ""); err != nil {
 		t.Fatalf("AssociateAccount failed %v", err)
 	}
 	vlog.VI(2).Info("Verify that we can remove an association.")
-	listAndVerifyAssociations(t, nodeStub, selfRT, []node.Association{
+	listAndVerifyAssociations(t, deviceStub, selfRT, []node.Association{
 		{
 			"root/self",
 			"alice_other_account",
@@ -1325,8 +1329,8 @@ func TestAccountAssociation(t *testing.T) {
 	})
 }
 
-// userName is a helper function to determine the system name that the
-// test is running under.
+// userName is a helper function to determine the system name that the test is
+// running under.
 func userName(t *testing.T) string {
 	u, err := user.Current()
 	if err != nil {
@@ -1349,16 +1353,15 @@ func TestAppWithSuidHelper(t *testing.T) {
 	var (
 		idp = tsecurity.NewIDProvider("root")
 		// The two "processes"/runtimes which will act as IPC clients to
-		// the nodemanager process.
+		// the devicemanager process.
 		selfRT  = globalRT
 		otherRT = newRuntime(t)
 	)
 	defer otherRT.Cleanup()
 
-	// By default, selfRT and otherRT will have blessings generated
-	// based on the username/machine name running this process. Since
-	// these blessings can appear in debugging output, give them
-	// recognizable names.
+	// By default, selfRT and otherRT will have blessings generated based on
+	// the username/machine name running this process. Since these blessings
+	// can appear in debugging output, give them recognizable names.
 	if err := idp.Bless(selfRT.Principal(), "self"); err != nil {
 		t.Fatal(err)
 	}
@@ -1366,21 +1369,20 @@ func TestAppWithSuidHelper(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	crDir, crEnv := credentialsForChild("nodemanager")
+	crDir, crEnv := credentialsForChild("devicemanager")
 	defer os.RemoveAll(crDir)
 
-	// Create a script wrapping the test target that implements
-	// suidhelper.
+	// Create a script wrapping the test target that implements suidhelper.
 	helperPath := generateSuidHelperScript(t, root)
 
-	_, nms := runShellCommand(t, sh, crEnv, nodeManagerCmd, "-mocksetuid", "nm", root, helperPath, "unused_app_repo_name", "unused_curr_link")
+	_, nms := runShellCommand(t, sh, crEnv, deviceManagerCmd, "-mocksetuid", "nm", root, helperPath, "unused_app_repo_name", "unused_curr_link")
 	pid := readPID(t, nms)
 	defer syscall.Kill(pid, syscall.SIGINT)
 
-	nodeStub := node.DeviceClient("nm//nm")
+	deviceStub := node.DeviceClient("nm//nm")
 
-	// Create the local server that the app uses to tell us which system name
-	// the node manager wished to run it as.
+	// Create the local server that the app uses to tell us which system
+	// name the device manager wished to run it as.
 	server, _ := newServer()
 	defer server.Stop()
 	pingCh := make(chan string, 1)
@@ -1394,17 +1396,17 @@ func TestAppWithSuidHelper(t *testing.T) {
 	// Install and start the app as root/self.
 	appID := installApp(t, selfRT)
 
-	// Claim the nodemanager with selfRT as root/self/alice
-	if err := nodeStub.Claim(selfRT.NewContext(), &granter{p: selfRT.Principal(), extension: "alice"}); err != nil {
+	// Claim the devicemanager with selfRT as root/self/alice
+	if err := deviceStub.Claim(selfRT.NewContext(), &granter{p: selfRT.Principal(), extension: "alice"}); err != nil {
 		t.Fatal(err)
 	}
 
-	// Start an instance of the app but this time it should fail: we do
-	// not have an associated uname for the invoking identity.
+	// Start an instance of the app but this time it should fail: we do not
+	// have an associated uname for the invoking identity.
 	startAppExpectError(t, appID, verror.NoAccess, selfRT)
 
 	// Create an association for selfRT
-	if err := nodeStub.AssociateAccount(selfRT.NewContext(), []string{"root/self"}, testUserName); err != nil {
+	if err := deviceStub.AssociateAccount(selfRT.NewContext(), []string{"root/self"}, testUserName); err != nil {
 		t.Fatalf("AssociateAccount failed %v", err)
 	}
 
@@ -1416,22 +1418,23 @@ func TestAppWithSuidHelper(t *testing.T) {
 	startAppExpectError(t, appID, verror.NoAccess, otherRT)
 
 	// Self will now let other also install apps.
-	if err := nodeStub.AssociateAccount(selfRT.NewContext(), []string{"root/other"}, testUserName); err != nil {
+	if err := deviceStub.AssociateAccount(selfRT.NewContext(), []string{"root/other"}, testUserName); err != nil {
 		t.Fatalf("AssociateAccount failed %v", err)
 	}
 	// Add Start to the ACL list for root/other.
-	newACL, _, err := nodeStub.GetACL(selfRT.NewContext())
+	newACL, _, err := deviceStub.GetACL(selfRT.NewContext())
 	if err != nil {
 		t.Fatalf("GetACL failed %v", err)
 	}
 	newACL.Add("root/other", string(access.Write))
-	if err := nodeStub.SetACL(selfRT.NewContext(), newACL, ""); err != nil {
+	if err := deviceStub.SetACL(selfRT.NewContext(), newACL, ""); err != nil {
 		t.Fatalf("SetACL failed %v", err)
 	}
 
-	// With the introduction of per installation and per instance ACLs, while other now
-	// has administrator permissions on the node manager, other doesn't have execution
-	// permissions for the app. So this will fail.
+	// With the introduction of per installation and per instance ACLs,
+	// while other now has administrator permissions on the device manager,
+	// other doesn't have execution permissions for the app. So this will
+	// fail.
 	vlog.VI(2).Infof("other attempting to run an app still without access. Should fail.")
 	startAppExpectError(t, appID, verror.NoAccess, otherRT)
 
@@ -1467,7 +1470,7 @@ func TestAppWithSuidHelper(t *testing.T) {
 	stopApp(t, otherAppID, instance4ID, otherRT)
 
 	// Change the associated system name.
-	if err := nodeStub.AssociateAccount(selfRT.NewContext(), []string{"root/other"}, anotherTestUserName); err != nil {
+	if err := deviceStub.AssociateAccount(selfRT.NewContext(), []string{"root/other"}, anotherTestUserName); err != nil {
 		t.Fatalf("AssociateAccount failed %v", err)
 	}
 

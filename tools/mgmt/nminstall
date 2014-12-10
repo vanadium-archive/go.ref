@@ -1,17 +1,17 @@
 #!/bin/bash
 #
-# Installs node manager on the local machine.
+# Installs device manager on the local machine.
 #
 # Specifically:
 #
-# 1. Fetches the binaries required for a node manager installation from a few
+# 1. Fetches the binaries required for a device manager installation from a few
 # possible sources.
 #
 # 2. Sets up the helper with setuid.  The helper binary needs to be owned by
-# root and have the suid bit set, to enable the node manager to run binaries
+# root and have the suid bit set, to enable the device manager to run binaries
 # under different system accounts than itself.
 #
-# 3. Runs the self-install command on the node manager.
+# 3. Runs the self-install command on the device manager.
 #
 # Usage:
 #
@@ -28,7 +28,7 @@ set -e
 
 usage() {
   echo "usage:"
-  echo "./nminstall [--single_user] <install parent dir> [<binary source>] [-- args for node manager...]"
+  echo "./nminstall [--single_user] <install parent dir> [<binary source>] [-- args for device manager...]"
 }
 
 readonly BIN_NAMES=(noded suidhelper agentd)
@@ -58,7 +58,7 @@ copy_binary() {
 }
 
 ###############################################################################
-# Fetches binaries needed by node manager installation.
+# Fetches binaries needed by device manager installation.
 # Globals:
 #   BIN_NAMES
 #   VEYRON_ROOT
@@ -139,11 +139,11 @@ main() {
     exit 1
   fi
 
-  local -r INSTALL_DIR="${INSTALL_PARENT_DIR}/node_manager"
+  local -r INSTALL_DIR="${INSTALL_PARENT_DIR}/device_manager"
 
-  # TODO(caprita): Check that the node manager is not already installed before
+  # TODO(caprita): Check that the device manager is not already installed before
   # proceeding.  We should require an explicit uninstall to avoid wiping away
-  # the node manager accidentally.
+  # the device manager accidentally.
   if [[ ${SINGLE_USER} == false ]]; then
     sudo rm -rf "${INSTALL_DIR}"
   else
@@ -179,9 +179,9 @@ main() {
   fi
   echo "Suidhelper configured."
 
-  # Tell the node manager to install itself.
+  # Tell the device manager to install itself.
   local -r NM_ROOT="${INSTALL_DIR}/nmroot"
-  echo "Installing node manager under ${NM_ROOT} ..."
+  echo "Installing device manager under ${NM_ROOT} ..."
   local -r PUBLISH=$(hostname)
   if [[ "$1" = "--" ]]; then
     shift
@@ -191,8 +191,8 @@ main() {
     exit 1
   fi
 
-  VEYRON_NM_CURRENT="${INSTALL_DIR}/noded.curr" VEYRON_NM_ROOT="${NM_ROOT}" VEYRON_NM_HELPER="${SETUID_SCRIPT}" "${BIN_INSTALL}/noded" --install_self -- --name="${PUBLISH}" "$@"
-  echo "Node manager installed."
+  VEYRON_NM_CURRENT="${INSTALL_DIR}/deviced.curr" VEYRON_NM_ROOT="${NM_ROOT}" VEYRON_NM_HELPER="${SETUID_SCRIPT}" "${BIN_INSTALL}/noded" --install_self -- --name="${PUBLISH}" "$@"
+  echo "Device manager installed."
 
   local -r SECURITY_DIR="${INSTALL_DIR}/security"
   mkdir -m 700 "${SECURITY_DIR}"
@@ -201,14 +201,14 @@ main() {
   local -r AGENT_KEY_DIR="${SECURITY_DIR}/keys"
   mkdir -m 700 "${AGENT_KEY_DIR}"
 
-  # Run node manager under the security agent.
+  # Run device manager under the security agent.
   echo
   echo "Running:"
-  echo "VEYRON_CREDENTIALS=\"${PRINCIPAL_DIR}\" \"${BIN_INSTALL}/agentd\" ${AGENT_FLAG} --additional_principals=\"${AGENT_KEY_DIR}\" \"${INSTALL_DIR}/noded.curr\""
+  echo "VEYRON_CREDENTIALS=\"${PRINCIPAL_DIR}\" \"${BIN_INSTALL}/agentd\" ${AGENT_FLAG} --additional_principals=\"${AGENT_KEY_DIR}\" \"${INSTALL_DIR}/deviced.curr\""
   echo
   # NOTE: If you update the command below, please also update the command echoed
   # above to keep the two in sync.
-  VEYRON_CREDENTIALS="${PRINCIPAL_DIR}" exec "${BIN_INSTALL}/agentd" ${AGENT_FLAG} --additional_principals="${AGENT_KEY_DIR}" "${INSTALL_DIR}/noded.curr"
+  VEYRON_CREDENTIALS="${PRINCIPAL_DIR}" exec "${BIN_INSTALL}/agentd" ${AGENT_FLAG} --additional_principals="${AGENT_KEY_DIR}" "${INSTALL_DIR}/deviced.curr"
 }
 
 main "$@"

@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Test the node manager and related services and tools.
+# Test the device manager and related services and tools.
 
 source "${VEYRON_ROOT}/scripts/lib/shell_test.sh"
 
@@ -13,7 +13,7 @@ build() {
   APPLICATION_BIN="$(shell_test::build_go_binary 'veyron.io/veyron/veyron/tools/application')"
   AGENTD_BIN="$(shell_test::build_go_binary 'veyron.io/veyron/veyron/security/agent/agentd')"
   SUIDHELPER_BIN="$(shell_test::build_go_binary 'veyron.io/veyron/veyron/services/mgmt/suidhelper')"
-  NODEMANAGER_BIN="$(shell_test::build_go_binary 'veyron.io/veyron/veyron/services/mgmt/node/noded')"
+  DEVICEMANAGER_BIN="$(shell_test::build_go_binary 'veyron.io/veyron/veyron/services/mgmt/node/noded')"
   NODEX_BIN="$(shell_test::build_go_binary 'veyron.io/veyron/veyron/tools/mgmt/nodex')"
   NAMESPACE_BIN="$(shell_test::build_go_binary 'veyron.io/veyron/veyron/tools/namespace')"
   PRINCIPAL_BIN="$(shell_test::build_go_binary 'veyron.io/veyron/veyron/tools/principal')"
@@ -54,7 +54,7 @@ main() {
   build
 
   BIN_STAGING_DIR=$(shell::tmp_dir)
-  cp "${AGENTD_BIN}" "${SUIDHELPER_BIN}" "${NODEMANAGER_BIN}" "${BIN_STAGING_DIR}"
+  cp "${AGENTD_BIN}" "${SUIDHELPER_BIN}" "${DEVICEMANAGER_BIN}" "${BIN_STAGING_DIR}"
   shell_test::setup_server_test
   # Unset VEYRON_CREDENTIALS set in setup_server_test.
   export VEYRON_CREDENTIALS=
@@ -62,14 +62,14 @@ main() {
   # TODO(caprita): Expose an option to turn --single_user off, so we can run
   # test.sh by hand and exercise the code that requires root privileges.
 
-  # Install and start node manager.
+  # Install and start device manager.
   shell_test::start_server "${NMINSTALL_SCRIPT}" --single_user $(shell::tmp_dir) \
-    "${BIN_STAGING_DIR}" -- --veyron.tcp.address=127.0.0.1:0 || shell_test::fail "line ${LINENO} failed to start node manager"
+    "${BIN_STAGING_DIR}" -- --veyron.tcp.address=127.0.0.1:0 || shell_test::fail "line ${LINENO} failed to start device manager"
   # Dump nminstall's log, just to provide visibility into its steps.
   cat "${START_SERVER_LOG_FILE}"
 
   local -r NM_NAME=$(hostname)
-  # Verify that node manager is published under the expected name (hostname).
+  # Verify that device manager is published under the expected name (hostname).
   shell_test::assert_ne "$("${NAMESPACE_BIN}" glob "${NM_NAME}")" "" "${LINENO}"
 
   # Create the client principal, "alice".
@@ -79,10 +79,10 @@ main() {
   # All the commands executed henceforth will run as alice.
   export VEYRON_CREDENTIALS=./alice
 
-  # Claim the node as "alice/myworkstation".
+  # Claim the device as "alice/myworkstation".
   "${NODEX_BIN}" claim "${NM_NAME}/nm" myworkstation
 
-  # Verify the node's default blessing is as expected.
+  # Verify the device's default blessing is as expected.
   shell_test::assert_eq "$("${DEBUG_BIN}" stats read "${NM_NAME}/__debug/stats/security/principal/blessingstore" | head -1 | sed -e 's/^.*Default blessings: '//)" \
     "alice/myworkstation" "${LINENO}"
 
@@ -117,10 +117,10 @@ main() {
   shell_test::assert_eq "$("${APPLICATION_BIN}" match "${SAMPLE_APP_NAME}" test | grep Title | sed -e 's/^.*"Title": "'// | sed -e 's/",//')" \
     "BINARYD" "${LINENO}"
 
-  # Install the app on the node.
+  # Install the app on the device.
   local -r INSTALLATION_NAME=$("${NODEX_BIN}" install "${NM_NAME}/apps" "${SAMPLE_APP_NAME}" | sed -e 's/Successfully installed: "//' | sed -e 's/"//')
 
-  # Verify that the installation shows up when globbing the node manager.
+  # Verify that the installation shows up when globbing the device manager.
   shell_test::assert_eq "$("${NAMESPACE_BIN}" glob "${NM_NAME}/apps/BINARYD/*")" \
     "${INSTALLATION_NAME}" "${LINENO}"
 
@@ -128,7 +128,7 @@ main() {
   local -r INSTANCE_NAME=$("${NODEX_BIN}" start "${INSTALLATION_NAME}" myapp | sed -e 's/Successfully started: "//' | sed -e 's/"//')
   wait_for_mountentry "${NAMESPACE_BIN}" "5" "${APP_PUBLISH_NAME}"
 
-  # Verify that the instance shows up when globbing the node manager.
+  # Verify that the instance shows up when globbing the device manager.
   shell_test::assert_eq "$("${NAMESPACE_BIN}" glob "${NM_NAME}/apps/BINARYD/*/*")" "${INSTANCE_NAME}" "${LINENO}"
 
   # Verify the app's default blessing.

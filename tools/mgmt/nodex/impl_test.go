@@ -32,7 +32,7 @@ func TestListCommand(t *testing.T) {
 	cmd := root()
 	var stdout, stderr bytes.Buffer
 	cmd.Init(nil, &stdout, &stderr)
-	nodeName := naming.JoinAddressName(endpoint.String(), "")
+	deviceName := naming.JoinAddressName(endpoint.String(), "")
 
 	// Test the 'list' command.
 	tape.SetResponses([]interface{}{ListAssociationResponse{
@@ -49,7 +49,7 @@ func TestListCommand(t *testing.T) {
 		err: nil,
 	}})
 
-	if err := cmd.Execute([]string{"associate", "list", nodeName}); err != nil {
+	if err := cmd.Execute([]string{"associate", "list", deviceName}); err != nil {
 		t.Fatalf("%v", err)
 	}
 	if expected, got := "root/self alice_self_account\nroot/other alice_other_account", strings.TrimSpace(stdout.String()); got != expected {
@@ -62,7 +62,7 @@ func TestListCommand(t *testing.T) {
 	stdout.Reset()
 
 	// Test list with bad parameters.
-	if err := cmd.Execute([]string{"associate", "list", nodeName, "hello"}); err == nil {
+	if err := cmd.Execute([]string{"associate", "list", deviceName, "hello"}); err == nil {
 		t.Fatalf("wrongly failed to receive a non-nil error.")
 	}
 	if got, expected := len(tape.Play()), 0; got != expected {
@@ -84,7 +84,7 @@ func TestAddCommand(t *testing.T) {
 	cmd := root()
 	var stdout, stderr bytes.Buffer
 	cmd.Init(nil, &stdout, &stderr)
-	nodeName := naming.JoinAddressName(endpoint.String(), "/myapp/1")
+	deviceName := naming.JoinAddressName(endpoint.String(), "/myapp/1")
 
 	if err := cmd.Execute([]string{"add", "one"}); err == nil {
 		t.Fatalf("wrongly failed to receive a non-nil error.")
@@ -96,7 +96,7 @@ func TestAddCommand(t *testing.T) {
 	stdout.Reset()
 
 	tape.SetResponses([]interface{}{nil})
-	if err := cmd.Execute([]string{"associate", "add", nodeName, "alice", "root/self"}); err != nil {
+	if err := cmd.Execute([]string{"associate", "add", deviceName, "alice", "root/self"}); err != nil {
 		t.Fatalf("%v", err)
 	}
 	expected := []interface{}{
@@ -109,7 +109,7 @@ func TestAddCommand(t *testing.T) {
 	stdout.Reset()
 
 	tape.SetResponses([]interface{}{nil})
-	if err := cmd.Execute([]string{"associate", "add", nodeName, "alice", "root/other", "root/self"}); err != nil {
+	if err := cmd.Execute([]string{"associate", "add", deviceName, "alice", "root/other", "root/self"}); err != nil {
 		t.Fatalf("%v", err)
 	}
 	expected = []interface{}{
@@ -134,7 +134,7 @@ func TestRemoveCommand(t *testing.T) {
 	cmd := root()
 	var stdout, stderr bytes.Buffer
 	cmd.Init(nil, &stdout, &stderr)
-	nodeName := naming.JoinAddressName(endpoint.String(), "")
+	deviceName := naming.JoinAddressName(endpoint.String(), "")
 
 	if err := cmd.Execute([]string{"remove", "one"}); err == nil {
 		t.Fatalf("wrongly failed to receive a non-nil error.")
@@ -146,7 +146,7 @@ func TestRemoveCommand(t *testing.T) {
 	stdout.Reset()
 
 	tape.SetResponses([]interface{}{nil})
-	if err := cmd.Execute([]string{"associate", "remove", nodeName, "root/self"}); err != nil {
+	if err := cmd.Execute([]string{"associate", "remove", deviceName, "root/self"}); err != nil {
 		t.Fatalf("%v", err)
 	}
 	expected := []interface{}{
@@ -171,7 +171,7 @@ func TestInstallCommand(t *testing.T) {
 	cmd := root()
 	var stdout, stderr bytes.Buffer
 	cmd.Init(nil, &stdout, &stderr)
-	nodeName := naming.JoinAddressName(endpoint.String(), "")
+	deviceName := naming.JoinAddressName(endpoint.String(), "")
 
 	if err := cmd.Execute([]string{"install", "blech"}); err == nil {
 		t.Fatalf("wrongly failed to receive a non-nil error.")
@@ -196,12 +196,12 @@ func TestInstallCommand(t *testing.T) {
 		appId: appId,
 		err:   nil,
 	}})
-	if err := cmd.Execute([]string{"install", nodeName, "myBestApp"}); err != nil {
+	if err := cmd.Execute([]string{"install", deviceName, "myBestApp"}); err != nil {
 		t.Fatalf("%v", err)
 	}
 
 	eb := new(bytes.Buffer)
-	fmt.Fprintf(eb, "Successfully installed: %q", naming.Join(nodeName, appId))
+	fmt.Fprintf(eb, "Successfully installed: %q", naming.Join(deviceName, appId))
 	if expected, got := eb.String(), strings.TrimSpace(stdout.String()); got != expected {
 		t.Fatalf("Unexpected output from Install. Got %q, expected %q", got, expected)
 	}
@@ -227,7 +227,7 @@ func TestClaimCommand(t *testing.T) {
 	cmd := root()
 	var stdout, stderr bytes.Buffer
 	cmd.Init(nil, &stdout, &stderr)
-	nodeName := naming.JoinAddressName(endpoint.String(), "")
+	deviceName := naming.JoinAddressName(endpoint.String(), "")
 
 	// Confirm that we correctly enforce the number of arguments.
 	if err := cmd.Execute([]string{"claim", "nope"}); err == nil {
@@ -254,8 +254,8 @@ func TestClaimCommand(t *testing.T) {
 	tape.SetResponses([]interface{}{
 		nil,
 	})
-	if err := cmd.Execute([]string{"claim", nodeName, "grant"}); err != nil {
-		t.Fatalf("Claim(%s, %s) failed: %v", nodeName, "grant", err)
+	if err := cmd.Execute([]string{"claim", deviceName, "grant"}); err != nil {
+		t.Fatalf("Claim(%s, %s) failed: %v", deviceName, "grant", err)
 	}
 	if got, expected := len(tape.Play()), 1; got != expected {
 		t.Errorf("invalid call sequence. Got %v, want %v", got, expected)
@@ -277,7 +277,7 @@ func TestClaimCommand(t *testing.T) {
 	tape.SetResponses([]interface{}{
 		verror.Make(errOops, nil),
 	})
-	if err := cmd.Execute([]string{"claim", nodeName, "grant"}); err == nil {
+	if err := cmd.Execute([]string{"claim", deviceName, "grant"}); err == nil {
 		t.Fatalf("claim() failed to detect error", err)
 	}
 	expected = []interface{}{

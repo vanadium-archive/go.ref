@@ -6,6 +6,7 @@ import (
 	"os"
 	"path"
 	"testing"
+
 	"veyron.io/veyron/veyron/services/mgmt/node/impl"
 	"veyron.io/veyron/veyron2/services/mgmt/node"
 )
@@ -138,7 +139,7 @@ func TestAssociationPersistanceDetectsBadStartingConditions(t *testing.T) {
 		t.Fatalf("NewBlessingSystemAssociationStore failed: %v", err)
 	}
 
-	tpath := path.Join(dir, "node-manager", "node-data", "associated.accounts")
+	tpath := path.Join(dir, "device-manager", "device-data", "associated.accounts")
 	f, err := os.Create(tpath)
 	if err != nil {
 		t.Fatalf("could not open backing file for setup: %v", err)

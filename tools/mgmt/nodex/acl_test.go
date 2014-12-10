@@ -32,7 +32,7 @@ func TestACLGetCommand(t *testing.T) {
 	cmd := root()
 	var stdout, stderr bytes.Buffer
 	cmd.Init(nil, &stdout, &stderr)
-	nodeName := naming.JoinAddressName(endpoint.String(), "")
+	deviceName := naming.JoinAddressName(endpoint.String(), "")
 
 	// Test the 'get' command.
 	tape.SetResponses([]interface{}{GetACLResponse{
@@ -49,7 +49,7 @@ func TestACLGetCommand(t *testing.T) {
 		err:  nil,
 	}})
 
-	if err := cmd.Execute([]string{"acl", "get", nodeName}); err != nil {
+	if err := cmd.Execute([]string{"acl", "get", deviceName}); err != nil {
 		t.Fatalf("%v, output: %v, error: %v", err)
 	}
 	if expected, got := strings.TrimSpace(`
@@ -78,10 +78,10 @@ func TestACLSetCommand(t *testing.T) {
 	cmd := root()
 	var stdout, stderr bytes.Buffer
 	cmd.Init(nil, &stdout, &stderr)
-	nodeName := naming.JoinAddressName(endpoint.String(), "")
+	deviceName := naming.JoinAddressName(endpoint.String(), "")
 
 	// Some tests to validate parse.
-	if err := cmd.Execute([]string{"acl", "set", nodeName}); err == nil {
+	if err := cmd.Execute([]string{"acl", "set", deviceName}); err == nil {
 		t.Fatalf("failed to correctly detect insufficient parameters")
 	}
 	if expected, got := "ERROR: set: incorrect number of arguments 1, must be 1 + 2n", strings.TrimSpace(stderr.String()); !strings.HasPrefix(got, expected) {
@@ -90,7 +90,7 @@ func TestACLSetCommand(t *testing.T) {
 
 	stderr.Reset()
 	stdout.Reset()
-	if err := cmd.Execute([]string{"acl", "set", nodeName, "foo"}); err == nil {
+	if err := cmd.Execute([]string{"acl", "set", deviceName, "foo"}); err == nil {
 		t.Fatalf("failed to correctly detect insufficient parameters")
 	}
 	if expected, got := "ERROR: set: incorrect number of arguments 2, must be 1 + 2n", strings.TrimSpace(stderr.String()); !strings.HasPrefix(got, expected) {
@@ -99,7 +99,7 @@ func TestACLSetCommand(t *testing.T) {
 
 	stderr.Reset()
 	stdout.Reset()
-	if err := cmd.Execute([]string{"acl", "set", nodeName, "foo", "bar", "ohno"}); err == nil {
+	if err := cmd.Execute([]string{"acl", "set", deviceName, "foo", "bar", "ohno"}); err == nil {
 		t.Fatalf("failed to correctly detect insufficient parameters")
 	}
 	if expected, got := "ERROR: set: incorrect number of arguments 4, must be 1 + 2n", strings.TrimSpace(stderr.String()); !strings.HasPrefix(got, expected) {
@@ -108,7 +108,7 @@ func TestACLSetCommand(t *testing.T) {
 
 	stderr.Reset()
 	stdout.Reset()
-	if err := cmd.Execute([]string{"acl", "set", nodeName, "foo", "!"}); err == nil {
+	if err := cmd.Execute([]string{"acl", "set", deviceName, "foo", "!"}); err == nil {
 		t.Fatalf("failed to detect invalid parameter")
 	}
 	if expected, got := "ERROR: failed to parse access tags for \"foo\": empty access tag", strings.TrimSpace(stderr.String()); !strings.HasPrefix(got, expected) {
@@ -156,7 +156,7 @@ func TestACLSetCommand(t *testing.T) {
 	if err := cmd.Execute([]string{
 		"acl",
 		"set",
-		nodeName,
+		deviceName,
 		"friends/...", "Admin,Write",
 		"friends/alice", "!Admin,Write",
 		"self/...", "Admin,Write,Read",
@@ -227,10 +227,10 @@ func TestACLSetCommand(t *testing.T) {
 	},
 	})
 
-	if err := cmd.Execute([]string{"acl", "set", nodeName, "vana/bad", "Read"}); err == nil {
+	if err := cmd.Execute([]string{"acl", "set", deviceName, "vana/bad", "Read"}); err == nil {
 		t.Fatalf("GetACL RPC inside acl set command failed but error wrongly not detected")
 	}
-	if expected, got := `^ERROR: GetACL\(`+nodeName+`\) failed:.*oops!`, strings.TrimSpace(stderr.String()); !regexp.MustCompile(expected).MatchString(got) {
+	if expected, got := `^ERROR: GetACL\(`+deviceName+`\) failed:.*oops!`, strings.TrimSpace(stderr.String()); !regexp.MustCompile(expected).MatchString(got) {
 		t.Fatalf("Unexpected output from list. Got %q, regexp %q", got, expected)
 	}
 	if expected, got := "", strings.TrimSpace(stdout.String()); got != expected {
@@ -260,13 +260,13 @@ func TestACLSetCommand(t *testing.T) {
 		verror.Make(errOops, nil),
 	})
 
-	if err := cmd.Execute([]string{"acl", "set", nodeName, "friend", "Read"}); err == nil {
+	if err := cmd.Execute([]string{"acl", "set", deviceName, "friend", "Read"}); err == nil {
 		t.Fatalf("SetACL should have failed: %v", err)
 	}
 	if expected, got := "", strings.TrimSpace(stdout.String()); got != expected {
 		t.Fatalf("Unexpected output from list. Got %q, expected %q", got, expected)
 	}
-	if expected, got := `^ERROR: SetACL\(`+nodeName+`\) failed:.*oops!`, strings.TrimSpace(stderr.String()); !regexp.MustCompile(expected).MatchString(got) {
+	if expected, got := `^ERROR: SetACL\(`+deviceName+`\) failed:.*oops!`, strings.TrimSpace(stderr.String()); !regexp.MustCompile(expected).MatchString(got) {
 		t.Fatalf("Unexpected output from list. Got %q, regexp %q", got, expected)
 	}
 

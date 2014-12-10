@@ -58,7 +58,7 @@ copy_binary() {
 }
 
 ###############################################################################
-# Fetches binaries needed by node manager installation.
+# Fetches binaries needed by device manager installation.
 # Globals:
 #   BIN_NAMES
 #   VEYRON_ROOT

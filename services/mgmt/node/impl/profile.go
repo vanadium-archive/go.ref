@@ -13,13 +13,13 @@ import (
 	"veyron.io/veyron/veyron2/services/mgmt/node"
 )
 
-// computeNodeProfile generates a description of the runtime
+// computeDeviceProfile generates a description of the runtime
 // environment (supported file format, OS, architecture, libraries) of
-// the host node.
+// the host device.
 //
-// TODO(jsimsa): Avoid computing the host node description from
+// TODO(jsimsa): Avoid computing the host device description from
 // scratch if a recent cached copy exists.
-func computeNodeProfile() (*profile.Specification, error) {
+func computeDeviceProfile() (*profile.Specification, error) {
 	result := profile.Specification{}
 
 	// Find out what the supported file format, operating system, and
@@ -163,9 +163,9 @@ func getKnownProfiles() ([]profile.Specification, error) {
 	return knownProfiles, nil
 }
 
-// matchProfiles inputs a profile that describes the host node and a
-// set of publicly known profiles and outputs a node description that
-// identifies the publicly known profiles supported by the host node.
+// matchProfiles inputs a profile that describes the host device and a
+// set of publicly known profiles and outputs a device description that
+// identifies the publicly known profiles supported by the host device.
 func matchProfiles(p *profile.Specification, known []profile.Specification) node.Description {
 	result := node.Description{Profiles: make(map[string]struct{})}
 loop:

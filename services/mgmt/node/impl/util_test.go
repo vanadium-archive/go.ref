@@ -33,7 +33,7 @@ import (
 
 const (
 	// Setting this environment variable to any non-empty value avoids
-	// removing the node manager's workspace for successful test runs (for
+	// removing the device manager's workspace for successful test runs (for
 	// failed test runs, this is already the case).  This is useful when
 	// developing test cases.
 	preserveNMWorkspaceEnv = "VEYRON_TEST_PRESERVE_NM_WORKSPACE"
@@ -134,10 +134,10 @@ func envelopeFromShell(sh *modules.Shell, env []string, cmd, title string, args 
 	}
 }
 
-// setupRootDir sets up and returns the local filesystem location that the node
-// manager is told to use, as well as a cleanup function.
+// setupRootDir sets up and returns the local filesystem location that the
+// device manager is told to use, as well as a cleanup function.
 func setupRootDir(t *testing.T) (string, func()) {
-	rootDir, err := ioutil.TempDir("", "nodemanager")
+	rootDir, err := ioutil.TempDir("", "devicemanager")
 	if err != nil {
 		t.Fatalf("Failed to set up temporary dir for test: %v", err)
 	}
@@ -150,7 +150,7 @@ func setupRootDir(t *testing.T) (string, func()) {
 	}
 	return rootDir, func() {
 		if t.Failed() || os.Getenv(preserveNMWorkspaceEnv) != "" {
-			t.Logf("You can examine the node manager workspace at %v", rootDir)
+			t.Logf("You can examine the device manager workspace at %v", rootDir)
 		} else {
 			os.RemoveAll(rootDir)
 		}
@@ -201,33 +201,33 @@ func resolve(t *testing.T, name string, replicas int) []string {
 }
 
 // The following set of functions are convenience wrappers around Update and
-// Revert for node manager.
+// Revert for device manager.
 
-func nodeStub(name string) node.DeviceClientMethods {
-	nodeName := naming.Join(name, "nm")
-	return node.DeviceClient(nodeName)
+func deviceStub(name string) node.DeviceClientMethods {
+	deviceName := naming.Join(name, "nm")
+	return node.DeviceClient(deviceName)
 }
 
-func updateNodeExpectError(t *testing.T, name string, errID verror.ID) {
-	if err := nodeStub(name).Update(globalRT.NewContext()); !verror2.Is(err, errID) {
+func updateDeviceExpectError(t *testing.T, name string, errID verror.ID) {
+	if err := deviceStub(name).Update(globalRT.NewContext()); !verror2.Is(err, errID) {
 		t.Fatalf("%s: Update(%v) expected to fail with %v, got %v instead", loc(1), name, errID, err)
 	}
 }
 
-func updateNode(t *testing.T, name string) {
-	if err := nodeStub(name).Update(globalRT.NewContext()); err != nil {
+func updateDevice(t *testing.T, name string) {
+	if err := deviceStub(name).Update(globalRT.NewContext()); err != nil {
 		t.Fatalf("%s: Update(%v) failed: %v", loc(1), name, err)
 	}
 }
 
-func revertNodeExpectError(t *testing.T, name string, errID verror.ID) {
-	if err := nodeStub(name).Revert(globalRT.NewContext()); !verror2.Is(err, errID) {
+func revertDeviceExpectError(t *testing.T, name string, errID verror.ID) {
+	if err := deviceStub(name).Revert(globalRT.NewContext()); !verror2.Is(err, errID) {
 		t.Fatalf("%s: Revert(%v) expected to fail with %v, got %v instead", loc(1), name, errID, err)
 	}
 }
 
-func revertNode(t *testing.T, name string) {
-	if err := nodeStub(name).Revert(globalRT.NewContext()); err != nil {
+func revertDevice(t *testing.T, name string) {
+	if err := deviceStub(name).Revert(globalRT.NewContext()); err != nil {
 		t.Fatalf("%s: Revert(%v) failed: %v", loc(1), name, err)
 	}
 }
@@ -379,7 +379,7 @@ func generateSuidHelperScript(t *testing.T, root string) string {
 	if err := os.MkdirAll(root, 0755); err != nil {
 		t.Fatalf("MkdirAll failed: %v", err)
 	}
-	// Helper does not need to live under the node manager's root dir, but
+	// Helper does not need to live under the device manager's root dir, but
 	// we put it there for convenience.
 	path := filepath.Join(root, "helper.sh")
 	if err := ioutil.WriteFile(path, []byte(output), 0755); err != nil {

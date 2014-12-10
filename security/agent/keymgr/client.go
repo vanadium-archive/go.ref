@@ -1,4 +1,4 @@
-// Package keymgr provides a client for the Node Manager to manage keys in
+// Package keymgr provides a client for the Device Manager to manage keys in
 // the "Agent" process.
 package keymgr
 

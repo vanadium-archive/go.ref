@@ -9,16 +9,16 @@ import (
 	"veyron.io/veyron/veyron/services/mgmt/node"
 )
 
-// InvokeCallback provides the parent node manager with the given name (which
-// is expected to be this node manager's object name).
+// InvokeCallback provides the parent device manager with the given name (which
+// is expected to be this device manager's object name).
 func InvokeCallback(ctx context.T, name string) {
 	handle, err := exec.GetChildHandle()
 	switch err {
 	case nil:
-		// Node manager was started by self-update, notify the parent.
+		// Device manager was started by self-update, notify the parent.
 		callbackName, err := handle.Config.Get(mgmt.ParentNameConfigKey)
 		if err != nil {
-			// Node manager was not started by self-update, return silently.
+			// Device manager was not started by self-update, return silently.
 			return
 		}
 		nmClient := node.ConfigClient(callbackName)

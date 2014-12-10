@@ -39,7 +39,7 @@ func createAgent(runtime veyron2.Runtime, path string) (*Agent, func(), error) {
 	return agent, cleanup, err
 }
 
-func TestNoNodemanager(t *testing.T) {
+func TestNoDeviceManager(t *testing.T) {
 	runtime, err := rt.New()
 	if err != nil {
 		t.Fatalf("Could not initialize runtime: %s", err)

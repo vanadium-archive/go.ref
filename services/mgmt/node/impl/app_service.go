@@ -1,8 +1,8 @@
 package impl
 
 // The app invoker is responsible for managing the state of applications on the
-// node manager.  The node manager manages the applications it installs and runs
-// using the following directory structure:
+// device manager.  The device manager manages the applications it installs and
+// runs using the following directory structure:
 //
 // TODO(caprita): Not all is yet implemented.
 //
@@ -55,14 +55,14 @@ package impl
 //   app-<hash 2>
 //   ...
 //
-// The node manager uses the suid helper binary to invoke an application as a
+// The device manager uses the suid helper binary to invoke an application as a
 // specified user.  The path to the helper is specified as config.Helper.
 
-// When node manager starts up, it goes through all instances and resumes the
+// When device manager starts up, it goes through all instances and resumes the
 // ones that are not suspended.  If the application was still running, it
 // suspends it first.  If an application fails to resume, it stays suspended.
 //
-// When node manager shuts down, it suspends all running instances.
+// When device manager shuts down, it suspends all running instances.
 //
 // Start starts an instance.  Suspend kills the process but leaves the workspace
 // untouched. Resume restarts the process. Stop kills the process and prevents
@@ -100,7 +100,7 @@ package impl
 // 'suspended' to 'stopped'.  If the initial state is neither 'started' or
 // 'suspended', Stop fails.
 //
-// TODO(caprita): There is room for synergy between how node manager organizes
+// TODO(caprita): There is room for synergy between how device manager organizes
 // its own workspace and that for the applications it runs.  In particular,
 // previous, origin, and envelope could be part of a single config.  We'll
 // refine that later.
@@ -151,10 +151,10 @@ import (
 
 // instanceInfo holds state about a running instance.
 type instanceInfo struct {
-	AppCycleMgrName        string
-	Pid                    int
-	NodeManagerPeerPattern string
-	SecurityAgentHandle    []byte
+	AppCycleMgrName          string
+	Pid                      int
+	DeviceManagerPeerPattern string
+	SecurityAgentHandle      []byte
 }
 
 func saveInstanceInfo(dir string, info *instanceInfo) error {
@@ -195,7 +195,7 @@ type securityAgentState struct {
 	startLock sync.Mutex
 }
 
-// appService implements the Node manager's Application interface.
+// appService implements the Device manager's Application interface.
 type appService struct {
 	callback *callbackState
 	config   *iconfig.State
@@ -205,8 +205,8 @@ type appService struct {
 	suffix []string
 	uat    BlessingSystemAssociationStore
 	locks  aclLocks
-	// Reference to the nodemanager top-level ACL list.
-	nodeACL access.TaggedACLMap
+	// Reference to the devicemanager top-level ACL list.
+	deviceACL access.TaggedACLMap
 	// securityAgent holds state related to the security agent (nil if not
 	// using the agent).
 	securityAgent *securityAgentState
@@ -315,8 +315,8 @@ func fetchAppEnvelope(ctx context.T, origin string) (*application.Envelope, erro
 	if err != nil {
 		return nil, err
 	}
-	if envelope.Title == application.NodeManagerTitle {
-		// Disallow node manager apps from being installed like a
+	if envelope.Title == application.DeviceManagerTitle {
+		// Disallow device manager apps from being installed like a
 		// regular app.
 		return nil, verror2.Make(ErrInvalidOperation, ctx)
 	}
@@ -409,9 +409,9 @@ func (i *appService) Install(call ipc.ServerContext, applicationVON string) (str
 	}
 
 	// TODO(caprita,rjkroege): Should the installation ACLs really be
-	// seeded with the node ACL? Instead, might want to hide the nodeACL
+	// seeded with the device ACL? Instead, might want to hide the deviceACL
 	// from the app?
-	if err := initializeInstallationACLs(call.LocalPrincipal(), installationDir, call.RemoteBlessings().ForContext(call), i.nodeACL.Copy()); err != nil {
+	if err := initializeInstallationACLs(call.LocalPrincipal(), installationDir, call.RemoteBlessings().ForContext(call), i.deviceACL.Copy()); err != nil {
 		return "", err
 	}
 	deferrer = nil
@@ -523,22 +523,22 @@ func setupPrincipal(ctx context.T, instanceDir, versionDir string, call ipc.Serv
 		return verror2.Make(ErrOperationFailed, nil)
 	}
 	// In addition, we give the app separate blessings for the purpose of
-	// communicating with the node manager.
+	// communicating with the device manager.
 	//
 	// NOTE(caprita/ataly): Giving the app an unconstrained blessing from
-	// the node manager's default presents the app with a blessing that's
+	// the device manager's default presents the app with a blessing that's
 	// potentially more powerful than what is strictly needed to allow
-	// communication between node manager and app (which could be more
+	// communication between device manager and app (which could be more
 	// narrowly accomplished by using a custom-purpose self-signed blessing
-	// that the node manger produces solely to talk to the app).
+	// that the device manger produces solely to talk to the app).
 	//
 	// TODO(caprita): Figure out if there is any feature value in providing
-	// the app with a node manager-derived blessing (e.g., may the app need
-	// to prove it's running on the node?).
+	// the app with a device manager-derived blessing (e.g., may the app
+	// need to prove it's running on the device?).
 	nmBlessings, err := nmPrincipal.Bless(p.PublicKey(), nmPrincipal.BlessingStore().Default(), "callback", security.UnconstrainedUse())
-	// Put the names of the node manager's default blessings as patterns for
-	// the child, so that the child uses the right blessing when talking
-	// back to the node manager.
+	// Put the names of the device manager's default blessings as patterns
+	// for the child, so that the child uses the right blessing when talking
+	// back to the device manager.
 	names := nmPrincipal.BlessingStore().Default().ForContext(call)
 	for _, n := range names {
 		if _, err := p.BlessingStore().Set(nmBlessings, security.BlessingPattern(n)); err != nil {
@@ -547,9 +547,9 @@ func setupPrincipal(ctx context.T, instanceDir, versionDir string, call ipc.Serv
 		}
 	}
 	// We also want to override the app cycle manager's server blessing in
-	// the child (so that the node manager can send RPCs to it).  We signal
-	// to the child's app manager to use a randomly generated pattern to
-	// extract the right blessing to use from its store for this purpose.
+	// the child (so that the device manager can send RPCs to it).  We
+	// signal to the child's app manager to use a randomly generated pattern
+	// to extract the right blessing to use from its store for this purpose.
 	randomPattern, err := generateRandomString()
 	if err != nil {
 		vlog.Errorf("generateRandomString() failed: %v", err)
@@ -559,7 +559,7 @@ func setupPrincipal(ctx context.T, instanceDir, versionDir string, call ipc.Serv
 		vlog.Errorf("BlessingStore.Set() failed: %v", err)
 		return verror2.Make(ErrOperationFailed, nil)
 	}
-	info.NodeManagerPeerPattern = randomPattern
+	info.DeviceManagerPeerPattern = randomPattern
 	if err := p.AddToRoots(nmBlessings); err != nil {
 		vlog.Errorf("AddToRoots() failed: %v", err)
 		return verror2.Make(ErrOperationFailed, nil)
@@ -652,7 +652,7 @@ func (i *appService) newInstance(call ipc.ServerContext) (string, string, error)
 		return instanceDir, instanceID, err
 	}
 
-	if err := initializeInstanceACLs(call.LocalPrincipal(), instanceDir, call.RemoteBlessings().ForContext(call), i.nodeACL.Copy()); err != nil {
+	if err := initializeInstanceACLs(call.LocalPrincipal(), instanceDir, call.RemoteBlessings().ForContext(call), i.deviceACL.Copy()); err != nil {
 		return instanceDir, instanceID, err
 	}
 	return instanceDir, instanceID, nil
@@ -666,7 +666,7 @@ var isSetuid = func(fileStat os.FileInfo) bool {
 }
 
 // systemAccountForHelper returns the uname that the helper uses to invoke the
-// application. If the helper exists and is setuid, the node manager
+// application. If the helper exists and is setuid, the device manager
 // requires that there is a uname associated with the Veyron
 // identity that requested starting an application.
 // TODO(rjkroege): This function assumes a desktop installation target
@@ -687,16 +687,17 @@ func systemAccountForHelper(ctx ipc.ServerContext, helperPath string, uat Blessi
 	case haveHelper && present:
 		return systemName, nil
 	case haveHelper && !present:
-		// The helper is owned by the node manager and installed as setuid root.
-		// Therefore, the node manager must never run an app as itself to
-		// prevent an app trivially granting itself root permissions.
-		// There must be an associated uname for the account in this case.
+		// The helper is owned by the device manager and installed as
+		// setuid root.  Therefore, the device manager must never run an
+		// app as itself to prevent an app trivially granting itself
+		// root permissions.  There must be an associated uname for the
+		// account in this case.
 		return "", verror2.Make(verror2.NoAccess, ctx, "use of setuid helper requires an associated uname.")
 	case !haveHelper:
 		// When the helper is not setuid, the helper can't change the
-		// app's uid so just run the app as the node manager's uname
+		// app's uid so just run the app as the device manager's uname
 		// whether or not there is an association.
-		vlog.VI(1).Infof("helper not setuid. Node manager will invoke app with its own userid")
+		vlog.VI(1).Infof("helper not setuid. Device manager will invoke app with its own userid")
 		user, err := user.Current()
 		if err != nil {
 			vlog.Errorf("user.Current() failed: %v", err)
@@ -776,7 +777,7 @@ func (i *appService) startCmd(instanceDir string, cmd *exec.Cmd) error {
 	cfg.Set(mgmt.ParentNameConfigKey, listener.name())
 	cfg.Set(mgmt.ProtocolConfigKey, "tcp")
 	cfg.Set(mgmt.AddressConfigKey, "127.0.0.1:0")
-	cfg.Set(mgmt.ParentBlessingConfigKey, info.NodeManagerPeerPattern)
+	cfg.Set(mgmt.ParentBlessingConfigKey, info.DeviceManagerPeerPattern)
 
 	// Set up any agent-specific state.
 	// NOTE(caprita): This ought to belong in genCmd, but we do it here
@@ -884,8 +885,8 @@ func (i *appService) Start(call ipc.ServerContext) ([]string, error) {
 		return nil, err
 	}
 
-	// For now, use the namespace roots of the node manager runtime to pass
-	// to the app.
+	// For now, use the namespace roots of the device manager runtime to
+	// pass to the app.
 	if err = i.run(veyron2.RuntimeFromContext(call).Namespace().Roots(), instanceDir, systemName); err != nil {
 		// TODO(caprita): We should call cleanupDir here, but we don't
 		// in order to not lose the logs for the instance (so we can

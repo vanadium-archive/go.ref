@@ -32,7 +32,7 @@ import (
 	"veyron.io/veyron/veyron2/vlog"
 )
 
-// internalState wraps state shared between different node manager
+// internalState wraps state shared between different device manager
 // invocations.
 type internalState struct {
 	callback      *callbackState
@@ -43,18 +43,19 @@ type internalState struct {
 // aclLocks provides a mutex lock for each acl file path.
 type aclLocks map[string]*sync.Mutex
 
-// dispatcher holds the state of the node manager dispatcher.
+// dispatcher holds the state of the device manager dispatcher.
 type dispatcher struct {
 	// acl/auth hold the acl and authorizer used to authorize access to the
-	// node manager methods.
+	// device manager methods.
 	acl  access.TaggedACLMap
 	auth security.Authorizer
 	// etag holds the version string for the ACL. We use this for optimistic
-	// concurrency control when clients update the ACLs for the node manager.
+	// concurrency control when clients update the ACLs for the device
+	// manager.
 	etag string
 	// internal holds the state that persists across RPC method invocations.
 	internal *internalState
-	// config holds the node manager's (immutable) configuration state.
+	// config holds the device manager's (immutable) configuration state.
 	config *config.State
 	// dispatcherMutex is a lock for coordinating concurrent access to some
 	// dispatcher methods.
@@ -69,7 +70,7 @@ var _ ipc.Dispatcher = (*dispatcher)(nil)
 
 const (
 	appsSuffix   = "apps"
-	nodeSuffix   = "nm"
+	deviceSuffix = "nm"
 	configSuffix = "cfg"
 
 	pkgPath = "veyron.io/veyron/veyron/services/mgmt/node/impl"
@@ -86,7 +87,7 @@ var (
 	ErrInvalidBlessing     = verror2.Register(pkgPath+".InvalidBlessing", verror2.NoRetry, "")
 )
 
-// NewDispatcher is the node manager dispatcher factory.
+// NewDispatcher is the device manager dispatcher factory.
 func NewDispatcher(principal security.Principal, config *config.State) (*dispatcher, error) {
 	if err := config.Validate(); err != nil {
 		return nil, fmt.Errorf("invalid config %v: %v", config, err)
@@ -122,19 +123,19 @@ func NewDispatcher(principal security.Principal, config *config.State) (*dispatc
 		// read and verify the signature of the acl file
 		reader, err := serialization.NewVerifyingReader(data, sig, principal.PublicKey())
 		if err != nil {
-			return nil, fmt.Errorf("failed to read nodemanager ACL file:%v", err)
+			return nil, fmt.Errorf("failed to read devicemanager ACL file:%v", err)
 		}
 		acl, err := access.ReadTaggedACLMap(reader)
 		if err != nil {
-			return nil, fmt.Errorf("failed to load nodemanager ACL:%v", err)
+			return nil, fmt.Errorf("failed to load devicemanager ACL:%v", err)
 		}
 		if err := d.setACL(principal, acl, d.etag, false /* just update etag */); err != nil {
 			return nil, err
 		}
 	} else {
 		if d.auth = vflag.NewAuthorizerOrDie(); d.auth == nil {
-			// If there are no specified ACLs we grant nodemanager access to all
-			// principals until it is claimed.
+			// If there are no specified ACLs we grant devicemanager
+			// access to all principals until it is claimed.
 			d.auth = allowEveryone{}
 		}
 	}
@@ -151,13 +152,13 @@ func NewDispatcher(principal security.Principal, config *config.State) (*dispatc
 	return d, nil
 }
 
-func (d *dispatcher) getACLFilePaths() (acl, signature, nodedata string) {
-	nodedata = filepath.Join(d.config.Root, "node-manager", "node-data")
-	acl, signature = filepath.Join(nodedata, "acl.nodemanager"), filepath.Join(nodedata, "acl.signature")
+func (d *dispatcher) getACLFilePaths() (acl, signature, devicedata string) {
+	devicedata = filepath.Join(d.config.Root, "device-manager", "device-data")
+	acl, signature = filepath.Join(devicedata, "acl.devicemanager"), filepath.Join(devicedata, "acl.signature")
 	return
 }
 
-func (d *dispatcher) claimNodeManager(principal security.Principal, names []string, proof security.Blessings) error {
+func (d *dispatcher) claimDeviceManager(principal security.Principal, names []string, proof security.Blessings) error {
 	// TODO(gauthamt): Should we start trusting these identity providers?
 	// TODO(rjkroege): Scrub the state tree of installation and instance ACL files.
 	if len(names) == 0 {
@@ -166,7 +167,7 @@ func (d *dispatcher) claimNodeManager(principal security.Principal, names []stri
 	}
 	principal.BlessingStore().Set(proof, security.AllPrincipals)
 	principal.BlessingStore().SetDefault(proof)
-	// Create ACLs to transfer nodemanager permissions to the provided identity.
+	// Create ACLs to transfer devicemanager permissions to the provided identity.
 	acl := make(access.TaggedACLMap)
 	for _, n := range names {
 		for _, tag := range access.AllTypicalTags() {
@@ -309,13 +310,13 @@ func writeACLs(principal security.Principal, aclFile, sigFile, dir string, acl a
 func (d *dispatcher) setACL(principal security.Principal, acl access.TaggedACLMap, etag string, writeToFile bool) error {
 	d.mu.Lock()
 	defer d.mu.Unlock()
-	aclFile, sigFile, nodedata := d.getACLFilePaths()
+	aclFile, sigFile, devicedata := d.getACLFilePaths()
 
 	if len(etag) > 0 && etag != d.etag {
 		return verror.Make(access.ErrBadEtag, fmt.Sprintf("etag mismatch in:%s vers:%s", etag, d.etag))
 	}
 	if writeToFile {
-		if err := writeACLs(principal, aclFile, sigFile, nodedata, acl); err != nil {
+		if err := writeACLs(principal, aclFile, sigFile, devicedata, acl); err != nil {
 			return err
 		}
 	}
@@ -348,14 +349,14 @@ func (d *dispatcher) Lookup(suffix string) (interface{}, security.Authorizer, er
 		}
 	}
 	if len(components) == 0 {
-		return ipc.ChildrenGlobberInvoker(nodeSuffix, appsSuffix), d.auth, nil
+		return ipc.ChildrenGlobberInvoker(deviceSuffix, appsSuffix), d.auth, nil
 	}
-	// The implementation of the node manager is split up into several
+	// The implementation of the device manager is split up into several
 	// invokers, which are instantiated depending on the receiver name
 	// prefix.
 	switch components[0] {
-	case nodeSuffix:
-		receiver := node.DeviceServer(&nodeService{
+	case deviceSuffix:
+		receiver := node.DeviceServer(&deviceService{
 			callback: d.internal.callback,
 			updating: d.internal.updating,
 			config:   d.config,
@@ -402,7 +403,7 @@ func (d *dispatcher) Lookup(suffix string) (interface{}, security.Authorizer, er
 				return invoker, d.auth, nil
 			}
 		}
-		nodeACLs, _, err := d.getACL()
+		deviceACLs, _, err := d.getACL()
 		if err != nil {
 			return nil, nil, err
 		}
@@ -412,7 +413,7 @@ func (d *dispatcher) Lookup(suffix string) (interface{}, security.Authorizer, er
 			suffix:        components[1:],
 			uat:           d.uat,
 			locks:         d.locks,
-			nodeACL:       nodeACLs,
+			deviceACL:     deviceACLs,
 			securityAgent: d.internal.securityAgent,
 		})
 		appSpecificAuthorizer, err := newAppSpecificAuthorizer(d.auth, d.config, components[1:])
@@ -429,8 +430,8 @@ func (d *dispatcher) Lookup(suffix string) (interface{}, security.Authorizer, er
 			suffix:   components[1],
 		})
 		// The nil authorizer ensures that only principals blessed by
-		// the node manager can talk back to it.  All apps started by
-		// the node manager should fall in that category.
+		// the device manager can talk back to it.  All apps started by
+		// the device manager should fall in that category.
 		//
 		// TODO(caprita,rjkroege): We should further refine this, by
 		// only allowing the app to update state referring to itself
@@ -442,9 +443,11 @@ func (d *dispatcher) Lookup(suffix string) (interface{}, security.Authorizer, er
 }
 
 func newAppSpecificAuthorizer(sec security.Authorizer, config *config.State, suffix []string) (security.Authorizer, error) {
-	// TODO(rjkroege): This does not support <appname>.Start() to start all instances. Correct this.
+	// TODO(rjkroege): This does not support <appname>.Start() to start all
+	// instances. Correct this.
 
-	// If we are attempting a method invocation against "apps/", we use the node-manager wide ACL.
+	// If we are attempting a method invocation against "apps/", we use the
+	// device-manager wide ACL.
 	if len(suffix) == 0 || len(suffix) == 1 {
 		return sec, nil
 	}

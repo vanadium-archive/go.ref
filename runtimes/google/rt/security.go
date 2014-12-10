@@ -36,7 +36,7 @@ func (rt *vrt) initSecurity(handle *exec.ChildHandle, credentials string) error 
 func agentFD(handle *exec.ChildHandle) (int, error) {
 	var fd string
 	if handle != nil {
-		// We were started by a parent (presumably, node manager).
+		// We were started by a parent (presumably, device manager).
 		fd, _ = handle.Config.Get(mgmt.SecurityAgentFDConfigKey)
 	} else {
 		fd = os.Getenv(agent.FdVarName)

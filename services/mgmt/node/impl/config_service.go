@@ -1,7 +1,7 @@
 package impl
 
 // The config invoker is responsible for answering calls to the config service
-// run as part of the node manager.  The config invoker converts RPCs to
+// run as part of the device manager.  The config invoker converts RPCs to
 // messages on channels that are used to listen on callbacks coming from child
 // application instances.
 
@@ -25,7 +25,7 @@ type callbackState struct {
 	// nextCallbackID provides the next callback identifier to use as a key
 	// for the channels map.
 	nextCallbackID int64
-	// name is the object name for making calls against the node manager's
+	// name is the object name for making calls against the device manager's
 	// config service.
 	name string
 }
@@ -115,7 +115,7 @@ func (c *callbackState) unregister(id string) {
 	delete(c.channels, id)
 }
 
-// configService implements the Node manager's Config interface.
+// configService implements the Device manager's Config interface.
 type configService struct {
 	callback *callbackState
 	// Suffix contains an identifier for the channel corresponding to the

@@ -10,7 +10,7 @@
 // the recieved socket, using VCSecurityNone.
 //
 // The agent also supports an optional mode where it can manage multiple principals.
-// Typically this is only used by NodeManager. In this mode, VEYRON_AGENT_FD
+// Typically this is only used by Device Manager. In this mode, VEYRON_AGENT_FD
 // will be 3, and there will be another socket at fd 4.
 // Creating a new principal is similar to connecting to to agent: create a socket
 // pair and send one end on fd 4 with 1 byte of data.

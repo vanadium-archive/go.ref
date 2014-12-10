@@ -15,7 +15,7 @@ type Library struct {
 }
 
 // Specification is how we represent a profile internally. It should
-// provide enough information to allow matching of binaries to nodes.
+// provide enough information to allow matching of binaries to devices.
 type Specification struct {
 	// Arch is the target hardware architecture of the profile.
 	Arch        build.Architecture
