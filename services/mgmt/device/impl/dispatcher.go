@@ -1,9 +1,6 @@
 package impl
 
 import (
-	"bytes"
-	"crypto/md5"
-	"encoding/hex"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -18,6 +15,7 @@ import (
 	"v.io/core/veyron/security/serialization"
 	idevice "v.io/core/veyron/services/mgmt/device"
 	"v.io/core/veyron/services/mgmt/device/config"
+	"v.io/core/veyron/services/mgmt/lib/acls"
 	logsimpl "v.io/core/veyron/services/mgmt/logreader/impl"
 
 	"v.io/core/veyron2/ipc"
@@ -223,9 +221,9 @@ func setAppACL(principal security.Principal, locks aclLocks, dir string, acl acc
 		vlog.Errorf("ReadTaggedACLMap(%s) failed: %v", aclpath, err)
 		return err
 	}
-	curEtag, err := computeEtag(curACL)
+	curEtag, err := acls.ComputeEtag(curACL)
 	if err != nil {
-		vlog.Errorf("computeEtag failed: %v", err)
+		vlog.Errorf("acls.ComputeEtag failed: %v", err)
 		return err
 	}
 
@@ -260,23 +258,11 @@ func getAppACL(locks aclLocks, dir string) (access.TaggedACLMap, string, error) 
 		vlog.Errorf("ReadTaggedACLMap(%s) failed: %v", aclpath, err)
 		return nil, "", err
 	}
-	curEtag, err := computeEtag(acl)
+	curEtag, err := acls.ComputeEtag(acl)
 	if err != nil {
 		return nil, "", err
 	}
 	return acl, curEtag, nil
-}
-
-func computeEtag(acl access.TaggedACLMap) (string, error) {
-	b := new(bytes.Buffer)
-	if err := acl.WriteTo(b); err != nil {
-		vlog.Errorf("Failed to save ACL:%v", err)
-		return "", err
-	}
-	// Update the acl/etag/authorizer for this dispatcher
-	md5hash := md5.Sum(b.Bytes())
-	etag := hex.EncodeToString(md5hash[:])
-	return etag, nil
 }
 
 func writeACLs(principal security.Principal, aclFile, sigFile, dir string, acl access.TaggedACLMap) error {
@@ -332,7 +318,7 @@ func (d *dispatcher) setACL(principal security.Principal, acl access.TaggedACLMa
 		}
 	}
 
-	etag, err := computeEtag(acl)
+	etag, err := acls.ComputeEtag(acl)
 	if err != nil {
 		return err
 	}
