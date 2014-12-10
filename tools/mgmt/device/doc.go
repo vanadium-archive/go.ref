@@ -2,23 +2,23 @@
 // DO NOT UPDATE MANUALLY
 
 /*
-The nodex tool facilitates interaction with the veyron node manager.
+The device tool facilitates interaction with the veyron device manager.
 
 Usage:
-   nodex <command>
+   device <command>
 
-The nodex commands are:
+The device commands are:
    install     Install the given application.
    start       Start an instance of the given application.
    associate   Tool for creating associations between Vanadium blessings and a
                system account
-   claim       Claim the node.
+   claim       Claim the device.
    stop        Stop the given application instance.
    suspend     Suspend the given application instance.
    resume      Resume the given application instance.
-   acl         Tool for setting node manager ACLs
+   acl         Tool for setting device manager ACLs
    help        Display help for commands or topics
-Run "nodex help [command]" for command usage.
+Run "device help [command]" for command usage.
 
 The global flags are:
  -alsologtostderr=true
@@ -48,22 +48,22 @@ The global flags are:
  -vmodule=
    comma-separated list of pattern=N settings for file-filtered logging
 
-Nodex Install
+Device Install
 
 Install the given application.
 
 Usage:
-   nodex install <node> <application>
+   device install <device> <application>
 
-<node> is the veyron object name of the node manager's app service.
+<device> is the veyron object name of the device manager's app service.
 <application> is the veyron object name of the application.
 
-Nodex Start
+Device Start
 
 Start an instance of the given application.
 
 Usage:
-   nodex start <application installation> <grant extension>
+   device start <application installation> <grant extension>
 
 <application installation> is the veyron object name of the application
 installation from which to start an instance.
@@ -71,131 +71,134 @@ installation from which to start an instance.
 <grant extension> is used to extend the default blessing of the current
 principal when blessing the app instance.
 
-Nodex Associate
+Device Associate
 
 The associate tool facilitates managing blessing to system account associations.
 
 Usage:
-   nodex associate <command>
+   device associate <command>
 
-The nodex associate commands are:
+The device associate commands are:
    list        Lists the account associations.
    add         Add the listed blessings with the specified system account.
    remove      Removes system accounts associated with the listed blessings.
 
-Nodex Associate List
+Device Associate List
 
 Lists all account associations.
 
 Usage:
-   nodex associate list <nodemanager>.
+   device associate list <devicemanager>.
 
-<nodemanager> is the name of the node manager to connect to.
+<devicemanager> is the name of the device manager to connect to.
 
-Nodex Associate Add
+Device Associate Add
 
 Add the listed blessings with the specified system account.
 
 Usage:
-   nodex associate add <nodemanager> <systemName> <blessing>...
+   device associate add <devicemanager> <systemName> <blessing>...
 
-<nodemanager> is the name of the node manager to connect to. <systemName> is the
-name of an account holder on the local system. <blessing>.. are the blessings to
-associate systemAccount with.
+<devicemanager> is the name of the device manager to connect to. <systemName> is
+the name of an account holder on the local system. <blessing>.. are the
+blessings to associate systemAccount with.
 
-Nodex Associate Remove
+Device Associate Remove
 
 Removes system accounts associated with the listed blessings.
 
 Usage:
-   nodex associate remove <nodemanager>  <blessing>...
+   device associate remove <devicemanager>  <blessing>...
 
-<nodemanager> is the name of the node manager to connect to. <blessing>... is a
-list of blessings.
+<devicemanager> is the name of the device manager to connect to. <blessing>...
+is a list of blessings.
 
-Nodex Claim
+Device Claim
 
-Claim the node.
+Claim the device.
 
 Usage:
-   nodex claim <node> <grant extension>
+   device claim <device> <grant extension>
 
-<node> is the veyron object name of the node manager's app service.
+<device> is the veyron object name of the device manager's app service.
 
 <grant extension> is used to extend the default blessing of the current
 principal when blessing the app instance.
 
-Nodex Stop
+Device Stop
 
 Stop the given application instance.
 
 Usage:
-   nodex stop <app instance>
+   device stop <app instance>
 
 <app instance> is the veyron object name of the application instance to stop.
 
-Nodex Suspend
+Device Suspend
 
 Suspend the given application instance.
 
 Usage:
-   nodex suspend <app instance>
+   device suspend <app instance>
 
 <app instance> is the veyron object name of the application instance to suspend.
 
-Nodex Resume
+Device Resume
 
 Resume the given application instance.
 
 Usage:
-   nodex resume <app instance>
+   device resume <app instance>
 
 <app instance> is the veyron object name of the application instance to resume.
 
-Nodex Acl
+Device Acl
 
-The acl tool manages ACLs on the node manger, installations and instances.
+The acl tool manages ACLs on the device manger, installations and instances.
 
 Usage:
-   nodex acl <command>
+   device acl <command>
 
-The nodex acl commands are:
+The device acl commands are:
    get         Get ACLs for the given target.
    set         Set ACLs for the given target.
 
-Nodex Acl Get
+Device Acl Get
 
 Get ACLs for the given target.
 
 Usage:
-   nodex acl get <node manager name>
+   device acl get <device manager name>
 
-<node manager name> can be a Vanadium name for a node manager, application
+<device manager name> can be a Vanadium name for a device manager, application
 installation or instance.
 
-Nodex Acl Set
+Device Acl Set
 
 Set ACLs for the given target
 
 Usage:
-   nodex acl set <node manager name>  (<blessing> [!]<label>)...
+   device acl set <device manager name>  (<blessing> [!]<tag>(,[!]<tag>)*
 
-<node manager name> can be a Vanadium name for a node manager, application
+<device manager name> can be a Vanadium name for a device manager, application
 installation or instance.
 
-<blessing> is a blessing pattern.
+<blessing> is a blessing pattern. If the same pattern is repeated multiple times
+in the command, then the only the last occurrence will be honored.
 
-<label> is a character sequence defining a set of rights: some subset of the
-defined standard Vanadium labels of XRWADM where X is resolve, R is read, W for
-write, A for admin, D for debug and M is for monitoring. By default, the
-combination of <blessing>, <label> replaces whatever entry is present in the
-ACL's In field for the <blessing> but it can instead be added to the NotIn field
-by prefacing <label> with a '!' character. Use the <label> of 0 to clear the
-label.
+<tag> is a subset of defined access types ("Admin", "Read", "Write" etc.). If
+the access right is prefixed with a '!' then <blessing> is added to the NotIn
+list for that right. Using "^" as a "tag" causes all occurrences of <blessing>
+in the current ACL to be cleared.
 
-For example: root/self !0 will clear the NotIn field for blessingroot/self.
+Examples: set root/self ^ will remove "root/self" from the In and NotIn lists
+for all access rights.
 
-Nodex Help
+set root/self Read,!Write will add "root/self" to the In list for Read access
+and the NotIn list for Write access (and remove "root/self" from both the In and
+NotIn lists of all other access rights)
+
+Device Help
 
 Help with no args displays the usage of the parent command.
 
@@ -210,11 +213,11 @@ CMDLINE_WIDTH=x, if x > 0 the width is x, if x < 0 the width is unlimited, and
 if x == 0 or is unset one of the fallbacks is used.
 
 Usage:
-   nodex help [flags] [command/topic ...]
+   device help [flags] [command/topic ...]
 
 [command/topic ...] optionally identifies a specific sub-command or help topic.
 
-The nodex help flags are:
+The device help flags are:
  -style=text
    The formatting style for help output, either "text" or "godoc".
 */
