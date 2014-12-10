@@ -239,8 +239,8 @@ func (i *deviceService) testDeviceManager(ctx context.T, workspace string, envel
 		return verror2.Make(ErrOperationFailed, ctx)
 	}
 	// Check that invoking Revert() succeeds.
-	childName = naming.Join(childName, "nm")
-	nmClient := device.DeviceClient(childName)
+	childName = naming.Join(childName, "device")
+	dmClient := device.DeviceClient(childName)
 	linkOld, pathOld, err := i.getCurrentFileInfo()
 	if err != nil {
 		return verror2.Make(ErrOperationFailed, ctx)
@@ -249,7 +249,7 @@ func (i *deviceService) testDeviceManager(ctx context.T, workspace string, envel
 	// for a second to make sure it can check whether the current symlink is
 	// updated.
 	time.Sleep(time.Second)
-	if err := nmClient.Revert(ctx); err != nil {
+	if err := dmClient.Revert(ctx); err != nil {
 		return verror2.Make(ErrOperationFailed, ctx)
 	}
 	linkNew, pathNew, err := i.getCurrentFileInfo()

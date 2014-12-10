@@ -180,8 +180,8 @@ main() {
   echo "Suidhelper configured."
 
   # Tell the device manager to install itself.
-  local -r NM_ROOT="${INSTALL_DIR}/nmroot"
-  echo "Installing device manager under ${NM_ROOT} ..."
+  local -r DM_ROOT="${INSTALL_DIR}/dmroot"
+  echo "Installing device manager under ${DM_ROOT} ..."
   local -r PUBLISH=$(hostname)
   if [[ "$1" = "--" ]]; then
     shift
@@ -191,7 +191,7 @@ main() {
     exit 1
   fi
 
-  VEYRON_NM_CURRENT="${INSTALL_DIR}/deviced.curr" VEYRON_NM_ROOT="${NM_ROOT}" VEYRON_NM_HELPER="${SETUID_SCRIPT}" "${BIN_INSTALL}/deviced" --install_self -- --name="${PUBLISH}" "$@"
+  VEYRON_DM_CURRENT="${INSTALL_DIR}/deviced.curr" VEYRON_DM_ROOT="${DM_ROOT}" VEYRON_DM_HELPER="${SETUID_SCRIPT}" "${BIN_INSTALL}/deviced" --install_self -- --name="${PUBLISH}" "$@"
   echo "Device manager installed."
 
   local -r SECURITY_DIR="${INSTALL_DIR}/security"

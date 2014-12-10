@@ -65,13 +65,13 @@ func SelfInstall(args, env []string) error {
 	}
 
 	// Create device manager directory tree.
-	nmDir := filepath.Join(configState.Root, "device-manager", "base")
-	if err := os.RemoveAll(nmDir); err != nil {
-		return fmt.Errorf("RemoveAll(%v) failed: %v", nmDir, err)
+	deviceDir := filepath.Join(configState.Root, "device-manager", "base")
+	if err := os.RemoveAll(deviceDir); err != nil {
+		return fmt.Errorf("RemoveAll(%v) failed: %v", deviceDir, err)
 	}
 	perm := os.FileMode(0700)
-	if err := os.MkdirAll(nmDir, perm); err != nil {
-		return fmt.Errorf("MkdirAll(%v, %v) failed: %v", nmDir, perm, err)
+	if err := os.MkdirAll(deviceDir, perm); err != nil {
+		return fmt.Errorf("MkdirAll(%v, %v) failed: %v", deviceDir, perm, err)
 	}
 	envelope := &application.Envelope{
 		Args: args,
@@ -81,16 +81,16 @@ func SelfInstall(args, env []string) error {
 		// device manager in a different way.
 		Env: VeyronEnvironment(env),
 	}
-	if err := linkSelf(nmDir, "deviced"); err != nil {
+	if err := linkSelf(deviceDir, "deviced"); err != nil {
 		return err
 	}
 	// We don't pass in the config state settings, since they're already
 	// contained in the environment.
-	if err := generateScript(nmDir, nil, envelope); err != nil {
+	if err := generateScript(deviceDir, nil, envelope); err != nil {
 		return err
 	}
 
 	// TODO(caprita): Test the device manager we just installed.
-	return updateLink(filepath.Join(nmDir, "deviced.sh"), configState.CurrentLink)
+	return updateLink(filepath.Join(deviceDir, "deviced.sh"), configState.CurrentLink)
 	// TODO(caprita): Update system management daemon.
 }

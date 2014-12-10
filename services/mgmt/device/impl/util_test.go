@@ -36,7 +36,7 @@ const (
 	// removing the device manager's workspace for successful test runs (for
 	// failed test runs, this is already the case).  This is useful when
 	// developing test cases.
-	preserveNMWorkspaceEnv = "VEYRON_TEST_PRESERVE_NM_WORKSPACE"
+	preserveDMWorkspaceEnv = "VEYRON_TEST_PRESERVE_DM_WORKSPACE"
 
 	// TODO(caprita): Set the timeout in a more principled manner.
 	expectTimeout = 20 * time.Second
@@ -149,7 +149,7 @@ func setupRootDir(t *testing.T) (string, func()) {
 		vlog.Fatalf("EvalSymlinks(%v) failed: %v", rootDir, err)
 	}
 	return rootDir, func() {
-		if t.Failed() || os.Getenv(preserveNMWorkspaceEnv) != "" {
+		if t.Failed() || os.Getenv(preserveDMWorkspaceEnv) != "" {
 			t.Logf("You can examine the device manager workspace at %v", rootDir)
 		} else {
 			os.RemoveAll(rootDir)
@@ -204,7 +204,7 @@ func resolve(t *testing.T, name string, replicas int) []string {
 // Revert for device manager.
 
 func deviceStub(name string) device.DeviceClientMethods {
-	deviceName := naming.Join(name, "nm")
+	deviceName := naming.Join(name, "device")
 	return device.DeviceClient(deviceName)
 }
 
@@ -244,7 +244,7 @@ func ort(opt []veyron2.Runtime) veyron2.Runtime {
 }
 
 func appStub(nameComponents ...string) device.ApplicationClientMethods {
-	appsName := "nm//apps"
+	appsName := "dm//apps"
 	appName := naming.Join(append([]string{appsName}, nameComponents...)...)
 	return device.ApplicationClient(appName)
 }
