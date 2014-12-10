@@ -119,7 +119,7 @@ func StartServer(bin string, args []string) (*os.Process, error) {
 	select {
 	case <-ready:
 		return cmd.Process, nil
-	case <-time.After(time.Second):
+	case <-time.After(time.Minute):
 		cmd.Process.Kill()
 		return nil, fmt.Errorf("timed out waiting for %q to mount itself", strings.Join(cmd.Args, " "))
 	}
