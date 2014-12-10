@@ -25,7 +25,7 @@ import (
 	"veyron.io/veyron/veyron/lib/testutil/security"
 	"veyron.io/veyron/veyron/profiles"
 	vflag "veyron.io/veyron/veyron/security/flag"
-	"veyron.io/veyron/veyron/services/mgmt/node"
+	"veyron.io/veyron/veyron/services/mgmt/device"
 )
 
 // TestHelperProcess is boilerplate for the modules setup.
@@ -327,7 +327,7 @@ func createConfigServer(t *testing.T, runtime veyron2.Runtime) (ipc.Server, stri
 	if ep, err = server.Listen(profiles.LocalListenSpec); err != nil {
 		t.Fatalf("Got error: %v", err)
 	}
-	if err := server.Serve("", node.ConfigServer(&configServer{ch}), vflag.NewAuthorizerOrDie()); err != nil {
+	if err := server.Serve("", device.ConfigServer(&configServer{ch}), vflag.NewAuthorizerOrDie()); err != nil {
 		t.Fatalf("Got error: %v", err)
 	}
 	return server, naming.JoinAddressName(ep.String(), ""), ch

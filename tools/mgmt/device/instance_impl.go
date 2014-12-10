@@ -6,7 +6,7 @@ import (
 	"fmt"
 
 	"veyron.io/lib/cmdline"
-	"veyron.io/veyron/veyron2/services/mgmt/node"
+	"veyron.io/veyron/veyron2/services/mgmt/device"
 )
 
 var cmdStop = &cmdline.Command{
@@ -25,7 +25,7 @@ func runStop(cmd *cmdline.Command, args []string) error {
 	}
 	appName := args[0]
 
-	if err := node.ApplicationClient(appName).Stop(runtime.NewContext(), 5); err != nil {
+	if err := device.ApplicationClient(appName).Stop(runtime.NewContext(), 5); err != nil {
 		return fmt.Errorf("Stop failed: %v", err)
 	}
 	fmt.Fprintf(cmd.Stdout(), "Stop succeeded\n")
@@ -48,7 +48,7 @@ func runSuspend(cmd *cmdline.Command, args []string) error {
 	}
 	appName := args[0]
 
-	if err := node.ApplicationClient(appName).Suspend(runtime.NewContext()); err != nil {
+	if err := device.ApplicationClient(appName).Suspend(runtime.NewContext()); err != nil {
 		return fmt.Errorf("Suspend failed: %v", err)
 	}
 	fmt.Fprintf(cmd.Stdout(), "Suspend succeeded\n")
@@ -71,7 +71,7 @@ func runResume(cmd *cmdline.Command, args []string) error {
 	}
 	appName := args[0]
 
-	if err := node.ApplicationClient(appName).Resume(runtime.NewContext()); err != nil {
+	if err := device.ApplicationClient(appName).Resume(runtime.NewContext()); err != nil {
 		return fmt.Errorf("Resume failed: %v", err)
 	}
 	fmt.Fprintf(cmd.Stdout(), "Resume succeeded\n")

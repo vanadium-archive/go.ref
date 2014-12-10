@@ -34,8 +34,8 @@ import (
 	"veyron.io/veyron/veyron2/rt"
 	"veyron.io/veyron/veyron2/security"
 	"veyron.io/veyron/veyron2/services/mgmt/application"
+	"veyron.io/veyron/veyron2/services/mgmt/device"
 	"veyron.io/veyron/veyron2/services/mgmt/logreader"
-	"veyron.io/veyron/veyron2/services/mgmt/node"
 	"veyron.io/veyron/veyron2/services/mgmt/pprof"
 	"veyron.io/veyron/veyron2/services/mgmt/stats"
 	"veyron.io/veyron/veyron2/services/security/access"
@@ -49,9 +49,9 @@ import (
 	"veyron.io/veyron/veyron/lib/testutil"
 	tsecurity "veyron.io/veyron/veyron/lib/testutil/security"
 	binaryimpl "veyron.io/veyron/veyron/services/mgmt/binary/impl"
+	"veyron.io/veyron/veyron/services/mgmt/device/config"
+	"veyron.io/veyron/veyron/services/mgmt/device/impl"
 	libbinary "veyron.io/veyron/veyron/services/mgmt/lib/binary"
-	"veyron.io/veyron/veyron/services/mgmt/node/config"
-	"veyron.io/veyron/veyron/services/mgmt/node/impl"
 	suidhelper "veyron.io/veyron/veyron/services/mgmt/suidhelper/impl"
 )
 
@@ -282,10 +282,10 @@ func app(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args 
 // TODO(rjkroege): generateDeviceManagerScript and generateSuidHelperScript have
 // code similarity that might benefit from refactoring.
 // generateDeviceManagerScript is very similar in behavior to generateScript in
-// node_invoker.go.  However, we chose to re-implement it here for two reasons:
-// (1) avoid making generateScript public; and (2) how the test choses to invoke
-// the device manager subprocess the first time should be independent of how
-// device manager implementation sets up its updated versions.
+// device_invoker.go.  However, we chose to re-implement it here for two
+// reasons: (1) avoid making generateScript public; and (2) how the test choses
+// to invoke the device manager subprocess the first time should be independent
+// of how device manager implementation sets up its updated versions.
 func generateDeviceManagerScript(t *testing.T, root string, args, env []string) string {
 	env = impl.VeyronEnvironment(env)
 	output := "#!/bin/bash\n"
@@ -737,7 +737,7 @@ func newRuntime(t *testing.T) veyron2.Runtime {
 
 func tryInstall(ctx context.T) error {
 	appsName := "nm//apps"
-	stub := node.ApplicationClient(appsName)
+	stub := device.ApplicationClient(appsName)
 	if _, err := stub.Install(ctx, mockApplicationRepoName); err != nil {
 		return fmt.Errorf("Install failed: %v", err)
 	}
@@ -807,7 +807,7 @@ func TestDeviceManagerClaim(t *testing.T) {
 
 	*envelope = envelopeFromShell(sh, nil, appCmd, "google naps", "trapp")
 
-	deviceStub := node.DeviceClient("nm//nm")
+	deviceStub := device.DeviceClient("nm//nm")
 	selfRT := globalRT
 	otherRT := newRuntime(t)
 	defer otherRT.Cleanup()
@@ -895,7 +895,7 @@ func TestDeviceManagerUpdateACL(t *testing.T) {
 	// Create an envelope for an app.
 	*envelope = envelopeFromShell(sh, nil, appCmd, "google naps")
 
-	deviceStub := node.DeviceClient("nm//nm")
+	deviceStub := device.DeviceClient("nm//nm")
 	acl, etag, err := deviceStub.GetACL(selfRT.NewContext())
 	if err != nil {
 		t.Fatalf("GetACL failed:%v", err)
@@ -1230,7 +1230,7 @@ func TestDeviceManagerPackages(t *testing.T) {
 	}
 }
 
-func listAndVerifyAssociations(t *testing.T, stub node.DeviceClientMethods, run veyron2.Runtime, expected []node.Association) {
+func listAndVerifyAssociations(t *testing.T, stub device.DeviceClientMethods, run veyron2.Runtime, expected []device.Association) {
 	assocs, err := stub.ListAssociations(run.NewContext())
 	if err != nil {
 		t.Fatalf("ListAssociations failed %v", err)
@@ -1271,7 +1271,7 @@ func TestAccountAssociation(t *testing.T) {
 	pid := readPID(t, nms)
 	defer syscall.Kill(pid, syscall.SIGINT)
 
-	deviceStub := node.DeviceClient("nm//nm")
+	deviceStub := device.DeviceClient("nm//nm")
 
 	// Attempt to list associations on the device manager without having
 	// claimed it.
@@ -1285,13 +1285,13 @@ func TestAccountAssociation(t *testing.T) {
 	}
 
 	vlog.VI(2).Info("Verify that associations start out empty.")
-	listAndVerifyAssociations(t, deviceStub, selfRT, []node.Association(nil))
+	listAndVerifyAssociations(t, deviceStub, selfRT, []device.Association(nil))
 
 	if err := deviceStub.AssociateAccount(selfRT.NewContext(), []string{"root/self", "root/other"}, "alice_system_account"); err != nil {
 		t.Fatalf("ListAssociations failed %v", err)
 	}
 	vlog.VI(2).Info("Added association should appear.")
-	listAndVerifyAssociations(t, deviceStub, selfRT, []node.Association{
+	listAndVerifyAssociations(t, deviceStub, selfRT, []device.Association{
 		{
 			"root/self",
 			"alice_system_account",
@@ -1306,7 +1306,7 @@ func TestAccountAssociation(t *testing.T) {
 		t.Fatalf("AssociateAccount failed %v", err)
 	}
 	vlog.VI(2).Info("Change the associations and the change should appear.")
-	listAndVerifyAssociations(t, deviceStub, selfRT, []node.Association{
+	listAndVerifyAssociations(t, deviceStub, selfRT, []device.Association{
 		{
 			"root/self",
 			"alice_other_account",
@@ -1321,7 +1321,7 @@ func TestAccountAssociation(t *testing.T) {
 		t.Fatalf("AssociateAccount failed %v", err)
 	}
 	vlog.VI(2).Info("Verify that we can remove an association.")
-	listAndVerifyAssociations(t, deviceStub, selfRT, []node.Association{
+	listAndVerifyAssociations(t, deviceStub, selfRT, []device.Association{
 		{
 			"root/self",
 			"alice_other_account",
@@ -1379,7 +1379,7 @@ func TestAppWithSuidHelper(t *testing.T) {
 	pid := readPID(t, nms)
 	defer syscall.Kill(pid, syscall.SIGINT)
 
-	deviceStub := node.DeviceClient("nm//nm")
+	deviceStub := device.DeviceClient("nm//nm")
 
 	// Create the local server that the app uses to tell us which system
 	// name the device manager wished to run it as.

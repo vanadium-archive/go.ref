@@ -10,7 +10,7 @@ import (
 	"veyron.io/veyron/veyron/services/mgmt/profile"
 
 	"veyron.io/veyron/veyron2/services/mgmt/build"
-	"veyron.io/veyron/veyron2/services/mgmt/node"
+	"veyron.io/veyron/veyron2/services/mgmt/device"
 )
 
 // computeDeviceProfile generates a description of the runtime
@@ -166,8 +166,8 @@ func getKnownProfiles() ([]profile.Specification, error) {
 // matchProfiles inputs a profile that describes the host device and a
 // set of publicly known profiles and outputs a device description that
 // identifies the publicly known profiles supported by the host device.
-func matchProfiles(p *profile.Specification, known []profile.Specification) node.Description {
-	result := node.Description{Profiles: make(map[string]struct{})}
+func matchProfiles(p *profile.Specification, known []profile.Specification) device.Description {
+	result := device.Description{Profiles: make(map[string]struct{})}
 loop:
 	for _, profile := range known {
 		if profile.Format != p.Format {

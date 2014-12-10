@@ -7,8 +7,8 @@ import (
 	"path"
 	"testing"
 
-	"veyron.io/veyron/veyron/services/mgmt/node/impl"
-	"veyron.io/veyron/veyron2/services/mgmt/node"
+	"veyron.io/veyron/veyron/services/mgmt/device/impl"
+	"veyron.io/veyron/veyron2/services/mgmt/device"
 )
 
 // TestAssociationPersistance verifies correct operation of association
@@ -35,7 +35,7 @@ func TestAssociationPersistance(t *testing.T) {
 		t.Fatalf("AllBlessingSystemAssociations failed: %v", err)
 	}
 
-	compareAssociations(t, got1, []node.Association{
+	compareAssociations(t, got1, []device.Association{
 		{
 			"alice",
 			"alice_account",
@@ -84,7 +84,7 @@ func TestAssociationPersistance(t *testing.T) {
 	if err != nil {
 		t.Fatalf("AllBlessingSystemAssociations failed: %v", err)
 	}
-	compareAssociations(t, got1, []node.Association{
+	compareAssociations(t, got1, []device.Association{
 		{
 			"alice",
 			"alice_account",
@@ -100,7 +100,7 @@ func TestAssociationPersistance(t *testing.T) {
 	if err != nil {
 		t.Fatalf("AllBlessingSystemAssociations failed: %v", err)
 	}
-	compareAssociations(t, got1, []node.Association{
+	compareAssociations(t, got1, []device.Association{
 		{
 			"alice",
 			"alice_other_account",

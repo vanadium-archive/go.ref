@@ -5,7 +5,7 @@ import (
 	"time"
 
 	"veyron.io/lib/cmdline"
-	"veyron.io/veyron/veyron2/services/mgmt/node"
+	"veyron.io/veyron/veyron2/services/mgmt/device"
 )
 
 var cmdList = &cmdline.Command{
@@ -25,7 +25,7 @@ func runList(cmd *cmdline.Command, args []string) error {
 
 	ctx, cancel := runtime.NewContext().WithTimeout(time.Minute)
 	defer cancel()
-	assocs, err := node.DeviceClient(args[0]).ListAssociations(ctx)
+	assocs, err := device.DeviceClient(args[0]).ListAssociations(ctx)
 	if err != nil {
 		return fmt.Errorf("ListAssociations failed: %v", err)
 	}
@@ -54,7 +54,7 @@ func runAdd(cmd *cmdline.Command, args []string) error {
 	}
 	ctx, cancel := runtime.NewContext().WithTimeout(time.Minute)
 	defer cancel()
-	return node.DeviceClient(args[0]).AssociateAccount(ctx, args[2:], args[1])
+	return device.DeviceClient(args[0]).AssociateAccount(ctx, args[2:], args[1])
 }
 
 var cmdRemove = &cmdline.Command{
@@ -74,7 +74,7 @@ func runRemove(cmd *cmdline.Command, args []string) error {
 	}
 	ctx, cancel := runtime.NewContext().WithTimeout(time.Minute)
 	defer cancel()
-	return node.DeviceClient(args[0]).AssociateAccount(ctx, args[1:], "")
+	return device.DeviceClient(args[0]).AssociateAccount(ctx, args[1:], "")
 }
 
 func associateRoot() *cmdline.Command {

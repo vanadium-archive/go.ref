@@ -1,4 +1,4 @@
-// Package node contains the implementation for the veyron2/mgmt/node APIs.
+// Package device contains the implementation for the veyron2/mgmt/device APIs.
 //
 // The device manager is a server that is expected to run on every
 // Veyron-enabled device, and it handles both device management and management
@@ -31,5 +31,5 @@
 // The config subpackage encapsulates the configuration settings that form the
 // device manager service's 'contract' with its environment.
 //
-// The noded subpackage contains the main driver.
-package node
+// The deviced subpackage contains the main driver.
+package device

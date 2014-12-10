@@ -1,4 +1,4 @@
-package node
+package device
 
 // Config is an RPC API to the config service.
 type Config interface {

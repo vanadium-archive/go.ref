@@ -16,14 +16,14 @@ import (
 	"veyron.io/veyron/veyron/security/agent/keymgr"
 	vflag "veyron.io/veyron/veyron/security/flag"
 	"veyron.io/veyron/veyron/security/serialization"
+	idevice "veyron.io/veyron/veyron/services/mgmt/device"
+	"veyron.io/veyron/veyron/services/mgmt/device/config"
 	logsimpl "veyron.io/veyron/veyron/services/mgmt/logreader/impl"
-	inode "veyron.io/veyron/veyron/services/mgmt/node"
-	"veyron.io/veyron/veyron/services/mgmt/node/config"
 
 	"veyron.io/veyron/veyron2/ipc"
 	"veyron.io/veyron/veyron2/naming"
 	"veyron.io/veyron/veyron2/security"
-	"veyron.io/veyron/veyron2/services/mgmt/node"
+	"veyron.io/veyron/veyron2/services/mgmt/device"
 	"veyron.io/veyron/veyron2/services/mgmt/pprof"
 	"veyron.io/veyron/veyron2/services/mgmt/stats"
 	"veyron.io/veyron/veyron2/services/security/access"
@@ -73,7 +73,7 @@ const (
 	deviceSuffix = "nm"
 	configSuffix = "cfg"
 
-	pkgPath = "veyron.io/veyron/veyron/services/mgmt/node/impl"
+	pkgPath = "veyron.io/veyron/veyron/services/mgmt/device/impl"
 )
 
 var (
@@ -356,7 +356,7 @@ func (d *dispatcher) Lookup(suffix string) (interface{}, security.Authorizer, er
 	// prefix.
 	switch components[0] {
 	case deviceSuffix:
-		receiver := node.DeviceServer(&deviceService{
+		receiver := device.DeviceServer(&deviceService{
 			callback: d.internal.callback,
 			updating: d.internal.updating,
 			config:   d.config,
@@ -407,7 +407,7 @@ func (d *dispatcher) Lookup(suffix string) (interface{}, security.Authorizer, er
 		if err != nil {
 			return nil, nil, err
 		}
-		receiver := node.ApplicationServer(&appService{
+		receiver := device.ApplicationServer(&appService{
 			callback:      d.internal.callback,
 			config:        d.config,
 			suffix:        components[1:],
@@ -425,7 +425,7 @@ func (d *dispatcher) Lookup(suffix string) (interface{}, security.Authorizer, er
 		if len(components) != 2 {
 			return nil, nil, verror2.Make(ErrInvalidSuffix, nil)
 		}
-		receiver := inode.ConfigServer(&configService{
+		receiver := idevice.ConfigServer(&configService{
 			callback: d.internal.callback,
 			suffix:   components[1],
 		})

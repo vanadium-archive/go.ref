@@ -10,8 +10,8 @@ import (
 
 	"veyron.io/veyron/veyron/lib/signals"
 	"veyron.io/veyron/veyron/profiles/roaming"
-	"veyron.io/veyron/veyron/services/mgmt/node/config"
-	"veyron.io/veyron/veyron/services/mgmt/node/impl"
+	"veyron.io/veyron/veyron/services/mgmt/device/config"
+	"veyron.io/veyron/veyron/services/mgmt/device/impl"
 )
 
 var (

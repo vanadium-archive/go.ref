@@ -9,7 +9,7 @@ import (
 	"veyron.io/veyron/veyron2/naming"
 	"veyron.io/veyron/veyron2/security"
 	"veyron.io/veyron/veyron2/services/mgmt/binary"
-	"veyron.io/veyron/veyron2/services/mgmt/node"
+	"veyron.io/veyron/veyron2/services/mgmt/device"
 	"veyron.io/veyron/veyron2/services/security/access"
 	"veyron.io/veyron/veyron2/vlog"
 
@@ -23,11 +23,11 @@ type mockDeviceInvoker struct {
 
 // Mock ListAssociations
 type ListAssociationResponse struct {
-	na  []node.Association
+	na  []device.Association
 	err error
 }
 
-func (mni *mockDeviceInvoker) ListAssociations(ipc.ServerContext) (associations []node.Association, err error) {
+func (mni *mockDeviceInvoker) ListAssociations(ipc.ServerContext) (associations []device.Association, err error) {
 	vlog.VI(2).Infof("ListAssociations() was called")
 
 	ir := mni.tape.Record("ListAssociations")
@@ -64,8 +64,8 @@ func (mni *mockDeviceInvoker) Claim(call ipc.ServerContext) error {
 	return mni.simpleCore("Claim", "Claim")
 }
 
-func (*mockDeviceInvoker) Describe(ipc.ServerContext) (node.Description, error) {
-	return node.Description{}, nil
+func (*mockDeviceInvoker) Describe(ipc.ServerContext) (device.Description, error) {
+	return device.Description{}, nil
 }
 func (*mockDeviceInvoker) IsRunnable(_ ipc.ServerContext, description binary.Description) (bool, error) {
 	return false, nil
@@ -157,7 +157,7 @@ func NewDispatcher(t *testing.T, tape *Tape) *dispatcher {
 }
 
 func (d *dispatcher) Lookup(suffix string) (interface{}, security.Authorizer, error) {
-	return node.DeviceServer(&mockDeviceInvoker{tape: d.tape, t: d.t}), nil, nil
+	return device.DeviceServer(&mockDeviceInvoker{tape: d.tape, t: d.t}), nil, nil
 }
 
 func startServer(t *testing.T, r veyron2.Runtime, tape *Tape) (ipc.Server, naming.Endpoint, error) {

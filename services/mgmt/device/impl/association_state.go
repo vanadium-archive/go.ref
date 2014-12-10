@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"sync"
 
-	"veyron.io/veyron/veyron2/services/mgmt/node"
+	"veyron.io/veyron/veyron2/services/mgmt/device"
 	"veyron.io/veyron/veyron2/verror2"
 )
 
@@ -20,7 +20,7 @@ type BlessingSystemAssociationStore interface {
 
 	// AllBlessingSystemAssociations returns all of the current Blessing to system
 	// account associations.
-	AllBlessingSystemAssociations() ([]node.Association, error)
+	AllBlessingSystemAssociations() ([]device.Association, error)
 
 	// AssociateSystemAccountForBlessings associates the provided systenName with each
 	// provided blessing.
@@ -51,13 +51,13 @@ func (u *association) SystemAccountForBlessings(blessings []string) (string, boo
 	return systemName, present
 }
 
-func (u *association) AllBlessingSystemAssociations() ([]node.Association, error) {
+func (u *association) AllBlessingSystemAssociations() ([]device.Association, error) {
 	u.Lock()
 	defer u.Unlock()
-	assocs := make([]node.Association, 0)
+	assocs := make([]device.Association, 0)
 
 	for k, v := range u.data {
-		assocs = append(assocs, node.Association{k, v})
+		assocs = append(assocs, device.Association{k, v})
 	}
 	return assocs, nil
 }
