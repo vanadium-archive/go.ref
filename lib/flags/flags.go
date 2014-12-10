@@ -25,9 +25,10 @@ const (
 	// --veyron.proxy
 	// --vanadium.i18n_catalogue
 	Listen
-	// --veyron.acl (which may be repeated to supply multiple values)
+	// --veyron.acl.file (which may be repeated to supply multiple values)
 	// ACL files are named - i.e. --veyron.acl=<name>:<file> with the
 	// name <runtime> reserved for use by the runtime.
+	// --veyron.acl.literal
 	ACL
 )
 
@@ -125,13 +126,21 @@ type VtraceFlags struct {
 
 // ACLFlags contains the values of the ACLFlags flag group.
 type ACLFlags struct {
-	flag aclFlagVar
+	// List of named ACL files.
+	fileFlag aclFlagVar
+
+	// Single json string, overrides everything.
+	literal string
 }
 
 // ACLFile returns the file which is presumed to contain ACL information
 // associated with the supplied name parameter.
 func (af ACLFlags) ACLFile(name string) string {
-	return af.flag.files[name]
+	return af.fileFlag.files[name]
+}
+
+func (af ACLFlags) ACLLiteral() string {
+	return af.literal
 }
 
 // ListenAddrs is the set of listen addresses captured from the command line.
@@ -211,7 +220,8 @@ func createAndRegisterRuntimeFlags(fs *flag.FlagSet) *RuntimeFlags {
 
 func createAndRegisterACLFlags(fs *flag.FlagSet) *ACLFlags {
 	f := &ACLFlags{}
-	fs.Var(&f.flag, "veyron.acl", "specify an acl file as <name>:<aclfile>")
+	fs.Var(&f.fileFlag, "veyron.acl.file", "specify an acl file as <name>:<aclfile>")
+	fs.StringVar(&f.literal, "veyron.acl.literal", "", "explicitly specify the runtime acl as a JSON-encoded access.TaggedACLMap. Overrides all --veyron.acl.file flags.")
 	return f
 }
 
