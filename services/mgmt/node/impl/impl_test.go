@@ -289,7 +289,7 @@ func app(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args 
 func generateDeviceManagerScript(t *testing.T, root string, args, env []string) string {
 	env = impl.VeyronEnvironment(env)
 	output := "#!/bin/bash\n"
-	output += strings.Join(config.QuoteEnv(env), " ") + " "
+	output += strings.Join(config.QuoteEnv(env), " ") + " exec "
 	output += strings.Join(args, " ")
 	if err := os.MkdirAll(filepath.Join(root, "factory"), 0755); err != nil {
 		t.Fatalf("MkdirAll failed: %v", err)
