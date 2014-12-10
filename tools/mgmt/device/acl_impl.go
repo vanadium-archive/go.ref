@@ -7,7 +7,7 @@ import (
 
 	"veyron.io/lib/cmdline"
 	"veyron.io/veyron/veyron2/security"
-	"veyron.io/veyron/veyron2/services/mgmt/node"
+	"veyron.io/veyron/veyron2/services/mgmt/device"
 	"veyron.io/veyron/veyron2/services/security/access"
 	verror "veyron.io/veyron/veyron2/verror2"
 )
@@ -17,9 +17,9 @@ var cmdGet = &cmdline.Command{
 	Name:     "get",
 	Short:    "Get ACLs for the given target.",
 	Long:     "Get ACLs for the given target.",
-	ArgsName: "<node manager name>",
+	ArgsName: "<device manager name>",
 	ArgsLong: `
-<node manager name> can be a Vanadium name for a node manager,
+<device manager name> can be a Vanadium name for a device manager,
 application installation or instance.`,
 }
 
@@ -29,7 +29,7 @@ func runGet(cmd *cmdline.Command, args []string) error {
 	}
 
 	vanaName := args[0]
-	objACL, _, err := node.ApplicationClient(vanaName).GetACL(runtime.NewContext())
+	objACL, _, err := device.ApplicationClient(vanaName).GetACL(runtime.NewContext())
 	if err != nil {
 		return fmt.Errorf("GetACL on %s failed: %v", vanaName, err)
 	}
@@ -52,9 +52,9 @@ var cmdSet = &cmdline.Command{
 	Name:     "set",
 	Short:    "Set ACLs for the given target.",
 	Long:     "Set ACLs for the given target",
-	ArgsName: "<node manager name>  (<blessing> [!]<tag>(,[!]<tag>)*",
+	ArgsName: "<device manager name>  (<blessing> [!]<tag>(,[!]<tag>)*",
 	ArgsLong: `
-<node manager name> can be a Vanadium name for a node manager,
+<device manager name> can be a Vanadium name for a device manager,
 application installation or instance.
 
 <blessing> is a blessing pattern.
@@ -97,7 +97,7 @@ func runSet(cmd *cmdline.Command, args []string) error {
 	// Set the ACLs on the specified names.
 	ctx := runtime.NewContext()
 	for {
-		objACL, etag, err := node.ApplicationClient(vanaName).GetACL(ctx)
+		objACL, etag, err := device.ApplicationClient(vanaName).GetACL(ctx)
 		if err != nil {
 			return cmd.UsageErrorf("GetACL(%s) failed: %v", vanaName, err)
 		}
@@ -111,7 +111,7 @@ func runSet(cmd *cmdline.Command, args []string) error {
 				}
 			}
 		}
-		switch err := node.ApplicationClient(vanaName).SetACL(ctx, objACL, etag); {
+		switch err := device.ApplicationClient(vanaName).SetACL(ctx, objACL, etag); {
 		case err != nil && !verror.Is(err, access.ErrBadEtag):
 			return cmd.UsageErrorf("SetACL(%s) failed: %v", vanaName, err)
 		case err == nil:
@@ -125,9 +125,9 @@ func runSet(cmd *cmdline.Command, args []string) error {
 func aclRoot() *cmdline.Command {
 	return &cmdline.Command{
 		Name:  "acl",
-		Short: "Tool for setting node manager ACLs",
+		Short: "Tool for setting device manager ACLs",
 		Long: `
-The acl tool manages ACLs on the node manger, installations and instances.
+The acl tool manages ACLs on the device manger, installations and instances.
 `,
 		Children: []*cmdline.Command{cmdGet, cmdSet},
 	}

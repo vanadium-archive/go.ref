@@ -16,7 +16,7 @@ import (
 	"veyron.io/veyron/veyron2/ipc"
 	"veyron.io/veyron/veyron2/naming"
 	"veyron.io/veyron/veyron2/security"
-	"veyron.io/veyron/veyron2/services/mgmt/node"
+	"veyron.io/veyron/veyron2/services/mgmt/device"
 	"veyron.io/veyron/veyron2/verror"
 	"veyron.io/veyron/veyron2/verror2"
 	"veyron.io/veyron/veyron2/vlog"
@@ -27,7 +27,7 @@ import (
 	"veyron.io/veyron/veyron/lib/modules/core"
 	tsecurity "veyron.io/veyron/veyron/lib/testutil/security"
 	"veyron.io/veyron/veyron/profiles/static"
-	"veyron.io/veyron/veyron/services/mgmt/node/impl"
+	"veyron.io/veyron/veyron/services/mgmt/device/impl"
 	"veyron.io/veyron/veyron2/services/mgmt/application"
 )
 
@@ -203,9 +203,9 @@ func resolve(t *testing.T, name string, replicas int) []string {
 // The following set of functions are convenience wrappers around Update and
 // Revert for device manager.
 
-func deviceStub(name string) node.DeviceClientMethods {
+func deviceStub(name string) device.DeviceClientMethods {
 	deviceName := naming.Join(name, "nm")
-	return node.DeviceClient(deviceName)
+	return device.DeviceClient(deviceName)
 }
 
 func updateDeviceExpectError(t *testing.T, name string, errID verror.ID) {
@@ -243,10 +243,10 @@ func ort(opt []veyron2.Runtime) veyron2.Runtime {
 	}
 }
 
-func appStub(nameComponents ...string) node.ApplicationClientMethods {
+func appStub(nameComponents ...string) device.ApplicationClientMethods {
 	appsName := "nm//apps"
 	appName := naming.Join(append([]string{appsName}, nameComponents...)...)
-	return node.ApplicationClient(appName)
+	return device.ApplicationClient(appName)
 }
 
 func installApp(t *testing.T, opt ...veyron2.Runtime) string {
@@ -351,13 +351,13 @@ func uninstallApp(t *testing.T, appID string) {
 }
 
 // Code to make Association lists sortable.
-type byIdentity []node.Association
+type byIdentity []device.Association
 
 func (a byIdentity) Len() int           { return len(a) }
 func (a byIdentity) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
 func (a byIdentity) Less(i, j int) bool { return a[i].IdentityName < a[j].IdentityName }
 
-func compareAssociations(t *testing.T, got, expected []node.Association) {
+func compareAssociations(t *testing.T, got, expected []device.Association) {
 	sort.Sort(byIdentity(got))
 	sort.Sort(byIdentity(expected))
 	if !reflect.DeepEqual(got, expected) {

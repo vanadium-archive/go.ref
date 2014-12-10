@@ -81,7 +81,7 @@ func startBinaryRepository() func() {
 // BINARY REPOSITORY INTERFACE IMPLEMENTATION
 
 // TODO(toddw): Move the errors from dispatcher.go into a common location.
-const pkgPath = "veyron.io/veyron/veyron/services/mgmt/node/impl"
+const pkgPath = "veyron.io/veyron/veyron/services/mgmt/device/impl"
 
 var ErrOperationFailed = verror2.Register(pkgPath+".OperationFailed", verror2.NoRetry, "")
 

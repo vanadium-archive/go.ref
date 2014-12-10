@@ -13,8 +13,8 @@ build() {
   APPLICATION_BIN="$(shell_test::build_go_binary 'veyron.io/veyron/veyron/tools/application')"
   AGENTD_BIN="$(shell_test::build_go_binary 'veyron.io/veyron/veyron/security/agent/agentd')"
   SUIDHELPER_BIN="$(shell_test::build_go_binary 'veyron.io/veyron/veyron/services/mgmt/suidhelper')"
-  DEVICEMANAGER_BIN="$(shell_test::build_go_binary 'veyron.io/veyron/veyron/services/mgmt/node/noded')"
-  NODEX_BIN="$(shell_test::build_go_binary 'veyron.io/veyron/veyron/tools/mgmt/nodex')"
+  DEVICEMANAGER_BIN="$(shell_test::build_go_binary 'veyron.io/veyron/veyron/services/mgmt/device/deviced')"
+  DEVICE_BIN="$(shell_test::build_go_binary 'veyron.io/veyron/veyron/tools/mgmt/device')"
   NAMESPACE_BIN="$(shell_test::build_go_binary 'veyron.io/veyron/veyron/tools/namespace')"
   PRINCIPAL_BIN="$(shell_test::build_go_binary 'veyron.io/veyron/veyron/tools/principal')"
   DEBUG_BIN="$(shell_test::build_go_binary 'veyron.io/veyron/veyron/tools/debug')"
@@ -80,7 +80,7 @@ main() {
   export VEYRON_CREDENTIALS=./alice
 
   # Claim the device as "alice/myworkstation".
-  "${NODEX_BIN}" claim "${NM_NAME}/nm" myworkstation
+  "${DEVICE_BIN}" claim "${NM_NAME}/nm" myworkstation
 
   # Verify the device's default blessing is as expected.
   shell_test::assert_eq "$("${DEBUG_BIN}" stats read "${NM_NAME}/__debug/stats/security/principal/blessingstore" | head -1 | sed -e 's/^.*Default blessings: '//)" \
@@ -118,14 +118,14 @@ main() {
     "BINARYD" "${LINENO}"
 
   # Install the app on the device.
-  local -r INSTALLATION_NAME=$("${NODEX_BIN}" install "${NM_NAME}/apps" "${SAMPLE_APP_NAME}" | sed -e 's/Successfully installed: "//' | sed -e 's/"//')
+  local -r INSTALLATION_NAME=$("${DEVICE_BIN}" install "${NM_NAME}/apps" "${SAMPLE_APP_NAME}" | sed -e 's/Successfully installed: "//' | sed -e 's/"//')
 
   # Verify that the installation shows up when globbing the device manager.
   shell_test::assert_eq "$("${NAMESPACE_BIN}" glob "${NM_NAME}/apps/BINARYD/*")" \
     "${INSTALLATION_NAME}" "${LINENO}"
 
   # Start an instance of the app, granting it blessing extension myapp.
-  local -r INSTANCE_NAME=$("${NODEX_BIN}" start "${INSTALLATION_NAME}" myapp | sed -e 's/Successfully started: "//' | sed -e 's/"//')
+  local -r INSTANCE_NAME=$("${DEVICE_BIN}" start "${INSTALLATION_NAME}" myapp | sed -e 's/Successfully started: "//' | sed -e 's/"//')
   wait_for_mountentry "${NAMESPACE_BIN}" "5" "${APP_PUBLISH_NAME}"
 
   # Verify that the instance shows up when globbing the device manager.
@@ -136,7 +136,7 @@ main() {
     "alice/myapp/BINARYD" "${LINENO}"
 
   # Stop the instance.
-  "${NODEX_BIN}" stop "${INSTANCE_NAME}"
+  "${DEVICE_BIN}" stop "${INSTANCE_NAME}"
 
   # Verify that logs, but not stats, show up when globbing the stopped instance.
   shell_test::assert_eq "$("${NAMESPACE_BIN}" glob "${INSTANCE_NAME}/stats/...")" "" "${LINENO}"

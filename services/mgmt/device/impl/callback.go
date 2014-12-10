@@ -6,7 +6,7 @@ import (
 	"veyron.io/veyron/veyron2/vlog"
 
 	"veyron.io/veyron/veyron/lib/exec"
-	"veyron.io/veyron/veyron/services/mgmt/node"
+	"veyron.io/veyron/veyron/services/mgmt/device"
 )
 
 // InvokeCallback provides the parent device manager with the given name (which
@@ -21,7 +21,7 @@ func InvokeCallback(ctx context.T, name string) {
 			// Device manager was not started by self-update, return silently.
 			return
 		}
-		nmClient := node.ConfigClient(callbackName)
+		nmClient := device.ConfigClient(callbackName)
 		ctx, cancel := ctx.WithTimeout(ipcContextTimeout)
 		defer cancel()
 		if err := nmClient.Set(ctx, mgmt.ChildNameConfigKey, name); err != nil {

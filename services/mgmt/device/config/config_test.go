@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"veyron.io/veyron/veyron/services/mgmt/node/config"
+	"veyron.io/veyron/veyron/services/mgmt/device/config"
 
 	"veyron.io/veyron/veyron2/services/mgmt/application"
 )

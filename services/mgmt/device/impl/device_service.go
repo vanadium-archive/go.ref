@@ -45,14 +45,14 @@ import (
 	"veyron.io/veyron/veyron2/naming"
 	"veyron.io/veyron/veyron2/services/mgmt/application"
 	"veyron.io/veyron/veyron2/services/mgmt/binary"
-	"veyron.io/veyron/veyron2/services/mgmt/node"
+	"veyron.io/veyron/veyron2/services/mgmt/device"
 	"veyron.io/veyron/veyron2/services/security/access"
 	"veyron.io/veyron/veyron2/verror2"
 	"veyron.io/veyron/veyron2/vlog"
 
 	vexec "veyron.io/veyron/veyron/lib/exec"
 	"veyron.io/veyron/veyron/lib/netstate"
-	"veyron.io/veyron/veyron/services/mgmt/node/config"
+	"veyron.io/veyron/veyron/services/mgmt/device/config"
 	"veyron.io/veyron/veyron/services/mgmt/profile"
 )
 
@@ -103,8 +103,8 @@ func (i *deviceService) Claim(call ipc.ServerContext) error {
 	return i.disp.claimDeviceManager(call.LocalPrincipal(), blessings.ForContext(call), blessings)
 }
 
-func (*deviceService) Describe(ipc.ServerContext) (node.Description, error) {
-	empty := node.Description{}
+func (*deviceService) Describe(ipc.ServerContext) (device.Description, error) {
+	empty := device.Description{}
 	deviceProfile, err := computeDeviceProfile()
 	if err != nil {
 		return empty, err
@@ -240,7 +240,7 @@ func (i *deviceService) testDeviceManager(ctx context.T, workspace string, envel
 	}
 	// Check that invoking Revert() succeeds.
 	childName = naming.Join(childName, "nm")
-	nmClient := node.DeviceClient(childName)
+	nmClient := device.DeviceClient(childName)
 	linkOld, pathOld, err := i.getCurrentFileInfo()
 	if err != nil {
 		return verror2.Make(ErrOperationFailed, ctx)
@@ -274,7 +274,7 @@ func (i *deviceService) testDeviceManager(ctx context.T, workspace string, envel
 	return nil
 }
 
-// TODO(caprita): Move this to util.go since node_installer is also using it now.
+// TODO(caprita): Move this to util.go since device_installer is also using it now.
 
 func generateScript(workspace string, configSettings []string, envelope *application.Envelope) error {
 	// TODO(caprita): Remove this snippet of code, it doesn't seem to serve
@@ -477,7 +477,7 @@ func (i *deviceService) AssociateAccount(call ipc.ServerContext, identityNames [
 	}
 }
 
-func (i *deviceService) ListAssociations(call ipc.ServerContext) (associations []node.Association, err error) {
+func (i *deviceService) ListAssociations(call ipc.ServerContext) (associations []device.Association, err error) {
 	// Temporary code. Dump this.
 	vlog.VI(2).Infof("ListAssociations given blessings: %v\n", call.RemoteBlessings().ForContext(call))
 

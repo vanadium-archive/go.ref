@@ -7,7 +7,7 @@ import (
 	"veyron.io/veyron/veyron2/ipc"
 	"veyron.io/veyron/veyron2/naming"
 	"veyron.io/veyron/veyron2/security"
-	"veyron.io/veyron/veyron2/services/mgmt/node"
+	"veyron.io/veyron/veyron2/services/mgmt/device"
 )
 
 var cmdInstall = &cmdline.Command{
@@ -26,7 +26,7 @@ func runInstall(cmd *cmdline.Command, args []string) error {
 		return cmd.UsageErrorf("install: incorrect number of arguments, expected %d, got %d", expected, got)
 	}
 	deviceName, appName := args[0], args[1]
-	appID, err := node.ApplicationClient(deviceName).Install(runtime.NewContext(), appName)
+	appID, err := device.ApplicationClient(deviceName).Install(runtime.NewContext(), appName)
 	if err != nil {
 		return fmt.Errorf("Install failed: %v", err)
 	}
@@ -63,7 +63,7 @@ func runStart(cmd *cmdline.Command, args []string) error {
 		return cmd.UsageErrorf("start: incorrect number of arguments, expected %d, got %d", expected, got)
 	}
 	appInstallation, grant := args[0], args[1]
-	appInstanceIDs, err := node.ApplicationClient(appInstallation).Start(runtime.NewContext(), &granter{p: runtime.Principal(), extension: grant})
+	appInstanceIDs, err := device.ApplicationClient(appInstallation).Start(runtime.NewContext(), &granter{p: runtime.Principal(), extension: grant})
 	if err != nil {
 		return fmt.Errorf("Start failed: %v", err)
 	}
@@ -91,7 +91,7 @@ func runClaim(cmd *cmdline.Command, args []string) error {
 		return cmd.UsageErrorf("claim: incorrect number of arguments, expected %d, got %d", expected, got)
 	}
 	deviceName, grant := args[0], args[1]
-	if err := node.DeviceClient(deviceName).Claim(runtime.NewContext(), &granter{p: runtime.Principal(), extension: grant}); err != nil {
+	if err := device.DeviceClient(deviceName).Claim(runtime.NewContext(), &granter{p: runtime.Principal(), extension: grant}); err != nil {
 		return fmt.Errorf("Claim failed: %v", err)
 	}
 	fmt.Fprintln(cmd.Stdout(), "Successfully claimed.")
@@ -100,10 +100,10 @@ func runClaim(cmd *cmdline.Command, args []string) error {
 
 func root() *cmdline.Command {
 	return &cmdline.Command{
-		Name:  "nodex",
+		Name:  "device",
 		Short: "Tool for interacting with the veyron device manager",
 		Long: `
-The nodex tool facilitates interaction with the veyron device manager.
+The device tool facilitates interaction with the veyron device manager.
 `,
 		Children: []*cmdline.Command{cmdInstall, cmdStart, associateRoot(), cmdClaim, cmdStop, cmdSuspend, cmdResume, aclRoot()},
 	}

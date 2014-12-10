@@ -17,7 +17,7 @@ import (
 	"veyron.io/veyron/veyron2/wiretype"
 
 	idl_binary "veyron.io/veyron/veyron2/services/mgmt/binary"
-	idl_node "veyron.io/veyron/veyron2/services/mgmt/node"
+	idl_device "veyron.io/veyron/veyron2/services/mgmt/device"
 )
 
 const serverDesc = `
@@ -121,7 +121,7 @@ func runInvoke(cmd *cmdline.Command, args []string) error {
 	// empty interface, this will no longer be needed.
 	var x1 idl_test_base.Struct
 	vdlutil.Register(x1)
-	var x2 idl_node.Description
+	var x2 idl_device.Description
 	vdlutil.Register(x2)
 	var x3 idl_binary.Description
 	vdlutil.Register(x3)

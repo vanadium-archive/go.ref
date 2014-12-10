@@ -13,7 +13,7 @@ import (
 	verror "veyron.io/veyron/veyron2/verror2"
 )
 
-const pkgPath = "veyron.io/veyron/veyron/tools/mgmt/nodex/main"
+const pkgPath = "veyron.io/veyron/veyron/tools/mgmt/device/main"
 
 var (
 	errOops    = verror.Register(pkgPath+".errOops", verror.NoRetry, "oops!")

@@ -11,7 +11,7 @@ import (
 	"veyron.io/veyron/veyron2/vlog"
 
 	// For VeyronEnvironment, see TODO.
-	"veyron.io/veyron/veyron/services/mgmt/node/config"
+	"veyron.io/veyron/veyron/services/mgmt/device/config"
 )
 
 // InstallFrom takes a veyron object name denoting an application service where

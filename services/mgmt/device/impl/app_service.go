@@ -144,9 +144,9 @@ import (
 	vsecurity "veyron.io/veyron/veyron/security"
 	"veyron.io/veyron/veyron/security/agent"
 	"veyron.io/veyron/veyron/security/agent/keymgr"
+	iconfig "veyron.io/veyron/veyron/services/mgmt/device/config"
 	libbinary "veyron.io/veyron/veyron/services/mgmt/lib/binary"
 	libpackages "veyron.io/veyron/veyron/services/mgmt/lib/packages"
-	iconfig "veyron.io/veyron/veyron/services/mgmt/node/config"
 )
 
 // instanceInfo holds state about a running instance.

@@ -31,7 +31,7 @@ usage() {
   echo "./nminstall [--single_user] <install parent dir> [<binary source>] [-- args for device manager...]"
 }
 
-readonly BIN_NAMES=(noded suidhelper agentd)
+readonly BIN_NAMES=(deviced suidhelper agentd)
 
 ###############################################################################
 # Copies one binary from source to destination.
@@ -191,7 +191,7 @@ main() {
     exit 1
   fi
 
-  VEYRON_NM_CURRENT="${INSTALL_DIR}/deviced.curr" VEYRON_NM_ROOT="${NM_ROOT}" VEYRON_NM_HELPER="${SETUID_SCRIPT}" "${BIN_INSTALL}/noded" --install_self -- --name="${PUBLISH}" "$@"
+  VEYRON_NM_CURRENT="${INSTALL_DIR}/deviced.curr" VEYRON_NM_ROOT="${NM_ROOT}" VEYRON_NM_HELPER="${SETUID_SCRIPT}" "${BIN_INSTALL}/deviced" --install_self -- --name="${PUBLISH}" "$@"
   echo "Device manager installed."
 
   local -r SECURITY_DIR="${INSTALL_DIR}/security"

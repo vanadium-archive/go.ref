@@ -9,7 +9,7 @@ import (
 
 	"veyron.io/veyron/veyron2/naming"
 	"veyron.io/veyron/veyron2/rt"
-	"veyron.io/veyron/veyron2/services/mgmt/node"
+	"veyron.io/veyron/veyron2/services/mgmt/device"
 	verror "veyron.io/veyron/veyron2/verror2"
 )
 
@@ -36,7 +36,7 @@ func TestListCommand(t *testing.T) {
 
 	// Test the 'list' command.
 	tape.SetResponses([]interface{}{ListAssociationResponse{
-		na: []node.Association{
+		na: []device.Association{
 			{
 				"root/self",
 				"alice_self_account",
