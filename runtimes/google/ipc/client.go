@@ -437,7 +437,11 @@ func (c *client) tryCall(ctx context.T, name, method string, args []interface{},
 			}
 		case <-timeoutChan:
 			vlog.VI(2).Infof("ipc: timeout on connection to server %v ", name)
-			return c.failedTryCall(ctx, name, method, servers, responses, ch)
+			_, _, err := c.failedTryCall(ctx, name, method, servers, responses, ch)
+			if !verror.Is(err, verror.Timeout.ID) {
+				return nil, verror.NoRetry, verror.Make(verror.Timeout, ctx, err)
+			}
+			return nil, verror.NoRetry, err
 		}
 
 		// Process new responses, in priority order.
