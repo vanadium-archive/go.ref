@@ -18,7 +18,7 @@ build() {
   NAMESPACE_BIN="$(shell_test::build_go_binary 'veyron.io/veyron/veyron/tools/namespace')"
   PRINCIPAL_BIN="$(shell_test::build_go_binary 'veyron.io/veyron/veyron/tools/principal')"
   DEBUG_BIN="$(shell_test::build_go_binary 'veyron.io/veyron/veyron/tools/debug')"
-  DMINSTALL_SCRIPT="$(shell::go_package_dir 'veyron.io/veyron/veyron/tools/mgmt')/nminstall"
+  DMINSTALL_SCRIPT="$(shell::go_package_dir 'veyron.io/veyron/veyron/tools/mgmt')/dminstall"
 }
 
 # TODO(caprita): Move to shell_tesh.sh
@@ -65,7 +65,7 @@ main() {
   # Install and start device manager.
   shell_test::start_server "${DMINSTALL_SCRIPT}" --single_user $(shell::tmp_dir) \
     "${BIN_STAGING_DIR}" -- --veyron.tcp.address=127.0.0.1:0 || shell_test::fail "line ${LINENO} failed to start device manager"
-  # Dump nminstall's log, just to provide visibility into its steps.
+  # Dump dminstall's log, just to provide visibility into its steps.
   cat "${START_SERVER_LOG_FILE}"
 
   local -r DM_NAME=$(hostname)

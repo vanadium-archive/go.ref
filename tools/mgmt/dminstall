@@ -16,19 +16,19 @@
 # Usage:
 #
 # # Gets binaries from local repository
-# ./nminstall <install parent dir>
+# ./dminstall <install parent dir>
 #
 # # Gets binaries from local filesystem
-# ./nminstall <install parent dir> /path/to/binaries
+# ./dminstall <install parent dir> /path/to/binaries
 #
 # # Gets binaries from HTTP server
-# ./nminstall <install parent dir> http://host/path
+# ./dminstall <install parent dir> http://host/path
 
 set -e
 
 usage() {
   echo "usage:"
-  echo "./nminstall [--single_user] <install parent dir> [<binary source>] [-- args for device manager...]"
+  echo "./dminstall [--single_user] <install parent dir> [<binary source>] [-- args for device manager...]"
 }
 
 readonly BIN_NAMES=(deviced suidhelper agentd)
