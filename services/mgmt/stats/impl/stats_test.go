@@ -106,9 +106,7 @@ func TestStatsImpl(t *testing.T) {
 			t.Fatalf("expected more stream values")
 		}
 		got := iterator.Value()
-		// TODO(toddw): This change is necessary for vom2:
-		//expected := types.Change{Name: "testing/foo/bar", Value: int64(10), ResumeMarker: noRM}
-		expected := types.Change{Name: "testing/foo/bar", Value: int64(10)}
+		expected := types.Change{Name: "testing/foo/bar", Value: int64(10), ResumeMarker: noRM}
 		if !reflect.DeepEqual(got, expected) {
 			t.Errorf("unexpected result. Got %#v, want %#v", got, expected)
 		}
@@ -119,9 +117,7 @@ func TestStatsImpl(t *testing.T) {
 			t.Fatalf("expected more stream values")
 		}
 		got = iterator.Value()
-		// TODO(toddw): This change is necessary for vom2:
-		//expected := types.Change{Name: "testing/foo/bar", Value: int64(15), ResumeMarker: noRM}
-		expected = types.Change{Name: "testing/foo/bar", Value: int64(15)}
+		expected = types.Change{Name: "testing/foo/bar", Value: int64(15), ResumeMarker: noRM}
 		if !reflect.DeepEqual(got, expected) {
 			t.Errorf("unexpected result. Got %#v, want %#v", got, expected)
 		}
@@ -132,9 +128,7 @@ func TestStatsImpl(t *testing.T) {
 			t.Fatalf("expected more stream values")
 		}
 		got = iterator.Value()
-		// TODO(toddw): This change is necessary for vom2:
-		//expected := types.Change{Name: "testing/foo/bar", Value: int64(17), ResumeMarker: noRM}
-		expected = types.Change{Name: "testing/foo/bar", Value: int64(17)}
+		expected = types.Change{Name: "testing/foo/bar", Value: int64(17), ResumeMarker: noRM}
 		if !reflect.DeepEqual(got, expected) {
 			t.Errorf("unexpected result. Got %#v, want %#v", got, expected)
 		}

@@ -66,9 +66,7 @@ func TestAgent(t *testing.T) {
 	tests := []testInfo{
 		{"BlessSelf", V{"self"}, newBlessing(t, "blessing"), nil},
 		{"Bless", V{newPrincipal(t).PublicKey(), newBlessing(t, "root"), "extension", security.UnconstrainedUse()}, newBlessing(t, "root/extension"), nil},
-		// TODO(toddw): This change is necessary for vom2:
-		//{"Sign", V{make([]byte, 10)}, security.Signature{Purpose: []byte{}, R: []byte{1}, S: []byte{1}}, nil},
-		{"Sign", V{make([]byte, 10)}, security.Signature{R: []byte{1}, S: []byte{1}}, nil},
+		{"Sign", V{make([]byte, 10)}, security.Signature{Purpose: []byte{}, R: []byte{1}, S: []byte{1}}, nil},
 		{"MintDischarge", V{thirdPartyCaveat, security.UnconstrainedUse()}, discharge, nil},
 		{"PublicKey", V{}, mockP.PublicKey(), nil},
 		{"AddToRoots", V{newBlessing(t, "blessing")}, nil, verror2.Make(addToRootsErr, nil)},

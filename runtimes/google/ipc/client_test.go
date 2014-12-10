@@ -5,7 +5,6 @@ import (
 	"io"
 	"os"
 	"path/filepath"
-	"reflect"
 	"runtime"
 	"testing"
 	"time"
@@ -14,7 +13,6 @@ import (
 	"veyron.io/veyron/veyron2/ipc"
 	"veyron.io/veyron/veyron2/naming"
 	"veyron.io/veyron/veyron2/rt"
-	old_verror "veyron.io/veyron/veyron2/verror"
 	verror "veyron.io/veyron/veyron2/verror2"
 	"veyron.io/veyron/veyron2/vlog"
 
@@ -189,7 +187,7 @@ func (s *sleeper) Sink(call ipc.ServerCall) (int, error) {
 	i := 0
 	for {
 		if err := call.Recv(&i); err != nil {
-			return i, err
+			return i, verror.Convert(verror.Internal, call, err)
 		}
 	}
 }
@@ -448,8 +446,8 @@ func TestStreamAbort(t *testing.T) {
 	if verr != nil {
 		t.Fatalf("unexpected error: %s", verr)
 	}
-	if got, want := err, (old_verror.Standard{Msg: "EOF"}); !reflect.DeepEqual(got, want) {
-		t.Fatalf("got %v, want %v", got, want)
+	if !verror.Is(err, "veyron.io/veyron/veyron2/verror.Internal") || err.Error() != `ipc.test:"".Sink: Internal error: EOF` {
+		t.Errorf("wrong error: %#v", err)
 	}
 	if got := result; got != want {
 		t.Errorf("got %d, want %d", got, want)

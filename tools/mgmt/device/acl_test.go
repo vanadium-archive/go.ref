@@ -186,7 +186,7 @@ func TestACLSetCommand(t *testing.T) {
 				},
 				"Write": access.ACL{
 					In:    []security.BlessingPattern{"friends/...", "friends/alice", "self/..."},
-					NotIn: []string{},
+					NotIn: []string(nil),
 				},
 			},
 			etag: "anEtagForToday",
@@ -201,11 +201,11 @@ func TestACLSetCommand(t *testing.T) {
 				},
 				"Read": access.ACL{
 					In:    []security.BlessingPattern{"other/...", "self/..."},
-					NotIn: []string{},
+					NotIn: []string(nil),
 				},
 				"Write": access.ACL{
 					In:    []security.BlessingPattern{"friends/...", "friends/alice", "self/..."},
-					NotIn: []string{},
+					NotIn: []string(nil),
 				},
 			},
 			etag: "anEtagForTomorrow",
@@ -277,7 +277,7 @@ func TestACLSetCommand(t *testing.T) {
 			acl: access.TaggedACLMap{
 				"Read": access.ACL{
 					In:    []security.BlessingPattern{"friend", "other", "self/..."},
-					NotIn: []string{},
+					NotIn: []string(nil),
 				},
 			},
 			etag: "anEtagForToday",
