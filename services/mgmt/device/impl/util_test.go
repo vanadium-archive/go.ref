@@ -26,12 +26,6 @@ import (
 )
 
 const (
-	// Setting this environment variable to any non-empty value avoids
-	// removing the device manager's workspace for successful test runs (for
-	// failed test runs, this is already the case).  This is useful when
-	// developing test cases.
-	preserveDMWorkspaceEnv = "VEYRON_TEST_PRESERVE_DM_WORKSPACE"
-
 	// TODO(caprita): Set the timeout in a more principled manner.
 	stopTimeout = 20 // In seconds.
 )
@@ -45,29 +39,6 @@ func envelopeFromShell(sh *modules.Shell, env []string, cmd, title string, args 
 		// apps.
 		Env:    impl.VeyronEnvironment(nenv),
 		Binary: mockBinaryRepoName,
-	}
-}
-
-// setupRootDir sets up and returns the local filesystem location that the
-// device manager is told to use, as well as a cleanup function.
-func setupRootDir(t *testing.T) (string, func()) {
-	rootDir, err := ioutil.TempDir("", "devicemanager")
-	if err != nil {
-		t.Fatalf("Failed to set up temporary dir for test: %v", err)
-	}
-	// On some operating systems (e.g. darwin) os.TempDir() can return a
-	// symlink. To avoid having to account for this eventuality later,
-	// evaluate the symlink.
-	rootDir, err = filepath.EvalSymlinks(rootDir)
-	if err != nil {
-		vlog.Fatalf("EvalSymlinks(%v) failed: %v", rootDir, err)
-	}
-	return rootDir, func() {
-		if t.Failed() || os.Getenv(preserveDMWorkspaceEnv) != "" {
-			t.Logf("You can examine the device manager workspace at %v", rootDir)
-		} else {
-			os.RemoveAll(rootDir)
-		}
 	}
 }
 

@@ -9,7 +9,6 @@ import (
 
 	"v.io/core/veyron/lib/signals"
 	"v.io/core/veyron/profiles/roaming"
-	vflag "v.io/core/veyron/security/flag"
 	"v.io/core/veyron/services/mgmt/application/impl"
 )
 
@@ -37,7 +36,7 @@ func main() {
 	}
 	defer server.Stop()
 
-	dispatcher, err := impl.NewDispatcher(*store, vflag.NewAuthorizerOrDie())
+	dispatcher, err := impl.NewDispatcher(*store)
 	if err != nil {
 		vlog.Fatalf("NewDispatcher() failed: %v", err)
 	}

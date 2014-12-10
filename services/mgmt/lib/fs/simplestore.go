@@ -11,7 +11,9 @@ import (
 	"sync"
 
 	"v.io/core/veyron/services/mgmt/profile"
+
 	"v.io/core/veyron2/services/mgmt/application"
+	"v.io/core/veyron2/services/security/access"
 	verror "v.io/core/veyron2/verror2"
 )
 
@@ -57,6 +59,7 @@ var keyExists = struct{}{}
 func init() {
 	gob.Register(profile.Specification{})
 	gob.Register(application.Envelope{})
+	gob.Register(access.TaggedACLMap{})
 }
 
 // NewMemstore persists the Memstore to os.TempDir() if no file is
@@ -335,7 +338,7 @@ func (o *boundObject) Put(_ interface{}, envelope interface{}) (*boundObject, er
 		return nil, verror.Make(ErrWithoutTransaction, nil, "Put()")
 	}
 	switch v := envelope.(type) {
-	case application.Envelope, profile.Specification:
+	case application.Envelope, profile.Specification, access.TaggedACLMap:
 		o.ms.puts[o.path] = v
 		delete(o.ms.removes, o.path)
 		o.Value = o.path

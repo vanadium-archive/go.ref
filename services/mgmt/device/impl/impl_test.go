@@ -308,7 +308,7 @@ func TestDeviceManagerUpdateAndRevert(t *testing.T) {
 	envelope, cleanup := startMockRepos(t)
 	defer cleanup()
 
-	root, cleanup := setupRootDir(t)
+	root, cleanup := mgmttest.SetupRootDir(t, "devicemanager")
 	defer cleanup()
 
 	// Current link does not have to live in the root dir, but it's
@@ -546,7 +546,7 @@ func TestAppLifeCycle(t *testing.T) {
 	envelope, cleanup := startMockRepos(t)
 	defer cleanup()
 
-	root, cleanup := setupRootDir(t)
+	root, cleanup := mgmttest.SetupRootDir(t, "devicemanager")
 	defer cleanup()
 
 	// Create a script wrapping the test target that implements suidhelper.
@@ -767,7 +767,7 @@ func TestDeviceManagerClaim(t *testing.T) {
 	envelope, cleanup := startMockRepos(t)
 	defer cleanup()
 
-	root, cleanup := setupRootDir(t)
+	root, cleanup := mgmttest.SetupRootDir(t, "devicemanager")
 	defer cleanup()
 
 	crDir, crEnv := mgmttest.CredentialsForChild(globalRT, "devicemanager")
@@ -839,7 +839,7 @@ func TestDeviceManagerUpdateACL(t *testing.T) {
 	envelope, cleanup := startMockRepos(t)
 	defer cleanup()
 
-	root, cleanup := setupRootDir(t)
+	root, cleanup := mgmttest.SetupRootDir(t, "devicemanager")
 	defer cleanup()
 
 	var (
@@ -944,7 +944,7 @@ func (s simpleRW) Read(p []byte) (n int, err error) {
 func TestDeviceManagerInstallation(t *testing.T) {
 	sh, deferFn := mgmttest.CreateShellAndMountTable(t, globalRT)
 	defer deferFn()
-	testDir, cleanup := setupRootDir(t)
+	testDir, cleanup := mgmttest.SetupRootDir(t, "devicemanager")
 	defer cleanup()
 
 	// Create a script wrapping the test target that implements suidhelper.
@@ -1002,7 +1002,7 @@ func TestDeviceManagerGlobAndDebug(t *testing.T) {
 	envelope, cleanup := startMockRepos(t)
 	defer cleanup()
 
-	root, cleanup := setupRootDir(t)
+	root, cleanup := mgmttest.SetupRootDir(t, "devicemanager")
 	defer cleanup()
 
 	crDir, crEnv := mgmttest.CredentialsForChild(globalRT, "devicemanager")
@@ -1168,7 +1168,7 @@ func TestDeviceManagerPackages(t *testing.T) {
 
 	defer startRealBinaryRepository(t)()
 
-	root, cleanup := setupRootDir(t)
+	root, cleanup := mgmttest.SetupRootDir(t, "devicemanager")
 	defer cleanup()
 
 	crDir, crEnv := mgmttest.CredentialsForChild(globalRT, "devicemanager")
@@ -1232,7 +1232,7 @@ func TestAccountAssociation(t *testing.T) {
 	sh, deferFn := mgmttest.CreateShellAndMountTable(t, globalRT)
 	defer deferFn()
 
-	root, cleanup := setupRootDir(t)
+	root, cleanup := mgmttest.SetupRootDir(t, "devicemanager")
 	defer cleanup()
 
 	var (
@@ -1335,7 +1335,7 @@ func TestAppWithSuidHelper(t *testing.T) {
 	envelope, cleanup := startMockRepos(t)
 	defer cleanup()
 
-	root, cleanup := setupRootDir(t)
+	root, cleanup := mgmttest.SetupRootDir(t, "devicemanager")
 	defer cleanup()
 
 	var (

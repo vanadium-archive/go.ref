@@ -65,6 +65,7 @@ func TaggedACLMapFromFlag() (access.TaggedACLMap, error) {
 		if err != nil {
 			return nil, errors.New("cannot open argument to --veyron.acl.file " + fname)
 		}
+		defer file.Close()
 		return access.ReadTaggedACLMap(file)
 	} else {
 		return access.ReadTaggedACLMap(bytes.NewBufferString(literal))
