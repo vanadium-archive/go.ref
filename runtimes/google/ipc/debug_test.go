@@ -1,6 +1,7 @@
 package ipc
 
 import (
+	"io"
 	"reflect"
 	"sort"
 	"testing"
@@ -108,6 +109,9 @@ func TestDebugServer(t *testing.T) {
 		for {
 			var me naming.VDLMountEntry
 			if err := call.Recv(&me); err != nil {
+				if err != io.EOF {
+					t.Fatalf("Recv failed for %q: %v. Results received thus far: %q", tc.name, err, results)
+				}
 				break
 			}
 			results = append(results, me.Name)
