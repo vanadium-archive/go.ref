@@ -1,6 +1,7 @@
 package core_test
 
 import (
+	"bytes"
 	"fmt"
 	"os"
 	"reflect"
@@ -189,6 +190,38 @@ func TestEcho(t *testing.T) {
 	cltSession := expect.NewSession(t, clt.Stdout(), time.Minute)
 	cltSession.Expect("test: a message")
 	srv.Shutdown(nil, nil)
+}
+
+func TestExec(t *testing.T) {
+	sh, cleanup := newShell(t)
+	defer cleanup()
+	h, err := sh.Start(core.ExecCommand, nil, []string{"echo", "-n", "hello world"}...)
+	if err != nil {
+		t.Fatalf("unexpected error: %s", err)
+	}
+	output := bytes.NewBuffer([]byte{})
+	if _, err := output.ReadFrom(h.Stdout()); err != nil {
+		t.Fatalf("could not read output from command: %v", err)
+	}
+	if got, want := output.String(), "hello world"; got != want {
+		t.Fatalf("unexpected output: got %v, want %v", got, want)
+	}
+}
+
+func TestExecWithEnv(t *testing.T) {
+	sh, cleanup := newShell(t)
+	defer cleanup()
+	h, err := sh.Start(core.ExecCommand, []string{"BLAH=hello world"}, "printenv", "BLAH")
+	if err != nil {
+		t.Fatalf("unexpected error: %s", err)
+	}
+	output := bytes.NewBuffer([]byte{})
+	if _, err := output.ReadFrom(h.Stdout()); err != nil {
+		t.Fatalf("could not read output from command: %v", err)
+	}
+	if got, want := output.String(), "hello world\n"; got != want {
+		t.Fatalf("unexpected output: got %v, want %v", got, want)
+	}
 }
 
 func TestHelperProcess(t *testing.T) {

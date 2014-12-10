@@ -44,6 +44,9 @@
 // echoClient <name> <text>
 //    invoke <name>.Echo(<text>)
 //
+// exec <command> [args...]
+//    executes the given command with the given arguments
+//
 // proxyd <names>...
 //    runs a proxy server
 package core
@@ -60,5 +63,5 @@ const (
 	LSCommand          = "ls"
 	ProxyServerCommand = "proxyd"
 	WSPRCommand        = "wsprd"
-	ShellCommand       = "sh"
+	ExecCommand        = "exec"
 )
