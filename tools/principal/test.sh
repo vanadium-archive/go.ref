@@ -52,7 +52,7 @@ main() {
   "${PRINCIPAL_BIN}" --veyron.credentials=./bob store setdefault alice.bless || shell_test::fail "line ${LINENO}: store setdefault failed"
   "${PRINCIPAL_BIN}" --veyron.credentials=./bob store default >bob.store.default || shell_test::fail "line ${LINENO}: store default failed"
   "${PRINCIPAL_BIN}" --veyron.credentials=./bob store set alice.bless alice/... || shell_test::fail "line ${LINENO}: store set failed"
-  "${PRINCIPAL_BIN}" --veyron.credentials=./bob store forpeer alice/server >bob.store.forpeer || shell_test::fail "line ${LINENO}: store forpeer failed" 
+  "${PRINCIPAL_BIN}" --veyron.credentials=./bob store forpeer alice/server >bob.store.forpeer || shell_test::fail "line ${LINENO}: store forpeer failed"
 
   # Run recvblessings on carol, and have alice send blessings over
   # (blessings received must be set as default and shareable with all peers.)
@@ -102,7 +102,7 @@ Peer pattern                   : Blessings
 Public key                                      : Pattern
 XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX : [alice/...]
 EOF
-  if ! diff got want; then
+  if ! diff -C 5 got want; then
     shell_test::fail "line ${LINENO}"
   fi
 
@@ -114,7 +114,7 @@ Certificate chains : 1
 Chain #0 (1 certificates). Root certificate public key: XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX
   Certificate #0: alicereborn with 0 caveats
 EOF
-  if ! diff got want; then
+  if ! diff -C 5 got want; then
     shell_test::fail "line ${LINENO}"
   fi
 
@@ -128,7 +128,7 @@ Chain #0 (2 certificates). Root certificate public key: XX:XX:XX:XX:XX:XX:XX:XX:
   Certificate #1: friend with 1 caveat
     (0) security.unixTimeExpiryCaveat
 EOF
-  if ! diff got want; then
+  if ! diff -C 5 got want; then
     shell_test::fail "line ${LINENO}"
   fi
 
@@ -144,7 +144,7 @@ Chain #1 (2 certificates). Root certificate public key: XX:XX:XX:XX:XX:XX:XX:XX:
   Certificate #1: friend with 1 caveat
     (0) security.unixTimeExpiryCaveat
 EOF
-  if ! diff got want; then
+  if ! diff -C 5 got want; then
     shell_test::fail "line ${LINENO}"
   fi
 
@@ -161,7 +161,7 @@ Public key                                      : Pattern
 XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX : [alice/...]
 XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX : [carol/...]
 EOF
-  if ! diff got want; then
+  if ! diff -C 5 got want; then
     shell_test::fail "line ${LINENO}"
   fi
   shell_test::pass

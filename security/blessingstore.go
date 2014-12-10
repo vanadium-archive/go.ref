@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"reflect"
+	"sort"
 	"sync"
 
 	"veyron.io/veyron/veyron/security/serialization"
@@ -147,7 +148,14 @@ func (bs *blessingStore) DebugString() string {
 	b := bytes.NewBufferString(fmt.Sprintf("Default blessings: %v\n", bs.state.Default.Blessings()))
 
 	b.WriteString(fmt.Sprintf(format, "Peer pattern", "Blessings"))
-	for pattern, wb := range bs.state.Store {
+
+	sorted := make([]string, 0, len(bs.state.Store))
+	for k, _ := range bs.state.Store {
+		sorted = append(sorted, string(k))
+	}
+	sort.Strings(sorted)
+	for _, pattern := range sorted {
+		wb := bs.state.Store[security.BlessingPattern(pattern)]
 		b.WriteString(fmt.Sprintf(format, pattern, wb.Blessings()))
 	}
 	return b.String()
