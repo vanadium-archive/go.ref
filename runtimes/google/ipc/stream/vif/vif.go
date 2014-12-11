@@ -386,6 +386,10 @@ func (vif *VIF) handleMessage(msg message.T) error {
 		if vc, _, _ := vif.vcMap.Find(m.VCI); vc != nil {
 			vif.vcMap.Delete(vc.VCI())
 			vlog.VI(2).Infof("CloseVC(%+v) on VIF %s", m, vif)
+			// TODO(cnicolaou): it would be nice to have a method on VC
+			// to indicate a 'remote close' rather than a 'local one'. This helps
+			// with error reporting since we expect reads/writes to occur
+			// after a remote close, but not after a local close.
 			vc.Close(fmt.Sprintf("remote end closed VC(%v)", m.Error))
 			return nil
 		}

@@ -39,12 +39,12 @@ func (f *flow) SetDeadline(deadline <-chan struct{}) {
 // This is appropriate when the flow has been closed by the remote end.
 func (f *flow) Shutdown() {
 	f.reader.Close()
-	f.writer.Shutdown(true)
+	f.writer.shutdown(true)
 }
 
 // Cancel closes the flow and discards any queued up write buffers.
 // This is appropriate when the flow is being cancelled locally.
 func (f *flow) Cancel() {
 	f.reader.Close()
-	f.writer.Shutdown(false)
+	f.writer.shutdown(false)
 }
