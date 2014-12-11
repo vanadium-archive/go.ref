@@ -62,7 +62,11 @@ func TestReconnect(t *testing.T) {
 		t.Errorf("Got (%q, %v) want (%q, nil)", result, err, expected)
 	}
 	// Kill the server, verify client can't talk to it anymore.
-	server.Shutdown(nil, nil)
+	sh.SetWaitTimeout(time.Minute)
+	if err := server.Shutdown(os.Stderr, os.Stderr); err != nil {
+		t.Fatalf("unexpected error: %s", err)
+	}
+
 	if _, err := makeCall(); err == nil || (!strings.HasPrefix(err.Error(), "START") && !strings.Contains(err.Error(), "EOF")) {
 		t.Fatalf(`Got (%v) want ("START: <err>" or "EOF") as server is down`, err)
 	}
