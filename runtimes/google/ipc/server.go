@@ -145,10 +145,12 @@ func (s *server) resolveToAddress(address string) (string, error) {
 	}
 	var names []string
 	if s.ns != nil {
+		var entry *naming.MountEntry
 		var err error
-		if names, err = s.ns.Resolve(s.ctx, address); err != nil {
+		if entry, err = s.ns.ResolveX(s.ctx, address); err != nil {
 			return "", err
 		}
+		names = naming.ToStringSlice(entry)
 	} else {
 		names = append(names, address)
 	}

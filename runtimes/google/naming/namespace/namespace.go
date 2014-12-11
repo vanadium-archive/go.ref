@@ -1,18 +1,22 @@
 package namespace
 
 import (
+	"regexp"
 	"sync"
 	"time"
 
 	inaming "veyron.io/veyron/veyron/runtimes/google/naming"
 
 	"veyron.io/veyron/veyron2/naming"
+	"veyron.io/veyron/veyron2/security"
 	"veyron.io/veyron/veyron2/verror"
 	"veyron.io/veyron/veyron2/vlog"
 )
 
 const defaultMaxResolveDepth = 32
 const defaultMaxRecursiveGlobDepth = 10
+
+var serverPatternRegexp = regexp.MustCompile("^\\[([^\\]]+)\\](.*)")
 
 // namespace is an implementation of naming.Namespace.
 type namespace struct {
@@ -111,7 +115,9 @@ func (ns *namespace) rootName(name string) []string {
 // rootMountEntry 'roots' a name creating a mount entry for the name.
 func (ns *namespace) rootMountEntry(name string) (*naming.MountEntry, bool) {
 	name = naming.Clean(name)
+	_, objPattern, name := splitObjectName(name)
 	e := new(naming.MountEntry)
+	e.Pattern = string(objPattern)
 	expiration := time.Now().Add(time.Hour) // plenty of time for a call
 	address, suffix := naming.SplitAddressName(name)
 	if len(address) == 0 {
@@ -180,4 +186,29 @@ func (ns *namespace) CacheCtl(ctls ...naming.CacheCtl) []naming.CacheCtl {
 		return []naming.CacheCtl{naming.DisableCache(true)}
 	}
 	return nil
+}
+
+func splitObjectName(name string) (mtPattern, serverPattern security.BlessingPattern, objectName string) {
+	objectName = name
+	match := serverPatternRegexp.FindSubmatch([]byte(name))
+	if match != nil {
+		objectName = string(match[2])
+		if naming.Rooted(objectName) {
+			mtPattern = security.BlessingPattern(match[1])
+		} else {
+			serverPattern = security.BlessingPattern(match[1])
+			return
+		}
+	}
+	if !naming.Rooted(objectName) {
+		return
+	}
+
+	address, relative := naming.SplitAddressName(objectName)
+	match = serverPatternRegexp.FindSubmatch([]byte(relative))
+	if match != nil {
+		serverPattern = security.BlessingPattern(match[1])
+		objectName = naming.JoinAddressName(address, string(match[2]))
+	}
+	return
 }

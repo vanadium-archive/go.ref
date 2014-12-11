@@ -665,7 +665,6 @@ func TestRootBlessing(t *testing.T) {
 
 	name := naming.Join(root.name, mt2MP)
 	// First check with a non-matching blessing pattern.
-	println("********")
 	_, err = ns.Resolve(r.NewContext(), name, naming.RootBlessingPatternOpt("root/foobar"))
 	if !verror.Is(err, verror.NotTrusted.ID) {
 		t.Errorf("Resolve expected NotTrusted error, got %v", err)
@@ -681,13 +680,4 @@ func TestRootBlessing(t *testing.T) {
 
 	// After successful lookup it should be cached, so the pattern doesn't matter.
 	testResolveWithPattern(t, r, ns, name, naming.RootBlessingPatternOpt("root/foobar"), addWSName(mts[mt2MP].name)...)
-
-	// Test calling a method.
-	jokeName := naming.Join(root.name, mt4MP, j1MP)
-	runServer(t, r, &dispatcher{}, naming.Join(mts["mt4"].name, j1MP))
-	_, err = r.Client().StartCall(r.NewContext(), "[root/foobar]"+jokeName, "KnockKnock", nil)
-	if err == nil {
-		t.Errorf("StartCall expected NoAccess error, got %v", err)
-	}
-	knockKnock(t, r, "[root/server]"+jokeName)
 }

@@ -6,7 +6,6 @@ import (
 	"math"
 	"math/rand"
 	"net"
-	"regexp"
 	"strings"
 	"sync"
 	"time"
@@ -85,8 +84,6 @@ var (
 
 	errBlessingAdd = verror.Register(pkgPath+".blessingAddFailed", verror.NoRetry, "failed to add blessing granted to server {3}{:4}")
 )
-
-var serverPatternRegexp = regexp.MustCompile("^\\[([^\\]]+)\\](.*)")
 
 // TODO(ribrdb): Flip this to true once everything is updated.
 const enableSecureServerAuth = false
@@ -366,41 +363,42 @@ func (c *client) tryServer(ctx context.T, index int, server string, ch chan<- *s
 
 // tryCall makes a single attempt at a call, against possibly multiple servers.
 func (c *client) tryCall(ctx context.T, name, method string, args []interface{}, skipResolve bool, opts []ipc.CallOpt) (ipc.Call, verror.ActionCode, verror.E) {
-	mtPattern, serverPattern, name := splitObjectName(name)
 	noDischarges := shouldNotFetchDischarges(opts)
 	// Resolve name unless told not to.
 	var servers []string
+	var pattern security.BlessingPattern
+	var resolveOpts []naming.ResolveOpt
 	if skipResolve {
-		servers = []string{name}
+		resolveOpts = append(resolveOpts, naming.SkipResolveOpt{})
+	} else if noDischarges {
+		resolveOpts = append(resolveOpts, vc.NoDischarges{})
+	}
+
+	if resolved, err := c.ns.ResolveX(ctx, name, resolveOpts...); err != nil {
+		vlog.Errorf("ResolveX: %v", err)
+		if verror.Is(err, naming.ErrNoSuchName.ID) {
+			return nil, verror.RetryRefetch, verror.Make(verror.NoServers, ctx, name)
+		}
+		return nil, verror.NoRetry, verror.Make(verror.NoExist, ctx, name, err)
 	} else {
-		resolveOpts := []naming.ResolveOpt{naming.RootBlessingPatternOpt(mtPattern)}
-		if noDischarges {
-			resolveOpts = append(resolveOpts, vc.NoDischarges{})
+		pattern = security.BlessingPattern(resolved.Pattern)
+		if len(resolved.Servers) == 0 {
+			return nil, verror.RetryRefetch, verror.Make(verror.NoServers, ctx, name)
 		}
-		if resolved, err := c.ns.Resolve(ctx, name, resolveOpts...); err != nil {
-			if verror.Is(err, naming.ErrNoSuchName.ID) {
-				return nil, verror.RetryRefetch, verror.Make(verror.NoServers, ctx, name)
+		// An empty set of protocols means all protocols...
+		ordered, err := filterAndOrderServers(naming.ToStringSlice(resolved), c.preferredProtocols)
+		if err != nil {
+			return nil, verror.RetryRefetch, verror.Make(verror.NoServers, ctx, name, err)
+		} else if len(ordered) == 0 {
+			// sooo annoying....
+			r := []interface{}{err}
+			r = append(r, name)
+			for _, s := range resolved.Servers {
+				r = append(r, s)
 			}
-			return nil, verror.NoRetry, verror.Make(verror.NoExist, ctx, name, err)
-		} else {
-			if len(resolved) == 0 {
-				return nil, verror.RetryRefetch, verror.Make(verror.NoServers, ctx, name)
-			}
-			// An empty set of protocols means all protocols...
-			ordered, err := filterAndOrderServers(resolved, c.preferredProtocols)
-			if err != nil {
-				return nil, verror.RetryRefetch, verror.Make(verror.NoServers, ctx, name, err)
-			} else if len(ordered) == 0 {
-				// sooo annoying....
-				r := []interface{}{err}
-				r = append(r, name)
-				for _, s := range resolved {
-					r = append(r, s)
-				}
-				return nil, verror.RetryRefetch, verror.Make(verror.NoServers, ctx, r)
-			}
-			servers = ordered
+			return nil, verror.RetryRefetch, verror.Make(verror.NoServers, ctx, r)
 		}
+		servers = ordered
 	}
 
 	// servers is now orderd by the priority heurestic implemented in
@@ -469,7 +467,7 @@ func (c *client) tryCall(ctx context.T, name, method string, args []interface{},
 			if r.flow.LocalPrincipal() != nil {
 				// Validate caveats on the server's identity for the context associated with this call.
 				var err error
-				if serverB, grantedB, err = c.authorizeServer(ctx, r.flow, name, method, serverPattern, opts); err != nil {
+				if serverB, grantedB, err = c.authorizeServer(ctx, r.flow, name, method, pattern, opts); err != nil {
 					r.err = verror.Make(errNotTrusted, ctx,
 						name, r.flow.RemoteBlessings(), err)
 					vlog.VI(2).Infof("ipc: err: %s", r.err)
@@ -914,29 +912,4 @@ func (fc *flowClient) Cancel() {
 
 func (fc *flowClient) RemoteBlessings() ([]string, security.Blessings) {
 	return fc.server, fc.flow.RemoteBlessings()
-}
-
-func splitObjectName(name string) (mtPattern, serverPattern security.BlessingPattern, objectName string) {
-	objectName = name
-	match := serverPatternRegexp.FindSubmatch([]byte(name))
-	if match != nil {
-		objectName = string(match[2])
-		if naming.Rooted(objectName) {
-			mtPattern = security.BlessingPattern(match[1])
-		} else {
-			serverPattern = security.BlessingPattern(match[1])
-			return
-		}
-	}
-	if !naming.Rooted(objectName) {
-		return
-	}
-
-	address, relative := naming.SplitAddressName(objectName)
-	match = serverPatternRegexp.FindSubmatch([]byte(relative))
-	if match != nil {
-		serverPattern = security.BlessingPattern(match[1])
-		objectName = naming.JoinAddressName(address, string(match[2]))
-	}
-	return
 }

@@ -10,19 +10,26 @@ import (
 	"veyron.io/veyron/veyron2/naming"
 	verror "veyron.io/veyron/veyron2/verror2"
 	"veyron.io/veyron/veyron2/vlog"
+
+	vnamespace "veyron.io/veyron/veyron/runtimes/google/naming/namespace"
 )
 
 // NewSimpleNamespace returns a simple implementation of a Namespace
 // server for use in tests.  In particular, it ignores TTLs and not
 // allow fully overlapping mount names.
 func NewSimpleNamespace() naming.Namespace {
-	return &namespace{mounts: make(map[string][]string)}
+	ns, err := vnamespace.New()
+	if err != nil {
+		panic(err)
+	}
+	return &namespace{mounts: make(map[string][]string), ns: ns}
 }
 
 // namespace is a simple partial implementation of naming.Namespace.
 type namespace struct {
 	sync.Mutex
 	mounts map[string][]string
+	ns     naming.Namespace
 }
 
 func (ns *namespace) Mount(ctx context.T, name, server string, _ time.Duration, _ ...naming.MountOpt) error {
@@ -79,13 +86,18 @@ func (ns *namespace) Resolve(ctx context.T, name string, opts ...naming.ResolveO
 
 func (ns *namespace) ResolveX(ctx context.T, name string, opts ...naming.ResolveOpt) (*naming.MountEntry, error) {
 	defer vlog.LogCall()()
-	e := new(naming.MountEntry)
-	if address, _ := naming.SplitAddressName(name); len(address) > 0 {
-		e.Servers = []naming.MountedServer{naming.MountedServer{Server: name, Expires: time.Now().Add(1000 * time.Hour)}}
+	e, err := ns.ns.ResolveX(ctx, name, naming.SkipResolveOpt{})
+	if err != nil {
+		return e, err
+	}
+	if len(e.Servers) > 0 {
+		e.Servers[0].Server = naming.JoinAddressName(e.Servers[0].Server, e.Name)
+		e.Name = ""
 		return e, nil
 	}
 	ns.Lock()
 	defer ns.Unlock()
+	name = e.Name
 	for prefix, servers := range ns.mounts {
 		if strings.HasPrefix(name, prefix) {
 			e.Name = strings.TrimLeft(strings.TrimPrefix(name, prefix), "/")

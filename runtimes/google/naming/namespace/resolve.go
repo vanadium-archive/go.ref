@@ -77,6 +77,9 @@ func (ns *namespace) ResolveX(ctx context.T, name string, opts ...naming.Resolve
 		vlog.Infof("ResolveX(%s) called from %s:%d", name, file, line)
 		vlog.Infof("ResolveX(%s) -> rootMountEntry %v", name, *e)
 	}
+	if skipResolve(opts) {
+		return e, nil
+	}
 	if len(e.Servers) == 0 {
 		return nil, verror.Make(naming.ErrNoSuchName, ctx, name)
 	}
@@ -269,6 +272,15 @@ func (ns *namespace) FlushCacheEntry(name string) bool {
 		}
 	}
 	return flushed
+}
+
+func skipResolve(opts []naming.ResolveOpt) bool {
+	for _, opt := range opts {
+		if _, ok := opt.(naming.SkipResolveOpt); ok {
+			return true
+		}
+	}
+	return false
 }
 
 func getRootPattern(opts []naming.ResolveOpt) string {
