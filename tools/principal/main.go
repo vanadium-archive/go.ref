@@ -593,7 +593,7 @@ the ability to obtain the proxied endpoint.
 Typically, this command should require no arguments.
 However, if the sender and receiver are on different network domains, it may
 make sense to use the --veyron.proxy flag:
-    principal --veyron.proxy=/proxy.envyor.com:8101 recvblessings
+    principal --veyron.proxy=proxy recvblessings
 
 The command to be run at the sender is of the form:
     principal bless --remote_key=KEY --remote_token=TOKEN ADDRESS
@@ -661,7 +661,7 @@ func main() {
 	cmdBless.Flags.StringVar(&flagBlessRemoteKey, "remote_key", "", "Public key of the remote principal to bless (obtained from the 'recvblessings' command run by the remote principal")
 	cmdBless.Flags.StringVar(&flagBlessRemoteToken, "remote_token", "", "Token provided by principal running the 'recvblessings' command")
 
-	cmdSeekBlessings.Flags.StringVar(&flagSeekBlessingsFrom, "from", "https://proxy.envyor.com:8125/google", "URL to use to begin the seek blessings process")
+	cmdSeekBlessings.Flags.StringVar(&flagSeekBlessingsFrom, "from", "https://auth.dev.v.io:8125/google", "URL to use to begin the seek blessings process")
 	cmdSeekBlessings.Flags.BoolVar(&flagSeekBlessingsSetDefault, "set_default", true, "If true, the blessings obtained will be set as the default blessing in the store")
 	cmdSeekBlessings.Flags.StringVar(&flagSeekBlessingsForPeer, "for_peer", string(security.AllPrincipals), "If non-empty, the blessings obtained will be marked for peers matching this pattern in the store")
 	cmdSeekBlessings.Flags.BoolVar(&flagAddToRoots, "add_to_roots", true, "If true, the root certificate of the blessing will be added to the principal's set of recognized root certificates")

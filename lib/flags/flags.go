@@ -30,7 +30,7 @@ const (
 	ACL
 )
 
-const defaultNamespaceRoot = "/proxy.envyor.com:8101"
+const defaultNamespaceRoot = "/ns.dev.v.io:8101"
 
 // Flags represents the set of flag groups created by a call to
 // CreateAndRegister.
