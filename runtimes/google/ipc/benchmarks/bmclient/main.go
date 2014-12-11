@@ -3,9 +3,6 @@ package main
 
 import (
 	"flag"
-	"os"
-
-	"veyron.io/veyron/veyron/runtimes/google/ipc/benchmarks"
 
 	"veyron.io/veyron/veyron2/rt"
 )
@@ -24,10 +21,13 @@ func main() {
 	}
 	defer runtime.Cleanup()
 
-	ctx := runtime.NewContext()
-	if *chunkCount == 0 {
-		benchmarks.CallEcho(ctx, *server, *count, *payloadSize, os.Stdout)
-	} else {
-		benchmarks.CallEchoStream(runtime, *server, *count, *chunkCount, *payloadSize, os.Stdout)
-	}
+	// TODO(jhahn): Fix this.
+	/*
+		ctx := runtime.NewContext()
+		if *chunkCount == 0 {
+			benchmarks.CallEcho(ctx, *server, *count, *payloadSize, os.Stdout)
+		} else {
+			benchmarks.CallEchoStream(runtime, *server, *count, *chunkCount, *payloadSize, os.Stdout)
+		}
+	*/
 }
