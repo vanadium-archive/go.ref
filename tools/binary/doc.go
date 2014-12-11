@@ -31,7 +31,7 @@ The global flags are:
    log level for V logs
  -veyron.credentials=
    directory to use for storing security credentials
- -veyron.namespace.root=[/proxy.envyor.com:8101]
+ -veyron.namespace.root=[/ns.dev.v.io:8101]
    local namespace root; can be repeated to provided multiple roots
  -veyron.vtrace.cache_size=1024
    The number of vtrace traces to store in memory.
