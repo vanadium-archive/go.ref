@@ -14,7 +14,7 @@ import (
 	"veyron.io/veyron/veyron2/vlog"
 )
 
-func (ns *namespace) resolveAgainstMountTable(ctx context.T, client ipc.Client, e *naming.MountEntry, pattern string) (*naming.MountEntry, error) {
+func (ns *namespace) resolveAgainstMountTable(ctx context.T, client ipc.Client, e *naming.MountEntry, pattern string, opts ...ipc.CallOpt) (*naming.MountEntry, error) {
 	// Try each server till one answers.
 	finalErr := errors.New("no servers to resolve query")
 	for _, s := range e.Servers {
@@ -32,7 +32,7 @@ func (ns *namespace) resolveAgainstMountTable(ctx context.T, client ipc.Client, 
 		}
 		// Not in cache, call the real server.
 		callCtx, _ := ctx.WithTimeout(callTimeout)
-		call, err := client.StartCall(callCtx, pattern_and_name, "ResolveStepX", nil, options.NoResolve(true))
+		call, err := client.StartCall(callCtx, pattern_and_name, "ResolveStepX", nil, append(opts, options.NoResolve(true))...)
 		if err != nil {
 			finalErr = err
 			vlog.VI(2).Infof("ResolveStep.StartCall %s failed: %s", name, err)
@@ -82,6 +82,12 @@ func (ns *namespace) ResolveX(ctx context.T, name string, opts ...naming.Resolve
 	}
 	pattern := getRootPattern(opts)
 	client := veyron2.RuntimeFromContext(ctx).Client()
+	var callOpts []ipc.CallOpt
+	for _, opt := range opts {
+		if callOpt, ok := opt.(ipc.CallOpt); ok {
+			callOpts = append(callOpts, callOpt)
+		}
+	}
 	// Iterate walking through mount table servers.
 	for remaining := ns.maxResolveDepth; remaining > 0; remaining-- {
 		vlog.VI(2).Infof("ResolveX(%s) loop %v", name, *e)
@@ -91,7 +97,7 @@ func (ns *namespace) ResolveX(ctx context.T, name string, opts ...naming.Resolve
 		}
 		var err error
 		curr := e
-		if e, err = ns.resolveAgainstMountTable(ctx, client, curr, pattern); err != nil {
+		if e, err = ns.resolveAgainstMountTable(ctx, client, curr, pattern, callOpts...); err != nil {
 			// Lots of reasons why another error can happen.  We are trying
 			// to single out "this isn't a mount table".
 			if notAnMT(err) {

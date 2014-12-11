@@ -70,6 +70,7 @@ type NoDischarges struct{}
 
 func (NoDischarges) IPCCallOpt()     {}
 func (NoDischarges) IPCStreamVCOpt() {}
+func (NoDischarges) NSResolveOpt()   {}
 
 var _ stream.VC = (*VC)(nil)
 
