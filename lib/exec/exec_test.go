@@ -411,13 +411,12 @@ func TestExitEarly(t *testing.T) {
 }
 
 func TestWaitAndCleanRace(t *testing.T) {
-	name := "TestWaitAndCleanRace"
-	cmd := helperCommand("testReadySlow")
+	name := "testReadyAndHang"
+	cmd := helperCommand(name)
 	tk := timekeeper.NewManualTime()
 	ph := vexec.NewParentHandle(cmd, vexec.TimeKeeperOpt{tk})
-	err := ph.Start()
-	if err != nil {
-		t.Fatalf("%s: start: %v", name, err)
+	if err := waitForReady(t, cmd, name, 1, ph); err != nil {
+		t.Errorf("%s: WaitForReady: %v (%v)", name, err, ph)
 	}
 	go func() {
 		// Wait for the ph.Wait below to block, then advance the time
@@ -426,17 +425,17 @@ func TestWaitAndCleanRace(t *testing.T) {
 		tk.AdvanceTime(2 * time.Second)
 	}()
 	if got, want := ph.Wait(time.Second), vexec.ErrTimeout; got == nil || got.Error() != want.Error() {
-		t.Fatalf("Wait returned %v, wanted %v instead", got, want)
+		t.Errorf("Wait returned %v, wanted %v instead", got, want)
 	}
 	if got, want := ph.Clean(), "signal: killed"; got == nil || got.Error() != want {
-		t.Fatalf("Wait returned %v, wanted %v instead", got, want)
+		t.Errorf("Wait returned %v, wanted %v instead", got, want)
 	}
 }
 
 func verifyNoExecVariable() {
 	version := os.Getenv(vexec.VersionVariable)
 	if len(version) != 0 {
-		log.Fatal(os.Stderr, "Version variable %q has a value: %s", vexec.VersionVariable, version)
+		log.Fatalf("Version variable %q has a value: %s", vexec.VersionVariable, version)
 	}
 }
 
@@ -452,7 +451,7 @@ func TestHelperProcess(*testing.T) {
 
 	version := os.Getenv(vexec.VersionVariable)
 	if len(version) == 0 {
-		log.Fatal(os.Stderr, "Version variable %q has no value", vexec.VersionVariable)
+		log.Fatalf("Version variable %q has no value", vexec.VersionVariable)
 	}
 
 	// Write errors to stderr or using log. since the parent
@@ -467,7 +466,7 @@ func TestHelperProcess(*testing.T) {
 	}
 
 	if len(args) == 0 {
-		log.Fatal(os.Stderr, "No command\n")
+		log.Fatal("No command")
 	}
 
 	cmd, args := args[0], args[1:]
@@ -476,20 +475,20 @@ func TestHelperProcess(*testing.T) {
 	case "exitEarly":
 		_, err := vexec.GetChildHandle()
 		if err != nil {
-			log.Fatal(os.Stderr, "%s\n", err)
+			log.Fatal(err)
 		}
 		os.Exit(1)
 	case "testNeverReady":
 		_, err := vexec.GetChildHandle()
 		if err != nil {
-			log.Fatal(os.Stderr, "%s\n", err)
+			log.Fatal(err)
 		}
 		verifyNoExecVariable()
 		fmt.Fprintf(os.Stderr, "never ready")
 	case "testTooSlowToReady":
 		ch, err := vexec.GetChildHandle()
 		if err != nil {
-			log.Fatal(os.Stderr, "%s\n", err)
+			log.Fatal(err)
 		}
 		verifyNoExecVariable()
 		// Wait for the parent to tell us when it's ok to proceed.
@@ -498,7 +497,7 @@ func TestHelperProcess(*testing.T) {
 			buf := make([]byte, 100)
 			n, err := controlPipe.Read(buf)
 			if err != nil {
-				log.Fatal(os.Stderr, "%s", err)
+				log.Fatal(err)
 			}
 			if n > 0 {
 				break
@@ -511,11 +510,10 @@ func TestHelperProcess(*testing.T) {
 		} else {
 			fmt.Fprintf(os.Stderr, "didn't get the expected error")
 		}
-		os.Exit(0)
 	case "testFail":
 		ch, err := vexec.GetChildHandle()
 		if err != nil {
-			log.Fatal(os.Stderr, "%s", err)
+			log.Fatal(err)
 		}
 		verifyNoExecVariable()
 		if err := ch.SetFailed(fmt.Errorf("%s", strings.Join(args, " "))); err != nil {
@@ -525,7 +523,7 @@ func TestHelperProcess(*testing.T) {
 	case "testReady":
 		ch, err := vexec.GetChildHandle()
 		if err != nil {
-			log.Fatal(os.Stderr, "%s", err)
+			log.Fatal(err)
 		}
 		verifyNoExecVariable()
 		ch.SetReady()
@@ -533,7 +531,7 @@ func TestHelperProcess(*testing.T) {
 	case "testReadySlow":
 		ch, err := vexec.GetChildHandle()
 		if err != nil {
-			log.Fatal(os.Stderr, "%s", err)
+			log.Fatal(err)
 		}
 		verifyNoExecVariable()
 		// Wait for the parent to tell us when it's ok to proceed.
@@ -542,7 +540,7 @@ func TestHelperProcess(*testing.T) {
 			buf := make([]byte, 100)
 			n, err := controlPipe.Read(buf)
 			if err != nil {
-				log.Fatal(os.Stderr, "%s", err)
+				log.Fatal(err)
 			}
 			if n > 0 {
 				break
@@ -550,10 +548,18 @@ func TestHelperProcess(*testing.T) {
 		}
 		ch.SetReady()
 		fmt.Fprintf(os.Stderr, "..")
+	case "testReadyAndHang":
+		ch, err := vexec.GetChildHandle()
+		if err != nil {
+			log.Fatal(err)
+		}
+		verifyNoExecVariable()
+		ch.SetReady()
+		<-time.After(time.Minute)
 	case "testSuccess", "testError":
 		ch, err := vexec.GetChildHandle()
 		if err != nil {
-			log.Fatal(os.Stderr, "%s\n", err)
+			log.Fatal(err)
 		}
 		verifyNoExecVariable()
 		ch.SetReady()
@@ -592,7 +598,7 @@ func TestHelperProcess(*testing.T) {
 	case "testExtraFiles":
 		ch, err := vexec.GetChildHandle()
 		if err != nil {
-			log.Fatal("error.... %s\n", err)
+			log.Fatalf("error.... %s\n", err)
 		}
 		verifyNoExecVariable()
 		err = ch.SetReady()
@@ -603,6 +609,5 @@ func TestHelperProcess(*testing.T) {
 		} else {
 			fmt.Fprintf(os.Stderr, "child: %s", string(buf[:n]))
 		}
-		os.Exit(0)
 	}
 }
