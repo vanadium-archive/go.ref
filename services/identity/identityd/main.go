@@ -21,7 +21,7 @@ import (
 	"veyron.io/veyron/veyron2/options"
 	"veyron.io/veyron/veyron2/rt"
 	"veyron.io/veyron/veyron2/security"
-	"veyron.io/veyron/veyron2/verror"
+	verror "veyron.io/veyron/veyron2/verror2"
 	"veyron.io/veyron/veyron2/vlog"
 
 	"veyron.io/veyron/veyron/lib/signals"
@@ -181,7 +181,7 @@ func (d dispatcher) Lookup(suffix string) (interface{}, security.Authorizer, err
 	if invoker := d[suffix]; invoker != nil {
 		return invoker, allowEveryoneAuthorizer{}, nil
 	}
-	return nil, nil, verror.NoExistf("%q is not a valid suffix at this server", suffix)
+	return nil, nil, verror.Make(verror.NoExist, nil, suffix)
 }
 
 // Starts the blessing services and the discharging service on the same port.
