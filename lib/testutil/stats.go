@@ -43,6 +43,12 @@ func (stats *BenchStats) Add(d time.Duration) {
 	stats.dirty = true
 }
 
+// Clear resets the stats, removing all values.
+func (stats *BenchStats) Clear() {
+	stats.durations = stats.durations[:0]
+	stats.dirty = true
+}
+
 // maybeUpdate updates internal stat data if there was any newly added
 // stats since this was updated.
 func (stats *BenchStats) maybeUpdate() {

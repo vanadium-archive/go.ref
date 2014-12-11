@@ -3,116 +3,141 @@ package benchmarks_test
 import (
 	"testing"
 
-	"veyron.io/veyron/veyron2"
-	"veyron.io/veyron/veyron2/rt"
-
 	"veyron.io/veyron/veyron/profiles"
 	"veyron.io/veyron/veyron/runtimes/google/ipc/benchmarks"
+
+	"veyron.io/veyron/veyron2"
+	"veyron.io/veyron/veyron2/rt"
 )
 
-var runtime veyron2.Runtime
+var vrt veyron2.Runtime
+var address string
 
 func init() {
 	var err error
-	runtime, err = rt.New()
+	vrt, err = rt.New()
 	if err != nil {
 		panic(err)
 	}
+
+	address, _ = benchmarks.StartServer(vrt, profiles.LocalListenSpec)
 }
 
-func RunBenchmark(b *testing.B, payloadSize int) {
-	address, stop := benchmarks.StartServer(runtime, profiles.LocalListenSpec)
-	ctx := runtime.NewContext()
-	defer stop()
-	benchmarks.CallEcho(ctx, address, 1, 1, nil) // Create VC
+func runBenchmarkEcho(b *testing.B, payloadSize int) {
+	benchmarks.CallEcho(b, vrt.NewContext(), address, b.N, payloadSize, nil)
+}
+
+func runBenchmarkEchoStream(b *testing.B, iterations, chunkCnt, payloadSize int) {
+	benchmarks.CallEchoStream(b, vrt.NewContext(), address, iterations, chunkCnt, payloadSize, nil)
+}
+
+func runBenchmarkMux(b *testing.B, payloadSize, chunkCntB, payloadSizeB int) {
+	dummyB := testing.B{}
+	_, stop := benchmarks.StartEchoStream(&dummyB, vrt.NewContext(), address, 0, chunkCntB, payloadSizeB, nil)
+
 	b.ResetTimer()
-	benchmarks.CallEcho(ctx, address, b.N, payloadSize, nil)
+	benchmarks.CallEcho(b, vrt.NewContext(), address, b.N, payloadSize, nil)
+	b.StopTimer()
+
+	stop()
 }
 
-func RunStreamBenchmark(b *testing.B, rpcCount, messageCount, payloadSize int) {
-	address, stop := benchmarks.StartServer(runtime, profiles.LocalListenSpec)
-	defer stop()
-	benchmarks.CallEchoStream(runtime, address, 1, 1, 1, nil) // Create VC
-	b.ResetTimer()
-	benchmarks.CallEchoStream(runtime, address, rpcCount, messageCount, payloadSize, nil)
-}
-
+// Benchmarks for non-streaming RPC.
 func Benchmark____1B(b *testing.B) {
-	RunBenchmark(b, 1)
+	runBenchmarkEcho(b, 1)
 }
 
 func Benchmark___10B(b *testing.B) {
-	RunBenchmark(b, 10)
-}
-
-func Benchmark__100B(b *testing.B) {
-	RunBenchmark(b, 100)
+	runBenchmarkEcho(b, 10)
 }
 
 func Benchmark___1KB(b *testing.B) {
-	RunBenchmark(b, 1000)
-}
-
-func Benchmark__10KB(b *testing.B) {
-	RunBenchmark(b, 10000)
+	runBenchmarkEcho(b, 1000)
 }
 
 func Benchmark_100KB(b *testing.B) {
-	RunBenchmark(b, 100000)
+	runBenchmarkEcho(b, 100000)
 }
 
-func Benchmark_N_RPCs____1_chunk_____1B(b *testing.B) {
-	RunStreamBenchmark(b, b.N, 1, 1)
+// Benchmarks for streaming RPC.
+func Benchmark____1_chunk_____1B(b *testing.B) {
+	runBenchmarkEchoStream(b, b.N, 1, 1)
 }
 
-func Benchmark_N_RPCs____1_chunk____10B(b *testing.B) {
-	RunStreamBenchmark(b, b.N, 1, 10)
+func Benchmark____1_chunk____10B(b *testing.B) {
+	runBenchmarkEchoStream(b, b.N, 1, 10)
 }
 
-func Benchmark_N_RPCs____1_chunk___100B(b *testing.B) {
-	RunStreamBenchmark(b, b.N, 1, 100)
+func Benchmark____1_chunk____1KB(b *testing.B) {
+	runBenchmarkEchoStream(b, b.N, 1, 1000)
 }
 
-func Benchmark_N_RPCs____1_chunk____1KB(b *testing.B) {
-	RunStreamBenchmark(b, b.N, 1, 1000)
+func Benchmark____1_chunk___10KB(b *testing.B) {
+	runBenchmarkEchoStream(b, b.N, 1, 10000)
 }
 
-func Benchmark_N_RPCs____1_chunk___10KB(b *testing.B) {
-	RunStreamBenchmark(b, b.N, 1, 10000)
+func Benchmark___10_chunks____1B(b *testing.B) {
+	runBenchmarkEchoStream(b, b.N, 10, 1)
 }
 
-func Benchmark_N_RPCs___10_chunks___1KB(b *testing.B) {
-	RunStreamBenchmark(b, b.N, 10, 1000)
+func Benchmark___10_chunks___10B(b *testing.B) {
+	runBenchmarkEchoStream(b, b.N, 10, 10)
 }
 
-func Benchmark_N_RPCs__100_chunks___1KB(b *testing.B) {
-	RunStreamBenchmark(b, b.N, 100, 1000)
+func Benchmark___10_chunks___1KB(b *testing.B) {
+	runBenchmarkEchoStream(b, b.N, 10, 1000)
 }
 
-func Benchmark_N_RPCs_1000_chunks___1KB(b *testing.B) {
-	RunStreamBenchmark(b, b.N, 1000, 1000)
+func Benchmark___10_chunks__10KB(b *testing.B) {
+	runBenchmarkEchoStream(b, b.N, 10, 10000)
 }
 
-func Benchmark_1_RPC_N_chunks_____1B(b *testing.B) {
-	RunStreamBenchmark(b, 1, b.N, 1)
+func Benchmark__100_chunks____1B(b *testing.B) {
+	runBenchmarkEchoStream(b, b.N, 100, 1)
 }
 
-func Benchmark_1_RPC_N_chunks____10B(b *testing.B) {
-	RunStreamBenchmark(b, 1, b.N, 10)
+func Benchmark__100_chunks___10B(b *testing.B) {
+	runBenchmarkEchoStream(b, b.N, 100, 10)
 }
 
-func Benchmark_1_RPC_N_chunks___100B(b *testing.B) {
-	RunStreamBenchmark(b, 1, b.N, 100)
+func Benchmark__100_chunks___1KB(b *testing.B) {
+	runBenchmarkEchoStream(b, b.N, 100, 1000)
 }
 
-func Benchmark_1_RPC_N_chunks____1KB(b *testing.B) {
-	RunStreamBenchmark(b, 1, b.N, 1000)
+func Benchmark__100_chunks__10KB(b *testing.B) {
+	runBenchmarkEchoStream(b, b.N, 100, 10000)
 }
 
-func Benchmark_1_RPC_N_chunks___10KB(b *testing.B) {
-	RunStreamBenchmark(b, 1, b.N, 10000)
+// Benchmarks for per-chunk throughput in streaming RPC.
+func Benchmark__per_chunk____1B(b *testing.B) {
+	runBenchmarkEchoStream(b, 1, b.N, 1)
 }
 
-func Benchmark_1_RPC_N_chunks__100KB(b *testing.B) {
-	RunStreamBenchmark(b, 1, b.N, 100000)
+func Benchmark__per_chunk___10B(b *testing.B) {
+	runBenchmarkEchoStream(b, 1, b.N, 10)
+}
+
+func Benchmark__per_chunk___1KB(b *testing.B) {
+	runBenchmarkEchoStream(b, 1, b.N, 1000)
+}
+
+func Benchmark__per_chunk__10KB(b *testing.B) {
+	runBenchmarkEchoStream(b, 1, b.N, 10000)
+}
+
+// Benchmarks for non-streaming RPC while running streaming RPC in background.
+func Benchmark____1B_mux___10_chunks___10B(b *testing.B) {
+	runBenchmarkMux(b, 1, 10, 10)
+}
+
+func Benchmark____1B_mux___10_chunks___1KB(b *testing.B) {
+	runBenchmarkMux(b, 1, 10, 1000)
+}
+
+func Benchmark____1B_mux__100_chunks___10B(b *testing.B) {
+	runBenchmarkMux(b, 1, 100, 10)
+}
+
+func Benchmark____1B_mux__100_chunks___1KB(b *testing.B) {
+	runBenchmarkMux(b, 1, 100, 1000)
 }
