@@ -373,7 +373,11 @@ func (c *client) tryCall(ctx context.T, name, method string, args []interface{},
 	if skipResolve {
 		servers = []string{name}
 	} else {
-		if resolved, err := c.ns.Resolve(ctx, name, naming.RootBlessingPatternOpt(mtPattern)); err != nil {
+		resolveOpts := []naming.ResolveOpt{naming.RootBlessingPatternOpt(mtPattern)}
+		if noDischarges {
+			resolveOpts = append(resolveOpts, vc.NoDischarges{})
+		}
+		if resolved, err := c.ns.Resolve(ctx, name, resolveOpts...); err != nil {
 			if verror.Is(err, naming.ErrNoSuchName.ID) {
 				return nil, verror.RetryRefetch, verror.Make(verror.NoServers, ctx, name)
 			}

@@ -114,6 +114,7 @@ func main() {
 			ClientSecret:            clientSecret,
 			BlessingLogReader:       blessingLogReader,
 			RevocationManager:       revocationManager,
+			DischargerLocation:      naming.JoinAddressName(published[0], dischargerService),
 			MacaroonBlessingService: naming.JoinAddressName(published[0], macaroonService),
 		})
 		if err != nil {
