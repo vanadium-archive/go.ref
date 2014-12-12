@@ -2,9 +2,13 @@
 // IPC system.
 package benchmarks
 
+import (
+	"veyron.io/veyron/veyron2/services/security/access"
+)
+
 type Benchmark interface {
   // Echo returns the payload that it receives.
-  Echo(Payload []byte) ([]byte, error)
+  Echo(Payload []byte) ([]byte, error) {access.Read}
   // EchoStream returns the payload that it receives via the stream.
-  EchoStream() stream<[]byte,[]byte> error
+  EchoStream() stream<[]byte,[]byte> error {access.Read}
 }

@@ -176,6 +176,8 @@ func main() {
 	var stop func()
 	address, stop = benchmarks.StartServer(vrt, profiles.LocalListenSpec)
 
+	benchmarks.CallEcho(&testing.B{}, vrt.NewContext(), address, 1, 0, nil) // Create VC.
+
 	runBenchmarkEcho()
 	runBenchmarkEchoStream()
 	runBenchmarkEchoStreamPerChunk()

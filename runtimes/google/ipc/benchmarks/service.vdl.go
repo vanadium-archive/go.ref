@@ -6,6 +6,8 @@
 package benchmarks
 
 import (
+	"veyron.io/veyron/veyron2/services/security/access"
+
 	// The non-user imports are prefixed with "__" to prevent collisions.
 	__io "io"
 	__veyron2 "veyron.io/veyron/veyron2"
@@ -280,6 +282,7 @@ var descBenchmark = __ipc.InterfaceDesc{
 				{"", ``}, // []byte
 				{"", ``}, // error
 			},
+			Tags: []__vdlutil.Any{access.Tag("Read")},
 		},
 		{
 			Name: "EchoStream",
@@ -287,6 +290,7 @@ var descBenchmark = __ipc.InterfaceDesc{
 			OutArgs: []__ipc.ArgDesc{
 				{"", ``}, // error
 			},
+			Tags: []__vdlutil.Any{access.Tag("Read")},
 		},
 	},
 }

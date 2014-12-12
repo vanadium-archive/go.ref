@@ -1,33 +1,59 @@
-// a simple command-line tool to run the benchmark client.
+// A simple command-line tool to run the benchmark client.
 package main
 
 import (
 	"flag"
+	"fmt"
+	"os"
+	"testing"
+	"time"
 
 	"veyron.io/veyron/veyron2/rt"
+	"veyron.io/veyron/veyron2/vlog"
+
+	"veyron.io/veyron/veyron/lib/testutil"
+	_ "veyron.io/veyron/veyron/profiles"
+	"veyron.io/veyron/veyron/runtimes/google/ipc/benchmarks"
 )
 
 var (
-	server      = flag.String("server", "", "object name of the server to connect to")
-	count       = flag.Int("count", 1, "number of RPCs to send")
-	chunkCount  = flag.Int("chunk_count", 0, "number of stream chunks to send")
-	payloadSize = flag.Int("payload_size", 32, "the size of the payload")
+	server = flag.String("server", "", "address of the server to connect to")
+
+	iterations = flag.Int("iterations", 100, "number of iterations to run")
+
+	chunkCnt       = flag.Int("chunk_count", 0, "number of chunks to send per streaming RPC (if zero, use non-streaming RPC)")
+	payloadSize    = flag.Int("payload_size", 0, "size of payload in bytes")
+	chunkCntMux    = flag.Int("mux_chunk_count", 0, "number of chunks to send in background")
+	payloadSizeMux = flag.Int("mux_payload_size", 0, "size of payload to send in background")
 )
 
 func main() {
-	runtime, err := rt.New()
+	vrt, err := rt.New()
 	if err != nil {
-		panic(err)
+		vlog.Fatalf("Could not initialize runtime: %s", err)
 	}
-	defer runtime.Cleanup()
+	defer vrt.Cleanup()
 
-	// TODO(jhahn): Fix this.
-	/*
-		ctx := runtime.NewContext()
-		if *chunkCount == 0 {
-			benchmarks.CallEcho(ctx, *server, *count, *payloadSize, os.Stdout)
-		} else {
-			benchmarks.CallEchoStream(runtime, *server, *count, *chunkCount, *payloadSize, os.Stdout)
-		}
-	*/
+	if *chunkCntMux > 0 && *payloadSizeMux > 0 {
+		dummyB := testing.B{}
+		_, stop := benchmarks.StartEchoStream(&dummyB, vrt.NewContext(), *server, 0, *chunkCntMux, *payloadSizeMux, nil)
+		defer stop()
+		vlog.Infof("Started background streaming (chunk_size=%d, payload_size=%d)", *chunkCntMux, *payloadSizeMux)
+	}
+
+	dummyB := testing.B{}
+	stats := testutil.NewBenchStats(16)
+
+	now := time.Now()
+	ctx := vrt.NewContext()
+	if *chunkCnt == 0 {
+		benchmarks.CallEcho(&dummyB, ctx, *server, *iterations, *payloadSize, stats)
+	} else {
+		benchmarks.CallEchoStream(&dummyB, ctx, *server, *iterations, *chunkCnt, *payloadSize, stats)
+	}
+	elapsed := time.Since(now)
+
+	fmt.Printf("iterations: %d  chunk_count: %d  payload_size: %d\n", *iterations, *chunkCnt, *payloadSize)
+	fmt.Printf("elapsed time: %v\n", elapsed)
+	stats.Print(os.Stdout)
 }

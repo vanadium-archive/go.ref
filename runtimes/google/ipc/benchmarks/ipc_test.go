@@ -24,21 +24,19 @@ func init() {
 }
 
 func runBenchmarkEcho(b *testing.B, payloadSize int) {
+	benchmarks.CallEcho(&testing.B{}, vrt.NewContext(), address, 1, 0, nil) // Create VC.
 	benchmarks.CallEcho(b, vrt.NewContext(), address, b.N, payloadSize, nil)
 }
 
 func runBenchmarkEchoStream(b *testing.B, iterations, chunkCnt, payloadSize int) {
+	benchmarks.CallEcho(&testing.B{}, vrt.NewContext(), address, 1, 0, nil) // Create VC.
 	benchmarks.CallEchoStream(b, vrt.NewContext(), address, iterations, chunkCnt, payloadSize, nil)
 }
 
 func runBenchmarkMux(b *testing.B, payloadSize, chunkCntB, payloadSizeB int) {
-	dummyB := testing.B{}
-	_, stop := benchmarks.StartEchoStream(&dummyB, vrt.NewContext(), address, 0, chunkCntB, payloadSizeB, nil)
-
-	b.ResetTimer()
+	benchmarks.CallEcho(&testing.B{}, vrt.NewContext(), address, 1, 0, nil) // Create VC.
+	_, stop := benchmarks.StartEchoStream(&testing.B{}, vrt.NewContext(), address, 0, chunkCntB, payloadSizeB, nil)
 	benchmarks.CallEcho(b, vrt.NewContext(), address, b.N, payloadSize, nil)
-	b.StopTimer()
-
 	stop()
 }
 

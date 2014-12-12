@@ -16,11 +16,6 @@ import (
 // size, and optionally updates the stats.
 func CallEcho(b *testing.B, ctx context.T, address string, iterations, payloadSize int, stats *testutil.BenchStats) {
 	stub := BenchmarkClient(address)
-	_, err := stub.Echo(ctx, make([]byte, 0)) // Create VC.
-	if err != nil {
-		vlog.Fatalf("Echo failed: %v", err)
-	}
-
 	payload := make([]byte, payloadSize)
 	for i := range payload {
 		payload[i] = byte(i & 0xff)
@@ -71,11 +66,6 @@ func CallEchoStream(b *testing.B, ctx context.T, address string, iterations, chu
 // Optionally updates the stats. Zero 'iterations' means unlimited.
 func StartEchoStream(b *testing.B, ctx context.T, address string, iterations, chunkCnt, payloadSize int, stats *testutil.BenchStats) (<-chan int, func()) {
 	stub := BenchmarkClient(address)
-	_, err := stub.Echo(ctx, make([]byte, 0)) // Create VC.
-	if err != nil {
-		vlog.Fatalf("Echo failed: %v", err)
-	}
-
 	payload := make([]byte, payloadSize)
 	for i := range payload {
 		payload[i] = byte(i & 0xff)
