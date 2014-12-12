@@ -1,0 +1,100 @@
+Date: 10/12/2014
+Platform: Intel(R) Xeon(R) CPU E5-2689 0 @ 2.60GHz,  66114888KB Memory
+
+$ veyron go test -test.bench=throughput -test.cpu=1 -test.benchtime=5s \
+  veyron.io/veyron/veyron/runtimes/google/ipc/stream/benchmark
+
+Benchmark_throughput_TCP_1Conn   1000000              9844 ns/op        5201.13 MB/s
+Benchmark_throughput_TCP_2Conns  1000000              9551 ns/op        5360.43 MB/s
+Benchmark_throughput_TCP_4Conns  1000000              9864 ns/op        5190.41 MB/s
+Benchmark_throughput_TCP_8Conns  1000000             13138 ns/op        3897.01 MB/s
+Benchmark_throughput_Pipe_1Conn  1000000             22645 ns/op        2260.95 MB/s
+Benchmark_throughput_Pipe_2Conns          500000             21327 ns/op        2400.68 MB/s
+Benchmark_throughput_Pipe_4Conns          500000             24004 ns/op        2132.91 MB/s
+Benchmark_throughput_Pipe_8Conns          500000             21196 ns/op        2415.48 MB/s
+Benchmark_throughput_Flow_1VIF_1VC_1Flow          500000             28979 ns/op        1766.77 MB/s
+Benchmark_throughput_Flow_1VIF_1VC_2Flow          500000             30328 ns/op        1688.16 MB/s
+Benchmark_throughput_Flow_1VIF_1VC_8Flow          500000             37314 ns/op        1372.11 MB/s
+Benchmark_throughput_Flow_1VIF_2VC_2Flow          500000             30521 ns/op        1677.52 MB/s
+Benchmark_throughput_Flow_1VIF_2VC_8Flow          200000             38013 ns/op        1346.89 MB/s
+Benchmark_throughput_Flow_2VIF_4VC_8Flow          200000             39768 ns/op        1287.46 MB/s
+Benchmark_throughput_TLS_1Conn     20000            418920 ns/op         122.22 MB/s
+Benchmark_throughput_TLS_2Conns    20000            416965 ns/op         122.79 MB/s
+Benchmark_throughput_TLS_4Conns    20000            418513 ns/op         122.34 MB/s
+Benchmark_throughput_TLS_8Conns    20000            424970 ns/op         120.48 MB/s
+Benchmark_throughput_Flow_1VIF_1VC_1FlowTLS        20000            466126 ns/op         109.84 MB/s
+Benchmark_throughput_Flow_1VIF_1VC_2FlowTLS        20000            464239 ns/op         110.29 MB/s
+Benchmark_throughput_Flow_1VIF_1VC_8FlowTLS        20000            476913 ns/op         107.36 MB/s
+Benchmark_throughput_Flow_1VIF_2VC_2FlowTLS        20000            468779 ns/op         109.22 MB/s
+Benchmark_throughput_Flow_1VIF_2VC_8FlowTLS        20000            482487 ns/op         106.12 MB/s
+Benchmark_throughput_Flow_2VIF_4VC_8FlowTLS        20000            482328 ns/op         106.15 MB/s
+
+
+$ veyron go test -test.bench=dial -test.cpu=1 -test.benchtime=5s \
+  veyron.io/veyron/veyron/runtimes/google/ipc/stream/benchmark
+
+Benchmark_dial_VIF      1000000              9825 ns/op
+Histogram (unit: us)
+Count: 1000000  Min: 3  Max: 8034  Avg: 9.15
+------------------------------------------------------------
+[    3,     4)   404648   40.5%   40.5%  ####
+[    4,     5)   416958   41.7%   82.2%  ####
+[    5,     8)   124339   12.4%   94.6%  #
+[    8,    14)    30884    3.1%   97.7%  
+[   14,    24)    15604    1.6%   99.2%  
+[   24,    44)     3720    0.4%   99.6%  
+[   44,    80)     1132    0.1%   99.7%  
+[   80,   146)      304    0.0%   99.8%  
+[  146,   266)      183    0.0%   99.8%  
+[  266,   486)       75    0.0%   99.8%  
+[  486,   887)      160    0.0%   99.8%  
+[  887,  1617)      312    0.0%   99.8%  
+[ 1617,  2946)     1459    0.1%  100.0%  
+[ 2946,  5367)      221    0.0%  100.0%  
+[ 5367,  9777)        1    0.0%  100.0%  
+[ 9777, 17807)        0    0.0%  100.0%  
+[17807,   inf)        0    0.0%  100.0%  
+
+Benchmark_dial_VIF_TLS  1000          11816193 ns/op
+Histogram (unit: ms)
+Count: 1000  Min: 11  Max: 14  Avg: 11.25
+------------------------------------------------------------
+[ 11,  12)   766   76.6%   76.6%  ########
+[ 12,  13)   217   21.7%   98.3%  ##
+[ 13,  14)    15    1.5%   99.8%  
+[ 14,  15)     2    0.2%  100.0%  
+[ 15,  16)     0    0.0%  100.0%  
+[ 16,  17)     0    0.0%  100.0%  
+[ 17,  18)     0    0.0%  100.0%  
+[ 18,  19)     0    0.0%  100.0%  
+[ 19,  20)     0    0.0%  100.0%  
+[ 20,  21)     0    0.0%  100.0%  
+[ 21,  23)     0    0.0%  100.0%  
+[ 23,  25)     0    0.0%  100.0%  
+[ 25,  27)     0    0.0%  100.0%  
+[ 27,  29)     0    0.0%  100.0%  
+[ 29,  31)     0    0.0%  100.0%  
+[ 31,  33)     0    0.0%  100.0%  
+[ 33, inf)     0    0.0%  100.0%  
+
+Benchmark_dial_VC_TLS   500          15534331 ns/op
+Histogram (unit: ms)
+Count: 500  Min: 15  Max: 21  Avg: 15.26
+------------------------------------------------------------
+[ 15,  16)  402   80.4%   80.4%  ########
+[ 16,  17)   69   13.8%   94.2%  #
+[ 17,  18)   28    5.6%   99.8%  #
+[ 18,  19)    0    0.0%   99.8%  
+[ 19,  20)    0    0.0%   99.8%  
+[ 20,  21)    0    0.0%   99.8%  
+[ 21,  23)    1    0.2%  100.0%  
+[ 23,  25)    0    0.0%  100.0%  
+[ 25,  27)    0    0.0%  100.0%  
+[ 27,  29)    0    0.0%  100.0%  
+[ 29,  32)    0    0.0%  100.0%  
+[ 32,  35)    0    0.0%  100.0%  
+[ 35,  39)    0    0.0%  100.0%  
+[ 39,  43)    0    0.0%  100.0%  
+[ 43,  48)    0    0.0%  100.0%  
+[ 48,  54)    0    0.0%  100.0%  
+[ 54, inf)    0    0.0%  100.0%  

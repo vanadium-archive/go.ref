@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	_ "veyron.io/veyron/veyron/lib/tcp"
 	"veyron.io/veyron/veyron/lib/testutil"
 	"veyron.io/veyron/veyron/runtimes/google/ipc/stream/manager"
 
