@@ -17,7 +17,7 @@ import (
 	"strings"
 	"sync"
 
-	"veyron.io/veyron/veyron2/verror"
+	verror "veyron.io/veyron/veyron2/verror2"
 	"veyron.io/veyron/veyron2/vlog"
 
 	"github.com/presotto/go-mdns-sd"
@@ -41,6 +41,21 @@ type configService struct {
 	change  *sync.Cond // condition variable broadcast to on every config change
 	gen     int        // incremented every config change
 }
+
+const pkgPath = "veyron.io/veyron/veyron/services/config/lib"
+
+// Errors
+var (
+	errCantParse            = verror.Register(pkgPath+".errCantParse", verror.NoRetry, "{1:}{2:} can't parse{:_}")
+	errEntryTooLong         = verror.Register(pkgPath+".errEntryTooLong", verror.NoRetry, "{1:}{2:} entry {3}:{4} is too long{:_}")
+	errNoFileToRead         = verror.Register(pkgPath+".errNoFileToRead", verror.NoRetry, "{1:}{2:} no file to read{:_}")
+	errFileError            = verror.Register(pkgPath+".errFileError", verror.NoRetry, "{1:}{2:} file {3}{:_}")
+	errMissingLegalVersion  = verror.Register(pkgPath+".errMissingLegalVersion", verror.NoRetry, "{1:}{2:} missing legal version for file{:_}")
+	errMissingConfigVersion = verror.Register(pkgPath+".errMissingConfigVersion", verror.NoRetry, "{1:}{2:} missing config version{:_}")
+	errNoConfig             = verror.Register(pkgPath+".errNoConfig", verror.NoRetry, "{1:}{2:} no config{:_}")
+	errConfigHasNoKey       = verror.Register(pkgPath+".errConfigHasNoKey", verror.NoRetry, "{1:}{2:} config has no key {3}{:_}")
+	errOfferingConfigError  = verror.Register(pkgPath+".errOfferingConfigError", verror.NoRetry, "{1:}{2:} offering config {3}{:_}")
+)
 
 // MDNSConfigService creates a new instance of the config service with the given name.
 // If file is non blank, the initial config is read from file and any learned configs are
@@ -126,12 +141,12 @@ func (c *config) parseEntry(l string) error {
 	// The reset have to be key<white>*:<white>*value
 	f := strings.SplitN(l, ":", 2)
 	if len(f) != 2 {
-		return verror.BadArgf("can't parse %s", l)
+		return verror.Make(errCantParse, nil, l)
 	}
 	k := strings.TrimSpace(f[0])
 	v := strings.TrimSpace(f[1])
 	if len(k)+len(v) > maxDNSStringLength {
-		return verror.BadArgf("entry %s:%s is too long", k, v)
+		return verror.Make(errEntryTooLong, nil, k, v)
 	}
 	c.pairs[k] = v
 	if k != "version" {
@@ -144,14 +159,14 @@ func (c *config) parseEntry(l string) error {
 
 func serializeEntry(k, v string) (string, error) {
 	if len(k)+len(v) > maxDNSStringLength {
-		return "", verror.BadArgf("entry %s:%s is too long", k, v)
+		return "", verror.Make(errEntryTooLong, nil, k, v)
 	}
 	return k + ":" + v, nil
 }
 
 func readFile(file string) (*config, error) {
 	if len(file) == 0 {
-		return nil, verror.NoExistf("no file to read")
+		return nil, verror.Make(errNoFileToRead, nil)
 	}
 
 	// The config has to be small so just read it all in one go.
@@ -162,11 +177,11 @@ func readFile(file string) (*config, error) {
 	c := newConfig()
 	for _, l := range strings.Split(string(b), "\n") {
 		if err := c.parseEntry(l); err != nil {
-			return nil, verror.BadArgf("file %s: %s", file, err)
+			return nil, verror.Make(errFileError, nil, file, err)
 		}
 	}
 	if _, ok := c.pairs["version"]; !ok {
-		return nil, verror.BadArgf("file %s: missing legal version", file)
+		return nil, verror.Make(errMissingLegalVersion, nil, file)
 	}
 	return c, nil
 }
@@ -200,7 +215,7 @@ func rrToConfig(rr *dns.RR_TXT) (*config, error) {
 	}
 	// Ignore any config with no version.
 	if _, ok := c.pairs["version"]; !ok {
-		return nil, verror.NoExistf("missing config version")
+		return nil, verror.Make(errMissingConfigVersion, nil)
 	}
 	return c, nil
 }
@@ -310,10 +325,10 @@ func (cs *configService) Get(key string) (string, error) {
 	cs.rwlock.RLock()
 	defer cs.rwlock.RUnlock()
 	if cs.current == nil {
-		return "", verror.NoExistf("no config")
+		return "", verror.Make(errNoConfig, nil)
 	}
 	if v, ok := cs.current.pairs[key]; !ok {
-		return "", verror.NoExistf("config has no key %q", key)
+		return "", verror.Make(errConfigHasNoKey, nil, key)
 	} else {
 		return v, nil
 	}
@@ -331,7 +346,7 @@ func (cs *configService) GetAll() (map[string]string, error) {
 	cs.rwlock.RLock()
 	defer cs.rwlock.RUnlock()
 	if cs.current == nil {
-		return nil, verror.NoExistf("no config found")
+		return nil, verror.Make(errNoConfig, nil)
 	}
 	// Copy so caller can't change the map under our feet.
 	reply := make(map[string]string)
@@ -366,7 +381,7 @@ func (cs *configService) Offer() {
 	for _, k := range keys {
 		e, err := serializeEntry(k, cs.current.pairs[k])
 		if err != nil {
-			verror.NoExistf("offering config: %s", cs.file, err)
+			verror.Make(errOfferingConfigError, nil, cs.file, err)
 			return
 		}
 		txt = append(txt, e)
