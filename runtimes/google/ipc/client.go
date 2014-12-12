@@ -712,7 +712,7 @@ func (fc *flowClient) start(suffix, method string, args []interface{}, timeout t
 		TraceRequest:     ivtrace.Request(fc.ctx),
 	}
 	if err := fc.enc.Encode(req); err != nil {
-		berr := verror.Make(verror.BadProtocol, fc.ctx, verror.Make(errRequestEncoding, fc.ctx, req, err))
+		berr := verror.Make(verror.BadProtocol, fc.ctx, verror.Make(errRequestEncoding, fc.ctx, fmt.Sprintf("%#v", req), err))
 		return fc.close(berr)
 	}
 	for _, d := range fc.discharges {
