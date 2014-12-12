@@ -3,6 +3,7 @@ package lib
 import (
 	"bytes"
 	"encoding/hex"
+
 	"veyron.io/veyron/veyron2/vom2"
 )
 
@@ -12,9 +13,28 @@ func VomEncode(v interface{}) (string, error) {
 	if err != nil {
 		return "", err
 	}
-
 	if err := encoder.Encode(v); err != nil {
 		return "", err
 	}
 	return hex.EncodeToString(buf.Bytes()), nil
+}
+
+func VomEncodeOrDie(v interface{}) string {
+	s, err := VomEncode(v)
+	if err != nil {
+		panic(err)
+	}
+	return s
+}
+
+func VomDecode(data string, v interface{}) error {
+	binbytes, err := hex.DecodeString(data)
+	if err != nil {
+		return err
+	}
+	decoder, err := vom2.NewDecoder(bytes.NewReader(binbytes))
+	if err != nil {
+		return err
+	}
+	return decoder.Decode(v)
 }

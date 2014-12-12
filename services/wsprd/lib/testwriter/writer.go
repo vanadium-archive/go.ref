@@ -7,6 +7,7 @@ import (
 	"reflect"
 	"sync"
 	"time"
+
 	"veyron.io/veyron/veyron2/verror2"
 	"veyron.io/wspr/veyron/services/wsprd/lib"
 )
@@ -15,14 +16,9 @@ type TestHarness interface {
 	Errorf(fmt string, a ...interface{})
 }
 
-type Response struct {
-	Type    lib.ResponseType
-	Message interface{}
-}
-
 type Writer struct {
 	sync.Mutex
-	Stream []Response
+	Stream []lib.Response
 	err    error
 	// If this channel is set then a message will be sent
 	// to this channel after recieving a call to FinishMessage()
@@ -33,11 +29,11 @@ func (w *Writer) Send(responseType lib.ResponseType, msg interface{}) error {
 	// We serialize and deserialize the reponse so that we can do deep equal with
 	// messages that contain non-exported structs.
 	var buf bytes.Buffer
-	if err := json.NewEncoder(&buf).Encode(Response{Type: responseType, Message: msg}); err != nil {
+	if err := json.NewEncoder(&buf).Encode(lib.Response{Type: responseType, Message: msg}); err != nil {
 		return err
 	}
 
-	var r Response
+	var r lib.Response
 
 	if err := json.NewDecoder(&buf).Decode(&r); err != nil {
 		return err
@@ -86,7 +82,7 @@ func (w *Writer) WaitForMessage(n int) error {
 	return nil
 }
 
-func CheckResponses(w *Writer, wantStream []Response, wantErr error) error {
+func CheckResponses(w *Writer, wantStream []lib.Response, wantErr error) error {
 	if got, want := w.Stream, wantStream; !reflect.DeepEqual(got, want) {
 		return fmt.Errorf("streams don't match: got %v, want %v", got, want)
 	}

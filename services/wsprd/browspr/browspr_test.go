@@ -1,9 +1,8 @@
 package browspr
 
 import (
-	"bytes"
-	"encoding/hex"
 	"encoding/json"
+	"reflect"
 	"strings"
 	"testing"
 
@@ -15,10 +14,7 @@ import (
 	"veyron.io/veyron/veyron2/naming"
 	"veyron.io/veyron/veyron2/options"
 	"veyron.io/veyron/veyron2/rt"
-	"veyron.io/veyron/veyron2/vdl/vdlutil"
 	"veyron.io/veyron/veyron2/vlog"
-	"veyron.io/veyron/veyron2/vom2"
-	"veyron.io/veyron/veyron2/wiretype"
 	"veyron.io/wspr/veyron/services/wsprd/app"
 	"veyron.io/wspr/veyron/services/wsprd/lib"
 )
@@ -69,23 +65,6 @@ func (s mockServer) BasicCall(_ ipc.ServerCall, txt string) (string, error) {
 	return "[" + txt + "]", nil
 }
 
-func (s mockServer) Signature(call ipc.ServerCall) (ipc.ServiceSignature, error) {
-	result := ipc.ServiceSignature{Methods: make(map[string]ipc.MethodSignature)}
-	result.Methods["BasicCall"] = ipc.MethodSignature{
-		InArgs: []ipc.MethodArgument{
-			{Name: "Txt", Type: 3},
-		},
-		OutArgs: []ipc.MethodArgument{
-			{Name: "Value", Type: 3},
-			{Name: "Err", Type: 65},
-		},
-	}
-	result.TypeDefs = []vdlutil.Any{
-		wiretype.NamedPrimitiveType{Type: 0x1, Name: "error", Tags: []string(nil)}}
-
-	return result, nil
-}
-
 func startMockServer(desiredName string) (ipc.Server, naming.Endpoint, error) {
 	// Create a new server instance.
 	s, err := r.NewServer()
@@ -103,15 +82,6 @@ func startMockServer(desiredName string) (ipc.Server, naming.Endpoint, error) {
 	}
 
 	return s, endpoint, nil
-}
-
-type veyronTempRPC struct {
-	Name        string
-	Method      string
-	InArgs      []json.RawMessage
-	NumOutArgs  int32
-	IsStreaming bool
-	Timeout     int64
 }
 
 func TestBrowspr(t *testing.T) {
@@ -198,25 +168,23 @@ func TestBrowspr(t *testing.T) {
 
 	msgInstanceId := int32(11)
 
-	rpcMessage := veyronTempRPC{
-		Name:   mockServerName,
-		Method: "BasicCall",
-		InArgs: []json.RawMessage{
-			json.RawMessage([]byte("\"InputValue\"")),
-		},
+	rpc := app.VeyronRPC{
+		Name:        mockServerName,
+		Method:      "BasicCall",
+		InArgs:      []interface{}{"InputValue"},
 		NumOutArgs:  2,
 		IsStreaming: false,
 		Timeout:     (1 << 31) - 1,
 	}
 
-	jsonRpcMessage, err := json.Marshal(rpcMessage)
+	vomRPC, err := lib.VomEncode(rpc)
 	if err != nil {
-		t.Fatalf("Failed to marshall rpc message to json: %v", err)
+		t.Fatalf("Failed to vom encode rpc message: %v", err)
 	}
 
 	msg, err := json.Marshal(app.Message{
 		Id:   1,
-		Data: string(jsonRpcMessage),
+		Data: vomRPC,
 		Type: app.VeyronRequestMessage,
 	})
 	if err != nil {
@@ -248,7 +216,7 @@ func TestBrowspr(t *testing.T) {
 		t.Errorf("Message type was %v, expected %v", outMsg.Type, app.MessageType(0))
 	}
 
-	var responseMsg app.Response
+	var responseMsg lib.Response
 	if err := json.Unmarshal([]byte(outMsg.Data), &responseMsg); err != nil {
 		t.Fatalf("Failed to unmarshall outgoing response: %v", err)
 	}
@@ -261,15 +229,10 @@ func TestBrowspr(t *testing.T) {
 		t.Errorf("Got unexpected response message body of type %T, expected type string", responseMsg.Message)
 	}
 	var result []string
-	arg, err := hex.DecodeString(outArg)
-	if err != nil {
-		t.Errorf("failed to hex decode string: %v", err)
+	if err := lib.VomDecode(outArg, &result); err != nil {
+		t.Errorf("Failed to vom decode args from %v: %v", outArg, err)
 	}
-	decoder, err := vom2.NewDecoder(bytes.NewBuffer(arg))
-	if err != nil {
-		t.Fatalf("failed to construct new decoder: %v", err)
-	}
-	if err := decoder.Decode(&result); err != nil || result[0] != "[InputValue]" {
-		t.Errorf("got %s with err: %v, expected %s", result[0], err, "[InputValue]")
+	if got, want := result, []string{"[InputValue]"}; !reflect.DeepEqual(got, want) {
+		t.Errorf("Result got %v, want %v", got, want)
 	}
 }

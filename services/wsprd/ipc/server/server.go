@@ -3,22 +3,19 @@
 package server
 
 import (
-	"bytes"
-	"encoding/hex"
 	"encoding/json"
 	"sync"
 	"time"
 
 	"veyron.io/wspr/veyron/services/wsprd/lib"
 	"veyron.io/wspr/veyron/services/wsprd/principal"
-	"veyron.io/wspr/veyron/services/wsprd/signature"
 
 	"veyron.io/veyron/veyron2"
 	"veyron.io/veyron/veyron2/ipc"
 	"veyron.io/veyron/veyron2/security"
+	"veyron.io/veyron/veyron2/vdl/vdlroot/src/signature"
 	"veyron.io/veyron/veyron2/verror2"
 	"veyron.io/veyron/veyron2/vlog"
-	"veyron.io/veyron/veyron2/vom2"
 )
 
 type Flow struct {
@@ -44,12 +41,6 @@ type ServerRPCRequestContext struct {
 	RemoteBlessingStrings []string
 	Timeout               int64 // The time period (in ns) between now and the deadline.
 	MethodTags            []interface{}
-}
-
-// The response from the javascript server to the proxy.
-type serverRPCReply struct {
-	Results []interface{}
-	Err     *verror2.Standard
 }
 
 type FlowHandler interface {
@@ -120,7 +111,7 @@ type Server struct {
 	helper ServerHelper
 
 	// The set of outstanding server requests.
-	outstandingServerRequests map[int64]chan *serverRPCReply
+	outstandingServerRequests map[int64]chan *lib.ServerRPCReply
 
 	outstandingAuthRequests map[int64]chan error
 }
@@ -130,7 +121,7 @@ func NewServer(id uint64, listenSpec *ipc.ListenSpec, helper ServerHelper) (*Ser
 		id:                        id,
 		helper:                    helper,
 		listenSpec:                listenSpec,
-		outstandingServerRequests: make(map[int64]chan *serverRPCReply),
+		outstandingServerRequests: make(map[int64]chan *lib.ServerRPCReply),
 		outstandingAuthRequests:   make(map[int64]chan error),
 	}
 	var err error
@@ -142,12 +133,12 @@ func NewServer(id uint64, listenSpec *ipc.ListenSpec, helper ServerHelper) (*Ser
 
 // remoteInvokeFunc is a type of function that can invoke a remote method and
 // communicate the result back via a channel to the caller
-type remoteInvokeFunc func(methodName string, args []interface{}, call ipc.ServerCall) <-chan *serverRPCReply
+type remoteInvokeFunc func(methodName string, args []interface{}, call ipc.ServerCall) <-chan *lib.ServerRPCReply
 
 func (s *Server) createRemoteInvokerFunc(handle int64) remoteInvokeFunc {
-	return func(methodName string, args []interface{}, call ipc.ServerCall) <-chan *serverRPCReply {
+	return func(methodName string, args []interface{}, call ipc.ServerCall) <-chan *lib.ServerRPCReply {
 		flow := s.helper.CreateNewFlow(s, call)
-		replyChan := make(chan *serverRPCReply, 1)
+		replyChan := make(chan *lib.ServerRPCReply, 1)
 		s.mu.Lock()
 		s.outstandingServerRequests[flow.ID] = replyChan
 		s.mu.Unlock()
@@ -157,10 +148,10 @@ func (s *Server) createRemoteInvokerFunc(handle int64) remoteInvokeFunc {
 			timeout = lib.GoToJSDuration(deadline.Sub(time.Now()))
 		}
 
-		errHandler := func(err error) <-chan *serverRPCReply {
+		errHandler := func(err error) <-chan *lib.ServerRPCReply {
 			if ch := s.popServerRequest(flow.ID); ch != nil {
 				stdErr := verror2.Convert(verror2.Internal, call, err).(verror2.Standard)
-				ch <- &serverRPCReply{nil, &stdErr}
+				ch <- &lib.ServerRPCReply{nil, &stdErr}
 				s.helper.CleanupFlow(flow.ID)
 			}
 			return replyChan
@@ -184,20 +175,15 @@ func (s *Server) createRemoteInvokerFunc(handle int64) remoteInvokeFunc {
 			Args:     args,
 			Context:  context,
 		}
-
 		vomMessage, err := lib.VomEncode(message)
-
 		if err != nil {
 			return errHandler(err)
 		}
-
 		if err := flow.Writer.Send(lib.ResponseServerRequest, vomMessage); err != nil {
 			return errHandler(err)
 		}
 
-		s.helper.GetLogger().VI(3).Infof("request received to call method %q on "+
-			"JavaScript server with args %v, MessageId %d was assigned.",
-			methodName, args, flow.ID)
+		s.helper.GetLogger().VI(3).Infof("calling method %q with args %v, MessageID %d assigned\n", methodName, args, flow.ID)
 
 		// Watch for cancellation.
 		go func() {
@@ -212,7 +198,7 @@ func (s *Server) createRemoteInvokerFunc(handle int64) remoteInvokeFunc {
 			s.helper.CleanupFlow(flow.ID)
 
 			err := verror2.Convert(verror2.Aborted, call, call.Err()).(verror2.Standard)
-			ch <- &serverRPCReply{nil, &err}
+			ch <- &lib.ServerRPCReply{nil, &err}
 		}()
 
 		go proxyStream(call, flow.Writer, s.helper.GetLogger())
@@ -224,24 +210,16 @@ func (s *Server) createRemoteInvokerFunc(handle int64) remoteInvokeFunc {
 func proxyStream(stream ipc.Stream, w lib.ClientWriter, logger vlog.Logger) {
 	var item interface{}
 	for err := stream.Recv(&item); err == nil; err = stream.Recv(&item) {
-		var buf bytes.Buffer
-		encoder, err := vom2.NewBinaryEncoder(&buf)
+		vomItem, err := lib.VomEncode(item)
 		if err != nil {
 			w.Error(verror2.Convert(verror2.Internal, nil, err))
 			return
 		}
-
-		if err := encoder.Encode(item); err != nil {
-			w.Error(verror2.Convert(verror2.Internal, nil, err))
-			return
-		}
-
-		if err := w.Send(lib.ResponseStream, hex.EncodeToString(buf.Bytes())); err != nil {
+		if err := w.Send(lib.ResponseStream, vomItem); err != nil {
 			w.Error(verror2.Convert(verror2.Internal, nil, err))
 			return
 		}
 	}
-
 	if err := w.Send(lib.ResponseStreamClose, nil); err != nil {
 		w.Error(verror2.Convert(verror2.Internal, nil, err))
 		return
@@ -317,7 +295,7 @@ func (s *Server) Serve(name string) error {
 	return nil
 }
 
-func (s *Server) popServerRequest(id int64) chan *serverRPCReply {
+func (s *Server) popServerRequest(id int64) chan *lib.ServerRPCReply {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	ch := s.outstandingServerRequests[id]
@@ -331,21 +309,20 @@ func (s *Server) HandleServerResponse(id int64, data string) {
 	if ch == nil {
 		s.helper.GetLogger().Errorf("unexpected result from JavaScript. No channel "+
 			"for MessageId: %d exists. Ignoring the results.", id)
-		//Ignore unknown responses that don't belong to any channel
+		// Ignore unknown responses that don't belong to any channel
 		return
 	}
 
 	// Decode the result and send it through the channel
-	var serverReply serverRPCReply
-	if decoderErr := json.Unmarshal([]byte(data), &serverReply); decoderErr != nil {
-		err := verror2.Convert(verror2.Internal, nil, decoderErr).(verror2.Standard)
-		serverReply = serverRPCReply{nil, &err}
+	var reply lib.ServerRPCReply
+	if err := lib.VomDecode(data, &reply); err != nil {
+		reply.Err = err
 	}
 
 	s.helper.GetLogger().VI(3).Infof("response received from JavaScript server for "+
-		"MessageId %d with result %v", id, serverReply)
+		"MessageId %d with result %v", id, reply)
 	s.helper.CleanupFlow(id)
-	ch <- &serverReply
+	ch <- &reply
 }
 
 func (s *Server) HandleLookupResponse(id int64, data string) {
@@ -390,14 +367,9 @@ func (s *Server) cleanupFlow(id int64) {
 	s.helper.CleanupFlow(id)
 }
 
-func (s *Server) createInvoker(handle int64, sig signature.JSONServiceSignature) (ipc.Invoker, error) {
-	serviceSig, err := sig.ServiceSignature()
-	if err != nil {
-		return nil, err
-	}
-
+func (s *Server) createInvoker(handle int64, sig []signature.Interface) (ipc.Invoker, error) {
 	remoteInvokeFunc := s.createRemoteInvokerFunc(handle)
-	return newInvoker(serviceSig, sig, remoteInvokeFunc), nil
+	return newInvoker(sig, remoteInvokeFunc), nil
 }
 
 func (s *Server) createAuthorizer(handle int64, hasAuthorizer bool) (security.Authorizer, error) {
@@ -409,8 +381,8 @@ func (s *Server) createAuthorizer(handle int64, hasAuthorizer bool) (security.Au
 
 func (s *Server) Stop() {
 	stdErr := verror2.Make(verror2.Timeout, nil).(verror2.Standard)
-	result := serverRPCReply{
-		Results: []interface{}{nil},
+	result := lib.ServerRPCReply{
+		Results: nil,
 		Err:     &stdErr,
 	}
 	s.mu.Lock()
@@ -421,7 +393,7 @@ func (s *Server) Stop() {
 		default:
 		}
 	}
-	s.outstandingServerRequests = make(map[int64]chan *serverRPCReply)
+	s.outstandingServerRequests = make(map[int64]chan *lib.ServerRPCReply)
 	s.server.Stop()
 }
 

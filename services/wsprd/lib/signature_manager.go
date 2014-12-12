@@ -6,10 +6,13 @@ import (
 
 	"veyron.io/veyron/veyron2/context"
 	"veyron.io/veyron/veyron2/ipc"
+	"veyron.io/veyron/veyron2/ipc/reserved"
+	"veyron.io/veyron/veyron2/vdl/vdlroot/src/signature"
+	"veyron.io/veyron/veyron2/verror2"
 )
 
 type SignatureManager interface {
-	Signature(ctx context.T, name string, client ipc.Client, opts ...ipc.CallOpt) (*ipc.ServiceSignature, error)
+	Signature(ctx context.T, name string, client ipc.Client, opts ...ipc.CallOpt) ([]signature.Interface, error)
 	FlushCacheEntry(name string)
 }
 
@@ -35,7 +38,7 @@ const (
 )
 
 type cacheEntry struct {
-	signature    ipc.ServiceSignature
+	sig          []signature.Interface
 	lastAccessed time.Time
 }
 
@@ -44,39 +47,32 @@ func (c cacheEntry) expired() bool {
 	return time.Now().Sub(c.lastAccessed) > ttl
 }
 
-// Signature uses the given client to fetch the signature for the given service name.
-// It locks until it fetches the service signature from the remote server, if not a cache hit.
-func (sm *signatureManager) Signature(ctx context.T, name string, client ipc.Client, opts ...ipc.CallOpt) (*ipc.ServiceSignature, error) {
+const pkgPath = "veyron.io/wspr/veyron/services/wsprd/lib"
+
+// Signature uses the given client to fetch the signature for the given service
+// name.  It either returns the signature from the cache, or blocks until it
+// fetches the signature from the remote server.
+func (sm *signatureManager) Signature(ctx context.T, name string, client ipc.Client, opts ...ipc.CallOpt) ([]signature.Interface, error) {
 	sm.Lock()
 	defer sm.Unlock()
 
-	if cashedSig := sm.cache[name]; cashedSig != nil && !cashedSig.expired() {
-		cashedSig.lastAccessed = time.Now()
-		return &cashedSig.signature, nil
+	if entry := sm.cache[name]; entry != nil && !entry.expired() {
+		entry.lastAccessed = time.Now()
+		return entry.sig, nil
 	}
 
-	// cache expired or not found, fetch it from the remote server
-	signatureCall, err := client.StartCall(ctx, name, "Signature", []interface{}{}, opts...)
+	// Fetch from the remote server.
+	sig, err := reserved.Signature(ctx, client, name, opts...)
 	if err != nil {
-		return nil, err
+		return nil, verror2.Make(verror2.NoServers, ctx, name, err)
 	}
 
-	var result ipc.ServiceSignature
-	var appErr error
-	if err := signatureCall.Finish(&result, &appErr); err != nil {
-		return nil, err
-	}
-	if appErr != nil {
-		return nil, appErr
-	}
-
-	// cache the result
+	// Add to the cache.
 	sm.cache[name] = &cacheEntry{
-		signature:    result,
+		sig:          sig,
 		lastAccessed: time.Now(),
 	}
-
-	return &result, nil
+	return sig, nil
 }
 
 // FlushCacheEntry removes the cached signature for the given name

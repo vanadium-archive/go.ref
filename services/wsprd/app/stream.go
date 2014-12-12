@@ -4,13 +4,12 @@ import (
 	"fmt"
 
 	"veyron.io/veyron/veyron2/ipc"
-	"veyron.io/veyron/veyron2/vom"
+	"veyron.io/veyron/veyron2/vdl"
 	"veyron.io/wspr/veyron/services/wsprd/lib"
 )
 
 type initConfig struct {
 	stream ipc.Stream
-	inType vom.Type
 }
 
 type message struct {
@@ -69,15 +68,14 @@ func (os *outstandingStream) waitUntilDone() {
 func (os *outstandingStream) loop() {
 	config := <-os.initChan
 	for msg := range os.messages {
-		payload, err := vom.JSONToObject(msg.data, config.inType)
-		if err != nil {
-			msg.writer.Error(fmt.Errorf("error while converting json to InStreamType (%s): %v", msg.data, err))
-			continue
+		var item *vdl.Value
+		if err := lib.VomDecode(msg.data, &item); err != nil {
+			msg.writer.Error(fmt.Errorf("failed to decode stream arg from %v: %v", msg.data, err))
+			break
 		}
-		if err := config.stream.Send(payload); err != nil {
+		if err := config.stream.Send(item); err != nil {
 			msg.writer.Error(fmt.Errorf("failed to send on stream: %v", err))
 		}
-
 	}
 	close(os.done)
 	// If this is a client rpc, we need to call CloseSend on it.
@@ -86,6 +84,6 @@ func (os *outstandingStream) loop() {
 	}
 }
 
-func (os *outstandingStream) init(stream ipc.Stream, inType vom.Type) {
-	os.initChan <- &initConfig{stream, inType}
+func (os *outstandingStream) init(stream ipc.Stream) {
+	os.initChan <- &initConfig{stream}
 }

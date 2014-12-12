@@ -13,10 +13,21 @@ const (
 	ResponseCancel                        = 7
 )
 
+type Response struct {
+	Type    ResponseType
+	Message interface{}
+}
+
 // This is basically an io.Writer interface, that allows passing error message
 // strings.  This is how the proxy will talk to the javascript/java clients.
 type ClientWriter interface {
 	Send(messageType ResponseType, data interface{}) error
 
 	Error(err error)
+}
+
+// The response from the javascript server to the proxy.
+type ServerRPCReply struct {
+	Results []interface{}
+	Err     error
 }

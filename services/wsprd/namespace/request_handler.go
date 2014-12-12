@@ -1,8 +1,6 @@
 package namespace
 
 import (
-	"bytes"
-	"encoding/hex"
 	"encoding/json"
 	"time"
 
@@ -10,7 +8,6 @@ import (
 	"veyron.io/veyron/veyron2/context"
 	"veyron.io/veyron/veyron2/naming"
 	"veyron.io/veyron/veyron2/verror2"
-	"veyron.io/veyron/veyron2/vom2"
 
 	"veyron.io/wspr/veyron/services/wsprd/lib"
 )
@@ -119,20 +116,6 @@ func HandleRequest(ctx context.T, rt veyron2.Runtime, data string, w lib.ClientW
 	}
 }
 
-func encodeVom2(value interface{}) (string, error) {
-	var buf bytes.Buffer
-	encoder, err := vom2.NewBinaryEncoder(&buf)
-	if err != nil {
-		return "", err
-	}
-
-	if err := encoder.Encode(value); err != nil {
-		return "", err
-	}
-	return hex.EncodeToString(buf.Bytes()), nil
-
-}
-
 func convertToVDLEntry(value naming.MountEntry) naming.VDLMountEntry {
 	result := naming.VDLMountEntry{
 		Name: value.Name,
@@ -172,7 +155,7 @@ func glob(ctx context.T, ns naming.Namespace, w lib.ClientWriter, rawArgs json.R
 			continue
 		}
 
-		val, err := encodeVom2(convertToVDLEntry(mp))
+		val, err := lib.VomEncode(convertToVDLEntry(mp))
 		if err != nil {
 			w.Error(verror2.Make(verror2.Internal, ctx, err))
 			return

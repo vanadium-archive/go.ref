@@ -9,10 +9,9 @@ import (
 	"veyron.io/veyron/veyron2/ipc"
 	"veyron.io/veyron/veyron2/rt"
 	"veyron.io/veyron/veyron2/security"
-	vdlsig "veyron.io/veyron/veyron2/vdl/vdlroot/src/signature"
+	"veyron.io/veyron/veyron2/vdl/vdlroot/src/signature"
 	"veyron.io/wspr/veyron/services/wsprd/lib"
 	"veyron.io/wspr/veyron/services/wsprd/lib/testwriter"
-	"veyron.io/wspr/veyron/services/wsprd/signature"
 )
 
 type mockFlowFactory struct {
@@ -27,7 +26,7 @@ func (*mockFlowFactory) cleanupFlow(int64) {}
 
 type mockInvoker struct {
 	handle int64
-	sig    signature.JSONServiceSignature
+	sig    []signature.Interface
 }
 
 func (m mockInvoker) Prepare(string, int) ([]interface{}, []interface{}, error) {
@@ -42,17 +41,21 @@ func (mockInvoker) Globber() *ipc.GlobState {
 	return nil
 }
 
-func (mockInvoker) Signature(ctx ipc.ServerContext) ([]vdlsig.Interface, error) {
-	return nil, nil
+func (m mockInvoker) Signature(ctx ipc.ServerContext) ([]signature.Interface, error) {
+	return m.sig, nil
 }
 
-func (mockInvoker) MethodSignature(ctx ipc.ServerContext, method string) (vdlsig.Method, error) {
-	return vdlsig.Method{}, nil
+func (m mockInvoker) MethodSignature(ctx ipc.ServerContext, methodName string) (signature.Method, error) {
+	method, found := m.sig[0].FindMethod(methodName)
+	if !found {
+		return signature.Method{}, fmt.Errorf("Method %q not found", methodName)
+	}
+	return method, nil
 }
 
 type mockInvokerFactory struct{}
 
-func (mockInvokerFactory) createInvoker(handle int64, sig signature.JSONServiceSignature) (ipc.Invoker, error) {
+func (mockInvokerFactory) createInvoker(handle int64, sig []signature.Interface) (ipc.Invoker, error) {
 	return &mockInvoker{handle: handle, sig: sig}, nil
 }
 
@@ -69,14 +72,6 @@ func (mockAuthorizerFactory) createAuthorizer(handle int64, hasAuthorizer bool) 
 	return mockAuthorizer{handle: handle, hasAuthorizer: hasAuthorizer}, nil
 }
 
-func vomEncodeOrDie(v interface{}) string {
-	s, err := lib.VomEncode(v)
-	if err != nil {
-		panic(err)
-	}
-	return s
-}
-
 func TestSuccessfulLookup(t *testing.T) {
 	runtime, err := rt.New()
 	if err != nil {
@@ -86,19 +81,15 @@ func TestSuccessfulLookup(t *testing.T) {
 
 	flowFactory := &mockFlowFactory{}
 	d := newDispatcher(0, flowFactory, mockInvokerFactory{}, mockAuthorizerFactory{}, runtime.Logger())
-	expectedSig := signature.JSONServiceSignature{
-		"add": signature.JSONMethodSignature{
-			InArgs:     []string{"foo", "bar"},
-			NumOutArgs: 1,
-		},
+	expectedSig := []signature.Interface{
+		{Name: "AName"},
 	}
-
 	go func() {
 		if err := flowFactory.writer.WaitForMessage(1); err != nil {
 			t.Errorf("failed to get dispatch request %v", err)
 			t.Fail()
 		}
-		jsonResponse := fmt.Sprintf(`{"handle":1,"hasAuthorizer":false,"signature":"%s"}`, vomEncodeOrDie(expectedSig))
+		jsonResponse := fmt.Sprintf(`{"handle":1,"hasAuthorizer":false,"signature":"%s"}`, lib.VomEncodeOrDie(expectedSig))
 		d.handleLookupResponse(0, jsonResponse)
 	}()
 
@@ -118,8 +109,8 @@ func TestSuccessfulLookup(t *testing.T) {
 		t.Errorf("wrong authorizer returned, expected: %v, got :%v", expectedAuth, auth)
 	}
 
-	expectedResponses := []testwriter.Response{
-		testwriter.Response{
+	expectedResponses := []lib.Response{
+		{
 			Type: lib.ResponseDispatcherLookup,
 			Message: map[string]interface{}{
 				"serverId": 0.0,
@@ -141,19 +132,15 @@ func TestSuccessfulLookupWithAuthorizer(t *testing.T) {
 
 	flowFactory := &mockFlowFactory{}
 	d := newDispatcher(0, flowFactory, mockInvokerFactory{}, mockAuthorizerFactory{}, runtime.Logger())
-	expectedSig := signature.JSONServiceSignature{
-		"add": signature.JSONMethodSignature{
-			InArgs:     []string{"foo", "bar"},
-			NumOutArgs: 1,
-		},
+	expectedSig := []signature.Interface{
+		{Name: "AName"},
 	}
-
 	go func() {
 		if err := flowFactory.writer.WaitForMessage(1); err != nil {
 			t.Errorf("failed to get dispatch request %v", err)
 			t.Fail()
 		}
-		jsonResponse := fmt.Sprintf(`{"handle":1,"hasAuthorizer":true,"signature":"%s"}`, vomEncodeOrDie(expectedSig))
+		jsonResponse := fmt.Sprintf(`{"handle":1,"hasAuthorizer":true,"signature":"%s"}`, lib.VomEncodeOrDie(expectedSig))
 		d.handleLookupResponse(0, jsonResponse)
 	}()
 
@@ -173,8 +160,8 @@ func TestSuccessfulLookupWithAuthorizer(t *testing.T) {
 		t.Errorf("wrong authorizer returned, expected: %v, got :%v", expectedAuth, auth)
 	}
 
-	expectedResponses := []testwriter.Response{
-		testwriter.Response{
+	expectedResponses := []lib.Response{
+		{
 			Type: lib.ResponseDispatcherLookup,
 			Message: map[string]interface{}{
 				"serverId": 0.0,
@@ -211,8 +198,8 @@ func TestFailedLookup(t *testing.T) {
 		t.Errorf("expected error, but got none", err)
 	}
 
-	expectedResponses := []testwriter.Response{
-		testwriter.Response{
+	expectedResponses := []lib.Response{
+		{
 			Type: lib.ResponseDispatcherLookup,
 			Message: map[string]interface{}{
 				"serverId": 0.0,

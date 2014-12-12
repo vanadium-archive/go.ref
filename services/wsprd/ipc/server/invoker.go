@@ -2,11 +2,9 @@ package server
 
 import (
 	"veyron.io/veyron/veyron2/ipc"
-	vdlsig "veyron.io/veyron/veyron2/vdl/vdlroot/src/signature"
+	"veyron.io/veyron/veyron2/vdl"
+	"veyron.io/veyron/veyron2/vdl/vdlroot/src/signature"
 	"veyron.io/veyron/veyron2/verror"
-
-	"veyron.io/wspr/veyron/services/wsprd/lib"
-	"veyron.io/wspr/veyron/services/wsprd/signature"
 )
 
 var typedNil []int
@@ -14,84 +12,59 @@ var typedNil []int
 // invoker holds a delegate function to call on invoke and a list of methods that
 // are available for be called.
 type invoker struct {
-	// signature of the service this invoker belogs to
-	sig ipc.ServiceSignature
 	// delegate function to call when an invoke request comes in
 	invokeFunc remoteInvokeFunc
-	// map of special methods like "Signature" which invoker handles on behalf of the actual service
-	predefinedInvokers map[string]ipc.Invoker
 
-	// This is to get the method tags.  TODO(bjornick): Remove this when vom2 signatures
-	// has tags.
-	jsonSig signature.JSONServiceSignature
+	signature []signature.Interface
 }
 
 var _ ipc.Invoker = (*invoker)(nil)
 
 // newInvoker is an invoker factory
-func newInvoker(sig ipc.ServiceSignature, jsonSig signature.JSONServiceSignature, invokeFunc remoteInvokeFunc) ipc.Invoker {
-	predefinedInvokers := make(map[string]ipc.Invoker)
-
-	// Special handling for predefined "signature" method
-	predefinedInvokers["Signature"] = newSignatureInvoker(sig)
-
-	i := &invoker{sig, invokeFunc, predefinedInvokers, jsonSig}
+func newInvoker(signature []signature.Interface, invokeFunc remoteInvokeFunc) ipc.Invoker {
+	i := &invoker{invokeFunc, signature}
 	return i
 }
 
 // Prepare implements the Invoker interface.
 func (i *invoker) Prepare(methodName string, numArgs int) ([]interface{}, []interface{}, error) {
-	if pi := i.predefinedInvokers[methodName]; pi != nil {
-		return pi.Prepare(methodName, numArgs)
+	method, err := i.MethodSignature(nil, methodName)
+	if err != nil {
+		return nil, nil, err
 	}
-
-	method, ok := i.jsonSig[lib.LowercaseFirstCharacter(methodName)]
-	if !ok {
-		return nil, nil, verror.NoExistf("method name not found in IDL: %s", methodName)
+	if got, want := numArgs, len(method.InArgs); got != want {
+		return nil, nil, verror.NoExistf("Method %q got %d args, want %d", methodName, got, want)
 	}
-
 	argptrs := make([]interface{}, len(method.InArgs))
-
-	for ix := range method.InArgs {
-		var x interface{}
-		argptrs[ix] = &x // Accept AnyData
+	for ix, arg := range method.InArgs {
+		argptrs[ix] = vdl.ZeroValue(arg.Type)
 	}
 
-	return argptrs, method.Tags, nil
+	tags := make([]interface{}, len(method.Tags))
+	for ix, tag := range method.Tags {
+		tags[ix] = (interface{})(tag)
+	}
+
+	return argptrs, tags, nil
 }
 
 // Invoke implements the Invoker interface.
 func (i *invoker) Invoke(methodName string, call ipc.ServerCall, argptrs []interface{}) ([]interface{}, error) {
-
-	if pi := i.predefinedInvokers[methodName]; pi != nil {
-		return pi.Invoke(methodName, call, argptrs)
-	}
-
-	if _, ok := i.sig.Methods[methodName]; !ok {
-		return nil, verror.NoExistf("method name not found in IDL: %s", methodName)
-	}
-
 	replychan := i.invokeFunc(methodName, argptrs, call)
 
 	// Wait for the result
 	reply := <-replychan
 
-	var err error = nil
+	var err error
 	if reply.Err != nil {
 		err = reply.Err
-	}
-
-	for i, v := range reply.Results {
-		if v == nil {
-			reply.Results[i] = typedNil
-		}
 	}
 
 	// We always assume JavaScript services might return error.
 	// JavaScript returns non-error results in reply.Results & error in reply.Err
 	// We add the error as the last result of the ipc invoke call since last
 	// out arg is where application error is expected to be.
-	results := make([]interface{}, len(reply.Results)+1)
+	results := make([]interface{}, len(reply.Results))
 	results = append(reply.Results, err)
 
 	return results, nil
@@ -102,12 +75,13 @@ func (i *invoker) Globber() *ipc.GlobState {
 	return nil
 }
 
-// TODO(bjornick,toddw): Implement this for JS.
-func (i *invoker) Signature(ctx ipc.ServerContext) ([]vdlsig.Interface, error) {
-	return nil, nil
+func (i *invoker) Signature(ctx ipc.ServerContext) ([]signature.Interface, error) {
+	return i.signature, nil
 }
 
-// TODO(bjornick,toddw): Implement this for JS.
-func (i *invoker) MethodSignature(ctx ipc.ServerContext, method string) (vdlsig.Method, error) {
-	return vdlsig.Method{}, nil
+func (i *invoker) MethodSignature(ctx ipc.ServerContext, method string) (signature.Method, error) {
+	if methodSig, ok := signature.FirstMethod(i.signature, method); ok {
+		return methodSig, nil
+	}
+	return signature.Method{}, verror.NoExistf("Method %q not found in signature", method)
 }

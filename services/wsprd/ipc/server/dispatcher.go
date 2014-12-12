@@ -2,18 +2,16 @@ package server
 
 import (
 	"bytes"
-	"encoding/hex"
 	"encoding/json"
 	"sync"
 
 	"veyron.io/wspr/veyron/services/wsprd/lib"
-	"veyron.io/wspr/veyron/services/wsprd/signature"
 
 	"veyron.io/veyron/veyron2/ipc"
 	"veyron.io/veyron/veyron2/security"
+	"veyron.io/veyron/veyron2/vdl/vdlroot/src/signature"
 	"veyron.io/veyron/veyron2/verror2"
 	"veyron.io/veyron/veyron2/vlog"
-	"veyron.io/veyron/veyron2/vom2"
 )
 
 type flowFactory interface {
@@ -22,17 +20,24 @@ type flowFactory interface {
 }
 
 type invokerFactory interface {
-	createInvoker(handle int64, signature signature.JSONServiceSignature) (ipc.Invoker, error)
+	createInvoker(handle int64, signature []signature.Interface) (ipc.Invoker, error)
 }
 
 type authFactory interface {
 	createAuthorizer(handle int64, hasAuthorizer bool) (security.Authorizer, error)
 }
 
-type lookupReply struct {
+type lookupIntermediateReply struct {
 	Handle        int64
 	HasAuthorizer bool
 	Signature     string
+	Err           *verror2.Standard
+}
+
+type lookupReply struct {
+	Handle        int64
+	HasAuthorizer bool
+	Signature     []signature.Interface
 	Err           *verror2.Standard
 }
 
@@ -81,7 +86,7 @@ func (d *dispatcher) Lookup(suffix string) (interface{}, security.Authorizer, er
 	if err := flow.Writer.Send(lib.ResponseDispatcherLookup, message); err != nil {
 		ch <- lookupReply{Err: verror2.Convert(verror2.Internal, nil, err).(*verror2.Standard)}
 	}
-	request := <-ch
+	reply := <-ch
 
 	d.mu.Lock()
 	delete(d.outstandingLookups, flow.ID)
@@ -89,37 +94,23 @@ func (d *dispatcher) Lookup(suffix string) (interface{}, security.Authorizer, er
 
 	d.flowFactory.cleanupFlow(flow.ID)
 
-	if request.Err != nil {
-		return nil, nil, request.Err
+	if reply.Err != nil {
+		return nil, nil, reply.Err
 	}
-
-	if request.Handle < 0 {
+	if reply.Handle < 0 {
 		return nil, nil, verror2.Make(verror2.NoExist, nil, "Dispatcher", suffix)
 	}
 
-	var sig signature.JSONServiceSignature
-	b, err := hex.DecodeString(request.Signature)
+	invoker, err := d.invokerFactory.createInvoker(reply.Handle, reply.Signature)
 	if err != nil {
-		return nil, nil, verror2.Convert(verror2.Internal, nil, err)
+		return nil, nil, err
 	}
-	buf := bytes.NewBuffer(b)
-	decoder, err := vom2.NewDecoder(buf)
-	if err != nil {
-		return nil, nil, verror2.Convert(verror2.Internal, nil, err)
-	}
-
-	if err := decoder.Decode(&sig); err != nil {
-		return nil, nil, verror2.Convert(verror2.Internal, nil, err)
-	}
-
-	invoker, err := d.invokerFactory.createInvoker(request.Handle, sig)
+	auth, err := d.authFactory.createAuthorizer(reply.Handle, reply.HasAuthorizer)
 	if err != nil {
 		return nil, nil, err
 	}
 
-	auth, err := d.authFactory.createAuthorizer(request.Handle, request.HasAuthorizer)
-
-	return invoker, auth, err
+	return invoker, auth, nil
 }
 
 func (d *dispatcher) handleLookupResponse(id int64, data string) {
@@ -133,14 +124,26 @@ func (d *dispatcher) handleLookupResponse(id int64, data string) {
 		return
 	}
 
-	var request lookupReply
+	var intermediateReply lookupIntermediateReply
 	decoder := json.NewDecoder(bytes.NewBufferString(data))
-	if err := decoder.Decode(&request); err != nil {
+	if err := decoder.Decode(&intermediateReply); err != nil {
 		err2 := verror2.Convert(verror2.Internal, nil, err).(verror2.Standard)
-		request = lookupReply{Err: &err2}
+		intermediateReply = lookupIntermediateReply{Err: &err2}
 		d.logger.Errorf("unmarshaling invoke request failed: %v, %s", err, data)
 	}
-	ch <- request
+
+	reply := lookupReply{
+		Handle:        intermediateReply.Handle,
+		HasAuthorizer: intermediateReply.HasAuthorizer,
+		Err:           intermediateReply.Err,
+	}
+	if reply.Err == nil && intermediateReply.Signature != "" {
+		if err := lib.VomDecode(intermediateReply.Signature, &reply.Signature); err != nil {
+			err2 := verror2.Convert(verror2.Internal, nil, err).(verror2.Standard)
+			reply.Err = &err2
+		}
+	}
+	ch <- reply
 }
 
 // StopServing implements dispatcher StopServing.

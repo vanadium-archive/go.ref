@@ -12,14 +12,11 @@ import (
 	"veyron.io/veyron/veyron2/options"
 	"veyron.io/veyron/veyron2/rt"
 	"veyron.io/veyron/veyron2/security"
-	"veyron.io/veyron/veyron2/vdl/vdlutil"
+	"veyron.io/veyron/veyron2/vdl"
+	"veyron.io/veyron/veyron2/vdl/vdlroot/src/signature"
 	"veyron.io/veyron/veyron2/verror2"
-	"veyron.io/veyron/veyron2/vom"
-	vom_wiretype "veyron.io/veyron/veyron2/vom/wiretype"
-	"veyron.io/veyron/veyron2/wiretype"
 	"veyron.io/wspr/veyron/services/wsprd/lib"
 	"veyron.io/wspr/veyron/services/wsprd/lib/testwriter"
-	"veyron.io/wspr/veyron/services/wsprd/signature"
 
 	tsecurity "veyron.io/veyron/veyron/lib/testutil/security"
 	"veyron.io/veyron/veyron/profiles"
@@ -75,11 +72,11 @@ func newPrincipal(selfBlessing string) security.Principal {
 
 type simpleAdder struct{}
 
-func (s simpleAdder) Add(_ ipc.ServerCall, a, b int32) (int32, error) {
+func (s simpleAdder) Add(_ ipc.ServerContext, a, b int32) (int32, error) {
 	return a + b, nil
 }
 
-func (s simpleAdder) Divide(_ ipc.ServerCall, a, b int32) (int32, error) {
+func (s simpleAdder) Divide(_ ipc.ServerContext, a, b int32) (int32, error) {
 	if b == 0 {
 		return 0, verror2.Make(verror2.BadArg, nil, "div 0")
 	}
@@ -96,43 +93,28 @@ func (s simpleAdder) StreamingAdd(call ipc.ServerCall) (int32, error) {
 	return total, nil
 }
 
-func (s simpleAdder) Signature(call ipc.ServerCall) (ipc.ServiceSignature, error) {
-	result := ipc.ServiceSignature{Methods: make(map[string]ipc.MethodSignature)}
-	result.Methods["Add"] = ipc.MethodSignature{
-		InArgs: []ipc.MethodArgument{
-			{Name: "A", Type: 36},
-			{Name: "B", Type: 36},
+var simpleAddrSig = []signature.Interface{
+	{
+		Doc: "The empty interface contains methods not attached to any interface.",
+		Methods: []signature.Method{
+			{
+				Name:    "Add",
+				InArgs:  []signature.Arg{{Type: vdl.Int32Type}, {Type: vdl.Int32Type}},
+				OutArgs: []signature.Arg{{Type: vdl.Int32Type}, {Type: vdl.ErrorType}},
+			},
+			{
+				Name:    "Divide",
+				InArgs:  []signature.Arg{{Type: vdl.Int32Type}, {Type: vdl.Int32Type}},
+				OutArgs: []signature.Arg{{Type: vdl.Int32Type}, {Type: vdl.ErrorType}},
+			},
+			{
+				Name:      "StreamingAdd",
+				OutArgs:   []signature.Arg{{Type: vdl.Int32Type}, {Type: vdl.ErrorType}},
+				InStream:  &signature.Arg{Type: vdl.AnyType},
+				OutStream: &signature.Arg{Type: vdl.AnyType},
+			},
 		},
-		OutArgs: []ipc.MethodArgument{
-			{Name: "Value", Type: 36},
-			{Name: "Err", Type: 65},
-		},
-	}
-
-	result.Methods["Divide"] = ipc.MethodSignature{
-		InArgs: []ipc.MethodArgument{
-			{Name: "A", Type: 36},
-			{Name: "B", Type: 36},
-		},
-		OutArgs: []ipc.MethodArgument{
-			{Name: "Value", Type: 36},
-			{Name: "Err", Type: 65},
-		},
-	}
-
-	result.Methods["StreamingAdd"] = ipc.MethodSignature{
-		InArgs: []ipc.MethodArgument{},
-		OutArgs: []ipc.MethodArgument{
-			{Name: "Value", Type: 36},
-			{Name: "Err", Type: 65},
-		},
-		InStream:  36,
-		OutStream: 36,
-	}
-	result.TypeDefs = []vdlutil.Any{
-		wiretype.NamedPrimitiveType{Type: 0x1, Name: "error", Tags: []string(nil)}}
-
-	return result, nil
+	},
 }
 
 func startAnyServer(servesMT bool, dispatcher ipc.Dispatcher) (ipc.Server, naming.Endpoint, error) {
@@ -173,24 +155,6 @@ func startMountTableServer() (ipc.Server, naming.Endpoint, error) {
 	return startAnyServer(true, mt)
 }
 
-var adderServiceSignature signature.JSONServiceSignature = signature.JSONServiceSignature{
-	"add": signature.JSONMethodSignature{
-		InArgs:      []string{"A", "B"},
-		NumOutArgs:  2,
-		IsStreaming: false,
-	},
-	"divide": signature.JSONMethodSignature{
-		InArgs:      []string{"A", "B"},
-		NumOutArgs:  2,
-		IsStreaming: false,
-	},
-	"streamingAdd": signature.JSONMethodSignature{
-		InArgs:      []string{},
-		NumOutArgs:  2,
-		IsStreaming: true,
-	},
-}
-
 func TestGetGoServerSignature(t *testing.T) {
 	s, endpoint, err := startAdderServer()
 	if err != nil {
@@ -206,24 +170,22 @@ func TestGetGoServerSignature(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create controller: %v", err)
 	}
-	jsSig, err := controller.getSignature(r.NewContext(), "/"+endpoint.String())
+	sig, err := controller.getSignature(r.NewContext(), "/"+endpoint.String())
 	if err != nil {
 		t.Fatalf("Failed to get signature: %v", err)
 	}
-
-	if !reflect.DeepEqual(jsSig, adderServiceSignature) {
-		t.Fatalf("Unexpected signature, got :%v, expected: %v", jsSig, adderServiceSignature)
+	if got, want := sig, simpleAddrSig; !reflect.DeepEqual(got, want) {
+		t.Fatalf("Unexpected signature, got :%#v, want: %#v", got, want)
 	}
 }
 
 type goServerTestCase struct {
-	method             string
-	inArgs             []json.RawMessage
-	numOutArgs         int32
-	streamingInputs    []string
-	streamingInputType vom.Type
-	expectedStream     []testwriter.Response
-	expectedError      error
+	method          string
+	inArgs          []interface{}
+	numOutArgs      int32
+	streamingInputs []interface{}
+	expectedStream  []lib.Response
+	expectedError   error
 }
 
 func runGoServerTestCase(t *testing.T, test goServerTestCase) {
@@ -253,13 +215,13 @@ func runGoServerTestCase(t *testing.T, test goServerTestCase) {
 		}
 		go func() {
 			for _, value := range test.streamingInputs {
-				controller.SendOnStream(0, value, &writer)
+				controller.SendOnStream(0, lib.VomEncodeOrDie(value), &writer)
 			}
 			controller.CloseStream(0)
 		}()
 	}
 
-	request := veyronTempRPC{
+	request := VeyronRPC{
 		Name:        "/" + endpoint.String(),
 		Method:      test.method,
 		InArgs:      test.inArgs,
@@ -273,21 +235,14 @@ func runGoServerTestCase(t *testing.T, test goServerTestCase) {
 	}
 }
 
-func vomEncodeOrDie(v interface{}) string {
-	s, err := lib.VomEncode(v)
-	if err != nil {
-		panic(err)
-	}
-	return s
-}
 func TestCallingGoServer(t *testing.T) {
 	runGoServerTestCase(t, goServerTestCase{
 		method:     "Add",
-		inArgs:     []json.RawMessage{json.RawMessage("2"), json.RawMessage("3")},
+		inArgs:     []interface{}{2, 3},
 		numOutArgs: 2,
-		expectedStream: []testwriter.Response{
-			testwriter.Response{
-				Message: vomEncodeOrDie([]interface{}{int32(5)}),
+		expectedStream: []lib.Response{
+			lib.Response{
+				Message: lib.VomEncodeOrDie([]interface{}{int32(5)}),
 				Type:    lib.ResponseFinal,
 			},
 		},
@@ -297,7 +252,7 @@ func TestCallingGoServer(t *testing.T) {
 func TestCallingGoServerWithError(t *testing.T) {
 	runGoServerTestCase(t, goServerTestCase{
 		method:        "Divide",
-		inArgs:        []json.RawMessage{json.RawMessage("1"), json.RawMessage("0")},
+		inArgs:        []interface{}{1, 0},
 		numOutArgs:    2,
 		expectedError: verror2.Make(verror2.BadArg, nil, "div 0"),
 	})
@@ -305,34 +260,32 @@ func TestCallingGoServerWithError(t *testing.T) {
 
 func TestCallingGoWithStreaming(t *testing.T) {
 	runGoServerTestCase(t, goServerTestCase{
-		method:             "StreamingAdd",
-		inArgs:             []json.RawMessage{},
-		streamingInputs:    []string{"1", "2", "3", "4"},
-		streamingInputType: vom_wiretype.Type{ID: 36},
-		numOutArgs:         2,
-		expectedStream: []testwriter.Response{
-			testwriter.Response{
-				Message: vomEncodeOrDie(int32(1)),
+		method:          "StreamingAdd",
+		streamingInputs: []interface{}{1, 2, 3, 4},
+		numOutArgs:      2,
+		expectedStream: []lib.Response{
+			lib.Response{
+				Message: lib.VomEncodeOrDie(int32(1)),
 				Type:    lib.ResponseStream,
 			},
-			testwriter.Response{
-				Message: vomEncodeOrDie(int32(3)),
+			lib.Response{
+				Message: lib.VomEncodeOrDie(int32(3)),
 				Type:    lib.ResponseStream,
 			},
-			testwriter.Response{
-				Message: vomEncodeOrDie(int32(6)),
+			lib.Response{
+				Message: lib.VomEncodeOrDie(int32(6)),
 				Type:    lib.ResponseStream,
 			},
-			testwriter.Response{
-				Message: vomEncodeOrDie(int32(10)),
+			lib.Response{
+				Message: lib.VomEncodeOrDie(int32(10)),
 				Type:    lib.ResponseStream,
 			},
-			testwriter.Response{
+			lib.Response{
 				Message: nil,
 				Type:    lib.ResponseStreamClose,
 			},
-			testwriter.Response{
-				Message: vomEncodeOrDie([]interface{}{int32(10)}),
+			lib.Response{
+				Message: lib.VomEncodeOrDie([]interface{}{int32(10)}),
 				Type:    lib.ResponseFinal,
 			},
 		},
@@ -446,9 +399,7 @@ type jsServerTestCase struct {
 	clientStream []interface{}
 	// The set of JSON streaming messages sent from Javascript to the
 	// app.
-	serverStream []string
-	// The stream that we expect the client to see.
-	expectedServerStream []interface{}
+	serverStream []interface{}
 	// The final response sent by the Javascript server to the
 	// app.
 	finalResponse interface{}
@@ -460,43 +411,6 @@ type jsServerTestCase struct {
 	// to the app.
 	hasAuthorizer bool
 	authError     verror2.E
-}
-
-func sendServerStream(t *testing.T, controller *Controller, test *jsServerTestCase, w lib.ClientWriter, expectedFlow int64) {
-	for _, msg := range test.serverStream {
-		controller.SendOnStream(expectedFlow, msg, w)
-	}
-
-	serverReply := map[string]interface{}{
-		"Results": []interface{}{test.finalResponse},
-		"Err":     test.err,
-	}
-
-	bytes, err := json.Marshal(serverReply)
-	if err != nil {
-		t.Fatalf("Failed to serialize the reply: %v", err)
-	}
-	controller.HandleServerResponse(expectedFlow, string(bytes))
-}
-
-// Replaces "localEndpoint" and "remoteEndpoint" in security context of the
-// message passed in with constant strings "localEndpoint" and "remoteEndpoint".
-func cleanUpAuthRequest(message *testwriter.Response, t *testing.T) {
-	// We should make sure that remoteEndpoint exists in the last message and
-	// change it to a fixed string.
-	if message.Type != lib.ResponseAuthRequest {
-		t.Errorf("Unexpected auth message %v", message)
-		return
-	}
-	context := message.Message.(map[string]interface{})["context"].(map[string]interface{})
-
-	keysToReplace := []string{"localEndpoint", "remoteEndpoint"}
-	for _, key := range keysToReplace {
-		if context[key] == nil || context[key] == "" {
-			t.Errorf("Unexpected auth message %v", message)
-		}
-		context[key] = key
-	}
 }
 
 func runJsServerTestCase(t *testing.T, test jsServerTestCase) {
@@ -525,13 +439,13 @@ func runJsServerTestCase(t *testing.T, test jsServerTestCase) {
 
 	vomClientStream := []string{}
 	for _, m := range test.clientStream {
-		vomClientStream = append(vomClientStream, vomEncodeOrDie(m))
+		vomClientStream = append(vomClientStream, lib.VomEncodeOrDie(m))
 	}
 	mock := &mockJSServer{
 		controller:           rt.controller,
 		t:                    t,
 		method:               test.method,
-		serviceSignature:     adderServiceSignature,
+		serviceSignature:     simpleAddrSig,
 		expectedClientStream: vomClientStream,
 		serverStream:         test.serverStream,
 		hasAuthorizer:        test.hasAuthorizer,
@@ -566,7 +480,7 @@ func runJsServerTestCase(t *testing.T, test jsServerTestCase) {
 		t.Errorf("unexpected error on close: %v", err)
 	}
 
-	expectedStream := test.expectedServerStream
+	expectedStream := test.serverStream
 	for {
 		var data interface{}
 		if err := call.Recv(&data); err != nil {
@@ -587,7 +501,7 @@ func runJsServerTestCase(t *testing.T, test jsServerTestCase) {
 
 	err = call.Finish(&result, &err2)
 	if (err == nil && test.authError != nil) || (err != nil && test.authError == nil) {
-		t.Errorf("unexpected err :%v, %v", err, test.authError)
+		t.Errorf("unexpected err: %v, %v", err, test.authError)
 	}
 
 	if err != nil {
@@ -608,16 +522,16 @@ func runJsServerTestCase(t *testing.T, test jsServerTestCase) {
 func TestSimpleJSServer(t *testing.T) {
 	runJsServerTestCase(t, jsServerTestCase{
 		method:        "Add",
-		inArgs:        []interface{}{1.0, 2.0},
-		finalResponse: 3.0,
+		inArgs:        []interface{}{int32(1), int32(2)},
+		finalResponse: int32(3),
 	})
 }
 
 func TestJSServerWithAuthorizer(t *testing.T) {
 	runJsServerTestCase(t, jsServerTestCase{
 		method:        "Add",
-		inArgs:        []interface{}{1.0, 2.0},
-		finalResponse: 3.0,
+		inArgs:        []interface{}{int32(1), int32(2)},
+		finalResponse: int32(3),
 		hasAuthorizer: true,
 	})
 }
@@ -626,8 +540,8 @@ func TestJSServerWithError(t *testing.T) {
 	err := verror2.Make(verror2.Internal, nil)
 	runJsServerTestCase(t, jsServerTestCase{
 		method:        "Add",
-		inArgs:        []interface{}{1.0, 2.0},
-		finalResponse: 3.0,
+		inArgs:        []interface{}{int32(1), int32(2)},
+		finalResponse: int32(3),
 		err:           err,
 	})
 }
@@ -636,8 +550,8 @@ func TestJSServerWithAuthorizerAndAuthError(t *testing.T) {
 	err := verror2.Make(verror2.Internal, nil)
 	runJsServerTestCase(t, jsServerTestCase{
 		method:        "Add",
-		inArgs:        []interface{}{1.0, 2.0},
-		finalResponse: 3.0,
+		inArgs:        []interface{}{int32(1), int32(2)},
+		finalResponse: int32(3),
 		hasAuthorizer: true,
 		authError:     err,
 	})
@@ -645,27 +559,25 @@ func TestJSServerWithAuthorizerAndAuthError(t *testing.T) {
 func TestJSServerWihStreamingInputs(t *testing.T) {
 	runJsServerTestCase(t, jsServerTestCase{
 		method:        "StreamingAdd",
-		clientStream:  []interface{}{3.0, 4.0},
-		finalResponse: 10.0,
+		clientStream:  []interface{}{int32(3), int32(4)},
+		finalResponse: int32(10),
 	})
 }
 
 func TestJSServerWihStreamingOutputs(t *testing.T) {
 	runJsServerTestCase(t, jsServerTestCase{
-		method:               "StreamingAdd",
-		serverStream:         []string{"3", "4"},
-		expectedServerStream: []interface{}{3.0, 4.0},
-		finalResponse:        10.0,
+		method:        "StreamingAdd",
+		serverStream:  []interface{}{int32(3), int32(4)},
+		finalResponse: int32(10),
 	})
 }
 
 func TestJSServerWihStreamingInputsAndOutputs(t *testing.T) {
 	runJsServerTestCase(t, jsServerTestCase{
-		method:               "StreamingAdd",
-		clientStream:         []interface{}{1.0, 2.0},
-		serverStream:         []string{"3", "4"},
-		expectedServerStream: []interface{}{3.0, 4.0},
-		finalResponse:        10.0,
+		method:        "StreamingAdd",
+		clientStream:  []interface{}{int32(1), int32(2)},
+		serverStream:  []interface{}{int32(3), int32(4)},
+		finalResponse: int32(10),
 	})
 }
 

@@ -75,11 +75,6 @@ const (
 	WebsocketRemoveName = 19
 )
 
-type Response struct {
-	Type    lib.ResponseType
-	Message interface{}
-}
-
 type Message struct {
 	Id int64
 	// This contains the json encoded payload.
@@ -93,7 +88,6 @@ type Message struct {
 func (c *Controller) HandleIncomingMessage(msg Message, w lib.ClientWriter) {
 	// TODO(mattr): Get the proper context information from javascript.
 	ctx := c.RT().NewContext()
-
 	switch msg.Type {
 	case VeyronRequestMessage:
 		c.HandleVeyronRequest(ctx, msg.Id, msg.Data, w)
@@ -139,7 +133,7 @@ func (c *Controller) HandleIncomingMessage(msg Message, w lib.ClientWriter) {
 // TODO(bprosnitz) Don't double-encode
 func ConstructOutgoingMessage(messageId int64, messageType lib.ResponseType, data interface{}) (string, error) {
 	var buf bytes.Buffer
-	if err := vom.ObjToJSON(&buf, vom.ValueOf(Response{Type: messageType, Message: data})); err != nil {
+	if err := vom.ObjToJSON(&buf, vom.ValueOf(lib.Response{Type: messageType, Message: data})); err != nil {
 		return "", err
 	}
 

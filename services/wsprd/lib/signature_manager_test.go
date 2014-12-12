@@ -6,23 +6,24 @@ import (
 
 	_ "veyron.io/veyron/veyron/profiles"
 	mocks_ipc "veyron.io/veyron/veyron/runtimes/google/testing/mocks/ipc"
-	"veyron.io/veyron/veyron2/ipc"
 	"veyron.io/veyron/veyron2/rt"
-	"veyron.io/veyron/veyron2/vdl/vdlutil"
-	"veyron.io/veyron/veyron2/wiretype"
+	"veyron.io/veyron/veyron2/vdl"
+	"veyron.io/veyron/veyron2/vdl/vdlroot/src/signature"
 )
 
 const (
 	name = "/veyron/name"
 )
 
-func expectedSignature() ipc.ServiceSignature {
-	return ipc.ServiceSignature{
-		Methods: make(map[string]ipc.MethodSignature),
-		TypeDefs: []vdlutil.Any{
-			wiretype.NamedPrimitiveType{
-				Name: "veyron.io/veyron/veyron2/vdlutil.AnyData",
-				Type: wiretype.TypeIDInterface,
+func wantSignature() []signature.Interface {
+	return []signature.Interface{
+		{
+			Methods: []signature.Method{
+				{
+					Name:    "Method1",
+					InArgs:  []signature.Arg{{Type: vdl.StringType}},
+					OutArgs: []signature.Arg{{Type: vdl.ErrorType}},
+				},
 			},
 		},
 	}
@@ -31,48 +32,9 @@ func expectedSignature() ipc.ServiceSignature {
 func client() *mocks_ipc.SimpleMockClient {
 	return mocks_ipc.NewSimpleClient(
 		map[string][]interface{}{
-			"Signature": []interface{}{expectedSignature(), nil},
+			"__Signature": []interface{}{wantSignature(), nil},
 		},
 	)
-}
-
-func assertMethodSignatureAsExpected(t *testing.T, got, expected ipc.MethodSignature) {
-	if !reflect.DeepEqual(got.InArgs, expected.InArgs) {
-		t.Errorf(`InArgs do not match: result "%v", want "%v"`, got.InArgs, expected.InArgs)
-		return
-	}
-	if !reflect.DeepEqual(got.OutArgs, expected.OutArgs) {
-		t.Errorf(`OutArgs do not match: result "%v", want "%v"`, got.OutArgs, expected.OutArgs)
-		return
-	}
-	if got.InStream != expected.InStream {
-		t.Errorf(`InStreams do not match: result "%v", want "%v"`, got.InStream, expected.InStream)
-		return
-	}
-	if got.OutStream != expected.OutStream {
-		t.Errorf(`OutStream do not match: result "%v", want "%v"`, got.OutStream, expected.OutStream)
-		return
-	}
-}
-
-func assertSignatureAsExpected(t *testing.T, got, expected *ipc.ServiceSignature) {
-	if !reflect.DeepEqual(got.TypeDefs, expected.TypeDefs) {
-		t.Errorf(`TypeDefs do not match: result "%v", want "%v"`, got.TypeDefs, expected.TypeDefs)
-		return
-	}
-	if n, m := len(got.Methods), len(expected.Methods); n != m {
-		t.Errorf(`Wrong number of signature methods: result "%d", want "%d"`, n, m)
-		return
-	}
-	for gotName, gotMethod := range got.Methods {
-		expectedMethod, ok := expected.Methods[gotName]
-		if !ok {
-			t.Errorf(`Method "%v" was expected but not found`, gotName)
-			return
-		}
-
-		assertMethodSignatureAsExpected(t, gotMethod, expectedMethod)
-	}
 }
 
 func TestFetching(t *testing.T) {
@@ -88,8 +50,9 @@ func TestFetching(t *testing.T) {
 		t.Errorf(`Did not expect an error but got %v`, err)
 		return
 	}
-	expected := expectedSignature()
-	assertSignatureAsExpected(t, got, &expected)
+	if want := wantSignature(); !reflect.DeepEqual(got, want) {
+		t.Errorf(`Signature got %v, want %v`, got, want)
+	}
 }
 
 func TestThatCachedAfterFetching(t *testing.T) {
@@ -106,7 +69,9 @@ func TestThatCachedAfterFetching(t *testing.T) {
 		t.Errorf(`Signature manager did not cache the results`)
 		return
 	}
-	assertSignatureAsExpected(t, &cache.signature, sig)
+	if got, want := cache.sig, sig; !reflect.DeepEqual(got, want) {
+		t.Errorf(`Cached signature got %v, want %v`, got, want)
+	}
 }
 
 func TestThatCacheIsUsed(t *testing.T) {
@@ -125,7 +90,7 @@ func TestThatCacheIsUsed(t *testing.T) {
 
 	// expect number of calls to Signature method of client to still be 1 since cache
 	// should have been used despite the second call
-	if client.TimesCalled("Signature") != 1 {
+	if client.TimesCalled("__Signature") != 1 {
 		t.Errorf("Signature cache was not used for the second call")
 	}
 }
@@ -172,7 +137,7 @@ func TestThatTTLExpires(t *testing.T) {
 	sm.Signature(runtime.NewContext(), name, client)
 
 	// expect number of calls to Signature method of client to be 2 since cache should have expired
-	if client.TimesCalled("Signature") != 2 {
+	if client.TimesCalled("__Signature") != 2 {
 		t.Errorf("Cache was still used but TTL had passed. It should have been fetched again")
 	}
 }

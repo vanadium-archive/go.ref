@@ -2,28 +2,26 @@ package app
 
 import (
 	"bytes"
-	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"reflect"
 	"sync"
 	"testing"
 
-	"veyron.io/veyron/veyron2/vom2"
+	"veyron.io/veyron/veyron2/vdl/vdlroot/src/signature"
 	"veyron.io/wspr/veyron/services/wsprd/ipc/server"
 	"veyron.io/wspr/veyron/services/wsprd/lib"
 	"veyron.io/wspr/veyron/services/wsprd/principal"
-	"veyron.io/wspr/veyron/services/wsprd/signature"
 )
 
 type mockJSServer struct {
 	controller           *Controller
 	t                    *testing.T
 	method               string
-	serviceSignature     signature.JSONServiceSignature
+	serviceSignature     []signature.Interface
 	sender               sync.WaitGroup
 	expectedClientStream []string
-	serverStream         []string
+	serverStream         []interface{}
 	hasAuthorizer        bool
 	authError            error
 	inArgs               []interface{}
@@ -69,19 +67,6 @@ func (m *mockJSServer) Error(err error) {
 	panic(err)
 }
 
-func vomDecode(s string, v interface{}) error {
-	b, err := hex.DecodeString(s)
-	if err != nil {
-		return err
-	}
-	decoder, err := vom2.NewDecoder(bytes.NewBuffer(b))
-	if err != nil {
-		return err
-	}
-
-	return decoder.Decode(v)
-}
-
 func normalize(msg interface{}) (map[string]interface{}, error) {
 	// We serialize and deserialize the reponse so that we can do deep equal with
 	// messages that contain non-exported structs.
@@ -114,7 +99,7 @@ func (m *mockJSServer) handleDispatcherLookup(v interface{}) error {
 	}
 	bytes, err := json.Marshal(map[string]interface{}{
 		"handle":        0,
-		"signature":     vomEncodeOrDie(m.serviceSignature),
+		"signature":     lib.VomEncodeOrDie(m.serviceSignature),
 		"hasAuthorizer": m.hasAuthorizer,
 	})
 	if err != nil {
@@ -146,7 +131,7 @@ func (m *mockJSServer) handleAuthRequest(v interface{}) error {
 	}
 
 	var msg server.AuthRequest
-	if err := vomDecode(v.(string), &msg); err != nil {
+	if err := lib.VomDecode(v.(string), &msg); err != nil {
 		m.controller.HandleAuthResponse(m.flowCount, internalErrJSON(fmt.Sprintf("error decoding %v:", err)))
 		return nil
 	}
@@ -221,7 +206,7 @@ func (m *mockJSServer) handleServerRequest(v interface{}) error {
 	}
 
 	var msg server.ServerRPCRequest
-	if err := vomDecode(v.(string), &msg); err != nil {
+	if err := lib.VomDecode(v.(string), &msg); err != nil {
 		m.controller.HandleServerResponse(m.flowCount, internalErrJSON(err))
 		return nil
 
@@ -272,8 +257,8 @@ func (m *mockJSServer) handleServerRequest(v interface{}) error {
 
 func (m *mockJSServer) sendServerStream() {
 	defer m.sender.Done()
-	for _, msg := range m.serverStream {
-		m.controller.SendOnStream(m.rpcFlow, msg, m)
+	for _, v := range m.serverStream {
+		m.controller.SendOnStream(m.rpcFlow, lib.VomEncodeOrDie(v), m)
 	}
 }
 
@@ -294,15 +279,14 @@ func (m *mockJSServer) handleStream(msg interface{}) error {
 
 func (m *mockJSServer) handleStreamClose(msg interface{}) error {
 	m.sender.Wait()
-	serverReply := map[string]interface{}{
-		"Results": []interface{}{m.finalResponse},
-		"Err":     m.finalError,
+	reply := lib.ServerRPCReply{
+		Results: []interface{}{m.finalResponse},
+		Err:     m.finalError,
 	}
-
-	bytes, err := json.Marshal(serverReply)
+	vomReply, err := lib.VomEncode(reply)
 	if err != nil {
 		m.t.Fatalf("Failed to serialize the reply: %v", err)
 	}
-	m.controller.HandleServerResponse(m.rpcFlow, string(bytes))
+	m.controller.HandleServerResponse(m.rpcFlow, vomReply)
 	return nil
 }
