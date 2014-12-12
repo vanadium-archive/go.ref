@@ -97,8 +97,10 @@ func TestProfileRepository(t *testing.T) {
 
 	// Generate credentials.
 	root := security.NewPrincipal("root")
-	credentials := security.NewVeyronCredentials(root, "test-credentials")
-	defer os.RemoveAll(credentials)
+	serverCred := security.NewVeyronCredentials(root, "server")
+	defer os.RemoveAll(serverCred)
+	clientCred := security.NewVeyronCredentials(root, "server/client")
+	defer os.RemoveAll(clientCred)
 
 	// Start the profile repository.
 	profileRepoBin := filepath.Join(binDir, "profiled")
@@ -111,7 +113,7 @@ func TestProfileRepository(t *testing.T) {
 	args := []string{
 		"-name=" + profileRepoName, "-store=" + profileRepoStore,
 		"-veyron.tcp.address=127.0.0.1:0",
-		"-veyron.credentials=" + credentials,
+		"-veyron.credentials=" + serverCred,
 		"-veyron.namespace.root=" + mt,
 	}
 	serverProcess, err := integration.StartServer(profileRepoBin, args)
@@ -122,34 +124,34 @@ func TestProfileRepository(t *testing.T) {
 
 	// Create a profile.
 	const profile = "test-profile"
-	putProfile(t, binDir, credentials, mt, profileRepoName, profile)
+	putProfile(t, binDir, clientCred, mt, profileRepoName, profile)
 
 	// Retrieve the profile label and check it matches the
 	// expected label.
-	profileLabel := profileCommandOutput(t, false, "label", binDir, credentials, mt, profileRepoName, profile)
+	profileLabel := profileCommandOutput(t, false, "label", binDir, clientCred, mt, profileRepoName, profile)
 	if got, want := profileLabel, "example"; got != want {
 		t.Fatalf("unexpected output: got %v, want %v", got, want)
 	}
 
 	// Retrieve the profile description and check it matches the
 	// expected description.
-	profileDesc := profileCommandOutput(t, false, "description", binDir, credentials, mt, profileRepoName, profile)
+	profileDesc := profileCommandOutput(t, false, "description", binDir, clientCred, mt, profileRepoName, profile)
 	if got, want := profileDesc, "Example profile to test the profile manager implementation."; got != want {
 		t.Fatalf("unexpected output: got %v, want %v", got, want)
 	}
 
 	// Retrieve the profile specification and check it matches the
 	// expected specification.
-	profileSpec := profileCommandOutput(t, false, "specification", binDir, credentials, mt, profileRepoName, profile)
+	profileSpec := profileCommandOutput(t, false, "specification", binDir, clientCred, mt, profileRepoName, profile)
 	if got, want := profileSpec, `profile.Specification{Arch:"amd64", Description:"Example profile to test the profile manager implementation.", Format:"ELF", Libraries:map[profile.Library]struct {}{profile.Library{Name:"foo", MajorVersion:"1", MinorVersion:"0"}:struct {}{}}, Label:"example", OS:"linux"}`; got != want {
 		t.Fatalf("unexpected output: got %v, want %v", got, want)
 	}
 
 	// Remove the profile.
-	removeProfile(t, binDir, credentials, mt, profileRepoName, profile)
+	removeProfile(t, binDir, clientCred, mt, profileRepoName, profile)
 
 	// Check that the profile no longer exists.
-	profileCommandOutput(t, true, "label", binDir, credentials, mt, profileRepoName, profile)
-	profileCommandOutput(t, true, "description", binDir, credentials, mt, profileRepoName, profile)
-	profileCommandOutput(t, true, "specification", binDir, credentials, mt, profileRepoName, profile)
+	profileCommandOutput(t, true, "label", binDir, clientCred, mt, profileRepoName, profile)
+	profileCommandOutput(t, true, "description", binDir, clientCred, mt, profileRepoName, profile)
+	profileCommandOutput(t, true, "specification", binDir, clientCred, mt, profileRepoName, profile)
 }

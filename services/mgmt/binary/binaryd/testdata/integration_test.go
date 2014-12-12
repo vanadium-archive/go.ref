@@ -150,9 +150,11 @@ func TestBinaryRepositoryIntegration(t *testing.T) {
 	defer handle.CloseStdin()
 
 	// Generate credentials.
-	principal := security.NewPrincipal("root")
-	credentials := security.NewVeyronCredentials(principal, "test-credentials")
-	defer os.RemoveAll(credentials)
+	rootPrin := security.NewPrincipal("root")
+	serverCred := security.NewVeyronCredentials(rootPrin, "server")
+	defer os.RemoveAll(serverCred)
+	clientCred := security.NewVeyronCredentials(rootPrin, "server/client")
+	defer os.RemoveAll(clientCred)
 
 	// Start the build server.
 	binaryRepoBin := filepath.Join(binDir, "binaryd")
@@ -161,7 +163,7 @@ func TestBinaryRepositoryIntegration(t *testing.T) {
 		"-name=" + binaryRepoName,
 		"-http=127.0.0.1:0",
 		"-veyron.tcp.address=127.0.0.1:0",
-		"-veyron.credentials=" + credentials,
+		"-veyron.credentials=" + serverCred,
 		"-veyron.namespace.root=" + mt,
 	}
 	serverProcess, err := integration.StartServer(binaryRepoBin, args)
@@ -181,7 +183,7 @@ func TestBinaryRepositoryIntegration(t *testing.T) {
 		t.Fatalf("Write() failed: %v", err)
 	}
 	binSuffix := "test-binary"
-	uploadFile(t, binDir, credentials, mt, binaryRepoName, binFile.Name(), binSuffix)
+	uploadFile(t, binDir, clientCred, mt, binaryRepoName, binFile.Name(), binSuffix)
 
 	// Upload a compressed version of the binary file.
 	tarFile := binFile.Name() + ".tar.gz"
@@ -194,13 +196,13 @@ func TestBinaryRepositoryIntegration(t *testing.T) {
 	}
 	defer os.Remove(tarFile)
 	tarSuffix := "test-compressed-file"
-	uploadFile(t, binDir, credentials, mt, binaryRepoName, tarFile, tarSuffix)
+	uploadFile(t, binDir, clientCred, mt, binaryRepoName, tarFile, tarSuffix)
 
 	// Download the binary file and check that it matches the
 	// original one and that it has the right file type.
 	downloadedBinFile := binFile.Name() + "-downloaded"
 	defer os.Remove(downloadedBinFile)
-	downloadFile(t, false, binDir, credentials, mt, binaryRepoName, downloadedBinFile, binSuffix)
+	downloadFile(t, false, binDir, clientCred, mt, binaryRepoName, downloadedBinFile, binSuffix)
 	compareFiles(t, binFile.Name(), downloadedBinFile)
 	checkFileType(t, downloadedBinFile, `{"Type":"application/octet-stream","Encoding":""}`)
 
@@ -209,13 +211,13 @@ func TestBinaryRepositoryIntegration(t *testing.T) {
 	// right file type.
 	downloadedTarFile := binFile.Name() + "-downloaded.tar.gz"
 	defer os.Remove(downloadedTarFile)
-	downloadFile(t, false, binDir, credentials, mt, binaryRepoName, downloadedTarFile, tarSuffix)
+	downloadFile(t, false, binDir, clientCred, mt, binaryRepoName, downloadedTarFile, tarSuffix)
 	compareFiles(t, tarFile, downloadedTarFile)
 	checkFileType(t, downloadedTarFile, `{"Type":"application/x-tar","Encoding":"gzip"}`)
 
 	// Fetch the root URL of the HTTP server used by the binary
 	// repository to serve URLs.
-	root := rootURL(t, binDir, credentials, mt, binaryRepoName)
+	root := rootURL(t, binDir, clientCred, mt, binaryRepoName)
 
 	// Download the binary file using the HTTP protocol and check
 	// that it matches the original one.
@@ -233,10 +235,10 @@ func TestBinaryRepositoryIntegration(t *testing.T) {
 	compareFiles(t, downloadedTarFile, downloadedTarFileURL)
 
 	// Delete the files.
-	deleteFile(t, binDir, credentials, mt, binaryRepoName, binSuffix)
-	deleteFile(t, binDir, credentials, mt, binaryRepoName, tarSuffix)
+	deleteFile(t, binDir, clientCred, mt, binaryRepoName, binSuffix)
+	deleteFile(t, binDir, clientCred, mt, binaryRepoName, tarSuffix)
 
 	// Check the files no longer exist.
-	downloadFile(t, true, binDir, credentials, mt, binaryRepoName, downloadedBinFile, binSuffix)
-	downloadFile(t, true, binDir, credentials, mt, binaryRepoName, downloadedTarFile, tarSuffix)
+	downloadFile(t, true, binDir, clientCred, mt, binaryRepoName, downloadedBinFile, binSuffix)
+	downloadFile(t, true, binDir, clientCred, mt, binaryRepoName, downloadedTarFile, tarSuffix)
 }

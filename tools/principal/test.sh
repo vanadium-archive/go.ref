@@ -71,8 +71,9 @@ main() {
   SEND_BLESSINGS_CMD="${PRINCIPAL_BIN_DIR}/${SEND_BLESSINGS_CMD}"
   $(${SEND_BLESSINGS_CMD}) || shell_test::fail "line ${LINENO}: ${SEND_BLESSINGS_CMD} failed"
   grep "Received blessings: alice/friend/carol/foralice" carol.recvblessings >/dev/null || shell_test::fail "line ${LINENO}: recvblessings did not log any blessings received $(cat carol.recvblessings)"
-  # Mucking around with the private key should fail
+  # Mucking around with the public key should fail
   "${PRINCIPAL_BIN}" --veyron.credentials=./carol --veyron.tcp.address=127.0.0.1:0 recvblessings >carol.recvblessings&
+  local -r RECV_BLESSINGS_PID="$!"
   shell::timed_wait_for "${shell_test_DEFAULT_MESSAGE_TIMEOUT}" carol.recvblessings "bless --remote_key" || shell_test::fail "line ${LINENO}: recvblessings did not print command for sender"
   SEND_BLESSINGS_CMD=$(grep "bless --remote_key" carol.recvblessings | sed -e 's|remote_key=|remote_key=BAD|')
   SEND_BLESSINGS_CMD="${PRINCIPAL_BIN_DIR}/${SEND_BLESSINGS_CMD}"
@@ -85,6 +86,7 @@ main() {
   grep "blessings received from unexpected sender" error >/dev/null || shell_test::fail "line ${LINENO}: unexpected sender error not printed"
   # Dump carol out, the only blessing that survives should be from the first
   # "bless" command. (alice/friend/carol).
+  kill -9 "${RECV_BLESSINGS_PID}"
   "${PRINCIPAL_BIN}" --veyron.credentials=./carol dump >carol.dump || shell_test::fail "line ${LINENO}: dump failed"
 
   # Any other commands to be run without VEYRON_CREDENTIALS set.

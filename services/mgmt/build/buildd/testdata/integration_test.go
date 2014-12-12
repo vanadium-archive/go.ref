@@ -69,8 +69,10 @@ func TestBuildServerIntegration(t *testing.T) {
 
 	// Generate credentials.
 	root := security.NewPrincipal("root")
-	credentials := security.NewVeyronCredentials(root, "test-credentials")
-	defer os.RemoveAll(credentials)
+	serverCred := security.NewVeyronCredentials(root, "server")
+	defer os.RemoveAll(serverCred)
+	clientCred := security.NewVeyronCredentials(root, "server/client")
+	defer os.RemoveAll(clientCred)
 
 	// Start the build server.
 	buildServerBin := filepath.Join(binDir, "buildd")
@@ -86,7 +88,7 @@ func TestBuildServerIntegration(t *testing.T) {
 	args := []string{
 		"-name=" + buildServerName, "-gobin=" + goBin, "-goroot=" + goRoot,
 		"-veyron.tcp.address=127.0.0.1:0",
-		"-veyron.credentials=" + credentials,
+		"-veyron.credentials=" + serverCred,
 		"-veyron.namespace.root=" + mtName,
 	}
 	serverProcess, err := integration.StartServer(buildServerBin, args)
@@ -116,7 +118,7 @@ func TestBuildServerIntegration(t *testing.T) {
 	}
 	var buildOut bytes.Buffer
 	buildArgs := []string{
-		"-veyron.credentials=" + credentials,
+		"-veyron.credentials=" + clientCred,
 		"-veyron.namespace.root=" + mtName,
 		"build", buildServerName, "test",
 	}

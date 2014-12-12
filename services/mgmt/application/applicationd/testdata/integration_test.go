@@ -76,8 +76,10 @@ func TestApplicationRepository(t *testing.T) {
 
 	// Generate credentials.
 	root := security.NewPrincipal("root")
-	credentials := security.NewVeyronCredentials(root, "test-credentials")
-	defer os.RemoveAll(credentials)
+	serverCred := security.NewVeyronCredentials(root, "server")
+	defer os.RemoveAll(serverCred)
+	clientCred := security.NewVeyronCredentials(root, "server/client")
+	defer os.RemoveAll(clientCred)
 
 	// Start the application repository.
 	appRepoBin := filepath.Join(binDir, "applicationd")
@@ -91,7 +93,7 @@ func TestApplicationRepository(t *testing.T) {
 		"-name=" + appRepoName,
 		"-store=" + appRepoStore,
 		"-veyron.tcp.address=127.0.0.1:0",
-		"-veyron.credentials=" + credentials,
+		"-veyron.credentials=" + serverCred,
 		"-veyron.namespace.root=" + mt,
 	}
 	serverProcess, err := integration.StartServer(appRepoBin, args)
@@ -118,17 +120,17 @@ func TestApplicationRepository(t *testing.T) {
 	if _, err := appEnvelopeFile.Write([]byte(wantEnvelope)); err != nil {
 		t.Fatalf("Write() failed: %v", err)
 	}
-	putEnvelope(t, binDir, credentials, mt, appRepoName, appRepoSuffix, appEnvelopeFile.Name())
+	putEnvelope(t, binDir, clientCred, mt, appRepoName, appRepoSuffix, appEnvelopeFile.Name())
 
 	// Match the application envelope.
-	gotEnvelope := matchEnvelope(t, false, binDir, credentials, mt, appRepoName, appRepoSuffix)
+	gotEnvelope := matchEnvelope(t, false, binDir, clientCred, mt, appRepoName, appRepoSuffix)
 	if gotEnvelope != wantEnvelope {
 		t.Fatalf("unexpected output: got %v, want %v", gotEnvelope, wantEnvelope)
 	}
 
 	// Remove the application envelope.
-	removeEnvelope(t, binDir, credentials, mt, appRepoName, appRepoSuffix)
+	removeEnvelope(t, binDir, clientCred, mt, appRepoName, appRepoSuffix)
 
 	// Check that the application envelope no longer exists.
-	matchEnvelope(t, true, binDir, credentials, mt, appRepoName, appRepoSuffix)
+	matchEnvelope(t, true, binDir, clientCred, mt, appRepoName, appRepoSuffix)
 }
