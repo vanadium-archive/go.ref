@@ -50,6 +50,9 @@ func (i *builderService) Build(ctx build.BuilderBuildContext, arch build.Archite
 		return nil, errInternalError
 	}
 	defer os.RemoveAll(root)
+	if err := os.Chdir(root); err != nil {
+		vlog.Errorf("Chdir(%v) failed: %v", root, err)
+	}
 	srcDir := filepath.Join(root, "go", "src")
 	if err := os.MkdirAll(srcDir, dirPerm); err != nil {
 		vlog.Errorf("MkdirAll(%v, %v) failed: %v", srcDir, dirPerm, err)
@@ -73,7 +76,7 @@ func (i *builderService) Build(ctx build.BuilderBuildContext, arch build.Archite
 		vlog.Errorf("Advance() failed: %v", err)
 		return nil, errInternalError
 	}
-	cmd := exec.Command(i.gobin, "install", "-v", "...")
+	cmd := exec.Command(i.gobin, "install", "-v", "./...")
 	cmd.Env = append(cmd.Env, "GOARCH="+string(arch))
 	cmd.Env = append(cmd.Env, "GOOS="+string(opsys))
 	cmd.Env = append(cmd.Env, "GOPATH="+filepath.Dir(srcDir))

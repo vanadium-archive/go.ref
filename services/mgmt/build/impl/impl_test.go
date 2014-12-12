@@ -178,6 +178,15 @@ func TestEmpty(t *testing.T) {
 	}
 }
 
+const failSrc = `package main
+
+import "fmt"
+
+func main() {
+        ...
+}
+`
+
 // TestFailure checks that the build server fails to build a package
 // consisting of an empty file.
 func TestFailure(t *testing.T) {
@@ -187,10 +196,11 @@ func TestFailure(t *testing.T) {
 	files := []build.File{
 		build.File{
 			Name:     "test/main.go",
-			Contents: []byte(""),
+			Contents: []byte(failSrc),
 		},
 	}
-	if _, _, err := invokeBuild(t, client, files); err == nil {
+	if output, _, err := invokeBuild(t, client, files); err == nil {
+		t.Logf("%v", string(output))
 		t.FailNow()
 	}
 }
