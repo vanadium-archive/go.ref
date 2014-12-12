@@ -24,7 +24,7 @@ import (
 	"veyron.io/veyron/veyron2/vlog"
 )
 
-var spec = ipc.ListenSpec{Protocol: "tcp", Address: "127.0.0.1:0"}
+var spec = ipc.ListenSpec{Addrs: ipc.ListenAddrs{{"tcp", "127.0.0.1:0"}}}
 
 func startMountTable(t *testing.T, runtime veyron2.Runtime) (string, func()) {
 	server, err := runtime.NewServer(options.ServesMountTable(true))
