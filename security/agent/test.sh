@@ -2,7 +2,7 @@
 
 # Test running an application using the agent.
 
-source "${VEYRON_ROOT}/scripts/lib/shell_test.sh"
+source "$(go list -f {{.Dir}} veyron.io/veyron/shell/lib)/shell_test.sh"
 
 readonly WORKDIR="${shell_test_WORK_DIR}"
 
@@ -32,7 +32,7 @@ main() {
   # Test running multiple apps connecting to the same agent.
   # Make sure the testchild.sh script get the same shell_test_BIN_DIR as the main script.
   export shell_test_BIN_DIR="${shell_test_BIN_DIR}"
-  RESULT=$(shell::check_result "${AGENTD_BIN}" bash "${VEYRON_ROOT}/veyron/go/src/veyron.io/veyron/veyron/security/agent/testchild.sh")
+  RESULT=$(shell::check_result "${AGENTD_BIN}" bash "$(go list -f {{.Dir}} veyron.io/veyron/veyron/security/agent)/testchild.sh")
   shell_test::assert_eq "${RESULT}" "0" "${LINENO}"
 
   shell_test::pass

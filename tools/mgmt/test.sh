@@ -2,7 +2,7 @@
 
 # Test the device manager and related services and tools.
 
-source "${VEYRON_ROOT}/scripts/lib/shell_test.sh"
+source "$(go list -f {{.Dir}} veyron.io/veyron/shell/lib)/shell_test.sh"
 
 readonly WORKDIR="${shell_test_WORK_DIR}"
 
@@ -18,7 +18,7 @@ build() {
   NAMESPACE_BIN="$(shell_test::build_go_binary 'veyron.io/veyron/veyron/tools/namespace')"
   PRINCIPAL_BIN="$(shell_test::build_go_binary 'veyron.io/veyron/veyron/tools/principal')"
   DEBUG_BIN="$(shell_test::build_go_binary 'veyron.io/veyron/veyron/tools/debug')"
-  DMINSTALL_SCRIPT="$(shell::go_package_dir 'veyron.io/veyron/veyron/tools/mgmt')/dminstall"
+  DMINSTALL_SCRIPT="$(go list -f {{.Dir}} veyron.io/veyron/veyron/tools/mgmt/device)/dminstall"
 }
 
 # TODO(caprita): Move to shell_tesh.sh

@@ -2,7 +2,7 @@
 
 # Helper script for testing vrun.
 
-source "${VEYRON_ROOT}/scripts/lib/shell_test.sh"
+source "$(go list -f {{.Dir}} veyron.io/veyron/shell/lib)/shell_test.sh"
 
 main() {
   shell_test::setup_server_test

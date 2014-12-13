@@ -5,7 +5,7 @@
 # This test starts a mounttable server and then runs the debug command against
 # it.
 
-source "${VEYRON_ROOT}/scripts/lib/shell_test.sh"
+source "$(go list -f {{.Dir}} veyron.io/veyron/shell/lib)/shell_test.sh"
 
 readonly WORKDIR="${shell_test_WORK_DIR}"
 readonly DEBUG_FLAGS="--veyron.vtrace.sample_rate=1"

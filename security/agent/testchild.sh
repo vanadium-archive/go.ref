@@ -2,7 +2,7 @@
 
 # Helper script for testing two binaries under the same agent.
 
-source "${VEYRON_ROOT}/scripts/lib/shell_test.sh"
+source "$(go list -f {{.Dir}} veyron.io/veyron/shell/lib)/shell_test.sh"
 
 main() {
   if [[ -n "${VEYRON_CREDENTIALS}" ]]; then
