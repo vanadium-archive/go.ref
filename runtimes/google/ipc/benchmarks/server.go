@@ -1,8 +1,6 @@
 package benchmarks
 
 import (
-	"io"
-
 	sflag "veyron.io/veyron/veyron/security/flag"
 
 	"veyron.io/veyron/veyron2"
@@ -18,18 +16,14 @@ func (i *impl) Echo(ctx ipc.ServerContext, payload []byte) ([]byte, error) {
 	return payload, nil
 }
 
-func (i *impl) EchoStream(ctx ipc.ServerCall) error {
-	for {
-		var chunk []byte
-		if err := ctx.Recv(&chunk); err != nil {
-			if err == io.EOF {
-				break
-			}
-			return err
-		}
-		if err := ctx.Send(chunk); err != nil {
-			return err
-		}
+func (i *impl) EchoStream(ctx BenchmarkEchoStreamContext) error {
+	rStream := ctx.RecvStream()
+	sStream := ctx.SendStream()
+	for rStream.Advance() {
+		sStream.Send(rStream.Value())
+	}
+	if err := rStream.Err(); err != nil {
+		return err
 	}
 	return nil
 }
@@ -46,7 +40,8 @@ func StartServer(runtime veyron2.Runtime, listenSpec ipc.ListenSpec) (string, fu
 	if err != nil {
 		vlog.Fatalf("Listen failed: %v", err)
 	}
-	if err := server.Serve("", &impl{}, sflag.NewAuthorizerOrDie()); err != nil {
+
+	if err := server.Serve("", BenchmarkServer(&impl{}), sflag.NewAuthorizerOrDie()); err != nil {
 		vlog.Fatalf("Serve failed: %v", err)
 	}
 	return naming.JoinAddressName(ep.String(), ""), func() {

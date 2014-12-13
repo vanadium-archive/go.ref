@@ -1,4 +1,4 @@
-// a simple command-line tool to run the benchmark server.
+// A simple command-line tool to run the benchmark server.
 package main
 
 import (
@@ -11,14 +11,14 @@ import (
 )
 
 func main() {
-	r, err := rt.New()
+	vrt, err := rt.New()
 	if err != nil {
 		vlog.Fatalf("Could not initialize runtime: %s", err)
 	}
-	defer r.Cleanup()
+	defer vrt.Cleanup()
 
-	addr, stop := benchmarks.StartServer(r, roaming.ListenSpec)
+	addr, stop := benchmarks.StartServer(vrt, roaming.ListenSpec)
 	vlog.Infof("Listening on %s", addr)
 	defer stop()
-	<-signals.ShutdownOnSignals(r)
+	<-signals.ShutdownOnSignals(vrt)
 }
