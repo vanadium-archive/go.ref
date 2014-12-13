@@ -214,12 +214,9 @@ func (inst *browsprInstance) StartBrowspr(instanceId int32, message ppapi.Var) e
 		return err
 	}
 
-	// TODO(cnicolaou,bprosnitz) Should we use the roaming profile?
-	// It uses flags. We should change that.
 	listenSpec := ipc.ListenSpec{
-		Proxy:    veyronProxy,
-		Protocol: "tcp",
-		Address:  "",
+		Proxy: veyronProxy,
+		Addrs: ipc.ListenAddrs{{Protocol: "ws", Address: ""}},
 	}
 
 	runtime, err := rt.New(options.RuntimePrincipal{principal})
