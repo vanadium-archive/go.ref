@@ -417,15 +417,15 @@ func formatValue(value interface{}) string {
 		fmt.Fprintf(&buf, "%T: ", value)
 	}
 	if raw {
+		if v, ok := value.(istats.HistogramValue); ok {
+			// Bypass HistogramValue.String()
+			type hist istats.HistogramValue
+			value = hist(v)
+		}
 		fmt.Fprintf(&buf, "%+v", value)
 		return buf.String()
 	}
-	switch v := value.(type) {
-	case istats.HistogramValue:
-		v.Print(&buf)
-	default:
-		fmt.Fprintf(&buf, "%v", v)
-	}
+	fmt.Fprintf(&buf, "%v", value)
 	return buf.String()
 }
 

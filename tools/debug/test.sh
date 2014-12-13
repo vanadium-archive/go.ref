@@ -90,7 +90,7 @@ ${EP}/__debug/vtrace"
     "${DEBUG_BIN}" stats watch -raw "${EP}/__debug/stats/ipc/server/routing-id/*/methods/ReadLog/latency-ms")
   shell::timed_wait_for "${shell_test_DEFAULT_MESSAGE_TIMEOUT}" "${TMP}" "ReadLog/latency-ms"
   kill "${DEBUG_PID}"
-  grep -q "Count: 1 " "${TMP}" || (dumplogs "${TMP}"; shell_test::fail "line ${LINENO}: failed to find expected output")
+  grep -q "Count:1 " "${TMP}" || (dumplogs "${TMP}"; shell_test::fail "line ${LINENO}: failed to find expected output")
 
   # Test pprof.
   if ! "${DEBUG_BIN}" pprof run "${EP}/__debug/pprof" heap --text &> "${DBGLOG}"; then
