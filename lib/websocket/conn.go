@@ -4,11 +4,12 @@ package websocket
 
 import (
 	"fmt"
-	"github.com/gorilla/websocket"
 	"io"
 	"net"
 	"sync"
 	"time"
+
+	"github.com/gorilla/websocket"
 )
 
 // WebsocketConn provides a net.Conn interface for a websocket connection.

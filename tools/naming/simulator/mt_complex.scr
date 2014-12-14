@@ -3,6 +3,7 @@
 # TODO - list the examples and any issues.
 
 set localaddr="--veyron.tcp.address=127.0.0.1:0"
+set ws=--veyron.tcp.protocol=ws
 
 cache off
 
@@ -61,12 +62,10 @@ wait $l
 resolve tl/a
 set r=$_
 eval $r
-assert $RN 2
+assert $RN 1
 eval $r
 set ep1=$R0
-eval $r
-set ep2=$R1
-assertOneOf $mt_a_name $ep1 $ep2
+assert $mt_a_name $ep1
 wait $r
 
 #
@@ -102,12 +101,10 @@ assert $o "E1: test"
 resolve tl
 set r=$_
 eval $r
-assert $RN 2
+assert $RN 1
 eval $r
 set ep1=$R0
-eval $r
-set ep2=$R1
-assertOneOf /$es_E1_addr $ep1 $ep2
+assert /$es_E1_addr $ep1
 
 # let's have the echo server shut down
 stop $es_E1
@@ -122,12 +119,10 @@ wait $l
 resolve tl/a
 set r=$_
 eval $r
-assert $RN 2
+assert $RN 1
 eval $r
 set ep1=$R0
-eval $r
-set ep2=$R1
-assertOneOf $mt_a_name $ep1 $ep2
+assert $mt_a_name $ep1
 
 # run an echo server on tl/a - note that this currently doesn't seem to
 # have any effect on the mount table - that is, I suspect the mount table
@@ -245,12 +240,10 @@ assert $o "E3: long E3"
 resolveMT $long_name/echo
 set r=$_
 eval $r
-assert $RN 2
+assert $RN 1
 eval $r
 set ep1=$R0
-eval $r
-set ep2=$R1
-assertOneOf /$mt_l_addr/echo $ep1 $ep2
+assert /$mt_l_addr/echo $ep1
 
 # Now, use mount directly to create a 'symlink'
 set symlink_target=some/deep/name/that/is/a/mount
@@ -277,12 +270,10 @@ assert $R0 /$mt_b_addr/$symlink_target
 resolveMT tl/b/symlink
 set r=$_
 eval $r
-assert $RN 2
+assert $RN 1
 eval $r
 set ep1=$R0
-eval $r
-set ep2=$R1
-assertOneOf /$mt_b_addr/symlink $ep1 $ep2
+assert /$mt_b_addr/symlink $ep1
 
 stop $es_E3
 stop $es_E2

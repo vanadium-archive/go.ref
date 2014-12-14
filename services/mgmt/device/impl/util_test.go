@@ -26,7 +26,7 @@ import (
 	"veyron.io/veyron/veyron/lib/modules"
 	"veyron.io/veyron/veyron/lib/modules/core"
 	tsecurity "veyron.io/veyron/veyron/lib/testutil/security"
-	"veyron.io/veyron/veyron/profiles/static"
+	_ "veyron.io/veyron/veyron/profiles/static"
 	"veyron.io/veyron/veyron/services/mgmt/device/impl"
 	"veyron.io/veyron/veyron2/services/mgmt/application"
 )
@@ -162,11 +162,10 @@ func newServer() (ipc.Server, string) {
 	if err != nil {
 		vlog.Fatalf("NewServer() failed: %v", err)
 	}
-	spec := static.ListenSpec
-	spec.Address = "127.0.0.1:0" // Isn't this the default?
+	spec := ipc.ListenSpec{Addrs: ipc.ListenAddrs{{"tcp", "127.0.0.1:0"}}}
 	endpoint, err := server.Listen(spec)
 	if err != nil {
-		vlog.Fatalf("Listen(%s) failed: %v", static.ListenSpec, err)
+		vlog.Fatalf("Listen(%s) failed: %v", spec, err)
 	}
 	return server, endpoint.String()
 }

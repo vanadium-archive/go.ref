@@ -13,7 +13,7 @@ import (
 	"veyron.io/veyron/veyron2/vlog"
 	"veyron.io/veyron/veyron2/vtrace"
 
-	_ "veyron.io/veyron/veyron/lib/tcp"
+	"veyron.io/veyron/veyron/profiles"
 	iipc "veyron.io/veyron/veyron/runtimes/google/ipc"
 	"veyron.io/veyron/veyron/runtimes/google/ipc/stream/manager"
 	tnaming "veyron.io/veyron/veyron/runtimes/google/testing/mocks/naming"
@@ -103,7 +103,7 @@ func makeTestServer(ns naming.Namespace, name, child string, forceCollect bool) 
 	if err != nil {
 		return nil, err
 	}
-	if _, err := s.Listen(ipc.ListenSpec{Protocol: "tcp", Address: "127.0.0.1:0"}); err != nil {
+	if _, err := s.Listen(profiles.LocalListenSpec); err != nil {
 		return nil, err
 	}
 

@@ -3,10 +3,11 @@
 package websocket
 
 import (
-	"github.com/gorilla/websocket"
 	"net"
 	"net/http"
 	"net/url"
+
+	"github.com/gorilla/websocket"
 )
 
 func Dial(address string) (net.Conn, error) {
@@ -23,6 +24,5 @@ func Dial(address string) (net.Conn, error) {
 	if err != nil {
 		return nil, err
 	}
-
 	return WebsocketConn(ws), nil
 }

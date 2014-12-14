@@ -6,13 +6,13 @@ import (
 	"net"
 	"sync"
 
+	"veyron.io/veyron/veyron2/ipc/stream"
 	"veyron.io/veyron/veyron2/naming"
 	"veyron.io/veyron/veyron2/security"
 	"veyron.io/veyron/veyron2/verror"
 	"veyron.io/veyron/veyron2/vlog"
 	"veyron.io/veyron/veyron2/vom"
 
-	"veyron.io/veyron/veyron/lib/websocket"
 	"veyron.io/veyron/veyron/runtimes/google/ipc/stream/crypto"
 	"veyron.io/veyron/veyron/runtimes/google/ipc/stream/id"
 	"veyron.io/veyron/veyron/runtimes/google/ipc/stream/message"
@@ -132,13 +132,13 @@ func (m *servermap) List() []string {
 // New creates a new Proxy that listens for network connections on the provided
 // (network, address) pair and routes VC traffic between accepted connections.
 func New(rid naming.RoutingID, principal security.Principal, network, address, pubAddress string) (*Proxy, error) {
-	ln, err := net.Listen(network, address)
+	_, listenFn := stream.RegisteredProtocol(network)
+	if listenFn == nil {
+		return nil, fmt.Errorf("unknown network %s", network)
+	}
+	ln, err := listenFn(network, address)
 	if err != nil {
 		return nil, fmt.Errorf("net.Listen(%q, %q) failed: %v", network, address, err)
-	}
-	ln, err = websocket.NewListener(ln)
-	if err != nil {
-		return nil, err
 	}
 	if len(pubAddress) == 0 {
 		pubAddress = ln.Addr().String()
@@ -460,7 +460,8 @@ func startRoutingVC(srcVCI, dstVCI id.VC, srcProcess, dstProcess *process) {
 // Endpoint returns the endpoint of the proxy service.  By Dialing a VC to this
 // endpoint, processes can have their services exported through the proxy.
 func (p *Proxy) Endpoint() naming.Endpoint {
-	return version.Endpoint(p.ln.Addr().Network(), p.pubAddress, p.rid)
+	ep := version.Endpoint(p.ln.Addr().Network(), p.pubAddress, p.rid)
+	return ep
 }
 
 // Shutdown stops the proxy service, closing all network connections.

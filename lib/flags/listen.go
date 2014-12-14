@@ -7,8 +7,8 @@ import (
 )
 
 // TCPProtocolFlag implements flag.Value to provide validation of the
-// command line values passed to it: tcp, tcp4 or tcp6 being the
-// only allowed values.
+// command line values passed to it: tcp, tcp4 or tcp6, ws, ws4 and ws6
+// being the only allowed values.
 type TCPProtocolFlag struct{ Protocol string }
 
 // Implements flag.Value.Get
@@ -19,7 +19,7 @@ func (t TCPProtocolFlag) Get() interface{} {
 // Implements flag.Value.Set
 func (t *TCPProtocolFlag) Set(s string) error {
 	switch s {
-	case "tcp", "tcp4", "tcp6":
+	case "tcp", "tcp4", "tcp6", "ws", "ws4", "ws6":
 		t.Protocol = s
 		return nil
 	default:

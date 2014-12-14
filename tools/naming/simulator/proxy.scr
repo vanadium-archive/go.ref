@@ -2,15 +2,17 @@
 cache off
 
 set localaddr=--veyron.tcp.address=127.0.0.1:0
+set ws=--veyron.tcp.protocol=ws
 
-root -- $localaddr
+root -- $localaddr $ws $localaddr
 eval $_
 set root=$MT_NAME
 set NAMESPACE_ROOT=$root
 setRoots $NAMESPACE_ROOT
+print $NAMESPACE_ROOT
 
 # run a non-proxied echo server
-echoServer -- $localaddr noproxy echo/noproxy
+echoServer -- $localaddr $ws $localaddr noproxy echo/noproxy
 set esnp=$_
 eval $esnp
 set NP_ECHOS_NAME=$NAME
@@ -18,8 +20,13 @@ eval $esnp
 set NP_ECHOS_ADDR=$ADDR
 
 
+echoClient echo/noproxy "ohh"
+set ec=$_
+read $ec l
+assert $l "noproxy: ohh"
+
 # run a proxy server
-proxyd -- $localaddr p1
+proxyd -- $localaddr $ws $localaddr p1
 set proxy=$_
 # PROXY_ADDR=<address of proxy>
 eval $proxy
@@ -40,7 +47,7 @@ set PROXY_RID=$P3
 #assert $RN 3
 #wait $l
 
-echoServer -- $localaddr --veyron.proxy=p1 withproxy echo/withproxy
+echoServer -- $localaddr $ws $localaddr --veyron.proxy=p1 withproxy echo/withproxy
 set eswp=$_
 eval $eswp
 set ECHOS_NAME=$NAME
@@ -48,6 +55,11 @@ eval $eswp
 set ECHOS_ADDR=$ADDR
 splitEP $ADDR
 set ECHOS_RID=$P3
+
+echoClient echo/withproxy "ahh"
+set ec=$_
+read $ec l
+assert $l "withproxy: ahh"
 
 #ls ...
 #set l=$_
@@ -61,18 +73,22 @@ print "no proxy: " $NP_ECHOS_ADDR
 print "with proxy: " $ECHOS_ADDR
 # The ipc.Server implementation publishes the proxy supplied address and
 # the local address in the mount table
+
 resolve echo/withproxy
 set rs=$_
 eval $rs
-assert $RN 4
+# This will be 4 when ipc.Listen can return all of the endpoints in use,
+# then the proxy can return more than one address. We only see 3 endpoints
+# because the proxy server only returns one to the echo server.
+assert $RN 3
 eval $rs
 set ep1=$R0
 eval $rs
 set ep2=$R1
 eval $rs
 set ep3=$R2
-eval $rs
-set ep4=$R3
+#eval $rs
+#set ep4=$R3
 
 splitEP $ep1
 assert $PN 7
@@ -82,10 +98,11 @@ splitEP $ep2
 set ep2_addr=$P2
 splitEP $ep3
 set ep3_addr=$P2
-splitEP $ep4
-set ep4_addr=$P2
+#splitEP $ep4
+#set ep4_addr=$P2
 
-assertOneOf $PROXY_ADDR $ep1_addr $ep2_addr $ep3_addr $ep4_addr
+assertOneOf $PROXY_ADDR $ep1_addr $ep2_addr $ep3_addr
+# $ep4_addr
 assert $rid $ECHOS_RID
 
 ls -- -l echo/withproxy

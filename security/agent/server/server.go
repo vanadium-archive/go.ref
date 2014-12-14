@@ -204,7 +204,10 @@ func startAgent(conn *net.UnixConn, runtime veyron2.Runtime, principal security.
 					vlog.Infof("Error creating server: %v", err)
 					continue
 				}
-				spec := ipc.ListenSpec{Protocol: clientAddr.Network(), Address: clientAddr.String()}
+				a := []struct{ Protocol, Address string }{
+					{clientAddr.Network(), clientAddr.String()},
+				}
+				spec := ipc.ListenSpec{Addrs: ipc.ListenAddrs(a)}
 				if _, err = s.Listen(spec); err == nil {
 					err = s.Serve("", serverAgent, nil)
 				}

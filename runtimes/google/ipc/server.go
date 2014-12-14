@@ -38,17 +38,19 @@ var (
 
 type server struct {
 	sync.Mutex
-	ctx                context.T                         // context used by the server to make internal RPCs.
-	streamMgr          stream.Manager                    // stream manager to listen for new flows.
-	publisher          publisher.Publisher               // publisher to publish mounttable mounts.
-	listenerOpts       []stream.ListenerOpt              // listener opts passed to Listen.
-	listeners          map[stream.Listener]*dhcpListener // listeners created by Listen.
-	disp               ipc.Dispatcher                    // dispatcher to serve RPCs
-	dispReserved       ipc.Dispatcher                    // dispatcher for reserved methods
-	active             sync.WaitGroup                    // active goroutines we've spawned.
-	stopped            bool                              // whether the server has been stopped.
-	stoppedChan        chan struct{}                     // closed when the server has been stopped.
-	preferredProtocols []string                          // protocols to use when resolving proxy name to endpoint.
+	ctx           context.T                    // context used by the server to make internal RPCs.
+	streamMgr     stream.Manager               // stream manager to listen for new flows.
+	publisher     publisher.Publisher          // publisher to publish mounttable mounts.
+	listenerOpts  []stream.ListenerOpt         // listener opts passed to Listen.
+	listeners     map[stream.Listener]struct{} // listeners created by Listen.
+	dhcpListeners map[*dhcpListener]struct{}   // dhcpListeners created by Listen.
+
+	disp               ipc.Dispatcher // dispatcher to serve RPCs
+	dispReserved       ipc.Dispatcher // dispatcher for reserved methods
+	active             sync.WaitGroup // active goroutines we've spawned.
+	stopped            bool           // whether the server has been stopped.
+	stoppedChan        chan struct{}  // closed when the server has been stopped.
+	preferredProtocols []string       // protocols to use when resolving proxy name to endpoint.
 	ns                 naming.Namespace
 	servesMountTable   bool
 	// TODO(cnicolaou): remove this when the publisher tracks published names
@@ -66,7 +68,7 @@ type dhcpListener struct {
 	sync.Mutex
 	publisher *config.Publisher   // publisher used to fork the stream
 	name      string              // name of the publisher stream
-	ep        *inaming.Endpoint   // endpoint returned after listening
+	eps       []*inaming.Endpoint // endpoint returned after listening
 	pubAddrs  []ipc.Address       // addresses to publish
 	pubPort   string              // port to use with the publish addresses
 	ch        chan config.Setting // channel to receive settings over
@@ -82,14 +84,15 @@ func InternalNewServer(ctx context.T, streamMgr stream.Manager, ns naming.Namesp
 	ctx, _ = ivtrace.WithNewSpan(ctx, "NewServer")
 	statsPrefix := naming.Join("ipc", "server", "routing-id", streamMgr.RoutingID().String())
 	s := &server{
-		ctx:         ctx,
-		streamMgr:   streamMgr,
-		publisher:   publisher.New(ctx, ns, publishPeriod),
-		listeners:   make(map[stream.Listener]*dhcpListener),
-		stoppedChan: make(chan struct{}),
-		ns:          ns,
-		stats:       newIPCStats(statsPrefix),
-		traceStore:  store,
+		ctx:           ctx,
+		streamMgr:     streamMgr,
+		publisher:     publisher.New(ctx, ns, publishPeriod),
+		listeners:     make(map[stream.Listener]struct{}),
+		dhcpListeners: make(map[*dhcpListener]struct{}),
+		stoppedChan:   make(chan struct{}),
+		ns:            ns,
+		stats:         newIPCStats(statsPrefix),
+		traceStore:    store,
 	}
 	var (
 		principal security.Principal
@@ -177,6 +180,7 @@ func addrFromIP(ip net.IP) ipc.Address {
 	}
 }
 
+/*
 // getIPRoamingAddrs finds an appropriate set of addresss to publish
 // externally and also determines if it's sensible to allow roaming.
 // It returns the host address of the first suitable address that
@@ -208,38 +212,93 @@ func (s *server) getIPRoamingAddrs(chooser ipc.AddressChooser, iep *inaming.Endp
 	// roaming is not desired.
 	return []ipc.Address{addrFromIP(ip)}, host, port, false, nil
 }
+*/
 
-// configureEPAndRoaming configures the endpoint and roaming. In particular,
-// it fills in the Address portion of the endpoint with the appropriately
-// selected network address and creates a dhcpListener struct if roaming
-// is enabled.
-func (s *server) configureEPAndRoaming(spec ipc.ListenSpec, ep naming.Endpoint) (*dhcpListener, *inaming.Endpoint, error) {
+// getPossbileAddrs returns an appropriate set of addresses that could be used
+// to contact the supplied protocol, host, port parameters using the supplied
+// chooser function. It returns an indication of whether the supplied address
+// was fully specified or not, returning false if the address was fully
+// specified, and true if it was not.
+func getPossibleAddrs(protocol, host, port string, chooser ipc.AddressChooser) ([]ipc.Address, bool, error) {
+	ip := net.ParseIP(host)
+	if ip == nil {
+		return nil, false, fmt.Errorf("failed to parse %q as an IP host", host)
+	}
+	if ip.IsUnspecified() {
+		if chooser != nil {
+			// Need to find a usable IP address since the call to listen
+			// didn't specify one.
+			if addrs, err := netstate.GetAccessibleIPs(); err == nil {
+				if a, err := chooser(protocol, addrs); err == nil && len(a) > 0 {
+					return a, true, nil
+				}
+			}
+		}
+		// We don't have a chooser, so we just return the address the
+		// underlying system has chosen.
+		return []ipc.Address{addrFromIP(ip)}, true, nil
+	}
+	return []ipc.Address{addrFromIP(ip)}, false, nil
+}
+
+// createEndpoints creates appropriate inaming.Endpoint instances for
+// all of the externally accessible networrk addresses that can be used
+// to reach this server.
+func (s *server) createEndpoints(lep naming.Endpoint, chooser ipc.AddressChooser) ([]*inaming.Endpoint, bool, error) {
+	iep, ok := lep.(*inaming.Endpoint)
+	if !ok {
+		return nil, false, fmt.Errorf("internal type conversion error for %T", lep)
+	}
+	if !strings.HasPrefix(iep.Protocol, "tcp") &&
+		!strings.HasPrefix(iep.Protocol, "ws") {
+		// If not tcp or ws, just return the endpoint we were given.
+		return []*inaming.Endpoint{iep}, false, nil
+	}
+
+	host, port, err := net.SplitHostPort(iep.Address)
+	if err != nil {
+		return nil, false, err
+	}
+	addrs, unspecified, err := getPossibleAddrs(lep.Network(), host, port, chooser)
+	if err != nil {
+		return nil, false, err
+	}
+	ieps := make([]*inaming.Endpoint, 0, len(addrs))
+	for _, addr := range addrs {
+		n, err := inaming.NewEndpoint(lep.String())
+		if err != nil {
+			return nil, false, err
+		}
+		n.IsMountTable = s.servesMountTable
+		//n.Protocol = addr.Address().Network()
+		n.Address = net.JoinHostPort(addr.Address().String(), port)
+		ieps = append(ieps, n)
+	}
+	return ieps, unspecified, nil
+}
+
+/*
+// configureEPAndRoaming configures the endpoint by filling in its Address
+// portion with the appropriately selected network address, it also
+// returns an indication of whether this endpoint is appropriate for
+// roaming and the set of addresses that should be published.
+func (s *server) configureEPAndRoaming(spec ipc.ListenSpec, ep naming.Endpoint) (bool, []ipc.Address, *inaming.Endpoint, error) {
 	iep, ok := ep.(*inaming.Endpoint)
 	if !ok {
-		return nil, nil, fmt.Errorf("internal type conversion error for %T", ep)
+		return false, nil, nil, fmt.Errorf("internal type conversion error for %T", ep)
 	}
-	if !strings.HasPrefix(spec.Protocol, "tcp") {
-		return nil, iep, nil
+	if !strings.HasPrefix(spec.Addrs[0].Protocol, "tcp") &&
+		!strings.HasPrefix(spec.Addrs[0].Protocol, "ws") {
+		return false, nil, iep, nil
 	}
 	pubAddrs, pubHost, pubPort, roaming, err := s.getIPRoamingAddrs(spec.AddressChooser, iep)
 	if err != nil {
-		return nil, iep, err
+		return false, nil, iep, err
 	}
 	iep.Address = net.JoinHostPort(pubHost, pubPort)
-	if !roaming {
-		vlog.VI(2).Infof("the address %q requested for listening contained a fixed IP address which disables roaming, use :0 instead", spec.Address)
-	}
-	publisher := spec.StreamPublisher
-	if roaming && publisher != nil {
-		streamName := spec.StreamName
-		ch := make(chan config.Setting)
-		if _, err := publisher.ForkStream(streamName, ch); err != nil {
-			return nil, iep, fmt.Errorf("failed to fork stream %q: %s", streamName, err)
-		}
-		return &dhcpListener{ep: iep, pubAddrs: pubAddrs, pubPort: pubPort, ch: ch, name: streamName, publisher: publisher}, iep, nil
-	}
-	return nil, iep, nil
+	return roaming, pubAddrs, iep, nil
 }
+*/
 
 func (s *server) Listen(listenSpec ipc.ListenSpec) (naming.Endpoint, error) {
 	defer vlog.LogCall()()
@@ -250,66 +309,11 @@ func (s *server) Listen(listenSpec ipc.ListenSpec) (naming.Endpoint, error) {
 		s.Unlock()
 		return nil, errServerStopped
 	}
-	s.Unlock()
 
-	var iep *inaming.Endpoint
-	var dhcpl *dhcpListener
-	var ln stream.Listener
+	useProxy := len(listenSpec.Proxy) > 0
 
-	if len(listenSpec.Address) > 0 {
-		// Listen if we have a local address to listen on. Some situations
-		// just need a proxy (e.g. a browser extension).
-		tmpln, lep, err := s.streamMgr.Listen(listenSpec.Protocol, listenSpec.Address, s.listenerOpts...)
-		if err != nil {
-			vlog.Errorf("ipc: Listen on %s failed: %s", listenSpec, err)
-			return nil, err
-		}
-		ln = tmpln
-		if tmpdhcpl, tmpiep, err := s.configureEPAndRoaming(listenSpec, lep); err != nil {
-			ln.Close()
-			return nil, err
-		} else {
-			dhcpl = tmpdhcpl
-			iep = tmpiep
-		}
-	}
-
-	s.Lock()
-	defer s.Unlock()
-	if s.stopped {
-		ln.Close()
-		return nil, errServerStopped
-	}
-
-	if dhcpl != nil {
-		// We have a goroutine to listen for dhcp changes.
-		s.active.Add(1)
-		go func() {
-			s.dhcpLoop(dhcpl)
-			s.active.Done()
-		}()
-		s.listeners[ln] = dhcpl
-	} else if ln != nil {
-		s.listeners[ln] = nil
-	}
-
-	if iep != nil {
-		// We have a goroutine per listener to accept new flows.
-		// Each flow is served from its own goroutine.
-		s.active.Add(1)
-		go func() {
-			s.listenLoop(ln, iep)
-			s.active.Done()
-		}()
-		s.publisher.AddServer(s.publishEP(iep, s.servesMountTable), s.servesMountTable)
-		if strings.HasPrefix(iep.Protocol, "tcp") {
-			epCopy := *iep
-			epCopy.Protocol = "ws"
-			s.publisher.AddServer(s.publishEP(&epCopy, s.servesMountTable), s.servesMountTable)
-		}
-	}
-
-	if len(listenSpec.Proxy) > 0 {
+	// Start the proxy as early as possible.
+	if useProxy {
 		// We have a goroutine for listening on proxy connections.
 		s.active.Add(1)
 		go func() {
@@ -317,14 +321,100 @@ func (s *server) Listen(listenSpec ipc.ListenSpec) (naming.Endpoint, error) {
 			s.active.Done()
 		}()
 	}
-	return iep, nil
-}
+	s.Unlock()
 
-// TODO(cnicolaou): Take this out or make the ServesMountTable bit work in the endpoint.
-func (s *server) publishEP(ep *inaming.Endpoint, servesMountTable bool) string {
-	var name string
-	ep.IsMountTable = servesMountTable
-	return naming.JoinAddressName(ep.String(), name)
+	var ieps []*inaming.Endpoint
+
+	type lnInfo struct {
+		ln stream.Listener
+		ep naming.Endpoint
+	}
+	linfo := []lnInfo{}
+	closeAll := func(lni []lnInfo) {
+		for _, li := range lni {
+			li.ln.Close()
+		}
+	}
+
+	roaming := false
+	for _, addr := range listenSpec.Addrs {
+		if len(addr.Address) > 0 {
+			// Listen if we have a local address to listen on. Some situations
+			// just need a proxy (e.g. a browser extension).
+			tmpln, lep, err := s.streamMgr.Listen(addr.Protocol, addr.Address, s.listenerOpts...)
+			if err != nil {
+				closeAll(linfo)
+				vlog.Errorf("ipc: Listen on %s failed: %s", addr, err)
+				return nil, err
+			}
+			linfo = append(linfo, lnInfo{tmpln, lep})
+			tmpieps, tmpRoaming, err := s.createEndpoints(lep, listenSpec.AddressChooser)
+			if err != nil {
+				closeAll(linfo)
+				return nil, err
+			}
+			ieps = append(ieps, tmpieps...)
+			if tmpRoaming {
+				roaming = true
+			}
+		}
+	}
+
+	// TODO(cnicolaou): write a test for all of these error cases.
+	if len(ieps) == 0 {
+		if useProxy {
+			return nil, nil
+		}
+		// no proxy.
+		if len(listenSpec.Addrs) > 0 {
+			return nil, fmt.Errorf("no endpoints")
+		}
+		return nil, fmt.Errorf("no proxy and no addresses requested")
+	}
+
+	// TODO(cnicolaou): return all of the eps and their errors....
+	s.Lock()
+	defer s.Unlock()
+	if s.stopped {
+		closeAll(linfo)
+		return nil, errServerStopped
+	}
+
+	if roaming && listenSpec.StreamPublisher != nil {
+		// TODO(cnicolaou): renable roaming in a followup CL.
+		/*
+			var dhcpl *dhcpListener
+			streamName := listenSpec.StreamName
+			ch := make(chan config.Setting)
+			if _, err := publisher.ForkStream(streamName, ch); err != nil {
+				return ieps[0], fmt.Errorf("failed to fork stream %q: %s", streamName, err)
+			}
+			dhcpl = &dhcpListener{eps: ieps, pubAddrs: pubAddrs, ch: ch, name: streamName, publisher: publisher}, iep, nil
+			// We have a goroutine to listen for dhcp changes.
+			s.active.Add(1)
+			go func() {
+				s.dhcpLoop(dhcpl)
+				s.active.Done()
+			}()
+			s.dhcpListeners[dhcpl] = struct{}{}
+		*/
+	}
+
+	for _, li := range linfo {
+		s.listeners[li.ln] = struct{}{}
+		// We have a goroutine per listener to accept new flows.
+		// Each flow is served from its own goroutine.
+		s.active.Add(1)
+		go func(ln stream.Listener, ep naming.Endpoint) {
+			s.listenLoop(ln, ep)
+			s.active.Done()
+		}(li.ln, li.ep)
+	}
+	for _, iep := range ieps {
+		s.publisher.AddServer(naming.JoinAddressName(iep.String(), ""), s.servesMountTable)
+	}
+
+	return ieps[0], nil
 }
 
 func (s *server) reconnectAndPublishProxy(proxy string) (*inaming.Endpoint, stream.Listener, error) {
@@ -342,16 +432,9 @@ func (s *server) reconnectAndPublishProxy(proxy string) (*inaming.Endpoint, stre
 		return nil, nil, fmt.Errorf("internal type conversion error for %T", ep)
 	}
 	s.Lock()
-	s.listeners[ln] = nil
+	s.listeners[ln] = struct{}{}
 	s.Unlock()
-	s.publisher.AddServer(s.publishEP(iep, s.servesMountTable), s.servesMountTable)
-
-	if strings.HasPrefix(iep.Protocol, "tcp") {
-		epCopy := *iep
-		epCopy.Protocol = "ws"
-		s.publisher.AddServer(s.publishEP(&epCopy, s.servesMountTable), s.servesMountTable)
-	}
-
+	s.publisher.AddServer(naming.JoinAddressName(iep.String(), ""), s.servesMountTable)
 	return iep, ln, nil
 }
 
@@ -368,7 +451,6 @@ func (s *server) proxyListenLoop(proxy string) {
 	// the initial connection maybe have failed, but we enter the retry
 	// loop anyway so that we will continue to try and connect to the
 	// proxy.
-
 	s.Lock()
 	if s.stopped {
 		s.Unlock()
@@ -381,12 +463,7 @@ func (s *server) proxyListenLoop(proxy string) {
 			s.listenLoop(ln, iep)
 			// The listener is done, so:
 			// (1) Unpublish its name
-			s.publisher.RemoveServer(s.publishEP(iep, s.servesMountTable))
-			if strings.HasPrefix(iep.Protocol, "tcp") {
-				iepCopy := *iep
-				iepCopy.Protocol = "ws"
-				s.publisher.RemoveServer(s.publishEP(&iepCopy, s.servesMountTable))
-			}
+			s.publisher.RemoveServer(naming.JoinAddressName(iep.String(), ""))
 		}
 
 		s.Lock()
@@ -420,7 +497,7 @@ func (s *server) proxyListenLoop(proxy string) {
 }
 
 func (s *server) listenLoop(ln stream.Listener, ep naming.Endpoint) {
-	defer vlog.VI(1).Infof("ipc: Stopped listening on %v", ep)
+	defer vlog.VI(1).Infof("ipc: Stopped listening on %s", ep)
 	var calls sync.WaitGroup
 	defer func() {
 		calls.Wait()
@@ -453,13 +530,14 @@ func (s *server) listenLoop(ln stream.Listener, ep naming.Endpoint) {
 	}
 }
 
+/*
 func (s *server) applyChange(dhcpl *dhcpListener, addrs []net.Addr, fn func(string)) {
 	dhcpl.Lock()
 	defer dhcpl.Unlock()
 	for _, a := range addrs {
 		if ip := netstate.AsIP(a); ip != nil {
 			dhcpl.ep.Address = net.JoinHostPort(ip.String(), dhcpl.pubPort)
-			fn(s.publishEP(dhcpl.ep, s.servesMountTable))
+			fn(dhcpl.ep.String())
 		}
 	}
 }
@@ -472,7 +550,7 @@ func (s *server) dhcpLoop(dhcpl *dhcpListener) {
 	// Publish all of the addresses
 	for _, pubAddr := range dhcpl.pubAddrs {
 		ep.Address = net.JoinHostPort(pubAddr.Address().String(), dhcpl.pubPort)
-		s.publisher.AddServer(s.publishEP(&ep, s.servesMountTable), s.servesMountTable)
+		s.publisher.AddServer(naming.JoinAddressName(ep.String(), ""), s.servesMountTable)
 	}
 
 	for setting := range dhcpl.ch {
@@ -501,6 +579,7 @@ func (s *server) dhcpLoop(dhcpl *dhcpListener) {
 		}
 	}
 }
+*/
 
 func (s *server) Serve(name string, obj interface{}, authorizer security.Authorizer) error {
 	if obj == nil {
@@ -607,16 +686,16 @@ func (s *server) Stop() error {
 	nListeners := len(s.listeners)
 	errCh := make(chan error, nListeners)
 
-	for ln, dhcpl := range s.listeners {
+	for ln, _ := range s.listeners {
 		go func(ln stream.Listener) {
 			errCh <- ln.Close()
 		}(ln)
-		if dhcpl != nil {
-			dhcpl.Lock()
-			dhcpl.publisher.CloseFork(dhcpl.name, dhcpl.ch)
-			dhcpl.ch <- config.NewBool("EOF", "stop", true)
-			dhcpl.Unlock()
-		}
+	}
+	for dhcpl, _ := range s.dhcpListeners {
+		dhcpl.Lock()
+		dhcpl.publisher.CloseFork(dhcpl.name, dhcpl.ch)
+		dhcpl.ch <- config.NewBool("EOF", "stop", true)
+		dhcpl.Unlock()
 	}
 
 	s.Unlock()

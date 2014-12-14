@@ -2,11 +2,12 @@
 # and the difference between resolve and resolveMT.
 
 set localaddr=--veyron.tcp.address=127.0.0.1:0
+set ws=--veyron.tcp.protocol=ws
 
-setRoots ""
+setRoots
 
 # A 'stand-alone' server
-echoServer -- $localaddr "text" ""
+echoServer -- $localaddr $ws $localaddr "text" ""
 set es=$_
 eval $es
 eval $es
@@ -28,7 +29,7 @@ eval $_
 set root=$MT_NAME
 
 set NAMESPACE_ROOT=$root
-echoServer -- $localaddr "text2" "a/b"
+echoServer -- $localaddr $ws $localaddr "text2" "a/b"
 set es=$_
 eval $es
 set es_name=$NAME

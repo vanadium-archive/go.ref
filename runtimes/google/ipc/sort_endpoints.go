@@ -55,12 +55,13 @@ func filterCompatibleEndpoints(errs *errorAccumulator, servers []string) []*serv
 		name := server
 		address, suffix := naming.SplitAddressName(name)
 		if len(address) == 0 {
-			errs.add(fmt.Errorf("%q is not a rooted name", name))
-			continue
+			// Maybe it's not a rooted endpoint, just a bare one.
+			address = name
+			suffix = ""
 		}
 		iep, err := inaming.NewEndpoint(address)
 		if err != nil {
-			errs.add(fmt.Errorf("%q: %s", name, err))
+			errs.add(fmt.Errorf("failed to parse %q: %s", name, err))
 			continue
 		}
 		if err = version.CheckCompatibility(iep); err != nil {

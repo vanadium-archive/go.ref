@@ -40,9 +40,12 @@ import (
 )
 
 var (
-	errMethod  = verror.Make(verror.Aborted, nil)
-	clock      = new(fakeClock)
-	listenSpec = ipc.ListenSpec{Protocol: "tcp", Address: "127.0.0.1:0"}
+	errMethod     = verror.Make(verror.Aborted, nil)
+	clock         = new(fakeClock)
+	listenAddrs   = ipc.ListenAddrs{{"tcp", "127.0.0.1:0"}}
+	listenWSAddrs = ipc.ListenAddrs{{"ws", "127.0.0.1:0"}, {"tcp", "127.0.0.1:0"}}
+	listenSpec    = ipc.ListenSpec{Addrs: listenAddrs}
+	listenWSSpec  = ipc.ListenSpec{Addrs: listenWSAddrs}
 )
 
 type fakeClock struct {
@@ -173,6 +176,10 @@ func (*dischargeServer) Discharge(ctx ipc.ServerCall, cav vdlutil.Any, _ securit
 }
 
 func startServer(t *testing.T, principal security.Principal, sm stream.Manager, ns naming.Namespace, name string, disp ipc.Dispatcher, opts ...ipc.ServerOpt) (naming.Endpoint, ipc.Server) {
+	return startServerWS(t, principal, sm, ns, name, disp, noWebsocket, opts...)
+}
+
+func startServerWS(t *testing.T, principal security.Principal, sm stream.Manager, ns naming.Namespace, name string, disp ipc.Dispatcher, shouldUseWebsocket websocketMode, opts ...ipc.ServerOpt) (naming.Endpoint, ipc.Server) {
 	vlog.VI(1).Info("InternalNewServer")
 	opts = append(opts, vc.LocalPrincipal{principal})
 	server, err := InternalNewServer(testContext(), sm, ns, nil, opts...)
@@ -180,7 +187,11 @@ func startServer(t *testing.T, principal security.Principal, sm stream.Manager, 
 		t.Errorf("InternalNewServer failed: %v", err)
 	}
 	vlog.VI(1).Info("server.Listen")
-	ep, err := server.Listen(listenSpec)
+	spec := listenSpec
+	if shouldUseWebsocket {
+		spec = listenWSSpec
+	}
+	ep, err := server.Listen(spec)
 	if err != nil {
 		t.Errorf("server.Listen failed: %v", err)
 	}
@@ -273,11 +284,15 @@ func (b bundle) cleanup(t *testing.T) {
 }
 
 func createBundle(t *testing.T, client, server security.Principal, ts interface{}) (b bundle) {
+	return createBundleWS(t, client, server, ts, noWebsocket)
+}
+
+func createBundleWS(t *testing.T, client, server security.Principal, ts interface{}, shouldUseWebsocket websocketMode) (b bundle) {
 	b.sm = imanager.InternalNew(naming.FixedRoutingID(0x555555555))
 	b.ns = tnaming.NewSimpleNamespace()
 	b.name = "mountpoint/server"
 	if server != nil {
-		b.ep, b.server = startServer(t, server, b.sm, b.ns, b.name, testServerDisp{ts})
+		b.ep, b.server = startServerWS(t, server, b.sm, b.ns, b.name, testServerDisp{ts}, shouldUseWebsocket)
 	}
 	if client != nil {
 		var err error
@@ -536,7 +551,7 @@ func testRPC(t *testing.T, shouldCloseSend closeSendMode, shouldUseWebsocket web
 		pserver = tsecurity.NewPrincipal("server")
 		pclient = tsecurity.NewPrincipal("client")
 
-		b = createBundle(t, pclient, pserver, &testServer{})
+		b = createBundleWS(t, pclient, pserver, &testServer{}, shouldUseWebsocket)
 	)
 	defer b.cleanup(t)
 	// The server needs to recognize the client's root certificate.
@@ -1216,10 +1231,14 @@ func TestPreferredAddress(t *testing.T) {
 		t.Errorf("InternalNewServer failed: %v", err)
 	}
 	defer server.Stop()
-	spec := listenSpec
-	spec.Address = ":0"
-	spec.AddressChooser = pa
+	spec := ipc.ListenSpec{
+		Addrs:          ipc.ListenAddrs{{"tcp", ":0"}},
+		AddressChooser: pa,
+	}
 	ep, err := server.Listen(spec)
+	if err != nil {
+		t.Errorf("unexpected error: %s", err)
+	}
 	iep := ep.(*inaming.Endpoint)
 	host, _, err := net.SplitHostPort(iep.Address)
 	if err != nil {
@@ -1252,9 +1271,10 @@ func TestPreferredAddressErrors(t *testing.T) {
 		t.Errorf("InternalNewServer failed: %v", err)
 	}
 	defer server.Stop()
-	spec := listenSpec
-	spec.Address = ":0"
-	spec.AddressChooser = paerr
+	spec := ipc.ListenSpec{
+		Addrs:          ipc.ListenAddrs{{"tcp", ":0"}},
+		AddressChooser: paerr,
+	}
 	ep, err := server.Listen(spec)
 	iep := ep.(*inaming.Endpoint)
 	host, _, err := net.SplitHostPort(iep.Address)

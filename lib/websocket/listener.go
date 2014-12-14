@@ -3,7 +3,6 @@
 package websocket
 
 import (
-	"bufio"
 	"errors"
 	"fmt"
 	"net"
@@ -42,6 +41,7 @@ type wsTCPListener struct {
 	wsLoop  sync.WaitGroup
 }
 
+/*
 // bufferedConn is used to allow us to Peek at the first byte to see if it
 // is the magic byte used by veyron tcp requests.  Other than that it behaves
 // like a normal net.Conn.
@@ -63,6 +63,7 @@ func (c *bufferedConn) Peek(n int) ([]byte, error) {
 func (c *bufferedConn) Read(p []byte) (int, error) {
 	return c.r.Read(p)
 }
+*/
 
 // queueListener is a listener that returns connections that are in q.
 type queueListener struct {
@@ -144,35 +145,39 @@ func (ln *wsTCPListener) netAcceptLoop() {
 			return
 		}
 		vlog.VI(1).Infof("New net.Conn accepted from %s (local address: %s)", conn.RemoteAddr(), conn.LocalAddr())
-		bc := newBufferedConn(conn)
-		magic, err := bc.Peek(1)
-		if err != nil {
-			vlog.VI(1).Infof("Shutting down conn from %s (local address: %s) as the magic byte failed to be read: %v", conn.RemoteAddr(), conn.LocalAddr(), err)
-			bc.Close()
-			continue
-		}
+		/*
+			bc := newBufferedConn(conn)
+			magic, err := bc.Peek(1)
+			if err != nil {
+				vlog.VI(1).Infof("Shutting down conn from %s (local address: %s) as the magic byte failed to be read: %v", conn.RemoteAddr(), conn.LocalAddr(), err)
+				bc.Close()
+				continue
+			}
 
-		vlog.VI(1).Infof("Got a connection from %s (local address: %s)", conn.RemoteAddr(), conn.LocalAddr())
-		// Check to see if it is a regular connection or a http connection.
-		if magic[0] == BinaryMagicByte {
-			if _, err := bc.r.ReadByte(); err != nil {
-				vlog.VI(1).Infof("Shutting down conn from %s (local address: %s), could read past the magic byte: %v", conn.RemoteAddr(), conn.LocalAddr(), err)
-				bc.Close()
-				continue
-			}
-			if err := ln.q.Put(&bc); err != nil {
-				vlog.VI(1).Infof("Shutting down conn from %s (local address: %s) as Put failed in vifLoop: %v", conn.RemoteAddr(), conn.LocalAddr(), err)
-				bc.Close()
-				continue
-			}
-			continue
-		}
+				vlog.VI(1).Infof("Got a connection from %s (local address: %s)", conn.RemoteAddr(), conn.LocalAddr())
+				// Check to see if it is a regular connection or a http connection.
+				if magic[0] == BinaryMagicByte {
+					if _, err := bc.r.ReadByte(); err != nil {
+						vlog.VI(1).Infof("Shutting down conn from %s (local address: %s), could read past the magic byte: %v", conn.RemoteAddr(), conn.LocalAddr(), err)
+						bc.Close()
+						continue
+					}
+					if err := ln.q.Put(&bc); err != nil {
+						vlog.VI(1).Infof("Shutting down conn from %s (local address: %s) as Put failed in vifLoop: %v", conn.RemoteAddr(), conn.LocalAddr(), err)
+						bc.Close()
+						continue
+					}
+					continue
+				}
+		*/
 
 		ln.wsLoop.Add(1)
-		if err := ln.httpQ.Put(&bc); err != nil {
+		//		if err := ln.httpQ.Put(&bc); err != nil {
+		if err := ln.httpQ.Put(conn); err != nil {
 			ln.wsLoop.Done()
 			vlog.VI(1).Infof("Shutting down conn from %s (local address: %s) as Put failed in vifLoop: %v", conn.RemoteAddr(), conn.LocalAddr(), err)
-			bc.Close()
+			//bc.Close()
+			conn.Close()
 			continue
 		}
 	}
@@ -207,6 +212,17 @@ func (ln *wsTCPListener) Close() error {
 	return nil
 }
 
+type addr struct{ n, a string }
+
+func (a *addr) Network() string {
+	return a.n
+}
+
+func (a *addr) String() string {
+	return a.a
+}
+
 func (ln *wsTCPListener) Addr() net.Addr {
-	return ln.netLn.Addr()
+	a := &addr{"ws", ln.netLn.Addr().String()}
+	return a
 }

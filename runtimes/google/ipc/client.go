@@ -354,7 +354,7 @@ func (c *client) tryServer(ctx context.T, index int, server string, ch chan<- *s
 	span.Annotatef("address:%v", server)
 	defer span.Finish()
 	if status.flow, status.suffix, err = c.connectFlow(ctx, server, noDischarges); err != nil {
-		vlog.VI(2).Infof("ipc: err: %s", err)
+		vlog.VI(2).Infof("ipc: connect to %s: %s", server, err)
 		status.err = err
 		status.flow = nil
 	}
@@ -861,7 +861,6 @@ func (fc *flowClient) finish(resultptrs ...interface{}) verror.E {
 	// always return an error.  But this isn't a "real" error; the client should
 	// read the rest of the results and succeed.
 	_ = fc.closeSend()
-
 	// Decode the response header, if it hasn't already been decoded by Recv.
 	if fc.response.Error == nil && !fc.response.EndStreamResults {
 		if err := fc.dec.Decode(&fc.response); err != nil {
@@ -874,10 +873,8 @@ func (fc *flowClient) finish(resultptrs ...interface{}) verror.E {
 			return fc.close(berr)
 		}
 	}
-
 	// Incorporate any VTrace info that was returned.
 	ivtrace.MergeResponse(fc.ctx, &fc.response.TraceResponse)
-
 	if fc.response.Error != nil {
 		// TODO(cnicolaou): remove verror.NoAccess with verror version
 		// when ipc.Server is converted.

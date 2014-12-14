@@ -15,7 +15,6 @@ import (
 	"veyron.io/veyron/veyron2/vlog"
 
 	"veyron.io/veyron/veyron/lib/stats"
-	"veyron.io/veyron/veyron/lib/websocket"
 	"veyron.io/veyron/veyron/runtimes/google/ipc/stream/crypto"
 	"veyron.io/veyron/veyron/runtimes/google/ipc/stream/vif"
 	"veyron.io/veyron/veyron/runtimes/google/ipc/version"
@@ -180,16 +179,6 @@ func (m *manager) Listen(protocol, address string, opts ...stream.ListenerOpt) (
 		return nil, nil, errShutDown
 	}
 
-	// If the protocol is tcp, we add the listener that supports both tcp and websocket
-	// so that javascript can talk to this server.
-	if strings.HasPrefix(protocol, "tcp") {
-		wsln, err := websocket.NewListener(netln)
-		if err != nil {
-			netln.Close()
-			return nil, nil, err
-		}
-		netln = wsln
-	}
 	ln := newNetListener(m, netln, opts)
 	m.listeners[ln] = true
 	m.muListeners.Unlock()

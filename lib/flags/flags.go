@@ -123,11 +123,52 @@ func (af ACLFlags) ACLFile(name string) string {
 	return af.flag.files[name]
 }
 
+// ListenAddrs is the set of listen addresses captured from the command line.
+// ListenAddrs mirrors ipc.ListenAddrs.
+type ListenAddrs []struct {
+	Protocol, Address string
+}
+
 // ListenFlags contains the values of the Listen flag group.
 type ListenFlags struct {
-	ListenProtocol TCPProtocolFlag
-	ListenAddress  IPHostPortFlag
-	ListenProxy    string
+	Addrs       ListenAddrs
+	ListenProxy string
+	protocol    TCPProtocolFlag
+	addresses   ipHostPortFlagVar
+}
+
+type ipHostPortFlagVar struct {
+	validator IPHostPortFlag
+	flags     *ListenFlags
+}
+
+// Implements flag.Value.Get
+func (ip ipHostPortFlagVar) Get() interface{} {
+	return ip.String()
+}
+
+// Implements flag.Value.Set
+func (ip *ipHostPortFlagVar) Set(s string) error {
+	if err := ip.validator.Set(s); err != nil {
+		return err
+	}
+	a := struct {
+		Protocol, Address string
+	}{
+		ip.flags.protocol.String(),
+		ip.validator.String(),
+	}
+	ip.flags.Addrs = append(ip.flags.Addrs, a)
+	return nil
+}
+
+// Implements flag.Value.String
+func (ip ipHostPortFlagVar) String() string {
+	s := ""
+	for _, a := range ip.flags.Addrs {
+		s += fmt.Sprintf("(%s %s)", a.Protocol, a.Address)
+	}
+	return s
 }
 
 // createAndRegisterRuntimeFlags creates and registers the RuntimeFlags
@@ -160,11 +201,14 @@ func createAndRegisterACLFlags(fs *flag.FlagSet) *ACLFlags {
 // createAndRegisterListenFlags creates and registers the ListenFlags
 // group with the supplied flag.FlagSet.
 func createAndRegisterListenFlags(fs *flag.FlagSet) *ListenFlags {
-	f := &ListenFlags{}
-	f.ListenProtocol = TCPProtocolFlag{"tcp"}
-	f.ListenAddress = IPHostPortFlag{Port: "0"}
-	fs.Var(&f.ListenProtocol, "veyron.tcp.protocol", "protocol to listen with")
-	fs.Var(&f.ListenAddress, "veyron.tcp.address", "address to listen on")
+	f := &ListenFlags{
+		protocol:  TCPProtocolFlag{"tcp"},
+		addresses: ipHostPortFlagVar{validator: IPHostPortFlag{Port: "0"}},
+	}
+	f.addresses.flags = f
+
+	fs.Var(&f.protocol, "veyron.tcp.protocol", "protocol to listen with")
+	fs.Var(&f.addresses, "veyron.tcp.address", "address to listen on")
 	fs.StringVar(&f.ListenProxy, "veyron.proxy", "", "object name of proxy service to use to export services across network boundaries")
 	return f
 }
@@ -209,7 +253,16 @@ func (f *Flags) RuntimeFlags() RuntimeFlags {
 // method can be used for testing to see if any given group was configured.
 func (f *Flags) ListenFlags() ListenFlags {
 	if p := f.groups[Listen]; p != nil {
-		return *(p.(*ListenFlags))
+		lf := p.(*ListenFlags)
+		n := *lf
+		if len(lf.Addrs) == 0 {
+			n.Addrs = ListenAddrs{{n.protocol.String(),
+				n.addresses.validator.String()}}
+			return n
+		}
+		n.Addrs = make(ListenAddrs, len(lf.Addrs))
+		copy(n.Addrs, lf.Addrs)
+		return n
 	}
 	return ListenFlags{}
 }

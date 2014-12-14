@@ -28,9 +28,8 @@ func parseListenFlags(args []string) (*flags.Flags, []string, error) {
 func initListenSpec(fl *flags.Flags) ipc.ListenSpec {
 	lf := fl.ListenFlags()
 	return ipc.ListenSpec{
-		Protocol: lf.ListenProtocol.String(),
-		Address:  lf.ListenAddress.String(),
-		Proxy:    lf.ListenProxy,
+		Addrs: ipc.ListenAddrs(lf.Addrs),
+		Proxy: lf.ListenProxy,
 	}
 }
 

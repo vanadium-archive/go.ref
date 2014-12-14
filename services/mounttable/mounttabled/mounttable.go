@@ -58,9 +58,9 @@ func main() {
 	if len(*nhName) > 0 {
 		neighborhoodListenSpec := roaming.ListenSpec
 		// The ListenSpec code ensures that we have a valid address here.
-		host, port, _ := net.SplitHostPort(roaming.ListenSpec.Address)
+		host, port, _ := net.SplitHostPort(roaming.ListenSpec.Addrs[0].Address)
 		if port != "" {
-			neighborhoodListenSpec.Address = net.JoinHostPort(host, "0")
+			neighborhoodListenSpec.Addrs[0].Address = net.JoinHostPort(host, "0")
 		}
 		nhServer, err := r.NewServer(options.ServesMountTable(true))
 		if err != nil {

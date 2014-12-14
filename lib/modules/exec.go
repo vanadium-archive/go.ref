@@ -139,6 +139,7 @@ func (eh *execHandle) start(sh *Shell, env []string, args ...string) (Handle, er
 	eh.stdin = stdin
 	eh.handle = handle
 	eh.cmd = cmd
+	vlog.VI(1).Infof("Start: %q stderr: %s", eh.name, stderr.Name())
 	vlog.VI(1).Infof("Start: %q args: %v", eh.name, cmd.Args)
 	vlog.VI(2).Infof("Start: %q env: %v", eh.name, cmd.Env)
 	if err := handle.Start(); err != nil {

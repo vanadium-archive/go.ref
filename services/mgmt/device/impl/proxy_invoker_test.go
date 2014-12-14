@@ -11,6 +11,7 @@ import (
 	"veyron.io/veyron/veyron2/security"
 	"veyron.io/veyron/veyron2/services/mgmt/stats"
 	"veyron.io/veyron/veyron2/services/security/access"
+	"veyron.io/veyron/veyron2/vlog"
 
 	"veyron.io/veyron/veyron/lib/testutil"
 )
@@ -30,7 +31,7 @@ func TestProxyInvoker(t *testing.T) {
 		t.Fatalf("NewServer: %v", err)
 	}
 	defer server1.Stop()
-	localSpec := ipc.ListenSpec{Protocol: "tcp", Address: "127.0.0.1:0"}
+	localSpec := ipc.ListenSpec{Addrs: ipc.ListenAddrs{{"tcp", "127.0.0.1:0"}}}
 	ep1, err := server1.Listen(localSpec)
 	if err != nil {
 		t.Fatalf("Listen: %v", err)
@@ -62,7 +63,7 @@ func TestProxyInvoker(t *testing.T) {
 	name := naming.JoinAddressName(ep2.String(), "system/start-time-rfc1123")
 	c := stats.StatsClient(name)
 	if _, err := c.Value(runtime.NewContext()); err != nil {
-		t.Errorf("%q.Value() error: %v", name, err)
+		t.Fatalf("%q.Value() error: %v", name, err)
 	}
 
 	// Call Glob()
@@ -90,6 +91,7 @@ type proxyDispatcher struct {
 }
 
 func (d *proxyDispatcher) Lookup(suffix string) (interface{}, security.Authorizer, error) {
+	vlog.Infof("LOOKUP(%s): remote .... %s", suffix, d.remote)
 	invoker := &proxyInvoker{
 		remote:  naming.Join(d.remote, suffix),
 		access:  access.Debug,
