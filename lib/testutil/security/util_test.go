@@ -1,8 +1,10 @@
 package security
 
 import (
+	"fmt"
 	"os"
 	"reflect"
+	"sort"
 	"testing"
 
 	"veyron.io/veyron/veyron2/rt"
@@ -13,24 +15,50 @@ import (
 	vsecurity "veyron.io/veyron/veyron/security"
 )
 
-func TestNewVeyronCredentials(t *testing.T) {
-	r, err := rt.New()
+func unsortedEquals(a, b []string) bool {
+	sort.Strings(a)
+	sort.Strings(b)
+	return reflect.DeepEqual(a, b)
+}
+
+func testCredentials(cred string, wantPrincipal security.Principal, wantBlessings []string) error {
+	pFromCred, err := vsecurity.LoadPersistentPrincipal(cred, nil)
 	if err != nil {
+		return fmt.Errorf("LoadPersistentPrincipal(%q, nil) failed: %v", cred, err)
+	}
+	if !reflect.DeepEqual(pFromCred, wantPrincipal) {
+		fmt.Errorf("got principal from directory: %v, want: %v", pFromCred, wantPrincipal)
+	}
+
+	// TODO(ashankar,ataly): Extract blessings using the principal.BlessingInfo API
+	// instead of blessings.ForContext.
+	ctx := security.NewContext(&security.ContextParams{
+		LocalPrincipal: pFromCred,
+	})
+	if got := pFromCred.BlessingStore().ForPeer("foo").ForContext(ctx); !unsortedEquals(got, wantBlessings) {
+		return fmt.Errorf("got peer blessings: %v, want: %v", got, wantBlessings)
+	}
+	if got := pFromCred.BlessingStore().Default().ForContext(ctx); !unsortedEquals(got, wantBlessings) {
+		return fmt.Errorf("got default blessings: %v, want: %v", got, wantBlessings)
+	}
+	return nil
+}
+
+func TestCredentials(t *testing.T) {
+	dir, p := NewCredentials("ali", "alice")
+	if err := testCredentials(dir, p, []string{"ali", "alice"}); err != nil {
 		t.Fatal(err)
 	}
-	defer r.Cleanup()
 
-	parent := r.Principal()
-	childdir := NewVeyronCredentials(parent, "child")
-	defer os.RemoveAll(childdir)
-	if _, err = vsecurity.LoadPersistentPrincipal(childdir, nil); err != nil {
-		t.Fatalf("Expected NewVeyronCredentials to have populated the directory %q: %v", childdir, err)
+	forkdir, forkp := ForkCredentials(p, "friend", "enemy")
+	if err := testCredentials(forkdir, forkp, []string{"ali/friend", "alice/friend", "ali/enemy", "alice/enemy"}); err != nil {
+		t.Fatal(err)
 	}
-	// TODO(ashankar,ataly): Figure out what APIs should we use for more detailed testing
-	// of the child principal, for example:
-	// - Parent should recognize the child's default blessing
-	// - Child should recognize the parent's default blessing
-	// - Child's blessing name should be that of the parent with "/child" appended.
+
+	forkforkdir, forkforkp := ForkCredentials(forkp, "spouse")
+	if err := testCredentials(forkforkdir, forkforkp, []string{"ali/friend/spouse", "alice/friend/spouse", "ali/enemy/spouse", "alice/enemy/spouse"}); err != nil {
+		t.Fatal(err)
+	}
 }
 
 func TestSaveACLToFile(t *testing.T) {

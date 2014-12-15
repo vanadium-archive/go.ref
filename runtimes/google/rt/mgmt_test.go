@@ -295,7 +295,7 @@ func createConfigServer(t *testing.T, r veyron2.Runtime) (ipc.Server, string, <-
 func setupRemoteAppCycleMgr(t *testing.T) (veyron2.Runtime, modules.Handle, appcycle.AppCycleClientMethods, func()) {
 	r, _ := rt.New(profileOpt)
 
-	childcreds := security.NewVeyronCredentials(r.Principal(), appCmd)
+	childcreds, _ := security.ForkCredentials(r.Principal(), appCmd)
 	configServer, configServiceName, ch := createConfigServer(t, r)
 	sh, err := modules.NewShell(nil)
 	if err != nil {

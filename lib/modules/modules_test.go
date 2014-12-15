@@ -430,10 +430,9 @@ func TestEnvCredentials(t *testing.T) {
 	sh.Cleanup(nil, nil)
 
 	// Test child credentials when VeyronCredentials are set.
-	root := tsecurity.NewPrincipal("root")
 	old := os.Getenv(consts.VeyronCredentials)
 	defer os.Setenv(consts.VeyronCredentials, old)
-	dir := tsecurity.NewVeyronCredentials(root, "os")
+	dir, _ := tsecurity.NewCredentials("os")
 	defer os.RemoveAll(dir)
 	if err := os.Setenv(consts.VeyronCredentials, dir); err != nil {
 		t.Fatal(err)
@@ -442,7 +441,7 @@ func TestEnvCredentials(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
-	if err := validateCredentials(startChildAndGetCredentials(sh, nil), "root/os/child"); err != nil {
+	if err := validateCredentials(startChildAndGetCredentials(sh, nil), "os/child"); err != nil {
 		t.Fatal(err)
 	}
 	sh.Cleanup(nil, nil)
@@ -453,34 +452,34 @@ func TestEnvCredentials(t *testing.T) {
 	}
 
 	// Test that VeyronCredentials specified on the shell override the OS ones.
-	dir = tsecurity.NewVeyronCredentials(root, "shell")
+	dir, _ = tsecurity.NewCredentials("shell")
 	defer os.RemoveAll(dir)
 	sh, err = modules.NewShell(nil)
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
 	sh.SetVar(consts.VeyronCredentials, dir)
-	if err := validateCredentials(startChildAndGetCredentials(sh, nil), "root/shell/child"); err != nil {
+	if err := validateCredentials(startChildAndGetCredentials(sh, nil), "shell/child"); err != nil {
 		t.Fatal(err)
 	}
 	sh.ClearVar(consts.VeyronCredentials)
 	if credentials := startChildAndGetCredentials(sh, nil); len(credentials) != 0 {
 		t.Fatalf("found credentials %v set for child even when shell credentials were cleared", credentials)
 	}
-	anotherDir := tsecurity.NewVeyronCredentials(root, "anotherShell")
+	anotherDir, _ := tsecurity.NewCredentials("anotherShell")
 	defer os.RemoveAll(anotherDir)
 	sh.SetVar(consts.VeyronCredentials, anotherDir)
-	if err := validateCredentials(startChildAndGetCredentials(sh, nil), "root/anotherShell/child"); err != nil {
+	if err := validateCredentials(startChildAndGetCredentials(sh, nil), "anotherShell/child"); err != nil {
 		t.Fatal(err)
 	}
 	sh.Cleanup(nil, nil)
 
 	// Test that VeyronCredentials specified as a parameter overrides the OS and
 	// shell ones.
-	dir = tsecurity.NewVeyronCredentials(root, "param")
+	dir, _ = tsecurity.NewCredentials("param")
 	defer os.RemoveAll(dir)
 	env := []string{consts.VeyronCredentials + "=" + dir}
-	if err := validateCredentials(startChildAndGetCredentials(sh, env), "root/param"); err != nil {
+	if err := validateCredentials(startChildAndGetCredentials(sh, env), "param"); err != nil {
 		t.Fatal(err)
 	}
 

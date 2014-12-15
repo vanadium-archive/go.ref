@@ -150,10 +150,9 @@ func TestBinaryRepositoryIntegration(t *testing.T) {
 	defer handle.CloseStdin()
 
 	// Generate credentials.
-	rootPrin := security.NewPrincipal("root")
-	serverCred := security.NewVeyronCredentials(rootPrin, "server")
+	serverCred, serverPrin := security.NewCredentials("server")
 	defer os.RemoveAll(serverCred)
-	clientCred := security.NewVeyronCredentials(rootPrin, "server/client")
+	clientCred, _ := security.ForkCredentials(serverPrin, "client")
 	defer os.RemoveAll(clientCred)
 
 	// Start the build server.

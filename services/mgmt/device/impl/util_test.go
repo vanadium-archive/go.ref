@@ -61,7 +61,7 @@ func startRootMT(t *testing.T, sh *modules.Shell) (string, modules.Handle) {
 }
 
 func credentialsForChild(blessing string) (string, []string) {
-	creds := tsecurity.NewVeyronCredentials(globalRT.Principal(), blessing)
+	creds, _ := tsecurity.ForkCredentials(globalRT.Principal(), blessing)
 	return creds, []string{consts.VeyronCredentials + "=" + creds}
 }
 

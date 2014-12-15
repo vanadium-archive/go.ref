@@ -350,7 +350,7 @@ func TestCleanRemoteShutdown(t *testing.T) {
 
 	// Set the child process up with a blessing from the parent so that
 	// the default authorization works for RPCs between the two.
-	childcreds := security.NewVeyronCredentials(runtime.Principal(), "child")
+	childcreds, _ := security.ForkCredentials(runtime.Principal(), "child")
 	defer os.RemoveAll(childcreds)
 	configServer, configServiceName, ch := createConfigServer(t, runtime)
 	defer configServer.Stop()

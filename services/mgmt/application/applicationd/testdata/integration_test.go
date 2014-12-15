@@ -75,10 +75,9 @@ func TestApplicationRepository(t *testing.T) {
 	defer handle.CloseStdin()
 
 	// Generate credentials.
-	root := security.NewPrincipal("root")
-	serverCred := security.NewVeyronCredentials(root, "server")
+	serverCred, serverPrin := security.NewCredentials("server")
 	defer os.RemoveAll(serverCred)
-	clientCred := security.NewVeyronCredentials(root, "server/client")
+	clientCred, _ := security.ForkCredentials(serverPrin, "client")
 	defer os.RemoveAll(clientCred)
 
 	// Start the application repository.

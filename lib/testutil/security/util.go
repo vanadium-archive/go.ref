@@ -1,5 +1,25 @@
 // Package security contains utility testing functions related to
-// security.
+// veyron2/security.
+//
+// Suggested Usage:
+//
+// Create a new in-memory principal with an empty BlessingStore.
+// p := NewPrincipal()
+//
+// Create a new in-memory principal with self-signed blessing for "alice".
+// p := NewPrincipal("alice")
+//
+// Create a VeyronCredentials directory with a new persistent principal that has a
+// self-signed blessing for "alice"  -- this directory can be set as the value
+// of the VEYRON_CREDENTIALS environment variable or the --veyron.credentials flag
+// used to initialize a runtime. All updates to the principal's state get subsequently
+// persisted to the directory. Both the directory and a handle to the created principal
+// are returned.
+// dir, p := NewCredentials("alice")  // principal p has blessing "alice"
+//
+// Create a VeyronCredentials directory with a new persistent principal that is
+// blessed by the principal p under the extension "friend"
+// forkdir, forkp := ForkCredentials(p, "friend")  // principal forkp has blessing "alice/friend"
 package security
 
 import (
@@ -12,31 +32,85 @@ import (
 	"veyron.io/veyron/veyron2/services/security/access"
 )
 
-// NewVeyronCredentials generates a directory with a new principal
-// that can be used as a value for the VEYRON_CREDENTIALS environment
-// variable to initialize a Runtime.
-//
-// The principal created uses a blessing from 'parent', with the extension
-// 'name' as its default blessing.
-//
-// It returns the path to the directory created.
-func NewVeyronCredentials(parent security.Principal, name string) string {
+func newCredentials() (string, security.Principal) {
 	dir, err := ioutil.TempDir("", "veyron_credentials")
 	if err != nil {
 		panic(err)
 	}
-	p, err := vsecurity.LoadPersistentPrincipal(dir, nil)
-	if err != nil {
-		if p, err = vsecurity.CreatePersistentPrincipal(dir, nil); err != nil {
-			panic(err)
-		}
-	}
-	blessings, err := parent.Bless(p.PublicKey(), parent.BlessingStore().Default(), name, security.UnconstrainedUse())
+	p, err := vsecurity.CreatePersistentPrincipal(dir, nil)
 	if err != nil {
 		panic(err)
 	}
-	SetDefaultBlessings(p, blessings)
-	return dir
+	return dir, p
+}
+
+func selfBlessings(p security.Principal, names ...string) security.Blessings {
+	var blessings security.Blessings
+	for _, name := range names {
+		b, err := p.BlessSelf(name)
+		if err != nil {
+			panic(err)
+		}
+		if blessings, err = security.UnionOfBlessings(blessings, b); err != nil {
+			panic(err)
+		}
+	}
+	return blessings
+}
+
+// NewCredentials generates a directory with a new principal with
+// self-signed blessings.
+//
+// In particular, the principal is initialized with self-signed
+// blessings for the provided 'names', marked as  default and shareable
+// with all peers on the principal's blessing store.
+//
+// It returns the path to the directory created and the principal.
+// The directory can be used as a value for the VEYRON_CREDENTIALS
+// environment variable (or the --veyron.credentials flag) used to
+// initialize a Runtime.
+func NewCredentials(requiredName string, otherNames ...string) (string, security.Principal) {
+	dir, p := newCredentials()
+	if def := selfBlessings(p, append([]string{requiredName}, otherNames...)...); def != nil {
+		SetDefaultBlessings(p, def)
+	}
+	return dir, p
+}
+
+// ForkCredentials generates a directory with a new principal whose
+// blessings are provided by the 'parent'.
+//
+// In particular, the principal is initialized with blessings from
+// 'parent' under the provided 'extensions', and marked as default and
+// shareable with all peers on the principal's blessing store.
+//
+// It returns the path to the directory created and the principal.
+// The directory can be used as a value for the VEYRON_CREDENTIALS
+// environment variable (or the --veyron.credentials flag) used to
+// initialize a Runtime.
+func ForkCredentials(parent security.Principal, requiredExtension string, otherExtensions ...string) (string, security.Principal) {
+	dir, err := ioutil.TempDir("", "veyron_credentials")
+	if err != nil {
+		panic(err)
+	}
+	p, err := vsecurity.CreatePersistentPrincipal(dir, nil)
+	if err != nil {
+		panic(err)
+	}
+	var def security.Blessings
+	for _, extension := range append([]string{requiredExtension}, otherExtensions...) {
+		b, err := parent.Bless(p.PublicKey(), parent.BlessingStore().Default(), extension, security.UnconstrainedUse())
+		if err != nil {
+			panic(err)
+		}
+		if def, err = security.UnionOfBlessings(def, b); err != nil {
+			panic(err)
+		}
+	}
+	if def != nil {
+		SetDefaultBlessings(p, def)
+	}
+	return dir, p
 }
 
 // NewPrincipal creates a new security.Principal.
@@ -49,17 +123,7 @@ func NewPrincipal(defaultBlessings ...string) security.Principal {
 	if err != nil {
 		panic(err)
 	}
-	var def security.Blessings
-	for _, blessing := range defaultBlessings {
-		b, err := p.BlessSelf(blessing)
-		if err != nil {
-			panic(err)
-		}
-		if def, err = security.UnionOfBlessings(def, b); err != nil {
-			panic(err)
-		}
-	}
-	if def != nil {
+	if def := selfBlessings(p, defaultBlessings...); def != nil {
 		SetDefaultBlessings(p, def)
 	}
 	return p
