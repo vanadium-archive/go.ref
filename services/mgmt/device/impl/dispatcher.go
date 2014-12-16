@@ -158,15 +158,26 @@ func (d *dispatcher) getACLFilePaths() (acl, signature, devicedata string) {
 	return
 }
 
-func (d *dispatcher) claimDeviceManager(principal security.Principal, names []string, proof security.Blessings) error {
-	// TODO(gauthamt): Should we start trusting these identity providers?
+func (d *dispatcher) claimDeviceManager(ctx ipc.ServerContext) error {
 	// TODO(rjkroege): Scrub the state tree of installation and instance ACL files.
+
+	// Get the blessings to be used by the claimant.
+	blessings := ctx.Blessings()
+	if blessings == nil {
+		return verror2.Make(ErrInvalidBlessing, ctx)
+	}
+	principal := ctx.LocalPrincipal()
+	if err := principal.AddToRoots(blessings); err != nil {
+		vlog.Errorf("principal.AddToRoots(%s) failed: %v", blessings, err)
+		return verror2.Make(ErrInvalidBlessing, ctx)
+	}
+	names := blessings.ForContext(ctx)
 	if len(names) == 0 {
-		vlog.Errorf("No names for claimer(%v) are trusted", proof)
+		vlog.Errorf("No names for claimer(%v) are trusted", blessings)
 		return verror2.Make(ErrOperationFailed, nil)
 	}
-	principal.BlessingStore().Set(proof, security.AllPrincipals)
-	principal.BlessingStore().SetDefault(proof)
+	principal.BlessingStore().Set(blessings, security.AllPrincipals)
+	principal.BlessingStore().SetDefault(blessings)
 	// Create ACLs to transfer devicemanager permissions to the provided identity.
 	acl := make(access.TaggedACLMap)
 	for _, n := range names {
@@ -475,4 +486,7 @@ func newAppSpecificAuthorizer(sec security.Authorizer, config *config.State, suf
 // access.
 type allowEveryone struct{}
 
-func (allowEveryone) Authorize(security.Context) error { return nil }
+func (allowEveryone) Authorize(ctx security.Context) error {
+	vlog.Infof("Device manager is unclaimed. Allow %q.%s() from %q.", ctx.Suffix(), ctx.Method(), ctx.RemoteBlessings())
+	return nil
+}

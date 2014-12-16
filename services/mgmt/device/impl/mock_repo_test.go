@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"veyron.io/veyron/veyron2/ipc"
+	"veyron.io/veyron/veyron2/security"
 	"veyron.io/veyron/veyron2/services/mgmt/application"
 	"veyron.io/veyron/veyron2/services/mgmt/binary"
 	"veyron.io/veyron/veyron2/services/mgmt/repository"
@@ -36,7 +37,7 @@ func startApplicationRepository() (*application.Envelope, func()) {
 	server, _ := newServer()
 	invoker := new(arInvoker)
 	name := mockApplicationRepoName
-	if err := server.Serve(name, repository.ApplicationServer(invoker), nil); err != nil {
+	if err := server.Serve(name, repository.ApplicationServer(invoker), &openAuthorizer{}); err != nil {
 		vlog.Fatalf("Serve(%v) failed: %v", name, err)
 	}
 	return &invoker.envelope, func() {
@@ -45,6 +46,10 @@ func startApplicationRepository() (*application.Envelope, func()) {
 		}
 	}
 }
+
+type openAuthorizer struct{}
+
+func (openAuthorizer) Authorize(security.Context) error { return nil }
 
 // arInvoker holds the state of an application repository invocation mock.  The
 // mock returns the value of the wrapped envelope, which can be subsequently be
@@ -68,7 +73,7 @@ type brInvoker struct{}
 func startBinaryRepository() func() {
 	server, _ := newServer()
 	name := mockBinaryRepoName
-	if err := server.Serve(name, repository.BinaryServer(new(brInvoker)), nil); err != nil {
+	if err := server.Serve(name, repository.BinaryServer(new(brInvoker)), &openAuthorizer{}); err != nil {
 		vlog.Fatalf("Serve(%q) failed: %v", name, err)
 	}
 	return func() {

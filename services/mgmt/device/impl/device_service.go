@@ -94,13 +94,8 @@ type deviceService struct {
 	uat      BlessingSystemAssociationStore
 }
 
-func (i *deviceService) Claim(call ipc.ServerContext) error {
-	// Get the blessing to be used by the claimant.
-	blessings := call.Blessings()
-	if blessings == nil {
-		return verror2.Make(ErrInvalidBlessing, call)
-	}
-	return i.disp.claimDeviceManager(call.LocalPrincipal(), blessings.ForContext(call), blessings)
+func (i *deviceService) Claim(ctx ipc.ServerContext) error {
+	return i.disp.claimDeviceManager(ctx)
 }
 
 func (*deviceService) Describe(ipc.ServerContext) (device.Description, error) {

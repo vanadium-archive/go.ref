@@ -31,6 +31,7 @@ import (
 	"veyron.io/veyron/veyron2/context"
 	"veyron.io/veyron/veyron2/ipc"
 	"veyron.io/veyron/veyron2/naming"
+	"veyron.io/veyron/veyron2/options"
 	"veyron.io/veyron/veyron2/rt"
 	"veyron.io/veyron/veyron2/security"
 	"veyron.io/veyron/veyron2/services/mgmt/application"
@@ -75,14 +76,14 @@ func init() {
 	if modules.IsModulesProcess() {
 		return
 	}
-	initRT()
+	initRT(options.RuntimePrincipal{tsecurity.NewPrincipal("test-principal")})
 }
 
 var globalRT veyron2.Runtime
 
-func initRT() {
+func initRT(opts ...veyron2.ROpt) {
 	var err error
-	if globalRT, err = rt.New(); err != nil {
+	if globalRT, err = rt.New(opts...); err != nil {
 		panic(err)
 	}
 
@@ -494,7 +495,7 @@ func (p pingServer) Ping(_ ipc.ServerContext, arg string) {
 func setupPingServer(t *testing.T) (<-chan string, func()) {
 	server, _ := newServer()
 	pingCh := make(chan string, 1)
-	if err := server.Serve("pingserver", pingServer(pingCh), nil); err != nil {
+	if err := server.Serve("pingserver", pingServer(pingCh), &openAuthorizer{}); err != nil {
 		t.Fatalf("Serve(%q, <dispatcher>) failed: %v", "pingserver", err)
 	}
 	return pingCh, func() {
@@ -726,8 +727,8 @@ func TestAppLifeCycle(t *testing.T) {
 	dms.ExpectEOF()
 }
 
-func newRuntime(t *testing.T) veyron2.Runtime {
-	runtime, err := rt.New()
+func newRuntime(t *testing.T, opts ...veyron2.ROpt) veyron2.Runtime {
+	runtime, err := rt.New(opts...)
 	if err != nil {
 		t.Fatalf("rt.New() failed: %v", err)
 	}
@@ -807,9 +808,10 @@ func TestDeviceManagerClaim(t *testing.T) {
 
 	*envelope = envelopeFromShell(sh, nil, appCmd, "google naps", "trapp")
 
-	deviceStub := device.DeviceClient("dm//device")
-	selfRT := globalRT
-	otherRT := newRuntime(t)
+	deviceStub := device.DeviceClient("dm/device")
+	claimantRT := newRuntime(t, options.RuntimePrincipal{tsecurity.NewPrincipal("claimant")})
+	defer claimantRT.Cleanup()
+	otherRT := newRuntime(t, options.RuntimePrincipal{tsecurity.NewPrincipal("other")})
 	defer otherRT.Cleanup()
 
 	octx := otherRT.NewContext()
@@ -817,16 +819,16 @@ func TestDeviceManagerClaim(t *testing.T) {
 	// Devicemanager should have open ACLs before we claim it and so an
 	// Install from otherRT should succeed.
 	if err := tryInstall(octx); err != nil {
-		t.Fatalf("Failed to install: %s", err)
+		t.Errorf("Failed to install: %s", err)
 	}
-	// Claim the devicemanager with selfRT as <defaultblessing>/mydevice
-	if err := deviceStub.Claim(selfRT.NewContext(), &granter{p: selfRT.Principal(), extension: "mydevice"}); err != nil {
+	// Claim the devicemanager with claimantRT as <defaultblessing>/mydevice
+	if err := deviceStub.Claim(claimantRT.NewContext(), &granter{p: claimantRT.Principal(), extension: "mydevice"}); err != nil {
 		t.Fatal(err)
 	}
 
-	// Installation should succeed since globalRT (a.k.a. selfRT) is now the
-	// "owner" of the devicemanager.
-	appID := installApp(t)
+	// Installation should succeed since claimantRT is now the "owner" of
+	// the devicemanager.
+	appID := installApp(t, claimantRT)
 
 	// otherRT should be unable to install though, since the ACLs have
 	// changed now.
@@ -839,7 +841,7 @@ func TestDeviceManagerClaim(t *testing.T) {
 	defer cleanup()
 
 	// Start an instance of the app.
-	instanceID := startApp(t, appID)
+	instanceID := startApp(t, appID, claimantRT)
 
 	// Wait until the app pings us that it's ready.
 	select {
@@ -848,7 +850,7 @@ func TestDeviceManagerClaim(t *testing.T) {
 		t.Fatalf("failed to get ping")
 	}
 	resolve(t, "trapp", 1)
-	suspendApp(t, appID, instanceID)
+	suspendApp(t, appID, instanceID, claimantRT)
 
 	// TODO(gauthamt): Test that ACLs persist across devicemanager restarts
 }
