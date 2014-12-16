@@ -214,3 +214,48 @@ func TestListenFlags(t *testing.T) {
 		}
 	}
 }
+
+func TestDuplicateFlags(t *testing.T) {
+	fl := flags.CreateAndRegister(flag.NewFlagSet("test", flag.ContinueOnError), flags.Listen)
+	if err := fl.Parse([]string{
+		"--veyron.tcp.address=172.0.0.1:10", "--veyron.tcp.address=172.0.0.1:10", "--veyron.tcp.address=172.0.0.1:34", "--veyron.tcp.protocol=ws", "--veyron.tcp.address=172.0.0.1:10", "--veyron.tcp.address=172.0.0.1:34", "--veyron.tcp.address=172.0.0.1:34"}); err != nil {
+		t.Fatalf("unexpected error: %s", err)
+	}
+	lf := fl.ListenFlags()
+	if got, want := len(lf.Addrs), 4; got != want {
+		t.Errorf("got %d, want %d", got, want)
+	}
+	expected := flags.ListenAddrs{
+		{"tcp", "172.0.0.1:10"},
+		{"tcp", "172.0.0.1:34"},
+		{"ws", "172.0.0.1:10"},
+		{"ws", "172.0.0.1:34"},
+	}
+	if got, want := lf.Addrs, expected; !reflect.DeepEqual(got, want) {
+		t.Fatalf("got %#v, want %#v", got, want)
+	}
+	if err := fl.Parse([]string{
+		"--veyron.tcp.address=172.0.0.1:10", "--veyron.tcp.address=172.0.0.1:10", "--veyron.tcp.address=172.0.0.1:34", "--veyron.tcp.protocol=ws", "--veyron.tcp.address=172.0.0.1:10", "--veyron.tcp.address=127.0.0.1:34", "--veyron.tcp.address=127.0.0.1:34"}); err != nil {
+		t.Fatalf("unexpected error: %s", err)
+	}
+	if got, want := len(lf.Addrs), 4; got != want {
+		t.Errorf("got %d, want %d", got, want)
+	}
+	if got, want := lf.Addrs, expected; !reflect.DeepEqual(got, want) {
+		t.Fatalf("got %#v, want %#v", got, want)
+	}
+
+	fl = flags.CreateAndRegister(flag.NewFlagSet("test", flag.ContinueOnError), flags.Runtime)
+
+	if err := fl.Parse([]string{"--veyron.namespace.root=ab", "--veyron.namespace.root=xy", "--veyron.namespace.root=ab"}); err != nil {
+		t.Fatalf("unexpected error: %s", err)
+	}
+
+	rf := fl.RuntimeFlags()
+	if got, want := len(rf.NamespaceRoots), 2; got != want {
+		t.Errorf("got %d, want %d", got, want)
+	}
+	if got, want := rf.NamespaceRoots, []string{"ab", "xy"}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("got %#v, want %#v", got, want)
+	}
+}
