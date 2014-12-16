@@ -54,6 +54,11 @@ func (nsr *namespaceRootFlagVar) Set(v string) error {
 		nsr.isSet = true
 		nsr.roots = []string{}
 	}
+	for _, t := range nsr.roots {
+		if v == t {
+			return nil
+		}
+	}
 	nsr.roots = append(nsr.roots, v)
 	return nil
 }
@@ -157,6 +162,11 @@ func (ip *ipHostPortFlagVar) Set(s string) error {
 	}{
 		ip.flags.protocol.String(),
 		ip.validator.String(),
+	}
+	for _, t := range ip.flags.Addrs {
+		if t.Protocol == a.Protocol && t.Address == a.Address {
+			return nil
+		}
 	}
 	ip.flags.Addrs = append(ip.flags.Addrs, a)
 	return nil
