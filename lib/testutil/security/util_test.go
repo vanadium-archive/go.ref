@@ -30,15 +30,11 @@ func testCredentials(cred string, wantPrincipal security.Principal, wantBlessing
 		fmt.Errorf("got principal from directory: %v, want: %v", pFromCred, wantPrincipal)
 	}
 
-	// TODO(ashankar,ataly): Extract blessings using the principal.BlessingInfo API
-	// instead of blessings.ForContext.
-	ctx := security.NewContext(&security.ContextParams{
-		LocalPrincipal: pFromCred,
-	})
-	if got := pFromCred.BlessingStore().ForPeer("foo").ForContext(ctx); !unsortedEquals(got, wantBlessings) {
+	bs := pFromCred.BlessingStore()
+	if got := pFromCred.BlessingsInfo(bs.ForPeer("foo")); !unsortedEquals(got, wantBlessings) {
 		return fmt.Errorf("got peer blessings: %v, want: %v", got, wantBlessings)
 	}
-	if got := pFromCred.BlessingStore().Default().ForContext(ctx); !unsortedEquals(got, wantBlessings) {
+	if got := pFromCred.BlessingsInfo(bs.Default()); !unsortedEquals(got, wantBlessings) {
 		return fmt.Errorf("got default blessings: %v, want: %v", got, wantBlessings)
 	}
 	return nil

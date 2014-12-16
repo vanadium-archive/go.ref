@@ -135,6 +135,14 @@ func (bs *blessingStore) String() string {
 	return fmt.Sprintf("{state: %v, publicKey: %v}", bs.state, bs.publicKey)
 }
 
+func (bs *blessingStore) PeerBlessings() map[security.BlessingPattern]security.Blessings {
+	m := make(map[security.BlessingPattern]security.Blessings)
+	for pattern, wb := range bs.state.Store {
+		m[pattern] = wb.Blessings()
+	}
+	return m
+}
+
 // DebugString return a human-readable string encoding of the store
 // in the following format
 // Default blessing : <Default blessing of the store>

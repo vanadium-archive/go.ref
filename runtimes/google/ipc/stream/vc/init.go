@@ -54,6 +54,10 @@ func (s *anonymousBlessingStore) PublicKey() security.PublicKey {
 	return s.k
 }
 
+func (s *anonymousBlessingStore) PeerBlessings() map[security.BlessingPattern]security.Blessings {
+	return nil
+}
+
 func (anonymousBlessingStore) DebugString() string {
 	return "anonymous BlessingStore"
 }

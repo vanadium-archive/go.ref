@@ -128,6 +128,33 @@ func (c *client) PublicKey() security.PublicKey {
 	return c.key
 }
 
+func (c *client) BlessingsByName(pattern security.BlessingPattern) []security.Blessings {
+	var wbResults []security.WireBlessings
+	err := c.caller.call("BlessingsByName", results(&wbResults), pattern)
+	if err != nil {
+		vlog.Errorf("error calling BlessingsByName: %v", err)
+		return nil
+	}
+	blessings := make([]security.Blessings, len(wbResults))
+	for i, wb := range wbResults {
+		var err error
+		blessings[i], err = security.NewBlessings(wb)
+		if err != nil {
+			vlog.Errorf("error creating Blessing from WireBlessings: %v", err)
+		}
+	}
+	return blessings
+}
+
+func (c *client) BlessingsInfo(blessings security.Blessings) []string {
+	var names []string
+	err := c.caller.call("BlessingsInfo", results(&names), security.MarshalBlessings(blessings))
+	if err != nil {
+		vlog.Errorf("error calling BlessingsInfo: %v", err)
+		return nil
+	}
+	return names
+}
 func (c *client) BlessingStore() security.BlessingStore {
 	return &blessingStore{c.caller, c.key}
 }
@@ -190,6 +217,25 @@ func (b *blessingStore) Default() security.Blessings {
 
 func (b *blessingStore) PublicKey() security.PublicKey {
 	return b.key
+}
+
+func (b *blessingStore) PeerBlessings() map[security.BlessingPattern]security.Blessings {
+	var wbMap map[security.BlessingPattern]security.WireBlessings
+	err := b.caller.call("BlessingStorePeerBlessings", results(&wbMap))
+	if err != nil {
+		vlog.Errorf("error calling BlessingStorePeerBlessings: %v", err)
+		return nil
+	}
+	bMap := make(map[security.BlessingPattern]security.Blessings)
+	for pattern, wb := range wbMap {
+		blessings, err := security.NewBlessings(wb)
+		if err != nil {
+			vlog.Errorf("error creating Blessing from WireBlessings: %v", err)
+			return nil
+		}
+		bMap[pattern] = blessings
+	}
+	return bMap
 }
 
 func (b *blessingStore) DebugString() (s string) {

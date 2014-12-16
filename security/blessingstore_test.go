@@ -30,11 +30,19 @@ func (t *storeTester) testSet(s security.BlessingStore) error {
 		{t.forAll, "...foo", "invalid BlessingPattern"},
 		{t.forAll, "foo/.../bar", "invalid BlessingPattern"},
 	}
+	added := make(map[security.BlessingPattern]security.Blessings)
 	for _, d := range testdata {
 		_, err := s.Set(d.blessings, d.pattern)
 		if merr := matchesError(err, d.wantErr); merr != nil {
 			return fmt.Errorf("Set(%v, %q): %v", d.blessings, d.pattern, merr)
 		}
+		if err == nil {
+			added[d.pattern] = d.blessings
+		}
+	}
+	m := s.PeerBlessings()
+	if !reflect.DeepEqual(added, m) {
+		return fmt.Errorf("PeerBlessings(%v) != added(%v)", m, added)
 	}
 	return nil
 }

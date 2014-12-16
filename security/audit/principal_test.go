@@ -162,6 +162,14 @@ func (p *mockPrincipal) MintDischarge(security.ThirdPartyCaveat, security.Caveat
 	return d, p.NextError
 }
 
+func (p *mockPrincipal) BlessingsByName(name security.BlessingPattern) []security.Blessings {
+	return nil
+}
+
+func (p *mockPrincipal) BlessingsInfo(b security.Blessings) []string {
+	return nil
+}
+
 func (p *mockPrincipal) PublicKey() security.PublicKey         { return p.NextResult.(security.PublicKey) }
 func (p *mockPrincipal) Roots() security.BlessingRoots         { return nil }
 func (p *mockPrincipal) BlessingStore() security.BlessingStore { return nil }

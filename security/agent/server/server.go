@@ -307,6 +307,23 @@ func (a agentd) PublicKey(_ ipc.ServerContext) ([]byte, error) {
 	return a.principal.PublicKey().MarshalBinary()
 }
 
+func (a agentd) BlessingsByName(_ ipc.ServerContext, name security.BlessingPattern) ([]security.WireBlessings, error) {
+	blessings := a.principal.BlessingsByName(name)
+	ret := make([]security.WireBlessings, len(blessings))
+	for i, b := range blessings {
+		ret[i] = security.MarshalBlessings(b)
+	}
+	return ret, nil
+}
+
+func (a agentd) BlessingsInfo(_ ipc.ServerContext, blessings security.WireBlessings) ([]string, error) {
+	b, err := security.NewBlessings(blessings)
+	if err != nil {
+		return nil, err
+	}
+	return a.principal.BlessingsInfo(b), nil
+}
+
 func (a agentd) AddToRoots(_ ipc.ServerContext, wireBlessings security.WireBlessings) error {
 	blessings, err := security.NewBlessings(wireBlessings)
 	if err != nil {
@@ -337,6 +354,15 @@ func (a agentd) BlessingStoreSetDefault(_ ipc.ServerContext, wireBlessings secur
 		return err
 	}
 	return a.principal.BlessingStore().SetDefault(blessings)
+}
+
+func (a agentd) BlessingStorePeerBlessings(_ ipc.ServerContext) (map[security.BlessingPattern]security.WireBlessings, error) {
+	bMap := a.principal.BlessingStore().PeerBlessings()
+	wbMap := make(map[security.BlessingPattern]security.WireBlessings, len(bMap))
+	for p, b := range bMap {
+		wbMap[p] = security.MarshalBlessings(b)
+	}
+	return wbMap, nil
 }
 
 func (a agentd) BlessingStoreDebugString(_ ipc.ServerContext) (string, error) {

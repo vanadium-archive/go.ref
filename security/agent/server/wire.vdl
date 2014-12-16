@@ -35,12 +35,15 @@ type Agent interface {
 	Sign(message []byte) (security.Signature, error)
 	MintDischarge(tp any, caveat security.Caveat, additionalCaveats []security.Caveat) (any, error)
 	PublicKey() ([]byte, error)
+	BlessingsByName(name security.BlessingPattern) ([]security.WireBlessings, error)
+	BlessingsInfo(blessings security.WireBlessings) ([]string, error)
 	AddToRoots(blessing security.WireBlessings) error
 
 	BlessingStoreSet(blessings security.WireBlessings, forPeers security.BlessingPattern) (security.WireBlessings, error)
 	BlessingStoreForPeer(peerBlessings []string) (security.WireBlessings, error)
 	BlessingStoreSetDefault(blessings security.WireBlessings) error
 	BlessingStoreDefault() (security.WireBlessings, error)
+	BlessingStorePeerBlessings() (map[security.BlessingPattern]security.WireBlessings, error)
 	BlessingStoreDebugString() (string, error)
 
 	BlessingRootsAdd(root []byte, pattern security.BlessingPattern) error

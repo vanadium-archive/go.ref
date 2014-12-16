@@ -55,6 +55,14 @@ func (p *auditingPrincipal) MintDischarge(tp security.ThirdPartyCaveat, caveat s
 	return d, nil
 }
 
+func (p *auditingPrincipal) BlessingsByName(name security.BlessingPattern) []security.Blessings {
+	return p.principal.BlessingsByName(name)
+}
+
+func (p *auditingPrincipal) BlessingsInfo(b security.Blessings) []string {
+	return p.principal.BlessingsInfo(b)
+}
+
 func (p *auditingPrincipal) PublicKey() security.PublicKey         { return p.principal.PublicKey() }
 func (p *auditingPrincipal) Roots() security.BlessingRoots         { return p.principal.Roots() }
 func (p *auditingPrincipal) BlessingStore() security.BlessingStore { return p.principal.BlessingStore() }

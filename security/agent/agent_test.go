@@ -69,6 +69,8 @@ func TestAgent(t *testing.T) {
 		{"Sign", V{make([]byte, 10)}, security.Signature{Purpose: []byte{}, R: []byte{1}, S: []byte{1}}, nil},
 		{"MintDischarge", V{thirdPartyCaveat, security.UnconstrainedUse()}, discharge, nil},
 		{"PublicKey", V{}, mockP.PublicKey(), nil},
+		{"BlessingsByName", V{security.BlessingPattern("self")}, []security.Blessings{newBlessing(t, "blessing")}, nil},
+		{"BlessingsInfo", V{newBlessing(t, "blessing")}, []string{"blessing"}, nil},
 		{"AddToRoots", V{newBlessing(t, "blessing")}, nil, verror2.Make(addToRootsErr, nil)},
 	}
 	for _, test := range tests {
@@ -84,6 +86,7 @@ func TestAgent(t *testing.T) {
 		{"SetDefault", V{newBlessing(t, "blessing")}, nil, verror2.Make(storeSetDefaultErr, nil)},
 		{"Default", V{}, newBlessing(t, "root/extension"), nil},
 		{"PublicKey", V{}, mockP.PublicKey(), nil},
+		{"PeerBlessings", V{}, map[security.BlessingPattern]security.Blessings{"test": newBlessing(t, "root/extension")}, nil},
 		{"DebugString", V{}, "StoreString", nil},
 	}
 	for _, test := range storeTests {
@@ -176,6 +179,18 @@ func (p *mockPrincipal) MintDischarge(security.ThirdPartyCaveat, security.Caveat
 	return d, p.NextError
 }
 
+func (p *mockPrincipal) BlessingsByName(name security.BlessingPattern) []security.Blessings {
+	defer p.reset()
+	b, _ := p.NextResult.([]security.Blessings)
+	return b
+}
+
+func (p *mockPrincipal) BlessingsInfo(blessings security.Blessings) []string {
+	defer p.reset()
+	s, _ := p.NextResult.([]string)
+	return s
+}
+
 func (p *mockPrincipal) PublicKey() security.PublicKey         { return p.Key }
 func (p *mockPrincipal) Roots() security.BlessingRoots         { return p.MockRoots }
 func (p *mockPrincipal) BlessingStore() security.BlessingStore { return p.MockStore }
@@ -219,6 +234,12 @@ func (s *mockBlessingStore) Default() security.Blessings {
 }
 
 func (s *mockBlessingStore) PublicKey() security.PublicKey { return s.Key }
+
+func (s *mockBlessingStore) PeerBlessings() map[security.BlessingPattern]security.Blessings {
+	defer s.reset()
+	m, _ := s.NextResult.(map[security.BlessingPattern]security.Blessings)
+	return m
+}
 
 func (s *mockBlessingStore) DebugString() string {
 	defer s.reset()
