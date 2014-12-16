@@ -33,14 +33,14 @@ func startMountTable(t *testing.T, runtime veyron2.Runtime) (string, func()) {
 	}
 	dispatcher, err := mtlib.NewMountTable("")
 
-	endpoint, err := server.Listen(spec)
+	endpoints, err := server.Listen(spec)
 	if err != nil {
 		t.Fatalf("Listen(%v) failed: %v", spec, err)
 	}
 	if err := server.ServeDispatcher("", dispatcher); err != nil {
 		t.Fatalf("ServeDispatcher(%v) failed: %v", dispatcher, err)
 	}
-	address := naming.JoinAddressName(endpoint.String(), "")
+	address := naming.JoinAddressName(endpoints[0].String(), "")
 	vlog.VI(1).Infof("Mount table running at endpoint: %s", address)
 	return address, func() {
 		if err := server.Stop(); err != nil {
