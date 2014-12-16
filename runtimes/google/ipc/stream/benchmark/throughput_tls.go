@@ -1,17 +1,12 @@
-// +build !go1.4
-
-// TODO(ashankar): Remove the build tag and replace the tls import with crypto/tls
-// when go1.4 is released.
-
 package benchmark
 
 import (
+	"crypto/tls"
 	"io"
 	"net"
 	"testing"
 
 	"veyron.io/veyron/veyron/runtimes/google/ipc/stream/crypto"
-	tls "veyron.io/veyron/veyron/runtimes/google/ipc/stream/crypto/tlsfork"
 )
 
 func benchmarkTLS(b *testing.B, nConns int) {

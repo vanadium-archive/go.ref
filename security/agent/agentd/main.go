@@ -9,7 +9,7 @@ import (
 	"os/signal"
 	"syscall"
 
-	"code.google.com/p/go.crypto/ssh/terminal"
+	"golang.org/x/crypto/ssh/terminal"
 
 	"veyron.io/veyron/veyron/lib/flags/consts"
 	vsignals "veyron.io/veyron/veyron/lib/signals"
