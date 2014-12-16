@@ -25,17 +25,15 @@ import (
 )
 
 var (
-	listenAddressFlag = flags.IPHostPortFlag{Port: "0"}
+	commonFlags *flags.Flags
 
-	ListenSpec = &ipc.ListenSpec{
-		Protocol: "tcp",
-		Address:  "127.0.0.1:0",
-	}
+	// ListenSpec is an initialized instance of ipc.ListenSpec that can
+	// be used with ipc.Listen.
+	ListenSpec ipc.ListenSpec
 )
 
 func init() {
-	flag.Var(&listenAddressFlag, "veyron.tcp.address", "address to listen on")
-
+	commonFlags = flags.CreateAndRegister(flag.CommandLine, flags.Listen)
 	rt.RegisterProfile(&profile{})
 }
 
@@ -64,8 +62,15 @@ func (p *profile) Init(veyron2.Runtime, *config.Publisher) (veyron2.AppCycle, er
 	if !gce.RunningOnGCE() {
 		return nil, fmt.Errorf("GCE profile used on a non-GCE system")
 	}
+
+	lf := commonFlags.ListenFlags()
+	ListenSpec = ipc.ListenSpec{
+		Addrs: ipc.ListenAddrs(lf.Addrs),
+		Proxy: lf.ListenProxy,
+	}
+
 	p.ac = appcycle.New()
-	ListenSpec.Address = listenAddressFlag.String()
+
 	if ip, err := gce.ExternalIPAddress(); err != nil {
 		return p.ac, err
 	} else {

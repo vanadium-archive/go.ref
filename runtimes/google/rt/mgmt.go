@@ -74,7 +74,7 @@ func getListenSpec(handle *exec.ChildHandle) (*ipc.ListenSpec, error) {
 	if address == "" {
 		return nil, fmt.Errorf("%v is not set", mgmt.AddressConfigKey)
 	}
-	return &ipc.ListenSpec{Protocol: protocol, Address: address}, nil
+	return &ipc.ListenSpec{Addrs: ipc.ListenAddrs{{protocol, address}}}, nil
 }
 
 func (rt *vrt) callbackToParent(parentName, myName string) error {

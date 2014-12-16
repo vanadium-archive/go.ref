@@ -42,17 +42,13 @@ func init() {
 	modules.RegisterChild("runServer", "", runServer)
 }
 
-func testSimpleFlow(t *testing.T, useWebsocket bool) {
+func testSimpleFlow(t *testing.T, protocol string) {
 	server := InternalNew(naming.FixedRoutingID(0x55555555))
 	client := InternalNew(naming.FixedRoutingID(0xcccccccc))
 
-	ln, ep, err := server.Listen("tcp", "127.0.0.1:0")
+	ln, ep, err := server.Listen(protocol, "127.0.0.1:0")
 	if err != nil {
 		t.Fatal(err)
-	}
-
-	if useWebsocket {
-		ep.(*inaming.Endpoint).Protocol = "ws"
 	}
 
 	data := "the dark knight rises"
@@ -131,11 +127,11 @@ func testSimpleFlow(t *testing.T, useWebsocket bool) {
 }
 
 func TestSimpleFlow(t *testing.T) {
-	testSimpleFlow(t, false)
+	testSimpleFlow(t, "tcp")
 }
 
 func TestSimpleFlowWS(t *testing.T) {
-	testSimpleFlow(t, true)
+	testSimpleFlow(t, "ws")
 }
 
 func TestConnectionTimeout(t *testing.T) {
@@ -159,7 +155,7 @@ func TestConnectionTimeout(t *testing.T) {
 	}
 }
 
-func testAuthenticatedByDefault(t *testing.T, useWebsocket bool) {
+func testAuthenticatedByDefault(t *testing.T, protocol string) {
 	var (
 		server = InternalNew(naming.FixedRoutingID(0x55555555))
 		client = InternalNew(naming.FixedRoutingID(0xcccccccc))
@@ -171,12 +167,9 @@ func testAuthenticatedByDefault(t *testing.T, useWebsocket bool) {
 	)
 	// VCSecurityLevel is intentionally not provided to Listen - to test
 	// default behavior.
-	ln, ep, err := server.Listen("tcp", "127.0.0.1:0", serverPrincipal)
+	ln, ep, err := server.Listen(protocol, "127.0.0.1:0", serverPrincipal)
 	if err != nil {
 		t.Fatal(err)
-	}
-	if useWebsocket {
-		ep.(*inaming.Endpoint).Protocol = "ws"
 	}
 
 	errs := make(chan error)
@@ -227,11 +220,11 @@ func testAuthenticatedByDefault(t *testing.T, useWebsocket bool) {
 }
 
 func TestAuthenticatedByDefault(t *testing.T) {
-	testAuthenticatedByDefault(t, false)
+	testAuthenticatedByDefault(t, "tcp")
 }
 
 func TestAuthenticatedByDefaultWS(t *testing.T) {
-	testAuthenticatedByDefault(t, true)
+	testAuthenticatedByDefault(t, "ws")
 }
 
 func numListeners(m stream.Manager) int   { return len(m.(*manager).listeners) }
@@ -277,35 +270,20 @@ func acceptLoop(ln stream.Listener) {
 }
 
 func TestCloseListener(t *testing.T) {
-	server := InternalNew(naming.FixedRoutingID(0x5e97e9))
-
-	ln, ep, err := server.Listen("tcp", "127.0.0.1:0")
-	if err != nil {
-		t.Fatal(err)
-	}
-	// Server will just listen for flows and close them.
-	go acceptLoop(ln)
-	client := InternalNew(naming.FixedRoutingID(0xc1e41))
-	if _, err = client.Dial(ep); err != nil {
-		t.Fatal(err)
-	}
-	ln.Close()
-	client = InternalNew(naming.FixedRoutingID(0xc1e42))
-	if _, err := client.Dial(ep); err == nil {
-		t.Errorf("client.Dial(%q) should have failed", ep)
-	}
+	testCloseListener(t, "tcp")
 }
 
 func TestCloseListenerWS(t *testing.T) {
+	testCloseListener(t, "ws")
+}
+
+func testCloseListener(t *testing.T, protocol string) {
 	server := InternalNew(naming.FixedRoutingID(0x5e97e9))
 
-	ln, ep, err := server.Listen("tcp", "127.0.0.1:0")
+	ln, ep, err := server.Listen(protocol, "127.0.0.1:0")
 	if err != nil {
 		t.Fatal(err)
 	}
-
-	ep.(*inaming.Endpoint).Protocol = "ws"
-
 	// Server will just listen for flows and close them.
 	go acceptLoop(ln)
 	client := InternalNew(naming.FixedRoutingID(0xc1e41))
@@ -340,40 +318,21 @@ func TestShutdown(t *testing.T) {
 }
 
 func TestShutdownEndpoint(t *testing.T) {
-	server := InternalNew(naming.FixedRoutingID(0x55555555))
-	client := InternalNew(naming.FixedRoutingID(0xcccccccc))
-
-	ln, ep, err := server.Listen("tcp", "127.0.0.1:0")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	// Server will just listen for flows and close them.
-	go acceptLoop(ln)
-
-	vc, err := client.Dial(ep)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if f, err := vc.Connect(); f == nil || err != nil {
-		t.Errorf("vc.Connect failed: (%v, %v)", f, err)
-	}
-	client.ShutdownEndpoint(ep)
-	if f, err := vc.Connect(); f != nil || err == nil {
-		t.Errorf("vc.Connect unexpectedly succeeded: (%v, %v)", f, err)
-	}
+	testShutdownEndpoint(t, "tcp")
 }
 
 func TestShutdownEndpointWS(t *testing.T) {
+	testShutdownEndpoint(t, "ws")
+}
+
+func testShutdownEndpoint(t *testing.T, protocol string) {
 	server := InternalNew(naming.FixedRoutingID(0x55555555))
 	client := InternalNew(naming.FixedRoutingID(0xcccccccc))
 
-	ln, ep, err := server.Listen("tcp", "127.0.0.1:0")
+	ln, ep, err := server.Listen(protocol, "127.0.0.1:0")
 	if err != nil {
 		t.Fatal(err)
 	}
-
-	ep.(*inaming.Endpoint).Protocol = "ws"
 
 	// Server will just listen for flows and close them.
 	go acceptLoop(ln)
@@ -410,7 +369,7 @@ func TestSessionTicketCache(t *testing.T) {
 }
 */
 
-func testMultipleVCs(t *testing.T, useWebsocket bool) {
+func testMultipleVCs(t *testing.T, protocol string) {
 	server := InternalNew(naming.FixedRoutingID(0x55555555))
 	client := InternalNew(naming.FixedRoutingID(0xcccccccc))
 
@@ -419,12 +378,9 @@ func testMultipleVCs(t *testing.T, useWebsocket bool) {
 
 	// Have the server read from each flow and write to rchan.
 	rchan := make(chan string)
-	ln, ep, err := server.Listen("tcp", "127.0.0.1:0")
+	ln, ep, err := server.Listen(protocol, "127.0.0.1:0")
 	if err != nil {
 		t.Fatal(err)
-	}
-	if useWebsocket {
-		ep.(*inaming.Endpoint).Protocol = "ws"
 	}
 
 	read := func(flow stream.Flow, c chan string) {
@@ -494,11 +450,11 @@ func testMultipleVCs(t *testing.T, useWebsocket bool) {
 }
 
 func TestMultipleVCs(t *testing.T) {
-	testMultipleVCs(t, false)
+	testMultipleVCs(t, "tcp")
 }
 
 func TestMultipleVCsWS(t *testing.T) {
-	testMultipleVCs(t, true)
+	testMultipleVCs(t, "ws")
 }
 
 func TestAddressResolution(t *testing.T) {
@@ -543,66 +499,31 @@ func TestAddressResolution(t *testing.T) {
 }
 
 func TestServerRestartDuringClientLifetime(t *testing.T) {
-	client := InternalNew(naming.FixedRoutingID(0xcccccccc))
-	sh, err := modules.NewShell(nil)
-	if err != nil {
-		t.Fatalf("unexpected error: %s", err)
-	}
-	defer sh.Cleanup(nil, nil)
-	h, err := sh.Start("runServer", nil, "127.0.0.1:0")
-	if err != nil {
-		t.Fatalf("unexpected error: %s", err)
-	}
-	s := expect.NewSession(t, h.Stdout(), time.Minute)
-	addr := s.ReadLine()
-
-	ep, err := inaming.NewEndpoint(addr)
-	if err != nil {
-		t.Fatalf("inaming.NewEndpoint(%q): %v", addr, err)
-	}
-	if _, err := client.Dial(ep); err != nil {
-		t.Fatal(err)
-	}
-	h.Shutdown(nil, os.Stderr)
-
-	// A new VC cannot be created since the server is dead
-	if _, err := client.Dial(ep); err == nil {
-		t.Fatal("Expected client.Dial to fail since server is dead")
-	}
-
-	h, err = sh.Start("runServer", nil, addr)
-	if err != nil {
-		t.Fatalf("unexpected error: %s", err)
-	}
-	s = expect.NewSession(t, h.Stdout(), time.Minute)
-	// Restarting the server, listening on the same address as before
-	if addr2 := s.ReadLine(); addr2 != addr || err != nil {
-		t.Fatalf("Got (%q, %v) want (%q, nil)", addr2, err, addr)
-	}
-	if _, err := client.Dial(ep); err != nil {
-		t.Fatal(err)
-	}
+	testServerRestartDuringClientLifetime(t, "tcp")
 }
 
 func TestServerRestartDuringClientLifetimeWS(t *testing.T) {
+	testServerRestartDuringClientLifetime(t, "ws")
+}
+
+func testServerRestartDuringClientLifetime(t *testing.T, protocol string) {
 	client := InternalNew(naming.FixedRoutingID(0xcccccccc))
 	sh, err := modules.NewShell(nil)
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
 	defer sh.Cleanup(nil, nil)
-	h, err := sh.Start("runServer", nil, "127.0.0.1:0")
+	h, err := sh.Start("runServer", nil, protocol, "127.0.0.1:0")
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
 	s := expect.NewSession(t, h.Stdout(), time.Minute)
 	addr := s.ReadLine()
 
-	ep, err := inaming.NewEndpoint(addr)
+	ep, err := inaming.NewEndpoint(naming.FormatEndpoint(protocol, addr))
 	if err != nil {
 		t.Fatalf("inaming.NewEndpoint(%q): %v", addr, err)
 	}
-	ep.Protocol = "ws"
 	if _, err := client.Dial(ep); err != nil {
 		t.Fatal(err)
 	}
@@ -613,7 +534,7 @@ func TestServerRestartDuringClientLifetimeWS(t *testing.T) {
 		t.Fatal("Expected client.Dial to fail since server is dead")
 	}
 
-	h, err = sh.Start("runServer", nil, addr)
+	h, err = sh.Start("runServer", nil, protocol, addr)
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
@@ -634,7 +555,7 @@ func TestHelperProcess(t *testing.T) {
 
 func runServer(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
 	server := InternalNew(naming.FixedRoutingID(0x55555555))
-	_, ep, err := server.Listen("tcp", args[1])
+	_, ep, err := server.Listen(args[1], args[2])
 	if err != nil {
 		fmt.Fprintln(stderr, err)
 		return err

@@ -83,9 +83,8 @@ func (p *profile) Init(rt veyron2.Runtime, publisher *config.Publisher) (veyron2
 
 	lf := commonFlags.ListenFlags()
 	ListenSpec = ipc.ListenSpec{
-		Protocol: lf.ListenProtocol.Protocol,
-		Address:  lf.ListenAddress.String(),
-		Proxy:    lf.ListenProxy,
+		Addrs: ipc.ListenAddrs(lf.Addrs),
+		Proxy: lf.ListenProxy,
 	}
 
 	p.ac = appcycle.New()
@@ -158,6 +157,8 @@ func monitorNetworkSettings(rt veyron2.Runtime, watcher netconfig.NetConfigWatch
 
 	log := rt.Logger()
 
+	// TODO(cnicolaou): add support for listening on multiple network addresses.
+
 done:
 	for {
 		select {
@@ -182,7 +183,7 @@ done:
 				ch <- ipc.NewRmAddrsSetting(removed)
 			}
 			// We will always send the best currently available address
-			if chosen, err := listenSpec.AddressChooser(listenSpec.Protocol, cur); err == nil && chosen != nil {
+			if chosen, err := listenSpec.AddressChooser(listenSpec.Addrs[0].Protocol, cur); err == nil && chosen != nil {
 				ch <- ipc.NewAddAddrsSetting(chosen)
 			}
 			prev = cur

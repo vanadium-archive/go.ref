@@ -34,7 +34,7 @@ type Endpoint struct {
 
 // NewEndpoint creates a new endpoint from a string as per naming.NewEndpoint
 func NewEndpoint(input string) (*Endpoint, error) {
-	var ep Endpoint
+	ep := new(Endpoint)
 
 	// We have to guess this is a mount table if we don't know.
 	ep.IsMountTable = true
@@ -45,7 +45,7 @@ func NewEndpoint(input string) (*Endpoint, error) {
 	parts := strings.Split(input, separator)
 	if len(parts) == 1 {
 		err := ep.parseHostPort(parts[0])
-		return &ep, err
+		return ep, err
 	}
 
 	version, err := strconv.ParseUint(parts[0], 10, 16)
@@ -63,7 +63,7 @@ func NewEndpoint(input string) (*Endpoint, error) {
 	default:
 		err = errInvalidEndpointString
 	}
-	return &ep, err
+	return ep, err
 }
 
 func (ep *Endpoint) parseHostPort(input string) error {

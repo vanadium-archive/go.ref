@@ -77,7 +77,6 @@ func TestFlagError(t *testing.T) {
 	}
 
 	fs = flag.NewFlagSet("test", flag.ContinueOnError)
-	//fs.SetOutput(ioutil.Discard)
 	fl = flags.CreateAndRegister(fs, flags.ACL)
 	args = []string{"--veyron.acl=noname"}
 	err = fl.Parse(args)
@@ -99,7 +98,7 @@ func TestFlagsGroups(t *testing.T) {
 	if got, want := fl.RuntimeFlags().NamespaceRoots, roots; !reflect.DeepEqual(got, want) {
 		t.Errorf("got %v, want %v", got, want)
 	}
-	if got, want := lf.ListenAddress.String(), addr; got != want {
+	if got, want := lf.Addrs[0].Address, addr; got != want {
 		t.Errorf("got %q, want %q", got, want)
 	}
 }
@@ -178,5 +177,40 @@ func TestDefaults(t *testing.T) {
 	aclf := fl.ACLFlags()
 	if got, want := aclf.ACLFile(""), ""; got != want {
 		t.Errorf("got %q, want %q", got, want)
+	}
+}
+
+func TestListenFlags(t *testing.T) {
+	fl := flags.CreateAndRegister(flag.NewFlagSet("test", flag.ContinueOnError), flags.Listen)
+	if err := fl.Parse([]string{}); err != nil {
+		t.Fatalf("unexpected error: %s", err)
+	}
+	lf := fl.ListenFlags()
+	if got, want := len(lf.Addrs), 1; got != want {
+		t.Errorf("got %d, want %d", got, want)
+	}
+	def := struct{ Protocol, Address string }{"tcp", ":0"}
+	if got, want := lf.Addrs[0], def; !reflect.DeepEqual(got, want) {
+		t.Errorf("got %v, want %v", got, want)
+	}
+
+	fl = flags.CreateAndRegister(flag.NewFlagSet("test", flag.ContinueOnError), flags.Listen)
+	if err := fl.Parse([]string{
+		"--veyron.tcp.address=172.0.0.1:10", "--veyron.tcp.protocol=ws", "--veyron.tcp.address=127.0.0.10:34", "--veyron.tcp.protocol=tcp6", "--veyron.tcp.address=172.0.0.100:100"}); err != nil {
+		t.Fatalf("unexpected error: %s", err)
+	}
+	lf = fl.ListenFlags()
+	if got, want := len(lf.Addrs), 3; got != want {
+		t.Errorf("got %d, want %d", got, want)
+	}
+	for i, p := range []string{"tcp", "ws", "tcp6"} {
+		if got, want := lf.Addrs[i].Protocol, p; got != want {
+			t.Errorf("got %q, want %q", got, want)
+		}
+	}
+	for i, p := range []string{"172.0.0.1:10", "127.0.0.10:34", "172.0.0.100:100"} {
+		if got, want := lf.Addrs[i].Address, p; got != want {
+			t.Errorf("got %q, want %q", got, want)
+		}
 	}
 }

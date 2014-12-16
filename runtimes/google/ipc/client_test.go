@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"veyron.io/veyron/veyron2"
-	"veyron.io/veyron/veyron2/ipc"
 	"veyron.io/veyron/veyron2/naming"
 	"veyron.io/veyron/veyron2/rt"
 	verror "veyron.io/veyron/veyron2/verror2"
@@ -108,6 +107,11 @@ func TestMultipleEndpoints(t *testing.T) {
 	s := expect.NewSession(t, srv.Stdout(), time.Minute)
 	s.ExpectVar("NAME")
 
+	// Verify that there are 1 entries for echoServer in the mount table.
+	if got, want := numServers(t, "echoServer"), 1; got != want {
+		t.Fatalf("got: %q, want: %q", got, want)
+	}
+
 	runClient(t, sh)
 
 	// Create a fake set of 100 entries in the mount table
@@ -121,9 +125,9 @@ func TestMultipleEndpoints(t *testing.T) {
 		}
 	}
 
-	// Verify that there are 102 entries for echoServer in the mount table.
-	if got, want := numServers(t, "echoServer"), 102; got != want {
-		t.Fatalf("got: %d, want: %d", got, want)
+	// Verify that there are 101 entries for echoServer in the mount table.
+	if got, want := numServers(t, "echoServer"), 101; got != want {
+		t.Fatalf("got: %q, want: %q", got, want)
 	}
 
 	// TODO(cnicolaou): ok, so it works, but I'm not sure how
@@ -152,46 +156,6 @@ func TestTimeoutCall(t *testing.T) {
 	}
 }
 
-type sleeper struct {
-	done <-chan struct{}
-}
-
-func (s *sleeper) Sleep(call ipc.ServerContext) error {
-	select {
-	case <-s.done:
-	case <-time.After(time.Hour):
-	}
-	return nil
-}
-
-func (s *sleeper) Ping(call ipc.ServerContext) (string, error) {
-	return "pong", nil
-}
-
-func (s *sleeper) Source(call ipc.ServerCall, start int) error {
-	i := start
-	backoff := 25 * time.Millisecond
-	for {
-		select {
-		case <-s.done:
-			return nil
-		case <-time.After(backoff):
-			call.Send(i)
-			i++
-		}
-		backoff *= 2
-	}
-}
-
-func (s *sleeper) Sink(call ipc.ServerCall) (int, error) {
-	i := 0
-	for {
-		if err := call.Recv(&i); err != nil {
-			return i, verror.Convert(verror.Internal, call, err)
-		}
-	}
-}
-
 func childPing(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
 	name := args[1]
 	call, err := r.Client().StartCall(r.NewContext(), name, "Ping", nil)
@@ -210,7 +174,7 @@ func childPing(stdin io.Reader, stdout, stderr io.Writer, env map[string]string,
 	return nil
 }
 
-func initServer(t *testing.T, r veyron2.Runtime) (string, ipc.Server, func()) {
+func initServer(t *testing.T, r veyron2.Runtime) (string, func()) {
 	server, err := r.NewServer()
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
@@ -222,9 +186,9 @@ func initServer(t *testing.T, r veyron2.Runtime) (string, ipc.Server, func()) {
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
-	server.Serve("", &sleeper{done}, nil)
+	server.Serve("", &simple{done}, nil)
 	name := naming.JoinAddressName(ep.String(), "")
-	return name, server, deferFn
+	return name, deferFn
 }
 
 func testForVerror(t *testing.T, err error, verr ...verror.IDAction) {
@@ -250,7 +214,7 @@ func testForVerror(t *testing.T, err error, verr ...verror.IDAction) {
 }
 
 func TestTimeoutResponse(t *testing.T) {
-	name, _, fn := initServer(t, r)
+	name, fn := initServer(t, r)
 	defer fn()
 	ctx, _ := r.NewContext().WithTimeout(100 * time.Millisecond)
 	call, err := r.Client().StartCall(ctx, name, "Sleep", nil)
@@ -264,7 +228,7 @@ func TestTimeoutResponse(t *testing.T) {
 }
 
 func TestArgsAndResponses(t *testing.T) {
-	name, _, fn := initServer(t, r)
+	name, fn := initServer(t, r)
 	defer fn()
 
 	call, err := r.Client().StartCall(r.NewContext(), name, "Sleep", []interface{}{"too many args"})
@@ -291,7 +255,7 @@ func TestAccessDenied(t *testing.T) {
 	// The server and client use different runtimes and hence different
 	// principals and without any shared blessings the server will deny
 	// access to the client
-	name, _, fn := initServer(t, r1)
+	name, fn := initServer(t, r1)
 	defer fn()
 
 	client := r2.Client()
@@ -304,7 +268,7 @@ func TestAccessDenied(t *testing.T) {
 }
 
 func TestCancelledBeforeFinish(t *testing.T) {
-	name, _, fn := initServer(t, r)
+	name, fn := initServer(t, r)
 	defer fn()
 
 	ctx, cancel := r.NewContext().WithCancel()
@@ -320,7 +284,7 @@ func TestCancelledBeforeFinish(t *testing.T) {
 }
 
 func TestCancelledDuringFinish(t *testing.T) {
-	name, _, fn := initServer(t, r)
+	name, fn := initServer(t, r)
 	defer fn()
 
 	ctx, cancel := r.NewContext().WithCancel()
@@ -375,7 +339,7 @@ func TestCallback(t *testing.T) {
 	sh, fn := runMountTable(t, r)
 	defer fn()
 
-	name, _, fn := initServer(t, r)
+	name, fn := initServer(t, r)
 	defer fn()
 
 	srv, err := sh.Start("ping", nil, name)
@@ -389,7 +353,7 @@ func TestCallback(t *testing.T) {
 }
 
 func TestStreamTimeout(t *testing.T) {
-	name, _, fn := initServer(t, r)
+	name, fn := initServer(t, r)
 	defer fn()
 
 	want := 10
@@ -422,7 +386,7 @@ func TestStreamTimeout(t *testing.T) {
 }
 
 func TestStreamAbort(t *testing.T) {
-	name, _, fn := initServer(t, r)
+	name, fn := initServer(t, r)
 	defer fn()
 
 	ctx := r.NewContext()
@@ -446,9 +410,14 @@ func TestStreamAbort(t *testing.T) {
 	if verr != nil {
 		t.Fatalf("unexpected error: %s", verr)
 	}
-	if !verror.Is(err, "veyron.io/veyron/veyron2/verror.Internal") || err.Error() != `ipc.test:"".Sink: Internal error: EOF` {
+	if !verror.Is(err, verror.Unknown.ID) || err.Error() != `veyron.io/veyron/veyron2/verror.Unknown:   EOF` {
 		t.Errorf("wrong error: %#v", err)
 	}
+	/* TODO(cnicolaou): use this when verror2/vom transition is done.
+	if err != nil && !verror.Is(err, verror.EOF.ID) {
+		t.Fatalf("unexpected error: %#v", err)
+	}
+	*/
 	if got := result; got != want {
 		t.Errorf("got %d, want %d", got, want)
 	}

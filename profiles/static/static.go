@@ -67,9 +67,8 @@ func (p *static) Init(rt veyron2.Runtime, _ *config.Publisher) (veyron2.AppCycle
 
 	lf := commonFlags.ListenFlags()
 	ListenSpec = ipc.ListenSpec{
-		Protocol: lf.ListenProtocol.Protocol,
-		Address:  lf.ListenAddress.String(),
-		Proxy:    lf.ListenProxy,
+		Addrs: ipc.ListenAddrs(lf.Addrs),
+		Proxy: lf.ListenProxy,
 	}
 
 	p.ac = appcycle.New()

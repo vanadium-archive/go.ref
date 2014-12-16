@@ -4,14 +4,14 @@ import (
 	"flag"
 	"fmt"
 
-	"veyron.io/veyron/veyron/lib/signals"
-	_ "veyron.io/veyron/veyron/profiles"
-
 	"veyron.io/veyron/veyron2"
 	"veyron.io/veyron/veyron2/ipc"
 	"veyron.io/veyron/veyron2/rt"
 	"veyron.io/veyron/veyron2/security"
 	"veyron.io/veyron/veyron2/vlog"
+
+	"veyron.io/veyron/veyron/lib/signals"
+	_ "veyron.io/veyron/veyron/profiles"
 )
 
 var runServer = flag.Bool("server", false, "Whether to run in server mode")
@@ -44,7 +44,8 @@ func serverMain(r veyron2.Runtime) {
 
 	serverPong := PingPongServer(&pongd{})
 
-	if endpoint, err := s.Listen(ipc.ListenSpec{Protocol: "tcp", Address: "127.0.0.1:0"}); err == nil {
+	spec := ipc.ListenSpec{Addrs: ipc.ListenAddrs{{"tcp", "127.0.0.1:0"}}}
+	if endpoint, err := s.Listen(spec); err == nil {
 		fmt.Printf("Listening at: %v\n", endpoint)
 	} else {
 		log.Fatal("error listening to service: ", err)

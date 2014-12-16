@@ -102,12 +102,14 @@ func StartServer(bin string, args []string) (*os.Process, error) {
 	go func() {
 		defer outPipe.Close()
 		scanner := bufio.NewScanner(outPipe)
-		nmounts := 0
+		mounts := 0
 		for scanner.Scan() {
 			line := scanner.Text()
+			// TODO(cnicolaou): find a better way of synchronizing with
+			// the child process, this is way too fragile.
 			if strings.Index(line, "ipc pub: mount") != -1 {
-				nmounts++
-				if nmounts == 2 {
+				mounts++
+				if mounts == 1 {
 					close(ready)
 				}
 			}

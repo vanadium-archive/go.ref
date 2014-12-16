@@ -22,8 +22,9 @@ func main() {
 	fmt.Printf("Runtime: Credentials: %s\n", rtf.Credentials)
 	fmt.Printf("Runtime: Namespace Roots: %s\n", rtf.NamespaceRoots)
 	lf := fl.ListenFlags()
-	fmt.Printf("Listen: Protocol %q\n", lf.ListenProtocol)
-	fmt.Printf("Listen: Address %q\n", lf.ListenAddress)
+	for _, a := range lf.ListenAddrs {
+		fmt.Printf("Listen: Protocol %q, Address %q\n", a.Protocol, a.Address)
+	}
 	fmt.Printf("Listen: Proxy %q\n", lf.ListenProxy)
 	fmt.Printf("ACL: %v\n", fl.ACLFlags())
 }
