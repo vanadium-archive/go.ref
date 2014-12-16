@@ -47,7 +47,7 @@ func startMounttable() (ipc.Server, naming.Endpoint, error) {
 		return nil, nil, err
 	}
 
-	endpoint, err := s.Listen(profiles.LocalListenSpec)
+	endpoints, err := s.Listen(profiles.LocalListenSpec)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -56,7 +56,7 @@ func startMounttable() (ipc.Server, naming.Endpoint, error) {
 		return nil, nil, err
 	}
 
-	return s, endpoint, nil
+	return s, endpoints[0], nil
 }
 
 type mockServer struct{}
@@ -72,7 +72,7 @@ func startMockServer(desiredName string) (ipc.Server, naming.Endpoint, error) {
 		return nil, nil, err
 	}
 
-	endpoint, err := s.Listen(profiles.LocalListenSpec)
+	endpoints, err := s.Listen(profiles.LocalListenSpec)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -81,7 +81,7 @@ func startMockServer(desiredName string) (ipc.Server, naming.Endpoint, error) {
 		return nil, nil, err
 	}
 
-	return s, endpoint, nil
+	return s, endpoints[0], nil
 }
 
 func TestBrowspr(t *testing.T) {

@@ -124,7 +124,7 @@ func startAnyServer(servesMT bool, dispatcher ipc.Dispatcher) (ipc.Server, namin
 		return nil, nil, err
 	}
 
-	endpoint, err := s.Listen(profiles.LocalListenSpec)
+	endpoints, err := s.Listen(profiles.LocalListenSpec)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -132,7 +132,7 @@ func startAnyServer(servesMT bool, dispatcher ipc.Dispatcher) (ipc.Server, namin
 	if err := s.ServeDispatcher("", dispatcher); err != nil {
 		return nil, nil, err
 	}
-	return s, endpoint, nil
+	return s, endpoints[0], nil
 }
 
 func startAdderServer() (ipc.Server, naming.Endpoint, error) {
