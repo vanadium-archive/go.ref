@@ -2,12 +2,14 @@ package crypto
 
 import (
 	"bytes"
-	"code.google.com/p/go.crypto/nacl/box"
 	"crypto/rand"
 	"encoding/binary"
 	"fmt"
 	"io"
 	"net"
+
+	"golang.org/x/crypto/nacl/box"
+
 	"veyron.io/veyron/veyron/runtimes/google/lib/iobuf"
 )
 

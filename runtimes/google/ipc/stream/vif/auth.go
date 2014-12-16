@@ -7,7 +7,7 @@ import (
 	"io"
 	"net"
 
-	"code.google.com/p/go.crypto/nacl/box"
+	"golang.org/x/crypto/nacl/box"
 
 	"veyron.io/veyron/veyron/runtimes/google/ipc/stream/crypto"
 	"veyron.io/veyron/veyron/runtimes/google/ipc/stream/message"
