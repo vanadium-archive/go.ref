@@ -68,7 +68,7 @@ main() {
     || (dumplogs "${TUNLOG}"; shell_test::fail "line ${LINENO}: failed to start tunneld")
   shell::timed_wait_for "${shell_test_DEFAULT_MESSAGE_TIMEOUT}" "${TUNLOG}" "ipc pub: mount" \
     || (dumplogs "${TUNLOG}"; shell_test::fail "line ${LINENO}: failed to mount tunneld")
-  EP=$(grep "Listening on endpoint" "${TUNLOG}" | sed -e 's/^.*endpoint //' | awk '{print $1}') \
+  EP=$(grep "Listening on: " "${TUNLOG}" | sed -e 's/^.*\[//' -e 's/\].*//') \
     || (dumplogs "${TUNLOG}"; shell_test::fail "line ${LINENO}: failed to identify endpoint")
 
   # Run remote command with the endpoint.

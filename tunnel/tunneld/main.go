@@ -56,7 +56,7 @@ func main() {
 	if err != nil {
 		vlog.Fatalf("Listen(%v) failed: %v", roaming.ListenSpec, err)
 	}
-	vlog.Infof("Listening on endpoint %s", eps[0])
+	vlog.Infof("Listening on: %v", eps)
 	hwaddr, err := firstHardwareAddrInUse()
 	if err != nil {
 		vlog.Fatalf("Couldn't find a good hw address: %v", err)
