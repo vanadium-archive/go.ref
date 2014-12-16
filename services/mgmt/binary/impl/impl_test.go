@@ -132,10 +132,11 @@ func startServer(t *testing.T, depth int) (repository.BinaryClientMethods, strin
 		}
 	}()
 	dispatcher := NewDispatcher(state, nil)
-	endpoint, err := server.Listen(profiles.LocalListenSpec)
+	endpoints, err := server.Listen(profiles.LocalListenSpec)
 	if err != nil {
 		t.Fatalf("Listen(%s) failed: %v", profiles.LocalListenSpec, err)
 	}
+	endpoint := endpoints[0]
 	dontPublishName := ""
 	if err := server.ServeDispatcher(dontPublishName, dispatcher); err != nil {
 		t.Fatalf("Serve(%q) failed: %v", dontPublishName, err)

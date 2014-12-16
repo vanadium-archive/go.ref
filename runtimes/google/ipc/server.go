@@ -17,7 +17,8 @@ import (
 	"veyron.io/veyron/veyron2/options"
 	"veyron.io/veyron/veyron2/security"
 	"veyron.io/veyron/veyron2/services/security/access"
-	"veyron.io/veyron/veyron2/verror"
+	old_verror "veyron.io/veyron/veyron2/verror"
+	verror "veyron.io/veyron/veyron2/verror2"
 	"veyron.io/veyron/veyron2/vlog"
 	"veyron.io/veyron/veyron2/vom"
 	"veyron.io/veyron/veyron2/vom2"
@@ -29,11 +30,15 @@ import (
 	"veyron.io/veyron/veyron/runtimes/google/lib/publisher"
 	inaming "veyron.io/veyron/veyron/runtimes/google/naming"
 	ivtrace "veyron.io/veyron/veyron/runtimes/google/vtrace"
+
+	// TODO(cnicolaou): finish verror -> verror2 transition, in particular
+	// for communicating from server to client.
+	// TODO(cnicolaou): remove the vom1 code now that vom2 is in place.
 )
 
 var (
 	// TODO(cnicolaou): this should be BadState in verror2.
-	errServerStopped = verror.Abortedf("ipc: server is stopped")
+	errServerStopped = old_verror.Abortedf("ipc: server is stopped")
 )
 
 type server struct {
@@ -135,7 +140,7 @@ func (s *server) Published() ([]string, error) {
 	s.Lock()
 	defer s.Unlock()
 	if s.stopped {
-		return nil, errServerStopped
+		return nil, s.newBadState("ipc.Server.Stop already called")
 	}
 	return s.publisher.Published(), nil
 }
@@ -300,14 +305,65 @@ func (s *server) configureEPAndRoaming(spec ipc.ListenSpec, ep naming.Endpoint) 
 }
 */
 
-func (s *server) Listen(listenSpec ipc.ListenSpec) (naming.Endpoint, error) {
+type listenError struct {
+	err    verror.E
+	errors map[struct{ Protocol, Address string }]error
+}
+
+func newError() *listenError {
+	return &listenError{errors: make(map[struct{ Protocol, Address string }]error)}
+}
+
+func ErrorDetails(le *listenError) map[struct{ Protocol, Address string }]error {
+	return le.errors
+}
+
+// Implements error
+func (le *listenError) Error() string {
+	s := le.err.Error()
+	for k, v := range le.errors {
+		s += fmt.Sprintf("(%s,%s:%s) ", k.Protocol, k.Address, v)
+	}
+	return strings.TrimRight(s, " ")
+}
+
+func (le *listenError) ErrorID() old_verror.ID {
+	return le.err.ErrorID()
+}
+
+func (le *listenError) Action() verror.ActionCode {
+	return le.err.Action()
+}
+
+func (le *listenError) Params() []interface{} {
+	return le.err.Params()
+}
+
+func (le *listenError) HasMessage() bool {
+	return le.err.HasMessage()
+}
+
+func (le *listenError) Stack() verror.PCs {
+	return le.err.Stack()
+}
+
+func (s *server) newBadState(m string) *listenError {
+	return &listenError{err: verror.Make(verror.BadState, s.ctx, m)}
+}
+
+func (s *server) newBadArg(m string) *listenError {
+	return &listenError{err: verror.Make(verror.BadArg, s.ctx, m)}
+}
+
+func (s *server) Listen(listenSpec ipc.ListenSpec) ([]naming.Endpoint, error) {
 	defer vlog.LogCall()()
 	s.Lock()
+
 	// Shortcut if the server is stopped, to avoid needlessly creating a
 	// listener.
 	if s.stopped {
 		s.Unlock()
-		return nil, errServerStopped
+		return nil, s.newBadState("ipc.Server.Stop already called")
 	}
 
 	useProxy := len(listenSpec.Proxy) > 0
@@ -410,11 +466,12 @@ func (s *server) Listen(listenSpec ipc.ListenSpec) (naming.Endpoint, error) {
 			s.active.Done()
 		}(li.ln, li.ep)
 	}
-	for _, iep := range ieps {
+	eps := make([]naming.Endpoint, len(ieps))
+	for i, iep := range ieps {
 		s.publisher.AddServer(naming.JoinAddressName(iep.String(), ""), s.servesMountTable)
+		eps[i] = iep
 	}
-
-	return ieps[0], nil
+	return eps, nil
 }
 
 func (s *server) reconnectAndPublishProxy(proxy string) (*inaming.Endpoint, stream.Listener, error) {
@@ -585,7 +642,7 @@ func (s *server) Serve(name string, obj interface{}, authorizer security.Authori
 	if obj == nil {
 		// The ReflectInvoker inside the LeafDispatcher will panic
 		// if called for a nil value.
-		return fmt.Errorf("A nil object is not allowed")
+		return s.newBadArg("nil object")
 	}
 	return s.ServeDispatcher(name, ipc.LeafDispatcher(obj, authorizer))
 }
@@ -596,13 +653,13 @@ func (s *server) ServeDispatcher(name string, disp ipc.Dispatcher) error {
 	ivtrace.FromContext(s.ctx).Annotate("Serving under name: " + name)
 
 	if s.stopped {
-		return errServerStopped
+		return s.newBadState("ipc.Server.Stop already called")
 	}
 	if disp == nil {
-		return fmt.Errorf("A nil dispacther is not allowed")
+		return s.newBadArg("nil dispatcher")
 	}
 	if s.disp != nil {
-		return fmt.Errorf("Serve or ServeDispatcher has already been called")
+		return s.newBadState("ipc.Server.Serve/ServeDispatcher already called")
 	}
 	s.disp = disp
 	s.names = make(map[string]struct{})
@@ -618,13 +675,13 @@ func (s *server) AddName(name string) error {
 	defer s.Unlock()
 	ivtrace.FromContext(s.ctx).Annotate("Serving under name: " + name)
 	if len(name) == 0 {
-		return fmt.Errorf("empty name")
+		return s.newBadArg("name is empty")
 	}
 	if s.stopped {
-		return errServerStopped
+		return s.newBadState("ipc.Server.Stop already called")
 	}
 	if s.disp == nil {
-		return fmt.Errorf("Adding name before calling Serve or ServeDispatcher is not allowed")
+		return s.newBadState("adding a name before calling Serve or ServeDispatcher is not allowed")
 	}
 	s.publisher.AddName(name)
 	// TODO(cnicolaou): remove this map when the publisher's RemoveName
@@ -638,13 +695,13 @@ func (s *server) RemoveName(name string) error {
 	defer s.Unlock()
 	ivtrace.FromContext(s.ctx).Annotate("Removed name: " + name)
 	if s.stopped {
-		return errServerStopped
+		return s.newBadState("ipc.Server.Stop already called")
 	}
 	if s.disp == nil {
-		return fmt.Errorf("Removing name before calling Serve or ServeDispatcher is not allowed")
+		return s.newBadState("removing name before calling Serve or ServeDispatcher is not allowed")
 	}
 	if _, present := s.names[name]; !present {
-		return fmt.Errorf("%q has not been previously used for this server", name)
+		return s.newBadArg(fmt.Sprintf("%q has not been previously used for this server", name))
 	}
 	s.publisher.RemoveName(name)
 	delete(s.names, name)
@@ -712,9 +769,12 @@ func (s *server) Stop() error {
 	s.active.Wait()
 
 	s.Lock()
+	defer s.Unlock()
 	s.disp = nil
-	s.Unlock()
-	return firstErr
+	if firstErr != nil {
+		return verror.Make(verror.Internal, s.ctx, firstErr)
+	}
+	return nil
 }
 
 // TODO(toddw): Remove these interfaces after the vom2 transition.
@@ -792,14 +852,14 @@ func vomErrorHack(res interface{}) vom.Value {
 	v := vom.ValueOf(res)
 	if !v.IsValid() {
 		// Untyped nils are assumed to be nil-errors.
-		var boxed verror.E
+		var boxed old_verror.E
 		return vom.ValueOf(&boxed).Elem()
 	}
 	if err, iserr := res.(error); iserr {
 		// Convert errors to verror since errors are often not
 		// serializable via vom/gob (errors.New and fmt.Errorf return a
 		// type with no exported fields).
-		return vom.ValueOf(verror.Convert(err))
+		return vom.ValueOf(old_verror.Convert(err))
 	}
 	return v
 }
@@ -843,8 +903,7 @@ func (fs *flowServer) serve() error {
 		if err == io.EOF {
 			return err
 		}
-		// We'll close the flow 2x.
-		return verror.BadProtocolf("ipc: response encoding failed: %v", err)
+		return old_verror.BadProtocolf("ipc: response encoding failed: %v", err)
 	}
 	if response.Error != nil {
 		return response.Error
@@ -854,7 +913,7 @@ func (fs *flowServer) serve() error {
 			if err == io.EOF {
 				return err
 			}
-			return verror.BadProtocolf("ipc: result #%d [%T=%v] encoding failed: %v", ix, res, res, err)
+			return old_verror.BadProtocolf("ipc: result #%d [%T=%v] encoding failed: %v", ix, res, res, err)
 		}
 	}
 	// TODO(ashankar): Should unread data from the flow be drained?
@@ -873,7 +932,7 @@ func (fs *flowServer) serve() error {
 	return nil
 }
 
-func (fs *flowServer) readIPCRequest() (*ipc.Request, verror.E) {
+func (fs *flowServer) readIPCRequest() (*ipc.Request, old_verror.E) {
 	// Set a default timeout before reading from the flow. Without this timeout,
 	// a client that sends no request or a partial request will retain the flow
 	// indefinitely (and lock up server resources).
@@ -884,12 +943,12 @@ func (fs *flowServer) readIPCRequest() (*ipc.Request, verror.E) {
 	// Decode the initial request.
 	var req ipc.Request
 	if err := fs.dec.Decode(&req); err != nil {
-		return nil, verror.BadProtocolf("ipc: request decoding failed: %v", err)
+		return nil, old_verror.BadProtocolf("ipc: request decoding failed: %v", err)
 	}
 	return &req, nil
 }
 
-func (fs *flowServer) processRequest() ([]interface{}, verror.E) {
+func (fs *flowServer) processRequest() ([]interface{}, old_verror.E) {
 	fs.starttime = time.Now()
 	req, verr := fs.readIPCRequest()
 	if verr != nil {
@@ -930,14 +989,14 @@ func (fs *flowServer) processRequest() ([]interface{}, verror.E) {
 	argptrs, tags, err := invoker.Prepare(fs.method, numArgs)
 	fs.tags = tags
 	if err != nil {
-		return nil, verror.Makef(verror.ErrorID(err), "%s: name: %q", err, fs.suffix)
+		return nil, old_verror.Makef(old_verror.ErrorID(err), "%s: name: %q", err, fs.suffix)
 	}
 	if len(argptrs) != numArgs {
-		return nil, verror.BadProtocolf(fmt.Sprintf("ipc: wrong number of input arguments for method %q, name %q (called with %d args, expected %d)", fs.method, fs.suffix, numArgs, len(argptrs)))
+		return nil, old_verror.BadProtocolf(fmt.Sprintf("ipc: wrong number of input arguments for method %q, name %q (called with %d args, expected %d)", fs.method, fs.suffix, numArgs, len(argptrs)))
 	}
 	for ix, argptr := range argptrs {
 		if err := fs.dec.Decode(argptr); err != nil {
-			return nil, verror.BadProtocolf("ipc: arg %d decoding failed: %v", ix, err)
+			return nil, old_verror.BadProtocolf("ipc: arg %d decoding failed: %v", ix, err)
 		}
 	}
 	// Check application's authorization policy.
@@ -950,7 +1009,7 @@ func (fs *flowServer) processRequest() ([]interface{}, verror.E) {
 	// Invoke the method.
 	results, err := invoker.Invoke(fs.method, fs, argptrs)
 	fs.server.stats.record(fs.method, time.Since(fs.starttime))
-	return results, verror.Convert(err)
+	return results, old_verror.Convert(err)
 }
 
 func (fs *flowServer) cancelContextOnClose(cancel context.CancelFunc) {
@@ -973,7 +1032,7 @@ func (fs *flowServer) cancelContextOnClose(cancel context.CancelFunc) {
 // with ipc.DebugKeyword, we use the internal debug dispatcher to look up the
 // invoker. Otherwise, and we use the server's dispatcher. The suffix and method
 // value may be modified to match the actual suffix and method to use.
-func (fs *flowServer) lookup(suffix string, method *string) (ipc.Invoker, security.Authorizer, verror.E) {
+func (fs *flowServer) lookup(suffix string, method *string) (ipc.Invoker, security.Authorizer, old_verror.E) {
 	if naming.IsReserved(*method) {
 		// All reserved methods are trapped and handled here, by removing the
 		// reserved prefix and invoking them on reservedMethods.  E.g. "__Glob"
@@ -989,12 +1048,12 @@ func (fs *flowServer) lookup(suffix string, method *string) (ipc.Invoker, securi
 		obj, auth, err := disp.Lookup(suffix)
 		switch {
 		case err != nil:
-			return nil, nil, verror.Convert(err)
+			return nil, nil, old_verror.Convert(err)
 		case obj != nil:
 			return objectToInvoker(obj), auth, nil
 		}
 	}
-	return nil, nil, verror.NoExistf("ipc: invoker not found for %q", suffix)
+	return nil, nil, old_verror.NoExistf("ipc: invoker not found for %q", suffix)
 }
 
 func objectToInvoker(obj interface{}) ipc.Invoker {
@@ -1007,11 +1066,11 @@ func objectToInvoker(obj interface{}) ipc.Invoker {
 	return ipc.ReflectInvoker(obj)
 }
 
-func (fs *flowServer) initSecurity(req *ipc.Request) verror.E {
+func (fs *flowServer) initSecurity(req *ipc.Request) old_verror.E {
 	// If additional credentials are provided, make them available in the context
 	blessings, err := security.NewBlessings(req.GrantedBlessings)
 	if err != nil {
-		return verror.BadProtocolf("ipc: failed to decode granted blessings: %v", err)
+		return old_verror.BadProtocolf("ipc: failed to decode granted blessings: %v", err)
 	}
 	fs.blessings = blessings
 	// Detect unusable blessings now, rather then discovering they are unusable on
@@ -1022,13 +1081,13 @@ func (fs *flowServer) initSecurity(req *ipc.Request) verror.E {
 	// this - should servers be able to assume that a blessing is something that
 	// does not have the authorizations that the server's own identity has?
 	if blessings != nil && !reflect.DeepEqual(blessings.PublicKey(), fs.flow.LocalPrincipal().PublicKey()) {
-		return verror.NoAccessf("ipc: blessing granted not bound to this server(%v vs %v)", blessings.PublicKey(), fs.flow.LocalPrincipal().PublicKey())
+		return old_verror.NoAccessf("ipc: blessing granted not bound to this server(%v vs %v)", blessings.PublicKey(), fs.flow.LocalPrincipal().PublicKey())
 	}
 	// Receive third party caveat discharges the client sent
 	for i := uint64(0); i < req.NumDischarges; i++ {
 		var d security.Discharge
 		if err := fs.dec.Decode(&d); err != nil {
-			return verror.BadProtocolf("ipc: decoding discharge %d of %d failed: %v", i, req.NumDischarges, err)
+			return old_verror.BadProtocolf("ipc: decoding discharge %d of %d failed: %v", i, req.NumDischarges, err)
 		}
 		fs.discharges[d.ID()] = d
 	}
@@ -1041,7 +1100,7 @@ func (acceptAllAuthorizer) Authorize(security.Context) error {
 	return nil
 }
 
-func authorize(ctx security.Context, auth security.Authorizer) verror.E {
+func authorize(ctx security.Context, auth security.Authorizer) old_verror.E {
 	if ctx.LocalPrincipal() == nil {
 		// LocalPrincipal is nil means that the server wanted to avoid
 		// authentication, and thus wanted to skip authorization as well.
@@ -1052,7 +1111,7 @@ func authorize(ctx security.Context, auth security.Authorizer) verror.E {
 	}
 	if err := auth.Authorize(ctx); err != nil {
 		// TODO(ataly, ashankar): For privacy reasons, should we hide the authorizer error?
-		return verror.NoAccessf("ipc: not authorized to call %q.%q (%v)", ctx.Suffix(), ctx.Method(), err)
+		return old_verror.NoAccessf("ipc: not authorized to call %q.%q (%v)", ctx.Suffix(), ctx.Method(), err)
 	}
 	return nil
 }

@@ -68,16 +68,18 @@ func echoServer(stdin io.Reader, stdout, stderr io.Writer, env map[string]string
 		return err
 	}
 	defer server.Stop()
-	ep, err := server.Listen(initListenSpec(fl))
+	eps, err := server.Listen(initListenSpec(fl))
 	if err != nil {
 		return err
 	}
 	if err := server.ServeDispatcher(mp, disp); err != nil {
 		return err
 	}
-	fmt.Fprintf(stdout, "NAME=%s\n", naming.JoinAddressName(ep.String(), ""))
-	fmt.Fprintf(stdout, "ADDR=%s\n", ep.String())
 	fmt.Fprintf(stdout, "PID=%d\n", os.Getpid())
+	for _, ep := range eps {
+		fmt.Fprintf(stdout, "NAME=%s\n", naming.JoinAddressName(ep.String(), ""))
+		fmt.Fprintf(stdout, "ADDR=%s\n", ep)
+	}
 	modules.WaitForEOF(stdin)
 	return nil
 }

@@ -34,11 +34,11 @@ func TestNeighborhood(t *testing.T) {
 	defer server.Stop()
 
 	// Start serving on a loopback address.
-	e, err := server.Listen(profiles.LocalListenSpec)
+	eps, err := server.Listen(profiles.LocalListenSpec)
 	if err != nil {
 		boom(t, "Failed to Listen mount table: %s", err)
 	}
-	estr := e.String()
+	estr := eps[0].String()
 	addresses := []string{
 		naming.JoinAddressName(estr, ""),
 		naming.JoinAddressName(estr, "suffix1"),

@@ -42,7 +42,7 @@ func (rt *vrt) initMgmt(appCycle veyron2.AppCycle, handle *exec.ChildHandle) (ip
 	if err != nil {
 		return nil, err
 	}
-	ep, err := server.Listen(*listenSpec)
+	eps, err := server.Listen(*listenSpec)
 	if err != nil {
 		return nil, err
 	}
@@ -50,7 +50,7 @@ func (rt *vrt) initMgmt(appCycle veyron2.AppCycle, handle *exec.ChildHandle) (ip
 		server.Stop()
 		return nil, err
 	}
-	err = rt.callbackToParent(parentName, naming.JoinAddressName(ep.String(), ""))
+	err = rt.callbackToParent(parentName, naming.JoinAddressName(eps[0].String(), ""))
 	if err != nil {
 		server.Stop()
 		return nil, err

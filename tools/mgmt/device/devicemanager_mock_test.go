@@ -167,7 +167,7 @@ func startServer(t *testing.T, r veyron2.Runtime, tape *Tape) (ipc.Server, namin
 		t.Errorf("NewServer failed: %v", err)
 		return nil, nil, err
 	}
-	endpoint, err := server.Listen(profiles.LocalListenSpec)
+	endpoints, err := server.Listen(profiles.LocalListenSpec)
 	if err != nil {
 		t.Errorf("Listen failed: %v", err)
 		stopServer(t, server)
@@ -178,7 +178,7 @@ func startServer(t *testing.T, r veyron2.Runtime, tape *Tape) (ipc.Server, namin
 		stopServer(t, server)
 		return nil, nil, err
 	}
-	return server, endpoint, nil
+	return server, endpoints[0], nil
 }
 
 func stopServer(t *testing.T, server ipc.Server) {

@@ -51,6 +51,7 @@ func runMountTable(t *testing.T, r veyron2.Runtime) (*modules.Shell, func()) {
 	sh.Forget(root)
 
 	rootSession := expect.NewSession(t, root.Stdout(), time.Minute)
+	rootSession.ExpectVar("PID")
 	rootName := rootSession.ExpectVar("MT_NAME")
 	if t.Failed() {
 		t.Fatalf("%s", rootSession.Error())
@@ -105,6 +106,7 @@ func TestMultipleEndpoints(t *testing.T) {
 		t.Fatalf("unexpected error: %s", err)
 	}
 	s := expect.NewSession(t, srv.Stdout(), time.Minute)
+	s.ExpectVar("PID")
 	s.ExpectVar("NAME")
 
 	// Verify that there are 1 entries for echoServer in the mount table.
@@ -182,12 +184,12 @@ func initServer(t *testing.T, r veyron2.Runtime) (string, func()) {
 	done := make(chan struct{})
 	deferFn := func() { close(done); server.Stop() }
 
-	ep, err := server.Listen(profiles.LocalListenSpec)
+	eps, err := server.Listen(profiles.LocalListenSpec)
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
 	server.Serve("", &simple{done}, nil)
-	name := naming.JoinAddressName(ep.String(), "")
+	name := naming.JoinAddressName(eps[0].String(), "")
 	return name, deferFn
 }
 
@@ -219,7 +221,7 @@ func TestTimeoutResponse(t *testing.T) {
 	ctx, _ := r.NewContext().WithTimeout(100 * time.Millisecond)
 	call, err := r.Client().StartCall(ctx, name, "Sleep", nil)
 	if err != nil {
-		testForVerror(t, err, verror.Timeout)
+		testForVerror(t, err, verror.Timeout, verror.BadProtocol)
 		return
 	}
 	verr := call.Finish(&err)
@@ -315,6 +317,7 @@ func TestRendezvous(t *testing.T) {
 		time.Sleep(10 * time.Millisecond)
 		srv, _ := sh.Start(core.EchoServerCommand, nil, testArgs("message", name)...)
 		s := expect.NewSession(t, srv.Stdout(), time.Minute)
+		s.ExpectVar("PID")
 		s.ExpectVar("NAME")
 	}
 	go startServer()

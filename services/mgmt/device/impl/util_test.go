@@ -53,6 +53,7 @@ func startRootMT(t *testing.T, sh *modules.Shell) (string, modules.Handle) {
 		t.Fatalf("failed to start root mount table: %s", err)
 	}
 	s := expect.NewSession(t, h.Stdout(), expectTimeout)
+	s.ExpectVar("PID")
 	rootName := s.ExpectVar("MT_NAME")
 	if t.Failed() {
 		t.Fatalf("failed to read mt name: %s", s.Error())
@@ -163,11 +164,11 @@ func newServer() (ipc.Server, string) {
 		vlog.Fatalf("NewServer() failed: %v", err)
 	}
 	spec := ipc.ListenSpec{Addrs: ipc.ListenAddrs{{"tcp", "127.0.0.1:0"}}}
-	endpoint, err := server.Listen(spec)
+	endpoints, err := server.Listen(spec)
 	if err != nil {
 		vlog.Fatalf("Listen(%s) failed: %v", spec, err)
 	}
-	return server, endpoint.String()
+	return server, endpoints[0].String()
 }
 
 // resolveExpectNotFound verifies that the given name is not in the mounttable.

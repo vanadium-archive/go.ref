@@ -22,14 +22,14 @@ func startServer(rt veyron2.Runtime, tree *node) (string, func(), error) {
 	if err != nil {
 		return "", nil, fmt.Errorf("failed to start debug server: %v", err)
 	}
-	endpoint, err := server.Listen(profiles.LocalListenSpec)
+	endpoints, err := server.Listen(profiles.LocalListenSpec)
 	if err != nil {
 		return "", nil, fmt.Errorf("failed to listen: %v", err)
 	}
 	if err := server.ServeDispatcher("", &disp{tree}); err != nil {
 		return "", nil, err
 	}
-	ep := endpoint.String()
+	ep := endpoints[0].String()
 	return ep, func() { server.Stop() }, nil
 }
 

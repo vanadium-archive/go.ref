@@ -34,6 +34,8 @@ func init() {
 	testutil.Init()
 }
 
+// TODO(cnicolaou): add test for proxyd
+
 func newShell(t *testing.T) (*modules.Shell, func()) {
 	sh, err := modules.NewShell(nil)
 	if err != nil {
@@ -62,9 +64,9 @@ func TestRoot(t *testing.T) {
 		t.Fatalf("unexpected error: %s", err)
 	}
 	s := expect.NewSession(t, root.Stdout(), time.Second)
+	s.ExpectVar("PID")
 	s.ExpectVar("MT_NAME")
 	s.ExpectVar("MT_ADDR")
-	s.ExpectVar("PID")
 	root.CloseStdin()
 }
 
@@ -76,6 +78,7 @@ func startMountTables(t *testing.T, sh *modules.Shell, mountPoints ...string) (m
 	}
 	sh.Forget(root)
 	rootSession := expect.NewSession(t, root.Stdout(), time.Minute)
+	rootSession.ExpectVar("PID")
 	rootName := rootSession.ExpectVar("MT_NAME")
 	if t.Failed() {
 		return nil, nil, rootSession.Error()
@@ -93,6 +96,7 @@ func startMountTables(t *testing.T, sh *modules.Shell, mountPoints ...string) (m
 		s := expect.NewSession(t, h.Stdout(), time.Minute)
 		// Wait until each mount table has at least called Serve to
 		// mount itself.
+		s.ExpectVar("PID")
 		mountAddrs[mp] = s.ExpectVar("MT_NAME")
 		if s.Failed() {
 			return nil, nil, s.Error()
@@ -179,6 +183,7 @@ func TestEcho(t *testing.T) {
 		t.Fatalf("unexpected error: %s", err)
 	}
 	srvSession := expect.NewSession(t, srv.Stdout(), time.Minute)
+	srvSession.ExpectVar("PID")
 	name := srvSession.ExpectVar("NAME")
 	if len(name) == 0 {
 		t.Fatalf("failed to get name")

@@ -43,7 +43,7 @@ func TestDebugServer(t *testing.T) {
 	}
 	defer server.Stop()
 	server.Serve("", &testObject{}, nil)
-	ep, err := server.Listen(listenSpec)
+	eps, err := server.Listen(listenSpec)
 	if err != nil {
 		t.Fatalf("server.Listen failed: %v", err)
 	}
@@ -53,6 +53,7 @@ func TestDebugServer(t *testing.T) {
 	}
 	defer client.Close()
 	ctx := testContext()
+	ep := eps[0]
 	// Call the Foo method on ""
 	{
 		addr := naming.JoinAddressName(ep.String(), "")

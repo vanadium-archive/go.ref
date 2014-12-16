@@ -56,7 +56,7 @@ func setupRepository(t *testing.T) (string, func()) {
 		t.Fatalf("NewState(%v, %v) failed: %v", rootDir, depth, err)
 	}
 	dispatcher := impl.NewDispatcher(state, nil)
-	endpoint, err := server.Listen(profiles.LocalListenSpec)
+	endpoints, err := server.Listen(profiles.LocalListenSpec)
 	if err != nil {
 		t.Fatalf("Listen(%s) failed: %v", profiles.LocalListenSpec, err)
 	}
@@ -64,7 +64,7 @@ func setupRepository(t *testing.T) (string, func()) {
 	if err := server.ServeDispatcher(suffix, dispatcher); err != nil {
 		t.Fatalf("Serve(%v, %v) failed: %v", suffix, dispatcher, err)
 	}
-	von := naming.JoinAddressName(endpoint.String(), "test")
+	von := naming.JoinAddressName(endpoints[0].String(), "test")
 	return von, func() {
 		if err := os.Remove(path); err != nil {
 			t.Fatalf("Remove(%v) failed: %v", path, err)

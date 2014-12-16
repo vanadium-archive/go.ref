@@ -198,15 +198,15 @@ func run(t *testing.T, sr veyron2.Runtime, disp ipc.Dispatcher, mountPoint strin
 	}
 	// Add a mount table server.
 	// Start serving on a loopback address.
-	ep, err := s.Listen(profiles.LocalListenSpec)
+	eps, err := s.Listen(profiles.LocalListenSpec)
 	if err != nil {
 		boom(t, "Failed to Listen: %s", err)
 	}
 	if err := s.ServeDispatcher(mountPoint, disp); err != nil {
 		boom(t, "Failed to serve mount table at %s: %s", mountPoint, err)
 	}
-	name := naming.JoinAddressName(ep.String(), "")
-	return &serverEntry{mountPoint: mountPoint, server: s, endpoint: ep, name: name}
+	name := naming.JoinAddressName(eps[0].String(), "")
+	return &serverEntry{mountPoint: mountPoint, server: s, endpoint: eps[0], name: name}
 }
 
 const (

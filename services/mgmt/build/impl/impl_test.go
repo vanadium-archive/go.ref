@@ -58,7 +58,7 @@ func startServer(t *testing.T) (build.BuilderClientMethods, func()) {
 	if err != nil {
 		t.Fatalf("NewServer() failed: %v", err)
 	}
-	endpoint, err := server.Listen(profiles.LocalListenSpec)
+	endpoints, err := server.Listen(profiles.LocalListenSpec)
 	if err != nil {
 		t.Fatalf("Listen(%s) failed: %v", profiles.LocalListenSpec, err)
 	}
@@ -66,7 +66,7 @@ func startServer(t *testing.T) (build.BuilderClientMethods, func()) {
 	if err := server.Serve(unpublished, build.BuilderServer(NewBuilderService(gobin, goroot)), nil); err != nil {
 		t.Fatalf("Serve(%q) failed: %v", unpublished, err)
 	}
-	name := "/" + endpoint.String()
+	name := "/" + endpoints[0].String()
 	return build.BuilderClient(name), func() {
 		if err := server.Stop(); err != nil {
 			t.Fatalf("Stop() failed: %v", err)

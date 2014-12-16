@@ -50,10 +50,11 @@ func TestInterface(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewDispatcher() failed: %v", err)
 	}
-	endpoint, err := server.Listen(profiles.LocalListenSpec)
+	endpoints, err := server.Listen(profiles.LocalListenSpec)
 	if err != nil {
 		t.Fatalf("Listen(%s) failed: %v", profiles.LocalListenSpec, err)
 	}
+	endpoint := endpoints[0]
 	if err := server.ServeDispatcher("", dispatcher); err != nil {
 		t.Fatalf("Serve failed: %v", err)
 	}
@@ -135,10 +136,11 @@ func TestPreserveAcrossRestarts(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewDispatcher() failed: %v", err)
 	}
-	endpoint, err := server.Listen(profiles.LocalListenSpec)
+	endpoints, err := server.Listen(profiles.LocalListenSpec)
 	if err != nil {
 		t.Fatalf("Listen(%s) failed: %v", profiles.LocalListenSpec, err)
 	}
+	endpoint := endpoints[0]
 	if err := server.ServeDispatcher("", dispatcher); err != nil {
 		t.Fatalf("Serve failed: %v", err)
 	}
@@ -173,7 +175,7 @@ func TestPreserveAcrossRestarts(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewDispatcher() failed: %v", err)
 	}
-	endpoint, err = server.Listen(profiles.LocalListenSpec)
+	endpoints, err = server.Listen(profiles.LocalListenSpec)
 	if err != nil {
 		t.Fatalf("Listen(%s) failed: %v", profiles.LocalListenSpec, err)
 	}
@@ -182,7 +184,7 @@ func TestPreserveAcrossRestarts(t *testing.T) {
 	}
 
 	// Create client stubs for talking to the server.
-	stub = repository.ProfileClient(naming.JoinAddressName(endpoint.String(), "linux/base"))
+	stub = repository.ProfileClient(naming.JoinAddressName(endpoints[0].String(), "linux/base"))
 
 	// Label
 	label, err = stub.Label(ctx)

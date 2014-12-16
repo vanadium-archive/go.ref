@@ -58,17 +58,19 @@ func runMT(root bool, stdin io.Reader, stdout, stderr io.Writer, env map[string]
 	if err != nil {
 		return fmt.Errorf("mounttable.NewMountTable failed: %s", err)
 	}
-	ep, err := server.Listen(lspec)
+	eps, err := server.Listen(lspec)
 	if err != nil {
 		return fmt.Errorf("server.Listen failed: %s", err)
 	}
 	if err := server.ServeDispatcher(mp, mt); err != nil {
 		return fmt.Errorf("root failed: %s", err)
 	}
-	name := naming.JoinAddressName(ep.String(), "")
-	fmt.Fprintf(stdout, "MT_NAME=%s\n", name)
-	fmt.Fprintf(stdout, "MT_ADDR=%s\n", ep.String())
 	fmt.Fprintf(stdout, "PID=%d\n", os.Getpid())
+	for _, ep := range eps {
+		name := naming.JoinAddressName(ep.String(), "")
+		fmt.Fprintf(stdout, "MT_NAME=%s\n", name)
+		fmt.Fprintf(stdout, "MT_ADDR=%s\n", ep.String())
+	}
 	modules.WaitForEOF(stdin)
 	return nil
 }

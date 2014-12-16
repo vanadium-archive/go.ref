@@ -25,14 +25,14 @@ func setup(t *testing.T) (string, ipc.Server, veyron2.Runtime) {
 	if err != nil {
 		t.Fatalf("Could not create server: %s", err)
 	}
-	endpoint, err := server.Listen(profiles.LocalListenSpec)
+	endpoints, err := server.Listen(profiles.LocalListenSpec)
 	if err != nil {
 		t.Fatalf("Listen failed: %s", err)
 	}
 	if err := server.Serve("", impl.NewVtraceService(runtime.VtraceStore()), nil); err != nil {
 		t.Fatalf("Serve failed: %s", err)
 	}
-	return endpoint.String(), server, runtime
+	return endpoints[0].String(), server, runtime
 }
 
 func TestVtraceServer(t *testing.T) {

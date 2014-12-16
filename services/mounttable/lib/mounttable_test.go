@@ -171,14 +171,14 @@ func newMT(t *testing.T, acl string) (ipc.Server, string) {
 		boom(t, "NewMountTable: %v", err)
 	}
 	// Start serving on a loopback address.
-	e, err := server.Listen(profiles.LocalListenSpec)
+	eps, err := server.Listen(profiles.LocalListenSpec)
 	if err != nil {
 		boom(t, "Failed to Listen mount table: %s", err)
 	}
 	if err := server.ServeDispatcher("", mt); err != nil {
 		boom(t, "Failed to register mock collection: %s", err)
 	}
-	estr := e.String()
+	estr := eps[0].String()
 	t.Logf("endpoint %s", estr)
 	return server, estr
 }
@@ -189,7 +189,7 @@ func newCollection(t *testing.T, acl string) (ipc.Server, string) {
 		boom(t, "r.NewServer: %s", err)
 	}
 	// Start serving on a loopback address.
-	e, err := server.Listen(profiles.LocalListenSpec)
+	eps, err := server.Listen(profiles.LocalListenSpec)
 	if err != nil {
 		boom(t, "Failed to Listen mount table: %s", err)
 	}
@@ -199,7 +199,7 @@ func newCollection(t *testing.T, acl string) (ipc.Server, string) {
 	if err := server.ServeDispatcher(cPrefix, newCollectionServer()); err != nil {
 		boom(t, "Failed to register mock collection: %s", err)
 	}
-	estr := e.String()
+	estr := eps[0].String()
 	t.Logf("endpoint %s", estr)
 	return server, estr
 }

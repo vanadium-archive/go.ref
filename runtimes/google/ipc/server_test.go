@@ -40,6 +40,7 @@ func TestReconnect(t *testing.T) {
 		t.Fatalf("unexpected error: %s", err)
 	}
 	session := expect.NewSession(t, server.Stdout(), time.Minute)
+	session.ReadLine()
 	serverName := session.ExpectVar("NAME")
 	serverEP := session.ExpectVar("ADDR")
 	ep, _ := inaming.NewEndpoint(serverEP)
@@ -71,9 +72,8 @@ func TestReconnect(t *testing.T) {
 	}
 
 	// Resurrect the server with the same address, verify client
-	// re-establishes the connection. This is probably racy if another
-	// process grabs the port. This seems unlikely since the kernel cycles
-	// through the entire port space.
+	// re-establishes the connection. This is racy if another
+	// process grabs the port.
 	server, err = sh.Start(core.EchoServerCommand, nil, "--", "--veyron.tcp.address="+ep.Address, "mymessage again", "")
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
@@ -108,7 +108,11 @@ func (h *proxyHandle) Start(t *testing.T, args ...string) error {
 	h.proxy = p
 	s := expect.NewSession(t, p.Stdout(), time.Minute)
 	s.ReadLine()
+	s.ReadLine()
 	h.name = s.ExpectVar("PROXY_NAME")
+	if len(h.name) == 0 {
+		t.Fatalf("failed to get PROXY_NAME from proxyd")
+	}
 	return h.ns.Mount(testContext(), "proxy", h.name, time.Hour)
 }
 
@@ -186,7 +190,7 @@ func testProxy(t *testing.T, spec ipc.ListenSpec, args ...string) {
 	}
 	proxyEP, _ := naming.SplitAddressName(addrs[0])
 
-	ep, err := server.Listen(spec)
+	eps, err := server.Listen(spec)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -212,14 +216,13 @@ func testProxy(t *testing.T, spec ipc.ListenSpec, args ...string) {
 	}
 
 	proxiedEP, err := inaming.NewEndpoint(proxyEP)
-
 	if err != nil {
 		t.Fatalf("unexpected error for %q: %s", proxyEP, err)
 	}
 	proxiedEP.RID = naming.FixedRoutingID(0x555555555)
 	expectedEndpoints := []string{proxiedEP.String()}
 	if hasLocalListener {
-		expectedEndpoints = append(expectedEndpoints, ep.String())
+		expectedEndpoints = append(expectedEndpoints, eps[0].String())
 	}
 
 	// Proxy connetions are created asynchronously, so we wait for the
@@ -247,10 +250,9 @@ func testProxy(t *testing.T, spec ipc.ListenSpec, args ...string) {
 		// mount table, given that we're trying to test the proxy, we remove
 		// the local endpoint from the mount table entry!  We have to remove both
 		// the tcp and the websocket address.
-		sep := ep.String()
+		sep := eps[0].String()
 		//wsep := strings.Replace(sep, "@tcp@", "@ws@", 1)
 		ns.Unmount(testContext(), "mountpoint/server", naming.JoinAddressName(sep, ""))
-		//ns.Unmount(testContext(), "mountpoint/server", naming.JoinAddressName(wsep, ""))
 	}
 
 	addrs = verifyMount(t, ns, name)

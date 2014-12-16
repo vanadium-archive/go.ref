@@ -36,7 +36,7 @@ func StartServer(runtime veyron2.Runtime, listenSpec ipc.ListenSpec) (string, fu
 	if err != nil {
 		vlog.Fatalf("NewServer failed: %v", err)
 	}
-	ep, err := server.Listen(listenSpec)
+	eps, err := server.Listen(listenSpec)
 	if err != nil {
 		vlog.Fatalf("Listen failed: %v", err)
 	}
@@ -44,7 +44,7 @@ func StartServer(runtime veyron2.Runtime, listenSpec ipc.ListenSpec) (string, fu
 	if err := server.Serve("", BenchmarkServer(&impl{}), sflag.NewAuthorizerOrDie()); err != nil {
 		vlog.Fatalf("Serve failed: %v", err)
 	}
-	return naming.JoinAddressName(ep.String(), ""), func() {
+	return naming.JoinAddressName(eps[0].String(), ""), func() {
 		if err := server.Stop(); err != nil {
 			vlog.Fatalf("Stop() failed: %v", err)
 		}

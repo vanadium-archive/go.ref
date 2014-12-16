@@ -202,7 +202,7 @@ func startServerWS(t *testing.T, principal security.Principal, sm stream.Manager
 	if err := server.AddName(name); err != nil {
 		t.Errorf("server.AddName for discharger failed: %v", err)
 	}
-	return ep, server
+	return ep[0], server
 }
 
 func loc(d int) string {
@@ -245,7 +245,7 @@ func stopServer(t *testing.T, server ipc.Server, ns naming.Namespace, name strin
 
 	// Check that we can no longer serve after Stop.
 	err := server.AddName("name doesn't matter")
-	if err == nil || err.Error() != "ipc: server is stopped" {
+	if err == nil || !verror.Is(err, verror.BadState.ID) {
 		t.Errorf("either no error, or a wrong error was returned: %v", err)
 	}
 	vlog.VI(1).Info("server.Stop DONE")
@@ -772,7 +772,7 @@ func TestDischargeImpetusAndContextPropagation(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer appServer.Stop()
-	ep, err := appServer.Listen(listenSpec)
+	eps, err := appServer.Listen(listenSpec)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -791,7 +791,7 @@ func TestDischargeImpetusAndContextPropagation(t *testing.T) {
 	// can go away, but till then, this workaround allows the test to be
 	// more predictable by ensuring there is only one VIF/VC/Flow to the
 	// server.
-	object := naming.JoinAddressName(ep.String(), "object") // instead of "mountpoint/object"
+	object := naming.JoinAddressName(eps[0].String(), "object") // instead of "mountpoint/object"
 	if err := appServer.Serve("mountpoint/object", &testServer{}, &testServerAuthorizer{}); err != nil {
 		t.Fatal(err)
 	}
@@ -1231,15 +1231,16 @@ func TestPreferredAddress(t *testing.T) {
 		t.Errorf("InternalNewServer failed: %v", err)
 	}
 	defer server.Stop()
+
 	spec := ipc.ListenSpec{
 		Addrs:          ipc.ListenAddrs{{"tcp", ":0"}},
 		AddressChooser: pa,
 	}
-	ep, err := server.Listen(spec)
+	eps, err := server.Listen(spec)
 	if err != nil {
 		t.Errorf("unexpected error: %s", err)
 	}
-	iep := ep.(*inaming.Endpoint)
+	iep := eps[0].(*inaming.Endpoint)
 	host, _, err := net.SplitHostPort(iep.Address)
 	if err != nil {
 		t.Errorf("unexpected error: %s", err)
@@ -1248,8 +1249,8 @@ func TestPreferredAddress(t *testing.T) {
 		t.Errorf("got %q, want %q", got, want)
 	}
 	// Won't override the specified address.
-	ep, err = server.Listen(listenSpec)
-	iep = ep.(*inaming.Endpoint)
+	eps, err = server.Listen(listenSpec)
+	iep = eps[0].(*inaming.Endpoint)
 	host, _, err = net.SplitHostPort(iep.Address)
 	if err != nil {
 		t.Errorf("unexpected error: %s", err)
@@ -1275,8 +1276,8 @@ func TestPreferredAddressErrors(t *testing.T) {
 		Addrs:          ipc.ListenAddrs{{"tcp", ":0"}},
 		AddressChooser: paerr,
 	}
-	ep, err := server.Listen(spec)
-	iep := ep.(*inaming.Endpoint)
+	eps, err := server.Listen(spec)
+	iep := eps[0].(*inaming.Endpoint)
 	host, _, err := net.SplitHostPort(iep.Address)
 	if err != nil {
 		t.Errorf("unexpected error: %s", err)

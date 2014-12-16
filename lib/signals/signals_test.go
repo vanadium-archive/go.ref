@@ -323,14 +323,14 @@ func createConfigServer(t *testing.T, runtime veyron2.Runtime) (ipc.Server, stri
 		t.Fatalf("Got error: %v", err)
 	}
 	ch := make(chan string)
-	var ep naming.Endpoint
+	var ep []naming.Endpoint
 	if ep, err = server.Listen(profiles.LocalListenSpec); err != nil {
 		t.Fatalf("Got error: %v", err)
 	}
 	if err := server.Serve("", device.ConfigServer(&configServer{ch}), vflag.NewAuthorizerOrDie()); err != nil {
 		t.Fatalf("Got error: %v", err)
 	}
-	return server, naming.JoinAddressName(ep.String(), ""), ch
+	return server, naming.JoinAddressName(ep[0].String(), ""), ch
 
 }
 

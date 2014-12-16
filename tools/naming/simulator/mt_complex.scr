@@ -9,6 +9,7 @@ cache off
 
 root -- $localaddr
 set root_h=$_
+read $root_h
 eval $root_h
 set root=$MT_NAME
 
@@ -16,6 +17,7 @@ set NAMESPACE_ROOT=$root
 mt -- $localaddr tl/a
 set m=$_
 set mt_a_h=$m
+read $m
 eval $m
 eval $m
 set mt_a_name=$MT_NAME
@@ -24,6 +26,7 @@ set mt_a_addr=$MT_ADDR
 mt  -- $localaddr tl/b
 set m=$_
 set mt_b_h=$m
+eval $m
 eval $m
 eval $m
 set mt_b_name=$MT_NAME
@@ -76,6 +79,7 @@ wait $r
 # run an echo server on tl.
 echoServer  -- $localaddr "E1" tl
 set es_E1=$_
+read $es_E1
 read $es_E1
 eval $es_E1
 set es_E1_addr=$ADDR
@@ -130,8 +134,8 @@ assert $mt_a_name $ep1
 echoServer  -- $localaddr "E2" tl/a
 set es_E2=$_
 read $es_E2
-eval $es_E2
 read $es_E2
+eval $es_E2
 set es_E2_addr=$ADDR
 
 # we can invoke the echo server 'E2' just fine, probably because
@@ -210,6 +214,7 @@ assert $o E2.${long_name}": short baz"
 set long_name=tl/b/some/deep/name/that/is/a/mount/table
 mt -- $localaddr $long_name
 set m=$_
+read $m
 eval $m
 eval $m
 set mt_l_name=$MT_NAME
@@ -220,6 +225,7 @@ set mt_l_addr=$MT_ADDR
 set second_long_name=tl/a/some/deep/name/that/is/a/mount/table
 mt -- $localaddr $second_long_name
 set m=$_
+read $m
 eval $m
 eval $m
 set mt_l2_name=$MT_NAME

@@ -623,7 +623,7 @@ invocation.
 				return fmt.Errorf("failed to create server to listen for blessings: %v", err)
 			}
 			defer server.Stop()
-			ep, err := server.Listen(profile.ListenSpec)
+			eps, err := server.Listen(profile.ListenSpec)
 			if err != nil {
 				return fmt.Errorf("failed to setup listening: %v", err)
 			}
@@ -645,7 +645,7 @@ invocation.
 			fmt.Println("You may want to adjust flags affecting the caveats on this blessing, for example using")
 			fmt.Println("the --for flag, or change the extension to something more meaningful")
 			fmt.Println()
-			fmt.Printf("principal bless --remote_key=%v --remote_token=%v %v %v\n", runtime.Principal().PublicKey(), service.token, naming.JoinAddressName(ep.String(), ""), extension)
+			fmt.Printf("principal bless --remote_key=%v --remote_token=%v %v %v\n", runtime.Principal().PublicKey(), service.token, naming.JoinAddressName(eps[0].String(), ""), extension)
 			fmt.Println()
 			fmt.Println("...waiting for sender..")
 			return <-service.notify

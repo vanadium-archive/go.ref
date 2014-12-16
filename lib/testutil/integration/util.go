@@ -62,6 +62,10 @@ func StartRootMT(shell *modules.Shell) (modules.Handle, string, error) {
 		return nil, "", err
 	}
 	s := expect.NewSession(nil, handle.Stdout(), time.Second)
+	s.ExpectVar("PID")
+	if err := s.Error(); err != nil {
+		return nil, "", err
+	}
 	name := s.ExpectVar("MT_NAME")
 	if err := s.Error(); err != nil {
 		return nil, "", err
@@ -70,10 +74,7 @@ func StartRootMT(shell *modules.Shell) (modules.Handle, string, error) {
 	if err := s.Error(); err != nil {
 		return nil, "", err
 	}
-	s.ExpectVar("PID")
-	if err := s.Error(); err != nil {
-		return nil, "", err
-	}
+
 	return handle, name, nil
 }
 

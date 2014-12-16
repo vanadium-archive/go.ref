@@ -32,7 +32,7 @@ func TestProxyInvoker(t *testing.T) {
 	}
 	defer server1.Stop()
 	localSpec := ipc.ListenSpec{Addrs: ipc.ListenAddrs{{"tcp", "127.0.0.1:0"}}}
-	ep1, err := server1.Listen(localSpec)
+	eps1, err := server1.Listen(localSpec)
 	if err != nil {
 		t.Fatalf("Listen: %v", err)
 	}
@@ -46,13 +46,13 @@ func TestProxyInvoker(t *testing.T) {
 		t.Fatalf("NewServer: %v", err)
 	}
 	defer server2.Stop()
-	ep2, err := server2.Listen(localSpec)
+	eps2, err := server2.Listen(localSpec)
 	if err != nil {
 		t.Fatalf("Listen: %v", err)
 	}
 	disp := &proxyDispatcher{
 		runtime,
-		naming.JoinAddressName(ep1.String(), "__debug/stats"),
+		naming.JoinAddressName(eps1[0].String(), "__debug/stats"),
 		stats.StatsServer(nil),
 	}
 	if err := server2.ServeDispatcher("", disp); err != nil {
@@ -60,14 +60,14 @@ func TestProxyInvoker(t *testing.T) {
 	}
 
 	// Call Value()
-	name := naming.JoinAddressName(ep2.String(), "system/start-time-rfc1123")
+	name := naming.JoinAddressName(eps2[0].String(), "system/start-time-rfc1123")
 	c := stats.StatsClient(name)
 	if _, err := c.Value(runtime.NewContext()); err != nil {
 		t.Fatalf("%q.Value() error: %v", name, err)
 	}
 
 	// Call Glob()
-	results, err := testutil.GlobName(runtime.NewContext(), naming.JoinAddressName(ep2.String(), "system"), "start-time-*")
+	results, err := testutil.GlobName(runtime.NewContext(), naming.JoinAddressName(eps2[0].String(), "system"), "start-time-*")
 	if err != nil {
 		t.Fatalf("Glob failed: %v", err)
 	}

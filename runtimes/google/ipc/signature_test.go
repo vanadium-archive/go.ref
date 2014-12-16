@@ -24,14 +24,14 @@ func startSigServer(runtime veyron2.Runtime, sig sigImpl) (string, func(), error
 	if err != nil {
 		return "", nil, fmt.Errorf("failed to start sig server: %v", err)
 	}
-	ep, err := server.Listen(profiles.LocalListenSpec)
+	eps, err := server.Listen(profiles.LocalListenSpec)
 	if err != nil {
 		return "", nil, fmt.Errorf("failed to listen: %v", err)
 	}
 	if err := server.Serve("", sig, nil); err != nil {
 		return "", nil, err
 	}
-	return ep.String(), func() { server.Stop() }, nil
+	return eps[0].String(), func() { server.Stop() }, nil
 }
 
 type sigImpl struct{}

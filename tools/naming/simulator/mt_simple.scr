@@ -4,15 +4,21 @@ set localaddr="--veyron.tcp.address=127.0.0.1:0"
 set ws=--veyron.tcp.protocol=ws
 
 root -- $localaddr
-eval $_
+set m=$_
+read $m
+eval $m
 set root=$MT_NAME
 
 set NAMESPACE_ROOT=$root
 mt -- $localaddr $ws $localaddr usa
-eval $_
+set m=$_
+read $m
+eval $m
 set usa_mt=$MT_NAME
 mt -- $localaddr $ws $localaddr uk
-eval $_
+set m=$_
+read $m
+eval $m
 set uk_mt=$MT_NAME
 
 ls $root/...
@@ -23,12 +29,16 @@ wait $l
 
 set NAMESPACE_ROOT=$usa_mt
 mt -- $localaddr $ws $localaddr "palo alto"
-eval $_
+set m=$_
+read $m
+eval $m
 set pa_mt=$MT_NAME
 
 set NAMESPACE_ROOT=$uk_mt
 mt -- $localaddr $ws $localaddr "cambridge"
-eval $_
+set m=$_
+read $m
+eval $m
 set cam_mt=$MT_NAME
 
 ls $root/...

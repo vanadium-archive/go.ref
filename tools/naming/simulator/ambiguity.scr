@@ -22,15 +22,21 @@
 set localaddr="--veyron.tcp.address=127.0.0.1:0"
 
 root -- $localaddr
-eval $_
+set r=$_
+read $r
+eval $r
 set s1=$MT_NAME
 
 root  -- $localaddr
-eval $_
+set r=$_
+read $r
+eval $r
 set s2=$MT_NAME
 
 root -- $localaddr
-eval $_
+set r=$_
+read $r
+eval $r
 set s3=$MT_NAME
 
 mount $s1/a $s2/b 1h

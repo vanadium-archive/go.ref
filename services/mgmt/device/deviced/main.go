@@ -50,11 +50,11 @@ func main() {
 		vlog.Fatalf("NewServer() failed: %v", err)
 	}
 	defer server.Stop()
-	endpoint, err := server.Listen(roaming.ListenSpec)
+	endpoints, err := server.Listen(roaming.ListenSpec)
 	if err != nil {
 		vlog.Fatalf("Listen(%s) failed: %v", roaming.ListenSpec, err)
 	}
-	name := naming.JoinAddressName(endpoint.String(), "")
+	name := naming.JoinAddressName(endpoints[0].String(), "")
 	vlog.VI(0).Infof("Device manager object name: %v", name)
 	configState, err := config.Load()
 	if err != nil {

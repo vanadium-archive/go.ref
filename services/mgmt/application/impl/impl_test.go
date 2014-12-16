@@ -40,13 +40,14 @@ func TestInterface(t *testing.T) {
 		t.Fatalf("NewDispatcher() failed: %v", err)
 	}
 
-	endpoint, err := server.Listen(profiles.LocalListenSpec)
+	endpoints, err := server.Listen(profiles.LocalListenSpec)
 	if err != nil {
 		t.Fatalf("Listen(%s) failed: %v", profiles.LocalListenSpec, err)
 	}
 	if err := server.ServeDispatcher("", dispatcher); err != nil {
 		t.Fatalf("Serve(%v) failed: %v", dispatcher, err)
 	}
+	endpoint := endpoints[0]
 
 	// Create client stubs for talking to the server.
 	stub := repository.ApplicationClient(naming.JoinAddressName(endpoint.String(), "search"))
@@ -183,10 +184,11 @@ func TestPreserveAcrossRestarts(t *testing.T) {
 		t.Fatalf("NewDispatcher() failed: %v", err)
 	}
 
-	endpoint, err := server.Listen(profiles.LocalListenSpec)
+	endpoints, err := server.Listen(profiles.LocalListenSpec)
 	if err != nil {
 		t.Fatalf("Listen(%s) failed: %v", profiles.LocalListenSpec, err)
 	}
+	endpoint := endpoints[0]
 	if err := server.ServeDispatcher("", dispatcher); err != nil {
 		t.Fatalf("Serve(%v) failed: %v", dispatcher, err)
 	}
@@ -227,10 +229,11 @@ func TestPreserveAcrossRestarts(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewDispatcher() failed: %v", err)
 	}
-	endpoint, err = server.Listen(profiles.LocalListenSpec)
+	endpoints, err = server.Listen(profiles.LocalListenSpec)
 	if err != nil {
 		t.Fatalf("Listen(%s) failed: %v", profiles.LocalListenSpec, err)
 	}
+	endpoint = endpoints[0]
 	if err := server.ServeDispatcher("", dispatcher); err != nil {
 		t.Fatalf("Serve(%v) failed: %v", dispatcher, err)
 	}

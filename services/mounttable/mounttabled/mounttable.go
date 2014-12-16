@@ -40,11 +40,12 @@ func main() {
 		vlog.Errorf("r.NewMountTable failed: %v", err)
 		os.Exit(1)
 	}
-	mtEndpoint, err := mtServer.Listen(roaming.ListenSpec)
+	mtEndpoints, err := mtServer.Listen(roaming.ListenSpec)
 	if err != nil {
 		vlog.Errorf("mtServer.Listen failed: %v", err)
 		os.Exit(1)
 	}
+	mtEndpoint := mtEndpoints[0]
 	name := *mountName
 	if err := mtServer.ServeDispatcher(name, mt); err != nil {
 		vlog.Errorf("ServeDispatcher(%v) failed: %v", name, err)

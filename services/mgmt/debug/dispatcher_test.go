@@ -38,14 +38,14 @@ func startDebugServer(rt veyron2.Runtime, listenSpec ipc.ListenSpec, logsDir str
 	if err != nil {
 		return "", nil, fmt.Errorf("failed to start debug server: %v", err)
 	}
-	endpoint, err := server.Listen(listenSpec)
+	endpoints, err := server.Listen(listenSpec)
 	if err != nil {
 		return "", nil, fmt.Errorf("failed to listen on %s: %v", listenSpec, err)
 	}
 	if err := server.ServeDispatcher("", disp); err != nil {
 		return "", nil, err
 	}
-	ep := endpoint.String()
+	ep := endpoints[0].String()
 	return ep, func() { server.Stop() }, nil
 }
 

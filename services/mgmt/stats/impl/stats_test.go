@@ -35,7 +35,7 @@ func startServer(t *testing.T, runtime veyron2.Runtime) (string, func()) {
 		t.Fatalf("NewServer failed: %v", err)
 		return "", nil
 	}
-	endpoint, err := server.Listen(profiles.LocalListenSpec)
+	endpoints, err := server.Listen(profiles.LocalListenSpec)
 	if err != nil {
 		t.Fatalf("Listen failed: %v", err)
 		return "", nil
@@ -44,7 +44,7 @@ func startServer(t *testing.T, runtime veyron2.Runtime) (string, func()) {
 		t.Fatalf("Serve failed: %v", err)
 		return "", nil
 	}
-	return endpoint.String(), func() { server.Stop() }
+	return endpoints[0].String(), func() { server.Stop() }
 }
 
 func TestStatsImpl(t *testing.T) {

@@ -6,7 +6,6 @@ import (
 	"database/sql"
 	"flag"
 	"fmt"
-	_ "github.com/go-sql-driver/mysql"
 	"html/template"
 	"io/ioutil"
 	"net"
@@ -14,6 +13,8 @@ import (
 	"os"
 	"strings"
 	"time"
+
+	_ "github.com/go-sql-driver/mysql"
 
 	"veyron.io/veyron/veyron2"
 	"veyron.io/veyron/veyron2/ipc"
@@ -205,10 +206,11 @@ func setupServices(r veyron2.Runtime, revocationManager *revocation.RevocationMa
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to create new ipc.Server: %v", err)
 	}
-	ep, err := server.Listen(static.ListenSpec)
+	eps, err := server.Listen(static.ListenSpec)
 	if err != nil {
 		return nil, nil, fmt.Errorf("server.Listen(%v) failed: %v", static.ListenSpec, err)
 	}
+	ep := eps[0]
 	googleParams.DischargerLocation = naming.JoinAddressName(ep.String(), dischargerService)
 
 	dispatcher := newDispatcher(googleParams, macaroonKey)

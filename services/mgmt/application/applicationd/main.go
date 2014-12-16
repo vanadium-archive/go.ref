@@ -39,14 +39,14 @@ func main() {
 		vlog.Fatalf("NewDispatcher() failed: %v", err)
 	}
 
-	endpoint, err := server.Listen(roaming.ListenSpec)
+	endpoints, err := server.Listen(roaming.ListenSpec)
 	if err != nil {
 		vlog.Fatalf("Listen(%s) failed: %v", roaming.ListenSpec, err)
 	}
 	if err := server.ServeDispatcher(*name, dispatcher); err != nil {
 		vlog.Fatalf("Serve(%v) failed: %v", *name, err)
 	}
-	epName := naming.JoinAddressName(endpoint.String(), "")
+	epName := naming.JoinAddressName(endpoints[0].String(), "")
 	if *name != "" {
 		vlog.Infof("Application repository serving at %q (%q)", *name, epName)
 	} else {

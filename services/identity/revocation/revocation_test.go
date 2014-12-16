@@ -52,7 +52,7 @@ func revokerSetup(t *testing.T, r veyron2.Runtime) (dischargerKey security.Publi
 	if err != nil {
 		t.Fatalf("r.NewServer: %s", err)
 	}
-	dischargerEP, err := dischargerServer.Listen(profiles.LocalListenSpec)
+	dischargerEPs, err := dischargerServer.Listen(profiles.LocalListenSpec)
 	if err != nil {
 		t.Fatalf("dischargerServer.Listen failed: %v", err)
 	}
@@ -61,7 +61,7 @@ func revokerSetup(t *testing.T, r veyron2.Runtime) (dischargerKey security.Publi
 		t.Fatalf("dischargerServer.Serve revoker: %s", err)
 	}
 	return r.Principal().PublicKey(),
-		naming.JoinAddressName(dischargerEP.String(), ""),
+		naming.JoinAddressName(dischargerEPs[0].String(), ""),
 		revokerService,
 		func() {
 			dischargerServer.Stop()

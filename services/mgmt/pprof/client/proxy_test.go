@@ -35,14 +35,14 @@ func TestPProfProxy(t *testing.T) {
 		t.Fatalf("failed to start server: %v", err)
 	}
 	defer s.Stop()
-	endpoint, err := s.Listen(profiles.LocalListenSpec)
+	endpoints, err := s.Listen(profiles.LocalListenSpec)
 	if err != nil {
 		t.Fatalf("failed to listen: %v", err)
 	}
 	if err := s.ServeDispatcher("", &dispatcher{impl.NewPProfService()}); err != nil {
 		t.Fatalf("failed to serve: %v", err)
 	}
-	l, err := client.StartProxy(r, naming.JoinAddressName(endpoint.String(), ""))
+	l, err := client.StartProxy(r, naming.JoinAddressName(endpoints[0].String(), ""))
 	if err != nil {
 		t.Fatalf("failed to start proxy: %v", err)
 	}

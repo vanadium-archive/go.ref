@@ -11,6 +11,7 @@ set localaddr=--veyron.tcp.address=127.0.0.1:0
 set global_name=global/echo
 echoServer -- $localaddr "text2" $global_name
 set es=$_
+read $es
 eval $es
 set es_name=$NAME
 eval $es

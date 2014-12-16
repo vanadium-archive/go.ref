@@ -90,11 +90,11 @@ func startServer(runtime veyron2.Runtime, s interface{}) (ipc.Server, string, er
 	if err != nil {
 		return nil, "", err
 	}
-	endpoint, err := server.Listen(profiles.LocalListenSpec)
+	endpoints, err := server.Listen(profiles.LocalListenSpec)
 	if err != nil {
 		return nil, "", err
 	}
-	serverObjectName := naming.JoinAddressName(endpoint.String(), "")
+	serverObjectName := naming.JoinAddressName(endpoints[0].String(), "")
 	if err := server.Serve("", s, allowEveryone{}); err != nil {
 		return nil, "", err
 	}

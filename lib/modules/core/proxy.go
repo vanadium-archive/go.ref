@@ -3,6 +3,7 @@ package core
 import (
 	"fmt"
 	"io"
+	"os"
 	"time"
 
 	"veyron.io/veyron/veyron2/naming"
@@ -40,6 +41,7 @@ func proxyServer(stdin io.Reader, stdout, stderr io.Writer, env map[string]strin
 	defer proxy.Shutdown()
 
 	pname := naming.JoinAddressName(proxy.Endpoint().String(), "")
+	fmt.Fprintf(stdout, "PID=%d\n", os.Getpid())
 	fmt.Fprintf(stdout, "PROXY_ADDR=%s\n", proxy.Endpoint().String())
 	fmt.Fprintf(stdout, "PROXY_NAME=%s\n", pname)
 	if expected > 0 {

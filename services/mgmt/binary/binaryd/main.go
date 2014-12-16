@@ -85,7 +85,7 @@ func main() {
 	}
 	defer server.Stop()
 	auth := vflag.NewAuthorizerOrDie()
-	endpoint, err := server.Listen(roaming.ListenSpec)
+	endpoints, err := server.Listen(roaming.ListenSpec)
 	if err != nil {
 		vlog.Errorf("Listen(%s) failed: %v", roaming.ListenSpec, err)
 		return
@@ -94,7 +94,7 @@ func main() {
 		vlog.Errorf("ServeDispatcher(%v) failed: %v", *name, err)
 		return
 	}
-	epName := naming.JoinAddressName(endpoint.String(), "")
+	epName := naming.JoinAddressName(endpoints[0].String(), "")
 	if *name != "" {
 		vlog.Infof("Binary repository serving at %q (%q)", *name, epName)
 	} else {

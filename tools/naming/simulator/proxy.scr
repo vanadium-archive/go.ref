@@ -4,8 +4,10 @@ cache off
 set localaddr=--veyron.tcp.address=127.0.0.1:0
 set ws=--veyron.tcp.protocol=ws
 
-root -- $localaddr $ws $localaddr
-eval $_
+root -- $localaddr
+set m=$_
+read $m
+eval $m
 set root=$MT_NAME
 set NAMESPACE_ROOT=$root
 setRoots $NAMESPACE_ROOT
@@ -14,6 +16,7 @@ print $NAMESPACE_ROOT
 # run a non-proxied echo server
 echoServer -- $localaddr $ws $localaddr noproxy echo/noproxy
 set esnp=$_
+read $esnp
 eval $esnp
 set NP_ECHOS_NAME=$NAME
 eval $esnp
@@ -28,6 +31,7 @@ assert $l "noproxy: ohh"
 # run a proxy server
 proxyd -- $localaddr $ws $localaddr p1
 set proxy=$_
+read $proxy
 # PROXY_ADDR=<address of proxy>
 eval $proxy
 # PROXY_NAME=<name of proxy>
@@ -49,6 +53,7 @@ set PROXY_RID=$P3
 
 echoServer -- $localaddr $ws $localaddr --veyron.proxy=p1 withproxy echo/withproxy
 set eswp=$_
+read $eswp
 eval $eswp
 set ECHOS_NAME=$NAME
 eval $eswp

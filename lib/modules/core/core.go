@@ -5,7 +5,8 @@
 //
 // root
 //   runs a root mount table as a subprocess
-//   prints the MT_NAME=<root name>, PID=<pid> variables to stdout
+//   prints the PID=<pid> variable to stdout followed by
+//   an arbitrary number of MT_NAME and MT_ADDR variables.
 //   waits for stdin to be closed before it exits
 //   prints "done" to stdout when stdin is closed.
 // mt <mp>
@@ -40,7 +41,9 @@
 //
 // echoServer <message> <name>
 //    runs on echoServer at <name>, it will echo back <message>: <text>
-//    where <text> is supplied by the client
+//    where <text> is supplied by the client. It prints the PID=<pid>
+//    variable to stdout followd by an arbitrary number of NAME, ADDR
+//    variables.
 // echoClient <name> <text>
 //    invoke <name>.Echo(<text>)
 //
