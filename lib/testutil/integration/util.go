@@ -2,19 +2,316 @@ package integration
 
 import (
 	"bufio"
+	"bytes"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"os"
 	"os/exec"
 	"path"
 	"path/filepath"
 	"strings"
+	"syscall"
+	"testing"
 	"time"
 
 	"veyron.io/veyron/veyron/lib/expect"
 	"veyron.io/veyron/veyron/lib/modules"
 	"veyron.io/veyron/veyron/lib/modules/core"
+	tsecurity "veyron.io/veyron/veyron/lib/testutil/security"
+	"veyron.io/veyron/veyron2/security"
 )
+
+// TestEnvironment represents a test environment. You should obtain
+// an instance with NewTestEnvironment. Typically, an end-to-end
+// test will begin with:
+//   func TestFoo(t *testing.T) {
+//     env := integration.NewTestEnvironment(t)
+//     defer env.Cleanup()
+//
+//     ...
+//   }
+type TestEnvironment interface {
+	// Cleanup cleans up the environment and deletes all its artifacts.
+	Cleanup()
+
+	// BuildGoPkg expects a Go package path that identifies a "main"
+	// package and returns a TestBinary representing the newly built
+	// binary.
+	BuildGoPkg(path string) TestBinary
+
+	// RootMT returns the endpoint to the root mounttable for this test
+	// environment.
+	RootMT() string
+
+	// Principal returns the security principal of this environment.
+	Principal() security.Principal
+
+	// DebugShell drops the user into a debug shell. If there is no
+	// controlling TTY, DebugShell will emit a warning message and take no
+	// futher action.
+	DebugShell()
+
+	// TempFile creates a temporary file. Temporary files will be deleted
+	// by Cleanup.
+	TempFile() *os.File
+}
+
+type TestBinary interface {
+	// Start starts the given binary with the given arguments.
+	Start(args ...string) Invocation
+
+	// Path returns the path to the binary.
+	Path() string
+}
+
+type Invocation interface {
+	Stdin() io.Writer
+	Stdout() io.Reader
+	Stderr() io.Reader
+
+	// Output reads the invocation's stdout until EOF and then returns what
+	// was read as a string.
+	Output() string
+
+	// ErrorOutput reads the invocation's stderr until EOF and then returns
+	// what was read as a string.
+	ErrorOutput() string
+
+	// Wait waits for this invocation to finish. If either stdout or stderr
+	// is non-nil, any remaining unread output from those sources will be
+	// written to the corresponding writer.
+	Wait(stdout, stderr io.Writer)
+}
+
+type integrationTestEnvironment struct {
+	// The testing framework.
+	t *testing.T
+
+	// The shell to use to start commands.
+	shell *modules.Shell
+
+	// The environment's root security principal.
+	principal security.Principal
+
+	// Maps path to TestBinary.
+	builtBinaries map[string]*integrationTestBinary
+
+	mtHandle   *modules.Handle
+	mtEndpoint string
+
+	tempFiles []*os.File
+}
+
+type integrationTestBinary struct {
+	// The environment to which this binary belongs.
+	env *integrationTestEnvironment
+
+	// The path to the binary.
+	path string
+
+	// The cleanup function to run when the binary exits.
+	cleanupFunc func()
+}
+
+type integrationTestBinaryInvocation struct {
+	// The environment to which this invocation belongs.
+	env *integrationTestEnvironment
+
+	// The handle to the process that was run when this invocation was started.
+	handle *modules.Handle
+}
+
+func (i *integrationTestBinaryInvocation) Stdin() io.Writer {
+	return (*i.handle).Stdin()
+}
+
+func (i *integrationTestBinaryInvocation) Stdout() io.Reader {
+	return (*i.handle).Stdout()
+}
+
+func readerToString(t *testing.T, r io.Reader) string {
+	buf := bytes.Buffer{}
+	_, err := buf.ReadFrom(r)
+	if err != nil {
+		t.Fatalf("ReadFrom() failed: %v", err)
+	}
+	return buf.String()
+}
+
+func (i *integrationTestBinaryInvocation) Output() string {
+	return readerToString(i.env.t, i.Stdout())
+}
+
+func (i *integrationTestBinaryInvocation) Stderr() io.Reader {
+	return (*i.handle).Stderr()
+}
+
+func (i *integrationTestBinaryInvocation) ErrorOutput() string {
+	return readerToString(i.env.t, i.Stderr())
+}
+
+func (i *integrationTestBinaryInvocation) Wait(stdout, stderr io.Writer) {
+	if err := (*i.handle).Shutdown(stdout, stderr); err != nil {
+		i.env.t.Fatalf("Shutdown() failed: %v", err)
+	}
+}
+
+func (b *integrationTestBinary) cleanup() {
+	binaryDir := path.Dir(b.path)
+	b.env.t.Logf("cleaning up %s", binaryDir)
+	if err := os.RemoveAll(binaryDir); err != nil {
+		b.env.t.Logf("WARNING: RemoveAll(%s) failed (%v)", binaryDir, err)
+	}
+}
+
+func (b *integrationTestBinary) Path() string {
+	return b.path
+}
+
+func (b *integrationTestBinary) Start(args ...string) Invocation {
+	b.env.t.Logf("starting %s %s", b.Path(), strings.Join(args, " "))
+	handle, err := b.env.shell.Start("exec", nil, append([]string{b.Path()}, args...)...)
+	if err != nil {
+		b.env.t.Fatalf("Start(%v, %v) failed: %v", b.Path(), strings.Join(args, ", "), err)
+	}
+	return &integrationTestBinaryInvocation{
+		env:    b.env,
+		handle: &handle,
+	}
+}
+
+func (e *integrationTestEnvironment) RootMT() string {
+	return e.mtEndpoint
+}
+
+func (e *integrationTestEnvironment) Principal() security.Principal {
+	return e.principal
+}
+
+func (e *integrationTestEnvironment) Cleanup() {
+	for _, binary := range e.builtBinaries {
+		binary.cleanupFunc()
+	}
+
+	for _, tempFile := range e.tempFiles {
+		e.t.Logf("cleaning up %s", tempFile.Name())
+		if err := tempFile.Close(); err != nil {
+			e.t.Logf("WARNING: Close(%s) failed", tempFile, err)
+		}
+		if err := os.Remove(tempFile.Name()); err != nil {
+			e.t.Logf("WARNING: Remove(%s) failed: %v", tempFile.Name(), err)
+		}
+	}
+
+	if err := e.shell.Cleanup(os.Stdout, os.Stderr); err != nil {
+		e.t.Fatalf("WARNING: could not clean up shell (%v)", err)
+	}
+}
+
+func (e *integrationTestEnvironment) DebugShell() {
+	// Get the current working directory.
+	cwd, err := os.Getwd()
+	if err != nil {
+		e.t.Fatalf("Getwd() failed: %v", err)
+	}
+
+	// Transfer stdin, stdout, and stderr to the new process
+	// and also set target directory for the shell to start in.
+	dev := "/dev/tty"
+	fd, err := syscall.Open(dev, 0, 0)
+	if err != nil {
+		e.t.Logf("WARNING: Open(%v) failed, not going to create a debug shell: %v", dev, err)
+		return
+	}
+	attr := os.ProcAttr{
+		Files: []*os.File{os.NewFile(uintptr(fd), "/dev/tty"), os.Stdout, os.Stderr},
+		Dir:   cwd,
+	}
+
+	// Start up a new shell.
+	fmt.Printf(">> Starting a new interactive shell\n")
+	fmt.Printf("Hit CTRL-D to resume the test\n")
+	if len(e.builtBinaries) > 0 {
+		fmt.Println("Built binaries:")
+		for _, value := range e.builtBinaries {
+			fmt.Println(value.Path())
+		}
+	}
+	fmt.Println("Root mounttable endpoint:", e.RootMT())
+
+	shellPath := "/bin/sh"
+	proc, err := os.StartProcess(shellPath, []string{}, &attr)
+	if err != nil {
+		e.t.Fatalf("StartProcess(%v) failed: %v", shellPath, err)
+	}
+
+	// Wait until user exits the shell
+	state, err := proc.Wait()
+	if err != nil {
+		e.t.Fatalf("Wait(%v) failed: %v", shellPath, err)
+	}
+
+	fmt.Printf("<< Exited shell: %s\n", state.String())
+}
+
+func (e *integrationTestEnvironment) BuildGoPkg(binary_path string) TestBinary {
+	e.t.Logf("building %s...", binary_path)
+	if cached_binary := e.builtBinaries[binary_path]; cached_binary != nil {
+		e.t.Logf("using cached binary for %s at %s.", binary_path, cached_binary.Path())
+		return cached_binary
+	}
+	built_path, cleanup, err := BuildPkgs([]string{binary_path})
+	if err != nil {
+		e.t.Fatalf("BuildPkgs() failed: %v", err)
+		return nil
+	}
+	output_path := path.Join(built_path, path.Base(binary_path))
+	e.t.Logf("done building %s, written to %s.", binary_path, output_path)
+	binary := &integrationTestBinary{
+		env:         e,
+		path:        output_path,
+		cleanupFunc: cleanup,
+	}
+	e.builtBinaries[binary_path] = binary
+	return binary
+}
+
+func (e *integrationTestEnvironment) TempFile() *os.File {
+	f, err := ioutil.TempFile("", "")
+	if err != nil {
+		e.t.Fatalf("TempFile() failed: %v", err)
+	}
+	e.t.Logf("created temporary file at %s", f.Name())
+	e.tempFiles = append(e.tempFiles, f)
+	return f
+}
+
+func NewTestEnvironment(t *testing.T) TestEnvironment {
+	t.Log("creating root principal")
+	principal := tsecurity.NewPrincipal("root")
+	shell, err := modules.NewShell(principal)
+	if err != nil {
+		t.Fatalf("NewShell() failed: %v", err)
+	}
+
+	t.Log("starting root mounttable...")
+	mtHandle, mtEndpoint, err := StartRootMT(shell)
+	if err != nil {
+		t.Fatalf("StartRootMT() failed: %v", err)
+	}
+	t.Logf("mounttable available at %s", mtEndpoint)
+
+	return &integrationTestEnvironment{
+		t:             t,
+		principal:     principal,
+		builtBinaries: make(map[string]*integrationTestBinary),
+		shell:         shell,
+		mtHandle:      &mtHandle,
+		mtEndpoint:    mtEndpoint,
+		tempFiles:     []*os.File{},
+	}
+}
 
 // BuildPkgs returns a path to a directory that contains the built
 // binaries for the given set of packages and a function that should
