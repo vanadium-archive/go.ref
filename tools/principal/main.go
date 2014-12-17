@@ -39,11 +39,9 @@ var (
 	flagSeekBlessingsSetDefault bool
 	flagSeekBlessingsForPeer    string
 
-	// Flag for the create command
-	flagCreateOverwrite bool
-
 	// Flags common to many commands
-	flagAddToRoots bool
+	flagAddToRoots      bool
+	flagCreateOverwrite bool
 
 	// Flags for the "recvblessings" command
 	flagRecvBlessingsSetDefault bool
@@ -172,7 +170,7 @@ machine and the name of the user running this command.
 		Long: `
 Bless another principal.
 
-The blesser is obtained from the runtime this tool is using.  The blessing that
+The blesser is obtained from the runtime this tool is using. The blessing that
 will be extended is the default one from the blesser's store, or specified by
 the --with flag. Caveats on the blessing are controlled via the --for flag.
 
@@ -456,16 +454,16 @@ this tool. - is used for STDIN.
 		Short: "Create a new principal and persist it into a directory",
 		Long: `
 Creates a new principal with a single self-blessed blessing and writes it out
-to the provided directory. The same directory can be used to set the VEYRON_CREDENTIALS
-environment variables for other veyron applications.
+to the provided directory. The same directory can then be used to set the
+VEYRON_CREDENTIALS environment variable for other veyron applications.
 
 The operation fails if the directory already contains a principal. In this case
-the --overwrite flag can be provided to clear the directory and write out a
+the --overwrite flag can be provided to clear the directory and write out the
 new principal.
 `,
 		ArgsName: "<directory> <blessing>",
 		ArgsLong: `
-	<directory> is the directory to which the principal will be persisted.
+	<directory> is the directory to which the new principal will be persisted.
 	<blessing> is the self-blessed blessing that the principal will be setup to use by default.
 	`,
 		Run: func(cmd *cmdline.Command, args []string) error {
@@ -474,18 +472,12 @@ new principal.
 			}
 			dir, name := args[0], args[1]
 			// TODO(suharshs,ashankar,ataly): How should we make an ecrypted pk... or is that up to the agent?
-			var (
-				p   security.Principal
-				err error
-			)
 			if flagCreateOverwrite {
-				if err = os.RemoveAll(dir); err != nil {
+				if err := os.RemoveAll(dir); err != nil {
 					return err
 				}
-				p, err = vsecurity.CreatePersistentPrincipal(dir, nil)
-			} else {
-				p, err = vsecurity.CreatePersistentPrincipal(dir, nil)
 			}
+			p, err := vsecurity.CreatePersistentPrincipal(dir, nil)
 			if err != nil {
 				return err
 			}
@@ -493,14 +485,81 @@ new principal.
 			if err != nil {
 				return fmt.Errorf("BlessSelf(%q) failed: %v", name, err)
 			}
-			if err := p.BlessingStore().SetDefault(blessings); err != nil {
-				return fmt.Errorf("BlessingStore.SetDefault(%v) failed: %v", blessings, err)
+			if err := vsecurity.SetDefaultBlessings(p, blessings); err != nil {
+				return fmt.Errorf("could not set blessings %v as default: %v", blessings, err)
 			}
-			if _, err := p.BlessingStore().Set(blessings, security.AllPrincipals); err != nil {
-				return fmt.Errorf("BlessingStore.Set(%v, %q) failed: %v", blessings, security.AllPrincipals, err)
+			return nil
+		},
+	}
+
+	cmdFork = &cmdline.Command{
+		Name:  "fork",
+		Short: "Fork a new principal from the principal that this tool is running as and persist it into a directory",
+		Long: `
+Creates a new principal with a blessing from the principal specified by the
+environment that this tool is running in, and writes it out to the provided
+directory. The blessing that will be extended is the default one from the
+blesser's store, or specified by the --with flag. Caveats on the blessing
+are controlled via the --for flag. The blessing is marked as default and
+shareable with all peers on the new principal's blessing store.
+
+The operation fails if the directory already contains a principal. In this case
+the --overwrite flag can be provided to clear the directory and write out the
+forked principal.
+`,
+		ArgsName: "<directory> <extension>",
+		ArgsLong: `
+	<directory> is the directory to which the forked principal will be persisted.
+	<extension> is the extension under which the forked principal is blessed.
+	`,
+		Run: func(cmd *cmdline.Command, args []string) error {
+			if len(args) != 2 {
+				return fmt.Errorf("requires exactly two arguments: <directory> and <extension>, provided %d", len(args))
 			}
-			if err := p.AddToRoots(blessings); err != nil {
-				return fmt.Errorf("AddToRoots(%v) failed: %v", blessings, err)
+			dir, extension := args[0], args[1]
+
+			if flagCreateOverwrite {
+				if err := os.RemoveAll(dir); err != nil {
+					return err
+				}
+			}
+			p, err := vsecurity.CreatePersistentPrincipal(dir, nil)
+			if err != nil {
+				return err
+			}
+
+			runtime, err := rt.New()
+			if err != nil {
+				return err
+			}
+			defer runtime.Cleanup()
+
+			var (
+				with    security.Blessings
+				caveats []security.Caveat
+			)
+			if len(flagBlessWith) > 0 {
+				if with, err = decodeBlessings(flagBlessWith); err != nil {
+					return fmt.Errorf("failed to read blessings from --with=%q: %v", flagBlessWith, err)
+				}
+			} else {
+				with = runtime.Principal().BlessingStore().Default()
+			}
+			if c, err := security.ExpiryCaveat(time.Now().Add(flagBlessFor)); err != nil {
+				return fmt.Errorf("failed to create ExpiryCaveat: %v", err)
+			} else {
+				caveats = append(caveats, c)
+			}
+			// TODO(ashankar,ataly,suharshs): Work out how to add additional caveats, like maybe
+			// revocation, method etc.
+
+			key := p.PublicKey()
+			blessings, err := runtime.Principal().Bless(key, with, extension, caveats[0], caveats[1:]...)
+			if err != nil {
+				return fmt.Errorf("Bless(%v, %v, %q, ...) failed: %v", key, with, extension, err)
+			}
+			if err := vsecurity.SetDefaultBlessings(p, blessings); err != nil {
+				return fmt.Errorf("could not set blessings %v as default: %v", blessings, err)
 			}
 			return nil
 		},
@@ -671,6 +730,9 @@ func main() {
 	cmdStoreSetDefault.Flags.BoolVar(&flagAddToRoots, "add_to_roots", true, "If true, the root certificate of the blessing will be added to the principal's set of recognized root certificates")
 
 	cmdCreate.Flags.BoolVar(&flagCreateOverwrite, "overwrite", false, "If true, any existing principal data in the directory will be overwritten")
+	cmdFork.Flags.BoolVar(&flagCreateOverwrite, "overwrite", false, "If true, any existing principal data in the directory will be overwritten")
+	cmdFork.Flags.DurationVar(&flagBlessFor, "for", time.Minute, "Duration of blessing validity")
+	cmdFork.Flags.StringVar(&flagBlessWith, "with", "", "Path to file containing blessing to extend")
 
 	cmdRecvBlessings.Flags.BoolVar(&flagRecvBlessingsSetDefault, "set_default", true, "If true, the blessings received will be set as the default blessing in the store")
 	cmdRecvBlessings.Flags.StringVar(&flagRecvBlessingsForPeer, "for_peer", string(security.AllPrincipals), "If non-empty, the blessings received will be marked for peers matching this pattern in the store")
@@ -695,7 +757,7 @@ roots bound to a principal.
 
 All objects are printed using base64-VOM-encoding.
 `,
-		Children: []*cmdline.Command{cmdCreate, cmdSeekBlessings, cmdRecvBlessings, cmdDump, cmdDumpBlessings, cmdBlessSelf, cmdBless, cmdStore},
+		Children: []*cmdline.Command{cmdCreate, cmdFork, cmdSeekBlessings, cmdRecvBlessings, cmdDump, cmdDumpBlessings, cmdBlessSelf, cmdBless, cmdStore},
 	}).Main()
 }
 

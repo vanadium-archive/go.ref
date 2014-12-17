@@ -114,23 +114,31 @@ func CreatePersistentPrincipal(dir string, passphrase []byte) (principal securit
 	return NewPrincipalFromSigner(security.NewInMemoryECDSASigner(key), state)
 }
 
+// SetDefaultBlessings sets the provided blessings as default and shareable with
+// all peers on provided principal's BlessingStore, and also adds it as a root to
+// the principal's BlessingRoots.
+func SetDefaultBlessings(p security.Principal, blessings security.Blessings) error {
+	if err := p.BlessingStore().SetDefault(blessings); err != nil {
+		return err
+	}
+	if _, err := p.BlessingStore().Set(blessings, security.AllPrincipals); err != nil {
+		return err
+	}
+	if err := p.AddToRoots(blessings); err != nil {
+		return err
+	}
+	return nil
+}
+
 // InitDefaultBlessings uses the provided principal to create a self blessing for name 'name',
 // sets it as default on the principal's BlessingStore and adds it as root to the principal's BlessingRoots.
+// TODO(ataly): Get rid this function given that we have SetDefaultBlessings.
 func InitDefaultBlessings(p security.Principal, name string) error {
 	blessing, err := p.BlessSelf(name)
 	if err != nil {
 		return err
 	}
-	if err := p.BlessingStore().SetDefault(blessing); err != nil {
-		return err
-	}
-	if _, err := p.BlessingStore().Set(blessing, security.AllPrincipals); err != nil {
-		return err
-	}
-	if err := p.AddToRoots(blessing); err != nil {
-		return err
-	}
-	return nil
+	return SetDefaultBlessings(p, blessing)
 }
 
 func mkDir(dir string) error {

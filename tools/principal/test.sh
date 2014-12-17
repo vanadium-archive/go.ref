@@ -84,10 +84,20 @@ main() {
   SEND_BLESSINGS_CMD="${PRINCIPAL_BIN_DIR}/${SEND_BLESSINGS_CMD}"
   $(${SEND_BLESSINGS_CMD} 2>error) && shell_test::fail "line ${LINENO}: ${SEND_BLESSINGS_CMD} should have failed"
   grep "blessings received from unexpected sender" error >/dev/null || shell_test::fail "line ${LINENO}: unexpected sender error not printed"
+  kill -9 "${RECV_BLESSINGS_PID}"
   # Dump carol out, the only blessing that survives should be from the first
   # "bless" command. (alice/friend/carol).
-  kill -9 "${RECV_BLESSINGS_PID}"
   "${PRINCIPAL_BIN}" --veyron.credentials=./carol dump >carol.dump || shell_test::fail "line ${LINENO}: dump failed"
+
+  # Run fork to setup up credentials for alice-phone that are blessed by alice under the extension "phone".
+  "${PRINCIPAL_BIN}" --veyron.credentials=./alice fork ./alice-phone "phone" >/dev/null || shell_test::fail "line ${LINENO}: fork failed"
+  # Dump alice-phone out, the only blessings it has must be from alice (alice/phone).
+  "${PRINCIPAL_BIN}" --veyron.credentials=./alice-phone dump >alice-phone.dump || shell_test::fail "line ${LINENO}: dump failed"
+
+  # Run fork to setup up credentials for alice-phone-calendar that are blessed by alice-phone under the extension "calendar".
+  "${PRINCIPAL_BIN}" --veyron.credentials=./alice-phone fork ./alice-phone-calendar "calendar" >/dev/null || shell_test::fail "line ${LINENO}: fork failed"
+  # Dump alice-phone-calendar out, the only blessings it has must be from alice-phone (alice/phone/calendar).
+  "${PRINCIPAL_BIN}" --veyron.credentials=./alice-phone-calendar dump >alice-phone-calendar.dump || shell_test::fail "line ${LINENO}: dump failed"
 
   # Any other commands to be run without VEYRON_CREDENTIALS set.
   unset VEYRON_CREDENTIALS
@@ -162,6 +172,36 @@ alice/...                      : alice/friend/carol/foralice
 Public key                                      : Pattern
 XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX : [alice/...]
 XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX : [carol/...]
+EOF
+  if ! diff -C 5 got want; then
+    shell_test::fail "line ${LINENO}"
+  fi
+
+  cat alice-phone.dump | rmpublickey >got || shell_test::fail "line ${LINENO}: cat alice-phone.dump | rmpublickey failed"
+  cat >want <<EOF
+Public key : XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX
+---------------- BlessingStore ----------------
+Default blessings: alice/phone
+Peer pattern                   : Blessings
+...                            : alice/phone
+---------------- BlessingRoots ----------------
+Public key                                      : Pattern
+XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX : [alice/...]
+EOF
+  if ! diff -C 5 got want; then
+    shell_test::fail "line ${LINENO}"
+  fi
+
+  cat alice-phone-calendar.dump | rmpublickey >got || shell_test::fail "line ${LINENO}: cat alice-phone-calendar.dump | rmpublickey failed"
+  cat >want <<EOF
+Public key : XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX
+---------------- BlessingStore ----------------
+Default blessings: alice/phone/calendar
+Peer pattern                   : Blessings
+...                            : alice/phone/calendar
+---------------- BlessingRoots ----------------
+Public key                                      : Pattern
+XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX : [alice/...]
 EOF
   if ! diff -C 5 got want; then
     shell_test::fail "line ${LINENO}"
