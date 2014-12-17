@@ -48,7 +48,7 @@ func findGoBinary(t *testing.T, name string) (bin, goroot string) {
 			t.Fatalf("LookPath(%q) failed: %v", name, err)
 		}
 	}
-	return pathbin, ""
+	return pathbin, os.Getenv("GOROOT")
 }
 
 // startServer starts the build server.
