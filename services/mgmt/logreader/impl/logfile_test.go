@@ -16,7 +16,7 @@ import (
 	"veyron.io/veyron/veyron2/security"
 	"veyron.io/veyron/veyron2/services/mgmt/logreader"
 	"veyron.io/veyron/veyron2/services/mgmt/logreader/types"
-	"veyron.io/veyron/veyron2/verror"
+	verror "veyron.io/veyron/veyron2/verror2"
 )
 
 func startServer(t *testing.T, runtime veyron2.Runtime, disp ipc.Dispatcher) (ipc.Server, string, error) {
@@ -99,7 +99,7 @@ func TestReadLogImplNoFollow(t *testing.T) {
 	// Try to access a file that doesn't exist.
 	lf := logreader.LogFileClient(naming.JoinAddressName(endpoint, "doesntexist"))
 	_, err = lf.Size(runtime.NewContext())
-	if expected := verror.NoExist; !verror.Is(err, expected) {
+	if expected := verror.NoExist.ID; !verror.Is(err, expected) {
 		t.Errorf("unexpected error value, got %v, want: %v", err, expected)
 	}
 

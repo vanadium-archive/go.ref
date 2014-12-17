@@ -12,13 +12,15 @@ import (
 	"veyron.io/veyron/veyron2/ipc"
 	"veyron.io/veyron/veyron2/services/mgmt/binary"
 	"veyron.io/veyron/veyron2/services/mgmt/build"
-	"veyron.io/veyron/veyron2/verror"
+	verror "veyron.io/veyron/veyron2/verror2"
 	"veyron.io/veyron/veyron2/vlog"
 )
 
+const pkgPath = "veyron.io/veyron/veyron/services/mgmt/build/impl"
+
+// Errors
 var (
-	errBuildFailed   = verror.Internalf("build failed")
-	errInternalError = verror.Internalf("internal error")
+	errBuildFailed = verror.Register(pkgPath+".errBuildFailed", verror.NoRetry, "{1:}{2:} build failed{:_}")
 )
 
 // builderService implements the Builder server interface.
@@ -47,7 +49,7 @@ func (i *builderService) Build(ctx build.BuilderBuildContext, arch build.Archite
 	root, err := ioutil.TempDir(dir, prefix)
 	if err != nil {
 		vlog.Errorf("TempDir(%v, %v) failed: %v", dir, prefix, err)
-		return nil, errInternalError
+		return nil, verror.Make(verror.Internal, ctx)
 	}
 	defer os.RemoveAll(root)
 	if err := os.Chdir(root); err != nil {
@@ -56,7 +58,7 @@ func (i *builderService) Build(ctx build.BuilderBuildContext, arch build.Archite
 	srcDir := filepath.Join(root, "go", "src")
 	if err := os.MkdirAll(srcDir, dirPerm); err != nil {
 		vlog.Errorf("MkdirAll(%v, %v) failed: %v", srcDir, dirPerm, err)
-		return nil, errInternalError
+		return nil, verror.Make(verror.Internal, ctx)
 	}
 	iterator := ctx.RecvStream()
 	for iterator.Advance() {
@@ -65,16 +67,16 @@ func (i *builderService) Build(ctx build.BuilderBuildContext, arch build.Archite
 		dir := filepath.Dir(filePath)
 		if err := os.MkdirAll(dir, dirPerm); err != nil {
 			vlog.Errorf("MkdirAll(%v, %v) failed: %v", dir, dirPerm, err)
-			return nil, errInternalError
+			return nil, verror.Make(verror.Internal, ctx)
 		}
 		if err := ioutil.WriteFile(filePath, srcFile.Contents, filePerm); err != nil {
 			vlog.Errorf("WriteFile(%v, %v) failed: %v", filePath, filePerm, err)
-			return nil, errInternalError
+			return nil, verror.Make(verror.Internal, ctx)
 		}
 	}
 	if err := iterator.Err(); err != nil {
 		vlog.Errorf("Advance() failed: %v", err)
-		return nil, errInternalError
+		return nil, verror.Make(verror.Internal, ctx)
 	}
 	cmd := exec.Command(i.gobin, "install", "-v", "./...")
 	cmd.Env = append(cmd.Env, "GOARCH="+string(arch))
@@ -91,7 +93,7 @@ func (i *builderService) Build(ctx build.BuilderBuildContext, arch build.Archite
 		if output.Len() != 0 {
 			vlog.Errorf("%v", output.String())
 		}
-		return output.Bytes(), errBuildFailed
+		return output.Bytes(), verror.Make(errBuildFailed, ctx)
 	}
 	binDir := filepath.Join(root, "go", "bin")
 	if runtime.GOARCH != string(arch) || runtime.GOOS != string(opsys) {
@@ -100,14 +102,14 @@ func (i *builderService) Build(ctx build.BuilderBuildContext, arch build.Archite
 	files, err := ioutil.ReadDir(binDir)
 	if err != nil && !os.IsNotExist(err) {
 		vlog.Errorf("ReadDir(%v) failed: %v", binDir, err)
-		return nil, errInternalError
+		return nil, verror.Make(verror.Internal, ctx)
 	}
 	for _, file := range files {
 		binPath := filepath.Join(binDir, file.Name())
 		bytes, err := ioutil.ReadFile(binPath)
 		if err != nil {
 			vlog.Errorf("ReadFile(%v) failed: %v", binPath, err)
-			return nil, errInternalError
+			return nil, verror.Make(verror.Internal, ctx)
 		}
 		result := build.File{
 			Name:     "bin/" + file.Name(),
@@ -115,7 +117,7 @@ func (i *builderService) Build(ctx build.BuilderBuildContext, arch build.Archite
 		}
 		if err := ctx.SendStream().Send(result); err != nil {
 			vlog.Errorf("Send() failed: %v", err)
-			return nil, errInternalError
+			return nil, verror.Make(verror.Internal, ctx)
 		}
 	}
 	return output.Bytes(), nil

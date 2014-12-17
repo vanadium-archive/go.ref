@@ -14,15 +14,15 @@ import (
 	"veyron.io/veyron/veyron2/ipc"
 	"veyron.io/veyron/veyron2/services/mgmt/logreader"
 	"veyron.io/veyron/veyron2/services/mgmt/logreader/types"
-	"veyron.io/veyron/veyron2/verror"
+	verror "veyron.io/veyron/veyron2/verror2"
 	"veyron.io/veyron/veyron2/vlog"
 )
 
+const pkgPath = "veyron.io/veyron/veyron/services/mgmt/logreader/impl"
+
 var (
-	errCanceled        = verror.Abortedf("operation canceled")
-	errNotFound        = verror.NoExistf("log file not found")
-	errEOF             = verror.Make(types.EOF, "EOF")
-	errOperationFailed = verror.Internalf("operation failed")
+	errEOF             = verror.Register(types.EOF, verror.NoRetry, "{1:}{2:} EOF{:_}")
+	errOperationFailed = verror.Register(pkgPath+".errOperationFailed", verror.NoRetry, "{1:}{2:} operation failed{:_}")
 )
 
 // NewLogFileService returns a new log file server.
@@ -39,7 +39,7 @@ func translateNameToFilename(root, name string) (string, error) {
 	// directory. This could happen if suffix contains "../", which get
 	// collapsed by filepath.Join().
 	if !strings.HasPrefix(p, root) {
-		return "", errOperationFailed
+		return "", verror.Make(errOperationFailed, nil, name)
 	}
 	return p, nil
 }
@@ -54,7 +54,7 @@ type logfileService struct {
 }
 
 // Size returns the size of the log file, in bytes.
-func (i *logfileService) Size(ipc.ServerContext) (int64, error) {
+func (i *logfileService) Size(ctx ipc.ServerContext) (int64, error) {
 	vlog.VI(1).Infof("%v.Size()", i.suffix)
 	fname, err := translateNameToFilename(i.root, i.suffix)
 	if err != nil {
@@ -63,13 +63,13 @@ func (i *logfileService) Size(ipc.ServerContext) (int64, error) {
 	fi, err := os.Stat(fname)
 	if err != nil {
 		if os.IsNotExist(err) {
-			return 0, errNotFound
+			return 0, verror.Make(verror.NoExist, ctx, fname)
 		}
 		vlog.Errorf("Stat(%v) failed: %v", fname, err)
-		return 0, errOperationFailed
+		return 0, verror.Make(errOperationFailed, ctx, fname)
 	}
 	if fi.IsDir() {
-		return 0, errOperationFailed
+		return 0, verror.Make(errOperationFailed, ctx, fname)
 	}
 	return fi.Size(), nil
 }
@@ -84,9 +84,9 @@ func (i *logfileService) ReadLog(ctx logreader.LogFileReadLogContext, startpos i
 	f, err := os.Open(fname)
 	if err != nil {
 		if os.IsNotExist(err) {
-			return 0, errNotFound
+			return 0, verror.Make(verror.NoExist, ctx, fname)
 		}
-		return 0, errOperationFailed
+		return 0, verror.Make(errOperationFailed, ctx, fname)
 	}
 	reader := newFollowReader(ctx, f, startpos, follow)
 	if numEntries == types.AllEntries {
@@ -98,10 +98,10 @@ func (i *logfileService) ReadLog(ctx logreader.LogFileReadLogContext, startpos i
 			return reader.tell(), nil
 		}
 		if err == io.EOF {
-			return reader.tell(), errEOF
+			return reader.tell(), verror.Make(errEOF, ctx)
 		}
 		if err != nil {
-			return reader.tell(), errOperationFailed
+			return reader.tell(), verror.Make(errOperationFailed, ctx, fname)
 		}
 		if err := ctx.SendStream().Send(types.LogEntry{Position: offset, Line: line}); err != nil {
 			return reader.tell(), err
@@ -112,7 +112,7 @@ func (i *logfileService) ReadLog(ctx logreader.LogFileReadLogContext, startpos i
 
 // GlobChildren__ returns the list of files in a directory streamed on a
 // channel. The list is empty if the object is a file.
-func (i *logfileService) GlobChildren__(ipc.ServerContext) (<-chan string, error) {
+func (i *logfileService) GlobChildren__(ctx ipc.ServerContext) (<-chan string, error) {
 	vlog.VI(1).Infof("%v.GlobChildren__()", i.suffix)
 	dirName, err := translateNameToFilename(i.root, i.suffix)
 	if err != nil {
@@ -121,9 +121,9 @@ func (i *logfileService) GlobChildren__(ipc.ServerContext) (<-chan string, error
 	stat, err := os.Stat(dirName)
 	if err != nil {
 		if os.IsNotExist(err) {
-			return nil, errNotFound
+			return nil, verror.Make(verror.NoExist, ctx, dirName)
 		}
-		return nil, errOperationFailed
+		return nil, verror.Make(errOperationFailed, ctx, dirName)
 	}
 	if !stat.IsDir() {
 		return nil, nil

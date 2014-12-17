@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	verror "veyron.io/veyron/veyron2/verror2"
 	"veyron.io/veyron/veyron2/vlog"
 
 	"veyron.io/veyron/veyron/services/mgmt/binary/impl/multipart"
@@ -42,7 +43,7 @@ func (r httpRoot) Open(name string) (http.File, error) {
 		var err error
 		if partFiles[i], err = os.Open(dataPath); err != nil {
 			vlog.Errorf("Open(%v) failed: %v", dataPath, err)
-			return nil, errOperationFailed
+			return nil, verror.Make(errOperationFailed, nil, dataPath)
 		}
 	}
 	return multipart.NewFile(name, partFiles)

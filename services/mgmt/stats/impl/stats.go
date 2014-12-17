@@ -14,7 +14,7 @@ import (
 	"veyron.io/veyron/veyron2/services/watch"
 	watchtypes "veyron.io/veyron/veyron2/services/watch/types"
 	"veyron.io/veyron/veyron2/vdl/vdlutil"
-	"veyron.io/veyron/veyron2/verror"
+	verror "veyron.io/veyron/veyron2/verror2"
 	"veyron.io/veyron/veyron2/vlog"
 )
 
@@ -23,10 +23,11 @@ type statsService struct {
 	watchFreq time.Duration
 }
 
+const pkgPath = "veyron.io/veyron/veyron/services/mgmt/stats/impl"
+
 var (
-	errNotFound        = verror.NoExistf("object not found")
-	errNoValue         = verror.Make(types.NoValue, "object has no value")
-	errOperationFailed = verror.Internalf("operation failed")
+	errNoValue         = verror.Register(types.NoValue, verror.NoRetry, "{1:}{2:} object has no value{:_}")
+	errOperationFailed = verror.Register(pkgPath+".errOperationFailed", verror.NoRetry, "{1:}{2:} operation failed{:_}")
 )
 
 // NewStatsService returns a stats server implementation. The value of watchFreq
@@ -76,9 +77,9 @@ Loop:
 		}
 		if err := it.Err(); err != nil {
 			if err == libstats.ErrNotFound {
-				return errNotFound
+				return verror.Make(verror.NoExist, ctx, i.suffix)
 			}
-			return errOperationFailed
+			return verror.Make(errOperationFailed, ctx, i.suffix)
 		}
 		for _, change := range changes {
 			if err := ctx.SendStream().Send(change); err != nil {
@@ -101,12 +102,12 @@ func (i *statsService) Value(ctx ipc.ServerContext) (vdlutil.Any, error) {
 	v, err := libstats.Value(i.suffix)
 	switch err {
 	case libstats.ErrNotFound:
-		return nil, errNotFound
+		return nil, verror.Make(verror.NoExist, ctx, i.suffix)
 	case libstats.ErrNoValue:
-		return nil, errNoValue
+		return nil, verror.Make(errNoValue, ctx, i.suffix)
 	case nil:
 		return v, nil
 	default:
-		return nil, errOperationFailed
+		return nil, verror.Make(errOperationFailed, ctx, i.suffix)
 	}
 }

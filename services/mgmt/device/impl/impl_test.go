@@ -41,7 +41,7 @@ import (
 	"veyron.io/veyron/veyron2/services/mgmt/stats"
 	"veyron.io/veyron/veyron2/services/security/access"
 	"veyron.io/veyron/veyron2/vdl/vdlutil"
-	"veyron.io/veyron/veyron2/verror"
+	verror "veyron.io/veyron/veyron2/verror2"
 	"veyron.io/veyron/veyron2/vlog"
 
 	"veyron.io/veyron/veyron/lib/expect"
@@ -1405,7 +1405,7 @@ func TestAppWithSuidHelper(t *testing.T) {
 
 	// Start an instance of the app but this time it should fail: we do not
 	// have an associated uname for the invoking identity.
-	startAppExpectError(t, appID, verror.NoAccess, selfRT)
+	startAppExpectError(t, appID, verror.NoAccess.ID, selfRT)
 
 	// Create an association for selfRT
 	if err := deviceStub.AssociateAccount(selfRT.NewContext(), []string{"root/self"}, testUserName); err != nil {
@@ -1417,7 +1417,7 @@ func TestAppWithSuidHelper(t *testing.T) {
 	stopApp(t, appID, instance1ID, selfRT)
 
 	vlog.VI(2).Infof("other attempting to run an app without access. Should fail.")
-	startAppExpectError(t, appID, verror.NoAccess, otherRT)
+	startAppExpectError(t, appID, verror.NoAccess.ID, otherRT)
 
 	// Self will now let other also install apps.
 	if err := deviceStub.AssociateAccount(selfRT.NewContext(), []string{"root/other"}, testUserName); err != nil {
@@ -1438,7 +1438,7 @@ func TestAppWithSuidHelper(t *testing.T) {
 	// other doesn't have execution permissions for the app. So this will
 	// fail.
 	vlog.VI(2).Infof("other attempting to run an app still without access. Should fail.")
-	startAppExpectError(t, appID, verror.NoAccess, otherRT)
+	startAppExpectError(t, appID, verror.NoAccess.ID, otherRT)
 
 	// But self can give other permissions  to start applications.
 	vlog.VI(2).Infof("self attempting to give other permission to start %s", appID)
@@ -1477,7 +1477,7 @@ func TestAppWithSuidHelper(t *testing.T) {
 	}
 
 	vlog.VI(2).Infof("Show that Resume with a different systemName fails.")
-	resumeAppExpectError(t, appID, instance2ID, verror.NoAccess, otherRT)
+	resumeAppExpectError(t, appID, instance2ID, verror.NoAccess.ID, otherRT)
 
 	// Clean up.
 	stopApp(t, appID, instance2ID, otherRT)

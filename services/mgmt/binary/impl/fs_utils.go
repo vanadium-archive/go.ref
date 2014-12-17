@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"strings"
 
+	verror "veyron.io/veyron/veyron2/verror2"
 	"veyron.io/veyron/veyron2/vlog"
 )
 
@@ -25,19 +26,19 @@ const (
 func checksumExists(path string) error {
 	switch _, err := os.Stat(path); {
 	case os.IsNotExist(err):
-		return errInvalidPart
+		return verror.Make(errInvalidPart, nil, path)
 	case err != nil:
 		vlog.Errorf("Stat(%v) failed: %v", path, err)
-		return errOperationFailed
+		return verror.Make(errOperationFailed, nil, path)
 	}
 	checksumFile := filepath.Join(path, checksum)
 	_, err := os.Stat(checksumFile)
 	switch {
 	case os.IsNotExist(err):
-		return errNotFound
+		return verror.Make(verror.NoExist, nil, path)
 	case err != nil:
 		vlog.Errorf("Stat(%v) failed: %v", checksumFile, err)
-		return errOperationFailed
+		return verror.Make(errOperationFailed, nil, path)
 	default:
 		return nil
 	}
@@ -57,7 +58,7 @@ func getParts(path string) ([]string, error) {
 	infos, err := ioutil.ReadDir(path)
 	if err != nil {
 		vlog.Errorf("ReadDir(%v) failed: %v", path, err)
-		return []string{}, errOperationFailed
+		return []string{}, verror.Make(errOperationFailed, nil, path)
 	}
 	nDirs := 0
 	for _, info := range infos {
@@ -72,10 +73,10 @@ func getParts(path string) ([]string, error) {
 			idx, err := strconv.Atoi(partName)
 			if err != nil {
 				vlog.Errorf("Atoi(%v) failed: %v", partName, err)
-				return []string{}, errOperationFailed
+				return []string{}, verror.Make(errOperationFailed, nil, path)
 			}
 			if idx < 0 || idx >= len(infos) || result[idx] != "" {
-				return []string{}, errOperationFailed
+				return []string{}, verror.Make(errOperationFailed, nil, path)
 			}
 			result[idx] = filepath.Join(path, partName)
 		} else {
@@ -83,7 +84,7 @@ func getParts(path string) ([]string, error) {
 				continue
 			}
 			// The only entries should correspond to the part dirs.
-			return []string{}, errOperationFailed
+			return []string{}, verror.Make(errOperationFailed, nil, path)
 		}
 	}
 	return result, nil

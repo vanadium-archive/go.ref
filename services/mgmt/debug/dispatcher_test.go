@@ -20,7 +20,7 @@ import (
 	"veyron.io/veyron/veyron2/services/mgmt/logreader"
 	"veyron.io/veyron/veyron2/services/mgmt/stats"
 	vtracesvc "veyron.io/veyron/veyron2/services/mgmt/vtrace"
-	"veyron.io/veyron/veyron2/verror"
+	verror "veyron.io/veyron/veyron2/verror2"
 	"veyron.io/veyron/veyron2/vtrace"
 
 	libstats "veyron.io/veyron/veyron/lib/stats"
@@ -116,7 +116,7 @@ func TestDebugServer(t *testing.T) {
 	{
 		lf := logreader.LogFileClient(naming.JoinAddressName(endpoint, "debug/logs/nosuchfile.INFO"))
 		_, err = lf.Size(tracedContext())
-		if expected := verror.NoExist; !verror.Is(err, expected) {
+		if expected := verror.NoExist.ID; !verror.Is(err, expected) {
 			t.Errorf("unexpected error value, got %v, want: %v", err, expected)
 		}
 	}
@@ -140,7 +140,7 @@ func TestDebugServer(t *testing.T) {
 	{
 		st := stats.StatsClient(naming.JoinAddressName(endpoint, "debug/stats/testing/nobodyhome"))
 		_, err = st.Value(tracedContext())
-		if expected := verror.NoExist; !verror.Is(err, expected) {
+		if expected := verror.NoExist.ID; !verror.Is(err, expected) {
 			t.Errorf("unexpected error value, got %v, want: %v", err, expected)
 		}
 	}

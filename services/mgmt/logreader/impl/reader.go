@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"veyron.io/veyron/veyron2/ipc"
+	verror "veyron.io/veyron/veyron2/verror2"
 )
 
 // followReader implements the functionality of io.Reader, plus:
@@ -46,7 +47,7 @@ func (f *followReader) read(b []byte) (int, error) {
 		if f.ctx != nil {
 			select {
 			case <-f.ctx.Done():
-				return 0, errCanceled
+				return 0, verror.Make(verror.Cancelled, nil)
 			default:
 			}
 		}

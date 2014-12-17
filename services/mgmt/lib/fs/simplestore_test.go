@@ -11,7 +11,7 @@ import (
 	_ "veyron.io/veyron/veyron/services/mgmt/profile"
 	"veyron.io/veyron/veyron2/naming"
 	"veyron.io/veyron/veyron2/services/mgmt/application"
-	"veyron.io/veyron/veyron2/verror"
+	verror "veyron.io/veyron/veyron2/verror2"
 )
 
 func tempFile(t *testing.T) string {
@@ -247,18 +247,18 @@ func TestSerializeDeserialize(t *testing.T) {
 	}
 
 	// At which point, Get() on the transaction won't find anything.
-	if _, err := memstoreOriginal.BindObject(fs.TP("/test/a")).Get(nil); !verror.Is(err, verror.NoExist) {
-		t.Fatalf("Get() should have failed: got %v, expected %v", err, verror.NoExistf("path %s not in Memstore", tname+"/test/a"))
+	if _, err := memstoreOriginal.BindObject(fs.TP("/test/a")).Get(nil); !verror.Is(err, fs.ErrNotInMemStore.ID) {
+		t.Fatalf("Get() should have failed: got %v, expected %v", err, verror.Make(fs.ErrNotInMemStore, nil, tname+"/test/a"))
 	}
 
 	// Attempting to Remove() it over again will fail.
-	if err := memstoreOriginal.BindObject(fs.TP("/test/a")).Remove(nil); !verror.Is(err, verror.NoExist) {
-		t.Fatalf("Remove() should have failed: got %v, expected %v", err, verror.NoExistf("path %s not in Memstore", tname+"/test/a"))
+	if err := memstoreOriginal.BindObject(fs.TP("/test/a")).Remove(nil); !verror.Is(err, fs.ErrNotInMemStore.ID) {
+		t.Fatalf("Remove() should have failed: got %v, expected %v", err, verror.Make(fs.ErrNotInMemStore, nil, tname+"/test/a"))
 	}
 
 	// Attempting to Remove() a non-existing path will fail.
-	if err := memstoreOriginal.BindObject(fs.TP("/foo")).Remove(nil); !verror.Is(err, verror.NoExist) {
-		t.Fatalf("Remove() should have failed: got %v, expected %v", err, verror.NoExistf("path %s not in Memstore", tname+"/foo"))
+	if err := memstoreOriginal.BindObject(fs.TP("/foo")).Remove(nil); !verror.Is(err, fs.ErrNotInMemStore.ID) {
+		t.Fatalf("Remove() should have failed: got %v, expected %v", err, verror.Make(fs.ErrNotInMemStore, nil, tname+"/foo"))
 	}
 
 	// Exists() a non-existing path will fail.
@@ -282,8 +282,8 @@ func TestSerializeDeserialize(t *testing.T) {
 	}
 
 	// Validate that Get will fail on a non-existent path.
-	if _, err := memstoreOriginal.BindObject("/test/c").Get(nil); !verror.Is(err, verror.NoExist) {
-		t.Fatalf("Get() should have failed: got %v, expected %v", err, verror.NoExistf("path %s not in Memstore", tname+"/test/c"))
+	if _, err := memstoreOriginal.BindObject("/test/c").Get(nil); !verror.Is(err, fs.ErrNotInMemStore.ID) {
+		t.Fatalf("Get() should have failed: got %v, expected %v", err, verror.Make(fs.ErrNotInMemStore, nil, tname+"/test/c"))
 	}
 
 	// Verify that the previous Commit() operations have persisted to
@@ -405,18 +405,18 @@ func TestOperationsNeedValidBinding(t *testing.T) {
 
 	// Put outside ot a transaction should fail.
 	bindingTnameTestA := memstoreOriginal.BindObject(naming.Join("fooey", "/test/a"))
-	if _, err := bindingTnameTestA.Put(nil, envelope); !verror.Is(err, verror.BadProtocol) {
-		t.Fatalf("Put() failed: got %v, expected %v", err, verror.BadProtocolf("Put() without a transactional binding"))
+	if _, err := bindingTnameTestA.Put(nil, envelope); !verror.Is(err, fs.ErrWithoutTransaction.ID) {
+		t.Fatalf("Put() failed: got %v, expected %v", err, verror.Make(fs.ErrWithoutTransaction, nil, "Put()"))
 	}
 
 	// Remove outside of a transaction should fail
-	if err := bindingTnameTestA.Remove(nil); !verror.Is(err, verror.BadProtocol) {
-		t.Fatalf("Put() failed: got %v, expected %v", err, verror.BadProtocolf("Remove() without a transactional binding"))
+	if err := bindingTnameTestA.Remove(nil); !verror.Is(err, fs.ErrWithoutTransaction.ID) {
+		t.Fatalf("Put() failed: got %v, expected %v", err, verror.Make(fs.ErrWithoutTransaction, nil, "Remove()"))
 	}
 
 	// Commit outside of a transaction should fail
-	if err := memstoreOriginal.BindTransaction(tname).Commit(nil); !verror.Is(err, verror.BadProtocol) {
-		t.Fatalf("Commit() failed: got %v, expected %v", err, verror.BadProtocolf("illegal attempt to commit previously committed or abandonned transaction"))
+	if err := memstoreOriginal.BindTransaction(tname).Commit(nil); !verror.Is(err, fs.ErrDoubleCommit.ID) {
+		t.Fatalf("Commit() failed: got %v, expected %v", err, verror.Make(fs.ErrDoubleCommit, nil))
 	}
 
 	// Attempt inserting a value at /test/b
@@ -434,8 +434,8 @@ func TestOperationsNeedValidBinding(t *testing.T) {
 	memstoreOriginal.Unlock()
 
 	// Remove should definitely fail on an abndonned transaction.
-	if err := bindingTnameTestB.Remove(nil); !verror.Is(err, verror.BadProtocol) {
-		t.Fatalf("Remove() failed: got %v, expected %v", err, verror.Internalf("Remove() without a transactional binding"))
+	if err := bindingTnameTestB.Remove(nil); !verror.Is(err, fs.ErrWithoutTransaction.ID) {
+		t.Fatalf("Remove() failed: got %v, expected %v", err, verror.Make(fs.ErrWithoutTransaction, nil, "Remove()"))
 	}
 }
 

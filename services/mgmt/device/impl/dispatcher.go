@@ -27,8 +27,7 @@ import (
 	"veyron.io/veyron/veyron2/services/mgmt/pprof"
 	"veyron.io/veyron/veyron2/services/mgmt/stats"
 	"veyron.io/veyron/veyron2/services/security/access"
-	"veyron.io/veyron/veyron2/verror"
-	"veyron.io/veyron/veyron2/verror2"
+	verror "veyron.io/veyron/veyron2/verror2"
 	"veyron.io/veyron/veyron2/vlog"
 )
 
@@ -77,14 +76,13 @@ const (
 )
 
 var (
-	ErrInvalidSuffix       = verror2.Register(pkgPath+".InvalidSuffix", verror2.NoRetry, "")
-	ErrOperationFailed     = verror2.Register(pkgPath+".OperationFailed", verror2.NoRetry, "")
-	ErrOperationInProgress = verror2.Register(pkgPath+".OperationInProgress", verror2.NoRetry, "")
-	ErrAppTitleMismatch    = verror2.Register(pkgPath+".AppTitleMismatch", verror2.NoRetry, "")
-	ErrUpdateNoOp          = verror2.Register(pkgPath+".UpdateNoOp", verror2.NoRetry, "")
-	ErrObjectNoExist       = verror2.Register(pkgPath+".ObjectNoExist", verror2.NoRetry, "")
-	ErrInvalidOperation    = verror2.Register(pkgPath+".InvalidOperation", verror2.NoRetry, "")
-	ErrInvalidBlessing     = verror2.Register(pkgPath+".InvalidBlessing", verror2.NoRetry, "")
+	ErrInvalidSuffix       = verror.Register(pkgPath+".InvalidSuffix", verror.NoRetry, "{1:}{2:} invalid suffix{:_}")
+	ErrOperationFailed     = verror.Register(pkgPath+".OperationFailed", verror.NoRetry, "{1:}{2:} operation failed{:_}")
+	ErrOperationInProgress = verror.Register(pkgPath+".OperationInProgress", verror.NoRetry, "{1:}{2:} operation in progress{:_}")
+	ErrAppTitleMismatch    = verror.Register(pkgPath+".AppTitleMismatch", verror.NoRetry, "{1:}{2:} app title mismatch{:_}")
+	ErrUpdateNoOp          = verror.Register(pkgPath+".UpdateNoOp", verror.NoRetry, "{1:}{2:} update is no op{:_}")
+	ErrInvalidOperation    = verror.Register(pkgPath+".InvalidOperation", verror.NoRetry, "{1:}{2:} invalid operation{:_}")
+	ErrInvalidBlessing     = verror.Register(pkgPath+".InvalidBlessing", verror.NoRetry, "{1:}{2:} invalid blessing{:_}")
 )
 
 // NewDispatcher is the device manager dispatcher factory.
@@ -164,17 +162,17 @@ func (d *dispatcher) claimDeviceManager(ctx ipc.ServerContext) error {
 	// Get the blessings to be used by the claimant.
 	blessings := ctx.Blessings()
 	if blessings == nil {
-		return verror2.Make(ErrInvalidBlessing, ctx)
+		return verror.Make(ErrInvalidBlessing, ctx)
 	}
 	principal := ctx.LocalPrincipal()
 	if err := principal.AddToRoots(blessings); err != nil {
 		vlog.Errorf("principal.AddToRoots(%s) failed: %v", blessings, err)
-		return verror2.Make(ErrInvalidBlessing, ctx)
+		return verror.Make(ErrInvalidBlessing, ctx)
 	}
 	names := blessings.ForContext(ctx)
 	if len(names) == 0 {
 		vlog.Errorf("No names for claimer(%v) are trusted", blessings)
-		return verror2.Make(ErrOperationFailed, nil)
+		return verror.Make(ErrOperationFailed, nil)
 	}
 	principal.BlessingStore().Set(blessings, security.AllPrincipals)
 	principal.BlessingStore().SetDefault(blessings)
@@ -188,11 +186,11 @@ func (d *dispatcher) claimDeviceManager(ctx ipc.ServerContext) error {
 	_, etag, err := d.getACL()
 	if err != nil {
 		vlog.Errorf("Failed to getACL:%v", err)
-		return verror2.Make(ErrOperationFailed, nil)
+		return verror.Make(ErrOperationFailed, nil)
 	}
 	if err := d.setACL(principal, acl, etag, true /* store ACL on disk */); err != nil {
 		vlog.Errorf("Failed to setACL:%v", err)
-		return verror2.Make(ErrOperationFailed, nil)
+		return verror.Make(ErrOperationFailed, nil)
 	}
 	return nil
 }
@@ -230,7 +228,7 @@ func setAppACL(principal security.Principal, locks aclLocks, dir string, acl acc
 	}
 
 	if len(etag) > 0 && etag != curEtag {
-		return verror.Make(access.ErrBadEtag, fmt.Sprintf("etag mismatch in:%s vers:%s", etag, curEtag))
+		return verror.Make(access.BadEtag, nil, etag, curEtag)
 	}
 
 	return writeACLs(principal, aclpath, sigpath, dir, acl)
@@ -287,27 +285,27 @@ func writeACLs(principal security.Principal, aclFile, sigFile, dir string, acl a
 	data, err := ioutil.TempFile(dir, "data")
 	if err != nil {
 		vlog.Errorf("Failed to open tmpfile data:%v", err)
-		return verror2.Make(ErrOperationFailed, nil)
+		return verror.Make(ErrOperationFailed, nil)
 	}
 	defer os.Remove(data.Name())
 	sig, err := ioutil.TempFile(dir, "sig")
 	if err != nil {
 		vlog.Errorf("Failed to open tmpfile sig:%v", err)
-		return verror2.Make(ErrOperationFailed, nil)
+		return verror.Make(ErrOperationFailed, nil)
 	}
 	defer os.Remove(sig.Name())
 	writer, err := serialization.NewSigningWriteCloser(data, sig, principal, nil)
 	if err != nil {
 		vlog.Errorf("Failed to create NewSigningWriteCloser:%v", err)
-		return verror2.Make(ErrOperationFailed, nil)
+		return verror.Make(ErrOperationFailed, nil)
 	}
 	if err = acl.WriteTo(writer); err != nil {
 		vlog.Errorf("Failed to SaveACL:%v", err)
-		return verror2.Make(ErrOperationFailed, nil)
+		return verror.Make(ErrOperationFailed, nil)
 	}
 	if err = writer.Close(); err != nil {
 		vlog.Errorf("Failed to Close() SigningWriteCloser:%v", err)
-		return verror2.Make(ErrOperationFailed, nil)
+		return verror.Make(ErrOperationFailed, nil)
 	}
 	if err := os.Rename(data.Name(), aclFile); err != nil {
 		return err
@@ -324,7 +322,7 @@ func (d *dispatcher) setACL(principal security.Principal, acl access.TaggedACLMa
 	aclFile, sigFile, devicedata := d.getACLFilePaths()
 
 	if len(etag) > 0 && etag != d.etag {
-		return verror.Make(access.ErrBadEtag, fmt.Sprintf("etag mismatch in:%s vers:%s", etag, d.etag))
+		return verror.Make(access.BadEtag, nil, etag, d.etag)
 	}
 	if writeToFile {
 		if err := writeACLs(principal, aclFile, sigFile, devicedata, acl); err != nil {
@@ -396,7 +394,7 @@ func (d *dispatcher) Lookup(suffix string) (interface{}, security.Authorizer, er
 					return nil, nil, err
 				}
 				if !instanceStateIs(appInstanceDir, started) {
-					return nil, nil, verror2.Make(ErrInvalidSuffix, nil)
+					return nil, nil, verror.Make(ErrInvalidSuffix, nil)
 				}
 				var sigStub signatureStub
 				if kind == "pprof" {
@@ -434,7 +432,7 @@ func (d *dispatcher) Lookup(suffix string) (interface{}, security.Authorizer, er
 		return receiver, appSpecificAuthorizer, nil
 	case configSuffix:
 		if len(components) != 2 {
-			return nil, nil, verror2.Make(ErrInvalidSuffix, nil)
+			return nil, nil, verror.Make(ErrInvalidSuffix, nil)
 		}
 		receiver := idevice.ConfigServer(&configService{
 			callback: d.internal.callback,
@@ -449,7 +447,7 @@ func (d *dispatcher) Lookup(suffix string) (interface{}, security.Authorizer, er
 		// (and not other apps).
 		return receiver, nil, nil
 	default:
-		return nil, nil, verror2.Make(ErrInvalidSuffix, nil)
+		return nil, nil, verror.Make(ErrInvalidSuffix, nil)
 	}
 }
 
@@ -479,7 +477,7 @@ func newAppSpecificAuthorizer(sec security.Authorizer, config *config.State, suf
 		}
 		return access.TaggedACLAuthorizerFromFile(path.Join(p, "acls", "data"), access.TypicalTagType())
 	}
-	return nil, verror2.Make(ErrInvalidSuffix, nil)
+	return nil, verror.Make(ErrInvalidSuffix, nil)
 }
 
 // allowEveryone implements the authorization policy that allows all principals

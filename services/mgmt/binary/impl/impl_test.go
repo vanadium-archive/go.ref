@@ -17,7 +17,7 @@ import (
 	"veyron.io/veyron/veyron2/naming"
 	"veyron.io/veyron/veyron2/rt"
 	"veyron.io/veyron/veyron2/services/mgmt/repository"
-	"veyron.io/veyron/veyron2/verror"
+	verror "veyron.io/veyron/veyron2/verror2"
 	"veyron.io/veyron/veyron2/vlog"
 
 	"veyron.io/veyron/veyron/lib/testutil"
@@ -320,7 +320,7 @@ func TestErrors(t *testing.T) {
 	}
 	if err := binary.Create(runtime.NewContext(), int32(length), repository.MediaInfo{Type: "application/octet-stream"}); err == nil {
 		t.Fatalf("Create() did not fail when it should have")
-	} else if want := verror.Exists; !verror.Is(err, want) {
+	} else if want := verror.Exist.ID; !verror.Is(err, want) {
 		t.Fatalf("Unexpected error: %v, expected error id %v", err, want)
 	}
 	if streamErr, err := invokeUpload(t, binary, data[0], 0); streamErr != nil || err != nil {
@@ -328,12 +328,12 @@ func TestErrors(t *testing.T) {
 	}
 	if _, err := invokeUpload(t, binary, data[0], 0); err == nil {
 		t.Fatalf("Upload() did not fail when it should have")
-	} else if want := verror.Exists; !verror.Is(err, want) {
+	} else if want := verror.Exist.ID; !verror.Is(err, want) {
 		t.Fatalf("Unexpected error: %v, expected error id %v", err, want)
 	}
 	if _, _, err := invokeDownload(t, binary, 1); err == nil {
 		t.Fatalf("Download() did not fail when it should have")
-	} else if want := verror.NoExist; !verror.Is(err, want) {
+	} else if want := verror.NoExist.ID; !verror.Is(err, want) {
 		t.Fatalf("Unexpected error: %v, expected error id %v", err, want)
 	}
 	if streamErr, err := invokeUpload(t, binary, data[1], 1); streamErr != nil || err != nil {
@@ -347,12 +347,12 @@ func TestErrors(t *testing.T) {
 	for _, part := range []int32{-1, length} {
 		if _, err := invokeUpload(t, binary, []byte("dummy"), part); err == nil {
 			t.Fatalf("Upload() did not fail when it should have")
-		} else if want := verror.BadArg; !verror.Is(err, want) {
+		} else if want := errInvalidPart.ID; !verror.Is(err, want) {
 			t.Fatalf("Unexpected error: %v, expected error id %v", err, want)
 		}
 		if _, _, err := invokeDownload(t, binary, part); err == nil {
 			t.Fatalf("Download() did not fail when it should have")
-		} else if want := verror.BadArg; !verror.Is(err, want) {
+		} else if want := errInvalidPart.ID; !verror.Is(err, want) {
 			t.Fatalf("Unexpected error: %v, expected error id %v", err, want)
 		}
 	}
@@ -361,7 +361,7 @@ func TestErrors(t *testing.T) {
 	}
 	if err := binary.Delete(runtime.NewContext()); err == nil {
 		t.Fatalf("Delete() did not fail when it should have")
-	} else if want := verror.NoExist; !verror.Is(err, want) {
+	} else if want := verror.NoExist.ID; !verror.Is(err, want) {
 		t.Fatalf("Unexpected error: %v, expected error id %v", err, want)
 	}
 }

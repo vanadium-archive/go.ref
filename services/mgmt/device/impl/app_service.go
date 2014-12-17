@@ -446,7 +446,7 @@ func installationDirCore(components []string, root string) (string, error) {
 	installationDir := filepath.Join(root, applicationDirName(app), installationDirName(installation))
 	if _, err := os.Stat(installationDir); err != nil {
 		if os.IsNotExist(err) {
-			return "", verror2.Make(ErrObjectNoExist, nil)
+			return "", verror2.Make(verror2.NoExist, nil, naming.Join(components...))
 		}
 		vlog.Errorf("Stat(%v) failed: %v", installationDir, err)
 		return "", verror2.Make(ErrOperationFailed, nil)
@@ -1220,7 +1220,7 @@ func (i *appService) GlobChildren__(ipc.ServerContext) (<-chan string, error) {
 		}
 		i.scanInstance(tree, i.suffix[0], dir)
 	default:
-		return nil, verror2.Make(ErrObjectNoExist, nil)
+		return nil, verror2.Make(verror2.NoExist, nil, i.suffix)
 	}
 	n := tree.find(i.suffix, false)
 	if n == nil {

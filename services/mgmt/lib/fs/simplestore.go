@@ -12,11 +12,24 @@ import (
 
 	"veyron.io/veyron/veyron/services/mgmt/profile"
 	"veyron.io/veyron/veyron2/services/mgmt/application"
-	"veyron.io/veyron/veyron2/verror"
+	verror "veyron.io/veyron/veyron2/verror2"
 )
 
 // TODO(rjkroege@google.com) Switch Memstore to the mid-August 2014
 // style store API.
+
+const pkgPath = "veyron.io/veyron/veyron/services/mgmt/lib/fs"
+
+// Errors
+var (
+	ErrNoRecursiveCreateTransaction = verror.Register(pkgPath+".ErrNoRecursiveCreateTransaction", verror.NoRetry, "{1:}{2:} recursive CreateTransaction() not permitted{:_}")
+	ErrDoubleCommit                 = verror.Register(pkgPath+".ErrDoubleCommit", verror.NoRetry, "{1:}{2:} illegal attempt to commit previously committed or abandonned transaction{:_}")
+	ErrAbortWithoutTransaction      = verror.Register(pkgPath+".ErrAbortWithoutTransaction", verror.NoRetry, "{1:}{2:} illegal attempt to abort non-existent transaction{:_}")
+	ErrWithoutTransaction           = verror.Register(pkgPath+".ErrRemoveWithoutTransaction", verror.NoRetry, "{1:}{2:} call without a transaction{:_}")
+	ErrNotInMemStore                = verror.Register(pkgPath+".ErrNotInMemStore", verror.NoRetry, "{1:}{2:} not in Memstore{:_}")
+	ErrUnsupportedType              = verror.Register(pkgPath+".ErrUnsupportedType", verror.NoRetry, "{1:}{2:} attempted Put to Memstore of unsupported type{:_}")
+	ErrChildrenWithoutLock          = verror.Register(pkgPath+".ErrChildrenWithoutLock", verror.NoRetry, "{1:}{2:} Children() without a lock{:_}")
+)
 
 // Memstore contains the state of the memstore. It supports a single
 // transaction at a time. The current state of a Memstore under a
@@ -175,7 +188,7 @@ func (ms *Memstore) Lock() {
 // CreateTransaction requires the caller to acquire a lock on the Memstore.
 func (ms *Memstore) CreateTransaction(_ interface{}) (string, error) {
 	if ms.puts != nil || ms.removes != nil {
-		return "", verror.BadProtocolf("recursive CreateTransaction() not permitted")
+		return "", verror.Make(ErrNoRecursiveCreateTransaction, nil)
 	}
 	ms.newTransactionState()
 	return transactionNamePrefix, nil
@@ -184,7 +197,7 @@ func (ms *Memstore) CreateTransaction(_ interface{}) (string, error) {
 // Commit updates the store and persists the result.
 func (ms *Memstore) Commit(_ interface{}) error {
 	if !ms.locked || ms.puts == nil || ms.removes == nil {
-		return verror.BadProtocolf("illegal attempt to commit previously committed or abandonned transaction")
+		return verror.Make(ErrDoubleCommit, nil)
 	}
 	for k, v := range ms.puts {
 		ms.data[k] = v
@@ -197,23 +210,23 @@ func (ms *Memstore) Commit(_ interface{}) error {
 
 func (ms *Memstore) Abort(_ interface{}) error {
 	if !ms.locked {
-		return verror.BadProtocolf("illegal attempt to abort non-existent transaction")
+		return verror.Make(ErrAbortWithoutTransaction, nil)
 	}
 	return nil
 }
 
 func (o *boundObject) Remove(_ interface{}) error {
 	if !o.ms.locked {
-		return verror.BadProtocolf("Remove() without a transaction.")
+		return verror.Make(ErrWithoutTransaction, nil, "Remove()")
 	}
 
 	if _, pendingRemoval := o.ms.removes[o.path]; pendingRemoval {
-		return verror.NoExistf("path %s not in Memstore", o.path)
+		return verror.Make(ErrNotInMemStore, nil, o.path)
 	}
 
 	_, found := o.ms.data[o.path]
 	if !found && !o.ms.removeChildren(o.path) {
-		return verror.NoExistf("path %s not in Memstore", o.path)
+		return verror.Make(ErrNotInMemStore, nil, o.path)
 	}
 	delete(o.ms.puts, o.path)
 	o.ms.removes[o.path] = keyExists
@@ -287,7 +300,7 @@ func (o *boundObject) transactionBoundGet() (*boundObject, error) {
 
 	found := inPuts || (inBase && !inRemoves)
 	if !found {
-		return nil, verror.NoExistf("path %s not in Memstore", o.path)
+		return nil, verror.Make(ErrNotInMemStore, nil, o.path)
 	}
 
 	if inPuts {
@@ -302,7 +315,7 @@ func (o *boundObject) bareGet() (*boundObject, error) {
 	bv, inBase := o.ms.data[o.path]
 
 	if !inBase {
-		return nil, verror.NoExistf("path %s not in Memstore", o.path)
+		return nil, verror.Make(ErrNotInMemStore, nil, o.path)
 	}
 
 	o.Value = bv
@@ -319,7 +332,7 @@ func (o *boundObject) Get(_ interface{}) (*boundObject, error) {
 
 func (o *boundObject) Put(_ interface{}, envelope interface{}) (*boundObject, error) {
 	if !o.ms.locked {
-		return nil, verror.BadProtocolf("Put() without a transaction.")
+		return nil, verror.Make(ErrWithoutTransaction, nil, "Put()")
 	}
 	switch v := envelope.(type) {
 	case application.Envelope, profile.Specification:
@@ -328,13 +341,13 @@ func (o *boundObject) Put(_ interface{}, envelope interface{}) (*boundObject, er
 		o.Value = o.path
 		return o, nil
 	default:
-		return o, verror.BadProtocolf("attempted Put to Memstore of unsupported type")
+		return o, verror.Make(ErrUnsupportedType, nil)
 	}
 }
 
 func (o *boundObject) Children() ([]string, error) {
 	if !o.ms.locked {
-		return nil, verror.BadProtocolf("Children() without a lock.")
+		return nil, verror.Make(ErrChildrenWithoutLock, nil)
 	}
 	found := false
 	set := make(map[string]struct{})
@@ -359,7 +372,7 @@ func (o *boundObject) Children() ([]string, error) {
 		}
 	}
 	if !found {
-		return nil, verror.NoExistf("object %q does not exist", o.path)
+		return nil, verror.Make(verror.NoExist, nil, o.path)
 	}
 	children := make([]string, len(set))
 	i := 0

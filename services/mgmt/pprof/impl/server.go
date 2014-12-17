@@ -9,7 +9,15 @@ import (
 
 	"veyron.io/veyron/veyron2/ipc"
 	spprof "veyron.io/veyron/veyron2/services/mgmt/pprof"
-	"veyron.io/veyron/veyron2/verror"
+	verror "veyron.io/veyron/veyron2/verror2"
+)
+
+const pkgPath = "veyron.io/veyron/veyron/services/mgmt/pprof/impl"
+
+// Errors
+var (
+	errNoProfile      = verror.Register(pkgPath+".errNoProfile", verror.NoRetry, "{1:}{2:} profile does not exist{:_}")
+	errInvalidSeconds = verror.Register(pkgPath+".errInvalidSeconds", verror.NoRetry, "{1:}{2:} invalid number of seconds{:_}")
 )
 
 // NewPProfService returns a new pprof service implementation.
@@ -43,10 +51,10 @@ func (pprofService) Profiles(ipc.ServerContext) ([]string, error) {
 func (pprofService) Profile(ctx spprof.PProfProfileContext, name string, debug int32) error {
 	profile := pprof.Lookup(name)
 	if profile == nil {
-		return verror.NoExistf("profile does not exist")
+		return verror.Make(errNoProfile, ctx, name)
 	}
 	if err := profile.WriteTo(&streamWriter{ctx.SendStream()}, int(debug)); err != nil {
-		return verror.Convert(err)
+		return verror.Convert(verror.Unknown, ctx, err)
 	}
 	return nil
 }
@@ -55,10 +63,10 @@ func (pprofService) Profile(ctx spprof.PProfProfileContext, name string, debug i
 // streams the profile data.
 func (pprofService) CPUProfile(ctx spprof.PProfCPUProfileContext, seconds int32) error {
 	if seconds <= 0 || seconds > 3600 {
-		return verror.BadArgf("invalid number of seconds: %d", seconds)
+		return verror.Make(errInvalidSeconds, ctx, seconds)
 	}
 	if err := pprof.StartCPUProfile(&streamWriter{ctx.SendStream()}); err != nil {
-		return verror.Convert(err)
+		return verror.Convert(verror.Unknown, ctx, err)
 	}
 	time.Sleep(time.Duration(seconds) * time.Second)
 	pprof.StopCPUProfile()
