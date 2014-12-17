@@ -20,7 +20,7 @@ type googleOAuth struct {
 	duration           time.Duration
 	domain             string
 	dischargerLocation string
-	revocationManager  *revocation.RevocationManager
+	revocationManager  revocation.RevocationManager
 }
 
 // AccessTokenClient represents a client of the BlessUsingAccessToken RPCs.
@@ -40,7 +40,7 @@ type GoogleParams struct {
 	// The object name of the discharger service. If this is empty then revocation caveats will not be granted.
 	DischargerLocation string
 	// The revocation manager that generates caveats and manages revocation.
-	RevocationManager *revocation.RevocationManager
+	RevocationManager revocation.RevocationManager
 	// The duration for which blessings will be valid. (Used iff RevocationManager is nil).
 	BlessingDuration time.Duration
 }
