@@ -234,7 +234,8 @@ func getPossibleAddrs(protocol, host, port string, chooser ipc.AddressChooser) (
 			// Need to find a usable IP address since the call to listen
 			// didn't specify one.
 			if addrs, err := netstate.GetAccessibleIPs(); err == nil {
-				if a, err := chooser(protocol, addrs); err == nil && len(a) > 0 {
+				a, err := chooser(protocol, addrs)
+				if err == nil && len(a) > 0 {
 					return a, true, nil
 				}
 			}
@@ -264,7 +265,7 @@ func (s *server) createEndpoints(lep naming.Endpoint, chooser ipc.AddressChooser
 	if err != nil {
 		return nil, false, err
 	}
-	addrs, unspecified, err := getPossibleAddrs(lep.Network(), host, port, chooser)
+	addrs, unspecified, err := getPossibleAddrs(iep.Protocol, host, port, chooser)
 	if err != nil {
 		return nil, false, err
 	}
