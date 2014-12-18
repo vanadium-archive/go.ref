@@ -36,7 +36,7 @@ import (
 	"veyron.io/veyron/veyron/security/serialization"
 
 	"veyron.io/veyron/veyron2/security"
-	"veyron.io/veyron/veyron2/verror"
+	verror "veyron.io/veyron/veyron2/verror2"
 	"veyron.io/veyron/veyron2/vom"
 )
 
@@ -60,6 +60,19 @@ type persistentState struct {
 	// with the account.
 	Accounts map[string]security.WireBlessings
 }
+
+const pkgPath = "veyron.io/wspr/veyron/services/wsprd/principal"
+
+// Errors.
+var (
+	errUnknownAccount                   = verror.Register(pkgPath+".errUnknownAccount", verror.NoRetry, "{1:}{2:} unknown account{:_}")
+	errFailedToCreatePrincipal          = verror.Register(pkgPath+".errFailedToCreatePrincipal", verror.NoRetry, "{1:}{2:} failed to create new principal{:_}")
+	errFailedToConstructBlessings       = verror.Register(pkgPath+".errFailedToConstructBlessings", verror.NoRetry, "{1:}{2:} failed to construct Blessings to bless with{:_}")
+	errFailedToBlessPrincipal           = verror.Register(pkgPath+".errFailedToBlessPrincipal", verror.NoRetry, "{1:}{2:} failed to bless new principal with the provided account{:_}")
+	errFailedToSetDefaultBlessings      = verror.Register(pkgPath+".errFailedToSetDefaultBlessings", verror.NoRetry, "{1:}{2:} failed to set account blessings as default{:_}")
+	errFailedToSetAllPrincipalBlessings = verror.Register(pkgPath+".errFailedToSetAllPrincipalBlessings", verror.NoRetry, "{1:}{2:} failed to set account blessings for all principals{:_}")
+	errFailedToAddRoots                 = verror.Register(pkgPath+".errFailedToAddRoots", verror.NoRetry, "{1:}{2:} failed to add roots of account blessing{:_}")
+)
 
 // bufferCloser implements io.ReadWriteCloser.
 type bufferCloser struct {
@@ -91,8 +104,6 @@ func (s *InMemorySerializer) Writers() (io.WriteCloser, io.WriteCloser, error) {
 	s.signature.Reset()
 	return &s.data, &s.signature, nil
 }
-
-var OriginDoesNotExist = verror.NoExistf("origin not found")
 
 // PrincipalManager manages app principals. We only serialize the accounts
 // associated with this principal manager and the mapping of apps to permissions
@@ -163,11 +174,11 @@ func (i *PrincipalManager) Principal(origin string) (security.Principal, error) 
 	defer i.mu.Unlock()
 	perm, found := i.state.Origins[origin]
 	if !found {
-		return nil, verror.NoExistf("origin not found")
+		return nil, verror.Make(verror.NoExist, nil, origin)
 	}
 	wireBlessings, found := i.state.Accounts[perm.Account]
 	if !found {
-		return nil, verror.NoExistf("unknown account %s", perm.Account)
+		return nil, verror.Make(errUnknownAccount, nil, perm.Account)
 	}
 	return i.createPrincipal(origin, wireBlessings, perm.Caveats)
 }
@@ -185,7 +196,7 @@ func (i *PrincipalManager) BlessingsForAccount(account string) (security.Blessin
 
 	wireBlessings, found := i.state.Accounts[account]
 	if !found {
-		return nil, verror.NoExistf("unknown account %s", account)
+		return nil, verror.Make(errUnknownAccount, nil, account)
 	}
 	return security.NewBlessings(wireBlessings)
 }
@@ -214,7 +225,7 @@ func (i *PrincipalManager) AddOrigin(origin string, account string, caveats []se
 	i.mu.Lock()
 	defer i.mu.Unlock()
 	if _, found := i.state.Accounts[account]; !found {
-		return verror.NoExistf("unknown account %s", account)
+		return verror.Make(errUnknownAccount, nil, account)
 	}
 
 	old, existed := i.state.Origins[origin]
@@ -233,12 +244,12 @@ func (i *PrincipalManager) AddOrigin(origin string, account string, caveats []se
 func (i *PrincipalManager) createPrincipal(origin string, wireBlessings security.WireBlessings, caveats []security.Caveat) (security.Principal, error) {
 	ret, err := vsecurity.NewPrincipal()
 	if err != nil {
-		return nil, verror.Internalf("failed to create new principal: %v", err)
+		return nil, verror.Make(errFailedToCreatePrincipal, nil, err)
 	}
 
 	withBlessings, err := security.NewBlessings(wireBlessings)
 	if err != nil {
-		return nil, verror.Internalf("failed to construct Blessings to bless with: %v", err)
+		return nil, verror.Make(errFailedToConstructBlessings, nil, err)
 	}
 
 	if len(caveats) == 0 {
@@ -248,17 +259,17 @@ func (i *PrincipalManager) createPrincipal(origin string, wireBlessings security
 	// blessing extension. Hence we must url-encode.
 	blessings, err := i.root.Bless(ret.PublicKey(), withBlessings, url.QueryEscape(origin), caveats[0], caveats[1:]...)
 	if err != nil {
-		return nil, verror.NoAccessf("failed to bless new principal with the provided account: %v", err)
+		return nil, verror.Make(errFailedToBlessPrincipal, nil, err)
 	}
 
 	if err := ret.BlessingStore().SetDefault(blessings); err != nil {
-		return nil, verror.Internalf("failed to set account blessings as default: %v", err)
+		return nil, verror.Make(errFailedToSetDefaultBlessings, nil, err)
 	}
 	if _, err := ret.BlessingStore().Set(blessings, security.AllPrincipals); err != nil {
-		return nil, verror.Internalf("failed to set account blessings for all principals: %v", err)
+		return nil, verror.Make(errFailedToSetAllPrincipalBlessings, nil, err)
 	}
 	if err := ret.AddToRoots(blessings); err != nil {
-		return nil, verror.Internalf("failed to add roots of account blessing: %v", err)
+		return nil, verror.Make(errFailedToAddRoots, nil, err)
 	}
 	return ret, nil
 }

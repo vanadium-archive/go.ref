@@ -7,6 +7,8 @@ import (
 	vsecurity "veyron.io/veyron/veyron/security"
 
 	"veyron.io/veyron/veyron2/security"
+	"veyron.io/veyron/veyron2/verror"
+	"veyron.io/veyron/veyron2/verror2"
 )
 
 func newPrincipal() security.Principal {
@@ -33,6 +35,19 @@ func matchesError(got error, want string) error {
 		return fmt.Errorf("Got nil error, wanted to match %q", want)
 	}
 	if !strings.Contains(got.Error(), want) {
+		return fmt.Errorf("Got error %q, wanted to match %q", got, want)
+	}
+	return nil
+}
+
+func matchesErrorID(got error, want verror.ID) error {
+	if (got == nil) && len(want) == 0 {
+		return nil
+	}
+	if got == nil {
+		return fmt.Errorf("Got nil error, wanted to match %q", want)
+	}
+	if !verror2.Is(got, want) {
 		return fmt.Errorf("Got error %q, wanted to match %q", got, want)
 	}
 	return nil

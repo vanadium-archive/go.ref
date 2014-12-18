@@ -4,10 +4,18 @@ import (
 	"veyron.io/veyron/veyron2/ipc"
 	"veyron.io/veyron/veyron2/vdl"
 	"veyron.io/veyron/veyron2/vdl/vdlroot/src/signature"
-	"veyron.io/veyron/veyron2/verror"
+	verror "veyron.io/veyron/veyron2/verror2"
 )
 
 var typedNil []int
+
+const pkgPath = "veyron.io/wspr/veyron/services/wsprd/ipc/server"
+
+// Errors.
+var (
+	errWrongNumberOfArgs         = verror.Register(pkgPath+".errWrongNumberOfArgs", verror.NoRetry, "{1:}{2:} Method {3} got {4} args, want {5}{:_}")
+	errMethodNotFoundInSignature = verror.Register(pkgPath+".errMethodNotFoundInSignature", verror.NoRetry, "{1:}{2:} Method {3} not found in signature{:_}")
+)
 
 // invoker holds a delegate function to call on invoke and a list of methods that
 // are available for be called.
@@ -33,7 +41,7 @@ func (i *invoker) Prepare(methodName string, numArgs int) ([]interface{}, []inte
 		return nil, nil, err
 	}
 	if got, want := numArgs, len(method.InArgs); got != want {
-		return nil, nil, verror.NoExistf("Method %q got %d args, want %d", methodName, got, want)
+		return nil, nil, verror.Make(errWrongNumberOfArgs, nil, methodName, got, want)
 	}
 	argptrs := make([]interface{}, len(method.InArgs))
 	for ix, arg := range method.InArgs {
@@ -83,5 +91,5 @@ func (i *invoker) MethodSignature(ctx ipc.ServerContext, method string) (signatu
 	if methodSig, ok := signature.FirstMethod(i.signature, method); ok {
 		return methodSig, nil
 	}
-	return signature.Method{}, verror.NoExistf("Method %q not found in signature", method)
+	return signature.Method{}, verror.Make(errMethodNotFoundInSignature, ctx, method)
 }

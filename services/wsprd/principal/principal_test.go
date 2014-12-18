@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"veyron.io/veyron/veyron2/security"
+	verror "veyron.io/veyron/veyron2/verror2"
 	"veyron.io/veyron/veyron2/vom"
 )
 
@@ -42,7 +43,7 @@ func (t *tester) testSetters(m *PrincipalManager) error {
 		return fmt.Errorf("AddOrigin failed: %v", err)
 	}
 
-	if err := matchesError(m.AddOrigin(t.origin, "nonExistingAccount", nil), "unknown account"); err != nil {
+	if err := matchesErrorID(m.AddOrigin(t.origin, "nonExistingAccount", nil), errUnknownAccount.ID); err != nil {
 		return fmt.Errorf("AddOrigin(..., 'nonExistingAccount', ...): %v", err)
 	}
 	return nil
@@ -87,8 +88,8 @@ func (t *tester) testGetters(m *PrincipalManager) error {
 
 	unknownOrigin := "http://unknown.com:80"
 	_, err = m.Principal(unknownOrigin)
-	if merr := matchesError(err, "origin not found"); merr != nil {
-		return fmt.Errorf("Principal(%v): %v", unknownOrigin, merr)
+	if merr := matchesErrorID(err, verror.NoExist.ID); merr != nil {
+		return fmt.Errorf("Principal(%v): %v, errorid=%v", unknownOrigin, merr)
 	}
 
 	// Test BlessingsForAccount.
