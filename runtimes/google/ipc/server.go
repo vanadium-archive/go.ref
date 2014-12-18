@@ -1169,6 +1169,9 @@ func (fs *flowServer) MethodTags() []interface{} {
 	//nologcall
 	return fs.tags
 }
+func (fs *flowServer) Context() context.T {
+	return fs.T
+}
 
 // TODO(cnicolaou): remove Name from ipc.ServerContext and all of
 // its implementations
