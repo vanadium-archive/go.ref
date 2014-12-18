@@ -1226,7 +1226,7 @@ func (i *appService) GlobChildren__(ipc.ServerContext) (<-chan string, error) {
 	if n == nil {
 		return nil, verror2.Make(ErrInvalidSuffix, nil)
 	}
-	ch := make(chan string, 100)
+	ch := make(chan string)
 	go func() {
 		for child, _ := range n.children {
 			ch <- child

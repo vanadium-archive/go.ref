@@ -334,7 +334,7 @@ func (i *binaryService) GlobChildren__(context ipc.ServerContext) (<-chan string
 	if n == nil {
 		return nil, verror.Make(errOperationFailed, context)
 	}
-	ch := make(chan string, 100)
+	ch := make(chan string)
 	go func() {
 		for k, _ := range n.children {
 			ch <- k
