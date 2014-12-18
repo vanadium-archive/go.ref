@@ -34,7 +34,7 @@ type Profile interface {
 	public.Profile
 	// Specification returns the profile specification for the profile
 	// identified through the object name suffix.
-	Specification() (profile.Specification, error) {access.Read}
+	Specification() (profile.Specification | error) {access.Read}
 	// Put sets the profile specification for the profile identified
 	// through the object name suffix.
 	Put(Specification profile.Specification) error {access.Write}

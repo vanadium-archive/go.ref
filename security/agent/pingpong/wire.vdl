@@ -2,5 +2,5 @@ package main
 
 // Simple service used in the agent tests.
 type PingPong interface {
-	Ping(message string) (string, error)
+	Ping(message string) (string | error)
 }
