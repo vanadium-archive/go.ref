@@ -28,9 +28,9 @@ type RockPaperScissors interface {
 type Judge interface {
   // CreateGame creates a new game with the given game options and returns a game
   // identifier that can be used by the players to join the game.
-  CreateGame(Opts GameOptions) (GameID, error) {access.Admin}
+  CreateGame(Opts GameOptions) (GameID | error) {access.Admin}
   // Play lets a player join an existing game and play.
-  Play(ID GameID) stream<PlayerAction,JudgeAction> (PlayResult, error) {access.Admin}
+  Play(ID GameID) stream<PlayerAction,JudgeAction> (PlayResult | error) {access.Admin}
 }
 
 // A GameID is used to uniquely identify a game within one Judge.

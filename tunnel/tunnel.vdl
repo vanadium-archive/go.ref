@@ -16,7 +16,7 @@ type Tunnel interface {
   // shell's stdin, and the data received from the shell's stdout and stderr is
   // sent back in the reply stream. It returns the exit status of the shell
   // command.
-  Shell(command string, shellOpts ShellOpts) stream<ClientShellPacket, ServerShellPacket> (int32, error) {access.Admin}
+  Shell(command string, shellOpts ShellOpts) stream<ClientShellPacket, ServerShellPacket> (int32 | error) {access.Admin}
 }
 
 type ShellOpts struct {
