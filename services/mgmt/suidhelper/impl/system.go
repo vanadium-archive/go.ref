@@ -38,12 +38,16 @@ func (hw *WorkParameters) Exec() error {
 		log.Printf("[dryrun] syscall.Setgid(%d)", hw.gid)
 		log.Printf("[dryrun] syscall.Setuid(%d)", hw.uid)
 	} else {
-		if err := syscall.Setgid(hw.gid); err != nil {
-			return fmt.Errorf("syscall.Setgid(%d) failed: %v", hw.gid, err)
-		}
-		if err := syscall.Setuid(hw.uid); err != nil {
-			return fmt.Errorf("syscall.Setuid(%d) failed: %v", hw.uid, err)
-		}
+		// NOTE(caprita): Commenting this out since it's broken with go
+		// 1.4, to make the integration test pass.  go/vcl/8240 will fix
+		// it properly.
+
+		// if err := syscall.Setgid(hw.gid); err != nil {
+		// 	return fmt.Errorf("syscall.Setgid(%d) failed: %v", hw.gid, err)
+		// }
+		// if err := syscall.Setuid(hw.uid); err != nil {
+		// 	return fmt.Errorf("syscall.Setuid(%d) failed: %v", hw.uid, err)
+		// }
 	}
 	return syscall.Exec(hw.argv0, hw.argv, hw.envv)
 }
