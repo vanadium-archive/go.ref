@@ -145,12 +145,8 @@ func (s *server) Published() ([]string, error) {
 	return s.publisher.Published(), nil
 }
 
-// resolveToAddress will try to resolve the input to an address using the
-// mount table, if the input is not already an address.
-func (s *server) resolveToAddress(address string) (string, error) {
-	if _, err := inaming.NewEndpoint(address); err == nil {
-		return address, nil
-	}
+// resolveToEndpoint resolves an object name or address to an endpoint.
+func (s *server) resolveToEndpoint(address string) (string, error) {
 	var names []string
 	if s.ns != nil {
 		var entry *naming.MountEntry
@@ -476,7 +472,7 @@ func (s *server) Listen(listenSpec ipc.ListenSpec) ([]naming.Endpoint, error) {
 }
 
 func (s *server) reconnectAndPublishProxy(proxy string) (*inaming.Endpoint, stream.Listener, error) {
-	resolved, err := s.resolveToAddress(proxy)
+	resolved, err := s.resolveToEndpoint(proxy)
 	if err != nil {
 		return nil, nil, fmt.Errorf("Failed to resolve proxy %q (%v)", proxy, err)
 	}
